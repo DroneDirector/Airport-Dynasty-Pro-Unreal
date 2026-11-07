@@ -89,3 +89,9 @@
   PC is off; PC on the owner's PC as a self-hosted build machine, catching up with the newest version as soon as the
   PC is back online (a job waiting for an offline PC is dropped after about 24 hours, so a catch-up build runs when
   the PC's build machine starts), with a notification when the PC build is done.
+- Approved exception to "no tests": with every release an automatic check runs one simulated day of the same world,
+  from the same starting point, in both setups (the Android web view and the PC's embedded JavaScript engine) and
+  compares every passenger, flight and number. Any difference stops the release before it is published.
+- The shared world's data (saves and live events) has one format, defined once in the shared code, with a version
+  number. An older version never damages a newer save: it updates first, or opens the world only to watch until it
+  is updated.
