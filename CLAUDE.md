@@ -1,8 +1,7 @@
 # Airport Dynasty Pro – Unreal Engine 5 edition: project rules
 
 - The PC version of Airport Dynasty Pro on Unreal Engine 5 (Windows only). It is built next to the Babylon.js edition
-  (DroneDirector/Airline-Manager-Pro-Babylon), which is never changed by work here and keeps working until this edition
-  replaces it.
+  (DroneDirector/Airline-Manager-Pro-Babylon), which stays the Android version and keeps working throughout.
 - Sign every commit as `DroneDirector <simon@dronedirector.fo>`, with no co-author or session lines.
 - Never mention in code, comments, text or commits that anything is made with AI.
 - Licences of anything used must allow commercial sale in a paid game, asking at most for credit (and the licence
@@ -80,3 +79,7 @@
   real sizes (the Babylon edition's src/sections/terminal/plan.ts is already in metres). Android draws its 2D map and
   generic 3D buildings from it; Unreal places the detailed terminal's pieces from it. Taxi routes, taxi times and
   walking times are worked out from this one file with the same speed rules, so they match exactly on both.
+- Releases (from the start of the Unreal work, Monday 2026-11-09): build and publish both, Android (the Babylon
+  edition) and PC (this Unreal edition). Only the PC version has airport mode and its button, the custom terminal and
+  everything custom that goes with it. Both have the airport layout with its real dimensions; Android shows it as a
+  2D map and a 2D layered map of the terminal (one layer per floor).
