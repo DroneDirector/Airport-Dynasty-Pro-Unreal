@@ -83,3 +83,9 @@
   edition) and PC (this Unreal edition). Only the PC version has airport mode and its button, the custom terminal and
   everything custom that goes with it. Both have the airport layout with its real dimensions; Android shows it as a
   2D map and a 2D layered map of the terminal (one layer per floor).
+- Decided 2026-11-07: both editions live in this repo (the Babylon edition moves in as the Android version; its
+  update check gets the new address in one last release from the old repo first, and private releases need another
+  way for the app to fetch updates). Builds: Android on GitHub's own build machines, so it always builds even when the
+  PC is off; PC on the owner's PC as a self-hosted build machine, catching up with the newest version as soon as the
+  PC is back online (a job waiting for an offline PC is dropped after about 24 hours, so a catch-up build runs when
+  the PC's build machine starts), with a notification when the PC build is done.
