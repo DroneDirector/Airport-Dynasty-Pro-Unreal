@@ -63,6 +63,7 @@
   sync: economy, money, aircraft buying/selling/leasing, car rental, AI airlines and traffic, hired crew, timetables,
   staff and all game logic. The world's code is written once (the Babylon edition's TypeScript game code) and runs in
   both (in Unreal through the browser view or an embedded JavaScript engine), so the rules never drift apart. One
-  save in the cloud (Supabase); one device runs the world at a time and the other watches and manages; time while
-  both are closed is worked out on opening. Airport mode (the 3D terminal, people, vehicles, jetways) is Unreal only;
+  save in the cloud (Supabase); one device runs the world at a time, and watching and managing work on both, Android and PC; time while
+  both are closed is worked out on opening. Airport mode (the 3D terminal, people, vehicles, jetways, the custom airport) is Unreal only, with the heavy
+  graphics on the PC;
   its passengers come from the shared world's numbers and what they spend goes back into it.
