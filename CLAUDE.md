@@ -47,3 +47,9 @@
   glow with shimmer and a sweeping scan line, a slight 3D tilt when opened larger with the floors stacked like glass
   layers and animated floor switches, live dots for walking people and aircraft outlines at the gates, crisp at any
   size. The same for the timetable screens, the glass, the menus and the settings.
+- The terminal grows in play, like building in The Sims: the airport manager adds terminal extensions (and later more
+  buildings) to meet traffic. So everything is built from modular, snap-together pieces placed from saved data at run
+  time (instanced Nanite meshes), not baked into fixed maps; lighting is Lumen only (nothing baked), the walking paths
+  rebuild themselves where something is added, and each wing or extension is its own zone that loads and drops its
+  detail by distance and by which zone the player is in. People far away use Mass's cheaper levels of detail. Distant
+  buildings may use simplified merged meshes (HLOD mesh merge), never picture impostors.
