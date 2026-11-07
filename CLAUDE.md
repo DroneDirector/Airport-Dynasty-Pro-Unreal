@@ -35,3 +35,9 @@
   - Not used: Cesium ion (paid for commercial games), Google Photorealistic 3D Tiles (billed per use).
 - Building from anywhere: the owner's PC as a GitHub self-hosted build machine, and Claude Code on that PC reachable
   from the phone; Parsec or Steam Link to see the game remotely.
+- Converting each part: first rebuild it to look the same as in the Babylon edition, then offer upgrades the owner
+  picks from. Example, the 2D holographic map (Babylon `src/ui/holomap.ts`): same blue holographic grid, floor label,
+  floor plan lines, the player's arrow with its view cone, corner brackets, size and placement; then offered: real
+  glow with shimmer and a sweeping scan line, a slight 3D tilt when opened larger with the floors stacked like glass
+  layers and animated floor switches, live dots for walking people and aircraft outlines at the gates, crisp at any
+  size. The same for the timetable screens, the glass, the menus and the settings.
