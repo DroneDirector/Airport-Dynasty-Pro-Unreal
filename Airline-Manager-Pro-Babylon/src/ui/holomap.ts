@@ -1,7 +1,7 @@
 // The airport map while you walk: a square, holographic blue map in the corner, always centred on you and turned
 // the way you face. Its walls are traced from the terminal's 3D model; the stairs, lifts, columns, the rooms' names,
 // the kerb, the apron and the rental car centre come from the plan. The floor you are on is drawn clearly; the other
-// floors only as a faint ghost. Navigation: the tab under the map (or M, or a tap on the map) opens it full screen;
+// floors only as a faint ghost; it zooms out as you move faster. Navigation: the tab under the map (or M, or a tap on the map) opens it full screen;
 // tap where you want to go and a route is drawn there (through the doors, up or down the stairs or the lift), bright
 // on your floor and faint on the others; it follows you as you walk and clears when you arrive (or with ✕).
 import { ROOMS, DOORS, STAIRS, LIFTS, OUTSIDE, COLUMNS, Fl } from '../sections/terminal/plan';
@@ -197,6 +197,8 @@ export function holoMap(host: HTMLElement, get: () => HoloState | null, root?: T
     ...OUTSIDE.filter(o => o.name && !/DOOR/.test(o.id)).map(o => ({ f: 1, x: (o.x0 + o.x1) / 2, z: (o.z0 + o.z1) / 2, w: o.x1 - o.x0, h: o.z1 - o.z0, t: short(o.name!), r: o as any })),
     ...OUTSIDE.filter(o => o.id === 'KERB' || o.id === 'APRON').map(o => ({ f: 1, x: (o.x0 + o.x1) / 2, z: o.id === 'APRON' ? o.z0 + 8 : (o.z0 + o.z1) / 2, w: o.x1 - o.x0, h: 10, t: o.id === 'KERB' ? 'KERB · DEPARTURES' : 'APRON', r: o as any }))];
 
+  // places to go to with one tap in the full map: the gates, security, check-in, lounges and the like
+  const PLACES = NAMES.filter((q, i, a) => /gate|security|check|lounge|toilet|wc|baggage|arrival|exit|caf/i.test(q.t) && a.findIndex(o => o.t === q.t) === i).slice(0, 10);
   // the waypoint and its route
   let dest: { x: number; z: number; f: number; name: string } | null = null, route: RoutePt[] | null = null, routeT = 0, routeLen = 0, routeBusy = false;
   const setDest = (d: typeof dest) => { dest = d; route = null; routeT = 0; xBtn.hidden = !d; goBtn.textContent = d ? '◎ Route' : '◎ Navigate'; };
@@ -262,6 +264,9 @@ export function holoMap(host: HTMLElement, get: () => HoloState | null, root?: T
       c.save(); if (!mine) c.translate(0, (V.f - dest.f) * 7 * dpr); c.globalAlpha = mine ? 1 : 0.3;
       c.strokeStyle = `rgba(255,200,110,${0.35 + 0.4 * pulse})`; c.lineWidth = 1.5 * dpr; c.beginPath(); c.arc(p[0], p[1], (8 + 6 * pulse) * dpr, 0, Math.PI * 2); c.stroke();
       c.fillStyle = '#FFD58A'; c.shadowColor = 'rgba(255,170,60,1)'; c.shadowBlur = 10 * dpr; c.beginPath(); c.moveTo(p[0], p[1] - 6 * dpr); c.lineTo(p[0] + 5 * dpr, p[1]); c.lineTo(p[0], p[1] + 6 * dpr); c.lineTo(p[0] - 5 * dpr, p[1]); c.closePath(); c.fill(); c.restore(); c.shadowBlur = 0; }
+    if (dest && dest.f !== V.f) { const p = P(dest.x, dest.z), up = dest.f > V.f, txt = `${up ? '▲' : '▼'} FLOOR ${dest.f}`; c.font = `700 ${9 * dpr}px Inter, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+      const tw = c.measureText(txt).width, x = Math.max(tw / 2 + 6 * dpr, Math.min(W - tw / 2 - 6 * dpr, p[0])), y = Math.max(12 * dpr, Math.min(H - 12 * dpr, p[1] + (up ? -16 : 16) * dpr));
+      c.fillStyle = 'rgba(40,24,6,.85)'; c.fillRect(x - tw / 2 - 4 * dpr, y - 6.5 * dpr, tw + 8 * dpr, 13 * dpr); c.fillStyle = '#FFE2AE'; c.fillText(txt, x, y); }
     // the names on this floor only, upright, where they fit, never on top of each other
     c.textAlign = 'center'; c.textBaseline = 'middle'; const taken: number[][] = [];
     for (const n of here ? [...NAMES.filter(q => q.r.id === here.id), ...NAMES.filter(q => q.r.id !== here.id)] : NAMES) { if (n.f !== V.f || !inView(n.x, n.z)) continue;
@@ -300,7 +305,7 @@ export function holoMap(host: HTMLElement, get: () => HoloState | null, root?: T
     try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) { /* no lock */ }
     full = document.createElement('div'); full.className = 'hm-full';
     full.innerHTML = `<canvas></canvas><div class="hm-bar"><b>Terminal navigation<small>Tap where you want to go. Drag to move the map${IS_TOUCH ? ', pinch' : ', scroll'} to zoom.</small></b>
-      ${FLOORS.slice().reverse().map(f => `<button data-fl="${f}">Floor ${f}</button>`).join('')}<button data-me>Centre on me</button><button class="warm" data-clear ${dest ? '' : 'hidden'}>✕ Remove waypoint</button></div>
+      ${FLOORS.slice().reverse().map(f => `<button data-fl="${f}">Floor ${f}</button>`).join('')}${PLACES.map((q, i) => `<button data-go="${i}">${q.t.toLowerCase().replace(/(^|\s)\S/g, x => x.toUpperCase())}</button>`).join('')}<button data-me>Centre on me</button><button class="warm" data-clear ${dest ? '' : 'hidden'}>✕ Remove waypoint</button></div>
       <button class="hm-min" data-min title="Minimise">▾ Minimise</button>`;
     host.appendChild(full);
     fv = { cx: st.x, cz: st.z, yaw: 0, k: 0, f: st.f, full: true };
@@ -311,6 +316,7 @@ export function holoMap(host: HTMLElement, get: () => HoloState | null, root?: T
     tabs();
     full.addEventListener('click', e => { const b = (e.target as HTMLElement).closest('button'); if (!b) return; e.stopPropagation();
       if (b.hasAttribute('data-fl')) { fv!.f = Number(b.getAttribute('data-fl')); tabs(); }
+      if (b.hasAttribute('data-go')) { const q = PLACES[Number(b.getAttribute('data-go'))]; if (q) { setDest({ x: q.x, z: q.z, f: q.f, name: q.t }); toast(`Waypoint: ${q.t.toLowerCase().replace(/(^|\s)\S/g, x => x.toUpperCase())}, floor ${q.f}`); setTimeout(closeFull, 450); } }
       if (b.hasAttribute('data-me')) { const s2 = get(); if (s2) { fv!.cx = s2.x; fv!.cz = s2.z; fv!.f = s2.f; tabs(); } }
       if (b.hasAttribute('data-clear')) { setDest(null); (b as HTMLElement).hidden = true; toast('Waypoint removed'); }
       if (b.hasAttribute('data-min')) closeFull(); });
@@ -346,6 +352,7 @@ export function holoMap(host: HTMLElement, get: () => HoloState | null, root?: T
     if (e.key === 'm' || e.key === 'M') { if (full) closeFull(); else openFull(); } else if (e.key === 'Escape' && full) closeFull(); };
   window.addEventListener('keydown', onKey);
 
+  let lastS: { x: number; z: number; t: number } | null = null, spd = 0, span = 90;
   const draw = () => {
     if (!box.isConnected) { dispose(); return; }
     const st = get(); if (!st) { box.style.display = 'none'; return; } box.style.display = '';
@@ -356,7 +363,9 @@ export function holoMap(host: HTMLElement, get: () => HoloState | null, root?: T
         findRouteAsync(st, dest).then(r => { routeBusy = false; if (dest !== d0) return; route = r; routeLen = 0; if (r) for (let i = 1; i < r.length; i++) routeLen += Math.hypot(r[i].x - r[i - 1].x, r[i].z - r[i - 1].z); }); } }
     const dpr = Math.min(2, window.devicePixelRatio || 1), W = Math.round(box.clientWidth * dpr), H = Math.round(box.clientHeight * dpr);
     if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
-    render(cx, W, H, dpr, { cx: st.x, cz: st.z, yaw: st.yaw, k: W / 90, f: st.f, full: false }, st);
+    if (lastS && now > lastS.t) { const v = Math.hypot(st.x - lastS.x, st.z - lastS.z) / ((now - lastS.t) / 1000); if (v < 60) spd += (v - spd) * 0.15; } lastS = { x: st.x, z: st.z, t: now };
+    span += (90 + Math.min(70, Math.max(0, spd - 2.2) * 10) - span) * 0.06;
+    render(cx, W, H, dpr, { cx: st.x, cz: st.z, yaw: st.yaw, k: W / span, f: st.f, full: false }, st);
     if (full && fv) { const fc = full.querySelector('canvas') as HTMLCanvasElement, r = full.getBoundingClientRect(), FW = Math.round(full.clientWidth * dpr), FH = Math.round(full.clientHeight * dpr);
       if (r.width > 0 && (fc.width !== FW || fc.height !== FH)) { fc.width = FW; fc.height = FH; } render(fc.getContext('2d')!, FW, FH, dpr, fv, st); }
   };
