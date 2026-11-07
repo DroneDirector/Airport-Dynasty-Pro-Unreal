@@ -75,3 +75,8 @@
   world says they are and Unreal animates them from there; the world's logic stays in charge of timing (Unreal
   adjusts walking to match), and what happens in airport mode is written back to the same passenger. Changes built
   on the PC (extensions, new gates) update the shared layout, so Android sees them too.
+- One layout file for the custom airport, in real metres and placed on the globe (latitude, longitude, heading): the
+  runways, taxiway network (with each segment's length), stands, gates and the terminal's outline and zones with their
+  real sizes (the Babylon edition's src/sections/terminal/plan.ts is already in metres). Android draws its 2D map and
+  generic 3D buildings from it; Unreal places the detailed terminal's pieces from it. Taxi routes, taxi times and
+  walking times are worked out from this one file with the same speed rules, so they match exactly on both.
