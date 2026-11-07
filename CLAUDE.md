@@ -67,3 +67,11 @@
   both are closed is worked out on opening. Airport mode (the 3D terminal, people, vehicles, jetways, the custom airport) is Unreal only, with the heavy
   graphics on the PC;
   its passengers come from the shared world's numbers and what they spend goes back into it.
+- The custom airport on both: its layout (runways, taxiways, stands, gates and the terminal's zones) is part of the
+  shared world. Android shows it as the 2D layout map and a light, generic building made from that same layout; the
+  detailed terminal is only in Unreal. Passengers live in the shared world as data (identity, booking, stage of the
+  trip, which zone they are in, mood, money) with times worked out from the layout's walking distances, so Android
+  runs their whole trip without animating them. When airport mode opens on the PC, each passenger appears where the
+  world says they are and Unreal animates them from there; the world's logic stays in charge of timing (Unreal
+  adjusts walking to match), and what happens in airport mode is written back to the same passenger. Changes built
+  on the PC (extensions, new gates) update the shared layout, so Android sees them too.
