@@ -1,0 +1,30 @@
+# Unreal Engine: generated and per-machine files
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+Build/
+.vs/
+.vscode/
+.idea/
+*.sln
+*.suo
+*.sdf
+*.VC.db
+*.VC.opendb
+*.opensdf
+*.pdb
+*.ilk
+*.exp
+*.obj
+*.o
+Plugins/*/Binaries/
+Plugins/*/Intermediate/
+# packaged game output
+Packaged/
+Releases/
+# secrets: never in the repo
+*.key
+*.pem
+.env
+Config/Secrets*.ini
