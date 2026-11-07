@@ -14,6 +14,8 @@
 - Never put registration keys, passwords or secret keys in the repo. For Supabase, only the Project URL and the
   anon/publishable key.
 - Big files (models, textures, sounds, .uasset, .umap) go through Git LFS (see .gitattributes).
+- Don't publish in small pieces: build and collect many changes, then publish them together in one release. When the
+  owner asks for a small separate publish, remind him of this rule every time, however often it happens.
 - Updates install over the old version; the version number goes up with every release.
 - Show progress as percentages (building and publishing), about every 10%.
 - Don't run tests or check that things work unless the owner asks: build what is needed and release.
