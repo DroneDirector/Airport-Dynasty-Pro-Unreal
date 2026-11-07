@@ -8,6 +8,9 @@
 - Licences of anything used must allow commercial sale in a paid game, asking at most for credit (and the licence
   text). Never non-commercial, share-alike on the game, or paid-only terms. Our own models, pictures and sounds only.
   List every third-party part in THIRD-PARTY-NOTICES.md and keep it up to date.
+- It is a commercial game: never use anything that doesn't allow commercial use in a paid game. Check the licence of
+  every plugin, asset (including Fab and other marketplaces), font, sound, data source and code library before it goes
+  in; if the terms are unclear or missing, leave it out. Engine content or samples count too.
 - Never put registration keys, passwords or secret keys in the repo. For Supabase, only the Project URL and the
   anon/publishable key.
 - Big files (models, textures, sounds, .uasset, .umap) go through Git LFS (see .gitattributes).
