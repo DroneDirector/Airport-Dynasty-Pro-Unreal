@@ -83,7 +83,9 @@
   edition) and PC (this Unreal edition). Only the PC version has airport mode and its button, the custom terminal and
   everything custom that goes with it. Both have the airport layout with its real dimensions; Android shows it as a
   2D map and a 2D layered map of the terminal (one layer per floor).
-- Decided 2026-11-07: both editions live in this repo (the Babylon edition moves in as the Android version; its
+- Done 2026-11-07: both editions live in this repo (the Babylon edition is in Airline-Manager-Pro-Babylon/, the Android
+  version, built by .github/workflows/build.yml together with its PC build until the Unreal PC build replaces it; its
+  files are ordinary git files, not LFS; the old repo's monthly layout run was not moved and stays there, paused; its
   update check gets the new address in one last release from the old repo first, and private releases need another
   way for the app to fetch updates). Builds: Android on GitHub's own build machines, so it always builds even when the
   PC is off; PC on the owner's PC as a self-hosted build machine, catching up with the newest version as soon as the

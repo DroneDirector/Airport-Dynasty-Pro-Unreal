@@ -1,0 +1,10 @@
+{
+  "_comment": "The Babylon.js edition's name and identity. The build copies these everywhere they are needed. It installs beside the main game (its own app id).",
+  "appName": "Airport Dynasty Pro",
+  "shortName": "Dynasty Pro",
+  "appId": "com.dronedirector.airlinemanagerpro.babylon",
+  "publisher": "DroneDirector",
+  "version": "0.3.91",
+  "versionCode": 99,
+  "updates": { "repo": "DroneDirector/Airport-Dynasty-Pro-Unreal", "tagPrefix": "airline-manager-pro-babylon-v" }
+}
