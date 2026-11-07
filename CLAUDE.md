@@ -19,7 +19,8 @@
 - Updates install over the old version; the version number goes up with every release.
 - Show progress as percentages (building and publishing), about every 10%.
 - Don't run tests or check that things work unless the owner asks: build what is needed and release.
-- Don't make or share screenshots unless asked.
+- Don't make or share screenshots unless asked. Avoid image and test renders as much as possible (the owner looks at
+  results himself in the editor); when he asks for a render he doesn't really need, remind him of this every time.
 - Text and menus must never overlap anywhere.
 - Never add far-object impostors.
 
