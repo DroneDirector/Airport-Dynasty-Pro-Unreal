@@ -56,16 +56,16 @@ jobs:
         working-directory: Airline-Manager-Pro-Babylon/pc
         run: |
           $v = (Get-Content ../app.config.json | ConvertFrom-Json).version
-          $f = "AirlineManagerProBabylon-PC-$v.zip"
+          $f = "AirportDynastyPro-PC-$v.zip"
           Compress-Archive -Path "build/Airport Dynasty Pro PC" -DestinationPath $f
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress | Out-Null }
           $env:AMPB_VERSION = $v
           & $iscc setup.iss
           if ($LASTEXITCODE -ne 0) { exit 1 }
-          Copy-Item "build/AirlineManagerProBabylon-PC-Setup-$v.exe" .
+          Copy-Item "build/AirportDynastyPro-PC-Setup-$v.exe" .
           "file=$f" >> $env:GITHUB_OUTPUT
-          "setup=AirlineManagerProBabylon-PC-Setup-$v.exe" >> $env:GITHUB_OUTPUT
+          "setup=AirportDynastyPro-PC-Setup-$v.exe" >> $env:GITHUB_OUTPUT
       - uses: actions/upload-artifact@v4
         with:
           name: amp-babylon-pc
@@ -110,7 +110,7 @@ jobs:
         id: apk
         run: |
           V=$(node -p "require('./app.config.json').version")
-          F="AirlineManagerProBabylon-${V}.apk"
+          F="AirportDynastyPro-Android-${V}.apk"
           cp android/app/build/outputs/apk/debug/app-debug.apk "$F"
           echo "file=Airline-Manager-Pro-Babylon/$F" >> "$GITHUB_OUTPUT"
           echo "version=$V" >> "$GITHUB_OUTPUT"
