@@ -6,7 +6,9 @@
 - Sign every commit as `DroneDirector <simon@dronedirector.fo>`, with no co-author or session lines.
 - Never mention in code, comments, text or commits that anything is made with AI.
 - Licences of anything used must allow commercial sale in a paid game, asking at most for credit (and the licence
-  text). Never non-commercial, share-alike on the game, or paid-only terms. Our own models, pictures and sounds only.
+  text). Never non-commercial, share-alike on the game, or paid-only terms. Our own models, pictures and sounds by default;
+  models made by others are allowed where needed (licence checked first). The people are MetaHumans (part of the Unreal
+  Engine licence), shaped from MetaHuman Creator's presets; their clothes and uniforms are ours.
   List every third-party part in THIRD-PARTY-NOTICES.md and keep it up to date.
 - It is a commercial game: never use anything that doesn't allow commercial use in a paid game. Check the licence of
   every plugin, asset (including Fab and other marketplaces), font, sound, data source and code library before it goes
