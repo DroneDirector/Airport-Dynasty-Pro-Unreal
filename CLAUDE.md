@@ -55,3 +55,7 @@
   rebuild themselves where something is added, and each wing or extension is its own zone that loads and drops its
   detail by distance and by which zone the player is in. People far away use Mass's cheaper levels of detail. Distant
   buildings may use simplified merged meshes (HLOD mesh merge), never picture impostors.
+- The Babylon edition's performance workarounds (thin instances, mesh merging, texture arrays, freezing and octrees,
+  KTX2, collision proxies, mirror-texture reflections, glow trimming, the eye-adaptation fix) are NOT ported: Unreal has
+  its own built in (Nanite, culling, texture compression, Virtual Shadow Maps, Lumen). What carries over is the design:
+  the graphics settings and their sliders, the device scan, the performance overlay, the problem log and report.
