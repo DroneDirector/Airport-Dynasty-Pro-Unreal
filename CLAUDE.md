@@ -59,3 +59,10 @@
   KTX2, collision proxies, mirror-texture reflections, glow trimming, the eye-adaptation fix) are NOT ported: Unreal has
   its own built in (Nanite, culling, texture compression, Virtual Shadow Maps, Lumen). What carries over is the design:
   the graphics settings and their sliders, the device scan, the performance overlay, the problem log and report.
+- Two editions, one world: the Babylon edition (Android) and this Unreal edition (PC) share the same world, kept in
+  sync: economy, money, aircraft buying/selling/leasing, car rental, AI airlines and traffic, hired crew, timetables,
+  staff and all game logic. The world's code is written once (the Babylon edition's TypeScript game code) and runs in
+  both (in Unreal through the browser view or an embedded JavaScript engine), so the rules never drift apart. One
+  save in the cloud (Supabase); one device runs the world at a time and the other watches and manages; time while
+  both are closed is worked out on opening. Airport mode (the 3D terminal, people, vehicles, jetways) is Unreal only;
+  its passengers come from the shared world's numbers and what they spend goes back into it.
