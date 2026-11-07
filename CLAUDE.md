@@ -100,3 +100,6 @@
   checks itself for impossible states (a passenger in two places, two aircraft on one stand, more passengers than
   seats, negative money from a glitch) and repairs them by fixed rules (back to the last valid state, the timeline
   worked out again). Every repair is written to the problem log, so the cause in the code can be fixed.
+- Holographic map additions (approved 2026-11-07): a blinking marker wherever an incident is happening (a drunk
+  passenger, a guard escort and the like), and the same holographic map used on Android as its 2D layered terminal
+  map (one layer per floor, live dots and gate statuses from the shared world, no walking).
