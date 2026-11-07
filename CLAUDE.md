@@ -95,3 +95,8 @@
 - The shared world's data (saves and live events) has one format, defined once in the shared code, with a version
   number. An older version never damages a newer save: it updates first, or opens the world only to watch until it
   is updated.
+- Self-repair in the live game: the device running the world is always right. Both devices regularly compare a
+  short fingerprint of the world; on a mismatch the other device quietly reloads the world from it. The world also
+  checks itself for impossible states (a passenger in two places, two aircraft on one stand, more passengers than
+  seats, negative money from a glitch) and repairs them by fixed rules (back to the last valid state, the timeline
+  worked out again). Every repair is written to the problem log, so the cause in the code can be fixed.
