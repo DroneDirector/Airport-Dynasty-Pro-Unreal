@@ -23,7 +23,7 @@ import { buildAirliner, Airliner, repaint, setGear } from './airliner';
 import { buildAirport, placeAirport, Airport } from './airport';
 import { buildOwnAirport, isOwnLayout } from './own-airport';
 import { buildCrash, Crash } from './crash';
-import { buildTerrain, placeTerrain, terrainStale, Terrain } from './terrain';
+import { buildTerrain, placeTerrain, terrainStale, groundAt, Terrain } from './terrain';
 import { gameSend, onGameFlight, onGameAirport } from '../../ui/game-frame';
 import { sunAt, moonAt, dirOf, sunlight, lst } from './astro';
 import { FROM, TO, ROUTE_M, gcAt, gcBrg, gcDist, D2R } from './route';
@@ -79,6 +79,29 @@ function terrainStep(lat: number, lon: number, alt: number) {
 /** The airports' wide grass round them only where there is no real terrain. */
 function farDiscs() { for (const k in V.apts || {}) { const A: Airport = V.apts[k]; if (A) A.root.getChildMeshes().forEach(m => { if (m.name === 'aptFar') m.setEnabled(!V.ter); }); } }
 /** The nearest airport built (within 40 km), for the ground's height under the aircraft. */
+// #region ── Terrain awareness: flights keep clear of the mountains ──
+/** Where a flight is really drawn: it looks 8 km ahead along its track at the ground (as it is drawn) and keeps
+ *  300 m above the highest point, climbing or easing down smoothly instead of flying into a slope or sliding along
+ *  it; when the ground ahead is far above its planned height, it also eases a little to the side where the ground is
+ *  lower (up to 2.5 km off its track) and back again once clear. On final, within 6 km of the airport, it follows its
+ *  approach to the runway as planned. */
+function aware(st: { lat: number; lon: number; hdg: number; altM: number; onGround?: boolean }, na: Airport | null, dt: number): { lat: number; lon: number; alt: number } {
+  const A = V.aw || (V.aw = { off: 0, alt: st.altM }), hd = st.hdg * D2R, kx = 111320 * Math.cos(st.lat * D2R), kz = 110540;
+  const final = !!st.onGround || (!!na && Math.hypot((na.lon - st.lon) * kx, (na.lat - st.lat) * kz) < 6000);
+  const req = (off: number) => { let m = -1e9; const e0 = Math.cos(hd) * off, n0 = -Math.sin(hd) * off;
+    for (let d = 0; d <= 8000; d += 400) { const g = groundAt(st.lat + (n0 + Math.cos(hd) * d) / kz, st.lon + (e0 + Math.sin(hd) * d) / kx); if (g != null && g > m) m = g; }
+    return m + 300; };
+  if (final) { A.off += Math.max(-80 * dt, Math.min(80 * dt, -A.off)); A.alt += (st.altM - A.alt) * Math.min(1, dt * 1.5); }
+  else {
+    const here = req(A.off);
+    if (here > st.altM + 150) { const l = req(A.off - 800), r = req(A.off + 800), dir = l < r ? -1 : 1; if (Math.min(l, r) < here - 50) A.off = Math.max(-2500, Math.min(2500, A.off + dir * 60 * dt)); }
+    else if (req(0) <= st.altM + 150) A.off += Math.max(-40 * dt, Math.min(40 * dt, -A.off));
+    const want = Math.max(st.altM, req(A.off)); A.alt += Math.max(-12 * dt, Math.min(20 * dt, want - A.alt));
+  }
+  if (!isFinite(A.alt)) A.alt = st.altM;
+  return { lat: st.lat + (-Math.sin(hd) * A.off) / kz, lon: st.lon + (Math.cos(hd) * A.off) / kx, alt: A.alt };
+}
+// #endregion
 function nearAirport(lat: number, lon: number): Airport | null {
   let best: Airport | null = null, bd = 40000;
   for (const k in V.apts || {}) { const A: Airport = V.apts[k]; if (!A) continue; const d = Math.hypot((A.lon - lon) * 111320 * Math.cos(lat * D2R), (A.lat - lat) * 110540); if (d < bd) { bd = d; best = A; } }
@@ -324,14 +347,14 @@ const Viewer: Section = {
         // the real flight: where the game says it is
         const st = liveState(performance.now()); V.cur = st;
         if (st) {
-          const L = V.live, pv = L.prev, na = nearAirport(st.lat, st.lon); V.pos = [st.lat, st.lon];
-          const th = V.ter ? V.ter.heightAt(st.lat, st.lon) : null; V.gnd = na ? na.elev : th != null ? th : 0; V.land = na || (th != null && th > 1) ? 1 : 0;
-          V.alt = st.onGround ? V.gnd + 3.9 : Math.max(st.altM, V.gnd + 3.9); V.spd = Math.max(0, st.gs || 0) * 0.5144;
+          const L = V.live, pv = L.prev, na = nearAirport(st.lat, st.lon), aw = aware(st, na, dt); V.pos = [aw.lat, aw.lon];
+          const th = V.ter ? V.ter.heightAt(aw.lat, aw.lon) : null; V.gnd = na ? na.elev : th != null ? th : 0; V.land = na || (th != null && th > 1) ? 1 : 0;
+          V.alt = st.onGround ? V.gnd + 3.9 : Math.max(aw.alt, V.gnd + 3.9); V.spd = Math.max(0, st.gs || 0) * 0.5144;
           // the gear: down on the ground and low on the way in or out, up in the climb and the cruise (8 seconds)
           const agl = V.alt - V.gnd, want = st.onGround || agl < 750 ? 1 : 0; setGear(ac, Math.max(0, Math.min(1, ac.gearK + Math.sign(want - ac.gearK) * dt / 8)));
-          for (const k in V.apts) if (V.apts[k]) placeAirport(V.apts[k], st.lat, st.lon, V.alt, V.sunAlt < 2);
+          for (const k in V.apts) if (V.apts[k]) placeAirport(V.apts[k], aw.lat, aw.lon, V.alt, V.sunAlt < 2);
           if (V.taxiL) V.taxiL.setEnabled(V.sunAlt < 4 && agl < 1500);
-          terrainStep(st.lat, st.lon, V.alt);
+          terrainStep(aw.lat, aw.lon, V.alt);
           if (pv) { V.drift[0] += (st.lon - pv.lon) * 111320 * Math.cos(st.lat * D2R); V.drift[1] += (st.lat - pv.lat) * 110540; const dh = ((st.hdg - pv.hdg + 540) % 360) - 180; V.turn = V.turn * 0.9 + (dt > 0 ? dh / dt : 0) * 0.1; }
           L.prev = { lat: st.lat, lon: st.lon, hdg: st.hdg };
           hdg = st.hdg; bank = st.onGround ? 0 : Math.max(-0.45, Math.min(0.45, (V.turn || 0) / 3 * 0.44));
