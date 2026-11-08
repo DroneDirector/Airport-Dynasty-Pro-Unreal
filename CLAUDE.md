@@ -109,4 +109,5 @@
   file in plain words and is kept up to date. Inside files, chapters are comments only (never code): `// #region ──
   Name ──` … `// #endregion` in TypeScript, `#pragma region Name` … `#pragma endregion` in C++. Every file starts with
   a short description of what it does. Chapters are added to a file whenever it is worked on; new files and all Unreal
-  code get them from the start.
+  code get them from the start. Every feature added, big or small, automatically gets its chapters and its line in
+  CODE-MAP.md in the same release, so the source always shows exactly where each feature is.
