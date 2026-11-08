@@ -28,7 +28,19 @@ public class PhotoSavePlugin extends Plugin {
         try {
             byte[] bytes = Base64.decode(data, Base64.DEFAULT);
             String where;
-            if (Build.VERSION.SDK_INT >= 29) {
+            if (Build.VERSION.SDK_INT >= 29 && mime.startsWith("video/")) {
+                ContentValues v = new ContentValues();
+                v.put(MediaStore.Video.Media.DISPLAY_NAME, name);
+                v.put(MediaStore.Video.Media.MIME_TYPE, mime);
+                v.put(MediaStore.Video.Media.RELATIVE_PATH, Environment.DIRECTORY_MOVIES + "/Airport Dynasty Pro");
+                v.put(MediaStore.Video.Media.IS_PENDING, 1);
+                ContentResolver r = getContext().getContentResolver();
+                Uri u = r.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, v);
+                if (u == null) { call.reject("The video couldn't be stored"); return; }
+                try (OutputStream o = r.openOutputStream(u)) { o.write(bytes); }
+                v.clear(); v.put(MediaStore.Video.Media.IS_PENDING, 0); r.update(u, v, null, null);
+                where = "Movies/Airport Dynasty Pro";
+            } else if (Build.VERSION.SDK_INT >= 29) {
                 ContentValues v = new ContentValues();
                 v.put(MediaStore.Images.Media.DISPLAY_NAME, name);
                 v.put(MediaStore.Images.Media.MIME_TYPE, mime);

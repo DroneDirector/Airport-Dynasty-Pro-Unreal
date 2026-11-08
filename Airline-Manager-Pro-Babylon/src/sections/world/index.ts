@@ -11,6 +11,8 @@ import { IS_TOUCH } from '../../core/app';
 import { toast, esc } from '../../ui/icons';
 import { buildTerrain, Terrain } from '../viewer3d/terrain';
 import { holoMap } from '../../ui/holomap';
+import { makePhotoMode } from '../viewer3d/photo';
+import { savePhoto } from '../../core/photo';
 
 const EYE = 1.65, R = 6371000, D2R = Math.PI / 180, REACH = 17000;
 const O: any = { scene: null as Scene | null };
@@ -59,7 +61,8 @@ const World$: Section = {
 
     const hud = document.createElement('div'); hud.className = 'hud';
     // only what walking needs: the way back (top left), the moves (bottom right) and the holographic map (bottom left)
-    hud.innerHTML = `<button class="wx-b" data-back style="position:absolute;left:max(14px,env(safe-area-inset-left));top:max(14px,env(safe-area-inset-top));pointer-events:auto">‹ Back to the overview</button>
+    hud.innerHTML = `<div class="wd-top"><button class="wx-b" data-back>‹ Back to the overview</button><button class="wx-b" data-cine>Cinema</button><button class="wx-b" data-hide>Hide UI</button></div>
+      <button class="wx-b wd-rec" data-rec hidden>● Record video</button>
       <div class="site-moves">${[['jump', 'Jump'], ['crouch', 'Crouch'], ['prone', 'Prone'], ['sprint', 'Run']].map(([k, l]) => `<button class="wx-b" data-mv="${k}">${l}</button>`).join('')}</div>`;
     ui.appendChild(hud); O.hud = hud;
     // the holographic map in the bottom-left corner, as in the airport (only the airport is drawn on it so far, so out
@@ -75,7 +78,26 @@ const World$: Section = {
     const setRun = (on: boolean) => { W.run = on; const b = hud.querySelector('[data-mv="sprint"]'); if (b) b.classList.toggle('on', on); };
     hud.querySelector('.site-moves')!.addEventListener('click', e => { const b = (e.target as HTMLElement).closest('[data-mv]'); if (!b) return; e.stopPropagation(); const k = b.getAttribute('data-mv');
       if (k === 'jump') jump(); else if (k === 'sprint') setRun(!W.run); else setStance(k!); });
-    O.kd = (e: KeyboardEvent) => { if (e.repeat) return; const k = e.key.toLowerCase(); if (k === ' ') jump(); else if (k === 'c' || k === 'control') setStance('crouch'); else if (k === 'z') setStance('prone'); };
+    // Cinema: photos (looks, wide frame, depth of field, caption) and videos of what you see
+    O.photo = makePhotoMode({ hud, root: document.body, engine, canvas: ctx.canvas, dp: () => O.dp, cam: () => O.cam, focus: () => 12, caption: () => '' });
+    const recB = hud.querySelector('[data-rec]') as HTMLButtonElement;
+    hud.querySelector('[data-cine]')!.addEventListener('click', e => { e.stopPropagation(); O.photo.toggle(); });
+    recB.addEventListener('click', e => { e.stopPropagation(); if (O.rec) { O.rec.stop(); return; }
+      const cs: MediaStream | null = (ctx.canvas as any).captureStream ? (ctx.canvas as any).captureStream(30) : null; if (!cs || typeof MediaRecorder === 'undefined') { toast('Video recording is not available on this device'); return; }
+      const type = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4'].find(t => MediaRecorder.isTypeSupported(t)) || '';
+      const mr = new MediaRecorder(cs, type ? { mimeType: type, videoBitsPerSecond: 8e6 } : undefined), parts: Blob[] = []; O.rec = mr;
+      mr.ondataavailable = ev => { if (ev.data && ev.data.size) parts.push(ev.data); };
+      mr.onstop = () => { O.rec = null; recB.classList.remove('on'); recB.textContent = '● Record video'; clearTimeout(O.recT);
+        const mime = (mr.mimeType || 'video/webm').split(';')[0], blob = new Blob(parts, { type: mime }), fr = new FileReader();
+        fr.onload = () => { savePhoto(fr.result as string, `AirportDynastyPro-${new Date().toISOString().replace(/[:.]/g, '-')}.${mime.indexOf('mp4') >= 0 ? 'mp4' : 'webm'}`).then(w => toast('Video saved to ' + w)).catch(() => toast('The video could not be saved')); };
+        fr.readAsDataURL(blob); };
+      mr.start(1000); recB.classList.add('on'); recB.textContent = '■ Stop recording'; O.recT = setTimeout(() => { try { mr.stop(); } catch (er) { /* stopped */ } }, 120000); });
+    // Hide UI: everything on the screen goes; a double tap (or a double click) or Esc brings it back
+    const uiOff = (off: boolean) => { document.body.classList.toggle('ui-off', off); if (off) toast(IS_TOUCH ? 'Double-tap to bring the controls back' : 'Esc or a double click brings the controls back'); };
+    hud.querySelector('[data-hide]')!.addEventListener('click', e => { e.stopPropagation(); uiOff(true); });
+    O.dbl = () => { if (document.body.classList.contains('ui-off')) uiOff(false); }; ctx.canvas.addEventListener('dblclick', O.dbl);
+    let lastTap = 0; O.tap = () => { const t = performance.now(); if (t - lastTap < 320) O.dbl(); lastTap = t; }; ctx.canvas.addEventListener('pointerup', O.tap);
+    O.kd = (e: KeyboardEvent) => { if (e.key === 'Escape' && document.body.classList.contains('ui-off')) { uiOff(false); return; } if (e.repeat) return; const k = e.key.toLowerCase(); if (k === ' ') jump(); else if (k === 'c' || k === 'control') setStance('crouch'); else if (k === 'z') setStance('prone'); };
     window.addEventListener('keydown', O.kd);
     toast(IS_TOUCH ? 'Left thumb: walk · Right: drag to look' : 'W A S D walk · mouse look · Shift run · Space jump · C crouch · Z prone · a controller works too');
     progress(100, 'Ready');
@@ -94,12 +116,15 @@ const World$: Section = {
       const gy = ground(F.x, F.z);
       cam.position.set(F.x, gy + W.eye + W.jy + Math.sin(F.bob / 0.65 * Math.PI) * 0.015 * Math.min(1, F.v / 1.1), F.z);
       const cp = Math.cos(F.pitch); cam.setTarget(cam.position.add(new Vector3(Math.sin(F.yaw) * cp, Math.sin(F.pitch), Math.cos(F.yaw) * cp)));
+      recB.hidden = !(O.photo && O.photo.on); if (O.photo) O.photo.frame();
       sc.render();
     });
   },
   close() {
     const sc: Scene = O.scene; if (!sc) return;
     if (O.kd) window.removeEventListener('keydown', O.kd); O.kd = null;
+    try { if (O.rec) O.rec.stop(); } catch (e) { /* stopped */ } document.body.classList.remove('ui-off', 'photo-on'); O.ctx.canvas.style.filter = '';
+    try { O.ctx.canvas.removeEventListener('dblclick', O.dbl); O.ctx.canvas.removeEventListener('pointerup', O.tap); } catch (e) { /* gone */ }
     if (O.hud) O.hud.remove(); try { O.T && O.T.dispose(); } catch (e) { /* gone */ } sc.dispose(); O.scene = null;
   },
   onSettings(what: string) { apply(what === 'preset' ? 'all' : what); },

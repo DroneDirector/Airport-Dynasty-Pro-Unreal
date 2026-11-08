@@ -346,6 +346,11 @@ body.photo-on .v3d-top, body.photo-on .v3d-views, body.photo-on .v3d-time, body.
 /* real weather in the 3D viewer: the station and its report */
 .v3d-wxchip { position: absolute; left: 50%; transform: translateX(-50%); top: 10px; z-index: 6; padding: 5px 12px; border-radius: 999px; background: rgba(8,14,28,.62); color: #dfe8f6; font-size: 12px; letter-spacing: .02em; pointer-events: none; white-space: nowrap; max-width: 70vw; overflow: hidden; text-overflow: ellipsis; backdrop-filter: blur(6px); }
 body.photo-on .v3d-wxchip { display: none; }
+body.photo-on .wd-top, body.photo-on .site-moves, body.photo-on .holomap { display: none !important; }
+.wd-top { position: absolute; left: max(14px, env(safe-area-inset-left)); top: max(14px, env(safe-area-inset-top)); display: flex; flex-wrap: wrap; gap: 8px; pointer-events: auto; max-width: calc(100vw - 260px); }
+.wd-rec { position: absolute; left: 50%; top: max(14px, env(safe-area-inset-top)); transform: translateX(-50%); pointer-events: auto; z-index: 8; }
+.wd-rec.on { background: rgba(200,30,40,.85); color: #fff; }
+body.ui-off .hud, body.ui-off .gear, body.ui-off .exit, body.ui-off .to-title, body.ui-off .perf, body.ui-off .ver, body.ui-off .toast, body.ui-off .stick { visibility: hidden !important; }
 @media (max-width: 760px) { .v3d-wxchip { top: auto; bottom: 118px; font-size: 11px; } }
 
 /* the Training room: the instructor's words, and who someone is */
