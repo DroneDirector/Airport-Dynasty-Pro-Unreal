@@ -111,3 +111,5 @@
   a short description of what it does. Chapters are added to a file whenever it is worked on; new files and all Unreal
   code get them from the start. Every feature added, big or small, automatically gets its chapters and its line in
   CODE-MAP.md in the same release, so the source always shows exactly where each feature is.
+- Later, when the people have 3D bodies (MetaHumans): the player has one too and sees it in walking mode everywhere,
+  in the airport and anywhere on the 3D globe (legs and arms when looking down, shadow, reflection).
