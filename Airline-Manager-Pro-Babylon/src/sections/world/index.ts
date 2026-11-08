@@ -9,7 +9,7 @@ import { runLoop } from '../../core/engine';
 import { inputFrame } from '../../core/input';
 import { IS_TOUCH } from '../../core/app';
 import { toast, esc } from '../../ui/icons';
-import { buildTerrain, Terrain } from '../viewer3d/terrain';
+import { buildTerrain, groundAt, Terrain } from '../viewer3d/terrain';
 import { holoMap } from '../../ui/holomap';
 import { makePhotoMode } from '../viewer3d/photo';
 import { savePhoto } from '../../core/photo';
@@ -56,27 +56,29 @@ const World$: Section = {
 
     // the ground's height under a point (east x, north z, metres from the spot), as the ground is drawn
     const kx = 111320 * Math.cos(lat * D2R), kz = 110540;
-    const ground = (x: number, z: number) => { const h = T.heightAt(lat + z / kz, lon + x / kx); return Math.max(-2, h == null ? 0 : h) - (x * x + z * z) / (2 * R) - 1.2; };
+    // the drawn surface's own height (never the finer picture under it, which can lie metres above or below a slope);
+    // the highest of a few points round your feet, so a slope never comes up through them
+    const surf = (x: number, z: number) => { const h = groundAt(lat + z / kz, lon + x / kx); return (h == null ? 0 : h) - (x * x + z * z) / (2 * R) - 1.2; };
+    const ground = (x: number, z: number) => Math.max(surf(x, z), surf(x + 0.3, z), surf(x - 0.3, z), surf(x, z + 0.3), surf(x, z - 0.3));
     const F = { x: 0, z: 0, yaw: 0, pitch: -0.05, v: 0, bob: 0 }; O.F = F;
     const sea = (T.heightAt(lat, lon) ?? 0) <= 0;
 
-    const hud = document.createElement('div'); hud.className = 'hud';
+    const hud = document.createElement('div'); hud.className = 'hud wd-world';
     // only what walking needs: the way back (top left), the moves (bottom right) and the holographic map (bottom left)
     hud.innerHTML = `<div class="wd-top"><button class="wx-b" data-back>‹ Back to the overview</button><button class="wx-b" data-cine>Cinema</button><button class="wx-b" data-hide>Hide UI</button></div>
-      <button class="wx-b wd-rec" data-rec hidden>● Record video</button>
+      <button class="wx-b wd-rec" data-rec style="display:none">● Record video</button><button class="wx-b wd-xc" data-xc style="display:none">✕ Exit cinema</button>
       <div class="site-moves">${[['jump', 'Jump'], ['crouch', 'Crouch'], ['prone', 'Prone'], ['sprint', 'Run']].map(([k, l]) => `<button class="wx-b" data-mv="${k}">${l}</button>`).join('')}</div>`;
     ui.appendChild(hud); O.hud = hud;
     // the holographic map in the bottom-left corner, as in the airport (only the airport is drawn on it so far, so out
     // here it shows its grid round you; more is added to it later)
     holoMap(hud, () => ({ x: F.x + 1e6, z: F.z + 1e6, f: 1 as any, yaw: F.yaw }));
-    { const hm = hud.querySelector('.holomap') as HTMLElement | null; if (hm) Object.assign(hm.style, { left: 'max(14px, env(safe-area-inset-left))', right: 'auto', top: 'auto', bottom: `calc(max(14px, env(safe-area-inset-bottom)) + ${IS_TOUCH ? 40 : 34}px)` }); }
     // leaving: a loading screen while the Overview comes back (the Back button, or Esc with the controls showing)
     const leave = () => { if (O.leaving) return; O.leaving = true; loadingShow('Loading Overview UI'); loadingProgress(35, 'Loading Overview UI…');
       setTimeout(() => { if (ctx.toGame) ctx.toGame('ops'); else if (ctx.back) ctx.back(); loadingProgress(100, 'Ready'); setTimeout(() => loadingHide(), 450); }, 260); };
     hud.querySelector('[data-back]')!.addEventListener('click', leave);
     // the stances and moves: standing, crouching, lying prone, a jump, running (buttons, keys and a controller's buttons)
     const ST: { [k: string]: { eye: number; walk: number; run: number } } = { stand: { eye: EYE, walk: 1.6, run: 6.2 }, crouch: { eye: 1.0, walk: 0.9, run: 1.6 }, prone: { eye: 0.32, walk: 0.35, run: 0.5 } };
-    const W = { stance: 'stand', eye: EYE, vy: 0, jy: 0, run: false }; O.W = W;
+    const W = { stance: 'stand', eye: EYE, vy: 0, jy: 0, run: false, fy: ground(0, 0) + 1.5, fv: 0 }; O.W = W;
     const setStance = (k: string) => { W.stance = W.stance === k ? 'stand' : k; hud.querySelectorAll('[data-mv="crouch"],[data-mv="prone"]').forEach(b => b.classList.toggle('on', b.getAttribute('data-mv') === W.stance)); };
     const jump = () => { if (W.jy > 0.001) return; if (W.stance !== 'stand') { setStance(W.stance); return; } W.vy = 4.4; };
     const setRun = (on: boolean) => { W.run = on; const b = hud.querySelector('[data-mv="sprint"]'); if (b) b.classList.toggle('on', on); };
@@ -86,6 +88,7 @@ const World$: Section = {
     O.photo = makePhotoMode({ hud, root: document.body, engine, canvas: ctx.canvas, dp: () => O.dp, cam: () => O.cam, focus: () => 12, caption: () => '' });
     const recB = hud.querySelector('[data-rec]') as HTMLButtonElement;
     hud.querySelector('[data-cine]')!.addEventListener('click', e => { e.stopPropagation(); O.photo.toggle(); });
+    const xcB = hud.querySelector('[data-xc]') as HTMLButtonElement; xcB.addEventListener('click', e => { e.stopPropagation(); if (O.rec) O.rec.stop(); if (O.photo.on) O.photo.toggle(); });
     recB.addEventListener('click', e => { e.stopPropagation(); if (O.rec) { O.rec.stop(); return; }
       const cs: MediaStream | null = (ctx.canvas as any).captureStream ? (ctx.canvas as any).captureStream(30) : null; if (!cs || typeof MediaRecorder === 'undefined') { toast('Video recording is not available on this device'); return; }
       const type = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4'].find(t => MediaRecorder.isTypeSupported(t)) || '';
@@ -100,7 +103,7 @@ const World$: Section = {
     const uiOff = (off: boolean) => { document.body.classList.toggle('ui-off', off); if (off) toast(IS_TOUCH ? 'Double-tap to bring the controls back' : 'Esc or a double click brings the controls back'); };
     hud.querySelector('[data-hide]')!.addEventListener('click', e => { e.stopPropagation(); uiOff(true); });
     O.dbl = () => { if (document.body.classList.contains('ui-off')) uiOff(false); }; ctx.canvas.addEventListener('dblclick', O.dbl);
-    let lastTap = 0; O.tap = () => { const t = performance.now(); if (t - lastTap < 320) O.dbl(); lastTap = t; }; ctx.canvas.addEventListener('pointerup', O.tap);
+    let lastTap = 0; O.tap = () => { if (!document.body.classList.contains('ui-off')) return; const t = performance.now(); if (t - lastTap < 350) O.dbl(); lastTap = t; }; document.addEventListener('pointerup', O.tap, true); document.addEventListener('dblclick', O.dbl, true);
     O.kd = (e: KeyboardEvent) => { if (e.key === 'Escape') { if (document.body.classList.contains('ui-off')) uiOff(false); else if (O.photo && O.photo.on) O.photo.toggle(); else leave(); return; } if (e.repeat) return; const k = e.key.toLowerCase(); if (k === ' ') jump(); else if (k === 'c' || k === 'control') setStance('crouch'); else if (k === 'z') setStance('prone'); };
     window.addEventListener('keydown', O.kd);
     toast(IS_TOUCH ? 'Left thumb: walk · Right: drag to look' : 'W A S D walk · mouse look · Shift run · Space jump · C crouch · Z prone · a controller works too');
@@ -117,10 +120,12 @@ const World$: Section = {
         let mx = fx * inp.my + rx * inp.mx, mz = fz * inp.my + rz * inp.mx; const ml = Math.hypot(mx, mz) || 1; mx /= ml; mz /= ml;
         const st = F.v * dt, nx = F.x + mx * st, nz = F.z + mz * st;
         if (Math.hypot(nx, nz) < REACH) { F.x = nx; F.z = nz; } F.bob += st; }
-      const gy = ground(F.x, F.z);
+      // your feet: on the ground, or falling onto it (a short drop when you are placed, or off a step)
+      const gy0 = ground(F.x, F.z); if (W.fy > gy0 + 0.02) { W.fv -= 9.81 * dt; W.fy = Math.max(gy0, W.fy + W.fv * dt); } else { W.fy = gy0; W.fv = 0; }
+      const gy = W.fy;
       cam.position.set(F.x, gy + W.eye + W.jy + Math.sin(F.bob / 0.65 * Math.PI) * 0.015 * Math.min(1, F.v / 1.1), F.z);
       const cp = Math.cos(F.pitch); cam.setTarget(cam.position.add(new Vector3(Math.sin(F.yaw) * cp, Math.sin(F.pitch), Math.cos(F.yaw) * cp)));
-      recB.hidden = !(O.photo && O.photo.on); if (O.photo) O.photo.frame();
+      { const on = !!(O.photo && O.photo.on); const d = on ? '' : 'none'; if (recB.style.display !== d) { recB.style.display = d; xcB.style.display = d; } } if (O.photo) O.photo.frame();
       sc.render();
     });
   },
@@ -128,7 +133,7 @@ const World$: Section = {
     const sc: Scene = O.scene; if (!sc) return; O.leaving = false;
     if (O.kd) window.removeEventListener('keydown', O.kd); O.kd = null;
     try { if (O.rec) O.rec.stop(); } catch (e) { /* stopped */ } document.body.classList.remove('ui-off', 'photo-on'); O.ctx.canvas.style.filter = '';
-    try { O.ctx.canvas.removeEventListener('dblclick', O.dbl); O.ctx.canvas.removeEventListener('pointerup', O.tap); } catch (e) { /* gone */ }
+    try { O.ctx.canvas.removeEventListener('dblclick', O.dbl); document.removeEventListener('pointerup', O.tap, true); document.removeEventListener('dblclick', O.dbl, true); } catch (e) { /* gone */ }
     if (O.hud) O.hud.remove(); try { O.T && O.T.dispose(); } catch (e) { /* gone */ } sc.dispose(); O.scene = null;
   },
   onSettings(what: string) { apply(what === 'preset' ? 'all' : what); },

@@ -33,10 +33,23 @@ async function tileHeights(x: number, y: number): Promise<Float32Array | null> {
   } catch (e) { heights[k] = null; return null; }
 }
 
+const SEG = IS_PC ? 96 : 56;
+// #region ── The ground's height as it is drawn ──
+/** The height of the ground at (lat, lon) exactly as the tiles draw it: the same grid of points as the tile's
+ *  surface (not the finer height picture under it), between them as the surface runs, levelled where the world is
+ *  flattened. So whatever stands on it (you, walking) stands on what you see, never inside a slope. */
+export function groundAt(la: number, lo: number): number | null {
+  const X = tx(lo), Y = ty(la), x0 = Math.floor(X), y0 = Math.floor(Y), H = heights[`${x0}/${y0}`]; if (!H) return null;
+  const fu = (X - x0) * SEG, fw = (Y - y0) * SEG, i = Math.min(SEG - 1, Math.floor(fu)), j = Math.min(SEG - 1, Math.floor(fw)), a = fu - i, b = fw - j;
+  const hv = (ii: number, jj: number) => { const px = Math.min(255, Math.floor(ii / SEG * 255.999)), py = Math.min(255, Math.floor(jj / SEG * 255.999)); return Math.max(-2, H[py * 256 + px]); };
+  const h = (hv(i, j) * (1 - a) + hv(i + 1, j) * a) * (1 - b) + (hv(i, j + 1) * (1 - a) + hv(i + 1, j + 1) * a) * b;
+  return flatHeight(la, lo, h).h;
+}
+// #endregion
 /** The ground round (lat, lon). */
 export function buildTerrain(sc: Scene, lat: number, lon: number, onReady?: () => void): Terrain {
   const root = new TransformNode('terrain', sc), cx = Math.floor(tx(lon)), cy = Math.floor(ty(lat)), tiles: Mesh[] = [], mats: PBRMaterial[] = [];
-  const seg = IS_PC ? 96 : 56, kx = 111320 * Math.cos(lat * D2R), kz = 110540;
+  const seg = SEG, kx = 111320 * Math.cos(lat * D2R), kz = 110540;
   const T: Terrain = { root, lat, lon, cx, cy, tiles, mats, ready: 0,
     heightAt(la: number, lo: number) { const X = tx(lo), Y = ty(la), H = heights[`${Math.floor(X)}/${Math.floor(Y)}`]; if (!H) return null; const px = Math.min(255, Math.floor((X % 1) * 256)), py = Math.min(255, Math.floor((Y % 1) * 256)); return Math.max(0, H[py * 256 + px]); },
     dispose() { for (const m of mats) { try { if (m.albedoTexture) m.albedoTexture.dispose(); m.dispose(); } catch (e) { /* gone */ } } root.dispose(); } };

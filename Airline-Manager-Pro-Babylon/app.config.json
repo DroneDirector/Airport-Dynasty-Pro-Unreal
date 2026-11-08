@@ -4,7 +4,7 @@
   "shortName": "Dynasty Pro",
   "appId": "com.dronedirector.airlinemanagerpro.babylon",
   "publisher": "DroneDirector",
-  "version": "0.3.99",
-  "versionCode": 107,
+  "version": "0.4.0",
+  "versionCode": 108,
   "updates": { "repo": "DroneDirector/Airport-Dynasty-Pro-Unreal", "tagPrefix": "airline-manager-pro-babylon-v" }
 }
