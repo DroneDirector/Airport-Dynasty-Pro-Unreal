@@ -13,6 +13,7 @@ import { buildTerrain, Terrain } from '../viewer3d/terrain';
 import { holoMap } from '../../ui/holomap';
 import { makePhotoMode } from '../viewer3d/photo';
 import { savePhoto } from '../../core/photo';
+import { loadingShow, loadingProgress, loadingHide } from '../../ui/loading';
 
 const EYE = 1.65, R = 6371000, D2R = Math.PI / 180, REACH = 17000;
 const O: any = { scene: null as Scene | null };
@@ -69,7 +70,10 @@ const World$: Section = {
     // here it shows its grid round you; more is added to it later)
     holoMap(hud, () => ({ x: F.x + 1e6, z: F.z + 1e6, f: 1 as any, yaw: F.yaw }));
     { const hm = hud.querySelector('.holomap') as HTMLElement | null; if (hm) Object.assign(hm.style, { left: 'max(14px, env(safe-area-inset-left))', right: 'auto', top: 'auto', bottom: `calc(max(14px, env(safe-area-inset-bottom)) + ${IS_TOUCH ? 40 : 34}px)` }); }
-    hud.querySelector('[data-back]')!.addEventListener('click', () => { if (ctx.toGame) ctx.toGame('ops'); else if (ctx.back) ctx.back(); });
+    // leaving: a loading screen while the Overview comes back (the Back button, or Esc with the controls showing)
+    const leave = () => { if (O.leaving) return; O.leaving = true; loadingShow('Loading Overview UI'); loadingProgress(35, 'Loading Overview UI…');
+      setTimeout(() => { if (ctx.toGame) ctx.toGame('ops'); else if (ctx.back) ctx.back(); loadingProgress(100, 'Ready'); setTimeout(() => loadingHide(), 450); }, 260); };
+    hud.querySelector('[data-back]')!.addEventListener('click', leave);
     // the stances and moves: standing, crouching, lying prone, a jump, running (buttons, keys and a controller's buttons)
     const ST: { [k: string]: { eye: number; walk: number; run: number } } = { stand: { eye: EYE, walk: 1.6, run: 6.2 }, crouch: { eye: 1.0, walk: 0.9, run: 1.6 }, prone: { eye: 0.32, walk: 0.35, run: 0.5 } };
     const W = { stance: 'stand', eye: EYE, vy: 0, jy: 0, run: false }; O.W = W;
@@ -97,7 +101,7 @@ const World$: Section = {
     hud.querySelector('[data-hide]')!.addEventListener('click', e => { e.stopPropagation(); uiOff(true); });
     O.dbl = () => { if (document.body.classList.contains('ui-off')) uiOff(false); }; ctx.canvas.addEventListener('dblclick', O.dbl);
     let lastTap = 0; O.tap = () => { const t = performance.now(); if (t - lastTap < 320) O.dbl(); lastTap = t; }; ctx.canvas.addEventListener('pointerup', O.tap);
-    O.kd = (e: KeyboardEvent) => { if (e.key === 'Escape' && document.body.classList.contains('ui-off')) { uiOff(false); return; } if (e.repeat) return; const k = e.key.toLowerCase(); if (k === ' ') jump(); else if (k === 'c' || k === 'control') setStance('crouch'); else if (k === 'z') setStance('prone'); };
+    O.kd = (e: KeyboardEvent) => { if (e.key === 'Escape') { if (document.body.classList.contains('ui-off')) uiOff(false); else if (O.photo && O.photo.on) O.photo.toggle(); else leave(); return; } if (e.repeat) return; const k = e.key.toLowerCase(); if (k === ' ') jump(); else if (k === 'c' || k === 'control') setStance('crouch'); else if (k === 'z') setStance('prone'); };
     window.addEventListener('keydown', O.kd);
     toast(IS_TOUCH ? 'Left thumb: walk · Right: drag to look' : 'W A S D walk · mouse look · Shift run · Space jump · C crouch · Z prone · a controller works too');
     progress(100, 'Ready');
@@ -121,7 +125,7 @@ const World$: Section = {
     });
   },
   close() {
-    const sc: Scene = O.scene; if (!sc) return;
+    const sc: Scene = O.scene; if (!sc) return; O.leaving = false;
     if (O.kd) window.removeEventListener('keydown', O.kd); O.kd = null;
     try { if (O.rec) O.rec.stop(); } catch (e) { /* stopped */ } document.body.classList.remove('ui-off', 'photo-on'); O.ctx.canvas.style.filter = '';
     try { O.ctx.canvas.removeEventListener('dblclick', O.dbl); O.ctx.canvas.removeEventListener('pointerup', O.tap); } catch (e) { /* gone */ }
