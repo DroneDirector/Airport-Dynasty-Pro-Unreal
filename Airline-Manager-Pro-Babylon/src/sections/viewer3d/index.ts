@@ -27,6 +27,7 @@ import { buildTerrain, placeTerrain, terrainStale, Terrain } from './terrain';
 import { gameSend, onGameFlight, onGameAirport } from '../../ui/game-frame';
 import { sunAt, moonAt, dirOf, sunlight, lst } from './astro';
 import { FROM, TO, ROUTE_M, gcAt, gcBrg, gcDist, D2R } from './route';
+import { skyMap } from './skymap';
 
 const FL = 9144, TAS = 231, MACH = 0.78;   // 30,000 ft, 449 knots
 const CLOUDQ: { [k: string]: [number, number] } = { low: [18, 2], medium: [30, 3], high: [46, 4], ultra: [72, 6] };
@@ -185,12 +186,13 @@ function sunsetStart(): number {
 function hudHtml(): string {
   return `<div class="v3d ${V.live ? 'live' : ''}">
     <div class="v3d-top">
-      ${V.live ? `<button class="v3d-b v3d-game" data-v="game" aria-label="Back to the game">${icon('back')}<span>Back to the game</span></button>` : ''}
+      ${V.live ? `<button class="v3d-b v3d-game" data-v="game" aria-label="Back to the overview">${icon('back')}<span>Back to the overview</span></button><button class="v3d-b v3d-clean-b" data-v="photo">Cinema</button><button class="v3d-b v3d-clean-b" data-v="hideui">Hide UI</button>` : ''}
       <button class="v3d-b v3d-site" data-v="site" aria-label="To the airport: your gate, gate 4">${icon('mountain')}<span>Airport</span></button>
       <button class="v3d-b v3d-photo" data-v="photo" aria-label="Photo mode: looks, a wide frame, depth of field, a caption"><svg viewBox="0 0 24 24" class="ic" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M4 8h3l2-3h6l2 3h3v11H4V8Zm8 2.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/></svg><span>Photo mode</span></button>
       <button class="v3d-b v3d-rwx on" data-v="rwx" aria-label="Real weather: the nearest airport report, on or off"><svg viewBox="0 0 24 24" class="ic" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M7 16h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.6 1.6A3.2 3.2 0 0 0 7 16Zm1 3-1 2m5-2-1 2m5-2-1 2"/></svg><span>Real weather</span></button>
       <div class="v3d-info"><div class="v3d-csr">${V.live ? `<button class="v3d-b v3d-pk" data-v="prev" aria-label="The previous flight">‹</button>` : ''}<b class="v3d-cs">${V.live ? 'Waiting for the flight…' : `AMP 214 · ${esc(FROM.name)} → ${esc(TO.name)}`}</b>${V.live ? `<button class="v3d-b v3d-pk" data-v="next" aria-label="The next flight">›</button>` : ''}</div><small class="v3d-al"></small><div class="v3d-rows"></div></div>
     </div>
+    ${V.live ? `<div class="site-moves v3d-cams" role="toolbar" aria-label="Camera">${[['cabin', 'Cabin'], ['winL', 'L wing'], ['winR', 'R wing'], ['chase', 'Spot']].map(([k, l]) => `<button class="wx-b" data-view="${k}">${l}</button>`).join('')}</div>` : ''}
     <div class="v3d-views" role="toolbar" aria-label="Camera">${VIEWS.map((v, i) => `<button class="v3d-b ${i === 0 ? 'on' : ''}" data-view="${v.id}">${esc(v.label)}</button>`).join('')}</div>
     <div class="v3d-time">
       <div class="v3d-clock">${icon('clock')}<b class="v3d-lt">--:--</b><small class="v3d-sub"></small></div>
@@ -262,12 +264,21 @@ const Viewer: Section = {
       const hit = sc.pick(px, py, (m: any) => m.isPickable && m.isEnabled() && m.isDescendantOf(V.cabin.root)); if (hit && hit.hit && hit.pickedMesh) V.cabin.talk(hit.pickedMesh, hit.thinInstanceIndex == null ? -1 : hit.thinInstanceIndex); };
     ctx.canvas.addEventListener('pointerdown', V.tdn); ctx.canvas.addEventListener('pointerup', V.tup);
     perfAttach(engine, sc, hud.querySelector('.v3d-perf') as HTMLElement); perfShow();
+    // following a flight: the holographic map in the bottom-left corner (the land outside, the cabin inside), and
+    // Hide UI's way back (a double tap anywhere, a double click, or Esc)
+    if (V.live) V.sky = skyMap(hud, () => V.pos ? { lat: V.pos[0], lon: V.pos[1], hdg: V.hdg || 0, ter: V.ter || null, cabin: !!(V.view && V.view.cabin),
+      me: V.view && V.view.walk ? (V.cw ? { x: V.cw.x, z: V.cw.z } : null) : V.view && V.view.eye ? { x: V.view.eye[0], z: V.view.eye[2] } : null } : null);
+    V.uiBack = () => document.body.classList.remove('ui-off'); let lastTap = 0;
+    V.uiTap = () => { if (!document.body.classList.contains('ui-off')) return; const t = performance.now(); if (t - lastTap < 350) V.uiBack(); lastTap = t; };
+    V.uiKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && document.body.classList.contains('ui-off')) V.uiBack(); };
+    document.addEventListener('pointerup', V.uiTap, true); document.addEventListener('dblclick', V.uiBack, true); window.addEventListener('keydown', V.uiKey);
     hud.addEventListener('click', (e: Event) => {
       const b = (e.target as HTMLElement).closest('button') as HTMLElement; if (!b) return;
       if (b.hasAttribute('data-view')) setView(b.getAttribute('data-view') as string);
       else if (b.hasAttribute('data-speed')) setSpeed(Number(b.getAttribute('data-speed')));
       else if (b.getAttribute('data-v') === 'game' && ctx.toGame) ctx.toGame();
       else if (b.getAttribute('data-v') === 'photo' && V.photo) V.photo.toggle();
+      else if (b.getAttribute('data-v') === 'hideui') { document.body.classList.add('ui-off'); toast(IS_TOUCH ? 'Double-tap to bring the controls back' : 'Esc or a double click brings the controls back'); }
       else if (b.getAttribute('data-v') === 'rwx' && V.rwx) { const on = V.rwx.toggle(); b.classList.toggle('on', on); toast(on ? 'Real weather on: the nearest airport report' : 'Real weather off'); }
       else if (b.getAttribute('data-v') === 'site' && ctx.goTo) ctx.goTo('site', { site: 'myrdalssandur', view: 'carpark' });
       else if ((b.getAttribute('data-v') === 'prev' || b.getAttribute('data-v') === 'next') && V.live) { const l = V.live.list || [], i = l.findIndex((x: any) => x.id === V.live.id); if (l.length) follow(l[(i + (b.getAttribute('data-v') === 'next' ? 1 : l.length - 1) + l.length) % l.length].id); }
@@ -406,6 +417,7 @@ const Viewer: Section = {
   close() {
     const sc: Scene = V.scene; if (!sc) return;
     try { if (V.rwx) { V.rwx.dispose(); V.rwx = null; } } catch (e) { /* gone */ }
+    try { if (V.sky) { V.sky.dispose(); V.sky = null; } document.removeEventListener('pointerup', V.uiTap, true); document.removeEventListener('dblclick', V.uiBack, true); window.removeEventListener('keydown', V.uiKey); document.body.classList.remove('ui-off'); } catch (e) { /* gone */ }
     try { V.ctxCanvas && 0; const cv: HTMLCanvasElement = (V.scene && V.scene.getEngine().getRenderingCanvas()) as HTMLCanvasElement; if (cv) { cv.removeEventListener('pointerdown', V.tdn); cv.removeEventListener('pointerup', V.tup); } speechSynthesis.cancel(); } catch (e) { /* gone */ }
     try { if (V.cabin) { V.cabin.dispose(); V.cabin = null; } V.inCabin = false; V.cw = null; V.fuse = null; } catch (e) { /* gone */ }
     try { if (V.photo) { V.photo.dispose(); V.photo = null; } document.body.classList.remove('photo-on'); } catch (e) { /* gone */ }

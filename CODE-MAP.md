@@ -106,6 +106,7 @@ Where everything is, in plain words: every folder and file of the game and what 
   - `realwx.ts`: Real weather in the 3D viewer:
   - `route.ts`: The demo flight's plan:
   - `sky.ts`: The world round the aircraft in the 3D viewer, drawn in one pass on a dome that goes with the camera:
+  - `skymap.ts`: The holographic map while following a flight: the land and coastlines outside (as far as you can see), the cabin's plan with you inside.
   - `stars.ts`: Bright stars (to magnitude 5.6):
   - `terrain.ts`: The real ground under the flight in the 3D viewer:
 - **`src/sections/world/`**

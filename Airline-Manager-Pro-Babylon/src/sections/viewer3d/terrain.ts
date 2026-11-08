@@ -57,7 +57,7 @@ export function buildTerrain(sc: Scene, lat: number, lon: number, onReady?: () =
   for (let j = -half; j <= half; j++) for (let i = -half; i <= half; i++) {
     const x = cx + i, y = cy + j, lo0 = lonOf(x), lo1 = lonOf(x + 1), la0 = latOf(y), la1 = latOf(y + 1);
     const m = MeshBuilder.CreateGround('tile', { width: 1, height: 1, subdivisions: seg, updatable: true }, sc); m.parent = root; m.isPickable = false; m.renderingGroupId = 1; m.receiveShadows = true;
-    const mat = new PBRMaterial('tileM', sc); mat.metallic = 0; mat.roughness = 0.95; mat.albedoColor = Color3.FromHexString('#4E5E3A'); mat.environmentIntensity = 0.3; mat.zOffset = 2; m.material = mat; mats.push(mat);
+    const mat = new PBRMaterial('tileM', sc); mat.metallic = 0; mat.roughness = 0.95; mat.albedoColor = Color3.FromHexString('#4E5E3A'); mat.environmentIntensity = 0.3; mat.zOffset = 2; mat.backFaceCulling = false; mat.twoSidedLighting = true; m.material = mat; mats.push(mat);
     tiles.push(m); m.setEnabled(false);
     tileHeights(x, y).then(H => {
       if (m.isDisposed()) return;
