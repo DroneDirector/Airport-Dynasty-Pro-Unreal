@@ -101,6 +101,14 @@ function aware(st: { lat: number; lon: number; hdg: number; altM: number; onGrou
   if (!isFinite(A.alt)) A.alt = st.altM;
   return { lat: st.lat + (-Math.sin(hd) * A.off) / kz, lon: st.lon + (Math.cos(hd) * A.off) / kx, alt: A.alt };
 }
+/** The terrain awareness, never allowed to break the picture: if anything is missing or not a number, the flight is
+ *  drawn where the game says it is and the awareness starts again. */
+function safeAware(st: any, na: Airport | null, dt: number): { lat: number; lon: number; alt: number } {
+  const plain = { lat: st.lat, lon: st.lon, alt: st.altM };
+  if (![st.lat, st.lon, st.hdg, st.altM, dt].every(v => typeof v === 'number' && isFinite(v))) { V.aw = null; return plain; }
+  try { const r = aware(st, na, dt); if ([r.lat, r.lon, r.alt].every(isFinite)) return r; } catch (e) { /* drawn as planned */ }
+  V.aw = null; return plain;
+}
 // #endregion
 function nearAirport(lat: number, lon: number): Airport | null {
   let best: Airport | null = null, bd = 40000;
@@ -347,7 +355,7 @@ const Viewer: Section = {
         // the real flight: where the game says it is
         const st = liveState(performance.now()); V.cur = st;
         if (st) {
-          const L = V.live, pv = L.prev, na = nearAirport(st.lat, st.lon), aw = aware(st, na, dt); V.pos = [aw.lat, aw.lon];
+          const L = V.live, pv = L.prev, na = nearAirport(st.lat, st.lon), aw = safeAware(st, na, dt); V.pos = [aw.lat, aw.lon];
           const th = V.ter ? V.ter.heightAt(aw.lat, aw.lon) : null; V.gnd = na ? na.elev : th != null ? th : 0; V.land = na || (th != null && th > 1) ? 1 : 0;
           V.alt = st.onGround ? V.gnd + 3.9 : Math.max(aw.alt, V.gnd + 3.9); V.spd = Math.max(0, st.gs || 0) * 0.5144;
           // the gear: down on the ground and low on the way in or out, up in the climb and the cruise (8 seconds)
