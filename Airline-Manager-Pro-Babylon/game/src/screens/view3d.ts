@@ -23,7 +23,7 @@ function v3dSupported(): boolean {
   try { const c = document.createElement('canvas'); return !!(window as any).THREE && !!(c.getContext('webgl2') || c.getContext('webgl')); } catch (e) { return false; }
 }
 function view3dBtn(): string {
-  return `<button class="icon-btn v3d-btn" data-act="v3d-open" aria-label="3D view"><b>3D</b></button><button class="icon-btn v3d-btn own-apt-btn" data-act="own-apt-3d" aria-label="Your airport on the map" title="Your airport on the map">${icon('airport')}</button>`;
+  return `<button class="icon-btn v3d-btn" data-act="v3d-open" aria-label="3D view"><b>3D</b></button><button class="icon-btn v3d-btn walk-btn" data-act="place-world" aria-label="Place yourself in the world" title="Place yourself in the world">${icon('walker')}</button>${/Android/i.test(navigator.userAgent) ? '' : `<button class="icon-btn v3d-btn own-apt-btn" data-act="own-apt-3d" aria-label="Your airport on the map" title="Your airport on the map">${icon('airport')}</button>`}`;
 }
 
 ACTIONS['v3d-open'] = () => {
@@ -40,6 +40,26 @@ function v3dOpenAirport(icao: string) {
   const m = _curMap(); v3dOpen('apt:' + icao, m, m ? m.el : null);
 }
 ACTIONS['apt-3d'] = el => v3dOpenAirport(el.getAttribute('data-icao'));
+/** Placing yourself in the world: the walking man shows an animated X fixed in the middle of the map (move and zoom the
+ *  map under it) and a "Place in world" button at the bottom; that button puts you on the ground at the X. */
+function placeWorldCss() { if (document.getElementById('pw-css')) return; const st = document.createElement('style'); st.id = 'pw-css'; st.textContent = `
+.pw-ov { position: absolute; inset: 0; pointer-events: none; z-index: 6; }
+.pw-x { position: absolute; left: 50%; top: 50%; width: 34px; height: 34px; margin: -17px 0 0 -17px; }
+.pw-x i { position: absolute; left: 50%; top: 50%; width: 30px; height: 4px; margin: -2px 0 0 -15px; border-radius: 2px; background: #FFD24A; box-shadow: 0 0 8px rgba(255,190,60,.9), 0 0 0 1px rgba(0,0,0,.45); animation: pw-pulse 1.1s ease-in-out infinite; }
+.pw-x i:first-child { transform: rotate(45deg); } .pw-x i:nth-child(2) { transform: rotate(-45deg); }
+.pw-x b { position: absolute; inset: -6px; border: 2px solid rgba(255,210,74,.85); border-radius: 50%; animation: pw-ring 1.6s ease-out infinite; }
+@keyframes pw-pulse { 50% { opacity: .55; } } @keyframes pw-ring { 0% { transform: scale(.4); opacity: 1; } 100% { transform: scale(1.6); opacity: 0; } }
+.pw-go { position: absolute; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); pointer-events: auto; white-space: nowrap; }
+.walk-btn.on { background: rgba(255,210,74,.25); box-shadow: 0 0 0 2px #FFD24A inset; }`; document.head.appendChild(st); }
+function placeWorldOff() { document.querySelectorAll('.pw-ov').forEach(o => o.remove()); document.querySelectorAll('.walk-btn.on').forEach(b => b.classList.remove('on')); }
+ACTIONS['place-world'] = el => { const m: any = _curMap(); if (!m || !m.el) return;
+  if (m.el.querySelector('.pw-ov')) { placeWorldOff(); return; }
+  placeWorldCss(); placeWorldOff(); if (getComputedStyle(m.el).position === 'static') m.el.style.position = 'relative';
+  const ov = document.createElement('div'); ov.className = 'pw-ov'; ov.innerHTML = `<div class="pw-x"><i></i><i></i><b></b></div><button class="btn primary pw-go" data-act="place-world-go">${icon('walker')}Place in world</button>`;
+  m.el.appendChild(ov); el.classList.add('on'); toast('Move and zoom the map: you will stand where the X is', 'info'); };
+ACTIONS['place-world-go'] = () => { const m: any = _curMap(); if (!m) return; const p = m.ll(m.w / 2, m.h / 2); placeWorldOff();
+  if (!p || !isFinite(p[0]) || !isFinite(p[1])) return;
+  if (typeof embedTell === 'function') embedTell('room', { room: 'world', data: { lat: p[1], lon: p[0] } }); else toast('Walking in the world opens in the 3D game', 'info'); };
 /** Your own airport on the 2D map: the map flies down to it, with its runway, taxiways, stands and the terminal's outline. */
 ACTIONS['own-apt-3d'] = () => { const own = (typeof OWN_AIRPORT_LIST !== 'undefined' && OWN_AIRPORT_LIST[0]) ? OWN_AIRPORT_LIST[0][0] : 'BIAP', m = _curMap(); closeAll(); if (m) m.flyToAirport(own); };
 /** At an airport without following an aircraft: a stand-in "flight" parked at the airport. */
