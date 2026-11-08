@@ -98,6 +98,7 @@ function aware(st: { lat: number; lon: number; hdg: number; altM: number; onGrou
     else if (req(0) <= st.altM + 150) A.off += Math.max(-40 * dt, Math.min(40 * dt, -A.off));
     const want = Math.max(st.altM, req(A.off)); A.alt += Math.max(-12 * dt, Math.min(20 * dt, want - A.alt));
   }
+  if (!st.onGround) { const g = groundAt(st.lat, st.lon); if (g != null && isFinite(g)) A.alt = Math.max(A.alt, g + 30); }
   if (!isFinite(A.alt)) A.alt = st.altM;
   return { lat: st.lat + (-Math.sin(hd) * A.off) / kz, lon: st.lon + (Math.cos(hd) * A.off) / kx, alt: A.alt };
 }

@@ -45,6 +45,8 @@ const World$: Section = {
     // the ground round the spot; the loading screen stays until its heights and its satellite pictures are in
     progress(12, 'Loading the ground…');
     const T: Terrain = buildTerrain(sc, lat, lon); O.T = T; T.root.position.set(0, 0, 0);
+    // walking: the ground drawn from both sides, so it is always there under your feet
+    for (const m of T.mats) { m.backFaceCulling = false; m.twoSidedLighting = true; }
     const t0 = performance.now();
     await new Promise<void>(done => { const iv = setInterval(() => {
       const tiles = T.tiles.length || 25, pics = T.mats.filter(m => m.albedoTexture && m.albedoTexture.isReady()).length;
