@@ -7,9 +7,10 @@ import { registerSection, Section, SectionCtx } from '../../core/sections';
 import { S } from '../../core/settings';
 import { runLoop } from '../../core/engine';
 import { inputFrame } from '../../core/input';
-import { IS_PC, IS_TOUCH } from '../../core/app';
+import { IS_TOUCH } from '../../core/app';
 import { toast, esc } from '../../ui/icons';
 import { buildTerrain, Terrain } from '../viewer3d/terrain';
+import { holoMap } from '../../ui/holomap';
 
 const EYE = 1.65, R = 6371000, D2R = Math.PI / 180, REACH = 17000;
 const O: any = { scene: null as Scene | null };
@@ -60,6 +61,10 @@ const World$: Section = {
     hud.innerHTML = `<div class="hg-info"><b>${esc(lat.toFixed(4))}°, ${esc(lon.toFixed(4))}°</b><small>${sea ? 'On the water' : 'On the ground'} · walk anywhere round here</small>
       <button class="wx-b" data-back style="margin-top:8px">Back to the map</button></div>`;
     ui.appendChild(hud); O.hud = hud;
+    // the holographic map in the bottom-left corner, as in the airport (only the airport is drawn on it so far, so out
+    // here it shows its grid round you; more is added to it later)
+    holoMap(hud, () => ({ x: F.x + 1e6, z: F.z + 1e6, f: 1 as any, yaw: F.yaw }));
+    { const hm = hud.querySelector('.holomap') as HTMLElement | null; if (hm) Object.assign(hm.style, { left: 'max(14px, env(safe-area-inset-left))', right: 'auto', top: 'auto', bottom: `calc(max(14px, env(safe-area-inset-bottom)) + ${IS_TOUCH ? 40 : 34}px)` }); }
     hud.querySelector('[data-back]')!.addEventListener('click', () => { if (ctx.toGame) ctx.toGame('map'); });
     toast(IS_TOUCH ? 'Left thumb: walk · Right: drag to look' : 'W A S D to walk · Shift to run · click to look with the mouse · a controller works too');
     progress(100, 'Ready');
@@ -77,7 +82,6 @@ const World$: Section = {
       const cp = Math.cos(F.pitch); cam.setTarget(cam.position.add(new Vector3(Math.sin(F.yaw) * cp, Math.sin(F.pitch), Math.cos(F.yaw) * cp)));
       sc.render();
     });
-    void IS_PC;
   },
   close() {
     const sc: Scene = O.scene; if (!sc) return;
