@@ -58,33 +58,48 @@ const World$: Section = {
     const sea = (T.heightAt(lat, lon) ?? 0) <= 0;
 
     const hud = document.createElement('div'); hud.className = 'hud';
-    hud.innerHTML = `<div class="hg-info"><b>${esc(lat.toFixed(4))}°, ${esc(lon.toFixed(4))}°</b><small>${sea ? 'On the water' : 'On the ground'} · walk anywhere round here</small>
-      <button class="wx-b" data-back style="margin-top:8px">Back to the map</button></div>`;
+    // only what walking needs: the way back (top left), the moves (bottom right) and the holographic map (bottom left)
+    hud.innerHTML = `<button class="wx-b" data-back style="position:absolute;left:max(14px,env(safe-area-inset-left));top:max(14px,env(safe-area-inset-top));pointer-events:auto">‹ Back to the overview</button>
+      <div class="site-moves">${[['jump', 'Jump'], ['crouch', 'Crouch'], ['prone', 'Prone'], ['sprint', 'Run']].map(([k, l]) => `<button class="wx-b" data-mv="${k}">${l}</button>`).join('')}</div>`;
     ui.appendChild(hud); O.hud = hud;
     // the holographic map in the bottom-left corner, as in the airport (only the airport is drawn on it so far, so out
     // here it shows its grid round you; more is added to it later)
     holoMap(hud, () => ({ x: F.x + 1e6, z: F.z + 1e6, f: 1 as any, yaw: F.yaw }));
     { const hm = hud.querySelector('.holomap') as HTMLElement | null; if (hm) Object.assign(hm.style, { left: 'max(14px, env(safe-area-inset-left))', right: 'auto', top: 'auto', bottom: `calc(max(14px, env(safe-area-inset-bottom)) + ${IS_TOUCH ? 40 : 34}px)` }); }
-    hud.querySelector('[data-back]')!.addEventListener('click', () => { if (ctx.toGame) ctx.toGame('map'); });
-    toast(IS_TOUCH ? 'Left thumb: walk · Right: drag to look' : 'W A S D to walk · Shift to run · click to look with the mouse · a controller works too');
+    hud.querySelector('[data-back]')!.addEventListener('click', () => { if (ctx.toGame) ctx.toGame('ops'); else if (ctx.back) ctx.back(); });
+    // the stances and moves: standing, crouching, lying prone, a jump, running (buttons, keys and a controller's buttons)
+    const ST: { [k: string]: { eye: number; walk: number; run: number } } = { stand: { eye: EYE, walk: 1.6, run: 6.2 }, crouch: { eye: 1.0, walk: 0.9, run: 1.6 }, prone: { eye: 0.32, walk: 0.35, run: 0.5 } };
+    const W = { stance: 'stand', eye: EYE, vy: 0, jy: 0, run: false }; O.W = W;
+    const setStance = (k: string) => { W.stance = W.stance === k ? 'stand' : k; hud.querySelectorAll('[data-mv="crouch"],[data-mv="prone"]').forEach(b => b.classList.toggle('on', b.getAttribute('data-mv') === W.stance)); };
+    const jump = () => { if (W.jy > 0.001) return; if (W.stance !== 'stand') { setStance(W.stance); return; } W.vy = 4.4; };
+    const setRun = (on: boolean) => { W.run = on; const b = hud.querySelector('[data-mv="sprint"]'); if (b) b.classList.toggle('on', on); };
+    hud.querySelector('.site-moves')!.addEventListener('click', e => { const b = (e.target as HTMLElement).closest('[data-mv]'); if (!b) return; e.stopPropagation(); const k = b.getAttribute('data-mv');
+      if (k === 'jump') jump(); else if (k === 'sprint') setRun(!W.run); else setStance(k!); });
+    O.kd = (e: KeyboardEvent) => { if (e.repeat) return; const k = e.key.toLowerCase(); if (k === ' ') jump(); else if (k === 'c' || k === 'control') setStance('crouch'); else if (k === 'z') setStance('prone'); };
+    window.addEventListener('keydown', O.kd);
+    toast(IS_TOUCH ? 'Left thumb: walk · Right: drag to look' : 'W A S D walk · mouse look · Shift run · Space jump · C crouch · Z prone · a controller works too');
     progress(100, 'Ready');
 
     runLoop(() => {
       const dt = Math.min(0.05, engine.getDeltaTime() / 1000), inp = inputFrame(dt);
       F.yaw += inp.lx; F.pitch = Math.max(-1.3, Math.min(1.2, F.pitch - inp.ly));
-      const vmax = inp.run ? 6 : 1.6, mag = Math.min(1, Math.hypot(inp.mx, inp.my)); F.v += ((mag > 0.05 ? vmax * mag : 0) - F.v) * Math.min(1, dt * 6);
+      const sp = ST[W.stance], vmax = (inp.run || W.run) ? sp.run : sp.walk;
+      // the eye moves smoothly to the stance's height; a jump rises and falls back
+      W.eye += (sp.eye - W.eye) * Math.min(1, dt * 8); if (W.vy || W.jy > 0) { W.jy += W.vy * dt; W.vy -= 9.81 * dt; if (W.jy <= 0) { W.jy = 0; W.vy = 0; } }
+      const mag = Math.min(1, Math.hypot(inp.mx, inp.my)); F.v += ((mag > 0.05 ? vmax * mag : 0) - F.v) * Math.min(1, dt * 6);
       if (mag > 0.05) { const fx = Math.sin(F.yaw), fz = Math.cos(F.yaw), rx = Math.cos(F.yaw), rz = -Math.sin(F.yaw);
         let mx = fx * inp.my + rx * inp.mx, mz = fz * inp.my + rz * inp.mx; const ml = Math.hypot(mx, mz) || 1; mx /= ml; mz /= ml;
         const st = F.v * dt, nx = F.x + mx * st, nz = F.z + mz * st;
         if (Math.hypot(nx, nz) < REACH) { F.x = nx; F.z = nz; } F.bob += st; }
       const gy = ground(F.x, F.z);
-      cam.position.set(F.x, gy + EYE + Math.sin(F.bob / 0.65 * Math.PI) * 0.015 * Math.min(1, F.v / 1.1), F.z);
+      cam.position.set(F.x, gy + W.eye + W.jy + Math.sin(F.bob / 0.65 * Math.PI) * 0.015 * Math.min(1, F.v / 1.1), F.z);
       const cp = Math.cos(F.pitch); cam.setTarget(cam.position.add(new Vector3(Math.sin(F.yaw) * cp, Math.sin(F.pitch), Math.cos(F.yaw) * cp)));
       sc.render();
     });
   },
   close() {
     const sc: Scene = O.scene; if (!sc) return;
+    if (O.kd) window.removeEventListener('keydown', O.kd); O.kd = null;
     if (O.hud) O.hud.remove(); try { O.T && O.T.dispose(); } catch (e) { /* gone */ } sc.dispose(); O.scene = null;
   },
   onSettings(what: string) { apply(what === 'preset' ? 'all' : what); },
