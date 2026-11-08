@@ -1,0 +1,341 @@
+# Code map
+
+Where everything is, in plain words: every folder and file of the game and what it does. Updated whenever files are added or moved.
+
+## Android version (Babylon.js edition): `Airline-Manager-Pro-Babylon/`
+
+### `src/core/`: The engine core: settings, input, performance, saving photos, the problem log
+
+- `app.ts`: The app's name, version and engine version, put in by the build (scripts/build.mjs).
+- `batch.ts`: Fewer draw calls with the same picture, for places with a great many static things:
+- `engine.ts`: The Babylon.js engine on the page's canvas:
+- `errlog.ts`: Problems the 3D places run into, for the game's log (Settings → Updates and errors):
+- `exit.ts`: Exit:
+- `filetex.ts`: Pictures loaded from files (the jetways', the rotundas', the runway's skid marks):
+- `flatten.ts`: Levelled ground under the things placed in the world.
+- `glassmirror.ts`: Live reflections on the terminal's outer glass (Settings → Graphics → Live reflections, off unless turned on).
+- `hide.ts`: Things you can't see from where you are, not drawn.
+- `input.ts`: Every way to move and look, from day one:
+- `look.ts`: The airport's extra graphics, each its own switch in Settings → Graphics (on by default where the device can carry it):
+- `perf-meter.ts`: The performance overlay (Settings → Graphics, each part on or off):
+- `photo.ts`: Saving a photo taken in the game:
+- `replace.ts`: Replaceable parts:
+- `sections.ts`
+- `settings.ts`: Settings:
+- `texarray.ts`: Shared materials and texture arrays:
+- `thin.ts`: Fixed copies as thin instances:
+- `tilecache.ts`: The map tiles the 3D places download (the ground's heights and the satellite pictures), kept on the device (IndexedDB), so the second time a place opens it comes up faster and works without a connection.
+- `update.ts`: Updates from inside the game:
+
+### `src/ui/`: On-screen interface of the 3D places: title screen, settings panel, loading screen, maps
+
+- `device-scan.ts`: Scan this device (Settings → Graphics):
+- `game-frame.ts`: The airline game's interface (www/game:
+- `holomap.ts`: The airport map while you walk:
+- `icons.ts`: The app's few icons, drawn inline (our own).
+- `loading.ts`: The loading screen between the start screen and a 3D place:
+- `settings-panel.ts`: The settings, behind the gear that is always on the screen:
+- `splash.ts`: The start screen of the Babylon.js edition:
+- `whats-new.ts`: What's new:
+
+### `src/sections/`: The 3D places, one folder each
+
+- **`src/sections/building/`**
+  - `concourse.ts`: The joined building's halls, to the main game's plan:
+  - `index.ts`: The joined building, to the main game's plan:
+  - `museum.ts`: Your museum:
+  - `suite.ts`: Your private suite behind the office (the "Dark hotel suite"), through a door in the office's right-hand wall:
+- **`src/sections/court/`**
+  - `build.ts`: The courtroom, on Babylon.js (from the main game's courtroom):
+  - `index.ts`: The courtroom as a section of the game, opened from the game (Court, a summons, a case's Open).
+  - `people.ts`: The people in court, for now:
+  - `seats.ts`: Every seat in the courtroom, with its id:
+  - `textures.ts`: The courtroom's textures, drawn (ported from the main game's courtroom):
+- **`src/sections/hangar/`**
+  - `build.ts`: The hangar, built in Babylon.js to the main game's plan:
+  - `index.ts`: The hangar as a section of the game, opened from the game (Hangars, Walk in):
+- **`src/sections/lounge/`**
+  - `bar.ts`: The bar in the lounge:
+  - `build.ts`: The Business lounge, built in Babylon.js to the same plan and measurements as the main game's (22 × 14 m, walls 4.8 m):
+  - `index.ts`: The lounge as a section of the game:
+  - `pictures.ts`: The lounge's drawn pictures (our own, made in code):
+- **`src/sections/office/`**
+  - `build.ts`: Your office, built in Babylon.js to the main game's plan:
+  - `index.ts`: Your office as a section of the game, opened from the game (My office):
+  - `pet-preview.ts`: The picture of your pet in the game's pet editor (Your pilot → Pet):
+  - `pet.ts`: Your pet in your office:
+- **`src/sections/ops/`**
+  - `build.ts`: The Operations office, built in Babylon.js to the main game's plan:
+  - `index.ts`: The Operations office as a section of the game, opened from the game (Operations):
+- **`src/sections/salute/`**
+  - `index.ts`: A water salute, on Babylon.js:
+- **`src/sections/site/`**
+  - `index.ts`: The airport site:
+- **`src/sections/site/airfield/`**
+  - `build.ts`: @ts-nocheck Your airport's airfield in 3D, from the same plan and the same drawing as the architect sheets:
+  - `field.ts`: @ts-nocheck The airfield drawn from its plan (the architect sheets' own drawing):
+  - `plan.ts`: @ts-nocheck The plan of your airport, as on the architect sheets:
+- **`src/sections/terminal/`**
+  - `ceilings.ts`: The walkway's ceiling (F2-WALK):
+  - `doors.ts`: Every door in the schedule (A-04) as its own object (named with its id, in the room it opens from):
+  - `fids.ts`: The timetable screens (departures and arrivals):
+  - `fixtures.ts`: The terminal's fittings, each its own object with its id:
+  - `furnish.ts`: Everything in the rooms, each its own object with its id (ROOM/KIND-nnn), placed to the drawings:
+  - `index.ts`: The new passenger terminal (concept 1), as a demo of its own from the title screen:
+  - `jetway.ts`: The jetways J-1 to J-4:
+  - `jw-geo.ts`: A small geometry builder for the jetways:
+  - `jw-tex.ts`: The jetways' own pictures, painted here (our own work):
+  - `kit.ts`: The terminal's building kit:
+  - `lifts.ts`: The lifts (E-01, E-G1–4):
+  - `plan.ts`: The passenger terminal, concept 1, from the architect's drawings (sheets A-01 to A-04):
+  - `rental-tex.ts`: The rental car centre's textures, painted on canvases:
+  - `rental.ts`: The rental car centre (design 1, Wing), beside the terminal's east wing:
+  - `shell.ts`: The terminal's structure, room by room:
+  - `weather.ts`: The sky and the weather over the terminal, and the photographer's tools of the Terminal demo:
+- **`src/sections/training/`**
+  - `build.ts`: The Training room (the Academy):
+- **`src/sections/viewer3d/`**
+  - `airliner.ts`: The aircraft in the 3D viewer:
+  - `airport.ts`: An airport under the flights in the 3D viewer, from the game's layout of it (the simulator's own, OpenStreetMap's, or laid out from the runways):
+  - `astro.ts`: Where the sun and the moon are in the sky, for a place and a moment (low-precision formulas from the Astronomical Almanac, good to a fraction of a degree), and the sidereal time that turns the real stars with them.
+  - `cabin.ts`: The cabin of the aircraft in the 3D viewer:
+  - `crash.ts`: Crash sites in the 3D viewer.
+  - `index.ts`: The 3D viewer, as a demonstration:
+  - `own-airport.ts`: Your own airport in the 3D viewer:
+  - `photo.ts`: Photo mode in the 3D viewer (as in the main game):
+  - `realwx.ts`: Real weather in the 3D viewer:
+  - `route.ts`: The demo flight's plan:
+  - `sky.ts`: The world round the aircraft in the 3D viewer, drawn in one pass on a dome that goes with the camera:
+  - `stars.ts`: Bright stars (to magnitude 5.6):
+  - `terrain.ts`: The real ground under the flight in the 3D viewer:
+- **`src/sections/world/`**
+  - `index.ts`: Walking anywhere in the world, opened from the world map (the walking man under the 3D button, then "Place in world"):
+
+### `game/src/`: The game's whole 2D interface and simulation (the Overview, fleet, crew, map, economy)
+
+- `main.ts`: Start-up:
+- **`game/src/core/`**
+  - `ai-sim.ts`: Hired pilots fly on the real clock.
+  - `airline-life.ts`: Airline life:
+  - `alliances.ts`: Airline alliances:
+  - `backup.ts`: Backups of the whole airline (settings, looks, crews, fleet, money, logs, the PC link, everything that is saved) outside the app's own storage, so nothing is lost when the app's data is cleared, the app is uninstalled, o
+  - `bank.ts`: Money matters beyond the flights, as real airlines have them:
+  - `bases.ts`: Bases and stands.
+  - `biz-more.ts`: More of the airline business.
+  - `business.ts`: The airline business around every flight, from real-world airline figures:
+  - `career-rides.ts`: Your own check rides and career milestones.
+  - `career-start.ts`: A new career starts with its money on hold:
+  - `career.ts`: Your career as a pilot, in your own airline and in co-op:
+  - `catering.ts`
+  - `cloudsync.ts`
+  - `condition.ts`: Aircraft condition.
+  - `coop-connect.ts`: Co-op connections:
+  - `coop-jobs.ts`: Jobs in co-op:
+  - `coop-plus.ts`: More for co-op airlines:
+  - `coop.ts`: Co-op:
+  - `court-hearing.ts`: The airline in court, in person.
+  - `court-plus.ts`: The court cases in depth (court.ts runs the timeline):
+  - `court-staff.ts`: Taking a member of staff to court.
+  - `court.ts`: Criminal cases.
+  - `crew-lease.ts`: Borrowed crew:
+  - `crew-start.ts`: Crew to fly:
+  - `crew-training.ts`: Training for everyone you hire, not only the pilots' type ratings:
+  - `delays.ts`: Delays, rare as in real life, for hired (AI) pilots only:
+  - `desktop.ts`: The app on Windows (opened by the PC app):
+  - `economics.ts`: What a flight earns and costs, from real-world airline figures (USD, one way, averages):
+  - `errlog.ts`: Error log:
+  - `failures.ts`
+  - `feed.ts`: Feeds live data from Flight Simulator into the app:
+  - `flight-trace.ts`: Flight trace:
+  - `flightperf.ts`: How long a real flight takes, minute by minute:
+  - `flightplan.ts`: Flight plans (the Flight planner, screens/planner.ts):
+  - `g2p.ts`: Text to phonemes for the neural voices:
+  - `goals.ts`: Goals:
+  - `ground-sim.ts`
+  - `ground.ts`: Ground handling.
+  - `icons.ts`: Line icons drawn for this app (24×24, stroke = currentColor).
+  - `investigation.ts`: Accident investigations.
+  - `jobs.ts`: Jobs:
+  - `levels.ts`: Levels for hired pilots, co-pilots, flight attendants and mechanics, from 1 to 500.
+  - `licence.ts`: Registration.
+  - `link.ts`: Link to the Airport Dynasty Pro PC app over the local network:
+  - `lounge-drunk.ts`: Passengers in your lounge can drink at the bar while they wait for their flight.
+  - `loyalty.ts`: Passengers who come back, fuel bought ahead, fares that follow demand, and lounges at your hubs.
+  - `manifest.ts`: Who is on board:
+  - `markets.ts`: Difficulty, and the markets for jet fuel and spare parts.
+  - `mods.ts`
+  - `morale.ts`: How your AI staff feel about working for you, a little like the Sims:
+  - `news-more.ts`: More stories for the newspaper:
+  - `news.ts`: The news:
+  - `online.ts`: Online services the app works with.
+  - `ops-decisions.ts`: At the gate, and the weather before departure.
+  - `passengers.ts`: Disruptive passengers.
+  - `pax-experience.ts`: What passengers live through on a hired pilot's flight, and what they think of it afterwards.
+  - `pax-mood.ts`: How each passenger feels during the flight.
+  - `procedures.ts`: Departures and arrivals.
+  - `progress.ts`: Progress:
+  - `ratings.ts`: Type ratings and the landing leaderboard.
+  - `runway-req.ts`: Which aircraft can use which runways.
+  - `security.ts`: Security:
+  - `services.ts`: On-board and ground services:
+  - `sfx.ts`
+  - `sickness.ts`: Sick days.
+  - `sound.ts`: All sounds are synthesised in code (Web Audio), so there are no third-party audio files to license.
+  - `special-days.ts`: Special days:
+  - `staffing.ts`: People and pay over time, on the real clock (it catches up when the app has been closed):
+  - `store.ts`: Saves the airline on the device so it survives app updates and restarts.
+  - `strikes.ts`: Pay and strikes.
+  - `traffic.ts`: Other airlines (made up):
+  - `turnaround.ts`: What happens on board, live:
+  - `update.ts`: App updates:
+  - `util.ts`: Small shared helpers.
+  - `va-crew.ts`: Crew features:
+  - `va-league.ts`: The airline league, Airline of the Month and of the Year, and the monthly report.
+  - `va-track.ts`: Flight replay, flight score and the fuel check.
+  - `voice.ts`: Voices for the people who talk to you in the app:
+  - `warnings.ts`: What happens after a formal warning.
+  - `weather.ts`: Real-world weather for the whole world, always on:
+- **`game/src/data/`**
+  - `aircraft-shapes.ts`: The shape of every aircraft type, in metres, from published dimensions (manufacturers' airport-planning documents, type certificate data sheets and the aircraft's handbooks):
+  - `aircraft.ts`: Aircraft types the airline can buy.
+  - `airlines.ts`: Real-world airlines you can fly for, from the big network carriers to small island and bush operators.
+  - `airport-layouts.ts`: Airport layouts for the airport view, best first:
+  - `airports-major.ts`: Generated by scripts/make-major-airports.py from OurAirports (public domain):
+  - `airports.ts`: The main airports, with hand-checked names.
+  - `capacity.ts`: How many passengers each type carries, from the manufacturers' published figures:
+  - `demo.ts`: Demo data that fills every screen until the real simulator sync is wired in.
+  - `engines.ts`: Engines each type is built with (docs/reference/engines.txt).
+  - `flight-configs.ts`: Flaps and landing gear through a flight, per aircraft type:
+  - `licence-hashes.ts`: Fingerprints of the registration keys and reactivation codes (tools/licences/generate.py).
+  - `own-airport-layout.ts`: Your own airport's layout for the game (the airport view, the world map's drawing at airport level, the taxiing, the 3D viewer):
+  - `own-airport.ts`: Your own airports (made up, not in the world's lists):
+  - `people.ts`: Crew:
+  - `real-airlines.ts`: Registrations for other airlines' aircraft when they are shown with real airline names (the airlines themselves are REAL_AIRLINES in airlines.ts).
+  - `speeds.ts`: Take-off and landing speeds and weights per aircraft type, from the reference documents in docs/reference/ (takeoff-speeds-and-weights.txt, landing-speeds-and-weights.txt and additional-aircraft-speeds-and-weights.txt).
+  - `stars.ts`: Bright stars (to magnitude 5.6):
+  - `world-airports.ts`: Every airport in the world, not just the ones in the demo:
+- **`game/src/graphics/`**
+  - `aim.ts`: Free mode (walking about your office, the courtroom, the cabin):
+  - `aircraft-art.ts`: Parametric side-view aircraft illustrations.
+  - `aircraft-model.ts`: Aircraft models built from each type's real dimensions (src/data/aircraft-shapes.ts):
+  - `avatar.ts`: Full-body crew avatars:
+  - `avatar3d-view.ts`: Shows the crew figures (see human.ts) in the interface.
+  - `gfx.ts`: Graphics on the PC, category by category.
+  - `helicopter-model.ts`: Helicopters:
+  - `human.ts`: @ts-nocheck Realistic crew figures.
+  - `land.ts`: Simplified land outlines (lon, lat) drawn for this app.
+  - `models.ts`: Replaceable models.
+  - `perf.ts`: Automatic performance for the 3D views and rooms on phones and tablets (and on the PC when switched on).
+  - `props.ts`: Furniture and fittings shared by the rooms (lounges, your office, the Operations office, the hangars), built by the app.
+  - `worldmap.ts`: Live world map:
+- **`game/src/screens/`**
+  - `airport-view.ts`: Airport view:
+  - `car-rental.ts`: Car rental at your airport (Airport → Services and concessions):
+  - `coop.ts`: Co-op screen:
+  - `court3d.ts`
+  - `dashboard.ts`: Operations overview:
+  - `dispatch.ts`: Dispatch:
+  - `fids3d.ts`
+  - `finance.ts`: Finance:
+  - `fleet.ts`: Fleet:
+  - `gfx-advice.ts`: Recommended graphics settings:
+  - `gifts.ts`: Gifts:
+  - `hangar3d.ts`: The hangar, in 3D.
+  - `jobs.ts`: Jobs:
+  - `lap-files.ts`
+  - `laptop.ts`: Your laptop, on the desk in your office (office3d.ts).
+  - `lease-out.ts`: Leasing your own aircraft out to other airlines, and closing routes.
+  - `leasing.ts`: Leasing aircraft.
+  - `livery.ts`: The livery designer:
+  - `logbook.ts`: Logbook:
+  - `lounge-bar.ts`
+  - `lounge-deco.ts`
+  - `lounge3d.ts`: Your lounges, in 3D.
+  - `maintenance.ts`: Maintenance:
+  - `map.ts`: Full-screen live map with every company flight and a details panel.
+  - `market.ts`: Aircraft market:
+  - `museum3d.ts`: Your museum:
+  - `office-suite.ts`
+  - `office3d.ts`
+  - `ops3d.ts`: The Operations office:
+  - `pet3d.ts`: Your pet:
+  - `phone-apps.ts`: The phone's own apps, in the dock at the bottom of its home screen:
+  - `phone-talk.ts`: Talking to people on your phone:
+  - `phone3d.ts`
+  - `photo-mode.ts`: Photo mode in the 3D view:
+  - `pilots.ts`: Pilots:
+  - `planner.ts`: Flight planner:
+  - `ranking.ts`: Ranking:
+  - `routes.ts`: Routes:
+  - `salute3d.ts`: A water salute:
+  - `schedule.ts`: Schedule:
+  - `sec-incident.ts`
+  - `settings.ts`: Settings.
+  - `testrooms.ts`: Test rooms:
+  - `trade.ts`: Selling aircraft, the used-aircraft market and cabin layouts.
+  - `training3d.ts`
+  - `v3d-cabin.ts`
+  - `v3d-cabincrew.ts`
+  - `v3d-cabinpax.ts`
+  - `v3d-clouds.ts`
+  - `v3d-contrails.ts`: Contrails in the 3D view:
+  - `v3d-crash.ts`
+  - `v3d-ground.ts`: Ground vehicles and jet bridges at the gate in the 3D view.
+  - `v3d-lod.ts`: Simpler models in the distance:
+  - `v3d-seat.ts`: The cabin seats in detail:
+  - `v3d-sky.ts`
+  - `v3d-sound.ts`
+  - `v3d-terrain.ts`: The ground in the 3D view, in rings of detail:
+  - `v3d-walk.ts`
+  - `v3d-weather.ts`
+  - `v3d-wet.ts`: Wet runways in the 3D view:
+  - `view3d.ts`: The 3D view:
+- **`game/src/ui/`**
+  - `alerts.ts`: Alerts for the messages that matter:
+  - `badge-reveal.ts`: Badge reveal:
+  - `battery.ts`: Battery of the device the app runs on, shown next to the link to your PC:
+  - `booster.ts`
+  - `briefing.ts`: The morning briefing:
+  - `conduct-detail.ts`: What exactly happened in a conduct report:
+  - `crew-ui.ts`: Crew pop-ups:
+  - `devices.ts`
+  - `embed.ts`: Inside the Babylon.js edition:
+  - `exit-splash.ts`: Leaving a 3D place (your office, the Operations office, the courtroom, the 3D view):
+  - `exit.ts`: Exit:
+  - `first-start.ts`: The very first start:
+  - `flight-pops.ts`: Flight pop-ups:
+  - `gamepad.ts`: Game controllers:
+  - `look-editor.ts`: Look editor:
+  - `mod-manager.ts`
+  - `overlays.ts`: Layered windows:
+  - `qol.ts`: Comfort:
+  - `quit-save.ts`: Leaving the game:
+  - `room-notes.ts`: Messages while you are in a room.
+  - `scene-gear.ts`
+  - `shell.ts`: App shell:
+  - `splash.ts`: Start-up screen:
+  - `thanks.ts`: Thank-yous.
+  - `title.ts`: The start screen:
+  - `viewer3d.ts`: The 3D object viewer:
+  - `whats-new.ts`: "What's new":
+
+### `pc/`: The PC app (Windows)
+
+- `main.js`: The PC app:
+- `package.mjs`: Packages the PC app for Windows:
+
+### `scripts/`: Build helpers (Android plugins and the like)
+
+- `build.mjs`: Builds the app:
+- **`scripts/android/`**
+  - `AppExitPlugin.java`
+  - `AppUpdatePlugin.java`
+  - `MainActivity.java`
+  - `PhotoSavePlugin.java`
+  - `UpdatedReceiver.java`
+
+Other folders: `www/` (pictures, sounds and the built game), `release-notes/` (one file per version), `docs/` (guides), `signing/` (the fixed test key for Android updates), `android/` (made by the build).
+
+## PC version (Unreal Engine 5): to come
+
+The Unreal project is added here as it is built; each folder and file gets its line in this map.

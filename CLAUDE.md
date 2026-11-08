@@ -105,3 +105,8 @@
 - Holographic map additions (approved 2026-11-07): a blinking marker wherever an incident is happening (a drunk
   passenger, a guard escort and the like), and the same holographic map used on Android as its 2D layered terminal
   map (one layer per floor, live dots and gate statuses from the shared world, no walking).
+- Chapters in the code, for both versions (Android and PC): CODE-MAP.md at the top of the repo lists every folder and
+  file in plain words and is kept up to date. Inside files, chapters are comments only (never code): `// #region ──
+  Name ──` … `// #endregion` in TypeScript, `#pragma region Name` … `#pragma endregion` in C++. Every file starts with
+  a short description of what it does. Chapters are added to a file whenever it is worked on; new files and all Unreal
+  code get them from the start.
