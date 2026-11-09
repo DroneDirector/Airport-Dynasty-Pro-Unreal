@@ -64,6 +64,10 @@ bool ABabylonModel::Place(const FString& Name)
 		const TSharedPtr<FJsonObject> N = Nodes[I]->AsObject();
 		const FTransform World = Local(N) * Parent;
 		NodeWorld[I] = World;
+		// the trees round the car park are left out for now (owner, 2026-11-09); the rows at the kerbs (the road in front
+		// of the terminal, the car-rental building) stay until good-looking Unreal trees take their places; the planters
+		// indoors stay. (World.Y is the plan's z in centimetres: the kerb row stands at z -36 m, the car park beyond -40 m.)
+		{ FString Nm; if (N->TryGetStringField(TEXT("name"), Nm) && Nm.StartsWith(TEXT("SITE/TREE")) && World.GetLocation().Y < -4000.0) return; }
 		{ FString Nm; N->TryGetStringField(TEXT("name"), Nm); bDoor = bDoor || Nm.StartsWith(TEXT("D-")); }
 		int32 Mesh;
 		if (N->TryGetNumberField(TEXT("mesh"), Mesh))
