@@ -146,6 +146,9 @@ def heights(lon0, lat0, lon1, lat1, n, flatten=True):
 # GLO-90 (the geoid is added the same way).
 NATIONAL = [
     (Path('F:/ADP-Terrain/faroes/FO_DSM_2015_FOTM_10M.tif'), Path('F:/ADP-Terrain/faroes/fo_dsm_4326.tif'), 0.0002, 13),
+    # Iceland: ÍslandsDEM v1.0, 10 m (ISN93 / Lambert, EPSG:3057), Landmælingar Íslands, CC BY 4.0; credit "ÍslandsDEM v1.0
+    # © Landmælingar Íslands (National Land Survey of Iceland), CC BY 4.0". Heights above sea level.
+    (Path('F:/ADP-Terrain/iceland/IslandsDEMv1.0_10x10m_isn93_zmasl.tif'), Path('F:/ADP-Terrain/iceland/iceland_4326.tif'), 0.00025, 13),
 ]
 
 def prepare_national():
