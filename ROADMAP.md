@@ -47,7 +47,15 @@ are offered. Sources: CLAUDE.md (the agreed plan), the PDFs in the repo, the Bab
 
 ## Batch 6: the globe (in progress)
 - [x] Cesium for Unreal 2.31.0 (fetched by Tools/GetCesium.ps1), the airport placed at its real spot and turned to the runway's 068°, the Sentinel-2 2016 imagery with its credit on screen
-- [ ] The mountains: read straight from Terrain Tiles on AWS (the same public tiles the Android edition uses, no hosting of our own), the airport's ground flattened and blended in as on Android
+- [ ] The mountains, shipped with the game (no streaming), decided by the owner 2026-11-09:
+  - the whole world: Copernicus GLO-90 (90 m, free commercial use with credit), about 15–25 GB shipped
+  - the Faroe Islands: the national elevation model (DSM, 2/5/10 m) from Umhvørvisstovan via Føroyakort, open data
+    licence with the credit "Data from the Faroese Environment Agency, Umhvørvisstovan" + dataset name + download date
+    (keep a copy of the terms as downloaded: they can change)
+  - Iceland: ÍslandsDEM from Landmælingar Íslands (CC BY 4.0), at 10 m (the 2 m version would be about 20 GB for
+    Iceland alone)
+  - a one-time converter to compact height tiles (finest available tiles win), read from disk; the airport's ground
+    flattened within 2.6 km and blended out to 4.4 km as on Android
 - Cesium for Unreal with the free data (Sentinel-2 2016 imagery, Copernicus/AWS terrain, OpenStreetMap water)
 - The airport placed at 63.457988 N, 18.713703 W, 40 m (130 ft), runway heading 68°, the ground flattened within
   2.6 km and blended out to 4.4 km exactly as in the Babylon edition
