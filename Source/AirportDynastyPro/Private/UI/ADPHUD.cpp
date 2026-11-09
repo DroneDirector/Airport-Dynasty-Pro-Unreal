@@ -7,6 +7,7 @@
 #include "UI/InputGlyphs.h"
 #include "UI/SDragBox.h"
 #include "SunClock.h"
+#include "Globe.h"
 #include "HAL/IConsoleManager.h"
 #include "UnrealClient.h"
 #include "TerminalPlan.h"
@@ -278,7 +279,7 @@ void AADPHUD::BeginPlay()
 			// the imagery's credit, as its licence (CC BY 4.0) asks
 			// every credit in one line here (wrapping between the map and the Buttons tab, never over them)
 			SAssignNew(Credit, STextBlock).Font(Font(7, "Regular")).ColorAndOpacity(FLinearColor(1, 1, 1, 0.55f)).Justification(ETextJustify::Center).WrapTextAt(1000)
-			.Text(FText::FromString(TEXT("Sentinel-2 cloudless 2016 (s2maps.eu) by EOX IT Services GmbH, contains modified Copernicus Sentinel data 2016 · Copernicus DEM GLO-90 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA · Data from the Faroese Environment Agency, Umhvørvisstovan: DSM hæddarmodell 2015, November 2026 · Cesium")))
+			.Text_Lambda([]() { return FText::FromString(AGlobe::SourceCredit(AGlobe::ShownSource) + TEXT(" · Copernicus DEM GLO-90 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA · Data from the Faroese Environment Agency, Umhvørvisstovan: DSM hæddarmodell 2015, November 2026 · Cesium")); })
 		]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(0, 92, 0, 0)
 		[
@@ -446,6 +447,15 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 6)[VolumeSlider(2)]
 				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Information (notices for everyone)"))]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)[VolumeSlider(3)]
+				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Satellite pictures on the globe (free sources, the whole Earth)"))]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 2)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 4, 0)[Button(TEXT("EOX SENTINEL-2 (10 M)"), []() { AGlobe::UseSource(0); })]
+					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 4, 0)[Button(TEXT("NASA LANDSAT (30 M)"), []() { AGlobe::UseSource(1); })]
+					+ SHorizontalBox::Slot().AutoWidth()[Button(TEXT("NASA BLUE MARBLE (500 M)"), []() { AGlobe::UseSource(2); })]
+				]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true).Text_Lambda([]() { return FText::FromString(AGlobe::Note); })]
 				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Updates"))]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 2)
 				[
