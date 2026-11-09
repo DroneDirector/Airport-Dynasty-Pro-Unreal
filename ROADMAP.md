@@ -12,7 +12,7 @@ are offered. Sources: CLAUDE.md (the agreed plan), the PDFs in the repo, the Bab
 - [x] Main hall fittings: check-in desks 1–24 with belts, banners, chairs and queue lines, 8 bag drops, trees, benches, bins and signs; seats, gate desk and sign at all 8 gates
 - [ ] The other rooms' fittings (security lanes, lounge, offices, Operations, Academy, crew room, toilets, baggage hall, Food Walk, eateries, Tax Free, bar, family room, view bays) and the ceiling lights
 - [x] Stairs with oak and walnut steps, glass sides, handrails and a glass balustrade round the opening; openings cut through Floor 2 and the ceilings; the 5 lifts called, opening and riding between the floors
-- [ ] Gate 1: seating, gate desk, gate screen, and its jetway (J-1)
+- [x] The jetways J-1 to J-4 (fixed corridor, rotunda, three telescopic tunnel sections, bellows, cab with canopy, drive unit), docked, walkable; docking and undocking come with the aircraft in batch 5
 - [ ] Timetable screens (departures and arrivals) showing the game's flights
 - [ ] Release pipeline for the PC: the PC as GitHub's build machine, packaged game, update over the old version
 - Publish: version 0.5.0 (PC) together with the next Android release
