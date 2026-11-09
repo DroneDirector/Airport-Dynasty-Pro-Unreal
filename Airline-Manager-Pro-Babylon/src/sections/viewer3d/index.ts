@@ -298,7 +298,7 @@ const Viewer: Section = {
     perfAttach(engine, sc, hud.querySelector('.v3d-perf') as HTMLElement); perfShow();
     // following a flight: the holographic map in the bottom-left corner (the land outside, the cabin inside), and
     // Hide UI's way back (a double tap anywhere, a double click, or Esc)
-    if (V.live) V.sky = skyMap(hud, () => V.pos ? { lat: V.pos[0], lon: V.pos[1], hdg: V.hdg || 0, ter: V.ter || null, cabin: !!(V.view && V.view.cabin),
+    if (V.live) V.skyMap = skyMap(hud, () => V.pos ? { lat: V.pos[0], lon: V.pos[1], hdg: V.hdg || 0, ter: V.ter || null, cabin: !!(V.view && V.view.cabin),
       me: V.view && V.view.walk ? (V.cw ? { x: V.cw.x, z: V.cw.z } : null) : V.view && V.view.eye ? { x: V.view.eye[0], z: V.view.eye[2] } : null } : null);
     V.uiBack = () => document.body.classList.remove('ui-off'); let lastTap = 0;
     V.uiTap = () => { if (!document.body.classList.contains('ui-off')) return; const t = performance.now(); if (t - lastTap < 350) V.uiBack(); lastTap = t; };
@@ -449,7 +449,7 @@ const Viewer: Section = {
   close() {
     const sc: Scene = V.scene; if (!sc) return;
     try { if (V.rwx) { V.rwx.dispose(); V.rwx = null; } } catch (e) { /* gone */ }
-    try { if (V.sky) { V.sky.dispose(); V.sky = null; } document.removeEventListener('pointerup', V.uiTap, true); document.removeEventListener('dblclick', V.uiBack, true); window.removeEventListener('keydown', V.uiKey); document.body.classList.remove('ui-off'); } catch (e) { /* gone */ }
+    try { if (V.skyMap) { V.skyMap.dispose(); V.skyMap = null; } document.removeEventListener('pointerup', V.uiTap, true); document.removeEventListener('dblclick', V.uiBack, true); window.removeEventListener('keydown', V.uiKey); document.body.classList.remove('ui-off'); } catch (e) { /* gone */ }
     try { V.ctxCanvas && 0; const cv: HTMLCanvasElement = (V.scene && V.scene.getEngine().getRenderingCanvas()) as HTMLCanvasElement; if (cv) { cv.removeEventListener('pointerdown', V.tdn); cv.removeEventListener('pointerup', V.tup); } speechSynthesis.cancel(); } catch (e) { /* gone */ }
     try { if (V.cabin) { V.cabin.dispose(); V.cabin = null; } V.inCabin = false; V.cw = null; V.fuse = null; } catch (e) { /* gone */ }
     try { if (V.photo) { V.photo.dispose(); V.photo = null; } document.body.classList.remove('photo-on'); } catch (e) { /* gone */ }
