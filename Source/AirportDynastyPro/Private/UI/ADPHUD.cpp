@@ -6,6 +6,7 @@
 #include "UI/ADPBridge.h"
 #include "UI/InputGlyphs.h"
 #include "UI/SDragBox.h"
+#include "HAL/IConsoleManager.h"
 #include "UnrealClient.h"
 #include "TerminalPlan.h"
 #include "Engine/Engine.h"
@@ -136,6 +137,7 @@ void AADPHUD::BeginPlay()
 	Super::BeginPlay();
 	Current = this;
 	GConfig->GetBool(TEXT("ADP.Boxes"), TEXT("FrameRateOn"), bFpsBox, GGameUserSettingsIni);
+	{ bool bFG = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("FrameGeneration"), bFG, GGameUserSettingsIni); SetFrameGen(bFG); }
 	PrimaryActorTick.bCanEverTick = true;
 	FirstStartScan();
 
@@ -174,7 +176,7 @@ void AADPHUD::BeginPlay()
 				.Cursor(EMouseCursor::GrabHand)
 				[
 					SNew(STextBlock).Font(Font(11)).ColorAndOpacity(Ink)
-					.Text_Lambda([this]() { return FText::FromString(FString::Printf(TEXT("%d FPS  ·  %.1f ms"), FMath::RoundToInt(FpsSmooth), 1000.f / FMath::Max(1.f, FpsSmooth))); })
+					.Text_Lambda([this]() { return FText::FromString(bFrameGen ? FString::Printf(TEXT("%d FPS with frame generation  ·  %d rendered"), FMath::RoundToInt(FpsSmooth * 2), FMath::RoundToInt(FpsSmooth)) : FString::Printf(TEXT("%d FPS  ·  %.1f ms"), FMath::RoundToInt(FpsSmooth), 1000.f / FMath::Max(1.f, FpsSmooth))); })
 				]
 			]
 		]
@@ -393,6 +395,14 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 					SNew(SHorizontalBox)
 					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("VSYNC ON / OFF"), []() { if (UGameUserSettings* S = Prefs()) { S->SetVSyncEnabled(!S->IsVSyncEnabled()); Save(S); } })]
 					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("PERFORMANCE  (P)"), [this]() { TogglePerf(); })]
+					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)
+					[
+						SNew(SButton)
+						.ButtonColorAndOpacity(FLinearColor(0.05f, 0.2f, 0.36f, 0.9f))
+						.ContentPadding(FMargin(10, 4))
+						.OnClicked_Lambda([this]() { SetFrameGen(!bFrameGen); return FReply::Handled(); })
+						[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([this]() { return FText::FromString(bFrameGen ? TEXT("FRAME GENERATION (AMD FSR): ON") : TEXT("FRAME GENERATION (AMD FSR): OFF")); })]
+					]
 					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("FRAME-RATE BOX"), [this]() { bFpsBox = !bFpsBox; GConfig->SetBool(TEXT("ADP.Boxes"), TEXT("FrameRateOn"), bFpsBox, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); })]
 					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("SCAN MY PC"), []() { if (UGameUserSettings* S = Prefs()) { S->RunHardwareBenchmark(); S->ApplyHardwareBenchmarkResults(); Save(S); } })]
 					+ SHorizontalBox::Slot().AutoWidth()[Button(TEXT("PROBLEM LOG"), []() { FPlatformProcess::ExploreFolder(*(FPaths::ProjectLogDir() / TEXT("Problems.log"))); })]
@@ -475,6 +485,14 @@ void AADPHUD::ToggleSettings()
 	bSettings = !bSettings;
 	Settings->SetVisibility(bSettings ? EVisibility::Visible : EVisibility::Collapsed);
 	UpdateMouse();
+}
+
+void AADPHUD::SetFrameGen(bool bOn)
+{
+	bFrameGen = bOn;
+	if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("r.FidelityFX.FI.Enabled"))) V->Set(bOn ? 1 : 0, ECVF_SetByGameSetting);
+	GConfig->SetBool(TEXT("ADP.Graphics"), TEXT("FrameGeneration"), bOn, GGameUserSettingsIni);
+	GConfig->Flush(false, GGameUserSettingsIni);
 }
 
 void AADPHUD::TogglePointer()

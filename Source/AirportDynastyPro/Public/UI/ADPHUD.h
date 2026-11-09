@@ -82,7 +82,9 @@ private:
 	void RefreshControls();
 	/** The middle mouse button: the pointer free (click things, drag boxes about) or back to looking round. */
 	void TogglePointer();
-	bool bPointer = false, bFpsBox = false;
+	bool bPointer = false, bFpsBox = false, bFrameGen = false;
+	/** AMD's frame generation (FSR, any graphics card) on or off; kept in the settings file, off unless chosen. */
+	void SetFrameGen(bool bOn);
 	TSharedPtr<class SDragBox> FpsBox;
 	#pragma endregion
 

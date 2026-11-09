@@ -52,7 +52,7 @@ float AADPHUD::ZoneGain() const
 	if (K == TEXT("corridor") || K == TEXT("passage")) return 0.2f;
 	if (K == TEXT("lounge")) return 0.3f;
 	if (K == TEXT("museum")) return 0.6f;
-	if (K == TEXT("ramp") || K.IsEmpty()) return 0.07f;   // outside: barely, through the windows
+	if (K == TEXT("ramp") || K.IsEmpty()) return 0.f;   // outside the building: not heard at all (owner, 2026-11-09)
 	return 1.f;   // the hall, the entrances, security, airside, the walkway, the gates, food, tax-free, the bar…
 }
 
@@ -104,7 +104,7 @@ namespace
 		// a second loudspeaker further down the hall
 		const int32 Slap = Rate * 0.13f;
 		TArray<float> Y = X;
-		for (int32 i = Slap; i < N; ++i) Y[i] += X[i - Slap] * 0.28f;
+		for (int32 i = Slap; i < N; ++i) Y[i] += X[i - Slap] * 0.18f;
 		// the hall: four damped combs and two all-passes (Schroeder)
 		const int32 CombLen[4] = {int32(Rate * 0.0353f), int32(Rate * 0.0367f), int32(Rate * 0.0338f), int32(Rate * 0.0322f)};
 		TArray<float> Wet; Wet.SetNumZeroed(N);
@@ -117,7 +117,7 @@ namespace
 			{
 				const float Out = Buf[j];
 				Damp = Out * 0.6f + Damp * 0.4f;
-				Buf[j] = Y[i] + Damp * 0.78f;
+				Buf[j] = Y[i] + Damp * 0.7f;   // a shorter tail (owner, 2026-11-09: a little less reverb)
 				Wet[i] += Out * 0.25f;
 			}
 		}
@@ -133,7 +133,7 @@ namespace
 		}
 		TArray<int16> Out; Out.SetNumUninitialized(N);
 		float Peak = 0.01f;
-		for (int32 i = 0; i < N; ++i) { Y[i] = Y[i] * 0.85f + Wet[i] * 0.3f; Peak = FMath::Max(Peak, FMath::Abs(Y[i])); }
+		for (int32 i = 0; i < N; ++i) { Y[i] = Y[i] * 0.9f + Wet[i] * 0.17f; Peak = FMath::Max(Peak, FMath::Abs(Y[i])); }
 		const float G = 0.85f / Peak;
 		for (int32 i = 0; i < N; ++i) Out[i] = int16(FMath::Clamp(Y[i] * G, -1.f, 1.f) * 32767);
 		return Out;
