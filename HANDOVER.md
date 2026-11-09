@@ -47,6 +47,14 @@ Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md
   8 KB). Without -nullrhi the editor crashes in SlateRHIRenderer while saving. Next: place the model at runtime from the
   glTF node tree (a C++ actor reading the GLB's node transforms and spawning the imported meshes), or save the placed
   actors into a separate level / Level Instance. Then check the axes against `FTerminalPlan::ToWorld` (x, -z, y).
+- UPDATE: `ABabylonModel` places the model at runtime from `Data/babylon-terminal.json` (14,855 objects, 2,739 meshes as
+  instanced lists): it shows in the game (wave roof, pier, jetways, aircraft, museum dome, trees, car park). Open:
+  (1) the model looks mirrored north-south (landside trees and car park on the airside): Babylon's exporter keeps
+  left-handed coordinates and Interchange swaps y/z; a root scale of y = -1 turned everything black (lighting), so the
+  fix has to mirror the mesh data itself (re-export with the z axis negated in Tools/BabylonExport before saving, e.g.
+  a root node scaled z = -1 baked by the exporter, or Babylon's useRightHandedSystem); (2) everything renders grey
+  although the materials carry the right colours and textures (Interchange's MI_Default_* parents): check vertex
+  colours, exposure and the material parents.
 - `ADPGameMode` already steps Unreal's stand-ins aside when Content/Babylon/Terminal exists: right now that leaves the
   terminal empty in the game until the model is placed.
 - Also seen: every kit material renders light grey with a speckle pattern (the MI colours not applied?): check M_Surface.

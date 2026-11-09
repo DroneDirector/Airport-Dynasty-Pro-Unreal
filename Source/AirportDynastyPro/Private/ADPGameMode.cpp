@@ -14,6 +14,7 @@
 #include "AirTraffic.h"
 #include "Globe.h"
 #include "PhotoTour.h"
+#include "BabylonModel.h"
 #include "Misc/Paths.h"
 #include "Components/VolumetricCloudComponent.h"
 #include "Engine/World.h"
@@ -53,6 +54,10 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 	FTerminalPlan Plan;
 	if (!Plan.Load()) return;
 	{
+		// the Babylon model, placed as it is
+		if (bBabylon)
+			if (ABabylonModel* Model = W->SpawnActor<ABabylonModel>(FVector::ZeroVector, FRotator::ZeroRotator, P))
+				Model->Place(TEXT("Terminal"));
 		if (!bBabylon)
 		{
 			if (ATerminalBuilder* Terminal = W->SpawnActor<ATerminalBuilder>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Terminal->Build();
