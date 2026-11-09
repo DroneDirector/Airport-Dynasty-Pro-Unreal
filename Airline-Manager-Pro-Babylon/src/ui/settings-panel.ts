@@ -7,6 +7,7 @@ import { gpuInfo } from '../core/engine';
 import { padConnected, vibrate, onPad, padList } from '../core/input';
 import { icon, esc } from './icons';
 import { U, onUpdate, updateCheck, updateInstall, updatePermission, updateStatus, canSelfUpdate } from '../core/update';
+import { UE_PC, ue } from '../core/uelink';
 import { whatsNewHtml, whatsNewBind, mdHtml } from './whats-new';
 import { openDeviceScan } from './device-scan';
 
@@ -86,7 +87,22 @@ const CTL: Row[] = [
 
 const TABS: [string, string, string][] = [['gfx', 'monitor', 'Graphics'], ['ctl', 'pad', 'Controls'], ['upd', 'download', 'Updates'], ['new', 'star', 'What\'s new']];
 /** Settings → Updates: the installed version, the newest one and what it holds, and the buttons to check and install. */
+/** The PC (Unreal) edition: the game's own updater, run by Unreal; it tells the page its state (window.__ueUpdate). */
+const UEU = { status: '', can: false, busy: false, ver: '' };
+(window as any).__ueUpdate = (status: string, can: boolean, busy: boolean, ver: string) => { Object.assign(UEU, { status, can, busy, ver }); if (el && tab === 'upd') render(); };
+const ueUpd = () => !!UE_PC && !!ue();
+function ueCheck() { try { UEU.status = 'Checking for updates…'; UEU.busy = true; if (el) render(); ue().checkupdates(); } catch (e) { /* no link */ } }
+function ueInstall() { try { ue().installupdates(); } catch (e) { /* no link */ } }
 function updRows(): Row[] {
+  if (ueUpd()) {
+    const R: Row[] = [
+      { k: 'info', label: 'Installed', text: () => `Airport Dynasty Pro (Unreal) ${UEU.ver || UE_PC}` },
+      { k: 'info', label: 'Status', text: () => UEU.status || 'Check to see if a newer PC version is out. Only the changes download; your saves stay.' },
+    ];
+    if (UEU.can) R.push({ k: 'btn', label: 'Install the update', sub: 'The game closes, updates and starts again', act: 'upd-install', text: 'Update' });
+    if (!UEU.busy) R.push({ k: 'btn', label: 'Check for updates', sub: 'Looks for a newer PC version on the release page', act: 'upd-check', text: 'Check' });
+    return R;
+  }
   const busy = U.state === 'checking' || U.state === 'downloading' || U.state === 'installing', R: Row[] = [
     { k: 'info', label: 'Installed', text: () => `${APP.name} ${APP.version}` },
     { k: 'info', label: 'Status', text: () => updateStatus() },
@@ -160,8 +176,8 @@ function clickIn(e: Event) {
   if (a === 'scan') { openDeviceScan(render); return; }
   if (a === 'rumble') { vibrate(400, 1, 0.8); return; }
   if (a === 'reset-ctl') { resetControls(); render(); return; }
-  if (a === 'upd-check') { updateCheck(); return; }
-  if (a === 'upd-install') { updateInstall(); return; }
+  if (a === 'upd-check') { if (ueUpd()) ueCheck(); else updateCheck(); return; }
+  if (a === 'upd-install') { if (ueUpd()) ueInstall(); else updateInstall(); return; }
   if (a === 'upd-perm') { updatePermission(); return; }
 }
 function inputIn(e: Event) {
@@ -179,6 +195,6 @@ export function settingsButton(btn: string): boolean {
   if (r.k === 'seg') { const cur = get(r.key), i = r.opts.findIndex(o => String(o[0]) === String(cur)); const d = btn === 'left' ? -1 : btn === 'right' || btn === 'confirm' ? 1 : 0; if (d) { const o = r.opts[(Math.max(0, i) + d + r.opts.length) % r.opts.length]; set(r.key, o[0]); render(); } }
   else if (r.k === 'tog') { if (btn === 'confirm' || btn === 'left' || btn === 'right') { set(r.key, !get(r.key)); render(); } }
   else if (r.k === 'range') { const d = btn === 'left' ? -1 : btn === 'right' ? 1 : 0; if (d) { const v = Math.max(r.min, Math.min(r.max, Math.round((get(r.key) + d * r.step) / r.step) * r.step)); set(r.key, Number(v.toFixed(3))); render(); } }
-  else if (r.k === 'btn') { if (btn === 'confirm') { if (r.act === 'scan') openDeviceScan(render); else if (r.act === 'rumble') vibrate(400, 1, 0.8); else if (r.act === 'reset-ctl') { resetControls(); render(); } else if (r.act === 'upd-check') updateCheck(); else if (r.act === 'upd-install') updateInstall(); else if (r.act === 'upd-perm') updatePermission(); } }
+  else if (r.k === 'btn') { if (btn === 'confirm') { if (r.act === 'scan') openDeviceScan(render); else if (r.act === 'rumble') vibrate(400, 1, 0.8); else if (r.act === 'reset-ctl') { resetControls(); render(); } else if (r.act === 'upd-check') { if (ueUpd()) ueCheck(); else updateCheck(); } else if (r.act === 'upd-install') { if (ueUpd()) ueInstall(); else updateInstall(); } else if (r.act === 'upd-perm') updatePermission(); } }
   return true;
 }

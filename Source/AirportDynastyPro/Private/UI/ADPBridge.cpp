@@ -27,6 +27,16 @@ void UADPBridge::SpeechPcm(int32 Id, const FString& B64)
 	if (AADPHUD* H = Hud.Get()) H->SpeechPcm(Id, B64);
 }
 
+void UADPBridge::CheckUpdates()
+{
+	if (AADPHUD* H = Hud.Get()) { H->UpdateSent.Reset(); H->CheckForUpdates(); }
+}
+
+void UADPBridge::InstallUpdates()
+{
+	if (AADPHUD* H = Hud.Get()) if (!H->UpdateBusy && (H->UpdateChain.Num() || !H->UpdateFullUrl.IsEmpty())) H->InstallUpdate();
+}
+
 void UADPBridge::Log(const FString& Line)
 {
 	UE_LOG(LogTemp, Log, TEXT("Menus: %s"), *Line.Left(600));

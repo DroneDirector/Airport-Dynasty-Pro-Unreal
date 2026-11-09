@@ -885,6 +885,18 @@ void AADPHUD::Tick(float Dt)
 		PadToMenus->bDirty = false;
 		bPadSent = bGame;
 	}
+	// the updater's state to the menus' Settings > Updates, whenever it changes
+	if (Browser.IsValid())
+	{
+		const bool bCan = !UpdateBusy && (UpdateChain.Num() || !UpdateFullUrl.IsEmpty());
+		const FString Now = FString::Printf(TEXT("%s|%d|%d"), *UpdateStatus, bCan ? 1 : 0, UpdateBusy ? 1 : 0);
+		if (Now != UpdateSent)
+		{
+			UpdateSent = Now;
+			const FString Safe = UpdateStatus.Replace(TEXT("\\"), TEXT("\\\\")).Replace(TEXT("'"), TEXT("\\'"));
+			Browser->ExecuteJavascript(FString::Printf(TEXT("window.__ueUpdate && window.__ueUpdate('%s', %s, %s, '%s')"), *Safe, bCan ? TEXT("true") : TEXT("false"), UpdateBusy ? TEXT("true") : TEXT("false"), *UpdaterVersion()));
+		}
+	}
 	// the symbols follow the device in use
 	if (bShownPad != ADPInput::UsingPad() || ShownPadKind != uint8(ADPInput::CurrentPad()))
 	{
@@ -972,6 +984,16 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 67.f && ShotClock >= 67.f) GoTo(FVector(150.f, Plan.F2Y, 57.f), FVector(150.f, Plan.F2Y + 9.f, 62.f));
 			if (Before < 70.f && ShotClock >= 70.f) if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(FRotator(60.f, PC->GetControlRotation().Yaw, 0));
 			if (Before < 75.f && ShotClock >= 75.f) FScreenshotRequest::RequestScreenshot(TEXT("WalkwayRoof"), false, false);
+			// the walkway's wood floor and its strip lamps (evening, so the lamps' own light shows), then gate 4's floor
+			if (Before < 76.f && ShotClock >= 76.f) { ASunClock::HourOverride = 19.5f; ASunClock::Refresh(); if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(FRotator(-8.f, 0.f, 0)); }
+			if (Before < 84.f && ShotClock >= 84.f) FScreenshotRequest::RequestScreenshot(TEXT("WalkwayFloor"), false, false);
+			if (Before < 85.f && ShotClock >= 85.f) { ASunClock::HourOverride = 12.f; ASunClock::Refresh(); GoGate4(); if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(FRotator(-25.f, PC->GetControlRotation().Yaw, 0)); }
+			if (Before < 93.f && ShotClock >= 93.f) FScreenshotRequest::RequestScreenshot(TEXT("Gate4Floor"), false, false);
+		}
+		// -UIUpd: the menus' Settings > Updates asks Unreal to check, and reports what came back
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIUpd")) && Browser.IsValid())
+		{
+			if (Before < 30.f && ShotClock >= 30.f) Browser->ExecuteJavascript(TEXT("var __o=window.__ueUpdate;window.__ueUpdate=function(s,c,b,v){ue.adp.log('UPDTEST got: '+s+' can='+c+' busy='+b+' ver='+v);if(__o)__o(s,c,b,v);};ue.adp.log('UPDTEST hooked='+(typeof __o));ue.adp.checkupdates();"));
 		}
 		// -UISite: outside at the kerb (the light, the sky, the credits), and a picture
 		const bool bSite = FParse::Param(FCommandLine::Get(), TEXT("UISite"));
@@ -997,7 +1019,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 79.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 96.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

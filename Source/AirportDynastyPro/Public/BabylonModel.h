@@ -47,6 +47,13 @@ private:
 	/** The model's light fittings made to shine (Babylon draws them glowing; here they also light the rooms): the hall's
 	 *  downlights under the wave roof as spotlights, the rooms' ceiling lamps as soft lights, the jetways' LED strips as
 	 *  rows of lights; and every glowing material brighter so it blooms. */
+	/** The lamps' light into the rooms and their base brightness: always on, but by day the daylight outshines them
+	 *  (owner, 2026-11-09), so how much they light the walls and floors follows the sun: full in the dark, dusk and
+	 *  dawn, about a fifth at midday, changing as smoothly as the daylight does. The lamps' faces stay lit. */
+	UPROPERTY() TArray<TObjectPtr<class ULocalLightComponent>> LampLights;
+	TArray<float> LampBase;
+	float LampScale = -1.f;
+	void LampsByDaylight();
 	void LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, const TArray<FTransform>& NodeWorld, const TArray<TPair<UInstancedStaticMeshComponent*, int32>>& NodeInst);
 	#pragma endregion
 };

@@ -43,6 +43,8 @@ public:
 	void ApplyUpdate(const FString& Dir);
 	FString UpdateStatus;
 	bool UpdateBusy = false;
+	/** What the menus' Settings > Updates was last told (sent again only when it changes). */
+	FString UpdateSent;
 	TArray<TPair<FString, FString>> UpdateChain;   // version, update package
 	TArray<FString> UpdateFiles;
 	FString UpdateFullUrl;

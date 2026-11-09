@@ -33,5 +33,9 @@ public:
 	/** A timetable board's picture (PNG, base64), drawn by the menus. */
 	/** A line from the menus for the game's log (their errors; Unreal's browser doesn't pass on the page's console). */
 	UFUNCTION() void Log(const FString& Line);
+	/** The menus' Settings > Updates on the PC: look for a newer PC version / install the one found (the game's own
+	 *  updater; its state comes back to the page through window.__ueUpdate). */
+	UFUNCTION() void CheckUpdates();
+	UFUNCTION() void InstallUpdates();
 	UFUNCTION() void Board(const FString& Key, const FString& B64);
 };
