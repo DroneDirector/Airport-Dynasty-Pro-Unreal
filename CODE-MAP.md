@@ -343,6 +343,7 @@ Other folders: `www/` (pictures, sounds and the built game), `release-notes/` (o
 
 ## PC version (Unreal Engine 5)
 
+- `pc-version.json`: the PC (Unreal) edition's version. `release-notes-pc/`: one notes file per PC version; a version is published once its notes are there. `Installer/setup.iss`: the PC installer (Inno Setup; its own app id, installs over older versions). `Tools/RegisterBuildMachine.ps1`: makes the owner's PC GitHub's build machine (run once). `.github/workflows/unreal-pc.yml`: builds, packages and publishes the PC edition on that machine.
 - `ROADMAP.md`: the PC version's batches (one release each), what is done and what comes next. `HANDOVER.md`: where the work stands.
 - `AirportDynastyPro.uproject`: the Unreal project (open this). Engine version and the engine plugins it uses (Mass, StateTree, Smart Objects, ZoneGraph, Chaos vehicles, editor scripting).
 - `Config/`: project settings. `DefaultEngine.ini` (Lumen, virtual shadow maps, DirectX 12, start map and game mode), `DefaultGame.ini` (name, company, the Data folder packed with the game), `DefaultInput.ini` (walking keys and gamepad).

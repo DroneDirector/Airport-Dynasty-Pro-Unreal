@@ -14,7 +14,7 @@ are offered. Sources: CLAUDE.md (the agreed plan), the PDFs in the repo, the Bab
 - [x] Stairs with oak and walnut steps, glass sides, handrails and a glass balustrade round the opening; openings cut through Floor 2 and the ceilings; the 5 lifts called, opening and riding between the floors
 - [x] The jetways J-1 to J-4 (fixed corridor, rotunda, three telescopic tunnel sections, bellows, cab with canopy, drive unit), docked, walkable; docking and undocking come with the aircraft in batch 5
 - [x] Timetable screens at all 23 places (hall walls, totems, pairs, departure screens, gate screens), showing the Android edition's sample flights round the real time until the shared world arrives (batch 4)
-- [ ] Release pipeline for the PC: the PC as GitHub's build machine, packaged game, update over the old version
+- [x] Release pipeline for the PC: `.github/workflows/unreal-pc.yml` builds, packages and publishes on the owner's PC (self-hosted build machine), only when `pc-version.json` has release notes in `release-notes-pc/`; catches up every 3 hours; the installer installs over the previous version. Waiting on the owner: register the PC once (`Tools/RegisterBuildMachine.ps1`)
 - Publish: version 0.5.0 (PC) together with the next Android release
 
 ## Batch 2: people in the terminal

@@ -48,3 +48,6 @@ Airline-Manager-Pro-Babylon/game/www/humans.bin
 Airline-Manager-Pro-Babylon/game/www/*-world.json
 Airline-Manager-Pro-Babylon/game/www/navdata/
 Airline-Manager-Pro-Babylon/game/capacitor.config.json
+
+# the plan data copied into Content for packaging (the build makes it from Data/)
+Content/Data/

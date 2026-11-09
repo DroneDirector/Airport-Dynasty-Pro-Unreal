@@ -1,0 +1,99 @@
+name: Airport Dynasty Pro – PC (Unreal)
+
+# Builds and publishes the Unreal edition on the owner's PC (a GitHub self-hosted build machine labelled "unreal").
+# It publishes only when a batch is ready: pc-version.json has a version with release notes in release-notes-pc/ and
+# no release of that version exists yet. Everyday pushes do nothing. Every 3 hours it looks again, so a build that was
+# waiting while the PC was off is made soon after the PC is back on.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'pc-version.json'
+      - 'release-notes-pc/**'
+      - '.github/workflows/unreal-pc.yml'
+  schedule:
+    - cron: '17 */3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: unreal-pc-build
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Is a release due?
+    runs-on: ubuntu-latest
+    outputs:
+      due: ${{ steps.due.outputs.due }}
+      version: ${{ steps.due.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            pc-version.json
+            release-notes-pc
+      - id: due
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V=$(node -p "require('./pc-version.json').version")
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          if [ ! -f "release-notes-pc/$V.md" ]; then echo "No release notes for $V yet: nothing to publish."; echo "due=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if gh release view "pc-unreal-v$V" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then echo "$V is already published."; echo "due=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          echo "due=true" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build and publish (the owner's PC)
+    needs: check
+    if: needs.check.outputs.due == 'true'
+    runs-on: [self-hosted, Windows, unreal]
+    timeout-minutes: 240
+    env:
+      UE_ROOT: C:\Program Files\Epic Games\UE_5.7
+      V: ${{ needs.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: Close any open editor of this engine (its Live Coding blocks the build)
+        shell: pwsh
+        run: Get-Process UnrealEditor -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+      - name: Build the editor (needed to cook)
+        shell: pwsh
+        run: |
+          & "$env:UE_ROOT\Engine\Build\BatchFiles\Build.bat" AirportDynastyProEditor Win64 Development "-Project=$pwd\AirportDynastyPro.uproject" -WaitMutex
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+      - name: Build, cook and package the game (Shipping)
+        shell: pwsh
+        run: |
+          # the shared layout files go with the game, staged from Content/Data
+          New-Item -ItemType Directory -Force Content\Data | Out-Null
+          Copy-Item Data\* Content\Data\ -Recurse -Force
+          & "$env:UE_ROOT\Engine\Build\BatchFiles\RunUAT.bat" BuildCookRun "-project=$pwd\AirportDynastyPro.uproject" -noP4 -platform=Win64 -clientconfig=Shipping -build -cook -stage -pak -archive "-archivedirectory=$pwd\Packaged" -utf8output -unattended
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+      - name: Zip and the installer
+        shell: pwsh
+        run: |
+          $src = Join-Path $pwd 'Packaged\Windows'
+          Compress-Archive -Path "$src\*" -DestinationPath "Packaged\AirportDynastyPro-Unreal-PC-$env:V.zip" -Force
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { $iscc = "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" }
+          if (-not (Test-Path $iscc)) { winget install --id JRSoftware.InnoSetup -e --silent --accept-package-agreements --accept-source-agreements | Out-Null; $iscc = "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"; if (-not (Test-Path $iscc)) { $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" } }
+          $env:ADP_VERSION = $env:V
+          $env:ADP_BUILD = $src
+          & $iscc Installer\setup.iss
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+      - name: Publish the release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: pc-unreal-v${{ env.V }}
+          name: Airport Dynasty Pro (Unreal) ${{ env.V }}
+          prerelease: true
+          body_path: release-notes-pc/${{ env.V }}.md
+          files: |
+            Packaged/AirportDynastyPro-Unreal-PC-${{ env.V }}.zip
+            Packaged/AirportDynastyPro-Unreal-PC-Setup-${{ env.V }}.exe

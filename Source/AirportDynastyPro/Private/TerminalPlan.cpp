@@ -23,7 +23,9 @@ static FString Str(const TSharedPtr<FJsonObject>& O, const TCHAR* K)
 
 bool FTerminalPlan::Load()
 {
-	const FString Path = FPaths::Combine(FPaths::ProjectDir(), TEXT("Data/terminal-plan.json"));
+	// in a packaged game the plan is staged under Content/Data (the build copies Data there); in the editor it is in Data
+	FString Path = FPaths::Combine(FPaths::ProjectContentDir(), TEXT("Data/terminal-plan.json"));
+	if (!FPaths::FileExists(Path)) Path = FPaths::Combine(FPaths::ProjectDir(), TEXT("Data/terminal-plan.json"));
 	FString Text;
 	if (!FFileHelper::LoadFileToString(Text, *Path))
 	{

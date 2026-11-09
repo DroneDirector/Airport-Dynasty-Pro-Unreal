@@ -30,6 +30,10 @@ Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md
 - The Babylon terminal to port is `Airline-Manager-Pro-Babylon/src/sections/terminal/` (doors.ts, furnish.ts,
   fixtures.ts, lifts.ts, jetway.ts, fids.ts, ceilings.ts); materials in kit.ts, room materials in shell.ts.
 
+- Releasing the PC edition: set `pc-version.json`, write `release-notes-pc/<version>.md`, commit and push; the
+  workflow `unreal-pc.yml` builds on the owner's PC and publishes the release `pc-unreal-v<version>`. The build copies
+  `Data/` into `Content/Data/` (staged with the game; ignored by git); `TerminalPlan` reads it from there first.
+
 ## Next steps
 The batches and what is done are in ROADMAP.md. Batch 1 continues with the doors, then the main hall's fittings.
 Waiting on the owner: security camera screenshots; the ATC tower model.
