@@ -46,7 +46,9 @@ are offered. Sources: CLAUDE.md (the agreed plan), the PDFs in the repo, the Bab
 - Later: proper aircraft and vehicle models, the jetways docking, the real flights and aircraft from the shared world, runway 26 in east winds, rain, snow and lightning, cargo and stand 9 traffic
 
 ## Fixes seen in the first pictures (2026-11-09), before batch A
-- [ ] THE TERMINAL IS THE BABYLON MODEL ITSELF (owner, 2026-11-09): no new modelling, nothing rebuilt; the whole Babylon scene
+- [ ] THE TERMINAL IS THE BABYLON MODEL ITSELF (owner, 2026-11-09; geometry untouched: no extra lines, cuts, merges or
+      remeshing, original normals and UVs kept so it stays easy to texture; only Unreal's rendering on top (Nanite, Lumen,
+      materials, effects); new details only when the owner asks): no new modelling, nothing rebuilt; the whole Babylon scene
       (interior, doors, stairs, pillars, wave roof, jetways, rental centre, everything) exported as glTF and imported
       into Unreal with Nanite as the terminal; Unreal's own grey-box builders step aside (kept switchable). Method: Babylon
       app built with Node.js, a local page builds the terminal and exports it with @babylonjs/serializers, posting the

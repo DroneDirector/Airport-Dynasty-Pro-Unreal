@@ -1,0 +1,12 @@
+{
+  "name": "adp-babylon-export",
+  "private": true,
+  "type": "module",
+  "description": "Exports the Babylon edition's terminal model as glTF for the Unreal edition",
+  "dependencies": {
+    "@babylonjs/core": "9.30.0",
+    "@babylonjs/serializers": "9.30.0",
+    "@babylonjs/loaders": "9.30.0",
+    "esbuild": "0.24.2"
+  }
+}
