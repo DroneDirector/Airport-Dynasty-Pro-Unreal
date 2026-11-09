@@ -6,6 +6,7 @@
 #include "Dom/JsonObject.h"
 #include "Components/PointLightComponent.h"
 #include "Components/SpotLightComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Misc/FileHelper.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
@@ -158,6 +159,7 @@ bool ABabylonModel::Place(const FString& Name)
 			if (Door.Parts.Num()) Doors.Add(MoveTemp(Door));
 		}
 		UE_LOG(LogTemp, Log, TEXT("Babylon model %s: %d doors that move"), *Name, Doors.Num());
+		LightFittings(Nodes, NodeWorld, NodeInst);
 	}
 	return Placed > 0;
 }
@@ -211,6 +213,93 @@ void ABabylonModel::AddLights(const FString& Name)
 	}
 	UE_LOG(LogTemp, Log, TEXT("Babylon model %s: %d lights"), *Name, Made);
 }
+
+#pragma region Light fittings
+
+void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, const TArray<FTransform>& NodeWorld, const TArray<TPair<UInstancedStaticMeshComponent*, int32>>& NodeInst)
+{
+	auto NameOf = [&](int32 I) { FString S; Nodes[I]->AsObject()->TryGetStringField(TEXT("name"), S); return S; };
+	int32 Spots = 0, Soft = 0, Strip = 0, Lamp = 0;
+	auto Add = [&](ULocalLightComponent* L, const FVector& At, float Candelas, float Reach, const FLinearColor& Col)
+	{
+		L->SetupAttachment(Root);
+		L->SetRelativeLocation(At);
+		L->SetIntensityUnits(ELightUnits::Candelas);
+		L->SetIntensity(Candelas);
+		L->SetLightColor(Col);
+		L->SetAttenuationRadius(Reach);
+		L->SetCastShadows(false);   // hundreds of lamps: no shadows from them (the sun and the sky keep theirs)
+		L->RegisterComponent();
+		AddInstanceComponent(L);
+	};
+	const FLinearColor Warm(1.f, 0.93f, 0.82f);
+	for (int32 I = 0; I < Nodes.Num(); ++I)
+	{
+		const FString N = NameOf(I);
+		if (N.Contains(TEXT("DOWNLIGHT")))
+		{
+			// the round downlights under the wave roof: a spot straight down into the hall
+			USpotLightComponent* S = NewObject<USpotLightComponent>(this);
+			S->SetRelativeRotation(FRotator(-90.f, 0, 0));
+			S->SetInnerConeAngle(20.f);
+			S->SetOuterConeAngle(42.f);
+			Add(S, NodeWorld[I].GetLocation() - FVector(0, 0, 10.f), 2200.f, 2600.f, Warm);
+			++Spots;
+		}
+		else if (N.Contains(TEXT("/LAMP-")))
+		{
+			// the ceiling lamps: every other one gives a soft light into the room (the panels themselves all glow)
+			if ((Lamp++ & 1) == 0)
+			{
+				UPointLightComponent* P = NewObject<UPointLightComponent>(this);
+				P->SetSourceRadius(30.f);
+				P->SetSoftSourceRadius(60.f);
+				Add(P, NodeWorld[I].GetLocation() - FVector(0, 0, 25.f), 260.f, 900.f, Warm);
+				++Soft;
+			}
+		}
+		else if (N.EndsWith(TEXT("/LED")) && NodeInst[I].Key)
+		{
+			// a jetway section's LED strip: lights every 3.5 m along it, just under the roof
+			const FBox B = NodeInst[I].Key->GetStaticMesh()->GetBoundingBox().TransformBy(NodeWorld[I]);
+			const FVector Ext = B.GetExtent(), C = B.GetCenter();
+			const bool bAlongX = Ext.X >= Ext.Y;
+			const float Len = 2.f * (bAlongX ? Ext.X : Ext.Y);
+			const int32 Count = FMath::Max(1, FMath::RoundToInt(Len / 350.f));
+			for (int32 k = 0; k < Count; ++k)
+			{
+				const float T = (k + 0.5f) / Count - 0.5f;
+				const FVector At = C + (bAlongX ? FVector(T * Len, 0, 0) : FVector(0, T * Len, 0)) - FVector(0, 0, Ext.Z + 20.f);
+				UPointLightComponent* P = NewObject<UPointLightComponent>(this);
+				P->SetSourceRadius(20.f);
+				Add(P, At, 180.f, 600.f, FLinearColor(0.95f, 0.97f, 1.f));
+				++Strip;
+			}
+		}
+	}
+	// the glowing materials (the lamps, downlights, LED strips, signs' lights) brighter, so they bloom as lit fittings do
+	TArray<UInstancedStaticMeshComponent*> Parts;
+	GetComponents(Parts);
+	int32 Glows = 0;
+	for (UInstancedStaticMeshComponent* K : Parts)
+		for (int32 S = 0; S < K->GetNumMaterials(); ++S)
+		{
+			UMaterialInterface* M = K->GetMaterial(S);
+			if (!M) continue;
+			const FString MN = M->GetName();
+			if (!MN.StartsWith(TEXT("glow")) && !MN.EndsWith(TEXT("_LED"))) continue;
+			UMaterialInstanceDynamic* D = Cast<UMaterialInstanceDynamic>(M);
+			if (!D) { D = UMaterialInstanceDynamic::Create(M, this); K->SetMaterial(S, D); }
+			TArray<FMaterialParameterInfo> Infos; TArray<FGuid> Ids;
+			D->GetAllScalarParameterInfo(Infos, Ids);
+			for (const FMaterialParameterInfo& P : Infos)
+				if (P.Name.ToString().Contains(TEXT("EmissiveStrength"))) D->SetScalarParameterValueByInfo(P, 12.f);
+			++Glows;
+		}
+	UE_LOG(LogTemp, Log, TEXT("Babylon model lights: %d downlights, %d room lights, %d jetway lights, %d glowing materials"), Spots, Soft, Strip, Glows);
+}
+
+#pragma endregion
 
 #pragma region Doors
 

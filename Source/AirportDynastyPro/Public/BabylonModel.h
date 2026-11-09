@@ -44,5 +44,9 @@ private:
 	TArray<FDoor> Doors;
 	float Clock = 0;
 	void MovePart(FPart& P, float E, float Spin);
+	/** The model's light fittings made to shine (Babylon draws them glowing; here they also light the rooms): the hall's
+	 *  downlights under the wave roof as spotlights, the rooms' ceiling lamps as soft lights, the jetways' LED strips as
+	 *  rows of lights; and every glowing material brighter so it blooms. */
+	void LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, const TArray<FTransform>& NodeWorld, const TArray<TPair<UInstancedStaticMeshComponent*, int32>>& NodeInst);
 	#pragma endregion
 };

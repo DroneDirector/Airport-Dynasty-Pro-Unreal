@@ -23,7 +23,11 @@ namespace
 
 #pragma region Setup
 
-void SHoloMap::Construct(const FArguments& Args) {}
+void SHoloMap::Construct(const FArguments& Args)
+{
+	// nothing of the map ever shows outside its own frame (small or full screen)
+	SetClipping(EWidgetClipping::ClipToBounds);
+}
 
 void SHoloMap::SetPlan(const FTerminalPlan& InPlan)
 {
@@ -75,12 +79,14 @@ void SHoloMap::SetPlayer(const FVector& PlanPos, float YawDeg)
 {
 	Player = PlanPos;
 	Yaw = YawDeg;
-	// the route follows you and clears when you arrive
-	if (Route.Num())
+	// the route follows you; a waypoint you reach is done, and the route clears when you reach the last
+	if (Waypoints.Num() && FVector::Dist2D(FVector(Waypoints[0].X, Waypoints[0].Z, 0), FVector(Player.X, Player.Z, 0)) < 2.f && FloorOf(Waypoints[0].Y) == FloorOf(Player.Y))
 	{
-		while (Route.Num() > 1 && FVector::Dist2D(FVector(Route[0].X, Route[0].Z, 0), FVector(Player.X, Player.Z, 0)) < 1.5f) Route.RemoveAt(0);
-		if (FVector::Dist2D(FVector(Route.Last().X, Route.Last().Z, 0), FVector(Player.X, Player.Z, 0)) < 2.f) Route.Reset();
+		Waypoints.RemoveAt(0);
+		Rebuild();
 	}
+	if (Route.Num())
+		while (Route.Num() > 1 && FVector::Dist2D(FVector(Route[0].X, Route[0].Z, 0), FVector(Player.X, Player.Z, 0)) < 1.5f) Route.RemoveAt(0);
 }
 
 void SHoloMap::SetFull(bool bOn) { bFull = bOn; }
@@ -187,6 +193,18 @@ int32 SHoloMap::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const FSla
 		}
 	}
 
+	// your marks: numbered rings
+	for (int32 i = 0; i < Waypoints.Num(); ++i)
+	{
+		const FVector2f C = ToLocal(FVector2f(Waypoints[i].X, Waypoints[i].Z), Size);
+		const bool bHere = FloorOf(Waypoints[i].Y) == F;
+		const FLinearColor Col = bHere ? RouteC : FLinearColor(1, 0.75f, 0.4f, 0.35f);
+		TArray<FVector2f> Ring;
+		for (int32 k = 0; k <= 20; ++k) { const float A = k / 20.f * 2 * PI; Ring.Add(C + FVector2f(FMath::Cos(A), FMath::Sin(A)) * 7.f); }
+		FSlateDrawElement::MakeLines(Out, Layer + 4, Geo.ToPaintGeometry(), Ring, ESlateDrawEffect::None, Col, true, 2.f);
+		FSlateDrawElement::MakeText(Out, Layer + 5, Geo.ToPaintGeometry(FVector2f(16, 14), FSlateLayoutTransform(C + FVector2f(-4, -7))), FString::FromInt(i + 1), FCoreStyle::GetDefaultFontStyle("Bold", 8), ESlateDrawEffect::None, Col);
+	}
+
 	// you: an arrow with your view cone
 	{
 		const FVector2f C = ToLocal(FVector2f(Player.X, Player.Z), Size);
@@ -244,24 +262,45 @@ FReply SHoloMap::OnMouseButtonDown(const FGeometry& Geo, const FPointerEvent& Ev
 		if (OnOpen) OnOpen();
 		return FReply::Handled();
 	}
-	// full screen: a route from you to where you clicked, on the floor you are looking at
+	// full screen: a click adds a waypoint (the route goes through your marks in order); a right-click on one removes it
 	const FVector2f Size(Geo.GetLocalSize());
 	const FVector2f L(Geo.AbsoluteToLocal(Event.GetScreenSpacePosition()));
 	const FVector2f P = FromLocal(L, Size);
 	const int32 F = FloorOf(Player.Y);
-	auto PlaceAt = [&](float X, float Z, int32 Floor)
+	if (Event.GetEffectingButton() == EKeys::RightMouseButton)
 	{
-		for (int32 i = 0; i < Map.Places.Num(); ++i)
-		{
-			const FWalkMap::FPlace& Q = Map.Places[i];
-			if (!Q.bOutside && FloorOf(Q.Y) == Floor && X >= Q.X0 && X <= Q.X1 && Z >= Q.Z0 && Z <= Q.Z1) return i;
-		}
-		return int32(INDEX_NONE);
-	};
-	const int32 From = PlaceAt(Player.X, Player.Z, F), To = PlaceAt(P.X, P.Y, F);
-	if (From != INDEX_NONE && To != INDEX_NONE)
-		Map.Way(From, Player, To, FVector(P.X, Map.Places[To].Y, P.Y), Route);
+		for (int32 i = 0; i < Waypoints.Num(); ++i)
+			if (FVector2f::Distance(FVector2f(Waypoints[i].X, Waypoints[i].Z), P) < 3.f) { Waypoints.RemoveAt(i); Rebuild(); break; }
+		return FReply::Handled();
+	}
+	const int32 To = PlaceAt(P.X, P.Y, F);
+	if (To != INDEX_NONE) { Waypoints.Add(FVector(P.X, Map.Places[To].Y, P.Y)); Rebuild(); }
 	return FReply::Handled();
+}
+
+int32 SHoloMap::PlaceAt(float X, float Z, int32 Floor) const
+{
+	for (int32 i = 0; i < Map.Places.Num(); ++i)
+	{
+		const FWalkMap::FPlace& Q = Map.Places[i];
+		if (!Q.bOutside && FloorOf(Q.Y) == Floor && X >= Q.X0 && X <= Q.X1 && Z >= Q.Z0 && Z <= Q.Z1) return i;
+	}
+	return INDEX_NONE;
+}
+
+void SHoloMap::Rebuild()
+{
+	// from you to the first mark, then mark to mark (through the doors, up or down the stairs)
+	Route.Reset();
+	FVector From = Player;
+	for (const FVector& W : Waypoints)
+	{
+		const int32 A = PlaceAt(From.X, From.Z, FloorOf(From.Y)), B = PlaceAt(W.X, W.Z, FloorOf(W.Y));
+		TArray<FVector> Part;
+		if (A != INDEX_NONE && B != INDEX_NONE && Map.Way(A, From, B, W, Part)) Route.Append(Part);
+		else Route.Add(W);
+		From = W;
+	}
 }
 
 #pragma endregion

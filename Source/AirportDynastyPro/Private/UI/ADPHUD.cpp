@@ -172,7 +172,25 @@ void AADPHUD::BeginPlay()
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(16)
 		[
 			SAssignNew(MiniBox, SBox).WidthOverride(240).HeightOverride(240)
-			.Visibility_Lambda([this]() { return bGame || bInLounge ? EVisibility::Collapsed : EVisibility::Visible; })[HoloMap.ToSharedRef()]
+			.Visibility_Lambda([this]() { return bGame || bInLounge ? EVisibility::Collapsed : EVisibility::Visible; })
+			[
+				SNew(SOverlay)
+				+ SOverlay::Slot()[HoloMap.ToSharedRef()]
+				// the map's three shortcuts (only full screen), inside the map's own frame, top right
+				+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(12)
+				[
+					SNew(SVerticalBox)
+					.Visibility_Lambda([this]() { return HoloMap.IsValid() && HoloMap->IsFull() ? EVisibility::Visible : EVisibility::Collapsed; })
+					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)[Button(TEXT("GATE 4 (UPPER FLOOR)"), [this]() { GoGate4(); })]
+					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)[Button(TEXT("APRON: THE TERMINAL AND JETWAY"), [this]() { GoApron(); })]
+					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)[Button(TEXT("MAIN ENTRANCE"), [this]() { GoEntrance(); })]
+					+ SVerticalBox::Slot().AutoHeight()
+					[
+						SNew(SBox).Visibility_Lambda([this]() { return HoloMap.IsValid() && HoloMap->HasRoute() ? EVisibility::Visible : EVisibility::Collapsed; })
+						[Button(TEXT("CLEAR WAYPOINTS"), [this]() { if (HoloMap.IsValid()) HoloMap->ClearRoute(); })]
+					]
+				]
+			]
 		]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(0, 8, 0, 0)
 		[
@@ -734,13 +752,37 @@ void AADPHUD::OpenLounge()
 void AADPHUD::OpenSite()
 {
 	ShowTerminal();
-	// outside the main entrance, at the kerb under the wave roof, facing the terminal
-	if (APawn* P = GetOwningPawn())
-	{
-		P->TeleportTo(FTerminalPlan::ToWorld(79.f, 0.f, -14.f) + FVector(0, 0, P->GetSimpleCollisionHalfHeight() + 30.f), FRotator(0, -90.f, 0));
-		if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(FRotator(0, -90.f, 0));
-	}
+	GoEntrance();
 }
+
+void AADPHUD::GoTo(const FVector& PlanAt, const FVector& PlanLook)
+{
+	APawn* P = GetOwningPawn();
+	if (!P) return;
+	if (bGame) ToggleGame();
+	bInLounge = false;
+	if (HoloMap.IsValid() && HoloMap->IsFull()) ToggleMap();
+	// the floor under the spot (a trace down), the body standing on it, then moved out of anything it would touch
+	const float Half = P->GetSimpleCollisionHalfHeight();
+	FVector At = FTerminalPlan::ToWorld(PlanAt.X, PlanAt.Y, PlanAt.Z);
+	FHitResult Hit;
+	FCollisionQueryParams Q(SCENE_QUERY_STAT(ADPGoTo), false, P);
+	if (GetWorld()->LineTraceSingleByChannel(Hit, At + FVector(0, 0, 150.f), At - FVector(0, 0, 300.f), ECC_Visibility, Q)) At = Hit.ImpactPoint;
+	At.Z += Half + 5.f;
+	const FVector Look = FTerminalPlan::ToWorld(PlanLook.X, PlanLook.Y, PlanLook.Z) - At;
+	FRotator Rot = Look.Rotation();
+	Rot.Roll = 0;
+	GetWorld()->FindTeleportSpot(P, At, FRotator(0, Rot.Yaw, 0));
+	P->TeleportTo(At, FRotator(0, Rot.Yaw, 0));
+	if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(FRotator(FMath::Clamp(Rot.Pitch, -20.f, 15.f), Rot.Yaw, 0));
+}
+
+// gate 4 upstairs: behind all the rows of seats (at the walkway side of the gate room), looking out through its big windows
+void AADPHUD::GoGate4() { GoTo(FVector(186.f, Plan.F2Y, 69.6f), FVector(186.f, Plan.F2Y + 1.6f, 90.f)); }
+// out on the apron, looking at the terminal: gate 4, its jetway and a good part of the building in one view
+void AADPHUD::GoApron() { GoTo(FVector(236.f, 0.f, 168.f), FVector(184.f, 5.f, 84.f)); }
+// in front of the main entrance to the hall, at the kerb under the wave roof
+void AADPHUD::GoEntrance() { GoTo(FVector(79.f, 0.f, -14.f), FVector(79.f, 1.7f, 10.f)); }
 
 void AADPHUD::OnGameState(const FString& Json)
 {
@@ -885,6 +927,35 @@ void AADPHUD::Tick(float Dt)
 				FFileHelper::SaveStringToFile(FString::Printf(TEXT("moved %.0f cm; pointer after two middle clicks: %s; looking %s"), Me ? FVector::Dist2D(Me->GetActorLocation(), WalkFrom) : -1.f, bPointer ? TEXT("free") : TEXT("captured"), PC->IsLookInputIgnored() ? TEXT("off") : TEXT("on")), *(FPaths::ProjectSavedDir() / TEXT("WalkTest.txt")));
 			}
 		}
+		// -UIShortcuts: the map's three shortcuts in turn, a picture of each
+		const bool bShort = FParse::Param(FCommandLine::Get(), TEXT("UIShortcuts"));
+		if (bShort)
+		{
+			// test pictures in daylight (the real sun may be down); and where each jump really put you
+			if (Before < 1.f && ShotClock >= 1.f) { ASunClock::HourOverride = 12.f; ASunClock::Refresh(); }
+			for (const float At : {48.f, 58.f, 68.f})
+				if (Before < At && ShotClock >= At)
+					if (const APawn* Me = GetOwningPawn())
+					{
+						const FVector L = Me->GetActorLocation();
+						UE_LOG(LogTemp, Log, TEXT("Shortcut test: at plan x %.1f z %.1f, feet %.2f m"), L.X / 100.f, -L.Y / 100.f, (L.Z - Me->GetSimpleCollisionHalfHeight()) / 100.f);
+					}
+			if (Before < 46.f && ShotClock >= 46.f) GoGate4();
+			if (Before < 54.f && ShotClock >= 54.f) FScreenshotRequest::RequestScreenshot(TEXT("ShortcutGate4"), true, false);
+			if (Before < 56.f && ShotClock >= 56.f) GoApron();
+			if (Before < 64.f && ShotClock >= 64.f) FScreenshotRequest::RequestScreenshot(TEXT("ShortcutApron"), true, false);
+			if (Before < 66.f && ShotClock >= 66.f) GoEntrance();
+			if (Before < 74.f && ShotClock >= 74.f) FScreenshotRequest::RequestScreenshot(TEXT("ShortcutEntrance"), true, false);
+		}
+		// -UIHall: the main hall under the wave roof with its lights, after dark (the real time now) and at midday
+		const bool bHall = FParse::Param(FCommandLine::Get(), TEXT("UIHall"));
+		if (bHall)
+		{
+			if (Before < 46.f && ShotClock >= 46.f) { ASunClock::HourOverride = 21.f; ASunClock::Refresh(); GoTo(FVector(60.f, 0.f, 3.f), FVector(88.f, 7.f, 26.f)); }
+			if (Before < 56.f && ShotClock >= 56.f) FScreenshotRequest::RequestScreenshot(TEXT("HallEvening"), false, false);
+			if (Before < 57.f && ShotClock >= 57.f) { ASunClock::HourOverride = 12.f; ASunClock::Refresh(); }
+			if (Before < 66.f && ShotClock >= 66.f) FScreenshotRequest::RequestScreenshot(TEXT("HallMidday"), false, false);
+		}
 		// -UISite: outside at the kerb (the light, the sky, the credits), and a picture
 		const bool bSite = FParse::Param(FCommandLine::Get(), TEXT("UISite"));
 		if (bSite && Before < 48.f && ShotClock >= 48.f) { OpenSite(); if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(FRotator(5.f, 90.f, 0)); }
@@ -909,7 +980,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 70.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

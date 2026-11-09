@@ -24,7 +24,8 @@ public:
 	void SetPlayer(const FVector& PlanPos, float YawDeg);
 	void SetFull(bool bOn);
 	bool IsFull() const { return bFull; }
-	void ClearRoute() { Route.Reset(); }
+	void ClearRoute() { Route.Reset(); Waypoints.Reset(); }
+	bool HasRoute() const { return Waypoints.Num() > 0; }
 	/** The legend in the full-screen map: what the symbols mean and the controls (for the device in use). */
 	void SetLegend(const TArray<FString>& Lines, const FString& Key) { Legend = Lines; LegendKey = Key; }
 	/** The legend starts minimized (a small tab); the Buttons key opens and closes it while the map is full screen. */
@@ -51,6 +52,10 @@ private:
 	float Yaw = 0;
 	bool bFull = false;
 	TArray<FVector> Route;
+	/** Your own marks (plan metres): the route goes through them in order; a click adds one, a right-click on one removes it. */
+	TArray<FVector> Waypoints;
+	void Rebuild();
+	int32 PlaceAt(float X, float Z, int32 Floor) const;
 	TArray<FString> Legend;
 	FString LegendKey;
 	bool bLegendOpen = false;

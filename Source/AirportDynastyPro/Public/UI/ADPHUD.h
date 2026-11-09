@@ -51,6 +51,12 @@ public:
 	void TogglePointer();
 	/** From the menus: Unreal's world round the terminal, standing at the kerb outside the main entrance. */
 	void OpenSite();
+	/** The map's three shortcuts (and Airport site): you are put on free floor at a spot in the plan (metres: x, the
+	 *  floor's height, z), looking at another; never inside a wall or the floor. */
+	void GoTo(const FVector& PlanAt, const FVector& PlanLook);
+	void GoGate4();
+	void GoApron();
+	void GoEntrance();
 	/** From the menus: the business lounge (the Babylon edition's, placed apart from the airport, lit as there). */
 	void OpenLounge();
 	/** The menus are in front (the gamepad then works them). */
