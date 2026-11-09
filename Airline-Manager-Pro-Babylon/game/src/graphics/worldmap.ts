@@ -409,6 +409,9 @@ class WorldMap {
     for (const rt of State.routes) if (rt.companyId === State.companyId && !rt.flownAt) for (const l of rt.legs) used[l] = true;
     for (const f of State.live) { used[f.from] = true; if (!f.noDest) used[f.to] = true; }
     used[company().hub] = true;
+    // your own airports (Mýrdalssandur, BIAP…) always, at every zoom, as easy to find as any big airport
+    const own: { [k: string]: boolean } = {};
+    try { if (typeof OWN_AIRPORT_LIST !== 'undefined') for (const o of OWN_AIRPORT_LIST) { used[o[0]] = true; own[o[0]] = true; } } catch (e) { /* none */ }
     if (this.mark) used[this.mark] = true;
     this.shownAps = Object.keys(used);
     c.font = '600 10px Inter, sans-serif';
@@ -416,16 +419,25 @@ class WorldMap {
     const inDetail = degPx2 >= AIRPORT_DEG_PX;
     for (const k in used) {
       const a = apt(k); if (!a) continue;
-      if (inDetail && this.scenes[k] && this.scenes[k].L) continue;   // drawn with its real layout instead
+      if (inDetail && this.scenes[k] && this.scenes[k].L) {
+        // drawn with its real layout instead; your own airport still has its code over it
+        if (own[k] && this.opts.labels !== false) { const q = this.px(a.pos[0], a.pos[1]); c.save(); c.font = '700 12px Inter, sans-serif'; c.textAlign = 'center'; c.lineWidth = 3; c.lineJoin = 'round'; c.strokeStyle = 'rgba(5,15,28,.9)'; c.strokeText(k, q[0], q[1] - 26); c.fillStyle = col.cyan; c.fillText(k, q[0], q[1] - 26); c.restore(); }
+        continue;
+      }
       const p = this.px(a.pos[0], a.pos[1]);
-      const hub = k === company().hub, marked = k === this.mark;
+      const hub = k === company().hub || !!own[k], marked = k === this.mark;
       if (marked) { c.beginPath(); c.arc(p[0], p[1], 11, 0, Math.PI * 2); c.strokeStyle = col.mag; c.lineWidth = 2; c.stroke(); }
       c.save(); c.translate(p[0], p[1]); c.rotate(Math.PI / 4);
       c.fillStyle = col.bg; c.strokeStyle = hub ? col.cyan : col.dim; c.lineWidth = 1.4;
       const s = hub ? 4.2 : 3;
       c.fillRect(-s, -s, s * 2, s * 2); c.strokeRect(-s, -s, s * 2, s * 2);
       c.restore();
-      if (degPx2 > 1.4 && this.opts.labels !== false) {
+      if (own[k] && this.opts.labels !== false) {
+        // your own airport's code over it, at every zoom
+        c.save(); c.font = '700 11px Inter, sans-serif'; c.textAlign = 'center';
+        c.lineWidth = 3; c.lineJoin = 'round'; c.strokeStyle = 'rgba(5,15,28,.9)'; c.strokeText(k, p[0], p[1] - 9);
+        c.fillStyle = marked ? col.mag : col.cyan; c.fillText(k, p[0], p[1] - 9); c.restore();
+      } else if (degPx2 > 1.4 && this.opts.labels !== false) {
         if (this.ml) { c.lineWidth = 3; c.lineJoin = 'round'; c.strokeStyle = 'rgba(5,15,28,.85)'; c.strokeText(k, p[0] + 7, p[1] + 3.5); }
         c.fillStyle = marked ? col.mag : hub ? col.cyan : (this.ml ? col.ink : col.dim); c.fillText(k, p[0] + 7, p[1] + 3.5);
       }

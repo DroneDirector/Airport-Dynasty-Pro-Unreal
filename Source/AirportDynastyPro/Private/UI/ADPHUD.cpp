@@ -446,6 +446,22 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 6)[VolumeSlider(2)]
 				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Information (notices for everyone)"))]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)[VolumeSlider(3)]
+				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Updates"))]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 2)
+				[
+					SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true)
+					.Text_Lambda([this]() { return FText::FromString(UpdateStatus.IsEmpty() ? FString::Printf(TEXT("This is version %s."), *UpdaterVersion()) : UpdateStatus); })
+				]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("CHECK FOR UPDATES"), [this]() { CheckForUpdates(); })]
+					+ SHorizontalBox::Slot().AutoWidth()
+					[
+						SNew(SBox).Visibility_Lambda([this]() { return (UpdateChain.Num() || !UpdateFullUrl.IsEmpty()) && !UpdateBusy ? EVisibility::Visible : EVisibility::Collapsed; })
+						[Button(TEXT("INSTALL UPDATE"), [this]() { InstallUpdate(); })]
+					]
+				]
 				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Frame limit"))]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 10)[Limit]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 6)

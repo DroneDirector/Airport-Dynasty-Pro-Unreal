@@ -35,6 +35,18 @@ public:
 	void ShowTerminal();
 	/** Esc: the open panel closes; with nothing open, the Overview (the menus handle Esc themselves). */
 	void OnEscape();
+	#pragma region The updater (Updater.cpp)
+	static FString UpdaterVersion();
+	void CheckForUpdates();
+	void InstallUpdate();
+	void DownloadNext(int32 I, const FString& Dir);
+	void ApplyUpdate(const FString& Dir);
+	FString UpdateStatus;
+	bool UpdateBusy = false;
+	TArray<TPair<FString, FString>> UpdateChain;   // version, update package
+	TArray<FString> UpdateFiles;
+	FString UpdateFullUrl;
+	#pragma endregion
 	/** The middle mouse button: the pointer free (click things, drag boxes about) or back to looking round. */
 	void TogglePointer();
 	/** From the menus: Unreal's world round the terminal, standing at the kerb outside the main entrance. */
