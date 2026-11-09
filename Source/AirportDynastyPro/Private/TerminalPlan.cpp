@@ -85,7 +85,7 @@ bool FTerminalPlan::Load()
 	for (const TSharedPtr<FJsonValue>& V : Root->GetArrayField(TEXT("lifts")))
 	{
 		const TSharedPtr<FJsonObject> O = V->AsObject();
-		Lifts.Add({ Str(O, TEXT("id")), Num(O, TEXT("x")), Num(O, TEXT("z")) });
+		Lifts.Add({ Str(O, TEXT("id")), Num(O, TEXT("x")), Num(O, TEXT("z")), Num(O, TEXT("face")) });
 	}
 	for (const TSharedPtr<FJsonValue>& V : Root->GetArrayField(TEXT("stands")))
 	{

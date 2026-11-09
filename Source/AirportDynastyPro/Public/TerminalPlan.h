@@ -41,6 +41,7 @@ struct FPlanPoint
 {
 	FString Id;
 	float X = 0, Z = 0;
+	float Face = 0; // which way it faces (radians, 0 faces +z, as in the Android edition): the lifts' doors
 };
 
 struct FTerminalPlan

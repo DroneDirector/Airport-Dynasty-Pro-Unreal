@@ -39,6 +39,44 @@ namespace
 	}
 	bool RoughCeiling(const FString& Kind) { return Kind == TEXT("baghall") || Kind == TEXT("plant") || Kind == TEXT("ramp"); }
 
+	constexpr float LiftHole = 1.02f; // half the size of the hole round each lift in Floor 2's slab and the ceilings (lifts.ts)
+
+	struct FRect { float X0, Z0, X1, Z1; };
+	/** A rectangle less the holes in it, as smaller rectangles (shell.ts rectMinus). */
+	TArray<FRect> RectMinus(const FRect& R, const TArray<FRect>& Holes)
+	{
+		TArray<FRect> Hs;
+		for (const FRect& H : Holes)
+			if (H.X1 > R.X0 && H.X0 < R.X1 && H.Z1 > R.Z0 && H.Z0 < R.Z1) Hs.Add(H);
+		if (!Hs.Num()) return {R};
+		TArray<float> Xs = {R.X0, R.X1}, Zs = {R.Z0, R.Z1};
+		for (const FRect& H : Hs)
+		{
+			Xs.Add(FMath::Max(R.X0, H.X0)); Xs.Add(FMath::Min(R.X1, H.X1));
+			Zs.Add(FMath::Max(R.Z0, H.Z0)); Zs.Add(FMath::Min(R.Z1, H.Z1));
+		}
+		Xs.Sort(); Zs.Sort();
+		TArray<FRect> Out;
+		for (int32 i = 0; i + 1 < Xs.Num(); ++i)
+			for (int32 j = 0; j + 1 < Zs.Num(); ++j)
+			{
+				const FRect C{Xs[i], Zs[j], Xs[i + 1], Zs[j + 1]};
+				if (C.X1 - C.X0 < 0.01f || C.Z1 - C.Z0 < 0.01f) continue;
+				const float MX = (C.X0 + C.X1) / 2, MZ = (C.Z0 + C.Z1) / 2;
+				if (Hs.ContainsByPredicate([&](const FRect& H) { return MX > H.X0 && MX < H.X1 && MZ > H.Z0 && MZ < H.Z1; })) continue;
+				Out.Add(C);
+			}
+		return Out;
+	}
+	/** The stairs' and lifts' openings through Floor 2 and the ceilings. */
+	TArray<FRect> Openings(const FTerminalPlan& Plan)
+	{
+		TArray<FRect> H;
+		for (const FPlanStair& S : Plan.Stairs) H.Add({S.X0, S.Z0, S.X1, S.Z1});
+		for (const FPlanPoint& L : Plan.Lifts) H.Add({L.X - LiftHole, L.Z - LiftHole, L.X + LiftHole, L.Z + LiftHole});
+		return H;
+	}
+
 	// a plain colour for a kit material, used only when its material asset is missing
 	FLinearColor Fallback(const FName Name)
 	{
@@ -148,8 +186,6 @@ bool ATerminalBuilder::Build()
 		const FVector P = FTerminalPlan::ToWorld(C.X, Plan.Roof * 0.5f, C.Z);
 		MatCyl("white")->AddInstance(FTransform(FRotator::ZeroRotator, P, FVector(0.6f, 0.6f, Plan.Roof)));
 	}
-	for (const FPlanPoint& L : Plan.Lifts)
-		Box(Mat("steel"), L.X - 1.2f, 0, L.Z - 1.2f, L.X + 1.2f, Plan.F2Y + 3.f, L.Z + 1.2f);
 	for (const FPlanPoint& S : Plan.Stands)
 		Box(Mat("yellow"), S.X - 0.15f, 0, S.Z, S.X + 0.15f, 0.02f, S.Z + 45.f); // stand lead-in line from the nose position
 
@@ -164,8 +200,13 @@ bool ATerminalBuilder::Build()
 void ATerminalBuilder::BuildRoom(const FPlanRoom& R)
 {
 	const float Y0 = Plan.FloorY(R.Floor), Y1 = Plan.CeilY(R.Floor);
-	Box(Mat(FloorMat(R.Kind)), R.X0, Y0 - SlabT, R.Z0, R.X1, Y0, R.Z1);
-	Box(Mat(RoughCeiling(R.Kind) ? FName("concrete") : FName("offwhite")), R.X0, Y1, R.Z0, R.X1, Y1 + 0.1f, R.Z1);
+	const TArray<FRect> Holes = Openings(Plan);
+	// the floor (on Floor 2 less the stairs and lifts going through it) and the ceiling (less them on both floors)
+	const FRect Whole{R.X0, R.Z0, R.X1, R.Z1};
+	for (const FRect& C : R.Floor >= 2 ? RectMinus(Whole, Holes) : TArray<FRect>{Whole})
+		Box(Mat(FloorMat(R.Kind)), C.X0, Y0 - SlabT, C.Z0, C.X1, Y0, C.Z1);
+	for (const FRect& C : RectMinus(Whole, Holes))
+		Box(Mat(RoughCeiling(R.Kind) ? FName("concrete") : FName("offwhite")), C.X0, Y1, C.Z0, C.X1, Y1 + 0.1f, C.Z1);
 	if (R.Floor >= 2 || R.Kind == TEXT("hall")) Box(Mat("white"), R.X0, Plan.Roof, R.Z0, R.X1, Plan.Roof + 0.4f, R.Z1);
 
 	BuildWall(R, true,  R.Z0, R.X0, R.X1, R.Glass.Contains(TEXT("s")));
@@ -233,14 +274,52 @@ void ATerminalBuilder::BuildStair(const FPlanStair& S)
 	const bool bUp = S.Dir.EndsWith(TEXT("+"));
 	const float A0 = bX ? S.X0 : S.Z0, A1 = bX ? S.X1 : S.Z1;
 	const float Run = (A1 - A0) / N;
-	UInstancedStaticMeshComponent* StepK = Mat("terrazzo");
+	// the steps, oak and walnut in turn as in the Android edition
 	for (int32 i = 0; i < N; ++i)
 	{
 		const int32 k = bUp ? i : N - 1 - i; // step k rises to (k+1)*Rise
 		const float From = A0 + Run * i, To = From + Run;
 		const float Top = (k + 1) * Rise;
+		UInstancedStaticMeshComponent* StepK = Mat(k % 2 ? FName("oak") : FName("walnut"));
 		if (bX) Box(StepK, From, 0, S.Z0, To, Top, S.Z1);
 		else    Box(StepK, S.X0, 0, From, S.X1, Top, To);
+	}
+
+	// the glass sides and handrails, straight along the slope from the bottom to the top
+	const float Len = FMath::Abs(A1 - A0), Wid = bX ? S.Z1 - S.Z0 : S.X1 - S.X0;
+	const float Slope = FMath::RadiansToDegrees(FMath::Atan2(Plan.F2Y, Len));
+	const float Along = FMath::Sqrt(Len * Len + Plan.F2Y * Plan.F2Y);
+	UInstancedStaticMeshComponent* GlassK = Kits.FindRef("glass");
+	for (const float Lat : {0.06f, Wid - 0.06f})
+	{
+		const float MidA = (A0 + A1) / 2;
+		const float PX = bX ? MidA : S.X0 + Lat, PZ = bX ? S.Z0 + Lat : MidA;
+		// pitch up towards the top: in Unreal x is the plan's x and -y the plan's z
+		const float Yaw = bX ? (bUp ? 0.f : 180.f) : (bUp ? -90.f : 90.f);
+		const FRotator Rot(Slope, Yaw, 0);
+		if (GlassK) GlassK->AddInstance(FTransform(Rot, FTerminalPlan::ToWorld(PX, Plan.F2Y / 2 + 0.58f, PZ), FVector(Along / 1.f, 0.024f, 0.95f)));
+		Mat("chrome")->AddInstance(FTransform(Rot, FTerminalPlan::ToWorld(PX, Plan.F2Y / 2 + 1.07f, PZ), FVector(Along, 0.06f, 0.06f)));
+	}
+
+	// the opening's glass balustrade on Floor 2, on every side but the top of the stairs, where you step off
+	const TCHAR TopSide = bX ? (bUp ? TEXT('e') : TEXT('w')) : (bUp ? TEXT('n') : TEXT('s'));
+	const float Y = Plan.F2Y;
+	for (const TCHAR Side : {TEXT('n'), TEXT('s'), TEXT('e'), TEXT('w')})
+	{
+		if (Side == TopSide) continue;
+		const bool bAx = Side == TEXT('n') || Side == TEXT('s');
+		const float Line = Side == TEXT('n') ? S.Z1 : Side == TEXT('s') ? S.Z0 : Side == TEXT('e') ? S.X1 : S.X0;
+		const float A = bAx ? S.X0 : S.Z0, B = bAx ? S.X1 : S.Z1;
+		if (bAx)
+		{
+			if (GlassK) Box(GlassK, A, Y, Line - 0.02f, B, Y + 1.05f, Line + 0.02f);
+			Box(Mat("chrome"), A, Y + 1.05f, Line - 0.035f, B, Y + 1.1f, Line + 0.035f);
+		}
+		else
+		{
+			if (GlassK) Box(GlassK, Line - 0.02f, Y, A, Line + 0.02f, Y + 1.05f, B);
+			Box(Mat("chrome"), Line - 0.035f, Y + 1.05f, A, Line + 0.035f, Y + 1.1f, B);
+		}
 	}
 }
 

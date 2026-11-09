@@ -11,7 +11,7 @@ are offered. Sources: CLAUDE.md (the agreed plan), the PDFs in the repo, the Bab
 - [x] Doors: sliding glass, revolving, swing, secure staff, double, one-way and jetway doors that open as you walk up, the room's name over each door
 - [x] Main hall fittings: check-in desks 1–24 with belts, banners, chairs and queue lines, 8 bag drops, trees, benches, bins and signs; seats, gate desk and sign at all 8 gates
 - [ ] The other rooms' fittings (security lanes, lounge, offices, Operations, Academy, crew room, toilets, baggage hall, Food Walk, eateries, Tax Free, bar, family room, view bays) and the ceiling lights
-- [ ] Stairs with glass balustrades, lifts riding between the floors
+- [x] Stairs with oak and walnut steps, glass sides, handrails and a glass balustrade round the opening; openings cut through Floor 2 and the ceilings; the 5 lifts called, opening and riding between the floors
 - [ ] Gate 1: seating, gate desk, gate screen, and its jetway (J-1)
 - [ ] Timetable screens (departures and arrivals) showing the game's flights
 - [ ] Release pipeline for the PC: the PC as GitHub's build machine, packaged game, update over the old version

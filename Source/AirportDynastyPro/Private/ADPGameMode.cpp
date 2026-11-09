@@ -5,6 +5,7 @@
 #include "TerminalBuilder.h"
 #include "TerminalDoors.h"
 #include "TerminalFittings.h"
+#include "TerminalLifts.h"
 #include "CrowdTest.h"
 #include "Engine/World.h"
 #include "Engine/DirectionalLight.h"
@@ -43,6 +44,8 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 			Doors->Build(Plan);
 		if (ATerminalFittings* Fittings = W->SpawnActor<ATerminalFittings>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 			Fittings->Build(Plan);
+		if (ATerminalLifts* Lifts = W->SpawnActor<ATerminalLifts>(FVector::ZeroVector, FRotator::ZeroRotator, P))
+			Lifts->Build(Plan);
 		if (ACrowdTest* Crowd = W->SpawnActor<ACrowdTest>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 			Crowd->Start(Plan, CrowdSize);
 		if (!UGameplayStatics::GetActorOfClass(W, APlayerStart::StaticClass()))
