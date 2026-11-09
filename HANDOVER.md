@@ -11,16 +11,17 @@ Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md
   push. `.github/workflows/build.yml` builds the Android APK and the old PC build.
 - The 3D viewer's sky dome is `V.sky`; the corner map is `V.skyMap` (reusing `V.sky` made the 3D view black).
 
-## PC version (Unreal Engine 5.8, repo root)
+## PC version (Unreal Engine 5.7, repo root)
 - First commit of the project: `AirportDynastyPro.uproject`, `Config/`, `Source/AirportDynastyPro/`.
-  Not compiled yet: the first build on the PC may need small fixes.
+- 2026-11-09: switched from 5.8 to 5.7 (the version installed on the owner's PC). Compiles with no changes to the code;
+  the editor opens, and running the game logs "Terminal built: 54 rooms, 71 doors" with no errors.
 - On Play, `ADPGameMode` adds sun, sky, fog and exposure, builds the grey-box terminal from `Data/terminal-plan.json`
   (`TerminalBuilder`), starts about 100 simple walkers (`CrowdTest`) and spawns the first-person player (`ADPWalker`).
   Start map is the engine's empty `/Engine/Maps/Entry`; legacy input mappings are in `Config/DefaultInput.ini`.
 - Plan metres to Unreal: `FTerminalPlan::ToWorld(x, height, z)` = (x*100, -z*100, height*100) cm.
 
 ## Next steps
-1. Compile and open the project on the PC; fix any compile errors.
+1. ~~Compile and open the project on the PC~~ (done 2026-11-09, UE 5.7).
 2. Save a real start map in `Content/Maps/` and set it in `DefaultEngine.ini`.
 3. Glass material for the glass walls (only frames are built now), then the main hall and one gate with Nanite meshes.
 4. Replace `CrowdTest` with Mass Entity crowds (ZoneGraph lanes from the plan, StateTree behaviour).
