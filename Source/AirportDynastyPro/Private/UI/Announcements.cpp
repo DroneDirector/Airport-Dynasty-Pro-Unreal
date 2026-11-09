@@ -52,7 +52,8 @@ float AADPHUD::ZoneGain() const
 	if (K == TEXT("corridor") || K == TEXT("passage")) return 0.2f;
 	if (K == TEXT("lounge")) return 0.3f;
 	if (K == TEXT("museum")) return 0.6f;
-	if (K == TEXT("ramp") || K.IsEmpty()) return 0.f;   // outside the building: not heard at all (owner, 2026-11-09)
+	if (K == TEXT("ramp")) return 0.1f;   // ramp services: staff rooms inside the building
+	if (K.IsEmpty()) return 0.f;   // outside the building: not heard at all (owner, 2026-11-09)
 	return 1.f;   // the hall, the entrances, security, airside, the walkway, the gates, food, tax-free, the bar…
 }
 
@@ -64,7 +65,7 @@ float AADPHUD::ZoneMuffle() const
 	if (K == TEXT("corridor") || K == TEXT("passage")) return 1400.f;
 	if (K == TEXT("lounge")) return 1800.f;
 	if (K == TEXT("museum")) return 4000.f;
-	if (K == TEXT("ramp") || K.IsEmpty()) return 800.f;
+	if (K == TEXT("ramp") || K.IsEmpty()) return 700.f;
 	return 20000.f;
 }
 #pragma endregion
