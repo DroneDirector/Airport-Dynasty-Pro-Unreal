@@ -63,6 +63,13 @@ The 3D parts (animations, people, the model's further work) wait; the interface 
 - [ ] Still to check with a real controller in hand (owner): every menu with Xbox and PlayStation 5 pads
 - [ ] The Babylon model's own timetable screens showing the game's real departures (the bridge already brings them)
 
+## FIRST when the owner says "continue" (owner, 2026-11-09): the in-game updater
+- Settings (the gear) gets an "Updates" section: "Check for updates"; when a newer PC version is out, the game says so
+  and installs it on request
+- Updates only what changed (a patch, like a released game), never the whole game again: the game files apart from
+  the terrain, and the terrain only when it changes
+- Then the batches below
+
 ## Next releases, in order (owner, 2026-11-09)
 1. 0.11.0 The business lounge: the Babylon lounge in Unreal, exact model, its own lights (built, packaging)
 2. 0.13.0 The terrain (moved from 0.12.0: waits for the whole GLO-90 download; Iceland tested): Copernicus GLO-90 worldwide (downloaded to F:/ADP-Terrain) turned into Unreal terrain; the
