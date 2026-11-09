@@ -51,12 +51,17 @@ The 3D parts (animations, people, the model's further work) wait; the interface 
       web view); the walking bar hides while the menus show; the menu's Terminal opens Unreal's 3D terminal
 - [x] Gamepads: Xbox, PlayStation 5 (RawInput), generic, with their symbols in the Buttons panel (lower right, always
       minimized, F1 / View / Create), Settings' controls and the map's legend; no key or button used twice
-- [ ] Every menu and screen reachable and working in the PC version: keyboard, mouse, gamepad and sound inside the web
-      view; the title screen's other entries (3D Viewer, Lounge, Airport Site) decided for the PC; "Babylon.js edition"
-      on the title screen replaced by the PC edition's name
-- [ ] One way round the whole game: menus ↔ the 3D airport (G, the Terminal entry, the screens you can use with E), the
-      game's state (flights, money, time) shown in Unreal's screens and announcements through the bridge
-- [ ] Gamepad control of the menus themselves (moving between buttons, confirming, going back)
+- [x] Every menu and screen reachable in the PC version (the Android edition's own interface, so keyboard, mouse and
+      sound work as there); the title screen says "PC edition · Unreal Engine 5.7" with the PC version's number; Terminal
+      and Airport Site open Unreal's own 3D (Airport Site: at the kerb outside the main entrance); 3D Viewer and Lounge
+      stay the Android edition's scenes inside the menus until Unreal has its own
+- [x] One way round the whole game: G / Y / Triangle between menus and the 3D airport (back to the title screen, or the
+      game where you left it); the airline's name and money and the time under the walking bar; the game's real
+      departures at your airport announced in the terminal (boarding, final call, gate closing, delays, cancellations)
+- [x] Gamepad control of the menus: Unreal hands the controller to the menus as a standard gamepad, so the game's own
+      controller code works them (the pointer, d-pad jumps, A / Cross to click, B / Circle back, shoulders for pages)
+- [ ] Still to check with a real controller in hand (owner): every menu with Xbox and PlayStation 5 pads
+- [ ] The Babylon model's own timetable screens showing the game's real departures (the bridge already brings them)
 
 ## Fixes seen in the first pictures (2026-11-09), before batch A
 - [x] THE TERMINAL IS THE BABYLON MODEL ITSELF (in the game since 2026-11-09: placed at runtime by ABabylonModel, right way

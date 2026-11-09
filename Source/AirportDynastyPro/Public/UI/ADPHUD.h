@@ -11,6 +11,8 @@
 
 class SHoloMap;
 class SWidget;
+class SWebBrowser;
+class FADPPadToMenus;
 
 UCLASS()
 class AIRPORTDYNASTYPRO_API AADPHUD : public AHUD
@@ -28,6 +30,16 @@ public:
 
 	/** From the menus: Unreal's 3D terminal, the menus hidden. */
 	void ShowTerminal() { if (bGame) ToggleGame(); }
+	/** From the menus: Unreal's world round the terminal, standing at the kerb outside the main entrance. */
+	void OpenSite();
+	/** The menus are in front (the gamepad then works them). */
+	bool MenusOpen() const { return bGame && !bHidden; }
+	/** Y / Triangle in the menus: back to the 3D airport. */
+	void LeaveMenus() { if (bGame) ToggleGame(); }
+	/** The airline from the game: its name and money for the top bar. */
+	void OnGameState(const FString& Json);
+	/** The game's departures: a change to boarding, final call or a delay is announced in the terminal. */
+	void OnGameFids(const FString& Json);
 
 private:
 	#pragma region Panels
@@ -58,6 +70,11 @@ private:
 	#pragma endregion
 
 	TSharedPtr<SWidget> Root;
+	TSharedPtr<SWebBrowser> Browser;
+	TSharedPtr<FADPPadToMenus> PadToMenus;
+	FString StatusLine;
+	TMap<FString, FString> DepStatus;
+	bool bPadSent = false;
 	TSharedPtr<SHoloMap> HoloMap;
 	TSharedPtr<SWidget> MiniBox, FullBox, Settings, Perf, TopBar, GameBox;
 	bool bHidden = false, bSettings = false, bPerf = false, bGame = false, bGameMade = false;

@@ -29,6 +29,76 @@
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
 #include "CollisionQueryParams.h"
+#include "SWebBrowser.h"
+#include "Framework/Application/IInputProcessor.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
+
+#pragma region The gamepad in the menus
+// While the menus are in front, the controller is theirs: its buttons and sticks are read here (before anything else
+// sees them) and handed to the page as a standard gamepad, so the menus' own controller code (the pointer, the d-pad
+// jumps, Cross / A to click, Circle / B back, the shoulder buttons for the pages) works as on the phone. Y / Triangle
+// goes back to the 3D airport. Nothing reaches the walker meanwhile (no walking about behind the menus).
+class FADPPadToMenus : public IInputProcessor
+{
+public:
+	TWeakObjectPtr<AADPHUD> Hud;
+	float Buttons[17] = {};
+	float Axes[4] = {};
+	bool bDirty = false;
+
+	static int32 IndexOf(const FKey& K)
+	{
+		// the standard gamepad's order (the W3C mapping); the triggers come as axes below
+		static const FKey Order[17] = {EKeys::Gamepad_FaceButton_Bottom, EKeys::Gamepad_FaceButton_Right, EKeys::Gamepad_FaceButton_Left,
+			EKeys::Gamepad_FaceButton_Top, EKeys::Gamepad_LeftShoulder, EKeys::Gamepad_RightShoulder, EKeys::Invalid, EKeys::Invalid,
+			EKeys::Gamepad_Special_Left, EKeys::Gamepad_Special_Right, EKeys::Gamepad_LeftThumbstick, EKeys::Gamepad_RightThumbstick,
+			EKeys::Gamepad_DPad_Up, EKeys::Gamepad_DPad_Down, EKeys::Gamepad_DPad_Left, EKeys::Gamepad_DPad_Right, EKeys::Invalid};
+		for (int32 i = 0; i < 17; ++i) if (Order[i].IsValid() && Order[i] == K) return i;
+		return INDEX_NONE;
+	}
+	bool Menus() const { const AADPHUD* H = Hud.Get(); return H && H->MenusOpen(); }
+	void Clear() { for (float& B : Buttons) B = 0; for (float& A : Axes) A = 0; bDirty = true; }
+
+	virtual void Tick(const float, FSlateApplication&, TSharedRef<ICursor>) override {}
+	virtual bool HandleKeyDownEvent(FSlateApplication&, const FKeyEvent& E) override
+	{
+		if (!E.GetKey().IsGamepadKey() || !Menus()) return false;
+		if (E.GetKey() == EKeys::Gamepad_FaceButton_Top)
+		{
+			if (!E.IsRepeat()) if (AADPHUD* H = Hud.Get()) H->LeaveMenus();
+			return true;
+		}
+		const int32 I = IndexOf(E.GetKey());
+		if (I != INDEX_NONE && !E.IsRepeat()) { Buttons[I] = 1; bDirty = true; }
+		return true;
+	}
+	virtual bool HandleKeyUpEvent(FSlateApplication&, const FKeyEvent& E) override
+	{
+		if (!E.GetKey().IsGamepadKey()) return false;
+		const int32 I = IndexOf(E.GetKey());
+		if (I != INDEX_NONE && Buttons[I] != 0) { Buttons[I] = 0; bDirty = true; }
+		return Menus();
+	}
+	virtual bool HandleAnalogInputEvent(FSlateApplication&, const FAnalogInputEvent& E) override
+	{
+		const FKey K = E.GetKey();
+		float* To = nullptr; float V = E.GetAnalogValue();
+		if (K == EKeys::Gamepad_LeftX) To = &Axes[0];
+		else if (K == EKeys::Gamepad_LeftY) { To = &Axes[1]; V = -V; }   // the web's sticks: down is +1
+		else if (K == EKeys::Gamepad_RightX) To = &Axes[2];
+		else if (K == EKeys::Gamepad_RightY) { To = &Axes[3]; V = -V; }
+		else if (K == EKeys::Gamepad_LeftTriggerAxis) To = &Buttons[6];
+		else if (K == EKeys::Gamepad_RightTriggerAxis) To = &Buttons[7];
+		if (!To) return false;
+		if (FMath::Abs(*To - V) > 0.01f) { *To = V; bDirty = true; }
+		return Menus();
+	}
+	virtual const TCHAR* GetDebugName() const override { return TEXT("ADPPadToMenus"); }
+};
+#pragma endregion
 
 #pragma region Look
 namespace
@@ -87,8 +157,10 @@ void AADPHUD::BeginPlay()
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[Settings.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Bottom).Padding(16)
 		[
-			// the Buttons panel: the lower right corner is its own, nothing else is ever placed there
+			// the Buttons panel: the lower right corner is its own, nothing else is ever placed there (in the 3D airport;
+			// the menus have their own buttons there, and the controller works them as on the phone)
 			SNew(SBorder)
+			.Visibility_Lambda([this]() { return bGame ? EVisibility::Collapsed : EVisibility::Visible; })
 			.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
 			.BorderBackgroundColor(Panel)
 			.Padding(FMargin(10, 6))
@@ -125,6 +197,12 @@ void AADPHUD::BeginPlay()
 		];
 
 	if (GEngine && GEngine->GameViewport) GEngine->GameViewport->AddViewportWidgetContent(Root.ToSharedRef(), 10);
+	if (FSlateApplication::IsInitialized())
+	{
+		PadToMenus = MakeShared<FADPPadToMenus>();
+		PadToMenus->Hud = this;
+		FSlateApplication::Get().RegisterInputPreProcessor(PadToMenus);
+	}
 	// the game starts on the app's own title screen and main menu (not in photo mode)
 	if (!FParse::Param(FCommandLine::Get(), TEXT("PhotoTour"))) ToggleGame();
 
@@ -157,6 +235,7 @@ void AADPHUD::BeginPlay()
 void AADPHUD::EndPlay(const EEndPlayReason::Type Reason)
 {
 	if (Root.IsValid() && GEngine && GEngine->GameViewport) GEngine->GameViewport->RemoveViewportWidgetContent(Root.ToSharedRef());
+	if (PadToMenus.IsValid() && FSlateApplication::IsInitialized()) FSlateApplication::Get().UnregisterInputPreProcessor(PadToMenus);
 	Super::EndPlay(Reason);
 }
 
@@ -180,11 +259,20 @@ void AADPHUD::FirstStartScan()
 
 TSharedRef<SWidget> AADPHUD::MakeTopBar()
 {
-	return SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("GAME  (G)"), [this]() { ToggleGame(); })]
-		+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("MAP  (M)"), [this]() { ToggleMap(); })]
-		+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("SETTINGS  (TAB)"), [this]() { ToggleSettings(); })]
-		+ SHorizontalBox::Slot().AutoWidth()[Button(TEXT("HIDE UI  (H)"), [this]() { HideUI(); })];
+	TSharedRef<SHorizontalBox> Bar = SNew(SHorizontalBox);
+	Bar->AddSlot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("GAME  (G)"), [this]() { ToggleGame(); })];
+	Bar->AddSlot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("MAP  (M)"), [this]() { ToggleMap(); })];
+	Bar->AddSlot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("SETTINGS  (TAB)"), [this]() { ToggleSettings(); })];
+	Bar->AddSlot().AutoWidth()[Button(TEXT("HIDE UI  (H)"), [this]() { HideUI(); })];
+	// under the bar: your airline, its money and the time (once a game is running in the menus)
+	return SNew(SVerticalBox)
+		+ SVerticalBox::Slot().AutoHeight()[Bar]
+		+ SVerticalBox::Slot().AutoHeight().Padding(2, 6, 0, 0)
+		[
+			SNew(STextBlock).Font(Font(10)).ColorAndOpacity(Ink)
+			.Visibility_Lambda([this]() { return StatusLine.IsEmpty() ? EVisibility::Collapsed : EVisibility::HitTestInvisible; })
+			.Text_Lambda([this]() { return FText::FromString(StatusLine + TEXT("   ·   ") + FDateTime::Now().ToString(TEXT("%H:%M"))); })
+		];
 }
 
 TSharedRef<SWidget> AADPHUD::MakeSettings()
@@ -286,9 +374,13 @@ void AADPHUD::ToggleGame()
 	{
 		Bridge = NewObject<UADPBridge>(this);
 		Bridge->Hud = this;
-		StaticCastSharedPtr<SBox>(GameBox)->SetContent(ADPGameView::Make(Bridge));
+		StaticCastSharedPtr<SBox>(GameBox)->SetContent(ADPGameView::Make(Bridge, &Browser));
 		bGameMade = true;
 	}
+	// back to the menus: the title screen again, or the game where you left it
+	else if (bGame && Browser.IsValid()) Browser->ExecuteJavascript(TEXT("window.__ueMenus && window.__ueMenus()"));
+	// the controller is the menus' only while they are in front
+	if (PadToMenus.IsValid()) PadToMenus->Clear();
 	GameBox->SetVisibility(bGame ? EVisibility::Visible : EVisibility::Collapsed);
 	// the walking interface (the bar, the map, the credit line) hides while the menus are open: nothing ever overlaps
 	MiniBox->SetVisibility(bGame ? EVisibility::Collapsed : EVisibility::Visible);
@@ -374,6 +466,57 @@ void AADPHUD::Interact()
 	}
 }
 
+void AADPHUD::OpenSite()
+{
+	ShowTerminal();
+	// outside the main entrance, at the kerb under the wave roof, facing the terminal
+	if (APawn* P = GetOwningPawn())
+	{
+		P->TeleportTo(FTerminalPlan::ToWorld(79.f, 0.f, -14.f) + FVector(0, 0, P->GetSimpleCollisionHalfHeight() + 30.f), FRotator(0, -90.f, 0));
+		if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(FRotator(0, -90.f, 0));
+	}
+}
+
+void AADPHUD::OnGameState(const FString& Json)
+{
+	TSharedPtr<FJsonObject> O;
+	if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Json), O) || !O.IsValid()) return;
+	FString Name, Money;
+	O->TryGetStringField(TEXT("name"), Name);
+	O->TryGetStringField(TEXT("money"), Money);
+	StatusLine = Name.IsEmpty() ? FString() : Name.ToUpper() + (Money.IsEmpty() ? FString() : TEXT("   ·   ") + Money);
+}
+
+void AADPHUD::OnGameFids(const FString& Json)
+{
+	TSharedPtr<FJsonObject> O;
+	if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Json), O) || !O.IsValid()) return;
+	const TArray<TSharedPtr<FJsonValue>>* Dep = nullptr;
+	if (!O->TryGetArrayField(TEXT("dep"), Dep)) return;
+	const bool bFirst = DepStatus.Num() == 0;
+	for (const TSharedPtr<FJsonValue>& V : *Dep)
+	{
+		const TSharedPtr<FJsonObject>* R = nullptr;
+		if (!V.IsValid() || !V->TryGetObject(R)) continue;
+		FString Flight, Place, Status;
+		(*R)->TryGetStringField(TEXT("flight"), Flight);
+		(*R)->TryGetStringField(TEXT("place"), Place);
+		(*R)->TryGetStringField(TEXT("status"), Status);
+		if (Flight.IsEmpty()) continue;
+		const FString* Was = DepStatus.Find(Flight);
+		const bool bChanged = !Was || *Was != Status;
+		DepStatus.Add(Flight, Status);
+		// the first list only sets what is known; after that each change is called out once
+		if (bFirst || !bChanged) continue;
+		const FString S = Status.ToLower();
+		if (S.Contains(TEXT("final"))) Announce(FString::Printf(TEXT("Final call for flight %s to %s."), *Flight, *Place));
+		else if (S.Contains(TEXT("board"))) Announce(FString::Printf(TEXT("Flight %s to %s is now boarding."), *Flight, *Place));
+		else if (S.Contains(TEXT("gate clos")) || S.Contains(TEXT("closed"))) Announce(FString::Printf(TEXT("Flight %s to %s: the gate is closing."), *Flight, *Place));
+		else if (S.Contains(TEXT("delay"))) Announce(FString::Printf(TEXT("Flight %s to %s is delayed. We apologise for the inconvenience."), *Flight, *Place));
+		else if (S.Contains(TEXT("cancel"))) Announce(FString::Printf(TEXT("Flight %s to %s has been cancelled."), *Flight, *Place));
+	}
+}
+
 void AADPHUD::ToggleButtons()
 {
 	if (bHidden) return;
@@ -438,6 +581,19 @@ void AADPHUD::RefreshControls()
 void AADPHUD::Tick(float Dt)
 {
 	Super::Tick(Dt);
+	// the controller to the menus' page whenever it changes (and once more, all released, when they close)
+	if (PadToMenus.IsValid() && PadToMenus->bDirty && Browser.IsValid() && (bGame || bPadSent))
+	{
+		const ADPInput::EPad Pad = ADPInput::CurrentPad();
+		const TCHAR* Id = Pad == ADPInput::EPad::PlayStation ? TEXT("DualSense Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 0ce6)")
+			: Pad == ADPInput::EPad::Generic ? TEXT("Controller (STANDARD GAMEPAD)") : TEXT("Xbox Controller (STANDARD GAMEPAD Vendor: 045e)");
+		FString Ax, Bt;
+		for (int32 i = 0; i < 4; ++i) Ax += FString::Printf(TEXT("%s%.3f"), i ? TEXT(",") : TEXT(""), PadToMenus->Axes[i]);
+		for (int32 i = 0; i < 17; ++i) Bt += FString::Printf(TEXT("%s%.3f"), i ? TEXT(",") : TEXT(""), PadToMenus->Buttons[i]);
+		Browser->ExecuteJavascript(FString::Printf(TEXT("window.__uePad && window.__uePad('%s',[%s],[%s])"), Id, *Ax, *Bt));
+		PadToMenus->bDirty = false;
+		bPadSent = bGame;
+	}
 	// the symbols follow the device in use
 	if (bShownPad != ADPInput::UsingPad() || ShownPadKind != uint8(ADPInput::CurrentPad()))
 	{

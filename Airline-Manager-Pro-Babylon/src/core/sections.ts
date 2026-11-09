@@ -20,6 +20,8 @@ export async function openSection(id: string, ctx: SectionCtx) {
   // the PC version (Unreal) walks its own 3D terminal: the terminal is handed over to it (on Android there is no ue)
   const ue = (window as any).ue;
   if (id === 'terminal' && ue && ue.adp && ue.adp.openterminal) { ue.adp.openterminal(); return; }
+  // and the airport site too: Unreal's own world round the terminal (the landside, the apron, the runway)
+  if (id === 'site' && ue && ue.adp && ue.adp.opensite) { ue.adp.opensite(); return; }
   if (current) { try { current.close(); } catch (e) { console.error(e); } current = null; }
   const s = list[id]; if (!s) throw new Error('No section ' + id);
   current = s; await s.open(ctx);

@@ -11,6 +11,7 @@
 #include "Styling/CoreStyle.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Runtime/Launch/Resources/Version.h"
 
 #pragma region Serving the files
 namespace
@@ -113,7 +114,7 @@ FString ADPGameView::Folder()
 	return FString();
 }
 
-TSharedRef<SWidget> ADPGameView::Make(UObject* Bridge)
+TSharedRef<SWidget> ADPGameView::Make(UObject* Bridge, TSharedPtr<SWebBrowser>* OutBrowser)
 {
 	if (Folder().IsEmpty())
 	{
@@ -131,7 +132,8 @@ TSharedRef<SWidget> ADPGameView::Make(UObject* Bridge)
 	}
 	Register();
 	TSharedRef<SWebBrowser> B = SNew(SWebBrowser)
-		.InitialURL(FString::Printf(TEXT("https://%s/index.html"), Host)) // the app's own title screen and main menu
+		// the app's own title screen and main menu, told it is the PC version (its number and the engine's)
+		.InitialURL(FString::Printf(TEXT("https://%s/index.html?pc=%s&ue=%d.%d"), Host, TEXT(ADP_PC_VERSION), ENGINE_MAJOR_VERSION, ENGINE_MINOR_VERSION))
 		.ShowControls(false)
 		.ShowAddressBar(false)
 		.ShowErrorMessage(true)
@@ -140,6 +142,7 @@ TSharedRef<SWidget> ADPGameView::Make(UObject* Bridge)
 		.BrowserFrameRate(60);
 	// the menus reach Unreal through window.ue.adp (the title screen's Terminal, and more later)
 	if (Bridge) B->BindUObject(TEXT("adp"), Bridge, true);
+	if (OutBrowser) *OutBrowser = B;
 	return B;
 }
 

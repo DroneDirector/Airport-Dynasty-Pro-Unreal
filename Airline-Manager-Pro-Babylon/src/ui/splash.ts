@@ -5,6 +5,7 @@ import { pendingIssues, issuesText } from '../core/errlog';
 import { S, saveSettings } from '../core/settings';
 import { APP, IS_PC } from '../core/app';
 import { icon, esc } from './icons';
+import { UE_PC, UE_ENGINE } from '../core/uelink';
 
 const TS_BPM = 101.63, TS_OFF = 0.322, TS_BEAT = 60 / TS_BPM, TS_DUR = 257.16;
 type TsView = [number, number, number];   // centre x, centre y, visible width (in the picture's pixels)
@@ -40,7 +41,7 @@ export function splashOpen(enter: (id: string) => void) {
   r.innerHTML = `<canvas class="ts-cv" aria-hidden="true"></canvas><div class="ts-fx" aria-hidden="true"></div>
     <div class="ts-left">
       <div class="ts-logo" aria-label="${esc(APP.name)}"><span class="ts-l1">Airport</span><span class="ts-l2">Dynasty</span><span class="ts-l3">Pro</span></div>
-      <div class="ts-engine">Babylon.js edition · a first look</div>
+      <div class="ts-engine">${UE_PC ? `PC edition · Unreal Engine ${esc(UE_ENGINE)}` : 'Babylon.js edition · a first look'}</div>
       <nav class="ts-nav">${[
         ['game:continue', 'play', 'Continue game', 'Back to your airline, at the Overview'],
         ['game:new', 'plus', 'New game', 'Create your pilot and found your airline'],
@@ -51,7 +52,7 @@ export function splashOpen(enter: (id: string) => void) {
         <div class="ts-demos"><small>Demos</small>${[['viewer3d', 'plane', '3D viewer'], ['lounge', 'star', 'Lounge'], ...(IS_PC ? [['terminal', 'terminal', 'Terminal'], ['site', 'mountain', 'Airport site']] : [])].map(([id, ic, t]) => `<button class="ts-btn ts-demo" data-a="enter" data-id="${id}"><span class="ts-bi">${icon(ic)}</span><span class="ts-bt"><b>${t}</b></span><i class="ts-sheen"></i></button>`).join('')}</div></nav>
     </div>
     <div class="ts-cap" aria-hidden="true"><small></small><b></b></div>
-    <small class="ts-ver">v${esc(APP.version)} · Babylon.js ${esc(APP.babylon)}</small>
+    <small class="ts-ver">${UE_PC ? `v${esc(UE_PC)} · Unreal Engine ${esc(UE_ENGINE)}` : `v${esc(APP.version)} · Babylon.js ${esc(APP.babylon)}`}</small>
     <button class="ts-mute ${S.music ? '' : 'off'}" data-a="mute" aria-label="Music on or off"><span class="ts-eq"><i></i><i></i><i></i><i></i></span><span class="ts-ml">${S.music ? 'Music on' : 'Music off'}</span></button>
     <div class="ts-tap" hidden>Tap anywhere for sound</div>`;
   (document.getElementById('ui') as HTMLElement).appendChild(r); T.root = r;

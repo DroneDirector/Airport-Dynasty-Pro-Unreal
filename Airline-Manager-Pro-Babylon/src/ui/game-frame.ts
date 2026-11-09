@@ -2,6 +2,7 @@
 // screen, opened from the title screen: New game, Continue game, Load game, Save game or UI. Back to the title screen
 // and Quit in it come here; the 3D view of a flight opens this edition's 3D viewer. Closed, it is taken away
 // completely, so its memory goes back.
+import { uePadInstall } from '../core/uelink';
 let frame: HTMLIFrameElement | null = null;
 let handlers: { title: () => void; exit: () => void; viewer: (id: string) => void } | null = null;
 const flightSubs: ((d: any) => void)[] = [], airportSubs: ((d: any) => void)[] = [];
@@ -43,10 +44,14 @@ export function gameOpen(act: 'new' | 'continue' | 'load' | 'save' | 'ui', on: {
   const f = document.createElement('iframe'); f.className = 'game-frame'; f.setAttribute('title', 'Airport Dynasty Pro');
   f.setAttribute('allow', 'autoplay; fullscreen; gamepad; clipboard-write');
   f.src = `game/index.html?embed=${act}&n=${Date.now().toString(36)}`;
+  // the PC version: Unreal's gamepad reaches the game's own controller code in the frame too
+  f.addEventListener('load', () => { try { uePadInstall(f.contentWindow); } catch (e) { /* later */ } });
   document.body.appendChild(f); document.body.classList.add('game-on'); frame = f;
   requestAnimationFrame(() => f.classList.add('in'));
   setTimeout(() => { try { f.focus(); } catch (e) { /* later */ } }, 400);
 }
+/** Runs a short expression in the game (its airline's name and money, for the PC version's own interface). */
+export function gameEval(code: string): any { try { return frame && frame.contentWindow ? (frame.contentWindow as any).eval(code) : undefined; } catch (e) { return undefined; } }
 export function gameIsOpen(): boolean { return !!frame && !frame.classList.contains('away'); }
 export function gameExists(): boolean { return !!frame; }
 export function gameClose() {

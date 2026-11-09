@@ -11,7 +11,8 @@ import { settingsShow, settingsHide, settingsOpen, settingsButton } from './ui/s
 import { loadingShow, loadingProgress, loadingHide } from './ui/loading';
 import { icon, toast } from './ui/icons';
 import { exitGame } from './core/exit';
-import { gameOpen, gameIsOpen, gameClose, gameShow, gameExists, gameSend, onGameRoom } from './ui/game-frame';
+import { gameOpen, gameIsOpen, gameClose, gameShow, gameExists, gameSend, onGameRoom, onGameFids, gameEval, gameHidden } from './ui/game-frame';
+import { UE_PC, UE_ENGINE, ue } from './core/uelink';
 import { APP, IS_PC } from './core/app';
 import { updateInit } from './core/update';
 import { whatsNewOnStart, whatsNewIsOpen, whatsNewClose } from './ui/whats-new';
@@ -41,7 +42,7 @@ exitB.addEventListener('click', () => exitGame());
 const titleB = document.createElement('button'); titleB.className = 'to-title'; titleB.hidden = true; titleB.setAttribute('aria-label', 'Back to the title screen'); titleB.innerHTML = `${icon('back')}<span>Title screen</span>`; ui.appendChild(titleB);
 titleB.addEventListener('click', () => backToTitle());
 // the version number at the bottom of the screen in every place (the start screen has its own)
-const verB = document.createElement('small'); verB.className = 'place-ver'; verB.hidden = true; verB.textContent = `v${APP.version} · Babylon.js ${APP.babylon}`; ui.appendChild(verB);
+const verB = document.createElement('small'); verB.className = 'place-ver'; verB.hidden = true; verB.textContent = UE_PC ? `v${UE_PC} · Unreal Engine ${UE_ENGINE}` : `v${APP.version} · Babylon.js ${APP.babylon}`; ui.appendChild(verB);
 function toggleSettings() {
   if (settingsOpen()) { settingsHide(); return; }
   setPlay(false); settingsShow(() => { if (inPlace) setPlay(true); });
@@ -63,6 +64,9 @@ onPad(name => toast(name ? `${name} connected` : 'Controller disconnected'));
 
 /** Into a place of the game (today: the lounge), with its loading screen. */
 async function enter(id: string, title: string, opts?: any) {
+  // the PC version: the terminal and the airport site are Unreal's own 3D (the menus go out of sight; G brings them back)
+  const u = ue(); if (u && id === 'terminal' && u.openterminal) { u.openterminal(); return; }
+  if (u && id === 'site' && u.opensite) { u.opensite(); return; }
   loadingShow(title);
   const engine = await makeEngine(canvas);
   // where the loading got to: if it is still loading after two minutes, that goes to the log (Settings → Updates and errors)
@@ -107,3 +111,16 @@ onGameRoom(d => { if (d.room === 'world') { const w = d.data || {}; enter('world
 // after an update: what's new, once; and a quiet look for a newer version now and then
 whatsNewOnStart();
 updateInit(v => toast(`Version ${v} is ready: Settings → Updates`));
+
+// The PC version: back from Unreal's 3D to the menus (G, Y / Triangle): the title screen again, or the game where it was
+(window as any).__ueMenus = () => { if (inPlace || splashIsOpen()) return; if (gameExists()) { if (gameHidden()) gameShow(); } else splashOpen(pickPlace); };
+// and the airline for Unreal's own interface: the departures and arrivals at your airport, the airline's name and money
+if (UE_PC) {
+  setInterval(() => {
+    const u = ue(); if (!u || !gameExists()) return;
+    gameSend({ ampb: 'fids', icao: '' });
+    const s = gameEval(`(function(){try{var c=company();return JSON.stringify({name:c.name,icao:c.icao,hub:c.hub||c.base||'',money:money(c.balance,{compact:true})})}catch(e){return ''}})()`);
+    if (s && u.gamestate) u.gamestate(String(s));
+  }, 4000);
+  onGameFids(d => { const u = ue(); if (u && u.gamefids) u.gamefids(JSON.stringify({ base: d.base || '', dep: (d.dep || []).slice(0, 12), arr: (d.arr || []).slice(0, 12) })); });
+}
