@@ -10,6 +10,9 @@
 #include "TerminalJetways.h"
 #include "TerminalScreens.h"
 #include "TerminalCrowd.h"
+#include "Airfield.h"
+#include "AirTraffic.h"
+#include "Components/VolumetricCloudComponent.h"
 #include "Engine/World.h"
 #include "Engine/DirectionalLight.h"
 #include "Engine/SkyLight.h"
@@ -54,6 +57,10 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 			Jetways->Build(Plan);
 		if (ATerminalScreens* Screens = W->SpawnActor<ATerminalScreens>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 			Screens->Build(Plan);
+		// the airfield round the terminal, and its traffic
+		if (AAirfield* Field = W->SpawnActor<AAirfield>(FVector::ZeroVector, FRotator::ZeroRotator, P); Field && Field->Build())
+			if (AAirTraffic* Traffic = W->SpawnActor<AAirTraffic>(FVector::ZeroVector, FRotator::ZeroRotator, P))
+				Traffic->Start(Field->Data());
 		if (ATerminalCrowd* Crowd = W->SpawnActor<ATerminalCrowd>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 			Crowd->Start(Plan, CrowdSize);
 		if (!UGameplayStatics::GetActorOfClass(W, APlayerStart::StaticClass()))
@@ -90,6 +97,8 @@ void AADPGameMode::SpawnSkyAndLight()
 		Sky->FinishSpawning(At);
 	}
 	W->SpawnActor<AExponentialHeightFog>(FVector::ZeroVector, FRotator::ZeroRotator, P);
+	// the weather: volumetric clouds over the airport (the shared world's real weather drives them later)
+	W->SpawnActor<AVolumetricCloud>(FVector::ZeroVector, FRotator::ZeroRotator, P);
 
 	if (APostProcessVolume* PP = W->SpawnActor<APostProcessVolume>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 	{

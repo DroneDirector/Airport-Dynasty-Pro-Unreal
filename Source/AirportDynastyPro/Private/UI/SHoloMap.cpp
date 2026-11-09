@@ -137,11 +137,11 @@ int32 SHoloMap::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const FSla
 	for (float Y = 0; Y < Size.Y; Y += GridStep) FSlateDrawElement::MakeLines(Out, Layer + 1, PG, TArray<FVector2f>{FVector2f(0, Y), FVector2f(Size.X, Y)}, ESlateDrawEffect::None, Grid, false, 1);
 
 	const int32 F = FloorOf(Player.Y), Other = F == 1 ? 2 : 1;
-	auto Inside = [&](const FVector2f& L) { return L.X > -40 && L.Y > -40 && L.X < Size.X + 40 && L.Y < Size.Y + 40; };
+	auto OnScreen = [&](const FVector2f& L) { return L.X > -40 && L.Y > -40 && L.X < Size.X + 40 && L.Y < Size.Y + 40; };
 	auto Line = [&](const FVector2f& A, const FVector2f& B, const FLinearColor& C, float T, const FVector2f& Off = FVector2f::ZeroVector)
 	{
 		const FVector2f LA = ToLocal(A, Size) + Off, LB = ToLocal(B, Size) + Off;
-		if (!Inside(LA) && !Inside(LB)) return;
+		if (!OnScreen(LA) && !OnScreen(LB)) return;
 		FSlateDrawElement::MakeLines(Out, Layer + 2, PG, TArray<FVector2f>{LA, LB}, ESlateDrawEffect::None, C, true, T);
 	};
 	auto Rect = [&](const FBox2f& B, const FLinearColor& C, float T, const FVector2f& Off = FVector2f::ZeroVector)

@@ -39,10 +39,11 @@ are offered. Sources: CLAUDE.md (the agreed plan), the PDFs in the repo, the Bab
 - [ ] The automatic one-day check that both setups give exactly the same world
 - [ ] The problem report sent from the game
 
-## Batch 5: the airport site
-- The custom airport BIAP at Mýrdalssandur from the shared layout: runway 08/26, taxiways, stands, gates
-- Aircraft at the stands, taxiing, take-offs and landings; ground vehicles and the turnaround (fuel, catering, bags)
-- Weather, clouds, rain and lightning on Unreal's own systems
+## Batch 5: the airport site (done: 0.9.0)
+- [x] The airfield from the Android edition's airfield plan (Data/airfield.json): runway 08/26 with markings, taxiways A/B with links and curves, aprons, holding positions, cargo building, grass inside the boundary
+- [x] Aircraft at stands 1–8: turnaround with fuel, catering and baggage vehicles, pushback, taxi out, holding, take-off on 08, away, 3° approach, landing, rollout, taxi in; one runway user at a time
+- [x] Volumetric clouds
+- Later: proper aircraft and vehicle models, the jetways docking, the real flights and aircraft from the shared world, runway 26 in east winds, rain, snow and lightning, cargo and stand 9 traffic
 
 ## Batch 6: the globe
 - Cesium for Unreal with the free data (Sentinel-2 2016 imagery, Copernicus/AWS terrain, OpenStreetMap water)

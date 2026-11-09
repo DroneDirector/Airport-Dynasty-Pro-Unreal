@@ -169,14 +169,13 @@ bool ATerminalBuilder::Build()
 	UMaterialInterface* GlassM = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/M_Glass.M_Glass"));
 	MakeKit("glass", Cube, GlassM ? GlassM : KitMaterial(this, "white"))->SetCastShadow(false);
 
-	// apron and landside ground around the whole plan
 	float MinX = 1e9f, MaxX = -1e9f, MinZ = 1e9f, MaxZ = -1e9f;
 	for (const FPlanRoom& R : Plan.Rooms)
 	{
 		MinX = FMath::Min(MinX, R.X0); MaxX = FMath::Max(MaxX, R.X1);
 		MinZ = FMath::Min(MinZ, R.Z0); MaxZ = FMath::Max(MaxZ, R.Z1);
 	}
-	Box(Mat("apron"), MinX - 400, -0.52f, MinZ - 300, MaxX + 400, -0.02f, MaxZ + 400);
+	// (the ground round the terminal is the airfield's: grass, aprons and landside, see Airfield)
 
 	for (const FPlanRoom& R : Plan.Rooms) BuildRoom(R);
 	for (const FPlanStair& S : Plan.Stairs) BuildStair(S);
