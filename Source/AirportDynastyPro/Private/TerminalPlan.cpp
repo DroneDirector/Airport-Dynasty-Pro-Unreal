@@ -63,6 +63,7 @@ bool FTerminalPlan::Load()
 		const TSharedPtr<FJsonObject> O = V->AsObject();
 		FPlanDoor D;
 		D.Id = Str(O, TEXT("id")); D.Type = Str(O, TEXT("type"));
+		D.A = Str(O, TEXT("a")); D.B = Str(O, TEXT("b"));
 		D.Floor = int32(Num(O, TEXT("f"), 1));
 		D.X = Num(O, TEXT("x")); D.Z = Num(O, TEXT("z")); D.Width = Num(O, TEXT("w"), 2);
 		D.bAlongX = Str(O, TEXT("along")) != TEXT("z");

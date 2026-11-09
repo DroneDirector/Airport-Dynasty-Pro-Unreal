@@ -8,7 +8,7 @@ are offered. Sources: CLAUDE.md (the agreed plan), the PDFs in the repo, the Bab
 - [x] Unreal 5.7, project compiles and opens; empty start map `Maps/Airport`
 - [x] Glass walls: frames and clear glass panes
 - [x] The building kit's look: each room's floor, walls and ceiling in the Babylon kit's materials (patterned textures such as tile grout, wood grain and herringbone still to come)
-- [ ] Doors: sliding glass, revolving, swing and staff doors that open as you walk up
+- [x] Doors: sliding glass, revolving, swing, secure staff, double, one-way and jetway doors that open as you walk up, the room's name over each door
 - [ ] Main hall fittings: check-in desks 1–24 with belts and queue lines, bag drops, trees, seating
 - [ ] Stairs with glass balustrades, lifts riding between the floors
 - [ ] Gate 1: seating, gate desk, gate screen, and its jetway (J-1)

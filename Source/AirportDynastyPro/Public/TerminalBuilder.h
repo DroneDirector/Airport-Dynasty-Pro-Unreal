@@ -26,6 +26,9 @@ public:
 
 	const FTerminalPlan& GetPlan() const { return Plan; }
 
+	/** A kit material (Content/Materials/Kit/MI_<Name>), or a plain colour in the engine's basic material if it is missing. */
+	static UMaterialInterface* KitMaterial(UObject* Outer, const FName Name);
+
 private:
 	#pragma region Kit
 	/** The instanced boxes in one kit material (Content/Materials/Kit/MI_<Mat>), made the first time it is asked for. */

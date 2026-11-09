@@ -17,9 +17,18 @@ struct FPlanRoom
 struct FPlanDoor
 {
 	FString Id, Type;
+	FString A, B; // the room it opens from, and the room (or outside area) on its other side
 	int32 Floor = 1;
 	float X = 0, Z = 0, Width = 2;
 	bool bAlongX = true; // the opening runs along x (wall at a fixed z)
+
+	/** Height of the opening in metres, as in the Android edition (plan.ts doorH). */
+	float Height() const
+	{
+		if (Type == TEXT("open")) return 3.2f;
+		if (Type == TEXT("museum")) return 3.0f;
+		return Width >= 5.f ? 3.0f : Width >= 2.4f ? 2.7f : 2.25f;
+	}
 };
 
 struct FPlanStair

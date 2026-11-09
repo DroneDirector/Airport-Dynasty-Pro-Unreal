@@ -11,7 +11,6 @@ namespace
 {
 	constexpr float WallT = 0.2f;    // wall thickness, m
 	constexpr float SlabT = 0.3f;    // floor slab thickness, m
-	constexpr float DoorH = 2.8f;    // door opening height, m
 	constexpr float MullionStep = 1.5f;
 	constexpr float MullionW = 0.08f;
 	constexpr float PaneT = 0.024f;  // glass pane thickness, m
@@ -77,7 +76,7 @@ UInstancedStaticMeshComponent* ATerminalBuilder::MakeKit(const FName Key, UStati
 	return K;
 }
 
-static UMaterialInterface* KitMaterial(UObject* Outer, const FName Name)
+UMaterialInterface* ATerminalBuilder::KitMaterial(UObject* Outer, const FName Name)
 {
 	const FString Path = FString::Printf(TEXT("/Game/Materials/Kit/MI_%s.MI_%s"), *Name.ToString(), *Name.ToString());
 	if (UMaterialInterface* M = LoadObject<UMaterialInterface>(nullptr, *Path)) return M;
@@ -182,16 +181,16 @@ void ATerminalBuilder::BuildWall(const FPlanRoom& R, bool bAlongX, float Fixed, 
 	UInstancedStaticMeshComponent* FrameK = Mat("mullion");
 	UInstancedStaticMeshComponent* GlassK = Kits.FindRef("glass");
 
-	// door openings on this wall line
-	TArray<FVector2f> Gaps;
+	// door openings on this wall line: from, to and the opening's height
+	TArray<FVector3f> Gaps;
 	for (const FPlanDoor& D : Plan.Doors)
 	{
 		if (D.Floor != R.Floor || D.bAlongX != bAlongX) continue;
 		const float Line = bAlongX ? D.Z : D.X, At = bAlongX ? D.X : D.Z;
 		if (FMath::Abs(Line - Fixed) > 0.35f || At < From || At > To) continue;
-		Gaps.Add(FVector2f(At - D.Width * 0.5f, At + D.Width * 0.5f));
+		Gaps.Add(FVector3f(At - D.Width * 0.5f, At + D.Width * 0.5f, D.Height()));
 	}
-	Gaps.Sort([](const FVector2f& A, const FVector2f& B) { return A.X < B.X; });
+	Gaps.Sort([](const FVector3f& A, const FVector3f& B) { return A.X < B.X; });
 
 	auto Piece = [&](UInstancedStaticMeshComponent* K, float A, float B, float Bottom, float Top, float T)
 	{
@@ -213,10 +212,10 @@ void ATerminalBuilder::BuildWall(const FPlanRoom& R, bool bAlongX, float Fixed, 
 	};
 
 	float Cursor = From;
-	for (const FVector2f& G : Gaps)
+	for (const FVector3f& G : Gaps)
 	{
 		Solid(Cursor, G.X);
-		Piece(bGlass ? FrameK : WallK, G.X, G.Y, Y0 + DoorH, Y1, WallT); // lintel
+		Piece(bGlass ? FrameK : WallK, G.X, G.Y, Y0 + G.Z, Y1, WallT); // lintel over the opening
 		Cursor = FMath::Max(Cursor, G.Y);
 	}
 	Solid(Cursor, To);
