@@ -64,7 +64,16 @@ are offered. Sources: CLAUDE.md (the agreed plan), the PDFs in the repo, the Bab
   - swimming: waves lifting and dropping you, swell and currents pushing you; diving in 3D with floating back up and
     the water's drag; underwater haze darkening with depth, light shafts and rippling light on the sea floor, muffled
     sound; climbing out onto beaches and rocks; an optional breath meter
-  - first person for now; arms and legs swimming come with the player's own 3D body (MetaHumans, later)
+  - with the swimming, the player's own 3D body (arms and legs swimming)
+- [ ] The people as MetaHumans, ready by the time the swimming is in (owner, 2026-11-09):
+  - every AI person (passengers, crew, pilots, staff) gets their own face, made once from a seed and kept with that
+    person in the shared world, so no two look alike: a large set of MetaHumans generated from MetaHuman Creator's
+    presets (blended faces, skin tone, age, hair, eyes, build), our own clothes and uniforms
+  - real skin (MetaHuman's scanned skin textures with pores and fine detail), never plastic or clay-like
+  - faces alive: blinking, eyes looking round, small expressions; lip movement with the Kokoro voice later
+  - standing still: a gentle, real sway (breathing, small weight shifts), never leaning on nothing; sitting: calmer,
+    breathing and small head and hand movements, no excessive sway
+  - detail by distance (MetaHuman LODs, cheaper Mass levels far away) so a full terminal stays smooth
 - Cesium for Unreal with the free data (Sentinel-2 2016 imagery, Copernicus/AWS terrain, OpenStreetMap water)
 - The airport placed at 63.457988 N, 18.713703 W, 40 m (130 ft), runway heading 68°, the ground flattened within
   2.6 km and blended out to 4.4 km exactly as in the Babylon edition
