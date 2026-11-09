@@ -2,6 +2,7 @@
 // the player standing at the plan's spawn point.
 #include "ADPGameMode.h"
 #include "Misc/PackageName.h"
+#include "SunClock.h"
 #include "ADPWalker.h"
 #include "UI/ADPHUD.h"
 #include "TerminalBuilder.h"
@@ -83,6 +84,9 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 			// the globe round the airport
 			if (AGlobe* Globe = W->SpawnActor<AGlobe>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 				Globe->Build(Field->Data());
+			// the real sun over the airport, for the date and the time of day
+			if (ASunClock* Sun = W->SpawnActor<ASunClock>(FVector::ZeroVector, FRotator::ZeroRotator, P))
+				Sun->Setup(Field->Data().Lat, Field->Data().Lon, Field->Data().Heading);
 		}
 		// the passengers are switched off for now (owner, 2026-11-09); -Crowd brings them back
 		if (FParse::Param(FCommandLine::Get(), TEXT("Crowd")))

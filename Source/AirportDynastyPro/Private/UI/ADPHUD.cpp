@@ -6,6 +6,7 @@
 #include "UI/ADPBridge.h"
 #include "UI/InputGlyphs.h"
 #include "UI/SDragBox.h"
+#include "SunClock.h"
 #include "HAL/IConsoleManager.h"
 #include "UnrealClient.h"
 #include "TerminalPlan.h"
@@ -25,6 +26,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SSlider.h"
+#include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "RHI.h"
 #include "Scalability.h"
@@ -162,6 +164,37 @@ void AADPHUD::BeginPlay()
 			SAssignNew(MiniBox, SBox).WidthOverride(240).HeightOverride(240)
 			.Visibility_Lambda([this]() { return bGame || bInLounge ? EVisibility::Collapsed : EVisibility::Visible; })[HoloMap.ToSharedRef()]
 		]
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(0, 8, 0, 0)
+		[
+			// TESTING (for now): the time of day and the weather, at the very top in the middle (free the pointer with the
+			// middle mouse button to use it); the announcements' captions sit below it, never on it
+			SNew(SBorder)
+			.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+			.BorderBackgroundColor(Panel)
+			.Padding(FMargin(10, 4))
+			.Visibility_Lambda([this]() { return bGame || bHidden ? EVisibility::Collapsed : EVisibility::Visible; })
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
+				[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 8, 0)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text(FText::FromString(TEXT("TEST  ·  TIME")))]
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+				[
+					SNew(SBox).WidthOverride(180)
+					[
+						SNew(SSlider)
+						.Value_Lambda([]() { return ASunClock::HourOverride < 0 ? 0.5f : ASunClock::HourOverride / 24.f; })
+						.OnValueChanged_Lambda([](float V) { ASunClock::HourOverride = V * 24.f; ASunClock::Refresh(); })
+					]
+				]
+				+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 6, 0).VAlign(VAlign_Center)
+				[SNew(SBox).WidthOverride(64)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { const float H = ASunClock::HourOverride; return FText::FromString(H < 0 ? FString(TEXT("REAL")) : FString::Printf(TEXT("%02d:%02d"), int32(H) % 24, int32(H * 60) % 60)); })]]
+				+ SHorizontalBox::Slot().AutoWidth()[Button(TEXT("REAL TIME"), []() { ASunClock::HourOverride = -1.f; ASunClock::Refresh(); })]
+			]
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 4, 0, 0)[WeatherButtons()]
+			]
+		]
 		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(16)[Perf.ToSharedRef()]
 		+ SOverlay::Slot()
 		[
@@ -234,10 +267,11 @@ void AADPHUD::BeginPlay()
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(8)
 		[
 			// the imagery's credit, as its licence (CC BY 4.0) asks
-			SAssignNew(Credit, STextBlock).Font(Font(7, "Regular")).ColorAndOpacity(FLinearColor(1, 1, 1, 0.55f))
-			.Text(FText::FromString(TEXT("Sentinel-2 cloudless 2016 (s2maps.eu) by EOX IT Services GmbH, contains modified Copernicus Sentinel data 2016 · Copernicus DEM GLO-90 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA · Cesium")))
+			// every credit in one line here (wrapping between the map and the Buttons tab, never over them)
+			SAssignNew(Credit, STextBlock).Font(Font(7, "Regular")).ColorAndOpacity(FLinearColor(1, 1, 1, 0.55f)).Justification(ETextJustify::Center).WrapTextAt(1000)
+			.Text(FText::FromString(TEXT("Sentinel-2 cloudless 2016 (s2maps.eu) by EOX IT Services GmbH, contains modified Copernicus Sentinel data 2016 · Copernicus DEM GLO-90 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA · Data from the Faroese Environment Agency, Umhvørvisstovan: DSM hæddarmodell 2015, November 2026 · Cesium")))
 		]
-		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(0, 70, 0, 0)
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(0, 92, 0, 0)
 		[
 			SAssignNew(CaptionBox, SBorder)
 			.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
@@ -344,6 +378,21 @@ TSharedRef<SWidget> AADPHUD::VolumeSlider(int32 I)
 		]
 		+ SHorizontalBox::Slot().AutoWidth().Padding(10, 0, 0, 0).VAlign(VAlign_Center)
 		[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([this, I]() { return FText::FromString(Vol[I] < 0.01f ? FString(TEXT("OFF")) : FString::Printf(TEXT("%d%%"), FMath::RoundToInt(Vol[I] * 100))); })];
+}
+
+TSharedRef<SWidget> AADPHUD::WeatherButtons()
+{
+	TSharedRef<SHorizontalBox> Row = SNew(SHorizontalBox);
+	for (int32 T = 0; T < 8; ++T)
+		Row->AddSlot().AutoWidth().Padding(0, 0, 3, 0)
+		[
+			SNew(SButton)
+			.ButtonColorAndOpacity_Lambda([T]() { return ASunClock::Theme == T ? FLinearColor(0.15f, 0.45f, 0.75f, 1.f) : FLinearColor(0.05f, 0.2f, 0.36f, 0.9f); })
+			.ContentPadding(FMargin(6, 2))
+			.OnClicked_Lambda([T]() { ASunClock::Theme = T; GConfig->SetInt(TEXT("ADP.Testing"), TEXT("Weather"), T, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); ASunClock::Refresh(); return FReply::Handled(); })
+			[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text(FText::FromString(ASunClock::ThemeName(T)))]
+		];
+	return Row;
 }
 
 TSharedRef<SWidget> AADPHUD::MakeSettings()
@@ -759,6 +808,10 @@ void AADPHUD::Tick(float Dt)
 			if (bGame) ToggleGame();
 		if (FParse::Param(FCommandLine::Get(), TEXT("UICall")) && Before < 40.f && ShotClock >= 40.f)
 			Announce(TEXT("This is a passenger announcement. Would passenger Ms Anna Hansen, travelling to Copenhagen, please contact the information desk in the main hall. Thank you."), 2);
+		// -UISite: outside at the kerb (the light, the sky, the credits), and a picture
+		const bool bSite = FParse::Param(FCommandLine::Get(), TEXT("UISite"));
+		if (bSite && Before < 48.f && ShotClock >= 48.f) { OpenSite(); if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(FRotator(5.f, 90.f, 0)); }
+		if (bSite && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("Site"), true, false);
 		// -UIDoor: walk up to a sliding entrance door (it should open), and a picture of it
 		const bool bDoor = FParse::Param(FCommandLine::Get(), TEXT("UIDoor"));
 				if (bDoor && ((Before < 48.f && ShotClock >= 48.f) || (Before < 54.f && ShotClock >= 54.f)))
@@ -779,7 +832,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

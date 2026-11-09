@@ -65,6 +65,8 @@ void AGlobe::Build(const FAirfieldData& F)
 	UCesiumUrlTemplateRasterOverlay* Imagery = NewObject<UCesiumUrlTemplateRasterOverlay>(Earth, TEXT("Sentinel2Cloudless2016"));
 	Imagery->TemplateUrl = TEXT("https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg");
 	Imagery->Projection = ECesiumUrlTemplateRasterOverlayProjection::WebMercator;
+	// the credits are in the game's own credit line (no text on top of the map); the switch has no setter, so by name
+	if (FBoolProperty* Show = FindFProperty<FBoolProperty>(UCesiumRasterOverlay::StaticClass(), TEXT("ShowCreditsOnScreen"))) Show->SetPropertyValue_InContainer(Imagery, false);
 	Imagery->RegisterComponent();
 	Earth->AddInstanceComponent(Imagery);
 	UE_LOG(LogTemp, Log, TEXT("Globe placed: origin %.6f N, %.6f E, runway %.0f°"), Lat, Lon, F.Heading);

@@ -282,8 +282,7 @@ def main():
     (OUT / 'layer.json').write_text(json.dumps({
         'tilejson': '2.1.0', 'name': 'Airport Dynasty Pro terrain', 'version': '1.0.0', 'format': 'quantized-mesh-1.0',
         'scheme': 'tms', 'projection': 'EPSG:4326', 'tiles': ['{z}/{x}/{y}.terrain'], 'extensions': ['octvertexnormals'],
-        'bounds': [-180, -90, 180, 90], 'minzoom': 0, 'maxzoom': deepest, 'available': available,
-        'attribution': 'Data from the Faroese Environment Agency, Umhvørvisstovan: DSM hæddarmodell 2015, November 2026. Copernicus DEM GLO-90 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA'}))
+        'bounds': [-180, -90, 180, 90], 'minzoom': 0, 'maxzoom': deepest, 'available': available}))   # (the credits are the game's own credit line, not the globe's)
     print('Terrain done: %d tiles' % len(jobs), flush=True)
 
 if __name__ == '__main__':

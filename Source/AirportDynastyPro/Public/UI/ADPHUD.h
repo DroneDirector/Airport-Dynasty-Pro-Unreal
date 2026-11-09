@@ -60,6 +60,7 @@ private:
 	TSharedRef<SWidget> MakeTopBar();
 	TSharedRef<SWidget> MakeSettings();
 	TSharedRef<SWidget> VolumeSlider(int32 I);
+	TSharedRef<SWidget> WeatherButtons();
 	TSharedRef<SWidget> MakePerf();
 	void ToggleMap();
 	void ToggleSettings();
