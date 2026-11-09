@@ -13,6 +13,7 @@
 #include "Airfield.h"
 #include "AirTraffic.h"
 #include "Globe.h"
+#include "PhotoTour.h"
 #include "Components/VolumetricCloudComponent.h"
 #include "Engine/World.h"
 #include "Engine/DirectionalLight.h"
@@ -69,6 +70,8 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 		}
 		if (ATerminalCrowd* Crowd = W->SpawnActor<ATerminalCrowd>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 			Crowd->Start(Plan, CrowdSize);
+		// photo mode, for screenshots of the airport
+		if (FParse::Param(FCommandLine::Get(), TEXT("PhotoTour"))) W->SpawnActor<APhotoTour>(FVector::ZeroVector, FRotator::ZeroRotator, P);
 		if (!UGameplayStatics::GetActorOfClass(W, APlayerStart::StaticClass()))
 			W->SpawnActor<APlayerStart>(FTerminalPlan::ToWorld(Plan.Spawn.X, 1.0f, Plan.Spawn.Z), FRotator(0, -90.f, 0), P); // facing airside
 	}
