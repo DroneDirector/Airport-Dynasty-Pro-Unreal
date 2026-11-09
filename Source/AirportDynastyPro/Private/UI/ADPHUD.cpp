@@ -543,7 +543,7 @@ void AADPHUD::Announce(const FString& Words, uint8 Kind)
 
 void AADPHUD::PlayGong()
 {
-	// the classic airport call: two tones, high then low, made here (no recording needed)
+	// the classic airport call: two tones, E then C, made here (no recording needed); gentle on the ear (owner, 2026-11-09)
 	if (!Gong)
 	{
 		Gong = NewObject<USoundWaveProcedural>(this);
@@ -555,11 +555,11 @@ void AADPHUD::PlayGong()
 	}
 	TArray<int16> Pcm;
 	const int32 Rate = 44100;
-	for (const float Hz : {784.f, 523.f})
+	for (const float Hz : {659.f, 523.f})
 		for (int32 i = 0; i < Rate * 0.8f; ++i)
 		{
-			const float T = i / float(Rate), Env = FMath::Exp(-T * 3.2f) * FMath::Min(1.f, T * 80.f);
-			const float V = (FMath::Sin(2 * PI * Hz * T) + 0.3f * FMath::Sin(4 * PI * Hz * T)) * Env * 0.35f;
+			const float T = i / float(Rate), Env = FMath::Exp(-T * 3.2f) * FMath::Min(1.f, T * 40.f);
+			const float V = (FMath::Sin(2 * PI * Hz * T) + 0.12f * FMath::Sin(4 * PI * Hz * T)) * Env * 0.3f;
 			Pcm.Add(int16(V * 32767));
 		}
 	Gong->ResetAudio();

@@ -212,11 +212,11 @@ void AADPHUD::PlayAnnouncer(int32 Id, const TArray<int16>& Pcm)
 	if (FParse::Param(FCommandLine::Get(), TEXT("UICall")))
 	{
 		TArray<int16> All;
-		for (const float Hz : {784.f, 523.f})
+		for (const float Hz : {659.f, 523.f})
 			for (int32 i = 0; i < 24000 * 0.8f; ++i)
 			{
-				const float T = i / 24000.f, Env = FMath::Exp(-T * 3.2f) * FMath::Min(1.f, T * 80.f);
-				All.Add(int16((FMath::Sin(2 * PI * Hz * T) + 0.3f * FMath::Sin(4 * PI * Hz * T)) * Env * 0.35f * 32767));
+				const float T = i / 24000.f, Env = FMath::Exp(-T * 3.2f) * FMath::Min(1.f, T * 40.f);
+				All.Add(int16((FMath::Sin(2 * PI * Hz * T) + 0.12f * FMath::Sin(4 * PI * Hz * T)) * Env * 0.3f * 32767));
 			}
 		All.AddZeroed(24000 / 10);
 		All.Append(Pa);
@@ -447,11 +447,11 @@ void AADPHUD::WritePreviewPack()
 	TArray<int16> All;
 	for (const TCHAR* L : Lines)
 	{
-		for (const float Hz : {784.f, 523.f})
+		for (const float Hz : {659.f, 523.f})
 			for (int32 i = 0; i < 24000 * 0.8f; ++i)
 			{
-				const float T = i / 24000.f, Env = FMath::Exp(-T * 3.2f) * FMath::Min(1.f, T * 80.f);
-				All.Add(int16((FMath::Sin(2 * PI * Hz * T) + 0.3f * FMath::Sin(4 * PI * Hz * T)) * Env * 0.35f * 32767));
+				const float T = i / 24000.f, Env = FMath::Exp(-T * 3.2f) * FMath::Min(1.f, T * 40.f);
+				All.Add(int16((FMath::Sin(2 * PI * Hz * T) + 0.12f * FMath::Sin(4 * PI * Hz * T)) * Env * 0.3f * 32767));
 			}
 		All.AddZeroed(24000 / 10);
 		// Windows' speech runs on a thread of its own (it can't start on the game's thread)
