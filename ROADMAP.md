@@ -63,6 +63,27 @@ The 3D parts (animations, people, the model's further work) wait; the interface 
 - [ ] Still to check with a real controller in hand (owner): every menu with Xbox and PlayStation 5 pads
 - [ ] The Babylon model's own timetable screens showing the game's real departures (the bridge already brings them)
 
+## Next releases, in order (owner, 2026-11-09)
+1. 0.11.0 The business lounge: the Babylon lounge in Unreal, exact model, its own lights (built, packaging)
+2. 0.12.0 The terrain: Copernicus GLO-90 worldwide (downloaded to F:/ADP-Terrain) turned into Unreal terrain; the
+   Faroe Islands' and Iceland's national height data on top; the airport flattened as planned
+3. 0.13.0 The 3D viewer in Unreal (needs the terrain): following flights above the clouds, your airport, crash sites
+4. 0.14.0 The ocean: real water (Unreal Water) meeting every coastline, with foam and breaking waves
+5. 0.15.0 Swimming and diving in that ocean, the waves moving you
+6. 0.16.0 The terminal's own timetable screens (the Babylon model's boards) showing the game's real flights, and the
+   announcements read aloud (Kokoro voice)
+7. 0.17.0 Aircraft at the gates and moving on the airfield: the Babylon edition's own aircraft and vehicles, imported
+   exactly, turning round at the stands, taxiing, taking off and landing
+8. 0.18.0 Distance and speed: World Partition with distance versions of the buildings and terrain (HLOD), fading in
+   smoothly instead of popping (as in the Matrix demo); a performance pass for every graphics card (the owner's RTX
+   3070 Ti 8 GB, i9-9900K, 64 GB, super-wide 3840 x 1080 included): the game only SUGGESTS settings for the card it
+   finds and asks before changing anything, never forces
+9. Frame generation in Settings → Graphics (owner, 2026-11-09): Unreal has none built in (TSR only upscales; NVIDIA's
+   DLSS Frame Generation needs an RTX 40 or newer and is a plug-in, AMD's FSR frame generation is a plug-in too), so
+   the game gets its own, written from scratch: in-between frames made from Unreal's motion vectors and depth, an
+   on/off switch in the graphics panel, off by default
+- MetaHumans: the owner decides when back home (and after the move to UE 5.8)
+
 ## Fixes seen in the first pictures (2026-11-09), before batch A
 - [x] THE TERMINAL IS THE BABYLON MODEL ITSELF (in the game since 2026-11-09: placed at runtime by ABabylonModel, right way
       round, colours and textures, real window glass; the airfield sinks under its ground) (owner, 2026-11-09; geometry untouched: no extra lines, cuts, merges or
