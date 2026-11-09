@@ -29,9 +29,11 @@ public:
 	static void Announce(const FString& Words);
 
 	/** From the menus: Unreal's 3D terminal, the menus hidden. */
-	void ShowTerminal() { if (bGame) ToggleGame(); }
+	void ShowTerminal();
 	/** From the menus: Unreal's world round the terminal, standing at the kerb outside the main entrance. */
 	void OpenSite();
+	/** From the menus: the business lounge (the Babylon edition's, placed apart from the airport, lit as there). */
+	void OpenLounge();
 	/** The menus are in front (the gamepad then works them). */
 	bool MenusOpen() const { return bGame && !bHidden; }
 	/** Y / Triangle in the menus: back to the 3D airport. */
@@ -71,6 +73,9 @@ private:
 
 	TSharedPtr<SWidget> Root;
 	TSharedPtr<SWebBrowser> Browser;
+	UPROPERTY() TObjectPtr<class ABabylonModel> Lounge;
+	bool bInLounge = false;
+	FTransform BeforeLounge;
 	TSharedPtr<FADPPadToMenus> PadToMenus;
 	FString StatusLine;
 	TMap<FString, FString> DepStatus;

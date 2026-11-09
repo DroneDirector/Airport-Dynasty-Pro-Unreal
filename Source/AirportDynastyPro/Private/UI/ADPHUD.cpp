@@ -30,6 +30,7 @@
 #include "Engine/World.h"
 #include "CollisionQueryParams.h"
 #include "SWebBrowser.h"
+#include "BabylonModel.h"
 #include "Framework/Application/IInputProcessor.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Dom/JsonObject.h"
@@ -151,7 +152,8 @@ void AADPHUD::BeginPlay()
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(16)[TopBar.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(16)
 		[
-			SAssignNew(MiniBox, SBox).WidthOverride(240).HeightOverride(240)[HoloMap.ToSharedRef()]
+			SAssignNew(MiniBox, SBox).WidthOverride(240).HeightOverride(240)
+			.Visibility_Lambda([this]() { return bGame || bInLounge ? EVisibility::Collapsed : EVisibility::Visible; })[HoloMap.ToSharedRef()]
 		]
 		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(16)[Perf.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[Settings.ToSharedRef()]
@@ -356,7 +358,7 @@ void AADPHUD::UpdateMouse()
 
 void AADPHUD::ToggleMap()
 {
-	if (!HoloMap.IsValid() || bHidden) return;
+	if (!HoloMap.IsValid() || bHidden || bInLounge) return;
 	const bool bFull = !HoloMap->IsFull();
 	HoloMap->SetFull(bFull);
 	// full screen: the map fills most of the window; small: back in its corner
@@ -383,7 +385,6 @@ void AADPHUD::ToggleGame()
 	if (PadToMenus.IsValid()) PadToMenus->Clear();
 	GameBox->SetVisibility(bGame ? EVisibility::Visible : EVisibility::Collapsed);
 	// the walking interface (the bar, the map, the credit line) hides while the menus are open: nothing ever overlaps
-	MiniBox->SetVisibility(bGame ? EVisibility::Collapsed : EVisibility::Visible);
 	TopBar->SetVisibility(bGame ? EVisibility::Collapsed : EVisibility::Visible);
 	if (Credit.IsValid()) Credit->SetVisibility(bGame ? EVisibility::Collapsed : EVisibility::HitTestInvisible);
 	UpdateMouse();
@@ -464,6 +465,50 @@ void AADPHUD::Interact()
 		const FString N = Hit.GetComponent()->GetName();
 		if (N.Contains(TEXT("screenPanel")) || N.Contains(TEXT("black"))) ToggleGame();
 	}
+}
+
+namespace
+{
+	// the lounge stands on its own, high above the airport in clear air (no ground fog reaches it, nobody sees it from
+	// the ground): closed in by its own walls and ceiling, its windows looking out on the Babylon edition's own apron
+	// picture, lit by its own lamps, fire and picture lights
+	const FVector LoungeAt(0, 0, 250000.f);
+}
+
+void AADPHUD::ShowTerminal()
+{
+	if (bGame) ToggleGame();
+	// back from the lounge: where you were in the terminal
+	if (bInLounge)
+	{
+		bInLounge = false;
+		if (APawn* P = GetOwningPawn())
+		{
+			P->TeleportTo(BeforeLounge.GetLocation(), BeforeLounge.Rotator());
+			if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(BeforeLounge.Rotator());
+		}
+	}
+}
+
+void AADPHUD::OpenLounge()
+{
+	if (bGame) ToggleGame();
+	APawn* P = GetOwningPawn();
+	if (!P) return;
+	if (!Lounge)
+	{
+		FActorSpawnParameters S;
+		S.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		Lounge = GetWorld()->SpawnActor<ABabylonModel>(LoungeAt, FRotator::ZeroRotator, S);
+		if (Lounge && !Lounge->Place(TEXT("Lounge"))) { Lounge->Destroy(); Lounge = nullptr; }
+		if (Lounge) Lounge->AddLights(TEXT("Lounge"));
+	}
+	if (!Lounge) return;
+	if (!bInLounge) { BeforeLounge = FTransform(P->GetControlRotation(), P->GetActorLocation()); bInLounge = true; }
+	// on the welcome mat inside the doors, facing the windows, as in the Babylon edition (its (4.7, 4.7) in the room)
+	const FRotator Face(0, -90.f, 0);
+	P->TeleportTo(LoungeAt + FVector(470.f, 470.f, P->GetSimpleCollisionHalfHeight() + 20.f), Face);
+	if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(Face);
 }
 
 void AADPHUD::OpenSite()
@@ -613,7 +658,11 @@ void AADPHUD::Tick(float Dt)
 		if (bOverview && Before < 50.f && ShotClock >= 50.f && Browser.IsValid())
 			Browser->ExecuteJavascript(TEXT("(function(){var b=document.querySelector('[data-id=\"game:continue\"]');if(b)b.click();})()"));
 		if (bOverview && Before < 85.f && ShotClock >= 85.f) FScreenshotRequest::RequestScreenshot(TEXT("Overview"), true, false);
-		if (ShotClock >= (bOverview ? 92.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		// -UILounge: the lounge opened as the title screen's Lounge does, and a picture of it
+		const bool bLounge = FParse::Param(FCommandLine::Get(), TEXT("UILounge"));
+		if (bLounge && Before < 48.f && ShotClock >= 48.f) OpenLounge();
+		if (bLounge && Before < 75.f && ShotClock >= 75.f) FScreenshotRequest::RequestScreenshot(TEXT("Lounge"), true, false);
+		if (ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	if (CaptionTime > 0) CaptionTime -= Dt;

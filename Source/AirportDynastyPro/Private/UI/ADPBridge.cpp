@@ -12,6 +12,11 @@ void UADPBridge::OpenSite()
 	if (AADPHUD* H = Hud.Get()) H->OpenSite();
 }
 
+void UADPBridge::OpenLounge()
+{
+	if (AADPHUD* H = Hud.Get()) H->OpenLounge();
+}
+
 void UADPBridge::GameState(const FString& Json)
 {
 	if (AADPHUD* H = Hud.Get()) H->OnGameState(Json);

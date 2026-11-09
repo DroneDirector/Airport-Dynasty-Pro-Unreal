@@ -6,13 +6,16 @@ import sys
 import unreal
 
 args = [a for a in sys.argv[1:] if not a.startswith('-')]
+# --assets: only the meshes, materials and textures (the game places the model itself from Data/babylon-<name>.json)
+assets_only = '--assets' in sys.argv
 src = args[0] if args else 'F:/ADP-Export/terminal.glb'
 name = args[1] if len(args) > 1 else 'Terminal'
 dest = '/Game/Babylon/' + name
 eal = unreal.EditorAssetLibrary
 
 try:
-    unreal.EditorLoadingAndSavingUtils.load_map('/Game/Maps/Airport')
+    if not assets_only:
+        unreal.EditorLoadingAndSavingUtils.load_map('/Game/Maps/Airport')
     # the import into the level: the glTF scene's objects as actors, their meshes, materials and textures as assets
     manager = unreal.InterchangeManager.get_interchange_manager_scripted()
     params = unreal.ImportAssetParameters()
@@ -20,10 +23,14 @@ try:
     source = unreal.InterchangeManager.create_source_data(src)
     world = unreal.EditorLevelLibrary.get_editor_world()
     try:
-        params.import_level = world.get_editor_property('persistent_level')
+        if not assets_only:
+            params.import_level = world.get_editor_property('persistent_level')
     except Exception as e:
         unreal.log_warning('ADP_IMPORT: import_level ' + str(e))
-    manager.import_scene(dest, source, params)
+    if assets_only:
+        manager.import_asset(dest, source, params)
+    else:
+        manager.import_scene(dest, source, params)
     # the scene import runs in the background: wait until every object has been placed in the map
     manager.wait_until_all_tasks_done(False)
     placed = len(unreal.EditorLevelLibrary.get_all_level_actors())
@@ -42,7 +49,8 @@ try:
             count += 1
     unreal.log('ADP_IMPORT: %d meshes, Nanite on' % count)
     unreal.EditorLoadingAndSavingUtils.save_dirty_packages(True, True)
-    unreal.EditorLoadingAndSavingUtils.save_map(unreal.EditorLevelLibrary.get_editor_world(), '/Game/Maps/Airport')
+    if not assets_only:
+        unreal.EditorLoadingAndSavingUtils.save_map(unreal.EditorLevelLibrary.get_editor_world(), '/Game/Maps/Airport')
     unreal.log('ADP_IMPORT: saved')
 except Exception as e:
     unreal.log_error('ADP_IMPORT: failed ' + str(e))

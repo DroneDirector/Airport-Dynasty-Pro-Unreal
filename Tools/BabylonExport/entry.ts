@@ -10,13 +10,34 @@ import { buildDoors } from '../../Airline-Manager-Pro-Babylon/src/sections/termi
 import { furnish } from '../../Airline-Manager-Pro-Babylon/src/sections/terminal/furnish';
 import { buildFixtures } from '../../Airline-Manager-Pro-Babylon/src/sections/terminal/fixtures';
 import { buildRental } from '../../Airline-Manager-Pro-Babylon/src/sections/terminal/rental';
+import { buildLounge } from '../../Airline-Manager-Pro-Babylon/src/sections/lounge/build';
 
 const say = (s: string) => { const e = document.getElementById('log'); if (e) e.textContent += s + '\n'; fetch('/log', { method: 'POST', body: s }).catch(() => 0); };
 
+for (const k of ['error', 'warn'] as const) { const o = (console as any)[k].bind(console); (console as any)[k] = (...a: any[]) => { o(...a); try { say(k + ': ' + a.map(x => (x && x.stack) || String(x)).join(' ').slice(0, 400)); } catch (e) { /* none */ } }; }
 async function run() {
   const canvas = document.getElementById('c') as HTMLCanvasElement;
   const engine = new Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
   const sc = new Scene(engine); sc.clearColor = new Color4(0.66, 0.78, 0.9, 1);
+  // ?m=lounge: the business lounge (sections/lounge/build.ts) instead of the terminal
+  const which = new URLSearchParams(location.search).get('m') || 'terminal';
+  if (which === 'lounge') {
+    say('Building the lounge…');
+    buildLounge(sc, (p, s) => say(`${p}% ${s}`));
+    await sc.whenReadyAsync();
+    say(`Built: ${sc.meshes.length} meshes. Saving glTF…`);
+    say('probe: ' + sc.meshes.slice(0, 6).map((m: any) => `${m.name}:${m.getClassName()}:v${m.getTotalVertices()}:en${m.isEnabled()}:vis${m.isVisible}`).join(' | '));
+    // only what you see in Babylon: its hidden helpers (the door's click box, the bottles' templates) stay out
+    const g = await GLTF2Export.GLBAsync(sc, 'lounge', { shouldExportNode: (n: any) => !(n instanceof Camera) && !(n instanceof Light) && n.isEnabled(false) && (n.isVisible === undefined || n.isVisible) });
+    say('files: ' + Object.keys(g.glTFFiles).join(','));
+    const lb = g.glTFFiles['lounge.glb'] as Blob;
+    say(`Sending ${(lb.size / 1e6).toFixed(1)} MB…`);
+    await fetch('/save/lounge.glb', { method: 'POST', body: lb });
+    // the lights as Babylon places them, for Unreal to put the same lights in the same places
+    const lights = sc.lights.map((l: any) => ({ name: l.name, kind: l.getClassName(), pos: l.position ? [l.position.x, l.position.y, l.position.z] : null, dir: l.direction ? [l.direction.x, l.direction.y, l.direction.z] : null, color: l.diffuse ? [l.diffuse.r, l.diffuse.g, l.diffuse.b] : null, intensity: l.intensity, range: l.range }));
+    await fetch('/save/lounge-lights.json', { method: 'POST', body: JSON.stringify(lights, null, 1) });
+    say('DONE'); return;
+  }
   say('Building the terminal…');
   const K = makeKit(sc);
   buildShell(K, (p, s) => say(`${p}% ${s}`)); await new Promise(r => setTimeout(r, 0));

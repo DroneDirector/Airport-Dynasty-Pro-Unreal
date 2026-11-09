@@ -53,8 +53,8 @@ The 3D parts (animations, people, the model's further work) wait; the interface 
       minimized, F1 / View / Create), Settings' controls and the map's legend; no key or button used twice
 - [x] Every menu and screen reachable in the PC version (the Android edition's own interface, so keyboard, mouse and
       sound work as there); the title screen says "PC edition · Unreal Engine 5.7" with the PC version's number; Terminal
-      and Airport Site open Unreal's own 3D (Airport Site: at the kerb outside the main entrance); 3D Viewer and Lounge
-      stay the Android edition's scenes inside the menus until Unreal has its own
+      and Airport Site open Unreal's own 3D (Airport Site: at the kerb outside the main entrance); the Lounge is the
+      Babylon lounge in Unreal (0.11.0); the 3D Viewer stays the Android edition's until the terrain is in
 - [x] One way round the whole game: G / Y / Triangle between menus and the 3D airport (back to the title screen, or the
       game where you left it); the airline's name and money and the time under the walking bar; the game's real
       departures at your airport announced in the terminal (boarding, final call, gate closing, delays, cancellations)

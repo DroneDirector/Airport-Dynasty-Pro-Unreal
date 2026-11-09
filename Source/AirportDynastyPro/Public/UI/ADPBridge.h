@@ -20,6 +20,8 @@ public:
 	UFUNCTION() void OpenTerminal();
 	/** The title screen's Airport site: Unreal's own world round the terminal, standing at the kerb outside. */
 	UFUNCTION() void OpenSite();
+	/** The title screen's Lounge: the Babylon edition's business lounge, in Unreal. */
+	UFUNCTION() void OpenLounge();
 	/** The airline, every few seconds while the game runs: {name, icao, hub, money} (JSON). */
 	UFUNCTION() void GameState(const FString& Json);
 	/** The departures and arrivals at your airport, as the game's timetable screens show them (JSON). */

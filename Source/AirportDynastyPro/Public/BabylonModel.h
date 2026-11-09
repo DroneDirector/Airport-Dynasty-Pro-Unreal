@@ -22,8 +22,11 @@ public:
 
 	/** Places the model called Name (Data/babylon-<lowercase name>.json, Content/Babylon/<Name>). False when it isn't there. */
 	bool Place(const FString& Name);
+	/** The model's lights as Babylon has them (Data/babylon-<name>-lights.json: points and spots, their colours, strengths
+	 *  and reach), put in the same places. */
+	void AddLights(const FString& Name);
 
 private:
 	UPROPERTY() TObjectPtr<USceneComponent> Root;
-	UPROPERTY() TMap<int32, TObjectPtr<UInstancedStaticMeshComponent>> ByMesh;
+	UPROPERTY() TMap<FString, TObjectPtr<UInstancedStaticMeshComponent>> ByMesh;
 };

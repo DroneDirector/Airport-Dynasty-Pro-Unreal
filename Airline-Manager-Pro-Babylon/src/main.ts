@@ -67,6 +67,7 @@ async function enter(id: string, title: string, opts?: any) {
   // the PC version: the terminal and the airport site are Unreal's own 3D (the menus go out of sight; G brings them back)
   const u = ue(); if (u && id === 'terminal' && u.openterminal) { u.openterminal(); return; }
   if (u && id === 'site' && u.opensite) { u.opensite(); return; }
+  if (u && id === 'lounge' && u.openlounge) { u.openlounge(); return; }
   loadingShow(title);
   const engine = await makeEngine(canvas);
   // where the loading got to: if it is still loading after two minutes, that goes to the log (Settings → Updates and errors)

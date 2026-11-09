@@ -16,6 +16,9 @@ mkdirSync(out, { recursive: true });
 await build({
   entryPoints: [join(here, 'entry.ts')], bundle: true, format: 'iife', target: ['chrome110'], outfile: join(here, 'dist/export.js'),
   nodePaths: [join(here, 'node_modules')], legalComments: 'none', logLevel: 'warning',
+  // one copy of Babylon for everything (the game's code would otherwise bring its own, and the exporter would not
+  // recognise its meshes as meshes)
+  alias: { '@babylonjs/core': join(here, 'node_modules/@babylonjs/core'), '@babylonjs/loaders': join(here, 'node_modules/@babylonjs/loaders') },
   // the phone-only Capacitor modules: a stand-in (the export runs in a desktop browser)
   plugins: [{ name: 'capacitor-stub', setup(b) { b.onResolve({ filter: /^@capacitor\// }, () => ({ path: join(here, 'capacitor-stub.ts') })); } }],
   define: { __WHATS_NEW__: '[]', __APP__: JSON.stringify({ name: 'Airport Dynasty Pro', short: 'ADP', id: 'export', version: '0', updates: {}, babylon: '9.30.0' }) },
