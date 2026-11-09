@@ -346,7 +346,7 @@ Other folders: `www/` (pictures, sounds and the built game), `release-notes/` (o
 - `AirportDynastyPro.uproject`: the Unreal project (open this). Engine version and the engine plugins it uses (Mass, StateTree, Smart Objects, ZoneGraph, Chaos vehicles, editor scripting).
 - `Config/`: project settings. `DefaultEngine.ini` (Lumen, virtual shadow maps, DirectX 12, start map and game mode), `DefaultGame.ini` (name, company, the Data folder packed with the game), `DefaultInput.ini` (walking keys and gamepad).
 - `Data/terminal-plan.json`: the terminal layout in real metres (rooms, doors, columns, stairs, lifts, stands), exported from the Android edition's `src/sections/terminal/plan.ts`; both editions build from it.
-- `Content/`: Unreal assets (models, materials, maps), through Git LFS.
+- `Content/`: Unreal assets (models, materials, maps), through Git LFS. `Content/Maps/Airport.umap`: the empty start map (editor and game); the game mode spawns everything in it at runtime.
 
 ### `Source/`: the game's C++ code
 - `AirportDynastyPro.Target.cs`, `AirportDynastyProEditor.Target.cs`: build targets for the game and for the editor.

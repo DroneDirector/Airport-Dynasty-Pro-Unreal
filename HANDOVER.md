@@ -17,12 +17,16 @@ Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md
   the editor opens, and running the game logs "Terminal built: 54 rooms, 71 doors" with no errors.
 - On Play, `ADPGameMode` adds sun, sky, fog and exposure, builds the grey-box terminal from `Data/terminal-plan.json`
   (`TerminalBuilder`), starts about 100 simple walkers (`CrowdTest`) and spawns the first-person player (`ADPWalker`).
-  Start map is the engine's empty `/Engine/Maps/Entry`; legacy input mappings are in `Config/DefaultInput.ini`.
+  Start map is the empty `/Game/Maps/Airport` (`Content/Maps/Airport.umap`, Git LFS) for both the editor and the game;
+  everything in it is spawned at runtime. Legacy input mappings are in `Config/DefaultInput.ini`.
+- The editor rewrites `DefaultEngine.ini` and `DefaultInput.ini` with its own defaults when it opens (and drops the
+  comments). Revert those rewrites before committing; only commit config changes made on purpose.
+- Pushing: command-line git on the owner's PC has no GitHub login; push through GitHub Desktop (it's signed in).
 - Plan metres to Unreal: `FTerminalPlan::ToWorld(x, height, z)` = (x*100, -z*100, height*100) cm.
 
 ## Next steps
 1. ~~Compile and open the project on the PC~~ (done 2026-11-09, UE 5.7).
-2. Save a real start map in `Content/Maps/` and set it in `DefaultEngine.ini`.
+2. ~~Save a real start map in `Content/Maps/` and set it in `DefaultEngine.ini`~~ (done 2026-11-09: `/Game/Maps/Airport`).
 3. Glass material for the glass walls (only frames are built now), then the main hall and one gate with Nanite meshes.
 4. Replace `CrowdTest` with Mass Entity crowds (ZoneGraph lanes from the plan, StateTree behaviour).
 5. Cesium for Unreal with the free data sources in CLAUDE.md.
