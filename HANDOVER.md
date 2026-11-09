@@ -35,5 +35,14 @@ Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md
   `Data/` into `Content/Data/` (staged with the game; ignored by git); `TerminalPlan` reads it from there first.
 
 ## Next steps
-The batches and what is done are in ROADMAP.md. Batch 1 continues with the doors, then the main hall's fittings.
-Waiting on the owner: security camera screenshots; the ATC tower model.
+The batches and what is done are in ROADMAP.md (PC versions 0.5.0 to 0.9.0 committed; release notes in
+release-notes-pc/). Next, in order:
+1. Batch 6, the mountains: download Copernicus GLO-90 (public AWS bucket copernicus-dem-90m), the Faroese national DSM
+   (Føroyakort, keep a copy of its terms with the download date) and ÍslandsDEM 10 m (LMÍ, CC BY 4.0); write the
+   converter to compact height tiles (finest wins) and the runtime terrain read from disk, the airport flattened within
+   2.6 km and blended to 4.4 km. Then the ocean, swimming and diving.
+2. Batch 7: the Kokoro voice for the announcements (the ten steps in the Kokoro PDF).
+3. Batch 4's open part: the bridge from the game (web view) to Unreal for the real flights on the screens and traffic.
+4. Waiting on the owner: Unreal 5.8 installed (reminder set for 16:00 on 2026-11-09), then move the project to 5.8
+   before the MetaHumans; the build machine registered (Tools/RegisterBuildMachine.ps1); security camera screenshots;
+   the ATC tower model.
