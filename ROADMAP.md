@@ -56,6 +56,15 @@ are offered. Sources: CLAUDE.md (the agreed plan), the PDFs in the repo, the Bab
     Iceland alone)
   - a one-time converter to compact height tiles (finest available tiles win), read from disk; the airport's ground
     flattened within 2.6 km and blended out to 4.4 km as on Android
+- [ ] The ocean as real water (PC only), right after the mountains, decided by the owner 2026-11-09:
+  - Unreal's Water system (with the engine; Cesium already includes it): a moving ocean round the player with waves,
+    sky reflections and Lumen light, the swell with the wind, calmer or rougher with the weather
+  - meeting every coastline in the world, from the OpenStreetMap coastlines (ODbL, credit) and the shipped depths:
+    waves steepening and breaking in the shallows, foam along the shore and round rocks and sea stacks
+  - swimming: waves lifting and dropping you, swell and currents pushing you; diving in 3D with floating back up and
+    the water's drag; underwater haze darkening with depth, light shafts and rippling light on the sea floor, muffled
+    sound; climbing out onto beaches and rocks; an optional breath meter
+  - first person for now; arms and legs swimming come with the player's own 3D body (MetaHumans, later)
 - Cesium for Unreal with the free data (Sentinel-2 2016 imagery, Copernicus/AWS terrain, OpenStreetMap water)
 - The airport placed at 63.457988 N, 18.713703 W, 40 m (130 ft), runway heading 68°, the ground flattened within
   2.6 km and blended out to 4.4 km exactly as in the Babylon edition
