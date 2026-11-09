@@ -65,7 +65,7 @@ The 3D parts (animations, people, the model's further work) wait; the interface 
 
 ## Next releases, in order (owner, 2026-11-09)
 1. 0.11.0 The business lounge: the Babylon lounge in Unreal, exact model, its own lights (built, packaging)
-2. 0.12.0 The terrain: Copernicus GLO-90 worldwide (downloaded to F:/ADP-Terrain) turned into Unreal terrain; the
+2. 0.13.0 The terrain (moved from 0.12.0: waits for the whole GLO-90 download; Iceland tested): Copernicus GLO-90 worldwide (downloaded to F:/ADP-Terrain) turned into Unreal terrain; the
    Faroe Islands' and Iceland's national height data on top; the airport flattened as planned
 3. 0.13.0 The 3D viewer in Unreal (needs the terrain): following flights above the clouds, your airport, crash sites
 4. 0.14.0 The ocean: real water (Unreal Water) meeting every coastline, with foam and breaking waves
@@ -85,20 +85,21 @@ The 3D parts (animations, people, the model's further work) wait; the interface 
 - MetaHumans: the owner decides when back home (and after the move to UE 5.8)
 
 ### Owner, 2026-11-09 (afternoon)
-- [ ] FIRST: the doors open and close as in Babylon (the Babylon model's own doors, animated from doors.ts' rules),
+- [x] FIRST: the doors open and close as in Babylon (0.12.0; the jetways come with the aircraft, 0.17.0) (the Babylon model's own doors, animated from doors.ts' rules),
       so every area of the terminal can be reached; then the jetways moving, if it can be done the same way
-- [ ] First start: the PC scan only SUGGESTS a quality (Yes / No), never sets it by itself
-- [ ] Frame generation: our own (from scratch) and AMD's FSR frame generation, both choices in Settings → Graphics
-- [ ] With frame generation: an option in Settings for a small frame-rate box, which can be dragged anywhere
-- [ ] The middle mouse button frees the pointer (click, drag boxes about) and gives the view back (walking and the
+- [x] First start: the PC scan only SUGGESTS a quality (Yes / No), never sets it by itself
+- [x] AMD's FSR frame generation in Settings → Graphics (0.12.0)
+- [ ] Our own frame generation, from scratch (its own batch, after the performance pass)
+- [x] With frame generation: an option in Settings for a small frame-rate box, which can be dragged anywhere
+- [x] The middle mouse button frees the pointer (click, drag boxes about) and gives the view back (walking and the
       3D viewer alike)
 - [ ] The 3D viewer's flight information as a box like Flightradar24's, draggable too
 - [ ] RULE: no interface ever sits on top of another, walking in the 3D world or following a flight in the 3D viewer
-- [ ] Airport announcements with meaning (owner): boarding, delays, final call, gate closed, and late passengers
+- [x] Airport announcements with meaning (owner): boarding, delays, final call, gate closed, and late passengers
       paged by name and airline, from the game's real flights; a female announcer over the intercom; loud in the main
       hall, the long walkway, the gates (upstairs and the ground-boarding gates below), food and tax-free; faint in your
       office and Operations; nothing in the toilets
-- [ ] Late passengers as AI logic (no people shown yet): paged, then they hurry to the gate (walking fast with time to
+- [x] Late passengers as AI logic (no people shown yet): paged, then they hurry to the gate (walking fast with time to
       spare, running when short); the gate closes at its time either way ("gate closed" call); nobody already waiting
       at a gate is ever late. Later, with the people in: you see them walk fast or run there
 - [ ] OWNER BUILDS: the information desk in 3D (the owner models it; passengers go there for directions and help;
