@@ -46,7 +46,12 @@ are offered. Sources: CLAUDE.md (the agreed plan), the PDFs in the repo, the Bab
 - Later: proper aircraft and vehicle models, the jetways docking, the real flights and aircraft from the shared world, runway 26 in east winds, rain, snow and lightning, cargo and stand 9 traffic
 
 ## Fixes seen in the first pictures (2026-11-09), before batch A
-- [ ] The Grand Hall's wave roof as on Android (plan.ts WAVE, waveSouth, waveH): x 24–126, its south edge sweeping
+- [ ] Every building exactly as in the Babylon edition (owner, 2026-11-09: "every single detail, every time"): export the
+      Babylon scene's static shell (terminal structure and glass, the wave roof with skylights and tree columns, kerb
+      canopies, the rental car centre, the museum, the pier, other buildings) as glTF from the built app (Node.js to
+      build, Babylon's glTF serializer in the page), import into Unreal with Nanite on (Interchange, by Python), and use
+      it in place of the grey-box shell; the moving parts stay Unreal's own (doors, lifts, people, screens, jetways)
+- [ ] (covered by the import) The Grand Hall's wave roof as on Android (plan.ts WAVE, waveSouth, waveH): x 24–126, its south edge sweeping
       out over the kerb (z −7 to −16), height 18.4 ± 3.4 m in waves 30 m long, white on top, warm timber under it, three
       lens skylights along the crests, the eight tree columns; the hall's walls rising to meet it (no flat roof)
 - [ ] The airfield's ground comes out light grey all over (grass, aprons and the dark runway alike): check the materials
