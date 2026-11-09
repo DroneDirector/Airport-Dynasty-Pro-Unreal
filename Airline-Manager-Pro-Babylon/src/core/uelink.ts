@@ -29,6 +29,7 @@ export function uePadInstall(w: any) {
   } catch (e) { /* this window keeps its own */ }
 }
 if (UE_PC) {
+  console.log('[ue] menus ready, link ' + (ue() ? 'there' : 'missing'));
   uePadInstall(window);
   // called by Unreal when the controller changes: its name, the four stick axes and the 17 buttons (0..1)
   (window as any).__uePad = (id: string, axes: number[], buttons: number[]) => {

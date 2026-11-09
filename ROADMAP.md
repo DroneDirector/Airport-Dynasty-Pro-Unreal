@@ -94,6 +94,17 @@ The 3D parts (animations, people, the model's further work) wait; the interface 
       3D viewer alike)
 - [ ] The 3D viewer's flight information as a box like Flightradar24's, draggable too
 - [ ] RULE: no interface ever sits on top of another, walking in the 3D world or following a flight in the 3D viewer
+- [ ] Airport announcements with meaning (owner): boarding, delays, final call, gate closed, and late passengers
+      paged by name and airline, from the game's real flights; a female announcer over the intercom; loud in the main
+      hall, the long walkway, the gates (upstairs and the ground-boarding gates below), food and tax-free; faint in your
+      office and Operations; nothing in the toilets
+- [ ] Late passengers as AI logic (no people shown yet): paged, then they hurry to the gate (walking fast with time to
+      spare, running when short); the gate closes at its time either way ("gate closed" call); nobody already waiting
+      at a gate is ever late. Later, with the people in: you see them walk fast or run there
+- [ ] OWNER BUILDS: the information desk in 3D (the owner models it; passengers go there for directions and help;
+      the announcements already ask passengers to it). Reminders set for 2026-11-09, 10 and 11 at 16:15
+- [ ] The trees round the airport and outside the entrance (the Babylon model's generic ones): real Unreal vegetation
+      instead, large enough to be beautiful, only with a licence that allows a commercial game with a credit
 - [ ] After all the batches above: the next logical things that make the game run and give it features
 
 ## Fixes seen in the first pictures (2026-11-09), before batch A

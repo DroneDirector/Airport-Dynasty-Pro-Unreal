@@ -1,10 +1,11 @@
-// The airline game in a web view: a scheme handler serving the built game's files at https://game.adp.local/, and the
+﻿// The airline game in a web view: a scheme handler serving the built game's files at https://game.adp.local/, and the
 // view itself.
 #include "UI/GameView.h"
 #include "IWebBrowserSchemeHandler.h"
 #include "IWebBrowserSingleton.h"
 #include "WebBrowserModule.h"
 #include "SWebBrowser.h"
+#include "IWebBrowserWindow.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -66,7 +67,7 @@ namespace
 			H.SetStatusCode(bFound ? 200 : 404);
 			H.SetMimeType(bFound ? MimeOf(File) : TEXT("text/plain"));
 			H.SetContentLength(bFound ? Data.Num() : 0);
-			H.SetHeader(TEXT("Cache-Control"), TEXT("no-cache"));
+			H.SetHeader(TEXT("Cache-Control"), TEXT("no-store"));   // never an old copy after an update
 		}
 		virtual bool ReadResponse(uint8* Out, int32 ToRead, int32& Read, const FSimpleDelegate& OnMore) override
 		{
@@ -139,7 +140,12 @@ TSharedRef<SWidget> ADPGameView::Make(UObject* Bridge, TSharedPtr<SWebBrowser>* 
 		.ShowErrorMessage(true)
 		.SupportsTransparency(false)
 		.BackgroundColor(FColor(5, 3, 12))
-		.BrowserFrameRate(60);
+		.BrowserFrameRate(60)
+		// the page's own messages and errors go to the game's log (Saved/Logs), to find problems in the menus
+		.OnConsoleMessage_Lambda([](const FString& Msg, const FString& Src, int32 Line, EWebBrowserConsoleLogSeverity Sev)
+		{
+			if (Sev >= EWebBrowserConsoleLogSeverity::Warning || Msg.StartsWith(TEXT("[ue]"))) UE_LOG(LogTemp, Log, TEXT("Menus: %s (%s:%d)"), *Msg, *FPaths::GetCleanFilename(Src), Line);
+		});
 	// the menus reach Unreal through window.ue.adp (the title screen's Terminal, and more later)
 	if (Bridge) B->BindUObject(TEXT("adp"), Bridge, true);
 	if (OutBrowser) *OutBrowser = B;
@@ -147,3 +153,4 @@ TSharedRef<SWidget> ADPGameView::Make(UObject* Bridge, TSharedPtr<SWebBrowser>* 
 }
 
 #pragma endregion
+

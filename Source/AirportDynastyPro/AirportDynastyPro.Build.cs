@@ -14,6 +14,7 @@ public class AirportDynastyPro : ModuleRules
 		if (File.Exists(VersionFile)) { Match M = Regex.Match(File.ReadAllText(VersionFile), "\"version\"\\s*:\\s*\"([^\"]+)\""); if (M.Success) Version = M.Groups[1].Value; }
 		ExternalDependencies.Add(VersionFile);   // a new number rebuilds
 		PublicDefinitions.Add("ADP_PC_VERSION=\"" + Version + "\"");
+		PublicSystemLibraries.AddRange(new string[] { "sapi.lib", "ole32.lib", "shlwapi.lib" });   // Windows' voices (announcer fallback)
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "Json", "JsonUtilities", "MassEntity", "Slate", "SlateCore", "RHI", "RenderCore", "WebBrowser", "CesiumRuntime" });
 	}
 }

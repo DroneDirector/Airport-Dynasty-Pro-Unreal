@@ -27,6 +27,7 @@
 #include "RHI.h"
 #include "Scalability.h"
 #include "Sound/SoundWaveProcedural.h"
+#include "Components/AudioComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
 #include "CollisionQueryParams.h"
@@ -135,7 +136,6 @@ void AADPHUD::BeginPlay()
 	PrimaryActorTick.bCanEverTick = true;
 	FirstStartScan();
 
-	FTerminalPlan Plan;
 	Plan.Load();
 	HoloMap = SNew(SHoloMap);
 	HoloMap->SetPlan(Plan);
@@ -221,7 +221,7 @@ void AADPHUD::BeginPlay()
 			.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
 			.BorderBackgroundColor(Panel)
 			.Padding(FMargin(16, 8))
-			.Visibility_Lambda([this]() { return CaptionTime > 0 ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+			.Visibility_Lambda([this]() { return CaptionTime > 0 && CallGain() > 0.05f ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
 			[SNew(STextBlock).Font(Font(12)).ColorAndOpacity(Ink).Text_Lambda([this]() { return FText::FromString(TEXT("ANNOUNCEMENT  ·  ") + CallText); })]
 		];
 
@@ -308,8 +308,24 @@ TSharedRef<SWidget> AADPHUD::MakeTopBar()
 		];
 }
 
+TSharedRef<SWidget> AADPHUD::VolumeSlider(int32 I)
+{
+	// a smooth slider from off to full, kept in the settings file
+	return SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
+		[
+			SNew(SSlider)
+			.Value_Lambda([this, I]() { return Vol[I]; })
+			.OnValueChanged_Lambda([this, I](float V) { Vol[I] = V; })
+			.OnMouseCaptureEnd_Lambda([this, I]() { GConfig->SetFloat(TEXT("ADP.Announcements"), *FString::Printf(TEXT("Volume%d"), I), Vol[I], GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); })
+		]
+		+ SHorizontalBox::Slot().AutoWidth().Padding(10, 0, 0, 0).VAlign(VAlign_Center)
+		[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([this, I]() { return FText::FromString(Vol[I] < 0.01f ? FString(TEXT("OFF")) : FString::Printf(TEXT("%d%%"), FMath::RoundToInt(Vol[I] * 100))); })];
+}
+
 TSharedRef<SWidget> AADPHUD::MakeSettings()
 {
+	for (int32 I = 0; I < 4; ++I) GConfig->GetFloat(TEXT("ADP.Announcements"), *FString::Printf(TEXT("Volume%d"), I), Vol[I], GGameUserSettingsIni);
 	TSharedRef<SHorizontalBox> Quality = SNew(SHorizontalBox);
 	const TCHAR* Names[] = {TEXT("LOW"), TEXT("MEDIUM"), TEXT("HIGH"), TEXT("EPIC"), TEXT("CINEMATIC")};
 	for (int32 q = 0; q < 5; ++q)
@@ -341,6 +357,14 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 					.OnValueChanged_Lambda([](float V) { if (UGameUserSettings* S = Prefs()) { S->SetResolutionScaleNormalized(V); S->ApplySettings(false); } })
 					.OnMouseCaptureEnd_Lambda([]() { Save(Prefs()); })
 				]
+				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Announcements: all"))]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 6)[VolumeSlider(0)]
+				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Flight calls (boarding, final call, gate closed, delays)"))]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 6)[VolumeSlider(1)]
+				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Passenger calls (passengers asked to the gate or the information desk)"))]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 6)[VolumeSlider(2)]
+				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Information (notices for everyone)"))]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)[VolumeSlider(3)]
 				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Frame limit"))]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 10)[Limit]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 6)
@@ -452,9 +476,9 @@ void AADPHUD::ShowUI()
 	else if (HoloMap->IsFull()) ToggleMap();
 }
 
-TArray<FString> AADPHUD::Calls;
+TArray<TPair<FString, uint8>> AADPHUD::Calls;
 
-void AADPHUD::Announce(const FString& Words) { if (Calls.Num() < 6) Calls.Add(Words); }
+void AADPHUD::Announce(const FString& Words, uint8 Kind) { if (Calls.Num() < 8) Calls.Add(TPair<FString, uint8>(Words, Kind)); }
 
 void AADPHUD::PlayGong()
 {
@@ -479,7 +503,9 @@ void AADPHUD::PlayGong()
 		}
 	Gong->ResetAudio();
 	Gong->QueueAudio(reinterpret_cast<const uint8*>(Pcm.GetData()), Pcm.Num() * sizeof(int16));
-	UGameplayStatics::PlaySound2D(this, Gong);
+	if (GongOut) GongOut->Stop();
+	GongOut = UGameplayStatics::CreateSound2D(this, Gong, 1.f, 1.f, 0.f, nullptr, false, false);
+	if (GongOut) { GongOut->SetVolumeMultiplier(FMath::Max(0.001f, CallGain())); GongOut->SetLowPassFilterEnabled(true); GongOut->SetLowPassFilterFrequency(ZoneMuffle()); GongOut->Play(); }
 }
 
 void AADPHUD::Interact()
@@ -560,37 +586,8 @@ void AADPHUD::OnGameState(const FString& Json)
 	FString Name, Money;
 	O->TryGetStringField(TEXT("name"), Name);
 	O->TryGetStringField(TEXT("money"), Money);
+	Airline = Name;
 	StatusLine = Name.IsEmpty() ? FString() : Name.ToUpper() + (Money.IsEmpty() ? FString() : TEXT("   ·   ") + Money);
-}
-
-void AADPHUD::OnGameFids(const FString& Json)
-{
-	TSharedPtr<FJsonObject> O;
-	if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Json), O) || !O.IsValid()) return;
-	const TArray<TSharedPtr<FJsonValue>>* Dep = nullptr;
-	if (!O->TryGetArrayField(TEXT("dep"), Dep)) return;
-	const bool bFirst = DepStatus.Num() == 0;
-	for (const TSharedPtr<FJsonValue>& V : *Dep)
-	{
-		const TSharedPtr<FJsonObject>* R = nullptr;
-		if (!V.IsValid() || !V->TryGetObject(R)) continue;
-		FString Flight, Place, Status;
-		(*R)->TryGetStringField(TEXT("flight"), Flight);
-		(*R)->TryGetStringField(TEXT("place"), Place);
-		(*R)->TryGetStringField(TEXT("status"), Status);
-		if (Flight.IsEmpty()) continue;
-		const FString* Was = DepStatus.Find(Flight);
-		const bool bChanged = !Was || *Was != Status;
-		DepStatus.Add(Flight, Status);
-		// the first list only sets what is known; after that each change is called out once
-		if (bFirst || !bChanged) continue;
-		const FString S = Status.ToLower();
-		if (S.Contains(TEXT("final"))) Announce(FString::Printf(TEXT("Final call for flight %s to %s."), *Flight, *Place));
-		else if (S.Contains(TEXT("board"))) Announce(FString::Printf(TEXT("Flight %s to %s is now boarding."), *Flight, *Place));
-		else if (S.Contains(TEXT("gate clos")) || S.Contains(TEXT("closed"))) Announce(FString::Printf(TEXT("Flight %s to %s: the gate is closing."), *Flight, *Place));
-		else if (S.Contains(TEXT("delay"))) Announce(FString::Printf(TEXT("Flight %s to %s is delayed. We apologise for the inconvenience."), *Flight, *Place));
-		else if (S.Contains(TEXT("cancel"))) Announce(FString::Printf(TEXT("Flight %s to %s has been cancelled."), *Flight, *Place));
-	}
 }
 
 void AADPHUD::ToggleButtons()
@@ -693,6 +690,11 @@ void AADPHUD::Tick(float Dt)
 		const bool bLounge = FParse::Param(FCommandLine::Get(), TEXT("UILounge"));
 		if (bLounge && Before < 48.f && ShotClock >= 48.f) OpenLounge();
 		if (bLounge && Before < 75.f && ShotClock >= 75.f) FScreenshotRequest::RequestScreenshot(TEXT("Lounge"), true, false);
+		// -UICall: one passenger call, to hear the announcer
+		if (FParse::Param(FCommandLine::Get(), TEXT("UICall")) && Before < 40.f && ShotClock >= 40.f)
+			if (bGame) ToggleGame();
+		if (FParse::Param(FCommandLine::Get(), TEXT("UICall")) && Before < 40.f && ShotClock >= 40.f)
+			Announce(TEXT("This is a passenger announcement. Would passenger Ms Anna Hansen, travelling to Copenhagen, please contact the information desk in the main hall. Thank you."), 2);
 		// -UIDoor: walk up to a sliding entrance door (it should open), and a picture of it
 		const bool bDoor = FParse::Param(FCommandLine::Get(), TEXT("UIDoor"));
 				if (bDoor && ((Before < 48.f && ShotClock >= 48.f) || (Before < 54.f && ShotClock >= 54.f)))
@@ -716,8 +718,15 @@ void AADPHUD::Tick(float Dt)
 		if (ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
+	// the announcements: the chime, then the announcer; how loud they are follows where you are
+	HeardGain = FMath::FInterpTo(HeardGain, ZoneGain(), Dt, 2.f);
+	for (UAudioComponent* A : {VoiceOut.Get(), GongOut.Get()})
+		if (A) { A->SetVolumeMultiplier(FMath::Max(0.001f, CallGain())); A->SetLowPassFilterEnabled(true); A->SetLowPassFilterFrequency(ZoneMuffle()); }
+	if ((CallsClock += Dt) >= 1.f) { CallsClock = 0; RunCalls(); }
+	if (SpeakIn > 0 && (SpeakIn -= Dt) <= 0) Speak(CallText);
 	if (CaptionTime > 0) CaptionTime -= Dt;
-	else if (Calls.Num()) { CallText = Calls[0]; Calls.RemoveAt(0); CaptionTime = 10.f; PlayGong(); }
+	// only in the 3D view: while the menus are open the calls wait (and old ones are dropped)
+	else if (Calls.Num() && !bGame) { CallText = Calls[0].Key; CallKind = Calls[0].Value; Calls.RemoveAt(0); CaptionTime = 12.f; PlayGong(); SpeakIn = 1.7f; }
 	if (Dt > 0) FpsSmooth = FMath::Lerp(FpsSmooth, 1.f / Dt, 0.05f);
 	const APawn* P = GetOwningPawn();
 	if (P && HoloMap.IsValid())

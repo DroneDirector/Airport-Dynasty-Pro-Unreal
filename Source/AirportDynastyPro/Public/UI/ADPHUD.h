@@ -7,6 +7,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/HUD.h"
+#include "TerminalPlan.h"
 #include "ADPHUD.generated.h"
 
 class SHoloMap;
@@ -26,7 +27,9 @@ public:
 
 	/** An airport announcement: the gong, then its words as a caption (the Kokoro voice reads them later). Queued so
 	 *  calls never overlap. */
-	static void Announce(const FString& Words);
+	/** Kind: 1 flight calls (boarding, final call, gate closed, delays), 2 passenger calls (paging by name), 3 information
+	 *  (general notices). Each kind has its own volume in Settings, under the overall announcements volume. */
+	static void Announce(const FString& Words, uint8 Kind = 1);
 
 	/** From the menus: Unreal's 3D terminal, the menus hidden. */
 	void ShowTerminal();
@@ -42,11 +45,17 @@ public:
 	void OnGameState(const FString& Json);
 	/** The game's departures: a change to boarding, final call or a delay is announced in the terminal. */
 	void OnGameFids(const FString& Json);
+	/** The announcer's words as sound (24 kHz, 16-bit, base64), made by the menus; played through the loudspeakers. */
+	void SpeechPcm(int32 Id, const FString& B64);
+	/** Without the game's voices: Windows' own female voice (SAPI), made off the game thread, then the same loudspeakers. */
+	void SpeechFallback(int32 Id);
+	void PlayAnnouncer(int32 Id, const TArray<int16>& Pcm);
 
 private:
 	#pragma region Panels
 	TSharedRef<SWidget> MakeTopBar();
 	TSharedRef<SWidget> MakeSettings();
+	TSharedRef<SWidget> VolumeSlider(int32 I);
 	TSharedRef<SWidget> MakePerf();
 	void ToggleMap();
 	void ToggleSettings();
@@ -73,6 +82,31 @@ private:
 
 	TSharedPtr<SWidget> Root;
 	TSharedPtr<SWebBrowser> Browser;
+	#pragma region Announcements (Announcements.cpp)
+	struct FLatePassenger { FString Name; float ArriveAt = 0; bool bRun = false, bBoarded = false; };
+	struct FDeparture { FString Place, Status; int32 Sched = -1, Exp = -1, Gate = 1; bool bBoarding = false, bPaged = false, bFinal = false, bClosed = false; TArray<FLatePassenger> Late; };
+	TMap<FString, FDeparture> Departures;
+	FString Airline;
+	FTerminalPlan Plan;
+	UPROPERTY() TObjectPtr<class UAudioComponent> VoiceOut;
+	UPROPERTY() TObjectPtr<class UAudioComponent> GongOut;
+	int32 SpeechId = 0;
+	float HeardGain = 1.f, CallsClock = 0, SpeakIn = -1;
+	/** How well the loudspeakers are heard where you stand (1 in the public areas, faint in offices, 0 in toilets). */
+	float ZoneGain() const;
+	/** How the loudspeakers sound where you stand: the highest frequency that comes through (walls muffle them). */
+	float ZoneMuffle() const;
+	/** The room kind where you stand ("" outside, "lounge" in the business lounge). */
+	FString ZoneKind() const;
+	/** The volumes: 0 all announcements, 1 flight calls, 2 passenger calls, 3 information; 0..1, kept in the settings file. */
+	float Vol[4] = {1, 1, 1, 1};
+	float NextInfoAt = -1;
+	int32 InfoTurn = 0;
+	float CallGain() const { return (bGame ? 0.f : 1.f) * HeardGain * Vol[0] * Vol[FMath::Clamp<int32>(CallKind, 1, 3)]; }
+	void Speak(const FString& Words);
+	void RunCalls();
+	FString AirlineName() const;
+	#pragma endregion
 	UPROPERTY() TObjectPtr<class ABabylonModel> Lounge;
 	bool bInLounge = false;
 	/** First start: the quality the PC scan suggests (asked, never set by itself); -1 when there's nothing to ask. */
@@ -95,7 +129,8 @@ private:
 	uint8 ShownPadKind = 255;
 	FString CallText;
 	float CaptionTime = 0;
-	static TArray<FString> Calls;
+	static TArray<TPair<FString, uint8>> Calls;
+	uint8 CallKind = 1;
 	UPROPERTY() TObjectPtr<class USoundWaveProcedural> Gong;
 	UPROPERTY() TObjectPtr<class UADPBridge> Bridge;
 };

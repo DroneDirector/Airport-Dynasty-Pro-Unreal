@@ -125,3 +125,24 @@ if (UE_PC) {
   }, 4000);
   onGameFids(d => { const u = ue(); if (u && u.gamefids) u.gamefids(JSON.stringify({ base: d.base || '', dep: (d.dep || []).slice(0, 12), arr: (d.arr || []).slice(0, 12) })); });
 }
+// The PC version's airport announcements: Unreal asks for a line to be spoken (window.__ueSay). The announcer is
+// always a woman: the game's own natural voice (Kokoro, a British female voice) when its voices are on this PC, made
+// here and handed to Unreal as sound (Unreal adds the loudspeakers' sound and the volume where you stand); without
+// them, Unreal speaks it with Windows' own female voice.
+(window as any).__ueSay = async (id: number, text: string, vol: number) => {
+  const u = ue(); console.log('[ue] say ' + id + (u ? '' : ' (no link)') + (u && u.speechfail ? '' : ' (no speechfail)')); if (!u) return;
+  try {
+    const b64 = await gameEval(`(async function (t) {
+      if (typeof VoicePack === 'undefined' || VoicePack.state !== 'ready') return '';
+      const sp = Object.assign({}, resolveSpeaker('gate', t), { voice: 'bf_emma', accent: 'b', speed: 0.94, pitch: 1, title: 'Announcer' });
+      await VoiceEngine.ready();
+      const parts = []; for (const s of Voice.sentences(t, sp)) parts.push(await voiceSentence(s, sp, true));
+      const gap = 24000 * 0.32, n = parts.reduce((a, p) => a + p.length + gap, 0), i16 = new Int16Array(n); let o = 0;
+      for (const p of parts) { for (let i = 0; i < p.length; i++) i16[o + i] = Math.max(-32767, Math.min(32767, Math.round(p[i] * 32767))); o += p.length + gap; }
+      const b = new Uint8Array(i16.buffer); let s = ''; for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000));
+      return btoa(s);
+    })(${JSON.stringify(text)})`);
+    if (b64 && u.speechpcm) { u.speechpcm(id, String(b64)); return; }
+  } catch (e) { /* Windows' own voice below */ }
+  console.log('[ue] windows voice for ' + id); if (u.speechfail) u.speechfail(id);   // Unreal speaks it with Windows' own female voice
+};

@@ -26,4 +26,8 @@ public:
 	UFUNCTION() void GameState(const FString& Json);
 	/** The departures and arrivals at your airport, as the game's timetable screens show them (JSON). */
 	UFUNCTION() void GameFids(const FString& Json);
+	/** The announcer's words as sound, made by the menus (24 kHz, 16-bit, base64). */
+	UFUNCTION() void SpeechPcm(int32 Id, const FString& B64);
+	/** The game's natural voices aren't on this PC: Unreal speaks the line with Windows' own female voice. */
+	UFUNCTION() void SpeechFail(int32 Id);
 };
