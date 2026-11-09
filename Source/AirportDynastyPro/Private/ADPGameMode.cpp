@@ -4,6 +4,7 @@
 #include "ADPWalker.h"
 #include "TerminalBuilder.h"
 #include "TerminalDoors.h"
+#include "TerminalFittings.h"
 #include "CrowdTest.h"
 #include "Engine/World.h"
 #include "Engine/DirectionalLight.h"
@@ -40,6 +41,8 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 		const FTerminalPlan& Plan = Terminal->GetPlan();
 		if (ATerminalDoors* Doors = W->SpawnActor<ATerminalDoors>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 			Doors->Build(Plan);
+		if (ATerminalFittings* Fittings = W->SpawnActor<ATerminalFittings>(FVector::ZeroVector, FRotator::ZeroRotator, P))
+			Fittings->Build(Plan);
 		if (ACrowdTest* Crowd = W->SpawnActor<ACrowdTest>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 			Crowd->Start(Plan, CrowdSize);
 		if (!UGameplayStatics::GetActorOfClass(W, APlayerStart::StaticClass()))
