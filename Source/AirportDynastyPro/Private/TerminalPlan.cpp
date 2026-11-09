@@ -81,6 +81,7 @@ bool FTerminalPlan::Load()
 		const TSharedPtr<FJsonObject> O = V->AsObject();
 		FPlanStair S;
 		S.Id = Str(O, TEXT("id")); S.Dir = Str(O, TEXT("dir"));
+		S.From = Str(O, TEXT("from")); S.To = Str(O, TEXT("to"));
 		S.X0 = Num(O, TEXT("x0")); S.Z0 = Num(O, TEXT("z0")); S.X1 = Num(O, TEXT("x1")); S.Z1 = Num(O, TEXT("z1"));
 		Stairs.Add(S);
 	}

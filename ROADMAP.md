@@ -17,10 +17,12 @@ are offered. Sources: CLAUDE.md (the agreed plan), the PDFs in the repo, the Bab
 - [x] Release pipeline for the PC: `.github/workflows/unreal-pc.yml` builds, packages and publishes on the owner's PC (self-hosted build machine), only when `pc-version.json` has release notes in `release-notes-pc/`; catches up every 3 hours; the installer installs over the previous version. Waiting on the owner: register the PC once (`Tools/RegisterBuildMachine.ps1`)
 - Publish: version 0.5.0 (PC) together with the next Android release
 
-## Batch 2: people in the terminal
-- Mass Entity crowds on ZoneGraph lanes made from the plan, StateTree behaviour (replaces CrowdTest)
-- A passenger's day: arrival, check-in queues, security with bags, shops and seats (Smart Objects), boarding
-- Cheaper detail for people far away; about a hundred people first, then thousands
+## Batch 2: people in the terminal (done: 0.6.0)
+- [x] Passengers as Mass Entities (replaces CrowdTest), 400 to start
+- [x] A walking map made from the plan (rooms joined by doors, floors by stairs) and the shortest way through it
+- [x] A departing passenger's trip: kerb, check-in desk, security lane, a stop upstairs, the gate, aboard; a new passenger arrives for each one gone
+- [x] Cheaper redrawing for people far away
+- Later: arriving passengers (their way out through the terminal), keeping clear of furniture and each other (Mass avoidance), Smart Objects for seats, shops and queues, thousands of people, MetaHuman bodies
 
 ## Batch 3: the interface
 - The existing interface in Unreal's web browser view first, then screen by screen in Unreal

@@ -1,4 +1,4 @@
-// Sets up the terminal test when play starts: sun, sky, fog, the grey-box terminal, the crowd test and
+// Sets up the terminal test when play starts: sun, sky, fog, the terminal, its passengers and
 // the player standing at the plan's spawn point.
 #pragma once
 
@@ -15,8 +15,8 @@ public:
 	AADPGameMode();
 	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
 
-	/** Number of walkers in the crowd test. */
-	UPROPERTY(EditAnywhere, Category = "Airport Dynasty Pro") int32 CrowdSize = 100;
+	/** Number of passengers in the terminal. */
+	UPROPERTY(EditAnywhere, Category = "Airport Dynasty Pro") int32 CrowdSize = 400;
 
 private:
 	#pragma region World setup

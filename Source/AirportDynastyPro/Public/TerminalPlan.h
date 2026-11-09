@@ -34,6 +34,7 @@ struct FPlanDoor
 struct FPlanStair
 {
 	FString Id, Dir; // x+ x- z+ z-: the way the steps rise
+	FString From, To; // the room at the bottom and the room at the top
 	float X0 = 0, Z0 = 0, X1 = 0, Z1 = 0;
 };
 

@@ -8,7 +8,7 @@
 #include "TerminalLifts.h"
 #include "TerminalJetways.h"
 #include "TerminalScreens.h"
-#include "CrowdTest.h"
+#include "TerminalCrowd.h"
 #include "Engine/World.h"
 #include "Engine/DirectionalLight.h"
 #include "Engine/SkyLight.h"
@@ -52,7 +52,7 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 			Jetways->Build(Plan);
 		if (ATerminalScreens* Screens = W->SpawnActor<ATerminalScreens>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 			Screens->Build(Plan);
-		if (ACrowdTest* Crowd = W->SpawnActor<ACrowdTest>(FVector::ZeroVector, FRotator::ZeroRotator, P))
+		if (ATerminalCrowd* Crowd = W->SpawnActor<ATerminalCrowd>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 			Crowd->Start(Plan, CrowdSize);
 		if (!UGameplayStatics::GetActorOfClass(W, APlayerStart::StaticClass()))
 			W->SpawnActor<APlayerStart>(FTerminalPlan::ToWorld(Plan.Spawn.X, 1.0f, Plan.Spawn.Z), FRotator(0, -90.f, 0), P); // facing airside
