@@ -1,5 +1,9 @@
 # To-do
 
+- [ ] **With the next Android release: the start screen fits a phone** (owner, 2026-11-09, Samsung S24): done in
+  www/styles.css (phones only: touch screen and at most 460 px high; tablets and PCs unchanged). It reaches phones with
+  the next Android version.
+
 - [ ] **Chapters in the Android code**: paused by the owner on 2026-11-09 ("forget the chapters in Android for now"). Unreal code keeps getting chapters from the start.
 - [x] A clearer "✕ Exit cinema" button in the top-left corner while walking in the world (with the next release).
 - [ ] **Your own 3D body while walking** (later, when the people get their 3D bodies): you see your own body in walking

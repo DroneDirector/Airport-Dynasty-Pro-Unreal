@@ -146,3 +146,10 @@ if (UE_PC) {
   } catch (e) { /* Windows' own voice below */ }
   console.log('[ue] windows voice for ' + id); if (u.speechfail) u.speechfail(id);   // Unreal speaks it with Windows' own female voice
 };
+// ...and every announcement as text in the game's messages (the Overview), word for word: flight calls as flight
+// messages, the rest as the airport's
+(window as any).__ueNotice = (kind: number, text: string) => {
+  if (!gameExists()) return;
+  const title = kind === 1 ? 'Airport announcement: flights' : kind === 2 ? 'Airport announcement: passengers' : 'Airport announcement';
+  gameEval(`(function (k, t, b) { try { State.notices.unshift({ id: uid(), kind: k, title: t, body: b, time: 'Now', read: false }); if (Store.soon) Store.soon(); if (typeof refresh === 'function') refresh(); } catch (e) { /* not ready */ } })(${JSON.stringify(kind === 1 ? 'flight' : 'company')}, ${JSON.stringify(title)}, ${JSON.stringify(text)})`);
+};

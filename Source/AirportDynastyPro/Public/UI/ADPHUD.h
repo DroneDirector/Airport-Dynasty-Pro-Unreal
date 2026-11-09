@@ -130,6 +130,7 @@ private:
 	FString CallText;
 	float CaptionTime = 0;
 	static TArray<TPair<FString, uint8>> Calls;
+	static TWeakObjectPtr<AADPHUD> Current;
 	uint8 CallKind = 1;
 	UPROPERTY() TObjectPtr<class USoundWaveProcedural> Gong;
 	UPROPERTY() TObjectPtr<class UADPBridge> Bridge;

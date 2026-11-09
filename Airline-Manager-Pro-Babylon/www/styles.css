@@ -430,3 +430,29 @@ body.photo-on .cab-says { display: none; }
 .ir-list div { display: grid; gap: 2px; padding: 8px 10px; border-radius: 8px; background: rgba(255, 255, 255, .05); }
 .ir-list small { opacity: .6; font-size: 11px; } .ir-list span { opacity: .85; font-size: 13px; }
 @media (min-width: 1000px) { .ir-wrap .ds-body { grid-template-columns: 1fr; } }
+/* Phones in landscape (owner, 2026-11-09; a Samsung S24 is about 780 × 360): the whole start screen fits, the logo
+   in full at the top down to the last demo button, everything smaller but still readable. Only phones: a touch screen
+   this low; tablets and PCs keep their layout exactly as it is. */
+@media (pointer: coarse) and (max-height: 460px) {
+  .ts-left { justify-content: flex-start; gap: 4px; padding-top: max(10px, env(safe-area-inset-top)); padding-bottom: 26px; width: min(300px, 42vw); overflow-y: auto; }
+  .ts-logo::after { bottom: -.45em; }
+  .ts-l1 { font-size: 9px; }
+  .ts-l2 { font-size: 26px; }
+  .ts-l3 { font-size: 22px; }
+  .ts-engine { margin: 8px 0 4px; font-size: 8.5px; letter-spacing: .2em; }
+  .ts-nav { gap: 3px; margin-top: 4px; }
+  .ts-btn { width: min(230px, 36vw); gap: 8px; padding: 3px 10px 3px 8px; }
+  .ts-btn:hover, .ts-btn:focus-visible, .ts-btn.on { transform: skewX(-12deg) translateX(8px); }
+  .ts-bi { width: 18px; height: 18px; }
+  .ts-bi .ic { width: 13px; height: 13px; }
+  .ts-bt b { font-size: 10.5px; letter-spacing: .06em; }
+  .ts-bt small { display: none; }
+  .ts-demos { gap: 4px; margin-top: 2px; }
+  .ts-demos > small { font-size: 8px; }
+  .ts-btn.ts-demo { padding: 2px 8px 2px 6px; }
+  .ts-btn.ts-demo .ts-bt b { font-size: 9.5px; }
+  .ts-ver { bottom: 4px; font-size: 8.5px; }
+  .ts-mute { height: 26px; bottom: 6px; padding: 0 10px; font-size: 10px; }
+  .ts-cap b { font-size: 14px; }
+  .ts-cap small { font-size: 9px; }
+}

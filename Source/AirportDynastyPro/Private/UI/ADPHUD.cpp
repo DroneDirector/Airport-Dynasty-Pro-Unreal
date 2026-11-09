@@ -133,6 +133,7 @@ namespace
 void AADPHUD::BeginPlay()
 {
 	Super::BeginPlay();
+	Current = this;
 	PrimaryActorTick.bCanEverTick = true;
 	FirstStartScan();
 
@@ -478,7 +479,19 @@ void AADPHUD::ShowUI()
 
 TArray<TPair<FString, uint8>> AADPHUD::Calls;
 
-void AADPHUD::Announce(const FString& Words, uint8 Kind) { if (Calls.Num() < 8) Calls.Add(TPair<FString, uint8>(Words, Kind)); }
+TWeakObjectPtr<AADPHUD> AADPHUD::Current;
+
+void AADPHUD::Announce(const FString& Words, uint8 Kind)
+{
+	if (Calls.Num() < 8) Calls.Add(TPair<FString, uint8>(Words, Kind));
+	// the same words, as text, in the game's messages on the Overview (heard only in the 3D view, read anywhere)
+	if (AADPHUD* H = Current.Get())
+		if (H->Browser.IsValid())
+		{
+			const FString Safe = Words.Replace(TEXT("\\"), TEXT(" ")).Replace(TEXT("'"), TEXT("\\'"));
+			H->Browser->ExecuteJavascript(FString::Printf(TEXT("window.__ueNotice && window.__ueNotice(%d, '%s')"), int32(Kind), *Safe));
+		}
+}
 
 void AADPHUD::PlayGong()
 {
@@ -685,6 +698,7 @@ void AADPHUD::Tick(float Dt)
 		const bool bOverview = FParse::Param(FCommandLine::Get(), TEXT("UIOverview"));
 		if (bOverview && Before < 50.f && ShotClock >= 50.f && Browser.IsValid())
 			Browser->ExecuteJavascript(TEXT("(function(){var b=document.querySelector('[data-id=\"game:continue\"]');if(b)b.click();})()"));
+		if (bOverview && Before < 70.f && ShotClock >= 70.f) Announce(TEXT("This is a passenger announcement. Would passenger Ms Anna Hansen, travelling to Copenhagen, please contact the information desk in the main hall. Thank you."), 2);
 		if (bOverview && Before < 85.f && ShotClock >= 85.f) FScreenshotRequest::RequestScreenshot(TEXT("Overview"), true, false);
 		// -UILounge: the lounge opened as the title screen's Lounge does, and a picture of it
 		const bool bLounge = FParse::Param(FCommandLine::Get(), TEXT("UILounge"));
@@ -726,7 +740,8 @@ void AADPHUD::Tick(float Dt)
 	if (SpeakIn > 0 && (SpeakIn -= Dt) <= 0) Speak(CallText);
 	if (CaptionTime > 0) CaptionTime -= Dt;
 	// only in the 3D view: while the menus are open the calls wait (and old ones are dropped)
-	else if (Calls.Num() && !bGame) { CallText = Calls[0].Key; CallKind = Calls[0].Value; Calls.RemoveAt(0); CaptionTime = 12.f; PlayGong(); SpeakIn = 1.7f; }
+	else if (Calls.Num() && bGame) Calls.RemoveAt(0);   // in the menus: read on the Overview instead, never played later
+	else if (Calls.Num()) { CallText = Calls[0].Key; CallKind = Calls[0].Value; Calls.RemoveAt(0); CaptionTime = 12.f; PlayGong(); SpeakIn = 1.7f; }
 	if (Dt > 0) FpsSmooth = FMath::Lerp(FpsSmooth, 1.f / Dt, 0.05f);
 	const APawn* P = GetOwningPawn();
 	if (P && HoloMap.IsValid())
