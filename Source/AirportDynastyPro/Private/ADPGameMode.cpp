@@ -82,8 +82,10 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 			if (AGlobe* Globe = W->SpawnActor<AGlobe>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 				Globe->Build(Field->Data());
 		}
-		if (ATerminalCrowd* Crowd = W->SpawnActor<ATerminalCrowd>(FVector::ZeroVector, FRotator::ZeroRotator, P))
-			Crowd->Start(Plan, CrowdSize);
+		// the passengers are switched off for now (owner, 2026-11-09); -Crowd brings them back
+		if (FParse::Param(FCommandLine::Get(), TEXT("Crowd")))
+			if (ATerminalCrowd* Crowd = W->SpawnActor<ATerminalCrowd>(FVector::ZeroVector, FRotator::ZeroRotator, P))
+				Crowd->Start(Plan, CrowdSize);
 		// photo mode, for screenshots of the airport
 		if (FParse::Param(FCommandLine::Get(), TEXT("PhotoTour"))) W->SpawnActor<APhotoTour>(FVector::ZeroVector, FRotator::ZeroRotator, P);
 		if (!UGameplayStatics::GetActorOfClass(W, APlayerStart::StaticClass()))

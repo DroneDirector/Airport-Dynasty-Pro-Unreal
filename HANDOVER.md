@@ -49,7 +49,15 @@ Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md
   actors into a separate level / Level Instance. Then check the axes against `FTerminalPlan::ToWorld` (x, -z, y).
 - UPDATE: `ABabylonModel` places the model at runtime from `Data/babylon-terminal.json` (14,855 objects, 2,739 meshes as
   instanced lists): it shows in the game (wave roof, pier, jetways, aircraft, museum dome, trees, car park). Open:
-  (1) the model looks mirrored north-south (landside trees and car park on the airside): Babylon's exporter keeps
+  FIXED: orientation (the exporter flips x; the model is turned 180° at placement, no mirroring, no negative scale).
+  FIXED: the materials now point at instancing-ready copies of Interchange's base materials (Content/Babylon/Masters,
+  Tools/fix_babylon_materials.py); every mesh slot carries its Babylon material (checked). STILL OPEN: everything
+  renders grey and the wave roof shows a checker although the materials hold the right colours/textures; next: check
+  the copied masters' static switches/texture defaults (the roof's whiteGloss has no texture, so a default texture
+  seems to be sampled), and look in the editor viewport. Then the windows: a real glass material (Lumen front-layer
+  translucency reflections; strong reflection outside, clear inside, see-through at night). Passengers are off
+  (-Crowd brings them back).
+  (old) (1) the model looks mirrored north-south (landside trees and car park on the airside): Babylon's exporter keeps
   left-handed coordinates and Interchange swaps y/z; a root scale of y = -1 turned everything black (lighting), so the
   fix has to mirror the mesh data itself (re-export with the z axis negated in Tools/BabylonExport before saving, e.g.
   a root node scaled z = -1 baked by the exporter, or Babylon's useRightHandedSystem); (2) everything renders grey

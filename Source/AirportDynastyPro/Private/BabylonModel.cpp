@@ -28,11 +28,10 @@ bool ABabylonModel::Place(const FString& Name)
 	TSharedPtr<FJsonObject> J;
 	if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), J) || !J) return false;
 	const TArray<TSharedPtr<FJsonValue>>& Nodes = J->GetArrayField(TEXT("nodes"));
-	// Babylon is left-handed and the exported model keeps its coordinates as they are; Unreal's glTF importer swaps y
-	// and z, which leaves the model mirrored north to south. Mirroring it back gives exactly Babylon's layout (and the
-	// terminal plan's: x, -z, y), lettering the right way round.
-	// (a mirror on the root, scale y -1, turned the model black: lighting broke; the north-south flip is still to be
-	// solved properly, see HANDOVER.md)
+	// Babylon's glTF exporter turns the left-handed model right-handed by flipping x, and Unreal's importer swaps y and
+	// z: together that puts the model at (-x, z, y), the Babylon layout turned 180° round the vertical. Turning it back
+	// gives exactly the terminal plan's (x, -z, y), with no mirroring (the geometry stays exactly as Babylon made it).
+	Root->SetRelativeRotation(FRotator(0, 180.f, 0));
 
 	// a node's own transform, converted as Unreal's glTF importer converts it
 	auto Local = [&](const TSharedPtr<FJsonObject>& N)
@@ -71,7 +70,7 @@ bool ABabylonModel::Place(const FString& Name)
 				}
 				ByMesh.Add(Mesh, K);
 			}
-			if (K) { K->AddInstance(World, true); ++Placed; }
+			if (K) { K->AddInstance(World, false); ++Placed; } // relative to the model, so its turn applies
 		}
 		const TArray<TSharedPtr<FJsonValue>>* Children;
 		if (N->TryGetArrayField(TEXT("children"), Children))

@@ -6,6 +6,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "UnrealClient.h"
+#include "ShaderCompiler.h"
 
 #pragma region Views
 namespace
@@ -30,6 +31,8 @@ APhotoTour::APhotoTour()
 void APhotoTour::Tick(float Dt)
 {
 	Super::Tick(Dt);
+	// wait until every material's shaders are compiled (new materials show a grey stand-in until then)
+	if (Shot < 0 && GShaderCompilingManager && GShaderCompilingManager->GetNumRemainingJobs() > 0) { Clock = 0; return; }
 	Clock += Dt;
 	const int32 Want = Clock < Settle ? -1 : FMath::FloorToInt((Clock - Settle) / Each);
 	if (Want == Shot) return;

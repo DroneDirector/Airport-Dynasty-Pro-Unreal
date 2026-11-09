@@ -27,6 +27,7 @@ async function run() {
   (K.struct as any).finish();
   // let every texture (the drawn ones and the files) finish loading before saving
   await sc.whenReadyAsync();
+  // (Babylon's exporter converts to glTF's right-handed axes itself, by flipping x: the model is exported as it is)
   say(`Built: ${sc.meshes.length} meshes. Saving glTF…`);
   const glb = await GLTF2Export.GLBAsync(sc, 'terminal', { shouldExportNode: (n: any) => !(n instanceof Camera) && !(n instanceof Light) && !(n.name || '').startsWith('SRC:') || (n.name || '').startsWith('SRC:') && false });
   const blob = glb.glTFFiles['terminal.glb'] as Blob;
