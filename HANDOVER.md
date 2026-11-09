@@ -51,7 +51,9 @@ Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md
   instanced lists): it shows in the game (wave roof, pier, jetways, aircraft, museum dome, trees, car park). Open:
   FIXED: orientation (the exporter flips x; the model is turned 180° at placement, no mirroring, no negative scale).
   FIXED: the materials now point at instancing-ready copies of Interchange's base materials (Content/Babylon/Masters,
-  Tools/fix_babylon_materials.py); every mesh slot carries its Babylon material (checked). STILL OPEN: everything
+  Tools/fix_babylon_materials.py); every mesh slot carries its Babylon material (checked). FIXED 2026-11-09: the grey was Unreal's default material: the base materials lacked "used with instanced static
+  meshes" (Tools/set_material_usage.py marks every base material and relinks the Babylon chain to Content/Babylon/Masters).
+  (was:) everything
   renders grey and the wave roof shows a checker although the materials hold the right colours/textures; next: check
   the copied masters' static switches/texture defaults (the roof's whiteGloss has no texture, so a default texture
   seems to be sampled), and look in the editor viewport. Then the windows: a real glass material (Lumen front-layer
