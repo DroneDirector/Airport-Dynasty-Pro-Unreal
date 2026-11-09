@@ -21,6 +21,9 @@ Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md
   everything in it is spawned at runtime. Legacy input mappings are in `Config/DefaultInput.ini`.
 - The editor rewrites `DefaultEngine.ini` and `DefaultInput.ini` with its own defaults when it opens (and drops the
   comments). Revert those rewrites before committing; only commit config changes made on purpose.
+- The caches live on drive F: (C: is nearly full): `DefaultEngine.ini` points Zen and the local DDC to
+  F:/UnrealCache (keep those lines when reverting the editor's config rewrites); the project's `Intermediate` folder
+  is a link to F:/UnrealCache/ADP-Intermediate; the raw terrain data is in F:/ADP-Terrain.
 - Pushing: command-line git on the owner's PC has no GitHub login; push through GitHub Desktop (it's signed in).
 - Plan metres to Unreal: `FTerminalPlan::ToWorld(x, height, z)` = (x*100, -z*100, height*100) cm.
 
