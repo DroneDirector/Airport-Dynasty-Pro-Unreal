@@ -1,6 +1,6 @@
 // How many passengers each type carries, from the manufacturers' published figures: a typical layout
 // in two or three classes, all-economy, and the most the emergency exits allow (the certified maximum).
-// Freighters show cargo instead. Every aircraft type added to the app gets an entry here (see CLAUDE.md).
+// Freighters show cargo instead. Every aircraft type added to the app gets an entry here (see the project rules).
 //   typ    typical seats in the usual airline layout (classes noted)
 //   one    all-economy (high density) layout
 //   max    the certified maximum (exit limit)

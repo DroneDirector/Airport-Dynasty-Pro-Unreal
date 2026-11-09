@@ -110,7 +110,7 @@ const three = '';
     '- glTF 2.0 binary (`.glb`), textures inside the file. Metres. **+Y up, the front (the nose) towards +Z** (glTF\'s own convention).',
     '- The app fits each model to the real size of the thing it replaces (length), sets it on the ground and centres it across, so small differences in scale or origin do not matter.',
     '- Aircraft: the app\'s own model still moves its gear, flaps and lights; a file\'s model is shown as it is (its own paint).',
-    '- Licences of bought models must allow commercial sale (see CLAUDE.md).', '',
+    '- Licences of bought models must allow commercial sale (see the project rules).', '',
     '## Aircraft (`aircraft/`)', '', '| File | Aircraft |', '|---|---|',
     ...ac.map(([f, n]) => `| \`aircraft/${f}\`${have('aircraft/' + f)} | ${n} |`), '',
     '## Helicopters (`helicopters/`)', '',
@@ -254,6 +254,6 @@ if (process.argv.includes('--preview')) {
 }
 {
   const sv = cfg.services || {}, off = ['vatsim', 'ivao', 'simbriefApi', 'hoppie'].filter(k => sv[k] !== true);
-  if (parseInt(String(cfg.version).split('.')[0], 10) >= 1 && off.length) console.log(`\nREMINDER before the final release: ${off.join(', ')} still switched off. VATSIM: its user agreement forbids using its data in a paid app without written permission. IVAO, SimBrief's flight plan import and Hoppie ACARS: none of them publish terms for paid apps, and SimBrief issues access keys on request. See CLAUDE.md.\n`);
+  if (parseInt(String(cfg.version).split('.')[0], 10) >= 1 && off.length) console.log(`\nREMINDER before the final release: ${off.join(', ')} still switched off. VATSIM: its user agreement forbids using its data in a paid app without written permission. IVAO, SimBrief's flight plan import and Hoppie ACARS: none of them publish terms for paid apps, and SimBrief issues access keys on request. See the project rules.\n`);
 }
 console.log(`Built ${cfg.appName} ${cfg.version}`);

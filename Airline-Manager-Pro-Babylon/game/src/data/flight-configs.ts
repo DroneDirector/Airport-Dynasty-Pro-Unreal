@@ -1,6 +1,6 @@
 // Flaps and landing gear through a flight, per aircraft type: the flap settings with their limit speeds,
 // the gear limits and when crews select each step, from docs/reference/flap-gear-and-phase-speeds.txt.
-// Every aircraft type added to the app gets an entry here (see CLAUDE.md).
+// Every aircraft type added to the app gets an entry here (see the project rules).
 //
 //   flaps   the flap lever settings in order, with the highest speed each may be used at (VFE, knots)
 //   to      take-off setting(s); land: landing setting(s)

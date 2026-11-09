@@ -3,7 +3,7 @@
 // size, wing position, chord and sweep, engines, tail, nose, wingtips, landing gear, windows and doors.
 // The aircraft pictures in the app and the models in the 3D view are both built from these numbers,
 // so each type looks like itself. Every aircraft type added to the app gets an entry here
-// (see CLAUDE.md). Original artwork: no manufacturer's or airline's logos or liveries.
+// (see the project rules). Original artwork: no manufacturer's or airline's logos or liveries.
 //
 // Axes: x from the nose tip backwards, y to the right wing, z up from the ground (aircraft on its wheels).
 //   L, span, H     overall length, wingspan, height to the top of the fin

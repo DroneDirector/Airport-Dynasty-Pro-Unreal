@@ -9,7 +9,7 @@ water salute, the museum. Remove the file and the app's own model comes back. Th
 - glTF 2.0 binary (`.glb`), textures inside the file. Metres. **+Y up, the front (the nose) towards +Z** (glTF's own convention).
 - The app fits each model to the real size of the thing it replaces (length), sets it on the ground and centres it across, so small differences in scale or origin do not matter.
 - Aircraft: the app's own model still moves its gear, flaps and lights; a file's model is shown as it is (its own paint).
-- Licences of bought models must allow commercial sale (see CLAUDE.md).
+- Licences of bought models must allow commercial sale (see the project rules).
 
 ## Aircraft (`aircraft/`)
 

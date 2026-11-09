@@ -4,7 +4,7 @@
 // airport-planning documents and the aircraft's handbooks; see docs/reference/runway-requirements.txt.
 // The distance needed follows the real weight of each flight (take-off roughly with the square of the
 // weight, landing with the weight) and the airport's elevation (about 7% more per 1,000 ft for take-off,
-// 5% for landing). Every aircraft type added to the app gets an entry here (see CLAUDE.md).
+// 5% for landing). Every aircraft type added to the app gets an entry here (see the project rules).
 
 interface FieldSpec { to: number; ld: number; wid: number; rough?: boolean; water?: boolean }
 
