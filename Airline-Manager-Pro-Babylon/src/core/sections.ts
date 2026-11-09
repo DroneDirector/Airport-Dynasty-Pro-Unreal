@@ -17,6 +17,9 @@ export function currentSection(): Section | null { return current; }
 /** Close the place you are in (back to the start screen). */
 export function closeSection() { if (current) { try { current.close(); } catch (e) { console.error(e); } current = null; } }
 export async function openSection(id: string, ctx: SectionCtx) {
+  // the PC version (Unreal) walks its own 3D terminal: the terminal is handed over to it (on Android there is no ue)
+  const ue = (window as any).ue;
+  if (id === 'terminal' && ue && ue.adp && ue.adp.openterminal) { ue.adp.openterminal(); return; }
   if (current) { try { current.close(); } catch (e) { console.error(e); } current = null; }
   const s = list[id]; if (!s) throw new Error('No section ' + id);
   current = s; await s.open(ctx);

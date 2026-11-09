@@ -113,7 +113,7 @@ FString ADPGameView::Folder()
 	return FString();
 }
 
-TSharedRef<SWidget> ADPGameView::Make()
+TSharedRef<SWidget> ADPGameView::Make(UObject* Bridge)
 {
 	if (Folder().IsEmpty())
 	{
@@ -130,7 +130,7 @@ TSharedRef<SWidget> ADPGameView::Make()
 			];
 	}
 	Register();
-	return SNew(SWebBrowser)
+	TSharedRef<SWebBrowser> B = SNew(SWebBrowser)
 		.InitialURL(FString::Printf(TEXT("https://%s/index.html"), Host)) // the app's own title screen and main menu
 		.ShowControls(false)
 		.ShowAddressBar(false)
@@ -138,6 +138,9 @@ TSharedRef<SWidget> ADPGameView::Make()
 		.SupportsTransparency(false)
 		.BackgroundColor(FColor(5, 3, 12))
 		.BrowserFrameRate(60);
+	// the menus reach Unreal through window.ue.adp (the title screen's Terminal, and more later)
+	if (Bridge) B->BindUObject(TEXT("adp"), Bridge, true);
+	return B;
 }
 
 #pragma endregion

@@ -26,6 +26,9 @@ public:
 	 *  calls never overlap. */
 	static void Announce(const FString& Words);
 
+	/** From the menus: Unreal's 3D terminal, the menus hidden. */
+	void ShowTerminal() { if (bGame) ToggleGame(); }
+
 private:
 	#pragma region Panels
 	TSharedRef<SWidget> MakeTopBar();
@@ -57,4 +60,5 @@ private:
 	float CaptionTime = 0;
 	static TArray<FString> Calls;
 	UPROPERTY() TObjectPtr<class USoundWaveProcedural> Gong;
+	UPROPERTY() TObjectPtr<class UADPBridge> Bridge;
 };

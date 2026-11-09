@@ -13,7 +13,7 @@ class SWidget;
 namespace ADPGameView
 {
 	/** The game's page in a web view, or a note saying how to get it when it hasn't been built here. */
-	TSharedRef<SWidget> Make();
+	TSharedRef<SWidget> Make(UObject* Bridge = nullptr);
 	/** Where the game's built files are (empty when they aren't there). */
 	FString Folder();
 }

@@ -3,6 +3,7 @@
 #include "UI/ADPHUD.h"
 #include "UI/SHoloMap.h"
 #include "UI/GameView.h"
+#include "UI/ADPBridge.h"
 #include "UnrealClient.h"
 #include "TerminalPlan.h"
 #include "Engine/Engine.h"
@@ -244,7 +245,13 @@ void AADPHUD::ToggleGame()
 	if (bHidden) return;
 	bGame = !bGame;
 	// made the first time it is opened, then kept (the game keeps running behind the terminal)
-	if (bGame && !bGameMade) { StaticCastSharedPtr<SBox>(GameBox)->SetContent(ADPGameView::Make()); bGameMade = true; }
+	if (bGame && !bGameMade)
+	{
+		Bridge = NewObject<UADPBridge>(this);
+		Bridge->Hud = this;
+		StaticCastSharedPtr<SBox>(GameBox)->SetContent(ADPGameView::Make(Bridge));
+		bGameMade = true;
+	}
 	GameBox->SetVisibility(bGame ? EVisibility::Visible : EVisibility::Collapsed);
 	// the walking interface (the bar, the map, the credit line) hides while the menus are open: nothing ever overlaps
 	MiniBox->SetVisibility(bGame ? EVisibility::Collapsed : EVisibility::Visible);
