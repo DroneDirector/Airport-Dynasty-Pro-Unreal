@@ -73,7 +73,16 @@ are offered. Sources: CLAUDE.md (the agreed plan), the PDFs in the repo, the Bab
   - faces alive: blinking, eyes looking round, small expressions; lip movement with the Kokoro voice later
   - standing still: a gentle, real sway (breathing, small weight shifts), never leaning on nothing; sitting: calmer,
     breathing and small head and hand movements, no excessive sway
-  - detail by distance (MetaHuman LODs, cheaper Mass levels far away) so a full terminal stays smooth
+  - detail by distance with no visible popping (owner, 2026-11-09), researched:
+    - near: the full MetaHuman (LOD0-1, strand hair, full face animation); always the best quality closest to you
+    - further: lower LODs cross-faded (dithered LOD transitions, smoothed by TSR) instead of switching; Nanite on the
+      skinned bodies where the materials allow (continuous detail like Nanite buildings; MetaHuman faces use
+      translucency, so the face stays on normal LODs); hair handed from strands to cards to meshes with a fade
+    - far: the Mass crowd's cheap instanced representation (Epic's MetaHuman Crowds, Unreal 5.8), faded in, same body
+    - a quality floor: nobody in view drops below a set LOD; the number of full-quality people is limited instead
+    - animation updated less often far away but interpolated (Animation Budget Allocator), so it never stutters
+    - Epic's MetaHuman Crowds and MetaHuman Collections are in Unreal 5.8 (experimental): move the project to 5.8
+      (it was made for 5.8) before this part
 - Cesium for Unreal with the free data (Sentinel-2 2016 imagery, Copernicus/AWS terrain, OpenStreetMap water)
 - The airport placed at 63.457988 N, 18.713703 W, 40 m (130 ft), runway heading 68°, the ground flattened within
   2.6 km and blended out to 4.4 km exactly as in the Babylon edition
