@@ -92,12 +92,12 @@ void AADPHUD::SendCrashMail()
 
 TSharedRef<SWidget> AADPHUD::MakeCrashPanel()
 {
-	const FLinearColor Ink(0.85f, 0.95f, 1.f);
-	auto Btn = [Ink](const FString& Label, TFunction<void()> Click)
+	const FLinearColor CrashInk(0.85f, 0.95f, 1.f);
+	auto Btn = [CrashInk](const FString& Label, TFunction<void()> Click)
 	{
 		return SNew(SButton).ButtonColorAndOpacity(FLinearColor(0.05f, 0.2f, 0.36f, 0.95f)).ContentPadding(FMargin(12, 6))
 			.OnClicked_Lambda([Click]() { Click(); return FReply::Handled(); })
-			[SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Bold", 10)).ColorAndOpacity(Ink).Text(FText::FromString(Label))];
+			[SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Bold", 10)).ColorAndOpacity(CrashInk).Text(FText::FromString(Label))];
 	};
 	auto Done = [this]()
 	{
@@ -113,14 +113,14 @@ TSharedRef<SWidget> AADPHUD::MakeCrashPanel()
 			+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 6)
 			[SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Bold", 15)).ColorAndOpacity(FLinearColor(1.f, 0.6f, 0.45f)).Text(FText::FromString(TEXT("The game crashed last time")))]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)
-			[SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Regular", 10)).ColorAndOpacity(Ink).AutoWrapText(true)
+			[SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Regular", 10)).ColorAndOpacity(CrashInk).AutoWrapText(true)
 				.Text(FText::FromString(FString::Printf(TEXT("Sorry about that. Here is what went wrong. Send it to us and we can fix it: the button opens your mail program with the report written in, addressed to %s; you see it before you send it."), CrashMail)))]
 			+ SVerticalBox::Slot().MaxHeight(360).Padding(0, 0, 0, 12)
 			[
 				SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(FLinearColor(0.f, 0.f, 0.f, 0.35f)).Padding(10)
 				[
 					SNew(SScrollBox)
-					+ SScrollBox::Slot()[SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Mono", 9)).ColorAndOpacity(Ink).AutoWrapText(true).Text_Lambda([this]() { return FText::FromString(CrashText); })]
+					+ SScrollBox::Slot()[SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Mono", 9)).ColorAndOpacity(CrashInk).AutoWrapText(true).Text_Lambda([this]() { return FText::FromString(CrashText); })]
 				]
 			]
 			+ SVerticalBox::Slot().AutoHeight()
