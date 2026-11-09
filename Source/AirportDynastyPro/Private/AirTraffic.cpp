@@ -5,6 +5,7 @@
 #include "TerminalPlan.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "UI/ADPHUD.h"
 
 #pragma region Sizes
 namespace
@@ -270,8 +271,18 @@ void AAirTraffic::Tick(float Dt)
 		switch (P.State)
 		{
 		case EState::Parked:
-			if ((P.Timer -= Dt) <= 0) Plan(P, EState::Pushback);
+		{
+			// the calls for this stand's flight: boarding a minute before it goes, then the final call
+			static const TCHAR* To[] = {TEXT("Copenhagen"), TEXT("London"), TEXT("Oslo"), TEXT("Reykjavík"), TEXT("Amsterdam"), TEXT("Barcelona"), TEXT("Frankfurt"), TEXT("Vágar")};
+			const int32 Gate = FCString::Atoi(*P.Stand.Id.RightChop(6));
+			const float Before = P.Timer;
+			P.Timer -= Dt;
+			const int32 Flight = 200 + Gate * 37;
+			if (Before > 60 && P.Timer <= 60) AADPHUD::Announce(FString::Printf(TEXT("Flight VT %d to %s is now boarding at gate %d."), Flight, To[(Gate - 1) % 8], Gate));
+			if (Before > 20 && P.Timer <= 20) AADPHUD::Announce(FString::Printf(TEXT("Final call for flight VT %d to %s, gate %d is closing."), Flight, To[(Gate - 1) % 8], Gate));
+			if (P.Timer <= 0) Plan(P, EState::Pushback);
 			break;
+		}
 		case EState::Pushback:
 			if (Follow(P, Dt, PushSpeed)) { P.Speed = 0; Plan(P, EState::TaxiOut); }
 			break;

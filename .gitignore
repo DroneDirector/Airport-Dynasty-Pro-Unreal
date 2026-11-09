@@ -53,3 +53,6 @@ Airline-Manager-Pro-Babylon/game/capacitor.config.json
 Content/Data/
 # the airline game's built screens copied into Content for packaging (the build makes them)
 Content/Web/
+
+# Cesium for Unreal (about 1.3 GB), fetched by Tools/GetCesium.ps1
+Plugins/CesiumForUnreal/

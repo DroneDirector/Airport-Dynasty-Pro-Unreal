@@ -51,9 +51,11 @@ are offered. Sources: CLAUDE.md (the agreed plan), the PDFs in the repo, the Bab
   2.6 km and blended out to 4.4 km exactly as in the Babylon edition
 - World Partition streaming and zones that load by distance
 
-## Batch 7: sound and life
-- Airport announcements with Kokoro and the loudspeaker sound (the ten steps in the Kokoro PDF)
-- Office monitors you can click into; security cameras (waiting on the screenshots); the ATC tower (waiting on the model)
+## Batch 7: sound and life (in progress)
+- [x] Office and timetable screens you can use: E in front of one opens the airline game on it
+- [x] Announcements: boarding and final calls from the aircraft at the stands, the two-tone gong, a caption, a queue so calls never overlap
+- [ ] The Kokoro voice and the loudspeaker sound (the ten steps in the Kokoro PDF)
+- Waiting on the owner: security cameras (the screenshots); the ATC tower (the model)
 
 ## Later
 - MetaHuman people, and your own body in walking mode everywhere

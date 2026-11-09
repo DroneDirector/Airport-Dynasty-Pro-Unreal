@@ -22,6 +22,10 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
 	virtual void Tick(float DeltaSeconds) override;
 
+	/** An airport announcement: the gong, then its words as a caption (the Kokoro voice reads them later). Queued so
+	 *  calls never overlap. */
+	static void Announce(const FString& Words);
+
 private:
 	#pragma region Panels
 	TSharedRef<SWidget> MakeTopBar();
@@ -37,6 +41,9 @@ private:
 	/** The mouse free for the interface (map full screen, settings) or captured for looking round. */
 	void UpdateMouse();
 	void FirstStartScan();
+	/** E: a desk's or a timetable's screen in front of you opens the airline game on it. */
+	void Interact();
+	void PlayGong();
 	#pragma endregion
 
 	TSharedPtr<SWidget> Root;
@@ -44,4 +51,9 @@ private:
 	TSharedPtr<SWidget> MiniBox, FullBox, Settings, Perf, TopBar, GameBox;
 	bool bHidden = false, bSettings = false, bPerf = false, bGame = false, bGameMade = false;
 	float FpsSmooth = 60.f;
+	TSharedPtr<SWidget> CaptionBox;
+	FString CallText;
+	float CaptionTime = 0;
+	static TArray<FString> Calls;
+	UPROPERTY() TObjectPtr<class USoundWaveProcedural> Gong;
 };

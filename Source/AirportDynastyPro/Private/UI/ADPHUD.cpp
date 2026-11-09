@@ -22,6 +22,10 @@
 #include "Widgets/Input/SSlider.h"
 #include "Widgets/Text/STextBlock.h"
 #include "RHI.h"
+#include "Sound/SoundWaveProcedural.h"
+#include "Kismet/GameplayStatics.h"
+#include "Engine/World.h"
+#include "CollisionQueryParams.h"
 
 #pragma region Look
 namespace
@@ -77,7 +81,16 @@ void AADPHUD::BeginPlay()
 			SAssignNew(MiniBox, SBox).WidthOverride(240).HeightOverride(240)[HoloMap.ToSharedRef()]
 		]
 		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(16)[Perf.ToSharedRef()]
-		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[Settings.ToSharedRef()];
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[Settings.ToSharedRef()]
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(0, 70, 0, 0)
+		[
+			SAssignNew(CaptionBox, SBorder)
+			.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+			.BorderBackgroundColor(Panel)
+			.Padding(FMargin(16, 8))
+			.Visibility_Lambda([this]() { return CaptionTime > 0 ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+			[SNew(STextBlock).Font(Font(12)).ColorAndOpacity(Ink).Text_Lambda([this]() { return FText::FromString(TEXT("ANNOUNCEMENT  ·  ") + CallText); })]
+		];
 
 	if (GEngine && GEngine->GameViewport) GEngine->GameViewport->AddViewportWidgetContent(Root.ToSharedRef(), 10);
 
@@ -86,6 +99,7 @@ void AADPHUD::BeginPlay()
 	{
 		EnableInput(PC);
 		InputComponent->BindKey(EKeys::G, IE_Pressed, this, &AADPHUD::ToggleGame);
+		InputComponent->BindKey(EKeys::E, IE_Pressed, this, &AADPHUD::Interact);
 		InputComponent->BindKey(EKeys::M, IE_Pressed, this, &AADPHUD::ToggleMap);
 		InputComponent->BindKey(EKeys::Tab, IE_Pressed, this, &AADPHUD::ToggleSettings);
 		InputComponent->BindKey(EKeys::P, IE_Pressed, this, &AADPHUD::TogglePerf);
@@ -258,9 +272,58 @@ void AADPHUD::ShowUI()
 	else if (HoloMap->IsFull()) ToggleMap();
 }
 
+TArray<FString> AADPHUD::Calls;
+
+void AADPHUD::Announce(const FString& Words) { if (Calls.Num() < 6) Calls.Add(Words); }
+
+void AADPHUD::PlayGong()
+{
+	// the classic airport call: two tones, high then low, made here (no recording needed)
+	if (!Gong)
+	{
+		Gong = NewObject<USoundWaveProcedural>(this);
+		Gong->SetSampleRate(44100);
+		Gong->NumChannels = 1;
+		Gong->Duration = 1.6f;
+		Gong->SoundGroup = SOUNDGROUP_Default;
+		Gong->bLooping = false;
+	}
+	TArray<int16> Pcm;
+	const int32 Rate = 44100;
+	for (const float Hz : {784.f, 523.f})
+		for (int32 i = 0; i < Rate * 0.8f; ++i)
+		{
+			const float T = i / float(Rate), Env = FMath::Exp(-T * 3.2f) * FMath::Min(1.f, T * 80.f);
+			const float V = (FMath::Sin(2 * PI * Hz * T) + 0.3f * FMath::Sin(4 * PI * Hz * T)) * Env * 0.35f;
+			Pcm.Add(int16(V * 32767));
+		}
+	Gong->ResetAudio();
+	Gong->QueueAudio(reinterpret_cast<const uint8*>(Pcm.GetData()), Pcm.Num() * sizeof(int16));
+	UGameplayStatics::PlaySound2D(this, Gong);
+}
+
+void AADPHUD::Interact()
+{
+	// a screen in front of you (a desk's monitor, a timetable): the airline game on it
+	APlayerController* PC = GetOwningPlayerController();
+	if (!PC || bGame) return;
+	FVector Eye; FRotator Look;
+	PC->GetPlayerViewPoint(Eye, Look);
+	FHitResult Hit;
+	FCollisionQueryParams Q(SCENE_QUERY_STAT(ADPInteract), false, GetOwningPawn());
+	if (GetWorld()->LineTraceSingleByChannel(Hit, Eye, Eye + Look.Vector() * 300.f, ECC_Visibility, Q) && Hit.GetComponent())
+	{
+		const FString N = Hit.GetComponent()->GetName();
+		if (N.Contains(TEXT("screenPanel")) || N.Contains(TEXT("black"))) ToggleGame();
+	}
+}
+
 void AADPHUD::Tick(float Dt)
 {
 	Super::Tick(Dt);
+	// the announcements, one at a time: the gong, then the words for ten seconds
+	if (CaptionTime > 0) CaptionTime -= Dt;
+	else if (Calls.Num()) { CallText = Calls[0]; Calls.RemoveAt(0); CaptionTime = 10.f; PlayGong(); }
 	if (Dt > 0) FpsSmooth = FMath::Lerp(FpsSmooth, 1.f / Dt, 0.05f);
 	const APawn* P = GetOwningPawn();
 	if (P && HoloMap.IsValid())
