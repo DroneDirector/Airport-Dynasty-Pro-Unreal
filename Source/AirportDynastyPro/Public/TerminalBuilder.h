@@ -10,6 +10,7 @@
 
 class UInstancedStaticMeshComponent;
 class UStaticMesh;
+class UMaterialInterface;
 
 UCLASS()
 class AIRPORTDYNASTYPRO_API ATerminalBuilder : public AActor
@@ -26,7 +27,8 @@ public:
 
 private:
 	#pragma region Kit
-	UInstancedStaticMeshComponent* Kit(const TCHAR* Name, UStaticMesh* Mesh, const FLinearColor& Colour);
+	/** One instanced piece type. With Material set it is used as is; otherwise the engine's basic material in Colour. */
+	UInstancedStaticMeshComponent* Kit(const TCHAR* Name, UStaticMesh* Mesh, const FLinearColor& Colour, UMaterialInterface* Material = nullptr);
 	/** Adds a box between two corners, in plan metres (x, height, z). */
 	void Box(UInstancedStaticMeshComponent* K, float X0, float Y0, float Z0, float X1, float Y1, float Z1);
 	#pragma endregion
@@ -45,6 +47,7 @@ private:
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Ceilings;
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Walls;
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Frames;
+	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Glass;
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Pillars;
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Steps;
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Markings;

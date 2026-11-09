@@ -1,5 +1,5 @@
 // Builds the grey-box terminal at run time from the shared layout: floors, walls with door openings,
-// glass frames, columns, stairs, lifts and stand markings.
+// glass walls (frames and clear panes), columns, stairs, lifts and stand markings.
 #include "TerminalBuilder.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -14,6 +14,7 @@ namespace
 	constexpr float DoorH = 2.8f;   // door opening height, m
 	constexpr float MullionStep = 1.5f;
 	constexpr float MullionW = 0.08f;
+	constexpr float PaneT = 0.024f;  // glass pane thickness, m
 }
 #pragma endregion
 
@@ -26,12 +27,16 @@ ATerminalBuilder::ATerminalBuilder()
 	SetRootComponent(Root);
 }
 
-UInstancedStaticMeshComponent* ATerminalBuilder::Kit(const TCHAR* Name, UStaticMesh* Mesh, const FLinearColor& Colour)
+UInstancedStaticMeshComponent* ATerminalBuilder::Kit(const TCHAR* Name, UStaticMesh* Mesh, const FLinearColor& Colour, UMaterialInterface* Material)
 {
 	UInstancedStaticMeshComponent* K = NewObject<UInstancedStaticMeshComponent>(this, Name);
 	K->SetupAttachment(Root);
 	K->SetStaticMesh(Mesh);
-	if (UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")))
+	if (Material)
+	{
+		K->SetMaterial(0, Material);
+	}
+	else if (UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")))
 	{
 		UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(Base, this);
 		M->SetVectorParameterValue(TEXT("Color"), Colour);
@@ -59,7 +64,7 @@ void ATerminalBuilder::Box(UInstancedStaticMeshComponent* K, float X0, float Y0,
 
 bool ATerminalBuilder::Build()
 {
-	for (UInstancedStaticMeshComponent* K : { Ground.Get(), Floors.Get(), Ceilings.Get(), Walls.Get(), Frames.Get(), Pillars.Get(), Steps.Get(), Markings.Get() })
+	for (UInstancedStaticMeshComponent* K : { Ground.Get(), Floors.Get(), Ceilings.Get(), Walls.Get(), Frames.Get(), Glass.Get(), Pillars.Get(), Steps.Get(), Markings.Get() })
 		if (K) K->DestroyComponent();
 
 	Plan = FTerminalPlan();
@@ -74,6 +79,10 @@ bool ATerminalBuilder::Build()
 	Ceilings = Kit(TEXT("Ceilings"), Cube, FLinearColor(0.85f, 0.85f, 0.85f));
 	Walls    = Kit(TEXT("Walls"),    Cube, FLinearColor(0.78f, 0.78f, 0.76f));
 	Frames   = Kit(TEXT("Frames"),   Cube, FLinearColor(0.20f, 0.22f, 0.25f));
+	// clear glass (Content/Materials/M_Glass); without it the panes fall back to a pale grey-blue
+	Glass    = Kit(TEXT("Glass"),    Cube, FLinearColor(0.55f, 0.70f, 0.75f),
+	               LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/M_Glass.M_Glass")));
+	Glass->SetCastShadow(false); // daylight passes through the glass
 	Pillars  = Kit(TEXT("Pillars"),  Cyl,  FLinearColor(0.70f, 0.70f, 0.72f));
 	Steps    = Kit(TEXT("Steps"),    Cube, FLinearColor(0.45f, 0.45f, 0.47f));
 	Markings = Kit(TEXT("Markings"), Cube, FLinearColor(0.90f, 0.75f, 0.10f));
@@ -142,13 +151,23 @@ void ATerminalBuilder::BuildWall(const FPlanRoom& R, bool bAlongX, float Fixed, 
 		if (bAlongX) Box(K, A, Bottom, Fixed - WallT * 0.5f, B, Top, Fixed + WallT * 0.5f);
 		else         Box(K, Fixed - WallT * 0.5f, Bottom, A, Fixed + WallT * 0.5f, Top, B);
 	};
+	auto Pane = [&](float A, float B, float Bottom, float Top)
+	{
+		if (B - A < 0.01f) return;
+		if (bAlongX) Box(Glass, A, Bottom, Fixed - PaneT * 0.5f, B, Top, Fixed + PaneT * 0.5f);
+		else         Box(Glass, Fixed - PaneT * 0.5f, Bottom, A, Fixed + PaneT * 0.5f, Top, B);
+	};
 	auto Solid = [&](float A, float B)
 	{
 		if (!bGlass) { Piece(Walls, A, B, Y0, Y1); return; }
-		// glass: sill, head and slim mullions; the panes themselves come with the real glass material
+		// glass wall: sill, head, slim mullions and one pane between each pair of mullions
 		Piece(Frames, A, B, Y0, Y0 + 0.1f);
 		Piece(Frames, A, B, Y1 - 0.15f, Y1);
-		for (float M = A; M <= B; M += MullionStep) Piece(Frames, M - MullionW * 0.5f, M + MullionW * 0.5f, Y0, Y1);
+		for (float M = A; M <= B; M += MullionStep)
+		{
+			Piece(Frames, M - MullionW * 0.5f, M + MullionW * 0.5f, Y0, Y1);
+			Pane(M + MullionW * 0.5f, FMath::Min(M + MullionStep, B) - MullionW * 0.5f, Y0 + 0.1f, Y1 - 0.15f);
+		}
 	};
 
 	float Cursor = From;
