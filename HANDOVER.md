@@ -72,6 +72,12 @@ Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md
   terminal empty in the game until the model is placed.
 - Also seen: every kit material renders light grey with a speckle pattern (the MI colours not applied?): check M_Surface.
 
+## Now: the interface (owner, 2026-11-09)
+The terminal model rests (it's in and textured). Next: the PC version starts on the Android edition's own title screen
+and main menu (its built www/index.html in Unreal's web view, served at https://game.adp.local/), every button and
+screen working as on Android; then the bridge so the title screen's walk/airport entries open Unreal's 3D terminal
+and back. Babylon www is built with Node.js (installed) by `npm install && npm run build` in Airline-Manager-Pro-Babylon.
+
 ## Next steps
 The batches and what is done are in ROADMAP.md (PC versions 0.5.0 to 0.9.0 committed; release notes in
 release-notes-pc/). Next, in order:
