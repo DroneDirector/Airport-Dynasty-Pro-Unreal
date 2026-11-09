@@ -45,6 +45,19 @@ are offered. Sources: CLAUDE.md (the agreed plan), the PDFs in the repo, the Bab
 - [x] Volumetric clouds
 - Later: proper aircraft and vehicle models, the jetways docking, the real flights and aircraft from the shared world, runway 26 in east winds, rain, snow and lightning, cargo and stand 9 traffic
 
+## NOW, main priority (owner, 2026-11-09): the UI connecting every feature of the game
+The 3D parts (animations, people, the model's further work) wait; the interface comes first.
+- [x] The PC version starts on the app's own title screen and main menu (the Android edition's interface in Unreal's
+      web view); the walking bar hides while the menus show; the menu's Terminal opens Unreal's 3D terminal
+- [x] Gamepads: Xbox, PlayStation 5 (RawInput), generic, with their symbols in the Buttons panel (lower right, always
+      minimized, F1 / View / Create), Settings' controls and the map's legend; no key or button used twice
+- [ ] Every menu and screen reachable and working in the PC version: keyboard, mouse, gamepad and sound inside the web
+      view; the title screen's other entries (3D Viewer, Lounge, Airport Site) decided for the PC; "Babylon.js edition"
+      on the title screen replaced by the PC edition's name
+- [ ] One way round the whole game: menus ↔ the 3D airport (G, the Terminal entry, the screens you can use with E), the
+      game's state (flights, money, time) shown in Unreal's screens and announcements through the bridge
+- [ ] Gamepad control of the menus themselves (moving between buttons, confirming, going back)
+
 ## Fixes seen in the first pictures (2026-11-09), before batch A
 - [x] THE TERMINAL IS THE BABYLON MODEL ITSELF (in the game since 2026-11-09: placed at runtime by ABabylonModel, right way
       round, colours and textures, real window glass; the airfield sinks under its ground) (owner, 2026-11-09; geometry untouched: no extra lines, cuts, merges or
