@@ -107,9 +107,9 @@ FString ADPGameView::Folder()
 {
 	// packaged: staged with the game; in the editor: the Android edition's own build output
 	const FString Packed = FPaths::ProjectContentDir() / TEXT("Web");
-	if (FPaths::FileExists(Packed / TEXT("game/index.html"))) return Packed;
+	if (FPaths::FileExists(Packed / TEXT("index.html"))) return Packed;
 	const FString Dev = FPaths::ProjectDir() / TEXT("Airline-Manager-Pro-Babylon/www");
-	if (FPaths::FileExists(Dev / TEXT("game/index.html"))) return Dev;
+	if (FPaths::FileExists(Dev / TEXT("index.html"))) return Dev;
 	return FString();
 }
 
@@ -131,7 +131,7 @@ TSharedRef<SWidget> ADPGameView::Make()
 	}
 	Register();
 	return SNew(SWebBrowser)
-		.InitialURL(FString::Printf(TEXT("https://%s/game/index.html"), Host))
+		.InitialURL(FString::Printf(TEXT("https://%s/index.html"), Host)) // the app's own title screen and main menu
 		.ShowControls(false)
 		.ShowAddressBar(false)
 		.ShowErrorMessage(true)

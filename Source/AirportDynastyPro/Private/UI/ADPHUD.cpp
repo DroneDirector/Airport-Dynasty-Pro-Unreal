@@ -3,6 +3,7 @@
 #include "UI/ADPHUD.h"
 #include "UI/SHoloMap.h"
 #include "UI/GameView.h"
+#include "UnrealClient.h"
 #include "TerminalPlan.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
@@ -85,7 +86,7 @@ void AADPHUD::BeginPlay()
 		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Bottom).Padding(8)
 		[
 			// the imagery's credit, as its licence (CC BY 4.0) asks
-			SNew(STextBlock).Font(Font(7, "Regular")).ColorAndOpacity(FLinearColor(1, 1, 1, 0.55f))
+			SAssignNew(Credit, STextBlock).Font(Font(7, "Regular")).ColorAndOpacity(FLinearColor(1, 1, 1, 0.55f))
 			.Text(FText::FromString(TEXT("Sentinel-2 cloudless 2016 (s2maps.eu) by EOX IT Services GmbH, contains modified Copernicus Sentinel data 2016 · Cesium")))
 		]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(0, 70, 0, 0)
@@ -99,6 +100,8 @@ void AADPHUD::BeginPlay()
 		];
 
 	if (GEngine && GEngine->GameViewport) GEngine->GameViewport->AddViewportWidgetContent(Root.ToSharedRef(), 10);
+	// the game starts on the app's own title screen and main menu (not in photo mode)
+	if (!FParse::Param(FCommandLine::Get(), TEXT("PhotoTour"))) ToggleGame();
 
 	// the keys: M map, Tab settings, P performance, H hide, Esc or a double-click to show again
 	if (APlayerController* PC = GetOwningPlayerController())
@@ -243,7 +246,10 @@ void AADPHUD::ToggleGame()
 	// made the first time it is opened, then kept (the game keeps running behind the terminal)
 	if (bGame && !bGameMade) { StaticCastSharedPtr<SBox>(GameBox)->SetContent(ADPGameView::Make()); bGameMade = true; }
 	GameBox->SetVisibility(bGame ? EVisibility::Visible : EVisibility::Collapsed);
+	// the walking interface (the bar, the map, the credit line) hides while the menus are open: nothing ever overlaps
 	MiniBox->SetVisibility(bGame ? EVisibility::Collapsed : EVisibility::Visible);
+	TopBar->SetVisibility(bGame ? EVisibility::Collapsed : EVisibility::Visible);
+	if (Credit.IsValid()) Credit->SetVisibility(bGame ? EVisibility::Collapsed : EVisibility::HitTestInvisible);
 	UpdateMouse();
 }
 
@@ -327,6 +333,15 @@ void AADPHUD::Interact()
 void AADPHUD::Tick(float Dt)
 {
 	Super::Tick(Dt);
+	// -UIShot: one picture with the interface showing (the title screen), then the game closes (a check of the interface)
+	static float ShotClock = 0;
+	if (FParse::Param(FCommandLine::Get(), TEXT("UIShot")))
+	{
+		const float Before = ShotClock;
+		ShotClock += Dt;
+		if (Before < 45.f && ShotClock >= 45.f) FScreenshotRequest::RequestScreenshot(TEXT("TitleScreen"), true, false);
+		if (ShotClock >= 52.f) FGenericPlatformMisc::RequestExit(false);
+	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	if (CaptionTime > 0) CaptionTime -= Dt;
 	else if (Calls.Num()) { CallText = Calls[0]; Calls.RemoveAt(0); CaptionTime = 10.f; PlayGong(); }

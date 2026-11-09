@@ -52,6 +52,7 @@ private:
 	bool bHidden = false, bSettings = false, bPerf = false, bGame = false, bGameMade = false;
 	float FpsSmooth = 60.f;
 	TSharedPtr<SWidget> CaptionBox;
+	TSharedPtr<class STextBlock> Credit;
 	FString CallText;
 	float CaptionTime = 0;
 	static TArray<FString> Calls;
