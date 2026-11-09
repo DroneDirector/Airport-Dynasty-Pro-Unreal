@@ -507,10 +507,10 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 10)[Limit]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 6)
 				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("VSYNC ON / OFF"), []() { if (UGameUserSettings* S = Prefs()) { S->SetVSyncEnabled(!S->IsVSyncEnabled()); Save(S); } })]
-					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("PERFORMANCE  (P)"), [this]() { TogglePerf(); })]
-					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)
+					SNew(SWrapBox).UseAllottedSize(true).InnerSlotPadding(FVector2D(6, 6))   // (wraps onto a second line, never past the panel)
+					+ SWrapBox::Slot()[Button(TEXT("VSYNC ON / OFF"), []() { if (UGameUserSettings* S = Prefs()) { S->SetVSyncEnabled(!S->IsVSyncEnabled()); Save(S); } })]
+					+ SWrapBox::Slot()[Button(TEXT("PERFORMANCE  (P)"), [this]() { TogglePerf(); })]
+					+ SWrapBox::Slot()
 					[
 						SNew(SButton)
 						.ButtonColorAndOpacity(FLinearColor(0.05f, 0.2f, 0.36f, 0.9f))
@@ -518,9 +518,9 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 						.OnClicked_Lambda([this]() { SetFrameGen(!bFrameGen); return FReply::Handled(); })
 						[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([this]() { return FText::FromString(bFrameGen ? TEXT("FRAME GENERATION (AMD FSR): ON") : TEXT("FRAME GENERATION (AMD FSR): OFF")); })]
 					]
-					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("FRAME-RATE BOX"), [this]() { bFpsBox = !bFpsBox; GConfig->SetBool(TEXT("ADP.Boxes"), TEXT("FrameRateOn"), bFpsBox, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); })]
-					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("SCAN MY PC"), []() { if (UGameUserSettings* S = Prefs()) { S->RunHardwareBenchmark(); S->ApplyHardwareBenchmarkResults(); Save(S); } })]
-					+ SHorizontalBox::Slot().AutoWidth()[Button(TEXT("PROBLEM LOG"), []() { FPlatformProcess::ExploreFolder(*(FPaths::ProjectLogDir() / TEXT("Problems.log"))); })]
+					+ SWrapBox::Slot()[Button(TEXT("FRAME-RATE BOX"), [this]() { bFpsBox = !bFpsBox; GConfig->SetBool(TEXT("ADP.Boxes"), TEXT("FrameRateOn"), bFpsBox, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); })]
+					+ SWrapBox::Slot()[Button(TEXT("SCAN MY PC"), []() { if (UGameUserSettings* S = Prefs()) { S->RunHardwareBenchmark(); S->ApplyHardwareBenchmarkResults(); Save(S); } })]
+					+ SWrapBox::Slot()[Button(TEXT("PROBLEM LOG"), []() { FPlatformProcess::ExploreFolder(*(FPaths::ProjectLogDir() / TEXT("Problems.log"))); })]
 				]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 12, 0, 4)[Caption(TEXT("Controls (keyboard, and the gamepad in use)"))]
 				+ SVerticalBox::Slot().AutoHeight()[SAssignNew(SettingsControls, SVerticalBox)]
@@ -553,7 +553,9 @@ void AADPHUD::UpdateMouse()
 	APlayerController* PC = GetOwningPlayerController();
 	if (!PC) return;
 	const bool bFree = bGame || bSettings || bPointer || (HoloMap.IsValid() && HoloMap->IsFull());
-	PC->SetIgnoreLookInput(bPointer && !bGame);
+	// (Unreal counts these calls: cleared first, so the view is never left locked by an earlier one)
+	PC->ResetIgnoreLookInput();
+	if (bPointer && !bGame) PC->SetIgnoreLookInput(true);
 	PC->bShowMouseCursor = bFree;
 	if (bFree) { FInputModeGameAndUI M; M.SetHideCursorDuringCapture(false); PC->SetInputMode(M); }
 	else
@@ -603,6 +605,8 @@ void AADPHUD::ToggleSettings()
 {
 	if (bHidden) return;
 	bSettings = !bSettings;
+	// closed: the view is yours again (the middle mouse button works as before Settings opened)
+	if (!bSettings) bPointer = false;
 	Settings->SetVisibility(bSettings ? EVisibility::Visible : EVisibility::Collapsed);
 	UpdateMouse();
 }
@@ -630,7 +634,7 @@ void AADPHUD::OnEscape()
 
 void AADPHUD::TogglePointer()
 {
-	if (bGame || bHidden) return;
+	if (bGame || bHidden || bSettings) return;   // (with Settings open the pointer is free anyway)
 	bPointer = !bPointer;
 	UpdateMouse();
 }
@@ -989,6 +993,13 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 84.f && ShotClock >= 84.f) FScreenshotRequest::RequestScreenshot(TEXT("WalkwayFloor"), false, false);
 			if (Before < 85.f && ShotClock >= 85.f) { ASunClock::HourOverride = 12.f; ASunClock::Refresh(); GoGate4(); if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(FRotator(-25.f, PC->GetControlRotation().Yaw, 0)); }
 			if (Before < 93.f && ShotClock >= 93.f) FScreenshotRequest::RequestScreenshot(TEXT("Gate4Floor"), false, false);
+		}
+		// -UIQuit: the title screen's gear (Unreal's Settings over the menus, a picture), then its Exit (the game must quit)
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIQuit")) && Browser.IsValid())
+		{
+			if (Before < 30.f && ShotClock >= 30.f) Browser->ExecuteJavascript(TEXT("document.querySelector('.gear').click()"));
+			if (Before < 36.f && ShotClock >= 36.f) FScreenshotRequest::RequestScreenshot(TEXT("TitleSettings"), true, false);
+			if (Before < 38.f && ShotClock >= 38.f) { if (bSettings) ToggleSettings(); Browser->ExecuteJavascript(TEXT("document.querySelector('.exit').click()")); }
 		}
 		// -UIUpd: the menus' Settings > Updates asks Unreal to check, and reports what came back
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIUpd")) && Browser.IsValid())

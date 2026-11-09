@@ -27,6 +27,17 @@ void UADPBridge::SpeechPcm(int32 Id, const FString& B64)
 	if (AADPHUD* H = Hud.Get()) H->SpeechPcm(Id, B64);
 }
 
+void UADPBridge::Quit()
+{
+	UE_LOG(LogTemp, Log, TEXT("Menus: Exit, the game quits"));
+	FGenericPlatformMisc::RequestExit(false);
+}
+
+void UADPBridge::OpenSettings()
+{
+	if (AADPHUD* H = Hud.Get()) H->ToggleSettings();
+}
+
 void UADPBridge::CheckUpdates()
 {
 	if (AADPHUD* H = Hud.Get()) { H->UpdateSent.Reset(); H->CheckForUpdates(); }

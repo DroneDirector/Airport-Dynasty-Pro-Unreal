@@ -35,6 +35,10 @@ public:
 	UFUNCTION() void Log(const FString& Line);
 	/** The menus' Settings > Updates on the PC: look for a newer PC version / install the one found (the game's own
 	 *  updater; its state comes back to the page through window.__ueUpdate). */
+	/** The menus' Exit (title screen and game): the game quits (the page can't close Unreal's window itself). */
+	UFUNCTION() void Quit();
+	/** The title screen's gear: Unreal's own Settings panel, the same as in the airport, over the menus. */
+	UFUNCTION() void OpenSettings();
 	UFUNCTION() void CheckUpdates();
 	UFUNCTION() void InstallUpdates();
 	UFUNCTION() void Board(const FString& Key, const FString& B64);

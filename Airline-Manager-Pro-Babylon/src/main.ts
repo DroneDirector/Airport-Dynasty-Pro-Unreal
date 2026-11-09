@@ -45,6 +45,8 @@ titleB.addEventListener('click', () => backToTitle());
 // the version number at the bottom of the screen in every place (the start screen has its own)
 const verB = document.createElement('small'); verB.className = 'place-ver'; verB.hidden = true; verB.textContent = UE_PC ? `v${UE_PC} Â· Unreal Engine ${UE_ENGINE}` : `v${APP.version} Â· Babylon.js ${APP.babylon}`; ui.appendChild(verB);
 function toggleSettings() {
+  // the PC (Unreal) version: the gear opens Unreal's own Settings (the same panel as in the airport, over the menus)
+  if (UE_PC && ue()) { try { ue().opensettings(); return; } catch (e) { /* the page's own below */ } }
   if (settingsOpen()) { settingsHide(); return; }
   setPlay(false); settingsShow(() => { if (inPlace) setPlay(true); });
 }

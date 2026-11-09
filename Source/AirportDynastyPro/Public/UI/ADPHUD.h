@@ -35,6 +35,8 @@ public:
 	void ShowTerminal();
 	/** Esc: the open panel closes; with nothing open, the Overview (the menus handle Esc themselves). */
 	void OnEscape();
+	/** Settings (Tab, the bar's button, or the title screen's gear in the menus). */
+	void ToggleSettings();
 	#pragma region The updater (Updater.cpp)
 	static FString UpdaterVersion();
 	void CheckForUpdates();
@@ -87,7 +89,6 @@ private:
 	TSharedRef<SWidget> WeatherButtons();
 	TSharedRef<SWidget> MakePerf();
 	void ToggleMap();
-	void ToggleSettings();
 	void TogglePerf();
 	/** The airline game itself (the shared world's screens), full screen over the terminal. */
 	void ToggleGame();

@@ -5,6 +5,7 @@
 import { registerPlugin } from '@capacitor/core';
 import { currentSection } from './sections';
 import { getEngine } from './engine';
+import { UE_PC, ue } from './uelink';
 const AppExit: any = registerPlugin('AppExit');
 export function exitGame() {
   try { (document.getElementById('ui') as HTMLElement).style.opacity = '0'; } catch (e) { /* as it is */ }
@@ -12,6 +13,8 @@ export function exitGame() {
   try { const e = getEngine(); if (e) { e.stopRenderLoop(); e.dispose(); } } catch (e) { /* closing anyway */ }
   try { document.querySelectorAll('audio').forEach(a => { (a as HTMLAudioElement).pause(); (a as HTMLAudioElement).src = ''; }); } catch (e) { /* none */ }
   const quit = () => {
+    // the PC (Unreal) version: the page can't close Unreal's window; Unreal itself quits
+    if (UE_PC && ue()) { try { ue().quit(); return; } catch (e) { /* on below */ } }
     if (/Electron/i.test(navigator.userAgent)) { window.close(); return; }
     AppExit.exit().catch(() => { try { window.close(); } catch (e) { /* stays */ } });
   };
