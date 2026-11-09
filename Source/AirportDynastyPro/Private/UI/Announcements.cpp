@@ -105,7 +105,7 @@ namespace
 		// a second loudspeaker further down the hall
 		const int32 Slap = Rate * 0.13f;
 		TArray<float> Y = X;
-		for (int32 i = Slap; i < N; ++i) Y[i] += X[i - Slap] * 0.09f;
+		for (int32 i = Slap; i < N; ++i) Y[i] += X[i - Slap] * 0.045f;
 		// the hall: four damped combs and two all-passes (Schroeder)
 		const int32 CombLen[4] = {int32(Rate * 0.0353f), int32(Rate * 0.0367f), int32(Rate * 0.0338f), int32(Rate * 0.0322f)};
 		TArray<float> Wet; Wet.SetNumZeroed(N);
@@ -118,7 +118,7 @@ namespace
 			{
 				const float Out = Buf[j];
 				Damp = Out * 0.6f + Damp * 0.4f;
-				Buf[j] = Y[i] + Damp * 0.62f;   // a short tail (owner, 2026-11-09: half the reverb of the first version)
+				Buf[j] = Y[i] + Damp * 0.55f;   // a short tail (owner, 2026-11-09: a quarter of the first version's reverb)
 				Wet[i] += Out * 0.25f;
 			}
 		}
@@ -134,7 +134,7 @@ namespace
 		}
 		TArray<int16> Out; Out.SetNumUninitialized(N);
 		float Peak = 0.01f;
-		for (int32 i = 0; i < N; ++i) { Y[i] = Y[i] * 0.95f + Wet[i] * 0.085f; Peak = FMath::Max(Peak, FMath::Abs(Y[i])); }
+		for (int32 i = 0; i < N; ++i) { Y[i] = Y[i] * 0.97f + Wet[i] * 0.0425f; Peak = FMath::Max(Peak, FMath::Abs(Y[i])); }
 		const float G = 0.85f / Peak;
 		for (int32 i = 0; i < N; ++i) Out[i] = int16(FMath::Clamp(Y[i] * G, -1.f, 1.f) * 32767);
 		return Out;
