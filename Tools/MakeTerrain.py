@@ -32,7 +32,7 @@ from quantized_mesh_encoder.extensions import VertexNormalsExtension
 ROOT = Path(__file__).resolve().parent.parent
 SRC = Path('F:/ADP-Terrain/glo90')
 GEOID = Path('F:/ADP-Terrain/geoid/us_nga_egm96_15.tif')
-OUT = Path('F:/ADP-Terrain/tiles')
+OUT = Path(os.environ.get('ADP_TERRAIN_OUT', 'F:/ADP-Terrain/tiles'))   # (--out; the workers read it from the environment)
 AIRPORT = (-18.710348, 63.452335)   # lon, lat: the terminal's origin (Globe.cpp)
 FLAT_IN, FLAT_OUT = 2600.0, 4400.0  # metres
 FULL_TO = 6                          # every tile (land or sea) down to this level
@@ -65,12 +65,43 @@ def geoid(lons, lats):
     row = np.clip(((lats - t.f) / t.e).round().astype(int), 0, a.shape[0] - 1)
     return a[row, col]
 
+# the whole world at 1/40 of a degree (about 2.8 km), made once from every cell's overview: the coarse tiles (each
+# covering degrees of the Earth) are drawn from it instead of reading thousands of files each
+MOSAIC = Path('F:/ADP-Terrain/world-40.npy')
+MRES = 40
+_mosaic = None
+def build_mosaic():
+    if MOSAIC.exists(): return
+    m = np.zeros((180 * MRES, 360 * MRES), np.float32)
+    for i, ((la, lo), p) in enumerate(CELLS.items()):
+        try:
+            with rasterio.open(p) as d:
+                a = d.read(1, out_shape=(MRES, MRES), resampling=rasterio.enums.Resampling.average).astype(np.float32)
+                if d.nodata is not None: a[a == d.nodata] = 0
+        except Exception as e:
+            print('skipped %s: %s' % (p.name, e), flush=True); continue
+        r0 = (89 - la) * MRES; c0 = (lo + 180) * MRES
+        m[r0:r0 + MRES, c0:c0 + MRES] = a
+        if i % 2000 == 0: print('world overview %d of %d' % (i, len(CELLS)), flush=True)
+    np.save(MOSAIC, m)
+
+def mosaic_heights(lons, lats):
+    global _mosaic
+    if _mosaic is None: _mosaic = np.load(MOSAIC, mmap_mode='r')
+    fy = (90.0 - lats) * MRES - 0.5; fx = (lons + 180.0) * MRES - 0.5
+    y0 = np.clip(np.floor(fy).astype(int), 0, 180 * MRES - 2); x0 = np.clip(np.floor(fx).astype(int), 0, 360 * MRES - 2)
+    ty = np.clip(fy - y0, 0, 1)[:, None]; tx = np.clip(fx - x0, 0, 1)[None, :]
+    a = np.asarray(_mosaic[y0.min():y0.max() + 2, x0.min():x0.max() + 2]); y0 -= y0.min(); x0 -= x0.min()
+    return ((a[y0][:, x0] * (1 - tx) + a[y0][:, x0 + 1] * tx) * (1 - ty) + (a[y0 + 1][:, x0] * (1 - tx) + a[y0 + 1][:, x0 + 1] * tx) * ty).astype(np.float32)
+
 def heights(lon0, lat0, lon1, lat1, n, flatten=True):
     """An n x n grid of ellipsoid heights over the box (rows north to south), sea level where there is no land."""
     lons = np.linspace(lon0, lon1, n); lats = np.linspace(lat1, lat0, n)
     out = np.zeros((n, n), np.float32)
+    coarse = (lat1 - lat0) / (n - 1) > 1.5 / MRES
+    if coarse: out = mosaic_heights(lons, lats)
     # each 1° cell the box touches: read just the part needed, at about the resolution needed
-    for la in range(math.floor(lat0), math.ceil(lat1)):
+    for la in (range(math.floor(lat0), math.ceil(lat1)) if not coarse else []):
         for lo in range(math.floor(lon0), math.ceil(lon1)):
             p = CELLS.get((la, lo))
             if p is None: continue
@@ -96,6 +127,7 @@ def heights(lon0, lat0, lon1, lat1, n, flatten=True):
             ty = np.clip(fy - y0, 0, 1)[:, None]; tx = np.clip(fx - x0, 0, 1)[None, :]
             v = (a[y0][:, x0] * (1 - tx) + a[y0][:, x0 + 1] * tx) * (1 - ty) + (a[y0 + 1][:, x0] * (1 - tx) + a[y0 + 1][:, x0 + 1] * tx) * ty
             out[np.ix_(ri, ci)] = v
+    if not coarse: out = national_over(lons, lats, out)
     LON, LAT = np.meshgrid(lons, lats)
     land = out != 0
     out = out + geoid(LON, LAT)   # sea level too lies on the geoid
@@ -105,7 +137,47 @@ def heights(lon0, lat0, lon1, lat1, n, flatten=True):
     if flatten and dist.min() < FLAT_OUT:
         k = np.clip((dist - FLAT_IN) / (FLAT_OUT - FLAT_IN), 0, 1); k = k * k * (3 - 2 * k)
         out = AIRPORT_H + (out - AIRPORT_H) * k
-    return out, land
+    return out.astype(np.float32), land
+#endregion
+
+#region National models (sharper than GLO-90 where they exist)
+# Faroe Islands: Umhvørvisstovan's DSM hæddarmodell 2015, 10 m (FOTM, EPSG:5316), from foroyakort.fo; credit "Data from
+# the Faroese Environment Agency, Umhvørvisstovan: DSM hæddarmodell 2015, November 2026". Heights above sea level, like
+# GLO-90 (the geoid is added the same way).
+NATIONAL = [
+    (Path('F:/ADP-Terrain/faroes/FO_DSM_2015_FOTM_10M.tif'), Path('F:/ADP-Terrain/faroes/fo_dsm_4326.tif'), 0.0002, 13),
+]
+
+def prepare_national():
+    from rasterio.warp import calculate_default_transform, reproject, Resampling
+    for src, dst, res, _ in NATIONAL:
+        if not src.exists() or dst.exists(): continue
+        with rasterio.open(src) as s:
+            tr, w, h = calculate_default_transform(s.crs, 'EPSG:4326', s.width, s.height, *s.bounds, resolution=res)
+            prof = s.profile.copy(); prof.update(crs='EPSG:4326', transform=tr, width=w, height=h, nodata=-32767.0, compress='deflate', tiled=True)
+            with rasterio.open(dst, 'w', **prof) as o:
+                reproject(rasterio.band(s, 1), rasterio.band(o, 1), src_transform=s.transform, src_crs=s.crs, dst_transform=tr, dst_crs='EPSG:4326', resampling=Resampling.bilinear, src_nodata=s.nodata, dst_nodata=-32767.0)
+        print('prepared', dst.name, flush=True)
+
+def national_over(lons, lats, out):
+    """Where a national model covers the grid, its heights replace GLO-90's (before the geoid is added)."""
+    for _, p, _, _ in NATIONAL:
+        if not p.exists(): continue
+        d = ds(p); b = d.bounds
+        if lons.max() < b.left or lons.min() > b.right or lats.max() < b.bottom or lats.min() > b.top: continue
+        ri = np.where((lats >= b.bottom) & (lats <= b.top))[0]; ci = np.where((lons >= b.left) & (lons <= b.right))[0]
+        bl, br, bb, bt = lons[ci].min(), lons[ci].max(), lats[ri].min(), lats[ri].max()
+        px, py = abs(d.transform.a), abs(d.transform.e)
+        bl, br, bb, bt = max(b.left, bl - px), min(b.right, br + px), max(b.bottom, bb - py), min(b.top, bt + py)
+        win = from_bounds(bl, bb, br, bt, d.transform)
+        shape = (max(2, min(int(round(win.height)) + 1, len(ri) * 2 + 1)), max(2, min(int(round(win.width)) + 1, len(ci) * 2 + 1)))
+        a = d.read(1, window=win, out_shape=shape, resampling=rasterio.enums.Resampling.bilinear).astype(np.float32)
+        fy = (bt - lats[ri]) / max(1e-12, bt - bb) * (shape[0] - 1); fx = (lons[ci] - bl) / max(1e-12, br - bl) * (shape[1] - 1)
+        y = np.clip(np.round(fy).astype(int), 0, shape[0] - 1); x = np.clip(np.round(fx).astype(int), 0, shape[1] - 1)
+        v = a[y][:, x]; ok = v > -500
+        sub = out[np.ix_(ri, ci)]; sub[ok] = v[ok]; out[np.ix_(ri, ci)] = sub
+    return out
+
 #endregion
 
 #region Tiles
@@ -145,12 +217,17 @@ def init(h):
 #endregion
 
 def main():
-    global AIRPORT_H
+    global AIRPORT_H, OUT
     ap = argparse.ArgumentParser()
     ap.add_argument('--maxz', type=int, default=10)
     ap.add_argument('--bbox', type=float, nargs=4)
+    ap.add_argument('--out', default=str(OUT))
     ap.add_argument('--workers', type=int, default=max(1, os.cpu_count() - 2))
     a = ap.parse_args()
+    os.environ['ADP_TERRAIN_OUT'] = a.out
+    OUT = Path(a.out)
+    build_mosaic()
+    prepare_national()
     # the airport's height: the ground round its origin (median within 1 km), on the ellipsoid
     lon, lat = AIRPORT
     d = 1000.0 / 111320.0
@@ -162,10 +239,23 @@ def main():
 
     available = []
     jobs = []
-    for z in range(a.maxz + 1):
+    deepest = max([a.maxz] + [n[3] for n in NATIONAL if n[1].exists()])
+    for z in range(deepest + 1):
         lvl = []
-        for x in range(1 << (z + 1)):
-            for y in range(1 << z):
+        xs = range(1 << (z + 1)); ys = range(1 << z)
+        if z > a.maxz:
+            # only over the national models
+            boxes = [ds(n[1]).bounds for n in NATIONAL if n[1].exists() and n[3] >= z]
+            s = 180.0 / (1 << z)
+            cand = set()
+            for b in boxes:
+                for x in range(int((b.left + 180) // s), int((b.right + 180) // s) + 1):
+                    for y in range(int((b.bottom + 90) // s), int((b.top + 90) // s) + 1): cand.add((x, y))
+            pairs = sorted(cand)
+        else:
+            pairs = [(x, y) for x in xs for y in ys]
+        for x, y in pairs:
+            if True:
                 lon0, lat0, lon1, lat1 = tile_box(z, x, y)
                 if a.bbox and (lon1 < a.bbox[0] or lon0 > a.bbox[2] or lat1 < a.bbox[1] or lat0 > a.bbox[3]) and z > 2: continue
                 if z > FULL_TO and not has_land(z, x, y): continue
@@ -192,8 +282,8 @@ def main():
     (OUT / 'layer.json').write_text(json.dumps({
         'tilejson': '2.1.0', 'name': 'Airport Dynasty Pro terrain', 'version': '1.0.0', 'format': 'quantized-mesh-1.0',
         'scheme': 'tms', 'projection': 'EPSG:4326', 'tiles': ['{z}/{x}/{y}.terrain'], 'extensions': ['octvertexnormals'],
-        'bounds': [-180, -90, 180, 90], 'minzoom': 0, 'maxzoom': a.maxz, 'available': available,
-        'attribution': 'Copernicus DEM GLO-90 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA'}))
+        'bounds': [-180, -90, 180, 90], 'minzoom': 0, 'maxzoom': deepest, 'available': available,
+        'attribution': 'Data from the Faroese Environment Agency, Umhvørvisstovan: DSM hæddarmodell 2015, November 2026. Copernicus DEM GLO-90 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA'}))
     print('Terrain done: %d tiles' % len(jobs), flush=True)
 
 if __name__ == '__main__':
