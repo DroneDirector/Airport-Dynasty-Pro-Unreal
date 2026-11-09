@@ -98,7 +98,7 @@ void ASunClock::BeginPlay()
 	GConfig->GetInt(TEXT("ADP.Testing"), TEXT("Weather"), Theme, GGameUserSettingsIni);
 	// the sky's own light fills the shadows (as outdoors, where a shadow is never black); captured from the sky in real time
 	if (ASkyLight* Sky = Cast<ASkyLight>(UGameplayStatics::GetActorOfClass(this, ASkyLight::StaticClass())))
-		if (USkyLightComponent* S = Sky->GetLightComponent()) { S->SetIntensity(1.8f); S->SetLowerHemisphereIsBlack(false); S->RecaptureSky(); }
+		if (USkyLightComponent* S = Sky->GetLightComponent()) { S->SetIntensity(1.8f); S->bLowerHemisphereIsBlack = false; S->RecaptureSky(); }
 	ApplyWeather();
 }
 
