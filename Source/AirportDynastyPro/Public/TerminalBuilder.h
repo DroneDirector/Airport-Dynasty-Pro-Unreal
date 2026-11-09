@@ -1,6 +1,7 @@
-// Builds the grey-box terminal at run time from the shared layout: floors, walls with door openings,
-// glass frames, columns, stairs, lifts and stand markings. Everything is instanced so the terminal can
-// grow in play (new pieces are just more instances); proper art replaces each kit piece later.
+// Builds the terminal at run time from the shared layout: floors, walls with door openings, glass walls, columns,
+// stairs, lifts and stand markings, each in the material the Android edition gives it (its kit.ts and shell.ts).
+// Everything is instanced (one instanced piece list per shape and material) so the terminal can grow in play (new
+// pieces are just more instances); proper models replace each kit piece later.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -27,8 +28,11 @@ public:
 
 private:
 	#pragma region Kit
-	/** One instanced piece type. With Material set it is used as is; otherwise the engine's basic material in Colour. */
-	UInstancedStaticMeshComponent* Kit(const TCHAR* Name, UStaticMesh* Mesh, const FLinearColor& Colour, UMaterialInterface* Material = nullptr);
+	/** The instanced boxes in one kit material (Content/Materials/Kit/MI_<Mat>), made the first time it is asked for. */
+	UInstancedStaticMeshComponent* Mat(const FName Name);
+	/** The same for cylinders (the roof columns). */
+	UInstancedStaticMeshComponent* MatCyl(const FName Name);
+	UInstancedStaticMeshComponent* MakeKit(const FName Key, UStaticMesh* Mesh, UMaterialInterface* Material);
 	/** Adds a box between two corners, in plan metres (x, height, z). */
 	void Box(UInstancedStaticMeshComponent* K, float X0, float Y0, float Z0, float X1, float Y1, float Z1);
 	#pragma endregion
@@ -42,13 +46,8 @@ private:
 	FTerminalPlan Plan;
 
 	UPROPERTY() TObjectPtr<USceneComponent> Root;
-	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Ground;
-	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Floors;
-	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Ceilings;
-	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Walls;
-	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Frames;
-	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Glass;
-	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Pillars;
-	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Steps;
-	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Markings;
+	UPROPERTY() TObjectPtr<UStaticMesh> Cube;
+	UPROPERTY() TObjectPtr<UStaticMesh> Cylinder;
+	/** Every instanced piece list, by mesh and material ("box:terrazzo", "cyl:white", "glass"). */
+	UPROPERTY() TMap<FName, TObjectPtr<UInstancedStaticMeshComponent>> Kits;
 };
