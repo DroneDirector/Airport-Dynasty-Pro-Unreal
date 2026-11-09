@@ -12,6 +12,7 @@
 #include "TerminalCrowd.h"
 #include "Airfield.h"
 #include "AirTraffic.h"
+#include "Globe.h"
 #include "Components/VolumetricCloudComponent.h"
 #include "Engine/World.h"
 #include "Engine/DirectionalLight.h"
@@ -59,8 +60,13 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 			Screens->Build(Plan);
 		// the airfield round the terminal, and its traffic
 		if (AAirfield* Field = W->SpawnActor<AAirfield>(FVector::ZeroVector, FRotator::ZeroRotator, P); Field && Field->Build())
+		{
 			if (AAirTraffic* Traffic = W->SpawnActor<AAirTraffic>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 				Traffic->Start(Field->Data());
+			// the globe round the airport
+			if (AGlobe* Globe = W->SpawnActor<AGlobe>(FVector::ZeroVector, FRotator::ZeroRotator, P))
+				Globe->Build(Field->Data());
+		}
 		if (ATerminalCrowd* Crowd = W->SpawnActor<ATerminalCrowd>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 			Crowd->Start(Plan, CrowdSize);
 		if (!UGameplayStatics::GetActorOfClass(W, APlayerStart::StaticClass()))

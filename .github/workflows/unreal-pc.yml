@@ -73,6 +73,9 @@ jobs:
       - name: Close any open editor of this engine (its Live Coding blocks the build)
         shell: pwsh
         run: Get-Process UnrealEditor -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+      - name: Cesium for Unreal (the globe; kept out of git)
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File Tools\GetCesium.ps1
       - name: Build the editor (needed to cook)
         shell: pwsh
         run: |

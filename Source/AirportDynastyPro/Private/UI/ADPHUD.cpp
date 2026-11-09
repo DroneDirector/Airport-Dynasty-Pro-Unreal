@@ -82,6 +82,12 @@ void AADPHUD::BeginPlay()
 		]
 		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(16)[Perf.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[Settings.ToSharedRef()]
+		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Bottom).Padding(8)
+		[
+			// the imagery's credit, as its licence (CC BY 4.0) asks
+			SNew(STextBlock).Font(Font(7, "Regular")).ColorAndOpacity(FLinearColor(1, 1, 1, 0.55f))
+			.Text(FText::FromString(TEXT("Sentinel-2 cloudless 2016 (s2maps.eu) by EOX IT Services GmbH, contains modified Copernicus Sentinel data 2016 · Cesium")))
+		]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(0, 70, 0, 0)
 		[
 			SAssignNew(CaptionBox, SBorder)

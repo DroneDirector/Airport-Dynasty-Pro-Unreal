@@ -45,7 +45,9 @@ are offered. Sources: CLAUDE.md (the agreed plan), the PDFs in the repo, the Bab
 - [x] Volumetric clouds
 - Later: proper aircraft and vehicle models, the jetways docking, the real flights and aircraft from the shared world, runway 26 in east winds, rain, snow and lightning, cargo and stand 9 traffic
 
-## Batch 6: the globe
+## Batch 6: the globe (in progress)
+- [x] Cesium for Unreal 2.31.0 (fetched by Tools/GetCesium.ps1), the airport placed at its real spot and turned to the runway's 068°, the Sentinel-2 2016 imagery with its credit on screen
+- [ ] The mountains: read straight from Terrain Tiles on AWS (the same public tiles the Android edition uses, no hosting of our own), the airport's ground flattened and blended in as on Android
 - Cesium for Unreal with the free data (Sentinel-2 2016 imagery, Copernicus/AWS terrain, OpenStreetMap water)
 - The airport placed at 63.457988 N, 18.713703 W, 40 m (130 ft), runway heading 68°, the ground flattened within
   2.6 km and blended out to 4.4 km exactly as in the Babylon edition
