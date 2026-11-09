@@ -25,6 +25,7 @@ namespace ADPInput
 			{TEXT("Hide UI"),         EKeys::H,         TEXT("H"),       EKeys::Gamepad_LeftShoulder,      TEXT("LB"), TEXT("L1"), TEXT("Left shoulder")},
 			{TEXT("Settings"),        EKeys::Tab,       TEXT("Tab"),     EKeys::Gamepad_Special_Right,     TEXT("Menu"), TEXT("Options"), TEXT("Start")},
 			{TEXT("Performance"),     EKeys::P,         TEXT("P"),       EKeys::Invalid,                   TEXT("-"), TEXT("-"), TEXT("-")},
+			{TEXT("Free pointer (drag boxes)"), EKeys::MiddleMouseButton, TEXT("Middle mouse"), EKeys::Invalid, TEXT("-"), TEXT("-"), TEXT("-")},
 			{TEXT("Back / show UI"),  EKeys::Escape,    TEXT("Esc"),     EKeys::Invalid,                   TEXT("-"), TEXT("-"), TEXT("-")},
 			// the Buttons panel: its own key and button, used for nothing else on any device
 			{TEXT("Buttons"),         EKeys::F1,        TEXT("F1"),      EKeys::Gamepad_Special_Left,      TEXT("View"), TEXT("Create"), TEXT("Select")},

@@ -80,6 +80,10 @@ private:
 	void OnAnyKey(FKey Key);
 	/** The Buttons panel's list, the controls in Settings and the map's legend, for the device in use. */
 	void RefreshControls();
+	/** The middle mouse button: the pointer free (click things, drag boxes about) or back to looking round. */
+	void TogglePointer();
+	bool bPointer = false, bFpsBox = false;
+	TSharedPtr<class SDragBox> FpsBox;
 	#pragma endregion
 
 	TSharedPtr<SWidget> Root;

@@ -5,6 +5,7 @@
 #include "UI/GameView.h"
 #include "UI/ADPBridge.h"
 #include "UI/InputGlyphs.h"
+#include "UI/SDragBox.h"
 #include "UnrealClient.h"
 #include "TerminalPlan.h"
 #include "Engine/Engine.h"
@@ -134,6 +135,7 @@ void AADPHUD::BeginPlay()
 {
 	Super::BeginPlay();
 	Current = this;
+	GConfig->GetBool(TEXT("ADP.Boxes"), TEXT("FrameRateOn"), bFpsBox, GGameUserSettingsIni);
 	PrimaryActorTick.bCanEverTick = true;
 	FirstStartScan();
 
@@ -159,6 +161,23 @@ void AADPHUD::BeginPlay()
 			.Visibility_Lambda([this]() { return bGame || bInLounge ? EVisibility::Collapsed : EVisibility::Visible; })[HoloMap.ToSharedRef()]
 		]
 		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(16)[Perf.ToSharedRef()]
+		+ SOverlay::Slot()
+		[
+			// the frame-rate box (Settings): small, draggable with the pointer free (middle mouse)
+			SAssignNew(FpsBox, SDragBox).Name(TEXT("FrameRate")).Start(FVector2D(0.86, 0.22))
+			.Visibility_Lambda([this]() { return bFpsBox && !bGame && !bHidden ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed; })
+			[
+				SNew(SBorder)
+				.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+				.BorderBackgroundColor(Panel)
+				.Padding(FMargin(10, 5))
+				.Cursor(EMouseCursor::GrabHand)
+				[
+					SNew(STextBlock).Font(Font(11)).ColorAndOpacity(Ink)
+					.Text_Lambda([this]() { return FText::FromString(FString::Printf(TEXT("%d FPS  ·  %.1f ms"), FMath::RoundToInt(FpsSmooth), 1000.f / FMath::Max(1.f, FpsSmooth))); })
+				]
+			]
+		]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[Settings.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
 		[
@@ -256,6 +275,7 @@ void AADPHUD::BeginPlay()
 		InputComponent->BindKey(EKeys::M, IE_Pressed, this, &AADPHUD::ToggleMap);
 		InputComponent->BindKey(EKeys::Tab, IE_Pressed, this, &AADPHUD::ToggleSettings);
 		InputComponent->BindKey(EKeys::P, IE_Pressed, this, &AADPHUD::TogglePerf);
+		InputComponent->BindKey(EKeys::MiddleMouseButton, IE_Pressed, this, &AADPHUD::TogglePointer);
 		InputComponent->BindKey(EKeys::H, IE_Pressed, this, &AADPHUD::HideUI);
 		InputComponent->BindKey(EKeys::Escape, IE_Pressed, this, &AADPHUD::ShowUI);
 		InputComponent->BindKey(EKeys::LeftMouseButton, IE_DoubleClick, this, &AADPHUD::ShowUI);
@@ -373,6 +393,7 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 					SNew(SHorizontalBox)
 					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("VSYNC ON / OFF"), []() { if (UGameUserSettings* S = Prefs()) { S->SetVSyncEnabled(!S->IsVSyncEnabled()); Save(S); } })]
 					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("PERFORMANCE  (P)"), [this]() { TogglePerf(); })]
+					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("FRAME-RATE BOX"), [this]() { bFpsBox = !bFpsBox; GConfig->SetBool(TEXT("ADP.Boxes"), TEXT("FrameRateOn"), bFpsBox, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); })]
 					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("SCAN MY PC"), []() { if (UGameUserSettings* S = Prefs()) { S->RunHardwareBenchmark(); S->ApplyHardwareBenchmarkResults(); Save(S); } })]
 					+ SHorizontalBox::Slot().AutoWidth()[Button(TEXT("PROBLEM LOG"), []() { FPlatformProcess::ExploreFolder(*(FPaths::ProjectLogDir() / TEXT("Problems.log"))); })]
 				]
@@ -406,7 +427,8 @@ void AADPHUD::UpdateMouse()
 {
 	APlayerController* PC = GetOwningPlayerController();
 	if (!PC) return;
-	const bool bFree = bGame || bSettings || (HoloMap.IsValid() && HoloMap->IsFull());
+	const bool bFree = bGame || bSettings || bPointer || (HoloMap.IsValid() && HoloMap->IsFull());
+	PC->SetIgnoreLookInput(bPointer && !bGame);
 	PC->bShowMouseCursor = bFree;
 	if (bFree) { FInputModeGameAndUI M; M.SetHideCursorDuringCapture(false); PC->SetInputMode(M); }
 	else PC->SetInputMode(FInputModeGameOnly());
@@ -427,6 +449,7 @@ void AADPHUD::ToggleGame()
 {
 	if (bHidden) return;
 	bGame = !bGame;
+	bPointer = false;
 	// made the first time it is opened, then kept (the game keeps running behind the terminal)
 	if (bGame && !bGameMade)
 	{
@@ -451,6 +474,13 @@ void AADPHUD::ToggleSettings()
 	if (bHidden) return;
 	bSettings = !bSettings;
 	Settings->SetVisibility(bSettings ? EVisibility::Visible : EVisibility::Collapsed);
+	UpdateMouse();
+}
+
+void AADPHUD::TogglePointer()
+{
+	if (bGame || bHidden) return;
+	bPointer = !bPointer;
 	UpdateMouse();
 }
 
