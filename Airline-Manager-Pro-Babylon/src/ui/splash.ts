@@ -233,7 +233,7 @@ function titleWisps(x: CanvasRenderingContext2D, W: number, H: number, t: number
   x.globalCompositeOperation = 'source-over';
 }
 
-/** Over every frame: coloured light leaks pulsing with the music, a flash at a cut, a glitch, letterbox, grain. */
+/** Over every frame: coloured light leaks pulsing with the music, a flash at a cut, a glitch, grain. */
 function titleOverlays(x: CanvasRenderingContext2D, W: number, H: number, t: number, kick: number, lvl: number, sh: TsShot, k: number) {
   const T = TitleScreen;
   // light leaks: magenta from one side, cyan from the other, drifting
@@ -255,9 +255,7 @@ function titleOverlays(x: CanvasRenderingContext2D, W: number, H: number, t: num
   }
   // grain
   if (T.grain) { x.globalCompositeOperation = 'overlay'; x.globalAlpha = 0.09; const p = x.createPattern(T.grain, 'repeat'); if (p) { x.save(); x.translate(Math.random() * 256, Math.random() * 256); x.fillStyle = p; x.fillRect(-256, -256, W + 512, H + 512); x.restore(); } x.globalAlpha = 1; x.globalCompositeOperation = 'source-over'; }
-  // letterbox, for the wide screen of a film
-  const bar = Math.max(0, Math.min(H * 0.075, (H - W / 2.39) / 2));
-  if (bar > 1) { x.fillStyle = '#000'; x.fillRect(0, 0, W, bar); x.fillRect(0, H - bar, W, bar); }
+  // no letterbox: the film fills the whole screen (owner, 2026-11-09)
 }
 
 /** The caption at the bottom right for a wide shot: a small line, then the big one, typed in. */
