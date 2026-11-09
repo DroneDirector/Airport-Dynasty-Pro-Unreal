@@ -279,6 +279,7 @@ void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, c
 	};
 	UInstancedStaticMeshComponent* WalkLamps = nullptr;   // the walkway's strips (made when the first is met)
 	UInstancedStaticMeshComponent* RoundLamps = nullptr;  // the hall's downlights inside
+	TMap<FIntPoint, UInstancedStaticMeshComponent*> LampPanels;   // the rooms' lamps, one list per size
 	for (int32 I = 0; I < Nodes.Num(); ++I)
 	{
 		const FString N = NameOf(I);
@@ -336,13 +337,34 @@ void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, c
 		}
 		else if (N.Contains(TEXT("/LAMP-")))
 		{
-			// the ceiling lamps: every other one gives a soft light into the room (the panels themselves all glow)
+			// the rooms' ceiling lamps (the gate rooms, the crew corridors, offices, shops and the rest): their face the
+			// walkway lamps' diffuser (owner, 2026-11-09), its frame along the long sides, the pattern at its own scale
+			// whatever the lamp's size; every other one also lights the room as a soft panel does
+			const TArray<TSharedPtr<FJsonValue>>* Kids = nullptr;
+			FBox Face(ForceInit);
+			if (Nodes[I]->AsObject()->TryGetArrayField(TEXT("children"), Kids))
+				for (const TSharedPtr<FJsonValue>& KV : *Kids)
+				{
+					const int32 C = int32(KV->AsNumber());
+					if (!NodeInst.IsValidIndex(C) || !NodeInst[C].Key) continue;
+					const FBox B = NodeInst[C].Key->GetStaticMesh()->GetBoundingBox().TransformBy(NodeWorld[C]);
+					const float Len = 2.f * FMath::Max(B.GetExtent().X, B.GetExtent().Y), Wid = 2.f * FMath::Min(B.GetExtent().X, B.GetExtent().Y);
+					// one list of panels per lamp size (the pattern repeats along the lamp every two thirds of its width)
+					const FIntPoint Key(FMath::RoundToInt(Len), FMath::RoundToInt(Wid));
+					UInstancedStaticMeshComponent*& K = LampPanels.FindOrAdd(Key);
+					if (!K) K = Panels(Len / FMath::Max(1.f, Wid * 2.f / 3.f), 1.f, 0.f, 1.f, 0.f);
+					Face = PanelUnder(K, C);
+				}
 			if ((Lamp++ & 1) == 0)
 			{
-				UPointLightComponent* P = NewObject<UPointLightComponent>(this);
-				P->SetSourceRadius(30.f);
-				P->SetSoftSourceRadius(60.f);
-				Add(P, NodeWorld[I].GetLocation() - FVector(0, 0, 25.f), 140.f, 900.f, Warm);
+				URectLightComponent* L = NewObject<URectLightComponent>(this);
+				const FVector Ext = Face.IsValid ? Face.GetExtent() : FVector(60, 30, 2);
+				const bool bAlongX = Ext.X >= Ext.Y;
+				L->SetRelativeRotation(FRotationMatrix::MakeFromXZ(FVector(0, 0, -1), bAlongX ? FVector(1, 0, 0) : FVector(0, 1, 0)).Rotator());
+				L->SetSourceHeight(2.f * FMath::Max(Ext.X, Ext.Y));
+				L->SetSourceWidth(2.f * FMath::Min(Ext.X, Ext.Y));
+				L->SetBarnDoorAngle(88.f);
+				Add(L, Face.IsValid ? FVector(Face.GetCenter().X, Face.GetCenter().Y, Face.Min.Z - 1.f) : NodeWorld[I].GetLocation() - FVector(0, 0, 5.f), 220.f, 900.f, Warm);
 				++Soft;
 			}
 		}

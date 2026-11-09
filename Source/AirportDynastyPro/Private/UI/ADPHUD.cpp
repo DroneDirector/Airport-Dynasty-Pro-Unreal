@@ -1045,6 +1045,22 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 84.f && ShotClock >= 84.f) FScreenshotRequest::RequestScreenshot(TEXT("WalkwayFloor"), false, false);
 			if (Before < 85.f && ShotClock >= 85.f) { ASunClock::HourOverride = 12.f; ASunClock::Refresh(); GoGate4(); if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(FRotator(-25.f, PC->GetControlRotation().Yaw, 0)); }
 			if (Before < 93.f && ShotClock >= 93.f) FScreenshotRequest::RequestScreenshot(TEXT("Gate4Floor"), false, false);
+			if (Before < 94.f && ShotClock >= 94.f) if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(FRotator(50.f, PC->GetControlRotation().Yaw, 0));
+			if (Before < 100.f && ShotClock >= 100.f) FScreenshotRequest::RequestScreenshot(TEXT("Gate4Ceiling"), false, false);
+		}
+		// -UIRoof: the wave roof from outside in daylight: under its edge at the kerb, from across the road, from behind
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIRoof")))
+		{
+			APlayerController* PC = GetOwningPlayerController();
+			auto Look = [PC](float Pitch) { if (PC) PC->SetControlRotation(FRotator(Pitch, PC->GetControlRotation().Yaw, 0)); };
+			if (Before < 44.f && ShotClock >= 44.f) { ASunClock::HourOverride = 12.f; ASunClock::Theme = 1; ASunClock::Refresh(); }
+			if (Before < 46.f && ShotClock >= 46.f) { GoTo(FVector(60.f, 0.f, -16.f), FVector(75.f, 14.f, 0.f)); Look(32.f); }
+			if (Before < 54.f && ShotClock >= 54.f) FScreenshotRequest::RequestScreenshot(TEXT("RoofKerb"), false, false);
+			if (Before < 55.f && ShotClock >= 55.f) { GoTo(FVector(75.f, 0.f, -55.f), FVector(75.f, 12.f, 0.f)); Look(14.f); }
+			if (Before < 63.f && ShotClock >= 63.f) FScreenshotRequest::RequestScreenshot(TEXT("RoofAcross"), false, false);
+			if (Before < 64.f && ShotClock >= 64.f) { GoTo(FVector(30.f, 0.f, -30.f), FVector(90.f, 12.f, 10.f)); Look(16.f); }
+			if (Before < 72.f && ShotClock >= 72.f) FScreenshotRequest::RequestScreenshot(TEXT("RoofSide"), false, false);
+			if (Before < 75.f && ShotClock >= 75.f) FGenericPlatformMisc::RequestExit(false);
 		}
 		// -UIQuit: the title screen's gear (Unreal's Settings over the menus, a picture), then its Exit (the game must quit)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIQuit")) && Browser.IsValid())
@@ -1083,7 +1099,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 96.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are
