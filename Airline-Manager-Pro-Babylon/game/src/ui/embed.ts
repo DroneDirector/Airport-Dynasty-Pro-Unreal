@@ -172,7 +172,7 @@ if (EMBED) {
       // the weather where the 3D viewer is: the nearest real airport report (asked for if not yet fetched)
       try {
         const lon = d.lon, lat = d.lat, seen: any = {};
-        for (const [dx, dy] of [[0, 0], [0.9, 0], [-0.9, 0], [0, 0.6], [0, -0.6]]) { const k = World.nearest(lon + dx, lat + dy, 120); if (k && !seen[k]) { seen[k] = 1; LiveWx.get(k); } }
+        for (const [dx, dy] of [[0, 0], [0.9, 0], [-0.9, 0], [0, 0.6], [0, -0.6], [1.8, 0], [-1.8, 0], [0, 1.2], [0, -1.2], [1.3, 0.9], [-1.3, 0.9], [1.3, -0.9], [-1.3, -0.9]]) { const k = World.nearest(lon + dx, lat + dy, 120); if (k && !seen[k]) { seen[k] = 1; LiveWx.get(k); } }
         const list = cloudStations(lon, lat, 160), st = cloudNearest(list, lon, lat, 160);
         if (!st) embedTell('wx', { none: true });
         else {
@@ -181,7 +181,10 @@ if (EMBED) {
           const ls = st.layers.filter(l => CLOUD_COV[l.cover]), cover = ls.reduce((a, l) => Math.max(a, CLOUD_COV[l.cover]), 0);
           const low = ls.map(l => +l.base).sort((a, b) => a - b)[0], cb = st.layers.some(l => l.type === 'CB'), tcu = st.layers.some(l => l.type === 'TCU');
           embedTell('wx', { icao, raw: m ? m.raw : '', cover, base: low == null ? 0 : low, elev: st.elev || 0, cb, tcu, precip: pr && !pr.vc ? pr.kind : '', k: pr ? pr.k : 0, ts: !!(pr && pr.ts), vc: !!(pr && pr.vc),
-            dir: m ? m.dir : -1, kt: m ? m.kt : 0, gust: m ? m.gust : 0, vis: m ? m.vis : '', temp: st.temp, wx: st.wx || '' });
+            dir: m ? m.dir : -1, kt: m ? m.kt : 0, gust: m ? m.gust : 0, vis: m ? m.vis : '', temp: st.temp, wx: st.wx || '',
+            // every station round about where it is raining or snowing, so the 3D view shows where it falls
+            shafts: list.map((s: any) => { const p = cloudPrecip(s.wx || ''); if (!p || p.vc || !p.kind) return null; const ls2 = s.layers.filter((l: any) => CLOUD_COV[l.cover]), lo = ls2.map((l: any) => +l.base).sort((a: number, b: number) => a - b)[0];
+              return { lon: s.pos[0], lat: s.pos[1], elev: s.elev || 0, base: lo == null ? 2500 : lo, kind: p.kind, k: p.k, ts: !!p.ts }; }).filter(Boolean).slice(0, 16) });
         }
       } catch (err) { embedTell('wx', { none: true }); }
     }

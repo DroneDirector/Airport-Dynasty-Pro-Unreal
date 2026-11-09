@@ -26,6 +26,8 @@ const World = {
         const a: WorldAirport = { icao: r[0], name: r[1] || r[0], city: r[2] || r[1] || r[0], country: this.countries[r[3]] || r[3] || '', pos: [r[5], r[4]], elev: r[6], size: r[7], iata: r[8] || '', sched: !!r[9] };
         this.list.push(a); this.by[a.icao] = a;
       }
+      // your own airports (made up, not in OurAirports' list): on the map and in every list, with their code
+      try { for (const r of OWN_AIRPORT_LIST) { const o: any = AIRPORTS[r[0]]; if (o && !this.by[r[0]]) { this.list.push(o); this.by[r[0]] = o; } } } catch (e) { /* none */ }
       // airports saved earlier with only their code (from routes or the simulator) get their names
       for (const k of Object.keys(AIRPORTS)) { const x = AIRPORTS[k], w = this.by[k]; if (w && x.name === k) { x.name = w.name; x.city = w.city; x.country = w.country; } }
       this.ready = true;

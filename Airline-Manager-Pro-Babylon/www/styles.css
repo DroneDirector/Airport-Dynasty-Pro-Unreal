@@ -353,6 +353,9 @@ body.photo-on .wd-top, body.photo-on .site-moves, body.photo-on .holomap { displ
 .sky-map::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(120,210,255,.05) 0 1px, transparent 1px 3px); mix-blend-mode: screen; }
 @media (pointer: coarse) { .sky-map { width: 150px; height: 150px; } }
 .v3d.live .v3d-views, .v3d.live .v3d-time, .v3d.live .v3d-wxchip, .v3d.live .v3d-site, .v3d.live .v3d-rwx, .v3d.live .v3d-info, .v3d.live .v3d-photo, .v3d.live .v3d-credit { display: none !important; }
+.sky-big { position: fixed; inset: 0; z-index: 40; background: #030C1A; }
+.sky-big canvas { width: 100%; height: 100%; display: block; touch-action: none; }
+.sky-big-bar { position: absolute; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: 8px; }
 .v3d-cams .wx-b.on { box-shadow: 0 0 0 2px #5FD6FF inset; }
 body.photo-on .v3d-cams, body.photo-on .sky-map, body.photo-on .v3d-clean-b { display: none !important; }
 .wd-world .holomap { left: max(14px, env(safe-area-inset-left)) !important; right: auto !important; top: auto !important; bottom: calc(max(14px, env(safe-area-inset-bottom)) + 40px) !important; }

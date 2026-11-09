@@ -144,6 +144,8 @@ const SimProcedures = {
   data: {} as { [icao: string]: SimProcs | false },
   asked: {} as { [icao: string]: boolean },
   get(icao: string): SimProcs {
+    // your own airport: its own (made-up) departures, arrivals and approaches, never the simulator's
+    try { if (isOwnAirport(icao)) { const o = OwnProcs.get(icao); if (o) { this.src[icao] = 'own'; return o; } } } catch (e) { /* not yet */ }
     const d = this.data[icao]; if (d) return d; if (d === false) { const b = BundledProcs.get(icao); if (b) { this.src[icao] = 'faa'; return b; } const g = BundledProcs.index && !BundledProcs.index[icao] ? NavProcs.get(icao) : null; if (g) this.src[icao] = 'nav'; return g; }
     try { const k = JSON.parse(localStorage.getItem('amp-proc:' + icao) || 'null'); if (k && k.l) { this.src[icao] = 'sim'; return (this.data[icao] = k.l); } } catch (e) { /* none */ }
     this.ask(icao);
@@ -261,6 +263,50 @@ const NavProcs = {
     this.data[icao] = out; return out;
   },
 };
+
+// #region ── Your own airport's procedures (made up, behaving like real ones) ──
+/** Mýrdalssandur (BIAP) has no published procedures, so it has its own: fixes with their own five-letter names round
+ *  the field, departures (SIDs) named after the fix they end at (KATLA1D…), arrivals (STARs) from each fix (KATLA1A…)
+ *  and an ILS approach for each runway end with its own intermediate and final approach fixes. They keep clear of the
+ *  ice cap and the volcanoes to the north: departures towards the north climb straight ahead to 5,000 ft before
+ *  turning, arrivals from the north come in over the sands to the south-east at 5,000 ft before the approach. Flights
+ *  to and from your airport fly them like any published procedure, and they are shown with the airport. */
+const OWN_FIXES: { [icao: string]: [string, number, number, number][] } = {   // name, bearing °, distance nm, lowest altitude ft
+  BIAP: [['KATLA', 40, 28, 9000], ['JOKUL', 10, 40, 11000], ['HEKLA', 330, 45, 10000], ['SKOGR', 280, 30, 7000], ['ALDAN', 200, 35, 5000], ['OLDUR', 140, 35, 5000], ['KUDAF', 90, 32, 6000]],
+};
+const OWN_APP_FIXES: { [icao: string]: { [rwy: string]: [string, string] } } = { BIAP: { '26': ['ESKRA', 'FLAGA'], '08': ['DYRHO', 'REYNI'] } };
+const OwnProcs = {
+  data: {} as { [icao: string]: SimProcs },
+  get(icao: string): SimProcs {
+    if (this.data[icao]) return this.data[icao];
+    const A: any = apt(icao), F = OWN_FIXES[icao]; if (!A || !F) return null;
+    const ends = runwayEnds(icao); if (!ends.length) return null;
+    const elevM = (A.elev || 0) * 0.3048, ft = (f: number) => Math.round(elevM + f * 0.3048), abs = (f: number) => Math.round(f * 0.3048);
+    const leg = (t: number, fix: string, p: number[], alt?: number, crs?: number): SimLeg => ({ t, fix, lat: p ? p[1] : 0, lon: p ? p[0] : 0, alt: alt || 0, crs: crs || 0, dist: 0, turn: 0 });
+    const north = (b: number) => b >= 300 || b <= 60, sands = geoDest(A.pos, 120, 14);
+    const sids: SimProc[] = [], stars: SimProc[] = [], apps: SimProc[] = [];
+    for (const [id, brg, d, minFt] of F) {
+      const pos = geoDest(A.pos, brg, d);
+      sids.push({ name: id + '1D', kind: 'sid', common: [leg(7, id, pos, abs(minFt))],
+        runways: ends.map(e => ({ name: 'RW' + e.name, rwy: e.name, legs: north(brg) ? [leg(2, '', null, ft(5000), e.hdg)] : [leg(2, '', null, ft(1500), e.hdg)] })), enroute: [] });
+      stars.push({ name: id + '1A', kind: 'star', common: north(brg) ? [leg(15, id, pos, abs(minFt)), leg(18, 'SANDR', sands, ft(5000))] : [leg(15, id, pos, abs(minFt))],
+        runways: ends.map(e => {
+          const back = (e.hdg + 180) % 360, names = (OWN_APP_FIXES[icao] || {})[e.name] || ['CI' + e.name, 'FF' + e.name], ci = geoDest(e.thr, back, 10), from = north(brg) ? sands : pos, inb = geoBrg(from, ci), off = angDiff(e.hdg, inb), legs: SimLeg[] = [];
+          if (Math.abs(off) > 70) { const side = off > 0 ? -1 : 1; legs.push(leg(18, '', geoDest(geoDest(e.thr, (e.hdg + 90 * side + 360) % 360, 6), back, 4), ft(4000))); }
+          legs.push(leg(18, names[0], ci, ft(3000)));
+          return { name: 'RW' + e.name, rwy: e.name, legs };
+        }), enroute: [] });
+    }
+    for (const e of ends) {
+      const back = (e.hdg + 180) % 360, names = (OWN_APP_FIXES[icao] || {})[e.name] || ['CI' + e.name, 'FF' + e.name];
+      const l1 = leg(15, names[0], geoDest(e.thr, back, 10), ft(3000)), l2 = leg(4, names[1], geoDest(e.thr, back, 5.5), ft(1800), e.hdg), l3 = leg(4, 'RW' + e.name, e.thr, ft(50), e.hdg);
+      l1.role = 'B'; l2.role = 'F'; l3.role = 'M'; l1.ad = '+'; l2.ad = '+';
+      apps.push({ name: 'I' + e.name, kind: 'app', type: 4, suffix: '', rwy: e.name, common: [l1, l2, l3], runways: [], enroute: [] });
+    }
+    return (this.data[icao] = { icao, sids, stars, apps });
+  },
+};
+// #endregion
 
 /** A leg as the file has it ([type, fix, lat, lon, alt, course, distance, turn, arc lat, arc lon, rule, alt 2, speed, role]) to a SimLeg. */
 function bundledLeg(a: any[]): SimLeg {

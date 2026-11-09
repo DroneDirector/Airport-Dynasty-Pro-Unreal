@@ -54,6 +54,7 @@
     "src/core/special-days.ts",
     "src/core/ai-sim.ts",
     "src/core/procedures.ts",
+    "src/core/atc-ai.ts",
     "src/core/delays.ts",
     "src/core/failures.ts",
     "src/graphics/land.ts",

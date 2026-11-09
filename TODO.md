@@ -10,3 +10,5 @@
   the stick and look layer lies over the 3D view, so the view itself never gets the taps. Fix: listen for the double
   tap on the whole page while the UI is hidden.
 - [x] **Fix first on Monday: the 3D view of a flight is black** (fixed in 0.4.5: the map overwrote the sky) (since 0.4.1, still in 0.4.4; worked in 0.4.0). Changed in 0.4.1: skymap.ts, the clean layout CSS (.v3d.live), Hide UI listeners, groundAt and the terrain awareness (aware/safeAware in viewer3d/index.ts). Also black in the cruise, after take-off, so not the ground or mountains. Check the console first, then undo one change at a time.
+- [ ] **Security cameras** (waiting for the screenshots of where they go): feeds in your office and the security office, live people, one feed in full detail at a time.
+- [ ] **The ATC tower 3D model** (PC, airport mode) when the custom model is supplied.

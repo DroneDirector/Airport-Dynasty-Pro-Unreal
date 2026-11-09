@@ -82,11 +82,14 @@ function lifeDecide(evId: string, opt: string) {
     else { const donor = (fleetOf(cid) as any[]).filter(a => a.reg !== d.reg && a.status === 'parked' && a.location === c.hub)[0]; hold(d.reg, 3, `${d.part} taken from ${donor ? donor.reg : 'another aircraft'}`); if (donor) hold(donor.reg, 24, `${d.part} given to ${d.reg}; waiting for a new one`); out = donor ? `${d.reg} flies in 3 hours; ${donor.reg} is grounded for a day.` : `${d.reg} flies in 3 hours.`; }
   } else if (e.kind === 'vip') {
     if (opt === 'yes') {
-      const ok = Math.random() < 0.85;
-      payTxn(cid, `VIP charter ${c.hub}–${d.to}`, d.pay, 'charter', [[`Charter for ${d.who}`, d.pay]]);
-      try { Progress.popularity(ok ? 1.2 : -1.5, ok ? 'A VIP charter that went well' : 'A VIP charter that went badly'); } catch (er) { /* none */ }
-      try { newsPost(c, c.hub, { section: 'Aviation', headline: ok ? `${c.name} flies ${d.who} to ${d.to}` : `Delays for ${d.who} on ${c.name} charter`, standfirst: ok ? 'On time and in style, said the passengers.' : 'A two-hour wait at the gate did not go down well.', body: [`${c.name} took the charter at a day's notice.`] } as any); } catch (er) { /* none */ }
-      out = ok ? `${money(d.pay)} earned, and good press.` : `${money(d.pay)} earned, but the flight was late and the press noticed.`;
+      // the charter is really flown: the trip there and the trip home go on the Jobs board as two charters for
+      // you to fly or give to a hired pilot; each is paid when it reaches the gate, and the group's verdict
+      // (and the newspapers) come after the flights, on time or late
+      const A = apt(c.hub), B = apt(d.to), nm = A && B ? Math.round(gcDistanceNm(A.pos, B.pos)) : 800, pax = 40, out1 = Math.round(d.pay * 0.6 / 1000) * 1000;
+      const mk = (from: string, to: string, pay: number, leaveH: number, legName: string) => ({ id: 'job-' + uid(), companyId: cid, kind: 'pax', title: `VIP charter: ${d.who} (${legName})`, client: d.who, from, to, pax, kg: 0, pay, nm,
+        posted: now, expires: now + (leaveH + 30) * 3600e3, due: now + (leaveH + 30) * 3600e3, status: 'open', vip: { who: d.who, leg: legName } });
+      try { jobsState().list.unshift(mk(c.hub, d.to, out1, 18, 'there') as any, mk(d.to, c.hub, d.pay - out1, 66, 'home') as any); } catch (er) { /* none */ }
+      out = `Two charters are on your Jobs board: ${c.hub} to ${d.to} (by tomorrow) and home again two days later. Fly them yourself or give them to a hired pilot; ${money(d.pay)} in all is paid as the flights reach the gate, and the press will judge how it went.`;
     } else out = 'They found another airline.';
   } else if (e.kind === 'viral') {
     if (opt === 'honour') { payTxn(cid, 'Mistake fare honoured', -180000, 'marketing', [['About 900 tickets at the mistake fare', -180000]]); try { Progress.popularity(2.5, 'Honoured a mistake fare'); } catch (er) { /* none */ } out = 'Your goodwill is the talk of the internet.'; }

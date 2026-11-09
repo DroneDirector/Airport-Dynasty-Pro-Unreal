@@ -263,6 +263,11 @@ noticesAt(Date.now());
       payTxn(j.companyId, `Late delivery: ${j.title}`, -cut, 'charter', [[`${j.client} takes 30% off for the late delivery`, -cut]], at);
     } else { j.status = 'done'; try { Progress.popularity(0.5, 'A charter delivered on time'); } catch (e) { /* ignore */ } }
     const who = j.by === 'you' ? 'You' : (pilot(j.by) || { name: 'Your pilot' } as any).name;
+    // a VIP charter: the group's verdict and the newspapers, once the flight is in
+    const vip = (j as any).vip; if (vip) { const ok = j.status === 'done', c: any = company(j.companyId);
+      try { Progress.popularity(ok ? 1.2 : -1.5, ok ? 'A VIP charter that went well' : 'A VIP charter that went badly'); } catch (e) { /* ignore */ }
+      try { newsPost(c, j.to, { section: 'Aviation', headline: ok ? `${c.name} flies ${vip.who} ${vip.leg === 'home' ? 'home from' : 'to'} ${vip.leg === 'home' ? j.from : j.to}` : `Delays for ${vip.who} on ${c.name} charter`, standfirst: ok ? 'On time and in style, said the passengers.' : 'A long wait did not go down well.', body: [`${c.name} flew the group ${j.from} to ${j.to}.`] } as any); } catch (e) { /* ignore */ }
+      State.notices.unshift({ id: uid(), kind: 'company', title: `${vip.who}: ${ok ? 'a happy group' : 'not impressed'}`, body: ok ? `"Smooth, on time and well looked after," they said after ${j.from} to ${j.to}.` : `"We waited far too long," they said after ${j.from} to ${j.to}.`, time: 'Now', read: false } as any); }
     State.notices.unshift({ id: uid(), kind: 'company', title: `${j.status === 'late' ? 'Delivered late' : 'Job done'}: ${j.title}`, body: `${who} flew ${j.from} to ${j.to} for ${j.client}. ${money(j.pay)}${j.status === 'late' ? ' less 30% for being late' : ''}.`, time: 'Now', read: false, tx: txId } as any);
     try { Online.discord('jobs', `Job done: ${j.title}`, `${who} flew ${j.from} → ${j.to} for ${j.client}. ${money(j.pay)}.`); } catch (e) { /* ignore */ }
   },

@@ -38,6 +38,8 @@ Where everything is, in plain words: every folder and file of the game and what 
 - `splash.ts`: The start screen of the Babylon.js edition:
 - `whats-new.ts`: What's new:
 
+- `src/data/world-land.ts`: The world's land and inland water as the game's own simplified outlines, for the holographic maps.
+
 ### `src/sections/`: The 3D places, one folder each
 
 - **`src/sections/building/`**
@@ -110,12 +112,14 @@ Where everything is, in plain words: every folder and file of the game and what 
   - `stars.ts`: Bright stars (to magnitude 5.6):
   - `terrain.ts`: The real ground under the flight in the 3D viewer:
 - **`src/sections/world/`**
+  - `vegetation.ts`: Grass, trees and ground detail while walking in the world (where things grow, from the satellite picture's colours).
   - `index.ts`: Walking anywhere in the world, opened from the world map (the walking man under the 3D button, then "Place in world"):
 
 ### `game/src/`: The game's whole 2D interface and simulation (the Overview, fleet, crew, map, economy)
 
 - `main.ts`: Start-up:
 - **`game/src/core/`**
+  - `atc-ai.ts`: Air traffic control for the AI flights: radio calls with every airport's units, one runway clearance at a time.
   - `ai-sim.ts`: Hired pilots fly on the real clock.
   - `airline-life.ts`: Airline life:
   - `alliances.ts`: Airline alliances:

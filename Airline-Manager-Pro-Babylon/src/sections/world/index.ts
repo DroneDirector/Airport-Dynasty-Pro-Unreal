@@ -11,6 +11,7 @@ import { IS_TOUCH } from '../../core/app';
 import { toast, esc } from '../../ui/icons';
 import { buildTerrain, groundAt, Terrain } from '../viewer3d/terrain';
 import { holoMap } from '../../ui/holomap';
+import { vegetation, groundDetail } from './vegetation';
 import { makePhotoMode } from '../viewer3d/photo';
 import { savePhoto } from '../../core/photo';
 import { loadingShow, loadingProgress, loadingHide } from '../../ui/loading';
@@ -44,15 +45,19 @@ const World$: Section = {
 
     // the ground round the spot; the loading screen stays until its heights and its satellite pictures are in
     progress(12, 'Loading the ground…');
-    const T: Terrain = buildTerrain(sc, lat, lon); O.T = T; T.root.position.set(0, 0, 0);
-    // walking: the ground drawn from both sides, so it is always there under your feet
-    for (const m of T.mats) { m.backFaceCulling = false; m.twoSidedLighting = true; }
+    // the ground: far round you as in the 3D view (about 37 m between height points), and close round you (about
+    // 12 km across) four times finer, heights and satellite picture both; the far ground sits a few metres lower
+    // under the near one. Drawn from both sides, so it is always there under your feet.
+    const T: Terrain = buildTerrain(sc, lat, lon); O.T = T; T.root.position.set(0, -4, 0);
+    const TN: Terrain = buildTerrain(sc, lat, lon, undefined, 13); O.TN = TN; TN.root.position.set(0, 0, 0);
+    for (const m of [...T.mats, ...TN.mats]) { m.backFaceCulling = false; m.twoSidedLighting = true; }
+    O.gd = groundDetail(sc, TN.mats, 40075016 * Math.cos(lat * Math.PI / 180) / 8192);
     const t0 = performance.now();
     await new Promise<void>(done => { const iv = setInterval(() => {
-      const tiles = T.tiles.length || 25, pics = T.mats.filter(m => m.albedoTexture && m.albedoTexture.isReady()).length;
-      progress(12 + Math.round(80 * (T.ready + pics) / (tiles * 2)), T.ready < tiles ? 'Loading the ground…' : 'Loading the satellite pictures…');
+      const tiles = (T.tiles.length || 25) + (TN.tiles.length || 25), ready = T.ready + TN.ready, pics = [...T.mats, ...TN.mats].filter(m => m.albedoTexture && m.albedoTexture.isReady()).length;
+      progress(12 + Math.round(80 * (ready + pics) / (tiles * 2)), ready < tiles ? 'Loading the ground…' : 'Loading the satellite pictures…');
       const waited = performance.now() - t0;
-      if ((T.ready >= tiles && pics >= tiles) || (T.ready >= tiles && waited > 20000) || waited > 45000 || sc.isDisposed) { clearInterval(iv); done(); } }, 200); });
+      if ((ready >= tiles && pics >= tiles) || (ready >= tiles && waited > 20000) || waited > 45000 || sc.isDisposed) { clearInterval(iv); done(); } }, 200); });
     if (sc.isDisposed) return;
     progress(96, 'Placing avatar in world…');
 
@@ -60,9 +65,10 @@ const World$: Section = {
     const kx = 111320 * Math.cos(lat * D2R), kz = 110540;
     // the drawn surface's own height (never the finer picture under it, which can lie metres above or below a slope);
     // the highest of a few points round your feet, so a slope never comes up through them
-    const surf = (x: number, z: number) => { const h = groundAt(lat + z / kz, lon + x / kx); return (h == null ? 0 : h) - (x * x + z * z) / (2 * R) - 1.2; };
+    const surf = (x: number, z: number) => { const la = lat + z / kz, lo = lon + x / kx, hn = groundAt(la, lo, 13), h = hn != null ? hn : groundAt(la, lo); return (h == null ? 0 : h) - (x * x + z * z) / (2 * R) - 1.2; };
     const ground = (x: number, z: number) => Math.max(surf(x, z), surf(x + 0.3, z), surf(x - 0.3, z), surf(x, z + 0.3), surf(x, z - 0.3));
     const F = { x: 0, z: 0, yaw: 0, pitch: -0.05, v: 0, bob: 0 }; O.F = F;
+    O.veg = vegetation(sc, lat, lon, ground);
     const sea = (T.heightAt(lat, lon) ?? 0) <= 0;
 
     const hud = document.createElement('div'); hud.className = 'hud wd-world';
@@ -123,6 +129,7 @@ const World$: Section = {
         const st = F.v * dt, nx = F.x + mx * st, nz = F.z + mz * st;
         if (Math.hypot(nx, nz) < REACH) { F.x = nx; F.z = nz; } F.bob += st; }
       // your feet: on the ground, or falling onto it (a short drop when you are placed, or off a step)
+      if (O.veg) O.veg.frame(F.x, F.z, dt);
       const gy0 = ground(F.x, F.z); if (W.fy > gy0 + 0.02) { W.fv -= 9.81 * dt; W.fy = Math.max(gy0, W.fy + W.fv * dt); } else { W.fy = gy0; W.fv = 0; }
       const gy = W.fy;
       cam.position.set(F.x, gy + W.eye + W.jy + Math.sin(F.bob / 0.65 * Math.PI) * 0.015 * Math.min(1, F.v / 1.1), F.z);
@@ -136,9 +143,9 @@ const World$: Section = {
     if (O.kd) window.removeEventListener('keydown', O.kd); O.kd = null;
     try { if (O.rec) O.rec.stop(); } catch (e) { /* stopped */ } document.body.classList.remove('ui-off', 'photo-on'); O.ctx.canvas.style.filter = '';
     try { O.ctx.canvas.removeEventListener('dblclick', O.dbl); document.removeEventListener('pointerup', O.tap, true); document.removeEventListener('dblclick', O.dbl, true); } catch (e) { /* gone */ }
-    if (O.hud) O.hud.remove(); try { O.T && O.T.dispose(); } catch (e) { /* gone */ } sc.dispose(); O.scene = null;
+    if (O.hud) O.hud.remove(); try { if (O.veg) O.veg.dispose(); if (O.gd) O.gd.dispose(); O.veg = O.gd = null; O.T && O.T.dispose(); O.TN && O.TN.dispose(); } catch (e) { /* gone */ } sc.dispose(); O.scene = null;
   },
-  onSettings(what: string) { apply(what === 'preset' ? 'all' : what); },
+  onSettings(what: string) { apply(what === 'preset' ? 'all' : what); if (O.gd) O.gd.set(!!S.gfx.groundDetail); },
 };
 registerSection(World$);
 export {};

@@ -2,7 +2,7 @@
 // half minute. It sets the cloud cover, the cloud base and how deep the layer is, darkens the light under heavy cloud
 // and storms, blows the clouds with the reported wind, and below the cloud base brings rain or snow round the camera
 // and, in a thunderstorm, lightning with its flash and thunder. A chip on the screen shows the station and the report.
-import { Scene, Vector3, Color3, Color4, Mesh, MeshBuilder, StandardMaterial, ParticleSystem, DynamicTexture, Camera } from '@babylonjs/core';
+import { Scene, Vector3, Color3, Color4, Mesh, MeshBuilder, StandardMaterial, ParticleSystem, DynamicTexture, Camera, Texture } from '@babylonjs/core';
 import { gameSend, onGameWx } from '../../ui/game-frame';
 import { IS_PC } from '../../core/app';
 
@@ -12,10 +12,45 @@ let last: any = null;
 let subscribed = false;
 const listeners: ((d: any) => void)[] = [];
 
+// #region ── Where it rains and snows: curtains under the clouds, seen from far off ──
+/** Rain and snow as you see them from a distance: a grey curtain hanging from the cloud base to the ground at every
+ *  real station round about that reports it falling (up to 16, within about 160 km), wider and denser the harder it
+ *  falls, the streaks running down; snow paler and softer. Where nothing is reported falling, nothing is drawn. */
+function makeShafts(sc: Scene) {
+  const tex = (snow: boolean) => { const t = new DynamicTexture(snow ? 'snowCurtain' : 'rainCurtain', { width: 128, height: 256 }, sc, true), c = t.getContext() as CanvasRenderingContext2D; c.clearRect(0, 0, 128, 256);
+    for (let i = 0; i < (snow ? 900 : 420); i++) { const x = Math.random() * 128, y = Math.random() * 256, a = 0.15 + Math.random() * 0.35; c.fillStyle = snow ? `rgba(240,244,250,${a})` : `rgba(190,200,215,${a})`;
+      if (snow) { c.beginPath(); c.arc(x, y, 0.8 + Math.random() * 1.2, 0, Math.PI * 2); c.fill(); } else c.fillRect(x, y, 1, 10 + Math.random() * 22); }
+    t.hasAlpha = true; t.update(); t.wrapU = t.wrapV = Texture.WRAP_ADDRESSMODE; return t; };
+  const mats = [false, true].map(snow => { const m = new StandardMaterial(snow ? 'snowShaftM' : 'rainShaftM', sc); const t = tex(snow); m.diffuseTexture = t; m.opacityTexture = t; m.emissiveColor = snow ? new Color3(0.85, 0.88, 0.92) : new Color3(0.55, 0.6, 0.68);
+    m.disableLighting = true; m.backFaceCulling = false; m.alpha = 0.55; m.fogEnabled = true; return m; });
+  const pool: Mesh[] = [];
+  let list: any[] = [];
+  return {
+    set(l: any[]) { list = Array.isArray(l) ? l : []; },
+    frame(o: { lat: number; lon: number; alt: number }, t: number) {
+      const kx = 111320 * Math.cos(o.lat * Math.PI / 180), kz = 110540;
+      for (const [i, m] of mats.entries()) { const tx = m.diffuseTexture as Texture; tx.vOffset = (t * (i ? 0.06 : 0.9)) % 1; tx.uScale = i ? 6 : 10; tx.vScale = i ? 3 : 4; }
+      let n = 0;
+      for (const s of list) {
+        const x = (s.lon - o.lon) * kx, z = (s.lat - o.lat) * kz, d = Math.hypot(x, z); if (d > 170000) continue;
+        const bottom = (s.elev || 0) - 30, top = Math.max(bottom + 400, (s.elev || 0) + (s.base || 2500) * 0.3048), h = top - bottom, r = 2500 + 3500 * Math.min(1, s.k || 0.5);
+        let m = pool[n]; if (!m) { m = MeshBuilder.CreateCylinder('shaft', { height: 1, diameterTop: 1, diameterBottom: 1.25, tessellation: 24, cap: Mesh.NO_CAP }, sc); m.isPickable = false; m.renderingGroupId = 1; pool[n] = m; }
+        m.material = mats[s.kind === 'sn' ? 1 : 0]; m.visibility = Math.min(1, 0.35 + 0.65 * (s.k || 0.5)) * (s.ts ? 1.15 : 1);
+        m.scaling.set(r * 2, h, r * 2); m.position.set(x, bottom + h / 2 - o.alt, z); m.setEnabled(true); n++;
+      }
+      for (let i = n; i < pool.length; i++) pool[i].setEnabled(false);
+    },
+    dispose() { pool.forEach(m => m.dispose()); mats.forEach(m => { if (m.diffuseTexture) m.diffuseTexture.dispose(); m.dispose(); }); },
+  };
+}
+// #endregion
+
 export function makeRealWx(sc: Scene, cam: () => Camera, hud: HTMLElement): RealWx {
   if (!subscribed) { subscribed = true; onGameWx(d => { for (const f of listeners) f(d); }); }
   const S: any = { rep: null as any, on: true, ask: 0, cover: 0.82, base: 2100, top: 5600, dark: 0, rain: 0, snow: 0, bolt: 0, next: 6, bolts: [] as { m: Mesh; t: number }[] };
-  const got = (d: any) => { S.rep = d && !d.none ? d : null; last = S.rep; };
+  const SH = makeShafts(sc), T0 = performance.now();
+  const shafts = (o: { lat: number; lon: number; alt: number }) => SH.frame(o, (performance.now() - T0) / 1000);
+  const got = (d: any) => { S.rep = d && !d.none ? d : null; last = S.rep; SH.set(S.on && S.rep ? S.rep.shafts : []); };
   listeners.push(got); if (last) S.rep = last;
 
   // rain and snow round the camera: particles that move with it (so they still fall past a moving aircraft)
@@ -54,6 +89,7 @@ export function makeRealWx(sc: Scene, cam: () => Camera, hud: HTMLElement): Real
   const api: RealWx = {
     get cover() { return S.cover; }, get base() { return S.base; }, get top() { return S.top; }, get dark() { return S.dark; },
     frame(dt, o) {
+      shafts(o);
       S.ask -= dt; if (S.ask <= 0) { S.ask = S.rep ? 30 : 8; gameSend({ ampb: 'wx', lat: o.lat, lon: o.lon }); }
       const r = S.on ? S.rep : null;
       // what the report says, eased in so a new report changes the sky gently
@@ -85,9 +121,9 @@ export function makeRealWx(sc: Scene, cam: () => Camera, hud: HTMLElement): Real
       if (r.wx) parts.push(r.wx); if (r.dir >= 0 && r.kt) parts.push(`${String(r.dir).padStart(3, '0')}°/${r.kt}${r.gust ? 'G' + r.gust : ''} kt`); if (typeof r.temp === 'number' && !isNaN(r.temp)) parts.push(`${Math.round(r.temp)}°C`);
       return parts.join(' · ');
     },
-    toggle() { S.on = !S.on; S.ask = 0; return S.on; },
+    toggle() { S.on = !S.on; S.ask = 0; SH.set(S.on && S.rep ? S.rep.shafts : []); return S.on; },
     on() { return S.on; },
-    dispose() { const i = listeners.indexOf(got); if (i >= 0) listeners.splice(i, 1); try { rain.dispose(); snow.dispose(); em.dispose(); } catch (e) { /* gone */ } for (const b of S.bolts) b.m.dispose(); if (actx) actx.close().catch(() => { /* gone */ }); },
+    dispose() { const i = listeners.indexOf(got); if (i >= 0) listeners.splice(i, 1); try { SH.dispose(); } catch (e) { /* gone */ } try { rain.dispose(); snow.dispose(); em.dispose(); } catch (e) { /* gone */ } for (const b of S.bolts) b.m.dispose(); if (actx) actx.close().catch(() => { /* gone */ }); },
   };
   return api;
 }

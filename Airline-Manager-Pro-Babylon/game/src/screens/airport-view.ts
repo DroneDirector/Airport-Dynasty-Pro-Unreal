@@ -906,7 +906,9 @@ class AirportView {
     const away: any = this.track && !this.planes.some(p => p.id === this.track) ? State.live.filter(f => f.id === this.track)[0] : null;
     const awayHtml = away ? `<div class="apv-row away"><b>${esc(away.callsign)}</b><small>${esc(away.phase || 'Flying')}, ${away.from === this.icao ? 'has left ' + esc(this.icao) : away.to === this.icao ? 'on its way here' : 'not coming here'}${away.to === this.icao && Math.round((away.left || 0)) ? ' · ' + num(away.left) + ' nm to go' : ''}</small></div>` : '';
     el.innerHTML = awayHtml + (moving.length ? moving.map(p => `<button class="apv-row ${p.id === this.track ? 'on' : ''} ${p.you ? 'you' : ''}" data-act="apv-track" data-id="${esc(p.id)}"><b>${esc(p.label)}</b><small>${esc(p.phase)}${p.kt ? ` · ${p.kt} kt` : ''}${p.alt > 50 ? ` · ${num(p.alt)} ft` : ''}</small></button>`).join('')
-      : `<p class="fine-print">No arrivals or departures right now.${this.planes.length ? ` ${this.planes.length} of your aircraft parked here.` : ''}</p>`);
+      : `<p class="fine-print">No arrivals or departures right now.${this.planes.length ? ` ${this.planes.length} of your aircraft parked here.` : ''}</p>`)
+      // the radio: the newest calls between the airport's units and the flights using it
+      + (() => { const L = typeof atcLog === 'function' ? atcLog(this.icao, 8) : []; return L.length ? `<div class="apv-radio"><b class="apv-radio-h">Radio</b>${L.map(l => `<div class="apv-rl ${l.who}"><small>${esc(l.who === 'atc' ? l.unit : l.cs)}</small>${esc(l.text)}</div>`).join('')}</div>` : ''; })();
   }
 
   /* ---------- touch and mouse ---------- */

@@ -307,7 +307,7 @@ function plRouteHtml(P: FlightPlanR): string {
  *  assigned, with the wind along each, and the departure, arrival and approach the flights then fly. */
 function plRwyHtml(P: FlightPlanR): string {
   const path: FlightPath = PlannerUi.path, RR = routeRunways(P.from, P.to);
-  const SRC: any = { faa: 'published (FAA)', sim: 'published (Flight Simulator)', nav: 'built from the navaids around it' };
+  const SRC: any = { faa: 'published (FAA)', sim: 'published (Flight Simulator)', nav: 'built from the navaids around it', own: 'your airport\'s own (made up)' };
   const side = (icao: string, k: 'depRwy' | 'arrRwy', title: string) => {
     const ends = runwayEnds(icao), act = activeRunway(icao), cur = (P as any)[k] || '', use = k === 'depRwy' ? RR.dep : RR.arr;
     const wtxt = (r: RunwayEnd) => { const w = runwayWind(r); return w.kt < 1 ? 'calm' : w.head >= 0 ? `head ${w.head} kt` : `tail ${-w.head} kt`; };

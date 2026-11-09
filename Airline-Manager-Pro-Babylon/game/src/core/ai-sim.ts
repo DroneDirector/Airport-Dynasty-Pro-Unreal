@@ -116,6 +116,7 @@ function aiAnnounce(f: LiveFlight) {
   const F: any = f, was = _aiLastPh.get(f.id);
   _aiLastPh.set(f.id, f.phase);
   if (!was || was === f.phase) return;
+  try { atcStep(f, was, f.phase); } catch (e) { /* the radio is quiet */ }
   const p = pilot(f.pilotId), who = p ? p.name : f.callsign, A = apt(f.from), B = apt(f.to);
   const mins = (s: number) => Math.max(1, Math.round(s / 60)), minTxt = (s: number) => mins(s) + (mins(s) === 1 ? ' minute' : ' minutes');
   const fl = f.alt >= 18000 ? 'FL' + Math.round(f.alt / 100) : num(Math.round(f.alt / 100) * 100) + ' ft';
