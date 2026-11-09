@@ -1,0 +1,87 @@
+// Sets up the terminal test when play starts: sun, sky, fog, the grey-box terminal, the crowd test and
+// the player standing at the plan's spawn point.
+#include "ADPGameMode.h"
+#include "ADPWalker.h"
+#include "TerminalBuilder.h"
+#include "CrowdTest.h"
+#include "Engine/World.h"
+#include "Engine/DirectionalLight.h"
+#include "Engine/SkyLight.h"
+#include "Engine/ExponentialHeightFog.h"
+#include "Engine/PostProcessVolume.h"
+#include "Components/DirectionalLightComponent.h"
+#include "Components/SkyLightComponent.h"
+#include "Components/SkyAtmosphereComponent.h"
+#include "GameFramework/PlayerStart.h"
+#include "Kismet/GameplayStatics.h"
+
+#pragma region Setup
+
+AADPGameMode::AADPGameMode()
+{
+	DefaultPawnClass = AADPWalker::StaticClass();
+}
+
+void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
+{
+	Super::InitGame(MapName, Options, ErrorMessage);
+	UWorld* W = GetWorld();
+	if (!W) return;
+
+	FActorSpawnParameters P;
+	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	if (!UGameplayStatics::GetActorOfClass(W, ADirectionalLight::StaticClass())) SpawnSkyAndLight();
+
+	ATerminalBuilder* Terminal = W->SpawnActor<ATerminalBuilder>(FVector::ZeroVector, FRotator::ZeroRotator, P);
+	if (Terminal && Terminal->Build())
+	{
+		const FTerminalPlan& Plan = Terminal->GetPlan();
+		if (ACrowdTest* Crowd = W->SpawnActor<ACrowdTest>(FVector::ZeroVector, FRotator::ZeroRotator, P))
+			Crowd->Start(Plan, CrowdSize);
+		if (!UGameplayStatics::GetActorOfClass(W, APlayerStart::StaticClass()))
+			W->SpawnActor<APlayerStart>(FTerminalPlan::ToWorld(Plan.Spawn.X, 1.0f, Plan.Spawn.Z), FRotator(0, -90.f, 0), P); // facing airside
+	}
+}
+
+#pragma endregion
+
+#pragma region Sky and light
+
+void AADPGameMode::SpawnSkyAndLight()
+{
+	UWorld* W = GetWorld();
+	FActorSpawnParameters P;
+	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	if (ADirectionalLight* Sun = W->SpawnActor<ADirectionalLight>(FVector(0, 0, 5000), FRotator(-35.f, 40.f, 0), P))
+	{
+		Sun->GetRootComponent()->SetMobility(EComponentMobility::Movable);
+		if (UDirectionalLightComponent* L = Cast<UDirectionalLightComponent>(Sun->GetLightComponent()))
+		{
+			L->SetAtmosphereSunLight(true);
+			L->SetIntensity(10.f);
+		}
+	}
+	W->SpawnActor<ASkyAtmosphere>(FVector::ZeroVector, FRotator::ZeroRotator, P);
+
+	FTransform At(FVector(0, 0, 1000));
+	if (ASkyLight* Sky = W->SpawnActorDeferred<ASkyLight>(ASkyLight::StaticClass(), At, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn))
+	{
+		Sky->GetRootComponent()->SetMobility(EComponentMobility::Movable);
+		Sky->GetLightComponent()->bRealTimeCapture = true;
+		Sky->FinishSpawning(At);
+	}
+	W->SpawnActor<AExponentialHeightFog>(FVector::ZeroVector, FRotator::ZeroRotator, P);
+
+	if (APostProcessVolume* PP = W->SpawnActor<APostProcessVolume>(FVector::ZeroVector, FRotator::ZeroRotator, P))
+	{
+		PP->bUnbound = true;
+		PP->Settings.bOverride_AutoExposureMinBrightness = true;
+		PP->Settings.AutoExposureMinBrightness = -1.f;
+		PP->Settings.bOverride_AutoExposureMaxBrightness = true;
+		PP->Settings.AutoExposureMaxBrightness = 12.f;
+	}
+}
+
+#pragma endregion

@@ -1,0 +1,1564 @@
+{
+ "units": "metres; x east-west along the building, z north (airside +), y up",
+ "F2Y": 6,
+ "F1CEIL": 5.4,
+ "F2CEIL": 11.4,
+ "ROOF": 12,
+ "spawn": {
+  "x": 79,
+  "z": 2.8,
+  "yaw": 0,
+  "f": 1
+ },
+ "rooms": [
+  {
+   "id": "F1-HALL",
+   "f": 1,
+   "name": "Grand Hall (departures, check-in, bag drop)",
+   "x0": 36,
+   "z0": 0,
+   "x1": 114,
+   "z1": 30,
+   "kind": "hall",
+   "glass": "s"
+  },
+  {
+   "id": "F1-ENTR-W",
+   "f": 1,
+   "name": "Entrance West (vestibule)",
+   "x0": 44,
+   "z0": -4,
+   "x1": 56,
+   "z1": 0,
+   "kind": "vestibule",
+   "glass": "nswe"
+  },
+  {
+   "id": "F1-ENTR-C",
+   "f": 1,
+   "name": "Main Entrance (vestibule)",
+   "x0": 67,
+   "z0": -4,
+   "x1": 83,
+   "z1": 0,
+   "kind": "vestibule",
+   "glass": "nswe"
+  },
+  {
+   "id": "F1-ENTR-E",
+   "f": 1,
+   "name": "Entrance East (vestibule)",
+   "x0": 95,
+   "z0": -4,
+   "x1": 107,
+   "z1": 0,
+   "kind": "vestibule",
+   "glass": "nswe"
+  },
+  {
+   "id": "F1-MUSEUM",
+   "f": 1,
+   "name": "Museum (Vortex Gallery)",
+   "x0": 0,
+   "z0": 0,
+   "x1": 36,
+   "z1": 30,
+   "kind": "museum"
+  },
+  {
+   "id": "F1-PLANT",
+   "f": 1,
+   "name": "Plant room",
+   "x0": 0,
+   "z0": 30,
+   "x1": 36,
+   "z1": 52,
+   "kind": "plant"
+  },
+  {
+   "id": "F1-WC-M",
+   "f": 1,
+   "name": "Toilets (men)",
+   "x0": 36,
+   "z0": 30,
+   "x1": 43,
+   "z1": 44,
+   "kind": "wc"
+  },
+  {
+   "id": "F1-WC-F",
+   "f": 1,
+   "name": "Toilets (women, accessible)",
+   "x0": 43,
+   "z0": 30,
+   "x1": 50,
+   "z1": 44,
+   "kind": "wc"
+  },
+  {
+   "id": "F1-CLEAN",
+   "f": 1,
+   "name": "Cleaners store",
+   "x0": 36,
+   "z0": 44,
+   "x1": 50,
+   "z1": 52,
+   "kind": "clean"
+  },
+  {
+   "id": "F1-SECURITY",
+   "f": 1,
+   "name": "Security (6 lanes)",
+   "x0": 50,
+   "z0": 30,
+   "x1": 90,
+   "z1": 42,
+   "kind": "security"
+  },
+  {
+   "id": "F1-AIRSIDE",
+   "f": 1,
+   "name": "Airside lobby (stairs, escalators, lift to Floor 2)",
+   "x0": 50,
+   "z0": 42,
+   "x1": 90,
+   "z1": 52,
+   "kind": "airside"
+  },
+  {
+   "id": "F1-LOUNGE",
+   "f": 1,
+   "name": "Lounge",
+   "x0": 90,
+   "z0": 30,
+   "x1": 114,
+   "z1": 52,
+   "kind": "lounge",
+   "h": 4.8
+  },
+  {
+   "id": "F1-OFFICE-1",
+   "f": 1,
+   "name": "Office 1",
+   "x0": 114,
+   "z0": 0,
+   "x1": 132,
+   "z1": 10,
+   "kind": "office"
+  },
+  {
+   "id": "F1-OFFICE-2",
+   "f": 1,
+   "name": "Office 2",
+   "x0": 114,
+   "z0": 10,
+   "x1": 132,
+   "z1": 20,
+   "kind": "office"
+  },
+  {
+   "id": "F1-STAFF-PASS",
+   "f": 1,
+   "name": "Staff passage",
+   "x0": 114,
+   "z0": 20,
+   "x1": 132,
+   "z1": 22,
+   "kind": "passage"
+  },
+  {
+   "id": "F1-OPS",
+   "f": 1,
+   "name": "Operations (scheduling)",
+   "x0": 114,
+   "z0": 22,
+   "x1": 132,
+   "z1": 34,
+   "kind": "ops"
+  },
+  {
+   "id": "F1-STAFF-WC",
+   "f": 1,
+   "name": "Staff toilets",
+   "x0": 114,
+   "z0": 34,
+   "x1": 132,
+   "z1": 42,
+   "kind": "wc"
+  },
+  {
+   "id": "F1-CREW",
+   "f": 1,
+   "name": "Crew room",
+   "x0": 114,
+   "z0": 42,
+   "x1": 132,
+   "z1": 52,
+   "kind": "crew"
+  },
+  {
+   "id": "F1-STAFF-CORR",
+   "f": 1,
+   "name": "Staff corridor",
+   "x0": 132,
+   "z0": 0,
+   "x1": 136,
+   "z1": 52,
+   "kind": "corridor"
+  },
+  {
+   "id": "F1-ACADEMY",
+   "f": 1,
+   "name": "Academy (20 student desks, teacher desk)",
+   "x0": 136,
+   "z0": 0,
+   "x1": 156,
+   "z1": 20,
+   "kind": "academy"
+  },
+  {
+   "id": "F1-OFFICE-3",
+   "f": 1,
+   "name": "Office 3",
+   "x0": 136,
+   "z0": 20,
+   "x1": 156,
+   "z1": 30,
+   "kind": "office"
+  },
+  {
+   "id": "F1-OFFICE-4",
+   "f": 1,
+   "name": "Office 4",
+   "x0": 136,
+   "z0": 30,
+   "x1": 156,
+   "z1": 40,
+   "kind": "office"
+  },
+  {
+   "id": "F1-STAFF-ENTR",
+   "f": 1,
+   "name": "Staff entrance",
+   "x0": 136,
+   "z0": 40,
+   "x1": 156,
+   "z1": 52,
+   "kind": "staffentr"
+  },
+  {
+   "id": "F1-BAGHALL",
+   "f": 1,
+   "name": "Baggage hall (sorting under the walkway)",
+   "x0": -80,
+   "z0": 52,
+   "x1": 242,
+   "z1": 68,
+   "kind": "baghall"
+  },
+  {
+   "id": "F1-RAMP-1",
+   "f": 1,
+   "name": "Ramp services 1 (under Gate 1)",
+   "x0": -72.6,
+   "z0": 68,
+   "x1": -44.599999999999994,
+   "z1": 82,
+   "kind": "ramp"
+  },
+  {
+   "id": "F1-GATE-5",
+   "f": 1,
+   "name": "Gate 5 (ground, walk-out boarding)",
+   "x0": -44.599999999999994,
+   "z0": 68,
+   "x1": -4.599999999999994,
+   "z1": 82,
+   "kind": "gate1",
+   "glass": "n"
+  },
+  {
+   "id": "F1-RAMP-2",
+   "f": 1,
+   "name": "Ramp services 2 (under Gate 2)",
+   "x0": 7.950000000000003,
+   "z0": 68,
+   "x1": 35.95,
+   "z1": 82,
+   "kind": "ramp"
+  },
+  {
+   "id": "F1-GATE-6",
+   "f": 1,
+   "name": "Gate 6 (ground, walk-out boarding)",
+   "x0": 35.95,
+   "z0": 68,
+   "x1": 75.95,
+   "z1": 82,
+   "kind": "gate1",
+   "glass": "n"
+  },
+  {
+   "id": "F1-RAMP-3",
+   "f": 1,
+   "name": "Ramp services 3 (under Gate 3)",
+   "x0": 88.5,
+   "z0": 68,
+   "x1": 116.5,
+   "z1": 82,
+   "kind": "ramp"
+  },
+  {
+   "id": "F1-GATE-7",
+   "f": 1,
+   "name": "Gate 7 (ground, walk-out boarding)",
+   "x0": 116.5,
+   "z0": 68,
+   "x1": 156.5,
+   "z1": 82,
+   "kind": "gate1",
+   "glass": "n"
+  },
+  {
+   "id": "F1-RAMP-4",
+   "f": 1,
+   "name": "Ramp services 4 (under Gate 4)",
+   "x0": 169.04999999999998,
+   "z0": 68,
+   "x1": 197.04999999999998,
+   "z1": 82,
+   "kind": "ramp"
+  },
+  {
+   "id": "F1-GATE-8",
+   "f": 1,
+   "name": "Gate 8 (ground, walk-out boarding)",
+   "x0": 197.04999999999998,
+   "z0": 68,
+   "x1": 237.04999999999998,
+   "z1": 82,
+   "kind": "gate1",
+   "glass": "n"
+  },
+  {
+   "id": "F2-LINK",
+   "f": 2,
+   "name": "Link to the walkway",
+   "x0": 6,
+   "z0": 30,
+   "x1": 14,
+   "z1": 52,
+   "kind": "link",
+   "glass": "s"
+  },
+  {
+   "id": "F2-FOOD",
+   "f": 2,
+   "name": "Food Walk (seating, walking area)",
+   "x0": 14,
+   "z0": 30,
+   "x1": 56,
+   "z1": 44,
+   "kind": "food",
+   "glass": "s"
+  },
+  {
+   "id": "F2-LANDING",
+   "f": 2,
+   "name": "Landing (seating, walking paths)",
+   "x0": 56,
+   "z0": 42,
+   "x1": 90,
+   "z1": 52,
+   "kind": "landing"
+  },
+  {
+   "id": "F2-TAXFREE",
+   "f": 2,
+   "name": "Tax Free (walk-through)",
+   "x0": 56,
+   "z0": 30,
+   "x1": 90,
+   "z1": 42,
+   "kind": "taxfree",
+   "glass": "s"
+  },
+  {
+   "id": "F2-WC-M",
+   "f": 2,
+   "name": "Toilets (men)",
+   "x0": 90,
+   "z0": 42,
+   "x1": 104,
+   "z1": 47,
+   "kind": "wc"
+  },
+  {
+   "id": "F2-WC-F",
+   "f": 2,
+   "name": "Toilets (women, accessible)",
+   "x0": 90,
+   "z0": 47,
+   "x1": 104,
+   "z1": 52,
+   "kind": "wc"
+  },
+  {
+   "id": "F2-FAMILY",
+   "f": 2,
+   "name": "Family room",
+   "x0": 90,
+   "z0": 30,
+   "x1": 104,
+   "z1": 42,
+   "kind": "family",
+   "glass": "s"
+  },
+  {
+   "id": "F2-BAR",
+   "f": 2,
+   "name": "Bar (big bar area)",
+   "x0": 104,
+   "z0": 30,
+   "x1": 146,
+   "z1": 52,
+   "kind": "bar",
+   "glass": "s"
+  },
+  {
+   "id": "F2-WALK",
+   "f": 2,
+   "name": "Walkway to the gates (moving walkways)",
+   "x0": -80,
+   "z0": 52,
+   "x1": 242,
+   "z1": 68,
+   "kind": "walk"
+  },
+  {
+   "id": "F2-EAT-1",
+   "f": 2,
+   "name": "Eatery 1",
+   "x0": 14,
+   "z0": 44,
+   "x1": 22.4,
+   "z1": 52,
+   "kind": "eatery"
+  },
+  {
+   "id": "F2-EAT-2",
+   "f": 2,
+   "name": "Eatery 2",
+   "x0": 22.4,
+   "z0": 44,
+   "x1": 30.8,
+   "z1": 52,
+   "kind": "eatery"
+  },
+  {
+   "id": "F2-EAT-3",
+   "f": 2,
+   "name": "Eatery 3",
+   "x0": 30.8,
+   "z0": 44,
+   "x1": 39.2,
+   "z1": 52,
+   "kind": "eatery"
+  },
+  {
+   "id": "F2-EAT-4",
+   "f": 2,
+   "name": "Eatery 4",
+   "x0": 39.2,
+   "z0": 44,
+   "x1": 47.6,
+   "z1": 52,
+   "kind": "eatery"
+  },
+  {
+   "id": "F2-EAT-5",
+   "f": 2,
+   "name": "Eatery 5",
+   "x0": 47.6,
+   "z0": 44,
+   "x1": 56,
+   "z1": 52,
+   "kind": "eatery"
+  },
+  {
+   "id": "F2-GATE-1",
+   "f": 2,
+   "name": "Gate 1 (jetway, glass wall onto the ramp)",
+   "x0": -72.6,
+   "z0": 68,
+   "x1": -38.599999999999994,
+   "z1": 82,
+   "kind": "gate2",
+   "glass": "n"
+  },
+  {
+   "id": "F2-VIEW-1",
+   "f": 2,
+   "name": "View bay 1 (seats, windows onto the ramp)",
+   "x0": -38.599999999999994,
+   "z0": 68,
+   "x1": -4.599999999999994,
+   "z1": 82,
+   "kind": "view",
+   "glass": "n"
+  },
+  {
+   "id": "F2-GATE-2",
+   "f": 2,
+   "name": "Gate 2 (jetway, glass wall onto the ramp)",
+   "x0": 7.950000000000003,
+   "z0": 68,
+   "x1": 41.95,
+   "z1": 82,
+   "kind": "gate2",
+   "glass": "n"
+  },
+  {
+   "id": "F2-VIEW-2",
+   "f": 2,
+   "name": "View bay 2 (seats, windows onto the ramp)",
+   "x0": 41.95,
+   "z0": 68,
+   "x1": 75.95,
+   "z1": 82,
+   "kind": "view",
+   "glass": "n"
+  },
+  {
+   "id": "F2-GATE-3",
+   "f": 2,
+   "name": "Gate 3 (jetway, glass wall onto the ramp)",
+   "x0": 88.5,
+   "z0": 68,
+   "x1": 122.5,
+   "z1": 82,
+   "kind": "gate2",
+   "glass": "n"
+  },
+  {
+   "id": "F2-VIEW-3",
+   "f": 2,
+   "name": "View bay 3 (seats, windows onto the ramp)",
+   "x0": 122.5,
+   "z0": 68,
+   "x1": 156.5,
+   "z1": 82,
+   "kind": "view",
+   "glass": "n"
+  },
+  {
+   "id": "F2-GATE-4",
+   "f": 2,
+   "name": "Gate 4 (jetway, glass wall onto the ramp)",
+   "x0": 169.04999999999998,
+   "z0": 68,
+   "x1": 203.04999999999998,
+   "z1": 82,
+   "kind": "gate2",
+   "glass": "n"
+  },
+  {
+   "id": "F2-VIEW-4",
+   "f": 2,
+   "name": "View bay 4 (seats, windows onto the ramp)",
+   "x0": 203.04999999999998,
+   "z0": 68,
+   "x1": 237.04999999999998,
+   "z1": 82,
+   "kind": "view",
+   "glass": "n"
+  }
+ ],
+ "doors": [
+  {
+   "id": "D-F1-ENTR-W-1",
+   "f": 1,
+   "a": "F1-ENTR-W",
+   "b": "KERB",
+   "type": "revolving",
+   "w": 3,
+   "x": 50,
+   "z": -4,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-ENTR-W-2",
+   "f": 1,
+   "a": "F1-ENTR-W",
+   "b": "F1-HALL",
+   "type": "slide",
+   "w": 3,
+   "x": 50,
+   "z": 0,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-ENTR-C-1",
+   "f": 1,
+   "a": "F1-ENTR-C",
+   "b": "KERB",
+   "type": "slide",
+   "w": 5,
+   "x": 75,
+   "z": -4,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-ENTR-C-2",
+   "f": 1,
+   "a": "F1-ENTR-C",
+   "b": "F1-HALL",
+   "type": "slide",
+   "w": 5,
+   "x": 75,
+   "z": 0,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-ENTR-E-1",
+   "f": 1,
+   "a": "F1-ENTR-E",
+   "b": "KERB",
+   "type": "revolving",
+   "w": 3,
+   "x": 101,
+   "z": -4,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-ENTR-E-2",
+   "f": 1,
+   "a": "F1-ENTR-E",
+   "b": "F1-HALL",
+   "type": "slide",
+   "w": 3,
+   "x": 101,
+   "z": 0,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-MUSEUM-1",
+   "f": 1,
+   "a": "F1-MUSEUM",
+   "b": "F1-HALL",
+   "type": "museum",
+   "w": 4,
+   "x": 36,
+   "z": 15,
+   "along": "z"
+  },
+  {
+   "id": "D-F1-WC-M-1",
+   "f": 1,
+   "a": "F1-WC-M",
+   "b": "F1-HALL",
+   "type": "swing",
+   "w": 1.2,
+   "x": 39.5,
+   "z": 30,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-WC-F-1",
+   "f": 1,
+   "a": "F1-WC-F",
+   "b": "F1-HALL",
+   "type": "swing",
+   "w": 1.2,
+   "x": 46.5,
+   "z": 30,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-SECURITY-1",
+   "f": 1,
+   "a": "F1-SECURITY",
+   "b": "F1-HALL",
+   "type": "slide",
+   "w": 6,
+   "x": 62,
+   "z": 30,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-SECURITY-2",
+   "f": 1,
+   "a": "F1-SECURITY",
+   "b": "F1-HALL",
+   "type": "slide",
+   "w": 6,
+   "x": 78,
+   "z": 30,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-AIRSIDE-1",
+   "f": 1,
+   "a": "F1-AIRSIDE",
+   "b": "F1-SECURITY",
+   "type": "oneway",
+   "w": 10,
+   "x": 70,
+   "z": 42,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-CLEAN-1",
+   "f": 1,
+   "a": "F1-CLEAN",
+   "b": "F1-AIRSIDE",
+   "type": "swing",
+   "w": 1,
+   "x": 50,
+   "z": 48,
+   "along": "z"
+  },
+  {
+   "id": "D-F1-LOUNGE-1",
+   "f": 1,
+   "a": "F1-LOUNGE",
+   "b": "F1-AIRSIDE",
+   "type": "slide",
+   "w": 2.4,
+   "x": 90,
+   "z": 47,
+   "along": "z"
+  },
+  {
+   "id": "D-F1-PLANT-1",
+   "f": 1,
+   "a": "F1-PLANT",
+   "b": "F1-BAGHALL",
+   "type": "secure",
+   "w": 2,
+   "x": 18,
+   "z": 52,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-STAFF-PASS-1",
+   "f": 1,
+   "a": "F1-STAFF-PASS",
+   "b": "F1-HALL",
+   "type": "secure",
+   "w": 1.6,
+   "x": 114,
+   "z": 21,
+   "along": "z"
+  },
+  {
+   "id": "D-F1-STAFF-PASS-2",
+   "f": 1,
+   "a": "F1-STAFF-PASS",
+   "b": "F1-STAFF-CORR",
+   "type": "swing",
+   "w": 1.6,
+   "x": 132,
+   "z": 21,
+   "along": "z"
+  },
+  {
+   "id": "D-F1-OFFICE-1-1",
+   "f": 1,
+   "a": "F1-OFFICE-1",
+   "b": "F1-STAFF-CORR",
+   "type": "swing",
+   "w": 1,
+   "x": 132,
+   "z": 5,
+   "along": "z"
+  },
+  {
+   "id": "D-F1-OFFICE-2-1",
+   "f": 1,
+   "a": "F1-OFFICE-2",
+   "b": "F1-STAFF-CORR",
+   "type": "swing",
+   "w": 1,
+   "x": 132,
+   "z": 15,
+   "along": "z"
+  },
+  {
+   "id": "D-F1-OPS-1",
+   "f": 1,
+   "a": "F1-OPS",
+   "b": "F1-STAFF-CORR",
+   "type": "secure",
+   "w": 1.2,
+   "x": 132,
+   "z": 28,
+   "along": "z"
+  },
+  {
+   "id": "D-F1-STAFF-WC-1",
+   "f": 1,
+   "a": "F1-STAFF-WC",
+   "b": "F1-STAFF-CORR",
+   "type": "swing",
+   "w": 1,
+   "x": 132,
+   "z": 38,
+   "along": "z"
+  },
+  {
+   "id": "D-F1-CREW-1",
+   "f": 1,
+   "a": "F1-CREW",
+   "b": "F1-STAFF-CORR",
+   "type": "swing",
+   "w": 1.2,
+   "x": 132,
+   "z": 47,
+   "along": "z"
+  },
+  {
+   "id": "D-F1-ACADEMY-1",
+   "f": 1,
+   "a": "F1-ACADEMY",
+   "b": "F1-STAFF-CORR",
+   "type": "double",
+   "w": 1.6,
+   "x": 136,
+   "z": 5,
+   "along": "z"
+  },
+  {
+   "id": "D-F1-ACADEMY-2",
+   "f": 1,
+   "a": "F1-ACADEMY",
+   "b": "F1-STAFF-CORR",
+   "type": "swing",
+   "w": 1,
+   "x": 136,
+   "z": 15,
+   "along": "z"
+  },
+  {
+   "id": "D-F1-OFFICE-3-1",
+   "f": 1,
+   "a": "F1-OFFICE-3",
+   "b": "F1-STAFF-CORR",
+   "type": "swing",
+   "w": 1,
+   "x": 136,
+   "z": 25,
+   "along": "z"
+  },
+  {
+   "id": "D-F1-OFFICE-4-1",
+   "f": 1,
+   "a": "F1-OFFICE-4",
+   "b": "F1-STAFF-CORR",
+   "type": "swing",
+   "w": 1,
+   "x": 136,
+   "z": 35,
+   "along": "z"
+  },
+  {
+   "id": "D-F1-STAFF-ENTR-1",
+   "f": 1,
+   "a": "F1-STAFF-ENTR",
+   "b": "F1-STAFF-CORR",
+   "type": "secure",
+   "w": 1.6,
+   "x": 136,
+   "z": 46,
+   "along": "z"
+  },
+  {
+   "id": "D-F1-STAFF-ENTR-2",
+   "f": 1,
+   "a": "F1-STAFF-ENTR",
+   "b": "OUTSIDE",
+   "type": "secure",
+   "w": 1.6,
+   "x": 156,
+   "z": 46,
+   "along": "z"
+  },
+  {
+   "id": "D-F1-STAFF-CORR-1",
+   "f": 1,
+   "a": "F1-STAFF-CORR",
+   "b": "F1-BAGHALL",
+   "type": "secure",
+   "w": 1.6,
+   "x": 134,
+   "z": 52,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-RAMP-1-1",
+   "f": 1,
+   "a": "F1-RAMP-1",
+   "b": "F1-BAGHALL",
+   "type": "secure",
+   "w": 2,
+   "x": -58.599999999999994,
+   "z": 68,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-RAMP-1-2",
+   "f": 1,
+   "a": "F1-RAMP-1",
+   "b": "APRON",
+   "type": "secure",
+   "w": 3,
+   "x": -67.6,
+   "z": 82,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-GATE-5-1",
+   "f": 1,
+   "a": "F1-GATE-5",
+   "b": "APRON",
+   "type": "slide",
+   "w": 2.4,
+   "x": -36.599999999999994,
+   "z": 82,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-GATE-5-2",
+   "f": 1,
+   "a": "F1-GATE-5",
+   "b": "APRON",
+   "type": "slide",
+   "w": 2.4,
+   "x": -12.599999999999994,
+   "z": 82,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-GATE-1-1",
+   "f": 2,
+   "a": "F2-GATE-1",
+   "b": "F2-WALK",
+   "type": "open",
+   "w": 8,
+   "x": -60.599999999999994,
+   "z": 68,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-GATE-1-JW",
+   "f": 2,
+   "a": "F2-GATE-1",
+   "b": "J-1",
+   "type": "jetway",
+   "w": 1.8,
+   "x": -50.599999999999994,
+   "z": 82,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-VIEW-1-1",
+   "f": 2,
+   "a": "F2-VIEW-1",
+   "b": "F2-WALK",
+   "type": "open",
+   "w": 10,
+   "x": -21.599999999999994,
+   "z": 68,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-RAMP-2-1",
+   "f": 1,
+   "a": "F1-RAMP-2",
+   "b": "F1-BAGHALL",
+   "type": "secure",
+   "w": 2,
+   "x": 21.950000000000003,
+   "z": 68,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-RAMP-2-2",
+   "f": 1,
+   "a": "F1-RAMP-2",
+   "b": "APRON",
+   "type": "secure",
+   "w": 3,
+   "x": 12.950000000000003,
+   "z": 82,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-GATE-6-1",
+   "f": 1,
+   "a": "F1-GATE-6",
+   "b": "APRON",
+   "type": "slide",
+   "w": 2.4,
+   "x": 43.95,
+   "z": 82,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-GATE-6-2",
+   "f": 1,
+   "a": "F1-GATE-6",
+   "b": "APRON",
+   "type": "slide",
+   "w": 2.4,
+   "x": 67.95,
+   "z": 82,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-GATE-2-1",
+   "f": 2,
+   "a": "F2-GATE-2",
+   "b": "F2-WALK",
+   "type": "open",
+   "w": 8,
+   "x": 19.950000000000003,
+   "z": 68,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-GATE-2-JW",
+   "f": 2,
+   "a": "F2-GATE-2",
+   "b": "J-2",
+   "type": "jetway",
+   "w": 1.8,
+   "x": 29.950000000000003,
+   "z": 82,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-VIEW-2-1",
+   "f": 2,
+   "a": "F2-VIEW-2",
+   "b": "F2-WALK",
+   "type": "open",
+   "w": 10,
+   "x": 58.95,
+   "z": 68,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-RAMP-3-1",
+   "f": 1,
+   "a": "F1-RAMP-3",
+   "b": "F1-BAGHALL",
+   "type": "secure",
+   "w": 2,
+   "x": 102.5,
+   "z": 68,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-RAMP-3-2",
+   "f": 1,
+   "a": "F1-RAMP-3",
+   "b": "APRON",
+   "type": "secure",
+   "w": 3,
+   "x": 93.5,
+   "z": 82,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-GATE-7-1",
+   "f": 1,
+   "a": "F1-GATE-7",
+   "b": "APRON",
+   "type": "slide",
+   "w": 2.4,
+   "x": 124.5,
+   "z": 82,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-GATE-7-2",
+   "f": 1,
+   "a": "F1-GATE-7",
+   "b": "APRON",
+   "type": "slide",
+   "w": 2.4,
+   "x": 148.5,
+   "z": 82,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-GATE-3-1",
+   "f": 2,
+   "a": "F2-GATE-3",
+   "b": "F2-WALK",
+   "type": "open",
+   "w": 8,
+   "x": 100.5,
+   "z": 68,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-GATE-3-JW",
+   "f": 2,
+   "a": "F2-GATE-3",
+   "b": "J-3",
+   "type": "jetway",
+   "w": 1.8,
+   "x": 110.5,
+   "z": 82,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-VIEW-3-1",
+   "f": 2,
+   "a": "F2-VIEW-3",
+   "b": "F2-WALK",
+   "type": "open",
+   "w": 10,
+   "x": 139.5,
+   "z": 68,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-RAMP-4-1",
+   "f": 1,
+   "a": "F1-RAMP-4",
+   "b": "F1-BAGHALL",
+   "type": "secure",
+   "w": 2,
+   "x": 183.04999999999998,
+   "z": 68,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-RAMP-4-2",
+   "f": 1,
+   "a": "F1-RAMP-4",
+   "b": "APRON",
+   "type": "secure",
+   "w": 3,
+   "x": 174.04999999999998,
+   "z": 82,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-GATE-8-1",
+   "f": 1,
+   "a": "F1-GATE-8",
+   "b": "APRON",
+   "type": "slide",
+   "w": 2.4,
+   "x": 205.04999999999998,
+   "z": 82,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-GATE-8-2",
+   "f": 1,
+   "a": "F1-GATE-8",
+   "b": "APRON",
+   "type": "slide",
+   "w": 2.4,
+   "x": 229.04999999999998,
+   "z": 82,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-GATE-4-1",
+   "f": 2,
+   "a": "F2-GATE-4",
+   "b": "F2-WALK",
+   "type": "open",
+   "w": 8,
+   "x": 181.04999999999998,
+   "z": 68,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-GATE-4-JW",
+   "f": 2,
+   "a": "F2-GATE-4",
+   "b": "J-4",
+   "type": "jetway",
+   "w": 1.8,
+   "x": 191.04999999999998,
+   "z": 82,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-VIEW-4-1",
+   "f": 2,
+   "a": "F2-VIEW-4",
+   "b": "F2-WALK",
+   "type": "open",
+   "w": 10,
+   "x": 220.04999999999998,
+   "z": 68,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-TAXFREE-1",
+   "f": 2,
+   "a": "F2-TAXFREE",
+   "b": "F2-LANDING",
+   "type": "open",
+   "w": 8,
+   "x": 73,
+   "z": 42,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-TAXFREE-2",
+   "f": 2,
+   "a": "F2-TAXFREE",
+   "b": "F2-FOOD",
+   "type": "open",
+   "w": 6,
+   "x": 56,
+   "z": 36,
+   "along": "z"
+  },
+  {
+   "id": "D-F2-WC-M-1",
+   "f": 2,
+   "a": "F2-WC-M",
+   "b": "F2-LANDING",
+   "type": "swing",
+   "w": 1.2,
+   "x": 90,
+   "z": 44.5,
+   "along": "z"
+  },
+  {
+   "id": "D-F2-WC-F-1",
+   "f": 2,
+   "a": "F2-WC-F",
+   "b": "F2-LANDING",
+   "type": "swing",
+   "w": 1.2,
+   "x": 90,
+   "z": 49.5,
+   "along": "z"
+  },
+  {
+   "id": "D-F2-EAT-1-1",
+   "f": 2,
+   "a": "F2-EAT-1",
+   "b": "F2-FOOD",
+   "type": "open",
+   "w": 5,
+   "x": 18.2,
+   "z": 44,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-EAT-2-1",
+   "f": 2,
+   "a": "F2-EAT-2",
+   "b": "F2-FOOD",
+   "type": "open",
+   "w": 5,
+   "x": 26.6,
+   "z": 44,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-EAT-3-1",
+   "f": 2,
+   "a": "F2-EAT-3",
+   "b": "F2-FOOD",
+   "type": "open",
+   "w": 5,
+   "x": 35,
+   "z": 44,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-EAT-4-1",
+   "f": 2,
+   "a": "F2-EAT-4",
+   "b": "F2-FOOD",
+   "type": "open",
+   "w": 5,
+   "x": 43.400000000000006,
+   "z": 44,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-EAT-5-1",
+   "f": 2,
+   "a": "F2-EAT-5",
+   "b": "F2-FOOD",
+   "type": "open",
+   "w": 5,
+   "x": 51.800000000000004,
+   "z": 44,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-LINK-1",
+   "f": 2,
+   "a": "F2-LINK",
+   "b": "F2-FOOD",
+   "type": "open",
+   "w": 6,
+   "x": 14,
+   "z": 37,
+   "along": "z"
+  },
+  {
+   "id": "D-F2-LINK-2",
+   "f": 2,
+   "a": "F2-LINK",
+   "b": "F2-WALK",
+   "type": "open",
+   "w": 7.6,
+   "x": 10,
+   "z": 52,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-FAMILY-1",
+   "f": 2,
+   "a": "F2-FAMILY",
+   "b": "F2-BAR",
+   "type": "swing",
+   "w": 1.6,
+   "x": 104,
+   "z": 36,
+   "along": "z"
+  },
+  {
+   "id": "D-F2-BAR-1",
+   "f": 2,
+   "a": "F2-BAR",
+   "b": "F2-WALK",
+   "type": "open",
+   "w": 8,
+   "x": 118,
+   "z": 52,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-BAR-2",
+   "f": 2,
+   "a": "F2-BAR",
+   "b": "F2-WALK",
+   "type": "open",
+   "w": 8,
+   "x": 132,
+   "z": 52,
+   "along": "x"
+  }
+ ],
+ "columns": [
+  [
+   "C-1",
+   46,
+   6
+  ],
+  [
+   "C-2",
+   46,
+   22
+  ],
+  [
+   "C-3",
+   75,
+   6
+  ],
+  [
+   "C-4",
+   75,
+   22
+  ],
+  [
+   "C-5",
+   104,
+   6
+  ],
+  [
+   "C-6",
+   104,
+   22
+  ],
+  [
+   "C-7",
+   56,
+   -9
+  ],
+  [
+   "C-8",
+   94,
+   -9
+  ]
+ ],
+ "stairs": [
+  {
+   "id": "S-01",
+   "x0": 58,
+   "z0": 44,
+   "x1": 66,
+   "z1": 50,
+   "dir": "x+",
+   "from": "F1-AIRSIDE",
+   "to": "F2-LANDING"
+  },
+  {
+   "id": "S-STAFF",
+   "x0": 140,
+   "z0": 43,
+   "x1": 143,
+   "z1": 51,
+   "dir": "z-",
+   "from": "F1-STAFF-ENTR",
+   "to": "F2-BAR"
+  },
+  {
+   "id": "S-G1",
+   "x0": -44.3,
+   "z0": 69.5,
+   "x1": -41.49999999999999,
+   "z1": 80.5,
+   "dir": "z-",
+   "from": "F1-GATE-5",
+   "to": "F2-GATE-1"
+  },
+  {
+   "id": "S-G2",
+   "x0": 36.25,
+   "z0": 69.5,
+   "x1": 39.050000000000004,
+   "z1": 80.5,
+   "dir": "z-",
+   "from": "F1-GATE-6",
+   "to": "F2-GATE-2"
+  },
+  {
+   "id": "S-G3",
+   "x0": 116.8,
+   "z0": 69.5,
+   "x1": 119.6,
+   "z1": 80.5,
+   "dir": "z-",
+   "from": "F1-GATE-7",
+   "to": "F2-GATE-3"
+  },
+  {
+   "id": "S-G4",
+   "x0": 197.35,
+   "z0": 69.5,
+   "x1": 200.14999999999998,
+   "z1": 80.5,
+   "dir": "z-",
+   "from": "F1-GATE-8",
+   "to": "F2-GATE-4"
+  }
+ ],
+ "lifts": [
+  {
+   "id": "E-01",
+   "x": 69,
+   "z": 47.5,
+   "face": -1.5707963267948966,
+   "from": "F1-AIRSIDE",
+   "to": "F2-LANDING"
+  },
+  {
+   "id": "E-G1",
+   "x": -39.699999999999996,
+   "z": 80.6,
+   "face": -1.5707963267948966,
+   "from": "F1-GATE-5",
+   "to": "F2-GATE-1"
+  },
+  {
+   "id": "E-G2",
+   "x": 40.85,
+   "z": 80.6,
+   "face": -1.5707963267948966,
+   "from": "F1-GATE-6",
+   "to": "F2-GATE-2"
+  },
+  {
+   "id": "E-G3",
+   "x": 121.4,
+   "z": 80.6,
+   "face": -1.5707963267948966,
+   "from": "F1-GATE-7",
+   "to": "F2-GATE-3"
+  },
+  {
+   "id": "E-G4",
+   "x": 201.95,
+   "z": 80.6,
+   "face": -1.5707963267948966,
+   "from": "F1-GATE-8",
+   "to": "F2-GATE-4"
+  }
+ ],
+ "stands": [
+  {
+   "id": "STAND-1",
+   "x": -62,
+   "nz": 108,
+   "kind": "jetway",
+   "gate": "F2-GATE-1"
+  },
+  {
+   "id": "STAND-5",
+   "x": -21.14,
+   "nz": 110,
+   "kind": "walk-out",
+   "gate": "F1-GATE-5"
+  },
+  {
+   "id": "STAND-2",
+   "x": 19.71,
+   "nz": 108,
+   "kind": "jetway",
+   "gate": "F2-GATE-2"
+  },
+  {
+   "id": "STAND-6",
+   "x": 60.57,
+   "nz": 110,
+   "kind": "walk-out",
+   "gate": "F1-GATE-6"
+  },
+  {
+   "id": "STAND-3",
+   "x": 101.43,
+   "nz": 108,
+   "kind": "jetway",
+   "gate": "F2-GATE-3"
+  },
+  {
+   "id": "STAND-7",
+   "x": 142.29,
+   "nz": 110,
+   "kind": "walk-out",
+   "gate": "F1-GATE-7"
+  },
+  {
+   "id": "STAND-4",
+   "x": 183.14,
+   "nz": 108,
+   "kind": "jetway",
+   "gate": "F2-GATE-4"
+  },
+  {
+   "id": "STAND-8",
+   "x": 224,
+   "nz": 110,
+   "kind": "walk-out",
+   "gate": "F1-GATE-8"
+  }
+ ]
+}

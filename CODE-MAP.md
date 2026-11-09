@@ -341,6 +341,19 @@ Where everything is, in plain words: every folder and file of the game and what 
 
 Other folders: `www/` (pictures, sounds and the built game), `release-notes/` (one file per version), `docs/` (guides), `signing/` (the fixed test key for Android updates), `android/` (made by the build).
 
-## PC version (Unreal Engine 5): to come
+## PC version (Unreal Engine 5)
 
-The Unreal project is added here as it is built; each folder and file gets its line in this map.
+- `AirportDynastyPro.uproject`: the Unreal project (open this). Engine version and the engine plugins it uses (Mass, StateTree, Smart Objects, ZoneGraph, Chaos vehicles, editor scripting).
+- `Config/`: project settings. `DefaultEngine.ini` (Lumen, virtual shadow maps, DirectX 12, start map and game mode), `DefaultGame.ini` (name, company, the Data folder packed with the game), `DefaultInput.ini` (walking keys and gamepad).
+- `Data/terminal-plan.json`: the terminal layout in real metres (rooms, doors, columns, stairs, lifts, stands), exported from the Android edition's `src/sections/terminal/plan.ts`; both editions build from it.
+- `Content/`: Unreal assets (models, materials, maps), through Git LFS.
+
+### `Source/`: the game's C++ code
+- `AirportDynastyPro.Target.cs`, `AirportDynastyProEditor.Target.cs`: build targets for the game and for the editor.
+- `AirportDynastyPro/AirportDynastyPro.Build.cs`: the code module and the engine parts it uses.
+- `AirportDynastyPro/Private/AirportDynastyPro.cpp`: registers the game module.
+- `AirportDynastyPro/{Public,Private}/TerminalPlan`: reads `Data/terminal-plan.json` and converts plan metres to Unreal positions.
+- `AirportDynastyPro/{Public,Private}/TerminalBuilder`: builds the grey-box terminal at run time from the plan (floors, walls with door openings, glass frames, columns, stairs, lifts, stand lines), all instanced pieces so the terminal can grow in play.
+- `AirportDynastyPro/{Public,Private}/CrowdTest`: about a hundred simple walkers wandering in the rooms (crowd performance test; Mass crowds replace it).
+- `AirportDynastyPro/{Public,Private}/ADPWalker`: the player in first person (walk, run, jump, crouch).
+- `AirportDynastyPro/{Public,Private}/ADPGameMode`: on play, adds sun, sky, fog and exposure, builds the terminal, starts the crowd and places the player at the plan's spawn point.
