@@ -76,6 +76,9 @@ jobs:
       - name: Cesium for Unreal (the globe; kept out of git)
         shell: pwsh
         run: powershell -ExecutionPolicy Bypass -File Tools\GetCesium.ps1
+      - name: AMD's FSR plugin (frame generation; kept out of git)
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File Tools\GetFSR.ps1
       - name: Build the editor (needed to cook)
         shell: pwsh
         run: |
