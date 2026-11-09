@@ -94,6 +94,15 @@ are offered. Sources: CLAUDE.md (the agreed plan), the PDFs in the repo, the Bab
 - [ ] The Kokoro voice and the loudspeaker sound (the ten steps in the Kokoro PDF)
 - Waiting on the owner: security cameras (the screenshots); the ATC tower (the model)
 
+## Throughout: Nanite and streaming like the Matrix Awakens demo (owner, 2026-11-09)
+- Nanite for the terminal and every building and object where it helps (the big terminal and its detail, the cargo
+  building, jetways, aircraft at rest, vehicles, terrain props); not for glass and other see-through materials
+- World Partition streaming in cells (128 m round the airport, 512 m for the perimeter, 2,048 m for the terrain) and
+  HLOD for distant buildings (simplified merged meshes, never picture impostors), so detail fades in and out smoothly
+  with distance, as in the Matrix Awakens demo
+- The building kit's pieces become proper Nanite meshes (first the main hall and a gate), instanced so the terminal
+  can still grow in play
+
 ## Later
 - MetaHuman people, and your own body in walking mode everywhere
 - Terminal extensions placed in play (snap-together pieces), HLOD for distant buildings
