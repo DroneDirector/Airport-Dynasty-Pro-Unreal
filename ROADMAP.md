@@ -4,13 +4,13 @@ Each batch is one release: built and compiled piece by piece, committed and push
 the whole batch is done. Each part is first rebuilt to look and work like the Android (Babylon) edition, then upgrades
 are offered. Sources: CLAUDE.md (the agreed plan), the PDFs in the repo, the Babylon code.
 
-## Batch 1: the terminal you can walk around in (in progress)
+## Batch 1: the terminal you can walk around in (done; 0.5.0 publishes once the build machine is registered)
 - [x] Unreal 5.7, project compiles and opens; empty start map `Maps/Airport`
 - [x] Glass walls: frames and clear glass panes
 - [x] The building kit's look: each room's floor, walls and ceiling in the Babylon kit's materials (patterned textures such as tile grout, wood grain and herringbone still to come)
 - [x] Doors: sliding glass, revolving, swing, secure staff, double, one-way and jetway doors that open as you walk up, the room's name over each door
 - [x] Main hall fittings: check-in desks 1–24 with belts, banners, chairs and queue lines, 8 bag drops, trees, benches, bins and signs; seats, gate desk and sign at all 8 gates
-- [ ] The other rooms' fittings (security lanes, lounge, offices, Operations, Academy, crew room, toilets, baggage hall, Food Walk, eateries, Tax Free, bar, family room, view bays) and the ceiling lights
+- [x] The other rooms' fittings (security lanes, lounge, offices, Operations, Academy, crew room, toilets, baggage hall, Food Walk, eateries, Tax Free, bar, family room, view bays, walkway, kerb) and the ceiling lights
 - [x] Stairs with oak and walnut steps, glass sides, handrails and a glass balustrade round the opening; openings cut through Floor 2 and the ceilings; the 5 lifts called, opening and riding between the floors
 - [x] The jetways J-1 to J-4 (fixed corridor, rotunda, three telescopic tunnel sections, bellows, cab with canopy, drive unit), docked, walkable; docking and undocking come with the aircraft in batch 5
 - [x] Timetable screens at all 23 places (hall walls, totems, pairs, departure screens, gate screens), showing the Android edition's sample flights round the real time until the shared world arrives (batch 4)

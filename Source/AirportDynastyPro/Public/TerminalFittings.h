@@ -45,14 +45,29 @@ private:
 	void TreePlanter(const FAt& O);
 	void Bin(const FAt& O);
 	void Sign(const FAt& O, const FString& Words, float W, float H, const FName Back, FColor Colour);
+	void Chair(const FAt& O, const FName Mat = "fabricBlue");
+	void Armchair(const FAt& O, const FName Mat = "fabricTeal");
+	void Sofa(const FAt& O, float Len = 2.2f, const FName Mat = "fabricGrey");
+	void Table(const FAt& O, float Rad = 0.45f, float H = 0.74f, const FName Top = "white");
+	void Desk(const FAt& O, float W = 1.6f, float D = 0.8f, const FName Top = "oak", int32 Screens = 1);
+	void Shelf(const FAt& O, float W = 2, float H = 1.8f, float D = 0.5f);
+	void Counter(const FAt& O, float W, float D, const FName Front = "white", const FName Top = "marbleDark", float H = 1.05f);
+	void Lockers(const FAt& O, int32 N = 6);
+	void BarStool(const FAt& O);
+	void Lamps(const FPlanRoom& R);
 	#pragma endregion
 
 	#pragma region Rooms
 	void Hall(const FPlanRoom& R);
 	void Gate(const FPlanRoom& R);
+	/** Every other kind of room, as in furnish.ts. */
+	void Room(const FPlanRoom& R, const FTerminalPlan& Plan);
+	void Lounge(const FPlanRoom& R);
+	void Bar(const FPlanRoom& R);
 	#pragma endregion
 
 	float F2Y = 6;
+	TArray<FVector4f> Stairs; // x0, z0, x1, z1 of each stair (no lamps over them)
 	UPROPERTY() TObjectPtr<USceneComponent> Root;
 	UPROPERTY() TMap<FName, TObjectPtr<UInstancedStaticMeshComponent>> Kits;
 	UPROPERTY() TObjectPtr<UStaticMesh> Meshes[3];
