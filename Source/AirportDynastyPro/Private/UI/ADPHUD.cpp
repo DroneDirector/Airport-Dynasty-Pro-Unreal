@@ -377,6 +377,8 @@ void AADPHUD::Interact()
 void AADPHUD::ToggleButtons()
 {
 	if (bHidden) return;
+	// one key: with the map full screen it opens or closes only the map's legend; anywhere else the Buttons panel
+	if (HoloMap.IsValid() && HoloMap->IsFull()) { HoloMap->ToggleLegend(); return; }
 	bButtonsOpen = !bButtonsOpen;
 }
 
@@ -428,7 +430,8 @@ void AADPHUD::RefreshControls()
 			TEXT("Squares: stairs and lifts"), TEXT("White arrow: you, and where you look"), TEXT("Orange line: your route")};
 		if (const ADPInput::FAction* M = ADPInput::Find(TEXT("Map"))) L.Add(ADPInput::Label(*M, bPad, Pad) + TEXT(": open or close the map"));
 		L.Add(TEXT("Click where you want to go: a route there"));
-		HoloMap->SetLegend(L);
+		const ADPInput::FAction* B = ADPInput::Find(TEXT("Buttons"));
+		HoloMap->SetLegend(L, B ? ADPInput::Label(*B, bPad, Pad) : FString());
 	}
 }
 

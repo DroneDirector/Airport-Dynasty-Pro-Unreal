@@ -200,7 +200,15 @@ int32 SHoloMap::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const FSla
 	}
 
 	// the legend, full screen only, in the map's lower right corner
-	if (bFull && Legend.Num())
+	if (bFull && Legend.Num() && !bLegendOpen)
+	{
+		// minimized: a small tab with the key that opens it
+		const FString Tab = TEXT("LEGEND  ") + LegendKey;
+		const FVector2f O(Size.X - 170, Size.Y - 42);
+		FSlateDrawElement::MakeBox(Out, Layer + 5, Geo.ToPaintGeometry(FVector2f(150, 24), FSlateLayoutTransform(O)), White, ESlateDrawEffect::None, FLinearColor(0.012f, 0.05f, 0.1f, 0.9f));
+		FSlateDrawElement::MakeText(Out, Layer + 6, Geo.ToPaintGeometry(FVector2f(140, 18), FSlateLayoutTransform(O + FVector2f(8, 4))), Tab, FCoreStyle::GetDefaultFontStyle("Bold", 9), ESlateDrawEffect::None, Label);
+	}
+	if (bFull && Legend.Num() && bLegendOpen)
 	{
 		const float LH = 15.f, W = 300.f, H = 16.f + Legend.Num() * LH;
 		const FVector2f O(Size.X - W - 20, Size.Y - H - 20);

@@ -26,7 +26,9 @@ public:
 	bool IsFull() const { return bFull; }
 	void ClearRoute() { Route.Reset(); }
 	/** The legend in the full-screen map: what the symbols mean and the controls (for the device in use). */
-	void SetLegend(const TArray<FString>& Lines) { Legend = Lines; }
+	void SetLegend(const TArray<FString>& Lines, const FString& Key) { Legend = Lines; LegendKey = Key; }
+	/** The legend starts minimized (a small tab); the Buttons key opens and closes it while the map is full screen. */
+	void ToggleLegend() { bLegendOpen = !bLegendOpen; }
 
 	virtual FVector2D ComputeDesiredSize(float) const override { return FVector2D(240, 240); }
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const FSlateRect& Cull, FSlateWindowElementList& Out, int32 Layer, const FWidgetStyle& Style, bool bParentEnabled) const override;
@@ -50,6 +52,8 @@ private:
 	bool bFull = false;
 	TArray<FVector> Route;
 	TArray<FString> Legend;
+	FString LegendKey;
+	bool bLegendOpen = false;
 
 	int32 FloorOf(float Height) const { return Height > Plan.F2Y * 0.5f ? 2 : 1; }
 	/** Plan (x, z) to the widget: the small map turned with the player, the full map north up and fitted. */
