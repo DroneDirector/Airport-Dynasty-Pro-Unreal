@@ -29,7 +29,11 @@ export function uePadInstall(w: any) {
   } catch (e) { /* this window keeps its own */ }
 }
 if (UE_PC) {
-  console.log('[ue] menus ready, link ' + (ue() ? 'there' : 'missing'));
+  // the page's errors into the game's log
+  const say = (s: string) => { try { const u = ue(); if (u && u.log) u.log(s); } catch (e) { /* no link */ } };
+  window.addEventListener('error', e => say('error: ' + e.message + ' (' + (e.filename || '').split('/').pop() + ':' + e.lineno + ')'));
+  window.addEventListener('unhandledrejection', (e: any) => say('promise: ' + String(e.reason && (e.reason.stack || e.reason.message) || e.reason).slice(0, 400)));
+  setTimeout(() => say('menus ready'), 1000);
   uePadInstall(window);
   // called by Unreal when the controller changes: its name, the four stick axes and the 17 buttons (0..1)
   (window as any).__uePad = (id: string, axes: number[], buttons: number[]) => {

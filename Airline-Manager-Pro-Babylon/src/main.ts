@@ -13,6 +13,7 @@ import { icon, toast } from './ui/icons';
 import { exitGame } from './core/exit';
 import { gameOpen, gameIsOpen, gameClose, gameShow, gameExists, gameSend, onGameRoom, onGameFids, gameEval, gameHidden } from './ui/game-frame';
 import { UE_PC, UE_ENGINE, ue } from './core/uelink';
+import { fidsCanvas } from './sections/terminal/fids';
 import { APP, IS_PC } from './core/app';
 import { updateInit } from './core/update';
 import { whatsNewOnStart, whatsNewIsOpen, whatsNewClose } from './ui/whats-new';
@@ -123,7 +124,15 @@ if (UE_PC) {
     const s = gameEval(`(function(){try{var c=company();return JSON.stringify({name:c.name,icao:c.icao,hub:c.hub||c.base||'',money:money(c.balance,{compact:true})})}catch(e){return ''}})()`);
     if (s && u.gamestate) u.gamestate(String(s));
   }, 4000);
-  onGameFids(d => { const u = ue(); if (u && u.gamefids) u.gamefids(JSON.stringify({ base: d.base || '', dep: (d.dep || []).slice(0, 12), arr: (d.arr || []).slice(0, 12) })); });
+  // the terminal's timetable screens in Unreal: each board drawn here with the Babylon edition's own drawing and handed
+  // over as a picture when its rows change, and every minute for the clock (the sample timetable with no game)
+  let boards = { dep: [] as any[], arr: [] as any[], base: 'BIAP', live: false, at: Date.now() }, sent = '';
+  const sendBoards = () => { const u = ue(); if (!u || !u.board) { if (u && u.log) u.log('no board link'); return; }
+    const sig = new Date().getMinutes() + JSON.stringify([boards.dep, boards.arr].map(l => l.map((r: any) => [r.flight, r.sched, r.exp, r.status]))); if (sig === sent) return; sent = sig;
+    for (const k of ['depwall', 'arrwall', 'deptotem', 'arrtotem', 'depwide', 'arrwide', 'opswall']) { try { u.board(k, fidsCanvas(k, boards).toDataURL('image/png').split(',')[1]); } catch (e: any) { if (u.log) u.log('board ' + k + ': ' + (e && e.message || e)); } } };
+  setInterval(sendBoards, 15000); setTimeout(sendBoards, 3000);
+  onGameFids(d => { const u = ue(); if (u && u.gamefids) u.gamefids(JSON.stringify({ base: d.base || '', dep: (d.dep || []).slice(0, 12), arr: (d.arr || []).slice(0, 12) }));
+    boards = { dep: d.dep || [], arr: d.arr || [], base: String(d.base || 'BIAP'), live: true, at: Date.now() }; sendBoards(); });
 }
 // The PC version's airport announcements: Unreal asks for a line to be spoken (window.__ueSay). The announcer is
 // always a woman: the game's own natural voice (Kokoro, a British female voice) when its voices are on this PC, made

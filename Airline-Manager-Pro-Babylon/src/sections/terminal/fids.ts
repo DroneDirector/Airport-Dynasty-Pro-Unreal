@@ -141,3 +141,19 @@ function build(sc: Scene, icao: string) {
   sc.onDisposeObservable.addOnce(() => { clearInterval(t1); clearInterval(t2); off(); });
   return { get };
 }
+
+/** The PC version (Unreal): one board drawn on its own canvas with exactly this drawing, for Unreal's copy of the
+ *  terminal (key: 'depwall', 'arrtotem', 'opswall'…); with no flights from the game, the sample timetable. */
+export function fidsCanvas(key: string, d: { dep: Row[]; arr: Row[]; base: string; live: boolean; at: number }): HTMLCanvasElement {
+  const shape = (key === 'opswall' ? 'opswall' : key.slice(3)) as Shape, kind = (key === 'opswall' ? 'dep' : key.slice(0, 3)) as Kind;
+  const [w, h] = SIZE[shape], c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d') as CanvasRenderingContext2D, now = Date.now(), none = !d.dep.length && !d.arr.length, demo = DEMO_DATA && none, live = d.live && !demo;
+  const rowsOf = (k: Kind, n: number) => demo ? sample(k, now, n) : (k === 'dep' ? d.dep : d.arr);
+  x.fillStyle = '#050608'; x.fillRect(0, 0, w, h);
+  if (shape === 'opswall') {
+    const gap = Math.round(w * 0.006), pw = (w - gap * (OPS_PANELS + 1)) / OPS_PANELS, P = { dep: pages(rowsOf('dep', OPS_ROWS * 3), OPS_ROWS), arr: pages(rowsOf('arr', OPS_ROWS * 3), OPS_ROWS) };
+    for (let i = 0; i < OPS_PANELS; i++) { const k: Kind = i % 2 ? 'arr' : 'dep', pg = P[k], n = Math.floor(i / 2), pi = pg.length ? n % pg.length : 0;
+      monitor(x, gap + i * (pw + gap), gap, pw, h - gap * 2, k, false, pg[pi] || [], OPS_ROWS, d.base, now, live, d.at, pg.length > 1 ? `${pi + 1} / ${pg.length}` : ''); }
+  } else { const full = shape === 'wall', n = full ? 10 : 8, all = rowsOf(kind, n); monitor(x, 0, 0, w, h, kind, full, all.slice(0, n), n, d.base, now, live, d.at, ''); }
+  return c;
+}

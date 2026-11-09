@@ -248,13 +248,13 @@ void AADPHUD::Speak(const FString& Words)
 	// flight numbers as announcers say them: letter by letter, digit by digit (ATN201: "A T N 2 0 1")
 	FString Said = Words;
 	{
-		FRegexMatcher M(FRegexPattern(TEXT("\\b([A-Z]{2,3}\\d{1,4})\\b")), Words);
+		FRegexMatcher M(FRegexPattern(TEXT("\\b([A-Z]{2,3} ?\\d{1,4})\\b")), Words);
 		TArray<FString> Codes;
 		while (M.FindNext()) Codes.AddUnique(M.GetCaptureGroup(1));
 		for (const FString& C : Codes)
 		{
 			FString Sp;
-			for (const TCHAR Ch : C) { Sp.AppendChar(Ch); Sp.AppendChar(TEXT(' ')); }
+			for (const TCHAR Ch : C) if (Ch != TEXT(' ')) { Sp.AppendChar(Ch); Sp.AppendChar(TEXT(' ')); }
 			Said = Said.Replace(*C, *Sp.TrimEnd(), ESearchCase::CaseSensitive);
 		}
 	}
@@ -299,13 +299,19 @@ void AADPHUD::OnGameFids(const FString& Json)
 	{
 		const TSharedPtr<FJsonObject>* R = nullptr;
 		if (!V.IsValid() || !V->TryGetObject(R)) continue;
-		FString Flight, Place, Status, Sched, Exp;
+		FString Flight, Place, Status;
 		(*R)->TryGetStringField(TEXT("flight"), Flight);
 		(*R)->TryGetStringField(TEXT("place"), Place);
 		(*R)->TryGetStringField(TEXT("status"), Status);
-		(*R)->TryGetStringField(TEXT("sched"), Sched);
-		(*R)->TryGetStringField(TEXT("exp"), Exp);
-		if (Flight.IsEmpty() || Minutes(Sched) < 0) continue;
+		// the times come as moments (milliseconds since 1970, UTC): the minute of the day here
+		double SchedMs = 0, ExpMs = 0;
+		if (!(*R)->TryGetNumberField(TEXT("sched"), SchedMs) || Flight.IsEmpty()) continue;
+		if (!(*R)->TryGetNumberField(TEXT("exp"), ExpMs)) ExpMs = SchedMs;
+		const FTimespan Local = FDateTime::Now() - FDateTime::UtcNow();
+		auto MinOf = [&](double Ms) { const FDateTime T = FDateTime(1970, 1, 1) + FTimespan::FromMilliseconds(Ms) + Local; return T.GetHour() * 60 + T.GetMinute(); };
+		const FString Sched = Clock(MinOf(SchedMs)), Exp = Clock(MinOf(ExpMs));
+		// the place as people say it: "EKCH Copenhagen" is said "Copenhagen"
+		{ FString Code, Name; if (Place.Split(TEXT(" "), &Code, &Name) && Code.Len() >= 3 && Code.Len() <= 4 && Code.ToUpper() == Code && !Name.IsEmpty()) Place = Name; }
 		const bool bNew = !Departures.Contains(Flight);
 		FDeparture& D = Departures.FindOrAdd(Flight);
 		D.Place = Place;

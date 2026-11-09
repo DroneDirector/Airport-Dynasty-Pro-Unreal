@@ -70,7 +70,7 @@ The 3D parts (animations, people, the model's further work) wait; the interface 
 3. 0.13.0 The 3D viewer in Unreal (needs the terrain): following flights above the clouds, your airport, crash sites
 4. 0.14.0 The ocean: real water (Unreal Water) meeting every coastline, with foam and breaking waves
 5. 0.15.0 Swimming and diving in that ocean, the waves moving you
-6. 0.16.0 The terminal's own timetable screens (the Babylon model's boards) showing the game's real flights, and the
+6. (done in 0.12.0: the boards) 0.16.0 The terminal's own timetable screens (the Babylon model's boards) showing the game's real flights, and the
    announcements read aloud (Kokoro voice)
 7. 0.17.0 Aircraft at the gates and moving on the airfield: the Babylon edition's own aircraft and vehicles, imported
    exactly, turning round at the stands, taxiing, taking off and landing

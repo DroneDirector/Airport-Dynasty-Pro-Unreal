@@ -27,6 +27,16 @@ void UADPBridge::SpeechPcm(int32 Id, const FString& B64)
 	if (AADPHUD* H = Hud.Get()) H->SpeechPcm(Id, B64);
 }
 
+void UADPBridge::Log(const FString& Line)
+{
+	UE_LOG(LogTemp, Log, TEXT("Menus: %s"), *Line.Left(600));
+}
+
+void UADPBridge::Board(const FString& Key, const FString& B64)
+{
+	if (AADPHUD* H = Hud.Get()) H->OnBoard(Key, B64);
+}
+
 void UADPBridge::SpeechFail(int32 Id)
 {
 	if (AADPHUD* H = Hud.Get()) H->SpeechFallback(Id);

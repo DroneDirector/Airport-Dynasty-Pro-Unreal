@@ -107,10 +107,12 @@ namespace
 
 FString ADPGameView::Folder()
 {
-	// packaged: staged with the game; in the editor: the Android edition's own build output
+	// packaged: staged with the game; run from the editor: always the latest build of the menus (never an old copy
+	// left in Content/Web by a release build)
 	const FString Packed = FPaths::ProjectContentDir() / TEXT("Web");
-	if (FPaths::FileExists(Packed / TEXT("index.html"))) return Packed;
 	const FString Dev = FPaths::ProjectDir() / TEXT("Airline-Manager-Pro-Babylon/www");
+	if (!FPlatformProperties::RequiresCookedData() && FPaths::FileExists(Dev / TEXT("index.html"))) return Dev;
+	if (FPaths::FileExists(Packed / TEXT("index.html"))) return Packed;
 	if (FPaths::FileExists(Dev / TEXT("index.html"))) return Dev;
 	return FString();
 }

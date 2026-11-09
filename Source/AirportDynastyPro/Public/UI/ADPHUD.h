@@ -47,6 +47,8 @@ public:
 	void OnGameFids(const FString& Json);
 	/** The announcer's words as sound (24 kHz, 16-bit, base64), made by the menus; played through the loudspeakers. */
 	void SpeechPcm(int32 Id, const FString& B64);
+	/** A timetable board's picture (PNG, base64) from the menus, for every screen of that kind (Boards.cpp). */
+	void OnBoard(const FString& Key, const FString& B64);
 	/** Without the game's voices: Windows' own female voice (SAPI), made off the game thread, then the same loudspeakers. */
 	void SpeechFallback(int32 Id);
 	void PlayAnnouncer(int32 Id, const TArray<int16>& Pcm);
@@ -96,6 +98,8 @@ private:
 	TMap<FString, FDeparture> Departures;
 	FString Airline;
 	FTerminalPlan Plan;
+	UPROPERTY() TMap<FString, TObjectPtr<class UTexture2D>> BoardTex;
+	TMap<FString, TArray<TObjectPtr<class UMaterialInstanceDynamic>>> BoardMats;
 	UPROPERTY() TObjectPtr<class UAudioComponent> VoiceOut;
 	UPROPERTY() TObjectPtr<class UAudioComponent> GongOut;
 	int32 SpeechId = 0;

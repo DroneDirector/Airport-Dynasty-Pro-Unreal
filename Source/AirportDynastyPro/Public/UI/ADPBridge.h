@@ -30,4 +30,8 @@ public:
 	UFUNCTION() void SpeechPcm(int32 Id, const FString& B64);
 	/** The game's natural voices aren't on this PC: Unreal speaks the line with Windows' own female voice. */
 	UFUNCTION() void SpeechFail(int32 Id);
+	/** A timetable board's picture (PNG, base64), drawn by the menus. */
+	/** A line from the menus for the game's log (their errors; Unreal's browser doesn't pass on the page's console). */
+	UFUNCTION() void Log(const FString& Line);
+	UFUNCTION() void Board(const FString& Key, const FString& B64);
 };
