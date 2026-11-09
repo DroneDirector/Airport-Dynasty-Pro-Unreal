@@ -32,11 +32,12 @@ are offered. Sources: CLAUDE.md (the agreed plan), the PDFs in the repo, the Bab
 - Moved to batch 4 (they need the game's world running here): the game's own menus and screens (first in Unreal's web browser view, then screen by screen), the problem report sent from the game
 - Later: the holographic map's offered upgrades (real glow and shimmer, scan line, 3D tilt with stacked floors, live dots for people and aircraft)
 
-## Batch 4: one shared world with Android
-- The game's TypeScript world code running in Unreal (embedded JavaScript engine)
-- One save in the cloud (Supabase), one device runs the world, the other watches and manages
-- Passengers from the shared world appear where the world says they are; airport mode writes back
-- The automatic one-day check that both setups give exactly the same world
+## Batch 4: one shared world with Android (first part done: 0.8.0)
+- [x] The game's own code (every menu and screen) running in the PC version in Unreal's web browser view (G), served from a local secure address; built by the PC release from the Android edition and staged with the game
+- [x] One world through the game's existing cloud sync (Supabase, encrypted on the device; one device runs the world, the other shows it live)
+- [ ] A bridge from the game to Unreal: the timetable screens and the passengers from the world's real flights; airport mode writes back
+- [ ] The automatic one-day check that both setups give exactly the same world
+- [ ] The problem report sent from the game
 
 ## Batch 5: the airport site
 - The custom airport BIAP at Mýrdalssandur from the shared layout: runway 08/26, taxiways, stands, gates

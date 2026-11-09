@@ -51,3 +51,5 @@ Airline-Manager-Pro-Babylon/game/capacitor.config.json
 
 # the plan data copied into Content for packaging (the build makes it from Data/)
 Content/Data/
+# the airline game's built screens copied into Content for packaging (the build makes them)
+Content/Web/

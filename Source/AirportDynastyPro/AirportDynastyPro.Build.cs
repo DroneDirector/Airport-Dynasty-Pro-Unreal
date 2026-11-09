@@ -6,6 +6,6 @@ public class AirportDynastyPro : ModuleRules
 	public AirportDynastyPro(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "Json", "JsonUtilities", "MassEntity", "Slate", "SlateCore", "RHI", "RenderCore" });
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "Json", "JsonUtilities", "MassEntity", "Slate", "SlateCore", "RHI", "RenderCore", "WebBrowser" });
 	}
 }

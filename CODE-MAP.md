@@ -365,7 +365,8 @@ Other folders: `www/` (pictures, sounds and the built game), `release-notes/` (o
 - `AirportDynastyPro/{Public,Private}/WalkMap`: the walking map from the plan (rooms and outside areas joined by doors and stairs) and the shortest way between two points.
 - `AirportDynastyPro/{Public,Private}/TerminalCrowd`: the passengers as Mass Entities on their trip (kerb, check-in, security, a stop upstairs, gate, aboard), walking the walking map, drawn as simple figures; people far away redrawn less often.
 - `AirportDynastyPro/{Public,Private}/UI/SHoloMap`: the holographic airport map as in the Android edition's holomap.ts: small and turned with the player, or full screen (M) with the rooms' names and click-to-route through the walking map.
-- `AirportDynastyPro/{Public,Private}/UI/ADPHUD`: the walking-mode interface: the map, the top-left bar, Hide UI (H, Esc or double-click back), the settings panel (Tab), the performance overlay (P), the device scan on first start.
+- `AirportDynastyPro/{Public,Private}/UI/GameView`: the airline game (the Android edition's built www/) in Unreal's web browser view, its files served at https://game.adp.local/ (Content/Web when packaged, Airline-Manager-Pro-Babylon/www in the editor).
+- `AirportDynastyPro/{Public,Private}/UI/ADPHUD`: the PC interface: the airline game full screen (G), and the walking mode's map, the top-left bar, Hide UI (H, Esc or double-click back), the settings panel (Tab), the performance overlay (P), the device scan on first start.
 - `AirportDynastyPro/{Public,Private}/ProblemLog`: every warning and error written to Saved/Logs/Problems.log (registered by the module in `AirportDynastyPro.cpp`).
 - `AirportDynastyPro/{Public,Private}/ADPWalker`: the player in first person (walk, run, jump, crouch).
 - `AirportDynastyPro/{Public,Private}/ADPGameMode`: on play, adds sun, sky, fog and exposure, builds the terminal, starts the passengers and places the player at the plan's spawn point.

@@ -2,6 +2,7 @@
 // overlay, all in Slate, styled in the Android edition's holographic blues.
 #include "UI/ADPHUD.h"
 #include "UI/SHoloMap.h"
+#include "UI/GameView.h"
 #include "TerminalPlan.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
@@ -65,7 +66,11 @@ void AADPHUD::BeginPlay()
 	Settings->SetVisibility(EVisibility::Collapsed);
 	Perf->SetVisibility(EVisibility::Collapsed);
 
+	GameBox = SNew(SBox);
+	GameBox->SetVisibility(EVisibility::Collapsed);
+
 	Root = SNew(SOverlay)
+		+ SOverlay::Slot()[GameBox.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(16)[TopBar.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(16)
 		[
@@ -80,6 +85,7 @@ void AADPHUD::BeginPlay()
 	if (APlayerController* PC = GetOwningPlayerController())
 	{
 		EnableInput(PC);
+		InputComponent->BindKey(EKeys::G, IE_Pressed, this, &AADPHUD::ToggleGame);
 		InputComponent->BindKey(EKeys::M, IE_Pressed, this, &AADPHUD::ToggleMap);
 		InputComponent->BindKey(EKeys::Tab, IE_Pressed, this, &AADPHUD::ToggleSettings);
 		InputComponent->BindKey(EKeys::P, IE_Pressed, this, &AADPHUD::TogglePerf);
@@ -116,6 +122,7 @@ void AADPHUD::FirstStartScan()
 TSharedRef<SWidget> AADPHUD::MakeTopBar()
 {
 	return SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("GAME  (G)"), [this]() { ToggleGame(); })]
 		+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("MAP  (M)"), [this]() { ToggleMap(); })]
 		+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("SETTINGS  (TAB)"), [this]() { ToggleSettings(); })]
 		+ SHorizontalBox::Slot().AutoWidth()[Button(TEXT("HIDE UI  (H)"), [this]() { HideUI(); })];
@@ -192,7 +199,7 @@ void AADPHUD::UpdateMouse()
 {
 	APlayerController* PC = GetOwningPlayerController();
 	if (!PC) return;
-	const bool bFree = bSettings || (HoloMap.IsValid() && HoloMap->IsFull());
+	const bool bFree = bGame || bSettings || (HoloMap.IsValid() && HoloMap->IsFull());
 	PC->bShowMouseCursor = bFree;
 	if (bFree) { FInputModeGameAndUI M; M.SetHideCursorDuringCapture(false); PC->SetInputMode(M); }
 	else PC->SetInputMode(FInputModeGameOnly());
@@ -206,6 +213,17 @@ void AADPHUD::ToggleMap()
 	// full screen: the map fills most of the window; small: back in its corner
 	StaticCastSharedPtr<SBox>(MiniBox)->SetWidthOverride(bFull ? FOptionalSize(1200) : FOptionalSize(240));
 	StaticCastSharedPtr<SBox>(MiniBox)->SetHeightOverride(bFull ? FOptionalSize(720) : FOptionalSize(240));
+	UpdateMouse();
+}
+
+void AADPHUD::ToggleGame()
+{
+	if (bHidden) return;
+	bGame = !bGame;
+	// made the first time it is opened, then kept (the game keeps running behind the terminal)
+	if (bGame && !bGameMade) { StaticCastSharedPtr<SBox>(GameBox)->SetContent(ADPGameView::Make()); bGameMade = true; }
+	GameBox->SetVisibility(bGame ? EVisibility::Visible : EVisibility::Collapsed);
+	MiniBox->SetVisibility(bGame ? EVisibility::Collapsed : EVisibility::Visible);
 	UpdateMouse();
 }
 
@@ -235,7 +253,8 @@ void AADPHUD::ShowUI()
 {
 	if (bHidden) { bHidden = false; Root->SetVisibility(EVisibility::SelfHitTestInvisible); return; }
 	// Esc while a panel is open closes it
-	if (bSettings) ToggleSettings();
+	if (bGame) ToggleGame();
+	else if (bSettings) ToggleSettings();
 	else if (HoloMap->IsFull()) ToggleMap();
 }
 

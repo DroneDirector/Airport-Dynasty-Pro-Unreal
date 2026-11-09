@@ -59,6 +59,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           lfs: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build the airline game (the Android edition's code, shown in the PC version's web view)
+        shell: pwsh
+        working-directory: Airline-Manager-Pro-Babylon
+        run: |
+          npm install --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { exit 1 }
       - name: Close any open editor of this engine (its Live Coding blocks the build)
         shell: pwsh
         run: Get-Process UnrealEditor -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
@@ -73,6 +84,9 @@ jobs:
           # the shared layout files go with the game, staged from Content/Data
           New-Item -ItemType Directory -Force Content\Data | Out-Null
           Copy-Item Data\* Content\Data\ -Recurse -Force
+          # the airline game's built screens, staged from Content/Web
+          if (Test-Path Content\Web) { Remove-Item Content\Web -Recurse -Force }
+          Copy-Item Airline-Manager-Pro-Babylon\www Content\Web -Recurse -Force
           & "$env:UE_ROOT\Engine\Build\BatchFiles\RunUAT.bat" BuildCookRun "-project=$pwd\AirportDynastyPro.uproject" -noP4 -platform=Win64 -clientconfig=Shipping -build -cook -stage -pak -archive "-archivedirectory=$pwd\Packaged" -utf8output -unattended
           if ($LASTEXITCODE -ne 0) { exit 1 }
       - name: Zip and the installer
