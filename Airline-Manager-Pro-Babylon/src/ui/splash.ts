@@ -67,6 +67,8 @@ export function splashOpen(enter: (id: string) => void) {
   T.raf = requestAnimationFrame(loop);
   setTimeout(issueReport, 900);   // problems since last time, like a crash screen
 }
+/** Choose an entry and go (as if picked): the PC version's Esc to the Overview uses it. */
+export function splashGo(id: string) { _pick = id; splashEnter(); }
 export function splashIsOpen(): boolean { return !!TitleScreen.on; }
 /** Up and down (keys, D-pad) move between the start screen's choices. */
 export function splashNav(dir: number) {

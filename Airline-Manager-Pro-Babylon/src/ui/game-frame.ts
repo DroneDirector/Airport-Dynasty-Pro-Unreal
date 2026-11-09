@@ -45,7 +45,7 @@ export function gameOpen(act: 'new' | 'continue' | 'load' | 'save' | 'ui', on: {
   f.setAttribute('allow', 'autoplay; fullscreen; gamepad; clipboard-write');
   f.src = `game/index.html?embed=${act}&n=${Date.now().toString(36)}`;
   // the PC version: Unreal's gamepad reaches the game's own controller code in the frame too
-  f.addEventListener('load', () => { try { uePadInstall(f.contentWindow); } catch (e) { /* later */ } });
+  f.addEventListener('load', () => { try { uePadInstall(f.contentWindow); const g = (window as any).__ueGameEsc; if (g) g(f.contentWindow); } catch (e) { /* later */ } });
   document.body.appendChild(f); document.body.classList.add('game-on'); frame = f;
   requestAnimationFrame(() => f.classList.add('in'));
   setTimeout(() => { try { f.focus(); } catch (e) { /* later */ } }, 400);

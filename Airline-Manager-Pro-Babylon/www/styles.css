@@ -456,3 +456,13 @@ body.photo-on .cab-says { display: none; }
   .ts-cap b { font-size: 14px; }
   .ts-cap small { font-size: 9px; }
 }
+
+/* the PC version's "leave to the title screen?" question */
+.ue-leave { position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; background: rgba(2, 6, 14, .62); }
+.ue-leave-box { display: flex; flex-direction: column; gap: 10px; min-width: 340px; padding: 22px 24px; border-radius: 14px; background: #0B1A30; border: 1px solid rgba(120, 190, 255, .35); color: #EAF4FF; font: 14px Inter, system-ui, sans-serif; box-shadow: 0 18px 60px rgba(0, 0, 0, .5); }
+.ue-leave-box b { font-size: 18px; }
+.ue-leave-box small { color: #A9C2DC; }
+.ue-leave-row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; }
+.ue-leave-row button { padding: 8px 14px; border-radius: 9px; border: 1px solid rgba(120, 190, 255, .35); background: #12305A; color: #EAF4FF; font-weight: 600; cursor: pointer; }
+.ue-leave-row button[data-a="yes"] { background: #7A1F2E; border-color: #C04A5C; }
+.ue-leave-row button:hover { filter: brightness(1.15); }

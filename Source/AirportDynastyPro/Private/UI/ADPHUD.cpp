@@ -104,6 +104,15 @@ public:
 		if (FMath::Abs(*To - V) > 0.01f) { *To = V; bDirty = true; }
 		return Menus();
 	}
+	// the middle mouse button frees the pointer or gives the view back: caught here, before any widget can take it
+	virtual bool HandleMouseButtonDownEvent(FSlateApplication&, const FPointerEvent& E) override
+	{
+		if (E.GetEffectingButton() != EKeys::MiddleMouseButton) return false;
+		AADPHUD* H = Hud.Get();
+		if (!H || H->MenusOpen()) return false;
+		H->TogglePointer();
+		return true;
+	}
 	virtual const TCHAR* GetDebugName() const override { return TEXT("ADPPadToMenus"); }
 };
 #pragma endregion
@@ -156,7 +165,7 @@ void AADPHUD::BeginPlay()
 	GameBox = SNew(SBox);
 	GameBox->SetVisibility(EVisibility::Collapsed);
 
-	Root = SNew(SOverlay)
+	Root = SNew(SOverlay).Visibility(EVisibility::SelfHitTestInvisible)
 		+ SOverlay::Slot()[GameBox.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(16)[TopBar.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(16)
@@ -298,7 +307,8 @@ void AADPHUD::BeginPlay()
 		// the controls table is checked first: no key or button is ever used twice
 		ADPInput::CheckNoConflicts();
 		ADPInput::CurrentPad() = ADPInput::DetectPad();
-		InputComponent->BindKey(EKeys::AnyKey, IE_Pressed, this, &AADPHUD::OnAnyKey);
+		// (it only watches which device is in use: it never uses up the key, so walking and everything else still get it)
+		InputComponent->BindKey(EKeys::AnyKey, IE_Pressed, this, &AADPHUD::OnAnyKey).bConsumeInput = false;
 		InputComponent->BindKey(EKeys::F1, IE_Pressed, this, &AADPHUD::ToggleButtons);
 		InputComponent->BindKey(EKeys::Gamepad_Special_Left, IE_Pressed, this, &AADPHUD::ToggleButtons);
 		InputComponent->BindKey(EKeys::Gamepad_FaceButton_Top, IE_Pressed, this, &AADPHUD::ToggleGame);
@@ -311,9 +321,8 @@ void AADPHUD::BeginPlay()
 		InputComponent->BindKey(EKeys::M, IE_Pressed, this, &AADPHUD::ToggleMap);
 		InputComponent->BindKey(EKeys::Tab, IE_Pressed, this, &AADPHUD::ToggleSettings);
 		InputComponent->BindKey(EKeys::P, IE_Pressed, this, &AADPHUD::TogglePerf);
-		InputComponent->BindKey(EKeys::MiddleMouseButton, IE_Pressed, this, &AADPHUD::TogglePointer);
 		InputComponent->BindKey(EKeys::H, IE_Pressed, this, &AADPHUD::HideUI);
-		InputComponent->BindKey(EKeys::Escape, IE_Pressed, this, &AADPHUD::ShowUI);
+		InputComponent->BindKey(EKeys::Escape, IE_Pressed, this, &AADPHUD::OnEscape);
 		InputComponent->BindKey(EKeys::LeftMouseButton, IE_DoubleClick, this, &AADPHUD::ShowUI);
 	}
 }
@@ -490,7 +499,12 @@ void AADPHUD::UpdateMouse()
 	PC->SetIgnoreLookInput(bPointer && !bGame);
 	PC->bShowMouseCursor = bFree;
 	if (bFree) { FInputModeGameAndUI M; M.SetHideCursorDuringCapture(false); PC->SetInputMode(M); }
-	else PC->SetInputMode(FInputModeGameOnly());
+	else
+	{
+		PC->SetInputMode(FInputModeGameOnly());
+		// the keyboard back to the game (not left on the hidden menus page), so walking works at once
+		if (FSlateApplication::IsInitialized()) FSlateApplication::Get().SetAllUserFocusToGameViewport();
+	}
 }
 
 void AADPHUD::ToggleMap()
@@ -542,6 +556,19 @@ void AADPHUD::SetFrameGen(bool bOn)
 	if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("r.FidelityFX.FI.Enabled"))) V->Set(bOn ? 1 : 0, ECVF_SetByGameSetting);
 	GConfig->SetBool(TEXT("ADP.Graphics"), TEXT("FrameGeneration"), bOn, GGameUserSettingsIni);
 	GConfig->Flush(false, GGameUserSettingsIni);
+}
+
+void AADPHUD::OnEscape()
+{
+	// in the menus the page handles Esc itself (the Overview asks before leaving to the title screen)
+	if (bGame) return;
+	if (bHidden) { ShowUI(); return; }
+	// in the 3D world: an open panel closes first, back into the 3D view
+	if (HoloMap.IsValid() && HoloMap->IsFull()) { ToggleMap(); return; }
+	if (bSettings) { ToggleSettings(); return; }
+	// nothing open: the Overview, always
+	ToggleGame();
+	if (Browser.IsValid()) Browser->ExecuteJavascript(TEXT("window.__ueOverview && window.__ueOverview()"));
 }
 
 void AADPHUD::TogglePointer()
@@ -808,6 +835,31 @@ void AADPHUD::Tick(float Dt)
 			if (bGame) ToggleGame();
 		if (FParse::Param(FCommandLine::Get(), TEXT("UICall")) && Before < 40.f && ShotClock >= 40.f)
 			Announce(TEXT("This is a passenger announcement. Would passenger Ms Anna Hansen, travelling to Copenhagen, please contact the information desk in the main hall. Thank you."), 2);
+		// -UIWalk: out of the menus, W held for two seconds as a real key press arrives, then the middle mouse twice;
+		// the log says how far you walked and whether the pointer freed and came back
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIWalk")))
+		{
+			static FVector WalkFrom;
+			APlayerController* PC = GetOwningPlayerController();
+			APawn* Me = GetOwningPawn();
+			if (Before < 46.f && ShotClock >= 46.f) { ShowTerminal(); if (Me) WalkFrom = Me->GetActorLocation(); }
+			if (PC && Before < 47.f && ShotClock >= 47.f) PC->InputKey(FInputKeyEventArgs::CreateSimulated(EKeys::W, IE_Pressed, 1.f));
+			if (PC && Before < 49.f && ShotClock >= 49.f)
+			{
+				PC->InputKey(FInputKeyEventArgs::CreateSimulated(EKeys::W, IE_Released, 0.f));
+				UE_LOG(LogTemp, Log, TEXT("Walk test: moved %.0f cm with W"), Me ? FVector::Dist2D(Me->GetActorLocation(), WalkFrom) : -1.f);
+				FPointerEvent Mid(0, FVector2D(400, 300), FVector2D(400, 300), TSet<FKey>({EKeys::MiddleMouseButton}), EKeys::MiddleMouseButton, 0, FModifierKeysState());
+				FSlateApplication::Get().ProcessMouseButtonDownEvent(nullptr, Mid);
+				FSlateApplication::Get().ProcessMouseButtonUpEvent(Mid);
+				UE_LOG(LogTemp, Log, TEXT("Walk test: middle mouse once: pointer %s"), bPointer ? TEXT("free") : TEXT("not free"));
+				FSlateApplication::Get().ProcessMouseButtonDownEvent(nullptr, Mid);
+				FSlateApplication::Get().ProcessMouseButtonUpEvent(Mid);
+				UE_LOG(LogTemp, Log, TEXT("Walk test: middle mouse twice: pointer %s, looking %s"), bPointer ? TEXT("free") : TEXT("captured"), PC->IsLookInputIgnored() ? TEXT("off") : TEXT("on"));
+				// also to a file (a release build keeps no log)
+				FFileHelper::SaveStringToFile(FString::Printf(TEXT("moved %.0f cm; pointer after two middle clicks: %s; looking %s
+"), Me ? FVector::Dist2D(Me->GetActorLocation(), WalkFrom) : -1.f, bPointer ? TEXT("free") : TEXT("captured"), PC->IsLookInputIgnored() ? TEXT("off") : TEXT("on")), *(FPaths::ProjectSavedDir() / TEXT("WalkTest.txt")));
+			}
+		}
 		// -UISite: outside at the kerb (the light, the sky, the credits), and a picture
 		const bool bSite = FParse::Param(FCommandLine::Get(), TEXT("UISite"));
 		if (bSite && Before < 48.f && ShotClock >= 48.f) { OpenSite(); if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(FRotator(5.f, 90.f, 0)); }

@@ -33,6 +33,10 @@ public:
 
 	/** From the menus: Unreal's 3D terminal, the menus hidden. */
 	void ShowTerminal();
+	/** Esc: the open panel closes; with nothing open, the Overview (the menus handle Esc themselves). */
+	void OnEscape();
+	/** The middle mouse button: the pointer free (click things, drag boxes about) or back to looking round. */
+	void TogglePointer();
 	/** From the menus: Unreal's world round the terminal, standing at the kerb outside the main entrance. */
 	void OpenSite();
 	/** From the menus: the business lounge (the Babylon edition's, placed apart from the airport, lit as there). */
@@ -83,8 +87,6 @@ private:
 	void OnAnyKey(FKey Key);
 	/** The Buttons panel's list, the controls in Settings and the map's legend, for the device in use. */
 	void RefreshControls();
-	/** The middle mouse button: the pointer free (click things, drag boxes about) or back to looking round. */
-	void TogglePointer();
 	bool bPointer = false, bFpsBox = false, bFrameGen = false;
 	/** AMD's frame generation (FSR, any graphics card) on or off; kept in the settings file, off unless chosen. */
 	void SetFrameGen(bool bOn);

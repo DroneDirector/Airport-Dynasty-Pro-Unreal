@@ -1,4 +1,4 @@
-// Airport Dynasty Pro, Babylon.js edition. It starts with the start screen (the film), then one place: the lounge.
+﻿// Airport Dynasty Pro, Babylon.js edition. It starts with the start screen (the film), then one place: the lounge.
 // The gear in the corner is always there: graphics and controls settings. More parts of the game are added as
 // sections (core/sections.ts) and opened from here.
 import { logProblem } from './core/errlog';
@@ -6,7 +6,7 @@ import { makeEngine, applyScale, getEngine } from './core/engine';
 import { onSettings } from './core/settings';
 import { inputInit, onButton, setPlay, onPad } from './core/input';
 import { openSection, currentSection, closeSection, SectionCtx } from './core/sections';
-import { splashOpen, splashEnter, splashIsOpen, splashNav } from './ui/splash';
+import { splashOpen, splashEnter, splashIsOpen, splashNav, splashGo } from './ui/splash';
 import { settingsShow, settingsHide, settingsOpen, settingsButton } from './ui/settings-panel';
 import { loadingShow, loadingProgress, loadingHide } from './ui/loading';
 import { icon, toast } from './ui/icons';
@@ -43,7 +43,7 @@ exitB.addEventListener('click', () => exitGame());
 const titleB = document.createElement('button'); titleB.className = 'to-title'; titleB.hidden = true; titleB.setAttribute('aria-label', 'Back to the title screen'); titleB.innerHTML = `${icon('back')}<span>Title screen</span>`; ui.appendChild(titleB);
 titleB.addEventListener('click', () => backToTitle());
 // the version number at the bottom of the screen in every place (the start screen has its own)
-const verB = document.createElement('small'); verB.className = 'place-ver'; verB.hidden = true; verB.textContent = UE_PC ? `v${UE_PC} · Unreal Engine ${UE_ENGINE}` : `v${APP.version} · Babylon.js ${APP.babylon}`; ui.appendChild(verB);
+const verB = document.createElement('small'); verB.className = 'place-ver'; verB.hidden = true; verB.textContent = UE_PC ? `v${UE_PC} Â· Unreal Engine ${UE_ENGINE}` : `v${APP.version} Â· Babylon.js ${APP.babylon}`; ui.appendChild(verB);
 function toggleSettings() {
   if (settingsOpen()) { settingsHide(); return; }
   setPlay(false); settingsShow(() => { if (inPlace) setPlay(true); });
@@ -71,7 +71,7 @@ async function enter(id: string, title: string, opts?: any) {
   if (u && id === 'lounge' && u.openlounge) { u.openlounge(); return; }
   loadingShow(title);
   const engine = await makeEngine(canvas);
-  // where the loading got to: if it is still loading after two minutes, that goes to the log (Settings → Updates and errors)
+  // where the loading got to: if it is still loading after two minutes, that goes to the log (Settings â†’ Updates and errors)
   let at = { p: 0, s: 'Starting' }, opened = false;
   const ctx: SectionCtx = { engine, canvas, ui, progress: (p, s) => { at = { p, s }; loadingProgress(p, s); }, back: backToTitle, opts, toGame: opts && gameExists() ? backToGame : undefined, goTo: goToPlace };
   const watch = setTimeout(() => { if (!opened) logProblem('3d places', `${title} is taking too long to open`, `Still loading after 2 minutes, at ${Math.round(at.p)}% (${at.s}).`, `Place: ${id}\nOptions: ${JSON.stringify(opts || {}).slice(0, 300)}\nDevice: ${navigator.userAgent}`); }, 120000);
@@ -98,21 +98,21 @@ function backToGame(screen?: string) {
   canvas.classList.remove('on'); const e = getEngine(); if (e) e.stopRenderLoop();
   closeSection(); gameShow(); if (screen) gameSend({ ampb: 'go', screen });
 }
-const TITLES: { [id: string]: string } = { viewer3d: '3D viewer · above the clouds', lounge: 'Business lounge', terminal: 'The terminal · Grand Hall', site: 'Airport site · Mýrdalssandur' };
+const TITLES: { [id: string]: string } = { viewer3d: '3D viewer Â· above the clouds', lounge: 'Business lounge', terminal: 'The terminal Â· Grand Hall', site: 'Airport site Â· MÃ½rdalssandur' };
 /** What was chosen on the title screen: the game (New, Continue, Load, Save, UI) or one of the demos. */
 function pickPlace(id: string) {
   if (id.indexOf('game:') === 0) {
-    gameOpen(id.slice(5) as any, { title: () => splashOpen(pickPlace), exit: () => exitGame(), viewer: (fid: string) => enter('viewer3d', /^crash:/.test(fid) ? '3D viewer · the crash site' : /^apt:/.test(fid) ? '3D viewer · your airport' : fid ? '3D viewer · following the flight' : TITLES.viewer3d, /^crash:/.test(fid) ? { crash: fid.slice(6) } : /^apt:/.test(fid) ? { apt: fid.slice(4) } : fid ? { live: fid } : undefined) });
+    gameOpen(id.slice(5) as any, { title: () => splashOpen(pickPlace), exit: () => exitGame(), viewer: (fid: string) => enter('viewer3d', /^crash:/.test(fid) ? '3D viewer Â· the crash site' : /^apt:/.test(fid) ? '3D viewer Â· your airport' : fid ? '3D viewer Â· following the flight' : TITLES.viewer3d, /^crash:/.test(fid) ? { crash: fid.slice(6) } : /^apt:/.test(fid) ? { apt: fid.slice(4) } : fid ? { live: fid } : undefined) });
     return;
   }
   enter(id, TITLES[id] || id);
 }
 splashOpen(pickPlace);
-// a 3D place opened from the game (your office…): the game waits behind it
+// a 3D place opened from the game (your officeâ€¦): the game waits behind it
 onGameRoom(d => { if (d.room === 'world') { const w = d.data || {}; enter('world', 'Placing avatar in world', { lat: w.lat, lon: w.lon }); return; } if (d.room === 'site') { if (!IS_PC) return; enter('site', 'Your airport', { site: 'myrdalssandur', walk: true, data: d.data || {} }); return; } if (d.room === 'court') enter('court', d.data && d.data.mode === 'hearing' ? 'Court is in session' : 'The courtroom', { data: d.data || {} }); else if (d.room === 'salute') enter('salute', 'Water salute', { data: d.data || {} }); else if (d.room === 'building') enter('building', ({ office: 'Your office', ops: 'The Operations office', lounge: 'The Business lounge', museum: 'Your museum' } as any)[d.at] || 'The airport', { at: d.at || 'concourse', data: d.data || {} }); else if (d.room === 'office') enter('office', 'Your office', { data: d.data || {} }); else if (d.room === 'lounge') enter('lounge', 'Business lounge', { data: d.data || {} }); else if (d.room === 'ops') enter('ops', 'The Operations office', { data: d.data || {} }); else if (d.room === 'hangar') enter('hangar', 'The hangar', { data: d.data || {} }); });
 // after an update: what's new, once; and a quiet look for a newer version now and then
 whatsNewOnStart();
-updateInit(v => toast(`Version ${v} is ready: Settings → Updates`));
+updateInit(v => toast(`Version ${v} is ready: Settings â†’ Updates`));
 
 // The PC version: back from Unreal's 3D to the menus (G, Y / Triangle): the title screen again, or the game where it was
 (window as any).__ueMenus = () => { if (inPlace || splashIsOpen()) return; if (gameExists()) { if (gameHidden()) gameShow(); } else splashOpen(pickPlace); };
@@ -162,3 +162,38 @@ if (UE_PC) {
   const title = kind === 1 ? 'Airport announcement: flights' : kind === 2 ? 'Airport announcement: passengers' : 'Airport announcement';
   gameEval(`(function (k, t, b) { try { State.notices.unshift({ id: uid(), kind: k, title: t, body: b, time: 'Now', read: false }); if (Store.soon) Store.soon(); if (typeof refresh === 'function') refresh(); } catch (e) { /* not ready */ } })(${JSON.stringify(kind === 1 ? 'flight' : 'company')}, ${JSON.stringify(title)}, ${JSON.stringify(text)})`);
 };
+
+// The PC version's Esc. From the 3D world (Unreal): to the Overview, always (the game opened where it was, or continued).
+(window as any).__ueOverview = () => {
+  if (gameExists()) { if (gameHidden()) gameShow(); gameSend({ ampb: 'go', screen: 'ops' }); return; }
+  if (inPlace) backToTitle();   // a 3D place of this page (the lounge, the viewer): closed first
+  if (splashIsOpen()) splashGo('game:continue'); else pickPlace('game:continue');
+};
+// In the game: Esc closes what is open in it (the game's own way), from another screen goes to the Overview, and in the
+// Overview asks before leaving to the title screen: save first, yes or no.
+function leaveAsk() {
+  if (document.querySelector('.ue-leave')) return;
+  const d = document.createElement('div'); d.className = 'ue-leave';
+  d.innerHTML = `<div class="ue-leave-box"><b>Leave to the title screen?</b><small>Your airline keeps going; anything not saved since the last save is lost.</small>
+    <div class="ue-leave-row"><button data-a="save">Save game</button><button data-a="yes">Yes, leave</button><button data-a="no">No</button></div></div>`;
+  document.body.appendChild(d);
+  const close = () => d.remove();
+  d.addEventListener('click', e => { const a = (e.target as HTMLElement).closest('[data-a]') as HTMLElement; if (!a) { if (e.target === d) close(); return; }
+    const k = a.getAttribute('data-a'); close();
+    if (k === 'save') { gameSend({ ampb: 'save' }); setTimeout(() => pickPlace('game:save'), 300); }
+    else if (k === 'yes') { gameClose(); splashOpen(pickPlace); } });
+  const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); close(); window.removeEventListener('keydown', key, true); } };
+  window.addEventListener('keydown', key, true);
+}
+if (UE_PC) {
+  (window as any).__ueGameEsc = (w: any) => {
+    w.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || document.querySelector('.ue-leave')) return;
+      if (w.document.querySelector('.layer, .modal-back, .sheet-back, .settings-pop, .ct-modal:not([hidden])')) return;   // the game closes it
+      let screen = 'ops'; try { screen = String(w.eval('State.screen')); } catch (err) { /* the Overview */ }
+      e.preventDefault(); e.stopImmediatePropagation();
+      if (screen !== 'ops') gameSend({ ampb: 'go', screen: 'ops' }); else leaveAsk();
+    }, true);
+  };
+}
+
