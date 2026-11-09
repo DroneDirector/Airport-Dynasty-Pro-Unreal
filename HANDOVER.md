@@ -37,6 +37,20 @@ Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md
   workflow `unreal-pc.yml` builds on the owner's PC and publishes the release `pc-unreal-v<version>`. The build copies
   `Data/` into `Content/Data/` (staged with the game; ignored by git); `TerminalPlan` reads it from there first.
 
+## The Babylon model as the terminal (in progress, 2026-11-09)
+- Exported: `F:/ADP-Export/terminal.glb` (117.8 MB, 17,825 nodes, 2,739 meshes, 708 materials, 355 textures) by
+  `Tools/BabylonExport` (`node Tools/BabylonExport/export.mjs`, then open http://localhost:8642/).
+- Imported as assets: `Content/Babylon/Terminal/terminal/{StaticMeshes,Materials,Textures}` (terminal_mesh_<glTF mesh
+  index>), Nanite on, plus `SceneImport_terminal`.
+- NOT YET IN THE MAP: `Tools/import_babylon_model.py` (headless, -nullrhi) places all 17,826 actors via Interchange
+  `import_scene` + `wait_until_all_tasks_done`, but saving `/Game/Maps/Airport` does not keep them (the .umap stays
+  8 KB). Without -nullrhi the editor crashes in SlateRHIRenderer while saving. Next: place the model at runtime from the
+  glTF node tree (a C++ actor reading the GLB's node transforms and spawning the imported meshes), or save the placed
+  actors into a separate level / Level Instance. Then check the axes against `FTerminalPlan::ToWorld` (x, -z, y).
+- `ADPGameMode` already steps Unreal's stand-ins aside when Content/Babylon/Terminal exists: right now that leaves the
+  terminal empty in the game until the model is placed.
+- Also seen: every kit material renders light grey with a speckle pattern (the MI colours not applied?): check M_Surface.
+
 ## Next steps
 The batches and what is done are in ROADMAP.md (PC versions 0.5.0 to 0.9.0 committed; release notes in
 release-notes-pc/). Next, in order:

@@ -41,7 +41,8 @@ class AIRPORTDYNASTYPRO_API AAirfield : public AActor
 
 public:
 	AAirfield();
-	bool Build();
+	/** Lays out the airfield; with bModelSite the Babylon model already has the site round the terminal (aprons, kerb). */
+	bool Build(bool bModelSite = false);
 	const FAirfieldData& Data() const { return D; }
 
 private:

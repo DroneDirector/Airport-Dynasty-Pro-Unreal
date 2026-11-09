@@ -16,6 +16,8 @@ mkdirSync(out, { recursive: true });
 await build({
   entryPoints: [join(here, 'entry.ts')], bundle: true, format: 'iife', target: ['chrome110'], outfile: join(here, 'dist/export.js'),
   nodePaths: [join(here, 'node_modules')], legalComments: 'none', logLevel: 'warning',
+  // the phone-only Capacitor modules: a stand-in (the export runs in a desktop browser)
+  plugins: [{ name: 'capacitor-stub', setup(b) { b.onResolve({ filter: /^@capacitor\// }, () => ({ path: join(here, 'capacitor-stub.ts') })); } }],
   define: { __WHATS_NEW__: '[]', __APP__: JSON.stringify({ name: 'Airport Dynasty Pro', short: 'ADP', id: 'export', version: '0', updates: {}, babylon: '9.30.0' }) },
 });
 

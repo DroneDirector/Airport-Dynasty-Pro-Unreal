@@ -14,6 +14,7 @@
 #include "AirTraffic.h"
 #include "Globe.h"
 #include "PhotoTour.h"
+#include "Misc/Paths.h"
 #include "Components/VolumetricCloudComponent.h"
 #include "Engine/World.h"
 #include "Engine/DirectionalLight.h"
@@ -45,25 +46,33 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 
 	if (!UGameplayStatics::GetActorOfClass(W, ADirectionalLight::StaticClass())) SpawnSkyAndLight();
 
-	ATerminalBuilder* Terminal = W->SpawnActor<ATerminalBuilder>(FVector::ZeroVector, FRotator::ZeroRotator, P);
-	if (Terminal && Terminal->Build())
+	// the terminal is the Babylon edition's own model when it has been imported (Content/Babylon/Terminal, placed in
+	// the map): then Unreal's stand-in pieces and moving aircraft step aside, and the airfield keeps only what lies
+	// beyond the model's own site
+	const bool bBabylon = FPaths::DirectoryExists(FPaths::ProjectContentDir() / TEXT("Babylon/Terminal"));
+	FTerminalPlan Plan;
+	if (!Plan.Load()) return;
 	{
-		const FTerminalPlan& Plan = Terminal->GetPlan();
-		if (ATerminalDoors* Doors = W->SpawnActor<ATerminalDoors>(FVector::ZeroVector, FRotator::ZeroRotator, P))
-			Doors->Build(Plan);
-		if (ATerminalFittings* Fittings = W->SpawnActor<ATerminalFittings>(FVector::ZeroVector, FRotator::ZeroRotator, P))
-			Fittings->Build(Plan);
-		if (ATerminalLifts* Lifts = W->SpawnActor<ATerminalLifts>(FVector::ZeroVector, FRotator::ZeroRotator, P))
-			Lifts->Build(Plan);
-		if (ATerminalJetways* Jetways = W->SpawnActor<ATerminalJetways>(FVector::ZeroVector, FRotator::ZeroRotator, P))
-			Jetways->Build(Plan);
-		if (ATerminalScreens* Screens = W->SpawnActor<ATerminalScreens>(FVector::ZeroVector, FRotator::ZeroRotator, P))
-			Screens->Build(Plan);
-		// the airfield round the terminal, and its traffic
-		if (AAirfield* Field = W->SpawnActor<AAirfield>(FVector::ZeroVector, FRotator::ZeroRotator, P); Field && Field->Build())
+		if (!bBabylon)
 		{
-			if (AAirTraffic* Traffic = W->SpawnActor<AAirTraffic>(FVector::ZeroVector, FRotator::ZeroRotator, P))
-				Traffic->Start(Field->Data());
+			if (ATerminalBuilder* Terminal = W->SpawnActor<ATerminalBuilder>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Terminal->Build();
+			if (ATerminalDoors* Doors = W->SpawnActor<ATerminalDoors>(FVector::ZeroVector, FRotator::ZeroRotator, P))
+				Doors->Build(Plan);
+			if (ATerminalFittings* Fittings = W->SpawnActor<ATerminalFittings>(FVector::ZeroVector, FRotator::ZeroRotator, P))
+				Fittings->Build(Plan);
+			if (ATerminalLifts* Lifts = W->SpawnActor<ATerminalLifts>(FVector::ZeroVector, FRotator::ZeroRotator, P))
+				Lifts->Build(Plan);
+			if (ATerminalJetways* Jetways = W->SpawnActor<ATerminalJetways>(FVector::ZeroVector, FRotator::ZeroRotator, P))
+				Jetways->Build(Plan);
+			if (ATerminalScreens* Screens = W->SpawnActor<ATerminalScreens>(FVector::ZeroVector, FRotator::ZeroRotator, P))
+				Screens->Build(Plan);
+		}
+		// the airfield round the terminal, and its traffic
+		if (AAirfield* Field = W->SpawnActor<AAirfield>(FVector::ZeroVector, FRotator::ZeroRotator, P); Field && Field->Build(bBabylon))
+		{
+			if (!bBabylon)
+				if (AAirTraffic* Traffic = W->SpawnActor<AAirTraffic>(FVector::ZeroVector, FRotator::ZeroRotator, P))
+					Traffic->Start(Field->Data());
 			// the globe round the airport
 			if (AGlobe* Globe = W->SpawnActor<AGlobe>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 				Globe->Build(Field->Data());

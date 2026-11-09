@@ -109,7 +109,7 @@ void AAirfield::Strip(const FName Mat, const FVector2f& A, const FVector2f& B, f
 
 #pragma region Build
 
-bool AAirfield::Build()
+bool AAirfield::Build(bool bModelSite)
 {
 	Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
 	if (!Cube || !D.Load()) return false;
@@ -117,9 +117,12 @@ bool AAirfield::Build()
 	// the grass over the whole airport, levelled to the airport's elevation (the globe's own ground meets it at the edge)
 	Slab("grass", D.Boundary.X0, D.Boundary.Y0, D.Boundary.X1, D.Boundary.Y1, -0.6f, -0.08f);
 	// landside in front of the terminal: the kerb, the road and the car park
-	Slab("asphalt", -160, -170, 392, -0.5f, -0.6f, -0.05f);
-	// the aprons (concrete)
-	for (const FAirfieldData::FRect& A : D.Aprons) Slab("apron", A.X0, A.Y0, A.X1, A.Y1, -0.6f, -0.04f);
+	if (!bModelSite)
+	{
+		Slab("asphalt", -160, -170, 392, -0.5f, -0.6f, -0.05f);
+		// the aprons (concrete)
+		for (const FAirfieldData::FRect& A : D.Aprons) Slab("apron", A.X0, A.Y0, A.X1, A.Y1, -0.6f, -0.04f);
+	}
 	// the taxiways: shoulders, pavement and the yellow centre line
 	for (const FAirfieldData::FTwy& T : D.Taxiways)
 		for (int32 i = 0; i + 1 < T.Pts.Num(); ++i)
