@@ -60,3 +60,7 @@ Plugins/CesiumForUnreal/
 # the model exporter's installed parts and bundle
 Tools/BabylonExport/node_modules/
 Tools/BabylonExport/dist/
+
+# the imported Babylon model (about 425 MB; GitHub LFS free storage is 1 GB): rebuilt from its export by
+# Tools/BabylonExport, Tools/import_babylon_model.py, set_material_usage.py and make_window_glass.py
+Content/Babylon/

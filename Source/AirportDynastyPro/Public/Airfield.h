@@ -55,6 +55,7 @@ private:
 	#pragma endregion
 
 	FAirfieldData D;
+	float Sink = 0; // with the Babylon model: the whole airfield 25 cm lower, so the model's own ground always wins
 	UPROPERTY() TObjectPtr<USceneComponent> Root;
 	UPROPERTY() TObjectPtr<UStaticMesh> Cube;
 	UPROPERTY() TMap<FName, TObjectPtr<UInstancedStaticMeshComponent>> Kits;

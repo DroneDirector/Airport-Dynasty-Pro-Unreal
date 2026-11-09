@@ -91,15 +91,15 @@ UInstancedStaticMeshComponent* AAirfield::Kit(const FName Mat)
 
 void AAirfield::Slab(const FName Mat, float X0, float Y0, float X1, float Y1, float Bottom, float Top)
 {
-	const FVector A = FTerminalPlan::ToWorld(FMath::Min(X0, X1), Bottom, FMath::Min(Y0, Y1));
-	const FVector B = FTerminalPlan::ToWorld(FMath::Max(X0, X1), Top, FMath::Max(Y0, Y1));
+	const FVector A = FTerminalPlan::ToWorld(FMath::Min(X0, X1), Bottom + Sink, FMath::Min(Y0, Y1));
+	const FVector B = FTerminalPlan::ToWorld(FMath::Max(X0, X1), Top + Sink, FMath::Max(Y0, Y1));
 	const FVector S = (B - A).GetAbs();
 	Kit(Mat)->AddInstance(FTransform(FRotator::ZeroRotator, (A + B) * 0.5f, S / 100.f));
 }
 
 void AAirfield::Strip(const FName Mat, const FVector2f& A, const FVector2f& B, float W, float Top, float Thick)
 {
-	const FVector WA = FTerminalPlan::ToWorld(A.X, Top - Thick / 2, A.Y), WB = FTerminalPlan::ToWorld(B.X, Top - Thick / 2, B.Y);
+	const FVector WA = FTerminalPlan::ToWorld(A.X, Top + Sink - Thick / 2, A.Y), WB = FTerminalPlan::ToWorld(B.X, Top + Sink - Thick / 2, B.Y);
 	const FVector Dir = WB - WA;
 	if (Dir.IsNearlyZero()) return;
 	Kit(Mat)->AddInstance(FTransform(Dir.Rotation(), (WA + WB) * 0.5f, FVector(Dir.Size() / 100.f, W, Thick)));
@@ -113,6 +113,7 @@ bool AAirfield::Build(bool bModelSite)
 {
 	Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
 	if (!Cube || !D.Load()) return false;
+	Sink = bModelSite ? -0.25f : 0.f;
 
 	// the grass over the whole airport, levelled to the airport's elevation (the globe's own ground meets it at the edge)
 	Slab("grass", D.Boundary.X0, D.Boundary.Y0, D.Boundary.X1, D.Boundary.Y1, -0.6f, -0.08f);
