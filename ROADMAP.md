@@ -45,6 +45,13 @@ are offered. Sources: CLAUDE.md (the agreed plan), the PDFs in the repo, the Bab
 - [x] Volumetric clouds
 - Later: proper aircraft and vehicle models, the jetways docking, the real flights and aircraft from the shared world, runway 26 in east winds, rain, snow and lightning, cargo and stand 9 traffic
 
+## Fixes seen in the first pictures (2026-11-09), before batch A
+- [ ] The Grand Hall's wave roof as on Android (plan.ts WAVE, waveSouth, waveH): x 24–126, its south edge sweeping
+      out over the kerb (z −7 to −16), height 18.4 ± 3.4 m in waves 30 m long, white on top, warm timber under it, three
+      lens skylights along the crests, the eight tree columns; the hall's walls rising to meet it (no flat roof)
+- [ ] The airfield's ground comes out light grey all over (grass, aprons and the dark runway alike): check the materials
+- [ ] The terminal's white walls render too dark: check lighting and exposure
+
 ## Batch 6: the globe (in progress)
 - [x] Cesium for Unreal 2.31.0 (fetched by Tools/GetCesium.ps1), the airport placed at its real spot and turned to the runway's 068°, the Sentinel-2 2016 imagery with its credit on screen
 - [ ] The mountains, shipped with the game (no streaming), decided by the owner 2026-11-09:
