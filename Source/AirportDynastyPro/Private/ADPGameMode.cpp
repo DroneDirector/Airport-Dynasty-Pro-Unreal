@@ -1,5 +1,6 @@
 // Sets up the terminal test when play starts: sun, sky, fog, the grey-box terminal, the crowd test and
 // the player standing at the plan's spawn point.
+#include "Misc/PackageName.h"
 #include "ADPGameMode.h"
 #include "ADPWalker.h"
 #include "UI/ADPHUD.h"
@@ -50,7 +51,8 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 	// the terminal is the Babylon edition's own model when it has been imported (Content/Babylon/Terminal, placed in
 	// the map): then Unreal's stand-in pieces and moving aircraft step aside, and the airfield keeps only what lies
 	// beyond the model's own site
-	const bool bBabylon = FPaths::DirectoryExists(FPaths::ProjectContentDir() / TEXT("Babylon/Terminal"));
+	// (asked of the asset registry, not the disk: in a release build the model is inside the game's pak files)
+	const bool bBabylon = FPackageName::DoesPackageExist(TEXT("/Game/Babylon/Terminal/terminal/StaticMeshes/terminal_mesh_0"));
 	FTerminalPlan Plan;
 	if (!Plan.Load()) return;
 	{

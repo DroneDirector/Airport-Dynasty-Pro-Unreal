@@ -608,7 +608,12 @@ void AADPHUD::Tick(float Dt)
 		const float Before = ShotClock;
 		ShotClock += Dt;
 		if (Before < 45.f && ShotClock >= 45.f) FScreenshotRequest::RequestScreenshot(TEXT("TitleScreen"), true, false);
-		if (ShotClock >= 52.f) FGenericPlatformMisc::RequestExit(false);
+		// -UIOverview: then Continue game, and a picture of the Overview (your airline's screen)
+		const bool bOverview = FParse::Param(FCommandLine::Get(), TEXT("UIOverview"));
+		if (bOverview && Before < 50.f && ShotClock >= 50.f && Browser.IsValid())
+			Browser->ExecuteJavascript(TEXT("(function(){var b=document.querySelector('[data-id=\"game:continue\"]');if(b)b.click();})()"));
+		if (bOverview && Before < 85.f && ShotClock >= 85.f) FScreenshotRequest::RequestScreenshot(TEXT("Overview"), true, false);
+		if (ShotClock >= (bOverview ? 92.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	if (CaptionTime > 0) CaptionTime -= Dt;
