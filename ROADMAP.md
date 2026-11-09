@@ -68,6 +68,9 @@ The 3D parts (animations, people, the model's further work) wait; the interface 
   and installs it on request
 - Updates only what changed (a patch, like a released game), never the whole game again: the game files apart from
   the terrain, and the terrain only when it changes
+- The terrain in small packs by region (one pack per patch of the Earth), each listed with a fingerprint in a
+  manifest: a change in Iceland, the Faroes, Denmark or anywhere downloads only the packs that changed, including the
+  neighbouring ones a change spills into, so the edges always join and everything looks right
 - Then the batches below
 
 ## Next releases, in order (owner, 2026-11-09)
