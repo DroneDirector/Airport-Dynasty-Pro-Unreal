@@ -856,8 +856,7 @@ void AADPHUD::Tick(float Dt)
 				FSlateApplication::Get().ProcessMouseButtonUpEvent(Mid);
 				UE_LOG(LogTemp, Log, TEXT("Walk test: middle mouse twice: pointer %s, looking %s"), bPointer ? TEXT("free") : TEXT("captured"), PC->IsLookInputIgnored() ? TEXT("off") : TEXT("on"));
 				// also to a file (a release build keeps no log)
-				FFileHelper::SaveStringToFile(FString::Printf(TEXT("moved %.0f cm; pointer after two middle clicks: %s; looking %s
-"), Me ? FVector::Dist2D(Me->GetActorLocation(), WalkFrom) : -1.f, bPointer ? TEXT("free") : TEXT("captured"), PC->IsLookInputIgnored() ? TEXT("off") : TEXT("on")), *(FPaths::ProjectSavedDir() / TEXT("WalkTest.txt")));
+				FFileHelper::SaveStringToFile(FString::Printf(TEXT("moved %.0f cm; pointer after two middle clicks: %s; looking %s"), Me ? FVector::Dist2D(Me->GetActorLocation(), WalkFrom) : -1.f, bPointer ? TEXT("free") : TEXT("captured"), PC->IsLookInputIgnored() ? TEXT("off") : TEXT("on")), *(FPaths::ProjectSavedDir() / TEXT("WalkTest.txt")));
 			}
 		}
 		// -UISite: outside at the kerb (the light, the sky, the credits), and a picture
