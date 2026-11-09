@@ -202,11 +202,13 @@ int32 SHoloMap::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const FSla
 	// the legend, full screen only, in the map's lower right corner
 	if (bFull && Legend.Num() && !bLegendOpen)
 	{
-		// minimized: a small tab with the key that opens it
-		const FString Tab = TEXT("LEGEND  ") + LegendKey;
-		const FVector2f O(Size.X - 170, Size.Y - 42);
-		FSlateDrawElement::MakeBox(Out, Layer + 5, Geo.ToPaintGeometry(FVector2f(150, 24), FSlateLayoutTransform(O)), White, ESlateDrawEffect::None, FLinearColor(0.012f, 0.05f, 0.1f, 0.9f));
-		FSlateDrawElement::MakeText(Out, Layer + 6, Geo.ToPaintGeometry(FVector2f(140, 18), FSlateLayoutTransform(O + FVector2f(8, 4))), Tab, FCoreStyle::GetDefaultFontStyle("Bold", 9), ESlateDrawEffect::None, Label);
+		// minimized: a small tab, LEGEND and a badge with the key that opens it (as the Buttons tab)
+		const FVector2f O(Size.X - 190, Size.Y - 44);
+		FSlateDrawElement::MakeBox(Out, Layer + 5, Geo.ToPaintGeometry(FVector2f(170, 28), FSlateLayoutTransform(O)), White, ESlateDrawEffect::None, FLinearColor(0.012f, 0.05f, 0.1f, 0.9f));
+		FSlateDrawElement::MakeText(Out, Layer + 6, Geo.ToPaintGeometry(FVector2f(70, 18), FSlateLayoutTransform(O + FVector2f(10, 6))), TEXT("LEGEND"), FCoreStyle::GetDefaultFontStyle("Bold", 9), ESlateDrawEffect::None, Label);
+		const float KW = 16.f + LegendKey.Len() * 7.5f;
+		FSlateDrawElement::MakeBox(Out, Layer + 6, Geo.ToPaintGeometry(FVector2f(KW, 20), FSlateLayoutTransform(O + FVector2f(170 - KW - 6, 4))), White, ESlateDrawEffect::None, FLinearColor(0.08f, 0.24f, 0.4f, 1.f));
+		FSlateDrawElement::MakeText(Out, Layer + 7, Geo.ToPaintGeometry(FVector2f(KW, 18), FSlateLayoutTransform(O + FVector2f(170 - KW - 6 + 7, 5))), LegendKey, FCoreStyle::GetDefaultFontStyle("Bold", 10), ESlateDrawEffect::None, FLinearColor::White);
 	}
 	if (bFull && Legend.Num() && bLegendOpen)
 	{
