@@ -24,10 +24,12 @@ Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md
 - Pushing: command-line git on the owner's PC has no GitHub login; push through GitHub Desktop (it's signed in).
 - Plan metres to Unreal: `FTerminalPlan::ToWorld(x, height, z)` = (x*100, -z*100, height*100) cm.
 
+- Materials are made by Python scripts run headless: `UnrealEditor-Cmd.exe <uproject> -ExecutePythonScript=<file.py>
+  -unattended -nullrhi` (close any open editor of UE 5.7 first: its Live Coding blocks every compile). Kit materials:
+  `Content/Materials/Kit/` (`M_Surface` + `MI_<Babylon kit name>`); glass: `Content/Materials/M_Glass`.
+- The Babylon terminal to port is `Airline-Manager-Pro-Babylon/src/sections/terminal/` (doors.ts, furnish.ts,
+  fixtures.ts, lifts.ts, jetway.ts, fids.ts, ceilings.ts); materials in kit.ts, room materials in shell.ts.
+
 ## Next steps
-1. ~~Compile and open the project on the PC~~ (done 2026-11-09, UE 5.7).
-2. ~~Save a real start map in `Content/Maps/` and set it in `DefaultEngine.ini`~~ (done 2026-11-09: `/Game/Maps/Airport`).
-3. Glass material for the glass walls (only frames are built now), then the main hall and one gate with Nanite meshes.
-4. Replace `CrowdTest` with Mass Entity crowds (ZoneGraph lanes from the plan, StateTree behaviour).
-5. Cesium for Unreal with the free data sources in CLAUDE.md.
-6. Waiting on the owner: security camera screenshots; the ATC tower model.
+The batches and what is done are in ROADMAP.md. Batch 1 continues with the doors, then the main hall's fittings.
+Waiting on the owner: security camera screenshots; the ATC tower model.
