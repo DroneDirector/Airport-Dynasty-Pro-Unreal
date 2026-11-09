@@ -687,6 +687,8 @@ void AADPHUD::Tick(float Dt)
 		ShownPadKind = uint8(ADPInput::CurrentPad());
 		RefreshControls();
 	}
+	// -UIPack: the announcement preview pack, then the game closes
+	if (FParse::Param(FCommandLine::Get(), TEXT("UIPack"))) { static bool bDone = false; if (!bDone) { bDone = true; WritePreviewPack(); FGenericPlatformMisc::RequestExit(false); } }
 	// -UIShot: one picture with the interface showing (the title screen), then the game closes (a check of the interface)
 	static float ShotClock = 0;
 	if (FParse::Param(FCommandLine::Get(), TEXT("UIShot")))

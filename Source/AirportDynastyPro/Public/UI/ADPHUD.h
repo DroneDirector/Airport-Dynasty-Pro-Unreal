@@ -50,6 +50,8 @@ public:
 	/** Without the game's voices: Windows' own female voice (SAPI), made off the game thread, then the same loudspeakers. */
 	void SpeechFallback(int32 Id);
 	void PlayAnnouncer(int32 Id, const TArray<int16>& Pcm);
+	/** -UIPack: one of each call, as heard in the main hall, to Saved/AnnouncementPack.wav. */
+	void WritePreviewPack();
 
 private:
 	#pragma region Panels
@@ -91,6 +93,7 @@ private:
 	UPROPERTY() TObjectPtr<class UAudioComponent> VoiceOut;
 	UPROPERTY() TObjectPtr<class UAudioComponent> GongOut;
 	int32 SpeechId = 0;
+	FString SpokenText;
 	float HeardGain = 1.f, CallsClock = 0, SpeakIn = -1;
 	/** How well the loudspeakers are heard where you stand (1 in the public areas, faint in offices, 0 in toilets). */
 	float ZoneGain() const;

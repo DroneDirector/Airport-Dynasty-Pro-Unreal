@@ -18,6 +18,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Pawn.h"
 #include "Misc/Base64.h"
+#include "Internationalization/Regex.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Async/Async.h"
@@ -191,7 +192,7 @@ void AADPHUD::SpeechFallback(int32 Id)
 {
 	if (Id != SpeechId) return;
 	UE_LOG(LogTemp, Log, TEXT("Announcer: line %d with Windows' voice"), Id);
-	const FString Words = CallText;
+	const FString Words = SpokenText;
 	TWeakObjectPtr<AADPHUD> Me(this);
 	Async(EAsyncExecution::Thread, [Me, Id, Words]()
 	{
@@ -243,7 +244,21 @@ void AADPHUD::Speak(const FString& Words)
 	if (!Browser.IsValid()) { UE_LOG(LogTemp, Warning, TEXT("Announcer: no menus page to make the voice")); return; }
 	++SpeechId;
 	UE_LOG(LogTemp, Log, TEXT("Announcer: line %d asked for"), SpeechId);
-	FString Safe = Words.Replace(TEXT("\\"), TEXT(" ")).Replace(TEXT("'"), TEXT("\\'"));
+	// flight numbers as announcers say them: letter by letter, digit by digit (ATN201: "A T N 2 0 1")
+	FString Said = Words;
+	{
+		FRegexMatcher M(FRegexPattern(TEXT("\\b([A-Z]{2,3}\\d{1,4})\\b")), Words);
+		TArray<FString> Codes;
+		while (M.FindNext()) Codes.AddUnique(M.GetCaptureGroup(1));
+		for (const FString& C : Codes)
+		{
+			FString Sp;
+			for (const TCHAR Ch : C) { Sp.AppendChar(Ch); Sp.AppendChar(TEXT(' ')); }
+			Said = Said.Replace(*C, *Sp.TrimEnd(), ESearchCase::CaseSensitive);
+		}
+	}
+	SpokenText = Said;
+	FString Safe = Said.Replace(TEXT("\\"), TEXT(" ")).Replace(TEXT("'"), TEXT("\\'"));
 	// the menus make the voice; if their speech code isn't there (or fails at once), Windows' voice is asked for
 	Browser->ExecuteJavascript(FString::Printf(TEXT("try { if (window.__ueSay) window.__ueSay(%d, '%s', %.2f); else window.ue.adp.speechfail(%d); } catch (e) { window.ue.adp.speechfail(%d); }"), SpeechId, *Safe, ZoneGain(), SpeechId, SpeechId));
 }
@@ -380,10 +395,10 @@ void AADPHUD::RunCalls()
 				const uint32 S2 = Seed * 2654435761u + i * 97u;
 				P.Name = PassengerName(S2);
 				// how far they are from the gate when they hear it: two to sixteen minutes' brisk walk
-				const float Walk = 2.f + (S2 >> 8) % 1500 / 100.f;
+				const float WalkMin = 2.f + (S2 >> 8) % 1500 / 100.f;
 				const float Time = Left - 15.f;   // until the gate closes
-				P.bRun = Walk > Time * 0.75f;
-				P.ArriveAt = NowMin + (P.bRun ? Walk * 0.55f : Walk);
+				P.bRun = WalkMin > Time * 0.75f;
+				P.ArriveAt = NowMin + (P.bRun ? WalkMin * 0.55f : WalkMin);
 				D.Late.Add(P);
 				Announce2(FString::Printf(TEXT("This is a passenger announcement. Would passenger %s, travelling to %s on %s flight %s, please proceed immediately to gate %d, where your flight is ready to depart."), *P.Name, *D.Place, *Who, *F, D.Gate));
 			}
@@ -405,5 +420,44 @@ void AADPHUD::RunCalls()
 				UE_LOG(LogTemp, Log, TEXT("Flight %s: %s %s"), *F, *P.Name, P.bBoarded ? (P.bRun ? TEXT("ran to the gate and boarded") : TEXT("walked to the gate and boarded")) : TEXT("did not reach the gate in time"));
 		}
 	}
+}
+#pragma endregion
+
+#pragma region The preview pack (-UIPack)
+// One of each kind of call, made with the announcer's voice and the loudspeakers as heard in the main hall, written to
+// Saved/AnnouncementPack.wav (the chime before each, a pause between), for listening to outside the game.
+void AADPHUD::WritePreviewPack()
+{
+	const TCHAR* Lines[] = {
+		TEXT("Ladies and gentlemen, Atlantic North flight A T N 2 0 1 to Copenhagen is now boarding at gate 3. Please have your boarding pass and passport ready."),
+		TEXT("Atlantic North regrets to announce that flight A T N 5 4 0 to Edinburgh is delayed. The new expected departure time is 14:35. We apologise for any inconvenience."),
+		TEXT("This is a passenger announcement. Would passenger Mr Jon Hansen, travelling to Oslo on Atlantic North flight A T N 3 1 8, please proceed immediately to gate 6, where your flight is ready to depart."),
+		TEXT("This is the final call for Atlantic North flight A T N 3 1 8 to Oslo. Would Mr Jon Hansen please make your way to gate 6 now. Would all remaining passengers please proceed immediately to gate 6. This gate will close in five minutes."),
+		TEXT("Atlantic North flight A T N 3 1 8 to Oslo is now closed. Gate 6 is closed."),
+		TEXT("This is a passenger announcement. Would passenger Ms Sofie Joensen, travelling to Reykjavik, please contact the information desk in the main hall. Thank you."),
+		TEXT("For safety and security reasons, please do not leave your baggage unattended at any time. Unattended baggage may be removed and destroyed by security."),
+	};
+	TArray<int16> All;
+	for (const TCHAR* L : Lines)
+	{
+		for (const float Hz : {784.f, 523.f})
+			for (int32 i = 0; i < 24000 * 0.8f; ++i)
+			{
+				const float T = i / 24000.f, Env = FMath::Exp(-T * 3.2f) * FMath::Min(1.f, T * 80.f);
+				All.Add(int16((FMath::Sin(2 * PI * Hz * T) + 0.3f * FMath::Sin(4 * PI * Hz * T)) * Env * 0.35f * 32767));
+			}
+		All.AddZeroed(24000 / 10);
+		// Windows' speech runs on a thread of its own (it can't start on the game's thread)
+		const FString Line = L;
+		All.Append(Intercom(Async(EAsyncExecution::Thread, [Line]() { return WindowsVoice(Line); }).Get(), 24000));
+		All.AddZeroed(24000);
+	}
+	TArray<uint8> W;
+	auto U32 = [&W](uint32 V) { W.Append(reinterpret_cast<uint8*>(&V), 4); };
+	auto U16 = [&W](uint16 V) { W.Append(reinterpret_cast<uint8*>(&V), 2); };
+	W.Append((const uint8*)"RIFF", 4); U32(36 + All.Num() * 2); W.Append((const uint8*)"WAVEfmt ", 8); U32(16); U16(1); U16(1); U32(24000); U32(48000); U16(2); U16(16);
+	W.Append((const uint8*)"data", 4); U32(All.Num() * 2); W.Append(reinterpret_cast<const uint8*>(All.GetData()), All.Num() * 2);
+	FFileHelper::SaveArrayToFile(W, *(FPaths::ProjectSavedDir() / TEXT("AnnouncementPack.wav")));
+	UE_LOG(LogTemp, Log, TEXT("Announcement pack written: %.0f s"), All.Num() / 24000.f);
 }
 #pragma endregion
