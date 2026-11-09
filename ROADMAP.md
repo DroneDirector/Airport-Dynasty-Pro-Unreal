@@ -24,10 +24,13 @@ are offered. Sources: CLAUDE.md (the agreed plan), the PDFs in the repo, the Bab
 - [x] Cheaper redrawing for people far away
 - Later: arriving passengers (their way out through the terminal), keeping clear of furniture and each other (Mass avoidance), Smart Objects for seats, shops and queues, thousands of people, MetaHuman bodies
 
-## Batch 3: the interface
-- The existing interface in Unreal's web browser view first, then screen by screen in Unreal
-- The holographic map (same look as Babylon, then the offered upgrades), Hide UI, cinema, settings
-- Graphics settings and sliders, the device scan, the performance overlay, the problem log and report
+## Batch 3: the interface (walking mode done: 0.7.0)
+- [x] The holographic map as in Babylon (small, turned with you; full screen with rooms' names and click-to-route)
+- [x] The clean top-left bar, Hide UI (H; double-click or Esc back)
+- [x] Settings (quality, render scale, frame limit, VSync, performance overlay, scan my PC, problem log); the device scan on first start
+- [x] The performance overlay; the problem log (Saved/Logs/Problems.log)
+- Moved to batch 4 (they need the game's world running here): the game's own menus and screens (first in Unreal's web browser view, then screen by screen), the problem report sent from the game
+- Later: the holographic map's offered upgrades (real glow and shimmer, scan line, 3D tilt with stacked floors, live dots for people and aircraft)
 
 ## Batch 4: one shared world with Android
 - The game's TypeScript world code running in Unreal (embedded JavaScript engine)

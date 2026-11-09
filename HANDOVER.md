@@ -15,8 +15,8 @@ Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md
 - First commit of the project: `AirportDynastyPro.uproject`, `Config/`, `Source/AirportDynastyPro/`.
 - 2026-11-09: switched from 5.8 to 5.7 (the version installed on the owner's PC). Compiles with no changes to the code;
   the editor opens, and running the game logs "Terminal built: 54 rooms, 71 doors" with no errors.
-- On Play, `ADPGameMode` adds sun, sky, fog and exposure, builds the grey-box terminal from `Data/terminal-plan.json`
-  (`TerminalBuilder`), starts about 100 simple walkers (`CrowdTest`) and spawns the first-person player (`ADPWalker`).
+- On Play, `ADPGameMode` adds sun, sky, fog and exposure, builds the terminal from `Data/terminal-plan.json`
+  (`TerminalBuilder`), adds the doors, fittings, lifts, jetways, screens and 400 passengers (`TerminalCrowd`, Mass Entities) and spawns the first-person player (`ADPWalker`) with the interface (`UI/ADPHUD`).
   Start map is the empty `/Game/Maps/Airport` (`Content/Maps/Airport.umap`, Git LFS) for both the editor and the game;
   everything in it is spawned at runtime. Legacy input mappings are in `Config/DefaultInput.ini`.
 - The editor rewrites `DefaultEngine.ini` and `DefaultInput.ini` with its own defaults when it opens (and drops the

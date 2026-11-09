@@ -2,6 +2,7 @@
 // the player standing at the plan's spawn point.
 #include "ADPGameMode.h"
 #include "ADPWalker.h"
+#include "UI/ADPHUD.h"
 #include "TerminalBuilder.h"
 #include "TerminalDoors.h"
 #include "TerminalFittings.h"
@@ -25,6 +26,7 @@
 AADPGameMode::AADPGameMode()
 {
 	DefaultPawnClass = AADPWalker::StaticClass();
+	HUDClass = AADPHUD::StaticClass();
 }
 
 void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
