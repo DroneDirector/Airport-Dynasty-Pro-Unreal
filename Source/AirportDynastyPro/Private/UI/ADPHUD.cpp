@@ -25,12 +25,14 @@
 #include "Widgets/Input/SSlider.h"
 #include "Widgets/Text/STextBlock.h"
 #include "RHI.h"
+#include "Scalability.h"
 #include "Sound/SoundWaveProcedural.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
 #include "CollisionQueryParams.h"
 #include "SWebBrowser.h"
 #include "BabylonModel.h"
+#include "EngineUtils.h"
 #include "Framework/Application/IInputProcessor.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Dom/JsonObject.h"
@@ -157,6 +159,31 @@ void AADPHUD::BeginPlay()
 		]
 		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(16)[Perf.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[Settings.ToSharedRef()]
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
+		[
+			// the first start's question: the scan's suggestion, taken only if you say yes
+			SNew(SBorder)
+			.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+			.BorderBackgroundColor(Panel)
+			.Padding(20)
+			.Visibility_Lambda([this]() { return SuggestedQuality >= 0 ? EVisibility::Visible : EVisibility::Collapsed; })
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 8)[SNew(STextBlock).Font(Font(13)).ColorAndOpacity(Ink).Text(FText::FromString(TEXT("YOUR PC WAS MEASURED")))]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 14)
+				[
+					SNew(STextBlock).Font(Font(10, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true)
+					.Text_Lambda([this]() { const TCHAR* N[] = {TEXT("LOW"), TEXT("MEDIUM"), TEXT("HIGH"), TEXT("EPIC"), TEXT("CINEMATIC")};
+						return FText::FromString(FString::Printf(TEXT("Suggested graphics quality for this PC: %s.  Use it? Nothing changes unless you say yes; you can change it any time in Settings (Tab)."), N[FMath::Clamp(SuggestedQuality, 0, 4)])); })
+				]
+				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Right)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 8, 0)[Button(TEXT("YES, USE IT"), [this]() { AnswerQuality(true); })]
+					+ SHorizontalBox::Slot().AutoWidth()[Button(TEXT("NO, KEEP MINE"), [this]() { AnswerQuality(false); })]
+				]
+			]
+		]
 		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Bottom).Padding(16)
 		[
 			// the Buttons panel: the lower right corner is its own, nothing else is ever placed there (in the 3D airport;
@@ -243,16 +270,20 @@ void AADPHUD::EndPlay(const EEndPlayReason::Type Reason)
 
 void AADPHUD::FirstStartScan()
 {
-	// the device scan, once: the PC is measured and the quality set from it; later changes are the player's own
+	// the device scan, once: the PC is measured and a quality SUGGESTED (Yes / No); nothing changes unless you say yes
 	const FString Flag = FPaths::ProjectSavedDir() / TEXT("DeviceScanned.txt");
 	if (FPaths::FileExists(Flag)) return;
-	if (UGameUserSettings* S = Prefs())
-	{
-		S->RunHardwareBenchmark();
-		S->ApplyHardwareBenchmarkResults();
-		Save(S);
-	}
-	FFileHelper::SaveStringToFile(TEXT("scanned"), *Flag);
+	const Scalability::FQualityLevels Q = Scalability::BenchmarkQualityLevels();
+	SuggestedQuality = Q.GetSingleQualityLevel();
+	if (SuggestedQuality < 0) SuggestedQuality = FMath::Clamp(FMath::Min(Q.ShadowQuality, Q.GlobalIlluminationQuality), 0, 4);
+}
+
+void AADPHUD::AnswerQuality(bool bYes)
+{
+	if (bYes)
+		if (UGameUserSettings* S = Prefs()) { S->SetOverallScalabilityLevel(SuggestedQuality); Save(S); }
+	SuggestedQuality = -1;
+	FFileHelper::SaveStringToFile(bYes ? TEXT("suggestion taken") : TEXT("suggestion declined"), *(FPaths::ProjectSavedDir() / TEXT("DeviceScanned.txt")));
 }
 
 #pragma endregion
@@ -662,7 +693,27 @@ void AADPHUD::Tick(float Dt)
 		const bool bLounge = FParse::Param(FCommandLine::Get(), TEXT("UILounge"));
 		if (bLounge && Before < 48.f && ShotClock >= 48.f) OpenLounge();
 		if (bLounge && Before < 75.f && ShotClock >= 75.f) FScreenshotRequest::RequestScreenshot(TEXT("Lounge"), true, false);
-		if (ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		// -UIDoor: walk up to a sliding entrance door (it should open), and a picture of it
+		const bool bDoor = FParse::Param(FCommandLine::Get(), TEXT("UIDoor"));
+				if (bDoor && ((Before < 48.f && ShotClock >= 48.f) || (Before < 54.f && ShotClock >= 54.f)))
+		{
+			const float Back = ShotClock < 50.f ? 600.f : 200.f;   // first from 6 m (shut), then from 2 m (open)
+			if (bGame) ToggleGame();
+			FVector At;
+			for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It)
+				if (It->SlidingDoorAt(At))
+					if (APawn* Me = GetOwningPawn())
+					{
+						const FVector From = At + FVector(0, Back, Me->GetSimpleCollisionHalfHeight() + 10.f);
+						const FRotator Look = (At + FVector(0, 0, 150.f) - From).Rotation();
+						Me->TeleportTo(From, FRotator(0, Look.Yaw, 0));
+						if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(Look);
+						break;
+					}
+		}
+		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
+		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
+		if (ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	if (CaptionTime > 0) CaptionTime -= Dt;

@@ -75,6 +75,9 @@ private:
 	TSharedPtr<SWebBrowser> Browser;
 	UPROPERTY() TObjectPtr<class ABabylonModel> Lounge;
 	bool bInLounge = false;
+	/** First start: the quality the PC scan suggests (asked, never set by itself); -1 when there's nothing to ask. */
+	int32 SuggestedQuality = -1;
+	void AnswerQuality(bool bYes);
 	FTransform BeforeLounge;
 	TSharedPtr<FADPPadToMenus> PadToMenus;
 	FString StatusLine;

@@ -84,6 +84,18 @@ The 3D parts (animations, people, the model's further work) wait; the interface 
    on/off switch in the graphics panel, off by default
 - MetaHumans: the owner decides when back home (and after the move to UE 5.8)
 
+### Owner, 2026-11-09 (afternoon)
+- [ ] FIRST: the doors open and close as in Babylon (the Babylon model's own doors, animated from doors.ts' rules),
+      so every area of the terminal can be reached; then the jetways moving, if it can be done the same way
+- [ ] First start: the PC scan only SUGGESTS a quality (Yes / No), never sets it by itself
+- [ ] Frame generation: our own (from scratch) and AMD's FSR frame generation, both choices in Settings → Graphics
+- [ ] With frame generation: an option in Settings for a small frame-rate box, which can be dragged anywhere
+- [ ] The middle mouse button frees the pointer (click, drag boxes about) and gives the view back (walking and the
+      3D viewer alike)
+- [ ] The 3D viewer's flight information as a box like Flightradar24's, draggable too
+- [ ] RULE: no interface ever sits on top of another, walking in the 3D world or following a flight in the 3D viewer
+- [ ] After all the batches above: the next logical things that make the game run and give it features
+
 ## Fixes seen in the first pictures (2026-11-09), before batch A
 - [x] THE TERMINAL IS THE BABYLON MODEL ITSELF (in the game since 2026-11-09: placed at runtime by ABabylonModel, right way
       round, colours and textures, real window glass; the airfield sinks under its ground) (owner, 2026-11-09; geometry untouched: no extra lines, cuts, merges or

@@ -7,6 +7,8 @@
 #include "Components/PointLightComponent.h"
 #include "Components/SpotLightComponent.h"
 #include "Misc/FileHelper.h"
+#include "GameFramework/Pawn.h"
+#include "Kismet/GameplayStatics.h"
 #include "Misc/Paths.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -15,7 +17,7 @@
 
 ABabylonModel::ABabylonModel()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
 	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	SetRootComponent(Root);
 }
@@ -52,18 +54,26 @@ bool ABabylonModel::Place(const FString& Name)
 	};
 
 	int32 Placed = 0;
-	TFunction<void(int32, const FTransform&)> Walk = [&](int32 I, const FTransform& Parent)
+	// every node's place in the model, its parent, and its mesh instance (for the doors)
+	TArray<FTransform> NodeWorld; NodeWorld.SetNum(Nodes.Num());
+	TArray<int32> NodeParent; NodeParent.Init(INDEX_NONE, Nodes.Num());
+	TArray<TPair<UInstancedStaticMeshComponent*, int32>> NodeInst; NodeInst.Init(TPair<UInstancedStaticMeshComponent*, int32>(nullptr, INDEX_NONE), Nodes.Num());
+	TFunction<void(int32, const FTransform&, bool)> Walk = [&](int32 I, const FTransform& Parent, bool bDoor)
 	{
 		if (!Nodes.IsValidIndex(I)) return;
 		const TSharedPtr<FJsonObject> N = Nodes[I]->AsObject();
 		const FTransform World = Local(N) * Parent;
+		NodeWorld[I] = World;
+		{ FString Nm; N->TryGetStringField(TEXT("name"), Nm); bDoor = bDoor || Nm.StartsWith(TEXT("D-")); }
 		int32 Mesh;
 		if (N->TryGetNumberField(TEXT("mesh"), Mesh))
 		{
 			UInstancedStaticMeshComponent* K = nullptr;
 			FString Asset = FString::Printf(TEXT("%s_mesh_%d"), *Name.ToLower(), Mesh);
 			if (bByNode) N->TryGetStringField(TEXT("name"), Asset);
-			if (TObjectPtr<UInstancedStaticMeshComponent>* F = ByMesh.Find(Asset)) K = *F;
+			// a door's parts in lists of their own (they move; the big shared lists never need rebuilding)
+			const FString Key = bDoor ? Asset + TEXT("#door") : Asset;
+			if (TObjectPtr<UInstancedStaticMeshComponent>* F = ByMesh.Find(Key)) K = *F;
 			else
 			{
 				const FString MeshPath = FString::Printf(TEXT("/Game/Babylon/%s/%s/StaticMeshes/%s.%s"), *Name, *Name.ToLower(), *Asset, *Asset);
@@ -76,18 +86,78 @@ bool ABabylonModel::Place(const FString& Name)
 					K->RegisterComponent();
 					AddInstanceComponent(K);
 				}
-				ByMesh.Add(Asset, K);
+				ByMesh.Add(Key, K);
 			}
 			// relative to the model, so its turn applies; meshes imported one per object already carry their place (Unreal's
 			// importer builds each object's position into its mesh), so they go in as they are
-			if (K) { K->AddInstance(bByNode ? FTransform::Identity : World, false); ++Placed; }
+			if (K) { NodeInst[I] = TPair<UInstancedStaticMeshComponent*, int32>(K, K->AddInstance(bByNode ? FTransform::Identity : World, false)); ++Placed; }
 		}
 		const TArray<TSharedPtr<FJsonValue>>* Children;
 		if (N->TryGetArrayField(TEXT("children"), Children))
-			for (const TSharedPtr<FJsonValue>& C : *Children) Walk(int32(C->AsNumber()), World);
+			for (const TSharedPtr<FJsonValue>& C : *Children) { NodeParent[int32(C->AsNumber())] = I; Walk(int32(C->AsNumber()), World, bDoor); }
 	};
-	for (const TSharedPtr<FJsonValue>& R : J->GetArrayField(TEXT("roots"))) Walk(int32(R->AsNumber()), FTransform::Identity);
+	for (const TSharedPtr<FJsonValue>& R : J->GetArrayField(TEXT("roots"))) Walk(int32(R->AsNumber()), FTransform::Identity, false);
 	UE_LOG(LogTemp, Log, TEXT("Babylon model %s placed: %d objects, %d meshes"), *Name, Placed, ByMesh.Num());
+
+	// the doors (nodes named D-<id>), read the way doors.ts builds them
+	if (!bByNode)
+	{
+		auto Kids = [&](int32 I) { TArray<int32> L; const TArray<TSharedPtr<FJsonValue>>* C; if (Nodes[I]->AsObject()->TryGetArrayField(TEXT("children"), C)) for (const TSharedPtr<FJsonValue>& V : *C) L.Add(int32(V->AsNumber())); return L; };
+		auto NameOf = [&](int32 I) { FString S; Nodes[I]->AsObject()->TryGetStringField(TEXT("name"), S); return S; };
+		auto Num3 = [&](int32 I, const TCHAR* F, int32 A) { const TArray<TSharedPtr<FJsonValue>>* V; return Nodes[I]->AsObject()->TryGetArrayField(F, V) && V->Num() == 3 ? (*V)[A]->AsNumber() : (FCString::Strcmp(F, TEXT("scale")) == 0 ? 1.0 : 0.0); };
+		// a moving part: the node itself and every mesh instance under it, held relative to it
+		auto MakePart = [&](int32 P)
+		{
+			FPart Part;
+			Part.Base = Local(Nodes[P]->AsObject());
+			Part.Parent = NodeParent[P] != INDEX_NONE ? NodeWorld[NodeParent[P]] : FTransform::Identity;
+			TArray<int32> Stack = {P};
+			while (Stack.Num())
+			{
+				const int32 I = Stack.Pop();
+				if (NodeInst[I].Key) Part.Inst.Add({NodeInst[I].Key, NodeInst[I].Value, NodeWorld[I].GetRelativeTransform(NodeWorld[P])});
+				Stack.Append(Kids(I));
+			}
+			return Part;
+		};
+		for (int32 D = 0; D < Nodes.Num(); ++D)
+		{
+			if (!NameOf(D).StartsWith(TEXT("D-"))) continue;
+			FDoor Door;
+			Door.At = NodeWorld[D].GetLocation();
+			const TArray<int32> C = Kids(D);
+			// the width from the frame's posts (at ±(w/2 + 0.05)); sliding leaves are the thin panels (depth up to 0.06 m)
+			float W = 1.8f;
+			for (const int32 K : C) if (NameOf(K).StartsWith(TEXT("box")) && Num3(K, TEXT("scale"), 2) > 0.3 && Num3(K, TEXT("scale"), 1) > 1.5) W = FMath::Max(W, 2.f * (FMath::Abs(float(Num3(K, TEXT("translation"), 0))) - 0.05f));
+			Door.Reach = FMath::Max(2.6f, W * 0.7f);
+			for (const int32 K : C)
+			{
+				const FString N = NameOf(K);
+				const double X = Num3(K, TEXT("translation"), 0);
+				if (N.StartsWith(TEXT("box")) && Num3(K, TEXT("scale"), 2) <= 0.061 && FMath::Abs(X) > 0.01 && Num3(K, TEXT("translation"), 1) > 0.5)
+				{
+					FPart P = MakePart(K);
+					P.Slide = FMath::Sign(float(X)) * (W / 2 - 0.08f) * 100.f;   // each leaf away from the middle
+					Door.Parts.Add(MoveTemp(P));
+				}
+				else if (N.StartsWith(TEXT("hinge")))
+				{
+					FPart P = MakePart(K);
+					P.Swing = (X < 0 ? 1.f : -1.f) * 1.5f;   // a quarter turn and a bit, as doors.ts
+					Door.Parts.Add(MoveTemp(P));
+				}
+				else if (N.StartsWith(TEXT("wings")))
+				{
+					FPart P = MakePart(K);
+					P.bSpin = true;
+					Door.Parts.Add(MoveTemp(P));
+					Door.bSpin = true;
+				}
+			}
+			if (Door.Parts.Num()) Doors.Add(MoveTemp(Door));
+		}
+		UE_LOG(LogTemp, Log, TEXT("Babylon model %s: %d doors that move"), *Name, Doors.Num());
+	}
 	return Placed > 0;
 }
 
@@ -140,5 +210,54 @@ void ABabylonModel::AddLights(const FString& Name)
 	}
 	UE_LOG(LogTemp, Log, TEXT("Babylon model %s: %d lights"), *Name, Made);
 }
+
+#pragma region Doors
+
+void ABabylonModel::MovePart(FPart& P, float E, float Spin)
+{
+	FTransform L = P.Base;
+	if (P.Slide != 0) L.AddToTranslation(L.GetRotation().RotateVector(FVector(P.Slide * E, 0, 0)));
+	if (P.Swing != 0) L.SetRotation(L.GetRotation() * FQuat(FVector::UpVector, P.Swing * E));
+	if (P.bSpin) L.SetRotation(L.GetRotation() * FQuat(FVector::UpVector, -Spin));
+	const FTransform Now = L * P.Parent;
+	TSet<UInstancedStaticMeshComponent*> Touched;
+	for (const FInst& I : P.Inst)
+	{
+		I.K->UpdateInstanceTransform(I.I, I.Rel * Now, false, false, true);
+		Touched.Add(I.K);
+	}
+	for (UInstancedStaticMeshComponent* K : Touched) K->MarkRenderStateDirty();
+}
+
+bool ABabylonModel::SlidingDoorAt(FVector& Out) const
+{
+	for (const FDoor& D : Doors)
+		for (const FPart& P : D.Parts)
+			if (P.Slide != 0 && D.Reach > 2.9f) { Out = Root->GetComponentTransform().TransformPosition(D.At); return true; }
+	return false;
+}
+
+void ABabylonModel::Tick(float Dt)
+{
+	Super::Tick(Dt);
+	if (!Doors.Num()) return;
+	Clock += Dt;
+	const APawn* P = UGameplayStatics::GetPlayerPawn(this, 0);
+	// where you are, in the model's own space (feet height)
+	FVector Me(1e9);
+	if (P) Me = Root->GetComponentTransform().InverseTransformPosition(P->GetActorLocation() - FVector(0, 0, P->GetSimpleCollisionHalfHeight()));
+	for (FDoor& D : Doors)
+	{
+		if (D.bSpin) { for (FPart& Part : D.Parts) if (Part.bSpin) MovePart(Part, 0, Clock * 0.6f); continue; }
+		const bool bNear = FVector2D::Distance(FVector2D(Me), FVector2D(D.At)) < D.Reach * 100.f && FMath::Abs(Me.Z - D.At.Z) < 250.f;
+		const float Want = bNear ? 1.f : 0.f;
+		if (FMath::Abs(D.K - Want) < 0.001f) continue;
+		D.K += FMath::Sign(Want - D.K) * FMath::Min(FMath::Abs(Want - D.K), Dt * 1.6f);
+		const float E = D.K * D.K * (3 - 2 * D.K);   // eased, as doors.ts
+		for (FPart& Part : D.Parts) MovePart(Part, E, 0);
+	}
+}
+
+#pragma endregion
 
 #pragma endregion

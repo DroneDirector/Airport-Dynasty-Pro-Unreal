@@ -1,7 +1,7 @@
 // Sets up the terminal test when play starts: sun, sky, fog, the grey-box terminal, the crowd test and
 // the player standing at the plan's spawn point.
-#include "Misc/PackageName.h"
 #include "ADPGameMode.h"
+#include "Misc/PackageName.h"
 #include "ADPWalker.h"
 #include "UI/ADPHUD.h"
 #include "TerminalBuilder.h"

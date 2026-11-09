@@ -19,14 +19,30 @@ class AIRPORTDYNASTYPRO_API ABabylonModel : public AActor
 
 public:
 	ABabylonModel();
+	virtual void Tick(float Dt) override;
 
 	/** Places the model called Name (Data/babylon-<lowercase name>.json, Content/Babylon/<Name>). False when it isn't there. */
 	bool Place(const FString& Name);
 	/** The model's lights as Babylon has them (Data/babylon-<name>-lights.json: points and spots, their colours, strengths
 	 *  and reach), put in the same places. */
 	void AddLights(const FString& Name);
+	/** Where a sliding door is in the world (for the door check, -UIDoor); false when the model has none. */
+	bool SlidingDoorAt(FVector& Out) const;
 
 private:
 	UPROPERTY() TObjectPtr<USceneComponent> Root;
 	UPROPERTY() TMap<FString, TObjectPtr<UInstancedStaticMeshComponent>> ByMesh;
+
+	#pragma region Doors
+	// The model's doors move as in the Babylon edition (terminal/doors.ts): sliding leaves part, swing leaves turn on their
+	// hinges, as you come up to them (the same floor, within reach), and shut behind you; revolving doors turn all the
+	// time. Each moving part is a node of the model (a sliding leaf, a hinge, the revolving wings) with the mesh instances
+	// under it; moving it moves them (and their collision).
+	struct FInst { UInstancedStaticMeshComponent* K; int32 I; FTransform Rel; };
+	struct FPart { FTransform Base, Parent; TArray<FInst> Inst; float Slide = 0; float Swing = 0; bool bSpin = false; };
+	struct FDoor { FVector At; float Reach = 2.6f; float K = 0; TArray<FPart> Parts; bool bSpin = false; };
+	TArray<FDoor> Doors;
+	float Clock = 0;
+	void MovePart(FPart& P, float E, float Spin);
+	#pragma endregion
 };
