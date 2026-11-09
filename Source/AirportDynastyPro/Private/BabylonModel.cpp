@@ -243,7 +243,17 @@ void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, c
 			S->SetRelativeRotation(FRotator(-90.f, 0, 0));
 			S->SetInnerConeAngle(20.f);
 			S->SetOuterConeAngle(42.f);
-			Add(S, NodeWorld[I].GetLocation() - FVector(0, 0, 10.f), 2200.f, 2600.f, Warm);
+			Add(S, NodeWorld[I].GetLocation() - FVector(0, 0, 10.f), 900.f, 2600.f, Warm);
+			// and its spill: a soft glow just under the roof, so the timber ceiling round each downlight is lit as in life
+			UPointLightComponent* Spill = NewObject<UPointLightComponent>(this);
+			Spill->SetSourceRadius(12.f);
+			// a small warm glow centred right on the fitting (owner, 2026-11-09: no big blobs, 20% darker than before) ...
+			Add(Spill, NodeWorld[I].GetLocation() - FVector(0, 0, 25.f), 18.f, 180.f, Warm);
+			// ... and a soft fill from straight below it, so the timber between the fittings is lit, not black
+			UPointLightComponent* Fill = NewObject<UPointLightComponent>(this);
+			Fill->SetSourceRadius(80.f);
+			Fill->SetSoftSourceRadius(150.f);
+			Add(Fill, NodeWorld[I].GetLocation() - FVector(0, 0, 180.f), 55.f, 900.f, Warm);
 			++Spots;
 		}
 		else if (N.Contains(TEXT("/LAMP-")))
@@ -254,7 +264,7 @@ void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, c
 				UPointLightComponent* P = NewObject<UPointLightComponent>(this);
 				P->SetSourceRadius(30.f);
 				P->SetSoftSourceRadius(60.f);
-				Add(P, NodeWorld[I].GetLocation() - FVector(0, 0, 25.f), 260.f, 900.f, Warm);
+				Add(P, NodeWorld[I].GetLocation() - FVector(0, 0, 25.f), 140.f, 900.f, Warm);
 				++Soft;
 			}
 		}
@@ -294,6 +304,15 @@ void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, c
 			D->GetAllScalarParameterInfo(Infos, Ids);
 			for (const FMaterialParameterInfo& P : Infos)
 				if (P.Name.ToString().Contains(TEXT("EmissiveStrength"))) D->SetScalarParameterValueByInfo(P, 12.f);
+			// (the emissive colour itself too, where the material has one: the fittings must outshine what they light)
+			TArray<FMaterialParameterInfo> VInfos; TArray<FGuid> VIds;
+			D->GetAllVectorParameterInfo(VInfos, VIds);
+			for (const FMaterialParameterInfo& P : VInfos)
+				if (P.Name.ToString().Contains(TEXT("Emissive")))
+				{
+					FLinearColor C;
+					if (D->GetVectorParameterValue(P, C)) D->SetVectorParameterValueByInfo(P, C * 8.f);
+				}
 			++Glows;
 		}
 	UE_LOG(LogTemp, Log, TEXT("Babylon model lights: %d downlights, %d room lights, %d jetway lights, %d glowing materials"), Spots, Soft, Strip, Glows);

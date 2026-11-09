@@ -121,6 +121,9 @@ private:
 	FTerminalPlan Plan;
 	UPROPERTY() TMap<FString, TObjectPtr<class UTexture2D>> BoardTex;
 	TMap<FString, TArray<TObjectPtr<class UMaterialInstanceDynamic>>> BoardMats;
+	/** Indoors: shadows lifted (only about a quarter dark), blended in when you are inside the terminal or the lounge. */
+	UPROPERTY() TObjectPtr<class APostProcessVolume> Indoor;
+	float IndoorWeight = 0;
 	UPROPERTY() TObjectPtr<class UAudioComponent> VoiceOut;
 	UPROPERTY() TObjectPtr<class UAudioComponent> GongOut;
 	int32 SpeechId = 0;

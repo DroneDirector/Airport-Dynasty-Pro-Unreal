@@ -7,6 +7,7 @@
 #include "UI/InputGlyphs.h"
 #include "UI/SDragBox.h"
 #include "SunClock.h"
+#include "Engine/PostProcessVolume.h"
 #include "Globe.h"
 #include "HAL/IConsoleManager.h"
 #include "UnrealClient.h"
@@ -148,6 +149,18 @@ void AADPHUD::BeginPlay()
 {
 	Super::BeginPlay();
 	Current = this;
+	// indoors the shadows are lifted: where the lamps don't reach it is only about a quarter dark (the owner's choice,
+	// 2026-11-09), so the whole building can be seen; the lit areas still stand out (the lamps aren't made brighter)
+	if ((Indoor = GetWorld()->SpawnActor<APostProcessVolume>()) != nullptr)
+	{
+		Indoor->bUnbound = true;
+		Indoor->Priority = 5.f;
+		Indoor->BlendWeight = 0.f;
+		FPostProcessSettings& S = Indoor->Settings;
+		S.bOverride_LumenSkylightLeaking = true; S.LumenSkylightLeaking = 0.25f;
+		S.bOverride_IndirectLightingIntensity = true; S.IndirectLightingIntensity = 2.2f;
+		S.bOverride_AmbientOcclusionIntensity = true; S.AmbientOcclusionIntensity = 0.25f;
+	}
 	GConfig->GetBool(TEXT("ADP.Boxes"), TEXT("FrameRateOn"), bFpsBox, GGameUserSettingsIni);
 	{ bool bFG = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("FrameGeneration"), bFG, GGameUserSettingsIni); SetFrameGen(bFG); }
 	PrimaryActorTick.bCanEverTick = true;
@@ -955,6 +968,10 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 56.f && ShotClock >= 56.f) FScreenshotRequest::RequestScreenshot(TEXT("HallEvening"), false, false);
 			if (Before < 57.f && ShotClock >= 57.f) { ASunClock::HourOverride = 12.f; ASunClock::Refresh(); }
 			if (Before < 66.f && ShotClock >= 66.f) FScreenshotRequest::RequestScreenshot(TEXT("HallMidday"), false, false);
+			// and the long walkway upstairs, looking up at its glass roof (midday)
+			if (Before < 67.f && ShotClock >= 67.f) GoTo(FVector(150.f, Plan.F2Y, 57.f), FVector(150.f, Plan.F2Y + 9.f, 62.f));
+			if (Before < 70.f && ShotClock >= 70.f) if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(FRotator(60.f, PC->GetControlRotation().Yaw, 0));
+			if (Before < 75.f && ShotClock >= 75.f) FScreenshotRequest::RequestScreenshot(TEXT("WalkwayRoof"), false, false);
 		}
 		// -UISite: outside at the kerb (the light, the sky, the credits), and a picture
 		const bool bSite = FParse::Param(FCommandLine::Get(), TEXT("UISite"));
@@ -980,11 +997,14 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 70.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 79.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are
 	HeardGain = FMath::FInterpTo(HeardGain, ZoneGain(), Dt, 2.f);
+	// the indoor lighting blends in through the doors
+	IndoorWeight = FMath::FInterpTo(IndoorWeight, ZoneKind().IsEmpty() ? 0.f : 1.f, Dt, 1.5f);
+	if (Indoor) Indoor->BlendWeight = IndoorWeight;
 	for (UAudioComponent* A : {VoiceOut.Get(), GongOut.Get()})
 		if (A) { A->SetVolumeMultiplier(FMath::Max(0.001f, CallGain())); A->SetLowPassFilterEnabled(true); A->SetLowPassFilterFrequency(ZoneMuffle()); }
 	if ((CallsClock += Dt) >= 1.f) { CallsClock = 0; RunCalls(); }
