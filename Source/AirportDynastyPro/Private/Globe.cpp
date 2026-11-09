@@ -35,7 +35,8 @@ void AGlobe::Build(const FAirfieldData& F)
 	// converter's output on this PC; the airport's ground height (above the WGS84 ellipsoid) comes with it, so Unreal's
 	// ground (z = 0) sits on it. Without terrain: the smooth globe 1 m under the airport.
 	FString Layer = FPaths::ProjectContentDir() / TEXT("Terrain/layer.json");
-	if (!FPaths::FileExists(Layer)) Layer = TEXT("F:/ADP-Terrain/tiles/layer.json");
+	// the converter's output on this PC only when run from the editor (a release uses what ships with it)
+	if (!FPaths::FileExists(Layer) && !FPlatformProperties::RequiresCookedData()) Layer = TEXT("F:/ADP-Terrain/tiles/layer.json");
 	const bool bTerrain = FPaths::FileExists(Layer);
 	double Ground = -1.0;
 	{
