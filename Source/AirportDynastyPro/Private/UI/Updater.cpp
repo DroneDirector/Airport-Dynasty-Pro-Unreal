@@ -47,6 +47,16 @@ namespace
 
 FString AADPHUD::UpdaterVersion() { return TEXT(ADP_PC_VERSION); }
 
+FString AADPHUD::LastUpdateProblem()
+{
+	// the update script's own log: its last line, if that says the last install failed
+	FString Log;
+	FFileHelper::LoadFileToString(Log, *(FPaths::ProjectSavedDir() / TEXT("Update") / TEXT("update.log")));
+	TArray<FString> Lines;
+	Log.ParseIntoArrayLines(Lines);
+	return Lines.Num() && Lines.Last().StartsWith(TEXT("Update failed")) ? Lines.Last() : FString();
+}
+
 void AADPHUD::CheckForUpdates()
 {
 	if (UpdateBusy) return;
@@ -184,12 +194,20 @@ try {
     "Updated to $($m.to)" | Add-Content $log
   }
 } catch { "Update failed: $_" | Add-Content $log }
-Start-Process -FilePath $exe
+# started through Explorer: the game runs as you, not with the administrator rights this may have had
+Start-Process explorer.exe -ArgumentList ('"' + $exe + '"')
 )PS1"), *Install, *Exe, *Zips, *Dir, int32(FPlatformProcess::GetCurrentProcessId()), *Dir);
 	const FString ScriptFile = Dir / TEXT("apply-update.ps1");
 	FFileHelper::SaveStringToFile(Script, *ScriptFile, FFileHelper::EEncodingOptions::ForceUTF8);
 	UpdateStatus = TEXT("Installing the update: the game closes and starts again in a moment…");
-	const FString Args = FString::Printf(TEXT("-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"%s\""), *ScriptFile);
+	// installed where only an administrator may write (Program Files, "for all users"): Windows asks once for permission
+	const FString Probe = Install / TEXT("AirportDynastyPro") / TEXT(".write-test");
+	const bool bWritable = FFileHelper::SaveStringToFile(TEXT("x"), *Probe);
+	if (bWritable) IFileManager::Get().Delete(*Probe, false, true, true);
+	FString Args = FString::Printf(TEXT("-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"%s\""), *ScriptFile);
+	if (!bWritable)
+		Args = FString::Printf(TEXT("-NoProfile -WindowStyle Hidden -Command \"Start-Process powershell -Verb RunAs -WindowStyle Hidden -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File \\\"%s\\\"'\""), *ScriptFile);
+	UE_LOG(LogTemp, Log, TEXT("Updater: installing %s"), bWritable ? TEXT("directly") : TEXT("with administrator permission (the game folder is protected)"));
 	FPlatformProcess::CreateProc(TEXT("powershell.exe"), *Args, true, true, true, nullptr, 0, nullptr, nullptr);
 	FGenericPlatformMisc::RequestExit(false);
 }

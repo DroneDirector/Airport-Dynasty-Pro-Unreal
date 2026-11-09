@@ -37,8 +37,26 @@ public:
 	void OnEscape();
 	/** Settings (Tab, the bar's button, or the title screen's gear in the menus). */
 	void ToggleSettings();
+	/** Bloom and blur (Settings): 0 off, 1 low, 2 medium, 3 high, 4 epic; kept in the game's settings file. */
+	void SetBloom(int32 Level);
+	void SetBlur(int32 Level);
+	int32 BloomLevel = 4, BlurLevel = 4;
+	TSharedRef<SWidget> LevelRow(bool bBloomRow);
 	#pragma region The updater (Updater.cpp)
 	static FString UpdaterVersion();
+	static FString LastUpdateProblem();
+	#pragma region Crash report (CrashReport.cpp)
+	/** After a crash, on the next start: what went wrong (Unreal's crash record: the error, where in the program, the
+	 *  version, what you were doing), shown over the title screen, with a button that writes it as an e-mail to
+	 *  crashlog@airportdynasty.com in your own mail program (nothing is sent without you), and one that opens the folder. */
+	TSharedRef<SWidget> MakeCrashPanel();
+	bool FindNewCrash();
+	void SendCrashMail();
+	TSharedPtr<SWidget> CrashPanel;
+	FString CrashText, CrashFolder, CrashId;
+	/** What you were doing, kept on disk as it changes (a crash leaves no log in the released game). */
+	static void Breadcrumb(const FString& What);
+	#pragma endregion
 	void CheckForUpdates();
 	void InstallUpdate();
 	void DownloadNext(int32 I, const FString& Dir);

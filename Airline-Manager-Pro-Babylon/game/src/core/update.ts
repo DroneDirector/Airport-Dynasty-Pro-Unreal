@@ -130,6 +130,10 @@ function cmpVersion(a: string, b: string): number {
   return 0;
 }
 
+/** The PC (Unreal) version: its own updater, in Unreal's Settings (the page this game runs in holds Unreal's link). */
+function ueLinked(): boolean { try { const t: any = window.top; return !!(t && t.ue && t.ue.adp); } catch (e) { return false; } }
+/** On the PC: Unreal's Settings opened at its Updates (check and install there); true if that happened. */
+function ueUpd(): boolean { try { const t: any = window.top; if (t && t.ue && t.ue.adp && t.ue.adp.opensettings) { t.ue.adp.opensettings(); if (t.ue.adp.checkupdates) t.ue.adp.checkupdates(); return true; } } catch (e) { /* not there */ } return false; }
 function updateStatusText(): string {
   const u = Updater;
   switch (u.state) {
@@ -140,7 +144,7 @@ function updateStatusText(): string {
     case 'installing': return DESKTOP ? 'Installing: the PC app closes and opens again with the new version' : 'Installing, the app restarts when it\'s done';
     case 'permission': return 'Waiting for permission to install updates';
     case 'failed': return 'The last update attempt failed, see the error log';
-    default: return u.native ? 'Updates install over this version and keep your airline' : 'Updates install in the Android app and the PC app';
+    default: if (ueLinked()) return 'This is the PC version: Check for updates opens its Settings, where it checks and installs'; return u.native ? 'Updates install over this version and keep your airline' : 'Updates install in the Android app and the PC app';
   }
 }
 
@@ -165,7 +169,7 @@ function updateChanged() {
   try { if ($('#set-body') && _setSection === 'support') rerenderSettingsBody(); } catch (e) { /* settings closed */ }
 }
 
-ACTIONS['update-open'] = el => { const t = el && el.closest('.toast'); if (t) t.remove(); Sound.tick(); openUpdate(); };
-ACTIONS['update-check'] = () => { Sound.tick(); if (!Updater.native) { toast('Updates install in the Android app and the PC app', 'info'); return; } Updater.check(false); };
+ACTIONS['update-open'] = el => { const t = el && el.closest('.toast'); if (t) t.remove(); Sound.tick(); if (ueUpd()) return; openUpdate(); };
+ACTIONS['update-check'] = () => { Sound.tick(); if (ueUpd()) return; if (!Updater.native) { toast('Updates install in the Android app and the PC app', 'info'); return; } Updater.check(false); };
 ACTIONS['update-install'] = () => { Sound.tick(); Updater.install(); };
 ACTIONS['update-permission'] = () => { closeTop(); const t = appTools(); if (t) t.openInstallPermission().catch((e: any) => ErrorLog.add('update', 'Couldn\'t open the setting', (e && e.message) || String(e))); };

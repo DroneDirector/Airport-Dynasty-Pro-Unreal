@@ -495,6 +495,8 @@ function titleDeleteAll(withBackups: boolean) {
 // Each save is the whole airline as it was at that moment. On the phone, files in the app's own storage; on the PC,
 // Documents\Airport Dynasty Pro\saves\game-1 … game-20.json; in a browser, its own database. A list of what is in
 // each slot is kept besides, so the menu shows them at once.
+/** Unreal's link on the PC version (the menus' page holds it; this game runs in a frame inside it), or null. */
+function ueLink(): any { try { const t: any = window.top; return t && t.ue && t.ue.adp ? t.ue.adp : null; } catch (e) { return null; } }
 const GameSaves = {
   N: 20,
   meta(): any[] { try { const m = JSON.parse(localStorage.getItem('amp.gameSaves') || 'null'); if (Array.isArray(m)) { while (m.length < this.N) m.push(null); return m; } } catch (e) { /* none */ } return Array(this.N).fill(null); },
@@ -503,12 +505,15 @@ const GameSaves = {
   write(i: number, data: string): Promise<void> {
     const T = Store.native(), name = `game-${i}.json`;
     if (T && T.backupWrite) return T.backupWrite({ data, name });
+    // the PC (Unreal) version: a file in the game's Saved folder, written by Unreal
+    const U = ueLink(); if (U && U.savewrite) return Promise.resolve(U.savewrite(name, data)).then((ok: any) => { if (ok === false) throw new Error('save'); });
     if (DESKTOP) return fetch('/api/saves?slot=g' + i, { method: data ? 'PUT' : 'DELETE', body: data || undefined }).then(r => { if (!r.ok) throw new Error('save'); });
     return this.db().then(db => new Promise<void>((ok, no) => { const tx = db.transaction('s', 'readwrite'); if (data) tx.objectStore('s').put(data, name); else tx.objectStore('s').delete(name); tx.oncomplete = () => ok(); tx.onerror = () => no(tx.error); }));
   },
   read(i: number): Promise<string> {
     const T = Store.native(), name = `game-${i}.json`;
     if (T && T.backupRead) return T.backupRead({ name }).then((r: any) => (r && r.data) || '');
+    const U = ueLink(); if (U && U.saveread) return Promise.resolve(U.saveread(name)).then((s: any) => s || '');
     if (DESKTOP) return fetch('/api/saves?slot=g' + i).then(r => r.json()).then((j: any) => j.data || '');
     return this.db().then(db => new Promise<string>((ok, no) => { const q = db.transaction('s').objectStore('s').get(name); q.onsuccess = () => ok(q.result || ''); q.onerror = () => no(q.error); }));
   },

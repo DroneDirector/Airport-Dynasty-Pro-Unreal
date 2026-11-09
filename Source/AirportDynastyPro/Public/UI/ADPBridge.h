@@ -36,6 +36,10 @@ public:
 	/** The menus' Settings > Updates on the PC: look for a newer PC version / install the one found (the game's own
 	 *  updater; its state comes back to the page through window.__ueUpdate). */
 	/** The menus' Exit (title screen and game): the game quits (the page can't close Unreal's window itself). */
+	/** The airline game's save slots as files (Saved/Saves/<name>) on the PC: written, or removed when Data is empty. */
+	UFUNCTION() bool SaveWrite(const FString& Name, const FString& Data);
+	/** A save slot's file, or empty. */
+	UFUNCTION() FString SaveRead(const FString& Name);
 	UFUNCTION() void Quit();
 	/** The title screen's gear: Unreal's own Settings panel, the same as in the airport, over the menus. */
 	UFUNCTION() void OpenSettings();

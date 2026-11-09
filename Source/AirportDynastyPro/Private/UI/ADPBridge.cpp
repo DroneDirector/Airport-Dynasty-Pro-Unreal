@@ -1,6 +1,9 @@
 // The link from the app's menus to Unreal.
 #include "UI/ADPBridge.h"
 #include "UI/ADPHUD.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "HAL/FileManager.h"
 
 void UADPBridge::OpenTerminal()
 {
@@ -25,6 +28,32 @@ void UADPBridge::GameState(const FString& Json)
 void UADPBridge::SpeechPcm(int32 Id, const FString& B64)
 {
 	if (AADPHUD* H = Hud.Get()) H->SpeechPcm(Id, B64);
+}
+
+static FString SaveFile(const FString& Name)
+{
+	FString Safe;
+	for (TCHAR C : Name) if (FChar::IsAlnum(C) || C == '-' || C == '.' || C == '_') Safe.AppendChar(C);
+	if (Safe.IsEmpty() || Safe.Contains(TEXT(".."))) return FString();
+	return FPaths::ProjectSavedDir() / TEXT("Saves") / Safe;
+}
+
+bool UADPBridge::SaveWrite(const FString& Name, const FString& Data)
+{
+	const FString F = SaveFile(Name);
+	if (F.IsEmpty()) return false;
+	if (Data.IsEmpty()) { IFileManager::Get().Delete(*F, false, true, true); return true; }
+	const bool bOk = FFileHelper::SaveStringToFile(Data, *F, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
+	UE_LOG(LogTemp, Log, TEXT("Menus: save %s %s (%d chars)"), *Name, bOk ? TEXT("written") : TEXT("FAILED"), Data.Len());
+	return bOk;
+}
+
+FString UADPBridge::SaveRead(const FString& Name)
+{
+	FString Out;
+	const FString F = SaveFile(Name);
+	if (!F.IsEmpty()) FFileHelper::LoadFileToString(Out, *F);
+	return Out;
 }
 
 void UADPBridge::Quit()

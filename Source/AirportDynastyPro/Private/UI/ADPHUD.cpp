@@ -163,6 +163,10 @@ void AADPHUD::BeginPlay()
 	}
 	GConfig->GetBool(TEXT("ADP.Boxes"), TEXT("FrameRateOn"), bFpsBox, GGameUserSettingsIni);
 	{ bool bFG = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("FrameGeneration"), bFG, GGameUserSettingsIni); SetFrameGen(bFG); }
+	// an update that could not be put in place last time is said in Settings > Updates (not passed over in silence)
+	{ const FString P = LastUpdateProblem(); if (!P.IsEmpty()) UpdateStatus = TEXT("The last update could not be installed: ") + P.RightChop(15).TrimStart() + TEXT(" Check for updates and install it again (Windows asks for permission)."); }
+	// bloom and blur as last chosen (Settings: Off, Low, Medium, High, Epic)
+	{ int32 B = 4, M = 4; GConfig->GetInt(TEXT("ADP.Graphics"), TEXT("Bloom"), B, GGameUserSettingsIni); GConfig->GetInt(TEXT("ADP.Graphics"), TEXT("Blur"), M, GGameUserSettingsIni); SetBloom(B); SetBlur(M); }
 	PrimaryActorTick.bCanEverTick = true;
 	FirstStartScan();
 
@@ -174,6 +178,9 @@ void AADPHUD::BeginPlay()
 	Perf = MakePerf();
 	TopBar = MakeTopBar();
 	Settings->SetVisibility(EVisibility::Collapsed);
+	CrashPanel = MakeCrashPanel();
+	CrashPanel->SetVisibility(FindNewCrash() ? EVisibility::Visible : EVisibility::Collapsed);
+	Breadcrumb(TEXT("Started, the title screen"));
 	Perf->SetVisibility(EVisibility::Collapsed);
 
 	GameBox = SNew(SBox);
@@ -255,6 +262,7 @@ void AADPHUD::BeginPlay()
 			]
 		]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[Settings.ToSharedRef()]
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[CrashPanel.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
 		[
 			// the first start's question: the scan's suggestion, taken only if you say yes
@@ -503,6 +511,12 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 						[Button(TEXT("INSTALL UPDATE"), [this]() { InstallUpdate(); })]
 					]
 				]
+				// bloom (the glow round bright lights) and blur (motion blur and the soft background of depth of field):
+				// Off, Low, Medium, High, Epic; the one in use lit
+				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Bloom (the glow round bright lights)"))]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 8)[LevelRow(true)]
+				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Blur (motion blur and depth of field)"))]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)[LevelRow(false)]
 				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Frame limit"))]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 10)[Limit]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 6)
@@ -582,6 +596,7 @@ void AADPHUD::ToggleGame()
 	if (bHidden) return;
 	bGame = !bGame;
 	bPointer = false;
+	if (bGame) Breadcrumb(TEXT("In the menus (the airline game)"));
 	// made the first time it is opened, then kept (the game keeps running behind the terminal)
 	if (bGame && !bGameMade)
 	{
@@ -609,6 +624,40 @@ void AADPHUD::ToggleSettings()
 	if (!bSettings) bPointer = false;
 	Settings->SetVisibility(bSettings ? EVisibility::Visible : EVisibility::Collapsed);
 	UpdateMouse();
+}
+
+TSharedRef<SWidget> AADPHUD::LevelRow(bool bBloomRow)
+{
+	TSharedRef<SHorizontalBox> Row = SNew(SHorizontalBox);
+	static const TCHAR* Names[] = {TEXT("OFF"), TEXT("LOW"), TEXT("MEDIUM"), TEXT("HIGH"), TEXT("EPIC")};
+	for (int32 L = 0; L < 5; ++L)
+		Row->AddSlot().AutoWidth().Padding(0, 0, 4, 0)
+		[
+			SNew(SButton)
+			.ButtonColorAndOpacity_Lambda([this, L, bBloomRow]() { return (bBloomRow ? BloomLevel : BlurLevel) == L ? FLinearColor(0.1f, 0.45f, 0.75f, 1.f) : FLinearColor(0.05f, 0.2f, 0.36f, 0.9f); })
+			.ContentPadding(FMargin(10, 4))
+			.OnClicked_Lambda([this, L, bBloomRow]() { if (bBloomRow) SetBloom(L); else SetBlur(L); return FReply::Handled(); })
+			[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text(FText::FromString(Names[L]))]
+		];
+	return Row;
+}
+
+void AADPHUD::SetBloom(int32 Level)
+{
+	BloomLevel = FMath::Clamp(Level, 0, 4);
+	static const int32 Q[] = {0, 1, 3, 4, 5};
+	if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("r.BloomQuality"))) V->Set(Q[BloomLevel], ECVF_SetByGameSetting);
+	GConfig->SetInt(TEXT("ADP.Graphics"), TEXT("Bloom"), BloomLevel, GGameUserSettingsIni);
+	GConfig->Flush(false, GGameUserSettingsIni);
+}
+
+void AADPHUD::SetBlur(int32 Level)
+{
+	BlurLevel = FMath::Clamp(Level, 0, 4);
+	if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MotionBlurQuality"))) V->Set(BlurLevel, ECVF_SetByGameSetting);
+	if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DepthOfFieldQuality"))) V->Set(BlurLevel, ECVF_SetByGameSetting);
+	GConfig->SetInt(TEXT("ADP.Graphics"), TEXT("Blur"), BlurLevel, GGameUserSettingsIni);
+	GConfig->Flush(false, GGameUserSettingsIni);
 }
 
 void AADPHUD::SetFrameGen(bool bOn)
@@ -732,6 +781,7 @@ namespace
 
 void AADPHUD::ShowTerminal()
 {
+	Breadcrumb(TEXT("In the terminal (3D)"));
 	if (bGame) ToggleGame();
 	// back from the lounge: where you were in the terminal
 	if (bInLounge)
@@ -747,6 +797,7 @@ void AADPHUD::ShowTerminal()
 
 void AADPHUD::OpenLounge()
 {
+	Breadcrumb(TEXT("In the lounge (3D)"));
 	if (bGame) ToggleGame();
 	APawn* P = GetOwningPawn();
 	if (!P) return;
@@ -768,6 +819,7 @@ void AADPHUD::OpenLounge()
 
 void AADPHUD::OpenSite()
 {
+	Breadcrumb(TEXT("At the airport site (3D)"));
 	ShowTerminal();
 	GoEntrance();
 }
@@ -999,6 +1051,7 @@ void AADPHUD::Tick(float Dt)
 		{
 			if (Before < 30.f && ShotClock >= 30.f) Browser->ExecuteJavascript(TEXT("document.querySelector('.gear').click()"));
 			if (Before < 36.f && ShotClock >= 36.f) FScreenshotRequest::RequestScreenshot(TEXT("TitleSettings"), true, false);
+			if (Before < 33.f && ShotClock >= 33.f) Browser->ExecuteJavascript(TEXT("Promise.resolve(ue.adp.savewrite('test-1.json','hello save')).then(function(r){ue.adp.log('SAVETEST write '+r);return ue.adp.saveread('test-1.json');}).then(function(s){ue.adp.log('SAVETEST read '+s);ue.adp.savewrite('test-1.json','');}).catch(function(e){ue.adp.log('SAVETEST error '+e);});"));
 			if (Before < 38.f && ShotClock >= 38.f) { if (bSettings) ToggleSettings(); Browser->ExecuteJavascript(TEXT("document.querySelector('.exit').click()")); }
 		}
 		// -UIUpd: the menus' Settings > Updates asks Unreal to check, and reports what came back
