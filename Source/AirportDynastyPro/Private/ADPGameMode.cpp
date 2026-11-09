@@ -7,6 +7,7 @@
 #include "TerminalFittings.h"
 #include "TerminalLifts.h"
 #include "TerminalJetways.h"
+#include "TerminalScreens.h"
 #include "CrowdTest.h"
 #include "Engine/World.h"
 #include "Engine/DirectionalLight.h"
@@ -49,6 +50,8 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 			Lifts->Build(Plan);
 		if (ATerminalJetways* Jetways = W->SpawnActor<ATerminalJetways>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 			Jetways->Build(Plan);
+		if (ATerminalScreens* Screens = W->SpawnActor<ATerminalScreens>(FVector::ZeroVector, FRotator::ZeroRotator, P))
+			Screens->Build(Plan);
 		if (ACrowdTest* Crowd = W->SpawnActor<ACrowdTest>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 			Crowd->Start(Plan, CrowdSize);
 		if (!UGameplayStatics::GetActorOfClass(W, APlayerStart::StaticClass()))
