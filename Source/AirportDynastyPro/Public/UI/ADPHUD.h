@@ -47,6 +47,14 @@ private:
 	/** E: a desk's or a timetable's screen in front of you opens the airline game on it. */
 	void Interact();
 	void PlayGong();
+	/** F1 (keyboard) or View / Create (gamepad): the Buttons panel open or minimized. */
+	void ToggleButtons();
+	/** LB / L1: hide the interface, or bring it back. */
+	void ToggleHide() { if (bHidden) ShowUI(); else HideUI(); }
+	/** Any key or button: keyboard and mouse or the gamepad in use; the symbols shown follow it. */
+	void OnAnyKey(FKey Key);
+	/** The Buttons panel's list, the controls in Settings and the map's legend, for the device in use. */
+	void RefreshControls();
 	#pragma endregion
 
 	TSharedPtr<SWidget> Root;
@@ -56,6 +64,10 @@ private:
 	float FpsSmooth = 60.f;
 	TSharedPtr<SWidget> CaptionBox;
 	TSharedPtr<class STextBlock> Credit;
+	TSharedPtr<class SVerticalBox> ButtonsList, SettingsControls;
+	TSharedPtr<class SBox> ButtonsHeaderGlyph;
+	bool bButtonsOpen = false, bShownPad = true;
+	uint8 ShownPadKind = 255;
 	FString CallText;
 	float CaptionTime = 0;
 	static TArray<FString> Calls;

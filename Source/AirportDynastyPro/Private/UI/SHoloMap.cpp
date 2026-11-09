@@ -199,6 +199,17 @@ int32 SHoloMap::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const FSla
 		FSlateDrawElement::MakeLines(Out, Layer + 4, PG, TArray<FVector2f>{Dir(A, 9), Dir(A + 2.5f, 6), Dir(A + PI, 2), Dir(A - 2.5f, 6), Dir(A, 9)}, ESlateDrawEffect::None, FLinearColor::White, true, 2.f);
 	}
 
+	// the legend, full screen only, in the map's lower right corner
+	if (bFull && Legend.Num())
+	{
+		const float LH = 15.f, W = 300.f, H = 16.f + Legend.Num() * LH;
+		const FVector2f O(Size.X - W - 20, Size.Y - H - 20);
+		FSlateDrawElement::MakeBox(Out, Layer + 5, Geo.ToPaintGeometry(FVector2f(W, H), FSlateLayoutTransform(O)), White, ESlateDrawEffect::None, FLinearColor(0.012f, 0.05f, 0.1f, 0.9f));
+		for (int32 i = 0; i < Legend.Num(); ++i)
+			FSlateDrawElement::MakeText(Out, Layer + 6, Geo.ToPaintGeometry(FVector2f(W - 16, LH), FSlateLayoutTransform(O + FVector2f(8, 8 + i * LH))), Legend[i],
+				FCoreStyle::GetDefaultFontStyle(i == 0 ? "Bold" : "Regular", 9), ESlateDrawEffect::None, i == 0 ? Label : FLinearColor(0.63f, 0.84f, 1.f, 0.9f));
+	}
+
 	// the floor shown, and the corner brackets
 	const FString FloorName = F == 2 ? TEXT("FLOOR 2") : TEXT("FLOOR 1");
 	FSlateDrawElement::MakeText(Out, Layer + 5, Geo.ToPaintGeometry(FVector2f(200, 18), FSlateLayoutTransform(FVector2f(10, 8))), bFull ? FloorName + TEXT("  ·  CLICK WHERE YOU WANT TO GO  ·  M CLOSES") : FloorName, FCoreStyle::GetDefaultFontStyle("Bold", bFull ? 12 : 9), ESlateDrawEffect::None, Label);

@@ -4,6 +4,7 @@
 #include "UI/SHoloMap.h"
 #include "UI/GameView.h"
 #include "UI/ADPBridge.h"
+#include "UI/InputGlyphs.h"
 #include "UnrealClient.h"
 #include "TerminalPlan.h"
 #include "Engine/Engine.h"
@@ -84,7 +85,30 @@ void AADPHUD::BeginPlay()
 		]
 		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(16)[Perf.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[Settings.ToSharedRef()]
-		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Bottom).Padding(8)
+		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Bottom).Padding(16)
+		[
+			// the Buttons panel: the lower right corner is its own, nothing else is ever placed there
+			SNew(SBorder)
+			.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+			.BorderBackgroundColor(Panel)
+			.Padding(FMargin(10, 6))
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot().AutoHeight()
+				[
+					SAssignNew(ButtonsList, SVerticalBox)
+					.Visibility_Lambda([this]() { return bButtonsOpen ? EVisibility::Visible : EVisibility::Collapsed; })
+				]
+				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Right)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 8, 0)
+					[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text(FText::FromString(TEXT("BUTTONS")))]
+					+ SHorizontalBox::Slot().AutoWidth()[SAssignNew(ButtonsHeaderGlyph, SBox)]
+				]
+			]
+		]
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(8)
 		[
 			// the imagery's credit, as its licence (CC BY 4.0) asks
 			SAssignNew(Credit, STextBlock).Font(Font(7, "Regular")).ColorAndOpacity(FLinearColor(1, 1, 1, 0.55f))
@@ -108,6 +132,17 @@ void AADPHUD::BeginPlay()
 	if (APlayerController* PC = GetOwningPlayerController())
 	{
 		EnableInput(PC);
+		// the controls table is checked first: no key or button is ever used twice
+		ADPInput::CheckNoConflicts();
+		ADPInput::CurrentPad() = ADPInput::DetectPad();
+		InputComponent->BindKey(EKeys::AnyKey, IE_Pressed, this, &AADPHUD::OnAnyKey);
+		InputComponent->BindKey(EKeys::F1, IE_Pressed, this, &AADPHUD::ToggleButtons);
+		InputComponent->BindKey(EKeys::Gamepad_Special_Left, IE_Pressed, this, &AADPHUD::ToggleButtons);
+		InputComponent->BindKey(EKeys::Gamepad_FaceButton_Top, IE_Pressed, this, &AADPHUD::ToggleGame);
+		InputComponent->BindKey(EKeys::Gamepad_RightShoulder, IE_Pressed, this, &AADPHUD::ToggleMap);
+		InputComponent->BindKey(EKeys::Gamepad_LeftShoulder, IE_Pressed, this, &AADPHUD::ToggleHide);
+		InputComponent->BindKey(EKeys::Gamepad_Special_Right, IE_Pressed, this, &AADPHUD::ToggleSettings);
+		InputComponent->BindKey(EKeys::Gamepad_FaceButton_Left, IE_Pressed, this, &AADPHUD::Interact);
 		InputComponent->BindKey(EKeys::G, IE_Pressed, this, &AADPHUD::ToggleGame);
 		InputComponent->BindKey(EKeys::E, IE_Pressed, this, &AADPHUD::Interact);
 		InputComponent->BindKey(EKeys::M, IE_Pressed, this, &AADPHUD::ToggleMap);
@@ -195,6 +230,8 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("SCAN MY PC"), []() { if (UGameUserSettings* S = Prefs()) { S->RunHardwareBenchmark(); S->ApplyHardwareBenchmarkResults(); Save(S); } })]
 					+ SHorizontalBox::Slot().AutoWidth()[Button(TEXT("PROBLEM LOG"), []() { FPlatformProcess::ExploreFolder(*(FPaths::ProjectLogDir() / TEXT("Problems.log"))); })]
 				]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 12, 0, 4)[Caption(TEXT("Controls (keyboard, and the gamepad in use)"))]
+				+ SVerticalBox::Slot().AutoHeight()[SAssignNew(SettingsControls, SVerticalBox)]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 10, 0, 0)[Button(TEXT("CLOSE  (TAB)"), [this]() { ToggleSettings(); })]
 			]
 		];
@@ -337,9 +374,74 @@ void AADPHUD::Interact()
 	}
 }
 
+void AADPHUD::ToggleButtons()
+{
+	if (bHidden) return;
+	bButtonsOpen = !bButtonsOpen;
+}
+
+void AADPHUD::OnAnyKey(FKey Key)
+{
+	const bool bPad = Key.IsGamepadKey();
+	if (bPad && ADPInput::CurrentPad() == ADPInput::EPad::None)
+	{
+		const ADPInput::EPad Found = ADPInput::DetectPad();
+		ADPInput::CurrentPad() = Found == ADPInput::EPad::None ? ADPInput::EPad::Xbox : Found; // an XInput pad
+	}
+	ADPInput::UsingPad() = bPad;
+}
+
+void AADPHUD::RefreshControls()
+{
+	const bool bPad = ADPInput::UsingPad();
+	const ADPInput::EPad Pad = ADPInput::CurrentPad();
+	auto Row = [&](const ADPInput::FAction& A, bool bBoth)
+	{
+		TSharedRef<SHorizontalBox> R = SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center).Padding(0, 2, 12, 2)
+			[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).Text(FText::FromString(A.Name))];
+		if (bBoth)
+		{
+			R->AddSlot().AutoWidth().Padding(0, 2, 6, 2)[ADPInput::Glyph(A, false, Pad)];
+			if (Pad != ADPInput::EPad::None) R->AddSlot().AutoWidth().Padding(0, 2)[ADPInput::Glyph(A, true, Pad)];
+		}
+		else R->AddSlot().AutoWidth().Padding(0, 2)[ADPInput::Glyph(A, bPad, Pad)];
+		return R;
+	};
+	if (ButtonsList.IsValid())
+	{
+		ButtonsList->ClearChildren();
+		for (const ADPInput::FAction& A : ADPInput::Actions())
+			if (A.Name != TEXT("Buttons")) ButtonsList->AddSlot().AutoHeight()[Row(A, false)];
+	}
+	if (SettingsControls.IsValid())
+	{
+		SettingsControls->ClearChildren();
+		for (const ADPInput::FAction& A : ADPInput::Actions()) SettingsControls->AddSlot().AutoHeight()[Row(A, true)];
+	}
+	if (ButtonsHeaderGlyph.IsValid())
+		if (const ADPInput::FAction* B = ADPInput::Find(TEXT("Buttons"))) ButtonsHeaderGlyph->SetContent(ADPInput::Glyph(*B, bPad, Pad));
+	// the map's legend: what the symbols mean, and the controls that matter there
+	if (HoloMap.IsValid())
+	{
+		TArray<FString> L = {TEXT("LEGEND"), TEXT("Bright lines: walls on this floor"), TEXT("Faint lines: the other floor"),
+			TEXT("Squares: stairs and lifts"), TEXT("White arrow: you, and where you look"), TEXT("Orange line: your route")};
+		if (const ADPInput::FAction* M = ADPInput::Find(TEXT("Map"))) L.Add(ADPInput::Label(*M, bPad, Pad) + TEXT(": open or close the map"));
+		L.Add(TEXT("Click where you want to go: a route there"));
+		HoloMap->SetLegend(L);
+	}
+}
+
 void AADPHUD::Tick(float Dt)
 {
 	Super::Tick(Dt);
+	// the symbols follow the device in use
+	if (bShownPad != ADPInput::UsingPad() || ShownPadKind != uint8(ADPInput::CurrentPad()))
+	{
+		bShownPad = ADPInput::UsingPad();
+		ShownPadKind = uint8(ADPInput::CurrentPad());
+		RefreshControls();
+	}
 	// -UIShot: one picture with the interface showing (the title screen), then the game closes (a check of the interface)
 	static float ShotClock = 0;
 	if (FParse::Param(FCommandLine::Get(), TEXT("UIShot")))

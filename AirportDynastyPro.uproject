@@ -23,6 +23,7 @@
 		{ "Name": "PythonScriptPlugin", "Enabled": true },
 		{ "Name": "EditorScriptingUtilities", "Enabled": true },
 		{ "Name": "WebBrowserWidget", "Enabled": true },
-		{ "Name": "CesiumForUnreal", "Enabled": true }
+		{ "Name": "CesiumForUnreal", "Enabled": true },
+		{ "Name": "RawInput", "Enabled": true }
 	]
 }
