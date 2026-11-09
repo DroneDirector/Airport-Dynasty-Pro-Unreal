@@ -18,6 +18,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Pawn.h"
 #include "Misc/Base64.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 #include "Async/Async.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include <sapi.h>
@@ -204,6 +206,25 @@ void AADPHUD::PlayAnnouncer(int32 Id, const TArray<int16>& Pcm)
 	if (Id != SpeechId) return;
 	const TArray<int16> Pa = Intercom(Pcm, 24000);
 	UE_LOG(LogTemp, Log, TEXT("Announcer: %.1f s of voice, heard at %.0f%% here (%s)"), Pcm.Num() / 24000.f, CallGain() * 100.f, *ZoneKind());
+	// -UICall: the call as heard in the main hall (the chime, then the announcer) also written to Saved/Announcer.wav
+	if (FParse::Param(FCommandLine::Get(), TEXT("UICall")))
+	{
+		TArray<int16> All;
+		for (const float Hz : {784.f, 523.f})
+			for (int32 i = 0; i < 24000 * 0.8f; ++i)
+			{
+				const float T = i / 24000.f, Env = FMath::Exp(-T * 3.2f) * FMath::Min(1.f, T * 80.f);
+				All.Add(int16((FMath::Sin(2 * PI * Hz * T) + 0.3f * FMath::Sin(4 * PI * Hz * T)) * Env * 0.35f * 32767));
+			}
+		All.AddZeroed(24000 / 10);
+		All.Append(Pa);
+		TArray<uint8> W;
+		auto U32 = [&W](uint32 V) { W.Append(reinterpret_cast<uint8*>(&V), 4); };
+		auto U16 = [&W](uint16 V) { W.Append(reinterpret_cast<uint8*>(&V), 2); };
+		W.Append((const uint8*)"RIFF", 4); U32(36 + All.Num() * 2); W.Append((const uint8*)"WAVEfmt ", 8); U32(16); U16(1); U16(1); U32(24000); U32(48000); U16(2); U16(16);
+		W.Append((const uint8*)"data", 4); U32(All.Num() * 2); W.Append(reinterpret_cast<const uint8*>(All.GetData()), All.Num() * 2);
+		FFileHelper::SaveArrayToFile(W, *(FPaths::ProjectSavedDir() / TEXT("Announcer.wav")));
+	}
 	USoundWaveProcedural* W = NewObject<USoundWaveProcedural>(this);
 	W->SetSampleRate(24000);
 	W->NumChannels = 1;
