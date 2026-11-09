@@ -343,6 +343,7 @@ Other folders: `www/` (pictures, sounds and the built game), `release-notes/` (o
 
 ## PC version (Unreal Engine 5)
 
+- `ROADMAP.md`: the PC version's batches (one release each), what is done and what comes next. `HANDOVER.md`: where the work stands.
 - `AirportDynastyPro.uproject`: the Unreal project (open this). Engine version and the engine plugins it uses (Mass, StateTree, Smart Objects, ZoneGraph, Chaos vehicles, editor scripting).
 - `Config/`: project settings. `DefaultEngine.ini` (Lumen, virtual shadow maps, DirectX 12, start map and game mode), `DefaultGame.ini` (name, company, the Data folder packed with the game), `DefaultInput.ini` (walking keys and gamepad).
 - `Data/terminal-plan.json`: the terminal layout in real metres (rooms, doors, columns, stairs, lifts, stands), exported from the Android edition's `src/sections/terminal/plan.ts`; both editions build from it.
