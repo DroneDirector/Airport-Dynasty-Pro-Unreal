@@ -11,6 +11,7 @@
 #include "Components/TextRenderComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
@@ -64,10 +65,38 @@ UMaterialInterface* ATowerADC::Mat(const FName Name)
 	if (TObjectPtr<UMaterialInterface>* F = Mats.Find(Name)) return *F;
 	UMaterialInterface* M = nullptr;
 	if (Name == "GLASS") M = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/M_Glass.M_Glass"));
+	// the balcony's glass railing: clearer and less mirror-like (seen from the cab at a shallow angle the plain glass
+	// mirrored the bright sky as a white band in front of the windows)
+	if (Name == "RAILGLASS")
+		if (UMaterialInterface* G = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/M_Glass.M_Glass")))
+		{
+			UMaterialInstanceDynamic* D = UMaterialInstanceDynamic::Create(G, this);
+			D->SetScalarParameterValue(TEXT("Specular"), 0.1f);
+			D->SetScalarParameterValue(TEXT("Opacity"), 0.06f);
+			M = D;
+		}
+	// the screens: dark monitor glass with a faint teal picture (the plain light teal read as one glowing band in daylight)
+	if (Name == "tealUI")
+		if (UMaterialInterface* Base = ATerminalBuilder::KitMaterial(this, Name))
+		{
+			UMaterialInstanceDynamic* D = UMaterialInstanceDynamic::Create(Base, this);
+			D->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.003f, 0.011f, 0.015f));
+			D->SetScalarParameterValue(TEXT("Roughness"), 0.22f);
+			M = D;
+		}
+	// the desk's top matte, as control desks are (the near-black gloss mirrored the bright sky as a white band)
+	if (Name == "lacquer")
+		if (UMaterialInterface* Base = ATerminalBuilder::KitMaterial(this, Name))
+		{
+			UMaterialInstanceDynamic* D = UMaterialInstanceDynamic::Create(Base, this);
+			D->SetScalarParameterValue(TEXT("Roughness"), 0.7f);
+			D->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.03f, 0.03f, 0.035f));
+			M = D;
+		}
 	if (!M)
 	{
 		// the Android edition's names that the PC kit has under another name
-		static const TMap<FName, FName> Same = { {"timber", "oak"}, {"whiteGloss", "white"}, {"screenBlack", "black"}, {"light", "lamp"}, {"GLASS", "white"} };
+		static const TMap<FName, FName> Same = { {"timber", "oak"}, {"whiteGloss", "white"}, {"screenBlack", "black"}, {"light", "lamp"}, {"GLASS", "white"}, {"RAILGLASS", "white"} };
 		const FName* K = Same.Find(Name);
 		M = ATerminalBuilder::KitMaterial(this, K ? *K : Name);
 	}
@@ -85,7 +114,7 @@ UInstancedStaticMeshComponent* ATowerADC::Kit(UStaticMesh* Mesh, const FName Mat
 	K->SetStaticMesh(Mesh);
 	K->SetMaterial(0, Mat(MatName));
 	K->SetCollisionProfileName(bCollide ? TEXT("BlockAll") : TEXT("NoCollision"));
-	if (MatName == "GLASS") K->SetCastShadow(false);
+	if (MatName == "GLASS" || MatName == "RAILGLASS") K->SetCastShadow(false);
 	K->RegisterComponent();
 	AddInstanceComponent(K);
 	Kits.Add(Key, K);
@@ -133,15 +162,17 @@ UStaticMeshComponent* ATowerADC::Part(USceneComponent* Parent, UStaticMesh* Mesh
 
 void ATowerADC::Tri(FBuf& B, const FVector& A, const FVector& Bp, const FVector& C)
 {
-	// both faces: (A, B, C) with its normal, and (A, C, B) with the opposite one
+	// both faces: (A, B, C) with its normal, and (A, C, B) with the opposite one, set back 1.5 cm behind it (two faces
+	// in the very same place fight over every pixel: the inside, lit by the lamps, showed through the outside as a glow)
 	FVector N = FVector::CrossProduct(Bp - A, C - A);
 	if (!N.Normalize()) return;
 	auto UV = [&N](const FVector& P) { return FMath::Abs(N.Z) > 0.7f ? FVector2D(P.X, P.Y) / 300.f : FVector2D(P.X + P.Y, P.Z) / 300.f; };
 	for (const int32 Side : {0, 1})
 	{
 		const FVector Nn = Side ? -N : N;
+		const FVector Back = Side ? -N * 1.5 : FVector::ZeroVector;
 		const int32 I = B.V.Num();
-		B.V.Add(A); B.V.Add(Side ? C : Bp); B.V.Add(Side ? Bp : C);
+		B.V.Add(A + Back); B.V.Add((Side ? C : Bp) + Back); B.V.Add((Side ? Bp : C) + Back);
 		for (int32 k = 0; k < 3; ++k) { B.N.Add(Nn); B.UV.Add(UV(B.V[I + k])); }
 		B.T.Add(I); B.T.Add(I + 1); B.T.Add(I + 2);
 	}
@@ -276,13 +307,42 @@ void ATowerADC::Build()
 		P->SetMobility(EComponentMobility::Movable);
 		P->SetRelativeLocation(U(L.X, L.Y, L.Z));
 		P->SetIntensityUnits(ELightUnits::Lumens);
-		P->SetIntensity(1800.f);
+		P->SetIntensity(1200.f);
 		P->SetAttenuationRadius(900.f);
 		P->SetLightColor(FLinearColor(1.f, 0.93f, 0.84f));
-		P->SetCastShadows(false);
+		P->SetCastShadows(true);   // kept inside the tower
 		P->RegisterComponent();
 		AddInstanceComponent(P);
 	}
+	// what Unreal's lighting (Lumen) can't see in the curved shells, told to it with invisible pieces: the roof and the
+	// cab's floor (thin discs) and the shaft's wall (a ring of thin slabs), so no open sky floods the inside
+	if (UMaterialInterface* Occ = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/Lumen/M_LumenOccluder.M_LumenOccluder")))
+	{
+		auto Hidden = [&](UStaticMesh* Mesh, const FTransform& T)
+		{
+			UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
+			C->SetupAttachment(Frame);
+			C->SetStaticMesh(Mesh);
+			C->SetMaterial(0, Occ);
+			C->SetRelativeTransform(T);
+			C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			C->SetCastShadow(false);
+			C->RegisterComponent();
+			AddInstanceComponent(C);
+		};
+		// (the engine cylinder is 100 cm across and tall, its pivot in the middle)
+		Hidden(Cylinder, FTransform(FRotator::ZeroRotator, U(0, RoofTop - 0.25f, 0), FVector(RoofR * 2, RoofR * 2, 0.4f)));
+		Hidden(Cylinder, FTransform(FRotator::ZeroRotator, U(0, CabY - 0.3f, 0), FVector(CabR0 * 2, CabR0 * 2, 0.4f)));
+		for (int32 i = 0; i < 16; ++i)
+		{
+			const float A = TwoPi * i / 16, R = ShaftR + 0.05f;
+			const float Side = 2.f * R * FMath::Tan(PI / 16) + 0.05f;
+			Hidden(Cube, FTransform(FRotator(0, -FMath::RadiansToDegrees(A), 0), U(FMath::Cos(A) * R, LobbyTop / 2, FMath::Sin(A) * R), FVector(0.3f, Side, LobbyTop)));
+		}
+	}
+	// the forecourt: paved like the apron from the tower's foot east to the apron's west edge (plan x -160), so the
+	// tower stands on the airfield's paving, not alone in the grass
+	Box("apron", 62.f, 0.1f, 26.f, 19.f, -0.03f, 0.f);
 	UE_LOG(LogTemp, Log, TEXT("Control tower built at plan x %.0f z %.0f"), AtX, AtZ);
 }
 
@@ -411,7 +471,7 @@ void ATowerADC::BuildCab()
 	Ring(Buf(Solid, "timber"), LR, CabY - 0.32f, RR, CabY - 0.32f, 0, TwoPi, 128);
 	Ring(Buf(Solid, "white"), RR, CabY - 0.32f, RR, CabY - 0.05f, 0, TwoPi, 128);
 	Ring(Buf(Solid, "rubber"), CabR0, CabY - 0.05f, RR, CabY - 0.05f, 0, TwoPi, 128);
-	Ring(Buf(Glass, "GLASS"), RoofR - 0.12f, CabY - 0.05f, RoofR - 0.12f, CabY + 1.05f, 0, TwoPi, 128);
+	Ring(Buf(Glass, "RAILGLASS"), RoofR - 0.12f, CabY - 0.05f, RoofR - 0.12f, CabY + 1.05f, 0, TwoPi, 128);
 	{
 		TArray<FVector> Top;
 		for (int32 k = 0; k <= 128; ++k) { const float A = TwoPi * k / 128; Top.Add(FVector(FMath::Cos(A) * (RoofR - 0.12f), CabY + 1.07f, FMath::Sin(A) * (RoofR - 0.12f))); }
