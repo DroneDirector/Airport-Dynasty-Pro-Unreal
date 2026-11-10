@@ -1,6 +1,10 @@
 // Places the Babylon model: walks its node tree from the roots, works out each node's transform the way Unreal's glTF
 // importer converts them, and adds an instance of the node's imported mesh there.
 #include "BabylonModel.h"
+#include "TerminalBuilder.h"
+#include "Components/StaticMeshComponent.h"
+#include "Sound/SoundBase.h"
+#include "Components/AudioComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Dom/JsonObject.h"
@@ -224,9 +228,10 @@ void ABabylonModel::AddLights(const FString& Name)
 	FString Text;
 	TArray<TSharedPtr<FJsonValue>> List;
 	if (!FFileHelper::LoadFileToString(Text, *Path) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), List)) return;
-	// Babylon's own coordinates to the placed model's: the exporter's x flip, the importer's y-z swap and the model's
-	// half turn together give (x, -z, y), metres to centimetres
-	auto ToModel = [](const TArray<TSharedPtr<FJsonValue>>& A) { return FVector(A[0]->AsNumber(), -A[2]->AsNumber(), A[1]->AsNumber()); };
+	// Babylon's own coordinates to the placed model's: the exporter's x flip and the importer's y-z swap give (-x, z, y)
+	// under the model's root, whose half turn then puts it at (x, -z, y) in the world, as the meshes are (these were
+	// once given as (x, -z, y) under the root: every lounge light stood mirrored, on the far side of the room)
+	auto ToModel = [](const TArray<TSharedPtr<FJsonValue>>& A) { return FVector(-A[0]->AsNumber(), A[2]->AsNumber(), A[1]->AsNumber()); };
 	int32 Made = 0;
 	for (const TSharedPtr<FJsonValue>& V : List)
 	{
@@ -255,15 +260,142 @@ void ABabylonModel::AddLights(const FString& Name)
 		P->SetupAttachment(Root);
 		P->SetRelativeLocation(ToModel(*Pos) * 100.0);
 		P->SetIntensityUnits(ELightUnits::Candelas);
-		P->SetIntensity(Strength * 25.0);   // Babylon's strengths to candelas: a room lamp (9) about 225 cd
+		FString LName; L->TryGetStringField(TEXT("name"), LName);
+		const bool bFireLight = LName.StartsWith(TEXT("fire"));
+		P->SetIntensity(Strength * (bFireLight ? 7.0 : 25.0));   // Babylon's strengths to candelas: a room lamp (9) about 225 cd; the fire's own glow far gentler (it sits a hand's width from the logs)
 		P->SetLightColor(Colour);
 		P->SetAttenuationRadius(Range * 100.0);
 		P->SetSourceRadius(4.f);
 		P->RegisterComponent();
 		AddInstanceComponent(P);
 		++Made;
+		// the fireplace's lights flicker with the flames
+		FString LN; L->TryGetStringField(TEXT("name"), LN);
+		if (LN.StartsWith(TEXT("fire"))) { FireLights.Add(P); FireBase.Add(Strength * 7.0); if (LN == TEXT("fireL")) AddFire(ToModel(*Pos) * 100.0); }
 	}
 	UE_LOG(LogTemp, Log, TEXT("Babylon model %s: %d lights"), *Name, Made);
+}
+
+void ABabylonModel::AddFire(const FVector& LightAt)
+{
+	// the fire sits on the logs, half a metre back from its light (the Babylon fire: 0.48 m behind it, 12 cm up; under
+	// the root Babylon's x runs the other way)
+	const FVector Base(LightAt.X + 48.f, LightAt.Y, 12.f);
+	UStaticMesh* Plane = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane"));
+	UMaterialInterface* Fire = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/Fire/M_Fire.M_Fire"));
+	if (Plane && Fire)
+		// three crossed panels of flame (each its own pattern), so it looks full from every side
+		for (int32 i = 0; i < 6; ++i)
+		{
+			UStaticMeshComponent* F = NewObject<UStaticMeshComponent>(this);
+			F->SetupAttachment(Root);
+			F->SetStaticMesh(Plane);
+			UMaterialInstanceDynamic* D = UMaterialInstanceDynamic::Create(Fire, this);
+			D->SetScalarParameterValue(TEXT("Seed"), 3.7f * i);
+			D->SetScalarParameterValue(TEXT("Glow"), i < 2 ? 9.f : 6.f);
+			F->SetMaterial(0, D);
+			// layers through the fire's depth and turned about, so it is full from every side (a body of flame, not cards)
+			const float Depth = (i - 2.5f) * 4.f, Turn = 90.f + 30.f * i + (i % 2 ? 12.f : -12.f);
+			const float Wide = i < 2 ? 0.92f : 0.7f - 0.04f * i, Tall = i < 2 ? 0.88f : 0.72f;
+			F->SetRelativeTransform(FTransform(FRotator(0, Turn, 90.f), Base + FVector(Depth, (i % 3 - 1) * 6.f, 12.f + Tall * 50.f), FVector(Wide, Tall, 1.f)));
+			F->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			F->SetCastShadow(false);
+			F->RegisterComponent();
+			AddInstanceComponent(F);
+		}
+	// the wood: three charred logs across the grate (two side by side, one laid over them), on a bed of embers
+	if (UStaticMesh* Cyl = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder")))
+	{
+		UMaterialInterface* Bark = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+		UMaterialInstanceDynamic* Char = Bark ? UMaterialInstanceDynamic::Create(Bark, this) : nullptr;
+		if (Char) { Char->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.035f, 0.022f, 0.015f)); Char->SetScalarParameterValue(TEXT("Roughness"), 0.95f); }
+		struct FLog { FVector At; float Yaw, Roll, Len, R; };
+		const FLog Logs[] = { {FVector(-6.f, -9.f, 7.f), 0.f, 90.f, 0.62f, 0.13f}, {FVector(6.f, 8.f, 7.f), 8.f, 90.f, 0.58f, 0.12f}, {FVector(0.f, 0.f, 17.f), -14.f, 90.f, 0.55f, 0.11f} };
+		for (const FLog& L : Logs)
+		{
+			UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
+			C->SetupAttachment(Root);
+			C->SetStaticMesh(Cyl);
+			if (Char) C->SetMaterial(0, Char);
+			// lying along the fireplace's width (the cylinder stands up along Z: rolled onto its side, along Y)
+			C->SetRelativeTransform(FTransform(FRotator(0, L.Yaw, L.Roll), Base + L.At, FVector(L.R, L.R, L.Len)));
+			C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			C->RegisterComponent();
+			AddInstanceComponent(C);
+		}
+		// the fireplace's back, black with soot behind the fire
+		if (UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube")))
+		{
+			UStaticMeshComponent* B = NewObject<UStaticMeshComponent>(this);
+			B->SetupAttachment(Root);
+			B->SetStaticMesh(Cube);
+			UMaterialInstanceDynamic* Soot = Bark ? UMaterialInstanceDynamic::Create(Bark, this) : nullptr;
+			if (Soot) { Soot->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.012f, 0.011f, 0.01f)); Soot->SetScalarParameterValue(TEXT("Roughness"), 1.f); B->SetMaterial(0, Soot); }
+			B->SetRelativeTransform(FTransform(FRotator::ZeroRotator, Base + FVector(17.f, 0, 47.f), FVector(0.02f, 1.12f, 0.94f)));
+			B->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			B->RegisterComponent();
+			AddInstanceComponent(B);
+		}
+		// the embers under them: a low glowing bed (the flame pattern laid flat, dim)
+		if (Plane && Fire)
+		{
+			UStaticMeshComponent* E = NewObject<UStaticMeshComponent>(this);
+			E->SetupAttachment(Root);
+			E->SetStaticMesh(Plane);
+			UMaterialInstanceDynamic* D = UMaterialInstanceDynamic::Create(Fire, this);
+			D->SetScalarParameterValue(TEXT("Seed"), 9.1f);
+			D->SetScalarParameterValue(TEXT("Glow"), 3.f);
+			E->SetMaterial(0, D);
+			E->SetRelativeTransform(FTransform(FRotator::ZeroRotator, Base + FVector(0, 0, 2.f), FVector(0.45f, 0.7f, 1.f)));
+			E->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			E->SetCastShadow(false);
+			E->RegisterComponent();
+			AddInstanceComponent(E);
+		}
+	}
+	// the heat over it: the air above the flames shimmering (the picture behind bent by rising waves)
+	if (UMaterialInterface* Heat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/Fire/M_FireHeat.M_FireHeat")))
+		if (Plane)
+		{
+			UStaticMeshComponent* F = NewObject<UStaticMeshComponent>(this);
+			F->SetupAttachment(Root);
+			F->SetStaticMesh(Plane);
+			F->SetMaterial(0, Heat);
+			F->SetRelativeTransform(FTransform(FRotator(0, 90.f, 90.f), Base + FVector(-12.f, 0, 85.f), FVector(0.9f, 0.75f, 1.f)));
+			F->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			F->SetCastShadow(false);
+			F->RegisterComponent();
+			AddInstanceComponent(F);
+		}
+	// its sound: a wood fire's roar and crackle, heard by the fireplace and fading over the room (looping)
+	if (USoundBase* S = LoadObject<USoundBase>(nullptr, TEXT("/Game/Materials/Fire/S_FireCrackle.S_FireCrackle")))
+	{
+		UAudioComponent* A = NewObject<UAudioComponent>(this);
+		A->SetupAttachment(Root);
+		A->SetRelativeLocation(Base + FVector(0, 0, 30.f));
+		A->SetSound(S);
+		A->bOverrideAttenuation = true;
+		A->AttenuationOverrides.bAttenuate = true;
+		A->AttenuationOverrides.bSpatialize = true;
+		A->AttenuationOverrides.FalloffDistance = 900.f;
+		A->AttenuationOverrides.AttenuationShapeExtents = FVector(120.f);
+		A->SetVolumeMultiplier(0.55f);
+		A->bAutoActivate = true;
+		A->RegisterComponent();
+		AddInstanceComponent(A);
+		A->Play();
+	}
+	FireWorld = Root->GetComponentTransform().TransformPosition(Base);
+	UE_LOG(LogTemp, Log, TEXT("Lounge fire lit at %s"), *FireWorld.ToString());
+}
+
+void ABabylonModel::FlickerFire()
+{
+	if (!FireLights.Num()) return;
+	const float T = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+	// as the Babylon lounge's fire: two slow waves and a quick one, never steady
+	const float K = 0.85f + 0.3f * FMath::Sin(T * 9.f) * FMath::Sin(T * 4.7f) + 0.1f * FMath::Sin(T * 23.f);
+	for (int32 i = 0; i < FireLights.Num(); ++i) if (FireLights[i]) FireLights[i]->SetIntensity(FireBase[i] * K);
 }
 
 #pragma region Light fittings
@@ -497,6 +629,7 @@ void ABabylonModel::LampsByDaylight()
 
 void ABabylonModel::Tick(float Dt)
 {
+	FlickerFire();
 	Super::Tick(Dt);
 	LampsByDaylight();
 	if (!Doors.Num()) return;

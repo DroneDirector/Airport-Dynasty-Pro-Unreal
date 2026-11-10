@@ -31,6 +31,7 @@
 #include "Widgets/Input/SSlider.h"
 #include "GrassField.h"
 #include "FlightViewer.h"
+#include "Components/LocalLightComponent.h"
 #include "ADPFrameGen.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/Text/STextBlock.h"
@@ -1221,6 +1222,26 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 84.f && ShotClock >= 84.f) CloseViewer();
 			if (Before < 90.f && ShotClock >= 90.f) FGenericPlatformMisc::RequestExit(false);
 		}
+		// -UIFire: the lounge's fireplace, its fire burning (two pictures a moment apart)
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIFire")))
+		{
+			if (Before < 44.f && ShotClock >= 44.f) { if (bGame) ToggleGame(); OpenLounge(); }
+			if (Before < 48.f && ShotClock >= 48.f && Lounge && Lounge->FireLights.Num())
+				if (APawn* Me = GetOwningPawn())
+				{
+					const FVector Out = (Lounge->FireLights[0]->GetComponentLocation() - Lounge->FireWorld).GetSafeNormal2D();
+					const FVector Eye = Lounge->FireWorld + Out * 380.f + FVector(0, 0, 60.f);
+					Me->TeleportTo(Eye, FRotator::ZeroRotator);
+					if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation((Lounge->FireWorld + FVector(0, 0, 45.f) - (Eye + FVector(0, 0, 60.f))).Rotation());
+				}
+			// a short run of pictures, a fifth of a second apart (made into a moving picture afterwards)
+			for (int32 k = 0; k < 16; ++k)
+			{
+				const float At = 56.f + k * 0.2f;
+				if (Before < At && ShotClock >= At) FScreenshotRequest::RequestScreenshot(FString::Printf(TEXT("Fire_%02d"), k), false, false);
+			}
+			if (Before < 62.f && ShotClock >= 62.f) FGenericPlatformMisc::RequestExit(false);
+		}
 		// -UIBright: the views the owner found too bright: the tower's door, gate 4, the apron at night, the lounge
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIBright")))
 		{
@@ -1315,7 +1336,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

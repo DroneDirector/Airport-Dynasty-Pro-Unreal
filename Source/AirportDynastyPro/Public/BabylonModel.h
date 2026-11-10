@@ -18,6 +18,13 @@ class AIRPORTDYNASTYPRO_API ABabylonModel : public AActor
 	GENERATED_BODY()
 
 public:
+	/** The lounge fireplace's fire: flame panels, its sound, its lights flickering (Tick). */
+	void AddFire(const FVector& LightAt);
+	void FlickerFire();
+	UPROPERTY() TArray<TObjectPtr<class ULocalLightComponent>> FireLights;
+	TArray<float> FireBase;
+	/** Where the fire is, in the world (for the test pictures). */
+	FVector FireWorld = FVector::ZeroVector;
 	/** The gate screens' faces by gate number (each its own mesh), for the live gate pictures (Boards.cpp). */
 	UPROPERTY() TMap<int32, TObjectPtr<UInstancedStaticMeshComponent>> GateScreens;
 	ABabylonModel();
