@@ -17,6 +17,7 @@ namespace
 	const float MastHeadY = 29.4f;      // the floodlights' height, metres above the apron
 	const float LampLumens = 2600.f;    // each floodlight: bright enough for the apron, never glaring
 	const float FaceGlow = 6.f;         // the LED faces' glow at full night
+	const float BeamDistance = 50000.f; // the haze the beams show in reaches 500 m from you (Unreal's default is 60 m)
 }
 
 ALightMasts::ALightMasts()
@@ -122,5 +123,10 @@ void ALightMasts::Tick(float Dt)
 	// the haze the beams show in: volumetric fog while the masts are lit
 	if (bChanged)
 		for (TActorIterator<AExponentialHeightFog> It(GetWorld()); It; ++It)
-			if (UExponentialHeightFogComponent* F = It->GetComponent()) F->SetVolumetricFog(bOn);
+			if (UExponentialHeightFogComponent* F = It->GetComponent())
+			{
+				F->SetVolumetricFog(bOn);
+				// far enough to show every mast's beams along the whole row of gates (about 290 m end to end)
+				F->SetVolumetricFogDistance(BeamDistance);
+			}
 }
