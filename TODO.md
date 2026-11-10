@@ -4,6 +4,8 @@ The one complete list of what is still open, updated 2026-11-10 (after 0.14.4). 
 details behind each item. Marks: [ ] open, [~] started or partly done, [?] built earlier but the owner should check it.
 
 ## 1. Distribution: updates, installer, selling
+- [ ] **Updater shows its speed and a progress bar** (owner, 2026-11-10): while updating the game, the download speed
+      (MB/s) and a progress bar next to the percentage it already shows; the same for the world's terrain download
 - [ ] **Real patches** (xdelta): an update holds only the changed bytes, applied to the player's own files and checked
       afterwards; much smaller updates, worthless without the bought game. Needed above all for chunk 0 (225 MB, mostly
       Unreal's own shaders) and the program file (167 MB), which today go out whole when anything in them changes
