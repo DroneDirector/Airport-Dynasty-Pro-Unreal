@@ -52,6 +52,9 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       short loading note, or wait for the sharp tiles before putting you down)
 
 ## 3. The airport and buildings
+- [ ] **ATC tower entrance canopy lights** (owner, 2026-11-10): five or six small recessed spotlights in the underside of
+      the little roof over the tower's main entrance, lighting the doorway and the ground round it; on at night (the
+      same sensor as the masts and the balcony lights)
 - [ ] **ATC tower balcony downlights** (owner, 2026-11-10): small recessed spotlights all round the underside of the
       cab's roof overhang, shining down onto the balcony walkway, on at night (with the masts' sensor). Their light
       must not show on the cab's windows (no reflections or glare on the glass: lights excluded from the glass, narrow
