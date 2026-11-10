@@ -52,6 +52,8 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       short loading note, or wait for the sharp tiles before putting you down)
 
 ## 3. The airport and buildings
+- [ ] **The ATC tower's lift is far too dark inside** (owner, 2026-11-10): give the car a proper ceiling light (as real
+      lift cars: an even panel or downlights), lighting the walls, floor and buttons, following the car up and down
 - [?] The light masts (0.14.3): the owner checks them in the game by day and night (beams, ground light, textures)
 - [ ] **Outdoor trees**: replace all of them in place with good-looking Unreal trees (kerb rows 42, car rental 22, car
       park), licence allowing a paid game with credit; none removed until then
