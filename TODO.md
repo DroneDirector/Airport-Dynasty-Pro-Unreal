@@ -52,6 +52,10 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       short loading note, or wait for the sharp tiles before putting you down)
 
 ## 3. The airport and buildings
+- [ ] **ATC tower balcony downlights** (owner, 2026-11-10): small recessed spotlights all round the underside of the
+      cab's roof overhang, shining down onto the balcony walkway, on at night (with the masts' sensor). Their light
+      must not show on the cab's windows (no reflections or glare on the glass: lights excluded from the glass, narrow
+      cones aimed away from it)
 - [ ] **ATC tower lift: walking out** (owner, 2026-11-10): you sometimes get caught between the lift door and the
       floor when walking out. The doors stay open about 10 seconds after arriving (and re-open while someone stands
       in the doorway, as real lifts do); the car's floor level with each landing, no gap or lip to catch on; the doors'
