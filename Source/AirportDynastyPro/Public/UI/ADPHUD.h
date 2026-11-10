@@ -56,6 +56,12 @@ public:
 	 *  version, what you were doing), shown over the title screen, with a button that writes it as an e-mail to
 	 *  crashlog@airportdynasty.com in your own mail program (nothing is sent without you), and one that opens the folder. */
 	TSharedRef<SWidget> MakeCrashPanel();
+	/** The unstuck panel (Unstuck.cpp): stuck for 2 s, a panel; one click, free floor nearby. */
+	TSharedRef<SWidget> MakeUnstuckPanel();
+	bool IsStuck(float Dt);
+	void Unstick();
+	TSharedPtr<SWidget> UnstuckPanel;
+	float StuckFor = 0;
 	bool FindNewCrash();
 	void SendCrashMail();
 	TSharedPtr<SWidget> CrashPanel;

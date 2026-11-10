@@ -55,6 +55,10 @@ bool AADPHUD::FindNewCrash()
 	FString Seen;
 	GConfig->GetString(TEXT("ADP.Crash"), TEXT("LastShown"), Seen, GGameUserSettingsIni);
 	if (Seen == Newest) return false;
+	// shown once only, even if the box is closed without its buttons; a crash older than a week isn't news any more
+	GConfig->SetString(TEXT("ADP.Crash"), TEXT("LastShown"), *Newest, GGameUserSettingsIni);
+	GConfig->Flush(false, GGameUserSettingsIni);
+	if ((FDateTime::Now() - NewestAt).GetTotalDays() > 7.0) return false;
 	FString Xml;
 	if (!FFileHelper::LoadFileToString(Xml, *(Dir / Newest / TEXT("CrashContext.runtime-xml")))) return false;
 	CrashId = Newest;

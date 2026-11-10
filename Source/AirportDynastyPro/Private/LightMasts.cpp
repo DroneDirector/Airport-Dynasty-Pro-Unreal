@@ -17,7 +17,6 @@ namespace
 	const float MastHeadY = 29.4f;      // the floodlights' height, metres above the apron
 	const float LampLumens = 2600.f;    // each floodlight: bright enough for the apron, never glaring
 	const float FaceGlow = 6.f;         // the LED faces' glow at full night
-	const float BeamDistance = 50000.f; // the haze the beams show in reaches 500 m from you (Unreal's default is 60 m)
 }
 
 ALightMasts::ALightMasts()
@@ -26,6 +25,17 @@ ALightMasts::ALightMasts()
 	PrimaryActorTick.TickInterval = 0.25f;
 	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	SetRootComponent(Root);
+}
+
+float ALightMasts::BeamDistance = 500.f;
+TWeakObjectPtr<ALightMasts> ALightMasts::Current;
+
+void ALightMasts::Refresh()
+{
+	ALightMasts* M = Current.Get();
+	if (!M || !M->bOn) return;
+	for (TActorIterator<AExponentialHeightFog> It(M->GetWorld()); It; ++It)
+		if (UExponentialHeightFogComponent* F = It->GetComponent()) F->SetVolumetricFogDistance(BeamDistance * 100.f);
 }
 
 const TArray<FVector2D>& ALightMasts::Spots()
@@ -39,6 +49,9 @@ const TArray<FVector2D>& ALightMasts::Spots()
 
 void ALightMasts::Build()
 {
+	Current = this;
+	GConfig->GetFloat(TEXT("ADP.Graphics"), TEXT("BeamDistance"), BeamDistance, GGameUserSettingsIni);
+	BeamDistance = FMath::Clamp(BeamDistance, 60.f, 500.f);
 	UStaticMesh* Main = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/LightMast/lightmast/StaticMeshes/LightMast.LightMast"));
 	UStaticMesh* Fine = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/LightMast/lightmast/StaticMeshes/LightMastThin.LightMastThin"));
 	if (!Main) { UE_LOG(LogTemp, Warning, TEXT("Light masts: mesh missing")); return; }
@@ -127,6 +140,6 @@ void ALightMasts::Tick(float Dt)
 			{
 				F->SetVolumetricFog(bOn);
 				// far enough to show every mast's beams along the whole row of gates (about 290 m end to end)
-				F->SetVolumetricFogDistance(BeamDistance);
+				F->SetVolumetricFogDistance(BeamDistance * 100.f);
 			}
 }

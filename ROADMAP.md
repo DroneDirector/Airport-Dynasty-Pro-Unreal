@@ -205,8 +205,6 @@ The 3D parts (animations, people, the model's further work) wait; the interface 
 - Terminal extensions placed in play (snap-together pieces), HLOD for distant buildings
 
 ### Known issues (2026-11-09)
-- Cooking the whole /CesiumForUnreal content folder makes the Shipping build crash at start (a C++ exception in the
-  render tickables; Development runs fine). Without it, terrain crashes for lack of CesiumCreditSystemBP. For 0.13.0:
-  cook only the credit system (e.g. a soft reference from a cooked asset, or a primary asset rule), test in Shipping.
+- (Fixed in 0.14.0) Cooking the whole /CesiumForUnreal folder: since 0.14.0 it is cooked whole and the Shipping build runs fine; it fixed the crash loading the downloaded terrain.
 - The EOX Sentinel-2 cloudless imagery server answers 403 (refused) since the afternoon of 2026-11-09: the globe has no
   satellite pictures. Find out why (headers, rate limit, terms) or move to another imagery source allowed in a paid game.

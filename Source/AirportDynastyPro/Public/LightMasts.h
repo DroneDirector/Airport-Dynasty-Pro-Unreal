@@ -22,6 +22,10 @@ public:
 
 	/** Where they stand, in the terminal plan's metres (x along the building, z out onto the apron). */
 	static const TArray<FVector2D>& Spots();
+	/** How far the beams show in the haze, metres (Settings' slider, 60-500; the haze's own reach). */
+	static float BeamDistance;
+	/** The slider moved: the haze's reach set again while the masts are lit. */
+	static void Refresh();
 
 private:
 	UPROPERTY() TObjectPtr<USceneComponent> Root;
@@ -31,5 +35,6 @@ private:
 	UPROPERTY() TObjectPtr<class UMaterialInstanceDynamic> Faces;
 	TArray<int32> LightMast;    // which mast each light belongs to (they switch on one mast after another)
 	bool bOn = false;
+	static TWeakObjectPtr<ALightMasts> Current;
 	float Since = 0.f;
 };

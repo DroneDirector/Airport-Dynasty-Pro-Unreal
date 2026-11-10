@@ -12,6 +12,7 @@
 #include "SunClock.h"
 #include "Engine/PostProcessVolume.h"
 #include "Globe.h"
+#include "LightMasts.h"
 #include "WalkAnywhere.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SWrapBox.h"
@@ -194,6 +195,8 @@ void AADPHUD::BeginPlay()
 	TopBar = MakeTopBar();
 	Settings->SetVisibility(EVisibility::Collapsed);
 	CrashPanel = MakeCrashPanel();
+	UnstuckPanel = MakeUnstuckPanel();
+	UnstuckPanel->SetVisibility(EVisibility::Collapsed);
 	CrashPanel->SetVisibility(FindNewCrash() ? EVisibility::Visible : EVisibility::Collapsed);
 	Breadcrumb(TEXT("Started, the title screen"));
 	Perf->SetVisibility(EVisibility::Collapsed);
@@ -313,6 +316,7 @@ void AADPHUD::BeginPlay()
 		]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[Settings.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[CrashPanel.ToSharedRef()]
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[UnstuckPanel.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
 		[
 			// the first start's question: the scan's suggestion, taken only if you say yes
@@ -616,6 +620,21 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 					]
 					+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
 					[SNew(SBox).WidthOverride(56)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { return FText::FromString(FString::Printf(TEXT("%.0f m"), AGrassField::NearDistance)); })]]
+				]
+				// the light masts' beams: how far the evening haze they show in reaches (weaker cards: shorter)
+				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Light beams (how far the masts' beams show in the haze)"))]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
+					[
+						SNew(SSlider)
+						.Value_Lambda([]() { return (ALightMasts::BeamDistance - 60.f) / 440.f; })
+						.OnValueChanged_Lambda([](float V) { ALightMasts::BeamDistance = FMath::RoundToFloat(60.f + V * 440.f); ALightMasts::Refresh(); })
+						.OnMouseCaptureEnd_Lambda([]() { GConfig->SetFloat(TEXT("ADP.Graphics"), TEXT("BeamDistance"), ALightMasts::BeamDistance, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); })
+					]
+					+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
+					[SNew(SBox).WidthOverride(56)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { return FText::FromString(FString::Printf(TEXT("%.0f m"), ALightMasts::BeamDistance)); })]]
 				]
 				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Frame limit"))]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 10)[Limit]
@@ -1083,6 +1102,14 @@ void AADPHUD::RefreshControls()
 
 void AADPHUD::Tick(float Dt)
 {
+	// stuck inside something: the panel (and the pointer free to click it); gone again once you move
+	if (UnstuckPanel.IsValid())
+	{
+		const bool bStuck = IsStuck(Dt);
+		const bool bShown = UnstuckPanel->GetVisibility() == EVisibility::Visible;
+		if (bStuck && !bShown) { UnstuckPanel->SetVisibility(EVisibility::Visible); if (APlayerController* PC = GetOwningPlayerController()) { PC->SetShowMouseCursor(true); PC->SetInputMode(FInputModeGameAndUI()); } }
+		else if (!bStuck && bShown && StuckFor == 0.f && !bPointer) UnstuckPanel->SetVisibility(EVisibility::Collapsed);
+	}
 	Super::Tick(Dt);
 	// the controller to the menus' page whenever it changes (and once more, all released, when they close)
 	if (PadToMenus.IsValid() && PadToMenus->bDirty && Browser.IsValid() && (bGame || bPadSent))
