@@ -52,6 +52,10 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       short loading note, or wait for the sharp tiles before putting you down)
 
 ## 3. The airport and buildings
+- [ ] **ATC tower lift: walking out** (owner, 2026-11-10): you sometimes get caught between the lift door and the
+      floor when walking out. The doors stay open about 10 seconds after arriving (and re-open while someone stands
+      in the doorway, as real lifts do); the car's floor level with each landing, no gap or lip to catch on; the doors'
+      collision only where the doors really are
 - [ ] **The ATC tower's lift is far too dark inside** (owner, 2026-11-10): give the car a proper ceiling light (as real
       lift cars: an even panel or downlights), lighting the walls, floor and buttons, following the car up and down
 - [?] The light masts (0.14.3): the owner checks them in the game by day and night (beams, ground light, textures)
