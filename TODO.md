@@ -52,6 +52,10 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       short loading note, or wait for the sharp tiles before putting you down)
 
 ## 3. The airport and buildings
+- [ ] **Entrance doors' glass too bright** (owner, 2026-11-10): the inner sliding doors (door 2) of the Main Entrance,
+      Entrance West and Entrance East, and the revolving doors, are far too bright. Give their glass the same material
+      and brightness as the big glass windows on the terminal's back (airside) facade, so all the terminal's glass
+      matches
 - [ ] **Entrance canopies' undersides glow** (owner, 2026-11-10): outside the main hall, the ceiling under the canopy
       above Entrance West, the Main Entrance and Entrance East is far too bright (probably a glowing / lamp material,
       or the ToneDown pass missing it). They must not be light sources: give them the same kind of material as the
