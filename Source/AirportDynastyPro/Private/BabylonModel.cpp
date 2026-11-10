@@ -271,7 +271,7 @@ void ABabylonModel::AddLights(const FString& Name)
 		++Made;
 		// the fireplace's lights flicker with the flames
 		FString LN; L->TryGetStringField(TEXT("name"), LN);
-		if (LN.StartsWith(TEXT("fire"))) { FireLights.Add(P); FireBase.Add(Strength * 7.0); if (LN == TEXT("fireL")) AddFire(ToModel(*Pos) * 100.0); }
+		if (LN.StartsWith(TEXT("fire"))) { FireLights.Add(P); FireBase.Add(Strength * 7.0); if (LN == TEXT("fireL")) { AddFire(ToModel(*Pos) * 100.0); DeepenFireplace(0.6f); } }
 	}
 	UE_LOG(LogTemp, Log, TEXT("Babylon model %s: %d lights"), *Name, Made);
 }
@@ -387,6 +387,63 @@ void ABabylonModel::AddFire(const FVector& LightAt)
 	}
 	FireWorld = Root->GetComponentTransform().TransformPosition(Base);
 	UE_LOG(LogTemp, Log, TEXT("Lounge fire lit at %s"), *FireWorld.ToString());
+}
+
+void ABabylonModel::DeepenFireplace(float Depth)
+{
+	// the pieces as the Babylon lounge names them: b-579 the dark breast (3 m wide, 4.8 m tall, its face at Babylon
+	// x -10.88), b-580…b-594 the five golden frames, b-597 the stone hearth, b-600…b-608 the golden rays above;
+	// b-596 (the back wall in the opening) and b-599 (the logs' bed) stay
+	auto Part = [this](int32 N) -> UInstancedStaticMeshComponent* { const TObjectPtr<UInstancedStaticMeshComponent>* F = ByMesh.Find(FString::Printf(TEXT("b-%d"), N)); return F ? F->Get() : nullptr; };
+	UInstancedStaticMeshComponent* Breast = Part(579);
+	if (!Breast) return;
+	// under the model's root Babylon's x (into the room) runs along -X
+	const FVector Out(-Depth * 100.f, 0, 0);
+	TArray<int32> Move;
+	for (int32 N = 580; N <= 594; ++N) Move.Add(N);
+	Move.Add(597);
+	for (int32 N = 600; N <= 608; ++N) Move.Add(N);
+	for (const int32 N : Move) if (UInstancedStaticMeshComponent* K = Part(N)) K->SetRelativeLocation(K->GetRelativeLocation() + Out);
+	// the breast again, deeper and open where the fire is: three blocks round the opening (1.2 m wide, 1 m high,
+	// as the inner frame), from the wall out to the new face; and a dark floor in the firebox
+	UMaterialInterface* Dark = Breast->GetMaterial(0);
+	UMaterialInterface* Stone = Part(597) ? Part(597)->GetMaterial(0) : Dark;
+	Breast->SetVisibility(false);
+	Breast->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+	if (!Cube) return;
+	const float X0 = -11.0f, X1 = -10.88f + Depth, Z0 = -4.58f, Z1 = -1.58f, OZ0 = -3.68f, OZ1 = -2.48f, OY = 1.0f, H = 4.8f;
+	auto Block = [&](float BX0, float BX1, float BY0, float BY1, float BZ0, float BZ1, UMaterialInterface* M)
+	{
+		// Babylon (x, y, z) to under the root: (-x, z, y), metres to centimetres
+		const FVector Mid(-(BX0 + BX1) * 50.f, (BZ0 + BZ1) * 50.f, (BY0 + BY1) * 50.f);
+		UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
+		C->SetupAttachment(Root);
+		C->SetStaticMesh(Cube);
+		if (M) C->SetMaterial(0, M);
+		C->SetRelativeTransform(FTransform(FRotator::ZeroRotator, Mid, FVector(BX1 - BX0, BZ1 - BZ0, BY1 - BY0)));
+		C->SetCollisionProfileName(TEXT("BlockAll"));
+		C->RegisterComponent();
+		AddInstanceComponent(C);
+	};
+	Block(X0, X1, 0.f, H, Z0, OZ0, Dark);          // left of the opening
+	Block(X0, X1, 0.f, H, OZ1, Z1, Dark);          // right of it
+	Block(X0, X1, OY, H, OZ0, OZ1, Dark);          // above it
+	Block(-10.84f, X1, 0.f, 0.03f, OZ0, OZ1, Stone);   // the firebox's floor
+	// the five golden frames as stepped walls (owner, 2026-11-10): each gap between two frames filled solid, out to
+	// the outer frame's face, so the surround steps forward towards the opening; the golden edges stay as they are
+	// (Babylon's frames: inner width 1.2 + 0.28 s, height 1.0 + 0.14 s, depth 0.14 + 0.02 (4 - s), 12 cm off the wall)
+	const float FZ = -3.08f;
+	for (int32 S = 0; S < 4; ++S)
+	{
+		const int32 O = S + 1;
+		const float WI = (1.2f + 0.28f * S) / 2, WO = (1.2f + 0.28f * O) / 2, HI = 1.0f + 0.14f * S, HO = 1.0f + 0.14f * O;
+		const float Face = X0 + 0.12f + (0.14f + (4 - O) * 0.02f) + Depth;
+		Block(X1, Face, 0.f, HO, FZ - WO, FZ - WI, Dark);   // left
+		Block(X1, Face, 0.f, HO, FZ + WI, FZ + WO, Dark);   // right
+		Block(X1, Face, HI, HO, FZ - WI, FZ + WI, Dark);    // over the opening
+	}
+	UE_LOG(LogTemp, Log, TEXT("Lounge fireplace %.1f m deeper"), Depth);
 }
 
 void ABabylonModel::FlickerFire()

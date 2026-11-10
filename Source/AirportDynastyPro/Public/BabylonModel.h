@@ -21,6 +21,9 @@ public:
 	/** The lounge fireplace's fire: flame panels, its sound, its lights flickering (Tick). */
 	void AddFire(const FVector& LightAt);
 	void FlickerFire();
+	/** The lounge's fireplace made deeper (owner, 2026-11-10): its front (the dark breast, the golden frames and rays,
+	 *  the hearth) out into the room by Depth metres; the fire, its logs and its back wall stay where they are. */
+	void DeepenFireplace(float Depth);
 	UPROPERTY() TArray<TObjectPtr<class ULocalLightComponent>> FireLights;
 	TArray<float> FireBase;
 	/** Where the fire is, in the world (for the test pictures). */
