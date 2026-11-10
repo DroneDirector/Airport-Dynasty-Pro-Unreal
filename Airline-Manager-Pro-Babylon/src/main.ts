@@ -11,9 +11,10 @@ import { settingsShow, settingsHide, settingsOpen, settingsButton } from './ui/s
 import { loadingShow, loadingProgress, loadingHide } from './ui/loading';
 import { icon, toast } from './ui/icons';
 import { exitGame } from './core/exit';
-import { gameOpen, gameIsOpen, gameClose, gameShow, gameExists, gameSend, onGameRoom, onGameFids, gameEval, gameHidden } from './ui/game-frame';
+import { gameOpen, gameIsOpen, gameClose, gameShow, gameExists, gameSend, onGameRoom, onGameFids, onGameFlight, gameEval, gameHidden } from './ui/game-frame';
 import { UE_PC, UE_ENGINE, ue } from './core/uelink';
-import { fidsCanvas } from './sections/terminal/fids';
+import { fidsCanvas, gateCanvas } from './sections/terminal/fids';
+import { announcerReady, announcerIds } from './ui/announcer-voice';
 import { APP, IS_PC } from './core/app';
 import { updateInit } from './core/update';
 import { whatsNewOnStart, whatsNewIsOpen, whatsNewClose } from './ui/whats-new';
@@ -71,6 +72,12 @@ async function enter(id: string, title: string, opts?: any) {
   const u = ue(); if (u && id === 'terminal' && u.openterminal) { u.openterminal(); return; }
   if (u && id === 'site' && u.opensite) { u.opensite(); return; }
   if (u && id === 'lounge' && u.openlounge) { u.openlounge(); return; }
+  // the 3D viewer following a flight: Unreal's own viewer (the airport's and crash sites' views stay the Babylon viewer)
+  if (u && id === 'viewer3d' && u.openviewer && !(opts && (opts.crash || opts.apt))) {
+    let fid = opts && opts.live ? String(opts.live) : '';
+    if (!fid) try { fid = String(gameEval(`(function(){try{var l=liveOf();return l.length?l[0].id:''}catch(e){return ''}})()`) || ''); } catch (e) { fid = ''; }
+    if (fid) { ueFollow = fid; gameSend({ ampb: 'follow', id: fid }); u.openviewer(); return; }
+  }
   loadingShow(title);
   const engine = await makeEngine(canvas);
   // where the loading got to: if it is still loading after two minutes, that goes to the log (Settings â†’ Updates and errors)
@@ -83,6 +90,10 @@ async function enter(id: string, title: string, opts?: any) {
   loadingProgress(100, 'Welcome'); canvas.classList.add('on');
   setTimeout(() => { loadingHide(); inPlace = true; titleB.hidden = false; verB.hidden = false; document.body.classList.toggle('in-viewer', id === 'viewer3d'); if (!settingsOpen()) setPlay(true); }, 350);
 }
+// The PC version's 3D viewer is Unreal's: the followed flight's positions go to it as the game sends them
+let ueFollow = '';
+onGameFlight((d: any) => { const u = ue(); if (!ueFollow || !u || !u.viewerflight) return; if (d.gone) { const nx = (d.list || []).filter((x: any) => x.id !== ueFollow)[0]; if (nx) { ueFollow = nx.id; gameSend({ ampb: 'follow', id: ueFollow }); } return; } if (d.me) u.viewerflight(JSON.stringify({ me: d.me })); });
+(window as any).__ueViewerClosed = () => { if (ueFollow) { ueFollow = ''; gameSend({ ampb: 'stop' }); } };
 /** From one place straight to another (the 3D viewer's Airport button): this one is closed and its memory given back. */
 function goToPlace(id: string, opts?: any) {
   if (!inPlace) return; inPlace = false; setPlay(false); if (settingsOpen()) settingsHide();
@@ -131,7 +142,9 @@ if (UE_PC) {
   let boards = { dep: [] as any[], arr: [] as any[], base: 'BIAP', live: false, at: Date.now() }, sent = '';
   const sendBoards = () => { const u = ue(); if (!u || !u.board) { if (u && u.log) u.log('no board link'); return; }
     const sig = new Date().getMinutes() + JSON.stringify([boards.dep, boards.arr].map(l => l.map((r: any) => [r.flight, r.sched, r.exp, r.status]))); if (sig === sent) return; sent = sig;
-    for (const k of ['depwall', 'arrwall', 'deptotem', 'arrtotem', 'depwide', 'arrwide', 'opswall']) { try { u.board(k, fidsCanvas(k, boards).toDataURL('image/png').split(',')[1]); } catch (e: any) { if (u.log) u.log('board ' + k + ': ' + (e && e.message || e)); } } };
+    for (const k of ['depwall', 'arrwall', 'deptotem', 'arrtotem', 'depwide', 'arrwide', 'opswall']) { try { u.board(k, fidsCanvas(k, boards).toDataURL('image/png').split(',')[1]); } catch (e: any) { if (u.log) u.log('board ' + k + ': ' + (e && e.message || e)); } }
+    // each gate's own screen: its next departure, live (the same gate the loudspeaker calls name)
+    for (let g = 1; g <= 8; g++) { try { u.board('gate' + g, gateCanvas(g, boards).toDataURL('image/png').split(',')[1]); } catch (e: any) { if (u.log) u.log('gate ' + g + ': ' + (e && e.message || e)); } } };
   setInterval(sendBoards, 15000); setTimeout(sendBoards, 3000);
   onGameFids(d => { const u = ue(); if (u && u.gamefids) u.gamefids(JSON.stringify({ base: d.base || '', dep: (d.dep || []).slice(0, 12), arr: (d.arr || []).slice(0, 12) }));
     boards = { dep: d.dep || [], arr: d.arr || [], base: String(d.base || 'BIAP'), live: true, at: Date.now() }; sendBoards(); });
@@ -142,6 +155,8 @@ if (UE_PC) {
 // them, Unreal speaks it with Windows' own female voice.
 (window as any).__ueSay = async (id: number, text: string, vol: number) => {
   const u = ue(); console.log('[ue] say ' + id + (u ? '' : ' (no link)') + (u && u.speechfail ? '' : ' (no speechfail)')); if (!u) return;
+  // the natural voice made by Unreal itself (Kokoro in the game, its voice pack shipped with it): the words as sound numbers
+  if (u.kokoro) { try { if (await announcerReady()) { const ids = announcerIds(text); if (ids.length) { u.kokoro(id, JSON.stringify(ids)); return; } } } catch (e) { /* the game's voice below */ } }
   try {
     const b64 = await gameEval(`(async function (t) {
       if (typeof VoicePack === 'undefined' || VoicePack.state !== 'ready') return '';

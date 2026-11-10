@@ -33,6 +33,12 @@ public:
 
 	/** From the menus: Unreal's 3D terminal, the menus hidden. */
 	void ShowTerminal();
+	/** The 3D viewer (Unreal's own): following a flight of the game; the menus hide. Closed by Esc or G (FlightViewer.cpp). */
+	void OpenViewer();
+	void CloseViewer();
+	void OnViewerFlight(const FString& Json);
+	bool bViewer = false;
+	UPROPERTY() TObjectPtr<class AFlightViewer> Viewer;
 	/** Esc: the open panel closes; with nothing open, the Overview (the menus handle Esc themselves). */
 	void OnEscape();
 	/** Settings (Tab, the bar's button, or the title screen's gear in the menus). */
@@ -95,6 +101,8 @@ public:
 	void OnBoard(const FString& Key, const FString& B64);
 	/** Without the game's voices: Windows' own female voice (SAPI), made off the game thread, then the same loudspeakers. */
 	void SpeechFallback(int32 Id);
+	/** The announcer's line as the voice model's sound numbers (JSON, one list per sentence): Kokoro in Unreal (Kokoro.cpp). */
+	void KokoroSpeak(int32 Id, const FString& IdsJson);
 	void PlayAnnouncer(int32 Id, const TArray<int16>& Pcm);
 	/** -UIPack: one of each call, as heard in the main hall, to Saved/AnnouncementPack.wav. */
 	void WritePreviewPack();

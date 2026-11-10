@@ -56,9 +56,12 @@ namespace
 			if (Path.FindChar(TEXT('#'), Q)) Path = Path.Left(Q);
 			Path.ReplaceInline(TEXT("%20"), TEXT(" ")); // the game's file names have no other escapes
 			if (Path.IsEmpty() || Path.EndsWith(TEXT("/"))) Path += TEXT("index.html");
-			File = FPaths::ConvertRelativePathToFull(ADPGameView::Folder() / Path);
-			// never outside the game's folder
-			bFound = File.StartsWith(FPaths::ConvertRelativePathToFull(ADPGameView::Folder())) && FFileHelper::LoadFileToArray(Data, *File);
+			// the voice pack (Content/Voice) at /voicepack/: the pronunciation dictionary for the announcer's words
+			const bool bVoice = Path.StartsWith(TEXT("/voicepack/"));
+			const FString Base = FPaths::ConvertRelativePathToFull(bVoice ? FPaths::ProjectContentDir() / TEXT("Voice") : ADPGameView::Folder());
+			File = FPaths::ConvertRelativePathToFull(Base / (bVoice ? Path.RightChop(11) : Path));
+			// never outside the game's (or the voice pack's) folder
+			bFound = File.StartsWith(Base) && !File.Contains(TEXT("..")) && FFileHelper::LoadFileToArray(Data, *File);
 			OnHeadersReady.Execute();
 			return true;
 		}

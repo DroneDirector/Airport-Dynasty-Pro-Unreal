@@ -1,4 +1,4 @@
-# The road outside the terminal (SITE/ROAD) and its curb (SITE/KERB-EDGE) in the textures made by
+# The road outside the terminal (SITE/ROAD), the car parks (SITE/CARPARK, the rental centre's) and the road's curb (SITE/KERB-EDGE) in the textures made by
 # Tools/make_curb_road.py. Only those two meshes: the kerb's tiles, the car park and everything else keep theirs.
 #  - M_Road: light grey asphalt laid flat by world position, 2 m tiles, a normal map for the stones, matte.
 #  - M_Curb: the curb stones along the curb (1 m stones), on its top with the dark joint on the road side (the road
@@ -96,7 +96,8 @@ mel.recompile_material(m); eal.save_loaded_asset(m, only_if_is_dirty=False)
 M_CURB = m
 
 done = []
-for idx, mat in ((2613, M_ROAD), (2617, M_CURB)):
+# the road, the car park (SITE/CARPARK) and the rental centre's car park (rentalAsphalt) in the same asphalt; the curb
+for idx, mat in ((2613, M_ROAD), (2615, M_ROAD), (2714, M_ROAD), (2617, M_CURB)):
     p = '/Game/Babylon/Terminal/terminal/StaticMeshes/terminal_mesh_%d' % idx
     if not eal.does_asset_exist(p): continue
     sm = unreal.load_asset(p)

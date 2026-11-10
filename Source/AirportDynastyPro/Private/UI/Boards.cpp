@@ -32,10 +32,26 @@ void AADPHUD::OnBoard(const FString& Key, const FString& B64)
 
 	// the screens of this kind: their material slots swapped once for a copy that shows the board
 	const FString Want = TEXT("fids-") + Key;
-	if (!BoardMats.Contains(Key))
+	if (!BoardMats.Contains(Key) || !BoardMats[Key].Num())   // (again until the model is there)
 	{
 		TArray<TObjectPtr<UMaterialInstanceDynamic>>& L = BoardMats.Add(Key);
-		for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It)
+		// a gate's own screen (gate1…gate8): its face's material, wherever the model put it
+		if (Key.StartsWith(TEXT("gate")))
+		{
+			const int32 Gate = FCString::Atoi(*Key.Mid(4));
+			for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It)
+				if (TObjectPtr<UInstancedStaticMeshComponent>* F = It->GateScreens.Find(Gate))
+					if (UInstancedStaticMeshComponent* K = *F)
+						for (int32 S = 0; S < K->GetNumMaterials(); ++S)
+						{
+							UMaterialInterface* Mat = K->GetMaterial(S);
+							if (!Mat) continue;
+							UMaterialInstanceDynamic* D = Cast<UMaterialInstanceDynamic>(Mat);
+							if (!D) { D = UMaterialInstanceDynamic::Create(Mat, this); K->SetMaterial(S, D); }
+							L.Add(D);
+						}
+		}
+		else for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It)
 		{
 			TArray<UInstancedStaticMeshComponent*> Parts;
 			It->GetComponents(Parts);

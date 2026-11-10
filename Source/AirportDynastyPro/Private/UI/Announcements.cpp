@@ -287,6 +287,15 @@ namespace
 	}
 }
 
+/** A flight's gate (1-8): the same little sum the menus use for the gate screens (fids.ts gateOf), so the screen at a
+ *  gate and the calls for it always agree. */
+static int32 GateOf(const FString& Flight)
+{
+	uint32 H = 0;
+	for (const TCHAR C : Flight) H = H * 31u + uint32(C);
+	return int32(H % 8u) + 1;
+}
+
 void AADPHUD::OnGameFids(const FString& Json)
 {
 	TSharedPtr<FJsonObject> O;
@@ -318,7 +327,7 @@ void AADPHUD::OnGameFids(const FString& Json)
 		D.Sched = Minutes(Sched);
 		const int32 Was = D.Exp;
 		D.Exp = Minutes(Exp) >= 0 ? Minutes(Exp) : D.Sched;
-		D.Gate = int32(GetTypeHash(Flight) % 8) + 1;
+		D.Gate = GateOf(Flight);
 		const FString S = Status.ToLower();
 		if (bNew)
 		{

@@ -5,6 +5,16 @@
 #include "Misc/Paths.h"
 #include "HAL/FileManager.h"
 
+void UADPBridge::OpenViewer()
+{
+	if (AADPHUD* H = Hud.Get()) H->OpenViewer();
+}
+
+void UADPBridge::ViewerFlight(const FString& Json)
+{
+	if (AADPHUD* H = Hud.Get()) H->OnViewerFlight(Json);
+}
+
 void UADPBridge::OpenTerminal()
 {
 	if (AADPHUD* H = Hud.Get()) H->ShowTerminal();
@@ -85,6 +95,11 @@ void UADPBridge::Log(const FString& Line)
 void UADPBridge::Board(const FString& Key, const FString& B64)
 {
 	if (AADPHUD* H = Hud.Get()) H->OnBoard(Key, B64);
+}
+
+void UADPBridge::Kokoro(int32 Id, const FString& IdsJson)
+{
+	if (AADPHUD* H = Hud.Get()) H->KokoroSpeak(Id, IdsJson);
 }
 
 void UADPBridge::SpeechFail(int32 Id)

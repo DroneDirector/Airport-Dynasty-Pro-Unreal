@@ -13,6 +13,7 @@
 #include "TerminalScreens.h"
 #include "TerminalCrowd.h"
 #include "Airfield.h"
+#include "GrassField.h"
 #include "AirTraffic.h"
 #include "Globe.h"
 #include "PhotoTour.h"
@@ -84,6 +85,9 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 			// the globe round the airport
 			if (AGlobe* Globe = W->SpawnActor<AGlobe>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 				Globe->Build(Field->Data());
+			// the grass on the airfield and the lawns: real blades, from your feet to the far edge of the field
+			if (AGrassField* Grass = W->SpawnActor<AGrassField>(FVector::ZeroVector, FRotator::ZeroRotator, P))
+			{ const auto& B = Field->Data().Boundary; Grass->Start(B.X0, B.Y0, B.X1, B.Y1); }
 			// the real sun over the airport, for the date and the time of day
 			if (ASunClock* Sun = W->SpawnActor<ASunClock>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 				Sun->Setup(Field->Data().Lat, Field->Data().Lon, Field->Data().Heading);

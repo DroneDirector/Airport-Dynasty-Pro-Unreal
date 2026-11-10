@@ -18,6 +18,8 @@ class AIRPORTDYNASTYPRO_API ABabylonModel : public AActor
 	GENERATED_BODY()
 
 public:
+	/** The gate screens' faces by gate number (each its own mesh), for the live gate pictures (Boards.cpp). */
+	UPROPERTY() TMap<int32, TObjectPtr<UInstancedStaticMeshComponent>> GateScreens;
 	ABabylonModel();
 	virtual void Tick(float Dt) override;
 

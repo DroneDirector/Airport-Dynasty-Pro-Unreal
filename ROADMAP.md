@@ -61,7 +61,7 @@ The 3D parts (animations, people, the model's further work) wait; the interface 
 - [x] Gamepad control of the menus: Unreal hands the controller to the menus as a standard gamepad, so the game's own
       controller code works them (the pointer, d-pad jumps, A / Cross to click, B / Circle back, shoulders for pages)
 - [ ] Still to check with a real controller in hand (owner): every menu with Xbox and PlayStation 5 pads
-- [ ] The Babylon model's own timetable screens showing the game's real departures (the bridge already brings them)
+- [x] The Babylon model's own timetable screens showing the game's real departures; each gate's own screen live with its next departure, the same gate the calls name (0.13.0)
 
 ## FIRST when the owner says "continue" (owner, 2026-11-09): the in-game updater
 - Settings (the gear) gets an "Updates" section: "Check for updates"; when a newer PC version is out, the game says so
@@ -103,7 +103,7 @@ The 3D parts (animations, people, the model's further work) wait; the interface 
 - [x] With frame generation: an option in Settings for a small frame-rate box, which can be dragged anywhere
 - [x] The middle mouse button frees the pointer (click, drag boxes about) and gives the view back (walking and the
       3D viewer alike)
-- [ ] The 3D viewer's flight information as a box like Flightradar24's, draggable too
+- [x] The 3D viewer in Unreal (following a flight on the globe, the Babylon airliner, Nanite) with a draggable Flightradar24-like information box (0.13.0)
 - [ ] RULE: no interface ever sits on top of another, walking in the 3D world or following a flight in the 3D viewer
 - [x] Airport announcements with meaning (owner): boarding, delays, final call, gate closed, and late passengers
       paged by name and airline, from the game's real flights; a female announcer over the intercom; loud in the main
@@ -148,7 +148,7 @@ The 3D parts (animations, people, the model's further work) wait; the interface 
     Iceland alone)
   - a one-time converter to compact height tiles (finest available tiles win), read from disk; the airport's ground
     flattened within 2.6 km and blended out to 4.4 km as on Android
-- [ ] The ocean as real water (PC only), right after the mountains, decided by the owner 2026-11-09:
+- [ ] The ocean as real water (PC only), right after the mountains, decided by the owner 2026-11-09 (0.13.0: the sea round the airport from ESA WorldCover with swell and breaking foam, Tools/MakeOcean.py; the whole planet comes in the terrain's region packs, Nanite):
   - Unreal's Water system (with the engine; Cesium already includes it): a moving ocean round the player with waves,
     sky reflections and Lumen light, the swell with the wind, calmer or rougher with the weather
   - meeting every coastline in the world, from the OpenStreetMap coastlines (ODbL, credit) and the shipped depths:
@@ -183,7 +183,7 @@ The 3D parts (animations, people, the model's further work) wait; the interface 
 ## Batch 7: sound and life (in progress)
 - [x] Office and timetable screens you can use: E in front of one opens the airline game on it
 - [x] Announcements: boarding and final calls from the aircraft at the stands, the two-tone gong, a caption, a queue so calls never overlap
-- [ ] The Kokoro voice and the loudspeaker sound (the ten steps in the Kokoro PDF)
+- [x] The Kokoro voice made by Unreal itself (NNE, ONNX Runtime; the voice pack shipped), Windows' voice only as a fallback (0.13.0)
 - Waiting on the owner: security cameras (the screenshots); the ATC tower (the model)
 
 ## Throughout: Nanite and streaming like the Matrix Awakens demo (owner, 2026-11-09)
@@ -194,6 +194,11 @@ The 3D parts (animations, people, the model's further work) wait; the interface 
   with distance, as in the Matrix Awakens demo
 - The building kit's pieces become proper Nanite meshes (first the main hall and a gate), instanced so the terminal
   can still grow in play
+
+## Done in 0.13.0 (owner, 2026-11-10)
+- [x] Dense grass: real 3D blades from your feet to the horizon over the whole airfield (Nanite, three layers), a Settings slider and on/off
+- [x] The car parks in the road's asphalt
+- [ ] NEXT, its own release: our own frame generation, made for NVIDIA cards first (the owner's RTX 3070 Ti 8 GB)
 
 ## Later
 - MetaHuman people, and your own body in walking mode everywhere

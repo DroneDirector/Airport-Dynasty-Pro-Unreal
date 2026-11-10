@@ -157,3 +157,59 @@ export function fidsCanvas(key: string, d: { dep: Row[]; arr: Row[]; base: strin
   } else { const full = shape === 'wall', n = full ? 10 : 8, all = rowsOf(kind, n); monitor(x, 0, 0, w, h, kind, full, all.slice(0, n), n, d.base, now, live, d.at, ''); }
   return c;
 }
+
+/** A flight's gate (1–8): a small sum Unreal repeats exactly (Announcements.cpp GateOf), so a gate's screen and the
+ *  loudspeaker calls for that gate always agree. */
+export function gateOf(flight: string): number { let h = 0; for (let i = 0; i < flight.length; i++) h = (Math.imul(h, 31) + flight.charCodeAt(i)) >>> 0; return (h % 8) + 1; }
+
+/** What a gate shows for a departure, from the minutes left (as the calls: boarding 40, final call 20, closed 15). */
+function gateState(r: Row, now: number): [string, string] {
+  const s = (r.status || '').toLowerCase(), left = (r.exp - now) / 6e4;
+  if (s.includes('cancel')) return ['Cancelled', '#FF6B6B'];
+  if (left <= 0 || s.includes('depart')) return ['Departed', '#8FA3B8'];
+  if (left <= 15) return ['Gate closed', '#FF8A5C'];
+  if (left <= 20) return ['Final call', '#F2B544'];
+  if (left <= 40) return [s.includes('delay') ? 'Delayed · boarding' : 'Boarding', '#3FD0A0'];
+  if (s.includes('delay')) return ['Delayed', '#F2B544'];
+  return ['Gate opens ' + hm(r.exp - 40 * 6e4), '#7FC4F5'];
+}
+
+/** The PC version (Unreal): a gate's own screen (the gate screen at each gate, 1024 × 576), live: its next departure in
+ *  large type with the time, the state the calls follow, and the one after it; with no game, the sample flights. */
+export function gateCanvas(gate: number, d: { dep: Row[]; arr: Row[]; base: string; live: boolean; at: number }): HTMLCanvasElement {
+  const W = 1024, H = 576, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d') as CanvasRenderingContext2D, now = Date.now(), demo = DEMO_DATA && !d.dep.length && !d.arr.length, live = d.live && !demo;
+  const all = (demo ? sample('dep', now, 14) : d.dep).filter(r => r.exp > now - 2 * 6e4).sort((a, b) => a.exp - b.exp);
+  const mine = demo ? all.filter((_, i) => i % 8 === gate - 1 || (i + 3) % 8 === gate - 1) : all.filter(r => gateOf(r.flight) === gate);
+  // the bezel and the panel, as the other screens
+  x.fillStyle = '#050608'; x.fillRect(0, 0, W, H);
+  const bz = 14, sx = bz, sy = bz, sw = W - bz * 2, sh = H - bz * 2;
+  let g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#2A2F36'); g.addColorStop(1, '#0A0C0F'); x.fillStyle = g; rr(x, 0, 0, W, H, 16); x.fill();
+  x.save(); rr(x, sx, sy, sw, sh, 6); x.clip();
+  g = x.createLinearGradient(0, sy, 0, sy + sh); g.addColorStop(0, '#0E1E3A'); g.addColorStop(1, '#060D1B'); x.fillStyle = g; x.fillRect(sx, sy, sw, sh);
+  // the header: the gate's number in the departures' yellow, the airport and the clock
+  const head = 104; g = x.createLinearGradient(0, sy, 0, sy + head); g.addColorStop(0, ACC.dep[0]); g.addColorStop(1, ACC.dep[1]); x.fillStyle = g; x.fillRect(sx, sy, sw, head);
+  x.fillStyle = '#0A1424'; x.textBaseline = 'middle'; x.textAlign = 'left'; x.font = '800 64px Arial, sans-serif'; x.fillText('GATE ' + gate, sx + 30, sy + head / 2 + 3);
+  x.textAlign = 'right'; x.font = '700 46px Arial, sans-serif'; x.fillText(hm(now), sx + sw - 30, sy + head / 2 + 3);
+  const r = mine[0];
+  if (!r) { x.textAlign = 'center'; x.fillStyle = '#C9D6E6'; x.font = '600 44px Arial, sans-serif'; x.fillText('No departures from this gate', sx + sw / 2, sy + sh / 2 + 10); }
+  else {
+    const [st, col] = gateState(r, now); x.textAlign = 'left';
+    x.fillStyle = '#FFE9A8'; x.font = '700 40px Arial, sans-serif'; x.fillText(fit(x, r.flight + (r.ac ? '   ·   ' + r.ac : ''), sw - 60), sx + 30, sy + head + 48);
+    x.fillStyle = '#FFFFFF'; x.font = '800 74px Arial, sans-serif'; x.fillText(fit(x, r.place, sw - 60), sx + 30, sy + head + 124);
+    x.fillStyle = '#8FA6BD'; x.font = '600 34px Arial, sans-serif'; const t1 = 'Scheduled ' + hm(r.sched); x.fillText(t1, sx + 30, sy + head + 196);
+    if (r.exp !== r.sched) { const w1 = x.measureText(t1 + '     ').width; x.fillStyle = '#F2B544'; x.font = '700 34px Arial, sans-serif'; x.fillText('Expected ' + hm(r.exp), sx + 30 + w1, sy + head + 196); }
+    // the state as a big pill in its colour
+    x.font = '800 44px Arial, sans-serif'; const pw = Math.min(sw - 60, x.measureText(st).width + 56), py = sy + head + 236;
+    x.globalAlpha = 0.22; x.fillStyle = col; rr(x, sx + 30, py, pw, 70, 18); x.fill(); x.globalAlpha = 1; x.strokeStyle = col; x.lineWidth = 3; x.stroke();
+    x.fillStyle = col; x.fillText(fit(x, st, pw - 56), sx + 58, py + 37);
+    const n = mine[1]; if (n) { x.fillStyle = '#8FA6BD'; x.font = '600 28px Arial, sans-serif'; x.fillText(fit(x, `Next: ${n.flight}  ${n.place}  ${hm(n.exp)}`, sw - 60), sx + 30, sy + sh - 66); }
+  }
+  // the footer: the live light
+  const foot = 40, fy = sy + sh - foot; x.fillStyle = 'rgba(0,0,0,0.3)'; x.fillRect(sx, fy, sw, foot);
+  x.fillStyle = live ? '#3FD0A0' : '#8FA3B8'; x.beginPath(); x.arc(sx + 30, fy + foot / 2, 7, 0, Math.PI * 2); x.fill();
+  x.font = '600 20px Arial, sans-serif'; x.fillStyle = '#8FA6BD'; x.textAlign = 'left'; x.fillText(live ? 'Live · updated ' + hms(d.at) : 'Sample timetable', sx + 48, fy + foot / 2);
+  g = x.createLinearGradient(sx, sy, sx + sw * 0.55, sy + sh); g.addColorStop(0, 'rgba(255,255,255,0.08)'); g.addColorStop(0.35, 'rgba(255,255,255,0.02)'); g.addColorStop(0.36, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(sx, sy, sw, sh);
+  x.restore();
+  return c;
+}

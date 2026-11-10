@@ -28,6 +28,8 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SSlider.h"
+#include "GrassField.h"
+#include "FlightViewer.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "RHI.h"
@@ -258,6 +260,37 @@ void AADPHUD::BeginPlay()
 				[
 					SNew(STextBlock).Font(Font(11)).ColorAndOpacity(Ink)
 					.Text_Lambda([this]() { return FText::FromString(bFrameGen ? FString::Printf(TEXT("%d FPS with frame generation  ·  %d rendered"), FMath::RoundToInt(FpsSmooth * 2), FMath::RoundToInt(FpsSmooth)) : FString::Printf(TEXT("%d FPS  ·  %.1f ms"), FMath::RoundToInt(FpsSmooth), 1000.f / FMath::Max(1.f, FpsSmooth))); })
+				]
+			]
+		]
+		+ SOverlay::Slot()
+		[
+			// the 3D viewer's flight: what it is, where from and to, how high and how fast (drag it with the pointer free)
+			SNew(SDragBox).Name(TEXT("FlightInfo")).Start(FVector2D(0.02, 0.3))
+			.Visibility_Lambda([this]() { return bViewer && !bGame && !bHidden && Viewer && Viewer->HasFlight() ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed; })
+			[
+				SNew(SBorder)
+				.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+				.BorderBackgroundColor(Panel)
+				.Padding(FMargin(14, 10))
+				.Cursor(EMouseCursor::GrabHand)
+				[
+					SNew(SBox).WidthOverride(330)
+					[
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot().AutoHeight()
+						[SNew(STextBlock).Font(Font(16)).ColorAndOpacity(FLinearColor(1.f, 0.82f, 0.29f)).Text_Lambda([this]() { const FFlightSample& F = Viewer->Now(); return FText::FromString(F.Callsign.IsEmpty() ? F.Id : F.Callsign); })]
+						+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 6)
+						[SNew(STextBlock).Font(Font(10)).ColorAndOpacity(Ink).AutoWrapText(true).Text_Lambda([this]() { const FFlightSample& F = Viewer->Now(); return FText::FromString(FString::Printf(TEXT("%s  ·  %s  %s"), *F.Airline, *F.Type, *F.Reg)); })]
+						+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 6)
+						[SNew(STextBlock).Font(Font(12)).ColorAndOpacity(Ink).AutoWrapText(true).Text_Lambda([this]() { const FFlightSample& F = Viewer->Now(); return FText::FromString(FString::Printf(TEXT("%s %s  \u2192  %s %s"), *F.From, *F.FromName, *F.To, *F.ToName)); })]
+						+ SVerticalBox::Slot().AutoHeight()
+						[SNew(STextBlock).Font(Font(10)).ColorAndOpacity(Ink).AutoWrapText(true).Text_Lambda([this]() { const FFlightSample& F = Viewer->Now();
+							return FText::FromString(FString::Printf(TEXT("Altitude %s ft   Speed %d kt\nHeading %03d\u00b0   Climb %+d ft/min\n%s%s"), *FText::AsNumber(FMath::RoundToInt(F.AltM / 0.3048 / 10) * 10).ToString(), FMath::RoundToInt(F.Gs), FMath::RoundToInt(F.Hdg) % 360, FMath::RoundToInt(F.Vs),
+								*F.Phase, F.PaxMax > 0 ? *FString::Printf(TEXT("   ·   %d / %d passengers"), F.Pax, F.PaxMax) : TEXT(""))); })]
+						+ SVerticalBox::Slot().AutoHeight().Padding(0, 8, 0, 0)
+						[SNew(STextBlock).Font(Font(8)).ColorAndOpacity(FLinearColor(0.6f, 0.68f, 0.78f)).AutoWrapText(true).Text(FText::FromString(TEXT("Mouse: look round   Wheel: closer / further   Middle button: move this box   Esc: back"))) ]
+					]
 				]
 			]
 		]
@@ -517,6 +550,29 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 8)[LevelRow(true)]
 				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Blur (motion blur and depth of field)"))]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)[LevelRow(false)]
+				// the grass: on or off, and how far the dense near blades reach (the airfield's far tufts are always there)
+				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Grass (how far the dense blades reach)"))]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 8, 0)
+					[
+						SNew(SButton)
+						.ButtonColorAndOpacity_Lambda([]() { return AGrassField::bOn ? FLinearColor(0.1f, 0.45f, 0.75f, 1.f) : FLinearColor(0.05f, 0.2f, 0.36f, 0.9f); })
+						.ContentPadding(FMargin(10, 4))
+						.OnClicked_Lambda([]() { AGrassField::bOn = !AGrassField::bOn; GConfig->SetBool(TEXT("ADP.Graphics"), TEXT("Grass"), AGrassField::bOn, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); return FReply::Handled(); })
+						[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { return FText::FromString(AGrassField::bOn ? TEXT("ON") : TEXT("OFF")); })]
+					]
+					+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
+					[
+						SNew(SSlider)
+						.Value_Lambda([]() { return AGrassField::NearDistance / 150.f; })
+						.OnValueChanged_Lambda([](float V) { AGrassField::NearDistance = FMath::RoundToFloat(V * 150.f); })
+						.OnMouseCaptureEnd_Lambda([]() { GConfig->SetFloat(TEXT("ADP.Graphics"), TEXT("GrassNear"), AGrassField::NearDistance, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); })
+					]
+					+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
+					[SNew(SBox).WidthOverride(56)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { return FText::FromString(FString::Printf(TEXT("%.0f m"), AGrassField::NearDistance)); })]]
+				]
 				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Frame limit"))]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 10)[Limit]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 6)
@@ -591,9 +647,47 @@ void AADPHUD::ToggleMap()
 	UpdateMouse();
 }
 
+void AADPHUD::OpenViewer()
+{
+	Breadcrumb(TEXT("In the 3D viewer (Unreal)"));
+	if (bGame) ToggleGame();
+	if (bInLounge) ShowTerminal();
+	if (!Viewer)
+	{
+		FActorSpawnParameters S;
+		S.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		Viewer = GetWorld()->SpawnActor<AFlightViewer>(FVector::ZeroVector, FRotator::ZeroRotator, S);
+	}
+	if (!Viewer) return;
+	Viewer->Open();
+	bViewer = true;
+	// the walking bar and the map belong to the airport: away while you watch the flight
+	if (TopBar.IsValid()) TopBar->SetVisibility(EVisibility::Collapsed);
+	if (MiniBox.IsValid()) MiniBox->SetVisibility(EVisibility::Collapsed);
+	UpdateMouse();
+}
+
+void AADPHUD::CloseViewer()
+{
+	if (!bViewer) return;
+	bViewer = false;
+	if (Viewer) Viewer->Close();
+	if (TopBar.IsValid()) TopBar->SetVisibility(bGame ? EVisibility::Collapsed : EVisibility::Visible);
+	if (MiniBox.IsValid()) MiniBox->SetVisibility(EVisibility::Visible);
+	// the menus stop sending the flight
+	if (Browser.IsValid()) Browser->ExecuteJavascript(TEXT("window.__ueViewerClosed && window.__ueViewerClosed()"));
+}
+
+void AADPHUD::OnViewerFlight(const FString& Json)
+{
+	if (bViewer && Viewer) Viewer->OnSample(Json);
+}
+
 void AADPHUD::ToggleGame()
 {
 	if (bHidden) return;
+	// from the 3D viewer to the menus: the viewer closes, the airport comes back behind them
+	if (!bGame && bViewer) CloseViewer();
 	bGame = !bGame;
 	bPointer = false;
 	if (bGame) Breadcrumb(TEXT("In the menus (the airline game)"));
@@ -782,6 +876,7 @@ namespace
 void AADPHUD::ShowTerminal()
 {
 	Breadcrumb(TEXT("In the terminal (3D)"));
+	if (bViewer) CloseViewer();
 	if (bGame) ToggleGame();
 	// back from the lounge: where you were in the terminal
 	if (bInLounge)
@@ -1081,6 +1176,28 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 88.f && ShotClock >= 88.f) FScreenshotRequest::RequestScreenshot(TEXT("CurbRoad"), false, false);
 			if (Before < 90.f && ShotClock >= 90.f) FGenericPlatformMisc::RequestExit(false);
 		}
+		// -UINew: the grass on the airfield near and far, then the 3D viewer following a made-up flight off the south coast
+		if (FParse::Param(FCommandLine::Get(), TEXT("UINew")))
+		{
+			APlayerController* PC = GetOwningPlayerController();
+			auto Look = [PC](float Pitch) { if (PC) PC->SetControlRotation(FRotator(Pitch, PC->GetControlRotation().Yaw, 0)); };
+			if (Before < 44.f && ShotClock >= 44.f) { if (bGame) ToggleGame(); ASunClock::HourOverride = 13.f; ASunClock::Theme = 1; ASunClock::Refresh(); }
+			if (Before < 46.f && ShotClock >= 46.f) { GoTo(FVector(-200.f, 0.f, 150.f), FVector(-180.f, 0.f, 200.f)); Look(-12.f); }
+			if (Before < 60.f && ShotClock >= 60.f) FScreenshotRequest::RequestScreenshot(TEXT("GrassNear"), false, false);
+			if (Before < 61.f && ShotClock >= 61.f) Look(-1.f);
+			if (Before < 66.f && ShotClock >= 66.f) FScreenshotRequest::RequestScreenshot(TEXT("GrassFar"), false, false);
+			if (Before < 67.f && ShotClock >= 67.f) OpenViewer();
+			if (bViewer && ShotClock >= 67.f && ShotClock < 84.f)
+			{
+				static double T0 = FPlatformTime::Seconds();
+				const double T = FPlatformTime::Seconds() - T0;
+				OnViewerFlight(FString::Printf(TEXT("{\"me\":{\"id\":\"T1\",\"callsign\":\"ADP 214\",\"airline\":\"Airport Dynasty\",\"type\":\"A320\",\"reg\":\"OY-ADP\",\"from\":\"BIMS\",\"fromName\":\"Myrdalssandur\",\"to\":\"EKCH\",\"toName\":\"Copenhagen\",\"phase\":\"Climb\",\"pax\":152,\"paxMax\":180,\"lat\":%.6f,\"lon\":%.6f,\"altM\":%.1f,\"hdg\":120,\"gs\":290,\"vs\":1800,\"onGround\":false}}"),
+					63.40 - T * 0.0004, -18.60 + T * 0.0009, 1500.0 + T * 9.0));
+			}
+			if (Before < 80.f && ShotClock >= 80.f) FScreenshotRequest::RequestScreenshot(TEXT("Viewer"), true, false);
+			if (Before < 84.f && ShotClock >= 84.f) CloseViewer();
+			if (Before < 90.f && ShotClock >= 90.f) FGenericPlatformMisc::RequestExit(false);
+		}
 		// -UIQuit: the title screen's gear (Unreal's Settings over the menus, a picture), then its Exit (the game must quit)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIQuit")) && Browser.IsValid())
 		{
@@ -1118,7 +1235,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

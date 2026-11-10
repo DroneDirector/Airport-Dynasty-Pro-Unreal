@@ -11,6 +11,7 @@ import { furnish } from '../../Airline-Manager-Pro-Babylon/src/sections/terminal
 import { buildFixtures } from '../../Airline-Manager-Pro-Babylon/src/sections/terminal/fixtures';
 import { buildRental } from '../../Airline-Manager-Pro-Babylon/src/sections/terminal/rental';
 import { buildLounge } from '../../Airline-Manager-Pro-Babylon/src/sections/lounge/build';
+import { buildAirliner, setGear } from '../../Airline-Manager-Pro-Babylon/src/sections/viewer3d/airliner';
 
 const say = (s: string) => { const e = document.getElementById('log'); if (e) e.textContent += s + '\n'; fetch('/log', { method: 'POST', body: s }).catch(() => 0); };
 
@@ -21,6 +22,20 @@ async function run() {
   const sc = new Scene(engine); sc.clearColor = new Color4(0.66, 0.78, 0.9, 1);
   // ?m=lounge: the business lounge (sections/lounge/build.ts) instead of the terminal
   const which = new URLSearchParams(location.search).get('m') || 'terminal';
+  // ?m=airliner: the 3D viewer's airliner (sections/viewer3d/airliner.ts), gear down, in its own livery
+  if (which === 'airliner') {
+    say('Building the airliner…');
+    const ac = buildAirliner(sc); setGear(ac, 1);
+    await sc.whenReadyAsync();
+    say(`Built: ${sc.meshes.length} meshes. Saving glTF…`);
+    const g = await GLTF2Export.GLBAsync(sc, 'airliner', { shouldExportNode: (n: any) => !(n instanceof Camera) && !(n instanceof Light) && n.isEnabled(false) && (n.isVisible === undefined || n.isVisible) });
+    const ab = g.glTFFiles['airliner.glb'] as Blob;
+    say(`Sending ${(ab.size / 1e6).toFixed(1)} MB…`);
+    await fetch('/save/airliner.glb', { method: 'POST', body: ab });
+    // which nodes are the landing gear (folded away in the air) and the fans (turning)
+    await fetch('/save/airliner-parts.json', { method: 'POST', body: JSON.stringify({ gear: ac.gear.map((g: any) => g.name), fans: ac.fans.map((f: any) => f.name) }) });
+    say('DONE'); return;
+  }
   if (which === 'lounge') {
     say('Building the lounge…');
     buildLounge(sc, (p, s) => say(`${p}% ${s}`));

@@ -2,6 +2,7 @@
 // tileset with the Sentinel-2 cloudless 2016 imagery on it.
 #include "Globe.h"
 #include "CesiumGeoreference.h"
+#include "Ocean.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonReader.h"
 #include "Dom/JsonObject.h"
@@ -64,6 +65,11 @@ void AGlobe::Build(const FAirfieldData& F)
 		Tiles->SetUrl(TEXT("file:///") + FPaths::ConvertRelativePathToFull(Layer));
 	}
 	else Tiles->SetTilesetSource(ETilesetSource::FromEllipsoid);
+
+	// the sea round the airport, meeting the real coastline, at sea level: with the shipped terrain, the airport's
+	// ground height less its height above the sea; on the smooth globe, just above it
+	if (AOcean* Sea = W->SpawnActor<AOcean>(FVector::ZeroVector, FRotator::ZeroRotator, P))
+		Sea->Build(G, bTerrain && Ground >= 0 ? Ground - F.ElevFt * 0.3048 + 0.1 : 0.25);
 
 	Earth = Tiles;
 	Current = this;

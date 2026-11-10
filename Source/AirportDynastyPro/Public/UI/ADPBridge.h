@@ -22,6 +22,10 @@ public:
 	UFUNCTION() void OpenSite();
 	/** The title screen's Lounge: the Babylon edition's business lounge, in Unreal. */
 	UFUNCTION() void OpenLounge();
+	/** The 3D viewer: Unreal's own, following a flight (its positions come through ViewerFlight). */
+	UFUNCTION() void OpenViewer();
+	/** Where the followed flight is (the game's 3D viewer feed, JSON {me: {...}}), four times a second. */
+	UFUNCTION() void ViewerFlight(const FString& Json);
 	/** The airline, every few seconds while the game runs: {name, icao, hub, money} (JSON). */
 	UFUNCTION() void GameState(const FString& Json);
 	/** The departures and arrivals at your airport, as the game's timetable screens show them (JSON). */
@@ -30,6 +34,8 @@ public:
 	UFUNCTION() void SpeechPcm(int32 Id, const FString& B64);
 	/** The game's natural voices aren't on this PC: Unreal speaks the line with Windows' own female voice. */
 	UFUNCTION() void SpeechFail(int32 Id);
+	/** The announcer's line as Kokoro's sound numbers (JSON: a list per sentence); Unreal speaks it with the natural voice. */
+	UFUNCTION() void Kokoro(int32 Id, const FString& IdsJson);
 	/** A timetable board's picture (PNG, base64), drawn by the menus. */
 	/** A line from the menus for the game's log (their errors; Unreal's browser doesn't pass on the page's console). */
 	UFUNCTION() void Log(const FString& Line);

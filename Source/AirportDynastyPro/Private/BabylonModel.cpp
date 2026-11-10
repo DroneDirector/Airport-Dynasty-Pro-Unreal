@@ -161,6 +161,17 @@ bool ABabylonModel::Place(const FString& Name)
 			if (Door.Parts.Num()) Doors.Add(MoveTemp(Door));
 		}
 		UE_LOG(LogTemp, Log, TEXT("Babylon model %s: %d doors that move"), *Name, Doors.Num());
+		// the gate screens (nodes M-F<floor>-G<gate>): their face ("scr"), each its own mesh, for the live gate pictures
+		for (int32 G = 0; G < Nodes.Num(); ++G)
+		{
+			const FString N = NameOf(G);
+			int32 At = INDEX_NONE;
+			if (!N.StartsWith(TEXT("M-F")) || !N.FindLastChar(TCHAR('G'), At) || At < 4 || N[At - 1] != TCHAR('-')) continue;
+			const int32 Gate = FCString::Atoi(*N.Mid(At + 1));
+			if (Gate <= 0) continue;
+			for (const int32 K : Kids(G)) if (NameOf(K).StartsWith(TEXT("scr")) && NodeInst[K].Key) GateScreens.Add(Gate, NodeInst[K].Key);
+		}
+		UE_LOG(LogTemp, Log, TEXT("Babylon model %s: %d gate screens"), *Name, GateScreens.Num());
 		LightFittings(Nodes, NodeWorld, NodeInst);
 	}
 	return Placed > 0;

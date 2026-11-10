@@ -66,3 +66,6 @@ Tools/BabylonExport/dist/
 # Tools/BabylonExport, Tools/import_babylon_model.py, set_material_usage.py and make_window_glass.py
 Content/Babylon/
 Content/Terrain/
+# the voice pack (fetched by Tools/GetVoicePack.ps1, shipped with the game)
+Content/Voice/
+cesium-request-cache.sqlite*
