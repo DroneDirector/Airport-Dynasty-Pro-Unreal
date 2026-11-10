@@ -52,6 +52,10 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       short loading note, or wait for the sharp tiles before putting you down)
 
 ## 3. The airport and buildings
+- [ ] **Entrance signs seen from inside say "Exit"** (owner, 2026-11-10): the signs over the three entrances on the
+      inside of the main hall read EXIT WEST, MAIN EXIT and EXIT EAST (outside they stay ENTRANCE WEST, MAIN ENTRANCE,
+      ENTRANCE EAST). Check where the Babylon model draws the inner signs' text (sign textures / labels) and change only
+      the inside ones; Android edition the same, so both match
 - [ ] **Entrance doors' glass too bright** (owner, 2026-11-10): the inner sliding doors (door 2) of the Main Entrance,
       Entrance West and Entrance East, and the revolving doors, are far too bright. Give their glass the same material
       and brightness as the big glass windows on the terminal's back (airside) facade, so all the terminal's glass
