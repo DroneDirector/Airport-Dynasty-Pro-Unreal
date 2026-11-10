@@ -31,6 +31,7 @@
 #include "Widgets/Input/SSlider.h"
 #include "GrassField.h"
 #include "FlightViewer.h"
+#include "TerrainPacks.h"
 #include "Components/LocalLightComponent.h"
 #include "ADPFrameGen.h"
 #include "Widgets/Layout/SWrapBox.h"
@@ -559,6 +560,19 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 8)[LevelRow(true)]
 				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Blur (motion blur and depth of field)"))]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)[LevelRow(false)]
+				// the world's terrain: downloaded once (about 6.6 GB) and kept up to date pack by pack
+				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("The world's terrain (mountains and valleys everywhere)"))]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 4)
+				[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true).Text_Lambda([]() { return FText::FromString(ADPTerrain::Status()); })]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)
+				[
+					SNew(SBox).Visibility_Lambda([]() { return ADPTerrain::Busy() ? EVisibility::Collapsed : EVisibility::Visible; })
+					[
+						SNew(SWrapBox).UseAllottedSize(true).InnerSlotPadding(FVector2D(6, 6))
+						+ SWrapBox::Slot()[Button(TEXT("DOWNLOAD / UPDATE THE WORLD'S TERRAIN"), []() { ADPTerrain::Start(); })]
+						+ SWrapBox::Slot()[Button(TEXT("MOVE IT TO ANOTHER FOLDER"), []() { ADPTerrain::ChooseAndMove(); })]
+					]
+				]
 				// the grass: on or off, and how far the dense near blades reach (the airfield's far tufts are always there)
 				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Grass (how far the dense blades reach)"))]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)

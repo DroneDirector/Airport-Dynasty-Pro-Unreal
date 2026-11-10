@@ -3,6 +3,8 @@
 #include "Globe.h"
 #include "CesiumGeoreference.h"
 #include "Ocean.h"
+#include "Materials/MaterialInterface.h"
+#include "TerrainPacks.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonReader.h"
 #include "Dom/JsonObject.h"
@@ -40,7 +42,9 @@ void AGlobe::Build(const FAirfieldData& F)
 	// converter's output on this PC; the airport's ground height (above the WGS84 ellipsoid) comes with it, so Unreal's
 	// ground (z = 0) sits on it. Without terrain: the smooth globe 1 m under the airport.
 	FString Layer = FPaths::ProjectContentDir() / TEXT("Terrain/layer.json");
-	// the converter's output on this PC only when run from the editor (a release uses what ships with it)
+	// the world's terrain downloaded by the game (TerrainPacks.h), once every pack is in
+	if (!FPaths::FileExists(Layer) && ADPTerrain::Ready()) Layer = ADPTerrain::Dir() / TEXT("layer.json");
+	// the converter's output on this PC only when run from the editor (a release uses what it downloaded)
 	if (!FPaths::FileExists(Layer) && !FPlatformProperties::RequiresCookedData()) Layer = TEXT("F:/ADP-Terrain/tiles/layer.json");
 	const bool bTerrain = FPaths::FileExists(Layer);
 	double Ground = -1.0;
@@ -63,6 +67,10 @@ void AGlobe::Build(const FAirfieldData& F)
 	{
 		Tiles->SetTilesetSource(ETilesetSource::FromUrl);
 		Tiles->SetUrl(TEXT("file:///") + FPaths::ConvertRelativePathToFull(Layer));
+		// the sea everywhere the terrain's water mask says so (MakeTerrain.py marks it): Cesium's water material
+		Tiles->SetEnableWaterMask(true);
+		if (UMaterialInterface* Water = LoadObject<UMaterialInterface>(nullptr, TEXT("/CesiumForUnreal/Materials/Instances/MI_CesiumThreeOverlaysAndClippingAndWater.MI_CesiumThreeOverlaysAndClippingAndWater")))
+			Tiles->SetMaterial(Water);
 	}
 	else Tiles->SetTilesetSource(ETilesetSource::FromEllipsoid);
 

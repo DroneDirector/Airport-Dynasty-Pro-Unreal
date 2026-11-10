@@ -4,7 +4,8 @@
 #    WGS84 ellipsoid with the EGM96 geoid grid (us_nga_egm96_15.tif, public domain), as Cesium needs.
 #  - Tiles: Cesium's geographic TMS layout (level 0 is two tiles), every tile to level 6 (oceans flat at sea level),
 #    deeper only where there is land. Each tile is a 2^n + 1 grid of heights turned into an adaptive triangle mesh
-#    (Martini) with an error under a quarter of the grid spacing, then quantized-mesh with vertex normals, gzipped.
+#    (Martini) with an error under a quarter of the grid spacing, then quantized-mesh with vertex normals and a water
+#    mask (the sea, where the data has no land), gzipped.
 #  - The airport: flat within 2.6 km of its origin, blending into the land by 4.4 km (the height used is written to
 #    Data/terrain.json so the game puts its ground exactly there).
 #  - layer.json lists which tiles exist on each level, so the globe never asks for tiles that aren't there.
@@ -27,7 +28,7 @@ import rasterio
 from rasterio.windows import from_bounds
 from pymartini import Martini, rescale_positions
 import quantized_mesh_encoder as qme
-from quantized_mesh_encoder.extensions import VertexNormalsExtension
+from quantized_mesh_encoder.extensions import VertexNormalsExtension, WaterMaskExtension
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = Path('F:/ADP-Terrain/glo90')
@@ -207,7 +208,15 @@ def make(job):
     # the vertices with their heights, in degrees (rows run north to south in h, so y is flipped)
     pos = rescale_positions(v, hT, bounds=[lon0, lat0, lon1, lat1], flip_y=True).astype(np.float64).reshape(-1)
     buf = io.BytesIO()
-    qme.encode(buf, pos, tri, bounds=(lon0, lat0, lon1, lat1), extensions=(VertexNormalsExtension(positions=pos, indices=tri),))
+    # the sea (where the height data has no land: exactly 0 above sea level): a 256 x 256 water mask, north row first,
+    # or one byte when the tile is all land (0) or all sea (255); Cesium draws water there
+    sea = ~land
+    if sea.all(): wm = 255
+    elif not sea.any(): wm = 0
+    else:
+        iy = np.clip(np.round(np.linspace(0, n - 1, 256)).astype(int), 0, n - 1)
+        wm = (sea[np.ix_(iy, iy)] * 255).astype(np.uint8)
+    qme.encode(buf, pos, tri, bounds=(lon0, lat0, lon1, lat1), extensions=(VertexNormalsExtension(positions=pos, indices=tri), WaterMaskExtension(data=wm)))
     p = OUT / str(z) / str(x) / f'{y}.terrain'
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_bytes(gzip.compress(buf.getvalue(), 6))
@@ -284,7 +293,7 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / 'layer.json').write_text(json.dumps({
         'tilejson': '2.1.0', 'name': 'Airport Dynasty Pro terrain', 'version': '1.0.0', 'format': 'quantized-mesh-1.0',
-        'scheme': 'tms', 'projection': 'EPSG:4326', 'tiles': ['{z}/{x}/{y}.terrain'], 'extensions': ['octvertexnormals'],
+        'scheme': 'tms', 'projection': 'EPSG:4326', 'tiles': ['{z}/{x}/{y}.terrain'], 'extensions': ['octvertexnormals', 'watermask'],
         'bounds': [-180, -90, 180, 90], 'minzoom': 0, 'maxzoom': deepest, 'available': available}))   # (the credits are the game's own credit line, not the globe's)
     print('Terrain done: %d tiles' % len(jobs), flush=True)
 
