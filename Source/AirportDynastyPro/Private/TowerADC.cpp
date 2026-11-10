@@ -319,7 +319,7 @@ void ATowerADC::BuildFoot()
 	Box("navy", 0.04f, 0.42f, 3.0f, EX0 - 0.04f, 3.2f, 0, 0, false);
 	UTextRenderComponent* W = NewObject<UTextRenderComponent>(this);
 	W->SetupAttachment(Frame);
-	W->SetText(FText::FromString(TEXT("CONTROL TOWER · ADC")));
+	W->SetText(FText::FromString(TEXT("CONTROL TOWER · ATC")));
 	W->SetHorizontalAlignment(EHTA_Center);
 	W->SetVerticalAlignment(EVRTA_TextCenter);
 	W->SetWorldSize(26.f);

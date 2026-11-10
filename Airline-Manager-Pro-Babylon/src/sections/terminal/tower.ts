@@ -56,7 +56,7 @@ function wall(name: string, sc: any, r0: number, r1: number, y0: number, y1: num
 
 export function buildTower(K: Kit, x: number, z: number, face = 0): Tower {
   const { sc, M } = K, T = TOWER, root = new TransformNode('ADC-TOWER', sc); root.position.set(x, 0, z); root.rotation.y = face;
-  root.metadata = { id: 'ADC-TOWER', kind: 'tower', name: 'Control tower (ADC)' };
+  root.metadata = { id: 'ADC-TOWER', kind: 'tower', name: 'Control tower (ATC)' };
   const glass: Mesh[] = [], cutaway: AbstractMesh[] = [], chairs: TransformNode[] = [], moving: AbstractMesh[] = [], soft: AbstractMesh[] = [], shells: AbstractMesh[] = [];
   const toK = (lx: number, lz: number): [number, number] => [x + lx * Math.cos(face) + lz * Math.sin(face), z - lx * Math.sin(face) + lz * Math.cos(face)];
   const own = <M2 extends AbstractMesh>(m: M2, mat: any, cut = false): M2 => { m.material = mat; m.parent = root; m.receiveShadows = true; K.casters.push(m); if (cut) cutaway.push(m); if (/^tw-/.test(m.name)) shells.push(m); return m; };
@@ -80,7 +80,7 @@ export function buildTower(K: Kit, x: number, z: number, face = 0): Tower {
     const lf = MeshBuilder.CreateBox(K.nm('tw'), { width: 0.04, height: 2.38, depth: 0.8 }, sc); lf.position.y = 1.19; lf.parent = n; lf.material = M.glassBlue; moving.push(lf); soft.push(lf);
     const fr = MeshBuilder.CreateBox(K.nm('tw'), { width: 0.06, height: 2.38, depth: 0.05 }, sc); fr.position.set(0, 1.19, -sz * 0.38); fr.parent = n; fr.material = M.steel; moving.push(fr); soft.push(fr); }
   box(4.6, 0.25, 6.4, M.timber, ex - 0.2, 3.75, 0); box(4.62, 0.08, 6.42, M.white, ex - 0.2, 3.92, 0);
-  { const sg = MeshBuilder.CreatePlane(K.nm('tw'), { width: 3.0, height: 0.42 }, sc); sg.position.set(EX0 - 0.03, 3.2, 0); sg.rotation.y = Math.PI / 2; own(sg, K.picture(signText('CONTROL TOWER · ADC'), 0.8)); soft.push(sg); }
+  { const sg = MeshBuilder.CreatePlane(K.nm('tw'), { width: 3.0, height: 0.42 }, sc); sg.position.set(EX0 - 0.03, 3.2, 0); sg.rotation.y = Math.PI / 2; own(sg, K.picture(signText('CONTROL TOWER · ATC'), 0.8)); soft.push(sg); }
   // ---- the shaft: white, timber fins all round, a slot of glass up the apron side, the way in from the entrance hall ----
   own(wall('tw-shaft', sc, T.shaftR, T.shaftR, 0.4, T.lobbyY, 96, Math.PI + gapA, Math.PI - gapA + Math.PI * 2), M.white, true);
   own(wall('tw-shaft-overdoor', sc, T.shaftR, T.shaftR, 3.6, T.lobbyY, 12, Math.PI - gapA, Math.PI + gapA), M.white, true);
