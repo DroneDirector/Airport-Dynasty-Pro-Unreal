@@ -448,6 +448,9 @@ if os.environ.get('EXPORT') == '1':
         if empty or not ob.material_slots: raise SystemExit('EXPORT STOPPED: %s has empty material slots %s' % (ob.name, empty))
         print('CHECK %s: %d material slots, none empty' % (ob.name, len(ob.material_slots)), flush=True)
     out = os.path.join(ART, 'lightmast.glb')
+    # the Blender file kept up to date with every export (owner's rule): the full scene, built again without the export step
+    import subprocess
+    subprocess.Popen([bpy.app.binary_path, '-b', '--python', os.path.join(ART, 'save_blend.py')])
     bpy.ops.export_scene.gltf(filepath=out, export_format='GLB', export_apply=True, export_yup=True, use_selection=False)
     print('EXPORTED', out, len(lm.data.polygons), 'faces', [s.material.name for s in lm.material_slots if s.material], flush=True)
     import sys as _s; _s.exit(0)

@@ -142,3 +142,6 @@ join('ArmModule', arm)
 
 bpy.ops.export_scene.gltf(filepath=OUT, export_format='GLB', export_apply=True, export_yup=True)
 print('GATESEAT written', OUT)
+# the Blender file next to the model (owner's rule: every in-game object's .blend in Art/<Object>/, kept up to date)
+bpy.ops.wm.save_as_mainfile(filepath=os.path.join(os.path.dirname(OUT), 'GateSeat.blend'))
+print('SAVED', os.path.join(os.path.dirname(OUT), 'GateSeat.blend'))
