@@ -174,7 +174,46 @@ bool ABabylonModel::Place(const FString& Name)
 		UE_LOG(LogTemp, Log, TEXT("Babylon model %s: %d gate screens"), *Name, GateScreens.Num());
 		LightFittings(Nodes, NodeWorld, NodeInst);
 	}
+	ToneDown();
 	return Placed > 0;
+}
+
+void ABabylonModel::ToneDown()
+{
+	// whites as real paint is (about 78% at most: the Babylon colours go to 98%, which glows under Unreal's light), and
+	// glowing pictures that aren't lamps (the lounge's fire, panels) at half their strength; glass and lamps untouched
+	TMap<UMaterialInterface*, UMaterialInterface*> Done;
+	int32 Whites = 0, Glows = 0;
+	TArray<UInstancedStaticMeshComponent*> Parts;
+	GetComponents(Parts);
+	for (UInstancedStaticMeshComponent* K : Parts)
+		for (int32 S = 0; S < K->GetNumMaterials(); ++S)
+		{
+			UMaterialInterface* M = K->GetMaterial(S);
+			if (!M || Cast<UMaterialInstanceDynamic>(M)) continue;
+			if (UMaterialInterface** F = Done.Find(M)) { if (*F) K->SetMaterial(S, *F); continue; }
+			UMaterialInterface* Out = nullptr;
+			const FString MN = M->GetName();
+			const bool bLamp = MN.StartsWith(TEXT("glow")) || MN.EndsWith(TEXT("_LED")) || MN.StartsWith(TEXT("fids-")) || MN.StartsWith(TEXT("pic_"));
+			const EBlendMode Blend = M->GetBlendMode();
+			if (!bLamp && Blend == BLEND_Opaque)
+			{
+				FLinearColor Base;
+				float Strength = 0;
+				const bool bWhite = M->GetVectorParameterValue(FHashedMaterialParameterInfo(TEXT("BaseColorFactor")), Base) && Base.GetLuminance() > 0.8f;
+				const bool bGlow = M->GetScalarParameterValue(FHashedMaterialParameterInfo(TEXT("EmissiveStrength")), Strength) && Strength > 1.f;
+				if (bWhite || bGlow)
+				{
+					UMaterialInstanceDynamic* D = UMaterialInstanceDynamic::Create(M, this);
+					if (bWhite) { D->SetVectorParameterValue(TEXT("BaseColorFactor"), Base * (0.78f / Base.GetLuminance())); ++Whites; }
+					if (bGlow) { D->SetScalarParameterValue(TEXT("EmissiveStrength"), Strength * 0.5f); ++Glows; }
+					Out = D;
+				}
+			}
+			Done.Add(M, Out);
+			if (Out) K->SetMaterial(S, Out);
+		}
+	UE_LOG(LogTemp, Log, TEXT("Babylon model: %d whites toned to paint, %d glows halved"), Whites, Glows);
 }
 
 void ABabylonModel::AddLights(const FString& Name)

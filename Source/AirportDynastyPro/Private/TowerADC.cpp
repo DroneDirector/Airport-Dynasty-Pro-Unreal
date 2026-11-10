@@ -307,7 +307,7 @@ void ATowerADC::Build()
 		P->SetMobility(EComponentMobility::Movable);
 		P->SetRelativeLocation(U(L.X, L.Y, L.Z));
 		P->SetIntensityUnits(ELightUnits::Lumens);
-		P->SetIntensity(1200.f);
+		P->SetIntensity(700.f);
 		P->SetAttenuationRadius(900.f);
 		P->SetLightColor(FLinearColor(1.f, 0.93f, 0.84f));
 		P->SetCastShadows(true);   // kept inside the tower

@@ -56,6 +56,8 @@ private:
 	TArray<float> LampBase;
 	float LampScale = -1.f;
 	void LampsByDaylight();
+	/** Whites as real paint, strong non-lamp glows halved (Unreal lights them far more than Babylon did). */
+	void ToneDown();
 	void LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, const TArray<FTransform>& NodeWorld, const TArray<TPair<UInstancedStaticMeshComponent*, int32>>& NodeInst);
 	#pragma endregion
 };

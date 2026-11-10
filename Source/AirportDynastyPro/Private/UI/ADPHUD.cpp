@@ -162,7 +162,7 @@ void AADPHUD::BeginPlay()
 		Indoor->BlendWeight = 0.f;
 		FPostProcessSettings& S = Indoor->Settings;
 		S.bOverride_LumenSkylightLeaking = true; S.LumenSkylightLeaking = 0.25f;
-		S.bOverride_IndirectLightingIntensity = true; S.IndirectLightingIntensity = 2.2f;
+		S.bOverride_IndirectLightingIntensity = true; S.IndirectLightingIntensity = 1.6f;
 		S.bOverride_AmbientOcclusionIntensity = true; S.AmbientOcclusionIntensity = 0.25f;
 	}
 	GConfig->GetBool(TEXT("ADP.Boxes"), TEXT("FrameRateOn"), bFpsBox, GGameUserSettingsIni);
@@ -1221,6 +1221,20 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 84.f && ShotClock >= 84.f) CloseViewer();
 			if (Before < 90.f && ShotClock >= 90.f) FGenericPlatformMisc::RequestExit(false);
 		}
+		// -UIBright: the views the owner found too bright: the tower's door, gate 4, the apron at night, the lounge
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIBright")))
+		{
+			auto Sun = [](float H) { ASunClock::HourOverride = H; ASunClock::Theme = 1; ASunClock::Refresh(); };
+			if (Before < 44.f && ShotClock >= 44.f) { if (bGame) ToggleGame(); Sun(12.f); GoTowerFoot(); }
+			if (Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("Bright_TowerDoor"), false, false);
+			if (Before < 53.f && ShotClock >= 53.f) GoGate4();
+			if (Before < 60.f && ShotClock >= 60.f) FScreenshotRequest::RequestScreenshot(TEXT("Bright_Gate4"), false, false);
+			if (Before < 61.f && ShotClock >= 61.f) { Sun(22.f); GoApron(); }
+			if (Before < 71.f && ShotClock >= 71.f) FScreenshotRequest::RequestScreenshot(TEXT("Bright_ApronNight"), false, false);
+			if (Before < 72.f && ShotClock >= 72.f) { Sun(12.f); OpenLounge(); }
+			if (Before < 82.f && ShotClock >= 82.f) FScreenshotRequest::RequestScreenshot(TEXT("Bright_Lounge"), false, false);
+			if (Before < 86.f && ShotClock >= 86.f) FGenericPlatformMisc::RequestExit(false);
+		}
 		// -UITower: the control tower in pictures: from the apron, at its door, from the balcony and in the cab, at midday
 		// and in the golden hour, then the same at cinematic quality in 4K
 		if (FParse::Param(FCommandLine::Get(), TEXT("UITower")))
@@ -1301,7 +1315,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are
