@@ -1,6 +1,6 @@
 # To-do: Airport Dynasty Pro (PC, Unreal; and the Android edition)
 
-The one complete list of what is still open, updated 2026-11-10 (after 0.14.3). ROADMAP.md keeps the history and the
+The one complete list of what is still open, updated 2026-11-10 (after 0.14.4). ROADMAP.md keeps the history and the
 details behind each item. Marks: [ ] open, [~] started or partly done, [?] built earlier but the owner should check it.
 
 ## 1. Distribution: updates, installer, selling
@@ -25,20 +25,27 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       program and its materials in the materials chunk
 
 ## 2. The world (globe, terrain, sea, land cover)
-- [~] **Land cover (ESA WorldCover)**: built, uploaded, downloads with the terrain, offline ground source in Settings;
-      NOT yet seen on screen (the airport's grass covers it near the ground): check from higher up / in the 3D viewer
-- [ ] The land cover under the grass: use it to place grass, rock, sand, snow round the player (grass only where it is
-      grassland, and so on), in airport mode and walk-anywhere mode
+- [x] Land cover seen on screen; the globe's pictures in the right place (0.14.4: the tile rows were counted from the
+      wrong pole, so the ground showed the far southern ocean)
+- [x] Satellite imagery checked: EOX answers again; Sentinel-2 cloudless 2016 is CC BY 4.0 (paid game OK; later years
+      are not, so we stay on 2016). Still streamed online; shipping it offline is for later (many GB)
+- [x] Grass on the real ground by the land cover (grass, farmland, scrub, moss, wetland; none on sand, rock, snow, water)
+      and the terrain solid all round you (committed, not released yet)
+- [x] Walk anywhere on Earth: Settings, 12 places or a latitude and longitude, put down on the real ground, the airport
+      set aside, back with one button (committed, not released yet)
+- [ ] Release the two items above (next build)
+- [ ] Rock, sand and snow as ground detail on the real terrain (now only the pictures show them; grass is the only 3D layer)
 - [ ] The land cover / relief in the 2D map (the game's menus)
-- [ ] Walk-anywhere mode: placed down anywhere on Earth and walking there, the ground solid underfoot
-- [ ] The satellite pictures still stream (EOX Sentinel-2 / NASA): decide whether to ship imagery, and check that the
-      EOX server answers (it refused, 403, on 2026-11-09 afternoon) and allows a paid game
 - [ ] The ocean, rest of the plan: Unreal's Water system round the player, swell with the wind and weather, waves
       breaking on every coast (OSM coastlines, ODbL), foam round rocks
 - [ ] Swimming and diving (0.15.0 plan): waves moving you, diving, underwater haze and light, climbing out, breath meter,
       your own 3D body swimming
-- [ ] Distance and speed (0.18.0 plan): World Partition, HLOD for distant buildings and terrain, fading instead of
-      popping; performance pass for every card (the game only suggests settings, never forces)
+- [ ] Distance and speed: World Partition, HLOD for distant buildings and terrain, fading instead of popping; a
+      performance pass for every card (the game only suggests settings, never forces)
+- [ ] Terrain from far away: thin steps / walls along some edges (where Iceland's or the Faroes' own model meets the world's,
+      or tile seams); check and smooth in MakeTerrain.py
+- [ ] Walk anywhere: the ground stays blurry for about half a minute in a new place while the picture tiles load (show a
+      short loading note, or wait for the sharp tiles before putting you down)
 
 ## 3. The airport and buildings
 - [?] The light masts (0.14.3): the owner checks them in the game by day and night (beams, ground light, textures)
@@ -96,6 +103,7 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 - [ ] After all of the above: the next logical things that make the game run and give it features
 
 ## Done recently (for reference)
+- 0.14.4 the globe's satellite pictures and land cover in the right place; the detailed sea only near the ground
 - 0.14.3 the 8 apron light masts at the gates (textured, striped guardrail, sensor-switched, beams along the row, own chunk);
   Blender files Art/LightMast, Art/GateSeat, Art/Jetway kept up to date by their build scripts
 - 0.14.0 the world's terrain (download in Settings, move to another folder), the sea everywhere; 0.14.1 the tower's
