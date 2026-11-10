@@ -1332,6 +1332,33 @@ void AADPHUD::Tick(float Dt)
 				if ((!bHqOnly || St.At >= 112.f) && Before < St.At - Off && ShotClock >= St.At - Off) St.Do();
 			if (bHqOnly && Before < 44.f && ShotClock >= 44.f && bGame) ToggleGame();
 		}
+		// -UIMasts: the apron light masts in pictures: the row from the apron, a mast's foot and its head, by day and at night
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIMasts")))
+		{
+			auto Sun = [](float H) { ASunClock::HourOverride = H; ASunClock::Theme = 1; ASunClock::Refresh(); };
+			const float MX = 38.71f, MZ = 90.f;      // mast 3, beside jetway 2
+			auto Row = [this]() { GoTo(FVector(150.f, 8.f, 150.f), FVector(60.f, 12.f, 90.f)); };
+			auto Foot = [this, MX, MZ]() { GoTo(FVector(MX + 6.f, 1.7f, MZ + 7.f), FVector(MX, 1.2f, MZ)); };
+			auto Head = [this, MX, MZ]() { GoTo(FVector(MX + 14.f, 24.f, MZ + 16.f), FVector(MX, 29.f, MZ)); };
+			struct FStep { float At; TFunction<void()> Do; };
+			const FStep MastSteps[] = {
+				{44.f, [&]() { if (bGame) ToggleGame(); Sun(13.f); Row(); }},
+				{53.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Masts_Day_Row"), false, false); }},
+				{54.f, [&]() { Foot(); }},
+				{61.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Masts_Day_Foot"), false, false); }},
+				{62.f, [&]() { Head(); }},
+				{69.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Masts_Day_Head"), false, false); }},
+				{70.f, [&]() { Sun(22.5f); Row(); }},
+				{80.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Masts_Night_Row"), false, false); }},
+				{81.f, [&]() { Head(); }},
+				{88.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Masts_Night_Head"), false, false); }},
+				{89.f, [&]() { Foot(); }},
+				{96.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Masts_Night_Foot"), false, false); }},
+				{100.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+			};
+			for (const FStep& St : MastSteps)
+				if (Before < St.At && ShotClock >= St.At) St.Do();
+		}
 		// -UIQuit: the title screen's gear (Unreal's Settings over the menus, a picture), then its Exit (the game must quit)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIQuit")) && Browser.IsValid())
 		{
@@ -1369,7 +1396,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

@@ -10,6 +10,7 @@
 #   chunk 5  the site (roads, car park, parked cars, trees)
 #   chunk 6  the aircraft (the parked ones and the airliner models)
 #   chunk 7  meshes shared by several buildings
+#   chunk 8  the apron light masts (their materials are in chunk 1)
 # The ATC tower is built by the game's code from shared kit parts (no meshes of its own): its changes are in the program.
 import json, os
 from collections import defaultdict
@@ -79,4 +80,5 @@ label('Chunk04_CarRental', 4, 5, assets=lists['rental'])
 label('Chunk05_Site', 5, 5, assets=lists['site'])
 label('Chunk06_Aircraft', 6, 5, assets=lists['aircraft'], dirs=['/Game/Babylon/Airliner/airliner/StaticMeshes'])
 label('Chunk07_Shared', 7, 5, assets=lists['shared'])
+label('Chunk08_LightMasts', 8, 5, dirs=['/Game/LightMast'])
 unreal.log('chunk labels done: ' + ', '.join('%s %d' % (k, len(v)) for k, v in lists.items()))
