@@ -1221,6 +1221,49 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 84.f && ShotClock >= 84.f) CloseViewer();
 			if (Before < 90.f && ShotClock >= 90.f) FGenericPlatformMisc::RequestExit(false);
 		}
+		// -UITower: the control tower in pictures: from the apron, at its door, from the balcony and in the cab, at midday
+		// and in the golden hour, then the same at cinematic quality in 4K
+		if (FParse::Param(FCommandLine::Get(), TEXT("UITower")))
+		{
+			auto Sun = [](float H) { ASunClock::HourOverride = H; ASunClock::Theme = 1; ASunClock::Refresh(); };
+			auto Wide = [this]() { GoTo(FVector(ATowerADC::AtX + 70.f, 0.f, ATowerADC::AtZ + 45.f), FVector(ATowerADC::AtX, 13.f, ATowerADC::AtZ)); };
+			auto Hq = [this](const TCHAR* N) { if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(TEXT("HighResShot 2")); UE_LOG(LogTemp, Log, TEXT("TOWERSHOT %s"), N); };
+			struct FStep { float At; TFunction<void()> Do; };
+			const FStep Steps[] = {
+				{44.f, [&]() { if (bGame) ToggleGame(); Sun(13.f); Wide(); }},
+				{53.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Tower_Day_Apron"), false, false); }},
+				{54.f, [this]() { GoTowerFoot(); }},
+				{61.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Tower_Day_Door"), false, false); }},
+				{62.f, [this]() { GoTowerBalcony(); }},
+				{69.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Tower_Day_Balcony"), false, false); }},
+				{70.f, [this]() { GoTowerCab(); }},
+				{77.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Tower_Day_Cab"), false, false); }},
+				{78.f, [&]() { Sun(15.7f); Wide(); }},
+				{87.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Tower_Golden_Apron"), false, false); }},
+				{88.f, [this]() { GoTowerFoot(); }},
+				{95.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Tower_Golden_Door"), false, false); }},
+				{96.f, [this]() { GoTowerBalcony(); }},
+				{103.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Tower_Golden_Balcony"), false, false); }},
+				{104.f, [this]() { GoTowerCab(); }},
+				{111.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Tower_Golden_Cab"), false, false); }},
+				// cinematic quality, 4K
+				{112.f, [&]() { if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(TEXT("scalability 4")); Sun(13.f); Wide(); }},
+				{124.f, [&]() { Hq(TEXT("Tower_HQ_Day_Apron")); }},
+				{126.f, [this]() { GoTowerBalcony(); }},
+				{134.f, [&]() { Hq(TEXT("Tower_HQ_Day_Balcony")); }},
+				{136.f, [&]() { Sun(15.7f); Wide(); }},
+				{146.f, [&]() { Hq(TEXT("Tower_HQ_Golden_Apron")); }},
+				{148.f, [this]() { GoTowerCab(); }},
+				{156.f, [&]() { Hq(TEXT("Tower_HQ_Golden_Cab")); }},
+				{162.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+			};
+			// -UITowerHQ: only the cinematic 4K pictures (started at once)
+			const bool bHqOnly = FParse::Param(FCommandLine::Get(), TEXT("UITowerHQ"));
+			const float Off = bHqOnly ? 68.f : 0.f;
+			for (const FStep& St : Steps)
+				if ((!bHqOnly || St.At >= 112.f) && Before < St.At - Off && ShotClock >= St.At - Off) St.Do();
+			if (bHqOnly && Before < 44.f && ShotClock >= 44.f && bGame) ToggleGame();
+		}
 		// -UIQuit: the title screen's gear (Unreal's Settings over the menus, a picture), then its Exit (the game must quit)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIQuit")) && Browser.IsValid())
 		{
@@ -1258,7 +1301,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are
