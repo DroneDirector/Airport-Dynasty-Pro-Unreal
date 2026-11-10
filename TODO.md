@@ -52,6 +52,11 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       short loading note, or wait for the sharp tiles before putting you down)
 
 ## 3. The airport and buildings
+- [ ] **Entrance canopies' undersides glow** (owner, 2026-11-10): outside the main hall, the ceiling under the canopy
+      above Entrance West, the Main Entrance and Entrance East is far too bright (probably a glowing / lamp material,
+      or the ToneDown pass missing it). They must not be light sources: give them the same kind of material as the
+      kerb's departures sign (same material, not its texture: matte, non-glowing); find which Babylon mesh and
+      material it is first
 - [ ] **Terminal far too bright seen from the apron** (owner, 2026-11-10): standing on the apron looking at the passenger
       terminal (with the light masts lit), the building is washed out white. Bring its brightness down to about 25% of
       now (what lights it from outside: the masts' beams on its face, its glowing windows and lamps, the auto-exposure
