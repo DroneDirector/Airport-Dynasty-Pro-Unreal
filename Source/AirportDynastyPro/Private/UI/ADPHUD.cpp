@@ -535,7 +535,8 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 					SNew(SHorizontalBox)
 					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 4, 0)[Button(TEXT("EOX SENTINEL-2 (10 M)"), []() { AGlobe::UseSource(0); })]
 					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 4, 0)[Button(TEXT("NASA LANDSAT (30 M)"), []() { AGlobe::UseSource(1); })]
-					+ SHorizontalBox::Slot().AutoWidth()[Button(TEXT("NASA BLUE MARBLE (500 M)"), []() { AGlobe::UseSource(2); })]
+					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 4, 0)[Button(TEXT("NASA BLUE MARBLE (500 M)"), []() { AGlobe::UseSource(2); })]
+					+ SHorizontalBox::Slot().AutoWidth()[Button(TEXT("LAND COVER, OFFLINE (ESA)"), []() { AGlobe::UseSource(3); })]
 				]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true).Text_Lambda([]() { return FText::FromString(AGlobe::Note); })]
 				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Updates"))]

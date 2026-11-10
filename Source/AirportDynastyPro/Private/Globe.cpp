@@ -82,7 +82,7 @@ void AGlobe::Build(const FAirfieldData& F)
 	Earth = Tiles;
 	Current = this;
 	GConfig->GetInt(TEXT("ADP.Graphics"), TEXT("Imagery"), Source, GGameUserSettingsIni);
-	Probe(FMath::Clamp(Source, 0, 2));
+	Probe(FMath::Clamp(Source, 0, 3));
 	UE_LOG(LogTemp, Log, TEXT("Globe placed: origin %.6f N, %.6f E, runway %.0f°"), Lat, Lon, F.Heading);
 }
 
@@ -108,15 +108,26 @@ namespace
 		{TEXT("NASA Blue Marble (500 m)"), TEXT("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_NextGeneration/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg"), 8,
 			TEXT("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_NextGeneration/default/GoogleMapsCompatible_Level8/0/0/0.jpeg"),
 			TEXT("Imagery: NASA Global Imagery Browse Services (GIBS), Blue Marble Next Generation (NASA Earth Observatory)")},
+		{TEXT("ESA WorldCover land cover (on this PC, 10 m)"), TEXT(""), 8, TEXT(""),
+			TEXT("Land cover: ESA WorldCover 2021 (c) ESA WorldCover project, contains modified Copernicus Sentinel data (2021) processed by the ESA WorldCover consortium, CC BY 4.0")},
 	};
+
+	// the land cover (Tools/MakeLandCover.py) downloaded with the world's terrain, or the converter's output (editor)
+	FString LandCover()
+	{
+		const FString D = ADPTerrain::Dir() / TEXT("landcover");
+		if (FPaths::FileExists(D / TEXT("world/0/0/0.jpg"))) return D;
+		if (!FPlatformProperties::RequiresCookedData() && FPaths::FileExists(TEXT("F:/ADP-Terrain/landcover/world/0/0/0.jpg"))) return TEXT("F:/ADP-Terrain/landcover");
+		return FString();
+	}
 }
 
-FString AGlobe::SourceName(int32 S) { return Sources[FMath::Clamp(S, 0, 2)].Name; }
-FString AGlobe::SourceCredit(int32 S) { return Sources[FMath::Clamp(S, 0, 2)].Credit; }
+FString AGlobe::SourceName(int32 S) { return Sources[FMath::Clamp(S, 0, 3)].Name; }
+FString AGlobe::SourceCredit(int32 S) { return Sources[FMath::Clamp(S, 0, 3)].Credit; }
 
 void AGlobe::UseSource(int32 S)
 {
-	S = FMath::Clamp(S, 0, 2);
+	S = FMath::Clamp(S, 0, 3);
 	GConfig->SetInt(TEXT("ADP.Graphics"), TEXT("Imagery"), S, GGameUserSettingsIni);
 	GConfig->Flush(false, GGameUserSettingsIni);
 	if (AGlobe* G = Current.Get()) G->Probe(S);
@@ -125,17 +136,33 @@ void AGlobe::UseSource(int32 S)
 void AGlobe::Probe(int32 S)
 {
 	// one small picture first: when the source refuses (or can't be reached), the next one is used
+	// the land cover is on this PC: nothing to ask
+	if (S == 3)
+	{
+		const bool bHave = !LandCover().IsEmpty();
+		SetImagery(bHave ? 3 : 2);
+		Note = bHave ? TEXT("Ground: the land cover on this PC (ESA WorldCover).") : TEXT("The land cover isn't on this PC yet (it comes with the world's terrain): NASA Blue Marble meanwhile.");
+		Source = 3;
+		return;
+	}
 	Note = FString::Printf(TEXT("Trying %s…"), *SourceName(S));
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> R = FHttpModule::Get().CreateRequest();
 	R->SetURL(Sources[S].Probe);
 	R->SetVerb(TEXT("GET"));
 	TWeakObjectPtr<AGlobe> Me(this);
-	const int32 Wanted = FMath::Clamp(Source, 0, 2);
+	const int32 Wanted = FMath::Clamp(Source, 0, 3);
 	R->OnProcessRequestComplete().BindLambda([Me, S, Wanted](FHttpRequestPtr, FHttpResponsePtr Res, bool bOk)
 	{
 		AGlobe* G = Me.Get();
 		if (!G) return;
 		const bool bWorks = bOk && Res.IsValid() && Res->GetResponseCode() == 200;
+		// nothing online answers: the land cover on this PC, if it is there
+		if (!bWorks && S >= 2 && !LandCover().IsEmpty())
+		{
+			G->SetImagery(3);
+			Note = TEXT("No satellite pictures can be reached, so the game shows the land cover on this PC (ESA WorldCover).");
+			return;
+		}
 		if (bWorks || S >= 2)
 		{
 			G->SetImagery(S);
@@ -154,6 +181,33 @@ void AGlobe::SetImagery(int32 S)
 {
 	if (!Earth) return;
 	if (Imagery) { Imagery->DestroyComponent(); Imagery = nullptr; }
+	if (Detail) { Detail->DestroyComponent(); Detail = nullptr; }
+	if (S == 3)
+	{
+		// the land cover: the world (geographic, 2 x 1 root tiles, to level 8) and the North Atlantic over it (its own
+		// 4 x 2 root tiles, to level 7 = the world's 12: about 19 m a pixel), both JPEGs counted from the south
+		const FString D = TEXT("file:///") + FPaths::ConvertRelativePathToFull(LandCover());
+		auto Make = [this](const TCHAR* Name, const FString& Url, int32 Max, int32 Rx, int32 Ry, double W, double S2, double E, double N, const TCHAR* Key)
+		{
+			UCesiumUrlTemplateRasterOverlay* O = NewObject<UCesiumUrlTemplateRasterOverlay>(Earth, Name);
+			O->TemplateUrl = Url;
+			O->Projection = ECesiumUrlTemplateRasterOverlayProjection::Geographic;
+			O->bSpecifyTilingScheme = true;
+			O->RootTilesX = Rx; O->RootTilesY = Ry;
+			O->RectangleWest = W; O->RectangleSouth = S2; O->RectangleEast = E; O->RectangleNorth = N;
+			O->MinimumLevel = 0; O->MaximumLevel = Max;
+			O->TileWidth = 256; O->TileHeight = 256;
+			O->MaterialLayerKey = Key;
+			if (FBoolProperty* Show = FindFProperty<FBoolProperty>(UCesiumRasterOverlay::StaticClass(), TEXT("ShowCreditsOnScreen"))) Show->SetPropertyValue_InContainer(O, false);
+			O->RegisterComponent();
+			Earth->AddInstanceComponent(O);
+			return O;
+		};
+		Imagery = Make(TEXT("LandCover"), D / TEXT("world/{z}/{x}/{reverseY}.jpg"), 8, 2, 1, -180, -90, 180, 90, TEXT("Overlay0"));
+		Detail = Make(TEXT("LandCoverNorthAtlantic"), D / TEXT("region/{z}/{x}/{reverseY}.jpg"), 7, 4, 2, -28.125, 56.25, -5.625, 67.5, TEXT("Overlay1"));
+		ShownSource = S;
+		return;
+	}
 	Imagery = NewObject<UCesiumUrlTemplateRasterOverlay>(Earth, FName(*FString::Printf(TEXT("Imagery%d"), S)));
 	Imagery->TemplateUrl = Sources[S].Url;
 	Imagery->Projection = ECesiumUrlTemplateRasterOverlayProjection::WebMercator;

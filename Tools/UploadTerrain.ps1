@@ -1,7 +1,8 @@
 # The terrain packs (Tools/PackTerrain.py) published as their own GitHub release (terrain-v<N>), which the game's
 # terrain downloader reads (TerrainPacks.cpp). Uploads pack by pack, printing a line every 500 MB.
 #   powershell -File Tools/UploadTerrain.ps1 [-Packs F:\ADP-Terrain\packs-v2] [-Tag terrain-v1]
-param([string]$Packs = 'F:\ADP-Terrain\packs-v2', [string]$Tag = 'terrain-v1')
+#   -Only 'landcover-*.zip' uploads just those packs (with the manifest)
+param([string]$Packs = 'F:\ADP-Terrain\packs-v2', [string]$Tag = 'terrain-v1', [string]$Only = 'terrain-*.zip')
 $ErrorActionPreference = 'Stop'
 $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path', 'User')
 Set-Location (Join-Path $PSScriptRoot '..')
@@ -16,7 +17,7 @@ $have = $false
 try { gh release view $Tag *> $null; $have = ($LASTEXITCODE -eq 0) } catch { $have = $false }
 if (-not $have) { gh release create $Tag --prerelease --target main --title "World terrain ($Tag)" --notes $notes "$Packs\manifest.json" | Out-Null }
 else { gh release upload $Tag "$Packs\manifest.json" --clobber | Out-Null }
-$files = Get-ChildItem $Packs -Filter 'terrain-*.zip' | Sort-Object Name
+$files = Get-ChildItem $Packs -Filter $Only | Sort-Object Name
 $sent = 0.0; $next = 500MB
 foreach ($f in $files) {
   gh release upload $Tag $f.FullName --clobber | Out-Null
