@@ -71,6 +71,9 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 - [ ] RULE kept: floors only on floor faces, never walls or stairs; the tower is "ATC" on signs, never ADC
 
 ## 4. Playing: walking, menus, controls
+- [ ] **Holographic map stays open after a quick view** (owner, 2026-11-10): picking a quick view (e.g. Gate 4) moves
+      you there but the full map closes by itself; it must stay open (showing you at the new spot) until you minimise
+      it yourself (GoTo currently closes it: AADPHUD::GoTo, "if (HoloMap->IsFull()) ToggleMap()")
 - [ ] **The walking view feels zoomed in, everything too close** (owner, 2026-11-10): the eyes' field of view is 80°
       (horizontal); on the owner's super-wide 3840 x 1080 screen that is very narrow. Widen the default (about 90-100°,
       kept right for wide screens: Unreal keeps the horizontal angle, so ultra-wide needs the vertical one held
