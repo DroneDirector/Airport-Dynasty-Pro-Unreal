@@ -45,7 +45,7 @@ void AGlobe::Build(const FAirfieldData& F)
 	// the world's terrain downloaded by the game (TerrainPacks.h), once every pack is in
 	if (!FPaths::FileExists(Layer) && ADPTerrain::Ready()) Layer = ADPTerrain::Dir() / TEXT("layer.json");
 	// the converter's output on this PC only when run from the editor (a release uses what it downloaded)
-	if (!FPaths::FileExists(Layer) && !FPlatformProperties::RequiresCookedData()) Layer = TEXT("F:/ADP-Terrain/tiles/layer.json");
+	if (!FPaths::FileExists(Layer) && !FPlatformProperties::RequiresCookedData()) Layer = TEXT("F:/ADP-Terrain/tiles-v2/layer.json");
 	const bool bTerrain = FPaths::FileExists(Layer);
 	double Ground = -1.0;
 	{
