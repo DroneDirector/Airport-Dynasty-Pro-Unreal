@@ -13,6 +13,18 @@
 class UStaticMesh;
 class UTextRenderComponent;
 
+/** One lift: where it stands (plan metres, its doors' facing), its two stops and the top of its shaft (metres), its
+ *  sizes (the shaft's outer half width, the car's half width, a door leaf's width), its speed and what its stops are
+ *  called. The terminal's lifts use the defaults; the control tower's runs from its ground floor to its lift lobby. */
+struct FLiftSpec
+{
+	FPlanPoint P;
+	float Lo = 0, Hi = 6, Top = 11.4f;
+	float Out = 1.06f, Car = 0.84f, Door = 0.5f, Speed = 1.1f;
+	FString Names[2] = { TEXT("1"), TEXT("2") };
+	FString Sign;   // over the landing doors (default: "<id> · LIFT")
+};
+
 UCLASS()
 class AIRPORTDYNASTYPRO_API ATerminalLifts : public AActor
 {
@@ -23,6 +35,8 @@ public:
 
 	/** Builds every lift of the plan. */
 	void Build(const FTerminalPlan& Plan);
+	/** Builds one lift (the control tower's, or any other); returns its car (it rides up and down). */
+	USceneComponent* AddLift(const FLiftSpec& Spec);
 
 	virtual void Tick(float DeltaSeconds) override;
 
@@ -31,7 +45,7 @@ private:
 	struct FDoorPair { USceneComponent* A = nullptr; USceneComponent* B = nullptr; };
 	struct FLift
 	{
-		FPlanPoint P;
+		FLiftSpec S;
 		USceneComponent* Car = nullptr;
 		UTextRenderComponent* Display = nullptr;
 		TArray<FDoorPair> Landing;   // one pair on each floor
@@ -43,7 +57,6 @@ private:
 		FString Shown;
 	};
 	TArray<FLift> Lifts;
-	float F2Y = 6, F2Ceil = 11.4f;
 	#pragma endregion
 
 	#pragma region Parts
@@ -53,6 +66,7 @@ private:
 	UTextRenderComponent* Words(USceneComponent* Parent, const FString& Text, float X, float Y, float Z, float Size, FColor Colour);
 	void SetDoors(FLift& L);
 	void ShowFloor(FLift& L);
+	static bool Upper(const FLift& L, float Y) { return Y > (L.S.Lo + L.S.Hi) / 2; }
 	#pragma endregion
 
 	UPROPERTY() TObjectPtr<USceneComponent> Root;

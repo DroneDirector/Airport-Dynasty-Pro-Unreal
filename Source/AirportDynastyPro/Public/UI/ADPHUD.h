@@ -85,6 +85,9 @@ public:
 	void GoGate4();
 	void GoApron();
 	void GoEntrance();
+	void GoTowerCab();
+	void GoTowerBalcony();
+	void GoTowerFoot();
 	/** From the menus: the business lounge (the Babylon edition's, placed apart from the airport, lit as there). */
 	void OpenLounge();
 	/** The menus are in front (the gamepad then works them). */

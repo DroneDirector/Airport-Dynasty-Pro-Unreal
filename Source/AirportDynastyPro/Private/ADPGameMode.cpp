@@ -18,6 +18,7 @@
 #include "Globe.h"
 #include "PhotoTour.h"
 #include "BabylonModel.h"
+#include "TowerADC.h"
 #include "Misc/Paths.h"
 #include "Components/VolumetricCloudComponent.h"
 #include "Engine/World.h"
@@ -76,6 +77,8 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 			if (ATerminalScreens* Screens = W->SpawnActor<ATerminalScreens>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 				Screens->Build(Plan);
 		}
+		// the control tower (ADC) at site A, west of the pier: walked into, its lift, doors and desk flap moving
+		if (ATowerADC* Tower = W->SpawnActor<ATowerADC>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Tower->Build();
 		// the airfield round the terminal, and its traffic
 		if (AAirfield* Field = W->SpawnActor<AAirfield>(FVector::ZeroVector, FRotator::ZeroRotator, P); Field && Field->Build(bBabylon))
 		{

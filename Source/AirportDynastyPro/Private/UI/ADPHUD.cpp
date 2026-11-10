@@ -1,6 +1,7 @@
 // The walking-mode interface: the holographic map, the top-left bar, Hide UI, the settings panel and the performance
 // overlay, all in Slate, styled in the Android edition's holographic blues.
 #include "UI/ADPHUD.h"
+#include "TowerADC.h"
 #include "UI/SHoloMap.h"
 #include "UI/GameView.h"
 #include "UI/ADPBridge.h"
@@ -207,6 +208,10 @@ void AADPHUD::BeginPlay()
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)[Button(TEXT("GATE 4 (UPPER FLOOR)"), [this]() { GoGate4(); })]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)[Button(TEXT("APRON: THE TERMINAL AND JETWAY"), [this]() { GoApron(); })]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)[Button(TEXT("MAIN ENTRANCE"), [this]() { GoEntrance(); })]
+					// the control tower's three
+					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)[Button(TEXT("TOWER: THE CAB"), [this]() { GoTowerCab(); })]
+					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)[Button(TEXT("TOWER: THE BALCONY"), [this]() { GoTowerBalcony(); })]
+					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)[Button(TEXT("TOWER: OUTSIDE, AT ITS DOOR"), [this]() { GoTowerFoot(); })]
 					+ SVerticalBox::Slot().AutoHeight()
 					[
 						SNew(SBox).Visibility_Lambda([this]() { return HoloMap.IsValid() && HoloMap->HasRoute() ? EVisibility::Visible : EVisibility::Collapsed; })
@@ -959,6 +964,12 @@ void AADPHUD::GoGate4() { GoTo(FVector(186.f, Plan.F2Y, 69.6f), FVector(186.f, P
 void AADPHUD::GoApron() { GoTo(FVector(236.f, 0.f, 168.f), FVector(184.f, 5.f, 84.f)); }
 // in front of the main entrance to the hall, at the kerb under the wave roof
 void AADPHUD::GoEntrance() { GoTo(FVector(79.f, 0.f, -14.f), FVector(79.f, 1.7f, 10.f)); }
+// the control tower (TowerADC): in the cab between the stair and the desks, looking out over the apron
+void AADPHUD::GoTowerCab() { GoTo(FVector(ATowerADC::AtX + 2.9f, ATowerADC::CabY, ATowerADC::AtZ - 0.9f), FVector(ATowerADC::AtX + 60.f, ATowerADC::CabY + 1.6f, ATowerADC::AtZ + 4.f)); }
+// on the balcony (the walkway round the cab), looking out east over the apron
+void AADPHUD::GoTowerBalcony() { GoTo(FVector(ATowerADC::AtX + 6.4f, ATowerADC::CabY - 0.05f, ATowerADC::AtZ - 2.f), FVector(ATowerADC::AtX + 80.f, ATowerADC::CabY, ATowerADC::AtZ - 10.f)); }
+// on the ground outside the tower's entrance, looking up at it
+void AADPHUD::GoTowerFoot() { GoTo(FVector(ATowerADC::AtX - 14.f, 0.f, ATowerADC::AtZ + 3.f), FVector(ATowerADC::AtX, 14.f, ATowerADC::AtZ)); }
 
 void AADPHUD::OnGameState(const FString& Json)
 {

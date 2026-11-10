@@ -3,7 +3,7 @@
 Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md (where everything is) first.
 
 ## Android version (Babylon edition, `Airline-Manager-Pro-Babylon/`)
-- Last release: 0.4.6 (walk anywhere in the world, vegetation and ground detail, rain/snow curtains, VIP charter flights,
+- Last release: 0.4.7 (the control tower at site A in airport mode, quick places in the full-screen map). Note: 0.4.7 bumped only `app.config.json`; `game/app.config.json` still says 0.4.6/114, so bump both to the next version together. Before it, 0.4.6 (walk anywhere in the world, vegetation and ground detail, rain/snow curtains, VIP charter flights,
   ATC radio, own SIDs/STARs for BIAP, the clickable sky map, terrain-aware AI aircraft). 0.4.6 was published without a
   final error check.
 - Release flow: bump `app.config.json` and `game/app.config.json` (version and versionCode), add `release-notes/X.md`,
@@ -77,8 +77,9 @@ Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md
   (plan x -205, y 120, west of the pier), built with the terminal in airport mode: walk-in entrance, a lift from the
   ground to the lift lobby (+13.5 m), spiral stair to the cab (+17.6 m), balcony door with a lift-up desk flap, three
   quick spots (cab, balcony, foot) in the full-screen holographic map. The placeholder tower in `site/index.ts` is gone.
-- For Unreal: re-export the Babylon model (`Tools/BabylonExport`) and re-import it so the tower is in the PC terminal;
-  its doors, flap and lift then need the same behaviour as `TerminalLifts`/`TerminalDoors`.
+- In Unreal it is built natively, not exported: `TowerADC` (same sizes and place, collision, moving doors, flap and its
+  lift through `ATerminalLifts::AddLift`), spawned by `ADPGameMode`; the full map's shortcuts have TOWER: THE CAB,
+  THE BALCONY and OUTSIDE, AT ITS DOOR (PC 0.13.2). It is not in the Babylon export, so it is not doubled.
 
 ## Now: the interface (owner, 2026-11-09) - see ROADMAP.md "NOW, main priority"
 The terminal model rests (it's in and textured). Next: the PC version starts on the Android edition's own title screen
