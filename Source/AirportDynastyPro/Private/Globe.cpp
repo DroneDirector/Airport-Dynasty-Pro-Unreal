@@ -63,6 +63,11 @@ void AGlobe::Build(const FAirfieldData& F)
 	ACesium3DTileset* Tiles = W->SpawnActor<ACesium3DTileset>(FVector::ZeroVector, FRotator::ZeroRotator, P);
 	if (!Tiles) return;
 	Tiles->SetGeoreference(G);
+	// the ground all round you loaded (not only what the camera faces), so it is solid to stand and walk on everywhere,
+	// and the grass finds it behind you too; tiles away from the view are kept at a coarser detail
+	Tiles->EnableFrustumCulling = false;
+	Tiles->EnforceCulledScreenSpaceError = true;
+	Tiles->CulledScreenSpaceError = 64.0;
 	if (bTerrain && Ground >= 0)
 	{
 		Tiles->SetTilesetSource(ETilesetSource::FromUrl);

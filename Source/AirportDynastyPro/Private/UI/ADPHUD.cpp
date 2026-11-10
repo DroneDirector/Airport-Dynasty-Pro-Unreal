@@ -1363,6 +1363,34 @@ void AADPHUD::Tick(float Dt)
 			for (const FStep& St : MastSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
 		}
+		// -UIGround: standing on the real ground round the airport (beyond the airfield): grass where the land cover is grassy
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIGround")))
+		{
+			static TWeakObjectPtr<ACameraActor> GCam;
+			auto Stand = [this](float X, float Y, float Yaw)
+			{
+				APawn* P = GetOwningPawn();
+				if (!P) return;
+				FHitResult Hit; FCollisionQueryParams Q(SCENE_QUERY_STAT(ADPGround), true, P);
+				FVector At(X * 100.f, Y * 100.f, 0.f);
+				if (GetWorld()->LineTraceSingleByChannel(Hit, At + FVector(0, 0, 60000.f), At - FVector(0, 0, 60000.f), ECC_Visibility, Q)) At = Hit.ImpactPoint;
+				P->SetActorLocation(At + FVector(0, 0, P->GetSimpleCollisionHalfHeight() + 20.f), false, nullptr, ETeleportType::TeleportPhysics);
+				if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(FRotator(-8.f, Yaw, 0.f));
+				UE_LOG(LogTemp, Log, TEXT("GROUNDTEST at %.0f %.0f ground %.1f m hit %s"), X, Y, At.Z / 100.f, Hit.GetActor() ? *Hit.GetActor()->GetClass()->GetName() : TEXT("nothing"));
+			};
+			struct FStep { float At; TFunction<void()> Do; };
+			const FStep GroundSteps[] = {
+				{44.f, [&]() { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 14.f; ASunClock::Theme = 1; ASunClock::Refresh(); Stand(1200.f, 0.f, 0.f); }},
+				{60.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Ground_1"), false, false); }},
+				{61.f, [&]() { Stand(0.f, 1500.f, 90.f); }},
+				{77.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Ground_2"), false, false); }},
+				{78.f, [&]() { Stand(0.f, -1500.f, 270.f); }},
+				{94.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Ground_3"), false, false); }},
+				{96.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+			};
+			for (const FStep& St : GroundSteps)
+				if (Before < St.At && ShotClock >= St.At) St.Do();
+		}
 		// -UIWorld: the world from the air: the land cover on this PC (ESA WorldCover), then the satellite pictures,
 		// from 1.5 km, 8 km and 60 km above the airport, looking out over the land
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIWorld")))
@@ -1437,7 +1465,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

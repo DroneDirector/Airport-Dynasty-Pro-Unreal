@@ -1,5 +1,8 @@
 // The grass round the airport (see GrassField.h).
 #include "GrassField.h"
+#include "LandCover.h"
+#include "Cesium3DTileset.h"
+#include "CesiumGeoreference.h"
 #include "TerminalPlan.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -24,7 +27,14 @@ namespace
 		if (!C || H.ImpactNormal.Z < 0.85f) return false;
 		if (C->GetFName() == TEXT("grass")) return true;
 		if (const UStaticMeshComponent* S = Cast<UStaticMeshComponent>(C))
-			if (const UStaticMesh* M = S->GetStaticMesh()) return M->GetName() == TEXT("terminal_mesh_2611");
+			if (const UStaticMesh* M = S->GetStaticMesh()) if (M->GetName() == TEXT("terminal_mesh_2611")) return true;
+		// the real ground (the globe's terrain): grass where the land cover says the land is grassy
+		if (C->GetOwner() && C->GetOwner()->IsA<ACesium3DTileset>())
+			if (ACesiumGeoreference* G = ACesiumGeoreference::GetDefaultGeoreference(C->GetWorld()))
+			{
+				const FVector LL = G->TransformUnrealPositionToLongitudeLatitudeHeight(H.ImpactPoint);
+				return ADPLandCover::Grows(ADPLandCover::ClassAt(LL.X, LL.Y));
+			}
 		return false;
 	}
 }
@@ -53,7 +63,7 @@ void AGrassField::Start(float X0, float Y0, float X1, float Y1)
 bool AGrassField::GroundAt(float X, float Y, float& Z) const
 {
 	FHitResult H;
-	FCollisionQueryParams Q(SCENE_QUERY_STAT(GrassLook), false, this);
+	FCollisionQueryParams Q(SCENE_QUERY_STAT(GrassLook), true, this);   // complex: the globe's terrain has only its own shape to hit
 	if (!GetWorld()->LineTraceSingleByChannel(H, FVector(X, Y, 30000.f), FVector(X, Y, -5000.f), ECC_Visibility, Q) || !IsGrass(H)) return false;
 	Z = H.ImpactPoint.Z;
 	return true;
@@ -170,7 +180,6 @@ void AGrassField::Tick(float Dt)
 				const FVector2D Mid2((C.X + 0.5f) * Cell, (C.Y + 0.5f) * Cell);
 				const float D = FVector2D::Distance(Mid2, FVector2D(L));
 				if (D > Reach + Cell * 0.7f || Cells.Contains(C)) continue;
-				if (!Field.ExpandBy(Cell).IsInside(Mid2) && !Patches.Contains(C) && D > 6000.f) continue;   // nothing out there but the globe
 				if (D < Best) { Best = D; Out = C; }
 			}
 		return Best < TNumericLimits<float>::Max();
