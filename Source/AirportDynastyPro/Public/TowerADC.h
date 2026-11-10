@@ -29,8 +29,10 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 
 	/** Where it stands (plan metres) and its levels (metres), as in tower.ts TOWER_AT / TOWER. */
-	static constexpr float AtX = -205.f, AtZ = 120.f;
-	static constexpr float CabY = 17.6f, LobbyY = 13.5f;
+	static const float AtX;
+	static const float AtZ;
+	static const float CabY;
+	static const float LobbyY;
 
 private:
 	#pragma region Mesh building
@@ -63,7 +65,7 @@ private:
 	USceneComponent* Node(USceneComponent* Parent, const FVector& At, const FRotator& Rot, const FName Name = NAME_None);
 	#pragma endregion
 
-	#pragma region The tower's parts
+	#pragma region The tower parts
 	void BuildFoot();
 	void BuildShaftAndLobby();
 	void BuildStair();

@@ -35,6 +35,12 @@ namespace
 
 #pragma region Setup
 
+// where it stands and its levels (plan metres; tower.ts TOWER_AT / TOWER)
+const float ATowerADC::AtX = -205.f;
+const float ATowerADC::AtZ = 120.f;
+const float ATowerADC::CabY = 17.6f;
+const float ATowerADC::LobbyY = 13.5f;
+
 ATowerADC::ATowerADC()
 {
 	PrimaryActorTick.bCanEverTick = true;

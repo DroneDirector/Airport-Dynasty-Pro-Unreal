@@ -365,11 +365,11 @@ void AADPHUD::RunCalls()
 	else if (T >= NextInfoAt)
 	{
 		NextInfoAt = T + FMath::FRandRange(30.f, 60.f) * 60.f;
-		const int32 Turn = InfoTurn++;
+		const int32 NoticeTurn = InfoTurn++;
 		// a passenger with plenty of time: their flight leaves an hour or more from now
 		FString Place;
 		for (const TPair<FString, FDeparture>& It : Departures) { const float L = FMath::Fmod(It.Value.Exp - NowMin + 2160.f, 1440.f) - 720.f; if (L >= 60.f) { Place = It.Value.Place; break; } }
-		if (Turn % 2 == 0)
+		if (NoticeTurn % 2 == 0)
 		{
 			const FString Name = PassengerName(GetTypeHash(Now.ToString()) ^ 0x5bd1e995u);
 			Announce(Place.IsEmpty()
@@ -385,7 +385,7 @@ void AADPHUD::RunCalls()
 				TEXT("A black wallet has been handed in near the check-in desks. Would the owner please contact the information desk in the main hall."),
 				TEXT("Please keep your personal belongings with you at all times, and report any suspicious items to airport staff."),
 			};
-			Announce(Notices[(Turn / 2) % UE_ARRAY_COUNT(Notices)], 3);
+			Announce(Notices[(NoticeTurn / 2) % UE_ARRAY_COUNT(Notices)], 3);
 		}
 	}
 	for (TPair<FString, FDeparture>& It : Departures)
