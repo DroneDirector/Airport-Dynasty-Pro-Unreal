@@ -278,61 +278,15 @@ void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, c
 		return B;
 	};
 	UInstancedStaticMeshComponent* WalkLamps = nullptr;   // the walkway's strips (made when the first is met)
-	UInstancedStaticMeshComponent* RoundLamps = nullptr;  // the hall's downlights inside
 	TMap<FIntPoint, UInstancedStaticMeshComponent*> LampPanels;   // the rooms' lamps, one list per size
 	for (int32 I = 0; I < Nodes.Num(); ++I)
 	{
 		const FString N = NameOf(I);
-		const TArray<TSharedPtr<FJsonValue>>* TrA = nullptr;
-		const bool bOutside = Nodes[I]->AsObject()->TryGetArrayField(TEXT("translation"), TrA) && TrA->Num() == 3 && (*TrA)[2]->AsNumber() < 0.0;
-		if (N.Contains(TEXT("DOWNLIGHT")) && !bOutside)
+		if (N.Contains(TEXT("DOWNLIGHT")))
 		{
-			// inside the hall (owner, 2026-11-09): no spot, no glow orb: the fitting's face is the lamp (the walkway
-			// lamps' diffuser, round) and it lights the hall evenly, as a panel does
-			const TArray<TSharedPtr<FJsonValue>>* Kids = nullptr;
-			FVector At = NodeWorld[I].GetLocation() - FVector(0, 0, 3.f);
-			float Size = 36.f;
-			if (Nodes[I]->AsObject()->TryGetArrayField(TEXT("children"), Kids))
-				for (const TSharedPtr<FJsonValue>& KV : *Kids)
-				{
-					const int32 C = int32(KV->AsNumber());
-					if (!NodeInst.IsValidIndex(C) || !NodeInst[C].Key) continue;
-					if (!RoundLamps) RoundLamps = Panels(1.8f, 1.2f, 0.12f, 0.88f, 1.f);
-					const FBox B = PanelUnder(RoundLamps, C);
-					At = FVector(B.GetCenter().X, B.GetCenter().Y, B.Min.Z - 1.f);
-					Size = 2.f * FMath::Min(B.GetExtent().X, B.GetExtent().Y);
-				}
-			URectLightComponent* L = NewObject<URectLightComponent>(this);
-			L->SetRelativeRotation(FRotator(-90.f, 0, 0));
-			L->SetSourceWidth(Size);
-			L->SetSourceHeight(Size);
-			L->SetBarnDoorAngle(88.f);
-			Add(L, At, 750.f, 2600.f, Warm);
-			// the soft fill from below that keeps the timber between the fittings lit (no visible glow of its own)
-			UPointLightComponent* Fill = NewObject<UPointLightComponent>(this);
-			Fill->SetSourceRadius(80.f);
-			Fill->SetSoftSourceRadius(150.f);
-			Add(Fill, NodeWorld[I].GetLocation() - FVector(0, 0, 180.f), 55.f, 900.f, Warm);
-			++Spots;
-		}
-		else if (N.Contains(TEXT("DOWNLIGHT")))
-		{
-			// outside, under the roof over the kerb: spotlights, as they were
-			USpotLightComponent* S = NewObject<USpotLightComponent>(this);
-			S->SetRelativeRotation(FRotator(-90.f, 0, 0));
-			S->SetInnerConeAngle(20.f);
-			S->SetOuterConeAngle(42.f);
-			Add(S, NodeWorld[I].GetLocation() - FVector(0, 0, 10.f), 900.f, 2600.f, Warm);
-			// and its spill: a soft glow just under the roof, so the timber ceiling round each downlight is lit as in life
-			UPointLightComponent* Spill = NewObject<UPointLightComponent>(this);
-			Spill->SetSourceRadius(12.f);
-			// a small warm glow centred right on the fitting (owner, 2026-11-09: no big blobs, 20% darker than before) ...
-			Add(Spill, NodeWorld[I].GetLocation() - FVector(0, 0, 25.f), 18.f, 180.f, Warm);
-			// ... and a soft fill from straight below it, so the timber between the fittings is lit, not black
-			UPointLightComponent* Fill = NewObject<UPointLightComponent>(this);
-			Fill->SetSourceRadius(80.f);
-			Fill->SetSoftSourceRadius(150.f);
-			Add(Fill, NodeWorld[I].GetLocation() - FVector(0, 0, 180.f), 55.f, 900.f, Warm);
+			// the round downlights under the wave roof, inside and out: as the car rental canopy's (owner, 2026-11-10)
+			// the fitting itself glows (its lamp material, with the bloom round it) and that is all: no spot, no pool of
+			// light on the roof or the floor, no glow blob
 			++Spots;
 		}
 		else if (N.Contains(TEXT("/LAMP-")))
