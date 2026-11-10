@@ -16,7 +16,7 @@
 namespace
 {
 	/** The globe's own georeference (Globe.cpp spawns it); Cesium's "default" one is another, at 0 N 0 E. */
-	ACesiumGeoreference* ADPGlobeGeo(UWorld* W)
+	ACesiumGeoreference* WalkGlobeGeo(UWorld* W)
 	{
 		if (W) for (TActorIterator<ACesiumGeoreference> It(W); It; ++It) if (!It->GetName().Contains(TEXT("Default"))) return *It;
 		return nullptr;
@@ -46,7 +46,7 @@ bool AWalkAnywhere::Away() { return One.IsValid() && One->bAway; }
 FString AWalkAnywhere::Status()
 {
 	if (!Away()) return TEXT("At the airport.");
-	return One->bPlaced ? TEXT("Standing at ") + One->Where + TEXT(".") : TEXT("Going to ") + One->Where + TEXT(": finding the ground…");
+	return One->bPlaced ? TEXT("Standing at ") + One->Where + TEXT(".") : TEXT("Going to ") + One->Where + TEXT(": loading the ground…");
 }
 
 void AWalkAnywhere::SetAirport(bool bShow)
@@ -79,7 +79,7 @@ void AWalkAnywhere::Go(UWorld* W, double Lon, double Lat, const FString& Name)
 	if (!W) return;
 	if (!One.IsValid()) One = W->SpawnActor<AWalkAnywhere>();
 	AWalkAnywhere* Me = One.Get();
-	ACesiumGeoreference* G = ADPGlobeGeo(W);
+	ACesiumGeoreference* G = WalkGlobeGeo(W);
 	APlayerController* PC = W->GetFirstPlayerController();
 	if (!Me || !G || !PC || !PC->GetPawn()) return;
 	if (!Me->bAway)
@@ -115,7 +115,7 @@ void AWalkAnywhere::Back(UWorld* W)
 {
 	AWalkAnywhere* Me = One.Get();
 	if (!Me || !Me->bAway) return;
-	if (ACesiumGeoreference* G = ADPGlobeGeo(W)) G->SetOriginLongitudeLatitudeHeight(Me->OldOrigin);
+	if (ACesiumGeoreference* G = WalkGlobeGeo(W)) G->SetOriginLongitudeLatitudeHeight(Me->OldOrigin);
 	Me->SetAirport(true);
 	if (APlayerController* PC = W->GetFirstPlayerController())
 		if (APawn* P = PC->GetPawn()) { P->SetActorLocation(Me->OldPawn, false, nullptr, ETeleportType::TeleportPhysics); P->EnableInput(PC); }
@@ -139,8 +139,11 @@ void AWalkAnywhere::Tick(float Dt)
 		UE_LOG(LogTemp, Log, TEXT("Walk anywhere: %.0f s, looking down finds %s at %.0f m; you at %.0f m"), Wait, bHit && Hit.GetActor() ? *Hit.GetActor()->GetName() : TEXT("nothing"), Hit.ImpactPoint.Z / 100.f, P->GetActorLocation().Z / 100.f);
 	if (bHit && Hit.GetActor() && Hit.GetActor()->IsA<ACesium3DTileset>())
 	{
-		// a moment more for the finer tiles to come in, then down onto them
-		if (Wait < 4.f) return;
+		// a moment more for the finer tiles to come in: wait until the terrain's tiles round here are all in (sharp
+		// ground, no blur when you land), at most 40 seconds
+		float Progress = 100.f;
+		for (TActorIterator<ACesium3DTileset> It(GetWorld()); It; ++It) Progress = FMath::Min(Progress, It->GetLoadProgress());
+		if (Wait < 4.f || (Progress < 99.f && Wait < 40.f)) return;
 		P->SetActorLocation(Hit.ImpactPoint + FVector(0, 0, P->GetSimpleCollisionHalfHeight() + 30.f), false, nullptr, ETeleportType::TeleportPhysics);
 		P->EnableInput(PC);
 		bPlaced = true;

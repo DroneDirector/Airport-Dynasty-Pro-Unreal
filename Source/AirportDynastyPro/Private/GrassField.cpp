@@ -15,7 +15,7 @@
 namespace
 {
 	/** The globe's own georeference (Globe.cpp spawns it); Cesium's "default" one is another, at 0 N 0 E. */
-	ACesiumGeoreference* ADPGlobeGeo(UWorld* W)
+	ACesiumGeoreference* GrassGlobeGeo(UWorld* W)
 	{
 		if (W) for (TActorIterator<ACesiumGeoreference> It(W); It; ++It) if (!It->GetName().Contains(TEXT("Default"))) return *It;
 		return nullptr;
@@ -42,7 +42,7 @@ namespace
 			if (const UStaticMesh* M = S->GetStaticMesh()) if (M->GetName() == TEXT("terminal_mesh_2611")) return true;
 		// the real ground (the globe's terrain): grass where the land cover says the land is grassy
 		if (C->GetOwner() && C->GetOwner()->IsA<ACesium3DTileset>())
-			if (ACesiumGeoreference* G = ADPGlobeGeo(C->GetWorld()))
+			if (ACesiumGeoreference* G = GrassGlobeGeo(C->GetWorld()))
 			{
 				const FVector LL = G->TransformUnrealPositionToLongitudeLatitudeHeight(H.ImpactPoint);
 				return ADPLandCover::Grows(ADPLandCover::ClassAt(LL.X, LL.Y));
