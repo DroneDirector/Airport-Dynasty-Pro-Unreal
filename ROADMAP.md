@@ -99,7 +99,7 @@ The 3D parts (animations, people, the model's further work) wait; the interface 
       so every area of the terminal can be reached; then the jetways moving, if it can be done the same way
 - [x] First start: the PC scan only SUGGESTS a quality (Yes / No), never sets it by itself
 - [x] AMD's FSR frame generation in Settings → Graphics (0.12.0)
-- [ ] Our own frame generation, from scratch (its own batch, after the performance pass)
+- [x] Our own frame generation, from scratch (0.13.1, Plugins/ADPFrameGen)
 - [x] With frame generation: an option in Settings for a small frame-rate box, which can be dragged anywhere
 - [x] The middle mouse button frees the pointer (click, drag boxes about) and gives the view back (walking and the
       3D viewer alike)
@@ -198,7 +198,7 @@ The 3D parts (animations, people, the model's further work) wait; the interface 
 ## Done in 0.13.0 (owner, 2026-11-10)
 - [x] Dense grass: real 3D blades from your feet to the horizon over the whole airfield (Nanite, three layers), a Settings slider and on/off
 - [x] The car parks in the road's asphalt
-- [ ] NEXT, its own release: our own frame generation, made for NVIDIA cards first (the owner's RTX 3070 Ti 8 GB)
+- [x] 0.13.1, its own release: our own frame generation (Plugins/ADPFrameGen: a display chain of our own, motion found on the graphics card from the two pictures, the in-between frame shown half-way), made for NVIDIA cards first (the owner's RTX 3070 Ti 8 GB); Settings switch, needs a restart, off by default
 
 ## Later
 - MetaHuman people, and your own body in walking mode everywhere

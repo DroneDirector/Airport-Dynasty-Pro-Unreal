@@ -30,6 +30,7 @@
 #include "Widgets/Input/SSlider.h"
 #include "GrassField.h"
 #include "FlightViewer.h"
+#include "ADPFrameGen.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "RHI.h"
@@ -259,7 +260,7 @@ void AADPHUD::BeginPlay()
 				.Cursor(EMouseCursor::GrabHand)
 				[
 					SNew(STextBlock).Font(Font(11)).ColorAndOpacity(Ink)
-					.Text_Lambda([this]() { return FText::FromString(bFrameGen ? FString::Printf(TEXT("%d FPS with frame generation  ·  %d rendered"), FMath::RoundToInt(FpsSmooth * 2), FMath::RoundToInt(FpsSmooth)) : FString::Printf(TEXT("%d FPS  ·  %.1f ms"), FMath::RoundToInt(FpsSmooth), 1000.f / FMath::Max(1.f, FpsSmooth))); })
+					.Text_Lambda([this]() { const int32 Mul = ADPFrameGen::Enabled() ? ADPFrameGen::Multiplier() : (bFrameGen ? 2 : 1); return FText::FromString(Mul > 1 ? FString::Printf(TEXT("%d FPS with frame generation  ·  %d rendered"), FMath::RoundToInt(FpsSmooth * Mul), FMath::RoundToInt(FpsSmooth)) : FString::Printf(TEXT("%d FPS  ·  %.1f ms"), FMath::RoundToInt(FpsSmooth), 1000.f / FMath::Max(1.f, FpsSmooth))); })
 				]
 			]
 		]
@@ -588,6 +589,16 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 						.OnClicked_Lambda([this]() { SetFrameGen(!bFrameGen); return FReply::Handled(); })
 						[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([this]() { return FText::FromString(bFrameGen ? TEXT("FRAME GENERATION (AMD FSR): ON") : TEXT("FRAME GENERATION (AMD FSR): OFF")); })]
 					]
+					+ SWrapBox::Slot()
+					[
+						// the game's own frame generation (made for NVIDIA cards first): takes effect at the next start
+						SNew(SButton)
+						.ButtonColorAndOpacity_Lambda([]() { bool b = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("OwnFrameGen"), b, GGameUserSettingsIni); return b ? FLinearColor(0.1f, 0.45f, 0.75f, 1.f) : FLinearColor(0.05f, 0.2f, 0.36f, 0.9f); })
+						.ContentPadding(FMargin(10, 4))
+						.OnClicked_Lambda([this]() { bool b = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("OwnFrameGen"), b, GGameUserSettingsIni); b = !b; GConfig->SetBool(TEXT("ADP.Graphics"), TEXT("OwnFrameGen"), b, GGameUserSettingsIni); if (b && bFrameGen) SetFrameGen(false); GConfig->Flush(false, GGameUserSettingsIni); return FReply::Handled(); })
+						[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { bool b = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("OwnFrameGen"), b, GGameUserSettingsIni);
+							return FText::FromString(b == ADPFrameGen::Enabled() ? (b ? TEXT("OUR FRAME GENERATION: ON") : TEXT("OUR FRAME GENERATION: OFF")) : (b ? TEXT("OUR FRAME GENERATION: ON AT NEXT START") : TEXT("OUR FRAME GENERATION: OFF AT NEXT START"))); })]
+					]
 					+ SWrapBox::Slot()[Button(TEXT("FRAME-RATE BOX"), [this]() { bFpsBox = !bFpsBox; GConfig->SetBool(TEXT("ADP.Boxes"), TEXT("FrameRateOn"), bFpsBox, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); })]
 					+ SWrapBox::Slot()[Button(TEXT("SCAN MY PC"), []() { if (UGameUserSettings* S = Prefs()) { S->RunHardwareBenchmark(); S->ApplyHardwareBenchmarkResults(); Save(S); } })]
 					+ SWrapBox::Slot()[Button(TEXT("PROBLEM LOG"), []() { FPlatformProcess::ExploreFolder(*(FPaths::ProjectLogDir() / TEXT("Problems.log"))); })]
@@ -756,6 +767,7 @@ void AADPHUD::SetBlur(int32 Level)
 
 void AADPHUD::SetFrameGen(bool bOn)
 {
+	if (ADPFrameGen::Enabled()) bOn = false;   // our own frame generation runs: AMD's stays off (one at a time)
 	bFrameGen = bOn;
 	if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("r.FidelityFX.FI.Enabled"))) V->Set(bOn ? 1 : 0, ECVF_SetByGameSetting);
 	GConfig->SetBool(TEXT("ADP.Graphics"), TEXT("FrameGeneration"), bOn, GGameUserSettingsIni);

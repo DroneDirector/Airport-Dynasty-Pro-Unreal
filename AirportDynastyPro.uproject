@@ -27,6 +27,7 @@
 		{ "Name": "RawInput", "Enabled": true },
 		{ "Name": "FSR", "Enabled": true },
 		{ "Name": "NNERuntimeORT", "Enabled": true },
-		{ "Name": "ProceduralMeshComponent", "Enabled": true }
+		{ "Name": "ProceduralMeshComponent", "Enabled": true },
+		{ "Name": "ADPFrameGen", "Enabled": true }
 	]
 }
