@@ -52,6 +52,11 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       short loading note, or wait for the sharp tiles before putting you down)
 
 ## 3. The airport and buildings
+- [ ] **Terminal far too bright seen from the apron** (owner, 2026-11-10): standing on the apron looking at the passenger
+      terminal (with the light masts lit), the building is washed out white. Bring its brightness down to about 25% of
+      now (what lights it from outside: the masts' beams on its face, its glowing windows and lamps, the auto-exposure
+      when you stand in the dark) and the light masts' own light to about 30% of now; check by day too, and that the
+      ground stays readable
 - [ ] **ATC tower entrance canopy lights** (owner, 2026-11-10): five or six small recessed spotlights in the underside of
       the little roof over the tower's main entrance, lighting the doorway and the ground round it; on at night (the
       same sensor as the masts and the balcony lights)
