@@ -162,9 +162,11 @@ void AADPHUD::BeginPlay()
 		Indoor->Priority = 5.f;
 		Indoor->BlendWeight = 0.f;
 		FPostProcessSettings& S = Indoor->Settings;
-		S.bOverride_LumenSkylightLeaking = true; S.LumenSkylightLeaking = 0.25f;
-		S.bOverride_IndirectLightingIntensity = true; S.IndirectLightingIntensity = 1.6f;
-		S.bOverride_AmbientOcclusionIntensity = true; S.AmbientOcclusionIntensity = 0.25f;
+		// (2026-11-10: less washed out in the gates: a little less lift and leak, more contact shading)
+		S.bOverride_LumenSkylightLeaking = true; S.LumenSkylightLeaking = 0.12f;
+		S.bOverride_IndirectLightingIntensity = true; S.IndirectLightingIntensity = 1.25f;
+		S.bOverride_AmbientOcclusionIntensity = true; S.AmbientOcclusionIntensity = 0.5f;
+		S.bOverride_AutoExposureBias = true; S.AutoExposureBias = -0.5f;   // indoors a little less bright overall
 	}
 	GConfig->GetBool(TEXT("ADP.Boxes"), TEXT("FrameRateOn"), bFpsBox, GGameUserSettingsIni);
 	{ bool bFG = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("FrameGeneration"), bFG, GGameUserSettingsIni); SetFrameGen(bFG); }

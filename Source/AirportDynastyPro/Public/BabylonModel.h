@@ -68,6 +68,10 @@ private:
 	void LampsByDaylight();
 	/** Whites as real paint, strong non-lamp glows halved (Unreal lights them far more than Babylon did). */
 	void ToneDown();
+	/** The gates' (and every other) row of seats: the Babylon boxes hidden, our detailed Nanite seating in their place
+	 *  (Tools/make_gate_seat.py: a seat per place on the beam, X-legs with armrests at the ends and every third seat,
+	 *  armrests between the others). */
+	void ReplaceSeats(const TArray<TSharedPtr<FJsonValue>>& Nodes, const TArray<FTransform>& NodeWorld, const TArray<TPair<UInstancedStaticMeshComponent*, int32>>& NodeInst);
 	void LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, const TArray<FTransform>& NodeWorld, const TArray<TPair<UInstancedStaticMeshComponent*, int32>>& NodeInst);
 	#pragma endregion
 };

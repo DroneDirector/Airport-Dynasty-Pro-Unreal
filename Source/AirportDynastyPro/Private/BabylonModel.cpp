@@ -177,6 +177,7 @@ bool ABabylonModel::Place(const FString& Name)
 		}
 		UE_LOG(LogTemp, Log, TEXT("Babylon model %s: %d gate screens"), *Name, GateScreens.Num());
 		LightFittings(Nodes, NodeWorld, NodeInst);
+		ReplaceSeats(Nodes, NodeWorld, NodeInst);
 	}
 	ToneDown();
 	return Placed > 0;
@@ -274,6 +275,102 @@ void ABabylonModel::AddLights(const FString& Name)
 		if (LN.StartsWith(TEXT("fire"))) { FireLights.Add(P); FireBase.Add(Strength * 7.0); if (LN == TEXT("fireL")) { AddFire(ToModel(*Pos) * 100.0); DeepenFireplace(0.6f); } }
 	}
 	UE_LOG(LogTemp, Log, TEXT("Babylon model %s: %d lights"), *Name, Made);
+}
+
+void ABabylonModel::ReplaceSeats(const TArray<TSharedPtr<FJsonValue>>& Nodes, const TArray<FTransform>& NodeWorld, const TArray<TPair<UInstancedStaticMeshComponent*, int32>>& NodeInst)
+{
+	const TCHAR* Dir = TEXT("/Game/Babylon/GateSeat/gateseat/StaticMeshes/");
+	UStaticMesh* SeatM = LoadObject<UStaticMesh>(nullptr, *FString::Printf(TEXT("%sSeatModule.SeatModule"), Dir));
+	UStaticMesh* LegM = LoadObject<UStaticMesh>(nullptr, *FString::Printf(TEXT("%sLegModule.LegModule"), Dir));
+	UStaticMesh* ArmM = LoadObject<UStaticMesh>(nullptr, *FString::Printf(TEXT("%sArmModule.ArmModule"), Dir));
+	if (!SeatM || !LegM || !ArmM) { UE_LOG(LogTemp, Warning, TEXT("Seats: the new seating isn't imported")); return; }
+	auto Kit = [this](UStaticMesh* M)
+	{
+		UInstancedStaticMeshComponent* K = NewObject<UInstancedStaticMeshComponent>(this);
+		K->SetupAttachment(Root);
+		K->SetStaticMesh(M);
+		K->SetCollisionProfileName(TEXT("BlockAll"));
+		K->RegisterComponent();
+		AddInstanceComponent(K);
+		return K;
+	};
+	UInstancedStaticMeshComponent* Seats = Kit(SeatM);
+	UInstancedStaticMeshComponent* Legs = Kit(LegM);
+	UInstancedStaticMeshComponent* Arms = Kit(ArmM);
+	auto NameOf = [&](int32 I) { FString S; Nodes[I]->AsObject()->TryGetStringField(TEXT("name"), S); return S; };
+	int32 Rows = 0, Places = 0;
+	// their materials from the terminal's own (already made for instanced Nanite lists): the old seats' dark blue for
+	// the shells (owner, 2026-11-10), the terminal's steel as 75% matte chrome for legs, arms and beam, black for the hubs
+	UMaterialInterface* Blue = nullptr; UMaterialInterface* Steel = nullptr;
+	for (int32 R = 0; R < Nodes.Num() && (!Blue || !Steel); ++R)
+	{
+		if (!NameOf(R).Contains(TEXT("/SEATS-"))) continue;
+		const TArray<TSharedPtr<FJsonValue>>* Kids = nullptr;
+		if (!Nodes[R]->AsObject()->TryGetArrayField(TEXT("children"), Kids)) continue;
+		for (const TSharedPtr<FJsonValue>& V : *Kids)
+		{
+			const int32 C = int32(V->AsNumber());
+			UInstancedStaticMeshComponent* K = NodeInst[C].Key;
+			if (!K) continue;
+			const TArray<TSharedPtr<FJsonValue>>* T = nullptr;
+			const bool bBeam = Nodes[C]->AsObject()->TryGetArrayField(TEXT("translation"), T) && T->Num() == 3 && FMath::IsNearlyEqual((*T)[1]->AsNumber(), 0.32, 0.01);
+			if (bBeam && !Steel) Steel = K->GetMaterial(0);
+			if (!bBeam && !Blue && FMath::IsNearlyEqual((*T)[1]->AsNumber(), 0.44, 0.01)) Blue = K->GetMaterial(0);
+		}
+	}
+	// the blue as Babylon shows it: its colour is a screen colour (#1C2D52), read here as light it came out pale
+	if (Blue)
+	{
+		UMaterialInstanceDynamic* Navy = UMaterialInstanceDynamic::Create(Blue, this);
+		Navy->SetVectorParameterValue(TEXT("BaseColorFactor"), FLinearColor(FColor(0x1C, 0x2D, 0x52)));
+		Blue = Navy;
+	}
+	UMaterialInstanceDynamic* Chrome = Steel ? UMaterialInstanceDynamic::Create(Steel, this) : nullptr;
+	if (Chrome) { Chrome->SetVectorParameterValue(TEXT("BaseColorFactor"), FLinearColor(0.75f, 0.75f, 0.75f)); Chrome->SetScalarParameterValue(TEXT("MetallicFactor"), 1.f); Chrome->SetScalarParameterValue(TEXT("RoughnessFactor"), 0.36f); }
+	UMaterialInstanceDynamic* Dark = Steel ? UMaterialInstanceDynamic::Create(Steel, this) : nullptr;
+	if (Dark) { Dark->SetVectorParameterValue(TEXT("BaseColorFactor"), FLinearColor(0.015f, 0.015f, 0.015f)); Dark->SetScalarParameterValue(TEXT("MetallicFactor"), 0.f); Dark->SetScalarParameterValue(TEXT("RoughnessFactor"), 0.5f); }
+	// the pieces' material slots: Shell, Metal (and Black on the legs), as made in make_gate_seat.py
+	auto Dress = [&](UInstancedStaticMeshComponent* K)
+	{
+		for (int32 S = 0; S < K->GetNumMaterials(); ++S)
+		{
+			const FName Slot = K->GetMaterialSlotNames().IsValidIndex(S) ? K->GetMaterialSlotNames()[S] : NAME_None;
+			if (Slot == TEXT("Shell") && Blue) K->SetMaterial(S, Blue);
+			else if (Slot == TEXT("Metal") && Chrome) K->SetMaterial(S, Chrome);
+			else if (Slot == TEXT("Black") && Dark) K->SetMaterial(S, Dark);
+		}
+	};
+	Dress(Seats); Dress(Legs); Dress(Arms);
+	for (int32 R = 0; R < Nodes.Num(); ++R)
+	{
+		if (!NameOf(R).Contains(TEXT("/SEATS-"))) continue;
+		const TArray<TSharedPtr<FJsonValue>>* Kids = nullptr;
+		if (!Nodes[R]->AsObject()->TryGetArrayField(TEXT("children"), Kids)) continue;
+		// the row's seats: its backs (the boxes 0.72 m up); the old boxes hidden (shrunk away: their lists are shared)
+		int32 N = 0;
+		for (const TSharedPtr<FJsonValue>& V : *Kids)
+		{
+			const int32 C = int32(V->AsNumber());
+			const TArray<TSharedPtr<FJsonValue>>* T = nullptr;
+			if (Nodes[C]->AsObject()->TryGetArrayField(TEXT("translation"), T) && T->Num() == 3 && FMath::IsNearlyEqual((*T)[1]->AsNumber(), 0.72, 0.01)) ++N;
+			if (UInstancedStaticMeshComponent* K = NodeInst[C].Key)
+			{
+				FTransform X; K->GetInstanceTransform(NodeInst[C].Value, X);
+				X.SetScale3D(FVector(0.0001f));
+				K->UpdateInstanceTransform(NodeInst[C].Value, X, false, false, true);
+			}
+		}
+		if (N <= 0) continue;
+		// along the row (Babylon x, the glTF's -x): seats at the 0.62 m pitch, legs at both ends and every third seat
+		const float L = N * 0.62f;
+		const FTransform& Row = NodeWorld[R];
+		auto Put = [&](UInstancedStaticMeshComponent* K, float BabylonX) { K->AddInstance(FTransform(FVector(-BabylonX * 100.f, 0, 0)) * Row, false); };
+		for (int32 i = 0; i < N; ++i) Put(Seats, -L / 2 + 0.62f * (i + 0.5f));
+		for (int32 k = 0; k <= N; ++k) Put(k == 0 || k == N || k % 3 == 0 ? Legs : Arms, -L / 2 + 0.62f * k);
+		++Rows; Places += N;
+	}
+	for (UInstancedStaticMeshComponent* K : {Seats, Legs, Arms}) K->MarkRenderStateDirty();
+	UE_LOG(LogTemp, Log, TEXT("Seats: %d rows, %d places in the new seating"), Rows, Places);
 }
 
 void ABabylonModel::AddFire(const FVector& LightAt)
