@@ -1229,7 +1229,7 @@ void AADPHUD::Tick(float Dt)
 			auto Wide = [this]() { GoTo(FVector(ATowerADC::AtX + 70.f, 0.f, ATowerADC::AtZ + 45.f), FVector(ATowerADC::AtX, 13.f, ATowerADC::AtZ)); };
 			auto Hq = [this](const TCHAR* N) { if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(TEXT("HighResShot 2")); UE_LOG(LogTemp, Log, TEXT("TOWERSHOT %s"), N); };
 			struct FStep { float At; TFunction<void()> Do; };
-			const FStep Steps[] = {
+			const FStep TourSteps[] = {
 				{44.f, [&]() { if (bGame) ToggleGame(); Sun(13.f); Wide(); }},
 				{53.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Tower_Day_Apron"), false, false); }},
 				{54.f, [this]() { GoTowerFoot(); }},
@@ -1260,7 +1260,7 @@ void AADPHUD::Tick(float Dt)
 			// -UITowerHQ: only the cinematic 4K pictures (started at once)
 			const bool bHqOnly = FParse::Param(FCommandLine::Get(), TEXT("UITowerHQ"));
 			const float Off = bHqOnly ? 68.f : 0.f;
-			for (const FStep& St : Steps)
+			for (const FStep& St : TourSteps)
 				if ((!bHqOnly || St.At >= 112.f) && Before < St.At - Off && ShotClock >= St.At - Off) St.Do();
 			if (bHqOnly && Before < 44.f && ShotClock >= 44.f && bGame) ToggleGame();
 		}
