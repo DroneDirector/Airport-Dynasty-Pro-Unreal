@@ -5,7 +5,9 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 
 ## 1. Distribution: updates, installer, selling
 - [ ] **Updater shows its speed and a progress bar** (owner, 2026-11-10): while updating the game, the download speed
-      (MB/s) and a progress bar next to the percentage it already shows; the same for the world's terrain download
+      (MB/s) and a progress bar; the same for the world's terrain download. The percentage sits IN the bar, centred,
+      readable all the time: one colour over the empty part, another where the filled part has reached it (the text
+      changes colour exactly where the bar's edge passes, so it's clear both before and after the bar gets there)
 - [ ] **Real patches** (xdelta): an update holds only the changed bytes, applied to the player's own files and checked
       afterwards; much smaller updates, worthless without the bought game. Needed above all for chunk 0 (225 MB, mostly
       Unreal's own shaders) and the program file (167 MB), which today go out whole when anything in them changes
