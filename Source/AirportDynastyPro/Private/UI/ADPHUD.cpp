@@ -1077,7 +1077,9 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 72.f && ShotClock >= 72.f) FScreenshotRequest::RequestScreenshot(TEXT("RoofSide"), false, false);
 			if (Before < 73.f && ShotClock >= 73.f) { GoTo(FVector(70.f, 0.f, -16.f), FVector(80.f, 0.f, -8.f)); Look(-28.f); }
 			if (Before < 80.f && ShotClock >= 80.f) FScreenshotRequest::RequestScreenshot(TEXT("KerbPaving"), false, false);
-			if (Before < 82.f && ShotClock >= 82.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 81.f && ShotClock >= 81.f) { GoTo(FVector(72.f, 0.f, -18.5f), FVector(76.f, 0.f, -21.f)); Look(-35.f); }
+			if (Before < 88.f && ShotClock >= 88.f) FScreenshotRequest::RequestScreenshot(TEXT("CurbRoad"), false, false);
+			if (Before < 90.f && ShotClock >= 90.f) FGenericPlatformMisc::RequestExit(false);
 		}
 		// -UIQuit: the title screen's gear (Unreal's Settings over the menus, a picture), then its Exit (the game must quit)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIQuit")) && Browser.IsValid())
