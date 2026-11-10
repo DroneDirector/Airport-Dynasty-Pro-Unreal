@@ -10,6 +10,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Async/Async.h"
+#include "Misc/CoreDelegates.h"
 #include "UObject/StrongObjectPtr.h"
 #include "Dom/JsonValue.h"
 #include "Serialization/JsonReader.h"
@@ -55,6 +56,9 @@ namespace ADPKokoro
 		FMemory::Memcpy(Style.GetData(), Voice.GetData(), Style.Num() * 4);
 		if (Style.Num() < 256) return false;
 		State = 1;
+		// let go of the model before the engine shuts down (its worker threads must not be left to the very end of the
+		// program, where waiting for them hangs the exit)
+		FCoreDelegates::OnPreExit.AddLambda([]() { FScopeLock Guard(&Lock); Model.Reset(); Data.Reset(); State = -1; });
 		UE_LOG(LogTemp, Log, TEXT("Kokoro: ready (%s model, %d inputs)"), bFull ? TEXT("full") : TEXT("8-bit"), Model->GetInputTensorDescs().Num());
 		return true;
 	}
