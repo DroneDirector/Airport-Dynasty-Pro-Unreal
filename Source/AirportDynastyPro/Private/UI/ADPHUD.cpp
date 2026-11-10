@@ -1,6 +1,8 @@
 // The walking-mode interface: the holographic map, the top-left bar, Hide UI, the settings panel and the performance
 // overlay, all in Slate, styled in the Android edition's holographic blues.
 #include "UI/ADPHUD.h"
+#include "Camera/CameraComponent.h"
+#include "Camera/CameraActor.h"
 #include "TowerADC.h"
 #include "UI/SHoloMap.h"
 #include "UI/GameView.h"
@@ -10,6 +12,8 @@
 #include "SunClock.h"
 #include "Engine/PostProcessVolume.h"
 #include "Globe.h"
+#include "Components/VolumetricCloudComponent.h"
+#include "EngineUtils.h"
 #include "HAL/IConsoleManager.h"
 #include "UnrealClient.h"
 #include "TerminalPlan.h"
@@ -1359,6 +1363,43 @@ void AADPHUD::Tick(float Dt)
 			for (const FStep& St : MastSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
 		}
+		// -UIWorld: the world from the air: the land cover on this PC (ESA WorldCover), then the satellite pictures,
+		// from 1.5 km, 8 km and 60 km above the airport, looking out over the land
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIWorld")))
+		{
+			static TWeakObjectPtr<ACameraActor> Cam;
+			auto Air = [this](float Up, float Back, float LookDown)
+			{
+				if (!Cam.IsValid()) Cam = GetWorld()->SpawnActor<ACameraActor>();
+				if (!Cam.IsValid()) return;
+				Cam->SetActorLocationAndRotation(FVector(-Back * 100.f, Back * 100.f, Up * 100.f), FRotator(-LookDown, -45.f, 0.f));
+				Cam->GetCameraComponent()->SetFieldOfView(70.f);
+				if (APlayerController* PC = GetOwningPlayerController()) PC->SetViewTarget(Cam.Get());
+			};
+			struct FStep { float At; TFunction<void()> Do; };
+			const FStep WorldSteps[] = {
+				{44.f, [&]() { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 13.f; ASunClock::Theme = 0; ASunClock::Refresh(); for (TActorIterator<AVolumetricCloud> It(GetWorld()); It; ++It) It->SetActorHiddenInGame(true); AGlobe::UseSource(3); Air(1500.f, 3000.f, 18.f); }},
+				{60.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("World_LandCover_1500m"), false, false); }},
+				{61.f, [&]() { if (Cam.IsValid()) { Cam->SetActorLocationAndRotation(FVector(0.f, -600000.f, 40000.f), FRotator(-89.f, 0.f, 0.f)); } }},
+				{90.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("World_LandCover_Down400m"), false, false); }},
+				{91.f, [&]() { Air(8000.f, 12000.f, 25.f); }},
+				{77.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("World_LandCover_8km"), false, false); }},
+				{78.f, [&]() { Air(60000.f, 60000.f, 45.f); }},
+				{96.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("World_LandCover_60km"), false, false); }},
+				{97.f, [&]() { AGlobe::UseSource(0); Air(8000.f, 12000.f, 25.f); }},
+				{115.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("World_Satellite_8km"), false, false); }},
+				{116.f, [&]() { UE_LOG(LogTemp, Log, TEXT("WORLDTEST %s"), *AGlobe::Note);
+					// what is big and flat out there: every actor over 5 km wide, then the ocean and the airfield hidden
+					for (TActorIterator<AActor> It(GetWorld()); It; ++It) { FVector O, E; It->GetActorBounds(false, O, E); if (E.X > 250000.f || E.Y > 250000.f) UE_LOG(LogTemp, Log, TEXT("WORLDTEST big %s %s %.0f x %.0f km z %.0f..%.0f m"), *It->GetName(), *It->GetClass()->GetName(), E.X / 50000.f, E.Y / 50000.f, (O.Z - E.Z) / 100.f, (O.Z + E.Z) / 100.f); }
+					for (TActorIterator<AActor> It(GetWorld()); It; ++It) if (It->GetClass()->GetName().Contains(TEXT("Ocean"))) It->SetActorHiddenInGame(true); }},
+				{124.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("World_NoOcean_8km"), false, false); }},
+				{125.f, [&]() { for (TActorIterator<AActor> It(GetWorld()); It; ++It) if (It->GetClass()->GetName().Contains(TEXT("Airfield")) || It->GetClass()->GetName().Contains(TEXT("Grass"))) It->SetActorHiddenInGame(true); }},
+				{133.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("World_NoField_8km"), false, false); }},
+				{135.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+			};
+			for (const FStep& St : WorldSteps)
+				if (Before < St.At && ShotClock >= St.At) St.Do();
+		}
 		// -UIQuit: the title screen's gear (Unreal's Settings over the menus, a picture), then its Exit (the game must quit)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIQuit")) && Browser.IsValid())
 		{
@@ -1396,7 +1437,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

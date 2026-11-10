@@ -14,6 +14,7 @@
 #include "Misc/ConfigCacheIni.h"
 
 float ASunClock::HourOverride = -1.f;
+int32 ASunClock::DayOverride = -1;
 int32 ASunClock::Theme = 1;
 TWeakObjectPtr<ASunClock> ASunClock::Current;
 
@@ -55,6 +56,7 @@ void ASunClock::Update()
 {
 	double El = 0, Az = 0;
 	FDateTime When = FDateTime::UtcNow();
+	if (DayOverride > 0) When = FDateTime(When.GetYear(), 1, 1) + FTimespan::FromDays(DayOverride - 1) + When.GetTimeOfDay();
 	if (HourOverride >= 0) { const FDateTime D = When.GetDate(); When = D + FTimespan::FromHours(FMath::Clamp(HourOverride, 0.f, 23.999f)); }
 	SunAt(When, Lat, Lon, El, Az);
 	ADirectionalLight* Sun = Cast<ADirectionalLight>(UGameplayStatics::GetActorOfClass(this, ADirectionalLight::StaticClass()));

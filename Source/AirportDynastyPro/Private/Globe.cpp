@@ -68,7 +68,8 @@ void AGlobe::Build(const FAirfieldData& F)
 		Tiles->SetTilesetSource(ETilesetSource::FromUrl);
 		Tiles->SetUrl(TEXT("file:///") + FPaths::ConvertRelativePathToFull(Layer));
 		// the sea everywhere the terrain's water mask says so (MakeTerrain.py marks it): Cesium's water material
-		Tiles->SetEnableWaterMask(true);
+		Tiles->SetEnableWaterMask(!FParse::Param(FCommandLine::Get(), TEXT("NoWaterMat")));
+		if (!FParse::Param(FCommandLine::Get(), TEXT("NoWaterMat")))
 		if (UMaterialInterface* Water = LoadObject<UMaterialInterface>(nullptr, TEXT("/CesiumForUnreal/Materials/Instances/MI_CesiumThreeOverlaysAndClippingAndWater.MI_CesiumThreeOverlaysAndClippingAndWater")))
 			Tiles->SetMaterial(Water);
 	}
@@ -99,13 +100,13 @@ namespace
 {
 	struct FSource { const TCHAR* Name; const TCHAR* Url; int32 MaxLevel; const TCHAR* Probe; const TCHAR* Credit; };
 	const FSource Sources[] = {
-		{TEXT("Sentinel-2 cloudless 2016 (EOX, 10 m)"), TEXT("https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg"), 15,
+		{TEXT("Sentinel-2 cloudless 2016 (EOX, 10 m)"), TEXT("https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{reverseY}/{x}.jpg"), 15,
 			TEXT("https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/0/0/0.jpg"),
 			TEXT("Sentinel-2 cloudless 2016 (s2maps.eu) by EOX IT Services GmbH, contains modified Copernicus Sentinel data 2016")},
-		{TEXT("NASA Landsat global mosaic (30 m)"), TEXT("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/Landsat_WELD_CorrectedReflectance_TrueColor_Global_Annual/default/GoogleMapsCompatible_Level12/{z}/{y}/{x}.jpg"), 12,
+		{TEXT("NASA Landsat global mosaic (30 m)"), TEXT("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/Landsat_WELD_CorrectedReflectance_TrueColor_Global_Annual/default/GoogleMapsCompatible_Level12/{z}/{reverseY}/{x}.jpg"), 12,
 			TEXT("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/Landsat_WELD_CorrectedReflectance_TrueColor_Global_Annual/default/GoogleMapsCompatible_Level12/0/0/0.jpg"),
 			TEXT("Imagery: NASA Global Imagery Browse Services (GIBS), Landsat WELD (NASA / USGS)")},
-		{TEXT("NASA Blue Marble (500 m)"), TEXT("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_NextGeneration/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg"), 8,
+		{TEXT("NASA Blue Marble (500 m)"), TEXT("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_NextGeneration/default/GoogleMapsCompatible_Level8/{z}/{reverseY}/{x}.jpeg"), 8,
 			TEXT("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_NextGeneration/default/GoogleMapsCompatible_Level8/0/0/0.jpeg"),
 			TEXT("Imagery: NASA Global Imagery Browse Services (GIBS), Blue Marble Next Generation (NASA Earth Observatory)")},
 		{TEXT("ESA WorldCover land cover (on this PC, 10 m)"), TEXT(""), 8, TEXT(""),
@@ -128,6 +129,7 @@ FString AGlobe::SourceCredit(int32 S) { return Sources[FMath::Clamp(S, 0, 3)].Cr
 void AGlobe::UseSource(int32 S)
 {
 	S = FMath::Clamp(S, 0, 3);
+	Source = S;   // the one asked for (the probe reports against it)
 	GConfig->SetInt(TEXT("ADP.Graphics"), TEXT("Imagery"), S, GGameUserSettingsIni);
 	GConfig->Flush(false, GGameUserSettingsIni);
 	if (AGlobe* G = Current.Get()) G->Probe(S);
@@ -185,7 +187,7 @@ void AGlobe::SetImagery(int32 S)
 	if (S == 3)
 	{
 		// the land cover: the world (geographic, 2 x 1 root tiles, to level 8) and the North Atlantic over it (its own
-		// 4 x 2 root tiles, to level 7 = the world's 12: about 19 m a pixel), both JPEGs counted from the south
+		// 4 x 2 root tiles, to level 7 = the world's 12: about 19 m a pixel), both JPEGs counted from the south (Cesium's {y} counts from the south too; the web map servers count from the north, so they get {reverseY})
 		const FString D = TEXT("file:///") + FPaths::ConvertRelativePathToFull(LandCover());
 		auto Make = [this](const TCHAR* Name, const FString& Url, int32 Max, int32 Rx, int32 Ry, double W, double S2, double E, double N, const TCHAR* Key)
 		{
@@ -203,8 +205,8 @@ void AGlobe::SetImagery(int32 S)
 			Earth->AddInstanceComponent(O);
 			return O;
 		};
-		Imagery = Make(TEXT("LandCover"), D / TEXT("world/{z}/{x}/{reverseY}.jpg"), 8, 2, 1, -180, -90, 180, 90, TEXT("Overlay0"));
-		Detail = Make(TEXT("LandCoverNorthAtlantic"), D / TEXT("region/{z}/{x}/{reverseY}.jpg"), 7, 4, 2, -28.125, 56.25, -5.625, 67.5, TEXT("Overlay1"));
+		Imagery = Make(TEXT("LandCover"), D / TEXT("world/{z}/{x}/{y}.jpg"), 8, 2, 1, -180, -90, 180, 90, TEXT("Overlay0"));
+		Detail = Make(TEXT("LandCoverNorthAtlantic"), D / TEXT("region/{z}/{x}/{y}.jpg"), 7, 4, 2, -28.125, 56.25, -5.625, 67.5, TEXT("Overlay1"));
 		ShownSource = S;
 		return;
 	}

@@ -1,5 +1,7 @@
 // The sea round the airport (see Ocean.h).
 #include "Ocean.h"
+#include "Kismet/GameplayStatics.h"
+#include "Camera/PlayerCameraManager.h"
 #include "CesiumGeoreference.h"
 #include "ProceduralMeshComponent.h"
 #include "CesiumGlobeAnchorComponent.h"
@@ -9,7 +11,8 @@
 
 AOcean::AOcean()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.TickInterval = 0.2f;
 	Water = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("Water"));
 	SetRootComponent(Water);
 	Water->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -64,6 +67,19 @@ bool AOcean::Build(ACesiumGeoreference* G, double SeaHeight)
 	AddInstanceComponent(Anchor);
 	Anchor->RegisterComponent();
 	if (UMaterialInterface* M = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/Ocean/M_Ocean.M_Ocean"))) Water->SetMaterial(0, M);
+	SeaZ = Mid.Z;
 	UE_LOG(LogTemp, Log, TEXT("Ocean: %u corners, %u triangles, at %.1f m, %.0f x %.0f km"), NV, NT, SeaHeight, Box.GetSize().X / 1e5, Box.GetSize().Y / 1e5);
 	return true;
+}
+
+void AOcean::Tick(float Dt)
+{
+	Super::Tick(Dt);
+	// the camera's height over the sea: the detailed water up to 600 m, the terrain's water mask above (a little
+	// overlap either way so it never flickers at the line)
+	const APlayerCameraManager* Cam = UGameplayStatics::GetPlayerCameraManager(this, 0);
+	if (!Cam || !Water) return;
+	const float Up = (Cam->GetCameraLocation().Z - SeaZ) / 100.f;
+	const bool bShow = Water->IsVisible() ? Up < 650.f : Up < 550.f;
+	if (bShow != Water->IsVisible()) Water->SetVisibility(bShow);
 }

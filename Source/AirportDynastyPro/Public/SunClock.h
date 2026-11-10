@@ -27,6 +27,8 @@ public:
 	#pragma region Testing (Settings, Testing)
 	/** The hour of the day to show (0..24, UTC as in Iceland and the Faroes in winter), or below 0 for the real time. */
 	static float HourOverride;
+	/** A day of the year to use instead of today (1..365; tests and photo tours), or -1. */
+	static int32 DayOverride;
 	/** The weather theme: 0 clear, 1 few clouds, 2 broken, 3 overcast, 4 fog, 5 rain, 6 storm, 7 snow. */
 	static int32 Theme;
 	static const TCHAR* ThemeName(int32 T);
