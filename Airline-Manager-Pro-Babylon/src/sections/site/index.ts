@@ -36,6 +36,7 @@ import { STAIRS, F2Y, ROOMS, inRoom } from '../terminal/plan';
 import { holoMap } from '../../ui/holomap';
 import { Matrix } from '@babylonjs/core';
 import { stepLifts, LiftCtl } from '../terminal/lifts';
+import { buildTower, TOWER, TOWER_AT, Tower } from '../terminal/tower';
 import { furnish } from '../terminal/furnish';
 import { buildFixtures } from '../terminal/fixtures';
 import { buildRental, rentalCars } from '../terminal/rental';
@@ -48,7 +49,7 @@ import { AIRFIELD, designate } from './airfield/plan';
 const D2R = Math.PI / 180, R = 6371000, HEIGHT_URL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/';
 /** The quick viewpoints in airport mode (plan metres: x along the pier, z out to the apron), the first is where you start:
  *  each is placed on a clear spot (never inside a wall, seat, rail or roof). */
-const WALK_VIEWS: { name: string; label: string; at: [number, number]; look: [number, number]; y: number; pitch: number }[] = [
+const WALK_VIEWS: { name: string; label: string; at: [number, number]; look: [number, number]; y: number; pitch: number; group?: string }[] = [
   { label: 'Entrance', name: 'Outside the main entrance doors', at: [75, -19], look: [75, 12], y: 0, pitch: 0 },
   { label: 'Main hall', name: 'Inside the main hall, facing check-in', at: [76, -0.5], look: [76, 40], y: 0, pitch: 0 },
   { label: 'Gate 4', name: 'Gate 4, looking out at the apron', at: [180, 72.5], look: [180, 110], y: F2Y, pitch: 0 },
@@ -57,6 +58,10 @@ const WALK_VIEWS: { name: string; label: string; at: [number, number]; look: [nu
   { label: 'Pier', name: 'On the apron, looking along the terminal', at: [238, 94], look: [100, 86], y: 0, pitch: 0 },
   { label: 'Kerb', name: 'At the kerb, looking at the main entrance', at: [22, -30], look: [75, -4], y: 0, pitch: 0 },
   { label: 'Bus stop', name: 'At the kerb, the shuttle bus and the trees', at: [66, -27.5], look: [0, -19], y: 0, pitch: 0 },
+  // the control tower (site A, west of the pier): in the cab, on its walkway, on the ground at its entrance
+  { group: 'Control tower', label: 'Tower cab', name: 'In the control tower\'s cab, looking out over the apron', at: [TOWER_AT.x + 2.9, TOWER_AT.z - 0.9], look: [TOWER_AT.x + 60, TOWER_AT.z + 4], y: TOWER.cabY, pitch: -0.05 },
+  { group: 'Control tower', label: 'Tower balcony', name: 'On the control tower\'s walkway, outside the cab', at: [TOWER_AT.x + 6.4, TOWER_AT.z - 2.0], look: [TOWER_AT.x + 80, TOWER_AT.z - 10], y: TOWER.cabY - 0.05, pitch: -0.08 },
+  { group: 'Control tower', label: 'Tower foot', name: 'On the ground outside the control tower\'s entrance', at: [TOWER_AT.x - 14, TOWER_AT.z + 3], look: [TOWER_AT.x, TOWER_AT.z], y: 0, pitch: 0.32 },
 ];
 /** Where airport mode starts: on the apron. */
 const WALK_START = 4;
@@ -150,10 +155,8 @@ function airport(sc: Scene, site: any, elev: number, casters: AbstractMesh[], he
   designate(site.rwy[0], site.rwy[1]);
   const AFB = buildAirfield(sc, root, { low: !IS_PC, heightAt });
   for (const m of AFB.casters) casters.push(m);
-  // the tower and its cab, a fire station, a hangar
-  { const tx = PX(-180), tz = PV(30); const t = MeshBuilder.CreateCylinder('TOWER', { diameterTop: 5, diameterBottom: 7, height: 48, tessellation: 24 }, sc); t.position.set(tx, 24, tz); t.material = white; t.parent = root; t.renderingGroupId = 1; t.metadata = { id: 'TOWER', kind: 'building' }; casters.push(t);
-    const cab = MeshBuilder.CreateCylinder('TOWER/CAB', { diameterTop: 13, diameterBottom: 10, height: 5, tessellation: 12 }, sc); cab.position.set(tx, 50.5, tz); cab.material = glass; cab.parent = root; cab.renderingGroupId = 1;
-    const cap = MeshBuilder.CreateCylinder('TOWER/CAP', { diameter: 14, height: 1.2, tessellation: 12 }, sc); cap.position.set(tx, 53.6, tz); cap.material = white; cap.parent = root; cap.renderingGroupId = 1; }
+  // a fire station, a hangar
+  // (the control tower is the terminal's own, built with it: see buildTower below)
   box(80, 14, 50, mat('#C9CED5', 0.5, 0.3), PX(1281), 7, PV(10), true, 'HANGAR-1'); box(40, 9, 30, mat('#B3261E', 0.5), PX(-1169), 4.5, PV(20), true, 'FIRE-STATION');
   // the access road: from the terminal's road south to the boundary on the levelled ground, then on along the real ground
   { const asph = new PBRMaterial('ROAD', sc); asph.albedoColor = Color3.FromHexString('#2B2D30'); asph.roughness = 0.88; asph.metallic = 0; asph.zOffset = -2;
@@ -218,6 +221,8 @@ const Site$: Section = {
     const before = new Set(sc.transformNodes.concat(sc.meshes as any[]));
     const K = makeKit(sc); buildShell(K, () => { /* its own steps */ }); const doors = buildDoors(K) as DoorObj[]; furnish(K, () => { /* */ }); K.clearWalls();
     const FX: any = buildFixtures(K, '#1C3A8A', '#3FD3E6', 'Airport Dynasty Pro', () => { /* */ }); O.lifts = (FX && FX.lifts) || []; buildRental(K);
+    // the control tower (ADC) at site A, west of the pier: walked into, its lift running with the terminal's
+    const TW: Tower = buildTower(K, TOWER_AT.x, TOWER_AT.z, 0); O.tower = TW; O.lifts.push(TW.lift);
     // the rental car centre's cars as the game has them: only the companies signed at your airport, and a car that is out is not in its bay
     try { const RC = ctx.opts && ctx.opts.data && ctx.opts.data.rental; if (RC) { const seen: { [k: string]: number } = {};
       for (const c of rentalCars(K)) { const k = c.company + '/' + c.type, n = seen[k] = (seen[k] || 0) + 1, on = RC.signed.indexOf(c.company) >= 0 && n > ((RC.out[c.company] || {})[c.type] || 0);
@@ -239,10 +244,12 @@ const Site$: Section = {
     for (const m of K.casters) casters.push(m);
     const liftParts = new Set<any>(); for (const l of O.lifts as LiftCtl[]) for (const m of l.moving_parts) liftParts.add(m); for (const j of (FX && FX.jetways) || []) for (const m of j.meshes()) liftParts.add(m); O.jetways = (FX && FX.jetways) || [];
     for (const d of doors) for (const m of d.node.getChildMeshes()) liftParts.add(m);   // the doors slide and swing: never fixed in place
+    for (const m of TW.moving) liftParts.add(m);                                          // the tower's doors and desk flap too
+    const towerKeep = new Set<any>(TW.shells);   // the tower's curved shells stay as they are (solid from both sides)
     for (const m of sc.meshes) { if (!before.has(m)) { m.renderingGroupId = 1; m.computeWorldMatrix(true); if (!liftParts.has(m)) { m.freezeWorldMatrix(); m.doNotSyncBoundingInfo = true; } } }
     // the terminal's static things merged by material and 60 m square: far fewer draw calls, the same picture
     { const doorParts = new Set<any>(); for (const d of doors) for (const m of d.node.getChildMeshes()) doorParts.add(m);
-      const okM = (m: AbstractMesh) => !before.has(m) && !liftParts.has(m) && !hidden.has(m) && !doorParts.has(m);
+      const okM = (m: AbstractMesh) => !before.has(m) && !liftParts.has(m) && !hidden.has(m) && !doorParts.has(m) && !towerKeep.has(m);
       // materials alike but for colour and picture become one (texture arrays), so far more can be merged below
       try { shareMaterials(sc, okM); } catch (e) { logIssue('Airport', 'Texture arrays could not be made', String((e as any)?.message || e)); }
       try { mergeStatic(sc, okM, casters); } catch (e) { logIssue('Airport', 'Fixed objects could not be merged', String((e as any)?.message || e)); } }
@@ -253,6 +260,7 @@ const Site$: Section = {
       sc.collisionsEnabled = true;
       const skip = new Set<any>(); for (const d of doors) for (const m of d.node.getChildMeshes()) skip.add(m);
       for (const m of K.groups.STAIRS.getChildMeshes()) skip.add(m); for (const m of K.groups.SCREENS.getChildMeshes()) skip.add(m);
+      for (const m of TW.soft) skip.add(m);   // the tower's door leaves, desk flap, stair treads (walked as a ramp) and sign
       for (const m of sc.meshes) if (!before.has(m) && !skip.has(m) && m.getTotalVertices() > 0) m.checkCollisions = true;
       // (the doors are left out: they open as you come to them, so they are never in the way)
       for (const m of ap.getChildMeshes()) { if (m.getTotalVertices() <= 0 || hidden.has(m) || skip.has(m)) continue; const kind = m.metadata && m.metadata.kind;
@@ -277,7 +285,7 @@ const Site$: Section = {
     }
     // the fixed copies (furniture, fittings) as thin instances: nothing per copy left for the processor each frame
     try { const moving = new Set<any>(); for (const d of doors) for (const m of d.node.getChildMeshes()) moving.add(m);
-      thinStatic(sc, m => !before.has(m) && !liftParts.has(m) && !hidden.has(m) && !moving.has(m), casters, walkMode); } catch (e) { logIssue('Airport', 'Thin instances could not be made', String((e as any)?.message || e)); }
+      thinStatic(sc, m => !before.has(m) && !liftParts.has(m) && !hidden.has(m) && !moving.has(m) && !towerKeep.has(m), casters, walkMode); } catch (e) { logIssue('Airport', 'Thin instances could not be made', String((e as any)?.message || e)); }
     // the jetways' wheels, stair wheels, steps, posts and rails: one list per kind of piece per jetway, following the
     // pieces only while that jetway docks or undocks (the pieces stay, unseen, to be walked on)
     try { const fs: (() => void)[] = []; for (const j of (O.jetways || []) as any[]) { const rx = new RegExp('^' + j.id + '/(STEP|STAIR-POST|STAIR-RAIL|STAIR-WHEEL|WHEEL)');
@@ -336,7 +344,7 @@ const Site$: Section = {
     hud.insertAdjacentHTML('beforeend', `<div class="site-lift" hidden></div>`);
     // the jetways' test button: animates all of them (docks parked ones, undocks docked ones). REMOVE BEFORE 1.0
     hud.insertAdjacentHTML('beforeend', `<button class="wx-b site-jwtest" data-jwtest style="position:absolute;left:12px;bottom:${walkMode ? 168 : 112}px">Animate jetways (test)</button>`);
-    if (walkMode) hud.insertAdjacentHTML('beforeend', `<div class="site-moves">${[['jump', 'Jump'], ['crouch', 'Crouch'], ['prone', 'Prone'], ['sprint', 'Sprint']].map(([k, l]) => `<button class="wx-b" data-mv="${k}">${l}</button>`).join('')}<div class="site-views"><span>Go to</span>${WALK_VIEWS.map((v, i) => `<button class="wx-b" data-wv="${i}" title="${v.name}" aria-label="${v.name}">${v.label}</button>`).join('')}</div></div>`);
+    if (walkMode) hud.insertAdjacentHTML('beforeend', `<div class="site-moves">${[['jump', 'Jump'], ['crouch', 'Crouch'], ['prone', 'Prone'], ['sprint', 'Sprint']].map(([k, l]) => `<button class="wx-b" data-mv="${k}">${l}</button>`).join('')}</div>`);
     if (walkMode) { hud.classList.add('site-walk'); (hud.querySelector('.site-dock') as HTMLElement).style.display = 'none'; (hud.querySelector('.site-ud') as HTMLElement).style.display = 'none'; }
     // the body you walk in: feet at its position, 1.8 m tall, 0.6 m across
     const body = MeshBuilder.CreateBox('player', { size: 0.5 }, sc); body.isVisible = false; body.isPickable = false; body.checkCollisions = false; body.ellipsoid = new Vector3(0.3, 0.9, 0.3); body.ellipsoidOffset = new Vector3(0, 0.9, 0);
@@ -358,7 +366,8 @@ const Site$: Section = {
     const apInv = Matrix.Invert(ap.computeWorldMatrix(true));   // the airport never moves: its inverse once
     if (walkMode) holoMap(hud, () => { const inv = apInv, l = Vector3.TransformCoordinates(body.position, inv);
       const d = Vector3.TransformNormal(new Vector3(Math.sin(CAM.yaw), 0, Math.cos(CAM.yaw)), inv);
-      return { x: l.x - AIRFIELD.airport.planU, z: l.z - AIRFIELD.airport.planV, f: l.y > F2Y - 1.5 ? 2 : 1, yaw: Math.atan2(d.x, d.z) }; }, O.K && O.K.root);
+      return { x: l.x - AIRFIELD.airport.planU, z: l.z - AIRFIELD.airport.planV, f: l.y > F2Y - 1.5 ? 2 : 1, yaw: Math.atan2(d.x, d.z) }; }, O.K && O.K.root,
+      WALK_VIEWS.map(v => ({ label: v.label, name: v.name, group: v.group || 'Terminal' })), i => O.goView(i));
     /** Puts you on one of the quick viewpoints (plan metres), standing, facing its look point. */
     /** A spot clear of walls, seats, rails and roofs near p (world): the body's width round it at foot, knee, chest and
      *  head height, and its full height above; tried in rings out to 3 m. Returns p if no clear spot is found. */
@@ -443,6 +452,7 @@ const Site$: Section = {
         // the lifts: called as you come to them, and the ride (you go up and down with the car)
         try { const r = stepLifts(O.lifts, lp.x, lp.y, lp.z, dt, !!O.liftPress); O.liftPress = false; if (r.dy) { body.position.y += r.dy; W.vy = 0; W.ground = true; }
           const lh = hud.querySelector('.site-lift') as HTMLElement; if (lh) { lh.hidden = !r.hint; if (r.hint) lh.textContent = r.hint; } } catch (e) { /* still */ }
+        try { if (O.tower) O.tower.step(lp.x, lp.y, lp.z, dt); } catch (e) { /* still */ }
       } else {
       const sp = CAM.speed * (inp.run || keys.has('shift') ? 4 : 1) * dt, cp = Math.cos(CAM.pitch), f = new Vector3(Math.sin(CAM.yaw) * cp, Math.sin(CAM.pitch), Math.cos(CAM.yaw) * cp), r = new Vector3(Math.cos(CAM.yaw), 0, -Math.sin(CAM.yaw));
       const mv = f.scale(inp.my).add(r.scale(inp.mx)), vert = (keys.has(' ') || keys.has('r') || CAM.up ? 1 : 0) - (keys.has('c') || keys.has('f') || CAM.down ? 1 : 0);

@@ -93,6 +93,7 @@ Where everything is, in plain words: every folder and file of the game and what 
   - `rental-tex.ts`: The rental car centre's textures, painted on canvases:
   - `rental.ts`: The rental car centre (design 1, Wing), beside the terminal's east wing:
   - `shell.ts`: The terminal's structure, room by room:
+  - `tower.ts`: The control tower (ADC) at site A, west of the pier: the shaft, entrance hall, lift (G to the lift lobby), spiral stair, the cab with its continuous desk ring, chairs (swappable), balcony door and desk flap; walked into in airport mode.
   - `weather.ts`: The sky and the weather over the terminal, and the photographer's tools of the Terminal demo:
 - **`src/sections/training/`**
   - `build.ts`: The Training room (the Academy):

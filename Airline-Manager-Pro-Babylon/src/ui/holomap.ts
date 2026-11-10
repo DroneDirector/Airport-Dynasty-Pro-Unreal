@@ -156,7 +156,9 @@ function findRouteAsync(from: { x: number; z: number; f: number }, to: { x: numb
   const id = ++routeAsk; return new Promise(ok => { routeWait.set(id, ok); (routeWorker as Worker).postMessage({ id, from: { x: from.x, z: from.z, f: from.f }, to: { x: to.x, z: to.z, f: to.f } }); setTimeout(() => { if (routeWait.has(id)) { routeWait.delete(id); ok(findRoute(from, to)); } }, 1500); });
 }
 
-export function holoMap(host: HTMLElement, get: () => HoloState | null, root?: TransformNode) {
+/** Quick places to go to, shown in the full-screen map (grouped: the terminal's, the control tower's, …). */
+export interface HoloSpot { label: string; name: string; group?: string }
+export function holoMap(host: HTMLElement, get: () => HoloState | null, root?: TransformNode, spots?: HoloSpot[], onSpot?: (i: number) => void) {
   const LIGHT = IS_TOUCH;   // phones and tablets: no glow blur (slow there), drawn 10 times a second
   if (!document.getElementById('holomap-css')) { const st = document.createElement('style'); st.id = 'holomap-css'; st.textContent = `
 .holomap { position: absolute; right: max(14px, env(safe-area-inset-right)); top: max(14px, env(safe-area-inset-top)); width: ${IS_TOUCH ? 150 : 214}px; height: ${IS_TOUCH ? 150 : 214}px;
@@ -178,6 +180,9 @@ export function holoMap(host: HTMLElement, get: () => HoloState | null, root?: T
 .hm-full button.on { background: rgba(40,130,220,.45); color: #fff; box-shadow: 0 0 12px rgba(60,170,255,.6); }
 .hm-full button.warm { color: #FFD58A; border-color: rgba(255,200,110,.6); }
 .hm-full .hm-min { position: absolute; right: 12px; bottom: 12px; }
+.hm-full .hm-spots { position: absolute; left: 12px; bottom: 12px; right: 150px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 10px; background: rgba(2,10,22,.78); border: 1px solid rgba(110,200,255,.3); border-radius: 4px; }
+.hm-full .hm-spots i { font: 700 10px Inter, sans-serif; font-style: normal; letter-spacing: .2em; color: #CFF0FF; text-transform: uppercase; text-shadow: 0 0 8px rgba(60,170,255,.9); margin: 0 4px 0 8px; }
+.hm-full .hm-spots i:first-child { margin-left: 0; }
 @keyframes hm-flick { 0% { opacity: .35 } 18% { opacity: .95 } 26% { opacity: .55 } 40% { opacity: 1 } 100% { opacity: 1 } }
 .hm-full.flick canvas { animation: hm-flick .45s linear; }
 `; document.head.appendChild(st); }
@@ -306,6 +311,7 @@ export function holoMap(host: HTMLElement, get: () => HoloState | null, root?: T
     full = document.createElement('div'); full.className = 'hm-full';
     full.innerHTML = `<canvas></canvas><div class="hm-bar"><b>Terminal navigation<small>Tap where you want to go. Drag to move the map${IS_TOUCH ? ', pinch' : ', scroll'} to zoom.</small></b>
       ${FLOORS.slice().reverse().map(f => `<button data-fl="${f}">Floor ${f}</button>`).join('')}${PLACES.map((q, i) => `<button data-go="${i}">${q.t.toLowerCase().replace(/(^|\s)\S/g, x => x.toUpperCase())}</button>`).join('')}<button data-me>Centre on me</button><button class="warm" data-clear ${dest ? '' : 'hidden'}>✕ Remove waypoint</button></div>
+      ${spots && spots.length ? `<div class="hm-spots">${spots.map((p, i) => (i === 0 || p.group !== spots[i - 1].group ? `<i>${p.group || 'Go to'}</i>` : '') + `<button data-spot="${i}" title="${p.name}" aria-label="${p.name}">${p.label}</button>`).join('')}</div>` : ''}
       <button class="hm-min" data-min title="Minimise">▾ Minimise</button>`;
     host.appendChild(full);
     fv = { cx: st.x, cz: st.z, yaw: 0, k: 0, f: st.f, full: true };
@@ -319,6 +325,7 @@ export function holoMap(host: HTMLElement, get: () => HoloState | null, root?: T
       if (b.hasAttribute('data-go')) { const q = PLACES[Number(b.getAttribute('data-go'))]; if (q) { setDest({ x: q.x, z: q.z, f: q.f, name: q.t }); toast(`Waypoint: ${q.t.toLowerCase().replace(/(^|\s)\S/g, x => x.toUpperCase())}, floor ${q.f}`); setTimeout(closeFull, 450); } }
       if (b.hasAttribute('data-me')) { const s2 = get(); if (s2) { fv!.cx = s2.x; fv!.cz = s2.z; fv!.f = s2.f; tabs(); } }
       if (b.hasAttribute('data-clear')) { setDest(null); (b as HTMLElement).hidden = true; toast('Waypoint removed'); }
+      if (b.hasAttribute('data-spot') && onSpot) { onSpot(Number(b.getAttribute('data-spot'))); closeFull(); return; }
       if (b.hasAttribute('data-min')) closeFull(); });
     // pan, zoom and tap
     const pts = new Map<number, { x: number; y: number }>(); let moved = 0, pinch0 = 0, k0 = 0;

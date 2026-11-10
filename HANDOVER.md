@@ -72,6 +72,14 @@ Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md
   terminal empty in the game until the model is placed.
 - Also seen: every kit material renders light grey with a speckle pattern (the MI colours not applied?): check M_Surface.
 
+## The control tower (added 2026-11-10, Babylon 0.4.7)
+- The Babylon edition has the control tower (`Airline-Manager-Pro-Babylon/src/sections/terminal/tower.ts`) at site A
+  (plan x -205, y 120, west of the pier), built with the terminal in airport mode: walk-in entrance, a lift from the
+  ground to the lift lobby (+13.5 m), spiral stair to the cab (+17.6 m), balcony door with a lift-up desk flap, three
+  quick spots (cab, balcony, foot) in the full-screen holographic map. The placeholder tower in `site/index.ts` is gone.
+- For Unreal: re-export the Babylon model (`Tools/BabylonExport`) and re-import it so the tower is in the PC terminal;
+  its doors, flap and lift then need the same behaviour as `TerminalLifts`/`TerminalDoors`.
+
 ## Now: the interface (owner, 2026-11-09) - see ROADMAP.md "NOW, main priority"
 The terminal model rests (it's in and textured). Next: the PC version starts on the Android edition's own title screen
 and main menu (its built www/index.html in Unreal's web view, served at https://game.adp.local/), every button and
