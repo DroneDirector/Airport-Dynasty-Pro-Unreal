@@ -65,6 +65,10 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 - [ ] RULE kept: floors only on floor faces, never walls or stairs; the tower is "ATC" on signs, never ADC
 
 ## 4. Playing: walking, menus, controls
+- [ ] **"Moonwalking" in the ATC tower cab** (owner, 2026-11-10): after the map's TOWER: THE CAB view, walking there
+      makes you slide / move the wrong way, only in the cab. Check first: the cab floor being the lift's moving
+      platform (based on it, so you're carried), the view's turn vs the walking direction after the jump, and the cab's
+      floor collision (a slope or step under you)
 - [ ] **Title screen's moving splash image lags** (owner, 2026-11-10): smooth on Android/Babylon, stutters on PC. Check
       first: the web view's frame rate (Unreal's offscreen browser is often capped at 24-30 fps; raise it to the
       screen's rate), Unreal rendering the 3D world behind the full-screen menus (pause it there), and the copy of the
