@@ -1224,6 +1224,22 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 84.f && ShotClock >= 84.f) CloseViewer();
 			if (Before < 90.f && ShotClock >= 90.f) FGenericPlatformMisc::RequestExit(false);
 		}
+		// -UIMap: the full-screen map from inside the tower's cab, a jetway and the car rental centre (and small, in the cab)
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIMap")))
+		{
+			auto Open = [this]() { if (HoloMap.IsValid() && !HoloMap->IsFull()) ToggleMap(); };
+			if (Before < 44.f && ShotClock >= 44.f) { if (bGame) ToggleGame(); GoTowerCab(); }
+			if (Before < 48.f && ShotClock >= 48.f) FScreenshotRequest::RequestScreenshot(TEXT("Map_TowerSmall"), true, false);
+			if (Before < 49.f && ShotClock >= 49.f) Open();
+			if (Before < 51.f && ShotClock >= 51.f) FScreenshotRequest::RequestScreenshot(TEXT("Map_Tower"), true, false);
+			if (Before < 52.f && ShotClock >= 52.f) GoTo(FVector(191.f, 6.f, 88.f), FVector(191.f, 6.f, 100.f));
+			if (Before < 55.f && ShotClock >= 55.f) Open();
+			if (Before < 57.f && ShotClock >= 57.f) FScreenshotRequest::RequestScreenshot(TEXT("Map_Jetway"), true, false);
+			if (Before < 58.f && ShotClock >= 58.f) GoTo(FVector(240.f, 0.f, 20.f), FVector(250.f, 0.f, 20.f));
+			if (Before < 61.f && ShotClock >= 61.f) Open();
+			if (Before < 63.f && ShotClock >= 63.f) FScreenshotRequest::RequestScreenshot(TEXT("Map_Rental"), true, false);
+			if (Before < 66.f && ShotClock >= 66.f) FGenericPlatformMisc::RequestExit(false);
+		}
 		// -UIFire: the lounge's fireplace, its fire burning (two pictures a moment apart)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIFire")))
 		{
@@ -1338,7 +1354,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

@@ -3,6 +3,12 @@
 #include "UI/SHoloMap.h"
 #include "Rendering/DrawElements.h"
 #include "Styling/CoreStyle.h"
+#include "TowerADC.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
 
 #pragma region Colours
 namespace
@@ -72,7 +78,80 @@ void SHoloMap::SetPlan(const FTerminalPlan& InPlan)
 		for (int32 f = 1; f <= 2; ++f) LiftBoxes[f].Add(FBox2f(FVector2f(L.X - 1.06f, L.Z - 1.06f), FVector2f(L.X + 1.06f, L.Z + 1.06f)));
 	Columns.Reset();
 	for (const FPlanPoint& C : Plan.Columns) Columns.Add(FVector2f(C.X, C.Z));
+	LoadBuildings();
+	for (const FBuilding& B : Buildings) { Bounds += B.Box.Min; Bounds += B.Box.Max; }
 	Bounds = Bounds.ExpandBy(6.f);
+}
+
+void SHoloMap::LoadBuildings()
+{
+	Buildings.Reset();
+	// the jetways and the car rental centre, traced from the Babylon model (Tools/make_holomap_buildings.py)
+	FString Text;
+	TArray<TSharedPtr<FJsonValue>> List;
+	for (const FString& F : {FPaths::ProjectContentDir() / TEXT("Data/holomap-buildings.json"), FPaths::ProjectDir() / TEXT("Data/holomap-buildings.json")})
+		if (FFileHelper::LoadFileToString(Text, *F) && FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), List)) break;
+	for (const TSharedPtr<FJsonValue>& V : List)
+	{
+		const TSharedPtr<FJsonObject> O = V->AsObject();
+		if (!O.IsValid()) continue;
+		FBuilding& B = Buildings.AddDefaulted_GetRef();
+		B.Label = O->GetStringField(TEXT("label"));
+		B.Box = FBox2f(ForceInit);
+		for (const TSharedPtr<FJsonValue>& FV : O->GetArrayField(TEXT("floors")))
+		{
+			const TSharedPtr<FJsonObject> FO = FV->AsObject();
+			FBFloor& Fl = B.Floors.AddDefaulted_GetRef();
+			Fl.Label = FO->GetStringField(TEXT("label"));
+			Fl.Y0 = FO->GetNumberField(TEXT("y0")); Fl.Y1 = FO->GetNumberField(TEXT("y1"));
+			for (const TSharedPtr<FJsonValue>& SV : FO->GetArrayField(TEXT("segs")))
+			{
+				const TArray<TSharedPtr<FJsonValue>>& A = SV->AsArray();
+				if (A.Num() < 5) continue;
+				FSeg S{FVector2f(A[0]->AsNumber(), A[1]->AsNumber()), FVector2f(A[2]->AsNumber(), A[3]->AsNumber()), A[4]->AsNumber() > 0};
+				Fl.Segs.Add(S); B.Box += S.A; B.Box += S.B;
+			}
+		}
+	}
+	// the control tower, from its own plan (TowerADC): shaft and entrance hall, the lift lobby, the cab
+	{
+		FBuilding& T = Buildings.AddDefaulted_GetRef();
+		T.Label = TEXT("ATC TOWER");
+		T.Box = FBox2f(ForceInit);
+		const FVector2f C(ATowerADC::AtX, ATowerADC::AtZ);
+		auto Ring = [&C](FBFloor& F, float R, bool bGlass, int32 N)
+		{
+			for (int32 i = 0; i < N; ++i)
+			{
+				const float A0 = 2 * PI * i / N, A1 = 2 * PI * (i + 1) / N;
+				F.Segs.Add(FSeg{C + FVector2f(FMath::Cos(A0), FMath::Sin(A0)) * R, C + FVector2f(FMath::Cos(A1), FMath::Sin(A1)) * R, bGlass});
+			}
+		};
+		auto Box = [&C](FBFloor& F, float X0, float Z0, float X1, float Z1, bool bGlass)
+		{
+			const FVector2f P[4] = {C + FVector2f(X0, Z0), C + FVector2f(X1, Z0), C + FVector2f(X1, Z1), C + FVector2f(X0, Z1)};
+			for (int32 i = 0; i < 4; ++i) F.Segs.Add(FSeg{P[i], P[(i + 1) % 4], bGlass});
+		};
+		FBFloor& G = T.Floors.AddDefaulted_GetRef(); G.Label = TEXT("GROUND FLOOR"); G.Y0 = -1.f; G.Y1 = ATowerADC::LobbyY - 1.f;
+		Ring(G, 3.6f, false, 48); Box(G, -6.6f, -1.75f, -3.0f, 1.75f, true); Box(G, -0.55f, 1.9f, 0.55f, 3.0f, false);
+		FBFloor& L = T.Floors.AddDefaulted_GetRef(); L.Label = TEXT("LIFT LOBBY"); L.Y0 = ATowerADC::LobbyY - 1.f; L.Y1 = ATowerADC::CabY - 0.5f;
+		Ring(L, 4.4f, true, 48); Ring(L, 1.35f, false, 24); Box(L, -0.55f, 1.9f, 0.55f, 3.0f, false);
+		FBFloor& K = T.Floors.AddDefaulted_GetRef(); K.Label = TEXT("CAB"); K.Y0 = ATowerADC::CabY - 0.5f; K.Y1 = 99.f;
+		Ring(K, 6.0f, true, 64); Ring(K, 5.65f, false, 64); Ring(K, 4.75f, false, 64); Ring(K, 7.38f, true, 64); Ring(K, 1.45f, false, 24);
+		for (const FBFloor& F : T.Floors) for (const FSeg& S : F.Segs) { T.Box += S.A; T.Box += S.B; }
+	}
+}
+
+int32 SHoloMap::BuildingAt(const FVector& P, int32& OutFloor) const
+{
+	OutFloor = 0;
+	for (int32 b = 0; b < Buildings.Num(); ++b)
+	{
+		if (!Buildings[b].Box.ExpandBy(0.6f).IsInsideOrOn(FVector2f(P.X, P.Z))) continue;
+		for (int32 f = 0; f < Buildings[b].Floors.Num(); ++f)
+			if (P.Y >= Buildings[b].Floors[f].Y0 && P.Y < Buildings[b].Floors[f].Y1) { OutFloor = f; return b; }
+	}
+	return INDEX_NONE;
 }
 
 void SHoloMap::SetPlayer(const FVector& PlanPos, float YawDeg)
@@ -156,11 +235,31 @@ int32 SHoloMap::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const FSla
 		Line(B.Max, FVector2f(B.Min.X, B.Max.Y), C, T, Off); Line(FVector2f(B.Min.X, B.Max.Y), B.Min, C, T, Off);
 	};
 
+	int32 BF = 0;
+	const int32 InB = BuildingAt(Player, BF);
 	// the other floor, a faint ghost a little below
 	for (const FSeg& S : Walls[Other]) Line(S.A, S.B, Ghost, 1, FVector2f(0, (F - Other) * 7.f));
-	// this floor: a soft glow under bright walls, glass lighter
-	for (const FSeg& S : Walls[F]) Line(S.A, S.B, WallGlow, 4.f);
-	for (const FSeg& S : Walls[F]) Line(S.A, S.B, S.bGlass ? GlassC : Wall, 1.6f);
+	// this floor: a soft glow under bright walls, glass lighter (dimmer while you are in another building)
+	if (InB == INDEX_NONE) for (const FSeg& S : Walls[F]) Line(S.A, S.B, WallGlow, 4.f);
+	for (const FSeg& S : Walls[F]) Line(S.A, S.B, InB == INDEX_NONE ? (S.bGlass ? GlassC : Wall) : FLinearColor(0.55f, 0.84f, 1.f, 0.4f), InB == INDEX_NONE ? 1.6f : 1.f);
+	// the other buildings, whole: the one you are in bright on its floor; the rest on the floor nearest your height,
+	// their other floors as ghosts
+	for (int32 b = 0; b < Buildings.Num(); ++b)
+	{
+		const FBuilding& Bd = Buildings[b];
+		int32 Show = 0;
+		if (b == InB) Show = BF;
+		else for (int32 f = 0; f < Bd.Floors.Num(); ++f) if (Player.Y >= Bd.Floors[f].Y0 && Player.Y < Bd.Floors[f].Y1) Show = f;
+		for (int32 f = 0; f < Bd.Floors.Num(); ++f)
+		{
+			if (f == Show) continue;
+			for (const FSeg& S : Bd.Floors[f].Segs) Line(S.A, S.B, Ghost, 1);
+		}
+		if (!Bd.Floors.IsValidIndex(Show)) continue;
+		const bool bHere = b == InB;
+		if (bHere) for (const FSeg& S : Bd.Floors[Show].Segs) Line(S.A, S.B, WallGlow, 4.f);
+		for (const FSeg& S : Bd.Floors[Show].Segs) Line(S.A, S.B, bHere ? (S.bGlass ? GlassC : Wall) : FLinearColor(0.55f, 0.84f, 1.f, S.bGlass ? 0.3f : 0.6f), bHere ? 1.6f : 1.1f);
+	}
 	for (const FBox2f& B : StairBoxes[F]) Rect(B, Mark, 1);
 	for (const FBox2f& B : LiftBoxes[F]) Rect(B, Mark, 1);
 	if (F == 1) for (const FVector2f& C : Columns) Rect(FBox2f(C - FVector2f(0.4f), C + FVector2f(0.4f)), Mark, 1);
@@ -239,7 +338,8 @@ int32 SHoloMap::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const FSla
 	}
 
 	// the floor shown, and the corner brackets
-	const FString FloorName = F == 2 ? TEXT("FLOOR 2") : TEXT("FLOOR 1");
+	FString FloorName = F == 2 ? TEXT("FLOOR 2") : TEXT("FLOOR 1");
+	{ int32 BF2 = 0; const int32 B2 = BuildingAt(Player, BF2); if (B2 != INDEX_NONE) FloorName = Buildings[B2].Label + TEXT("  ·  ") + Buildings[B2].Floors[BF2].Label; }
 	FSlateDrawElement::MakeText(Out, Layer + 5, Geo.ToPaintGeometry(FVector2f(200, 18), FSlateLayoutTransform(FVector2f(10, 8))), bFull ? FloorName + TEXT("  ·  CLICK WHERE YOU WANT TO GO  ·  M CLOSES") : FloorName, FCoreStyle::GetDefaultFontStyle("Bold", bFull ? 12 : 9), ESlateDrawEffect::None, Label);
 	const float B = bFull ? 26.f : 16.f;
 	for (const FVector2f& Corner : {FVector2f(0, 0), FVector2f(Size.X, 0), FVector2f(0, Size.Y), FVector2f(Size.X, Size.Y)})

@@ -84,7 +84,11 @@ private:
 	#pragma endregion
 
 	UPROPERTY() TObjectPtr<USceneComponent> Root;
-	UPROPERTY() TObjectPtr<USceneComponent> Frame;       // the tower's own frame, at its place
+	UPROPERTY() TObjectPtr<USceneComponent> Frame;
+	/** The glass's outward faces: not drawn while you are inside the tower (only the clear inner faces then, owner
+	 *  2026-11-10: no white haze on the windows from inside). */
+	UPROPERTY() TObjectPtr<class UProceduralMeshComponent> GlassOutside;
+	bool bInsideLast = false;       // the tower's own frame, at its place
 	UPROPERTY() TObjectPtr<UStaticMesh> Cube;
 	UPROPERTY() TObjectPtr<UStaticMesh> Cylinder;
 	UPROPERTY() TMap<FName, TObjectPtr<UMaterialInterface>> Mats;

@@ -65,6 +65,16 @@ UMaterialInterface* ATowerADC::Mat(const FName Name)
 	if (TObjectPtr<UMaterialInterface>* F = Mats.Find(Name)) return *F;
 	UMaterialInterface* M = nullptr;
 	if (Name == "GLASS") M = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/M_Glass.M_Glass"));
+	// the glass seen from inside: very clear, hardly a reflection (no white haze over the view)
+	if (Name == "INGLASS" || Name == "INRAILGLASS")
+		if (UMaterialInterface* G = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/M_Glass.M_Glass")))
+		{
+			UMaterialInstanceDynamic* D = UMaterialInstanceDynamic::Create(G, this);
+			D->SetScalarParameterValue(TEXT("Specular"), 0.04f);
+			D->SetScalarParameterValue(TEXT("Opacity"), 0.03f);
+			D->SetScalarParameterValue(TEXT("Roughness"), 0.0f);
+			M = D;
+		}
 	// the balcony's glass railing: clearer and less mirror-like (seen from the cab at a shallow angle the plain glass
 	// mirrored the bright sky as a white band in front of the windows)
 	if (Name == "RAILGLASS")
@@ -96,7 +106,7 @@ UMaterialInterface* ATowerADC::Mat(const FName Name)
 	if (!M)
 	{
 		// the Android edition's names that the PC kit has under another name
-		static const TMap<FName, FName> Same = { {"timber", "oak"}, {"whiteGloss", "white"}, {"screenBlack", "black"}, {"light", "lamp"}, {"GLASS", "white"}, {"RAILGLASS", "white"} };
+		static const TMap<FName, FName> Same = { {"timber", "oak"}, {"whiteGloss", "white"}, {"screenBlack", "black"}, {"light", "lamp"}, {"GLASS", "white"}, {"RAILGLASS", "white"}, {"INGLASS", "white"}, {"INRAILGLASS", "white"} };
 		const FName* K = Same.Find(Name);
 		M = ATerminalBuilder::KitMaterial(this, K ? *K : Name);
 	}
@@ -283,7 +293,32 @@ void ATowerADC::Build()
 	BuildRoof();
 
 	Shells(Frame, Solid, true, true, TEXT("ADC_SHELLS"));
-	Shells(Frame, Glass, true, false, TEXT("ADC_GLASS"));
+	// the glass split: its outward faces (seen from outside) and its inward faces (seen from inside, a clearer glass);
+	// a face is outward when its normal points away from the tower's middle
+	{
+		TMap<FName, FBuf> Out, In;
+		for (TPair<FName, FBuf>& E : Glass)
+		{
+			const FBuf& B = E.Value;
+			FBuf& O = Out.FindOrAdd(E.Key);
+			FBuf& I = In.FindOrAdd(E.Key == "RAILGLASS" ? FName("INRAILGLASS") : FName("INGLASS"));
+			for (int32 t = 0; t + 2 < B.T.Num(); t += 3)
+			{
+				const int32 A = B.T[t];
+				const FVector Mid = (B.V[B.T[t]] + B.V[B.T[t + 1]] + B.V[B.T[t + 2]]) / 3.0;
+				const bool bOut = FVector::DotProduct(FVector(B.N[A].X, B.N[A].Y, 0), FVector(Mid.X, Mid.Y, 0)) >= 0;
+				FBuf& D = bOut ? O : I;
+				for (int32 k = 0; k < 3; ++k)
+				{
+					const int32 S = B.T[t + k];
+					D.T.Add(D.V.Num()); D.V.Add(B.V[S]); D.N.Add(B.N[S]); D.UV.Add(B.UV[S]);
+				}
+			}
+		}
+		Glass.Empty();
+		GlassOutside = Shells(Frame, Out, true, false, TEXT("ADC_GLASS_OUT"));
+		Shells(Frame, In, false, false, TEXT("ADC_GLASS_IN"));
+	}
 	Shells(Frame, Trim, false, true, TEXT("ADC_TRIM"));
 
 	// the lift, from the ground floor to the lift lobby, its doors facing west, against the shaft's north wall
@@ -636,6 +671,12 @@ void ATowerADC::Tick(float Dt)
 	const float DCX = FMath::Cos(DoorA) * CabR0, DCZ = FMath::Sin(DoorA) * CabR0;
 	BK = Toward(BK, bAtCab && FMath::Sqrt(FMath::Square(LX - DCX) + FMath::Square(LZ - DCZ)) < 2.3f, 1.2f);
 	FK = Toward(FK, bAtCab && FMath::Sqrt(FMath::Square(LX - FMath::Cos(DoorA) * 5.f) + FMath::Square(LZ - FMath::Sin(DoorA) * 5.f)) < 2.1f, 1.4f);
+	// inside the tower (the foot, the lift lobby, the cab): the glass's outward faces not drawn, only its clear inner ones
+	{
+		const float R = FMath::Sqrt(LX * LX + LZ * LZ);
+		const bool bInside = (PY < LobbyY - 1.f && R < ShaftR + 0.2f) || (PY >= LobbyY - 1.f && PY < CabY - 0.3f && R < LR) || (PY >= CabY - 0.3f && PY < RoofTop && R < CabR0);
+		if (bInside != bInsideLast && GlassOutside) { GlassOutside->SetVisibility(!bInside); bInsideLast = bInside; }
+	}
 
 	for (int32 i = 0; i < EntranceDoors.Num(); ++i)
 		if (USceneComponent* D = EntranceDoors[i]) D->SetRelativeLocation(U(EX0 + 0.12f, 0, (i ? 1.f : -1.f) * (0.4f + Ease(EK) * 0.78f)));

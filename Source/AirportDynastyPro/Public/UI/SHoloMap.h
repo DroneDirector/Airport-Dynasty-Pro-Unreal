@@ -44,6 +44,14 @@ private:
 	TArray<FSeg> Walls[3];         // by floor (1, 2)
 	TArray<FBox2f> StairBoxes[3], LiftBoxes[3];
 	TArray<FVector2f> Columns;
+	/** The other buildings, each with its own floors (the jetways: one floor; the car rental centre; the control
+	 *  tower: ground floor, lift lobby, cab): drawn whole on the map; the one you are in gives the floor reading. */
+	struct FBFloor { FString Label; float Y0 = 0, Y1 = 0; TArray<FSeg> Segs; };
+	struct FBuilding { FString Label; FBox2f Box; TArray<FBFloor> Floors; };
+	TArray<FBuilding> Buildings;
+	void LoadBuildings();
+	/** The building you are in (INDEX_NONE: the terminal) and its floor there. */
+	int32 BuildingAt(const FVector& P, int32& OutFloor) const;
 	FBox2f Bounds;
 	FTerminalPlan Plan;
 	FWalkMap Map;
