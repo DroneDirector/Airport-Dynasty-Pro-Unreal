@@ -65,6 +65,10 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 - [ ] RULE kept: floors only on floor faces, never walls or stairs; the tower is "ATC" on signs, never ADC
 
 ## 4. Playing: walking, menus, controls
+- [ ] **Title screen's moving splash image lags** (owner, 2026-11-10): smooth on Android/Babylon, stutters on PC. Check
+      first: the web view's frame rate (Unreal's offscreen browser is often capped at 24-30 fps; raise it to the
+      screen's rate), Unreal rendering the 3D world behind the full-screen menus (pause it there), and the copy of the
+      web page into Unreal each frame; make it as smooth as on Android
 - [ ] **Unstuck panel**: when you are stuck inside something, a small panel puts you back on free floor in one click
 - [ ] **Footsteps by surface** (concrete, tarmac, wood, carpet, metal, from the floor's material) with a volume slider;
       sounds free for a paid game (CC0 / CC BY), credited
