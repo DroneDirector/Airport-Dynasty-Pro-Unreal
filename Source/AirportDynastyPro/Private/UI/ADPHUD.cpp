@@ -12,6 +12,9 @@
 #include "SunClock.h"
 #include "Engine/PostProcessVolume.h"
 #include "Globe.h"
+#include "WalkAnywhere.h"
+#include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Layout/SWrapBox.h"
 #include "Components/VolumetricCloudComponent.h"
 #include "EngineUtils.h"
 #include "HAL/IConsoleManager.h"
@@ -565,6 +568,19 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 8)[LevelRow(true)]
 				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Blur (motion blur and depth of field)"))]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)[LevelRow(false)]
+				// walk anywhere on Earth: a named place or a latitude and longitude; back to the airport
+				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Walk anywhere on Earth"))]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 4)
+				[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true).Text_Lambda([]() { return FText::FromString(AWalkAnywhere::Status() + TEXT("  Pick a place, or type a latitude and longitude (e.g. 62.01, -6.77) and press Enter.")); })]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 4)
+				[
+					SNew(SEditableTextBox).Font(Font(10, "Regular")).HintText(FText::FromString(TEXT("Latitude, longitude  or a place's name")))
+					.OnTextCommitted_Lambda([this](const FText& T, ETextCommit::Type C) { if (C == ETextCommit::OnEnter) { if (AWalkAnywhere::GoText(GetWorld(), T.ToString())) { if (bSettings) ToggleSettings(); } } })
+				]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)
+				[
+					WalkPlaces()
+				]
 				// the world's terrain: downloaded once (about 6.6 GB) and kept up to date pack by pack
 				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("The world's terrain (mountains and valleys everywhere)"))]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 4)
@@ -1363,6 +1379,28 @@ void AADPHUD::Tick(float Dt)
 			for (const FStep& St : MastSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
 		}
+		// -UIAnywhere: walk anywhere: Tórshavn, Skógafoss, Zermatt, then back to the airport
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")))
+		{
+			auto Look = [this](float Yaw, float Pitch) { if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(FRotator(Pitch, Yaw, 0.f)); };
+			struct FStep { float At; TFunction<void()> Do; };
+			const FStep AnySteps[] = {
+				{44.f, [&]() { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 14.f; ASunClock::Theme = 1; ASunClock::Refresh(); AWalkAnywhere::GoText(GetWorld(), TEXT("Tórshavn")); }},
+				{75.f, [&]() { Look(0.f, -5.f); UE_LOG(LogTemp, Log, TEXT("ANYTEST %s"), *AWalkAnywhere::Status()); }},
+				{78.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Anywhere_Torshavn"), false, false); }},
+				{79.f, [&]() { AWalkAnywhere::GoText(GetWorld(), TEXT("Skógafoss")); }},
+				{110.f, [&]() { Look(270.f, 5.f); UE_LOG(LogTemp, Log, TEXT("ANYTEST %s"), *AWalkAnywhere::Status()); }},
+				{113.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Anywhere_Skogafoss"), false, false); }},
+				{114.f, [&]() { AWalkAnywhere::GoText(GetWorld(), TEXT("46.0207, 7.7491")); }},
+				{145.f, [&]() { Look(250.f, 8.f); UE_LOG(LogTemp, Log, TEXT("ANYTEST %s"), *AWalkAnywhere::Status()); }},
+				{148.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Anywhere_Zermatt"), false, false); }},
+				{149.f, [&]() { AWalkAnywhere::Back(GetWorld()); }},
+				{158.f, [&]() { UE_LOG(LogTemp, Log, TEXT("ANYTEST %s"), *AWalkAnywhere::Status()); FScreenshotRequest::RequestScreenshot(TEXT("Anywhere_Back"), false, false); }},
+				{162.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+			};
+			for (const FStep& St : AnySteps)
+				if (Before < St.At && ShotClock >= St.At) St.Do();
+		}
 		// -UIGround: standing on the real ground round the airport (beyond the airfield): grass where the land cover is grassy
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIGround")))
 		{
@@ -1465,7 +1503,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are
@@ -1492,3 +1530,16 @@ void AADPHUD::Tick(float Dt)
 }
 
 #pragma endregion
+
+TSharedRef<SWidget> AADPHUD::WalkPlaces()
+{
+	// every named place as a button, then the way back
+	TSharedRef<SWrapBox> Box = SNew(SWrapBox).UseAllottedSize(true).InnerSlotPadding(FVector2D(6, 6));
+	for (const AWalkAnywhere::FPlace& Pl : AWalkAnywhere::Places())
+	{
+		const double La = Pl.Lat, Lo = Pl.Lon; const FString N = Pl.Name;
+		Box->AddSlot()[Button(N.ToUpper(), [this, La, Lo, N]() { AWalkAnywhere::Go(GetWorld(), Lo, La, N); if (bSettings) ToggleSettings(); })];
+	}
+	Box->AddSlot()[Button(TEXT("BACK TO THE AIRPORT"), [this]() { AWalkAnywhere::Back(GetWorld()); if (bSettings) ToggleSettings(); })];
+	return Box;
+}

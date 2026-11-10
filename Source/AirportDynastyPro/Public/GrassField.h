@@ -28,6 +28,8 @@ public:
 	static float NearDistance;
 	/** Grass on or off (Settings). */
 	static bool bOn;
+	/** Walking somewhere else on Earth (WalkAnywhere.h): the airfield's own grass set aside, only the grass round you. */
+	static bool bAway;
 
 private:
 	/** A patch of ground (25 m square): the grass's height at each metre (none where it isn't grass). */
@@ -50,4 +52,5 @@ private:
 	FBox2D Field;                 // world cm
 	float FarY = 0;               // the far tufts laid row by row from the start, a few each frame
 	bool bLastOn = true;
+	bool bLastAway = false;
 };

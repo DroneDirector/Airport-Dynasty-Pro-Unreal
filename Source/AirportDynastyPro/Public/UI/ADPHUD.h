@@ -143,6 +143,8 @@ private:
 	TSharedPtr<class SDragBox> FpsBox;
 	#pragma endregion
 
+	/** Settings' walk-anywhere places (WalkAnywhere.h). */
+	TSharedRef<SWidget> WalkPlaces();
 	TSharedPtr<SWidget> Root;
 	TSharedPtr<SWebBrowser> Browser;
 	#pragma region Announcements (Announcements.cpp)

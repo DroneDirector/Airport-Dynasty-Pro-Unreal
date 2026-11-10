@@ -3,6 +3,7 @@
 #include "LandCover.h"
 #include "Cesium3DTileset.h"
 #include "CesiumGeoreference.h"
+#include "EngineUtils.h"
 #include "TerminalPlan.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -11,8 +12,19 @@
 #include "GameFramework/Pawn.h"
 #include "CollisionQueryParams.h"
 
+namespace
+{
+	/** The globe's own georeference (Globe.cpp spawns it); Cesium's "default" one is another, at 0 N 0 E. */
+	ACesiumGeoreference* ADPGlobeGeo(UWorld* W)
+	{
+		if (W) for (TActorIterator<ACesiumGeoreference> It(W); It; ++It) if (!It->GetName().Contains(TEXT("Default"))) return *It;
+		return nullptr;
+	}
+}
+
 float AGrassField::NearDistance = 45.f;
 bool AGrassField::bOn = true;
+bool AGrassField::bAway = false;
 
 namespace
 {
@@ -30,7 +42,7 @@ namespace
 			if (const UStaticMesh* M = S->GetStaticMesh()) if (M->GetName() == TEXT("terminal_mesh_2611")) return true;
 		// the real ground (the globe's terrain): grass where the land cover says the land is grassy
 		if (C->GetOwner() && C->GetOwner()->IsA<ACesium3DTileset>())
-			if (ACesiumGeoreference* G = ACesiumGeoreference::GetDefaultGeoreference(C->GetWorld()))
+			if (ACesiumGeoreference* G = ADPGlobeGeo(C->GetWorld()))
 			{
 				const FVector LL = G->TransformUnrealPositionToLongitudeLatitudeHeight(H.ImpactPoint);
 				return ADPLandCover::Grows(ADPLandCover::ClassAt(LL.X, LL.Y));
@@ -136,9 +148,11 @@ void AGrassField::Tick(float Dt)
 	Super::Tick(Dt);
 	if (!Near || !Mid || !Tuft || !Field.bIsValid) return;
 	if (bOn != bLastOn) ApplyOn();
+	// away from the airport: its field's far tufts hidden; the patches found there forgotten (the ground moved)
+	if (bAway != bLastAway) { bLastAway = bAway; for (auto& K : FarRows) if (K) K->SetVisibility(!bAway && bOn); Patches.Reset(); for (auto& It : NearCells) if (It.Value) It.Value->DestroyComponent(); NearCells.Reset(); for (auto& It : MidCells) if (It.Value) It.Value->DestroyComponent(); MidCells.Reset(); }
 
 	// the whole airfield's tufts, a few rows each frame until it's all laid (once)
-	if (FarY < Field.Max.Y)
+	if (FarY < Field.Max.Y && !bAway)
 	{
 		UHierarchicalInstancedStaticMeshComponent* K = NewLayer(Tuft, 0.f, 0.f, 0.f);
 		FRandomStream R{int32(FarY)};
