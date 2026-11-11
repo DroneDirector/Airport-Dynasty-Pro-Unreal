@@ -114,11 +114,18 @@ def monitor(key, diag_in, aspect, radius, centre_h, base_v, offset_x):
     cuts = 0 if radius is None else 120
     zc = centre_h; zb = zc - H / 2 - chin + BH / 2      # the bezel's middle (the chin below the picture)
     parts = []
-    # the bezel: a thin slab, rounded, its front at y = -0.005
-    parts.append(box(key + '-Bezel', coll, (BW, 0.010, BH), (0, 0, zb), M['bezel'], cuts, 0.0018))
+    # the bezel: a frame round the picture (top, the chin, the two sides), its front at y = -0.005, open in the middle;
+    # a dark back panel 9 mm behind the picture closes it. Nothing lies just behind the picture (as a solid bezel did:
+    # it showed through in black streaks, and in the packaged game hid the picture altogether)
+    zt = zc + H / 2 + top / 2; zch = zc - H / 2 - chin / 2
+    parts.append(box(key + '-BezelTop', coll, (BW, 0.010, top), (0, 0, zt), M['bezel'], cuts, 0.0015))
+    parts.append(box(key + '-BezelChin', coll, (BW, 0.010, chin), (0, 0, zch), M['bezel'], cuts, 0.0015))
+    for sx in (-1, 1):
+        parts.append(box(key + '-BezelSide%s' % ('L' if sx < 0 else 'R'), coll, (side, 0.010, H), (sx * (W / 2 + side / 2), 0, zc), M['bezel'], 0, 0.0015))
+    parts.append(box(key + '-BackPanel', coll, (BW, 0.004, BH), (0, 0.007, zb), M['dark'], cuts, 0.0))
     # the picture, just proud of the bezel
-    # (1.5 mm in front of the bezel: closer, the bezel showed through it in black streaks in the game)
-    parts.append(screen_plane(key + '-Screen', coll, W, H, (0, -0.0065, zc), screen_mat(key), cuts))
+    # (set a millimetre back inside the bezel's frame)
+    parts.append(screen_plane(key + '-Screen', coll, W, H, (0, -0.004, zc), screen_mat(key), cuts))
     # the back housing: a rounded shell behind the panel, its vents near the top, the ports panel low down
     hw, hh, hd = BW * 0.82, BH * 0.74, 0.034
     hz = zb - BH * 0.04

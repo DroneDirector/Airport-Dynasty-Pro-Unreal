@@ -1,5 +1,6 @@
 // The apron light masts (LightMasts.h).
 #include "LightMasts.h"
+#include "ADPLog.h"
 #include "Engine/PostProcessVolume.h"
 #include "TerminalPlan.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -55,7 +56,7 @@ void ALightMasts::Build()
 	BeamDistance = FMath::Clamp(BeamDistance, 60.f, 500.f);
 	UStaticMesh* Main = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/LightMast/lightmast/StaticMeshes/LightMast.LightMast"));
 	UStaticMesh* Fine = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/LightMast/lightmast/StaticMeshes/LightMastThin.LightMastThin"));
-	if (!Main) { UE_LOG(LogTemp, Warning, TEXT("Light masts: mesh missing")); return; }
+	if (!Main) { ADP_WARN(TEXT("Light masts: mesh missing")); return; }
 	auto Make = [this](UStaticMesh* M, const TCHAR* Name)
 	{
 		UInstancedStaticMeshComponent* C = NewObject<UInstancedStaticMeshComponent>(this, Name);
@@ -105,7 +106,7 @@ void ALightMasts::Build()
 	// the LED faces: their own material copy, so the glow can follow the night
 	const int32 Slot = Masts->GetMaterialIndex(TEXT("MI_LM_LEDFace"));
 	if (Slot != INDEX_NONE) if (UMaterialInterface* F = Masts->GetMaterial(Slot)) { Faces = UMaterialInstanceDynamic::Create(F, this); Masts->SetMaterial(Slot, Faces); }
-	UE_LOG(LogTemp, Log, TEXT("Light masts: %d placed (LED slot %d)"), Spots().Num(), Slot);
+	ADP_LOG(TEXT("Light masts: %d placed (LED slot %d)"), Spots().Num(), Slot);
 }
 
 void ALightMasts::Tick(float Dt)

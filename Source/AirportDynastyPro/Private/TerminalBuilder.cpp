@@ -1,6 +1,7 @@
 // Builds the terminal at run time from the shared layout: floors, walls with door openings, glass walls (frames and
 // clear panes), columns, stairs, lifts and stand markings, in the Android edition's materials for each kind of room.
 #include "TerminalBuilder.h"
+#include "ADPLog.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
@@ -188,7 +189,7 @@ bool ATerminalBuilder::Build()
 	for (const FPlanPoint& S : Plan.Stands)
 		Box(Mat("yellow"), S.X - 0.15f, 0, S.Z, S.X + 0.15f, 0.02f, S.Z + 45.f); // stand lead-in line from the nose position
 
-	UE_LOG(LogTemp, Log, TEXT("Terminal built: %d rooms, %d doors"), Plan.Rooms.Num(), Plan.Doors.Num());
+	ADP_LOG(TEXT("Terminal built: %d rooms, %d doors"), Plan.Rooms.Num(), Plan.Doors.Num());
 	return true;
 }
 

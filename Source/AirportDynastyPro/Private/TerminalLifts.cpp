@@ -1,6 +1,7 @@
 // The lifts: shafts, landing doors, the riding car and its calls, doors and ride, ported from the Android edition's
 // lifts.ts with the same sizes, speeds and timings. The car's floor carries the player up and down.
 #include "TerminalLifts.h"
+#include "ADPLog.h"
 #include "Components/RectLightComponent.h"
 #include "TerminalBuilder.h"
 #include "Components/StaticMeshComponent.h"
@@ -85,7 +86,7 @@ void ATerminalLifts::Build(const FTerminalPlan& Plan)
 		S.Lo = 0; S.Hi = Plan.F2Y; S.Top = Plan.F2Ceil;
 		AddLift(S);
 	}
-	UE_LOG(LogTemp, Log, TEXT("Lifts built: %d"), Lifts.Num());
+	ADP_LOG(TEXT("Lifts built: %d"), Lifts.Num());
 }
 
 USceneComponent* ATerminalLifts::AddLift(const FLiftSpec& Spec)

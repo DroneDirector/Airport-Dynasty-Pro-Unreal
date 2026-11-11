@@ -2,6 +2,7 @@
 // (shaft, lobby, cab glass, floors, desk ring, roof) as procedural meshes with both faces and collision, the straight
 // pieces as instanced boxes and cylinders, the lift from TerminalLifts, and the doors and desk flap moving each frame.
 #include "TowerADC.h"
+#include "ADPLog.h"
 #include "TerminalBuilder.h"
 #include "TerminalLifts.h"
 #include "TerminalPlan.h"
@@ -382,7 +383,7 @@ void ATowerADC::Build()
 	// the forecourt: paved like the apron from the tower's foot east to the apron's west edge (plan x -160), so the
 	// tower stands on the airfield's paving, not alone in the grass
 	Box("apron", 62.f, 0.1f, 26.f, 19.f, -0.03f, 0.f);
-	UE_LOG(LogTemp, Log, TEXT("Control tower built at plan x %.0f z %.0f"), AtX, AtZ);
+	ADP_LOG(TEXT("Control tower built at plan x %.0f z %.0f"), AtX, AtZ);
 }
 
 #pragma region The foot

@@ -1,6 +1,7 @@
 // Places the Babylon model: walks its node tree from the roots, works out each node's transform the way Unreal's glTF
 // importer converts them, and adds an instance of the node's imported mesh there.
 #include "BabylonModel.h"
+#include "ADPLog.h"
 #include "TerminalBuilder.h"
 #include "Components/StaticMeshComponent.h"
 #include "Sound/SoundBase.h"
@@ -128,7 +129,7 @@ bool ABabylonModel::Place(const FString& Name)
 			}
 	};
 	for (const TSharedPtr<FJsonValue>& R : J->GetArrayField(TEXT("roots"))) Walk(int32(R->AsNumber()), FTransform::Identity, false);
-	UE_LOG(LogTemp, Log, TEXT("Babylon model %s placed: %d objects, %d meshes"), *Name, Placed, ByMesh.Num());
+	ADP_LOG(TEXT("Babylon model %s placed: %d objects, %d meshes"), *Name, Placed, ByMesh.Num());
 
 	// the doors (nodes named D-<id>), read the way doors.ts builds them
 	if (!bByNode)
@@ -187,7 +188,7 @@ bool ABabylonModel::Place(const FString& Name)
 			}
 			if (Door.Parts.Num()) Doors.Add(MoveTemp(Door));
 		}
-		UE_LOG(LogTemp, Log, TEXT("Babylon model %s: %d doors that move"), *Name, Doors.Num());
+		ADP_LOG(TEXT("Babylon model %s: %d doors that move"), *Name, Doors.Num());
 		// the gate screens (nodes M-F<floor>-G<gate>): their face ("scr"), each its own mesh, for the live gate pictures
 		for (int32 G = 0; G < Nodes.Num(); ++G)
 		{
@@ -198,7 +199,7 @@ bool ABabylonModel::Place(const FString& Name)
 			if (Gate <= 0) continue;
 			for (const int32 K : Kids(G)) if (NameOf(K).StartsWith(TEXT("scr")) && NodeInst[K].Key) GateScreens.Add(Gate, NodeInst[K].Key);
 		}
-		UE_LOG(LogTemp, Log, TEXT("Babylon model %s: %d gate screens"), *Name, GateScreens.Num());
+		ADP_LOG(TEXT("Babylon model %s: %d gate screens"), *Name, GateScreens.Num());
 		LightFittings(Nodes, NodeWorld, NodeInst);
 		ReplaceSeats(Nodes, NodeWorld, NodeInst);
 	}
@@ -242,7 +243,7 @@ void ABabylonModel::ToneDown()
 			Done.Add(M, Out);
 			if (Out) K->SetMaterial(S, Out);
 		}
-	UE_LOG(LogTemp, Log, TEXT("Babylon model: %d whites toned to paint, %d glows halved"), Whites, Glows);
+	ADP_LOG(TEXT("Babylon model: %d whites toned to paint, %d glows halved"), Whites, Glows);
 }
 
 void ABabylonModel::MatchSurfaces()
@@ -275,7 +276,7 @@ void ABabylonModel::MatchSurfaces()
 			if (bDoor && Facade && MN == TEXT("glass")) { K->SetMaterial(S, Facade); ++Glass; }
 		}
 	}
-	UE_LOG(LogTemp, Log, TEXT("Babylon model: %d canopy undersides matte, %d door glass panes as the facade's"), Canopies, Glass);
+	ADP_LOG(TEXT("Babylon model: %d canopy undersides matte, %d door glass panes as the facade's"), Canopies, Glass);
 }
 
 void ABabylonModel::AddLights(const FString& Name)
@@ -331,7 +332,7 @@ void ABabylonModel::AddLights(const FString& Name)
 		FString LN; L->TryGetStringField(TEXT("name"), LN);
 		if (LN.StartsWith(TEXT("fire"))) { FireLights.Add(P); FireBase.Add(Strength * 7.0); if (LN == TEXT("fireL")) { AddFire(ToModel(*Pos) * 100.0); DeepenFireplace(0.6f); } }
 	}
-	UE_LOG(LogTemp, Log, TEXT("Babylon model %s: %d lights"), *Name, Made);
+	ADP_LOG(TEXT("Babylon model %s: %d lights"), *Name, Made);
 }
 
 void ABabylonModel::ReplaceSeats(const TArray<TSharedPtr<FJsonValue>>& Nodes, const TArray<FTransform>& NodeWorld, const TArray<TPair<UInstancedStaticMeshComponent*, int32>>& NodeInst)
@@ -340,7 +341,7 @@ void ABabylonModel::ReplaceSeats(const TArray<TSharedPtr<FJsonValue>>& Nodes, co
 	UStaticMesh* SeatM = LoadObject<UStaticMesh>(nullptr, *FString::Printf(TEXT("%sSeatModule.SeatModule"), Dir));
 	UStaticMesh* LegM = LoadObject<UStaticMesh>(nullptr, *FString::Printf(TEXT("%sLegModule.LegModule"), Dir));
 	UStaticMesh* ArmM = LoadObject<UStaticMesh>(nullptr, *FString::Printf(TEXT("%sArmModule.ArmModule"), Dir));
-	if (!SeatM || !LegM || !ArmM) { UE_LOG(LogTemp, Warning, TEXT("Seats: the new seating isn't imported")); return; }
+	if (!SeatM || !LegM || !ArmM) { ADP_WARN(TEXT("Seats: the new seating isn't imported")); return; }
 	auto Kit = [this](UStaticMesh* M)
 	{
 		UInstancedStaticMeshComponent* K = NewObject<UInstancedStaticMeshComponent>(this);
@@ -427,7 +428,7 @@ void ABabylonModel::ReplaceSeats(const TArray<TSharedPtr<FJsonValue>>& Nodes, co
 		++Rows; Places += N;
 	}
 	for (UInstancedStaticMeshComponent* K : {Seats, Legs, Arms}) K->MarkRenderStateDirty();
-	UE_LOG(LogTemp, Log, TEXT("Seats: %d rows, %d places in the new seating"), Rows, Places);
+	ADP_LOG(TEXT("Seats: %d rows, %d places in the new seating"), Rows, Places);
 }
 
 void ABabylonModel::AddFire(const FVector& LightAt)
@@ -540,7 +541,7 @@ void ABabylonModel::AddFire(const FVector& LightAt)
 		A->Play();
 	}
 	FireWorld = Root->GetComponentTransform().TransformPosition(Base);
-	UE_LOG(LogTemp, Log, TEXT("Lounge fire lit at %s"), *FireWorld.ToString());
+	ADP_LOG(TEXT("Lounge fire lit at %s"), *FireWorld.ToString());
 }
 
 void ABabylonModel::DeepenFireplace(float Depth)
@@ -597,7 +598,7 @@ void ABabylonModel::DeepenFireplace(float Depth)
 		Block(X1, Face, 0.f, HO, FZ + WI, FZ + WO, Dark);   // right
 		Block(X1, Face, HI, HO, FZ - WI, FZ + WI, Dark);    // over the opening
 	}
-	UE_LOG(LogTemp, Log, TEXT("Lounge fireplace %.1f m deeper"), Depth);
+	ADP_LOG(TEXT("Lounge fireplace %.1f m deeper"), Depth);
 }
 
 void ABabylonModel::FlickerFire()
@@ -791,7 +792,7 @@ void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, c
 				}
 			++Glows;
 		}
-	UE_LOG(LogTemp, Log, TEXT("Babylon model lights: %d downlights, %d room lights, %d jetway lights, %d glowing materials"), Spots, Soft, Strip, Glows);
+	ADP_LOG(TEXT("Babylon model lights: %d downlights, %d room lights, %d jetway lights, %d glowing materials"), Spots, Soft, Strip, Glows);
 }
 
 #pragma endregion

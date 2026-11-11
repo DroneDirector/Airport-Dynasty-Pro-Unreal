@@ -1,5 +1,6 @@
 // Walk anywhere on Earth (WalkAnywhere.h).
 #include "WalkAnywhere.h"
+#include "ADPLog.h"
 #include "BabylonModel.h"
 #include "Airfield.h"
 #include "TowerADC.h"
@@ -94,7 +95,7 @@ void AWalkAnywhere::Go(UWorld* W, double Lon, double Lat, const FString& Name)
 	APawn* P = PC->GetPawn();
 	P->SetActorLocation(FVector(0, 0, 900000.f), false, nullptr, ETeleportType::TeleportPhysics);
 	P->DisableInput(PC);
-	UE_LOG(LogTemp, Log, TEXT("Walk anywhere: going to %s (%.4f, %.4f)"), *Name, Lat, Lon);
+	ADP_LOG(TEXT("Walk anywhere: going to %s (%.4f, %.4f)"), *Name, Lat, Lon);
 }
 
 bool AWalkAnywhere::GoText(UWorld* W, const FString& Text)
@@ -120,7 +121,7 @@ void AWalkAnywhere::Back(UWorld* W)
 	if (APlayerController* PC = W->GetFirstPlayerController())
 		if (APawn* P = PC->GetPawn()) { P->SetActorLocation(Me->OldPawn, false, nullptr, ETeleportType::TeleportPhysics); P->EnableInput(PC); }
 	Me->bAway = false; Me->bPlaced = false;
-	UE_LOG(LogTemp, Log, TEXT("Walk anywhere: back at the airport"));
+	ADP_LOG(TEXT("Walk anywhere: back at the airport"));
 }
 
 void AWalkAnywhere::Tick(float Dt)
@@ -136,7 +137,7 @@ void AWalkAnywhere::Tick(float Dt)
 	FCollisionQueryParams Q(SCENE_QUERY_STAT(WalkAnywhere), true, P);
 	const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, FVector(0, 0, 900000.f), FVector(0, 0, -1100000.f), ECC_Visibility, Q);
 	if (FMath::FloorToInt(Wait / 5.f) != FMath::FloorToInt((Wait - Dt) / 5.f))
-		UE_LOG(LogTemp, Log, TEXT("Walk anywhere: %.0f s, looking down finds %s at %.0f m; you at %.0f m"), Wait, bHit && Hit.GetActor() ? *Hit.GetActor()->GetName() : TEXT("nothing"), Hit.ImpactPoint.Z / 100.f, P->GetActorLocation().Z / 100.f);
+		ADP_LOG(TEXT("Walk anywhere: %.0f s, looking down finds %s at %.0f m; you at %.0f m"), Wait, bHit && Hit.GetActor() ? *Hit.GetActor()->GetName() : TEXT("nothing"), Hit.ImpactPoint.Z / 100.f, P->GetActorLocation().Z / 100.f);
 	if (bHit && Hit.GetActor() && Hit.GetActor()->IsA<ACesium3DTileset>())
 	{
 		// a moment more for the finer tiles to come in: wait until the terrain's tiles round here are all in (sharp
@@ -150,11 +151,11 @@ void AWalkAnywhere::Tick(float Dt)
 		P->SetActorLocation(Hit.ImpactPoint + FVector(0, 0, P->GetSimpleCollisionHalfHeight() + 30.f), false, nullptr, ETeleportType::TeleportPhysics);
 		P->EnableInput(PC);
 		bPlaced = true;
-		UE_LOG(LogTemp, Log, TEXT("Walk anywhere: standing at %s, %.0f m"), *Where, Hit.ImpactPoint.Z / 100.f);
+		ADP_LOG(TEXT("Walk anywhere: standing at %s, %.0f m"), *Where, Hit.ImpactPoint.Z / 100.f);
 	}
 	else if (Wait > 90.f)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Walk anywhere: no ground at %s (the world's terrain isn't on this PC?)"), *Where);
+		ADP_WARN(TEXT("Walk anywhere: no ground at %s (the world's terrain isn't on this PC?)"), *Where);
 		Back(GetWorld());
 	}
 }

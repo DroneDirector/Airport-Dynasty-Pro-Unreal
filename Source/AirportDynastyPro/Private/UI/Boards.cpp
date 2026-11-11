@@ -3,6 +3,7 @@
 // arrivals from the game, or its sample timetable) and handed over here, then shown on every screen of that kind in
 // Unreal's copy of the model (their imported materials, fids-<kind><shape>, get the picture; lit, as screens are).
 #include "UI/ADPHUD.h"
+#include "ADPLog.h"
 #include "BabylonModel.h"
 #include "EngineUtils.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -71,7 +72,7 @@ void AADPHUD::OnBoard(const FString& Key, const FString& B64)
 					L.Add(D);
 				}
 		}
-		UE_LOG(LogTemp, Log, TEXT("Board %s: %dx%d on %d screens"), *Key, W->GetWidth(), W->GetHeight(), L.Num());
+		ADP_LOG(TEXT("Board %s: %dx%d on %d screens"), *Key, W->GetWidth(), W->GetHeight(), L.Num());
 	}
 	for (UMaterialInstanceDynamic* D : BoardMats[Key])
 	{
@@ -79,6 +80,13 @@ void AADPHUD::OnBoard(const FString& Key, const FString& B64)
 		TArray<FMaterialParameterInfo> Infos;
 		TArray<FGuid> Ids;
 		D->GetAllTextureParameterInfo(Infos, Ids);
-		for (const FMaterialParameterInfo& I : Infos) D->SetTextureParameterValueByInfo(I, T);   // the colour and the light: the same picture
+		for (const FMaterialParameterInfo& I : Infos)
+		{
+			// (the operations monitors: only the colour and the light; the picture as their bumps, metal and shade turned
+			// the screen dark in the packaged game)
+			const FString P = I.Name.ToString();
+			if (Key.StartsWith(TEXT("opsmon")) && !P.Contains(TEXT("baseColor"), ESearchCase::IgnoreCase) && !P.Contains(TEXT("emissive"), ESearchCase::IgnoreCase)) continue;
+			D->SetTextureParameterValueByInfo(I, T);   // the colour and the light: the same picture
+		}
 	}
 }

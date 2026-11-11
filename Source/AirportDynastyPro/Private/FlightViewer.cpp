@@ -1,5 +1,6 @@
 // The 3D viewer in Unreal (see FlightViewer.h).
 #include "FlightViewer.h"
+#include "ADPLog.h"
 #include "CesiumGeoreference.h"
 #include "BabylonModel.h"
 #include "Airfield.h"
@@ -49,7 +50,7 @@ void AFlightViewer::Open()
 				const FString N = M->GetName();
 				if (N.StartsWith(TEXT("strut")) || N.StartsWith(TEXT("wheel")) || N.StartsWith(TEXT("hub"))) Gear.Add(C);   // the landing gear
 			}
-		UE_LOG(LogTemp, Log, TEXT("Viewer: the airliner, %d parts (%d gear)"), Parts.Num(), Gear.Num());
+		ADP_LOG(TEXT("Viewer: the airliner, %d parts (%d gear)"), Parts.Num(), Gear.Num());
 	}
 	for (TActorIterator<ACesiumGeoreference> It(GetWorld()); It; ++It) { Geo = *It; break; }
 	if (Geo) OldOrigin = Geo->GetOriginLongitudeLatitudeHeight();

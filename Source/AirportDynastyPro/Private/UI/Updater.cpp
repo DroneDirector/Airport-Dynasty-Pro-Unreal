@@ -5,6 +5,7 @@
 // closes, a small script puts the files in place (each checked against its fingerprint), and the game starts again.
 // The terrain has its own packs by region (only the regions that changed come down).
 #include "UI/ADPHUD.h"
+#include "ADPLog.h"
 #include "HttpModule.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
@@ -219,7 +220,7 @@ Start-Process explorer.exe -ArgumentList ('"' + $exe + '"')
 	FString Args = FString::Printf(TEXT("-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"%s\""), *ScriptFile);
 	if (!bWritable)
 		Args = FString::Printf(TEXT("-NoProfile -WindowStyle Hidden -Command \"Start-Process powershell -Verb RunAs -WindowStyle Hidden -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File \\\"%s\\\"'\""), *ScriptFile);
-	UE_LOG(LogTemp, Log, TEXT("Updater: installing %s"), bWritable ? TEXT("directly") : TEXT("with administrator permission (the game folder is protected)"));
+	ADP_LOG(TEXT("Updater: installing %s"), bWritable ? TEXT("directly") : TEXT("with administrator permission (the game folder is protected)"));
 	FPlatformProcess::CreateProc(TEXT("powershell.exe"), *Args, true, true, true, nullptr, 0, nullptr, nullptr);
 	FGenericPlatformMisc::RequestExit(false);
 }

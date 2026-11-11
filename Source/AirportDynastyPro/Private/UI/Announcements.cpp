@@ -12,6 +12,7 @@
 // minutes before departure whatever happens (the usual closing time at airports), with its own call. Passengers
 // already waiting at a gate are never late.
 #include "UI/ADPHUD.h"
+#include "ADPLog.h"
 #include "SWebBrowser.h"
 #include "Components/AudioComponent.h"
 #include "Sound/SoundWaveProcedural.h"
@@ -192,13 +193,13 @@ void AADPHUD::SpeechPcm(int32 Id, const FString& B64)
 void AADPHUD::SpeechFallback(int32 Id)
 {
 	if (Id != SpeechId) return;
-	UE_LOG(LogTemp, Log, TEXT("Announcer: line %d with Windows' voice"), Id);
+	ADP_LOG(TEXT("Announcer: line %d with Windows' voice"), Id);
 	const FString Words = SpokenText;
 	TWeakObjectPtr<AADPHUD> Me(this);
 	Async(EAsyncExecution::Thread, [Me, Id, Words]()
 	{
 		TArray<int16> Pcm = WindowsVoice(Words);
-		UE_LOG(LogTemp, Log, TEXT("Announcer: Windows' voice made %d samples"), Pcm.Num());
+		ADP_LOG(TEXT("Announcer: Windows' voice made %d samples"), Pcm.Num());
 		AsyncTask(ENamedThreads::GameThread, [Me, Id, Pcm = MoveTemp(Pcm)]() { if (Me.IsValid() && Pcm.Num()) Me->PlayAnnouncer(Id, Pcm); });
 	});
 }
@@ -207,7 +208,7 @@ void AADPHUD::PlayAnnouncer(int32 Id, const TArray<int16>& Pcm)
 {
 	if (Id != SpeechId) return;
 	const TArray<int16> Pa = Intercom(Pcm, 24000);
-	UE_LOG(LogTemp, Log, TEXT("Announcer: %.1f s of voice, heard at %.0f%% here (%s)"), Pcm.Num() / 24000.f, CallGain() * 100.f, *ZoneKind());
+	ADP_LOG(TEXT("Announcer: %.1f s of voice, heard at %.0f%% here (%s)"), Pcm.Num() / 24000.f, CallGain() * 100.f, *ZoneKind());
 	// -UICall: the call as heard in the main hall (the chime, then the announcer) also written to Saved/Announcer.wav
 	if (FParse::Param(FCommandLine::Get(), TEXT("UICall")))
 	{
@@ -242,9 +243,9 @@ void AADPHUD::PlayAnnouncer(int32 Id, const TArray<int16>& Pcm)
 
 void AADPHUD::Speak(const FString& Words)
 {
-	if (!Browser.IsValid()) { UE_LOG(LogTemp, Warning, TEXT("Announcer: no menus page to make the voice")); return; }
+	if (!Browser.IsValid()) { ADP_WARN(TEXT("Announcer: no menus page to make the voice")); return; }
 	++SpeechId;
-	UE_LOG(LogTemp, Log, TEXT("Announcer: line %d asked for"), SpeechId);
+	ADP_LOG(TEXT("Announcer: line %d asked for"), SpeechId);
 	// flight numbers as announcers say them: letter by letter, digit by digit (ATN201: "A T N 2 0 1")
 	FString Said = Words;
 	{
@@ -433,7 +434,7 @@ void AADPHUD::RunCalls()
 			D.bClosed = true;
 			Announce(FString::Printf(TEXT("%s flight %s to %s is now closed. Gate %d is closed."), *Who, *F, *D.Place, D.Gate));
 			for (const FLatePassenger& P : D.Late)
-				UE_LOG(LogTemp, Log, TEXT("Flight %s: %s %s"), *F, *P.Name, P.bBoarded ? (P.bRun ? TEXT("ran to the gate and boarded") : TEXT("walked to the gate and boarded")) : TEXT("did not reach the gate in time"));
+				ADP_LOG(TEXT("Flight %s: %s %s"), *F, *P.Name, P.bBoarded ? (P.bRun ? TEXT("ran to the gate and boarded") : TEXT("walked to the gate and boarded")) : TEXT("did not reach the gate in time"));
 		}
 	}
 }
@@ -474,6 +475,6 @@ void AADPHUD::WritePreviewPack()
 	W.Append((const uint8*)"RIFF", 4); U32(36 + All.Num() * 2); W.Append((const uint8*)"WAVEfmt ", 8); U32(16); U16(1); U16(1); U32(24000); U32(48000); U16(2); U16(16);
 	W.Append((const uint8*)"data", 4); U32(All.Num() * 2); W.Append(reinterpret_cast<const uint8*>(All.GetData()), All.Num() * 2);
 	FFileHelper::SaveArrayToFile(W, *(FPaths::ProjectSavedDir() / TEXT("AnnouncementPack.wav")));
-	UE_LOG(LogTemp, Log, TEXT("Announcement pack written: %.0f s"), All.Num() / 24000.f);
+	ADP_LOG(TEXT("Announcement pack written: %.0f s"), All.Num() / 24000.f);
 }
 #pragma endregion

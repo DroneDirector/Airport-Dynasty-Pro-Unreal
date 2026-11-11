@@ -1,5 +1,6 @@
 // The grass round the airport (see GrassField.h).
 #include "GrassField.h"
+#include "ADPLog.h"
 #include "LandCover.h"
 #include "Cesium3DTileset.h"
 #include "CesiumGeoreference.h"
@@ -69,7 +70,7 @@ void AGrassField::Start(float X0, float Y0, float X1, float Y1)
 	FarY = Field.Min.Y;
 	{ bool B0 = true; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("Grass"), B0, GGameUserSettingsIni); bOn = B0; }
 	GConfig->GetFloat(TEXT("ADP.Graphics"), TEXT("GrassNear"), NearDistance, GGameUserSettingsIni);
-	UE_LOG(LogTemp, Log, TEXT("Grass: %s, field %.0f x %.0f m"), Near && Mid && Tuft ? TEXT("ready") : TEXT("meshes missing"), Field.GetSize().X / 100, Field.GetSize().Y / 100);
+	ADP_LOG(TEXT("Grass: %s, field %.0f x %.0f m"), Near && Mid && Tuft ? TEXT("ready") : TEXT("meshes missing"), Field.GetSize().X / 100, Field.GetSize().Y / 100);
 }
 
 bool AGrassField::GroundAt(float X, float Y, float& Z) const

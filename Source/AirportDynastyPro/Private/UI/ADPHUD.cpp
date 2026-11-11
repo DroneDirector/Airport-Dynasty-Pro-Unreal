@@ -1,6 +1,7 @@
 // The walking-mode interface: the holographic map, the top-left bar, Hide UI, the settings panel and the performance
 // overlay, all in Slate, styled in the Android edition's holographic blues.
 #include "UI/ADPHUD.h"
+#include "ADPLog.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/CameraActor.h"
 #include "TowerADC.h"
@@ -23,6 +24,7 @@
 #include "HAL/IConsoleManager.h"
 #include "UnrealClient.h"
 #include "TerminalPlan.h"
+#include "OpsMonitors.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
 #include "GameFramework/GameUserSettings.h"
@@ -1248,14 +1250,14 @@ void AADPHUD::Tick(float Dt)
 			if (PC && Before < 49.f && ShotClock >= 49.f)
 			{
 				PC->InputKey(FInputKeyEventArgs::CreateSimulated(EKeys::W, IE_Released, 0.f));
-				UE_LOG(LogTemp, Log, TEXT("Walk test: moved %.0f cm with W"), Me ? FVector::Dist2D(Me->GetActorLocation(), WalkFrom) : -1.f);
+				ADP_LOG(TEXT("Walk test: moved %.0f cm with W"), Me ? FVector::Dist2D(Me->GetActorLocation(), WalkFrom) : -1.f);
 				FPointerEvent Mid(0, FVector2D(400, 300), FVector2D(400, 300), TSet<FKey>({EKeys::MiddleMouseButton}), EKeys::MiddleMouseButton, 0, FModifierKeysState());
 				FSlateApplication::Get().ProcessMouseButtonDownEvent(nullptr, Mid);
 				FSlateApplication::Get().ProcessMouseButtonUpEvent(Mid);
-				UE_LOG(LogTemp, Log, TEXT("Walk test: middle mouse once: pointer %s"), bPointer ? TEXT("free") : TEXT("not free"));
+				ADP_LOG(TEXT("Walk test: middle mouse once: pointer %s"), bPointer ? TEXT("free") : TEXT("not free"));
 				FSlateApplication::Get().ProcessMouseButtonDownEvent(nullptr, Mid);
 				FSlateApplication::Get().ProcessMouseButtonUpEvent(Mid);
-				UE_LOG(LogTemp, Log, TEXT("Walk test: middle mouse twice: pointer %s, looking %s"), bPointer ? TEXT("free") : TEXT("captured"), PC->IsLookInputIgnored() ? TEXT("off") : TEXT("on"));
+				ADP_LOG(TEXT("Walk test: middle mouse twice: pointer %s, looking %s"), bPointer ? TEXT("free") : TEXT("captured"), PC->IsLookInputIgnored() ? TEXT("off") : TEXT("on"));
 				// also to a file (a release build keeps no log)
 				FFileHelper::SaveStringToFile(FString::Printf(TEXT("moved %.0f cm; pointer after two middle clicks: %s; looking %s"), Me ? FVector::Dist2D(Me->GetActorLocation(), WalkFrom) : -1.f, bPointer ? TEXT("free") : TEXT("captured"), PC->IsLookInputIgnored() ? TEXT("off") : TEXT("on")), *(FPaths::ProjectSavedDir() / TEXT("WalkTest.txt")));
 			}
@@ -1271,7 +1273,7 @@ void AADPHUD::Tick(float Dt)
 					if (const APawn* Me = GetOwningPawn())
 					{
 						const FVector L = Me->GetActorLocation();
-						UE_LOG(LogTemp, Log, TEXT("Shortcut test: at plan x %.1f z %.1f, feet %.2f m"), L.X / 100.f, -L.Y / 100.f, (L.Z - Me->GetSimpleCollisionHalfHeight()) / 100.f);
+						ADP_LOG(TEXT("Shortcut test: at plan x %.1f z %.1f, feet %.2f m"), L.X / 100.f, -L.Y / 100.f, (L.Z - Me->GetSimpleCollisionHalfHeight()) / 100.f);
 					}
 			if (Before < 46.f && ShotClock >= 46.f) GoGate4();
 			if (Before < 54.f && ShotClock >= 54.f) FScreenshotRequest::RequestScreenshot(TEXT("ShortcutGate4"), true, false);
@@ -1411,7 +1413,7 @@ void AADPHUD::Tick(float Dt)
 		{
 			auto Sun = [](float H) { ASunClock::HourOverride = H; ASunClock::Theme = 1; ASunClock::Refresh(); };
 			auto Wide = [this]() { GoTo(FVector(ATowerADC::AtX + 70.f, 0.f, ATowerADC::AtZ + 45.f), FVector(ATowerADC::AtX, 13.f, ATowerADC::AtZ)); };
-			auto Hq = [this](const TCHAR* N) { if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(TEXT("HighResShot 2")); UE_LOG(LogTemp, Log, TEXT("TOWERSHOT %s"), N); };
+			auto Hq = [this](const TCHAR* N) { if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(TEXT("HighResShot 2")); ADP_LOG(TEXT("TOWERSHOT %s"), N); };
 			struct FStep { float At; TFunction<void()> Do; };
 			const FStep TourSteps[] = {
 				{44.f, [&]() { if (bGame) ToggleGame(); Sun(13.f); Wide(); }},
@@ -1524,6 +1526,8 @@ void AADPHUD::Tick(float Dt)
 				{66.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_PhoneBack"), false, false); }},
 				{67.f, [&]() { GoTo(FVector(117.3f, 0.4f, 29.3f), FVector(115.3f, 1.0f, 28.f)); }},
 				{72.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_OpsDesk"), true, false); }},
+				{72.2f, [&]() { for (TActorIterator<AOpsMonitors> It(GetWorld()); It; ++It) It->Describe(); }},
+				{86.2f, [&]() { for (TActorIterator<AOpsMonitors> It(GetWorld()); It; ++It) It->Describe(); }},
 				{73.f, [&]() { OpenDevice(TEXT("ops")); }},
 				{82.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_OpsComputer"), true, false); }},
 				{83.f, [&]() { PutDeviceAway(); }},
@@ -1539,9 +1543,9 @@ void AADPHUD::Tick(float Dt)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UILoading")))
 		{
 			if (Before < 40.f && ShotClock >= 40.f && bGame) ToggleGame();
-			if (Before < 43.f && ShotClock >= 43.f) { FScreenshotRequest::RequestScreenshot(TEXT("Loading_Screen"), true, false); UE_LOG(LogTemp, Log, TEXT("LOADTEST %s %.0f%% shown %d"), *LoadStep, LoadFrac * 100.f, bLoading ? 1 : 0); }
+			if (Before < 43.f && ShotClock >= 43.f) { FScreenshotRequest::RequestScreenshot(TEXT("Loading_Screen"), true, false); ADP_LOG(TEXT("LOADTEST %s %.0f%% shown %d"), *LoadStep, LoadFrac * 100.f, bLoading ? 1 : 0); }
 			static bool bLogged = false;
-			if (!bLogged && ShotClock > 41.f && !bLoading) { bLogged = true; UE_LOG(LogTemp, Log, TEXT("LOADTEST done after %.1f s"), LoadT); }
+			if (!bLogged && ShotClock > 41.f && !bLoading) { bLogged = true; ADP_LOG(TEXT("LOADTEST done after %.1f s"), LoadT); }
 			if (Before < 100.f && ShotClock >= 100.f) FGenericPlatformMisc::RequestExit(false);
 		}
 		// -UIPart2: night on the apron (the terminal's brightness), the entrance canopies and doors, the tower's balcony and
@@ -1577,7 +1581,7 @@ void AADPHUD::Tick(float Dt)
 				{44.f, [&]() { if (bGame) ToggleGame(); ASunClock::HourOverride = 13.f; ASunClock::Refresh(); GoTowerCab(); }},
 				{49.f, [&]() { FScreenshotRequest::RequestScreenshot(TEXT("Part1_Cab"), false, false); }},
 				{50.f, [&]() { if (Me) { CabStart = Me->GetActorLocation(); CabFwd = Me->GetActorForwardVector(); } }},
-				{55.f, [&]() { if (Me) { const FVector D = Me->GetActorLocation() - CabStart; UE_LOG(LogTemp, Log, TEXT("P1TEST cab walk: moved %.2f m, along the facing %.2f m, sideways %.2f m, up %.2f m"), D.Size2D() / 100.f, FVector::DotProduct(D, CabFwd) / 100.f, FVector::CrossProduct(CabFwd, D).Z / 100.f, D.Z / 100.f); } }},
+				{55.f, [&]() { if (Me) { const FVector D = Me->GetActorLocation() - CabStart; ADP_LOG(TEXT("P1TEST cab walk: moved %.2f m, along the facing %.2f m, sideways %.2f m, up %.2f m"), D.Size2D() / 100.f, FVector::DotProduct(D, CabFwd) / 100.f, FVector::CrossProduct(CabFwd, D).Z / 100.f, D.Z / 100.f); } }},
 				{56.f, [&]() { GoTo(FVector(75.f, 0.f, 9.f), FVector(75.f, 3.6f, 0.f)); }},
 				{63.f, [&]() { FScreenshotRequest::RequestScreenshot(TEXT("Part1_ExitSign"), false, false); }},
 				{64.f, [&]() { GoTo(FVector(101.f, 0.f, 7.f), FVector(101.f, 3.3f, 0.f)); }},
@@ -1594,16 +1598,16 @@ void AADPHUD::Tick(float Dt)
 			struct FStep { float At; TFunction<void()> Do; };
 			const FStep AnySteps[] = {
 				{44.f, [&]() { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 14.f; ASunClock::Theme = 1; ASunClock::Refresh(); AWalkAnywhere::GoText(GetWorld(), TEXT("Tórshavn")); }},
-				{75.f, [&]() { Look(0.f, -5.f); UE_LOG(LogTemp, Log, TEXT("ANYTEST %s"), *AWalkAnywhere::Status()); }},
+				{75.f, [&]() { Look(0.f, -5.f); ADP_LOG(TEXT("ANYTEST %s"), *AWalkAnywhere::Status()); }},
 				{78.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Anywhere_Torshavn"), false, false); }},
 				{79.f, [&]() { AWalkAnywhere::GoText(GetWorld(), TEXT("Skógafoss")); }},
-				{110.f, [&]() { Look(270.f, 5.f); UE_LOG(LogTemp, Log, TEXT("ANYTEST %s"), *AWalkAnywhere::Status()); }},
+				{110.f, [&]() { Look(270.f, 5.f); ADP_LOG(TEXT("ANYTEST %s"), *AWalkAnywhere::Status()); }},
 				{113.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Anywhere_Skogafoss"), false, false); }},
 				{114.f, [&]() { AWalkAnywhere::GoText(GetWorld(), TEXT("46.0207, 7.7491")); }},
-				{145.f, [&]() { Look(250.f, 8.f); UE_LOG(LogTemp, Log, TEXT("ANYTEST %s"), *AWalkAnywhere::Status()); }},
+				{145.f, [&]() { Look(250.f, 8.f); ADP_LOG(TEXT("ANYTEST %s"), *AWalkAnywhere::Status()); }},
 				{148.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Anywhere_Zermatt"), false, false); }},
 				{149.f, [&]() { AWalkAnywhere::Back(GetWorld()); }},
-				{158.f, [&]() { UE_LOG(LogTemp, Log, TEXT("ANYTEST %s"), *AWalkAnywhere::Status()); FScreenshotRequest::RequestScreenshot(TEXT("Anywhere_Back"), false, false); }},
+				{158.f, [&]() { ADP_LOG(TEXT("ANYTEST %s"), *AWalkAnywhere::Status()); FScreenshotRequest::RequestScreenshot(TEXT("Anywhere_Back"), false, false); }},
 				{162.f, []() { FGenericPlatformMisc::RequestExit(false); }},
 			};
 			for (const FStep& St : AnySteps)
@@ -1622,7 +1626,7 @@ void AADPHUD::Tick(float Dt)
 				if (GetWorld()->LineTraceSingleByChannel(Hit, At + FVector(0, 0, 60000.f), At - FVector(0, 0, 60000.f), ECC_Visibility, Q)) At = Hit.ImpactPoint;
 				P->SetActorLocation(At + FVector(0, 0, P->GetSimpleCollisionHalfHeight() + 20.f), false, nullptr, ETeleportType::TeleportPhysics);
 				if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(FRotator(-8.f, Yaw, 0.f));
-				UE_LOG(LogTemp, Log, TEXT("GROUNDTEST at %.0f %.0f ground %.1f m hit %s"), X, Y, At.Z / 100.f, Hit.GetActor() ? *Hit.GetActor()->GetClass()->GetName() : TEXT("nothing"));
+				ADP_LOG(TEXT("GROUNDTEST at %.0f %.0f ground %.1f m hit %s"), X, Y, At.Z / 100.f, Hit.GetActor() ? *Hit.GetActor()->GetClass()->GetName() : TEXT("nothing"));
 			};
 			struct FStep { float At; TFunction<void()> Do; };
 			const FStep GroundSteps[] = {
@@ -1662,9 +1666,9 @@ void AADPHUD::Tick(float Dt)
 				{96.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("World_LandCover_60km"), false, false); }},
 				{97.f, [&]() { AGlobe::UseSource(0); Air(8000.f, 12000.f, 25.f); }},
 				{115.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("World_Satellite_8km"), false, false); }},
-				{116.f, [&]() { UE_LOG(LogTemp, Log, TEXT("WORLDTEST %s"), *AGlobe::Note);
+				{116.f, [&]() { ADP_LOG(TEXT("WORLDTEST %s"), *AGlobe::Note);
 					// what is big and flat out there: every actor over 5 km wide, then the ocean and the airfield hidden
-					for (TActorIterator<AActor> It(GetWorld()); It; ++It) { FVector O, E; It->GetActorBounds(false, O, E); if (E.X > 250000.f || E.Y > 250000.f) UE_LOG(LogTemp, Log, TEXT("WORLDTEST big %s %s %.0f x %.0f km z %.0f..%.0f m"), *It->GetName(), *It->GetClass()->GetName(), E.X / 50000.f, E.Y / 50000.f, (O.Z - E.Z) / 100.f, (O.Z + E.Z) / 100.f); }
+					for (TActorIterator<AActor> It(GetWorld()); It; ++It) { FVector O, E; It->GetActorBounds(false, O, E); if (E.X > 250000.f || E.Y > 250000.f) ADP_LOG(TEXT("WORLDTEST big %s %s %.0f x %.0f km z %.0f..%.0f m"), *It->GetName(), *It->GetClass()->GetName(), E.X / 50000.f, E.Y / 50000.f, (O.Z - E.Z) / 100.f, (O.Z + E.Z) / 100.f); }
 					for (TActorIterator<AActor> It(GetWorld()); It; ++It) if (It->GetClass()->GetName().Contains(TEXT("Ocean"))) It->SetActorHiddenInGame(true); }},
 				{124.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("World_NoOcean_8km"), false, false); }},
 				{125.f, [&]() { for (TActorIterator<AActor> It(GetWorld()); It; ++It) if (It->GetClass()->GetName().Contains(TEXT("Airfield")) || It->GetClass()->GetName().Contains(TEXT("Grass"))) It->SetActorHiddenInGame(true); }},

@@ -1,6 +1,7 @@
 // The controls table, the gamepad detection (Windows raw input device list: Sony 054C, Microsoft 045E, others) and the
 // button badges, drawn by the game itself (coloured symbols, no makers' logos).
 #include "UI/InputGlyphs.h"
+#include "ADPLog.h"
 #include "Styling/CoreStyle.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
@@ -47,7 +48,7 @@ namespace ADPInput
 			for (const FKey& K : {A.Keyboard, A.Pad})
 			{
 				if (!K.IsValid()) continue;
-				if (Seen.Contains(K)) { UE_LOG(LogTemp, Error, TEXT("Controls: %s is used twice (again by %s)"), *K.ToString(), *A.Name); bOk = false; }
+				if (Seen.Contains(K)) { ADP_ERROR(TEXT("Controls: %s is used twice (again by %s)"), *K.ToString(), *A.Name); bOk = false; }
 				Seen.Add(K);
 			}
 		return bOk;

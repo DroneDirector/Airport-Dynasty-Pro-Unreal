@@ -1,5 +1,6 @@
 // Reads the terminal layout (Data/terminal-plan.json, real metres) shared with the Android edition.
 #include "TerminalPlan.h"
+#include "ADPLog.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Dom/JsonObject.h"
@@ -29,13 +30,13 @@ bool FTerminalPlan::Load()
 	FString Text;
 	if (!FFileHelper::LoadFileToString(Text, *Path))
 	{
-		UE_LOG(LogTemp, Error, TEXT("Terminal plan not found: %s"), *Path);
+		ADP_ERROR(TEXT("Terminal plan not found: %s"), *Path);
 		return false;
 	}
 	TSharedPtr<FJsonObject> Root;
 	if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Root) || !Root.IsValid())
 	{
-		UE_LOG(LogTemp, Error, TEXT("Terminal plan could not be read: %s"), *Path);
+		ADP_ERROR(TEXT("Terminal plan could not be read: %s"), *Path);
 		return false;
 	}
 

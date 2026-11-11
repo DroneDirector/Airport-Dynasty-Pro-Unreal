@@ -1,6 +1,7 @@
 // The globe: a Cesium georeference at the terminal's origin, turned to the runway's heading; the Earth's ellipsoid as a
 // tileset with the Sentinel-2 cloudless 2016 imagery on it.
 #include "Globe.h"
+#include "ADPLog.h"
 #include "CesiumGeoreference.h"
 #include "Ocean.h"
 #include "Materials/MaterialInterface.h"
@@ -89,7 +90,7 @@ void AGlobe::Build(const FAirfieldData& F)
 	Current = this;
 	GConfig->GetInt(TEXT("ADP.Graphics"), TEXT("Imagery"), Source, GGameUserSettingsIni);
 	Probe(FMath::Clamp(Source, 0, 3));
-	UE_LOG(LogTemp, Log, TEXT("Globe placed: origin %.6f N, %.6f E, runway %.0f°"), Lat, Lon, F.Heading);
+	ADP_LOG(TEXT("Globe placed: origin %.6f N, %.6f E, runway %.0f°"), Lat, Lon, F.Heading);
 }
 
 #pragma endregion
@@ -173,7 +174,7 @@ void AGlobe::Probe(int32 S)
 		if (bWorks || S >= 2)
 		{
 			G->SetImagery(S);
-			UE_LOG(LogTemp, Log, TEXT("Globe pictures: %s (asked for %s, answer %d)"), *SourceName(S), *SourceName(Wanted), Res.IsValid() ? Res->GetResponseCode() : 0);
+			ADP_LOG(TEXT("Globe pictures: %s (asked for %s, answer %d)"), *SourceName(S), *SourceName(Wanted), Res.IsValid() ? Res->GetResponseCode() : 0);
 			Note = S == Wanted || !bWorks ? FString::Printf(TEXT("Satellite pictures: %s."), *SourceName(S))
 				: FString::Printf(TEXT("%s isn't answering, so the game uses %s."), *SourceName(Wanted), *SourceName(S));
 			return;

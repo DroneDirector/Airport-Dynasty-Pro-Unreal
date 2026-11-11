@@ -4,6 +4,7 @@
 // (the game's own pronunciation rules and misaki's British dictionary) and hand them over sentence by sentence.
 // Without the pack, or if the model can't run on this PC, the line goes to Windows' own female voice instead.
 #include "UI/ADPHUD.h"
+#include "ADPLog.h"
 #include "NNE.h"
 #include "NNEModelData.h"
 #include "NNERuntimeCPU.h"
@@ -35,9 +36,9 @@ namespace ADPKokoro
 		// the full-precision model (several times faster on a PC's processor than the 8-bit one), else the 8-bit one
 		const bool bFull = FFileHelper::LoadFileToArray(Onnx, *(Dir() / TEXT("kokoro-v1.0.onnx")));
 		if ((!bFull && !FFileHelper::LoadFileToArray(Onnx, *(Dir() / TEXT("kokoro-v1.0-q8.onnx")))) || !FFileHelper::LoadFileToArray(Voice, *(Dir() / TEXT("voice-bf_emma.bin"))))
-		{ UE_LOG(LogTemp, Warning, TEXT("Kokoro: the voice pack isn't in %s"), *Dir()); return false; }
+		{ ADP_WARN(TEXT("Kokoro: the voice pack isn't in %s"), *Dir()); return false; }
 		TWeakInterfacePtr<INNERuntimeCPU> Rt = UE::NNE::GetRuntime<INNERuntimeCPU>(TEXT("NNERuntimeORTCpu"));
-		if (!Rt.IsValid()) { UE_LOG(LogTemp, Warning, TEXT("Kokoro: no ONNX runtime")); return false; }
+		if (!Rt.IsValid()) { ADP_WARN(TEXT("Kokoro: no ONNX runtime")); return false; }
 		FEvent* Done = FPlatformProcess::GetSynchEventFromPool();
 		AsyncTask(ENamedThreads::GameThread, [&Onnx, Done]()
 		{
@@ -51,7 +52,7 @@ namespace ADPKokoro
 		if (Rt->CanCreateModelCPU(Data.Get()) == UE::NNE::EResultStatus::Ok)
 			if (TSharedPtr<UE::NNE::IModelCPU> M = Rt->CreateModelCPU(Data.Get()))
 				Model = M->CreateModelInstanceCPU();
-		if (!Model.IsValid()) { UE_LOG(LogTemp, Warning, TEXT("Kokoro: the model couldn't be made")); return false; }
+		if (!Model.IsValid()) { ADP_WARN(TEXT("Kokoro: the model couldn't be made")); return false; }
 		Style.SetNumUninitialized(Voice.Num() / 4);
 		FMemory::Memcpy(Style.GetData(), Voice.GetData(), Style.Num() * 4);
 		if (Style.Num() < 256) return false;
@@ -59,7 +60,7 @@ namespace ADPKokoro
 		// let go of the model before the engine shuts down (its worker threads must not be left to the very end of the
 		// program, where waiting for them hangs the exit)
 		FCoreDelegates::OnPreExit.AddLambda([]() { FScopeLock Guard(&Lock); Model.Reset(); Data.Reset(); State = -1; });
-		UE_LOG(LogTemp, Log, TEXT("Kokoro: ready (%s model, %d inputs)"), bFull ? TEXT("full") : TEXT("8-bit"), Model->GetInputTensorDescs().Num());
+		ADP_LOG(TEXT("Kokoro: ready (%s model, %d inputs)"), bFull ? TEXT("full") : TEXT("8-bit"), Model->GetInputTensorDescs().Num());
 		return true;
 	}
 
@@ -127,7 +128,7 @@ void AADPHUD::KokoroSpeak(int32 Id, const FString& IdsJson)
 					for (const float V : A) Pcm.Add(int16(FMath::Clamp(V, -1.f, 1.f) * 32767.f));
 					Pcm.AddZeroed(int32(24000 * 0.32f));   // the pause between sentences
 				}
-				UE_LOG(LogTemp, Log, TEXT("Kokoro: line %d, %.1f s of voice in %.2f s"), Id, Pcm.Num() / 24000.f, FPlatformTime::Seconds() - T0);
+				ADP_LOG(TEXT("Kokoro: line %d, %.1f s of voice in %.2f s"), Id, Pcm.Num() / 24000.f, FPlatformTime::Seconds() - T0);
 			}
 		}
 		AsyncTask(ENamedThreads::GameThread, [Me, Id, bOk, Pcm = MoveTemp(Pcm)]()

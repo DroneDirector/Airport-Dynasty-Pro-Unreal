@@ -2,6 +2,7 @@
 // the rotunda 13 m from the cab, the cab 5.65 m right of the stand's centre line at the front door, the fixed corridor
 // from the pier's glass to the rotunda's edge. All pieces instanced.
 #include "TerminalJetways.h"
+#include "ADPLog.h"
 #include "TerminalBuilder.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -101,7 +102,7 @@ void ATerminalJetways::Build(const FTerminalPlan& Plan)
 			++N;
 		}
 	}
-	UE_LOG(LogTemp, Log, TEXT("Jetways built: %d"), N);
+	ADP_LOG(TEXT("Jetways built: %d"), N);
 }
 
 void ATerminalJetways::BuildJetway(const FPlanDoor& Door, const FPlanPoint& Stand, const FTerminalPlan& Plan)

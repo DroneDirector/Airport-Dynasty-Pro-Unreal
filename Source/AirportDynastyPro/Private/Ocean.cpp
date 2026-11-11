@@ -1,5 +1,6 @@
 // The sea round the airport (see Ocean.h).
 #include "Ocean.h"
+#include "ADPLog.h"
 #include "Kismet/GameplayStatics.h"
 #include "Camera/PlayerCameraManager.h"
 #include "CesiumGeoreference.h"
@@ -25,7 +26,7 @@ bool AOcean::Build(ACesiumGeoreference* G, double SeaHeight)
 	bool bRead = false;
 	for (const FString& F : {FPaths::ProjectContentDir() / TEXT("Data/ocean.bin"), FPaths::ProjectDir() / TEXT("Content/Data/ocean.bin")})
 		if (FFileHelper::LoadFileToArray(B, *F)) { bRead = true; break; }
-	if (!G || !bRead || B.Num() < 16 || FMemory::Memcmp(B.GetData(), "ADPO", 4) != 0) { UE_LOG(LogTemp, Warning, TEXT("Ocean: no ocean.bin")); return false; }
+	if (!G || !bRead || B.Num() < 16 || FMemory::Memcmp(B.GetData(), "ADPO", 4) != 0) { ADP_WARN(TEXT("Ocean: no ocean.bin")); return false; }
 	uint32 Ver, NV, NT;
 	FMemory::Memcpy(&Ver, B.GetData() + 4, 4); FMemory::Memcpy(&NV, B.GetData() + 8, 4); FMemory::Memcpy(&NT, B.GetData() + 12, 4);
 	const int64 Need = 16 + int64(NV) * 16 + int64(NV) * 4 + int64(NT) * 12;
@@ -68,7 +69,7 @@ bool AOcean::Build(ACesiumGeoreference* G, double SeaHeight)
 	Anchor->RegisterComponent();
 	if (UMaterialInterface* M = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/Ocean/M_Ocean.M_Ocean"))) Water->SetMaterial(0, M);
 	SeaZ = Mid.Z;
-	UE_LOG(LogTemp, Log, TEXT("Ocean: %u corners, %u triangles, at %.1f m, %.0f x %.0f km"), NV, NT, SeaHeight, Box.GetSize().X / 1e5, Box.GetSize().Y / 1e5);
+	ADP_LOG(TEXT("Ocean: %u corners, %u triangles, at %.1f m, %.0f x %.0f km"), NV, NT, SeaHeight, Box.GetSize().X / 1e5, Box.GetSize().Y / 1e5);
 	return true;
 }
 

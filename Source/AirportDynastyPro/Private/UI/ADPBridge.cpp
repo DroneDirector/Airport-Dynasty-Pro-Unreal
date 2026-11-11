@@ -1,5 +1,6 @@
 // The link from the app's menus to Unreal.
 #include "UI/ADPBridge.h"
+#include "ADPLog.h"
 #include "UI/ADPHUD.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -54,7 +55,7 @@ bool UADPBridge::SaveWrite(const FString& Name, const FString& Data)
 	if (F.IsEmpty()) return false;
 	if (Data.IsEmpty()) { IFileManager::Get().Delete(*F, false, true, true); return true; }
 	const bool bOk = FFileHelper::SaveStringToFile(Data, *F, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
-	UE_LOG(LogTemp, Log, TEXT("Menus: save %s %s (%d chars)"), *Name, bOk ? TEXT("written") : TEXT("FAILED"), Data.Len());
+	ADP_LOG(TEXT("Menus: save %s %s (%d chars)"), *Name, bOk ? TEXT("written") : TEXT("FAILED"), Data.Len());
 	return bOk;
 }
 
@@ -68,7 +69,7 @@ FString UADPBridge::SaveRead(const FString& Name)
 
 void UADPBridge::Quit()
 {
-	UE_LOG(LogTemp, Log, TEXT("Menus: Exit, the game quits"));
+	ADP_LOG(TEXT("Menus: Exit, the game quits"));
 	FGenericPlatformMisc::RequestExit(false);
 }
 
@@ -89,7 +90,7 @@ void UADPBridge::InstallUpdates()
 
 void UADPBridge::Log(const FString& Line)
 {
-	UE_LOG(LogTemp, Log, TEXT("Menus: %s"), *Line.Left(600));
+	ADP_LOG(TEXT("Menus: %s"), *Line.Left(600));
 }
 
 void UADPBridge::Board(const FString& Key, const FString& B64)

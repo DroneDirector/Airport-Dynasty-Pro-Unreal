@@ -22,6 +22,8 @@ public:
 	/** Which monitor a screen of this shape (width / height) gets: 0 the 16:9, 1 the 21:9, 2 the 32:9. */
 	static int32 KindFor(float Aspect);
 	/** The monitor shown now (its screen is the one the game's picture goes on). */
+	/** Writes the shown monitor's parts (mesh, materials, the picture on its screen) to the game's log (tests). */
+	void Describe() const;
 	ABabylonModel* Shown() const { return Kinds.IsValidIndex(Current) ? Kinds[Current].Get() : nullptr; }
 private:
 	UPROPERTY() TArray<TObjectPtr<ABabylonModel>> Kinds;

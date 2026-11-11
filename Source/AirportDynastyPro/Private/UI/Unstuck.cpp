@@ -2,6 +2,7 @@
 // body inside a wall), a small panel in the middle of the screen; one click puts you on free floor nearby, the panel
 // goes and the view is yours again at once.
 #include "UI/ADPHUD.h"
+#include "ADPLog.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
@@ -67,8 +68,8 @@ void AADPHUD::Unstick()
 			// the view yours again at once: no extra click
 			if (APlayerController* PC = GetOwningPlayerController()) { PC->SetInputMode(FInputModeGameOnly()); PC->SetShowMouseCursor(false); }
 			FSlateApplication::Get().SetAllUserFocusToGameViewport();
-			UE_LOG(LogTemp, Log, TEXT("Unstuck: moved %.1f m to free floor"), Dist / 100.f);
+			ADP_LOG(TEXT("Unstuck: moved %.1f m to free floor"), Dist / 100.f);
 			return;
 		}
-	UE_LOG(LogTemp, Warning, TEXT("Unstuck: no free floor within 12 m"));
+	ADP_WARN(TEXT("Unstuck: no free floor within 12 m"));
 }

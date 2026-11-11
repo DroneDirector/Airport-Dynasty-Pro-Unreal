@@ -1,6 +1,7 @@
 // The airfield: read from Data/airfield.json and laid out as flat instanced slabs, each a few millimetres over the one
 // under it so they never flicker through each other: grass, then aprons, taxiways, runway, then the markings.
 #include "Airfield.h"
+#include "ADPLog.h"
 #include "TerminalBuilder.h"
 #include "TerminalPlan.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -19,9 +20,9 @@ bool FAirfieldData::Load()
 	FString Path = FPaths::Combine(FPaths::ProjectContentDir(), TEXT("Data/airfield.json"));
 	if (!FPaths::FileExists(Path)) Path = FPaths::Combine(FPaths::ProjectDir(), TEXT("Data/airfield.json"));
 	FString Text;
-	if (!FFileHelper::LoadFileToString(Text, *Path)) { UE_LOG(LogTemp, Error, TEXT("Airfield not found: %s"), *Path); return false; }
+	if (!FFileHelper::LoadFileToString(Text, *Path)) { ADP_ERROR(TEXT("Airfield not found: %s"), *Path); return false; }
 	TSharedPtr<FJsonObject> R;
-	if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), R) || !R) { UE_LOG(LogTemp, Error, TEXT("Airfield could not be read")); return false; }
+	if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), R) || !R) { ADP_ERROR(TEXT("Airfield could not be read")); return false; }
 	auto N = [](const TSharedPtr<FJsonObject>& O, const TCHAR* K, double Def = 0) { double V = Def; O->TryGetNumberField(K, V); return float(V); };
 	const TSharedPtr<FJsonObject> Rw = R->GetObjectField(TEXT("runway"));
 	RwyX0 = N(Rw, TEXT("x0")); RwyX1 = N(Rw, TEXT("x1")); RwyY = N(Rw, TEXT("y")); RwyW = N(Rw, TEXT("w"), 60);
@@ -176,7 +177,7 @@ bool AAirfield::Build(bool bModelSite)
 		if (S.bCargo || S.Id == TEXT("STAND-9")) Strip("yellow", FVector2f(S.X, S.Nose), FVector2f(S.X, S.Nose - S.Dir * (S.Len + 20)), 0.3f, -0.02f, 0.01f);
 	// the cargo building
 	Slab("liftClad", D.Cargo.X0, D.Cargo.Y0, D.Cargo.X1, D.Cargo.Y1, 0, 18);
-	UE_LOG(LogTemp, Log, TEXT("Airfield built: %d taxiways, %d stands"), D.Taxiways.Num(), D.Stands.Num());
+	ADP_LOG(TEXT("Airfield built: %d taxiways, %d stands"), D.Taxiways.Num(), D.Stands.Num());
 	return true;
 }
 

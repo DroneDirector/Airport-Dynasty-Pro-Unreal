@@ -1,6 +1,7 @@
 // The timetable screens: their places and shapes from the Android edition (plan.ts SCREENS, fixtures.ts), their rows
 // the Android edition's sample flights (fids.ts sample) round the real time, refreshed every 4 seconds.
 #include "TerminalScreens.h"
+#include "ADPLog.h"
 #include "TerminalBuilder.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
@@ -209,7 +210,7 @@ void ATerminalScreens::Build(const FTerminalPlan& Plan)
 		}
 	}
 	Refresh();
-	UE_LOG(LogTemp, Log, TEXT("Timetable screens built: %d timetables"), Boards.Num());
+	ADP_LOG(TEXT("Timetable screens built: %d timetables"), Boards.Num());
 }
 
 #pragma endregion

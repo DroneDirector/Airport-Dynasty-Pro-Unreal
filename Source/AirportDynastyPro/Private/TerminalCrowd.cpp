@@ -1,6 +1,7 @@
 // The passengers: Mass Entities on their trip through the terminal, walking the walking map's ways, drawn as simple
 // figures (a body in one of four colours, a head) until they get their MetaHuman bodies.
 #include "TerminalCrowd.h"
+#include "ADPLog.h"
 #include "PassengerFragments.h"
 #include "TerminalBuilder.h"
 #include "MassEntitySubsystem.h"
@@ -101,7 +102,7 @@ void ATerminalCrowd::Start(const FTerminalPlan& Plan, int32 Count)
 	Query = FMassEntityQuery(EM.AsShared());
 	Query.AddRequirement<FPaxFragment>(EMassFragmentAccess::ReadWrite);
 	bStarted = true;
-	UE_LOG(LogTemp, Log, TEXT("Crowd started: %d passengers, %d places, %d openings"), Count, Map.Places.Num(), Map.Portals.Num());
+	ADP_LOG(TEXT("Crowd started: %d passengers, %d places, %d openings"), Count, Map.Places.Num(), Map.Portals.Num());
 }
 
 #pragma endregion

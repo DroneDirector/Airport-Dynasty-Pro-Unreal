@@ -1,6 +1,7 @@
 // Every door in the plan, built and animated as in the Android edition (doors.ts): sliding, revolving, swing, secure,
 // double, one-way, jetway and open doors, opening as the player comes up to them, with the room's name over the door.
 #include "TerminalDoors.h"
+#include "ADPLog.h"
 #include "TerminalBuilder.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
@@ -67,7 +68,7 @@ void ATerminalDoors::Build(const FTerminalPlan& Plan)
 	F2Y = Plan.F2Y;
 	for (const FPlanDoor& D : Plan.Doors)
 		if (D.Type != TEXT("museum")) BuildDoor(D, Plan); // the museum has its own portal
-	UE_LOG(LogTemp, Log, TEXT("Doors built: %d"), Rigs.Num());
+	ADP_LOG(TEXT("Doors built: %d"), Rigs.Num());
 }
 
 void ATerminalDoors::BuildDoor(const FPlanDoor& D, const FTerminalPlan& Plan)

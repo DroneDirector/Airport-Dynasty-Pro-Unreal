@@ -1,6 +1,7 @@
 // The airport's traffic: airliners turning round at the stands, taxiing, taking off and landing on runway 08, with
 // their ground vehicles. Simple shapes for the aircraft and vehicles until proper models replace them.
 #include "AirTraffic.h"
+#include "ADPLog.h"
 #include "TerminalBuilder.h"
 #include "TerminalPlan.h"
 #include "Components/StaticMeshComponent.h"
@@ -258,7 +259,7 @@ void AAirTraffic::Start(const FAirfieldData& Field)
 		Place(P.Root, P.Pos, P.Heading);
 		Planes.Add(MoveTemp(P));
 	}
-	UE_LOG(LogTemp, Log, TEXT("Air traffic started: %d aircraft"), Planes.Num());
+	ADP_LOG(TEXT("Air traffic started: %d aircraft"), Planes.Num());
 }
 
 void AAirTraffic::Tick(float Dt)

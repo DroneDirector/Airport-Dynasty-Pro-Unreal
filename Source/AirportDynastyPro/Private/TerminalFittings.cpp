@@ -1,6 +1,7 @@
 // The fittings of the Grand Hall and the gates, placed exactly as in the Android edition's furnish.ts (same positions,
 // sizes and materials), all as instanced pieces.
 #include "TerminalFittings.h"
+#include "ADPLog.h"
 #include "TerminalBuilder.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
@@ -775,7 +776,7 @@ void ATerminalFittings::Build(const FTerminalPlan& Plan)
 	}
 	int32 N = 0;
 	for (auto& K : Kits) N += K.Value->GetInstanceCount();
-	UE_LOG(LogTemp, Log, TEXT("Fittings built: %d pieces"), N);
+	ADP_LOG(TEXT("Fittings built: %d pieces"), N);
 }
 
 #pragma endregion

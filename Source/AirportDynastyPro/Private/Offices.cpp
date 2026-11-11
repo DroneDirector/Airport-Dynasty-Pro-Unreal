@@ -1,5 +1,6 @@
 // The old offices', operations room's and Academy's things in the terminal's rooms (Offices.h).
 #include "Offices.h"
+#include "ADPLog.h"
 #include "BabylonModel.h"
 #include "OpsMonitors.h"
 #include "TerminalPlan.h"
@@ -41,7 +42,7 @@ namespace ADPOffices
 			}
 			else if (M) M->Destroy();
 		}
-		UE_LOG(LogTemp, Log, TEXT("Offices: the old office's things in %d offices (yours with the pet: %s)"), Placed, *Pet);
+		ADP_LOG(TEXT("Offices: the old office's things in %d offices (yours with the pet: %s)"), Placed, *Pet);
 		// the operations room (x 114-132, z 22-34, its door east): the old room's desk with the ultra-wide monitor, its
 		// window side (+z) to the west wall as the offices', the chair facing it (the old room is 5.4 m deep: its window
 		// wall 2.7 m from its middle)
