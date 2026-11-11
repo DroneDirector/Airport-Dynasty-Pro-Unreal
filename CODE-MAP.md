@@ -5,6 +5,10 @@ Where everything is, in plain words: every folder and file of the game and what 
 ## Blueprints: `Blueprints/`
 Confirmed designs the game is built from (renders, plans, the owner's reference photos), one folder per subject; listed in `Blueprints/README.md`.
 
+## Fire station design: `docs/fire-station/`
+- `SPEC.md`: the owner's brief for the fire station, its training tower and the two drivable ARFF trucks (sketch stage, not built yet).
+- `sketch/`: the design sketch's source (station, tower, trucks, textures, views); a drawing aid only, the game build is Unreal C++.
+
 ## Android version (Babylon.js edition): `Airline-Manager-Pro-Babylon/`
 
 ### `src/core/`: The engine core: settings, input, performance, saving photos, the problem log
