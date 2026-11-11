@@ -50,6 +50,9 @@ public:
 	bool SirenOn() const { return bSiren; }
 	bool BlueOn() const { return bBlue; }
 	void SetTestLights(bool bHigh, bool bBlueOn) { bHighBeam = bHigh; bBlue = bBlueOn; }
+	/** Test drives: the indicator (0 off, 1 left, 2 right, 3 hazards) and its state. */
+	void SetTestTurn(int32 Way) { Signal = ETurn(FMath::Clamp(Way, 0, 3)); TurnClock = 0.f; bTurnArmed = false; }
+	int32 TurnState() const { return int32(Signal); }
 	/** The truck an actor belongs to (the truck or its model), or null. */
 	static AFireTruck* FromActor(AActor* A);
 	float SpeedKmh() const;
@@ -78,7 +81,7 @@ private:
 	void ReverseGear(bool bOn);
 	// the lamps (owner, 2026-11-11): low beams while driven, high beams (L / D-pad down), red tail lights, brake lights
 	// far brighter as you brake, amber side markers, the blue warning lights flashing (N / right stick press)
-	enum class ELamp : uint8 { Low, High, Tail, Brake, Blue, BlueWide, Marker };
+	enum class ELamp : uint8 { Low, High, Tail, Brake, Blue, BlueWide, Marker, Turn };
 	UPROPERTY() TArray<TObjectPtr<USceneComponent>> Lamps;   // lights and the lenses' glows
 	TArray<ELamp> LampKind; TArray<uint8> LampSide; TArray<float> LampFull;
 	bool bHighBeam = false, bBlue = false;
@@ -86,8 +89,24 @@ private:
 	void BuildLamps();
 	USceneComponent* LensGlow(const FVector& At, const FLinearColor& Col, float Brightness, float Size);
 	void UpdateLamps(float Dt);
-	void ToggleHighBeam() { bHighBeam = !bHighBeam; }
-	void ToggleBlue() { bBlue = !bBlue; BlueClock = 0.f; }
+	void ToggleHighBeam() { if (!bPadMod) bHighBeam = !bHighBeam; }
+	void ToggleBlue() { if (!bPadMod) { bBlue = !bBlue; BlueClock = 0.f; } }
+	// the indicators (owner, 2026-11-11): left / right / hazards; they cancel themselves once a turn is done; the stalk
+	// moves; the relay ticks. Keys: , . F; pad: hold B (circle) + D-pad left / right / down
+	enum class ETurn : uint8 { Off, Left, Right, Hazard };
+	ETurn Signal = ETurn::Off;
+	bool bTurnArmed = false, bPadMod = false, bTurnLit = false;
+	float TurnClock = 0.f;
+	int32 GStalk = -1; FVector StalkPivot = FVector::ZeroVector, StalkTip = FVector::ZeroVector;
+	void SetTurn(ETurn T) { Signal = Signal == T ? ETurn::Off : T; TurnClock = 0.f; bTurnArmed = false; }
+	void TurnLeft() { SetTurn(ETurn::Left); }
+	void TurnRight() { SetTurn(ETurn::Right); }
+	void Hazards() { SetTurn(ETurn::Hazard); }
+	void PadModOn() { bPadMod = true; }
+	void PadModOff() { bPadMod = false; }
+	void PadLeft() { if (bPadMod) TurnLeft(); }
+	void PadRight() { if (bPadMod) TurnRight(); }
+	void PadDown() { if (bPadMod) Hazards(); }
 	UPROPERTY() TObjectPtr<USoundAttenuation> NearSound;
 	UPROPERTY() TObjectPtr<USoundAttenuation> FarSound;
 	FTruckDriverRig Rig;

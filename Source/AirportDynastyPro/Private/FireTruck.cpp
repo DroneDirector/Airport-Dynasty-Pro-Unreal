@@ -163,6 +163,24 @@ namespace
 		}
 	}
 
+	/** the indicator relay: a dry click as the lamps come on, a softer one as they go off */
+	const TArray<int16>& TickPcm(bool bOn)
+	{
+		static TArray<int16> P[2];
+		TArray<int16>& Out = P[bOn ? 1 : 0];
+		if (Out.Num()) return Out;
+		TArray<float> F; F.SetNumZeroed(SndRate * 4 / 100);
+		uint32 Sd = bOn ? 31u : 37u; float Hp = 0.f, Prev = 0.f;
+		for (int32 I = 0; I < F.Num(); ++I)
+		{
+			const float T = float(I) / SndRate, N = SndNoise(Sd);
+			Hp = 0.8f * (Hp + N - Prev); Prev = N;
+			F[I] = (bOn ? 0.55f : 0.32f) * (Hp * FMath::Exp(-T / 0.0025f) + 0.6f * FMath::Sin(2.f * PI * (bOn ? 2900.f : 2300.f) * T) * FMath::Exp(-T / 0.004f));
+		}
+		Out = SndPcm(F);
+		return Out;
+	}
+
 	// ---- getting in: where your pelvis, feet and hands are (Blender metres, the truck's own measures) at each moment.
 	// The driver's door is on the left: the hung step outside it (top 0.40 m, x -1.6, y 4.3-4.9), the step inside the
 	// doorway (top 0.75 m), the cab floor at 1.04 m; a handle either side of the doorway inside (rear y 3.78, front
@@ -388,6 +406,15 @@ void AFireTruck::SetupPlayerInputComponent(UInputComponent* In)
 	In->BindAction(TEXT("Siren"), IE_Pressed, this, &AFireTruck::ToggleSiren);
 	In->BindAction(TEXT("HighBeam"), IE_Pressed, this, &AFireTruck::ToggleHighBeam);
 	In->BindAction(TEXT("BlueLights"), IE_Pressed, this, &AFireTruck::ToggleBlue);
+	In->BindAction(TEXT("IndicatorLeft"), IE_Pressed, this, &AFireTruck::TurnLeft);
+	In->BindAction(TEXT("IndicatorRight"), IE_Pressed, this, &AFireTruck::TurnRight);
+	In->BindAction(TEXT("Hazards"), IE_Pressed, this, &AFireTruck::Hazards);
+	// the pad: hold B (circle) and use the D-pad for the indicators (B alone does nothing in a truck)
+	In->BindKey(EKeys::Gamepad_FaceButton_Right, IE_Pressed, this, &AFireTruck::PadModOn);
+	In->BindKey(EKeys::Gamepad_FaceButton_Right, IE_Released, this, &AFireTruck::PadModOff);
+	In->BindKey(EKeys::Gamepad_DPad_Left, IE_Pressed, this, &AFireTruck::PadLeft);
+	In->BindKey(EKeys::Gamepad_DPad_Right, IE_Pressed, this, &AFireTruck::PadRight);
+	In->BindKey(EKeys::Gamepad_DPad_Down, IE_Pressed, this, &AFireTruck::PadDown);
 }
 
 void AFireTruck::Enter(APawn* Walker)
@@ -558,6 +585,26 @@ void AFireTruck::BuildLamps()
 		Keep(LensGlow(T.GetLocation() + FVector(0, 4.f, 0), Red, 12.f, 24.f), ELamp::Tail, SideOf(T));
 		Keep(LensGlow(T.GetLocation() + FVector(0, 5.f, 0), Red, 70.f, 34.f), ELamp::Brake, SideOf(T));
 	}
+	// the indicators: front corners, rear, and the side repeaters (amber); their sides from their names
+	for (const TCHAR* Nm : {TEXT("Light_TurnL"), TEXT("Light_TurnR"), TEXT("Light_TurnSideL"), TEXT("Light_TurnSideR")})
+	{
+		N.Reset(); Model->NodesNamed(Nm, N);
+		const uint8 Sd = FString(Nm).EndsWith(TEXT("L")) ? 0 : 1;
+		for (const FTransform& T : N)
+		{
+			const FVector P = T.GetLocation();
+			const FVector Out = FMath::Abs(P.X) > 140.f ? FVector(P.X < 0.f ? -4.f : 4.f, 0, 0) : FVector(0, P.Y < 0.f ? -4.f : 4.f, 0);
+			Keep(LensGlow(P + Out, Amber, 55.f, 26.f), ELamp::Turn, Sd);
+		}
+	}
+	// the indicator stalk on the column's left: it swings down for left, up for right (about the column's axis)
+	FTransform StalkT;
+	if (Model->NodeBase(TEXT("Stalk_Indicator"), StalkT))
+	{
+		StalkPivot = BlenderToRoot(0.f, 4.68f, 1.731f);
+		StalkTip = StalkT.GetLocation();
+		GStalk = Model->BindGroup({TEXT("Stalk_Indicator"), TEXT("Stalk_IndicatorKnob")}, false, FTransform(StalkPivot));
+	}
 	// the amber side markers
 	N.Reset(); Model->NodesNamed(TEXT("Light_MarkerSide"), N);
 	for (const FTransform& T : N) Keep(LensGlow(T.GetLocation() + FVector(T.GetLocation().X < 0.f ? -3.f : 3.f, 0, 0), Amber, 10.f, 12.f), ELamp::Marker, SideOf(T));
@@ -603,6 +650,31 @@ void AFireTruck::UpdateLamps(float Dt)
 		const float C = FMath::Fmod(BlueClock + (Side ? 0.375f : 0.f), 0.75f);
 		return (C < 0.06f) || (C > 0.11f && C < 0.17f);   // two quick flashes a side, the sides in turn (as LED beacons do)
 	};
+	// the indicators: about 90 flashes a minute; a turn signal cancels itself once the wheel has gone over that way
+	// and come back
+	if (!bRunning && Signal != ETurn::Hazard) Signal = ETurn::Off;
+	if (Signal == ETurn::Left || Signal == ETurn::Right)
+	{
+		const float Way = Signal == ETurn::Left ? -1.f : 1.f;
+		if (InSteer * Way > 0.45f) bTurnArmed = true;
+		else if (bTurnArmed && InSteer * Way < 0.1f) { Signal = ETurn::Off; bTurnArmed = false; ADP_LOG(TEXT("Fire truck: the indicator cancelled itself after the turn")); }
+	}
+	TurnClock += Dt;
+	const bool bTurnOn = Signal != ETurn::Off && FMath::Fmod(TurnClock, 0.66f) < 0.36f;
+	if (bTurnOn != bTurnLit && Driver && Model)
+	{
+		bTurnLit = bTurnOn;
+		Sound(TickPcm(bTurnOn), BlenderToRoot(0.f, 4.3f, 1.6f), false);   // (the relay behind the dash)
+	}
+	if (Signal == ETurn::Off) bTurnLit = false;
+	if (GStalk >= 0)
+	{
+		// the stalk: down for left, up for right, back to the middle when off (hazards: its own switch)
+		const float Ang = FMath::DegreesToRadians(Signal == ETurn::Left ? -9.f : Signal == ETurn::Right ? 9.f : 0.f);
+		const FVector Arm = (StalkTip - StalkPivot).GetSafeNormal();
+		const FVector Bent = (Arm * FMath::Cos(Ang) + FVector(0, 0, 1) * FMath::Sin(Ang)).GetSafeNormal();
+		Model->MoveGroup(GStalk, FTransform(FQuat::FindBetweenNormals(Arm, Bent), StalkPivot));
+	}
 	for (int32 I = 0; I < Lamps.Num(); ++I)
 	{
 		USceneComponent* L = Lamps[I];
@@ -614,6 +686,7 @@ void AFireTruck::UpdateLamps(float Dt)
 		case ELamp::High: bOn = bRunning && bHighBeam; break;
 		case ELamp::Brake: bOn = bBraking; break;
 		case ELamp::Blue: case ELamp::BlueWide: bOn = bBlue && Flash(LampSide[I]); break;
+		case ELamp::Turn: bOn = bTurnOn && (Signal == ETurn::Hazard || (Signal == ETurn::Left) == (LampSide[I] == 0)); break;
 		}
 		if (L->IsVisible() != bOn) L->SetVisibility(bOn);
 	}
@@ -644,7 +717,7 @@ void AFireTruck::ReverseGear(bool bOn)
 
 void AFireTruck::ToggleSiren()
 {
-	if (!Model) return;
+	if (!Model || bPadMod) return;   // (B + D-pad left is the left indicator)
 	bSiren = !bSiren;
 	if (bSiren)
 	{
