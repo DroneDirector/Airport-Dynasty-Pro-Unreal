@@ -1,5 +1,7 @@
 // The airport's crash tenders, drivable (FireTruck.h); the fire station's bay doors.
 #include "FireTruck.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 #include "ADPLog.h"
 #include "BabylonModel.h"
 #include "FireStation.h"
@@ -181,6 +183,39 @@ namespace
 		return Out;
 	}
 
+	/** The lamps' settings (owner, 2026-11-11: adjustable later without rebuilding the game): Content/Settings/
+	 *  TruckLamps.ini, a plain text file staged loose beside the game; read once; every value falls back to the
+	 *  game's own if the file or the line is missing. */
+	struct FLampIni
+	{
+		TMap<FString, FString> V;
+		FLampIni()
+		{
+			TArray<FString> Lines;
+			const FString Path = FPaths::ProjectContentDir() / TEXT("Settings/TruckLamps.ini");
+			if (!FFileHelper::LoadFileToStringArray(Lines, *Path)) { ADP_WARN(TEXT("Truck lamps: %s not found; the built-in values are used"), *Path); return; }
+			FString Sec;
+			for (FString L : Lines)
+			{
+				L.TrimStartAndEndInline();
+				if (L.IsEmpty() || L.StartsWith(TEXT(";"))) continue;
+				if (L.StartsWith(TEXT("[")) && L.EndsWith(TEXT("]"))) { Sec = L.Mid(1, L.Len() - 2); continue; }
+				FString K, Val;
+				if (L.Split(TEXT("="), &K, &Val)) V.Add(Sec + TEXT(".") + K.TrimStartAndEnd(), Val.TrimStartAndEnd());
+			}
+			ADP_LOG(TEXT("Truck lamps: %d settings from %s"), V.Num(), *Path);
+		}
+		float F(const TCHAR* Key, float Def) const { const FString* S = V.Find(Key); return S && S->IsNumeric() ? FCString::Atof(**S) : Def; }
+		FLinearColor C(const TCHAR* Key, const FLinearColor& Def) const
+		{
+			const FString* S = V.Find(Key);
+			TArray<FString> P;
+			if (!S || S->ParseIntoArray(P, TEXT(",")) != 3) return Def;
+			return FLinearColor(FColor(uint8(FMath::Clamp(FCString::Atoi(*P[0]), 0, 255)), uint8(FMath::Clamp(FCString::Atoi(*P[1]), 0, 255)), uint8(FMath::Clamp(FCString::Atoi(*P[2]), 0, 255))));
+		}
+	};
+	const FLampIni& LampIni() { static FLampIni I; return I; }
+
 	// ---- getting in: where your pelvis, feet and hands are (Blender metres, the truck's own measures) at each moment.
 	// The driver's door is on the left: the hung step outside it (top 0.40 m, x -1.6, y 4.3-4.9), the step inside the
 	// doorway (top 0.75 m), the cab floor at 1.04 m; a handle either side of the doorway inside (rear y 3.78, front
@@ -337,12 +372,14 @@ bool AFireTruck::Setup(const FString& ModelName)
 	{
 		FTransform LT;
 		if (!Model->NodeBase(N, LT)) continue;
-		if (USceneComponent* G = LensGlow(LT.GetLocation() + FVector(0, 4.f, 0), FLinearColor(1.f, 0.97f, 0.92f), 30.f, 26.f)) ReverseLights.Add(G);
+		const FLampIni& Li = LampIni();
+		if (USceneComponent* G = LensGlow(LT.GetLocation() + FVector(0, 4.f, 0), Li.C(TEXT("Reverse.Color"), FLinearColor(1.f, 0.97f, 0.92f)), Li.F(TEXT("Reverse.Glow"), 30.f), Li.F(TEXT("Reverse.GlowSize"), 26.f))) ReverseLights.Add(G);
 		USpotLightComponent* Sp = NewObject<USpotLightComponent>(this);
 		Sp->SetupAttachment(Model->GetModelRoot());
 		Sp->SetRelativeLocationAndRotation(LT.GetLocation() + FVector(0, 30.f, 0), FRotator(-35.f, 90.f, 0.f));
-		Sp->SetIntensityUnits(ELightUnits::Lumens); Sp->SetIntensity(140.f);
-		Sp->SetOuterConeAngle(50.f); Sp->SetInnerConeAngle(25.f); Sp->SetAttenuationRadius(500.f);
+		Sp->SetIntensityUnits(ELightUnits::Lumens); Sp->SetIntensity(Li.F(TEXT("Reverse.Brightness"), 140.f));
+		Sp->SetOuterConeAngle(50.f); Sp->SetInnerConeAngle(25.f); Sp->SetAttenuationRadius(Li.F(TEXT("Reverse.Reach"), 5.f) * 100.f);
+		Sp->SetLightColor(Li.C(TEXT("Reverse.Color"), FLinearColor(1.f, 0.97f, 0.92f)));
 		Sp->SetCastShadows(false); Sp->SetVolumetricScatteringIntensity(0.f);
 		Sp->SetVisibility(false);
 		Sp->RegisterComponent();
@@ -557,24 +594,29 @@ void AFireTruck::BuildLamps()
 		L->RegisterComponent();
 		return L;
 	};
-	const FLinearColor White(1.f, 0.96f, 0.9f), Red(1.f, 0.03f, 0.015f), Blue(0.02f, 0.12f, 1.f), Amber(1.f, 0.42f, 0.02f);
+	const FLampIni& Li = LampIni();
+	const FLinearColor Red = Li.C(TEXT("TailLight.Color"), FLinearColor(1.f, 0.03f, 0.015f)), BrakeRed = Li.C(TEXT("BrakeLight.Color"), Red), Blue = Li.C(TEXT("BlueLights.Color"), FLinearColor(0.02f, 0.12f, 1.f)),
+		Amber = Li.C(TEXT("Indicator.Color"), FLinearColor(1.f, 0.42f, 0.02f)), MarkerAmber = Li.C(TEXT("SideMarker.Color"), Amber);
 	TArray<FTransform> N;
 	// the headlamps: each lens shining; per side one beam onto the road for the low beams and one for the high, set
 	// out in front of the bumper so the light falls on the ground, not the truck's own front
 	for (const TCHAR* Nm : {TEXT("Light_HeadLow"), TEXT("Light_HeadHigh")})
 	{
 		const ELamp K = Nm[10] == TEXT('L') ? ELamp::Low : ELamp::High;   // ("Light_Head" then L or H)
+		const bool bLo = K == ELamp::Low;
+		auto Hf = [&](const TCHAR* Key, float Lo, float Hi) { return Li.F(*FString::Printf(TEXT("%s.%s"), bLo ? TEXT("LowBeam") : TEXT("HighBeam"), Key), bLo ? Lo : Hi); };
+		const FLinearColor White = Li.C(bLo ? TEXT("LowBeam.Color") : TEXT("HighBeam.Color"), FLinearColor(1.f, 0.96f, 0.9f));
 		N.Reset(); Model->NodesNamed(Nm, N);
 		FVector Sum[2] = {FVector::ZeroVector, FVector::ZeroVector}; int32 Cnt[2] = {0, 0};
-		for (const FTransform& T : N) { Keep(LensGlow(T.GetLocation() + FVector(0, -4.f, 0), White, K == ELamp::Low ? 40.f : 60.f, 30.f), K, SideOf(T)); Sum[SideOf(T)] += T.GetLocation(); ++Cnt[SideOf(T)]; }
+		for (const FTransform& T : N) { Keep(LensGlow(T.GetLocation() + FVector(0, -4.f, 0), White, Hf(TEXT("Glow"), 40.f, 60.f), Hf(TEXT("GlowSize"), 30.f, 30.f)), K, SideOf(T)); Sum[SideOf(T)] += T.GetLocation(); ++Cnt[SideOf(T)]; }
 		for (int32 Sd = 0; Sd < 2; ++Sd)
 		{
 			if (!Cnt[Sd]) continue;
 			USpotLightComponent* Sp = NewObject<USpotLightComponent>(this);
-			Sp->SetRelativeRotation(FRotator(K == ELamp::Low ? -6.f : -1.5f, -90.f, 0.f));
-			Sp->SetOuterConeAngle(K == ELamp::Low ? 36.f : 15.f); Sp->SetInnerConeAngle(K == ELamp::Low ? 20.f : 6.f);
+			Sp->SetRelativeRotation(FRotator(-Hf(TEXT("Aim"), 6.f, 1.5f), -90.f, 0.f));
+			Sp->SetOuterConeAngle(Hf(TEXT("BeamWidth"), 36.f, 15.f)); Sp->SetInnerConeAngle(Hf(TEXT("Core"), 20.f, 6.f));
 			Sp->SetVolumetricScatteringIntensity(0.25f);
-			Keep(Light(Sp, Sum[Sd] / Cnt[Sd] + FVector(0, -45.f, 0), White, K == ELamp::Low ? 3200.f : 9000.f, K == ELamp::Low ? 5500.f : 16000.f), K, uint8(Sd));
+			Keep(Light(Sp, Sum[Sd] / Cnt[Sd] + FVector(0, -45.f, 0), White, Hf(TEXT("Brightness"), 3200.f, 9000.f), Hf(TEXT("Reach"), 55.f, 160.f) * 100.f), K, uint8(Sd));
 		}
 	}
 	// the rear lamps: red tail lights, the same lenses far brighter as you brake (the lens only; a brake light barely
@@ -582,8 +624,8 @@ void AFireTruck::BuildLamps()
 	N.Reset(); Model->NodesNamed(TEXT("Light_Brake"), N);
 	for (const FTransform& T : N)
 	{
-		Keep(LensGlow(T.GetLocation() + FVector(0, 4.f, 0), Red, 12.f, 24.f), ELamp::Tail, SideOf(T));
-		Keep(LensGlow(T.GetLocation() + FVector(0, 5.f, 0), Red, 70.f, 34.f), ELamp::Brake, SideOf(T));
+		Keep(LensGlow(T.GetLocation() + FVector(0, 4.f, 0), Red, Li.F(TEXT("TailLight.Glow"), 12.f), Li.F(TEXT("TailLight.GlowSize"), 24.f)), ELamp::Tail, SideOf(T));
+		Keep(LensGlow(T.GetLocation() + FVector(0, 5.f, 0), BrakeRed, Li.F(TEXT("BrakeLight.Glow"), 70.f), Li.F(TEXT("BrakeLight.GlowSize"), 34.f)), ELamp::Brake, SideOf(T));
 	}
 	// the indicators: front corners, rear, and the side repeaters (amber); their sides from their names
 	for (const TCHAR* Nm : {TEXT("Light_TurnL"), TEXT("Light_TurnR"), TEXT("Light_TurnSideL"), TEXT("Light_TurnSideR")})
@@ -594,7 +636,7 @@ void AFireTruck::BuildLamps()
 		{
 			const FVector P = T.GetLocation();
 			const FVector Out = FMath::Abs(P.X) > 140.f ? FVector(P.X < 0.f ? -4.f : 4.f, 0, 0) : FVector(0, P.Y < 0.f ? -4.f : 4.f, 0);
-			Keep(LensGlow(P + Out, Amber, 55.f, 26.f), ELamp::Turn, Sd);
+			Keep(LensGlow(P + Out, Amber, Li.F(TEXT("Indicator.Glow"), 55.f), Li.F(TEXT("Indicator.GlowSize"), 26.f)), ELamp::Turn, Sd);
 		}
 	}
 	// the indicator stalk on the column's left: it swings down for left, up for right (about the column's axis)
@@ -607,7 +649,7 @@ void AFireTruck::BuildLamps()
 	}
 	// the amber side markers
 	N.Reset(); Model->NodesNamed(TEXT("Light_MarkerSide"), N);
-	for (const FTransform& T : N) Keep(LensGlow(T.GetLocation() + FVector(T.GetLocation().X < 0.f ? -3.f : 3.f, 0, 0), Amber, 10.f, 12.f), ELamp::Marker, SideOf(T));
+	for (const FTransform& T : N) Keep(LensGlow(T.GetLocation() + FVector(T.GetLocation().X < 0.f ? -3.f : 3.f, 0, 0), MarkerAmber, Li.F(TEXT("SideMarker.Glow"), 10.f), Li.F(TEXT("SideMarker.GlowSize"), 12.f)), ELamp::Marker, SideOf(T));
 	// the blue warning lights (owner: natural, as in other games): every lens a hard bright flash; the light round
 	// about from just outside the truck (above the roof bar, ahead of the front, behind the rear), so the blue sweeps
 	// the ground and the walls and doesn't blow out the cab
@@ -615,7 +657,7 @@ void AFireTruck::BuildLamps()
 	{
 		N.Reset(); Model->NodesNamed(Nm, N);
 		const bool bBar = Nm[10] == TEXT('B');   // ("Light_Blue" then Bar / Front / Rear / Side)
-		for (const FTransform& T : N) Keep(LensGlow(T.GetLocation() + FVector(0, 0, bBar ? 6.f : 0.f), Blue, 120.f, bBar ? 46.f : 30.f), ELamp::Blue, SideOf(T));
+		for (const FTransform& T : N) Keep(LensGlow(T.GetLocation() + FVector(0, 0, bBar ? 6.f : 0.f), Blue, Li.F(TEXT("BlueLights.Glow"), 120.f), bBar ? Li.F(TEXT("BlueLights.GlowSize"), 46.f) : Li.F(TEXT("BlueLights.SideGlowSize"), 30.f)), ELamp::Blue, SideOf(T));
 		FVector Sum[2] = {FVector::ZeroVector, FVector::ZeroVector}; int32 Cnt[2] = {0, 0};
 		for (const FTransform& T : N) { Sum[SideOf(T)] += T.GetLocation(); ++Cnt[SideOf(T)]; }
 		if (Nm[10] == TEXT('S')) continue;   // (the side lamps: their shine only)
@@ -632,7 +674,8 @@ void AFireTruck::BuildLamps()
 				Sp->SetOuterConeAngle(bBar ? 75.f : 60.f); Sp->SetInnerConeAngle(bBar ? 35.f : 25.f);
 				Sp->SetSourceRadius(10.f);
 				Sp->SetVolumetricScatteringIntensity(0.5f);
-				Keep(Light(Sp, From, Blue, bBar ? 9000.f : 3000.f, bBar ? 2600.f : 1200.f), ELamp::BlueWide, uint8(Sd));
+				Keep(Light(Sp, From, Blue, bBar ? Li.F(TEXT("BlueLights.Brightness"), 9000.f) : Li.F(TEXT("BlueLights.FrontRearBrightness"), 3000.f),
+					(bBar ? Li.F(TEXT("BlueLights.Reach"), 26.f) : Li.F(TEXT("BlueLights.FrontRearReach"), 12.f)) * 100.f), ELamp::BlueWide, uint8(Sd));
 			}
 	}
 	ADP_LOG(TEXT("Fire truck: %d lamp parts (headlamps, tail, brake, markers, blue warning lights)"), Lamps.Num());
@@ -647,7 +690,7 @@ void AFireTruck::UpdateLamps(float Dt)
 	// the warning lights' double flash: each side twice quickly, then the other side
 	auto Flash = [this](uint8 Side)
 	{
-		const float C = FMath::Fmod(BlueClock + (Side ? 0.375f : 0.f), 0.75f);
+		const float Round = FMath::Max(0.2f, LampIni().F(TEXT("BlueLights.Round"), 0.75f)), C = FMath::Fmod(BlueClock + (Side ? Round * 0.5f : 0.f), Round) / Round * 0.75f;
 		return (C < 0.06f) || (C > 0.11f && C < 0.17f);   // two quick flashes a side, the sides in turn (as LED beacons do)
 	};
 	// the indicators: about 90 flashes a minute; a turn signal cancels itself once the wheel has gone over that way
@@ -660,7 +703,8 @@ void AFireTruck::UpdateLamps(float Dt)
 		else if (bTurnArmed && InSteer * Way < 0.1f) { Signal = ETurn::Off; bTurnArmed = false; ADP_LOG(TEXT("Fire truck: the indicator cancelled itself after the turn")); }
 	}
 	TurnClock += Dt;
-	const bool bTurnOn = Signal != ETurn::Off && FMath::Fmod(TurnClock, 0.66f) < 0.36f;
+	const float TurnPeriod = 60.f / FMath::Clamp(LampIni().F(TEXT("Indicator.FlashesPerMinute"), 90.f), 30.f, 200.f);
+	const bool bTurnOn = Signal != ETurn::Off && FMath::Fmod(TurnClock, TurnPeriod) < TurnPeriod * FMath::Clamp(LampIni().F(TEXT("Indicator.OnPart"), 0.55f), 0.1f, 0.9f);
 	if (bTurnOn != bTurnLit && Driver && Model)
 	{
 		bTurnLit = bTurnOn;
