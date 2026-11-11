@@ -73,17 +73,18 @@ private:
 	UPROPERTY() TObjectPtr<UPoseableMeshComponent> Rider;               // your body in and on the truck
 	UPROPERTY() TObjectPtr<UAudioComponent> SirenOut;
 	UPROPERTY() TObjectPtr<UAudioComponent> BeeperOut;                  // the reversing beeper
-	UPROPERTY() TArray<TObjectPtr<class ULocalLightComponent>> ReverseLights;
+	UPROPERTY() TArray<TObjectPtr<USceneComponent>> ReverseLights;
 	bool bReverseLit = false;
 	void ReverseGear(bool bOn);
 	// the lamps (owner, 2026-11-11): low beams while driven, high beams (L / D-pad down), red tail lights, brake lights
 	// far brighter as you brake, amber side markers, the blue warning lights flashing (N / right stick press)
 	enum class ELamp : uint8 { Low, High, Tail, Brake, Blue, BlueWide, Marker };
-	UPROPERTY() TArray<TObjectPtr<class ULocalLightComponent>> Lamps;
+	UPROPERTY() TArray<TObjectPtr<USceneComponent>> Lamps;   // lights and the lenses' glows
 	TArray<ELamp> LampKind; TArray<uint8> LampSide; TArray<float> LampFull;
 	bool bHighBeam = false, bBlue = false;
 	float BlueClock = 0.f;
 	void BuildLamps();
+	USceneComponent* LensGlow(const FVector& At, const FLinearColor& Col, float Brightness, float Size);
 	void UpdateLamps(float Dt);
 	void ToggleHighBeam() { bHighBeam = !bHighBeam; }
 	void ToggleBlue() { bBlue = !bBlue; BlueClock = 0.f; }
