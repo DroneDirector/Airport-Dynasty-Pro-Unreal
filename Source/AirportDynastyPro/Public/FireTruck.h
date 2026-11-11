@@ -13,12 +13,16 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/Actor.h"
+#include "TruckDriverRig.h"
 #include "FireTruck.generated.h"
 
 class UBoxComponent;
 class UCameraComponent;
 class USpringArmComponent;
 class ABabylonModel;
+class UPoseableMeshComponent;
+class UAudioComponent;
+class USoundAttenuation;
 
 UCLASS()
 class AIRPORTDYNASTYPRO_API AFireTruck : public APawn
@@ -33,9 +37,17 @@ public:
 	virtual void Tick(float Dt) override;
 	virtual void SetupPlayerInputComponent(UInputComponent* In) override;
 	virtual void EndPlay(const EEndPlayReason::Type Why) override;
-	/** You get in (your body hidden and carried along) / out (beside the driver's door). */
+	/** You get in: you climb the steps by the driver's door, hand on the grab bar, into the middle seat, the door shut
+	 *  behind you (about 3 s, the camera out behind you and in again). Exit: the same the other way, stopping first. */
 	void Enter(APawn* Walker);
 	void Exit();
+	/** Out at once, no climb (the quick-starts that move you elsewhere). */
+	void ExitNow();
+	void ToggleSiren();
+	bool IsBusy() const { return Seq != ESeq::None; }
+	/** Where you stand to climb in by the driver's door (world). */
+	FVector DoorSpot() const;
+	bool SirenOn() const { return bSiren; }
 	/** The truck an actor belongs to (the truck or its model), or null. */
 	static AFireTruck* FromActor(AActor* A);
 	float SpeedKmh() const;
@@ -55,6 +67,12 @@ private:
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCameraComponent> DriverCam;
 	UPROPERTY() TObjectPtr<ABabylonModel> Model;
 	UPROPERTY() TObjectPtr<APawn> Driver;
+	UPROPERTY(VisibleAnywhere) TObjectPtr<UCameraComponent> MoveCam;    // the camera while you climb in or out
+	UPROPERTY() TObjectPtr<UPoseableMeshComponent> Rider;               // your body in and on the truck
+	UPROPERTY() TObjectPtr<UAudioComponent> SirenOut;
+	UPROPERTY() TObjectPtr<USoundAttenuation> NearSound;
+	UPROPERTY() TObjectPtr<USoundAttenuation> FarSound;
+	FTruckDriverRig Rig;
 
 	struct FWheel
 	{
@@ -73,10 +91,25 @@ private:
 
 	// the controls and the state
 	float InThrottle = 0, InBrake = 0, InSteer = 0, KeyFwd = 0, KeySteer = 0, PadThrottle = 0, PadBrake = 0;
-	bool bHandbrake = false, bChase = false, bSim = false;
-	float Steer = 0, LookYaw = 0, LookPitch = 0, DoorK = 0, DoorClock = -1, Still = 0;
+	bool bHandbrake = false, bHandHeld = false, bChase = false, bSim = false;
+	float Steer = 0, LookYaw = 0, LookPitch = 0, DoorK = 0, Still = 0;
 	bool bReverse = false, bTestInput = false;
 	float StopHold = 0.f;   // how long the brake has been held at a standstill (reverse after about a second)
+	// getting in and out
+	enum class ESeq : uint8 { None, In, Out };
+	ESeq Seq = ESeq::None;
+	float SeqT = 0.f;
+	bool bExitPending = false, bSiren = false, bHeadHidden = false;
+	FTransform CamFrom;                      // where the camera started (model root space)
+	FVector StartPelvis = FVector::ZeroVector, StartFacing = FVector(1, 0, 0);   // you, where you pressed E (root space)
+	float DoorTarget = 0.f;
+	FTransform WheelNow, AccelNow, BrakeNow; FVector BrakePad = FVector::ZeroVector;
+	void StartExit();
+	void FinishExit();
+	void Sequence(float Dt);
+	FDriverPose PoseAt(float T) const;
+	FTransform CamPath(float T) const;
+	void Sound(const TArray<int16>& Pcm, const FVector& RootAt, bool bFar);
 
 	void Simulate(float Dt);
 	void Animate(float Dt);
@@ -87,13 +120,14 @@ private:
 	void LookUp(float V) { LookPitch = FMath::Clamp(LookPitch + V * 2.f, -60.f, 50.f); }
 	void PadT(float V) { PadThrottle = V; }
 	void PadB(float V) { PadBrake = V; }
-	void HandOn() { bHandbrake = true; }
-	void HandOff() { bHandbrake = false; }
+	void HandOn() { bHandbrake = bHandHeld = true; }
+	void HandOff() { bHandbrake = bHandHeld = false; }
 	void ToggleView() { SetView(!bChase); }
 };
 
-/** The fire station's bay doors (owner: shut in the game): up-and-over doors that tilt up and in under the ceiling when a
- *  truck comes up to them, from inside or outside, and close again once it has gone. */
+/** The fire station's bay doors (owner: shut in the game): sectional doors whose foot rises in the opening while their top
+ *  runs back along the ceiling, opened for a truck in their own lane once its driver sits at the wheel, never shut down
+ *  onto anything in the opening; their motor's start and stop clunks and its hum and the sections' rattle as they run. */
 UCLASS()
 class AIRPORTDYNASTYPRO_API AFireStationDoors : public AActor
 {
@@ -108,6 +142,13 @@ public:
 
 private:
 	UPROPERTY() TObjectPtr<ABabylonModel> Station;
-	struct FBay { int32 Group = -1; FVector Pivot = FVector::ZeroVector; FVector World = FVector::ZeroVector; float K = 0.f; };
+	UPROPERTY() TObjectPtr<USoundAttenuation> Heard;
+	struct FBay
+	{
+		int32 Group = -1; FVector Pivot = FVector::ZeroVector; FVector World = FVector::ZeroVector;
+		float K = 0.f, Hold = 0.f, Pause = 0.f; int32 Dir = 0;   // open 0-1, kept open a while, the stop before turning back, moving up / down
+		TWeakObjectPtr<UAudioComponent> Hum;
+	};
 	TArray<FBay> Bays;
+	void Sound(const FBay& B, const TArray<int16>& Pcm);
 };

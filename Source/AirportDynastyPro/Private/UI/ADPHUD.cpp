@@ -1080,7 +1080,7 @@ void AADPHUD::OpenSite()
 
 void AADPHUD::GoTo(const FVector& PlanAt, const FVector& PlanLook)
 {
-	if (AFireTruck* T = Cast<AFireTruck>(GetOwningPawn())) T->Exit();   // out of a truck first: the quick-starts move you, not it
+	if (AFireTruck* T = Cast<AFireTruck>(GetOwningPawn())) T->ExitNow();   // out of a truck first: the quick-starts move you, not it
 	APawn* P = GetOwningPawn();
 	if (!P) return;
 	if (bGame) ToggleGame();
@@ -1691,23 +1691,31 @@ void AADPHUD::Tick(float Dt)
 			const FStep DSteps[] = {
 				{40.f, [&]() { if (bGame) ToggleGame(); Sun(13.f, 172); GoFireStation(2); }},
 				{46.f, [&]() { Shot(TEXT("Drive_Walker_Bay")); if (APlayerController* P = GetOwningPlayerController()) if (P->PlayerCameraManager) ADP_LOG(TEXT("UIDrive: walker camera at %s"), *P->PlayerCameraManager->GetCameraLocation().ToString()); }},
+				{45.f, [&]() { if (AFireTruck* T = Truck()) if (APawn* Me = GetOwningPawn()) { const FVector At = T->DoorSpot(); Me->TeleportTo(At, FRotator(0.f, (T->GetActorLocation() - At).Rotation().Yaw, 0.f)); if (GetOwningPlayerController()) GetOwningPlayerController()->SetControlRotation(FRotator(-5.f, (T->GetActorLocation() - At).Rotation().Yaw, 0.f)); } }},
+				{46.5f, [&]() { Shot(TEXT("Drive_Before")); }},
 				{47.f, [&]() { if (AFireTruck* T = Truck()) { T->Enter(GetOwningPawn()); T->SetView(true); } }},
-												{48.f, [&]() { if (AFireTruck* T = Truck()) T->SetView(false); }},
-				{49.5f, [&]() { Shot(TEXT("Drive_In_Bay_Cab")); if (AFireTruck* T = Truck()) T->SetView(true); }},
-				{50.5f, [&]() { Shot(TEXT("Drive_In_Bay")); if (APlayerController* P = GetOwningPlayerController()) if (P->PlayerCameraManager) ADP_LOG(TEXT("UIDrive: camera at %s, truck at %s"), *P->PlayerCameraManager->GetCameraLocation().ToString(), Truck() ? *Truck()->GetActorLocation().ToString() : TEXT("-")); }},
-				{51.f, [&]() { if (AFireTruck* T = Truck()) T->SetTestInput(0.4f, 0.f, 0.f); }},
+				{47.6f, [&]() { Shot(TEXT("Drive_Climb1")); }},
+				{48.2f, [&]() { Shot(TEXT("Drive_Climb2")); }},
+				{48.8f, [&]() { Shot(TEXT("Drive_Climb3")); }},
+				{49.4f, [&]() { Shot(TEXT("Drive_Climb4")); }},
+				{50.0f, [&]() { Shot(TEXT("Drive_Climb5")); }},
+				{50.85f, [&]() { Shot(TEXT("Drive_In_Bay")); }},
+				{51.f, [&]() { if (AFireTruck* T = Truck()) T->SetTestInput(0.6f, 0.f, 0.f); }},
 				{53.f, [&]() { Shot(TEXT("Drive_T53")); }},
 				{55.f, [&]() { Shot(TEXT("Drive_T55")); }},
 				{57.f, [&]() { Shot(TEXT("Drive_T57")); }},
 				{60.f, [&]() { Shot(TEXT("Drive_Out")); }},
-				{61.f, [&]() { if (AFireTruck* T = Truck()) T->SetTestInput(0.4f, 0.f, 1.f); }},
+				{61.f, [&]() { if (AFireTruck* T = Truck()) { T->SetTestInput(0.4f, 0.f, 0.6f); T->ToggleSiren(); } }},
 				{67.f, [&]() { Shot(TEXT("Drive_Turn")); }},
 				{68.f, [&]() { if (AFireTruck* T = Truck()) { T->SetTestInput(0.3f, 0.f, -0.4f); T->SetView(false); } }},
 				{72.f, [&]() { Shot(TEXT("Drive_Cab")); }},
 				{73.f, [&]() { if (AFireTruck* T = Truck()) { T->SetTestInput(0.f, 1.f, 0.f); T->SetView(true); } }},
 				{75.f, [&]() { if (AFireTruck* T = Truck()) T->SetTestInput(0.f, 0.f, 0.f); }},
 				{79.f, [&]() { Shot(TEXT("Drive_Stopped")); if (AFireTruck* T = Truck()) ADP_LOG(TEXT("UIDrive: stopped at %.1f km/h"), T->SpeedKmh()); }},
-				{80.f, [&]() { if (AFireTruck* T = Truck()) T->Exit(); }},
+				{80.f, [&]() { if (AFireTruck* T = Truck()) { if (T->SirenOn()) T->ToggleSiren(); T->Exit(); } }},
+				{80.8f, [&]() { Shot(TEXT("Drive_Out1")); }},
+				{81.8f, [&]() { Shot(TEXT("Drive_Out2")); }},
+				{82.8f, [&]() { Shot(TEXT("Drive_Out3")); }},
 				{84.f, [&]() { Shot(TEXT("Drive_Out_Of_Truck")); }},
 				{85.f, [&]() { AFireStationDoors::bTestOpen = true; GoFireStation(0); }},
 				{92.f, [&]() { Shot(TEXT("Drive_Doors_Open")); GoFireStation(2); }},

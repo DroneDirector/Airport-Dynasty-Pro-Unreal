@@ -3,6 +3,10 @@
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
 #include "Camera/CameraComponent.h"
+#include "Camera/PlayerCameraManager.h"
+#include "GameFramework/PlayerController.h"
+#include "GameFramework/SpringArmComponent.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -12,7 +16,12 @@
 #include "ADPLog.h"
 
 #pragma region Setup
-namespace { constexpr float WalkSpeed = 150.f, RunSpeed = 450.f; } // cm/s
+namespace
+{
+	constexpr float WalkSpeed = 150.f, RunSpeed = 450.f; // cm/s
+	// seen from behind: over the right shoulder, a little above the head
+	constexpr float ArmLen = 320.f; const FVector ArmPivot(0, 0, 60.f), ArmOffset(0, 45.f, 15.f);
+}
 
 AADPWalker::AADPWalker()
 {
@@ -22,6 +31,19 @@ AADPWalker::AADPWalker()
 	Eyes->SetRelativeLocation(FVector(0, 0, 70.f)); // eye height about 1.6 m
 	Eyes->bUsePawnControlRotation = true;
 	Eyes->SetFieldOfView(90.f);
+	// the view from behind (owner, 2026-11-11: a third-person view for your character)
+	Boom = CreateDefaultSubobject<USpringArmComponent>(TEXT("Boom"));
+	Boom->SetupAttachment(GetCapsuleComponent());
+	Boom->SetRelativeLocation(ArmPivot);
+	Boom->TargetArmLength = ArmLen;
+	Boom->SocketOffset = ArmOffset;
+	Boom->bUsePawnControlRotation = true;
+	Boom->ProbeSize = 14.f;
+	Boom->bEnableCameraLag = true; Boom->CameraLagSpeed = 14.f;
+	Behind = CreateDefaultSubobject<UCameraComponent>(TEXT("Behind"));
+	Behind->SetupAttachment(Boom);
+	Behind->SetFieldOfView(90.f);
+	Behind->SetAutoActivate(false);
 	PrimaryActorTick.bCanEverTick = true;
 
 	// your body (owner, 2026-11-11: a body for the avatar, so getting in and out, sitting, holding the hose etc. can be
@@ -64,6 +86,7 @@ void AADPWalker::SetupPlayerInputComponent(UInputComponent* Input)
 	Input->BindAction(TEXT("Run"), IE_Pressed, this, &AADPWalker::RunOn);
 	Input->BindAction(TEXT("Run"), IE_Released, this, &AADPWalker::RunOff);
 	Input->BindAction(TEXT("Crouch"), IE_Pressed, this, &AADPWalker::ToggleCrouch);
+	Input->BindAction(TEXT("ChangeView"), IE_Pressed, this, &AADPWalker::ToggleView);
 }
 
 void AADPWalker::MoveForward(float V) { if (V != 0.f) AddMovementInput(GetActorForwardVector(), V); }
@@ -76,11 +99,36 @@ void AADPWalker::ToggleCrouch() { if (bIsCrouched) UnCrouch(); else Crouch(); }
 
 float AADPWalker::Fov = 90.f;
 
+void AADPWalker::SetThirdPerson(bool bOn)
+{
+	bThird = bOn;
+	Eyes->SetActive(!bThird);
+	Behind->SetActive(bThird);
+	// your own head: hidden only while you look out from inside it
+	if (GetMesh() && GetMesh()->GetSkeletalMeshAsset())
+	{
+		if (bThird) GetMesh()->UnHideBoneByName(TEXT("head")); else GetMesh()->HideBoneByName(TEXT("head"), PBO_None);
+		bHeadHidden = true;
+	}
+	if (APlayerController* PC = Cast<APlayerController>(GetController())) if (PC->PlayerCameraManager) PC->PlayerCameraManager->SetGameCameraCutThisFrame();
+	GConfig->SetBool(TEXT("ADP.Input"), TEXT("ThirdPerson"), bThird, GGameUserSettingsIni);
+	GConfig->Flush(false, GGameUserSettingsIni);
+}
+
+FTransform AADPWalker::ViewFrom(const FVector& At, const FRotator& Look) const
+{
+	if (!bThird) return FTransform(Look, At + FRotator(0.f, Look.Yaw, 0.f).RotateVector(FVector(14.f, 0.f, 70.f)));
+	const FVector Pivot = At + ArmPivot;
+	return FTransform(Look, Pivot + Look.RotateVector(FVector(-ArmLen, 0.f, 0.f) + ArmOffset));
+}
+
 void AADPWalker::Tick(float Dt)
 {
 	Super::Tick(Dt);
 	// your own head hidden from your eyes (you look out from inside it); the rest of the body stays seen and casts its shadow
-	if (!bHeadHidden && GetMesh() && GetMesh()->GetSkeletalMeshAsset()) { GetMesh()->HideBoneByName(TEXT("head"), PBO_None); bHeadHidden = true; }
+	// the view you last chose, first person or from behind (kept between games)
+	if (!bViewRead) { bViewRead = true; bool bT = false; GConfig->GetBool(TEXT("ADP.Input"), TEXT("ThirdPerson"), bT, GGameUserSettingsIni); SetThirdPerson(bT); }
+	if (!bHeadHidden && !bThird && GetMesh() && GetMesh()->GetSkeletalMeshAsset()) { GetMesh()->HideBoneByName(TEXT("head"), PBO_None); bHeadHidden = true; }
 	// the angle up and down held to what Fov gives on a 16:9 screen; the side angle opened up for wider screens (Unreal
 	// keeps the side angle otherwise, so a 32:9 screen saw only a thin strip up and down: everything felt too close)
 	static bool bRead = false;
@@ -90,5 +138,5 @@ void AADPWalker::Tick(float Dt)
 	const float Aspect = Size.Y > 1 ? FMath::Max(Size.X / Size.Y, 1.f) : 16.f / 9.f;
 	const float V = 2.f * FMath::Atan(FMath::Tan(FMath::DegreesToRadians(Fov) * 0.5f) / (16.f / 9.f));
 	const float H = FMath::RadiansToDegrees(2.f * FMath::Atan(FMath::Tan(V * 0.5f) * Aspect));
-	if (Eyes && FMath::Abs(Eyes->FieldOfView - H) > 0.05f) Eyes->SetFieldOfView(FMath::Min(H, 170.f));
+	if (Eyes && FMath::Abs(Eyes->FieldOfView - H) > 0.05f) { Eyes->SetFieldOfView(FMath::Min(H, 170.f)); Behind->SetFieldOfView(FMath::Min(H, 170.f)); }
 }

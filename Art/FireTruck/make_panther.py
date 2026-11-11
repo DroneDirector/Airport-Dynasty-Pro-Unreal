@@ -30,6 +30,7 @@ TRACK = 1.22
 CAB_R = 2.2                      # the cab's rear
 DOOR0, DOOR1 = 3.68, 5.02        # the door opening along y
 WELL_Y0, WELL_Y1, WELL_TOP, WELL_X = 1.98, 3.86, 1.68, 0.54   # the front wheel housings: from, to, top, inner wall
+STAIR_Y0, STAIR_Y1 = 4.30, 4.94                                  # the cab stairs, along y (behind the doors)
 KINGPIN, MAX_STEER = 0.12, 25.0  # the front wheels steer about an axis 12 cm in from the wheel's centre, 25 deg each way
 REAR_STEER_MAX = 10.0             # the rearmost axle (Wheel_*3) steers the other way, up to 10 deg (owner: rear-axle steering);
                                   # its angle from the front's: atan(1.65 * tan(front) / 5.4) (the middle axle the pivot line)
@@ -567,6 +568,7 @@ bm = bmesh.new(); vr = [[bm.verts.new(p) for p in r] for r in rings]
 nR = len(rings[0])
 for a in range(len(rings) - 1):
     for i in range(nR - 1):                          # a shell: open at the back (the cab's floor is behind it)
+        if i == 0 or i == nR - 2: continue           # open at the doorways (owner, 2026-11-11: walk in through them)
         j = i + 1
         f = bm.faces.new((vr[a][i], vr[a][j], vr[a + 1][j], vr[a + 1][i]))
         corner = i < 6 or i > nR - 8                 # the corner wings: yellow round the corners, black in the middle
@@ -666,15 +668,55 @@ for s in (-1, 1):
     box('Mirror', s * (W + 0.2) - 0.07, TOP_SIDE + 0.55, ZT - 0.6, s * (W + 0.22) + 0.07, TOP_SIDE + 0.68, ZT - 0.1, M['black'], 0.03)
 # the doors: black, nearly all glass, hinged at the front edge; the steps under them
 for s, nm in ((-1, 'L'), (1, 'R')):
-    door_ob = side('Door' + nm, [(DOOR0 + 0.02, 0.72), (DOOR1 - 0.02, 0.72), (DOOR1 - 0.02, ZB), (TOP_SIDE - 0.02, ZT - 0.02), (DOOR0 + 0.02, ZT - 0.02)], s * (W - 0.01), s * (W + 0.04), M['black'], 0.02, 3)
+    # the door: a black frame round a real window (owner, 2026-11-11: the cab doors need their side windows), the lower
+    # panel solid; all its pieces are Door<side> (.001...) so the game swings them together
+    _xa, _xb = s * (W - 0.01), s * (W + 0.04)
+    _g0, _g1, _gb = DOOR0 + 0.1, DOOR1 - 0.1, 1.15        # the window's rear edge, front edge (at its foot), sill
+    door_ob = side('Door' + nm, [(DOOR0 + 0.02, 0.72), (DOOR1 - 0.02, 0.72), (DOOR1 - 0.02, _gb), (DOOR0 + 0.02, _gb)], _xa, _xb, M['black'], 0.02, 3)
+    side('Door' + nm, [(DOOR0 + 0.02, _gb - 0.01), (_g0, _gb - 0.01), (_g0, ZT - 0.1), (DOOR0 + 0.02, ZT - 0.02)], _xa, _xb, M['black'], 0.01, 2)
+    side('Door' + nm, [(DOOR0 + 0.02, ZT - 0.1), (TOP_SIDE - 0.1, ZT - 0.1), (TOP_SIDE - 0.02, ZT - 0.02), (DOOR0 + 0.02, ZT - 0.02)], _xa, _xb, M['black'], 0.01, 2)
+    side('Door' + nm, [(_g1, _gb - 0.01), (DOOR1 - 0.02, _gb - 0.01), (DOOR1 - 0.02, ZB), (TOP_SIDE - 0.02, ZT - 0.02), (TOP_SIDE - 0.1, ZT - 0.1), (_g1, ZB)], _xa, _xb, M['black'], 0.01, 2)
     _dt = text('DoorModel' + nm, 'STORM 6x6', 0.075, (s * (W + 0.042), (DOOR0 + DOOR1) / 2, 1.06), (math.pi / 2, 0, math.pi / 2 if s > 0 else -math.pi / 2), mat('TruckTeal', (0.0, 0.42, 0.48), 0.2, 0.3))
     _dt.parent = door_ob                                   # it opens with the door
-    side('Glass_Door' + nm, [(DOOR0 + 0.1, 1.15), (DOOR1 - 0.1, 1.15), (DOOR1 - 0.1, ZB), (TOP_SIDE - 0.1, ZT - 0.1), (DOOR0 + 0.1, ZT - 0.1)], s * (W + 0.041), s * (W + 0.046), M['glass'])
-    box('DoorHandle' + nm, s * (W + 0.05) - 0.012, DOOR0 + 0.15, 1.45, s * (W + 0.05) + 0.012, DOOR0 + 0.4, 1.5, M['alu'], 0.006)
+    # the pane set in the frame (seen through from both sides); the handle on the lower panel below the window
+    side('Glass_Door' + nm, [(_g0 - 0.01, _gb - 0.01), (_g1 + 0.01, _gb - 0.01), (_g1 + 0.01, ZB), (TOP_SIDE - 0.09, ZT - 0.09), (_g0 - 0.01, ZT - 0.09)], s * (W + 0.008), s * (W + 0.016), M['glass'])
+    box('DoorHandle' + nm, s * (W + 0.05) - 0.012, DOOR0 + 0.15, 1.04, s * (W + 0.05) + 0.012, DOOR0 + 0.4, 1.09, M['alu'], 0.006)
     box('DoorStripe' + nm, s * (W + 0.042) - 0.002, DOOR0 + 0.05, 0.98, s * (W + 0.042) + 0.002, DOOR1 - 0.05, 1.01, M['lensBlue'], 0.0)
-    for z in (0.28, 0.52):
-        box('CabStep', s * (W - 0.25), DOOR0 + 0.15, z, s * (W + 0.02), DOOR1 - 0.25, z + 0.04, M['alu'], 0.01)
+    # the way up into the cab, as on the real trucks (owner's photo, 2026-11-11): one step outside, a flat tread hung
+    # just outside the door's face and standing out a little, held by a single angled black arm bolted under the cab's
+    # front corner, yellow marks along its edge; then the second step inside the doorway (behind the shut door), then
+    # the cab floor. The game reads the treads' places (StepTread1/2<side>) for your feet as you climb in and out.
+    _sx = lambda v: s * v                              # (distances measured from the body's side, W)
+    _ty0, _ty1, _tz = STAIR_Y0 + 0.015, STAIR_Y1 - 0.015, 0.40   # (its arms both on the inner step's black face)
+    xa, xb = _sx(W - 0.03), _sx(W + 0.24)
+    box('StairTread1' + nm, min(xa, xb), _ty0, _tz - 0.035, max(xa, xb), _ty1, _tz, M['black'], 0.008)
+    for k in range(3):                                 # the yellow marks along its outer edge
+        yk = _ty0 + 0.08 + k * (_ty1 - _ty0 - 0.16) / 2
+        box('StairMark1' + nm, min(_sx(W + 0.2), _sx(W + 0.245)), yk - 0.035, _tz - 0.03, max(_sx(W + 0.2), _sx(W + 0.245)), yk + 0.035, _tz + 0.003, M['paint'], 0.004)
+    # held by two short black arms, one at each end, from the black face of the cab's side out under the tread
+    # (owner, 2026-11-11: no long arm; the bracket under the front corner stays, standing out)
+    box('StairBracket1' + nm, min(_sx(W - 0.04), _sx(W + 0.09)), 5.22, 0.7, max(_sx(W - 0.04), _sx(W + 0.09)), 5.38, 0.78, M['black'], 0.01)
+    for yb in (_ty0 + 0.025, _ty1 - 0.025):           # right at the plate's two ends
+        # its foot on a plate bolted flat to the cab's black lower face (sunk into it: no gap to see through), two bolts
+        box('StairArmPlate1' + nm, min(_sx(W - 0.01), _sx(W + 0.014)), yb - 0.035, 0.61, max(_sx(W - 0.01), _sx(W + 0.014)), yb + 0.035, 0.71, M['black'], 0.004)
+        for zb in (0.63, 0.69):
+            cyl('StairArmBolt1' + nm, 0.009, 0.012, (_sx(W + 0.018), yb, zb), M['satin'], 'x', 6)
+        strut('StairBrace1' + nm, Vector((_sx(W - 0.005), yb, 0.66)), Vector((_sx(W + 0.19), yb, _tz - 0.02)), 0.016, M['black'])
+    # the step inside the doorway: its top half way up to the floor, its face flush with the cab's side (black)
+    xa, xb = _sx(W - 0.02), _sx(W - 0.36)
+    box('StepTread2' + nm, min(xa, xb), STAIR_Y0, 0.71, max(xa, xb), STAIR_Y1, 0.75, M['alu'], 0.008)
+    box('StairNose2' + nm, min(_sx(W), _sx(W - 0.035)), STAIR_Y0, 0.6, max(_sx(W), _sx(W - 0.035)), STAIR_Y1, 0.752, M['black'], 0.006)
+    box('StairRiser2' + nm, min(_sx(W - 0.36), _sx(W - 0.39)), STAIR_Y0, 0.75, max(_sx(W - 0.36), _sx(W - 0.39)), STAIR_Y1, 1.0, M['black'], 0.004)
+    box('StairRiser2' + nm, min(_sx(W - 0.03), _sx(W - 0.39)), STAIR_Y0, 0.6, max(_sx(W - 0.03), _sx(W - 0.39)), STAIR_Y1, 0.71, M['black'], 0.004)
+    # below the doorway either side of the stairs: closed in down to the door's foot
+    box('DoorwayFill' + nm, min(_sx(W), _sx(W - 0.39)), DOOR0, 0.6, max(_sx(W), _sx(W - 0.39)), STAIR_Y0 + 0.005, 1.0, M['black'], 0.004)
+    box('DoorwayFill' + nm, min(_sx(W), _sx(W - 0.39)), STAIR_Y1 - 0.005, 0.6, max(_sx(W), _sx(W - 0.39)), 5.24, 1.0, M['black'], 0.004)
+    # the doorway's front jamb (the cab's corner shell starts a little ahead of the door's front edge)
+    box('DoorJambFront' + nm, min(_sx(W), _sx(W - 0.08)), DOOR1 - 0.03, 0.6, max(_sx(W), _sx(W - 0.08)), 5.24, ZB, M['paint'], 0.01)
+    # hand holds: the bar behind the door outside, and one on the doorway's front pillar inside
     cyl('Grab', 0.018, 1.0, (s * (W + 0.05), DOOR0 - 0.06, 1.55), M['alu'], 'z', 12)
+    cyl('GrabInner' + nm, 0.016, 0.6, (s * (W - 0.12), 5.12, 1.62), M['alu'], 'z', 12)
+    cyl('GrabRear' + nm, 0.016, 0.6, (s * (W - 0.1), DOOR0 + 0.1, 1.55), M['alu'], 'z', 12)   # and on the rear pillar, a hand either side
 
 # ---------------------------------------------------------------- the maker's marks (our own, invented)
 MAKER, MODEL = 'DYNASTY', 'STORM 6x6'
@@ -728,7 +770,10 @@ text('NumberRoof', NO, 0.9, (0.0, -1.2, BODY_TOP + 0.05), (0, 0, 0), M['decal'])
 
 # ---------------------------------------------------------------- the cab interior: the driver in the middle
 box('CabFloor', -WELL_X, CAB_R + 0.12, 1.0, WELL_X, WELL_Y1, 1.04, M['floor'])        # between the wheel housings
-box('CabFloorFront', -W + 0.1, WELL_Y1, 1.0, W - 0.1, YF - 0.3, 1.04, M['floor'])
+box('CabFloorFront', -(W - 0.39), WELL_Y1, 1.0, W - 0.39, YF - 0.3, 1.04, M['floor'])   # the stairs come up either side of it
+for _s in (-1, 1):   # the floor beside the stairs, behind and ahead of them
+    box('CabFloorSide', min(_s * (W - 0.1), _s * (W - 0.39)), WELL_Y1, 1.0, max(_s * (W - 0.1), _s * (W - 0.39)), STAIR_Y0 - 0.03, 1.04, M['floor'])
+    box('CabFloorSide', min(_s * (W - 0.1), _s * (W - 0.39)), STAIR_Y1 + 0.03, 1.0, max(_s * (W - 0.1), _s * (W - 0.39)), YF - 0.3, 1.04, M['floor'])
 # the wheel housings: hollow (an inner wall, a top, a front wall; the back wall behind the cab, under the body), sized
 # for the wheel's full travel and its steering sweep up to MAX_STEER about the kingpin
 for _s in (-1, 1):
