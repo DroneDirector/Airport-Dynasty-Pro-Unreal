@@ -103,6 +103,10 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 - [?] The airfield's ground came out light grey all over, and the white walls too dark (first pictures, 2026-11-09):
       check they are fixed
 - [ ] RULE kept: floors only on floor faces, never walls or stairs; the tower is "ATC" on signs, never ADC
+- [ ] **Copies of the airport in Europe and America** (owner, 2026-11-11; NOT to build yet): the airport as it is
+      at release, with every change made to it before then, placed twice more on the globe: one copy somewhere in
+      Europe and one somewhere in America. The owner gives the exact coordinates (latitude, longitude, heading) later;
+      nothing is placed until he does
 
 ## 4. Playing: walking, menus, controls
 - [x] **Loading screen into airport mode** (owner, 2026-11-11): going into the 3D airport (from the quick shortcut or
