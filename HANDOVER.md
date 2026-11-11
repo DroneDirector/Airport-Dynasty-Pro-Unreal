@@ -1,6 +1,22 @@
-# Handover: where the work stands (2026-11-09)
+# Handover: where the work stands (2026-11-09; updated 2026-11-11)
 
 Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md (where everything is) first.
+
+## Fire station and new to-dos (2026-11-11 09:20, from the hangar / fire station chat) — FOR THE PC CHAT
+- **Fire station (ARFF), its training tower and two drivable ARFF trucks:** the full brief is `docs/fire-station/SPEC.md`
+  (also in the project docs as claude/fire-station-spec.md). Status: design sketch only, shown to the owner; he asked
+  for a richer training tower (done in the sketch: drill shaft with floor bands, staggered red-shuttered windows, two
+  balconies, a taller charcoal stair shaft with a red crown and the emblem ring, overhanging roof, rappelling arm,
+  beacon mast). `docs/fire-station/sketch/` holds the sketch's source (Babylon offscreen renders, a drawing aid only).
+  **Do NOT build or publish it until the owner says so.** When he does, start it only after everything else on your
+  list is built and published; build it in Unreal C++ the way the hangars are (runtime ISM kit, photo textures made into
+  materials by a headless Python script, Lumen lighting at the terminal's strength). Where it stands on the airfield
+  is not decided yet: ask the owner.
+- **Copies of the airport in Europe and America:** new in TODO.md ("3. The airport and buildings"): the airport as it is
+  at release, with every change before then, placed twice more on the globe. NOT to build yet; the owner gives the
+  coordinates (latitude, longitude, heading) later.
+- **The hangars:** the section below was the hangar chat's hand-over; 0.15.0 and 0.15.1 appear to have taken it on.
+  Tick off what is done there and leave the rest.
 
 ## Hangars and the hangar apron (2026-11-11, from the hangar chat) — FOR THE PC CHAT TO FINISH AND PUBLISH
 - New: `Source/.../Hangar.{h,cpp}` (four sizes S/M/L/XL + the crew annex, from `Blueprints/Hangars`), the hangar apron
