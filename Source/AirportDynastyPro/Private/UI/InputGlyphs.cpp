@@ -20,7 +20,7 @@ namespace ADPInput
 			{TEXT("Run"),             EKeys::LeftShift, TEXT("Shift"),   EKeys::Gamepad_LeftThumbstick,    TEXT("LS"), TEXT("L3"), TEXT("L stick press")},
 			{TEXT("Jump"),            EKeys::SpaceBar,  TEXT("Space"),   EKeys::Gamepad_FaceButton_Bottom, TEXT("A"), TEXT("✕"), TEXT("Button 1")},
 			{TEXT("Crouch"),          EKeys::C,         TEXT("C"),       EKeys::Gamepad_FaceButton_Right,  TEXT("B"), TEXT("○"), TEXT("Button 2")},
-			{TEXT("Use a screen"),    EKeys::E,         TEXT("E"),       EKeys::Gamepad_FaceButton_Left,   TEXT("X"), TEXT("□"), TEXT("Button 3")},
+			{TEXT("Use or press"),    EKeys::E,         TEXT("E"),       EKeys::Gamepad_FaceButton_Left,   TEXT("X"), TEXT("□"), TEXT("Button 3")},
 			{TEXT("Menus"),           EKeys::G,         TEXT("G"),       EKeys::Gamepad_FaceButton_Top,    TEXT("Y"), TEXT("△"), TEXT("Button 4")},
 			{TEXT("Map"),             EKeys::M,         TEXT("M"),       EKeys::Gamepad_RightShoulder,     TEXT("RB"), TEXT("R1"), TEXT("Right shoulder")},
 			{TEXT("Hide UI"),         EKeys::H,         TEXT("H"),       EKeys::Gamepad_LeftShoulder,      TEXT("LB"), TEXT("L1"), TEXT("Left shoulder")},

@@ -1007,6 +1007,8 @@ void AADPHUD::Interact()
 	{
 		// your phone, the operations monitor, your office's computer (Devices.cpp)
 		if (TryDevice(Hit)) return;
+		// a hangar door's control button (OPEN, CLOSE, STOP)
+		if (AHangar* Hg = Cast<AHangar>(Hit.GetActor())) if (Hg->Press(Hit.GetComponent())) return;
 		const FString N = Hit.GetComponent()->GetName();
 		if (N.Contains(TEXT("screenPanel")) || N.Contains(TEXT("black"))) ToggleGame();
 	}

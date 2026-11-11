@@ -10,6 +10,11 @@ Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md
   hangar's front corners (LightMasts Spots()), one quick-start per hangar in the full-screen holomap (ADPHUD
   GoHangar, built from the hangar list), and `-UIHangars` (screenshots: outside two hangars, inside, the crew lounge,
   dusk outside and inside, then quits).
+- The main hangar doors work as real ones: OPEN (green), CLOSE (black) and the red STOP mushroom on a panel inside by
+  the west pocket and on the west pocket's front outside (E / click / gamepad X on a button: AHangar::Press from
+  ADPHUD::Interact); fully open or shut takes 10 minutes, STOP holds it where it is, the amber beacons flash while it
+  moves. Every personnel door (hangar walls, the annex's entrance, rooms and store) swings open away from you as you come
+  and shuts behind you; the wall doors sit in a bay's middle, clear of the columns, with real openings in the walls.
 - The code is pushed and compiles without the new materials (plain colours stand in). To finish, on the PC:
   1. The textures (Git LFS, could not be pushed from the cloud) are already in your working copy: `Art/Hangar/*.png`
      and `Blueprints/` (confirmed renders and the owner's photos). Commit them.
@@ -27,6 +32,8 @@ Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md
   - A two-storey crew building against each hangar: lobby with steel stairs, corridor from the hall, toilets, crew lounge, store with roll-up doors, and upstairs a kitchen, an office and a mezzanine.
   - Two apron light masts in front of each hangar, at its corners.
   - Each hangar has its own place in the full-screen map: outside, facing its doors.
+  - The main doors open and close as real hangar doors do: OPEN, CLOSE and STOP buttons inside and outside (press with E, a click or X on the gamepad). Fully open or shut takes 10 minutes; the beacons flash while they move.
+  - The personnel doors (two on each side wall, into the crew building and through its rooms) swing open as you walk up to them.
   - Textures made from photos of a real hangar.
   - Small, large and extra large hangars (A318/Learjet, A321, A380) are built too, ready for airport expansions and swapping a hangar.
 

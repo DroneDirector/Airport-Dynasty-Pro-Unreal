@@ -10,6 +10,8 @@
 #include "Engine/DirectionalLight.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Kismet/GameplayStatics.h"
+#include "GameFramework/Pawn.h"
+#include "Components/StaticMeshComponent.h"
 
 #pragma region Sizes
 namespace
@@ -118,10 +120,12 @@ UMaterialInterface* AHangar::Mat(const FName Name)
 
 UInstancedStaticMeshComponent* AHangar::Kit(UStaticMesh* Mesh, const FName MatName, bool bCollide)
 {
-	const FString Key = FString::Printf(TEXT("%s|%s|%d"), *Mesh->GetName(), *MatName.ToString(), bCollide ? 1 : 0);
-	if (TObjectPtr<UInstancedStaticMeshComponent>* K = Kits.Find(Key)) return *K;
+	USceneComponent* Par = Target ? Target : Root.Get();
+	const FString Key = FString::Printf(TEXT("%s|%s|%d|%s"), *Mesh->GetName(), *MatName.ToString(), bCollide ? 1 : 0, *Par->GetName());
+	if (TObjectPtr<UInstancedStaticMeshComponent>* Found = Kits.Find(Key)) return *Found;
 	UInstancedStaticMeshComponent* K = NewObject<UInstancedStaticMeshComponent>(this);
-	K->SetupAttachment(Root);
+	K->SetupAttachment(Par);
+	K->SetMobility(EComponentMobility::Movable);
 	K->SetStaticMesh(Mesh);
 	K->SetMaterial(0, Mat(MatName));
 	K->SetCollisionProfileName(bCollide ? TEXT("BlockAll") : TEXT("NoCollision"));
@@ -182,6 +186,55 @@ void AHangar::Lamp(float X, float Y, float Z, float Reach)
 	Lights.Add(L); LightBase.Add(Cd);
 }
 
+void AHangar::Swing(float HX, float Y0, float HZ, bool bAlongX, float W, float H, float Th, const FName M, bool bFrosted)
+{
+	USceneComponent* Hinge = NewObject<USceneComponent>(this);
+	Hinge->SetupAttachment(Root);
+	Hinge->SetMobility(EComponentMobility::Movable);
+	Hinge->SetRelativeLocation(U(HX, Y0, HZ));
+	Hinge->RegisterComponent();
+	AddInstanceComponent(Hinge);
+	SwingNodes.Add(Hinge);
+	// a part of the leaf (hinge space, metres: A along the leaf from the hinge, Y up)
+	auto Part = [&](const FName Mm, float A, float Y, float Len, float Hh, float T, bool bCollide)
+	{
+		UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
+		C->SetupAttachment(Hinge);
+		C->SetMobility(EComponentMobility::Movable);
+		C->SetStaticMesh(Cube);
+		C->SetMaterial(0, Mat(Mm));
+		C->SetRelativeLocation(bAlongX ? FVector(A * 100.f, 0, Y * 100.f) : FVector(0, -A * 100.f, Y * 100.f));
+		C->SetRelativeScale3D(bAlongX ? FVector(Len, T, Hh) : FVector(T, Len, Hh));
+		C->SetCollisionProfileName(bCollide ? TEXT("BlockAll") : TEXT("NoCollision"));
+		if (Mm == "glass" || Mm == "polyc") C->SetCastShadow(false);
+		C->RegisterComponent();
+		AddInstanceComponent(C);
+	};
+	Part(M, W / 2, H / 2, W - 0.01f, H, Th, true);
+	if (bFrosted) Part("polyc", W / 2, H / 2 + 0.05f, W - 0.3f, H - 0.7f, Th + 0.015f, false);
+	Part("chrome", W - 0.1f, 1.05f, 0.14f, 0.025f, Th + 0.12f, false);      // the lever handles, both sides
+	FSwingDoor D;
+	D.Hinge = Hinge;
+	D.Mid = bAlongX ? U(HX + W / 2, Y0 + 1.f, HZ) : U(HX, Y0 + 1.f, HZ + W / 2);
+	Swings.Add(D);
+	SwingAlongX.Add(bAlongX);
+}
+
+UStaticMeshComponent* AHangar::Button(const FName M, const FVector& At, const FVector& Dir, float R, float Len, int32 What)
+{
+	UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
+	C->SetupAttachment(Root);
+	C->SetStaticMesh(Cylinder);
+	C->SetMaterial(0, Mat(M));
+	const FVector A = U(At.X, At.Y, At.Z), B = U(At.X + Dir.X * Len, At.Y + Dir.Y * Len, At.Z + Dir.Z * Len);
+	C->SetRelativeTransform(FTransform(FRotationMatrix::MakeFromZ(B - A).Rotator(), (A + B) * 0.5f, FVector(R * 2, R * 2, Len)));
+	C->SetCollisionProfileName(TEXT("BlockAll"));
+	C->RegisterComponent();
+	AddInstanceComponent(C);
+	Buttons.Add(C); ButtonWhat.Add(What);
+	return C;
+}
+
 #pragma endregion
 
 #pragma region Build
@@ -195,6 +248,14 @@ void AHangar::Build(const FString& SizeId, float X, float ApronEdge, bool bDoorO
 	// the door line: the threshold's front edge on the apron's edge, the centre line on the lead-in line
 	SetActorLocation(FTerminalPlan::ToWorld(X, 0.f, ApronEdge + S.Lip()));
 	AZ0 = S.Back() - AnnexL;
+	PrimaryActorTick.TickInterval = 0.f;
+	DoorK = bDoorOpen ? 1.f : 0.f;
+	// the wall doors sit in a bay's middle, clear of the columns: two in the east wall; in the west wall one ahead of the
+	// annex and one into the annex's corridor; the store's roll-up door between two frames
+	HallDoorZ = BayMid(AZ0 + 19.f, AZ0 + 3.f, AZ0 + 20.8f);
+	RollupZ = BayMid(AZ0 + 27.f, AZ0 + 24.4f, AZ0 + 30.1f);
+	DoorZE = {BayMid(S.D * 0.3f, 2.f, S.D - 2.f), BayMid(S.D * 0.62f, 2.f, S.D - 2.f)};
+	DoorZW = {BayMid(AZ0 - 4.f, 2.f, AZ0 - 1.5f), HallDoorZ};
 	BuildFloor();
 	BuildFrame();
 	BuildSkin();
@@ -207,9 +268,59 @@ void AHangar::Build(const FString& SizeId, float X, float ApronEdge, bool bDoorO
 	ADP_LOG(TEXT("Hangar %s at x %.1f: %d kits, %d lights, door %s"), *S.Id, X, Kits.Num(), Lights.Num(), bDoorOpen ? TEXT("open") : TEXT("shut"));
 }
 
+float AHangar::BayMid(float Want, float Lo, float Hi) const
+{
+	const int32 NB = FMath::Max(4, FMath::RoundToInt(S.D / S.Bay));
+	const float Bay = S.D / NB;
+	float Best = FMath::Clamp(Want, Lo, Hi), BestD = 1e9f;
+	for (int32 i = 0; i < NB; ++i)
+	{
+		const float M = (i + 0.5f) * Bay;
+		if (M >= Lo && M <= Hi && FMath::Abs(M - Want) < BestD) { BestD = FMath::Abs(M - Want); Best = M; }
+	}
+	return Best;
+}
+
+bool AHangar::Press(const UPrimitiveComponent* C)
+{
+	const int32 I = Buttons.IndexOfByKey(C);
+	if (I == INDEX_NONE) return false;
+	const int32 W = ButtonWhat[I];
+	DoorRun = W > 0 ? (DoorK < 1.f ? 1 : 0) : W < 0 ? (DoorK > 0.f ? -1 : 0) : 0;
+	UE_LOG(LogTemp, Log, TEXT("Hangar %s door: %s at %.0f%%"), *S.Id, W > 0 ? TEXT("OPEN") : W < 0 ? TEXT("CLOSE") : TEXT("STOP"), DoorK * 100.f);
+	return true;
+}
+
 void AHangar::Tick(float Dt)
 {
 	Super::Tick(Dt);
+	// the main door: 10 minutes from shut to fully open, held by STOP; the beacons flash while it moves
+	if (DoorRun != 0)
+	{
+		DoorK = FMath::Clamp(DoorK + DoorRun * Dt / 600.f, 0.f, 1.f);
+		if (DoorK <= 0.f || DoorK >= 1.f) DoorRun = 0;
+		for (const FLeaf& L : Leaves) if (L.Node) L.Node->SetRelativeLocation(FVector(L.Travel * DoorK, 0, 0));
+	}
+	Blink += Dt;
+	const bool bFlash = DoorRun != 0 && FMath::Fmod(Blink, 1.f) < 0.5f;
+	for (UInstancedStaticMeshComponent* B : Beacons) if (B && B->IsVisible() != bFlash) B->SetVisibility(bFlash);
+	// the swinging doors: open away from whoever comes within reach, shut again behind them
+	if (const APawn* P = UGameplayStatics::GetPlayerPawn(this, 0))
+	{
+		const FVector At = GetActorTransform().InverseTransformPosition(P->GetActorLocation());
+		for (int32 i = 0; i < Swings.Num(); ++i)
+		{
+			FSwingDoor& D = Swings[i];
+			if (!D.Hinge) continue;
+			const bool bNear = FVector::Dist2D(At, D.Mid) < 230.f && FMath::Abs(At.Z - D.Mid.Z) < 220.f;
+			if (bNear && D.Open <= 0.f) D.Sign = SwingAlongX[i] ? (At.Y > D.Mid.Y ? -1.f : 1.f) : (At.X > D.Mid.X ? -1.f : 1.f);
+			const float Want = bNear ? 1.f : 0.f;
+			if (D.Open == Want) continue;
+			D.Open = FMath::FInterpConstantTo(D.Open, Want, Dt, 1.4f);
+			const float E = D.Open * D.Open * (3.f - 2.f * D.Open);
+			D.Hinge->SetRelativeRotation(FRotator(0.f, D.Sign * 90.f * E, 0.f));
+		}
+	}
 	// the lamps by daylight, as the terminal's (BabylonModel::LampsByDaylight): full after dark, a fifth by day
 	static TWeakObjectPtr<ADirectionalLight> Sun;
 	if (!Sun.IsValid()) Sun = Cast<ADirectionalLight>(UGameplayStatics::GetActorOfClass(this, ADirectionalLight::StaticClass()));
@@ -335,9 +446,18 @@ void AHangar::BuildSkin()
 	for (const float Sx : {-1.f, 1.f})
 	{
 		// the side walls: a concrete plinth wall, white ribbed cladding outside up to the parapet, the white lining inside
-		Box("concrete", Sx * (wx - 0.25f), 0.f, 0.f, Sx * wx, 1.0f, back);
-		Box("T:Clad", Sx * (wx - 0.04f), 1.0f, 0.f, Sx * (wx + 0.02f), Top, back);
-		Box("T:Liner", Sx * (wx - 0.24f), 1.0f, 0.15f, Sx * (wx - 0.2f), E, back - 0.2f, false);
+		// (left open for the personnel doors: 1.1 m wide, 2.25 m tall)
+		TArray<float> Cuts = {0.f};
+		for (const float Dz : (Sx > 0 ? DoorZE : DoorZW)) { Cuts.Add(Dz - 0.56f); Cuts.Add(Dz + 0.56f); }
+		Cuts.Add(back);
+		for (int32 c = 0; c + 1 < Cuts.Num(); ++c)
+		{
+			const float Za = Cuts[c], Zb = Cuts[c + 1], Y0 = (c % 2) ? 2.25f : 0.f;
+			if (!(c % 2)) Box("concrete", Sx * (wx - 0.25f), 0.f, Za, Sx * wx, 1.0f, Zb);
+			Box("T:Clad", Sx * (wx - 0.04f), FMath::Max(1.0f, Y0), Za, Sx * (wx + 0.02f), Top, Zb);
+			Box("T:Liner", Sx * (wx - 0.24f), FMath::Max(1.0f, Y0), FMath::Max(Za, 0.15f), Sx * (wx - 0.2f), E, FMath::Min(Zb, back - 0.2f), false);
+			if (c % 2) { Box("frameDark", Sx * (wx - 0.26f), 2.25f, Za, Sx * (wx + 0.04f), 2.32f, Zb, false); for (const float Ze : {Za, Zb - 0.06f}) Box("frameDark", Sx * (wx - 0.26f), 0.f, Ze, Sx * (wx + 0.04f), 2.32f, Ze + 0.06f); }
+		}
 		Box("galv", Sx * (wx - 0.2f), Top, -0.1f, Sx * (wx + 0.08f), Top + 0.08f, back + 0.1f);   // the coping
 		// downpipes at every second frame, with their brackets and shoes
 		const int32 NB = FMath::Max(4, FMath::RoundToInt(D / S.Bay));
@@ -435,7 +555,17 @@ void AHangar::BuildDoor(bool bOpen)
 		const int32 K = bLeft ? i : S.Leaves - 1 - i, T = NT - 1 - K;
 		const float Z = S.TrackZ(T);
 		const float Xs = -W / 2 + (W / S.Leaves) * (i + 0.5f), Xo = (bLeft ? -1.f : 1.f) * (wx + lw / 2 + 0.1f);
-		const float X = bOpen ? Xo : Xs, Hh = H - 0.1f, Th = 0.2f, Wy = H * 0.62f, Wb = Wy - 0.58f, Wt = Wy + 0.58f;
+		// the leaf on its own node, built shut and slid along its rail by the door's drive (Tick)
+		USceneComponent* LeafN = NewObject<USceneComponent>(this);
+		LeafN->SetupAttachment(Root);
+		LeafN->SetMobility(EComponentMobility::Movable);
+		LeafN->RegisterComponent();
+		AddInstanceComponent(LeafN);
+		LeafNodes.Add(LeafN);
+		Leaves.Add({LeafN, (Xo - Xs) * 100.f});
+		LeafN->SetRelativeLocation(FVector((Xo - Xs) * 100.f * (bOpen ? 1.f : 0.f), 0, 0));
+		Target = LeafN;
+		const float X = Xs, Hh = H - 0.1f, Th = 0.2f, Wy = H * 0.62f, Wb = Wy - 0.58f, Wt = Wy + 0.58f;
 		const float X0 = X - lw / 2, X1 = X + lw / 2;
 		// its cladding outside and lining inside, broken by the band of windows; the frame, seals, inner bracing
 		Box("T:Clad", X0, 0.06f, Z - Th / 2 - 0.02f, X1, Wb, Z - Th / 2);
@@ -507,6 +637,20 @@ void AHangar::BuildDoor(bool bOpen)
 			Box("frameDark", X0 + 0.45f, 2.2f, Z - Th / 2 - 0.04f, X0 + 1.55f, 2.26f, Z - Th / 2 - 0.02f, false);
 			Rod("chrome", FVector(X0 + 1.3f, 1.05f, Z - Th / 2 - 0.09f), FVector(X0 + 1.45f, 1.05f, Z - Th / 2 - 0.09f), 0.015f);
 		}
+		Target = nullptr;
+	}
+	Beacons.Add(Kit(Cylinder, "amber", false));
+	Beacons[0]->SetVisibility(false);
+	// the door's controls outside: a grey box on the west pocket's front with OPEN (green), CLOSE (black) and the red
+	// STOP mushroom, facing the apron (the panel inside is by the west pocket: BuildLampsAndServices)
+	{
+		const float Px = -pX + 0.7f, Pz = Fr - 0.3f;
+		Box("ral", Px - 0.22f, 1.15f, Pz - 0.16f, Px + 0.22f, 1.75f, Pz);
+		Button("green", FVector(Px - 0.1f, 1.6f, Pz - 0.16f), FVector(0, 0, -1), 0.032f, 0.03f, 1);
+		Button("black", FVector(Px + 0.1f, 1.6f, Pz - 0.16f), FVector(0, 0, -1), 0.032f, 0.03f, -1);
+		Cyl("yellow", Px, 1.3f - 0.06f, Pz - 0.165f, 0.06f, 0.005f, false);
+		Button("red", FVector(Px, 1.3f, Pz - 0.16f), FVector(0, 0, -1), 0.045f, 0.06f, 0);
+		Cyl("exitGreen", Px - 0.15f, 1.7f, Pz - 0.165f, 0.012f, 0.01f, false);
 	}
 }
 
@@ -523,9 +667,7 @@ void AHangar::BuildPersonnelDoors()
 		// the steel frame and leaf (grey), its hinges and lever handle; the card reader and lamp outside; the step and
 		// canopy where it opens to the outside
 		Box("frameDark", Xo, 0.f, Z - 0.62f, Xo + O * 0.04f, 2.3f, Z + 0.62f, false);
-		Box("ral", Xo + O * 0.04f, 0.02f, Z - 0.5f, Xo + O * 0.07f, 2.1f, Z + 0.5f);
-		for (const float Hy : {0.25f, 1.05f, 1.85f}) Cyl("galv", Xo + O * 0.07f, Hy - 0.06f, Z - 0.5f, 0.018f, 0.12f, false);
-		Rod("chrome", FVector(Xo + O * 0.12f, 1.05f, Z + 0.38f), FVector(Xo + O * 0.12f, 1.05f, Z + 0.22f), 0.012f);
+		Swing(Sx * (wx - 0.12f), 0.02f, Z - 0.5f, false, 1.0f, 2.1f, 0.05f, "ral");
 		Box("black", Xo + O * 0.04f, 1.18f, Z + 0.78f, Xo + O * 0.07f, 1.32f, Z + 0.87f, false);
 		Box("frameDark", Xo, 2.42f, Z - 0.15f, Xo + O * 0.1f, 2.6f, Z + 0.15f, false);
 		Box("lamp", Xo + O * 0.1f, 2.45f, Z - 0.12f, Xo + O * 0.11f, 2.57f, Z + 0.12f, false);
@@ -537,22 +679,20 @@ void AHangar::BuildPersonnelDoors()
 			Box("concrete", Xo, -0.15f, Z - 0.7f, Xo + O * 1.2f, 0.f, Z + 0.7f);
 		}
 		// inside: the leaf, the push bar, the closer, the green EXIT sign, the light switches and their conduit
-		Box("frameDark", Xi, 0.f, Z - 0.62f, Xi - O * 0.02f, 2.3f, Z + 0.62f, false);
-		Box("ral", Xi - O * 0.02f, 0.02f, Z - 0.5f, Xi - O * 0.04f, 2.1f, Z + 0.5f, false);
-		Box("chrome", Xi - O * 0.06f, 0.98f, Z - 0.43f, Xi - O * 0.1f, 1.03f, Z + 0.43f, false);
-		Box("galv", Xi - O * 0.04f, 2.15f, Z - 0.4f, Xi - O * 0.1f, 2.21f, Z - 0.1f, false);
+		Box("galv", Xi - O * 0.04f, 2.33f, Z - 0.4f, Xi - O * 0.1f, 2.39f, Z - 0.1f, false);
 		Box("exitGreen", Xi - O * 0.04f, 2.4f, Z - 0.2f, Xi - O * 0.07f, 2.56f, Z + 0.2f, false);
 		Box("white", Xi - O * 0.02f, 1.2f, Z - 0.95f, Xi - O * 0.05f, 1.29f, Z - 0.77f, false);
 		Rod("galv", FVector(Xi - O * 0.03f, 1.3f, Z - 0.86f), FVector(Xi - O * 0.03f, FMath::Min(6.f, S.Eave() - 3.f), Z - 0.86f), 0.012f);
 	};
 	// two on each side wall: on the east wall both to the outside; on the west wall one to the outside ahead of the
 	// annex and one into the annex's corridor (the way to the crew lounge)
-	Door(1.f, D * 0.3f, false);
-	Door(1.f, D * 0.62f, false);
-	Door(-1.f, FMath::Max(3.f, AZ0 - 4.f), false);
-	Door(-1.f, AZ0 + 19.f, true);
+	Door(1.f, DoorZE[0], false);
+	Door(1.f, DoorZE[1], false);
+	Door(-1.f, DoorZW[0], false);
+	Door(-1.f, DoorZW[1], true);
+	(void)D;
 	// the roll-up door from the hall into the annex's store bay, seen from the hall: slats, guides, drum hood, motor
-	const float Z = AZ0 + 27.f, X = -wx + 0.26f;
+	const float Z = RollupZ, X = -wx + 0.26f;
 	Box("T:Slats", X - 0.03f, 0.f, Z - 2.f, X + 0.03f, 4.2f, Z + 2.f);
 	Box("galv", X, 4.2f, Z - 2.1f, X + 0.55f, 4.8f, Z + 2.1f, false);
 	Box("frameDark", X + 0.05f, 4.3f, Z + 2.15f, X + 0.4f, 4.7f, Z + 2.5f, false);
@@ -608,10 +748,12 @@ void AHangar::BuildLampsAndServices()
 	// plate, the green and red lamps; its conduit up to the tray
 	const float Px = -W / 2 + 0.12f, Pz = 1.4f;
 	Box("ral", Px, 1.1f, Pz - 0.25f, Px + 0.22f, 1.8f, Pz + 0.25f);
-	for (const auto& B : {TPair<float, float>(-0.12f, 1.62f), TPair<float, float>(0.12f, 1.62f), TPair<float, float>(-0.12f, 1.43f), TPair<float, float>(0.12f, 1.43f)})
-		Rod(B.Key < 0 && B.Value > 1.5f ? "green" : B.Key > 0 && B.Value > 1.5f ? "black" : B.Key < 0 ? "blueGrey" : "white", FVector(Px + 0.22f, B.Value, Pz + B.Key), FVector(Px + 0.25f, B.Value, Pz + B.Key), 0.028f);
+	Button("green", FVector(Px + 0.22f, 1.62f, Pz - 0.12f), FVector(1, 0, 0), 0.028f, 0.03f, 1);       // OPEN
+	Button("black", FVector(Px + 0.22f, 1.62f, Pz + 0.12f), FVector(1, 0, 0), 0.028f, 0.03f, -1);      // CLOSE
+	Rod("blueGrey", FVector(Px + 0.22f, 1.43f, Pz - 0.12f), FVector(Px + 0.25f, 1.43f, Pz - 0.12f), 0.028f);   // RESET
+	Rod("white", FVector(Px + 0.22f, 1.43f, Pz + 0.12f), FVector(Px + 0.25f, 1.43f, Pz + 0.12f), 0.028f);      // LIGHTS
 	Rod("yellow", FVector(Px + 0.22f, 1.25f, Pz), FVector(Px + 0.226f, 1.25f, Pz), 0.06f);
-	Rod("red", FVector(Px + 0.226f, 1.25f, Pz), FVector(Px + 0.28f, 1.25f, Pz), 0.045f);
+	Button("red", FVector(Px + 0.226f, 1.25f, Pz), FVector(1, 0, 0), 0.045f, 0.06f, 0);               // STOP
 	Rod("galv", FVector(Px + 0.11f, 1.8f, Pz), FVector(Px + 0.11f, 5.f, Pz), 0.02f);
 	// the distribution board on the east wall near the door
 	Box("ral", W / 2 + 0.05f, 1.2f, 3.4f, W / 2 + 0.35f, 3.2f, 4.6f);
@@ -718,12 +860,16 @@ void AHangar::BuildAnnex()
 		{1.4f, 4.6f, 5.5f, 8.1f}, {5.4f, 8.6f, 5.5f, 8.1f}, {9.4f, 12.6f, 5.5f, 8.1f}, {15.4f, 20.6f, 5.5f, 8.1f}};
 	Wall(true, AW - 0.12f, 0, MAIN_L, 0, TOP, 0.24f, "T:Corrugated", Outer);
 	Wall(true, AW - 0.12f, MAIN_L, AL, 0, STORE_H, 0.24f, "T:Corrugated", {{23.6f, 28.4f, 0.f, 4.4f}, {29.4f, 30.4f, 0.f, 2.2f}});
-	for (const FOp& O : Outer) Window(true, AW - 0.12f, O.A0, O.A1, O.Y0, O.Y1, O.Y0 < 0.5f ? 4 : 2, O.Y0 > 5 ? 2 : 1);
+	for (const FOp& O : Outer) if (O.Y0 > 0.5f) Window(true, AW - 0.12f, O.A0, O.A1, O.Y0, O.Y1, 2, O.Y0 > 5 ? 2 : 1);
+	// the entrance: sidelights, the transom, and the two glass leaves that open as you come
+	Window(true, AW - 0.12f, 15.6f, 16.55f, 0.f, 3.1f, 1, 1); Window(true, AW - 0.12f, 18.45f, 19.4f, 0.f, 3.1f, 1, 1); Window(true, AW - 0.12f, 16.55f, 18.45f, 2.45f, 3.1f, 2, 1);
+	Swing(-wx - (AW - 0.12f), 0.02f, AZ0 + 16.55f, false, 0.95f, 2.4f, 0.04f, "glass");
+	Swing(-wx - (AW - 0.12f), 0.02f, AZ0 + 17.5f, false, 0.95f, 2.4f, 0.04f, "glass");
 	A("alu", AW - 0.2f, AW + 0.02f, 2.4f, 2.48f, 15.6f, 19.4f, false);
 	for (const float V : {17.1f, 17.9f}) Rod("chrome", FVector(-wx - AW - 0.06f, 0.65f, AZ0 + V), FVector(-wx - AW - 0.06f, 1.55f, AZ0 + V), 0.015f);
 	for (const float V : {4.6f, 8.6f, 12.6f}) A("blueGrey", AW - 0.02f, AW + 0.04f, 0.6f, 8.5f, V, V + 0.8f, false);
 	A("blueGrey", AW - 0.02f, AW + 0.04f, 0.6f, 8.5f, 14.4f, 15.4f, false);
-	A("ral", AW - 0.15f, AW + 0.02f, 0.f, 2.2f, 29.4f, 30.4f);
+	Swing(-wx - (AW - 0.12f), 0.02f, AZ0 + 29.4f, false, 1.0f, 2.15f, 0.05f, "ral");
 	// the front facade (v = 0, towards the apron)
 	const TArray<FOp> Front = {{3.4f, 7.6f, 0.9f, 3.5f}, {8.4f, 12.4f, 0.9f, 3.5f}, {3.4f, 7.6f, 5.5f, 8.1f}, {8.4f, 12.4f, 5.5f, 8.1f}};
 	Wall(false, 0.12f, 0, AW, 0, TOP, 0.24f, "T:Corrugated", Front);
@@ -733,7 +879,8 @@ void AHangar::BuildAnnex()
 	Wall(false, AL - 0.12f, 0, AW, 0, STORE_H, 0.24f, "T:Corrugated", {});
 	Wall(false, MAIN_L, 0, AW, STORE_H - 0.3f, TOP, 0.24f, "T:Corrugated", {});
 	// the hall-side lining
-	A("white", -0.02f, 0.12f, 0, TOP - 0.5f, 0, MAIN_L); A("white", -0.02f, 0.12f, 0, STORE_H - 0.3f, MAIN_L, AL);
+	{ const float Hv = HallDoorZ - AZ0; A("white", -0.02f, 0.12f, 0, TOP - 0.5f, 0, Hv - 0.56f); A("white", -0.02f, 0.12f, 2.25f, TOP - 0.5f, Hv - 0.56f, Hv + 0.56f); A("white", -0.02f, 0.12f, 0, TOP - 0.5f, Hv + 0.56f, MAIN_L); }
+	A("white", -0.02f, 0.12f, 0, STORE_H - 0.3f, MAIN_L, AL);
 	// flat roofs with their coping, the rooftop units
 	A("roofTop", 0, AW, TOP - 0.7f, TOP - 0.5f, 0, MAIN_L); A("roofTop", 0, AW, STORE_H - 0.5f, STORE_H - 0.3f, MAIN_L, AL);
 	A("galv", AW - 0.28f, AW + 0.04f, TOP - 0.02f, TOP + 0.06f, 0, MAIN_L); A("galv", 0, AW + 0.04f, TOP - 0.02f, TOP + 0.06f, -0.04f, 0.28f);
@@ -789,10 +936,10 @@ void AHangar::BuildAnnexRooms()
 	auto Door = [&](bool bAlongV, float At, float A0, float A1, float H, const FName M, float Y0, bool bFrosted)
 	{
 		auto Pane = [&](float Sa, float Sb, float Ya, float Yb, const FName Mm, float Th, bool bC) { if (bAlongV) A(Mm, At - Th / 2, At + Th / 2, Ya, Yb, Sa, Sb, bC); else A(Mm, Sa, Sb, Ya, Yb, At - Th / 2, At + Th / 2, bC); };
-		Pane(A0, A1, Y0, Y0 + H, M, 0.05f, true);
 		Pane(A0 - 0.05f, A0, Y0, Y0 + H + 0.05f, "galv", 0.2f, false); Pane(A1, A1 + 0.05f, Y0, Y0 + H + 0.05f, "galv", 0.2f, false); Pane(A0 - 0.05f, A1 + 0.05f, Y0 + H, Y0 + H + 0.05f, "galv", 0.2f, false);
-		if (bFrosted) Pane(A0 + 0.15f, A1 - 0.15f, Y0 + 0.4f, Y0 + H - 0.3f, "polyc", 0.07f, false);
-		for (const float Sd : {-1.f, 1.f}) { const FVector C = bAlongV ? P(At + Sd * 0.06f, Y0 + 1.05f, A1 - 0.12f) : P(A1 - 0.12f, Y0 + 1.05f, At + Sd * 0.06f); Rod("chrome", C, C + FVector(bAlongV ? 0 : -0.13f, 0, bAlongV ? -0.13f : 0), 0.012f); }
+		// the leaf on its hinge (opens as you come)
+		if (bAlongV) Swing(-wx - At, Y0 + 0.01f, AZ0 + A0, false, A1 - A0, H - 0.02f, 0.05f, M, bFrosted);
+		else Swing(-wx - A1, Y0 + 0.01f, AZ0 + At, true, A1 - A0, H - 0.02f, 0.05f, M, bFrosted);
 	};
 	auto RoomLight = [&](float U, float Y, float V, float Reach) { Lamp(-wx - U, Y, AZ0 + V, Reach); };
 
