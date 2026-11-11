@@ -1,6 +1,7 @@
 // The lifts: shafts, landing doors, the riding car and its calls, doors and ride, ported from the Android edition's
 // lifts.ts with the same sizes, speeds and timings. The car's floor carries the player up and down.
 #include "TerminalLifts.h"
+#include "Components/RectLightComponent.h"
 #include "TerminalBuilder.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
@@ -148,7 +149,22 @@ USceneComponent* ATerminalLifts::AddLift(const FLiftSpec& Spec)
 		Box(Car, "chrome", CarHalf * 2 - 0.2f, 0.04f, 0.04f, 0, 0.95f, -CarHalf + 0.07f, false);
 		for (const float SX : {-1.f, 1.f}) Box(Car, "chrome", 0.04f, 0.04f, CarHalf * 2 - 0.4f, SX * (CarHalf - 0.07f), 0.95f, -0.1f, false);
 		Box(Car, "liftBrushed", CarHalf * 2, 0.08f, CarHalf * 2, 0, CarH + 0.04f, 0);
-		Box(Car, "white", CarHalf * 1.4f, 0.02f, CarHalf * 1.4f, 0, CarH - 0.01f, 0, false); // the lit ceiling
+		Box(Car, "lamp", CarHalf * 1.4f, 0.02f, CarHalf * 1.4f, 0, CarH - 0.01f, 0, false); // the lit ceiling
+		{
+			// its light: an even panel lighting the walls, floor and buttons, travelling with the car
+			URectLightComponent* Lt = NewObject<URectLightComponent>(this);
+			Lt->SetupAttachment(Car);
+			Lt->SetMobility(EComponentMobility::Movable);
+			Lt->SetRelativeLocationAndRotation(FVector(0, 0, (CarH - 0.04f) * 100.f), FRotator(-90.f, 0, 0));
+			Lt->SetIntensityUnits(ELightUnits::Lumens);
+			Lt->SetIntensity(900.f);
+			Lt->SetSourceWidth(CarHalf * 140.f); Lt->SetSourceHeight(CarHalf * 140.f);
+			Lt->SetAttenuationRadius(450.f);
+			Lt->SetUseTemperature(true); Lt->SetTemperature(4000.f);
+			Lt->SetCastShadows(false);
+			Lt->RegisterComponent();
+			AddInstanceComponent(Lt);
+		}
 		for (const float SX : {-1.f, 1.f}) Box(Car, "liftBrushed", CarHalf - LiftDoor + 0.04f, CarH, 0.05f, SX * (LiftDoor + (CarHalf - LiftDoor) / 2), CarH / 2, CarHalf);
 		Box(Car, "liftBrushed", LiftDoor * 2, CarH - LiftDH, 0.05f, 0, LiftDH + (CarH - LiftDH) / 2, CarHalf);
 		// the button panel by the door
@@ -227,7 +243,7 @@ void ATerminalLifts::Tick(float Dt)
 			const float Want = FMath::Sign(Left) * FMath::Min(L.S.Speed, FMath::Sqrt(2.f * 0.9f * Dist) + 0.02f);
 			L.V += FMath::Clamp(Want - L.V, -0.9f * Dt, 0.9f * Dt);
 			float Step = L.V * Dt;
-			if (FMath::Abs(Step) >= Dist) { Step = Left; L.bMoving = false; L.V = 0; L.Hold = 6; }
+			if (FMath::Abs(Step) >= Dist) { Step = Left; L.bMoving = false; L.V = 0; L.Hold = 10; L.Dwell = 10; L.InT = 0; }
 			L.Y += Step;
 			L.Car->SetRelativeLocation(FVector(0, 0, L.Y * 100.f));
 		}
@@ -242,7 +258,9 @@ void ATerminalLifts::Tick(float Dt)
 			}
 			else if (bSomeone) { L.K = FMath::Min(1.f, L.K + Dt * 1.4f); L.Hold = FMath::Max(L.Hold, 4.f); }
 			else { L.Hold -= Dt; if (L.Hold <= 0) L.K = FMath::Max(0.f, L.K - Dt * 1.2f); }
-			if (bInside)
+			// arrived: the doors stay open ten seconds (and while you're in the doorway) so you can walk out
+			if (L.Dwell > 0) { L.Dwell -= Dt; L.K = FMath::Min(1.f, L.K + Dt * 1.4f); }
+			if (bInside && L.Dwell <= 0)
 			{
 				L.InT += Dt;
 				if (L.InT >= 1.6f)

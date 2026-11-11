@@ -88,7 +88,7 @@ void AWalkAnywhere::Go(UWorld* W, double Lon, double Lat, const FString& Name)
 		Me->OldPawn = PC->GetPawn()->GetActorLocation();
 		Me->SetAirport(false);
 	}
-	Me->bAway = true; Me->bPlaced = false; Me->Wait = 0; Me->Where = Name;
+	Me->bAway = true; Me->bPlaced = false; Me->Wait = 0; Me->GroundAt = -1.f; Me->Where = Name;
 	// the place in the middle of the world; you held up in the air until its ground is in
 	G->SetOriginLongitudeLatitudeHeight(FVector(Lon, Lat, 0.0));
 	APawn* P = PC->GetPawn();
@@ -143,7 +143,10 @@ void AWalkAnywhere::Tick(float Dt)
 		// ground, no blur when you land), at most 40 seconds
 		float Progress = 100.f;
 		for (TActorIterator<ACesium3DTileset> It(GetWorld()); It; ++It) Progress = FMath::Min(Progress, It->GetLoadProgress());
-		if (Wait < 4.f || (Progress < 99.f && Wait < 40.f)) return;
+		if (Wait < 4.f || (Progress < 99.f && Wait < 40.f)) { GroundAt = -1.f; return; }
+		// then the satellite pictures over it (Cesium doesn't report those): ten seconds more, so you land on sharp ground
+		if (GroundAt < 0) GroundAt = Wait;
+		if (Wait - GroundAt < 10.f) return;
 		P->SetActorLocation(Hit.ImpactPoint + FVector(0, 0, P->GetSimpleCollisionHalfHeight() + 30.f), false, nullptr, ETeleportType::TeleportPhysics);
 		P->EnableInput(PC);
 		bPlaced = true;

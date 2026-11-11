@@ -13,6 +13,10 @@ class AIRPORTDYNASTYPRO_API AADPWalker : public ACharacter
 	GENERATED_BODY()
 
 public:
+	virtual void Tick(float Dt) override;
+	/** The field of view, degrees side to side as on a 16:9 screen (Settings' slider, 60-120); wider screens see more to
+	 *  the sides, never less up and down. */
+	static float Fov;
 	AADPWalker();
 	virtual void SetupPlayerInputComponent(UInputComponent* Input) override;
 

@@ -37,6 +37,7 @@ OUT = Path(os.environ.get('ADP_TERRAIN_OUT', 'F:/ADP-Terrain/tiles'))   # (--out
 AIRPORT = (-18.710348, 63.452335)   # lon, lat: the terminal's origin (Globe.cpp)
 FLAT_IN, FLAT_OUT = 2600.0, 4400.0  # metres
 FULL_TO = 6                          # every tile (land or sea) down to this level
+FEATHER = 12.0                       # grid cells over which a national model fades into GLO-90 at its edges
 
 #region Reading heights
 CELLS = {}
@@ -179,7 +180,16 @@ def national_over(lons, lats, out):
         fy = (bt - lats[ri]) / max(1e-12, bt - bb) * (shape[0] - 1); fx = (lons[ci] - bl) / max(1e-12, br - bl) * (shape[1] - 1)
         y = np.clip(np.round(fy).astype(int), 0, shape[0] - 1); x = np.clip(np.round(fx).astype(int), 0, shape[1] - 1)
         v = a[y][:, x]; ok = v > -500
-        sub = out[np.ix_(ri, ci)]; sub[ok] = v[ok]; out[np.ix_(ri, ci)] = sub
+        sub = out[np.ix_(ri, ci)]
+        # feathered in over its edges (no step where the national model meets GLO-90): full weight from FEATHER grid
+        # cells inside its data, fading to GLO-90 at the edge; the box edges count as edges only where the model ends
+        from scipy.ndimage import distance_transform_edt
+        pad = np.pad(ok, 1, constant_values=True)
+        w = np.clip(distance_transform_edt(pad)[1:-1, 1:-1] / FEATHER, 0, 1)
+        w[~ok] = 0
+        vv = np.where(ok, v, 0)
+        sub = sub * (1 - w) + vv * w
+        out[np.ix_(ri, ci)] = sub
     return out
 
 #endregion
@@ -246,7 +256,7 @@ def main():
     init(0.0)
     hh, _ = heights(lon - d / math.cos(math.radians(lat)), lat - d, lon + d / math.cos(math.radians(lat)), lat + d, 33, flatten=False)
     AIRPORT_H = float(np.median(hh))
-    (ROOT / 'Data' / 'terrain.json').write_text(json.dumps({'airportHeight': round(AIRPORT_H, 2), 'note': 'WGS84 ellipsoid metres; Tools/MakeTerrain.py'}) + '\n')
+    if not a.bbox: (ROOT / 'Data' / 'terrain.json').write_text(json.dumps({'airportHeight': round(AIRPORT_H, 2), 'note': 'WGS84 ellipsoid metres; Tools/MakeTerrain.py'}) + '\n')
     print('Airport ground at %.2f m (ellipsoid)' % AIRPORT_H, flush=True)
 
     available = []
@@ -291,6 +301,9 @@ def main():
             done += 1
             if done % max(1, len(jobs) // 20) == 0: print('%d%% (%d of %d)' % (done * 100 // len(jobs), done, len(jobs)), flush=True)
     OUT.mkdir(parents=True, exist_ok=True)
+    # a --bbox run only remakes the tiles in its box: the existing layer.json (the whole world's) stays as it is
+    if a.bbox and (OUT / 'layer.json').exists():
+        print('Terrain done: %d tiles (box only; layer.json kept)' % len(jobs), flush=True); return
     (OUT / 'layer.json').write_text(json.dumps({
         'tilejson': '2.1.0', 'name': 'Airport Dynasty Pro terrain', 'version': '1.0.0', 'format': 'quantized-mesh-1.0',
         'scheme': 'tms', 'projection': 'EPSG:4326', 'tiles': ['{z}/{x}/{y}.terrain'], 'extensions': ['octvertexnormals', 'watermask'],

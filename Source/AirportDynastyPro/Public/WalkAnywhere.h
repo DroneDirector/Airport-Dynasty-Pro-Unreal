@@ -35,7 +35,7 @@ private:
 	FVector OldOrigin = FVector::ZeroVector;
 	FVector OldPawn = FVector::ZeroVector;
 	bool bAway = false, bPlaced = false;
-	float Wait = 0;
+	float Wait = 0, GroundAt = -1.f;
 	FString Where;
 	UPROPERTY() TArray<TObjectPtr<AActor>> SetAside;
 	TMap<TWeakObjectPtr<class UPrimitiveComponent>, ECollisionEnabled::Type> WasSolid;

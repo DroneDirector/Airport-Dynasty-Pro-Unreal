@@ -53,6 +53,7 @@ private:
 		float Y = 0, To = 0, V = 0;  // the car's height and where it is going, metres; its speed
 		float K = 0;                 // the doors: 0 shut … 1 open
 		float Hold = 0, InT = 0;
+		float Dwell = 0;   // after arriving: the doors held open this long (seconds) before the car may leave again
 		bool bMoving = false;
 		FString Shown;
 	};

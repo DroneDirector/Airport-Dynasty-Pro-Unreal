@@ -12,6 +12,7 @@
 #include "SunClock.h"
 #include "Engine/PostProcessVolume.h"
 #include "Globe.h"
+#include "ADPWalker.h"
 #include "LightMasts.h"
 #include "WalkAnywhere.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -621,6 +622,21 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 					+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
 					[SNew(SBox).WidthOverride(56)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { return FText::FromString(FString::Printf(TEXT("%.0f m"), AGrassField::NearDistance)); })]]
 				]
+				// the field of view: degrees side to side as on a 16:9 screen (wider screens see more to the sides)
+				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Field of view (walking)"))]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
+					[
+						SNew(SSlider)
+						.Value_Lambda([]() { return (AADPWalker::Fov - 60.f) / 60.f; })
+						.OnValueChanged_Lambda([](float V) { AADPWalker::Fov = FMath::RoundToFloat(60.f + V * 60.f); })
+						.OnMouseCaptureEnd_Lambda([]() { GConfig->SetFloat(TEXT("ADP.Graphics"), TEXT("Fov"), AADPWalker::Fov, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); })
+					]
+					+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
+					[SNew(SBox).WidthOverride(56)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { return FText::FromString(FString::Printf(TEXT("%.0f°"), AADPWalker::Fov)); })]]
+				]
 				// the light masts' beams: how far the evening haze they show in reaches (weaker cards: shorter)
 				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Light beams (how far the masts' beams show in the haze)"))]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)
@@ -999,7 +1015,7 @@ void AADPHUD::GoTo(const FVector& PlanAt, const FVector& PlanLook)
 	if (!P) return;
 	if (bGame) ToggleGame();
 	bInLounge = false;
-	if (HoloMap.IsValid() && HoloMap->IsFull()) ToggleMap();
+	// the holographic map stays as it is (open, if you jumped from it) until you close it yourself
 	// the floor under the spot (a trace down), the body standing on it, then moved out of anything it would touch
 	const float Half = P->GetSimpleCollisionHalfHeight();
 	FVector At = FTerminalPlan::ToWorld(PlanAt.X, PlanAt.Y, PlanAt.Z);
@@ -1406,6 +1422,27 @@ void AADPHUD::Tick(float Dt)
 			for (const FStep& St : MastSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
 		}
+		// -UIPart1: the tower cab walked forward (where you really go, "moonwalking"), the exit signs from inside the hall
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIPart1")))
+		{
+			static FVector CabStart, CabFwd;
+			APawn* Me = GetOwningPawn();
+			if (Me && ShotClock > 50.f && ShotClock < 54.f) Me->AddMovementInput(Me->GetActorForwardVector(), 1.f);
+			struct FStep { float At; TFunction<void()> Do; };
+			const FStep P1Steps[] = {
+				{44.f, [&]() { if (bGame) ToggleGame(); ASunClock::HourOverride = 13.f; ASunClock::Refresh(); GoTowerCab(); }},
+				{49.f, [&]() { FScreenshotRequest::RequestScreenshot(TEXT("Part1_Cab"), false, false); }},
+				{50.f, [&]() { if (Me) { CabStart = Me->GetActorLocation(); CabFwd = Me->GetActorForwardVector(); } }},
+				{55.f, [&]() { if (Me) { const FVector D = Me->GetActorLocation() - CabStart; UE_LOG(LogTemp, Log, TEXT("P1TEST cab walk: moved %.2f m, along the facing %.2f m, sideways %.2f m, up %.2f m"), D.Size2D() / 100.f, FVector::DotProduct(D, CabFwd) / 100.f, FVector::CrossProduct(CabFwd, D).Z / 100.f, D.Z / 100.f); } }},
+				{56.f, [&]() { GoTo(FVector(75.f, 0.f, 9.f), FVector(75.f, 3.6f, 0.f)); }},
+				{63.f, [&]() { FScreenshotRequest::RequestScreenshot(TEXT("Part1_ExitSign"), false, false); }},
+				{64.f, [&]() { GoTo(FVector(101.f, 0.f, 7.f), FVector(101.f, 3.3f, 0.f)); }},
+				{70.f, [&]() { FScreenshotRequest::RequestScreenshot(TEXT("Part1_ExitWest"), false, false); }},
+				{72.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+			};
+			for (const FStep& St : P1Steps)
+				if (Before < St.At && ShotClock >= St.At) St.Do();
+		}
 		// -UIAnywhere: walk anywhere: Tórshavn, Skógafoss, Zermatt, then back to the airport
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")))
 		{
@@ -1530,7 +1567,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are
