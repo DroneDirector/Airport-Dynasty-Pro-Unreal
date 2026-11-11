@@ -252,6 +252,11 @@ export function placePet(sc: Scene, parent: TransformNode | null, P: PetData, po
   // the bowls: water, and food in a bowl with its name on
   const bowls = makeBowls(sc, g, P, bedR, bc, hits);
   const lv = P; if (lv.food == null) lv.food = 1; if (lv.water == null) lv.water = 1; bowls.food.set(lv.food); bowls.water.set(lv.water);
+  // its football, on the floor at the bed's other side (owner, 2026-11-11)
+  { const br = cat ? 0.055 : 0.1, ball = MeshBuilder.CreateSphere('pet-ball', { diameter: br * 2, segments: 24 }, sc), bm = new PBRMaterial('pet-ballM', sc);
+    const bt = new DynamicTexture('pet-ballT', { width: 512, height: 256 }, sc, true); footballTex(bt.getContext() as any, 512, 256); bt.update(true);
+    bm.albedoTexture = bt; bm.roughness = 0.45; bm.metallic = 0; bm.maxSimultaneousLights = 8; ball.material = bm; ball.parent = g; ball.position.set(-(bedR + br + 0.1), br, bedR * 0.45); ball.rotation.set(0.4, 0.9, 0.2); ball.receiveShadows = true;
+    const c = toW(-(bedR + br + 0.1), bedR * 0.45); blocks.push([c.x - br, c.z - br, c.x + br, c.z + br]); }
   { const a = toW(bowls.x - bowls.r, -bowls.gap - bowls.r), b = toW(bowls.x + bowls.r, bowls.gap + bowls.r); blocks.push([Math.min(a.x, b.x), Math.min(a.z, b.z), Math.max(a.x, b.x), Math.max(a.z, b.z)]); }
   const front = 0.2 + 0.22 * s, home = new Vector3(pos[0], 0, pos[1]);
   const eatAt = { food: toW(bowls.x, bowls.gap + front), water: toW(bowls.x, -bowls.gap - front) }, bowlAt = { food: toW(bowls.x, bowls.gap), water: toW(bowls.x, -bowls.gap) };
@@ -376,6 +381,30 @@ export function placePet(sc: Scene, parent: TransformNode | null, P: PetData, po
   };
   pose(); eyesOpen(0);
   return api;
+}
+/** A classic football's panels on a sphere's map (longitude across, latitude down): the 12 black pentagons sit round an
+ *  icosahedron's corners, and the seams run where two panels' centres (the icosahedron's corners and faces) are equally near. */
+function footballTex(x: CanvasRenderingContext2D, W: number, H: number) {
+  const f = (1 + Math.sqrt(5)) / 2, V: number[][] = [];
+  for (const a of [-1, 1]) for (const b of [-f, f]) V.push([0, a, b], [a, b, 0], [b, 0, a]);
+  const P = V.map(v => { const l = Math.hypot(v[0], v[1], v[2]); return [v[0] / l, v[1] / l, v[2] / l]; });
+  const C: number[][] = [];   // the 20 hexagons' centres: the faces' middles
+  for (let i = 0; i < 12; i++) for (let j = i + 1; j < 12; j++) for (let k = j + 1; k < 12; k++) {
+    const d = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    if (d(P[i], P[j]) > 0.4 && d(P[j], P[k]) > 0.4 && d(P[i], P[k]) > 0.4) { const m = [P[i][0] + P[j][0] + P[k][0], P[i][1] + P[j][1] + P[k][1], P[i][2] + P[j][2] + P[k][2]], l = Math.hypot(m[0], m[1], m[2]); C.push([m[0] / l, m[1] / l, m[2] / l]); }
+  }
+  const im = x.createImageData(W, H);
+  for (let py = 0; py < H; py++) for (let px = 0; px < W; px++) {
+    const lon = px / W * Math.PI * 2, lat = Math.PI * (py / H), d = [Math.sin(lat) * Math.cos(lon), Math.cos(lat), Math.sin(lat) * Math.sin(lon)];
+    // the angles to the nearest pentagon's centre and the two nearest hexagons'; a pentagon is smaller than a hexagon (on
+    // a truncated icosahedron their shared edge lies 16.9 degrees from the pentagon's centre, 20.5 from the hexagon's)
+    let aP = 9, aH = 9, aH2 = 9;
+    for (const c of P) aP = Math.min(aP, Math.acos(Math.min(1, d[0] * c[0] + d[1] * c[1] + d[2] * c[2])));
+    for (const c of C) { const t = Math.acos(Math.min(1, d[0] * c[0] + d[1] * c[1] + d[2] * c[2])); if (t < aH) { aH2 = aH; aH = t; } else if (t < aH2) aH2 = t; }
+    const k = aH - (aP + 0.063), pent = k > 0, seam = Math.abs(k) < 0.018 || (!pent && aH2 - aH < 0.03), v = seam ? 40 : pent ? 24 : 238, o = (py * W + px) * 4;
+    im.data[o] = v; im.data[o + 1] = v; im.data[o + 2] = v + (pent || seam ? 2 : 4); im.data[o + 3] = 255;
+  }
+  x.putImageData(im, 0, 0);
 }
 function lighten(hex: string, k: number): string { const c = Color3.FromHexString(hex); return Color3.Lerp(c, Color3.White(), k).toHexString(); }
 

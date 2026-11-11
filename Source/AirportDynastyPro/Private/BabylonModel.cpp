@@ -46,7 +46,9 @@ bool ABabylonModel::Place(const FString& Name)
 	// Babylon's glTF exporter turns the left-handed model right-handed by flipping x, and Unreal's importer swaps y and
 	// z: together that puts the model at (-x, z, y), the Babylon layout turned 180° round the vertical. Turning it back
 	// gives exactly the terminal plan's (x, -z, y), with no mirroring (the geometry stays exactly as Babylon made it).
-	Root->SetRelativeRotation(FRotator(0, 180.f, 0));
+	// (the root is the actor's own: the half turn goes on top of the turn it was placed with, which it once replaced,
+	// leaving every office, the operations room and the Academy unturned)
+	Root->SetRelativeRotation(FRotator(0, Root->GetRelativeRotation().Yaw + 180.f, 0));
 
 	// a node's own transform, converted as Unreal's glTF importer converts it
 	auto Local = [&](const TSharedPtr<FJsonObject>& N)
@@ -74,7 +76,13 @@ bool ABabylonModel::Place(const FString& Name)
 		const FTransform World = Local(N) * Parent;
 		NodeWorld[I] = World;
 		// (all the outdoor trees stay until good-looking Unreal trees take their places, owner 2026-11-09)
-		{ FString Nm; N->TryGetStringField(TEXT("name"), Nm); bDoor = bDoor || Nm.StartsWith(TEXT("D-")); }
+		{ FString Nm; N->TryGetStringField(TEXT("name"), Nm); bDoor = bDoor || Nm.StartsWith(TEXT("D-"));
+		  // the offices' own furniture steps aside for the old office's things (owner, 2026-11-11: Offices.cpp places them);
+		  // the room, its lamps, the meeting table and its chairs and the painting stay
+		  if (Nm.StartsWith(TEXT("F1-OFFICE-")) && (Nm.Contains(TEXT("/DESK")) || Nm.Contains(TEXT("/OFFICE-CHAIR")) || Nm.Contains(TEXT("/SHELF")) || Nm.Contains(TEXT("/CABINET")) || Nm.Contains(TEXT("/PLANT")) || Nm.EndsWith(TEXT("/CHAIR-001")) || Nm.EndsWith(TEXT("/CHAIR-002")))) return;
+		  // and so does the operations room's and the Academy's (their lamps and the clocks stay)
+		  if (Nm.StartsWith(TEXT("F1-OPS/")) && (Nm.Contains(TEXT("/DESK")) || Nm.Contains(TEXT("/OFFICE-CHAIR")) || Nm.Contains(TEXT("/MONITOR-WALL")))) return;
+		  if (Nm.StartsWith(TEXT("F1-ACADEMY/")) && (Nm.Contains(TEXT("/DESK")) || Nm.Contains(TEXT("CHAIR")) || Nm.Contains(TEXT("/BOARD")) || Nm.Contains(TEXT("/SCREEN")))) return; }
 		int32 Mesh;
 		if (N->TryGetNumberField(TEXT("mesh"), Mesh))
 		{

@@ -30,20 +30,24 @@ function towerView(): HTMLCanvasElement {
 export function buildOps(sc: Scene, color: string, progress: (p: number, s: string) => void): Ops {
   const root = new TransformNode('ops', sc), blocks: number[][] = [], casters: AbstractMesh[] = [], metals: PBRMaterial[] = [];
   let n = 0; const nm = (k: string) => k + '-' + (n++);
+  // the room itself (walls, floor, ceiling, window, door, clock, the archive rack, its lights) under 'shell', apart from
+  // the things in it (the PC edition takes only the things, into the terminal's own operations room)
+  const shell = new TransformNode('shell', sc); shell.parent = root; let inShell = false;
   const block = (xa: number, za: number, xb: number, zb: number) => blocks.push([Math.min(xa, xb), Math.min(za, zb), Math.max(xa, xb), Math.max(za, zb)]);
   const tex = (c: HTMLCanvasElement, u = 1, v = 1): DynamicTexture => { const t = new DynamicTexture(nm('t'), { width: c.width, height: c.height }, sc, true); (t.getContext() as any).drawImage(c, 0, 0); t.update(true); t.uScale = u; t.vScale = v; t.wrapU = t.wrapV = Texture.WRAP_ADDRESSMODE; t.anisotropicFilteringLevel = 8; return t; };
   const pbr = (o: { col?: string; tex?: Texture; metal?: number; rough?: number; emis?: string; emisK?: number }): PBRMaterial => {
     const m = new PBRMaterial(nm('m'), sc); m.maxSimultaneousLights = 8; m.albedoColor = o.col ? Color3.FromHexString(o.col) : Color3.White(); if (o.tex) m.albedoTexture = o.tex;
     m.metallic = o.metal || 0; m.roughness = o.rough != null ? o.rough : 0.6; if (o.emis) m.emissiveColor = Color3.FromHexString(o.emis).scale(o.emisK || 1); if ((o.metal || 0) >= 0.6) metals.push(m); return m; };
-  const place = (m: Mesh, mat: any, x: number, y: number, z: number, ry = 0, cast = true, act?: string) => { m.position.set(x, y, z); m.rotation.y = ry; m.material = mat; m.receiveShadows = true; m.parent = root; if (cast) casters.push(m); if (act) m.metadata = { act }; return m; };
+  const place = (m: Mesh, mat: any, x: number, y: number, z: number, ry = 0, cast = true, act?: string) => { m.position.set(x, y, z); m.rotation.y = ry; m.material = mat; m.receiveShadows = true; m.parent = inShell ? shell : root; if (cast) casters.push(m); if (act) m.metadata = { act }; return m; };
   const box = (w: number, h: number, d: number, mat: any, x: number, y: number, z: number, ry = 0, act?: string) => place(MeshBuilder.CreateBox(nm('b'), { width: w, height: h, depth: d }, sc), mat, x, y, z, ry, true, act);
   const flat = (w: number, h: number, mat: any, x: number, y: number, z: number, ry: number, act?: string) => place(MeshBuilder.CreatePlane(nm('p'), { width: w, height: h }, sc), mat, x, y, z, ry, false, act);
   progress(20, 'Laying the carpet tiles…');
   const sun = P.daylight();
   const carpet = pbr({ tex: tex(P.noise('#3A3F48', 18, 3), 6, 5), rough: 0.95 }), wallM = pbr({ tex: tex(P.plaster('#C9CDD2'), 2, 1), rough: 0.9 }), oak = pbr({ tex: tex(P.wood('#B88A55', '#6E4A26', 4)), rough: 0.45 });
   const black = pbr({ col: '#16181C', rough: 0.4, metal: 0.4 }), steel = pbr({ col: '#9AA0A8', metal: 0.9, rough: 0.35 });
-  { const f = MeshBuilder.CreateGround(nm('floor'), { width: RW, height: RD }, sc); f.material = carpet; f.receiveShadows = true; f.parent = root; }
-  { const c = MeshBuilder.CreatePlane(nm('ceil'), { width: RW, height: RD }, sc); c.rotation.x = -Math.PI / 2; c.position.y = RH; c.material = pbr({ col: '#E8E8E4', rough: 0.95 }); c.parent = root; }
+  { const f = MeshBuilder.CreateGround(nm('floor'), { width: RW, height: RD }, sc); f.material = carpet; f.receiveShadows = true; f.parent = shell; }
+  { const c = MeshBuilder.CreatePlane(nm('ceil'), { width: RW, height: RD }, sc); c.rotation.x = -Math.PI / 2; c.position.y = RH; c.material = pbr({ col: '#E8E8E4', rough: 0.95 }); c.parent = shell; }
+  inShell = true;
   // walls; the window behind the monitor (z = Z1), the door on the left
   const WW = 4.0, WH = 1.6, WY = 1.0;
   flat(RW, WY, wallM, 0, WY / 2, Z1, 0); flat(RW, RH - WY - WH, wallM, 0, WY + WH + (RH - WY - WH) / 2, Z1, 0);
@@ -53,6 +57,7 @@ export function buildOps(sc: Scene, color: string, progress: (p: number, s: stri
   box(0.05, 2.12, 0.98, pbr({ col: '#5C6168', rough: 0.4, metal: 0.3 }), X0 + 0.03, 1.06, Z0 + 0.55, 0, 'door'); box(0.06, 0.04, 0.18, steel, X0 + 0.09, 1.02, Z0 + 0.9, 0, 'door');
   for (const fx of [-WW / 2, 0, WW / 2]) box(0.06, WH, 0.1, black, fx, WY + WH / 2, Z1 - 0.02); box(WW + 0.06, 0.06, 0.12, black, 0, WY, Z1 - 0.02); box(WW + 0.06, 0.06, 0.12, black, 0, WY + WH, Z1 - 0.02);
   { const vm = new StandardMaterial(nm('view'), sc); const vt = tex(towerView()); vm.diffuseTexture = vt; vm.emissiveTexture = vt; vm.emissiveColor = new Color3(0.8, 0.8, 0.85); vm.disableLighting = true; flat(WW * 1.7, WH * 1.7, vm, 0, WY + WH / 2, Z1 + 1.4, 0, 'window'); }
+  inShell = false;
   progress(45, 'Setting up the desk…');
   // the desk: an oak top on black steel legs, 30 cm in front of the window wall's middle
   const DZ = 1.25;
@@ -79,6 +84,7 @@ export function buildOps(sc: Scene, color: string, progress: (p: number, s: stri
   box(0.6, 0.12, 0.56, chM, 0, 0.5, chZ, 0, 'chair'); box(0.58, 1.0, 0.1, chM, 0, 1.05, chZ - 0.3, 0, 'chair'); for (const sx of [-0.32, 0.32]) box(0.07, 0.06, 0.42, chM, sx, 0.72, chZ);
   box(0.05, 0.42, 0.05, steel, 0, 0.24, chZ); block(-0.35, chZ - 0.38, 0.35, chZ + 0.3);
   progress(70, 'Filing the archive…');
+  inShell = true;
   // the tall archive rack on the right, full of binders and boxes
   const rx = X1 - 0.25;
   for (const z of [-1.6, -0.2, 1.2]) for (const sy of [0, 1]) box(0.04, 2.4, 0.04, steel, rx + (sy ? 0.2 : -0.2), 1.2, z);
@@ -91,6 +97,7 @@ export function buildOps(sc: Scene, color: string, progress: (p: number, s: stri
   // a strip of company colour along the wall, and the ceiling's light panels
   box(RW - 0.1, 0.05, 0.02, pbr({ col: /^#[0-9a-f]{6}$/i.test(color) ? color : '#2C8CFF', rough: 0.4, emis: /^#[0-9a-f]{6}$/i.test(color) ? color : '#2C8CFF', emisK: 0.3 }), 0, 1.1, Z0 + 0.01);
   for (const [x, z] of [[-1.3, -1], [1.3, -1], [-1.3, 1.2], [1.3, 1.2]]) box(0.6, 0.02, 0.6, pbr({ col: '#FFFFFF', emis: '#F2F6FF', emisK: 1.2 }), x, RH - 0.01, z);
+  inShell = false;
   const light = new PointLight('ceil', new Vector3(0, RH - 0.3, 0), sc); light.intensity = 0.9; light.range = 9; light.diffuse = Color3.FromHexString('#F2F6FF');
   root.getChildMeshes().forEach(m => { m.isPickable = !!(m.metadata && m.metadata.act); });
   return { root, blocks, casters, metals, monitor: { tex: mon, w: MWpx, h: Math.round(MWpx * MHt / MWd) }, clock, seat: { x: 0, z: chZ, yaw: 0 }, sun };

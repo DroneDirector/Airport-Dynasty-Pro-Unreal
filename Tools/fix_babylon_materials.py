@@ -31,7 +31,7 @@ def copy_of(asset):
         except Exception:
             pass
         mel.recompile_material(c)
-    eal.save_loaded_asset(c)
+    eal.save_loaded_asset(c, False)
     copies[path] = c
     return c
 
@@ -43,7 +43,7 @@ try:
             parent = a.get_editor_property('parent')
             if parent and parent.get_path_name().startswith('/InterchangeAssets/'):
                 mel.set_material_instance_parent(a, copy_of(parent))
-                eal.save_loaded_asset(a)
+                eal.save_loaded_asset(a, False)   # (re-parenting does not mark it changed: saved regardless)
                 n += 1
     unreal.log('ADP_MATFIX: %d materials pointed at %d project copies' % (n, len(copies)))
 except Exception as e:

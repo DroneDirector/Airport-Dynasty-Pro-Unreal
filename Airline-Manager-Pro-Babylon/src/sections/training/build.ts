@@ -33,21 +33,25 @@ export interface Training {
 export function buildTraining(sc: Scene, airline: string, c1: string, c2: string, data: TrainingData): Training {
   const root = new TransformNode('training', sc), blocks: number[][] = [], casters: AbstractMesh[] = [], metals: PBRMaterial[] = [];
   let n = 0; const nm = (k: string) => 'trn-' + k + '-' + (n++);
+  // the room itself (walls, floor, ceiling, windows, doors, the shelves, posters and clock, its lights)
+  // under 'shell', apart from the things in it (the PC edition takes only the things, into the terminal's own Academy)
+  const shell = new TransformNode('shell', sc); shell.parent = root; let inShell = false;
   const block = (xa: number, za: number, xb: number, zb: number) => blocks.push([Math.min(xa, xb), Math.min(za, zb), Math.max(xa, xb), Math.max(za, zb)]);
   const tex = (c: HTMLCanvasElement, u = 1, v = 1): DynamicTexture => { const t = new DynamicTexture(nm('t'), { width: c.width, height: c.height }, sc, true); (t.getContext() as any).drawImage(c, 0, 0); t.update(true); t.uScale = u; t.vScale = v; t.wrapU = t.wrapV = Texture.WRAP_ADDRESSMODE; t.anisotropicFilteringLevel = 8; return t; };
   const pbr = (o: { col?: string; tex?: Texture; metal?: number; rough?: number; emis?: string; emisK?: number }): PBRMaterial => {
     const m = new PBRMaterial(nm('m'), sc); m.maxSimultaneousLights = 8; m.albedoColor = o.col ? Color3.FromHexString(o.col) : Color3.White(); if (o.tex) m.albedoTexture = o.tex;
     m.metallic = o.metal || 0; m.roughness = o.rough != null ? o.rough : 0.6; if (o.emis) m.emissiveColor = Color3.FromHexString(o.emis).scale(o.emisK || 1); if ((o.metal || 0) >= 0.6) metals.push(m); return m; };
   const picMat = (c: HTMLCanvasElement, k = 0.35) => { const m = new StandardMaterial(nm('pm'), sc); const t = tex(c); m.diffuseTexture = t; m.emissiveTexture = t; m.emissiveColor = new Color3(k, k, k); m.specularColor = new Color3(0.05, 0.05, 0.05); return m; };
-  const place = (m: Mesh, mat: any, x: number, y: number, z: number, ry = 0, cast = true, act?: string, extra?: any) => { m.position.set(x, y, z); m.rotation.y = ry; m.material = mat; m.receiveShadows = true; m.parent = root; if (cast) casters.push(m); if (act) m.metadata = Object.assign({ act }, extra || {}); return m; };
+  const place = (m: Mesh, mat: any, x: number, y: number, z: number, ry = 0, cast = true, act?: string, extra?: any) => { m.position.set(x, y, z); m.rotation.y = ry; m.material = mat; m.receiveShadows = true; m.parent = inShell ? shell : root; if (cast) casters.push(m); if (act) m.metadata = Object.assign({ act }, extra || {}); return m; };
   const box = (w: number, h: number, d: number, mat: any, x: number, y: number, z: number, ry = 0, act?: string, cast = true, extra?: any) => place(MeshBuilder.CreateBox(nm('b'), { width: w, height: h, depth: d }, sc), mat, x, y, z, ry, cast, act, extra);
   const flat = (w: number, h: number, mat: any, x: number, y: number, z: number, ry: number, act?: string) => place(MeshBuilder.CreatePlane(nm('p'), { width: w, height: h }, sc), mat, x, y, z, ry, false, act);
   const { x0, x1, z0, z1, h } = TRN, W = x1 - x0, D = z1 - z0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
 
+  inShell = true;
   // ---- the room: carpet tiles, plastered walls, a ceiling with light panels ----
   const wallM = pbr({ tex: tex(P.plaster('#E6E3DC'), 3, 1), rough: 0.9 });
-  const fl = MeshBuilder.CreateGround(nm('floor'), { width: W, height: D }, sc); fl.position.set(cx, 0.002, cz); fl.material = pbr({ tex: tex(P.noise('#4A5566', 16, 31), 5, 5), rough: 0.95 }); fl.receiveShadows = true; fl.parent = root;
-  const ce = MeshBuilder.CreatePlane(nm('ceil'), { width: W, height: D }, sc); ce.rotation.x = -Math.PI / 2; ce.position.set(cx, h, cz); ce.material = pbr({ col: '#EEEDE8', rough: 0.95 }); ce.parent = root;
+  const fl = MeshBuilder.CreateGround(nm('floor'), { width: W, height: D }, sc); fl.position.set(cx, 0.002, cz); fl.material = pbr({ tex: tex(P.noise('#4A5566', 16, 31), 5, 5), rough: 0.95 }); fl.receiveShadows = true; fl.parent = shell;
+  const ce = MeshBuilder.CreatePlane(nm('ceil'), { width: W, height: D }, sc); ce.rotation.x = -Math.PI / 2; ce.position.set(cx, h, cz); ce.material = pbr({ col: '#EEEDE8', rough: 0.95 }); ce.parent = shell;
   const panel = pbr({ col: '#FFFFFF', emis: '#F4F6FA', emisK: 1.5 });
   for (const x of [x0 + 2.2, x0 + 4.7, x0 + 7.2]) for (const z of [cz - 2, cz + 2]) box(1.2, 0.03, 0.6, panel, x, h - 0.015, z, 0, undefined, false);
   // the walls (facing in): the front with the board, the back with the doors, the south with the shelves, the north with the windows
@@ -66,6 +70,8 @@ export function buildTraining(sc: Scene, airline: string, c1: string, c2: string
   const skirt = pbr({ col: '#3A3F48', rough: 0.5 });
   box(0.02, 0.1, D, skirt, x0 + 0.01, 0.05, cz, 0, undefined, false); box(W, 0.1, 0.02, skirt, cx, 0.05, z0 + 0.01, 0, undefined, false);
 
+  // (the whiteboard is one of the things: the PC edition hangs it on its own Academy's front wall)
+  inShell = false;
   // ---- the front: the whiteboard, the instructor's desk and chair ----
   const bc = document.createElement('canvas'); bc.width = 2048; bc.height = 680; const bt = new DynamicTexture(nm('board'), { width: 2048, height: 680 }, sc, true);
   const bm = new StandardMaterial(nm('boardM'), sc); bm.diffuseTexture = bt; bm.emissiveTexture = bt; bm.emissiveColor = new Color3(0.35, 0.35, 0.35); bm.specularColor = new Color3(0.25, 0.25, 0.25);
@@ -112,6 +118,7 @@ export function buildTraining(sc: Scene, airline: string, c1: string, c2: string
   const thin = (m: Mesh, ms: Matrix[]) => { const a = new Float32Array(ms.length * 16); ms.forEach((mm, i) => mm.copyToArray(a, i * 16)); m.thinInstanceSetBuffer('matrix', a, 16, true); m.isVisible = ms.length > 0; };
   thin(nb, nbM); thin(pen, penM); pen.thinInstanceSetBuffer('color', new Float32Array(penC), 4, true); thin(calc, calcM); thin(paper, papM);
 
+  inShell = true;
   // ---- the south wall: the bookshelves with aviation books ----
   const shelfM = pbr({ tex: tex(P.wood('#8A6440', '#5A3E26', 9)), rough: 0.55 });
   for (let i = 0; i < 3; i++) {
@@ -128,8 +135,9 @@ export function buildTraining(sc: Scene, airline: string, c1: string, c2: string
   ck.fillStyle = '#FAFAF8'; ck.beginPath(); ck.arc(128, 128, 124, 0, Math.PI * 2); ck.fill(); ck.lineWidth = 8; ck.strokeStyle = '#2A2E35'; ck.stroke();
   for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; ck.fillStyle = '#2A2E35'; ck.fillRect(128 + Math.sin(a) * 100 - 3, 128 - Math.cos(a) * 100 - 10, 6, 20); }
   const face = MeshBuilder.CreateDisc(nm('clock'), { radius: 0.17, tessellation: 40 }, sc); place(face, picMat(clockC, 0.5), x1 - 0.03, 2.55, cz, Math.PI / 2, false, 'clock');
-  const hand = (len: number, w: number) => { const m = MeshBuilder.CreateBox(nm('hand'), { width: 0.01, height: len, depth: w }, sc); m.setPivotPoint(new Vector3(0, -len / 2, 0)); m.material = pbr({ col: '#15181C' }); m.parent = root; m.position.set(x1 - 0.045, 2.55 + len / 2, cz); return m; };
+  const hand = (len: number, w: number) => { const m = MeshBuilder.CreateBox(nm('hand'), { width: 0.01, height: len, depth: w }, sc); m.setPivotPoint(new Vector3(0, -len / 2, 0)); m.material = pbr({ col: '#15181C' }); m.parent = shell; m.position.set(x1 - 0.045, 2.55 + len / 2, cz); return m; };
   const hh = hand(0.09, 0.014), mh = hand(0.14, 0.009);
+  inShell = false;
   const pot = pbr({ col: '#D9D4CC', rough: 0.6 }), leaf = pbr({ col: '#2F6A3A', rough: 0.7 });
   for (const [px, pz] of [[x0 + 0.5, z1 - 0.5], [x1 - 0.5, z0 + 0.5], [x0 + 0.5, z0 + 0.5]]) {
     place(MeshBuilder.CreateCylinder(nm('pot'), { height: 0.45, diameterTop: 0.42, diameterBottom: 0.32, tessellation: 18 }, sc), pot, px, 0.225, pz);
@@ -137,6 +145,7 @@ export function buildTraining(sc: Scene, airline: string, c1: string, c2: string
     block(px - 0.3, pz - 0.3, px + 0.3, pz + 0.3);
   }
 
+  inShell = true;
   // ---- the doors: two leaves opening inward, each on its hinge ----
   const doorM = pbr({ tex: tex(P.wood('#C9A57A', '#8A6440', 12)), rough: 0.5 }), glassM = pbr({ col: '#BFD4E2', rough: 0.05, metal: 0.1 });
   const leaves: AbstractMesh[][] = [];
@@ -146,6 +155,7 @@ export function buildTraining(sc: Scene, airline: string, c1: string, c2: string
     leaves.push([l, g, hdl]);
   }
   box(0.06, 0.06, dz1 - dz0 + 0.12, steel, x1, 2.13, (dz0 + dz1) / 2, 0, undefined, false);
+  inShell = false;
   // the room's own light
   const lt = new PointLight(nm('light'), new Vector3(cx, h - 0.4, cz), sc); lt.intensity = 1.0; lt.range = 14; lt.diffuse = Color3.FromHexString('#F4F6FA');
   const lt2 = new PointLight(nm('light'), new Vector3(x0 + 1.2, h - 0.5, cz), sc); lt2.intensity = 0.5; lt2.range = 6;

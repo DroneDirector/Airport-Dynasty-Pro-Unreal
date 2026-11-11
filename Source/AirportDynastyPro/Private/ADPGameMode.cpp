@@ -19,6 +19,7 @@
 #include "PhotoTour.h"
 #include "BabylonModel.h"
 #include "LightMasts.h"
+#include "Offices.h"
 #include "TowerADC.h"
 #include "Misc/Paths.h"
 #include "Components/VolumetricCloudComponent.h"
@@ -64,6 +65,8 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 		if (bBabylon)
 			if (ABabylonModel* Model = W->SpawnActor<ABabylonModel>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 				Model->Place(TEXT("Terminal"));
+			// the old offices' things in the terminal's offices (yours with your pet, as chosen in the game)
+			{ FString Pet = TEXT("dog"); GConfig->GetString(TEXT("ADP.Office"), TEXT("Pet"), Pet, GGameUserSettingsIni); ADPOffices::Place(W, Pet); }
 		if (!bBabylon)
 		{
 			if (ATerminalBuilder* Terminal = W->SpawnActor<ATerminalBuilder>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Terminal->Build();

@@ -63,12 +63,15 @@ function globeTex(): HTMLCanvasElement {
 export function buildOffice(sc: Scene, D: OfficeData, progress: (p: number, s: string) => void): Office {
   const root = new TransformNode('office', sc), blocks: number[][] = [], casters: AbstractMesh[] = [], metals: PBRMaterial[] = [], screens: Office['screens'] = [];
   let n = 0; const nm = (k: string) => k + '-' + (n++);
+  // the room itself (walls, floor, ceiling, window, door, its lamps) under 'shell', apart from the things in it (the PC
+  // edition takes only the things, into the terminal's own office)
+  const shell = new TransformNode('shell', sc); shell.parent = root; let inShell = false;
   const block = (xa: number, za: number, xb: number, zb: number) => blocks.push([Math.min(xa, xb), Math.min(za, zb), Math.max(xa, xb), Math.max(za, zb)]);
   const tex = (c: HTMLCanvasElement, u = 1, v = 1): DynamicTexture => { const t = new DynamicTexture(nm('t'), { width: c.width, height: c.height }, sc, true); (t.getContext() as any).drawImage(c, 0, 0); t.update(true); t.uScale = u; t.vScale = v; t.wrapU = t.wrapV = Texture.WRAP_ADDRESSMODE; t.anisotropicFilteringLevel = 8; return t; };
   const pbr = (o: { col?: string; tex?: Texture; metal?: number; rough?: number; emis?: string; emisK?: number }): PBRMaterial => {
     const m = new PBRMaterial(nm('m'), sc); m.maxSimultaneousLights = 8; m.albedoColor = o.col ? Color3.FromHexString(o.col) : Color3.White(); if (o.tex) m.albedoTexture = o.tex;
     m.metallic = o.metal || 0; m.roughness = o.rough != null ? o.rough : 0.6; if (o.emis) m.emissiveColor = Color3.FromHexString(o.emis).scale(o.emisK || 1); if ((o.metal || 0) >= 0.6) metals.push(m); return m; };
-  const place = (m: Mesh, mat: any, x: number, y: number, z: number, ry = 0, cast = true, act?: string) => { m.position.set(x, y, z); m.rotation.y = ry; m.material = mat; m.receiveShadows = true; m.parent = root; if (cast) casters.push(m); if (act) m.metadata = { act }; return m; };
+  const place = (m: Mesh, mat: any, x: number, y: number, z: number, ry = 0, cast = true, act?: string) => { m.position.set(x, y, z); m.rotation.y = ry; m.material = mat; m.receiveShadows = true; m.parent = inShell ? shell : root; if (cast) casters.push(m); if (act) m.metadata = { act }; return m; };
   const box = (w: number, h: number, d: number, mat: any, x: number, y: number, z: number, ry = 0, act?: string) => place(MeshBuilder.CreateBox(nm('b'), { width: w, height: h, depth: d }, sc), mat, x, y, z, ry, true, act);
   const cyl = (rt: number, rb: number, h: number, mat: any, x: number, y: number, z: number, seg = 24, act?: string) => place(MeshBuilder.CreateCylinder(nm('c'), { diameterTop: rt * 2, diameterBottom: rb * 2, height: h, tessellation: seg }, sc), mat, x, y, z, 0, true, act);
   const flat = (w: number, h: number, mat: any, x: number, y: number, z: number, ry: number, act?: string) => place(MeshBuilder.CreatePlane(nm('p'), { width: w, height: h }, sc), mat, x, y, z, ry, false, act);
@@ -81,11 +84,12 @@ export function buildOffice(sc: Scene, D: OfficeData, progress: (p: number, s: s
   const walnut = pbr({ tex: tex(P.wood('#6B4428', '#2E1A0E', 11)), rough: 0.38 }), darkWood = pbr({ tex: tex(P.wood('#4A2D19', '#1E120A', 3)), rough: 0.45 });
   const leather = pbr({ tex: tex(P.leather('#5A2E1A')), rough: 0.5 }), greenLeather = pbr({ tex: tex(P.leather('#24402E')), rough: 0.5 });
   const brass = pbr({ col: '#C9A25E', metal: 0.95, rough: 0.28 }), chrome = pbr({ col: '#DDE2E8', metal: 1, rough: 0.15 }), black = pbr({ col: '#15171B', rough: 0.35 }), alu = pbr({ col: '#B9BEC6', metal: 0.9, rough: 0.3 });
-  { const f = MeshBuilder.CreateGround(nm('floor'), { width: OW, height: OD }, sc); f.material = pbr({ tex: tex(P.herringbone(IS_PC), OW / 4, OD / 4), rough: 0.4 }); f.receiveShadows = true; f.parent = root; }
-  { const c = MeshBuilder.CreatePlane(nm('ceil'), { width: OW, height: OD }, sc); c.rotation.x = -Math.PI / 2; c.position.y = OH; c.material = pbr({ tex: tex(P.plaster('#F1ECE2'), 2, 2), rough: 0.95 }); c.parent = root; }
+  { const f = MeshBuilder.CreateGround(nm('floor'), { width: OW, height: OD }, sc); f.material = pbr({ tex: tex(P.herringbone(IS_PC), OW / 4, OD / 4), rough: 0.4 }); f.receiveShadows = true; f.parent = shell; }
+  { const c = MeshBuilder.CreatePlane(nm('ceil'), { width: OW, height: OD }, sc); c.rotation.x = -Math.PI / 2; c.position.y = OH; c.material = pbr({ tex: tex(P.plaster('#F1ECE2'), 2, 2), rough: 0.95 }); c.parent = shell; }
   // a rug under the desk
   { const r = MeshBuilder.CreateGround(nm('rug'), { width: 3.4, height: 2.6 }, sc); r.position.set(0, 0.005, 1.1); r.material = pbr({ tex: tex(P.carpet()), rough: 0.95 }); r.receiveShadows = true; r.parent = root; }
   progress(30, 'Panelling the walls…');
+  inShell = true;
   // walls: walnut panelling to 1.1 m, warm plaster above; the window in the wall ahead, the door in the left wall
   const plaster = pbr({ tex: tex(P.plaster('#D9CBB4'), 2, 1), rough: 0.9 });
   const wall = (w: number, h: number, x: number, y: number, z: number, ry: number) => { flat(w, h, plaster, x, y, z, ry); const p = flat(w, Math.min(h, 1.1), walnut, x, Math.min(1.1, h) / 2 + (y - h / 2), z + (ry === 0 ? -0.012 : ry === Math.PI ? 0.012 : 0), ry); if (ry === Math.PI / 2) p.position.x += 0.012; if (ry === -Math.PI / 2) p.position.x -= 0.012; };
@@ -110,11 +114,13 @@ export function buildOffice(sc: Scene, D: OfficeData, progress: (p: number, s: s
   { const vm = new StandardMaterial(nm('view'), sc); const vt = tex(P.view()); vm.diffuseTexture = vt; vm.emissiveTexture = vt; vm.emissiveColor = new Color3(0.35 + 0.65 * sun, 0.35 + 0.62 * sun, 0.4 + 0.6 * sun); vm.disableLighting = true; flat(WW * 1.6, WH * 1.6, vm, 0, WY + WH / 2, Z1 + 1.2, 0, 'window'); }
   { const g = pbr({ col: '#9FC4E0', rough: 0.05, metal: 0.1 }); g.alpha = 0.08; flat(WW, WH, g, 0, WY + WH / 2, Z1 - 0.01, 0); }
 
+  inShell = false;
   progress(50, 'Polishing the desk…');
-  // the desk: walnut with a green leather top, two pedestals and a modesty panel
+  // the desk: walnut with a green leather top, two pedestals (their drawers on the chair's side) and a modesty panel
+  // towards the room
   const DZ = 1.45;
   box(2.1, 0.06, 1.0, walnut, 0, 0.75, DZ); box(1.8, 0.012, 0.75, greenLeather, 0, 0.784, DZ + 0.02);
-  for (const sx of [-0.78, 0.78]) { box(0.5, 0.72, 0.92, walnut, sx, 0.36, DZ); for (let i = 0; i < 3; i++) { box(0.42, 0.18, 0.02, darkWood, sx, 0.13 + i * 0.22, DZ - 0.47); box(0.1, 0.02, 0.03, brass, sx, 0.17 + i * 0.22, DZ - 0.49); } }
+  for (const sx of [-0.78, 0.78]) { box(0.5, 0.72, 0.92, walnut, sx, 0.36, DZ); for (let i = 0; i < 3; i++) { box(0.42, 0.18, 0.02, darkWood, sx, 0.13 + i * 0.22, DZ + 0.47); box(0.1, 0.02, 0.03, brass, sx, 0.17 + i * 0.22, DZ + 0.49); } }
   box(1.06, 0.55, 0.03, walnut, 0, 0.42, DZ - 0.42); block(-1.05, DZ - 0.5, 1.05, DZ + 0.5);
   // the chair behind it, facing the room
   const chZ = DZ + 0.82;
@@ -145,7 +151,8 @@ export function buildOffice(sc: Scene, D: OfficeData, progress: (p: number, s: s
   } catch (e) { /* the desk without it */ }
 
   progress(70, 'Filling the shelves…');
-  // bookshelves along the right wall, with books and trophies
+  // bookshelves along the right wall, with books and trophies (with the room: the PC edition's offices leave them out)
+  inShell = true;
   const shX = X1 - 0.2;
   box(0.4, 2.3, 2.6, darkWood, shX, 1.15, 0.5); block(shX - 0.22, -0.85, X1, 1.85);
   const r = P.rng(5), bookCols = ['#7A2E22', '#2A4A6B', '#3A5A32', '#8C6A2A', '#4A2D4A', '#1E2E3E', '#9A8A6A', '#5A1E1E'];
@@ -154,18 +161,22 @@ export function buildOffice(sc: Scene, D: OfficeData, progress: (p: number, s: s
     if (s === 2) { for (const [z, h] of [[-0.3, 0.32], [0.3, 0.42], [0.9, 0.28]]) { cyl(0.05, 0.035, h * 0.5, brass, shX - 0.05, y + 0.06 + h * 0.25, z); cyl(0.09, 0.03, h * 0.35, brass, shX - 0.05, y + 0.06 + h * 0.62, z); cyl(0.06, 0.06, 0.04, black, shX - 0.05, y + 0.04, z); } continue; }
     let z = -0.72; while (z < 1.7) { const w = 0.025 + r() * 0.035, h = 0.24 + r() * 0.14; box(0.24, h, w, pbr({ col: bookCols[Math.floor(r() * bookCols.length)], rough: 0.7 }), shX - 0.04, y + 0.012 + h / 2, z + w / 2, 0); z += w + 0.004; if (r() < 0.06) z += 0.12; }
   }
-  // the route map on the left wall; the posters and the propeller on the wall across from the desk
+  // the route map on the left wall; the posters and the propeller on the wall across from the desk (with the room: the
+  // PC edition's offices have their own walls and pictures)
   { const m = new StandardMaterial(nm('map'), sc); const t = tex(routeMap(D)); m.diffuseTexture = t; m.emissiveTexture = t; m.emissiveColor = new Color3(0.25, 0.25, 0.25); box(0.04, 1.06, 1.56, darkWood, X0 + 0.02, 1.75, 0.8); flat(1.5, 1.0, m, X0 + 0.045, 1.75, 0.8, -Math.PI / 2, 'map'); }
   for (const [kind, x] of [['dusk', -1.6], ['aurora', 1.6]] as [string, number][]) { const m = new StandardMaterial(nm('poster'), sc); m.diffuseTexture = tex(P.painting(kind, 512, 704)); box(0.86, 1.16, 0.03, darkWood, x, 1.75, Z0 + 0.02); flat(0.8, 1.1, m, x, 1.75, Z0 + 0.04, Math.PI, 'poster'); }
   // the propeller, above the sofa
   { const hub = cyl(0.07, 0.07, 0.12, chrome, 0, 2.15, Z0 + 0.08); hub.rotation.x = Math.PI / 2; for (let i = 0; i < 3; i++) { const b = box(0.1, 0.62, 0.02, walnut, Math.sin(i * 2.094) * 0.33, 2.15 + Math.cos(i * 2.094) * 0.33, Z0 + 0.1); b.rotation.z = -i * 2.094; } }
+  inShell = false;
   // the leather sofa and a low table
   { const sz = Z0 + 0.6; box(2.1, 0.42, 0.85, leather, 0, 0.21, sz); box(2.1, 0.5, 0.2, leather, 0, 0.62, sz - 0.33); for (const sx of [-1.0, 1.0]) box(0.2, 0.62, 0.85, leather, sx, 0.31, sz); block(-1.1, Z0, 1.1, sz + 0.45);
     box(1.0, 0.05, 0.55, walnut, 0, 0.42, sz + 1.0); for (const sx of [-0.42, 0.42]) for (const sz2 of [-0.22, 0.22]) box(0.04, 0.4, 0.04, brass, sx, 0.2, sz + 1.0 + sz2); block(-0.52, sz + 0.7, 0.52, sz + 1.3); }
   // the globe in its stand
   { const gx = X0 + 0.6, gz = 2.5; cyl(0.2, 0.26, 0.06, darkWood, gx, 0.03, gz); cyl(0.03, 0.04, 0.62, darkWood, gx, 0.35, gz); const g = MeshBuilder.CreateSphere(nm('globe'), { diameter: 0.5, segments: 32 }, sc); g.position.set(gx, 0.92, gz); g.rotation.z = 0.41; g.material = pbr({ tex: tex(globeTex()), rough: 0.35 }); g.parent = root; g.metadata = { act: 'globe' }; casters.push(g); block(gx - 0.3, gz - 0.3, gx + 0.3, gz + 0.3); }
   // ceiling lights
+  inShell = true;
   for (const [x, z] of [[-1.4, -1.2], [1.4, -1.2], [0, 1.4]]) { cyl(0.12, 0.12, 0.02, pbr({ col: '#FFF6E6', emis: '#FFF1D8', emisK: 1.4 }), x, OH - 0.01, z, 20); }
+  inShell = false;
   // your pet, asleep in its bed by the right-hand bookshelf, its bowls beside it
   let pet: Pet | null = null;
   try { if (D.pet) { pet = placePet(sc, root, D.pet, [X1 - 0.75, -1.6], Math.PI / 2, { door: [X1 - 1.7, -1.6], box: [X0 + 0.4, Z0 + 1.6, X1 - 0.4, Z1 - 0.4],
