@@ -135,6 +135,7 @@ public:
 	 *  looking straight at its doors; with bInside, in the hall looking out; with bLounge, in its annex's crew lounge.
 	 *  One shortcut per hangar in the full-screen map, so every hangar added later has one. */
 	void GoHangar(int32 I, int32 Where = 0);
+	bool bHangarsOnMap = false;
 	TArray<FVector2D> HangarAt;      // each hangar's centre line and the apron edge (plan metres)
 	TArray<FString> HangarSize;
 	/** From the menus: the business lounge (the Babylon edition's, placed apart from the airport, lit as there). */

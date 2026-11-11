@@ -1196,6 +1196,19 @@ void AADPHUD::Tick(float Dt)
 		bWasGame = bGame;
 		TickLoading(Dt);
 		TickDevice(Dt);
+		// the hangars on the holographic map, once they stand (H1, H2, H3 from west to east, as the airfield lists them)
+		if (!bHangarsOnMap && HoloMap.IsValid())
+		{
+			TArray<AHangar*> Hs;
+			for (TActorIterator<AHangar> It(GetWorld()); It; ++It) Hs.Add(*It);
+			if (Hs.Num())
+			{
+				Hs.Sort([](const AHangar& A, const AHangar& B) { return A.GetActorLocation().X < B.GetActorLocation().X; });
+				for (int32 i = 0; i < Hs.Num(); ++i) { TArray<FVector4f> W, D; Hs[i]->MapOutline(W, D); HoloMap->AddHangar(FString::Printf(TEXT("HANGAR H%d"), i + 1), W, D); }
+				ADP_LOG(TEXT("Holomap: %d hangars on the map"), Hs.Num());
+				bHangarsOnMap = true;
+			}
+		}
 	}
 	// while the menus fill the screen (opaque: nothing of the 3D world shows), the 3D world isn't drawn behind them, so
 	// the title screen and the menus run as smoothly as on Android (two engines drawing at once made them stutter)
@@ -1402,7 +1415,12 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 58.f && ShotClock >= 58.f) GoTo(FVector(240.f, 0.f, 20.f), FVector(250.f, 0.f, 20.f));
 			if (Before < 61.f && ShotClock >= 61.f) Open();
 			if (Before < 63.f && ShotClock >= 63.f) FScreenshotRequest::RequestScreenshot(TEXT("Map_Rental"), true, false);
-			if (Before < 66.f && ShotClock >= 66.f) FGenericPlatformMisc::RequestExit(false);
+			// the hangars: the corner map at hangar H1, then the full map zoomed out to the whole airport
+			if (Before < 64.f && ShotClock >= 64.f && HangarAt.Num()) { if (HoloMap.IsValid() && HoloMap->IsFull()) ToggleMap(); GoHangar(0); }
+			if (Before < 70.f && ShotClock >= 70.f) FScreenshotRequest::RequestScreenshot(TEXT("Map_HangarSmall"), true, false);
+			if (Before < 71.f && ShotClock >= 71.f) { Open(); if (HoloMap.IsValid()) HoloMap->ShowAll(); }
+			if (Before < 73.f && ShotClock >= 73.f) FScreenshotRequest::RequestScreenshot(TEXT("Map_AllHangars"), true, false);
+			if (Before < 76.f && ShotClock >= 76.f) FGenericPlatformMisc::RequestExit(false);
 		}
 		// -UIFire: the lounge's fireplace, its fire burning (two pictures a moment apart)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIFire")))

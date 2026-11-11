@@ -73,6 +73,9 @@ public:
 	float DoorOpen() const { return DoorK; }
 	int32 DoorMoving() const { return DoorRun; }
 
+	/** The hangar's outline for the map (plan metres, each segment x0, z0, x1, z1): the hall's walls and the door's pockets,
+	 *  the crew annex's walls; the door opening apart (drawn lighter, as glass on the map). */
+	void MapOutline(TArray<FVector4f>& Walls, TArray<FVector4f>& Door) const;
 	/** The annex's size (the same in every hangar). */
 	static constexpr float AnnexW = 13.f;
 	static constexpr float AnnexL = 32.4f;

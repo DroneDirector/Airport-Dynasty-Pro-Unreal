@@ -1111,3 +1111,23 @@ void AHangar::BuildAnnexRooms()
 }
 
 #pragma endregion
+
+#pragma region The map
+
+void AHangar::MapOutline(TArray<FVector4f>& Walls, TArray<FVector4f>& Door) const
+{
+	// hangar metres (x across, z from the door line in) to plan metres through the actor's own place
+	const FTransform T = GetActorTransform();
+	auto P = [&T](float X, float Z) { const FVector W = T.TransformPosition(FVector(X * 100.f, -Z * 100.f, 0.f)); return FVector2f(W.X / 100.f, -W.Y / 100.f); };
+	auto Seg = [&](TArray<FVector4f>& L, float X0, float Z0, float X1, float Z1) { const FVector2f A = P(X0, Z0), B = P(X1, Z1); L.Add(FVector4f(A.X, A.Y, B.X, B.Y)); };
+	const float wx = S.WallX(), bk = S.Back(), px = S.PocketX(), hw = S.W / 2;
+	// the hall: side walls, back wall, the door line's pockets either side of the opening
+	Seg(Walls, -wx, 0, -wx, bk); Seg(Walls, wx, 0, wx, bk); Seg(Walls, -wx, bk, wx, bk);
+	Seg(Walls, -px, 0, -hw, 0); Seg(Walls, hw, 0, px, 0);
+	Seg(Door, -hw, 0, hw, 0);
+	// the crew annex against the west wall
+	const float ax = -wx - AnnexW, z0 = AZ0, z1 = AZ0 + AnnexL;
+	Seg(Walls, -wx, z0, ax, z0); Seg(Walls, ax, z0, ax, z1); Seg(Walls, ax, z1, -wx, z1);
+}
+
+#pragma endregion

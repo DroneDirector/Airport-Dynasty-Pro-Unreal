@@ -81,6 +81,8 @@ void SHoloMap::SetPlan(const FTerminalPlan& InPlan)
 	LoadBuildings();
 	for (const FBuilding& B : Buildings) { Bounds += B.Box.Min; Bounds += B.Box.Max; }
 	Bounds = Bounds.ExpandBy(6.f);
+	All = Bounds;
+	ResetView();
 }
 
 void SHoloMap::LoadBuildings()
@@ -168,7 +170,43 @@ void SHoloMap::SetPlayer(const FVector& PlanPos, float YawDeg)
 		while (Route.Num() > 1 && FVector::Dist2D(FVector(Route[0].X, Route[0].Z, 0), FVector(Player.X, Player.Z, 0)) < 1.5f) Route.RemoveAt(0);
 }
 
-void SHoloMap::SetFull(bool bOn) { bFull = bOn; }
+void SHoloMap::SetFull(bool bOn) { bFull = bOn; if (bOn) ResetView(); }
+
+void SHoloMap::ResetView() { View = Bounds; }
+
+void SHoloMap::AddHangar(const FString& Name, const TArray<FVector4f>& Outline, const TArray<FVector4f>& Door)
+{
+	FBuilding& B = Buildings.AddDefaulted_GetRef();
+	B.Label = Name; B.bNamed = true; B.Box = FBox2f(ForceInit);
+	for (const TCHAR* F : { TEXT("HALL / GROUND FLOOR"), TEXT("CREW ANNEX UPSTAIRS") })
+	{
+		FBFloor& Fl = B.Floors.AddDefaulted_GetRef(); Fl.Label = F;
+		Fl.Y0 = B.Floors.Num() == 1 ? -1.f : 4.5f; Fl.Y1 = B.Floors.Num() == 1 ? 4.5f : 99.f;
+		for (const FVector4f& W : Outline) Fl.Segs.Add(FSeg{FVector2f(W.X, W.Y), FVector2f(W.Z, W.W), false});
+		for (const FVector4f& W : Door) Fl.Segs.Add(FSeg{FVector2f(W.X, W.Y), FVector2f(W.Z, W.W), true});
+	}
+	for (const FSeg& S : B.Floors[0].Segs) { B.Box += S.A; B.Box += S.B; }
+	All += B.Box.ExpandBy(20.f);
+}
+
+FReply SHoloMap::OnMouseWheel(const FGeometry& Geo, const FPointerEvent& Event)
+{
+	if (!bFull) return FReply::Unhandled();
+	// zoom round the pointer: what is under it stays under it; out as far as everything on the map, in to a room
+	const FVector2f Size(Geo.GetLocalSize()), L(Geo.AbsoluteToLocal(Event.GetScreenSpacePosition()));
+	const FVector2f Under = FromLocal(L, Size);
+	const float K = FMath::Pow(1.25f, -Event.GetWheelDelta());
+	FVector2f NewHalf = View.GetExtent() * K;
+	// out: no further than the whole map in view; in: no closer than 20 m across
+	const FVector2f MaxHalf = All.GetExtent() * 1.1f;
+	NewHalf *= FMath::Min(1.f, FMath::Max(MaxHalf.X / NewHalf.X, MaxHalf.Y / NewHalf.Y));
+	NewHalf *= FMath::Max(1.f, 10.f / FMath::Min(NewHalf.X, NewHalf.Y));
+	// keep the point under the pointer where it is
+	const FVector2f Mid = View.GetCenter(), Rel = (Under - Mid) / View.GetExtent();
+	const FVector2f NewMid = Under - Rel * NewHalf;
+	View = FBox2f(NewMid - NewHalf, NewMid + NewHalf);
+	return FReply::Handled();
+}
 
 #pragma endregion
 
@@ -176,8 +214,16 @@ void SHoloMap::SetFull(bool bOn) { bFull = bOn; }
 
 float SHoloMap::Scale(const FVector2f& Size) const
 {
-	if (!bFull) return Size.X / MiniMetres;
-	const FVector2f E = Bounds.GetSize();
+	if (!bFull)
+	{
+		// the small map's reach: the terminal's rooms close up; a hangar's whole hall and annex; out on the airfield, wide
+		// enough to see the next building coming
+		int32 Fl; const int32 B = BuildingAt(Player, Fl);
+		const bool bInHangar = B != INDEX_NONE && Buildings[B].bNamed;
+		const bool bOut = B == INDEX_NONE && !Bounds.IsInside(FVector2f(Player.X, Player.Z));
+		return Size.X / (bInHangar ? 120.f : bOut ? 220.f : MiniMetres);
+	}
+	const FVector2f E = View.GetSize();
 	return FMath::Min((Size.X - 40) / E.X, (Size.Y - 90) / E.Y);
 }
 
@@ -186,9 +232,9 @@ FVector2f SHoloMap::ToLocal(const FVector2f& P, const FVector2f& Size) const
 	const float S = Scale(Size);
 	if (bFull)
 	{
-		const FVector2f E = Bounds.GetSize() * S;
+		const FVector2f E = View.GetSize() * S;
 		const FVector2f O((Size.X - E.X) / 2, 60 + (Size.Y - 70 - E.Y) / 2);
-		return FVector2f(O.X + (P.X - Bounds.Min.X) * S, O.Y + (Bounds.Max.Y - P.Y) * S);
+		return FVector2f(O.X + (P.X - View.Min.X) * S, O.Y + (View.Max.Y - P.Y) * S);
 	}
 	// turned so the way you face is up: Unreal yaw θ faces the plan's (cos θ, -sin θ)
 	const float T = FMath::DegreesToRadians(Yaw);
@@ -200,9 +246,9 @@ FVector2f SHoloMap::ToLocal(const FVector2f& P, const FVector2f& Size) const
 FVector2f SHoloMap::FromLocal(const FVector2f& L, const FVector2f& Size) const
 {
 	const float S = Scale(Size);
-	const FVector2f E = Bounds.GetSize() * S;
+	const FVector2f E = View.GetSize() * S;
 	const FVector2f O((Size.X - E.X) / 2, 60 + (Size.Y - 70 - E.Y) / 2);
-	return FVector2f(Bounds.Min.X + (L.X - O.X) / S, Bounds.Max.Y - (L.Y - O.Y) / S);
+	return FVector2f(View.Min.X + (L.X - O.X) / S, View.Max.Y - (L.Y - O.Y) / S);
 }
 
 #pragma endregion
@@ -268,6 +314,14 @@ int32 SHoloMap::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const FSla
 	if (bFull)
 	{
 		const FSlateFontInfo Small = FCoreStyle::GetDefaultFontStyle("Regular", 8);
+		// the hangars' names, over their doors
+		const FSlateFontInfo Bold = FCoreStyle::GetDefaultFontStyle("Bold", 9);
+		for (const FBuilding& Bd : Buildings)
+			if (Bd.bNamed)
+			{
+				const FVector2f C = ToLocal(FVector2f(Bd.Box.GetCenter().X, Bd.Box.Min.Y), Size);
+				FSlateDrawElement::MakeText(Out, Layer + 3, Geo.ToPaintGeometry(FVector2f(200, 16), FSlateLayoutTransform(FVector2f(C.X - Bd.Label.Len() * 3.2f, C.Y + 4))), Bd.Label, Bold, ESlateDrawEffect::None, FLinearColor(0.75f, 0.93f, 1.f, 0.95f));
+			}
 		for (const FPlanRoom& R : Plan.Rooms)
 		{
 			if (R.Floor != F || (R.X1 - R.X0) * (R.Z1 - R.Z0) < 120) continue;

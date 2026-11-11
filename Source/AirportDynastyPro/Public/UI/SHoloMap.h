@@ -23,6 +23,11 @@ public:
 	/** Where the player is: plan metres (x, height, z) and the way they face (Unreal yaw, degrees). */
 	void SetPlayer(const FVector& PlanPos, float YawDeg);
 	void SetFull(bool bOn);
+	/** A hangar on the map (plan metres, segments x0, z0, x1, z1): its walls and door, its crew annex's two floors. */
+	void AddHangar(const FString& Name, const TArray<FVector4f>& Outline, const TArray<FVector4f>& Door);
+	virtual FReply OnMouseWheel(const FGeometry& Geo, const FPointerEvent& Event) override;
+	/** The full map zoomed out to everything on it (the hangars too). */
+	void ShowAll() { View = All.ExpandBy(10.f); }
 	bool IsFull() const { return bFull; }
 	void ClearRoute() { Route.Reset(); Waypoints.Reset(); }
 	bool HasRoute() const { return Waypoints.Num() > 0; }
@@ -47,12 +52,16 @@ private:
 	/** The other buildings, each with its own floors (the jetways: one floor; the car rental centre; the control
 	 *  tower: ground floor, lift lobby, cab): drawn whole on the map; the one you are in gives the floor reading. */
 	struct FBFloor { FString Label; float Y0 = 0, Y1 = 0; TArray<FSeg> Segs; };
-	struct FBuilding { FString Label; FBox2f Box; TArray<FBFloor> Floors; };
+	struct FBuilding { FString Label; FBox2f Box; TArray<FBFloor> Floors; bool bNamed = false; };
 	TArray<FBuilding> Buildings;
 	void LoadBuildings();
 	/** The building you are in (INDEX_NONE: the terminal) and its floor there. */
 	int32 BuildingAt(const FVector& P, int32& OutFloor) const;
 	FBox2f Bounds;
+	/** The full map's view: it opens on the terminal (Bounds) and zooms with the wheel round the pointer, out as far as
+	 *  everything on it (the hangars, a kilometre off); View is the plan box shown. */
+	FBox2f All = FBox2f(ForceInit), View = FBox2f(ForceInit);
+	void ResetView();
 	FTerminalPlan Plan;
 	FWalkMap Map;
 
