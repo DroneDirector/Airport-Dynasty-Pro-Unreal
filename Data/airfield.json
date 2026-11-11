@@ -229,6 +229,21 @@
    "w": 25
   },
   {
+   "id": "Q0",
+   "kind": "link",
+   "pts": [
+    [
+     -530,
+     1086
+    ],
+    [
+     -530,
+     906
+    ]
+   ],
+   "w": 25
+  },
+  {
    "id": "T",
    "pts": [
     [
@@ -247,7 +262,7 @@
    "id": "K",
    "pts": [
     [
-     190,
+     -530,
      1086
     ],
     [
@@ -626,6 +641,13 @@
    "y0": 1066,
    "x1": 650,
    "y1": 1231
+  },
+  {
+   "id": "APRON-HANGARS",
+   "x0": -600,
+   "y0": 1066,
+   "x1": 170,
+   "y1": 1231
   }
  ],
  "cargoBuilding": {
@@ -647,5 +669,29 @@
   "BY": 906,
   "TY": 206,
   "KY": 1086
- }
+ },
+ "hangars": [
+  {
+   "id": "H1",
+   "size": "M",
+   "x": -430,
+   "y": 1231,
+   "open": true
+  },
+  {
+   "id": "H2",
+   "size": "M",
+   "x": -280,
+   "y": 1231,
+   "open": false
+  },
+  {
+   "id": "H3",
+   "size": "M",
+   "x": -130,
+   "y": 1231,
+   "open": true
+  }
+ ],
+ "hangarsNote": "hangar sites on the hangar apron west of the cargo apron: x is the centre line (on its lead-in line from taxilane K), y the apron edge the threshold meets; size S, M, L or XL (any size fits the same line)"
 }

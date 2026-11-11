@@ -2,6 +2,34 @@
 
 Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md (where everything is) first.
 
+## Hangars and the hangar apron (2026-11-11, from the hangar chat) — FOR THE PC CHAT TO FINISH AND PUBLISH
+- New: `Source/.../Hangar.{h,cpp}` (four sizes S/M/L/XL + the crew annex, from `Blueprints/Hangars`), the hangar apron
+  west of the cargo apron with taxilane K carried west and link Q0 to B (`Data/airfield.json` aprons/taxiways/"hangars";
+  the Android plan.ts has the same), three MEDIUM hangars placed (H1 open, H2 shut, H3 open), each one's lead-in line from
+  K to its threshold (Airfield.cpp) carried on inside the hall on its centre line (Hangar.cpp), two light masts at each
+  hangar's front corners (LightMasts Spots()), one quick-start per hangar in the full-screen holomap (ADPHUD
+  GoHangar, built from the hangar list), and `-UIHangars` (screenshots: outside two hangars, inside, the crew lounge,
+  dusk outside and inside, then quits).
+- The code is pushed and compiles without the new materials (plain colours stand in). To finish, on the PC:
+  1. The textures (Git LFS, could not be pushed from the cloud) are already in your working copy: `Art/Hangar/*.png`
+     and `Blueprints/` (confirmed renders and the owner's photos). Commit them.
+  2. Close the editor; clear the read-only flag on `Content/`; run
+     `UnrealEditor-Cmd.exe AirportDynastyPro.uproject -ExecutePythonScript="Tools/set_hangar.py" -unattended -nullrhi`
+     (makes `Content/Materials/Hangar/M_Hangar*` from the textures); commit the new assets.
+  3. Build the editor and the game; run the game with `-UIHangars` and send the six `Hangar_*` screenshots to the owner.
+  4. Publish the PC release together with your batch: add the hangar notes below to that version's
+     `release-notes-pc/<version>.md`. Android 0.4.8 (the apron and hangar footprints on the maps) is pushed already.
+- Release notes for the PC version:
+  ## Hangars
+  - A new hangar apron west of the cargo apron, with taxilane K carried on along it and a new link, Q0, to taxiway B.
+  - Three medium hangars (each sized for an Airbus A320) side by side, with room between them. Each has a yellow lead-in line from K to its door that carries on into the hall to the stop bar.
+  - Each hangar: dark grey steel frames, white ribbed walls and lining, a glass rooflight down the middle, twin-strip LED lamps as bright as the terminal's hall, a polished concrete floor, and a sliding main door whose leaves, rails, guides, motors and cables are all there. One hangar's door is shut, two are open.
+  - A two-storey crew building against each hangar: lobby with steel stairs, corridor from the hall, toilets, crew lounge, store with roll-up doors, and upstairs a kitchen, an office and a mezzanine.
+  - Two apron light masts in front of each hangar, at its corners.
+  - Each hangar has its own place in the full-screen map: outside, facing its doors.
+  - Textures made from photos of a real hangar.
+  - Small, large and extra large hangars (A318/Learjet, A321, A380) are built too, ready for airport expansions and swapping a hangar.
+
 ## Android version (Babylon edition, `Airline-Manager-Pro-Babylon/`)
 - Last release: 0.4.7 (the control tower at site A in airport mode, quick places in the full-screen map). Note: 0.4.7 bumped only `app.config.json`; `game/app.config.json` still says 0.4.6/114, so bump both to the next version together. Before it, 0.4.6 (walk anywhere in the world, vegetation and ground detail, rain/snow curtains, VIP charter flights,
   ATC radio, own SIDs/STARs for BIAP, the clickable sky map, terrain-aware AI aircraft). 0.4.6 was published without a

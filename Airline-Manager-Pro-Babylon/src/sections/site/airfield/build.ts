@@ -251,7 +251,7 @@ function makeMarks(sc, parent, low) {
   field(rec, P, s, { marks: true, planes: false });
   const toM = (p) => [p[0] / s, -p[1] / s];
   // black contrast borders under the thin yellow and red lines on the cargo apron's light concrete
-  const onConc = (p) => (p[0] > 176 && p[0] < 644 && p[1] > Y.KY - 26 && p[1] < AF.cargoBuilding.y0);
+  const onConc = (p) => (p[0] > AF.hangarApron.x0 && p[0] < 644 && p[1] > Y.KY - 26 && p[1] < AF.cargoBuilding.y0);
   const extra = []; for (const op of rec.ops) if (op.k === 'S' && (op.col === '#FFD34D' || op.col === '#FF4A3D') && op.w / s <= 0.35) { const mid = toM(op.pts[Math.floor(op.pts.length / 2)]); if (onConc(mid)) extra.push(Object.assign({}, op, { col: '#101010', w: op.w + 0.2 * s })); }
   rec.ops = extra.concat(rec.ops);
   // the texts: packed into one atlas first

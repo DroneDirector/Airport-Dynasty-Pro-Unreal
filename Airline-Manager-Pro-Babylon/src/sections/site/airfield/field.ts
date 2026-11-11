@@ -20,7 +20,7 @@ export const field = (x, P, s, o) => {
     x.lineCap = 'butt'; x.lineJoin = 'round'; const K = (c) => o.pal ? (o.pal[c] || '#000000') : c === 'RWY' || c === 'TAP' ? paveC : c === 'STOP' ? '#4A4F55' : c, PV = !o.marks;
     // aprons (concrete)
     // the terminal apron is asphalt (as the taxiways), the cargo apron concrete
-    if (PV) { rect(-150, TL.PN, 382, Y.TY + 28, K('TAP')); rect(252, 54, 352, TL.PN + 1, K('TAP')); rect(176, Y.KY - 26, 644, AF.cargoBuilding.y0, K(concC)); }
+    if (PV) { rect(-150, TL.PN, 382, Y.TY + 28, K('TAP')); rect(252, 54, 352, TL.PN + 1, K('TAP')); rect(176, Y.KY - 26, 644, AF.cargoBuilding.y0, K(concC)); { const h = AF.hangarApron; rect(h.x0, h.y0, h.x1, h.y1, K(concC)); } }
     // junctions: every link's two ends, with the half-widths of the pavement it meets
     const RE = R.w / 2 + R.sh, RF = 28;
     const JN = []; for (const t of AF.taxiways.filter(q => q.kind === 'link')) { const [a, b] = t.pts; for (const [e, o] of [[a, b], [b, a]]) { if (t.corner && e === a) continue; const onR = e[1] === R.y, onLane = e[1] === Y.TY || e[1] === Y.KY;
@@ -131,6 +131,9 @@ export const field = (x, P, s, o) => {
     { const r = TL.roof; x.beginPath(); for (let i = 0; i <= 50; i++) { const xx = r.x0 + (r.x1 - r.x0) * i / 50, q = P(xx, r.y0(xx)); i ? x.lineTo(q[0], q[1]) : x.moveTo(q[0], q[1]); } const q1 = P(r.x1, r.y1), q2 = P(r.x0, r.y1); x.lineTo(q1[0], q1[1]); x.lineTo(q2[0], q2[1]); x.closePath(); x.fillStyle = 'rgba(232,199,122,.55)'; x.fill(); x.strokeStyle = gold; x.lineWidth = Math.max(2, 0.3 * s); x.stroke(); }
     { const m = P(18, 15); x.beginPath(); x.ellipse(m[0], m[1], 16.5 * s, 13 * s, 0, 0, 7); x.fillStyle = '#7B6AA8'; x.fill(); x.strokeStyle = '#CDBEFF'; x.stroke(); }
     { const cb = AF.cargoBuilding; blk(cb.x0, cb.y0, cb.x1, cb.y1); }
+    // the hangars: the hall and its crew annex (west side, at the back), and each one's lead-in line from K to its door
+    for (const h of AF.hangars) { const z = AF.HANGAR_SIZES[h.size], y0 = h.y + z.lip; blk(h.x - z.w / 2, y0, h.x + z.w / 2, y0 + z.d); blk(h.x - z.w / 2 - 13, y0 + z.d - 32.4, h.x - z.w / 2, y0 + z.d);
+      line([[h.x, Y.KY], [h.x, h.y]], gold, Math.max(1.5, 0.15 * s)); }
     // runway guard lights and signs
     for (const h of AF.holds) for (const [gx, gy] of h.guard) { const p = P(gx, gy); x.fillStyle = '#FFC400'; x.beginPath(); x.arc(p[0], p[1], Math.max(5, 0.8 * s), 0, 7); x.fill(); }
     for (const g of AF.signs) { const p = P(g.x, g.y); const wpx = Math.max(10, (g.kind === 'mandatory' ? 4.5 : 4) * s), hpx = Math.max(8, 1.6 * s); x.fillStyle = g.kind === 'mandatory' ? red : gold; x.fillRect(p[0] - wpx / 2, p[1] - hpx / 2, wpx, hpx); x.strokeStyle = '#000'; x.lineWidth = 1.5; x.strokeRect(p[0] - wpx / 2, p[1] - hpx / 2, wpx, hpx); }

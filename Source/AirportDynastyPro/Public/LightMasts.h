@@ -1,4 +1,4 @@
-// The apron light masts: one in front of each of the 8 gates, on the side away from where the jetways turn (owner's
+// The apron light masts: one in front of each of the 8 gates and two in front of each hangar (at its front corners), on the side away from where the jetways turn (owner's
 // layout, 2026-11-10), 30 m galvanised masts with 8 LED floodlights and a striped guardrail round the foot
 // (Art/LightMast, Tools/set_light_mast.py). Placed as instances (one draw for all 8): the mast itself with Nanite, its
 // thin parts (cables, the lightning rod, U-bolts) without. Lit as real aprons are: a light sensor switches them on at
@@ -20,7 +20,7 @@ public:
 	void Build();
 	virtual void Tick(float Dt) override;
 
-	/** Where they stand, in the terminal plan's metres (x along the building, z out onto the apron). */
+	/** Where they stand, in the terminal plan's metres (x along the building, z out onto the apron): the gates' and the hangars'. */
 	static const TArray<FVector2D>& Spots();
 	/** How far the beams show in the haze, metres (Settings' slider, 60-500; the haze's own reach). */
 	static float BeamDistance;

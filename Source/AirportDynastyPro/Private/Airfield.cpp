@@ -56,8 +56,20 @@ bool FAirfieldData::Load()
 	for (const TSharedPtr<FJsonValue>& V : R->GetArrayField(TEXT("aprons")))
 	{
 		const TSharedPtr<FJsonObject> O = V->AsObject();
-		Aprons.Add({N(O, TEXT("x0")), N(O, TEXT("y0")), N(O, TEXT("x1")), N(O, TEXT("y1"))});
+		FRect A{N(O, TEXT("x0")), N(O, TEXT("y0")), N(O, TEXT("x1")), N(O, TEXT("y1"))};
+		O->TryGetStringField(TEXT("id"), A.Id);
+		Aprons.Add(A);
 	}
+	const TArray<TSharedPtr<FJsonValue>>* Hs = nullptr;
+	if (R->TryGetArrayField(TEXT("hangars"), Hs))
+		for (const TSharedPtr<FJsonValue>& V : *Hs)
+		{
+			const TSharedPtr<FJsonObject> O = V->AsObject();
+			FHangarSite H;
+			O->TryGetStringField(TEXT("id"), H.Id); O->TryGetStringField(TEXT("size"), H.Size);
+			H.X = N(O, TEXT("x")); H.Y = N(O, TEXT("y")); O->TryGetBoolField(TEXT("open"), H.bOpen);
+			Hangars.Add(H);
+		}
 	const TSharedPtr<FJsonObject> B = R->GetObjectField(TEXT("boundary")), C = R->GetObjectField(TEXT("cargoBuilding"));
 	Boundary = {N(B, TEXT("x0")), N(B, TEXT("y0")), N(B, TEXT("x1")), N(B, TEXT("y1"))};
 	Cargo = {N(C, TEXT("x0")), N(C, TEXT("y0")), N(C, TEXT("x1")), N(C, TEXT("y1"))};
@@ -118,12 +130,10 @@ bool AAirfield::Build(bool bModelSite)
 	// the grass over the whole airport, levelled to the airport's elevation (the globe's own ground meets it at the edge)
 	Slab("grass", D.Boundary.X0, D.Boundary.Y0, D.Boundary.X1, D.Boundary.Y1, -0.6f, -0.08f);
 	// landside in front of the terminal: the kerb, the road and the car park
-	if (!bModelSite)
-	{
-		Slab("asphalt", -160, -170, 392, -0.5f, -0.6f, -0.05f);
-		// the aprons (concrete)
-		for (const FAirfieldData::FRect& A : D.Aprons) Slab("apron", A.X0, A.Y0, A.X1, A.Y1, -0.6f, -0.04f);
-	}
+	if (!bModelSite) Slab("asphalt", -160, -170, 392, -0.5f, -0.6f, -0.05f);
+	// the aprons (concrete); with the Babylon model only those away from the terminal (it has the terminal's own)
+	for (const FAirfieldData::FRect& A : D.Aprons)
+		if (!bModelSite || !(A.Id == TEXT("APRON-T") || A.Id == TEXT("APRON-9"))) Slab("apron", A.X0, A.Y0, A.X1, A.Y1, -0.6f, -0.04f);
 	// the taxiways: shoulders, pavement and the yellow centre line
 	for (const FAirfieldData::FTwy& T : D.Taxiways)
 		for (int32 i = 0; i + 1 < T.Pts.Num(); ++i)
@@ -174,6 +184,10 @@ bool AAirfield::Build(bool bModelSite)
 	// the stands' lead-in lines on the apron (the terminal's own stands already have theirs)
 	for (const FAirfieldData::FStand& S : D.Stands)
 		if (S.bCargo || S.Id == TEXT("STAND-9")) Strip("yellow", FVector2f(S.X, S.Nose), FVector2f(S.X, S.Nose - S.Dir * (S.Len + 20)), 0.3f, -0.02f, 0.01f);
+	// each hangar's lead-in line: from taxilane K straight to the apron's edge on the hangar's centre line, where the
+	// hangar's own line carries on into the hall (whatever its size, its centre line is this line)
+	if (const FAirfieldData::FTwy* K = D.Find(TEXT("K")))
+		for (const FAirfieldData::FHangarSite& H : D.Hangars) Strip("yellow", FVector2f(H.X, K->Pts[0].Y), FVector2f(H.X, H.Y), 0.3f, -0.02f, 0.01f);
 	// the cargo building
 	Slab("liftClad", D.Cargo.X0, D.Cargo.Y0, D.Cargo.X1, D.Cargo.Y1, 0, 18);
 	UE_LOG(LogTemp, Log, TEXT("Airfield built: %d taxiways, %d stands"), D.Taxiways.Num(), D.Stands.Num());
