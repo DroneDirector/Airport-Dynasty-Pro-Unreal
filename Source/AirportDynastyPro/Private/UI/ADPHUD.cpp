@@ -1493,6 +1493,17 @@ void AADPHUD::Tick(float Dt)
 			const FStep HangarSteps[] = {
 				{40.f, [&]() { if (bGame) ToggleGame(); Sun(13.f); GoHangar(0); if (APlayerController* P = GetOwningPlayerController()) P->ConsoleCommand(TEXT("r.HighResScreenshotDelay 12")); }},
 				{58.f, [&]() { Shot(TEXT("Hangar_Day_Outside1")); }},
+				// (the ground's layers at a few airfield spots: every surface straight down, its height in plan metres)
+				{58.5f, [&]() { for (const FVector2D& Pt : { FVector2D(-280, 1150), FVector2D(-280, 1086), FVector2D(-530, 990), FVector2D(0, 906), FVector2D(800, 906), FVector2D(800, 700) }) {
+					TArray<FHitResult> Hits; FCollisionQueryParams Q(SCENE_QUERY_STAT(ADPLayers), true); const FVector Top = FTerminalPlan::ToWorld(Pt.X, 300.f, Pt.Y), Bot = FTerminalPlan::ToWorld(Pt.X, -30.f, Pt.Y);
+					FHitResult H; FVector From = Top; FString L;
+					for (int32 n = 0; n < 6 && GetWorld()->LineTraceSingleByChannel(H, From, Bot, ECC_Visibility, Q); ++n) { L += FString::Printf(TEXT(" | %s %.2f m"), H.GetActor() ? *H.GetActor()->GetClass()->GetName() : TEXT("-"), H.ImpactPoint.Z / 100.f); Q.AddIgnoredComponent(H.GetComponent()); From = H.ImpactPoint + FVector(0, 0, 1.f); }
+					ADP_LOG(TEXT("Ground layers at plan (%.0f, %.0f):%s"), Pt.X, Pt.Y, *L); } }},
+				// (what lies under you in front of the hangar: the first thing straight down, its part and material, in the log)
+				{59.f, [&]() { if (APawn* P = GetOwningPawn()) { FCollisionQueryParams Q(SCENE_QUERY_STAT(ADPGround), true, P); TArray<FHitResult> Hits;
+					const FVector At = P->GetActorLocation(); GetWorld()->LineTraceMultiByChannel(Hits, At + FVector(0, 0, 50.f), At - FVector(0, 0, 3000.f), ECC_Visibility, Q);
+					for (const FHitResult& H : Hits) ADP_LOG(TEXT("Under the hangar apron spot: %s / %s, material %s, %.1f cm below the feet"), H.GetActor() ? *H.GetActor()->GetName() : TEXT("-"), H.GetComponent() ? *H.GetComponent()->GetName() : TEXT("-"),
+						H.GetComponent() && Cast<UPrimitiveComponent>(H.GetComponent())->GetMaterial(0) ? *Cast<UPrimitiveComponent>(H.GetComponent())->GetMaterial(0)->GetName() : TEXT("-"), (At.Z - P->GetSimpleCollisionHalfHeight() - H.ImpactPoint.Z)); } }},
 				{60.f, [&]() { GoHangar(Two); }},
 				{68.f, [&]() { Shot(TEXT("Hangar_Day_Outside2")); }},
 				{70.f, [&]() { GoHangar(0, 1); }},

@@ -18,7 +18,7 @@ at = unreal.AssetToolsHelpers.get_asset_tools()
 SETS = {
     'Clad':       (1.5, 1.5, 0.82, 0.42, 0.25, 1.0),
     'Liner':      (1.0, 1.0, 0.86, 0.6, 0.0, 0.6),
-    'Floor':      (6.0, 6.0, 1.0, 0.28, 0.0, 0.5),
+    'Floor':      (6.0, 6.0, 1.0, 0.55, 0.0, 0.5),   # satin: glossier, it showed only the sky's blue and hid the concrete
     'Asphalt':    (4.0, 4.0, 1.0, 0.9, 0.0, 0.8),
     'Wood':       (0.8, 0.8, 0.95, 0.45, 0.0, 0.4),
     'Slats':      (1.2, 2.4, 0.9, 0.45, 0.5, 1.0),

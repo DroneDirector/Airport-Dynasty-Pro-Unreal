@@ -21,6 +21,12 @@
 #include "Interfaces/IHttpResponse.h"
 #include "Misc/ConfigCacheIni.h"
 #include "CesiumUrlTemplateRasterOverlay.h"
+#include "CesiumCartographicPolygon.h"
+#include "CesiumPolygonRasterOverlay.h"
+#include "TerminalPlan.h"
+#include "Components/PrimitiveComponent.h"
+#include "GameFramework/Pawn.h"
+#include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
 
 #pragma region Placing
@@ -84,6 +90,30 @@ void AGlobe::Build(const FAirfieldData& F)
 			Tiles->SetMaterial(Water);
 	}
 	else Tiles->SetTilesetSource(ETilesetSource::FromEllipsoid);
+
+	// the terrain cut away inside the airfield (owner, 2026-11-11): its coarse tiles stood up to 0.8 m over the airfield's
+	// own ground and hid the taxiways, the runway and the hangar apron under the black sand. Inside the boundary the
+	// airfield's own surfaces are the ground (its grass under everything, the aprons, taxiways and runway on it)
+	if (bTerrain && Ground >= 0 && !FParse::Param(FCommandLine::Get(), TEXT("NoAirfieldCut")))
+	{
+		const auto& B = F.Boundary;
+		Airfield = FBox2D(FVector2D(FMath::Min(B.X0, B.X1), FMath::Min(B.Y0, B.Y1)), FVector2D(FMath::Max(B.X0, B.X1), FMath::Max(B.Y0, B.Y1)));
+		TArray<FVector> Corners;
+		for (const FVector2D& C : { FVector2D(B.X0, B.Y0), FVector2D(B.X1, B.Y0), FVector2D(B.X1, B.Y1), FVector2D(B.X0, B.Y1) })
+			Corners.Add(G->TransformUnrealPositionToLongitudeLatitudeHeight(FTerminalPlan::ToWorld(C.X, 0.f, C.Y)));
+		if (ACesiumCartographicPolygon* Poly = W->SpawnActor<ACesiumCartographicPolygon>(FVector::ZeroVector, FRotator::ZeroRotator, P))
+		{
+			Poly->SetPolygonPoints(ECesiumCoordinateReferenceSystem::LongitudeLatitudeHeight, Corners);
+			UCesiumPolygonRasterOverlay* Cut = NewObject<UCesiumPolygonRasterOverlay>(Tiles, TEXT("AirfieldCut"));
+			Cut->MaterialLayerKey = TEXT("Clipping");
+			Cut->Polygons.Add(Poly);
+			Cut->ExcludeSelectedTiles = true;
+			Tiles->AddInstanceComponent(Cut);
+			Cut->RegisterComponent();
+			ADP_LOG(TEXT("Globe: the terrain cut away over the airfield (%.0f x %.0f m)"), Airfield.GetSize().X, Airfield.GetSize().Y);
+		}
+		else ADP_ERROR(TEXT("Globe: the airfield's cut could not be made: the terrain stays over the airfield"));
+	}
 
 	// the sea round the airport, meeting the real coastline, at sea level: with the shipped terrain, the airport's
 	// ground height less its height above the sea; on the smooth globe, just above it
@@ -229,6 +259,34 @@ void AGlobe::SetImagery(int32 S)
 	Imagery->RegisterComponent();
 	Earth->AddInstanceComponent(Imagery);
 	ShownSource = S;
+}
+
+#pragma endregion
+
+#pragma region The airfield ground
+
+AGlobe::AGlobe()
+{
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.TickInterval = 0.5f;
+}
+
+void AGlobe::Tick(float Dt)
+{
+	Super::Tick(Dt);
+	// inside the airfield you stand on its own ground: the (cut away, unseen) terrain lets you through there; outside it,
+	// and anywhere else in the world, the terrain is the ground
+	if (!Earth || !Airfield.bIsValid) return;
+	const APawn* P = UGameplayStatics::GetPlayerPawn(this, 0);
+	if (!P) return;
+	const FVector L = P->GetActorLocation();
+	const bool bInside = Airfield.IsInside(FVector2D(L.X / 100.0, -L.Y / 100.0));
+	const ECollisionResponse R = bInside ? ECR_Ignore : ECR_Block;
+	Earth->BodyInstance.SetResponseToChannel(ECC_Pawn, R);
+	TArray<UPrimitiveComponent*> Parts; Earth->GetComponents(Parts);
+	for (UPrimitiveComponent* C : Parts)
+		if (C && C->GetCollisionResponseToChannel(ECC_Pawn) != R) C->SetCollisionResponseToChannel(ECC_Pawn, R);
+	if (PawnOnTerrain != int32(!bInside)) { PawnOnTerrain = int32(!bInside); ADP_LOG(TEXT("Globe: you walk on %s"), bInside ? TEXT("the airfield's own ground") : TEXT("the terrain")); }
 }
 
 #pragma endregion

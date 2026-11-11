@@ -23,7 +23,13 @@ class AIRPORTDYNASTYPRO_API AGlobe : public AActor
 	void SetImagery(int32 S);
 	void Probe(int32 S);
 
+	/** The airfield's boundary (plan metres): the terrain is cut away inside it, its own ground is the airfield's. */
+	FBox2D Airfield = FBox2D(ForceInit);
+	int32 PawnOnTerrain = -1;
+
 public:
+	AGlobe();
+	virtual void Tick(float Dt) override;
 	/** Places the globe under the airport. */
 	void Build(const FAirfieldData& Field);
 

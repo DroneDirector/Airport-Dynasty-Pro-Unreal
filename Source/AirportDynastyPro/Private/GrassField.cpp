@@ -81,6 +81,9 @@ bool AGrassField::GroundAt(float X, float Y, float& Z) const
 {
 	FHitResult H;
 	FCollisionQueryParams Q(SCENE_QUERY_STAT(GrassLook), true, this);   // complex: the globe's terrain has only its own shape to hit
+	// (inside the airfield the terrain is cut away: the grass grows on the airfield's own grass there)
+	if (!bAway && Field.IsInside(FVector2D(X, Y)))
+		for (TActorIterator<ACesium3DTileset> It(GetWorld()); It; ++It) Q.AddIgnoredActor(*It);
 	if (!GetWorld()->LineTraceSingleByChannel(H, FVector(X, Y, 30000.f), FVector(X, Y, -5000.f), ECC_Visibility, Q) || !IsGrass(H)) return false;
 	Z = H.ImpactPoint.Z;
 	return true;
