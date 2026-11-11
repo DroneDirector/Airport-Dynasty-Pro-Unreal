@@ -14,6 +14,9 @@ import { buildLounge } from '../../Airline-Manager-Pro-Babylon/src/sections/loun
 import { buildOffice } from '../../Airline-Manager-Pro-Babylon/src/sections/office/build';
 import { buildOps, opsClock } from '../../Airline-Manager-Pro-Babylon/src/sections/ops/build';
 import { buildTraining } from '../../Airline-Manager-Pro-Babylon/src/sections/training/build';
+import { Kit as FsKit } from '../../docs/fire-station/sketch/lib';
+import { buildStation } from '../../docs/fire-station/sketch/station';
+import { buildTruck } from '../../docs/fire-station/sketch/truck';
 import { buildAirliner, setGear } from '../../Airline-Manager-Pro-Babylon/src/sections/viewer3d/airliner';
 
 const say = (s: string) => { const e = document.getElementById('log'); if (e) e.textContent += s + '\n'; fetch('/log', { method: 'POST', body: s }).catch(() => 0); };
@@ -154,6 +157,23 @@ async function run() {
     say(`Sending ${(ob.size / 1e6).toFixed(1)} MB…`);
     await fetch('/save/academy.glb', { method: 'POST', body: ob });
     await fetch('/save/academy-lights.json', { method: 'POST', body: '[]' });
+    say('DONE'); return;
+  }
+  // ?m=firestation: the airport fire station (ARFF) and its training tower as the owner's approved design sketch builds
+  // them (docs/fire-station/sketch, the photo textures in Art/FireStation), by day; the trucks apart (?m=firetruck&n=1|2)
+  if (which === 'firestation' || which === 'firetruck') {
+    const K = new FsKit(sc);
+    let name = 'firestation', lights: any[] = [];
+    if (which === 'firestation') { say('Building the fire station…'); const S = buildStation(K, false); lights = S.lights || []; }
+    else { const n = Number(new URLSearchParams(location.search).get('n') || '1'); name = 'firetruck' + n; say('Building fire truck ' + n + '…'); buildTruck(K, n, new Vector3(0, 0, 0)); }
+    await Promise.race([sc.whenReadyAsync(), new Promise(r => setTimeout(r, 30000))]);
+    uniqueNames(sc); shareMeshes(sc);
+    const g = await GLTF2Export.GLBAsync(sc, name, { shouldExportNode: (n: any) => shown(n) });
+    const ob = g.glTFFiles[name + '.glb'] as Blob;
+    say(`Sending ${(ob.size / 1e6).toFixed(1)} MB…`);
+    await fetch('/save/' + name + '.glb', { method: 'POST', body: ob });
+    const L = lights.map((l: any) => ({ name: l.name, kind: l.getClassName(), pos: l.position ? [l.position.x, l.position.y, l.position.z] : null, dir: l.direction ? [l.direction.x, l.direction.y, l.direction.z] : null, color: l.diffuse ? [l.diffuse.r, l.diffuse.g, l.diffuse.b] : null, intensity: l.intensity, range: l.range }));
+    await fetch('/save/' + name + '-lights.json', { method: 'POST', body: JSON.stringify(L, null, 1) });
     say('DONE'); return;
   }
   if (which === 'lounge') {

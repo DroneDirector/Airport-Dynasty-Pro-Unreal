@@ -40,6 +40,8 @@ createServer((req, res) => {
   }
   if (url === '/' || url === '/index.html') { res.setHeader('Content-Type', 'text/html'); return res.end(page); }
   if (url === '/export.js') { res.setHeader('Content-Type', 'text/javascript'); return res.end(readFileSync(join(here, 'dist/export.js'))); }
+  // the fire station sketch's textures (docs/fire-station/sketch/lib.ts loads them as tex/<file>): Art/FireStation
+  if (url.startsWith('/tex/')) { const t = join(here, '../../Art/FireStation', url.slice(5)); if (existsSync(t)) { res.setHeader('Content-Type', 'image/png'); return res.end(readFileSync(t)); } }
   const f = normalize(join(www, url));
   if (f.startsWith(normalize(www)) && existsSync(f) && statSync(f).isFile()) { res.setHeader('Content-Type', types[extname(f)] || 'application/octet-stream'); return res.end(readFileSync(f)); }
   res.statusCode = 404; res.end();

@@ -20,6 +20,7 @@
 #include "BabylonModel.h"
 #include "LightMasts.h"
 #include "Offices.h"
+#include "FireStation.h"
 #include "TowerADC.h"
 #include "Hangar.h"
 #include "Misc/Paths.h"
@@ -68,6 +69,8 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 				Model->Place(TEXT("Terminal"));
 			// the old offices' things in the terminal's offices (yours with your pet, as chosen in the game)
 			{ FString Pet = TEXT("dog"); GConfig->GetString(TEXT("ADP.Office"), TEXT("Pet"), Pet, GGameUserSettingsIni); ADPOffices::Place(W, Pet); }
+			// the airport fire station, its training tower and its two crash tenders (FireStation.h)
+			ADPFireStation::Place(W);
 		if (!bBabylon)
 		{
 			if (ATerminalBuilder* Terminal = W->SpawnActor<ATerminalBuilder>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Terminal->Build();

@@ -135,6 +135,9 @@ public:
 	 *  looking straight at its doors; with bInside, in the hall looking out; with bLounge, in its annex's crew lounge.
 	 *  One shortcut per hangar in the full-screen map, so every hangar added later has one. */
 	void GoHangar(int32 I, int32 Where = 0);
+	/** The fire station's places in the full map: 0 outside straight on, 1 outside from the side, 2 inside by the trucks. */
+	void GoFireStation(int32 Where);
+	bool bFireOnMap = false;
 	bool bHangarsOnMap = false;
 	TArray<FVector2D> HangarAt;      // each hangar's centre line and the apron edge (plan metres)
 	TArray<FString> HangarSize;

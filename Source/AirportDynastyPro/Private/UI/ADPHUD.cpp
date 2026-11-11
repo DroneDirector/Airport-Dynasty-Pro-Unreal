@@ -6,6 +6,7 @@
 #include "Camera/CameraActor.h"
 #include "TowerADC.h"
 #include "Hangar.h"
+#include "FireStation.h"
 #include "Airfield.h"
 #include "UI/SHoloMap.h"
 #include "UI/SProgressText.h"
@@ -226,6 +227,10 @@ void AADPHUD::BeginPlay()
 				const FString Label = FString::Printf(TEXT("HANGAR %d (%s): OUTSIDE"), i + 1, *FHangarSpec::Get(H.Size).Name);
 				HangarList->AddSlot().AutoHeight().Padding(0, 0, 0, i + 1 == Field.Hangars.Num() ? 10 : 4)[Button(Label, [this, i]() { GoHangar(i); })];
 			}
+		// the fire station's: outside straight on, outside from the side, inside the apparatus hall by the trucks
+		HangarList->AddSlot().AutoHeight().Padding(0, 0, 0, 4)[Button(TEXT("FIRE STATION: OUTSIDE"), [this]() { GoFireStation(0); })];
+		HangarList->AddSlot().AutoHeight().Padding(0, 0, 0, 4)[Button(TEXT("FIRE STATION: FROM THE SIDE"), [this]() { GoFireStation(1); })];
+		HangarList->AddSlot().AutoHeight().Padding(0, 0, 0, 10)[Button(TEXT("FIRE STATION: INSIDE, BY THE TRUCKS"), [this]() { GoFireStation(2); })];
 	}
 
 	Root = SNew(SOverlay).Visibility(EVisibility::SelfHitTestInvisible)
@@ -1104,6 +1109,17 @@ void AADPHUD::GoTowerBalcony() { GoTo(FVector(ATowerADC::AtX + 6.4f, ATowerADC::
 void AADPHUD::GoTowerFoot() { GoTo(FVector(ATowerADC::AtX - 14.f, 0.f, ATowerADC::AtZ + 3.f), FVector(ATowerADC::AtX, 14.f, ATowerADC::AtZ)); }
 // a hangar: on the apron 38 m out on its lead-in line, looking straight at its doors (the whole front in view); inside,
 // at the back of the hall looking out through the door; or in its annex's crew lounge
+void AADPHUD::GoFireStation(int32 Where)
+{
+	// the approved sketch's own views (docs/fire-station/sketch/render.ts: bays, hero, inside), sketch metres to plan
+	auto P = [](float Sx, float Sz) { return ADPFireStation::ToPlan(Sx, Sz); };
+	FVector2D Eye, At; float AtH = 5.f;
+	if (Where == 1) { Eye = P(-17.f, -21.f); At = P(9.f, 3.f); AtH = 5.f; }
+	else if (Where == 2) { Eye = P(53.f, 21.f); At = P(ADPFireStation::BayX(1.5f), 6.f); AtH = 2.2f; }
+	else { Eye = P(40.f, -36.f); At = P(40.f, 0.f); AtH = 5.2f; }
+	GoTo(FVector(Eye.X, 0.f, Eye.Y), FVector(At.X, AtH, At.Y));
+}
+
 void AADPHUD::GoHangar(int32 I, int32 Where)
 {
 	if (!HangarAt.IsValidIndex(I)) return;
@@ -1196,6 +1212,8 @@ void AADPHUD::Tick(float Dt)
 		bWasGame = bGame;
 		TickLoading(Dt);
 		TickDevice(Dt);
+		// the fire station on the holographic map
+		if (!bFireOnMap && HoloMap.IsValid()) { TArray<FVector4f> W, D; ADPFireStation::MapOutline(W, D); HoloMap->AddHangar(TEXT("FIRE STATION"), W, D); bFireOnMap = true; }
 		// the hangars on the holographic map, once they stand (H1, H2, H3 from west to east, as the airfield lists them)
 		if (!bHangarsOnMap && HoloMap.IsValid())
 		{
@@ -1626,6 +1644,31 @@ void AADPHUD::Tick(float Dt)
 			for (const FStep& St : DSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
 		}
+		// -UIFireStation: the fire station in pictures, at twice the window's size as the game draws it: straight on, from the
+		// side, inside by the trucks; at dusk outside; then the full map zoomed out with it on
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")))
+		{
+			// (the forecourt faces north, to the taxiway: in the low winter sun it stands in its own shadow; a June evening, the sun
+			// in the west-north-west, lights it)
+			auto Sun = [](float H, int32 Day = -1) { ASunClock::DayOverride = Day; ASunClock::HourOverride = H; ASunClock::Theme = 1; ASunClock::Refresh(); };
+			auto Shot = [this](const TCHAR* Name) { if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 2 filename=%s"), Name)); };
+			struct FStep { float At; TFunction<void()> Do; };
+			const FStep FSteps[] = {
+				{40.f, [&]() { if (bGame) ToggleGame(); Sun(21.f, 172); GoFireStation(0); if (APlayerController* P = GetOwningPlayerController()) P->ConsoleCommand(TEXT("r.HighResScreenshotDelay 12")); }},
+				{58.f, [&]() { Shot(TEXT("Fire_Day_Front")); }},
+				{60.f, [&]() { GoFireStation(1); }},
+				{68.f, [&]() { Shot(TEXT("Fire_Day_Side")); }},
+				{70.f, [&]() { GoFireStation(2); }},
+				{78.f, [&]() { Shot(TEXT("Fire_Inside_Trucks")); }},
+				{80.f, [&]() { Sun(17.6f); GoFireStation(0); }},
+				{90.f, [&]() { Shot(TEXT("Fire_Dusk_Front")); }},
+				{92.f, [&]() { Sun(21.f, 172); if (HoloMap.IsValid() && !HoloMap->IsFull()) ToggleMap(); if (HoloMap.IsValid()) HoloMap->ShowAll(); }},
+				{95.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Fire_Map"), true, false); }},
+				{98.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+			};
+			for (const FStep& St : FSteps)
+				if (Before < St.At && ShotClock >= St.At) St.Do();
+		}
 		// -UILoading: from the menus into the airport, the loading screen pictured while it works and when it's done
 		if (FParse::Param(FCommandLine::Get(), TEXT("UILoading")))
 		{
@@ -1802,7 +1845,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

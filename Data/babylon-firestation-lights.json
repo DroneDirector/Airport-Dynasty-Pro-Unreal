@@ -1,0 +1,104 @@
+[
+ {
+  "name": "hl",
+  "kind": "PointLight",
+  "pos": [
+   22.5,
+   8.3,
+   7
+  ],
+  "dir": null,
+  "color": [
+   1,
+   0.9647058823529412,
+   0.9019607843137255
+  ],
+  "intensity": 0.9,
+  "range": 22
+ },
+ {
+  "name": "hl",
+  "kind": "PointLight",
+  "pos": [
+   22.5,
+   8.3,
+   18
+  ],
+  "dir": null,
+  "color": [
+   1,
+   0.9647058823529412,
+   0.9019607843137255
+  ],
+  "intensity": 0.9,
+  "range": 22
+ },
+ {
+  "name": "hl",
+  "kind": "PointLight",
+  "pos": [
+   38.5,
+   8.3,
+   7
+  ],
+  "dir": null,
+  "color": [
+   1,
+   0.9647058823529412,
+   0.9019607843137255
+  ],
+  "intensity": 0.9,
+  "range": 22
+ },
+ {
+  "name": "hl",
+  "kind": "PointLight",
+  "pos": [
+   38.5,
+   8.3,
+   18
+  ],
+  "dir": null,
+  "color": [
+   1,
+   0.9647058823529412,
+   0.9019607843137255
+  ],
+  "intensity": 0.9,
+  "range": 22
+ },
+ {
+  "name": "hl",
+  "kind": "PointLight",
+  "pos": [
+   54.5,
+   8.3,
+   7
+  ],
+  "dir": null,
+  "color": [
+   1,
+   0.9647058823529412,
+   0.9019607843137255
+  ],
+  "intensity": 0.9,
+  "range": 22
+ },
+ {
+  "name": "hl",
+  "kind": "PointLight",
+  "pos": [
+   54.5,
+   8.3,
+   18
+  ],
+  "dir": null,
+  "color": [
+   1,
+   0.9647058823529412,
+   0.9019607843137255
+  ],
+  "intensity": 0.9,
+  "range": 22
+ }
+]
