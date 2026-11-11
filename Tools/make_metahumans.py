@@ -1,0 +1,230 @@
+# The airport's people as MetaHumans (owner, 2026-11-11: bodies for the AI people - passengers, the crews, pilots -
+# randomised in how they look, made in Unreal with MetaHumans; only the owner signs in, once, for Epic's cloud rig and
+# textures; players never do). Each person starts from one of Epic's preset faces (MetaHuman Creator Core Data) and is
+# made their own: the face's shape nudged at random, their own height and build, skin tone, freckles, eye colour, hair,
+# brows, beard, and an outfit in their role's colours; then the cloud rig (joints only: crowds) and textures, and the
+# optimized game build at a crowd quality. Everything from a seed, so the same list always gives the same people.
+#
+#   UnrealEditor-Cmd.exe AirportDynastyPro.uproject -ExecutePythonScript="<abs path>/Tools/make_metahumans.py inspect"
+#       lists the presets, the wardrobe (hair, brows, beards, outfits) and their colour parameters -> Saved/MetaHumans.json
+#   ... "make_metahumans.py build [count] [first]"
+#       builds the people (count of them, from number first; already built ones are kept), in /Game/People
+import json
+import os
+import random
+import sys
+import unreal
+
+args = [a for a in sys.argv[1:] if not a.startswith('-')]
+MODE = args[0] if args else 'inspect'
+COUNT = int(args[1]) if len(args) > 1 else 40
+FIRST = int(args[2]) if len(args) > 2 else 0
+OUT = '/Game/People'
+SAVED = os.path.join(unreal.Paths.project_saved_dir(), 'MetaHumans.json')
+ar = unreal.AssetRegistryHelpers.get_asset_registry()
+eal = unreal.EditorAssetLibrary
+mhs = unreal.get_editor_subsystem(unreal.MetaHumanCharacterEditorSubsystem)
+
+
+def log(m):
+    unreal.log('ADP_MH: ' + m)
+
+
+def assets_under(path, cls=None):
+    out = []
+    for p in eal.list_assets(path, recursive=True, include_folder=False):
+        a = unreal.load_asset(p)
+        if a is not None and (cls is None or isinstance(a, cls)):
+            out.append(a)
+    return out
+
+
+# ---- what the library holds
+def inspect():
+    info = {'presets': [], 'wardrobe': {}}
+    if os.path.exists(SAVED):   # keep the hand-made list of which presets are women
+        try:
+            info['female'] = json.load(open(SAVED)).get('female', [])
+        except Exception:
+            pass
+    for c in assets_under('/MetaHumanCharacter/Optional/Presets', unreal.MetaHumanCharacter):
+        info['presets'].append(c.get_path_name())
+    for slot, path in (('Hair', 'Grooms/Bindings/Hair'), ('Eyebrows', 'Grooms/Bindings/Eyebrows'), ('Beard', 'Grooms/Bindings/Beards'),
+                       ('Mustache', 'Grooms/Bindings/Mustaches'), ('Eyelashes', 'Grooms/Bindings/Eyelashes'), ('Outfits', 'Clothing')):
+        items = []
+        for p in eal.list_assets('/MetaHumanCharacter/Optional/' + path, recursive=True, include_folder=False):
+            if os.path.basename(p).split('.')[0].startswith('WI_'):
+                items.append(p.split('.')[0])
+        info['wardrobe'][slot] = items
+    with open(SAVED, 'w') as f:
+        json.dump(info, f, indent=1)
+    log('%d presets; wardrobe %s -> %s' % (len(info['presets']), {k: len(v) for k, v in info['wardrobe'].items()}, SAVED))
+    return info
+
+
+# ---- who works and travels at the airport (owner: as in the Babylon edition: passengers, cabin crew, pilots, ground
+# crew, security, the fire crew), how many of each in a list of 40, and the colours of what they wear
+ROLES = [
+    # role, share, outfit colours (primary, secondary)
+    ('passenger', 18, None),
+    ('cabin', 6, ((0.02, 0.05, 0.16), (0.85, 0.85, 0.88))),       # navy jacket, white blouse / shirt
+    ('pilot', 5, ((0.92, 0.93, 0.95), (0.02, 0.02, 0.03))),       # white shirt, black trousers
+    ('ground', 5, ((1.0, 0.42, 0.0), (0.05, 0.06, 0.08))),         # hi-vis orange, dark trousers
+    ('security', 3, ((0.03, 0.03, 0.035), (0.6, 0.62, 0.66))),     # black, grey
+    ('fire', 3, ((0.04, 0.05, 0.09), (0.9, 0.7, 0.05))),           # dark navy, yellow trim
+]
+PASSENGER_COLOURS = [(0.55, 0.08, 0.06), (0.05, 0.2, 0.45), (0.1, 0.3, 0.12), (0.7, 0.62, 0.45), (0.15, 0.15, 0.17), (0.8, 0.8, 0.78),
+                     (0.45, 0.25, 0.1), (0.35, 0.05, 0.3), (0.6, 0.45, 0.05), (0.2, 0.35, 0.5)]
+
+
+def role_of(i):
+    n = i % 40
+    for role, share, cols in ROLES:
+        if n < share:
+            return role, cols
+        n -= share
+    return 'passenger', None
+
+
+def person(i):
+    """Everything about person i, decided from the seed."""
+    rng = random.Random(20261111 + i * 7919)
+    role, cols = role_of(i)
+    female = rng.random() < (0.55 if role == 'cabin' else 0.35 if role in ('pilot', 'ground', 'fire', 'security') else 0.5)
+    age = rng.choice([22, 28, 34, 41, 48, 55, 63, 72]) if role == 'passenger' else rng.choice([24, 29, 35, 42, 50, 57])
+    height = rng.gauss(166, 6.5) if female else rng.gauss(179, 7)
+    build = rng.choice(['slim', 'average', 'average', 'sturdy', 'heavy'] if role == 'passenger' else ['slim', 'average', 'average', 'sturdy'])
+    if not cols:
+        cols = (rng.choice(PASSENGER_COLOURS), rng.choice(PASSENGER_COLOURS))
+    return {
+        'i': i, 'role': role, 'female': female, 'age': age, 'height': round(height, 1), 'build': build,
+        'skin_u': round(rng.uniform(0.05, 0.95), 3), 'skin_v': round(rng.uniform(0.15, 0.85), 3),
+        'freckles': round(max(0.0, rng.gauss(0.08, 0.12)), 3), 'eyes': rng.choice(['brown', 'brown', 'brown', 'hazel', 'blue', 'green', 'grey']),
+        'hair_melanin': round(min(1.0, max(0.0, rng.gauss(0.55, 0.3))), 3), 'grey': round(max(0.0, (age - 40) / 40.0) * rng.uniform(0.4, 1.0), 3),
+        'beard': (not female) and rng.random() < 0.35, 'colours': cols, 'face_seed': rng.randrange(1 << 30), 'pick': rng.randrange(1 << 30),
+    }
+
+
+# ---- making one
+def make(spec, info):
+    name = 'MH_%03d_%s' % (spec['i'], spec['role'])
+    path = OUT + '/' + name
+    if eal.does_asset_exist(path):
+        log(name + ' already made')
+        return
+    rng = random.Random(spec['pick'])
+    presets = info['presets']
+    if not presets:
+        unreal.log_error('ADP_MH: no presets: is MetaHuman Creator Core Data installed?')
+        return
+    # the starting face: a preset of this person's sex (Saved/MetaHumans.json's 'female' list, filled once from the
+    # presets' looks), then made this person's own
+    fem = set(info.get('female', []))
+    pool = [p for p in presets if (p in fem) == spec['female']] if fem else presets
+    src = (pool or presets)[rng.randrange(len(pool or presets))]
+    ch = eal.duplicate_asset(src, path)
+    if ch is None:
+        unreal.log_error('ADP_MH: could not copy ' + src)
+        return
+    if not mhs.try_add_object_to_edit(ch):
+        unreal.log_error('ADP_MH: could not edit ' + name)
+        return
+    try:
+        # the face: every landmark moved a little, smoothly (neighbours together), so no two faces are the same
+        frng = random.Random(spec['face_seed'])
+        lm = mhs.get_face_landmarks(ch)
+        if lm:
+            # a few smooth waves across the face (each a direction it pushes, a spatial frequency and a phase): nearby
+            # landmarks move together, so the face changes shape without going lumpy; a few millimetres at most
+            import math
+            waves = []
+            for _ in range(5):
+                waves.append(((frng.uniform(-1, 1), frng.uniform(-1, 1), frng.uniform(-1, 1)),
+                              (frng.uniform(-0.25, 0.25), frng.uniform(-0.25, 0.25), frng.uniform(-0.25, 0.25)),
+                              frng.uniform(0, 6.283), frng.uniform(0.12, 0.35)))
+            deltas = []
+            for v in lm:
+                dx = dy = dz = 0.0
+                for (push, freq, ph, amp) in waves:
+                    s = amp * math.sin(v.x * freq[0] + v.y * freq[1] + v.z * freq[2] + ph)
+                    dx += push[0] * s; dy += push[1] * s; dz += push[2] * s
+                deltas.append(unreal.Vector(dx, dy, dz))
+            mhs.translate_face_landmarks(ch, list(range(len(lm))), deltas)
+            mhs.commit_face_state(ch)
+        # the body: their height and build
+        cons = {str(c.name).lower().replace(' ', '_'): c for c in mhs.get_body_constraints(ch)}
+        if 'height' in cons:
+            cons['height'].is_active = True; cons['height'].target_measurement = spec['height']
+        girth = {'slim': 0.9, 'average': 1.0, 'sturdy': 1.08, 'heavy': 1.2}[spec['build']]
+        for key in ('waist', 'waist_circumference', 'belly'):
+            if key in cons:
+                c = cons[key]; c.is_active = True; c.target_measurement = c.target_measurement * girth
+        mhs.set_body_constraints(ch, list(cons.values()))
+        mhs.commit_body_state(ch)
+        # the skin
+        sk = unreal.MetaHumanCharacterSkinSettings()
+        sp = unreal.MetaHumanCharacterSkinProperties(); sp.u = spec['skin_u']; sp.v = spec['skin_v']; sp.roughness = 0.8 + 0.1 * rng.random()
+        sk.skin = sp
+        fr = unreal.MetaHumanCharacterFrecklesProperties(); fr.density = spec['freckles']; fr.strength = min(1.0, spec['freckles'] * 3)
+        sk.freckles = fr
+        mhs.commit_skin_settings(ch, sk)
+        # hair, brows, beard, outfit from the library (owner can add more later; this picks among what is there)
+        def wear(slot, keyword_ok=None):
+            items = [p for p in info['wardrobe'].get(slot, []) if keyword_ok is None or keyword_ok(p.lower())]
+            if not items:
+                return None
+            wi = unreal.load_asset(items[rng.randrange(len(items))])
+            key = ch.internal_collection.try_add_item_from_wardrobe_item(slot if slot != 'Beard' else 'Beard', wi)
+            ch.internal_collection.default_instance.try_add_slot_selection(unreal.MetaHumanPipelineSlotSelection(slot_name=slot, selected_item=key))
+            return key
+        long_ok = (lambda p: True) if spec['female'] else (lambda p: '_l_' not in p or rng.random() < 0.1)
+        hair = wear('Hair', long_ok)
+        wear('Eyebrows')
+        if spec['beard']:
+            wear('Beard')
+        outfit = wear('Outfits')
+        mhs.assemble_for_preview(character=ch)
+        # colours: the hair's darkness and grey, the outfit in the role's colours
+        def params(key):
+            return ch.internal_collection.default_instance.get_instance_parameters(item_path=unreal.MetaHumanPaletteItemPath(item_key=key)) if key else []
+        for p in params(hair):
+            if p.name == 'Melanin': p.set_float(value=spec['hair_melanin'])
+            if p.name in ('Greyness', 'Grayness', 'GreyAmount'): p.set_float(value=spec['grey'])
+        prim, sec = spec['colours']
+        for p in params(outfit):
+            n = str(p.name).lower()
+            if 'primarycolor' in n: p.set_color(value=unreal.LinearColor(prim[0], prim[1], prim[2], 1))
+            elif 'secondarycolor' in n: p.set_color(value=unreal.LinearColor(sec[0], sec[1], sec[2], 1))
+        # Epic's cloud: the face rig (joints only: lighter, for crowds) and the skin textures
+        rq = unreal.MetaHumanCharacterAutoRiggingRequestParams(); rq.blocking = True; rq.report_progress = False
+        rq.rig_type = unreal.MetaHumanRigType.JOINTS_ONLY
+        mhs.request_auto_rigging(ch, rq)
+        tq = unreal.MetaHumanCharacterTextureRequestParams(); tq.blocking = True; tq.report_progress = False
+        mhs.request_texture_sources(ch, tq)
+        # the game build: optimized, crowd quality
+        bp = unreal.MetaHumanCharacterEditorBuildParameters()
+        bp.pipeline_type = unreal.MetaHumanDefaultPipelineType.OPTIMIZED
+        bp.pipeline_quality = unreal.MetaHumanQualityLevel.MEDIUM
+        bp.absolute_build_path = OUT + '/Built'
+        bp.common_folder_path = OUT + '/Common'
+        bp.enable_wardrobe_item_validation = False
+        mhs.build_meta_human(character=ch, params=bp)
+        eal.save_loaded_asset(ch, False)
+        log('%s made: %s, %s, %d, %.0f cm, %s, from %s' % (name, spec['role'], 'woman' if spec['female'] else 'man', spec['age'], spec['height'], spec['build'], os.path.basename(src)))
+    except Exception as e:
+        unreal.log_error('ADP_MH: %s failed: %s' % (name, e))
+    finally:
+        if mhs.is_object_added_for_editing(ch):
+            mhs.remove_object_to_edit(ch)
+
+
+try:
+    info = inspect()
+    if MODE == 'build':
+        for i in range(FIRST, FIRST + COUNT):
+            make(person(i), info)
+        with open(os.path.join(unreal.Paths.project_saved_dir(), 'MetaHumanPeople.json'), 'w') as f:
+            json.dump([person(i) for i in range(FIRST, FIRST + COUNT)], f, indent=1)
+except Exception as e:
+    unreal.log_error('ADP_MH: ' + str(e))
+unreal.SystemLibrary.quit_editor()

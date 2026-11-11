@@ -10,6 +10,8 @@
 #include "Components/BoxComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/PoseableMeshComponent.h"
+#include "Components/PointLightComponent.h"
+#include "Components/SpotLightComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundAttenuation.h"
@@ -138,6 +140,23 @@ namespace
 			const float Knock = FMath::Pow(0.5f + 0.5f * float(FMath::Sin(2.0 * PI * 3.1 * S.T)), 18.f);   // a roller over a joint, three a second
 			const float V = 0.22f * float(FMath::Sin(S.Ph) + 0.45 * FMath::Sin(2 * S.Ph) + 0.2 * FMath::Sin(3 * S.Ph)) + 0.07f * S.Hp + 0.35f * Knock * S.Hp;
 			Out[I] = int16(FMath::Tanh(V * 1.4f) * 20000.f);
+			S.T += 1.0 / SndRate;
+		}
+	}
+
+	/** the reversing beeper: the classic truck alarm, about 1.1 kHz, half a second on, half a second off, its small
+	 *  horn's hard square-ish tone */
+	struct FBeepState { double T = 0.0, Ph = 0.0; };
+	void BeepFill(FBeepState& S, TArray<int16>& Out, int32 N)
+	{
+		Out.SetNumUninitialized(N);
+		for (int32 I = 0; I < N; ++I)
+		{
+			const double C = FMath::Fmod(S.T, 1.0);
+			const double Env = C < 0.5 ? FMath::Min(1.0, C / 0.008) * FMath::Min(1.0, (0.5 - C) / 0.01) : 0.0;
+			S.Ph = FMath::Fmod(S.Ph + 2.0 * PI * 1120.0 / SndRate, 2.0 * PI);
+			const double V = FMath::Sin(S.Ph) + 0.3 * FMath::Sin(3 * S.Ph) + 0.12 * FMath::Sin(5 * S.Ph);
+			Out[I] = int16(FMath::Tanh(1.6 * V) * 16000.0 * Env);
 			S.T += 1.0 / SndRate;
 		}
 	}
@@ -291,6 +310,31 @@ bool AFireTruck::Setup(const FString& ModelName)
 	};
 	NearSound = Att(150.f, 3500.f);
 	FarSound = Att(1500.f, 120000.f);
+	// the reversing lamps (Light_Reverse, either side at the back): a white beam back over the ground and the lens's
+	// own glow, both off until you reverse
+	for (const TCHAR* N : {TEXT("Light_Reverse"), TEXT("Light_Reverse.001")})
+	{
+		FTransform LT;
+		if (!Model->NodeBase(N, LT)) continue;
+		const FVector At = LT.GetLocation() + FVector(0, 12.f, 0);   // just behind the lens (the back is root +y)
+		USpotLightComponent* Sp = NewObject<USpotLightComponent>(this);
+		Sp->SetupAttachment(Model->GetModelRoot());
+		Sp->SetRelativeLocationAndRotation(At, FRotator(-25.f, 90.f, 0.f));
+		Sp->SetIntensityUnits(ELightUnits::Lumens); Sp->SetIntensity(1800.f);
+		Sp->SetOuterConeAngle(55.f); Sp->SetInnerConeAngle(30.f); Sp->SetAttenuationRadius(2200.f);
+		Sp->SetCastShadows(false); Sp->SetUseTemperature(true); Sp->SetTemperature(6000.f);
+		Sp->SetVisibility(false);
+		Sp->RegisterComponent();
+		ReverseLights.Add(Sp);
+		UPointLightComponent* Gl = NewObject<UPointLightComponent>(this);
+		Gl->SetupAttachment(Model->GetModelRoot());
+		Gl->SetRelativeLocation(LT.GetLocation() + FVector(0, 6.f, 0));
+		Gl->SetIntensityUnits(ELightUnits::Lumens); Gl->SetIntensity(60.f); Gl->SetAttenuationRadius(60.f);
+		Gl->SetCastShadows(false); Gl->SetSourceRadius(6.f);
+		Gl->SetVisibility(false);
+		Gl->RegisterComponent();
+		ReverseLights.Add(Gl);
+	}
 	// the driver's eyes: in the middle seat, looking out through the windscreen
 	DriverCam->SetWorldLocation(RX.TransformPosition(BlenderToRoot(0.f, 3.95f, 2.33f)));
 	DriverCam->SetRelativeRotation(FRotator::ZeroRotator);
@@ -452,6 +496,29 @@ void AFireTruck::FinishExit()
 	ADP_LOG(TEXT("Fire truck: you got out (%s), %.0f km/h"), *GetName(), SpeedKmh());
 }
 
+void AFireTruck::ReverseGear(bool bOn)
+{
+	if (bOn == bReverseLit || !Model) return;
+	bReverseLit = bOn;
+	for (ULocalLightComponent* L : ReverseLights) if (L) L->SetVisibility(bOn);
+	ADP_LOG(TEXT("Fire truck: reverse gear %s (%d lamps)"), bOn ? TEXT("in") : TEXT("out"), ReverseLights.Num());
+	if (bOn)
+	{
+		USoundWaveProcedural* W = NewObject<USoundWaveProcedural>(this);
+		W->SetSampleRate(SndRate); W->NumChannels = 1; W->Duration = INDEFINITELY_LOOPING_DURATION; W->bLooping = false;
+		W->SoundGroup = SOUNDGROUP_Effects;
+		TSharedPtr<FBeepState> St = MakeShared<FBeepState>();
+		W->OnSoundWaveProceduralUnderflow = FOnSoundWaveProceduralUnderflow::CreateLambda([St](USoundWaveProcedural* Wv, int32 Samples)
+		{
+			TArray<int16> Buf; BeepFill(*St, Buf, FMath::Max(Samples, SndRate / 20));
+			Wv->QueueAudio(reinterpret_cast<const uint8*>(Buf.GetData()), Buf.Num() * sizeof(int16));
+		});
+		// (the alarm sits under the rear bumper)
+		BeeperOut = UGameplayStatics::SpawnSoundAttached(W, Model->GetModelRoot(), NAME_None, BlenderToRoot(0.f, -5.9f, 0.7f), EAttachLocation::KeepRelativeOffset, false, 0.7f, 1.f, 0.f, NearSound);
+	}
+	else if (BeeperOut) { BeeperOut->Stop(); BeeperOut = nullptr; }
+}
+
 void AFireTruck::ToggleSiren()
 {
 	if (!Model) return;
@@ -609,7 +676,7 @@ void AFireTruck::Tick(float Dt)
 	if (!Model || Dt <= 0.f) return;
 	if (bExitPending)
 	{
-		InThrottle = 0.f; InBrake = 1.f; InSteer = 0.f; StopHold = 0.f;
+		InThrottle = 0.f; InBrake = 0.f; InSteer = 0.f; StopHold = 0.f;
 		if (SpeedKmh() < 4.f) StartExit();
 	}
 	else if (Seq != ESeq::None) { InThrottle = InBrake = InSteer = 0.f; }
@@ -638,6 +705,8 @@ void AFireTruck::Tick(float Dt)
 		// in at once (never through the wall), back out gently
 		Boom->TargetArmLength = Want < Boom->TargetArmLength ? Want : FMath::FInterpTo(Boom->TargetArmLength, Want, Dt, 2.f);
 	}
+	// in reverse gear the reversing lamps light and the beeper sounds (owner, 2026-11-11), until you drive forward again
+	ReverseGear(Driver && bSim && bReverse && Seq == ESeq::None);
 	// once you've got out and it stands still a while, it rests (no physics running; it stays exactly where it stopped)
 	if (bSim && !Driver) { Still = SpeedKmh() < 0.5f ? Still + Dt : 0.f; if (Still > 3.f) SetPhysics(false); }
 }
@@ -657,7 +726,8 @@ void AFireTruck::Simulate(float Dt)
 	StopHold = (InBrake > 0.1f && InThrottle < 0.1f && Vf < 0.6f) ? StopHold + Dt : 0.f;
 	if (StopHold > 0.9f) bReverse = true;
 	if (InThrottle > 0.1f && Vf > -0.6f) bReverse = false;
-	const float Drive = bReverse ? -InBrake : InThrottle, BrakeIn = bReverse ? InThrottle : InBrake;
+	// (getting out while moving: it simply brakes to a stop, whichever way it's going)
+	const float Drive = bExitPending ? 0.f : bReverse ? -InBrake : InThrottle, BrakeIn = bExitPending ? 1.f : bReverse ? InThrottle : InBrake;
 	float DriveForce = 0.f;
 	if (Drive > 0.f) DriveForce = Drive * FMath::Min(DrivePower / FMath::Max(Speed, 2.f), 0.7f * TruckMass * Gravity) * FMath::Clamp((TopSpeed - Vf) / 3.f, 0.f, 1.f);
 	else if (Drive < 0.f) DriveForce = Drive * 0.45f * TruckMass * Gravity * FMath::Clamp((ReverseTop + Vf) / 1.5f, 0.f, 1.f);

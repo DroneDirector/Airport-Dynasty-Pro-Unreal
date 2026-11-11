@@ -70,6 +70,10 @@ private:
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCameraComponent> MoveCam;    // the camera while you climb in or out
 	UPROPERTY() TObjectPtr<UPoseableMeshComponent> Rider;               // your body in and on the truck
 	UPROPERTY() TObjectPtr<UAudioComponent> SirenOut;
+	UPROPERTY() TObjectPtr<UAudioComponent> BeeperOut;                  // the reversing beeper
+	UPROPERTY() TArray<TObjectPtr<class ULocalLightComponent>> ReverseLights;
+	bool bReverseLit = false;
+	void ReverseGear(bool bOn);
 	UPROPERTY() TObjectPtr<USoundAttenuation> NearSound;
 	UPROPERTY() TObjectPtr<USoundAttenuation> FarSound;
 	FTruckDriverRig Rig;
