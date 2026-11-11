@@ -662,7 +662,7 @@ void ATowerADC::BuildRoof()
 
 void ATowerADC::BuildNightLights()
 {
-	auto Spot = [this](const FVector& At, const FRotator& Aim, float Lumens, float Outer, float Reach)
+	auto Spot = [this](const FVector& At, const FRotator& Aim, float Lumens, float Outer, float Range)
 	{
 		USpotLightComponent* L = NewObject<USpotLightComponent>(this);
 		L->SetupAttachment(Frame);
@@ -671,7 +671,7 @@ void ATowerADC::BuildNightLights()
 		L->SetIntensityUnits(ELightUnits::Lumens);
 		L->SetIntensity(Lumens);
 		L->SetOuterConeAngle(Outer); L->SetInnerConeAngle(Outer * 0.55f);
-		L->SetAttenuationRadius(Reach);
+		L->SetAttenuationRadius(Range);
 		L->SetUseTemperature(true); L->SetTemperature(3500.f);
 		L->SetCastShadows(false);
 		L->SetVisibility(false);
