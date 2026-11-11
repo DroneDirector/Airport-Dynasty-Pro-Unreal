@@ -106,7 +106,7 @@ void ALightMasts::Build()
 			L->SetSourceRadius(35.f); L->SetSourceLength(50.f);
 			L->SetCastShadows(false);
 			L->SetVolumetricScatteringIntensity(9.f);   // the beams stay visible in the haze while the ground stays soft
-			L->MaxDrawDistance = 80000.f; L->MaxDistanceFadeRange = 12000.f;
+			L->MaxDrawDistance = 60000.f; L->MaxDistanceFadeRange = 30000.f;   // far off only a faint glow: the beam fades out from 300 m to 600 m
 			L->SetVisibility(false);
 			L->RegisterComponent();
 			AddInstanceComponent(L);
@@ -126,7 +126,7 @@ void ALightMasts::Tick(float Dt)
 	Super::Tick(Dt);
 	// switched as real aprons are, by a light sensor: on at sunset (the sun at the horizon), off just after sunrise
 	// (3 degrees up; a sensor turns off at more light than it turns on at), and on all day in fog and storms (low
-	// visibility). Masts come on one after another, a second or so apart, as their circuits close.
+	// visibility). All masts at once, every lamp lit (owner, 2026-11-11: not one after another).
 	static TWeakObjectPtr<ADirectionalLight> Sun;
 	if (!Sun.IsValid()) Sun = Cast<ADirectionalLight>(UGameplayStatics::GetActorOfClass(this, ADirectionalLight::StaticClass()));
 	const float El = Sun.IsValid() ? -Sun->GetActorRotation().Pitch : 30.f;
@@ -141,7 +141,7 @@ void ALightMasts::Tick(float Dt)
 	{
 		USpotLightComponent* L = Lights[i];
 		if (!L) continue;
-		const bool bLit = bOn && Since >= LightMast[i] * 1.3f;
+		const bool bLit = bOn;
 		const float Want = bLit ? LampLumens * FMath::Max(Dark, 0.35f) : 0.f;
 		if (L->IsVisible() != bLit) { L->SetVisibility(bLit); bChanged = true; }
 		if (FMath::Abs(L->Intensity - Want) > 50.f) L->SetIntensity(Want);
@@ -151,9 +151,15 @@ void ALightMasts::Tick(float Dt)
 	// two stops less outdoors after dark (the terminal at about a quarter), the masts a little stronger to keep the
 	// apron's ground readable (their own look about 30% of before); indoors keeps its own exposure
 	const float Bias = -1.7f * (1.f - FMath::SmoothStep(-10.f, 3.f, El));
+	// the deepest shadows' small lift (ADPGameMode.cpp): neutral by day, a cool moonlit blue by night
+	const float Night = 1.f - FMath::SmoothStep(-10.f, 3.f, El);
+	const FVector4 Lift(-0.0006f * Night, 0.0002f * Night, 0.0016f * Night, 0.0045f);
 	for (TActorIterator<APostProcessVolume> It(GetWorld()); It; ++It)
-		if (It->bUnbound && It->Priority < 1.f && FMath::Abs(It->Settings.AutoExposureBias - Bias) > 0.02f)
-		{ It->Settings.bOverride_AutoExposureBias = true; It->Settings.AutoExposureBias = Bias; }
+		if (It->bUnbound && It->Priority < 1.f)
+		{
+			if (FMath::Abs(It->Settings.AutoExposureBias - Bias) > 0.02f) { It->Settings.bOverride_AutoExposureBias = true; It->Settings.AutoExposureBias = Bias; }
+			if (It->Settings.bOverride_ColorOffsetShadows && !It->Settings.ColorOffsetShadows.Equals(Lift, 1e-5f)) It->Settings.ColorOffsetShadows = Lift;
+		}
 	// the haze the beams show in: volumetric fog while the masts are lit
 	if (bChanged)
 		for (TActorIterator<AExponentialHeightFog> It(GetWorld()); It; ++It)

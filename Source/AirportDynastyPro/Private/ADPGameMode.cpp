@@ -158,6 +158,13 @@ void AADPGameMode::SpawnSkyAndLight()
 		PP->Settings.AutoExposureMinBrightness = -1.f;
 		PP->Settings.bOverride_AutoExposureMaxBrightness = true;
 		PP->Settings.AutoExposureMaxBrightness = 12.f;
+		// the darkest shadows lifted a little, nothing brighter touched (owner, 2026-11-11: nowhere pitch black; there is
+		// always some light from the sky or the moon): only the deepest tones get a small lift (LightMasts tints it cool
+		// by night)
+		PP->Settings.bOverride_ColorCorrectionShadowsMax = true;
+		PP->Settings.ColorCorrectionShadowsMax = 0.05f;
+		PP->Settings.bOverride_ColorOffsetShadows = true;
+		PP->Settings.ColorOffsetShadows = FVector4(0.f, 0.f, 0.f, 0.0045f);
 	}
 }
 
