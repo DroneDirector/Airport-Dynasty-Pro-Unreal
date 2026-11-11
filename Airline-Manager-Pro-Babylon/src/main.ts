@@ -147,7 +147,7 @@ updateInit(v => toast(`Version ${v} is ready: Settings â†’ Updates`));
 };
 // Unreal's own put-away (the legend's button, Esc when the page doesn't have the keys)
 (window as any).__ueDeviceClose = () => { if (gameEval(`typeof ueDeviceOn === 'function' && ueDeviceOn()`)) gameEval('ueDeviceClose()'); else (window as any).__ueDeviceDone(''); };
-(window as any).__ueDeviceDone = (kind: string) => { document.documentElement.classList.remove('ue-dev'); const u = ue(); if (u && u.devicedone) u.devicedone(String(kind || '')); };
+(window as any).__ueDeviceDone = (kind: string) => { document.documentElement.classList.remove('ue-dev'); (window as any).__ueBoardsNow && (window as any).__ueBoardsNow(); const u = ue(); if (u && u.devicedone) u.devicedone(String(kind || '')); };
 // and the airline for Unreal's own interface: the departures and arrivals at your airport, the airline's name and money
 if (UE_PC) {
   setInterval(() => {
@@ -160,7 +160,7 @@ if (UE_PC) {
   // over as a picture when its rows change, and every minute for the clock (the sample timetable with no game)
   let boards = { dep: [] as any[], arr: [] as any[], base: 'BIAP', live: false, at: Date.now() }, sent = '';
   const sendBoards = () => { const u = ue(); if (!u || !u.board) { if (u && u.log) u.log('no board link'); return; }
-    const sig = new Date().getMinutes() + JSON.stringify([boards.dep, boards.arr].map(l => l.map((r: any) => [r.flight, r.sched, r.exp, r.status]))); if (sig === sent) return; sent = sig;
+    const sig = new Date().getMinutes() + (gameExists() ? 'g' : '') + JSON.stringify([boards.dep, boards.arr].map(l => l.map((r: any) => [r.flight, r.sched, r.exp, r.status]))); if (sig === sent) return; sent = sig;
     for (const k of ['depwall', 'arrwall', 'deptotem', 'arrtotem', 'depwide', 'arrwide', 'opswall']) { try { u.board(k, fidsCanvas(k, boards).toDataURL('image/png').split(',')[1]); } catch (e: any) { if (u.log) u.log('board ' + k + ': ' + (e && e.message || e)); } }
     // the operations room's monitor: the game's own operations screen (the departures and the timeline of your fleet),
     // drawn for each of the three monitors' proportions (Unreal shows the one that matches your screen)
@@ -170,6 +170,8 @@ if (UE_PC) {
     // each gate's own screen: its next departure, live (the same gate the loudspeaker calls name)
     for (let g = 1; g <= 8; g++) { try { u.board('gate' + g, gateCanvas(g, boards).toDataURL('image/png').split(',')[1]); } catch (e: any) { if (u.log) u.log('gate ' + g + ': ' + (e && e.message || e)); } } };
   setInterval(sendBoards, 15000); setTimeout(sendBoards, 3000);
+  // (at once after the phone or a computer is put away: the monitor shows what was changed)
+  (window as any).__ueBoardsNow = () => { sent = ''; sendBoards(); };
   onGameFids(d => { const u = ue(); if (u && u.gamefids) u.gamefids(JSON.stringify({ base: d.base || '', dep: (d.dep || []).slice(0, 12), arr: (d.arr || []).slice(0, 12) }));
     boards = { dep: d.dep || [], arr: d.arr || [], base: String(d.base || 'BIAP'), live: true, at: Date.now() }; sendBoards(); });
 }
