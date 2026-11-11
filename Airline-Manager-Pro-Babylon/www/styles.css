@@ -466,3 +466,9 @@ body.photo-on .cab-says { display: none; }
 .ue-leave-row button { padding: 8px 14px; border-radius: 9px; border: 1px solid rgba(120, 190, 255, .35); background: #12305A; color: #EAF4FF; font-weight: 600; cursor: pointer; }
 .ue-leave-row button[data-a="yes"] { background: #7A1F2E; border-color: #C04A5C; }
 .ue-leave-row button:hover { filter: brightness(1.15); }
+
+/* The PC edition (Unreal): the phone or a computer open over Unreal's 3D room: this page and the game's frame are
+   see-through, and only the game's frame shows (it shows only the phone or the computer) */
+html.ue-dev, html.ue-dev body { background: transparent !important; }
+html.ue-dev body > *:not(.game-frame) { visibility: hidden !important; }
+html.ue-dev .game-frame { background: transparent !important; opacity: 1 !important; display: block !important; pointer-events: auto !important; }

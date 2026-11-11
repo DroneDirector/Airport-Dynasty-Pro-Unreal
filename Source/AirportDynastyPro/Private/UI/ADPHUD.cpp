@@ -199,6 +199,8 @@ void AADPHUD::BeginPlay()
 	CrashPanel = MakeCrashPanel();
 	UnstuckPanel = MakeUnstuckPanel();
 	LoadingBox = MakeLoading();
+	DeviceLegend = MakeDeviceLegend();
+	DeviceLegend->SetVisibility(EVisibility::Collapsed);
 	LoadingBox->SetVisibility(EVisibility::Collapsed);
 	UnstuckPanel->SetVisibility(EVisibility::Collapsed);
 	CrashPanel->SetVisibility(FindNewCrash() ? EVisibility::Visible : EVisibility::Collapsed);
@@ -322,6 +324,7 @@ void AADPHUD::BeginPlay()
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[CrashPanel.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[UnstuckPanel.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Fill).VAlign(VAlign_Fill)[LoadingBox.ToSharedRef()]
+		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(FMargin(24, 0, 0, 84))[DeviceLegend.ToSharedRef()]   // (above a computer's taskbar)
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
 		[
 			// the first start's question: the scan's suggestion, taken only if you say yes
@@ -417,6 +420,8 @@ void AADPHUD::BeginPlay()
 		InputComponent->BindKey(EKeys::Gamepad_FaceButton_Left, IE_Pressed, this, &AADPHUD::Interact);
 		InputComponent->BindKey(EKeys::G, IE_Pressed, this, &AADPHUD::ToggleGame);
 		InputComponent->BindKey(EKeys::E, IE_Pressed, this, &AADPHUD::Interact);
+		// (a click on the phone or a screen uses it too; the click still goes on to everything else)
+		InputComponent->BindKey(EKeys::LeftMouseButton, IE_Pressed, this, &AADPHUD::Interact).bConsumeInput = false;
 		InputComponent->BindKey(EKeys::M, IE_Pressed, this, &AADPHUD::ToggleMap);
 		InputComponent->BindKey(EKeys::Tab, IE_Pressed, this, &AADPHUD::ToggleSettings);
 		InputComponent->BindKey(EKeys::P, IE_Pressed, this, &AADPHUD::TogglePerf);
@@ -734,10 +739,13 @@ void AADPHUD::UpdateMouse()
 {
 	APlayerController* PC = GetOwningPlayerController();
 	if (!PC) return;
-	const bool bFree = bGame || bSettings || bPointer || (HoloMap.IsValid() && HoloMap->IsFull());
+	const bool bFree = bGame || bDevice || bSettings || bPointer || (HoloMap.IsValid() && HoloMap->IsFull());
 	// (Unreal counts these calls: cleared first, so the view is never left locked by an earlier one)
 	PC->ResetIgnoreLookInput();
 	if (bPointer && !bGame) PC->SetIgnoreLookInput(true);
+	// the phone or a computer up (or the phone on its way): you stay where you are, looking at it
+	PC->ResetIgnoreMoveInput();
+	if ((bDevice || PhoneDir != 0) && !bGame) { PC->SetIgnoreLookInput(true); PC->SetIgnoreMoveInput(true); }
 	PC->bShowMouseCursor = bFree;
 	if (bFree) { FInputModeGameAndUI M; M.SetHideCursorDuringCapture(false); PC->SetInputMode(M); }
 	else
@@ -879,6 +887,8 @@ void AADPHUD::OnEscape()
 {
 	// on the loading screen: straight back to the menus
 	if (bLoading) { StopLoading(); if (!bGame) ToggleGame(); return; }
+	// the phone or a computer up: put away (the page handles its own Esc while it has the keys)
+	if (bDevice || PhoneDir != 0) { PutDeviceAway(); return; }
 	// in the menus the page handles Esc itself (the Overview asks before leaving to the title screen)
 	if (bGame) return;
 	if (bHidden) { ShowUI(); return; }
@@ -968,13 +978,15 @@ void AADPHUD::Interact()
 {
 	// a screen in front of you (a desk's monitor, a timetable): the airline game on it
 	APlayerController* PC = GetOwningPlayerController();
-	if (!PC || bGame) return;
+	if (!PC || bGame || bDevice || PhoneDir != 0 || bSettings || bPointer || (HoloMap.IsValid() && HoloMap->IsFull())) return;
 	FVector Eye; FRotator Look;
 	PC->GetPlayerViewPoint(Eye, Look);
 	FHitResult Hit;
 	FCollisionQueryParams Q(SCENE_QUERY_STAT(ADPInteract), false, GetOwningPawn());
 	if (GetWorld()->LineTraceSingleByChannel(Hit, Eye, Eye + Look.Vector() * 300.f, ECC_Visibility, Q) && Hit.GetComponent())
 	{
+		// your phone, the operations monitor, your office's computer (Devices.cpp)
+		if (TryDevice(Hit)) return;
 		const FString N = Hit.GetComponent()->GetName();
 		if (N.Contains(TEXT("screenPanel")) || N.Contains(TEXT("black"))) ToggleGame();
 	}
@@ -1150,6 +1162,7 @@ void AADPHUD::Tick(float Dt)
 		if (bGame && bLoading) StopLoading();
 		bWasGame = bGame;
 		TickLoading(Dt);
+		TickDevice(Dt);
 	}
 	// while the menus fill the screen (opaque: nothing of the 3D world shows), the 3D world isn't drawn behind them, so
 	// the title screen and the menus run as smoothly as on Android (two engines drawing at once made them stutter)
@@ -1487,9 +1500,37 @@ void AADPHUD::Tick(float Dt)
 				// your pet asleep in its bed, the bowls and the football
 				{109.f, [&]() { GoTo(FVector(120.6f, 0.f, 9.4f), FVector(118.3f, 0.15f, 7.2f)); }},
 				{116.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Office1_Pet"), false, false); }},
-				{118.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+				// the operations desk and its monitor (the one for this window's shape), from the chair
+				{117.f, [&]() { GoTo(FVector(117.6f, 0.f, 28.8f), FVector(115.3f, 1.05f, 28.f)); }},
+				{124.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Ops_Desk"), false, false); }},
+				{126.f, []() { FGenericPlatformMisc::RequestExit(false); }},
 			};
 			for (const FStep& St : OSteps)
+				if (Before < St.At && ShotClock >= St.At) St.Do();
+		}
+		// -UIDevice: your phone taken up off your office's desk (on its way, its apps open), put down; the operations
+		// room's computer (its desktop and taskbar), put away
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIDevice")))
+		{
+			struct FStep { float At; TFunction<void()> Do; };
+			const FStep DSteps[] = {
+				{44.f, [&]() { if (bGame) ToggleGame(); ASunClock::HourOverride = 13.f; ASunClock::Refresh(); GoTo(FVector(117.6f, 0.f, 6.4f), FVector(115.85f, 0.8f, 5.42f)); }},
+				{50.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_PhoneOnDesk"), false, false); }},
+				{51.f, [&]() { PickPhoneNear(FTerminalPlan::ToWorld(115.85f, 0.8f, 5.42f)); }},
+				{51.3f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_PhoneLifting"), true, false); }},
+				{62.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_PhoneOpen"), true, false); }},
+				{63.f, [&]() { PutDeviceAway(); }},
+				{63.5f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_PhoneLowering"), true, false); }},
+				{66.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_PhoneBack"), false, false); }},
+				{67.f, [&]() { GoTo(FVector(117.3f, 0.4f, 29.3f), FVector(115.3f, 1.0f, 28.f)); }},
+				{72.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_OpsDesk"), true, false); }},
+				{73.f, [&]() { OpenDevice(TEXT("ops")); }},
+				{82.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_OpsComputer"), true, false); }},
+				{83.f, [&]() { PutDeviceAway(); }},
+				{86.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_OpsBack"), false, false); }},
+				{88.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+			};
+			for (const FStep& St : DSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
 		}
 		// -UILoading: from the menus into the airport, the loading screen pictured while it works and when it's done
@@ -1668,7 +1709,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

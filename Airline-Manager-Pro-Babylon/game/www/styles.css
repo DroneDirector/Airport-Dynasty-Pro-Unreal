@@ -4634,3 +4634,10 @@ html.court-over #app { visibility: hidden !important; }
 .cr-agr { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(640px, 94vw); max-height: 88vh; overflow: auto; z-index: 61; border-top: 3px solid var(--co); display: flex; flex-direction: column; gap: 10px; }
 .cr-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; } .cr-grid > div { display: flex; flex-direction: column; padding: 8px; border-radius: 10px; background: var(--bg-2); } .cr-grid small { color: var(--ink-3); font-size: 11px; }
 @media (max-width: 700px) { .cr-row { grid-template-columns: 12px 1fr 1fr; } .cr-row span:nth-child(4), .cr-row span:nth-child(5) { grid-column: span 1; } .cr-cos { grid-template-columns: 1fr; } }
+
+/* The PC edition (Unreal): the phone or a computer open over Unreal's 3D room (screens/ue-device.ts): the page is
+   see-through and only that shows */
+html.ue-dev, html.ue-dev body { background: transparent !important; }
+html.ue-dev body > *:not(.ue-dev-root) { visibility: hidden !important; }
+.ue-dev-root { position: fixed; inset: 0; z-index: 100000; }
+.ue-dev-root .ph-screen, .ue-dev-root .of-planner { position: absolute; inset: 0; }

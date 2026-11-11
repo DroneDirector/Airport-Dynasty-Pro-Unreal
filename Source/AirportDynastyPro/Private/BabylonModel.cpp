@@ -31,6 +31,7 @@ ABabylonModel::ABabylonModel()
 
 bool ABabylonModel::Place(const FString& Name)
 {
+	Model = Name;
 	const FString File = FString::Printf(TEXT("Data/babylon-%s.json"), *Name.ToLower());
 	FString Path = FPaths::Combine(FPaths::ProjectContentDir(), File);
 	if (!FPaths::FileExists(Path)) Path = FPaths::Combine(FPaths::ProjectDir(), File);
@@ -108,7 +109,13 @@ bool ABabylonModel::Place(const FString& Name)
 			}
 			// relative to the model, so its turn applies; meshes imported one per object already carry their place (Unreal's
 			// importer builds each object's position into its mesh), so they go in as they are
-			if (K) { NodeInst[I] = TPair<UInstancedStaticMeshComponent*, int32>(K, K->AddInstance(bByNode ? FTransform::Identity : World, false)); ++Placed; }
+			if (K)
+			{
+				const int32 Ix = K->AddInstance(bByNode ? FTransform::Identity : World, false);
+				NodeInst[I] = TPair<UInstancedStaticMeshComponent*, int32>(K, Ix); ++Placed;
+				FString NodeName; N->TryGetStringField(TEXT("name"), NodeName);
+				TArray<FString>& Names = InstNames.FindOrAdd(K); if (Names.Num() <= Ix) Names.SetNum(Ix + 1); Names[Ix] = NodeName;
+			}
 		}
 		const TArray<TSharedPtr<FJsonValue>>* Children;
 		if (N->TryGetArrayField(TEXT("children"), Children))
@@ -857,3 +864,9 @@ void ABabylonModel::Tick(float Dt)
 #pragma endregion
 
 #pragma endregion
+
+FString ABabylonModel::NodeAt(const UPrimitiveComponent* C, int32 Item) const
+{
+	const TArray<FString>* Names = InstNames.Find(Cast<UInstancedStaticMeshComponent>(C));
+	return Names && Names->IsValidIndex(Item) ? (*Names)[Item] : FString();
+}

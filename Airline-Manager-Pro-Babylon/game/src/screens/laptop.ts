@@ -571,4 +571,4 @@ ACTIONS['lap-app'] = el => {
   Lap.app = k; Lap.photo = ''; Lap.startOn = false; Lap.searchOn = false; Lap.startFolder = ''; LapFs.open = ''; LapFs.newDoc = false; LapFs.q = ''; Sound.tick();
   lapRender();
 };
-ACTIONS['lap-close'] = () => { if (typeof HangarRoom !== 'undefined' && HangarRoom.on && HangarRoom.overlay) { hgScreenClose(); return; } if (typeof OpsRoom !== 'undefined' && OpsRoom.on && OpsRoom.overlay) { opsScreenClose(); return; } if (typeof ofLaptopClose === 'function') ofLaptopClose(); };
+ACTIONS['lap-close'] = () => { if (typeof ueDeviceOn === 'function' && ueDeviceOn()) { ueDeviceClose(); return; } if (typeof HangarRoom !== 'undefined' && HangarRoom.on && HangarRoom.overlay) { hgScreenClose(); return; } if (typeof OpsRoom !== 'undefined' && OpsRoom.on && OpsRoom.overlay) { opsScreenClose(); return; } if (typeof ofLaptopClose === 'function') ofLaptopClose(); };

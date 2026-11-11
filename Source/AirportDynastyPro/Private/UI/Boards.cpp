@@ -31,7 +31,9 @@ void AADPHUD::OnBoard(const FString& Key, const FString& B64)
 	BoardTex.Add(Key, T);
 
 	// the screens of this kind: their material slots swapped once for a copy that shows the board
-	const FString Want = TEXT("fids-") + Key;
+	// (the operations room's monitors: the game's own operations screen, drawn for each monitor's proportions: opsmon169,
+	// opsmon219, opsmon329 on the screens MonitorScreen169... of the three kinds, OpsMonitors.h)
+	const FString Want = Key.StartsWith(TEXT("opsmon")) ? TEXT("MonitorScreen") + Key.Mid(6) : TEXT("fids-") + Key;
 	if (!BoardMats.Contains(Key) || !BoardMats[Key].Num())   // (again until the model is there)
 	{
 		TArray<TObjectPtr<UMaterialInstanceDynamic>>& L = BoardMats.Add(Key);
@@ -59,7 +61,11 @@ void AADPHUD::OnBoard(const FString& Key, const FString& B64)
 				for (int32 S = 0; S < K->GetNumMaterials(); ++S)
 				{
 					UMaterialInterface* Mat = K->GetMaterial(S);
-					if (!Mat || !Mat->GetName().StartsWith(Want)) continue;
+					if (!Mat) continue;
+					// (a material already copied to be toned down, ToneDown, is known by the one it was copied from)
+					const UMaterialInstanceDynamic* Copy = Cast<UMaterialInstanceDynamic>(Mat);
+					const UMaterialInterface* Named = Copy && Copy->Parent ? Copy->Parent.Get() : Mat;
+					if (!Named->GetName().StartsWith(Want) && !Mat->GetName().StartsWith(Want)) continue;
 					UMaterialInstanceDynamic* D = Cast<UMaterialInstanceDynamic>(Mat);
 					if (!D) { D = UMaterialInstanceDynamic::Create(Mat, this); K->SetMaterial(S, D); }
 					L.Add(D);

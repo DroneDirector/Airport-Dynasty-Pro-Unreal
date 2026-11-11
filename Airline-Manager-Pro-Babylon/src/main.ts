@@ -129,6 +129,25 @@ updateInit(v => toast(`Version ${v} is ready: Settings â†’ Updates`));
 
 // The PC version: back from Unreal's 3D to the menus (G, Y / Triangle): the title screen again, or the game where it was
 (window as any).__ueMenus = () => { if (inPlace || splashIsOpen()) return; if (gameExists()) { if (gameHidden()) gameShow(); } else splashOpen(pickPlace); };
+// The PC version: your phone and the computers in Unreal's 3D terminal (the game's screens/ue-device.ts). Unreal asks for
+// one ('phone', 'ops' or 'office'); this page and the game's frame turn see-through over Unreal's room, and the game
+// shows only that, opened as in its own rooms. Your airline is opened first if it isn't yet (the last save). When it's
+// put away the game says so here and Unreal is told (devicedone), which puts the phone back on the desk.
+(window as any).__ueDevice = (kind: string) => {
+  document.documentElement.classList.add('ue-dev');
+  if (!gameExists()) pickPlace('game:continue');
+  let tries = 0;
+  const open = () => {
+    const ready = gameEval(`typeof ueDeviceOpen === 'function' && typeof State !== 'undefined' && !!State.companies`);
+    if (ready) { gameEval(`ueDeviceOpen(${JSON.stringify(kind)})`); return; }
+    if (++tries > 150) { (window as any).__ueDeviceDone(kind); return; }   // 30 seconds and no airline: back to the room
+    setTimeout(open, 200);
+  };
+  open();
+};
+// Unreal's own put-away (the legend's button, Esc when the page doesn't have the keys)
+(window as any).__ueDeviceClose = () => { if (gameEval(`typeof ueDeviceOn === 'function' && ueDeviceOn()`)) gameEval('ueDeviceClose()'); else (window as any).__ueDeviceDone(''); };
+(window as any).__ueDeviceDone = (kind: string) => { document.documentElement.classList.remove('ue-dev'); const u = ue(); if (u && u.devicedone) u.devicedone(String(kind || '')); };
 // and the airline for Unreal's own interface: the departures and arrivals at your airport, the airline's name and money
 if (UE_PC) {
   setInterval(() => {
@@ -143,6 +162,11 @@ if (UE_PC) {
   const sendBoards = () => { const u = ue(); if (!u || !u.board) { if (u && u.log) u.log('no board link'); return; }
     const sig = new Date().getMinutes() + JSON.stringify([boards.dep, boards.arr].map(l => l.map((r: any) => [r.flight, r.sched, r.exp, r.status]))); if (sig === sent) return; sent = sig;
     for (const k of ['depwall', 'arrwall', 'deptotem', 'arrtotem', 'depwide', 'arrwide', 'opswall']) { try { u.board(k, fidsCanvas(k, boards).toDataURL('image/png').split(',')[1]); } catch (e: any) { if (u.log) u.log('board ' + k + ': ' + (e && e.message || e)); } }
+    // the operations room's monitor: the game's own operations screen (the departures and the timeline of your fleet),
+    // drawn for each of the three monitors' proportions (Unreal shows the one that matches your screen)
+    if (gameExists()) for (const [k, w, h] of [['169', 1600, 900], ['219', 1600, 686], ['329', 1600, 450]] as [string, number, number][]) {
+      try { const b64 = gameEval(`(function(){try{var c=document.createElement('canvas');c.width=${w};c.height=${h};opsMonitorDraw({monCv:c,monTex:{}});return c.toDataURL('image/png').split(',')[1];}catch(e){return '';}})()`);
+        if (b64) u.board('opsmon' + k, String(b64)); } catch (e: any) { if (u.log) u.log('opsmon ' + k + ': ' + (e && e.message || e)); } }
     // each gate's own screen: its next departure, live (the same gate the loudspeaker calls name)
     for (let g = 1; g <= 8; g++) { try { u.board('gate' + g, gateCanvas(g, boards).toDataURL('image/png').split(',')[1]); } catch (e: any) { if (u.log) u.log('gate ' + g + ': ' + (e && e.message || e)); } } };
   setInterval(sendBoards, 15000); setTimeout(sendBoards, 3000);
@@ -206,7 +230,7 @@ if (UE_PC) {
   (window as any).__ueGameEsc = (w: any) => {
     w.addEventListener('keydown', (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || document.querySelector('.ue-leave')) return;
-      if (w.document.querySelector('.layer, .modal-back, .sheet-back, .settings-pop, .ct-modal:not([hidden])')) return;   // the game closes it
+      if (w.document.querySelector('.layer, .modal-back, .sheet-back, .settings-pop, .ct-modal:not([hidden]), .ue-dev-root')) return;   // the game closes it (and the phone or computer puts itself away)
       let screen = 'ops'; try { screen = String(w.eval('State.screen')); } catch (err) { /* the Overview */ }
       e.preventDefault(); e.stopImmediatePropagation();
       if (screen !== 'ops') gameSend({ ampb: 'go', screen: 'ops' }); else leaveAsk();

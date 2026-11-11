@@ -111,3 +111,8 @@ void UADPBridge::GameFids(const FString& Json)
 {
 	if (AADPHUD* H = Hud.Get()) H->OnGameFids(Json);
 }
+
+void UADPBridge::DeviceDone(const FString& Kind)
+{
+	if (AADPHUD* H = Hud.Get()) H->DeviceDone(Kind);
+}

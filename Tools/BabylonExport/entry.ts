@@ -56,9 +56,30 @@ function bakePet(sc: Scene) {
 // Unreal names each mesh after its node, and two of the same name come out under made-up names the placing can't find:
 // the second and later of a name get a number (pet-bowl, pet-bowl-2). Click boxes (invisible, but drawn at no opacity) stay out.
 function uniqueNames(sc: Scene) {
+  // what you click in the Babylon edition (the laptop, the planner monitor, the phone...) goes in front of the name, so
+  // the game knows what was clicked: "laptop~b-131"
+  for (const m of sc.meshes as any[]) if (m.metadata && m.metadata.act && m.name.indexOf('~') < 0) m.name = m.metadata.act + '~' + m.name;
   const seen = new Map<string, number>();
   // (the groups too: a mesh named as the group it sits in comes out under a made-up name as well)
   for (const m of [...sc.transformNodes, ...sc.meshes] as any[]) { const k = (seen.get(m.name) || 0) + 1; seen.set(m.name, k); if (k > 1) m.name = m.name + '-' + k; }
+}
+// Every copy of the same thing (the same shape and the same material: the Academy's desks and chairs, their legs, the
+// pet's bowls) becomes an instance of the first, so glTF shares the mesh and Unreal places one mesh many times (the
+// owner's rule: instanced wherever possible). Where each one stands is kept exactly.
+function shareMeshes(sc: Scene) {
+  const first = new Map<string, any>(); let n = 0;
+  for (const m of sc.meshes.slice() as any[]) {
+    if (m.getClassName() !== 'Mesh' || !m.geometry || !m.material || m.hasThinInstances || m.skeleton || m.getChildren().length) continue;
+    const p = m.getVerticesData('position'), ix = m.getIndices(); if (!p || !ix) continue;
+    let h = 0; for (let i = 0; i < p.length; i++) h = (h * 31 + Math.round(p[i] * 10000)) | 0;
+    const k = `${m.material.uniqueId}|${p.length}|${ix.length}|${h}`, f = first.get(k);
+    if (!f) { first.set(k, m); continue; }
+    const inst = f.createInstance(m.name); inst.parent = m.parent; inst.position.copyFrom(m.position);
+    if (m.rotationQuaternion) inst.rotationQuaternion = m.rotationQuaternion.clone(); else inst.rotation.copyFrom(m.rotation);
+    inst.scaling.copyFrom(m.scaling); inst.metadata = m.metadata; inst.isVisible = m.isVisible; inst.visibility = m.visibility;
+    m.dispose(); n++;
+  }
+  say(`${n} copies made instances of ${first.size} meshes`);
 }
 const shown = (n: any) => !(n instanceof Camera) && !(n instanceof Light) && n.isEnabled(false) && (n.isVisible === undefined || n.isVisible) && n.visibility !== 0;
 async function run() {
@@ -91,7 +112,7 @@ async function run() {
       pet: kind === 'none' ? undefined : { kind, name: kind === 'dog' ? 'Max' : 'Luna', coat: 0, white: false, size: 'm', ears: kind === 'dog' ? 'floppy' : 'pointy', bed: 0, food: 1, water: 1 } };
     buildOffice(sc, D, (p, s) => say(`${p}% ${s}`));
     await sc.whenReadyAsync();
-    bakePet(sc); uniqueNames(sc);
+    bakePet(sc); uniqueNames(sc); shareMeshes(sc);
     const shell = sc.getTransformNodeByName('shell');
     const inShell = (n: any) => { for (let q = n; q; q = q.parent) if (q === shell) return true; return false; };
     const name = kind === 'none' ? 'office' : 'office' + kind;
@@ -109,7 +130,7 @@ async function run() {
     say('Building the operations room…');
     // (its red clock's picture is drawn while the game runs: drawn once here, or the scene never reports ready)
     opsClock(buildOps(sc, '#2C8CFF', (p, s) => say(`${p}% ${s}`)));
-    await sc.whenReadyAsync(); uniqueNames(sc);
+    await sc.whenReadyAsync(); uniqueNames(sc); shareMeshes(sc);
     const shell = sc.getTransformNodeByName('shell');
     const inShell = (n: any) => { for (let q = n; q; q = q.parent) if (q === shell) return true; return false; };
     const g = await GLTF2Export.GLBAsync(sc, 'ops', { shouldExportNode: (n: any) => shown(n) && !inShell(n) });
@@ -125,7 +146,7 @@ async function run() {
   if (which === 'academy') {
     say('Building the Academy…');
     buildTraining(sc, 'Your Airline', '#1C2A4A', '#3FD3E6', { students: [] });
-    await sc.whenReadyAsync(); uniqueNames(sc);
+    await sc.whenReadyAsync(); uniqueNames(sc); shareMeshes(sc);
     const shell = sc.getTransformNodeByName('shell');
     const out = (n: any) => { for (let q = n; q; q = q.parent) if (q === shell || (q.metadata && q.metadata.act === 'trn')) return true; return false; };
     const g = await GLTF2Export.GLBAsync(sc, 'academy', { shouldExportNode: (n: any) => shown(n) && !out(n) });

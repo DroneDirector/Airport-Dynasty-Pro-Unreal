@@ -8,13 +8,20 @@ import unreal
 args = [a for a in sys.argv[1:] if not a.startswith('-')]
 # --assets: only the meshes, materials and textures (the game places the model itself from Data/babylon-<name>.json)
 assets_only = '--assets' in sys.argv
+# --shared: the meshes as the glTF shares them (one asset per glTF mesh, <name>_mesh_<n>, at its own origin), so every
+# copy of a desk or a chair is an instance of one mesh (the owner's rule: instanced wherever possible). The scene import
+# that does this goes into a scratch level, thrown away after; the game places the model from Data/babylon-<name>.json
+shared = '--shared' in sys.argv
+SCRATCH = '/Game/ADPScratch/ImportScratch'
 src = args[0] if args else 'F:/ADP-Export/terminal.glb'
 name = args[1] if len(args) > 1 else 'Terminal'
 dest = '/Game/Babylon/' + name
 eal = unreal.EditorAssetLibrary
 
 try:
-    if not assets_only:
+    if shared:
+        unreal.get_editor_subsystem(unreal.LevelEditorSubsystem).new_level(SCRATCH)
+    elif not assets_only:
         unreal.EditorLoadingAndSavingUtils.load_map('/Game/Maps/Airport')
     # the import into the level: the glTF scene's objects as actors, their meshes, materials and textures as assets
     manager = unreal.InterchangeManager.get_interchange_manager_scripted()
@@ -23,11 +30,11 @@ try:
     source = unreal.InterchangeManager.create_source_data(src)
     world = unreal.EditorLevelLibrary.get_editor_world()
     try:
-        if not assets_only:
+        if not assets_only or shared:
             params.import_level = world.get_editor_property('persistent_level')
     except Exception as e:
         unreal.log_warning('ADP_IMPORT: import_level ' + str(e))
-    if assets_only:
+    if assets_only and not shared:
         manager.import_asset(dest, source, params)
     else:
         manager.import_scene(dest, source, params)
@@ -49,7 +56,13 @@ try:
             count += 1
     unreal.log('ADP_IMPORT: %d meshes, Nanite on' % count)
     unreal.EditorLoadingAndSavingUtils.save_dirty_packages(True, True)
-    if not assets_only:
+    if shared:
+        # the scratch level and its actors go; the meshes, materials and textures stay
+        unreal.EditorLoadingAndSavingUtils.load_map('/Engine/Maps/Entry')
+        for p in ('/Game/ADPScratch',):
+            if eal.does_directory_exist(p):
+                eal.delete_directory(p)
+    elif not assets_only:
         unreal.EditorLoadingAndSavingUtils.save_map(unreal.EditorLevelLibrary.get_editor_world(), '/Game/Maps/Airport')
     unreal.log('ADP_IMPORT: saved')
 except Exception as e:

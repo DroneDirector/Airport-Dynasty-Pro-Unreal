@@ -63,7 +63,9 @@ export function buildOps(sc: Scene, color: string, progress: (p: number, s: stri
   const DZ = 1.25;
   box(2.2, 0.045, 0.85, oak, 0, 0.75, DZ); for (const sx of [-1, 1]) { box(0.06, 0.71, 0.7, black, sx * 1.0, 0.355, DZ); box(0.08, 0.02, 0.76, black, sx * 1.0, 0.01, DZ); }
   box(1.94, 0.3, 0.02, black, 0, 0.55, DZ + 0.4); block(-1.12, DZ - 0.45, 1.12, DZ + 0.45);
-  // the ultra-wide curved monitor (49 inch), on a stand; its picture is drawn by the game
+  // the ultra-wide curved monitor (49 inch), on a stand; its picture is drawn by the game (with the room: the PC edition
+  // has its own monitors, chosen by the player's screen)
+  inShell = true;
   const MR = 1.25, MWd = 1.08, MHt = 0.32, ML = MWd / MR, MY = 1.12, mz = DZ + 0.15;
   const MWpx = IS_PC ? 4096 : 2560, mon = new DynamicTexture(nm('mon'), { width: MWpx, height: Math.round(MWpx * MHt / MWd) }, sc, true);
   { const x = mon.getContext() as CanvasRenderingContext2D; x.fillStyle = '#0C1A2B'; x.fillRect(0, 0, MWpx, MWpx); x.fillStyle = '#9FB6CC'; x.font = `600 ${Math.round(MWpx / 40)}px Arial`; x.fillText('Loading your schedule…', MWpx * 0.04, MWpx * 0.08); mon.update(true); }
@@ -71,10 +73,11 @@ export function buildOps(sc: Scene, color: string, progress: (p: number, s: stri
     for (let i = 0; i <= seg; i++) { const a = -ML / 2 + ML * i / seg; for (const yy of [0, 1]) { pos.push(Math.sin(a) * MR, MY - MHt / 2 + yy * MHt, mz - MR + Math.cos(a) * MR); uv.push(i / seg, yy); } }
     for (let i = 0; i < seg; i++) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
     const m = new Mesh(nm('screen'), sc), vd = new VertexData(), nr: number[] = []; vd.positions = pos; vd.uvs = uv; vd.indices = idx; VertexData.ComputeNormals(pos, idx, nr); vd.normals = nr; vd.applyToMesh(m);
-    const sm = new StandardMaterial(nm('screenM'), sc); sm.diffuseTexture = mon; sm.emissiveTexture = mon; sm.emissiveColor = Color3.White(); sm.disableLighting = true; sm.backFaceCulling = false; m.material = sm; m.parent = root; m.metadata = { act: 'monitor' };
+    const sm = new StandardMaterial(nm('screenM'), sc); sm.diffuseTexture = mon; sm.emissiveTexture = mon; sm.emissiveColor = Color3.White(); sm.disableLighting = true; sm.backFaceCulling = false; m.material = sm; m.parent = shell; m.metadata = { act: 'monitor' };
     const bz = m.clone(nm('bezel')); bz.material = black; bz.position.z = 0.012; bz.scaling.set(1.02, 1.08, 1); bz.metadata = { act: 'monitor' };
   }
   box(0.08, 0.32, 0.06, black, 0, 0.92, mz + 0.06); box(0.32, 0.015, 0.22, black, 0, 0.78, mz + 0.06);
+  inShell = false;
   box(0.46, 0.02, 0.15, black, -0.05, 0.783, DZ - 0.2); box(0.065, 0.025, 0.11, black, 0.35, 0.785, DZ - 0.18);
   // archive folders stacked on the desk
   const fcols = ['#2A4A6B', '#7A2E22', '#3A5A32', '#8C6A2A', '#3A3A44'], r = P.rng(4);

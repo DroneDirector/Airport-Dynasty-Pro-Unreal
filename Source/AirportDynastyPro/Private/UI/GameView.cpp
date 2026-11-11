@@ -143,7 +143,9 @@ TSharedRef<SWidget> ADPGameView::Make(UObject* Bridge, TSharedPtr<SWebBrowser>* 
 		.ShowControls(false)
 		.ShowAddressBar(false)
 		.ShowErrorMessage(true)
-		.SupportsTransparency(false)
+		// see-through where the page is (the phone or a computer over the 3D room: Devices.cpp); the menus themselves are
+		// opaque, their page has its own background
+		.SupportsTransparency(true)
 		.BackgroundColor(FColor(5, 3, 12))
 		.BrowserFrameRate(60)
 		// the page's own messages and errors go to the game's log (Saved/Logs), to find problems in the menus

@@ -38,12 +38,18 @@ public:
 	/** The model's lights as Babylon has them (Data/babylon-<name>-lights.json: points and spots, their colours, strengths
 	 *  and reach), put in the same places. */
 	void AddLights(const FString& Name);
+	/** The model's name as placed (Office, Ops, Smartphone, Monitor329...). */
+	FString Model;
+	/** Which of the model's objects an instance is (its node's name, e.g. "laptop~b-131": what you click; the Babylon
+	 *  edition's own click name before the ~ where it has one). Empty when unknown. */
+	FString NodeAt(const UPrimitiveComponent* C, int32 Item) const;
 	/** Where a sliding door is in the world (for the door check, -UIDoor); false when the model has none. */
 	bool SlidingDoorAt(FVector& Out) const;
 
 private:
 	UPROPERTY() TObjectPtr<USceneComponent> Root;
 	UPROPERTY() TMap<FString, TObjectPtr<UInstancedStaticMeshComponent>> ByMesh;
+	TMap<const UInstancedStaticMeshComponent*, TArray<FString>> InstNames;
 
 	#pragma region Doors
 	// The model's doors move as in the Babylon edition (terminal/doors.ts): sliding leaves part, swing leaves turn on their

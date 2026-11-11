@@ -67,6 +67,29 @@ public:
 	void StopLoading();
 	void TickLoading(float Dt);
 	TSharedPtr<SWidget> LoadingBox;
+	/** Your phone and the computers in the rooms (Devices.cpp, owner 2026-11-11): the game's own phone (its apps) and
+	 *  desktop (the taskbar, the operations screens as apps) over the 3D room. Opened from the room (E, the controller's
+	 *  X, or a click on it), put away with Esc or the legend's button; the phone is picked up off the desk and put back. */
+public:
+	void OpenDevice(const FString& Kind);
+	/** Takes up the phone nearest a point (the device test, -UIDevice). */
+	void PickPhoneNear(const FVector& At);
+	void DeviceDone(const FString& Kind);
+private:
+	bool TryDevice(const FHitResult& Hit);
+	void TickDevice(float Dt);
+	void PutDeviceAway();
+	void MakeGameView();
+	TSharedRef<SWidget> MakeDeviceLegend();
+	TSharedPtr<SWidget> DeviceLegend;
+	FString DeviceKind, DevicePending;
+	bool bDevice = false;
+	/** The phone you pick up: on the desk (0) to held up in front of you (1); moving up (+1), down (-1) or still (0). */
+	TWeakObjectPtr<class ABabylonModel> Phone;
+	FTransform PhoneHome;
+	float PhoneK = 0.f;
+	int32 PhoneDir = 0;
+public:
 	bool bLoading = false, bWasGame = true;
 	float LoadT = 0, LoadFrac = 0;
 	FString LoadStep;

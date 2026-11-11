@@ -52,4 +52,6 @@ public:
 	UFUNCTION() void CheckUpdates();
 	UFUNCTION() void InstallUpdates();
 	UFUNCTION() void Board(const FString& Key, const FString& B64);
+	/** The phone or a computer opened over the 3D room has been put away (ue.adp.devicedone(kind)). */
+	UFUNCTION() void DeviceDone(const FString& Kind);
 };

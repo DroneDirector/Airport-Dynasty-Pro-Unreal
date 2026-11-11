@@ -172,6 +172,7 @@
     "src/screens/gifts.ts",
     "src/screens/museum3d.ts",
     "src/screens/phone-apps.ts",
+    "src/screens/ue-device.ts",
     "src/screens/lap-files.ts",
     "src/screens/phone-talk.ts",
     "src/data/stars.ts",
