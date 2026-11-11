@@ -96,6 +96,13 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 - [ ] RULE kept: floors only on floor faces, never walls or stairs; the tower is "ATC" on signs, never ADC
 
 ## 4. Playing: walking, menus, controls
+- [ ] **Loading screen into airport mode** (owner, 2026-11-11): going into the 3D airport (from the quick shortcut or
+      the Overview's Terminal / Airport site) shows a loading screen that really waits for everything: the terrain and
+      its pictures round the airport, the terminal's meshes and textures, the grass, the lights, the shaders compiled.
+      A progress bar (the same style as the updater's: percentage centred in the bar, changing colour where the fill
+      passes) and a line saying what it is doing ("Loading the terrain…", "Compiling shaders…"); it stays until all
+      is done, so nothing pops in afterwards. Esc on it goes straight back to the main menu. Skipped in test runs
+      (-UIShot and the other test switches) so testing doesn't wait
 - [ ] **Holographic map stays open after a quick view** (owner, 2026-11-10): picking a quick view (e.g. Gate 4) moves
       you there but the full map closes by itself; it must stay open (showing you at the new spot) until you minimise
       it yourself (GoTo currently closes it: AADPHUD::GoTo, "if (HoloMap->IsFull()) ToggleMap()")

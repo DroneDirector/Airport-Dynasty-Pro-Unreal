@@ -45,7 +45,8 @@ export function buildDoors(K: Kit): DoorObj[] {
     } else if (d.type === 'open') { /* nothing to stop you */ }
     // the room's name over the door, on the public side
     const a = room(d.a), other = d.b; if (a && PUBLIC.test(other) && !/^J-/.test(other)) {
-      const name = a.name.replace(/\s*\(.*$/, ''), side = sideOf(d);
+      // seen from inside the hall the entrances are the way out (owner, 2026-11-10): Exit West, Main Exit, Exit East
+      const base = a.name.replace(/\s*\(.*$/, ''), name = /^F1-ENTR-/.test(a.id) ? (base === 'Main Entrance' ? 'Main Exit' : base.replace(/^Entrance/, 'Exit')) : base, side = sideOf(d);
       const p = MeshBuilder.CreatePlane(K.nm('sign'), { width: Math.min(4.2, Math.max(1.8, name.length * 0.2)), height: 0.42 }, sc);
       p.material = K.picture(signC(name, '#14202E', '#F2F4F7', 1024, 104, '700 64px Arial, sans-serif'), 1); p.parent = node; p.position.set(0, h + 0.42, side * 0.2); p.rotation.y = side > 0 ? Math.PI : 0; p.metadata = node.metadata;
     }
