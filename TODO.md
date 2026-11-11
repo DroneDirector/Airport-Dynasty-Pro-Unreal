@@ -1,10 +1,10 @@
 # To-do: Airport Dynasty Pro (PC, Unreal; and the Android edition)
 
-The one complete list of what is still open, updated 2026-11-10 (after 0.14.4). ROADMAP.md keeps the history and the
+The one complete list of what is still open, updated 2026-11-11 (after 0.14.7). ROADMAP.md keeps the history and the
 details behind each item. Marks: [ ] open, [~] started or partly done, [?] built earlier but the owner should check it.
 
 ## 1. Distribution: updates, installer, selling
-- [ ] **Updater shows its speed and a progress bar** (owner, 2026-11-10): while updating the game, the download speed
+- [x] **Updater shows its speed and a progress bar** (owner, 2026-11-10): while updating the game, the download speed
       (MB/s) and a progress bar; the same for the world's terrain download. The percentage sits IN the bar, centred,
       readable all the time: one colour over the empty part, another where the filled part has reached it (the text
       changes colour exactly where the bar's edge passes, so it's clear both before and after the bar gets there)
@@ -37,7 +37,7 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       and the terrain solid all round you (committed, not released yet)
 - [x] Walk anywhere on Earth: Settings, 12 places or a latitude and longitude, put down on the real ground, the airport
       set aside, back with one button (committed, not released yet)
-- [ ] Release the two items above (next build)
+- [x] Release the two items above (next build)
 - [ ] Rock, sand and snow as ground detail on the real terrain (now only the pictures show them; grass is the only 3D layer)
 - [ ] The land cover / relief in the 2D map (the game's menus)
 - [ ] The ocean, rest of the plan: Unreal's Water system round the player, swell with the wind and weather, waves
@@ -46,42 +46,42 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       your own 3D body swimming
 - [ ] Distance and speed: World Partition, HLOD for distant buildings and terrain, fading instead of popping; a
       performance pass for every card (the game only suggests settings, never forces)
-- [ ] Terrain from far away: thin steps / walls along some edges (where Iceland's or the Faroes' own model meets the world's,
+- [x] Terrain from far away: thin steps / walls along some edges (where Iceland's or the Faroes' own model meets the world's,
       or tile seams); check and smooth in MakeTerrain.py
-- [ ] Walk anywhere: the ground stays blurry for about half a minute in a new place while the picture tiles load (show a
+- [x] Walk anywhere: the ground stays blurry for about half a minute in a new place while the picture tiles load (show a
       short loading note, or wait for the sharp tiles before putting you down)
 
 ## 3. The airport and buildings
-- [ ] **Entrance signs seen from inside say "Exit"** (owner, 2026-11-10): the signs over the three entrances on the
+- [x] **Entrance signs seen from inside say "Exit"** (owner, 2026-11-10): the signs over the three entrances on the
       inside of the main hall read EXIT WEST, MAIN EXIT and EXIT EAST (outside they stay ENTRANCE WEST, MAIN ENTRANCE,
       ENTRANCE EAST). Check where the Babylon model draws the inner signs' text (sign textures / labels) and change only
       the inside ones; Android edition the same, so both match
-- [ ] **Entrance doors' glass too bright** (owner, 2026-11-10): the inner sliding doors (door 2) of the Main Entrance,
+- [x] **Entrance doors' glass too bright** (owner, 2026-11-10): the inner sliding doors (door 2) of the Main Entrance,
       Entrance West and Entrance East, and the revolving doors, are far too bright. Give their glass the same material
       and brightness as the big glass windows on the terminal's back (airside) facade, so all the terminal's glass
       matches
-- [ ] **Entrance canopies' undersides glow** (owner, 2026-11-10): outside the main hall, the ceiling under the canopy
+- [x] **Entrance canopies' undersides glow** (owner, 2026-11-10): outside the main hall, the ceiling under the canopy
       above Entrance West, the Main Entrance and Entrance East is far too bright (probably a glowing / lamp material,
       or the ToneDown pass missing it). They must not be light sources: give them the same kind of material as the
       kerb's departures sign (same material, not its texture: matte, non-glowing); find which Babylon mesh and
       material it is first
-- [ ] **Terminal far too bright seen from the apron** (owner, 2026-11-10): standing on the apron looking at the passenger
+- [x] **Terminal far too bright seen from the apron** (owner, 2026-11-10): standing on the apron looking at the passenger
       terminal (with the light masts lit), the building is washed out white. Bring its brightness down to about 25% of
       now (what lights it from outside: the masts' beams on its face, its glowing windows and lamps, the auto-exposure
       when you stand in the dark) and the light masts' own light to about 30% of now; check by day too, and that the
       ground stays readable
-- [ ] **ATC tower entrance canopy lights** (owner, 2026-11-10): five or six small recessed spotlights in the underside of
+- [x] **ATC tower entrance canopy lights** (owner, 2026-11-10): five or six small recessed spotlights in the underside of
       the little roof over the tower's main entrance, lighting the doorway and the ground round it; on at night (the
       same sensor as the masts and the balcony lights)
-- [ ] **ATC tower balcony downlights** (owner, 2026-11-10): small recessed spotlights all round the underside of the
+- [x] **ATC tower balcony downlights** (owner, 2026-11-10): small recessed spotlights all round the underside of the
       cab's roof overhang, shining down onto the balcony walkway, on at night (with the masts' sensor). Their light
       must not show on the cab's windows (no reflections or glare on the glass: lights excluded from the glass, narrow
       cones aimed away from it)
-- [ ] **ATC tower lift: walking out** (owner, 2026-11-10): you sometimes get caught between the lift door and the
+- [x] **ATC tower lift: walking out** (owner, 2026-11-10): you sometimes get caught between the lift door and the
       floor when walking out. The doors stay open about 10 seconds after arriving (and re-open while someone stands
       in the doorway, as real lifts do); the car's floor level with each landing, no gap or lip to catch on; the doors'
       collision only where the doors really are
-- [ ] **The ATC tower's lift is far too dark inside** (owner, 2026-11-10): give the car a proper ceiling light (as real
+- [x] **The ATC tower's lift is far too dark inside** (owner, 2026-11-10): give the car a proper ceiling light (as real
       lift cars: an even panel or downlights), lighting the walls, floor and buttons, following the car up and down
 - [?] The light masts (0.14.3): the owner checks them in the game by day and night (beams, ground light, textures)
 - [ ] **Outdoor trees**: replace all of them in place with good-looking Unreal trees (kerb rows 42, car rental 22, car
@@ -96,29 +96,29 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 - [ ] RULE kept: floors only on floor faces, never walls or stairs; the tower is "ATC" on signs, never ADC
 
 ## 4. Playing: walking, menus, controls
-- [ ] **Loading screen into airport mode** (owner, 2026-11-11): going into the 3D airport (from the quick shortcut or
+- [x] **Loading screen into airport mode** (owner, 2026-11-11): going into the 3D airport (from the quick shortcut or
       the Overview's Terminal / Airport site) shows a loading screen that really waits for everything: the terrain and
       its pictures round the airport, the terminal's meshes and textures, the grass, the lights, the shaders compiled.
       A progress bar (the same style as the updater's: percentage centred in the bar, changing colour where the fill
       passes) and a line saying what it is doing ("Loading the terrain…", "Compiling shaders…"); it stays until all
       is done, so nothing pops in afterwards. Esc on it goes straight back to the main menu. Skipped in test runs
       (-UIShot and the other test switches) so testing doesn't wait
-- [ ] **Holographic map stays open after a quick view** (owner, 2026-11-10): picking a quick view (e.g. Gate 4) moves
+- [x] **Holographic map stays open after a quick view** (owner, 2026-11-10): picking a quick view (e.g. Gate 4) moves
       you there but the full map closes by itself; it must stay open (showing you at the new spot) until you minimise
       it yourself (GoTo currently closes it: AADPHUD::GoTo, "if (HoloMap->IsFull()) ToggleMap()")
-- [ ] **The walking view feels zoomed in, everything too close** (owner, 2026-11-10): the eyes' field of view is 80°
+- [x] **The walking view feels zoomed in, everything too close** (owner, 2026-11-10): the eyes' field of view is 80°
       (horizontal); on the owner's super-wide 3840 x 1080 screen that is very narrow. Widen the default (about 90-100°,
       kept right for wide screens: Unreal keeps the horizontal angle, so ultra-wide needs the vertical one held
       instead) and add a Field of view slider in Settings (60-120°), saved
-- [ ] **"Moonwalking" in the ATC tower cab** (owner, 2026-11-10): after the map's TOWER: THE CAB view, walking there
+- [?] **"Moonwalking" in the ATC tower cab** (0.14.6: walking there tested straight; the owner checks) (owner, 2026-11-10): after the map's TOWER: THE CAB view, walking there
       makes you slide / move the wrong way, only in the cab. Check first: the cab floor being the lift's moving
       platform (based on it, so you're carried), the view's turn vs the walking direction after the jump, and the cab's
       floor collision (a slope or step under you)
-- [ ] **Title screen's moving splash image lags** (owner, 2026-11-10): smooth on Android/Babylon, stutters on PC. Check
+- [x] **Title screen's moving splash image lags** (owner, 2026-11-10): smooth on Android/Babylon, stutters on PC. Check
       first: the web view's frame rate (Unreal's offscreen browser is often capped at 24-30 fps; raise it to the
       screen's rate), Unreal rendering the 3D world behind the full-screen menus (pause it there), and the copy of the
       web page into Unreal each frame; make it as smooth as on Android
-- [ ] **Unstuck panel**: when you are stuck inside something, a small panel puts you back on free floor in one click
+- [x] **Unstuck panel**: when you are stuck inside something, a small panel puts you back on free floor in one click
 - [ ] **Footsteps by surface** (concrete, tarmac, wood, carpet, metal, from the floor's material) with a volume slider;
       sounds free for a paid game (CC0 / CC BY), credited
 - [?] **Escape flow**: Esc closes a panel; in 3D with nothing open goes to the Overview; in the Overview asks "Are you
@@ -130,7 +130,7 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 - [ ] Your own 3D body while walking (legs, arms, shadow, reflection in glass), everywhere, when the people get bodies
 
 ## 5. Graphics settings
-- [ ] A "light beams distance" slider (the light masts' haze, now 500 m) so weaker cards can turn it down
+- [x] A "light beams distance" slider (the light masts' haze, now 500 m) so weaker cards can turn it down
 - [~] Many more graphics controls in Settings (owner, 2026-11-09): sliders per quality group (view distance, upscaler,
       shadows, Lumen GI and reflections, post-processing, textures, effects, foliage, shading, volumetric clouds and fog)
       and toggles (Lumen, hardware ray tracing, motion blur, bloom on by default, depth of field, AO, film grain, SSR);
@@ -153,9 +153,9 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 - [ ] Chapters in the Android code: paused by the owner
 
 ## 9. Housekeeping
-- [ ] ROADMAP.md's known issue "cooking the whole /CesiumForUnreal folder crashes Shipping" is out of date: since
+- [x] ROADMAP.md's known issue "cooking the whole /CesiumForUnreal folder crashes Shipping" is out of date: since
       0.14.0 it is cooked whole and runs fine (it was the fix for the terrain crash)
-- [ ] The crash box shows an old report (14:58 on 2026-11-10, the fixed Cesium crash) on the owner's PC: clear old
+- [x] The crash box shows an old report (14:58 on 2026-11-10, the fixed Cesium crash) on the owner's PC: clear old
       reports, or show each only once
 - [ ] After all of the above: the next logical things that make the game run and give it features
 
