@@ -67,6 +67,10 @@ def box(name, coll, size, at, material, xcuts=0, bevel=0.0, seg=3):
     bm.to_mesh(me); bm.free()
     ob = link(bpy.data.objects.new(name, me), coll); ob.location = at
     ob.data.materials.append(material)
+    # smooth shading (the corners stay crisp by angle): the curve's many narrow strips read as one surface, with no
+    # lines down the bezel where the light caught each strip apart
+    for p in ob.data.polygons: p.use_smooth = True
+    ob.data.use_auto_smooth = True; ob.data.auto_smooth_angle = math.radians(40)
     if bevel:
         bv = ob.modifiers.new('bevel', 'BEVEL'); bv.width = bevel; bv.segments = seg; bv.limit_method = 'ANGLE'
         ob.data.use_auto_smooth = True; ob.data.auto_smooth_angle = math.radians(40)
@@ -112,8 +116,9 @@ def monitor(key, diag_in, aspect, radius, centre_h, base_v, offset_x):
     parts = []
     # the bezel: a thin slab, rounded, its front at y = -0.005
     parts.append(box(key + '-Bezel', coll, (BW, 0.010, BH), (0, 0, zb), M['bezel'], cuts, 0.0018))
-    # the picture, a fraction of a millimetre proud of the bezel
-    parts.append(screen_plane(key + '-Screen', coll, W, H, (0, -0.0053, zc), screen_mat(key), cuts))
+    # the picture, just proud of the bezel
+    # (1.5 mm in front of the bezel: closer, the bezel showed through it in black streaks in the game)
+    parts.append(screen_plane(key + '-Screen', coll, W, H, (0, -0.0065, zc), screen_mat(key), cuts))
     # the back housing: a rounded shell behind the panel, its vents near the top, the ports panel low down
     hw, hh, hd = BW * 0.82, BH * 0.74, 0.034
     hz = zb - BH * 0.04
@@ -142,6 +147,8 @@ def monitor(key, diag_in, aspect, radius, centre_h, base_v, offset_x):
         dg = bpy.context.evaluated_depsgraph_get()
         for ob in parts:
             me = bpy.data.meshes.new_from_object(ob.evaluated_get(dg)); ob.modifiers.clear(); ob.data = me
+            for p in me.polygons: p.use_smooth = True
+            me.use_auto_smooth = True; me.auto_smooth_angle = math.radians(40)
             mw = ob.matrix_world.copy(); inv = mw.inverted()
             for v in me.vertices:
                 p = mw @ v.co; th = p.x / radius; r = radius + p.y

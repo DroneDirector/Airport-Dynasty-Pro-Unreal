@@ -49,6 +49,16 @@ try:
         a = unreal.load_asset(path)
         if isinstance(a, unreal.StaticMesh):
             ns = a.get_editor_property('nanite_settings')
+            # a screen's picture surface lies a millimetre or so over its bezel or glass: Nanite keeps it to 1/64 cm (by
+            # itself it keeps a mesh this size more coarsely, and the bezel showed through in black streaks)
+            mats = [m.material_interface.get_name() if m.material_interface else '' for m in a.get_editor_property('static_materials')]
+            if any(n.startswith('MonitorScreen') or n.startswith('PhoneScreen') for n in mats):
+                ns.enabled = True
+                ns.position_precision = 6
+                a.set_editor_property('nanite_settings', ns)
+                eal.save_loaded_asset(a, False)
+                count += 1
+                continue
             if not ns.enabled:
                 ns.enabled = True
                 a.set_editor_property('nanite_settings', ns)

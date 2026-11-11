@@ -1528,7 +1528,9 @@ void AADPHUD::Tick(float Dt)
 				{82.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_OpsComputer"), true, false); }},
 				{83.f, [&]() { PutDeviceAway(); }},
 				{86.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_OpsBack"), false, false); }},
-				{88.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+				{86.5f, [&]() { GoTo(FVector(116.25f, -0.1f, 28.f), FVector(115.3f, 1.13f, 28.f)); }},
+				{87.5f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_OpsScreenClose"), false, false); }},
+				{90.f, []() { FGenericPlatformMisc::RequestExit(false); }},
 			};
 			for (const FStep& St : DSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();

@@ -80,7 +80,7 @@ slab('Glass', W - 0.0008, H - 0.0008, R * 0.95, T - 0.0007, T, M['glass'], 0.000
 # the screen: its own surface just under the glass's face, the picture's corners rounded as the glass's
 me = bpy.data.meshes.new('Screen'); bm = bmesh.new(); uv = bm.loops.layers.uv.new('UVMap')
 sw, sh = W - 0.005, H - 0.005
-f = bm.faces.new([bm.verts.new((x, y, T + 0.00005)) for x, y in rounded(sw, sh, R * 0.8)])
+f = bm.faces.new([bm.verts.new((x, y, T + 0.0004)) for x, y in rounded(sw, sh, R * 0.8)])   # (0.4 mm: closer, the glass showed through)
 for lp in f.loops:
     lp[uv].uv = ((lp.vert.co.x + sw / 2) / sw, (lp.vert.co.y + sh / 2) / sh)
 bm.normal_update(); bm.to_mesh(me); bm.free()

@@ -59,7 +59,7 @@ namespace
 
 TSharedRef<SWidget> AADPHUD::MakeDeviceLegend()
 {
-	const FLinearColor Ink(0.9f, 0.96f, 1.f), Cap(0.12f, 0.18f, 0.26f, 0.95f);
+	const FLinearColor LegendInk(0.9f, 0.96f, 1.f), KeyCap(0.12f, 0.18f, 0.26f, 0.95f);
 	return SNew(SButton)
 		.ButtonColorAndOpacity(FLinearColor(0.02f, 0.05f, 0.09f, 0.78f))
 		.ContentPadding(FMargin(12, 8))
@@ -69,12 +69,12 @@ TSharedRef<SWidget> AADPHUD::MakeDeviceLegend()
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 10, 0)
 			[
-				SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(Cap).Padding(FMargin(8, 3))
-				[SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Bold", 11)).ColorAndOpacity(Ink).Text(FText::FromString(TEXT("Esc")))]
+				SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(KeyCap).Padding(FMargin(8, 3))
+				[SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Bold", 11)).ColorAndOpacity(LegendInk).Text(FText::FromString(TEXT("Esc")))]
 			]
-			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 8, 0)[SNew(SPhoneDownIcon).Color(Ink)]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 8, 0)[SNew(SPhoneDownIcon).Color(LegendInk)]
 			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
-			[SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Regular", 11)).ColorAndOpacity(Ink)
+			[SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Regular", 11)).ColorAndOpacity(LegendInk)
 				.Text_Lambda([this]() { return FText::FromString(DeviceKind == TEXT("phone") || PhoneDir != 0 ? TEXT("Put the phone down") : TEXT("Back to the room")); })]
 		];
 }
