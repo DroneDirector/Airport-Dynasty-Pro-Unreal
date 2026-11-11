@@ -195,6 +195,15 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
   normal 1-2 weeks, winter / bad weather about twice a week), dust, low road grime, mud splatter behind the wheels,
   streaks, glass film; washed by hand with the wash hose outside the station, by you or by crew members doing the same / laundry for the crew's gear; optional, with a Settings switch.
   Textures in Art/FireTruck/T_Dirt_*.png; rules in docs/fire-station/SPEC.md.
+- Fire trucks, next (owner, 2026-11-11): reverse lights that come on while reversing, and a reversing sound (the truck's
+  beeper). Real recorded sounds where they matter (engine, beeper, siren): commercial-use sources only (CC0 on
+  Freesound, the yearly royalty-free GDC game-audio bundles); downloading full-quality Freesound files needs the owner's
+  account signed in once in the browser pane.
+- Getting in and out of vehicles, the full pass (owner, 2026-11-11): the same animation for NPCs and the player - walk
+  over, open the door by its handle, climb the steps holding the handles, walk to and sit in the middle seat, hands on
+  the wheel, feet on the pedals, eyes out through the windscreen, then drive; out the same way. Every contact point read
+  from the model (steps, handles, seat, wheel, pedals), the body fitted to each character's size (no jumping, no
+  clipping through the cab), either door.
 - Laundry building for the staff's clothing (owner, 2026-11-11: he makes the building later). Until then the laundry is
   an instant wash: a button in the Overview UI that cleans the staff's clothes at once.
 - Ground wetness and puddles for the whole airport (one system): heavy rain leaves real puddles and dark wet surfaces

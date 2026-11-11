@@ -1,4 +1,4 @@
-// The body that climbs into the crash tender and drives it (TruckDriverRig.h).
+﻿// The body that climbs into the crash tender and drives it (TruckDriverRig.h).
 #include "TruckDriverRig.h"
 #include "ADPLog.h"
 #include "Components/PoseableMeshComponent.h"
@@ -126,10 +126,10 @@ void FTruckDriverRig::Pose(const FDriverPose& P)
 		const FVector Target = P.bHand[S] ? P.Hand[S] : Sh + (-Up * 0.97f + Out * 0.16f + Fw * 0.05f).GetSafeNormal() * Arm * 0.97f;
 		Limb(Upper[S], Lower[S], Hand[S], Target, -Up * 0.6f - Fw * 0.3f + Out * 0.6f, FVector(0, -1, 0));
 		// the fingers round the bar
-		const float G = FMath::Clamp(P.Grip[S], 0.f, 1.f);
-		if (G > 0.01f)
+		const float Gr = FMath::Clamp(P.Grip[S], 0.f, 1.f);
+		if (Gr > 0.01f)
 		{
-			for (const FCurl& C : Curl[S]) Local[C.Bone].SetRotation(FQuat(C.Axis, C.Weight * G) * Local[C.Bone].GetRotation());
+			for (const FCurl& C : Curl[S]) Local[C.Bone].SetRotation(FQuat(C.Axis, C.Weight * Gr) * Local[C.Bone].GetRotation());
 			Rebuild();
 		}
 	}

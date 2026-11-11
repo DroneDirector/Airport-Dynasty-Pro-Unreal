@@ -30,7 +30,7 @@ namespace
 	// the truck's own measures (Art/FireTruck/make_panther.py, Blender metres) and its physics
 	constexpr float Axle[3] = {2.85f, -2.55f, -4.2f};
 	constexpr float TrackHalf = 1.22f, Rw = 0.75f, Kingpin = 0.12f;
-	constexpr float Mass = 28000.f, G = 9.81f;
+	constexpr float TruckMass = 28000.f, Gravity = 9.81f;
 	constexpr float KSpring = 458000.f, CDamp = 42000.f, AntiRoll = 180000.f;   // N/m, N s/m
 	constexpr float BumpCm = 15.f, DroopCm = 10.f, StrokeCm = BumpCm + DroopCm, RwCm = Rw * 100.f;
 	constexpr float Mu = 0.9f, Power = 520000.f, TopSpeed = 32.f, ReverseTop = 4.2f;
@@ -182,7 +182,7 @@ AFireTruck::AFireTruck()
 	Body->SetSimulatePhysics(false);
 	Body->SetLinearDamping(0.02f);
 	Body->SetAngularDamping(0.6f);
-	Body->BodyInstance.SetMassOverride(Mass, true);
+	Body->BodyInstance.SetMassOverride(TruckMass, true);
 	Body->BodyInstance.COMNudge = FVector(0, 0, -80.f);   // the weight low (the tank, the chassis)
 	Body->SetHiddenInGame(true);
 	Boom = CreateDefaultSubobject<USpringArmComponent>(TEXT("Boom"));
@@ -659,9 +659,9 @@ void AFireTruck::Simulate(float Dt)
 	if (InThrottle > 0.1f && Vf > -0.6f) bReverse = false;
 	const float Drive = bReverse ? -InBrake : InThrottle, BrakeIn = bReverse ? InThrottle : InBrake;
 	float DriveForce = 0.f;
-	if (Drive > 0.f) DriveForce = Drive * FMath::Min(Power / FMath::Max(Speed, 2.f), 0.7f * Mass * G) * FMath::Clamp((TopSpeed - Vf) / 3.f, 0.f, 1.f);
-	else if (Drive < 0.f) DriveForce = Drive * 0.45f * Mass * G * FMath::Clamp((ReverseTop + Vf) / 1.5f, 0.f, 1.f);
-	const float BrakeForce = BrakeIn * 0.75f * Mass * G;
+	if (Drive > 0.f) DriveForce = Drive * FMath::Min(Power / FMath::Max(Speed, 2.f), 0.7f * TruckMass * Gravity) * FMath::Clamp((TopSpeed - Vf) / 3.f, 0.f, 1.f);
+	else if (Drive < 0.f) DriveForce = Drive * 0.45f * TruckMass * Gravity * FMath::Clamp((ReverseTop + Vf) / 1.5f, 0.f, 1.f);
+	const float BrakeForce = BrakeIn * 0.75f * TruckMass * Gravity;
 
 	// the suspension: a ray down from each wheel's top of travel
 	FCollisionQueryParams Q(SCENE_QUERY_STAT(ADPTruckWheel), true, this);   // (the buildings' floors by their own triangles)
@@ -718,7 +718,7 @@ void AFireTruck::Simulate(float Dt)
 		const float Fz = Wh.Load, Share = SumLoad > 0.f ? Fz / SumLoad : 0.f;
 		// the most a resisting force may do in one step is stop this wheel's share of the truck: any more and it pushes
 		// back the other way the next frame, over and over (the truck shook standing and at low speed)
-		const float Stop = Mass * Share / Dt;
+		const float Stop = TruckMass * Share / Dt;
 		float Resist = BrakeForce * Share * FMath::Tanh(VF / 0.5f);
 		Resist += 0.012f * Fz * FMath::Tanh(VF / 0.3f);                                 // rolling
 		if (bHandbrake && Wh.Axle > 0) Resist += Mu * Fz * FMath::Tanh(VF / 0.3f);       // the handbrake on the rear axles
