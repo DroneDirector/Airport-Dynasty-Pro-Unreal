@@ -65,6 +65,8 @@ bool ABabylonModel::Place(const FString& Name)
 	TArray<FTransform> NodeWorld; NodeWorld.SetNum(Nodes.Num());
 	TArray<int32> NodeParent; NodeParent.Init(INDEX_NONE, Nodes.Num());
 	TArray<TPair<UInstancedStaticMeshComponent*, int32>> NodeInst; NodeInst.Init(TPair<UInstancedStaticMeshComponent*, int32>(nullptr, INDEX_NONE), Nodes.Num());
+	// the entrance canopies' parts (KERB/CANOPY-*): in lists of their own, so their underside can be given a matte finish
+	TArray<bool> Canopy; Canopy.Init(false, Nodes.Num());
 	TFunction<void(int32, const FTransform&, bool)> Walk = [&](int32 I, const FTransform& Parent, bool bDoor)
 	{
 		if (!Nodes.IsValidIndex(I)) return;
@@ -80,7 +82,7 @@ bool ABabylonModel::Place(const FString& Name)
 			FString Asset = FString::Printf(TEXT("%s_mesh_%d"), *Name.ToLower(), Mesh);
 			if (bByNode) N->TryGetStringField(TEXT("name"), Asset);
 			// a door's parts in lists of their own (they move; the big shared lists never need rebuilding)
-			const FString Key = bDoor ? Asset + TEXT("#door") : Asset;
+			const FString Key = bDoor ? Asset + TEXT("#door") : Canopy[I] ? Asset + TEXT("#canopy") : Asset;
 			if (TObjectPtr<UInstancedStaticMeshComponent>* F = ByMesh.Find(Key)) K = *F;
 			else
 			{
@@ -102,7 +104,13 @@ bool ABabylonModel::Place(const FString& Name)
 		}
 		const TArray<TSharedPtr<FJsonValue>>* Children;
 		if (N->TryGetArrayField(TEXT("children"), Children))
-			for (const TSharedPtr<FJsonValue>& C : *Children) { NodeParent[int32(C->AsNumber())] = I; Walk(int32(C->AsNumber()), World, bDoor); }
+			for (const TSharedPtr<FJsonValue>& C : *Children)
+			{
+				const int32 Ci = int32(C->AsNumber());
+				FString Nm; N->TryGetStringField(TEXT("name"), Nm);
+				if (Nodes.IsValidIndex(Ci)) Canopy[Ci] = Canopy[I] || Nm.StartsWith(TEXT("KERB/CANOPY"));
+				NodeParent[Ci] = I; Walk(Ci, World, bDoor);
+			}
 	};
 	for (const TSharedPtr<FJsonValue>& R : J->GetArrayField(TEXT("roots"))) Walk(int32(R->AsNumber()), FTransform::Identity, false);
 	UE_LOG(LogTemp, Log, TEXT("Babylon model %s placed: %d objects, %d meshes"), *Name, Placed, ByMesh.Num());
@@ -180,6 +188,7 @@ bool ABabylonModel::Place(const FString& Name)
 		ReplaceSeats(Nodes, NodeWorld, NodeInst);
 	}
 	ToneDown();
+	MatchSurfaces();
 	return Placed > 0;
 }
 
@@ -219,6 +228,39 @@ void ABabylonModel::ToneDown()
 			if (Out) K->SetMaterial(S, Out);
 		}
 	UE_LOG(LogTemp, Log, TEXT("Babylon model: %d whites toned to paint, %d glows halved"), Whites, Glows);
+}
+
+void ABabylonModel::MatchSurfaces()
+{
+	// (owner, 2026-11-11) the entrance canopies' undersides aren't lamps: matte, as the kerb's departures sign (whiteGloss,
+	// toned as paint, no glow); the entrance doors' glass the same glass as the big windows on the terminal's back
+	UMaterialInterface* White = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Babylon/Terminal/terminal/Materials/whiteGloss.whiteGloss"));
+	UMaterialInterface* Facade = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Babylon/Terminal/terminal/Materials/glassOuter.glassOuter"));
+	UMaterialInstanceDynamic* Matte = nullptr;
+	if (White)
+	{
+		Matte = UMaterialInstanceDynamic::Create(White, this);
+		FLinearColor Base;
+		if (Matte->GetVectorParameterValue(FHashedMaterialParameterInfo(TEXT("BaseColorFactor")), Base) && Base.GetLuminance() > 0.78f) Matte->SetVectorParameterValue(TEXT("BaseColorFactor"), Base * (0.78f / Base.GetLuminance()));
+		Matte->SetScalarParameterValue(TEXT("EmissiveStrength"), 0.f);
+	}
+	int32 Canopies = 0, Glass = 0;
+	for (const auto& It : ByMesh)
+	{
+		UInstancedStaticMeshComponent* K = It.Value;
+		if (!K) continue;
+		const bool bCanopy = It.Key.EndsWith(TEXT("#canopy")), bDoor = It.Key.EndsWith(TEXT("#door"));
+		if (!bCanopy && !bDoor) continue;
+		for (int32 S = 0; S < K->GetNumMaterials(); ++S)
+		{
+			UMaterialInterface* M = K->GetMaterial(S);
+			const UMaterialInstanceDynamic* D = Cast<UMaterialInstanceDynamic>(M);
+			const FString MN = D && D->Parent ? D->Parent->GetName() : M ? M->GetName() : FString();
+			if (bCanopy && Matte && MN.StartsWith(TEXT("glow"))) { K->SetMaterial(S, Matte); ++Canopies; }
+			if (bDoor && Facade && MN == TEXT("glass")) { K->SetMaterial(S, Facade); ++Glass; }
+		}
+	}
+	UE_LOG(LogTemp, Log, TEXT("Babylon model: %d canopy undersides matte, %d door glass panes as the facade's"), Canopies, Glass);
 }
 
 void ABabylonModel::AddLights(const FString& Name)

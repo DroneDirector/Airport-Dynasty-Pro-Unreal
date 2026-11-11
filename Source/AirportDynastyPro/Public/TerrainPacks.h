@@ -16,6 +16,9 @@ namespace ADPTerrain
 	void Start();
 	/** What it is doing, for Settings: e.g. "Downloading the world's terrain: pack 12 of 129, 0.8 of 6.6 GB". */
 	FString Status();
+	/** The download's progress, 0..1 (-1 when nothing is downloading), and its speed in bytes a second. */
+	float Fraction();
+	double Speed();
 	/** Running now. */
 	bool Busy();
 	/** Settings' "Move": the player picks a folder (another drive with room, say) and the terrain moves there; the

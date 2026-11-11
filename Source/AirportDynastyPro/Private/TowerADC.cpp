@@ -10,6 +10,9 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Components/PointLightComponent.h"
+#include "SunClock.h"
+#include "Engine/DirectionalLight.h"
+#include "Components/SpotLightComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/World.h"
@@ -291,6 +294,7 @@ void ATowerADC::Build()
 	BuildCab();
 	BuildDesk();
 	BuildRoof();
+	BuildNightLights();
 
 	Shells(Frame, Solid, true, true, TEXT("ADC_SHELLS"));
 	// the glass split: its outward faces (seen from outside) and its inward faces (seen from inside, a clearer glass);
@@ -656,9 +660,58 @@ void ATowerADC::BuildRoof()
 
 #pragma region The doors and the flap
 
+void ATowerADC::BuildNightLights()
+{
+	auto Spot = [this](const FVector& At, const FRotator& Aim, float Lumens, float Outer, float Reach)
+	{
+		USpotLightComponent* L = NewObject<USpotLightComponent>(this);
+		L->SetupAttachment(Frame);
+		L->SetMobility(EComponentMobility::Movable);
+		L->SetRelativeLocationAndRotation(At, Aim);
+		L->SetIntensityUnits(ELightUnits::Lumens);
+		L->SetIntensity(Lumens);
+		L->SetOuterConeAngle(Outer); L->SetInnerConeAngle(Outer * 0.55f);
+		L->SetAttenuationRadius(Reach);
+		L->SetUseTemperature(true); L->SetTemperature(3500.f);
+		L->SetCastShadows(false);
+		L->SetVisibility(false);
+		L->RegisterComponent();
+		AddInstanceComponent(L);
+		NightLights.Add(L);
+	};
+	// the balcony: 24 small recessed downlights in the overhang's underside, just inside its edge, leaning a little
+	// outwards so their cones fall on the walkway and the railing, not on the cab's windows behind
+	const float BR = RoofR - 0.35f;
+	for (int32 k = 0; k < 24; ++k)
+	{
+		const float A = TwoPi * (k + 0.5f) / 24;
+		const FVector At = U(FMath::Cos(A) * BR, CabTop - 0.03f, FMath::Sin(A) * BR);
+		Cyl("lamp", 0.06f, 0.02f, FMath::Cos(A) * BR, CabTop - 0.02f, FMath::Sin(A) * BR, false);
+		const FVector Out = U(FMath::Cos(A), 0, FMath::Sin(A)).GetSafeNormal();
+		const FVector Dir = (FVector(0, 0, -1) + Out * 0.18f).GetSafeNormal();
+		Spot(At, Dir.Rotation(), 260.f, 26.f, 600.f);
+	}
+	// the entrance: six under the timber canopy, in two rows of three
+	const float Ex = -ShaftR - 1.6f - 0.2f;
+	for (const float DX : {-1.1f, 1.1f})
+		for (const float DZ : {-2.1f, 0.f, 2.1f})
+		{
+			Cyl("lamp", 0.07f, 0.02f, Ex + DX, 3.61f, DZ, false);
+			Spot(U(Ex + DX, 3.6f, DZ), FRotator(-90.f, 0, 0), 420.f, 40.f, 700.f);
+		}
+}
+
 void ATowerADC::Tick(float Dt)
 {
 	Super::Tick(Dt);
+	// the outside lights: on at sunset, off just after sunrise (the light masts' sensor), and in fog and storms
+	{
+		static TWeakObjectPtr<ADirectionalLight> Sun;
+		if (!Sun.IsValid()) Sun = Cast<ADirectionalLight>(UGameplayStatics::GetActorOfClass(this, ADirectionalLight::StaticClass()));
+		const float El = Sun.IsValid() ? -Sun->GetActorRotation().Pitch : 30.f;
+		const bool bWant = ASunClock::Theme == 4 || ASunClock::Theme == 6 || (bNightOn ? El < 3.f : El < 0.f);
+		if (bWant != bNightOn) { bNightOn = bWant; for (USpotLightComponent* L : NightLights) if (L) L->SetVisibility(bNightOn); }
+	}
 	const APawn* Player = UGameplayStatics::GetPlayerPawn(this, 0);
 	if (!Player || !Frame) return;
 	// the player in the tower's frame (metres: x east, y the feet's height, z north)

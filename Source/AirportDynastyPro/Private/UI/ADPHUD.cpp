@@ -5,6 +5,7 @@
 #include "Camera/CameraActor.h"
 #include "TowerADC.h"
 #include "UI/SHoloMap.h"
+#include "UI/SProgressText.h"
 #include "UI/GameView.h"
 #include "UI/ADPBridge.h"
 #include "UI/InputGlyphs.h"
@@ -197,6 +198,8 @@ void AADPHUD::BeginPlay()
 	Settings->SetVisibility(EVisibility::Collapsed);
 	CrashPanel = MakeCrashPanel();
 	UnstuckPanel = MakeUnstuckPanel();
+	LoadingBox = MakeLoading();
+	LoadingBox->SetVisibility(EVisibility::Collapsed);
 	UnstuckPanel->SetVisibility(EVisibility::Collapsed);
 	CrashPanel->SetVisibility(FindNewCrash() ? EVisibility::Visible : EVisibility::Collapsed);
 	Breadcrumb(TEXT("Started, the title screen"));
@@ -318,6 +321,7 @@ void AADPHUD::BeginPlay()
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[Settings.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[CrashPanel.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[UnstuckPanel.ToSharedRef()]
+		+ SOverlay::Slot().HAlign(HAlign_Fill).VAlign(VAlign_Fill)[LoadingBox.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
 		[
 			// the first start's question: the scan's suggestion, taken only if you say yes
@@ -557,6 +561,16 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 					SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true)
 					.Text_Lambda([this]() { return FText::FromString(UpdateStatus.IsEmpty() ? FString::Printf(TEXT("This is version %s."), *UpdaterVersion()) : UpdateStatus); })
 				]
+				// the download's bar, its percentage in the middle and the speed beside it (while downloading)
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 4)
+				[
+					SNew(SBox).Visibility_Lambda([this]() { return UpdateFrac >= 0.f && UpdateBusy ? EVisibility::Visible : EVisibility::Collapsed; })
+					[
+						SNew(SProgressText).Height(22.f)
+						.Fraction_Lambda([this]() { return UpdateFrac; })
+						.Extra_Lambda([this]() { return UpdateSpeed > 0 ? FString::Printf(TEXT("%.1f MB/s"), UpdateSpeed / 1048576.0) : FString(); })
+					]
+				]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)
 				[
 					SNew(SHorizontalBox)
@@ -590,6 +604,15 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("The world's terrain (mountains and valleys everywhere)"))]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 4)
 				[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true).Text_Lambda([]() { return FText::FromString(ADPTerrain::Status()); })]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 4)
+				[
+					SNew(SBox).Visibility_Lambda([]() { return ADPTerrain::Fraction() >= 0.f ? EVisibility::Visible : EVisibility::Collapsed; })
+					[
+						SNew(SProgressText).Height(22.f)
+						.Fraction_Lambda([]() { return ADPTerrain::Fraction(); })
+						.Extra_Lambda([]() { const double S = ADPTerrain::Speed(); return S > 0 ? FString::Printf(TEXT("%.1f MB/s"), S / 1048576.0) : FString(); })
+					]
+				]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)
 				[
 					SNew(SBox).Visibility_Lambda([]() { return ADPTerrain::Busy() ? EVisibility::Collapsed : EVisibility::Visible; })
@@ -854,6 +877,8 @@ void AADPHUD::SetFrameGen(bool bOn)
 
 void AADPHUD::OnEscape()
 {
+	// on the loading screen: straight back to the menus
+	if (bLoading) { StopLoading(); if (!bGame) ToggleGame(); return; }
 	// in the menus the page handles Esc itself (the Overview asks before leaving to the title screen)
 	if (bGame) return;
 	if (bHidden) { ShowUI(); return; }
@@ -1118,6 +1143,21 @@ void AADPHUD::RefreshControls()
 
 void AADPHUD::Tick(float Dt)
 {
+	// from the menus into the 3D airport: the loading screen until everything is in (test runs skip it)
+	{
+		static const bool bTest = FParse::Param(FCommandLine::Get(), TEXT("UIShot")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading"));
+		if (bWasGame && !bGame && !bTest) StartLoading();
+		if (bGame && bLoading) StopLoading();
+		bWasGame = bGame;
+		TickLoading(Dt);
+	}
+	// while the menus fill the screen (opaque: nothing of the 3D world shows), the 3D world isn't drawn behind them, so
+	// the title screen and the menus run as smoothly as on Android (two engines drawing at once made them stutter)
+	if (GEngine && GEngine->GameViewport)
+	{
+		const bool bBehind = bGame && GameBox.IsValid() && GameBox->GetVisibility() == EVisibility::Visible;
+		if (GEngine->GameViewport->bDisableWorldRendering != bBehind) GEngine->GameViewport->bDisableWorldRendering = bBehind;
+	}
 	// stuck inside something: the panel (and the pointer free to click it); gone again once you move
 	if (UnstuckPanel.IsValid())
 	{
@@ -1144,12 +1184,12 @@ void AADPHUD::Tick(float Dt)
 	if (Browser.IsValid())
 	{
 		const bool bCan = !UpdateBusy && (UpdateChain.Num() || !UpdateFullUrl.IsEmpty());
-		const FString Now = FString::Printf(TEXT("%s|%d|%d"), *UpdateStatus, bCan ? 1 : 0, UpdateBusy ? 1 : 0);
+		const FString Now = FString::Printf(TEXT("%s|%d|%d|%.3f|%.1f"), *UpdateStatus, bCan ? 1 : 0, UpdateBusy ? 1 : 0, UpdateFrac, UpdateSpeed / 1048576.0);
 		if (Now != UpdateSent)
 		{
 			UpdateSent = Now;
 			const FString Safe = UpdateStatus.Replace(TEXT("\\"), TEXT("\\\\")).Replace(TEXT("'"), TEXT("\\'"));
-			Browser->ExecuteJavascript(FString::Printf(TEXT("window.__ueUpdate && window.__ueUpdate('%s', %s, %s, '%s')"), *Safe, bCan ? TEXT("true") : TEXT("false"), UpdateBusy ? TEXT("true") : TEXT("false"), *UpdaterVersion()));
+			Browser->ExecuteJavascript(FString::Printf(TEXT("window.__ueUpdate && window.__ueUpdate('%s', %s, %s, '%s', %.4f, %.2f)"), *Safe, bCan ? TEXT("true") : TEXT("false"), UpdateBusy ? TEXT("true") : TEXT("false"), *UpdaterVersion(), UpdateFrac, UpdateSpeed / 1048576.0));
 		}
 	}
 	// the symbols follow the device in use
@@ -1422,6 +1462,37 @@ void AADPHUD::Tick(float Dt)
 			for (const FStep& St : MastSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
 		}
+		// -UILoading: from the menus into the airport, the loading screen pictured while it works and when it's done
+		if (FParse::Param(FCommandLine::Get(), TEXT("UILoading")))
+		{
+			if (Before < 40.f && ShotClock >= 40.f && bGame) ToggleGame();
+			if (Before < 43.f && ShotClock >= 43.f) { FScreenshotRequest::RequestScreenshot(TEXT("Loading_Screen"), true, false); UE_LOG(LogTemp, Log, TEXT("LOADTEST %s %.0f%% shown %d"), *LoadStep, LoadFrac * 100.f, bLoading ? 1 : 0); }
+			static bool bLogged = false;
+			if (!bLogged && ShotClock > 41.f && !bLoading) { bLogged = true; UE_LOG(LogTemp, Log, TEXT("LOADTEST done after %.1f s"), LoadT); }
+			if (Before < 100.f && ShotClock >= 100.f) FGenericPlatformMisc::RequestExit(false);
+		}
+		// -UIPart2: night on the apron (the terminal's brightness), the entrance canopies and doors, the tower's balcony and
+		// entrance lights, then the entrance by day
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIPart2")))
+		{
+			auto Sun = [](float H) { ASunClock::HourOverride = H; ASunClock::Theme = 1; ASunClock::Refresh(); };
+			struct FStep { float At; TFunction<void()> Do; };
+			const FStep P2Steps[] = {
+				{44.f, [&]() { if (bGame) ToggleGame(); Sun(22.5f); GoApron(); }},
+				{56.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Part2_ApronNight"), false, false); }},
+				{57.f, [&]() { GoTo(FVector(75.f, 0.f, -12.f), FVector(75.f, 3.f, 0.f)); }},
+				{66.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Part2_EntranceNight"), false, false); }},
+				{67.f, [this]() { GoTowerFoot(); }},
+				{76.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Part2_TowerDoorNight"), false, false); }},
+				{77.f, [this]() { GoTowerBalcony(); }},
+				{86.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Part2_BalconyNight"), false, false); }},
+				{87.f, [&]() { Sun(13.f); GoTo(FVector(75.f, 0.f, -12.f), FVector(75.f, 3.f, 0.f)); }},
+				{96.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Part2_EntranceDay"), false, false); }},
+				{98.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+			};
+			for (const FStep& St : P2Steps)
+				if (Before < St.At && ShotClock >= St.At) St.Do();
+		}
 		// -UIPart1: the tower cab walked forward (where you really go, "moonwalking"), the exit signs from inside the hall
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIPart1")))
 		{
@@ -1567,7 +1638,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

@@ -19,6 +19,15 @@ type Row = { k: 'seg'; key: string; label: string; sub?: string; opts: [any, str
   | { k: 'html'; html: () => string };
 
 const pct = (v: number) => Math.round(v * 100) + '%';
+/** A progress bar with its percentage centred: the text drawn twice, the dark copy clipped to the filled part. */
+function progressBar(frac: number, extra: string): string {
+  const f = Math.max(0, Math.min(1, frac)), t = `${Math.floor(f * 100)}%${extra ? '&nbsp;&nbsp;&nbsp;' + extra : ''}`;
+  const box = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;white-space:nowrap';
+  return `<div style="position:relative;height:24px;margin:6px 0 10px;border:1px solid #5a9ed9;background:#081f36;border-radius:3px;overflow:hidden">
+    <div style="position:absolute;left:0;top:0;bottom:0;width:${(f * 100).toFixed(2)}%;background:#3db8ff"></div>
+    <div style="${box};color:#d9f2ff">${t}</div>
+    <div style="${box};color:#021220;clip-path:inset(0 ${(100 - f * 100).toFixed(2)}% 0 0)">${t}</div></div>`;
+}
 const GFX: Row[] = [
   { k: 'btn', label: 'Scan this device', sub: 'Checks the processor, memory, graphics chip and screen, then recommends settings you can apply or decline', act: 'scan', text: 'Scan' },
   { k: 'seg', key: 'gfx.preset', label: 'Quality', sub: 'Sets everything below at once', opts: [['low', 'Low'], ['medium', 'Medium'], ['high', 'High'], ['ultra', 'Ultra'], ['custom', 'Custom']] },
@@ -88,8 +97,8 @@ const CTL: Row[] = [
 const TABS: [string, string, string][] = [['gfx', 'monitor', 'Graphics'], ['ctl', 'pad', 'Controls'], ['upd', 'download', 'Updates'], ['new', 'star', 'What\'s new']];
 /** Settings → Updates: the installed version, the newest one and what it holds, and the buttons to check and install. */
 /** The PC (Unreal) edition: the game's own updater, run by Unreal; it tells the page its state (window.__ueUpdate). */
-const UEU = { status: '', can: false, busy: false, ver: '' };
-(window as any).__ueUpdate = (status: string, can: boolean, busy: boolean, ver: string) => { Object.assign(UEU, { status, can, busy, ver }); if (el && tab === 'upd') render(); };
+const UEU = { status: '', can: false, busy: false, ver: '', frac: -1, mbs: 0 };
+(window as any).__ueUpdate = (status: string, can: boolean, busy: boolean, ver: string, frac = -1, mbs = 0) => { Object.assign(UEU, { status, can, busy, ver, frac, mbs }); if (el && tab === 'upd') render(); };
 const ueUpd = () => !!UE_PC && !!ue();
 function ueCheck() { try { UEU.status = 'Checking for updates…'; UEU.busy = true; if (el) render(); ue().checkupdates(); } catch (e) { /* no link */ } }
 function ueInstall() { try { ue().installupdates(); } catch (e) { /* no link */ } }
@@ -99,6 +108,8 @@ function updRows(): Row[] {
       { k: 'info', label: 'Installed', text: () => `Airport Dynasty Pro (Unreal) ${UEU.ver || UE_PC}` },
       { k: 'info', label: 'Status', text: () => UEU.status || 'Check to see if a newer PC version is out. Only the changes download; your saves stay.' },
     ];
+    // the download's bar: its percentage in the middle, light over the empty part and dark where the fill has reached it
+    if (UEU.busy && UEU.frac >= 0) R.push({ k: 'html', html: () => progressBar(UEU.frac, UEU.mbs > 0 ? `${UEU.mbs.toFixed(1)} MB/s` : '') });
     if (UEU.can) R.push({ k: 'btn', label: 'Install the update', sub: 'The game closes, updates and starts again', act: 'upd-install', text: 'Update' });
     if (!UEU.busy) R.push({ k: 'btn', label: 'Check for updates', sub: 'Looks for a newer PC version on the release page', act: 'upd-check', text: 'Check' });
     return R;

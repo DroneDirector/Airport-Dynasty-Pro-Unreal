@@ -61,6 +61,16 @@ public:
 	bool IsStuck(float Dt);
 	void Unstick();
 	TSharedPtr<SWidget> UnstuckPanel;
+	/** The loading screen into airport mode (Loading.cpp). */
+	TSharedRef<SWidget> MakeLoading();
+	void StartLoading();
+	void StopLoading();
+	void TickLoading(float Dt);
+	TSharedPtr<SWidget> LoadingBox;
+	bool bLoading = false, bWasGame = true;
+	float LoadT = 0, LoadFrac = 0;
+	FString LoadStep;
+	int32 ShadersMax = 1, TexMax = 1;
 	float StuckFor = 0;
 	bool FindNewCrash();
 	void SendCrashMail();
@@ -74,6 +84,10 @@ public:
 	void DownloadNext(int32 I, const FString& Dir);
 	void ApplyUpdate(const FString& Dir);
 	FString UpdateStatus;
+	/** The download's progress (0..1, -1 when none) and speed (bytes a second), for the bar and the menus. */
+	float UpdateFrac = -1.f;
+	double UpdateSpeed = 0, UpdateT0 = 0;
+	uint64 UpdateGot0 = 0;
 	bool UpdateBusy = false;
 	/** What the menus' Settings > Updates was last told (sent again only when it changes). */
 	FString UpdateSent;

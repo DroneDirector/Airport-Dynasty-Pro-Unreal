@@ -139,6 +139,7 @@ void AADPHUD::DownloadNext(int32 I, const FString& Dir)
 	if (I >= UpdateChain.Num()) { ApplyUpdate(Dir); return; }
 	const FString Ver = UpdateChain[I].Key;
 	UpdateStatus = FString::Printf(TEXT("Downloading the update to %s (%d of %d)…"), *Ver, I + 1, UpdateChain.Num());
+	UpdateFrac = 0.f; UpdateSpeed = 0; UpdateT0 = 0; UpdateGot0 = 0;
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> R = Get(UpdateChain[I].Value);
 	R->SetHeader(TEXT("Accept"), TEXT("application/octet-stream"));
 	TWeakObjectPtr<AADPHUD> Me(this);
@@ -147,7 +148,17 @@ void AADPHUD::DownloadNext(int32 I, const FString& Dir)
 		if (AADPHUD* H = Me.Get())
 		{
 			const int64 Size = Req->GetResponse().IsValid() ? Req->GetResponse()->GetContentLength() : 0;
-			H->UpdateStatus = Size > 0 ? FString::Printf(TEXT("Downloading the update to %s: %d%%"), *Ver, int32(Got * 100 / Size)) : FString::Printf(TEXT("Downloading the update to %s: %.0f MB"), *Ver, Got / 1048576.0);
+			// the speed over the last second or so (smoothed), shown with the bar
+			const double Now = FPlatformTime::Seconds();
+			if (H->UpdateT0 <= 0 || Got < H->UpdateGot0) { H->UpdateT0 = Now; H->UpdateGot0 = Got; }
+			else if (Now - H->UpdateT0 > 0.5)
+			{
+				const double Rate = double(Got - H->UpdateGot0) / (Now - H->UpdateT0);
+				H->UpdateSpeed = H->UpdateSpeed > 0 ? H->UpdateSpeed * 0.6 + Rate * 0.4 : Rate;
+				H->UpdateT0 = Now; H->UpdateGot0 = Got;
+			}
+			H->UpdateFrac = Size > 0 ? float(double(Got) / double(Size)) : -1.f;
+			H->UpdateStatus = Size > 0 ? FString::Printf(TEXT("Downloading the update to %s: %.0f of %.0f MB"), *Ver, Got / 1048576.0, Size / 1048576.0) : FString::Printf(TEXT("Downloading the update to %s: %.0f MB"), *Ver, Got / 1048576.0);
 		}
 	});
 	R->OnProcessRequestComplete().BindLambda([Me, I, Dir, Ver](FHttpRequestPtr, FHttpResponsePtr Res, bool bOk)
@@ -200,6 +211,7 @@ Start-Process explorer.exe -ArgumentList ('"' + $exe + '"')
 	const FString ScriptFile = Dir / TEXT("apply-update.ps1");
 	FFileHelper::SaveStringToFile(Script, *ScriptFile, FFileHelper::EEncodingOptions::ForceUTF8);
 	UpdateStatus = TEXT("Installing the update: the game closes and starts again in a moment…");
+	UpdateFrac = 1.f;
 	// installed where only an administrator may write (Program Files, "for all users"): Windows asks once for permission
 	const FString Probe = Install / TEXT("AirportDynastyPro") / TEXT(".write-test");
 	const bool bWritable = FFileHelper::SaveStringToFile(TEXT("x"), *Probe);

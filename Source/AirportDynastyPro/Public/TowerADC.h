@@ -72,6 +72,11 @@ private:
 	void BuildCab();
 	void BuildDesk();
 	void BuildRoof();
+	/** Night lights outside (owner, 2026-11-11): downlights round the balcony under the roof's overhang, aimed away from
+	 *  the cab's glass, and six over the entrance under its canopy; on from sunset as the light masts are. */
+	void BuildNightLights();
+	UPROPERTY() TArray<TObjectPtr<class USpotLightComponent>> NightLights;
+	bool bNightOn = false;
 	#pragma endregion
 
 	#pragma region Moving parts

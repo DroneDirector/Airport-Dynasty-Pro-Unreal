@@ -68,6 +68,8 @@ private:
 	void LampsByDaylight();
 	/** Whites as real paint, strong non-lamp glows halved (Unreal lights them far more than Babylon did). */
 	void ToneDown();
+	/** The entrance canopies' undersides matte (not lamps), the entrance doors' glass as the facade's. */
+	void MatchSurfaces();
 	/** The gates' (and every other) row of seats: the Babylon boxes hidden, our detailed Nanite seating in their place
 	 *  (Tools/make_gate_seat.py: a seat per place on the beam, X-legs with armrests at the ends and every third seat,
 	 *  armrests between the others). */

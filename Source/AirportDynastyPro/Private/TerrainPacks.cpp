@@ -125,6 +125,32 @@ try {
 		Proc = FPlatformProcess::CreateProc(TEXT("powershell.exe"), *Args, true, true, true, nullptr, 0, nullptr, nullptr);
 	}
 
+	float Fraction()
+	{
+		FString Text; TSharedPtr<FJsonObject> O;
+		if (!FFileHelper::LoadFileToString(Text, *(Dir() / TEXT("progress.json"))) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), O) || !O.IsValid()) return -1.f;
+		const FString State = O->GetStringField(TEXT("state"));
+		if (State != TEXT("downloading") && State != TEXT("unpacking")) return -1.f;
+		const double T = O->GetNumberField(TEXT("total")), D = O->GetNumberField(TEXT("done"));
+		// within the pack being fetched: the part file's size so far (the helper writes it straight to disk)
+		double Part = 0; FString Pack;
+		if (O->TryGetStringField(TEXT("pack"), Pack)) Part = double(IFileManager::Get().FileSize(*(Dir() / TEXT("_download") / Pack)));
+		return T > 0 ? float(FMath::Clamp((D + FMath::Max(Part, 0.0)) / T, 0.0, 1.0)) : -1.f;
+	}
+
+	double Speed()
+	{
+		static double LastT = 0, LastB = -1, Rate = 0;
+		const float F = Fraction();
+		if (F < 0) { LastB = -1; Rate = 0; return 0; }
+		FString Text; TSharedPtr<FJsonObject> O;
+		if (!FFileHelper::LoadFileToString(Text, *(Dir() / TEXT("progress.json"))) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), O) || !O.IsValid()) return Rate;
+		const double B = F * O->GetNumberField(TEXT("total")), Now = FPlatformTime::Seconds();
+		if (LastB < 0 || B < LastB) { LastB = B; LastT = Now; return Rate; }
+		if (Now - LastT > 1.0) { const double R = (B - LastB) / (Now - LastT); Rate = Rate > 0 ? Rate * 0.6 + R * 0.4 : R; LastB = B; LastT = Now; }
+		return Rate;
+	}
+
 	FString Status()
 	{
 		FString Text;

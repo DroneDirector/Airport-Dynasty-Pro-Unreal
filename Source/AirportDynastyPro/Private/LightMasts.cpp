@@ -1,5 +1,6 @@
 // The apron light masts (LightMasts.h).
 #include "LightMasts.h"
+#include "Engine/PostProcessVolume.h"
 #include "TerminalPlan.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SpotLightComponent.h"
@@ -15,7 +16,7 @@
 namespace
 {
 	const float MastHeadY = 29.4f;      // the floodlights' height, metres above the apron
-	const float LampLumens = 2600.f;    // each floodlight: bright enough for the apron, never glaring
+	const float LampLumens = 3900.f;    // each floodlight: bright enough for the apron, never glaring
 	const float FaceGlow = 6.f;         // the LED faces' glow at full night
 }
 
@@ -133,6 +134,13 @@ void ALightMasts::Tick(float Dt)
 		if (FMath::Abs(L->Intensity - Want) > 50.f) L->SetIntensity(Want);
 	}
 	if (Faces) Faces->SetScalarParameterValue(TEXT("Glow"), bOn ? FaceGlow * FMath::Max(Dark, 0.35f) : 0.f);
+	// outside at night the camera brightened the dark so much that the lit terminal washed out white (owner, 2026-11-11):
+	// two stops less outdoors after dark (the terminal at about a quarter), the masts a little stronger to keep the
+	// apron's ground readable (their own look about 30% of before); indoors keeps its own exposure
+	const float Bias = -1.7f * (1.f - FMath::SmoothStep(-10.f, 3.f, El));
+	for (TActorIterator<APostProcessVolume> It(GetWorld()); It; ++It)
+		if (It->bUnbound && It->Priority < 1.f && FMath::Abs(It->Settings.AutoExposureBias - Bias) > 0.02f)
+		{ It->Settings.bOverride_AutoExposureBias = true; It->Settings.AutoExposureBias = Bias; }
 	// the haze the beams show in: volumetric fog while the masts are lit
 	if (bChanged)
 		for (TActorIterator<AExponentialHeightFog> It(GetWorld()); It; ++It)
