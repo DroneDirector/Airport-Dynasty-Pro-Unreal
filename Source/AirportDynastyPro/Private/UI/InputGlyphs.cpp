@@ -23,6 +23,8 @@ namespace ADPInput
 			{TEXT("Use or press"),    EKeys::E,         TEXT("E"),       EKeys::Gamepad_FaceButton_Left,   TEXT("X"), TEXT("□"), TEXT("Button 3")},
 			{TEXT("Change view (your eyes / from behind; in a truck: driver's seat / behind it)"), EKeys::V, TEXT("V"), EKeys::Gamepad_DPad_Up, TEXT("D-pad up"), TEXT("D-pad up"), TEXT("D-pad up")},
 			{TEXT("Siren on / off (in a fire truck)"), EKeys::B, TEXT("B"), EKeys::Gamepad_DPad_Left, TEXT("D-pad left"), TEXT("D-pad left"), TEXT("D-pad left")},
+			{TEXT("High beams on / off (in a truck)"), EKeys::L, TEXT("L"), EKeys::Gamepad_DPad_Down, TEXT("D-pad down"), TEXT("D-pad down"), TEXT("D-pad down")},
+			{TEXT("Blue warning lights on / off (in a fire truck)"), EKeys::N, TEXT("N"), EKeys::Gamepad_RightThumbstick, TEXT("RS"), TEXT("R3"), TEXT("R stick press")},
 			{TEXT("Menus"),           EKeys::G,         TEXT("G"),       EKeys::Gamepad_FaceButton_Top,    TEXT("Y"), TEXT("△"), TEXT("Button 4")},
 			{TEXT("Map"),             EKeys::M,         TEXT("M"),       EKeys::Gamepad_RightShoulder,     TEXT("RB"), TEXT("R1"), TEXT("Right shoulder")},
 			{TEXT("Hide UI"),         EKeys::H,         TEXT("H"),       EKeys::Gamepad_LeftShoulder,      TEXT("LB"), TEXT("L1"), TEXT("Left shoulder")},

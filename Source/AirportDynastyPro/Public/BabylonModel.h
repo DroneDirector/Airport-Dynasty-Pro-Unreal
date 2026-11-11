@@ -61,6 +61,8 @@ public:
 	void FlushMoves();
 	/** A node's place in root space; false when the model has no node so named. */
 	bool NodeBase(const FString& Name, FTransform& Out) const;
+	/** Every node called Name or Name.### (copies of one part): their places in the model's root space. */
+	void NodesNamed(const FString& Name, TArray<FTransform>& Out) const;
 	/** The model's root (its frame). */
 	USceneComponent* GetModelRoot() const { return Root; }
 	/** Collision on or off for all the model's parts (a fire truck collides with its physics body instead). */

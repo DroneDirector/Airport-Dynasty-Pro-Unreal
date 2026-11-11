@@ -946,6 +946,14 @@ bool ABabylonModel::NodeBase(const FString& Name, FTransform& Out) const
 	return true;
 }
 
+void ABabylonModel::NodesNamed(const FString& Name, TArray<FTransform>& Out) const
+{
+	const FString Dot = Name + TEXT(".");
+	for (int32 I = 0; I < NName.Num(); ++I)
+		if (NName[I] == Name || (NName[I].StartsWith(Dot) && NName[I].Len() == Dot.Len() + 3 && FCString::IsNumeric(*NName[I].RightChop(Dot.Len()))))
+			Out.Add(NRoot[I]);
+}
+
 void ABabylonModel::SetPartsCollision(bool bOn)
 {
 	TArray<UInstancedStaticMeshComponent*> Parts;

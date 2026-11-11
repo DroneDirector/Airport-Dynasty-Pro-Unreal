@@ -310,6 +310,7 @@ bool AFireTruck::Setup(const FString& ModelName)
 	};
 	NearSound = Att(150.f, 3500.f);
 	FarSound = Att(1500.f, 120000.f);
+	BuildLamps();
 	// the reversing lamps (Light_Reverse, either side at the back): a white beam back over the ground and the lens's
 	// own glow, both off until you reverse
 	for (const TCHAR* N : {TEXT("Light_Reverse"), TEXT("Light_Reverse.001")})
@@ -391,6 +392,8 @@ void AFireTruck::SetupPlayerInputComponent(UInputComponent* In)
 	In->BindAction(TEXT("Jump"), IE_Released, this, &AFireTruck::HandOff);
 	In->BindAction(TEXT("ChangeView"), IE_Pressed, this, &AFireTruck::ToggleView);
 	In->BindAction(TEXT("Siren"), IE_Pressed, this, &AFireTruck::ToggleSiren);
+	In->BindAction(TEXT("HighBeam"), IE_Pressed, this, &AFireTruck::ToggleHighBeam);
+	In->BindAction(TEXT("BlueLights"), IE_Pressed, this, &AFireTruck::ToggleBlue);
 }
 
 void AFireTruck::Enter(APawn* Walker)
@@ -494,6 +497,102 @@ void AFireTruck::FinishExit()
 	if (PC) { PC->Possess(Wk); PC->SetControlRotation(FRotator(Look.Pitch, Rot.Yaw, 0.f)); }
 	MoveCam->SetActive(false); DriverCam->SetActive(false); ChaseCam->SetActive(false);
 	ADP_LOG(TEXT("Fire truck: you got out (%s), %.0f km/h"), *GetName(), SpeedKmh());
+}
+
+void AFireTruck::BuildLamps()
+{
+	// each lamp a light at its lens (the model's own Light_* parts): a small glow at the lens itself, and for the
+	// headlamps, the blue bar and the brake lamps a light that reaches the ground round the truck. Forward is root -y.
+	auto Add = [this](ULocalLightComponent* L, const FVector& At, const FLinearColor& Col, float Lumens, float Radius, ELamp Kind, uint8 Side)
+	{
+		L->SetupAttachment(Model->GetModelRoot());
+		L->SetRelativeLocation(At);
+		L->SetIntensityUnits(ELightUnits::Lumens); L->SetIntensity(Lumens);
+		L->SetLightColor(Col); L->SetAttenuationRadius(Radius);
+		L->SetCastShadows(false);
+		L->SetVisibility(false);
+		L->RegisterComponent();
+		Lamps.Add(L); LampKind.Add(Kind); LampSide.Add(Side); LampFull.Add(Lumens);
+	};
+	auto Glow = [&](const FTransform& T, const FVector& Out, const FLinearColor& Col, float Lumens, float Radius, ELamp Kind)
+	{
+		UPointLightComponent* P = NewObject<UPointLightComponent>(this);
+		P->SetSourceRadius(5.f);
+		Add(P, T.GetLocation() + Out, Col, Lumens, Radius, Kind, T.GetLocation().X < 0.f ? 0 : 1);
+	};
+	auto Beam = [&](const FVector& At, float Pitch, float Outer, float Inner, const FLinearColor& Col, float Lumens, float Radius, ELamp Kind, uint8 Side)
+	{
+		USpotLightComponent* Sp = NewObject<USpotLightComponent>(this);
+		Sp->SetRelativeRotation(FRotator(Pitch, -90.f, 0.f));
+		Sp->SetOuterConeAngle(Outer); Sp->SetInnerConeAngle(Inner);
+		Sp->SetVolumetricScatteringIntensity(0.25f);   // a soft beam in the haze, not a glowing cone
+		Add(Sp, At, Col, Lumens, Radius, Kind, Side);
+	};
+	const FLinearColor White(1.f, 0.96f, 0.9f), Red(1.f, 0.04f, 0.02f), Blue(0.05f, 0.18f, 1.f), Amber(1.f, 0.45f, 0.02f);
+	TArray<FTransform> N;
+	// the headlamps: a glow at each lens, one beam a side for the low beams, one for the high
+	for (const TCHAR* Nm : {TEXT("Light_HeadLow"), TEXT("Light_HeadHigh")})
+	{
+		const ELamp K = Nm[10] == TEXT('L') ? ELamp::Low : ELamp::High;   // ("Light_Head" then L or H)
+		N.Reset(); Model->NodesNamed(Nm, N);
+		FVector Sum[2] = {FVector::ZeroVector, FVector::ZeroVector}; int32 Cnt[2] = {0, 0};
+		for (const FTransform& T : N) { Glow(T, FVector(0, -4.f, 0), White, K == ELamp::Low ? 90.f : 120.f, 45.f, K); const int32 Sd = T.GetLocation().X < 0.f ? 0 : 1; Sum[Sd] += T.GetLocation(); ++Cnt[Sd]; }
+		for (int32 Sd = 0; Sd < 2; ++Sd)
+			if (Cnt[Sd]) Beam(Sum[Sd] / Cnt[Sd] + FVector(0, -10.f, 0), K == ELamp::Low ? -5.f : -1.f, K == ELamp::Low ? 38.f : 16.f, K == ELamp::Low ? 22.f : 7.f, White,
+				K == ELamp::Low ? 3200.f : 9000.f, K == ELamp::Low ? 5500.f : 16000.f, K, uint8(Sd));
+	}
+	// the rear lamps: red tail lights, far brighter as you brake (the same lenses)
+	N.Reset(); Model->NodesNamed(TEXT("Light_Brake"), N);
+	for (const FTransform& T : N) { Glow(T, FVector(0, 5.f, 0), Red, 25.f, 45.f, ELamp::Tail); Glow(T, FVector(0, 8.f, 0), Red, 380.f, 260.f, ELamp::Brake); }
+	// the amber side markers
+	N.Reset(); Model->NodesNamed(TEXT("Light_MarkerSide"), N);
+	for (const FTransform& T : N) Glow(T, FVector(T.GetLocation().X < 0.f ? -3.f : 3.f, 0, 0), Amber, 10.f, 25.f, ELamp::Marker);
+	// the blue warning lights: every lens glows as it flashes; the roof bar's two halves light the ground and the
+	// buildings round about, left and right in turn
+	for (const TCHAR* Nm : {TEXT("Light_BlueBar"), TEXT("Light_BlueFront"), TEXT("Light_BlueRear"), TEXT("Light_BlueSide")})
+	{
+		N.Reset(); Model->NodesNamed(Nm, N);
+		for (const FTransform& T : N) Glow(T, FVector::ZeroVector, Blue, 160.f, 70.f, ELamp::Blue);
+	}
+	N.Reset(); Model->NodesNamed(TEXT("Light_BlueBar"), N);
+	FVector BarSum[2] = {FVector::ZeroVector, FVector::ZeroVector}; int32 BarCnt[2] = {0, 0};
+	for (const FTransform& T : N) { const int32 Sd = T.GetLocation().X < 0.f ? 0 : 1; BarSum[Sd] += T.GetLocation(); ++BarCnt[Sd]; }
+	for (int32 Sd = 0; Sd < 2; ++Sd)
+		if (BarCnt[Sd])
+		{
+			UPointLightComponent* P = NewObject<UPointLightComponent>(this);
+			P->SetSourceRadius(20.f);
+			Add(P, BarSum[Sd] / BarCnt[Sd] + FVector(0, 0, 25.f), Blue, 14000.f, 2600.f, ELamp::BlueWide, uint8(Sd));
+		}
+	ADP_LOG(TEXT("Fire truck: %d lamps (headlamps, tail, brake, markers, blue warning lights)"), Lamps.Num());
+}
+
+void AFireTruck::UpdateLamps(float Dt)
+{
+	// the lights are on whenever someone is at the wheel (or climbing in or out); the blue lights as they were left
+	const bool bRunning = Driver != nullptr;
+	const bool bBraking = bRunning && ((bExitPending) || (bReverse ? InThrottle : InBrake) > 0.05f);
+	BlueClock += Dt;
+	// the warning lights' double flash: each side twice quickly, then the other side
+	auto Flash = [this](uint8 Side)
+	{
+		const float C = FMath::Fmod(BlueClock + (Side ? 0.4f : 0.f), 0.8f);
+		return (C < 0.07f) || (C > 0.13f && C < 0.2f);
+	};
+	for (int32 I = 0; I < Lamps.Num(); ++I)
+	{
+		ULocalLightComponent* L = Lamps[I];
+		if (!L) continue;
+		bool bOn = false;
+		switch (LampKind[I])
+		{
+		case ELamp::Low: case ELamp::Tail: case ELamp::Marker: bOn = bRunning; break;
+		case ELamp::High: bOn = bRunning && bHighBeam; break;
+		case ELamp::Brake: bOn = bBraking; break;
+		case ELamp::Blue: case ELamp::BlueWide: bOn = bBlue && Flash(LampSide[I]); break;
+		}
+		if (L->IsVisible() != bOn) L->SetVisibility(bOn);
+	}
 }
 
 void AFireTruck::ReverseGear(bool bOn)
@@ -707,6 +806,7 @@ void AFireTruck::Tick(float Dt)
 	}
 	// in reverse gear the reversing lamps light and the beeper sounds (owner, 2026-11-11), until you drive forward again
 	ReverseGear(Driver && bSim && bReverse && Seq == ESeq::None);
+	UpdateLamps(Dt);
 	// once you've got out and it stands still a while, it rests (no physics running; it stays exactly where it stopped)
 	if (bSim && !Driver) { Still = SpeedKmh() < 0.5f ? Still + Dt : 0.f; if (Still > 3.f) SetPhysics(false); }
 }
