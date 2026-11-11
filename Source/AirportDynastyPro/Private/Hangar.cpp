@@ -16,7 +16,7 @@
 #pragma region Sizes
 namespace
 {
-	constexpr float Pitch = 2.5f * PI / 180.f;     // the roof's fall to each side, hidden behind the parapet
+	constexpr float RoofPitch = 2.5f * PI / 180.f;     // the roof's fall to each side, hidden behind the parapet
 	constexpr float RefCandela = 230.f;             // a lamp in the terminal's hall (BabylonModel LightFittings) ...
 	constexpr float RefHeight = 3.5f;               // ... at about this height over the floor
 }
@@ -39,7 +39,7 @@ const FHangarSpec& FHangarSpec::Get(const FString& Id)
 	return All()[1];
 }
 
-float FHangarSpec::Ridge() const { return Eave() + (W / 2 + Col) * FMath::Tan(Pitch); }
+float FHangarSpec::Ridge() const { return Eave() + (W / 2 + Col) * FMath::Tan(RoofPitch); }
 #pragma endregion
 
 #pragma region Pieces
@@ -287,7 +287,7 @@ bool AHangar::Press(const UPrimitiveComponent* C)
 	if (I == INDEX_NONE) return false;
 	const int32 W = ButtonWhat[I];
 	DoorRun = W > 0 ? (DoorK < 1.f ? 1 : 0) : W < 0 ? (DoorK > 0.f ? -1 : 0) : 0;
-	UE_LOG(LogTemp, Log, TEXT("Hangar %s door: %s at %.0f%%"), *S.Id, W > 0 ? TEXT("OPEN") : W < 0 ? TEXT("CLOSE") : TEXT("STOP"), DoorK * 100.f);
+	ADP_LOG(TEXT("Hangar %s door: %s at %.0f%%"), *S.Id, W > 0 ? TEXT("OPEN") : W < 0 ? TEXT("CLOSE") : TEXT("STOP"), DoorK * 100.f);
 	return true;
 }
 
@@ -365,7 +365,7 @@ void AHangar::BuildFrame()
 	const float W = S.W, D = S.D, E = S.Eave(), cd = S.Col, fl = cd * 0.5f, colX = W / 2 + cd / 2, colH = E - 0.15f;
 	const int32 NB = FMath::Max(4, FMath::RoundToInt(D / S.Bay));
 	const float Bay = D / NB;
-	auto RoofY = [&](float X) { return E + (W / 2 + cd - FMath::Abs(X)) * FMath::Tan(Pitch); };
+	auto RoofY = [&](float X) { return E + (W / 2 + cd - FMath::Abs(X)) * FMath::Tan(RoofPitch); };
 	for (int32 i = 0; i <= NB; ++i)
 	{
 		const float Z = i * Bay;
@@ -442,7 +442,7 @@ void AHangar::BuildFrame()
 void AHangar::BuildSkin()
 {
 	const float W = S.W, D = S.D, E = S.Eave(), Top = S.Top(), wx = S.WallX(), back = S.Back(), cd = S.Col;
-	auto RoofY = [&](float X) { return E + (W / 2 + cd - FMath::Abs(X)) * FMath::Tan(Pitch); };
+	auto RoofY = [&](float X) { return E + (W / 2 + cd - FMath::Abs(X)) * FMath::Tan(RoofPitch); };
 	for (const float Sx : {-1.f, 1.f})
 	{
 		// the side walls: a concrete plinth wall, white ribbed cladding outside up to the parapet, the white lining inside
@@ -706,7 +706,7 @@ void AHangar::BuildPersonnelDoors()
 void AHangar::BuildLampsAndServices()
 {
 	const float W = S.W, D = S.D, E = S.Eave(), cd = S.Col;
-	auto RoofY = [&](float X) { return E + (W / 2 + cd - FMath::Abs(X)) * FMath::Tan(Pitch); };
+	auto RoofY = [&](float X) { return E + (W / 2 + cd - FMath::Abs(X)) * FMath::Tan(RoofPitch); };
 	const int32 NB = FMath::Max(4, FMath::RoundToInt(D / S.Bay));
 	const float Bay = D / NB, LampY = E - (S.bTruss ? 2.0f : 2.4f), Step = S.bTruss ? 10.f : 8.f;
 	const float Z0 = D * 0.08f, Z1 = D * 0.92f;
