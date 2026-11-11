@@ -28,31 +28,31 @@ TArray<TWeakObjectPtr<AFireTruck>> AFireTruck::All;
 namespace
 {
 	// the truck's own measures (Art/FireTruck/make_panther.py, Blender metres) and its physics
-	constexpr float Axle[3] = {2.85f, -2.55f, -4.2f};
-	constexpr float TrackHalf = 1.22f, Rw = 0.75f, Kingpin = 0.12f;
+	constexpr float AxleY[3] = {2.85f, -2.55f, -4.2f};
+	constexpr float TrackHalfW = 1.22f, WheelR = 0.75f, KingpinOff = 0.12f;
 	constexpr float TruckMass = 28000.f, Gravity = 9.81f;
 	constexpr float KSpring = 458000.f, CDamp = 42000.f, AntiRoll = 180000.f;   // N/m, N s/m
-	constexpr float BumpCm = 15.f, DroopCm = 10.f, StrokeCm = BumpCm + DroopCm, RwCm = Rw * 100.f;
-	constexpr float Mu = 0.9f, Power = 520000.f, TopSpeed = 32.f, ReverseTop = 4.2f;
-	constexpr float MaxSteer = 25.f, Wheelbase = 5.4f, RearOff = 1.65f, Track = 2.44f;
+	constexpr float BumpCm = 15.f, DroopCm = 10.f, StrokeCm = BumpCm + DroopCm, WheelRCm = WheelR * 100.f;
+	constexpr float TyreMu = 0.9f, DrivePower = 520000.f, TopSpeed = 32.f, ReverseTop = 4.2f;
+	constexpr float MaxSteer = 25.f, Wheelbase = 5.4f, RearOff = 1.65f, TrackWidth = 2.44f;
 	FVector BlenderToRoot(float X, float Y, float Z) { return FVector(X, -Y, Z) * 100.f; }
 	FTransform About(const FVector& P, const FQuat& Q) { return FTransform(-P) * FTransform(Q) * FTransform(P); }
 	FVector DirToRoot(float X, float Y) { return FVector(X, -Y, 0.f).GetSafeNormal(); }
 
 	// ---- the sounds, made here (no recordings): 44.1 kHz mono
-	constexpr int32 Rate = 44100;
-	float Noise(uint32& Seed) { Seed = Seed * 1664525u + 1013904223u; return ((Seed >> 9) & 0xFFFF) / 32767.5f - 1.f; }
-	TArray<int16> ToPcm(const TArray<float>& F) { TArray<int16> P; P.SetNumUninitialized(F.Num()); for (int32 I = 0; I < F.Num(); ++I) P[I] = int16(FMath::Clamp(FMath::Tanh(F[I] * 1.2f) * 30000.f, -32767.f, 32767.f)); return P; }
+	constexpr int32 SndRate = 44100;
+	float SndNoise(uint32& Seed) { Seed = Seed * 1664525u + 1013904223u; return ((Seed >> 9) & 0xFFFF) / 32767.5f - 1.f; }
+	TArray<int16> SndPcm(const TArray<float>& F) { TArray<int16> P; P.SetNumUninitialized(F.Num()); for (int32 I = 0; I < F.Num(); ++I) P[I] = int16(FMath::Clamp(FMath::Tanh(F[I] * 1.2f) * 30000.f, -32767.f, 32767.f)); return P; }
 	/** the door opening: the handle's latch letting go (two quick metal clicks), the seal's soft pop, the hinge */
 	const TArray<int16>& DoorOpenPcm()
 	{
 		static TArray<int16> P;
 		if (P.Num()) return P;
-		TArray<float> F; F.SetNumZeroed(Rate * 45 / 100);
+		TArray<float> F; F.SetNumZeroed(SndRate * 45 / 100);
 		uint32 Sd = 7u; float Hp = 0.f, Prev = 0.f, Lp = 0.f;
 		for (int32 I = 0; I < F.Num(); ++I)
 		{
-			const float T = float(I) / Rate, N = Noise(Sd);
+			const float T = float(I) / SndRate, N = SndNoise(Sd);
 			Hp = 0.7f * (Hp + N - Prev); Prev = N;                              // bright noise (the metal)
 			Lp += 0.08f * (N - Lp);                                             // dull noise (the rubber)
 			float V = 0.f;
@@ -61,7 +61,7 @@ namespace
 			if (T >= 0.12f) { const float H = T - 0.12f; V += 0.05f * FMath::Sin(2.f * PI * (330.f * H + 120.f * H * H)) * FMath::Sin(PI * FMath::Min(1.f, H / 0.3f)) * (0.6f + 0.4f * FMath::Sin(2.f * PI * 23.f * H)); }
 			F[I] = V;
 		}
-		P = ToPcm(F);
+		P = SndPcm(F);
 		return P;
 	}
 	/** the door shutting: a heavy cab door's low thump, the latch catching, a little rattle */
@@ -69,11 +69,11 @@ namespace
 	{
 		static TArray<int16> P;
 		if (P.Num()) return P;
-		TArray<float> F; F.SetNumZeroed(Rate * 7 / 10);
+		TArray<float> F; F.SetNumZeroed(SndRate * 7 / 10);
 		uint32 Sd = 11u; float Lp = 0.f, Hp = 0.f, Prev = 0.f;
 		for (int32 I = 0; I < F.Num(); ++I)
 		{
-			const float T = float(I) / Rate, N = Noise(Sd);
+			const float T = float(I) / SndRate, N = SndNoise(Sd);
 			Lp += 0.05f * (N - Lp); Hp = 0.7f * (Hp + N - Prev); Prev = N;
 			float V = 0.95f * FMath::Sin(2.f * PI * 62.f * T) * FMath::Exp(-T / 0.11f) + 0.5f * FMath::Sin(2.f * PI * 124.f * T + 0.6f) * FMath::Exp(-T / 0.07f);
 			V += 1.6f * Lp * FMath::Exp(-T / 0.025f);
@@ -81,7 +81,7 @@ namespace
 			V += 0.08f * FMath::Sin(2.f * PI * 870.f * T) * FMath::Exp(-T / 0.06f) * (0.5f + 0.5f * FMath::Sin(2.f * PI * 37.f * T));
 			F[I] = V * FMath::Min(1.f, T / 0.002f);
 		}
-		P = ToPcm(F);
+		P = SndPcm(F);
 		return P;
 	}
 	/** the siren: an electronic wail, its tone rising and falling every 4.4 s, the horn speaker's hard edge */
@@ -93,11 +93,11 @@ namespace
 		{
 			const double C = FMath::Fmod(S.T, 4.4) / 4.4;
 			const double Hz = 640.0 + 820.0 * (C < 0.55 ? FMath::Sin(C / 0.55 * HALF_PI) : FMath::Cos((C - 0.55) / 0.45 * HALF_PI));
-			S.Phase = FMath::Fmod(S.Phase + 2.0 * PI * Hz / Rate, 2.0 * PI);
+			S.Phase = FMath::Fmod(S.Phase + 2.0 * PI * Hz / SndRate, 2.0 * PI);
 			const double Ph = S.Phase;
 			const double V = 0.6 * FMath::Sin(Ph) + 0.24 * FMath::Sin(3 * Ph) + 0.12 * FMath::Sin(5 * Ph) + 0.05 * FMath::Sin(7 * Ph);
 			Out[I] = int16(FMath::Tanh(1.8 * V) * 22000.0);
-			S.T += 1.0 / Rate;
+			S.T += 1.0 / SndRate;
 		}
 	}
 
@@ -105,11 +105,11 @@ namespace
 	 *  the sections' heavy clank, a rattle dying away) */
 	TArray<int16> GarageClunk(bool bStop)
 	{
-		TArray<float> F; F.SetNumZeroed(Rate * (bStop ? 70 : 45) / 100);
+		TArray<float> F; F.SetNumZeroed(SndRate * (bStop ? 70 : 45) / 100);
 		uint32 Sd = bStop ? 23u : 19u; float Lp = 0.f, Hp = 0.f, Prev = 0.f;
 		for (int32 I = 0; I < F.Num(); ++I)
 		{
-			const float T = float(I) / Rate, N = Noise(Sd);
+			const float T = float(I) / SndRate, N = SndNoise(Sd);
 			Lp += 0.06f * (N - Lp); Hp = 0.75f * (Hp + N - Prev); Prev = N;
 			float V = 0.f;
 			if (!bStop) V += 0.4f * Hp * FMath::Exp(-T / 0.003f);                                    // the relay
@@ -124,7 +124,7 @@ namespace
 			}
 			F[I] = V;
 		}
-		return ToPcm(F);
+		return SndPcm(F);
 	}
 	/** the motor running: its hum, the chain, the sections' rollers knocking past the track's joints */
 	struct FHumState { double T = 0.0, Ph = 0.0; uint32 Seed = 5u; float Hp = 0.f, Prev = 0.f; };
@@ -133,12 +133,12 @@ namespace
 		Out.SetNumUninitialized(N);
 		for (int32 I = 0; I < N; ++I)
 		{
-			S.Ph = FMath::Fmod(S.Ph + 2.0 * PI * 96.0 / Rate, 2.0 * PI);
-			const float Nz = Noise(S.Seed); S.Hp = 0.8f * (S.Hp + Nz - S.Prev); S.Prev = Nz;
+			S.Ph = FMath::Fmod(S.Ph + 2.0 * PI * 96.0 / SndRate, 2.0 * PI);
+			const float Nz = SndNoise(S.Seed); S.Hp = 0.8f * (S.Hp + Nz - S.Prev); S.Prev = Nz;
 			const float Knock = FMath::Pow(0.5f + 0.5f * float(FMath::Sin(2.0 * PI * 3.1 * S.T)), 18.f);   // a roller over a joint, three a second
 			const float V = 0.22f * float(FMath::Sin(S.Ph) + 0.45 * FMath::Sin(2 * S.Ph) + 0.2 * FMath::Sin(3 * S.Ph)) + 0.07f * S.Hp + 0.35f * Knock * S.Hp;
 			Out[I] = int16(FMath::Tanh(V * 1.4f) * 20000.f);
-			S.T += 1.0 / Rate;
+			S.T += 1.0 / SndRate;
 		}
 	}
 
@@ -148,7 +148,7 @@ namespace
 	// y 5.12, about 1.25-1.9 m up); the middle seat's cushion at 1.6 m (y 4.08); the pedals.
 	enum class EHand : uint8 { Free, At, Wheel };
 	struct FKey { float T; FVector Pelvis; FVector2D Face; float Lean; FVector Foot[2]; EHand HM[2]; FVector Hand[2]; float Grip[2]; };
-	const FKey Keys[] = {
+	const FKey ClimbKeys[] = {
 		// standing at the foot of the steps (replaced by where you really are when you press E)
 		{0.00f, {-2.15f, 4.60f, 0.95f}, {1, 0}, 0.f,  {{-2.15f, 4.72f, 0.f}, {-2.15f, 4.48f, 0.f}}, {EHand::Free, EHand::Free}, {}, {0.f, 0.f}},
 		// hands up to the handles either side of the doorway
@@ -166,8 +166,8 @@ namespace
 		// sat down in the middle, feet to the pedals, hands on the wheel
 		{3.70f, {0.00f, 4.02f, 1.70f}, {0, 1}, -8.f, {{-0.14f, 4.70f, 1.04f}, {0.20f, 4.62f, 1.04f}}, {EHand::Wheel, EHand::Wheel}, {}, {1.f, 1.f}},
 	};
-	constexpr int32 NumKeys = UE_ARRAY_COUNT(Keys);
-	constexpr float SeqLen = 3.70f;
+	constexpr int32 NumClimbKeys = UE_ARRAY_COUNT(ClimbKeys);
+	constexpr float ClimbLen = 3.70f;
 }
 
 AFireTruck::AFireTruck()
@@ -219,7 +219,7 @@ bool AFireTruck::Setup(const FString& ModelName)
 	Model->SetPartsCollision(false);   // the body collides for it
 	const FTransform RX = Model->GetModelRoot()->GetComponentTransform();
 	// the body round the model: forward from the rear axle to the front, its middle at the truck's middle
-	const FVector Front = RX.TransformPosition(BlenderToRoot(0, Axle[0], Rw)), Back = RX.TransformPosition(BlenderToRoot(0, Axle[2], Rw));
+	const FVector Front = RX.TransformPosition(BlenderToRoot(0, AxleY[0], WheelR)), Back = RX.TransformPosition(BlenderToRoot(0, AxleY[2], WheelR));
 	const FVector Fw = (Front - Back).GetSafeNormal2D();
 	SetActorLocationAndRotation(RX.TransformPosition(BlenderToRoot(0.f, 0.025f, 2.0f)), FRotationMatrix::MakeFromXZ(Fw, FVector::UpVector).Rotator(), false, nullptr, ETeleportType::TeleportPhysics);
 	Model->AttachToComponent(Body, FAttachmentTransformRules::KeepWorldTransform);
@@ -234,7 +234,7 @@ bool AFireTruck::Setup(const FString& ModelName)
 		{
 			FWheel Wh; Wh.Axle = A; Wh.Side = Sd;
 			const FString T = FString::Printf(TEXT("%s%d"), Sd < 0 ? TEXT("L") : TEXT("R"), A + 1);
-			Wh.CentreRoot = BlenderToRoot(Sd * TrackHalf, Axle[A], Rw);
+			Wh.CentreRoot = BlenderToRoot(Sd * TrackHalfW, AxleY[A], WheelR);
 			Wh.Rest = BT.InverseTransformPosition(RX.TransformPosition(Wh.CentreRoot));
 			auto Bind = [&](const TArray<FString>& Names, FTransform& Base, int32& Group)
 			{
@@ -355,7 +355,7 @@ void AFireTruck::Enter(APawn* Walker)
 	APlayerController* PC = Cast<APlayerController>(Walker->GetController());
 	if (!PC) return;
 	const FTransform RX = Model->GetModelRoot()->GetComponentTransform();
-	if (FVector::Dist2D(RX.InverseTransformPosition(Walker->GetActorLocation()), BlenderToRoot(Keys[0].Pelvis.X, Keys[0].Pelvis.Y, 0.f)) > 450.f)
+	if (FVector::Dist2D(RX.InverseTransformPosition(Walker->GetActorLocation()), BlenderToRoot(ClimbKeys[0].Pelvis.X, ClimbKeys[0].Pelvis.Y, 0.f)) > 450.f)
 	{
 		ADP_LOG(TEXT("Fire truck: too far from the driver's door to get in (%s)"), *GetName());
 		return;
@@ -388,7 +388,7 @@ void AFireTruck::Enter(APawn* Walker)
 
 FVector AFireTruck::DoorSpot() const
 {
-	return Model ? Model->GetModelRoot()->GetComponentTransform().TransformPosition(BlenderToRoot(Keys[0].Pelvis.X - 0.5f, Keys[0].Pelvis.Y - 0.3f, 1.0f)) : GetActorLocation();
+	return Model ? Model->GetModelRoot()->GetComponentTransform().TransformPosition(BlenderToRoot(ClimbKeys[0].Pelvis.X - 0.5f, ClimbKeys[0].Pelvis.Y - 0.3f, 1.0f)) : GetActorLocation();
 }
 
 void AFireTruck::Exit()
@@ -418,7 +418,7 @@ void AFireTruck::StartExit()
 	InThrottle = InBrake = InSteer = KeyFwd = KeySteer = PadThrottle = PadBrake = 0.f;
 	bHandbrake = true;   // left with the handbrake on
 	// you end a step out from the foot of the steps, turned along the truck towards its front (it stays in view)
-	StartPelvis = BlenderToRoot(Keys[0].Pelvis.X - 0.25f, Keys[0].Pelvis.Y - 0.1f, 0.f); StartPelvis.Z = Rig.IsReady() ? Rig.PelvisHeight() : 95.f;
+	StartPelvis = BlenderToRoot(ClimbKeys[0].Pelvis.X - 0.25f, ClimbKeys[0].Pelvis.Y - 0.1f, 0.f); StartPelvis.Z = Rig.IsReady() ? Rig.PelvisHeight() : 95.f;
 	StartFacing = DirToRoot(-0.35f, 1.f);
 	Seq = ESeq::Out; SeqT = 0.f;
 	DoorTarget = 1.f;
@@ -459,12 +459,12 @@ void AFireTruck::ToggleSiren()
 	if (bSiren)
 	{
 		USoundWaveProcedural* W = NewObject<USoundWaveProcedural>(this);
-		W->SetSampleRate(Rate); W->NumChannels = 1; W->Duration = INDEFINITELY_LOOPING_DURATION; W->bLooping = false;
+		W->SetSampleRate(SndRate); W->NumChannels = 1; W->Duration = INDEFINITELY_LOOPING_DURATION; W->bLooping = false;
 		W->SoundGroup = SOUNDGROUP_Effects;
 		TSharedPtr<FSirenState> St = MakeShared<FSirenState>();
 		W->OnSoundWaveProceduralUnderflow = FOnSoundWaveProceduralUnderflow::CreateLambda([St](USoundWaveProcedural* Wv, int32 Samples)
 		{
-			TArray<int16> Buf; SirenFill(*St, Buf, FMath::Max(Samples, Rate / 20));
+			TArray<int16> Buf; SirenFill(*St, Buf, FMath::Max(Samples, SndRate / 20));
 			Wv->QueueAudio(reinterpret_cast<const uint8*>(Buf.GetData()), Buf.Num() * sizeof(int16));
 		});
 		// (the speakers on the cab's roof, at the front)
@@ -478,7 +478,7 @@ void AFireTruck::Sound(const TArray<int16>& Pcm, const FVector& RootAt, bool bFa
 {
 	if (!Model || Pcm.Num() == 0) return;
 	USoundWaveProcedural* W = NewObject<USoundWaveProcedural>(this);
-	W->SetSampleRate(Rate); W->NumChannels = 1; W->Duration = Pcm.Num() / float(Rate); W->bLooping = false;
+	W->SetSampleRate(SndRate); W->NumChannels = 1; W->Duration = Pcm.Num() / float(SndRate); W->bLooping = false;
 	W->SoundGroup = SOUNDGROUP_Effects;
 	W->QueueAudio(reinterpret_cast<const uint8*>(Pcm.GetData()), Pcm.Num() * sizeof(int16));
 	UGameplayStatics::SpawnSoundAttached(W, Model->GetModelRoot(), NAME_None, RootAt, EAttachLocation::KeepRelativeOffset, true, 1.f, 1.f, 0.f, bFar ? FarSound.Get() : NearSound.Get());
@@ -487,19 +487,19 @@ void AFireTruck::Sound(const TArray<int16>& Pcm, const FVector& RootAt, bool bFa
 FDriverPose AFireTruck::PoseAt(float T) const
 {
 	// the keys either side, eased between; the first one where you really stood
-	auto KeyPelvis = [this](int32 I) { return I == 0 ? StartPelvis : BlenderToRoot(Keys[I].Pelvis.X, Keys[I].Pelvis.Y, Keys[I].Pelvis.Z); };
-	auto KeyFace = [this](int32 I) { return I == 0 ? StartFacing : DirToRoot(Keys[I].Face.X, Keys[I].Face.Y); };
-	T = FMath::Clamp(T, 0.f, SeqLen);
+	auto KeyPelvis = [this](int32 I) { return I == 0 ? StartPelvis : BlenderToRoot(ClimbKeys[I].Pelvis.X, ClimbKeys[I].Pelvis.Y, ClimbKeys[I].Pelvis.Z); };
+	auto KeyFace = [this](int32 I) { return I == 0 ? StartFacing : DirToRoot(ClimbKeys[I].Face.X, ClimbKeys[I].Face.Y); };
+	T = FMath::Clamp(T, 0.f, ClimbLen);
 	int32 A = 0;
-	while (A < NumKeys - 2 && T > Keys[A + 1].T) ++A;
+	while (A < NumClimbKeys - 2 && T > ClimbKeys[A + 1].T) ++A;
 	const int32 B = A + 1;
-	const float U = FMath::Clamp((T - Keys[A].T) / (Keys[B].T - Keys[A].T), 0.f, 1.f), E = FMath::SmoothStep(0.f, 1.f, U);
+	const float U = FMath::Clamp((T - ClimbKeys[A].T) / (ClimbKeys[B].T - ClimbKeys[A].T), 0.f, 1.f), E = FMath::SmoothStep(0.f, 1.f, U);
 	FDriverPose P;
 	// the pelvis on a smooth curve through the keys
-	const FVector P0 = KeyPelvis(FMath::Max(A - 1, 0)), P1 = KeyPelvis(A), P2 = KeyPelvis(B), P3 = KeyPelvis(FMath::Min(B + 1, NumKeys - 1));
+	const FVector P0 = KeyPelvis(FMath::Max(A - 1, 0)), P1 = KeyPelvis(A), P2 = KeyPelvis(B), P3 = KeyPelvis(FMath::Min(B + 1, NumClimbKeys - 1));
 	P.Pelvis = 0.5f * ((2.f * P1) + (-P0 + P2) * E + (2.f * P0 - 5.f * P1 + 4.f * P2 - P3) * E * E + (-P0 + 3.f * P1 - 3.f * P2 + P3) * E * E * E);
 	P.Facing = FMath::Lerp(KeyFace(A), KeyFace(B), E).GetSafeNormal();
-	P.Lean = FMath::Lerp(Keys[A].Lean, Keys[B].Lean, E);
+	P.Lean = FMath::Lerp(ClimbKeys[A].Lean, ClimbKeys[B].Lean, E);
 	const FVector Up(0, 0, 1);
 	for (int32 S = 0; S < 2; ++S)
 	{
@@ -508,15 +508,15 @@ FDriverPose AFireTruck::PoseAt(float T) const
 		const FVector StartAcross = FVector::CrossProduct(Up, StartFacing).GetSafeNormal();
 		const float Sgn = S == 0 ? -1.f : 1.f;
 		// a foot that moves lifts on its way (the start: under your hips)
-		auto KeyFoot = [&](int32 I) { return I == 0 ? StartPelvis * FVector(1, 1, 0) + Sgn * 12.f * StartAcross : BlenderToRoot(Keys[I].Foot[S].X, Keys[I].Foot[S].Y, Keys[I].Foot[S].Z); };
+		auto KeyFoot = [&](int32 I) { return I == 0 ? StartPelvis * FVector(1, 1, 0) + Sgn * 12.f * StartAcross : BlenderToRoot(ClimbKeys[I].Foot[S].X, ClimbKeys[I].Foot[S].Y, ClimbKeys[I].Foot[S].Z); };
 		const FVector Fa = KeyFoot(A), Fb = KeyFoot(B);
 		P.Foot[S] = FMath::Lerp(Fa, Fb, E) + (FVector::Dist(Fa, Fb) > 3.f ? Up * 14.f * FMath::Sin(PI * E) : FVector::ZeroVector);
 		// the hands: what they hold, or hanging by your side
 		const FVector Rest = P.Pelvis + Sgn * Across * 24.f + P.Facing * 4.f - Up * 10.f;
 		auto KeyHand = [&](int32 I) -> FVector
 		{
-			if (Keys[I].HM[S] == EHand::At) return BlenderToRoot(Keys[I].Hand[S].X, Keys[I].Hand[S].Y, Keys[I].Hand[S].Z);
-			if (Keys[I].HM[S] == EHand::Wheel)
+			if (ClimbKeys[I].HM[S] == EHand::At) return BlenderToRoot(ClimbKeys[I].Hand[S].X, ClimbKeys[I].Hand[S].Y, ClimbKeys[I].Hand[S].Z);
+			if (ClimbKeys[I].HM[S] == EHand::Wheel)
 			{
 				// on the rim at ten to two, carried round as the wheel turns
 				const FVector WC(0.f, 4.6f, 1.87f), Rt(1.f, 0.f, 0.f), Top(0.f, 0.866f, 0.5f), Ax(0.f, -0.5f, 0.866f);
@@ -529,7 +529,7 @@ FDriverPose AFireTruck::PoseAt(float T) const
 		};
 		P.Hand[S] = FMath::Lerp(KeyHand(A), KeyHand(B), E);
 		P.bHand[S] = true;
-		P.Grip[S] = FMath::Lerp(Keys[A].Grip[S], Keys[B].Grip[S], E);
+		P.Grip[S] = FMath::Lerp(ClimbKeys[A].Grip[S], ClimbKeys[B].Grip[S], E);
 	}
 	return P;
 }
@@ -550,7 +550,7 @@ FTransform AFireTruck::CamPath(float T) const
 		const float Half = 90.f;
 		To = Wk ? Wk->ViewFrom(FVector(StartPelvis.X, StartPelvis.Y, Half), Look) : FTransform(Look, FVector(StartPelvis.X, StartPelvis.Y, 160.f));
 	}
-	const float L = SeqLen + (Seq == ESeq::Out ? 0.25f : 0.f);
+	const float L = ClimbLen + (Seq == ESeq::Out ? 0.25f : 0.f);
 	auto Blend = [](const FTransform& A, const FTransform& B, float K)
 	{
 		const float E = FMath::SmoothStep(0.f, 1.f, FMath::Clamp(K, 0.f, 1.f));
@@ -569,20 +569,20 @@ void AFireTruck::Sequence(float Dt)
 		SeqT += Dt;
 		MoveCam->SetWorldTransform(CamPath(SeqT) * RX);
 		if (Seq == ESeq::In && SeqT >= 3.2f) DoorTarget = 0.f;     // pulled shut behind you
-		if (Seq == ESeq::In && SeqT >= SeqLen)
+		if (Seq == ESeq::In && SeqT >= ClimbLen)
 		{
 			Seq = ESeq::None;
 			MoveCam->SetActive(false);
 			SetView(bChase);
 			ADP_LOG(TEXT("Fire truck: you got in (%s)"), *GetName());
 		}
-		else if (Seq == ESeq::Out && SeqT >= SeqLen + 0.25f) { FinishExit(); return; }
+		else if (Seq == ESeq::Out && SeqT >= ClimbLen + 0.25f) { FinishExit(); return; }
 	}
 	if (!Rider || !Rig.IsReady() || !Driver) return;
 	// the body: climbing (in: forwards through the keys, out: backwards), or at the wheel
-	const float KeyT = Seq == ESeq::Out ? SeqLen - SeqT : Seq == ESeq::In ? SeqT : SeqLen;
+	const float KeyT = Seq == ESeq::Out ? ClimbLen - SeqT : Seq == ESeq::In ? SeqT : ClimbLen;
 	FDriverPose P = PoseAt(KeyT);
-	const float SitT = Keys[NumKeys - 2].T;
+	const float SitT = ClimbKeys[NumClimbKeys - 2].T;
 	if (KeyT > SitT)
 	{
 		// at the pedals: the right foot's ball on the accelerator, or across on the brake; the left foot on the floor
@@ -592,7 +592,7 @@ void AFireTruck::Sequence(float Dt)
 		const FVector Up(0, 0, 1);
 		const FVector Toe = (P.Facing * FMath::Cos(FMath::DegreesToRadians(Pitch)) + Up * FMath::Sin(FMath::DegreesToRadians(Pitch))).GetSafeNormal();
 		const FVector Sole = Pad - Toe * 13.f + Up * 1.5f;
-		const float K = FMath::SmoothStep(0.f, 1.f, (KeyT - SitT) / (SeqLen - SitT));
+		const float K = FMath::SmoothStep(0.f, 1.f, (KeyT - SitT) / (ClimbLen - SitT));
 		P.Foot[1] = FMath::Lerp(P.Foot[1], Sole, K);
 		P.FootPitch[1] = Pitch * K;
 	}
@@ -659,7 +659,7 @@ void AFireTruck::Simulate(float Dt)
 	if (InThrottle > 0.1f && Vf > -0.6f) bReverse = false;
 	const float Drive = bReverse ? -InBrake : InThrottle, BrakeIn = bReverse ? InThrottle : InBrake;
 	float DriveForce = 0.f;
-	if (Drive > 0.f) DriveForce = Drive * FMath::Min(Power / FMath::Max(Speed, 2.f), 0.7f * TruckMass * Gravity) * FMath::Clamp((TopSpeed - Vf) / 3.f, 0.f, 1.f);
+	if (Drive > 0.f) DriveForce = Drive * FMath::Min(DrivePower / FMath::Max(Speed, 2.f), 0.7f * TruckMass * Gravity) * FMath::Clamp((TopSpeed - Vf) / 3.f, 0.f, 1.f);
 	else if (Drive < 0.f) DriveForce = Drive * 0.45f * TruckMass * Gravity * FMath::Clamp((ReverseTop + Vf) / 1.5f, 0.f, 1.f);
 	const float BrakeForce = BrakeIn * 0.75f * TruckMass * Gravity;
 
@@ -674,8 +674,8 @@ void AFireTruck::Simulate(float Dt)
 		Mount[I] = BT.TransformPosition(Wh.Rest + FVector(0, 0, BumpCm));
 		FHitResult H;
 		float S = StrokeCm;
-		Wh.bContact = GetWorld()->LineTraceSingleByChannel(H, Mount[I], Mount[I] - Up * (StrokeCm + RwCm + 5.f), ECC_Visibility, Q);
-		if (Wh.bContact) { S = FMath::Clamp(H.Distance - RwCm, 0.f, StrokeCm); Contact[I] = H.ImpactPoint; Wh.bContact = H.Distance - RwCm <= StrokeCm; }
+		Wh.bContact = GetWorld()->LineTraceSingleByChannel(H, Mount[I], Mount[I] - Up * (StrokeCm + WheelRCm + 5.f), ECC_Visibility, Q);
+		if (Wh.bContact) { S = FMath::Clamp(H.Distance - WheelRCm, 0.f, StrokeCm); Contact[I] = H.ImpactPoint; Wh.bContact = H.Distance - WheelRCm <= StrokeCm; }
 		const float X = StrokeCm - S;                       // compression, cm
 		const float Vx = (X - Wh.X) / Dt; Wh.X = X;
 		Wh.Travel = BumpCm - S;                             // up from rest, cm
@@ -704,7 +704,7 @@ void AFireTruck::Simulate(float Dt)
 		{
 			const float Rr = Wheelbase / FMath::Tan(FMath::DegreesToRadians(FMath::Abs(Steer)));
 			const float Inside = FMath::Sign(Steer) * Wh.Side;   // +1 on the inside of the turn
-			const float Rw2 = FMath::Max(1.f, Rr - Inside * Track * 0.5f);
+			const float Rw2 = FMath::Max(1.f, Rr - Inside * TrackWidth * 0.5f);
 			Delta = FMath::Sign(Steer) * FMath::RadiansToDegrees(FMath::Atan((Wh.Axle == 0 ? Wheelbase : RearOff) / Rw2)) * (Wh.Axle == 0 ? 1.f : -1.f);
 		}
 		Wh.Steer = Delta;
@@ -713,7 +713,7 @@ void AFireTruck::Simulate(float Dt)
 		const FVector At = Wh.bContact ? Contact[I] : BT.TransformPosition(Wh.Rest);
 		const FVector Vp = Body->GetPhysicsLinearVelocityAtPoint(At) / 100.f;
 		const float VF = FVector::DotProduct(Vp, WF), VL = FVector::DotProduct(Vp, WR);
-		Wh.Spin += SpinSign * VF / Rw * Dt;
+		Wh.Spin += SpinSign * VF / WheelR * Dt;
 		if (!Wh.bContact || Wh.Load <= 0.f) continue;
 		const float Fz = Wh.Load, Share = SumLoad > 0.f ? Fz / SumLoad : 0.f;
 		// the most a resisting force may do in one step is stop this wheel's share of the truck: any more and it pushes
@@ -721,14 +721,14 @@ void AFireTruck::Simulate(float Dt)
 		const float Stop = TruckMass * Share / Dt;
 		float Resist = BrakeForce * Share * FMath::Tanh(VF / 0.5f);
 		Resist += 0.012f * Fz * FMath::Tanh(VF / 0.3f);                                 // rolling
-		if (bHandbrake && Wh.Axle > 0) Resist += Mu * Fz * FMath::Tanh(VF / 0.3f);       // the handbrake on the rear axles
-		if (FMath::IsNearlyZero(Drive) && Speed < 0.8f) Resist += 0.6f * Mu * Fz * FMath::Tanh(VF / 0.15f);   // standing still holds
+		if (bHandbrake && Wh.Axle > 0) Resist += TyreMu * Fz * FMath::Tanh(VF / 0.3f);       // the handbrake on the rear axles
+		if (FMath::IsNearlyZero(Drive) && Speed < 0.8f) Resist += 0.6f * TyreMu * Fz * FMath::Tanh(VF / 0.15f);   // standing still holds
 		Resist = FMath::Clamp(Resist, -Stop * FMath::Abs(VF), Stop * FMath::Abs(VF));
 		float Fl = DriveForce * Share - Resist;
 		const float Slip = FMath::Atan2(VL, FMath::Max(FMath::Abs(VF), 1.f));
-		float Fy = -Mu * Fz * FMath::Tanh(Slip * 6.f);
+		float Fy = -TyreMu * Fz * FMath::Tanh(Slip * 6.f);
 		Fy = FMath::Clamp(Fy, -Stop * FMath::Abs(VL), Stop * FMath::Abs(VL));
-		const float Mag = FMath::Sqrt(Fl * Fl + Fy * Fy), Lim = Mu * Fz;
+		const float Mag = FMath::Sqrt(Fl * Fl + Fy * Fy), Lim = TyreMu * Fz;
 		if (Mag > Lim) { Fl *= Lim / Mag; Fy *= Lim / Mag; }
 		Body->AddForceAtLocation((WF * Fl + WR * Fy) * 100.f, At);
 	}
@@ -741,7 +741,7 @@ void AFireTruck::Animate(float Dt)
 	// the wheels and everything that moves with them (all in the model's root space)
 	for (FWheel& Wh : Wheels)
 	{
-		const FVector C0 = Wh.CentreRoot, Kp = C0 - FVector(Wh.Side * Kingpin * 100.f, 0, 0);
+		const FVector C0 = Wh.CentreRoot, Kp = C0 - FVector(Wh.Side * KingpinOff * 100.f, 0, 0);
 		const FTransform SteerT = About(Kp, FQuat(FVector::UpVector, FMath::DegreesToRadians(SteerSign * Wh.Steer)));
 		const FTransform Lift(FVector(0, 0, Wh.Travel));
 		if (Wh.GWheel >= 0) Model->MoveGroup(Wh.GWheel, Wh.BWheel * About(C0, FQuat(FVector::ForwardVector, Wh.Spin)) * SteerT * Lift);
@@ -817,7 +817,7 @@ void AFireStationDoors::Setup(ABabylonModel* S)
 void AFireStationDoors::Sound(const FBay& B, const TArray<int16>& Pcm)
 {
 	USoundWaveProcedural* W = NewObject<USoundWaveProcedural>(this);
-	W->SetSampleRate(Rate); W->NumChannels = 1; W->Duration = Pcm.Num() / float(Rate); W->bLooping = false;
+	W->SetSampleRate(SndRate); W->NumChannels = 1; W->Duration = Pcm.Num() / float(SndRate); W->bLooping = false;
 	W->SoundGroup = SOUNDGROUP_Effects;
 	W->QueueAudio(reinterpret_cast<const uint8*>(Pcm.GetData()), Pcm.Num() * sizeof(int16));
 	UGameplayStatics::SpawnSoundAtLocation(this, W, B.World + FVector(0, 0, 300.f), FRotator::ZeroRotator, 1.f, 1.f, 0.f, Heard);
@@ -886,12 +886,12 @@ void AFireStationDoors::Tick(float Dt)
 			// the motor starts: its clunk, then its hum and the sections' rattle while it runs
 			Sound(B, GarageClunk(false));
 			USoundWaveProcedural* W = NewObject<USoundWaveProcedural>(this);
-			W->SetSampleRate(Rate); W->NumChannels = 1; W->Duration = INDEFINITELY_LOOPING_DURATION; W->bLooping = false;
+			W->SetSampleRate(SndRate); W->NumChannels = 1; W->Duration = INDEFINITELY_LOOPING_DURATION; W->bLooping = false;
 			W->SoundGroup = SOUNDGROUP_Effects;
 			TSharedPtr<FHumState> St = MakeShared<FHumState>();
 			W->OnSoundWaveProceduralUnderflow = FOnSoundWaveProceduralUnderflow::CreateLambda([St](USoundWaveProcedural* Wv, int32 Samples)
 			{
-				TArray<int16> Buf; HumFill(*St, Buf, FMath::Max(Samples, Rate / 20));
+				TArray<int16> Buf; HumFill(*St, Buf, FMath::Max(Samples, SndRate / 20));
 				Wv->QueueAudio(reinterpret_cast<const uint8*>(Buf.GetData()), Buf.Num() * sizeof(int16));
 			});
 			B.Hum = UGameplayStatics::SpawnSoundAtLocation(this, W, B.World + FVector(0, 0, 300.f), FRotator::ZeroRotator, 0.8f, 1.f, 0.f, Heard, nullptr, false);
