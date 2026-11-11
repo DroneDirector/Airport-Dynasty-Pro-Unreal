@@ -1,5 +1,6 @@
 // An aircraft hangar with its crew annex (Hangar.h), in four sizes.
 #include "Hangar.h"
+#include "ADPLog.h"
 #include "TerminalBuilder.h"
 #include "TerminalPlan.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -203,7 +204,7 @@ void AHangar::Build(const FString& SizeId, float X, float ApronEdge, bool bDoorO
 	BuildKit();
 	BuildAnnex();
 	BuildAnnexRooms();
-	UE_LOG(LogTemp, Log, TEXT("Hangar %s at x %.1f: %d kits, %d lights, door %s"), *S.Id, X, Kits.Num(), Lights.Num(), bDoorOpen ? TEXT("open") : TEXT("shut"));
+	ADP_LOG(TEXT("Hangar %s at x %.1f: %d kits, %d lights, door %s"), *S.Id, X, Kits.Num(), Lights.Num(), bDoorOpen ? TEXT("open") : TEXT("shut"));
 }
 
 void AHangar::Tick(float Dt)
@@ -560,7 +561,7 @@ void AHangar::BuildPersonnelDoors()
 
 #pragma endregion
 
-#pragma region Lamps, trays, sockets, the door's controls
+#pragma region Lamps, trays, sockets, the doors controls
 
 void AHangar::BuildLampsAndServices()
 {

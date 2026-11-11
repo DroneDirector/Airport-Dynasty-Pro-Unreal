@@ -1485,21 +1485,23 @@ void AADPHUD::Tick(float Dt)
 		{
 			auto Sun = [](float H) { ASunClock::HourOverride = H; ASunClock::Theme = 1; ASunClock::Refresh(); };
 			const int32 Two = FMath::Min(1, HangarAt.Num() - 1);
+			// (twice the window's size, as the game draws it: no interface, no filter; -ShotScale=N for another factor)
+			auto Shot = [this](const TCHAR* Name) { int32 K = 2; FParse::Value(FCommandLine::Get(), TEXT("ShotScale="), K); if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(FString::Printf(TEXT("HighResShot %d filename=%s"), FMath::Clamp(K, 1, 4), Name)); };
 			struct FStep { float At; TFunction<void()> Do; };
 			const FStep HangarSteps[] = {
-				{44.f, [&]() { if (bGame) ToggleGame(); Sun(13.f); GoHangar(0); }},
-				{52.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Hangar_Day_Outside1"), false, false); }},
-				{53.f, [&]() { GoHangar(Two); }},
-				{60.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Hangar_Day_Outside2"), false, false); }},
-				{61.f, [&]() { GoHangar(0, 1); }},
-				{68.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Hangar_Day_Inside"), false, false); }},
-				{69.f, [&]() { GoHangar(0, 2); }},
-				{76.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Hangar_Day_Lounge"), false, false); }},
-				{77.f, [&]() { Sun(17.6f); GoHangar(0); }},
-				{87.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Hangar_Dusk_Outside"), false, false); }},
-				{88.f, [&]() { GoHangar(0, 1); }},
-				{95.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Hangar_Dusk_Inside"), false, false); }},
-				{97.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+				{40.f, [&]() { if (bGame) ToggleGame(); Sun(13.f); GoHangar(0); if (APlayerController* P = GetOwningPlayerController()) P->ConsoleCommand(TEXT("r.HighResScreenshotDelay 12")); }},
+				{58.f, [&]() { Shot(TEXT("Hangar_Day_Outside1")); }},
+				{60.f, [&]() { GoHangar(Two); }},
+				{68.f, [&]() { Shot(TEXT("Hangar_Day_Outside2")); }},
+				{70.f, [&]() { GoHangar(0, 1); }},
+				{78.f, [&]() { Shot(TEXT("Hangar_Day_Inside")); }},
+				{80.f, [&]() { GoHangar(0, 2); }},
+				{88.f, [&]() { Shot(TEXT("Hangar_Day_Lounge")); }},
+				{90.f, [&]() { Sun(17.6f); GoHangar(0); }},
+				{100.f, [&]() { Shot(TEXT("Hangar_Dusk_Outside")); }},
+				{102.f, [&]() { GoHangar(0, 1); }},
+				{110.f, [&]() { Shot(TEXT("Hangar_Dusk_Inside")); }},
+				{114.f, []() { FGenericPlatformMisc::RequestExit(false); }},
 			};
 			for (const FStep& St : HangarSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
@@ -1769,7 +1771,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

@@ -3,6 +3,10 @@
 #include "ADPLog.h"
 #include "Kismet/GameplayStatics.h"
 #include "Camera/PlayerCameraManager.h"
+// (Windows' own OPAQUE macro would break Cesium's glTF names when the build puts a Windows file before this one)
+#ifdef OPAQUE
+#undef OPAQUE
+#endif
 #include "CesiumGeoreference.h"
 #include "ProceduralMeshComponent.h"
 #include "CesiumGlobeAnchorComponent.h"

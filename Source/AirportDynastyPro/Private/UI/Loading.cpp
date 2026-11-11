@@ -4,6 +4,10 @@
 // and a line saying what it is doing; Esc on it goes straight back to the menus. Test runs skip it.
 #include "UI/ADPHUD.h"
 #include "UI/SProgressText.h"
+// (Windows' own OPAQUE macro would break Cesium's glTF names when the build puts a Windows file before this one)
+#ifdef OPAQUE
+#undef OPAQUE
+#endif
 #include "Cesium3DTileset.h"
 #include "ContentStreaming.h"
 #include "EngineUtils.h"

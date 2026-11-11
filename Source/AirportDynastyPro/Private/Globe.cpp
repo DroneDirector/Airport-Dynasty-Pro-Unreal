@@ -2,6 +2,10 @@
 // tileset with the Sentinel-2 cloudless 2016 imagery on it.
 #include "Globe.h"
 #include "ADPLog.h"
+// (Windows' own OPAQUE macro would break Cesium's glTF names when the build puts a Windows file before this one)
+#ifdef OPAQUE
+#undef OPAQUE
+#endif
 #include "CesiumGeoreference.h"
 #include "Ocean.h"
 #include "Materials/MaterialInterface.h"

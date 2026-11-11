@@ -65,7 +65,9 @@ public:
 	virtual void Tick(float Dt) override;
 
 	/** The annex's size (the same in every hangar). */
-	static constexpr float AnnexW = 13.f, AnnexL = 32.4f, AnnexTop = 9.2f;
+	static constexpr float AnnexW = 13.f;
+	static constexpr float AnnexL = 32.4f;
+	static constexpr float AnnexTop = 9.2f;
 
 private:
 	#pragma region Pieces

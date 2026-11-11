@@ -2,6 +2,10 @@
 #include "GrassField.h"
 #include "ADPLog.h"
 #include "LandCover.h"
+// (Windows' own OPAQUE macro would break Cesium's glTF names when the build puts a Windows file before this one)
+#ifdef OPAQUE
+#undef OPAQUE
+#endif
 #include "Cesium3DTileset.h"
 #include "CesiumGeoreference.h"
 #include "EngineUtils.h"

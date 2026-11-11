@@ -1,6 +1,10 @@
 // The 3D viewer in Unreal (see FlightViewer.h).
 #include "FlightViewer.h"
 #include "ADPLog.h"
+// (Windows' own OPAQUE macro would break Cesium's glTF names when the build puts a Windows file before this one)
+#ifdef OPAQUE
+#undef OPAQUE
+#endif
 #include "CesiumGeoreference.h"
 #include "BabylonModel.h"
 #include "Airfield.h"

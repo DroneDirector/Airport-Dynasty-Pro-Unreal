@@ -1,7 +1,8 @@
 // The game's own log (owner, 2026-11-11): every line the game writes to Unreal's log also goes to
 // Saved/Logs/ADP.log, in the packaged game too (where Unreal's own log is switched off): on a player's PC
 // %LOCALAPPDATA%\AirportDynastyPro\Saved\Logs\ADP.log, the run before kept as ADP-prev.log. So a problem seen
-// only in the released game can be read there (the menus' warnings and errors are in it as well).
+// only in the released game can be read there (the menus' warnings and errors are in it as well). Crashes (the error and
+// where in the program), failed engine checks and every error or warning Unreal reports go in it too (ADPLog.cpp).
 #pragma once
 
 #include "CoreMinimal.h"
