@@ -11,8 +11,8 @@ export class Kit {
   constructor(public sc: Scene, name = 'root') { this.root = new TransformNode(name, sc); }
   tex(file: string) { if (!this.texCache[file]) { const t = new Texture('tex/' + file, this.sc); t.anisotropicFilteringLevel = 16; t.wrapU = t.wrapV = Texture.WRAP_ADDRESSMODE; this.texCache[file] = t; } return this.texCache[file]; }
   /** a PBR material: colour, or a photo texture set (D and optional N) tiled every (tu, tv) metres */
-  pbr(o: { col?: string; tex?: string; nrm?: boolean; rough?: number; metal?: number; alpha?: number; emis?: string; emisK?: number; two?: boolean; clear?: number }) {
-    const m = new PBRMaterial('m' + this.n++, this.sc); m.maxSimultaneousLights = 12;
+  pbr(o: { col?: string; tex?: string; nrm?: boolean; rough?: number; metal?: number; alpha?: number; emis?: string; emisK?: number; two?: boolean; clear?: number; name?: string }) {
+    const m = new PBRMaterial(o.name ?? 'm' + this.n++, this.sc); m.maxSimultaneousLights = 12;
     m.albedoColor = o.col ? Color3.FromHexString(o.col) : Color3.White();
     if (o.tex) { m.albedoTexture = this.tex(o.tex + '_D.png'); if (o.nrm) { m.bumpTexture = this.tex(o.tex + '_N.png'); m.bumpTexture.level = 0.8; } }
     m.metallic = o.metal ?? 0; m.roughness = o.rough ?? 0.6;

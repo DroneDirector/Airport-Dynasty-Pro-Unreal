@@ -2,6 +2,7 @@
 #include "FireStation.h"
 #include "ADPLog.h"
 #include "BabylonModel.h"
+#include "FireTruck.h"
 #include "TerminalPlan.h"
 #include "Engine/World.h"
 
@@ -20,8 +21,8 @@ namespace ADPFireStation
 		for (int32 i = 1; i <= 2; ++i)
 		{
 			const FVector At = Station->GetActorTransform().TransformPosition(FVector(-BayX(i), 11.5f, 0.f) * 100.f);
-			ABabylonModel* T = W->SpawnActor<ABabylonModel>(At, FRotator(0, Yaw, 0), S);
-			if (T && T->Place(FString::Printf(TEXT("Firetruck%d"), i))) ++Trucks;
+			AFireTruck* T = W->SpawnActor<AFireTruck>(At, FRotator(0, Yaw, 0), S);   // drivable (FireTruck.h)
+			if (T && T->Setup(FString::Printf(TEXT("Firetruck%d"), i))) ++Trucks;
 			else { if (T) T->Destroy(); ADP_ERROR(TEXT("Fire station: truck %d missing (Content/Babylon/Firetruck%d)"), i, i); }
 		}
 		// the wash hose (owner, 2026-11-11: part of the fire station, wherever it stands): on the front wall's outside, on
@@ -29,6 +30,8 @@ namespace ADPFireStation
 		const FVector HoseAt = Station->GetActorTransform().TransformPosition(FVector(-(BayX(3) + BayX(4)) * 0.5f, -0.05f, 0.f) * 100.f);
 		ABabylonModel* Hose = W->SpawnActor<ABabylonModel>(HoseAt, FRotator(0, Yaw, 0), S);
 		if (!Hose || !Hose->Place(TEXT("WashHose"))) { if (Hose) Hose->Destroy(); ADP_ERROR(TEXT("Fire station: the wash hose is missing (Content/Babylon/WashHose)")); }
+		// the bay doors open for the trucks (FireTruck.h)
+		if (AFireStationDoors* D = W->SpawnActor<AFireStationDoors>(Station->GetActorLocation(), FRotator::ZeroRotator, S)) D->Setup(Station);
 		ADP_LOG(TEXT("Fire station at plan (%.0f, %.0f) with %d trucks and the wash hose"), X, Y, Trucks);
 	}
 

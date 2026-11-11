@@ -1,6 +1,7 @@
 // The walking-mode interface: the holographic map, the top-left bar, Hide UI, the settings panel and the performance
 // overlay, all in Slate, styled in the Android edition's holographic blues.
 #include "UI/ADPHUD.h"
+#include "FireTruck.h"
 #include "ADPLog.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/CameraActor.h"
@@ -1004,12 +1005,16 @@ void AADPHUD::Interact()
 	// a screen in front of you (a desk's monitor, a timetable): the airline game on it
 	APlayerController* PC = GetOwningPlayerController();
 	if (!PC || bGame || bDevice || PhoneDir != 0 || bSettings || bPointer || (HoloMap.IsValid() && HoloMap->IsFull())) return;
+	// in a fire truck: E / X gets you out (FireTruck.h)
+	if (AFireTruck* T = Cast<AFireTruck>(GetOwningPawn())) { T->Exit(); return; }
 	FVector Eye; FRotator Look;
 	PC->GetPlayerViewPoint(Eye, Look);
 	FHitResult Hit;
 	FCollisionQueryParams Q(SCENE_QUERY_STAT(ADPInteract), false, GetOwningPawn());
 	if (GetWorld()->LineTraceSingleByChannel(Hit, Eye, Eye + Look.Vector() * 300.f, ECC_Visibility, Q) && Hit.GetComponent())
 	{
+		// a fire truck within reach: you get in (FireTruck.h)
+		if (AFireTruck* T = AFireTruck::FromActor(Hit.GetActor())) { T->Enter(GetOwningPawn()); return; }
 		// your phone, the operations monitor, your office's computer (Devices.cpp)
 		if (TryDevice(Hit)) return;
 		// a hangar door's control button (OPEN, CLOSE, STOP)
@@ -1075,6 +1080,7 @@ void AADPHUD::OpenSite()
 
 void AADPHUD::GoTo(const FVector& PlanAt, const FVector& PlanLook)
 {
+	if (AFireTruck* T = Cast<AFireTruck>(GetOwningPawn())) T->Exit();   // out of a truck first: the quick-starts move you, not it
 	APawn* P = GetOwningPawn();
 	if (!P) return;
 	if (bGame) ToggleGame();
@@ -1675,6 +1681,44 @@ void AADPHUD::Tick(float Dt)
 			for (const FStep& St : FSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
 		}
+		// -UIDrive: a test drive in fire truck 1: in, out of the bay through its door, a turn, the driver's view, braking, out
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIDrive")))
+		{
+			auto Sun = [](float H, int32 Day = -1) { ASunClock::DayOverride = Day; ASunClock::HourOverride = H; ASunClock::Theme = 1; ASunClock::Refresh(); };
+			auto Shot = [](const TCHAR* Name) { FScreenshotRequest::RequestScreenshot(Name, false, false); };
+			auto Truck = [this]() -> AFireTruck* { if (AFireTruck* T = Cast<AFireTruck>(GetOwningPawn())) return T; for (const TWeakObjectPtr<AFireTruck>& T : AFireTruck::All) if (T.IsValid()) return T.Get(); return nullptr; };
+			struct FStep { float At; TFunction<void()> Do; };
+			const FStep DSteps[] = {
+				{40.f, [&]() { if (bGame) ToggleGame(); Sun(13.f, 172); GoFireStation(2); }},
+				{46.f, [&]() { Shot(TEXT("Drive_Walker_Bay")); if (APlayerController* P = GetOwningPlayerController()) if (P->PlayerCameraManager) ADP_LOG(TEXT("UIDrive: walker camera at %s"), *P->PlayerCameraManager->GetCameraLocation().ToString()); }},
+				{47.f, [&]() { if (AFireTruck* T = Truck()) { T->Enter(GetOwningPawn()); T->SetView(true); } }},
+												{48.f, [&]() { if (AFireTruck* T = Truck()) T->SetView(false); }},
+				{49.5f, [&]() { Shot(TEXT("Drive_In_Bay_Cab")); if (AFireTruck* T = Truck()) T->SetView(true); }},
+				{50.5f, [&]() { Shot(TEXT("Drive_In_Bay")); if (APlayerController* P = GetOwningPlayerController()) if (P->PlayerCameraManager) ADP_LOG(TEXT("UIDrive: camera at %s, truck at %s"), *P->PlayerCameraManager->GetCameraLocation().ToString(), Truck() ? *Truck()->GetActorLocation().ToString() : TEXT("-")); }},
+				{51.f, [&]() { if (AFireTruck* T = Truck()) T->SetTestInput(0.4f, 0.f, 0.f); }},
+				{53.f, [&]() { Shot(TEXT("Drive_T53")); }},
+				{55.f, [&]() { Shot(TEXT("Drive_T55")); }},
+				{57.f, [&]() { Shot(TEXT("Drive_T57")); }},
+				{60.f, [&]() { Shot(TEXT("Drive_Out")); }},
+				{61.f, [&]() { if (AFireTruck* T = Truck()) T->SetTestInput(0.4f, 0.f, 1.f); }},
+				{67.f, [&]() { Shot(TEXT("Drive_Turn")); }},
+				{68.f, [&]() { if (AFireTruck* T = Truck()) { T->SetTestInput(0.3f, 0.f, -0.4f); T->SetView(false); } }},
+				{72.f, [&]() { Shot(TEXT("Drive_Cab")); }},
+				{73.f, [&]() { if (AFireTruck* T = Truck()) { T->SetTestInput(0.f, 1.f, 0.f); T->SetView(true); } }},
+				{75.f, [&]() { if (AFireTruck* T = Truck()) T->SetTestInput(0.f, 0.f, 0.f); }},
+				{79.f, [&]() { Shot(TEXT("Drive_Stopped")); if (AFireTruck* T = Truck()) ADP_LOG(TEXT("UIDrive: stopped at %.1f km/h"), T->SpeedKmh()); }},
+				{80.f, [&]() { if (AFireTruck* T = Truck()) T->Exit(); }},
+				{84.f, [&]() { Shot(TEXT("Drive_Out_Of_Truck")); }},
+				{85.f, [&]() { AFireStationDoors::bTestOpen = true; GoFireStation(0); }},
+				{92.f, [&]() { Shot(TEXT("Drive_Doors_Open")); GoFireStation(2); }},
+				{98.f, [&]() { Shot(TEXT("Drive_Doors_Open_Inside")); }},
+				{100.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+			};
+			for (const FStep& St : DSteps)
+				if (Before < St.At && ShotClock >= St.At) St.Do();
+			if (ShotClock > 47.f && ShotClock < 80.f && FMath::Fmod(ShotClock, 1.f) < FMath::Fmod(Before, 1.f))
+				if (AFireTruck* T = Truck()) ADP_LOG(TEXT("UIDrive: %.0f s, %.1f km/h at %s, turning %.2f deg/s"), ShotClock, T->SpeedKmh(), *T->GetActorLocation().ToString(), T->TurnRate());
+		}
 		// -UILoading: from the menus into the airport, the loading screen pictured while it works and when it's done
 		if (FParse::Param(FCommandLine::Get(), TEXT("UILoading")))
 		{
@@ -1851,7 +1895,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

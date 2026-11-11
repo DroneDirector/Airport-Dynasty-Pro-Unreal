@@ -22,6 +22,8 @@ export function buildStation(k: Kit, dusk: boolean) {
     redWall: k.pbr({ col: '#C3241B', rough: 0.6 }), redFrame: k.pbr({ col: '#D02A1C', rough: 0.35, metal: 0.3 }), galv: k.pbr({ col: '#A3AAB0', rough: 0.35, metal: 0.85 }), steelW: k.pbr({ col: '#E4E6E8', rough: 0.4, metal: 0.4 }),
     asph: k.pbr({ tex: 'T_FS_Asphalt', nrm: true, rough: 0.9, col: '#A9A9A9' }), path: k.pbr({ col: '#C9C6BE', rough: 0.85 }), mulch: k.pbr({ col: '#4A3626', rough: 1 }), grass: k.pbr({ col: '#A8A774', rough: 0.85, two: true }), green: k.pbr({ col: '#6F7F4A', rough: 0.85, two: true }),
     yellow: k.pbr({ col: '#E2B007', rough: 0.55 }), bollard: k.pbr({ col: '#8A8D90', rough: 0.5, metal: 0.3 }), black: k.pbr({ col: '#121314', rough: 0.5 }),
+    // the bay doors' window band: the terminal's window glass in the game (Tools/set_station_glass.py swaps it by this name)
+    doorGlass: k.pbr({ col: '#9FB6C8', rough: 0.02, metal: 0.3, alpha: 0.22, two: true, name: 'gl-bayDoor' }),
     lamp: k.glow('#FFF3DC', dusk ? 2.2 : 1.2), win: dusk ? k.glow('#FFE2B0', 0.75) : k.pbr({ col: '#32414E', rough: 0.04, metal: 0.65 }),
   };
   const H = HALL, top = H.h;
@@ -110,10 +112,17 @@ export function buildStation(k: Kit, dusk: boolean) {
     k.box(M.board, a, wy1 + 0.08, -0.22, b, top, 0.22, 1.2, 1.2);
     // the door, shut: red sectional panels with the window band (ref 4), its guides and the dark reveal
     if (i < H.bays) {
-      k.box(M.red, a + 0.05, 0, -0.12, b - 0.05, dh, -0.04, 1, 2.2);
-      k.box(M.glass, a + 0.25, 1.2, -0.13, b - 0.25, 1.65, -0.11, 0, 0, null, false);
-      for (let q = 0; q <= 6; q++) { const mx = a + 0.25 + (b - a - 0.5) * q / 6; k.box(M.frameW, mx - 0.03, 1.2, -0.14, mx + 0.03, 1.65, -0.11, 0, 0, null, false); }
-      k.box(M.frameW, a + 0.25, 1.17, -0.14, b - 0.25, 1.2, -0.11, 0, 0, null, false); k.box(M.frameW, a + 0.25, 1.65, -0.14, b - 0.25, 1.68, -0.11, 0, 0, null, false);
+      // the leaf (named BayDoor<n>: the game lifts these), its window band cut right through inside its frame (owner,
+      // 2026-11-11: see-through from both sides, the frame kept), the frame on both faces
+      const leaf: any[] = [];
+      leaf.push(k.box(M.red, a + 0.05, 0, -0.12, b - 0.05, 1.2, -0.04, 1, 2.2));
+      leaf.push(k.box(M.red, a + 0.05, 1.65, -0.12, b - 0.05, dh, -0.04, 1, 2.2));
+      leaf.push(k.box(M.red, a + 0.05, 1.2, -0.12, a + 0.25, 1.65, -0.04, 1, 2.2));
+      leaf.push(k.box(M.red, b - 0.25, 1.2, -0.12, b - 0.05, 1.65, -0.04, 1, 2.2));
+      leaf.push(k.box(M.doorGlass, a + 0.25, 1.2, -0.09, b - 0.25, 1.65, -0.07, 0, 0, null, false));
+      for (let q = 0; q <= 6; q++) { const mx = a + 0.25 + (b - a - 0.5) * q / 6; leaf.push(k.box(M.frameW, mx - 0.03, 1.2, -0.14, mx + 0.03, 1.65, -0.02, 0, 0, null, false)); }
+      leaf.push(k.box(M.frameW, a + 0.25, 1.17, -0.14, b - 0.25, 1.2, -0.02, 0, 0, null, false)); leaf.push(k.box(M.frameW, a + 0.25, 1.65, -0.14, b - 0.25, 1.68, -0.02, 0, 0, null, false));
+      leaf.forEach((m, j) => { m.name = `BayDoor${i}_${j}`; });
       for (const e of [a, b - 0.08]) k.box(M.dark, e, 0, -0.2, e + 0.08, dh, 0.0);
       // two grey bollards before each pier (ref 8)
       for (const bx of [a - 0.55, b + 0.55]) { k.cyl(M.bollard, bx, 0.55, -0.9, 0.11, 1.1, 'y', null, 16); k.cyl(M.bollard, bx, 1.12, -0.9, 0.11, 0.06, 'y', null, 16, 0.05); }
@@ -140,7 +149,15 @@ export function buildStation(k: Kit, dusk: boolean) {
   // ---- inside the hall: white walls, floor, open-web joists, the exhaust drops over each bay, hose reels, lights
   k.box(M.floor, H.x0 + 0.25, 0.0, 0.25, H.x1 - 0.3, 0.01, H.z1 - 0.25, 6, 6, null, false);
   k.box(M.white, H.x0 + 0.25, 0, 0.25, H.x0 + 0.5, top - 0.2, H.z1 - 0.25);
-  k.box(M.white, H.x0 + 0.25, 0, 0.25, H.x1 - 0.3, top - 0.2, 0.3, 0, 0, null, false);
+  // the front's lining built round its openings (owner, 2026-11-11: clear through the open doors, the wall just meeting their frames)
+  { let lx = H.x0 + 0.25;
+    for (let i = 0; i < xs.length; i++) {
+      const [a, b] = xs[i], dh = i < H.bays ? D0 : pd.h;
+      k.box(M.white, lx, 0, 0.25, a, top - 0.2, 0.3, 0, 0, null, false);
+      k.box(M.white, a, dh, 0.25, b, top - 0.2, 0.3, 0, 0, null, false);
+      lx = b;
+    }
+    k.box(M.white, lx, 0, 0.25, H.x1 - 0.3, top - 0.2, 0.3, 0, 0, null, false); }
   k.box(M.white, H.x0 + 0.25, 0, H.z1 - 0.3, H.x1 - 0.3, top - 0.2, H.z1 - 0.25, 0, 0, null, false);
   k.box(M.white, H.x1 - 0.35, 0, 0.25, H.x1 - 0.3, top - 0.2, H.z1 - 0.25, 0, 0, null, false);
   for (let i = 0; i < H.bays; i++) for (const sx of [-1, 1]) k.box(M.yellow, bayX(i) + sx * 1.8 - 0.06, 0.01, 1, bayX(i) + sx * 1.8 + 0.06, 0.016, H.z1 - 1, 0, 0, null, false);

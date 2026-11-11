@@ -46,6 +46,27 @@ public:
 	/** Where a sliding door is in the world (for the door check, -UIDoor); false when the model has none. */
 	bool SlidingDoorAt(FVector& Out) const;
 
+	#pragma region MovingParts
+	// Any of the model's parts moved by code (the fire trucks' wheels, suspension, steering wheel, pedals and doors; the
+	// fire station's bay doors): a group is a set of the model's nodes with every mesh instance under them, held relative
+	// to a pivot; moving the pivot moves them all. Everything in the model's root space (its own frame: a model made in
+	// Blender has Blender's (x, y, z) metres at (x, -y, z) * 100 in it).
+	/** A group of the nodes named Names (exactly, or Blender's numbered copies "Name.001"; or every name starting so when
+	 *  bPrefix), held relative to Pivot. INDEX_NONE when none matched. */
+	int32 BindGroup(const TArray<FString>& Names, bool bPrefix, const FTransform& Pivot);
+	/** A group of the nodes a test picks (by name, glTF mesh number and place in root space). */
+	int32 BindGroupWhere(TFunctionRef<bool(const FString& Name, int32 Mesh, const FVector& At)> Pick, const FTransform& Pivot);
+	/** Moves a group's pivot to NewPivot; its parts follow. Call FlushMoves once after a frame's moves. */
+	void MoveGroup(int32 Group, const FTransform& NewPivot);
+	void FlushMoves();
+	/** A node's place in root space; false when the model has no node so named. */
+	bool NodeBase(const FString& Name, FTransform& Out) const;
+	/** The model's root (its frame). */
+	USceneComponent* GetModelRoot() const { return Root; }
+	/** Collision on or off for all the model's parts (a fire truck collides with its physics body instead). */
+	void SetPartsCollision(bool bOn);
+	#pragma endregion
+
 private:
 	UPROPERTY() TObjectPtr<USceneComponent> Root;
 	UPROPERTY() TMap<FString, TObjectPtr<UInstancedStaticMeshComponent>> ByMesh;
@@ -60,6 +81,13 @@ private:
 	struct FPart { FTransform Base, Parent; TArray<FInst> Inst; float Slide = 0; float Swing = 0; bool bSpin = false; };
 	struct FDoor { FVector At; float Reach = 2.6f; float K = 0; TArray<FPart> Parts; bool bSpin = false; };
 	TArray<FDoor> Doors;
+	// every node kept after placing (for the moving parts): its name, glTF mesh, place in root space, children, instance
+	TArray<FString> NName; TArray<int32> NMesh; TArray<FTransform> NRoot; TArray<TArray<int32>> NKids;
+	TArray<TPair<UInstancedStaticMeshComponent*, int32>> NInst;
+	struct FGroup { TArray<FInst> Inst; };
+	TArray<FGroup> Groups;
+	TSet<UInstancedStaticMeshComponent*> MovedLists;
+	int32 MakeGroup(const TArray<int32>& Picked, const FTransform& Pivot);
 	float Clock = 0;
 	void MovePart(FPart& P, float E, float Spin);
 	/** The model's light fittings made to shine (Babylon draws them glowing; here they also light the rooms): the hall's

@@ -130,6 +130,16 @@ bool ABabylonModel::Place(const FString& Name)
 	};
 	for (const TSharedPtr<FJsonValue>& R : J->GetArrayField(TEXT("roots"))) Walk(int32(R->AsNumber()), FTransform::Identity, false);
 	ADP_LOG(TEXT("Babylon model %s placed: %d objects, %d meshes"), *Name, Placed, ByMesh.Num());
+	// every node kept, for the parts code moves (BindGroup)
+	NName.SetNum(Nodes.Num()); NMesh.Init(INDEX_NONE, Nodes.Num()); NRoot = NodeWorld; NKids.SetNum(Nodes.Num()); NInst = NodeInst;
+	for (int32 I = 0; I < Nodes.Num(); ++I)
+	{
+		const TSharedPtr<FJsonObject> N = Nodes[I]->AsObject();
+		N->TryGetStringField(TEXT("name"), NName[I]);
+		int32 M; if (N->TryGetNumberField(TEXT("mesh"), M)) NMesh[I] = M;
+		const TArray<TSharedPtr<FJsonValue>>* C;
+		if (N->TryGetArrayField(TEXT("children"), C)) for (const TSharedPtr<FJsonValue>& V : *C) NKids[I].Add(int32(V->AsNumber()));
+	}
 
 	// the doors (nodes named D-<id>), read the way doors.ts builds them
 	if (!bByNode)
@@ -871,3 +881,75 @@ FString ABabylonModel::NodeAt(const UPrimitiveComponent* C, int32 Item) const
 	const TArray<FString>* Names = InstNames.Find(Cast<UInstancedStaticMeshComponent>(C));
 	return Names && Names->IsValidIndex(Item) ? (*Names)[Item] : FString();
 }
+
+#pragma region MovingParts
+int32 ABabylonModel::MakeGroup(const TArray<int32>& Picked, const FTransform& Pivot)
+{
+	FGroup G;
+	TSet<int32> Seen;
+	TArray<int32> Stack = Picked;
+	while (Stack.Num())
+	{
+		const int32 I = Stack.Pop();
+		if (!NRoot.IsValidIndex(I) || Seen.Contains(I)) continue;
+		Seen.Add(I);
+		if (NInst.IsValidIndex(I) && NInst[I].Key) G.Inst.Add({NInst[I].Key, NInst[I].Value, NRoot[I].GetRelativeTransform(Pivot)});
+		Stack.Append(NKids[I]);
+	}
+	if (!G.Inst.Num()) return INDEX_NONE;
+	return Groups.Add(MoveTemp(G));
+}
+
+int32 ABabylonModel::BindGroup(const TArray<FString>& Names, bool bPrefix, const FTransform& Pivot)
+{
+	TArray<int32> Picked;
+	for (int32 I = 0; I < NName.Num(); ++I)
+		for (const FString& W : Names)
+			if (NName[I] == W || NName[I].StartsWith(W + TEXT(".")) || (bPrefix && NName[I].StartsWith(W))) { Picked.Add(I); break; }
+	return MakeGroup(Picked, Pivot);
+}
+
+int32 ABabylonModel::BindGroupWhere(TFunctionRef<bool(const FString& Name, int32 Mesh, const FVector& At)> Pick, const FTransform& Pivot)
+{
+	TArray<int32> Picked;
+	for (int32 I = 0; I < NName.Num(); ++I) if (Pick(NName[I], NMesh[I], NRoot[I].GetLocation())) Picked.Add(I);
+	return MakeGroup(Picked, Pivot);
+}
+
+void ABabylonModel::MoveGroup(int32 Group, const FTransform& NewPivot)
+{
+	if (!Groups.IsValidIndex(Group)) return;
+	if (NewPivot.ContainsNaN() || !NewPivot.IsValid())
+	{
+		static int32 Told = 0;
+		if (Told++ < 5) ADP_ERROR(TEXT("Babylon model %s: moving part group %d given a broken transform %s"), *GetName(), Group, *NewPivot.ToString());
+		return;
+	}
+	for (const FInst& In : Groups[Group].Inst)
+	{
+		In.K->UpdateInstanceTransform(In.I, In.Rel * NewPivot, false, false, true);
+		MovedLists.Add(In.K);
+	}
+}
+
+void ABabylonModel::FlushMoves()
+{
+	for (UInstancedStaticMeshComponent* K : MovedLists) if (K) K->MarkRenderStateDirty();
+	MovedLists.Reset();
+}
+
+bool ABabylonModel::NodeBase(const FString& Name, FTransform& Out) const
+{
+	const int32 I = NName.IndexOfByKey(Name);
+	if (I == INDEX_NONE) return false;
+	Out = NRoot[I];
+	return true;
+}
+
+void ABabylonModel::SetPartsCollision(bool bOn)
+{
+	TArray<UInstancedStaticMeshComponent*> Parts;
+	GetComponents(Parts);
+	for (UInstancedStaticMeshComponent* K : Parts) K->SetCollisionEnabled(bOn ? ECollisionEnabled::QueryAndPhysics : ECollisionEnabled::NoCollision);
+}
+#pragma endregion
