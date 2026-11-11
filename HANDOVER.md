@@ -12,10 +12,9 @@ Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md
   list is built and published; build it in Unreal C++ the way the hangars are (runtime ISM kit, photo textures made into
   materials by a headless Python script, Lumen lighting at the terminal's strength). Where it stands on the airfield
   is not decided yet: ask the owner.
-- **The fire station's textures** are in your working copy at `Art/FireStation/` (16 PNGs, colour `_D` and normal `_N`
-  for Board, Silver, Charcoal, RedDoor, Apron, Tower, HallFloor, Asphalt; Asphalt is the hangar asphalt's copy). Git
-  LFS could not be pushed from the cloud: commit them (LFS) with your next batch. They are our own, made from the
-  owner's reference photos (`docs/fire-station/sketch/maketex.py`). Only make materials from them when the build starts.
+- **The fire station's textures** are committed and pushed (Git LFS) at `Art/FireStation/` (16 PNGs, colour `_D` and
+  normal `_N` for Board, Silver, Charcoal, RedDoor, Apron, Tower, HallFloor, Asphalt). Our own, made from the owner's
+  reference photos (`docs/fire-station/sketch/maketex.py`). Only make materials from them when the build starts.
 - **Copies of the airport in Europe and America:** new in TODO.md ("3. The airport and buildings"): the airport as it is
   at release, with every change before then, placed twice more on the globe. NOT to build yet; the owner gives the
   coordinates (latitude, longitude, heading) later.
