@@ -8,26 +8,90 @@
 			"Name": "AirportDynastyPro",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"AdditionalDependencies": [ "Engine" ]
+			"AdditionalDependencies": [
+				"Engine"
+			]
 		}
 	],
 	"Plugins": [
-		{ "Name": "ModelingToolsEditorMode", "Enabled": true, "TargetAllowList": [ "Editor" ] },
-		{ "Name": "StateTree", "Enabled": true },
-		{ "Name": "GameplayStateTree", "Enabled": true },
-		{ "Name": "SmartObjects", "Enabled": true },
-		{ "Name": "MassGameplay", "Enabled": true },
-		{ "Name": "MassAI", "Enabled": true },
-		{ "Name": "ZoneGraph", "Enabled": true },
-		{ "Name": "ChaosVehiclesPlugin", "Enabled": true },
-		{ "Name": "PythonScriptPlugin", "Enabled": true },
-		{ "Name": "EditorScriptingUtilities", "Enabled": true },
-		{ "Name": "WebBrowserWidget", "Enabled": true },
-		{ "Name": "CesiumForUnreal", "Enabled": true },
-		{ "Name": "RawInput", "Enabled": true },
-		{ "Name": "FSR", "Enabled": true },
-		{ "Name": "NNERuntimeORT", "Enabled": true },
-		{ "Name": "ProceduralMeshComponent", "Enabled": true },
-		{ "Name": "ADPFrameGen", "Enabled": true }
+		{
+			"Name": "ModelingToolsEditorMode",
+			"Enabled": true,
+			"TargetAllowList": [
+				"Editor"
+			]
+		},
+		{
+			"Name": "StateTree",
+			"Enabled": true
+		},
+		{
+			"Name": "GameplayStateTree",
+			"Enabled": true
+		},
+		{
+			"Name": "SmartObjects",
+			"Enabled": true
+		},
+		{
+			"Name": "MassGameplay",
+			"Enabled": true
+		},
+		{
+			"Name": "MassAI",
+			"Enabled": true
+		},
+		{
+			"Name": "ZoneGraph",
+			"Enabled": true
+		},
+		{
+			"Name": "ChaosVehiclesPlugin",
+			"Enabled": true
+		},
+		{
+			"Name": "PythonScriptPlugin",
+			"Enabled": true
+		},
+		{
+			"Name": "EditorScriptingUtilities",
+			"Enabled": true
+		},
+		{
+			"Name": "WebBrowserWidget",
+			"Enabled": true
+		},
+		{
+			"Name": "CesiumForUnreal",
+			"Enabled": true
+		},
+		{
+			"Name": "RawInput",
+			"Enabled": true
+		},
+		{
+			"Name": "FSR",
+			"Enabled": true
+		},
+		{
+			"Name": "NNERuntimeORT",
+			"Enabled": true
+		},
+		{
+			"Name": "ProceduralMeshComponent",
+			"Enabled": true
+		},
+		{
+			"Name": "ADPFrameGen",
+			"Enabled": true
+		},
+		{
+			"Name": "MetaHumanCharacter",
+			"Enabled": true
+		},
+		{
+			"Name": "MetaHumanCoreTech",
+			"Enabled": true
+		}
 	]
 }

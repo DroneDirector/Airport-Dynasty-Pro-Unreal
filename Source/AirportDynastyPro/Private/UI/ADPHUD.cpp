@@ -1681,6 +1681,33 @@ void AADPHUD::Tick(float Dt)
 			for (const FStep& St : FSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
 		}
+		// -UIPeople: the MetaHuman people (Content/People/Built) standing in the lit fire station hall, close up and full length
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIPeople")))
+		{
+			auto Shot = [](const TCHAR* Name) { FScreenshotRequest::RequestScreenshot(Name, false, false); };
+			static TArray<TWeakObjectPtr<AActor>> People;
+			if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 13.f; ASunClock::Theme = 1; ASunClock::Refresh(); GoFireStation(2); }
+			if (Before < 46.f && ShotClock >= 46.f)
+				if (APlayerController* P = GetOwningPlayerController()) if (P->PlayerCameraManager)
+				{
+					const FVector Eye = P->PlayerCameraManager->GetCameraLocation();
+					const FRotator Look(0.f, P->PlayerCameraManager->GetCameraRotation().Yaw, 0.f);
+					const FVector Fw = Look.Vector(), Rt = FRotationMatrix(Look).GetUnitAxis(EAxis::Y);
+					int32 K = 0;
+					for (const TCHAR* Who : {TEXT("MH_000_passenger"), TEXT("MH_001_passenger")})
+					{
+						UClass* C = LoadClass<AActor>(nullptr, *FString::Printf(TEXT("/Game/People/Built/%s/BP_%s.BP_%s_C"), Who, Who, Who));
+						if (!C) { ADP_WARN(TEXT("UIPeople: %s isn't built"), Who); continue; }
+						FVector At = Eye + Fw * 260.f + Rt * (K ? 55.f : -55.f); At.Z = Eye.Z - 158.f;   // standing on the floor before you
+						if (AActor* A = GetWorld()->SpawnActor<AActor>(C, At, FRotator(0.f, Look.Yaw + 180.f, 0.f))) { People.Add(A); ADP_LOG(TEXT("UIPeople: %s standing"), Who); }
+						++K;
+					}
+				}
+			if (Before < 52.f && ShotClock >= 52.f) Shot(TEXT("People_Two"));
+			if (Before < 53.f && ShotClock >= 53.f) if (APlayerController* P = GetOwningPlayerController()) { const FRotator R = P->GetControlRotation(); P->SetControlRotation(FRotator(-4.f, R.Yaw, 0.f)); if (APawn* Me = GetOwningPawn()) Me->AddActorWorldOffset(Me->GetActorForwardVector() * 150.f); }
+			if (Before < 56.f && ShotClock >= 56.f) Shot(TEXT("People_Faces"));
+			if (Before < 58.f && ShotClock >= 58.f) FGenericPlatformMisc::RequestExit(false);
+		}
 		// -UIDrive: a test drive in fire truck 1: in, out of the bay through its door, a turn, the driver's view, braking, out
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIDrive")))
 		{
@@ -1909,7 +1936,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

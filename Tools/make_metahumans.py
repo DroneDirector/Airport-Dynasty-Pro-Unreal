@@ -42,13 +42,16 @@ def assets_under(path, cls=None):
 # ---- what the library holds
 def inspect():
     info = {'presets': [], 'wardrobe': {}}
-    if os.path.exists(SAVED):   # keep the hand-made list of which presets are women
-        try:
-            info['female'] = json.load(open(SAVED)).get('female', [])
-        except Exception:
-            pass
+    # which of Epic's preset faces are women (the others men; those not sure of are left out of both)
+    women = ('Ada', 'Aera', 'Aoi', 'Asha', 'Celeste', 'Etta', 'Grace', 'Jelena', 'Lani', 'Sook-ja', 'Sunita', 'Tuya', 'Vivian', 'Zuri')
+    unsure = ('Bo', 'Cameron')
+    info['female'] = []
     for c in assets_under('/MetaHumanCharacter/Optional/Presets', unreal.MetaHumanCharacter):
+        if c.get_name() in unsure:
+            continue
         info['presets'].append(c.get_path_name())
+        if c.get_name() in women:
+            info['female'].append(c.get_path_name())
     for slot, path in (('Hair', 'Grooms/Bindings/Hair'), ('Eyebrows', 'Grooms/Bindings/Eyebrows'), ('Beard', 'Grooms/Bindings/Beards'),
                        ('Mustache', 'Grooms/Bindings/Mustaches'), ('Eyelashes', 'Grooms/Bindings/Eyelashes'), ('Outfits', 'Clothing')):
         items = []
@@ -92,7 +95,7 @@ def person(i):
     role, cols = role_of(i)
     female = rng.random() < (0.55 if role == 'cabin' else 0.35 if role in ('pilot', 'ground', 'fire', 'security') else 0.5)
     age = rng.choice([22, 28, 34, 41, 48, 55, 63, 72]) if role == 'passenger' else rng.choice([24, 29, 35, 42, 50, 57])
-    height = rng.gauss(166, 6.5) if female else rng.gauss(179, 7)
+    height = min(181.0, max(152.0, rng.gauss(166, 6.5))) if female else min(196.0, max(162.0, rng.gauss(179, 7)))
     build = rng.choice(['slim', 'average', 'average', 'sturdy', 'heavy'] if role == 'passenger' else ['slim', 'average', 'average', 'sturdy'])
     if not cols:
         cols = (rng.choice(PASSENGER_COLOURS), rng.choice(PASSENGER_COLOURS))
@@ -210,6 +213,9 @@ def make(spec, info):
         bp.enable_wardrobe_item_validation = False
         mhs.build_meta_human(character=ch, params=bp)
         eal.save_loaded_asset(ch, False)
+        # the built person (their blueprint, meshes, textures) and the shared parts, saved to disk
+        eal.save_directory(OUT + '/Built/' + name, only_if_is_dirty=False, recursive=True)
+        eal.save_directory(OUT + '/Common', only_if_is_dirty=False, recursive=True)
         log('%s made: %s, %s, %d, %.0f cm, %s, from %s' % (name, spec['role'], 'woman' if spec['female'] else 'man', spec['age'], spec['height'], spec['build'], os.path.basename(src)))
     except Exception as e:
         unreal.log_error('ADP_MH: %s failed: %s' % (name, e))

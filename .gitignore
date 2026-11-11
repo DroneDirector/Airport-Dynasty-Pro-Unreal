@@ -69,3 +69,5 @@ Content/Terrain/
 # the voice pack (fetched by Tools/GetVoicePack.ps1, shipped with the game)
 Content/Voice/
 cesium-request-cache.sqlite*
+# the MetaHuman people (made by Tools/make_metahumans_all.sh; large, about 0.3 GB each)
+Content/People/

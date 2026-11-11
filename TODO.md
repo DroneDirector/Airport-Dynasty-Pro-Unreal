@@ -199,6 +199,10 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
   beeper). Real recorded sounds where they matter (engine, beeper, siren): commercial-use sources only (CC0 on
   Freesound, the yearly royalty-free GDC game-audio bundles); downloading full-quality Freesound files needs the owner's
   account signed in once in the browser pane.
+- MetaHuman people (owner, 2026-11-11): Tools/make_metahumans.py builds them from Epic's 27 preset faces, 38 hairstyles,
+  brows, beards; uniforms still to make as MetaHuman garments (pilot, cabin crew, ground crew hi-vis, security, fire
+  crew; the library has one default garment only). Then the crowd uses them (walk/idle from the mannequin set), far
+  crowds as baked-animation instances (AnimToTexture); each role's own actions (serving, bag checks, marshalling, hose).
 - Getting in and out of vehicles, the full pass (owner, 2026-11-11): the same animation for NPCs and the player - walk
   over, open the door by its handle, climb the steps holding the handles, walk to and sit in the middle seat, hands on
   the wheel, feet on the pedals, eyes out through the windscreen, then drive; out the same way. Every contact point read
