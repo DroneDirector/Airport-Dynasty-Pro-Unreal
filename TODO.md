@@ -191,3 +191,12 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 - Textures: fewer materials and packed maps (roughness/metal/AO in one) to save draws; no atlases that cost quality
 - Release builds load content by name: anything new loaded that way must be in the cook list (DefaultGame.ini), and
   every release is tested as the installed game, not only in the editor
+- Dirt and cleaning for every drivable vehicle and the crew: slow build-up by season and weather (summer about a month,
+  normal 1-2 weeks, winter / bad weather about twice a week), dust, low road grime, mud splatter behind the wheels,
+  streaks, glass film; washed by hand with the wash hose outside the station, by you or by crew members doing the same / laundry for the crew's gear; optional, with a Settings switch.
+  Textures in Art/FireTruck/T_Dirt_*.png; rules in docs/fire-station/SPEC.md.
+- Laundry building for the staff's clothing (owner, 2026-11-11: he makes the building later). Until then the laundry is
+  an instant wash: a button in the Overview UI that cleans the staff's clothes at once.
+- Ground wetness and puddles for the whole airport (one system): heavy rain leaves real puddles and dark wet surfaces
+  on the runways, taxiways and apron; the wash hose leaves the same locally where you wash; drying over time. Spec in
+  docs/fire-station/SPEC.md (wash hose section).

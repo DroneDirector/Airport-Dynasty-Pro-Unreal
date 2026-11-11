@@ -1,4 +1,4 @@
-// The player walking through the terminal in first person: walk, run, jump and crouch.
+// The player walking through the terminal in first person: walk, run, jump and crouch, in a body (Epic's mannequin).
 #pragma once
 
 #include "CoreMinimal.h"
@@ -30,4 +30,5 @@ private:
 	#pragma endregion
 
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCameraComponent> Eyes;
+	bool bHeadHidden = false;
 };

@@ -6,6 +6,10 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimInstance.h"
+#include "UObject/ConstructorHelpers.h"
+#include "ADPLog.h"
 
 #pragma region Setup
 namespace { constexpr float WalkSpeed = 150.f, RunSpeed = 450.f; } // cm/s
@@ -19,6 +23,23 @@ AADPWalker::AADPWalker()
 	Eyes->bUsePawnControlRotation = true;
 	Eyes->SetFieldOfView(90.f);
 	PrimaryActorTick.bCanEverTick = true;
+
+	// your body (owner, 2026-11-11: a body for the avatar, so getting in and out, sitting, holding the hose etc. can be
+	// animated): Epic's mannequin with its walk / run / idle / jump animation set (the engine's template content,
+	// Content/Characters/Mannequins). Feet on the capsule's floor, facing forward; your own view from the eyes sees
+	// your body and its shadow but not the inside of your head (the head is hidden from you only)
+	static ConstructorHelpers::FObjectFinder<USkeletalMesh> Body(TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"));
+	static ConstructorHelpers::FClassFinder<UAnimInstance> Anim(TEXT("/Game/Characters/Mannequins/Anims/Unarmed/ABP_Unarmed"));
+	USkeletalMeshComponent* B = GetMesh();
+	if (Body.Succeeded()) B->SetSkeletalMesh(Body.Object);
+	else ADP_ERROR(TEXT("Walker: the body mesh (SKM_Manny_Simple) is missing"));
+	if (Anim.Succeeded()) B->SetAnimInstanceClass(Anim.Class);
+	else ADP_ERROR(TEXT("Walker: the body's animation blueprint (ABP_Unarmed) is missing"));
+	B->SetRelativeLocation(FVector(0, 0, -88.f));
+	B->SetRelativeRotation(FRotator(0, -90.f, 0));
+	B->SetCastShadow(true); B->bCastHiddenShadow = true;
+	B->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+	Eyes->SetRelativeLocation(FVector(14.f, 0, 70.f)); // just in front of the face
 
 	UCharacterMovementComponent* M = GetCharacterMovement();
 	M->MaxWalkSpeed = WalkSpeed;
@@ -58,6 +79,8 @@ float AADPWalker::Fov = 90.f;
 void AADPWalker::Tick(float Dt)
 {
 	Super::Tick(Dt);
+	// your own head hidden from your eyes (you look out from inside it); the rest of the body stays seen and casts its shadow
+	if (!bHeadHidden && GetMesh() && GetMesh()->GetSkeletalMeshAsset()) { GetMesh()->HideBoneByName(TEXT("head"), PBO_None); bHeadHidden = true; }
 	// the angle up and down held to what Fov gives on a 16:9 screen; the side angle opened up for wider screens (Unreal
 	// keeps the side angle otherwise, so a 32:9 screen saw only a thin strip up and down: everything felt too close)
 	static bool bRead = false;

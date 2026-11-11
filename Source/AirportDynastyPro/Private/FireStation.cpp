@@ -24,7 +24,12 @@ namespace ADPFireStation
 			if (T && T->Place(FString::Printf(TEXT("Firetruck%d"), i))) ++Trucks;
 			else { if (T) T->Destroy(); ADP_ERROR(TEXT("Fire station: truck %d missing (Content/Babylon/Firetruck%d)"), i, i); }
 		}
-		ADP_LOG(TEXT("Fire station at plan (%.0f, %.0f) with %d trucks"), X, Y, Trucks);
+		// the wash hose (owner, 2026-11-11: part of the fire station, wherever it stands): on the front wall's outside, on
+		// the pier between bay doors 4 and 5 (the sketch's (50.5, 0, -0.05)), facing out over the forecourt
+		const FVector HoseAt = Station->GetActorTransform().TransformPosition(FVector(-(BayX(3) + BayX(4)) * 0.5f, -0.05f, 0.f) * 100.f);
+		ABabylonModel* Hose = W->SpawnActor<ABabylonModel>(HoseAt, FRotator(0, Yaw, 0), S);
+		if (!Hose || !Hose->Place(TEXT("WashHose"))) { if (Hose) Hose->Destroy(); ADP_ERROR(TEXT("Fire station: the wash hose is missing (Content/Babylon/WashHose)")); }
+		ADP_LOG(TEXT("Fire station at plan (%.0f, %.0f) with %d trucks and the wash hose"), X, Y, Trucks);
 	}
 
 	void MapOutline(TArray<FVector4f>& Walls, TArray<FVector4f>& Doors)

@@ -1116,6 +1116,8 @@ void AADPHUD::GoFireStation(int32 Where)
 	FVector2D Eye, At; float AtH = 5.f;
 	if (Where == 1) { Eye = P(-17.f, -21.f); At = P(9.f, 3.f); AtH = 5.f; }
 	else if (Where == 2) { Eye = P(53.f, 21.f); At = P(ADPFireStation::BayX(1.5f), 6.f); AtH = 2.2f; }
+	else if (Where == 3) { const float Hx = (ADPFireStation::BayX(3) + ADPFireStation::BayX(4)) * 0.5f; Eye = P(Hx - 2.5f, -4.5f); At = P(Hx, 0.f); AtH = 1.0f; }   // the wash hose on its wall
+	else if (Where == 4) { Eye = P(46.f, -9.f); At = P(46.15f, -8.75f); AtH = 0.f; }      // looking down at your own body
 	else { Eye = P(40.f, -36.f); At = P(40.f, 0.f); AtH = 5.2f; }
 	GoTo(FVector(Eye.X, 0.f, Eye.Y), FVector(At.X, AtH, At.Y));
 }
@@ -1660,11 +1662,15 @@ void AADPHUD::Tick(float Dt)
 				{68.f, [&]() { Shot(TEXT("Fire_Day_Side")); }},
 				{70.f, [&]() { GoFireStation(2); }},
 				{78.f, [&]() { Shot(TEXT("Fire_Inside_Trucks")); }},
-				{80.f, [&]() { Sun(17.6f); GoFireStation(0); }},
-				{90.f, [&]() { Shot(TEXT("Fire_Dusk_Front")); }},
-				{92.f, [&]() { Sun(21.f, 172); if (HoloMap.IsValid() && !HoloMap->IsFull()) ToggleMap(); if (HoloMap.IsValid()) HoloMap->ShowAll(); }},
-				{95.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Fire_Map"), true, false); }},
-				{98.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+				{79.f, [&]() { GoFireStation(3); }},
+				{86.f, [&]() { Shot(TEXT("Fire_Hose")); }},
+				{87.f, [&]() { GoFireStation(4); if (APlayerController* P = GetOwningPlayerController()) P->SetControlRotation(FRotator(-70.f, P->GetControlRotation().Yaw, 0)); }},   // looking right down at your body
+				{93.f, [&]() { Shot(TEXT("Body_LookDown")); }},
+				{94.f, [&]() { Sun(17.6f); GoFireStation(0); }},
+				{104.f, [&]() { Shot(TEXT("Fire_Dusk_Front")); }},
+				{106.f, [&]() { Sun(21.f, 172); if (HoloMap.IsValid() && !HoloMap->IsFull()) ToggleMap(); if (HoloMap.IsValid()) HoloMap->ShowAll(); }},
+				{109.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Fire_Map"), true, false); }},
+				{112.f, []() { FGenericPlatformMisc::RequestExit(false); }},
 			};
 			for (const FStep& St : FSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
