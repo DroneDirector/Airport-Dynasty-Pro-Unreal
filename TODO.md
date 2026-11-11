@@ -3,6 +3,15 @@
 The one complete list of what is still open, updated 2026-11-11 (after 0.14.7). ROADMAP.md keeps the history and the
 details behind each item. Marks: [ ] open, [~] started or partly done, [?] built earlier but the owner should check it.
 
+## 0. Now, in this order (owner, 2026-11-11)
+- [ ] The old rooms' OBJECTS (never the room itself: walls, floor, ceiling, window, door stay the airport's) placed in the
+      terminal's rooms so they look right: Office 1 (yours, with the pet: dog or cat as chosen, its bed, bowls and
+      football) and Offices 2-4, Operations, the Academy; the court once the owner says where; the hangars wait
+- [ ] Footsteps by surface with a volume slider
+- [ ] The rest of the graphics sliders and toggles in Settings
+- [ ] Unreal trees in place of every outdoor tree (licence allowing a paid game)
+- [ ] World Partition / HLOD (distant buildings fade, no popping) and a performance pass
+
 ## 1. Distribution: updates, installer, selling
 - [x] **Updater shows its speed and a progress bar** (owner, 2026-11-10): while updating the game, the download speed
       (MB/s) and a progress bar; the same for the world's terrain download. The percentage sits IN the bar, centred,
