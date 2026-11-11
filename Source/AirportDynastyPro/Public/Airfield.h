@@ -1,6 +1,7 @@
 // Your airport's airfield (Data/airfield.json, from the Android edition's airfield plan, the same axes and origin as
 // the terminal): the grass inside the boundary, the aprons, runway 08/26 with its markings, the taxiways with their
-// yellow centre lines, the holding positions and the cargo building. The data is shared with the traffic.
+// yellow centre lines, the holding positions and the cargo building, the hangar apron with each hangar's lead-in line
+// (the hangars themselves: Hangar.h). The data is shared with the traffic.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -16,7 +17,9 @@ struct AIRPORTDYNASTYPRO_API FAirfieldData
 {
 	struct FTwy { FString Id, Kind; TArray<FVector2f> Pts; float W = 25; };
 	struct FStand { FString Id; float X = 0, Nose = 0, Dir = -1, Span = 36, Len = 44.5f; bool bJetway = false, bCargo = false; };
-	struct FRect { float X0, Y0, X1, Y1; };
+	struct FRect { float X0, Y0, X1, Y1; FString Id; };
+	/** A hangar's place: its centre line X (on its lead-in line), the apron edge Y its threshold meets, its size, door. */
+	struct FHangarSite { FString Id, Size; float X = 0, Y = 0; bool bOpen = false; };
 
 	float RwyX0 = -1919, RwyX1 = 2081, RwyY = 646, RwyW = 60;
 	float AY = 386, BY = 906, TY = 206, KY = 1086;
@@ -24,6 +27,7 @@ struct AIRPORTDYNASTYPRO_API FAirfieldData
 	TArray<FStand> Stands;
 	TArray<FVector2f> Holds;
 	TArray<FRect> Aprons;
+	TArray<FHangarSite> Hangars;
 	FRect Boundary{-2000, -170, 2240, 1320}, Cargo{200, 1231, 590, 1301};
 	double Lat = 63.457988, Lon = -18.713703;
 	float ElevFt = 130, Heading = 68;

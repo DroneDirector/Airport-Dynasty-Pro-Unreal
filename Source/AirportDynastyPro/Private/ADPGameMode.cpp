@@ -21,6 +21,7 @@
 #include "LightMasts.h"
 #include "Offices.h"
 #include "TowerADC.h"
+#include "Hangar.h"
 #include "Misc/Paths.h"
 #include "Components/VolumetricCloudComponent.h"
 #include "Engine/World.h"
@@ -83,11 +84,14 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 		}
 		// the control tower (ADC) at site A, west of the pier: walked into, its lift, doors and desk flap moving
 		if (ATowerADC* Tower = W->SpawnActor<ATowerADC>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Tower->Build();
-		// the apron light masts, one in front of each gate
+		// the apron light masts, one in front of each gate and two in front of each hangar
 		if (ALightMasts* MastsA = W->SpawnActor<ALightMasts>(FVector::ZeroVector, FRotator::ZeroRotator, P)) MastsA->Build();
 		// the airfield round the terminal, and its traffic
 		if (AAirfield* Field = W->SpawnActor<AAirfield>(FVector::ZeroVector, FRotator::ZeroRotator, P); Field && Field->Build(bBabylon))
 		{
+			// the hangars on the hangar apron, each on its own lead-in line (Data/airfield.json "hangars")
+			for (const FAirfieldData::FHangarSite& H : Field->Data().Hangars)
+				if (AHangar* Hg = W->SpawnActor<AHangar>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Hg->Build(H.Size, H.X, H.Y, H.bOpen);
 			if (!bBabylon)
 				if (AAirTraffic* Traffic = W->SpawnActor<AAirTraffic>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 					Traffic->Start(Field->Data());

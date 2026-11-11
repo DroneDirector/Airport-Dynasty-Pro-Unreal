@@ -200,7 +200,10 @@ export const AIRFIELD: any = (() => {
     T.find(q => q.id === id).corner = true; corners.push({ id: 'CURVE-' + main + '-' + id, link: id, main, x, y, sx, oy, r: CR, w: CODE.twyWidth, sh: CODE.twyShoulder }); }
   twy('P1', [[-130, TY], [-130, AY]], 'link'); twy('P2', [[150, TY], [150, AY]], 'link'); twy('P3', [[362, TY], [362, AY]], 'link');
   twy('Q1', [[200, KY], [200, BY]], 'link'); twy('Q2', [[620, KY], [620, BY]], 'link');
-  twy('T', [[-140, TY], [372, TY]], 'taxilane'); twy('K', [[190, KY], [630, KY]], 'taxilane');
+  twy('T', [[-140, TY], [372, TY]], 'taxilane'); twy('K', [[-530, KY], [630, KY]], 'taxilane');
+  // the hangar apron west of the cargo apron (owner, 2026-11-11): taxilane K carried on west along it, and its own link
+  // Q0 down to B at its west end
+  twy('Q0', [[-530, KY], [-530, BY]], 'link');
   // ---- stands. Terminal stands 1-8: Code C (up to A321 / 737 MAX, span ≤ 36 m), spaced evenly along the 322 m pier
   // (nose towards the terminal, dir -1: the nose points south; cargo noses point north) so that every pair of wingtips keeps more than 4.5 m; stand 9 for the A380 (Code F) past the pier's east end,
   // set back towards the landside so its tail keeps 50.5 m from taxilane T; cargo stands C1-C4 Code F (747-8F).
@@ -237,11 +240,18 @@ export const AIRFIELD: any = (() => {
   // nothing is built in that band (the nearest pavement or building is more than 100 m in).
   const boundary = { x0: -2000, y0: -170, x1: 2240, y1: 1320 }, flatten = { inside: 'boundary', blendInsideM: 100, outside: 'untouched' };
   const cargoBuilding = { id: 'CARGO-1', x0: 200, y0: KY + 145, x1: 590, y1: KY + 215 };
+  // the hangar apron (x -600 to the cargo apron, its north edge in line with the cargo apron's) and the hangars on it:
+  // each hangar's centre line on its lead-in line from K, its threshold on the apron's edge (y); size S, M, L or XL.
+  // The detailed hangars are the PC edition's (Hangar.cpp); these are their footprints for the maps. Hall outer width
+  // and depth by size, and the crew annex (13 x 32.4 m) against the hall's west wall, at its back.
+  const hangarApron = { id: 'APRON-HANGARS', x0: -600, y0: KY - 20, x1: 176, y1: KY + 145 };
+  const HANGAR_SIZES = { S: { w: 45.4, d: 42.7, lip: 2.22, door: 44 }, M: { w: 47.4, d: 48.7, lip: 2.22, door: 46 }, L: { w: 47.4, d: 55.7, lip: 2.22, door: 46 }, XL: { w: 92.2, d: 85.1, lip: 2.9, door: 90 } };
+  const hangars = [{ id: 'H1', size: 'M', x: -430, y: KY + 145, open: true }, { id: 'H2', size: 'M', x: -280, y: KY + 145, open: false }, { id: 'H3', size: 'M', x: -130, y: KY + 145, open: true }];
   // the airport itself
   const airport = { icao: 'BIAP', iata: 'VTX', name: 'Mýrdalssandur', city: 'Mýrdalssandur', country: 'Iceland', hdg: 68, magvar: -10, elevFt: 130,
     // the plan's origin (the terminal's) in the site's frame: u along the runway, v to its left (see site/index.ts)
     planU: -81, planV: -1482 };
-  return { airport, CODE, boundary, flatten, runway, taxiways: T, corners, stands: S, holds: H, signs: G, cargoBuilding, ys: { RY, AY, BY, TY, KY } };
+  return { airport, CODE, boundary, flatten, runway, taxiways: T, corners, stands: S, holds: H, signs: G, cargoBuilding, hangarApron, hangars, HANGAR_SIZES, ys: { RY, AY, BY, TY, KY } };
 })();
 
 /** The runway's designators for the site it is built at (west end first): the markings, the holding positions'

@@ -13,6 +13,8 @@
 #include "Components/ExponentialHeightFogComponent.h"
 #include "EngineUtils.h"
 #include "SunClock.h"
+#include "Airfield.h"
+#include "Hangar.h"
 
 namespace
 {
@@ -42,10 +44,20 @@ void ALightMasts::Refresh()
 
 const TArray<FVector2D>& ALightMasts::Spots()
 {
-	// each 19 m east of its stand's centre line (the jetways all turn west), 8 m out from the terminal front
-	static const TArray<FVector2D> S = {
-		{-43.0f, 90.f}, {-2.14f, 90.f}, {38.71f, 90.f}, {79.57f, 90.f},
+	// at the terminal: each 19 m east of its stand's centre line (the jetways all turn west), 8 m out from the front
+	static TArray<FVector2D> S;
+	if (S.Num()) return S;
+	S = {{-43.0f, 90.f}, {-2.14f, 90.f}, {38.71f, 90.f}, {79.57f, 90.f},
 		{120.43f, 90.f}, {161.29f, 90.f}, {202.14f, 90.f}, {243.0f, 90.f}};
+	// two in front of each hangar (owner, 2026-11-11): at its front corners, 5 m out past the door pockets and 6 m out
+	// on the apron, clear of the door, its lead-in line and the wings of an aircraft going in
+	FAirfieldData D;
+	if (D.Load())
+		for (const FAirfieldData::FHangarSite& H : D.Hangars)
+		{
+			const float Off = FHangarSpec::Get(H.Size).PocketX() + 5.f;
+			S.Add({H.X - Off, H.Y - 6.f}); S.Add({H.X + Off, H.Y - 6.f});
+		}
 	return S;
 }
 

@@ -5,6 +5,8 @@
 #include "Camera/CameraComponent.h"
 #include "Camera/CameraActor.h"
 #include "TowerADC.h"
+#include "Hangar.h"
+#include "Airfield.h"
 #include "UI/SHoloMap.h"
 #include "UI/SProgressText.h"
 #include "UI/GameView.h"
@@ -212,6 +214,20 @@ void AADPHUD::BeginPlay()
 	GameBox = SNew(SBox);
 	GameBox->SetVisibility(EVisibility::Collapsed);
 
+	// the hangars' shortcuts for the full-screen map: one for each hangar on the airfield, outside it facing its doors
+	TSharedRef<SVerticalBox> HangarList = SNew(SVerticalBox);
+	{
+		FAirfieldData Field;
+		if (Field.Load())
+			for (int32 i = 0; i < Field.Hangars.Num(); ++i)
+			{
+				const FAirfieldData::FHangarSite& H = Field.Hangars[i];
+				HangarAt.Add(FVector2D(H.X, H.Y)); HangarSize.Add(H.Size);
+				const FString Label = FString::Printf(TEXT("HANGAR %d (%s): OUTSIDE"), i + 1, *FHangarSpec::Get(H.Size).Name);
+				HangarList->AddSlot().AutoHeight().Padding(0, 0, 0, i + 1 == Field.Hangars.Num() ? 10 : 4)[Button(Label, [this, i]() { GoHangar(i); })];
+			}
+	}
+
 	Root = SNew(SOverlay).Visibility(EVisibility::SelfHitTestInvisible)
 		+ SOverlay::Slot()[GameBox.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(16)[TopBar.ToSharedRef()]
@@ -234,6 +250,8 @@ void AADPHUD::BeginPlay()
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)[Button(TEXT("TOWER: THE CAB"), [this]() { GoTowerCab(); })]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)[Button(TEXT("TOWER: THE BALCONY"), [this]() { GoTowerBalcony(); })]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)[Button(TEXT("TOWER: OUTSIDE, AT ITS DOOR"), [this]() { GoTowerFoot(); })]
+					// one for each hangar
+					+ SVerticalBox::Slot().AutoHeight()[HangarList]
 					+ SVerticalBox::Slot().AutoHeight()
 					[
 						SNew(SBox).Visibility_Lambda([this]() { return HoloMap.IsValid() && HoloMap->HasRoute() ? EVisibility::Visible : EVisibility::Collapsed; })
@@ -1082,6 +1100,17 @@ void AADPHUD::GoTowerCab() { GoTo(FVector(ATowerADC::AtX + 2.9f, ATowerADC::CabY
 void AADPHUD::GoTowerBalcony() { GoTo(FVector(ATowerADC::AtX + 6.4f, ATowerADC::CabY - 0.05f, ATowerADC::AtZ - 2.f), FVector(ATowerADC::AtX + 80.f, ATowerADC::CabY, ATowerADC::AtZ - 10.f)); }
 // on the ground outside the tower's entrance, looking up at it
 void AADPHUD::GoTowerFoot() { GoTo(FVector(ATowerADC::AtX - 14.f, 0.f, ATowerADC::AtZ + 3.f), FVector(ATowerADC::AtX, 14.f, ATowerADC::AtZ)); }
+// a hangar: on the apron 38 m out on its lead-in line, looking straight at its doors (the whole front in view); inside,
+// at the back of the hall looking out through the door; or in its annex's crew lounge
+void AADPHUD::GoHangar(int32 I, int32 Where)
+{
+	if (!HangarAt.IsValidIndex(I)) return;
+	const FHangarSpec& S = FHangarSpec::Get(HangarSize[I]);
+	const float X = HangarAt[I].X, Y = HangarAt[I].Y, Door = Y + S.Lip();
+	if (Where == 1) GoTo(FVector(X + 6.f, 0.f, Door + S.D - 6.f), FVector(X, 5.f, Door - 20.f));
+	else if (Where == 2) { const float Ax = X - S.WallX(), Az = Door + S.Back() - AHangar::AnnexL; GoTo(FVector(Ax - 11.f, 0.f, Az + 1.5f), FVector(Ax - 5.f, 1.2f, Az + 10.f)); }
+	else GoTo(FVector(X, 0.f, Y - 38.f), FVector(X, S.DH * 0.45f, Door));
+}
 
 void AADPHUD::OnGameState(const FString& Json)
 {
@@ -1449,6 +1478,31 @@ void AADPHUD::Tick(float Dt)
 			for (const FStep& St : TourSteps)
 				if ((!bHqOnly || St.At >= 112.f) && Before < St.At - Off && ShotClock >= St.At - Off) St.Do();
 			if (bHqOnly && Before < 44.f && ShotClock >= 44.f && bGame) ToggleGame();
+		}
+		// -UIHangars: the hangars in pictures: outside the first two (their doors open and shut, the light masts at their
+		// corners), inside the first (looking out), its crew lounge; then at dusk outside and inside with the lamps lit
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && HangarAt.Num())
+		{
+			auto Sun = [](float H) { ASunClock::HourOverride = H; ASunClock::Theme = 1; ASunClock::Refresh(); };
+			const int32 Two = FMath::Min(1, HangarAt.Num() - 1);
+			struct FStep { float At; TFunction<void()> Do; };
+			const FStep HangarSteps[] = {
+				{44.f, [&]() { if (bGame) ToggleGame(); Sun(13.f); GoHangar(0); }},
+				{52.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Hangar_Day_Outside1"), false, false); }},
+				{53.f, [&]() { GoHangar(Two); }},
+				{60.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Hangar_Day_Outside2"), false, false); }},
+				{61.f, [&]() { GoHangar(0, 1); }},
+				{68.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Hangar_Day_Inside"), false, false); }},
+				{69.f, [&]() { GoHangar(0, 2); }},
+				{76.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Hangar_Day_Lounge"), false, false); }},
+				{77.f, [&]() { Sun(17.6f); GoHangar(0); }},
+				{87.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Hangar_Dusk_Outside"), false, false); }},
+				{88.f, [&]() { GoHangar(0, 1); }},
+				{95.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Hangar_Dusk_Inside"), false, false); }},
+				{97.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+			};
+			for (const FStep& St : HangarSteps)
+				if (Before < St.At && ShotClock >= St.At) St.Do();
 		}
 		// -UIMasts: the apron light masts in pictures: the row from the apron, a mast's foot and its head, by day and at night
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIMasts")))

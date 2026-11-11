@@ -131,6 +131,12 @@ public:
 	void GoTowerCab();
 	void GoTowerBalcony();
 	void GoTowerFoot();
+	/** Outside hangar I (as listed in Data/airfield.json "hangars"): on the apron in front of it, on its lead-in line,
+	 *  looking straight at its doors; with bInside, in the hall looking out; with bLounge, in its annex's crew lounge.
+	 *  One shortcut per hangar in the full-screen map, so every hangar added later has one. */
+	void GoHangar(int32 I, int32 Where = 0);
+	TArray<FVector2D> HangarAt;      // each hangar's centre line and the apron edge (plan metres)
+	TArray<FString> HangarSize;
 	/** From the menus: the business lounge (the Babylon edition's, placed apart from the airport, lit as there). */
 	void OpenLounge();
 	/** The menus are in front (the gamepad then works them). */
