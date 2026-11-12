@@ -330,7 +330,7 @@ void AADPHUD::BeginPlay()
 			.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
 			.BorderBackgroundColor(Panel)
 			.Padding(FMargin(10, 4))
-			.Visibility_Lambda([this]() { return bGame || bHidden || bWardrobe ? EVisibility::Collapsed : EVisibility::Visible; })
+			.Visibility_Lambda([this]() { return bGame || bHidden || bWardrobe || bWhoAreYou ? EVisibility::Collapsed : EVisibility::Visible; })
 			[
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
@@ -889,13 +889,13 @@ void AADPHUD::UpdateMouse()
 {
 	APlayerController* PC = GetOwningPlayerController();
 	if (!PC) return;
-	const bool bFree = bGame || bDevice || bSettings || bWardrobe || bPointer || (HoloMap.IsValid() && HoloMap->IsFull());
+	const bool bFree = bGame || bDevice || bSettings || bWardrobe || bWhoAreYou || bPointer || (HoloMap.IsValid() && HoloMap->IsFull());
 	// (Unreal counts these calls: cleared first, so the view is never left locked by an earlier one)
 	PC->ResetIgnoreLookInput();
 	if (bPointer && !bGame) PC->SetIgnoreLookInput(true);
 	// the phone or a computer up (or the phone on its way): you stay where you are, looking at it
 	PC->ResetIgnoreMoveInput();
-	if ((bDevice || PhoneDir != 0 || bWardrobe) && !bGame) { PC->SetIgnoreLookInput(true); PC->SetIgnoreMoveInput(true); }
+	if ((bDevice || PhoneDir != 0 || bWardrobe || bWhoAreYou) && !bGame) { PC->SetIgnoreLookInput(true); PC->SetIgnoreMoveInput(true); }
 	PC->bShowMouseCursor = bFree;
 	if (bFree) { FInputModeGameAndUI M; M.SetHideCursorDuringCapture(false); PC->SetInputMode(M); }
 	else
@@ -1092,6 +1092,50 @@ void AADPHUD::WardrobeFromPage(const FString& Action, const FString& Arg)
 	}
 }
 
+void AADPHUD::OpenWhoAreYou()
+{
+	if (bWhoAreYou || !Browser.IsValid()) return;
+	bWhoAreYou = true; bWhoAreYouCreator = false;
+	// the menus' page stays up, see-through, over the 3D stage: the world drawn again behind it
+	if (bViewer) CloseViewer();
+	bGame = false;
+	if (GameBox.IsValid()) GameBox->SetVisibility(EVisibility::Visible);
+	if (TopBar.IsValid()) TopBar->SetVisibility(EVisibility::Collapsed);
+	if (Credit.IsValid()) Credit->SetVisibility(EVisibility::Collapsed);
+	if (MiniBox.IsValid()) MiniBox->SetVisibility(EVisibility::Collapsed);
+	if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) if (AActor* H = Wk->HumanActor()) H->SetActorHiddenInGame(true);
+	Breadcrumb(TEXT("A new career: who are you?"));
+	ADPCharacterCreate::BuildConcept(GetWorld(), GetOwningPlayerController(), true);
+	ADPCharacterCreate::Nobody();
+	Browser->ExecuteJavascript(TEXT("window.__ueWhoAreYou && window.__ueWhoAreYou('choose')"));
+	UpdateMouse();
+}
+
+void AADPHUD::WhoAreYouFromPage(const FString& Action, const FString& Arg)
+{
+	if (!bWhoAreYou) return;
+	if (Action == TEXT("hover")) ADPCharacterCreate::Choose(Arg == TEXT("she"));
+	else if (Action == TEXT("choose")) ADPCharacterCreate::Confirm(Arg == TEXT("she"));
+	else if (Action == TEXT("cancel")) CloseWhoAreYou(false);
+	else if (Action == TEXT("done")) CloseWhoAreYou(true);
+}
+
+void AADPHUD::CloseWhoAreYou(bool bGoOn)
+{
+	if (!bWhoAreYou) return;
+	bWhoAreYou = false;
+	ADPCharacterCreate::Teardown(GetWorld(), GetOwningPlayerController());
+	if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) if (AActor* H = Wk->HumanActor()) H->SetActorHiddenInGame(false);
+	if (Browser.IsValid())
+	{
+		Browser->ExecuteJavascript(TEXT("window.__ueWhoAreYouClose && window.__ueWhoAreYouClose()"));
+		// on: the game's own new-game flow (the pilot, the airline, the Overview); back: the title screen
+		Browser->ExecuteJavascript(bGoOn ? TEXT("window.__ueNewGameDone && window.__ueNewGameDone()") : TEXT("window.__ueNewGameCancel && window.__ueNewGameCancel()"));
+	}
+	// the menus in front again (they were, before the stage)
+	if (!bGame) ToggleGame();
+}
+
 void AADPHUD::CloseWardrobe()
 {
 	if (!bWardrobe) return;
@@ -1163,6 +1207,7 @@ void AADPHUD::SetFrameGen(bool bOn)
 
 void AADPHUD::OnEscape()
 {
+	if (bWhoAreYou) { CloseWhoAreYou(false); return; }
 	// on the loading screen: straight back to the menus
 	if (bLoading) { StopLoading(); if (!bGame) ToggleGame(); return; }
 	// the phone or a computer up: put away (the page handles its own Esc while it has the keys)
@@ -1468,7 +1513,13 @@ void AADPHUD::RefreshControls()
 
 void AADPHUD::Tick(float Dt)
 {
-	if (bWardrobe && (++WardrobeTicks == 20 || WardrobeTicks == 90)) FillWardrobe();   // (the page's menu again once the page is surely up)
+	if (bWardrobe && (++WardrobeTicks == 20 || WardrobeTicks == 90)) FillWardrobe();
+	// the stage's transition over: the creator's panel on the free side
+	if (bWhoAreYou && !bWhoAreYouCreator && ADPCharacterCreate::Done() && Browser.IsValid())
+	{
+		bWhoAreYouCreator = true;
+		Browser->ExecuteJavascript(FString::Printf(TEXT("window.__ueWhoAreYou && window.__ueWhoAreYou('creator', '%s')"), ADPCharacterCreate::UiOnRight() ? TEXT("right") : TEXT("left")));
+	}   // (the page's menu again once the page is surely up)
 	// from the menus into the 3D airport: the loading screen until everything is in (test runs skip it)
 	{
 		static const bool bTest = FParse::Param(FCommandLine::Get(), TEXT("UIShot")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading"));
@@ -2053,6 +2104,23 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 56.f && ShotClock >= 56.f) { if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) Wk->SetThirdPerson(false); ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
 			if (Before < 57.f && ShotClock >= 57.f) FGenericPlatformMisc::RequestExit(false);
 		}
+		// -UINewGame: the real thing, driven as the page's overlay would (hover, choose, the panel, done): the title screen's
+		// New game, she hovered, chosen, the creator panel, and on into the game's own new-game flow
+		if (FParse::Param(FCommandLine::Get(), TEXT("UINewGame")))
+		{
+			auto Shot = [](const TCHAR* Name) { FScreenshotRequest::RequestScreenshot(Name, true, false); };
+			auto Js = [this](const TCHAR* Code) { if (Browser.IsValid()) Browser->ExecuteJavascript(Code); };
+			if (Before < 40.f && ShotClock >= 40.f) { if (!bGame) ToggleGame(); }
+			if (Before < 46.f && ShotClock >= 46.f) Js(TEXT("(function(){ var u = window.ue && ue.adp; if (u && u.newgame) u.newgame(); })()"));
+			if (Before < 51.f && ShotClock >= 51.f) Shot(TEXT("NewGame_Choose"));
+			if (Before < 52.f && ShotClock >= 52.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowLeft'}))"));
+			if (Before < 55.f && ShotClock >= 55.f) Shot(TEXT("NewGame_SheLit"));
+			if (Before < 56.f && ShotClock >= 56.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}))"));
+			if (Before < 66.f && ShotClock >= 66.f) Shot(TEXT("NewGame_Creator"));
+			if (Before < 67.f && ShotClock >= 67.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}))"));
+			if (Before < 73.f && ShotClock >= 73.f) Shot(TEXT("NewGame_OnIntoTheGame"));
+			if (Before < 75.f && ShotClock >= 75.f) FGenericPlatformMisc::RequestExit(false);
+		}
 		// -UIGender: the concept of the new career's "who are you" screen (owner, 2026-11-12): the dark neon room with
 		// the fog, she in the light and he in shadow, with the title screen's lettering over it
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIGender")))
@@ -2412,7 +2480,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

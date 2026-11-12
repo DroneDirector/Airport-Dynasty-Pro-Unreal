@@ -30,6 +30,7 @@ import './sections/terminal/index';
 import './sections/world/index';
 import './sections/site/index';
 import './ui/wardrobe3d';
+import './ui/whoareyou';
 
 const canvas = document.getElementById('bjs') as HTMLCanvasElement, ui = document.getElementById('ui') as HTMLElement;
 let inPlace = false;
@@ -115,12 +116,18 @@ function backToGame(screen?: string) {
 const TITLES: { [id: string]: string } = { viewer3d: '3D viewer Â· above the clouds', lounge: 'Business lounge', terminal: 'The terminal Â· Grand Hall', site: 'Airport site Â· MÃ½rdalssandur' };
 /** What was chosen on the title screen: the game (New, Continue, Load, Save, UI) or one of the demos. */
 function pickPlace(id: string) {
+  // the PC edition's new career starts on Unreal's "who are you" stage (src/ui/whoareyou.ts); the game's own
+  // new-game flow follows once that is done (window.__ueNewGameDone), or the title screen comes back (…Cancel)
+  if (id === 'game:new' && !newStageDone) { const u = ue(); if (u && u.newgame) { u.newgame(); return; } }
   if (id.indexOf('game:') === 0) {
     gameOpen(id.slice(5) as any, { title: () => splashOpen(pickPlace), exit: () => exitGame(), viewer: (fid: string) => enter('viewer3d', /^crash:/.test(fid) ? '3D viewer Â· the crash site' : /^apt:/.test(fid) ? '3D viewer Â· your airport' : fid ? '3D viewer Â· following the flight' : TITLES.viewer3d, /^crash:/.test(fid) ? { crash: fid.slice(6) } : /^apt:/.test(fid) ? { apt: fid.slice(4) } : fid ? { live: fid } : undefined) });
     return;
   }
   enter(id, TITLES[id] || id);
 }
+let newStageDone = false;
+(window as any).__ueNewGameDone = () => { newStageDone = true; try { pickPlace('game:new'); } finally { newStageDone = false; } };
+(window as any).__ueNewGameCancel = () => { if (!splashIsOpen()) splashOpen(pickPlace); };
 splashOpen(pickPlace);
 // a 3D place opened from the game (your officeâ€¦): the game waits behind it
 onGameRoom(d => { if (d.room === 'world') { const w = d.data || {}; enter('world', 'Placing avatar in world', { lat: w.lat, lon: w.lon }); return; } if (d.room === 'site') { if (!IS_PC) return; enter('site', 'Your airport', { site: 'myrdalssandur', walk: true, data: d.data || {} }); return; } if (d.room === 'court') enter('court', d.data && d.data.mode === 'hearing' ? 'Court is in session' : 'The courtroom', { data: d.data || {} }); else if (d.room === 'salute') enter('salute', 'Water salute', { data: d.data || {} }); else if (d.room === 'building') enter('building', ({ office: 'Your office', ops: 'The Operations office', lounge: 'The Business lounge', museum: 'Your museum' } as any)[d.at] || 'The airport', { at: d.at || 'concourse', data: d.data || {} }); else if (d.room === 'office') enter('office', 'Your office', { data: d.data || {} }); else if (d.room === 'lounge') enter('lounge', 'Business lounge', { data: d.data || {} }); else if (d.room === 'ops') enter('ops', 'The Operations office', { data: d.data || {} }); else if (d.room === 'hangar') enter('hangar', 'The hangar', { data: d.data || {} }); });

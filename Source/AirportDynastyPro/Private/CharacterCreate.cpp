@@ -37,6 +37,11 @@ namespace
 	float PhaseT = 0.f;
 	bool bChoseWoman = true;
 	FTSTicker::FDelegateHandle Ticker;
+	// everything the stage spawned, and the world's fog as it was, for the teardown
+	TArray<TWeakObjectPtr<AActor>> Spawned;
+	TWeakObjectPtr<AExponentialHeightFog> WorldFog;
+	FVector FogWasAt; float FogWasDensity = 0.02f, FogWasFalloff = 0.2f, FogWasMaxOpacity = 1.f, FogWasStart = 0.f, FogWasScatter = 0.f, FogWasExtinction = 1.f, FogWasDistance = 6000.f;
+	FLinearColor FogWasColour; FExponentialHeightFogData FogWasSecond; bool bFogWasVolumetric = false;
 
 	void SetWalking(AActor* A, bool bWalk)
 	{
@@ -88,6 +93,7 @@ namespace
 		if (!SM) { ADP_WARN(TEXT("Character creator: no mesh %s"), Mesh); return nullptr; }
 		FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		AStaticMeshActor* A = W->SpawnActor<AStaticMeshActor>(At, Rot, P);
+		Spawned.Add(A);
 		A->SetMobility(EComponentMobility::Movable);
 		A->GetStaticMeshComponent()->SetStaticMesh(SM);
 		A->SetActorScale3D(Scale);
@@ -114,6 +120,7 @@ namespace
 		FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		AActor* A = W->SpawnActor<AActor>(C, At, FRotator(0.f, FacingYaw - 90.f, 0.f), P);
 		if (!A) return nullptr;
+		Spawned.Add(A);
 		TArray<USkeletalMeshComponent*> Skels; A->GetComponents<USkeletalMeshComponent>(Skels);
 		USkeletalMeshComponent* Body = nullptr;
 		for (USkeletalMeshComponent* S : Skels) if (S->GetName().StartsWith(TEXT("Body"))) Body = S;
@@ -133,7 +140,7 @@ void ADPCharacterCreate::BuildConcept(UWorld* W, APlayerController* PC, bool bWo
 	// the room: 40 m under the terminal (dark there), its floor at C; the camera looks along +y (world) at the two
 	const FVector C = FTerminalPlan::ToWorld(0.f, -40.f, 0.f);
 	const FVector X(1, 0, 0), Y(0, 1, 0), Z(0, 0, 1);
-	Centre = C; Phase = 0; Tubes.Reset(); TubeLights.Reset();
+	Centre = C; Phase = 0; Tubes.Reset(); TubeLights.Reset(); Spawned.Reset();
 	FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	UMaterialInstanceDynamic* Floor = Plain(W, FLinearColor(0.012f, 0.014f, 0.022f), 0.28f);   // a little shine: the neon mirrored in it
 	UMaterialInstanceDynamic* Wall = Plain(W, FLinearColor(0.008f, 0.01f, 0.018f), 0.75f);
@@ -153,6 +160,7 @@ void ADPCharacterCreate::BuildConcept(UWorld* W, APlayerController* PC, bool bWo
 		ALocalFogVolume* V = W->SpawnActor<ALocalFogVolume>(C + Y * 520.f + Z * 230.f, FRotator::ZeroRotator, P);
 		if (V)
 		{
+			Spawned.Add(V);
 			V->SetActorScale3D(FVector(9.f, 3.2f, 5.f));   // (the volume is a 1 m sphere at scale 1)
 			if (ULocalFogVolumeComponent* F = V->FindComponentByClass<ULocalFogVolumeComponent>())
 			{
@@ -174,7 +182,7 @@ void ADPCharacterCreate::BuildConcept(UWorld* W, APlayerController* PC, bool bWo
 		const FVector Foot = C + Y * 210.f + X * (Side * 62.f);
 		Tubes.Add(Shape(W, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), Foot + Z * 135.f, FRotator::ZeroRotator, FVector(0.16f, 0.16f, 2.7f), Neon));
 		ARectLight* L = W->SpawnActor<ARectLight>(Foot + Z * 140.f - Y * 14.f, FRotator(0.f, -90.f, 0.f), P);
-		TubeLights.Add(L);
+		TubeLights.Add(L); Spawned.Add(L);
 		if (URectLightComponent* R = L ? L->RectLightComponent : nullptr)
 		{
 			R->SetMobility(EComponentMobility::Movable);
@@ -190,6 +198,7 @@ void ADPCharacterCreate::BuildConcept(UWorld* W, APlayerController* PC, bool bWo
 	for (const float Side : {-1.f, 1.f})
 	{
 		APointLight* L = W->SpawnActor<APointLight>(C + Y * 290.f + X * (Side * 230.f) + Z * 10.f, FRotator::ZeroRotator, P);
+		Spawned.Add(L);
 		if (UPointLightComponent* Pt = L ? L->PointLightComponent : nullptr)
 		{
 			Pt->SetMobility(EComponentMobility::Movable);
@@ -211,7 +220,7 @@ void ADPCharacterCreate::BuildConcept(UWorld* W, APlayerController* PC, bool bWo
 		const FVector On = bWoman ? Her : Him;
 		const FVector Eye = On + FVector(bWoman ? 90.f : -90.f, -250.f, 320.f);
 		ASpotLight* L = W->SpawnActor<ASpotLight>(Eye, (On + Z * 130.f - Eye).Rotation(), P);
-		KeyLight = L;
+		KeyLight = L; Spawned.Add(L);
 		if (USpotLightComponent* S = L ? L->SpotLightComponent : nullptr)
 		{
 			S->SetMobility(EComponentMobility::Movable);
@@ -227,6 +236,14 @@ void ADPCharacterCreate::BuildConcept(UWorld* W, APlayerController* PC, bool bWo
 	// the fog: thick over the floor (a concert's fog machine), a thin haze above it for the beams, lit by the lights
 	for (TActorIterator<AExponentialHeightFog> It(W); It; ++It)
 	{
+		if (UExponentialHeightFogComponent* F = It->GetComponent())
+		{
+			// as it was, for after
+			WorldFog = *It; FogWasAt = It->GetActorLocation();
+			FogWasDensity = F->FogDensity; FogWasFalloff = F->FogHeightFalloff; FogWasMaxOpacity = F->FogMaxOpacity; FogWasStart = F->StartDistance;
+			FogWasColour = F->FogInscatteringLuminance; FogWasSecond = F->SecondFogData; bFogWasVolumetric = F->bEnableVolumetricFog;
+			FogWasScatter = F->VolumetricFogScatteringDistribution; FogWasExtinction = F->VolumetricFogExtinctionScale; FogWasDistance = F->VolumetricFogDistance;
+		}
 		It->SetActorLocation(C + Z * 10.f);
 		if (UExponentialHeightFogComponent* F = It->GetComponent())
 		{
@@ -249,6 +266,7 @@ void ADPCharacterCreate::BuildConcept(UWorld* W, APlayerController* PC, bool bWo
 	{
 		const FVector Eye = C - Y * 600.f + Z * 124.f;
 		ACameraActor* Cam = W->SpawnActor<ACameraActor>(Eye, (C + Z * 118.f - Eye).Rotation(), P);
+		Spawned.Add(Cam);
 		if (Cam) { Cam->GetCameraComponent()->SetFieldOfView(43.f); Cam->GetCameraComponent()->SetConstraintAspectRatio(false); PC->SetViewTarget(Cam); }
 	}
 	ADP_LOG(TEXT("Character creator: the concept room built, %s in the light"), bWoman ? TEXT("she") : TEXT("he"));
@@ -264,6 +282,7 @@ void ADPCharacterCreate::Choose(bool bWoman)
 	if (Off) Off->SetActorLocation(OffAt);
 	if (ASpotLight* L = KeyLight.Get())
 	{
+		L->SpotLightComponent->SetIntensity(16000.f);
 		const FVector Eye = OnAt + FVector(bWoman ? 90.f : -90.f, -300.f, 320.f);
 		L->SetActorLocationAndRotation(Eye, (OnAt + FVector(0, -55.f, 130.f) - Eye).Rotation());
 	}
@@ -289,3 +308,31 @@ void ADPCharacterCreate::Confirm(bool bWoman)
 
 bool ADPCharacterCreate::Done() { return Phase >= 3; }
 bool ADPCharacterCreate::UiOnRight() { return bChoseWoman; }
+
+void ADPCharacterCreate::Nobody()
+{
+	// before any choice: both in the tubes' light only
+	if (ASpotLight* L = KeyLight.Get()) L->SpotLightComponent->SetIntensity(0.f);
+	if (AActor* A = She.Get()) A->SetActorLocation(HerAt);
+	if (AActor* A = He.Get()) A->SetActorLocation(HimAt);
+}
+
+void ADPCharacterCreate::Teardown(UWorld* W, APlayerController* PC)
+{
+	if (Ticker.IsValid()) { FTSTicker::GetCoreTicker().RemoveTicker(Ticker); Ticker.Reset(); }
+	for (const TWeakObjectPtr<AActor>& A : Spawned) if (AActor* X = A.Get()) X->Destroy();
+	Spawned.Reset(); Tubes.Reset(); TubeLights.Reset(); KeyLight = nullptr; She = nullptr; He = nullptr; NeonMat = nullptr;
+	Phase = 0;
+	if (AExponentialHeightFog* Fog = WorldFog.Get())
+	{
+		Fog->SetActorLocation(FogWasAt);
+		if (UExponentialHeightFogComponent* F = Fog->GetComponent())
+		{
+			F->SetFogDensity(FogWasDensity); F->SetFogHeightFalloff(FogWasFalloff); F->SetFogMaxOpacity(FogWasMaxOpacity); F->SetStartDistance(FogWasStart);
+			F->SetFogInscatteringColor(FogWasColour); F->SetSecondFogData(FogWasSecond); F->SetVolumetricFog(bFogWasVolumetric);
+			F->SetVolumetricFogScatteringDistribution(FogWasScatter); F->SetVolumetricFogExtinctionScale(FogWasExtinction); F->SetVolumetricFogDistance(FogWasDistance);
+		}
+	}
+	WorldFog = nullptr;
+	if (PC && PC->GetPawn()) PC->SetViewTarget(PC->GetPawn());
+}

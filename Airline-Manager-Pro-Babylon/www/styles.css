@@ -507,3 +507,29 @@ html.ue-wd body > *:not(.wd) { visibility: hidden !important; }
 .wd-tile.on small { color: #fff; text-shadow: 0 0 8px #fff; }
 .wd-empty { font-family: 'Audiowide', sans-serif; font-size: 14px; letter-spacing: .4em; text-transform: uppercase; opacity: .5; margin-top: 18px; }
 @keyframes wdIn { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+
+/* The PC edition's new career: the "who are you" stage over Unreal's room (src/ui/whoareyou.ts) */
+html.ue-stage, html.ue-stage body { background: transparent !important; }
+html.ue-stage body > *:not(.wy) { visibility: hidden !important; }
+.wy { position: fixed; inset: 0; z-index: 70; color: #EDE8FF; opacity: 0; transition: opacity .5s var(--ease); --kick: 0; --spring: cubic-bezier(.2, 1.2, .3, 1); }
+.wy.in { opacity: 1; }
+.wy.out { opacity: 0; }
+.wy-head { position: absolute; left: clamp(24px, 4vw, 64px); top: clamp(24px, 5vh, 56px); animation: wdIn .7s var(--ease) both; }
+.wy-t { font-family: 'Audiowide', sans-serif; font-size: clamp(26px, 4.6vh, 42px); letter-spacing: .08em; text-transform: uppercase; color: #fff; text-shadow: 0 0 4px #fff, 0 0 10px var(--neo1), 0 0 26px var(--neo1), 0 0 44px rgba(255, 63, 184, .6); margin-top: 4px; }
+.wy-sub { margin-top: 8px; color: rgba(225, 215, 255, .7); text-shadow: none; }
+.wy-half { position: absolute; top: 0; bottom: 0; width: 50%; cursor: pointer; }
+.wy-l { left: 0; } .wy-r { right: 0; }
+.wy-who { position: absolute; bottom: clamp(24px, 5vh, 48px); font-family: 'Audiowide', sans-serif; font-size: clamp(16px, 2.6vh, 24px); letter-spacing: .5em; text-transform: uppercase; color: rgba(225, 215, 255, .35); transition: color .3s, text-shadow .3s, transform .3s var(--spring); pointer-events: none; }
+.wy-she { left: 33%; transform: translateX(-50%); }
+.wy-he { left: 67%; transform: translateX(-50%); }
+.wy-who.on { color: #fff; text-shadow: 0 0 8px #fff, 0 0 18px var(--neo1), 0 0 34px rgba(255, 63, 184, .7); transform: translateX(-50%) scale(1.12); }
+.wy.chosen .wy-half { cursor: default; }
+.wy-hint { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); display: flex; gap: 22px; align-items: center; font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: rgba(225, 215, 255, .45); white-space: nowrap; }
+.wy-hint b { font-weight: 500; color: rgba(225, 215, 255, .8); }
+.wy-panel { position: absolute; top: 50%; transform: translateY(-50%); width: min(340px, 30vw); animation: wdIn .6s .1s var(--ease) both; }
+.wy-panel.wy-right { right: clamp(32px, 5vw, 96px); }
+.wy-panel.wy-left { left: clamp(32px, 5vw, 96px); }
+.wy-panel .ts-nav { margin-top: 10px; gap: 6px; }
+.wy-panel .ts-btn { width: 100%; animation: none; }
+.wy-panel .wy-next { margin-top: 16px; }
+.wy-panel .ts-bt small { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: rgba(225, 215, 255, .6); }

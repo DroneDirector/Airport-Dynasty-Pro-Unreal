@@ -122,3 +122,13 @@ void UADPBridge::Wardrobe(const FString& Action, const FString& Arg)
 {
 	if (AADPHUD* H = Hud.Get()) H->WardrobeFromPage(Action, Arg);
 }
+
+void UADPBridge::NewGame()
+{
+	if (AADPHUD* H = Hud.Get()) H->OpenWhoAreYou();
+}
+
+void UADPBridge::WhoAreYou(const FString& Action, const FString& Arg)
+{
+	if (AADPHUD* H = Hud.Get()) H->WhoAreYouFromPage(Action, Arg);
+}

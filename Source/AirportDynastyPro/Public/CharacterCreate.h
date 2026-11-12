@@ -18,4 +18,8 @@ namespace ADPCharacterCreate
 	bool Done();
 	/** She chosen (left) -> the UI on the right; he chosen (right) -> the UI on the left. */
 	bool UiOnRight();
+	/** Before any choice: nobody in the key light. */
+	void Nobody();
+	/** The stage taken down: everything it spawned gone, the world's fog as it was, the camera back on you. */
+	void Teardown(UWorld* W, class APlayerController* PC);
 }
