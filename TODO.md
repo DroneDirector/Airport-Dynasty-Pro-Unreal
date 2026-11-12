@@ -196,6 +196,10 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       (red); the ranking line's colour shifts smoothly between these as the score moves, and a small buffer stops a
       rank flickering up and down at a boundary. Reaching certain ranks earns rewards, for you and for the airport,
       as in the Babylon edition (trophies, plaques, badges); a low staff ranking can put you in the news (radio item)
+- [ ] **Rankings and awards remade in Unreal, new look** (owner, 2026-11-12): the ranking system keeps its rules and
+      functions from the shared game code, but everything you SEE is redone in Unreal with a new design: the ranking
+      screens and lines, the rank-up / rank-down moments, and every trophy, plaque, badge, medal and certificate as
+      new 3D models and art. Nothing of the Babylon edition's look is reused
 - [ ] **Up to 5,000 awards** (owner, 2026-11-12): badges, plaques, trophies, medals and certificates to earn, for you
       and for the airport, growing to 5,000 in all (the Babylon edition has 22 achievements in game/src/core/goals.ts
       plus the career awards in career-rides.ts; those carry over and the rest are added in tiers and series, each with
