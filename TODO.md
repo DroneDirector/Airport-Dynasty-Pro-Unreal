@@ -203,6 +203,15 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       - **The museum** (the Vortex Gallery) shows the airport's awards on its display places. You can swap any displayed
         award for another one you've earned, or let the game choose: it picks one at random, puts it up and takes
         another one down. Swaps are saved in the shared world
+      - **The museum swap menu** (owner, 2026-11-12): same look as the new Settings menu being built: categories on the
+        left (plaques, trophies, badges, medals, certificates...), and clicking one fills the larger panel on the right
+        (attached to it, as in the new Settings design) with the awards you have in that category. Clicking an award
+        opens it in a 3D view: turn it round, read what it says, then place it (or replace a displayed one with it)
+      - **At the display itself:** walk up to an award on public display and press E (use): choose View (it comes up to
+        the front in the 3D view to turn and read), Put back, or Replace (opens the swap menu for that place)
+- [ ] **E always confirms, everywhere** (owner, 2026-11-12): throughout the whole game E is the use / confirm key, and it
+      only ever acts on the front-most thing: the window or prompt in front when a use is possible; nothing behind it
+      in the background is ever triggered
 
 ## 5. Graphics settings
 - [x] A "light beams distance" slider (the light masts' haze, now 500 m) so weaker cards can turn it down
