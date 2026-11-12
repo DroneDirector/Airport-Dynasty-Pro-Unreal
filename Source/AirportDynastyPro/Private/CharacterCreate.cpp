@@ -5,6 +5,8 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "Engine/ExponentialHeightFog.h"
+#include "Engine/LocalFogVolume.h"
+#include "Components/LocalFogVolumeComponent.h"
 #include "Components/ExponentialHeightFogComponent.h"
 #include "Engine/SpotLight.h"
 #include "Engine/RectLight.h"
@@ -78,21 +80,40 @@ void ADPCharacterCreate::BuildConcept(UWorld* W, APlayerController* PC, bool bWo
 	// the room: 40 m under the terminal (dark there), its floor at C; the camera looks along +y (world) at the two
 	const FVector C = FTerminalPlan::ToWorld(0.f, -40.f, 0.f);
 	const FVector X(1, 0, 0), Y(0, 1, 0), Z(0, 0, 1);
+	FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	UMaterialInstanceDynamic* Floor = Plain(W, FLinearColor(0.012f, 0.014f, 0.022f), 0.28f);   // a little shine: the neon mirrored in it
 	UMaterialInstanceDynamic* Wall = Plain(W, FLinearColor(0.008f, 0.01f, 0.018f), 0.75f);
 	const TCHAR* PlaneMesh = TEXT("/Engine/BasicShapes/Plane.Plane");
 	Shape(W, PlaneMesh, C, FRotator::ZeroRotator, FVector(16, 16, 1), Floor);
-	Shape(W, PlaneMesh, C + Z * 480.f, FRotator(180.f, 0.f, 0.f), FVector(16, 16, 1), Wall);
-	Shape(W, PlaneMesh, C + Y * 320.f + Z * 240.f, FRotator(0.f, 0.f, 90.f), FVector(16, 6, 1), Wall);    // the back wall (its face -y)
-	Shape(W, PlaneMesh, C - Y * 800.f + Z * 240.f, FRotator(0.f, 0.f, -90.f), FVector(16, 6, 1), Wall);   // behind the camera
-	Shape(W, PlaneMesh, C - X * 800.f + Z * 240.f, FRotator(90.f, 0.f, 0.f), FVector(6, 12, 1), Wall);
-	Shape(W, PlaneMesh, C + X * 800.f + Z * 240.f, FRotator(-90.f, 0.f, 0.f), FVector(6, 12, 1), Wall);
+	for (const float Flip : {0.f, 180.f})   // (a plane shows one face: each wall both ways round, so nothing of the world shows through)
+	{
+		Shape(W, PlaneMesh, C + Z * 480.f, FRotator(Flip, 0.f, 0.f), FVector(16, 16, 1), Wall);
+		Shape(W, PlaneMesh, C + Y * 900.f + Z * 240.f, FRotator(0.f, 0.f, 90.f + Flip), FVector(16, 6, 1), Wall);    // the back wall, well behind the fog
+		Shape(W, PlaneMesh, C - Y * 800.f + Z * 240.f, FRotator(0.f, 0.f, -90.f + Flip), FVector(16, 6, 1), Wall);   // behind the camera
+		Shape(W, PlaneMesh, C - X * 800.f + Z * 240.f, FRotator(90.f + Flip, 0.f, 0.f), FVector(6, 18, 1), Wall);
+		Shape(W, PlaneMesh, C + X * 800.f + Z * 240.f, FRotator(-90.f + Flip, 0.f, 0.f), FVector(6, 18, 1), Wall);
+	}
+	// the fog wall behind them (owner): a bank of fog behind the tubes that hides everything beyond and takes the
+	// lights' colours (it is lit through the volumetric fog)
+	{
+		ALocalFogVolume* V = W->SpawnActor<ALocalFogVolume>(C + Y * 520.f + Z * 230.f, FRotator::ZeroRotator, P);
+		if (V)
+		{
+			V->SetActorScale3D(FVector(9.f, 3.2f, 5.f));   // (the volume is a 1 m sphere at scale 1)
+			if (ULocalFogVolumeComponent* F = V->FindComponentByClass<ULocalFogVolumeComponent>())
+			{
+				F->SetRadialFogExtinction(1.6f);
+				F->SetHeightFogExtinction(0.f);
+				F->SetFogPhaseG(0.3f);
+			}
+		}
+		if (PC) PC->ConsoleCommand(TEXT("r.LocalFogVolume.ApplyVolumetricFog 1"));
+	}
 
 	// the two neon tubes, the title screen's cyan, and the light they throw (a tall soft light behind each, into the fog)
 	static UMaterialInterface* NeonBase = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/Neon/M_Neon.M_Neon"));
 	UMaterialInstanceDynamic* Neon = NeonBase ? UMaterialInstanceDynamic::Create(NeonBase, W) : nullptr;
 	if (Neon) { Neon->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.45f, 0.9f, 1.f)); Neon->SetScalarParameterValue(TEXT("Strength"), 16.f); }
-	FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	for (const float Side : {-1.f, 1.f})
 	{
 		const FVector Foot = C + Y * 210.f + X * (Side * 62.f);
