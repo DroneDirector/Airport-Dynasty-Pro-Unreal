@@ -2,6 +2,12 @@
 
 Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md (where everything is) first.
 
+## Owner's ideas, noted but NOT on the to-do list (2026-11-12, from the airport-layout and town chat) — FOR THE PC CHAT TO KNOW
+
+The owner asked for these to be kept here, visible to every chat, and not added to TODO.md.
+
+- **Hairdresser in the player's home town.** A hairdresser's shop in the town where the player lives. Inside, the player picks a new hairstyle from the MetaHuman hair presets (and can also pick a beard, a different beard or no beard). The haircut happens, and the player walks out with the new hair. It fits the MetaHuman plan: the player's own MetaHuman gets its hair/beard groom swapped, the same way the wardrobe swaps outfits (docs/Wardrobe-Plan.md).
+
 ## Fire station and new to-dos (2026-11-11 09:20, from the hangar / fire station chat) — FOR THE PC CHAT
 - **Fire station (ARFF), its training tower and two drivable ARFF trucks:** the full brief is `docs/fire-station/SPEC.md`
   (also in the project docs as claude/fire-station-spec.md). Status: design sketch only, shown to the owner; he asked
