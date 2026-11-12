@@ -238,6 +238,10 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
   - **Research when we get to it (not before):** what the room is called and how it's laid out; in which areas of an
     airport detection dogs normally work (checkpoint, landside halls, baggage, arrivals, cargo...); and how many hours a
     day / week a team typically works, with breaks, from real data. The game's dog schedules follow that.
+  - **Good dog AND cat animations** (owner, 2026-11-12) for every animal the AI runs (the security dogs, the office pet
+    dog or cat, any later animals): find good-quality animation sets (walk, trot, run, sniff, sit, lie, idle with
+    breathing, panting, play; cats: walk, stretch, groom, sit, lie, jump) with a licence that allows a paid game
+    (checked first, listed in THIRD-PARTY-NOTICES.md); otherwise make our own.
   - Which passengers carry something comes from the shared world (part of the passenger's data), so Android knows it
     too; the dog and the scene are airport mode on the PC only.
 - Getting in and out of vehicles, the full pass (owner, 2026-11-11): the same animation for NPCs and the player - walk
