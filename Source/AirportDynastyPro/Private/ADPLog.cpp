@@ -1,6 +1,7 @@
 // The game's own log file (ADPLog.h).
 #include "ADPLog.h"
 #include "HAL/FileManager.h"
+#include "HAL/PlatformProcess.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/DateTime.h"
 #include "Misc/Paths.h"
@@ -28,9 +29,12 @@ namespace ADPLog
 			const FString Dir = FPaths::ProjectSavedDir() / TEXT("Logs"), Now = Dir / TEXT("ADP.log"), Prev = Dir / TEXT("ADP-prev.log");
 			IFileManager& FM = IFileManager::Get();
 			FM.MakeDirectory(*Dir, true);
-			// the run before kept once
-			if (FM.FileExists(*Now)) FM.Move(*Prev, *Now, true, true);
+			// the run before kept once; quietly, since another run of the game (or a stuck one) may still hold the
+			// file: then this run writes beside it, under its own process number (2026-11-12: a stuck editor session
+			// held ADP.log, and the cook counted the failed move as an error and stopped)
+			if (FM.FileExists(*Now)) FM.Move(*Prev, *Now, true, true, false, true);
 			File = FM.CreateFileWriter(*Now, FILEWRITE_AllowRead);
+			if (!File) File = FM.CreateFileWriter(*(Dir / FString::Printf(TEXT("ADP-%u.log"), FPlatformProcess::GetCurrentProcessId())), FILEWRITE_AllowRead);
 		}
 		if (!File) return;
 		const FString Out = FDateTime::Now().ToString(TEXT("%H:%M:%S.%s ")) + Line + LINE_TERMINATOR;
