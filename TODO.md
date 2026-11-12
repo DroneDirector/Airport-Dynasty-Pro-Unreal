@@ -150,6 +150,11 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 - [ ] RULE: no interface ever on top of another (walking, 3D viewer)
 - [ ] Your own 3D body while walking (legs, arms, shadow, reflection in glass), everywhere, when the people get bodies
 
+- [ ] **Radial menu** (owner, 2026-11-12): hold a key (or a pad button) to open a wheel of handy shortcuts, so common
+      things don't need digging deep into the menus (which shortcuts go on it is decided with the owner; ideas: map,
+      phone, bank, staff, timetable, call a vehicle, quick-start places, camera/view). Pick with mouse or stick, release
+      to choose; in the controls legend; text never overlapping
+
 ## 5. Graphics settings
 - [x] A "light beams distance" slider (the light masts' haze, now 500 m) so weaker cards can turn it down
 - [~] Many more graphics controls in Settings (owner, 2026-11-09): sliders per quality group (view distance, upscaler,
