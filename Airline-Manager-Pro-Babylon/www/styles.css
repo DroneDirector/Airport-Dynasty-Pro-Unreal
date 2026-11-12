@@ -533,3 +533,10 @@ html.ue-stage body > *:not(.wy) { visibility: hidden !important; }
 .wy-panel .ts-btn { width: 100%; animation: none; }
 .wy-panel .wy-next { margin-top: 16px; }
 .wy-panel .ts-bt small { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: rgba(225, 215, 255, .6); }
+.wy-row { display: flex; flex-direction: column; gap: 6px; margin-top: 16px; }
+.wy-row .ts-btn { width: 100%; }
+.wy-panel .ts-btn.hot { border-left-color: var(--neo1); box-shadow: 0 0 18px rgba(255, 63, 184, .35), inset 0 0 0 1px rgba(150, 180, 255, .12); }
+.wy .pad { display: none; }
+.wy.has-pad .pad { display: inline; }
+.wy.has-pad .kb { display: none; }
+.wy .wy-mute { position: absolute; right: clamp(16px, 3vw, 40px); top: clamp(16px, 3vh, 32px); bottom: auto; }

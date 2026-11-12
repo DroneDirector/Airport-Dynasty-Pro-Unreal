@@ -1095,7 +1095,7 @@ void AADPHUD::WardrobeFromPage(const FString& Action, const FString& Arg)
 void AADPHUD::OpenWhoAreYou()
 {
 	if (bWhoAreYou || !Browser.IsValid()) return;
-	bWhoAreYou = true; bWhoAreYouCreator = false;
+	bWhoAreYou = true; bWhoAreYouCreator = false; bWhoAreYouBack = false;
 	// the menus' page stays up, see-through, over the 3D stage: the world drawn again behind it
 	if (bViewer) CloseViewer();
 	bGame = false;
@@ -1116,6 +1116,7 @@ void AADPHUD::WhoAreYouFromPage(const FString& Action, const FString& Arg)
 	if (!bWhoAreYou) return;
 	if (Action == TEXT("hover")) ADPCharacterCreate::Choose(Arg == TEXT("she"));
 	else if (Action == TEXT("choose")) ADPCharacterCreate::Confirm(Arg == TEXT("she"));
+	else if (Action == TEXT("back")) { ADPCharacterCreate::Back(); bWhoAreYouBack = true; }
 	else if (Action == TEXT("cancel")) CloseWhoAreYou(false);
 	else if (Action == TEXT("done")) CloseWhoAreYou(true);
 }
@@ -1519,6 +1520,12 @@ void AADPHUD::Tick(float Dt)
 	{
 		bWhoAreYouCreator = true;
 		Browser->ExecuteJavascript(FString::Printf(TEXT("window.__ueWhoAreYou && window.__ueWhoAreYou('creator', '%s')"), ADPCharacterCreate::UiOnRight() ? TEXT("right") : TEXT("left")));
+	}
+	// Back's reverse over: the choice again, the chosen one still in the light
+	if (bWhoAreYou && bWhoAreYouBack && ADPCharacterCreate::Choosing() && Browser.IsValid())
+	{
+		bWhoAreYouBack = false; bWhoAreYouCreator = false;
+		Browser->ExecuteJavascript(FString::Printf(TEXT("window.__ueWhoAreYou && window.__ueWhoAreYou('choose', '%s')"), ADPCharacterCreate::UiOnRight() ? TEXT("she") : TEXT("he")));
 	}   // (the page's menu again once the page is surely up)
 	// from the menus into the 3D airport: the loading screen until everything is in (test runs skip it)
 	{
@@ -2117,9 +2124,17 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 55.f && ShotClock >= 55.f) Shot(TEXT("NewGame_SheLit"));
 			if (Before < 56.f && ShotClock >= 56.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}))"));
 			if (Before < 66.f && ShotClock >= 66.f) Shot(TEXT("NewGame_Creator"));
-			if (Before < 67.f && ShotClock >= 67.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}))"));
-			if (Before < 73.f && ShotClock >= 73.f) Shot(TEXT("NewGame_OnIntoTheGame"));
-			if (Before < 75.f && ShotClock >= 75.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 67.f && ShotClock >= 67.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Backspace'}))"));   // Back: the reverse
+			if (Before < 71.f && ShotClock >= 71.f) Shot(TEXT("NewGame_BackHalfway"));
+			if (Before < 76.f && ShotClock >= 76.f) Shot(TEXT("NewGame_BackAtChoice"));
+			if (Before < 77.f && ShotClock >= 77.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}))"));
+			if (Before < 87.f && ShotClock >= 87.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}))"));   // Next: your pet
+			if (Before < 89.f && ShotClock >= 89.f) Shot(TEXT("NewGame_Pet"));
+			if (Before < 90.f && ShotClock >= 90.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}))"));   // Next: your partner
+			if (Before < 92.f && ShotClock >= 92.f) Shot(TEXT("NewGame_Partner"));
+			if (Before < 93.f && ShotClock >= 93.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}))"));   // Start game
+			if (Before < 99.f && ShotClock >= 99.f) Shot(TEXT("NewGame_OnIntoTheGame"));
+			if (Before < 101.f && ShotClock >= 101.f) FGenericPlatformMisc::RequestExit(false);
 		}
 		// -UIGender: the concept of the new career's "who are you" screen (owner, 2026-11-12): the dark neon room with
 		// the fog, she in the light and he in shadow, with the title screen's lettering over it

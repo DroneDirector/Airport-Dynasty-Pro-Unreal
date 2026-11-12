@@ -5,7 +5,7 @@ import { pendingIssues, issuesText } from '../core/errlog';
 import { S, saveSettings } from '../core/settings';
 import { APP, IS_PC } from '../core/app';
 import { icon, esc } from './icons';
-import { UE_PC, UE_ENGINE } from '../core/uelink';
+import { UE_PC, UE_ENGINE, ue } from '../core/uelink';
 
 const TS_BPM = 101.63, TS_OFF = 0.322, TS_BEAT = 60 / TS_BPM, TS_DUR = 257.16;
 type TsView = [number, number, number];   // centre x, centre y, visible width (in the picture's pixels)
@@ -80,7 +80,11 @@ export function splashNav(dir: number) {
 export function splashEnter() {
   const T = TitleScreen; if (!T.on || T.closing) return; T.closing = true;
   const r = T.root, a = T.audio; r.classList.add('out');
-  if (a) { const v0 = a.volume, t0 = performance.now(); const fade = () => { const k = Math.min(1, (performance.now() - t0) / 1100); a.volume = v0 * (1 - k); if (k < 1) requestAnimationFrame(fade); else { a.pause(); a.src = ''; } }; fade(); }
+  // the PC's new career (owner, 2026-11-12): the music carries on through the who-are-you stage and its steps, never
+  // restarting; the stage fades it out itself just before the loading screen (src/ui/whoareyou.ts)
+  const keep = _pick === 'game:new' && !!(ue() && ue().newgame);
+  if (a && keep) { carried = a; }
+  else if (a) { const v0 = a.volume, t0 = performance.now(); const fade = () => { const k = Math.min(1, (performance.now() - t0) / 1100); a.volume = v0 * (1 - k); if (k < 1) requestAnimationFrame(fade); else { a.pause(); a.src = ''; } }; fade(); }
   setTimeout(() => { T.on = false; T.closing = false; cancelAnimationFrame(T.raf); window.removeEventListener('resize', T.fit); r.remove(); T.audio = null; T.img = {}; T.blur = {}; T.ready = false; const f = _enter; _enter = null; if (f) f(_pick); }, 850);
 }
 function splashMute() {
@@ -97,8 +101,15 @@ function load() {
   for (let i = 0; i < d.data.length; i += 4) { const v = 128 + (Math.random() - 0.5) * 120; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; }
   x.putImageData(d, 0, 0); T.grain = g; T.tmp = document.createElement('canvas');
 }
+let carried: HTMLAudioElement | null = null;
+/** The title music handed on to the new career's stage (playing on), or null. */
+export function splashTakeMusic(): HTMLAudioElement | null { const a = carried; carried = null; return a; }
+/** The music handed back (the stage left for the title screen): the title plays it on where it is. */
+export function splashGiveMusic(a: HTMLAudioElement | null) { carried = a; }
 function music() {
-  const T = TitleScreen, a = new Audio('assets/title/title.mp3'); a.preload = 'auto'; a.volume = 0.85; T.audio = a; a.muted = !S.music;
+  const T = TitleScreen;
+  if (carried) { const a = carried; carried = null; T.audio = a; a.muted = !S.music; a.volume = 0.85; a.play().catch(() => { /* on */ }); return; }
+  const a = new Audio('assets/title/title.mp3'); a.preload = 'auto'; a.volume = 0.85; T.audio = a; a.muted = !S.music;
   a.addEventListener('ended', () => { if (!T.on) return; T.flash = 1; a.currentTime = 0; a.play().catch(() => { /* waits for a tap */ }); });
   a.play().catch(() => {
     a.muted = true; a.play().catch(() => { /* the film keeps its own clock */ });

@@ -52,7 +52,7 @@ public:
 	void OpenWhoAreYou();
 	void WhoAreYouFromPage(const FString& Action, const FString& Arg);
 	void CloseWhoAreYou(bool bGoOn);
-	bool bWhoAreYou = false, bWhoAreYouCreator = false;
+	bool bWhoAreYou = false, bWhoAreYouCreator = false, bWhoAreYouBack = false;
 	/** Bloom and blur (Settings): 0 off, 1 low, 2 medium, 3 high, 4 epic; kept in the game's settings file. */
 	void SetBloom(int32 Level);
 	void SetBlur(int32 Level);

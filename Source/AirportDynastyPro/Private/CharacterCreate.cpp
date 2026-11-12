@@ -33,7 +33,8 @@ namespace
 	TArray<TWeakObjectPtr<ARectLight>> TubeLights;
 	TWeakObjectPtr<UMaterialInstanceDynamic> NeonMat;
 	// the choice made: the other walks out of the picture, then the tubes go dark and back into the fog
-	int32 Phase = 0;           // 0 choosing, 1 the other walking out, 2 the tubes going, 3 done
+	int32 Phase = 0;           // 0 choosing, 1 the other walking out, 2 the tubes going, 3 done; 4 the tubes coming back, 5 the other walking back in
+	float TubesGone = 0.f;     // how far back the tubes went (cm), to bring them the same way back
 	float PhaseT = 0.f;
 	bool bChoseWoman = true;
 	FTSTicker::FDelegateHandle Ticker;
@@ -74,6 +75,7 @@ namespace
 			// the tubes switch off, fade, and are drawn away into the fog until they light nothing; the camera stays
 			PhaseT += Dt;
 			const float K = FMath::Clamp(PhaseT / 3.6f, 0.f, 1.f);
+			TubesGone += 240.f * Dt;
 			for (const TWeakObjectPtr<AActor>& T : Tubes) if (AActor* A = T.Get()) A->AddActorWorldOffset(FVector(0.f, 240.f * Dt, 0.f));
 			for (const TWeakObjectPtr<ARectLight>& L : TubeLights) if (ARectLight* A = L.Get()) { A->AddActorWorldOffset(FVector(0.f, 240.f * Dt, 0.f)); A->RectLightComponent->SetIntensity(2000.f * FMath::Square(1.f - K)); }
 			if (UMaterialInstanceDynamic* M = NeonMat.Get()) M->SetScalarParameterValue(TEXT("Strength"), 16.f * FMath::Pow(1.f - K, 2.2f));
@@ -84,7 +86,52 @@ namespace
 				Phase = 3;
 			}
 		}
-		return Phase < 3;
+		else if (Phase == 4)
+		{
+			// back: the tubes come forward out of the fog and light up again
+			PhaseT += Dt;
+			const float K = FMath::Clamp(PhaseT / 3.f, 0.f, 1.f);
+			const float Move = FMath::Min(TubesGone, (TubesGone / 3.f) * Dt);
+			TubesGone -= Move;
+			for (const TWeakObjectPtr<AActor>& T : Tubes) if (AActor* A = T.Get()) A->AddActorWorldOffset(FVector(0.f, -Move, 0.f));
+			for (const TWeakObjectPtr<ARectLight>& L : TubeLights) if (ARectLight* A = L.Get()) { A->AddActorWorldOffset(FVector(0.f, -Move, 0.f)); A->RectLightComponent->SetIntensity(2000.f * FMath::Square(K)); }
+			if (UMaterialInstanceDynamic* M = NeonMat.Get()) M->SetScalarParameterValue(TEXT("Strength"), 16.f * FMath::Pow(K, 2.2f));
+			if (K >= 1.f)
+			{
+				// then the other one walks back in from the edge, facing the way they walk
+				AActor* Off = bChoseWoman ? He.Get() : She.Get();
+				const FVector Mark = bChoseWoman ? HimAt : HerAt;
+				const float Dir = bChoseWoman ? 1.f : -1.f;   // back towards the middle
+				if (Off)
+				{
+					Off->SetActorLocation(Mark + FVector(-Dir * 470.f, 0.f, 0.f));
+					Off->SetActorRotation(FRotator(0.f, (Dir > 0 ? 0.f : 180.f) - 90.f, 0.f));
+					Off->SetActorHiddenInGame(false);
+					SetWalking(Off, true);
+				}
+				Phase = 5;
+			}
+		}
+		else if (Phase == 5)
+		{
+			AActor* Off = bChoseWoman ? He.Get() : She.Get();
+			const FVector Mark = bChoseWoman ? HimAt : HerAt;
+			const float Dir = bChoseWoman ? 1.f : -1.f;
+			if (Off)
+			{
+				Off->AddActorWorldOffset(FVector(Dir * 150.f * Dt, 0.f, 0.f));
+				if ((Off->GetActorLocation().X - Mark.X) * Dir >= 0.f)
+				{
+					// on the mark: turned to the camera again, standing
+					Off->SetActorLocation(Mark);
+					Off->SetActorRotation(FRotator(0.f, -90.f - 90.f, 0.f));
+					SetWalking(Off, false);
+					Phase = 0;
+				}
+			}
+			else Phase = 0;
+		}
+		return Phase != 0 && Phase != 3;
 	}
 
 	AStaticMeshActor* Shape(UWorld* W, const TCHAR* Mesh, const FVector& At, const FRotator& Rot, const FVector& Scale, UMaterialInterface* M)
@@ -288,6 +335,18 @@ void ADPCharacterCreate::Choose(bool bWoman)
 	}
 }
 
+void ADPCharacterCreate::Back()
+{
+	if (Phase != 3) return;
+	for (const TWeakObjectPtr<AActor>& T : Tubes) if (AActor* A = T.Get()) A->SetActorHiddenInGame(false);
+	for (const TWeakObjectPtr<ARectLight>& L : TubeLights) if (ARectLight* A = L.Get()) { A->RectLightComponent->SetVisibility(true); A->RectLightComponent->SetIntensity(0.f); }
+	Phase = 4; PhaseT = 0.f;
+	if (Ticker.IsValid()) FTSTicker::GetCoreTicker().RemoveTicker(Ticker);
+	Ticker = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([](float Dt) { return Step(Dt); }), 0.f);
+}
+
+bool ADPCharacterCreate::Choosing() { return Phase == 0; }
+
 void ADPCharacterCreate::Confirm(bool bWoman)
 {
 	if (Phase != 0) return;
@@ -301,7 +360,7 @@ void ADPCharacterCreate::Confirm(bool bWoman)
 		Off->SetActorRotation(FRotator(0.f, Facing - 90.f, 0.f));
 		SetWalking(Off, true);
 	}
-	Phase = 1; PhaseT = 0.f;
+	Phase = 1; PhaseT = 0.f; TubesGone = 0.f;
 	if (Ticker.IsValid()) FTSTicker::GetCoreTicker().RemoveTicker(Ticker);
 	Ticker = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([](float Dt) { return Step(Dt); }), 0.f);
 }
