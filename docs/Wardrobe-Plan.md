@@ -65,17 +65,35 @@ pictures: about 1 h per batch of garments, done as each batch is made. Budget at
 One garment: 1.5-2 h plus its prints. A full set (jacket, shirt, trousers, shoes): about 6 h. Dressing the people
 who get it: 3 minutes each, unattended. It ships as a small content-pack update, not a full new game download.
 
-## G. The whole wardrobe at launch
+## H. Quality: the clothes must look real (owner's rule, 2026-11-12)
+
+Every garment is made to a quality bar, whatever its category:
+- **The fabric itself:** each material the garment is made of looks like the real thing: cotton jersey, denim, wool
+  suiting, nylon shell, hi-vis polyester, fleece, knit, leather, each with its own weave or grain drawn sharp, its own
+  shine and roughness (wool is matte, nylon sheens, leather creases). A fabric library is made once (about 10
+  fabrics, 1.5 h each) and every garment uses it.
+- **Stitching and seams:** real seam lines, topstitching, hems, buttons, zips, pocket edges, drawn into the garment.
+- **Wear and folds:** creases where cloth folds (elbows, knees, the waist), fading on denim, pilling on knits,
+  scuffs on work gear, a little dirt on hi-vis and coveralls; folds sculpted so the cloth hangs like cloth.
+- **No real brands or logos, ever.** Printed tees carry a specific graphic of our own (a sports car, a palm beach,
+  a band-style design, a mountain, a slogan we write), one real design per print, not a vague blob.
+
+This bar adds about half again to each garment: 2.5-3 h instead of 1.5-2 h. The tables above are the cheaper
+figures; the launch total below uses the real ones.
+
+## G. The whole wardrobe at launch (at the quality bar of H)
 
 | | Hours |
 |---|---|
-| Uniforms (A) | 55 |
-| Passengers (B) | 37 |
-| 50 prints and colours (C) | 12 |
+| The fabric library, made once (H) | 15 |
+| Uniforms (A), at the quality bar | 80 |
+| Passengers (B), at the quality bar | 55 |
+| 50 prints and colours (C), each a real design | 15 |
 | Your wardrobe (D) | 4 |
 | Fit testing (E) | 8 |
 | Dressing passes, unattended, in agreed pieces | 7 |
-| **Total** | **about 125 h, 35 sessions of 3.5 h** |
+| **Total** | **about 185 h: at 3 h a day, about 60 days** |
 
-Order: uniforms first (crew are needed in the game before passengers' variety matters), then the everyday
-passengers, then warm and cold, teenagers, the rest. Every finished garment is usable the day it is made.
+Order: the fabric library first (everything needs it), then uniforms (crew are needed in the game before
+passengers' variety matters), then the everyday passengers, then warm and cold, teenagers, the rest. Every finished
+garment is usable the day it is made, so the game gets better-dressed week by week; nothing waits for the end.
