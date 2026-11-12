@@ -4,6 +4,14 @@ The one complete list of what is still open, updated 2026-11-11 (after 0.14.7). 
 details behind each item. Marks: [ ] open, [~] started or partly done, [?] built earlier but the owner should check it.
 
 ## 0. Now, in this order (owner, 2026-11-11)
+- [ ] **FIRST AFTER THE METAHUMAN WORK** (owner, 2026-11-12): finish the MetaHuman people COMPLETELY first (builder,
+      uniforms, crowds, every role's actions). Then, as the very next job before anything else on this list: the
+      **use outline**. Look at something you can use and HOLD E (use): a crisp amber outline (with a thin light edge)
+      traces only that object's outer silhouette, fading in and out, gently pulsing; a small prompt beside the
+      crosshair shows the E key and the object's name ("E  Bag drop point 1"). Not shown when E isn't held or you
+      look away; nothing else outlined. Every usable object, now and later, gets it automatically. In Unreal: custom
+      depth/stencil on the aimed object plus an outline post-process material. The owner saw a demo on 2026-11-11
+      (bag drop point 1)
 - [ ] The old rooms' OBJECTS (never the room itself: walls, floor, ceiling, window, door stay the airport's) placed in the
       terminal's rooms so they look right: Office 1 (yours, with the pet: dog or cat as chosen, its bed, bowls and
       football) and Offices 2-4, Operations, the Academy; the court once the owner says where; the hangars wait
