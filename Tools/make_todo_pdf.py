@@ -31,7 +31,7 @@ ITEMS = [
  ('5',   'Release 0.17.7: truck pass, engine sound, sign, airfield', '1.5 h', ['rel'], '2, 3, 6-8, 12', False),
  ('21a', 'Hero people built at full (strand) hair quality', '2-3 h', ['people'], '2', False),
  ('21b', 'Settings option "Hair: cards / strands", near / far switch', '2-3 h', ['people'], '21a', False),
- ('32',  'New game: the "who are you" screen (she left / he right, neon tubes, floor fog, the chosen one steps into the light), hover + pad, confirm; then the other vanishes, the tubes fade and recede into the fog, camera still, UI on the free side', '2-3 h', ['people'], 'concept done', False),
+ ('32',  'New game: the "who are you" screen (she left / he right, neon tubes, floor fog, the chosen one steps into the light), hover + pad, confirm; then the other walks out of frame (her left, him right), the tubes fade and recede into the fog, camera still, UI on the free side', '2-3 h', ['people'], 'concept done', False),
  ('32a', 'Character creator: the parts library (faces x skin tones, bodies, hair fits), unattended', '19 h PC', ['people'], '2', False),
  ('32b', 'Character creator: the screen (face, skin, body, height, hair, clothes), saved, a switch turns it on; fog clears round you at shoes', '1 day (3 parts)', ['people'], '32, 32a, wardrobe', False),
  ('32c', 'New game: pets (pick one or none) and married or not, then the looks of the spouse (the creator again); then to the Overview', '2-3 h', ['people'], '32b', False),
