@@ -79,8 +79,8 @@ void AADPWalker::SetupPlayerInputComponent(UInputComponent* Input)
 	Super::SetupPlayerInputComponent(Input);
 	Input->BindAxis(TEXT("MoveForward"), this, &AADPWalker::MoveForward);
 	Input->BindAxis(TEXT("MoveRight"), this, &AADPWalker::MoveRight);
-	Input->BindAxis(TEXT("Turn"), this, &APawn::AddControllerYawInput);
-	Input->BindAxis(TEXT("LookUp"), this, &APawn::AddControllerPitchInput);
+	Input->BindAxis(TEXT("Turn"), this, &AADPWalker::TurnBy);
+	Input->BindAxis(TEXT("LookUp"), this, &AADPWalker::LookUpBy);
 	Input->BindAction(TEXT("Jump"), IE_Pressed, this, &ACharacter::Jump);
 	Input->BindAction(TEXT("Jump"), IE_Released, this, &ACharacter::StopJumping);
 	Input->BindAction(TEXT("Run"), IE_Pressed, this, &AADPWalker::RunOn);
@@ -89,8 +89,8 @@ void AADPWalker::SetupPlayerInputComponent(UInputComponent* Input)
 	Input->BindAction(TEXT("ChangeView"), IE_Pressed, this, &AADPWalker::ToggleView);
 }
 
-void AADPWalker::MoveForward(float V) { if (V != 0.f) AddMovementInput(GetActorForwardVector(), V); }
-void AADPWalker::MoveRight(float V) { if (V != 0.f) AddMovementInput(GetActorRightVector(), V); }
+void AADPWalker::MoveForward(float V) { if (V != 0.f && !bLed) AddMovementInput(GetActorForwardVector(), V); }
+void AADPWalker::MoveRight(float V) { if (V != 0.f && !bLed) AddMovementInput(GetActorRightVector(), V); }
 void AADPWalker::RunOn() { GetCharacterMovement()->MaxWalkSpeed = RunSpeed; }
 void AADPWalker::RunOff() { GetCharacterMovement()->MaxWalkSpeed = WalkSpeed; }
 void AADPWalker::ToggleCrouch() { if (bIsCrouched) UnCrouch(); else Crouch(); }

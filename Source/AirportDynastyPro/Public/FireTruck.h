@@ -37,8 +37,11 @@ public:
 	virtual void Tick(float Dt) override;
 	virtual void SetupPlayerInputComponent(UInputComponent* In) override;
 	virtual void EndPlay(const EEndPlayReason::Type Why) override;
-	/** You get in: you climb the steps by the driver's door, hand on the grab bar, into the middle seat, the door shut
-	 *  behind you (about 3 s, the camera out behind you and in again). Exit: the same the other way, stopping first. */
+	/** You get in (the full pass, owner 2026-11-11): from wherever you pressed E within 9 m you first walk over to the
+	 *  driver's door (your keys do nothing meanwhile), reach the door's handle and swing the door open, climb the steps
+	 *  holding the handles either side of the doorway, step past the left seat and sit in the middle one, the door pulled
+	 *  shut behind you (about 4 s, the camera out behind you and in again). Exit: the same the other way, stopping first,
+	 *  the door pulled shut by its handle once you stand outside. */
 	void Enter(APawn* Walker);
 	void Exit();
 	/** Out at once, no climb (the quick-starts that move you elsewhere). */
@@ -76,6 +79,12 @@ private:
 	UPROPERTY() TObjectPtr<UPoseableMeshComponent> Rider;               // your body in and on the truck
 	UPROPERTY() TObjectPtr<UAudioComponent> SirenOut;
 	UPROPERTY() TObjectPtr<UAudioComponent> BeeperOut;                  // the reversing beeper
+	// the drive's own sound (owner, 2026-11-12), made here as the siren is, nothing recorded: a deep diesel idle
+	// (the range extender) that climbs under load, the electric drive's whine rising with speed, the tyres' roar;
+	// running from the moment you sit at the wheel until you are out
+	UPROPERTY() TObjectPtr<UAudioComponent> EngineOut;
+	TSharedPtr<struct FEngineVoice> Engine;
+	void EngineOn(bool bOn);
 	UPROPERTY() TArray<TObjectPtr<USceneComponent>> ReverseLights;
 	bool bReverseLit = false;
 	void ReverseGear(bool bOn);
@@ -133,9 +142,11 @@ private:
 	bool bReverse = false, bTestInput = false;
 	float StopHold = 0.f;   // how long the brake has been held at a standstill (reverse after about a second)
 	// getting in and out
-	enum class ESeq : uint8 { None, In, Out };
+	enum class ESeq : uint8 { None, Walk, In, Out };
 	ESeq Seq = ESeq::None;
-	float SeqT = 0.f;
+	float SeqT = 0.f, WalkClock = 0.f;
+	void BeginClimb(APawn* Walker);
+	FVector HandleNow() const;   // the door handle's wrist spot now, as the door swings (root space)
 	bool bExitPending = false, bSiren = false, bHeadHidden = false;
 	FTransform CamFrom;                      // where the camera started (model root space)
 	FVector StartPelvis = FVector::ZeroVector, StartFacing = FVector(1, 0, 0);   // you, where you pressed E (root space)

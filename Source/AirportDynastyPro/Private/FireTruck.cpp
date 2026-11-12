@@ -6,6 +6,7 @@
 #include "BabylonModel.h"
 #include "FireStation.h"
 #include "ADPWalker.h"
+#include "GameFramework/PawnMovementComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Components/AudioComponent.h"
@@ -20,6 +21,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundAttenuation.h"
 #include "Sound/SoundWaveProcedural.h"
+#include <atomic>
 #include "Components/InputComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -92,6 +94,51 @@ namespace
 	}
 	/** the siren: an electronic wail, its tone rising and falling every 4.4 s, the horn speaker's hard edge */
 	struct FSirenState { double Phase = 0.0, T = 0.0; };
+}
+
+// ---- the engine's voice: what the game sets each frame (speed, load) and the phases the sound thread carries on
+struct FEngineVoice
+{
+	std::atomic<float> Kmh{0.f}, Load{0.f};
+	double Rpm = 750.0, Diesel = 0.0, Whine = 0.0, Mesh = 0.0, Noise = 0.0, Lp = 0.0, Lp2 = 0.0, Rumble = 0.0;
+	uint32 Seed = 0x9e3779b9u;
+	float Rnd() { Seed = Seed * 1664525u + 1013904223u; return float(Seed >> 8) / 8388608.f - 1.f; }
+	void Fill(TArray<int16>& Out, int32 N)
+	{
+		Out.SetNumUninitialized(N);
+		const float Kmh_ = Kmh.load(), Load_ = Load.load();
+		// the diesel's speed: idling at 750, pulled up by the load and the road speed (a generator: it follows the power asked
+		// of it, not the wheels), smoothly
+		const double RpmWant = 750.0 + 1400.0 * Load_ + 6.0 * FMath::Min(Kmh_, 100.f);
+		for (int32 I = 0; I < N; ++I)
+		{
+			Rpm += (RpmWant - Rpm) * 0.00004;
+			// the diesel: a V8's firing (4 bangs a revolution), each a short thump with a little ring, plus the exhaust's rumble
+			const double Fire = Rpm / 60.0 * 4.0;
+			Diesel += Fire / SndRate; if (Diesel >= 1.0) Diesel -= 1.0;
+			const double Thump = FMath::Exp(-Diesel * 9.0) * FMath::Sin(Diesel * 2.0 * PI * 1.0) + 0.35 * FMath::Sin(Diesel * 2.0 * PI * 2.0) * FMath::Exp(-Diesel * 4.0);
+			Rumble += ((Fire * 0.5) / SndRate); if (Rumble >= 1.0) Rumble -= 1.0;
+			const double Exhaust = 0.5 * FMath::Sin(Rumble * 2.0 * PI) + 0.25 * FMath::Sin(Rumble * 4.0 * PI + 0.7);
+			// the electric drive: a whine whose pitch follows the wheels (about 12 Hz a km/h, two harmonics), louder under load,
+			// and the gear mesh above it
+			const double WhineHz = 40.0 + 12.0 * Kmh_;
+			Whine += WhineHz / SndRate; if (Whine >= 1.0) Whine -= 1.0;
+			Mesh += (WhineHz * 3.0) / SndRate; if (Mesh >= 1.0) Mesh -= 1.0;
+			const double Ev = FMath::Clamp(Kmh_ / 30.0, 0.0, 1.0) * (0.35 + 0.65 * Load_);
+			const double Electric = Ev * (0.6 * FMath::Sin(Whine * 2.0 * PI) + 0.25 * FMath::Sin(Whine * 4.0 * PI) + 0.15 * FMath::Sin(Mesh * 2.0 * PI));
+			// the tyres and the air: filtered noise swelling with speed
+			const double W = Rnd();
+			Lp += (W - Lp) * 0.08; Lp2 += (Lp - Lp2) * 0.08;
+			const double Road = Lp2 * 3.0 * FMath::Clamp(Kmh_ / 60.0, 0.0, 1.2);
+			const double Idle = 0.55 + 0.45 * Load_;
+			const double V = Idle * (0.9 * Thump + 0.5 * Exhaust) + 0.7 * Electric + 0.6 * Road;
+			Out[I] = int16(FMath::Clamp(FMath::Tanh(V * 0.9) * 22000.0, -32000.0, 32000.0));
+		}
+	}
+};
+
+namespace
+{
 	void SirenFill(FSirenState& S, TArray<int16>& Out, int32 N)
 	{
 		Out.SetNumUninitialized(N);
@@ -220,28 +267,31 @@ namespace
 	// The driver's door is on the left: the hung step outside it (top 0.40 m, x -1.6, y 4.3-4.9), the step inside the
 	// doorway (top 0.75 m), the cab floor at 1.04 m; a handle either side of the doorway inside (rear y 3.78, front
 	// y 5.12, about 1.25-1.9 m up); the middle seat's cushion at 1.6 m (y 4.08); the pedals.
-	enum class EHand : uint8 { Free, At, Wheel };
+	enum class EHand : uint8 { Free, At, Wheel, Handle };   // Handle: on the door's outside handle, riding with the door
 	struct FKey { float T; FVector Pelvis; FVector2D Face; float Lean; FVector Foot[2]; EHand HM[2]; FVector Hand[2]; float Grip[2]; };
 	const FKey ClimbKeys[] = {
 		// standing at the foot of the steps (replaced by where you really are when you press E)
 		{0.00f, {-2.15f, 4.60f, 0.95f}, {1, 0}, 0.f,  {{-2.15f, 4.72f, 0.f}, {-2.15f, 4.48f, 0.f}}, {EHand::Free, EHand::Free}, {}, {0.f, 0.f}},
+		// the right hand to the door's handle (the door swings open from here, the hand riding with it), a half step back
+		{0.50f, {-2.15f, 4.40f, 0.95f}, {1, 0}, 5.f,  {{-2.15f, 4.62f, 0.f}, {-2.15f, 4.30f, 0.f}}, {EHand::Free, EHand::Handle}, {}, {0.f, 1.f}},
 		// hands up to the handles either side of the doorway
-		{0.55f, {-2.02f, 4.60f, 0.95f}, {1, 0}, 8.f,  {{-2.08f, 4.72f, 0.f}, {-2.08f, 4.48f, 0.f}}, {EHand::At, EHand::At}, {{-1.42f, 5.12f, 1.45f}, {-1.42f, 3.78f, 1.40f}}, {1.f, 1.f}},
+		{1.00f, {-2.02f, 4.60f, 0.95f}, {1, 0}, 8.f,  {{-2.08f, 4.72f, 0.f}, {-2.08f, 4.48f, 0.f}}, {EHand::At, EHand::At}, {{-1.42f, 5.12f, 1.45f}, {-1.42f, 3.78f, 1.40f}}, {1.f, 1.f}},
 		// the right foot on the step outside
-		{1.05f, {-1.95f, 4.58f, 1.10f}, {1, 0}, 14.f, {{-2.08f, 4.72f, 0.f}, {-1.62f, 4.50f, 0.40f}}, {EHand::At, EHand::At}, {{-1.42f, 5.12f, 1.55f}, {-1.42f, 3.78f, 1.50f}}, {1.f, 1.f}},
+		{1.50f, {-1.95f, 4.58f, 1.10f}, {1, 0}, 14.f, {{-2.08f, 4.72f, 0.f}, {-1.62f, 4.50f, 0.40f}}, {EHand::At, EHand::At}, {{-1.42f, 5.12f, 1.55f}, {-1.42f, 3.78f, 1.50f}}, {1.f, 1.f}},
 		// pulling up: the left foot on the step inside the doorway
-		{1.60f, {-1.72f, 4.60f, 1.48f}, {1, 0}, 16.f, {{-1.30f, 4.74f, 0.75f}, {-1.62f, 4.50f, 0.40f}}, {EHand::At, EHand::At}, {{-1.42f, 5.12f, 1.70f}, {-1.42f, 3.78f, 1.70f}}, {1.f, 1.f}},
+		{2.05f, {-1.72f, 4.60f, 1.48f}, {1, 0}, 16.f, {{-1.30f, 4.74f, 0.75f}, {-1.62f, 4.50f, 0.40f}}, {EHand::At, EHand::At}, {{-1.42f, 5.12f, 1.70f}, {-1.42f, 3.78f, 1.70f}}, {1.f, 1.f}},
 		// the right foot onto the cab floor
-		{2.10f, {-1.36f, 4.58f, 1.88f}, {1, 0.1f}, 14.f, {{-1.30f, 4.74f, 0.75f}, {-0.98f, 4.48f, 1.04f}}, {EHand::At, EHand::At}, {{-1.42f, 5.12f, 1.85f}, {-1.42f, 3.78f, 1.85f}}, {1.f, 1.f}},
+		{2.55f, {-1.36f, 4.58f, 1.88f}, {1, 0.1f}, 14.f, {{-1.30f, 4.74f, 0.75f}, {-0.98f, 4.48f, 1.04f}}, {EHand::At, EHand::At}, {{-1.42f, 5.12f, 1.85f}, {-1.42f, 3.78f, 1.85f}}, {1.f, 1.f}},
 		// in: both feet on the floor, turning to the front, letting go
-		{2.60f, {-0.88f, 4.62f, 1.98f}, {0.6f, 0.8f}, 8.f, {{-0.92f, 4.78f, 1.04f}, {-0.98f, 4.48f, 1.04f}}, {EHand::At, EHand::Free}, {{-1.38f, 5.12f, 1.75f}, {}}, {1.f, 0.f}},
+		{3.05f, {-0.88f, 4.62f, 1.98f}, {0.6f, 0.8f}, 8.f, {{-0.92f, 4.78f, 1.04f}, {-0.98f, 4.48f, 1.04f}}, {EHand::At, EHand::Free}, {{-1.38f, 5.12f, 1.75f}, {}}, {1.f, 0.f}},
 		// past the left seat's front, to the middle
-		{3.10f, {-0.40f, 4.66f, 1.90f}, {0.3f, 1.f}, 4.f, {{-0.40f, 4.82f, 1.04f}, {-0.52f, 4.56f, 1.04f}}, {EHand::Free, EHand::Free}, {}, {0.f, 0.f}},
+		{3.55f, {-0.40f, 4.66f, 1.90f}, {0.3f, 1.f}, 4.f, {{-0.40f, 4.82f, 1.04f}, {-0.52f, 4.56f, 1.04f}}, {EHand::Free, EHand::Free}, {}, {0.f, 0.f}},
 		// sat down in the middle, feet to the pedals, hands on the wheel
-		{3.70f, {0.00f, 4.02f, 1.70f}, {0, 1}, -8.f, {{-0.14f, 4.70f, 1.04f}, {0.20f, 4.62f, 1.04f}}, {EHand::Wheel, EHand::Wheel}, {}, {1.f, 1.f}},
+		{4.15f, {0.00f, 4.02f, 1.70f}, {0, 1}, -8.f, {{-0.14f, 4.70f, 1.04f}, {0.20f, 4.62f, 1.04f}}, {EHand::Wheel, EHand::Wheel}, {}, {1.f, 1.f}},
 	};
 	constexpr int32 NumClimbKeys = UE_ARRAY_COUNT(ClimbKeys);
-	constexpr float ClimbLen = 3.70f;
+	constexpr float ClimbLen = 4.15f;
+	constexpr float HandleT = 0.50f;   // when the hand reaches the door's handle (in), or lets go of it (out)
 }
 
 AFireTruck::AFireTruck()
@@ -460,11 +510,30 @@ void AFireTruck::Enter(APawn* Walker)
 	APlayerController* PC = Cast<APlayerController>(Walker->GetController());
 	if (!PC) return;
 	const FTransform RX = Model->GetModelRoot()->GetComponentTransform();
-	if (FVector::Dist2D(RX.InverseTransformPosition(Walker->GetActorLocation()), BlenderToRoot(ClimbKeys[0].Pelvis.X, ClimbKeys[0].Pelvis.Y, 0.f)) > 450.f)
+	const float Away = FVector::Dist2D(RX.InverseTransformPosition(Walker->GetActorLocation()), BlenderToRoot(ClimbKeys[0].Pelvis.X, ClimbKeys[0].Pelvis.Y, 0.f));
+	if (Away > 900.f)
 	{
-		ADP_LOG(TEXT("Fire truck: too far from the driver's door to get in (%s)"), *GetName());
+		ADP_LOG(TEXT("Fire truck: too far from the driver's door to get in (%s, %.1f m)"), *GetName(), Away / 100.f);
 		return;
 	}
+	// not at the door yet: you walk over first (your keys do nothing meanwhile); the climb starts when you get there
+	if (Away > 40.f)
+	{
+		Driver = Walker;
+		if (AADPWalker* Wk = Cast<AADPWalker>(Walker)) Wk->SetLed(true);
+		Seq = ESeq::Walk; WalkClock = 0.f;
+		ADP_LOG(TEXT("Fire truck: walking to the driver's door (%s, %.1f m)"), *GetName(), Away / 100.f);
+		return;
+	}
+	BeginClimb(Walker);
+}
+
+void AFireTruck::BeginClimb(APawn* Walker)
+{
+	APlayerController* PC = Cast<APlayerController>(Walker->GetController());
+	if (!PC || !Model) return;
+	if (AADPWalker* Wk = Cast<AADPWalker>(Walker)) Wk->SetLed(false);
+	const FTransform RX = Model->GetModelRoot()->GetComponentTransform();
 	// where you are and look from, in the truck's own space: the climb starts there
 	FVector EyeAt; FRotator EyeRot;
 	Walker->GetActorEyesViewPoint(EyeAt, EyeRot);
@@ -485,7 +554,6 @@ void AFireTruck::Enter(APawn* Walker)
 	SetPhysics(true);
 	Still = 0.f; bTestInput = false; bHandbrake = true;
 	Seq = ESeq::In; SeqT = 0.f;
-	DoorTarget = 1.f;
 	if (Rider) Rider->SetVisibility(true);
 	Sequence(0.f);
 	ADP_LOG(TEXT("Fire truck: getting in (%s)"), *GetName());
@@ -536,6 +604,7 @@ void AFireTruck::FinishExit()
 	APawn* Wk = Driver;
 	Driver = nullptr;
 	Seq = ESeq::None;
+	EngineOn(false);
 	if (Rider) Rider->SetVisibility(false);
 	DoorTarget = 0.f;
 	if (!Wk) return;
@@ -759,6 +828,26 @@ void AFireTruck::ReverseGear(bool bOn)
 	else if (BeeperOut) { BeeperOut->Stop(); BeeperOut = nullptr; }
 }
 
+void AFireTruck::EngineOn(bool bOn)
+{
+	if (bOn == (EngineOut != nullptr) || !Model) return;
+	if (bOn)
+	{
+		USoundWaveProcedural* W = NewObject<USoundWaveProcedural>(this);
+		W->SetSampleRate(SndRate); W->NumChannels = 1; W->Duration = INDEFINITELY_LOOPING_DURATION; W->bLooping = false; W->SoundGroup = SOUNDGROUP_Effects;
+		Engine = MakeShared<FEngineVoice>();
+		TSharedPtr<FEngineVoice> St = Engine;
+		W->OnSoundWaveProceduralUnderflow = FOnSoundWaveProceduralUnderflow::CreateLambda([St](USoundWaveProcedural* Wv, int32 Samples)
+		{
+			TArray<int16> Buf; St->Fill(Buf, FMath::Max(Samples, SndRate / 20));
+			Wv->QueueAudio(reinterpret_cast<const uint8*>(Buf.GetData()), Buf.Num() * sizeof(int16));
+		});
+		// from under the cab's front (the power unit sits behind it), heard a good way off
+		EngineOut = UGameplayStatics::SpawnSoundAttached(W, Model->GetModelRoot(), NAME_None, BlenderToRoot(0.f, 3.6f, 0.9f), EAttachLocation::KeepRelativeOffset, false, 0.55f, 1.f, 0.f, FarSound);
+	}
+	else if (EngineOut) { EngineOut->Stop(); EngineOut = nullptr; Engine.Reset(); }
+}
+
 void AFireTruck::ToggleSiren()
 {
 	if (!Model || bPadMod) return;   // (B + D-pad left is the left indicator)
@@ -823,6 +912,7 @@ FDriverPose AFireTruck::PoseAt(float T) const
 		auto KeyHand = [&](int32 I) -> FVector
 		{
 			if (ClimbKeys[I].HM[S] == EHand::At) return BlenderToRoot(ClimbKeys[I].Hand[S].X, ClimbKeys[I].Hand[S].Y, ClimbKeys[I].Hand[S].Z);
+			if (ClimbKeys[I].HM[S] == EHand::Handle) return HandleNow();
 			if (ClimbKeys[I].HM[S] == EHand::Wheel)
 			{
 				// on the rim at ten to two, carried round as the wheel turns
@@ -839,6 +929,15 @@ FDriverPose AFireTruck::PoseAt(float T) const
 		P.Grip[S] = FMath::Lerp(ClimbKeys[A].Grip[S], ClimbKeys[B].Grip[S], E);
 	}
 	return P;
+}
+
+FVector AFireTruck::HandleNow() const
+{
+	// the driver's door's outside handle (Art/FireTruck/make_panther.py: on the lower panel, 1.04-1.09 m up, 0.15-0.4 m
+	// behind the door's rear edge), the wrist 5 cm out from it, carried round the hinge as the door swings
+	const FVector H0 = BlenderToRoot(-1.60f, 3.96f, 1.065f);
+	const float A = DoorTarget > 0.f ? FMath::Sin(DoorK * HALF_PI) : DoorK * DoorK * (2.f - DoorK);
+	return HingeRoot[0] + FQuat(FVector::UpVector, FMath::DegreesToRadians(DoorSign * 70.f * A)).RotateVector(H0 - HingeRoot[0]);
 }
 
 FTransform AFireTruck::CamPath(float T) const
@@ -871,16 +970,40 @@ FTransform AFireTruck::CamPath(float T) const
 void AFireTruck::Sequence(float Dt)
 {
 	const FTransform RX = Model->GetModelRoot()->GetComponentTransform();
+	if (Seq == ESeq::Walk)
+	{
+		// walking you to the foot of the steps: along the ground, turning to face the way you go; there (or after a
+		// while, if something blocks the way) the climb begins
+		WalkClock += Dt;
+		APawn* Wk = Driver;
+		if (!Wk) { Seq = ESeq::None; return; }
+		const FVector Spot = RX.TransformPosition(BlenderToRoot(ClimbKeys[0].Pelvis.X, ClimbKeys[0].Pelvis.Y, 0.f));
+		FVector To = Spot - Wk->GetActorLocation(); To.Z = 0.f;
+		const float Left = To.Size();
+		if (Left < 30.f || WalkClock > 8.f) { if (Wk->GetMovementComponent()) Wk->GetMovementComponent()->StopMovementImmediately(); BeginClimb(Wk); return; }
+		const FVector Dir = To / Left;
+		Wk->AddMovementInput(Dir, Left < 120.f ? 0.6f : 1.f);
+		if (AController* C = Wk->GetController())
+		{
+			const FRotator Rc = C->GetControlRotation();
+			const float Pitch = Rc.Pitch > 180.f ? Rc.Pitch - 360.f : Rc.Pitch;
+			C->SetControlRotation(FRotator(FMath::FInterpTo(Pitch, -8.f, Dt, 3.f), FMath::FixedTurn(Rc.Yaw, Dir.Rotation().Yaw, 240.f * Dt), 0.f));
+		}
+		return;
+	}
 	if (Seq != ESeq::None)
 	{
 		SeqT += Dt;
 		MoveCam->SetWorldTransform(CamPath(SeqT) * RX);
-		if (Seq == ESeq::In && SeqT >= 3.2f) DoorTarget = 0.f;     // pulled shut behind you
+		if (Seq == ESeq::In && SeqT >= HandleT) DoorTarget = 1.f;  // swung open by its handle
+		if (Seq == ESeq::In && SeqT >= 3.65f) DoorTarget = 0.f;    // pulled shut behind you
+		if (Seq == ESeq::Out && ClimbLen - SeqT <= HandleT) DoorTarget = 0.f;   // standing outside: pulled shut by its handle
 		if (Seq == ESeq::In && SeqT >= ClimbLen)
 		{
 			Seq = ESeq::None;
 			MoveCam->SetActive(false);
 			SetView(bChase);
+			EngineOn(true);
 			ADP_LOG(TEXT("Fire truck: you got in (%s)"), *GetName());
 		}
 		else if (Seq == ESeq::Out && SeqT >= ClimbLen + 0.25f) { FinishExit(); return; }
@@ -947,6 +1070,7 @@ void AFireTruck::Tick(float Dt)
 	}
 	// in reverse gear the reversing lamps light and the beeper sounds (owner, 2026-11-11), until you drive forward again
 	ReverseGear(Driver && bSim && bReverse && Seq == ESeq::None);
+	if (Engine.IsValid()) { Engine->Kmh.store(SpeedKmh()); Engine->Load.store(FMath::Clamp(InThrottle, 0.f, 1.f)); }
 	UpdateLamps(Dt);
 	// once you've got out and it stands still a while, it rests (no physics running; it stays exactly where it stopped)
 	if (bSim && !Driver) { Still = SpeedKmh() < 0.5f ? Still + Dt : 0.f; if (Still > 3.f) SetPhysics(false); }

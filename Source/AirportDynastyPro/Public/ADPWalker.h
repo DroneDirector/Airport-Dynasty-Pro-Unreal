@@ -25,11 +25,16 @@ public:
 	void SetThirdPerson(bool bOn);
 	/** Where your view would be standing at At, looking along Look (getting out of a truck glides there). */
 	FTransform ViewFrom(const FVector& At, const FRotator& Look) const;
+	/** Led by something else (a truck walking you to its door): your own moving and turning keys do nothing meanwhile. */
+	void SetLed(bool bOn) { bLed = bOn; }
+	bool IsLed() const { return bLed; }
 
 private:
 	#pragma region Moves
 	void MoveForward(float V);
 	void MoveRight(float V);
+	void TurnBy(float V) { if (!bLed) AddControllerYawInput(V); }
+	void LookUpBy(float V) { if (!bLed) AddControllerPitchInput(V); }
 	void RunOn();
 	void RunOff();
 	void ToggleCrouch();
@@ -38,6 +43,6 @@ private:
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCameraComponent> Eyes;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<USpringArmComponent> Boom;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCameraComponent> Behind;
-	bool bHeadHidden = false, bThird = false, bViewRead = false;
+	bool bHeadHidden = false, bThird = false, bViewRead = false, bLed = false;
 	void ToggleView() { SetThirdPerson(!bThird); }
 };
