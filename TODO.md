@@ -180,6 +180,23 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       whoever talks. The court building stands in your home town (a courthouse added to the town plan); you drive or
       fast travel there. Worked out with the owner later
 
+- [ ] **Radio in your office and the operations room** (owner, 2026-11-12): a small radio by the computer where you sit;
+      switch it on for the latest news and music. The music is the owner's own (he adds it; listed in
+      THIRD-PARTY-NOTICES.md if any part needs it). The news is read with the same voice engine as the MetaHumans
+      (Chatterbox, Kokoro as fallback). Mostly everyday news unrelated to the airport, but anything newsworthy that
+      connects to YOUR airport is reported too: accidents, staff taken to court for something serious in their job,
+      and a boss whose reputation with staff has dropped low (how terrible a boss you are, the reasons and the
+      sources), all from the shared world's events (the Babylon game already writes news for crashes)
+- [ ] **Your reputation as a boss, with sub-rankings** (owner, 2026-11-12): an overall boss rank that levels up as
+      before, plus sub-rankings that go up and down: how you treat your **employees** and how you treat
+      **passengers** (fair = up, unfair or rude = down). Changes are slow: a rank doesn't drop at once (rank 20 doesn't
+      become 19 straight away), the score drifts down and only when it passes below your current rank does the
+      number drop, shown visibly. Proposed scale (owner to confirm): score 0-100 behind each rank, 50 neutral;
+      80-100 excellent (blue-green), 60-79 good (green), 40-59 neutral (yellow), 20-39 poor (orange), 0-19 very poor
+      (red); the ranking line's colour shifts smoothly between these as the score moves, and a small buffer stops a
+      rank flickering up and down at a boundary. Reaching certain ranks earns rewards, for you and for the airport,
+      as in the Babylon edition (trophies, plaques, badges); a low staff ranking can put you in the news (radio item)
+
 ## 5. Graphics settings
 - [x] A "light beams distance" slider (the light masts' haze, now 500 m) so weaker cards can turn it down
 - [~] Many more graphics controls in Settings (owner, 2026-11-09): sliders per quality group (view distance, upscaler,
