@@ -79,12 +79,14 @@ def header(y):
     c.setFillColor(FG); c.setFont('Helvetica-Bold', 11); c.drawString(8*mm, y, 'Airport Dynasty Pro - to-do checklist')
     c.setFont('Helvetica', 6.5); c.setFillColor(DIM)
     c.setFillColor(FG); c.setFont('Helvetica-Bold', 7)
-    c.drawString(8*mm, y-10, 'The work is done in sections: every job of a day or more is split into parts of 2-3 hours,')
-    c.drawString(8*mm, y-19, 'one part per session. The letters after a number (15a, 15b ...) are those parts, in order.')
+    c.drawString(8*mm, y-10, 'The work is done in sections: every job of a day or more is split')
+    c.drawString(8*mm, y-19, 'into parts of 2-3 hours, one part per session. The letters after a')
+    c.drawString(8*mm, y-28, 'number (15a, 15b ...) are those parts, in order.')
     c.setFont('Helvetica', 6.5); c.setFillColor(DIM)
-    c.drawString(8*mm, y-29, 'In build order. "needs": the items that must be done before. Times are estimates. Updated 2026-11-12.')
+    c.drawString(8*mm, y-38, 'In build order. "needs": what must be done before. Times are estimates.')
+    c.drawString(8*mm, y-46, 'Updated 2026-11-12.')
     c.setFillColor(FG)
-    return y-36
+    return y-53
 y = H - 12*mm
 y = header(y)
 c.setFont('Helvetica', 6.5)
