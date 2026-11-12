@@ -618,6 +618,45 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 8)[LevelRow(true)]
 				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Blur (motion blur and depth of field)"))]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)[LevelRow(false)]
+				// the time of year (owner, 2026-11-12): a month and a day, or the real date; the sun's height, the day's
+				// length and the sunrise and sunset follow it at once (worked out for this year, so it shifts a little
+				// from year to year as in life); and the real-world weather switch (its feed comes later)
+				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Time of year (the sun's height and the day's length follow it)"))]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 2)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 6, 0)[SNew(SBox).WidthOverride(44)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text(FText::FromString(TEXT("Month")))]]
+					+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
+					[
+						SNew(SSlider)
+						.Value_Lambda([]() { return (FMath::Max(ASunClock::Month, 1) - 1) / 11.f; })
+						.OnValueChanged_Lambda([](float V) { ASunClock::SetDate(1 + FMath::RoundToInt(V * 11.f), FMath::Max(ASunClock::Day, 1)); })
+					]
+					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(12, 0, 6, 0)[SNew(SBox).WidthOverride(28)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text(FText::FromString(TEXT("Day")))]]
+					+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
+					[
+						SNew(SSlider)
+						.Value_Lambda([]() { return (FMath::Max(ASunClock::Day, 1) - 1) / 30.f; })
+						.OnValueChanged_Lambda([](float V) { ASunClock::SetDate(FMath::Max(ASunClock::Month, 1), 1 + FMath::RoundToInt(V * 30.f)); })
+					]
+					+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 6, 0).VAlign(VAlign_Center)
+					[SNew(SBox).WidthOverride(96)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { return FText::FromString(ASunClock::DateName()); })]]
+					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[Button(TEXT("REAL DATE"), []() { ASunClock::SetDate(0, 0); })]
+				]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 8, 0)
+					[
+						SNew(SButton)
+						.ButtonColorAndOpacity_Lambda([]() { return ASunClock::bRealWeather ? FLinearColor(0.1f, 0.45f, 0.75f, 1.f) : FLinearColor(0.05f, 0.2f, 0.36f, 0.9f); })
+						.ContentPadding(FMargin(10, 4))
+						.OnClicked_Lambda([]() { ASunClock::SetRealWeather(!ASunClock::bRealWeather); return FReply::Handled(); })
+						[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { return FText::FromString(ASunClock::bRealWeather ? TEXT("ON") : TEXT("OFF")); })]
+					]
+					+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
+					[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true).Text(FText::FromString(TEXT("Real-world weather at the airport (the live weather feed is coming; until then the weather buttons set it)")))]
+				]
 				// walk anywhere on Earth: a named place or a latitude and longitude; back to the airport
 				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Walk anywhere on Earth"))]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 4)
@@ -1697,32 +1736,67 @@ void AADPHUD::Tick(float Dt)
 			for (const FStep& St : FSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
 		}
-		// -UIPeople: the MetaHuman people (Content/People/Built) standing in the lit fire station hall, close up and full length
-		if (FParse::Param(FCommandLine::Get(), TEXT("UIPeople")))
+		// -UIPeople[=MH_016_passenger,MH_024_passenger,...] (without a list: the first two): each MetaHuman person named
+		// (Content/People/Built) stands before you in the lit fire station hall, facing you: a full-length picture, then
+		// their face close up (the view narrowed to 30 degrees, 1.2 m off, the camera turned to their own eyes' height);
+		// People_<name>_Body and _Face, ten seconds a person, then the game closes
+		if ((FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr))
 		{
-			auto Shot = [](const TCHAR* Name) { FScreenshotRequest::RequestScreenshot(Name, false, false); };
-			static TArray<TWeakObjectPtr<AActor>> People;
-			if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 13.f; ASunClock::Theme = 1; ASunClock::Refresh(); GoFireStation(2); }
-			if (Before < 46.f && ShotClock >= 46.f)
-				if (APlayerController* P = GetOwningPlayerController()) if (P->PlayerCameraManager)
+			auto Shot = [this](const FString& Name) { if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 2 filename=%s"), *Name)); };
+			static TArray<FString> Who; static TWeakObjectPtr<AActor> Stand; static FVector Eye0, Pawn0; static FRotator Look0;
+			const float T0 = 46.f, Step = 10.f;
+			if (Before < 40.f && ShotClock >= 40.f)
+			{
+				if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 13.f; ASunClock::Theme = 1; ASunClock::Refresh(); GoFireStation(2);
+				FString List; if (!FParse::Value(FCommandLine::Get(), TEXT("UIPeople="), List, false) || List.IsEmpty()) List = TEXT("MH_000_passenger,MH_001_passenger");
+				List.ParseIntoArray(Who, TEXT(","), true);
+			}
+			if (Before < 45.f && ShotClock >= 45.f) if (APlayerController* P = GetOwningPlayerController()) if (P->PlayerCameraManager && GetOwningPawn())
+			{ Eye0 = P->PlayerCameraManager->GetCameraLocation(); Look0 = FRotator(0.f, P->PlayerCameraManager->GetCameraRotation().Yaw, 0.f); Pawn0 = GetOwningPawn()->GetActorLocation(); }
+			APlayerController* P = GetOwningPlayerController(); APawn* Me = GetOwningPawn();
+			for (int32 K = 0; P && Me && K < Who.Num(); ++K)
+			{
+				const float S = T0 + K * Step;
+				auto At = [&](float D) { return Before < S + D && ShotClock >= S + D; };
+				if (At(0.f))
 				{
-					const FVector Eye = P->PlayerCameraManager->GetCameraLocation();
-					const FRotator Look(0.f, P->PlayerCameraManager->GetCameraRotation().Yaw, 0.f);
-					const FVector Fw = Look.Vector(), Rt = FRotationMatrix(Look).GetUnitAxis(EAxis::Y);
-					int32 K = 0;
-					for (const TCHAR* Who : {TEXT("MH_000_passenger"), TEXT("MH_001_passenger")})
-					{
-						UClass* C = LoadClass<AActor>(nullptr, *FString::Printf(TEXT("/Game/People/Built/%s/BP_%s.BP_%s_C"), Who, Who, Who));
-						if (!C) { ADP_WARN(TEXT("UIPeople: %s isn't built"), Who); continue; }
-						FVector At = Eye + Fw * 260.f + Rt * (K ? 55.f : -55.f); At.Z = Eye.Z - 158.f;   // standing on the floor before you
-						if (AActor* A = GetWorld()->SpawnActor<AActor>(C, At, FRotator(0.f, Look.Yaw + 180.f, 0.f))) { People.Add(A); ADP_LOG(TEXT("UIPeople: %s standing"), Who); }
-						++K;
-					}
+					// back where you stood with the plain view; this person 3.4 m before you on the floor, turned to face you
+					Me->SetActorLocation(Pawn0); P->SetControlRotation(FRotator(-3.f, Look0.Yaw, 0.f)); AADPWalker::Fov = 90.f;
+					UClass* C = LoadClass<AActor>(nullptr, *FString::Printf(TEXT("/Game/People/Built/%s/BP_%s.BP_%s_C"), *Who[K], *Who[K], *Who[K]));
+					if (!C) { ADP_WARN(TEXT("UIPeople: %s isn't built"), *Who[K]); continue; }
+					FVector Spot = Eye0 + Look0.Vector() * 340.f; Spot.Z = Eye0.Z - 158.f;
+					Stand = GetWorld()->SpawnActor<AActor>(C, Spot, FRotator(0.f, Look0.Yaw + 90.f, 0.f));   // (the MetaHuman faces its own right)
+					if (Stand.IsValid()) ADP_LOG(TEXT("UIPeople: %s standing"), *Who[K]);
 				}
-			if (Before < 52.f && ShotClock >= 52.f) Shot(TEXT("People_Two"));
-			if (Before < 53.f && ShotClock >= 53.f) if (APlayerController* P = GetOwningPlayerController()) { const FRotator R = P->GetControlRotation(); P->SetControlRotation(FRotator(-4.f, R.Yaw, 0.f)); if (APawn* Me = GetOwningPawn()) Me->AddActorWorldOffset(Me->GetActorForwardVector() * 150.f); }
-			if (Before < 56.f && ShotClock >= 56.f) Shot(TEXT("People_Faces"));
-			if (Before < 58.f && ShotClock >= 58.f) FGenericPlatformMisc::RequestExit(false);
+				if (At(4.f)) Shot(FString::Printf(TEXT("People_%s_Body"), *Who[K]));
+				if (At(5.f) && Stand.IsValid())
+				{
+					// up to their face: 1.2 m off, the camera turned to their eyes (the top of them less 12 cm), the view narrowed
+					FVector O, E; Stand->GetActorBounds(false, O, E);
+					const float EyeZ = O.Z + E.Z - 12.f;
+					Me->SetActorLocation(Pawn0 + Look0.Vector() * (340.f - 120.f));
+					P->SetControlRotation(FRotator(FMath::RadiansToDegrees(FMath::Atan2(EyeZ - Eye0.Z, 120.f)), Look0.Yaw, 0.f));
+					AADPWalker::Fov = 30.f;
+				}
+				if (At(8.5f)) Shot(FString::Printf(TEXT("People_%s_Face"), *Who[K]));
+				if (At(9.5f) && Stand.IsValid()) { Stand->Destroy(); Stand = nullptr; }
+			}
+			const float End = T0 + Who.Num() * Step + 1.f;
+			if (Who.Num() && Before < End && ShotClock >= End) FGenericPlatformMisc::RequestExit(false);
+		}
+		// -UISeason: the time of year (Settings): on the apron at noon in clear weather, 21 December then 21 June, a
+		// picture of each (the sun low and long shadows, then high), the real date put back; the log has the sun's height
+		if (FParse::Param(FCommandLine::Get(), TEXT("UISeason")))
+		{
+			auto Shot = [this](const TCHAR* Name) { if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 2 filename=%s"), Name)); };
+			auto Height = [this](const TCHAR* Label) { double El = 0, Az = 0; const int32 Y = FDateTime::UtcNow().GetYear(); ASunClock::SunAt(FDateTime(Y, FMath::Max(ASunClock::Month, 1), FMath::Max(ASunClock::Day, 1), 12), 63.452335, -18.710348, El, Az); ADP_LOG(TEXT("UISeason %s: %s, the sun %.1f deg up at noon"), Label, *ASunClock::DateName(), El); };
+			if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ASunClock::HourOverride = 12.f; ASunClock::Theme = 0; ASunClock::Refresh(); GoApron(); }
+			if (Before < 46.f && ShotClock >= 46.f) { ASunClock::SetDate(12, 21); Height(TEXT("winter")); }
+			if (Before < 52.f && ShotClock >= 52.f) Shot(TEXT("Season_Dec21"));
+			if (Before < 54.f && ShotClock >= 54.f) { ASunClock::SetDate(6, 21); Height(TEXT("summer")); }
+			if (Before < 60.f && ShotClock >= 60.f) Shot(TEXT("Season_Jun21"));
+			if (Before < 62.f && ShotClock >= 62.f) { ASunClock::SetDate(0, 0); ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
+			if (Before < 64.f && ShotClock >= 64.f) FGenericPlatformMisc::RequestExit(false);
 		}
 		// -UIDrive: a test drive in fire truck 1: in, out of the bay through its door, a turn, the driver's view, braking, out
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIDrive")))
@@ -1955,7 +2029,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

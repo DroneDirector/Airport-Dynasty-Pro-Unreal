@@ -124,6 +124,40 @@ LEGACY = 14
 ROLE_RANGES = [('passenger', 0, 40), ('cabin', 40, 60), ('pilot', 60, 76), ('ground', 76, 92), ('security', 92, 106), ('fire', 106, 120)]
 ROLE_COLS = {r: c for r, _, c in ROLES}
 COUNT_ALL = 120
+# ---- the extras (owner, 2026-11-12): 7 very overweight passengers (120-126, women among them: today's 'heavy' is only
+# a little fuller at the waist) and 10 teenagers (127-136, 14 to 17, women among them: most shorter than adults, two of
+# adult size, slim, smooth young skin, no beard, no grey, from the youngest-looking preset faces)
+OBESE = (120, 127)
+TEENS = (127, 137)
+COUNT_ALL = 137
+YOUNG_FACES = ('Aera', 'Aoi', 'Etta', 'Zuri', 'Tuya', 'Trey', 'Mateo', 'Orlando', 'Victor', 'Mikel')
+# how much fuller each part of a very overweight body is (matched against the body constraints' names)
+OBESE_PARTS = (('waist', 1.5), ('belly', 1.5), ('stomach', 1.5), ('hip', 1.35), ('chest', 1.3), ('bust', 1.3), ('thigh', 1.32),
+               ('upper_arm', 1.3), ('forearm', 1.15), ('arm', 1.2), ('neck', 1.15), ('calf', 1.18), ('shoulder', 1.08))
+
+
+def _extra_person(i):
+    rng = random.Random(20261112 + i * 7919)
+    teen = TEENS[0] <= i < TEENS[1]
+    k = i - (TEENS[0] if teen else OBESE[0])
+    female = k % 2 == 0   # women and men turn about: 4 of the 7 overweight, 5 of the 10 teenagers
+    if teen:
+        age = rng.randint(14, 17)
+        if k in (7, 9): height = rng.uniform(168, 174) if female else rng.uniform(176, 183)   # the two of adult size
+        else: height = rng.uniform(150, 166) if female else rng.uniform(152, 172)
+        build = rng.choice(['slim', 'slim', 'average'])
+    else:
+        age = rng.choice([24, 31, 38, 45, 52, 58, 64])
+        height = rng.uniform(156, 172) if female else rng.uniform(166, 184)
+        build = 'obese'
+    return {
+        'i': i, 'role': 'passenger', 'female': female, 'age': age, 'height': round(height, 1), 'build': build, 'teen': teen,
+        'skin_u': round(rng.uniform(0.05, 0.95), 3), 'skin_v': round(rng.uniform(0.15, 0.85), 3),
+        'freckles': round(max(0.0, rng.gauss(0.15 if teen else 0.08, 0.12)), 3), 'eyes': rng.choice(['brown', 'brown', 'brown', 'hazel', 'blue', 'green', 'grey']),
+        'hair_melanin': round(min(1.0, max(0.0, rng.gauss(0.55, 0.3))), 3), 'grey': 0.0 if teen else round(min(1.0, max(0.0, (age - 40) / 35.0) * rng.uniform(0.5, 1.0)), 3),
+        'beard': (not female) and (not teen) and rng.random() < 0.35, 'colours': (rng.choice(PASSENGER_COLOURS), rng.choice(PASSENGER_COLOURS)),
+        'face_seed': rng.randrange(1 << 30), 'pick': rng.randrange(1 << 30),
+    }
 
 
 def _plan():
@@ -157,6 +191,8 @@ def person(i):
     global _PLAN
     if i < LEGACY:
         return _legacy_person(i)
+    if i >= OBESE[0]:
+        return _extra_person(i)
     if _PLAN is None:
         _PLAN = _plan()
     rng = random.Random(20261112 + i * 7919)
@@ -192,6 +228,8 @@ def make(spec, info):
     # presets' looks), then made this person's own
     fem = set(info.get('female', []))
     pool = [p for p in presets if (p in fem) == spec['female']] if fem else presets
+    if spec.get('teen'):
+        pool = [p for p in pool if os.path.basename(p).split('.')[0] in YOUNG_FACES] or pool
     src = (pool or presets)[rng.randrange(len(pool or presets))]
     ch = eal.duplicate_asset(src, path)
     if ch is None:
@@ -226,15 +264,24 @@ def make(spec, info):
         cons = {str(c.name).lower().replace(' ', '_'): c for c in mhs.get_body_constraints(ch)}
         if 'height' in cons:
             cons['height'].is_active = True; cons['height'].target_measurement = spec['height']
-        girth = {'slim': 0.9, 'average': 1.0, 'sturdy': 1.08, 'heavy': 1.2}[spec['build']]
-        for key in ('waist', 'waist_circumference', 'belly'):
-            if key in cons:
-                c = cons[key]; c.is_active = True; c.target_measurement = c.target_measurement * girth
+        if spec['build'] == 'obese':
+            # every part of the body fuller, the middle most (the first part name found in each constraint's name)
+            log('body constraints: ' + ', '.join(sorted(cons)))
+            for key, c in cons.items():
+                if key == 'height':
+                    continue
+                f = next((f for part, f in OBESE_PARTS if part in key), None)
+                if f: c.is_active = True; c.target_measurement = c.target_measurement * f
+        else:
+            girth = {'slim': 0.9, 'average': 1.0, 'sturdy': 1.08, 'heavy': 1.2}[spec['build']]
+            for key in ('waist', 'waist_circumference', 'belly'):
+                if key in cons:
+                    c = cons[key]; c.is_active = True; c.target_measurement = c.target_measurement * girth
         mhs.set_body_constraints(ch, list(cons.values()))
         mhs.commit_body_state(ch)
         # the skin
         sk = unreal.MetaHumanCharacterSkinSettings()
-        sp = unreal.MetaHumanCharacterSkinProperties(); sp.u = spec['skin_u']; sp.v = spec['skin_v']; sp.roughness = 0.8 + 0.1 * rng.random()
+        sp = unreal.MetaHumanCharacterSkinProperties(); sp.u = spec['skin_u']; sp.v = spec['skin_v']; sp.roughness = (0.68 if spec.get('teen') else 0.8) + 0.1 * rng.random()
         sk.skin = sp
         fr = unreal.MetaHumanCharacterFrecklesProperties(); fr.density = spec['freckles']; fr.strength = min(1.0, spec['freckles'] * 3)
         sk.freckles = fr
@@ -284,7 +331,7 @@ def make(spec, info):
         # the built person (their blueprint, meshes, textures) and the shared parts, saved to disk
         eal.save_directory(OUT + '/Built/' + name, only_if_is_dirty=False, recursive=True)
         eal.save_directory(OUT + '/Common', only_if_is_dirty=False, recursive=True)
-        log('%s made: %s, %s, %d, %.0f cm, %s, from %s' % (name, spec['role'], 'woman' if spec['female'] else 'man', spec['age'], spec['height'], spec['build'], os.path.basename(src)))
+        log('%s made: %s, %s, %d, %.0f cm, %s, from %s' % (name, 'teenager' if spec.get('teen') else spec['role'], ('girl' if spec.get('teen') else 'woman') if spec['female'] else ('boy' if spec.get('teen') else 'man'), spec['age'], spec['height'], spec['build'], os.path.basename(src)))
     except Exception as e:
         unreal.log_error('ADP_MH: %s failed: %s' % (name, e))
     finally:

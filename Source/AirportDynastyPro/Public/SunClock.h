@@ -24,6 +24,20 @@ public:
 	/** The sun's elevation and azimuth (degrees; azimuth from north, clockwise) at a moment (UTC). */
 	static void SunAt(const FDateTime& Utc, double Lat, double Lon, double& Elevation, double& Azimuth);
 
+	#pragma region Time of year (Settings)
+	/** The date the game shows (owner, 2026-11-12): a month and a day of the month chosen in Settings, or 0 for the real
+	 *  date. The sun is worked out for that date in THIS year, so the same date shifts a little from year to year, as it
+	 *  does in life (the leap years). Saved in the settings; DayOverride follows it. */
+	static int32 Month;
+	static int32 Day;
+	static void SetDate(int32 InMonth, int32 InDay);
+	static FString DateName();
+	/** Real-world weather at the airport (the live feed): the switch is here and saved; the feed itself comes later, so
+	 *  for now the weather theme stays what it is. */
+	static bool bRealWeather;
+	static void SetRealWeather(bool bOn);
+	#pragma endregion
+
 	#pragma region Testing (Settings, Testing)
 	/** The hour of the day to show (0..24, UTC as in Iceland and the Faroes in winter), or below 0 for the real time. */
 	static float HourOverride;

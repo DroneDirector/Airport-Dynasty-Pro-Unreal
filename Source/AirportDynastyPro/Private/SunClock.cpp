@@ -15,6 +15,34 @@
 
 float ASunClock::HourOverride = -1.f;
 int32 ASunClock::DayOverride = -1;
+int32 ASunClock::Month = 0;
+int32 ASunClock::Day = 0;
+bool ASunClock::bRealWeather = false;
+
+void ASunClock::SetDate(int32 InMonth, int32 InDay)
+{
+	Month = FMath::Clamp(InMonth, 0, 12);
+	Day = Month ? FMath::Clamp(InDay, 1, FDateTime::DaysInMonth(FDateTime::UtcNow().GetYear(), Month)) : 0;
+	DayOverride = Month ? FDateTime(FDateTime::UtcNow().GetYear(), Month, Day).GetDayOfYear() : -1;
+	GConfig->SetInt(TEXT("ADP.World"), TEXT("Month"), Month, GGameUserSettingsIni);
+	GConfig->SetInt(TEXT("ADP.World"), TEXT("Day"), Day, GGameUserSettingsIni);
+	GConfig->Flush(false, GGameUserSettingsIni);
+	Refresh();
+}
+
+FString ASunClock::DateName()
+{
+	static const TCHAR* Names[] = {TEXT("January"), TEXT("February"), TEXT("March"), TEXT("April"), TEXT("May"), TEXT("June"), TEXT("July"), TEXT("August"), TEXT("September"), TEXT("October"), TEXT("November"), TEXT("December")};
+	if (Month < 1 || Month > 12) return TEXT("REAL DATE");
+	return FString::Printf(TEXT("%d %s"), Day, Names[Month - 1]);
+}
+
+void ASunClock::SetRealWeather(bool bOn)
+{
+	bRealWeather = bOn;
+	GConfig->SetBool(TEXT("ADP.World"), TEXT("RealWeather"), bOn, GGameUserSettingsIni);
+	GConfig->Flush(false, GGameUserSettingsIni);
+}
 int32 ASunClock::Theme = 1;
 TWeakObjectPtr<ASunClock> ASunClock::Current;
 
@@ -67,10 +95,10 @@ void ASunClock::Update()
 	if (UDirectionalLightComponent* C = Cast<UDirectionalLightComponent>(Sun->GetLightComponent()))
 	{
 		// full daylight from a few degrees up, fading through dusk; at night the sky's own light only (the moon later)
-		const float Day = FMath::Clamp(float((El + 4.0) / 10.0), 0.f, 1.f);
+		const float Daylight = FMath::Clamp(float((El + 4.0) / 10.0), 0.f, 1.f);
 		// clouds and fog let less of the sun through
 		static const float Through[] = {1.f, 0.9f, 0.7f, 0.35f, 0.3f, 0.3f, 0.2f, 0.35f};
-		C->SetIntensity(10.f * Day * Day * Through[FMath::Clamp(Theme, 0, 7)]);
+		C->SetIntensity(10.f * Daylight * Daylight * Through[FMath::Clamp(Theme, 0, 7)]);
 		C->SetCastShadows(El > -2.0);
 	}
 }
@@ -98,6 +126,9 @@ void ASunClock::BeginPlay()
 {
 	Super::BeginPlay();
 	GConfig->GetInt(TEXT("ADP.Testing"), TEXT("Weather"), Theme, GGameUserSettingsIni);
+	// the time of year chosen in Settings (0: the real date), and the real-weather switch
+	{ int32 M = 0, D = 0; GConfig->GetInt(TEXT("ADP.World"), TEXT("Month"), M, GGameUserSettingsIni); GConfig->GetInt(TEXT("ADP.World"), TEXT("Day"), D, GGameUserSettingsIni); if (M > 0 && DayOverride < 0) { Month = M; Day = D; DayOverride = FDateTime(FDateTime::UtcNow().GetYear(), FMath::Clamp(M, 1, 12), FMath::Clamp(D, 1, FDateTime::DaysInMonth(FDateTime::UtcNow().GetYear(), FMath::Clamp(M, 1, 12)))).GetDayOfYear(); } }
+	GConfig->GetBool(TEXT("ADP.World"), TEXT("RealWeather"), bRealWeather, GGameUserSettingsIni);
 	// the sky's own light fills the shadows (as outdoors, where a shadow is never black); captured from the sky in real time
 	if (ASkyLight* Sky = Cast<ASkyLight>(UGameplayStatics::GetActorOfClass(this, ASkyLight::StaticClass())))
 		if (USkyLightComponent* S = Sky->GetLightComponent()) { S->SetIntensity(1.8f); S->bLowerHemisphereIsBlack = false; S->RecaptureSky(); }
