@@ -164,6 +164,26 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 - [ ] People walking and running to the gates (late passengers already work as logic, not shown yet)
 - [ ] Lip movement with the Kokoro voice (with the MetaHumans)
 
+- [ ] **Your own life outside the airport** (owner, 2026-11-12; details worked out when we get there):
+      - **Home and family:** you have your own house, where the family you made when creating your character lives.
+        The house is modelled and rendered (inside and out)
+      - **Your own car:** modelled and rendered, drivable. Buy a new one, or sell yours for money; what you get depends
+        on its value, set by several things (model, age, distance driven, condition, dirt and damage, market)
+      - **Two bank accounts:** the airport's account (already in the game) and a separate personal account. The bank app
+        on the PC and on the phone asks which one (Airport / Personal) and opens that account. A real monthly salary
+        is paid into the personal account: what a well-paid airport boss earns in real life (look up real figures)
+      - **The road home and a city:** a road from the airport to where you live, through a reasonably detailed city
+        (Nanite makes that affordable) that you drive through to work and home
+      - **Shifts:** either a real shift like in real life (go home in the evening, lie down in bed to let the night pass
+        quickly, back to work the next morning) or carry on at the airport for ever; switchable any time, and switching
+        back to real shifts follows the schedule again
+      - **Coming home late:** do it too often and your wife starts asking what keeps you at work (worried about the job,
+        never about anything else)
+      - **Pets at home:** you decide if you have pets at home too, separate from the office pet, or whether the office
+        pet comes home with you
+      - Shared world: the personal account, salary, car and house belong to the shared save (Android sees and manages
+        them); the house, city, driving and family scenes are PC airport mode only
+
 ## 7. One shared world with Android (batch 4)
 - [ ] The bridge: the timetable screens and passengers from the world's real flights; airport mode writes back
 - [ ] The automatic one-day check that both setups give exactly the same world
