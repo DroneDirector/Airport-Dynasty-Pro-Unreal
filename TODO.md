@@ -236,7 +236,9 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       progress since your last save or autosave is lost; you can load a save game and carry on from there. The moment
       itself: the whole screen softly blurs (like a phone's portrait mode, everything behind out of focus), then a
       beautiful title effect brings up "YOU ARE FIRED" with the reason underneath (e.g. drunk on the job, how you
-      treated your staff); then Load a save / Main menu. Text never overlapping
+      treated your staff); then Load a save / Main menu. Text never overlapping. Reputation never drops to 0 from one
+      thing at once: it only falls slowly over time through repeated bad behaviour; only if it ends at 0 are you fired,
+      and the explanation sums up what brought it there (the main causes, from the reputation history)
 
 ## 5. Graphics settings
 - [x] A "light beams distance" slider (the light masts' haze, now 500 m) so weaker cards can turn it down
