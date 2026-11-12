@@ -219,6 +219,12 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
           (or the nearest safe roadside spot) near you
         - never on the airport's airside (apron, taxiways, stands): that is for airport vehicles only; called there,
           it goes to the nearest landside car park
+        - **calling it inside the airport boundary** (owner, 2026-11-12): a message appears, only in that case: "You
+          can't have your own personal car inside the airport boundaries; it has to stay outside. Your car has been
+          placed at the nearest parking spot outside the terminal."
+        - **driving it inside the boundary** (somehow, e.g. through a gate): a warning: "Personal vehicles are not
+          allowed inside the airport boundaries. Leave immediately or suffer the consequences." If you don't leave,
+          you get a court date (the court feature is worked out later with the owner)
         - the map always shows where your own car is, and where each fire truck is (holomap and the full map, with
           their icons)
       - **The town's people** (owner, 2026-11-12): AI citizens living in your town, each with a real home and their own
