@@ -4,6 +4,14 @@ The one complete list of what is still open, updated 2026-11-11 (after 0.14.7). 
 details behind each item. Marks: [ ] open, [~] started or partly done, [?] built earlier but the owner should check it.
 
 ## 0. Now, in this order (owner, 2026-11-11)
+- [ ] **FIRST AFTER THE METAHUMAN WORK** (owner, 2026-11-12): finish the MetaHuman people COMPLETELY first (builder,
+      uniforms, crowds, every role's actions). Then, as the very next job before anything else on this list: the
+      **use outline**. Look at something you can use and HOLD E (use): a crisp amber outline (with a thin light edge)
+      traces only that object's outer silhouette, fading in and out, gently pulsing; a small prompt beside the
+      crosshair shows the E key and the object's name ("E  Bag drop point 1"). Not shown when E isn't held or you
+      look away; nothing else outlined. Every usable object, now and later, gets it automatically. In Unreal: custom
+      depth/stencil on the aimed object plus an outline post-process material. The owner saw a demo on 2026-11-11
+      (bag drop point 1)
 - [ ] The old rooms' OBJECTS (never the room itself: walls, floor, ceiling, window, door stay the airport's) placed in the
       terminal's rooms so they look right: Office 1 (yours, with the pet: dog or cat as chosen, its bed, bowls and
       football) and Offices 2-4, Operations, the Academy; the court once the owner says where; the hangars wait
@@ -142,6 +150,110 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 - [ ] RULE: no interface ever on top of another (walking, 3D viewer)
 - [ ] Your own 3D body while walking (legs, arms, shadow, reflection in glass), everywhere, when the people get bodies
 
+- [ ] **Radial menu** (owner, 2026-11-12): hold a key (or a pad button) to open a wheel of handy shortcuts, so common
+      things don't need digging deep into the menus (which shortcuts go on it is decided with the owner; ideas: map,
+      phone, bank, staff, timetable, call a vehicle, quick-start places, camera/view). Pick with mouse or stick, release
+      to choose; in the controls legend; text never overlapping
+
+- [ ] **Vehicle gauges: fuel and cleanliness** (owner, 2026-11-12): while driving any vehicle, two small round gauges on
+      the right side of the screen, the cleanliness gauge right under the fuel gauge. Each is a small circle with an
+      icon in the middle (a petrol-pump icon; a cleanliness icon such as a sparkle / water drop) and a ring around it
+      that shrinks round the circle as fuel runs down or as the vehicle gets dirtier; no percentages. Filling up makes
+      the fuel ring grow back; washing the vehicle makes the cleanliness ring grow back. The cleanliness ring is linked
+      to the dirt system (season / weather build-up, mud, washing with the hose or the car wash). Text and gauges never
+      overlap anything
+      **Range on a full tank / charge** (owner, 2026-11-12): petrol car about 780 km; electric car about 450 km. Fire
+      trucks (the 6x6 crash tenders, diesel): about 450 km of driving on a full tank (a real Striker 6x6 has a 341 L
+      fuel tank; no maker publishes a range, so this is our estimate from heavy-truck consumption of roughly 70 L per
+      100 km), and pumping water/foam also burns fuel while standing still. All as tunable settings
+      **Electric vehicles** (owner, 2026-11-12): the top gauge shows the battery instead of fuel, with a plug icon in the
+      middle; its ring shrinks as the battery runs down and grows back while charging (at home or a public charger)
+- [ ] **Real mirrors on the fire trucks** (owner, 2026-11-12): the side mirrors (and the other vehicles' mirrors) show a
+      real reflection of the world around them, so you can use them when driving
+
+- [ ] **The courtroom in Unreal, with its people** (owner, 2026-11-12; details later): when you are summoned (e.g. the
+      personal-car fine) or go to court on someone else's behalf (one of your crew), the courtroom from the Babylon
+      edition (Airline-Manager-Pro-Babylon/src/sections/court: the panelled hall, judges' bench, witness box,
+      prosecution and defence tables, the bar, public benches, its seat list in seats.ts) is rebuilt in Unreal, filled
+      with people: the judges, the lawyers (prosecution and defence), the accused, the public listening on the
+      benches, and police guarding the doors; MetaHumans in their clothes, sitting, standing to speak, looking at
+      whoever talks. The court building stands in your home town (a courthouse added to the town plan); you drive or
+      fast travel there. Worked out with the owner later
+
+- [ ] **Radio in your office and the operations room** (owner, 2026-11-12): a small radio by the computer where you sit;
+      switch it on for the latest news and music. The music is the owner's own (he adds it; listed in
+      THIRD-PARTY-NOTICES.md if any part needs it). The news is read with the same voice engine as the MetaHumans
+      (Chatterbox, Kokoro as fallback). Mostly everyday news unrelated to the airport, but anything newsworthy that
+      connects to YOUR airport is reported too: accidents, staff taken to court for something serious in their job,
+      and a boss whose reputation with staff has dropped low (how terrible a boss you are, the reasons and the
+      sources), all from the shared world's events (the Babylon game already writes news for crashes)
+- [ ] **Your reputation as a boss, with sub-rankings** (owner, 2026-11-12): an overall boss rank that levels up as
+      before, plus sub-rankings that go up and down: how you treat your **employees** and how you treat
+      **passengers** (fair = up, unfair or rude = down). Changes are slow: a rank doesn't drop at once (rank 20 doesn't
+      become 19 straight away), the score drifts down and only when it passes below your current rank does the
+      number drop, shown visibly. The scale (approved by the owner 2026-11-12): score 0-100 behind each rank, 50 neutral;
+      80-100 excellent (blue-green), 60-79 good (green), 40-59 neutral (yellow), 20-39 poor (orange), 0-19 very poor
+      (red); the ranking line's colour shifts smoothly between these as the score moves, and a small buffer stops a
+      rank flickering up and down at a boundary. Reaching certain ranks earns rewards, for you and for the airport,
+      as in the Babylon edition (trophies, plaques, badges); a low staff ranking can put you in the news (radio item)
+- [ ] **Rankings and awards remade in Unreal, new look** (owner, 2026-11-12): the ranking system keeps its rules and
+      functions from the shared game code, but everything you SEE is redone in Unreal with a new design: the ranking
+      screens and lines, the rank-up / rank-down moments, and every trophy, plaque, badge, medal and certificate as
+      new 3D models and art. Nothing of the Babylon edition's look is reused
+- [ ] **Up to 5,000 awards** (owner, 2026-11-12): badges, plaques, trophies, medals and certificates to earn, for you
+      and for the airport, growing to 5,000 in all (the Babylon edition has 22 achievements in game/src/core/goals.ts
+      plus the career awards in career-rides.ts; those carry over and the rest are added in tiers and series, each with
+      its own name, look and condition, never duplicates)
+      - **The museum** (the Vortex Gallery) shows the airport's awards on its display places. You can swap any displayed
+        award for another one you've earned, or let the game choose: it picks one at random, puts it up and takes
+        another one down. Swaps are saved in the shared world
+      - **The museum swap menu** (owner, 2026-11-12): same look as the new Settings menu being built: categories on the
+        left (plaques, trophies, badges, medals, certificates...), and clicking one fills the larger panel on the right
+        (attached to it, as in the new Settings design) with the awards you have in that category. Clicking an award
+        opens it in a 3D view: turn it round, read what it says, then place it (or replace a displayed one with it)
+      - **At the display itself:** walk up to an award on public display and press E (use): choose View (it comes up to
+        the front in the 3D view to turn and read), Put back, or Replace (opens the swap menu for that place)
+- [ ] **E always confirms, everywhere** (owner, 2026-11-12): throughout the whole game E is the use / confirm key, and it
+      only ever acts on the front-most thing: the window or prompt in front when a use is possible; nothing behind it
+      in the background is ever triggered
+- [ ] **One Back key, everywhere** (owner, 2026-11-12): the same Back key / pad button (the one already set for back,
+      e.g. B on the pad) closes the front-most menu or window in every part of the game, and also leaves a
+      conversation with any AI person (passenger, crew, anyone)
+      - **Cutting someone off:** you can leave a conversation at once; they stop talking mid-sentence and react to
+        being cut off, varied: sometimes nothing, sometimes just a sound ("huh") and they move on, sometimes a line
+        saying they didn't like it (with the MetaHuman voice and face). Cutting people off often counts against you in
+        the rankings: staff for crew, passengers for passengers (approved by the owner 2026-11-12)
+
+- [ ] **Drinking and getting drunk** (owner, 2026-11-12; as in the Babylon edition's bar, src/sections/lounge/bar.ts,
+      but written anew for Unreal): each drink makes you more drunk: swaying view and walk, unsteady steps, and at the
+      top you can't walk any more: you really fall to your knees, put your hands out in front so you don't hit the
+      floor face first, struggle and get back up (without falling again), then walk on; keep drinking and you fall
+      again. After about 20 seconds the effect wears off and you are sober, and your character says one of several
+      random lines, e.g. "I shouldn't be drinking on the job, that wasn't too smart." Reputation only drops if you
+      actually get drunk on the job (one drink without being drunk costs nothing); the drunker and the more often,
+      the more it drops (boss reputation, seen by staff and passengers)
+- [ ] **Fired at reputation 0** (owner, 2026-11-12): when your reputation reaches 0 you are fired and the run ends:
+      progress since your last save or autosave is lost; you can load a save game and carry on from there. The moment
+      itself: the whole screen softly blurs (like a phone's portrait mode, everything behind out of focus), then a
+      beautiful title effect brings up "YOU ARE FIRED" with the reason underneath (e.g. drunk on the job, how you
+      treated your staff); then Load a save / Main menu. Text never overlapping. Reputation never drops to 0 from one
+      thing at once: it only falls slowly over time through repeated bad behaviour; only if it ends at 0 are you fired,
+      and the explanation sums up what brought it there (the main causes, from the reputation history)
+- [ ] **Rank up / rank down pop-up** (owner, 2026-11-12): whenever a ranking moves from one number to the next (e.g.
+      10 to 11), a beautiful animated pop-up appears where it's noticeable but in nobody's way (not over the crosshair,
+      prompts, gauges or menus), in a calm, relaxing colour, saying which rank you reached ("Rank 11"). Going down
+      plays exactly the same animation in a reddish colour, saying the rank you fell to ("Rank 9"). Names which ranking
+      moved (overall, staff, passengers). Never overlapping other text
+- [ ] **How the rankings fit together** (owner, 2026-11-12):
+      - sub-rankings (staff / crew, passengers, more added later): each goes from level 0 to 100; a sub-ranking alone
+        never gets you fired
+      - the overall ranking goes from level 0 to 5,000; reaching 0 on the overall ranking is what gets you fired
+      - one level up or down in a sub-ranking does NOT move the overall ranking; every 10 levels a sub-ranking gains,
+        the overall ranking goes up 1; every 10 it loses, the overall goes down 1 (counted per sub-ranking)
+      - the colour bands (80-100 excellent ... 0-19 very poor) are read as a share of each ranking's range
+        (so for the overall ranking: 4,000-5,000 excellent, 3,000-3,999 good, 2,000-2,999 neutral, 1,000-1,999
+        poor, 0-999 very poor; approved by the owner 2026-11-12)
+
 ## 5. Graphics settings
 - [x] A "light beams distance" slider (the light masts' haze, now 500 m) so weaker cards can turn it down
 - [~] Many more graphics controls in Settings (owner, 2026-11-09): sliders per quality group (view distance, upscaler,
@@ -155,6 +267,90 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       needs Unreal 5.8 (MetaHuman Crowds); the owner decides when
 - [ ] People walking and running to the gates (late passengers already work as logic, not shown yet)
 - [ ] Lip movement with the Kokoro voice (with the MetaHumans)
+
+- [ ] **Your own life outside the airport** (owner, 2026-11-12; details worked out when we get there):
+      - **Home and family:** you have your own house, where the family you made when creating your character lives.
+        The house is modelled and rendered (inside and out)
+      - **Your own car:** modelled and rendered, drivable. Buy a new one, or sell yours for money; what you get depends
+        on its value, set by several things (model, age, distance driven, condition, dirt and damage, market)
+      - **Two bank accounts:** the airport's account (already in the game) and a separate personal account. The bank app
+        on the PC and on the phone asks which one (Airport / Personal) and opens that account. A real monthly salary
+        is paid into the personal account: what a well-paid airport boss earns in real life (look up real figures)
+      - **The road home and a city:** a road from the airport to where you live, through a reasonably detailed city
+        (Nanite makes that affordable) that you drive through to work and home
+      - **Shifts:** either a real shift like in real life (go home in the evening, lie down in bed to let the night pass
+        quickly, back to work the next morning) or carry on at the airport for ever; switchable any time, and switching
+        back to real shifts follows the schedule again
+      - **Sleeping in bed is single player only** (owner, 2026-11-12): in multiplayer there is no bed sleeping at all,
+        because the time of day has to stay the same for every player
+      - **Coming home late:** do it too often and your wife starts asking what keeps you at work (worried about the job,
+        never about anything else)
+      - **Pets at home:** you decide if you have pets at home too, separate from the office pet, or whether the office
+        pet comes home with you
+      - **Detailed town buildings, first the player's villa and a typical Icelandic house** (owner, 2026-11-12; later):
+        modelled properly in Blender (bevelled edges, real corrugated roof sheets, trims, gutters, detailed windows and
+        doors, realistic materials), game quality, one final render each, then into Unreal. Needs Blender's MCP add-on
+        running (the PC has Blender 3.3; a newer Blender may be needed) and only when the other chat isn't using Blender.
+        Layout from the town plan v2 (curved streets, crescents, cul-de-sacs; Home-Town-Plan-v2.png)
+      - **Fast travel with your own car** (owner, 2026-11-12): you never have to drive the whole way between home and
+        work; fast travel to any quick-start / spawn place works from anywhere, also while driving:
+        - fast travel while IN your car: the car comes with you and is parked at the destination: outside your house
+          (home), outside the shop / fast food / petrol station you picked; at the terminal in a car park area chosen
+          later (whether it should go back home instead is decided later)
+        - fast travel while NOT in the car: only you are moved; the car stays where it is
+        - "bring my car": call your own car to where you are in the world; it appears in the closest free parking spot
+          (or the nearest safe roadside spot) near you
+        - never on the airport's airside (apron, taxiways, stands): that is for airport vehicles only; called there,
+          it goes to the nearest landside car park
+        - **calling it inside the airport boundary** (owner, 2026-11-12): a message appears, only in that case: "You
+          can't have your own personal car inside the airport boundaries; it has to stay outside. Your car has been
+          placed at the nearest parking spot outside the terminal."
+        - **driving it inside the boundary** (somehow, e.g. through a gate): a warning: "Personal vehicles are not
+          allowed inside the airport boundaries. Leave immediately or suffer the consequences."
+          - the timing (owner, 2026-11-12): the court date applies once you have been inside the boundary for 20
+            seconds; after the warning you have 1 minute to leave; still inside after 1 minute, the court is stricter;
+            after 2 minutes stricter again; after 3 minutes stricter again. How long you stayed decides how big the fine
+            is. Applies to your own car and to any personal vehicle you buy later. Other punishments, and the court
+            itself, are decided later with the owner
+        - the map always shows where your own car is, and where each fire truck is (holomap and the full map, with
+          their icons)
+      - **The town's people** (owner, 2026-11-12): AI citizens living in your town, each with a real home and their own
+        daily routine (work, shopping, home, sleep). Staff you hire show where they come from; those registered in your
+        town finish their shift, get into their own car, drive home along the road and go into their real house
+      - **Homes in town, how they work** (owner, 2026-11-12): every house in town can be someone's home, but not every
+        house has to be filled: only the people who actually live in your town get one (most of them NOT airport staff).
+        Houses have no interiors (except yours): a citizen walks up to their front door, goes in, the door shuts and
+        they are unloaded; coming out plays the same thing in reverse (door opens, they step out) and they walk about
+        town or get into their car and drive to a real destination (petrol station, grocery shop, work...)
+      - **Citizens who work at your airport** keep their own schedule like in real life: you see them leave home in
+        time, drive to the airport, park, walk in to work, and drive home again after their shift
+      - **Shops and fuel:** buy groceries in town; petrol stations; public chargers for electric cars, and charging at
+        home if you own an electric car. The charging cable is handled with the same animation as the fire station's
+        wash hose (picked up, plugged into the car, hung back), only charging instead of water
+      - Shared world: the personal account, salary, car and house belong to the shared save (Android sees and manages
+        them); the house, city, driving and family scenes are PC airport mode only
+
+- [ ] **Cleaners** (owner, 2026-11-12): a new "Cleaners" category in the Crew section of the UI, next to the others,
+      with everything the other staff categories have (hire, see where they come from, pay, schedules, fire...).
+      - **At work:** each cleaner fetches their cleaning trolley (on small wheels, with the soap, buckets and supplies,
+        like real airport cleaning carts) from the cleaners' store room, pushes it to where they work, takes the mop off
+        it and mops the floor round about, moving up to 10-15 m away from the trolley; then goes back, pushes the
+        trolley on another 10-15 m and carries on. They work through every area passengers use: the main hall, the
+        long hallway, the gate areas (never in staff-only areas, never in the jetways, never outside). Done, they hang
+        the mop back on the trolley (the reverse of taking it), push it back to the store room and park it there
+      - **The store room** for the cleaning equipment goes in a terminal extension the owner is still planning; the car
+        park also has to grow (staff cars)
+      - **Their day:** like everyone else (staff, passengers, MetaHumans) they have their own daily rhythm: no popping in
+        or out. They arrive for their shift and leave at the end of it through the staff corridors, never through
+        security
+- [ ] **Staff going home and coming to work, for every role** (owner, 2026-11-12): at the end of the shift each staff
+      member walks from where they finished (e.g. the cleaners from the store room) through the staff corridors and
+      out of the terminal to their own car in the car park (each has a specific car and spot). FOR NOW they get in and
+      sit in it until the next morning, then walk back in to start their shift (the cycle repeats every day). They keep
+      their uniform on going home and coming in, so you can tell who they are (a pilot, a cleaner, a mechanic, a
+      security officer...)
+      - **REMINDER for the owner once the town is fully built:** then make staff who live in your town drive off home
+        to their own house, and the others drive away out of the area, instead of waiting in their cars
 
 ## 7. One shared world with Android (batch 4)
 - [ ] The bridge: the timetable screens and passengers from the world's real flights; airport mode writes back
@@ -203,6 +399,39 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
   brows, beards; uniforms still to make as MetaHuman garments (pilot, cabin crew, ground crew hi-vis, security, fire
   crew; the library has one default garment only). Then the crowd uses them (walk/idle from the mannequin set), far
   crowds as baked-animation instances (AnimToTexture); each role's own actions (serving, bag checks, marshalling, hose).
+- **Security detection dogs (K9)** (owner, 2026-11-12; with the security people, after the MetaHumans): security
+  officers can work a detection dog for drugs and other contraband in passengers' bags.
+  - **The dog:** a good-looking, fully animated dog (the owner sends how it should look). Walk, trot, run, sniff with
+    nose down, sit on its haunches, lie down, stand and stare; normal calm breathing (chest and flanks) most of the time,
+    and every now and then fast panting with the mouth open and the tongue out. Our own model or a commercially
+    licensed one (licence checked first).
+  - **On the lead:** the officer holds it on a short lead (about 1.8 m) while screening passengers and bags; the lead is
+    drawn as a real rope between hand and collar, slack or tight.
+  - **Let loose:** for gameplay reasons (catching a running criminal, or a free search sniffing round an area) the officer
+    unclips the lead; the dog ranges on its own but always within a radius of its officer: working radius about 15 m in
+    the terminal (in sight, on voice control), called back if it gets past about 20 m; on a chase it may go further
+    until the person is caught, then returns. A long line (about 18 m) as an in-between option for searches. All three
+    distances as tunable settings.
+  - **Finding drugs:** the dog smells contraband in a bag (real dogs find it reliably right next to the source and
+    rarely from much more than a few metres away, so it must pass close: about 2 m sure, fading out to about 5 m).
+    It alerts the trained "passive" way used at airports: it stops, sits next to the bag or person and stares at it,
+    waiting for its officer; the officer rewards it (a pat, a toy) and deals with the passenger.
+  - **The guilty passenger reacts:** if the bag's owner is nearby when the dog sits, they react: shocked or scared look,
+    a step back, glancing around, maybe trying to walk away (which can start the chase).
+  - **The dogs' own room (a kennel)** (owner, 2026-11-12): when not working, the dogs are kept in a secure kennel room
+    somewhere in the airport, each in its own kennel. An officer walks there, takes their dog out on the lead, walks it
+    to the terminal and works it; when the job is done they walk it all the way back and put it in its kennel. No
+    teleporting: the full walk both ways, for NPC officers and for the player (you walk over to fetch the dog and to
+    bring it back). Where the room goes is decided with the owner.
+  - **Research when we get to it (not before):** what the room is called and how it's laid out; in which areas of an
+    airport detection dogs normally work (checkpoint, landside halls, baggage, arrivals, cargo...); and how many hours a
+    day / week a team typically works, with breaks, from real data. The game's dog schedules follow that.
+  - **Good dog AND cat animations** (owner, 2026-11-12) for every animal the AI runs (the security dogs, the office pet
+    dog or cat, any later animals): find good-quality animation sets (walk, trot, run, sniff, sit, lie, idle with
+    breathing, panting, play; cats: walk, stretch, groom, sit, lie, jump) with a licence that allows a paid game
+    (checked first, listed in THIRD-PARTY-NOTICES.md); otherwise make our own.
+  - Which passengers carry something comes from the shared world (part of the passenger's data), so Android knows it
+    too; the dog and the scene are airport mode on the PC only.
 - Getting in and out of vehicles, the full pass (owner, 2026-11-11): the same animation for NPCs and the player - walk
   over, open the door by its handle, climb the steps holding the handles, walk to and sit in the middle seat, hands on
   the wheel, feet on the pedals, eyes out through the windscreen, then drive; out the same way. Every contact point read
