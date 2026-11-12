@@ -244,6 +244,15 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       prompts, gauges or menus), in a calm, relaxing colour, saying which rank you reached ("Rank 11"). Going down
       plays exactly the same animation in a reddish colour, saying the rank you fell to ("Rank 9"). Names which ranking
       moved (overall, staff, passengers). Never overlapping other text
+- [ ] **How the rankings fit together** (owner, 2026-11-12):
+      - sub-rankings (staff / crew, passengers, more added later): each goes from level 0 to 100; a sub-ranking alone
+        never gets you fired
+      - the overall ranking goes from level 0 to 5,000; reaching 0 on the overall ranking is what gets you fired
+      - one level up or down in a sub-ranking does NOT move the overall ranking; every 10 levels a sub-ranking gains,
+        the overall ranking goes up 1; every 10 it loses, the overall goes down 1 (counted per sub-ranking)
+      - the colour bands (80-100 excellent ... 0-19 very poor) are read as a share of each ranking's range
+        (so for the overall ranking: 4,000-5,000 excellent, 3,000-3,999 good, 2,000-2,999 neutral, 1,000-1,999
+        poor, 0-999 very poor)
 
 ## 5. Graphics settings
 - [x] A "light beams distance" slider (the light masts' haze, now 500 m) so weaker cards can turn it down
