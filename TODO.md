@@ -230,6 +230,14 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
     waiting for its officer; the officer rewards it (a pat, a toy) and deals with the passenger.
   - **The guilty passenger reacts:** if the bag's owner is nearby when the dog sits, they react: shocked or scared look,
     a step back, glancing around, maybe trying to walk away (which can start the chase).
+  - **The dogs' own room (a kennel)** (owner, 2026-11-12): when not working, the dogs are kept in a secure kennel room
+    somewhere in the airport, each in its own kennel. An officer walks there, takes their dog out on the lead, walks it
+    to the terminal and works it; when the job is done they walk it all the way back and put it in its kennel. No
+    teleporting: the full walk both ways, for NPC officers and for the player (you walk over to fetch the dog and to
+    bring it back). Where the room goes is decided with the owner.
+  - **Research when we get to it (not before):** what the room is called and how it's laid out; in which areas of an
+    airport detection dogs normally work (checkpoint, landside halls, baggage, arrivals, cargo...); and how many hours a
+    day / week a team typically works, with breaks, from real data. The game's dog schedules follow that.
   - Which passengers carry something comes from the shared world (part of the passenger's data), so Android knows it
     too; the dog and the scene are airport mode on the PC only.
 - Getting in and out of vehicles, the full pass (owner, 2026-11-11): the same animation for NPCs and the player - walk
