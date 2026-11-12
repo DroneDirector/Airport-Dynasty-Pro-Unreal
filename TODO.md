@@ -181,6 +181,12 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
         never about anything else)
       - **Pets at home:** you decide if you have pets at home too, separate from the office pet, or whether the office
         pet comes home with you
+      - **The town's people** (owner, 2026-11-12): AI citizens living in your town, each with a real home and their own
+        daily routine (work, shopping, home, sleep). Staff you hire show where they come from; those registered in your
+        town finish their shift, get into their own car, drive home along the road and go into their real house
+      - **Shops and fuel:** buy groceries in town; petrol stations; public chargers for electric cars, and charging at
+        home if you own an electric car. The charging cable is handled with the same animation as the fire station's
+        wash hose (picked up, plugged into the car, hung back), only charging instead of water
       - Shared world: the personal account, salary, car and house belong to the shared save (Android sees and manages
         them); the house, city, driving and family scenes are PC airport mode only
 
