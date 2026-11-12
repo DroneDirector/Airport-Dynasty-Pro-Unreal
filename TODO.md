@@ -216,6 +216,13 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 - [ ] **E always confirms, everywhere** (owner, 2026-11-12): throughout the whole game E is the use / confirm key, and it
       only ever acts on the front-most thing: the window or prompt in front when a use is possible; nothing behind it
       in the background is ever triggered
+- [ ] **One Back key, everywhere** (owner, 2026-11-12): the same Back key / pad button (the one already set for back,
+      e.g. B on the pad) closes the front-most menu or window in every part of the game, and also leaves a
+      conversation with any AI person (passenger, crew, anyone)
+      - **Cutting someone off:** you can leave a conversation at once; they stop talking mid-sentence and react to
+        being cut off, varied: sometimes nothing, sometimes just a sound ("huh") and they move on, sometimes a line
+        saying they didn't like it (with the MetaHuman voice and face). Being rude like this often can count towards
+        how you treat staff / passengers in the rankings (to be confirmed with the owner)
 
 ## 5. Graphics settings
 - [x] A "light beams distance" slider (the light masts' haze, now 500 m) so weaker cards can turn it down
