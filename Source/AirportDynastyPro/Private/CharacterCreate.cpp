@@ -21,13 +21,66 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "EngineUtils.h"
+#include "Containers/Ticker.h"
 
 namespace
 {
 	// the concept's pieces, for the choice moving between them
 	TWeakObjectPtr<ASpotLight> KeyLight;
 	TWeakObjectPtr<AActor> She, He;
-	FVector HerAt, HimAt;
+	FVector HerAt, HimAt, Centre;
+	TArray<TWeakObjectPtr<AActor>> Tubes;
+	TArray<TWeakObjectPtr<ARectLight>> TubeLights;
+	TWeakObjectPtr<UMaterialInstanceDynamic> NeonMat;
+	// the choice made: the other walks out of the picture, then the tubes go dark and back into the fog
+	int32 Phase = 0;           // 0 choosing, 1 the other walking out, 2 the tubes going, 3 done
+	float PhaseT = 0.f;
+	bool bChoseWoman = true;
+	FTSTicker::FDelegateHandle Ticker;
+
+	void SetWalking(AActor* A, bool bWalk)
+	{
+		if (!A) return;
+		TArray<USkeletalMeshComponent*> Skels; A->GetComponents<USkeletalMeshComponent>(Skels);
+		for (USkeletalMeshComponent* S : Skels) if (S->GetName().StartsWith(TEXT("Body")))
+		{
+			static UAnimSequence* Walk = LoadObject<UAnimSequence>(nullptr, TEXT("/Game/People/Anims/MF_Unarmed_Walk_Fwd_MH.MF_Unarmed_Walk_Fwd_MH"));
+			static UAnimSequence* Idle = LoadObject<UAnimSequence>(nullptr, TEXT("/Game/People/Anims/MM_Idle_MH.MM_Idle_MH"));
+			if (UAnimSequence* Anim = bWalk ? Walk : Idle) { S->SetAnimationMode(EAnimationMode::AnimationSingleNode); S->SetAnimation(Anim); S->Play(true); }
+		}
+	}
+
+	bool Step(float Dt)
+	{
+		if (Phase == 1)
+		{
+			// the other one walks to the near edge of the picture and out: she to the left (+x), he to the right (-x)
+			AActor* Off = bChoseWoman ? He.Get() : She.Get();
+			const float Dir = bChoseWoman ? -1.f : 1.f;
+			if (Off)
+			{
+				Off->AddActorWorldOffset(FVector(Dir * 150.f * Dt, 0.f, 0.f));
+				if (FMath::Abs(Off->GetActorLocation().X - Centre.X) > 430.f) { Off->SetActorHiddenInGame(true); Phase = 2; PhaseT = 0.f; }
+			}
+			else { Phase = 2; PhaseT = 0.f; }
+		}
+		else if (Phase == 2)
+		{
+			// the tubes switch off, fade, and are drawn away into the fog until they light nothing; the camera stays
+			PhaseT += Dt;
+			const float K = FMath::Clamp(PhaseT / 3.6f, 0.f, 1.f);
+			for (const TWeakObjectPtr<AActor>& T : Tubes) if (AActor* A = T.Get()) A->AddActorWorldOffset(FVector(0.f, 240.f * Dt, 0.f));
+			for (const TWeakObjectPtr<ARectLight>& L : TubeLights) if (ARectLight* A = L.Get()) { A->AddActorWorldOffset(FVector(0.f, 240.f * Dt, 0.f)); A->RectLightComponent->SetIntensity(2000.f * FMath::Square(1.f - K)); }
+			if (UMaterialInstanceDynamic* M = NeonMat.Get()) M->SetScalarParameterValue(TEXT("Strength"), 16.f * FMath::Pow(1.f - K, 2.2f));
+			if (K >= 1.f)
+			{
+				for (const TWeakObjectPtr<AActor>& T : Tubes) if (AActor* A = T.Get()) A->SetActorHiddenInGame(true);
+				for (const TWeakObjectPtr<ARectLight>& L : TubeLights) if (ARectLight* A = L.Get()) A->RectLightComponent->SetVisibility(false);
+				Phase = 3;
+			}
+		}
+		return Phase < 3;
+	}
 
 	AStaticMeshActor* Shape(UWorld* W, const TCHAR* Mesh, const FVector& At, const FRotator& Rot, const FVector& Scale, UMaterialInterface* M)
 	{
@@ -80,6 +133,7 @@ void ADPCharacterCreate::BuildConcept(UWorld* W, APlayerController* PC, bool bWo
 	// the room: 40 m under the terminal (dark there), its floor at C; the camera looks along +y (world) at the two
 	const FVector C = FTerminalPlan::ToWorld(0.f, -40.f, 0.f);
 	const FVector X(1, 0, 0), Y(0, 1, 0), Z(0, 0, 1);
+	Centre = C; Phase = 0; Tubes.Reset(); TubeLights.Reset();
 	FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	UMaterialInstanceDynamic* Floor = Plain(W, FLinearColor(0.012f, 0.014f, 0.022f), 0.28f);   // a little shine: the neon mirrored in it
 	UMaterialInstanceDynamic* Wall = Plain(W, FLinearColor(0.008f, 0.01f, 0.018f), 0.75f);
@@ -88,7 +142,7 @@ void ADPCharacterCreate::BuildConcept(UWorld* W, APlayerController* PC, bool bWo
 	for (const float Flip : {0.f, 180.f})   // (a plane shows one face: each wall both ways round, so nothing of the world shows through)
 	{
 		Shape(W, PlaneMesh, C + Z * 480.f, FRotator(Flip, 0.f, 0.f), FVector(16, 16, 1), Wall);
-		Shape(W, PlaneMesh, C + Y * 900.f + Z * 240.f, FRotator(0.f, 0.f, 90.f + Flip), FVector(16, 6, 1), Wall);    // the back wall, well behind the fog
+		Shape(W, PlaneMesh, C + Y * 1500.f + Z * 240.f, FRotator(0.f, 0.f, 90.f + Flip), FVector(16, 6, 1), Wall);   // the back wall, well behind the fog (the tubes go back into it)
 		Shape(W, PlaneMesh, C - Y * 800.f + Z * 240.f, FRotator(0.f, 0.f, -90.f + Flip), FVector(16, 6, 1), Wall);   // behind the camera
 		Shape(W, PlaneMesh, C - X * 800.f + Z * 240.f, FRotator(90.f + Flip, 0.f, 0.f), FVector(6, 18, 1), Wall);
 		Shape(W, PlaneMesh, C + X * 800.f + Z * 240.f, FRotator(-90.f + Flip, 0.f, 0.f), FVector(6, 18, 1), Wall);
@@ -114,11 +168,13 @@ void ADPCharacterCreate::BuildConcept(UWorld* W, APlayerController* PC, bool bWo
 	static UMaterialInterface* NeonBase = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/Neon/M_Neon.M_Neon"));
 	UMaterialInstanceDynamic* Neon = NeonBase ? UMaterialInstanceDynamic::Create(NeonBase, W) : nullptr;
 	if (Neon) { Neon->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.45f, 0.9f, 1.f)); Neon->SetScalarParameterValue(TEXT("Strength"), 16.f); }
+	NeonMat = Neon;
 	for (const float Side : {-1.f, 1.f})
 	{
 		const FVector Foot = C + Y * 210.f + X * (Side * 62.f);
-		Shape(W, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), Foot + Z * 135.f, FRotator::ZeroRotator, FVector(0.16f, 0.16f, 2.7f), Neon);
+		Tubes.Add(Shape(W, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), Foot + Z * 135.f, FRotator::ZeroRotator, FVector(0.16f, 0.16f, 2.7f), Neon));
 		ARectLight* L = W->SpawnActor<ARectLight>(Foot + Z * 140.f - Y * 14.f, FRotator(0.f, -90.f, 0.f), P);
+		TubeLights.Add(L);
 		if (URectLightComponent* R = L ? L->RectLightComponent : nullptr)
 		{
 			R->SetMobility(EComponentMobility::Movable);
@@ -212,3 +268,24 @@ void ADPCharacterCreate::Choose(bool bWoman)
 		L->SetActorLocationAndRotation(Eye, (OnAt + FVector(0, -55.f, 130.f) - Eye).Rotation());
 	}
 }
+
+void ADPCharacterCreate::Confirm(bool bWoman)
+{
+	if (Phase != 0) return;
+	Choose(bWoman);
+	bChoseWoman = bWoman;
+	// the other one turns and walks out of the picture (the walk carried over to the MetaHuman body)
+	AActor* Off = bWoman ? He.Get() : She.Get();
+	if (Off)
+	{
+		const float Facing = bWoman ? 180.f : 0.f;   // he to -x (the picture's right), she to +x (its left)
+		Off->SetActorRotation(FRotator(0.f, Facing - 90.f, 0.f));
+		SetWalking(Off, true);
+	}
+	Phase = 1; PhaseT = 0.f;
+	if (Ticker.IsValid()) FTSTicker::GetCoreTicker().RemoveTicker(Ticker);
+	Ticker = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([](float Dt) { return Step(Dt); }), 0.f);
+}
+
+bool ADPCharacterCreate::Done() { return Phase >= 3; }
+bool ADPCharacterCreate::UiOnRight() { return bChoseWoman; }

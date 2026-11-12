@@ -12,4 +12,10 @@ namespace ADPCharacterCreate
 	void BuildConcept(UWorld* W, class APlayerController* PC, bool bWoman);
 	/** The choice moved: she (true) or he steps into the light, the other back into the shadow. */
 	void Choose(bool bWoman);
+	/** The choice made: the other walks out of the picture, then the tubes fade and go back into the fog (the camera still). */
+	void Confirm(bool bWoman);
+	/** The transition over: the chosen one alone, the creator's UI goes on the free side. */
+	bool Done();
+	/** She chosen (left) -> the UI on the right; he chosen (right) -> the UI on the left. */
+	bool UiOnRight();
 }

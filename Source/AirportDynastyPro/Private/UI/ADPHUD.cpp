@@ -2085,11 +2085,36 @@ void AADPHUD::Tick(float Dt)
 							+ SHorizontalBox::Slot().AutoWidth().Padding(300, 0, 0, 0)[SNew(STextBlock).Text(FText::FromString(TEXT("HE"))).Font(Neon::Face(18, 300)).ColorAndOpacity(FLinearColor(Neon::Paper.R, Neon::Paper.G, Neon::Paper.B, 0.35f))]
 						], 20);
 			}
-			if (Before < 46.f && ShotClock >= 46.f) ADPCharacterCreate::Choose(true);
-			if (Before < 51.f && ShotClock >= 51.f) Shot(TEXT("Creator_She"));
-			if (Before < 52.f && ShotClock >= 52.f) ADPCharacterCreate::Choose(false);
-			if (Before < 57.f && ShotClock >= 57.f) Shot(TEXT("Creator_He"));
-			if (Before < 59.f && ShotClock >= 59.f) FGenericPlatformMisc::RequestExit(false);
+			// (-UIGenderHe: he chosen instead, so the other way round)
+			static const bool bHe = FParse::Param(FCommandLine::Get(), TEXT("UIGenderHe"));
+			if (Before < 46.f && ShotClock >= 46.f) ADPCharacterCreate::Choose(!bHe);
+			if (Before < 51.f && ShotClock >= 51.f) Shot(bHe ? TEXT("Creator_He") : TEXT("Creator_She"));
+			if (Before < 52.f && ShotClock >= 52.f) ADPCharacterCreate::Confirm(!bHe);
+			// the transition as frames (an animation for the owner), then the creator's panel on the free side
+			static int32 Frame = 0;
+			if (ShotClock >= 52.f && ShotClock < 61.f && int32(ShotClock / 0.35f) != int32(Before / 0.35f)) Shot(*FString::Printf(TEXT("Creator_Anim%s_%02d"), bHe ? TEXT("He") : TEXT("She"), Frame++));
+			if (Before < 62.f && ShotClock >= 62.f && GEngine && GEngine->GameViewport)
+			{
+				const bool bRight = ADPCharacterCreate::UiOnRight();
+				TSharedRef<SVerticalBox> Bars = SNew(SVerticalBox);
+				const TCHAR* Parts[] = {TEXT("Face"), TEXT("Skin"), TEXT("Body"), TEXT("Height"), TEXT("Hair"), TEXT("Clothes")};
+				for (int32 i = 0; i < 6; ++i) Bars->AddSlot().AutoHeight().Padding(0, 0, 0, 6)[Neon::Bar(Parts[i], []() {}, i == 0)];
+				GEngine->GameViewport->AddViewportWidgetContent(
+					SNew(SOverlay)
+					+ SOverlay::Slot().HAlign(bRight ? HAlign_Right : HAlign_Left).VAlign(VAlign_Center).Padding(bRight ? 0 : 96, 0, bRight ? 96 : 0, 0)
+					[
+						SNew(SBox).WidthOverride(360)
+						[
+							SNew(SVerticalBox)
+							+ SVerticalBox::Slot().AutoHeight()[Neon::Small(TEXT("Make them yours"))]
+							+ SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 16)[SNew(STextBlock).Text(FText::FromString(TEXT("YOUR LOOKS"))).Font(Neon::Face(28, 120)).ColorAndOpacity(FLinearColor::White)]
+							+ SVerticalBox::Slot().AutoHeight()[Bars]
+							+ SVerticalBox::Slot().AutoHeight().Padding(0, 14, 0, 0)[Neon::Small(TEXT("Then: your pet  ·  your partner"), FLinearColor(Neon::Paper.R, Neon::Paper.G, Neon::Paper.B, 0.6f))]
+						]
+					], 21);
+			}
+			if (Before < 64.f && ShotClock >= 64.f) Shot(bHe ? TEXT("Creator_AfterHe") : TEXT("Creator_AfterShe"));
+			if (Before < 65.f && ShotClock >= 65.f) FGenericPlatformMisc::RequestExit(false);
 		}
 		// -UIGate: you at gate 4's window (from behind inside, towards your face from the apron), then walking out the
 		// jetway (from behind inside it, and from outside through its glass), summer afternoon light (owner, 2026-11-12)
