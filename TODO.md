@@ -155,6 +155,16 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       phone, bank, staff, timetable, call a vehicle, quick-start places, camera/view). Pick with mouse or stick, release
       to choose; in the controls legend; text never overlapping
 
+- [ ] **Vehicle gauges: fuel and cleanliness** (owner, 2026-11-12): while driving any vehicle, two small round gauges on
+      the right side of the screen, the cleanliness gauge right under the fuel gauge. Each is a small circle with an
+      icon in the middle (a petrol-pump icon; a cleanliness icon such as a sparkle / water drop) and a ring around it
+      that shrinks round the circle as fuel runs down or as the vehicle gets dirtier; no percentages. Filling up makes
+      the fuel ring grow back; washing the vehicle makes the cleanliness ring grow back. The cleanliness ring is linked
+      to the dirt system (season / weather build-up, mud, washing with the hose or the car wash). Text and gauges never
+      overlap anything
+- [ ] **Real mirrors on the fire trucks** (owner, 2026-11-12): the side mirrors (and the other vehicles' mirrors) show a
+      real reflection of the world around them, so you can use them when driving
+
 ## 5. Graphics settings
 - [x] A "light beams distance" slider (the light masts' haze, now 500 m) so weaker cards can turn it down
 - [~] Many more graphics controls in Settings (owner, 2026-11-09): sliders per quality group (view distance, upscaler,
