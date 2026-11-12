@@ -188,6 +188,11 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
         never about anything else)
       - **Pets at home:** you decide if you have pets at home too, separate from the office pet, or whether the office
         pet comes home with you
+      - **Detailed town buildings, first the player's villa and a typical Icelandic house** (owner, 2026-11-12; later):
+        modelled properly in Blender (bevelled edges, real corrugated roof sheets, trims, gutters, detailed windows and
+        doors, realistic materials), game quality, one final render each, then into Unreal. Needs Blender's MCP add-on
+        running (the PC has Blender 3.3; a newer Blender may be needed) and only when the other chat isn't using Blender.
+        Layout from the town plan v2 (curved streets, crescents, cul-de-sacs; Home-Town-Plan-v2.png)
       - **The town's people** (owner, 2026-11-12): AI citizens living in your town, each with a real home and their own
         daily routine (work, shopping, home, sleep). Staff you hire show where they come from; those registered in your
         town finish their shift, get into their own car, drive home along the road and go into their real house
