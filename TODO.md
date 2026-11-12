@@ -171,6 +171,14 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 - [ ] **Real mirrors on the fire trucks** (owner, 2026-11-12): the side mirrors (and the other vehicles' mirrors) show a
       real reflection of the world around them, so you can use them when driving
 
+- [ ] **The courtroom in Unreal, with its people** (owner, 2026-11-12; details later): when you are summoned (e.g. the
+      personal-car fine) or go to court on someone else's behalf (one of your crew), the courtroom from the Babylon
+      edition (Airline-Manager-Pro-Babylon/src/sections/court: the panelled hall, judges' bench, witness box,
+      prosecution and defence tables, the bar, public benches, its seat list in seats.ts) is rebuilt in Unreal, filled
+      with people: the judges, the lawyers (prosecution and defence), the accused, the public listening on the
+      benches, and police guarding the doors; MetaHumans in their clothes, sitting, standing to speak, looking at
+      whoever talks. Worked out with the owner later
+
 ## 5. Graphics settings
 - [x] A "light beams distance" slider (the light masts' haze, now 500 m) so weaker cards can turn it down
 - [~] Many more graphics controls in Settings (owner, 2026-11-09): sliders per quality group (view distance, upscaler,
