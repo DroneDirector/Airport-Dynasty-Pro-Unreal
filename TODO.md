@@ -209,6 +209,18 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
         doors, realistic materials), game quality, one final render each, then into Unreal. Needs Blender's MCP add-on
         running (the PC has Blender 3.3; a newer Blender may be needed) and only when the other chat isn't using Blender.
         Layout from the town plan v2 (curved streets, crescents, cul-de-sacs; Home-Town-Plan-v2.png)
+      - **Fast travel with your own car** (owner, 2026-11-12): you never have to drive the whole way between home and
+        work; fast travel to any quick-start / spawn place works from anywhere, also while driving:
+        - fast travel while IN your car: the car comes with you and is parked at the destination: outside your house
+          (home), outside the shop / fast food / petrol station you picked; at the terminal in a car park area chosen
+          later (whether it should go back home instead is decided later)
+        - fast travel while NOT in the car: only you are moved; the car stays where it is
+        - "bring my car": call your own car to where you are in the world; it appears in the closest free parking spot
+          (or the nearest safe roadside spot) near you
+        - never on the airport's airside (apron, taxiways, stands): that is for airport vehicles only; called there,
+          it goes to the nearest landside car park
+        - the map always shows where your own car is, and where each fire truck is (holomap and the full map, with
+          their icons)
       - **The town's people** (owner, 2026-11-12): AI citizens living in your town, each with a real home and their own
         daily routine (work, shopping, home, sleep). Staff you hire show where they come from; those registered in your
         town finish their shift, get into their own car, drive home along the road and go into their real house
