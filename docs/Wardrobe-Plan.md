@@ -1,4 +1,6 @@
-# Clothes for the people: the plan and what it costs (2026-11-12)
+# The wardrobe plan: clothes for the people
+
+What it costs and how it works, 2026-11-12.
 
 The MetaHuman kit on the PC has one outfit (a grey tee and shorts), so every garment is made by us in Blender,
 fitted to the MetaHuman body, textured, and saved as a wardrobe item. Putting a garment on a person is the

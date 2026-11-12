@@ -69,8 +69,14 @@ def table(rows):
 
 page()
 rows = []
-for raw in SRC.read_text(encoding='utf-8').splitlines():
+# the source's lines joined into paragraphs (a blank line, a heading or a table row ends one)
+joined, buf = [], []
+for raw in SRC.read_text(encoding='utf-8').splitlines() + ['']:
     s = raw.rstrip()
+    if s and not s.startswith(('|', '#')): buf.append(s.strip()); continue
+    if buf: joined.append(' '.join(buf)); buf = []
+    joined.append(s)
+for s in joined:
     if s.startswith('|'):
         cells = s.strip('|').split('|')
         if all(set(x.strip()) <= set('-: ') for x in cells): continue
