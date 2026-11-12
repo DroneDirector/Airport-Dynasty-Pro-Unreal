@@ -11,6 +11,11 @@
 #   chunk 6  the aircraft (the parked ones and the airliner models)
 #   chunk 7  meshes shared by several buildings
 #   chunk 8  the apron light masts (their materials are in chunk 1)
+#   chunk 9  the fire station                chunk 10 the fire trucks
+#   chunk 11 the offices, the ops room, the academy and their screens, the office pets, the phone
+#   chunk 12 the characters (the walking player)   chunk 13 the windsocks
+# (2026-11-12, owner: "content packs") everything big now has its own chunk, so chunk 0 holds only the maps, the menus and
+# the engine's own content: an update re-sends only the chunks whose content changed.
 # The ATC tower is built by the game's code from shared kit parts (no meshes of its own): its changes are in the program.
 import json, os
 from collections import defaultdict
@@ -81,4 +86,12 @@ label('Chunk05_Site', 5, 5, assets=lists['site'])
 label('Chunk06_Aircraft', 6, 5, assets=lists['aircraft'], dirs=['/Game/Babylon/Airliner/airliner/StaticMeshes'])
 label('Chunk07_Shared', 7, 5, assets=lists['shared'])
 label('Chunk08_LightMasts', 8, 5, dirs=['/Game/LightMast'])
+label('Chunk09_FireStation', 9, 5, dirs=['/Game/Babylon/Firestation'])
+label('Chunk10_FireTrucks', 10, 5, dirs=['/Game/Babylon/Firetruck1', '/Game/Babylon/Firetruck2', '/Game/Babylon/WashHose'])
+label('Chunk11_Offices', 11, 5, dirs=['/Game/Babylon/Office', '/Game/Babylon/Ops', '/Game/Babylon/Academy', '/Game/Babylon/Monitor169',
+      '/Game/Babylon/Monitor219', '/Game/Babylon/Monitor329', '/Game/Babylon/Officedog', '/Game/Babylon/Officecat', '/Game/Babylon/Smartphone'])
+label('Chunk12_Characters', 12, 5, dirs=['/Game/Characters'])
+label('Chunk13_WindSocks', 13, 5, dirs=['/Game/WindSock'])
+# the terminal's meshes the node tree doesn't name (merged and split parts): with the terminal, below the labels above
+label('Chunk02b_TerminalRest', 2, 1, dirs=['/Game/Babylon/Terminal/terminal/StaticMeshes'])
 unreal.log('chunk labels done: ' + ', '.join('%s %d' % (k, len(v)) for k, v in lists.items()))

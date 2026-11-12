@@ -19,6 +19,7 @@
 #include "PhotoTour.h"
 #include "BabylonModel.h"
 #include "LightMasts.h"
+#include "WindSocks.h"
 #include "Offices.h"
 #include "FireStation.h"
 #include "TowerADC.h"
@@ -89,6 +90,8 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 		if (ATowerADC* Tower = W->SpawnActor<ATowerADC>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Tower->Build();
 		// the apron light masts, one in front of each gate and two in front of each hangar
 		if (ALightMasts* MastsA = W->SpawnActor<ALightMasts>(FVector::ZeroVector, FRotator::ZeroRotator, P)) MastsA->Build();
+		// a windsock near each runway end, turning into the wind
+		if (AWindSocks* Socks = W->SpawnActor<AWindSocks>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Socks->Build();
 		// the airfield round the terminal, and its traffic
 		if (AAirfield* Field = W->SpawnActor<AAirfield>(FVector::ZeroVector, FRotator::ZeroRotator, P); Field && Field->Build(bBabylon))
 		{

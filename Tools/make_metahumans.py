@@ -18,7 +18,7 @@ import unreal
 args = [a for a in sys.argv[1:] if not a.startswith('-')]
 MODE = args[0] if args else 'inspect'
 COUNT = int(args[1]) if len(args) > 1 else 40
-FIRST = int(args[2]) if len(args) > 2 else 0
+FIRST = int(args[2]) if len(args) > 2 else 0   # (80 people: 0-79)
 OUT = '/Game/People'
 SAVED = os.path.join(unreal.Paths.project_saved_dir(), 'MetaHumans.json')
 ar = unreal.AssetRegistryHelpers.get_asset_registry()
@@ -89,12 +89,22 @@ def role_of(i):
     return 'passenger', None
 
 
-def person(i):
-    """Everything about person i, decided from the seed."""
+BALANCE = {13: {'age': 68}, 14: {'age': 66}, 15: {'age': 71}, 16: {'age': 79}, 17: {'age': 81},
+           26: {'female': True}, 38: {'female': True},
+           # the second forty (owner: double everything, for hiring lots of crew): again 20 women and 20 men, old of both
+           50: {'female': False}, 56: {'female': False}, 61: {'female': False}, 70: {'female': False}, 73: {'female': False},
+           79: {'female': False}, 51: {'age': 78}, 52: {'age': 84}, 53: {'age': 67}}
+
+
+def _legacy_person(i):
+    """The first 14 (built 2026-11-11/12 before the plan below), as they were made."""
     rng = random.Random(20261111 + i * 7919)
     role, cols = role_of(i)
     female = rng.random() < (0.55 if role == 'cabin' else 0.35 if role in ('pilot', 'ground', 'fire', 'security') else 0.5)
     age = rng.choice([22, 28, 34, 41, 48, 55, 63, 72]) if role == 'passenger' else rng.choice([24, 29, 35, 42, 50, 57])
+    # (owner, 2026-11-12: as many women as men, 20 and 20, and old people of both: these set it, the rest stays random)
+    o = BALANCE.get(i, {})
+    female = o.get('female', female); age = o.get('age', age)
     height = min(181.0, max(152.0, rng.gauss(166, 6.5))) if female else min(196.0, max(162.0, rng.gauss(179, 7)))
     build = rng.choice(['slim', 'average', 'average', 'sturdy', 'heavy'] if role == 'passenger' else ['slim', 'average', 'average', 'sturdy'])
     if not cols:
@@ -104,6 +114,64 @@ def person(i):
         'skin_u': round(rng.uniform(0.05, 0.95), 3), 'skin_v': round(rng.uniform(0.15, 0.85), 3),
         'freckles': round(max(0.0, rng.gauss(0.08, 0.12)), 3), 'eyes': rng.choice(['brown', 'brown', 'brown', 'hazel', 'blue', 'green', 'grey']),
         'hair_melanin': round(min(1.0, max(0.0, rng.gauss(0.55, 0.3))), 3), 'grey': round(max(0.0, (age - 40) / 40.0) * rng.uniform(0.4, 1.0), 3),
+        'beard': (not female) and rng.random() < 0.35, 'colours': cols, 'face_seed': rng.randrange(1 << 30), 'pick': rng.randrange(1 << 30),
+    }
+
+
+# ---- the 120 (owner, 2026-11-12): crowd quality, 60 women and 60 men; passengers with old people of both sexes; each
+# new person the game makes takes one of these and mixes hair colour, grey, skin details, clothes and accessories
+LEGACY = 14
+ROLE_RANGES = [('passenger', 0, 40), ('cabin', 40, 60), ('pilot', 60, 76), ('ground', 76, 92), ('security', 92, 106), ('fire', 106, 120)]
+ROLE_COLS = {r: c for r, _, c in ROLES}
+COUNT_ALL = 120
+
+
+def _plan():
+    sex, age = {}, {}
+    for role, a, b in ROLE_RANGES:
+        old = [_legacy_person(i) for i in range(a, min(b, LEGACY))]
+        new = list(range(max(a, LEGACY), b))
+        rng = random.Random('plan-' + role)
+        rng.shuffle(new)
+        need_f = max(0, (b - a) // 2 - sum(1 for o in old if o['female']))
+        for k, i in enumerate(new):
+            sex[i] = k < need_f
+        if role == 'passenger':
+            old_f = max(0, 8 - sum(1 for o in old if o['female'] and o['age'] >= 65))
+            old_m = max(0, 8 - sum(1 for o in old if not o['female'] and o['age'] >= 65))
+            for i in new:
+                if sex[i] and old_f > 0: age[i] = rng.randint(66, 79); old_f -= 1
+                elif not sex[i] and old_m > 0: age[i] = rng.randint(67, 84); old_m -= 1
+                else: age[i] = rng.choice([19, 23, 27, 31, 36, 42, 47, 53, 58, 62])
+        else:
+            lo, hi = (26, 60) if role == 'pilot' else (21, 58)
+            for i in new: age[i] = rng.randint(lo, hi)
+    return sex, age
+
+
+_PLAN = None
+
+
+def person(i):
+    """Everything about person i, decided from the seed."""
+    global _PLAN
+    if i < LEGACY:
+        return _legacy_person(i)
+    if _PLAN is None:
+        _PLAN = _plan()
+    rng = random.Random(20261112 + i * 7919)
+    role = next(r for r, a, b in ROLE_RANGES if a <= i < b)
+    cols = ROLE_COLS[role]
+    female, age = _PLAN[0][i], _PLAN[1][i]
+    height = min(181.0, max(152.0, rng.gauss(166 - max(0, age - 65) * 0.15, 6.5))) if female else min(196.0, max(162.0, rng.gauss(179 - max(0, age - 65) * 0.15, 7)))
+    build = rng.choice(['slim', 'average', 'average', 'sturdy', 'heavy'] if role == 'passenger' else ['slim', 'average', 'average', 'sturdy'])
+    if not cols:
+        cols = (rng.choice(PASSENGER_COLOURS), rng.choice(PASSENGER_COLOURS))
+    return {
+        'i': i, 'role': role, 'female': female, 'age': age, 'height': round(height, 1), 'build': build,
+        'skin_u': round(rng.uniform(0.05, 0.95), 3), 'skin_v': round(rng.uniform(0.15, 0.85), 3),
+        'freckles': round(max(0.0, rng.gauss(0.08, 0.12)), 3), 'eyes': rng.choice(['brown', 'brown', 'brown', 'hazel', 'blue', 'green', 'grey']),
+        'hair_melanin': round(min(1.0, max(0.0, rng.gauss(0.55, 0.3))), 3), 'grey': round(min(1.0, max(0.0, (age - 40) / 35.0) * rng.uniform(0.5, 1.0)), 3),
         'beard': (not female) and rng.random() < 0.35, 'colours': cols, 'face_seed': rng.randrange(1 << 30), 'pick': rng.randrange(1 << 30),
     }
 
@@ -207,7 +275,7 @@ def make(spec, info):
         # the game build: optimized, crowd quality
         bp = unreal.MetaHumanCharacterEditorBuildParameters()
         bp.pipeline_type = unreal.MetaHumanDefaultPipelineType.OPTIMIZED
-        bp.pipeline_quality = unreal.MetaHumanQualityLevel.MEDIUM
+        bp.pipeline_quality = unreal.MetaHumanQualityLevel.LOW   # crowd quality (owner, 2026-11-12): card hair, lighter textures
         bp.absolute_build_path = OUT + '/Built'
         bp.common_folder_path = OUT + '/Common'
         bp.enable_wardrobe_item_validation = False

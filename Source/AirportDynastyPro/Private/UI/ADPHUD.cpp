@@ -676,6 +676,22 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 					+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
 					[SNew(SBox).WidthOverride(56)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { return FText::FromString(FString::Printf(TEXT("%.0f m"), AGrassField::NearDistance)); })]]
 				]
+				// the distant landscape's sharpness (owner, 2026-11-11): soft (fastest) to very sharp (costs frame rate
+				// when looking far); the slider runs from soft on the left to sharp on the right
+				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Distant landscape sharpness (sharper costs frame rate when looking far)"))]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
+					[
+						SNew(SSlider)
+						.Value_Lambda([]() { return FMath::Clamp(FMath::Log2(32.f / AGlobe::LandError) / 3.f, 0.f, 1.f); })
+						.OnValueChanged_Lambda([](float V) { AGlobe::LandError = 32.f / FMath::Pow(2.f, FMath::RoundToFloat(V * 6.f) / 2.f); AGlobe::ApplyLand(); })
+						.OnMouseCaptureEnd_Lambda([]() { GConfig->SetFloat(TEXT("ADP.Graphics"), TEXT("LandError"), AGlobe::LandError, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); })
+					]
+					+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
+					[SNew(SBox).WidthOverride(72)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { return FText::FromString(AGlobe::LandName()); })]]
+				]
 				// the field of view: degrees side to side as on a 16:9 screen (wider screens see more to the sides)
 				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Field of view (walking)"))]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)

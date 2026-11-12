@@ -79,6 +79,10 @@ void AGlobe::Build(const FAirfieldData& F)
 	Tiles->EnableFrustumCulling = false;
 	Tiles->EnforceCulledScreenSpaceError = true;
 	Tiles->CulledScreenSpaceError = 64.0;
+	GConfig->GetFloat(TEXT("ADP.Graphics"), TEXT("LandError"), LandError, GGameUserSettingsIni);
+	LandError = FMath::Clamp(LandError, 4.f, 32.f);
+	Tiles->SetMaximumScreenSpaceError(LandError);
+	Tiles->CulledScreenSpaceError = LandError * 4.0;
 	if (bTerrain && Ground >= 0)
 	{
 		Tiles->SetTilesetSource(ETilesetSource::FromUrl);
@@ -134,6 +138,19 @@ void AGlobe::Build(const FAirfieldData& F)
 int32 AGlobe::Source = 0;
 int32 AGlobe::ShownSource = 0;
 FString AGlobe::Note;
+float AGlobe::LandError = 16.f;
+
+void AGlobe::ApplyLand()
+{
+	LandError = FMath::Clamp(LandError, 4.f, 32.f);
+	if (AGlobe* G = Current.Get())
+		if (G->Earth) { G->Earth->SetMaximumScreenSpaceError(LandError); G->Earth->CulledScreenSpaceError = LandError * 4.0; }
+}
+
+FString AGlobe::LandName()
+{
+	return LandError >= 26.f ? TEXT("Soft") : LandError >= 13.f ? TEXT("Normal") : LandError >= 7.f ? TEXT("Sharp") : TEXT("Very sharp");
+}
 TWeakObjectPtr<AGlobe> AGlobe::Current;
 
 namespace

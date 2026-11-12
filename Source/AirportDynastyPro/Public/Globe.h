@@ -43,6 +43,15 @@ public:
 	static FString SourceCredit(int32 S);
 	/** Use this source now (and keep the choice). */
 	static void UseSource(int32 S);
+	#pragma endregion
+
+	#pragma region Distant landscape sharpness
+	/** How crisp the far land and mountains are drawn (owner, 2026-11-11: a Settings slider beside the grass): Cesium's
+	 *  screen-space error, the pixels of error a tile may show before a finer one is loaded: 32 soft (fastest), 16 the
+	 *  game's normal, 4 very sharp (costs frame rate when looking far). Kept between games. */
+	static float LandError;
+	static void ApplyLand();
+	static FString LandName();
 	/** What the game says about the pictures (the source in use, or that it fell back). */
 	static FString Note;
 	/** The source whose pictures are on the globe now (for the credit line). */
