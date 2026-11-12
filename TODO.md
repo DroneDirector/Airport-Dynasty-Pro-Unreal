@@ -177,6 +177,9 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       - **Shifts:** either a real shift like in real life (go home in the evening, lie down in bed to let the night pass
         quickly, back to work the next morning) or carry on at the airport for ever; switchable any time, and switching
         back to real shifts follows the schedule again
+      - **Sleeping to pass the night is single player only** (owner, 2026-11-12): in multiplayer the bed's "let the night
+        pass" option is not there, because the time of day has to stay the same for every player; you still go home
+        and to bed on a real shift, the night just passes at normal speed
       - **Coming home late:** do it too often and your wife starts asking what keeps you at work (worried about the job,
         never about anything else)
       - **Pets at home:** you decide if you have pets at home too, separate from the office pet, or whether the office
