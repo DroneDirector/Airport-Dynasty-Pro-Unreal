@@ -162,6 +162,8 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       the fuel ring grow back; washing the vehicle makes the cleanliness ring grow back. The cleanliness ring is linked
       to the dirt system (season / weather build-up, mud, washing with the hose or the car wash). Text and gauges never
       overlap anything
+      **Electric vehicles** (owner, 2026-11-12): the top gauge shows the battery instead of fuel, with a plug icon in the
+      middle; its ring shrinks as the battery runs down and grows back while charging (at home or a public charger)
 - [ ] **Real mirrors on the fire trucks** (owner, 2026-11-12): the side mirrors (and the other vehicles' mirrors) show a
       real reflection of the world around them, so you can use them when driving
 
