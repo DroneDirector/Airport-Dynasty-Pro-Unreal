@@ -223,8 +223,12 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
           can't have your own personal car inside the airport boundaries; it has to stay outside. Your car has been
           placed at the nearest parking spot outside the terminal."
         - **driving it inside the boundary** (somehow, e.g. through a gate): a warning: "Personal vehicles are not
-          allowed inside the airport boundaries. Leave immediately or suffer the consequences." If you don't leave,
-          you get a court date (the court feature is worked out later with the owner)
+          allowed inside the airport boundaries. Leave immediately or suffer the consequences."
+          - the timing (owner, 2026-11-12): the court date applies once you have been inside the boundary for 20
+            seconds; after the warning you have 1 minute to leave; still inside after 1 minute, the court is stricter;
+            after 2 minutes stricter again; after 3 minutes stricter again. How long you stayed decides how big the fine
+            is. Applies to your own car and to any personal vehicle you buy later. Other punishments, and the court
+            itself, are decided later with the owner
         - the map always shows where your own car is, and where each fire truck is (holomap and the full map, with
           their icons)
       - **The town's people** (owner, 2026-11-12): AI citizens living in your town, each with a real home and their own
