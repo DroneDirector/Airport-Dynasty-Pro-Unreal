@@ -1,5 +1,12 @@
 // The player walking through the terminal in first person: walk, run, jump and crouch.
 #include "ADPWalker.h"
+#include "Wardrobe.h"
+#include "Animation/BlendSpace.h"
+#include "Animation/AnimSequence.h"
+#include "Animation/AnimSingleNodeInstance.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "GroomComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
 #include "Camera/CameraComponent.h"
@@ -99,6 +106,84 @@ void AADPWalker::ToggleCrouch() { if (bIsCrouched) UnCrouch(); else Crouch(); }
 
 float AADPWalker::Fov = 90.f;
 
+void AADPWalker::BeginPlay()
+{
+	Super::BeginPlay();
+	WearMetaHuman(AWardrobe::Chosen());
+}
+
+bool AADPWalker::WearMetaHuman(const FString& Who)
+{
+	UClass* C = LoadClass<AActor>(nullptr, *FString::Printf(TEXT("/Game/People/Built/%s/BP_%s.BP_%s_C"), *Who, *Who, *Who));
+	if (!C) { if (Human) return true; ADP_LOG(TEXT("Walker: no built character %s, the mannequin stays"), *Who); return false; }
+	if (Human) { Human->Destroy(); Human = nullptr; HumanBody = nullptr; HumanHead.Empty(); }
+	FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn; P.Owner = this;
+	Human = GetWorld()->SpawnActor<AActor>(C, GetMesh()->GetComponentLocation(), GetMesh()->GetComponentRotation(), P);
+	if (!Human) return false;
+	// on the capsule where the mannequin stands (feet on the floor, facing forward), nothing of its own in the way
+	Human->AttachToComponent(GetCapsuleComponent(), FAttachmentTransformRules::KeepWorldTransform);
+	Human->SetActorEnableCollision(false);
+	TArray<USkeletalMeshComponent*> Skels; Human->GetComponents<USkeletalMeshComponent>(Skels);
+	USkeletalMeshComponent* Face = nullptr;
+	for (USkeletalMeshComponent* S : Skels)
+	{
+		const FString N = S->GetName();
+		if (N.StartsWith(TEXT("Body"))) HumanBody = S;
+		else if (N.StartsWith(TEXT("Face"))) Face = S;
+	}
+	if (!HumanBody) { ADP_WARN(TEXT("Walker: %s has no Body"), *Who); Human->Destroy(); Human = nullptr; return false; }
+	// the clothes follow the body's pose; the face rides on the body's head bone
+	for (USkeletalMeshComponent* S : Skels)
+		if (S != HumanBody && S != Face) S->SetLeaderPoseComponent(HumanBody);
+	if (Face)
+	{
+		HumanHead.Add(Face);
+		TArray<UGroomComponent*> Grooms; Human->GetComponents<UGroomComponent>(Grooms);
+		for (UGroomComponent* G : Grooms) HumanHead.Add(G);
+	}
+	// the body plays the carried-over blend space itself (no animation blueprint): idle, walk and run by how you move
+	if (!MoveBlend) MoveBlend = LoadObject<UBlendSpace>(nullptr, TEXT("/Game/People/Anims/BS_Idle_Walk_Run_MH.BS_Idle_Walk_Run_MH"));
+	if (!FallAnim) FallAnim = LoadObject<UAnimSequence>(nullptr, TEXT("/Game/People/Anims/MM_Fall_Loop_MH.MM_Fall_Loop_MH"));
+	if (MoveBlend)
+	{
+		HumanBody->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+		HumanBody->SetAnimation(MoveBlend);
+		HumanBody->Play(true);
+	}
+	else ADP_WARN(TEXT("Walker: the carried-over animations are missing (Tools/retarget_player_anims.py)"));
+	HumanBody->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+	for (USkeletalMeshComponent* S : Skels) S->SetCastShadow(true);
+	// the mannequin out of sight (it keeps animating as the rig the rest of the game reads), your head only from behind
+	GetMesh()->SetVisibility(false, false);
+	GetMesh()->bCastHiddenShadow = false;
+	for (USceneComponent* H : HumanHead) H->SetVisibility(bThird, true);
+	ADP_LOG(TEXT("Walker: you are %s"), *Who);
+	return true;
+}
+
+void AADPWalker::DriveHuman(float Dt)
+{
+	if (!HumanBody) return;
+	UAnimSingleNodeInstance* One = HumanBody->GetSingleNodeInstance();
+	if (!One) return;
+	const bool bFalling = GetCharacterMovement() && GetCharacterMovement()->IsFalling();
+	if (bFalling != bHumanFalling)
+	{
+		bHumanFalling = bFalling;
+		if (bFalling && FallAnim) { HumanBody->SetAnimation(FallAnim); HumanBody->Play(true); }
+		else if (MoveBlend) { HumanBody->SetAnimation(MoveBlend); HumanBody->Play(true); }
+		One = HumanBody->GetSingleNodeInstance();
+	}
+	if (!bFalling && One && MoveBlend)
+	{
+		// the blend space's axes: the way you move relative to where you face (degrees) and how fast (cm/s)
+		const FVector V = GetVelocity();
+		const float Speed = V.Size2D();
+		const float Dir = Speed > 5.f ? FMath::FindDeltaAngleDegrees(GetActorRotation().Yaw, V.Rotation().Yaw) : 0.f;
+		One->SetBlendSpacePosition(FVector(Dir, Speed, 0.f));
+	}
+}
+
 void AADPWalker::SetThirdPerson(bool bOn)
 {
 	bThird = bOn;
@@ -110,6 +195,7 @@ void AADPWalker::SetThirdPerson(bool bOn)
 		if (bThird) GetMesh()->UnHideBoneByName(TEXT("head")); else GetMesh()->HideBoneByName(TEXT("head"), PBO_None);
 		bHeadHidden = true;
 	}
+	for (USceneComponent* H : HumanHead) if (H) H->SetVisibility(bThird, true);
 	if (APlayerController* PC = Cast<APlayerController>(GetController())) if (PC->PlayerCameraManager) PC->PlayerCameraManager->SetGameCameraCutThisFrame();
 	GConfig->SetBool(TEXT("ADP.Input"), TEXT("ThirdPerson"), bThird, GGameUserSettingsIni);
 	GConfig->Flush(false, GGameUserSettingsIni);
@@ -125,6 +211,7 @@ FTransform AADPWalker::ViewFrom(const FVector& At, const FRotator& Look) const
 void AADPWalker::Tick(float Dt)
 {
 	Super::Tick(Dt);
+	DriveHuman(Dt);
 	// your own head hidden from your eyes (you look out from inside it); the rest of the body stays seen and casts its shadow
 	// the view you last chose, first person or from behind (kept between games)
 	if (!bViewRead) { bViewRead = true; bool bT = false; GConfig->GetBool(TEXT("ADP.Input"), TEXT("ThirdPerson"), bT, GGameUserSettingsIni); SetThirdPerson(bT); }

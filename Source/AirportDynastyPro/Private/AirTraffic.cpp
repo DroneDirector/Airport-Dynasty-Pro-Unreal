@@ -106,8 +106,17 @@ AAirTraffic::FVehicle AAirTraffic::MakeVehicle(int32 Kind, const FVector2f& Home
 
 void AAirTraffic::Place(USceneComponent* C, const FVector& P, float Heading)
 {
-	// the plan's (x, y) heading h points along Unreal's (cos h, -sin h): yaw -h
-	C->SetRelativeLocationAndRotation(FTerminalPlan::ToWorld(P.X, P.Y, P.Z), FRotator(0, -FMath::RadiansToDegrees(Heading), 0));
+	// the plan's (x, y) heading h points along Unreal's (cos h, -sin h): yaw -h. The path's height is above the ground
+	// under it (the airfield's grade, Airfield.h): on the ground the body sits on the grade and tips with its slope
+	// the way it points (nose up on a rise), and an approach aimed at the threshold ends on the real threshold
+	const float G = AAirfield::GroundAt(P.X, P.Z);
+	float Pitch = 0.f;
+	if (P.Y < 0.5f)
+	{
+		const FVector2f S = AAirfield::SlopeAt(P.X, P.Z);
+		Pitch = FMath::RadiansToDegrees(FMath::Atan(S.X * FMath::Cos(Heading) + S.Y * FMath::Sin(Heading)));
+	}
+	C->SetRelativeLocationAndRotation(FTerminalPlan::ToWorld(P.X, P.Y + G, P.Z), FRotator(Pitch, -FMath::RadiansToDegrees(Heading), 0));
 }
 
 #pragma endregion

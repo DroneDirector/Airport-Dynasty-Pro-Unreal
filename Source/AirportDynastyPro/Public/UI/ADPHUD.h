@@ -43,6 +43,9 @@ public:
 	void OnEscape();
 	/** Settings (Tab, the bar's button, or the title screen's gear in the menus). */
 	void ToggleSettings();
+	/** The office wardrobe (Wardrobe.h): its doors open and the outfits you own listed; one picked stands you beside it. */
+	void OpenWardrobe(class AWardrobe* W);
+	void CloseWardrobe();
 	/** Bloom and blur (Settings): 0 off, 1 low, 2 medium, 3 high, 4 epic; kept in the game's settings file. */
 	void SetBloom(int32 Level);
 	void SetBlur(int32 Level);
@@ -243,9 +246,13 @@ private:
 	bool bPadSent = false;
 	TSharedPtr<SHoloMap> HoloMap;
 	TSharedPtr<SWidget> MiniBox, FullBox, Settings, Perf, TopBar, GameBox;
-	bool bHidden = false, bSettings = false, bPerf = false, bGame = false, bGameMade = false;
+	bool bHidden = false, bSettings = false, bPerf = false, bGame = false, bGameMade = false, bWardrobe = false;
 	float FpsSmooth = 60.f;
 	TSharedPtr<SWidget> CaptionBox;
+	TSharedPtr<SWidget> WardrobeBox;
+	TSharedPtr<class SVerticalBox> WardrobeList;
+	TWeakObjectPtr<class AWardrobe> WardrobeOpen;
+	TSharedRef<SWidget> MakeWardrobe();
 	TSharedPtr<class STextBlock> Credit;
 	TSharedPtr<class SVerticalBox> ButtonsList, SettingsControls;
 	TSharedPtr<class SBox> ButtonsHeaderGlyph;

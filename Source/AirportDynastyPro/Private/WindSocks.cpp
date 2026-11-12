@@ -79,7 +79,7 @@ void AWindSocks::Build()
 	for (int32 i = 0; i < 2; ++i)
 	{
 		FSock S;
-		S.Foot = FTerminalPlan::ToWorld(Spots[i].X, 0.f, Spots[i].Y);
+		S.Foot = FTerminalPlan::ToWorld(Spots[i].X, AAirfield::GroundAt(Spots[i].X, Spots[i].Y), Spots[i].Y);   // on the grade beside the runway
 		S.Yaw = WindFrom + 180.f - RunwayTrue;
 		S.Phase = i * 2.37f;
 		Masts->AddInstance(FTransform(FRotator::ZeroRotator, S.Foot), true);

@@ -1,5 +1,6 @@
 // The old offices', operations room's and Academy's things in the terminal's rooms (Offices.h).
 #include "Offices.h"
+#include "Wardrobe.h"
 #include "ADPLog.h"
 #include "BabylonModel.h"
 #include "OpsMonitors.h"
@@ -43,6 +44,16 @@ namespace ADPOffices
 			else if (M) M->Destroy();
 		}
 		ADP_LOG(TEXT("Offices: the old office's things in %d offices (yours with the pet: %s)"), Placed, *Pet);
+		// the wardrobe in every office (owner, 2026-11-12): against the partition wall at the room's far end from the
+		// window, its front (the cabinet's -y) into the room, so turned half round (the plan's -z is Unreal's +y), clear
+		// of the desk and the door. Its back stands 3 cm clear of the wall's face (the owner's rule for every wardrobe
+		// anywhere: never in the wall): the wall is 0.2 m thick about its line, the cabinet 0.6 m deep
+		struct FWd { float X, Wall; };
+		const FWd Wd[] = { {126.f, 10.f}, {126.f, 20.f}, {142.f, 30.f}, {142.f, 40.f} };
+		int32 Wardrobes = 0;
+		for (const FWd& A : Wd)
+			if (AWardrobe* Wr = W->SpawnActor<AWardrobe>(FTerminalPlan::ToWorld(A.X, 0.0f, A.Wall - 0.1f - 0.3f - 0.03f), FRotator(0, 180.f, 0), S)) { if (Wr->Build()) ++Wardrobes; else Wr->Destroy(); }
+		ADP_LOG(TEXT("Offices: %d wardrobes"), Wardrobes);
 		// the operations room (x 114-132, z 22-34, its door east): the old room's desk with the ultra-wide monitor, its
 		// window side (+z) to the west wall as the offices', the chair facing it (the old room is 5.4 m deep: its window
 		// wall 2.7 m from its middle)

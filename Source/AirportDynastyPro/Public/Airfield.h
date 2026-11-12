@@ -2,6 +2,12 @@
 // the terminal): the grass inside the boundary, the aprons, runway 08/26 with its markings, the taxiways with their
 // yellow centre lines, the holding positions and the cargo building, the hangar apron with each hangar's lead-in line
 // (the hangars themselves: Hangar.h). The data is shared with the traffic.
+// The ground (owner, 2026-11-12): one smooth grade the whole airfield is built on. The runway rolls gently along its
+// length as real runways do (both ends a little low, a crest past the middle, slopes about 0.3%) with a slight crown
+// across it for the rain, the taxiways and the grass beside it follow, and it all blends to the level aprons by the
+// buildings and to the globe's ground at the boundary. Every paved surface, the grass and every marking is a mesh
+// draped on that grade (never a flat slab that could float or cut in), the aircraft and vehicles ride on it, and
+// anything built later on the airfield asks GroundAt for its height.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -10,6 +16,7 @@
 
 class UInstancedStaticMeshComponent;
 class UStaticMesh;
+class UProceduralMeshComponent;
 
 #pragma region Airfield data
 
@@ -49,6 +56,15 @@ public:
 	bool Build(bool bModelSite = false);
 	const FAirfieldData& Data() const { return D; }
 
+	#pragma region The grade
+	/** The airfield's data, loaded once for everything that needs it (some of it before the airfield is built). */
+	static const FAirfieldData& Shared();
+	/** How high the ground stands at a plan point, metres above the airport's level (the aprons' level). */
+	static float GroundAt(float X, float Y);
+	/** The ground's rise per metre there, along +x and along +y. */
+	static FVector2f SlopeAt(float X, float Y);
+	#pragma endregion
+
 private:
 	#pragma region Pieces
 	UInstancedStaticMeshComponent* Kit(const FName Mat);
@@ -56,6 +72,26 @@ private:
 	void Slab(const FName Mat, float X0, float Y0, float X1, float Y1, float Bottom, float Top);
 	/** A strip along a line (a taxiway, a marking), W wide, its top at Top metres. */
 	void Strip(const FName Mat, const FVector2f& A, const FVector2f& B, float W, float Top, float Thick = 0.02f);
+	// the draped surfaces: a sheet per material, every quad or band cut into cells of Step metres whose corners sit on
+	// the grade, Lift metres over it (pavements a little below zero, markings a little above their pavement)
+	struct FSheet { TArray<FVector> V; TArray<int32> I; TArray<FVector> N; TArray<FVector2D> UV; TArray<FLinearColor> C; };
+	TMap<FName, FSheet> Sheets;
+	void Quad(const FName Mat, float X0, float Y0, float X1, float Y1, float Lift, float Step = 10.f);
+	void Band(const FName Mat, const FVector2f& A, const FVector2f& B, float W, float Lift, float Step = 10.f);
+	void Vertex(FSheet& S, float X, float Y, float Lift, const FLinearColor& Col = FLinearColor::White, const FVector2D* UVOverride = nullptr);
+	// the soft edge where a pavement meets the ground (owner, 2026-11-12, Art/Edges, Tools/make_edge_textures.py): a
+	// see-through band 2.6 m wide laid along the edge, 1.2 m onto the pavement and 1.4 m onto the ground, its picture
+	// chosen by the pavement (concrete: a soil seam and grime creeping in; asphalt: crumbs and cracks; the runway's
+	// ends: bigger cracks), cross-fading over its last metres so bands that meet merge instead of cutting. A and B
+	// run along the edge, Out points off the pavement; InnerLift is the pavement's top, OuterLift the ground's.
+	void EdgeBand(const FVector2f& A, const FVector2f& B, const FVector2f& Out, float InnerLift, float OuterLift, float Asphalt, float End, bool bFadeA = true, bool bFadeB = true);
+	/** The four edges of a rectangle (x0..x1, y0..y1) that meet the ground; Sides: bits 1 south (y0), 2 north (y1), 4 west, 8 east. */
+	void EdgeRect(float X0, float Y0, float X1, float Y1, float InnerLift, float Asphalt, int32 Sides = 15, float EndsAtX = 0.f);
+	/** Every pavement edge of the airfield, laid after the pavements. */
+	void EdgeBands(bool bModelSite);
+	void Tri(FSheet& S, int32 A, int32 B, int32 C);
+	void FlushSheets();
+	UPROPERTY() TArray<TObjectPtr<UProceduralMeshComponent>> SheetMeshes;
 	#pragma endregion
 
 	FAirfieldData D;

@@ -191,6 +191,18 @@ def _plan():
 
 _PLAN = None
 
+# ---- the owner's own character (2026-11-12): a man, built at a closer quality than the crowd (strand hair comes later
+# as an option); his face can be changed later by building him again from another preset (4 min)
+def player_spec():
+    rng = random.Random(777)
+    return {
+        'i': 900, 'role': 'player', 'female': False, 'age': 38, 'height': 183.0, 'build': 'average',
+        # light European skin (owner, 2026-11-12: Caucasian, like him), short dark hair, no beard
+        'skin_u': 0.08, 'skin_v': 0.4, 'freckles': 0.0, 'eyes': 'blue', 'hair_melanin': 0.75, 'grey': 0.05,
+        'beard': False, 'colours': ((0.08, 0.09, 0.12), (0.9, 0.9, 0.92)), 'face_seed': rng.randrange(1 << 30), 'pick': rng.randrange(1 << 30),
+        'preset': 'Cameron', 'quality': 'MEDIUM', 'hair': 'WI_Hair_S_SideSweptFringe',
+    }
+
 
 def person(i):
     """Everything about person i, decided from the seed."""
@@ -267,7 +279,7 @@ def dress(ch, spec, info, rng):
         items = [p for p in info['wardrobe'].get(slot, []) if keyword_ok is None or keyword_ok(p.lower())]
         return items[rng.randrange(len(items))] if items else None
     long_ok = (lambda p: True) if spec['female'] else (lambda p: '_l_' not in p or rng.random() < 0.1)
-    hair = wear_one(ch, 'Hair', pick('Hair', long_ok))
+    hair = wear_one(ch, 'Hair', next((p for p in info['wardrobe'].get('Hair', []) if p.endswith('/' + spec['hair'])), None) if spec.get('hair') else pick('Hair', long_ok))
     wear_one(ch, 'Eyebrows', pick('Eyebrows'))
     wear_one(ch, 'Beard', pick('Beard') if spec['beard'] else None)
     wear_one(ch, 'Mustache', None)
@@ -287,10 +299,13 @@ def dress(ch, spec, info, rng):
     log('%s wears: %s' % (ch.get_name(), ', '.join(sel)))
 
 
+QUALITY = 'LOW'
+
+
 def build_and_save(ch, name):
     bp = unreal.MetaHumanCharacterEditorBuildParameters()
     bp.pipeline_type = unreal.MetaHumanDefaultPipelineType.OPTIMIZED
-    bp.pipeline_quality = unreal.MetaHumanQualityLevel.LOW   # crowd quality (owner, 2026-11-12): card hair, lighter textures
+    bp.pipeline_quality = getattr(unreal.MetaHumanQualityLevel, QUALITY)   # crowd quality LOW (owner, 2026-11-12): card hair, lighter textures; the owner's own character closer
     bp.absolute_build_path = OUT + '/Built'
     bp.common_folder_path = OUT + '/Common'
     bp.enable_wardrobe_item_validation = False
@@ -348,6 +363,7 @@ def make(spec, info):
     if spec.get('teen'):
         pool = [p for p in pool if os.path.basename(p).split('.')[0] in YOUNG_FACES] or pool
     src = (pool or presets)[rng.randrange(len(pool or presets))]
+    if spec.get('preset'): src = next((p for p in presets if os.path.basename(p).split('.')[0] == spec['preset']), src)
     ch = eal.duplicate_asset(src, path)
     if ch is None:
         unreal.log_error('ADP_MH: could not copy ' + src)
@@ -412,6 +428,9 @@ try:
     if MODE == 'build':
         for i in range(FIRST, FIRST + COUNT):
             make(person(i), info)
+    if MODE == 'player':
+        QUALITY = 'MEDIUM'
+        make(player_spec(), info)
     if MODE == 'refit':
         for i in range(FIRST, FIRST + COUNT):
             refit(person(i), info)

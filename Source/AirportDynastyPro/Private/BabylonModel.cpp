@@ -166,6 +166,7 @@ bool ABabylonModel::Place(const FString& Name)
 		{
 			if (!NameOf(D).StartsWith(TEXT("D-"))) continue;
 			FDoor Door;
+			Door.Id = NameOf(D);
 			Door.At = NodeWorld[D].GetLocation();
 			const TArray<int32> C = Kids(D);
 			// the width from the frame's posts (at ±(w/2 + 0.05)); sliding leaves are the thin panels (depth up to 0.06 m)
@@ -196,6 +197,8 @@ bool ABabylonModel::Place(const FString& Name)
 					Door.bSpin = true;
 				}
 			}
+			// the entrance doors' leaves wear the no-smoking sticker
+			if (Door.Id.Contains(TEXT("-ENTR-"))) for (FPart& P : Door.Parts) if (P.Slide != 0) AddSticker(P);
 			if (Door.Parts.Num()) Doors.Add(MoveTemp(Door));
 		}
 		ADP_LOG(TEXT("Babylon model %s: %d doors that move"), *Name, Doors.Num());
@@ -823,6 +826,31 @@ void ABabylonModel::MovePart(FPart& P, float E, float Spin)
 		Touched.Add(I.K);
 	}
 	for (UInstancedStaticMeshComponent* K : Touched) K->MarkRenderStateDirty();
+	// the sticker rides on the leaf (the leaf's frame without the box's own scale)
+	if (P.Sticker) { FTransform F = L; F.SetScale3D(FVector(1.f)); P.Sticker->SetRelativeTransform(P.StickerRel * F * P.Parent); }
+}
+
+void ABabylonModel::AddSticker(FPart& Leaf)
+{
+	static UMaterialInterface* M = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Signs/M_NoSmoking.M_NoSmoking"));
+	static UStaticMesh* Plane = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane"));
+	if (!M || !Plane) { static bool bTold = false; if (!bTold) { bTold = true; ADP_WARN(TEXT("No-smoking sticker: /Game/Signs/M_NoSmoking is missing (Tools/set_no_smoking_sign.py)")); } return; }
+	UStaticMeshComponent* S = NewObject<UStaticMeshComponent>(this);
+	S->SetupAttachment(Root);
+	S->SetMobility(EComponentMobility::Movable);
+	S->SetStaticMesh(Plane);
+	S->SetMaterial(0, M);
+	S->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	S->SetCastShadow(false);
+	S->RegisterComponent();
+	AddInstanceComponent(S);
+	// on the leaf's middle line, 1.5 m above the door's floor (the leaf's own height is its box's centre), standing in
+	// the glass (the plane's face turned from up to the leaf's normal), 24 cm across
+	const float Up = 150.f - float(Leaf.Base.GetTranslation().Z);
+	Leaf.StickerRel = FTransform(FRotator(0.f, 0.f, 90.f), FVector(0.f, 0.f, Up), FVector(0.24f));
+	Leaf.Sticker = S;
+	FTransform F = Leaf.Base; F.SetScale3D(FVector(1.f));
+	S->SetRelativeTransform(Leaf.StickerRel * F * Leaf.Parent);
 }
 
 bool ABabylonModel::SlidingDoorAt(FVector& Out) const

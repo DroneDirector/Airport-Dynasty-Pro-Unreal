@@ -80,8 +80,11 @@ private:
 	// time. Each moving part is a node of the model (a sliding leaf, a hinge, the revolving wings) with the mesh instances
 	// under it; moving it moves them (and their collision).
 	struct FInst { UInstancedStaticMeshComponent* K; int32 I; FTransform Rel; };
-	struct FPart { FTransform Base, Parent; TArray<FInst> Inst; float Slide = 0; float Swing = 0; bool bSpin = false; };
-	struct FDoor { FVector At; float Reach = 2.6f; float K = 0; TArray<FPart> Parts; bool bSpin = false; };
+	struct FPart { FTransform Base, Parent; TArray<FInst> Inst; float Slide = 0; float Swing = 0; bool bSpin = false; USceneComponent* Sticker = nullptr; FTransform StickerRel; };
+	struct FDoor { FString Id; FVector At; float Reach = 2.6f; float K = 0; TArray<FPart> Parts; bool bSpin = false; };
+	/** The no-smoking sticker on an entrance door's sliding leaf (owner, 2026-11-12): a small square on the glass at eye
+	 *  height, seen from both sides, carried along as the leaf slides (/Game/Signs, Tools/set_no_smoking_sign.py). */
+	void AddSticker(FPart& Leaf);
 	TArray<FDoor> Doors;
 	// every node kept after placing (for the moving parts): its name, glTF mesh, place in root space, children, instance
 	TArray<FString> NName; TArray<int32> NMesh; TArray<FTransform> NRoot; TArray<TArray<int32>> NKids;

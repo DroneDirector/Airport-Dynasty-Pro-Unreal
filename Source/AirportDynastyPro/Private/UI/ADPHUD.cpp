@@ -9,6 +9,7 @@
 #include "Hangar.h"
 #include "FireStation.h"
 #include "Airfield.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "UI/SHoloMap.h"
 #include "UI/SProgressText.h"
 #include "UI/GameView.h"
@@ -16,6 +17,7 @@
 #include "UI/InputGlyphs.h"
 #include "UI/SDragBox.h"
 #include "SunClock.h"
+#include "Wardrobe.h"
 #include "Engine/PostProcessVolume.h"
 #include "Globe.h"
 #include "ADPWalker.h"
@@ -199,6 +201,7 @@ void AADPHUD::BeginPlay()
 	HoloMap->SetPlan(Plan);
 	HoloMap->OnOpen = [this]() { ToggleMap(); };
 	Settings = MakeSettings();
+	WardrobeBox = MakeWardrobe();
 	Perf = MakePerf();
 	TopBar = MakeTopBar();
 	Settings->SetVisibility(EVisibility::Collapsed);
@@ -347,6 +350,7 @@ void AADPHUD::BeginPlay()
 			]
 		]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[Settings.ToSharedRef()]
+		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Center).Padding(0, 0, 40, 0)[WardrobeBox.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[CrashPanel.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[UnstuckPanel.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Fill).VAlign(VAlign_Fill)[LoadingBox.ToSharedRef()]
@@ -820,7 +824,7 @@ void AADPHUD::UpdateMouse()
 {
 	APlayerController* PC = GetOwningPlayerController();
 	if (!PC) return;
-	const bool bFree = bGame || bDevice || bSettings || bPointer || (HoloMap.IsValid() && HoloMap->IsFull());
+	const bool bFree = bGame || bDevice || bSettings || bWardrobe || bPointer || (HoloMap.IsValid() && HoloMap->IsFull());
 	// (Unreal counts these calls: cleared first, so the view is never left locked by an earlier one)
 	PC->ResetIgnoreLookInput();
 	if (bPointer && !bGame) PC->SetIgnoreLookInput(true);
@@ -911,6 +915,57 @@ void AADPHUD::ToggleGame()
 	UpdateMouse();
 }
 
+TSharedRef<SWidget> AADPHUD::MakeWardrobe()
+{
+	return SNew(SBorder)
+		.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+		.BorderBackgroundColor(Panel)
+		.Padding(18)
+		.Visibility(EVisibility::Collapsed)
+		[
+			SNew(SBox).WidthOverride(360)
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)[SNew(STextBlock).Text(FText::FromString(TEXT("YOUR WARDROBE"))).Font(Font(14)).ColorAndOpacity(Ink)]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 8)[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true).Text(FText::FromString(TEXT("Pick an outfit: you stand beside the wardrobe wearing it. Every outfit made for you shows up here. E or Esc closes the doors.")))]
+				+ SVerticalBox::Slot().AutoHeight()[SAssignNew(WardrobeList, SVerticalBox)]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 10, 0, 0)[Button(TEXT("CLOSE"), [this]() { CloseWardrobe(); })]
+			]
+		];
+}
+
+void AADPHUD::OpenWardrobe(AWardrobe* W)
+{
+	if (!W || bWardrobe || bHidden || !WardrobeList.IsValid()) return;
+	bWardrobe = true;
+	WardrobeOpen = W;
+	W->SetOpen(true);
+	Breadcrumb(TEXT("At your wardrobe"));
+	// the outfits, the one you wear first
+	WardrobeList->ClearChildren();
+	const FVector Me = GetOwningPawn() ? GetOwningPawn()->GetActorLocation() : W->GetActorLocation();
+	for (const AWardrobe::FOutfit& O : AWardrobe::Outfits())
+	{
+		const FString Who = O.Who;
+		const bool bOn = Who == AWardrobe::Chosen();
+		WardrobeList->AddSlot().AutoHeight().Padding(0, 0, 0, 4)[Button((bOn ? TEXT("> ") : TEXT("")) + O.Label, [this, Who, Me]() { if (AWardrobe* Wd = WardrobeOpen.Get()) Wd->Dress(Who, Me); })];
+	}
+	if (AWardrobe* Wd = WardrobeOpen.Get()) Wd->Dress(AWardrobe::Chosen(), Me);
+	WardrobeBox->SetVisibility(EVisibility::Visible);
+	UpdateMouse();
+}
+
+void AADPHUD::CloseWardrobe()
+{
+	if (!bWardrobe) return;
+	bWardrobe = false;
+	if (AWardrobe* Wd = WardrobeOpen.Get()) Wd->SetOpen(false);
+	WardrobeOpen = nullptr;
+	WardrobeBox->SetVisibility(EVisibility::Collapsed);
+	Breadcrumb(TEXT("In the 3D airport"));
+	UpdateMouse();
+}
+
 void AADPHUD::ToggleSettings()
 {
 	if (bHidden) return;
@@ -976,6 +1031,7 @@ void AADPHUD::OnEscape()
 	// in the 3D world: an open panel closes first, back into the 3D view
 	if (HoloMap.IsValid() && HoloMap->IsFull()) { ToggleMap(); return; }
 	if (bSettings) { ToggleSettings(); return; }
+	if (bWardrobe) { CloseWardrobe(); return; }
 	// nothing open: the Overview, always
 	ToggleGame();
 	if (Browser.IsValid()) Browser->ExecuteJavascript(TEXT("window.__ueOverview && window.__ueOverview()"));
@@ -1059,6 +1115,7 @@ void AADPHUD::Interact()
 {
 	// a screen in front of you (a desk's monitor, a timetable): the airline game on it
 	APlayerController* PC = GetOwningPlayerController();
+	if (bWardrobe) { CloseWardrobe(); return; }
 	if (!PC || bGame || bDevice || PhoneDir != 0 || bSettings || bPointer || (HoloMap.IsValid() && HoloMap->IsFull())) return;
 	// in a fire truck: E / X gets you out (FireTruck.h)
 	if (AFireTruck* T = Cast<AFireTruck>(GetOwningPawn())) { T->Exit(); return; }
@@ -1070,6 +1127,8 @@ void AADPHUD::Interact()
 	{
 		// a fire truck within reach: you get in (FireTruck.h)
 		if (AFireTruck* T = AFireTruck::FromActor(Hit.GetActor())) { T->Enter(GetOwningPawn()); return; }
+		// the office wardrobe: open, the outfits listed (Wardrobe.h)
+		if (AWardrobe* Wd = Cast<AWardrobe>(Hit.GetActor())) { OpenWardrobe(Wd); return; }
 		// your phone, the operations monitor, your office's computer (Devices.cpp)
 		if (TryDevice(Hit)) return;
 		// a hangar door's control button (OPEN, CLOSE, STOP)
@@ -1784,6 +1843,103 @@ void AADPHUD::Tick(float Dt)
 			const float End = T0 + Who.Num() * Step + 1.f;
 			if (Who.Num() && Before < End && ShotClock >= End) FGenericPlatformMisc::RequestExit(false);
 		}
+		// -UIWardrobe: in your office at the wardrobe: opened (you stand beside it in what you wear), a picture, closed
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")))
+		{
+			auto Shot = [this](const TCHAR* Name) { if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 2 filename=%s"), Name)); };
+			if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ASunClock::HourOverride = 13.f; ASunClock::Theme = 1; ASunClock::Refresh(); GoTo(FVector(124.f, 0.f, 6.2f), FVector(126.f, 1.3f, 9.6f)); }
+			if (Before < 46.f && ShotClock >= 46.f) Shot(TEXT("Wardrobe_Closed"));
+			if (Before < 47.f && ShotClock >= 47.f)
+			{
+				AWardrobe* Near = nullptr; float Best = 1e9f;
+				const FVector Me = GetOwningPawn() ? GetOwningPawn()->GetActorLocation() : FVector::ZeroVector;
+				for (TActorIterator<AWardrobe> It(GetWorld()); It; ++It) { const float D = FVector::Dist(It->GetActorLocation(), Me); if (D < Best) { Best = D; Near = *It; } }
+				if (Near) OpenWardrobe(Near); else ADP_WARN(TEXT("UIWardrobe: no wardrobe"));
+			}
+			if (Before < 51.f && ShotClock >= 51.f) Shot(TEXT("Wardrobe_Open"));
+			if (Before < 53.f && ShotClock >= 53.f) CloseWardrobe();
+			if (Before < 56.f && ShotClock >= 56.f) FGenericPlatformMisc::RequestExit(false);
+		}
+		// -UIAirfield: the airfield's grade and edges: down the runway from near the 08 end, an edge close up at taxiway A,
+		// the runway's end from the grass
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")))
+		{
+			auto Shot = [this](const TCHAR* Name) { if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 2 filename=%s"), Name)); };
+			const FAirfieldData& F = AAirfield::Shared();
+			auto Go = [&](float X, float Y, float LX, float LY, float LH) { GoTo(FVector(X, 0.f, Y), FVector(LX, LH, LY)); };
+			if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 14.f; ASunClock::Theme = 1; ASunClock::Refresh(); Go(F.RwyX0 + 260.f, F.RwyY - 70.f, F.RwyX0 + 1400.f, F.RwyY, 1.4f); }
+			if (Before < 48.f && ShotClock >= 48.f) Shot(TEXT("Airfield_Runway"));
+			if (Before < 49.f && ShotClock >= 49.f) Go(81.f + 40.f, F.AY + 31.5f, 81.f + 60.f, F.AY + 30.f, 0.9f);
+			if (Before < 56.f && ShotClock >= 56.f) Shot(TEXT("Airfield_Edge"));
+			if (Before < 57.f && ShotClock >= 57.f) Go(F.RwyX0 - 90.f, F.RwyY - 60.f, F.RwyX0 - 40.f, F.RwyY - 20.f, 0.8f);
+			if (Before < 64.f && ShotClock >= 64.f) Shot(TEXT("Airfield_End"));
+			if (Before < 65.f && ShotClock >= 65.f) { ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
+			if (Before < 66.f && ShotClock >= 66.f) FGenericPlatformMisc::RequestExit(false);
+		}
+		// -UIBody: you from behind in the hall: standing, then walking forward (your MetaHuman body in its outfit)
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIBody")))
+		{
+			auto Shot = [this](const TCHAR* Name) { if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 2 filename=%s"), Name)); };
+			// out of the canopy's shadow, in the sun before the entrance (the owner, 2026-11-12), from behind and from the front
+			if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 14.f; ASunClock::Theme = 1; ASunClock::Refresh(); GoTo(FVector(72.f, 0.f, -22.f), FVector(79.f, 1.7f, 10.f)); if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) Wk->SetThirdPerson(true); }
+			if (Before < 46.f && ShotClock >= 46.f) Shot(TEXT("Body_Standing"));
+			if (ShotClock >= 47.f && ShotClock < 51.f) if (APawn* Me = GetOwningPawn()) Me->AddMovementInput(Me->GetActorForwardVector(), 1.f);
+			if (Before < 49.f && ShotClock >= 49.f) Shot(TEXT("Body_Walking"));
+			// your body turned round to face the camera (the camera stays where it is behind the capsule)
+			if (Before < 52.f && ShotClock >= 52.f) if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) if (AActor* H = Wk->HumanActor()) H->AddActorLocalRotation(FRotator(0.f, 180.f, 0.f));
+			if (Before < 55.f && ShotClock >= 55.f) Shot(TEXT("Body_Front"));
+			if (Before < 56.f && ShotClock >= 56.f) { if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) Wk->SetThirdPerson(false); ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
+			if (Before < 57.f && ShotClock >= 57.f) FGenericPlatformMisc::RequestExit(false);
+		}
+		// -UIGate: you at gate 4's window (from behind inside, towards your face from the apron), then walking out the
+		// jetway (from behind inside it, and from outside through its glass), summer afternoon light (owner, 2026-11-12)
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIGate")))
+		{
+			auto Shot = [this](const TCHAR* Name) { if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 2 filename=%s"), Name)); };
+			static TWeakObjectPtr<ACameraActor> Cam;
+			auto Outside = [this](const FVector& PlanAt, const FVector& PlanLook)
+			{
+				APlayerController* PC = GetOwningPlayerController(); if (!PC) return;
+				const FVector At = FTerminalPlan::ToWorld(PlanAt.X, PlanAt.Y, PlanAt.Z), To = FTerminalPlan::ToWorld(PlanLook.X, PlanLook.Y, PlanLook.Z);
+				if (!Cam.IsValid()) Cam = GetWorld()->SpawnActor<ACameraActor>(At, (To - At).Rotation());
+				else Cam->SetActorLocationAndRotation(At, (To - At).Rotation());
+				if (Cam.IsValid()) { Cam->GetCameraComponent()->SetConstraintAspectRatio(false); Cam->GetCameraComponent()->SetFieldOfView(55.f); PC->SetViewTarget(Cam.Get()); }
+			};
+			auto Back = [this]() { if (APlayerController* PC = GetOwningPlayerController()) if (APawn* Me = GetOwningPawn()) PC->SetViewTarget(Me); };
+			const float F2 = Plan.F2Y;
+			if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 15.f; ASunClock::Theme = 1; ASunClock::Refresh(); GoTo(FVector(186.f, F2, 79.4f), FVector(186.f, F2 + 1.6f, 95.f)); if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) Wk->SetThirdPerson(true); }
+			if (Before < 46.f && ShotClock >= 46.f) Shot(TEXT("Gate_Inside"));
+			if (Before < 47.f && ShotClock >= 47.f) Outside(FVector(186.f, F2 + 1.7f, 89.f), FVector(186.f, F2 + 1.4f, 80.f));
+			if (Before < 50.f && ShotClock >= 50.f) Shot(TEXT("Gate_Outside"));
+			if (Before < 51.f && ShotClock >= 51.f) { Back(); GoTo(FVector(191.05f, F2, 79.f), FVector(191.05f, F2 + 1.6f, 100.f)); }
+			if (ShotClock >= 53.f && ShotClock < 58.f) if (APawn* Me = GetOwningPawn()) Me->AddMovementInput(Me->GetActorForwardVector(), 1.f);
+			if (Before < 57.f && ShotClock >= 57.f) Shot(TEXT("Jetway_Inside"));
+			if (Before < 58.5f && ShotClock >= 58.5f) if (APawn* Me = GetOwningPawn()) { const FVector P = Me->GetActorLocation(); Outside(FVector(P.X / 100.f + 7.f, P.Z / 100.f + 0.9f, -P.Y / 100.f + 1.5f), FVector(P.X / 100.f, P.Z / 100.f + 0.3f, -P.Y / 100.f)); }
+			if (Before < 61.5f && ShotClock >= 61.5f) Shot(TEXT("Jetway_Outside"));
+			if (Before < 62.5f && ShotClock >= 62.5f) { Back(); if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) Wk->SetThirdPerson(false); ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
+			if (Before < 63.5f && ShotClock >= 63.5f) FGenericPlatformMisc::RequestExit(false);
+		}
+		// -UIClouds: from above the clouds (owner, 2026-11-12): broken cover, the low sun on the cloud tops, then daylight
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIClouds")))
+		{
+			auto Shot = [this](const TCHAR* Name) { if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 2 filename=%s"), Name)); };
+			auto Up = [this]()
+			{
+				if (APawn* Me = GetOwningPawn())
+				{
+					if (ACharacter* Ch = Cast<ACharacter>(Me)) Ch->GetCharacterMovement()->SetMovementMode(MOVE_Flying);
+					Me->TeleportTo(FTerminalPlan::ToWorld(200.f, 15400.f, 600.f), FRotator(0.f, -20.f, 0.f));   // (the cloud layer's top is at 15 km)
+					if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(FRotator(-14.f, -20.f, 0.f));
+				}
+			};
+			if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 22.6f; ASunClock::Theme = 1; ASunClock::Refresh(); Up(); }
+			if (Before < 44.f && ShotClock >= 44.f) Up();
+			if (Before < 50.f && ShotClock >= 50.f) Shot(TEXT("Clouds_Sunset"));
+			if (Before < 51.f && ShotClock >= 51.f) { ASunClock::HourOverride = 13.f; ASunClock::Refresh(); Up(); }
+			if (Before < 57.f && ShotClock >= 57.f) Shot(TEXT("Clouds_Day"));
+			if (Before < 58.f && ShotClock >= 58.f) { ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
+			if (Before < 59.f && ShotClock >= 59.f) FGenericPlatformMisc::RequestExit(false);
+		}
 		// -UISeason: the time of year (Settings): on the apron at noon in clear weather, 21 December then 21 June, a
 		// picture of each (the sun low and long shadows, then high), the real date put back; the log has the sun's height
 		if (FParse::Param(FCommandLine::Get(), TEXT("UISeason")))
@@ -2031,7 +2187,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

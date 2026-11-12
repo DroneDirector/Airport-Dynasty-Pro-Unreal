@@ -71,6 +71,21 @@ Yes, possible: your own character is built in each of your outfits once (3 minut
 office (or your home later) swaps between them on the spot, E / X to use. About 4 h for the wardrobe itself.
 New outfits later: one 3-minute build each.
 
+The wardrobe's menu (owner, 2026-11-12): E at the wardrobe swings the doors open and a menu in the title screen's
+own style comes up (the glass look, the same graphics as browsing your badges and trophies), browsed by category:
+suits, shirts, trousers, shoes, hats, sunglasses, ties and so on. Every category is always shown; one you own nothing
+in reads "empty". While the menu is open the 3D view behind it goes into a portrait-mode blur. The first version is a
+plain list; the styled one comes with the settings-menu work, which shares its style.
+
+The changing-room camera (owner, 2026-11-12, as in big open-world games): when you open the wardrobe the camera
+glides in towards you; you stay where you stand, but the view is framed so your MetaHuman stands far over on the
+right of the screen, big, with the menu beside you on the left, not full screen but in the badges-and-trophies
+style. The background goes into the portrait-mode blur; you, the one being dressed, stay sharp in front of it.
+The camera follows what you are changing: your whole body (close, filling more of the screen than now, still
+leaving room for the menu) for outfits; your face when it is sunglasses, caps or hats; your feet for shoes. While
+you browse, your character cycles through confident poses instead of standing still: arms crossed, a hand to the
+chin with the other arm underneath, weight on one leg, and a few more, so it feels alive.
+
 ## E. Clothes that glitch (the body poking through)
 
 How it is prevented: at the re-fit the garment is resized to that person's body, and the skin under the garment is
