@@ -232,6 +232,11 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       random lines, e.g. "I shouldn't be drinking on the job, that wasn't too smart." Reputation only drops if you
       actually get drunk on the job (one drink without being drunk costs nothing); the drunker and the more often,
       the more it drops (boss reputation, seen by staff and passengers)
+- [ ] **Fired at reputation 0** (owner, 2026-11-12): when your reputation reaches 0 you are fired and the run ends:
+      progress since your last save or autosave is lost; you can load a save game and carry on from there. The moment
+      itself: the whole screen softly blurs (like a phone's portrait mode, everything behind out of focus), then a
+      beautiful title effect brings up "YOU ARE FIRED" with the reason underneath (e.g. drunk on the job, how you
+      treated your staff); then Load a save / Main menu. Text never overlapping
 
 ## 5. Graphics settings
 - [x] A "light beams distance" slider (the light masts' haze, now 500 m) so weaker cards can turn it down
