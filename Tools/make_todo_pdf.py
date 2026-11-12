@@ -31,6 +31,8 @@ ITEMS = [
  ('5',   'Release 0.17.7: truck pass, engine sound, sign, airfield', '1.5 h', ['rel'], '2, 3, 6-8, 12', False),
  ('21a', 'Hero people built at full (strand) hair quality', '2-3 h', ['people'], '2', False),
  ('21b', 'Settings option "Hair: cards / strands", near / far switch', '2-3 h', ['people'], '21a', False),
+ ('32a', 'Character creator: the parts library (faces x skin tones, bodies, hair fits), unattended', '19 h PC', ['people'], '2', False),
+ ('32b', 'Character creator: the screen (face, skin, body, height, hair, clothes), saved, a switch turns it on', '1 day (3 parts)', ['people'], '32a, wardrobe', False),
  ('13a', 'Uniforms: cabin crew + pilots', '2 h', ['people'], '2, 3', False),
  ('13b', 'Uniforms: ground crew, security, fire crew', '2 h', ['people'], '13a', False),
  ('13c', 'Passengers: clothes variety', '2 h', ['people'], '13a', False),
