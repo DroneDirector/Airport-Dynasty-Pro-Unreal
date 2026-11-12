@@ -82,7 +82,7 @@ TArray<AWardrobe::FOutfit> AWardrobe::Outfits()
 	for (const FAssetData& A : Found)
 	{
 		const FString N = A.AssetName.ToString();
-		if (!N.StartsWith(TEXT("BP_MH_9")) || !N.Contains(TEXT("_player"))) continue;
+		if (!N.StartsWith(TEXT("BP_MH_9")) || !N.Contains(TEXT("_player")) || N.EndsWith(TEXT("_C"))) continue;   // (the _C is the blueprint's class, not another outfit)
 		FOutfit O;
 		O.Who = N.Mid(3);
 		FString Tail;
@@ -117,7 +117,7 @@ void AWardrobe::Dress(const FString& Who, const FVector& LookFrom)
 	FVector Face = LookFrom - At; Face.Z = 0.f;
 	const float Yaw = (Face.IsNearlyZero() ? T.Rotator().Yaw : Face.Rotation().Yaw) + 20.f;
 	FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	Preview = GetWorld()->SpawnActor<AActor>(C, At, FRotator(0.f, Yaw - 90.f, 0.f), P);
+	Preview = GetWorld()->SpawnActor<AActor>(C, At + FVector(0, 0, 2.f), FRotator(0.f, Yaw - 90.f, 0.f), P);   // (a touch up: the soles on the tiles, not in them)
 	// standing naturally while you look (the mannequin's idle carried over to the MetaHuman body), the clothes following
 	if (Preview)
 	{
@@ -159,27 +159,45 @@ AWardrobe::EView AWardrobe::ViewFor(const FString& Category)
 void AWardrobe::PlaceCam(EView View)
 {
 	if (!Cam || !Preview) return;
-	// you on the right third of the screen: the camera stands before you, shifted to your right (its left) and aimed a
-	// little past you; close for the face, looking down for the feet, the whole body otherwise
+	// you on the right third of the screen: the camera stands before you and aims a little to your right (its left),
+	// so the menu has the left of the screen; a long lens from further back for the whole body (the portrait look),
+	// close for the face, looking down for the feet
 	const FTransform T = Preview->GetActorTransform();
 	const FVector Face = T.GetRotation().RotateVector(FVector(0.f, 1.f, 0.f));   // a MetaHuman faces its own +y
 	const FVector Right = FVector::CrossProduct(FVector::UpVector, Face).GetSafeNormal();
-	FVector Target, Eye; float Fov = 50.f, Focus = 300.f;
+	FVector Target, Eye, Aim; float Fov, Fstop;
 	switch (View)
 	{
-	case EView::Face: Target = T.GetLocation() + FVector(0, 0, 165.f); Eye = Target + Face * 95.f + Right * 32.f + FVector(0, 0, 4.f); Fov = 36.f; Focus = 95.f; break;
-	case EView::Feet: Target = T.GetLocation() + FVector(0, 0, 18.f); Eye = Target + Face * 150.f + Right * 55.f + FVector(0, 0, 70.f); Fov = 42.f; Focus = 165.f; break;
-	default: Target = T.GetLocation() + FVector(0, 0, 100.f); Eye = Target + Face * 330.f + Right * 120.f + FVector(0, 0, 20.f); Fov = 48.f; Focus = 340.f; break;
+	case EView::Face: Target = T.GetLocation() + FVector(0, 0, 163.f); Eye = Target + Face * 230.f + FVector(0, 0, 3.f); Aim = Target + Right * 27.f; Fov = 30.f; Fstop = 4.0f; break;
+	case EView::Feet: Target = T.GetLocation() + FVector(0, 0, 16.f); Eye = Target + Face * 250.f + FVector(0, 0, 112.f); Aim = Target + Right * 24.f + FVector(0, 0, -6.f); Fov = 32.f; Fstop = 2.8f; break;
+	default: Target = T.GetLocation() + FVector(0, 0, 98.f); Eye = Target + Face * 520.f + FVector(0, 0, 10.f); Aim = Target + Right * 64.f; Fov = 40.f; Fstop = 1.2f; break;
 	}
-	Cam->SetActorLocationAndRotation(Eye, (Target - Eye).Rotation());
+	// wherever the wardrobe stands: a wall or furniture between you and the camera pulls the camera in before it
+	{
+		FHitResult Hit;
+		FCollisionQueryParams Q(SCENE_QUERY_STAT(WardrobeCam), false);
+		Q.AddIgnoredActor(Preview); Q.AddIgnoredActor(this); if (Cam) Q.AddIgnoredActor(Cam);
+		if (GetWorld()->LineTraceSingleByChannel(Hit, Target, Eye, ECC_Visibility, Q))
+		{
+			const FVector Dir = (Eye - Target).GetSafeNormal();
+			const float Dist = FMath::Max(60.f, Hit.Distance - 25.f);
+			Eye = Target + Dir * Dist;
+			Aim = Target + (Aim - Target) * (Dist / FMath::Max(1.f, (Eye - Target).Size()));
+		}
+	}
+	Cam->SetActorLocationAndRotation(Eye, (Aim - Eye).Rotation());
 	UCameraComponent* C = Cam->GetCameraComponent();
 	C->SetFieldOfView(Fov);
 	C->SetConstraintAspectRatio(false);
 	// the portrait look: a wide-open lens focused on you, so the room behind goes soft and you stay sharp
+	const float Focus = (Target - Eye).Size() - (View == EView::Face ? 8.f : 0.f);   // (the face: on the eyes, not the back of the head)
 	C->PostProcessSettings.bOverride_DepthOfFieldFocalDistance = true; C->PostProcessSettings.DepthOfFieldFocalDistance = Focus;
-	C->PostProcessSettings.bOverride_DepthOfFieldFstop = true; C->PostProcessSettings.DepthOfFieldFstop = 1.2f;
-	C->PostProcessSettings.bOverride_DepthOfFieldSensorWidth = true; C->PostProcessSettings.DepthOfFieldSensorWidth = 36.f;
+	C->PostProcessSettings.bOverride_DepthOfFieldFstop = true; C->PostProcessSettings.DepthOfFieldFstop = Fstop;
 	C->PostProcessSettings.bOverride_DepthOfFieldMinFstop = true; C->PostProcessSettings.DepthOfFieldMinFstop = 1.2f;
+	C->PostProcessSettings.bOverride_DepthOfFieldSensorWidth = true; C->PostProcessSettings.DepthOfFieldSensorWidth = 36.f;
+	// (no blur by distance: it ramps up from the camera and softens you too; the lens alone keeps you sharp)
+	C->PostProcessSettings.bOverride_DepthOfFieldDepthBlurRadius = true; C->PostProcessSettings.DepthOfFieldDepthBlurRadius = 0.f;
+	C->PostProcessSettings.bOverride_DepthOfFieldBladeCount = true; C->PostProcessSettings.DepthOfFieldBladeCount = 9;
 	C->PostProcessBlendWeight = 1.f;
 	ViewNow = View;
 }

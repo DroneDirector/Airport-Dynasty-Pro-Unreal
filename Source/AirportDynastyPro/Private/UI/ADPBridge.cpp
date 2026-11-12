@@ -117,3 +117,8 @@ void UADPBridge::DeviceDone(const FString& Kind)
 {
 	if (AADPHUD* H = Hud.Get()) H->DeviceDone(Kind);
 }
+
+void UADPBridge::Wardrobe(const FString& Action, const FString& Arg)
+{
+	if (AADPHUD* H = Hud.Get()) H->WardrobeFromPage(Action, Arg);
+}

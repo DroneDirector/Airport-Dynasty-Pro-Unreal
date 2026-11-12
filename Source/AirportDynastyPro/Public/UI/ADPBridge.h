@@ -54,4 +54,6 @@ public:
 	UFUNCTION() void Board(const FString& Key, const FString& B64);
 	/** The phone or a computer opened over the 3D room has been put away (ue.adp.devicedone(kind)). */
 	UFUNCTION() void DeviceDone(const FString& Kind);
+	/** The wardrobe menu over the room (ue.adp.wardrobe): 'category' <name>, 'wear' <outfit>, 'close'. */
+	UFUNCTION() void Wardrobe(const FString& Action, const FString& Arg);
 };

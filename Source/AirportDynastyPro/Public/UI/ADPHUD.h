@@ -46,6 +46,8 @@ public:
 	/** The office wardrobe (Wardrobe.h): its doors open and the outfits you own listed; one picked stands you beside it. */
 	void OpenWardrobe(class AWardrobe* W);
 	void CloseWardrobe();
+	/** What you clicked in the page's wardrobe menu (through the bridge). */
+	void WardrobeFromPage(const FString& Action, const FString& Arg);
 	/** Bloom and blur (Settings): 0 off, 1 low, 2 medium, 3 high, 4 epic; kept in the game's settings file. */
 	void SetBloom(int32 Level);
 	void SetBlur(int32 Level);
@@ -251,7 +253,9 @@ private:
 	TSharedPtr<SWidget> CaptionBox;
 	TSharedPtr<SWidget> WardrobeBox;
 	TSharedPtr<class SVerticalBox> WardrobeList;
+	TSharedPtr<class SWrapBox> WardrobeTiles;
 	FString WardrobeCategory;
+	int32 WardrobeTicks = 0;
 	void FillWardrobe();
 	TWeakObjectPtr<class AWardrobe> WardrobeOpen;
 	TSharedRef<SWidget> MakeWardrobe();

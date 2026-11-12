@@ -29,6 +29,7 @@ import './sections/court/index';
 import './sections/terminal/index';
 import './sections/world/index';
 import './sections/site/index';
+import './ui/wardrobe3d';
 
 const canvas = document.getElementById('bjs') as HTMLCanvasElement, ui = document.getElementById('ui') as HTMLElement;
 let inPlace = false;

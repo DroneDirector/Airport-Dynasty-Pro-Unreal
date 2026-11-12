@@ -472,3 +472,38 @@ body.photo-on .cab-says { display: none; }
 html.ue-dev, html.ue-dev body { background: transparent !important; }
 html.ue-dev body > *:not(.game-frame) { visibility: hidden !important; }
 html.ue-dev .game-frame { background: transparent !important; opacity: 1 !important; display: block !important; pointer-events: auto !important; }
+
+/* The PC edition's wardrobe over Unreal's room (src/ui/wardrobe3d.ts): the title screen's bars and glass */
+html.ue-wd, html.ue-wd body { background: transparent !important; }
+html.ue-wd body > *:not(.wd) { visibility: hidden !important; }
+.wd { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; padding-left: clamp(24px, 4vw, 64px); pointer-events: none; color: #EDE8FF; opacity: 0; transition: opacity .38s var(--ease); --kick: 0; --spring: cubic-bezier(.2, 1.2, .3, 1); }
+.wd.in { opacity: 1; }
+.wd.out { opacity: 0; }
+.wd-body { display: flex; align-items: stretch; gap: clamp(16px, 2vw, 30px); pointer-events: auto; }
+.wd-left { display: flex; flex-direction: column; animation: wdIn .6s var(--ease) both; }
+.wd-k { font-family: 'Audiowide', sans-serif; font-size: 12px; letter-spacing: .5em; text-transform: uppercase; color: var(--neo2); text-shadow: 0 0 8px rgba(53, 240, 255, .8); }
+.wd-k2 { margin-top: 18px; opacity: .8; }
+.wd-t { font-family: 'Audiowide', sans-serif; font-size: clamp(22px, 3.6vh, 34px); letter-spacing: .08em; text-transform: uppercase; color: #fff; text-shadow: 0 0 4px #fff, 0 0 10px var(--neo1), 0 0 26px var(--neo1), 0 0 44px rgba(255, 63, 184, .6); margin-top: 2px; }
+.wd .ts-nav { margin-top: 8px; gap: 6px; }
+.wd .ts-btn { width: 270px; padding: 7px 16px 7px 14px; }
+.wd .ts-bt b { font-size: 15px; }
+.wd .ts-btn { animation: none; }
+.wd .ts-btn.wd-close { margin-top: 14px; }
+.wd .ts-bt small { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: rgba(225, 215, 255, .6); }
+.wd-win { width: min(540px, 30vw); align-self: stretch; overflow: auto; padding: 18px 20px 22px; border-radius: 18px; animation: wdIn .6s .1s var(--ease) both;
+  background: linear-gradient(160deg, rgba(26, 12, 58, .9), rgba(6, 8, 28, .92)); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  border: 1px solid rgba(140, 190, 255, .3); box-shadow: 0 0 40px rgba(255, 63, 184, .22), inset 0 1px 0 rgba(255, 255, 255, .08); }
+.wd-win > small { display: block; font-family: 'Audiowide', sans-serif; font-size: 12px; letter-spacing: .5em; text-transform: uppercase; color: var(--neo2); text-shadow: 0 0 8px rgba(53, 240, 255, .8); }
+.wd-win > b { display: block; font-family: 'Audiowide', sans-serif; font-weight: 400; font-size: clamp(16px, 3vh, 26px); letter-spacing: .06em; text-transform: uppercase; color: #fff; text-shadow: 0 0 14px rgba(255, 63, 184, .7); margin-top: 2px; }
+.wd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 16px; }
+.wd-tile { position: relative; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; min-height: 104px; padding: 10px 12px; text-align: left; color: #EDE8FF; cursor: pointer;
+  background: linear-gradient(90deg, rgba(14, 10, 40, .72), rgba(14, 10, 40, .35)); border: 1px solid rgba(150, 180, 255, .16); border-left: 3px solid rgba(53, 240, 255, .55); border-radius: 10px;
+  transition: transform .3s var(--spring), border-color .3s, box-shadow .3s, background .3s; }
+.wd-tile:hover { transform: translateY(-3px); border-color: var(--neo1); box-shadow: 0 0 22px rgba(255, 63, 184, .45); }
+.wd-tile.on { border-color: var(--neo1); background: linear-gradient(90deg, rgba(255, 63, 184, .6), rgba(120, 60, 255, .4) 60%, rgba(53, 240, 255, .2)); box-shadow: 0 0 22px rgba(255, 63, 184, .45); }
+.wd-tile.demo { cursor: default; opacity: .8; }
+.wd-tile b { font-family: 'Audiowide', sans-serif; font-weight: 400; font-size: 12px; line-height: 1.25; letter-spacing: .06em; text-transform: uppercase; }
+.wd-tile small { font-size: 10.5px; letter-spacing: .22em; text-transform: uppercase; color: var(--neo2); margin-top: 5px; }
+.wd-tile.on small { color: #fff; text-shadow: 0 0 8px #fff; }
+.wd-empty { font-family: 'Audiowide', sans-serif; font-size: 14px; letter-spacing: .4em; text-transform: uppercase; opacity: .5; margin-top: 18px; }
+@keyframes wdIn { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }

@@ -158,9 +158,61 @@ namespace
 			.OnClicked_Lambda([Click]() { Click(); return FReply::Handled(); })
 			[SNew(STextBlock).Text(FText::FromString(Label)).Font(Font(9)).ColorAndOpacity(Ink)];
 	}
+	TSharedRef<SWidget> BigButton(const FString& Label, TFunction<void()> Click, bool bLit = false)
+	{
+		return SNew(SButton)
+			.ButtonColorAndOpacity(bLit ? FLinearColor(0.1f, 0.45f, 0.75f, 1.f) : FLinearColor(0.05f, 0.2f, 0.36f, 0.9f))
+			.ContentPadding(FMargin(16, 9))
+			.OnClicked_Lambda([Click]() { Click(); return FReply::Handled(); })
+			[SNew(STextBlock).Text(FText::FromString(Label)).Font(Font(13)).ColorAndOpacity(Ink)];
+	}
 	TSharedRef<SWidget> Caption(const FString& Words)
 	{
 		return SNew(STextBlock).Text(FText::FromString(Words)).Font(Font(10)).ColorAndOpacity(Ink);
+	}
+	// the title screen's own look (Content/Web/styles.css, owner 2026-11-12): dark purple glass, a faint blue edge, cyan and
+	// pink neon, the Audiowide lettering (Content/Fonts, OFL)
+	namespace Neon
+	{
+		const FLinearColor Glass(0.012f, 0.008f, 0.045f, 0.94f);
+		const FLinearColor Edge(0.28f, 0.52f, 1.f, 0.32f);
+		const FLinearColor Cyan(0.207f, 0.94f, 1.f);
+		const FLinearColor Pink(1.f, 0.247f, 0.72f);
+		const FLinearColor Paper(0.93f, 0.91f, 1.f);
+		const FLinearColor BarFill(0.055f, 0.04f, 0.157f, 0.72f);
+		const FLinearColor BarLit(0.62f, 0.12f, 0.45f, 0.85f);
+		FSlateFontInfo Face(int32 Size, int32 Spacing = 60)
+		{
+			static const FString Path = FPaths::ProjectContentDir() / TEXT("Fonts/Audiowide-Regular.ttf");
+			static const bool bHave = FPaths::FileExists(Path);
+			FSlateFontInfo F = bHave ? FSlateFontInfo(Path, Size) : Font(Size);
+			F.LetterSpacing = Spacing;
+			return F;
+		}
+		TSharedRef<SWidget> Panel(TSharedRef<SWidget> In, float Pad = 22.f)
+		{
+			return SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(Edge).Padding(1)
+				[SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(Glass).Padding(Pad)[In]];
+		}
+		/** A menu bar as on the title screen: a cyan stripe at its left, pink and lit when it is the one chosen. */
+		TSharedRef<SWidget> Bar(const FString& Label, TFunction<void()> Click, bool bLit = false, int32 Size = 13)
+		{
+			return SNew(SButton).ButtonStyle(FCoreStyle::Get(), "NoBorder").ContentPadding(0)
+				.OnClicked_Lambda([Click]() { Click(); return FReply::Handled(); })
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth()[SNew(SBox).WidthOverride(3)[SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(bLit ? Pink : FLinearColor(Cyan.R, Cyan.G, Cyan.B, 0.6f))]]
+					+ SHorizontalBox::Slot().FillWidth(1)
+					[
+						SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(bLit ? BarLit : BarFill).Padding(FMargin(16, 9))
+						[SNew(STextBlock).Text(FText::FromString(Label.ToUpper())).Font(Face(Size, bLit ? 140 : 80)).ColorAndOpacity(bLit ? FLinearColor::White : Paper)]
+					]
+				];
+		}
+		TSharedRef<SWidget> Small(const FString& Words, const FLinearColor& Col = Cyan)
+		{
+			return SNew(STextBlock).Text(FText::FromString(Words.ToUpper())).Font(Face(9, 400)).ColorAndOpacity(Col);
+		}
 	}
 	UGameUserSettings* Prefs() { return GEngine ? GEngine->GetGameUserSettings() : nullptr; }
 	void Save(UGameUserSettings* S) { if (S) { S->ApplySettings(false); S->SaveSettings(); } }
@@ -201,7 +253,7 @@ void AADPHUD::BeginPlay()
 	HoloMap->SetPlan(Plan);
 	HoloMap->OnOpen = [this]() { ToggleMap(); };
 	Settings = MakeSettings();
-	WardrobeBox = MakeWardrobe();
+	MakeWardrobe();
 	Perf = MakePerf();
 	TopBar = MakeTopBar();
 	Settings->SetVisibility(EVisibility::Collapsed);
@@ -277,7 +329,7 @@ void AADPHUD::BeginPlay()
 			.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
 			.BorderBackgroundColor(Panel)
 			.Padding(FMargin(10, 4))
-			.Visibility_Lambda([this]() { return bGame || bHidden ? EVisibility::Collapsed : EVisibility::Visible; })
+			.Visibility_Lambda([this]() { return bGame || bHidden || bWardrobe ? EVisibility::Collapsed : EVisibility::Visible; })
 			[
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
@@ -394,7 +446,19 @@ void AADPHUD::BeginPlay()
 				+ SVerticalBox::Slot().AutoHeight()
 				[
 					SAssignNew(ButtonsList, SVerticalBox)
-					.Visibility_Lambda([this]() { return bButtonsOpen ? EVisibility::Visible : EVisibility::Collapsed; })
+					.Visibility_Lambda([this]() { return bButtonsOpen && !bWardrobe ? EVisibility::Visible : EVisibility::Collapsed; })
+				]
+				// at the wardrobe the legend is the wardrobe's (owner, 2026-11-12), not the walking keys
+				+ SVerticalBox::Slot().AutoHeight()
+				[
+					SNew(SVerticalBox)
+					.Visibility_Lambda([this]() { return bButtonsOpen && bWardrobe ? EVisibility::Visible : EVisibility::Collapsed; })
+					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text(FText::FromString(TEXT("YOUR WARDROBE")))]
+					+ SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).Text(FText::FromString(TEXT("Click a category: it opens, and the view goes with it")))]
+					+ SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).Text(FText::FromString(TEXT("   (your face for hats and sunglasses, your feet for shoes)")))]
+					+ SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).Text(FText::FromString(TEXT("Click a piece: you wear it, and it is saved")))]
+					+ SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).Text_Lambda([]() { return FText::FromString(ADPInput::CurrentPad() != ADPInput::EPad::None ? TEXT("Pad X, B: close the wardrobe") : TEXT("E, Esc: close the wardrobe")); })]
+					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).Text(FText::FromString(TEXT("The holographic map is back when you close it")))]
 				]
 				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Right)
 				[
@@ -830,7 +894,7 @@ void AADPHUD::UpdateMouse()
 	if (bPointer && !bGame) PC->SetIgnoreLookInput(true);
 	// the phone or a computer up (or the phone on its way): you stay where you are, looking at it
 	PC->ResetIgnoreMoveInput();
-	if ((bDevice || PhoneDir != 0) && !bGame) { PC->SetIgnoreLookInput(true); PC->SetIgnoreMoveInput(true); }
+	if ((bDevice || PhoneDir != 0 || bWardrobe) && !bGame) { PC->SetIgnoreLookInput(true); PC->SetIgnoreMoveInput(true); }
 	PC->bShowMouseCursor = bFree;
 	if (bFree) { FInputModeGameAndUI M; M.SetHideCursorDuringCapture(false); PC->SetInputMode(M); }
 	else
@@ -917,21 +981,40 @@ void AADPHUD::ToggleGame()
 
 TSharedRef<SWidget> AADPHUD::MakeWardrobe()
 {
-	return SNew(SBorder)
-		.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-		.BorderBackgroundColor(Panel)
-		.Padding(18)
-		.Visibility(EVisibility::Collapsed)
-		[
-			SNew(SBox).WidthOverride(360)
+	// the title screen's look (owner, 2026-11-12): the categories as menu bars on the left, and attached at the right a
+	// bigger window showing what the open category holds, as tiles; you stand to the right of it all
+	WardrobeBox = SNew(SBox).Visibility(EVisibility::Collapsed)
+	[
+		Neon::Panel(
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth()
 			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)[SNew(STextBlock).Text(FText::FromString(TEXT("YOUR WARDROBE"))).Font(Font(14)).ColorAndOpacity(Ink)]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 8)[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true).Text(FText::FromString(TEXT("Pick a category, then what to wear: you stand beside the wardrobe in it. Everything made for you shows up here. E or Esc closes the doors.")))]
-				+ SVerticalBox::Slot().AutoHeight()[SAssignNew(WardrobeList, SVerticalBox)]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 10, 0, 0)[Button(TEXT("CLOSE"), [this]() { CloseWardrobe(); })]
+				SNew(SBox).WidthOverride(300)
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot().AutoHeight()[Neon::Small(TEXT("Your office"))]
+					+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 18)[SNew(STextBlock).Text(FText::FromString(TEXT("WARDROBE"))).Font(Neon::Face(24, 120)).ColorAndOpacity(Neon::Cyan)]
+					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 8)[Neon::Small(TEXT("Categories"), FLinearColor(Neon::Paper.R, Neon::Paper.G, Neon::Paper.B, 0.6f))]
+					+ SVerticalBox::Slot().AutoHeight()[SAssignNew(WardrobeList, SVerticalBox)]
+					+ SVerticalBox::Slot().AutoHeight().Padding(0, 18, 0, 0)[Neon::Bar(TEXT("Close"), [this]() { CloseWardrobe(); })]
+				]
 			]
-		];
+			+ SHorizontalBox::Slot().AutoWidth().Padding(22, 0, 0, 0)
+			[
+				SNew(SBox).WidthOverride(620)
+				[
+					SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(FLinearColor(1, 1, 1, 0.035f)).Padding(18)
+					[
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot().AutoHeight()[Neon::Small(TEXT("What you can wear"))]
+						+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 14)[SNew(STextBlock).Font(Neon::Face(18, 100)).ColorAndOpacity(Neon::Paper).Text_Lambda([this]() { return FText::FromString(WardrobeCategory.ToUpper()); })]
+						+ SVerticalBox::Slot().AutoHeight()[SAssignNew(WardrobeTiles, SWrapBox).UseAllottedSize(true).InnerSlotPadding(FVector2D(10, 10))]
+					]
+				]
+			]
+		)
+	];
+	return WardrobeBox.ToSharedRef();
 }
 
 void AADPHUD::OpenWardrobe(AWardrobe* W)
@@ -944,33 +1027,67 @@ void AADPHUD::OpenWardrobe(AWardrobe* W)
 	const FVector Me = GetOwningPawn() ? GetOwningPawn()->GetActorLocation() : W->GetActorLocation();
 	W->Dress(AWardrobe::Chosen(), Me);
 	WardrobeCategory = TEXT("Outfits");
+	// the menu is the page's (the title screen's own graphics, src/ui/wardrobe3d.ts), drawn see-through over the room
+	MakeGameView();
+	if (GameBox.IsValid()) GameBox->SetVisibility(EVisibility::Visible);
 	FillWardrobe();
+	WardrobeTicks = 0;
 	W->Look(AWardrobe::EView::Body, GetOwningPlayerController());
-	WardrobeBox->SetVisibility(EVisibility::Visible);
+	// your walking body away while the copy by the wardrobe stands for you (one of you in the picture, and less to draw)
+	if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) if (AActor* H = Wk->HumanActor()) H->SetActorHiddenInGame(true);
+	// the holographic map and the walking bar away while the wardrobe menu is up, back when it closes
+	if (MiniBox.IsValid()) MiniBox->SetVisibility(EVisibility::Collapsed);
+	if (TopBar.IsValid()) TopBar->SetVisibility(EVisibility::Collapsed);
 	UpdateMouse();
 }
 
 void AADPHUD::FillWardrobe()
 {
-	// every category, the open one with its things under it (or "empty"), the one you wear marked
-	if (!WardrobeList.IsValid()) return;
-	WardrobeList->ClearChildren();
-	const FVector Me = GetOwningPawn() ? GetOwningPawn()->GetActorLocation() : FVector::ZeroVector;
-	for (const FString& Cat : AWardrobe::Categories())
+	// the page's menu told what to show: every category, the open one, and what it holds (your real outfits for Outfits,
+	// demo pieces in the others until the clothes are made), the one you wear marked
+	if (!Browser.IsValid()) return;
+	auto Q = [](const FString& In) { return In.Replace(TEXT("\\"), TEXT("\\\\")).Replace(TEXT("\""), TEXT("\\\"")); };
+	FString Cats;
+	for (const FString& C : AWardrobe::Categories()) Cats += FString::Printf(TEXT("%s\"%s\""), Cats.IsEmpty() ? TEXT("") : TEXT(","), *Q(C));
+	FString Items;
+	auto Item = [&](const FString& Label, const FString& Who, bool bOn, const FString& Note)
 	{
-		const bool bOpenCat = Cat == WardrobeCategory;
-		WardrobeList->AddSlot().AutoHeight().Padding(0, 0, 0, 3)[Button((bOpenCat ? TEXT("v  ") : TEXT(">  ")) + Cat.ToUpper(), [this, Cat]() { WardrobeCategory = Cat; FillWardrobe(); if (AWardrobe* Wd = WardrobeOpen.Get()) Wd->Look(AWardrobe::ViewFor(Cat), GetOwningPlayerController()); })];
-		if (!bOpenCat) continue;
-		int32 N = 0;
-		if (Cat == TEXT("Outfits"))
-			for (const AWardrobe::FOutfit& O : AWardrobe::Outfits())
-			{
-				const FString Who = O.Who;
-				const bool bOn = Who == AWardrobe::Chosen();
-				WardrobeList->AddSlot().AutoHeight().Padding(18, 0, 0, 3)[Button((bOn ? TEXT("> ") : TEXT("")) + O.Label, [this, Who, Me]() { if (AWardrobe* Wd = WardrobeOpen.Get()) { Wd->Dress(Who, Me); } FillWardrobe(); })];
-				++N;
-			}
-		if (N == 0) WardrobeList->AddSlot().AutoHeight().Padding(18, 2, 0, 6)[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(FLinearColor(0.6f, 0.7f, 0.8f, 0.8f)).Text(FText::FromString(TEXT("empty")))];
+		Items += FString::Printf(TEXT("%s{\"label\":\"%s\",\"who\":\"%s\",\"on\":%s,\"note\":\"%s\"}"), Items.IsEmpty() ? TEXT("") : TEXT(","), *Q(Label), *Q(Who), bOn ? TEXT("true") : TEXT("false"), *Q(Note));
+	};
+	if (WardrobeCategory == TEXT("Outfits"))
+		for (const AWardrobe::FOutfit& O : AWardrobe::Outfits()) { const bool bOn = O.Who == AWardrobe::Chosen(); Item(O.Label, O.Who, bOn, bOn ? TEXT("wearing") : TEXT("yours")); }
+	else
+	{
+		// demo pieces (owner, 2026-11-12): what the window will look like once the clothes are made
+		static const TMap<FString, TArray<FString>> Demo = {
+			{TEXT("Jackets"), {TEXT("Navy suit jacket"), TEXT("Charcoal blazer"), TEXT("Rain shell"), TEXT("Wool overcoat")}},
+			{TEXT("Shirts"), {TEXT("White shirt"), TEXT("Light blue shirt"), TEXT("Grey tee"), TEXT("Polo, dark green")}},
+			{TEXT("Trousers"), {TEXT("Navy suit trousers"), TEXT("Chinos, sand"), TEXT("Dark jeans")}},
+			{TEXT("Shoes"), {TEXT("Black oxfords"), TEXT("Brown brogues"), TEXT("White trainers")}},
+			{TEXT("Hats"), {TEXT("Flat cap"), TEXT("Beanie, grey")}},
+			{TEXT("Sunglasses"), {TEXT("Aviators"), TEXT("Wayfarer, black")}},
+			{TEXT("Ties"), {TEXT("Navy tie"), TEXT("Burgundy tie"), TEXT("Black bow tie")}}};
+		if (const TArray<FString>* D = Demo.Find(WardrobeCategory)) for (const FString& Name : *D) Item(Name, FString(), false, TEXT("demo, coming"));
+	}
+	Browser->ExecuteJavascript(FString::Printf(TEXT("window.__ueWardrobe && window.__ueWardrobe('{\"cat\":\"%s\",\"cats\":[%s],\"items\":[%s]}')"), *Q(WardrobeCategory), *Cats, *Items).Replace(TEXT("\\\""), TEXT("\\\\\\\"")));
+}
+
+void AADPHUD::WardrobeFromPage(const FString& Action, const FString& Arg)
+{
+	if (!bWardrobe) return;
+	AWardrobe* Wd = WardrobeOpen.Get();
+	if (Action == TEXT("close")) { CloseWardrobe(); return; }
+	if (Action == TEXT("category") && AWardrobe::Categories().Contains(Arg))
+	{
+		WardrobeCategory = Arg;
+		FillWardrobe();
+		if (Wd) Wd->Look(AWardrobe::ViewFor(Arg), GetOwningPlayerController());
+	}
+	if (Action == TEXT("wear") && Wd)
+	{
+		const FVector Me = GetOwningPawn() ? GetOwningPawn()->GetActorLocation() : Wd->GetActorLocation();
+		Wd->Dress(Arg, Me);
+		FillWardrobe();
 	}
 }
 
@@ -979,6 +1096,11 @@ void AADPHUD::CloseWardrobe()
 	if (!bWardrobe) return;
 	bWardrobe = false;
 	if (AWardrobe* Wd = WardrobeOpen.Get()) { Wd->LookBack(GetOwningPlayerController()); Wd->SetOpen(false); }
+	if (Browser.IsValid()) Browser->ExecuteJavascript(TEXT("window.__ueWardrobeClose && window.__ueWardrobeClose()"));
+	if (!bGame && GameBox.IsValid()) GameBox->SetVisibility(EVisibility::Collapsed);
+	if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) if (AActor* H = Wk->HumanActor()) H->SetActorHiddenInGame(false);
+	if (MiniBox.IsValid()) MiniBox->SetVisibility(EVisibility::Visible);
+	if (TopBar.IsValid()) TopBar->SetVisibility(bGame ? EVisibility::Collapsed : EVisibility::Visible);
 	WardrobeOpen = nullptr;
 	WardrobeBox->SetVisibility(EVisibility::Collapsed);
 	Breadcrumb(TEXT("In the 3D airport"));
@@ -1345,6 +1467,7 @@ void AADPHUD::RefreshControls()
 
 void AADPHUD::Tick(float Dt)
 {
+	if (bWardrobe && (++WardrobeTicks == 20 || WardrobeTicks == 90)) FillWardrobe();   // (the page's menu again once the page is surely up)
 	// from the menus into the 3D airport: the loading screen until everything is in (test runs skip it)
 	{
 		static const bool bTest = FParse::Param(FCommandLine::Get(), TEXT("UIShot")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading"));
@@ -1865,7 +1988,7 @@ void AADPHUD::Tick(float Dt)
 		// -UIWardrobe: in your office at the wardrobe: opened (you stand beside it in what you wear), a picture, closed
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")))
 		{
-			auto Shot = [this](const TCHAR* Name) { if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 2 filename=%s"), Name)); };
+			auto Shot = [](const TCHAR* Name) { FScreenshotRequest::RequestScreenshot(Name, true, false); };   // with the menu
 			if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ASunClock::HourOverride = 13.f; ASunClock::Theme = 1; ASunClock::Refresh(); GoTo(FVector(124.f, 0.f, 6.2f), FVector(126.f, 1.3f, 9.6f)); }
 			if (Before < 46.f && ShotClock >= 46.f) Shot(TEXT("Wardrobe_Closed"));
 			if (Before < 47.f && ShotClock >= 47.f)
@@ -1876,12 +1999,14 @@ void AADPHUD::Tick(float Dt)
 				if (Near) OpenWardrobe(Near); else ADP_WARN(TEXT("UIWardrobe: no wardrobe"));
 			}
 			if (Before < 51.f && ShotClock >= 51.f) Shot(TEXT("Wardrobe_Open"));
-			if (Before < 52.f && ShotClock >= 52.f) { WardrobeCategory = TEXT("Hats"); FillWardrobe(); if (AWardrobe* Wd = WardrobeOpen.Get()) Wd->Look(AWardrobe::EView::Face, GetOwningPlayerController()); }
+			if (Before < 52.f && ShotClock >= 52.f) WardrobeFromPage(TEXT("category"), TEXT("Hats"));
 			if (Before < 55.f && ShotClock >= 55.f) Shot(TEXT("Wardrobe_Face"));
-			if (Before < 56.f && ShotClock >= 56.f) { WardrobeCategory = TEXT("Shoes"); FillWardrobe(); if (AWardrobe* Wd = WardrobeOpen.Get()) Wd->Look(AWardrobe::EView::Feet, GetOwningPlayerController()); }
+			if (Before < 56.f && ShotClock >= 56.f) WardrobeFromPage(TEXT("category"), TEXT("Shoes"));
 			if (Before < 59.f && ShotClock >= 59.f) Shot(TEXT("Wardrobe_Feet"));
-			if (Before < 60.f && ShotClock >= 60.f) CloseWardrobe();
-			if (Before < 63.f && ShotClock >= 63.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 60.f && ShotClock >= 60.f) WardrobeFromPage(TEXT("category"), TEXT("Outfits"));
+			if (Before < 63.f && ShotClock >= 63.f) Shot(TEXT("Wardrobe_Outfits"));
+			if (Before < 64.f && ShotClock >= 64.f) CloseWardrobe();
+			if (Before < 67.f && ShotClock >= 67.f) FGenericPlatformMisc::RequestExit(false);
 		}
 		// -UIAirfield: the airfield's grade and edges: down the runway from near the 08 end, an edge close up at taxiway A,
 		// the runway's end from the grass
