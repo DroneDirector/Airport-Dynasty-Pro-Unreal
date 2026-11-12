@@ -45,7 +45,7 @@ for r in plan['rooms']:
     if r.get('f', 1) == 2 and (r['x1'] - r['x0']) * (r['z1'] - r['z0']) > 120:
         cx, cz = (r['x0'] + r['x1']) / 2, (r['z0'] + r['z1']) / 2
         name = r['id'].replace('F2-', '').replace('-', ' ')
-        d.text((P(cx, cz)[0] - len(name) * 3, P(cx, cz)[1] - 6), name, fill=LABEL, font=font)
+        d.text((P(cx, cz)[0] - len(name) * 3, P(cx, cz)[1] - 14), name, fill=LABEL, font=font)
 # the jetways: from each gate's jetway door straight out, a 5-degree slope not seen from above, to the aircraft's door
 stands = {s['id']: s for s in field['stands']}
 jet = [dd for dd in plan['doors'] if dd.get('type') == 'jetway']
@@ -67,7 +67,45 @@ for n, dd in enumerate(sorted(jet, key=lambda q: q['x']), 1):
     tailr = [(2 * P(x, 0)[0] - px, py) for px, py in tailp]
     for poly in (fus, wings, wingr, tailp, tailr):
         d.polygon(poly, outline=AIR, fill=(60, 44, 20)); gd.polygon(poly, outline=AIR, fill=(0, 0, 0))
-    d.text((P(x, tail + 6)[0] - 22, P(x, tail + 6)[1]), 'STAND %d' % n, fill=AIR, font=font)
+    d.text((P(x, tail + 12)[0] - 22, P(x, tail + 12)[1]), 'STAND %d' % n, fill=AIR, font=font)
+# the measures (owner, 2026-11-12): an arrow with its length in metres beside it, holographic style, for every
+# upper-floor room (width and depth) and along the building's outer edges
+ARROW = (255, 230, 150)
+def arrow(a, b, text, offset=(0, 0), col=ARROW):
+    ax, ay = a[0] + offset[0], a[1] + offset[1]; bx, by = b[0] + offset[0], b[1] + offset[1]
+    d.line([(ax, ay), (bx, by)], fill=col, width=1)
+    ang = math.atan2(by - ay, bx - ax)
+    for (px, py, sgn) in ((ax, ay, 1), (bx, by, -1)):
+        for side in (-1, 1):
+            d.line([(px, py), (px + sgn * 7 * math.cos(ang + side * 0.5), py + sgn * 7 * math.sin(ang + side * 0.5))], fill=col, width=1)
+    tw = len(text) * 5.5
+    mx, my = (ax + bx) / 2, (ay + by) / 2
+    if abs(bx - ax) > abs(by - ay): d.text((mx - tw / 2, my - 14), text, fill=col, font=font)
+    else: d.text((mx + 5, my + 6), text, fill=col, font=font)
+def measure_room(r, inner=True):
+    w, dp = r['x1'] - r['x0'], r['z1'] - r['z0']
+    if inner:
+        if w * S > 70: arrow(P(r['x0'] + 1, r['z1'] - 2.2), P(r['x1'] - 1, r['z1'] - 2.2), '%.0f m' % w)
+        if dp * S > 50 and w >= 10: arrow(P(r['x0'] + 2.2, r['z1'] - 1), P(r['x0'] + 2.2, r['z0'] + 1), '%.0f m' % dp)
+for r in plan['rooms']:
+    if r.get('f', 1) == 2: measure_room(r)
+# the outside: the building's extent on the upper floor (its outer edges), measured a little outside the walls
+f2 = [r for r in plan['rooms'] if r.get('f', 1) == 2]
+bx0, bx1 = min(r['x0'] for r in f2), max(r['x1'] for r in f2)
+bz0, bz1 = min(r['z0'] for r in f2), max(r['z1'] for r in f2)
+arrow(P(bx0, bz1 + 4), P(bx1, bz1 + 4), 'UPPER FLOOR  %.0f m' % (bx1 - bx0))
+arrow(P(bx1 + 4, bz1), P(bx1 + 4, bz0), '%.0f m' % (bz1 - bz0))
+# each gate block's length along the front, and the walk's
+for r in f2:
+    if r['id'].startswith('F2-GATE-') and r['id'].count('-') == 2:
+        arrow(P(r['x0'], r['z1'] + 2), P(r['x1'], r['z1'] + 2), '%.0f m' % (r['x1'] - r['x0']))
+# a stand's dimensions once (they are all alike): the aircraft's length and span, and the jetway's reach
+st1 = stands['STAND-1']
+arrow(P(st1['x'] + st1['span'] / 2 + 3, st1['nose']), P(st1['x'] + st1['span'] / 2 + 3, st1['nose'] + st1['len']), 'AIRCRAFT %.1f m' % st1['len'])
+arrow(P(st1['x'] - st1['span'] / 2, st1['nose'] + st1['len'] + 3), P(st1['x'] + st1['span'] / 2, st1['nose'] + st1['len'] + 3), 'SPAN %.0f m' % st1['span'])
+j1 = sorted(jet, key=lambda q: q['x'])[0]
+jl = math.hypot(st1['x'] - 2.6 - j1['x'], st1['nose'] + 0.18 * st1['len'] - j1['z'])
+arrow(P(j1['x'] - 3, j1['z']), P(st1['x'] - 5.6, st1['nose'] + 0.18 * st1['len']), 'JETWAY %.0f m' % jl)
 # the glow laid under the lines
 glow = glow.filter(ImageFilter.GaussianBlur(6))
 img = Image.blend(img, Image.composite(glow, img, glow.convert('L').point(lambda v: min(255, v * 2))), 0.5)
