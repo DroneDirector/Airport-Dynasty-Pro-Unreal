@@ -239,6 +239,11 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       treated your staff); then Load a save / Main menu. Text never overlapping. Reputation never drops to 0 from one
       thing at once: it only falls slowly over time through repeated bad behaviour; only if it ends at 0 are you fired,
       and the explanation sums up what brought it there (the main causes, from the reputation history)
+- [ ] **Rank up / rank down pop-up** (owner, 2026-11-12): whenever a ranking moves from one number to the next (e.g.
+      10 to 11), a beautiful animated pop-up appears where it's noticeable but in nobody's way (not over the crosshair,
+      prompts, gauges or menus), in a calm, relaxing colour, saying which rank you reached ("Rank 11"). Going down
+      plays exactly the same animation in a reddish colour, saying the rank you fell to ("Rank 9"). Names which ranking
+      moved (overall, staff, passengers). Never overlapping other text
 
 ## 5. Graphics settings
 - [x] A "light beams distance" slider (the light masts' haze, now 500 m) so weaker cards can turn it down
