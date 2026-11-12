@@ -330,6 +330,28 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       - Shared world: the personal account, salary, car and house belong to the shared save (Android sees and manages
         them); the house, city, driving and family scenes are PC airport mode only
 
+- [ ] **Cleaners** (owner, 2026-11-12): a new "Cleaners" category in the Crew section of the UI, next to the others,
+      with everything the other staff categories have (hire, see where they come from, pay, schedules, fire...).
+      - **At work:** each cleaner fetches their cleaning trolley (on small wheels, with the soap, buckets and supplies,
+        like real airport cleaning carts) from the cleaners' store room, pushes it to where they work, takes the mop off
+        it and mops the floor round about, moving up to 10-15 m away from the trolley; then goes back, pushes the
+        trolley on another 10-15 m and carries on. They work through every area passengers use: the main hall, the
+        long hallway, the gate areas (never in staff-only areas, never in the jetways, never outside). Done, they hang
+        the mop back on the trolley (the reverse of taking it), push it back to the store room and park it there
+      - **The store room** for the cleaning equipment goes in a terminal extension the owner is still planning; the car
+        park also has to grow (staff cars)
+      - **Their day:** like everyone else (staff, passengers, MetaHumans) they have their own daily rhythm: no popping in
+        or out. They arrive for their shift and leave at the end of it through the staff corridors, never through
+        security
+- [ ] **Staff going home and coming to work, for every role** (owner, 2026-11-12): at the end of the shift each staff
+      member walks from where they finished (e.g. the cleaners from the store room) through the staff corridors and
+      out of the terminal to their own car in the car park (each has a specific car and spot). FOR NOW they get in and
+      sit in it until the next morning, then walk back in to start their shift (the cycle repeats every day). They keep
+      their uniform on going home and coming in, so you can tell who they are (a pilot, a cleaner, a mechanic, a
+      security officer...)
+      - **REMINDER for the owner once the town is fully built:** then make staff who live in your town drive off home
+        to their own house, and the others drive away out of the area, instead of waiting in their cars
+
 ## 7. One shared world with Android (batch 4)
 - [ ] The bridge: the timetable screens and passengers from the world's real flights; airport mode writes back
 - [ ] The automatic one-day check that both setups give exactly the same world
