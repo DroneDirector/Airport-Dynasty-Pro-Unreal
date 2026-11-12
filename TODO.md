@@ -177,7 +177,8 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       prosecution and defence tables, the bar, public benches, its seat list in seats.ts) is rebuilt in Unreal, filled
       with people: the judges, the lawyers (prosecution and defence), the accused, the public listening on the
       benches, and police guarding the doors; MetaHumans in their clothes, sitting, standing to speak, looking at
-      whoever talks. Worked out with the owner later
+      whoever talks. The court building stands in your home town (a courthouse added to the town plan); you drive or
+      fast travel there. Worked out with the owner later
 
 ## 5. Graphics settings
 - [x] A "light beams distance" slider (the light masts' haze, now 500 m) so weaker cards can turn it down
