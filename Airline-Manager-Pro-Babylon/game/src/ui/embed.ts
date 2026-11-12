@@ -53,6 +53,10 @@ if (EMBED) {
         (window as any).__ngPilot = { sex: EMBED_SEX === 'f' ? 'f' : 'm', look: defaultLook(EMBED_SEX === 'f' ? 'f' : 'm', 'captain') };
         ACTIONS['fs-scratch'](null as any, null as any);
         const d = $('.fs-modal .fs-diff') as HTMLElement; if (d) d.remove();   // chosen on the stage
+        // the home base is the airport we built, Mýrdalssandur in Iceland (BIAP): fixed, not chosen (owner, 2026-11-13)
+        _fsHub = 'BIAP';
+        const hb = $('.fs-modal .fs-hub-btn') as HTMLElement;
+        if (hb) { hb.classList.remove('need'); hb.removeAttribute('data-act'); hb.classList.add('fixed'); hb.innerHTML = `${icon('pin')}BIAP · Mýrdalssandur`; const lbl = hb.parentElement && hb.parentElement.querySelector('span'); if (lbl) lbl.textContent = 'Home base'; }
         const h = $('.fs-modal h2'), sm = $('.fs-modal .modal-head small'), w = $('.fs-modal .fine-print'), b = $('.fs-modal [data-act=fs-wipe]'), x = $('.fs-modal [data-act=close-layer]'), bk = $('.fs-modal [data-act=fs-back]');
         if (h) h.textContent = 'Found your airline';
         if (sm) sm.textContent = 'Your name, your airline, its home. You can change all of this later.';
