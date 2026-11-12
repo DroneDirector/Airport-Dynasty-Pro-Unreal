@@ -221,8 +221,8 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       conversation with any AI person (passenger, crew, anyone)
       - **Cutting someone off:** you can leave a conversation at once; they stop talking mid-sentence and react to
         being cut off, varied: sometimes nothing, sometimes just a sound ("huh") and they move on, sometimes a line
-        saying they didn't like it (with the MetaHuman voice and face). Being rude like this often can count towards
-        how you treat staff / passengers in the rankings (to be confirmed with the owner)
+        saying they didn't like it (with the MetaHuman voice and face). Cutting people off often counts against you in
+        the rankings: staff for crew, passengers for passengers (approved by the owner 2026-11-12)
 
 ## 5. Graphics settings
 - [x] A "light beams distance" slider (the light masts' haze, now 500 m) so weaker cards can turn it down
