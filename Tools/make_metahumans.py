@@ -9,6 +9,11 @@
 #       lists the presets, the wardrobe (hair, brows, beards, outfits) and their colour parameters -> Saved/MetaHumans.json
 #   ... "make_metahumans.py build [count] [first]"
 #       builds the people (count of them, from number first; already built ones are kept), in /Game/People
+#   ... "make_metahumans.py refit [count] [first]"
+#       the people already made, put right without Epic's cloud (2026-11-12: one hairstyle instead of the preset's own
+#       plus ours, the body's build through the Fat measure, hair colour and grey on the one hair, beards only where
+#       meant) and built again at crowd quality; a person whose body is the wrong sex is reported and left for 'build'
+#       (delete their asset and Built folder first)
 import json
 import os
 import random
@@ -43,8 +48,9 @@ def assets_under(path, cls=None):
 def inspect():
     info = {'presets': [], 'wardrobe': {}}
     # which of Epic's preset faces are women (the others men; those not sure of are left out of both)
-    women = ('Ada', 'Aera', 'Aoi', 'Asha', 'Celeste', 'Etta', 'Grace', 'Jelena', 'Lani', 'Sook-ja', 'Sunita', 'Tuya', 'Vivian', 'Zuri')
-    unsure = ('Bo', 'Cameron')
+    # (2026-11-12, read from the presets' own bodies, Saved/MetaHumanPresetBodies.json: Aoi is a man, Bo and Cameron too)
+    women = ('Ada', 'Aera', 'Asha', 'Celeste', 'Etta', 'Grace', 'Jelena', 'Lani', 'Sook-ja', 'Sunita', 'Tuya', 'Vivian', 'Zuri')
+    unsure = ()
     info['female'] = []
     for c in assets_under('/MetaHumanCharacter/Optional/Presets', unreal.MetaHumanCharacter):
         if c.get_name() in unsure:
@@ -212,6 +218,117 @@ def person(i):
     }
 
 
+# ---- the body's build: the parametric body's own measures (Saved/MetaHumanPresetBodies.json lists them all):
+# 'Fat' (-2.75 .. 2.75) is the one that makes a person slim or heavy; the waist and hips go with it for the very
+# overweight; teenagers a little less muscular; the height as asked
+FAT = {'slim': -1.0, 'average': 0.2, 'sturdy': 1.2, 'heavy': 2.2, 'obese': 2.75}   # (2026-11-12 test: 1.5 still looked slim, 2.6 clearly heavy)
+
+
+def body_shape(ch, cons, spec):
+    if 'height' in cons:
+        cons['height'].is_active = True; cons['height'].target_measurement = spec['height']
+    if 'fat' in cons:
+        cons['fat'].is_active = True; cons['fat'].target_measurement = FAT[spec['build']]
+    if spec['build'] == 'obese':
+        for key, f in (('waist', 1.3), ('hip', 1.18), ('high_hip', 1.25), ('chest', 1.15), ('thigh', 1.2), ('neck', 1.1)):
+            if key in cons:
+                cons[key].is_active = True; cons[key].target_measurement = cons[key].target_measurement * f
+    if spec.get('teen') and 'muscularity' in cons:
+        cons['muscularity'].is_active = True; cons['muscularity'].target_measurement = -0.8
+    mhs.set_body_constraints(ch, list(cons.values()))
+    mhs.commit_body_state(ch)
+
+
+def masc_fem(ch):
+    """The body's own Masculine/Feminine measure (above 0 a woman's body)."""
+    for c in mhs.get_body_constraints(ch):
+        if str(c.name).lower().startswith('masculine'):
+            return float(c.target_measurement)
+    return 0.0
+
+
+# ---- the wardrobe: one item in a slot (the preset's own replaced, never added to), or the slot emptied
+def wear_one(ch, slot, item_path, rng=None):
+    if item_path is None:
+        try:
+            ch.internal_collection.default_instance.set_single_slot_selection(slot_name=slot, item_key=unreal.MetaHumanPaletteItemKey())
+        except Exception as e:
+            log('%s: could not empty the %s slot: %s' % (ch.get_name(), slot, e))
+        return None
+    wi = unreal.load_asset(item_path)
+    key = ch.internal_collection.try_add_item_from_wardrobe_item(slot, wi)
+    ch.internal_collection.default_instance.set_single_slot_selection(slot_name=slot, item_key=key)
+    return key
+
+
+def dress(ch, spec, info, rng):
+    """Hair, brows, beard (or none), the outfit: one of each, in this person's colours."""
+    def pick(slot, keyword_ok=None):
+        items = [p for p in info['wardrobe'].get(slot, []) if keyword_ok is None or keyword_ok(p.lower())]
+        return items[rng.randrange(len(items))] if items else None
+    long_ok = (lambda p: True) if spec['female'] else (lambda p: '_l_' not in p or rng.random() < 0.1)
+    hair = wear_one(ch, 'Hair', pick('Hair', long_ok))
+    wear_one(ch, 'Eyebrows', pick('Eyebrows'))
+    wear_one(ch, 'Beard', pick('Beard') if spec['beard'] else None)
+    wear_one(ch, 'Mustache', None)
+    outfit = wear_one(ch, 'Outfits', pick('Outfits'))
+    mhs.assemble_for_preview(character=ch)
+    def params(key):
+        return ch.internal_collection.default_instance.get_instance_parameters(item_path=unreal.MetaHumanPaletteItemPath(item_key=key)) if key else []
+    for p in params(hair):
+        if p.name == 'Melanin': p.set_float(value=spec['hair_melanin'])
+        if p.name in ('Greyness', 'Grayness', 'GreyAmount'): p.set_float(value=spec['grey'])
+    prim, sec = spec['colours']
+    for p in params(outfit):
+        n = str(p.name).lower()
+        if 'primarycolor' in n: p.set_color(value=unreal.LinearColor(prim[0], prim[1], prim[2], 1))
+        elif 'secondarycolor' in n: p.set_color(value=unreal.LinearColor(sec[0], sec[1], sec[2], 1))
+    sel = [str(d.selection.slot_name) for d in ch.internal_collection.default_instance.get_slot_selection_data()]
+    log('%s wears: %s' % (ch.get_name(), ', '.join(sel)))
+
+
+def build_and_save(ch, name):
+    bp = unreal.MetaHumanCharacterEditorBuildParameters()
+    bp.pipeline_type = unreal.MetaHumanDefaultPipelineType.OPTIMIZED
+    bp.pipeline_quality = unreal.MetaHumanQualityLevel.LOW   # crowd quality (owner, 2026-11-12): card hair, lighter textures
+    bp.absolute_build_path = OUT + '/Built'
+    bp.common_folder_path = OUT + '/Common'
+    bp.enable_wardrobe_item_validation = False
+    mhs.build_meta_human(character=ch, params=bp)
+    eal.save_loaded_asset(ch, False)
+    eal.save_directory(OUT + '/Built/' + name, only_if_is_dirty=False, recursive=True)
+    eal.save_directory(OUT + '/Common', only_if_is_dirty=False, recursive=True)
+
+
+def refit(spec, info):
+    name = 'MH_%03d_%s' % (spec['i'], spec['role'])
+    path = OUT + '/' + name
+    if not eal.does_asset_exist(path):
+        log(name + ' not made yet (build it)')
+        return
+    ch = unreal.load_asset(path)
+    if not mhs.try_add_object_to_edit(ch):
+        unreal.log_error('ADP_MH: could not edit ' + name)
+        return
+    try:
+        mf = masc_fem(ch)
+        if spec['female'] != (mf > -0.3):
+            log('%s SEX MISMATCH: planned %s, the body says %.1f (build it again from a right preset)' % (name, 'woman' if spec['female'] else 'man', mf))
+            return
+        cons = {str(c.name).lower().replace(' ', '_').replace('/', '_'): c for c in mhs.get_body_constraints(ch)}
+        body_shape(ch, cons, spec)
+        dress(ch, spec, info, random.Random(spec['pick'] ^ 0x5A5A))
+        # the old build's files go (the preset's hair and beard would stay on disk otherwise)
+        if eal.does_directory_exist(OUT + '/Built/' + name): eal.delete_directory(OUT + '/Built/' + name)
+        build_and_save(ch, name)
+        log('%s refitted: %s, %s, %d, %.0f cm, %s' % (name, spec['role'], 'woman' if spec['female'] else 'man', spec['age'], spec['height'], spec['build']))
+    except Exception as e:
+        unreal.log_error('ADP_MH: %s refit failed: %s' % (name, e))
+    finally:
+        if mhs.is_object_added_for_editing(ch):
+            mhs.remove_object_to_edit(ch)
+
+
 # ---- making one
 def make(spec, info):
     name = 'MH_%03d_%s' % (spec['i'], spec['role'])
@@ -264,21 +381,7 @@ def make(spec, info):
         cons = {str(c.name).lower().replace(' ', '_'): c for c in mhs.get_body_constraints(ch)}
         if 'height' in cons:
             cons['height'].is_active = True; cons['height'].target_measurement = spec['height']
-        if spec['build'] == 'obese':
-            # every part of the body fuller, the middle most (the first part name found in each constraint's name)
-            log('body constraints: ' + ', '.join(sorted(cons)))
-            for key, c in cons.items():
-                if key == 'height':
-                    continue
-                f = next((f for part, f in OBESE_PARTS if part in key), None)
-                if f: c.is_active = True; c.target_measurement = c.target_measurement * f
-        else:
-            girth = {'slim': 0.9, 'average': 1.0, 'sturdy': 1.08, 'heavy': 1.2}[spec['build']]
-            for key in ('waist', 'waist_circumference', 'belly'):
-                if key in cons:
-                    c = cons[key]; c.is_active = True; c.target_measurement = c.target_measurement * girth
-        mhs.set_body_constraints(ch, list(cons.values()))
-        mhs.commit_body_state(ch)
+        body_shape(ch, cons, spec)
         # the skin
         sk = unreal.MetaHumanCharacterSkinSettings()
         sp = unreal.MetaHumanCharacterSkinProperties(); sp.u = spec['skin_u']; sp.v = spec['skin_v']; sp.roughness = (0.68 if spec.get('teen') else 0.8) + 0.1 * rng.random()
@@ -286,51 +389,16 @@ def make(spec, info):
         fr = unreal.MetaHumanCharacterFrecklesProperties(); fr.density = spec['freckles']; fr.strength = min(1.0, spec['freckles'] * 3)
         sk.freckles = fr
         mhs.commit_skin_settings(ch, sk)
-        # hair, brows, beard, outfit from the library (owner can add more later; this picks among what is there)
-        def wear(slot, keyword_ok=None):
-            items = [p for p in info['wardrobe'].get(slot, []) if keyword_ok is None or keyword_ok(p.lower())]
-            if not items:
-                return None
-            wi = unreal.load_asset(items[rng.randrange(len(items))])
-            key = ch.internal_collection.try_add_item_from_wardrobe_item(slot if slot != 'Beard' else 'Beard', wi)
-            ch.internal_collection.default_instance.try_add_slot_selection(unreal.MetaHumanPipelineSlotSelection(slot_name=slot, selected_item=key))
-            return key
-        long_ok = (lambda p: True) if spec['female'] else (lambda p: '_l_' not in p or rng.random() < 0.1)
-        hair = wear('Hair', long_ok)
-        wear('Eyebrows')
-        if spec['beard']:
-            wear('Beard')
-        outfit = wear('Outfits')
-        mhs.assemble_for_preview(character=ch)
-        # colours: the hair's darkness and grey, the outfit in the role's colours
-        def params(key):
-            return ch.internal_collection.default_instance.get_instance_parameters(item_path=unreal.MetaHumanPaletteItemPath(item_key=key)) if key else []
-        for p in params(hair):
-            if p.name == 'Melanin': p.set_float(value=spec['hair_melanin'])
-            if p.name in ('Greyness', 'Grayness', 'GreyAmount'): p.set_float(value=spec['grey'])
-        prim, sec = spec['colours']
-        for p in params(outfit):
-            n = str(p.name).lower()
-            if 'primarycolor' in n: p.set_color(value=unreal.LinearColor(prim[0], prim[1], prim[2], 1))
-            elif 'secondarycolor' in n: p.set_color(value=unreal.LinearColor(sec[0], sec[1], sec[2], 1))
+        # hair, brows, beard (or none), the outfit: one of each in place of the preset's own, in this person's colours
+        dress(ch, spec, info, rng)
         # Epic's cloud: the face rig (joints only: lighter, for crowds) and the skin textures
         rq = unreal.MetaHumanCharacterAutoRiggingRequestParams(); rq.blocking = True; rq.report_progress = False
         rq.rig_type = unreal.MetaHumanRigType.JOINTS_ONLY
         mhs.request_auto_rigging(ch, rq)
         tq = unreal.MetaHumanCharacterTextureRequestParams(); tq.blocking = True; tq.report_progress = False
         mhs.request_texture_sources(ch, tq)
-        # the game build: optimized, crowd quality
-        bp = unreal.MetaHumanCharacterEditorBuildParameters()
-        bp.pipeline_type = unreal.MetaHumanDefaultPipelineType.OPTIMIZED
-        bp.pipeline_quality = unreal.MetaHumanQualityLevel.LOW   # crowd quality (owner, 2026-11-12): card hair, lighter textures
-        bp.absolute_build_path = OUT + '/Built'
-        bp.common_folder_path = OUT + '/Common'
-        bp.enable_wardrobe_item_validation = False
-        mhs.build_meta_human(character=ch, params=bp)
-        eal.save_loaded_asset(ch, False)
-        # the built person (their blueprint, meshes, textures) and the shared parts, saved to disk
-        eal.save_directory(OUT + '/Built/' + name, only_if_is_dirty=False, recursive=True)
-        eal.save_directory(OUT + '/Common', only_if_is_dirty=False, recursive=True)
+        # the game build: optimized, crowd quality; the person and the shared parts saved to disk
+        build_and_save(ch, name)
         log('%s made: %s, %s, %d, %.0f cm, %s, from %s' % (name, 'teenager' if spec.get('teen') else spec['role'], ('girl' if spec.get('teen') else 'woman') if spec['female'] else ('boy' if spec.get('teen') else 'man'), spec['age'], spec['height'], spec['build'], os.path.basename(src)))
     except Exception as e:
         unreal.log_error('ADP_MH: %s failed: %s' % (name, e))
@@ -344,6 +412,9 @@ try:
     if MODE == 'build':
         for i in range(FIRST, FIRST + COUNT):
             make(person(i), info)
+    if MODE == 'refit':
+        for i in range(FIRST, FIRST + COUNT):
+            refit(person(i), info)
         with open(os.path.join(unreal.Paths.project_saved_dir(), 'MetaHumanPeople.json'), 'w') as f:
             json.dump([person(i) for i in range(FIRST, FIRST + COUNT)], f, indent=1)
 except Exception as e:
