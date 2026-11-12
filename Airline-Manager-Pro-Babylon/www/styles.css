@@ -526,7 +526,7 @@ html.ue-stage body > *:not(.wy) { visibility: hidden !important; }
 .wy.chosen .wy-half { cursor: default; }
 .wy-hint { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); display: flex; gap: 22px; align-items: center; font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: rgba(225, 215, 255, .45); white-space: nowrap; }
 .wy-hint b { font-weight: 500; color: rgba(225, 215, 255, .8); }
-.wy-panel { position: absolute; top: 50%; transform: translateY(-50%); width: min(340px, 30vw); animation: wdIn .6s .1s var(--ease) both; }
+.wy-panel { position: absolute; top: 50%; translate: 0 -50%; width: min(340px, 30vw); max-height: 92vh; overflow: visible; animation: wdIn .6s .1s var(--ease) both; }   /* (translate, not transform: the slide-in animation ends on transform: none) */
 .wy-panel.wy-right { right: clamp(32px, 5vw, 96px); }
 .wy-panel.wy-left { left: clamp(32px, 5vw, 96px); }
 .wy-panel .ts-nav { margin-top: 10px; gap: 6px; }

@@ -190,7 +190,7 @@ void ADPCharacterCreate::BuildConcept(UWorld* W, APlayerController* PC, bool bWo
 			R->SetIntensity(2000.f);
 			R->SetSourceWidth(18.f); R->SetSourceHeight(260.f);
 			R->SetAttenuationRadius(1400.f);
-			R->SetVolumetricScatteringIntensity(1.6f);
+			R->SetVolumetricScatteringIntensity(4.f);
 			R->SetCastShadows(true);
 		}
 	}
@@ -252,7 +252,7 @@ void ADPCharacterCreate::BuildConcept(UWorld* W, APlayerController* PC, bool bWo
 			F->SetFogMaxOpacity(1.f);
 			F->SetStartDistance(0.f);
 			F->SetFogInscatteringColor(FLinearColor(0.02f, 0.04f, 0.09f));
-			FExponentialHeightFogData Haze; Haze.FogDensity = 0.005f; Haze.FogHeightFalloff = 0.3f; Haze.FogHeightOffset = 200.f;
+			FExponentialHeightFogData Haze; Haze.FogDensity = 0.014f; Haze.FogHeightFalloff = 0.3f; Haze.FogHeightOffset = 200.f;   // (a faint haze in the air: the tubes' light seen round them)
 			F->SetSecondFogData(Haze);
 			F->SetVolumetricFog(true);
 			F->SetVolumetricFogScatteringDistribution(0.35f);

@@ -41,7 +41,7 @@ function renderCreator(side: string) {
     <div class="wy-panel wy-${side === 'left' ? 'left' : 'right'}">
       <div class="wd-k">Coming with the character creator</div><div class="wd-t">Your looks</div>
       <nav class="ts-nav">${parts.map(([t, ic], i) => `<button class="ts-btn ${i === 0 ? 'on' : ''}" data-part="${t}"><span class="ts-bi">${icon(ic)}</span><span class="ts-bt"><b>${t}</b><small>soon</small></span><i class="ts-sheen"></i></button>`).join('')}
-        <button class="ts-btn wy-next" data-done="1"><span class="ts-bi">${icon('play')}</span><span class="ts-bt"><b>Next</b><small>Your pet · your partner · then your airline</small></span><i class="ts-sheen"></i></button>
+        <button class="ts-btn wy-next" data-done="1"><span class="ts-bi">${icon('play')}</span><span class="ts-bt"><b>Next</b><small>On to your airline</small></span><i class="ts-sheen"></i></button>
       </nav>
     </div>`;
 }

@@ -36,6 +36,8 @@ ITEMS = [
  ('32b', 'Character creator: the screen (face, skin, body, height, hair, clothes), saved, a switch turns it on; fog clears round you at shoes', '1 day (3 parts)', ['people'], '32, 32a, wardrobe', False),
  ('32c', 'New game: pets (pick one or none) and married or not, then the looks of the spouse (the creator again); then to the Overview', '2-3 h', ['people'], '32b', False),
  ('32d', 'Concept renders of every new-game step (creator, pets, spouse) in the neon style, for the owner to see first', '2 h', ['people'], '32', False),
+ ('32e', 'New game economy: no demo content ever (kept outside as backup), difficulty as the last neon step, money per difficulty (hard: one used A320-class + crew + spare), crew always bought, one-aircraft starter warning', '3-4 h', ['people'], '32', False),
+ ('32f', 'New game: Start game button, neon loading screen (animated bar, file names + percent, tips), no game loader or plaque after the title; into the Overview only when fully loaded', '2-3 h', ['people'], '32e', False),
  ('13a', 'Uniforms: cabin crew + pilots', '2 h', ['people'], '2, 3', False),
  ('13b', 'Uniforms: ground crew, security, fire crew', '2 h', ['people'], '13a', False),
  ('13c', 'Passengers: clothes variety', '2 h', ['people'], '13a', False),
