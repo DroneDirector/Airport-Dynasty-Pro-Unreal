@@ -196,6 +196,13 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       (red); the ranking line's colour shifts smoothly between these as the score moves, and a small buffer stops a
       rank flickering up and down at a boundary. Reaching certain ranks earns rewards, for you and for the airport,
       as in the Babylon edition (trophies, plaques, badges); a low staff ranking can put you in the news (radio item)
+- [ ] **Up to 5,000 awards** (owner, 2026-11-12): badges, plaques, trophies, medals and certificates to earn, for you
+      and for the airport, growing to 5,000 in all (the Babylon edition has 22 achievements in game/src/core/goals.ts
+      plus the career awards in career-rides.ts; those carry over and the rest are added in tiers and series, each with
+      its own name, look and condition, never duplicates)
+      - **The museum** (the Vortex Gallery) shows the airport's awards on its display places. You can swap any displayed
+        award for another one you've earned, or let the game choose: it picks one at random, puts it up and takes
+        another one down. Swaps are saved in the shared world
 
 ## 5. Graphics settings
 - [x] A "light beams distance" slider (the light masts' haze, now 500 m) so weaker cards can turn it down
