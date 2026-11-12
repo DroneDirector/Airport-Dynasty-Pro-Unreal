@@ -184,6 +184,13 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       - **The town's people** (owner, 2026-11-12): AI citizens living in your town, each with a real home and their own
         daily routine (work, shopping, home, sleep). Staff you hire show where they come from; those registered in your
         town finish their shift, get into their own car, drive home along the road and go into their real house
+      - **Homes in town, how they work** (owner, 2026-11-12): every house in town can be someone's home, but not every
+        house has to be filled: only the people who actually live in your town get one (most of them NOT airport staff).
+        Houses have no interiors (except yours): a citizen walks up to their front door, goes in, the door shuts and
+        they are unloaded; coming out plays the same thing in reverse (door opens, they step out) and they walk about
+        town or get into their car and drive to a real destination (petrol station, grocery shop, work...)
+      - **Citizens who work at your airport** keep their own schedule like in real life: you see them leave home in
+        time, drive to the airport, park, walk in to work, and drive home again after their shift
       - **Shops and fuel:** buy groceries in town; petrol stations; public chargers for electric cars, and charging at
         home if you own an electric car. The charging cable is handled with the same animation as the fire station's
         wash hose (picked up, plugged into the car, hung back), only charging instead of water
