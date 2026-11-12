@@ -252,7 +252,7 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
         the overall ranking goes up 1; every 10 it loses, the overall goes down 1 (counted per sub-ranking)
       - the colour bands (80-100 excellent ... 0-19 very poor) are read as a share of each ranking's range
         (so for the overall ranking: 4,000-5,000 excellent, 3,000-3,999 good, 2,000-2,999 neutral, 1,000-1,999
-        poor, 0-999 very poor)
+        poor, 0-999 very poor; approved by the owner 2026-11-12)
 
 ## 5. Graphics settings
 - [x] A "light beams distance" slider (the light masts' haze, now 500 m) so weaker cards can turn it down
