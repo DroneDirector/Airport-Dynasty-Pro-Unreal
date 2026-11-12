@@ -49,6 +49,7 @@
 #include "Widgets/Input/SSlider.h"
 #include "GrassField.h"
 #include "FlightViewer.h"
+#include "CharacterCreate.h"
 #include "TerrainPacks.h"
 #include "Components/LocalLightComponent.h"
 #include "ADPFrameGen.h"
@@ -2052,6 +2053,44 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 56.f && ShotClock >= 56.f) { if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) Wk->SetThirdPerson(false); ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
 			if (Before < 57.f && ShotClock >= 57.f) FGenericPlatformMisc::RequestExit(false);
 		}
+		// -UIGender: the concept of the new career's "who are you" screen (owner, 2026-11-12): the dark neon room with
+		// the fog, she in the light and he in shadow, with the title screen's lettering over it
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIGender")))
+		{
+			auto Shot = [](const TCHAR* Name) { FScreenshotRequest::RequestScreenshot(Name, true, false); };
+			if (Before < 40.f && ShotClock >= 40.f)
+			{
+				if (bGame) ToggleGame();
+				ASunClock::DayOverride = 172; ASunClock::HourOverride = 23.5f; ASunClock::Theme = 1; ASunClock::Refresh();
+				if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) if (AActor* H = Wk->HumanActor()) H->SetActorHiddenInGame(true);
+				if (TopBar.IsValid()) TopBar->SetVisibility(EVisibility::Collapsed);
+				if (MiniBox.IsValid()) MiniBox->SetVisibility(EVisibility::Collapsed);
+				if (Credit.IsValid()) Credit->SetVisibility(EVisibility::Collapsed);
+				bHidden = true;   // (the airport's interface away: this is its own screen)
+				ADPCharacterCreate::BuildConcept(GetWorld(), GetOwningPlayerController(), true);
+				if (GEngine && GEngine->GameViewport)
+					GEngine->GameViewport->AddViewportWidgetContent(
+						SNew(SOverlay)
+						+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(64, 56, 0, 0)
+						[
+							SNew(SVerticalBox)
+							+ SVerticalBox::Slot().AutoHeight()[Neon::Small(TEXT("Airport Dynasty Pro  ·  a new career"))]
+							+ SVerticalBox::Slot().AutoHeight().Padding(0, 6, 0, 0)[SNew(STextBlock).Text(FText::FromString(TEXT("WHO ARE YOU?"))).Font(Neon::Face(34, 120)).ColorAndOpacity(FLinearColor::White)]
+							+ SVerticalBox::Slot().AutoHeight().Padding(0, 10, 0, 0)[Neon::Small(TEXT("She, or he  ·  then make them yours"), FLinearColor(Neon::Paper.R, Neon::Paper.G, Neon::Paper.B, 0.7f))]
+						]
+						+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(0, 0, 0, 44)
+						[
+							SNew(SHorizontalBox)
+							+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 300, 0)[SNew(STextBlock).Text(FText::FromString(TEXT("SHE"))).Font(Neon::Face(18, 300)).ColorAndOpacity(Neon::Pink)]
+							+ SHorizontalBox::Slot().AutoWidth().Padding(300, 0, 0, 0)[SNew(STextBlock).Text(FText::FromString(TEXT("HE"))).Font(Neon::Face(18, 300)).ColorAndOpacity(FLinearColor(Neon::Paper.R, Neon::Paper.G, Neon::Paper.B, 0.35f))]
+						], 20);
+			}
+			if (Before < 46.f && ShotClock >= 46.f) ADPCharacterCreate::Choose(true);
+			if (Before < 51.f && ShotClock >= 51.f) Shot(TEXT("Creator_She"));
+			if (Before < 52.f && ShotClock >= 52.f) ADPCharacterCreate::Choose(false);
+			if (Before < 57.f && ShotClock >= 57.f) Shot(TEXT("Creator_He"));
+			if (Before < 59.f && ShotClock >= 59.f) FGenericPlatformMisc::RequestExit(false);
+		}
 		// -UIGate: you at gate 4's window (from behind inside, towards your face from the apron), then walking out the
 		// jetway (from behind inside it, and from outside through its glass), summer afternoon light (owner, 2026-11-12)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIGate")))
@@ -2348,7 +2387,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are
