@@ -211,6 +211,27 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
   brows, beards; uniforms still to make as MetaHuman garments (pilot, cabin crew, ground crew hi-vis, security, fire
   crew; the library has one default garment only). Then the crowd uses them (walk/idle from the mannequin set), far
   crowds as baked-animation instances (AnimToTexture); each role's own actions (serving, bag checks, marshalling, hose).
+- **Security detection dogs (K9)** (owner, 2026-11-12; with the security people, after the MetaHumans): security
+  officers can work a detection dog for drugs and other contraband in passengers' bags.
+  - **The dog:** a good-looking, fully animated dog (the owner sends how it should look). Walk, trot, run, sniff with
+    nose down, sit on its haunches, lie down, stand and stare; normal calm breathing (chest and flanks) most of the time,
+    and every now and then fast panting with the mouth open and the tongue out. Our own model or a commercially
+    licensed one (licence checked first).
+  - **On the lead:** the officer holds it on a short lead (about 1.8 m) while screening passengers and bags; the lead is
+    drawn as a real rope between hand and collar, slack or tight.
+  - **Let loose:** for gameplay reasons (catching a running criminal, or a free search sniffing round an area) the officer
+    unclips the lead; the dog ranges on its own but always within a radius of its officer: working radius about 15 m in
+    the terminal (in sight, on voice control), called back if it gets past about 20 m; on a chase it may go further
+    until the person is caught, then returns. A long line (about 18 m) as an in-between option for searches. All three
+    distances as tunable settings.
+  - **Finding drugs:** the dog smells contraband in a bag (real dogs find it reliably right next to the source and
+    rarely from much more than a few metres away, so it must pass close: about 2 m sure, fading out to about 5 m).
+    It alerts the trained "passive" way used at airports: it stops, sits next to the bag or person and stares at it,
+    waiting for its officer; the officer rewards it (a pat, a toy) and deals with the passenger.
+  - **The guilty passenger reacts:** if the bag's owner is nearby when the dog sits, they react: shocked or scared look,
+    a step back, glancing around, maybe trying to walk away (which can start the chase).
+  - Which passengers carry something comes from the shared world (part of the passenger's data), so Android knows it
+    too; the dog and the scene are airport mode on the PC only.
 - Getting in and out of vehicles, the full pass (owner, 2026-11-11): the same animation for NPCs and the player - walk
   over, open the door by its handle, climb the steps holding the handles, walk to and sit in the middle seat, hands on
   the wheel, feet on the pedals, eyes out through the windscreen, then drive; out the same way. Every contact point read
