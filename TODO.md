@@ -224,6 +224,14 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
         saying they didn't like it (with the MetaHuman voice and face). Cutting people off often counts against you in
         the rankings: staff for crew, passengers for passengers (approved by the owner 2026-11-12)
 
+- [ ] **Drinking and getting drunk** (owner, 2026-11-12; as in the Babylon edition's bar, src/sections/lounge/bar.ts,
+      but written anew for Unreal): each drink makes you more drunk: swaying view and walk, unsteady steps, and at the
+      top you can't walk any more: you really fall to your knees, put your hands out in front so you don't hit the
+      floor face first, struggle and get back up (without falling again), then walk on; keep drinking and you fall
+      again. After about 20 seconds the effect wears off and you are sober, and your character says one of several
+      random lines, e.g. "I shouldn't be drinking on the job, that wasn't too smart." The more you drink on the job,
+      the more your reputation drops (boss reputation, seen by staff and passengers)
+
 ## 5. Graphics settings
 - [x] A "light beams distance" slider (the light masts' haze, now 500 m) so weaker cards can turn it down
 - [~] Many more graphics controls in Settings (owner, 2026-11-09): sliders per quality group (view distance, upscaler,
