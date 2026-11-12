@@ -34,7 +34,7 @@ ITEMS = [
  ('32',  'New game: the "who are you" screen (she left / he right, neon tubes, floor fog, the chosen one steps into the light), hover + pad, confirm', '2-3 h', ['people'], 'concept done', False),
  ('32a', 'Character creator: the parts library (faces x skin tones, bodies, hair fits), unattended', '19 h PC', ['people'], '2', False),
  ('32b', 'Character creator: the screen (face, skin, body, height, hair, clothes), saved, a switch turns it on; fog clears round you at shoes', '1 day (3 parts)', ['people'], '32, 32a, wardrobe', False),
- ('32c', 'New game: pets (pick one or none) and married or not, then the spouse's looks (the creator again); then to the Overview', '2-3 h', ['people'], '32b', False),
+ ('32c', 'New game: pets (pick one or none) and married or not, then the looks of the spouse (the creator again); then to the Overview', '2-3 h', ['people'], '32b', False),
  ('32d', 'Concept renders of every new-game step (creator, pets, spouse) in the neon style, for the owner to see first', '2 h', ['people'], '32', False),
  ('13a', 'Uniforms: cabin crew + pilots', '2 h', ['people'], '2, 3', False),
  ('13b', 'Uniforms: ground crew, security, fire crew', '2 h', ['people'], '13a', False),
