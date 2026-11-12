@@ -34,6 +34,23 @@ public:
 	/** The one standing there taken away (the wardrobe closed). */
 	void Undress();
 
+	// the changing room (owner, 2026-11-12, as in the big open-world games): the camera glides in and frames you big on
+	// the right of the screen with the menu to the left, the room behind you blurred as a portrait photo while you stay
+	// sharp; what you are changing sets the view: the whole body, your face (hats, sunglasses), your feet (shoes)
+	enum class EView : uint8 { Body, Face, Feet };
+	/** The categories the menu shows, always all of them (an empty one reads empty). */
+	static const TArray<FString>& Categories();
+	static EView ViewFor(const FString& Category);
+	/** The camera to the changing-room view of you (From: your own view, where the glide starts). */
+	void Look(EView View, class APlayerController* PC);
+	/** The camera back to you. */
+	void LookBack(class APlayerController* PC);
+
+private:
+	UPROPERTY() TObjectPtr<class ACameraActor> Cam;
+	EView ViewNow = EView::Body;
+	void PlaceCam(EView View);
+
 private:
 	UPROPERTY() TObjectPtr<USceneComponent> Root;
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> Body;

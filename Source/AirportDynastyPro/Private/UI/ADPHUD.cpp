@@ -350,7 +350,7 @@ void AADPHUD::BeginPlay()
 			]
 		]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[Settings.ToSharedRef()]
-		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Center).Padding(0, 0, 40, 0)[WardrobeBox.ToSharedRef()]
+		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Center).Padding(48, 0, 0, 0)[WardrobeBox.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[CrashPanel.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[UnstuckPanel.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Fill).VAlign(VAlign_Fill)[LoadingBox.ToSharedRef()]
@@ -927,7 +927,7 @@ TSharedRef<SWidget> AADPHUD::MakeWardrobe()
 			[
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)[SNew(STextBlock).Text(FText::FromString(TEXT("YOUR WARDROBE"))).Font(Font(14)).ColorAndOpacity(Ink)]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 8)[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true).Text(FText::FromString(TEXT("Pick an outfit: you stand beside the wardrobe wearing it. Every outfit made for you shows up here. E or Esc closes the doors.")))]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 8)[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true).Text(FText::FromString(TEXT("Pick a category, then what to wear: you stand beside the wardrobe in it. Everything made for you shows up here. E or Esc closes the doors.")))]
 				+ SVerticalBox::Slot().AutoHeight()[SAssignNew(WardrobeList, SVerticalBox)]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 10, 0, 0)[Button(TEXT("CLOSE"), [this]() { CloseWardrobe(); })]
 			]
@@ -941,25 +941,44 @@ void AADPHUD::OpenWardrobe(AWardrobe* W)
 	WardrobeOpen = W;
 	W->SetOpen(true);
 	Breadcrumb(TEXT("At your wardrobe"));
-	// the outfits, the one you wear first
-	WardrobeList->ClearChildren();
 	const FVector Me = GetOwningPawn() ? GetOwningPawn()->GetActorLocation() : W->GetActorLocation();
-	for (const AWardrobe::FOutfit& O : AWardrobe::Outfits())
-	{
-		const FString Who = O.Who;
-		const bool bOn = Who == AWardrobe::Chosen();
-		WardrobeList->AddSlot().AutoHeight().Padding(0, 0, 0, 4)[Button((bOn ? TEXT("> ") : TEXT("")) + O.Label, [this, Who, Me]() { if (AWardrobe* Wd = WardrobeOpen.Get()) Wd->Dress(Who, Me); })];
-	}
-	if (AWardrobe* Wd = WardrobeOpen.Get()) Wd->Dress(AWardrobe::Chosen(), Me);
+	W->Dress(AWardrobe::Chosen(), Me);
+	WardrobeCategory = TEXT("Outfits");
+	FillWardrobe();
+	W->Look(AWardrobe::EView::Body, GetOwningPlayerController());
 	WardrobeBox->SetVisibility(EVisibility::Visible);
 	UpdateMouse();
+}
+
+void AADPHUD::FillWardrobe()
+{
+	// every category, the open one with its things under it (or "empty"), the one you wear marked
+	if (!WardrobeList.IsValid()) return;
+	WardrobeList->ClearChildren();
+	const FVector Me = GetOwningPawn() ? GetOwningPawn()->GetActorLocation() : FVector::ZeroVector;
+	for (const FString& Cat : AWardrobe::Categories())
+	{
+		const bool bOpenCat = Cat == WardrobeCategory;
+		WardrobeList->AddSlot().AutoHeight().Padding(0, 0, 0, 3)[Button((bOpenCat ? TEXT("v  ") : TEXT(">  ")) + Cat.ToUpper(), [this, Cat]() { WardrobeCategory = Cat; FillWardrobe(); if (AWardrobe* Wd = WardrobeOpen.Get()) Wd->Look(AWardrobe::ViewFor(Cat), GetOwningPlayerController()); })];
+		if (!bOpenCat) continue;
+		int32 N = 0;
+		if (Cat == TEXT("Outfits"))
+			for (const AWardrobe::FOutfit& O : AWardrobe::Outfits())
+			{
+				const FString Who = O.Who;
+				const bool bOn = Who == AWardrobe::Chosen();
+				WardrobeList->AddSlot().AutoHeight().Padding(18, 0, 0, 3)[Button((bOn ? TEXT("> ") : TEXT("")) + O.Label, [this, Who, Me]() { if (AWardrobe* Wd = WardrobeOpen.Get()) { Wd->Dress(Who, Me); } FillWardrobe(); })];
+				++N;
+			}
+		if (N == 0) WardrobeList->AddSlot().AutoHeight().Padding(18, 2, 0, 6)[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(FLinearColor(0.6f, 0.7f, 0.8f, 0.8f)).Text(FText::FromString(TEXT("empty")))];
+	}
 }
 
 void AADPHUD::CloseWardrobe()
 {
 	if (!bWardrobe) return;
 	bWardrobe = false;
-	if (AWardrobe* Wd = WardrobeOpen.Get()) Wd->SetOpen(false);
+	if (AWardrobe* Wd = WardrobeOpen.Get()) { Wd->LookBack(GetOwningPlayerController()); Wd->SetOpen(false); }
 	WardrobeOpen = nullptr;
 	WardrobeBox->SetVisibility(EVisibility::Collapsed);
 	Breadcrumb(TEXT("In the 3D airport"));
@@ -1857,8 +1876,12 @@ void AADPHUD::Tick(float Dt)
 				if (Near) OpenWardrobe(Near); else ADP_WARN(TEXT("UIWardrobe: no wardrobe"));
 			}
 			if (Before < 51.f && ShotClock >= 51.f) Shot(TEXT("Wardrobe_Open"));
-			if (Before < 53.f && ShotClock >= 53.f) CloseWardrobe();
-			if (Before < 56.f && ShotClock >= 56.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 52.f && ShotClock >= 52.f) { WardrobeCategory = TEXT("Hats"); FillWardrobe(); if (AWardrobe* Wd = WardrobeOpen.Get()) Wd->Look(AWardrobe::EView::Face, GetOwningPlayerController()); }
+			if (Before < 55.f && ShotClock >= 55.f) Shot(TEXT("Wardrobe_Face"));
+			if (Before < 56.f && ShotClock >= 56.f) { WardrobeCategory = TEXT("Shoes"); FillWardrobe(); if (AWardrobe* Wd = WardrobeOpen.Get()) Wd->Look(AWardrobe::EView::Feet, GetOwningPlayerController()); }
+			if (Before < 59.f && ShotClock >= 59.f) Shot(TEXT("Wardrobe_Feet"));
+			if (Before < 60.f && ShotClock >= 60.f) CloseWardrobe();
+			if (Before < 63.f && ShotClock >= 63.f) FGenericPlatformMisc::RequestExit(false);
 		}
 		// -UIAirfield: the airfield's grade and edges: down the runway from near the 08 end, an edge close up at taxiway A,
 		// the runway's end from the grass
@@ -1888,6 +1911,19 @@ void AADPHUD::Tick(float Dt)
 			// your body turned round to face the camera (the camera stays where it is behind the capsule)
 			if (Before < 52.f && ShotClock >= 52.f) if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) if (AActor* H = Wk->HumanActor()) H->AddActorLocalRotation(FRotator(0.f, 180.f, 0.f));
 			if (Before < 55.f && ShotClock >= 55.f) Shot(TEXT("Body_Front"));
+			if (Before < 56.f && ShotClock >= 56.f) { if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) Wk->SetThirdPerson(false); ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
+			if (Before < 57.f && ShotClock >= 57.f) FGenericPlatformMisc::RequestExit(false);
+		}
+		// -UIHallWalk: you walking in the main hall of the passenger terminal (owner, 2026-11-12), from behind and from the front
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")))
+		{
+			auto Shot = [this](const TCHAR* Name) { if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 2 filename=%s"), Name)); };
+			if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 14.f; ASunClock::Theme = 1; ASunClock::Refresh(); GoTo(FVector(58.f, 0.f, 4.f), FVector(88.f, 1.7f, 22.f)); if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) Wk->SetThirdPerson(true); }
+			if (ShotClock >= 44.f && ShotClock < 49.f) if (APawn* Me = GetOwningPawn()) Me->AddMovementInput(Me->GetActorForwardVector(), 1.f);
+			if (Before < 47.f && ShotClock >= 47.f) Shot(TEXT("Hall_Walking_Behind"));
+			if (Before < 50.f && ShotClock >= 50.f) if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) if (AActor* H = Wk->HumanActor()) H->AddActorLocalRotation(FRotator(0.f, 180.f, 0.f));
+			if (ShotClock >= 51.f && ShotClock < 55.f) if (APawn* Me = GetOwningPawn()) Me->AddMovementInput(-Me->GetActorForwardVector(), 1.f);
+			if (Before < 53.5f && ShotClock >= 53.5f) Shot(TEXT("Hall_Walking_Front"));
 			if (Before < 56.f && ShotClock >= 56.f) { if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) Wk->SetThirdPerson(false); ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
 			if (Before < 57.f && ShotClock >= 57.f) FGenericPlatformMisc::RequestExit(false);
 		}
@@ -2187,7 +2223,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

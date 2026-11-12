@@ -8,6 +8,11 @@
 #include "Misc/ConfigCacheIni.h"
 #include "ADPWalker.h"
 #include "Kismet/GameplayStatics.h"
+#include "Camera/CameraActor.h"
+#include "Camera/CameraComponent.h"
+#include "GameFramework/PlayerController.h"
+#include "Animation/AnimSequence.h"
+#include "Components/SkeletalMeshComponent.h"
 
 namespace
 {
@@ -108,10 +113,25 @@ void AWardrobe::Dress(const FString& Who, const FVector& LookFrom)
 	// faces its own right: its yaw is the facing's less a quarter turn)
 	const FTransform T = GetActorTransform();
 	const FVector At = T.TransformPosition(FVector(135.f, -115.f, 0.f));
+	// turned a little off the room's axis, the way the open-world changing rooms stand you: three-quarter to the camera
 	FVector Face = LookFrom - At; Face.Z = 0.f;
-	const float Yaw = Face.IsNearlyZero() ? T.Rotator().Yaw : Face.Rotation().Yaw;
+	const float Yaw = (Face.IsNearlyZero() ? T.Rotator().Yaw : Face.Rotation().Yaw) + 20.f;
 	FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	Preview = GetWorld()->SpawnActor<AActor>(C, At, FRotator(0.f, Yaw - 90.f, 0.f), P);
+	// standing naturally while you look (the mannequin's idle carried over to the MetaHuman body), the clothes following
+	if (Preview)
+	{
+		TArray<USkeletalMeshComponent*> Skels; Preview->GetComponents<USkeletalMeshComponent>(Skels);
+		USkeletalMeshComponent* Skel = nullptr;
+		for (USkeletalMeshComponent* S : Skels) if (S->GetName().StartsWith(TEXT("Body"))) Skel = S;
+		if (Skel)
+		{
+			static UAnimSequence* Idle = LoadObject<UAnimSequence>(nullptr, TEXT("/Game/People/Anims/MM_Idle_MH.MM_Idle_MH"));
+			for (USkeletalMeshComponent* S : Skels) if (S != Skel && !S->GetName().StartsWith(TEXT("Face"))) S->SetLeaderPoseComponent(Skel);
+			if (Idle) { Skel->SetAnimationMode(EAnimationMode::AnimationSingleNode); Skel->SetAnimation(Idle); Skel->Play(true); }
+		}
+	}
+	if (Cam) PlaceCam(ViewNow);
 	GConfig->SetString(TEXT("ADP.Player"), TEXT("Outfit"), *Who, GGameUserSettingsIni);
 	GConfig->Flush(false, GGameUserSettingsIni);
 	if (AADPWalker* Me = Cast<AADPWalker>(UGameplayStatics::GetPlayerPawn(this, 0))) Me->WearMetaHuman(Who);
@@ -121,4 +141,65 @@ void AWardrobe::Dress(const FString& Who, const FVector& LookFrom)
 void AWardrobe::Undress()
 {
 	if (Preview) { Preview->Destroy(); Preview = nullptr; }
+}
+
+const TArray<FString>& AWardrobe::Categories()
+{
+	static const TArray<FString> C = {TEXT("Outfits"), TEXT("Jackets"), TEXT("Shirts"), TEXT("Trousers"), TEXT("Shoes"), TEXT("Hats"), TEXT("Sunglasses"), TEXT("Ties")};
+	return C;
+}
+
+AWardrobe::EView AWardrobe::ViewFor(const FString& Category)
+{
+	if (Category == TEXT("Hats") || Category == TEXT("Sunglasses")) return EView::Face;
+	if (Category == TEXT("Shoes")) return EView::Feet;
+	return EView::Body;
+}
+
+void AWardrobe::PlaceCam(EView View)
+{
+	if (!Cam || !Preview) return;
+	// you on the right third of the screen: the camera stands before you, shifted to your right (its left) and aimed a
+	// little past you; close for the face, looking down for the feet, the whole body otherwise
+	const FTransform T = Preview->GetActorTransform();
+	const FVector Face = T.GetRotation().RotateVector(FVector(0.f, 1.f, 0.f));   // a MetaHuman faces its own +y
+	const FVector Right = FVector::CrossProduct(FVector::UpVector, Face).GetSafeNormal();
+	FVector Target, Eye; float Fov = 50.f, Focus = 300.f;
+	switch (View)
+	{
+	case EView::Face: Target = T.GetLocation() + FVector(0, 0, 165.f); Eye = Target + Face * 95.f + Right * 32.f + FVector(0, 0, 4.f); Fov = 36.f; Focus = 95.f; break;
+	case EView::Feet: Target = T.GetLocation() + FVector(0, 0, 18.f); Eye = Target + Face * 150.f + Right * 55.f + FVector(0, 0, 70.f); Fov = 42.f; Focus = 165.f; break;
+	default: Target = T.GetLocation() + FVector(0, 0, 100.f); Eye = Target + Face * 330.f + Right * 120.f + FVector(0, 0, 20.f); Fov = 48.f; Focus = 340.f; break;
+	}
+	Cam->SetActorLocationAndRotation(Eye, (Target - Eye).Rotation());
+	UCameraComponent* C = Cam->GetCameraComponent();
+	C->SetFieldOfView(Fov);
+	C->SetConstraintAspectRatio(false);
+	// the portrait look: a wide-open lens focused on you, so the room behind goes soft and you stay sharp
+	C->PostProcessSettings.bOverride_DepthOfFieldFocalDistance = true; C->PostProcessSettings.DepthOfFieldFocalDistance = Focus;
+	C->PostProcessSettings.bOverride_DepthOfFieldFstop = true; C->PostProcessSettings.DepthOfFieldFstop = 1.2f;
+	C->PostProcessSettings.bOverride_DepthOfFieldSensorWidth = true; C->PostProcessSettings.DepthOfFieldSensorWidth = 36.f;
+	C->PostProcessSettings.bOverride_DepthOfFieldMinFstop = true; C->PostProcessSettings.DepthOfFieldMinFstop = 1.2f;
+	C->PostProcessBlendWeight = 1.f;
+	ViewNow = View;
+}
+
+void AWardrobe::Look(EView View, APlayerController* PC)
+{
+	if (!PC || !Preview) return;
+	const bool bFirst = !Cam;
+	if (!Cam)
+	{
+		FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		Cam = GetWorld()->SpawnActor<ACameraActor>(PC->PlayerCameraManager ? PC->PlayerCameraManager->GetCameraLocation() : GetActorLocation(), PC->PlayerCameraManager ? PC->PlayerCameraManager->GetCameraRotation() : FRotator::ZeroRotator, P);
+	}
+	PlaceCam(View);
+	// the glide: from where you looked the first time, a quick move between views after
+	PC->SetViewTargetWithBlend(Cam, bFirst ? 0.9f : 0.5f, EViewTargetBlendFunction::VTBlend_EaseInOut, 2.f);
+}
+
+void AWardrobe::LookBack(APlayerController* PC)
+{
+	if (PC && PC->GetPawn()) PC->SetViewTargetWithBlend(PC->GetPawn(), 0.6f, EViewTargetBlendFunction::VTBlend_EaseInOut, 2.f);
+	if (Cam) { Cam->Destroy(); Cam = nullptr; }
 }

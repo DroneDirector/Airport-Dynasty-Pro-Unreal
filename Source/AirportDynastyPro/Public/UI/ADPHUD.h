@@ -251,6 +251,8 @@ private:
 	TSharedPtr<SWidget> CaptionBox;
 	TSharedPtr<SWidget> WardrobeBox;
 	TSharedPtr<class SVerticalBox> WardrobeList;
+	FString WardrobeCategory;
+	void FillWardrobe();
 	TWeakObjectPtr<class AWardrobe> WardrobeOpen;
 	TSharedRef<SWidget> MakeWardrobe();
 	TSharedPtr<class STextBlock> Credit;
