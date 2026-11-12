@@ -41,6 +41,25 @@ are pictures only: 10-20 minutes each, no new garment. Everything is done in 2-3
 
 Loose and tight cuts are different garments (a loose tee and a fitted tee); the list above has both where it matters.
 
+## B2. Accessories and shoes (owner, 2026-11-12)
+
+Accessories are wardrobe items like hair: made once, put on a person at the 3-minute re-fit, no extra build.
+Each is a small model (0.5-1 h) with its fabric or material from the library.
+
+| Group | Items | Hours |
+|---|---|---|
+| Sunglasses | aviator, wayfarer-style, round, sport wrap | 3 |
+| Caps and hats | baseball cap, beanie, bucket hat, flat cap, wide-brim sunhat, wool hat with bobble | 5 |
+| Ties | plain tie, striped tie, knitted tie, bow tie (black, patterned) | 2.5 |
+| Shoes | sneakers (two cuts), leather shoes, boots, winter boots, sandals, heels, work boots, pilots' and crew's dress shoes | 8 |
+| **Accessories in all** | | **about 18 h** |
+
+Not done: changing clothes between outside and inside (a coat taken off indoors). People wear one outfit; those
+dressed for the cold keep it on in the terminal, as many real passengers do.
+
+**Breath in the cold (not clothing, a game effect, on the list):** outside the terminal every person's breath shows
+as a small puff of vapour with each breath when the air is cold, the player's too; never indoors. About 2 h.
+
 ## C. Prints and colours (variety for almost nothing)
 
 A sports car on a tee, a Hawaiian print, stripes, a jeans wash, a jacket colour: 10-20 minutes each, drawn by us
@@ -88,11 +107,12 @@ figures; the launch total below uses the real ones.
 | The fabric library, made once (H) | 15 |
 | Uniforms (A), at the quality bar | 80 |
 | Passengers (B), at the quality bar | 55 |
+| Accessories and shoes (B2) | 18 |
 | 50 prints and colours (C), each a real design | 15 |
 | Your wardrobe (D) | 4 |
 | Fit testing (E) | 8 |
 | Dressing passes, unattended, in agreed pieces | 7 |
-| **Total** | **about 185 h: at 3 h a day, about 60 days** |
+| **Total** | **about 205 h: at 3 h a day, about 68 days** |
 
 Order: the fabric library first (everything needs it), then uniforms (crew are needed in the game before
 passengers' variety matters), then the everyday passengers, then warm and cold, teenagers, the rest. Every finished
