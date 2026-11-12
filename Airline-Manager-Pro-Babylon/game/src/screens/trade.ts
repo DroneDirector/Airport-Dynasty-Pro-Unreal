@@ -91,6 +91,7 @@ function rerenderUsed() { const p = $('.used-pop .panel'); if (p) patchHtml(p, u
 ACTIONS['buy-used'] = el => { if (!canTrade()) return; Sound.tick(); _used = { id: el.getAttribute('data-id'), base: company().hub }; openLayer('modal', usedSheetHtml(), { cls: 'wide used-pop' }); };
 ACTIONS['buy-used-go'] = () => {
   if (!canTrade()) return;
+  if (starterWarn()) return;
   const S: any = State, list = usedList(), u = list.filter(x => x.id === _used.id)[0]; if (!u) return;
   const t = acType(u.typeId), c = company(), base = _used.base || c.hub;
   if (noStandsFor(base, 1)) { toast('Not enough free stands there: choose another base', 'warn'); return; }

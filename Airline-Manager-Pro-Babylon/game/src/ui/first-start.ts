@@ -2,10 +2,12 @@
 
 function firstStartWelcome(withRestore: boolean) {
   if (splashShowing()) { setTimeout(() => firstStartWelcome(withRestore), 1000); return; }
-  if (titleShowing()) return;   // the start screen offers New game and the demo itself
+  if (titleShowing()) return;   // the start screen offers New game
+  // no demo airlines any more (owner, 2026-11-12): straight to founding your own airline from nothing
+  if (!withRestore) { ACTIONS['fs-scratch'](null as any, null as any); return; }
   openLayer('modal', `<div class="modal-head"><div><h2>Welcome to ${esc(APP.name)}</h2><small>How would you like to start?</small></div></div>
     <div class="fs-choice">
-      <button class="fs-card" data-act="fs-demo"><span class="fs-ic">${icon('play')}</span><b>Explore the demo airlines</b><small>Three airlines with aircraft, routes, crew and flights already running. Look around, try everything, and start your own company any time.</small></button>
+      <button class="fs-card" data-act="fs-scratch" hidden><span class="fs-ic">${icon('play')}</span><b>Explore the demo airlines</b><small>Three airlines with aircraft, routes, crew and flights already running. Look around, try everything, and start your own company any time.</small></button>
       <button class="fs-card" data-act="fs-scratch"><span class="fs-ic">${icon('plus')}</span><b>Start from scratch</b><small>Everything wiped: no aircraft, staff, routes or history. You found your own airline, with starting money, and build it up yourself.</small></button>
     </div>
     ${withRestore ? `<div class="btn-row fs-restore"><small>Used the app before?</small><button class="btn ghost sm" data-act="backup-folder-restore">${icon('download')}Choose my backup folder</button><button class="btn ghost sm" data-act="backup-import">${icon('download')}Open a backup file</button></div>` : ''}`, { cls: 'fs-modal' });
@@ -48,6 +50,18 @@ ACTIONS['fs-wipe'] = () => {
   wipeToScratch({ kind: _fsKind, name, icao, callsign: (v('.fs-call') || name.split(' ')[0]).toUpperCase(), hub, pilot: v('.fs-pilot') });
 };
 
+/** The starting money (owner, 2026-11-12): one used A320-class aircraft (ten years old, fair condition) is the measure.
+ *  Hard: that one, used, plus the crew it needs and some spare for fuel and the first weeks, never a second one.
+ *  Normal: a little more room. Easy and Cruising: a lot. Regional and bush outfits scaled down to their aircraft. */
+function startingMoney(kind: string, d: Difficulty): number {
+  const t = AIRCRAFT.filter(x => x.id === 'a320-fenix')[0] || AIRCRAFT.filter(x => x.id === 'a320neo')[0] || AIRCRAFT.filter(x => x.cls === 'airliner')[0] || AIRCRAFT[0];   // the A320-214: 'an A320 or equivalent'
+  const tenYearsAgo = new Date(Date.now() - 10 * 365.25 * 864e5).toISOString().slice(0, 10);
+  const used = aircraftValue({ typeId: t.id, condition: 76, delivered: tenYearsAgo, hoursMin: 0, cycles: 0 } as any);
+  const mult = ({ cruise: 8, easy: 4, normal: 1.6, hard: 1.22, extreme: 1.1 } as any)[d] || 1.6;
+  const scale = kind === 'bush' ? 0.06 : kind === 'regional' ? 0.48 : 1;
+  return Math.max(500000, Math.round(used * mult * scale / 10000) * 10000);
+}
+
 /** A new game: everything is erased and begins from nothing (companies, pilots, aircraft, staff, routes, flights,
  *  money, loans, logbook, news, markets, history, your pet) except your settings and the app's registration, and one
  *  new airline is founded with your pilot (as created on the start screen, or the one you had). */
@@ -65,9 +79,11 @@ function wipeToScratch(o: { kind: string; name: string; icao: string; callsign: 
   }
   const id = 'co-' + uid();
   st.companies = [{ id, profileId: 'p1', name: o.name, icao: o.icao, callsign: o.callsign, hub: o.hub, color: '#2C8CFF', color2: '#0B2A55',
-    balance: Math.round((o.kind === 'bush' ? 1500000 : o.kind === 'regional' ? 12000000 : 25000000) * DIFFICULTY[_fsDiff].start / 100000) * 100000, reputation: 50, founded: dateStr(new Date()).slice(0, 10), kind: o.kind, divisions: [] }];
+    balance: startingMoney(o.kind, _fsDiff), reputation: 50, founded: dateStr(new Date()).slice(0, 10), kind: o.kind, divisions: [] }];
   st.profiles = [{ id: 'p1', pilotId: 'you', label: 'Main profile' }];
-  st.freeCrew = { [id]: 'offered' };   // the first crew for free (crew-start.ts)
+  st.freeCrew = {};   // the crew is always bought, in every difficulty (owner, 2026-11-12)
+  st.starter = true;  // one aircraft to start with, until its crew is hired (crew-start.ts starterBlocks)
+  if (st.settings && (!st.settings.autosaveMin || st.settings.autosaveMin === '0')) st.settings = Object.assign({}, st.settings, { autosaveMin: '10' });   // autosave on for a new career
   st.poolFill = true;   // the hiring list is filled to POOL_MIN of every kind as the new career opens (staffing.ts)
   const look = (np && np.look) || old.look;
   st.pilots = [{ id: 'you', name: (np && np.name) || o.pilot || old.name || 'Capt. New Pilot', rank: 'Captain', hoursMin: 0, landings: 0, base: o.hub, you: true, profileId: 'p1', status: 'standby', types: [], rating: 4, xp: 0,
@@ -86,6 +102,7 @@ function wipeToScratch(o: { kind: string; name: string; icao: string; callsign: 
   const T = Store.native(); if (T && T.backupWrite && !Mode.coop()) T.backupWrite({ data: json }).catch(() => { /* the web copy is there */ });
   try { sessionStorage.setItem('amp-title-next', 'game'); } catch (e) { /* ignore */ }
   try { localStorage.setItem('amp-resume', JSON.stringify({ at: Date.now(), screen: 'ops' })); localStorage.setItem('amp-tour', '1'); localStorage.removeItem('amp-ui'); } catch (e) { /* ignore */ }
+  try { if (typeof embedTell === 'function') embedTell('loading'); } catch (e) { /* alone */ }   // the edition's loading screen until the game is in
   location.reload();
 }
 

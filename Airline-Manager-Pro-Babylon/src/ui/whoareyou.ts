@@ -11,7 +11,7 @@ import { icon } from './icons';
 import { splashTakeMusic, splashGiveMusic } from './splash';
 import { S, saveSettings } from '../core/settings';
 
-const Wy: any = { root: null as HTMLElement | null, audio: null as HTMLAudioElement | null, stage: '', side: '', step: 0, hover: '', chosen: false, key$: null as any, raf: 0, padA: false, padB: false, padX: 0 };
+const Wy: any = { root: null as HTMLElement | null, audio: null as HTMLAudioElement | null, stage: '', side: '', step: 0, diff: '', padY: 0, hover: '', chosen: false, key$: null as any, raf: 0, padA: false, padB: false, padX: 0 };
 
 function tell(action: string, arg = '') { if (action === 'cancel') musicEnd(true); const u = ue(); if (u && u.whoareyou) u.whoareyou(action, arg); }
 
@@ -60,15 +60,28 @@ const STEPS: { id: string; k: string; t: string; parts: [string, string][] }[] =
   { id: 'creator', k: 'Coming with the character creator', t: 'Your looks', parts: [['Face', 'star'], ['Skin', 'grid'], ['Body', 'plus'], ['Height', 'mountain'], ['Hair', 'save'], ['Clothes', 'folder']] },
   { id: 'pet', k: 'Coming: a companion at home', t: 'Your pet', parts: [['Dog', 'star'], ['Cat', 'star'], ['No pet', 'close']] },
   { id: 'partner', k: 'Coming: married, or not', t: 'Your partner', parts: [['Married', 'star'], ['Single', 'close'], ['Their looks', 'grid']] },
+  { id: 'difficulty', k: 'How hard your career is', t: 'Difficulty', parts: [['Cruising along', 'star'], ['Easy', 'star'], ['Normal', 'star'], ['Hard', 'star'], ['Extreme', 'star']] },
+];
+// the difficulty (the game's own levels): what aircraft cost, what flights earn, how markets swing, and the money you
+// start with: on Hard one used A320-class aircraft, its crew and a little spare; more on Normal; a lot on Easy
+const DIFFS: [string, string, string][] = [
+  ['cruise', 'Cruising along', 'Cheap aircraft, generous passengers, calm markets. Just enjoy flying.'],
+  ['easy', 'Easy', 'A forgiving start with room for mistakes, and plenty of money.'],
+  ['normal', 'Normal', 'Real-world prices and margins. One aircraft and a little room.'],
+  ['hard', 'Hard', 'Thin margins, pricier aircraft. One used aircraft, its crew, little spare.'],
+  ['extreme', 'Extreme', 'Every dollar counts. Markets swing hard. For experts.'],
 ];
 function renderStep(n: number, side: string) {
   const r = Wy.root; if (!r) return;
-  const st = STEPS[n], last = n === STEPS.length - 1;
+  const st = STEPS[n], last = n === STEPS.length - 1, isDiff = st.id === 'difficulty';
+  if (isDiff && !Wy.diff) Wy.diff = 'normal';
   r.innerHTML = `<div class="wy-head"><div class="wd-k">Airport Dynasty Pro  ·  a new career</div><div class="wy-t">Make them yours</div><div class="wd-k wy-sub">Step ${n + 2} of ${STEPS.length + 1}  ·  ${st.t.toLowerCase()}</div></div>
     ${muteHtml()}
     <div class="wy-panel wy-${side === 'left' ? 'left' : 'right'}">
       <div class="wd-k">${st.k}</div><div class="wd-t">${st.t}</div>
-      <nav class="ts-nav">${st.parts.map(([t, ic], i) => `<button class="ts-btn ${i === 0 ? 'on' : ''}" data-part="${t}"><span class="ts-bi">${icon(ic)}</span><span class="ts-bt"><b>${t}</b><small>soon</small></span><i class="ts-sheen"></i></button>`).join('')}
+      <nav class="ts-nav">${isDiff
+        ? DIFFS.map(([id, t, hint]) => `<button class="ts-btn ${id === Wy.diff ? 'on' : ''}" data-diff="${id}"><span class="ts-bi">${icon('star')}</span><span class="ts-bt"><b>${t}</b><small>${hint}</small></span><i class="ts-sheen"></i></button>`).join('')
+        : st.parts.map(([t, ic], i) => `<button class="ts-btn ${i === 0 ? 'on' : ''}" data-part="${t}"><span class="ts-bi">${icon(ic)}</span><span class="ts-bt"><b>${t}</b><small>soon</small></span><i class="ts-sheen"></i></button>`).join('')}
         <div class="wy-row">
           <button class="ts-btn wy-back" data-back="1"><span class="ts-bi">${icon('back')}</span><span class="ts-bt"><b>Back</b><small class="pad">B</small></span><i class="ts-sheen"></i></button>
           <button class="ts-btn wy-next ${last ? 'hot' : ''}" data-next="1"><span class="ts-bi">${icon('play')}</span><span class="ts-bt"><b>${last ? 'Start game' : 'Next'}</b><small><span class="pad">A · </span>${last ? 'Load your airline' : STEPS[n + 1].t}</small></span><i class="ts-sheen"></i></button>
@@ -76,9 +89,14 @@ function renderStep(n: number, side: string) {
       </nav>
     </div>`;
 }
+function diffMove(d: number) {
+  const i = Math.max(0, DIFFS.findIndex(x => x[0] === (Wy.diff || 'normal'))), j = Math.min(DIFFS.length - 1, Math.max(0, i + d));
+  Wy.diff = DIFFS[j][0];
+  if (Wy.root) Wy.root.querySelectorAll('[data-diff]').forEach((b: Element) => b.classList.toggle('on', b.getAttribute('data-diff') === Wy.diff));
+}
 function stepTo(n: number) {
   if (n < 0) { tell('back'); Wy.stage = 'reverse'; if (Wy.root) Wy.root.innerHTML = ''; return; }   // the stage reverses; Unreal brings the choice back
-  if (n >= STEPS.length) { musicEnd(false); tell('done'); return; }
+  if (n >= STEPS.length) { musicEnd(false); tell('done', Wy.diff || 'normal'); return; }
   Wy.step = n; Wy.stage = 'step'; renderStep(n, Wy.side);
 }
 
@@ -90,7 +108,9 @@ function padPoll() {
     if (Wy.root) Wy.root.classList.toggle('has-pad', !!p);
     if (p) {
       const x = (p.axes[0] || 0) + (p.buttons[14] && p.buttons[14].pressed ? -1 : 0) + (p.buttons[15] && p.buttons[15].pressed ? 1 : 0);
+      const y = (p.axes[1] || 0) + (p.buttons[12] && p.buttons[12].pressed ? -1 : 0) + (p.buttons[13] && p.buttons[13].pressed ? 1 : 0);
       if (Wy.stage === 'choose') { if (x < -0.5) hover('she'); else if (x > 0.5) hover('he'); }
+      if (Wy.stage === 'step' && STEPS[Wy.step].id === 'difficulty') { const dy = y < -0.5 ? -1 : y > 0.5 ? 1 : 0; if (dy && dy !== Wy.padY) diffMove(dy); Wy.padY = dy; }
       const a = !!(p.buttons[0] && p.buttons[0].pressed), b = !!(p.buttons[1] && p.buttons[1].pressed);
       if (a && !Wy.padA) { if (Wy.stage === 'choose') choose(); else if (Wy.stage === 'step') stepTo(Wy.step + 1); }
       if (b && !Wy.padB) { if (Wy.stage === 'step') stepTo(Wy.step - 1); else if (Wy.stage === 'choose') tell('cancel'); }
@@ -109,7 +129,11 @@ function open(stage: string, side = '') {
       const t = e.target as HTMLElement;
       if (t.closest('[data-mute]')) { muteToggle(); return; }
       if (Wy.stage === 'choose') { const h = t.closest('[data-who]') as HTMLElement | null; if (h) { hover(h.getAttribute('data-who') || ''); choose(); } return; }
-      if (Wy.stage === 'step') { if (t.closest('[data-next]')) stepTo(Wy.step + 1); else if (t.closest('[data-back]')) stepTo(Wy.step - 1); }
+      if (Wy.stage === 'step') {
+        const d = t.closest('[data-diff]') as HTMLElement | null;
+        if (d) { Wy.diff = d.getAttribute('data-diff') || 'normal'; Wy.root.querySelectorAll('[data-diff]').forEach((b: Element) => b.classList.toggle('on', b === d)); return; }
+        if (t.closest('[data-next]')) stepTo(Wy.step + 1); else if (t.closest('[data-back]')) stepTo(Wy.step - 1);
+      }
     });
     Wy.key$ = (e: KeyboardEvent) => {
       if (!Wy.root) return;
@@ -120,6 +144,7 @@ function open(stage: string, side = '') {
         else if (e.key === 'ArrowRight') { e.preventDefault(); hover('he'); }
         else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(); }
       } else if (Wy.stage === 'step' && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); stepTo(Wy.step + 1); }
+      else if (Wy.stage === 'step' && STEPS[Wy.step].id === 'difficulty' && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) { e.preventDefault(); diffMove(e.key === 'ArrowUp' ? -1 : 1); }
     };
     window.addEventListener('keydown', Wy.key$, true);
     Wy.raf = requestAnimationFrame(padPoll);

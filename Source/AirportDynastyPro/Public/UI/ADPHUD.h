@@ -51,7 +51,7 @@ public:
 	/** New game: the "who are you" stage (the page's overlay over Unreal's neon room), then the game's own new-game flow. */
 	void OpenWhoAreYou();
 	void WhoAreYouFromPage(const FString& Action, const FString& Arg);
-	void CloseWhoAreYou(bool bGoOn);
+	void CloseWhoAreYou(bool bGoOn, const FString& Difficulty = FString());
 	bool bWhoAreYou = false, bWhoAreYouCreator = false, bWhoAreYouBack = false;
 	/** Bloom and blur (Settings): 0 off, 1 low, 2 medium, 3 high, 4 epic; kept in the game's settings file. */
 	void SetBloom(int32 Level);

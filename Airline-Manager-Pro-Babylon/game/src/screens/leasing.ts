@@ -112,6 +112,7 @@ ACTIONS['lease-div'] = el => { _lease.div = el.getAttribute('data-div'); Sound.t
 ACTIONS['lease-confirm'] = () => {
   if (noStandsFor(_lease.base || company().hub, _lease.qty)) { toast('Not enough free stands there: choose another base', 'warn'); return; }
   if (!canTrade()) return;
+  if (starterWarn()) return;
   const t = acType(_lease.id), c = company();
   const monthly = leaseMonthly(t.price, _lease.years), deposit = monthly * 2, now = Date.now();
   const regs = nextRegs(c, _lease.qty), from = c.balance;

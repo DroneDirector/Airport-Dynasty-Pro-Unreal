@@ -8,6 +8,9 @@
 //    are being rebuilt on Babylon.js: until each is ready, it says so. The 3D view of a flight opens the edition's
 //    3D viewer.
 const EMBED: string = (() => { try { return new URLSearchParams(location.search).get('embed') || ''; } catch (e) { return ''; } })();
+// the new career's choices made on the edition's neon stage: the difficulty and whether you are a woman or a man
+const EMBED_DIFF: string = (() => { try { return new URLSearchParams(location.search).get('diff') || ''; } catch (e) { return ''; } })();
+const EMBED_SEX: string = (() => { try { return new URLSearchParams(location.search).get('sex') || ''; } catch (e) { return ''; } })();
 function embedTell(what: string, extra?: any) { try { parent.postMessage(Object.assign({ amp: what }, extra || {}), '*'); } catch (e) { /* alone */ } }
 
 if (EMBED) {
@@ -32,10 +35,34 @@ if (EMBED) {
     // the same opening only once (a reload of this page, after a load, goes into the game)
     let nonce = ''; try { nonce = new URLSearchParams(location.search).get('n') || ''; } catch (e) { /* none */ }
     let done = ''; try { done = sessionStorage.getItem('ampb-embed-done') || ''; sessionStorage.setItem('ampb-embed-done', nonce); } catch (e) { /* none */ }
-    if (next || (nonce && done === nonce)) { go('ops', true); return; }
-    if (EMBED === 'continue') { try { enterSplash(); } catch (e) { /* straight in */ } go('ops', true); return; }
+    if (next || (nonce && done === nonce)) { go('ops', true); embedTell('ready'); return; }
+    // no career saved on this PC: nothing to continue (no demo airlines any more: the edition says to start a new game)
+    if (EMBED === 'continue' && Store.wasEmpty) { embedTell('nogame'); return; }
+    if (EMBED === 'continue') { try { enterSplash(); } catch (e) { /* straight in */ } go('ops', true); embedTell('ready'); return; }
+    if (EMBED === 'new' && (EMBED_DIFF || EMBED_SEX)) { embedNewGame(); return; }
     if (EMBED === 'new' || EMBED === 'load' || EMBED === 'save') { panelOnly(EMBED); return; }
     go('ops', true);
+  };
+  /** The new career from the edition's stage: who you are and the difficulty are chosen; here only the airline is
+   *  founded (its name, code, callsign and home base, and your pilot's name), then the game begins from nothing. */
+  const embedNewGame = () => {
+    ownTitleOpen(); document.documentElement.classList.add('ts-panel-only');
+    setTimeout(() => {
+      try {
+        if (EMBED_DIFF && (DIFFICULTY as any)[EMBED_DIFF]) _fsDiff = EMBED_DIFF as any;
+        (window as any).__ngPilot = { sex: EMBED_SEX === 'f' ? 'f' : 'm', look: defaultLook(EMBED_SEX === 'f' ? 'f' : 'm', 'captain') };
+        ACTIONS['fs-scratch'](null as any, null as any);
+        const d = $('.fs-modal .fs-diff') as HTMLElement; if (d) d.remove();   // chosen on the stage
+        const h = $('.fs-modal h2'), sm = $('.fs-modal .modal-head small'), w = $('.fs-modal .fine-print'), b = $('.fs-modal [data-act=fs-wipe]'), x = $('.fs-modal [data-act=close-layer]'), bk = $('.fs-modal [data-act=fs-back]');
+        if (h) h.textContent = 'Found your airline';
+        if (sm) sm.textContent = 'Your name, your airline, its home. You can change all of this later.';
+        if (w) w.innerHTML = `${icon('info')}Your career begins from nothing at ${esc(DIFFICULTY[_fsDiff].name)} difficulty: you buy your aircraft and hire your crew.`;
+        if (b) { b.classList.remove('danger'); b.classList.add('primary'); b.innerHTML = `${icon('play')}Start the new game`; }
+        if (x) x.setAttribute('data-act', 'ts-panel-close');
+        if (bk) bk.setAttribute('data-act', 'ts-panel-close');
+        embedTell('founding');   // the form is up: the edition's loading screen steps aside for it
+      } catch (e) { console.error(e); }
+    }, 60);
   };
   // closing a panel shown on its own: back to the title screen
   const ownClose = ACTIONS['ts-panel-close'];

@@ -11,7 +11,8 @@ import { settingsShow, settingsHide, settingsOpen, settingsButton } from './ui/s
 import { loadingShow, loadingProgress, loadingHide } from './ui/loading';
 import { icon, toast } from './ui/icons';
 import { exitGame } from './core/exit';
-import { gameOpen, gameIsOpen, gameClose, gameShow, gameExists, gameSend, onGameRoom, onGameFids, onGameFlight, gameEval, gameHidden } from './ui/game-frame';
+import { gameOpen, gameIsOpen, gameClose, gameShow, gameExists, gameSend, onGameRoom, onGameFids, onGameFlight, gameEval, gameHidden, gameNewExtra, onGameReady, onNoGame, onGameFounding, onGameLoading } from './ui/game-frame'
+import { loadingNeonShow, loadingNeonDone, loadingNeonHide } from './ui/loading-neon';;
 import { UE_PC, UE_ENGINE, ue } from './core/uelink';
 import { fidsCanvas, gateCanvas } from './sections/terminal/fids';
 import { announcerReady, announcerIds } from './ui/announcer-voice';
@@ -115,7 +116,11 @@ function backToGame(screen?: string) {
 }
 const TITLES: { [id: string]: string } = { viewer3d: '3D viewer Â· above the clouds', lounge: 'Business lounge', terminal: 'The terminal Â· Grand Hall', site: 'Airport site Â· MÃ½rdalssandur' };
 /** What was chosen on the title screen: the game (New, Continue, Load, Save, UI) or one of the demos. */
+/** A career saved on this PC (the game's own save, same origin as this page). */
+function hasCareer(): boolean { try { return !!localStorage.getItem('airline-manager-pro.save'); } catch (e) { return true; } }
+(window as any).__ueHasCareer = hasCareer;
 function pickPlace(id: string) {
+  if (id === 'game:continue' && !hasCareer()) { toast('No career on this PC yet: start a New game'); splashOpen(pickPlace); return; }
   // the PC edition's new career starts on Unreal's "who are you" stage (src/ui/whoareyou.ts); the game's own
   // new-game flow follows once that is done (window.__ueNewGameDone), or the title screen comes back (…Cancel)
   if (id === 'game:new' && !newStageDone) { const u = ue(); if (u && u.newgame) { u.newgame(); return; } }
@@ -126,7 +131,17 @@ function pickPlace(id: string) {
   enter(id, TITLES[id] || id);
 }
 let newStageDone = false;
-(window as any).__ueNewGameDone = () => { newStageDone = true; try { pickPlace('game:new'); } finally { newStageDone = false; } };
+// the stage done (Start game): the neon loading screen, and the game opened with the choices made there; the game's
+// own loader and anything it shows stay behind the loading screen until it says it is in and showing
+(window as any).__ueNewGameDone = (diff?: string, sex?: string) => {
+  gameNewExtra(diff || '', sex || '');
+  loadingNeonShow();
+  newStageDone = true; try { pickPlace('game:new'); } finally { newStageDone = false; }
+};
+onGameReady(() => loadingNeonDone());
+onGameFounding(() => loadingNeonHide());
+onGameLoading(() => loadingNeonShow());
+onNoGame(() => { toast('No career on this PC yet: start a New game'); });
 (window as any).__ueNewGameCancel = () => { if (!splashIsOpen()) splashOpen(pickPlace); };
 splashOpen(pickPlace);
 // a 3D place opened from the game (your officeâ€¦): the game waits behind it

@@ -42,6 +42,28 @@ function crewNeedsHtml(): string {
   </div>`;
 }
 
+/* ---------- one aircraft to start (owner, 2026-11-12) ---------- */
+/** A new career starts with one aircraft: a second (new, used or leased) only once the first has the crew it needs to
+ *  fly. Returns the reason while that holds, or null; the rule ends for good once the crew is there. */
+function starterBlocks(): string | null {
+  const S: any = State; if (!S.starter || !soloMode()) return null;
+  const c = company(), fl = fetchFleet(c.id); if (!fl.length) return null;
+  const plan = freeCrewPlan();
+  if (!plan.length) { S.starter = false; Store.soon(); return null; }
+  const t = acType(fl[0].typeId);
+  return `You can't buy more than one aircraft as a starter. First hire the crew your ${t.maker} ${t.model} needs to run: ${plan.map(p => `${p.n} ${p.label}`).join(', ')}. Then buy another, new or used, whenever you can afford it.`;
+}
+function fetchFleet(cid: string): Aircraft[] { return fleetOf(cid); }
+/** The warning, and whether the purchase is stopped. */
+function starterWarn(): boolean {
+  const why = starterBlocks(); if (!why) return false;
+  openLayer('modal', `<div class="modal-head"><div><h2>One aircraft to start</h2><small>Your airline is just founded</small></div><button class="icon-btn" data-act="close-layer" aria-label="Close">${icon('close')}</button></div>
+    <div class="modal-body"><p>${esc(why)}</p></div>
+    <div class="modal-actions"><button class="btn primary" data-act="starter-crew">${icon('pilots')}Hire crew</button><button class="btn ghost" data-act="close-layer">Later</button></div>`);
+  return true;
+}
+ACTIONS['starter-crew'] = () => { closeAll(); go('crew'); };
+
 /* ---------- the first crew, free ---------- */
 function freeCrewState(): string { const S: any = State; return (S.freeCrew || {})[State.companyId] || ''; }
 /** What the first aircraft needs to be allowed to fly: [role, count, job?]. */

@@ -540,3 +540,24 @@ html.ue-stage body > *:not(.wy) { visibility: hidden !important; }
 .wy.has-pad .pad { display: inline; }
 .wy.has-pad .kb { display: none; }
 .wy .wy-mute { position: absolute; right: clamp(16px, 3vw, 40px); top: clamp(16px, 3vh, 32px); bottom: auto; }
+
+/* The new career's loading screen (src/ui/loading-neon.ts): the title screen's neon, over everything until the game is in */
+.ln { position: fixed; inset: 0; z-index: 95; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(120% 90% at 30% 20%, #1a0c3a 0%, #06081c 55%, #03020a 100%); color: #EDE8FF; opacity: 0; transition: opacity .6s var(--ease); }
+.ln.in { opacity: 1; }
+.ln.out { opacity: 0; }
+.ln-fx { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(transparent 0, rgba(53, 240, 255, .05) 50%, transparent 100%); background-size: 100% 6px; opacity: .35; }
+.ln-box { position: relative; width: min(1100px, 76vw); animation: wdIn .7s var(--ease) both; }
+.ln-t { font-family: 'Audiowide', sans-serif; font-size: clamp(26px, 4.6vh, 42px); letter-spacing: .08em; text-transform: uppercase; color: #fff; text-shadow: 0 0 4px #fff, 0 0 10px var(--neo1), 0 0 26px var(--neo1), 0 0 44px rgba(255, 63, 184, .6); margin: 4px 0 26px; }
+.ln-bar { position: relative; height: 14px; border-radius: 8px; overflow: hidden; background: rgba(14, 10, 40, .8); border: 1px solid rgba(140, 190, 255, .3); box-shadow: 0 0 24px rgba(53, 240, 255, .18), inset 0 1px 0 rgba(255, 255, 255, .06); }
+.ln-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 8px; background: linear-gradient(90deg, var(--neo2), #7C5CFF 55%, var(--neo1)); box-shadow: 0 0 16px rgba(53, 240, 255, .7), 0 0 28px rgba(255, 63, 184, .45); transition: width .25s linear; }
+.ln-sheen { position: absolute; top: 0; bottom: 0; width: 28%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .35), transparent); animation: lnSheen 1.6s linear infinite; }
+@keyframes lnSheen { from { left: -30%; } to { left: 102%; } }
+.ln-line { display: flex; justify-content: space-between; align-items: baseline; width: 86%; margin: 12px auto 0; font-family: 'Audiowide', sans-serif; font-size: 12.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--neo2); text-shadow: 0 0 8px rgba(53, 240, 255, .6); }
+.ln-file { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 80%; }
+.ln-pct { color: #fff; text-shadow: 0 0 10px rgba(255, 63, 184, .8); }
+.ln-tip { position: absolute; left: 50%; bottom: clamp(28px, 6vh, 64px); transform: translateX(-50%); width: min(900px, 80vw); text-align: center; }
+.ln-tip small { display: block; font-family: 'Audiowide', sans-serif; font-size: 11px; letter-spacing: .5em; text-transform: uppercase; color: var(--neo1); text-shadow: 0 0 8px rgba(255, 63, 184, .8); margin-bottom: 8px; }
+.ln-tip b { display: block; font-weight: 400; font-size: clamp(14px, 2.2vh, 19px); letter-spacing: .04em; color: rgba(237, 232, 255, .9); opacity: 0; transform: translateY(8px); transition: opacity .6s var(--ease), transform .6s var(--ease); }
+.ln-tip b.in { opacity: 1; transform: none; }
+.ts-btn.dim { opacity: .45; }
+.ts-btn.dim:hover, .ts-btn.dim:focus-visible { opacity: .7; }

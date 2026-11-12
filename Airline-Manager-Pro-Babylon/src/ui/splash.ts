@@ -36,7 +36,9 @@ const TitleScreen: any = {
 let _enter: ((id: string) => void) | null = null, _pick = 'game:continue';
 /** Open the start screen; enter(id) runs when you choose a place: the 3D viewer (a flight above the clouds) or the lounge. */
 export function splashOpen(enter: (id: string) => void) {
-  const T = TitleScreen; if (T.on) return; T.on = true; _enter = enter; _pick = 'game:continue';
+  const T = TitleScreen; if (T.on) return; T.on = true; _enter = enter;
+  let career = true; try { career = (window as any).__ueHasCareer ? (window as any).__ueHasCareer() : true; } catch (e) { career = true; }
+  _pick = career ? 'game:continue' : 'game:new';
   const r = document.createElement('div'); r.className = 'ts'; r.setAttribute('aria-label', 'Start screen');
   r.innerHTML = `<canvas class="ts-cv" aria-hidden="true"></canvas><div class="ts-fx" aria-hidden="true"></div>
     <div class="ts-left">
@@ -48,7 +50,7 @@ export function splashOpen(enter: (id: string) => void) {
         ['game:load', 'folder', 'Load game', 'Pick a saved game or a backup'],
         ['game:save', 'save', 'Save game', 'Save your airline in a slot'],
         ['game:ui', 'grid', 'UI', 'Straight into the game\'s menus and screens'],
-      ].map(([id, ic, t, s], i) => `<button class="ts-btn ${i === 0 ? 'on' : ''}" data-a="enter" data-id="${id}"><span class="ts-bi">${icon(ic)}</span><span class="ts-bt"><b>${t}</b><small>${s}</small></span><i class="ts-sheen"></i></button>`).join('')}
+      ].map(([id, ic, t, s], i) => `<button class="ts-btn ${id === _pick ? 'on' : ''} ${id === 'game:continue' && !career ? 'dim' : ''}" data-a="enter" data-id="${id}"><span class="ts-bi">${icon(ic)}</span><span class="ts-bt"><b>${t}</b><small>${s}</small></span><i class="ts-sheen"></i></button>`).join('')}
         <div class="ts-demos"><small>Demos</small>${[['viewer3d', 'plane', '3D viewer'], ['lounge', 'star', 'Lounge'], ...(IS_PC ? [['terminal', 'terminal', 'Terminal'], ['site', 'mountain', 'Airport site']] : [])].map(([id, ic, t]) => `<button class="ts-btn ts-demo" data-a="enter" data-id="${id}"><span class="ts-bi">${icon(ic)}</span><span class="ts-bt"><b>${t}</b></span><i class="ts-sheen"></i></button>`).join('')}</div></nav>
     </div>
     <div class="ts-cap" aria-hidden="true"><small></small><b></b></div>

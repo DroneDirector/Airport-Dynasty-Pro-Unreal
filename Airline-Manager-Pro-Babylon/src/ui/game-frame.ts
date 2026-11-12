@@ -39,11 +39,24 @@ export function gameHide() { if (frame) { frame.classList.add('away'); document.
 export function gameShow() { if (frame) { gameSend({ ampb: 'stop' }); frame.classList.remove('away', 'over'); wake(); document.body.classList.add('game-on'); setTimeout(() => { try { frame && frame.focus(); } catch (e) { /* later */ } }, 200); } }
 export function gameHidden(): boolean { return !!frame && frame.classList.contains('away'); }
 
+const readySubs: (() => void)[] = [], noGameSubs: (() => void)[] = [], foundingSubs: (() => void)[] = [], loadingSubs: (() => void)[] = [];
+/** The game shows its Found-your-airline form (the loading screen steps aside). */
+export function onGameFounding(f: () => void) { foundingSubs.push(f); }
+/** The game begins loading the new career (the loading screen comes back). */
+export function onGameLoading(f: () => void) { loadingSubs.push(f); }
+/** The game is in and showing (after a new game or a continue). */
+export function onGameReady(f: () => void) { readySubs.push(f); }
+/** There is no career to continue on this PC. */
+export function onNoGame(f: () => void) { noGameSubs.push(f); }
+/** The new career's choices for the game, put on the frame's address (embed=new&diff=…&sex=…). */
+let newExtra = '';
+export function gameNewExtra(diff: string, sex: string) { newExtra = (diff ? '&diff=' + encodeURIComponent(diff) : '') + (sex ? '&sex=' + encodeURIComponent(sex) : ''); }
 export function gameOpen(act: 'new' | 'continue' | 'load' | 'save' | 'ui', on: { title: () => void; exit: () => void; viewer: (id: string) => void }) {
   gameClose(); handlers = on;
   const f = document.createElement('iframe'); f.className = 'game-frame'; f.setAttribute('title', 'Airport Dynasty Pro');
   f.setAttribute('allow', 'autoplay; fullscreen; gamepad; clipboard-write');
-  f.src = `game/index.html?embed=${act}&n=${Date.now().toString(36)}`;
+  f.src = `game/index.html?embed=${act}&n=${Date.now().toString(36)}${act === 'new' ? newExtra : ''}`;
+  if (act === 'new') newExtra = '';
   // the PC version: Unreal's gamepad reaches the game's own controller code in the frame too
   f.addEventListener('load', () => { try { uePadInstall(f.contentWindow); const g = (window as any).__ueGameEsc; if (g) g(f.contentWindow); } catch (e) { /* later */ } });
   document.body.appendChild(f); document.body.classList.add('game-on'); frame = f;
@@ -63,6 +76,10 @@ window.addEventListener('message', (e: MessageEvent) => {
   const d: any = e.data; if (!d || !d.amp || !frame || e.source !== frame.contentWindow || !handlers) return;
   const h = handlers;
   if (d.amp === 'title') { gameClose(); h.title(); }
+  else if (d.amp === 'ready') { for (const f of readySubs) { try { f(); } catch (err) { console.error(err); } } }
+  else if (d.amp === 'founding') { for (const f of foundingSubs) { try { f(); } catch (err) { console.error(err); } } }
+  else if (d.amp === 'loading') { for (const f of loadingSubs) { try { f(); } catch (err) { console.error(err); } } }
+  else if (d.amp === 'nogame') { gameClose(); for (const f of noGameSubs) { try { f(); } catch (err) { console.error(err); } } h.title(); }
   else if (d.amp === 'exit') h.exit();
   else if (d.amp === 'viewer3d') { if (d.crash) { gameHide(); h.viewer('crash:' + d.crash); } else if (d.id) { gameHide(); h.viewer(d.id); } else { gameClose(); h.viewer(''); } }
   else if (d.amp === 'room') { gameHide(); for (const f of roomSubs) { try { f(d); } catch (err) { console.error(err); } } }

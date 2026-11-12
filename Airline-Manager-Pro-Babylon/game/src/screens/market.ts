@@ -130,6 +130,7 @@ ACTIONS['buy-div'] = el => { _buy.div = el.getAttribute('data-div'); Sound.tick(
 
 ACTIONS['buy-confirm'] = () => {
   if (!canTrade()) return;
+  if (starterWarn()) return;
   if (noStandsFor(_buy.base || company().hub, _buy.qty)) { toast('Not enough free stands there: choose another base', 'warn'); return; }
   const t = acType(_buy.id), c = company();
   try { coopAfterBuy(`${_buy.qty}× ${t.maker} ${t.model}`, Math.round(t.price * ((engineOptions(t.id).filter(e => e.id === (_buy as any).eng)[0] || { price: 1 } as any).price)) * _buy.qty); } catch (e) { /* ignore */ }

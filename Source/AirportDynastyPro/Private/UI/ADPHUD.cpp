@@ -1118,10 +1118,10 @@ void AADPHUD::WhoAreYouFromPage(const FString& Action, const FString& Arg)
 	else if (Action == TEXT("choose")) ADPCharacterCreate::Confirm(Arg == TEXT("she"));
 	else if (Action == TEXT("back")) { ADPCharacterCreate::Back(); bWhoAreYouBack = true; }
 	else if (Action == TEXT("cancel")) CloseWhoAreYou(false);
-	else if (Action == TEXT("done")) CloseWhoAreYou(true);
+	else if (Action == TEXT("done")) CloseWhoAreYou(true, Arg);
 }
 
-void AADPHUD::CloseWhoAreYou(bool bGoOn)
+void AADPHUD::CloseWhoAreYou(bool bGoOn, const FString& Difficulty)
 {
 	if (!bWhoAreYou) return;
 	bWhoAreYou = false;
@@ -1131,7 +1131,8 @@ void AADPHUD::CloseWhoAreYou(bool bGoOn)
 	{
 		Browser->ExecuteJavascript(TEXT("window.__ueWhoAreYouClose && window.__ueWhoAreYouClose()"));
 		// on: the game's own new-game flow (the pilot, the airline, the Overview); back: the title screen
-		Browser->ExecuteJavascript(bGoOn ? TEXT("window.__ueNewGameDone && window.__ueNewGameDone()") : TEXT("window.__ueNewGameCancel && window.__ueNewGameCancel()"));
+		const FString D = Difficulty.IsEmpty() ? TEXT("normal") : Difficulty.Left(12).Replace(TEXT("'"), TEXT(""));
+		Browser->ExecuteJavascript(bGoOn ? FString::Printf(TEXT("window.__ueNewGameDone && window.__ueNewGameDone('%s', '%s')"), *D, ADPCharacterCreate::UiOnRight() ? TEXT("f") : TEXT("m")) : TEXT("window.__ueNewGameCancel && window.__ueNewGameCancel()"));
 	}
 	// the menus in front again (they were, before the stage)
 	if (!bGame) ToggleGame();
@@ -2132,9 +2133,17 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 89.f && ShotClock >= 89.f) Shot(TEXT("NewGame_Pet"));
 			if (Before < 90.f && ShotClock >= 90.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}))"));   // Next: your partner
 			if (Before < 92.f && ShotClock >= 92.f) Shot(TEXT("NewGame_Partner"));
-			if (Before < 93.f && ShotClock >= 93.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}))"));   // Start game
-			if (Before < 99.f && ShotClock >= 99.f) Shot(TEXT("NewGame_OnIntoTheGame"));
-			if (Before < 101.f && ShotClock >= 101.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 93.f && ShotClock >= 93.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}))"));   // Next: the difficulty
+			if (Before < 94.f && ShotClock >= 94.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowDown'}))"));   // Hard
+			if (Before < 96.f && ShotClock >= 96.f) Shot(TEXT("NewGame_Difficulty"));
+			if (Before < 97.f && ShotClock >= 97.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}))"));   // Start game: the loading screen
+			if (Before < 99.5f && ShotClock >= 99.5f) Shot(TEXT("NewGame_Loading"));
+			if (Before < 104.f && ShotClock >= 104.f) Shot(TEXT("NewGame_Founding"));   // the game's Found-your-airline form
+			// the form filled as a player would (a home base and the names), the game started: the loading screen, the Overview
+			if (Before < 105.f && ShotClock >= 105.f) Js(TEXT("(function(){ var f = document.querySelector('.game-frame'); if (f && f.contentWindow) f.contentWindow.eval(\"_fsHub='EKVG'; var n = document.querySelector('.fs-name'); if (n) n.value = 'Northern Lights Air'; ACTIONS['fs-wipe']()\"); })()"));
+			if (Before < 108.f && ShotClock >= 108.f) Shot(TEXT("NewGame_Loading2"));
+			if (Before < 120.f && ShotClock >= 120.f) Shot(TEXT("NewGame_OnIntoTheGame"));
+			if (Before < 122.f && ShotClock >= 122.f) FGenericPlatformMisc::RequestExit(false);
 		}
 		// -UIGender: the concept of the new career's "who are you" screen (owner, 2026-11-12): the dark neon room with
 		// the fog, she in the light and he in shadow, with the title screen's lettering over it
