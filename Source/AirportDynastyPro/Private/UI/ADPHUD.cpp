@@ -2121,6 +2121,10 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 40.f && ShotClock >= 40.f) { if (!bGame) ToggleGame(); }
 			if (Before < 46.f && ShotClock >= 46.f) Js(TEXT("(function(){ var u = window.ue && ue.adp; if (u && u.newgame) u.newgame(); })()"));
 			if (Before < 51.f && ShotClock >= 51.f) Shot(TEXT("NewGame_Choose"));
+			// the real screen as frames for an animation (owner): the choice moving, the pick, the walk-out, the tubes, the panel
+			static int32 AnimFrame = 0;
+			if (ShotClock >= 51.f && ShotClock < 68.f && int32(ShotClock / 0.3f) != int32(Before / 0.3f)) Shot(*FString::Printf(TEXT("NewGame_Anim_%03d"), AnimFrame++));
+			if (Before < 51.5f && ShotClock >= 51.5f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowRight'}))"));   // him first
 			if (Before < 52.f && ShotClock >= 52.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowLeft'}))"));
 			if (Before < 55.f && ShotClock >= 55.f) Shot(TEXT("NewGame_SheLit"));
 			if (Before < 56.f && ShotClock >= 56.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}))"));
