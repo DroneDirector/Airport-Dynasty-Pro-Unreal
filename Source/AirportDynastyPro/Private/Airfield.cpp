@@ -14,6 +14,8 @@
 #include "Misc/Paths.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "Materials/MaterialParameterCollection.h"
+#include "Kismet/KismetMaterialLibrary.h"
 
 #pragma region Loading
 
@@ -430,6 +432,16 @@ bool AAirfield::Build(bool bModelSite)
 		for (const FAirfieldData::FHangarSite& H : D.Hangars) Band("yellow", FVector2f(H.X, K->Pts[0].Y), FVector2f(H.X, H.Y), 0.3f, -0.028f);
 	EdgeBands(bModelSite);
 	FlushSheets();
+	// the ground material's tyre rubber follows the runway (Tools/set_ground.py): its centre line's ends in world cm (z:
+	// half its width) and its displaced thresholds (250 m each end, Data/airfield.json)
+	if (UMaterialParameterCollection* Mpc = LoadObject<UMaterialParameterCollection>(nullptr, TEXT("/Game/Weather/MPC_Weather.MPC_Weather")))
+	{
+		const FVector A = FTerminalPlan::ToWorld(D.RwyX0, 0.f, D.RwyY), B = FTerminalPlan::ToWorld(D.RwyX1, 0.f, D.RwyY);
+		UKismetMaterialLibrary::SetVectorParameterValue(this, Mpc, TEXT("RwyA"), FLinearColor(A.X, A.Y, D.RwyW * 50.f, 0.f));
+		UKismetMaterialLibrary::SetVectorParameterValue(this, Mpc, TEXT("RwyB"), FLinearColor(B.X, B.Y, D.RwyW * 50.f, 0.f));
+		UKismetMaterialLibrary::SetVectorParameterValue(this, Mpc, TEXT("RwyDisp"), FLinearColor(25000.f, 25000.f, 0.f, 0.f));
+		ADP_LOG(TEXT("Airfield: the ground's runway for its tyre rubber %s -> %s"), *A.ToString(), *B.ToString());
+	}
 	// the cargo building
 	Slab("liftClad", D.Cargo.X0, D.Cargo.Y0, D.Cargo.X1, D.Cargo.Y1, 0, 18);
 	ADP_LOG(TEXT("Airfield built: %d taxiways, %d stands"), D.Taxiways.Num(), D.Stands.Num());

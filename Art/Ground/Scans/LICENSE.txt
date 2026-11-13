@@ -1,0 +1,6 @@
+Ground scans from Poly Haven (https://polyhaven.com), licence CC0 (public domain): free for any use, commercial
+included, no attribution required (credited anyway in THIRD-PARTY-NOTICES.md). Downloaded 2026-11-13, 4K jpg:
+- asphalt_04 (4.04 m square; photography Sergej Majboroda, processing Jenelle van Heerden): runway and taxiways
+- asphalt_02 (3.0 m; Rob Tuytel): darker, cracked asphalt - patches, repairs, variation
+- concrete_floor_worn_001 (3.0 m; photography Dimitrios Savva, processing Rico Cilliers): apron concrete
+- brushed_concrete_04 (2.0 m; Amal Kumar): brushed concrete with joints - variation

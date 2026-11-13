@@ -20,7 +20,8 @@ def log(m): unreal.log('ADP_GROUND ' + str(m))
 
 # ---- the weather's parameters (APuddles sets them; Cracks a global amount for the tuning panel)
 MPC = '/Game/Weather/MPC_Weather'
-PARAMS = (('Wetness', 0.0), ('PuddleAmount', 0.55), ('PuddleSize', 3.0), ('PuddleShine', 0.9), ('Ripples', 1.0), ('Rain', 0.0), ('Cracks', 1.0))
+PARAMS = (('Wetness', 0.0), ('PuddleAmount', 0.55), ('PuddleSize', 3.0), ('PuddleShine', 0.9), ('Ripples', 1.0), ('Rain', 0.0), ('Cracks', 1.0), ('Tyres', 1.0))
+VPARAMS = (('RwyA', unreal.LinearColor(0, 0, 3000, 0)), ('RwyB', unreal.LinearColor(1, 0, 3000, 0)), ('RwyDisp', unreal.LinearColor(25000, 25000, 0, 0)))
 mpc = unreal.load_asset(MPC)
 if mpc is None:
     mpc = tools.create_asset('MPC_Weather', '/Game/Weather', unreal.MaterialParameterCollection, unreal.MaterialParameterCollectionFactoryNew())
@@ -29,7 +30,37 @@ sps = list(mpc.get_editor_property('scalar_parameters'))
 for n, v in PARAMS:
     if n not in have:
         p = unreal.CollectionScalarParameter(); p.set_editor_property('parameter_name', n); p.set_editor_property('default_value', v); sps.append(p)
-mpc.set_editor_property('scalar_parameters', sps); eal.save_loaded_asset(mpc, only_if_is_dirty=False)
+mpc.set_editor_property('scalar_parameters', sps)
+# the runway's centre line ends (world cm, z: half its width) and its displaced thresholds (cm): Airfield.cpp sets them
+vh = {str(p.get_editor_property('parameter_name')) for p in mpc.get_editor_property('vector_parameters')}
+vps = list(mpc.get_editor_property('vector_parameters'))
+for n, v in VPARAMS:
+    if n not in vh:
+        p = unreal.CollectionVectorParameter(); p.set_editor_property('parameter_name', n); p.set_editor_property('default_value', v); vps.append(p)
+mpc.set_editor_property('vector_parameters', vps); eal.save_loaded_asset(mpc, only_if_is_dirty=False)
+
+# ---- the ground's pictures: real-surface scans (Poly Haven, CC0: Art/Ground/Scans) and our own layers (Art/Ground)
+import os
+ROOT = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir())
+def imp(file, dest, name, kind):
+    path = dest + '/' + name
+    if not eal.does_asset_exist(path):
+        t = unreal.AssetImportTask(); t.filename = file; t.destination_path = dest; t.destination_name = name
+        t.automated = True; t.replace_existing = True; t.save = False
+        tools.import_asset_tasks([t])
+    a = unreal.load_asset(path)
+    if kind == 'normal': a.set_editor_property('compression_settings', unreal.TextureCompressionSettings.TC_NORMALMAP); a.set_editor_property('srgb', False)
+    elif kind == 'mask': a.set_editor_property('compression_settings', unreal.TextureCompressionSettings.TC_MASKS); a.set_editor_property('srgb', False)
+    a.set_editor_property('lod_group', unreal.TextureGroup.TEXTUREGROUP_WORLD)
+    eal.save_loaded_asset(a, only_if_is_dirty=False)
+    return a
+SCAN = {}
+for sid in ('asphalt_04', 'asphalt_02', 'concrete_floor_worn_001', 'brushed_concrete_04'):
+    d = os.path.join(ROOT, 'Art', 'Ground', 'Scans', sid)
+    SCAN[sid] = {k: imp(os.path.join(d, '%s_%s_4k.jpg' % (sid, f)), '/Game/Ground/Scans/' + sid, 'T_%s_%s' % (sid, k), kind)
+                 for k, f, kind in (('diff', 'diff', 'color'), ('nor', 'nor_dx', 'normal'), ('rough', 'rough', 'mask'))}
+LAYER = {n: imp(os.path.join(ROOT, 'Art', 'Ground', n + '.png'), '/Game/Ground/Layers', 'T_' + n, 'mask') for n in ('cracks_asphalt', 'cracks_concrete', 'tyre_rubber')}
+log('scans and layers in')
 
 # ---- the master
 MP = '/Game/Materials/Ground/M_Ground'
@@ -42,43 +73,88 @@ def sp(name, v, x, y):
 def vp(name, c, x, y):
     e = E(unreal.MaterialExpressionVectorParameter, x, y); e.set_editor_property('parameter_name', name); e.set_editor_property('default_value', c); return e
 def cp(name, y):
-    c = E(unreal.MaterialExpressionCollectionParameter, -1400, y); c.set_editor_property('collection', mpc); c.set_editor_property('parameter_name', name); return c
+    c = E(unreal.MaterialExpressionCollectionParameter, -1600, y); c.set_editor_property('collection', mpc); c.set_editor_property('parameter_name', name); return c
+def tparam(name, tex, x, y, stype):
+    e = E(unreal.MaterialExpressionTextureSampleParameter2D, x, y); e.set_editor_property('parameter_name', name)
+    e.set_editor_property('texture', tex); e.set_editor_property('sampler_type', stype); return e
+def tobj(name, tex, x, y):
+    e = E(unreal.MaterialExpressionTextureObjectParameter, x, y); e.set_editor_property('parameter_name', name); e.set_editor_property('texture', tex); return e
 
-# its own look: the kit's colour with a gentle variation, or a tiled picture
-col = vp('Color', unreal.LinearColor(0.5, 0.5, 0.5, 1), -1400, -600)
-var = sp('Variation', 0.15, -1400, -500)
-noise = E(unreal.MaterialExpressionNoise, -1200, -500); noise.set_editor_property('scale', 0.02); noise.set_editor_property('levels', 4)
+# 1. the surface: a plain colour (paint), a picture over the surface's own UVs (the terminal model's ground), or a real
+#    scan in world space (UseScan: the airfield's asphalt and concrete) - world space, so it runs on seamlessly from one
+#    piece of ground to the next
+col = vp('Color', unreal.LinearColor(1, 1, 1, 1), -1600, -600)
+var = sp('Variation', 0.0, -1600, -500)
+noise = E(unreal.MaterialExpressionNoise, -1400, -500); noise.set_editor_property('scale', 0.02); noise.set_editor_property('levels', 4)
 noise.set_editor_property('output_min', -1.0); noise.set_editor_property('output_max', 1.0)
-nv = E(unreal.MaterialExpressionMultiply, -1000, -500); mel.connect_material_expressions(noise, '', nv, 'A'); mel.connect_material_expressions(var, '', nv, 'B')
-one = E(unreal.MaterialExpressionConstant, -1000, -420); one.set_editor_property('r', 1.0)
-add1 = E(unreal.MaterialExpressionAdd, -850, -480); mel.connect_material_expressions(one, '', add1, 'A'); mel.connect_material_expressions(nv, '', add1, 'B')
-plain = E(unreal.MaterialExpressionMultiply, -700, -560); mel.connect_material_expressions(col, '', plain, 'A'); mel.connect_material_expressions(add1, '', plain, 'B')
-uv = E(unreal.MaterialExpressionTextureCoordinate, -1400, -300)
-tu = sp('TexU', 1.0, -1400, -220); tv = sp('TexV', 1.0, -1400, -160)
-tuv = E(unreal.MaterialExpressionAppendVector, -1200, -200); mel.connect_material_expressions(tu, '', tuv, 'A'); mel.connect_material_expressions(tv, '', tuv, 'B')
-uvs = E(unreal.MaterialExpressionMultiply, -1050, -280); mel.connect_material_expressions(uv, '', uvs, 'A'); mel.connect_material_expressions(tuv, '', uvs, 'B')
-tex = E(unreal.MaterialExpressionTextureSampleParameter2D, -900, -300); tex.set_editor_property('parameter_name', 'BaseTex')
-tex.set_editor_property('texture', unreal.load_asset('/Engine/EngineResources/DefaultTexture'))
+nv = E(unreal.MaterialExpressionMultiply, -1250, -500); mel.connect_material_expressions(noise, '', nv, 'A'); mel.connect_material_expressions(var, '', nv, 'B')
+add1 = E(unreal.MaterialExpressionAdd, -1100, -480); add1.set_editor_property('const_a', 1.0); mel.connect_material_expressions(nv, '', add1, 'B')
+plain = E(unreal.MaterialExpressionMultiply, -950, -560); mel.connect_material_expressions(col, '', plain, 'A'); mel.connect_material_expressions(add1, '', plain, 'B')
+uv = E(unreal.MaterialExpressionTextureCoordinate, -1600, -300)
+tu = sp('TexU', 1.0, -1600, -220); tv = sp('TexV', 1.0, -1600, -160)
+tuv = E(unreal.MaterialExpressionAppendVector, -1400, -200); mel.connect_material_expressions(tu, '', tuv, 'A'); mel.connect_material_expressions(tv, '', tuv, 'B')
+uvs = E(unreal.MaterialExpressionMultiply, -1250, -280); mel.connect_material_expressions(uv, '', uvs, 'A'); mel.connect_material_expressions(tuv, '', uvs, 'B')
+tex = tparam('BaseTex', unreal.load_asset('/Engine/EngineResources/DefaultTexture'), -1100, -300, unreal.MaterialSamplerType.SAMPLERTYPE_COLOR)
 mel.connect_material_expressions(uvs, '', tex, 'UVs')
-texc = E(unreal.MaterialExpressionMultiply, -700, -300); mel.connect_material_expressions(tex, 'RGB', texc, 'A'); mel.connect_material_expressions(col, '', texc, 'B')
-use = E(unreal.MaterialExpressionStaticSwitchParameter, -500, -450); use.set_editor_property('parameter_name', 'UseTexture'); use.set_editor_property('default_value', False)
+texc = E(unreal.MaterialExpressionMultiply, -950, -300); mel.connect_material_expressions(tex, 'RGB', texc, 'A'); mel.connect_material_expressions(col, '', texc, 'B')
+use = E(unreal.MaterialExpressionStaticSwitchParameter, -750, -450); use.set_editor_property('parameter_name', 'UseTexture'); use.set_editor_property('default_value', False)
 mel.connect_material_expressions(texc, '', use, 'True'); mel.connect_material_expressions(plain, '', use, 'False')
-rough = sp('Roughness', 0.9, -1400, -80); metal = sp('Metallic', 0.0, -1400, -20)
+rough = sp('Roughness', 0.9, -1600, -80); metal = sp('Metallic', 0.0, -1600, -20)
 mel.connect_material_property(metal, '', unreal.MaterialProperty.MP_METALLIC)
+ssize = sp('ScanSize', 4.04, -1600, -760)
+wpm = E(unreal.MaterialExpressionWorldPosition, -1600, -900)
+wxy = E(unreal.MaterialExpressionComponentMask, -1450, -900)
+for ch, on in (('r', True), ('g', True), ('b', False), ('a', False)): wxy.set_editor_property(ch, on)
+mel.connect_material_expressions(wpm, '', wxy, '')
+s100 = E(unreal.MaterialExpressionMultiply, -1450, -760); mel.connect_material_expressions(ssize, '', s100, 'A'); s100.set_editor_property('const_b', 100.0)
+suv = E(unreal.MaterialExpressionDivide, -1300, -850); mel.connect_material_expressions(wxy, '', suv, 'A'); mel.connect_material_expressions(s100, '', suv, 'B')
+sdiff = tparam('ScanDiff', SCAN['asphalt_04']['diff'], -1100, -1000, unreal.MaterialSamplerType.SAMPLERTYPE_COLOR)
+snor = tparam('ScanNormal', SCAN['asphalt_04']['nor'], -1100, -800, unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL)
+srgh = tparam('ScanRough', SCAN['asphalt_04']['rough'], -1100, -600, unreal.MaterialSamplerType.SAMPLERTYPE_MASKS)
+for t_ in (sdiff, snor, srgh): mel.connect_material_expressions(suv, '', t_, 'UVs')
+big = E(unreal.MaterialExpressionMultiply, -1300, -1100); mel.connect_material_expressions(suv, '', big, 'A'); big.set_editor_property('const_b', 0.137)
+sbig = tparam('ScanDiffBig', SCAN['asphalt_04']['diff'], -1100, -1200, unreal.MaterialSamplerType.SAMPLERTYPE_COLOR)
+mel.connect_material_expressions(big, '', sbig, 'UVs')
+usescan = sp('UseScan', 0.0, -1600, -1000)
 
-# the surface's own settings for the effects
-bias = sp('PuddleBias', 0.0, -1400, 60); pon = sp('Puddles', 1.0, -1400, 120)
-cstyle = sp('CrackStyle', 0.0, -1400, 180); camt = sp('CrackAmount', 0.6, -1400, 240)
-cscale = sp('CrackScale', 3.0, -1400, 300); cwidth = sp('CrackWidth', 1.5, -1400, 360)
-wp = E(unreal.MaterialExpressionWorldPosition, -1400, 420)
-vn = E(unreal.MaterialExpressionVertexNormalWS, -1400, 480)
-tm = E(unreal.MaterialExpressionTime, -1400, 540)
-cps = {n: cp(n, 600 + 60 * i) for i, (n, _) in enumerate(PARAMS)}
+# 2. the surface's own settings for the effects
+bias = sp('PuddleBias', 0.0, -1600, 60); pon = sp('Puddles', 1.0, -1600, 120)
+cstyle = sp('CrackStyle', 0.0, -1600, 180); camt = sp('CrackAmount', 0.6, -1600, 240)
+tamt = sp('TyreAmount', 1.0, -1600, 300)
+crackt = tobj('CrackLayer', LAYER['cracks_asphalt'], -1600, 360)
+tyret = tobj('TyreLayer', LAYER['tyre_rubber'], -1600, 440)
+wp = E(unreal.MaterialExpressionWorldPosition, -1600, 520)
+vn = E(unreal.MaterialExpressionVertexNormalWS, -1600, 580)
+tm = E(unreal.MaterialExpressionTime, -1600, 640)
+cps = {n: cp(n, 700 + 60 * i) for i, (n, _) in enumerate(PARAMS)}
+cvs = {n: cp(n, 1300 + 60 * i) for i, (n, _) in enumerate(VPARAMS)}
 
-COMMON = '''
-float2 M = WP.xy / 100.0;                      // metres
+COMMON = r"""
+float2 M = WP.xy / 100.0;
 float up = saturate((N.z - 0.92) / 0.06);
-// ---- puddle field: fractal value noise in world space
+float none = step(1.5, Style);
+float isConcrete = step(0.5, Style) * (1.0 - none);
+float3 surf = Col; float rgh = Rough;
+if (UseScan > 0.5) {
+  float lumBig = dot(ScanBig, float3(0.3, 0.59, 0.11)), lumSc = dot(ScanCol, float3(0.3, 0.59, 0.11));
+  surf = ScanCol * Col * lerp(0.86, 1.14, saturate(lumBig / max(lumSc + 0.001, 0.02) * 0.5));
+  rgh = ScanR;
+}
+float3 cl = Texture2DSample(CrackTex, CrackTexSampler, M / 16.0).rgb;
+float ca = saturate(CAmount * Cracks) * (1.0 - none);
+float seal = cl.r * ca * up * (1.0 - isConcrete);
+float openC = cl.g * saturate(ca * 1.5) * up;
+float stain = cl.b * ca * up;
+float2 gj = abs(frac(M / 5.0 + 0.5) - 0.5) * 5.0;
+float joint = (1.0 - smoothstep(0.004, 0.012, min(gj.x, gj.y))) * isConcrete * up * step(0.01, ca);
+float2 A = RwyA.xy, B = RwyB.xy; float2 dir = normalize(B - A + 0.001); float L = length(B - A);
+float s_ = dot(WP.xy - A, dir); float d_ = dot(WP.xy - A, float2(-dir.y, dir.x));
+float halfW = RwyA.z;
+float inRwy = step(0, s_) * step(s_, L) * step(abs(d_), halfW);
+float tdA = smoothstep(RwyDisp.x + 5000, RwyDisp.x + 25000, s_) * (1 - smoothstep(RwyDisp.x + 60000, RwyDisp.x + 110000, s_));
+float tdB = smoothstep(RwyDisp.y + 5000, RwyDisp.y + 25000, L - s_) * (1 - smoothstep(RwyDisp.y + 60000, RwyDisp.y + 110000, L - s_));
+float rub = Texture2DSample(TyreTex, TyreTexSampler, float2(s_ / 6400.0, d_ / 3200.0 + 0.5)).r;
+float tyre = saturate(rub * saturate(tdA + tdB) * inRwy * TyreAmt * Tyres) * up;
 float2 q = M / max(Size, 0.3);
 float n = 0, a = 0.55;
 [unroll] for (int i = 0; i < 3; i++) {
@@ -89,52 +165,30 @@ float n = 0, a = 0.55;
   float h11 = frac(sin(dot(ip + float2(1, 1), float2(127.1, 311.7))) * 43758.5453);
   n += a * lerp(lerp(h00, h10, f.x), lerp(h01, h11, f.x), f.y); q = q * 2.03 + 17.0; a *= 0.5;
 }
-float edge = (1.0 - saturate(Amount + Bias) * 0.6) + (1.0 - saturate(Wet)) * 0.30;   // drying raises the bar: shrinking from the edge
+float edge = (1.0 - saturate(Amount + Bias) * 0.6) + (1.0 - saturate(Wet)) * 0.30;
 float pmask = up * saturate(Puddles) * step(0.02, Wet);
-float puddle = smoothstep(edge, edge + 0.06, n) * pmask;                            // soft water's edge
-float rim = smoothstep(edge - 0.10, edge, n) * pmask * saturate(Wet);               // the darker wet ground round it
-// ---- cracks: a warped world-space Voronoi network, patchy; concrete also has sawn slab joints
-float2 w2 = M * 0.45; float wn = 0, wa = 0.5;
-[unroll] for (int j = 0; j < 3; j++) {
-  float2 ip = floor(w2), f = frac(w2); f = f * f * (3 - 2 * f);
-  float h00 = frac(sin(dot(ip, float2(41.3, 289.1))) * 15731.743);
-  float h10 = frac(sin(dot(ip + float2(1, 0), float2(41.3, 289.1))) * 15731.743);
-  float h01 = frac(sin(dot(ip + float2(0, 1), float2(41.3, 289.1))) * 15731.743);
-  float h11 = frac(sin(dot(ip + float2(1, 1), float2(41.3, 289.1))) * 15731.743);
-  wn += wa * lerp(lerp(h00, h10, f.x), lerp(h01, h11, f.x), f.y); w2 = w2 * 2.07 + 3.1; wa *= 0.5;
-}
-float2 pw = M / max(CScale, 0.3) + (wn - 0.45) * 0.8;
-float2 ic = floor(pw), fc = frac(pw); float d1 = 8, d2 = 8;
-[unroll] for (int y = -1; y <= 1; y++) [unroll] for (int x = -1; x <= 1; x++) {
-  float2 g = float2(x, y);
-  float2 o = frac(sin(float2(dot(ic + g, float2(127.1, 311.7)), dot(ic + g, float2(269.5, 183.3)))) * 43758.5453);
-  float d = length(g + o - fc);
-  if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) { d2 = d; }
-}
-float thr = CWidth * 0.01 / max(CScale, 0.3);
-float crackLine = 1.0 - smoothstep(thr * 0.4, thr, d2 - d1);
-float patch = saturate((wn - (1.0 - saturate(CAmount * Cracks) * 0.75)) * 5.0);
-float isConcrete = step(0.5, Style) * (1.0 - step(1.5, Style));
-float none = step(1.5, Style);
-float crack = crackLine * patch * up * (1.0 - none);
-float2 gj = abs(frac(M / 5.0 + 0.5) - 0.5) * 5.0;
-float joint = (1.0 - smoothstep(0.004, 0.011, min(gj.x, gj.y))) * isConcrete * up * step(0.01, CAmount * Cracks);
-float crackAll = saturate(crack + joint);
-'''
-SURF = COMMON + '''
-float wetAll = saturate(Wet) * up * (1.0 - none * 0.5);
-// asphalt: sealed with black tar, a little shiny; concrete: dark cracks and joints
-float3 sealC = lerp(Col * 0.32, Col * 0.5, isConcrete);
-float3 c = lerp(Col, sealC, crackAll);
-float r = lerp(Rough, lerp(0.45, 0.85, isConcrete), crackAll);
-c *= lerp(1.0, 0.62, wetAll) * lerp(1.0, 0.82, rim) * lerp(1.0, 0.7, crackAll * wetAll);
-r = lerp(r, 0.30, wetAll);
-c = lerp(c, Col * 0.22, puddle);                   // under water the ground goes dark
+float puddle = smoothstep(edge, edge + 0.06, n) * pmask;
+float rim = smoothstep(edge - 0.10, edge, n) * pmask * saturate(Wet);
+"""
+SURF = COMMON + r"""
+float3 c = surf; float r = rgh;
+c *= lerp(1.0, 0.82, stain);
+c = lerp(c, float3(0.022, 0.021, 0.02), seal);
+r = lerp(r, 0.38, seal);
+c *= lerp(1.0, 0.35, openC);
+c *= lerp(1.0, 0.5, joint);
+c = lerp(c, c * 0.28, tyre);
+r = lerp(r, 0.55, tyre);
+float wetAll = saturate(Wet) * up;
+c *= lerp(1.0, 0.6, wetAll) * lerp(1.0, 0.82, rim) * lerp(1.0, 0.7, saturate(openC + joint) * wetAll);
+r = lerp(r, 0.28, wetAll);
+c = lerp(c, c * 0.35, puddle);
 r = lerp(r, lerp(0.10, 0.02, saturate(Shine)), puddle);
 return float4(c, r);
-'''
-NORMAL = COMMON + '''
-// ripples: drops landing in the puddles while it rains; a faint stir from the wind otherwise
+"""
+NORMAL = COMMON + r"""
+float3 nn = N;
+if (UseScan > 0.5) { float3 t = ScanN * 2.0 - 1.0; nn = normalize(N + float3(t.x, -t.y, 0) * 0.6 * (1.0 - puddle)); }
 float2 uvr = WP.xy / 28.0; float2 acc = 0;
 [unroll] for (int k = 0; k < 3; k++) {
   float2 g = uvr + float2(k * 0.37, k * 0.71);
@@ -146,32 +200,33 @@ float2 uvr = WP.xy / 28.0; float2 acc = 0;
   float wave = sin((dist - t * 0.45) * 70.0) * saturate(1.0 - t) * saturate(1.0 - abs(dist - t * 0.45) * 14.0);
   acc += (d / dist) * wave;
 }
-float stir = (frac(sin(dot(floor(WP.xy / 6.0), float2(12.9898, 78.233)) + T * 0.2) * 43758.5453) - 0.5) * 0.004;
-float2 tilt = (acc * 0.35 * saturate(Ripples) * saturate(Rain) + stir) * puddle;
-// the cracks sit a little below the surface (catch the light at their edges)
-float2 cg = float2(ddx(crackAll), ddy(crackAll)) * 0.0;
-return normalize(N + float3(tilt, 0.0));
-'''
-REFL = COMMON + '''
-// how much of the sky the water shows (the colour comes from the sky in the reflected direction)
+float2 tilt = acc * 0.35 * saturate(Ripples) * saturate(Rain) * puddle;
+return normalize(nn + float3(tilt, 0.0));
+"""
+REFL = COMMON + r"""
 float wetAll = saturate(Wet) * up;
 return saturate(puddle * lerp(0.35, 0.8, saturate(Shine)) + wetAll * 0.05);
-'''
-ALL = ['WP', 'N', 'Bias', 'Puddles', 'Wet', 'Amount', 'Size', 'Style', 'CAmount', 'CScale', 'CWidth', 'Cracks']
+"""
+ALL = ['WP', 'N', 'Bias', 'Puddles', 'Wet', 'Amount', 'Size', 'Style', 'CAmount', 'Cracks', 'Col', 'Rough', 'UseScan', 'ScanCol', 'ScanBig', 'ScanR',
+       'CrackTex', 'TyreTex', 'RwyA', 'RwyB', 'RwyDisp', 'TyreAmt', 'Tyres']
+SRC = lambda: {'WP': (wp, ''), 'N': (vn, ''), 'Bias': (bias, ''), 'Puddles': (pon, ''), 'Wet': (cps['Wetness'], ''), 'Amount': (cps['PuddleAmount'], ''),
+       'Size': (cps['PuddleSize'], ''), 'Style': (cstyle, ''), 'CAmount': (camt, ''), 'Cracks': (cps['Cracks'], ''), 'Col': (use, ''),
+       'Rough': (rough, ''), 'UseScan': (usescan, ''), 'ScanCol': (sdiff, 'RGB'), 'ScanBig': (sbig, 'RGB'), 'ScanR': (srgh, 'R'),
+       'ScanN': (snor, 'RGB'), 'CrackTex': (crackt, ''), 'TyreTex': (tyret, ''), 'RwyA': (cvs['RwyA'], ''), 'RwyB': (cvs['RwyB'], ''),
+       'RwyDisp': (cvs['RwyDisp'], ''), 'TyreAmt': (tamt, ''), 'Tyres': (cps['Tyres'], ''), 'Shine': (cps['PuddleShine'], ''),
+       'T': (tm, ''), 'Ripples': (cps['Ripples'], ''), 'Rain': (cps['Rain'], '')}
 def custom(code, out_type, x, y, extra):
     c = E(unreal.MaterialExpressionCustom, x, y)
     c.set_editor_property('code', code); c.set_editor_property('output_type', out_type); c.set_editor_property('description', 'GROUND')
-    ins = []
-    for n_ in extra + ALL:
+    names = extra + ALL; ins = []
+    for n_ in names:
         ci = unreal.CustomInput(); ci.set_editor_property('input_name', n_); ins.append(ci)
     c.set_editor_property('inputs', ins)
-    src = {'WP': wp, 'N': vn, 'Bias': bias, 'Puddles': pon, 'Wet': cps['Wetness'], 'Amount': cps['PuddleAmount'], 'Size': cps['PuddleSize'],
-           'Style': cstyle, 'CAmount': camt, 'CScale': cscale, 'CWidth': cwidth, 'Cracks': cps['Cracks'],
-           'Col': use, 'Rough': rough, 'Shine': cps['PuddleShine'], 'T': tm, 'Ripples': cps['Ripples'], 'Rain': cps['Rain']}
-    for n_ in extra + ALL: mel.connect_material_expressions(src[n_], '', c, n_)
+    src = SRC()
+    for n_ in names: mel.connect_material_expressions(src[n_][0], src[n_][1], c, n_)
     return c
-cs = custom(SURF, unreal.CustomMaterialOutputType.CMOT_FLOAT4, -300, 0, ['Col', 'Rough', 'Shine'])
-cn = custom(NORMAL, unreal.CustomMaterialOutputType.CMOT_FLOAT3, -300, 400, ['T', 'Ripples', 'Rain'])
+cs = custom(SURF, unreal.CustomMaterialOutputType.CMOT_FLOAT4, -300, 0, ['Shine'])
+cn = custom(NORMAL, unreal.CustomMaterialOutputType.CMOT_FLOAT3, -300, 400, ['ScanN', 'T', 'Ripples', 'Rain'])
 cr = custom(REFL, unreal.CustomMaterialOutputType.CMOT_FLOAT1, -300, 800, ['Shine'])
 rgb = E(unreal.MaterialExpressionComponentMask, -50, 0)
 for ch, on in (('r', True), ('g', True), ('b', True), ('a', False)): rgb.set_editor_property(ch, on)
@@ -181,8 +236,6 @@ mel.connect_material_expressions(cs, '', rgb, ''); mel.connect_material_expressi
 mel.connect_material_property(rgb, '', unreal.MaterialProperty.MP_BASE_COLOR)
 mel.connect_material_property(aa, '', unreal.MaterialProperty.MP_ROUGHNESS)
 mel.connect_material_property(cn, '', unreal.MaterialProperty.MP_NORMAL)
-# the sky in the water: the sky atmosphere's colour in the reflected direction, by Fresnel (the game's sky light gives
-# Lumen's reflections no sky yet; when it does, this can be lowered)
 rv = E(unreal.MaterialExpressionReflectionVectorWS, -300, 1000)
 sky = E(unreal.MaterialExpressionSkyAtmosphereViewLuminance, -100, 1000); mel.connect_material_expressions(rv, '', sky, 'WorldDirection')
 fr = E(unreal.MaterialExpressionFresnel, -100, 1100); fr.set_editor_property('exponent', 4.0); fr.set_editor_property('base_reflect_fraction', 0.04)
@@ -192,47 +245,36 @@ mel.connect_material_property(m2, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
 mel.recompile_material(m); eal.save_loaded_asset(m, only_if_is_dirty=False)
 log('master ' + m.get_path_name())
 
-# ---- the instances: every outdoor paved surface
-def inst(path, params, tex=None, switch_tex=False):
+# ---- the instances
+def inst(path, params, tex=None, switch_tex=False, textures=None):
     a = unreal.load_asset(path)
     if a is None: log('missing ' + path); return
     if not isinstance(a, unreal.MaterialInstanceConstant): log('not an instance ' + path); return
     mel.set_material_instance_parent(a, m)
     mel.set_material_instance_static_switch_parameter_value(a, 'UseTexture', switch_tex)
     if tex: mel.set_material_instance_texture_parameter_value(a, 'BaseTex', tex)
+    for k, v in (textures or {}).items(): mel.set_material_instance_texture_parameter_value(a, k, v)
     for k, v in params.items():
         if isinstance(v, unreal.LinearColor): mel.set_material_instance_vector_parameter_value(a, k, v)
         else: mel.set_material_instance_scalar_parameter_value(a, k, v)
     mel.update_material_instance(a); eal.save_loaded_asset(a, only_if_is_dirty=False)
-    log('%s -> M_Ground %s' % (path.split('/')[-1], params))
-
+    log('%s -> M_Ground' % path.split('/')[-1])
+def scan(sid, big_sid=None):
+    return {'ScanDiff': SCAN[sid]['diff'], 'ScanNormal': SCAN[sid]['nor'], 'ScanRough': SCAN[sid]['rough'], 'ScanDiffBig': SCAN[big_sid or sid]['diff']}
+W = unreal.LinearColor(1, 1, 1, 1)
 KIT = '/Game/Materials/Kit/'
-def kitp(name):   # keep the kit instance's own colour, variation and roughness
-    a = unreal.load_asset(KIT + name)
-    out = {}
-    for k in ('Color',):
-        try: out[k] = mel.get_material_instance_vector_parameter_value(a, k)
-        except Exception: pass
-    for k in ('Variation', 'Roughness'):
-        try: out[k] = mel.get_material_instance_scalar_parameter_value(a, k)
-        except Exception: pass
-    return out
-for name, extra in (('MI_concrete', dict(CrackStyle=1.0, CrackAmount=0.6, CrackScale=2.5, CrackWidth=0.8, PuddleBias=0.0)),
-                    ('MI_asphalt', dict(CrackStyle=0.0, CrackAmount=0.55, CrackScale=3.5, CrackWidth=2.2, PuddleBias=0.0)),
-                    ('MI_apron', dict(CrackStyle=1.0, CrackAmount=0.6, CrackScale=2.5, CrackWidth=0.8, PuddleBias=0.12)),
-                    ('MI_yellow', dict(CrackStyle=2.0, PuddleBias=0.0)),
-                    ('MI_white', dict(CrackStyle=2.0, PuddleBias=0.0))):
-    p = kitp(name); p.update(extra); inst(KIT + name, p)
-
-# the terminal model's ground (Babylon): their own pictures and tiling kept exactly (BaseColorTexture, OffsetScale's
-# z/w), now in the master
+inst(KIT + 'MI_asphalt', dict(Color=W, UseScan=1.0, ScanSize=4.04, CrackStyle=0.0, CrackAmount=0.7, TyreAmount=1.0, Variation=0.0),
+     textures=dict(scan('asphalt_04', 'asphalt_02'), CrackLayer=LAYER['cracks_asphalt']))
+for nm, b_ in (('MI_concrete', 0.0), ('MI_apron', 0.12)):
+    inst(KIT + nm, dict(Color=W, UseScan=1.0, ScanSize=3.0, CrackStyle=1.0, CrackAmount=0.6, TyreAmount=0.0, PuddleBias=b_, Variation=0.0),
+         textures=dict(scan('concrete_floor_worn_001', 'brushed_concrete_04'), CrackLayer=LAYER['cracks_concrete']))
+for name in ('MI_yellow', 'MI_white'):
+    a = unreal.load_asset(KIT + name); c_ = mel.get_material_instance_vector_parameter_value(a, 'Color')
+    inst(KIT + name, dict(Color=c_, UseScan=0.0, CrackStyle=2.0, TyreAmount=1.0, Roughness=0.55, Variation=0.03))
 BAB = '/Game/Babylon/Terminal/terminal/Materials/'
-for name, extra in (('apron', dict(CrackStyle=1.0, CrackAmount=0.6, CrackScale=2.5, CrackWidth=0.8, PuddleBias=0.12)),
-                    ('concrete', dict(CrackStyle=1.0, CrackAmount=0.5, CrackScale=2.5, CrackWidth=0.8, PuddleBias=0.0)),
-                    ('asphalt', dict(CrackStyle=0.0, CrackAmount=0.55, CrackScale=3.5, CrackWidth=2.2, PuddleBias=0.0)),
-                    ('rentalAsphalt', dict(CrackStyle=0.0, CrackAmount=0.4, CrackScale=3.5, CrackWidth=2.0, PuddleBias=0.05)),
-                    ('rentalConcrete', dict(CrackStyle=1.0, CrackAmount=0.4, CrackScale=2.5, CrackWidth=0.8, PuddleBias=0.05)),
-                    ('rentalConcreteLight', dict(CrackStyle=1.0, CrackAmount=0.4, CrackScale=2.5, CrackWidth=0.8, PuddleBias=0.05))):
+for name, extra in (('apron', dict(CrackStyle=1.0, CrackAmount=0.5, PuddleBias=0.12)), ('concrete', dict(CrackStyle=1.0, CrackAmount=0.4)),
+                    ('asphalt', dict(CrackStyle=0.0, CrackAmount=0.5)), ('rentalAsphalt', dict(CrackStyle=0.0, CrackAmount=0.35, PuddleBias=0.05)),
+                    ('rentalConcrete', dict(CrackStyle=1.0, CrackAmount=0.35, PuddleBias=0.05)), ('rentalConcreteLight', dict(CrackStyle=1.0, CrackAmount=0.35, PuddleBias=0.05))):
     a = unreal.load_asset(BAB + name)
     if a is None: log('missing ' + name); continue
     try:
@@ -240,12 +282,12 @@ for name, extra in (('apron', dict(CrackStyle=1.0, CrackAmount=0.6, CrackScale=2
         os_ = mel.get_material_instance_vector_parameter_value(a, 'BaseColorTexture_OffsetScale')
         bcf = mel.get_material_instance_vector_parameter_value(a, 'BaseColorFactor')
         rf = mel.get_material_instance_scalar_parameter_value(a, 'RoughnessFactor')
-    except Exception as e:
-        # already ours (the tool ran before): keep what it set
+        if btex is None: raise Exception('ours already')
+    except Exception:
         btex = mel.get_material_instance_texture_parameter_value(a, 'BaseTex')
         os_ = unreal.LinearColor(0, 0, mel.get_material_instance_scalar_parameter_value(a, 'TexU'), mel.get_material_instance_scalar_parameter_value(a, 'TexV'))
         bcf = mel.get_material_instance_vector_parameter_value(a, 'Color'); rf = mel.get_material_instance_scalar_parameter_value(a, 'Roughness')
-    p = dict(Color=bcf, Roughness=rf, TexU=os_.b, TexV=os_.a); p.update(extra)
-    inst(BAB + name, p, btex, True)
+    p = dict(Color=bcf, Roughness=rf, TexU=os_.b, TexV=os_.a, UseScan=0.0, TyreAmount=0.0); p.update(extra)
+    inst(BAB + name, p, btex, True, dict(CrackLayer=LAYER['cracks_concrete' if extra['CrackStyle'] > 0.5 else 'cracks_asphalt']))
 log('DONE')
 unreal.SystemLibrary.quit_editor()
