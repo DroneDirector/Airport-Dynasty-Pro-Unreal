@@ -71,3 +71,7 @@ Content/Voice/
 cesium-request-cache.sqlite*
 # the MetaHuman people (made by Tools/make_metahumans_all.sh; large, about 0.3 GB each)
 Content/People/
+
+# other people's photos used only as reference
+Art/Cat/reference/
+Art/Cat/renders/
