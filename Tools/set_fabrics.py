@@ -49,8 +49,11 @@ E = lambda cls, x, y: mel.create_material_expression(m, cls, x, y)
 uv = E(unreal.MaterialExpressionTextureCoordinate, -1100, 0)
 tiling = E(unreal.MaterialExpressionScalarParameter, -1100, 150); tiling.set_editor_property('parameter_name', 'Tiling'); tiling.set_editor_property('default_value', 20.0)
 mul = E(unreal.MaterialExpressionMultiply, -900, 50); mel.connect_material_expressions(uv, '', mul, 'A'); mel.connect_material_expressions(tiling, '', mul, 'B')
+# the master's samplers need default pictures of their own kind (an empty one gets the engine's colour default, which
+# fails to compile in a normal-map or mask sampler: the game then drew Unreal's grey default on every garment)
+DEFAULT = {'Albedo': texture('wool_suiting', 'albedo'), 'Normal': texture('wool_suiting', 'normal'), 'Roughness': texture('wool_suiting', 'roughness')}
 def sampler(name, x, y, stype):
-    s = E(unreal.MaterialExpressionTextureSampleParameter2D, x, y); s.set_editor_property('parameter_name', name); s.set_editor_property('sampler_type', stype)
+    s = E(unreal.MaterialExpressionTextureSampleParameter2D, x, y); s.set_editor_property('parameter_name', name); s.set_editor_property('texture', DEFAULT[name]); s.set_editor_property('sampler_type', stype)
     mel.connect_material_expressions(mul, '', s, 'UVs'); return s
 alb = sampler('Albedo', -650, -200, unreal.MaterialSamplerType.SAMPLERTYPE_COLOR)
 nrm = sampler('Normal', -650, 100, unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL)
