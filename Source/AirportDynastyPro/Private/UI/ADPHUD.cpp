@@ -47,6 +47,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SSlider.h"
+#include "Puddles.h"
 #include "GrassField.h"
 #include "FlightViewer.h"
 #include "CharacterCreate.h"
@@ -783,6 +784,99 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 					]
 					+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
 					[SNew(SBox).WidthOverride(56)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { return FText::FromString(FString::Printf(TEXT("%.0f m"), AGrassField::NearDistance)); })]]
+				]
+				// the puddles (owner, 2026-11-13): a Rainy day switch to see them wet (it wets over about a minute, then dries
+				// slowly), the wetness now, and their tuning - saved to Content/Settings/Puddles.ini when a slider is let go
+				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Puddles and wet ground (Rainy day, how wet now, and their look)"))]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 8)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 8, 0)
+					[
+						SNew(SButton)
+						.ButtonColorAndOpacity_Lambda([]() { APuddles* P = APuddles::Get(); return P && P->IsRainyDay() ? FLinearColor(0.1f, 0.45f, 0.75f, 1.f) : FLinearColor(0.05f, 0.2f, 0.36f, 0.9f); })
+						.ContentPadding(FMargin(10, 4))
+						.OnClicked_Lambda([]() { if (APuddles* P = APuddles::Get()) P->SetRainyDay(!P->IsRainyDay()); return FReply::Handled(); })
+						[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { APuddles* P = APuddles::Get(); return FText::FromString(P && P->IsRainyDay() ? TEXT("RAINY DAY: ON") : TEXT("RAINY DAY: OFF")); })]
+					]
+					+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
+					[
+						SNew(SSlider)
+						.Value_Lambda([]() { APuddles* P = APuddles::Get(); return P ? P->GetWetness() : 0.f; })
+						.OnValueChanged_Lambda([](float V) { if (APuddles* P = APuddles::Get()) P->SetWetness(V); })
+					]
+					+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
+					[SNew(SBox).WidthOverride(72)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { APuddles* P = APuddles::Get(); return FText::FromString(P ? FString::Printf(TEXT("wet %.0f%%"), P->GetWetness() * 100.f) : TEXT("-")); })]]
+				]
+				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Puddles: how many"))]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 8)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
+					[
+						SNew(SSlider)
+						.Value_Lambda([]() { APuddles* P = APuddles::Get(); return P ? FMath::Clamp((P->GetTuning(TEXT("Amount")) - 0.f) / (1.f - 0.f), 0.f, 1.f) : 0.f; })
+						.OnValueChanged_Lambda([](float V) { if (APuddles* P = APuddles::Get()) P->SetTuning(TEXT("Amount"), 0.f + V * (1.f - 0.f)); })
+						.OnMouseCaptureEnd_Lambda([]() { if (APuddles* P = APuddles::Get()) P->Save(); })
+					]
+					+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
+					[SNew(SBox).WidthOverride(72)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { APuddles* P = APuddles::Get(); return FText::FromString(P ? FString::Printf(TEXT("%.2f"), P->GetTuning(TEXT("Amount"))) : TEXT("-")); })]]
+				]
+				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Puddles: their size (metres)"))]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 8)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
+					[
+						SNew(SSlider)
+						.Value_Lambda([]() { APuddles* P = APuddles::Get(); return P ? FMath::Clamp((P->GetTuning(TEXT("Size")) - 0.5f) / (12.f - 0.5f), 0.f, 1.f) : 0.f; })
+						.OnValueChanged_Lambda([](float V) { if (APuddles* P = APuddles::Get()) P->SetTuning(TEXT("Size"), 0.5f + V * (12.f - 0.5f)); })
+						.OnMouseCaptureEnd_Lambda([]() { if (APuddles* P = APuddles::Get()) P->Save(); })
+					]
+					+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
+					[SNew(SBox).WidthOverride(72)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { APuddles* P = APuddles::Get(); return FText::FromString(P ? FString::Printf(TEXT("%.1f m"), P->GetTuning(TEXT("Size"))) : TEXT("-")); })]]
+				]
+				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Puddles: how mirror-like the water is"))]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 8)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
+					[
+						SNew(SSlider)
+						.Value_Lambda([]() { APuddles* P = APuddles::Get(); return P ? FMath::Clamp((P->GetTuning(TEXT("Shine")) - 0.f) / (1.f - 0.f), 0.f, 1.f) : 0.f; })
+						.OnValueChanged_Lambda([](float V) { if (APuddles* P = APuddles::Get()) P->SetTuning(TEXT("Shine"), 0.f + V * (1.f - 0.f)); })
+						.OnMouseCaptureEnd_Lambda([]() { if (APuddles* P = APuddles::Get()) P->Save(); })
+					]
+					+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
+					[SNew(SBox).WidthOverride(72)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { APuddles* P = APuddles::Get(); return FText::FromString(P ? FString::Printf(TEXT("%.2f"), P->GetTuning(TEXT("Shine"))) : TEXT("-")); })]]
+				]
+				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Puddles: rain ripples"))]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 8)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
+					[
+						SNew(SSlider)
+						.Value_Lambda([]() { APuddles* P = APuddles::Get(); return P ? FMath::Clamp((P->GetTuning(TEXT("Ripples")) - 0.f) / (2.f - 0.f), 0.f, 1.f) : 0.f; })
+						.OnValueChanged_Lambda([](float V) { if (APuddles* P = APuddles::Get()) P->SetTuning(TEXT("Ripples"), 0.f + V * (2.f - 0.f)); })
+						.OnMouseCaptureEnd_Lambda([]() { if (APuddles* P = APuddles::Get()) P->Save(); })
+					]
+					+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
+					[SNew(SBox).WidthOverride(72)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { APuddles* P = APuddles::Get(); return FText::FromString(P ? FString::Printf(TEXT("%.2f"), P->GetTuning(TEXT("Ripples"))) : TEXT("-")); })]]
+				]
+				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Puddles: drying time after rain (hours)"))]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 8)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
+					[
+						SNew(SSlider)
+						.Value_Lambda([]() { APuddles* P = APuddles::Get(); return P ? FMath::Clamp((P->GetTuning(TEXT("DryingHours")) - 0.05f) / (24.f - 0.05f), 0.f, 1.f) : 0.f; })
+						.OnValueChanged_Lambda([](float V) { if (APuddles* P = APuddles::Get()) P->SetTuning(TEXT("DryingHours"), 0.05f + V * (24.f - 0.05f)); })
+						.OnMouseCaptureEnd_Lambda([]() { if (APuddles* P = APuddles::Get()) P->Save(); })
+					]
+					+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
+					[SNew(SBox).WidthOverride(72)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { APuddles* P = APuddles::Get(); return FText::FromString(P ? FString::Printf(TEXT("%.1f h"), P->GetTuning(TEXT("DryingHours"))) : TEXT("-")); })]]
 				]
 				// the distant landscape's sharpness (owner, 2026-11-11): soft (fastest) to very sharp (costs frame rate
 				// when looking far); the slider runs from soft on the left to sharp on the right
