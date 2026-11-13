@@ -38,7 +38,7 @@ namespace
 	float RoundBeats() { float B = 0; for (const FShot& S : Shots) B += S.Beats; return B; }
 	float Ease(float K) { K = FMath::Clamp(K, 0.f, 1.f); return K * K * (3.f - 2.f * K); }
 
-	bool bOn = false, bReady = false;
+	bool bFilmOn = false, bFilmReady = false;
 	float ClockT = 0.f; double ClockAt = 0.0;
 	float Now()
 	{
@@ -49,13 +49,13 @@ namespace
 
 void ADPTitleBg::Clock(bool bNowOn, float Seconds)
 {
-	if (bNowOn != bOn) ADP_LOG(TEXT("Title film: %s (Unreal draws it)"), bNowOn ? TEXT("on") : TEXT("off"));
-	bOn = bNowOn;
+	if (bNowOn != bFilmOn) ADP_LOG(TEXT("Title film: %s (Unreal draws it)"), bNowOn ? TEXT("on") : TEXT("off"));
+	bFilmOn = bNowOn;
 	// the page's music clock: taken when it drifts (the page sends it a few times a second)
 	if (FMath::Abs(Now() - Seconds) > 0.08f && FMath::Abs(Now() - Seconds) < TS_DUR - 0.08f) { ClockT = Seconds; ClockAt = FPlatformTime::Seconds(); }
 }
-bool ADPTitleBg::IsOn() { return bOn; }
-bool ADPTitleBg::Ready() { return bReady; }
+bool ADPTitleBg::IsOn() { return bFilmOn; }
+bool ADPTitleBg::Ready() { return bFilmReady; }
 
 void STitleBg::Construct(const FArguments& Args)
 {
@@ -84,7 +84,7 @@ void STitleBg::Construct(const FArguments& Args)
 			FBase64::Decode(O->GetStringField(TEXT("k")), Kick);
 		}
 	}
-	bReady = true;
+	bFilmReady = true;
 	ADP_LOG(TEXT("Title film: ready (%d pictures, beat levels %d)"), Tex.Num(), Env.Num());
 }
 
@@ -174,7 +174,7 @@ void STitleBg::Frame(float W, float H, float Dt) const
 
 int32 STitleBg::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const FSlateRect& Cull, FSlateWindowElementList& Out, int32 Layer, const FWidgetStyle& Style, bool bParentEnabled) const
 {
-	if (!Mid.IsValid() || !bOn) return Layer;
+	if (!Mid.IsValid() || !bFilmOn) return Layer;
 	const double T = FPlatformTime::Seconds();
 	const float Dt = LastPaint > 0 ? float(FMath::Clamp(T - LastPaint, 0.0, 0.1)) : 1.f / 60.f;
 	LastPaint = T;
