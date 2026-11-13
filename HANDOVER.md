@@ -42,6 +42,28 @@ The previous PC session can't be found any more. Its last work, in order:
 - Notes from the phone/cloud chat since then: the hairdresser idea (below); the town and road maps, the dealership
   model (in progress in the cloud chat, Blender files to come); none of that touches game code yet.
 
+## The VELDRA car dealership (2026-11-13, from the phone/cloud chat) — FOR THE PC CHAT TO BRING IN
+
+The owner approved the model ("build it all the way"). Files are already in the PC's working copy, NOT committed
+yet (commit them through LFS): **Art/Dealership/** — VELDRA-dealership.blend (textures packed), VELDRA-dealership.glb
+(the building only), renders/ (exterior, interior), textures/ (seamless 2048 px: asphalt, concrete, gravel, lawn,
+beige, made from the owner's reference photos by make_textures.py), dealer.py + lib.py (the Blender script that
+builds it all; run with Blender's Python, `python dealer.py -- export`).
+
+- **The building:** a two-storey glass showroom (42 x 26 m, glass 9 m high, mullions every 1.5 m, transom at 4.6 m)
+  under a floating fascia (9.6-13.2 m) clad in bronze-brown panels with a lattice of wavy grooves, overhanging 1.2 m
+  and 5 m out over the west corner; a dark glossy band with downlights under it; a dark metal entrance portal with
+  double glass doors; a sand-coloured service wing (24 x 26 m, 7 m high) with a navy wavy band, three sectional
+  doors and a staff room. Fictional brand **VELDRA** (chrome letters and an oval V badge); the dealer is
+  "Sandur Bílar"; a pylon sign by the road. Never a real car brand.
+- **Inside:** polished floor; 5 cars on the floor plus the hero car on a **turntable that turns all the time** (one
+  full turn every 30 s, looping; in Unreal a rotating component on the turntable with the car on it, 12°/s); price
+  stands; a curved reception desk; the brand wall over the room block; along the back: the customer lounge (public
+  room: sofas, coffee bar, TV, plants), toilets (two, with signs), two glass sales offices, a STAFF ONLY door with a
+  keypad, the service reception, and the workshop (staff only) with three lifts, a car on a lift and tool chests.
+- **Where it goes:** the car dealer's lot in the home town (marker 3 on the town plan, south of Main Street by the
+  roundabout). Also on TODO.md.
+
 ## Owner's ideas, noted but NOT on the to-do list (2026-11-12, from the airport-layout and town chat) — FOR THE PC CHAT TO KNOW
 
 The owner asked for these to be kept here, visible to every chat, and not added to TODO.md.

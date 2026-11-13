@@ -69,6 +69,11 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       short loading note, or wait for the sharp tiles before putting you down)
 
 ## 3. The airport and buildings
+- [ ] **The VELDRA car dealership in the home town** (owner approved, 2026-11-13): bring in Art/Dealership
+      (VELDRA-dealership.glb, Nanite, materials redone in Unreal from its textures) on the car dealer's lot (town plan
+      marker 3), with its full interior (lounge, toilets, offices, reception, staff-only door, workshop), the hero car
+      on the showroom turntable turning all the time (one turn every 30 s), the cars for sale, and the pylon sign.
+      See HANDOVER.md "The VELDRA car dealership"
 - [x] **Entrance signs seen from inside say "Exit"** (owner, 2026-11-10): the signs over the three entrances on the
       inside of the main hall read EXIT WEST, MAIN EXIT and EXIT EAST (outside they stay ENTRANCE WEST, MAIN ENTRANCE,
       ENTRANCE EAST). Check where the Babylon model draws the inner signs' text (sign textures / labels) and change only
