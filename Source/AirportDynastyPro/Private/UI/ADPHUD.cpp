@@ -2184,20 +2184,45 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 65.f && ShotClock >= 65.f) { ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
 			if (Before < 66.f && ShotClock >= 66.f) FGenericPlatformMisc::RequestExit(false);
 		}
-		// -UIPuddles (with -RainyDay): the puddles on a rainy day: the apron by the stands, a taxiway, the runway
+		// -UIPuddles (with -RainyDay): the puddles on a rainy day (owner, 2026-11-13): the apron, a taxiway and the runway,
+		// each from eye height and from about an aircraft's tail-fin height (12 m) looking gently down with the terminal in
+		// view, and one close over a puddle
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")))
 		{
 			auto Shot = [this](const TCHAR* Name) { if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 2 filename=%s"), Name)); };
 			const FAirfieldData& F = AAirfield::Shared();
-			auto Go = [&](float X, float Y, float LX, float LY, float LH) { GoTo(FVector(X, 0.f, Y), FVector(LX, LH, LY)); };
-			if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 15.f; ASunClock::Theme = 1; ASunClock::Refresh(); Go(81.f + 20.f, F.AY + 10.f, 81.f + 70.f, F.AY + 40.f, 1.7f); }
-			if (Before < 48.f && ShotClock >= 48.f) Shot(TEXT("Puddles_Apron"));
-			if (Before < 49.f && ShotClock >= 49.f) Go(81.f + 40.f, F.AY + 31.5f, 81.f + 90.f, F.AY + 31.f, 1.6f);
-			if (Before < 56.f && ShotClock >= 56.f) Shot(TEXT("Puddles_Taxiway"));
-			if (Before < 57.f && ShotClock >= 57.f) Go(F.RwyX0 + 260.f, F.RwyY - 20.f, F.RwyX0 + 600.f, F.RwyY, 1.7f);
-			if (Before < 64.f && ShotClock >= 64.f) Shot(TEXT("Puddles_Runway"));
-			if (Before < 65.f && ShotClock >= 65.f) { ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
-			if (Before < 66.f && ShotClock >= 66.f) FGenericPlatformMisc::RequestExit(false);
+			static TWeakObjectPtr<ACameraActor> PCam;
+			// a free camera at a plan point (x, height, y) looking at another
+			auto View = [this](float X, float H, float Y, float LX, float LH, float LY)
+			{
+				APlayerController* PC = GetOwningPlayerController(); if (!PC) return;
+				const FVector At = FTerminalPlan::ToWorld(X, H, Y), To = FTerminalPlan::ToWorld(LX, LH, LY);
+				if (!PCam.IsValid()) PCam = GetWorld()->SpawnActor<ACameraActor>(At, (To - At).Rotation());
+				else PCam->SetActorLocationAndRotation(At, (To - At).Rotation());
+				if (PCam.IsValid()) { PCam->GetCameraComponent()->SetConstraintAspectRatio(false); PCam->GetCameraComponent()->SetFieldOfView(60.f); PC->SetViewTarget(PCam.Get()); }
+			};
+			struct FV { const TCHAR* Name; float X, H, Y, LX, LH, LY; };
+			// (plan metres: the terminal's apron APRON-T runs y 82..226 with the stands' noses at y 108-110, taxiway A at
+			// y = AY, the runway at RwyY; the terminal lies at y < 82)
+			const FV Views[] = {
+				{TEXT("Puddles_ApronLow"),    0.f, 1.7f,  165.f, 0.f, 4.f, 60.f},
+				{TEXT("Puddles_ApronHigh"),   0.f, 12.f,  185.f, 0.f, 3.f, 95.f},
+				{TEXT("Puddles_TaxiwayLow"),  0.f,  1.7f,  F.AY, 300.f, 0.8f, F.AY - 2.f},
+				{TEXT("Puddles_TaxiwayHigh"), -60.f, 12.f, F.AY + 45.f, 240.f, 2.f, F.AY - 60.f},
+				{TEXT("Puddles_RunwayLow"),   -200.f, 4.0f, F.RwyY - 8.f, 200.f, 2.5f, F.RwyY},
+				{TEXT("Puddles_RunwayHigh"),  -260.f, 12.f, F.RwyY + 50.f, 160.f, 0.f, F.RwyY - 90.f},
+				{TEXT("Puddles_Close"),       0.f, 1.6f, 160.f, 0.4f, 0.f, 163.f},
+			};
+			if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 15.f; ASunClock::Theme = 1; ASunClock::Refresh(); }
+			for (int32 i = 0; i < UE_ARRAY_COUNT(Views); ++i)
+			{
+				const float T0 = 41.f + 8.f * i;
+				if (Before < T0 && ShotClock >= T0) View(Views[i].X, Views[i].H, Views[i].Y, Views[i].LX, Views[i].LH, Views[i].LY);
+				if (Before < T0 + 6.f && ShotClock >= T0 + 6.f) Shot(Views[i].Name);
+			}
+			const float TE = 41.f + 8.f * UE_ARRAY_COUNT(Views);
+			if (Before < TE && ShotClock >= TE) { ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
+			if (Before < TE + 1.f && ShotClock >= TE + 1.f) FGenericPlatformMisc::RequestExit(false);
 		}
 		// -UIBody: you from behind in the hall: standing, then walking forward (your MetaHuman body in its outfit)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIBody")))
