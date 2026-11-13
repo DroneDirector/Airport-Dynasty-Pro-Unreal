@@ -281,12 +281,27 @@ def dress(ch, spec, info, rng):
     long_ok = (lambda p: True) if spec['female'] else (lambda p: '_l_' not in p or rng.random() < 0.1)
     hair = wear_one(ch, 'Hair', next((p for p in info['wardrobe'].get('Hair', []) if p.endswith('/' + spec['hair'])), None) if spec.get('hair') else pick('Hair', long_ok))
     wear_one(ch, 'Eyebrows', pick('Eyebrows'))
-    wear_one(ch, 'Beard', pick('Beard') if spec['beard'] else None)
-    wear_one(ch, 'Mustache', None)
+    beard = wear_one(ch, 'Beard', pick('Beard') if spec['beard'] else None)
+    # the moustache (owner, 2026-11-13: moustaches too): its own slot in Epic's wardrobe, always emptied before. Drawn
+    # from the person's own 'pick' seed, not the plan's random stream, so everyone's face and looks stay as built: half
+    # the bearded men add one, about one in eight clean-shaven men wears a moustache alone; a spec may say outright
+    mr = random.Random(spec['pick'] ^ 0x6D757374)
+    tash = spec.get('mustache')
+    if tash is None:
+        tash = (not spec['female']) and spec.get('age', 30) >= 18 and mr.random() < (0.5 if spec['beard'] else 0.12)
+    tashes = info['wardrobe'].get('Mustache', [])
+    if isinstance(tash, str):
+        tash = next((p for p in tashes if p.endswith('/' + tash)), None)
+    elif tash:
+        tash = tashes[mr.randrange(len(tashes))] if tashes else None
+    mustache = wear_one(ch, 'Mustache', tash or None)
     outfit = wear_one(ch, 'Outfits', pick('Outfits'))
     mhs.assemble_for_preview(character=ch)
     def params(key):
         return ch.internal_collection.default_instance.get_instance_parameters(item_path=unreal.MetaHumanPaletteItemPath(item_key=key)) if key else []
+    for p in list(params(beard)) + list(params(mustache)):               # facial hair in the same colour and grey as the hair
+        if p.name == 'Melanin': p.set_float(value=spec['hair_melanin'])
+        if p.name in ('Greyness', 'Grayness', 'GreyAmount'): p.set_float(value=spec['grey'])
     for p in params(hair):
         if p.name == 'Melanin': p.set_float(value=spec['hair_melanin'])
         if p.name in ('Greyness', 'Grayness', 'GreyAmount'): p.set_float(value=spec['grey'])
