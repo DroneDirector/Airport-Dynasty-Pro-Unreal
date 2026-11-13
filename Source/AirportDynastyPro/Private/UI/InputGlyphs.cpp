@@ -41,6 +41,22 @@ namespace ADPInput
 		return A;
 	}
 
+	const TArray<FAction>& DroneActions()
+	{
+		static const TArray<FAction> A = {
+			{TEXT("Fly forward, back, sideways (level)"), EKeys::Invalid, TEXT("W A S D"), EKeys::Invalid, TEXT("Left stick"), TEXT("Left stick"), TEXT("Left stick")},
+			{TEXT("Up"),                    EKeys::SpaceBar,    TEXT("Space"),       EKeys::Gamepad_RightTrigger, TEXT("RT"), TEXT("R2"), TEXT("Right trigger")},
+			{TEXT("Down"),                  EKeys::LeftControl, TEXT("Ctrl"),        EKeys::Gamepad_LeftTrigger,  TEXT("LT"), TEXT("L2"), TEXT("Left trigger")},
+			{TEXT("Turn and tilt the view"), EKeys::Invalid,    TEXT("Mouse"),       EKeys::Invalid, TEXT("Right stick"), TEXT("Right stick"), TEXT("Right stick")},
+			{TEXT("Faster / slower (steps)"), EKeys::Invalid,   TEXT("Mouse wheel"), EKeys::Invalid, TEXT("D-pad up / down"), TEXT("D-pad up / down"), TEXT("D-pad up / down")},
+			{TEXT("Boost: much faster (hold)"), EKeys::LeftShift, TEXT("Shift"),     EKeys::Gamepad_LeftThumbstick, TEXT("LS"), TEXT("L3"), TEXT("L stick press")},
+			{TEXT("Map"),                   EKeys::M,           TEXT("M"),           EKeys::Gamepad_RightShoulder, TEXT("RB"), TEXT("R1"), TEXT("Right shoulder")},
+			{TEXT("Hide UI (back: Esc)"),   EKeys::H,           TEXT("H"),           EKeys::Gamepad_LeftShoulder, TEXT("LB"), TEXT("L1"), TEXT("Left shoulder")},
+			{TEXT("Leave drone mode (back where you stood)"), EKeys::Escape, TEXT("Esc"), EKeys::Gamepad_FaceButton_Right, TEXT("B"), TEXT("○"), TEXT("Button 2")},
+		};
+		return A;
+	}
+
 	const FAction* Find(const FString& Name)
 	{
 		return Actions().FindByPredicate([&](const FAction& A) { return A.Name == Name; });

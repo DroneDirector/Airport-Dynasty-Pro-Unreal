@@ -136,6 +136,14 @@ public:
 	 *  floor's height, z), looking at another; never inside a wall or the floor. */
 	void GoTo(const FVector& PlanAt, const FVector& PlanLook);
 	void GoGate4();
+	/** Drone mode (DroneCam.h): from the full-screen map's button; Esc / B back to where you stood. */
+	void EnterDrone();
+	void LeaveDrone();
+	bool InDrone() const { return Drone.IsValid(); }
+	TWeakObjectPtr<class ADroneCam> Drone;
+	TWeakObjectPtr<APawn> DroneFrom;
+	FRotator DroneFromLook = FRotator::ZeroRotator;
+	bool bButtonsBeforeDrone = false;
 	void GoApron();
 	void GoEntrance();
 	void GoTowerCab();

@@ -2,6 +2,7 @@
 // overlay, all in Slate, styled in the Android edition's holographic blues.
 #include "UI/ADPHUD.h"
 #include "FireTruck.h"
+#include "DroneCam.h"
 #include "ADPLog.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/CameraActor.h"
@@ -293,19 +294,40 @@ void AADPHUD::BeginPlay()
 
 	Root = SNew(SOverlay).Visibility(EVisibility::SelfHitTestInvisible)
 		+ SOverlay::Slot()[GameBox.ToSharedRef()]
+		// drone mode's line, bottom centre (only while flying, the map closed; clear of the time and weather bar above,
+		// the small map at the left and the Buttons panel at the right): speed, the wheel's step, height
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(16, 16, 16, 44)
+		[
+			SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(FLinearColor(0.02f, 0.06f, 0.1f, 0.75f)).Padding(FMargin(14, 6))
+			.Visibility_Lambda([this]() { return Drone.IsValid() && !bGame ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+			[
+				SNew(STextBlock).Font(Font(11)).ColorAndOpacity(Ink)
+				.Text_Lambda([this]()
+				{
+					if (!Drone.IsValid()) return FText::GetEmpty();
+					const ADroneCam* D = Drone.Get();
+					const FString H = D->HeightAbove() < 0.f ? FString(TEXT("-")) : FString::Printf(TEXT("%.0f m"), D->HeightAbove());
+					const FString Sp = D->Boosting() ? FString(TEXT("BOOST")) : FString::Printf(TEXT("step %g m/s"), D->StepSpeed());
+					return FText::FromString(FString::Printf(TEXT("DRONE   %.0f km/h   %s   height %s"), D->SpeedNow() * 3.6f, *Sp, *H));
+				})
+			]
+		]
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(16)[TopBar.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(16)
 		[
 			SAssignNew(MiniBox, SBox).WidthOverride(240).HeightOverride(240)
 			.Visibility_Lambda([this]() { return bGame || bInLounge ? EVisibility::Collapsed : EVisibility::Visible; })
 			[
-				SNew(SOverlay)
-				+ SOverlay::Slot()[HoloMap.ToSharedRef()]
-				// the map's three shortcuts (only full screen), inside the map's own frame, top right
-				+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(12)
+				// the map, and beside it (full screen only) its shortcuts in their own column: nothing of the interface lies
+				// over the map's drawing (owner, 2026-11-13: no UI in the way of another)
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().FillWidth(1.f)[HoloMap.ToSharedRef()]
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Top).Padding(12, 0, 0, 0)
 				[
 					SNew(SVerticalBox)
 					.Visibility_Lambda([this]() { return HoloMap.IsValid() && HoloMap->IsFull() ? EVisibility::Visible : EVisibility::Collapsed; })
+					// drone mode: the map closes and you fly (its own row at the top of the column, nothing over the map)
+					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)[Button(TEXT("DRONE MODE"), [this]() { EnterDrone(); })]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)[Button(TEXT("GATE 4 (UPPER FLOOR)"), [this]() { GoGate4(); })]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)[Button(TEXT("APRON: THE TERMINAL AND JETWAY"), [this]() { GoApron(); })]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)[Button(TEXT("MAIN ENTRANCE"), [this]() { GoEntrance(); })]
@@ -1006,7 +1028,7 @@ void AADPHUD::ToggleMap()
 	const bool bFull = !HoloMap->IsFull();
 	HoloMap->SetFull(bFull);
 	// full screen: the map fills most of the window; small: back in its corner
-	StaticCastSharedPtr<SBox>(MiniBox)->SetWidthOverride(bFull ? FOptionalSize(1200) : FOptionalSize(240));
+	StaticCastSharedPtr<SBox>(MiniBox)->SetWidthOverride(bFull ? FOptionalSize(1450) : FOptionalSize(240));   // (the map 1200 wide, its shortcut column beside it)
 	StaticCastSharedPtr<SBox>(MiniBox)->SetHeightOverride(bFull ? FOptionalSize(720) : FOptionalSize(240));
 	UpdateMouse();
 }
@@ -1050,6 +1072,7 @@ void AADPHUD::OnViewerFlight(const FString& Json)
 void AADPHUD::ToggleGame()
 {
 	if (bHidden) return;
+	if (!bGame && Drone.IsValid()) LeaveDrone();   // (the menus from the drone: you're back on your feet first)
 	// from the 3D viewer to the menus: the viewer closes, the airport comes back behind them
 	if (!bGame && bViewer) CloseViewer();
 	bGame = !bGame;
@@ -1307,6 +1330,45 @@ void AADPHUD::SetFrameGen(bool bOn)
 	GConfig->Flush(false, GGameUserSettingsIni);
 }
 
+void AADPHUD::EnterDrone()
+{
+	APlayerController* PC = GetOwningPlayerController();
+	APawn* Me = GetOwningPawn();
+	if (!PC || !Me || Drone.IsValid() || !Cast<AADPWalker>(Me)) return;   // (on foot only: not from a truck)
+	if (HoloMap.IsValid() && HoloMap->IsFull()) ToggleMap();
+	// the drone starts where your eyes are, looking the way you look
+	FVector At = Me->GetPawnViewLocation(); FRotator Look = PC->GetControlRotation();
+	if (PC->PlayerCameraManager) { At = PC->PlayerCameraManager->GetCameraLocation(); Look = PC->PlayerCameraManager->GetCameraRotation(); }
+	FActorSpawnParameters S; S.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	ADroneCam* D = GetWorld()->SpawnActor<ADroneCam>(At, FRotator(0.f, Look.Yaw, 0.f), S);
+	if (!D) return;
+	DroneFrom = Me; DroneFromLook = PC->GetControlRotation();
+	D->OnLeave = [this]() { LeaveDrone(); };
+	PC->Possess(D);
+	PC->SetControlRotation(Look);
+	if (PC->PlayerCameraManager) { PC->PlayerCameraManager->ViewPitchMin = -89.f; PC->PlayerCameraManager->SetGameCameraCutThisFrame(); }
+	Drone = D;
+	// the Buttons panel open with the drone's controls (as it was before once you land)
+	bButtonsBeforeDrone = bButtonsOpen; bButtonsOpen = true;
+	RefreshControls();
+	UpdateMouse();
+	ADP_LOG(TEXT("Drone mode: flying from %s"), *At.ToString());
+}
+
+void AADPHUD::LeaveDrone()
+{
+	if (!Drone.IsValid()) return;
+	APlayerController* PC = GetOwningPlayerController();
+	ADroneCam* D = Drone.Get();
+	Drone = nullptr;
+	if (PC && DroneFrom.IsValid()) { PC->Possess(DroneFrom.Get()); PC->SetControlRotation(DroneFromLook); if (PC->PlayerCameraManager) PC->PlayerCameraManager->SetGameCameraCutThisFrame(); }
+	D->Destroy();
+	bButtonsOpen = bButtonsBeforeDrone;
+	RefreshControls();
+	UpdateMouse();
+	ADP_LOG(TEXT("Drone mode: back on your feet"));
+}
+
 void AADPHUD::OnEscape()
 {
 	if (bWhoAreYou) { CloseWhoAreYou(false); return; }
@@ -1321,6 +1383,8 @@ void AADPHUD::OnEscape()
 	if (HoloMap.IsValid() && HoloMap->IsFull()) { ToggleMap(); return; }
 	if (bSettings) { ToggleSettings(); return; }
 	if (bWardrobe) { CloseWardrobe(); return; }
+	// flying the drone: back to where you stood
+	if (Drone.IsValid()) { LeaveDrone(); return; }
 	// nothing open: the Overview, always
 	ToggleGame();
 	if (Browser.IsValid()) Browser->ExecuteJavascript(TEXT("window.__ueOverview && window.__ueOverview()"));
@@ -1408,6 +1472,7 @@ void AADPHUD::Interact()
 	if (!PC || bGame || bDevice || PhoneDir != 0 || bSettings || bPointer || (HoloMap.IsValid() && HoloMap->IsFull())) return;
 	// in a fire truck: E / X gets you out (FireTruck.h)
 	if (AFireTruck* T = Cast<AFireTruck>(GetOwningPawn())) { T->Exit(); return; }
+	if (Drone.IsValid()) return;   // (a drone presses nothing)
 	FVector Eye; FRotator Look;
 	PC->GetPlayerViewPoint(Eye, Look);
 	FHitResult Hit;
@@ -1600,7 +1665,8 @@ void AADPHUD::RefreshControls()
 	if (ButtonsList.IsValid())
 	{
 		ButtonsList->ClearChildren();
-		for (const ADPInput::FAction& A : ADPInput::Actions())
+		// flying the drone: its own controls
+		for (const ADPInput::FAction& A : Drone.IsValid() ? ADPInput::DroneActions() : ADPInput::Actions())
 			if (A.Name != TEXT("Buttons")) ButtonsList->AddSlot().AutoHeight()[Row(A, false)];
 	}
 	if (SettingsControls.IsValid())
@@ -2267,6 +2333,31 @@ void AADPHUD::Tick(float Dt)
 			if (Before < TE && ShotClock >= TE) { ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
 			if (Before < TE + 1.f && ShotClock >= TE + 1.f) FGenericPlatformMisc::RequestExit(false);
 		}
+		// -UIDrone: drone mode from the full-screen map: the button, flying low, boosting up to the clouds, the interface
+		// hidden and back, and Esc back onto your feet where you stood
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIDrone")))
+		{
+			auto Shot = [this](const TCHAR* Name) { if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 2 filename=%s"), Name)); };
+			static FVector StoodAt = FVector::ZeroVector;
+			auto D = [this]() { return Drone.Get(); };
+			if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 14.f; ASunClock::Theme = 1; ASunClock::Refresh(); GoApron(); }
+			if (Before < 41.f && ShotClock >= 41.f) { if (GetOwningPawn()) StoodAt = GetOwningPawn()->GetActorLocation(); ToggleMap(); }
+			if (Before < 42.f && ShotClock >= 42.f) FScreenshotRequest::RequestScreenshot(TEXT("Drone_Map_Button"), true, false);
+			if (Before < 43.f && ShotClock >= 43.f) { EnterDrone(); ADP_LOG(TEXT("UIDrone: in drone mode %d, map full %d"), Drone.IsValid() ? 1 : 0, HoloMap.IsValid() && HoloMap->IsFull() ? 1 : 0); }
+			if (Before < 44.f && ShotClock >= 44.f && D()) D()->SetTestInput(1.f, 0.f, 0.3f, false);
+			if (Before < 46.5f && ShotClock >= 46.5f) FScreenshotRequest::RequestScreenshot(TEXT("Drone_Low_UI"), true, false);
+			if (Before < 47.f && ShotClock >= 47.f && D()) { ADP_LOG(TEXT("UIDrone: at the step %.1f m/s, height %.0f m"), D()->SpeedNow(), D()->HeightAbove()); D()->SetTestInput(0.3f, 0.f, 1.f, true); }
+			if (Before < 55.f && ShotClock >= 55.f && D()) { ADP_LOG(TEXT("UIDrone: boosting %.0f m/s, height %.0f m"), D()->SpeedNow(), D()->HeightAbove()); D()->SetTestInput(0.f, 0.f, 0.f, false); if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(FRotator(-25.f, PC->GetControlRotation().Yaw, 0.f)); }
+			if (Before < 57.5f && ShotClock >= 57.5f) FScreenshotRequest::RequestScreenshot(TEXT("Drone_High_UI"), true, false);
+			if (Before < 58.f && ShotClock >= 58.f) Shot(TEXT("Drone_High"));
+			if (Before < 59.f && ShotClock >= 59.f) HideUI();
+			if (Before < 60.f && ShotClock >= 60.f) Shot(TEXT("Drone_High_NoUI"));
+			if (Before < 61.f && ShotClock >= 61.f) { OnEscape(); ADP_LOG(TEXT("UIDrone: Esc with the interface hidden: interface back %d, still flying %d"), bHidden ? 0 : 1, Drone.IsValid() ? 1 : 0); }
+			if (Before < 62.f && ShotClock >= 62.f) { OnEscape(); APawn* Me = GetOwningPawn(); ADP_LOG(TEXT("UIDrone: Esc again: flying %d, on foot %d, %.1f m from where you stood"), Drone.IsValid() ? 1 : 0, Cast<AADPWalker>(Me) ? 1 : 0, Me ? FVector::Dist(Me->GetActorLocation(), StoodAt) / 100.f : -1.f); }
+			if (Before < 63.5f && ShotClock >= 63.5f) Shot(TEXT("Drone_Back"));
+			if (Before < 64.f && ShotClock >= 64.f) { ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
+			if (Before < 65.f && ShotClock >= 65.f) FGenericPlatformMisc::RequestExit(false);
+		}
 		// -UIRun: running and turning (owner, 2026-11-13): in first person the body must stay right under you (its pelvis
 		// measured against your capsule every frame), and from behind the camera must glide, not jump (its offset from you
 		// measured for jolts every frame); pictures looking down at your feet and of a turn from behind
@@ -2753,7 +2844,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are
