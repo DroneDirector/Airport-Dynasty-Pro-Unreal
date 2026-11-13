@@ -22,8 +22,8 @@ import unreal
 
 args = [a for a in sys.argv[1:] if not a.startswith('-')]
 MODE = args[0] if args else 'inspect'
-COUNT = int(args[1]) if len(args) > 1 else 40
-FIRST = int(args[2]) if len(args) > 2 else 0   # (80 people: 0-79)
+COUNT = int(args[1]) if len(args) > 1 and args[1].isdigit() else 40
+FIRST = int(args[2]) if len(args) > 2 and args[2].isdigit() else 0   # (80 people: 0-79)
 OUT = '/Game/People'
 SAVED = os.path.join(unreal.Paths.project_saved_dir(), 'MetaHumans.json')
 ar = unreal.AssetRegistryHelpers.get_asset_registry()
@@ -359,6 +359,33 @@ def refit(spec, info):
             mhs.remove_object_to_edit(ch)
 
 
+
+# ---- the player in an outfit (2026-11-13): a copy of the player's character wearing a garment from the clothes
+# pipeline (Tools/make_outfit.py: /Game/Clothes/<Outfit>/WI_<Outfit>), built as MH_900_player_<Outfit> for the
+# wardrobe to swap to. Nothing of the face, skin or hair is redone; the outfit resizes itself to the body.
+#   ... "make_metahumans.py outfit <Outfit>"
+def player_outfit(outfit):
+    name = 'MH_900_player_' + outfit
+    path = OUT + '/' + name
+    if eal.does_asset_exist(path): eal.delete_asset(path)
+    if eal.does_directory_exist(OUT + '/Built/' + name): eal.delete_directory(OUT + '/Built/' + name)
+    eal.duplicate_asset(OUT + '/MH_900_player', path)
+    ch = unreal.load_asset(path)
+    if not mhs.try_add_object_to_edit(ch):
+        unreal.log_error('ADP_MH: could not edit ' + name); return
+    try:
+        wear_one(ch, 'Outfits', '/Game/Clothes/%s/WI_%s' % (outfit, outfit))
+        mhs.assemble_for_preview(character=ch)
+        sel = [str(d.selection.slot_name) for d in ch.internal_collection.default_instance.get_slot_selection_data()]
+        log('%s wears: %s' % (name, ', '.join(sel)))
+        build_and_save(ch, name)
+        log('%s made' % name)
+    except Exception as e:
+        unreal.log_error('ADP_MH: %s outfit failed: %s' % (name, e))
+    finally:
+        if mhs.is_object_added_for_editing(ch): mhs.remove_object_to_edit(ch)
+
+
 # ---- making one
 def make(spec, info):
     name = 'MH_%03d_%s' % (spec['i'], spec['role'])
@@ -446,6 +473,9 @@ try:
     if MODE == 'player':
         QUALITY = 'MEDIUM'
         make(player_spec(), info)
+    if MODE == 'outfit':
+        QUALITY = 'MEDIUM'
+        player_outfit(args[1])
     if MODE == 'refit':
         for i in range(FIRST, FIRST + COUNT):
             refit(person(i), info)
