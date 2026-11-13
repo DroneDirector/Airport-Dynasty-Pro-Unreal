@@ -207,11 +207,11 @@ async function run() {
   // out), with the groups above them (no transforms of their own), in the terminal's own co-ordinates
   if (which === 'jetways') {
     // docked at the aircraft parked on their stands (their own docking: the cab at the front door), not parked back
-    for (const r of ((K as any).jetways || [])) r.snap('docked');
+    for (const r of ((K as any).jetways || [])) r.snap(new URLSearchParams(location.search).get('pose') === 'parked' ? 'parked' : 'docked');
     for (const m of [...sc.transformNodes, ...sc.meshes] as any[]) m.computeWorldMatrix(true);
     // ?shot=x,y,z,tx,ty,tz: a picture of it from there in the Babylon scene itself (to compare with Unreal), no export
     const shot = new URLSearchParams(location.search).get('shot');
-    if (shot) { const v = shot.split(',').map(Number); const cam = new UniversalCamera('shot', new Vector3(v[0], v[1], v[2]), sc); cam.setTarget(new Vector3(v[3], v[4], v[5])); cam.fov = 1.0; sc.activeCamera = cam;
+    if (shot) { const v = shot.split(',').map(Number); const cam = new UniversalCamera('shot', new Vector3(v[0], v[1], v[2]), sc); cam.setTarget(new Vector3(v[3], v[4], v[5])); cam.fov = 1.0; sc.activeCamera = cam; engine.setSize(1600, 900);
       new HemisphericLight('sky', new Vector3(0.3, 1, 0.2), sc);
       for (let i = 0; i < 5; i++) sc.render();
       const b = await new Promise<Blob>(r => canvas.toBlob(x => r(x as Blob), 'image/png'));

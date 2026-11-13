@@ -597,8 +597,10 @@ export function buildJetway(K: Kit, n: number, gateX: number, stand: { x: number
   const ik = (x: number, z: number, h: number) => { const yaw = Math.atan2(x - rx, z - rz), dh = Math.hypot(x - rx, z - rz) - (RR - 0.25), pitch = Math.atan2(yR - h, dh), s = Math.hypot(dh, yR - h);
     return { yaw, pitch, len: s + BD + SEC[2].l - zW }; };
   const Wd = fk();
-  // parked: the wheels on the painted box (0.62 of the way from the rotunda to the door), the tunnel short, a little lower
-  const th = Math.atan2(D[0] - R[0], D[2] - R[1]); let Wp = { x: rx + Math.sin(th) * reach * 0.62, z: rz + Math.cos(th) * reach * 0.62, h: Wd.h - 0.35 };
+  // parked: pulled half way back (owner, 2026-11-13: it rests with its wheels half as far out from the rotunda as when
+  // docked, the tunnel short, a little lower; it drives out to the door from there when called)
+  const PARK = 0.5, th = Math.atan2(D[0] - R[0], D[2] - R[1]), wdR = Math.hypot(Wd.x - rx, Wd.z - rz);
+  let Wp = { x: rx + Math.sin(th) * wdR * PARK, z: rz + Math.cos(th) * wdR * PARK, h: Wd.h - 0.35 };
   { const q = ik(Wp.x, Wp.z, Wp.h); if (q.len < LMIN + 0.2) { const ex = LMIN + 0.2 - q.len; Wp = { x: Wp.x + Math.sin(q.yaw) * ex, z: Wp.z + Math.cos(q.yaw) * ex, h: Wp.h }; } }
   // a gentle curve from the box to the door, bowing away from the building
   const mid = { x: (Wp.x + Wd.x) / 2, z: (Wp.z + Wd.z) / 2 }, ddx = Wd.x - Wp.x, ddz = Wd.z - Wp.z, dl = Math.hypot(ddx, ddz) || 1; let pxv = -ddz / dl, pzv = ddx / dl; if (pzv < 0) { pxv = -pxv; pzv = -pzv; }
