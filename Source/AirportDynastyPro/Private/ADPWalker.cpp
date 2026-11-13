@@ -357,6 +357,14 @@ void AADPWalker::Tick(float Dt)
 	Super::Tick(Dt);
 	DriveHuman(Dt);
 	PoseEyeBody();
+	// in first person you look down at most 80 degrees (owner, 2026-11-13: as far as his picture - your hands, feet and
+	// shadow in view, never down into your own body); from behind as far as the camera allows
+	if (APlayerController* PC = Cast<APlayerController>(GetController()))
+		if (PC->PlayerCameraManager)
+		{
+			const float Min = bThird ? -89.f : -80.f;
+			if (PC->PlayerCameraManager->ViewPitchMin != Min) PC->PlayerCameraManager->ViewPitchMin = Min;
+		}
 	// your own head hidden from your eyes (you look out from inside it); the rest of the body stays seen and casts its shadow
 	// the view you last chose, first person or from behind (kept between games)
 	if (!bViewRead) { bViewRead = true; bool bT = false; GConfig->GetBool(TEXT("ADP.Input"), TEXT("ThirdPerson"), bT, GGameUserSettingsIni); SetThirdPerson(bT); }
