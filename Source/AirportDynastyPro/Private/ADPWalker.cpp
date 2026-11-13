@@ -48,6 +48,9 @@ AADPWalker::AADPWalker()
 	Boom->bUsePawnControlRotation = true;
 	Boom->ProbeSize = 14.f;
 	Boom->bEnableCameraLag = true; Boom->CameraLagSpeed = 14.f;
+	// moved after your capsule has (no back-and-forth of the camera while running; owner, 2026-11-13)
+	Boom->SetTickGroup(TG_PostPhysics);
+	Boom->bUseCameraLagSubstepping = true;
 	Behind = CreateDefaultSubobject<UCameraComponent>(TEXT("Behind"));
 	Behind->SetupAttachment(Boom);
 	Behind->SetFieldOfView(90.f);
@@ -72,6 +75,10 @@ AADPWalker::AADPWalker()
 	Eyes->SetRelativeLocation(FVector(14.f, 0, 70.f)); // just in front of the face
 
 	UCharacterMovementComponent* M = GetCharacterMovement();
+	// speeding up, slowing and changing direction take a moment, as a real body does (it carries its weight round a turn)
+	M->MaxAcceleration = 1400.f;
+	M->BrakingDecelerationWalking = 1400.f;
+	M->GroundFriction = 6.f;
 	M->MaxWalkSpeed = WalkSpeed;
 	M->MaxWalkSpeedCrouched = 80.f;
 	M->JumpZVelocity = 380.f;
@@ -205,13 +212,41 @@ void AADPWalker::DriveHuman(float Dt)
 		else if (MoveBlend) { HumanBody->SetAnimation(MoveBlend); HumanBody->Play(true); }
 		One = HumanBody->GetSingleNodeInstance();
 	}
+	const FVector V = GetVelocity();
+	const float Speed = V.Size2D();
 	if (!bFalling && One && MoveBlend)
 	{
-		// the blend space's axes: the way you move relative to where you face (degrees) and how fast (cm/s)
-		const FVector V = GetVelocity();
-		const float Speed = V.Size2D();
-		const float Dir = Speed > 5.f ? FMath::FindDeltaAngleDegrees(GetActorRotation().Yaw, V.Rotation().Yaw) : 0.f;
-		One->SetBlendSpacePosition(FVector(Dir, Speed, 0.f));
+		// the blend space's axes: the way you move relative to where the BODY faces (degrees) and its pace. Its clips walk
+		// at 3 m/s and jog at 6 m/s, so the pace is mapped onto them and the clips' play rate set to your real speed: the
+		// feet keep up with the ground instead of sliding (owner, 2026-11-13)
+		const float Dir = Speed > 20.f ? FMath::FindDeltaAngleDegrees(GetActorRotation().Yaw, V.Rotation().Yaw) : 0.f;
+		// running roughly forwards, the body turns towards where it's going (the camera stays where you look);
+		// sideways and backwards it keeps facing your way and steps sideways or back
+		const float WantYaw = Speed > 60.f && FMath::Abs(Dir) < 75.f ? FMath::Clamp(Dir, -60.f, 60.f) : 0.f;
+		BodyYaw = FMath::FInterpTo(BodyYaw, WantYaw, Dt, 7.f);
+		const float WantDir = Dir - BodyYaw;
+		BlendDir += FMath::FindDeltaAngleDegrees(BlendDir, WantDir) * FMath::Min(1.f, Dt * 8.f);
+		BlendDir = FRotator::NormalizeAxis(BlendDir);
+		const float Pace = Speed <= WalkSpeed + 20.f ? FMath::Min(Speed * 1.5f, 300.f) : 300.f + 300.f * FMath::Clamp((Speed - WalkSpeed) / (RunSpeed - WalkSpeed), 0.f, 1.f);
+		BlendSpeed = FMath::FInterpTo(BlendSpeed, Pace, Dt, 6.f);
+		One->SetBlendSpacePosition(FVector(BlendDir, BlendSpeed, 0.f));
+		// the clips' own pace at that blend: idle to the walk's 3 m/s over the first half, then the walk's and jog's own
+		const float Natural = BlendSpeed < 150.f ? 300.f * BlendSpeed / 150.f * 0.5f + 1.f : BlendSpeed;
+		One->SetPlayRate(Speed > 20.f ? FMath::Clamp(Speed / FMath::Max(Natural, 100.f), 0.5f, 1.4f) : 1.f);
+	}
+	// leaning into a turn: by how fast the way you run is swinging round, and how fast you go
+	const float Heading = V.Rotation().Yaw;
+	const float Swing = Speed > 100.f && Dt > 0.f ? FMath::FindDeltaAngleDegrees(LastHeading, Heading) / Dt : 0.f;
+	LastHeading = Heading;
+	const float WantLean = bFalling ? 0.f : FMath::Clamp(Swing * Speed / 450.f * 0.06f, -10.f, 10.f);
+	BodyLean = FMath::FInterpTo(BodyLean, WantLean, Dt, 5.f);
+	// the body's own turn and lean on the capsule, about the feet (it stays right under you)
+	if (Human && Human->GetRootComponent())
+	{
+		const FVector Feet(0.f, 0.f, -88.f);
+		const FQuat Q = FQuat(FVector::UpVector, FMath::DegreesToRadians(BodyYaw)) * FQuat(FVector::ForwardVector, FMath::DegreesToRadians(-BodyLean));
+		const FTransform About = FTransform(-Feet) * FTransform(Q) * FTransform(Feet);
+		Human->GetRootComponent()->SetRelativeTransform(HumanRel * About);
 	}
 }
 

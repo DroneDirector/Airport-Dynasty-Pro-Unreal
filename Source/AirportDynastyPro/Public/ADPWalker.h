@@ -71,6 +71,9 @@ private:
 	UPROPERTY() TObjectPtr<class UAnimSequence> FallAnim;
 	bool bHumanFalling = false, bLent = false;
 	FTransform HumanRel;   // the MetaHuman on the capsule
+	// the body's own motion (owner, 2026-11-13: running and turning should feel natural): its smoothed blend inputs, how
+	// far it has turned towards where you run, its lean into the turn, and the way you were running a moment ago
+	float BlendDir = 0.f, BlendSpeed = 0.f, BodyYaw = 0.f, BodyLean = 0.f, LastHeading = 0.f;
 	void DriveHuman(float Dt);
 	void ToggleView() { SetThirdPerson(!bThird); }
 };

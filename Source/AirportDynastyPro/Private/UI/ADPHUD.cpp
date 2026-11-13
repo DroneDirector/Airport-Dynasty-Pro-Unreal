@@ -2267,6 +2267,53 @@ void AADPHUD::Tick(float Dt)
 			if (Before < TE && ShotClock >= TE) { ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
 			if (Before < TE + 1.f && ShotClock >= TE + 1.f) FGenericPlatformMisc::RequestExit(false);
 		}
+		// -UIRun: running and turning (owner, 2026-11-13): in first person the body must stay right under you (its pelvis
+		// measured against your capsule every frame), and from behind the camera must glide, not jump (its offset from you
+		// measured for jolts every frame); pictures looking down at your feet and of a turn from behind
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIRun")))
+		{
+			// (-NoShots: no pictures, so no stalled frames in the camera's measurement)
+			auto Shot = [this](const TCHAR* Name) { if (FParse::Param(FCommandLine::Get(), TEXT("NoShots"))) return; if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 2 filename=%s"), Name)); };
+			static float MaxDrift = 0.f, MaxJolt = 0.f; static FVector O1 = FVector::ZeroVector, O2 = FVector::ZeroVector; static int32 NO = 0;
+			AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn());
+			APlayerController* PCr = GetOwningPlayerController();
+			if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 14.f; ASunClock::Theme = 1; ASunClock::Refresh(); GoTo(FVector(72.f, 0.f, -22.f), FVector(79.f, 1.7f, 10.f)); if (Wk) Wk->SetThirdPerson(false); }
+			const bool bRunFP = ShotClock >= 41.f && ShotClock < 46.f, bRunTP = ShotClock >= 48.f && ShotClock < 54.f;
+			if (Before < 47.f && ShotClock >= 47.f && Wk) Wk->SetThirdPerson(true);
+			if (Wk && (bRunFP || bRunTP))
+			{
+				Wk->GetCharacterMovement()->MaxWalkSpeed = 450.f;
+				Wk->AddMovementInput(Wk->GetActorForwardVector(), 1.f);
+				// running a circle (FP), then straight and into a turn (TP)
+				const float Turn = bRunFP ? 55.f : (ShotClock >= 50.f ? 70.f : 0.f);
+				if (PCr) { FRotator R = PCr->GetControlRotation(); R.Yaw += Turn * GetWorld()->GetDeltaSeconds(); if (bRunFP) R.Pitch = ShotClock >= 43.f && ShotClock < 44.5f ? -55.f : -5.f; PCr->SetControlRotation(R); }
+				if (bRunFP && ShotClock >= 42.f && Wk->HumanActor())
+				{
+					TArray<USkeletalMeshComponent*> Sk; Wk->HumanActor()->GetComponents<USkeletalMeshComponent>(Sk);
+					for (USkeletalMeshComponent* S : Sk) if (S->GetName().StartsWith(TEXT("Body")))
+					{
+						const FVector Lp = Wk->GetActorTransform().InverseTransformPosition(S->GetBoneLocation(TEXT("pelvis")));
+						const FVector Lf = Wk->GetActorTransform().InverseTransformPosition(S->GetBoneLocation(TEXT("foot_l")));
+						MaxDrift = FMath::Max(MaxDrift, float(FVector(Lp.X, Lp.Y, 0.f).Size()));
+						static float Next = 0.f; if (ShotClock >= Next) { Next = ShotClock + 0.25f; ADP_LOG(TEXT("UIRun: %.2f s pelvis (%.0f, %.0f, %.0f) left foot (%.0f, %.0f, %.0f) in your capsule's frame, %.0f cm/s"), ShotClock, Lp.X, Lp.Y, Lp.Z, Lf.X, Lf.Y, Lf.Z, Wk->GetVelocity().Size2D()); }
+					}
+				}
+				if (bRunTP && ShotClock >= 49.f && PCr && PCr->PlayerCameraManager)
+				{
+					const FVector O = PCr->PlayerCameraManager->GetCameraLocation() - Wk->GetActorLocation();
+					if (GetWorld()->GetDeltaSeconds() > 0.05f) NO = 0;   // (a picture being taken stalls the frame: not the camera)
+					if (NO >= 2) { const float J = float((O - 2.f * O1 + O2).Size()); MaxJolt = FMath::Max(MaxJolt, J); if (J > 15.f) ADP_LOG(TEXT("UIRun: %.2f s camera jolt %.0f cm, offset now %s, dt %.3f"), ShotClock, J, *O.ToString(), GetWorld()->GetDeltaSeconds()); }
+					O2 = O1; O1 = O; ++NO;
+				}
+			}
+			if (Before < 44.f && ShotClock >= 44.f) Shot(TEXT("Run_FP_Feet"));
+			if (Before < 45.5f && ShotClock >= 45.5f) Shot(TEXT("Run_FP_Ahead"));
+			if (Before < 46.f && ShotClock >= 46.f) ADP_LOG(TEXT("UIRun: first person, the body's pelvis at most %.0f cm from your capsule while running"), MaxDrift);
+			if (Before < 49.5f && ShotClock >= 49.5f) Shot(TEXT("Run_TP_Straight"));
+			if (Before < 51.5f && ShotClock >= 51.5f) Shot(TEXT("Run_TP_Turn"));
+			if (Before < 54.f && ShotClock >= 54.f) { ADP_LOG(TEXT("UIRun: third person, the camera's largest jolt %.1f cm over %d frames"), MaxJolt, NO); if (Wk) { Wk->GetCharacterMovement()->MaxWalkSpeed = 150.f; Wk->SetThirdPerson(false); } ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
+			if (Before < 55.f && ShotClock >= 55.f) FGenericPlatformMisc::RequestExit(false);
+		}
 		// -UIBody: you from behind in the hall: standing, then walking forward (your MetaHuman body in its outfit)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIBody")))
 		{
@@ -2703,7 +2750,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are
