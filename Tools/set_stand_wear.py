@@ -38,18 +38,21 @@ float r1 = frac(seed * 91.7), r2 = frac(seed * 53.3), r3 = frac(seed * 17.9), r4
 float sc = lerp(1.0, 1.6, big);                  // wide-bodies: everything further out
 float noseW = 5.1 * lerp(1.0, 1.3, big), mainA = noseW + 12.6 * sc, mainC = 3.8 * sc, engA = 11.0 * sc, engC = 5.75 * sc;
 // drips where the wheels stop (the strongest, oldest stains)
-float drip = exp(-(c * c) / 1.2 - pow(al - noseW, 2) / 2.5) * (0.6 + 0.4 * r1);
-drip += exp(-pow(abs(c) - mainC, 2) / 2.0 - pow(al - mainA, 2) / 4.0) * (0.5 + 0.5 * r2);
-drip *= smoothstep(0.25, 0.65, n1 + 0.15);
+// (2026-11-13: bigger and stronger, as on real stands: a broad oil stain where the nose wheel stops and a band down the
+// centre line from years of aircraft, darker pools under the main gear)
+float drip = exp(-(c * c) / 4.0 - pow(al - noseW, 2) / 14.0) * (0.75 + 0.25 * r1);
+drip += exp(-(c * c) / 2.2) * smoothstep(noseW - 6.0, noseW, al) * (1.0 - smoothstep(mainA + 4.0, mainA + 14.0, al)) * 0.55;
+drip += exp(-pow(abs(c) - mainC, 2) / 4.0 - pow(al - mainA, 2) / 12.0) * (0.65 + 0.35 * r2);
+drip *= smoothstep(0.15, 0.6, n1 + 0.2);
 // soot fanning out behind each engine (engine starts), stronger at some stands
 float t = saturate((al - engA) / (22.0 * sc));
 float fan = 0;
 [unroll] for (int s = -1; s <= 1; s += 2) { float w = 0.8 + t * 4.5 * sc; fan += exp(-pow(c - s * engC, 2) / (2.0 * w * w)); }
-fan *= smoothstep(engA - 1.0, engA + 3.0, al) * (1.0 - smoothstep(engA + 18.0 * sc, engA + 30.0 * sc, al)) * (0.25 + 0.6 * r3);
+fan *= smoothstep(engA - 1.0, engA + 3.0, al) * (1.0 - smoothstep(engA + 18.0 * sc, engA + 30.0 * sc, al)) * (0.5 + 0.5 * r3);
 fan *= smoothstep(0.2, 0.7, n1);
 // a spill or two near the wing roots (some stands none)
 float2 sp1 = float2((r4 - 0.5) * 14.0 * sc, mainA + (r1 - 0.5) * 8.0), sp2 = float2((r2 - 0.5) * 18.0 * sc, mainA + (r3 - 0.2) * 10.0);
-float spill = exp(-dot(float2(c, al) - sp1, float2(c, al) - sp1) / (1.5 + 3.0 * r2)) * step(0.35, r4);
+float spill = exp(-dot(float2(c, al) - sp1, float2(c, al) - sp1) / (3.0 + 5.0 * r2)) * step(0.35, r4);
 spill += exp(-dot(float2(c, al) - sp2, float2(c, al) - sp2) / (0.8 + 2.0 * r1)) * step(0.6, r2) * 0.8;
 spill *= smoothstep(0.3, 0.6, n2 * 0.6 + n1 * 0.5);
 // faint tyre streaks along the lead-in (only where G > 0)
@@ -57,11 +60,11 @@ float tyre = 0;
 if (VC.g > 0.01) {
   float lines = exp(-(c * c) / 0.05) + exp(-pow(abs(c) - mainC, 2) / 0.12) * 0.9;
   float broken = smoothstep(0.35, 0.75, frac(sin(floor(al * 0.7 + seed * 50.0) * 12.9898) * 43758.5453) * 0.6 + n2 * 0.5);
-  tyre = lines * broken * VC.g * smoothstep(noseW - 1.0, noseW + 4.0, al) * 0.6;
+  tyre = lines * broken * VC.g * smoothstep(noseW - 1.0, noseW + 4.0, al) * 1.0;
 }
 // fade out at the patch's own edges
 float edge = smoothstep(0.0, 3.0, al) * (1.0 - smoothstep(Len - 4.0, Len, al)) * (1.0 - smoothstep(Wd - 4.0, Wd, abs(c)));
-float a = saturate(drip * 0.55 + fan * 0.45 + spill * 0.5 + tyre * 0.5) * edge;
+float a = saturate(drip * 0.8 + fan * 0.6 + spill * 0.7 + tyre * 0.7) * edge;
 float3 col = (float3(0.035, 0.032, 0.028) * (drip + spill) + float3(0.05, 0.048, 0.045) * fan + float3(0.03, 0.03, 0.03) * tyre) / max(drip + spill + fan + tyre, 1e-3);
 float rough = lerp(0.9, 0.35, saturate((drip + spill) / max(drip + spill + fan + tyre, 1e-3)));
 return float4(col, a) + float4(0, 0, 0, 0) * rough;

@@ -2236,16 +2236,25 @@ void AADPHUD::Tick(float Dt)
 				{TEXT("Ground_Junction"),     160.f, 14.f, 320.f, 81.f, 0.f, 410.f},
 				{TEXT("Ground_JunctionHigh"), -60.f, 110.f, 240.f, 81.f, 0.f, 430.f},
 				{TEXT("Ground_Overview"),     -350.f, 250.f, 900.f, 150.f, 0.f, 250.f},
+				// each stand's own wear (M_StandWear): soot behind the engines, drips at the wheels, a lead-in's tyre streaks
+				{TEXT("StandWear_Engines"),   117.f, 2.6f, 162.f, 104.f, 0.f, 141.f},
+				{TEXT("StandWear_Wheels"),    92.f, 1.5f, 131.f, 101.f, 0.f, 135.f},
+				{TEXT("StandWear_Top"),       128.f, 28.f, 190.f, 101.f, 0.f, 142.f},
+				{TEXT("StandWear_Stand5"),    -3.f, 2.4f, 166.f, -18.f, 0.f, 142.f},
+				{TEXT("StandWear_LeadIn"),    -18.f, 1.8f, 215.f, -21.f, 0.f, 168.f},
 			};
+			// (-ShotOnly=<text>: only the views whose name holds it, e.g. -ShotOnly=StandWear)
+			FString Only; FParse::Value(FCommandLine::Get(), TEXT("ShotOnly="), Only);
+			TArray<FV> Picked; for (const FV& V : GroundViews) if (Only.IsEmpty() || FString(V.Name).Contains(Only)) Picked.Add(V);
 			// (-SunsetLight: a low evening sun, early September at 19:20, for the sun on the paving)
 			if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); const bool bLow = FParse::Param(FCommandLine::Get(), TEXT("SunsetLight")); ASunClock::DayOverride = bLow ? 250 : 172; ASunClock::HourOverride = bLow ? 18.6f : 15.f; ASunClock::Theme = 1; ASunClock::Refresh(); }
-			for (int32 i = 0; i < UE_ARRAY_COUNT(GroundViews); ++i)
+			for (int32 i = 0; i < Picked.Num(); ++i)
 			{
 				const float T0 = 41.f + 8.f * i;
-				if (Before < T0 && ShotClock >= T0) View(GroundViews[i].X, GroundViews[i].H, GroundViews[i].Y, GroundViews[i].LX, GroundViews[i].LH, GroundViews[i].LY);
-				if (Before < T0 + 6.f && ShotClock >= T0 + 6.f) Shot(GroundViews[i].Name);
+				if (Before < T0 && ShotClock >= T0) View(Picked[i].X, Picked[i].H, Picked[i].Y, Picked[i].LX, Picked[i].LH, Picked[i].LY);
+				if (Before < T0 + 6.f && ShotClock >= T0 + 6.f) Shot(Picked[i].Name);
 			}
-			const float TE = 41.f + 8.f * UE_ARRAY_COUNT(GroundViews);
+			const float TE = 41.f + 8.f * Picked.Num();
 			if (Before < TE && ShotClock >= TE) { ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
 			if (Before < TE + 1.f && ShotClock >= TE + 1.f) FGenericPlatformMisc::RequestExit(false);
 		}
