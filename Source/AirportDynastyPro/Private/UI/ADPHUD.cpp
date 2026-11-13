@@ -2307,6 +2307,9 @@ void AADPHUD::Tick(float Dt)
 				}
 			}
 			if (Before < 44.f && ShotClock >= 44.f) Shot(TEXT("Run_FP_Feet"));
+			// standing still in first person, looking straight down and a little ahead: your own body from your eyes
+			if (Before < 40.6f && ShotClock >= 40.6f && PCr) { FRotator R = PCr->GetControlRotation(); R.Pitch = -80.f; PCr->SetControlRotation(R); }
+			if (Before < 40.9f && ShotClock >= 40.9f) Shot(TEXT("Run_FP_StandDown"));
 			if (Before < 45.5f && ShotClock >= 45.5f) Shot(TEXT("Run_FP_Ahead"));
 			if (Before < 46.f && ShotClock >= 46.f) ADP_LOG(TEXT("UIRun: first person, the body's pelvis at most %.0f cm from your capsule while running"), MaxDrift);
 			if (Before < 49.5f && ShotClock >= 49.5f) Shot(TEXT("Run_TP_Straight"));

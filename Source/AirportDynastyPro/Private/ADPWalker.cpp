@@ -2,6 +2,8 @@
 #include "ADPWalker.h"
 #include "Wardrobe.h"
 #include "DriverPoseAnim.h"
+#include "Materials/MaterialInterface.h"
+#include "Components/PoseableMeshComponent.h"
 #include "Animation/BlendSpace.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimSingleNodeInstance.h"
@@ -124,7 +126,7 @@ bool AADPWalker::WearMetaHuman(const FString& Who)
 {
 	UClass* C = LoadClass<AActor>(nullptr, *FString::Printf(TEXT("/Game/People/Built/%s/BP_%s.BP_%s_C"), *Who, *Who, *Who));
 	if (!C) { if (Human) return true; ADP_LOG(TEXT("Walker: no built character %s, the mannequin stays"), *Who); return false; }
-	if (Human) { Human->Destroy(); Human = nullptr; HumanBody = nullptr; HumanHead.Empty(); }
+	if (Human) { UseEyeBody(false); Human->Destroy(); Human = nullptr; HumanBody = nullptr; HumanHead.Empty(); Clothes.Empty(); EyeClothes.Empty(); if (EyeBody) { EyeBody->DestroyComponent(); EyeBody = nullptr; } }
 	FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn; P.Owner = this;
 	Human = GetWorld()->SpawnActor<AActor>(C, GetMesh()->GetComponentLocation(), GetMesh()->GetComponentRotation(), P);
 	if (!Human) return false;
@@ -143,7 +145,36 @@ bool AADPWalker::WearMetaHuman(const FString& Who)
 	if (!HumanBody) { ADP_WARN(TEXT("Walker: %s has no Body"), *Who); Human->Destroy(); Human = nullptr; return false; }
 	// the clothes follow the body's pose; the face rides on the body's head bone
 	for (USkeletalMeshComponent* S : Skels)
-		if (S != HumanBody && S != Face) S->SetLeaderPoseComponent(HumanBody);
+		if (S != HumanBody && S != Face) { S->SetLeaderPoseComponent(HumanBody); Clothes.Add(S); }
+	// the body your own eyes see (first person): the same mesh and materials, on the body, posed from it each frame
+	EyeBody = NewObject<UPoseableMeshComponent>(Human, TEXT("EyeBody"));
+	EyeBody->SetSkinnedAssetAndUpdate(HumanBody->GetSkeletalMeshAsset());
+	for (int32 I = 0; I < HumanBody->GetNumMaterials(); ++I) EyeBody->SetMaterial(I, HumanBody->GetMaterial(I));
+	EyeBody->SetupAttachment(HumanBody);
+	EyeBody->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	EyeBody->SetCastShadow(false);
+	EyeBody->RegisterComponent();
+	EyeBody->SetRelativeTransform(FTransform::Identity);
+	EyeBody->SetVisibility(false);
+	EyeBody->AddTickPrerequisiteComponent(HumanBody);
+	// your clothes twice: the real ones stay on your whole body (hidden from your eyes in first person but still casting
+	// your whole shadow), and copies ride on the body your eyes see
+	for (USkeletalMeshComponent* Cl : Clothes)
+	{
+		USkeletalMeshComponent* E = NewObject<USkeletalMeshComponent>(Human);
+		E->SetSkeletalMesh(Cl->GetSkeletalMeshAsset());
+		for (int32 I = 0; I < Cl->GetNumMaterials(); ++I) E->SetMaterial(I, Cl->GetMaterial(I));
+		E->SetupAttachment(EyeBody);
+		E->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		E->SetCastShadow(false);
+		E->RegisterComponent();
+		E->SetRelativeTransform(FTransform::Identity);
+		E->SetLeaderPoseComponent(EyeBody);
+		E->SetVisibility(false);
+		EyeClothes.Add(E);
+		Cl->bCastHiddenShadow = true;
+	}
+	bEyeBody = false;
 	if (Face)
 	{
 		HumanHead.Add(Face);
@@ -166,13 +197,59 @@ bool AADPWalker::WearMetaHuman(const FString& Who)
 	GetMesh()->SetVisibility(false, false);
 	GetMesh()->bCastHiddenShadow = false;
 	for (USceneComponent* H : HumanHead) H->SetVisibility(bThird, true);
+	// your head hidden from your own eyes still casts its shadow
+	for (USceneComponent* H : HumanHead) if (UPrimitiveComponent* Pr = Cast<UPrimitiveComponent>(H)) Pr->bCastHiddenShadow = true;
+	UseEyeBody(!bThird);
 	ADP_LOG(TEXT("Walker: you are %s"), *Who);
+	{
+		TArray<UPrimitiveComponent*> All; Human->GetComponents<UPrimitiveComponent>(All);
+		for (UPrimitiveComponent* Pc : All)
+		{
+			FString M;
+			for (int32 I = 0; I < Pc->GetNumMaterials(); ++I) if (UMaterialInterface* Mi = Pc->GetMaterial(I)) M += FString::Printf(TEXT(" [%s blend %d]"), *Mi->GetName(), int32(Mi->GetBlendMode()));
+			const USkeletalMeshComponent* Sk = Cast<USkeletalMeshComponent>(Pc);
+			ADP_LOG(TEXT("Walker:   part %s (%s) mesh %s visible %d shadow %d%s"), *Pc->GetName(), *Pc->GetClass()->GetName(), Sk && Sk->GetSkeletalMeshAsset() ? *Sk->GetSkeletalMeshAsset()->GetName() : TEXT("-"), Pc->IsVisible() ? 1 : 0, Pc->CastShadow ? 1 : 0, *M);
+		}
+	}
 	return true;
+}
+
+void AADPWalker::UseEyeBody(bool bOn)
+{
+	bOn = bOn && EyeBody && HumanBody && !bLent;
+	if (bOn == bEyeBody) return;
+	bEyeBody = bOn;
+	// the clothes follow the body you see; the real body is hidden from view but keeps casting your whole shadow
+	for (USkeletalMeshComponent* C : Clothes) if (C) C->SetVisibility(!bOn, false);
+	for (USkeletalMeshComponent* E : EyeClothes) if (E) E->SetVisibility(bOn, false);
+	if (EyeBody) EyeBody->SetVisibility(bOn);
+	HumanBody->SetVisibility(!bOn, false);
+	HumanBody->bCastHiddenShadow = bOn;
+	HumanBody->MarkRenderStateDirty();
+	if (bOn) PoseEyeBody();
+}
+
+void AADPWalker::PoseEyeBody()
+{
+	if (!bEyeBody || !EyeBody || !HumanBody) return;
+	EyeBody->CopyPoseFromSkeletalComponent(HumanBody);
+	// everything above the waist folded into the spine (spine_02 shrunk to nothing, the chest and neck with it: the
+	// garment and body close to a point, no opening to look into), then the
+	// shoulders put back exactly where they were, so the arms and hands stay whole
+	static const FName Chest(TEXT("spine_02")), Sh[2] = {FName(TEXT("clavicle_l")), FName(TEXT("clavicle_r"))};
+	if (EyeBody->GetBoneIndex(Chest) == INDEX_NONE) return;
+	FTransform Keep[2];
+	for (int32 S = 0; S < 2; ++S) Keep[S] = EyeBody->GetBoneTransformByName(Sh[S], EBoneSpaces::ComponentSpace);
+	FTransform C = EyeBody->GetBoneTransformByName(Chest, EBoneSpaces::ComponentSpace);
+	C.SetScale3D(FVector(0.01f));
+	EyeBody->SetBoneTransformByName(Chest, C, EBoneSpaces::ComponentSpace);
+	for (int32 S = 0; S < 2; ++S) if (EyeBody->GetBoneIndex(Sh[S]) != INDEX_NONE) EyeBody->SetBoneTransformByName(Sh[S], Keep[S], EBoneSpaces::ComponentSpace);
 }
 
 UDriverPoseAnim* AADPWalker::LendBody(USceneComponent* Seat)
 {
 	if (!Human || !HumanBody || !Seat) return nullptr;
+	UseEyeBody(false);
 	// the whole character moved so its body lies exactly on the seat's frame, then carried by it
 	const FTransform BodyInActor = HumanBody->GetComponentTransform().GetRelativeTransform(Human->GetActorTransform());
 	Human->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
@@ -197,7 +274,7 @@ void AADPWalker::TakeBodyBack()
 
 USkeletalMesh* AADPWalker::BodyMesh() const { return HumanBody ? HumanBody->GetSkeletalMeshAsset() : nullptr; }
 
-void AADPWalker::ShowHead(bool bSeen) { for (USceneComponent* H : HumanHead) if (H) H->SetVisibility(bSeen, true); }
+void AADPWalker::ShowHead(bool bSeen) { for (USceneComponent* H : HumanHead) if (H) H->SetVisibility(bSeen, true); UseEyeBody(!bSeen && !bLent); }
 
 void AADPWalker::DriveHuman(float Dt)
 {
@@ -262,6 +339,7 @@ void AADPWalker::SetThirdPerson(bool bOn)
 		bHeadHidden = true;
 	}
 	for (USceneComponent* H : HumanHead) if (H) H->SetVisibility(bThird, true);
+	UseEyeBody(!bThird);
 	if (APlayerController* PC = Cast<APlayerController>(GetController())) if (PC->PlayerCameraManager) PC->PlayerCameraManager->SetGameCameraCutThisFrame();
 	GConfig->SetBool(TEXT("ADP.Input"), TEXT("ThirdPerson"), bThird, GGameUserSettingsIni);
 	GConfig->Flush(false, GGameUserSettingsIni);
@@ -278,6 +356,7 @@ void AADPWalker::Tick(float Dt)
 {
 	Super::Tick(Dt);
 	DriveHuman(Dt);
+	PoseEyeBody();
 	// your own head hidden from your eyes (you look out from inside it); the rest of the body stays seen and casts its shadow
 	// the view you last chose, first person or from behind (kept between games)
 	if (!bViewRead) { bViewRead = true; bool bT = false; GConfig->GetBool(TEXT("ADP.Input"), TEXT("ThirdPerson"), bT, GGameUserSettingsIni); SetThirdPerson(bT); }

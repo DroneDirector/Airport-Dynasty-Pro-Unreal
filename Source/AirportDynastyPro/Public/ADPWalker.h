@@ -74,6 +74,15 @@ private:
 	// the body's own motion (owner, 2026-11-13: running and turning should feel natural): its smoothed blend inputs, how
 	// far it has turned towards where you run, its lean into the turn, and the way you were running a moment ago
 	float BlendDir = 0.f, BlendSpeed = 0.f, BodyYaw = 0.f, BodyLean = 0.f, LastHeading = 0.f;
+	// the body you see from your own eyes (owner, 2026-11-13: "a hole in my body" looking down - the open neck): a copy of
+	// your body's pose with the chest and neck folded away, your clothes on it; arms, hands, legs and feet stay. Only in
+	// first person; from behind (and to everyone else) you're whole, and your shadow stays whole
+	UPROPERTY() TObjectPtr<class UPoseableMeshComponent> EyeBody;
+	UPROPERTY() TArray<TObjectPtr<USkeletalMeshComponent>> Clothes;
+	UPROPERTY() TArray<TObjectPtr<USkeletalMeshComponent>> EyeClothes;   // copies of your clothes on the body your eyes see
+	bool bEyeBody = false;
+	void UseEyeBody(bool bOn);
+	void PoseEyeBody();
 	void DriveHuman(float Dt);
 	void ToggleView() { SetThirdPerson(!bThird); }
 };
