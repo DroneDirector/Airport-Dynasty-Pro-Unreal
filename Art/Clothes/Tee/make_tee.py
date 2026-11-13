@@ -23,7 +23,8 @@ HEM = 0.90                     # just below the belt (the reference hangs over t
 def tee_keep(i):
     w = W[i]
     legs_ok = CO[i].z > 0.97 or wsum(w, ('thigh', 'calf', 'foot', 'toes')) < 0.3
-    return CO[i].z > HEM - 0.05 and wsum(w, ('hand', 'lowerarm')) < 0.2 and legs_ok and wsum(w, ('head',)) < 0.3
+    neck_ok = CO[i].z < NECK.z - 0.035 or wsum(w, ('head',)) < 0.3          # the tee's body reaches up the neck's base (a crew neck)
+    return CO[i].z > HEM - 0.05 and wsum(w, ('hand', 'lowerarm')) < 0.2 and legs_ok and neck_ok and CO[i].z < NECK.z - 0.035
 tee = cut('Tee', tee_keep)
 trim(tee, Vector((0, 0, HEM)), Vector((0, 0, 1)))
 # the sleeves: cut square to the upper arm, 45 % of the way from the shoulder to the elbow
@@ -48,8 +49,8 @@ def highest(loops): return max(loops, key=lambda l: sum(v.co.z for v in l) / len
 def rib(frac):
     def move(c):
         d = Vector((c.x - NECK.x, c.y - NECK.y, 0.0)); a_ = math.atan2(d.x, -d.y)
-        z = c.z + 0.02 * frac
-        r = lerp(d.length, neck_surface(a_, z) + 0.008, frac)
+        z = c.z + 0.016 * frac                                  # a 1.6 cm ribbed band standing up from the neckline
+        r = lerp(d.length, neck_surface(a_, z) + 0.006, frac)   # snug round the neck
         return Vector((NECK.x + math.sin(a_) * r, NECK.y - math.cos(a_) * r, z))
     return move
 extrude_loop(tee, highest, rib(0.5)); extrude_loop(tee, highest, rib(1.0))
@@ -94,6 +95,7 @@ for nm, lv, e in (('Key', (-2, -3, 3), 900), ('Fill', (2.5, -2, 1.5), 350), ('Ri
     lo = bpy.data.objects.new(nm, ld); lo.location = lv; lo.rotation_euler = (Vector((0, 0, 1)) - Vector(lv)).to_track_quat('-Z', 'Y').to_euler(); sc.collection.objects.link(lo)
 w = bpy.data.worlds.new('W'); sc.world = w; w.use_nodes = True; w.node_tree.nodes['Background'].inputs['Strength'].default_value = 0.4
 sc.render.engine = 'BLENDER_EEVEE'; sc.render.resolution_x = 900; sc.render.resolution_y = 1000
+sc.view_settings.view_transform = 'Standard'   # (the print's colours as drawn, not softened)
 for nm, off in (('preview', Vector((-0.6, -2.2, 0.15))), ('preview_back', Vector((0.8, 2.0, 0.15)))):
     cam.location = tgt + off; cam.rotation_euler = (tgt - cam.location).to_track_quat('-Z', 'Y').to_euler()
     sc.render.filepath = str(HERE / (nm + '.png')); bpy.ops.render.render(write_still=True)

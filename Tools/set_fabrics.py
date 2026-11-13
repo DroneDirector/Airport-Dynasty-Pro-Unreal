@@ -68,6 +68,43 @@ mel.connect_material_property(rmul, '', unreal.MaterialProperty.MP_ROUGHNESS)
 mel.recompile_material(m); eal.save_loaded_asset(m, only_if_is_dirty=False)
 log('master ' + m.get_path_name())
 
+# the print master (owner: a print keeps its exact colours and shows the same knit as the shirt): the fabric's own
+# weave (relief and roughness, tiled per metre on UV1... here the print UVs carry the picture) under a printed picture -
+# the picture's colours unchanged where its ink is, the fabric's colour round it; the knit's relief runs through both
+PP = DIR + '/M_FabricPrint'
+if eal.does_asset_exist(PP): eal.delete_asset(PP)
+pmat = tools.create_asset('M_FabricPrint', DIR, unreal.Material, unreal.MaterialFactoryNew())
+pmat.set_editor_property('two_sided', True)
+for flag in ('used_with_skeletal_mesh', 'used_with_clothing', 'used_with_morph_targets'):
+    try: pmat.set_editor_property(flag, True)
+    except Exception as e: log('no flag %s: %s' % (flag, e))
+PE = lambda cls, x, y: mel.create_material_expression(pmat, cls, x, y)
+puv = PE(unreal.MaterialExpressionTextureCoordinate, -1300, 0)
+ptile = PE(unreal.MaterialExpressionScalarParameter, -1300, 150); ptile.set_editor_property('parameter_name', 'Tiling'); ptile.set_editor_property('default_value', 6.6)   # the cotton's 22 tiles a metre over the print's 30 cm
+pmul = PE(unreal.MaterialExpressionMultiply, -1100, 50); mel.connect_material_expressions(puv, '', pmul, 'A'); mel.connect_material_expressions(ptile, '', pmul, 'B')
+def psamp(name, x, y, stype, uvsrc, tex):
+    s_ = PE(unreal.MaterialExpressionTextureSampleParameter2D, x, y); s_.set_editor_property('parameter_name', name); s_.set_editor_property('texture', tex); s_.set_editor_property('sampler_type', stype)
+    mel.connect_material_expressions(uvsrc, '', s_, 'UVs'); return s_
+palb = psamp('Albedo', -850, -300, unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, pmul, texture('cotton_jersey', 'albedo'))
+pnrm = psamp('Normal', -850, 100, unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL, pmul, texture('cotton_jersey', 'normal'))
+prgh = psamp('Roughness', -850, 400, unreal.MaterialSamplerType.SAMPLERTYPE_MASKS, pmul, texture('cotton_jersey', 'roughness'))
+pprint = psamp('Print', -850, -650, unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, puv, texture('cotton_jersey', 'albedo'))
+pcol = PE(unreal.MaterialExpressionVectorParameter, -850, -850); pcol.set_editor_property('parameter_name', 'Colour'); pcol.set_editor_property('default_value', unreal.LinearColor(1, 1, 1, 1))
+ptint = PE(unreal.MaterialExpressionMultiply, -550, -350); mel.connect_material_expressions(palb, 'RGB', ptint, 'A'); mel.connect_material_expressions(pcol, '', ptint, 'B')
+# the knit's light and shade (albedo over its average) also falls on the ink, a little
+pshade = PE(unreal.MaterialExpressionMultiply, -550, -650); mel.connect_material_expressions(pprint, 'RGB', pshade, 'A')
+pk = PE(unreal.MaterialExpressionLinearInterpolate, -700, -500); c1 = PE(unreal.MaterialExpressionConstant, -850, -480); c1.set_editor_property('r', 1.0)
+mel.connect_material_expressions(c1, '', pk, 'A'); mel.connect_material_expressions(palb, 'R', pk, 'B')
+ck = PE(unreal.MaterialExpressionConstant, -850, -440); ck.set_editor_property('r', 0.35); mel.connect_material_expressions(ck, '', pk, 'Alpha')
+mel.connect_material_expressions(pk, '', pshade, 'B')
+plerp = PE(unreal.MaterialExpressionLinearInterpolate, -300, -400)
+mel.connect_material_expressions(ptint, '', plerp, 'A'); mel.connect_material_expressions(pshade, '', plerp, 'B'); mel.connect_material_expressions(pprint, 'A', plerp, 'Alpha')
+mel.connect_material_property(plerp, '', unreal.MaterialProperty.MP_BASE_COLOR)
+mel.connect_material_property(pnrm, 'RGB', unreal.MaterialProperty.MP_NORMAL)
+mel.connect_material_property(prgh, 'R', unreal.MaterialProperty.MP_ROUGHNESS)
+mel.recompile_material(pmat); eal.save_loaded_asset(pmat, only_if_is_dirty=False)
+log('print master ' + pmat.get_path_name())
+
 for name, (folder, tile) in FABRICS.items():
     if not os.path.isdir(os.path.join(ART, folder)): log('no pictures for ' + folder); continue
     a, n, r = texture(folder, 'albedo'), texture(folder, 'normal'), texture(folder, 'roughness')
@@ -79,6 +116,7 @@ for name, (folder, tile) in FABRICS.items():
     mel.set_material_instance_texture_parameter_value(mi, 'Normal', n)
     mel.set_material_instance_texture_parameter_value(mi, 'Roughness', r)
     mel.set_material_instance_scalar_parameter_value(mi, 'Tiling', tile)
+    if name == 'leather': mel.set_material_instance_scalar_parameter_value(mi, 'RoughnessScale', 0.55)   # polished shoes
     eal.save_loaded_asset(mi, only_if_is_dirty=False)
     log('instance ' + mi.get_path_name())
 log('DONE')

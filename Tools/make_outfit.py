@@ -48,6 +48,29 @@ try:
     mats = sm.get_editor_property('static_materials')
     for k, slot in enumerate(mats):
         sn = str(slot.get_editor_property('material_slot_name'))
+        if sn.startswith('Print_'):
+            # a print slot: the print master with this garment's picture (Art/Clothes/<Name>/print_<x>.png, kept sRGB,
+            # exact colours) over the cotton's knit (the tee's UVs over the print area span 0..1 across 30 cm, so the
+            # knit tiles 6.6 times there, as 22 a metre elsewhere)
+            png = os.path.join(ROOT, 'Art', 'Clothes', NAME, sn[6:].lower() and ('print_' + sn[6:] + '.png'))
+            t = unreal.AssetImportTask(); t.filename = png; t.destination_path = DIR; t.destination_name = 'T_' + sn
+            t.automated = True; t.replace_existing = True; t.save = True
+            tools.import_asset_tasks([t]); ptex = unreal.load_asset(DIR + '/T_' + sn)
+            ptex.set_editor_property('srgb', True); ptex.set_editor_property('lod_group', unreal.TextureGroup.TEXTUREGROUP_CHARACTER)
+            ptex.set_editor_property('address_x', unreal.TextureAddress.TA_CLAMP); ptex.set_editor_property('address_y', unreal.TextureAddress.TA_CLAMP)
+            eal.save_loaded_asset(ptex, only_if_is_dirty=False)
+            mp = DIR + '/MI_%s_%s' % (NAME, sn); fresh(mp)
+            mi = tools.create_asset('MI_%s_%s' % (NAME, sn), DIR, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
+            mel.set_material_instance_parent(mi, unreal.load_asset('/Game/Clothes/Fabrics/M_FabricPrint'))
+            mel.set_material_instance_texture_parameter_value(mi, 'Print', ptex)
+            base = cols.get('Fabric_cotton_jersey')
+            if base:
+                mean = MEANS.get('cotton_jersey', [0.5, 0.5, 0.5])
+                mel.set_material_instance_vector_parameter_value(mi, 'Colour', unreal.LinearColor(*[min(8.0, base[q] / max(1e-4, mean[q])) for q in range(3)], 1))
+            eal.save_loaded_asset(mi, only_if_is_dirty=False)
+            slot.set_editor_property('material_interface', mi); mats[k] = slot
+            log('print slot %s -> %s' % (sn, mi.get_name()))
+            continue
         if not sn.startswith('Fabric_'): continue
         parent = unreal.load_asset('/Game/Clothes/Fabrics/MI_' + sn)
         if not parent: log('no fabric for ' + sn); continue
