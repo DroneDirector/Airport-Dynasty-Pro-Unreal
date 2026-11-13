@@ -2237,7 +2237,8 @@ void AADPHUD::Tick(float Dt)
 				{TEXT("Ground_JunctionHigh"), -60.f, 110.f, 240.f, 81.f, 0.f, 430.f},
 				{TEXT("Ground_Overview"),     -350.f, 250.f, 900.f, 150.f, 0.f, 250.f},
 			};
-			if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 15.f; ASunClock::Theme = 1; ASunClock::Refresh(); }
+			// (-SunsetLight: a low evening sun, early September at 19:20, for the sun on the paving)
+			if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); const bool bLow = FParse::Param(FCommandLine::Get(), TEXT("SunsetLight")); ASunClock::DayOverride = bLow ? 250 : 172; ASunClock::HourOverride = bLow ? 18.6f : 15.f; ASunClock::Theme = 1; ASunClock::Refresh(); }
 			for (int32 i = 0; i < UE_ARRAY_COUNT(GroundViews); ++i)
 			{
 				const float T0 = 41.f + 8.f * i;

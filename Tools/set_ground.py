@@ -103,6 +103,10 @@ texc = E(unreal.MaterialExpressionMultiply, -950, -300); mel.connect_material_ex
 use = E(unreal.MaterialExpressionStaticSwitchParameter, -750, -450); use.set_editor_property('parameter_name', 'UseTexture'); use.set_editor_property('default_value', False)
 mel.connect_material_expressions(texc, '', use, 'True'); mel.connect_material_expressions(plain, '', use, 'False')
 rough = sp('Roughness', 0.9, -1600, -80); metal = sp('Metallic', 0.0, -1600, -20)
+# how each surface takes the sun (owner, 2026-11-13: vivid sunsets, every material its own): its specular and how much
+# smoother than its scan it is (asphalt a low-sun sheen, concrete a little brighter, paint the glossiest)
+spec = sp('Spec', 0.5, -1600, 40); rscale = sp('RoughScale', 1.0, -1600, 100)
+mel.connect_material_property(spec, '', unreal.MaterialProperty.MP_SPECULAR)
 mel.connect_material_property(metal, '', unreal.MaterialProperty.MP_METALLIC)
 ssize = sp('ScanSize', 4.04, -1600, -760)
 wpm = E(unreal.MaterialExpressionWorldPosition, -1600, -900)
@@ -182,7 +186,7 @@ float3 surf = Col; float rgh = Rough;
 if (UseScan > 0.5) {
   float lumBig = dot(ScanBig, float3(0.3, 0.59, 0.11)), lumSc = dot(ScanCol, float3(0.3, 0.59, 0.11));
   surf = ScanCol * Col * lerp(0.86, 1.14, saturate(lumBig / max(lumSc + 0.001, 0.02) * 0.5));
-  rgh = ScanR;
+  rgh = saturate(ScanR * RScale);
 }
 float3 cl = Texture2DSample(CrackTex, CrackTexSampler, M / 16.0).rgb;
 float ca = saturate(CAmount * Cracks) * (1.0 - none);
@@ -281,13 +285,13 @@ REFL = COMMON + r"""
 float wetAll = saturate(Wet) * up;
 return saturate(puddle * lerp(0.35, 0.8, saturate(Shine)) + wetAll * 0.05);
 """
-ALL = ['WP', 'N', 'Bias', 'Puddles', 'Wet', 'Amount', 'Size', 'Style', 'CAmount', 'Cracks', 'Col', 'Rough', 'UseScan', 'ScanCol', 'ScanBig', 'ScanR',
+ALL = ['RScale', 'WP', 'N', 'Bias', 'Puddles', 'Wet', 'Amount', 'Size', 'Style', 'CAmount', 'Cracks', 'Col', 'Rough', 'UseScan', 'ScanCol', 'ScanBig', 'ScanR',
        'CrackTex', 'TyreTex', 'RwyA', 'RwyB', 'RwyDisp', 'TyreAmt', 'Tyres']
 SRC = lambda: {'WP': (wp, ''), 'N': (vn, ''), 'Bias': (bias, ''), 'Puddles': (pon, ''), 'Wet': (cps['Wetness'], ''), 'Amount': (cps['PuddleAmount'], ''),
        'Size': (cps['PuddleSize'], ''), 'Style': (cstyle, ''), 'CAmount': (camt, ''), 'Cracks': (cps['Cracks'], ''), 'Col': (use, ''),
        'Rough': (rough, ''), 'UseScan': (usescan, ''), 'ScanCol': (sdiff, ''), 'ScanBig': (sbig, ''), 'ScanR': (srgh, ''),
        'ScanN': (snor, ''), 'CrackTex': (crackt, ''), 'TyreTex': (tyret, ''), 'RwyA': (cvs['RwyA'], ''), 'RwyB': (cvs['RwyB'], ''),
-       'RwyDisp': (cvs['RwyDisp'], ''), 'TyreAmt': (tamt, ''), 'Tyres': (cps['Tyres'], ''), 'VC': (vcol, ''), 'PDirt': (pdirt, ''), 'SnowP': (cps['Snow'], ''), 'SBias': (sbias, ''), 'Shine': (cps['PuddleShine'], ''),
+       'RwyDisp': (cvs['RwyDisp'], ''), 'TyreAmt': (tamt, ''), 'Tyres': (cps['Tyres'], ''), 'VC': (vcol, ''), 'PDirt': (pdirt, ''), 'SnowP': (cps['Snow'], ''), 'SBias': (sbias, ''), 'RScale': (rscale, ''), 'Shine': (cps['PuddleShine'], ''),
        'T': (tm, ''), 'Ripples': (cps['Ripples'], ''), 'Rain': (cps['Rain'], '')}
 def custom(code, out_type, x, y, extra):
     c = E(unreal.MaterialExpressionCustom, x, y)
@@ -340,24 +344,24 @@ def scan(sid, big_sid=None):
 W = unreal.LinearColor(1, 1, 1, 1)
 KIT = '/Game/Materials/Kit/'
 inst(KIT + 'MI_gasphalt', dict(Color=unreal.LinearColor(0.68, 0.68, 0.70, 1),   # aged airport asphalt a shade darker than the concrete shoulders
-     UseScan=1.0, ScanSize=4.04, CrackStyle=0.0, CrackAmount=0.7, TyreAmount=1.0, Variation=0.0),
+     UseScan=1.0, ScanSize=4.04, CrackStyle=0.0, CrackAmount=0.7, TyreAmount=1.0, Variation=0.0, Spec=0.42, RoughScale=0.86),
      textures=dict(scan('asphalt_04', 'asphalt_02'), CrackLayer=LAYER['cracks_asphalt']))
 # the taxiways' shoulders (Airfield PaveTaxiways): older, lighter asphalt with more cracks, no tyre rubber (real shoulders
 # are paved for jet blast, rarely driven on)
-inst(KIT + 'MI_shoulder', dict(Color=unreal.LinearColor(0.75, 0.75, 0.76, 1), UseScan=1.0, ScanSize=4.04, CrackStyle=0.0, CrackAmount=0.95, TyreAmount=0.0, Variation=0.0, SnowBias=0.4),
+inst(KIT + 'MI_shoulder', dict(Color=unreal.LinearColor(0.75, 0.75, 0.76, 1), UseScan=1.0, ScanSize=4.04, CrackStyle=0.0, CrackAmount=0.95, TyreAmount=0.0, Variation=0.0, SnowBias=0.4, Spec=0.4, RoughScale=0.92),
      textures=dict(scan('asphalt_04', 'asphalt_02'), CrackLayer=LAYER['cracks_asphalt']))
 # the airfield's ground grass (owner, 2026-11-13: the edges must look real, so the grass they meet must too): a real
 # grass-and-soil scan, a touch greener for a northern summer, no cracks, no tyre rubber, damp but no puddles
-inst(KIT + 'MI_ggrass', dict(Color=unreal.LinearColor(0.66, 1.16, 0.50, 1), UseScan=1.0, ScanSize=2.51, CrackStyle=2.0, CrackAmount=0.0, TyreAmount=0.0, Puddles=0.0, Variation=0.0, SnowBias=0.7),
+inst(KIT + 'MI_ggrass', dict(Color=unreal.LinearColor(0.66, 1.16, 0.50, 1), UseScan=1.0, ScanSize=2.51, CrackStyle=2.0, CrackAmount=0.0, TyreAmount=0.0, Puddles=0.0, Variation=0.0, SnowBias=0.7, Spec=0.3),
      textures=dict(scan('grass_ground'), CrackLayer=LAYER['cracks_asphalt']))
 # the terminal model's own lawn: the same grass, so there is no lighter square round the terminal
-inst('/Game/Babylon/Terminal/terminal/Materials/grass', dict(Color=unreal.LinearColor(0.66, 1.16, 0.50, 1), UseScan=1.0, ScanSize=2.51, CrackStyle=2.0, CrackAmount=0.0, TyreAmount=0.0, Puddles=0.0, Variation=0.0, SnowBias=0.7),
+inst('/Game/Babylon/Terminal/terminal/Materials/grass', dict(Color=unreal.LinearColor(0.66, 1.16, 0.50, 1), UseScan=1.0, ScanSize=2.51, CrackStyle=2.0, CrackAmount=0.0, TyreAmount=0.0, Puddles=0.0, Variation=0.0, SnowBias=0.7, Spec=0.3),
      textures=dict(scan('grass_ground'), CrackLayer=LAYER['cracks_asphalt']))
 for nm, b_ in (('MI_gconcrete', 0.0), ('MI_gapron', 0.12)):
-    inst(KIT + nm, dict(Color=unreal.LinearColor(1.12, 1.12, 1.10, 1), UseScan=1.0, ScanSize=3.0, CrackStyle=1.0, CrackAmount=0.6, TyreAmount=0.0, PuddleBias=b_, Variation=0.0, SnowBias=0.33 if nm == 'MI_gapron' else 0.35),
+    inst(KIT + nm, dict(Color=unreal.LinearColor(1.12, 1.12, 1.10, 1), UseScan=1.0, ScanSize=3.0, CrackStyle=1.0, CrackAmount=0.6, TyreAmount=0.0, PuddleBias=b_, Variation=0.0, SnowBias=0.33 if nm == 'MI_gapron' else 0.35, Spec=0.5, RoughScale=0.9),
          textures=dict(scan('concrete_floor_worn_001', 'brushed_concrete_04'), CrackLayer=LAYER['cracks_concrete']))
 # the red of the mandatory instruction markings (the runway-ahead signs): its own paint, so the kit's red stays as it is
-inst(KIT + 'MI_paintred', dict(Color=unreal.LinearColor(0.42, 0.02, 0.02, 1), UseScan=0.0, CrackStyle=0.0, CrackAmount=0.7, TyreAmount=1.0, Roughness=0.55, Variation=0.03, PaintDirt=1.0),
+inst(KIT + 'MI_paintred', dict(Color=unreal.LinearColor(0.42, 0.02, 0.02, 1), UseScan=0.0, CrackStyle=0.0, CrackAmount=0.7, TyreAmount=1.0, Roughness=0.5, Variation=0.03, PaintDirt=1.0, Spec=0.6),
      textures=dict(CrackLayer=LAYER['cracks_asphalt']))
 # the kit's white and yellow (aircraft, hangars, the tower, fittings) stay on the kit's own master: no road cracks on them
 KITM = unreal.load_asset('/Game/Materials/Kit/M_Surface')
@@ -372,7 +376,7 @@ for name in ('MI_yellow', 'MI_white'):
 # (owner, 2026-11-13: cracks that cross a marking show on it, in their own colours) and a light grime that differs on
 # every marking (Airfield gives each one its own amount in the vertex colour)
 for name, col in (('MI_paintyellow', PAINT['MI_yellow']), ('MI_paintwhite', PAINT['MI_white']), ('MI_paintblack', unreal.LinearColor(0.018, 0.018, 0.018, 1))):
-    inst(KIT + name, dict(Color=col, UseScan=0.0, CrackStyle=0.0, CrackAmount=0.7, TyreAmount=1.0, Roughness=0.55 if name != 'MI_paintblack' else 0.75, Variation=0.03, PaintDirt=1.0),
+    inst(KIT + name, dict(Color=col, UseScan=0.0, CrackStyle=0.0, CrackAmount=0.7, TyreAmount=1.0, Roughness=0.5 if name != 'MI_paintblack' else 0.75, Variation=0.03, PaintDirt=1.0, Spec=0.6),
          textures=dict(CrackLayer=LAYER['cracks_asphalt']))
 BAB = '/Game/Babylon/Terminal/terminal/Materials/'
 # the model's building materials stay the model's own (owner, 2026-11-13: buildings never share the ground's kit): its

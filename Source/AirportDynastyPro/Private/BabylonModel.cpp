@@ -90,6 +90,9 @@ bool ABabylonModel::Place(const FString& Name)
 		  // the stands moved 12 m out (owner, 2026-11-13): his parked aircraft go with them; the model's flat stand markings
 		  // and taxilane line step aside for the ones the airfield lays from the layout (Airfield.cpp Aprons)
 		  if (Name == TEXT("Terminal") && ((Nm.StartsWith(TEXT("STAND-")) && !Nm.Contains(TEXT("/"))) || Nm == TEXT("APRON/TAXI-LANE"))) return;
+		  // the model's own lawn round the terminal lay 25 cm over the airfield's grass (a step at its edge, the taxiways
+		  // under it): the airfield's grass, the same, runs under the whole terminal instead (owner, 2026-11-13)
+		  if (Name == TEXT("Terminal") && Nm == TEXT("SITE/GRASS")) return;
 		  // his jetways come from their own export now (Data/babylon-jetways.json: J-1 to J-4 rebuilt by his generator for
 		  // the stands 12 m out - longer tunnel sections, the corridor at 3.3 degrees); the terminal's older ones stay out
 		  if (Name == TEXT("Terminal") && Nm.Len() == 3 && Nm.StartsWith(TEXT("J-")) && FPackageName::DoesPackageExist(TEXT("/Game/Babylon/Jetways/jetways/StaticMeshes/jetways_mesh_0"))) return;

@@ -814,7 +814,7 @@ void AAirfield::ServiceRoads(bool bModelSite)
 	};
 	// the Babylon model's own lawn round the terminal lies 25 cm over the airfield's ground (Sink): what is laid inside it
 	// (a road, the tower's lot) is lifted just over it there
-	auto Lawn = [&](const FVector2f& Q) { return bModelSite && Q.X > -260.f && Q.X < 420.f && Q.Y > -200.f && Q.Y < 260.f; };
+	auto Lawn = [&](const FVector2f& Q) { return false && Q.X > 0.f; };   // (the model's lawn is left out now: the airfield's grass runs under the terminal)
 	auto Lifted = [&](const FVector2f& Q, float Lift) { return Lawn(Q) ? Lift + 0.01f - Sink : Lift; };
 	// the lots: their tarmac, the parking spaces' white lines (a line between every two, a line across their heads), soft edges
 	for (const FAirfieldData::FLot& Lt : D.Lots)
