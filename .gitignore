@@ -76,3 +76,12 @@ Content/People/
 Art/Cat/reference/
 Art/Cat/renders/
 Art/Clothes/_references/
+# clothes work files: debug renders, Blender backups, test garments, the MetaHuman bodies exported for tailoring
+Art/Clothes/**/dbg_*.png
+*.blend1
+Art/Clothes/TestShirt/
+Art/Clothes/CEO_SuitClassicOnly/
+Art/Clothes/_bodies/
+Content/Clothes/TestShirt/
+Content/Clothes/CEO_SuitClassicOnly/
+Content/Clothes/Test/
