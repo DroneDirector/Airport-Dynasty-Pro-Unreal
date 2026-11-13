@@ -2215,6 +2215,8 @@ void AADPHUD::Tick(float Dt)
 				// the runway's touchdown zone (tyre rubber), low and from 12 m; the whole airport from 250 m up
 				{TEXT("Ground_Touchdown"),    F.RwyX0 + 520.f, 2.5f, F.RwyY - 10.f, F.RwyX0 + 900.f, 0.5f, F.RwyY},
 				{TEXT("Ground_TouchdownHigh"), F.RwyX0 + 380.f, 14.f, F.RwyY - 45.f, F.RwyX0 + 900.f, 0.f, F.RwyY + 5.f},
+				{TEXT("Ground_Junction"),     160.f, 14.f, 320.f, 81.f, 0.f, 410.f},
+				{TEXT("Ground_JunctionHigh"), -60.f, 110.f, 240.f, 81.f, 0.f, 430.f},
 				{TEXT("Ground_Overview"),     -350.f, 250.f, 900.f, 150.f, 0.f, 250.f},
 			};
 			if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 15.f; ASunClock::Theme = 1; ASunClock::Refresh(); }

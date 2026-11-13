@@ -2,6 +2,7 @@
 // millimetres over the one under it so they never flicker through each other: grass, then aprons, taxiways, runway,
 // then the markings. Only what stands up (the cargo building) is still a slab.
 #include "Airfield.h"
+#include "Algo/Reverse.h"
 #include "ADPLog.h"
 #include "TerminalBuilder.h"
 #include "TerminalPlan.h"
@@ -225,60 +226,389 @@ void AAirfield::EdgeRect(float X0, float Y0, float X1, float Y1, float InnerLift
 
 void AAirfield::EdgeBands(bool bModelSite)
 {
-	const float RY = D.RwyY, HW = D.RwyW / 2 + 7.5f;   // the runway with its shoulders
-	// the runway: asphalt-style all round, the ends with the bigger cracks
-	EdgeRect(D.RwyX0 - 60, RY - HW, D.RwyX1 + 60, RY + HW, -0.025f, 1.f, 15, 1.f);
-	// the aprons: concrete-style; the terminal's own apron only where it meets grass (its south side is the building)
-	for (const FAirfieldData::FRect& A : D.Aprons)
-	{
-		if (bModelSite && (A.Id == TEXT("APRON-T") || A.Id == TEXT("APRON-9"))) continue;
-		EdgeRect(A.X0, A.Y0, A.X1, A.Y1, -0.04f, 0.f, A.Id == TEXT("APRON-T") ? 14 : 15);
-	}
-	// the landside road and car park: asphalt-style on its open sides
+	// the runway, taxiways and aprons get theirs from the paving's outline (PaveTaxiways); here only the landside road
+	// and car park, on its open sides
 	if (!bModelSite) EdgeRect(-160, -170, 392, -0.5f, -0.05f, 1.f, 13);
-	// the taxiways: asphalt-style along both sides of each stretch (the shoulders are the taxiway's), cut where they
-	// run into the runway's band or an apron, and the long taxiways cut round each link that joins them
-	for (const FAirfieldData::FTwy& T : D.Taxiways)
+}
+
+#pragma region The taxiway system
+
+namespace
+{
+	float SegDist(const FVector2f& P, const FVector2f& A, const FVector2f& B)
 	{
-		if (T.Kind == TEXT("taxilane")) continue;
-		const float Half = T.W / 2 + 17.5f;
-		for (int32 i = 0; i + 1 < T.Pts.Num(); ++i)
+		const FVector2f AB = B - A;
+		const float T = FMath::Clamp(FVector2f::DotProduct(P - A, AB) / FMath::Max(AB.SizeSquared(), 1e-6f), 0.f, 1.f);
+		return (P - (A + AB * T)).Size();
+	}
+	// signed distance to a rectangle: negative inside
+	float BoxSd(const FVector2f& P, float X0, float Y0, float X1, float Y1)
+	{
+		const float Qx = FMath::Abs(P.X - (X0 + X1) / 2) - FMath::Abs(X1 - X0) / 2, Qy = FMath::Abs(P.Y - (Y0 + Y1) / 2) - FMath::Abs(Y1 - Y0) / 2;
+		return FMath::Sqrt(FMath::Square(FMath::Max(Qx, 0.f)) + FMath::Square(FMath::Max(Qy, 0.f))) + FMath::Min(FMath::Max(Qx, Qy), 0.f);
+	}
+	// the smooth union of two shapes: a fillet of about K metres where they meet
+	float SMin(float A, float B, float K)
+	{
+		const float H = FMath::Max(K - FMath::Abs(A - B), 0.f) / K;
+		return FMath::Min(A, B) - H * H * K * 0.25f;
+	}
+	// the fields every grid corner carries: the taxiway pavement, its shoulders (the outline of all the paving), the runway,
+	// the runway with its shoulders, the aprons and the bare taxiways
+	enum EField { FPave, FShoulder, FRwy, FRwyOuter, FApron, FTaxi, NF };
+	struct FCorner { FVector2f P; float F[NF]; };
+	struct FCut { int32 Field; float Level, Sign; };   // keeps Sign * (field - Level) <= 0
+	void ClipPoly(TArray<FCorner, TInlineAllocator<12>>& Poly, const FCut& C)
+	{
+		if (Poly.Num() < 3) return;
+		TArray<FCorner, TInlineAllocator<12>> Out;
+		for (int32 i = 0; i < Poly.Num(); ++i)
 		{
-			FVector2f A = T.Pts[i], B = T.Pts[i + 1];
-			const FVector2f U = (B - A).GetSafeNormal(), N(-U.Y, U.X);
-			// clipped out of the runway's shoulders (a link ends on the runway's centre line)
-			auto ClipRunway = [&](FVector2f& P, const FVector2f& Other)
+			const FCorner& A = Poly[i];
+			const FCorner& B = Poly[(i + 1) % Poly.Num()];
+			const float Fa = C.Sign * (A.F[C.Field] - C.Level), Fb = C.Sign * (B.F[C.Field] - C.Level);
+			if (Fa <= 0.f) Out.Add(A);
+			if ((Fa <= 0.f) != (Fb <= 0.f))
 			{
-				const bool bIn = FMath::Abs(P.Y - RY) < HW + 1.5f;
-				if (bIn && FMath::Abs(Other.Y - RY) >= HW + 1.5f) P.Y = Other.Y < RY ? RY - HW - 1.5f : RY + HW + 1.5f;
-			};
-			ClipRunway(A, B); ClipRunway(B, A);
-			if ((B - A).Size() < 2.f) continue;
-			// the long taxiways: gaps where each link joins
-			TArray<float> Cuts;   // along-the-way stations of the gaps' middles
-			if (FMath::Abs(U.X) > 0.9f)
-				for (const FAirfieldData::FTwy& O : D.Taxiways)
-					if (O.Kind == TEXT("link") && O.Pts.Num() >= 2 && FMath::Abs(O.Pts[0].X - O.Pts[1].X) < 1.f)
-					{
-						const float Ymin = FMath::Min(O.Pts[0].Y, O.Pts[1].Y), Ymax = FMath::Max(O.Pts[0].Y, O.Pts[1].Y);
-						if (A.Y > Ymin - Half - 1.f && A.Y < Ymax + Half + 1.f) Cuts.Add((O.Pts[0].X - A.X) * U.X);
-					}
-			Cuts.Sort();
-			for (const float Side : {-1.f, 1.f})
+				const float T = Fa / (Fa - Fb);
+				FCorner X;
+				X.P = FMath::Lerp(A.P, B.P, T);
+				for (int32 f = 0; f < NF; ++f) X.F[f] = FMath::Lerp(A.F[f], B.F[f], T);
+				Out.Add(X);
+			}
+		}
+		Poly = MoveTemp(Out);
+	}
+}
+
+void AAirfield::PaveTaxiways(bool bModelSite)
+{
+	const float RY = D.RwyY, HW = D.RwyW / 2, HWo = HW + 7.5f, Shoulder = 7.5f;
+	const float Rx0 = D.RwyX0, Rx1 = D.RwyX1;
+	// the model's own aprons (with the Babylon terminal): nothing of ours is drawn on them
+	auto OnModelApron = [&](const FVector2f& P, float Margin)
+	{
+		if (!bModelSite) return false;
+		for (const FAirfieldData::FRect& A : D.Aprons)
+			if ((A.Id == TEXT("APRON-T") || A.Id == TEXT("APRON-9")) && BoxSd(P, A.X0, A.Y0, A.X1, A.Y1) < Margin) return true;
+		return false;
+	};
+
+	// ---- the pieces: every taxiway, link and taxilane as its centre line, plus the turn curves at each junction
+	struct FPiece { TArray<FVector2f> Pts; float Hw; bool bArc; };
+	TArray<FPiece> Pieces;
+	for (const FAirfieldData::FTwy& T : D.Taxiways)
+		if (T.Pts.Num() >= 2) Pieces.Add({T.Pts, T.W / 2, false});
+	// a turn curve from a link onto the line it joins (real junctions: the yellow line curves round, the pavement is
+	// widened under the curve so the main wheels stay on it; owner's photos, Boston and Seattle)
+	auto AddArc = [&](const FVector2f& E, const FVector2f& In, const FVector2f& Along, float R, float Hw)
+	{
+		const FVector2f C = E + In * R + Along * R;
+		FPiece Arc{{}, Hw, true};
+		constexpr int32 N = 24;
+		for (int32 k = 0; k <= N; ++k)
+		{
+			const float Th = HALF_PI * k / N;
+			Arc.Pts.Add(C - Along * (R * FMath::Cos(Th)) - In * (R * FMath::Sin(Th)));
+		}
+		Pieces.Add(Arc);
+	};
+	const int32 NStraight = Pieces.Num();
+	for (const FAirfieldData::FTwy& L : D.Taxiways)
+	{
+		if (L.Kind == TEXT("curve") || L.Pts.Num() < 2) continue;
+		for (const int32 e : {0, L.Pts.Num() - 1})
+		{
+			const FVector2f E = L.Pts[e], Nx = L.Pts[e == 0 ? 1 : e - 1];
+			const FVector2f In = (Nx - E).GetSafeNormal();
+			const float Len = (Nx - E).Size();
+			if (OnModelApron(E, 0.f)) continue;
+			// onto the runway's centre line: lead-on and lead-off curves both ways, where the runway goes on
+			if (FMath::Abs(E.Y - RY) < 1.f && FMath::Abs(In.X) < 0.2f && Len > 70.f)
 			{
-				const FVector2f Off = N * (Side * Half);
-				float From = 0.f;
-				const float L = (B - A).Size(), GapHalf = 25.f / 2 + 17.5f + 1.4f;
-				for (int32 c = 0; c <= Cuts.Num(); ++c)
+				for (const float S : {-1.f, 1.f})
+					if (E.X + S * 60.f > Rx0 + 30.f && E.X + S * 60.f < Rx1 - 30.f) AddArc(E, In, FVector2f(S, 0.f), 60.f, L.W / 2);
+				continue;
+			}
+			// onto another taxiway's or taxilane's side (a T, not the corner where two end: those have their own curves)
+			for (const FAirfieldData::FTwy& O : D.Taxiways)
+			{
+				if (&O == &L || O.Kind == TEXT("curve") || O.Kind == TEXT("link")) continue;
+				if ((E - O.Pts[0]).Size() < 1.f || (E - O.Pts.Last()).Size() < 1.f) continue;
+				for (int32 k = 0; k + 1 < O.Pts.Num(); ++k)
 				{
-					const float To = c < Cuts.Num() ? Cuts[c] - GapHalf : L;
-					if (To - From > 2.f) EdgeBand(A + Off + U * From, A + Off + U * To, N * Side, -0.035f, -0.08f, 1.f, 0.f, From > 0.f, c < Cuts.Num());
-					From = c < Cuts.Num() ? Cuts[c] + GapHalf : L;
+					const FVector2f A = O.Pts[k], B = O.Pts[k + 1], U = (B - A).GetSafeNormal();
+					if (SegDist(E, A, B) > 1.f || FMath::Abs(FVector2f::DotProduct(In, U)) > 0.2f) continue;
+					for (const float S : {-1.f, 1.f})
+						if (SegDist(E + U * (S * 45.f), A, B) < 0.5f && Len > 50.f) AddArc(E, In, U * S, 45.f, L.W / 2);
 				}
 			}
 		}
 	}
+	ADP_LOG(TEXT("Airfield: %d taxiway pieces, %d turn curves"), NStraight, Pieces.Num() - NStraight);
+
+	// ---- the grid of fields over the whole paving
+	float X0 = Rx0 - 100.f, X1 = Rx1 + 100.f, Y0 = RY - HWo - 40.f, Y1 = RY + HWo + 40.f;
+	for (const FPiece& P : Pieces) for (const FVector2f& Q : P.Pts) { X0 = FMath::Min(X0, Q.X - 40.f); X1 = FMath::Max(X1, Q.X + 40.f); Y0 = FMath::Min(Y0, Q.Y - 40.f); Y1 = FMath::Max(Y1, Q.Y + 40.f); }
+	for (const FAirfieldData::FRect& A : D.Aprons) { X0 = FMath::Min(X0, FMath::Min(A.X0, A.X1) - 40.f); X1 = FMath::Max(X1, FMath::Max(A.X0, A.X1) + 40.f); Y0 = FMath::Min(Y0, FMath::Min(A.Y0, A.Y1) - 40.f); Y1 = FMath::Max(Y1, FMath::Max(A.Y0, A.Y1) + 40.f); }
+	constexpr float St = 2.5f;
+	const int32 Nx = FMath::CeilToInt((X1 - X0) / St), Ny = FMath::CeilToInt((Y1 - Y0) / St), Nx1 = Nx + 1;
+	const int32 Nodes = Nx1 * (Ny + 1);
+	TArray<float> F[NF];
+	for (int32 f = 0; f < NF; ++f) F[f].Init(1e4f, Nodes);
+	auto NodeP = [&](int32 n) { return FVector2f(X0 + (n % Nx1) * St, Y0 + (n / Nx1) * St); };
+	// the bare taxiways: each piece's distance only near it
+	for (const FPiece& P : Pieces)
+		for (int32 k = 0; k + 1 < P.Pts.Num(); ++k)
+		{
+			const FVector2f A = P.Pts[k], B = P.Pts[k + 1];
+			const float Reach = P.Hw + Shoulder + 25.f;
+			const int32 I0 = FMath::Max(0, FMath::FloorToInt((FMath::Min(A.X, B.X) - Reach - X0) / St)), I1 = FMath::Min(Nx, FMath::CeilToInt((FMath::Max(A.X, B.X) + Reach - X0) / St));
+			const int32 J0 = FMath::Max(0, FMath::FloorToInt((FMath::Min(A.Y, B.Y) - Reach - Y0) / St)), J1 = FMath::Min(Ny, FMath::CeilToInt((FMath::Max(A.Y, B.Y) + Reach - Y0) / St));
+			for (int32 j = J0; j <= J1; ++j)
+				for (int32 i = I0; i <= I1; ++i)
+				{
+					const int32 n = j * Nx1 + i;
+					F[FTaxi][n] = FMath::Min(F[FTaxi][n], SegDist(NodeP(n), A, B) - P.Hw);
+				}
+		}
+	auto Fields = [&](const FVector2f& Q, float Taxi, float* Out)
+	{
+		float Ap = 1e4f;
+		for (const FAirfieldData::FRect& A : D.Aprons) Ap = FMath::Min(Ap, BoxSd(Q, A.X0, A.Y0, A.X1, A.Y1));
+		Out[FTaxi] = Taxi;
+		Out[FApron] = Ap;
+		Out[FRwy] = BoxSd(Q, Rx0, RY - HW, Rx1, RY + HW);
+		Out[FRwyOuter] = BoxSd(Q, Rx0 - 60.f, RY - HWo, Rx1 + 60.f, RY + HWo);
+		// fillets where the taxiways meet the runway and the aprons; the shoulders round the outside of it all
+		Out[FPave] = SMin(SMin(Taxi, Out[FRwy], 8.f), Ap, 10.f);
+		Out[FShoulder] = SMin(SMin(Taxi - Shoulder, Out[FRwyOuter], 10.f), Ap, 10.f);
+	};
+	for (int32 n = 0; n < Nodes; ++n)
+	{
+		float V[NF];
+		Fields(NodeP(n), F[FTaxi][n], V);
+		for (int32 f = 0; f < NF; ++f) F[f][n] = V[f];
+	}
+
+	// ---- the sheets, each the part of the grid inside its cuts (cut along the fields, so their edges follow the curves)
+	struct FSpec { FName Mat; float Lift; TArray<FCut> Cuts; };
+	TArray<FSpec> Specs;
+	// the taxiway pavement: up to the fillets, a little under the runway and the aprons, only near the taxiways
+	Specs.Add({TEXT("asphalt"), -0.0225f, {{FPave, 0.f, 1.f}, {FRwy, -0.3f, -1.f}, {FApron, -0.5f, -1.f}, {FTaxi, 9.f, 1.f}}});
+	// the shoulders: from the pavement's edge to the grass, under the runway's own shoulders
+	Specs.Add({TEXT("shoulder"), -0.036f, {{FShoulder, 0.f, 1.f}, {FPave, -0.3f, -1.f}, {FRwyOuter, -0.3f, -1.f}, {FApron, -0.3f, -1.f}, {FTaxi, Shoulder + 11.f, 1.f}}});
+	// the taxi side stripes (ICAO: two solid yellow lines 15 cm wide, 15 cm apart, at the edge of the full-strength
+	// pavement), following the fillets, stopping short of the runway's shoulders and the aprons
+	Specs.Add({TEXT("yellow"), -0.018f, {{FPave, 0.f, 1.f}, {FPave, -0.15f, -1.f}, {FRwyOuter, 0.5f, -1.f}, {FApron, 0.5f, -1.f}}});
+	Specs.Add({TEXT("yellow"), -0.018f, {{FPave, -0.3f, 1.f}, {FPave, -0.45f, -1.f}, {FRwyOuter, 0.5f, -1.f}, {FApron, 0.5f, -1.f}}});
+	auto Corner = [&](int32 n) { FCorner C; C.P = NodeP(n); for (int32 f = 0; f < NF; ++f) C.F[f] = F[f][n]; return C; };
+	for (const FSpec& Sp : Specs)
+	{
+		FSheet& S = Sheets.FindOrAdd(Sp.Mat);
+		TArray<int32> Cache;
+		Cache.Init(-1, Nodes);
+		auto Shared = [&](int32 n) { if (Cache[n] < 0) { Cache[n] = S.V.Num(); const FVector2f P = NodeP(n); Vertex(S, P.X, P.Y, Sp.Lift); } return Cache[n]; };
+		int32 Tris = 0;
+		for (int32 j = 0; j < Ny; ++j)
+			for (int32 i = 0; i < Nx; ++i)
+			{
+				const int32 n0 = j * Nx1 + i, n1 = n0 + 1, n2 = n0 + Nx1 + 1, n3 = n0 + Nx1;
+				if (bModelSite && OnModelApron(NodeP(n0), -St * 2)) continue;
+				const int32 TT[2][3] = {{n0, n1, n2}, {n0, n2, n3}};
+				for (const auto& T : TT)
+				{
+					bool bAllIn = true, bOut = false;
+					for (const FCut& C : Sp.Cuts)
+					{
+						int32 In = 0;
+						for (const int32 n : T) In += C.Sign * (F[C.Field][n] - C.Level) <= 0.f;
+						if (In == 0) { bOut = true; break; }
+						if (In < 3) bAllIn = false;
+					}
+					if (bOut) continue;
+					if (bAllIn) { Tri(S, Shared(T[0]), Shared(T[1]), Shared(T[2])); ++Tris; continue; }
+					TArray<FCorner, TInlineAllocator<12>> Poly = {Corner(T[0]), Corner(T[1]), Corner(T[2])};
+					for (const FCut& C : Sp.Cuts) ClipPoly(Poly, C);
+					if (Poly.Num() < 3) continue;
+					const int32 Base = S.V.Num();
+					for (const FCorner& C : Poly) Vertex(S, C.P.X, C.P.Y, Sp.Lift);
+					for (int32 k = 1; k + 1 < Poly.Num(); ++k) { Tri(S, Base, Base + k, Base + k + 1); ++Tris; }
+				}
+			}
+		ADP_LOG(TEXT("Airfield: taxiway sheet %s %d triangles"), *Sp.Mat.ToString(), Tris);
+	}
+
+	// ---- the yellow centre lines, the turn curves' too (the straight ones stop at the runway's shoulders: on the runway
+	// only the curves lead on and off, as painted for real)
+	for (int32 p = 0; p < Pieces.Num(); ++p)
+	{
+		const FPiece& P = Pieces[p];
+		for (int32 k = 0; k + 1 < P.Pts.Num(); ++k)
+		{
+			FVector2f A = P.Pts[k], B = P.Pts[k + 1];
+			if (!P.bArc)
+			{
+				auto In = [&](const FVector2f& Q) { return FMath::Abs(Q.Y - RY) < HWo && Q.X > Rx0 - 60.f && Q.X < Rx1 + 60.f; };
+				if (In(A) && In(B)) continue;
+				if (In(A)) A.Y = B.Y < RY ? RY - HWo : RY + HWo;
+				if (In(B)) B.Y = A.Y < RY ? RY - HWo : RY + HWo;
+			}
+			if (OnModelApron(A, -1.f) && OnModelApron(B, -1.f)) continue;
+			if ((B - A).Size() > 0.05f) Band("yellow", A, B, 0.3f, -0.018f, P.bArc ? 4.f : 10.f);
+		}
+	}
+
+	// ---- the soft grass edge all round the paving: the outline of the shoulders' field, followed cell by cell
+	auto Inside = [&](int32 n) { return F[FShoulder][n] <= 0.f; };
+	auto EdgeP = [&](int64 Id)
+	{
+		const int32 n = int32(Id / 2), m = (Id & 1) ? n + Nx1 : n + 1;
+		const float A = F[FShoulder][n], B = F[FShoulder][m];
+		return FMath::Lerp(NodeP(n), NodeP(m), FMath::Clamp(A / (A - B), 0.f, 1.f));
+	};
+	TArray<TPair<int64, int64>> Segs;
+	TMap<int64, TArray<int32, TInlineAllocator<2>>> Adj;
+	auto AddSeg = [&](int64 A, int64 B) { const int32 s = Segs.Add({A, B}); Adj.FindOrAdd(A).Add(s); Adj.FindOrAdd(B).Add(s); };
+	for (int32 j = 0; j < Ny; ++j)
+		for (int32 i = 0; i < Nx; ++i)
+		{
+			const int32 n0 = j * Nx1 + i, n1 = n0 + 1, n2 = n0 + Nx1 + 1, n3 = n0 + Nx1;
+			const bool c0 = Inside(n0), c1 = Inside(n1), c2 = Inside(n2), c3 = Inside(n3);
+			const int64 eB = int64(n0) * 2, eR = int64(n1) * 2 + 1, eT = int64(n3) * 2, eL = int64(n0) * 2 + 1;
+			TArray<int64, TInlineAllocator<4>> X;
+			if (c0 != c1) X.Add(eB);
+			if (c1 != c2) X.Add(eR);
+			if (c2 != c3) X.Add(eT);
+			if (c3 != c0) X.Add(eL);
+			if (X.Num() == 2) AddSeg(X[0], X[1]);
+			else if (X.Num() == 4)
+			{
+				const bool cC = (F[FShoulder][n0] + F[FShoulder][n1] + F[FShoulder][n2] + F[FShoulder][n3]) * 0.25f <= 0.f;
+				if (cC == c0) { AddSeg(eB, eR); AddSeg(eT, eL); }
+				else { AddSeg(eL, eB); AddSeg(eR, eT); }
+			}
+		}
+	TArray<bool> Used;
+	Used.Init(false, Segs.Num());
+	auto Extend = [&](TArray<int64>& C)
+	{
+		for (;;)
+		{
+			const TArray<int32, TInlineAllocator<2>>* L = Adj.Find(C.Last());
+			int32 Next = -1;
+			if (L) for (const int32 t : *L) if (!Used[t]) { Next = t; break; }
+			if (Next < 0) return;
+			Used[Next] = true;
+			C.Add(Segs[Next].Key == C.Last() ? Segs[Next].Value : Segs[Next].Key);
+		}
+	};
+	auto Masked = [&](const FVector2f& Q)
+	{
+		if (OnModelApron(Q, 4.f)) return true;
+		// without the model: the terminal's own apron meets the building along its south side
+		if (!bModelSite) for (const FAirfieldData::FRect& A : D.Aprons)
+			if (A.Id == TEXT("APRON-T") && Q.Y < FMath::Min(A.Y0, A.Y1) + 2.f && Q.X > FMath::Min(A.X0, A.X1) - 2.f && Q.X < 250.f) return true;
+		return false;
+	};
+	auto Sample = [&](const FVector2f& Q)
+	{
+		const float Fx = FMath::Clamp((Q.X - X0) / St, 0.f, Nx - 0.001f), Fy = FMath::Clamp((Q.Y - Y0) / St, 0.f, Ny - 0.001f);
+		const int32 i = int32(Fx), j = int32(Fy), n = j * Nx1 + i;
+		const float U = Fx - i, V = Fy - j;
+		return FMath::Lerp(FMath::Lerp(F[FShoulder][n], F[FShoulder][n + 1], U), FMath::Lerp(F[FShoulder][n + Nx1], F[FShoulder][n + Nx1 + 1], U), V);
+	};
+	int32 Runs = 0;
+	for (int32 s = 0; s < Segs.Num(); ++s)
+	{
+		if (Used[s]) continue;
+		Used[s] = true;
+		TArray<int64> Chain = {Segs[s].Key, Segs[s].Value};
+		Extend(Chain);
+		Algo::Reverse(Chain);
+		Extend(Chain);
+		const bool bClosed = Chain.Num() > 3 && Chain[0] == Chain.Last();
+		TArray<FVector2f> Pts;
+		for (const int64 Id : Chain) Pts.Add(EdgeP(Id));
+		if (bClosed) Pts.Pop();
+		const int32 N = Pts.Num();
+		if (N < 2) continue;
+		TArray<bool> M;
+		for (const FVector2f& Q : Pts) M.Add(Masked(Q));
+		// the runs between masked stretches (a loop with none: one closed run)
+		TArray<TArray<int32>> RunIdx;
+		const int32 FirstMasked = M.Find(true);
+		if (FirstMasked == INDEX_NONE)
+		{
+			TArray<int32> R;
+			for (int32 k = 0; k < N; ++k) R.Add(k);
+			if (bClosed) R.Add(0);
+			RunIdx.Add(R);
+		}
+		else
+		{
+			TArray<int32> R;
+			const int32 Count = bClosed ? N + 1 : N, Start = bClosed ? FirstMasked : 0;
+			for (int32 c = 0; c < Count; ++c)
+			{
+				const int32 k = bClosed ? (Start + c) % N : c;
+				if (M[k]) { if (R.Num() >= 2) RunIdx.Add(R); R.Reset(); }
+				else R.Add(k);
+			}
+			if (R.Num() >= 2) RunIdx.Add(R);
+		}
+		for (const TArray<int32>& R : RunIdx)
+		{
+			TArray<FVector2f> P, Out, Flags;
+			TArray<float> Lift;
+			for (int32 q = 0; q < R.Num(); ++q)
+			{
+				const FVector2f Q = Pts[R[q]];
+				const FVector2f Prev = Pts[R[FMath::Max(q - 1, 0)]], Next = Pts[R[FMath::Min(q + 1, R.Num() - 1)]];
+				FVector2f T = (Next - Prev).GetSafeNormal(), Nm(T.Y, -T.X);
+				if (Sample(Q + Nm) < Sample(Q - Nm)) Nm = -Nm;
+				float V[NF];
+				Fields(Q, 1e4f, V);
+				P.Add(Q); Out.Add(Nm);
+				Flags.Add(FVector2f(V[FApron] < 3.f ? 0.f : 1.f, (V[FRwyOuter] < 3.f && (Q.X < Rx0 || Q.X > Rx1)) ? 1.f : 0.f));
+				Lift.Add(V[FRwyOuter] < 1.f ? -0.025f : V[FApron] < 1.f ? -0.04f : -0.036f);
+			}
+			EdgePoly(P, Out, Flags, Lift, !(bClosed && FirstMasked == INDEX_NONE));
+			++Runs;
+		}
+	}
+	ADP_LOG(TEXT("Airfield: the paving's outline, %d edge runs"), Runs);
 }
+
+void AAirfield::EdgePoly(const TArray<FVector2f>& P, const TArray<FVector2f>& Out, const TArray<FVector2f>& Flags, const TArray<float>& InnerLift, bool bFadeEnds)
+{
+	FSheet& S = Sheets.FindOrAdd(TEXT("edge"));
+	const int32 N = P.Num();
+	if (N < 2) return;
+	constexpr float In = 1.2f, Over = 1.4f, Fade = 6.f;
+	TArray<float> Along;
+	Along.Add(0.f);
+	for (int32 k = 1; k < N; ++k) Along.Add(Along.Last() + (P[k] - P[k - 1]).Size());
+	const float L = Along.Last();
+	const float Across[3] = {-In, 0.f, Over}, Vs[3] = {0.f, 0.5f, 1.f};
+	const int32 Base = S.V.Num();
+	for (int32 j = 0; j < 3; ++j)
+		for (int32 k = 0; k < N; ++k)
+		{
+			const FVector2f Q = P[k] + Out[k] * Across[j];
+			const float Alpha = bFadeEnds ? FMath::Clamp(FMath::Min(Along[k], L - Along[k]) / Fade, 0.f, 1.f) : 1.f;
+			const FVector2D UV(Along[k] / 4.0, Vs[j]);
+			Vertex(S, Q.X, Q.Y, j < 2 ? InnerLift[k] + 0.004f : -0.076f, FLinearColor(Flags[k].X, Flags[k].Y, 0.f, Alpha), &UV);
+		}
+	for (int32 j = 0; j < 2; ++j)
+		for (int32 k = 0; k + 1 < N; ++k)
+		{
+			const int32 Pa = Base + j * N + k, Pb = Pa + 1, Pc = Pa + N, Pd = Pc + 1;
+			Tri(S, Pa, Pb, Pd); Tri(S, Pa, Pd, Pc);
+		}
+}
+
+#pragma endregion
 
 void AAirfield::Tri(FSheet& S, int32 A, int32 B, int32 C)
 {
@@ -368,22 +698,15 @@ bool AAirfield::Build(bool bModelSite)
 
 	// the grass over the whole airport on the grade (the globe's own ground meets it at the boundary, where the grade
 	// has come back down to it)
-	Quad("grass", D.Boundary.X0, D.Boundary.Y0, D.Boundary.X1, D.Boundary.Y1, -0.08f, 25.f);
+	Quad("grass", D.Boundary.X0, D.Boundary.Y0, D.Boundary.X1, D.Boundary.Y1, -0.08f, 8.f);   // fine enough that it never pokes through the shoulders on the grade
 	// landside in front of the terminal: the kerb, the road and the car park (level ground)
 	if (!bModelSite) Quad("asphalt", -160, -170, 392, -0.5f, -0.05f, 50.f);
 	// the aprons (concrete, level); with the Babylon model only those away from the terminal (it has the terminal's own)
 	for (const FAirfieldData::FRect& A : D.Aprons)
 		if (!bModelSite || !(A.Id == TEXT("APRON-T") || A.Id == TEXT("APRON-9"))) Quad("apron", A.X0, A.Y0, A.X1, A.Y1, -0.04f, 20.f);
-	// the taxiways: shoulders, pavement and the yellow centre line, all riding the grade
-	for (const FAirfieldData::FTwy& T : D.Taxiways)
-		for (int32 i = 0; i + 1 < T.Pts.Num(); ++i)
-		{
-			const FVector2f A = T.Pts[i], B = T.Pts[i + 1], U = (B - A).GetSafeNormal();
-			const bool bLane = T.Kind == TEXT("taxilane");
-			if (!bLane) Band("concrete", A - U * 20, B + U * 20, T.W + 35, -0.035f);
-			Band("asphalt", A - U * (T.W / 2), B + U * (T.W / 2), T.W, -0.03f);
-			Band("yellow", A, B, 0.3f, -0.018f);
-		}
+	// the taxiways: one smooth pavement with its turn curves, fillets, shoulders, edge stripes, centre lines and the soft
+	// grass edge round all the paving, riding the grade
+	PaveTaxiways(bModelSite);
 	// the runway: shoulders, pavement, centre line dashes, edge lines, threshold bars, designators, touchdown marks
 	const float RY = D.RwyY, HW = D.RwyW / 2;
 	Quad("concrete", D.RwyX0 - 60, RY - HW - 7.5f, D.RwyX1 + 60, RY + HW + 7.5f, -0.025f);

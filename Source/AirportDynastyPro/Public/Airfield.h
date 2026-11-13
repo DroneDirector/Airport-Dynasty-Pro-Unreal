@@ -89,6 +89,12 @@ private:
 	void EdgeRect(float X0, float Y0, float X1, float Y1, float InnerLift, float Asphalt, int32 Sides = 15, float EndsAtX = 0.f);
 	/** Every pavement edge of the airfield, laid after the pavements. */
 	void EdgeBands(bool bModelSite);
+	/** The taxiways as one smooth pavement (owner, 2026-11-13: "how the corners of a taxiway are supposed to be"): turn
+	 *  curves at every junction, fillets where they meet the runway and the aprons, shoulders, the edge stripes and the
+	 *  soft grass edge all round the airfield's paving, all from one distance field so nothing meets in square blocks. */
+	void PaveTaxiways(bool bModelSite);
+	/** A soft edge band along a curved edge: P the points along it, Out their outward normals, Flags (asphalt, end). */
+	void EdgePoly(const TArray<FVector2f>& P, const TArray<FVector2f>& Out, const TArray<FVector2f>& Flags, const TArray<float>& InnerLift, bool bFadeEnds);
 	void Tri(FSheet& S, int32 A, int32 B, int32 C);
 	void FlushSheets();
 	UPROPERTY() TArray<TObjectPtr<UProceduralMeshComponent>> SheetMeshes;

@@ -108,13 +108,51 @@ for ch, on in (('r', True), ('g', True), ('b', False), ('a', False)): wxy.set_ed
 mel.connect_material_expressions(wpm, '', wxy, '')
 s100 = E(unreal.MaterialExpressionMultiply, -1450, -760); mel.connect_material_expressions(ssize, '', s100, 'A'); s100.set_editor_property('const_b', 100.0)
 suv = E(unreal.MaterialExpressionDivide, -1300, -850); mel.connect_material_expressions(wxy, '', suv, 'A'); mel.connect_material_expressions(s100, '', suv, 'B')
-sdiff = tparam('ScanDiff', SCAN['asphalt_04']['diff'], -1100, -1000, unreal.MaterialSamplerType.SAMPLERTYPE_COLOR)
-snor = tparam('ScanNormal', SCAN['asphalt_04']['nor'], -1100, -800, unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL)
-srgh = tparam('ScanRough', SCAN['asphalt_04']['rough'], -1100, -600, unreal.MaterialSamplerType.SAMPLERTYPE_MASKS)
-for t_ in (sdiff, snor, srgh): mel.connect_material_expressions(suv, '', t_, 'UVs')
+# the scans without repeats (owner, 2026-11-13: "the asphalt doesn't look seamless from up high"): stochastic tiling,
+# as the big games do it - every corner of a grid one scan wide shows the scan turned and shifted at random, the corners
+# blended softly with the blend keeping the scan's contrast, so no square of it repeats anywhere
+ANTI = r"""
+float2 dx = ddx(UV), dy = ddy(UV);
+float2 ip = floor(UV), f = frac(UV);
+float4 mean = Tx.SampleLevel(TxSampler, float2(0.5, 0.5), 12);
+float4 s[4]; float w[4]; float ws = 0;
+[unroll] for (int k = 0; k < 4; k++) {
+  float2 o = float2(k & 1, k >> 1), c = ip + o;
+  float h1 = frac(sin(dot(c, float2(127.1, 311.7))) * 43758.5453);
+  float h2 = frac(sin(dot(c, float2(269.5, 183.3))) * 43758.5453);
+  float h3 = frac(sin(dot(c, float2(419.2, 371.9))) * 43758.5453);
+  float a = h1 * 6.2831853, cs = cos(a), sn = sin(a);
+  float2 ruv = float2(cs * UV.x - sn * UV.y, sn * UV.x + cs * UV.y) + float2(h2, h3) * 7.0;
+  float2 rdx = float2(cs * dx.x - sn * dx.y, sn * dx.x + cs * dx.y), rdy = float2(cs * dy.x - sn * dy.y, sn * dy.x + cs * dy.y);
+  float4 v = Tx.SampleGrad(TxSampler, ruv, rdx, rdy);
+  if (IsNormal > 0.5) { float2 t = v.xy * 2.0 - 1.0; t.y = -t.y; v = float4(cs * t.x + sn * t.y, -sn * t.x + cs * t.y, 0, 0); mean = 0; }
+  float2 b = 1.0 - abs(f - o); float ww = b.x * b.y; ww *= ww; ww *= ww;
+  s[k] = v; w[k] = ww; ws += ww;
+}
+float4 acc = 0; float w2 = 0;
+[unroll] for (int k2 = 0; k2 < 4; k2++) { float wn = w[k2] / ws; acc += wn * (s[k2] - mean); w2 += wn * wn; }
+return mean + acc / sqrt(max(w2, 1e-4));
+"""
+def anti(name, tex, stype, uvn, isn, out, x, y):
+    t_ = tobj(name, tex, x - 250, y); t_.set_editor_property('sampler_type', stype)
+    c = E(unreal.MaterialExpressionCustom, x, y)
+    c.set_editor_property('code', ANTI); c.set_editor_property('output_type', unreal.CustomMaterialOutputType.CMOT_FLOAT4); c.set_editor_property('description', 'ANTITILE')
+    ins = []
+    for n_ in ('Tx', 'UV', 'IsNormal'):
+        ci = unreal.CustomInput(); ci.set_editor_property('input_name', n_); ins.append(ci)
+    c.set_editor_property('inputs', ins)
+    k_ = E(unreal.MaterialExpressionConstant, x - 250, y + 80); k_.set_editor_property('r', isn)
+    mel.connect_material_expressions(t_, '', c, 'Tx'); mel.connect_material_expressions(uvn, '', c, 'UV'); mel.connect_material_expressions(k_, '', c, 'IsNormal')
+    m_ = E(unreal.MaterialExpressionComponentMask, x + 200, y)
+    for ch, on in zip('rgba', out): m_.set_editor_property(ch, on)
+    mel.connect_material_expressions(c, '', m_, '')
+    return m_
 big = E(unreal.MaterialExpressionMultiply, -1300, -1100); mel.connect_material_expressions(suv, '', big, 'A'); big.set_editor_property('const_b', 0.137)
-sbig = tparam('ScanDiffBig', SCAN['asphalt_04']['diff'], -1100, -1200, unreal.MaterialSamplerType.SAMPLERTYPE_COLOR)
-mel.connect_material_expressions(big, '', sbig, 'UVs')
+C3, C1 = (True, True, True, False), (True, False, False, False)
+sdiff = anti('ScanDiff', SCAN['asphalt_04']['diff'], unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, suv, 0.0, C3, -1000, -1000)
+snor = anti('ScanNormal', SCAN['asphalt_04']['nor'], unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL, suv, 1.0, C3, -1000, -800)
+srgh = anti('ScanRough', SCAN['asphalt_04']['rough'], unreal.MaterialSamplerType.SAMPLERTYPE_MASKS, suv, 0.0, C1, -1000, -600)
+sbig = anti('ScanDiffBig', SCAN['asphalt_04']['diff'], unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, big, 0.0, C3, -1000, -1200)
 usescan = sp('UseScan', 0.0, -1600, -1000)
 
 # 2. the surface's own settings for the effects
@@ -188,7 +226,7 @@ return float4(c, r);
 """
 NORMAL = COMMON + r"""
 float3 nn = N;
-if (UseScan > 0.5) { float3 t = ScanN * 2.0 - 1.0; nn = normalize(N + float3(t.x, -t.y, 0) * 0.6 * (1.0 - puddle)); }
+if (UseScan > 0.5) nn = normalize(N + float3(ScanN.xy, 0) * 0.6 * (1.0 - puddle));   // ScanN: the scan's slope in world x, y (ANTI)
 float2 uvr = WP.xy / 28.0; float2 acc = 0;
 [unroll] for (int k = 0; k < 3; k++) {
   float2 g = uvr + float2(k * 0.37, k * 0.71);
@@ -211,8 +249,8 @@ ALL = ['WP', 'N', 'Bias', 'Puddles', 'Wet', 'Amount', 'Size', 'Style', 'CAmount'
        'CrackTex', 'TyreTex', 'RwyA', 'RwyB', 'RwyDisp', 'TyreAmt', 'Tyres']
 SRC = lambda: {'WP': (wp, ''), 'N': (vn, ''), 'Bias': (bias, ''), 'Puddles': (pon, ''), 'Wet': (cps['Wetness'], ''), 'Amount': (cps['PuddleAmount'], ''),
        'Size': (cps['PuddleSize'], ''), 'Style': (cstyle, ''), 'CAmount': (camt, ''), 'Cracks': (cps['Cracks'], ''), 'Col': (use, ''),
-       'Rough': (rough, ''), 'UseScan': (usescan, ''), 'ScanCol': (sdiff, 'RGB'), 'ScanBig': (sbig, 'RGB'), 'ScanR': (srgh, 'R'),
-       'ScanN': (snor, 'RGB'), 'CrackTex': (crackt, ''), 'TyreTex': (tyret, ''), 'RwyA': (cvs['RwyA'], ''), 'RwyB': (cvs['RwyB'], ''),
+       'Rough': (rough, ''), 'UseScan': (usescan, ''), 'ScanCol': (sdiff, ''), 'ScanBig': (sbig, ''), 'ScanR': (srgh, ''),
+       'ScanN': (snor, ''), 'CrackTex': (crackt, ''), 'TyreTex': (tyret, ''), 'RwyA': (cvs['RwyA'], ''), 'RwyB': (cvs['RwyB'], ''),
        'RwyDisp': (cvs['RwyDisp'], ''), 'TyreAmt': (tamt, ''), 'Tyres': (cps['Tyres'], ''), 'Shine': (cps['PuddleShine'], ''),
        'T': (tm, ''), 'Ripples': (cps['Ripples'], ''), 'Rain': (cps['Rain'], '')}
 def custom(code, out_type, x, y, extra):
@@ -248,6 +286,8 @@ log('master ' + m.get_path_name())
 # ---- the instances
 def inst(path, params, tex=None, switch_tex=False, textures=None):
     a = unreal.load_asset(path)
+    if a is None and path.startswith(KIT):   # a new kit surface (the taxiway shoulders): made here
+        a = unreal.AssetToolsHelpers.get_asset_tools().create_asset(path.split('/')[-1], KIT[:-1], unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
     if a is None: log('missing ' + path); return
     if not isinstance(a, unreal.MaterialInstanceConstant): log('not an instance ' + path); return
     mel.set_material_instance_parent(a, m)
@@ -265,6 +305,10 @@ W = unreal.LinearColor(1, 1, 1, 1)
 KIT = '/Game/Materials/Kit/'
 inst(KIT + 'MI_asphalt', dict(Color=unreal.LinearColor(0.68, 0.68, 0.70, 1),   # aged airport asphalt a shade darker than the concrete shoulders
      UseScan=1.0, ScanSize=4.04, CrackStyle=0.0, CrackAmount=0.7, TyreAmount=1.0, Variation=0.0),
+     textures=dict(scan('asphalt_04', 'asphalt_02'), CrackLayer=LAYER['cracks_asphalt']))
+# the taxiways' shoulders (Airfield PaveTaxiways): older, lighter asphalt with more cracks, no tyre rubber (real shoulders
+# are paved for jet blast, rarely driven on)
+inst(KIT + 'MI_shoulder', dict(Color=unreal.LinearColor(0.80, 0.80, 0.81, 1), UseScan=1.0, ScanSize=4.04, CrackStyle=0.0, CrackAmount=0.95, TyreAmount=0.0, Variation=0.0),
      textures=dict(scan('asphalt_04', 'asphalt_02'), CrackLayer=LAYER['cracks_asphalt']))
 for nm, b_ in (('MI_concrete', 0.0), ('MI_apron', 0.12)):
     inst(KIT + nm, dict(Color=unreal.LinearColor(1.12, 1.12, 1.10, 1), UseScan=1.0, ScanSize=3.0, CrackStyle=1.0, CrackAmount=0.6, TyreAmount=0.0, PuddleBias=b_, Variation=0.0),
