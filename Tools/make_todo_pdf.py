@@ -93,6 +93,7 @@ ITEMS = [
     ('43a', 'Jetways animated in Unreal (his docking: parked pulled half way back - wheels half as far out from the rotunda as docked, drives out to the front door when called, back after; stair, hoses, bellows, cab, canopy all moving with it)', '1 day', ['none'], '', False),
     ('43b', 'Stop bars: check every type nose-wheel setback and front-door position against the makers airport planning document; jetway docks per type', '2 h', ['field'], '43a', False),
     ('44', 'Weather-driven ground: snow builds up with how hard it snows and how cold it is (melts above 0), grass collecting more and more while the paving stays relatively free (ploughed); puddles from how much it rains - driven by the real-weather system', '3-4 h', ['field'], '', False),
+    ('45', 'Per-stand wear settings: each stand in the layout file can set its own wear amount ("wear": 0.3 almost clean, 1.5 heavily used) and tyre marks ("tyres": 0 none, 1 strong); stands left unset keep their random look', '30 min', ['field'], '', False),
     ('40g', 'Iceland scenery: mountains torn into walls and steps - rebuild the Iceland/Faroes height tiles with feathered edges where they meet the world map', '3-4 h', ['field'], '', False),
 ]
 c = canvas.Canvas('AirportDynastyPro-ToDo.pdf', pagesize=(W, H))
