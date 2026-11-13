@@ -50,7 +50,9 @@ export function onGameReady(f: () => void) { readySubs.push(f); }
 export function onNoGame(f: () => void) { noGameSubs.push(f); }
 /** The new career's choices for the game, put on the frame's address (embed=new&diff=…&sex=…). */
 let newExtra = '';
-export function gameNewExtra(diff: string, sex: string) { newExtra = (diff ? '&diff=' + encodeURIComponent(diff) : '') + (sex ? '&sex=' + encodeURIComponent(sex) : ''); }
+export function gameNewExtra(diff: string, sex: string, pet = 'none', coat = 0, married = false) {
+  newExtra = (diff ? '&diff=' + encodeURIComponent(diff) : '') + (sex ? '&sex=' + encodeURIComponent(sex) : '') + '&pet=' + encodeURIComponent(pet) + '&coat=' + coat + (married ? '&married=1' : '');
+}
 export function gameOpen(act: 'new' | 'continue' | 'load' | 'save' | 'ui', on: { title: () => void; exit: () => void; viewer: (id: string) => void }) {
   gameClose(); handlers = on;
   const f = document.createElement('iframe'); f.className = 'game-frame'; f.setAttribute('title', 'Airport Dynasty Pro');

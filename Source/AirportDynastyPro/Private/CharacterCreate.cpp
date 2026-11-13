@@ -43,6 +43,15 @@ namespace
 	TWeakObjectPtr<AExponentialHeightFog> WorldFog;
 	FVector FogWasAt; float FogWasDensity = 0.02f, FogWasFalloff = 0.2f, FogWasMaxOpacity = 1.f, FogWasStart = 0.f, FogWasScatter = 0.f, FogWasExtinction = 1.f, FogWasDistance = 6000.f;
 	FLinearColor FogWasColour; FExponentialHeightFogData FogWasSecond; bool bFogWasVolumetric = false;
+	// the steps after the choice (owner, 2026-11-13): your partner walks in from the edge and stops beside you; your pet
+	// walks in and sits at your feet. Anyone walking on the stage is a walker: towards a mark, then turned to the camera
+	// (or gone, past the edge)
+	TWeakObjectPtr<UWorld> StageWorld;
+	TWeakObjectPtr<AActor> Partner, PetActor;
+	FString PetNow;
+	struct FWalker { TWeakObjectPtr<AActor> A; FVector To; float Speed; bool bGone; };
+	TArray<FWalker> Walkers;
+	FTSTicker::FDelegateHandle WalkTicker;
 
 	void SetWalking(AActor* A, bool bWalk)
 	{
@@ -134,6 +143,43 @@ namespace
 		return Phase != 0 && Phase != 3;
 	}
 
+	bool WalkStep(float Dt)
+	{
+		for (int32 i = Walkers.Num() - 1; i >= 0; --i)
+		{
+			FWalker& Wk = Walkers[i];
+			AActor* A = Wk.A.Get(); if (!A) { Walkers.RemoveAt(i); continue; }
+			FVector D = Wk.To - A->GetActorLocation(); D.Z = 0.f;
+			const float Step = Wk.Speed * Dt;
+			if (D.Size() <= Step)
+			{
+				A->SetActorLocation(FVector(Wk.To.X, Wk.To.Y, A->GetActorLocation().Z));
+				if (Wk.bGone) A->SetActorHiddenInGame(true);
+				else { A->SetActorRotation(FRotator(0.f, -90.f - 90.f, 0.f)); SetWalking(A, false); }   // on the mark, turned to the camera
+				Walkers.RemoveAt(i);
+				continue;
+			}
+			A->AddActorWorldOffset(D.GetSafeNormal() * Step);
+			A->SetActorRotation(FRotator(0.f, D.Rotation().Yaw - 90.f, 0.f));   // a MetaHuman faces its own +y
+		}
+		if (!Walkers.Num()) { WalkTicker.Reset(); return false; }
+		return true;
+	}
+	void Walk(AActor* A, const FVector& To, bool bGone)
+	{
+		if (!A) return;
+		Walkers.RemoveAll([A](const FWalker& W) { return W.A.Get() == A; });
+		A->SetActorHiddenInGame(false);
+		SetWalking(A, true);
+		Walkers.Add({A, To, 150.f, bGone});
+		if (!WalkTicker.IsValid()) WalkTicker = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([](float Dt) { return WalkStep(Dt); }), 0.f);
+	}
+	/** Where you stand once chosen (half a step forward into the key light), and towards the room's middle from there. */
+	FVector YouAt() { return (bChoseWoman ? HerAt : HimAt) + FVector(0.f, -55.f, 0.f); }
+	float ToMiddle() { return bChoseWoman ? -1.f : 1.f; }   // she stands at +x: the middle is -x from her
+	/** The free side's edge of the picture (where the UI is): the partner and the pet come in from there. */
+	FVector EdgeAt(const FVector& Mark) { return FVector(Centre.X + (bChoseWoman ? -470.f : 470.f), Mark.Y, Mark.Z); }
+
 	AStaticMeshActor* Shape(UWorld* W, const TCHAR* Mesh, const FVector& At, const FRotator& Rot, const FVector& Scale, UMaterialInterface* M)
 	{
 		UStaticMesh* SM = LoadObject<UStaticMesh>(nullptr, Mesh);
@@ -187,7 +233,7 @@ void ADPCharacterCreate::BuildConcept(UWorld* W, APlayerController* PC, bool bWo
 	// the room: 40 m under the terminal (dark there), its floor at C; the camera looks along +y (world) at the two
 	const FVector C = FTerminalPlan::ToWorld(0.f, -40.f, 0.f);
 	const FVector X(1, 0, 0), Y(0, 1, 0), Z(0, 0, 1);
-	Centre = C; Phase = 0; Tubes.Reset(); TubeLights.Reset(); Spawned.Reset();
+	Centre = C; Phase = 0; Tubes.Reset(); TubeLights.Reset(); Spawned.Reset(); StageWorld = W; Partner = nullptr; PetActor = nullptr; PetNow.Empty(); Walkers.Reset();
 	FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	UMaterialInstanceDynamic* Floor = Plain(W, FLinearColor(0.012f, 0.014f, 0.022f), 0.28f);   // a little shine: the neon mirrored in it
 	UMaterialInstanceDynamic* Wall = Plain(W, FLinearColor(0.008f, 0.01f, 0.018f), 0.75f);
@@ -379,6 +425,8 @@ void ADPCharacterCreate::Nobody()
 void ADPCharacterCreate::Teardown(UWorld* W, APlayerController* PC)
 {
 	if (Ticker.IsValid()) { FTSTicker::GetCoreTicker().RemoveTicker(Ticker); Ticker.Reset(); }
+	if (WalkTicker.IsValid()) { FTSTicker::GetCoreTicker().RemoveTicker(WalkTicker); WalkTicker.Reset(); }
+	Walkers.Reset(); Partner = nullptr; PetActor = nullptr; PetNow.Empty();
 	for (const TWeakObjectPtr<AActor>& A : Spawned) if (AActor* X = A.Get()) X->Destroy();
 	Spawned.Reset(); Tubes.Reset(); TubeLights.Reset(); KeyLight = nullptr; She = nullptr; He = nullptr; NeonMat = nullptr;
 	Phase = 0;
@@ -394,4 +442,40 @@ void ADPCharacterCreate::Teardown(UWorld* W, APlayerController* PC)
 	}
 	WorldFog = nullptr;
 	if (PC && PC->GetPawn()) PC->SetViewTarget(PC->GetPawn());
+}
+
+void ADPCharacterCreate::ShowPartner(bool bOn)
+{
+	UWorld* W = StageWorld.Get(); if (!W) return;
+	// beside you, towards the room's middle and a little behind; in from (and out to) the free side's edge
+	const FVector Mark = YouAt() + FVector(ToMiddle() * 92.f, 22.f, 0.f);
+	AActor* P = Partner.Get();
+	if (bOn)
+	{
+		if (!P)
+		{
+			// a MetaHuman of the other sex (a stand-in until the creator makes yours): he for her, she for him
+			P = Person(W, bChoseWoman ? TEXT("MH_007_passenger") : TEXT("MH_003_passenger"), EdgeAt(Mark), 0.f);
+			Partner = P;
+		}
+		if (P) { if (P->IsHidden()) P->SetActorLocation(EdgeAt(Mark)); Walk(P, Mark, false); }
+	}
+	else if (P && !P->IsHidden()) Walk(P, EdgeAt(Mark), true);
+}
+
+void ADPCharacterCreate::ShowPet(const FString& Kind, const FLinearColor& Coat)
+{
+	// the pet's place: at your feet, towards the middle and in front; in from the free side's edge. The models come
+	// from the pet pack (the owner's choice, 2026-11-13): until a dog's and a cat's are in, the step shows its panel
+	// and nobody walks in
+	PetNow = Kind;
+	if (AActor* P = PetActor.Get()) { const FVector Mark = YouAt() + FVector(ToMiddle() * 48.f, -70.f, 0.f); Walk(P, EdgeAt(Mark), true); PetActor = nullptr; }
+	if (Kind != TEXT("dog") && Kind != TEXT("cat")) return;
+	ADP_LOG(TEXT("Character creator: a %s (coat %s) chosen; no pet model in the game yet"), *Kind, *Coat.ToFColor(true).ToHex());
+}
+
+void ADPCharacterCreate::ClearCompany()
+{
+	ShowPartner(false);
+	ShowPet(FString(), FLinearColor::White);
 }

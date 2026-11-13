@@ -134,7 +134,8 @@ let newStageDone = false;
 // the stage done (Start game): the neon loading screen, and the game opened with the choices made there; the game's
 // own loader and anything it shows stay behind the loading screen until it says it is in and showing
 (window as any).__ueNewGameDone = (diff?: string, sex?: string) => {
-  gameNewExtra(diff || '', sex || '');
+  const ch: any = (window as any).__ngChoices || {};
+  gameNewExtra(diff || '', sex || '', ch.pet || 'none', ch.coat || 0, !!ch.married);
   loadingNeonShow();
   newStageDone = true; try { pickPlace('game:new'); } finally { newStageDone = false; }
 };

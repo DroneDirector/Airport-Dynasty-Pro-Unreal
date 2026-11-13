@@ -561,3 +561,10 @@ html.ue-stage body > *:not(.wy) { visibility: hidden !important; }
 .ln-tip b.in { opacity: 1; transform: none; }
 .ts-btn.dim { opacity: .45; }
 .ts-btn.dim:hover, .ts-btn.dim:focus-visible { opacity: .7; }
+.wy-coats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0 4px; }
+.wy-coat { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 2px; background: rgba(14, 10, 40, .55); border: 1px solid rgba(150, 180, 255, .16); border-radius: 10px; color: #EDE8FF; cursor: pointer; transition: border-color .25s, box-shadow .25s, transform .25s var(--spring); }
+.wy-coat i { width: 26px; height: 26px; border-radius: 50%; background: var(--c); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .25); }
+.wy-coat small { font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: rgba(225, 215, 255, .75); }
+.wy-coat:hover { transform: translateY(-2px); border-color: rgba(53, 240, 255, .6); }
+.wy-coat.on { border-color: var(--neo1); box-shadow: 0 0 16px rgba(255, 63, 184, .45); }
+.wy-panel .ts-btn[disabled] { opacity: .45; cursor: default; }

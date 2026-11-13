@@ -11,6 +11,8 @@ const EMBED: string = (() => { try { return new URLSearchParams(location.search)
 // the new career's choices made on the edition's neon stage: the difficulty and whether you are a woman or a man
 const EMBED_DIFF: string = (() => { try { return new URLSearchParams(location.search).get('diff') || ''; } catch (e) { return ''; } })();
 const EMBED_SEX: string = (() => { try { return new URLSearchParams(location.search).get('sex') || ''; } catch (e) { return ''; } })();
+const EMBED_PET: string = (() => { try { return new URLSearchParams(location.search).get('pet') || ''; } catch (e) { return ''; } })();
+const EMBED_COAT: number = (() => { try { return +(new URLSearchParams(location.search).get('coat') || 0); } catch (e) { return 0; } })();
 function embedTell(what: string, extra?: any) { try { parent.postMessage(Object.assign({ amp: what }, extra || {}), '*'); } catch (e) { /* alone */ } }
 
 if (EMBED) {
@@ -51,6 +53,8 @@ if (EMBED) {
       try {
         if (EMBED_DIFF && (DIFFICULTY as any)[EMBED_DIFF]) _fsDiff = EMBED_DIFF as any;
         (window as any).__ngPilot = { sex: EMBED_SEX === 'f' ? 'f' : 'm', look: defaultLook(EMBED_SEX === 'f' ? 'f' : 'm', 'captain') };
+        // the pet chosen on the stage: yours, asleep in its bed in your office
+        (window as any).__ngPet = EMBED_PET === 'dog' || EMBED_PET === 'cat' ? { kind: EMBED_PET, name: EMBED_PET === 'cat' ? 'Misty' : 'Buddy', coat: EMBED_COAT, white: true, size: 'm', ears: 'pointy', bed: 0, v: 2 } : null;
         ACTIONS['fs-scratch'](null as any, null as any);
         const d = $('.fs-modal .fs-diff') as HTMLElement; if (d) d.remove();   // chosen on the stage
         // the home base is the airport we built, Mýrdalssandur in Iceland (BIAP): fixed, not chosen (owner, 2026-11-13)

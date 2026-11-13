@@ -26,4 +26,10 @@ namespace ADPCharacterCreate
 	void Nobody();
 	/** The stage taken down: everything it spawned gone, the world's fog as it was, the camera back on you. */
 	void Teardown(UWorld* W, class APlayerController* PC);
+	/** Your partner walks in from the free side's edge and stops beside you (or walks back out). */
+	void ShowPartner(bool bOn);
+	/** Your pet walks in and sits at your feet (Kind dog or cat, its coat colour); anything else: it walks out. */
+	void ShowPet(const FString& Kind, const FLinearColor& Coat);
+	/** Partner and pet walk out (back to the choice). */
+	void ClearCompany();
 }

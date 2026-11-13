@@ -1116,7 +1116,13 @@ void AADPHUD::WhoAreYouFromPage(const FString& Action, const FString& Arg)
 	if (!bWhoAreYou) return;
 	if (Action == TEXT("hover")) ADPCharacterCreate::Choose(Arg == TEXT("she"));
 	else if (Action == TEXT("choose")) ADPCharacterCreate::Confirm(Arg == TEXT("she"));
-	else if (Action == TEXT("back")) { ADPCharacterCreate::Back(); bWhoAreYouBack = true; }
+	else if (Action == TEXT("back")) { ADPCharacterCreate::ClearCompany(); ADPCharacterCreate::Back(); bWhoAreYouBack = true; }
+	else if (Action == TEXT("partner")) ADPCharacterCreate::ShowPartner(Arg == TEXT("married"));
+	else if (Action == TEXT("pet"))
+	{
+		FString Kind, Hex; if (!Arg.Split(TEXT(":"), &Kind, &Hex)) Kind = Arg;
+		ADPCharacterCreate::ShowPet(Kind, Hex.IsEmpty() ? FLinearColor::White : FLinearColor(FColor::FromHex(Hex)));
+	}
 	else if (Action == TEXT("cancel")) CloseWhoAreYou(false);
 	else if (Action == TEXT("done")) CloseWhoAreYou(true, Arg);
 }
@@ -2134,14 +2140,18 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 76.f && ShotClock >= 76.f) Shot(TEXT("NewGame_BackAtChoice"));
 			if (Before < 77.f && ShotClock >= 77.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}))"));
 			if (Before < 87.f && ShotClock >= 87.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}))"));   // Next: your pet
+			if (Before < 87.5f && ShotClock >= 87.5f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowUp'})); window.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowUp'}))"));   // Dog
+			if (Before < 88.f && ShotClock >= 88.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowRight'}))"));   // the second coat
 			if (Before < 89.f && ShotClock >= 89.f) Shot(TEXT("NewGame_Pet"));
 			if (Before < 90.f && ShotClock >= 90.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}))"));   // Next: your partner
-			if (Before < 92.f && ShotClock >= 92.f) Shot(TEXT("NewGame_Partner"));
-			if (Before < 93.f && ShotClock >= 93.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}))"));   // Next: the difficulty
-			if (Before < 94.f && ShotClock >= 94.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowDown'}))"));   // Hard
-			if (Before < 96.f && ShotClock >= 96.f) Shot(TEXT("NewGame_Difficulty"));
-			if (Before < 97.f && ShotClock >= 97.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}))"));   // Start game: the loading screen
-			if (Before < 99.5f && ShotClock >= 99.5f) Shot(TEXT("NewGame_Loading"));
+			if (Before < 90.5f && ShotClock >= 90.5f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowUp'}))"));   // Married: he walks in
+			if (Before < 92.f && ShotClock >= 92.f) Shot(TEXT("NewGame_PartnerWalking"));
+			if (Before < 95.5f && ShotClock >= 95.5f) Shot(TEXT("NewGame_Partner"));
+			if (Before < 96.5f && ShotClock >= 96.5f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}))"));   // Next: the difficulty
+			if (Before < 97.5f && ShotClock >= 97.5f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowDown'}))"));   // Hard
+			if (Before < 99.f && ShotClock >= 99.f) Shot(TEXT("NewGame_Difficulty"));
+			if (Before < 100.f && ShotClock >= 100.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}))"));   // Start game: the loading screen
+			if (Before < 102.f && ShotClock >= 102.f) Shot(TEXT("NewGame_Loading"));
 			if (Before < 104.f && ShotClock >= 104.f) Shot(TEXT("NewGame_Founding"));   // the game's Found-your-airline form
 			// the form filled as a player would (a home base and the names), the game started: the loading screen, the Overview
 			if (Before < 105.f && ShotClock >= 105.f) Js(TEXT("(function(){ var f = document.querySelector('.game-frame'); if (f && f.contentWindow) f.contentWindow.eval(\"_fsHub='EKVG'; var n = document.querySelector('.fs-name'); if (n) n.value = 'Northern Lights Air'; ACTIONS['fs-wipe']()\"); })()"));

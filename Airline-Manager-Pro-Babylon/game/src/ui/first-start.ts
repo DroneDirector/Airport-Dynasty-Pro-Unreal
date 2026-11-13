@@ -91,7 +91,7 @@ function wipeToScratch(o: { kind: string; name: string; icao: string; callsign: 
   st.companyId = id; st.divisionId = 'all'; st.myReg = {}; st.coPilot = { [id]: { sex: 'f', id: '' } }; st.screen = 'ops';
   st.myLoad = Object.assign({}, S.myLoad, { pax: 0, cargoKg: 0, mailKg: 0, bagsKg: 0 });
   st.bank = { loans: [], insurance: {}, insNext: {}, campaigns: [], rentNext: {} };
-  st.mkt = null; st.coop = null; st.usedMarket = null; st.pet = null; st.stock = {}; st.difficulty = _fsDiff;
+  st.mkt = null; st.coop = null; st.usedMarket = null; st.pet = (window as any).__ngPet || null; st.stock = {}; st.difficulty = _fsDiff;
   st.salaryV2 = true; st.payV3 = true; st.groundV1 = true;
   st.finHold = true; st.regNext = 0; st.fresh = true;   // the money waits for you to start your career (career-start.ts)
   const json = JSON.stringify({ v: SAVE_VERSION, app: APP.version, savedAt: Date.now(), state: st });

@@ -11,7 +11,7 @@ import { icon } from './icons';
 import { splashTakeMusic, splashGiveMusic } from './splash';
 import { S, saveSettings } from '../core/settings';
 
-const Wy: any = { root: null as HTMLElement | null, audio: null as HTMLAudioElement | null, stage: '', side: '', step: 0, diff: '', padY: 0, hover: '', chosen: false, key$: null as any, raf: 0, padA: false, padB: false, padX: 0 };
+const Wy: any = { root: null as HTMLElement | null, audio: null as HTMLAudioElement | null, stage: '', side: '', step: 0, diff: '', pet: 'none', coat: 0, partner: 'single', padY: 0, hover: '', chosen: false, key$: null as any, raf: 0, padA: false, padB: false, padX: 0 };
 
 function tell(action: string, arg = '') { if (action === 'cancel') musicEnd(true); const u = ue(); if (u && u.whoareyou) u.whoareyou(action, arg); }
 
@@ -58,12 +58,21 @@ function renderChoose() {
 // the pets and the partner exist), with Back and Next; the last one's button is Start game
 const STEPS: { id: string; k: string; t: string; parts: [string, string][] }[] = [
   { id: 'creator', k: 'Coming with the character creator', t: 'Your looks', parts: [['Face', 'star'], ['Skin', 'grid'], ['Body', 'plus'], ['Height', 'mountain'], ['Hair', 'save'], ['Clothes', 'folder']] },
-  { id: 'pet', k: 'Coming: a companion at home', t: 'Your pet', parts: [['Dog', 'star'], ['Cat', 'star'], ['No pet', 'close']] },
-  { id: 'partner', k: 'Coming: married, or not', t: 'Your partner', parts: [['Married', 'star'], ['Single', 'close'], ['Their looks', 'grid']] },
+  { id: 'pet', k: 'A companion at home', t: 'Your pet', parts: [['Dog', 'star'], ['Cat', 'star'], ['No pet', 'close']] },
+  { id: 'partner', k: 'Married, or not', t: 'Your partner', parts: [['Married', 'star'], ['Single', 'close'], ['Their looks', 'grid']] },
   { id: 'difficulty', k: 'How hard your career is', t: 'Difficulty', parts: [['Cruising along', 'star'], ['Easy', 'star'], ['Normal', 'star'], ['Hard', 'star'], ['Extreme', 'star']] },
 ];
 // the difficulty (the game's own levels): what aircraft cost, what flights earn, how markets swing, and the money you
 // start with: on Hard one used A320-class aircraft, its crew and a little spare; more on Normal; a lot on Easy
+// the pet's coats (the game's own: its office pet takes the same), the first one on
+const COATS: { [k: string]: [string, string][] } = {
+  dog: [['#C8913E', 'Golden'], ['#2A2420', 'Black'], ['#6B4226', 'Brown'], ['#E6D3AE', 'Cream'], ['#F2EFE8', 'White'], ['#8A8783', 'Grey'], ['#A0522D', 'Red'], ['#4A3B30', 'Dark brown']],
+  cat: [['#E08A3C', 'Ginger'], ['#2A2624', 'Black'], ['#9A9590', 'Grey'], ['#F1EEE8', 'White'], ['#7A6450', 'Tabby'], ['#D9C3A0', 'Cream'], ['#5E6670', 'Blue-grey'], ['#B07A4A', 'Cinnamon']],
+};
+/** The choices so far, for the game when the career begins (main.ts reads window.__ngChoices). */
+function choicesOut() { (window as any).__ngChoices = { pet: Wy.pet || 'none', coat: Wy.coat || 0, married: Wy.partner === 'married' }; }
+function petTell() { const k = Wy.pet; if (k === 'dog' || k === 'cat') tell('pet', k + ':' + COATS[k][Wy.coat || 0][0]); else tell('pet', 'none'); choicesOut(); }
+function partnerTell() { tell('partner', Wy.partner === 'married' ? 'married' : 'single'); choicesOut(); }
 const DIFFS: [string, string, string][] = [
   ['cruise', 'Cruising along', 'Cheap aircraft, generous passengers, calm markets. Just enjoy flying.'],
   ['easy', 'Easy', 'A forgiving start with room for mistakes, and plenty of money.'],
@@ -79,7 +88,13 @@ function renderStep(n: number, side: string) {
     ${muteHtml()}
     <div class="wy-panel wy-${side === 'left' ? 'left' : 'right'}">
       <div class="wd-k">${st.k}</div><div class="wd-t">${st.t}</div>
-      <nav class="ts-nav">${isDiff
+      <nav class="ts-nav">${st.id === 'pet'
+        ? [['dog', 'Dog', 'Walks in and sits beside you'], ['cat', 'Cat', 'Walks in and sits beside you'], ['none', 'No pet', 'Just you']].map(([id, t, hint]) => `<button class="ts-btn ${id === (Wy.pet || 'none') ? 'on' : ''}" data-pet="${id}"><span class="ts-bi">${icon(id === 'none' ? 'close' : 'star')}</span><span class="ts-bt"><b>${t}</b><small>${hint}</small></span><i class="ts-sheen"></i></button>`).join('')
+          + (Wy.pet === 'dog' || Wy.pet === 'cat' ? `<div class="wy-coats">${COATS[Wy.pet].map(([hex, name], i) => `<button class="wy-coat ${i === (Wy.coat || 0) ? 'on' : ''}" data-coat="${i}" title="${name}" style="--c:${hex}"><i></i><small>${name}</small></button>`).join('')}</div>` : '')
+        : st.id === 'partner'
+        ? [['married', 'Married', 'Your partner walks in beside you'], ['single', 'Single', 'On your own']].map(([id, t, hint]) => `<button class="ts-btn ${id === (Wy.partner || 'single') ? 'on' : ''}" data-partner="${id}"><span class="ts-bi">${icon(id === 'single' ? 'close' : 'star')}</span><span class="ts-bt"><b>${t}</b><small>${hint}</small></span><i class="ts-sheen"></i></button>`).join('')
+          + `<button class="ts-btn" disabled><span class="ts-bi">${icon('grid')}</span><span class="ts-bt"><b>Their looks</b><small>with the character creator</small></span><i class="ts-sheen"></i></button>`
+        : isDiff
         ? DIFFS.map(([id, t, hint]) => `<button class="ts-btn ${id === Wy.diff ? 'on' : ''}" data-diff="${id}"><span class="ts-bi">${icon('star')}</span><span class="ts-bt"><b>${t}</b><small>${hint}</small></span><i class="ts-sheen"></i></button>`).join('')
         : st.parts.map(([t, ic], i) => `<button class="ts-btn ${i === 0 ? 'on' : ''}" data-part="${t}"><span class="ts-bi">${icon(ic)}</span><span class="ts-bt"><b>${t}</b><small>soon</small></span><i class="ts-sheen"></i></button>`).join('')}
         <div class="wy-row">
@@ -93,6 +108,13 @@ function diffMove(d: number) {
   const i = Math.max(0, DIFFS.findIndex(x => x[0] === (Wy.diff || 'normal'))), j = Math.min(DIFFS.length - 1, Math.max(0, i + d));
   Wy.diff = DIFFS[j][0];
   if (Wy.root) Wy.root.querySelectorAll('[data-diff]').forEach((b: Element) => b.classList.toggle('on', b.getAttribute('data-diff') === Wy.diff));
+}
+/** Up and down through the step's options: the difficulty, the pet, married or single. */
+function optMove(d: number) {
+  const id = STEPS[Wy.step].id;
+  if (id === 'difficulty') { diffMove(d); return; }
+  if (id === 'pet') { const L = ['dog', 'cat', 'none'], i = Math.max(0, L.indexOf(Wy.pet || 'none')); Wy.pet = L[Math.min(L.length - 1, Math.max(0, i + d))]; Wy.coat = 0; renderStep(Wy.step, Wy.side); petTell(); return; }
+  if (id === 'partner') { const L = ['married', 'single'], i = Math.max(0, L.indexOf(Wy.partner || 'single')); Wy.partner = L[Math.min(L.length - 1, Math.max(0, i + d))]; renderStep(Wy.step, Wy.side); partnerTell(); }
 }
 function stepTo(n: number) {
   if (n < 0) { tell('back'); Wy.stage = 'reverse'; if (Wy.root) Wy.root.innerHTML = ''; return; }   // the stage reverses; Unreal brings the choice back
@@ -110,7 +132,7 @@ function padPoll() {
       const x = (p.axes[0] || 0) + (p.buttons[14] && p.buttons[14].pressed ? -1 : 0) + (p.buttons[15] && p.buttons[15].pressed ? 1 : 0);
       const y = (p.axes[1] || 0) + (p.buttons[12] && p.buttons[12].pressed ? -1 : 0) + (p.buttons[13] && p.buttons[13].pressed ? 1 : 0);
       if (Wy.stage === 'choose') { if (x < -0.5) hover('she'); else if (x > 0.5) hover('he'); }
-      if (Wy.stage === 'step' && STEPS[Wy.step].id === 'difficulty') { const dy = y < -0.5 ? -1 : y > 0.5 ? 1 : 0; if (dy && dy !== Wy.padY) diffMove(dy); Wy.padY = dy; }
+      if (Wy.stage === 'step') { const dy = y < -0.5 ? -1 : y > 0.5 ? 1 : 0; if (dy && dy !== Wy.padY) optMove(dy); Wy.padY = dy; }
       const a = !!(p.buttons[0] && p.buttons[0].pressed), b = !!(p.buttons[1] && p.buttons[1].pressed);
       if (a && !Wy.padA) { if (Wy.stage === 'choose') choose(); else if (Wy.stage === 'step') stepTo(Wy.step + 1); }
       if (b && !Wy.padB) { if (Wy.stage === 'step') stepTo(Wy.step - 1); else if (Wy.stage === 'choose') tell('cancel'); }
@@ -130,6 +152,12 @@ function open(stage: string, side = '') {
       if (t.closest('[data-mute]')) { muteToggle(); return; }
       if (Wy.stage === 'choose') { const h = t.closest('[data-who]') as HTMLElement | null; if (h) { hover(h.getAttribute('data-who') || ''); choose(); } return; }
       if (Wy.stage === 'step') {
+        const pe = t.closest('[data-pet]') as HTMLElement | null;
+        if (pe) { Wy.pet = pe.getAttribute('data-pet') || 'none'; Wy.coat = 0; renderStep(Wy.step, Wy.side); petTell(); return; }
+        const co = t.closest('[data-coat]') as HTMLElement | null;
+        if (co) { Wy.coat = +(co.getAttribute('data-coat') || 0); renderStep(Wy.step, Wy.side); petTell(); return; }
+        const pa = t.closest('[data-partner]') as HTMLElement | null;
+        if (pa) { Wy.partner = pa.getAttribute('data-partner') || 'single'; renderStep(Wy.step, Wy.side); partnerTell(); return; }
         const d = t.closest('[data-diff]') as HTMLElement | null;
         if (d) { Wy.diff = d.getAttribute('data-diff') || 'normal'; Wy.root.querySelectorAll('[data-diff]').forEach((b: Element) => b.classList.toggle('on', b === d)); return; }
         if (t.closest('[data-next]')) stepTo(Wy.step + 1); else if (t.closest('[data-back]')) stepTo(Wy.step - 1);
@@ -144,7 +172,8 @@ function open(stage: string, side = '') {
         else if (e.key === 'ArrowRight') { e.preventDefault(); hover('he'); }
         else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(); }
       } else if (Wy.stage === 'step' && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); stepTo(Wy.step + 1); }
-      else if (Wy.stage === 'step' && STEPS[Wy.step].id === 'difficulty' && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) { e.preventDefault(); diffMove(e.key === 'ArrowUp' ? -1 : 1); }
+      else if (Wy.stage === 'step' && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) { e.preventDefault(); optMove(e.key === 'ArrowUp' ? -1 : 1); }
+      else if (Wy.stage === 'step' && STEPS[Wy.step].id === 'pet' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && (Wy.pet === 'dog' || Wy.pet === 'cat')) { e.preventDefault(); const n = COATS[Wy.pet].length; Wy.coat = ((Wy.coat || 0) + (e.key === 'ArrowLeft' ? -1 : 1) + n) % n; renderStep(Wy.step, Wy.side); petTell(); }
     };
     window.addEventListener('keydown', Wy.key$, true);
     Wy.raf = requestAnimationFrame(padPoll);
@@ -152,7 +181,7 @@ function open(stage: string, side = '') {
     requestAnimationFrame(() => root.classList.add('in'));
   }
   Wy.side = stage === 'choose' ? Wy.side : side;
-  if (stage === 'choose') { Wy.stage = 'choose'; Wy.hover = ''; Wy.chosen = false; Wy.root.classList.remove('chosen'); renderChoose(); if (side) hover(side); }
+  if (stage === 'choose') { if (!side) { Wy.pet = 'none'; Wy.coat = 0; Wy.partner = 'single'; Wy.diff = ''; choicesOut(); } Wy.stage = 'choose'; Wy.hover = ''; Wy.chosen = false; Wy.root.classList.remove('chosen'); renderChoose(); if (side) hover(side); }
   else stepTo(0);
 }
 
