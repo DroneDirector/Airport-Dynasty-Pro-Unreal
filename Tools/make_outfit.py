@@ -15,7 +15,7 @@ ROOT = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir())
 NAME = [a for a in sys.argv[1:] if not a.startswith('-')][0] if len(sys.argv) > 1 else 'TestShirt'
 DIR = '/Game/Clothes/' + NAME
 COMMON = '/Game/Clothes/Common'
-BODY = '/Game/People/Built/MH_900_player/Body/SKM_MH_900_player_BodyMesh'
+BODY = '/Game/People/Built/MH_900_player_TestShirt/Body/SKM_MH_900_player_TestShirt_BodyMesh'   # the full body (the plain build has the tee's skin cut away)
 eal = unreal.EditorAssetLibrary
 tools = unreal.AssetToolsHelpers.get_asset_tools()
 DFL = unreal.DataflowEditorBlueprintLibrary
@@ -37,6 +37,35 @@ try:
     tools.import_asset_tasks([t])
     sm = unreal.load_asset(DIR + '/SM_' + NAME)
     log('mesh %s bounds %s' % (sm, sm.get_bounds() if sm else None))
+    # the garment's fabrics: each material slot Fabric_<fabric> gets that fabric (Tools/set_fabrics.py) in the colour
+    # the garment's Blender file gave it (Art/Clothes/<Name>/<Name>.json)
+    import json
+    cols = {}
+    jp = os.path.join(ROOT, 'Art', 'Clothes', NAME, NAME + '.json')
+    if os.path.exists(jp): cols = json.load(open(jp))
+    mel = unreal.MaterialEditingLibrary
+    MEANS = json.load(open(os.path.join(ROOT, 'Art', 'Fabrics', 'means.json')))
+    mats = sm.get_editor_property('static_materials')
+    for k, slot in enumerate(mats):
+        sn = str(slot.get_editor_property('material_slot_name'))
+        if not sn.startswith('Fabric_'): continue
+        parent = unreal.load_asset('/Game/Clothes/Fabrics/MI_' + sn)
+        if not parent: log('no fabric for ' + sn); continue
+        mp = DIR + '/MI_%s_%s' % (NAME, sn)
+        fresh(mp)
+        mi = tools.create_asset('MI_%s_%s' % (NAME, sn), DIR, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
+        mel.set_material_instance_parent(mi, parent)
+        c = cols.get(sn)
+        if c:
+            # the fabric's pictures have their own colour: the tint is the wanted colour over the picture's average
+            fab = {'cotton_shirt': 'cotton_jersey'}.get(sn[7:], sn[7:])
+            mean = MEANS.get(fab, [0.5, 0.5, 0.5])
+            mel.set_material_instance_vector_parameter_value(mi, 'Colour', unreal.LinearColor(*[min(8.0, c[q] / max(1e-4, mean[q])) for q in range(3)], 1))
+        eal.save_loaded_asset(mi, only_if_is_dirty=False)
+        slot.set_editor_property('material_interface', mi); mats[k] = slot
+        log('slot %s -> %s %s' % (sn, mi.get_name(), c))
+    sm.set_editor_property('static_materials', mats)
+    eal.save_loaded_asset(sm, only_if_is_dirty=False)
     body = unreal.load_asset(BODY)
 
     # 2. the cloth dataflow and the cloth asset
