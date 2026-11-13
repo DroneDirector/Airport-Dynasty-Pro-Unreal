@@ -2,6 +2,160 @@
 
 Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md (where everything is) first.
 
+## NEWEST: STOP AND READ (2026-11-13 12:15, from the owner via the phone chat) — puddles come next
+
+The PC session lost its sign-in at 10:16 today (the game's last test run, 0.17.8 with -UIShot -UIWardrobe, closed
+at 10:16:53; nothing since). When you're back:
+
+1. **Commit first.** Everything uncommitted on the PC (0.17.7 below, if still not done, and this morning's 0.17.8
+   work) is committed and pushed before anything else, signed DroneDirector, big files through LFS.
+2. **If you were working on the t-shirt (the wardrobe / clothing), finish that first.** Otherwise stop what you were
+   doing (note where you stopped in TODO.md).
+3. **Then build the puddles, the new way below.** This REPLACES the earlier plan (a ground wetness map painted by
+   rain and the hose, docs/fire-station/SPEC.md "Puddles and wet ground"), which would take far longer. The owner
+   agreed this one: about 4-7 hours.
+
+### Puddles and wet ground, the fast way (owner, 2026-11-13) — like The Matrix Awakens / City Sample
+In the Matrix Awakens city nobody placed puddles: they are part of the road materials' procedural texturing, so every
+road piece has them the moment it exists. Do the same:
+
+- **A puddle material function** (MF_Puddles) added to the apron, taxiway, runway, road, car-park and paving
+  materials: puddles in the low spots (world-space noise mask x the surface's height/normal), only on flat, up-facing
+  ground, a darker wet rim around each, a thin glossy water layer (very low roughness, flat normal) so Lumen gives
+  real reflections of the sky, lights and aircraft. Every snap-together piece placed at run time gets them by itself;
+  nothing baked, nothing hand-placed.
+- **One global wetness value** in a Material Parameter Collection (MPC_Weather: Wetness 0-1, plus Puddle amount),
+  driven by the existing weather: rises while it rains, falls slowly after (drying from the puddles' edges in).
+- **Rain ripples** in the puddles while it rains (animated ripple normals, scaled by rain intensity).
+- **Dry under cover:** no puddles under the terminal roof, jetways, hangar overhangs, the fire station's canopy.
+  Simplest: each building/cover piece marks the ground under it as sheltered when it's placed (custom primitive data
+  on the ground pieces, or a small sheltered-area mask from the layout data); fits the modular terminal.
+- **Decals** for the few puddles the owner wants exactly in one spot (by a gate, the fire station's wash area).
+- **The fire hose:** it wets the ground locally with a wet/puddle decal where the water lands, fading as it dries
+  (same look as rain, no separate wetness map).
+- **A puddle tuning panel in the game** (Settings or the debug menu): sliders for wetness (make it rain-wet / dry at
+  once), number of puddles, size, shininess, ripple strength and drying speed; changes show live; saved to
+  Content/Settings/Puddles.ini (like TruckLamps.ini), and the release keeps the owner's values as the default.
+- The owner tunes it himself IN THE GAME with that panel (no renders or screenshots needed); he tells you only what
+  the sliders can't change.
+- **A "Rainy day" switch** (owner, 2026-11-13): the rain itself isn't simulated yet, but the owner wants to SEE the
+  puddles react. One click (in the weather/time menu and on the puddle panel) makes it a rainy day: wetness rises
+  over about a minute, puddles fill, ripples start, surfaces darken and shine; switching it off lets everything dry
+  slowly. When the real rain arrives, it drives the same wetness value instead.
+- Chapters in the code and a line in CODE-MAP.md as usual.
+- **Publish the puddles as their own release, straight away** (owner, 2026-11-13: he wants to see them wet and in the
+  rain before anything else). He was reminded of the "no small separate releases" rule and still wants this one out
+  first; remind him again when you publish it. Everything after it (below) goes back to collected releases.
+
+### Next after the puddles: runway edges, tyre marks and cracks — the same way (owner, 2026-11-13, about 6-11 h)
+All inside the ground materials (so every new piece gets them by itself), plus decals only for exact spots. Our own
+textures (crack masks, rubber streaks), as the licence rules require.
+
+- **Edges where asphalt/concrete meets grass:** improve the existing edge bands (0.17.7, "still being tuned"): break
+  the line up with world-space noise, a band of dirt, gravel and worn paint where they meet, thinner grass near the
+  edge. 2-4 h.
+- **Tyre marks:** the runway material draws the dark rubber build-up itself in the touchdown zones and along the
+  centre line (from the position along the runway), so every runway, also new ones, gets it; curved rubber streaks
+  where aircraft turn as decals along the taxi lines. 1-2 h. Then optional: a fresh skid-mark decal where an aircraft
+  actually touches down, fading over time. 1-2 h.
+- **Cracks:** cracks and black tar repair lines in the asphalt material, slab joints and hairline cracks in the
+  concrete apron, varied so they never repeat; a few big ones as decals where the owner wants them. 2-3 h.
+- Sliders for these on the same tuning panel (amount of rubber, cracks, edge wear), saved with the puddle settings.
+
+
+## START HERE — where the work stopped (written 2026-11-13 00:10, for a NEW PC session)
+
+The previous PC session can't be found any more. Its last work, in order:
+
+- **0.17.7 was built AND published** (GitHub release pc-unreal-v0.17.7, 2026-11-12 22:16), but its source was
+  **never committed**. It's sitting uncommitted in the PC's working copy. FIRST JOB: `git pull` (this HANDOVER
+  change and the hairdresser note come down cleanly), then commit and push everything from 0.17.7 (signed
+  DroneDirector <simon@dronedirector.fo>, big files through LFS; push with GitHub Desktop if the CLI's LFS push
+  fails). Uncommitted files found on the PC (changed after the last commit, 2026-11-12 15:31):
+  - Source: new **CharacterCreate.cpp/.h** (the new-career scene) and **Wardrobe.cpp/.h** (the office wardrobe);
+    changed ADPHUD.cpp/.h (the biggest change), ADPBridge.cpp/.h, ADPWalker.cpp/.h (your MetaHuman as the walking
+    body), Airfield.cpp/.h (graded ground under the pavement, edge bands), FireTruck.cpp (getting in and out),
+    BabylonModel.cpp/.h, Offices.cpp, AirTraffic.cpp, WindSocks.cpp, AirportDynastyPro.Build.cs
+  - Config/DefaultGame.ini, pc-version.json (0.17.7), release-notes-pc/0.17.7.md
+  - Tools: make_no_smoking_sign.py, set_no_smoking_sign.py, set_edge_bands.py, make_edge_textures.py,
+    make_wardrobe_pdf.py, make_fabrics.py, render_fabrics.py, export_body_meshes.py, set_wardrobe.py,
+    retarget_player_anims.py, make_metahumans.py, make_metahumans_all.sh, make_holo_terminal_map.py,
+    make_neon_material.py, make_todo_pdf.py
+  - docs: Wardrobe-Plan.md and .pdf, AirportDynastyPro-ToDo.pdf (also a copy at the top of the repo),
+    terminal-holomap.png, creator-transition-she/he.gif, new-game-who-are-you(.gif, -small.gif)
+  - Babylon edition: capacitor.config.json, game/app.config.json, game/capacitor.config.json (changed 21:38;
+    check what changed before committing)
+  - plus any new Content/ assets from that evening (wardrobe, neon room, fabrics, edge textures, player body):
+    check `git status`
+  - Leave out: cesium-request-cache.sqlite, the "Selling Airport Dynasty Pro on PC" PDF at the top (the owner's
+    own reference, not game files) unless the owner says otherwise.
+- **What 0.17.7 contains** (from release-notes-pc/0.17.7.md): the new-career scene (neon room, she/he choice, steps:
+  looks, pet, partner, difficulty, start), the airline form trimmed, neon loading screen, no demo content, starting
+  money by difficulty, crew always bought, one aircraft until crewed, autosave every 10 min, the office wardrobe,
+  your MetaHuman as your walking body, the fire trucks' full getting-in pass, grass distance slider, no-smoking
+  stickers, the graded airfield ground with soft concrete/asphalt edges (still being tuned), people builder fixes.
+- **Still in progress / next** (TODO.md section 0): finish the MetaHuman people COMPLETELY (builder, uniforms per
+  docs/Wardrobe-Plan.md, crowds, every role's actions), then the use outline (hold E). The airfield's edge bands
+  were "still being tuned". The new-career panels "Your looks / pet / partner" are placeholders.
+- **The owner works from his phone too.** Start this session with Remote Control on (`claude --remote-control
+  "Airport Dynasty Pro"`, or `/remote-control` inside a running session) so he can reach it in the Claude app's
+  Code tab. Keep this file up to date at the end of every piece of work, so the next session can always pick up.
+- Notes from the phone/cloud chat since then: the hairdresser idea (below); the town and road maps, the dealership
+  model (in progress in the cloud chat, Blender files to come); none of that touches game code yet.
+
+## The VELDRA car dealership (2026-11-13, from the phone/cloud chat) — FOR THE PC CHAT TO BRING IN
+
+The owner approved the model ("build it all the way"). Files are already in the PC's working copy, NOT committed
+yet (commit them through LFS): **Art/Dealership/** — VELDRA-dealership.blend (textures packed), VELDRA-dealership.glb
+(the building only), renders/ (exterior, interior), textures/ (seamless 2048 px: asphalt, concrete, gravel, lawn,
+beige, made from the owner's reference photos by make_textures.py), dealer.py + lib.py (the Blender script that
+builds it all; run with Blender's Python, `python dealer.py -- export`).
+
+- **The building:** a two-storey glass showroom (42 x 26 m, glass 9 m high, mullions every 1.5 m, transom at 4.6 m)
+  under a floating fascia (9.6-13.2 m) clad in bronze-brown panels with a lattice of wavy grooves, overhanging 1.2 m
+  and 5 m out over the west corner; a dark glossy band with downlights under it; a dark metal entrance portal with
+  double glass doors; a sand-coloured service wing (24 x 26 m, 7 m high) with a navy wavy band, three sectional
+  doors and a staff room. Fictional brand **VELDRA** (chrome letters and an oval V badge); the dealer is
+  "Sandur Bílar"; a pylon sign by the road. Never a real car brand.
+- **Inside:** polished floor; 5 cars on the floor plus the hero car on a **turntable that turns all the time** (one
+  full turn every 30 s, looping; in Unreal a rotating component on the turntable with the car on it, 12°/s); price
+  stands; a curved reception desk; the brand wall over the room block; along the back: the customer lounge (public
+  room: sofas, coffee bar, TV, plants), toilets (two, with signs), two glass sales offices, a STAFF ONLY door with a
+  keypad, the service reception, and the workshop (staff only) with three lifts, a car on a lift and tool chests.
+- **Where it goes:** the car dealer's lot in the home town (marker 3 on the town plan, south of Main Street by the
+  roundabout). Also on TODO.md.
+
+## The player's villa (2026-11-13, from the phone/cloud chat) — FOR THE PC CHAT TO BRING IN LATER
+
+Files in the PC's working copy, not committed yet (commit through LFS): **Art/Villa/** — Villa.blend (textures
+packed), Villa.glb (the house only), renders/ (garden view, drive view), villa.py (the Blender script; it uses
+Art/Dealership/lib.py and its textures). A one-storey modern villa for the player's lot at the end of its own
+cul-de-sac (town plan marker 8, glacier view north): an L-shape of a living wing (26 x 11 m, full-height glass to
+the north and west, a fireplace in a basalt wall, sofas, dining table with pendants, kitchen island), a bedroom wing
+(11 x 17 m) to the south-east and a double garage (9 x 9 m, two dark doors, an electric car charger on the wall) to
+the south-west; the entrance (tall dark pivot door in a larch-lined recess) in the courtyard between them under a
+canopy; charred dark timber boards, a basalt plinth, thin flat roofs with 1.6 m overhangs and warm larch soffits;
+a deck terrace to the north with a hot tub, outdoor sofa and fire pit; a long lit drive from the south; birches,
+lava rocks, lawn. Interiors of the bedroom wing and garage are still empty shells.
+
+## The game's website (2026-11-13, from the phone/cloud chat)
+
+A WordPress plugin for Elementor + WooCommerce with its own look (night apron, wayfinding-sign yellow, runway lights,
+a split-flap departures board, the holographic map, boarding passes, Nanite/Lumen demos): **Website/airport-dynasty-site/**
+(code; its pictures and fonts are in the full zip, Website/airport-dynasty-site.zip, already on the PC, not committed).
+Every section is an Elementor widget; texts and pictures are edited in Elementor. Buy button: the WooCommerce product
+ID in Settings → Airport Dynasty Pro website (price, straight to checkout); until then "Coming soon" + the launch-day
+email list. Rules for the site: never mention AI; say "Coming to PC" (not "PC only"); lists of buildings and features
+end with "…and much more"; buildings carry an honest status (In the game / Being built / Coming).
+**When the owner asks**: take website screenshots in the game (terminal, hangars, fire station, apron; sunset, day,
+bad weather, night; several angles, e.g. with PhotoTour) and send them, so the pictures can be swapped in Elementor.
+
+## Owner's ideas, noted but NOT on the to-do list (2026-11-12, from the airport-layout and town chat) — FOR THE PC CHAT TO KNOW
+
+The owner asked for these to be kept here, visible to every chat, and not added to TODO.md.
+
+- **Hairdresser in the player's home town.** A hairdresser's shop in the town where the player lives. Inside, the player picks a new hairstyle from the MetaHuman hair presets (and can also pick a beard, a different beard or no beard). The haircut happens, and the player walks out with the new hair. It fits the MetaHuman plan: the player's own MetaHuman gets its hair/beard groom swapped, the same way the wardrobe swaps outfits (docs/Wardrobe-Plan.md).
+
 ## Fire station and new to-dos (2026-11-11 09:20, from the hangar / fire station chat) — FOR THE PC CHAT
 - **Fire station (ARFF), its training tower and two drivable ARFF trucks:** the full brief is `docs/fire-station/SPEC.md`
   (also in the project docs as claude/fire-station-spec.md). Status: design sketch only, shown to the owner; he asked

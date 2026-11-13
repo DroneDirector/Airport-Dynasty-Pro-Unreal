@@ -4,6 +4,11 @@ The one complete list of what is still open, updated 2026-11-11 (after 0.14.7). 
 details behind each item. Marks: [ ] open, [~] started or partly done, [?] built earlier but the owner should check it.
 
 ## 0. Now, in this order (owner, 2026-11-11)
+- [ ] **NEXT, right after the t-shirt / wardrobe work** (owner, 2026-11-13; ahead of everything else below):
+      **puddles and wet ground, the fast way** (material-based like The Matrix Awakens, about 4-7 h): see HANDOVER.md
+      "NEWEST: STOP AND READ". Replaces the older wetness-map plan. With a "Rainy day" switch so the owner can see
+      them react; **published as its own release straight away** (owner's wish; remind him of the rule).
+- [ ] Then the same way: runway/grass edges, tyre marks and cracks in the ground materials (about 6-11 h; HANDOVER.md).
 - [ ] **FIRST AFTER THE METAHUMAN WORK** (owner, 2026-11-12): finish the MetaHuman people COMPLETELY first (builder,
       uniforms, crowds, every role's actions). Then, as the very next job before anything else on this list: the
       **use outline**. Look at something you can use and HOLD E (use): a crisp amber outline (with a thin light edge)
@@ -69,6 +74,14 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       short loading note, or wait for the sharp tiles before putting you down)
 
 ## 3. The airport and buildings
+- [ ] **The player's villa** (shown to the owner 2026-11-13): bring in Art/Villa (Villa.glb, Nanite, materials redone in
+      Unreal) on the player's lot (town plan marker 8), furnish the bedroom wing and garage inside, the wardrobe and the
+      pet's things at home. See HANDOVER.md "The player's villa"
+- [ ] **The VELDRA car dealership in the home town** (owner approved, 2026-11-13): bring in Art/Dealership
+      (VELDRA-dealership.glb, Nanite, materials redone in Unreal from its textures) on the car dealer's lot (town plan
+      marker 3), with its full interior (lounge, toilets, offices, reception, staff-only door, workshop), the hero car
+      on the showroom turntable turning all the time (one turn every 30 s), the cars for sale, and the pylon sign.
+      See HANDOVER.md "The VELDRA car dealership"
 - [x] **Entrance signs seen from inside say "Exit"** (owner, 2026-11-10): the signs over the three entrances on the
       inside of the main hall read EXIT WEST, MAIN EXIT and EXIT EAST (outside they stay ENTRANCE WEST, MAIN ENTRANCE,
       ENTRANCE EAST). Check where the Babylon model draws the inner signs' text (sign textures / labels) and change only
@@ -439,6 +452,4 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
   clipping through the cab), either door.
 - Laundry building for the staff's clothing (owner, 2026-11-11: he makes the building later). Until then the laundry is
   an instant wash: a button in the Overview UI that cleans the staff's clothes at once.
-- Ground wetness and puddles for the whole airport (one system): heavy rain leaves real puddles and dark wet surfaces
-  on the runways, taxiways and apron; the wash hose leaves the same locally where you wash; drying over time. Spec in
-  docs/fire-station/SPEC.md (wash hose section).
+- Ground wetness and puddles: MOVED to section 0 (the fast, material-based way, 2026-11-13; see HANDOVER.md).
