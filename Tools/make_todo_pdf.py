@@ -95,6 +95,7 @@ ITEMS = [
     ('44', 'Weather-driven ground: snow builds up with how hard it snows and how cold it is (melts above 0), grass collecting more and more while the paving stays relatively free (ploughed); puddles from how much it rains - driven by the real-weather system', '3-4 h', ['field'], '', False),
     ('45', 'Per-stand wear settings: each stand in the layout file can set its own wear amount ("wear": 0.3 almost clean, 1.5 heavily used) and tyre marks ("tyres": 0 none, 1 strong); stands left unset keep their random look', '30 min', ['field'], '', False),
     ('46', 'Ground-equipment wear on the stands: rubber marks from pushback tugs and service trucks, tracks of the GPU (ground power unit), belt loaders and other ground equipment, where they really drive and park around the aircraft', '1-2 h', ['field'], '', False),
+    ('47', 'Update notices kept apart: a PC update shows its news only in the PC version, an Android update only in the Android version (each reads its own version and release-notes files, never the other one)', '1 h', ['none'], '', False),
     ('40g', 'Iceland scenery: mountains torn into walls and steps - rebuild the Iceland/Faroes height tiles with feathered edges where they meet the world map', '3-4 h', ['field'], '', False),
 ]
 c = canvas.Canvas('AirportDynastyPro-ToDo.pdf', pagesize=(W, H))
@@ -110,9 +111,14 @@ def header(y):
     c.drawString(8*mm, y-28, 'number (15a, 15b ...) are those parts, in order.')
     c.setFont('Helvetica', 6.5); c.setFillColor(DIM)
     c.drawString(8*mm, y-38, 'In build order. "needs": what must be done before. Times are estimates.')
-    c.drawString(8*mm, y-46, 'Updated 2026-11-12.')
+    c.setFillColor(FG); c.setFont('Helvetica-Bold', 7)
+    c.drawString(8*mm, y-48, 'ALL TIMES ARE WORKING HOURS, not clock time: "1 day" = 8 hours of work,')
+    c.drawString(8*mm, y-57, 'so "1.5-2.5 days" = 12-20 hours of work. Calendar time can be shorter,')
+    c.drawString(8*mm, y-66, 'since builds run on their own and work can go on into the evening.')
+    c.setFont('Helvetica', 6.5); c.setFillColor(DIM)
+    c.drawString(8*mm, y-76, 'Updated 2026-11-13.')
     c.setFillColor(FG)
-    return y-53
+    return y-83
 y = H - 12*mm
 y = header(y)
 c.setFont('Helvetica', 6.5)
