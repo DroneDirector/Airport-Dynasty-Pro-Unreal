@@ -271,7 +271,7 @@ function ads_r_buy($s) {
     echo '<div class="ad-launch__act">';
     if ($t) echo ads_buy_button();
     else echo '<form class="ad-notify" novalidate><input type="email" required placeholder="you@example.com" aria-label="Your email" autocomplete="email"><input type="text" name="website" tabindex="-1" autocomplete="off" class="ad-hp" aria-hidden="true"><button class="ad-btn ad-btn--buy" type="submit">' . ads_pict('bell') . '<span>' . esc_html($s['button']) . '</span></button><span class="ad-notify__msg" aria-live="polite">' . esc_html($s['small']) . '</span></form>';
-    echo '<ul class="ad-launch__facts"><li><small>Platform</small><b>PC</b></li><li><small>Engine</small><b>Unreal Engine 5</b></li><li><small>Sold</small><b>Right here</b></li></ul></div></div></div></section>';
+    echo '<ul class="ad-launch__facts"><li><small>Platform</small><b>PC</b></li><li><small>Engine</small><b>Unreal Engine 5</b></li><li><small>Available on</small><b>This website · Steam · SimMarket</b></li></ul></div></div></div></section>';
 }
 
 function ads_r_share($s) {

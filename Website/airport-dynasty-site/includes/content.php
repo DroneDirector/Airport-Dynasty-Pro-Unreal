@@ -120,8 +120,8 @@ function ads_content() {
         // #region ── Buy, share, footer ──
         'buy' => [
             'title'  => 'Be there on day one.',
-            'text'   => 'Airport Dynasty Pro will be sold right here, straight from the developer. Leave your email and we’ll tell you the day it launches.',
-            'live'   => 'Airport Dynasty Pro is out now on PC. Buy it here, straight from the developer.',
+            'text'   => 'Airport Dynasty Pro will be available on this website, on Steam, on SimMarket and elsewhere. Leave your email and we’ll tell you the day it launches.',
+            'live'   => 'Airport Dynasty Pro is out now on PC, available on this website, on Steam, on SimMarket and elsewhere.',
             'button' => 'Notify me',
             'small'  => 'One email on launch day. Nothing else.',
         ],
