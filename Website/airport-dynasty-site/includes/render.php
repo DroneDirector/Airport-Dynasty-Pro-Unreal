@@ -219,12 +219,9 @@ function ads_r_money($s) {
     echo '</ul></div>' . ads_points($s['points']) . '</div>';
     // The phone: a home screen with the game's apps.
     echo '<div class="ad-money__col" data-reveal style="--d:1"><h3 class="ad-money__h3">' . esc_html($s['dev_title']) . '</h3><p class="ad-money__p">' . esc_html($s['dev_text']) . '</p><div class="ad-money__dev">';
-    echo '<div class="ad-phone" aria-hidden="true"><div class="ad-phone__bar"><span data-clock>--:--</span><span>5G ▮▮▮</span></div><div class="ad-phone__apps">';
-    foreach (ads_lines($s['apps']) as $i => $l) {
-        $p = array_pad(array_map('trim', explode('|', $l, 2)), 2, '');
-        echo '<span class="ad-phone__app" style="--i:' . (int) $i . '"><i>' . ads_pict($p[0]) . '</i>' . esc_html($p[1]) . '</span>';
-    }
-    echo '</div><div class="ad-phone__dock"></div></div>' . ads_points($s['dev_points']) . '</div></div>';
+    $photos = array_map('ads_img_url', [ads_img('dealer_ext.jpg'), ads_img('dealer_int.jpg'), ads_img('villa_garden.jpg'), ads_img('villa_drive.jpg'), ads_img('town.jpg'), ads_img('overview.jpg')]);
+    // The phone from the game (game-phone.js builds it here): its home screen, apps and colours, to tap through.
+    echo '<div class="ad-phonebox" data-game-phone data-photos="' . esc_attr(wp_json_encode($photos)) . '"></div>' . ads_points($s['dev_points']) . '</div></div>';
     echo '</div></div></section>';
 }
 
@@ -291,8 +288,8 @@ function ads_r_tech($s) {
 
 function ads_r_route($s) {
     $n = count((array) $s['items']);
-    echo '<section class="ad ad-route" id="route"><div class="ad-wrap">' . ads_head($s) . '<div class="ad-route__map" data-route><svg class="ad-route__line" viewBox="0 0 1000 120" preserveAspectRatio="none" aria-hidden="true"><path d="M0 90 C 200 10, 300 110, 500 60 S 800 10, 1000 50"/></svg>'
-        . '<span class="ad-route__plane" aria-hidden="true">' . ads_pict('plane') . '</span><ol class="ad-route__stops" style="--n:' . (int) max(1, $n) . '">';
+    echo '<section class="ad ad-route" id="route"><div class="ad-wrap">' . ads_head($s) . '<div class="ad-route__map" data-route><div class="ad-route__sky" aria-hidden="true"><svg class="ad-route__line" viewBox="0 0 1000 120" preserveAspectRatio="none"><path class="ad-route__dash" d="M-60 96 C 200 10, 300 110, 500 60 S 800 10, 1060 46"/><path class="ad-route__trail" d="M-60 96 C 200 10, 300 110, 500 60 S 800 10, 1060 46"/></svg>'
+        . '<span class="ad-route__plane">' . ads_pict('plane') . '</span></div><ol class="ad-route__stops" style="--n:' . (int) max(1, $n) . '">';
     foreach ((array) $s['items'] as $i => $it) echo '<li data-reveal style="--d:' . (int) $i . '"><span class="ad-route__when">' . esc_html($it['when']) . '</span><h3>' . esc_html($it['title']) . '</h3><p>' . esc_html($it['text']) . '</p></li>';
     echo '</ol></div></div></section>';
 }

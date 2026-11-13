@@ -223,16 +223,8 @@ body.elementor-editor-active .ad-nav { position: relative; }
 @keyframes ad-ledger { 0% { transform: scaleX(.15); } 35%, 100% { transform: scaleX(1); } }
 .ad-money__h3 { margin: 0 !important; font: 800 36px/1.05 var(--ad-head); text-transform: uppercase; color: var(--ad-sign); }
 .ad-money__p { margin: 12px 0 24px !important; color: var(--ad-dim); font-size: 17px; line-height: 1.55; }
-.ad-money__dev { display: grid; grid-template-columns: 230px 1fr; gap: 28px; align-items: start; }
-.ad-phone { width: 230px; aspect-ratio: 9 / 18.5; border-radius: 34px; padding: 14px 12px; border: 3px solid #2a3344; background: radial-gradient(ellipse at 30% 0%, rgba(255, 204, 0, .22), transparent 55%), linear-gradient(160deg, #142034, #070b12); box-shadow: 0 30px 70px -20px rgba(0, 0, 0, .9), inset 0 0 0 1px rgba(255, 255, 255, .05); display: flex; flex-direction: column; }
-.ad-phone__bar { display: flex; justify-content: space-between; font: 600 11px/1 var(--ad-body); color: var(--ad-text); padding: 4px 8px 18px; letter-spacing: .04em; }
-.ad-phone__apps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px 8px; padding: 0 4px; }
-.ad-phone__app { display: flex; flex-direction: column; align-items: center; gap: 6px; font: 500 10.5px/1.1 var(--ad-body); color: var(--ad-text); text-align: center; min-width: 0; }
-.ad-phone__app i { width: 48px; height: 48px; border-radius: 13px; display: grid; place-items: center; background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .1); color: var(--ad-sign); animation: ad-app 9s ease-in-out infinite; animation-delay: calc(var(--i) * 1s); }
-.ad-phone__app:first-child i { background: var(--ad-sign); color: #0b0b0b; }
-.ad-phone__app .ad-pict { width: 24px; height: 24px; }
-@keyframes ad-app { 0%, 8%, 100% { transform: none; box-shadow: none; } 4% { transform: scale(1.12); box-shadow: 0 0 18px rgba(255, 204, 0, .5); } }
-.ad-phone__dock { margin-top: auto; height: 5px; width: 40%; align-self: center; border-radius: 3px; background: rgba(255, 255, 255, .4); }
+.ad-money__dev { display: grid; grid-template-columns: 300px 1fr; gap: 28px; align-items: start; }
+.ad-phonebox { width: 300px; max-width: 100%; }
 
 /* ---------------------------------------------------------------- four ways to play: tabs + view */
 .ad-play { padding: 110px 0; }
@@ -314,12 +306,14 @@ body.elementor-editor-active .ad-nav { position: relative; }
 .ad-lumen__shadow { fill: rgba(0, 0, 0, calc(.55 - var(--t) * .4)); transform-origin: 200px 140px; transform: skewX(calc((var(--t) - .5) * -70deg)); }
 
 /* ---------------------------------------------------------------- flight plan */
-.ad-route { padding: 110px 0 70px; }
+.ad-route { padding: 110px 0 70px; overflow: hidden; overflow-x: clip; }
 .ad-route__map { position: relative; }
-.ad-route__line { position: absolute; left: 0; right: 0; top: 0; width: 100%; height: 120px; overflow: visible; }
-.ad-route__line path { fill: none; stroke: var(--ad-sign); stroke-width: 2.5; stroke-dasharray: 10 10; opacity: .7; animation: ad-dash 4s linear infinite; vector-effect: non-scaling-stroke; }
+.ad-route__sky { position: absolute; top: 0; left: 50%; width: 100vw; height: 120px; transform: translateX(-50%); pointer-events: none; }
+.ad-route__line { position: absolute; inset: 0; width: 100%; height: 120px; overflow: visible; }
+.ad-route__line .ad-route__dash { fill: none; stroke: var(--ad-sign); stroke-width: 2.5; stroke-dasharray: 10 10; opacity: .7; animation: ad-dash 4s linear infinite; vector-effect: non-scaling-stroke; }
 @keyframes ad-dash { to { stroke-dashoffset: -40; } }
-.ad-route__plane { position: absolute; top: 0; left: 0; width: 40px; height: 40px; margin: -20px 0 0 -20px; color: var(--ad-sign); filter: drop-shadow(0 0 10px rgba(255, 204, 0, .7)); transition: left .2s linear, top .2s linear; }
+.ad-route__trail { fill: none; stroke: var(--ad-sign); stroke-width: 3.5; stroke-linecap: round; vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 6px rgba(255, 204, 0, .8)); stroke-dasharray: 0 99999; }
+.ad-route__plane { position: absolute; top: 0; left: 0; width: 40px; height: 40px; margin: -20px 0 0 -20px; color: var(--ad-sign); filter: drop-shadow(0 0 10px rgba(255, 204, 0, .7)); will-change: transform; }
 .ad-route__plane .ad-pict { width: 40px; height: 40px; fill: var(--ad-sign); stroke: none; }
 .ad-route__stops { list-style: none; margin: 0; padding: 140px 0 0; display: grid; grid-template-columns: repeat(var(--n), 1fr); gap: 18px; }
 .ad-route__stops li { padding: 20px 20px 22px; border-radius: 14px; border: 1px solid var(--ad-line); background: linear-gradient(180deg, var(--ad-panel), var(--ad-bg2)); position: relative; }
@@ -377,8 +371,8 @@ body.elementor-editor-active .ad-nav { position: relative; }
   .ad-money__grid { grid-template-columns: 1fr; }
   .ad-tech__extras { grid-template-columns: repeat(2, 1fr); }
   .ad-stats__in { grid-template-columns: repeat(2, 1fr); }
-  .ad-route__stops { grid-template-columns: repeat(2, 1fr); padding-top: 30px; }
-  .ad-route__line, .ad-route__plane { display: none; }
+  .ad-route__stops { grid-template-columns: repeat(2, 1fr); }
+  .ad-route__sky { height: 90px; } .ad-route__line { height: 90px; } .ad-route__stops { padding-top: 110px; }
   .ad-footer__top { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 860px) {

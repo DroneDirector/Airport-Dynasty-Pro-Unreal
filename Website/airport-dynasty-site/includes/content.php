@@ -64,16 +64,14 @@ function ads_content() {
         // #endregion
         // #region ── Money: the economy, the bank accounts, the phone and the computer ──
         'money' => [
-            'eyebrow' => 'Money in, money out',
-            'title'   => 'A real economy. <em>Every bill is yours.</em>',
+            'eyebrow' => 'The economy',
+            'title'   => 'Money in <em>and money out.</em>',
             'text'    => 'Hiring people is only the start: every one of them needs a salary. Everything the airport uses has to be bought and paid for, and the money coming in has to cover it.',
             // The airport account: one row per line, + or -|WHAT
             'ledger'  => "+|Airline and landing fees\n+|Shop and restaurant rent\n+|Parking and car rental\n-|Staff salaries\n-|Aircraft maintenance\n-|Jet fuel\n-|Goods for the shops and restaurants\n-|Food, drinks and supplies for the cabins",
             'points'  => "Pay every salary, from the pilots to the cleaners\nKeep your aircraft maintained and safe to fly\nBuy jet fuel, and goods to keep the terminal’s shops and restaurants stocked\nLoad the cabins with food, drinks and supplies before every flight\n…and much more",
             'dev_title' => 'Your own phone and computer',
-            'dev_text'  => 'In the game you carry a smartphone and work at a computer, each with a fully built operating system and its own apps.',
-            // The phone's apps: one per line, ICON|NAME (icons: bank, mail, chat, people, plane, clock, cart, news, globe)
-            'apps'    => "bank|Bank\nmail|Mail\nchat|Messages\npeople|Staff\nplane|Fleet\nclock|Timetables\ncart|Supplies\nnews|News\nglobe|Map",
+            'dev_text'  => 'In the game you carry a smartphone and work at a computer, each with a fully built operating system and its own apps. This is the phone from the game: tap the apps and try it.',
             'dev_points' => "Two bank accounts: your own, where your salary comes in, and the airport’s, with every in and out\nMail and messages from your staff, the airlines and the town\nHire staff, order supplies and plan timetables from your desk or your pocket\nThe news, and a map of the whole world\n…and much more",
         ],
         // #endregion

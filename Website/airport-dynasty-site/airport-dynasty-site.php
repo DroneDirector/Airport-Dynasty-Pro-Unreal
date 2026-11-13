@@ -67,6 +67,8 @@ add_action('wp_enqueue_scripts', function () {
     wp_register_style('ads-site', ADS_URL . 'assets/css/site.css', [], ADS_VERSION);
     wp_add_inline_style('ads-site', ads_font_faces());
     wp_register_script('ads-site', ADS_URL . 'assets/js/site.js', [], ADS_VERSION, true);
+    wp_register_style('ads-phone', ADS_URL . 'assets/css/game-phone.css', ['ads-site'], ADS_VERSION);
+    wp_register_script('ads-phone', ADS_URL . 'assets/js/game-phone.js', [], ADS_VERSION, true);
     wp_localize_script('ads-site', 'ADS', [
         'pointer' => ads_opt('pointer') === '1',
         'copied'  => __('Link copied', 'airport-dynasty-site'),
@@ -76,7 +78,7 @@ add_action('wp_enqueue_scripts', function () {
         'bad'     => __('Please check the email address.', 'airport-dynasty-site'),
         'fail'    => __('That didn’t work, please try again in a moment.', 'airport-dynasty-site'),
     ]);
-    if (ads_is_site_page()) { wp_enqueue_style('ads-site'); wp_enqueue_script('ads-site'); }
+    if (ads_is_site_page()) { wp_enqueue_style('ads-site'); wp_enqueue_script('ads-site'); wp_enqueue_style('ads-phone'); wp_enqueue_script('ads-phone'); }
 });
 
 /** True on the plugin's own pages (they get the dark look, the pointer and the scroll-to-top button). */
@@ -117,6 +119,8 @@ add_action('elementor/widgets/register', function ($wm) {
 /** Elementor's editor preview also needs the styles. */
 add_action('elementor/preview/enqueue_styles', function () {
     wp_enqueue_style('ads-site', ADS_URL . 'assets/css/site.css', [], ADS_VERSION);
+    wp_enqueue_style('ads-phone', ADS_URL . 'assets/css/game-phone.css', ['ads-site'], ADS_VERSION);
+    wp_enqueue_script('ads-phone', ADS_URL . 'assets/js/game-phone.js', [], ADS_VERSION, true);
     wp_add_inline_style('ads-site', ads_font_faces());
 });
 

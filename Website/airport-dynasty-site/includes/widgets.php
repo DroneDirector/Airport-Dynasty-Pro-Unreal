@@ -36,7 +36,7 @@ function ads_widget_defs() {
             ['eyebrow' => ['text', 'Small line above the title', $c['money']['eyebrow']], 'title' => $txt('Title', $c['money']['title']), 'text' => $txt('Text', $c['money']['text']),
              'ledger' => $txt('Airport account: one row per line, + or -|WHAT', $c['money']['ledger']), 'points' => $txt('Costs (one per line; end with …and much more)', $c['money']['points']),
              'dev_title' => ['text', 'Phone and computer: title', $c['money']['dev_title']], 'dev_text' => $txt('Phone and computer: text', $c['money']['dev_text']),
-             'apps' => $txt('Phone apps: one per line, ICON|NAME', $c['money']['apps']), 'dev_points' => $txt('Phone and computer: points (end with …and much more)', $c['money']['dev_points'])], []],
+             'dev_points' => $txt('Phone and computer: points (end with …and much more)', $c['money']['dev_points'])], []],
         'passes'    => ['Four ways to play', 'eicon-info-box', 'ads_r_passes',
             ['eyebrow' => ['text', 'Small line above the title', $c['passes']['eyebrow']], 'title' => $txt('Title', $c['passes']['title'])],
             ['items' => ['Passes', ['name' => ['text', 'Name', ''], 'image' => ['media', 'Picture', ''],

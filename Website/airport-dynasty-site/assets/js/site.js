@@ -179,15 +179,23 @@
     });
     // #endregion
 
-    // #region ── flight plan: the plane follows the dashed route as you scroll ──
-    var map = doc.querySelector("[data-route]"), path = map && map.querySelector(".ad-route__line path"), plane = map && map.querySelector(".ad-route__plane");
-    function route() {
-      if (!path || !plane || !path.getTotalLength || plane.offsetParent === null) return;
-      var r = map.getBoundingClientRect(), vh = W.innerHeight, k = Math.min(1, Math.max(0, (vh - r.top) / (vh + r.height * 0.4)));
-      var L = path.getTotalLength(), p = path.getPointAtLength(k * L), p2 = path.getPointAtLength(Math.min(L, k * L + 4));
+    // #region ── flight plan: the plane flies the whole width of the screen along the route, again and again, drawing its trail ──
+    var map = doc.querySelector("[data-route]"), path = map && map.querySelector(".ad-route__dash"), trail = map && map.querySelector(".ad-route__trail"), plane = map && map.querySelector(".ad-route__plane");
+    var routeT0 = 0;
+    function routeAt(k) {
+      var L = path.getTotalLength(), p = path.getPointAtLength(k * L), p2 = path.getPointAtLength(Math.min(L, k * L + 3)), p0 = path.getPointAtLength(Math.max(0, k * L - 3));
       var svg = path.ownerSVGElement, sx = svg.clientWidth / 1000, sy = svg.clientHeight / 120;
-      plane.style.left = (p.x * sx) + "px"; plane.style.top = (p.y * sy) + "px";
-      plane.style.transform = "rotate(" + (Math.atan2((p2.y - p.y) * sy, (p2.x - p.x) * sx) * 180 / Math.PI + 90) + "deg)";
+      plane.style.transform = "translate(" + (p.x * sx) + "px," + (p.y * sy) + "px) rotate(" + (Math.atan2((p2.y - p0.y) * sy, (p2.x - p0.x) * sx) * 180 / Math.PI + 90) + "deg)";
+      if (trail) { trail.style.strokeDasharray = (k * L) + " 99999"; trail.style.opacity = k > 0.9 ? String((1 - k) * 10) : "1"; }
+    }
+    function route() { if (path && plane && path.getTotalLength && reduce) routeAt(0.5); }
+    if (path && plane && path.getTotalLength && !reduce) {
+      var routeLoop = function (t) {
+        if (!routeT0) routeT0 = t;
+        var dur = 7000 + Math.min(6000, W.innerWidth * 2.5), k = ((t - routeT0) % (dur + 900)) / dur;   // a short pause off-screen between flights
+        routeAt(Math.min(1, k)); W.requestAnimationFrame(routeLoop);
+      };
+      W.requestAnimationFrame(routeLoop);
     }
     W.addEventListener("resize", route); onScroll();
     // #endregion
