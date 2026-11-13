@@ -3,7 +3,7 @@
  "airport": {
   "icao": "BIAP",
   "iata": "VTX",
-  "name": "Mýrdalssandur",
+  "name": "M\u00fdrdalssandur",
   "lat": 63.457988,
   "lon": -18.713703,
   "elevFt": 130,
@@ -158,7 +158,7 @@
    "pts": [
     [
      -130,
-     206
+     218.0
     ],
     [
      -130,
@@ -173,7 +173,7 @@
    "pts": [
     [
      150,
-     206
+     218.0
     ],
     [
      150,
@@ -188,7 +188,7 @@
    "pts": [
     [
      362,
-     206
+     218.0
     ],
     [
      362,
@@ -248,11 +248,11 @@
    "pts": [
     [
      -140,
-     206
+     218.0
     ],
     [
      372,
-     206
+     218.0
     ]
    ],
    "kind": "taxilane",
@@ -450,7 +450,7 @@
   {
    "id": "STAND-1",
    "x": -62,
-   "nose": 108,
+   "nose": 120.0,
    "dir": -1,
    "span": 36,
    "len": 44.5,
@@ -460,7 +460,7 @@
   {
    "id": "STAND-5",
    "x": -21.14,
-   "nose": 110,
+   "nose": 122.0,
    "dir": -1,
    "span": 36,
    "len": 44.5,
@@ -470,7 +470,7 @@
   {
    "id": "STAND-2",
    "x": 19.71,
-   "nose": 108,
+   "nose": 120.0,
    "dir": -1,
    "span": 36,
    "len": 44.5,
@@ -480,7 +480,7 @@
   {
    "id": "STAND-6",
    "x": 60.57,
-   "nose": 110,
+   "nose": 122.0,
    "dir": -1,
    "span": 36,
    "len": 44.5,
@@ -490,7 +490,7 @@
   {
    "id": "STAND-3",
    "x": 101.43,
-   "nose": 108,
+   "nose": 120.0,
    "dir": -1,
    "span": 36,
    "len": 44.5,
@@ -500,7 +500,7 @@
   {
    "id": "STAND-7",
    "x": 142.29,
-   "nose": 110,
+   "nose": 122.0,
    "dir": -1,
    "span": 36,
    "len": 44.5,
@@ -510,7 +510,7 @@
   {
    "id": "STAND-4",
    "x": 183.14,
-   "nose": 108,
+   "nose": 120.0,
    "dir": -1,
    "span": 36,
    "len": 44.5,
@@ -520,7 +520,7 @@
   {
    "id": "STAND-8",
    "x": 224,
-   "nose": 110,
+   "nose": 122.0,
    "dir": -1,
    "span": 36,
    "len": 44.5,
@@ -530,7 +530,7 @@
   {
    "id": "STAND-9",
    "x": 300,
-   "nose": 78,
+   "nose": 90.0,
    "dir": -1,
    "span": 80,
    "len": 72.7,
@@ -626,7 +626,7 @@
    "x0": -160,
    "y0": 82,
    "x1": 392,
-   "y1": 226
+   "y1": 238.0
   },
   {
    "id": "APRON-9",
@@ -667,7 +667,7 @@
   "RY": 646,
   "AY": 386,
   "BY": 906,
-  "TY": 206,
+  "TY": 218.0,
   "KY": 1086
  },
  "hangars": [
@@ -693,5 +693,6 @@
    "open": true
   }
  ],
- "hangarsNote": "hangar sites on the hangar apron west of the cargo apron: x is the centre line (on its lead-in line from taxilane K), y the apron edge the threshold meets; size S, M, L or XL (any size fits the same line)"
+ "hangarsNote": "hangar sites on the hangar apron west of the cargo apron: x is the centre line (on its lead-in line from taxilane K), y the apron edge the threshold meets; size S, M, L or XL (any size fits the same line)",
+ "standsNote": "2026-11-13: the terminal stands, taxilane T and the terminal apron moved 12 m out from the terminal (owner: room for longer jetways); the Unreal data is the source now"
 }

@@ -64,8 +64,10 @@ log('scans and layers in')
 
 # ---- the master
 MP = '/Game/Materials/Ground/M_Ground'
-if eal.does_asset_exist(MP): eal.delete_asset(MP)
-m = tools.create_asset('M_Ground', '/Game/Materials/Ground', unreal.Material, unreal.MaterialFactoryNew())
+# rebuilt in place (deleting it would ask about the instances that use it, and unattended that is a no)
+m = unreal.load_asset(MP) if eal.does_asset_exist(MP) else None
+if m: mel.delete_all_material_expressions(m)
+else: m = tools.create_asset('M_Ground', '/Game/Materials/Ground', unreal.Material, unreal.MaterialFactoryNew())
 m.set_editor_property('tangent_space_normal', False)      # world-space normals (the airfield's procedural sheets have no tangents)
 for flag in ('used_with_nanite', 'used_with_instanced_static_meshes'): m.set_editor_property(flag, True)   # kit pieces (lawns, kerbs) use it too
 E = lambda cls, x, y: mel.create_material_expression(m, cls, x, y)
@@ -160,6 +162,8 @@ usescan = sp('UseScan', 0.0, -1600, -1000)
 bias = sp('PuddleBias', 0.0, -1600, 60); pon = sp('Puddles', 1.0, -1600, 120)
 cstyle = sp('CrackStyle', 0.0, -1600, 180); camt = sp('CrackAmount', 0.6, -1600, 240)
 tamt = sp('TyreAmount', 1.0, -1600, 300)
+pdirt = sp('PaintDirt', 0.0, -1600, 330)
+vcol = E(unreal.MaterialExpressionVertexColor, -1600, 400)
 crackt = tobj('CrackLayer', LAYER['cracks_asphalt'], -1600, 360)
 tyret = tobj('TyreLayer', LAYER['tyre_rubber'], -1600, 440)
 wp = E(unreal.MaterialExpressionWorldPosition, -1600, 520)
@@ -218,6 +222,17 @@ c *= lerp(1.0, 0.35, openC);
 c *= lerp(1.0, 0.5, joint);
 c = lerp(c, c * 0.28, tyre);
 r = lerp(r, 0.55, tyre);
+// the markings' own grime (PaintDirt: the paint instances; the vertex colour's green: how dirty this one marking is,
+// different on every one): tyre-grey smudges and a brownish film, patchy, never covering it
+float grime = saturate(PDirt * VC.g) * up;
+if (grime > 0.001) {
+  float gpat = smoothstep(0.25, 0.85, n * 0.7 + frac(sin(dot(floor(WP.xy / 70.0), float2(12.9898, 78.233))) * 43758.5453) * 0.3);
+  c = lerp(c, c * float3(0.52, 0.48, 0.42), saturate(grime * (0.25 + 0.75 * gpat)));
+  // worn through to the pavement in patches (reference: Kristiansand's apron), more where it is dirtier
+  float worn = smoothstep(0.62, 0.78, n * 0.8 + gpat * 0.35) * saturate(grime * 1.6);
+  c = lerp(c, float3(0.16, 0.16, 0.155), worn * 0.85);
+  r = lerp(r, 0.85, grime * 0.6);
+}
 float wetAll = saturate(Wet) * up;
 c *= lerp(1.0, 0.6, wetAll) * lerp(1.0, 0.82, rim) * lerp(1.0, 0.7, saturate(openC + joint) * wetAll);
 r = lerp(r, 0.28, wetAll);
@@ -252,7 +267,7 @@ SRC = lambda: {'WP': (wp, ''), 'N': (vn, ''), 'Bias': (bias, ''), 'Puddles': (po
        'Size': (cps['PuddleSize'], ''), 'Style': (cstyle, ''), 'CAmount': (camt, ''), 'Cracks': (cps['Cracks'], ''), 'Col': (use, ''),
        'Rough': (rough, ''), 'UseScan': (usescan, ''), 'ScanCol': (sdiff, ''), 'ScanBig': (sbig, ''), 'ScanR': (srgh, ''),
        'ScanN': (snor, ''), 'CrackTex': (crackt, ''), 'TyreTex': (tyret, ''), 'RwyA': (cvs['RwyA'], ''), 'RwyB': (cvs['RwyB'], ''),
-       'RwyDisp': (cvs['RwyDisp'], ''), 'TyreAmt': (tamt, ''), 'Tyres': (cps['Tyres'], ''), 'Shine': (cps['PuddleShine'], ''),
+       'RwyDisp': (cvs['RwyDisp'], ''), 'TyreAmt': (tamt, ''), 'Tyres': (cps['Tyres'], ''), 'VC': (vcol, ''), 'PDirt': (pdirt, ''), 'Shine': (cps['PuddleShine'], ''),
        'T': (tm, ''), 'Ripples': (cps['Ripples'], ''), 'Rain': (cps['Rain'], '')}
 def custom(code, out_type, x, y, extra):
     c = E(unreal.MaterialExpressionCustom, x, y)
@@ -264,7 +279,7 @@ def custom(code, out_type, x, y, extra):
     src = SRC()
     for n_ in names: mel.connect_material_expressions(src[n_][0], src[n_][1], c, n_)
     return c
-cs = custom(SURF, unreal.CustomMaterialOutputType.CMOT_FLOAT4, -300, 0, ['Shine'])
+cs = custom(SURF, unreal.CustomMaterialOutputType.CMOT_FLOAT4, -300, 0, ['Shine', 'VC', 'PDirt'])
 cn = custom(NORMAL, unreal.CustomMaterialOutputType.CMOT_FLOAT3, -300, 400, ['ScanN', 'T', 'Ripples', 'Rain'])
 cr = custom(REFL, unreal.CustomMaterialOutputType.CMOT_FLOAT1, -300, 800, ['Shine'])
 rgb = E(unreal.MaterialExpressionComponentMask, -50, 0)
@@ -304,7 +319,7 @@ def scan(sid, big_sid=None):
     return {'ScanDiff': SCAN[sid]['diff'], 'ScanNormal': SCAN[sid]['nor'], 'ScanRough': SCAN[sid]['rough'], 'ScanDiffBig': SCAN[big_sid or sid]['diff']}
 W = unreal.LinearColor(1, 1, 1, 1)
 KIT = '/Game/Materials/Kit/'
-inst(KIT + 'MI_asphalt', dict(Color=unreal.LinearColor(0.68, 0.68, 0.70, 1),   # aged airport asphalt a shade darker than the concrete shoulders
+inst(KIT + 'MI_gasphalt', dict(Color=unreal.LinearColor(0.68, 0.68, 0.70, 1),   # aged airport asphalt a shade darker than the concrete shoulders
      UseScan=1.0, ScanSize=4.04, CrackStyle=0.0, CrackAmount=0.7, TyreAmount=1.0, Variation=0.0),
      textures=dict(scan('asphalt_04', 'asphalt_02'), CrackLayer=LAYER['cracks_asphalt']))
 # the taxiways' shoulders (Airfield PaveTaxiways): older, lighter asphalt with more cracks, no tyre rubber (real shoulders
@@ -313,24 +328,45 @@ inst(KIT + 'MI_shoulder', dict(Color=unreal.LinearColor(0.75, 0.75, 0.76, 1), Us
      textures=dict(scan('asphalt_04', 'asphalt_02'), CrackLayer=LAYER['cracks_asphalt']))
 # the airfield's ground grass (owner, 2026-11-13: the edges must look real, so the grass they meet must too): a real
 # grass-and-soil scan, a touch greener for a northern summer, no cracks, no tyre rubber, damp but no puddles
-inst(KIT + 'MI_grass', dict(Color=unreal.LinearColor(0.66, 1.16, 0.50, 1), UseScan=1.0, ScanSize=2.51, CrackStyle=2.0, CrackAmount=0.0, TyreAmount=0.0, Puddles=0.0, Variation=0.0),
+inst(KIT + 'MI_ggrass', dict(Color=unreal.LinearColor(0.66, 1.16, 0.50, 1), UseScan=1.0, ScanSize=2.51, CrackStyle=2.0, CrackAmount=0.0, TyreAmount=0.0, Puddles=0.0, Variation=0.0),
      textures=dict(scan('grass_ground'), CrackLayer=LAYER['cracks_asphalt']))
 # the terminal model's own lawn: the same grass, so there is no lighter square round the terminal
 inst('/Game/Babylon/Terminal/terminal/Materials/grass', dict(Color=unreal.LinearColor(0.66, 1.16, 0.50, 1), UseScan=1.0, ScanSize=2.51, CrackStyle=2.0, CrackAmount=0.0, TyreAmount=0.0, Puddles=0.0, Variation=0.0),
      textures=dict(scan('grass_ground'), CrackLayer=LAYER['cracks_asphalt']))
-for nm, b_ in (('MI_concrete', 0.0), ('MI_apron', 0.12)):
+for nm, b_ in (('MI_gconcrete', 0.0), ('MI_gapron', 0.12)):
     inst(KIT + nm, dict(Color=unreal.LinearColor(1.12, 1.12, 1.10, 1), UseScan=1.0, ScanSize=3.0, CrackStyle=1.0, CrackAmount=0.6, TyreAmount=0.0, PuddleBias=b_, Variation=0.0),
          textures=dict(scan('concrete_floor_worn_001', 'brushed_concrete_04'), CrackLayer=LAYER['cracks_concrete']))
+# the red of the mandatory instruction markings (the runway-ahead signs): its own paint, so the kit's red stays as it is
+inst(KIT + 'MI_paintred', dict(Color=unreal.LinearColor(0.42, 0.02, 0.02, 1), UseScan=0.0, CrackStyle=0.0, CrackAmount=0.7, TyreAmount=1.0, Roughness=0.55, Variation=0.03, PaintDirt=1.0),
+     textures=dict(CrackLayer=LAYER['cracks_asphalt']))
+# the kit's white and yellow (aircraft, hangars, the tower, fittings) stay on the kit's own master: no road cracks on them
+KITM = unreal.load_asset('/Game/Materials/Kit/M_Surface')
+PAINT = {}
 for name in ('MI_yellow', 'MI_white'):
-    a = unreal.load_asset(KIT + name); c_ = mel.get_material_instance_vector_parameter_value(a, 'Color')
-    # the paint carries the pavement's own cracks straight through it (owner, 2026-11-13: cracks that cross a marking show
-    # on it, in their own colours) - the same world-space crack layer as the asphalt under it, so they line up exactly
-    inst(KIT + name, dict(Color=c_, UseScan=0.0, CrackStyle=0.0, CrackAmount=0.7, TyreAmount=1.0, Roughness=0.55, Variation=0.03),
+    a = unreal.load_asset(KIT + name); PAINT[name] = mel.get_material_instance_vector_parameter_value(a, 'Color')
+    if KITM and a.get_editor_property('parent') != KITM:
+        mel.set_material_instance_parent(a, KITM); log(name + ' -> M_Surface')
+    mel.set_material_instance_scalar_parameter_value(a, 'PuddleMask', 0.0)   # kit pieces (aircraft, walls) never puddle
+    mel.update_material_instance(a); eal.save_loaded_asset(a, only_if_is_dirty=False)
+# the airfield's painted markings: their own paint on the master, carrying the pavement's own cracks straight through them
+# (owner, 2026-11-13: cracks that cross a marking show on it, in their own colours) and a light grime that differs on
+# every marking (Airfield gives each one its own amount in the vertex colour)
+for name, col in (('MI_paintyellow', PAINT['MI_yellow']), ('MI_paintwhite', PAINT['MI_white']), ('MI_paintblack', unreal.LinearColor(0.018, 0.018, 0.018, 1))):
+    inst(KIT + name, dict(Color=col, UseScan=0.0, CrackStyle=0.0, CrackAmount=0.7, TyreAmount=1.0, Roughness=0.55 if name != 'MI_paintblack' else 0.75, Variation=0.03, PaintDirt=1.0),
          textures=dict(CrackLayer=LAYER['cracks_asphalt']))
 BAB = '/Game/Babylon/Terminal/terminal/Materials/'
-for name, extra in (('apron', dict(CrackStyle=1.0, CrackAmount=0.5, PuddleBias=0.12)), ('concrete', dict(CrackStyle=1.0, CrackAmount=0.4)),
-                    ('asphalt', dict(CrackStyle=0.0, CrackAmount=0.5)), ('rentalAsphalt', dict(CrackStyle=0.0, CrackAmount=0.35, PuddleBias=0.05)),
-                    ('rentalConcrete', dict(CrackStyle=1.0, CrackAmount=0.35, PuddleBias=0.05)), ('rentalConcreteLight', dict(CrackStyle=1.0, CrackAmount=0.35, PuddleBias=0.05))):
+# the model's building materials stay the model's own (owner, 2026-11-13: buildings never share the ground's kit): its
+# concrete is the terminal's floor slabs, the baggage hall, the kerb and the tower's base; the rental's concrete is the
+# parking garage's decks, walls and pillars - back on the model's own master, their pictures and settings as imported
+ORIG = unreal.load_asset(BAB + 'rentalTerrazzo')
+ORIG = ORIG.get_editor_property('parent') if ORIG else None
+for name in ('concrete', 'rentalConcrete', 'rentalConcreteLight'):
+    a = unreal.load_asset(BAB + name)
+    if a and ORIG and a.get_editor_property('parent') != ORIG:
+        mel.set_material_instance_parent(a, ORIG); mel.update_material_instance(a); eal.save_loaded_asset(a, only_if_is_dirty=False); log(name + ' -> its own master again')
+# the model's ground only: its road, apron and car park
+for name, extra in (('apron', dict(CrackStyle=1.0, CrackAmount=0.5, PuddleBias=0.12)), ('asphalt', dict(CrackStyle=0.0, CrackAmount=0.5)),
+                    ('rentalAsphalt', dict(CrackStyle=0.0, CrackAmount=0.35, PuddleBias=0.05))):
     a = unreal.load_asset(BAB + name)
     if a is None: log('missing ' + name); continue
     try:

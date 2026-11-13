@@ -31,7 +31,7 @@ import { EXTRA_LIGHTS } from '../../core/look';
 export const DOOR = (standX: number, nz: number) => [standX + 2.4, 3.3, nz + 5.5];
 
 /** Settings for the jetways: the Fixed corridor's slope down from the gate (degrees). */
-export const JETWAY = { tiltDeg: 5 };
+export const JETWAY = { tiltDeg: 3.3 };   // (owner, 2026-11-13: a gentle walk down, 3.3 degrees)
 /** The real times (seconds): docking (drive, final crawl with the cab turning, canopy and door), undocking (canopy, back away, drive home). */
 export const JW_TIMES = { drive: 75, crawl: 30, canopy: 15, back: 20, home: 60 };
 
@@ -311,8 +311,9 @@ export function buildJetway(K: Kit, n: number, gateX: number, stand: { x: number
     fa = flangeG(g, RR, 0, IH + 0.3, hxA); g.box(JWa, 0, (IH + 0.39 + RC) / 2, Math.sqrt(RR * RR - hxA * hxA) - 0.12, 2 * hxA + 0.4, RC - IH - 0.38, 0.05); done(g, boom, `J-${n}/ROTUNDA-SLEEVE`);
     pic(boom, X.pic('mind', () => P.sign('MIND THE STEP', '#F2C230', '#111111', 512, 96, '800 52px Arial, sans-serif'), 0.9), 1.1, 0.2, 0, IH + 0.05, Math.sqrt(RR * RR - hxA * hxA) - 0.16, Math.PI); }
   // the three sections: fixed lengths, each nesting inside the one before; every joint keeps at least OV of overlap, so
-  // the tunnel telescopes from 8.0 m (fully in) to 19.8 m (fully out) and never shows a section detached
-  const SEC = [{ l: 8.0, g: 0.22 }, { l: 7.6, g: 0.11 }, { l: 7.2, g: 0 }], OV = 1.5;
+  // the tunnel telescopes from 10.5 m (fully in) to 27.3 m (fully out) and never shows a section detached (owner,
+  // 2026-11-13: the stands 12 m further out; the sections built longer, never stretched - was 8.0 / 7.6 / 7.2 m)
+  const SEC = [{ l: 10.5, g: 0.22 }, { l: 10.1, g: 0.11 }, { l: 9.7, g: 0 }], OV = 1.5;
   const fyOf = (g: number) => 0.012 * (0.22 - g) / 0.11;
   // where the drive unit is on the last section (from its back end)
   const reach = Math.hypot(D[0] - R[0], D[2] - R[1]), zW = Math.max(1, SEC[2].l - 1.0), zL = Math.max(0.8, zW - 1.6);   // the drive unit, the stair's landing

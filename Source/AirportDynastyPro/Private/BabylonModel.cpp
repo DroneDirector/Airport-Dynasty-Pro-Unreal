@@ -1,6 +1,7 @@
 // Places the Babylon model: walks its node tree from the roots, works out each node's transform the way Unreal's glTF
 // importer converts them, and adds an instance of the node's imported mesh there.
 #include "BabylonModel.h"
+#include "Misc/PackageName.h"
 #include "ADPLog.h"
 #include "TerminalBuilder.h"
 #include "Components/StaticMeshComponent.h"
@@ -71,16 +72,27 @@ bool ABabylonModel::Place(const FString& Name)
 	TArray<TPair<UInstancedStaticMeshComponent*, int32>> NodeInst; NodeInst.Init(TPair<UInstancedStaticMeshComponent*, int32>(nullptr, INDEX_NONE), Nodes.Num());
 	// the entrance canopies' parts (KERB/CANOPY-*): in lists of their own, so their underside can be given a matte finish
 	TArray<bool> Canopy; Canopy.Init(false, Nodes.Num());
-	TFunction<void(int32, const FTransform&, bool)> Walk = [&](int32 I, const FTransform& Parent, bool bDoor)
+	constexpr float StandsOut = 12.f;   // metres the stands moved out (Data/airfield.json standsNote)
+	TFunction<void(int32, const FTransform&, bool)> Walk;
+	Walk = [&](int32 I, const FTransform& Parent, bool bDoor)
 	{
 		if (!Nodes.IsValidIndex(I)) return;
 		const TSharedPtr<FJsonObject> N = Nodes[I]->AsObject();
-		const FTransform World = Local(N) * Parent;
+		FTransform L = Local(N);
+		{ FString Nm; N->TryGetStringField(TEXT("name"), Nm);
+		  if (Name == TEXT("Terminal") && Nm.StartsWith(TEXT("STAND-")) && Nm.EndsWith(TEXT("/AIRCRAFT"))) L.AddToTranslation(FVector(0, StandsOut * 100.f, 0)); }
+		const FTransform World = L * Parent;
 		NodeWorld[I] = World;
 		// (all the outdoor trees stay until good-looking Unreal trees take their places, owner 2026-11-09)
 		{ FString Nm; N->TryGetStringField(TEXT("name"), Nm); bDoor = bDoor || Nm.StartsWith(TEXT("D-"));
 		  // the offices' own furniture steps aside for the old office's things (owner, 2026-11-11: Offices.cpp places them);
 		  // the room, its lamps, the meeting table and its chairs and the painting stay
+		  // the stands moved 12 m out (owner, 2026-11-13): his parked aircraft go with them; the model's flat stand markings
+		  // and taxilane line step aside for the ones the airfield lays from the layout (Airfield.cpp Aprons)
+		  if (Name == TEXT("Terminal") && ((Nm.StartsWith(TEXT("STAND-")) && !Nm.Contains(TEXT("/"))) || Nm == TEXT("APRON/TAXI-LANE"))) return;
+		  // his jetways come from their own export now (Data/babylon-jetways.json: J-1 to J-4 rebuilt by his generator for
+		  // the stands 12 m out - longer tunnel sections, the corridor at 3.3 degrees); the terminal's older ones stay out
+		  if (Name == TEXT("Terminal") && Nm.Len() == 3 && Nm.StartsWith(TEXT("J-")) && FPackageName::DoesPackageExist(TEXT("/Game/Babylon/Jetways/jetways/StaticMeshes/jetways_mesh_0"))) return;
 		  if (Nm.StartsWith(TEXT("F1-OFFICE-")) && (Nm.Contains(TEXT("/DESK")) || Nm.Contains(TEXT("/OFFICE-CHAIR")) || Nm.Contains(TEXT("/SHELF")) || Nm.Contains(TEXT("/CABINET")) || Nm.Contains(TEXT("/PLANT")) || Nm.EndsWith(TEXT("/CHAIR-001")) || Nm.EndsWith(TEXT("/CHAIR-002")))) return;
 		  // and so does the operations room's and the Academy's (their lamps and the clocks stay)
 		  if (Nm.StartsWith(TEXT("F1-OPS/")) && (Nm.Contains(TEXT("/DESK")) || Nm.Contains(TEXT("/OFFICE-CHAIR")) || Nm.Contains(TEXT("/MONITOR-WALL")))) return;

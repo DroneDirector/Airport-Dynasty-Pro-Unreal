@@ -1507,56 +1507,56 @@
   {
    "id": "STAND-1",
    "x": -62,
-   "nz": 108,
+   "nz": 120.0,
    "kind": "jetway",
    "gate": "F2-GATE-1"
   },
   {
    "id": "STAND-5",
    "x": -21.14,
-   "nz": 110,
+   "nz": 122.0,
    "kind": "walk-out",
    "gate": "F1-GATE-5"
   },
   {
    "id": "STAND-2",
    "x": 19.71,
-   "nz": 108,
+   "nz": 120.0,
    "kind": "jetway",
    "gate": "F2-GATE-2"
   },
   {
    "id": "STAND-6",
    "x": 60.57,
-   "nz": 110,
+   "nz": 122.0,
    "kind": "walk-out",
    "gate": "F1-GATE-6"
   },
   {
    "id": "STAND-3",
    "x": 101.43,
-   "nz": 108,
+   "nz": 120.0,
    "kind": "jetway",
    "gate": "F2-GATE-3"
   },
   {
    "id": "STAND-7",
    "x": 142.29,
-   "nz": 110,
+   "nz": 122.0,
    "kind": "walk-out",
    "gate": "F1-GATE-7"
   },
   {
    "id": "STAND-4",
    "x": 183.14,
-   "nz": 108,
+   "nz": 120.0,
    "kind": "jetway",
    "gate": "F2-GATE-4"
   },
   {
    "id": "STAND-8",
    "x": 224,
-   "nz": 110,
+   "nz": 122.0,
    "kind": "walk-out",
    "gate": "F1-GATE-8"
   }

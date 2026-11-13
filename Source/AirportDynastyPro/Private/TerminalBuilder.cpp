@@ -186,8 +186,7 @@ bool ATerminalBuilder::Build()
 		const FVector P = FTerminalPlan::ToWorld(C.X, Plan.Roof * 0.5f, C.Z);
 		MatCyl("white")->AddInstance(FTransform(FRotator::ZeroRotator, P, FVector(0.6f, 0.6f, Plan.Roof)));
 	}
-	for (const FPlanPoint& S : Plan.Stands)
-		Box(Mat("yellow"), S.X - 0.15f, 0, S.Z, S.X + 0.15f, 0.02f, S.Z + 45.f); // stand lead-in line from the nose position
+	// (the stands' markings: the airfield lays them with the apron, Airfield.cpp Aprons)
 
 	ADP_LOG(TEXT("Terminal built: %d rooms, %d doors"), Plan.Rooms.Num(), Plan.Doors.Num());
 	return true;

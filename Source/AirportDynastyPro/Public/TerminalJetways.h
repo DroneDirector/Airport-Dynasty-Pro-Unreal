@@ -33,7 +33,7 @@ private:
 	/** An upright cylinder (or a wheel lying on its side when bWheel) at a plan point, radius R and height H. */
 	void Drum(const FName Mat, const FVector& At, float R, float H, float YawDeg = 0, bool bWheel = false);
 	/** One walkable glazed section from A to B (floor centre line): floor, lower panels, glass, roof and chords. */
-	void Section(const FVector& A, const FVector& B, float W, float Hgt);
+	void Section(const FVector& A, const FVector& B, float W, float Hgt, float ModLen = 3.f);
 	#pragma endregion
 
 	#pragma region Jetway

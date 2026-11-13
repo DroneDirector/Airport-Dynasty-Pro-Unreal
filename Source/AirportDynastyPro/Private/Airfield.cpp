@@ -176,12 +176,25 @@ void AAirfield::Strip(const FName Mat, const FVector2f& A, const FVector2f& B, f
 
 void AAirfield::Vertex(FSheet& S, float X, float Y, float Lift, const FLinearColor& Col, const FVector2D* UVOverride)
 {
+	// no colour given: the green carries how dirty the paint is here (the paint instances' PaintDirt, Tools/set_ground.py),
+	// a smooth noise over the airfield so every marking has its own amount, a long line changing gently along itself
+	FLinearColor C = Col;
+	if (Col.Equals(FLinearColor::White))
+	{
+		auto H = [](int32 I, int32 J) { return FMath::Frac(FMath::Sin(I * 127.1f + J * 311.7f) * 43758.5453f); };
+		const float Fx = X / 45.f, Fy = Y / 45.f;
+		const int32 I = FMath::FloorToInt(Fx), J = FMath::FloorToInt(Fy);
+		float U = Fx - I, V = Fy - J;
+		U = U * U * (3 - 2 * U); V = V * V * (3 - 2 * V);
+		const float N = FMath::Lerp(FMath::Lerp(H(I, J), H(I + 1, J), U), FMath::Lerp(H(I, J + 1), H(I + 1, J + 1), U), V);
+		C.G = 0.10f + 0.55f * N * N;
+	}
 	// the corner on the grade; its normal from the slope (the world's y runs against the plan's); 10 m texture tiles
 	const FVector2f Sl = SlopeAt(X, Y);
 	S.V.Add(FTerminalPlan::ToWorld(X, GroundAt(X, Y) + Lift + Sink, Y));
 	S.N.Add(FVector(-Sl.X, Sl.Y, 1.f).GetSafeNormal());
 	S.UV.Add(UVOverride ? *UVOverride : FVector2D(X / 10.0, Y / 10.0));
-	S.C.Add(Col);
+	S.C.Add(C);
 }
 
 void AAirfield::EdgeBand(const FVector2f& A, const FVector2f& B, const FVector2f& Out, float InnerLift, float OuterLift, float Asphalt, float End, bool bFadeA, bool bFadeB)
@@ -322,7 +335,6 @@ void AAirfield::PaveTaxiways(bool bModelSite)
 			const FVector2f E = L.Pts[e], Nx = L.Pts[e == 0 ? 1 : e - 1];
 			const FVector2f In = (Nx - E).GetSafeNormal();
 			const float Len = (Nx - E).Size();
-			if (OnModelApron(E, 0.f)) continue;
 			// onto the runway's centre line: lead-on and lead-off curves both ways, where the runway goes on
 			if (FMath::Abs(E.Y - RY) < 1.f && FMath::Abs(In.X) < 0.2f && Len > 70.f)
 			{
@@ -400,8 +412,8 @@ void AAirfield::PaveTaxiways(bool bModelSite)
 	Specs.Add({TEXT("shoulder"), -0.036f, {{FShoulder, 0.f, 1.f}, {FPave, -0.3f, -1.f}, {FRwyOuter, -0.3f, -1.f}, {FApron, -0.3f, -1.f}, {FTaxi, Shoulder + 11.f, 1.f}}});
 	// the taxi side stripes (ICAO: two solid yellow lines 15 cm wide, 15 cm apart, at the edge of the full-strength
 	// pavement), following the fillets, stopping short of the runway's shoulders and the aprons
-	Specs.Add({TEXT("yellow"), -0.018f, {{FPave, 0.f, 1.f}, {FPave, -0.15f, -1.f}, {FRwyOuter, 0.5f, -1.f}, {FApron, 0.5f, -1.f}}});
-	Specs.Add({TEXT("yellow"), -0.018f, {{FPave, -0.3f, 1.f}, {FPave, -0.45f, -1.f}, {FRwyOuter, 0.5f, -1.f}, {FApron, 0.5f, -1.f}}});
+	Specs.Add({TEXT("paintyellow"), -0.018f, {{FPave, 0.f, 1.f}, {FPave, -0.15f, -1.f}, {FRwyOuter, 0.5f, -1.f}, {FApron, 0.5f, -1.f}}});
+	Specs.Add({TEXT("paintyellow"), -0.018f, {{FPave, -0.3f, 1.f}, {FPave, -0.45f, -1.f}, {FRwyOuter, 0.5f, -1.f}, {FApron, 0.5f, -1.f}}});
 	auto Corner = [&](int32 n) { FCorner C; C.P = NodeP(n); for (int32 f = 0; f < NF; ++f) C.F[f] = F[f][n]; return C; };
 	for (const FSpec& Sp : Specs)
 	{
@@ -454,8 +466,19 @@ void AAirfield::PaveTaxiways(bool bModelSite)
 				if (In(A)) A.Y = B.Y < RY ? RY - HWo : RY + HWo;
 				if (In(B)) B.Y = A.Y < RY ? RY - HWo : RY + HWo;
 			}
-			if (OnModelApron(A, -1.f) && OnModelApron(B, -1.f)) continue;
-			if ((B - A).Size() > 0.05f) Band("yellow", A, B, 0.3f, -0.018f, P.bArc ? 4.f : 10.f);
+			if (OnModelApron(A, -1.f) && OnModelApron(B, -1.f) && !P.bArc) continue;   // the taxilanes there: Aprons()
+			if ((B - A).Size() <= 0.05f) continue;
+			if (bModelSite && (OnModelApron(A, 1.f) || OnModelApron(B, 1.f)))
+			{
+				// crossing onto the terminal's apron (laid 2 cm over the model's ground): drawn in short pieces, each at its height
+				const int32 N = FMath::Max(1, FMath::CeilToInt((B - A).Size() / 2.f));
+				for (int32 q = 0; q < N; ++q)
+				{
+					const FVector2f Pa = FMath::Lerp(A, B, float(q) / N), Pb = FMath::Lerp(A, B, float(q + 1) / N);
+					Band("paintyellow", Pa, Pb, 0.3f, OnModelApron((Pa + Pb) / 2, 0.f) ? 0.028f - Sink : -0.018f, 4.f);
+				}
+			}
+			else Band("paintyellow", A, B, 0.3f, -0.018f, P.bArc ? 4.f : 10.f);
 		}
 	}
 
@@ -580,6 +603,185 @@ void AAirfield::PaveTaxiways(bool bModelSite)
 	ADP_LOG(TEXT("Airfield: the paving's outline, %d edge runs"), Runs);
 }
 
+void AAirfield::Aprons(bool bModelSite)
+{
+	// the terminal's aprons sit on the model's ground (2 cm over it, so ours is what shows); the others on the grade
+	auto IsModel = [&](const FAirfieldData::FRect& A) { return bModelSite && (A.Id == TEXT("APRON-T") || A.Id == TEXT("APRON-9")); };
+	auto ApronAt = [&](const FVector2f& P) -> const FAirfieldData::FRect*
+	{
+		for (const FAirfieldData::FRect& A : D.Aprons) if (BoxSd(P, A.X0, A.Y0, A.X1, A.Y1) <= 0.01f) return &A;
+		return nullptr;
+	};
+	auto Base = [&](const FVector2f& P) { const FAirfieldData::FRect* A = ApronAt(P); return A && IsModel(*A) ? 0.02f - Sink : -0.04f; };
+	for (const FAirfieldData::FRect& A : D.Aprons)
+		Quad("apron", A.X0, A.Y0, A.X1, A.Y1, IsModel(A) ? 0.02f - Sink : -0.04f, IsModel(A) ? 5.f : 20.f);
+	// the taxilanes' centre lines on the terminal's aprons (the others' are drawn with the taxiways)
+	for (const FAirfieldData::FTwy& T : D.Taxiways)
+		for (int32 k = 0; k + 1 < T.Pts.Num(); ++k)
+		{
+			const FVector2f A = T.Pts[k], B = T.Pts[k + 1], M = (A + B) / 2;
+			const FAirfieldData::FRect* R = ApronAt(M);
+			if (R && IsModel(*R)) Band("paintyellow", A, B, 0.2f, Base(M) + 0.008f, 10.f);
+		}
+
+	auto Hash = [](float A) { return FMath::Frac(FMath::Sin(A * 12.9898f + 4.1414f) * 43758.5453f); };
+	auto Line = [&](const FName Mat, const FVector2f& A, const FVector2f& B, float W, float Up)
+	{
+		if ((B - A).Size() <= 0.05f) return;
+		Band(Mat, A, B, W, Base((A + B) / 2) + Up, 4.f);
+		// red lines edged in white, as on European aprons (reference photos: Kristiansand, Kyiv Boryspil)
+		if (Mat == TEXT("paintred") && W >= 0.15f) Band("paintwhite", A, B, W + 0.2f, Base((A + B) / 2) + Up - 0.002f, 4.f);
+	};
+	auto Text = [&](const FString& S, float X, float Y, float H, float Yaw, const FColor& C)
+	{
+		UTextRenderComponent* T = NewObject<UTextRenderComponent>(this);
+		T->SetupAttachment(Root);
+		T->SetText(FText::FromString(S));
+		T->SetHorizontalAlignment(EHTA_Center);
+		T->SetVerticalAlignment(EVRTA_TextCenter);
+		T->SetWorldSize(H * 100.f);
+		T->SetTextRenderColor(C);
+		T->SetRelativeLocationAndRotation(FTerminalPlan::ToWorld(X, Base(FVector2f(X, Y)) + 0.014f + Sink, Y), FRotator(-90.f, Yaw + 180.f, 0.f));   // face up (a text's readable side is its -x)
+		T->RegisterComponent();
+		AddInstanceComponent(T);
+	};
+
+	// ---- the stands, in rows (the same direction and taxilane), each row side by side by x
+	struct FRow { float TY; float Dir; TArray<int32> Idx; };
+	TArray<FRow> Rows;
+	for (int32 i = 0; i < D.Stands.Num(); ++i)
+	{
+		const FAirfieldData::FStand& St = D.Stands[i];
+		const float B = -St.Dir;   // from the nose back towards the tail and the taxilane
+		float TY = St.Nose + B * (St.Len + 40.f), Best = 1e9f;
+		for (const FAirfieldData::FTwy& T : D.Taxiways)
+			if (T.Kind == TEXT("taxilane") && T.Pts.Num() >= 2)
+			{
+				const float Y = T.Pts[0].Y, D_ = (Y - St.Nose) * B;
+				const float Xa = FMath::Min(T.Pts[0].X, T.Pts.Last().X), Xb = FMath::Max(T.Pts[0].X, T.Pts.Last().X);
+				if (D_ > St.Len && D_ < Best && St.X > Xa - 5.f && St.X < Xb + 5.f) { Best = D_; TY = Y; }
+			}
+		FRow* R = Rows.FindByPredicate([&](const FRow& Q) { return Q.Dir == St.Dir && FMath::Abs(Q.TY - TY) < 1.f; });
+		if (!R) { R = &Rows.AddDefaulted_GetRef(); R->TY = TY; R->Dir = St.Dir; }
+		R->Idx.Add(i);
+	}
+	for (FRow& R : Rows)
+	{
+		R.Idx.Sort([&](int32 A, int32 B) { return D.Stands[A].X < D.Stands[B].X; });
+		const float B = -R.Dir;
+		// the boundaries: halfway between neighbours close enough to share one, otherwise each stand's own (its wingtips
+		// plus 4.5 m, ICAO code C clearance)
+		TArray<float> Left, Right;
+		for (int32 k = 0; k < R.Idx.Num(); ++k)
+		{
+			const FAirfieldData::FStand& St = D.Stands[R.Idx[k]];
+			Left.Add(St.X - St.Span / 2 - 4.5f); Right.Add(St.X + St.Span / 2 + 4.5f);
+		}
+		for (int32 k = 0; k + 1 < R.Idx.Num(); ++k)
+			if (Right[k] > Left[k + 1] - 6.f) { const float Mid = (D.Stands[R.Idx[k]].X + D.Stands[R.Idx[k + 1]].X) / 2; Right[k] = Mid; Left[k + 1] = Mid; }
+		float RoadAt = -1e9f * B;   // the service road behind the stands' tails
+		for (const int32 i : R.Idx) { const FAirfieldData::FStand& St = D.Stands[i]; const float Te = St.Nose + B * (St.Len + 3.f); RoadAt = B > 0 ? FMath::Max(RoadAt, Te) : FMath::Min(RoadAt, Te); }
+		for (int32 k = 0; k < R.Idx.Num(); ++k)
+		{
+			const int32 i = R.Idx[k];
+			const FAirfieldData::FStand& St = D.Stands[i];
+			const bool bBig = St.Span > 50.f;
+			const FAirfieldData::FRect* Ap = ApronAt(FVector2f(St.X, St.Nose));
+			const float Wall = Ap ? (R.Dir < 0 ? FMath::Min(Ap->Y0, Ap->Y1) : FMath::Max(Ap->Y0, Ap->Y1)) + R.Dir * -0.6f : St.Nose + R.Dir * 20.f;
+			const float Te = St.Nose + B * (St.Len + 3.f);
+			// the lead-in line (ICAO 5.2.13: yellow, at least 15 cm) from the taxilane to the stop, with its turns off the
+			// taxilane both ways
+			Line("paintyellow", FVector2f(St.X, R.TY), FVector2f(St.X, St.Nose), 0.2f, 0.008f);
+			for (const float S : {-1.f, 1.f})
+			{
+				const float Rr = bBig ? 40.f : 30.f;
+				const FVector2f E(St.X, R.TY), In(0.f, R.Dir), Al(S, 0.f), C = E + In * Rr + Al * Rr;
+				FVector2f Prev = E + In * Rr;
+				for (int32 q = 1; q <= 20; ++q)
+				{
+					const float Th = HALF_PI * q / 20;
+					const FVector2f P = C - Al * (Rr * FMath::Cos(Th)) - In * (Rr * FMath::Sin(Th));
+					Line("paintyellow", Prev, P, 0.2f, 0.008f);
+					Prev = P;
+				}
+			}
+			// the stop bars (owner, 2026-11-13: a stop position for each aircraft type): every type stops with its nose on
+			// the stand's nose line, so each bar is where that type's nose wheel stands; the jetway reaches whichever front
+			// door that gives. Yellow, 30 cm wide, the types written beside each bar, read by the pilot coming in. (Nose
+			// wheel setbacks approximate, to be checked against each maker's airport planning document.)
+			struct FStopType { const TCHAR* Label; float NoseGear; };
+			static const FStopType Narrow[] = {{TEXT("E190"), 3.6f}, {TEXT("B737"), 4.4f}, {TEXT("A319 A320 A321 B757"), 5.1f}};
+			static const FStopType Wide[] = {{TEXT("B767"), 5.6f}, {TEXT("A330 A350 B787"), 6.5f}, {TEXT("B777 B747"), 7.6f}};
+			const TArrayView<const FStopType> Types = bBig ? TArrayView<const FStopType>(Wide) : TArrayView<const FStopType>(Narrow);
+			for (int32 t = 0; t < Types.Num(); ++t)
+			{
+				const float Stop = St.Nose + B * Types[t].NoseGear, HalfW = t == Types.Num() - 1 ? 3.f : 1.5f;
+				Quad("paintyellow", St.X - HalfW, Stop - 0.15f, St.X + HalfW, Stop + 0.15f, Base(FVector2f(St.X, Stop)) + 0.009f, 2.f);
+				// its types on the pilot's right of the line, small yellow letters
+				const float Tx = St.X + R.Dir * -(HalfW + 0.4f + 0.16f * FCString::Strlen(Types[t].Label));
+				Text(Types[t].Label, Tx, Stop, 0.45f, R.Dir < 0 ? 90.f : -90.f, FColor(250, 205, 30));
+			}
+			// the stand's number on the lead-in line where the aircraft turns in, yellow on black (the pilot reads it
+			// coming in)
+			FString Num = St.Id;
+			Num.RemoveFromStart(TEXT("STAND-"));
+			const float NumY = R.TY - B * 22.f, TH = 3.f, TW = 2.1f * Num.Len() + 1.2f;
+			Quad("paintblack", St.X - TW / 2, NumY - TH / 2 - 0.6f, St.X + TW / 2, NumY + TH / 2 + 0.6f, Base(FVector2f(St.X, NumY)) + 0.0085f, 2.f);
+			Text(Num, St.X, NumY, TH, R.Dir < 0 ? 90.f : -90.f, FColor(250, 205, 30));
+			// the red stand boundaries and the equipment restraint line across the tail end (vehicles wait behind it while
+			// the aircraft comes in)
+			Line("paintred", FVector2f(Left[k], Wall), FVector2f(Left[k], Te), 0.2f, 0.0075f);
+			Line("paintred", FVector2f(Right[k], Wall), FVector2f(Right[k], Te), 0.2f, 0.0075f);
+			Line("paintred", FVector2f(Left[k], Te), FVector2f(Right[k], Te), 0.2f, 0.0075f);
+			// the jetway's red zone on the left of the nose (the aircraft's left door side): outlined and hatched, nothing
+			// parks where the bridge swings
+			if (St.bJetway)
+			{
+				const float X0 = St.X + 3.f, X1 = St.X + 16.f, Y0 = Wall, Y1 = St.Nose + B * 9.f;
+				const float Ya = FMath::Min(Y0, Y1), Yb = FMath::Max(Y0, Y1);
+				Line("paintred", FVector2f(X0, Ya), FVector2f(X1, Ya), 0.15f, 0.0075f); Line("paintred", FVector2f(X0, Yb), FVector2f(X1, Yb), 0.15f, 0.0075f);
+				Line("paintred", FVector2f(X0, Ya), FVector2f(X0, Yb), 0.15f, 0.0075f); Line("paintred", FVector2f(X1, Ya), FVector2f(X1, Yb), 0.15f, 0.0075f);
+				for (float Cc = Ya - (X1 - X0); Cc < Yb; Cc += 1.8f)   // hatching at 45 degrees: y = x - X0 + Cc
+				{
+					FVector2f P0(X0, Cc), P1(X1, Cc + (X1 - X0));
+					if (P0.Y < Ya) { P0.X += Ya - P0.Y; P0.Y = Ya; }
+					if (P1.Y > Yb) { P1.X -= P1.Y - Yb; P1.Y = Yb; }
+					if (P1.X - P0.X > 0.3f) Line("paintred", P0, P1, 0.12f, 0.007f);
+				}
+			}
+			// the stand's own wear (Tools/set_stand_wear.py): soot behind the engines, drips where the wheels stop, faint
+			// tyre marks on some stands; every stand its own (the red: its seed, the green: tyre marks, 0 on most)
+			{
+				FSheet& W = Sheets.FindOrAdd(TEXT("standwear"));
+				const float Seed = Hash(St.X * 0.37f + St.Nose * 0.11f);
+				const float Tyre = Hash(Seed * 91.f) < 0.35f ? 0.35f + 0.4f * Hash(Seed * 17.f) : 0.f;
+				const float Wd = bBig ? 22.f : 15.f, L = St.Len + 2.f;
+				const int32 Nx = FMath::CeilToInt(2 * Wd / 2.5f), Ny = FMath::CeilToInt(L / 2.5f), Base0 = W.V.Num();
+				for (int32 j = 0; j <= Ny; ++j)
+					for (int32 q = 0; q <= Nx; ++q)
+					{
+						const float Ac = -Wd + 2 * Wd * q / Nx, Al = L * j / Ny;
+						const float X = St.X + Ac, Y = St.Nose + B * Al;
+						const FVector2D UV(Ac, Al);
+						Vertex(W, X, Y, Base(FVector2f(X, Y)) + 0.004f, FLinearColor(Seed, Tyre, bBig ? 1.f : 0.f, 1.f), &UV);
+					}
+				for (int32 j = 0; j < Ny; ++j)
+					for (int32 q = 0; q < Nx; ++q)
+					{
+						const int32 A = Base0 + j * (Nx + 1) + q, Bq = A + 1, C = A + Nx + 1, Dd = C + 1;
+						Tri(W, A, Bq, Dd); Tri(W, A, Dd, C);
+					}
+			}
+		}
+		// the service road behind the stands for the ground vehicles (white: solid edges, dashed middle), from the row's
+		// first boundary to its last, 8 m wide
+		const float X0 = Left[0] - 6.f, X1 = Right.Last() + 6.f, Y0 = RoadAt + B * 1.f, Y1 = RoadAt + B * 9.f;
+		Line("paintwhite", FVector2f(X0, Y0), FVector2f(X1, Y0), 0.15f, 0.008f);
+		Line("paintwhite", FVector2f(X0, Y1), FVector2f(X1, Y1), 0.15f, 0.008f);
+		for (float X = X0; X < X1 - 1.f; X += 6.f) Line("paintwhite", FVector2f(X, (Y0 + Y1) / 2), FVector2f(FMath::Min(X + 3.f, X1), (Y0 + Y1) / 2), 0.12f, 0.008f);
+	}
+}
+
 void AAirfield::EdgePoly(const TArray<FVector2f>& P, const TArray<FVector2f>& Out, const TArray<FVector2f>& Flags, const TArray<float>& InnerLift, bool bFadeEnds)
 {
 	FSheet& S = Sheets.FindOrAdd(TEXT("edge"));
@@ -617,7 +819,7 @@ void AAirfield::Tri(FSheet& S, int32 A, int32 B, int32 C)
 	if (N.Z < 0.f) { S.I.Add(A); S.I.Add(B); S.I.Add(C); } else { S.I.Add(A); S.I.Add(C); S.I.Add(B); }
 }
 
-void AAirfield::Quad(const FName Mat, float X0, float Y0, float X1, float Y1, float Lift, float Step)
+void AAirfield::Quad(const FName Mat, float X0, float Y0, float X1, float Y1, float Lift, float Step, const FLinearColor& Col)
 {
 	FSheet& S = Sheets.FindOrAdd(Mat);
 	const float Xa = FMath::Min(X0, X1), Xb = FMath::Max(X0, X1), Ya = FMath::Min(Y0, Y1), Yb = FMath::Max(Y0, Y1);
@@ -625,7 +827,7 @@ void AAirfield::Quad(const FName Mat, float X0, float Y0, float X1, float Y1, fl
 	const int32 Base = S.V.Num();
 	for (int32 j = 0; j <= Ny; ++j)
 		for (int32 i = 0; i <= Nx; ++i)
-			Vertex(S, FMath::Lerp(Xa, Xb, float(i) / Nx), FMath::Lerp(Ya, Yb, float(j) / Ny), Lift);
+			Vertex(S, FMath::Lerp(Xa, Xb, float(i) / Nx), FMath::Lerp(Ya, Yb, float(j) / Ny), Lift, Col);
 	for (int32 j = 0; j < Ny; ++j)
 		for (int32 i = 0; i < Nx; ++i)
 		{
@@ -634,7 +836,7 @@ void AAirfield::Quad(const FName Mat, float X0, float Y0, float X1, float Y1, fl
 		}
 }
 
-void AAirfield::Band(const FName Mat, const FVector2f& A, const FVector2f& B, float W, float Lift, float Step)
+void AAirfield::Band(const FName Mat, const FVector2f& A, const FVector2f& B, float W, float Lift, float Step, const FLinearColor& Col)
 {
 	FSheet& S = Sheets.FindOrAdd(Mat);
 	const FVector2f U = (B - A).GetSafeNormal(), Nm(-U.Y, U.X);
@@ -646,7 +848,7 @@ void AAirfield::Band(const FName Mat, const FVector2f& A, const FVector2f& B, fl
 		for (int32 i = 0; i <= Ns; ++i)
 		{
 			const FVector2f P = A + U * (L * i / Ns) + Nm * (W * (float(j) / Nt - 0.5f));
-			Vertex(S, P.X, P.Y, Lift);
+			Vertex(S, P.X, P.Y, Lift, Col);
 		}
 	for (int32 j = 0; j < Nt; ++j)
 		for (int32 i = 0; i < Ns; ++i)
@@ -679,7 +881,18 @@ void AAirfield::FlushSheets()
 			else M->SetMaterial(0, EdgeM);
 			M->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		}
-		else M->SetMaterial(0, ATerminalBuilder::KitMaterial(this, It.Key));
+		else
+		{
+			// the airfield's ground on the ground master's own instances (Tools/set_ground.py), never the kit's (the kit's
+			// asphalt, concrete, apron and grass also dress buildings); the terminal model's apron under the layout's apron
+			static const TMap<FName, FName> Ground = {{TEXT("asphalt"), TEXT("gasphalt")}, {TEXT("concrete"), TEXT("gconcrete")}, {TEXT("apron"), TEXT("gapron")}, {TEXT("grass"), TEXT("ggrass")}};
+			UMaterialInterface* Mat = nullptr;
+			if (It.Key == TEXT("babylonApron")) Mat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Babylon/Terminal/terminal/Materials/apron.apron"));
+			else if (It.Key == TEXT("standwear")) Mat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Ground/M_StandWear.M_StandWear"));
+			if (!Mat) Mat = ATerminalBuilder::KitMaterial(this, Ground.Contains(It.Key) ? Ground[It.Key] : It.Key);
+			M->SetMaterial(0, Mat);
+			if (It.Key == TEXT("standwear")) M->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		}
 		SheetMeshes.Add(M);
 		ADP_LOG(TEXT("Airfield sheet %s: %d corners, %d triangles"), *It.Key.ToString(), It.Value.V.Num(), It.Value.I.Num() / 3);
 	}
@@ -702,8 +915,7 @@ bool AAirfield::Build(bool bModelSite)
 	// landside in front of the terminal: the kerb, the road and the car park (level ground)
 	if (!bModelSite) Quad("asphalt", -160, -170, 392, -0.5f, -0.05f, 50.f);
 	// the aprons (concrete, level); with the Babylon model only those away from the terminal (it has the terminal's own)
-	for (const FAirfieldData::FRect& A : D.Aprons)
-		if (!bModelSite || !(A.Id == TEXT("APRON-T") || A.Id == TEXT("APRON-9"))) Quad("apron", A.X0, A.Y0, A.X1, A.Y1, -0.04f, 20.f);
+	Aprons(bModelSite);   // every apron and every stand's markings and wear, from the layout
 	// the taxiways: one smooth pavement with its turn curves, fillets, shoulders, edge stripes, centre lines and the soft
 	// grass edge round all the paving, riding the grade
 	PaveTaxiways(bModelSite);
@@ -711,8 +923,8 @@ bool AAirfield::Build(bool bModelSite)
 	const float RY = D.RwyY, HW = D.RwyW / 2;
 	Quad("concrete", D.RwyX0 - 60, RY - HW - 7.5f, D.RwyX1 + 60, RY + HW + 7.5f, -0.025f);
 	Quad("asphalt", D.RwyX0, RY - HW, D.RwyX1, RY + HW, -0.02f);
-	for (float X = D.RwyX0 + 400; X < D.RwyX1 - 400; X += 50) Quad("white", X, RY - 0.45f, X + 30, RY + 0.45f, -0.008f);
-	for (const float S : {-1.f, 1.f}) Quad("white", D.RwyX0, RY + S * (HW - 0.6f) - 0.45f, D.RwyX1, RY + S * (HW - 0.6f) + 0.45f, -0.008f);
+	for (float X = D.RwyX0 + 400; X < D.RwyX1 - 400; X += 50) Quad("paintwhite", X, RY - 0.45f, X + 30, RY + 0.45f, -0.008f);
+	for (const float S : {-1.f, 1.f}) Quad("paintwhite", D.RwyX0, RY + S * (HW - 0.6f) - 0.45f, D.RwyX1, RY + S * (HW - 0.6f) + 0.45f, -0.008f);
 	for (const float End : {0.f, 1.f})
 	{
 		const float X0 = End ? D.RwyX1 - 6 - 30 : D.RwyX0 + 6, Dir = End ? -1.f : 1.f;
@@ -720,13 +932,13 @@ bool AAirfield::Build(bool bModelSite)
 		for (int32 k = 0; k < 16; ++k)
 		{
 			const float Y = RY - HW + 3 + k * ((D.RwyW - 6) / 16) + (k >= 8 ? 1.8f : 0);
-			Quad("white", X0, Y, X0 + 30, Y + 1.8f, -0.008f);
+			Quad("paintwhite", X0, Y, X0 + 30, Y + 1.8f, -0.008f);
 		}
 		// the touchdown zone marks
 		for (int32 k = 0; k < 6; ++k)
 		{
 			const float X = (End ? D.RwyX1 : D.RwyX0) + Dir * (400 + k * 150);
-			for (const float S : {-1.f, 1.f}) Quad("white", X, RY + S * 10 - 1.5f, X + Dir * 22.5f, RY + S * 10 + 1.5f, -0.008f);
+			for (const float S : {-1.f, 1.f}) Quad("paintwhite", X, RY + S * 10 - 1.5f, X + Dir * 22.5f, RY + S * 10 + 1.5f, -0.008f);
 		}
 		// the designator painted on the runway, read from an aircraft landing
 		UTextRenderComponent* Num = NewObject<UTextRenderComponent>(this);
@@ -743,16 +955,57 @@ bool AAirfield::Build(bool bModelSite)
 		Num->RegisterComponent();
 		AddInstanceComponent(Num);
 	}
-	// the runway-holding positions: four yellow lines across the taxiway
+	// the runway-holding positions, as painted on real airports (reference photos: Boston, Mumbai, FAA AC 150/5340-1M; ICAO
+	// Annex 14 5.2.10 pattern A): four yellow lines across the taxiway, 30 cm wide and 15 cm apart, the two solid ones on
+	// the holding side, the two dashed ones (0.9 m dashes, 0.9 m gaps) on the runway side; the enhanced centre line for
+	// the last 45 m before it (dashed yellow lines either side of the centre line, 0.15 m wide and 0.15 m off it, 2.7 m
+	// dashes, 0.9 m gaps); and the mandatory instruction markings (ICAO 5.2.16): the runway's designators in white on red
+	// reaching 0.5 m beyond the letters, one each side of the centre line (which runs on between them), their near edge
+	// 0.9 m from the hold line, read by the pilot coming up to it, the designator of the runway end on the pilot's left first
 	for (const FVector2f& H : D.Holds)
-		for (int32 k = 0; k < 4; ++k) Quad("yellow", H.X - 12.5f, H.Y - 1.5f + k * 1.0f, H.X + 12.5f, H.Y - 1.2f + k * 1.0f, -0.018f);
-	// the stands' lead-in lines on the apron (the terminal's own stands already have theirs)
-	for (const FAirfieldData::FStand& S : D.Stands)
-		if (S.bCargo || S.Id == TEXT("STAND-9")) Band("yellow", FVector2f(S.X, S.Nose), FVector2f(S.X, S.Nose - S.Dir * (S.Len + 20)), 0.3f, -0.028f);
+	{
+		const float S = D.RwyY > H.Y ? 1.f : -1.f;   // towards the runway
+		const float Half = 12.5f, LW = 0.30f, Gap = 0.15f, Depth = 4 * LW + 3 * Gap;
+		Quad("paintblack", H.X - Half - 0.3f, H.Y - Depth / 2 - 0.3f, H.X + Half + 0.3f, H.Y + Depth / 2 + 0.3f, -0.0203f, 2.f);   // on black, as on the real ones
+		for (int32 k = 0; k < 4; ++k)
+		{
+			const float Y0 = H.Y + S * (-Depth / 2 + k * (LW + Gap)), Y1 = Y0 + S * LW;
+			if (k < 2) Quad("paintyellow", H.X - Half, Y0, H.X + Half, Y1, -0.018f, 2.f);
+			else for (float X = H.X - Half; X < H.X + Half - 0.05f; X += 1.8f) Quad("paintyellow", X, Y0, FMath::Min(X + 0.9f, H.X + Half), Y1, -0.018f, 2.f);
+		}
+		const float Hold0 = H.Y - S * Depth / 2;   // the hold line's holding-side edge
+		for (const float Side : {-1.f, 1.f})
+			for (float A = 0.f; A < 45.f; A += 3.6f)
+			{
+				const float Ya = Hold0 - S * A, Yb = Hold0 - S * FMath::Min(A + 2.7f, 45.f);
+				Quad("paintyellow", H.X + Side * 0.30f - 0.075f, FMath::Min(Ya, Yb), H.X + Side * 0.30f + 0.075f, FMath::Max(Ya, Yb), -0.018f, 3.f);
+			}
+		const FString Txt = S > 0.f ? TEXT("08-26") : TEXT("26-08");   // coming up from the south (+y), the 08 end is on the left
+		constexpr float TextH = 3.2f, Margin = 0.5f, TextW = 9.6f;
+		const float Near = Hold0 - S * 0.9f, Far = Near - S * (TextH + 2 * Margin), Cy = (Near + Far) / 2;
+		for (const float Side : {-1.f, 1.f})
+		{
+			const float Cx = H.X + Side * (0.9f + TextW / 2 + Margin);
+			Quad("paintblack", Cx - TextW / 2 - Margin - 0.25f, FMath::Min(Near, Far) - 0.25f, Cx + TextW / 2 + Margin + 0.25f, FMath::Max(Near, Far) + 0.25f, -0.019f, 2.f);   // edged in black
+			Quad("paintred", Cx - TextW / 2 - Margin, FMath::Min(Near, Far), Cx + TextW / 2 + Margin, FMath::Max(Near, Far), -0.0165f, 2.f);
+			UTextRenderComponent* T = NewObject<UTextRenderComponent>(this);
+			T->SetupAttachment(Root);
+			T->SetText(FText::FromString(Txt));
+			T->SetHorizontalAlignment(EHTA_Center);
+			T->SetVerticalAlignment(EVRTA_TextCenter);
+			T->SetWorldSize(TextH * 100.f);
+			T->SetTextRenderColor(FColor(235, 235, 230));
+			const FVector At = FTerminalPlan::ToWorld(Cx, GroundAt(Cx, Cy) - 0.012f + Sink, Cy);
+			// the plan's +y is the world's -y; the letters' feet towards the pilot coming up to the line
+			T->SetRelativeLocationAndRotation(At, FRotator(-90.f, S > 0.f ? 90.f : -90.f, 0.f));   // face up, the letters' feet towards the pilot
+			T->RegisterComponent();
+			AddInstanceComponent(T);
+		}
+	}
 	// each hangar's lead-in line: from taxilane K straight to the apron's edge on the hangar's centre line, where the
 	// hangar's own line carries on into the hall (whatever its size, its centre line is this line)
 	if (const FAirfieldData::FTwy* K = D.Find(TEXT("K")))
-		for (const FAirfieldData::FHangarSite& H : D.Hangars) Band("yellow", FVector2f(H.X, K->Pts[0].Y), FVector2f(H.X, H.Y), 0.3f, -0.028f);
+		for (const FAirfieldData::FHangarSite& H : D.Hangars) Band("paintyellow", FVector2f(H.X, K->Pts[0].Y), FVector2f(H.X, H.Y), 0.3f, -0.028f);
 	EdgeBands(bModelSite);
 	FlushSheets();
 	// the ground material's tyre rubber follows the runway (Tools/set_ground.py): its centre line's ends in world cm (z:

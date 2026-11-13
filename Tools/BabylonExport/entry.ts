@@ -2,7 +2,7 @@
 // shell, the doors, the furniture, the fixtures with stairs, lifts and jetways, the rental car centre), then saves the
 // whole scene as one glTF binary with Babylon's own exporter and sends it to the local tool server, which writes it
 // to disk for the Unreal import. Nothing in the Android edition is changed.
-import { Engine, Scene, Color3, Color4, Camera, Light, Vector3, Vector4, PBRMaterial } from '@babylonjs/core';
+import { Engine, Scene, Color3, Color4, Camera, Light, Vector3, Vector4, PBRMaterial, UniversalCamera, HemisphericLight } from '@babylonjs/core';
 import { GLTF2Export } from '@babylonjs/serializers/glTF';
 import { makeKit } from '../../Airline-Manager-Pro-Babylon/src/sections/terminal/kit';
 import { buildShell } from '../../Airline-Manager-Pro-Babylon/src/sections/terminal/shell';
@@ -203,6 +203,28 @@ async function run() {
   (K.struct as any).finish();
   // let every texture (the drawn ones and the files) finish loading before saving
   await sc.whenReadyAsync();
+  // ?m=jetways: only the jetways J-1 to J-4 (owner, 2026-11-13: his jetways rebuilt longer for the stands 12 m further
+  // out), with the groups above them (no transforms of their own), in the terminal's own co-ordinates
+  if (which === 'jetways') {
+    // docked at the aircraft parked on their stands (their own docking: the cab at the front door), not parked back
+    for (const r of ((K as any).jetways || [])) r.snap('docked');
+    for (const m of [...sc.transformNodes, ...sc.meshes] as any[]) m.computeWorldMatrix(true);
+    // ?shot=x,y,z,tx,ty,tz: a picture of it from there in the Babylon scene itself (to compare with Unreal), no export
+    const shot = new URLSearchParams(location.search).get('shot');
+    if (shot) { const v = shot.split(',').map(Number); const cam = new UniversalCamera('shot', new Vector3(v[0], v[1], v[2]), sc); cam.setTarget(new Vector3(v[3], v[4], v[5])); cam.fov = 1.0; sc.activeCamera = cam;
+      new HemisphericLight('sky', new Vector3(0.3, 1, 0.2), sc);
+      for (let i = 0; i < 5; i++) sc.render();
+      const b = await new Promise<Blob>(r => canvas.toBlob(x => r(x as Blob), 'image/png'));
+      await fetch('/save/jetway-babylon.png', { method: 'POST', body: b }); say('DONE'); return; }
+    const isJ = (n: any) => /^J-\d$/.test(n && n.name || '');
+    const inJ = (n: any) => { for (let q = n; q; q = q.parent) if (isJ(q)) return true; return false; };
+    const holdsJ = (n: any) => (n.getDescendants ? n.getDescendants(false) : []).some(isJ);
+    const g = await GLTF2Export.GLBAsync(sc, 'jetways', { shouldExportNode: (n: any) => !(n instanceof Camera) && !(n instanceof Light) && (inJ(n) || holdsJ(n)) });
+    const jb = g.glTFFiles['jetways.glb'] as Blob;
+    say(`Sending ${(jb.size / 1e6).toFixed(1)} MB…`);
+    await fetch('/save/jetways.glb', { method: 'POST', body: jb });
+    say('DONE'); return;
+  }
   // (Babylon's exporter converts to glTF's right-handed axes itself, by flipping x: the model is exported as it is)
   say(`Built: ${sc.meshes.length} meshes. Saving glTF…`);
   const glb = await GLTF2Export.GLBAsync(sc, 'terminal', { shouldExportNode: (n: any) => !(n instanceof Camera) && !(n instanceof Light) && !(n.name || '').startsWith('SRC:') || (n.name || '').startsWith('SRC:') && false });

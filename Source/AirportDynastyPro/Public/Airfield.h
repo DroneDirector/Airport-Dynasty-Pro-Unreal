@@ -76,8 +76,8 @@ private:
 	// the grade, Lift metres over it (pavements a little below zero, markings a little above their pavement)
 	struct FSheet { TArray<FVector> V; TArray<int32> I; TArray<FVector> N; TArray<FVector2D> UV; TArray<FLinearColor> C; };
 	TMap<FName, FSheet> Sheets;
-	void Quad(const FName Mat, float X0, float Y0, float X1, float Y1, float Lift, float Step = 10.f);
-	void Band(const FName Mat, const FVector2f& A, const FVector2f& B, float W, float Lift, float Step = 10.f);
+	void Quad(const FName Mat, float X0, float Y0, float X1, float Y1, float Lift, float Step = 10.f, const FLinearColor& Col = FLinearColor::White);
+	void Band(const FName Mat, const FVector2f& A, const FVector2f& B, float W, float Lift, float Step = 10.f, const FLinearColor& Col = FLinearColor::White);
 	void Vertex(FSheet& S, float X, float Y, float Lift, const FLinearColor& Col = FLinearColor::White, const FVector2D* UVOverride = nullptr);
 	// the soft edge where a pavement meets the ground (owner, 2026-11-12, Art/Edges, Tools/make_edge_textures.py): a
 	// see-through band 2.6 m wide laid along the edge, 1.2 m onto the pavement and 1.4 m onto the ground, its picture
@@ -93,6 +93,12 @@ private:
 	 *  curves at every junction, fillets where they meet the runway and the aprons, shoulders, the edge stripes and the
 	 *  soft grass edge all round the airfield's paving, all from one distance field so nothing meets in square blocks. */
 	void PaveTaxiways(bool bModelSite);
+	/** The aprons laid from the layout (the terminal's too, with the Babylon model's own surface picture, so they can be
+	 *  resized), with every stand's markings from the stand list (ICAO Annex 14 5.2.13 / FAA): lead-in lines and their
+	 *  turns, stop bars, stand numbers, red stand boundaries and equipment restraint lines, the service road behind the
+	 *  stands, the red jetway zones, and each stand's own wear (engine soot, drips where the wheels stop, faint tyre marks
+	 *  on some). */
+	void Aprons(bool bModelSite);
 	/** A soft edge band along a curved edge: P the points along it, Out their outward normals, Flags (asphalt, end). */
 	void EdgePoly(const TArray<FVector2f>& P, const TArray<FVector2f>& Out, const TArray<FVector2f>& Flags, const TArray<float>& InnerLift, bool bFadeEnds);
 	void Tri(FSheet& S, int32 A, int32 B, int32 C);

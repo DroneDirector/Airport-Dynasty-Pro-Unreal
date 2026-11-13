@@ -69,6 +69,10 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 		if (bBabylon)
 			if (ABabylonModel* Model = W->SpawnActor<ABabylonModel>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 				Model->Place(TEXT("Terminal"));
+		// his jetways, rebuilt for the stands 12 m out (owner, 2026-11-13), as their own model in the terminal's place
+		if (bBabylon && FPackageName::DoesPackageExist(TEXT("/Game/Babylon/Jetways/jetways/StaticMeshes/jetways_mesh_0")))
+			if (ABabylonModel* Jw = W->SpawnActor<ABabylonModel>(FVector::ZeroVector, FRotator::ZeroRotator, P))
+				Jw->Place(TEXT("Jetways"));
 			// the old offices' things in the terminal's offices (yours with your pet, as chosen in the game)
 			{ FString Pet = TEXT("dog"); GConfig->GetString(TEXT("ADP.Office"), TEXT("Pet"), Pet, GGameUserSettingsIni); ADPOffices::Place(W, Pet); }
 			// the airport fire station, its training tower and its two crash tenders (FireStation.h)

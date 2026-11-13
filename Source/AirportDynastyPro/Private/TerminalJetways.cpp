@@ -12,7 +12,9 @@
 namespace
 {
 	constexpr float TiltDeg = 5.f;     // the fixed corridor's slope down from the gate (jetway.ts JETWAY.tiltDeg)
-	constexpr float Reach = 13.f;      // rotunda to cab, metres
+	constexpr float Reach = 13.f;      // rotunda to cab, metres (the tunnel as it always was)
+	constexpr float Module = 3.f;      // the fixed corridor's module length
+	constexpr float TunSec = 5.7f;     // each telescopic section's length (reaches 15.1 m with 1 m overlaps)
 	constexpr float RotR = 1.8f;       // the rotunda's radius
 	constexpr float CabR = 1.6f;       // the cab's radius
 	constexpr float Sill = 3.3f;       // the aircraft's front door sill height
@@ -65,20 +67,31 @@ void ATerminalJetways::Drum(const FName Mat, const FVector& At, float R, float H
 	Kit(1, Mat)->AddInstance(FTransform(Rot, FTerminalPlan::ToWorld(At.X, At.Y, At.Z), FVector(R * 2, R * 2, H)));
 }
 
-void ATerminalJetways::Section(const FVector& A, const FVector& B, float W, float Hgt)
+void ATerminalJetways::Section(const FVector& A, const FVector& B, float W, float Hgt, float ModLen)
 {
+	// built from identical modules of ModLen metres in a row (owner, 2026-11-13: a longer jetway is built longer, never
+	// stretched): each module its own floor plate, lower panels, glass, chords, edge strips, roof and ceiling, a post
+	// between the glass panes at its start; the pieces butt exactly, so it reads as one piece built that length
+	const float L = (B - A).Size();
+	const int32 N = FMath::Max(1, FMath::RoundToInt(L / ModLen));
 	const float Half = W / 2;
-	Along("jwStud", A, B, W, 0.12f, 0, -0.06f);                                   // the studded rubber floor
-	for (const float S : {-1.f, 1.f})
+	for (int32 m = 0; m < N; ++m)
 	{
-		Along("jwAlu", A, B, 0.06f, 0.9f, S * (Half + 0.03f), 0.45f);              // the lower panels
-		Along("glass", A, B, 0.03f, Hgt - 1.0f, S * (Half + 0.03f), 0.9f + (Hgt - 1.0f) / 2); // the glass
-		Along("jwTruss", A, B, 0.1f, 0.1f, S * (Half + 0.12f), 0.9f);               // the steel chords outside
-		Along("jwTruss", A, B, 0.1f, 0.1f, S * (Half + 0.12f), Hgt + 0.05f);
-		Along("yellow", A, B, 0.04f, 0.02f, S * (Half - 0.04f), 0.01f);            // the edge strips
+		const FVector Ma = FMath::Lerp(A, B, float(m) / N), Mb = FMath::Lerp(A, B, float(m + 1) / N);
+		Along("jwStud", Ma, Mb, W, 0.12f, 0, -0.06f);                                   // the studded rubber floor
+		for (const float S : {-1.f, 1.f})
+		{
+			Along("jwAlu", Ma, Mb, 0.06f, 0.9f, S * (Half + 0.03f), 0.45f);              // the lower panels
+			Along("glass", Ma, Mb, 0.03f, Hgt - 1.0f, S * (Half + 0.03f), 0.9f + (Hgt - 1.0f) / 2); // the glass
+			Along("jwTruss", Ma, Mb, 0.1f, 0.1f, S * (Half + 0.12f), 0.9f);               // the steel chords outside
+			Along("jwTruss", Ma, Mb, 0.1f, 0.1f, S * (Half + 0.12f), Hgt + 0.05f);
+			Along("yellow", Ma, Mb, 0.04f, 0.02f, S * (Half - 0.04f), 0.01f);            // the edge strips
+			const FVector Dn = (Mb - Ma).GetSafeNormal() * 0.04f;
+			Along("jwAlu", Ma, Ma + Dn, 0.1f, Hgt - 1.0f, S * (Half + 0.05f), 0.9f + (Hgt - 1.0f) / 2);   // the post between panes
+		}
+		Along("jwPanel", Ma, Mb, W + 0.2f, 0.14f, 0, Hgt + 0.07f);                       // the roof
+		Along("white", Ma, Mb, W - 0.3f, 0.02f, 0, Hgt - 0.01f);                         // the ceiling with its LED line
 	}
-	Along("jwPanel", A, B, W + 0.2f, 0.14f, 0, Hgt + 0.07f);                       // the roof
-	Along("white", A, B, W - 0.3f, 0.02f, 0, Hgt - 0.01f);                         // the ceiling with its LED line
 }
 
 #pragma endregion
@@ -110,26 +123,31 @@ void ATerminalJetways::BuildJetway(const FPlanDoor& Door, const FPlanPoint& Stan
 	const float GateX = Door.X, PN = Door.Z, F2Y = Plan.F2Y;
 
 	#pragma region Layout
-	// as plan.ts jetwayAt: the cab 5.65 m right of the stand's centre line, the rotunda 13 m from it straight out from the door
+	// the cab 5.65 m right of the stand's centre line at the aircraft's front door (the stand's nose, as plan.ts jetwayAt);
+	// the telescopic tunnel works as it always has (13 m rotunda to cab); the fixed corridor from the pier's glass takes
+	// whatever reach is left, built in whole 3 m modules (owner, 2026-11-13: the stands moved 12 m out, the corridor built
+	// longer to reach them, never stretched), and the tunnel slides to meet the door exactly
+	const float CabZ = Stand.Z - 0.5f;
 	const float DX = Stand.X + 5.65f - GateX;
-	const float DZ = FMath::Sqrt(FMath::Max(1.f, Reach * Reach - DX * DX));
-	const float RZ = PN + 20.f + 5.5f - DZ;
-	const float CorrLen = RZ - RotR - PN;
+	const float DZ0 = FMath::Sqrt(FMath::Max(1.f, Reach * Reach - DX * DX));
+	const float CorrLen = FMath::Max(Module, FMath::FloorToFloat((CabZ - DZ0 - RotR - PN) / Module) * Module);
+	const float RZ = PN + CorrLen + RotR;
+	const float DZ = CabZ - RZ;
 	const float RotY = F2Y - CorrLen * FMath::Tan(FMath::DegreesToRadians(TiltDeg)); // the rotunda's floor
 	const FVector Gate(GateX, F2Y, PN), CorrEnd(GateX, RotY, RZ - RotR);
 	const FVector Rot(GateX, RotY, RZ);
-	const FVector CabC(GateX + DX, Sill, RZ + DZ);
+	const FVector CabC(GateX + DX, Sill, CabZ);
 	const FVector Dir = FVector(DX, 0, DZ).GetSafeNormal();
 	const FVector TunA = Rot + Dir * RotR, TunB = FVector(CabC.X, Sill, CabC.Z) - Dir * CabR;
 	#pragma endregion
 
 	#pragma region Fixed corridor
 	Along("jwAlu", Gate, Gate + FVector(0, 0, 0.01f), Walk + 0.6f, 0.15f, 0, Inside + 0.2f); // the gate trim over the door
-	Section(Gate, CorrEnd, Walk, Inside);
+	Section(Gate, CorrEnd, Walk, Inside, Module);
 	// its legs down to the apron
-	for (const float T : {0.35f, 0.75f})
+	for (float At = FMath::Min(6.f, CorrLen * 0.5f); At < CorrLen - 1.f; At += 12.f)   // a pair of legs every 12 m
 	{
-		const FVector P = FMath::Lerp(Gate, CorrEnd, T);
+		const FVector P = FMath::Lerp(Gate, CorrEnd, At / CorrLen);
 		Drum("jwTruss", FVector(P.X, P.Y / 2, P.Z), 0.18f, P.Y);
 	}
 	#pragma endregion
@@ -156,14 +174,15 @@ void ATerminalJetways::BuildJetway(const FPlanDoor& Door, const FPlanPoint& Stan
 	#pragma endregion
 
 	#pragma region Tunnel
-	// three telescopic sections, the outer one widest, each overlapping the next
+	// three telescopic sections of one fixed length each (never stretched), the outer one widest; they slide into each
+	// other, so how far they overlap is what changes - never under 1 m (owner: at least 0.5 m)
+	const float TunLen = (TunB - TunA).Size();
+	const float Over = FMath::Max(1.f, (3 * TunSec - TunLen) / 2);
+	const FVector TD = (TunB - TunA).GetSafeNormal();
 	const float Widths[3] = {Walk + 0.3f, Walk + 0.15f, Walk};
-	for (int32 s = 0; s < 3; ++s)
-	{
-		const FVector A = FMath::Lerp(TunA, TunB, s / 3.f - (s ? 0.04f : 0.f));
-		const FVector B = FMath::Lerp(TunA, TunB, (s + 1) / 3.f);
-		Section(A, B, Widths[s], Inside + 0.1f - s * 0.05f);
-	}
+	const FVector Starts[3] = {TunA, TunA + TD * (TunSec - Over), TunB - TD * TunSec};
+	for (int32 s = 0; s < 3; ++s) Section(Starts[s], Starts[s] + TD * TunSec, Widths[s], Inside + 0.1f - s * 0.05f, TunSec / 2);
+	if (TunLen > 3 * TunSec - 2.f) ADP_WARN(TEXT("Jetway to %s: the tunnel needs %.1f m, more than it reaches with 1 m overlaps"), *Stand.Id, TunLen);
 	#pragma endregion
 
 	#pragma region Drive unit

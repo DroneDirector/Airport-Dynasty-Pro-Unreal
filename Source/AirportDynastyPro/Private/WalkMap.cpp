@@ -22,8 +22,9 @@ void FWalkMap::Build(const FTerminalPlan& Plan)
 	};
 	Outside(TEXT("KERB"), 30, -16, 120, -1, 0);
 	Outside(TEXT("OUTSIDE"), 30, -16, 120, -1, 0);
-	Outside(TEXT("APRON"), -80, 83, 242, 100, 0);
-	for (int32 n = 1; n <= 4; ++n) Outside(FString::Printf(TEXT("J-%d"), n), -80, 83, 242, 100, Plan.F2Y);
+	// (12 m deeper since the stands moved out, owner 2026-11-13)
+	Outside(TEXT("APRON"), -80, 83, 242, 112, 0);
+	for (int32 n = 1; n <= 4; ++n) Outside(FString::Printf(TEXT("J-%d"), n), -80, 83, 242, 112, Plan.F2Y);
 
 	for (const FPlanDoor& D : Plan.Doors)
 	{
