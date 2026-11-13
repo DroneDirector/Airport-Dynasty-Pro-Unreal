@@ -69,6 +69,9 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       short loading note, or wait for the sharp tiles before putting you down)
 
 ## 3. The airport and buildings
+- [ ] **The player's villa** (shown to the owner 2026-11-13): bring in Art/Villa (Villa.glb, Nanite, materials redone in
+      Unreal) on the player's lot (town plan marker 8), furnish the bedroom wing and garage inside, the wardrobe and the
+      pet's things at home. See HANDOVER.md "The player's villa"
 - [ ] **The VELDRA car dealership in the home town** (owner approved, 2026-11-13): bring in Art/Dealership
       (VELDRA-dealership.glb, Nanite, materials redone in Unreal from its textures) on the car dealer's lot (town plan
       marker 3), with its full interior (lounge, toilets, offices, reception, staff-only door, workshop), the hero car

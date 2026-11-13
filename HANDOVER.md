@@ -64,6 +64,19 @@ builds it all; run with Blender's Python, `python dealer.py -- export`).
 - **Where it goes:** the car dealer's lot in the home town (marker 3 on the town plan, south of Main Street by the
   roundabout). Also on TODO.md.
 
+## The player's villa (2026-11-13, from the phone/cloud chat) — FOR THE PC CHAT TO BRING IN LATER
+
+Files in the PC's working copy, not committed yet (commit through LFS): **Art/Villa/** — Villa.blend (textures
+packed), Villa.glb (the house only), renders/ (garden view, drive view), villa.py (the Blender script; it uses
+Art/Dealership/lib.py and its textures). A one-storey modern villa for the player's lot at the end of its own
+cul-de-sac (town plan marker 8, glacier view north): an L-shape of a living wing (26 x 11 m, full-height glass to
+the north and west, a fireplace in a basalt wall, sofas, dining table with pendants, kitchen island), a bedroom wing
+(11 x 17 m) to the south-east and a double garage (9 x 9 m, two dark doors, an electric car charger on the wall) to
+the south-west; the entrance (tall dark pivot door in a larch-lined recess) in the courtyard between them under a
+canopy; charred dark timber boards, a basalt plinth, thin flat roofs with 1.6 m overhangs and warm larch soffits;
+a deck terrace to the north with a hot tub, outdoor sofa and fire pit; a long lit drive from the south; birches,
+lava rocks, lawn. Interiors of the bedroom wing and garage are still empty shells.
+
 ## Owner's ideas, noted but NOT on the to-do list (2026-11-12, from the airport-layout and town chat) — FOR THE PC CHAT TO KNOW
 
 The owner asked for these to be kept here, visible to every chat, and not added to TODO.md.
