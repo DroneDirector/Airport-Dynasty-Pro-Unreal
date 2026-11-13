@@ -38,7 +38,30 @@ road piece has them the moment it exists. Do the same:
   Content/Settings/Puddles.ini (like TruckLamps.ini), and the release keeps the owner's values as the default.
 - The owner tunes it himself IN THE GAME with that panel (no renders or screenshots needed); he tells you only what
   the sliders can't change.
-- Chapters in the code and a line in CODE-MAP.md as usual; goes out with the next release (not a small separate one).
+- **A "Rainy day" switch** (owner, 2026-11-13): the rain itself isn't simulated yet, but the owner wants to SEE the
+  puddles react. One click (in the weather/time menu and on the puddle panel) makes it a rainy day: wetness rises
+  over about a minute, puddles fill, ripples start, surfaces darken and shine; switching it off lets everything dry
+  slowly. When the real rain arrives, it drives the same wetness value instead.
+- Chapters in the code and a line in CODE-MAP.md as usual.
+- **Publish the puddles as their own release, straight away** (owner, 2026-11-13: he wants to see them wet and in the
+  rain before anything else). He was reminded of the "no small separate releases" rule and still wants this one out
+  first; remind him again when you publish it. Everything after it (below) goes back to collected releases.
+
+### Next after the puddles: runway edges, tyre marks and cracks — the same way (owner, 2026-11-13, about 6-11 h)
+All inside the ground materials (so every new piece gets them by itself), plus decals only for exact spots. Our own
+textures (crack masks, rubber streaks), as the licence rules require.
+
+- **Edges where asphalt/concrete meets grass:** improve the existing edge bands (0.17.7, "still being tuned"): break
+  the line up with world-space noise, a band of dirt, gravel and worn paint where they meet, thinner grass near the
+  edge. 2-4 h.
+- **Tyre marks:** the runway material draws the dark rubber build-up itself in the touchdown zones and along the
+  centre line (from the position along the runway), so every runway, also new ones, gets it; curved rubber streaks
+  where aircraft turn as decals along the taxi lines. 1-2 h. Then optional: a fresh skid-mark decal where an aircraft
+  actually touches down, fading over time. 1-2 h.
+- **Cracks:** cracks and black tar repair lines in the asphalt material, slab joints and hairline cracks in the
+  concrete apron, varied so they never repeat; a few big ones as decals where the owner wants them. 2-3 h.
+- Sliders for these on the same tuning panel (amount of rubber, cracks, edge wear), saved with the puddle settings.
+
 
 ## START HERE — where the work stopped (written 2026-11-13 00:10, for a NEW PC session)
 

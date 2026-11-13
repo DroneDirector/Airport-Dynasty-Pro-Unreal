@@ -6,7 +6,9 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 ## 0. Now, in this order (owner, 2026-11-11)
 - [ ] **NEXT, right after the t-shirt / wardrobe work** (owner, 2026-11-13; ahead of everything else below):
       **puddles and wet ground, the fast way** (material-based like The Matrix Awakens, about 4-7 h): see HANDOVER.md
-      "NEWEST: STOP AND READ". Replaces the older wetness-map plan.
+      "NEWEST: STOP AND READ". Replaces the older wetness-map plan. With a "Rainy day" switch so the owner can see
+      them react; **published as its own release straight away** (owner's wish; remind him of the rule).
+- [ ] Then the same way: runway/grass edges, tyre marks and cracks in the ground materials (about 6-11 h; HANDOVER.md).
 - [ ] **FIRST AFTER THE METAHUMAN WORK** (owner, 2026-11-12): finish the MetaHuman people COMPLETELY first (builder,
       uniforms, crowds, every role's actions). Then, as the very next job before anything else on this list: the
       **use outline**. Look at something you can use and HOLD E (use): a crisp amber outline (with a thin light edge)
