@@ -77,7 +77,7 @@ def cut(name, keep):
     # opens them into cracks
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0012)
     bmesh.ops.dissolve_degenerate(bm, dist=0.0008, edges=bm.edges)   # squashed triangles from the weld (they pinch the cloth: a dark dot)
-    bmesh.ops.holes_fill(bm, edges=bm.edges, sides=30)   # tiny holes in the body mesh would show as dark pin-pricks in the cloth
+    bmesh.ops.holes_fill(bm, edges=bm.edges, sides=6)   # (only pin-pricks: more capped the trouser hems shut)   # tiny holes in the body mesh would show as dark pin-pricks in the cloth
     # small islands (stray bits) go
     bm.verts.ensure_lookup_table(); seen = set(); islands = []
     for v in bm.verts:
@@ -299,7 +299,7 @@ leaf = neck_tube('CollarLeaf', LEAF_TH, leaf_rows, lambda th, z, surf: max(neck_
 join_into(shirt, [band, leaf])
 subdivide(shirt, 1)
 log('shirt out of the skin after smoothing at', keep_out(shirt, BODY_BVH, 0.006), 'points')
-thicken(shirt, 0.0012)
+pass   # no inner shell: posed, a doubled layer folded through the outer one (dark triangles); the material is two-sided
 dress(shirt, material('Fabric_cotton_shirt', (0.92, 0.93, 0.95), 0.6))
 SHIRT_BVH = bvh_of(shirt)
 
@@ -334,14 +334,27 @@ for v in bm.verts:
 bm.to_mesh(tr.data); bm.free()
 smooth(tr, 4, 0.3)
 smooth_where(tr, lambda c: 0.74 < c.z < 0.98 and abs(c.x) < 0.10 and c.y < -0.02, 16, 0.5)   # a plain front, no anatomy
+smooth_where(tr, lambda c: 0.60 < c.z < 0.80 and abs(c.x) < 0.07, 20, 0.5)   # the crotch and inner thighs: one smooth fall of cloth
 log('trousers pushed out at', keep_out(tr, BODY_BVH, 0.008), 'points')
 # the waistband: the top loop up 1 cm
 def top_loop(loops): return highest(loops)
 clean_edges(tr)
+# the hems fall straight down over the shoes to 4 cm off the ground (the ankle's skin, cut away with the feet, showed
+# between hem and shoe)
+for _ in range(2):
+    bm = bmesh.new(); bm.from_mesh(tr.data)
+    for loop in [l for l in boundary_loops(bm) if sum(v.co.z for v in l) / len(l) < 0.25]:
+        pass
+        lv = set(loop); es = [e for e in bm.edges if e.is_boundary and e.verts[0] in lv and e.verts[1] in lv]
+        r = bmesh.ops.extrude_edge_only(bm, edges=es)
+        nv = [g for g in r['geom'] if isinstance(g, bmesh.types.BMVert)]
+        cz = sum(v.co.z for v in loop) / len(loop)
+        for v in nv: v.co.z = cz - (cz - 0.04) / 2
+    bm.normal_update(); bm.to_mesh(tr.data); bm.free()
 extrude_loop(tr, top_loop, lambda c: c + Vector((0, 0, 0.012)))
 subdivide(tr, 1)
 log('trousers out of the skin at', keep_out(tr, BODY_BVH, 0.009), 'points, over the shirt at', keep_out(tr, SHIRT_BVH, 0.004), 'points')
-thicken(tr, 0.002)
+pass   # (as the shirt)
 dress(tr, material('Fabric_wool_suiting', (0.035, 0.045, 0.075), 0.75))
 TROUSERS_BVH = bvh_of(tr)
 
@@ -459,8 +472,16 @@ bm = bmesh.new(); bm.from_mesh(jk.data)
 def under_lapel(c):
     if c.y > -0.02 or c.z < 1.095 or c.z > GORGE - 0.004: return False
     return abs(c.x) < x_line(c.z) - 0.011 and abs(c.x) > 0.0   # (well inside the strip: the cloth removed never peeks out past its edge)
-bmesh.ops.delete(bm, geom=[f for f in bm.faces if under_lapel(f.calc_center_median())], context='FACES')
+bmesh.ops.delete(bm, geom=[f for f in bm.faces if all(under_lapel(v.co) for v in f.verts)], context='FACES')   # (whole faces under the strip only: no hole may reach past its edge)
 bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+# the jacket left under the strip's edge sinks away from it (3 mm deeper, over the hidden band): posed in the game it
+# poked up through the strip; with 7 mm between them it can't
+bm.normal_update()
+for v in bm.verts:
+    c = v.co
+    if c.y > -0.02 or c.z < 1.095 or c.z > GORGE - 0.002: continue
+    d_in = x_line(c.z) - abs(c.x)
+    if d_in > 0.0015: v.co -= v.normal * 0.003 * min(1.0, (d_in - 0.0015) / 0.003)
 bm.to_mesh(jk.data); bm.free()
 strips = []
 for side in (1, -1):
@@ -485,6 +506,8 @@ for side in (1, -1):
     o_ = bpy.data.objects.new('Lapel', me_); sc.collection.objects.link(o_); o_.data.uv_layers.new(name='UVMap')
     strips.append(o_)
 join_into(jk, strips)
+bm = bmesh.new(); bm.from_mesh(jk.data)
+bm.to_mesh(jk.data); bm.free()
 bm = bmesh.new(); bm.from_mesh(jk.data)
 bm.to_mesh(jk.data); bm.free()
 # the pockets: a welt on the left breast, flaps at the hips; and the two buttons (references: two-button jacket)
@@ -526,7 +549,8 @@ def patch(name, x, z, w, h, lift, n=6):
 details = [o for o in (patch('ChestWelt', 0.12, 1.30, 0.10, 0.022, 0.0025),
            side_patch('FlapL', math.radians(55), 0.95, 0.15, 0.05, 0.0025), side_patch('FlapR', -math.radians(55), 0.95, 0.15, 0.05, 0.0025)) if o]   # on the sides of the hips (owner)
 join_into(jk, details)
-thicken(jk, 0.003)
+smooth_where(jk, lambda c: c.y > 0.0 and c.z > NECK.z - 0.20 and abs(c.x) < 0.14, 10, 0.5)   # the back below the collar: no crumples (owner)
+pass   # (as the shirt: single-layer cloth, two-sided material)
 dress(jk, material('Fabric_wool_suiting', (0.035, 0.045, 0.075), 0.75))
 buttons = []
 for z in (1.07, 0.97):
@@ -606,7 +630,7 @@ dress(tie, material('Fabric_satin', (0.32, 0.03, 0.06), 0.35))
 # wider than the upper
 def shoe(side):
     pts = [CO[i] for i in range(len(CO)) if CO[i].z < 0.13 and CO[i].x * side > 0 and wsum(W[i], ('foot', 'toes')) > 0.3]
-    ys = [p.y for p in pts]; y_heel, y_toe = max(ys) + 0.010, min(ys) - 0.028   # front is -y; the toe 2.8 cm past the toes
+    ys = [p.y for p in pts]; y_heel, y_toe = max(ys) + 0.010, min(ys) - 0.016   # front is -y; the toe 1.6 cm past the toes
     cx = sum(p.x for p in pts) / len(pts)
     N, R = 26, 18
     bm = bmesh.new(); rings = []
@@ -616,16 +640,15 @@ def shoe(side):
         x0, x1 = min(p.x for p in band), max(p.x for p in band); zt = max(p.z for p in band)
         hw = (x1 - x0) / 2 + 0.007; xc = (x0 + x1) / 2
         # an oxford's line: heel counter 6.8 cm, rising to the lacing's throat (7.5 cm), the vamp falling to a 4 cm toe
-        top = 0.068 if t < 0.30 else lerp(0.068, 0.075, (t - 0.30) / 0.15) if t < 0.45 else lerp(0.075, 0.040, (t - 0.45) / 0.40)
+        top = 0.085 if t < 0.30 else lerp(0.085, 0.080, (t - 0.30) / 0.15) if t < 0.45 else lerp(0.080, 0.045, (t - 0.45) / 0.40)   # up round the ankle
         top = max(top, min(zt + 0.008, 0.09))
         # the toe rounds off over its last 18 %, the heel over its first 8 %
-        if t > 0.82: f = math.sqrt(max(0.0, 1 - ((t - 0.82) / 0.18) ** 2)); hw *= max(0.15, f); top = 0.018 + (top - 0.018) * max(0.25, f)
+        if t > 0.80: f = math.sqrt(max(0.0, 1 - ((t - 0.80) / 0.20) ** 2)); hw *= max(0.08, f); top = 0.016 + (top - 0.016) * max(0.12, f)   # a round toe closing smoothly (an ellipse in plan, no flat end)
         if t < 0.08: f = math.sqrt(max(0.0, 1 - ((0.08 - t) / 0.08) ** 2)); hw *= max(0.35, f)
         ring = []
         for j in range(R):
             a = 2 * math.pi * j / R
             base = 0.026 if t < 0.20 else lerp(0.026, 0.012, (t - 0.20) / 0.14)   # the heel, then the shank down to the sole
-            if t > 0.86: base += 0.008 * (t - 0.86) / 0.14                        # the toe springs up a little
             cap = 0.9985 if 0.78 < t < 0.80 else 1.0                                 # the toe cap's seam, a fine groove
             x = xc + hw * cap * math.cos(a); z = base + (top - base) * max(0.0, math.sin(a)) ** 0.7 * cap if math.sin(a) > 0 else base
             ring.append(bm.verts.new((x, y, z)))
@@ -636,25 +659,35 @@ def shoe(side):
     for ring in (rings[0], rings[-1]):
         c = bm.verts.new(sum((v.co for v in ring), Vector()) / R)
         for j in range(R): bm.faces.new((ring[j], ring[(j + 1) % R], c))
-    # the sole: the upper's outline 4 mm wider, from the ground to 1.2 cm
-    outline = [min(r, key=lambda v: v.co.z) for r in rings]
-    bot = []; topv = []
-    for k, r in enumerate(rings):
-        xs = [v.co.x for v in r]; y = r[0].co.y
-        for x in (min(xs) - 0.004, max(xs) + 0.004):
-            pass
-    soles = []
-    for k, r in enumerate(rings):
-        xs = [v.co.x for v in r]; y = r[0].co.y
-        soles.append(((min(xs) - 0.004, y), (max(xs) + 0.004, y)))
-    lo = [bm.verts.new((a[0], a[1], 0.0)) for a, b in soles] + [bm.verts.new((b[0], b[1], 0.0)) for a, b in reversed(soles)]
-    hi = [bm.verts.new((v.co.x, v.co.y, 0.026 if (v.co.y - y_heel) / (y_toe - y_heel) < 0.20 else 0.012)) for v in lo]   # sole + heel block
-    n = len(lo)
-    for j in range(n): bm.faces.new((lo[j], lo[(j + 1) % n], hi[(j + 1) % n], hi[j]))
-    bm.faces.new(lo[::-1]); bm.faces.new(hi)
+    RING = [(min(v.co.x for v in r), max(v.co.x for v in r), r[0].co.y) for r in rings]   # (kept: the bmesh is freed below)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     me = bpy.data.meshes.new('Shoe'); bm.to_mesh(me); bm.free()
     o = bpy.data.objects.new('Shoe', me); sc.collection.objects.link(o)
+    subdivide(o, 2)                                  # the upper smooth (the sole stays crisp, made apart)
+    # the sole: the upper's outline 3 mm wider (its width smoothed along the foot, so the edge is an even curve), a strip
+    # of quads from heel to toe, flat underneath, its top following the heel block and the shank (owner: even lines)
+    xl = [r[0] - 0.003 for r in RING]; xr = [r[1] + 0.003 for r in RING]
+    for _ in range(6):
+        xl = [xl[0]] + [(xl[i - 1] + 2 * xl[i] + xl[i + 1]) / 4 for i in range(1, len(xl) - 1)] + [xl[-1]]
+        xr = [xr[0]] + [(xr[i - 1] + 2 * xr[i] + xr[i + 1]) / 4 for i in range(1, len(xr) - 1)] + [xr[-1]]
+    sb = bmesh.new(); M_ = 6; grid_lo = []; grid_hi = []
+    for k, r in enumerate(RING):
+        t = k / N; y = r[2]
+        ztop = 0.026 if t < 0.20 else lerp(0.026, 0.012, (t - 0.20) / 0.14)
+        grid_lo.append([sb.verts.new((lerp(xl[k], xr[k], m / M_), y, 0.0)) for m in range(M_ + 1)])
+        grid_hi.append([sb.verts.new((lerp(xl[k], xr[k], m / M_), y, ztop)) for m in range(M_ + 1)])
+    for k in range(N):
+        for m in range(M_):
+            sb.faces.new((grid_lo[k][m + 1], grid_lo[k][m], grid_lo[k + 1][m], grid_lo[k + 1][m + 1]))
+            sb.faces.new((grid_hi[k][m], grid_hi[k][m + 1], grid_hi[k + 1][m + 1], grid_hi[k + 1][m]))
+        for m in (0, M_):
+            sb.faces.new((grid_lo[k][m], grid_hi[k][m], grid_hi[k + 1][m], grid_lo[k + 1][m]))
+    for k in (0, N):
+        for m in range(M_): sb.faces.new((grid_lo[k][m], grid_lo[k][m + 1], grid_hi[k][m + 1], grid_hi[k][m]))
+    bmesh.ops.recalc_face_normals(sb, faces=sb.faces)
+    sme = bpy.data.meshes.new('Sole'); sb.to_mesh(sme); sb.free()
+    so = bpy.data.objects.new('Sole', sme); sc.collection.objects.link(so)
+    join_into(o, [so])
     # the laces: five across the instep, over the lacing's throat
     laces = []
     for k in range(5):
@@ -671,7 +704,6 @@ shoes = [shoe(1), shoe(-1)]
 bpy.ops.object.select_all(action='DESELECT')
 for o in shoes: o.select_set(True)
 bpy.context.view_layer.objects.active = shoes[0]; bpy.ops.object.join(); sh = bpy.context.object; sh.name = 'Shoes'
-subdivide(sh, 2)
 log('shoes off the foot at', keep_out(sh, BODY_BVH, 0.004), 'points')
 dress(sh, material('Fabric_leather', (0.02, 0.018, 0.016), 0.35))
 
