@@ -1,4 +1,4 @@
-/* The in-game phone, its look taken from the game itself (scoped to .adp). */
+/* The in-game phone and computer: their look taken from the game itself (scoped to .adp), then the website's own frames. */
 .adp {
   --bg: #06111F;
   --bg-2: #0A182B;
@@ -457,13 +457,29 @@
 .adp .flight-card .fc-mini > span { min-width: max-content; }
 /* the flipping digits inside a number are inline (they were stacked by the label rule above) */
 .adp .flight-card.mini .fc-mini b span:not(.fc-cs) { display: inline !important; flex-direction: row; line-height: inherit; }
-.adp { font: 400 14px/1.45 'Inter', 'AD Inter', system-ui, sans-serif; font-feature-settings: 'tnum' 1, 'cv11' 1, 'ss01' 1; -webkit-font-smoothing: antialiased; user-select: none; color: var(--ink); text-align: left; }
-.adp h3 { font: 600 13px/1.3 'Inter', 'AD Inter', sans-serif; color: var(--ink-2); margin: 18px 0 8px; text-transform: none; letter-spacing: 0; }
-.adp h4 { font: 600 15px/1.3 'Inter', 'AD Inter', sans-serif; text-transform: none; letter-spacing: 0; }
-.adp small { font-size: 12px; color: var(--ink-2); }
-.adp input, .adp select { font: inherit; }
-
-/* more of the game's phone and laptop look */
+/* the start menu and search */
+.adp .lb-search { width: 200px; height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.07); color: #EAF2FA; font: 13px Inter, sans-serif; }
+.adp .lb-search::placeholder { color: rgba(234,242,250,.55); }
+.adp .ph-search { position: relative; z-index: 2; display: block; width: calc(100% - 28px); margin: 10px 14px 0; }
+.adp .lap-start, .adp .lap-sr { position: absolute; left: 10px; bottom: 10px; z-index: 20; width: min(440px, calc(100% - 20px)); max-height: calc(100% - 20px); overflow: auto; padding: 14px; border-radius: 16px; background: rgba(13,22,36,.96); border: 1px solid rgba(255,255,255,.12); box-shadow: 0 24px 60px rgba(0,0,0,.55); color: #EAF2FA; animation: lapWin .2s ease-out; }
+.adp .lap-sr { left: 62px; display: flex; flex-direction: column; gap: 2px; }
+.adp .ls-h b { display: block; font-size: 15px; } .adp .ls-h small { color: rgba(234,242,250,.6); font-size: 12px; }
+.adp .ls-sub, .adp .sr-sub { margin: 12px 0 6px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: rgba(234,242,250,.55); }
+.adp .ls-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
+.adp .ls-grid button { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 8px 4px; border: 0; border-radius: 10px; background: none; color: inherit; cursor: pointer; } .adp .ls-grid button:hover { background: rgba(255,255,255,.07); }
+.adp .ls-grid span, .adp .ls-f span, .adp .sr-ic { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; background: var(--c, #3FD0E8); color: #fff; } .adp .ls-grid .ic, .adp .ls-f .ic, .adp .sr-ic .ic { width: 20px; height: 20px; }
+.adp .ls-grid b { font-size: 11.5px; font-weight: 600; text-align: center; }
+.adp .ls-in { margin-top: 6px; padding: 6px; border-radius: 12px; background: rgba(255,255,255,.05); }
+.adp .ls-folders { display: flex; flex-direction: column; gap: 2px; }
+.adp .ls-f { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border: 0; border-radius: 10px; background: none; color: inherit; text-align: left; cursor: pointer; } .adp .ls-f:hover, .adp .ls-f.on { background: rgba(255,255,255,.07); }
+.adp .ls-f span { width: 32px; height: 32px; } .adp .ls-f b { flex: 1; font-size: 13px; } .adp .ls-f small { color: rgba(234,242,250,.55); font-size: 11.5px; }
+.adp .ls-foot { display: flex; justify-content: flex-end; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.1); }
+.adp .ls-foot button { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; color: inherit; font: 13px Inter, sans-serif; cursor: pointer; }
+.adp .lap-sr button { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border: 0; border-radius: 10px; background: none; color: inherit; text-align: left; cursor: pointer; } .adp .lap-sr button:hover { background: rgba(255,255,255,.07); }
+.adp .lap-sr img { width: 38px; height: 38px; border-radius: 8px; object-fit: cover; } .adp .lap-sr b { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .adp .lap-sr small { color: rgba(234,242,250,.55); font-size: 11.5px; }
+.adp .ph-os .lap-start, .adp .ph-os .lap-sr { left: 10px; top: 54px; bottom: auto; }
+/* each device's own settings */
+.adp .lap-os.wall-own .ld-wall { background: var(--lap-wall); }
 .adp .pa-art { width: 100%; height: 60px; }
 .adp .pa-art .ac-art { height: 100%; }
 .adp .pc-ic { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--panel-3); color: var(--cyan); }
@@ -499,18 +515,74 @@
 .adp .lm-foot { display: flex; flex-wrap: wrap; gap: 6px; }
 @media (max-width: 900px) { .adp .lm.lm3 { grid-template-columns: 130px 1fr; } .adp .lm.lm3 .lm-view { display: none; } .adp .lm.lm3.lm-open .lm-list { display: none; } .adp .lm.lm3.lm-open .lm-view { display: flex; } }
 .adp .ph-os .lm.lm3 { grid-template-columns: 1fr; } .adp .ph-os .lm.lm3 .lm-boxes { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 6px; } .adp .ph-os .lm-box { flex: none; }
-/* ── the website's own: the phone at a fixed size, scaled to fit its place, and a few simple app pages ── */
+/* ── the website's own: the devices at a fixed size, scaled to fit their place ── */
 .adp { position: relative; margin: 0 auto; }
-.adp .adp-scale { width: 401px; height: 860px; transform-origin: 0 0; }
+.adp .adp-scale { transform-origin: 0 0; }
 .adp .ph-frame { height: 860px; width: 401px; max-width: none; aspect-ratio: auto; }
 .adp .ph-side { cursor: default; }
+
+/* the phone's buttons along the bottom: back, home, and the open apps */
+.adp .ph-os .adp-nav { position: absolute; left: 0; right: 0; bottom: 0; height: 34px; z-index: 7; display: flex; justify-content: space-around; align-items: center; padding: 0 46px; background: linear-gradient(0deg, rgba(0,0,0,.55), transparent); }
+.adp .ph-os .adp-nav button { width: 52px; height: 30px; display: grid; place-items: center; color: rgba(255,255,255,.9); border-radius: 15px; }
+.adp .ph-os .adp-nav button:hover { background: rgba(255,255,255,.12); }
+.adp .ph-os .adp-nav svg { width: 18px; height: 18px; }
+.adp .ph-os .adp-nav [data-act=nav-back] svg { fill: currentColor; stroke: none; }
+.adp .ph-os .adp-nav [data-act=nav-home] svg circle { stroke-width: 2; }
+.adp .ph-os .ph-dock { bottom: 44px; }
+.adp .ph-os .lap-win { bottom: 34px; }
+.adp .ph-os .pm-send, .adp .ph-os .pph-tabs { padding-bottom: 10px; }
+.adp .ph-os .pstore { padding-bottom: 12px; }
+
+/* the open apps: cards side by side, tap one to go back to it, close it with ✕ or swipe it up */
+.adp .adp-rec { position: absolute; inset: 0 0 34px; z-index: 6; background: rgba(4,8,14,.82); backdrop-filter: blur(10px); display: flex; flex-direction: column; animation: adpFade .2s ease; }
+@keyframes adpFade { from { opacity: 0; } }
+.adp .adp-rec-h { display: flex; justify-content: space-between; align-items: center; padding: 56px 18px 6px; color: #fff; font-weight: 600; }
+.adp .adp-rec-h button { font-size: 12.5px; color: var(--cyan); }
+.adp .adp-rec-row { flex: 1; display: flex; gap: 16px; overflow-x: auto; padding: 14px 40px 26px; scroll-snap-type: x mandatory; align-items: center; scrollbar-width: none; }
+.adp .adp-card { flex: 0 0 74%; height: 92%; scroll-snap-align: center; display: flex; flex-direction: column; gap: 8px; }
+.adp .adp-card-h { display: flex; align-items: center; gap: 8px; color: #fff; font-size: 13px; font-weight: 600; }
+.adp .adp-card-h .lw-sp { flex: 1; }
+.adp .adp-card-h button { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,.14); }
+.adp .adp-card-h button svg { width: 14px; height: 14px; }
+.adp .adp-card-b { position: relative; flex: 1; border-radius: 18px; overflow: hidden; background: var(--bg); border: 1px solid rgba(255,255,255,.14); cursor: pointer; box-shadow: 0 20px 50px rgba(0,0,0,.5); }
+.adp .adp-card-b > div { position: absolute; left: 0; top: 0; width: 377px; height: 760px; transform: scale(.74); transform-origin: 0 0; pointer-events: none; }
+.adp .adp-card-b > div .lap-win { position: absolute; inset: 0; display: flex; }
+.adp .adp-rec-none { margin: auto; color: rgba(255,255,255,.6); font-size: 14px; }
+
+/* the computer: windows of their own, to drag, minimise, maximise and close */
+.adp .lap-os.adp-pc .lap-win { inset: auto; animation: lapWin .3s cubic-bezier(.22,.8,.24,1); }
+.adp .lap-os.adp-pc .lap-win.adp-max { left: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important; border-radius: 0; }
+.adp .lap-os.adp-pc .lap-win.adp-front { box-shadow: 0 30px 80px rgba(0,0,0,.65), 0 0 0 1px rgba(63,208,232,.35); }
+.adp .lap-os.adp-pc .lap-win-h { cursor: grab; user-select: none; }
+.adp .lap-os.adp-pc .lap-win-h:active { cursor: grabbing; }
+.adp .lap-os.adp-pc .lw-x.adp-min:hover, .adp .lap-os.adp-pc .lw-x.adp-mx:hover { background: rgba(255,255,255,.1); }
+.adp .lap-os.adp-pc .lb-app.adp-run::after { content: ''; position: absolute; bottom: 3px; left: 50%; width: 5px; height: 3px; margin-left: -2.5px; border-radius: 3px; background: var(--c); opacity: .7; }
+.adp .lap-os.adp-pc .lb-app.on::after { width: 14px; margin-left: -7px; opacity: 1; }
+
+/* the screens around the computer: a PC monitor and a super ultrawide */
+.adp-mon { position: relative; }
+.adp-mon__bez { position: relative; padding: 12px 12px 18px; border-radius: 16px; background: linear-gradient(180deg, #1b1f26, #0b0d11); box-shadow: 0 0 0 1px #2b313b inset, 0 40px 90px -20px rgba(0,0,0,.9); }
+.adp-mon__bez::after { content: ''; position: absolute; left: 50%; bottom: 6px; width: 46px; height: 4px; margin-left: -23px; border-radius: 2px; background: #252b35; }
+.adp-mon__scr { position: relative; overflow: hidden; border-radius: 4px; background: #000; }
+.adp-mon__stand { width: 22%; height: 60px; margin: 0 auto; background: linear-gradient(90deg, #12151a, #2a3039 50%, #12151a); clip-path: polygon(30% 0, 70% 0, 82% 100%, 18% 100%); }
+.adp-mon__foot { width: 36%; height: 12px; margin: 0 auto; border-radius: 6px 6px 3px 3px; background: linear-gradient(180deg, #2a3039, #12151a); }
+.adp-mon--wide .adp-mon__bez { border-radius: 22px 22px 14px 14px; padding: 10px 10px 16px; }
+.adp-mon--wide .adp-mon__stand { width: 9%; height: 46px; }
+.adp-mon--wide .adp-mon__foot { width: 20%; }
+.adp-mon__scroll { overflow-x: auto; scrollbar-width: thin; }
+
+/* a few simple app pages */
 .adp .adp-info { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 40px 18px; }
 .adp .adp-info > span { width: 64px; height: 64px; border-radius: 18px; display: grid; place-items: center; background: var(--panel-3); color: var(--cyan); }
 .adp .adp-info > span svg { width: 32px; height: 32px; }
-.adp .adp-info b { font-size: 18px; } .adp .adp-info p { color: var(--ink-2); font-size: 13.5px; line-height: 1.5; }
+.adp .adp-info b { font-size: 18px; } .adp .adp-info p { color: var(--ink-2); font-size: 13.5px; line-height: 1.5; max-width: 420px; }
 .adp .adp-mk { display: flex; flex-direction: column; gap: 8px; }
 .adp .adp-mk-r { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--line); }
 .adp .adp-mk-r > span:nth-child(2) { flex: 1; display: flex; flex-direction: column; } .adp .adp-mk-r b { font-size: 14px; }
 .adp .adp-mk-v { display: flex; flex-direction: column; align-items: flex-end; }
-.adp .adp-ph { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; } .adp .adp-ph img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; display: block; }
+.adp .adp-ph { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; } .adp .adp-ph img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; display: block; }
 .adp .ph-os .ld-time { display: block; margin-bottom: 4px; }
+.adp .ld-widget .ld-time { display: block; margin-bottom: 4px; }
+.adp .adp-pc .lap-app-msgs, .adp .adp-pc .lap-app-call, .adp .adp-pc .lap-app-store { padding: 0; }
+.adp .adp-pc .adp-in { height: 100%; }
+.adp .adp-pc .lap-start { bottom: 64px; }

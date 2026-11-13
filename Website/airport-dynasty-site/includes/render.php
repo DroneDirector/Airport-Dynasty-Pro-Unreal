@@ -220,9 +220,19 @@ function ads_r_money($s) {
     // The phone: a home screen with the game's apps.
     echo '<div class="ad-money__col" data-reveal style="--d:1"><h3 class="ad-money__h3">' . esc_html($s['dev_title']) . '</h3><p class="ad-money__p">' . esc_html($s['dev_text']) . '</p><div class="ad-money__dev">';
     $photos = array_map('ads_img_url', [ads_img('dealer_ext.jpg'), ads_img('dealer_int.jpg'), ads_img('villa_garden.jpg'), ads_img('villa_drive.jpg'), ads_img('town.jpg'), ads_img('overview.jpg')]);
-    // The phone from the game (game-phone.js builds it here): its home screen, apps and colours, to tap through.
-    echo '<div class="ad-phonebox" data-game-phone data-photos="' . esc_attr(wp_json_encode($photos)) . '"></div>' . ads_points($s['dev_points']) . '</div></div>';
+    // The phone from the game (game-devices.js builds it here): its home screen, apps and colours, to tap through.
+    echo '<figure class="ad-phonebox"><div data-device="phone" data-photos="' . esc_attr(wp_json_encode($photos)) . '"></div><figcaption class="ad-devcap">' . esc_html($s['dev_cap'] ?? '') . '</figcaption></figure>' . ads_points($s['dev_points']) . '</div></div>';
     echo '</div></div></section>';
+}
+
+// #endregion
+
+// #region ── Your computer: the game's computer on a PC monitor and, across the whole screen, on a super ultrawide ──
+
+function ads_r_desk($s) {
+    echo '<section class="ad ad-desk" id="computer"><div class="ad-wrap">' . ads_head($s) . '<div class="ad-desk__grid"><div class="ad-desk__copy" data-reveal>' . ads_points($s['points']) . '<p class="ad-desk__how">' . esc_html($s['howto']) . '</p></div>';
+    echo '<figure class="ad-desk__pc" data-reveal style="--d:1"><div data-device="pc" data-open="mail,bank"></div><figcaption class="ad-devcap">' . esc_html($s['cap_pc']) . '</figcaption></figure></div></div>';
+    echo '<figure class="ad-desk__wide" data-reveal><div data-device="wide" data-open="bank,mail,msgs,calendar"></div><figcaption class="ad-devcap">' . esc_html($s['cap_wide']) . '</figcaption></figure></section>';
 }
 
 // #endregion

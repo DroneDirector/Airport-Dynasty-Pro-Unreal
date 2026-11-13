@@ -36,7 +36,11 @@ function ads_widget_defs() {
             ['eyebrow' => ['text', 'Small line above the title', $c['money']['eyebrow']], 'title' => $txt('Title', $c['money']['title']), 'text' => $txt('Text', $c['money']['text']),
              'ledger' => $txt('Airport account: one row per line, + or -|WHAT', $c['money']['ledger']), 'points' => $txt('Costs (one per line; end with …and much more)', $c['money']['points']),
              'dev_title' => ['text', 'Phone and computer: title', $c['money']['dev_title']], 'dev_text' => $txt('Phone and computer: text', $c['money']['dev_text']),
-             'dev_points' => $txt('Phone and computer: points (end with …and much more)', $c['money']['dev_points'])], []],
+             'dev_points' => $txt('Phone and computer: points (end with …and much more)', $c['money']['dev_points']), 'dev_cap' => $txt('Text under the phone', $c['money']['dev_cap'])], []],
+        'desk'      => ['Your computer (PC and super ultrawide)', 'eicon-device-desktop', 'ads_r_desk',
+            ['eyebrow' => ['text', 'Small line above the title', $c['desk']['eyebrow']], 'title' => $txt('Title', $c['desk']['title']), 'text' => $txt('Text', $c['desk']['text']),
+             'points' => $txt('Points (one per line; end with …and much more)', $c['desk']['points']), 'howto' => $txt('How to try it', $c['desk']['howto']),
+             'cap_pc' => $txt('Text under the PC monitor', $c['desk']['cap_pc']), 'cap_wide' => $txt('Text under the super ultrawide', $c['desk']['cap_wide'])], []],
         'passes'    => ['Four ways to play', 'eicon-info-box', 'ads_r_passes',
             ['eyebrow' => ['text', 'Small line above the title', $c['passes']['eyebrow']], 'title' => $txt('Title', $c['passes']['title'])],
             ['items' => ['Passes', ['name' => ['text', 'Name', ''], 'image' => ['media', 'Picture', ''],
@@ -60,7 +64,7 @@ function ads_widget_defs() {
 }
 
 function ads_widget_classes() {
-    return ['ADS_W_Nav', 'ADS_W_Hero', 'ADS_W_Ticker', 'ADS_W_Stats', 'ADS_W_Video', 'ADS_W_Buildings', 'ADS_W_Holo', 'ADS_W_Money', 'ADS_W_Passes', 'ADS_W_Gallery', 'ADS_W_Tech', 'ADS_W_Route', 'ADS_W_Buy', 'ADS_W_Share', 'ADS_W_Footer'];
+    return ['ADS_W_Nav', 'ADS_W_Hero', 'ADS_W_Ticker', 'ADS_W_Stats', 'ADS_W_Video', 'ADS_W_Buildings', 'ADS_W_Holo', 'ADS_W_Money', 'ADS_W_Desk', 'ADS_W_Passes', 'ADS_W_Gallery', 'ADS_W_Tech', 'ADS_W_Route', 'ADS_W_Buy', 'ADS_W_Share', 'ADS_W_Footer'];
 }
 
 abstract class ADS_Base extends Widget_Base {
@@ -117,6 +121,7 @@ class ADS_W_Video extends ADS_Base { protected $key = 'video'; }
 class ADS_W_Buildings extends ADS_Base { protected $key = 'buildings'; }
 class ADS_W_Holo extends ADS_Base { protected $key = 'holo'; }
 class ADS_W_Money extends ADS_Base { protected $key = 'money'; }
+class ADS_W_Desk extends ADS_Base { protected $key = 'desk'; }
 class ADS_W_Passes extends ADS_Base { protected $key = 'passes'; }
 class ADS_W_Gallery extends ADS_Base { protected $key = 'gallery'; }
 class ADS_W_Tech extends ADS_Base { protected $key = 'tech'; }

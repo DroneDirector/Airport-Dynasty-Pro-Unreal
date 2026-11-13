@@ -71,8 +71,18 @@ function ads_content() {
             'ledger'  => "+|Airline and landing fees\n+|Shop and restaurant rent\n+|Parking and car rental\n-|Staff salaries\n-|Aircraft maintenance\n-|Jet fuel\n-|Goods for the shops and restaurants\n-|Food, drinks and supplies for the cabins",
             'points'  => "Pay every salary, from the pilots to the cleaners\nKeep your aircraft maintained and safe to fly\nBuy jet fuel, and goods to keep the terminal’s shops and restaurants stocked\nLoad the cabins with food, drinks and supplies before every flight\n…and much more",
             'dev_title' => 'Your own phone and computer',
-            'dev_text'  => 'In the game you carry a smartphone and work at a computer, each with a fully built operating system and its own apps. This is the phone from the game: tap the apps and try it.',
+            'dev_text'  => 'In the game you carry a smartphone and work at a computer, each with a fully built operating system and its own apps. This is the phone from the game: tap the apps and try it. The computer is just below.',
             'dev_points' => "Two bank accounts: your own, where your salary comes in, and the airport’s, with every in and out\nMail and messages from your staff, the airlines and the town\nHire staff, order supplies and plan timetables from your desk or your pocket\nThe news, and a map of the whole world\n…and much more",
+            'dev_cap'   => 'The actual in-game phone. Tap the apps, and use the buttons along the bottom to go back, go home or see the apps you have open.',
+        ],
+        'desk' => [
+            'eyebrow' => 'Your office',
+            'title'   => 'Your computer. <em>Every window at once.</em>',
+            'text'    => 'On the desk in your office stands your computer. It runs the same apps as your phone, with room for many windows side by side, and what you do on one is on the other.',
+            'points'  => "Mail from the airlines, your staff, the bank and your family, with folders, stars and replies\nA calendar for the days you need to remember: on the day, the game reminds you\nThe bank: the airport’s account with every in and out, loans, and accounts of your own for savings or a maintenance reserve\nMarkets for jet fuel, spare parts, and food and drink, and the aircraft market\nYour photos, videos and documents, the ranking and your career\nA web browser with real web pages, right inside the game\n…and much more",
+            'howto'   => 'Try it: drag a window by its title bar, use the buttons in its corner to minimise, maximise or close it, and click its icon in the taskbar to bring it back.',
+            'cap_pc'   => 'The actual in-game computer, on a PC monitor.',
+            'cap_wide' => 'The actual in-game computer, on a super ultrawide monitor: every window side by side.',
         ],
         // #endregion
         // #region ── Four ways to play (features) ──

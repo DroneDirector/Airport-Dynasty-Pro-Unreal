@@ -224,7 +224,15 @@ body.elementor-editor-active .ad-nav { position: relative; }
 .ad-money__h3 { margin: 0 !important; font: 800 36px/1.05 var(--ad-head); text-transform: uppercase; color: var(--ad-sign); }
 .ad-money__p { margin: 12px 0 24px !important; color: var(--ad-dim); font-size: 17px; line-height: 1.55; }
 .ad-money__dev { display: grid; grid-template-columns: 300px 1fr; gap: 28px; align-items: start; }
-.ad-phonebox { width: 300px; max-width: 100%; }
+.ad-phonebox { width: 300px; max-width: 100%; margin: 0; }
+.ad-devcap { margin: 14px 0 0 !important; text-align: center; font: 600 12px/1.45 var(--ad-body); letter-spacing: .14em; text-transform: uppercase; color: var(--ad-sign); }
+/* ---------------------------------------------------------------- your computer: a PC monitor, and a super ultrawide across the whole screen */
+.ad-desk { padding: 60px 0 110px; overflow: hidden; overflow-x: clip; }
+.ad-desk__grid { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.4fr); gap: 50px; align-items: center; margin-top: 46px; }
+.ad-desk__copy { min-width: 0; }
+.ad-desk__how { margin: 18px 0 0 !important; padding: 14px 16px; border-radius: 12px; border: 1px dashed rgba(255, 204, 0, .4); color: var(--ad-dim); font-size: 15px; line-height: 1.5; }
+.ad-desk__pc { margin: 0; min-width: 0; }
+.ad-desk__wide { margin: 70px 0 0 calc(50% - 50vw); width: 100vw; padding: 0 14px; box-sizing: border-box; }
 
 /* ---------------------------------------------------------------- four ways to play: tabs + view */
 .ad-play { padding: 110px 0; }
@@ -369,6 +377,7 @@ body.elementor-editor-active .ad-nav { position: relative; }
   .ad-play__panel { grid-template-columns: 1fr; } .ad-play__tabs { flex-direction: row; overflow-x: auto; border-right: 0; } .ad-play__tab { flex: 1 0 auto; padding: 18px 20px; border-bottom: 0; } .ad-play__name { font-size: 22px; }
   .ad-launch { grid-template-columns: 1fr; }
   .ad-money__grid { grid-template-columns: 1fr; }
+  .ad-desk__grid { grid-template-columns: 1fr; }
   .ad-tech__extras { grid-template-columns: repeat(2, 1fr); }
   .ad-stats__in { grid-template-columns: repeat(2, 1fr); }
   .ad-route__stops { grid-template-columns: repeat(2, 1fr); }
