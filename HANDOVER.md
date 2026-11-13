@@ -2,6 +2,46 @@
 
 Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md (where everything is) first.
 
+## START HERE — where the work stopped (written 2026-11-13 00:10, for a NEW PC session)
+
+The previous PC session can't be found any more. Its last work, in order:
+
+- **0.17.7 was built AND published** (GitHub release pc-unreal-v0.17.7, 2026-11-12 22:16), but its source was
+  **never committed**. It's sitting uncommitted in the PC's working copy. FIRST JOB: `git pull` (this HANDOVER
+  change and the hairdresser note come down cleanly), then commit and push everything from 0.17.7 (signed
+  DroneDirector <simon@dronedirector.fo>, big files through LFS; push with GitHub Desktop if the CLI's LFS push
+  fails). Uncommitted files found on the PC (changed after the last commit, 2026-11-12 15:31):
+  - Source: new **CharacterCreate.cpp/.h** (the new-career scene) and **Wardrobe.cpp/.h** (the office wardrobe);
+    changed ADPHUD.cpp/.h (the biggest change), ADPBridge.cpp/.h, ADPWalker.cpp/.h (your MetaHuman as the walking
+    body), Airfield.cpp/.h (graded ground under the pavement, edge bands), FireTruck.cpp (getting in and out),
+    BabylonModel.cpp/.h, Offices.cpp, AirTraffic.cpp, WindSocks.cpp, AirportDynastyPro.Build.cs
+  - Config/DefaultGame.ini, pc-version.json (0.17.7), release-notes-pc/0.17.7.md
+  - Tools: make_no_smoking_sign.py, set_no_smoking_sign.py, set_edge_bands.py, make_edge_textures.py,
+    make_wardrobe_pdf.py, make_fabrics.py, render_fabrics.py, export_body_meshes.py, set_wardrobe.py,
+    retarget_player_anims.py, make_metahumans.py, make_metahumans_all.sh, make_holo_terminal_map.py,
+    make_neon_material.py, make_todo_pdf.py
+  - docs: Wardrobe-Plan.md and .pdf, AirportDynastyPro-ToDo.pdf (also a copy at the top of the repo),
+    terminal-holomap.png, creator-transition-she/he.gif, new-game-who-are-you(.gif, -small.gif)
+  - Babylon edition: capacitor.config.json, game/app.config.json, game/capacitor.config.json (changed 21:38;
+    check what changed before committing)
+  - plus any new Content/ assets from that evening (wardrobe, neon room, fabrics, edge textures, player body):
+    check `git status`
+  - Leave out: cesium-request-cache.sqlite, the "Selling Airport Dynasty Pro on PC" PDF at the top (the owner's
+    own reference, not game files) unless the owner says otherwise.
+- **What 0.17.7 contains** (from release-notes-pc/0.17.7.md): the new-career scene (neon room, she/he choice, steps:
+  looks, pet, partner, difficulty, start), the airline form trimmed, neon loading screen, no demo content, starting
+  money by difficulty, crew always bought, one aircraft until crewed, autosave every 10 min, the office wardrobe,
+  your MetaHuman as your walking body, the fire trucks' full getting-in pass, grass distance slider, no-smoking
+  stickers, the graded airfield ground with soft concrete/asphalt edges (still being tuned), people builder fixes.
+- **Still in progress / next** (TODO.md section 0): finish the MetaHuman people COMPLETELY (builder, uniforms per
+  docs/Wardrobe-Plan.md, crowds, every role's actions), then the use outline (hold E). The airfield's edge bands
+  were "still being tuned". The new-career panels "Your looks / pet / partner" are placeholders.
+- **The owner works from his phone too.** Start this session with Remote Control on (`claude --remote-control
+  "Airport Dynasty Pro"`, or `/remote-control` inside a running session) so he can reach it in the Claude app's
+  Code tab. Keep this file up to date at the end of every piece of work, so the next session can always pick up.
+- Notes from the phone/cloud chat since then: the hairdresser idea (below); the town and road maps, the dealership
+  model (in progress in the cloud chat, Blender files to come); none of that touches game code yet.
+
 ## Owner's ideas, noted but NOT on the to-do list (2026-11-12, from the airport-layout and town chat) — FOR THE PC CHAT TO KNOW
 
 The owner asked for these to be kept here, visible to every chat, and not added to TODO.md.
