@@ -142,6 +142,8 @@ When he does, the build is done by the PC chat, after it has finished building a
   ground, painted wholesale by rain and locally by the hose's water, read by the asphalt, concrete and paving
   materials: darker and glossier with wetness, puddles where it is wettest and the surface lowest; drying over time).
   The game has no rain puddles yet either: this is built once and used by both.
+  **Changed 2026-11-13 (owner):** built the fast way instead of a wetness map: puddles inside the ground materials
+  with one global wetness value, and the hose wetting the ground with a fading wet/puddle decal. See HANDOVER.md.
 - **The ground gets wet:** where the water lands the ground darkens and shines wet, puddles forming in low spots; it
   stays wet **a few minutes** after you stop, drying from the edges in. How wet, how far and how long depend on how
   long you sprayed (a quick rinse dries in a minute or two, a full wash leaves it wet for several); sun and wind dry it

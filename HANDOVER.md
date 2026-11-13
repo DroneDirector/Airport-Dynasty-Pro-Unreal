@@ -2,6 +2,44 @@
 
 Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md (where everything is) first.
 
+## NEWEST: STOP AND READ (2026-11-13 12:15, from the owner via the phone chat) — puddles come next
+
+The PC session lost its sign-in at 10:16 today (the game's last test run, 0.17.8 with -UIShot -UIWardrobe, closed
+at 10:16:53; nothing since). When you're back:
+
+1. **Commit first.** Everything uncommitted on the PC (0.17.7 below, if still not done, and this morning's 0.17.8
+   work) is committed and pushed before anything else, signed DroneDirector, big files through LFS.
+2. **If you were working on the t-shirt (the wardrobe / clothing), finish that first.** Otherwise stop what you were
+   doing (note where you stopped in TODO.md).
+3. **Then build the puddles, the new way below.** This REPLACES the earlier plan (a ground wetness map painted by
+   rain and the hose, docs/fire-station/SPEC.md "Puddles and wet ground"), which would take far longer. The owner
+   agreed this one: about 4-7 hours.
+
+### Puddles and wet ground, the fast way (owner, 2026-11-13) — like The Matrix Awakens / City Sample
+In the Matrix Awakens city nobody placed puddles: they are part of the road materials' procedural texturing, so every
+road piece has them the moment it exists. Do the same:
+
+- **A puddle material function** (MF_Puddles) added to the apron, taxiway, runway, road, car-park and paving
+  materials: puddles in the low spots (world-space noise mask x the surface's height/normal), only on flat, up-facing
+  ground, a darker wet rim around each, a thin glossy water layer (very low roughness, flat normal) so Lumen gives
+  real reflections of the sky, lights and aircraft. Every snap-together piece placed at run time gets them by itself;
+  nothing baked, nothing hand-placed.
+- **One global wetness value** in a Material Parameter Collection (MPC_Weather: Wetness 0-1, plus Puddle amount),
+  driven by the existing weather: rises while it rains, falls slowly after (drying from the puddles' edges in).
+- **Rain ripples** in the puddles while it rains (animated ripple normals, scaled by rain intensity).
+- **Dry under cover:** no puddles under the terminal roof, jetways, hangar overhangs, the fire station's canopy.
+  Simplest: each building/cover piece marks the ground under it as sheltered when it's placed (custom primitive data
+  on the ground pieces, or a small sheltered-area mask from the layout data); fits the modular terminal.
+- **Decals** for the few puddles the owner wants exactly in one spot (by a gate, the fire station's wash area).
+- **The fire hose:** it wets the ground locally with a wet/puddle decal where the water lands, fading as it dries
+  (same look as rain, no separate wetness map).
+- **A puddle tuning panel in the game** (Settings or the debug menu): sliders for wetness (make it rain-wet / dry at
+  once), number of puddles, size, shininess, ripple strength and drying speed; changes show live; saved to
+  Content/Settings/Puddles.ini (like TruckLamps.ini), and the release keeps the owner's values as the default.
+- The owner tunes it himself IN THE GAME with that panel (no renders or screenshots needed); he tells you only what
+  the sliders can't change.
+- Chapters in the code and a line in CODE-MAP.md as usual; goes out with the next release (not a small separate one).
+
 ## START HERE — where the work stopped (written 2026-11-13 00:10, for a NEW PC session)
 
 The previous PC session can't be found any more. Its last work, in order:
