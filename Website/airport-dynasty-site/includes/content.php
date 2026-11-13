@@ -24,11 +24,11 @@ function ads_content() {
                 ['image' => ads_img('villa_drive.jpg'), 'caption' => 'Coming home along your own drive'],
             ],
             // The feature slider: one slide per line, ICON|TITLE|TEXT (icons: terminal, globe, people, plane, home, sun, mesh, more)
-            'slides' => "terminal|Grow your terminal|Start small, then add new wings piece by piece as more passengers arrive.\nglobe|The whole Earth in 3D|Plan your routes on a fully rendered globe with real terrain, rivers and coastlines.\npeople|Thousands of people|Every passenger has a booking, a mood, money in their pocket and a trip to finish.\npeople|Talk to anyone|Every NPC, inside the terminal and out, stops to talk when you walk up to them.\nplane|AI airlines fly your routes|You plan the routes and the timetables. Your hired crews do the flying.\nhome|Your villa and your town|Drive home after work to your own villa in a small Icelandic town.\nsun|Real weather, day and night|Sunsets, storms and snow, following the real date and time.\nmesh|AAA graphics in Unreal Engine 5|Nanite, Lumen and MetaHumans bring film-like detail, light and people to every corner.\nmore|And much more|New buildings and features join with every update.",
+            'slides' => "terminal|Grow your terminal|Start small, then add new wings piece by piece as more passengers arrive.\nglobe|The whole Earth in 3D|Plan your routes on a fully rendered globe with real terrain, rivers and coastlines.\npeople|Thousands of people|Every passenger has a booking, a mood, money in their pocket and a trip to finish.\npeople|Talk to anyone|Every NPC, inside the terminal and out, stops to talk when you walk up to them.\nplane|AI airlines fly your routes|You plan the routes and the timetables. Your hired crews do the flying.\nbank|A real economy|Pay salaries, maintenance, fuel and supplies, and follow every in and out in your bank app.\nhome|Your villa and your town|Drive home after work to your own villa in a small Icelandic town.\nsun|Real weather, day and night|Sunsets, storms and snow, following the real date and time.\nmesh|AAA graphics in Unreal Engine 5|Nanite, Lumen and MetaHumans bring film-like detail, light and people to every corner.\nmore|And much more|New buildings and features join with every update.",
         ],
         // #endregion
         // #region ── Ticker ──
-        'ticker' => "Check-in · Security · Gates · Jetways · Control tower · Fire station · Hangars · Car rental · Airlines · Timetables · Crews · The whole Earth · Day and night · Weather · Talk to every NPC · Your villa · Your home town · And much more",
+        'ticker' => "Check-in · Security · Gates · Jetways · Control tower · Fire station · Hangars · Car rental · Airlines · Timetables · Crews · The whole Earth · Day and night · Weather · Talk to every NPC · Salaries and bills · Your bank account · Your villa · Your home town · And much more",
         // #endregion
         // #region ── Numbers ──
         'stats' => [
@@ -60,6 +60,21 @@ function ads_content() {
             'title'   => 'Thousands of lives. <em>Live on your map.</em>',
             'text'    => 'Lifelike NPCs built from MetaHumans, each with a reason to be there, and you can talk to every one of them, inside the terminal and out. Your holographic map shows them all, floor by floor, and flashes the moment something happens.',
             'points'  => "Walk up to any NPC, in or outside the terminal, and talk to them\nEvery passenger has a booking, a mood, money and a trip to finish\nPilots, cabin crew, ground crew, security, police, cleaners and fire crews, each in a proper uniform\nIncidents blink on the map: a difficult passenger, a guard escort, a lost bag\nStaff work their shifts and drive home to the town afterwards\n…and much more",
+        ],
+        // #endregion
+        // #region ── Money: the economy, the bank accounts, the phone and the computer ──
+        'money' => [
+            'eyebrow' => 'Money in, money out',
+            'title'   => 'A real economy. <em>Every bill is yours.</em>',
+            'text'    => 'Hiring people is only the start: every one of them needs a salary. Everything the airport uses has to be bought and paid for, and the money coming in has to cover it.',
+            // The airport account: one row per line, + or -|WHAT
+            'ledger'  => "+|Airline and landing fees\n+|Shop and restaurant rent\n+|Parking and car rental\n-|Staff salaries\n-|Aircraft maintenance\n-|Jet fuel\n-|Goods for the shops and restaurants\n-|Food, drinks and supplies for the cabins",
+            'points'  => "Pay every salary, from the pilots to the cleaners\nKeep your aircraft maintained and safe to fly\nBuy jet fuel, and goods to keep the terminal’s shops and restaurants stocked\nLoad the cabins with food, drinks and supplies before every flight\n…and much more",
+            'dev_title' => 'Your own phone and computer',
+            'dev_text'  => 'In the game you carry a smartphone and work at a computer, each with a fully built operating system and its own apps.',
+            // The phone's apps: one per line, ICON|NAME (icons: bank, mail, chat, people, plane, clock, cart, news, globe)
+            'apps'    => "bank|Bank\nmail|Mail\nchat|Messages\npeople|Staff\nplane|Fleet\nclock|Timetables\ncart|Supplies\nnews|News\nglobe|Map",
+            'dev_points' => "Two bank accounts: your own, where your salary comes in, and the airport’s, with every in and out\nMail and messages from your staff, the airlines and the town\nHire staff, order supplies and plan timetables from your desk or your pocket\nThe news, and a map of the whole world\n…and much more",
         ],
         // #endregion
         // #region ── Four ways to play (features) ──

@@ -19,7 +19,7 @@ foreach ([600, 700, 800] as $w) $fonts .= '@font-face{font-family:"AD Barlow";sr
 $fonts .= '@font-face{font-family:"AD Inter";src:url("assets/fonts/inter-var.woff") format("woff");font-weight:100 900;font-display:swap}';
 ob_start();
 ads_r_nav([]); ads_r_hero($c['hero']); ads_r_ticker(['ticker' => $c['ticker']]); ads_r_stats(['items' => $c['stats']]);
-ads_r_buildings($c['buildings']); ads_r_holo($c['holo']); ads_r_passes($c['passes']); ads_r_video($v); ads_r_gallery($c['gallery']);
+ads_r_buildings($c['buildings']); ads_r_holo($c['holo']); ads_r_money($c['money']); ads_r_passes($c['passes']); ads_r_video($v); ads_r_gallery($c['gallery']);
 ads_r_tech($c['tech']); ads_r_route($c['route']); ads_r_buy($c['buy']); ads_r_share($c['share']); ads_r_footer($c['footer']);
 $body = ob_get_clean();
 $top = '<button class="ad-top" type="button" aria-label="Scroll to the top"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15.5v-2L13.5 9V4.5a1.5 1.5 0 0 0-3 0V9L3 13.5v2l7.5-2.2V18l-2 1.5V21l3.5-1 3.5 1v-1.5l-2-1.5v-4.7z"/></svg></button>';

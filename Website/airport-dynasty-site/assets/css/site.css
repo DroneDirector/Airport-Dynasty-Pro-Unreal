@@ -200,6 +200,40 @@ body.elementor-editor-active .ad-nav { position: relative; }
 .ad-tech__extras li.is-more { border-top-style: dashed; }
 .ad-tech__extras li.is-more b { color: var(--ad-sign); }
 
+/* ---------------------------------------------------------------- money: the airport's account and the phone */
+.ad-money { padding: 110px 0; background: radial-gradient(ellipse at 20% 40%, rgba(57, 224, 138, .06), transparent 55%); }
+.ad-money__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; margin-top: 46px; align-items: start; }
+.ad-money__col { min-width: 0; }
+.ad-ledger { border-radius: 16px; border: 1px solid var(--ad-line2); background: linear-gradient(180deg, var(--ad-panel), var(--ad-bg2)); padding: 18px 20px 10px; margin-bottom: 26px; }
+.ad-ledger__top { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--ad-line); font: 800 20px/1 var(--ad-head); letter-spacing: .1em; text-transform: uppercase; }
+.ad-ledger__top > span:first-child { display: inline-flex; align-items: center; gap: 10px; color: var(--ad-sign); }
+.ad-ledger__top .ad-pict { width: 22px; height: 22px; }
+.ad-ledger__live { display: inline-flex; align-items: center; gap: 7px; font: 600 11px/1 var(--ad-body); letter-spacing: .16em; color: var(--ad-green); }
+.ad-ledger__live i { width: 7px; height: 7px; border-radius: 50%; background: var(--ad-green); animation: ad-pulse 1.6s ease-in-out infinite; }
+@keyframes ad-pulse { 50% { opacity: .25; } }
+.ad-ledger ul { list-style: none; margin: 0; padding: 0; }
+.ad-ledger li { display: grid; grid-template-columns: 22px 1fr 90px; gap: 12px; align-items: center; padding: 11px 0; border-top: 1px solid rgba(255, 255, 255, .04); font-size: 15px; color: var(--ad-text); }
+.ad-ledger li:first-child { border-top: 0; }
+.ad-ledger li b { font: 800 20px/1 var(--ad-head); text-align: center; }
+.ad-ledger li.is-in b { color: var(--ad-green); } .ad-ledger li.is-out b { color: var(--ad-red); }
+.ad-ledger li span { min-width: 0; }
+.ad-ledger li i { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .06); position: relative; overflow: hidden; }
+.ad-ledger li i::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--w); border-radius: 3px; transform-origin: 0 50%; animation: ad-ledger 6s var(--ad-ease) infinite; animation-delay: calc(var(--i) * .45s); }
+.ad-ledger li.is-in i::after { background: var(--ad-green); } .ad-ledger li.is-out i::after { background: var(--ad-red); }
+@keyframes ad-ledger { 0% { transform: scaleX(.15); } 35%, 100% { transform: scaleX(1); } }
+.ad-money__h3 { margin: 0 !important; font: 800 36px/1.05 var(--ad-head); text-transform: uppercase; color: var(--ad-sign); }
+.ad-money__p { margin: 12px 0 24px !important; color: var(--ad-dim); font-size: 17px; line-height: 1.55; }
+.ad-money__dev { display: grid; grid-template-columns: 230px 1fr; gap: 28px; align-items: start; }
+.ad-phone { width: 230px; aspect-ratio: 9 / 18.5; border-radius: 34px; padding: 14px 12px; border: 3px solid #2a3344; background: radial-gradient(ellipse at 30% 0%, rgba(255, 204, 0, .22), transparent 55%), linear-gradient(160deg, #142034, #070b12); box-shadow: 0 30px 70px -20px rgba(0, 0, 0, .9), inset 0 0 0 1px rgba(255, 255, 255, .05); display: flex; flex-direction: column; }
+.ad-phone__bar { display: flex; justify-content: space-between; font: 600 11px/1 var(--ad-body); color: var(--ad-text); padding: 4px 8px 18px; letter-spacing: .04em; }
+.ad-phone__apps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px 8px; padding: 0 4px; }
+.ad-phone__app { display: flex; flex-direction: column; align-items: center; gap: 6px; font: 500 10.5px/1.1 var(--ad-body); color: var(--ad-text); text-align: center; min-width: 0; }
+.ad-phone__app i { width: 48px; height: 48px; border-radius: 13px; display: grid; place-items: center; background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .1); color: var(--ad-sign); animation: ad-app 9s ease-in-out infinite; animation-delay: calc(var(--i) * 1s); }
+.ad-phone__app:first-child i { background: var(--ad-sign); color: #0b0b0b; }
+.ad-phone__app .ad-pict { width: 24px; height: 24px; }
+@keyframes ad-app { 0%, 8%, 100% { transform: none; box-shadow: none; } 4% { transform: scale(1.12); box-shadow: 0 0 18px rgba(255, 204, 0, .5); } }
+.ad-phone__dock { margin-top: auto; height: 5px; width: 40%; align-self: center; border-radius: 3px; background: rgba(255, 255, 255, .4); }
+
 /* ---------------------------------------------------------------- four ways to play: tabs + view */
 .ad-play { padding: 110px 0; }
 .ad-play__panel { display: grid; grid-template-columns: 300px 1fr; border-radius: 18px; border: 1px solid var(--ad-line); background: linear-gradient(180deg, var(--ad-panel), var(--ad-bg2)); overflow: hidden; min-height: 460px; }
@@ -340,6 +374,7 @@ body.elementor-editor-active .ad-nav { position: relative; }
   .ad-hero__in, .ad-holo__in { grid-template-columns: 1fr; }
   .ad-play__panel { grid-template-columns: 1fr; } .ad-play__tabs { flex-direction: row; overflow-x: auto; border-right: 0; } .ad-play__tab { flex: 1 0 auto; padding: 18px 20px; border-bottom: 0; } .ad-play__name { font-size: 22px; }
   .ad-launch { grid-template-columns: 1fr; }
+  .ad-money__grid { grid-template-columns: 1fr; }
   .ad-tech__extras { grid-template-columns: repeat(2, 1fr); }
   .ad-stats__in { grid-template-columns: repeat(2, 1fr); }
   .ad-route__stops { grid-template-columns: repeat(2, 1fr); padding-top: 30px; }
@@ -358,6 +393,7 @@ body.elementor-editor-active .ad-nav { position: relative; }
   .ad-logo { font-size: 18px; } .ad-logo__mark { width: 32px; height: 32px; }
   .ad-hero { padding-top: 100px; }
   .ad-stats__in, .ad-route__stops, .ad-tech__extras { grid-template-columns: 1fr; }
+  .ad-money__dev { grid-template-columns: 1fr; justify-items: center; } .ad-money__dev .ad-points { justify-self: stretch; } .ad-ledger li { grid-template-columns: 22px 1fr 60px; }
   .ad-play__view, .ad-play__view.is-on { grid-template-columns: 1fr; } .ad-play__img { height: 200px; } .ad-play__img::after { background: linear-gradient(180deg, transparent 50%, var(--ad-panel)); } .ad-play__copy { padding: 22px; } .ad-play__copy h3 { font-size: 34px; }
   .ad-launch { padding: 50px 22px 28px; } .ad-launch__lights { left: 22px; right: 22px; }
   .ad-signboard { grid-template-columns: 58px 1fr; padding-top: 34px; } .ad-signboard__pict { width: 58px; height: 58px; } .ad-signboard__arrow { display: none; }

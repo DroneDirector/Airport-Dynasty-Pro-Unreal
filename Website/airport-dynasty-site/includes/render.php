@@ -30,6 +30,11 @@ function ads_pict($k) {
         'sun'      => '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
         'globe'    => '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
         'people'   => '<circle cx="9" cy="8" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2a5 5 0 0 1 5 4.8v1"/>',
+        'bank'     => '<path d="M3 10l9-6 9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/>',
+        'mail'     => '<rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3.5 7l8.5 6 8.5-6"/>',
+        'chat'     => '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/>',
+        'clock'    => '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
+        'news'     => '<path d="M4 5h13v14H6a2 2 0 0 1-2-2z"/><path d="M17 9h3v8a2 2 0 0 1-2 2"/><path d="M7 9h7M7 12.5h7M7 16h4"/>',
         'mesh'     => '<path d="M3 18l5-11 5 7 3-4 5 8z"/><path d="M8 7l5 11M13 14l3 4M16 10l-3 4"/>',
     ][$k] ?? '';
     return '<svg class="ad-pict" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' . $p . '</svg>';
@@ -196,6 +201,31 @@ function ads_r_holo($s) {
     echo '<text x="56" y="340" class="ad-holo__label">TERMINAL · FLOOR 1</text><text x="704" y="340" text-anchor="end" class="ad-holo__label ad-holo__label--r">INCIDENT · GATE C</text></svg>';
     echo '<span class="ad-holo__c ad-holo__c--tl"></span><span class="ad-holo__c ad-holo__c--tr"></span><span class="ad-holo__c ad-holo__c--bl"></span><span class="ad-holo__c ad-holo__c--br"></span></div>';
     echo '</div></section>';
+}
+
+// #endregion
+
+// #region ── Money: the airport's account, the costs, and the phone with its apps ──
+
+function ads_r_money($s) {
+    echo '<section class="ad ad-money" id="economy"><div class="ad-wrap">' . ads_head($s) . '<div class="ad-money__grid">';
+    // The airport's account: money in and out, bars filling in turn.
+    echo '<div class="ad-money__col" data-reveal><div class="ad-ledger"><div class="ad-ledger__top"><span>' . ads_pict('bank') . ' Airport account</span><span class="ad-ledger__live"><i></i>Live</span></div><ul>';
+    foreach (ads_lines($s['ledger']) as $i => $l) {
+        $p = array_pad(array_map('trim', explode('|', $l, 2)), 2, '');
+        $in = $p[0] !== '-';
+        echo '<li class="' . ($in ? 'is-in' : 'is-out') . '" style="--i:' . (int) $i . ';--w:' . (int) (38 + (($i * 37) % 55)) . '%"><b>' . ($in ? '+' : '−') . '</b><span>' . esc_html($p[1]) . '</span><i></i></li>';
+    }
+    echo '</ul></div>' . ads_points($s['points']) . '</div>';
+    // The phone: a home screen with the game's apps.
+    echo '<div class="ad-money__col" data-reveal style="--d:1"><h3 class="ad-money__h3">' . esc_html($s['dev_title']) . '</h3><p class="ad-money__p">' . esc_html($s['dev_text']) . '</p><div class="ad-money__dev">';
+    echo '<div class="ad-phone" aria-hidden="true"><div class="ad-phone__bar"><span data-clock>--:--</span><span>5G ▮▮▮</span></div><div class="ad-phone__apps">';
+    foreach (ads_lines($s['apps']) as $i => $l) {
+        $p = array_pad(array_map('trim', explode('|', $l, 2)), 2, '');
+        echo '<span class="ad-phone__app" style="--i:' . (int) $i . '"><i>' . ads_pict($p[0]) . '</i>' . esc_html($p[1]) . '</span>';
+    }
+    echo '</div><div class="ad-phone__dock"></div></div>' . ads_points($s['dev_points']) . '</div></div>';
+    echo '</div></div></section>';
 }
 
 // #endregion

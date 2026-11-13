@@ -9,7 +9,7 @@ function ads_page_defs() {
     $w = function ($k) { return ['ads-' . $k, []]; };
     return [
         'home' => ['title' => 'Airport Dynasty Pro', 'slug' => 'airport-dynasty-pro', 'widgets' => array_map($w,
-            ['nav', 'hero', 'ticker', 'stats', 'buildings', 'holo', 'passes', 'video', 'gallery', 'tech', 'route', 'buy', 'share', 'footer'])],
+            ['nav', 'hero', 'ticker', 'stats', 'buildings', 'holo', 'money', 'passes', 'video', 'gallery', 'tech', 'route', 'buy', 'share', 'footer'])],
     ];
 }
 
