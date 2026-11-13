@@ -15,10 +15,10 @@ def log(m): unreal.log('ADP_FABRIC ' + str(m))
 
 # the fabric -> how many times its tile repeats across the garment's UVs, and the colour it is made in by default
 # (garments may use a fabric under another name: cotton_shirt is the jersey's weave, white)
-FABRICS = {
-    'wool_suiting': ('wool_suiting', 22.0), 'cotton_shirt': ('cotton_jersey', 40.0), 'cotton_jersey': ('cotton_jersey', 30.0),
-    'satin': ('satin', 30.0), 'leather': ('leather', 10.0), 'denim': ('denim', 14.0), 'fleece': ('fleece', 16.0),
-    'knit': ('knit', 14.0), 'nylon_shell': ('nylon_shell', 22.0), 'hivis_polyester': ('hivis_polyester', 22.0), 'canvas': ('canvas', 14.0),
+FABRICS = {   # tiles per metre of cloth (garments' UVs are in metres: Art/Clothes/*/make_*.py)
+    'wool_suiting': ('wool_suiting', 11.0), 'cotton_shirt': ('cotton_jersey', 22.0), 'cotton_jersey': ('cotton_jersey', 22.0),
+    'satin': ('satin', 22.0), 'leather': ('leather', 9.0), 'denim': ('denim', 11.0), 'fleece': ('fleece', 11.0),
+    'knit': ('knit', 10.0), 'nylon_shell': ('nylon_shell', 14.0), 'hivis_polyester': ('hivis_polyester', 14.0), 'canvas': ('canvas', 10.0),
 }
 
 def texture(folder, kind):
@@ -41,6 +41,10 @@ MP = DIR + '/M_Fabric'
 if eal.does_asset_exist(MP): eal.delete_asset(MP)
 m = tools.create_asset('M_Fabric', DIR, unreal.Material, unreal.MaterialFactoryNew())
 m.set_editor_property('two_sided', True)
+# garments are skeletal meshes made by the cloth pipeline: without these the game draws Unreal's grey default instead
+for flag in ('used_with_skeletal_mesh', 'used_with_clothing', 'used_with_morph_targets'):
+    try: m.set_editor_property(flag, True)
+    except Exception as e: log('no flag %s: %s' % (flag, e))
 E = lambda cls, x, y: mel.create_material_expression(m, cls, x, y)
 uv = E(unreal.MaterialExpressionTextureCoordinate, -1100, 0)
 tiling = E(unreal.MaterialExpressionScalarParameter, -1100, 150); tiling.set_editor_property('parameter_name', 'Tiling'); tiling.set_editor_property('default_value', 20.0)

@@ -25,7 +25,16 @@ M = src.matrix_world.copy()
 GI = {g.index: g.name for g in src.vertex_groups}
 
 # the body in world space (metres), as a mesh and a BVH, for fitting
-bb = bmesh.new(); bb.from_mesh(src.data); bb.transform(M); bb.normal_update()
+bb = bmesh.new(); bb.from_mesh(src.data); bb.transform(M)
+# the head mesh (its neck reaches down over the collarbones, over the body's): the cloth keeps out of it too
+_before = set(sc.objects)
+bpy.ops.import_scene.fbx(filepath=str(BODYFBX.parent / 'player_face.fbx'))
+_face = [o for o in sc.objects if o not in _before and o.type == 'MESH' and o.name.endswith('_LOD0')]
+if _face:
+    fb = bmesh.new(); fb.from_mesh(_face[0].data); fb.transform(_face[0].matrix_world)
+    tmp = bpy.data.meshes.new('fb'); fb.to_mesh(tmp); fb.free(); bb.from_mesh(tmp)
+for o in [o for o in sc.objects if o not in _before]: bpy.data.objects.remove(o, do_unlink=True)
+bb.normal_update()
 BODY_BVH = BVHTree.FromBMesh(bb)
 bb.verts.ensure_lookup_table()
 BODY_N = [v.normal.copy() for v in bb.verts]
@@ -64,6 +73,9 @@ def cut(name, keep):
     bmesh.ops.delete(bm, geom=[f for f in bm.faces if not all(keep(v.index) for v in f.verts)], context='FACES')
     bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
     bm.transform(M)
+    # the body mesh is split along its texture seams (round the waist, down the inner legs): weld them, or smoothing
+    # opens them into cracks
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0005)
     # small islands (stray bits) go
     bm.verts.ensure_lookup_table(); seen = set(); islands = []
     for v in bm.verts:
@@ -104,6 +116,40 @@ def keep_out(o, under_bvh, gap, reach=0.035):
             v.co = loc + nor * gap; n += 1
     bm.to_mesh(o.data); bm.free()
     return n
+
+def clean_edges(o, iters=4):
+    """Every open edge of a piece made clean: a loop that is nearly flat (a hem, a cuff) is laid in its own plane, then
+    every loop is relaxed along itself, so no edge follows the body's triangles in steps."""
+    import numpy as np
+    bm = bmesh.new(); bm.from_mesh(o.data)
+    for loop in boundary_loops(bm):
+        if len(loop) < 6: continue
+        P = np.array([v.co[:] for v in loop]); c = P.mean(0)
+        u, sv, vt = np.linalg.svd(P - c); n = vt[2]
+        spread = np.abs((P - c) @ n).max()
+        for _ in range(iters):
+            new = [(loop[i - 1].co + loop[(i + 1) % len(loop)].co) * 0.25 + loop[i].co * 0.5 for i in range(len(loop))]
+            for v, q in zip(loop, new): v.co = q
+    bm.to_mesh(o.data); bm.free()
+
+def trim(o, co, no):
+    """Cut the piece with a flat plane, as a tailor marks a hem, keeping the side the normal points to."""
+    bm = bmesh.new(); bm.from_mesh(o.data)
+    bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=co, plane_no=no, clear_inner=True)
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+    bm.to_mesh(o.data); bm.free()
+def bone(name): return ARM.matrix_world @ ARM.data.bones[name].head_local
+def cuffs(o, back):
+    """The sleeves cut square to the forearm, back from the wrist joint."""
+    for s_ in ('l', 'r'):
+        h = bone('hand_' + s_); e = bone('lowerarm_' + s_); d = (h - e).normalized()
+        c = h - d * back
+        # only this arm: a plane square to the forearm, applied to the points out along it
+        bm = bmesh.new(); bm.from_mesh(o.data)
+        far = [f for f in bm.faces if (f.calc_center_median() - c).dot(d) > 0 and (f.calc_center_median() - h).length < 0.25]
+        bmesh.ops.delete(bm, geom=far, context='FACES')
+        bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+        bm.to_mesh(o.data); bm.free()
 
 def bvh_of(o):
     bm = bmesh.new(); bm.from_mesh(o.data); bm.normal_update(); t = BVHTree.FromBMesh(bm); bm.free(); return t
@@ -149,7 +195,23 @@ def material(name, rgb, rough):
     m = bpy.data.materials.new(name); m.use_nodes = True
     b = m.node_tree.nodes['Principled BSDF']; b.inputs['Base Color'].default_value = (*rgb, 1); b.inputs['Roughness'].default_value = rough
     MATS[name] = m; return m
+def metre_uvs(o):
+    """A fresh UV layout (smart projection), scaled so one UV unit is one metre of cloth: the fabric's weave then
+    has the same size everywhere on the garment, and its material tiles it per metre."""
+    bpy.ops.object.select_all(action='DESELECT'); o.select_set(True); bpy.context.view_layer.objects.active = o
+    if not o.data.uv_layers: o.data.uv_layers.new(name='UVMap')
+    bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.uv.smart_project(angle_limit=1.15, island_margin=0.003, scale_to_bounds=False)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    me = o.data; uv = me.uv_layers.active.data; a3 = a2 = 0.0
+    for poly in me.polygons:
+        a3 += poly.area
+        pts = [uv[li].uv for li in poly.loop_indices]
+        a2 += abs(sum(pts[k].x * pts[(k + 1) % len(pts)].y - pts[(k + 1) % len(pts)].x * pts[k].y for k in range(len(pts)))) / 2
+    k = math.sqrt(a3 / max(a2, 1e-9))
+    for d in uv: d.uv = d.uv * k
 def dress(o, mat):
+    metre_uvs(o)
     o.data.materials.clear(); o.data.materials.append(mat)
     bpy.context.view_layer.objects.active = o; bpy.ops.object.shade_smooth()
 
@@ -167,8 +229,10 @@ def upper_body(i, bottom):
     legs_ok = CO[i].z > 0.97 or wsum(w, ('thigh', 'calf', 'foot', 'toes')) < 0.3
     return CO[i].z > bottom and wsum(w, ('hand',)) < 0.1 and legs_ok and wsum(w, ('head',)) < 0.3
 def shirt_keep(i):
-    return upper_body(i, WAIST - 0.07)
+    return upper_body(i, WAIST - 0.12)
 shirt = cut('Shirt', shirt_keep)
+trim(shirt, Vector((0, 0, WAIST - 0.07)), Vector((0, 0, 1)))
+cuffs(shirt, 0.012)
 smooth(shirt, 14, 0.45)
 offset(shirt, lambda c: 0.008)
 smooth(shirt, 8, 0.35)
@@ -179,8 +243,10 @@ NECK_C = None
 def collar_move(c):
     ctr = Vector((0.0, -0.01, c.z)); d = (c - ctr); d.z = 0
     return c + Vector((0, 0, 0.032)) + d.normalized() * 0.006
+clean_edges(shirt)
 extrude_loop(shirt, highest, collar_move)
 subdivide(shirt, 1)
+log('shirt out of the skin after smoothing at', keep_out(shirt, BODY_BVH, 0.006), 'points')
 thicken(shirt, 0.0012)
 dress(shirt, material('Fabric_cotton_shirt', (0.92, 0.93, 0.95), 0.6))
 SHIRT_BVH = bvh_of(shirt)
@@ -188,8 +254,10 @@ SHIRT_BVH = bvh_of(shirt)
 # ---------------------------------------------------------------- the trousers
 def trousers_keep(i):
     w = W[i]; z = CO[i].z
-    return wsum(w, ('upperarm', 'lowerarm', 'hand')) < 0.1 and wsum(w, FEET) < 0.2 and 0.075 < z < WAIST + 0.02
+    return wsum(w, ('upperarm', 'lowerarm', 'hand')) < 0.1 and wsum(w, FEET) < 0.6 and 0.0 < z < WAIST + 0.06
 tr = cut('Trousers', trousers_keep)
+trim(tr, Vector((0, 0, WAIST + 0.02)), Vector((0, 0, -1)))
+trim(tr, Vector((0, 0, 0.035)), Vector((0, 0, 1)))
 smooth(tr, 8, 0.45)
 offset(tr, lambda c: 0.012)
 # straight legs: below the seat each leg is pushed out to at least a tailored radius round its own centre at that
@@ -205,20 +273,21 @@ for v in bm.verts:
     if v.co.z >= CROTCH: continue
     k = (v.co.x > 0, int(v.co.z / 0.02)); c = cent.get(k)
     if c is None: continue
-    t = max(0.0, min(1.0, (v.co.z - 0.08) / (CROTCH - 0.08)))
-    rmin = 0.066 + (0.10 - 0.066) * t
+    t = max(0.0, min(1.0, (v.co.z - 0.04) / (CROTCH - 0.04)))
+    rmin = 0.072 + (0.10 - 0.072) * t
     d = v.co - c; d.z = 0
     # only the outside of each leg is let out; the inside seam stays (the legs would collide)
-    out = abs(v.co.x) > abs(c.x) - 0.01
+    out = abs(v.co.x) > abs(c.x) - 0.01 and v.co.z < CROTCH - 0.08
     if d.length < rmin and d.length > 1e-5 and out: v.co = c + d.normalized() * rmin + Vector((0, 0, v.co.z - c.z))
 bm.to_mesh(tr.data); bm.free()
 smooth(tr, 4, 0.3)
 log('trousers pushed out at', keep_out(tr, BODY_BVH, 0.008), 'points')
 # the waistband: the top loop up 1 cm
 def top_loop(loops): return highest(loops)
+clean_edges(tr)
 extrude_loop(tr, top_loop, lambda c: c + Vector((0, 0, 0.012)))
 subdivide(tr, 1)
-log('trousers over the shirt at', keep_out(tr, SHIRT_BVH, 0.003), 'points')
+log('trousers out of the skin at', keep_out(tr, BODY_BVH, 0.009), 'points, over the shirt at', keep_out(tr, SHIRT_BVH, 0.004), 'points')
 thicken(tr, 0.002)
 dress(tr, material('Fabric_wool_suiting', (0.035, 0.045, 0.075), 0.75))
 TROUSERS_BVH = bvh_of(tr)
@@ -226,14 +295,15 @@ TROUSERS_BVH = bvh_of(tr)
 # ---------------------------------------------------------------- the jacket
 def jacket_keep(i):
     w = W[i]; z = CO[i].z; c = CO[i]
-    if not upper_body(i, WAIST - 0.04): return False
-    if wsum(w, ('hand',)) > 0.02: return False
+    if not upper_body(i, WAIST - 0.10): return False
     if 'lowerarm_l' in w or 'lowerarm_r' in w:
         pass
     # the sleeve ends 1.5 cm short of the shirt cuff
     if wsum(w, ('lowerarm',)) > 0.5 and wsum(w, ('hand',)) > 0.0: return False
     return z > WAIST - 0.06
 jk = cut('Jacket', jacket_keep)
+trim(jk, Vector((0, 0, WAIST - 0.04)), Vector((0, 0, 1)))
+cuffs(jk, 0.035)
 smooth(jk, 18, 0.45)
 offset(jk, lambda c: 0.022)
 smooth(jk, 8, 0.35)
@@ -284,6 +354,7 @@ def opening(c):
 bmesh.ops.delete(bm, geom=[f for f in bm.faces if opening(f.calc_center_median())], context='FACES')
 bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
 bm.to_mesh(jk.data); bm.free()
+clean_edges(jk, 16)
 # the lapels: a band 5.5 cm wide along the opening, lifted 4 mm, reads as the turned-back cloth
 bm = bmesh.new(); bm.from_mesh(jk.data); bm.normal_update()
 edge_pts = [v.co.copy() for v in bm.verts if v.is_boundary and v.co.y < -0.05 and 1.12 < v.co.z < 1.50]
@@ -295,6 +366,7 @@ if edge_pts:
         if dmin < 0.055: v.co += v.normal * 0.004 * (1.0 - dmin / 0.055) ** 0.5
 bm.to_mesh(jk.data); bm.free()
 subdivide(jk, 1)
+log('jacket out of the skin at', keep_out(jk, BODY_BVH, 0.018, 0.05), 'points')
 log('jacket over the shirt at', keep_out(jk, SHIRT_BVH, 0.006), 'points', 'and the trousers at', keep_out(jk, TROUSERS_BVH, 0.006))
 thicken(jk, 0.003)
 dress(jk, material('Fabric_wool_suiting', (0.035, 0.045, 0.075), 0.75))
@@ -310,7 +382,7 @@ for r in range(rows + 1):
     for s in (-1, 0, 1):
         x = s * half
         hit = SHIRT_BVH.ray_cast(Vector((x, -0.5, z)), Vector((0, 1, 0)))
-        y = (hit[0].y - 0.003) if hit[0] is not None else last_y
+        y = (hit[0].y - 0.005) if hit[0] is not None else last_y
         last_y = y
         bm.verts.new((x, y, z))
 bm.verts.ensure_lookup_table()
@@ -325,34 +397,85 @@ thicken(tie, 0.004)
 dress(tie, material('Fabric_satin', (0.32, 0.03, 0.06), 0.35))
 
 # ---------------------------------------------------------------- the shoes
-# a shoe is the foot's outer shape (its convex hull, per foot) let out 7 mm, the sole flat, smoothed round
-bm = bmesh.new()
-for side in (1, -1):
-    pts = [CO[i] for i in range(len(CO)) if CO[i].z < 0.115 and CO[i].x * side > 0 and wsum(W[i], ('foot', 'toes', 'calf')) > 0.3]
-    vs = [bm.verts.new(p) for p in pts]
-    bmesh.ops.convex_hull(bm, input=vs)
-bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
-bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-me = bpy.data.meshes.new('Shoes'); bm.to_mesh(me); bm.free()
-sh = bpy.data.objects.new('Shoes', me); sc.collection.objects.link(sh)
+# the shoes: a dress shoe's last measured from each foot (its length, its width and height along it), a smooth upper
+# from the heel round the toe, the top at the instep and ankle (the trousers cover it), and a sole 1.2 cm thick a little
+# wider than the upper
+def shoe(side):
+    pts = [CO[i] for i in range(len(CO)) if CO[i].z < 0.13 and CO[i].x * side > 0 and wsum(W[i], ('foot', 'toes')) > 0.3]
+    ys = [p.y for p in pts]; y_heel, y_toe = max(ys) + 0.012, min(ys) - 0.018   # front is -y
+    cx = sum(p.x for p in pts) / len(pts)
+    N, R = 26, 18
+    bm = bmesh.new(); rings = []
+    for k in range(N + 1):
+        t = k / N; y = y_heel + (y_toe - y_heel) * t
+        band = [p for p in pts if abs(p.y - y) < 0.012] or pts
+        x0, x1 = min(p.x for p in band), max(p.x for p in band); zt = max(p.z for p in band)
+        hw = (x1 - x0) / 2 + 0.009; xc = (x0 + x1) / 2
+        top = min(zt + 0.01, 0.085)
+        # the toe rounds off over its last 18 %, the heel over its first 8 %
+        if t > 0.82: f = math.sqrt(max(0.0, 1 - ((t - 0.82) / 0.18) ** 2)); hw *= max(0.15, f); top = 0.018 + (top - 0.018) * max(0.25, f)
+        if t < 0.08: f = math.sqrt(max(0.0, 1 - ((0.08 - t) / 0.08) ** 2)); hw *= max(0.35, f)
+        ring = []
+        for j in range(R):
+            a = 2 * math.pi * j / R
+            x = xc + hw * math.cos(a); z = 0.012 + (top - 0.012) * max(0.0, math.sin(a)) ** 0.7 if math.sin(a) > 0 else 0.012
+            ring.append(bm.verts.new((x, y, z)))
+        rings.append(ring)
+    for k in range(N):
+        for j in range(R):
+            bm.faces.new((rings[k][j], rings[k][(j + 1) % R], rings[k + 1][(j + 1) % R], rings[k + 1][j]))
+    for ring in (rings[0], rings[-1]):
+        c = bm.verts.new(sum((v.co for v in ring), Vector()) / R)
+        for j in range(R): bm.faces.new((ring[j], ring[(j + 1) % R], c))
+    # the sole: the upper's outline 4 mm wider, from the ground to 1.2 cm
+    outline = [min(r, key=lambda v: v.co.z) for r in rings]
+    bot = []; topv = []
+    for k, r in enumerate(rings):
+        xs = [v.co.x for v in r]; y = r[0].co.y
+        for x in (min(xs) - 0.004, max(xs) + 0.004):
+            pass
+    soles = []
+    for k, r in enumerate(rings):
+        xs = [v.co.x for v in r]; y = r[0].co.y
+        soles.append(((min(xs) - 0.004, y), (max(xs) + 0.004, y)))
+    lo = [bm.verts.new((a[0], a[1], 0.0)) for a, b in soles] + [bm.verts.new((b[0], b[1], 0.0)) for a, b in reversed(soles)]
+    hi = [bm.verts.new((v.co.x, v.co.y, 0.012)) for v in lo]
+    n = len(lo)
+    for j in range(n): bm.faces.new((lo[j], lo[(j + 1) % n], hi[(j + 1) % n], hi[j]))
+    bm.faces.new(lo[::-1]); bm.faces.new(hi)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    me = bpy.data.meshes.new('Shoe'); bm.to_mesh(me); bm.free()
+    o = bpy.data.objects.new('Shoe', me); sc.collection.objects.link(o); return o
+shoes = [shoe(1), shoe(-1)]
+bpy.ops.object.select_all(action='DESELECT')
+for o in shoes: o.select_set(True)
+bpy.context.view_layer.objects.active = shoes[0]; bpy.ops.object.join(); sh = bpy.context.object; sh.name = 'Shoes'
 subdivide(sh, 2)
-smooth(sh, 3, 0.3, keep_border=False)
-offset(sh, lambda c: 0.007)
-bm = bmesh.new(); bm.from_mesh(sh.data)
-for v in bm.verts:
-    if v.co.z < 0.012: v.co.z = 0.0
-# the top opening: cut away above 9 cm at the ankle (the hull closes over it)
-bmesh.ops.delete(bm, geom=[f for f in bm.faces if all(v.co.z > 0.085 for v in f.verts)], context='FACES')
-bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
-bm.to_mesh(sh.data); bm.free()
-sh.data.uv_layers.new(name='UVMap')
-bpy.context.view_layer.objects.active = sh; sh.select_set(True)
-bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT'); bpy.ops.uv.smart_project(angle_limit=1.15, island_margin=0.02); bpy.ops.object.mode_set(mode='OBJECT')
-thicken(sh, 0.003)
+log('shoes off the foot at', keep_out(sh, BODY_BVH, 0.004), 'points')
 dress(sh, material('Fabric_leather', (0.02, 0.018, 0.016), 0.35))
 
 # ---------------------------------------------------------------- one object, exported in the body's space
 pieces = [shirt, tr, jk, tie, sh]
+def peek(objs, name, side=False):
+    """A quick grey picture of some pieces (front or side) for checking: dbg_<name>.png."""
+    hidden = [o for o in sc.objects if o.type == 'MESH' and o not in objs]
+    for o in hidden: o.hide_render = True
+    cam = bpy.data.objects.get('PeekCam') or bpy.data.objects.new('PeekCam', bpy.data.cameras.new('PeekCam'))
+    if cam.name not in sc.collection.objects: sc.collection.objects.link(cam)
+    sc.camera = cam; cam.data.type = 'ORTHO'; cam.data.ortho_scale = 1.3
+    cam.location = (3, -0.03, 0.75) if side else (0, -3, 0.75); cam.rotation_euler = (1.5708, 0, 1.5708 if side else 0)
+    sc.render.engine = 'BLENDER_WORKBENCH'; sc.render.resolution_x = 600; sc.render.resolution_y = 900
+    sc.render.filepath = str(HERE / ('dbg_%s.png' % name)); bpy.ops.render.render(write_still=True)
+    for o in hidden: o.hide_render = False
+peek([tr], 'trousers'); peek([tr], 'trousers_side', True); peek([jk], 'jacket'); peek([shirt], 'shirt')
+import os
+ONLY = os.environ.get('SUIT_ONLY', '')   # for testing one piece in Unreal: SUIT_ONLY=Shirt,Tie (exported under NAME_<only>)
+if ONLY:
+    keep = [o for o in pieces if o.name in ONLY.split(',')]
+    for o in pieces:
+        if o not in keep: bpy.data.objects.remove(o, do_unlink=True)
+    pieces = keep; NAME = NAME + 'Only'
+    (HERE.parent / NAME).mkdir(exist_ok=True); HERE = HERE.parent / NAME
 for o in pieces: log(o.name, len(o.data.vertices), 'verts', tuple(round(d, 3) for d in o.dimensions))
 bpy.ops.object.select_all(action='DESELECT')
 for o in pieces: o.select_set(True)
