@@ -111,9 +111,10 @@ def keep_out(o, under_bvh, gap, reach=0.035):
     for v in bm.verts:
         loc, nor, _, d = under_bvh.find_nearest(v.co, reach)
         if loc is None: continue
+        g = gap(v.co) if callable(gap) else gap
         side = (v.co - loc).dot(nor)
-        if side < gap:
-            v.co = loc + nor * gap; n += 1
+        if side < g:
+            v.co = loc + nor * g; n += 1
     bm.to_mesh(o.data); bm.free()
     return n
 
@@ -407,7 +408,7 @@ def opening(c):
 bmesh.ops.delete(bm, geom=[f for f in bm.faces if opening(f.calc_center_median())], context='FACES')
 bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
 bm.to_mesh(jk.data); bm.free()
-clean_edges(jk, 16)
+clean_edges(jk, 5)   # (more rounds the V's point into a U)
 # the jacket's collar: round the back of the neck from lapel to lapel, its top 1.2 cm under the shirt collar's
 JTH = [0.50 + (2 * math.pi - 1.00) * j / 56 for j in range(57)]
 # the jacket's own neckline, all round (its open edge near the neck): the collar starts just under it, overlapping
@@ -430,9 +431,12 @@ subdivide(jk, 1)
 log('jacket out of the skin at', keep_out(jk, BODY_BVH, 0.018, 0.05), 'points')
 # a soft last pass: the canvas front lies smooth over the chest instead of showing its muscles
 smooth(jk, 14, 0.45); keep_out(jk, BODY_BVH, 0.008, 0.05)
-log('jacket over the shirt at', keep_out(jk, SHIRT_BVH, 0.006), 'points', 'and the trousers at', keep_out(jk, TROUSERS_BVH, 0.006))
+log('jacket over the shirt at', keep_out(jk, SHIRT_BVH, 0.006), 'points')
 # the last soft pass over the waist and the skirt's top, then kept clear of what is under it
-smooth_where(jk, lambda c: 0.88 < c.z < 1.10, 10, 0.5); keep_out(jk, SHIRT_BVH, 0.005); keep_out(jk, TROUSERS_BVH, 0.005); keep_out(jk, BODY_BVH, 0.008, 0.05)
+WAISTBAND = lambda c: 0.86 < c.z < 1.12
+smooth_where(jk, WAISTBAND, 16, 0.5)
+keep_out(jk, BODY_BVH, lambda c: 0.021 if WAISTBAND(c) else 0.008, 0.06)
+smooth_where(jk, WAISTBAND, 4, 0.3)
 # ---- the jacket's details, from the references (a single-breasted two-button jacket):
 GORGE = NECK.z - 0.11                                     # where the lapel meets the collar (the notch)
 def v_half(z): return 0.010 + (z - 1.07) * 0.21
@@ -440,9 +444,8 @@ def lapel_outer(z): return lerp(0.012, v_half(GORGE) + 0.078, (z - 1.07) / (GORG
 # the lapels: the cloth beside the opening, from the button up to the notch, turned back over the front (4 mm proud)
 bm = bmesh.new(); bm.from_mesh(jk.data); bm.normal_update()
 def on_lapel(c):
-    if c.y > -0.03 or c.z < 1.07 or c.z > GORGE + 0.02: return False
+    if c.y > -0.03 or c.z < 1.09 or c.z > GORGE + 0.03: return False
     ax = abs(c.x)
-    if c.z > GORGE - 0.025 and ax > v_half(c.z) + 0.040: return False          # the notch
     return ax < lapel_outer(c.z)
 lap = [f for f in bm.faces if on_lapel(f.calc_center_median())]
 lb = bmesh.new()
@@ -450,14 +453,15 @@ vmap = {}
 for f in lap:
     vs = []
     for v in f.verts:
-        if v not in vmap: vmap[v] = lb.verts.new(v.co + v.normal * 0.004)
+        if v not in vmap: vmap[v] = lb.verts.new(v.co + v.normal * 0.004 * max(0.0, min(1.0, (v.co.z - 1.08) / 0.12)))   # flat at the button
         vs.append(vmap[v])
     try: lb.faces.new(vs)
     except ValueError: pass
 bm.free()
 me = bpy.data.meshes.new('Lapels'); lb.to_mesh(me); lb.free()
 lapels = bpy.data.objects.new('Lapels', me); sc.collection.objects.link(lapels)
-clean_edges(lapels, 6)
+trim(lapels, Vector((0, 0, GORGE)), Vector((0, 0, -1)))   # the lapel's top cut straight at the notch line
+clean_edges(lapels, 3)
 # the pockets: a welt on the left breast, flaps at the hips; and the two buttons (references: two-button jacket)
 JK_BVH = bvh_of(jk)
 def side_patch(name, th, z, w, h, lift, n=8):
@@ -514,7 +518,7 @@ if buttons:
 
 # ---------------------------------------------------------------- the tie: a strip down the shirt's front, on it
 bm = bmesh.new()
-rows = 44; top, bot = collar_top(0.0) - 0.004, 1.08   # the tip under the jacket's button (hidden, as a real tie)
+rows = 44; top, bot = collar_top(0.0) + 0.003, 1.08   # the tip under the jacket's button (hidden, as a real tie)
 last_y = -0.15
 COLS_T = 7
 for r in range(rows + 1):
@@ -523,7 +527,7 @@ for r in range(rows + 1):
     if dz < 0.04: half = lerp(0.019, 0.012, dz / 0.04)
     else: half = lerp(0.012, 0.040, (dz - 0.04) / 0.10)
     if to_tip < 0.04: half *= max(0.02, to_tip / 0.04)
-    stand = 0.005 + 0.008 * max(0.0, 1.0 - dz / 0.05)        # the knot stands out from the shirt, easing into the blade
+    stand = 0.0025 + 0.010 * max(0.0, 1.0 - dz / 0.05)       # the knot stands out from the shirt, the blade lies close on it
     for c in range(COLS_T):
         x = -half + 2 * half * c / (COLS_T - 1)
         hit = SHIRT_BVH.ray_cast(Vector((x, -0.5, z)), Vector((0, 1, 0)))
@@ -539,7 +543,7 @@ me = bpy.data.meshes.new('Tie'); bm.to_mesh(me); bm.free()
 tie = bpy.data.objects.new('Tie', me); sc.collection.objects.link(tie)
 tie.data.uv_layers.new(name='UVMap')
 smooth(tie, 6, 0.5)
-thicken(tie, 0.004)
+thicken(tie, 0.0015)
 dress(tie, material('Fabric_satin', (0.32, 0.03, 0.06), 0.35))
 
 # ---------------------------------------------------------------- the shoes
