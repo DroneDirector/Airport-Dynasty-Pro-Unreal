@@ -1412,7 +1412,14 @@ void AADPHUD::Interact()
 	PC->GetPlayerViewPoint(Eye, Look);
 	FHitResult Hit;
 	FCollisionQueryParams Q(SCENE_QUERY_STAT(ADPInteract), false, GetOwningPawn());
-	if (GetWorld()->LineTraceSingleByChannel(Hit, Eye, Eye + Look.Vector() * 300.f, ECC_Visibility, Q) && Hit.GetComponent())
+	// reach counted from you, not from the camera: seen from behind (third person) the camera is metres back
+	float Reach = 300.f;
+	if (APawn* Me = GetOwningPawn())
+	{
+		Reach += FVector::Dist(Eye, Me->GetPawnViewLocation());
+		if (AADPWalker* Wk = Cast<AADPWalker>(Me)) if (Wk->HumanActor()) Q.AddIgnoredActor(Wk->HumanActor());
+	}
+	if (GetWorld()->LineTraceSingleByChannel(Hit, Eye, Eye + Look.Vector() * Reach, ECC_Visibility, Q) && Hit.GetComponent())
 	{
 		// a fire truck within reach: you get in (FireTruck.h)
 		if (AFireTruck* T = AFireTruck::FromActor(Hit.GetActor())) { T->Enter(GetOwningPawn()); return; }
@@ -1423,8 +1430,10 @@ void AADPHUD::Interact()
 		// a hangar door's control button (OPEN, CLOSE, STOP)
 		if (AHangar* Hg = Cast<AHangar>(Hit.GetActor())) if (Hg->Press(Hit.GetComponent())) return;
 		const FString N = Hit.GetComponent()->GetName();
-		if (N.Contains(TEXT("screenPanel")) || N.Contains(TEXT("black"))) ToggleGame();
+		if (N.Contains(TEXT("screenPanel")) || N.Contains(TEXT("black"))) { ToggleGame(); return; }
 	}
+	// a fire truck right beside you that you face: in, even when the aim missed it
+	if (AFireTruck* T = AFireTruck::Beside(GetOwningPawn())) T->Enter(GetOwningPawn());
 }
 
 namespace

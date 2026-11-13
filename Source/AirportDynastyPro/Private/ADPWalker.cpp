@@ -1,6 +1,7 @@
 // The player walking through the terminal in first person: walk, run, jump and crouch.
 #include "ADPWalker.h"
 #include "Wardrobe.h"
+#include "DriverPoseAnim.h"
 #include "Animation/BlendSpace.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimSingleNodeInstance.h"
@@ -122,6 +123,7 @@ bool AADPWalker::WearMetaHuman(const FString& Who)
 	if (!Human) return false;
 	// on the capsule where the mannequin stands (feet on the floor, facing forward), nothing of its own in the way
 	Human->AttachToComponent(GetCapsuleComponent(), FAttachmentTransformRules::KeepWorldTransform);
+	HumanRel = Human->GetRootComponent()->GetRelativeTransform(); bLent = false;
 	Human->SetActorEnableCollision(false);
 	TArray<USkeletalMeshComponent*> Skels; Human->GetComponents<USkeletalMeshComponent>(Skels);
 	USkeletalMeshComponent* Face = nullptr;
@@ -161,9 +163,38 @@ bool AADPWalker::WearMetaHuman(const FString& Who)
 	return true;
 }
 
+UDriverPoseAnim* AADPWalker::LendBody(USceneComponent* Seat)
+{
+	if (!Human || !HumanBody || !Seat) return nullptr;
+	// the whole character moved so its body lies exactly on the seat's frame, then carried by it
+	const FTransform BodyInActor = HumanBody->GetComponentTransform().GetRelativeTransform(Human->GetActorTransform());
+	Human->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+	Human->SetActorTransform(BodyInActor.Inverse() * Seat->GetComponentTransform());
+	Human->AttachToComponent(Seat, FAttachmentTransformRules::KeepWorldTransform);
+	HumanBody->SetAnimInstanceClass(UDriverPoseAnim::StaticClass());
+	bLent = true;
+	return Cast<UDriverPoseAnim>(HumanBody->GetAnimInstance());
+}
+
+void AADPWalker::TakeBodyBack()
+{
+	if (!Human || !HumanBody || !bLent) return;
+	bLent = false;
+	Human->AttachToComponent(GetCapsuleComponent(), FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+	Human->GetRootComponent()->SetRelativeTransform(HumanRel);
+	HumanBody->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+	bHumanFalling = false;
+	if (MoveBlend) { HumanBody->SetAnimation(MoveBlend); HumanBody->Play(true); }
+	ShowHead(bThird);
+}
+
+USkeletalMesh* AADPWalker::BodyMesh() const { return HumanBody ? HumanBody->GetSkeletalMeshAsset() : nullptr; }
+
+void AADPWalker::ShowHead(bool bSeen) { for (USceneComponent* H : HumanHead) if (H) H->SetVisibility(bSeen, true); }
+
 void AADPWalker::DriveHuman(float Dt)
 {
-	if (!HumanBody) return;
+	if (!HumanBody || bLent) return;
 	UAnimSingleNodeInstance* One = HumanBody->GetSingleNodeInstance();
 	if (!One) return;
 	const bool bFalling = GetCharacterMovement() && GetCharacterMovement()->IsFalling();

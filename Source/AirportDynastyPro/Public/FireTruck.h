@@ -58,6 +58,9 @@ public:
 	int32 TurnState() const { return int32(Signal); }
 	/** The truck an actor belongs to (the truck or its model), or null. */
 	static AFireTruck* FromActor(AActor* A);
+	/** The truck right beside you (within 2.5 m of it) that you're facing, or null: E gets you in even when your aim
+	 *  misses it, and from behind yourself (third person) too (owner, 2026-11-13: "it doesn't notice, not always"). */
+	static AFireTruck* Beside(const APawn* P);
 	float SpeedKmh() const;
 	/** How fast the body turns (deg/s): test drives check it doesn't shake. */
 	float TurnRate() const;
@@ -76,7 +79,9 @@ private:
 	UPROPERTY() TObjectPtr<ABabylonModel> Model;
 	UPROPERTY() TObjectPtr<APawn> Driver;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCameraComponent> MoveCam;    // the camera while you climb in or out
-	UPROPERTY() TObjectPtr<UPoseableMeshComponent> Rider;               // your body in and on the truck
+	UPROPERTY() TObjectPtr<UPoseableMeshComponent> Rider;               // your body in and on the truck (the rig; unseen when your MetaHuman rides)
+	UPROPERTY() TObjectPtr<class UDriverPoseAnim> HumanPose;            // your own MetaHuman, posed from the rig (DriverPoseAnim.h)
+	UPROPERTY() TObjectPtr<USkeletalMesh> MannyMesh;                    // the mannequin, for a walker without a built character
 	UPROPERTY() TObjectPtr<UAudioComponent> SirenOut;
 	UPROPERTY() TObjectPtr<UAudioComponent> BeeperOut;                  // the reversing beeper
 	// the drive's own sound (owner, 2026-11-12), made here as the siren is, nothing recorded: a deep diesel idle

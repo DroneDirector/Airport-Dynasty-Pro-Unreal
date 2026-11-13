@@ -31,6 +31,8 @@ public:
 	/** The eyes' place in the last pose (between the eyes, a little in front of the face). */
 	FVector Eyes() const { return EyesAt; }
 	float PelvisHeight() const { return PelvisH; }
+	/** The last pose: every bone's local transform in the mesh's own order (handed to your MetaHuman, DriverPoseAnim.h). */
+	const TArray<FTransform>& LocalPose() const { return Local; }
 
 private:
 	UPoseableMeshComponent* Mesh = nullptr;

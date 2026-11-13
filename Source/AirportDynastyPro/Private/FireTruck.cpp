@@ -6,6 +6,7 @@
 #include "BabylonModel.h"
 #include "FireStation.h"
 #include "ADPWalker.h"
+#include "DriverPoseAnim.h"
 #include "GameFramework/PawnMovementComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/PlayerCameraManager.h"
@@ -393,6 +394,7 @@ bool AFireTruck::Setup(const FString& ModelName)
 	{
 		Rider = NewObject<UPoseableMeshComponent>(this, TEXT("Rider"));
 		Rider->SetSkinnedAssetAndUpdate(Manny);
+		MannyMesh = Manny;
 		Rider->SetupAttachment(Model->GetModelRoot());
 		Rider->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		Rider->SetCastShadow(true);
@@ -457,6 +459,26 @@ AFireTruck* AFireTruck::FromActor(AActor* A)
 	return Cast<AFireTruck>(A->GetAttachParentActor());
 }
 
+AFireTruck* AFireTruck::Beside(const APawn* P)
+{
+	if (!P) return nullptr;
+	AFireTruck* Best = nullptr; float BestD = 250.f;
+	for (const TWeakObjectPtr<AFireTruck>& W : All)
+	{
+		AFireTruck* T = W.Get();
+		if (!T || !T->Body || T->Driver || T->Seq != ESeq::None) continue;
+		// how far you stand outside its body's box (in the truck's own frame), and whether you face that nearest point
+		const FTransform BX = T->Body->GetComponentTransform();
+		const FVector L = BX.InverseTransformPosition(P->GetActorLocation()), E = T->Body->GetUnscaledBoxExtent();
+		const FVector Near(FMath::Clamp(L.X, -E.X, E.X), FMath::Clamp(L.Y, -E.Y, E.Y), L.Z);
+		const float D = FVector::Dist2D(L, Near);
+		FVector To = BX.TransformPosition(Near) - P->GetActorLocation(); To.Z = 0.f;
+		const FVector Fw = FRotator(0.f, (P->GetController() ? P->GetController()->GetControlRotation() : P->GetActorRotation()).Yaw, 0.f).Vector();
+		if (D < BestD && (D < 40.f || FVector::DotProduct(To.GetSafeNormal(), Fw) > 0.25f)) { BestD = D; Best = T; }
+	}
+	return Best;
+}
+
 float AFireTruck::SpeedKmh() const { return bSim ? Body->GetPhysicsLinearVelocity().Size() * 0.036f : 0.f; }
 
 void AFireTruck::SetPhysics(bool bOn)
@@ -511,7 +533,7 @@ void AFireTruck::Enter(APawn* Walker)
 	if (!PC) return;
 	const FTransform RX = Model->GetModelRoot()->GetComponentTransform();
 	const float Away = FVector::Dist2D(RX.InverseTransformPosition(Walker->GetActorLocation()), BlenderToRoot(ClimbKeys[0].Pelvis.X, ClimbKeys[0].Pelvis.Y, 0.f));
-	if (Away > 900.f)
+	if (Away > 1500.f)   // (anywhere along the truck: you walk round to the door)
 	{
 		ADP_LOG(TEXT("Fire truck: too far from the driver's door to get in (%s, %.1f m)"), *GetName(), Away / 100.f);
 		return;
@@ -532,8 +554,18 @@ void AFireTruck::BeginClimb(APawn* Walker)
 {
 	APlayerController* PC = Cast<APlayerController>(Walker->GetController());
 	if (!PC || !Model) return;
-	if (AADPWalker* Wk = Cast<AADPWalker>(Walker)) Wk->SetLed(false);
+	AADPWalker* Me = Cast<AADPWalker>(Walker);
+	if (Me) Me->SetLed(false);
 	const FTransform RX = Model->GetModelRoot()->GetComponentTransform();
+	// the body that climbs: your own MetaHuman when you have one (owner, 2026-11-13), else the mannequin; the rig built on
+	// that body's own skeleton, so feet, hands and seat fit its own size
+	HumanPose = nullptr;
+	USkeletalMesh* Own = Me ? Me->BodyMesh() : nullptr;
+	if (Rider && (Own || MannyMesh))
+	{
+		Rider->SetSkinnedAssetAndUpdate(Own ? Own : MannyMesh.Get());
+		if (!Rig.Init(Rider)) ADP_ERROR(TEXT("Fire truck: the driver's body couldn't be rigged (%s)"), Own ? *Own->GetName() : TEXT("mannequin"));
+	}
 	// where you are and look from, in the truck's own space: the climb starts there
 	FVector EyeAt; FRotator EyeRot;
 	Walker->GetActorEyesViewPoint(EyeAt, EyeRot);
@@ -554,7 +586,11 @@ void AFireTruck::BeginClimb(APawn* Walker)
 	SetPhysics(true);
 	Still = 0.f; bTestInput = false; bHandbrake = true;
 	Seq = ESeq::In; SeqT = 0.f;
-	if (Rider) Rider->SetVisibility(true);
+	if (Own && Rig.IsReady()) HumanPose = Me->LendBody(Rider);
+	if (HumanPose) { Me->ShowHead(true); ADP_LOG(TEXT("Fire truck: your own character climbs in (%s)"), *Own->GetName()); }
+	else if (Own) ADP_WARN(TEXT("Fire truck: your character couldn't be lent to the truck, the mannequin climbs instead"));
+	bHeadHidden = false;
+	if (Rider) { Rider->UnHideBoneByName(TEXT("head")); Rider->SetVisibility(!HumanPose); }
 	Sequence(0.f);
 	ADP_LOG(TEXT("Fire truck: getting in (%s)"), *GetName());
 }
@@ -607,6 +643,7 @@ void AFireTruck::FinishExit()
 	EngineOn(false);
 	if (Rider) Rider->SetVisibility(false);
 	DoorTarget = 0.f;
+	if (HumanPose) { if (AADPWalker* Me = Cast<AADPWalker>(Wk)) Me->TakeBodyBack(); HumanPose = nullptr; }
 	if (!Wk) return;
 	Wk->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 	// you stand where the climb ended, facing the truck, looking the way the camera looked
@@ -980,7 +1017,7 @@ void AFireTruck::Sequence(float Dt)
 		const FVector Spot = RX.TransformPosition(BlenderToRoot(ClimbKeys[0].Pelvis.X, ClimbKeys[0].Pelvis.Y, 0.f));
 		FVector To = Spot - Wk->GetActorLocation(); To.Z = 0.f;
 		const float Left = To.Size();
-		if (Left < 30.f || WalkClock > 8.f) { if (Wk->GetMovementComponent()) Wk->GetMovementComponent()->StopMovementImmediately(); BeginClimb(Wk); return; }
+		if (Left < 30.f || WalkClock > 14.f) { if (Wk->GetMovementComponent()) Wk->GetMovementComponent()->StopMovementImmediately(); BeginClimb(Wk); return; }
 		const FVector Dir = To / Left;
 		Wk->AddMovementInput(Dir, Left < 120.f ? 0.6f : 1.f);
 		if (AController* C = Wk->GetController())
@@ -1027,10 +1064,16 @@ void AFireTruck::Sequence(float Dt)
 		P.FootPitch[1] = Pitch * K;
 	}
 	Rig.Pose(P);
+	if (HumanPose) HumanPose->Local = Rig.LocalPose();
 	// in the driver's seat your own head stays out of the way of your eyes
 	APlayerController* PC = Cast<APlayerController>(GetController());
 	const bool bHide = PC && PC->PlayerCameraManager && FVector::Dist(PC->PlayerCameraManager->GetCameraLocation(), RX.TransformPosition(Rig.Eyes())) < 45.f;
-	if (bHide != bHeadHidden) { bHeadHidden = bHide; if (bHide) Rider->HideBoneByName(TEXT("head"), PBO_None); else Rider->UnHideBoneByName(TEXT("head")); }
+	if (bHide != bHeadHidden)
+	{
+		bHeadHidden = bHide;
+		if (HumanPose) { if (AADPWalker* Me = Cast<AADPWalker>(Driver.Get())) Me->ShowHead(!bHide); }
+		else if (bHide) Rider->HideBoneByName(TEXT("head"), PBO_None); else Rider->UnHideBoneByName(TEXT("head"));
+	}
 }
 
 void AFireTruck::Tick(float Dt)

@@ -38,6 +38,15 @@ public:
 	/** Your MetaHuman on the capsule (tests turn it to the camera), or null. */
 	AActor* HumanActor() const { return Human; }
 	virtual void BeginPlay() override;
+	/** Your MetaHuman's body lent out (a fire truck's climb and seat): moved onto Seat (its body exactly where Seat is) and
+	 *  posed by the returned instance from then on, your clothes and face still on it; null without a built character. */
+	class UDriverPoseAnim* LendBody(USceneComponent* Seat);
+	/** The body back on your capsule, walking again. */
+	void TakeBodyBack();
+	/** Your MetaHuman's skeletal mesh (the rig is built on it), or null. */
+	class USkeletalMesh* BodyMesh() const;
+	/** Your face and hair seen or not (hidden while you look out from inside your own head). */
+	void ShowHead(bool bSeen);
 
 private:
 	#pragma region Moves
@@ -60,7 +69,8 @@ private:
 	UPROPERTY() TArray<TObjectPtr<USceneComponent>> HumanHead;   // the face and its grooms: hidden from your own eyes
 	UPROPERTY() TObjectPtr<class UBlendSpace> MoveBlend;
 	UPROPERTY() TObjectPtr<class UAnimSequence> FallAnim;
-	bool bHumanFalling = false;
+	bool bHumanFalling = false, bLent = false;
+	FTransform HumanRel;   // the MetaHuman on the capsule
 	void DriveHuman(float Dt);
 	void ToggleView() { SetThirdPerson(!bThird); }
 };
