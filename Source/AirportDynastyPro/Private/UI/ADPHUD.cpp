@@ -2204,7 +2204,7 @@ void AADPHUD::Tick(float Dt)
 			struct FV { const TCHAR* Name; float X, H, Y, LX, LH, LY; };
 			// (plan metres: the terminal's apron APRON-T runs y 82..226 with the stands' noses at y 108-110, taxiway A at
 			// y = AY, the runway at RwyY; the terminal lies at y < 82)
-			const FV Views[] = {
+			const FV GroundViews[] = {
 				{TEXT("Puddles_ApronLow"),    0.f, 1.7f,  165.f, 0.f, 4.f, 60.f},
 				{TEXT("Puddles_ApronHigh"),   0.f, 12.f,  185.f, 0.f, 3.f, 95.f},
 				{TEXT("Puddles_TaxiwayLow"),  0.f,  1.7f,  F.AY, 300.f, 0.8f, F.AY - 2.f},
@@ -2238,13 +2238,13 @@ void AADPHUD::Tick(float Dt)
 				{TEXT("Ground_Overview"),     -350.f, 250.f, 900.f, 150.f, 0.f, 250.f},
 			};
 			if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 15.f; ASunClock::Theme = 1; ASunClock::Refresh(); }
-			for (int32 i = 0; i < UE_ARRAY_COUNT(Views); ++i)
+			for (int32 i = 0; i < UE_ARRAY_COUNT(GroundViews); ++i)
 			{
 				const float T0 = 41.f + 8.f * i;
-				if (Before < T0 && ShotClock >= T0) View(Views[i].X, Views[i].H, Views[i].Y, Views[i].LX, Views[i].LH, Views[i].LY);
-				if (Before < T0 + 6.f && ShotClock >= T0 + 6.f) Shot(Views[i].Name);
+				if (Before < T0 && ShotClock >= T0) View(GroundViews[i].X, GroundViews[i].H, GroundViews[i].Y, GroundViews[i].LX, GroundViews[i].LH, GroundViews[i].LY);
+				if (Before < T0 + 6.f && ShotClock >= T0 + 6.f) Shot(GroundViews[i].Name);
 			}
-			const float TE = 41.f + 8.f * UE_ARRAY_COUNT(Views);
+			const float TE = 41.f + 8.f * UE_ARRAY_COUNT(GroundViews);
 			if (Before < TE && ShotClock >= TE) { ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
 			if (Before < TE + 1.f && ShotClock >= TE + 1.f) FGenericPlatformMisc::RequestExit(false);
 		}

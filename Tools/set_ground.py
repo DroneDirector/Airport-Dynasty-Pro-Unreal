@@ -20,7 +20,7 @@ def log(m): unreal.log('ADP_GROUND ' + str(m))
 
 # ---- the weather's parameters (APuddles sets them; Cracks a global amount for the tuning panel)
 MPC = '/Game/Weather/MPC_Weather'
-PARAMS = (('Wetness', 0.0), ('PuddleAmount', 0.55), ('PuddleSize', 3.0), ('PuddleShine', 0.9), ('Ripples', 1.0), ('Rain', 0.0), ('Cracks', 1.0), ('Tyres', 1.0))
+PARAMS = (('Wetness', 0.0), ('PuddleAmount', 0.55), ('PuddleSize', 3.0), ('PuddleShine', 0.9), ('Ripples', 1.0), ('Rain', 0.0), ('Cracks', 1.0), ('Tyres', 1.0), ('Snow', 0.0))
 VPARAMS = (('RwyA', unreal.LinearColor(0, 0, 3000, 0)), ('RwyB', unreal.LinearColor(1, 0, 3000, 0)), ('RwyDisp', unreal.LinearColor(25000, 25000, 0, 0)))
 mpc = unreal.load_asset(MPC)
 if mpc is None:
@@ -163,6 +163,7 @@ bias = sp('PuddleBias', 0.0, -1600, 60); pon = sp('Puddles', 1.0, -1600, 120)
 cstyle = sp('CrackStyle', 0.0, -1600, 180); camt = sp('CrackAmount', 0.6, -1600, 240)
 tamt = sp('TyreAmount', 1.0, -1600, 300)
 pdirt = sp('PaintDirt', 0.0, -1600, 330)
+sbias = sp('SnowBias', 0.0, -1600, 360)
 vcol = E(unreal.MaterialExpressionVertexColor, -1600, 400)
 crackt = tobj('CrackLayer', LAYER['cracks_asphalt'], -1600, 360)
 tyret = tobj('TyreLayer', LAYER['tyre_rubber'], -1600, 440)
@@ -233,6 +234,25 @@ if (grime > 0.001) {
   c = lerp(c, float3(0.16, 0.16, 0.155), worn * 0.85);
   r = lerp(r, 0.85, grime * 0.6);
 }
+// a light snow cover (owner, 2026-11-13; reference photos: Stockholm Bromma, Provo): the paving ploughed, thin compacted
+// snow left in patches and streaks, held in the cracks and the joints, more on quiet ground (SnowBias: shoulders, grass),
+// worn off where the wheels run; MPC_Weather Snow. (The puddles below are left exactly as they are.)
+float snowA = saturate(SnowP) * up;
+if (snowA > 0.001) {
+  float s1 = 0, sa = 0.55; float2 sq = M / 9.0 + 7.3;
+  [unroll] for (int i = 0; i < 3; i++) {
+    float2 ip = floor(sq), f = frac(sq); f = f * f * (3 - 2 * f);
+    float h00 = frac(sin(dot(ip, float2(41.3, 289.1))) * 43758.5453), h10 = frac(sin(dot(ip + float2(1, 0), float2(41.3, 289.1))) * 43758.5453);
+    float h01 = frac(sin(dot(ip + float2(0, 1), float2(41.3, 289.1))) * 43758.5453), h11 = frac(sin(dot(ip + float2(1, 1), float2(41.3, 289.1))) * 43758.5453);
+    s1 += sa * lerp(lerp(h00, h10, f.x), lerp(h01, h11, f.x), f.y); sq = sq * 2.31 + 13.0; sa *= 0.5;
+  }
+  float cov = s1 * 0.8 + cl.g * 0.7 + joint * 0.9 * smoothstep(0.42, 0.72, s1) + saturate(SBias) * 0.55 - tyre * 0.6;   // the joints hold it only here and there
+  float thr = 1.05 - snowA * 0.8;
+  float snow = smoothstep(thr, thr + 0.16, cov);
+  float3 sc = float3(0.80, 0.83, 0.88) * (0.82 + 0.18 * s1);
+  c = lerp(c, sc, snow);
+  r = lerp(r, 0.8, snow);
+}
 float wetAll = saturate(Wet) * up;
 c *= lerp(1.0, 0.6, wetAll) * lerp(1.0, 0.82, rim) * lerp(1.0, 0.7, saturate(openC + joint) * wetAll);
 r = lerp(r, 0.28, wetAll);
@@ -267,7 +287,7 @@ SRC = lambda: {'WP': (wp, ''), 'N': (vn, ''), 'Bias': (bias, ''), 'Puddles': (po
        'Size': (cps['PuddleSize'], ''), 'Style': (cstyle, ''), 'CAmount': (camt, ''), 'Cracks': (cps['Cracks'], ''), 'Col': (use, ''),
        'Rough': (rough, ''), 'UseScan': (usescan, ''), 'ScanCol': (sdiff, ''), 'ScanBig': (sbig, ''), 'ScanR': (srgh, ''),
        'ScanN': (snor, ''), 'CrackTex': (crackt, ''), 'TyreTex': (tyret, ''), 'RwyA': (cvs['RwyA'], ''), 'RwyB': (cvs['RwyB'], ''),
-       'RwyDisp': (cvs['RwyDisp'], ''), 'TyreAmt': (tamt, ''), 'Tyres': (cps['Tyres'], ''), 'VC': (vcol, ''), 'PDirt': (pdirt, ''), 'Shine': (cps['PuddleShine'], ''),
+       'RwyDisp': (cvs['RwyDisp'], ''), 'TyreAmt': (tamt, ''), 'Tyres': (cps['Tyres'], ''), 'VC': (vcol, ''), 'PDirt': (pdirt, ''), 'SnowP': (cps['Snow'], ''), 'SBias': (sbias, ''), 'Shine': (cps['PuddleShine'], ''),
        'T': (tm, ''), 'Ripples': (cps['Ripples'], ''), 'Rain': (cps['Rain'], '')}
 def custom(code, out_type, x, y, extra):
     c = E(unreal.MaterialExpressionCustom, x, y)
@@ -279,7 +299,7 @@ def custom(code, out_type, x, y, extra):
     src = SRC()
     for n_ in names: mel.connect_material_expressions(src[n_][0], src[n_][1], c, n_)
     return c
-cs = custom(SURF, unreal.CustomMaterialOutputType.CMOT_FLOAT4, -300, 0, ['Shine', 'VC', 'PDirt'])
+cs = custom(SURF, unreal.CustomMaterialOutputType.CMOT_FLOAT4, -300, 0, ['Shine', 'VC', 'PDirt', 'SnowP', 'SBias'])
 cn = custom(NORMAL, unreal.CustomMaterialOutputType.CMOT_FLOAT3, -300, 400, ['ScanN', 'T', 'Ripples', 'Rain'])
 cr = custom(REFL, unreal.CustomMaterialOutputType.CMOT_FLOAT1, -300, 800, ['Shine'])
 rgb = E(unreal.MaterialExpressionComponentMask, -50, 0)
@@ -324,17 +344,17 @@ inst(KIT + 'MI_gasphalt', dict(Color=unreal.LinearColor(0.68, 0.68, 0.70, 1),   
      textures=dict(scan('asphalt_04', 'asphalt_02'), CrackLayer=LAYER['cracks_asphalt']))
 # the taxiways' shoulders (Airfield PaveTaxiways): older, lighter asphalt with more cracks, no tyre rubber (real shoulders
 # are paved for jet blast, rarely driven on)
-inst(KIT + 'MI_shoulder', dict(Color=unreal.LinearColor(0.75, 0.75, 0.76, 1), UseScan=1.0, ScanSize=4.04, CrackStyle=0.0, CrackAmount=0.95, TyreAmount=0.0, Variation=0.0),
+inst(KIT + 'MI_shoulder', dict(Color=unreal.LinearColor(0.75, 0.75, 0.76, 1), UseScan=1.0, ScanSize=4.04, CrackStyle=0.0, CrackAmount=0.95, TyreAmount=0.0, Variation=0.0, SnowBias=0.4),
      textures=dict(scan('asphalt_04', 'asphalt_02'), CrackLayer=LAYER['cracks_asphalt']))
 # the airfield's ground grass (owner, 2026-11-13: the edges must look real, so the grass they meet must too): a real
 # grass-and-soil scan, a touch greener for a northern summer, no cracks, no tyre rubber, damp but no puddles
-inst(KIT + 'MI_ggrass', dict(Color=unreal.LinearColor(0.66, 1.16, 0.50, 1), UseScan=1.0, ScanSize=2.51, CrackStyle=2.0, CrackAmount=0.0, TyreAmount=0.0, Puddles=0.0, Variation=0.0),
+inst(KIT + 'MI_ggrass', dict(Color=unreal.LinearColor(0.66, 1.16, 0.50, 1), UseScan=1.0, ScanSize=2.51, CrackStyle=2.0, CrackAmount=0.0, TyreAmount=0.0, Puddles=0.0, Variation=0.0, SnowBias=0.7),
      textures=dict(scan('grass_ground'), CrackLayer=LAYER['cracks_asphalt']))
 # the terminal model's own lawn: the same grass, so there is no lighter square round the terminal
-inst('/Game/Babylon/Terminal/terminal/Materials/grass', dict(Color=unreal.LinearColor(0.66, 1.16, 0.50, 1), UseScan=1.0, ScanSize=2.51, CrackStyle=2.0, CrackAmount=0.0, TyreAmount=0.0, Puddles=0.0, Variation=0.0),
+inst('/Game/Babylon/Terminal/terminal/Materials/grass', dict(Color=unreal.LinearColor(0.66, 1.16, 0.50, 1), UseScan=1.0, ScanSize=2.51, CrackStyle=2.0, CrackAmount=0.0, TyreAmount=0.0, Puddles=0.0, Variation=0.0, SnowBias=0.7),
      textures=dict(scan('grass_ground'), CrackLayer=LAYER['cracks_asphalt']))
 for nm, b_ in (('MI_gconcrete', 0.0), ('MI_gapron', 0.12)):
-    inst(KIT + nm, dict(Color=unreal.LinearColor(1.12, 1.12, 1.10, 1), UseScan=1.0, ScanSize=3.0, CrackStyle=1.0, CrackAmount=0.6, TyreAmount=0.0, PuddleBias=b_, Variation=0.0),
+    inst(KIT + nm, dict(Color=unreal.LinearColor(1.12, 1.12, 1.10, 1), UseScan=1.0, ScanSize=3.0, CrackStyle=1.0, CrackAmount=0.6, TyreAmount=0.0, PuddleBias=b_, Variation=0.0, SnowBias=0.33 if nm == 'MI_gapron' else 0.35),
          textures=dict(scan('concrete_floor_worn_001', 'brushed_concrete_04'), CrackLayer=LAYER['cracks_concrete']))
 # the red of the mandatory instruction markings (the runway-ahead signs): its own paint, so the kit's red stays as it is
 inst(KIT + 'MI_paintred', dict(Color=unreal.LinearColor(0.42, 0.02, 0.02, 1), UseScan=0.0, CrackStyle=0.0, CrackAmount=0.7, TyreAmount=1.0, Roughness=0.55, Variation=0.03, PaintDirt=1.0),
@@ -365,7 +385,7 @@ for name in ('concrete', 'rentalConcrete', 'rentalConcreteLight'):
     if a and ORIG and a.get_editor_property('parent') != ORIG:
         mel.set_material_instance_parent(a, ORIG); mel.update_material_instance(a); eal.save_loaded_asset(a, only_if_is_dirty=False); log(name + ' -> its own master again')
 # the model's ground only: its road, apron and car park
-for name, extra in (('apron', dict(CrackStyle=1.0, CrackAmount=0.5, PuddleBias=0.12)), ('asphalt', dict(CrackStyle=0.0, CrackAmount=0.5)),
+for name, extra in (('apron', dict(CrackStyle=1.0, CrackAmount=0.5, PuddleBias=0.12, SnowBias=0.33)), ('asphalt', dict(CrackStyle=0.0, CrackAmount=0.5)),
                     ('rentalAsphalt', dict(CrackStyle=0.0, CrackAmount=0.35, PuddleBias=0.05))):
     a = unreal.load_asset(BAB + name)
     if a is None: log('missing ' + name); continue

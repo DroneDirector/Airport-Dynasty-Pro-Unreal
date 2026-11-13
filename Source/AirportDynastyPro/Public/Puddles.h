@@ -48,5 +48,6 @@ private:
 	bool bRainyDay = false;
 	float Wetness = 0.f;
 	float Rain = 0.f;
+	float SnowDay = -1.f;   // the -SnowDay test's snow (unset: the Snow setting)
 	TMap<FString, float> Tuning;
 };

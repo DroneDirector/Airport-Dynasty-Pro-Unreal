@@ -80,6 +80,10 @@ soil = saturate(soil);
 float verge = (1.0 - smoothstep(0.15, 1.25 + 0.3 * nC, d)) * step(0.0, d) * (0.75 + 0.25 * fine);
 float alpha = saturate(max(max(grit, soil), verge)) * VA;
 alpha *= smoothstep(1.4, 1.1, x) * smoothstep(-1.2, -1.0, x);       // nothing at the band's own borders
+// snow (MPC_Weather Snow): a low ploughed bank along the grass side, lumpy, and a dusting over the verge
+float bank = saturate(SnowP) * (smoothstep(-0.15, 0.25, d) * (1.0 - smoothstep(0.7 + 0.3 * nB, 1.25, d))) * (0.65 + 0.35 * fine);
+float snowE = saturate(bank * 1.6);
+alpha = max(alpha, snowE * smoothstep(1.4, 1.1, x) * VA);
 """
 SURF = COMMON + r"""
 float3 gc = Texture2DSample(Grit, GritSampler, w / 15.0).rgb;
@@ -88,7 +92,8 @@ float3 gritC = gc * 0.85;
 float3 soilC = lerp(gc, gc * float3(0.62, 0.56, 0.48), 0.5) * 0.8;       // damper, darker soil
 float3 c = gritC * grit + soilC * soil + vcol * verge;
 float s = grit + soil + verge + 1e-4;
-return float4(c / s, alpha);
+float3 base = c / s; base = lerp(base, float3(0.80, 0.83, 0.88) * (0.85 + 0.15 * fine), snowE);
+return float4(base, alpha);
 """
 NORMAL = COMMON + r"""
 float3 gn = Texture2DSample(GritN, GritNSampler, w / 15.0).rgb * 2.0 - 1.0;
@@ -103,6 +108,7 @@ vmask = E(unreal.MaterialExpressionComponentMask, -750, 100)
 for ch, on in (('r', False), ('g', True), ('b', False), ('a', False)): vmask.set_editor_property(ch, on)
 mel.connect_material_expressions(tc, '', vmask, '')
 vc = E(unreal.MaterialExpressionVertexColor, -900, 200)
+snowp = E(unreal.MaterialExpressionCollectionParameter, -900, 700); snowp.set_editor_property('collection', unreal.load_asset('/Game/Weather/MPC_Weather')); snowp.set_editor_property('parameter_name', 'Snow')
 texs = {'Grit': tobj(GRIT, -900, 300, unreal.MaterialSamplerType.SAMPLERTYPE_COLOR), 'Verge': tobj(VERGE, -900, 400, unreal.MaterialSamplerType.SAMPLERTYPE_COLOR),
         'GritN': tobj(GRITN, -900, 500, unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL), 'VergeN': tobj(VERGEN, -900, 600, unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL)}
 def custom(code, out_type, y, names):
@@ -112,11 +118,11 @@ def custom(code, out_type, y, names):
     for n_ in names:
         ci = unreal.CustomInput(); ci.set_editor_property('input_name', n_); ins.append(ci)
     c.set_editor_property('inputs', ins)
-    src = {'WP': (wp, ''), 'V': (vmask, ''), 'VC': (vc, ''), 'VA': (vc, 'A'), **{k: (v, '') for k, v in texs.items()}}
+    src = {'WP': (wp, ''), 'V': (vmask, ''), 'VC': (vc, ''), 'VA': (vc, 'A'), 'SnowP': (snowp, ''), **{k: (v, '') for k, v in texs.items()}}
     for n_ in names: mel.connect_material_expressions(src[n_][0], src[n_][1], c, n_)
     return c
-cs = custom(SURF, unreal.CustomMaterialOutputType.CMOT_FLOAT4, 0, ['WP', 'V', 'VC', 'VA', 'Grit', 'Verge'])
-cn = custom(NORMAL, unreal.CustomMaterialOutputType.CMOT_FLOAT3, 400, ['WP', 'V', 'VC', 'VA', 'GritN', 'VergeN'])
+cs = custom(SURF, unreal.CustomMaterialOutputType.CMOT_FLOAT4, 0, ['WP', 'V', 'VC', 'VA', 'SnowP', 'Grit', 'Verge'])
+cn = custom(NORMAL, unreal.CustomMaterialOutputType.CMOT_FLOAT3, 400, ['WP', 'V', 'VC', 'VA', 'SnowP', 'GritN', 'VergeN'])
 rgb = E(unreal.MaterialExpressionComponentMask, -150, 0)
 for ch, on in (('r', True), ('g', True), ('b', True), ('a', False)): rgb.set_editor_property(ch, on)
 aa = E(unreal.MaterialExpressionComponentMask, -150, 100)

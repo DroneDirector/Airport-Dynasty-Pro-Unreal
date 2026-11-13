@@ -21,6 +21,7 @@ namespace
 		{TEXT("Ripples"),     1.0f,  0.f,  2.f,  TEXT("rain ripples' strength")},
 		{TEXT("WetMinutes"),  1.0f,  0.1f, 10.f, TEXT("minutes for the ground to get fully wet in rain")},
 		{TEXT("DryingHours"), 3.0f,  0.05f, 24.f, TEXT("hours for the ground to dry after the rain (Iceland-like: about 2-6)")},
+		{TEXT("Snow"),        0.0f,  0.f,  1.f,  TEXT("snow on the ground: 0 none, 0.3 a light ploughed cover, 1 a lot (owner, 2026-11-13)")},
 	};
 	FString IniPath() { return FPaths::ProjectContentDir() / TEXT("Settings/Puddles.ini"); }
 }
@@ -42,6 +43,8 @@ void APuddles::BeginPlay()
 	Load();
 	// the test (-UIPuddles) and the command line can start on a rainy day, already soaked
 	if (FParse::Param(FCommandLine::Get(), TEXT("RainyDay"))) { bRainyDay = true; Wetness = 1.f; Rain = 1.f; }
+	// -SnowDay: the ground under a light ploughed snow cover for the tests (not saved)
+	if (FParse::Param(FCommandLine::Get(), TEXT("SnowDay"))) SnowDay = 0.35f;
 	Push();
 }
 
@@ -77,6 +80,7 @@ void APuddles::Push() const
 	UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("PuddleSize"), GetTuning(TEXT("Size")));
 	UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("PuddleShine"), GetTuning(TEXT("Shine")));
 	UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("Ripples"), GetTuning(TEXT("Ripples")));
+	UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("Snow"), SnowDay >= 0.f ? SnowDay : GetTuning(TEXT("Snow")));
 }
 
 #pragma endregion
