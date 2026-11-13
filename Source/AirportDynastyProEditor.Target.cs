@@ -9,5 +9,6 @@ public class AirportDynastyProEditorTarget : TargetRules
 		DefaultBuildSettings = BuildSettingsVersion.Latest;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		ExtraModuleNames.Add("AirportDynastyPro");
+		ExtraModuleNames.Add("ADPEditorTools");   // editor-only helpers for the content scripts
 	}
 }
