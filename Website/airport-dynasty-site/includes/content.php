@@ -41,16 +41,16 @@ function ads_content() {
         // #region ── Buildings (wayfinding signs) ──
         'buildings' => [
             'eyebrow' => 'Follow the signs',
-            'title'   => 'Buildings you <em>run, walk and grow.</em>',
-            'text'    => 'More buildings join with every update. Here’s where things stand.',
+            'title'   => 'Buildings with <em>full interiors.</em>',
+            'text'    => 'Here are some of the buildings you can walk into, and what you do inside them. More join with every update.',
             'items'   => [
-                ['icon' => 'terminal', 'name' => 'The terminal', 'text' => 'Check-in, security, shops, gates and jetways. Walkable, and it grows with you.', 'status' => 'In the game', 'arrow' => '→'],
-                ['icon' => 'tower', 'name' => 'Control tower', 'text' => 'Watch every movement on the field from the top.', 'status' => 'In the game', 'arrow' => '↑'],
-                ['icon' => 'hangar', 'name' => 'Hangars', 'text' => 'Where the fleet is serviced and kept flying.', 'status' => 'In the game', 'arrow' => '←'],
-                ['icon' => 'fire', 'name' => 'Fire station', 'text' => 'Fire trucks you can climb into and drive yourself.', 'status' => 'In the game', 'arrow' => '↗'],
-                ['icon' => 'car', 'name' => 'Car dealership', 'text' => 'Buy and sell cars in your home town.', 'status' => 'Being built', 'arrow' => '→'],
-                ['icon' => 'home', 'name' => 'Your villa', 'text' => 'Your own home at the end of its own road.', 'status' => 'Being built', 'arrow' => '↓'],
-                ['icon' => 'more', 'name' => 'And much more', 'text' => 'Shops, a petrol station, a hairdresser, the town itself and more on the way.', 'status' => 'Coming', 'arrow' => '…'],
+                ['icon' => 'terminal', 'name' => 'The terminal', 'text' => 'Check passengers in, run security and the shops, and add new wings as traffic grows.', 'status' => 'In the game', 'arrow' => '→'],
+                ['icon' => 'tower', 'name' => 'Control tower', 'text' => 'Climb to the top and watch every aircraft move on the field below.', 'status' => 'In the game', 'arrow' => '↑'],
+                ['icon' => 'hangar', 'name' => 'Hangars', 'text' => 'Where your aircraft are serviced, repaired and kept ready to fly.', 'status' => 'In the game', 'arrow' => '←'],
+                ['icon' => 'fire', 'name' => 'Fire station', 'text' => 'Meet the fire crews, climb into the fire trucks and drive them yourself.', 'status' => 'In the game', 'arrow' => '↗'],
+                ['icon' => 'car', 'name' => 'Car dealership', 'text' => 'Buy yourself a new car, sell your current one, or trade it in for another.', 'status' => 'Being built', 'arrow' => '→'],
+                ['icon' => 'home', 'name' => 'Your villa', 'text' => 'Your own home at the end of its own road, with a garage for your car.', 'status' => 'Being built', 'arrow' => '↓'],
+                ['icon' => 'more', 'name' => 'And much more', 'text' => 'Shops, a petrol station, a hairdresser and more of the town on the way.', 'status' => 'Coming', 'arrow' => '…'],
             ],
         ],
         // #endregion
