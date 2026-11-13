@@ -2147,17 +2147,21 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 90.5f && ShotClock >= 90.5f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowUp'}))"));   // Married: he walks in
 			if (Before < 92.f && ShotClock >= 92.f) Shot(TEXT("NewGame_PartnerWalking"));
 			if (Before < 95.5f && ShotClock >= 95.5f) Shot(TEXT("NewGame_Partner"));
-			if (Before < 96.5f && ShotClock >= 96.5f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}))"));   // Next: the difficulty
-			if (Before < 97.5f && ShotClock >= 97.5f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowDown'}))"));   // Hard
-			if (Before < 99.f && ShotClock >= 99.f) Shot(TEXT("NewGame_Difficulty"));
-			if (Before < 100.f && ShotClock >= 100.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}))"));   // Start game: the loading screen
-			if (Before < 102.f && ShotClock >= 102.f) Shot(TEXT("NewGame_Loading"));
-			if (Before < 104.f && ShotClock >= 104.f) Shot(TEXT("NewGame_Founding"));   // the game's Found-your-airline form
-			// the form filled as a player would (a home base and the names), the game started: the loading screen, the Overview
-			if (Before < 105.f && ShotClock >= 105.f) Js(TEXT("(function(){ var f = document.querySelector('.game-frame'); if (f && f.contentWindow) f.contentWindow.eval(\"_fsHub='EKVG'; var n = document.querySelector('.fs-name'); if (n) n.value = 'Northern Lights Air'; ACTIONS['fs-wipe']()\"); })()"));
-			if (Before < 108.f && ShotClock >= 108.f) Shot(TEXT("NewGame_Loading2"));
-			if (Before < 120.f && ShotClock >= 120.f) Shot(TEXT("NewGame_OnIntoTheGame"));
-			if (Before < 122.f && ShotClock >= 122.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 96.5f && ShotClock >= 96.5f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}))"));   // Next: your airline
+			// the airline founded on the stage (no game form after Start game): Regional, a name typed (code and callsign follow it), your name
+			if (Before < 97.5f && ShotClock >= 97.5f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowDown'}))"));
+			if (Before < 98.f && ShotClock >= 98.f) Js(TEXT("(function(){ function put(f, v){ var e = document.querySelector('.wy [data-f=' + f + ']'); if (e) { e.value = v; e.dispatchEvent(new Event('input', {bubbles: true})); } } put('name', 'Aurora Atlantic Express'); put('pilot', 'Simon Test'); })()"));
+			if (Before < 99.5f && ShotClock >= 99.5f) Shot(TEXT("NewGame_Airline"));
+			if (Before < 100.5f && ShotClock >= 100.5f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}))"));   // Next: the difficulty
+			if (Before < 101.5f && ShotClock >= 101.5f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowDown'}))"));   // Hard
+			if (Before < 103.f && ShotClock >= 103.f) Shot(TEXT("NewGame_Difficulty"));
+			if (Before < 104.f && ShotClock >= 104.f) Js(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}))"));   // Start game: the loading screen, the airline founded unseen
+			if (Before < 106.f && ShotClock >= 106.f) Shot(TEXT("NewGame_Loading"));
+			if (Before < 110.f && ShotClock >= 110.f) Shot(TEXT("NewGame_Loading2"));
+			if (Before < 114.f && ShotClock >= 114.f) Shot(TEXT("NewGame_Loading3"));
+			if (Before < 124.f && ShotClock >= 124.f) Js(TEXT("(function(){ var f = document.querySelector('.game-frame'); var c = f && f.contentWindow; if (c) ue.adp.log('NEWGAME airline=' + c.eval('JSON.stringify((function(){var x = company(); return x ? {n: x.name, i: x.icao, c: x.callsign, h: x.hub, k: x.kind, b: Math.round(x.balance)} : null})())') + ' pilot=' + c.eval('myPilot().name')); })()"));
+			if (Before < 125.f && ShotClock >= 125.f) Shot(TEXT("NewGame_OnIntoTheGame"));
+			if (Before < 127.f && ShotClock >= 127.f) FGenericPlatformMisc::RequestExit(false);
 		}
 		// -UIGender: the concept of the new career's "who are you" screen (owner, 2026-11-12): the dark neon room with
 		// the fog, she in the light and he in shadow, with the title screen's lettering over it

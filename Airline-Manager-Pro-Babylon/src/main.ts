@@ -135,7 +135,7 @@ let newStageDone = false;
 // own loader and anything it shows stay behind the loading screen until it says it is in and showing
 (window as any).__ueNewGameDone = (diff?: string, sex?: string) => {
   const ch: any = (window as any).__ngChoices || {};
-  gameNewExtra(diff || '', sex || '', ch.pet || 'none', ch.coat || 0, !!ch.married);
+  gameNewExtra(diff || '', sex || '', ch.pet || 'none', ch.coat || 0, !!ch.married, ch.airline || null);
   loadingNeonShow();
   newStageDone = true; try { pickPlace('game:new'); } finally { newStageDone = false; }
 };

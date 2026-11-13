@@ -12,6 +12,8 @@ const EMBED: string = (() => { try { return new URLSearchParams(location.search)
 const EMBED_DIFF: string = (() => { try { return new URLSearchParams(location.search).get('diff') || ''; } catch (e) { return ''; } })();
 const EMBED_SEX: string = (() => { try { return new URLSearchParams(location.search).get('sex') || ''; } catch (e) { return ''; } })();
 const EMBED_PET: string = (() => { try { return new URLSearchParams(location.search).get('pet') || ''; } catch (e) { return ''; } })();
+// the airline founded on the stage (owner, 2026-11-13): founded here straight away, no form
+const EMBED_AIR: any = (() => { try { const a = new URLSearchParams(location.search).get('air'); return a ? JSON.parse(a) : null; } catch (e) { return null; } })();
 const EMBED_COAT: number = (() => { try { return +(new URLSearchParams(location.search).get('coat') || 0); } catch (e) { return 0; } })();
 function embedTell(what: string, extra?: any) { try { parent.postMessage(Object.assign({ amp: what }, extra || {}), '*'); } catch (e) { /* alone */ } }
 
@@ -55,6 +57,7 @@ if (EMBED) {
         (window as any).__ngPilot = { sex: EMBED_SEX === 'f' ? 'f' : 'm', look: defaultLook(EMBED_SEX === 'f' ? 'f' : 'm', 'captain') };
         // the pet chosen on the stage: yours, asleep in its bed in your office
         (window as any).__ngPet = EMBED_PET === 'dog' || EMBED_PET === 'cat' ? { kind: EMBED_PET, name: EMBED_PET === 'cat' ? 'Misty' : 'Buddy', coat: EMBED_COAT, white: true, size: 'm', ears: 'pointy', bed: 0, v: 2 } : null;
+        if (EMBED_AIR && ['major', 'regional', 'bush'].includes(EMBED_AIR.kind)) _fsKind = EMBED_AIR.kind;
         ACTIONS['fs-scratch'](null as any, null as any);
         const d = $('.fs-modal .fs-diff') as HTMLElement; if (d) d.remove();   // chosen on the stage
         // the home base is the airport we built, Mýrdalssandur in Iceland (BIAP): fixed, not chosen (owner, 2026-11-13)
@@ -68,6 +71,14 @@ if (EMBED) {
         if (b) { b.classList.remove('danger'); b.classList.add('primary'); b.innerHTML = `${icon('play')}Start the new game`; }
         if (x) x.setAttribute('data-act', 'ts-panel-close');
         if (bk) bk.setAttribute('data-act', 'ts-panel-close');
+        if (EMBED_AIR) {
+          // everything was chosen on the stage: the form is filled in and sent unseen, the loading screen stays up
+          const m = $('.fs-modal') as HTMLElement; if (m) { const lay = (m.closest('.layer') as HTMLElement) || m; lay.style.visibility = 'hidden'; }
+          const put = (q: string, v: string) => { const e = $(q) as HTMLInputElement; if (e && v) e.value = String(v); };
+          put('.fs-modal .fs-name', EMBED_AIR.name); put('.fs-modal .fs-icao', EMBED_AIR.icao); put('.fs-modal .fs-call', EMBED_AIR.call); put('.fs-modal .fs-pilot', EMBED_AIR.pilot);
+          ACTIONS['fs-wipe'](null as any, null as any);
+          return;
+        }
         embedTell('founding');   // the form is up: the edition's loading screen steps aside for it
       } catch (e) { console.error(e); }
     }, 60);

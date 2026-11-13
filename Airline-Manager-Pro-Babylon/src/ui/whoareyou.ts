@@ -11,7 +11,7 @@ import { icon } from './icons';
 import { splashTakeMusic, splashGiveMusic } from './splash';
 import { S, saveSettings } from '../core/settings';
 
-const Wy: any = { root: null as HTMLElement | null, audio: null as HTMLAudioElement | null, stage: '', side: '', step: 0, diff: '', pet: 'none', coat: 0, partner: 'single', padY: 0, hover: '', chosen: false, key$: null as any, raf: 0, padA: false, padB: false, padX: 0 };
+const Wy: any = { root: null as HTMLElement | null, audio: null as HTMLAudioElement | null, stage: '', side: '', step: 0, diff: '', pet: 'none', coat: 0, partner: 'single', air: null as any, padY: 0, hover: '', chosen: false, key$: null as any, raf: 0, padA: false, padB: false, padX: 0 };
 
 function tell(action: string, arg = '') { if (action === 'cancel') musicEnd(true); const u = ue(); if (u && u.whoareyou) u.whoareyou(action, arg); }
 
@@ -60,6 +60,7 @@ const STEPS: { id: string; k: string; t: string; parts: [string, string][] }[] =
   { id: 'creator', k: 'Coming with the character creator', t: 'Your looks', parts: [['Face', 'star'], ['Skin', 'grid'], ['Body', 'plus'], ['Height', 'mountain'], ['Hair', 'save'], ['Clothes', 'folder']] },
   { id: 'pet', k: 'A companion at home', t: 'Your pet', parts: [['Dog', 'star'], ['Cat', 'star'], ['No pet', 'close']] },
   { id: 'partner', k: 'Married, or not', t: 'Your partner', parts: [['Married', 'star'], ['Single', 'close'], ['Their looks', 'grid']] },
+  { id: 'airline', k: 'Found your company', t: 'Your airline', parts: [] },
   { id: 'difficulty', k: 'How hard your career is', t: 'Difficulty', parts: [['Cruising along', 'star'], ['Easy', 'star'], ['Normal', 'star'], ['Hard', 'star'], ['Extreme', 'star']] },
 ];
 // the difficulty (the game's own levels): what aircraft cost, what flights earn, how markets swing, and the money you
@@ -70,7 +71,50 @@ const COATS: { [k: string]: [string, string][] } = {
   cat: [['#E08A3C', 'Ginger'], ['#2A2624', 'Black'], ['#9A9590', 'Grey'], ['#F1EEE8', 'White'], ['#7A6450', 'Tabby'], ['#D9C3A0', 'Cream'], ['#5E6670', 'Blue-grey'], ['#B07A4A', 'Cinnamon']],
 };
 /** The choices so far, for the game when the career begins (main.ts reads window.__ngChoices). */
-function choicesOut() { (window as any).__ngChoices = { pet: Wy.pet || 'none', coat: Wy.coat || 0, married: Wy.partner === 'married' }; }
+function choicesOut() { (window as any).__ngChoices = { pet: Wy.pet || 'none', coat: Wy.coat || 0, married: Wy.partner === 'married', airline: Wy.air ? Object.assign({}, Wy.air) : null }; }
+// the airline (owner, 2026-11-13: the founding is a neon step, no game form after Start game): what kind, its name,
+// ICAO code and callsign (made from the name until you type your own), your name; the home base is always the airport
+// we built, Mýrdalssandur (BIAP). Filled in already, so a pad (no keyboard) just goes on with A.
+const KINDS: [string, string, string, string][] = [
+  ['major', 'Airline', 'Jets and turboprops on scheduled routes', 'Northern Lights Air'],
+  ['regional', 'Regional', 'Smaller jets, turboprops and cargo', 'Fjord Regional'],
+  ['bush', 'Bush outfit', 'Floatplanes and STOL aircraft', 'Tundra Wings'],
+];
+function airDefaults() { return { kind: 'major', name: KINDS[0][3], icao: '', call: '', pilot: '', ownIcao: false, ownCall: false, ownName: false }; }
+function icaoOf(name: string) { const w = name.toUpperCase().replace(/[^A-Z ]/g, '').split(/\s+/).filter(Boolean); const a = w.length >= 3 ? w.slice(0, 3).map(x => x[0]).join('') : w.join('').slice(0, 3); return (a || 'NEW').padEnd(3, 'X').slice(0, 3); }
+function callOf(name: string) { return (name.toUpperCase().replace(/[^A-Z ]/g, '').split(/\s+/).filter(Boolean)[0] || 'NEW').slice(0, 16); }
+function airFill() { const a = Wy.air; if (!a.ownIcao) a.icao = icaoOf(a.name); if (!a.ownCall) a.call = callOf(a.name); }
+function airHtml(): string {
+  if (!Wy.air) Wy.air = airDefaults();
+  const a = Wy.air; airFill();
+  const esc = (x: string) => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' } as any)[c]);
+  return KINDS.map(([id, t, hint]) => `<button class="ts-btn ${id === a.kind ? 'on' : ''}" data-kind="${id}"><span class="ts-bi">${icon(id === 'bush' ? 'mountain' : 'star')}</span><span class="ts-bt"><b>${t}</b><small>${hint}</small></span><i class="ts-sheen"></i></button>`).join('')
+    + `<div class="wy-fields">
+      <label class="wy-f wy-f-wide"><span>Airline name</span><input data-f="name" maxlength="40" value="${esc(a.name)}" spellcheck="false"></label>
+      <label class="wy-f"><span>ICAO code</span><input data-f="icao" maxlength="3" value="${esc(a.icao)}" spellcheck="false"></label>
+      <label class="wy-f"><span>Callsign</span><input data-f="call" maxlength="16" value="${esc(a.call)}" spellcheck="false"></label>
+      <label class="wy-f wy-f-wide"><span>Your name</span><input data-f="pilot" maxlength="40" value="${esc(a.pilot)}" placeholder="Your pilot's name" spellcheck="false"></label>
+      <div class="wy-f wy-f-wide wy-base"><span>Home base</span><b>Mýrdalssandur  ·  BIAP</b></div>
+    </div>`;
+}
+function airInput(el: HTMLInputElement) {
+  const a = Wy.air, f = el.getAttribute('data-f') || ''; let v = el.value;
+  if (f === 'icao') { v = v.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3); el.value = v; a.icao = v; a.ownIcao = !!v; }
+  else if (f === 'call') { v = v.toUpperCase().replace(/[^A-Z ]/g, ''); el.value = v; a.call = v; a.ownCall = !!v.trim(); }
+  else if (f === 'pilot') a.pilot = v;
+  else if (f === 'name') {
+    a.name = v; a.ownName = true; airFill();
+    const r = Wy.root; if (!r) return;
+    const i = r.querySelector('[data-f=icao]') as HTMLInputElement, c = r.querySelector('[data-f=call]') as HTMLInputElement;
+    if (i && !a.ownIcao) i.value = a.icao; if (c && !a.ownCall) c.value = a.call;
+  }
+  choicesOut();
+}
+function airKind(k: string) {
+  const a = Wy.air; a.kind = k;
+  if (!a.ownName) a.name = (KINDS.find(x => x[0] === k) || KINDS[0])[3];
+  renderStep(Wy.step, Wy.side); choicesOut();
+}
 function petTell() { const k = Wy.pet; if (k === 'dog' || k === 'cat') tell('pet', k + ':' + COATS[k][Wy.coat || 0][0]); else tell('pet', 'none'); choicesOut(); }
 function partnerTell() { tell('partner', Wy.partner === 'married' ? 'married' : 'single'); choicesOut(); }
 const DIFFS: [string, string, string][] = [
@@ -94,6 +138,8 @@ function renderStep(n: number, side: string) {
         : st.id === 'partner'
         ? [['married', 'Married', 'Your partner walks in beside you'], ['single', 'Single', 'On your own']].map(([id, t, hint]) => `<button class="ts-btn ${id === (Wy.partner || 'single') ? 'on' : ''}" data-partner="${id}"><span class="ts-bi">${icon(id === 'single' ? 'close' : 'star')}</span><span class="ts-bt"><b>${t}</b><small>${hint}</small></span><i class="ts-sheen"></i></button>`).join('')
           + `<button class="ts-btn" disabled><span class="ts-bi">${icon('grid')}</span><span class="ts-bt"><b>Their looks</b><small>with the character creator</small></span><i class="ts-sheen"></i></button>`
+        : st.id === 'airline'
+        ? airHtml()
         : isDiff
         ? DIFFS.map(([id, t, hint]) => `<button class="ts-btn ${id === Wy.diff ? 'on' : ''}" data-diff="${id}"><span class="ts-bi">${icon('star')}</span><span class="ts-bt"><b>${t}</b><small>${hint}</small></span><i class="ts-sheen"></i></button>`).join('')
         : st.parts.map(([t, ic], i) => `<button class="ts-btn ${i === 0 ? 'on' : ''}" data-part="${t}"><span class="ts-bi">${icon(ic)}</span><span class="ts-bt"><b>${t}</b><small>soon</small></span><i class="ts-sheen"></i></button>`).join('')}
@@ -114,6 +160,7 @@ function optMove(d: number) {
   const id = STEPS[Wy.step].id;
   if (id === 'difficulty') { diffMove(d); return; }
   if (id === 'pet') { const L = ['dog', 'cat', 'none'], i = Math.max(0, L.indexOf(Wy.pet || 'none')); Wy.pet = L[Math.min(L.length - 1, Math.max(0, i + d))]; Wy.coat = 0; renderStep(Wy.step, Wy.side); petTell(); return; }
+  if (id === 'airline') { const L = KINDS.map(k => k[0]), i = Math.max(0, L.indexOf(Wy.air.kind)); airKind(L[Math.min(L.length - 1, Math.max(0, i + d))]); return; }
   if (id === 'partner') { const L = ['married', 'single'], i = Math.max(0, L.indexOf(Wy.partner || 'single')); Wy.partner = L[Math.min(L.length - 1, Math.max(0, i + d))]; renderStep(Wy.step, Wy.side); partnerTell(); }
 }
 function stepTo(n: number) {
@@ -158,6 +205,9 @@ function open(stage: string, side = '') {
         if (co) { Wy.coat = +(co.getAttribute('data-coat') || 0); renderStep(Wy.step, Wy.side); petTell(); return; }
         const pa = t.closest('[data-partner]') as HTMLElement | null;
         if (pa) { Wy.partner = pa.getAttribute('data-partner') || 'single'; renderStep(Wy.step, Wy.side); partnerTell(); return; }
+        const ki = t.closest('[data-kind]') as HTMLElement | null;
+        if (ki) { airKind(ki.getAttribute('data-kind') || 'major'); return; }
+        if (t.closest('.wy-f')) return;   // typing in the airline's fields
         const d = t.closest('[data-diff]') as HTMLElement | null;
         if (d) { Wy.diff = d.getAttribute('data-diff') || 'normal'; Wy.root.querySelectorAll('[data-diff]').forEach((b: Element) => b.classList.toggle('on', b === d)); return; }
         if (t.closest('[data-next]')) stepTo(Wy.step + 1); else if (t.closest('[data-back]')) stepTo(Wy.step - 1);
@@ -165,6 +215,8 @@ function open(stage: string, side = '') {
     });
     Wy.key$ = (e: KeyboardEvent) => {
       if (!Wy.root) return;
+      const inField = (e.target as HTMLElement) && (e.target as HTMLElement).tagName === 'INPUT';
+      if (inField) { if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); e.stopImmediatePropagation(); (e.target as HTMLInputElement).blur(); } return; }
       if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); if (Wy.stage === 'step') stepTo(Wy.step - 1); else if (Wy.stage === 'choose') tell('cancel'); return; }
       if (e.key === 'Backspace' && Wy.stage === 'step') { e.preventDefault(); stepTo(Wy.step - 1); return; }
       if (Wy.stage === 'choose') {
@@ -176,12 +228,13 @@ function open(stage: string, side = '') {
       else if (Wy.stage === 'step' && STEPS[Wy.step].id === 'pet' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && (Wy.pet === 'dog' || Wy.pet === 'cat')) { e.preventDefault(); const n = COATS[Wy.pet].length; Wy.coat = ((Wy.coat || 0) + (e.key === 'ArrowLeft' ? -1 : 1) + n) % n; renderStep(Wy.step, Wy.side); petTell(); }
     };
     window.addEventListener('keydown', Wy.key$, true);
+    root.addEventListener('input', (e: Event) => { const t = e.target as HTMLElement; if (t && t.tagName === 'INPUT' && Wy.air) airInput(t as HTMLInputElement); });
     Wy.raf = requestAnimationFrame(padPoll);
     Wy.audio = splashTakeMusic();   // the title's music, playing on
     requestAnimationFrame(() => root.classList.add('in'));
   }
   Wy.side = stage === 'choose' ? Wy.side : side;
-  if (stage === 'choose') { if (!side) { Wy.pet = 'none'; Wy.coat = 0; Wy.partner = 'single'; Wy.diff = ''; choicesOut(); } Wy.stage = 'choose'; Wy.hover = ''; Wy.chosen = false; Wy.root.classList.remove('chosen'); renderChoose(); if (side) hover(side); }
+  if (stage === 'choose') { if (!side) { Wy.pet = 'none'; Wy.coat = 0; Wy.partner = 'single'; Wy.diff = ''; Wy.air = airDefaults(); choicesOut(); } Wy.stage = 'choose'; Wy.hover = ''; Wy.chosen = false; Wy.root.classList.remove('chosen'); renderChoose(); if (side) hover(side); }
   else stepTo(0);
 }
 

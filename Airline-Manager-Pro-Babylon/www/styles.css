@@ -568,3 +568,12 @@ html.ue-stage body > *:not(.wy) { visibility: hidden !important; }
 .wy-coat:hover { transform: translateY(-2px); border-color: rgba(53, 240, 255, .6); }
 .wy-coat.on { border-color: var(--neo1); box-shadow: 0 0 16px rgba(255, 63, 184, .45); }
 .wy-panel .ts-btn[disabled] { opacity: .45; cursor: default; }
+/* the airline step's fields (owner, 2026-11-13: founding on the neon stage): glass boxes edged in the title's cyan */
+.wy-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; margin-top: 12px; }
+.wy-f { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.wy-f-wide { grid-column: 1 / -1; }
+.wy-f > span { font-family: 'Audiowide', sans-serif; font-size: 10px; letter-spacing: .3em; text-transform: uppercase; color: var(--neo2); text-shadow: 0 0 6px rgba(53, 240, 255, .7); }
+.wy-f input { width: 100%; box-sizing: border-box; padding: 9px 12px; font: 600 15px/1.2 'Audiowide', sans-serif; letter-spacing: .06em; color: #fff; background: rgba(14, 8, 34, .62); border: 1px solid rgba(53, 240, 255, .35); border-left: 3px solid var(--neo2); outline: none; transition: border-color .2s, box-shadow .2s; }
+.wy-f input::placeholder { color: rgba(225, 215, 255, .35); }
+.wy-f input:focus { border-color: var(--neo1); box-shadow: 0 0 14px rgba(255, 63, 184, .45), inset 0 0 0 1px rgba(255, 63, 184, .3); }
+.wy-base b { padding: 9px 12px; font: 600 14px/1.2 'Audiowide', sans-serif; letter-spacing: .06em; color: rgba(237, 232, 255, .8); background: rgba(14, 8, 34, .4); border: 1px dashed rgba(53, 240, 255, .25); }
