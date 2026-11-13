@@ -69,6 +69,23 @@ longer). Tunable in Settings (drying time).
 **Reflections:** the puddles reflect the real sky now; aircraft and buildings in the water need the game's sky light
 fixed (a separate lighting job; it improves reflections everywhere).
 
+**Jetways (your own design only):** the stands moved 12 m out and your generator built the jetways longer (corridor as
+before at 3.3 degrees down, tunnel sections 10.5/10.1/9.7 m with 1.5 m overlap). Nothing is stretched, and no stand-in
+jetway is ever used. They always dock at the FRONT door, never at the wings. The yellow hoses hang from their own pipes.
+**Rest point (super important):** before the animation starts, and again after deboarding, a jetway rests pulled half
+way back (wheels half as far out from the rotunda as when docked). Until the animation is made, they show docked.
+
+**Snow:** a light layer from winter photos. The ploughed paving gets thin compacted patches and snow kept in joints and
+cracks. There is more on the shoulders and grass, with low banks along the edges, and it wears off where the wheels run.
+For now it is a setting (Snow 0-1). With real weather later, it will build up with snowfall and cold: grass first, the
+paving staying fairly clear. The puddles work the same way, filling with real rain.
+
+**Real-world weather later:** it only drives the values the ground already has (wetness, puddles, snow), so none of the
+ground work has to be redone.
+
+**Sunlight:** every surface has its own shine and smoothness. Asphalt has a low sheen at sunset, concrete is brighter,
+and the markings are the glossiest. The puddles stay exactly as they are (final).
+
 ## Clothes
 
 **Can a garment be changed later (another shirt, other shoes)?** Yes, without redoing everything: each garment piece is
