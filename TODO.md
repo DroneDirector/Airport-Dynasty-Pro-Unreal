@@ -8,7 +8,13 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       **puddles and wet ground, the fast way** (material-based like The Matrix Awakens, about 4-7 h): see HANDOVER.md
       "NEWEST: STOP AND READ". Replaces the older wetness-map plan. With a "Rainy day" switch so the owner can see
       them react; **published as its own release straight away** (owner's wish; remind him of the rule).
-- [ ] Then the same way: runway/grass edges, tyre marks and cracks in the ground materials (about 6-11 h; HANDOVER.md).
+- [ ] Set up Unreal's MCP server for Claude Code first (about 30 min; speeds up everything below; HANDOVER.md).
+- [ ] **After the puddles, FIRST: faraway crowds (AnimToTexture, ~1 day) and reactive sound (MetaSounds, ~1 day)**
+      (owner, 2026-11-13). Why first: the biggest difference to how alive the airport looks and sounds for the least
+      work, no dependence on the road layout or an engine upgrade, little risk.
+- [ ] Then the same way as the puddles: runway/grass edges, tyre marks and cracks in the ground materials (4-8 h).
+- [ ] City Sample's cars (~half a day), then traffic with Mass (1-2 days, lanes generated from the layout file), then
+      the home town with PCG (1-3 days + Unreal 5.8 upgrade). Details in HANDOVER.md.
 - [ ] **FIRST AFTER THE METAHUMAN WORK** (owner, 2026-11-12): finish the MetaHuman people COMPLETELY first (builder,
       uniforms, crowds, every role's actions). Then, as the very next job before anything else on this list: the
       **use outline**. Look at something you can use and HOLD E (use): a crisp amber outline (with a thin light edge)

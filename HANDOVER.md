@@ -63,6 +63,36 @@ textures (crack masks, rubber streaks), as the licence rules require.
 - Sliders for these on the same tuning panel (amount of rubber, cracks, edge wear), saved with the puddle settings.
 
 
+### Then: what The Matrix Awakens / City Sample uses that fits this game (owner, 2026-11-13, in this order)
+
+**Set up first (about 30 min): Unreal's MCP server for Claude Code.** In the editor console run
+`ModelContextProtocol.GenerateClientConfig ClaudeCode` (it writes .mcp.json at the project root), then work through it
+(the unreal-mcp skill): create and change assets, place things and run PCG directly in the open editor instead of
+scripts and repeated -game test launches. Epic used it to build the City Sample PCG city. Every job below goes faster.
+
+Licences: engine features come with Unreal; City Sample content and plugins are "UE-only content", allowed in a paid
+Unreal game (never sold as assets or used outside Unreal). Never anything with Matrix branding. Every part taken from
+City Sample goes in THIRD-PARTY-NOTICES.md.
+
+1. **FIRST: faraway crowds with AnimToTexture** (about 1 day). City Sample's plugin bakes walking animations into
+   textures so thousands of distant passengers cost almost nothing (Mass's cheapest LOD). They stay real 3D meshes,
+   so they fit the no-picture-impostors rule. Full terminals at peak hours without the frame rate dropping.
+2. **FIRST, together with 1: reactive sound with MetaSounds** (about 1 day). The terminal's murmur follows the number
+   of passengers, engines spool up and down with each aircraft, announcements echo in the hall, rain on the roof and
+   glass follows the Rainy day switch / wetness value, wind by the weather.
+   **Why these two come first (owner's choice):** the biggest difference to how alive the airport looks and sounds
+   for the least work; they don't depend on the road layout (traffic does), need no engine upgrade (the PCG town
+   does), and carry little risk.
+3. Edges, tyre marks and cracks (above, 4-8 h).
+4. **City Sample's cars** (about half a day): free detailed cars with made-up brands, for the town traffic, car
+   rental and the dealership's stock until our own models are made. Licence check and notice first.
+5. **Traffic with Mass** (1-2 days): City Sample's MassTraffic plugin (merging, lane changes, signals, parked cars)
+   for the road to town, taxis and buses at the terminal, the car park, service vehicles on the apron. ZoneGraph
+   can't change at run time, so generate the lanes from the airport layout file (the one file in real metres) and
+   rebuild them whenever an extension is built. After the road layout has settled.
+6. **The home town with PCG** (1-3 days, plus about a day to upgrade the project to Unreal 5.8): Epic's City Sample
+   PCG graphs generate a city entirely inside Unreal; use them as the start for the town's roads, houses and trees.
+
 ## START HERE — where the work stopped (written 2026-11-13 00:10, for a NEW PC session)
 
 The previous PC session can't be found any more. Its last work, in order:
