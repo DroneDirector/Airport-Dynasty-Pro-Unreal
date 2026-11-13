@@ -55,7 +55,7 @@ def imp(file, dest, name, kind):
     eal.save_loaded_asset(a, only_if_is_dirty=False)
     return a
 SCAN = {}
-for sid in ('asphalt_04', 'asphalt_02', 'concrete_floor_worn_001', 'brushed_concrete_04'):
+for sid in ('asphalt_04', 'asphalt_02', 'concrete_floor_worn_001', 'brushed_concrete_04', 'grass_ground'):
     d = os.path.join(ROOT, 'Art', 'Ground', 'Scans', sid)
     SCAN[sid] = {k: imp(os.path.join(d, '%s_%s_4k.jpg' % (sid, f)), '/Game/Ground/Scans/' + sid, 'T_%s_%s' % (sid, k), kind)
                  for k, f, kind in (('diff', 'diff', 'color'), ('nor', 'nor_dx', 'normal'), ('rough', 'rough', 'mask'))}
@@ -67,6 +67,7 @@ MP = '/Game/Materials/Ground/M_Ground'
 if eal.does_asset_exist(MP): eal.delete_asset(MP)
 m = tools.create_asset('M_Ground', '/Game/Materials/Ground', unreal.Material, unreal.MaterialFactoryNew())
 m.set_editor_property('tangent_space_normal', False)      # world-space normals (the airfield's procedural sheets have no tangents)
+for flag in ('used_with_nanite', 'used_with_instanced_static_meshes'): m.set_editor_property(flag, True)   # kit pieces (lawns, kerbs) use it too
 E = lambda cls, x, y: mel.create_material_expression(m, cls, x, y)
 def sp(name, v, x, y):
     e = E(unreal.MaterialExpressionScalarParameter, x, y); e.set_editor_property('parameter_name', name); e.set_editor_property('default_value', v); return e
@@ -308,14 +309,24 @@ inst(KIT + 'MI_asphalt', dict(Color=unreal.LinearColor(0.68, 0.68, 0.70, 1),   #
      textures=dict(scan('asphalt_04', 'asphalt_02'), CrackLayer=LAYER['cracks_asphalt']))
 # the taxiways' shoulders (Airfield PaveTaxiways): older, lighter asphalt with more cracks, no tyre rubber (real shoulders
 # are paved for jet blast, rarely driven on)
-inst(KIT + 'MI_shoulder', dict(Color=unreal.LinearColor(0.80, 0.80, 0.81, 1), UseScan=1.0, ScanSize=4.04, CrackStyle=0.0, CrackAmount=0.95, TyreAmount=0.0, Variation=0.0),
+inst(KIT + 'MI_shoulder', dict(Color=unreal.LinearColor(0.75, 0.75, 0.76, 1), UseScan=1.0, ScanSize=4.04, CrackStyle=0.0, CrackAmount=0.95, TyreAmount=0.0, Variation=0.0),
      textures=dict(scan('asphalt_04', 'asphalt_02'), CrackLayer=LAYER['cracks_asphalt']))
+# the airfield's ground grass (owner, 2026-11-13: the edges must look real, so the grass they meet must too): a real
+# grass-and-soil scan, a touch greener for a northern summer, no cracks, no tyre rubber, damp but no puddles
+inst(KIT + 'MI_grass', dict(Color=unreal.LinearColor(0.66, 1.16, 0.50, 1), UseScan=1.0, ScanSize=2.51, CrackStyle=2.0, CrackAmount=0.0, TyreAmount=0.0, Puddles=0.0, Variation=0.0),
+     textures=dict(scan('grass_ground'), CrackLayer=LAYER['cracks_asphalt']))
+# the terminal model's own lawn: the same grass, so there is no lighter square round the terminal
+inst('/Game/Babylon/Terminal/terminal/Materials/grass', dict(Color=unreal.LinearColor(0.66, 1.16, 0.50, 1), UseScan=1.0, ScanSize=2.51, CrackStyle=2.0, CrackAmount=0.0, TyreAmount=0.0, Puddles=0.0, Variation=0.0),
+     textures=dict(scan('grass_ground'), CrackLayer=LAYER['cracks_asphalt']))
 for nm, b_ in (('MI_concrete', 0.0), ('MI_apron', 0.12)):
     inst(KIT + nm, dict(Color=unreal.LinearColor(1.12, 1.12, 1.10, 1), UseScan=1.0, ScanSize=3.0, CrackStyle=1.0, CrackAmount=0.6, TyreAmount=0.0, PuddleBias=b_, Variation=0.0),
          textures=dict(scan('concrete_floor_worn_001', 'brushed_concrete_04'), CrackLayer=LAYER['cracks_concrete']))
 for name in ('MI_yellow', 'MI_white'):
     a = unreal.load_asset(KIT + name); c_ = mel.get_material_instance_vector_parameter_value(a, 'Color')
-    inst(KIT + name, dict(Color=c_, UseScan=0.0, CrackStyle=2.0, TyreAmount=1.0, Roughness=0.55, Variation=0.03))
+    # the paint carries the pavement's own cracks straight through it (owner, 2026-11-13: cracks that cross a marking show
+    # on it, in their own colours) - the same world-space crack layer as the asphalt under it, so they line up exactly
+    inst(KIT + name, dict(Color=c_, UseScan=0.0, CrackStyle=0.0, CrackAmount=0.7, TyreAmount=1.0, Roughness=0.55, Variation=0.03),
+         textures=dict(CrackLayer=LAYER['cracks_asphalt']))
 BAB = '/Game/Babylon/Terminal/terminal/Materials/'
 for name, extra in (('apron', dict(CrackStyle=1.0, CrackAmount=0.5, PuddleBias=0.12)), ('concrete', dict(CrackStyle=1.0, CrackAmount=0.4)),
                     ('asphalt', dict(CrackStyle=0.0, CrackAmount=0.5)), ('rentalAsphalt', dict(CrackStyle=0.0, CrackAmount=0.35, PuddleBias=0.05)),

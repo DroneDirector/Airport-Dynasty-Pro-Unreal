@@ -4,3 +4,6 @@ included, no attribution required (credited anyway in THIRD-PARTY-NOTICES.md). D
 - asphalt_02 (3.0 m; Rob Tuytel): darker, cracked asphalt - patches, repairs, variation
 - concrete_floor_worn_001 (3.0 m; photography Dimitrios Savva, processing Rico Cilliers): apron concrete
 - brushed_concrete_04 (2.0 m; Amal Kumar): brushed concrete with joints - variation
+- aerial_grass_rock (15 m; Rob Tuytel, 2K): moss and gravel where the pavement meets the grass (edges)
+- sparse_grass (2.0 m; Amal Kumar, 2K): the worn grass verge along the edges
+- grass_ground (2.51 m; Charlotte Baglioni, 4K): the airfield's ground grass under the 3D grass

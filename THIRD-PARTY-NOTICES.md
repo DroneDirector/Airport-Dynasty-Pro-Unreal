@@ -22,5 +22,5 @@ Every third-party part used in Airport Dynasty Pro (Unreal Engine 5 edition), it
 
 ## Ground scans - Poly Haven (CC0)
 asphalt_04 (Sergej Majboroda, Jenelle van Heerden), asphalt_02 (Rob Tuytel), concrete_floor_worn_001 (Dimitrios Savva,
-Rico Cilliers), brushed_concrete_04 (Amal Kumar), from https://polyhaven.com, CC0 1.0 (public domain). The airfield's
-asphalt and concrete (Art/Ground/Scans, Tools/set_ground.py).
+Rico Cilliers), brushed_concrete_04 (Amal Kumar), aerial_grass_rock (Rob Tuytel), sparse_grass (Amal Kumar), grass_ground (Charlotte Baglioni), from https://polyhaven.com, CC0 1.0 (public domain). The airfield's
+asphalt and concrete and the pavement edges (Art/Ground/Scans, Tools/set_ground.py, Tools/set_edge_bands.py).
