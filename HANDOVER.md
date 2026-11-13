@@ -77,6 +77,18 @@ canopy; charred dark timber boards, a basalt plinth, thin flat roofs with 1.6 m 
 a deck terrace to the north with a hot tub, outdoor sofa and fire pit; a long lit drive from the south; birches,
 lava rocks, lawn. Interiors of the bedroom wing and garage are still empty shells.
 
+## The game's website (2026-11-13, from the phone/cloud chat)
+
+A WordPress plugin for Elementor + WooCommerce with its own look (night apron, wayfinding-sign yellow, runway lights,
+a split-flap departures board, the holographic map, boarding passes, Nanite/Lumen demos): **Website/airport-dynasty-site/**
+(code; its pictures and fonts are in the full zip, Website/airport-dynasty-site.zip, already on the PC, not committed).
+Every section is an Elementor widget; texts and pictures are edited in Elementor. Buy button: the WooCommerce product
+ID in Settings → Airport Dynasty Pro website (price, straight to checkout); until then "Coming soon" + the launch-day
+email list. Rules for the site: never mention AI; say "Coming to PC" (not "PC only"); lists of buildings and features
+end with "…and much more"; buildings carry an honest status (In the game / Being built / Coming).
+**When the owner asks**: take website screenshots in the game (terminal, hangars, fire station, apron; sunset, day,
+bad weather, night; several angles, e.g. with PhotoTour) and send them, so the pictures can be swapped in Elementor.
+
 ## Owner's ideas, noted but NOT on the to-do list (2026-11-12, from the airport-layout and town chat) — FOR THE PC CHAT TO KNOW
 
 The owner asked for these to be kept here, visible to every chat, and not added to TODO.md.
