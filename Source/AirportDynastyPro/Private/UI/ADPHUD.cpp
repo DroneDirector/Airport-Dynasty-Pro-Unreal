@@ -2212,6 +2212,10 @@ void AADPHUD::Tick(float Dt)
 				{TEXT("Puddles_RunwayLow"),   -200.f, 4.0f, F.RwyY - 8.f, 200.f, 2.5f, F.RwyY},
 				{TEXT("Puddles_RunwayHigh"),  -260.f, 12.f, F.RwyY + 50.f, 160.f, 0.f, F.RwyY - 90.f},
 				{TEXT("Puddles_Close"),       0.f, 1.6f, 160.f, 0.4f, 0.f, 163.f},
+				// the runway's touchdown zone (tyre rubber), low and from 12 m; the whole airport from 250 m up
+				{TEXT("Ground_Touchdown"),    F.RwyX0 + 520.f, 2.5f, F.RwyY - 10.f, F.RwyX0 + 900.f, 0.5f, F.RwyY},
+				{TEXT("Ground_TouchdownHigh"), F.RwyX0 + 380.f, 14.f, F.RwyY - 45.f, F.RwyX0 + 900.f, 0.f, F.RwyY + 5.f},
+				{TEXT("Ground_Overview"),     -350.f, 250.f, 900.f, 150.f, 0.f, 250.f},
 			};
 			if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 15.f; ASunClock::Theme = 1; ASunClock::Refresh(); }
 			for (int32 i = 0; i < UE_ARRAY_COUNT(Views); ++i)

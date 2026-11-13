@@ -263,10 +263,11 @@ def scan(sid, big_sid=None):
     return {'ScanDiff': SCAN[sid]['diff'], 'ScanNormal': SCAN[sid]['nor'], 'ScanRough': SCAN[sid]['rough'], 'ScanDiffBig': SCAN[big_sid or sid]['diff']}
 W = unreal.LinearColor(1, 1, 1, 1)
 KIT = '/Game/Materials/Kit/'
-inst(KIT + 'MI_asphalt', dict(Color=W, UseScan=1.0, ScanSize=4.04, CrackStyle=0.0, CrackAmount=0.7, TyreAmount=1.0, Variation=0.0),
+inst(KIT + 'MI_asphalt', dict(Color=unreal.LinearColor(0.68, 0.68, 0.70, 1),   # aged airport asphalt a shade darker than the concrete shoulders
+     UseScan=1.0, ScanSize=4.04, CrackStyle=0.0, CrackAmount=0.7, TyreAmount=1.0, Variation=0.0),
      textures=dict(scan('asphalt_04', 'asphalt_02'), CrackLayer=LAYER['cracks_asphalt']))
 for nm, b_ in (('MI_concrete', 0.0), ('MI_apron', 0.12)):
-    inst(KIT + nm, dict(Color=W, UseScan=1.0, ScanSize=3.0, CrackStyle=1.0, CrackAmount=0.6, TyreAmount=0.0, PuddleBias=b_, Variation=0.0),
+    inst(KIT + nm, dict(Color=unreal.LinearColor(1.12, 1.12, 1.10, 1), UseScan=1.0, ScanSize=3.0, CrackStyle=1.0, CrackAmount=0.6, TyreAmount=0.0, PuddleBias=b_, Variation=0.0),
          textures=dict(scan('concrete_floor_worn_001', 'brushed_concrete_04'), CrackLayer=LAYER['cracks_concrete']))
 for name in ('MI_yellow', 'MI_white'):
     a = unreal.load_asset(KIT + name); c_ = mel.get_material_instance_vector_parameter_value(a, 'Color')
