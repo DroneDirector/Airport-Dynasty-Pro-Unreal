@@ -1,11 +1,12 @@
 # A garment from Blender into the MetaHuman wardrobe (2026-11-13). For a garment made on the player's body
 # (Art/Clothes/<Name>/<Name>.fbx, a static mesh in the body's own space):
 #   1. the mesh imported as /Game/Clothes/<Name>/SM_<Name>
-#   2. a cloth dataflow DF_<Name>: import the mesh (render + sim), skin it from the body it was made on, terminal
+#   2. a cloth dataflow DF_<Name>: import the mesh (render only: fitted clothes are skinned, not simulated), skin it from the body it was made on, terminal
 #      -> cloth asset CA_<Name>
 #   3. an outfit OA_<Name> made by Epic's resizable-outfit template (a copy kept at /Game/Clothes/Common) from one
 #      size: CA_<Name> on that body; the MetaHuman pipeline resizes it to anybody who wears it
-#   4. the wardrobe item WI_<Name> (Epic's default garment's item, copied, pointing at OA_<Name>), for the Outfits slot
+#   4. the wardrobe item WI_<Name> (Epic's default garment's item, copied), for the Outfits slot: pointing at CA_<Name>
+#      (made on the player's body, no resizing), or at OA_<Name> with 'resize' (other bodies; not working yet)
 #   UnrealEditor-Cmd.exe AirportDynastyPro.uproject -ExecutePythonScript="<abs>/Tools/make_outfit.py <Name>" -unattended -RenderOffscreen
 import os, sys
 import unreal
@@ -47,6 +48,11 @@ try:
     log('nodes %s %s %s' % (imp, skin, term))
     log('set mesh %s' % DFL.set_dataflow_node_property(df, imp, 'StaticMesh', sm.get_path_name()))
     log('set body %s' % DFL.set_dataflow_node_property(df, skin, 'SkeletalMesh', body.get_path_name()))
+    # fitted clothes are skinned only, not simulated (a simulated shirt with nothing pinning it flew apart): the render
+    # mesh alone, its weights from the body itself
+    log('no sim %s' % DFL.set_dataflow_node_property(df, imp, 'bImportSimMesh', 'False'))
+    log('render only %s' % DFL.set_dataflow_node_property(df, skin, 'TargetMeshType', 'Render'))
+    log('weights from body %s' % DFL.set_dataflow_node_property(df, skin, 'RenderMeshSourceType', 'SkeletalMesh'))
     log('wire imp->skin %s' % DFL.connect_dataflow_nodes(df, imp, 'Collection', skin, 'Collection'))
     ok = False
     for pin in ('CollectionLods[0]', 'Collection LOD 0', 'CollectionLod0', 'Collection'):
@@ -83,7 +89,11 @@ try:
     # 4. the wardrobe item
     fresh(DIR + '/WI_' + NAME)
     wi = eal.duplicate_asset('/MetaHumanCharacter/Optional/Clothing/WI_DefaultGarment', DIR + '/WI_' + NAME)
-    wi.set_editor_property('principal_asset', oa)
+    # the player's own clothes are tailored on the player's body and need no resizing: the item wears the cloth asset
+    # itself (tested 2026-11-13: clean). The resizable outfit (OA_) is made too, for the crew's uniforms on other
+    # bodies later, but Epic's resizing still throws this garment apart: to fix before the uniform refit pass.
+    RESIZE = '-resize' in sys.argv or any(a == 'resize' for a in sys.argv)
+    wi.set_editor_property('principal_asset', oa if RESIZE else ca)
     eal.save_loaded_asset(wi, only_if_is_dirty=False)
     log('item %s -> %s' % (wi.get_path_name(), wi.get_editor_property('principal_asset')))
     # how Epic's own outfit is set up, to compare
