@@ -192,17 +192,22 @@ function ads_r_holo($s) {
 
 // #endregion
 
-// #region ── Boarding passes: four ways to play ──
+// #region ── Four ways to play: a panel with four tabs, each with its picture and list ──
 
 function ads_r_passes($s) {
-    echo '<section class="ad ad-passes" id="play"><div class="ad-wrap">' . ads_head($s) . '<div class="ad-passes__grid">';
-    foreach ((array) $s['items'] as $i => $it) {
-        echo '<article class="ad-pass" data-reveal style="--d:' . (int) $i . '"><div class="ad-pass__img"><img src="' . esc_url(ads_img_url($it['image'])) . '" alt="" loading="lazy" decoding="async"></div>';
-        echo '<div class="ad-pass__body"><div class="ad-pass__top"><span>Boarding pass</span><span>Gate <b>' . esc_html($it['gate']) . '</b></span></div>';
-        echo '<div class="ad-pass__route"><b>MYD</b>' . ads_pict('plane') . '<b>' . esc_html($it['code']) . '</b></div><h3>' . esc_html($it['name']) . '</h3>' . ads_points($it['points']) . '</div>';
-        echo '<div class="ad-pass__stub" aria-hidden="true"><i></i></div></article>';
+    $items = array_values((array) $s['items']);
+    echo '<section class="ad ad-play" id="play"><div class="ad-wrap">' . ads_head($s) . '<div class="ad-play__panel" data-reveal data-tabs>';
+    echo '<div class="ad-play__tabs" role="tablist">';
+    foreach ($items as $i => $it) {
+        echo '<button type="button" role="tab" class="ad-play__tab' . ($i === 0 ? ' is-on' : '') . '" aria-selected="' . ($i === 0 ? 'true' : 'false') . '" data-tab="' . (int) $i . '">'
+            . '<span class="ad-play__n">' . sprintf('%02d', $i + 1) . '</span><span class="ad-play__name">' . esc_html($it['name']) . '</span><i class="ad-play__bar"></i></button>';
     }
-    echo '</div></div></section>';
+    echo '</div><div class="ad-play__views">';
+    foreach ($items as $i => $it) {
+        echo '<div class="ad-play__view' . ($i === 0 ? ' is-on' : '') . '" role="tabpanel" data-view="' . (int) $i . '"><div class="ad-play__img"><img src="' . esc_url(ads_img_url($it['image'])) . '" alt=""' . ($i === 0 ? '' : ' loading="lazy"') . ' decoding="async"></div>'
+            . '<div class="ad-play__copy"><h3>' . esc_html($it['name']) . '</h3>' . ads_points($it['points']) . '</div></div>';
+    }
+    echo '</div></div></div></section>';
 }
 
 // #endregion
@@ -253,13 +258,12 @@ function ads_r_route($s) {
 
 function ads_r_buy($s) {
     $t = ads_buy_target();
-    echo '<section class="ad ad-buy" id="buy"><div class="ad-wrap"><div class="ad-ticket" data-reveal><div class="ad-ticket__main">';
-    echo '<div class="ad-ticket__top"><span>' . ads_pict('plane') . ' Airport Dynasty Pro</span><span>Boarding pass</span></div>';
-    echo '<h2 class="ad-h2">' . esc_html($s['title']) . '</h2><p>' . esc_html($t ? $s['live'] : $s['text']) . '</p>';
-    echo '<div class="ad-ticket__fields"><div><small>Passenger</small><b>You</b></div><div><small>From</small><b>MYD</b></div><div><small>Platform</small><b>PC</b></div><div><small>Engine</small><b>UE5</b></div></div>';
-    if ($t) echo '<div class="ad-ticket__act">' . ads_buy_button() . '</div>';
+    echo '<section class="ad ad-buy" id="buy"><div class="ad-wrap"><div class="ad-launch" data-reveal><div class="ad-launch__lights" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>';
+    echo '<div class="ad-launch__copy"><p class="ad-sign">' . ads_pict('bell') . '<span>' . ($t ? 'Out now' : 'Launch day') . '</span></p><h2 class="ad-h2">' . esc_html($s['title']) . '</h2><p class="ad-lead">' . esc_html($t ? $s['live'] : $s['text']) . '</p></div>';
+    echo '<div class="ad-launch__act">';
+    if ($t) echo ads_buy_button();
     else echo '<form class="ad-notify" novalidate><input type="email" required placeholder="you@example.com" aria-label="Your email" autocomplete="email"><input type="text" name="website" tabindex="-1" autocomplete="off" class="ad-hp" aria-hidden="true"><button class="ad-btn ad-btn--buy" type="submit">' . ads_pict('bell') . '<span>' . esc_html($s['button']) . '</span></button><span class="ad-notify__msg" aria-live="polite">' . esc_html($s['small']) . '</span></form>';
-    echo '</div><div class="ad-ticket__stub" aria-hidden="true"><span>Gate</span><b>1</b><span>Seat</span><b>CEO</b><i class="ad-barcode"></i></div></div></div></section>';
+    echo '<ul class="ad-launch__facts"><li><small>Platform</small><b>PC</b></li><li><small>Engine</small><b>Unreal Engine 5</b></li><li><small>Sold</small><b>Right here</b></li></ul></div></div></div></section>';
 }
 
 function ads_r_share($s) {

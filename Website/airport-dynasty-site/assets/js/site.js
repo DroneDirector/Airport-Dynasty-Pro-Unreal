@@ -147,6 +147,19 @@
     });
     // #endregion
 
+    // #region ── four ways to play: tabs switch by click, and by themselves every 7 seconds until clicked ──
+    $$("[data-tabs]").forEach(function (panel) {
+      var tabs = $$(".ad-play__tab", panel), views = $$(".ad-play__view", panel), cur = 0, timer = 0;
+      var show = function (i) {
+        cur = i; tabs.forEach(function (t, k) { t.classList.toggle("is-on", k === i); t.setAttribute("aria-selected", k === i ? "true" : "false"); });
+        views.forEach(function (v, k) { v.classList.toggle("is-on", k === i); });
+        tabs[i].querySelector(".ad-play__bar").style.animation = "none"; void tabs[i].offsetWidth; tabs[i].querySelector(".ad-play__bar").style.animation = "";
+      };
+      tabs.forEach(function (t, k) { t.addEventListener("click", function () { clearInterval(timer); panel.classList.add("is-paused"); show(k); }); });
+      if (!reduce && tabs.length > 1) timer = setInterval(function () { show((cur + 1) % tabs.length); }, 7000);
+    });
+    // #endregion
+
     // #region ── share ──
     $$("[data-share]").forEach(function (a) {
       a.addEventListener("click", function (e) { e.preventDefault(); var u = encodeURIComponent(location.href.split("#")[0]), t = encodeURIComponent(doc.title);

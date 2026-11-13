@@ -62,18 +62,18 @@ function ads_content() {
             'points'  => "Every passenger has a booking, a mood, money and a trip to finish\nPilots, cabin crew, ground crew, security, police, cleaners and fire crews, each in a proper uniform\nIncidents blink on the map: a difficult passenger, a guard escort, a lost bag\nStaff work their shifts and drive home to the town afterwards\n…and much more",
         ],
         // #endregion
-        // #region ── Boarding passes (features) ──
+        // #region ── Four ways to play (features) ──
         'passes' => [
             'eyebrow' => 'What you do',
             'title'   => 'Four ways <em>to play.</em>',
             'items'   => [
-                ['code' => 'APT', 'name' => 'The airport', 'gate' => 'A1', 'image' => ads_img('overview.jpg'),
+                ['name' => 'The airport', 'image' => ads_img('overview.jpg'),
                     'points' => "Walk every corner of your terminal\nExpand it, piece by piece, as traffic grows\nJetways, stands, timetable screens and announcements\nTower, fire station and hangars\nSunsets, storms and snow on the real date\n…and much more"],
-                ['code' => 'PAX', 'name' => 'The people', 'gate' => 'B2', 'image' => ads_img('dealer_int.jpg'),
+                ['name' => 'The people', 'image' => ads_img('dealer_int.jpg'),
                     'points' => "Thousands of passengers with their own trips\nHire, dress and schedule your staff\nSecurity, police and sniffer dogs\nIncidents to handle as they happen\n…and much more"],
-                ['code' => 'NET', 'name' => 'Airlines & world', 'gate' => 'C3', 'image' => ads_img('dealer_ext.jpg'),
+                ['name' => 'Airlines & world', 'image' => ads_img('dealer_ext.jpg'),
                     'points' => "Buy, sell or lease aircraft\nCrews, timetables and rival airlines\nPlan routes on a fully rendered 3D globe\nRankings, thousands of awards and your own museum\nShops, car rental and parking income\n…and much more"],
-                ['code' => 'YOU', 'name' => 'Your life', 'gate' => 'D4', 'image' => ads_img('villa_garden.jpg'),
+                ['name' => 'Your life', 'image' => ads_img('villa_garden.jpg'),
                     'points' => "Create your character: she or he, looks, a pet, a partner\nYour own villa, garage and car\nDrive the 6.7 km road home to town\nShops, a car dealership and a hairdresser\nRadio and news on the way\n…and much more"],
             ],
         ],
@@ -119,7 +119,7 @@ function ads_content() {
         // #endregion
         // #region ── Buy, share, footer ──
         'buy' => [
-            'title'  => 'Your boarding pass.',
+            'title'  => 'Be there on day one.',
             'text'   => 'Airport Dynasty Pro will be sold right here, straight from the developer. Leave your email and we’ll tell you the day it launches.',
             'live'   => 'Airport Dynasty Pro is out now on PC. Buy it here, straight from the developer.',
             'button' => 'Notify me',
