@@ -42,7 +42,7 @@ function ads_content() {
         'buildings' => [
             'eyebrow' => 'Follow the signs',
             'title'   => 'Buildings with <em>full interiors.</em>',
-            'text'    => 'Here are some of the buildings you can walk into, and what you do inside them. More join with every update.',
+            'text'    => 'Here are some of the buildings you can walk into, and what you do inside them. More buildings with interiors are added over time, each with its own purpose.',
             'items'   => [
                 ['icon' => 'terminal', 'name' => 'The terminal', 'text' => 'Check passengers in, run security and the shops, and add new wings as traffic grows.', 'status' => 'In the game', 'arrow' => '→'],
                 ['icon' => 'tower', 'name' => 'Control tower', 'text' => 'Climb to the top and watch every aircraft move on the field below.', 'status' => 'In the game', 'arrow' => '↑'],
