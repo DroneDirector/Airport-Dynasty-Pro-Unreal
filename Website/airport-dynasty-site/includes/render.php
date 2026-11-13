@@ -245,7 +245,14 @@ function ads_r_tech($s) {
         . '<svg viewBox="0 0 400 160" aria-hidden="true"><path class="ad-lumen__ground" d="M0 130 H400 V160 H0z"/><path class="ad-lumen__shadow" d="M70 130 L330 130 L360 150 L100 150z"/><path class="ad-lumen__bld" d="M70 130 V80 L200 55 L330 80 V130z"/><path class="ad-lumen__glass" d="M95 125 V90 H305 V125z"/><path class="ad-lumen__glow" d="M95 125 V90 H305 V125z"/></svg>'
         . '<label class="ad-slider"><span>Time of day</span><input type="range" min="0" max="100" value="35" data-lumen-range aria-label="Time of day"></label><p class="ad-tech__hint">Move the sun: the light, the glass and the shadows follow.</p></div>';
     echo '<h3>' . ads_pict('sun') . ' Lumen</h3><dl class="ad-tech__dl"><dt>The look</dt><dd>' . esc_html($s['lumen_look']) . '</dd><dt>Performance</dt><dd>' . esc_html($s['lumen_perf']) . '</dd></dl></article>';
-    echo '</div><p class="ad-note" data-reveal>' . esc_html($s['note']) . '</p></div></section>';
+    echo '</div>';
+    $ex = array_map(function ($l) { return array_pad(array_map('trim', explode('|', $l, 2)), 2, ''); }, ads_lines($s['extras'] ?? ''));
+    if ($ex) {
+        echo '<ul class="ad-tech__extras">';
+        foreach ($ex as $i => $e) echo '<li data-reveal style="--d:' . (int) ($i % 3) . '"' . ($i === count($ex) - 1 ? ' class="is-more"' : '') . '><b>' . esc_html($e[0]) . '</b><span>' . esc_html($e[1]) . '</span></li>';
+        echo '</ul>';
+    }
+    echo '<p class="ad-note" data-reveal>' . esc_html($s['note']) . '</p></div></section>';
 }
 
 // #endregion

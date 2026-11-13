@@ -192,6 +192,14 @@ body.elementor-editor-active .ad-nav { position: relative; }
 .ad-holo__map::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 30%; background: linear-gradient(180deg, transparent, rgba(90, 216, 255, .12), transparent); animation: ad-scan 5s linear infinite; pointer-events: none; }
 @keyframes ad-scan { from { transform: translateY(-40%); } to { transform: translateY(330%); } }
 
+/* the other graphics features under the Nanite and Lumen cards */
+.ad-tech__extras { list-style: none; margin: 26px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.ad-tech__extras li { padding: 20px 22px; border-radius: 12px; border: 1px solid var(--ad-line); background: var(--ad-panel); border-top: 3px solid var(--ad-sign); min-width: 0; }
+.ad-tech__extras b { display: block; font: 800 22px/1.15 var(--ad-head); text-transform: uppercase; color: var(--ad-text); margin-bottom: 6px; }
+.ad-tech__extras span { font-size: 15px; line-height: 1.5; color: var(--ad-dim); }
+.ad-tech__extras li.is-more { border-top-style: dashed; }
+.ad-tech__extras li.is-more b { color: var(--ad-sign); }
+
 /* ---------------------------------------------------------------- four ways to play: tabs + view */
 .ad-play { padding: 110px 0; }
 .ad-play__panel { display: grid; grid-template-columns: 300px 1fr; border-radius: 18px; border: 1px solid var(--ad-line); background: linear-gradient(180deg, var(--ad-panel), var(--ad-bg2)); overflow: hidden; min-height: 460px; }
@@ -332,6 +340,7 @@ body.elementor-editor-active .ad-nav { position: relative; }
   .ad-hero__in, .ad-holo__in { grid-template-columns: 1fr; }
   .ad-play__panel { grid-template-columns: 1fr; } .ad-play__tabs { flex-direction: row; overflow-x: auto; border-right: 0; } .ad-play__tab { flex: 1 0 auto; padding: 18px 20px; border-bottom: 0; } .ad-play__name { font-size: 22px; }
   .ad-launch { grid-template-columns: 1fr; }
+  .ad-tech__extras { grid-template-columns: repeat(2, 1fr); }
   .ad-stats__in { grid-template-columns: repeat(2, 1fr); }
   .ad-route__stops { grid-template-columns: repeat(2, 1fr); padding-top: 30px; }
   .ad-route__line, .ad-route__plane { display: none; }
@@ -348,7 +357,7 @@ body.elementor-editor-active .ad-nav { position: relative; }
 @media (max-width: 620px) {
   .ad-logo { font-size: 18px; } .ad-logo__mark { width: 32px; height: 32px; }
   .ad-hero { padding-top: 100px; }
-  .ad-stats__in, .ad-route__stops { grid-template-columns: 1fr; }
+  .ad-stats__in, .ad-route__stops, .ad-tech__extras { grid-template-columns: 1fr; }
   .ad-play__view, .ad-play__view.is-on { grid-template-columns: 1fr; } .ad-play__img { height: 200px; } .ad-play__img::after { background: linear-gradient(180deg, transparent 50%, var(--ad-panel)); } .ad-play__copy { padding: 22px; } .ad-play__copy h3 { font-size: 34px; }
   .ad-launch { padding: 50px 22px 28px; } .ad-launch__lights { left: 22px; right: 22px; }
   .ad-signboard { grid-template-columns: 58px 1fr; padding-top: 34px; } .ad-signboard__pict { width: 58px; height: 58px; } .ad-signboard__arrow { display: none; }

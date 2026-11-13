@@ -24,11 +24,11 @@ function ads_content() {
                 ['image' => ads_img('villa_drive.jpg'), 'caption' => 'Coming home along your own drive'],
             ],
             // The feature slider: one slide per line, ICON|TITLE|TEXT (icons: terminal, globe, people, plane, home, sun, mesh, more)
-            'slides' => "terminal|Grow your terminal|Start small, then add new wings piece by piece as more passengers arrive.\nglobe|The whole Earth in 3D|Plan your routes on a fully rendered globe with real terrain, rivers and coastlines.\npeople|Thousands of people|Every passenger has a booking, a mood, money in their pocket and a trip to finish.\nplane|AI airlines fly your routes|You plan the routes and the timetables. Your hired crews do the flying.\nhome|Your villa and your town|Drive home after work to your own villa in a small Icelandic town.\nsun|Real weather, day and night|Sunsets, storms and snow, following the real date and time.\nmesh|Made in Unreal Engine 5|Nanite and Lumen bring film-like detail and light to every corner.\nmore|And much more|New buildings and features join with every update.",
+            'slides' => "terminal|Grow your terminal|Start small, then add new wings piece by piece as more passengers arrive.\nglobe|The whole Earth in 3D|Plan your routes on a fully rendered globe with real terrain, rivers and coastlines.\npeople|Thousands of people|Every passenger has a booking, a mood, money in their pocket and a trip to finish.\npeople|Talk to anyone|Every NPC, inside the terminal and out, stops to talk when you walk up to them.\nplane|AI airlines fly your routes|You plan the routes and the timetables. Your hired crews do the flying.\nhome|Your villa and your town|Drive home after work to your own villa in a small Icelandic town.\nsun|Real weather, day and night|Sunsets, storms and snow, following the real date and time.\nmesh|AAA graphics in Unreal Engine 5|Nanite, Lumen and MetaHumans bring film-like detail, light and people to every corner.\nmore|And much more|New buildings and features join with every update.",
         ],
         // #endregion
         // #region ── Ticker ──
-        'ticker' => "Check-in · Security · Gates · Jetways · Control tower · Fire station · Hangars · Car rental · Airlines · Timetables · Crews · The whole Earth · Day and night · Weather · Your villa · Your home town · And much more",
+        'ticker' => "Check-in · Security · Gates · Jetways · Control tower · Fire station · Hangars · Car rental · Airlines · Timetables · Crews · The whole Earth · Day and night · Weather · Talk to every NPC · Your villa · Your home town · And much more",
         // #endregion
         // #region ── Numbers ──
         'stats' => [
@@ -58,8 +58,8 @@ function ads_content() {
         'holo' => [
             'eyebrow' => 'The people',
             'title'   => 'Thousands of lives. <em>Live on your map.</em>',
-            'text'    => 'Lifelike people built from MetaHumans, each with a reason to be there. Your holographic map shows them all, floor by floor, and flashes the moment something happens.',
-            'points'  => "Every passenger has a booking, a mood, money and a trip to finish\nPilots, cabin crew, ground crew, security, police, cleaners and fire crews, each in a proper uniform\nIncidents blink on the map: a difficult passenger, a guard escort, a lost bag\nStaff work their shifts and drive home to the town afterwards\n…and much more",
+            'text'    => 'Lifelike NPCs built from MetaHumans, each with a reason to be there, and you can talk to every one of them, inside the terminal and out. Your holographic map shows them all, floor by floor, and flashes the moment something happens.',
+            'points'  => "Walk up to any NPC, in or outside the terminal, and talk to them\nEvery passenger has a booking, a mood, money and a trip to finish\nPilots, cabin crew, ground crew, security, police, cleaners and fire crews, each in a proper uniform\nIncidents blink on the map: a difficult passenger, a guard escort, a lost bag\nStaff work their shifts and drive home to the town afterwards\n…and much more",
         ],
         // #endregion
         // #region ── Four ways to play (features) ──
@@ -70,7 +70,7 @@ function ads_content() {
                 ['name' => 'The airport', 'image' => ads_img('overview.jpg'),
                     'points' => "Walk every corner of your terminal\nExpand it, piece by piece, as traffic grows\nJetways, stands, timetable screens and announcements\nTower, fire station and hangars\nSunsets, storms and snow on the real date\n…and much more"],
                 ['name' => 'The people', 'image' => ads_img('dealer_int.jpg'),
-                    'points' => "Thousands of passengers with their own trips\nHire, dress and schedule your staff\nSecurity, police and sniffer dogs\nIncidents to handle as they happen\n…and much more"],
+                    'points' => "Thousands of passengers with their own trips\nTalk to every NPC, inside the terminal and out\nHire, dress and schedule your staff\nSecurity, police and sniffer dogs\nIncidents to handle as they happen\n…and much more"],
                 ['name' => 'Airlines & world', 'image' => ads_img('dealer_ext.jpg'),
                     'points' => "Buy, sell or lease aircraft\nCrews, timetables and rival airlines\nPlan routes on a fully rendered 3D globe\nRankings, thousands of awards and your own museum\nShops, car rental and parking income\n…and much more"],
                 ['name' => 'Your life', 'image' => ads_img('villa_garden.jpg'),
@@ -96,13 +96,14 @@ function ads_content() {
         // #region ── Technology: Nanite and Lumen, look and performance ──
         'tech' => [
             'eyebrow' => 'Under the hood',
-            'title'   => 'Unreal Engine 5. <em>What it means for you.</em>',
-            'text'    => 'Two of the engine’s features shape how Airport Dynasty Pro looks and runs.',
+            'title'   => 'Unreal Engine 5. <em>AAA graphics.</em>',
+            'text'    => 'Airport Dynasty Pro is built for a AAA look, on the same engine the biggest games and films use. Two of its features shape how the game looks and runs; the rest of the picture is below.',
+            'extras'  => "Virtual Shadow Maps|Crisp, soft shadows on every detail, from the tail fins to a coffee cup\nGlass and reflections|The terminal’s glass walls reflect the apron, the sky and the people\nMetaHumans|Faces, skin, hair and movement that look like real people\nWeather and sky|Clouds, rain, snow, fog and lightning, lit by the real sun\nTemporal Super Resolution|Sharp 4K-like pictures at higher frame rates\nAnd much more|More graphics features arrive with every update",
             'nanite_look' => 'Buildings, aircraft and every bench are made of millions of tiny triangles, film-quality detail. Edges stay round, surfaces stay sharp, from across the apron or a metre away, with no models popping in and out as you move.',
             'nanite_perf' => 'Nanite only draws the detail your screen can actually show and streams the rest as needed. So more detail costs far less than it used to: a huge, detailed airport runs smoothly instead of grinding your PC down.',
             'lumen_look'  => 'Light bounces like real light: sunshine off the floor, through the glass, onto the people. Nothing is painted on in advance, so dawn, sunsets, storms and night shifts all light up the airport the way they would in life, as the sun moves.',
             'lumen_perf'  => 'Real-time light is the most demanding part of the picture, so it scales: the graphics settings let you choose its quality, from lighter on older PCs to full quality on strong ones, and the game checks your PC to suggest a starting point.',
-            'note'    => 'Plus MetaHuman people and Virtual Shadow Maps for crisp shadows on every detail.',
+            'note'    => 'Every graphics feature has its own setting, so the game looks its best on your PC.',
         ],
         // #endregion
         // #region ── Roadmap (flight path) ──
