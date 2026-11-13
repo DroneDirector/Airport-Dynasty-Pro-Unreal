@@ -1,5 +1,6 @@
 // The link from the app's menus to Unreal.
 #include "UI/ADPBridge.h"
+#include "UI/TitleBg.h"
 #include "ADPLog.h"
 #include "UI/ADPHUD.h"
 #include "Misc/FileHelper.h"
@@ -86,6 +87,13 @@ void UADPBridge::CheckUpdates()
 void UADPBridge::InstallUpdates()
 {
 	if (AADPHUD* H = Hud.Get()) if (!H->UpdateBusy && (H->UpdateChain.Num() || !H->UpdateFullUrl.IsEmpty())) H->InstallUpdate();
+}
+
+bool UADPBridge::TitleBg(bool bOn, float Seconds)
+{
+	if (!ADPTitleBg::Ready() || FParse::Param(FCommandLine::Get(), TEXT("NoNativeTitle"))) return false;   // (tests: the page's own, to compare)
+	ADPTitleBg::Clock(bOn, Seconds);
+	return true;
 }
 
 void UADPBridge::Log(const FString& Line)

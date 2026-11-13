@@ -79,6 +79,27 @@ export function splashNav(dir: number) {
   bs.forEach((b, k) => b.classList.toggle('on', k === i)); _pick = bs[i].getAttribute('data-id') || 'game:continue';
 }
 /** Into the lounge: the music fades, the picture goes dark. */
+/** In Unreal (the PC version): the film is Unreal's (TitleBg.cpp), fed this page's music clock a few times a second;
+ *  true once Unreal has taken it. On Android, or if Unreal can't, the page draws the film itself. */
+function titleNative(t: number): boolean {
+  const T = TitleScreen, U = ue();
+  if (!U || !U.titlebg || T.native === false || T.closing) return T.native === true;
+  const now = performance.now();
+  if (now - (T.nativeSent || 0) > 250) {
+    T.nativeSent = now;
+    Promise.resolve(U.titlebg(true, t)).then((ok: any) => {
+      if (ok === true && T.on && !T.closing) { if (T.native !== true) { T.native = true; document.documentElement.classList.add('ts-native'); } }
+      else if (ok === false) T.native = false;
+    }).catch(() => { T.native = false; });
+  }
+  return T.native === true;
+}
+function titleNativeOff() {
+  const T = TitleScreen;
+  if (T.native === true) { try { const U = ue(); if (U && U.titlebg) U.titlebg(false, 0); } catch (e) { /* ignore */ } document.documentElement.classList.remove('ts-native'); }
+  T.native = undefined; T.nativeSent = 0;
+}
+
 export function splashEnter() {
   const T = TitleScreen; if (!T.on || T.closing) return; T.closing = true;
   const r = T.root, a = T.audio; r.classList.add('out');
@@ -87,7 +108,7 @@ export function splashEnter() {
   const keep = _pick === 'game:new' && !!(ue() && ue().newgame);
   if (a && keep) { carried = a; }
   else if (a) { const v0 = a.volume, t0 = performance.now(); const fade = () => { const k = Math.min(1, (performance.now() - t0) / 1100); a.volume = v0 * (1 - k); if (k < 1) requestAnimationFrame(fade); else { a.pause(); a.src = ''; } }; fade(); }
-  setTimeout(() => { T.on = false; T.closing = false; cancelAnimationFrame(T.raf); window.removeEventListener('resize', T.fit); r.remove(); T.audio = null; T.img = {}; T.blur = {}; T.ready = false; const f = _enter; _enter = null; if (f) f(_pick); }, 850);
+  setTimeout(() => { T.on = false; T.closing = false; cancelAnimationFrame(T.raf); window.removeEventListener('resize', T.fit); r.remove(); titleNativeOff(); T.audio = null; T.img = {}; T.blur = {}; T.ready = false; const f = _enter; _enter = null; if (f) f(_pick); }, 850);
 }
 function splashMute() {
   const T = TitleScreen; S.music = !S.music; saveSettings('music');
@@ -143,6 +164,16 @@ function titleFrame() {
   const T = TitleScreen, c = T.cv, x = T.cx, W = c.width, H = c.height; if (!W || !H) return;
   const t = titleTime(), beat = (t - TS_OFF) / TS_BEAT, kick = titleLevel(T.kick, t), lvl = titleLevel(T.env, t);
   T.root.style.setProperty('--kick', kick.toFixed(3)); T.root.style.setProperty('--lvl', lvl.toFixed(3));
+  // the PC version: Unreal draws the film behind this page, on the graphics card (smooth; its web view drew this canvas
+  // on the processor and stuttered: owner, 2026-11-13). The page keeps the captions on the beat, its canvas see-through.
+  if (titleNative(t)) {
+    if (beat >= 0) {
+      const round = Math.floor(beat / TS_ROUND); let b = beat - round * TS_ROUND, i = 0;
+      while (i < TS_SHOTS.length - 1 && b >= TS_SHOTS[i].beats) { b -= TS_SHOTS[i].beats; i++; }
+      const id = round * 100 + i; if (id !== T.lastShot) { T.lastShot = id; titleCaption(TS_SHOTS[i]); }
+    }
+    return;
+  }
   x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1; x.fillStyle = '#05030c'; x.fillRect(0, 0, W, H);
   if (!T.ready || beat < 0) { titleOverlays(x, W, H, t, kick, lvl, null, 0); return; }
   // which shot, and how far into it

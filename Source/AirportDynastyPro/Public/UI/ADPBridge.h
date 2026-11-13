@@ -39,6 +39,9 @@ public:
 	/** A timetable board's picture (PNG, base64), drawn by the menus. */
 	/** A line from the menus for the game's log (their errors; Unreal's browser doesn't pass on the page's console). */
 	UFUNCTION() void Log(const FString& Line);
+	/** The title screen: up or gone, and its music clock (seconds); Unreal draws its film then (TitleBg.h). Returns
+	 *  whether Unreal can (else the page draws it itself). */
+	UFUNCTION() bool TitleBg(bool bOn, float Seconds);
 	/** The menus' Settings > Updates on the PC: look for a newer PC version / install the one found (the game's own
 	 *  updater; its state comes back to the page through window.__ueUpdate). */
 	/** The menus' Exit (title screen and game): the game quits (the page can't close Unreal's window itself). */

@@ -577,3 +577,11 @@ html.ue-stage body > *:not(.wy) { visibility: hidden !important; }
 .wy-f input::placeholder { color: rgba(225, 215, 255, .35); }
 .wy-f input:focus { border-color: var(--neo1); box-shadow: 0 0 14px rgba(255, 63, 184, .45), inset 0 0 0 1px rgba(255, 63, 184, .3); }
 .wy-base b { padding: 9px 12px; font: 600 14px/1.2 'Audiowide', sans-serif; letter-spacing: .06em; color: rgba(237, 232, 255, .8); background: rgba(14, 8, 34, .4); border: 1px dashed rgba(53, 240, 255, .25); }
+
+/* the PC version: Unreal draws the title's film behind the page (src/ui/splash.ts, TitleBg.cpp): see-through there,
+   the neon logo, the menu and the captions on top as before */
+html.ts-native, html.ts-native body { background: transparent !important; }
+html.ts-native #bjs { visibility: hidden; }
+html.ts-native .ts { background: transparent; }
+html.ts-native .ts-cv { visibility: hidden; }
+html.ts-native .game-frame { background: transparent !important; }

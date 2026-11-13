@@ -1,6 +1,8 @@
 ﻿// The airline game in a web view: a scheme handler serving the built game's files at https://game.adp.local/, and the
 // view itself.
 #include "UI/GameView.h"
+#include "UI/TitleBg.h"
+#include "Widgets/SOverlay.h"
 #include "ADPLog.h"
 #include "IWebBrowserSchemeHandler.h"
 #include "IWebBrowserSingleton.h"
@@ -147,7 +149,7 @@ TSharedRef<SWidget> ADPGameView::Make(UObject* Bridge, TSharedPtr<SWebBrowser>* 
 		// see-through where the page is (the phone or a computer over the 3D room: Devices.cpp); the menus themselves are
 		// opaque, their page has its own background
 		.SupportsTransparency(true)
-		.BackgroundColor(FColor(5, 3, 12))
+		.BackgroundColor(FColor(5, 3, 12, 0))   // (see-through until the page draws: the title film behind it shows)
 		.BrowserFrameRate(60)
 		// the page's own messages and errors go to the game's log (Saved/Logs), to find problems in the menus
 		.OnConsoleMessage_Lambda([](const FString& Msg, const FString& Src, int32 Line, EWebBrowserConsoleLogSeverity Sev)
@@ -157,7 +159,10 @@ TSharedRef<SWidget> ADPGameView::Make(UObject* Bridge, TSharedPtr<SWebBrowser>* 
 	// the menus reach Unreal through window.ue.adp (the title screen's Terminal, and more later)
 	if (Bridge) B->BindUObject(TEXT("adp"), Bridge, true);
 	if (OutBrowser) *OutBrowser = B;
-	return B;
+	// the title screen's film, drawn by Unreal behind the page (TitleBg.h); the page leaves its canvas see-through then
+	return SNew(SOverlay)
+		+ SOverlay::Slot()[SNew(STitleBg).Visibility(EVisibility::HitTestInvisible)]
+		+ SOverlay::Slot()[B];
 }
 
 #pragma endregion

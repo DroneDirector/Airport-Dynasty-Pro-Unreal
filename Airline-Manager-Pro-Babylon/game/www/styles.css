@@ -4641,3 +4641,9 @@ html.ue-dev, html.ue-dev body { background: transparent !important; }
 html.ue-dev body > *:not(.ue-dev-root) { visibility: hidden !important; }
 .ue-dev-root { position: fixed; inset: 0; z-index: 100000; }
 .ue-dev-root .ph-screen, .ue-dev-root .of-planner { position: absolute; inset: 0; }
+
+/* the PC version: Unreal draws the title's film behind the page (smooth); the page see-through there, its neon on top */
+html.ts-native, html.ts-native body { background: transparent !important; }
+html.ts-native .ts { background: transparent; }
+html.ts-native .ts-cv { visibility: hidden; }
+html.ts-native #app, html.ts-native #rotate-hint { visibility: hidden; }
