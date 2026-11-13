@@ -91,7 +91,7 @@ ITEMS = [
     ('41b', 'Fire truck: surfaces flickering through each other (z-fighting) - find and separate them', '1-2 h', ['none'], '', False),
     ('42', 'True Unreal build: replace everything still exported from the Babylon model (the terminal building and fittings, the rental garage, their materials) with Unreal-native builds; nothing from Babylon kept', '2-4 days', ['none'], '', False),
     ('43a', 'Jetways animated in Unreal (his docking: parked back on its box, drives out to the front door when called, back after; stair, hoses, bellows, cab, canopy all moving with it)', '1 day', ['none'], '', False),
-    ('43b', 'Stop bars: check every type's nose-wheel setback and front-door position against each maker's airport planning document; jetway docks per type', '2 h', ['field'], '43a', False),
+    ('43b', 'Stop bars: check every type nose-wheel setback and front-door position against the makers airport planning document; jetway docks per type', '2 h', ['field'], '43a', False),
     ('40g', 'Iceland scenery: mountains torn into walls and steps - rebuild the Iceland/Faroes height tiles with feathered edges where they meet the world map', '3-4 h', ['field'], '', False),
 ]
 c = canvas.Canvas('AirportDynastyPro-ToDo.pdf', pagesize=(W, H))
