@@ -560,6 +560,9 @@ void AFireTruck::BeginClimb(APawn* Walker)
 	// the body that climbs: your own MetaHuman when you have one (owner, 2026-11-13), else the mannequin; the rig built on
 	// that body's own skeleton, so feet, hands and seat fit its own size
 	HumanPose = nullptr;
+	// the view you had stays: through your own eyes = the cab, from behind yourself = outside (as far back as last time)
+	if (Me) bChase = Me->IsThirdPerson();
+	Boom->TargetArmLength = ArmWant();
 	USkeletalMesh* Own = Me ? Me->BodyMesh() : nullptr;
 	if (Rider && (Own || MannyMesh))
 	{
@@ -619,6 +622,8 @@ void AFireTruck::ExitNow()
 void AFireTruck::StartExit()
 {
 	bExitPending = false;
+	// and out again the same way: the cab = your own eyes, outside = from behind yourself
+	if (AADPWalker* Me = Cast<AADPWalker>(Driver.Get())) Me->SetThirdPerson(bChase);
 	const FTransform RX = Model->GetModelRoot()->GetComponentTransform();
 	UCameraComponent* From = bChase ? ChaseCam.Get() : DriverCam.Get();
 	CamFrom = From->GetComponentTransform().GetRelativeTransform(RX);
@@ -1098,16 +1103,16 @@ void AFireTruck::Tick(float Dt)
 	if (bSim || DoorK > 0.f || DoorTarget > 0.f) Animate(Dt);
 	if (Driver || Seq != ESeq::None) Sequence(Dt);
 	DriverCam->SetRelativeRotation(FRotator(LookPitch - 11.f, LookYaw, 0.f));   // a driver's eyes rest a little down the road, the wheel's rim in view
-	Boom->SetRelativeRotation(FRotator(-12.f + LookPitch * 0.5f, LookYaw, 0.f));
+	Boom->SetRelativeRotation(FRotator((bFarView ? -16.f : -12.f) + LookPitch * 0.5f, LookYaw, 0.f));
 	if (bChase)
 	{
 		// the chase camera stays on this side of walls and ceilings (in the bay it would sit in the back wall)
-		const FVector From = Boom->GetComponentLocation(), To = From - Boom->GetForwardVector() * 1750.f;
+		const FVector From = Boom->GetComponentLocation(), To = From - Boom->GetForwardVector() * (ArmWant() + 50.f);
 		FCollisionQueryParams Q(SCENE_QUERY_STAT(ADPTruckCam), true, this);
 		Q.AddIgnoredActor(Model);
 		if (Driver) Q.AddIgnoredActor(Driver);
 		FHitResult H;
-		const float Want = GetWorld()->LineTraceSingleByChannel(H, From, To, ECC_Visibility, Q) ? FMath::Max(250.f, H.Distance - 60.f) : 1700.f;
+		const float Want = GetWorld()->LineTraceSingleByChannel(H, From, To, ECC_Visibility, Q) ? FMath::Max(250.f, H.Distance - 60.f) : ArmWant();
 		// in at once (never through the wall), back out gently
 		Boom->TargetArmLength = Want < Boom->TargetArmLength ? Want : FMath::FInterpTo(Boom->TargetArmLength, Want, Dt, 2.f);
 	}

@@ -68,6 +68,9 @@ public:
 	/** Test drives (-UIDrive): the inputs set from outside. */
 	void SetTestInput(float Throttle, float Brake, float SteerIn) { bTestInput = true; InThrottle = Throttle; InBrake = Brake; InSteer = SteerIn; }
 	void SetView(bool bChase);
+	/** As pressing V (tests). */
+	void PressView() { ToggleView(); }
+	int32 ViewStep() const { return !bChase ? 0 : bFarView ? 2 : 1; }
 	/** Every truck in the world (the station's bay doors open for them). */
 	static TArray<TWeakObjectPtr<AFireTruck>> All;
 
@@ -162,7 +165,7 @@ private:
 	void Sequence(float Dt);
 	FDriverPose PoseAt(float T) const;
 	FTransform CamPath(float T) const;
-	void Sound(const TArray<int16>& Pcm, const FVector& RootAt, bool bFar);
+	void Sound(const TArray<int16>& Pcm, const FVector& RootAt, bool bFarView);
 
 	void Simulate(float Dt);
 	void Animate(float Dt);
@@ -175,7 +178,11 @@ private:
 	void PadB(float V) { PadBrake = V; }
 	void HandOn() { bHandbrake = bHandHeld = true; }
 	void HandOff() { bHandbrake = bHandHeld = false; }
-	void ToggleView() { SetView(!bChase); }
+	// V / the pad's view button: the cab, then outside close behind, then further back, then the cab again (owner,
+	// 2026-11-13); the outside distance is kept for the next time you're outside
+	bool bFarView = false;
+	float ArmWant() const { return bFarView ? 3200.f : 1700.f; }
+	void ToggleView() { if (!bChase) { bFarView = false; SetView(true); } else if (!bFarView) { bFarView = true; LookYaw = LookPitch = 0.f; } else SetView(false); }
 };
 
 /** The fire station's bay doors (owner: shut in the game): sectional doors whose foot rises in the opening while their top
