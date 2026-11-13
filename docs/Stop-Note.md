@@ -1,22 +1,18 @@
-# Stop note (2026-11-13, evening)
+# Stop note (2026-11-13, 22:20 - owner shutting down the PC)
 
 **Done (committed and pushed):**
-- 0.17.11 published (the ground job, stronger stand wear).
-- Fire truck: your own MetaHuman climbs in (foot on the step, hands on the handles), sits in the middle seat, hands
-  on the wheel; E in and out from first or third person; any character (tested with a female one).
-- V in the truck: cab, close outside, far outside; the view you walked with is the view you drive with, and back.
-- Walking/running: walk and jog clips run in place (the body no longer runs ahead and snaps back), the steps match
-  your speed, the body turns and leans into running turns, the third-person camera steady.
-- First person: everything above the waist hidden from your own eyes (arms, hands, legs, feet seen), whole shadow
-  incl. head; looking down limited to 80 degrees (owner's picture).
+- 0.17.11 published (the ground job).
+- Fire truck with your own MetaHuman (step, handles, middle seat, hands on the wheel), E in/out from any view.
+- V in the truck: cab, close outside, far outside; your view carried in and out.
+- Walking/running: clips in place, steps match speed, lean into turns, steady third-person camera.
+- First person: chest hidden from your own eyes, whole shadow, look-down limit 80 degrees.
+- Drone mode (map's DRONE MODE button; WASD, Space/Ctrl, wheel, Shift boost to 300 m/s, Esc back).
+- The map's shortcut buttons in their own column beside the map.
+- Title screen film drawn by Unreal on the graphics card (M_TitleBg), the page's neon on top, Android unchanged.
 
-**Half-done:** nothing open in code.
+**Half-done:** nothing. Nothing building, nothing running.
 
-**Found, not fixed (waits for the owner):**
-- The Tee outfit (MH_900_player_Tee) has NO shorts: its outfit mesh holds only the tee (cotton jersey + print).
-  The body under where the shorts were is hidden, so the hips look see-through and cast no shadow. Fix belongs to the
-  clothes line (rebuild the Tee outfit with shorts/the kit's shorts), with previews first (clothes preview rule).
+**Not verified by the owner:** all of the above since 0.17.11 is unpublished; title smoothness only provable by watching it.
 
-**Not published:** everything after 0.17.11 (truck, views, walking, first-person body) - next release 0.17.12.
-
-**Next (owner decides):** publish 0.17.12, the shorts, or the to-do list.
+**Next (owner decides):** publish 0.17.12 (about 1-1.5 working hours), or the to-do list
+(e.g. 49 shorts for the Tee outfit, 45/46 stand wear, 47 PC/Android update notices, 48 AI drivers).
