@@ -283,14 +283,19 @@ clean_edges(shirt)
 # the collar band, from below the shirt's neckline (a yoke over the shoulders' slope) up round the neck, closed at the
 # front under the tie knot; and the fold-down collar over it, its spread points meeting either side of the knot
 TH = [2 * math.pi * j / 64 for j in range(65)]
-band = neck_tube('CollarBand', TH, lambda th: [lerp(NECK.z - 0.10, NECK.z - 0.07, (1 - math.cos(th)) / 2) + k * (collar_top(th) - lerp(NECK.z - 0.10, NECK.z - 0.07, (1 - math.cos(th)) / 2)) / 9 for k in range(10)],
-                 lambda th, z, surf: surf + 0.007)
+def band_foot(th):
+    # the yoke reaches down over the chest only in the jacket's front opening; at the sides and back it stays near the
+    # neck (posed, its edge poked through the jacket over the shoulders)
+    front = max(0.0, math.cos(th)) ** 3
+    return lerp(NECK.z - 0.07, NECK.z - 0.10, (1 - math.cos(th)) / 2) if False else lerp(NECK.z - 0.10, NECK.z - 0.07, (1 - math.cos(th)) / 2)   # (as before: the shards were not the yoke)
+band = neck_tube('CollarBand', TH, lambda th: [band_foot(th) + k * (collar_top(th) - band_foot(th)) / 9 for k in range(10)],
+                 lambda th, z, surf: surf + 0.010)   # room for the throat when the head tips forward
 def leaf_rows(th):
     t = collar_top(th) + 0.002; a = abs(math.atan2(math.sin(th), math.cos(th)))
     depth = 0.034 + 0.036 * max(0.0, 1.0 - (a - 0.27) / 0.34)    # the spread points: longest at the inner edge by the knot, a straight edge back up
     return [t - depth * k / 6 for k in range(7)]
 LEAF_TH = [0.27 + (2 * math.pi - 0.54) * j / 60 for j in range(61)]   # the points beside the tie's knot, not over it
-leaf = neck_tube('CollarLeaf', LEAF_TH, leaf_rows, lambda th, z, surf: max(neck_surface(th, collar_top(th)) + 0.012 + 0.03 * (collar_top(th) - z), surf + 0.011))   # lying on the shirt
+leaf = neck_tube('CollarLeaf', LEAF_TH, leaf_rows, lambda th, z, surf: max(neck_surface(th, collar_top(th)) + 0.015 + 0.03 * (collar_top(th) - z), surf + 0.014))   # lying on the shirt
 join_into(shirt, [band, leaf])
 subdivide(shirt, 1)
 log('shirt out of the skin after smoothing at', keep_out(shirt, BODY_BVH, 0.006), 'points')
@@ -430,6 +435,9 @@ subdivide(jk, 1)
 log('jacket out of the skin at', keep_out(jk, BODY_BVH, 0.018, 0.05), 'points')
 # a soft last pass: the canvas front lies smooth over the chest instead of showing its muscles
 smooth(jk, 14, 0.45); keep_out(jk, BODY_BVH, 0.008, 0.05)
+NEAR_COLLAR = lambda c: c.z > NECK.z - 0.16 and Vector((c.x - NECK.x, c.y - NECK.y, 0)).length < 0.26
+smooth_where(jk, NEAR_COLLAR, 16, 0.5)   # the shoulder tops round the collar: no lumps
+keep_out(jk, BODY_BVH, lambda c: 0.004 if NEAR_COLLAR(c) else 0.010, 0.05)   # (bridging the shoulder muscles there)
 smooth_where(jk, lambda c: c.y > 0.0 and abs(c.x) < 0.06 and 1.05 < c.z < 1.45, 10, 0.5)   # no crease down the spine (owner)
 log('jacket over the shirt at', keep_out(jk, SHIRT_BVH, 0.006), 'points')
 # the last soft pass over the waist and the skirt's top, then kept clear of what is under it
@@ -441,37 +449,44 @@ smooth_where(jk, WAISTBAND, 4, 0.3)
 GORGE = NECK.z - 0.11                                     # where the lapel meets the collar (the notch)
 def v_half(z): return 0.010 + (z - 1.07) * 0.21
 def lapel_outer(z): return lerp(0.012, v_half(GORGE) + 0.078, (z - 1.07) / (GORGE - 1.07))   # straight from the button to the notch
-# the lapels: the cloth beside the opening, from the button up to the notch, turned back over the front (4 mm proud)
-bm = bmesh.new(); bm.from_mesh(jk.data); bm.normal_update()
-def on_lapel(c):
-    if c.y > -0.03 or c.z < 1.09 or c.z > GORGE + 0.03: return False
-    ax = abs(c.x)
-    return ax < lapel_outer(c.z) + 0.02   # (a little wider: the outer edge is cut straight below)
-lap = [f for f in bm.faces if on_lapel(f.calc_center_median())]
-lb = bmesh.new()
-vmap = {}
-for f in lap:
-    vs = []
-    for v in f.verts:
-        if v not in vmap: vmap[v] = lb.verts.new(v.co + v.normal * 0.004 * max(0.0, min(1.0, (v.co.z - 1.08) / 0.12)))   # flat at the button
-        vs.append(vmap[v])
-    try: lb.faces.new(vs)
-    except ValueError: pass
-bm.free()
-# each lapel's outer edge cut with a flat plane along the straight line from the button to the notch (owner: even,
-# straight lines, not following the jacket's triangles)
+# the lapels (owner: straight, even edges; no layer cutting through the jacket when posed): each lapel is its own clean
+# strip of cloth, laid in rows exactly along the straight line from the button to the notch, shaped onto the jacket
+# and 4 mm proud of it; the jacket's own cloth under it is removed (so there's no doubled layer), the lapel tapering to
+# nothing at the button
+JK0 = bvh_of(jk)
+def x_line(z): return lerp(0.012, lapel_outer(GORGE), (z - 1.09) / (GORGE - 1.09))
+bm = bmesh.new(); bm.from_mesh(jk.data)
+def under_lapel(c):
+    if c.y > -0.02 or c.z < 1.095 or c.z > GORGE - 0.004: return False
+    return abs(c.x) < x_line(c.z) - 0.011 and abs(c.x) > 0.0   # (well inside the strip: the cloth removed never peeks out past its edge)
+bmesh.ops.delete(bm, geom=[f for f in bm.faces if under_lapel(f.calc_center_median())], context='FACES')
+bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+bm.to_mesh(jk.data); bm.free()
+strips = []
 for side in (1, -1):
-    B = Vector((side * 0.012, 0.0, 1.09)); N = Vector((side * lapel_outer(GORGE), 0.0, GORGE))
-    n = (N - B).normalized().cross(Vector((0, 1, 0)))
-    if n.x * side < 0: n = -n                     # pointing outward, away from the opening
-    geom = [f for f in lb.faces if f.calc_center_median().x * side > 0]
-    gv = list({v for f in geom for v in f.verts}); ge = list({e for f in geom for e in f.edges})
-    bmesh.ops.bisect_plane(lb, geom=gv + ge + geom, plane_co=B, plane_no=n, clear_outer=True)
-bmesh.ops.delete(lb, geom=[v for v in lb.verts if not v.link_faces], context='VERTS')
-me = bpy.data.meshes.new('Lapels'); lb.to_mesh(me); lb.free()
-lapels = bpy.data.objects.new('Lapels', me); sc.collection.objects.link(lapels)
-trim(lapels, Vector((0, 0, GORGE)), Vector((0, 0, -1)))   # the lapel's top cut straight at the notch line
-clean_edges(lapels, 3)
+    sb = bmesh.new(); R, C = 30, 10; grid = []
+    for r in range(R + 1):
+        z = lerp(1.09, GORGE, r / R)
+        x0 = min(v_half(z) + 0.004, x_line(z) - 0.001); x1 = x_line(z)   # (4 mm in: every ray lands on the jacket)
+        lift = 0.004 * max(0.0, min(1.0, (z - 1.09) / 0.12))
+        row = []
+        for c in range(C + 1):
+            x = side * lerp(x0, x1, c / C)
+            hit = JK0.ray_cast(Vector((x, -0.6, z)), Vector((0, 1, 0)))
+            p_ = (hit[0] + hit[1] * lift) if (hit[0] is not None and hit[0].y < -0.02) else Vector((x, -0.12, z))
+            row.append(sb.verts.new(p_))
+        grid.append(row)
+    for r in range(R):
+        for c in range(C):
+            q = (grid[r][c], grid[r][c + 1], grid[r + 1][c + 1], grid[r + 1][c])
+            sb.faces.new(q if side > 0 else q[::-1])
+    bmesh.ops.recalc_face_normals(sb, faces=sb.faces)
+    me_ = bpy.data.meshes.new('Lapel'); sb.to_mesh(me_); sb.free()
+    o_ = bpy.data.objects.new('Lapel', me_); sc.collection.objects.link(o_); o_.data.uv_layers.new(name='UVMap')
+    strips.append(o_)
+join_into(jk, strips)
+bm = bmesh.new(); bm.from_mesh(jk.data)
+bm.to_mesh(jk.data); bm.free()
 # the pockets: a welt on the left breast, flaps at the hips; and the two buttons (references: two-button jacket)
 JK_BVH = bvh_of(jk)
 def side_patch(name, th, z, w, h, lift, n=8):
@@ -508,7 +523,7 @@ def patch(name, x, z, w, h, lift, n=6):
         for j in range(2): pb.faces.new((grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]))
     me = bpy.data.meshes.new(name); pb.to_mesh(me); pb.free()
     o = bpy.data.objects.new(name, me); sc.collection.objects.link(o); return o
-details = [lapels] + [o for o in (patch('ChestWelt', 0.12, 1.30, 0.10, 0.022, 0.0025),
+details = [o for o in (patch('ChestWelt', 0.12, 1.30, 0.10, 0.022, 0.0025),
            side_patch('FlapL', math.radians(55), 0.95, 0.15, 0.05, 0.0025), side_patch('FlapR', -math.radians(55), 0.95, 0.15, 0.05, 0.0025)) if o]   # on the sides of the hips (owner)
 join_into(jk, details)
 thicken(jk, 0.003)

@@ -82,6 +82,12 @@ try:
     log('no sim %s' % DFL.set_dataflow_node_property(df, imp, 'bImportSimMesh', 'False'))
     log('render only %s' % DFL.set_dataflow_node_property(df, skin, 'TargetMeshType', 'Render'))
     log('weights from body %s' % DFL.set_dataflow_node_property(df, skin, 'RenderMeshSourceType', 'SkeletalMesh'))
+    # the cloth follows the bones as one piece (posed, a lumpy weighting bunched it at the crotch and the lapels)
+    log('smooth weights %s %s' % (DFL.set_dataflow_node_property(df, skin, 'NumSmoothingIterations', '40'),
+                                  DFL.set_dataflow_node_property(df, skin, 'SmoothingStrength', '0.5')))
+    # only cloth lying right on the skin copies the skin's weights (with its sharp corrective-muscle weights a jacket
+    # folded into itself at the front of the shoulder when the arms came down); the rest is filled in smoothly
+    log('match close only %s' % DFL.set_dataflow_node_property(df, skin, 'RadiusPercentage', '0.008'))
     log('wire imp->skin %s' % DFL.connect_dataflow_nodes(df, imp, 'Collection', skin, 'Collection'))
     ok = False
     for pin in ('CollectionLods[0]', 'Collection LOD 0', 'CollectionLod0', 'Collection'):
