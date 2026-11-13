@@ -101,6 +101,7 @@ FString AWardrobe::Chosen()
 {
 	FString Who = TEXT("MH_900_player");
 	GConfig->GetString(TEXT("ADP.Player"), TEXT("Outfit"), Who, GGameUserSettingsIni);
+	FParse::Value(FCommandLine::Get(), TEXT("Player="), Who);   // (tests: play as another built character)
 	return Who;
 }
 
