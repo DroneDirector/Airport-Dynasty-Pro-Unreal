@@ -20,6 +20,7 @@
 #include "BabylonModel.h"
 #include "LightMasts.h"
 #include "WindSocks.h"
+#include "Puddles.h"
 #include "Offices.h"
 #include "FireStation.h"
 #include "TowerADC.h"
@@ -108,6 +109,8 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 			if (AGrassField* Grass = W->SpawnActor<AGrassField>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 			{ const auto& B = Field->Data().Boundary; Grass->Start(B.X0, B.Y0, B.X1, B.Y1); }
 			// the real sun over the airport, for the date and the time of day
+			// the puddles and wet ground (the ground's own material, one global wetness: Tools/set_puddles.py)
+			W->SpawnActor<APuddles>(FVector::ZeroVector, FRotator::ZeroRotator, P);
 			if (ASunClock* Sun = W->SpawnActor<ASunClock>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 				Sun->Setup(Field->Data().Lat, Field->Data().Lon, Field->Data().Heading);
 		}
