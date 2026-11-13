@@ -76,6 +76,27 @@ bool FAirfieldData::Load()
 			H.X = N(O, TEXT("x")); H.Y = N(O, TEXT("y")); O->TryGetBoolField(TEXT("open"), H.bOpen);
 			Hangars.Add(H);
 		}
+	const TArray<TSharedPtr<FJsonValue>>* Rs = nullptr;
+	if (R->TryGetArrayField(TEXT("roads"), Rs))
+		for (const TSharedPtr<FJsonValue>& V : *Rs)
+		{
+			const TSharedPtr<FJsonObject> O = V->AsObject();
+			FRoad Rd;
+			O->TryGetStringField(TEXT("id"), Rd.Id); Rd.W = N(O, TEXT("w"), 7); O->TryGetBoolField(TEXT("hold"), Rd.bHold);
+			for (const TSharedPtr<FJsonValue>& P : O->GetArrayField(TEXT("pts"))) { const TArray<TSharedPtr<FJsonValue>>& A = P->AsArray(); Rd.Pts.Add(FVector2f(A[0]->AsNumber(), A[1]->AsNumber())); }
+			if (Rd.Pts.Num() >= 2) Roads.Add(Rd);
+		}
+	const TArray<TSharedPtr<FJsonValue>>* Ls = nullptr;
+	if (R->TryGetArrayField(TEXT("lots"), Ls))
+		for (const TSharedPtr<FJsonValue>& V : *Ls)
+		{
+			const TSharedPtr<FJsonObject> O = V->AsObject();
+			FLot L{TEXT(""), N(O, TEXT("x0")), N(O, TEXT("y0")), N(O, TEXT("x1")), N(O, TEXT("y1"))};
+			O->TryGetStringField(TEXT("id"), L.Id); O->TryGetBoolField(TEXT("paved"), L.bPaved); O->TryGetBoolField(TEXT("onModel"), L.bOnModel);
+			const TSharedPtr<FJsonObject>* B;
+			if (O->TryGetObjectField(TEXT("bays"), B)) { L.BayX0 = N(*B, TEXT("x0")); L.BayY = N(*B, TEXT("y")); L.Bays = int32(N(*B, TEXT("n"))); L.BayW = N(*B, TEXT("w"), 2.6); L.BayD = N(*B, TEXT("d"), 5.2); L.BayDir = N(*B, TEXT("dir"), 1); }
+			Lots.Add(L);
+		}
 	const TSharedPtr<FJsonObject> B = R->GetObjectField(TEXT("boundary")), C = R->GetObjectField(TEXT("cargoBuilding"));
 	Boundary = {N(B, TEXT("x0")), N(B, TEXT("y0")), N(B, TEXT("x1")), N(B, TEXT("y1"))};
 	Cargo = {N(C, TEXT("x0")), N(C, TEXT("y0")), N(C, TEXT("x1")), N(C, TEXT("y1"))};
@@ -641,7 +662,7 @@ void AAirfield::Aprons(bool bModelSite)
 		T->SetVerticalAlignment(EVRTA_TextCenter);
 		T->SetWorldSize(H * 100.f);
 		T->SetTextRenderColor(C);
-		T->SetRelativeLocationAndRotation(FTerminalPlan::ToWorld(X, Base(FVector2f(X, Y)) + 0.014f + Sink, Y), FRotator(-90.f, Yaw + 180.f, 0.f));   // face up (a text's readable side is its -x)
+		T->SetRelativeLocationAndRotation(FTerminalPlan::ToWorld(X, Base(FVector2f(X, Y)) + 0.014f + Sink, Y), FRotator(90.f, Yaw + 180.f, 0.f));   // face up, its feet towards the reader
 		T->RegisterComponent();
 		AddInstanceComponent(T);
 	};
@@ -782,6 +803,131 @@ void AAirfield::Aprons(bool bModelSite)
 	}
 }
 
+void AAirfield::ServiceRoads(bool bModelSite)
+{
+	// on an apron the road is the apron's own surface: only its lines show there, at the apron's height
+	auto OnApron = [&](const FVector2f& Q, float Margin, bool& bModel)
+	{
+		for (const FAirfieldData::FRect& A : D.Aprons)
+			if (BoxSd(Q, A.X0, A.Y0, A.X1, A.Y1) < Margin) { bModel = bModelSite && (A.Id == TEXT("APRON-T") || A.Id == TEXT("APRON-9")); return true; }
+		return false;
+	};
+	// the Babylon model's own lawn round the terminal lies 25 cm over the airfield's ground (Sink): what is laid inside it
+	// (a road, the tower's lot) is lifted just over it there
+	auto Lawn = [&](const FVector2f& Q) { return bModelSite && Q.X > -260.f && Q.X < 420.f && Q.Y > -200.f && Q.Y < 260.f; };
+	auto Lifted = [&](const FVector2f& Q, float Lift) { return Lawn(Q) ? Lift + 0.01f - Sink : Lift; };
+	// the lots: their tarmac, the parking spaces' white lines (a line between every two, a line across their heads), soft edges
+	for (const FAirfieldData::FLot& Lt : D.Lots)
+	{
+		const FVector2f Mid((Lt.X0 + Lt.X1) / 2, (Lt.Y0 + Lt.Y1) / 2);
+		if (Lt.bPaved) Quad("asphalt", Lt.X0, Lt.Y0, Lt.X1, Lt.Y1, Lifted(Mid, -0.03f), 3.f, FLinearColor(1, 1, 1, 1));
+		// on a model's own paving (the fire station's site, laid flat at 2 cm): the lines just over it
+		auto PaintLift = [&]() { return Lt.bOnModel ? 0.035f - GroundAt(Mid.X, Mid.Y) - Sink : Lifted(Mid, -0.024f); };
+		const float YHead = Lt.BayY + Lt.BayDir * Lt.BayD;   // the spaces run from BayY into the lot by their depth
+		for (int32 b = 0; b <= Lt.Bays; ++b)
+		{
+			const float X = Lt.BayX0 + b * Lt.BayW;
+			Quad("paintwhite", X - 0.06f, FMath::Min(Lt.BayY, YHead), X + 0.06f, FMath::Max(Lt.BayY, YHead), PaintLift(), 2.f);
+		}
+		Quad("paintwhite", Lt.BayX0, YHead - 0.06f, Lt.BayX0 + Lt.Bays * Lt.BayW, YHead + 0.06f, PaintLift(), 2.f);
+		if (Lt.bPaved && !Lawn(Mid)) EdgeRect(Lt.X0, Lt.Y0, Lt.X1, Lt.Y1, -0.03f, 1.f, 15);
+		ADP_LOG(TEXT("Airfield: lot %s with %d parking spaces"), *Lt.Id, Lt.Bays);
+	}
+	for (const FAirfieldData::FRoad& Rd : D.Roads)
+	{
+		// the centre line with its corners rounded (radius 15 m, or what the legs allow), a point every 1.5 m
+		TArray<FVector2f> C;
+		const TArray<FVector2f>& P = Rd.Pts;
+		C.Add(P[0]);
+		for (int32 i = 1; i + 1 < P.Num(); ++i)
+		{
+			const FVector2f A = P[i - 1], B = P[i], Cn = P[i + 1];
+			const FVector2f U0 = (B - A).GetSafeNormal(), U1 = (Cn - B).GetSafeNormal();
+			const float Turn = FMath::Acos(FMath::Clamp(FVector2f::DotProduct(U0, U1), -1.f, 1.f));
+			if (Turn < 0.02f) { C.Add(B); continue; }
+			const float T = FMath::Min3(15.f * FMath::Tan(Turn / 2), (B - A).Size() * 0.45f, (Cn - B).Size() * 0.45f);
+			const FVector2f S0 = B - U0 * T, S1 = B + U1 * T;
+			for (int32 k = 0; k <= 12; ++k) { const float t = k / 12.f; C.Add(FMath::Lerp(FMath::Lerp(S0, B, t), FMath::Lerp(B, S1, t), t)); }   // a smooth curve through the corner
+		}
+		C.Add(P.Last());
+		TArray<FVector2f> Pts;
+		for (int32 i = 0; i + 1 < C.Num(); ++i)
+		{
+			const int32 Nn = FMath::Max(1, FMath::CeilToInt((C[i + 1] - C[i]).Size() / 1.5f));
+			for (int32 k = 0; k < Nn; ++k) Pts.Add(FMath::Lerp(C[i], C[i + 1], float(k) / Nn));
+		}
+		Pts.Add(C.Last());
+		const int32 N = Pts.Num();
+		TArray<FVector2f> Nrm; TArray<float> Along;
+		Along.Add(0.f);
+		for (int32 i = 0; i < N; ++i)
+		{
+			const FVector2f T = (Pts[FMath::Min(i + 1, N - 1)] - Pts[FMath::Max(i - 1, 0)]).GetSafeNormal();
+			Nrm.Add(FVector2f(-T.Y, T.X));
+			if (i > 0) Along.Add(Along.Last() + (Pts[i] - Pts[i - 1]).Size());
+		}
+		// a strip of the road between two offsets from its centre line, dashed or not
+		auto Strip = [&](const FName Mat, float D0, float D1, float Lift, float DashOn, float DashOff)
+		{
+			const float StopAt = Rd.bHold && DashOn > 0.f ? Along.Last() - 18.f : 1e9f;   // the middle line ends before the STOP marking
+			FSheet& S = Sheets.FindOrAdd(Mat);
+			const float Period = DashOn + DashOff;
+			for (int32 i = 0; i + 1 < N; ++i)
+			{
+				if (Period > 0.f && FMath::Fmod(Along[i], Period) > DashOn) continue;
+				if (Along[i] > StopAt) continue;
+				bool bM = false;
+				const bool bOn = OnApron((Pts[i] + Pts[i + 1]) / 2, -0.5f, bM);
+				if (bOn && Mat == TEXT("asphalt")) continue;                 // the apron is the road there
+				const float L = bOn ? (bM ? 0.02f - Sink : -0.04f) + (Lift + 0.03f) + 0.002f : Lifted((Pts[i] + Pts[i + 1]) / 2, Lift);
+				const int32 B0 = S.V.Num();
+				for (const int32 k : {i, i + 1})
+					for (const float Dd : {D0, D1}) { const FVector2f Q = Pts[k] + Nrm[k] * Dd; Vertex(S, Q.X, Q.Y, L); }
+				Tri(S, B0, B0 + 1, B0 + 3); Tri(S, B0, B0 + 3, B0 + 2);
+			}
+		};
+		const float H = Rd.W / 2;
+		Strip("asphalt", -H, H, -0.03f, 0.f, 0.f);                         // the road
+		for (const float S : {-1.f, 1.f}) Strip("paintwhite", S * (H - 0.45f), S * (H - 0.3f), -0.024f, 0.f, 0.f);   // its edge lines
+		Strip("paintwhite", -0.06f, 0.06f, -0.024f, 3.f, 3.f);             // the dashed middle
+		// the soft edges into the grass, both sides
+		for (const float S : {-1.f, 1.f})
+		{
+			TArray<FVector2f> E, O, F; TArray<float> L;
+			auto Flush = [&]() { if (E.Num() >= 2) EdgePoly(E, O, F, L, true); E.Reset(); O.Reset(); F.Reset(); L.Reset(); };
+			for (int32 i = 0; i < N; ++i)
+			{
+				bool bM = false;
+				const FVector2f Q = Pts[i] + Nrm[i] * (S * H);
+				if (OnApron(Q, 1.f, bM)) { Flush(); continue; }   // none along an apron
+				E.Add(Q); O.Add(Nrm[i] * S); F.Add(FVector2f(1.f, 0.f)); L.Add(Lifted(Q, -0.03f));
+			}
+			Flush();
+		}
+		// where it meets a taxiway: the road-holding position, a white stop line across it and STOP before it
+		if (Rd.bHold)
+		{
+			const FVector2f Dir = (Pts[N - 1] - Pts[N - 2]).GetSafeNormal(), Nn(-Dir.Y, Dir.X), At = Pts.Last() - Dir * 10.f;
+			FSheet& S = Sheets.FindOrAdd(TEXT("paintwhite"));
+			const int32 B0 = S.V.Num();
+			for (const float a : {0.f, 0.5f}) for (const float b : {-H + 0.3f, H - 0.3f}) { const FVector2f Q = At + Dir * a + Nn * b; Vertex(S, Q.X, Q.Y, -0.024f); }
+			Tri(S, B0, B0 + 1, B0 + 3); Tri(S, B0, B0 + 3, B0 + 2);
+			UTextRenderComponent* T = NewObject<UTextRenderComponent>(this);
+			T->SetupAttachment(Root);
+			T->SetText(FText::FromString(TEXT("STOP")));
+			T->SetHorizontalAlignment(EHTA_Center); T->SetVerticalAlignment(EVRTA_TextCenter);
+			T->SetWorldSize(180.f); T->SetTextRenderColor(FColor(235, 235, 230));
+			const FVector2f Tp = At - Dir * 3.f;
+			// read by the driver coming up to it: plan direction (x, y) is world (x, -y)
+			const float Yaw = FMath::RadiansToDegrees(FMath::Atan2(-Dir.Y, Dir.X));
+			T->SetRelativeLocationAndRotation(FTerminalPlan::ToWorld(Tp.X, GroundAt(Tp.X, Tp.Y) - 0.02f + Sink, Tp.Y), FRotator(90.f, Yaw + 180.f, 0.f));
+			T->RegisterComponent();
+			AddInstanceComponent(T);
+		}
+		ADP_LOG(TEXT("Airfield: road %s, %.0f m"), *Rd.Id, Along.Last());
+	}
+}
+
 void AAirfield::EdgePoly(const TArray<FVector2f>& P, const TArray<FVector2f>& Out, const TArray<FVector2f>& Flags, const TArray<float>& InnerLift, bool bFadeEnds)
 {
 	FSheet& S = Sheets.FindOrAdd(TEXT("edge"));
@@ -916,6 +1062,7 @@ bool AAirfield::Build(bool bModelSite)
 	if (!bModelSite) Quad("asphalt", -160, -170, 392, -0.5f, -0.05f, 50.f);
 	// the aprons (concrete, level); with the Babylon model only those away from the terminal (it has the terminal's own)
 	Aprons(bModelSite);   // every apron and every stand's markings and wear, from the layout
+	ServiceRoads(bModelSite);
 	// the taxiways: one smooth pavement with its turn curves, fillets, shoulders, edge stripes, centre lines and the soft
 	// grass edge round all the paving, riding the grade
 	PaveTaxiways(bModelSite);
@@ -997,7 +1144,7 @@ bool AAirfield::Build(bool bModelSite)
 			T->SetTextRenderColor(FColor(235, 235, 230));
 			const FVector At = FTerminalPlan::ToWorld(Cx, GroundAt(Cx, Cy) - 0.012f + Sink, Cy);
 			// the plan's +y is the world's -y; the letters' feet towards the pilot coming up to the line
-			T->SetRelativeLocationAndRotation(At, FRotator(-90.f, S > 0.f ? 90.f : -90.f, 0.f));   // face up, the letters' feet towards the pilot
+			T->SetRelativeLocationAndRotation(At, FRotator(90.f, S > 0.f ? 90.f : -90.f, 0.f));   // face up, the letters' feet towards the pilot
 			T->RegisterComponent();
 			AddInstanceComponent(T);
 		}

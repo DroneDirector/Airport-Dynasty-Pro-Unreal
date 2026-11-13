@@ -35,6 +35,12 @@ struct AIRPORTDYNASTYPRO_API FAirfieldData
 	TArray<FVector2f> Holds;
 	TArray<FRect> Aprons;
 	TArray<FHangarSite> Hangars;
+	/** The service roads for the ground vehicles (Data/airfield.json roads): centre line, width, a road-holding position at its end. */
+	struct FRoad { FString Id; float W = 7; TArray<FVector2f> Pts; bool bHold = false; };
+	TArray<FRoad> Roads;
+	/** Paved lots (the tower's, the fire station's forecourt): a rectangle and a row of parking spaces along one side. */
+	struct FLot { FString Id; float X0, Y0, X1, Y1, BayX0 = 0, BayY = 0, BayW = 2.6f, BayD = 5.2f, BayDir = 1; int32 Bays = 0; bool bPaved = true, bOnModel = false; };
+	TArray<FLot> Lots;
 	FRect Boundary{-2000, -170, 2240, 1320}, Cargo{200, 1231, 590, 1301};
 	double Lat = 63.457988, Lon = -18.713703;
 	float ElevFt = 130, Heading = 68;
@@ -99,6 +105,10 @@ private:
 	 *  stands, the red jetway zones, and each stand's own wear (engine soot, drips where the wheels stop, faint tyre marks
 	 *  on some). */
 	void Aprons(bool bModelSite);
+	/** The service roads (owner, 2026-11-13: gate 1 to the tower, the fire station to the apron and onto taxiway A): asphalt
+	 *  on the grade, rounded bends, white edge lines and a dashed middle, soft edges into the grass, a road-holding position
+	 *  (stop line and STOP) where one meets a taxiway. */
+	void ServiceRoads(bool bModelSite);
 	/** A soft edge band along a curved edge: P the points along it, Out their outward normals, Flags (asphalt, end). */
 	void EdgePoly(const TArray<FVector2f>& P, const TArray<FVector2f>& Out, const TArray<FVector2f>& Flags, const TArray<float>& InnerLift, bool bFadeEnds);
 	void Tri(FSheet& S, int32 A, int32 B, int32 C);

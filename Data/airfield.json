@@ -694,5 +694,109 @@
   }
  ],
  "hangarsNote": "hangar sites on the hangar apron west of the cargo apron: x is the centre line (on its lead-in line from taxilane K), y the apron edge the threshold meets; size S, M, L or XL (any size fits the same line)",
- "standsNote": "2026-11-13: the terminal stands, taxilane T and the terminal apron moved 12 m out from the terminal (owner: room for longer jetways); the Unreal data is the source now"
+ "standsNote": "2026-11-13: the terminal stands, taxilane T and the terminal apron moved 12 m out from the terminal (owner: room for longer jetways); the Unreal data is the source now",
+ "roads": [
+  {
+   "id": "ROAD-TOWER",
+   "w": 7,
+   "note": "gate 1 to the control tower: the stands service road carried on past gate 1, off the apron to the tower",
+   "pts": [
+    [
+     -90,
+     160.5
+    ],
+    [
+     -150,
+     160.5
+    ],
+    [
+     -182,
+     148
+    ],
+    [
+     -198,
+     128
+    ]
+   ]
+  },
+  {
+   "id": "ROAD-FIRE-APRON",
+   "w": 7,
+   "note": "the fire station to the apron by gate 1 (taxilane T and link P1, the taxiway closest to the tower)",
+   "pts": [
+    [
+     -1205,
+     28
+    ],
+    [
+     -1205,
+     196
+    ],
+    [
+     -420,
+     196
+    ],
+    [
+     -230,
+     196
+    ],
+    [
+     -150,
+     206
+    ]
+   ]
+  },
+  {
+   "id": "ROAD-FIRE-TWY-A",
+   "w": 7,
+   "hold": true,
+   "note": "the fire station straight north onto taxiway A",
+   "pts": [
+    [
+     -1205,
+     190
+    ],
+    [
+     -1205,
+     373.5
+    ]
+   ]
+  }
+ ],
+ "lots": [
+  {
+   "id": "LOT-TOWER",
+   "note": "tarmac round the control tower with 8 parking spaces",
+   "x0": -232,
+   "y0": 104,
+   "x1": -180,
+   "y1": 146,
+   "bays": {
+    "x0": -229,
+    "y": 146,
+    "n": 8,
+    "w": 2.6,
+    "d": 5.2,
+    "dir": -1
+   }
+  },
+  {
+   "id": "LOT-FIRE",
+   "note": "8 parking spaces on the fire station site (its own paving), north of its entrance",
+   "x0": -1150,
+   "y0": 38,
+   "x1": -1121,
+   "y1": 47,
+   "bays": {
+    "x0": -1146,
+    "y": 40,
+    "n": 8,
+    "w": 2.6,
+    "d": 5.2,
+    "dir": 1
+   },
+   "paved": false,
+   "onModel": true
+  }
+ ]
 }
