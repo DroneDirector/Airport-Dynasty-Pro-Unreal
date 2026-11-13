@@ -5,6 +5,37 @@ Tools/make_answers_pdf.py.
 
 ## The ground: puddles, cracks, tyre marks, edges, the apron
 
+**Can the whole airport move to another continent without redoing it?** Yes. The airport is laid out in its own
+coordinates (Data/airfield.json: the layout plus a latitude, longitude, height and heading); moving it means new numbers
+there. Every ground effect (cracks, puddles, tyre marks, edges, fillets, markings) is placed from the layout and world
+position, so it all comes along by itself. Only the place itself changes: the terrain under it is flattened to the
+airfield's grade automatically; outside Iceland and the Faroes the world height map is coarser, and the land around
+(grass, town) follows the land-cover data there.
+
+**Do the ground effects cost many frames, and how sharp can they go?** Little: about 20 texture reads per pixel, well
+under 1 ms on the owner's PC. Resolution costs graphics memory, not frames. The scans are 4K now (about 1 mm per pixel on
+the asphalt); 8K exists for most of them. Planned setting "Airport ground": Low 2K, Medium, High 4K, Ultra 8K with fine
+relief.
+
+**Why don't the textures show square repeats?** Stochastic tiling (as the big games do it): every few metres the scan is
+turned and shifted at random, cross-faded softly. It is fixed to the ground, so nothing pops when the camera moves.
+
+**Is there grass built into the taxiways that should be removed?** No. The green islands are the one grass sheet under
+the whole airfield; the 3D grass grows only where a ray from above hits that sheet, never on paving.
+
+**The taxiway joins:** real fillets (curved widening), curved yellow lead-on and lead-off lines, ICAO double edge stripes,
+7.5 m shoulders, and the grass edge following the whole outline: copied from real airports (Boston, Seattle, Frankfurt).
+
+**Ground markings:** every marking and every distance (hold-short lines, the red runway-ahead signs before them, stand
+lines) follows the ICAO Annex 14 and FAA diagrams. Cracks run through the paint, in the cracks' own colours.
+
+**Snow:** not part of the puddles; a separate light snow layer in the same master material, from winter photos of real
+aprons, taxiways and runways.
+
+**Iceland's torn mountains (walls and steps):** the Icelandic height data meets the world height map without a feathered
+seam, and gaps are stretched into walls. Fixable for sure (on the to-do list); elsewhere only the world map is used, so
+no walls, just softer detail.
+
 **Are cracks, puddles and tyre marks part of the asphalt picture?** No. The master ground material works in separate
 layers: (1) the surface itself (the asphalt or concrete scan, or a picture), (2) cracks and tar sealant, (3) tyre
 rubber, (4) wetness and puddles on top. Changing the asphalt is one setting (a new picture); every other layer stays

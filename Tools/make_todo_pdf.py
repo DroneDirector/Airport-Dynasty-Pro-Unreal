@@ -80,6 +80,14 @@ ITEMS = [
  ('24d', 'Settings menu: Gameplay, Interface, Accessibility, Language', '2-3 h', ['gfx'], '24a', False),
  ('24e', 'Settings menu: Online, Saves and data; Save / Load / Export', '2-3 h', ['gfx'], '24a', False),
  ('24f', 'Settings menu: Android touch pass', '2 h', ['gfx'], '24e', False),
+    # owner, 2026-11-13 (during the ground job)
+    ('40a', 'Ground job: one master ground material, real CC0 scans, cracks + tar, tyre rubber, puddles, smooth taxiway fillets, photoreal edges, real grass', '11-16 h', ['field'], '', False),
+    ('40b', 'Ground job: apron from the layout, ICAO/FAA markings (hold-short pattern A, red runway-ahead signs, stand lines), gate dirt, faint stand tyre marks', '3-4 h', ['field'], '40a', False),
+    ('40c', 'Service roads: gate 1 to the control tower, the fire station to the taxiway by gate 1 and down to the taxiway below, vehicle markings, same detail', '2-3 h', ['field'], '40b', False),
+    ('40d', 'Light snow layer on apron, taxiways, runway from winter reference photos', '3-4 h', ['field'], '40b', False),
+    ('40e', 'Taxiway lights: blue edge + tiny inset green centre lights at real spacing, modelled fixtures (runway lights researched too)', '2-3 h', ['field'], '40a', False),
+    ('40f', 'Graphics setting "Airport ground": Low 2K / Medium / High 4K / Ultra 8K + fine relief', '2 h', ['gfx'], '40a', False),
+    ('40g', 'Iceland scenery: mountains torn into walls and steps - rebuild the Iceland/Faroes height tiles with feathered edges where they meet the world map', '3-4 h', ['field'], '', False),
 ]
 c = canvas.Canvas('AirportDynastyPro-ToDo.pdf', pagesize=(W, H))
 c.setTitle('Airport Dynasty Pro - to-do checklist')
