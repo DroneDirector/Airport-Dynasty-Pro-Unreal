@@ -182,6 +182,13 @@ def join_into(target, others):
 def collar_top(th): return NECK.z + 0.010 + 0.030 * (1 - math.cos(th)) / 2
 def lerp(a, b, t): return a + (b - a) * max(0.0, min(1.0, t))
 
+def smooth_where(o, where, iters, factor=0.5):
+    """Smooth only the points in a region (a junction, a crease), never the open edges."""
+    bm = bmesh.new(); bm.from_mesh(o.data)
+    vs = [v for v in bm.verts if not v.is_boundary and where(v.co)]
+    for _ in range(iters): bmesh.ops.smooth_vert(bm, verts=vs, factor=factor, use_axis_x=True, use_axis_y=True, use_axis_z=True)
+    bm.to_mesh(o.data); bm.free()
+
 def bvh_of(o):
     bm = bmesh.new(); bm.from_mesh(o.data); bm.normal_update(); t = BVHTree.FromBMesh(bm); bm.free(); return t
 
@@ -277,10 +284,10 @@ band = neck_tube('CollarBand', TH, lambda th: [lerp(NECK.z - 0.10, NECK.z - 0.07
                  lambda th, z, surf: surf + 0.007)
 def leaf_rows(th):
     t = collar_top(th) + 0.002; a = abs(math.atan2(math.sin(th), math.cos(th)))
-    depth = 0.036 + 0.035 * math.exp(-((a - 0.42) / 0.17) ** 2)     # the points, either side of the front
+    depth = 0.036 + 0.034 * max(0.0, 1.0 - abs(a - 0.38) / 0.22)   # the spread points, either side of the front: straight-edged
     return [t - depth * k / 6 for k in range(7)]
 LEAF_TH = [0.10 + (2 * math.pi - 0.20) * j / 60 for j in range(61)]
-leaf = neck_tube('CollarLeaf', LEAF_TH, leaf_rows, lambda th, z, surf: neck_surface(th, z) + 0.011 + 0.006 * (collar_top(th) - z) / 0.07)
+leaf = neck_tube('CollarLeaf', LEAF_TH, leaf_rows, lambda th, z, surf: neck_surface(th, collar_top(th)) + 0.012 + 0.10 * (collar_top(th) - z))
 join_into(shirt, [band, leaf])
 subdivide(shirt, 1)
 log('shirt out of the skin after smoothing at', keep_out(shirt, BODY_BVH, 0.006), 'points')
@@ -318,6 +325,7 @@ for v in bm.verts:
     if d.length < rmin and d.length > 1e-5 and out: v.co = c + d.normalized() * rmin + Vector((0, 0, v.co.z - c.z))
 bm.to_mesh(tr.data); bm.free()
 smooth(tr, 4, 0.3)
+smooth_where(tr, lambda c: 0.74 < c.z < 0.98 and abs(c.x) < 0.10 and c.y < -0.02, 16, 0.5)   # a plain front, no anatomy
 log('trousers pushed out at', keep_out(tr, BODY_BVH, 0.008), 'points')
 # the waistband: the top loop up 1 cm
 def top_loop(loops): return highest(loops)
@@ -354,96 +362,183 @@ def skirt_move(c):
     hip_c = Vector((0.0, -0.03, c.z)); d = c - hip_c; d.z = 0
     r = max(d.length, 0.0) + 0.015
     return hip_c + d.normalized() * r + Vector((0, 0, 0.80 - c.z))
-# the skirt (from the waist to below the seat): a tube round the hips, each column falling straight from the widest
-# point above it (as cloth does), 2.5 cm clear of the body, open at the front; joined to the jacket
+# the skirt (from the waist to below the seat), grown down from the jacket's own hem (a clean loop, cut by a plane), so
+# jacket and skirt are one piece of cloth: row by row each point falls straight from the widest part of the hips under
+# it (2 cm clear), down to 0.80 m; the fronts then curve away below the button (a cut-away)
 def body_radius(theta, z, start=0.30):
     d = Vector((math.sin(theta), -math.cos(theta), 0.0)); c = Vector((0.0, -0.03, z))
     hit = BODY_BVH.ray_cast(c + d * start, -d, start)
     return (hit[0] - c).length if hit[0] is not None else None
-ROWS = [WAIST - 0.03, 0.98, 0.95, 0.92, 0.89, 0.86, 0.83, 0.80]
-COLS = 96; OPEN = math.radians(3)
-bm = bmesh.new(); uvl = bm.loops.layers.uv.new('UVMap'); grid = []
-for j in range(COLS + 1):
-    th = OPEN + (2 * math.pi - 2 * OPEN) * j / COLS
-    col = []; rmax = 0.0
-    for z in ROWS:
-        r = body_radius(th, z)
-        if r is not None: rmax = max(rmax, r)
-        col.append(bm.verts.new(Vector((0.0, -0.03, z)) + Vector((math.sin(th), -math.cos(th), 0)) * (rmax + 0.02)))
-    grid.append(col)
-for j in range(COLS):
-    for k in range(len(ROWS) - 1):
-        f = bm.faces.new((grid[j][k], grid[j + 1][k], grid[j + 1][k + 1], grid[j][k + 1]))
-        for lp, (jj, kk) in zip(f.loops, ((j, k), (j + 1, k), (j + 1, k + 1), (j, k + 1))):
-            lp[uvl].uv = (jj / COLS * 3.0, ROWS[kk] * 1.5)
-# the fronts curve away below the button (a cut-away), from 7 degrees at the waist to 30 at the hem
+HIP = {}
+def hip_r(th):
+    k = round(th, 2)
+    if k not in HIP:
+        rs = [body_radius(th, z) for z in (0.80, 0.84, 0.88, 0.92, 0.96, 1.0)]
+        HIP[k] = max([r for r in rs if r] or [0.17])
+    return HIP[k]
+bm = bmesh.new(); bm.from_mesh(jk.data)
+_loops = boundary_loops(bm)
+_hem = set(min(_loops, key=lambda l: sum(v.co.z for v in l) / len(l)))   # the hem: the lowest loop
+hem = [e for e in bm.edges if e.is_boundary and e.verts[0] in _hem and e.verts[1] in _hem]
+for v in _hem: v.co.z = min(v.co.z, WAIST - 0.03)
+log('hem edges', len(hem))
+ROWS = [0.975, 0.95, 0.925, 0.90, 0.875, 0.85, 0.825, 0.80]
+for z in ROWS:
+    r = bmesh.ops.extrude_edge_only(bm, edges=hem)
+    for v in [g for g in r['geom'] if isinstance(g, bmesh.types.BMVert)]:
+        c = Vector((0.0, -0.03, 0.0)); d = Vector((v.co.x, v.co.y + 0.03, 0.0)); th = math.atan2(d.x, -d.y)
+        rad = max(d.length, hip_r(th) + 0.02)
+        v.co = Vector((math.sin(th) * rad, -0.03 - math.cos(th) * rad, z))
+    hem = [g for g in r['geom'] if isinstance(g, bmesh.types.BMEdge) and all(abs(v.co.z - z) < 1e-6 for v in g.verts)]
 def cutaway(c):
     a = abs(math.atan2(c.x, -(c.y + 0.03)))
-    return a < math.radians(7 + 23 * max(0.0, min(1.0, (WAIST - 0.03 - c.z) / (WAIST - 0.03 - 0.80))) ** 1.6)
+    return c.z < WAIST - 0.03 and a < math.radians(3 + 34 * max(0.0, min(1.0, (WAIST - 0.03 - c.z) / (WAIST - 0.03 - 0.80))) ** 2.6)   # opens mostly near the hem
 bmesh.ops.delete(bm, geom=[f for f in bm.faces if cutaway(f.calc_center_median())], context='FACES')
 bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
-bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-me = bpy.data.meshes.new('Skirt'); bm.to_mesh(me); bm.free()
-skirt = bpy.data.objects.new('Skirt', me); sc.collection.objects.link(skirt)
-smooth(skirt, 2, 0.3)
-bpy.ops.object.select_all(action='DESELECT'); skirt.select_set(True); jk.select_set(True)
-bpy.context.view_layer.objects.active = jk; bpy.ops.object.join()
+bm.normal_update(); bm.to_mesh(jk.data); bm.free()
+smooth(jk, 3, 0.3)
+smooth_where(jk, lambda c: 0.92 < c.z < 1.08, 12, 0.5)   # one smooth line from chest to skirt
 # the front opening, cut after the hem is made: a V from the button (1.12 m) up to the collar, a narrow parting below
 bm = bmesh.new(); bm.from_mesh(jk.data)
 def opening(c):
     if c.y > -0.05: return False
     if c.z > 1.07: return abs(c.x) < 0.010 + (c.z - 1.07) * 0.21   # two-button: the button at the navel
-    return abs(c.x) < 0.008
+    return False
 bmesh.ops.delete(bm, geom=[f for f in bm.faces if opening(f.calc_center_median())], context='FACES')
 bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
 bm.to_mesh(jk.data); bm.free()
 clean_edges(jk, 16)
-# the lapels: a band 5.5 cm wide along the opening, lifted 4 mm, reads as the turned-back cloth
-bm = bmesh.new(); bm.from_mesh(jk.data); bm.normal_update()
-edge_pts = [v.co.copy() for v in bm.verts if v.is_boundary and v.co.y < -0.05 and 1.07 < v.co.z < 1.47]
-if edge_pts:
-    eb = BVHTree.FromPolygons([p for p in edge_pts], [[i] for i in range(len(edge_pts))]) if False else None
-    for v in bm.verts:
-        if v.co.y > -0.04 or v.co.z < 1.07 or v.co.z > 1.47: continue
-        dmin = min((v.co - p).length for p in edge_pts)
-        w = 0.075 * min(1.0, (v.co.z - 1.07) / 0.12)   # the lapel: 7.5 cm wide at the chest, narrowing to the button
-        if dmin < w: v.co += v.normal * (0.006 if dmin < w - 0.005 else 0.006 * (w - dmin) / 0.005)
-bm.to_mesh(jk.data); bm.free()
 # the jacket's collar: round the back of the neck from lapel to lapel, its top 1.2 cm under the shirt collar's
-JTH = [0.62 + (2 * math.pi - 1.24) * j / 48 for j in range(49)]
-jcol = neck_tube('JacketCollar', JTH, lambda th: [NECK.z - 0.095 + k * (collar_top(th) - 0.012 - (NECK.z - 0.095)) / 10 for k in range(11)],
-                 lambda th, z, surf: surf + 0.015 + 0.005 * max(0.0, min(1.0, (NECK.z - 0.03 - z) / 0.03)))
+JTH = [0.50 + (2 * math.pi - 1.00) * j / 56 for j in range(57)]
+# the jacket's own neckline, all round (its open edge near the neck): the collar starts just under it, overlapping
+_bm = bmesh.new(); _bm.from_mesh(jk.data)
+NECKLINE = []
+for v in _bm.verts:
+    if v.is_boundary and v.co.z > NECK.z - 0.16:
+        d = v.co - Vector((NECK.x, NECK.y, v.co.z))
+        if d.length < 0.23: NECKLINE.append((math.atan2(d.x, -d.y), v.co.z))
+_bm.free()
+def jcol_foot(th):
+    a = math.atan2(math.sin(th), math.cos(th))
+    near = [z for (b, z) in NECKLINE if abs(math.atan2(math.sin(b - a), math.cos(b - a))) < 0.08]
+    edge = min(near) if near else NECK.z - 0.04
+    return max(NECK.z - 0.125, min(NECK.z - 0.035, edge - 0.012))   # (the V's own edge must not drag it down)
+jcol = neck_tube('JacketCollar', JTH, lambda th: [jcol_foot(th) + k * (collar_top(th) - 0.012 - jcol_foot(th)) / 10 for k in range(11)],
+                 lambda th, z, surf: surf + 0.015 + 0.012 * max(0.0, min(1.0, (NECK.z - 0.03 - z) / 0.04)))   # outside the jacket (2.2 cm) at its foot
 join_into(jk, [jcol])
 subdivide(jk, 1)
 log('jacket out of the skin at', keep_out(jk, BODY_BVH, 0.018, 0.05), 'points')
 # a soft last pass: the canvas front lies smooth over the chest instead of showing its muscles
-smooth(jk, 6, 0.4); keep_out(jk, BODY_BVH, 0.010, 0.05)
+smooth(jk, 14, 0.45); keep_out(jk, BODY_BVH, 0.008, 0.05)
 log('jacket over the shirt at', keep_out(jk, SHIRT_BVH, 0.006), 'points', 'and the trousers at', keep_out(jk, TROUSERS_BVH, 0.006))
+# the last soft pass over the waist and the skirt's top, then kept clear of what is under it
+smooth_where(jk, lambda c: 0.88 < c.z < 1.10, 10, 0.5); keep_out(jk, SHIRT_BVH, 0.005); keep_out(jk, TROUSERS_BVH, 0.005); keep_out(jk, BODY_BVH, 0.008, 0.05)
+# ---- the jacket's details, from the references (a single-breasted two-button jacket):
+GORGE = NECK.z - 0.11                                     # where the lapel meets the collar (the notch)
+def v_half(z): return 0.010 + (z - 1.07) * 0.21
+def lapel_outer(z): return lerp(0.012, v_half(GORGE) + 0.078, (z - 1.07) / (GORGE - 1.07))   # straight from the button to the notch
+# the lapels: the cloth beside the opening, from the button up to the notch, turned back over the front (4 mm proud)
+bm = bmesh.new(); bm.from_mesh(jk.data); bm.normal_update()
+def on_lapel(c):
+    if c.y > -0.03 or c.z < 1.07 or c.z > GORGE + 0.02: return False
+    ax = abs(c.x)
+    if c.z > GORGE - 0.025 and ax > v_half(c.z) + 0.040: return False          # the notch
+    return ax < lapel_outer(c.z)
+lap = [f for f in bm.faces if on_lapel(f.calc_center_median())]
+lb = bmesh.new()
+vmap = {}
+for f in lap:
+    vs = []
+    for v in f.verts:
+        if v not in vmap: vmap[v] = lb.verts.new(v.co + v.normal * 0.004)
+        vs.append(vmap[v])
+    try: lb.faces.new(vs)
+    except ValueError: pass
+bm.free()
+me = bpy.data.meshes.new('Lapels'); lb.to_mesh(me); lb.free()
+lapels = bpy.data.objects.new('Lapels', me); sc.collection.objects.link(lapels)
+clean_edges(lapels, 6)
+# the pockets: a welt on the left breast, flaps at the hips; and the two buttons (references: two-button jacket)
+JK_BVH = bvh_of(jk)
+def side_patch(name, th, z, w, h, lift, n=8):
+    """A patch (a pocket flap) on the jacket round the body: centred at angle th from the front (0) at height z, w wide
+    along the surface, h tall; each point shot onto the jacket from outside, square to the body's axis."""
+    pb = bmesh.new(); grid = []
+    r0 = hip_r(th) + 0.02
+    for i in range(n + 1):
+        a = th + (i / n - 0.5) * w / r0
+        d = Vector((math.sin(a), -math.cos(a), 0.0))
+        row = []
+        for j in range(3):
+            pz = z - h / 2 + h * j / 2
+            c = Vector((0.0, -0.03, pz))
+            hit = JK_BVH.ray_cast(c + d * 0.5, -d, 0.5)
+            if hit[0] is None: pb.free(); return None
+            row.append(pb.verts.new(hit[0] + hit[1] * lift))
+        grid.append(row)
+    for i in range(n):
+        for j in range(2): pb.faces.new((grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]))
+    me = bpy.data.meshes.new(name); pb.to_mesh(me); pb.free()
+    o = bpy.data.objects.new(name, me); sc.collection.objects.link(o); return o
+def patch(name, x, z, w, h, lift, n=6):
+    pb = bmesh.new(); grid = []
+    for i in range(n + 1):
+        row = []
+        for j in range(3):
+            px = x - w / 2 + w * i / n; pz = z - h / 2 + h * j / 2
+            hit = JK_BVH.ray_cast(Vector((px, -0.6, pz)), Vector((0, 1, 0)))
+            if hit[0] is None: pb.free(); return None
+            row.append(pb.verts.new(hit[0] + hit[1] * lift))
+        grid.append(row)
+    for i in range(n):
+        for j in range(2): pb.faces.new((grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]))
+    me = bpy.data.meshes.new(name); pb.to_mesh(me); pb.free()
+    o = bpy.data.objects.new(name, me); sc.collection.objects.link(o); return o
+details = [lapels] + [o for o in (patch('ChestWelt', 0.105, 1.30, 0.10, 0.022, 0.0025),
+           side_patch('FlapL', math.radians(55), 0.95, 0.15, 0.05, 0.0025), side_patch('FlapR', -math.radians(55), 0.95, 0.15, 0.05, 0.0025)) if o]   # on the sides of the hips (owner)
+join_into(jk, details)
 thicken(jk, 0.003)
 dress(jk, material('Fabric_wool_suiting', (0.035, 0.045, 0.075), 0.75))
+buttons = []
+for z in (1.07, 0.97):
+    hit = JK_BVH.ray_cast(Vector((-0.012, -0.6, z)), Vector((0, 1, 0)))
+    if hit[0] is None: continue
+    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.0095, depth=0.003, location=hit[0] - Vector((0, 0.004, 0)), rotation=(math.radians(90), 0, 0))
+    buttons.append(bpy.context.object)
+if buttons:
+    bpy.ops.object.select_all(action='DESELECT')
+    for b_ in buttons: b_.select_set(True)
+    bpy.context.view_layer.objects.active = buttons[0]; bpy.ops.object.join(); btn = bpy.context.object; btn.name = 'Buttons'
+    dress(btn, material('Fabric_leather', (0.02, 0.018, 0.016), 0.35))
+    join_into(jk, [btn])
 
 # ---------------------------------------------------------------- the tie: a strip down the shirt's front, on it
 bm = bmesh.new()
-rows = 16; top, bot = collar_top(0.0) - 0.004, WAIST + 0.01
+rows = 44; top, bot = collar_top(0.0) - 0.004, 1.08   # the tip under the jacket's button (hidden, as a real tie)
 last_y = -0.15
+COLS_T = 7
 for r in range(rows + 1):
-    z = top - (top - bot) * r / rows
-    half = 0.017 if r <= 1 else 0.012 + 0.028 * min(1.0, (r - 1) / 4.0)   # the knot, then the blade widening to 8 cm
-    if r == rows: half = 0.001
-    for s in (-1, 0, 1):
-        x = s * half
+    z = top - (top - bot) * r / rows; dz = top - z; to_tip = z - bot
+    # the knot (4 cm, 3.8 cm wide narrowing to 2.4), the blade widening to 8 cm over 10 cm, the pointed tip (4 cm)
+    if dz < 0.04: half = lerp(0.019, 0.012, dz / 0.04)
+    else: half = lerp(0.012, 0.040, (dz - 0.04) / 0.10)
+    if to_tip < 0.04: half *= max(0.02, to_tip / 0.04)
+    stand = 0.005 + 0.008 * max(0.0, 1.0 - dz / 0.05)        # the knot stands out from the shirt, easing into the blade
+    for c in range(COLS_T):
+        x = -half + 2 * half * c / (COLS_T - 1)
         hit = SHIRT_BVH.ray_cast(Vector((x, -0.5, z)), Vector((0, 1, 0)))
-        y = (hit[0].y - (0.013 if r <= 1 else 0.005)) if hit[0] is not None else last_y   # the knot stands out
+        y = (hit[0].y - stand) if hit[0] is not None else last_y
         last_y = y
         bm.verts.new((x, y, z))
 bm.verts.ensure_lookup_table()
 for r in range(rows):
-    for s in range(2):
-        a = r * 3 + s
-        bm.faces.new((bm.verts[a], bm.verts[a + 1], bm.verts[a + 4], bm.verts[a + 3]))
+    for c in range(COLS_T - 1):
+        a = r * COLS_T + c
+        bm.faces.new((bm.verts[a], bm.verts[a + 1], bm.verts[a + 1 + COLS_T], bm.verts[a + COLS_T]))
 me = bpy.data.meshes.new('Tie'); bm.to_mesh(me); bm.free()
 tie = bpy.data.objects.new('Tie', me); sc.collection.objects.link(tie)
 tie.data.uv_layers.new(name='UVMap')
+smooth(tie, 6, 0.5)
 thicken(tie, 0.004)
 dress(tie, material('Fabric_satin', (0.32, 0.03, 0.06), 0.35))
 
@@ -471,7 +566,10 @@ def shoe(side):
         ring = []
         for j in range(R):
             a = 2 * math.pi * j / R
-            x = xc + hw * math.cos(a); z = 0.012 + (top - 0.012) * max(0.0, math.sin(a)) ** 0.7 if math.sin(a) > 0 else 0.012
+            base = 0.026 if t < 0.20 else lerp(0.026, 0.012, (t - 0.20) / 0.14)   # the heel, then the shank down to the sole
+            if t > 0.86: base += 0.008 * (t - 0.86) / 0.14                        # the toe springs up a little
+            cap = 0.9985 if 0.78 < t < 0.80 else 1.0                                 # the toe cap's seam, a fine groove
+            x = xc + hw * cap * math.cos(a); z = base + (top - base) * max(0.0, math.sin(a)) ** 0.7 * cap if math.sin(a) > 0 else base
             ring.append(bm.verts.new((x, y, z)))
         rings.append(ring)
     for k in range(N):
@@ -492,13 +590,25 @@ def shoe(side):
         xs = [v.co.x for v in r]; y = r[0].co.y
         soles.append(((min(xs) - 0.004, y), (max(xs) + 0.004, y)))
     lo = [bm.verts.new((a[0], a[1], 0.0)) for a, b in soles] + [bm.verts.new((b[0], b[1], 0.0)) for a, b in reversed(soles)]
-    hi = [bm.verts.new((v.co.x, v.co.y, 0.012)) for v in lo]
+    hi = [bm.verts.new((v.co.x, v.co.y, 0.026 if (v.co.y - y_heel) / (y_toe - y_heel) < 0.20 else 0.012)) for v in lo]   # sole + heel block
     n = len(lo)
     for j in range(n): bm.faces.new((lo[j], lo[(j + 1) % n], hi[(j + 1) % n], hi[j]))
     bm.faces.new(lo[::-1]); bm.faces.new(hi)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     me = bpy.data.meshes.new('Shoe'); bm.to_mesh(me); bm.free()
-    o = bpy.data.objects.new('Shoe', me); sc.collection.objects.link(o); return o
+    o = bpy.data.objects.new('Shoe', me); sc.collection.objects.link(o)
+    # the laces: five across the instep, over the lacing's throat
+    laces = []
+    for k in range(5):
+        t = 0.47 + 0.035 * k; y = y_heel + (y_toe - y_heel) * t
+        band = [p for p in pts if abs(p.y - y) < 0.012] or pts
+        xc = (min(p.x for p in band) + max(p.x for p in band)) / 2
+        hit = BODY_BVH.ray_cast(Vector((xc, y, 0.3)), Vector((0, 0, -1)))
+        ztop = (hit[0].z if hit[0] is not None else 0.06) + 0.012
+        bpy.ops.mesh.primitive_cylinder_add(vertices=8, radius=0.0022, depth=0.034 - 0.004 * k, location=(xc, y, ztop), rotation=(0, math.radians(90), 0))
+        laces.append(bpy.context.object)
+    join_into(o, laces)
+    return o
 shoes = [shoe(1), shoe(-1)]
 bpy.ops.object.select_all(action='DESELECT')
 for o in shoes: o.select_set(True)
