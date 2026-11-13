@@ -22,6 +22,7 @@
 #include "GameFramework/PlayerController.h"
 #include "EngineUtils.h"
 #include "Containers/Ticker.h"
+#include "Components/MaterialBillboardComponent.h"
 
 namespace
 {
@@ -465,13 +466,41 @@ void ADPCharacterCreate::ShowPartner(bool bOn)
 
 void ADPCharacterCreate::ShowPet(const FString& Kind, const FLinearColor& Coat)
 {
-	// the pet's place: at your feet, towards the middle and in front; in from the free side's edge. The models come
-	// from the pet pack (the owner's choice, 2026-11-13): until a dog's and a cat's are in, the step shows its panel
-	// and nobody walks in
+	// the pet's place: at your feet, towards the middle and in front; in from the free side's edge. Until the real 3D
+	// cats and dogs are made (owner, 2026-11-13) a stand-in walks in: the animal's silhouette in its coat colour with a
+	// glowing question mark above it (Tools/make_pet_placeholders.py), so it is plain it is to be replaced
+	UWorld* W = StageWorld.Get(); if (!W) return;
+	const FVector Mark = YouAt() + FVector(ToMiddle() * 50.f, -15.f, 0.f);   // between you and your partner, a little in front
+	const bool bPet = Kind == TEXT("dog") || Kind == TEXT("cat");
+	AActor* Old = PetActor.Get();
+	// the same animal, another coat: only its colour changes
+	if (Old && bPet && Kind == PetNow)
+	{
+		if (UMaterialBillboardComponent* B = Old->FindComponentByClass<UMaterialBillboardComponent>())
+			if (B->Elements.Num()) if (UMaterialInstanceDynamic* M = Cast<UMaterialInstanceDynamic>(B->Elements[0].Material)) M->SetVectorParameterValue(TEXT("Coat"), Coat);
+		return;
+	}
 	PetNow = Kind;
-	if (AActor* P = PetActor.Get()) { const FVector Mark = YouAt() + FVector(ToMiddle() * 48.f, -70.f, 0.f); Walk(P, EdgeAt(Mark), true); PetActor = nullptr; }
-	if (Kind != TEXT("dog") && Kind != TEXT("cat")) return;
-	ADP_LOG(TEXT("Character creator: a %s (coat %s) chosen; no pet model in the game yet"), *Kind, *Coat.ToFColor(true).ToHex());
+	if (Old) { Walk(Old, EdgeAt(Mark), true); PetActor = nullptr; }
+	if (!bPet) return;
+	static UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/StagePet/M_PetPlaceholder.M_PetPlaceholder"));
+	UTexture* Tex = LoadObject<UTexture>(nullptr, Kind == TEXT("cat") ? TEXT("/Game/StagePet/T_CatPlaceholder.T_CatPlaceholder") : TEXT("/Game/StagePet/T_DogPlaceholder.T_DogPlaceholder"));
+	if (!Base || !Tex) { ADP_WARN(TEXT("Character creator: the pet stand-in is missing (Tools/set_pet_placeholders.py)")); return; }
+	FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	const float Half = 27.f;   // the picture is 54 cm square; the animal stands in its lower part, its feet at the bottom
+	AActor* A = W->SpawnActor<AActor>(AActor::StaticClass(), FTransform(EdgeAt(Mark) + FVector(0, 0, Half)), P);
+	if (!A) return;
+	UMaterialBillboardComponent* B = NewObject<UMaterialBillboardComponent>(A);
+	A->SetRootComponent(B); B->SetWorldLocation(EdgeAt(Mark) + FVector(0, 0, Half));
+	UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(Base, A);
+	M->SetTextureParameterValue(TEXT("Tex"), Tex);
+	M->SetVectorParameterValue(TEXT("Coat"), Coat);
+	B->AddElement(M, nullptr, false, Half, Half, nullptr);
+	B->SetCastShadow(false);
+	B->RegisterComponent();
+	Spawned.Add(A); PetActor = A;
+	Walk(A, Mark + FVector(0, 0, Half), false);
+	ADP_LOG(TEXT("Character creator: a %s (stand-in) walks in, coat %s"), *Kind, *Coat.ToFColor(true).ToHex());
 }
 
 void ADPCharacterCreate::ClearCompany()
