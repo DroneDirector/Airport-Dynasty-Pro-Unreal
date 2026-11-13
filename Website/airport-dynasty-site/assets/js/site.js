@@ -1,4 +1,4 @@
-/* Airport Dynasty Pro website: reveal on scroll, the departures board, the hero pictures, the local clock, the two
+/* Airport Dynasty Pro website: reveal on scroll, the feature slider, the hero pictures, the local clock, the two
    technology demos, the flight-plan plane, pictures, share and the launch-day sign-up. Own code, no libraries. */
 (function () {
   "use strict";
@@ -37,37 +37,29 @@
     }, 7000);
     // #endregion
 
-    // #region ── the departures board: rows flip letter by letter to the next set ──
-    $$("[data-board]").forEach(function (board) {
-      var rows; try { rows = JSON.parse(board.getAttribute("data-board")); } catch (e) { return; }
-      var els = $$(".ad-board__row", board); if (!rows || rows.length <= els.length || reduce) return;
-      var CH = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ÁÉÍÓÚÝÞÆÖÐ-·";
-      var start = 0;
-      function statusClass(s) { s = s.toUpperCase(); return /DELAY|CANCEL/.test(s) ? "is-red" : /SOON|COMING|READY/.test(s) ? "is-amber" : ""; }
-      function flipTo(span, text, delay) {
-        var from = span.textContent.toUpperCase(), len = Math.max(from.length, text.length), steps = 0;
-        setTimeout(function () {
-          var cur = from.split(""); while (cur.length < len) cur.push(" ");
-          var iv = setInterval(function () {
-            var done = true;
-            for (var i = 0; i < len; i++) {
-              var want = text[i] || " ";
-              if (cur[i] !== want) { done = false; var ci = CH.indexOf(cur[i]); cur[i] = steps > 6 + i ? want : CH[(ci + 1 + Math.floor(Math.random() * 4)) % CH.length]; }
-            }
-            span.textContent = cur.join("").replace(/\s+$/, ""); steps++;
-            if (done) clearInterval(iv);
-          }, 45);
-        }, delay);
-      }
-      setInterval(function () {
-        start = (start + els.length) % rows.length;
-        els.forEach(function (row, r) {
-          var data = rows[(start + r) % rows.length]; if (!data) return;
-          $$("span", row).forEach(function (sp, c) { flipTo(sp, String(data[c] || "").toUpperCase(), r * 160 + c * 60); });
-          var st = row.querySelector(".st"); if (st) { st.classList.remove("is-amber", "is-red"); var k = statusClass(data[3] || ""); if (k) st.classList.add(k); }
-        });
-      }, 6500);
-      els.forEach(function (row, r) { var st = row.querySelector(".st"); var k = statusClass((rows[r] || [])[3] || ""); if (st && k) st.classList.add(k); });
+    // #region ── the feature slider: arrows, dots, swipe or drag; moves on slowly by itself until the visitor takes over ──
+    $$("[data-slider]").forEach(function (sl) {
+      var win = sl.querySelector(".ad-feat__win"), track = sl.querySelector(".ad-feat__track"), slides = $$(".ad-feat__slide", sl), dots = $$(".ad-feat__dot", sl), now = sl.querySelector("[data-slider-now]");
+      var n = slides.length, cur = 0, timer = 0, hold = false; if (!n) return;
+      var go = function (i) {
+        cur = (i + n) % n; track.style.transform = "translateX(" + (-cur * 100) + "%)";
+        slides.forEach(function (s, k) { s.classList.toggle("is-on", k === cur); });
+        dots.forEach(function (d, k) { d.classList.toggle("is-on", k === cur); });
+        if (now) now.textContent = (cur < 9 ? "0" : "") + (cur + 1);
+      };
+      var stop = function () { clearInterval(timer); timer = 0; };
+      sl.querySelector("[data-slider-prev]").addEventListener("click", function () { stop(); go(cur - 1); });
+      sl.querySelector("[data-slider-next]").addEventListener("click", function () { stop(); go(cur + 1); });
+      dots.forEach(function (d, k) { d.addEventListener("click", function () { stop(); go(k); }); });
+      sl.addEventListener("keydown", function (e) { if (e.key === "ArrowLeft") { stop(); go(cur - 1); } if (e.key === "ArrowRight") { stop(); go(cur + 1); } });
+      var x0 = 0, dx = 0, down = false;
+      win.addEventListener("pointerdown", function (e) { down = true; x0 = e.clientX; dx = 0; win.classList.add("is-drag"); });
+      win.addEventListener("pointermove", function (e) { if (!down) return; dx = e.clientX - x0; track.style.transform = "translateX(calc(" + (-cur * 100) + "% + " + dx + "px))"; });
+      var end = function () { if (!down) return; down = false; win.classList.remove("is-drag"); if (Math.abs(dx) > 50) { stop(); go(cur + (dx < 0 ? 1 : -1)); } else go(cur); };
+      win.addEventListener("pointerup", end); win.addEventListener("pointercancel", end); win.addEventListener("pointerleave", end);
+      sl.addEventListener("mouseenter", function () { hold = true; }); sl.addEventListener("mouseleave", function () { hold = false; });
+      go(0);
+      if (!reduce && n > 1) timer = setInterval(function () { if (!hold) go(cur + 1); }, 9000);
     });
     // #endregion
 

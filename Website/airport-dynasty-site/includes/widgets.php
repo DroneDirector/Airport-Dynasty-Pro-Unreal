@@ -15,7 +15,7 @@ function ads_widget_defs() {
     $txt = function ($k, $d) { return ['textarea', $k, $d]; };
     return [
         'nav'       => ['Top bar', 'eicon-nav-menu', 'ads_r_nav', [], []],
-        'hero'      => ['Hero and departures board', 'eicon-banner', 'ads_r_hero',
+        'hero'      => ['Hero and feature slider', 'eicon-banner', 'ads_r_hero',
             ['sign' => ['text', 'Yellow sign', $c['hero']['sign']], 'title' => $txt('Title (<em>word</em> = glowing)', $c['hero']['title']), 'text' => $txt('Text', $c['hero']['text']),
              'film' => ['text', 'Trailer button', $c['hero']['film']], 'note' => ['text', 'Small line under the buttons', $c['hero']['note']],
              'board' => $txt('Departures board: one row per line, FLIGHT|TO|GATE|STATUS', $c['hero']['board'])],

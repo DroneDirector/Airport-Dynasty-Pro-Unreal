@@ -28,6 +28,8 @@ function ads_pict($k) {
         'arrow'    => '<path d="M5 12h14M13 6l6 6-6 6"/>',
         'menu'     => '<path d="M4 7h16M4 12h16M4 17h16"/>',
         'sun'      => '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+        'globe'    => '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+        'people'   => '<circle cx="9" cy="8" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2a5 5 0 0 1 5 4.8v1"/>',
         'mesh'     => '<path d="M3 18l5-11 5 7 3-4 5 8z"/><path d="M8 7l5 11M13 14l3 4M16 10l-3 4"/>',
     ][$k] ?? '';
     return '<svg class="ad-pict" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' . $p . '</svg>';
@@ -99,7 +101,7 @@ function ads_r_nav($s) {
 
 // #endregion
 
-// #region ── Hero: crossfading pictures and the departures board ──
+// #region ── Hero: crossfading pictures and the feature slider ──
 
 function ads_r_hero($s) {
     $imgs = array_values(array_filter((array) ($s['images'] ?? []), function ($i) { return ads_img_url($i['image'] ?? '') !== ''; }));
@@ -110,11 +112,17 @@ function ads_r_hero($s) {
     echo '<h1 class="ad-h1" data-reveal>' . ads_rich($s['title']) . '</h1><p class="ad-lead" data-reveal>' . esc_html($s['text']) . '</p>';
     echo '<div class="ad-hero__cta" data-reveal>' . ads_buy_button() . '<a class="ad-btn ad-btn--ghost" href="#film">' . ads_pict('play') . '<span>' . esc_html($s['film']) . '</span></a></div>';
     echo '<p class="ad-hero__note" data-reveal>' . esc_html($s['note']) . '</p></div>';
-    $rows = array_map(function ($l) { return array_pad(array_map('trim', explode('|', $l)), 4, ''); }, ads_lines($s['board']));
-    echo '<div class="ad-board" data-reveal data-board="' . esc_attr(wp_json_encode($rows)) . '"><div class="ad-board__top"><span>' . ads_pict('plane') . ' Departures</span><span data-clock>--:--</span></div>';
-    echo '<div class="ad-board__head"><span>Flight</span><span>To</span><span>Gate</span><span>Status</span></div><div class="ad-board__rows">';
-    foreach (array_slice($rows, 0, 5) as $r) echo '<div class="ad-board__row"><span>' . esc_html($r[0]) . '</span><span>' . esc_html($r[1]) . '</span><span>' . esc_html($r[2]) . '</span><span class="st">' . esc_html($r[3]) . '</span></div>';
-    echo '</div></div></div><div class="ad-hero__caption" aria-hidden="true">';
+    $slides = array_map(function ($l) { return array_pad(array_map('trim', explode('|', $l, 3)), 3, ''); }, ads_lines($s['slides'] ?? ''));
+    $n = count($slides);
+    echo '<div class="ad-feat" data-reveal data-slider aria-roledescription="carousel" aria-label="What is in the game"><div class="ad-feat__top"><span>What is in the game</span><span class="ad-feat__count"><b data-slider-now>01</b> / ' . sprintf('%02d', $n) . '</span></div>';
+    echo '<div class="ad-feat__win"><div class="ad-feat__track">';
+    foreach ($slides as $i => $sl) {
+        echo '<div class="ad-feat__slide" role="group" aria-roledescription="slide" aria-label="' . (int) ($i + 1) . ' / ' . (int) $n . '"><span class="ad-feat__pict">' . ads_pict($sl[0]) . '</span><h3>' . esc_html($sl[1]) . '</h3><p>' . esc_html($sl[2]) . '</p></div>';
+    }
+    echo '</div></div><div class="ad-feat__nav"><button type="button" class="ad-feat__btn" data-slider-prev aria-label="Previous">' . ads_pict('arrow') . '</button><div class="ad-feat__dots">';
+    for ($i = 0; $i < $n; $i++) echo '<button type="button" class="ad-feat__dot' . ($i === 0 ? ' is-on' : '') . '" data-slider-go="' . $i . '" aria-label="' . (int) ($i + 1) . '"></button>';
+    echo '</div><button type="button" class="ad-feat__btn" data-slider-next aria-label="Next">' . ads_pict('arrow') . '</button></div>';
+    echo '</div></div><div class="ad-hero__caption" aria-hidden="true">';
     foreach ($imgs as $i => $it) echo '<span class="' . ($i === 0 ? 'is-on' : '') . '">' . esc_html($it['caption'] ?? '') . '</span>';
     echo '</div></section>';
 }

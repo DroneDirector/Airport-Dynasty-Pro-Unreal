@@ -23,8 +23,8 @@ function ads_content() {
                 ['image' => ads_img('dealer_int.jpg'), 'caption' => 'Inside the showroom'],
                 ['image' => ads_img('villa_drive.jpg'), 'caption' => 'Coming home along your own drive'],
             ],
-            // The departures board: each row is FLIGHT|WHERE|GATE|STATUS; the board flips through them
-            'board'  => "ADP101|THE TERMINAL|A1|OPEN\nADP202|THE WHOLE EARTH|B4|BOARDING\nADP303|YOUR OWN VILLA|C2|ON TIME\nADP404|UNREAL ENGINE 5|D7|READY\nADP505|THOUSANDS OF PEOPLE|E3|BOARDING\nADP606|FIRE STATION|F1|ON TIME\nADP707|YOUR HOME TOWN|G5|DELAYED\nADP808|AND MUCH MORE|H9|COMING\nADP909|PC|GATE 1|COMING SOON",
+            // The feature slider: one slide per line, ICON|TITLE|TEXT (icons: terminal, globe, people, plane, home, sun, mesh, more)
+            'slides' => "terminal|Grow your terminal|Start small, then add new wings piece by piece as more passengers arrive.\nglobe|The whole Earth in 3D|Plan your routes on a fully rendered globe with real terrain, rivers and coastlines.\npeople|Thousands of people|Every passenger has a booking, a mood, money in their pocket and a trip to finish.\nplane|AI airlines fly your routes|You plan the routes and the timetables. Your hired crews do the flying.\nhome|Your villa and your town|Drive home after work to your own villa in a small Icelandic town.\nsun|Real weather, day and night|Sunsets, storms and snow, following the real date and time.\nmesh|Made in Unreal Engine 5|Nanite and Lumen bring film-like detail and light to every corner.\nmore|And much more|New buildings and features join with every update.",
         ],
         // #endregion
         // #region ── Ticker ──
