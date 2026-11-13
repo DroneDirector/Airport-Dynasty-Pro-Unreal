@@ -96,6 +96,7 @@ ITEMS = [
     ('45', 'Per-stand wear settings: each stand in the layout file can set its own wear amount ("wear": 0.3 almost clean, 1.5 heavily used) and tyre marks ("tyres": 0 none, 1 strong); stands left unset keep their random look', '30 min', ['field'], '', False),
     ('46', 'Ground-equipment wear on the stands: rubber marks from pushback tugs and service trucks, tracks of the GPU (ground power unit), belt loaders and other ground equipment, where they really drive and park around the aircraft', '1-2 h', ['field'], '', False),
     ('47', 'Update notices kept apart: a PC update shows its news only in the PC version, an Android update only in the Android version (each reads its own version and release-notes files, never the other one)', '1 h', ['none'], '', False),
+    ('48', 'AI drivers: NPC firefighters (and later other crews) walk to a vehicle, climb in with the same climb as yours (any MetaHuman at its own size), drive it along a route (fire station, apron, taxiways, runway) with steering, speed and stopping, and climb out at the scene', '6-10 h', ['field'], '', False),
     ('40g', 'Iceland scenery: mountains torn into walls and steps - rebuild the Iceland/Faroes height tiles with feathered edges where they meet the world map', '3-4 h', ['field'], '', False),
 ]
 c = canvas.Canvas('AirportDynastyPro-ToDo.pdf', pagesize=(W, H))
