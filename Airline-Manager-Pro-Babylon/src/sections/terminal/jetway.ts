@@ -621,7 +621,7 @@ export function buildJetway(K: Kit, n: number, gateX: number, stand: { x: number
     dock() { if (rig.state !== 'parked') return false; rig.state = 'docking'; TT = 0; return true; },
     undock() { if (rig.state !== 'docked') return false; rig.state = 'undocking'; TT = 0; return true; },
     test() { if (rig.state === 'parked') rig.dock(); else if (rig.state === 'docked') rig.undock(); },
-    snap(s) { void 0; rig.state = s; S = s === 'docked' ? 1 : 0; turn = s === 'docked' ? 0 : turn0; canopyE = shutterE = s === 'docked' ? 1 : 0; const w = path(S); last = { x: w.x, z: w.z }; steerA = 0; apply(); lights(); for (const H of hoses) { H.x = []; H.p = []; } stepHoses(1 / 60, 150); },
+    snap(s) { void 0; rig.state = s; S = s === 'docked' ? 1 : 0; turn = s === 'docked' ? 0 : turn0; canopyE = shutterE = s === 'docked' ? 1 : 0; const w = path(S); last = { x: w.x, z: w.z }; steerA = 0; apply(); lights(); hoseMats = false; hoseT = 0; for (const H of hoses) { H.x = []; H.p = []; H.rwOk = false; } stepHoses(1 / 60, 150); },   // (the hoses read their pipes again: snapped, it never moved)
     update(dt: number) { clock += dt; const t0 = JW_TIMES; let mv = false;
       if (rig.state === 'docking') { TT += dt; const a = t0.drive, b = a + t0.crawl, c = b + t0.canopy;
         if (TT < a) { S = 0.92 * ease(clamp(TT / a)); mv = true; } else if (TT < b) { const u = (TT - a) / t0.crawl; S = 0.92 + 0.08 * u; turn = turn0 * (1 - ease(u)); mv = true; }

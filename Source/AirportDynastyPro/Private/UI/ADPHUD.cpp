@@ -2215,6 +2215,7 @@ void AADPHUD::Tick(float Dt)
 				// the runway's touchdown zone (tyre rubber), low and from 12 m; the whole airport from 250 m up
 				{TEXT("Ground_Touchdown"),    F.RwyX0 + 520.f, 2.5f, F.RwyY - 10.f, F.RwyX0 + 900.f, 0.5f, F.RwyY},
 				{TEXT("Ground_TouchdownHigh"), F.RwyX0 + 380.f, 14.f, F.RwyY - 45.f, F.RwyX0 + 900.f, 0.f, F.RwyY + 5.f},
+				{TEXT("Ground_JetwayHoses"),  29.f, 4.f, 129.f, 23.5f, 2.4f, 122.f},
 				{TEXT("Ground_JetwayDoor"),   34.f, 5.f, 141.f, 22.6f, 4.2f, 125.5f},
 				{TEXT("Ground_JetwayAircraft"), 52.f, 13.f, 160.f, 20.f, 3.f, 117.f},
 				{TEXT("Ground_StopBars"),      19.7f, 5.f, 136.f, 19.7f, 0.f, 124.f},

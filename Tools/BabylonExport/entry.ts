@@ -207,8 +207,13 @@ async function run() {
   // out), with the groups above them (no transforms of their own), in the terminal's own co-ordinates
   if (which === 'jetways') {
     // docked at the aircraft parked on their stands (their own docking: the cab at the front door), not parked back
-    for (const r of ((K as any).jetways || [])) r.snap(new URLSearchParams(location.search).get('pose') === 'parked' ? 'parked' : 'docked');
-    for (const m of [...sc.transformNodes, ...sc.meshes] as any[]) m.computeWorldMatrix(true);
+    // (twice: the hoses hang from their pipes as the pipes stand after the first, so the world matrices are brought up to
+    // date in between - the game does that by drawing a frame, the export draws none)
+    const pose = new URLSearchParams(location.search).get('pose') === 'parked' ? 'parked' : 'docked';
+    for (let pass = 0; pass < 2; pass++) {
+      for (const r of ((K as any).jetways || [])) r.snap(pose);
+      for (const m of [...sc.transformNodes, ...sc.meshes] as any[]) m.computeWorldMatrix(true);
+    }
     // ?shot=x,y,z,tx,ty,tz: a picture of it from there in the Babylon scene itself (to compare with Unreal), no export
     const shot = new URLSearchParams(location.search).get('shot');
     if (shot) { const v = shot.split(',').map(Number); const cam = new UniversalCamera('shot', new Vector3(v[0], v[1], v[2]), sc); cam.setTarget(new Vector3(v[3], v[4], v[5])); cam.fov = 1.0; sc.activeCamera = cam; engine.setSize(1600, 900);
