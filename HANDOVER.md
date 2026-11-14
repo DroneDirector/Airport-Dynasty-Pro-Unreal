@@ -8,8 +8,11 @@ isn't there yet (the PC was offline when the cloud chat had it), ask the owner t
 The water coming out of the wash hose must have the same look and realism as that picture:
 
 - **One solid, glassy column of water**, not loose particles: a smooth, bright silvery-white rope of water that
-  catches the light round its curved surface (bright along one side, darker along the other edge) and reflects
-  the surroundings' colours (in the picture the red light round it tints its edges).
+  catches the light round its curved surface (bright along one side, darker along the other edge).
+- **Colour: clear, whitish water, NOT red (owner).** The red in the reference is only the lighting where the photo
+  was taken; copy the look, the texture and the speed, never the red tint. The water itself is clear and
+  white-silver, like real water from a hose in daylight; it only picks up the real light and reflections of where
+  it is in the game (daylight, the hangar's or fire station's lamps), never a built-in colour cast.
 - **The texture in the water (owner):** the surface is covered in dark flecks, streaks and mottling, elongated along
   the flow, denser and coarser further from the nozzle; small ripples and lumps over the whole surface. That
   pattern races along the jet: the water moves very fast (about 25-35 m/s out of the nozzle).
