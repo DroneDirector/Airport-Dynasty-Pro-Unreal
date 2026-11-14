@@ -6,6 +6,9 @@
 #include "GrassField.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "ProceduralMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "Misc/PackageName.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/Texture2D.h"
 #include "IImageWrapper.h"
@@ -209,18 +212,20 @@ int32 ALandCorridor::Build()
 	}
 	// ---- the mesh: two triangles a cell, one on a cell at the edge with three of its corners on the band (the outline
 	// as fine as the grid's diagonals, no staircase); a skirt 4 m down under every edge that is the band's outer rim ----
-	Mesh = NewObject<UProceduralMeshComponent>(this, TEXT("LandCorridor"));
+	Mesh = NewObject<UProceduralMeshComponent>(this, TEXT("LandCorridor"));   // (unused when the Nanite land is there)
 	Mesh->SetupAttachment(RootComponent);
 	Mesh->bUseAsyncCooking = true;
 	Mesh->SetCollisionProfileName(TEXT("BlockAll"));
 	Mesh->RegisterComponent();
 	AddInstanceComponent(Mesh);
-	if (UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Terminal/Masters/M_TSurface_DS.M_TSurface_DS")))   // (two-sided: the skirt shows from either side)
+	UMaterialInterface* Ground = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Land/M_LandCorridor.M_LandCorridor"));   // (its own: no sky sheen - Tools/set_land_corridor.py)
+	if (!Ground) Ground = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Terminal/Masters/M_TSurface_DS.M_TSurface_DS"));
+	if (UMaterialInterface* Base = Ground)   // (two-sided: the skirt shows from either side)
 	{
 		Mat = UMaterialInstanceDynamic::Create(Base, this);
 		// (toned to the globe's own look: Cesium draws the same picture a little darker and bluer - measured on both sides of
 		// the rim in the game's pictures, 2026-11-14)
-		Mat->SetVectorParameterValue(TEXT("BC"), FLinearColor(0.52f, 0.58f, 0.66f));   // (linear: about 0.75, 0.78, 0.83 on screen)
+		Mat->SetVectorParameterValue(TEXT("BC"), FLinearColor::White);   // (its own material: no sky sheen, the picture as it is)
 		Mat->SetVectorParameterValue(TEXT("OS"), FLinearColor(0, 0, 1, 1));
 		Mat->SetScalarParameterValue(TEXT("R"), 0.95f); Mat->SetScalarParameterValue(TEXT("M"), 0.f);
 		ShowColours();
@@ -257,6 +262,13 @@ int32 ALandCorridor::Build()
 	for (int32 t = 0; t < Tris3.Num(); ++t) ByBlk.FindOrAdd(Tris3[t].Blk).Add(t);
 	int32 Sct = 0, Tris = 0;
 	Rim.Reset();
+	// the band as Nanite meshes, made ahead in the editor (Tools/make_land_nanite.sh: this run with -DumpLand writes the
+	// shaped land, Tools/land_nanite.py and set_land_corridor.py make /Game/Land/Corridor/LC_<block> from it) - when they
+	// are there, they are drawn instead of the mesh built here
+	const bool bDump = FParse::Param(FCommandLine::Get(), TEXT("DumpLand"));
+	const bool bNanite = !bDump && FPackageName::DoesPackageExist(TEXT("/Game/Land/Corridor/LC_Ready"));
+	TArray<uint8> DumpBuf;
+	auto Put = [&](const void* D, int32 N) { DumpBuf.Append(static_cast<const uint8*>(D), N); };
 	for (TPair<int32, TArray<int32>>& It : ByBlk)
 	{
 		TArray<FVector> V, N; TArray<FVector2D> T; TArray<int32> I; TMap<int32, int32> Idx;
@@ -286,9 +298,39 @@ int32 ALandCorridor::Build()
 			const FVector Fn = FVector::CrossProduct(V[I[t + 1]] - V[I[t]], V[I[t + 2]] - V[I[t]]);
 			if (FMath::Abs(Fn.Z) > 1e-3 && Fn.Z > 0) Swap(I[t + 1], I[t + 2]);   // (wound to face up, as the road paint)
 		}
-		Mesh->CreateMeshSection_LinearColor(Sct, V, I, N, T, TArray<FLinearColor>(), TArray<FProcMeshTangent>(), true);
-		if (Mat) Mesh->SetMaterial(Sct, Mat);
+		if (bDump)
+		{
+			const int32 H[3] = {It.Key, V.Num(), I.Num()}; Put(H, sizeof(H));
+			for (const FVector& X : V) { const float F[3] = {float(X.X), float(X.Y), float(X.Z)}; Put(F, sizeof(F)); }
+			for (const FVector& X : N) { const float F[3] = {float(X.X), float(X.Y), float(X.Z)}; Put(F, sizeof(F)); }
+			for (const FVector2D& X : T) { const float F[2] = {float(X.X), float(X.Y)}; Put(F, sizeof(F)); }
+			Put(I.GetData(), I.Num() * sizeof(int32));
+		}
+		if (bNanite)
+		{
+			const FString Name = FString::Printf(TEXT("LC_%03d"), It.Key);
+			if (UStaticMesh* SM = LoadObject<UStaticMesh>(nullptr, *FString::Printf(TEXT("/Game/Land/Corridor/%s.%s"), *Name, *Name)))
+			{
+				UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this, *Name);
+				C->SetupAttachment(RootComponent); C->SetStaticMesh(SM); C->SetCollisionProfileName(TEXT("BlockAll"));
+				if (Mat) C->SetMaterial(0, Mat);
+				C->RegisterComponent(); AddInstanceComponent(C);
+			}
+			else ADP_WARN(TEXT("Land corridor: %s missing - run Tools/make_land_nanite.sh"), *Name);
+		}
+		else
+		{
+			Mesh->CreateMeshSection_LinearColor(Sct, V, I, N, T, TArray<FLinearColor>(), TArray<FProcMeshTangent>(), true);
+			if (Mat) Mesh->SetMaterial(Sct, Mat);
+		}
 		++Sct; Tris += I.Num() / 3;
+	}
+	if (bDump)
+	{
+		const FString F = FPaths::ProjectSavedDir() / TEXT("land-sections.bin");
+		FFileHelper::SaveArrayToFile(DumpBuf, *F);
+		ADP_LOG(TEXT("Land corridor: shaped land written to %s (%d bytes)"), *F, DumpBuf.Num());
+		FGenericPlatformMisc::RequestExit(false);
 	}
 	PlantRim(nullptr);
 	ADP_LOG(TEXT("Land corridor: %d triangles in %d sections, shaped under %d road samples, in %.2f s"), Tris, Sct, RoadSamples.Num(), FPlatformTime::Seconds() - T0);
