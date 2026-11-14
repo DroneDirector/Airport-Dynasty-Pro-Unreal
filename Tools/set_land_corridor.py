@@ -51,7 +51,16 @@ for p in eal.list_assets(COR + '/Import', recursive=True):
     if not isinstance(a, unreal.StaticMesh): continue
     name = a.get_name()
     if not name.startswith('LC_'): continue
-    ns = a.get_editor_property('nanite_settings'); ns.enabled = True; a.set_editor_property('nanite_settings', ns)
+    ns = a.get_editor_property('nanite_settings'); ns.enabled = True
+    # every triangle kept in its fallback too (collision, ray tracing and the far view use it): the default fallback
+    # smoothed away the 30 cm trough the land keeps under each road, so the land stood through the asphalt in places
+    # (Main Street, 2026-11-15)
+    for k, v in (('fallback_relative_error', 0.0), ('fallback_percent_triangles', 1.0), ('keep_percent_triangles', 1.0), ('trim_relative_error', 0.0)):
+        try: ns.set_editor_property(k, v)
+        except Exception as e: log('nanite setting %s: %s' % (k, e))
+    try: ns.set_editor_property('fallback_target', unreal.NaniteFallbackTarget.RELATIVE_ERROR)
+    except Exception as e: log('nanite fallback target: %s' % e)
+    a.set_editor_property('nanite_settings', ns)
     bs = a.get_editor_property('body_setup')
     if bs: bs.set_editor_property('collision_trace_flag', unreal.CollisionTraceFlag.CTF_USE_COMPLEX_AS_SIMPLE)
     a.set_material(0, m)

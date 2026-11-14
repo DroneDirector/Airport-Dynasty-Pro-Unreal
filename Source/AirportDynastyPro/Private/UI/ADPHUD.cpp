@@ -2973,6 +2973,14 @@ void AADPHUD::Tick(float Dt)
 				{TEXT("Roof_Wave_VeryClose"), 0.42f, 3.f, 0.2f, 0.5f, 0.f, 0.32f, 13.f},
 				{TEXT("Roof_Rental_VeryClose"), 0.4f, 2.5f, 0.3f, 0.5f, 0.f, 0.42f, 13.f},
 			};
+			// -UIRoadAirport -TownShots: the town's roads (2026-11-15): roundabout 9, Main Street from eye height and from above, its east end
+			const FV TownStreetViews[] = {
+				{TEXT("TW_1_Roundabout9High"), 4280.9f, 45.0f, -3466.2f, 4360.9f, 0.0f, -3496.2f, 13.f},
+				{TEXT("TW_2_MainStreetWest"), 4459.6f, 1.7f, -3524.1f, 4540.4f, 1.2f, -3550.9f, 13.f},
+				{TEXT("TW_3_MainStreetHigh"), 5012.2f, 40.0f, -3679.8f, 4991.3f, 0.0f, -3746.6f, 13.f},
+				{TEXT("TW_4_MainStreetEye"), 5337.8f, 1.7f, -3835.6f, 5424.6f, 1.2f, -3859.8f, 13.f},
+				{TEXT("TW_5_EastEnd"), 5598.4f, 25.0f, -3919.1f, 5625.9f, 0.0f, -3980.2f, 13.f},
+			};
 			const FV TownViews[] = {
 				{TEXT("TR_1_BendHigh"), 2000.f, 160.f, -250.f, 2250.f, 0.f, -650.f, 14.f},
 				{TEXT("TR_2_RoundaboutHigh"), 2217.f, 90.f, -1080.f, 2217.f, 0.f, -1168.f, 14.f},
@@ -3010,8 +3018,9 @@ void AADPHUD::Tick(float Dt)
 			const bool bAirportSet = FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport"));
 			const bool bTerminalSet = FParse::Param(FCommandLine::Get(), TEXT("TerminalShots")), bTownSet = FParse::Param(FCommandLine::Get(), TEXT("TownRoad"));
 			const bool bRoofSet = FParse::Param(FCommandLine::Get(), TEXT("RoofShots"));
-			const FV* Set = bRoofSet ? RoofViews : bTownSet ? TownViews : bTerminalSet ? TerminalViews : bAirportSet ? AirportViews : RoadViews;
-			const int32 NSet = bRoofSet ? UE_ARRAY_COUNT(RoofViews) : bTownSet ? UE_ARRAY_COUNT(TownViews) : bTerminalSet ? UE_ARRAY_COUNT(TerminalViews) : bAirportSet ? UE_ARRAY_COUNT(AirportViews) : UE_ARRAY_COUNT(RoadViews);
+			const bool bTownStreets = FParse::Param(FCommandLine::Get(), TEXT("TownShots"));
+			const FV* Set = bTownStreets ? TownStreetViews : bRoofSet ? RoofViews : bTownSet ? TownViews : bTerminalSet ? TerminalViews : bAirportSet ? AirportViews : RoadViews;
+			const int32 NSet = bTownStreets ? UE_ARRAY_COUNT(TownStreetViews) : bRoofSet ? UE_ARRAY_COUNT(RoofViews) : bTownSet ? UE_ARRAY_COUNT(TownViews) : bTerminalSet ? UE_ARRAY_COUNT(TerminalViews) : bAirportSet ? UE_ARRAY_COUNT(AirportViews) : UE_ARRAY_COUNT(RoadViews);
 			for (int32 i = 0; i < NSet; ++i)
 			{
 				const float T0 = 43.f + i * 4.f; const FV& V = Set[i];
@@ -3210,6 +3219,40 @@ void AADPHUD::Tick(float Dt)
 			}
 			if (!K && Before < 43.f && ShotClock >= 43.f) ADP_ERROR(TEXT("UIKiosk: KIOSK-1 isn't placed"));
 			if (Before < 43.f + UE_ARRAY_COUNT(Shots) * 4.f + 2.f && ShotClock >= 43.f + UE_ARRAY_COUNT(Shots) * 4.f + 2.f) FGenericPlatformMisc::RequestExit(false);
+		}
+		// -RoadSurfaceProbe=<road id>: what lies on top along a road's middle (the road, our land or the globe), every 10 m
+		{
+			FString PR; static bool bProbed = false;
+			if (!bProbed && FParse::Value(FCommandLine::Get(), TEXT("RoadSurfaceProbe="), PR) && ShotClock >= 42.f)
+			{
+				bProbed = true;
+				FString Text; TSharedPtr<FJsonObject> RJ;
+				FFileHelper::LoadFileToString(Text, *(FPaths::ProjectContentDir() / TEXT("Data/roads.json")));
+				FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), RJ);
+				for (const TSharedPtr<FJsonValue>& V : RJ->GetArrayField(TEXT("roads")))
+				{
+					const TSharedPtr<FJsonObject> O = V->AsObject(); if (O->GetStringField(TEXT("id")) != PR) continue;
+					TArray<FVector2D> P; for (const TSharedPtr<FJsonValue>& Q : O->GetArrayField(TEXT("pts"))) P.Add(FVector2D(Q->AsArray()[0]->AsNumber(), Q->AsArray()[1]->AsNumber()));
+					double S = 0; FString Bad;
+					for (int32 i = 0; i + 1 < P.Num(); ++i)
+					{
+						const double L = FVector2D::Distance(P[i], P[i + 1]);
+						for (double t = 0; t < L; t += 10.0)
+						{
+							const FVector2D Q = P[i] + (P[i + 1] - P[i]) * (t / L);
+							const FVector W(Q.X * 100.0, -Q.Y * 100.0, 0);
+							FHitResult H; FCollisionQueryParams CQ(SCENE_QUERY_STAT(ADPProbe), true);
+							if (GetWorld()->LineTraceSingleByChannel(H, W + FVector(0, 0, 500000.0), W - FVector(0, 0, 500000.0), ECC_Visibility, CQ) && H.GetActor())
+							{
+								const FString Who = H.GetActor()->GetClass()->GetName();
+								if (!Who.Contains(TEXT("MetaRoad"))) Bad += FString::Printf(TEXT(" [%.0f m: %s/%s z %.2f]"), S + t, *Who, H.GetComponent() ? *H.GetComponent()->GetName() : TEXT("-"), H.ImpactPoint.Z / 100.0);
+							}
+						}
+						S += L;
+					}
+					ADP_LOG(TEXT("RoadSurfaceProbe %s (%.0f m): not the road on top at%s"), *PR, S, Bad.IsEmpty() ? TEXT(" none") : *Bad);
+				}
+			}
 		}
 		// -UILoadReal (to-do 32h): the neon loading screen as after Start game, with what Unreal itself loads and its progress
 		if (FParse::Param(FCommandLine::Get(), TEXT("UILoadReal")))

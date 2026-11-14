@@ -191,7 +191,9 @@ int32 ALandCorridor::Build()
 						if (D < Best) { Best = D; RZ = S.Z; HW = S.W; }
 					}
 				}
-				const double Under = RZ - 0.08;
+				// (30 cm under the road's middle line: on a rise the road's own curve sags a little below the straight line
+				// between its height points, and the land poked through the asphalt there - Main Street, 2026-11-15)
+				const double Under = RZ - 0.30;
 				if (Best <= 0.6) V = float(Under);
 				else if (Best < 6.6) { const double t = FMath::SmoothStep(0.6, 6.6, Best); V = float(FMath::Lerp(Under, double(V), t)); }
 			}

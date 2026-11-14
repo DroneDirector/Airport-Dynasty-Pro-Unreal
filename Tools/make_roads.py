@@ -2,7 +2,7 @@
 # (Art/Maps/Airport-Road-Town-Overview-v11.png, Town-Plan-v7.png, Airport-Only-v11.png) written to Data/roads.json,
 # which the game builds with MetaRoad Free when it starts (Source/.../RoadNetwork.cpp). Never placed by hand: run this
 # again and the whole network is rebuilt the same.
-#   python Tools/make_roads.py      (then copy Data/roads.json to Content/Data)
+#   python Tools/make_roads.py      (writes Data/ and Content/Data roads.json, then the land along the roads; then Tools/make_land_nanite.sh)
 #
 # A road: its path in airport plan metres (x along the runway, y across it, as Data/airfield.json), and its lanes either
 # side of the path, inside out, each {type, w}: Driving, Bus, Parking, Shoulder, Sidewalk (raised, kerb cm), Island
@@ -279,11 +279,37 @@ road('TOWN-ROUNDABOUT', [(round(x, 2), round(y, 2)) for x, y in ring2], closed=T
      left=[lane('Driving', 3.25), lane('Apron', 1.5, kerb=5), lane('Island', 6.5, kerb=15)], right=[lane('Driving', 3.75)],
      disc=dict(r=RS - 3.25 - 1.5 - 6.5 + 0.25, kerb=0.15), lights=[dict(side='right', edge=1, off=1.6, spacing=27.0)])
 
+# ---------------------------------------------------------------------------------------------------------------------
+# THE TOWN (owner's Town-Plan-v7: north up, two-lane streets with 2.5 m pavements - kerbed, the town is built-up -
+# zebras, traffic lights and street lights later), placed by Tools/town_plan.py (its frame = the overview's town box),
+# its streets traced off it. Part 1 (2026-11-15): the road from the airport on to the town's roundabout (9), the
+# roundabout, and Main Street east from it to the town's east end.
+import town_plan as TP_
+R9 = tuple(round(v, 2) for v in TP_.to_plan(768, 4365))      # roundabout 9's middle (the plan's circle)
+def ring9(p, r=RS + 0.0):
+    d = math.dist(p, R9); return (round(R9[0] + (p[0] - R9[0]) * r / d, 2), round(R9[1] + (p[1] - R9[1]) * r / d, 2))
+# the road from the airport: on from where the overview's drawing ends to the roundabout's west side
+sr = next(r for r in roads if r['id'] == 'TOWN-ROAD-SOUTH')
+end = tuple(sr['pts'][-1]); far = ring9(end, RS + 25.0)
+sr['pts'] += [list(far), list(ring9(end))]
+sr['paint'].append(dict(kind='teeth', at=round(Along([tuple(p) for p in sr['pts']]).len - 0.8, 2), dir=1, o0=0.15, o1=3.4))
+ring9_pts = [(R9[0] + RS * math.cos(2 * math.pi * k / 24), R9[1] + RS * math.sin(2 * math.pi * k / 24)) for k in range(24)]
+road('TOWN-RB9', [(round(x, 2), round(y, 2)) for x, y in ring9_pts], closed=True, lift=0.055,
+     left=[lane('Driving', 3.25), lane('Apron', 1.5, kerb=5), lane('Island', 6.5, kerb=15)], right=[lane('Driving', 3.75)],
+     disc=dict(r=RS - 3.25 - 1.5 - 6.5 + 0.25, kerb=0.15), lights=[dict(side='right', edge=1, off=1.6, spacing=27.0)])
+# Main Street: from the roundabout's east side to the town's east end (1.46 km), two lanes, pavements both sides
+ms = [p for p in tidy(TRACES['town-main']) if math.dist(p, R9) > RS + 6.0]
+ms = [ring9(ms[0])] + ms
+TOWN2 = dict(left=[lane('Driving', 3.5, invert=True), lane('Sidewalk', 2.5, kerb=15)], right=[lane('Driving', 3.5), lane('Sidewalk', 2.5, kerb=15)])
+road('TOWN-MAIN-STREET', ms, step=4.0, paint=two_paint() + [dict(kind='teeth', at=0.8, dir=-1, o0=-3.4, o1=-0.15)], **TOWN2)
+
 out = ROOT / 'Data' / 'roads.json'
 out.write_text(json.dumps({'source': 'Tools/make_roads.py', 'roads': roads, 'lots': lots}, indent=1, ensure_ascii=False), encoding='utf-8')
 print('%s: %d roads, %d car parks; forecourt %.0f m (band %.0f-%.0f, terminal %.0f-%.0f)' % (out, len(roads), len(lots), A.len, s_ne0, s_sw0, s_t0, s_t1))
 # our own land along the roads follows them (owner, 2026-11-14: extend a road and the ground under it comes with it):
 # the band rebuilt from the roads just written (Tools/make_land_corridor.py; needs the terrain tiles on F:)
 import subprocess, sys as _sys
+import shutil as _sh
+_sh.copyfile(out, ROOT / 'Content' / 'Data' / 'roads.json')   # (the game reads Content/Data first: it was copied by hand, 2026-11-15)
 if '--no-land' not in _sys.argv:
     subprocess.run([_sys.executable, str(ROOT / 'Tools' / 'make_land_corridor.py')], check=False)
