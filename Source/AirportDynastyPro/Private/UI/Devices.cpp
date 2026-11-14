@@ -6,6 +6,7 @@
 // its screen comes on and its apps open in front (the phone's own frame). Esc (or a tap beside the phone, or the
 // legend's button at the bottom: Esc and a phone with an arrow curving down) puts it away: the phone goes back down to
 // where it lay. The menus' page draws it, see-through over the room, which keeps being drawn behind.
+#include "DoorPanelUse.h"
 #include "UI/ADPHUD.h"
 #include "UI/ADPBridge.h"
 #include "UI/GameView.h"
@@ -76,6 +77,29 @@ TSharedRef<SWidget> AADPHUD::MakeDeviceLegend()
 			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
 			[SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Regular", 11)).ColorAndOpacity(LegendInk)
 				.Text_Lambda([this]() { return FText::FromString(DeviceKind == TEXT("phone") || PhoneDir != 0 ? TEXT("Put the phone down") : TEXT("Back to the room")); })]
+		];
+}
+
+TSharedRef<SWidget> AADPHUD::MakePanelHint()
+{
+	// (owner, 2026-11-14) low in the middle while you're at a door panel: how to choose, press and step back
+	const FLinearColor Ink(0.9f, 0.96f, 1.f), Cap(0.12f, 0.18f, 0.26f, 0.95f);
+	auto Key = [&](const TCHAR* K) { return SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(Cap).Padding(FMargin(8, 3))
+		[SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Bold", 11)).ColorAndOpacity(Ink).Text(FText::FromString(K))]; };
+	auto Say = [&](const TCHAR* T) { return SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Regular", 11)).ColorAndOpacity(Ink).Text(FText::FromString(T)); };
+	return SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(FLinearColor(0.02f, 0.05f, 0.09f, 0.78f)).Padding(FMargin(14, 8))
+		.Visibility_Lambda([]() { return ADoorPanelUse::IsActive() ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 6, 0)[Key(TEXT("Mouse up / down"))]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 6, 0)[Key(TEXT("D-pad / stick"))]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 22, 0)[Say(TEXT("Choose green (open) or red (close)"))]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 6, 0)[Key(TEXT("E / Left click"))]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 6, 0)[Key(TEXT("X"))]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 22, 0)[Say(TEXT("Press"))]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 6, 0)[Key(TEXT("Esc"))]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 6, 0)[Key(TEXT("B / Back"))]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[Say(TEXT("Step back"))]
 		];
 }
 

@@ -69,6 +69,9 @@ public:
 	 *  pocket's front): true if C was one. The door then runs as a real one: OPEN or CLOSE starts it, STOP holds it
 	 *  where it is; fully open or shut takes 10 minutes. */
 	bool Press(const UPrimitiveComponent* C);
+	/** Its door panel's button (DoorPanelUse.h): open or shut, and stays so; changing its way mid-move it stops about a
+	 *  second first. */
+	void Command(bool bOpen);
 	/** Its door buttons (the interaction outline, InteractOutline.h). */
 	TArray<UStaticMeshComponent*> ButtonList() const { TArray<UStaticMeshComponent*> L; for (const auto& B : Buttons) L.Add(B.Get()); return L; }
 	/** How far the main door is open (0 shut, 1 open), and where it is going (-1 closing, 0 still, 1 opening). */
@@ -138,7 +141,8 @@ private:
 	TArray<int32> ButtonWhat;                       // 1 open, -1 close, 0 stop
 	UPROPERTY() TArray<TObjectPtr<UInstancedStaticMeshComponent>> Beacons;
 	float DoorK = 0.f;                              // how far open
-	int32 DoorRun = 0;                              // -1 closing, 0 still, 1 opening
+	int32 DoorRun = 0;
+	float DoorPause = 0.f; int32 DoorNext = 0;   // (stopped before turning back, and which way then)                              // -1 closing, 0 still, 1 opening
 	float Blink = 0.f;
 	// the swinging doors: hinge node, which way it opened, how far (0..1), its middle (for who comes near)
 	struct FSwingDoor { USceneComponent* Hinge; FVector Mid; float Open = 0, Sign = 1; };

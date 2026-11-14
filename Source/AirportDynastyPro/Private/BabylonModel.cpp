@@ -1281,7 +1281,7 @@ void ABabylonModel::LightDoorPanel(ABabylonModel* P, bool bGreen)
 			const FLinearColor C = bOpen ? FLinearColor(0.1f, 1.f, 0.2f) : FLinearColor(1.f, 0.08f, 0.05f);
 			D->SetVectorParameterValue(TEXT("EmissiveFactor"), bLit ? C : FLinearColor::Black);
 			D->SetVectorParameterValue(TEXT("EmissiveColor"), bLit ? C : FLinearColor::Black);
-			SetGlow(D, bLit ? 6.f : 0.f);
+			SetGlow(D, bLit ? 1.6f : 0.f);   // (gentle: the white arrow on it must stay clear)
 		}
 	}
 }

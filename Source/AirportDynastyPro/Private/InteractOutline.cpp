@@ -6,6 +6,7 @@
 #include "Wardrobe.h"
 #include "WashHose.h"
 #include "Seats.h"
+#include "DoorPanelUse.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/PostProcessVolume.h"
@@ -84,9 +85,15 @@ void AInteractOutline::Tick(float Dt)
 	TArray<FNear> Near;
 	// (owner, 2026-11-14: only the one thing in the middle of your view - not every chair round you - and none while you
 	// sit or hold something)
-	const bool bWalking = Me && Me->IsA<ACharacter>() && bOn && !ASeats::IsSitting() && !AWashHose::Held();
+	const bool bWalking = Me && Me->IsA<ACharacter>() && bOn && !ASeats::IsSitting() && !AWashHose::Held() && !ADoorPanelUse::IsActive();
 	FVector Cam = Me ? Me->GetPawnViewLocation() : FVector::ZeroVector, Look = FVector::ForwardVector;
 	if (PC && PC->PlayerCameraManager) { Cam = PC->PlayerCameraManager->GetCameraLocation(); Look = PC->PlayerCameraManager->GetCameraRotation().Vector(); }
+	// at a door panel: only the button your finger is on
+	if (ADoorPanelUse::IsActive() && bOn)
+	{
+		TArray<TPair<UInstancedStaticMeshComponent*, int32>> Ch; ADoorPanelUse::ChosenParts(Ch);
+		for (const auto& C : Ch) Near.Add(FNear{C.Key, C.Value, 0.f, 1, 1.f});
+	}
 	if (bWalking)
 	{
 		const FVector At = Me->GetActorLocation();

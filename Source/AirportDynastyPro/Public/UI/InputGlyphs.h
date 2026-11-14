@@ -33,6 +33,8 @@ namespace ADPInput
 	const TArray<FAction>& HoseActions(bool bHeld, bool bAtMount);
 	/** A seat: sit down by one, stand up from it. */
 	const FAction& SeatAction(bool bSitting);
+	/** A door panel: step up to it and use its buttons. */
+	const FAction& PanelAction();
 	/** The action called Name (nullptr when there's none). */
 	const FAction* Find(const FString& Name);
 	/** Logs (and puts in the problem log) any key or button used by two actions; true when there's none. */

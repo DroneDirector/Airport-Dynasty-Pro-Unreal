@@ -91,6 +91,7 @@ private:
 	void PutDeviceAway();
 	void MakeGameView();
 	TSharedRef<SWidget> MakeDeviceLegend();
+	TSharedRef<SWidget> MakePanelHint();
 	TSharedPtr<SWidget> DeviceLegend;
 	FString DeviceKind, DevicePending;
 	bool bDevice = false;
@@ -146,6 +147,8 @@ public:
 	bool bButtonsBeforeDrone = false;
 	/** The fire station's bay doors: within 25 m their button (O / D-pad right) works and shows in the Buttons panel. */
 	void ToggleBayDoors();
+	TSharedPtr<SWidget> PanelHint;   // the door panel's controls, low in the middle of the screen
+	bool bNearPanel = false;
 	bool bNearStation = false;
 	/** The wash hose: in your hand, or within reach of its hook. */
 	bool bHoseHeld = false, bNearHose = false;

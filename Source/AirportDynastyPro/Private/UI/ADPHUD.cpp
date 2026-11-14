@@ -5,6 +5,7 @@
 #include "WashHose.h"
 #include "InteractOutline.h"
 #include "Seats.h"
+#include "DoorPanelUse.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/DirectionalLight.h"
 #include "EngineUtils.h"
@@ -234,7 +235,7 @@ namespace
 void AADPHUD::BeginPlay()
 {
 	// the thin glow round what you can use (InteractOutline.h)
-	if (UWorld* W = GetWorld()) { W->SpawnActor<AInteractOutline>(); W->SpawnActor<ASeats>(); }
+	if (UWorld* W = GetWorld()) { W->SpawnActor<AInteractOutline>(); W->SpawnActor<ASeats>(); W->SpawnActor<ADoorPanelUse>(); }
 	Super::BeginPlay();
 	Current = this;
 	// indoors the shadows are lifted: where the lamps don't reach it is only about a quarter dark (the owner's choice,
@@ -273,6 +274,7 @@ void AADPHUD::BeginPlay()
 	UnstuckPanel = MakeUnstuckPanel();
 	LoadingBox = MakeLoading();
 	DeviceLegend = MakeDeviceLegend();
+	PanelHint = MakePanelHint();
 	DeviceLegend->SetVisibility(EVisibility::Collapsed);
 	LoadingBox->SetVisibility(EVisibility::Collapsed);
 	UnstuckPanel->SetVisibility(EVisibility::Collapsed);
@@ -439,7 +441,8 @@ void AADPHUD::BeginPlay()
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[CrashPanel.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[UnstuckPanel.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Fill).VAlign(VAlign_Fill)[LoadingBox.ToSharedRef()]
-		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(FMargin(24, 0, 0, 84))[DeviceLegend.ToSharedRef()]   // (above a computer's taskbar)
+		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(FMargin(24, 0, 0, 84))[DeviceLegend.ToSharedRef()]
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(FMargin(0, 0, 0, 36))[PanelHint.ToSharedRef()]   // (above a computer's taskbar)
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
 		[
 			// the first start's question: the scan's suggestion, taken only if you say yes
@@ -554,8 +557,6 @@ void AADPHUD::BeginPlay()
 		InputComponent->BindKey(EKeys::P, IE_Pressed, this, &AADPHUD::TogglePerf);
 		InputComponent->BindKey(EKeys::H, IE_Pressed, this, &AADPHUD::HideUI);
 		InputComponent->BindKey(EKeys::Escape, IE_Pressed, this, &AADPHUD::OnEscape);
-		InputComponent->BindKey(EKeys::O, IE_Pressed, this, &AADPHUD::ToggleBayDoors);
-		InputComponent->BindKey(EKeys::Gamepad_DPad_Right, IE_Pressed, this, &AADPHUD::ToggleBayDoors).bConsumeInput = false;
 		InputComponent->BindKey(EKeys::LeftMouseButton, IE_DoubleClick, this, &AADPHUD::ShowUI);
 	}
 }
@@ -1343,9 +1344,7 @@ void AADPHUD::SetFrameGen(bool bOn)
 
 void AADPHUD::ToggleBayDoors()
 {
-	if (bGame || !bNearStation) return;
-	AFireStationDoors::bWantOpen = !AFireStationDoors::bWantOpen;
-	ADP_LOG(TEXT("Fire station: bay doors %s by the button"), AFireStationDoors::bWantOpen ? TEXT("opening") : TEXT("closing"));
+	// (gone: the bay doors work only from their panels now - owner, 2026-11-14)
 }
 
 void AADPHUD::EnterDrone()
@@ -1389,6 +1388,8 @@ void AADPHUD::LeaveDrone()
 
 void AADPHUD::OnEscape()
 {
+	// at a door panel: Back takes your arm down and lets you go (DoorPanelUse.h)
+	if (ADoorPanelUse::Leave()) return;
 	if (bWhoAreYou) { CloseWhoAreYou(false); return; }
 	// on the loading screen: straight back to the menus
 	if (bLoading) { StopLoading(); if (!bGame) ToggleGame(); return; }
@@ -1492,6 +1493,8 @@ void AADPHUD::Interact()
 	// in a fire truck: E / X gets you out (FireTruck.h)
 	if (AFireTruck* T = Cast<AFireTruck>(GetOwningPawn())) { T->Exit(); return; }
 	if (Drone.IsValid()) return;   // (a drone presses nothing)
+	// at a door panel: E / the left mouse button presses the button your finger is on (DoorPanelUse.h)
+	if (ADoorPanelUse::IsActive()) { ADoorPanelUse::Interact(GetOwningPawn(), nullptr); return; }
 	// sitting: E / X stands you up (Seats.h)
 	if (ASeats::IsSitting()) { ASeats::Interact(GetOwningPawn()); return; }
 	// the wash hose in your hand: the left mouse button sprays (WashHose.h), E / X hangs it back up
@@ -1522,6 +1525,8 @@ void AADPHUD::Interact()
 		const FString N = Hit.GetComponent()->GetName();
 		if (N.Contains(TEXT("screenPanel")) || N.Contains(TEXT("black"))) { ToggleGame(); return; }
 	}
+	// a door panel by you: E steps up to it, your finger out (not a click)
+	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton) && ADoorPanelUse::Interact(GetOwningPawn(), nullptr)) return;
 	// standing at the wash hose's hook: its gun
 	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton) && AWashHose::Interact(GetOwningPawn(), nullptr)) return;
 	// a chair, stool, bench or gate seat right by you: sit down (Seats.h)
@@ -1698,7 +1703,8 @@ void AADPHUD::RefreshControls()
 		for (const ADPInput::FAction& A : Drone.IsValid() ? ADPInput::DroneActions() : ADPInput::Actions())
 			if (A.Name != TEXT("Buttons")) ButtonsList->AddSlot().AutoHeight()[Row(A, false)];
 		// near the fire station: its bay doors' button
-		if (bNearStation && !Drone.IsValid()) ButtonsList->AddSlot().AutoHeight()[Row(ADPInput::BayDoorsAction(), false)];
+		// (the bay doors: only by their panels now, owner 2026-11-14 - no key)
+		if (bNearPanel && !Drone.IsValid() && !ADoorPanelUse::IsActive()) ButtonsList->AddSlot().AutoHeight()[Row(ADPInput::PanelAction(), false)];
 		// the wash hose: in your hand, or by its hook
 		if ((bHoseHeld || bNearHose) && !Drone.IsValid()) for (const ADPInput::FAction& A : ADPInput::HoseActions(bHoseHeld, bNearHose)) ButtonsList->AddSlot().AutoHeight()[Row(A, false)];
 		if ((bSeated || (bNearSeat && !bHoseHeld)) && !Drone.IsValid()) ButtonsList->AddSlot().AutoHeight()[Row(ADPInput::SeatAction(bSeated), false)];
@@ -1730,6 +1736,8 @@ void AADPHUD::Tick(float Dt)
 		const APawn* Me = GetOwningPawn();
 		const bool bNear = Me && !Drone.IsValid() && AFireStationDoors::InReach(Me->GetActorLocation());
 		if (bNear != bNearStation) { bNearStation = bNear; RefreshControls(); }
+		const bool bByPanel = Me && !Drone.IsValid() && ADoorPanelUse::NearPanel(Me->GetActorLocation());
+		if (bByPanel != bNearPanel) { bNearPanel = bByPanel; RefreshControls(); }
 		const bool bHeld = AWashHose::Held() != nullptr;
 		const bool bByHose = Me && !Drone.IsValid() && AWashHose::NearHook(Me->GetActorLocation());
 		if (bHeld != bHoseHeld || bByHose != bNearHose) { bHoseHeld = bHeld; bNearHose = bByHose; RefreshControls(); }
@@ -2689,7 +2697,7 @@ void AADPHUD::Tick(float Dt)
 				// (this test only: just washed - beads all over - to see them blown off as it gathers speed)
 				{46.6f, [&]() { if (AFireTruck* T = Truck()) for (float& B : T->Beads) B = 1.f; }},
 				// (the bay doors only by their button now: pressed at the door, within 25 m of the station)
-				{46.7f, [&]() { ADP_LOG(TEXT("UIDrive: near the station %d, the bay doors' button pressed"), bNearStation ? 1 : 0); ToggleBayDoors(); }},
+				{46.7f, [&]() { ADP_LOG(TEXT("UIDrive: near the station %d, the bay doors sent up (their panels)"), bNearStation ? 1 : 0); AFireStationDoors::CommandAll(true); }},
 				// (the ground in front of the bays: what's there and how high, plan y 10 (in the hall) to 45 (out on the forecourt))
 				{46.8f, [&]() { for (const float Py : {10.f, 18.f, 22.f, 26.f, 30.f, 38.f, 45.f}) { FHitResult H; const FVector A = FTerminalPlan::ToWorld(-1199.5f, 3.f, Py), B2 = FTerminalPlan::ToWorld(-1199.5f, -30.f, Py);
 					FCollisionQueryParams Q(SCENE_QUERY_STAT(ADPGroundProbe), true); for (const TWeakObjectPtr<AFireTruck>& T : AFireTruck::All) if (T.IsValid()) Q.AddIgnoredActor(T.Get()); if (GetOwningPawn()) Q.AddIgnoredActor(GetOwningPawn());
@@ -2906,8 +2914,8 @@ void AADPHUD::Tick(float Dt)
 				FVector Front = P->GetActorRightVector(); const FVector Side = P->GetActorForwardVector();
 				{ TArray<TTuple<UInstancedStaticMeshComponent*, int32, FString>> Bt, Pl; P->InstancesNamed(TEXT("BtnOpen"), false, Bt); P->InstancesNamed(TEXT("DoorPanelPlate"), false, Pl); FTransform Tb, Tp;
 				  if (Bt.Num() && Pl.Num() && Bt[0].Get<0>()->GetInstanceTransform(Bt[0].Get<1>(), Tb, true) && Pl[0].Get<0>()->GetInstanceTransform(Pl[0].Get<1>(), Tp, true)) Front = P->GetActorRightVector() * (FVector::DotProduct(Tb.GetLocation() - Tp.GetLocation(), P->GetActorRightVector()) >= 0.f ? 1.f : -1.f); }   // (straight out of its face: the side its buttons stand out on)
-				const FVector Eye = P->GetActorLocation() + Front * 75.f + FVector(0, 0, 140.f);
-				if (Before < T0 && ShotClock >= T0) if (APawn* Me = GetOwningPawn()) { Me->SetActorLocationAndRotation(Eye - FVector(0, 0, 70.f), FRotator(0.f, (P->GetActorLocation() - Eye).Rotation().Yaw, 0.f), false, nullptr, ETeleportType::TeleportPhysics); if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation((P->GetActorLocation() + FVector(0, 0, 135.f) - Eye).Rotation()); }
+				const FVector Eye = P->GetActorLocation() + Front * 45.f + FVector(0, 0, 138.f);
+				if (Before < T0 && ShotClock >= T0) if (APawn* Me = GetOwningPawn()) { Me->SetActorEnableCollision(false); Me->SetActorLocationAndRotation(Eye - FVector(0, 0, 70.f), FRotator(0.f, (P->GetActorLocation() - Eye).Rotation().Yaw, 0.f), false, nullptr, ETeleportType::TeleportPhysics); if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation((P->GetActorLocation() + FVector(0, 0, 135.f) - Eye).Rotation()); }
 				if (Before < T0 + 2.4f && ShotClock >= T0 + 2.4f) if (APlayerController* PC = GetOwningPlayerController()) if (PC->PlayerCameraManager)
 				{
 					// what's between your eye and the panel's plate (anything nearer than the plate hides it)
@@ -2926,6 +2934,37 @@ void AADPHUD::Tick(float Dt)
 			if (Before < TH && ShotClock >= TH) { GoFireStation(2); if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) Wk->SetThirdPerson(false); }
 			if (Before < TH + 3.f && ShotClock >= TH + 3.f) FScreenshotRequest::RequestScreenshot(TEXT("Panel_Hall"), false, false);
 			if (Before < TH + 4.f && ShotClock >= TH + 4.f) FGenericPlatformMisc::RequestExit(false);
+		}
+		// -UIPanelUse: at the fire station's panel by bay door 3: stepping up (the arm out, the finger on green), the finger
+		// to red and back, green pressed (the door going up), Back (the arm down) - first person, then from behind
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIPanelUse")))
+		{
+			auto Shot = [](const TCHAR* Name) { FScreenshotRequest::RequestScreenshot(Name, false, false); };
+			static TWeakObjectPtr<ABabylonModel> Pn;
+			auto Third = [this](bool bOn) { if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) Wk->SetThirdPerson(bOn); };
+			struct FStep { float At; TFunction<void()> Do; };
+			const FStep PSteps[] = {
+				{40.f, [&]() { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 13.f; ASunClock::Refresh(); Third(false);
+					if (APlayerController* PCm = GetOwningPlayerController()) PCm->ConsoleCommand(TEXT("r.MotionBlurQuality 0"));
+					for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It) if (It->Model == TEXT("DoorPanel") && It->Tags.Contains(TEXT("BayDoor2"))) Pn = *It; }},
+				{42.f, [&]() { if (ABabylonModel* P = Pn.Get()) if (APawn* Me = GetOwningPawn()) { const FVector F = P->GetActorRightVector(); const FVector At = P->GetActorLocation() + F * 140.f + FVector(0, 0, 95.f);
+					Me->SetActorLocationAndRotation(At, FRotator(0.f, (-F).Rotation().Yaw, 0.f), false, nullptr, ETeleportType::TeleportPhysics); if (APlayerController* PCm = GetOwningPlayerController()) PCm->SetControlRotation(FRotator(-10.f, (-F).Rotation().Yaw, 0.f)); } }},
+				{43.5f, [&]() { Shot(TEXT("PanelUse_Before")); ADP_LOG(TEXT("UIPanelUse: near a panel %d"), bNearPanel ? 1 : 0); }},
+				{44.f, [&]() { Interact(); ADP_LOG(TEXT("UIPanelUse: E - in use %d"), ADoorPanelUse::IsActive() ? 1 : 0); }},
+				{44.3f, [&]() { Shot(TEXT("PanelUse_Reaching")); }},
+				{45.5f, [&]() { Shot(TEXT("PanelUse_Green")); ADoorPanelUse::TestPick(false); }},
+				{46.5f, [&]() { Shot(TEXT("PanelUse_Red")); ADoorPanelUse::TestPick(true); }},
+				{47.5f, [&]() { Interact(); }},
+				{47.62f, [&]() { Shot(TEXT("PanelUse_Pressing")); }},
+				{49.f, [&]() { Third(true); }},
+				{50.f, [&]() { Shot(TEXT("PanelUse_Behind")); }},
+				{51.f, [&]() { OnEscape(); ADP_LOG(TEXT("UIPanelUse: Back")); }},
+				{52.f, [&]() { Shot(TEXT("PanelUse_ArmDown")); ADP_LOG(TEXT("UIPanelUse: in use %d"), ADoorPanelUse::IsActive() ? 1 : 0); if (APlayerController* PCm = GetOwningPlayerController()) { FRotator R = PCm->GetControlRotation(); R.Yaw += 150.f; R.Pitch = -5.f; PCm->SetControlRotation(R); } }},
+				{60.f, [&]() { Shot(TEXT("PanelUse_Door_Opening")); }},
+				{61.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+			};
+			for (const FStep& St : PSteps)
+				if (Before < St.At && ShotClock >= St.At) St.Do();
 		}
 		// -UILoading: from the menus into the airport, the loading screen pictured while it works and when it's done
 		if (FParse::Param(FCommandLine::Get(), TEXT("UILoading")))
@@ -3103,7 +3142,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanelUse")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

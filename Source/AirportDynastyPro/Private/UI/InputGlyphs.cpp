@@ -47,6 +47,12 @@ namespace ADPInput
 		return A;
 	}
 
+	const FAction& PanelAction()
+	{
+		static const FAction A = {TEXT("Use the door panel"), EKeys::E, TEXT("E"), EKeys::Gamepad_FaceButton_Left, TEXT("X"), TEXT("Square"), TEXT("X")};
+		return A;
+	}
+
 	const FAction& SeatAction(bool bSitting)
 	{
 		static const FAction Sit = {TEXT("Sit down"), EKeys::E, TEXT("E"), EKeys::Gamepad_FaceButton_Left, TEXT("X"), TEXT("Square"), TEXT("X")};

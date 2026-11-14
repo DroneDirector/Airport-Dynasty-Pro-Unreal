@@ -326,9 +326,19 @@ bool AHangar::Press(const UPrimitiveComponent* C)
 	return true;
 }
 
+void AHangar::Command(bool bOpen)
+{
+	const int32 Want = bOpen ? (DoorK < 1.f ? 1 : 0) : (DoorK > 0.f ? -1 : 0);
+	if (DoorRun != 0 && Want != DoorRun) { DoorRun = 0; DoorPause = 1.f; DoorNext = Want; }   // (a hard stop, then the other way)
+	else if (DoorPause <= 0.f) DoorRun = Want;
+	else DoorNext = Want;
+	ADP_LOG(TEXT("Hangar %s door: sent %s by its panel"), *S.Id, bOpen ? TEXT("up") : TEXT("down"));
+}
+
 void AHangar::Tick(float Dt)
 {
 	Super::Tick(Dt);
+	if (DoorPause > 0.f) { DoorPause -= Dt; if (DoorPause <= 0.f) DoorRun = DoorNext; }
 	// the main door: 10 minutes from shut to fully open, held by STOP; the beacons flash while it moves
 	if (DoorRun != 0)
 	{

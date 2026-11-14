@@ -384,6 +384,69 @@ void AADPWalker::ArmIK()
 	const FQuat Qb = FMatrix(F2, T2, FVector::CrossProduct(F2, T2), FVector::ZeroVector).ToQuat();
 	const FQuat Want = Qb * Qa.Inverse() * TH3.GetRotation();
 	EyeBody->SetBoneRotationByName(Ha, FQuat::Slerp(TH3.GetRotation(), Want, ArmW).Rotator(), EBoneSpaces::WorldSpace);
+	if (!bPoint) return;
+	// pointing: the palm's side from the knuckles (index to little finger across the hand, the fingers along it: the palm
+	// lies to one side of both, the same side on every right hand); then each bone of the middle, ring and little fingers
+	// rolled in towards the palm, the thumb over them, and the index finger straightened along its first bone
+	auto P = [&](const TCHAR* B) { return Wt(FName(B)).GetLocation(); };
+	if (EyeBody->GetBoneIndex(TEXT("index_01_r")) == INDEX_NONE || EyeBody->GetBoneIndex(TEXT("pinky_01_r")) == INDEX_NONE) return;
+	const FVector Fd = (P(TEXT("middle_01_r")) - Wt(Ha).GetLocation()).GetSafeNormal();
+	const FVector Across = (P(TEXT("pinky_01_r")) - P(TEXT("index_01_r"))).GetSafeNormal();
+	const FVector Palm = (-FVector::CrossProduct(Fd, Across)).GetSafeNormal();   // (this side - checked on the owner's picture: the fingers fold into the palm, not over the back of the hand)
+	if (Palm.IsNearlyZero()) return;
+	auto Child = [](const FString& B) { const int32 n = FCString::Atoi(*B.Mid(B.Len() - 4, 2)); return B.Left(B.Len() - 4) + FString::Printf(TEXT("%02d_r"), n + 1); };
+	auto Roll = [&](const FString& B, const FVector& Toward, float Deg)
+	{
+		const FName Bn(*B); if (EyeBody->GetBoneIndex(Bn) == INDEX_NONE) return;
+		const FString C = Child(B);
+		FVector D;
+		if (EyeBody->GetBoneIndex(FName(*C)) != INDEX_NONE) D = (P(*C) - P(*B)).GetSafeNormal(); else D = Fd;
+		const FVector Ax = FVector::CrossProduct(D, Toward).GetSafeNormal();
+		if (Ax.IsNearlyZero()) return;
+		const FQuat Q0 = Wt(Bn).GetRotation();
+		EyeBody->SetBoneRotationByName(Bn, (FQuat(Ax, FMath::DegreesToRadians(Deg * ArmW)) * Q0).Rotator(), EBoneSpaces::WorldSpace);
+	};
+	// each finger bent about one fixed axis (across its first bone, towards the palm), knuckle by knuckle - a proper fist
+	// (bending each bone towards the palm on its own stopped once it pointed there: half-bent claws)
+	auto Bend3 = [&](const TCHAR* Fg, float A1, float A2, float A3)
+	{
+		const FString B1 = FString::Printf(TEXT("%s_01_r"), Fg), B2 = FString::Printf(TEXT("%s_02_r"), Fg), B3 = FString::Printf(TEXT("%s_03_r"), Fg);
+		if (EyeBody->GetBoneIndex(FName(*B1)) == INDEX_NONE || EyeBody->GetBoneIndex(FName(*B2)) == INDEX_NONE) return;
+		const FVector D1 = (P(*B2) - P(*B1)).GetSafeNormal();
+		const FVector Ax = FVector::CrossProduct(D1, Palm).GetSafeNormal();
+		if (Ax.IsNearlyZero()) return;
+		const FString Bs[3] = {B1, B2, B3}; const float As[3] = {A1, A2, A3};
+		for (int32 k = 0; k < 3; ++k)
+		{
+			const FName Bn(*Bs[k]); if (EyeBody->GetBoneIndex(Bn) == INDEX_NONE) continue;
+			EyeBody->SetBoneRotationByName(Bn, (FQuat(Ax, FMath::DegreesToRadians(As[k] * ArmW)) * Wt(Bn).GetRotation()).Rotator(), EBoneSpaces::WorldSpace);
+		}
+	};
+	Bend3(TEXT("middle"), 100.f, 115.f, 90.f);
+	Bend3(TEXT("ring"), 102.f, 115.f, 90.f);
+	Bend3(TEXT("pinky"), 105.f, 110.f, 85.f);
+	// the index finger: its second and third bones brought into line with its first (straight out)
+	for (const TCHAR* B : {TEXT("index_02_r"), TEXT("index_03_r")})
+	{
+		const FName Bn(B); if (EyeBody->GetBoneIndex(Bn) == INDEX_NONE) continue;
+		const FVector D1 = (P(TEXT("index_02_r")) - P(TEXT("index_01_r"))).GetSafeNormal();
+		const FString C = Child(B);
+		const FVector Db = EyeBody->GetBoneIndex(FName(*C)) != INDEX_NONE ? (P(*C) - P(B)).GetSafeNormal() : D1;
+		const FQuat QI = FQuat::FindBetweenNormals(Db, D1);
+		EyeBody->SetBoneRotationByName(Bn, (FQuat::Slerp(FQuat::Identity, QI, ArmW) * Wt(Bn).GetRotation()).Rotator(), EBoneSpaces::WorldSpace);
+	}
+	Bend3(TEXT("thumb"), 0.f, 35.f, 45.f);
+	(void)Roll;
+}
+
+bool AADPWalker::FingerTipNow(FVector& Out) const
+{
+	static const FName I2(TEXT("index_02_r")), I3(TEXT("index_03_r"));
+	USkinnedMeshComponent* B = bEyeBody && EyeBody ? static_cast<USkinnedMeshComponent*>(EyeBody) : static_cast<USkinnedMeshComponent*>(HumanBody);
+	if (!B || B->GetBoneIndex(I3) == INDEX_NONE || B->GetBoneIndex(I2) == INDEX_NONE) return false;
+	const FVector P2 = B->GetBoneTransform(B->GetBoneIndex(I2)).GetLocation(), P3 = B->GetBoneTransform(B->GetBoneIndex(I3)).GetLocation();
+	Out = P3 + (P3 - P2) * 0.85f;   // (the last joint's length again, nearly: to the fingertip)
+	return true;
 }
 
 bool AADPWalker::PalmNow(FTransform& Out) const

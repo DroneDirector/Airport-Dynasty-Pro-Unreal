@@ -55,6 +55,10 @@ public:
 	/** Your right palm now (world: its middle, the hand's rotation), and your right shoulder. False without a body. */
 	bool PalmNow(FTransform& Out) const;
 	FVector ShoulderNow() const;
+	/** The right hand pointing (a button to press): the index finger out straight, the others and the thumb curled in. */
+	void SetPoint(bool bOn) { bPoint = bOn; }
+	/** The right index finger's tip now (world). False without a body. */
+	bool FingerTipNow(FVector& Out) const;
 
 private:
 	#pragma region Moves
@@ -92,7 +96,7 @@ private:
 	void UseEyeBody(bool bOn);
 	void PoseEyeBody();
 	float ArmW = 0.f; FVector ArmAt = FVector::ZeroVector, ArmF = FVector::ForwardVector, ArmT = FVector::UpVector;
-	bool bEyeThird = false;
+	bool bEyeThird = false, bPoint = false;
 	void ArmIK();
 	void DriveHuman(float Dt);
 	void ToggleView() { SetThirdPerson(!bThird); }

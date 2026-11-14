@@ -1619,7 +1619,21 @@ AFireStationDoors::AFireStationDoors()
 }
 
 bool AFireStationDoors::bTestOpen = false;
-bool AFireStationDoors::bWantOpen = false;
+TWeakObjectPtr<AFireStationDoors> AFireStationDoors::One;
+
+void AFireStationDoors::Command(const FVector& At, bool bOpen)
+{
+	AFireStationDoors* D = One.Get();
+	if (!D) return;
+	int32 Best = INDEX_NONE; double BD = 1e12;
+	for (int32 i = 0; i < D->Bays.Num(); ++i) if (D->Bays[i].Group >= 0) { const double Dd = FVector::DistSquared2D(D->Bays[i].World, At); if (Dd < BD) { BD = Dd; Best = i; } }
+	if (Best != INDEX_NONE) { D->Bays[Best].bOpen = bOpen; ADP_LOG(TEXT("Fire station: bay door %d sent %s"), Best, bOpen ? TEXT("up") : TEXT("down")); }
+}
+
+void AFireStationDoors::CommandAll(bool bOpen)
+{
+	if (AFireStationDoors* D = One.Get()) for (FBay& B : D->Bays) B.bOpen = bOpen;
+}
 
 bool AFireStationDoors::InReach(const FVector& At)
 {
@@ -1690,7 +1704,8 @@ void AFireStationDoors::Tick(float Dt)
 		// inside or out. Shut otherwise: shut when you start, shut as you walk or drive up.
 		// (owner, 2026-11-14: never by themselves any more - all of them up or down by the button, O / D-pad right, within
 		// 25 m of the station)
-		const bool bWant = bTestOpen || bWantOpen;
+		One = this;
+		const bool bWant = bTestOpen || B.bOpen;   // (owner, 2026-11-14: only by its own panel, and it stays)
 		// never down onto anything (owner: not while a truck or anyone is under it): the door comes down only in its
 		// opening (its top runs along the ceiling, high over the trucks), so anything across the opening holds it
 		bool bBlocked = false;
@@ -1720,7 +1735,7 @@ void AFireStationDoors::Tick(float Dt)
 			if (B.Hum.IsValid()) B.Hum->Stop();
 			B.Hum = nullptr; B.Dir = 0;
 		};
-		if (B.Dir != 0 && Want != B.Dir) { StopMotor(); B.Pause = Want != 0 ? 0.6f : 0.f; }   // stopped, or turning back: a hard stop first
+		if (B.Dir != 0 && Want != B.Dir) { StopMotor(); B.Pause = Want != 0 ? 1.0f : 0.f; }   // (changing its way: stops, about a second, then goes)   // stopped, or turning back: a hard stop first
 		if (B.Pause > 0.f) { B.Pause -= Dt; continue; }
 		if (Want != 0 && B.Dir == 0)
 		{

@@ -250,10 +250,13 @@ public:
 	virtual void Tick(float Dt) override;
 	/** Test tours: every door held open. */
 	static bool bTestOpen;
-	/** The bay doors open or shut, as you set them (owner, 2026-11-14: by a button within 25 m of the station, O / D-pad
-	 *  right; never by themselves). A door still never comes down onto anything in its opening. */
-	static bool bWantOpen;
-	/** Within reach of the button: 25 m or less from the station's walls (world position). */
+	/** A door panel's button (owner, 2026-11-14: each bay door only by the panel beside it, DoorPanelUse.h): the bay door
+	 *  nearest At goes up (bOpen) or down and stays so until pressed again - never by itself. Changing its way mid-move
+	 *  it stops, waits about a second, then goes. A door still never comes down onto anything in its opening. */
+	static void Command(const FVector& At, bool bOpen);
+	/** Tests: every bay door sent up or down. */
+	static void CommandAll(bool bOpen);
+	/** Within 25 m of the station's walls (world position). */
 	static bool InReach(const FVector& At);
 
 private:
@@ -262,9 +265,10 @@ private:
 	struct FBay
 	{
 		int32 Group = -1; FVector Pivot = FVector::ZeroVector; FVector World = FVector::ZeroVector;
-		float K = 0.f, Hold = 0.f, Pause = 0.f; int32 Dir = 0;   // open 0-1, kept open a while, the stop before turning back, moving up / down
+		float K = 0.f, Hold = 0.f, Pause = 0.f; int32 Dir = 0; bool bOpen = false;   // (bOpen: where its panel last sent it)   // open 0-1, kept open a while, the stop before turning back, moving up / down
 		TWeakObjectPtr<UAudioComponent> Hum;
 	};
 	TArray<FBay> Bays;
+	static TWeakObjectPtr<AFireStationDoors> One;
 	void Sound(const FBay& B, const TArray<int16>& Pcm);
 };
