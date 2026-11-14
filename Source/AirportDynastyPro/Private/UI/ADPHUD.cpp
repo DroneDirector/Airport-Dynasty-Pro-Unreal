@@ -2950,6 +2950,18 @@ void AADPHUD::Tick(float Dt)
 				{TEXT("TS_8_LowCarPark"), 75.f, 1.7f, -120.f, 75.f, 6.f, 0.f, 15.5f},
 			};
 			// -UIRoadAirport -TownRoad: the road to town (the bend past 3 km, the big roundabout, the 5-7 km stretch, the town end)
+			// -UIRoadAirport -RoofShots: the roof tops in the owner's zinc (2026-11-14), placed round each roof's own bounds
+			// at run time (X, H, Y here: where round it - along its length 0..1, height over it in m, across 0..1 / -1 = in front)
+			const FV RoofViews[] = {
+				{TEXT("Roof_Wave_High"), 0.5f, 45.f, -1.6f, 0.5f, 0.f, 0.5f, 13.f},
+				{TEXT("Roof_Wave_Close"), 0.3f, 10.f, -0.15f, 0.45f, 0.f, 0.4f, 13.f},
+				{TEXT("Roof_Wave_End"), -0.25f, 18.f, 0.5f, 0.5f, 0.f, 0.5f, 13.f},
+				{TEXT("Roof_Rental_High"), 0.5f, 40.f, -1.4f, 0.5f, 0.f, 0.5f, 13.f},
+				{TEXT("Roof_Rental_Close"), 0.25f, 8.f, -0.1f, 0.45f, 0.f, 0.45f, 13.f},
+				// (owner: a very close shot of each at an angle, the seams to be seen)
+				{TEXT("Roof_Wave_VeryClose"), 0.42f, 3.f, 0.2f, 0.5f, 0.f, 0.32f, 13.f},
+				{TEXT("Roof_Rental_VeryClose"), 0.4f, 2.5f, 0.3f, 0.5f, 0.f, 0.42f, 13.f},
+			};
 			const FV TownViews[] = {
 				{TEXT("TR_1_BendHigh"), 2000.f, 160.f, -250.f, 2250.f, 0.f, -650.f, 14.f},
 				{TEXT("TR_2_RoundaboutHigh"), 2217.f, 90.f, -1080.f, 2217.f, 0.f, -1168.f, 14.f},
@@ -2986,8 +2998,9 @@ void AADPHUD::Tick(float Dt)
 			const FString Tag = FParse::Param(FCommandLine::Get(), TEXT("RainyDay")) ? TEXT("_Rain") : FParse::Param(FCommandLine::Get(), TEXT("SnowDay")) ? TEXT("_Snow") : TEXT("");
 			const bool bAirportSet = FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport"));
 			const bool bTerminalSet = FParse::Param(FCommandLine::Get(), TEXT("TerminalShots")), bTownSet = FParse::Param(FCommandLine::Get(), TEXT("TownRoad"));
-			const FV* Set = bTownSet ? TownViews : bTerminalSet ? TerminalViews : bAirportSet ? AirportViews : RoadViews;
-			const int32 NSet = bTownSet ? UE_ARRAY_COUNT(TownViews) : bTerminalSet ? UE_ARRAY_COUNT(TerminalViews) : bAirportSet ? UE_ARRAY_COUNT(AirportViews) : UE_ARRAY_COUNT(RoadViews);
+			const bool bRoofSet = FParse::Param(FCommandLine::Get(), TEXT("RoofShots"));
+			const FV* Set = bRoofSet ? RoofViews : bTownSet ? TownViews : bTerminalSet ? TerminalViews : bAirportSet ? AirportViews : RoadViews;
+			const int32 NSet = bRoofSet ? UE_ARRAY_COUNT(RoofViews) : bTownSet ? UE_ARRAY_COUNT(TownViews) : bTerminalSet ? UE_ARRAY_COUNT(TerminalViews) : bAirportSet ? UE_ARRAY_COUNT(AirportViews) : UE_ARRAY_COUNT(RoadViews);
 			for (int32 i = 0; i < NSet; ++i)
 			{
 				const float T0 = 43.f + i * 4.f; const FV& V = Set[i];
@@ -3000,6 +3013,30 @@ void AADPHUD::Tick(float Dt)
 					const FVector E = bBack ? A - F * 400.0 + Rt * 120.0 : A + F * 650.0 - Rt * 120.0;
 					Vw.X = E.X / 100.0; Vw.Y = -E.Y / 100.0; Vw.H = bBack ? 2.2f : 2.0f;
 					Vw.LX = A.X / 100.0; Vw.LY = -A.Y / 100.0; Vw.LH = 2.55f;
+				}
+				bool bWorldCam = false; FVector WE, WL;
+				if (FString(V.Name).StartsWith(TEXT("Roof_")))
+				{
+					// round the roof's own world bounds (the terminal's wave top or the car rental's roof top)
+					const TCHAR* Want = FString(V.Name).StartsWith(TEXT("Roof_Wave")) ? TEXT("terminal_mesh_997") : TEXT("terminal_mesh_2726");
+					FBox Bx(ForceInit);
+					for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It)
+					{
+						TArray<UInstancedStaticMeshComponent*> Ks; It->GetComponents(Ks);
+						for (UInstancedStaticMeshComponent* K : Ks) if (K->GetStaticMesh() && K->GetStaticMesh()->GetName() == Want) Bx += K->Bounds.GetBox();
+					}
+					if (Bx.IsValid)
+					{
+						const bool bLongX = Bx.GetSize().X >= Bx.GetSize().Y;
+						auto At = [&](float Along, float Across, float Up) {
+							const FVector Mn = Bx.Min, Sz = Bx.GetSize();
+							const FVector P = bLongX ? FVector(Mn.X + Sz.X * Along, Mn.Y + Sz.Y * Across, Bx.Max.Z + Up * 100.f) : FVector(Mn.X + Sz.X * Across, Mn.Y + Sz.Y * Along, Bx.Max.Z + Up * 100.f);
+							return P; };
+						const FVector E = At(V.X, V.Y, V.H), L = At(V.LX, V.LY, -(Bx.GetSize().Z / 100.f) * 0.5f);
+						bWorldCam = true; WE = E; WL = L;
+						if (Before < T0 && ShotClock >= T0) ADP_LOG(TEXT("RoofShots: %s round %s"), V.Name, *Bx.ToString());
+					}
+					else if (Before < T0 && ShotClock >= T0) ADP_ERROR(TEXT("RoofShots: %s not placed"), Want);
 				}
 				if (FString(V.Name) == TEXT("AR_Drain") || FString(V.Name) == TEXT("AR_Manhole"))
 				{
@@ -3017,7 +3054,12 @@ void AADPHUD::Tick(float Dt)
 						ADP_LOG(TEXT("UIRoadAirport: %s at %s (plan %.1f, %.1f); near it:%s"), V.Name, *A.ToString(), A.X / 100.0, -A.Y / 100.0, *L);
 					}
 				}
-				if (Before < T0 && ShotClock >= T0) { View(Vw.X, Vw.H, Vw.Y, Vw.LX, Vw.LH, Vw.LY); if (ASunClock::HourOverride != V.Hour) { ASunClock::HourOverride = V.Hour; ASunClock::Refresh(); } }
+				if (Before < T0 && ShotClock >= T0) { if (!bWorldCam) View(Vw.X, Vw.H, Vw.Y, Vw.LX, Vw.LH, Vw.LY);
+					else if (APlayerController* PCw = GetOwningPlayerController())
+					{
+						if (!RCam.IsValid()) RCam = GetWorld()->SpawnActor<ACameraActor>(WE, (WL - WE).Rotation()); else RCam->SetActorLocationAndRotation(WE, (WL - WE).Rotation());
+						if (RCam.IsValid()) { RCam->GetCameraComponent()->SetConstraintAspectRatio(false); RCam->GetCameraComponent()->SetFieldOfView(60.f); PCw->SetViewTarget(RCam.Get()); }
+					} if (ASunClock::HourOverride != V.Hour) { ASunClock::HourOverride = V.Hour; ASunClock::Refresh(); } }
 				if (Before < T0 + 3.f && ShotClock >= T0 + 3.f) Shot(*(FString(V.Name) + Tag));
 			}
 			// -RoadGroundProbe: the globe's ground measured under every road and car park outside the airfield (owner, 2026-11-14:

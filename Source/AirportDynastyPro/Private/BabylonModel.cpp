@@ -366,6 +366,7 @@ void ABabylonModel::ToneDown()
 			UMaterialInterface* Out = nullptr;
 			const FString MN = MatName(M);
 			const bool bLamp = MN.StartsWith(TEXT("glow")) || MN.EndsWith(TEXT("_LED")) || MN.StartsWith(TEXT("fids-")) || MN.StartsWith(TEXT("pic_"));
+			if (MN.StartsWith(TEXT("roof"))) { Done.Add(M, nullptr); continue; }   // (the owner's roof photo textures as they are: Tools/set_roof.py)
 			const EBlendMode Blend = M->GetBlendMode();
 			if (!bLamp && Blend == BLEND_Opaque)
 			{

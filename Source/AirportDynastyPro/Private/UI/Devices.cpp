@@ -83,10 +83,10 @@ TSharedRef<SWidget> AADPHUD::MakeDeviceLegend()
 TSharedRef<SWidget> AADPHUD::MakePanelHint()
 {
 	// (owner, 2026-11-14) low in the middle while you're at a door panel: how to choose, press and step back
-	const FLinearColor Ink(0.9f, 0.96f, 1.f), Cap(0.12f, 0.18f, 0.26f, 0.95f);
+	const FLinearColor HintInk(0.9f, 0.96f, 1.f), Cap(0.12f, 0.18f, 0.26f, 0.95f);
 	auto Key = [&](const TCHAR* K) { return SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(Cap).Padding(FMargin(8, 3))
-		[SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Bold", 11)).ColorAndOpacity(Ink).Text(FText::FromString(K))]; };
-	auto Say = [&](const TCHAR* T) { return SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Regular", 11)).ColorAndOpacity(Ink).Text(FText::FromString(T)); };
+		[SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Bold", 11)).ColorAndOpacity(HintInk).Text(FText::FromString(K))]; };
+	auto Say = [&](const TCHAR* T) { return SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Regular", 11)).ColorAndOpacity(HintInk).Text(FText::FromString(T)); };
 	return SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(FLinearColor(0.02f, 0.05f, 0.09f, 0.78f)).Padding(FMargin(14, 8))
 		.Visibility_Lambda([]() { return ADoorPanelUse::IsActive() ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
 		[
