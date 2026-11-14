@@ -27,6 +27,15 @@ public:
 	/** The band's outline cut out of the globe (plan m), for AGlobe. */
 	static const TArray<TArray<FVector2D>>& GlobeCut();
 
+	virtual void Tick(float Dt) override;
+
 private:
+	void ShowColours();
+	void PlantRim(const void*);
 	UPROPERTY() TObjectPtr<class UProceduralMeshComponent> Mesh;
+	UPROPERTY() TObjectPtr<class UMaterialInstanceDynamic> Mat;
+	UPROPERTY() TMap<int32, TObjectPtr<class UTexture2D>> Colours;   // the band's colours per globe picture (Settings > Imagery)
+	UPROPERTY() TObjectPtr<class UHierarchicalInstancedStaticMeshComponent> Plants;   // the grass clumps along its rim
+	TArray<TPair<FVector, FVector>> Rim;   // the rim's sides: middle, and a point inward (world cm)
+	int32 Shown = -1;
 };

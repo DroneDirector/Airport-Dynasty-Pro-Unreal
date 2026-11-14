@@ -282,3 +282,8 @@ road('TOWN-ROUNDABOUT', [(round(x, 2), round(y, 2)) for x, y in ring2], closed=T
 out = ROOT / 'Data' / 'roads.json'
 out.write_text(json.dumps({'source': 'Tools/make_roads.py', 'roads': roads, 'lots': lots}, indent=1, ensure_ascii=False), encoding='utf-8')
 print('%s: %d roads, %d car parks; forecourt %.0f m (band %.0f-%.0f, terminal %.0f-%.0f)' % (out, len(roads), len(lots), A.len, s_ne0, s_sw0, s_t0, s_t1))
+# our own land along the roads follows them (owner, 2026-11-14: extend a road and the ground under it comes with it):
+# the band rebuilt from the roads just written (Tools/make_land_corridor.py; needs the terrain tiles on F:)
+import subprocess, sys as _sys
+if '--no-land' not in _sys.argv:
+    subprocess.run([_sys.executable, str(ROOT / 'Tools' / 'make_land_corridor.py')], check=False)

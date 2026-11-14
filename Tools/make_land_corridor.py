@@ -5,7 +5,9 @@
 # edge is hidden: its outline wanders (no straight line), its last metres ease toward the globe's coarser ground, it
 # carries the same land-cover colours as the globe, a skirt runs down under its rim (ALandCorridor), and moss, grass
 # clumps and stones are set along it.
-#   python Tools/make_land_corridor.py        (after Tools/make_roads.py and a terrain rebuild)
+#   python Tools/make_land_corridor.py        (run by Tools/make_roads.py itself; again after a terrain rebuild)
+# Areas of our own ground besides the roads (the town, when it is built) go into AREAS: each a polygon in plan metres,
+# the band reaching round it as round a road.
 # Writes Data/land-corridor.json (the grid, the outline, the globe's cut) + land-corridor.bin (heights, float32, NaN
 # off the band) + land-corridor.png (the colours), and the same into Content/Data.
 import json, math, struct, sys
@@ -28,6 +30,7 @@ HALF = 120.0        # m the band reaches either side of a road
 WAVE = 28.0         # m its outline wanders in and out
 CUT_IN = 22.0       # m inside our outline the globe's cut stops (our land overlaps the globe there: no hole, ever)
 EASE = 30.0         # m over which the band's last stretch eases toward the globe's coarser ground
+AREAS = []          # [[(x, y), ...], ...] - e.g. the town's built area, once it is laid out
 COARSE_Z = 11       # the globe's level seen at mid distance (what the edge eases to)
 LC_Z = 7            # the land cover's North Atlantic level (Globe.cpp: 4 x 2 roots over -28.125..-5.625, 56.25..67.5)
 
@@ -87,6 +90,42 @@ def landcover_rgb(lon, lat):
         rgb[sel] = (a[y0, x0] * (1 - ax) + a[y0, x0 + 1] * ax) * (1 - ay) + (a[y0 + 1, x0] * (1 - ax) + a[y0 + 1, x0 + 1] * ax) * ay
     return rgb
 
+# the globe's pictures, as Globe.cpp's sources (Settings > Imagery): the band carries the same one, baked per source so it
+# matches whichever is shown (2026-11-14: the globe shows the Sentinel-2 photo by default - the black sand dark - not
+# the land cover). Web Mercator tiles, {z}/{y from the north}/{x}; cached on F:.
+SOURCES = {
+    0: ('https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg', 15),
+    1: ('https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/Landsat_WELD_CorrectedReflectance_TrueColor_Global_Annual/default/GoogleMapsCompatible_Level12/{z}/{y}/{x}.jpg', 12),
+    2: ('https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_NextGeneration/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg', 8),
+}
+CACHE = Path('F:/ADP-Terrain/imagery-cache')
+
+def imagery_rgb(lon, lat, src):
+    import urllib.request, io, time
+    url, z = SOURCES[src]; n = 1 << z
+    fx = (lon + 180.0) / 360.0 * n
+    la = np.radians(lat); fy = (1.0 - np.log(np.tan(la) + 1.0 / np.cos(la)) / math.pi) / 2.0 * n
+    tx = np.floor(fx).astype(int); ty = np.floor(fy).astype(int)
+    rgb = np.zeros((len(lon), 3), np.float32)
+    for key in set(zip(tx, ty)):
+        f = CACHE / str(src) / str(z) / str(key[1]) / ('%d.img' % key[0])
+        if not f.exists():
+            f.parent.mkdir(parents=True, exist_ok=True)
+            req = urllib.request.Request(url.format(z=z, y=key[1], x=key[0]), headers={'User-Agent': 'AirportDynastyPro-terrain-tool'})
+            for attempt in range(4):
+                try: f.write_bytes(urllib.request.urlopen(req, timeout=30).read()); break
+                except Exception as e:
+                    if attempt == 3: print('  tile %s failed: %s' % (key, e)); break
+                    time.sleep(2 + 3 * attempt)
+            time.sleep(0.15)
+        if not f.exists(): continue
+        a = np.asarray(Image.open(f).convert('RGB'), np.float32); S = a.shape[0]
+        sel = (tx == key[0]) & (ty == key[1])
+        px = np.clip((fx[sel] - key[0]) * S - 0.5, 0, S - 1.001); py = np.clip((fy[sel] - key[1]) * S - 0.5, 0, S - 1.001)
+        x0 = px.astype(int); y0 = py.astype(int); ax = (px - x0)[:, None]; ay = (py - y0)[:, None]
+        rgb[sel] = (a[y0, x0] * (1 - ax) + a[y0, x0 + 1] * ax) * (1 - ay) + (a[y0 + 1, x0] * (1 - ax) + a[y0 + 1, x0 + 1] * ax) * ay
+    return rgb
+
 def wavy(poly, amp, seed=7):
     """the outline wandering in and out by up to amp (smooth: a few long waves along it), so no straight edge shows"""
     rnd = np.random.default_rng(seed)
@@ -113,7 +152,7 @@ def main():
     R = json.loads((ROOT / 'Data' / 'roads.json').read_text(encoding='utf-8'))
     lines = [LineString([(p[0], p[1]) for p in r['pts']]) for r in R['roads'] if len(r['pts']) > 1]
     lines = [l for l in lines if not field.buffer(-60).contains(l)]
-    band = unary_union([l.buffer(HALF, quad_segs=12) for l in lines])
+    band = unary_union([l.buffer(HALF, quad_segs=12) for l in lines] + [Polygon(a).buffer(HALF * 0.5) for a in AREAS])
     band = wavy(band, WAVE).difference(field.buffer(-40))        # (the airfield's own ground inside: ours already)
     band = band.simplify(1.0)
     cut = band.buffer(-CUT_IN).simplify(2.0)
@@ -136,11 +175,14 @@ def main():
     z = zf * (1 - t) + zc * t
     Z = np.full((ny, nx), np.nan, np.float32); Z[inside] = z
     # the colours: the globe's land cover, one pixel a grid point
-    rgb = landcover_rgb(lon, lat)
-    img = np.zeros((ny, nx, 3), np.uint8); img[inside] = np.clip(rgb, 0, 255).astype(np.uint8)
-    # (outside the band, the nearest colour: no dark rim from filtering at the edge)
     from scipy.ndimage import distance_transform_edt
-    _, (iy, ix) = distance_transform_edt(~inside, return_indices=True); img = img[iy, ix]
+    _, (iy, ix) = distance_transform_edt(~inside, return_indices=True)
+    pics = {}
+    for src in (0, 1, 2, 3):
+        rgb = imagery_rgb(lon, lat, src) if src in SOURCES else landcover_rgb(lon, lat)
+        img = np.zeros((ny, nx, 3), np.uint8); img[inside] = np.clip(rgb, 0, 255).astype(np.uint8)
+        pics[src] = img[iy, ix]    # (outside the band, the nearest colour: no dark rim from filtering at the edge)
+        print('  colours from source %d' % src, flush=True)
     def rings(g):
         geoms = [g] if g.geom_type == 'Polygon' else list(g.geoms)
         return [[[round(x, 2), round(y, 2)] for x, y in p.exterior.coords] for p in geoms if p.area > 400]
@@ -149,7 +191,9 @@ def main():
     for d in (ROOT / 'Data', ROOT / 'Content' / 'Data'):
         (d / 'land-corridor.json').write_text(json.dumps(head))
         Z.astype('<f4').tofile(d / 'land-corridor.bin')
-        Image.fromarray(img[::-1]).save(d / 'land-corridor.png')   # (row 0 = the north edge, y1, as images run)
+        for src, img in pics.items():   # (row 0 = the north edge, y1, as images run); -0 the default (Sentinel-2)
+            Image.fromarray(img[::-1]).save(d / ('land-corridor-%d.png' % src))
+        (d / 'land-corridor.png').unlink(missing_ok=True)
     print('land corridor: %d points, ground %.1f to %.1f m, %d cut polygons' % (inside.sum(), np.nanmin(Z), np.nanmax(Z), len(head['cut'])))
 
 if __name__ == '__main__':

@@ -1,6 +1,10 @@
 // Our own land along the roads (LandCorridor.h).
 #include "LandCorridor.h"
 #include "ADPLog.h"
+#include "Airfield.h"
+#include "Globe.h"
+#include "GrassField.h"
+#include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "ProceduralMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/Texture2D.h"
@@ -78,11 +82,64 @@ namespace
 
 ALandCorridor::ALandCorridor()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.TickInterval = 1.0f;
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 }
 
 const TArray<TArray<FVector2D>>& ALandCorridor::GlobeCut() { return Load().Cut; }
+
+void ALandCorridor::ShowColours()
+{
+	// the same picture as the globe round it (Settings > Imagery: AGlobe::ShownSource): land-corridor-<source>.png
+	if (!Mat) return;
+	const int32 S = FMath::Clamp(AGlobe::ShownSource, 0, 3);
+	if (S == Shown) return;
+	TObjectPtr<UTexture2D>& Tex = Colours.FindOrAdd(S);
+	if (!Tex) Tex = LoadPng(DataFile(*FString::Printf(TEXT("land-corridor-%d.png"), S)));
+	if (!Tex) { ADP_WARN(TEXT("Land corridor: land-corridor-%d.png missing"), S); return; }
+	Mat->SetTextureParameterValue(TEXT("Base"), Tex);
+	Shown = S;
+}
+
+void ALandCorridor::Tick(float Dt)
+{
+	Super::Tick(Dt);
+	ShowColours();
+	if (Plants) Plants->SetVisibility(AGrassField::bOn);
+}
+
+void ALandCorridor::PlantRim(const void*)
+{
+	// along the band's rim: clumps of grass and tufts (the airfield's own grass clumps) in a strip from 2 m outside the
+	// edge to 14 m inside it, thickest at the edge - where an edge could show, near the camera, it is broken up
+	UStaticMesh* Tuft = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/Materials/Grass/SM_GrassFar.SM_GrassFar"));
+	if (!Tuft || Rim.Num() == 0) return;
+	Plants = NewObject<UHierarchicalInstancedStaticMeshComponent>(this, TEXT("RimPlants"));
+	Plants->SetupAttachment(RootComponent); Plants->SetStaticMesh(Tuft);
+	Plants->SetCollisionEnabled(ECollisionEnabled::NoCollision); Plants->SetCastShadow(false);
+	Plants->SetCullDistances(0, 60000);
+	Plants->RegisterComponent(); AddInstanceComponent(Plants);
+	FRandomStream R(20261114);
+	TArray<FTransform> Xf;
+	for (const TPair<FVector, FVector>& E : Rim)
+	{
+		FVector In = (E.Value - E.Key); In.Z = 0; In = In.GetSafeNormal();
+		for (int32 k = 0; k < 6; ++k)
+		{
+			const double D = FMath::Lerp(-2.0, 14.0, FMath::Pow(R.FRand(), 1.8)) * 100.0;   // (most at the edge)
+			const FVector Side = FVector(-In.Y, In.X, 0) * R.FRandRange(-125.0, 125.0);
+			FVector At = E.Key + In * D + Side;
+			double Zg; const double PX = At.X / 100.0, PY = -At.Y / 100.0;
+			if (!HeightAt(PX, PY, Zg)) continue;
+			At.Z = Zg * 100.0 - 3.0;
+			const float Sc = R.FRandRange(0.7f, 1.6f);
+			Xf.Add(FTransform(FRotator(0, R.FRandRange(0.f, 360.f), 0), At, FVector(Sc, Sc, Sc * R.FRandRange(0.8f, 1.3f))));
+		}
+	}
+	Plants->AddInstances(Xf, false, true);
+	ADP_LOG(TEXT("Land corridor: %d grass clumps along its rim"), Xf.Num());
+}
 
 void ALandCorridor::AddRoadSample(double X, double Y, double Z, double HalfWidth) { RoadSamples.Add(FVector4(X, Y, Z, HalfWidth)); }
 
@@ -136,25 +193,39 @@ int32 ALandCorridor::Build()
 				else if (Best < 6.6) { const double t = FMath::SmoothStep(0.6, 6.6, Best); V = float(FMath::Lerp(Under, double(V), t)); }
 			}
 	}
-	// ---- the mesh: a section per block of 128 x 128 cells, two triangles a cell; a skirt 4 m down under every outer edge ----
+	// ---- where it runs into the airfield: its land eased under the airfield's own ground (10 cm below it, over 40 m
+	// inside the boundary), so the two never fight and the airfield's ground shows ----
+	{
+		const FAirfieldData::FRect& FB = AAirfield::Shared().Boundary;
+		for (int32 j = 0; j < B.NY; ++j)
+			for (int32 i = 0; i < B.NX; ++i)
+			{
+				float& V = Z[j * B.NX + i];
+				if (FMath::IsNaN(V)) continue;
+				const double X = B.X0 + i * B.Step, Y = B.Y0 + j * B.Step;
+				const double In = FMath::Min(FMath::Min(X - FB.X0, FB.X1 - X), FMath::Min(Y - FB.Y0, FB.Y1 - Y));
+				if (In > 0.0) V = float(FMath::Lerp(double(V), AAirfield::GroundAt(X, Y) - 0.10, FMath::SmoothStep(0.0, 40.0, In)));
+			}
+	}
+	// ---- the mesh: two triangles a cell, one on a cell at the edge with three of its corners on the band (the outline
+	// as fine as the grid's diagonals, no staircase); a skirt 4 m down under every edge that is the band's outer rim ----
 	Mesh = NewObject<UProceduralMeshComponent>(this, TEXT("LandCorridor"));
 	Mesh->SetupAttachment(RootComponent);
 	Mesh->bUseAsyncCooking = true;
 	Mesh->SetCollisionProfileName(TEXT("BlockAll"));
 	Mesh->RegisterComponent();
 	AddInstanceComponent(Mesh);
-	UMaterialInstanceDynamic* Mat = nullptr;
-	if (UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Terminal/Masters/M_TSurface_DS.M_TSurface_DS")   /* (two-sided: the skirt shows from either side) */))
+	if (UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Terminal/Masters/M_TSurface_DS.M_TSurface_DS")))   // (two-sided: the skirt shows from either side)
 	{
 		Mat = UMaterialInstanceDynamic::Create(Base, this);
-		if (UTexture2D* Tex = LoadPng(DataFile(TEXT("land-corridor.png")))) Mat->SetTextureParameterValue(TEXT("Base"), Tex);
-		else ADP_WARN(TEXT("Land corridor: land-corridor.png missing - plain colour"));
-		Mat->SetVectorParameterValue(TEXT("BC"), FLinearColor::White);
+		// (toned to the globe's own look: Cesium draws the same picture a little darker and bluer - measured on both sides of
+		// the rim in the game's pictures, 2026-11-14)
+		Mat->SetVectorParameterValue(TEXT("BC"), FLinearColor(0.52f, 0.58f, 0.66f));   // (linear: about 0.75, 0.78, 0.83 on screen)
 		Mat->SetVectorParameterValue(TEXT("OS"), FLinearColor(0, 0, 1, 1));
 		Mat->SetScalarParameterValue(TEXT("R"), 0.95f); Mat->SetScalarParameterValue(TEXT("M"), 0.f);
+		ShowColours();
 	}
 	auto Ok = [&](int32 i, int32 j) { return i >= 0 && j >= 0 && i < B.NX && j < B.NY && !FMath::IsNaN(Z[j * B.NX + i]); };
-	auto CellOk = [&](int32 i, int32 j) { return Ok(i, j) && Ok(i + 1, j) && Ok(i, j + 1) && Ok(i + 1, j + 1); };
 	auto P = [&](int32 i, int32 j) { return FVector((B.X0 + i * B.Step) * 100.0, -(B.Y0 + j * B.Step) * 100.0, Z[j * B.NX + i] * 100.0); };
 	auto Nrm = [&](int32 i, int32 j)
 	{
@@ -163,37 +234,63 @@ int32 ALandCorridor::Build()
 		FVector N = FVector::CrossProduct(Ax, Ay).GetSafeNormal(); if (N.Z < 0) N = -N; return N.IsNearlyZero() ? FVector::UpVector : N;
 	};
 	auto UV = [&](int32 i, int32 j) { return FVector2D((i + 0.5) / B.NX, 1.0 - (j + 0.5) / B.NY); };
-	const int32 Blk = 128; int32 Sct = 0, Tris = 0;
-	for (int32 bj = 0; bj < B.NY - 1; bj += Blk)
-		for (int32 bi = 0; bi < B.NX - 1; bi += Blk)
+	// every triangle by grid corners (K = j * NX + i), and how many triangles share each side
+	struct FTri { int32 K[3]; int32 Blk; };
+	TArray<FTri> Tris3;
+	TMap<uint64, int32> Uses;
+	const int32 Blk = 128, NBX = (B.NX + Blk - 1) / Blk;
+	auto Side = [](int32 a, int32 b) { return a < b ? (uint64(a) << 32) | uint32(b) : (uint64(b) << 32) | uint32(a); };
+	auto AddTri = [&](int32 a, int32 b, int32 c, int32 Bk) { Tris3.Add({{a, b, c}, Bk}); Uses.FindOrAdd(Side(a, b))++; Uses.FindOrAdd(Side(b, c))++; Uses.FindOrAdd(Side(c, a))++; };
+	for (int32 j = 0; j < B.NY - 1; ++j)
+		for (int32 i = 0; i < B.NX - 1; ++i)
 		{
-			TArray<FVector> V, N; TArray<FVector2D> T; TArray<int32> I; TMap<int32, int32> Idx;
-			auto Vtx = [&](int32 i, int32 j) { const int32 K = j * B.NX + i; if (const int32* F = Idx.Find(K)) return *F; const int32 n = V.Add(P(i, j)); N.Add(Nrm(i, j)); T.Add(UV(i, j)); Idx.Add(K, n); return n; };
-			auto Down = [&](int32 i, int32 j) { const int32 n = V.Add(P(i, j) - FVector(0, 0, 400.0)); N.Add(Nrm(i, j)); T.Add(UV(i, j)); return n; };
-			for (int32 j = bj; j < FMath::Min(bj + Blk, B.NY - 1); ++j)
-				for (int32 i = bi; i < FMath::Min(bi + Blk, B.NX - 1); ++i)
-				{
-					if (!CellOk(i, j)) continue;
-					const int32 a = Vtx(i, j), b = Vtx(i + 1, j), c = Vtx(i, j + 1), d = Vtx(i + 1, j + 1);
-					I.Append({a, b, d, a, d, c});
-					// the skirt: under each side of the cell with no cell beyond it
-					auto Skirt = [&](int32 i0, int32 j0, int32 i1, int32 j1) { const int32 p = Vtx(i0, j0), q = Vtx(i1, j1), pd = Down(i0, j0), qd = Down(i1, j1); I.Append({p, q, qd, p, qd, pd}); };
-					if (!CellOk(i, j - 1)) Skirt(i, j, i + 1, j);
-					if (!CellOk(i, j + 1)) Skirt(i + 1, j + 1, i, j + 1);
-					if (!CellOk(i - 1, j)) Skirt(i, j + 1, i, j);
-					if (!CellOk(i + 1, j)) Skirt(i + 1, j, i + 1, j + 1);
-				}
-			if (I.Num() == 0) continue;
-			// (wound to face up / out: as the road paint - a triangle shows from the side its corners run clockwise on)
-			for (int32 t = 0; t + 2 < I.Num(); t += 3)
-			{
-				const FVector Fn = FVector::CrossProduct(V[I[t + 1]] - V[I[t]], V[I[t + 2]] - V[I[t]]);
-				if (FMath::Abs(Fn.Z) > 1e-3 ? Fn.Z > 0 : false) Swap(I[t + 1], I[t + 2]);
-			}
-			Mesh->CreateMeshSection_LinearColor(Sct, V, I, N, T, TArray<FLinearColor>(), TArray<FProcMeshTangent>(), true);
-			if (Mat) Mesh->SetMaterial(Sct, Mat);
-			++Sct; Tris += I.Num() / 3;
+			const bool A = Ok(i, j), Bq = Ok(i + 1, j), C = Ok(i, j + 1), D = Ok(i + 1, j + 1);
+			const int32 a = j * B.NX + i, b = a + 1, c = a + B.NX, d = c + 1, Bk = (j / Blk) * NBX + i / Blk;
+			const int32 n = int32(A) + int32(Bq) + int32(C) + int32(D);
+			if (n == 4) { AddTri(a, b, d, Bk); AddTri(a, d, c, Bk); }
+			else if (n == 3) { if (!A) AddTri(b, d, c, Bk); else if (!Bq) AddTri(a, d, c, Bk); else if (!C) AddTri(a, b, d, Bk); else AddTri(a, b, c, Bk); }
 		}
+	// the rim (sides used once), for the skirt and the plants along it - not where the band runs into the airfield
+	const FAirfieldData::FRect& FB = AAirfield::Shared().Boundary;
+	auto OnField = [&](int32 K) { const double X = B.X0 + (K % B.NX) * B.Step, Y = B.Y0 + (K / B.NX) * B.Step; return FMath::Min(FMath::Min(X - FB.X0, FB.X1 - X), FMath::Min(Y - FB.Y0, FB.Y1 - Y)) > -5.0; };
+	TMap<int32, TArray<int32>> ByBlk;
+	for (int32 t = 0; t < Tris3.Num(); ++t) ByBlk.FindOrAdd(Tris3[t].Blk).Add(t);
+	int32 Sct = 0, Tris = 0;
+	Rim.Reset();
+	for (TPair<int32, TArray<int32>>& It : ByBlk)
+	{
+		TArray<FVector> V, N; TArray<FVector2D> T; TArray<int32> I; TMap<int32, int32> Idx;
+		auto Vtx = [&](int32 K) { if (const int32* F = Idx.Find(K)) return *F; const int32 i = K % B.NX, j = K / B.NX; const int32 n = V.Add(P(i, j)); N.Add(Nrm(i, j)); T.Add(UV(i, j)); Idx.Add(K, n); return n; };
+		auto Down = [&](int32 K) { const int32 i = K % B.NX, j = K / B.NX; const int32 n = V.Add(P(i, j) - FVector(0, 0, 400.0)); N.Add(Nrm(i, j)); T.Add(UV(i, j)); return n; };
+		for (const int32 t : It.Value)
+		{
+			const FTri& Tr = Tris3[t];
+			I.Append({Vtx(Tr.K[0]), Vtx(Tr.K[1]), Vtx(Tr.K[2])});
+			for (int32 e = 0; e < 3; ++e)
+			{
+				const int32 p = Tr.K[e], q = Tr.K[(e + 1) % 3];
+				if (Uses.FindRef(Side(p, q)) != 1 || (OnField(p) && OnField(q))) continue;
+				// (the rim's skirt flares out 8 m as it goes 4 m down: where the globe lies lower it meets it as a gentle bank in
+				// the same colours, not a step)
+				const int32 o3 = Tr.K[(e + 2) % 3];
+				FVector Out = (P(p % B.NX, p / B.NX) + P(q % B.NX, q / B.NX)) * 0.5 - P(o3 % B.NX, o3 / B.NX); Out.Z = 0; Out = Out.GetSafeNormal() * 800.0;
+				auto Flare = [&](int32 K) { const int32 i = K % B.NX, j = K / B.NX; const int32 n = V.Add(P(i, j) + Out - FVector(0, 0, 400.0)); N.Add(Nrm(i, j)); T.Add(UV(i, j)); return n; };
+				const int32 vp = Vtx(p), vq = Vtx(q), dp = Flare(p), dq = Flare(q);
+				I.Append({vp, vq, dq, vp, dq, dp});
+				const int32 o = Tr.K[(e + 2) % 3];   // (the triangle's third corner: inward from this side)
+				Rim.Add(TPair<FVector, FVector>((P(p % B.NX, p / B.NX) + P(q % B.NX, q / B.NX)) * 0.5, P(o % B.NX, o / B.NX)));
+			}
+		}
+		for (int32 t = 0; t + 2 < I.Num(); t += 3)
+		{
+			const FVector Fn = FVector::CrossProduct(V[I[t + 1]] - V[I[t]], V[I[t + 2]] - V[I[t]]);
+			if (FMath::Abs(Fn.Z) > 1e-3 && Fn.Z > 0) Swap(I[t + 1], I[t + 2]);   // (wound to face up, as the road paint)
+		}
+		Mesh->CreateMeshSection_LinearColor(Sct, V, I, N, T, TArray<FLinearColor>(), TArray<FProcMeshTangent>(), true);
+		if (Mat) Mesh->SetMaterial(Sct, Mat);
+		++Sct; Tris += I.Num() / 3;
+	}
+	PlantRim(nullptr);
 	ADP_LOG(TEXT("Land corridor: %d triangles in %d sections, shaped under %d road samples, in %.2f s"), Tris, Sct, RoadSamples.Num(), FPlatformTime::Seconds() - T0);
 	return Tris;
 }
