@@ -22,7 +22,9 @@ from collections import defaultdict
 import unreal
 
 ROOT = unreal.Paths.project_dir()
-J = json.load(open(os.path.join(ROOT, 'Data', 'babylon-terminal.json')))
+# (the true-Unreal terminal, 2026-11-14: its own layout and its native pieces, Data/terminal-layout.json + terminal-pieces.json)
+J = json.load(open(os.path.join(ROOT, 'Data', 'terminal-layout.json')))
+PIECES = json.load(open(os.path.join(ROOT, 'Data', 'terminal-pieces.json')))
 N = J['nodes']
 parent = {}
 for i, n in enumerate(N):
@@ -43,13 +45,13 @@ def group(i):
 
 used = defaultdict(set)
 for i, n in enumerate(N):
-    if 'mesh' in n: used[n['mesh']].add(group(i))
+    if 'mesh' in n: used[PIECES.get('terminal_mesh_%d' % n['mesh'], ['terminal_mesh_%d' % n['mesh']])[0]].add(group(i))
 
 CHUNK = {'terminal': 2, 'jetways': 3, 'rental': 4, 'site': 5, 'aircraft': 6, 'shared': 7}
 lists = defaultdict(list)
 for m, gs in used.items():
     g = next(iter(gs)) if len(gs) == 1 else 'shared'
-    lists[g].append('/Game/Babylon/Terminal/terminal/StaticMeshes/terminal_mesh_%d.terminal_mesh_%d' % (m, m))
+    lists[g].append('/Game/Terminal/Meshes/%s.%s' % (m, m))
 
 tools = unreal.AssetToolsHelpers.get_asset_tools()
 eal = unreal.EditorAssetLibrary
@@ -76,8 +78,8 @@ def label(name, chunk, priority, assets=(), dirs=()):
     unreal.log('chunk %d %s: %d assets' % (chunk, name, len(a.get_editor_property('explicit_assets'))))
 
 # the materials first and above the rest (priority): shared by every building, kept in one file
-label('Chunk01_Materials', 1, 10, dirs=['/Game/Materials', '/Game/Babylon/Masters', '/Game/Babylon/Terminal/terminal/Materials',
-      '/Game/Babylon/Terminal/terminal/Textures', '/Game/Babylon/Lounge/lounge/Materials', '/Game/Babylon/Lounge/lounge/Textures',
+label('Chunk01_Materials', 1, 10, dirs=['/Game/Materials', '/Game/Babylon/Masters', '/Game/Terminal/Masters', '/Game/Terminal/Materials',
+      '/Game/Terminal/Textures', '/Game/Terminal/Detail', '/Game/Babylon/Lounge/lounge/Materials', '/Game/Babylon/Lounge/lounge/Textures',
       '/Game/Babylon/Airliner/airliner/Materials', '/Game/Babylon/Airliner/airliner/Textures', '/Game/Babylon/GateSeat/gateseat/Materials'])
 label('Chunk02_Terminal', 2, 5, assets=lists['terminal'], dirs=['/Game/Babylon/Lounge/lounge/StaticMeshes', '/Game/Babylon/GateSeat/gateseat/StaticMeshes'])
 label('Chunk03_Jetways', 3, 5, assets=lists['jetways'])
@@ -93,5 +95,5 @@ label('Chunk11_Offices', 11, 5, dirs=['/Game/Babylon/Office', '/Game/Babylon/Ops
 label('Chunk12_Characters', 12, 5, dirs=['/Game/Characters'])
 label('Chunk13_WindSocks', 13, 5, dirs=['/Game/WindSock'])
 # the terminal's meshes the node tree doesn't name (merged and split parts): with the terminal, below the labels above
-label('Chunk02b_TerminalRest', 2, 1, dirs=['/Game/Babylon/Terminal/terminal/StaticMeshes'])
+label('Chunk02b_TerminalRest', 2, 1, dirs=['/Game/Terminal/Meshes'])
 unreal.log('chunk labels done: ' + ', '.join('%s %d' % (k, len(v)) for k, v in lists.items()))

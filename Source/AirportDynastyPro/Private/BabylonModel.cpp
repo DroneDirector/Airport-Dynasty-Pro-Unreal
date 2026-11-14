@@ -34,7 +34,9 @@ ABabylonModel::ABabylonModel()
 bool ABabylonModel::Place(const FString& Name)
 {
 	Model = Name;
-	const FString File = FString::Printf(TEXT("Data/babylon-%s.json"), *Name.ToLower());
+	// (the terminal: its own layout, Data/terminal-layout.json, no longer the Babylon export's; -OldTerminal compares)
+	const bool bOwnLayout = Name == TEXT("Terminal") && !FParse::Param(FCommandLine::Get(), TEXT("OldTerminal"));
+	const FString File = bOwnLayout ? FString(TEXT("Data/terminal-layout.json")) : FString::Printf(TEXT("Data/babylon-%s.json"), *Name.ToLower());
 	FString Path = FPaths::Combine(FPaths::ProjectContentDir(), File);
 	if (!FPaths::FileExists(Path)) Path = FPaths::Combine(FPaths::ProjectDir(), File);
 	FString Text;
@@ -292,6 +294,7 @@ namespace
 	UMaterialInterface* TerminalMaterial(const TCHAR* N)
 	{
 		if (UMaterialInterface* M = LoadObject<UMaterialInterface>(nullptr, *FString::Printf(TEXT("/Game/Terminal/Materials/MI_T_%s.MI_T_%s"), N, N))) return M;
+		if (!FParse::Param(FCommandLine::Get(), TEXT("OldTerminal"))) return nullptr;
 		return LoadObject<UMaterialInterface>(nullptr, *FString::Printf(TEXT("/Game/Babylon/Terminal/terminal/Materials/%s.%s"), N, N));
 	}
 }

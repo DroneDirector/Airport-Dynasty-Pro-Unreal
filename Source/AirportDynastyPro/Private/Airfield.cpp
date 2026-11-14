@@ -1033,7 +1033,7 @@ void AAirfield::FlushSheets()
 			// asphalt, concrete, apron and grass also dress buildings); the terminal model's apron under the layout's apron
 			static const TMap<FName, FName> Ground = {{TEXT("asphalt"), TEXT("gasphalt")}, {TEXT("concrete"), TEXT("gconcrete")}, {TEXT("apron"), TEXT("gapron")}, {TEXT("grass"), TEXT("ggrass")}};
 			UMaterialInterface* Mat = nullptr;
-			if (It.Key == TEXT("babylonApron")) Mat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Babylon/Terminal/terminal/Materials/apron.apron"));
+			if (It.Key == TEXT("babylonApron")) Mat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Terminal/Materials/MI_T_apron.MI_T_apron"));   // (the terminal's own, true Unreal)
 			else if (It.Key == TEXT("standwear")) Mat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Ground/M_StandWear.M_StandWear"));
 			if (!Mat) Mat = ATerminalBuilder::KitMaterial(this, Ground.Contains(It.Key) ? Ground[It.Key] : It.Key);
 			M->SetMaterial(0, Mat);

@@ -61,7 +61,8 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 	// the map): then Unreal's stand-in pieces and moving aircraft step aside, and the airfield keeps only what lies
 	// beyond the model's own site
 	// (asked of the asset registry, not the disk: in a release build the model is inside the game's pak files)
-	const bool bBabylon = FPackageName::DoesPackageExist(TEXT("/Game/Babylon/Terminal/terminal/StaticMeshes/terminal_mesh_0"));
+	// (the true-Unreal terminal, /Game/Terminal, since 2026-11-14; the Babylon-exported set only in the editor, to compare)
+	const bool bBabylon = FPackageName::DoesPackageExist(TEXT("/Game/Terminal/Meshes/terminal_mesh_0")) || FPackageName::DoesPackageExist(TEXT("/Game/Babylon/Terminal/terminal/StaticMeshes/terminal_mesh_0"));
 	FTerminalPlan Plan;
 	if (!Plan.Load()) return;
 	{
