@@ -2946,7 +2946,7 @@ void AADPHUD::Tick(float Dt)
 			const FStep PSteps[] = {
 				{40.f, [&]() { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 13.f; ASunClock::Refresh(); Third(false);
 					if (APlayerController* PCm = GetOwningPlayerController()) PCm->ConsoleCommand(TEXT("r.MotionBlurQuality 0"));
-					for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It) if (It->Model == TEXT("DoorPanel") && It->Tags.Contains(TEXT("BayDoor2"))) Pn = *It; }},
+					for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It) if (It->Model == TEXT("DoorPanel") && It->Tags.Contains(FParse::Param(FCommandLine::Get(), TEXT("HangarPanel")) ? FName(TEXT("HangarDoor")) : FName(TEXT("BayDoor2")))) Pn = *It; }},
 				{42.f, [&]() { if (ABabylonModel* P = Pn.Get()) if (APawn* Me = GetOwningPawn()) { const FVector F = P->GetActorRightVector(); const FVector At = P->GetActorLocation() + F * 140.f + FVector(0, 0, 95.f);
 					Me->SetActorLocationAndRotation(At, FRotator(0.f, (-F).Rotation().Yaw, 0.f), false, nullptr, ETeleportType::TeleportPhysics); if (APlayerController* PCm = GetOwningPlayerController()) PCm->SetControlRotation(FRotator(-10.f, (-F).Rotation().Yaw, 0.f)); } }},
 				{43.5f, [&]() { Shot(TEXT("PanelUse_Before")); ADP_LOG(TEXT("UIPanelUse: near a panel %d"), bNearPanel ? 1 : 0); }},
