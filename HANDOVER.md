@@ -89,8 +89,8 @@ To do:
    overlaps it.
 4. **It will be moved later, so place it from data, not by hand:** an entry in the terminal layout's placed props
    (position, heading, floor) so moving it is changing numbers; later more kiosks can be added the same way.
-5. No render or screenshot (the owner looks himself). Chapters and CODE-MAP.md as usual; THIRD-PARTY-NOTICES: nothing
-   (all our own; Inter font OFL is already listed for the UI text).
+5. No render or screenshot (the owner looks himself). Chapters and CODE-MAP.md as usual. THIRD-PARTY-NOTICES: the model is
+   our own; the screen's text uses the Inter font (SIL Open Font License), so add Inter there if it isn't listed.
 
 ### Then: what The Matrix Awakens / City Sample uses that fits this game (owner, 2026-11-13, in this order)
 
