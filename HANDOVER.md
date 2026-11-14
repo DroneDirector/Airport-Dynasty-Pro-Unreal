@@ -84,6 +84,34 @@ City Sample goes in THIRD-PARTY-NOTICES.md.
    for the least work; they don't depend on the road layout (traffic does), need no engine upgrade (the PCG town
    does), and carry little risk.
 3. Edges, tyre marks and cracks (above, 4-8 h).
+3b. **The road network with MetaRoad Free, then our own scheduled vehicles and staff commutes** (owner, 2026-11-14;
+   go-ahead given for the FREE version; ask him before buying Pro). Roads only, no buildings yet.
+   - **First:** read MetaRoad Free's licence on Fab (allowed in a paid game? list it in THIRD-PARTY-NOTICES.md), check
+     it runs on Unreal 5.7 (docs list no versions; a 2025 article says 5.5 and 5.6). If either fails, stop and tell
+     the owner. Baked roads are plain StaticMesh assets; the plugin is needed at run time only for the road graph.
+   - **Build every road from the owner's map plans by a script, never by hand** (so the roads can be regenerated if the
+     later switch to Pro doesn't carry them over; Free and Pro are separate plugins, never installed together; test a
+     switch on a copy of the project first). Plans: Art/Maps/Airport-Road-Town-Overview-v11.png, Town-Plan-v7.png,
+     Airport-Only-v11.png, and their sources (the cloud chat's town/overview scripts; the airfield from the layout).
+     - The terminal forecourt: pavement, bus parking (5 buses in line), bus lane and taxi lane (one way), taxi
+       parking, spare lane (one way, use to be decided), island, the two-way through road, crossings, the large car
+       park (planned) across the through road. 8-12 h.
+     - The 7.8 km road to town: two lanes, 90 km/h, no pavements, on the real ground (follow the graded ground, not an
+       Unreal landscape: our ground is Cesium), the roundabout by the terminal (turn back to town; straight on CLOSED,
+       kept for expansion), the roundabout near town, shark teeth on every lane INTO a roundabout, signs 1-4, km
+       markers 1-7. 10-16 h.
+     - The town's streets: main street, every loop and cul-de-sac (Norðurbogi, Miðbogi, Torgvegur, Skólavegur,
+       Suðurbogi...), pavements 2.5 m both sides, zebra crossings, traffic lights (MetaRoad's Traffic Controller),
+       street lights 30-35 m apart, the one-way school road with its turning area, Sign A-D and the side-street airport
+       signs; building plots left as marked empty spaces for later. 10-16 h.
+   - **Then our own module for scheduled vehicles** (C++, its own chapters, a line in CODE-MAP.md): taxis, buses and
+     private cars drive the road graph's lanes (keeping their distance, red lights, giving way at the shark teeth),
+     pull into the bus and taxi bays and car parks and leave again. The shared world decides WHEN (a bus at 14:05 with
+     these passengers, a taxi collecting a passenger in time for their flight); the vehicle adjusts its speed to arrive
+     exactly then, like walking. Passengers get in and out at the bays and walk on. 16-24 h.
+   - **Staff and crew commutes in the same module:** when a shift starts, staff and crew arrive by car or the staff
+     bus, park in the staff car park, walk to the staff entrance and clock in; at the end of the shift the reverse.
+     Times from the shared world's shifts and rosters. 6-10 h.
 4. **City Sample's cars** (about half a day): free detailed cars with made-up brands, for the town traffic, car
    rental and the dealership's stock until our own models are made. Licence check and notice first.
 5. **Traffic with Mass** (1-2 days): City Sample's MassTraffic plugin (merging, lane changes, signals, parked cars)

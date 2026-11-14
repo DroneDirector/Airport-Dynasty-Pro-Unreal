@@ -13,6 +13,9 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       (owner, 2026-11-13). Why first: the biggest difference to how alive the airport looks and sounds for the least
       work, no dependence on the road layout or an engine upgrade, little risk.
 - [ ] Then the same way as the puddles: runway/grass edges, tyre marks and cracks in the ground materials (4-8 h).
+- [ ] Road network with MetaRoad Free (roads only, from the owner's map plans by script; ~28-44 h), then our own
+      module for scheduled taxis, buses and cars (16-24 h) and staff/crew commutes by shift (6-10 h). HANDOVER.md 3b.
+      Free version approved; ask the owner before buying Pro.
 - [ ] City Sample's cars (~half a day), then traffic with Mass (1-2 days, lanes generated from the layout file), then
       the home town with PCG (1-3 days + Unreal 5.8 upgrade). Details in HANDOVER.md.
 - [ ] **FIRST AFTER THE METAHUMAN WORK** (owner, 2026-11-12): finish the MetaHuman people COMPLETELY first (builder,
