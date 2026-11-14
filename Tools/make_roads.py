@@ -204,18 +204,29 @@ road('AIRPORT-WEST-CLOSED', [(RB[0] - 20.0, RB[1]), (moved(-1130, -150.5)[0], RB
 TRACES = json.loads((ROOT / 'Data' / 'road-traces.json').read_text(encoding='utf-8'))   # Tools/trace_road.py, the overview
 
 
-def tidy(pts, every=5, window=11):
-    """A traced line made smooth (a running mean over `window` points, 88 m: the tracer's pixel wobble and its swerves round
-    the drawing's labels and sign markers out - the drawn roads are all wide gentle curves) and thinned to
-    every `every`-th point (the game's own curve runs smoothly between); its ends kept exactly."""
-    n = len(pts); out = []
-    for i in range(n):
-        lo, hi = max(0, i - window // 2), min(n, i + window // 2 + 1)
-        out.append((sum(p[0] for p in pts[lo:hi]) / (hi - lo), sum(p[1] for p in pts[lo:hi]) / (hi - lo)))
+def tidy(pts, every=5, half=10, keep_off=1.5):
+    """A traced line made smooth and true to the drawing: at each point a curve (a parabola in x and in y along the line)
+    fitted through the 21 points round it (168 m) - it follows the drawn bends but not the tracer's swerves round the
+    drawing's labels and sign markers; points more than `keep_off` m off their fitted curve are dropped and the fit made
+    again without them, then thinned to every `every`-th point (the game's own curve runs smoothly between)."""
+    import numpy as np
+    P = np.array(pts, float); n = len(P)
+    keep = np.ones(n, bool)
+    for _ in range(3):
+        fit = P.copy()
+        for i in range(n):
+            lo, hi = max(0, i - half), min(n, i + half + 1)
+            idx = np.arange(lo, hi)[keep[lo:hi]]
+            if len(idx) < 5: continue
+            t = idx - i
+            for k in (0, 1): fit[i, k] = np.polyval(np.polyfit(t, P[idx, k], 2), 0)
+        off = np.hypot(*(P - fit).T)
+        keep = off <= keep_off; keep[0] = keep[-1] = True
+    out = [tuple(fit[i]) for i in range(n)]
     out[0], out[-1] = tuple(pts[0]), tuple(pts[-1])
-    keep = out[::every]
-    if keep[-1] != out[-1]: keep.append(out[-1])
-    return [(round(x, 2), round(y, 2)) for x, y in keep]
+    sel = out[::every]
+    if sel[-1] != out[-1]: sel.append(out[-1])
+    return [(round(x, 2), round(y, 2)) for x, y in sel]
 
 
 BIG_RB = (2217.2, -1169.5)   # the roundabout where the roads meet (the overview's 'roundabout', under its sign marker)

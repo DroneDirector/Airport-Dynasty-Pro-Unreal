@@ -50,7 +50,7 @@ def trace(start, head, stop, step_m=8.0, half_px=22, max_steps=2000):
         ndx, ndy = nx - x, ny - y; m = math.hypot(ndx, ndy)
         if m > 0: dx, dy = 0.6 * dx + 0.4 * ndx / m, 0.6 * dy + 0.4 * ndy / m; mm = math.hypot(dx, dy); dx, dy = dx / mm, dy / mm
         x, y = nx, ny
-        pts.append(tuple(round(v, 1) for v in B.to_plan(x, y)))
+        if lost == 0: pts.append(tuple(round(v, 1) for v in B.to_plan(x, y)))   # (only where it saw the road: across a label the curve bridges)
         if math.hypot(x - sx, y - sy) < step * 1.2: break
     return pts
 

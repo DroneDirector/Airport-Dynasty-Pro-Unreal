@@ -11,7 +11,16 @@
 #  - layer.json lists which tiles exist on each level, so the globe never asks for tiles that aren't there.
 # Credit (in the game): "Copernicus DEM GLO-90 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018
 # provided under COPERNICUS by the European Union and ESA; all rights reserved."
-#   python Tools/MakeTerrain.py [--maxz 10] [--bbox lon0 lat0 lon1 lat1] [--workers 8]
+#  - Near the airport the tiles are built 5 times more exactly (owner, 2026-11-14: the road to town showed 4-38 m steps -
+#    each level's triangles were allowed an error of a quarter of its grid spacing, so the ground a few km off was that
+#    far wrong): within the PRECISE box (about 25 km round the airport, the road and the town) from level 9 down, an error
+#    of 1/20 of the spacing.
+#  - Stopping and going on (owner: only what isn't done yet is remade): a run writes a job stamp in its output folder; run
+#    the same command again with --resume and every tile made since that stamp is kept, the rest made; the stamp goes
+#    when the run finishes.
+#  - When the tiles near the airport change, Tools/road_ground.py is run at the end: the roads take their ground from them.
+#   python Tools/MakeTerrain.py [--maxz 10] [--bbox lon0 lat0 lon1 lat1] [--minz 9] [--resume] [--workers 8]
+#   the airport's precise box only:  python Tools/MakeTerrain.py --out F:/ADP-Terrain/tiles-v2 --bbox -19.2 63.25 -18.25 63.65 --minz 9 --resume
 import argparse
 import gzip
 import io
@@ -38,6 +47,8 @@ AIRPORT = (-18.710348, 63.452335)   # lon, lat: the terminal's origin (Globe.cpp
 FLAT_IN, FLAT_OUT = 2600.0, 4400.0  # metres
 FULL_TO = 6                          # every tile (land or sea) down to this level
 FEATHER = 12.0                       # grid cells over which a national model fades into GLO-90 at its edges
+PRECISE = (-19.2, 63.25, -18.25, 63.65)   # lon0, lat0, lon1, lat1: the airport, the road to town and the town, ~25 km round
+PRECISE_FROM, PRECISE_ERR, ERR = 9, 0.05, 0.25   # (the triangles' error, as a share of the grid spacing)
 
 #region Reading heights
 CELLS = {}
@@ -212,9 +223,13 @@ def make(job):
     lon0, lat0, lon1, lat1 = tile_box(z, x, y)
     h, land = heights(lon0, lat0, lon1, lat1, n)
     spacing = (lat1 - lat0) * 110574.0 / (n - 1)
-    hT = np.ascontiguousarray(h.T)   # Martini reads the grid as [x][y]
+    # the grid as it is, rows north to south (2026-11-14: it was handed over transposed, h.T, since the first build - every
+    # tile's heights flipped about its diagonal, up to 208 m wrong on the coarse levels; checked: as is, the mesh matches
+    # the land to 0.00 m)
+    hT = np.ascontiguousarray(h)
     mesh = Martini(n).create_tile(hT)
-    v, tri = mesh.get_mesh(max(0.5, spacing * 0.25))
+    near = z >= PRECISE_FROM and not (lon1 < PRECISE[0] or lon0 > PRECISE[2] or lat1 < PRECISE[1] or lat0 > PRECISE[3])
+    v, tri = mesh.get_mesh(max(0.25 if near else 0.5, spacing * (PRECISE_ERR if near else ERR)))
     # the vertices with their heights, in degrees (rows run north to south in h, so y is flipped)
     pos = rescale_positions(v, hT, bounds=[lon0, lat0, lon1, lat1], flip_y=True).astype(np.float64).reshape(-1)
     buf = io.BytesIO()
@@ -245,6 +260,8 @@ def main():
     ap.add_argument('--bbox', type=float, nargs=4)
     ap.add_argument('--out', default=str(OUT))
     ap.add_argument('--workers', type=int, default=max(1, os.cpu_count() - 2))
+    ap.add_argument('--minz', type=int, default=0, help='only the levels from this one down (with --bbox)')
+    ap.add_argument('--resume', action='store_true', help='keep the tiles this job already made (its stamp), make the rest')
     a = ap.parse_args()
     os.environ['ADP_TERRAIN_OUT'] = a.out
     OUT = Path(a.out)
@@ -294,13 +311,31 @@ def main():
                 ranges.append({'startX': s, 'startY': y, 'endX': p, 'endY': y})
                 if x is not None: s = p = x
         available.append(ranges)
+    if a.minz: jobs = [j for j in jobs if j[0] >= a.minz]
+    # the job stamp: the same command run again with --resume keeps every tile made since it (a stopped run goes on)
+    import hashlib, time
+    OUT.mkdir(parents=True, exist_ok=True)
+    stamp = OUT / ('.job-%s' % hashlib.sha1(json.dumps([a.bbox, a.minz, a.maxz]).encode()).hexdigest()[:12])
+    if a.resume and stamp.exists():
+        since = stamp.stat().st_mtime
+        def done_already(j):
+            q = OUT / str(j[0]) / str(j[1]) / f'{j[2]}.terrain'
+            return q.exists() and q.stat().st_mtime >= since
+        before = len(jobs); jobs = [j for j in jobs if not done_already(j)]
+        print('resuming: %d of %d tiles already made in this job' % (before - len(jobs), before), flush=True)
+    else:
+        stamp.write_text(time.strftime('%Y-%m-%d %H:%M:%S')); time.sleep(1.1)   # (tiles made from now on are newer than it)
     print('%d tiles to make' % len(jobs), flush=True)
     done = 0
     with ProcessPoolExecutor(a.workers, initializer=init, initargs=(AIRPORT_H,)) as ex:
         for _ in ex.map(make, jobs, chunksize=64):
             done += 1
             if done % max(1, len(jobs) // 20) == 0: print('%d%% (%d of %d)' % (done * 100 // len(jobs), done, len(jobs)), flush=True)
-    OUT.mkdir(parents=True, exist_ok=True)
+    stamp.unlink(missing_ok=True)   # (the job is done: the next run starts afresh)
+    # the roads' ground comes from the tiles near the airport: measured again from the new ones
+    try:
+        import subprocess; subprocess.run([sys.executable, str(ROOT / 'Tools' / 'road_ground.py'), '--tiles', str(OUT)], check=False)
+    except Exception as e: print('road_ground.py:', e, flush=True)
     # a --bbox run only remakes the tiles in its box: the existing layer.json (the whole world's) stays as it is
     if a.bbox and (OUT / 'layer.json').exists():
         print('Terrain done: %d tiles (box only; layer.json kept)' % len(jobs), flush=True); return
