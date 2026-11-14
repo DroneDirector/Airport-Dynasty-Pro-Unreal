@@ -390,7 +390,7 @@ void ATowerADC::Build()
 void ATowerADC::BuildFoot()
 {
 	// the plinth and its terrazzo apron
-	Ring(Buf(Solid, "terrazzo"), 0.f, 0.02f, ShaftR + 1.2f, 0.02f, 0, TwoPi, 64);
+	// (its terrazzo disc on the ground is gone: the airfield's own paving round the tower, one ground everywhere - owner, 2026-11-14)
 	Cyl("concrete", ShaftR + 0.6f, 0.4f, 0, 0.2f, 0);
 	// the entrance hall: its side walls and roof, the ramp up to the plinth, its floor on the plinth
 	for (const float SZ : {-1.f, 1.f}) Box("white", EX1 - EX0, 3.6f, 0.2f, (EX0 + EX1) / 2, 1.8f, SZ * (EZ + 0.1f));

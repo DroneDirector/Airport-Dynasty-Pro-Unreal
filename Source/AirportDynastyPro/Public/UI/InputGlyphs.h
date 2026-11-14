@@ -27,6 +27,8 @@ namespace ADPInput
 	const TArray<FAction>& Actions();
 	/** Drone mode's own controls (DroneCam.h), listed in the Buttons panel while you fly. */
 	const TArray<FAction>& DroneActions();
+	/** The fire station's bay doors (only listed within 25 m of the station). */
+	const FAction& BayDoorsAction();
 	/** The action called Name (nullptr when there's none). */
 	const FAction* Find(const FString& Name);
 	/** Logs (and puts in the problem log) any key or button used by two actions; true when there's none. */

@@ -93,9 +93,19 @@ bool FAirfieldData::Load()
 			const TSharedPtr<FJsonObject> O = V->AsObject();
 			FLot L{TEXT(""), N(O, TEXT("x0")), N(O, TEXT("y0")), N(O, TEXT("x1")), N(O, TEXT("y1"))};
 			O->TryGetStringField(TEXT("id"), L.Id); O->TryGetBoolField(TEXT("paved"), L.bPaved); O->TryGetBoolField(TEXT("onModel"), L.bOnModel);
+			{ double Lf; if (O->TryGetNumberField(TEXT("lift"), Lf)) L.Lift = float(Lf); O->TryGetStringField(TEXT("surface"), L.Surface); }
 			const TSharedPtr<FJsonObject>* B;
 			if (O->TryGetObjectField(TEXT("bays"), B)) { L.BayX0 = N(*B, TEXT("x0")); L.BayY = N(*B, TEXT("y")); L.Bays = int32(N(*B, TEXT("n"))); L.BayW = N(*B, TEXT("w"), 2.6); L.BayD = N(*B, TEXT("d"), 5.2); L.BayDir = N(*B, TEXT("dir"), 1); }
 			Lots.Add(L);
+		}
+	const TArray<TSharedPtr<FJsonValue>>* Ps = nullptr;
+	if (R->TryGetArrayField(TEXT("pads"), Ps))
+		for (const TSharedPtr<FJsonValue>& V : *Ps)
+		{
+			const TSharedPtr<FJsonObject> O = V->AsObject();
+			FPad Pd{TEXT(""), N(O, TEXT("x0")), N(O, TEXT("y0")), N(O, TEXT("x1")), N(O, TEXT("y1")), N(O, TEXT("z"), 0), N(O, TEXT("blend"), 30)};
+			O->TryGetStringField(TEXT("id"), Pd.Id);
+			Pads.Add(Pd);
 		}
 	const TSharedPtr<FJsonObject> B = R->GetObjectField(TEXT("boundary")), C = R->GetObjectField(TEXT("cargoBuilding"));
 	Boundary = {N(B, TEXT("x0")), N(B, TEXT("y0")), N(B, TEXT("x1")), N(B, TEXT("y1"))};
@@ -146,7 +156,16 @@ float AAirfield::GroundAt(float X, float Y)
 	const float Reach = 1.f - Smooth(GradeFull, GradeGone, Dy);
 	const float InX = FMath::Min(Smooth(0.f, EdgeFade, X - D.Boundary.X0), Smooth(0.f, EdgeFade, D.Boundary.X1 - X));
 	const float InY = FMath::Min(Smooth(0.f, EdgeFade, Y - D.Boundary.Y0), Smooth(0.f, EdgeFade, D.Boundary.Y1 - Y));
-	return (P + Crown) * Reach * FMath::Clamp(InX, 0.f, 1.f) * FMath::Clamp(InY, 0.f, 1.f);
+	float H = (P + Crown) * Reach * FMath::Clamp(InX, 0.f, 1.f) * FMath::Clamp(InY, 0.f, 1.f);
+	// a building's level pad: flat at its floor inside, easing back to the grade round it (owner, 2026-11-14: the fire
+	// station's forecourt level with its bays, no step to drive over)
+	for (const FAirfieldData::FPad& Pd : D.Pads)
+	{
+		const float Dx = FMath::Max3(Pd.X0 - X, 0.f, X - Pd.X1), Dy2 = FMath::Max3(Pd.Y0 - Y, 0.f, Y - Pd.Y1);
+		const float W = 1.f - Smooth(0.f, Pd.Blend, FMath::Sqrt(Dx * Dx + Dy2 * Dy2));
+		H = FMath::Lerp(H, Pd.Z, W);
+	}
+	return H;
 }
 
 FVector2f AAirfield::SlopeAt(float X, float Y)
@@ -820,9 +839,10 @@ void AAirfield::ServiceRoads(bool bModelSite)
 	for (const FAirfieldData::FLot& Lt : D.Lots)
 	{
 		const FVector2f Mid((Lt.X0 + Lt.X1) / 2, (Lt.Y0 + Lt.Y1) / 2);
-		if (Lt.bPaved) Quad("asphalt", Lt.X0, Lt.Y0, Lt.X1, Lt.Y1, Lifted(Mid, -0.03f), 3.f, FLinearColor(1, 1, 1, 1));
+		// (its own surface and height where it meets a building's floor: the fire station's forecourt in concrete, level with the bays)
+		if (Lt.bPaved) Quad(FName(*Lt.Surface), Lt.X0, Lt.Y0, Lt.X1, Lt.Y1, Lifted(Mid, Lt.Lift), 3.f, FLinearColor(1, 1, 1, 1));
 		// on a model's own paving (the fire station's site, laid flat at 2 cm): the lines just over it
-		auto PaintLift = [&]() { return Lt.bOnModel ? 0.035f - GroundAt(Mid.X, Mid.Y) - Sink : Lifted(Mid, -0.024f); };
+		auto PaintLift = [&]() { return Lt.bOnModel ? 0.035f - GroundAt(Mid.X, Mid.Y) - Sink : Lifted(Mid, Lt.Lift + 0.006f); };
 		const float YHead = Lt.BayY + Lt.BayDir * Lt.BayD;   // the spaces run from BayY into the lot by their depth
 		for (int32 b = 0; b <= Lt.Bays; ++b)
 		{
@@ -830,7 +850,7 @@ void AAirfield::ServiceRoads(bool bModelSite)
 			Quad("paintwhite", X - 0.06f, FMath::Min(Lt.BayY, YHead), X + 0.06f, FMath::Max(Lt.BayY, YHead), PaintLift(), 2.f);
 		}
 		Quad("paintwhite", Lt.BayX0, YHead - 0.06f, Lt.BayX0 + Lt.Bays * Lt.BayW, YHead + 0.06f, PaintLift(), 2.f);
-		if (Lt.bPaved && !Lawn(Mid)) EdgeRect(Lt.X0, Lt.Y0, Lt.X1, Lt.Y1, -0.03f, 1.f, 15);
+		if (Lt.bPaved && !Lawn(Mid)) EdgeRect(Lt.X0, Lt.Y0, Lt.X1, Lt.Y1, Lt.Lift, 1.f, 15);
 		ADP_LOG(TEXT("Airfield: lot %s with %d parking spaces"), *Lt.Id, Lt.Bays);
 	}
 	for (const FAirfieldData::FRoad& Rd : D.Roads)

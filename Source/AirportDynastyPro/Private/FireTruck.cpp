@@ -14,6 +14,7 @@
 #include "Components/BoxComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/PoseableMeshComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/MaterialBillboardComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -418,6 +419,7 @@ bool AFireTruck::Setup(const FString& ModelName)
 	NearSound = Att(150.f, 3500.f);
 	FarSound = Att(1500.f, 120000.f);
 	BuildLamps();
+	DressMaterials();
 	// the reversing lamps (Light_Reverse, either side at the back): the lens shining white, the ground behind barely
 	// touched (owner, 2026-11-11: reversing lamps hardly light the ground)
 	for (const TCHAR* N : {TEXT("Light_Reverse"), TEXT("Light_Reverse.001")})
@@ -522,7 +524,7 @@ void AFireTruck::SetupPlayerInputComponent(UInputComponent* In)
 	In->BindKey(EKeys::Gamepad_FaceButton_Right, IE_Pressed, this, &AFireTruck::PadModOn);
 	In->BindKey(EKeys::Gamepad_FaceButton_Right, IE_Released, this, &AFireTruck::PadModOff);
 	In->BindKey(EKeys::Gamepad_DPad_Left, IE_Pressed, this, &AFireTruck::PadLeft);
-	In->BindKey(EKeys::Gamepad_DPad_Right, IE_Pressed, this, &AFireTruck::PadRight);
+	In->BindKey(EKeys::Gamepad_DPad_Right, IE_Pressed, this, &AFireTruck::PadRight).bConsumeInput = false;   // (also the bay doors' button)
 	In->BindKey(EKeys::Gamepad_DPad_Down, IE_Pressed, this, &AFireTruck::PadDown);
 }
 
@@ -676,7 +678,9 @@ USceneComponent* AFireTruck::LensGlow(const FVector& At, const FLinearColor& Col
 	if (!Base) { static bool bTold = false; if (!bTold) { bTold = true; ADP_ERROR(TEXT("Fire truck: the lamp glow material is missing (Tools/make_lamp_glow.py)")); } return nullptr; }
 	UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(Base, this);
 	M->SetVectorParameterValue(TEXT("Color"), Col);
-	M->SetScalarParameterValue(TEXT("Brightness"), Brightness);
+	// (the lens itself lights up now, M_TruckLens: the disc only a soft halo round it)
+	M->SetScalarParameterValue(TEXT("Brightness"), Brightness * 0.35f);
+	Size *= 0.55f;
 	UMaterialBillboardComponent* B = NewObject<UMaterialBillboardComponent>(this);
 	B->SetupAttachment(Model->GetModelRoot());
 	B->SetRelativeLocation(At);
@@ -844,6 +848,159 @@ void AFireTruck::UpdateLamps(float Dt)
 		case ELamp::Turn: bOn = bTurnOn && (Signal == ETurn::Hazard || (Signal == ETurn::Left) == (LampSide[I] == 0)); break;
 		}
 		if (L->IsVisible() != bOn) L->SetVisibility(bOn);
+	}
+	UpdateLenses(bRunning, bBraking, bTurnOn);
+	// the paint's dirt and spray measured from where the truck stands
+	if (Model) for (UMaterialInstanceDynamic* D : PaintMids) if (D) D->SetScalarParameterValue(TEXT("GroundZ"), Model->GetModelRoot()->GetComponentLocation().Z);
+}
+
+void AFireTruck::FollowRoute()
+{
+	// the nearest point on the route, a point 10 m on from it, and the wheel turned toward it; the pace held, slower
+	// into a bend
+	const FVector2D P(GetActorLocation().X / 100.0, -GetActorLocation().Y / 100.0);
+	double Best = 1e9; int32 Seg = 0; double T = 0;
+	for (int32 i = 0; i + 1 < TestRoute.Num(); ++i)
+	{
+		const FVector2D A = TestRoute[i], AB = TestRoute[i + 1] - A;
+		const double U = FMath::Clamp(FVector2D::DotProduct(P - A, AB) / FMath::Max(AB.SizeSquared(), 1e-6), 0.0, 1.0);
+		const double D = (A + AB * U - P).Size();
+		if (D < Best) { Best = D; Seg = i; T = U; }
+	}
+	double Ahead = 10.0; FVector2D Aim = TestRoute.Last(); int32 i = Seg; FVector2D From = TestRoute[Seg] + (TestRoute[Seg + 1] - TestRoute[Seg]) * T;
+	for (; i + 1 < TestRoute.Num(); ++i)
+	{
+		const FVector2D To = TestRoute[i + 1]; const double L = (To - From).Size();
+		if (L >= Ahead) { Aim = From + (To - From) / L * Ahead; break; }
+		Ahead -= L; From = To;
+	}
+	const FVector Fw = GetActorForwardVector();
+	const FVector2D F(Fw.X, -Fw.Y), To = (Aim - P).GetSafeNormal();
+	const double Cross = F.X * To.Y - F.Y * To.X, Dot = FVector2D::DotProduct(F, To);
+	const double Ang = FMath::RadiansToDegrees(FMath::Atan2(Cross, Dot));      // + to the left in the plan
+	InSteer = float(FMath::Clamp(-Ang / 25.0, -1.0, 1.0));
+	const float Want = TestKmh * (FMath::Abs(Ang) > 20.0 ? 0.55f : 1.f), Now = SpeedKmh();
+	const bool bEnd = (TestRoute.Last() - P).Size() < 8.0;
+	InThrottle = bEnd ? 0.f : Now < Want ? 0.55f : 0.f;
+	InBrake = bEnd ? 1.f : Now > Want + 6.f ? 0.4f : 0.f;
+}
+
+void AFireTruck::DressMaterials()
+{
+	if (!Model) return;
+	UMaterialInterface* Paint = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Truck/M_TruckPaint.M_TruckPaint"));
+	UMaterialInterface* Lens = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Truck/M_TruckLens.M_TruckLens"));
+	if (!Paint || !Lens) { ADP_WARN(TEXT("Fire truck: its own materials are missing (Tools/set_truck_materials.py)")); return; }
+	// the painted and worn parts: how much road dirt each gathers and how worn it gets
+	struct FKind { const TCHAR* Name; float Dirt, Wear; };
+	static const FKind Painted[] = {{TEXT("TruckPaint"), 0.45f, 0.35f}, {TEXT("TruckTeal"), 0.45f, 0.35f}, {TEXT("TruckWarningStripes"), 0.4f, 0.3f},
+		{TEXT("TruckLettering"), 0.4f, 0.2f}, {TEXT("TruckBlack"), 0.55f, 0.4f}, {TEXT("TruckRim"), 0.75f, 0.5f}, {TEXT("TruckTreadPlate"), 0.6f, 0.8f}, {TEXT("TruckSatin"), 0.45f, 0.3f}};
+	TMap<UMaterialInterface*, UMaterialInterface*> Swap;
+	TArray<UInstancedStaticMeshComponent*> Parts; Model->Parts(Parts);
+	auto V = [](UMaterialInterface* M, const TCHAR* N, const FLinearColor& D) { FLinearColor C = D; M->GetVectorParameterValue(FHashedMaterialParameterInfo(N), C); return C; };
+	auto S = [](UMaterialInterface* M, const TCHAR* N, float D) { float F = D; M->GetScalarParameterValue(FHashedMaterialParameterInfo(N), F); return F; };
+	int32 NPaint = 0, NLens = 0;
+	TSet<UInstancedStaticMeshComponent*> LensLists;
+	TSet<UMaterialInterface*> LensMids;
+	for (UInstancedStaticMeshComponent* K : Parts)
+		for (int32 Si = 0; Si < K->GetNumMaterials(); ++Si)
+		{
+			UMaterialInterface* M = K->GetMaterial(Si);
+			if (!M) continue;
+			if (UMaterialInterface** F = Swap.Find(M)) { if (*F) { K->SetMaterial(Si, *F); if (LensMids.Contains(*F)) LensLists.Add(K); } continue; }
+			// (a material the model already copied, toned down, is known by the one it was copied from)
+			const UMaterialInstanceDynamic* Md = Cast<UMaterialInstanceDynamic>(M);
+			const FString MN = Md && Md->Parent ? Md->Parent->GetName() : M->GetName();
+			UMaterialInstanceDynamic* D = nullptr;
+			for (const FKind& Kd : Painted)
+				if (MN == Kd.Name)
+				{
+					D = UMaterialInstanceDynamic::Create(Paint, this);
+					D->SetVectorParameterValue(TEXT("BC"), V(M, TEXT("BaseColorFactor"), FLinearColor::White));
+					D->SetVectorParameterValue(TEXT("OS"), V(M, TEXT("BaseColorTexture_OffsetScale"), FLinearColor(0, 0, 1, 1)));
+					UTexture* T = nullptr;
+					if (M->GetTextureParameterValue(FHashedMaterialParameterInfo(TEXT("BaseColorTexture")), T) && T) D->SetTextureParameterValue(TEXT("Base"), T);
+					D->SetScalarParameterValue(TEXT("R"), S(M, TEXT("RoughnessFactor"), 0.4f));
+					D->SetScalarParameterValue(TEXT("M"), S(M, TEXT("MetallicFactor"), 0.f));
+					D->SetScalarParameterValue(TEXT("CC"), S(M, TEXT("ClearCoatFactor"), 0.f));
+					D->SetScalarParameterValue(TEXT("CCR"), S(M, TEXT("ClearCoatRoughnessFactor"), 0.1f));
+					D->SetScalarParameterValue(TEXT("Dirt"), Kd.Dirt); D->SetScalarParameterValue(TEXT("Wear"), Kd.Wear);
+					PaintMids.Add(D); ++NPaint;
+				}
+			if (!D && MN.StartsWith(TEXT("TruckLens")))
+			{
+				D = UMaterialInstanceDynamic::Create(Lens, this);
+				D->SetVectorParameterValue(TEXT("BC"), V(M, TEXT("BaseColorFactor"), FLinearColor::White));
+				const float Glow = MN.EndsWith(TEXT("Blue")) ? 70.f : MN.EndsWith(TEXT("Brake")) ? 30.f : MN.Contains(TEXT("Turn")) ? 45.f : 28.f;
+				D->SetScalarParameterValue(TEXT("Glow"), Glow);
+				D->SetScalarParameterValue(TEXT("Dots"), MN.Contains(TEXT("Head")) || MN.Contains(TEXT("High")) ? 3.f : MN.EndsWith(TEXT("Blue")) ? 7.f : 5.f);
+				LensLists.Add(K); LensMids.Add(D); ++NLens;
+			}
+			Swap.Add(M, D);
+			if (D) K->SetMaterial(Si, D);
+		}
+	for (UInstancedStaticMeshComponent* K : LensLists) K->SetNumCustomDataFloats(1);
+	// every lens, which lamp it is and its side; the roof bar's modules counted from the left
+	struct FWhich { const TCHAR* Name; ELens Kind; int8 Side; };
+	static const FWhich Which[] = {{TEXT("Light_BlueBar"), ELens::BlueBar, -1}, {TEXT("Light_BlueFront"), ELens::Blue, -1}, {TEXT("Light_BlueRear"), ELens::Blue, -1},
+		{TEXT("Light_BlueSide"), ELens::Blue, -1}, {TEXT("Light_HeadLow"), ELens::Low, -1}, {TEXT("Light_HeadHigh"), ELens::High, -1}, {TEXT("Light_Brake"), ELens::Rear, -1},
+		{TEXT("Light_TurnL"), ELens::Turn, 0}, {TEXT("Light_TurnR"), ELens::Turn, 1}, {TEXT("Light_TurnSideL"), ELens::Turn, 0}, {TEXT("Light_TurnSideR"), ELens::Turn, 1},
+		{TEXT("Light_MarkerSide"), ELens::Marker, -1}, {TEXT("Light_Reverse"), ELens::Reverse, -1}};
+	TArray<TPair<float, int32>> BarAt;
+	for (const FWhich& Wh : Which)
+	{
+		TArray<TTuple<UInstancedStaticMeshComponent*, int32, FString>> Found;
+		Model->InstancesNamed(Wh.Name, false, Found);
+		for (const auto& F : Found)
+		{
+			UInstancedStaticMeshComponent* K = F.Get<0>();
+			if (!LensLists.Contains(K)) continue;
+			FTransform T; K->GetInstanceTransform(F.Get<1>(), T, false);
+			FLens L; L.K = K; L.Ix = F.Get<1>(); L.Kind = Wh.Kind;
+			L.Side = Wh.Side >= 0 ? uint8(Wh.Side) : uint8(T.GetLocation().X < 0.f ? 0 : 1);
+			if (Wh.Kind == ELens::BlueBar) BarAt.Add(TPair<float, int32>(T.GetLocation().X, Lenses.Num()));
+			Lenses.Add(L);
+		}
+	}
+	BarAt.Sort([](const TPair<float, int32>& A, const TPair<float, int32>& B) { return A.Key < B.Key; });
+	for (int32 I = 0; I < BarAt.Num(); ++I) Lenses[BarAt[I].Value].Bar = I;
+	BarCount = BarAt.Num();
+	ADP_LOG(TEXT("Fire truck: its own paint on %d materials, %d lens materials, %d lenses lit on their own (%d in the roof bar)"), NPaint, NLens, Lenses.Num(), BarCount);
+}
+
+void AFireTruck::UpdateLenses(bool bRunning, bool bBraking, bool bTurnOn)
+{
+	// the side lamps' double flash (as the halo and the light thrown round about), and the roof bar's own rhythm: its
+	// modules in two groups that take turns, each a quick triple flash - the left half against the right, then (every
+	// other second) the outer modules against the inner ones, as real light bars run
+	auto Double = [this](uint8 Side)
+	{
+		const float Round = FMath::Max(0.2f, LampIni().F(TEXT("BlueLights.Round"), 0.75f)), C = FMath::Fmod(BlueClock + (Side ? Round * 0.5f : 0.f), Round) / Round * 0.75f;
+		return (C < 0.06f) || (C > 0.11f && C < 0.17f);
+	};
+	auto Bar = [this](int32 I)
+	{
+		const float P = 1.0f, C = FMath::Fmod(BlueClock, P);
+		const int32 Cyc = int32(BlueClock / P) % 2, N = FMath::Max(BarCount, 2);
+		const bool bA = Cyc == 0 ? I < N / 2 : (I <= 1 || I >= N - 2);
+		const float G = bA ? C : FMath::Fmod(C + P * 0.5f, P);
+		return (G < 0.05f) || (G > 0.09f && G < 0.14f) || (G > 0.18f && G < 0.23f);
+	};
+	for (FLens& L : Lenses)
+	{
+		float V = 0.f;
+		switch (L.Kind)
+		{
+		case ELens::Blue: V = bBlue && Double(L.Side) ? 1.f : 0.f; break;
+		case ELens::BlueBar: V = bBlue && Bar(L.Bar) ? 1.f : 0.f; break;
+		case ELens::Low: V = bRunning ? 0.8f : 0.f; break;
+		case ELens::High: V = bRunning && bHighBeam ? 1.f : 0.f; break;
+		case ELens::Rear: V = bBraking ? 1.f : bRunning ? 0.3f : 0.f; break;
+		case ELens::Turn: V = bTurnOn && (Signal == ETurn::Hazard || (Signal == ETurn::Left) == (L.Side == 0)) ? 1.f : 0.f; break;
+		case ELens::Marker: V = bRunning ? 0.5f : 0.f; break;
+		case ELens::Reverse: V = bReverseLit ? 1.f : 0.f; break;
+		}
+		if (V != L.Now && L.K) { L.Now = V; L.K->SetCustomDataValue(L.Ix, 0, V, true); }
 	}
 }
 
@@ -1099,6 +1256,7 @@ void AFireTruck::Tick(float Dt)
 	}
 	// the parking brake lets itself off as you pull away (as on today's trucks); held with Space / pad A it stays on
 	if (InThrottle > 0.1f && !bHandHeld) bHandbrake = false;
+	if (TestRoute.Num() >= 2 && Driver) FollowRoute();
 	if (bSim) Simulate(FMath::Min(Dt, 1.f / 20.f));
 	if (bSim || DoorK > 0.f || DoorTarget > 0.f) Animate(Dt);
 	if (Driver || Seq != ESeq::None) Sequence(Dt);
@@ -1275,6 +1433,24 @@ AFireStationDoors::AFireStationDoors()
 }
 
 bool AFireStationDoors::bTestOpen = false;
+bool AFireStationDoors::bWantOpen = false;
+
+bool AFireStationDoors::InReach(const FVector& At)
+{
+	// the station's outline in plan metres (its walls and doors, as on the holographic map): the nearest of them
+	TArray<FVector4f> Walls, Doors;
+	ADPFireStation::MapOutline(Walls, Doors);
+	Walls.Append(Doors);
+	const FVector2D P(At.X / 100.0, -At.Y / 100.0);
+	double Best = 1e9;
+	for (const FVector4f& S : Walls)
+	{
+		const FVector2D A(S.X, S.Y), B(S.Z, S.W), AB = B - A;
+		const double T = FMath::Clamp(FVector2D::DotProduct(P - A, AB) / FMath::Max(AB.SizeSquared(), 1e-6), 0.0, 1.0);
+		Best = FMath::Min(Best, (A + AB * T - P).Size());
+	}
+	return Best <= 25.0;
+}
 
 void AFireStationDoors::Setup(ABabylonModel* S)
 {
@@ -1326,13 +1502,9 @@ void AFireStationDoors::Tick(float Dt)
 		// open for a truck in this bay's own lane (owner, 2026-11-11: only the door in front of your truck, as soon as
 		// you sit at the wheel; the others stay shut; as many open as there are trucks going), within 20 m of the door,
 		// inside or out. Shut otherwise: shut when you start, shut as you walk or drive up.
-		bool bWant = bTestOpen;
-		for (const TWeakObjectPtr<AFireTruck>& T : AFireTruck::All)
-		{
-			if (!T.IsValid() || !((T->IsDriven() && !T->IsBusy()) || T->SpeedKmh() > 1.f)) continue;
-			const FVector L = SX.InverseTransformPosition(T->GetActorLocation());
-			if (FMath::Abs(L.X - B.Pivot.X) < 300.f && FMath::Abs(L.Y) < 2000.f) { bWant = true; break; }
-		}
+		// (owner, 2026-11-14: never by themselves any more - all of them up or down by the button, O / D-pad right, within
+		// 25 m of the station)
+		const bool bWant = bTestOpen || bWantOpen;
 		// never down onto anything (owner: not while a truck or anyone is under it): the door comes down only in its
 		// opening (its top runs along the ceiling, high over the trucks), so anything across the opening holds it
 		bool bBlocked = false;
@@ -1351,7 +1523,7 @@ void AFireStationDoors::Tick(float Dt)
 				const FVector L = SX.InverseTransformPosition(It->GetActorLocation());
 				if (FMath::Abs(L.Y) < 110.f && FMath::Abs(L.X - B.Pivot.X) < 330.f) { bBlocked = true; break; }
 			}
-		B.Hold = bWant ? 3.f : FMath::Max(0.f, B.Hold - Dt);
+		B.Hold = 0.f;
 		// where it's going: up for a truck (and a few seconds after); down when nothing wants it, unless something is in
 		// the opening (then it stops where it is, or stays up)
 		const float Target = (bWant || B.Hold > 0.f) ? 1.f : (bBlocked ? B.K : 0.f);

@@ -39,8 +39,11 @@ struct AIRPORTDYNASTYPRO_API FAirfieldData
 	struct FRoad { FString Id; float W = 7; TArray<FVector2f> Pts; bool bHold = false; };
 	TArray<FRoad> Roads;
 	/** Paved lots (the tower's, the fire station's forecourt): a rectangle and a row of parking spaces along one side. */
-	struct FLot { FString Id; float X0, Y0, X1, Y1, BayX0 = 0, BayY = 0, BayW = 2.6f, BayD = 5.2f, BayDir = 1; int32 Bays = 0; bool bPaved = true, bOnModel = false; };
+	struct FLot { FString Id; float X0, Y0, X1, Y1, BayX0 = 0, BayY = 0, BayW = 2.6f, BayD = 5.2f, BayDir = 1; int32 Bays = 0; bool bPaved = true, bOnModel = false; float Lift = -0.03f; FString Surface = TEXT("asphalt"); };
 	TArray<FLot> Lots;
+	/** Level building pads (the fire station's): the ground flat at Z inside, back to the natural grade over Blend metres. */
+	struct FPad { FString Id; float X0, Y0, X1, Y1, Z = 0, Blend = 30; };
+	TArray<FPad> Pads;
 	FRect Boundary{-2000, -170, 2240, 1320}, Cargo{200, 1231, 590, 1301};
 	double Lat = 63.457988, Lon = -18.713703;
 	float ElevFt = 130, Heading = 68;

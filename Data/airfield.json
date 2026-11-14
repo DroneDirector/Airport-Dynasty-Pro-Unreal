@@ -3,7 +3,7 @@
  "airport": {
   "icao": "BIAP",
   "iata": "VTX",
-  "name": "M\u00fdrdalssandur",
+  "name": "Mýrdalssandur",
   "lat": 63.457988,
   "lon": -18.713703,
   "elevFt": 130,
@@ -782,7 +782,7 @@
   },
   {
    "id": "LOT-FIRE",
-   "note": "8 parking spaces on the fire station site (its own paving), north of its entrance",
+   "note": "8 parking spaces north of the fire station entrance, on the airfield's own paving (2026-11-14: the station model's own ground removed, one ground everywhere)",
    "x0": -1150,
    "y0": 38,
    "x1": -1121,
@@ -795,8 +795,42 @@
     "d": 5.2,
     "dir": 1
    },
-   "paved": false,
-   "onModel": true
+   "paved": true,
+   "lift": 0.0
+  },
+  {
+   "id": "LOT-FIRE-FORECOURT",
+   "note": "the fire station forecourt in front of the five bays (2026-11-14: was the station model's own paving)",
+   "x0": -1239.5,
+   "y0": 20,
+   "x1": -1185,
+   "y1": 62,
+   "paved": true,
+   "surface": "concrete",
+   "lift": 0.0
+  },
+  {
+   "id": "LOT-FIRE-WALK",
+   "note": "the paved walk in front of the crew block and the charcoal wing (was the model's own)",
+   "x0": -1185,
+   "y0": 20,
+   "x1": -1151,
+   "y1": 32,
+   "paved": true,
+   "surface": "concrete",
+   "lift": 0.0
+  }
+ ],
+ "pads": [
+  {
+   "id": "PAD-FIRE-STATION",
+   "note": "the fire station, its forecourt, walk and parking level with its floor: z is in the airfield's own heights (drawn 0.25 m lower round the terminal model, Sink), so 0.28 puts the paving at +0.03 m, the station floor; 30 m back to the grade",
+   "x0": -1245,
+   "y0": -20,
+   "x1": -1115,
+   "y1": 66,
+   "z": 0.28,
+   "blend": 30
   }
  ]
 }

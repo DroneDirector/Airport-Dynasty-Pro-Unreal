@@ -41,6 +41,12 @@ namespace ADPInput
 		return A;
 	}
 
+	const FAction& BayDoorsAction()
+	{
+		static const FAction A = {TEXT("Bay doors open / close (fire station)"), EKeys::O, TEXT("O"), EKeys::Gamepad_DPad_Right, TEXT("D-pad right"), TEXT("D-pad right"), TEXT("D-pad right")};
+		return A;
+	}
+
 	const TArray<FAction>& DroneActions()
 	{
 		static const TArray<FAction> A = {

@@ -62,6 +62,23 @@ bool ABabylonModel::Place(const FString& Name)
 		if (Pieces.Num() && !FPackageName::DoesPackageExist(TEXT("/Game/Terminal/Meshes/") + Pieces.CreateConstIterator()->Value.Key)) Pieces.Reset();
 		ADP_LOG(TEXT("Terminal: %s"), Pieces.Num() ? *FString::Printf(TEXT("native pieces (%d meshes)"), Pieces.Num()) : TEXT("the Babylon-exported set"));
 	}
+	// parts lying exactly on another part's face (a stripe on a door, a lens on its band, a cushion on its seat) fight for
+	// the same pixels and flicker: each is moved 1.5 mm out along the faces they share, so it always shows on top
+	// (Data/<model>-zfight.json, Tools/find_zfight.py; owner, 2026-11-14: the fire truck flickered - the shape untouched)
+	TMap<FString, FVector> Nudge;
+	{
+		FString ZText, ZPath = FPaths::Combine(FPaths::ProjectContentDir(), FString::Printf(TEXT("Data/%s-zfight.json"), *Name.ToLower()));
+		if (!FPaths::FileExists(ZPath)) ZPath = FPaths::Combine(FPaths::ProjectDir(), FString::Printf(TEXT("Data/%s-zfight.json"), *Name.ToLower()));
+		TSharedPtr<FJsonObject> ZJ; const TSharedPtr<FJsonObject>* NJ = nullptr;
+		if (FFileHelper::LoadFileToString(ZText, *ZPath) && FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(ZText), ZJ) && ZJ && ZJ->TryGetObjectField(TEXT("nudge"), NJ))
+			for (const TPair<FString, TSharedPtr<FJsonValue>>& E : (*NJ)->Values)
+			{
+				const TArray<TSharedPtr<FJsonValue>>& A = E.Value->AsArray();
+				// (glTF metres to the model's own space, as the node translations are converted)
+				if (A.Num() == 3) Nudge.Add(E.Key, FVector(A[0]->AsNumber(), A[2]->AsNumber(), A[1]->AsNumber()) * 100.0);
+			}
+		if (Nudge.Num()) ADP_LOG(TEXT("Babylon model %s: %d parts moved by a hair against flicker"), *Name, Nudge.Num());
+	}
 	// the imported meshes are named after the glTF mesh's number (the terminal) or after their object (the lounge)
 	FString AssetNames;
 	J->TryGetStringField(TEXT("assetNames"), AssetNames);
@@ -113,6 +130,10 @@ bool ABabylonModel::Place(const FString& Name)
 		  // the model's own lawn round the terminal lay 25 cm over the airfield's grass (a step at its edge, the taxiways
 		  // under it): the airfield's grass, the same, runs under the whole terminal instead (owner, 2026-11-13)
 		  if (Name == TEXT("Terminal") && Nm == TEXT("SITE/GRASS")) return;
+		  // the fire station model's own ground (its 190 x 160 m ground sheet b27, its forecourt b28, the walk b35 and its
+		  // kerb b37) lay a few centimetres off the airfield's and cars bumped over its edges: the airfield lays that
+		  // paving now (Data/airfield.json LOT-FIRE-*), one ground everywhere (owner, 2026-11-14)
+		  if (Name == TEXT("Firestation") && (Nm == TEXT("b27") || Nm == TEXT("b28") || Nm == TEXT("b30") || Nm == TEXT("b35") || Nm == TEXT("b37"))) return;
 		  // the yellow "GATE n" signs hanging at each gate's window (F1-GATE-5..8, F2-GATE-1..4 /SIGN-001) are gone (owner,
 		  // 2026-11-14: they shouldn't be at the window)
 		  if (Name == TEXT("Terminal") && Nm.Contains(TEXT("-GATE-")) && Nm.EndsWith(TEXT("/SIGN-001"))) return;
@@ -155,7 +176,9 @@ bool ABabylonModel::Place(const FString& Name)
 			// importer builds each object's position into its mesh), so they go in as they are
 			if (K)
 			{
-				const int32 Ix = K->AddInstance(bByNode ? FTransform::Identity : FTransform(PieceOff) * World, false);
+				FTransform At = bByNode ? FTransform::Identity : FTransform(PieceOff) * World;
+				if (Nudge.Num()) { FString Nn; N->TryGetStringField(TEXT("name"), Nn); if (const FVector* Nv = Nudge.Find(Nn)) At.AddToTranslation(*Nv); }
+				const int32 Ix = K->AddInstance(At, false);
 				NodeInst[I] = TPair<UInstancedStaticMeshComponent*, int32>(K, Ix); ++Placed;
 				FString NodeName; N->TryGetStringField(TEXT("name"), NodeName);
 				TArray<FString>& Names = InstNames.FindOrAdd(K); if (Names.Num() <= Ix) Names.SetNum(Ix + 1); Names[Ix] = NodeName;
@@ -1041,6 +1064,17 @@ void ABabylonModel::FlushMoves()
 {
 	for (UInstancedStaticMeshComponent* K : MovedLists) if (K) K->MarkRenderStateDirty();
 	MovedLists.Reset();
+}
+
+void ABabylonModel::InstancesNamed(const FString& Name, bool bPrefix, TArray<TTuple<UInstancedStaticMeshComponent*, int32, FString>>& Out) const
+{
+	for (const auto& P : InstNames)
+		for (int32 I = 0; I < P.Value.Num(); ++I)
+		{
+			const FString& N = P.Value[I];
+			const bool bHit = bPrefix ? N.StartsWith(Name) : (N == Name || (N.StartsWith(Name + TEXT(".")) && N.Len() == Name.Len() + 4));
+			if (bHit) Out.Add(MakeTuple(const_cast<UInstancedStaticMeshComponent*>(P.Key), I, N));
+		}
 }
 
 bool ABabylonModel::NodeBase(const FString& Name, FTransform& Out) const

@@ -63,6 +63,11 @@ public:
 	bool NodeBase(const FString& Name, FTransform& Out) const;
 	/** Every node called Name or Name.### (copies of one part): their places in the model's root space. */
 	void NodesNamed(const FString& Name, TArray<FTransform>& Out) const;
+	/** Every mesh instance of the nodes called Name or Name.### (every name starting so when bPrefix): its list, its
+	 *  index in it and the node's name (the fire trucks' lamp lenses, each lit on its own). */
+	void InstancesNamed(const FString& Name, bool bPrefix, TArray<TTuple<UInstancedStaticMeshComponent*, int32, FString>>& Out) const;
+	/** Every instance list of the model (to put other materials on its parts). */
+	void Parts(TArray<UInstancedStaticMeshComponent*>& Out) const { for (const auto& P : ByMesh) if (P.Value) Out.AddUnique(P.Value.Get()); }
 	/** The model's root (its frame). */
 	USceneComponent* GetModelRoot() const { return Root; }
 	/** Collision on or off for all the model's parts (a fire truck collides with its physics body instead). */

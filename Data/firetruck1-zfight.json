@@ -1,0 +1,1991 @@
+{
+ "pairs": [
+  {
+   "a": "Pedal_Brake",
+   "b": "Pedal_Clutch",
+   "share": 0.61
+  },
+  {
+   "a": "CabRoofRim",
+   "b": "Headliner",
+   "share": 0.583
+  },
+  {
+   "a": "DoorR",
+   "b": "DoorStripeR",
+   "share": 0.542
+  },
+  {
+   "a": "EmblemFill",
+   "b": "EmblemRing",
+   "share": 0.48
+  },
+  {
+   "a": "StairRiser2L.001",
+   "b": "StepTread2L",
+   "share": 0.443
+  },
+  {
+   "a": "EmblemFill.001",
+   "b": "EmblemRing.001",
+   "share": 0.44
+  },
+  {
+   "a": "CabFloorSide",
+   "b": "DoorwayFillL",
+   "share": 0.417
+  },
+  {
+   "a": "BackWallUpper.001",
+   "b": "Glass_Cab",
+   "share": 0.4
+  },
+  {
+   "a": "Light_Brake.001",
+   "b": "RearBand",
+   "share": 0.39
+  },
+  {
+   "a": "BackWallUpper",
+   "b": "Glass_Cab",
+   "share": 0.375
+  },
+  {
+   "a": "DoorL",
+   "b": "DoorStripeL",
+   "share": 0.375
+  },
+  {
+   "a": "StairRiser2R.001",
+   "b": "StepTread2R",
+   "share": 0.373
+  },
+  {
+   "a": "BodyRear",
+   "b": "Seam.003",
+   "share": 0.333
+  },
+  {
+   "a": "BackWall",
+   "b": "Glass_Cab",
+   "share": 0.333
+  },
+  {
+   "a": "CabFloorSide.002",
+   "b": "DoorwayFillR",
+   "share": 0.333
+  },
+  {
+   "a": "Light_TurnR",
+   "b": "RearBand",
+   "share": 0.33
+  },
+  {
+   "a": "Light_Reverse.001",
+   "b": "RearBand",
+   "share": 0.323
+  },
+  {
+   "a": "Light_Brake",
+   "b": "RearBand",
+   "share": 0.32
+  },
+  {
+   "a": "Light_Reverse",
+   "b": "RearBand",
+   "share": 0.32
+  },
+  {
+   "a": "CabFloorSide.001",
+   "b": "DoorwayFillL.001",
+   "share": 0.292
+  },
+  {
+   "a": "LockerLowBar",
+   "b": "LockerLowFrame",
+   "share": 0.283
+  },
+  {
+   "a": "LockerRearBar.001",
+   "b": "LockerRearFrame.001",
+   "share": 0.283
+  },
+  {
+   "a": "Light_TurnL",
+   "b": "RearBand",
+   "share": 0.283
+  },
+  {
+   "a": "LockerTallBar.001",
+   "b": "LockerTallFrame.001",
+   "share": 0.28
+  },
+  {
+   "a": "SeatRearRBase",
+   "b": "SeatRearRCushion",
+   "share": 0.277
+  },
+  {
+   "a": "LockerLowBar.001",
+   "b": "LockerLowFrame.001",
+   "share": 0.273
+  },
+  {
+   "a": "LockerTallFrame",
+   "b": "LockerTallRib.012",
+   "share": 0.273
+  },
+  {
+   "a": "SeatDriverBase",
+   "b": "SeatDriverCushion",
+   "share": 0.27
+  },
+  {
+   "a": "SeatRBase",
+   "b": "SeatRCushion",
+   "share": 0.27
+  },
+  {
+   "a": "BodyRear",
+   "b": "Seam.001",
+   "share": 0.25
+  },
+  {
+   "a": "LockerTallBar",
+   "b": "LockerTallFrame",
+   "share": 0.247
+  },
+  {
+   "a": "Light_MarkerSideHousing.007",
+   "b": "RearFlare.001",
+   "share": 0.237
+  },
+  {
+   "a": "SeatLBase",
+   "b": "SeatLCushion",
+   "share": 0.237
+  },
+  {
+   "a": "LockerRearFrame",
+   "b": "LockerRearRib.003",
+   "share": 0.227
+  },
+  {
+   "a": "LockerTallFrame.001",
+   "b": "LockerTallRib.042",
+   "share": 0.227
+  },
+  {
+   "a": "DashUpper",
+   "b": "StitchTop",
+   "share": 0.227
+  },
+  {
+   "a": "Light_MarkerSideHousing.003",
+   "b": "RearFlare",
+   "share": 0.223
+  },
+  {
+   "a": "LockerTallFrame.001",
+   "b": "LockerTallRib.045",
+   "share": 0.222
+  },
+  {
+   "a": "LockerLowFrame.001",
+   "b": "LockerLowRib.013",
+   "share": 0.222
+  },
+  {
+   "a": "LockerLowFrame.001",
+   "b": "LockerLowRib.018",
+   "share": 0.222
+  },
+  {
+   "a": "RoofTurretBase",
+   "b": "RoofTurretBody",
+   "share": 0.217
+  },
+  {
+   "a": "LockerTallFrame",
+   "b": "LockerTallRib.011",
+   "share": 0.213
+  },
+  {
+   "a": "LockerTallFrame",
+   "b": "LockerTallRib.021",
+   "share": 0.213
+  },
+  {
+   "a": "LockerTallFrame.001",
+   "b": "LockerTallRib.026",
+   "share": 0.213
+  },
+  {
+   "a": "LockerTallFrame",
+   "b": "LockerTallRib.014",
+   "share": 0.208
+  },
+  {
+   "a": "Body",
+   "b": "Seam",
+   "share": 0.208
+  },
+  {
+   "a": "Body",
+   "b": "Seam.002",
+   "share": 0.208
+  },
+  {
+   "a": "CabFloorSide.003",
+   "b": "DoorwayFillR.001",
+   "share": 0.208
+  },
+  {
+   "a": "SeatRearLBase",
+   "b": "SeatRearLCushion",
+   "share": 0.207
+  },
+  {
+   "a": "LockerLowFrame",
+   "b": "LockerLowRib.003",
+   "share": 0.204
+  },
+  {
+   "a": "LockerRearFrame",
+   "b": "LockerRearRib.006",
+   "share": 0.204
+  },
+  {
+   "a": "LockerTallFrame.001",
+   "b": "LockerTallRib.036",
+   "share": 0.204
+  },
+  {
+   "a": "LockerLowFrame.001",
+   "b": "LockerLowRib.017",
+   "share": 0.204
+  },
+  {
+   "a": "LockerTallFrame",
+   "b": "LockerTallRib.003",
+   "share": 0.199
+  },
+  {
+   "a": "LockerLowFrame",
+   "b": "LockerLowRib.009",
+   "share": 0.199
+  },
+  {
+   "a": "LockerLowFrame.001",
+   "b": "LockerLowRib.015",
+   "share": 0.199
+  },
+  {
+   "a": "LockerRearFrame.001",
+   "b": "LockerRearRib.014",
+   "share": 0.199
+  },
+  {
+   "a": "DoorJambFrontL",
+   "b": "DoorwayFillL.001",
+   "share": 0.197
+  },
+  {
+   "a": "LockerTallFrame",
+   "b": "LockerTallRib.006",
+   "share": 0.194
+  },
+  {
+   "a": "LockerTallFrame",
+   "b": "LockerTallRib.008",
+   "share": 0.194
+  },
+  {
+   "a": "LockerTallFrame",
+   "b": "LockerTallRib.022",
+   "share": 0.194
+  },
+  {
+   "a": "LockerTallFrame",
+   "b": "LockerTallRib.023",
+   "share": 0.194
+  },
+  {
+   "a": "LockerTallFrame.001",
+   "b": "LockerTallRib.031",
+   "share": 0.194
+  },
+  {
+   "a": "LockerLowFrame.001",
+   "b": "LockerLowRib.021",
+   "share": 0.194
+  },
+  {
+   "a": "LockerRearBar",
+   "b": "LockerRearFrame",
+   "share": 0.19
+  },
+  {
+   "a": "LockerLowFrame",
+   "b": "LockerLowRib.005",
+   "share": 0.19
+  },
+  {
+   "a": "LockerLowFrame",
+   "b": "LockerLowRib.010",
+   "share": 0.19
+  },
+  {
+   "a": "LockerTallFrame.001",
+   "b": "LockerTallRib.044",
+   "share": 0.19
+  },
+  {
+   "a": "LockerTallFrame.001",
+   "b": "LockerTallRib.046",
+   "share": 0.19
+  },
+  {
+   "a": "LockerTallFrame",
+   "b": "LockerTallRib.015",
+   "share": 0.185
+  },
+  {
+   "a": "LockerTallFrame",
+   "b": "LockerTallRib.019",
+   "share": 0.185
+  },
+  {
+   "a": "LockerTallFrame",
+   "b": "LockerTallRib.007",
+   "share": 0.181
+  },
+  {
+   "a": "LockerRearFrame",
+   "b": "LockerRearRib.005",
+   "share": 0.181
+  },
+  {
+   "a": "LockerRearFrame.001",
+   "b": "LockerRearRib.017",
+   "share": 0.181
+  },
+  {
+   "a": "LockerTallFrame",
+   "b": "LockerTallRib.004",
+   "share": 0.176
+  },
+  {
+   "a": "LockerTallFrame",
+   "b": "LockerTallRib.013",
+   "share": 0.176
+  },
+  {
+   "a": "LockerTallFrame",
+   "b": "LockerTallRib.016",
+   "share": 0.176
+  },
+  {
+   "a": "LockerLowFrame",
+   "b": "LockerLowRib",
+   "share": 0.176
+  },
+  {
+   "a": "LockerLowBar",
+   "b": "LockerLowRib",
+   "share": 0.176
+  },
+  {
+   "a": "LockerRearFrame",
+   "b": "LockerRearRib.009",
+   "share": 0.176
+  },
+  {
+   "a": "LockerTallFrame.001",
+   "b": "LockerTallRib.030",
+   "share": 0.176
+  },
+  {
+   "a": "LockerTallFrame.001",
+   "b": "LockerTallRib.037",
+   "share": 0.176
+  },
+  {
+   "a": "LockerTallFrame.001",
+   "b": "LockerTallRib.041",
+   "share": 0.176
+  },
+  {
+   "a": "LockerTallFrame",
+   "b": "LockerTallRib.017",
+   "share": 0.171
+  },
+  {
+   "a": "LockerTallFrame",
+   "b": "LockerTallRib.018",
+   "share": 0.171
+  },
+  {
+   "a": "LockerTallFrame.001",
+   "b": "LockerTallRib.039",
+   "share": 0.171
+  },
+  {
+   "a": "LockerLowFrame.001",
+   "b": "LockerLowRib.020",
+   "share": 0.171
+  },
+  {
+   "a": "LockerRearFrame.001",
+   "b": "LockerRearRib.011",
+   "share": 0.171
+  },
+  {
+   "a": "LockerRearFrame.001",
+   "b": "LockerRearRib.013",
+   "share": 0.171
+  },
+  {
+   "a": "RearGrille",
+   "b": "RearGrilleSlat",
+   "share": 0.17
+  },
+  {
+   "a": "RearGrille",
+   "b": "RearGrilleSlat.003",
+   "share": 0.17
+  },
+  {
+   "a": "LockerTallFrame",
+   "b": "LockerTallRib",
+   "share": 0.167
+  },
+  {
+   "a": "LockerTallBar",
+   "b": "LockerTallRib",
+   "share": 0.167
+  },
+  {
+   "a": "LockerRearFrame",
+   "b": "LockerRearRib.004",
+   "share": 0.167
+  },
+  {
+   "a": "LockerTallFrame.001",
+   "b": "LockerTallRib.043",
+   "share": 0.167
+  },
+  {
+   "a": "LockerTallFrame.001",
+   "b": "LockerTallRib.047",
+   "share": 0.167
+  },
+  {
+   "a": "LockerTallFrame.001",
+   "b": "LockerTallRib.048",
+   "share": 0.167
+  },
+  {
+   "a": "LockerLowFrame.001",
+   "b": "LockerLowRib.014",
+   "share": 0.167
+  },
+  {
+   "a": "LockerRearFrame.001",
+   "b": "LockerRearRib.012",
+   "share": 0.167
+  },
+  {
+   "a": "BodyLow",
+   "b": "Seam.002",
+   "share": 0.167
+  },
+  {
+   "a": "DoorJambFrontR",
+   "b": "DoorwayFillR.001",
+   "share": 0.167
+  },
+  {
+   "a": "CabFloorSide.003",
+   "b": "DashLower",
+   "share": 0.167
+  },
+  {
+   "a": "LockerTallFrame.001",
+   "b": "LockerTallRib.034",
+   "share": 0.162
+  },
+  {
+   "a": "LockerTallFrame.001",
+   "b": "LockerTallRib.038",
+   "share": 0.162
+  },
+  {
+   "a": "LockerTallFrame",
+   "b": "LockerTallRib.010",
+   "share": 0.157
+  },
+  {
+   "a": "LockerTallFrame",
+   "b": "LockerTallRib.024",
+   "share": 0.157
+  },
+  {
+   "a": "LockerLowFrame",
+   "b": "LockerLowRib.002",
+   "share": 0.157
+  },
+  {
+   "a": "LockerLowFrame",
+   "b": "LockerLowRib.006",
+   "share": 0.157
+  },
+  {
+   "a": "LockerRearFrame",
+   "b": "LockerRearRib.007",
+   "share": 0.157
+  },
+  {
+   "a": "LockerRearFrame",
+   "b": "LockerRearRib.008",
+   "share": 0.157
+  },
+  {
+   "a": "LockerTallFrame.001",
+   "b": "LockerTallRib.029",
+   "share": 0.157
+  },
+  {
+   "a": "LockerTallFrame.001",
+   "b": "LockerTallRib.033",
+   "share": 0.157
+  },
+  {
+   "a": "LockerTallFrame.001",
+   "b": "LockerTallRib.035",
+   "share": 0.157
+  },
+  {
+   "a": "LockerRearFrame.001",
+   "b": "LockerRearRib.010",
+   "share": 0.157
+  },
+  {
+   "a": "LockerRearFrame.001",
+   "b": "LockerRearRib.015",
+   "share": 0.157
+  },
+  {
+   "a": "CabFloorFront",
+   "b": "DashLower",
+   "share": 0.157
+  },
+  {
+   "a": "RearGrille",
+   "b": "RearGrilleSlat.010",
+   "share": 0.153
+  },
+  {
+   "a": "LockerTallFrame",
+   "b": "LockerTallRib.009",
+   "share": 0.153
+  },
+  {
+   "a": "LockerTallFrame",
+   "b": "LockerTallRib.020",
+   "share": 0.153
+  },
+  {
+   "a": "LockerLowFrame",
+   "b": "LockerLowRib.001",
+   "share": 0.153
+  },
+  {
+   "a": "LockerLowFrame",
+   "b": "LockerLowRib.004",
+   "share": 0.153
+  },
+  {
+   "a": "LockerRearFrame",
+   "b": "LockerRearRib.002",
+   "share": 0.153
+  },
+  {
+   "a": "LockerTallFrame.001",
+   "b": "LockerTallRib.027",
+   "share": 0.153
+  },
+  {
+   "a": "LockerLowFrame.001",
+   "b": "LockerLowRib.019",
+   "share": 0.153
+  },
+  {
+   "a": "LockerRearFrame.001",
+   "b": "LockerRearRib.018",
+   "share": 0.153
+  },
+  {
+   "a": "CabFloor",
+   "b": "SeatRearRBase",
+   "share": 0.15
+  },
+  {
+   "a": "LockerTallFrame",
+   "b": "LockerTallRib.001",
+   "share": 0.148
+  },
+  {
+   "a": "LockerRearFrame",
+   "b": "LockerRearRib",
+   "share": 0.148
+  },
+  {
+   "a": "LockerRearBar",
+   "b": "LockerRearRib",
+   "share": 0.148
+  },
+  {
+   "a": "LockerTallFrame.001",
+   "b": "LockerTallRib.028",
+   "share": 0.148
+  },
+  {
+   "a": "LockerLowFrame.001",
+   "b": "LockerLowRib.012",
+   "share": 0.148
+  },
+  {
+   "a": "LockerRearFrame.001",
+   "b": "LockerRearRib.016",
+   "share": 0.148
+  },
+  {
+   "a": "LockerLowFrame",
+   "b": "LockerLowRib.007",
+   "share": 0.144
+  },
+  {
+   "a": "LockerLowFrame",
+   "b": "LockerLowRib.008",
+   "share": 0.144
+  },
+  {
+   "a": "LockerRearFrame",
+   "b": "LockerRearRib.001",
+   "share": 0.144
+  },
+  {
+   "a": "LockerTallFrame.001",
+   "b": "LockerTallRib.025",
+   "share": 0.144
+  },
+  {
+   "a": "LockerTallBar.001",
+   "b": "LockerTallRib.025",
+   "share": 0.144
+  },
+  {
+   "a": "LockerLowFrame.001",
+   "b": "LockerLowRib.016",
+   "share": 0.144
+  },
+  {
+   "a": "RearGrille",
+   "b": "RearGrilleSlat.009",
+   "share": 0.143
+  },
+  {
+   "a": "LockerTall.001",
+   "b": "Stripe.003",
+   "share": 0.143
+  },
+  {
+   "a": "Pedal_AccelHinge",
+   "b": "Pedal_AccelPin",
+   "share": 0.142
+  },
+  {
+   "a": "AirTankBracket.002",
+   "b": "Chassis",
+   "share": 0.14
+  },
+  {
+   "a": "RearGrille",
+   "b": "RearGrilleSlat.002",
+   "share": 0.14
+  },
+  {
+   "a": "CabFloorFront",
+   "b": "Pedal_AccelHinge",
+   "share": 0.14
+  },
+  {
+   "a": "LockerRearBar.001",
+   "b": "LockerRearRib.010",
+   "share": 0.139
+  },
+  {
+   "a": "LockerLowFrame.001",
+   "b": "LockerLowRib.011",
+   "share": 0.134
+  },
+  {
+   "a": "LockerLowBar.001",
+   "b": "LockerLowRib.011",
+   "share": 0.134
+  },
+  {
+   "a": "RearGrille",
+   "b": "RearGrilleSlat.007",
+   "share": 0.133
+  },
+  {
+   "a": "RearGrille",
+   "b": "RearGrilleSlat.008",
+   "share": 0.133
+  },
+  {
+   "a": "RearGrille",
+   "b": "RearGrilleSlat.006",
+   "share": 0.13
+  },
+  {
+   "a": "LockerTallFrame",
+   "b": "LockerTallRib.005",
+   "share": 0.13
+  },
+  {
+   "a": "LockerTallFrame.001",
+   "b": "LockerTallRib.040",
+   "share": 0.13
+  },
+  {
+   "a": "CabFloorFront",
+   "b": "SeatDriverBase",
+   "share": 0.127
+  },
+  {
+   "a": "BodyLow",
+   "b": "Seam",
+   "share": 0.125
+  },
+  {
+   "a": "CabFloor",
+   "b": "WheelHouseInnerL",
+   "share": 0.125
+  },
+  {
+   "a": "CabFloorSide.001",
+   "b": "DashLower",
+   "share": 0.125
+  },
+  {
+   "a": "CabFloor",
+   "b": "SeatRearLBase",
+   "share": 0.123
+  },
+  {
+   "a": "LockerTallFrame",
+   "b": "LockerTallRib.002",
+   "share": 0.12
+  },
+  {
+   "a": "LockerTallFrame.001",
+   "b": "LockerTallRib.032",
+   "share": 0.12
+  },
+  {
+   "a": "Body",
+   "b": "FenderTop",
+   "share": 0.12
+  },
+  {
+   "a": "CabFloorFront",
+   "b": "SeatRBase",
+   "share": 0.12
+  },
+  {
+   "a": "RearGrille",
+   "b": "RearGrilleSlat.005",
+   "share": 0.117
+  },
+  {
+   "a": "LockerTallFrame.001",
+   "b": "LockerTallRib.049",
+   "share": 0.116
+  },
+  {
+   "a": "RearGrille",
+   "b": "RearGrilleSlat.004",
+   "share": 0.11
+  },
+  {
+   "a": "LockerTall.001",
+   "b": "Stripe.002",
+   "share": 0.107
+  },
+  {
+   "a": "ArmrestR",
+   "b": "JoystickBase",
+   "share": 0.107
+  },
+  {
+   "a": "CabFloorFront",
+   "b": "SeatLBase",
+   "share": 0.107
+  },
+  {
+   "a": "AirTankBracket.001",
+   "b": "Chassis",
+   "share": 0.103
+  },
+  {
+   "a": "RearGrille",
+   "b": "RearGrilleSlat.001",
+   "share": 0.103
+  },
+  {
+   "a": "LockerRearFrame.001",
+   "b": "LockerRearRib.019",
+   "share": 0.102
+  },
+  {
+   "a": "CabRoofRim",
+   "b": "Glass_Cab",
+   "share": 0.1
+  },
+  {
+   "a": "Pedal_BrakeMount",
+   "b": "Pedal_BrakePin",
+   "share": 0.1
+  },
+  {
+   "a": "AirTankBracket",
+   "b": "Chassis",
+   "share": 0.093
+  },
+  {
+   "a": "AirTankBracket.003",
+   "b": "Chassis",
+   "share": 0.09
+  },
+  {
+   "a": "CabFloorFront",
+   "b": "CabFloorSide",
+   "share": 0.083
+  },
+  {
+   "a": "CabFloorFront",
+   "b": "CabFloorSide.001",
+   "share": 0.083
+  },
+  {
+   "a": "CabFloorFront",
+   "b": "CabFloorSide.003",
+   "share": 0.083
+  },
+  {
+   "a": "Pedal_ClutchMount",
+   "b": "Pedal_ClutchPin",
+   "share": 0.083
+  },
+  {
+   "a": "BackWall",
+   "b": "BackWallUpper",
+   "share": 0.083
+  },
+  {
+   "a": "Pedal_ClutchMount.001",
+   "b": "Pedal_ClutchPin",
+   "share": 0.075
+  },
+  {
+   "a": "Pedal_BrakeMount.001",
+   "b": "Pedal_BrakePin",
+   "share": 0.075
+  },
+  {
+   "a": "Beacon",
+   "b": "Body",
+   "share": 0.07
+  },
+  {
+   "a": "WheelHouseBackL",
+   "b": "WheelHouseTopL",
+   "share": 0.067
+  },
+  {
+   "a": "WheelHouseInnerL",
+   "b": "WheelHouseTopL",
+   "share": 0.06
+  },
+  {
+   "a": "LockerTall",
+   "b": "Stripe",
+   "share": 0.054
+  },
+  {
+   "a": "LockerTall",
+   "b": "Stripe.001",
+   "share": 0.054
+  },
+  {
+   "a": "BumpStop_L3",
+   "b": "Chassis",
+   "share": 0.053
+  },
+  {
+   "a": "BumpStop_L1",
+   "b": "Chassis",
+   "share": 0.05
+  },
+  {
+   "a": "BumpStop_R1",
+   "b": "Chassis",
+   "share": 0.05
+  },
+  {
+   "a": "WheelHouseInnerR",
+   "b": "WheelHouseTopR",
+   "share": 0.05
+  },
+  {
+   "a": "WheelHouseFrontR",
+   "b": "WheelHouseTopR",
+   "share": 0.05
+  },
+  {
+   "a": "Knuckle_L2",
+   "b": "WheelSensor_L2",
+   "share": 0.047
+  },
+  {
+   "a": "BumpStop_L2",
+   "b": "Chassis",
+   "share": 0.047
+  },
+  {
+   "a": "WheelHouseBackR",
+   "b": "WheelHouseInnerR",
+   "share": 0.047
+  },
+  {
+   "a": "WheelHouseBackR",
+   "b": "WheelHouseTopR",
+   "share": 0.047
+  },
+  {
+   "a": "Chevron.004",
+   "b": "LockerRear",
+   "share": 0.042
+  },
+  {
+   "a": "CabFloorSide",
+   "b": "WheelHouseFrontL",
+   "share": 0.042
+  },
+  {
+   "a": "CabFloorFront",
+   "b": "CabFloorSide.002",
+   "share": 0.042
+  },
+  {
+   "a": "BackWall",
+   "b": "BackWallUpper.001",
+   "share": 0.042
+  },
+  {
+   "a": "BackWallUpper",
+   "b": "CabRoofRim",
+   "share": 0.042
+  },
+  {
+   "a": "BackWallUpper.001",
+   "b": "CabRoof",
+   "share": 0.042
+  },
+  {
+   "a": "BackWallUpper.001",
+   "b": "WheelHouseTopR",
+   "share": 0.042
+  },
+  {
+   "a": "WheelHouseFrontL",
+   "b": "WheelHouseTopL",
+   "share": 0.04
+  },
+  {
+   "a": "Knuckle_L1",
+   "b": "WheelSensor_L1",
+   "share": 0.037
+  },
+  {
+   "a": "BumpStop_R2",
+   "b": "Chassis",
+   "share": 0.037
+  },
+  {
+   "a": "WheelHouseBackL",
+   "b": "WheelHouseInnerL",
+   "share": 0.037
+  },
+  {
+   "a": "Knuckle_L3",
+   "b": "WheelSensor_L3",
+   "share": 0.033
+  },
+  {
+   "a": "DoorR.001",
+   "b": "DoorR.002",
+   "share": 0.032
+  },
+  {
+   "a": "Knuckle_R3",
+   "b": "WheelSensor_R3",
+   "share": 0.03
+  },
+  {
+   "a": "DoorR.002",
+   "b": "DoorR.003",
+   "share": 0.028
+  },
+  {
+   "a": "BumpStop_R3",
+   "b": "Chassis",
+   "share": 0.023
+  },
+  {
+   "a": "DoorwayFillL.001",
+   "b": "StairArmPlate1L.001",
+   "share": 0.023
+  }
+ ],
+ "nudge": {
+  "Pedal_Clutch": [
+   0.0,
+   -0.00143,
+   -0.00046
+  ],
+  "Headliner": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "DoorStripeR": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "EmblemFill": [
+   0.0015,
+   -0.0,
+   0.0
+  ],
+  "StepTread2L": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "EmblemFill.001": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "CabFloorSide": [
+   0.0015,
+   -0.0015,
+   0.0015
+  ],
+  "BackWallUpper.001": [
+   -0.0015,
+   0.0015,
+   0.0015
+  ],
+  "Light_Brake.001": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "BackWallUpper": [
+   0.0015,
+   0.0,
+   0.0015
+  ],
+  "DoorStripeL": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "StepTread2R": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "Seam.003": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "Glass_Cab": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "CabFloorSide.002": [
+   -0.0015,
+   -0.0015,
+   0.0
+  ],
+  "Light_TurnR": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "Light_Reverse.001": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "Light_Brake": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "Light_Reverse": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "CabFloorSide.001": [
+   0.0015,
+   -0.0015,
+   0.0
+  ],
+  "LockerLowBar": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerRearBar.001": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "Light_TurnL": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "LockerTallBar.001": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "SeatRearRCushion": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "LockerLowBar.001": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.012": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "SeatDriverCushion": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "SeatRCushion": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "Seam.001": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallBar": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "Light_MarkerSideHousing.007": [
+   -0.0015,
+   0.0,
+   1e-05
+  ],
+  "SeatLCushion": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "LockerRearRib.003": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.042": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "StitchTop": [
+   0.0,
+   -0.0015,
+   -1e-05
+  ],
+  "Light_MarkerSideHousing.003": [
+   0.0015,
+   0.0,
+   1e-05
+  ],
+  "LockerTallRib.045": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerLowRib.013": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerLowRib.018": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "RoofTurretBody": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "LockerTallRib.011": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.021": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.026": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.014": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "Seam": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "Seam.002": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "CabFloorSide.003": [
+   -0.0015,
+   -0.0015,
+   0.0
+  ],
+  "SeatRearLCushion": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "LockerLowRib.003": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerRearRib.006": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.036": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerLowRib.017": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.003": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerLowRib.009": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerLowRib.015": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerRearRib.014": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "DoorJambFrontL": [
+   -0.00146,
+   -0.0001,
+   -0.00032
+  ],
+  "LockerTallRib.006": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.008": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.022": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.023": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.031": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerLowRib.021": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerRearBar": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerLowRib.005": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerLowRib.010": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.044": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.046": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.015": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.019": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.007": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerRearRib.005": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerRearRib.017": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.004": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.013": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.016": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerLowRib": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerRearRib.009": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.030": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.037": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.041": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.017": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.018": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.039": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerLowRib.020": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerRearRib.011": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerRearRib.013": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "RearGrilleSlat": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "RearGrilleSlat.003": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "LockerTallRib": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerRearRib.004": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.043": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.047": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.048": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerLowRib.014": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerRearRib.012": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "DoorJambFrontR": [
+   0.00141,
+   -0.00038,
+   -0.00034
+  ],
+  "LockerTallRib.034": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.038": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.010": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.024": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerLowRib.002": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerLowRib.006": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerRearRib.007": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerRearRib.008": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.029": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.033": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.035": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerRearRib.010": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerRearRib.015": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "DashLower": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "RearGrilleSlat.010": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "LockerTallRib.009": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.020": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerLowRib.001": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerLowRib.004": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerRearRib.002": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.027": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerLowRib.019": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerRearRib.018": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "SeatRearRBase": [
+   0.0,
+   -0.0015,
+   -1e-05
+  ],
+  "LockerTallRib.001": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerRearRib": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.028": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerLowRib.012": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerRearRib.016": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerLowRib.007": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerLowRib.008": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerRearRib.001": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.025": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerLowRib.016": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "RearGrilleSlat.009": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "Stripe.003": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "Pedal_AccelPin": [
+   -0.00033,
+   0.00146,
+   0.0001
+  ],
+  "AirTankBracket.002": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "RearGrilleSlat.002": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "Pedal_AccelHinge": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "LockerLowRib.011": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "RearGrilleSlat.007": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "RearGrilleSlat.008": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "RearGrilleSlat.006": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "LockerTallRib.005": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.040": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "SeatDriverBase": [
+   -1e-05,
+   -0.0015,
+   0.0
+  ],
+  "WheelHouseInnerL": [
+   0.0015,
+   0.00118,
+   0.0
+  ],
+  "SeatRearLBase": [
+   -1e-05,
+   -0.0015,
+   -1e-05
+  ],
+  "LockerTallRib.002": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "LockerTallRib.032": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "FenderTop": [
+   0.0,
+   0.0,
+   0.0015
+  ],
+  "SeatRBase": [
+   -1e-05,
+   -0.0015,
+   -1e-05
+  ],
+  "RearGrilleSlat.005": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "LockerTallRib.049": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "RearGrilleSlat.004": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "Stripe.002": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "JoystickBase": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "SeatLBase": [
+   -1e-05,
+   -0.0015,
+   -3e-05
+  ],
+  "AirTankBracket.001": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "RearGrilleSlat.001": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "LockerRearRib.019": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "Pedal_BrakePin": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "AirTankBracket": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "AirTankBracket.003": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "Pedal_ClutchPin": [
+   -0.0015,
+   -0.0,
+   -0.0
+  ],
+  "Beacon": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "WheelHouseBackL": [
+   0.00121,
+   0.00102,
+   0.00109
+  ],
+  "Stripe": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "Stripe.001": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "BumpStop_L3": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "BumpStop_L1": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "BumpStop_R1": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "WheelHouseInnerR": [
+   -0.00108,
+   0.00104,
+   0.0
+  ],
+  "WheelHouseFrontR": [
+   3e-05,
+   0.00036,
+   -0.00146
+  ],
+  "WheelSensor_L2": [
+   0.0015,
+   -0.0,
+   0.0
+  ],
+  "BumpStop_L2": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "WheelHouseBackR": [
+   -0.00105,
+   0.00106,
+   0.00107
+  ],
+  "Chevron.004": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "WheelHouseFrontL": [
+   4e-05,
+   0.00109,
+   -0.00103
+  ],
+  "WheelSensor_L1": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "BumpStop_R2": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "WheelSensor_L3": [
+   -0.0015,
+   -0.0,
+   -0.0
+  ],
+  "DoorR.002": [
+   -0.00025,
+   -0.00106,
+   0.00148
+  ],
+  "WheelSensor_R3": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "BumpStop_R3": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "StairArmPlate1L.001": [
+   0.0,
+   0.0,
+   -0.0015
+  ]
+ }
+}

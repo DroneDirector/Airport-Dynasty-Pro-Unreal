@@ -66,7 +66,13 @@ public:
 	float TurnRate() const;
 	bool IsDriven() const { return Driver != nullptr; }
 	/** Test drives (-UIDrive): the inputs set from outside. */
-	void SetTestInput(float Throttle, float Brake, float SteerIn) { bTestInput = true; InThrottle = Throttle; InBrake = Brake; InSteer = SteerIn; }
+	void SetTestInput(float Throttle, float Brake, float SteerIn) { bTestInput = true; InThrottle = Throttle; InBrake = Brake; InSteer = SteerIn; TestRoute.Reset(); }
+	/** Tests: drive along these plan points (metres) at about Kmh, steering along the road made for it (owner,
+	 *  2026-11-14: the test drive keeps to the tarmac, not across the grass). Any SetTestInput ends it. */
+	void SetTestRoute(const TArray<FVector2D>& Pts, float Kmh) { TestRoute = Pts; TestKmh = Kmh; bTestInput = true; }
+	TArray<FVector2D> TestRoute;
+	float TestKmh = 25.f;
+	void FollowRoute();
 	void SetView(bool bChase);
 	/** As pressing V (tests). */
 	void PressView() { ToggleView(); }
@@ -105,6 +111,15 @@ private:
 	float BlueClock = 0.f;
 	void BuildLamps();
 	USceneComponent* LensGlow(const FVector& At, const FLinearColor& Col, float Brightness, float Size);
+	// the trucks' own materials (Tools/set_truck_materials.py; owner, 2026-11-14): the paint with road dirt, wear and
+	// wetness (M_TruckPaint), and every lamp lens lit on its own (M_TruckLens: per-instance brightness 0..1)
+	enum class ELens : uint8 { Blue, BlueBar, Low, High, Rear, Turn, Marker, Reverse };
+	struct FLens { UInstancedStaticMeshComponent* K = nullptr; int32 Ix = 0; ELens Kind = ELens::Blue; uint8 Side = 0; int32 Bar = 0; float Now = -1.f; };
+	TArray<FLens> Lenses;
+	int32 BarCount = 0;
+	UPROPERTY() TArray<TObjectPtr<class UMaterialInstanceDynamic>> PaintMids;
+	void DressMaterials();
+	void UpdateLenses(bool bRunning, bool bBraking, bool bTurnOn);
 	void UpdateLamps(float Dt);
 	void ToggleHighBeam() { if (!bPadMod) bHighBeam = !bHighBeam; }
 	void ToggleBlue() { if (!bPadMod) { bBlue = !bBlue; BlueClock = 0.f; } }
@@ -199,6 +214,11 @@ public:
 	virtual void Tick(float Dt) override;
 	/** Test tours: every door held open. */
 	static bool bTestOpen;
+	/** The bay doors open or shut, as you set them (owner, 2026-11-14: by a button within 25 m of the station, O / D-pad
+	 *  right; never by themselves). A door still never comes down onto anything in its opening. */
+	static bool bWantOpen;
+	/** Within reach of the button: 25 m or less from the station's walls (world position). */
+	static bool InReach(const FVector& At);
 
 private:
 	UPROPERTY() TObjectPtr<ABabylonModel> Station;

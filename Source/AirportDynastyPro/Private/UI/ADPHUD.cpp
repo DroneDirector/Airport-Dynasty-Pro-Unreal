@@ -546,6 +546,8 @@ void AADPHUD::BeginPlay()
 		InputComponent->BindKey(EKeys::P, IE_Pressed, this, &AADPHUD::TogglePerf);
 		InputComponent->BindKey(EKeys::H, IE_Pressed, this, &AADPHUD::HideUI);
 		InputComponent->BindKey(EKeys::Escape, IE_Pressed, this, &AADPHUD::OnEscape);
+		InputComponent->BindKey(EKeys::O, IE_Pressed, this, &AADPHUD::ToggleBayDoors);
+		InputComponent->BindKey(EKeys::Gamepad_DPad_Right, IE_Pressed, this, &AADPHUD::ToggleBayDoors).bConsumeInput = false;
 		InputComponent->BindKey(EKeys::LeftMouseButton, IE_DoubleClick, this, &AADPHUD::ShowUI);
 	}
 }
@@ -1331,6 +1333,13 @@ void AADPHUD::SetFrameGen(bool bOn)
 	GConfig->Flush(false, GGameUserSettingsIni);
 }
 
+void AADPHUD::ToggleBayDoors()
+{
+	if (bGame || !bNearStation) return;
+	AFireStationDoors::bWantOpen = !AFireStationDoors::bWantOpen;
+	ADP_LOG(TEXT("Fire station: bay doors %s by the button"), AFireStationDoors::bWantOpen ? TEXT("opening") : TEXT("closing"));
+}
+
 void AADPHUD::EnterDrone()
 {
 	APlayerController* PC = GetOwningPlayerController();
@@ -1669,6 +1678,8 @@ void AADPHUD::RefreshControls()
 		// flying the drone: its own controls
 		for (const ADPInput::FAction& A : Drone.IsValid() ? ADPInput::DroneActions() : ADPInput::Actions())
 			if (A.Name != TEXT("Buttons")) ButtonsList->AddSlot().AutoHeight()[Row(A, false)];
+		// near the fire station: its bay doors' button
+		if (bNearStation && !Drone.IsValid()) ButtonsList->AddSlot().AutoHeight()[Row(ADPInput::BayDoorsAction(), false)];
 	}
 	if (SettingsControls.IsValid())
 	{
@@ -1692,6 +1703,12 @@ void AADPHUD::RefreshControls()
 void AADPHUD::Tick(float Dt)
 {
 	if (bWardrobe && (++WardrobeTicks == 20 || WardrobeTicks == 90)) FillWardrobe();
+	// within 25 m of the fire station (on foot or driving): the bay doors' button works and shows in the Buttons panel
+	{
+		const APawn* Me = GetOwningPawn();
+		const bool bNear = Me && !Drone.IsValid() && AFireStationDoors::InReach(Me->GetActorLocation());
+		if (bNear != bNearStation) { bNearStation = bNear; RefreshControls(); }
+	}
 	// the stage's transition over: the creator's panel on the free side
 	if (bWhoAreYou && !bWhoAreYouCreator && ADPCharacterCreate::Done() && Browser.IsValid())
 	{
@@ -2642,6 +2659,12 @@ void AADPHUD::Tick(float Dt)
 				{46.f, [&]() { Shot(TEXT("Drive_Walker_Bay")); if (APlayerController* P = GetOwningPlayerController()) if (P->PlayerCameraManager) ADP_LOG(TEXT("UIDrive: walker camera at %s"), *P->PlayerCameraManager->GetCameraLocation().ToString()); }},
 				{45.f, [&]() { if (AFireTruck* T = Truck()) if (APawn* Me = GetOwningPawn()) { const FVector At = T->DoorSpot(); Me->TeleportTo(At, FRotator(0.f, (T->GetActorLocation() - At).Rotation().Yaw, 0.f)); if (GetOwningPlayerController()) GetOwningPlayerController()->SetControlRotation(FRotator(-5.f, (T->GetActorLocation() - At).Rotation().Yaw, 0.f)); } }},
 				{46.5f, [&]() { Shot(TEXT("Drive_Before")); }},
+				// (the bay doors only by their button now: pressed at the door, within 25 m of the station)
+				{46.7f, [&]() { ADP_LOG(TEXT("UIDrive: near the station %d, the bay doors' button pressed"), bNearStation ? 1 : 0); ToggleBayDoors(); }},
+				// (the ground in front of the bays: what's there and how high, plan y 10 (in the hall) to 45 (out on the forecourt))
+				{46.8f, [&]() { for (const float Py : {10.f, 18.f, 22.f, 26.f, 30.f, 38.f, 45.f}) { FHitResult H; const FVector A = FTerminalPlan::ToWorld(-1199.5f, 3.f, Py), B2 = FTerminalPlan::ToWorld(-1199.5f, -30.f, Py);
+					FCollisionQueryParams Q(SCENE_QUERY_STAT(ADPGroundProbe), true); for (const TWeakObjectPtr<AFireTruck>& T : AFireTruck::All) if (T.IsValid()) Q.AddIgnoredActor(T.Get()); if (GetOwningPawn()) Q.AddIgnoredActor(GetOwningPawn());
+					if (GetWorld()->LineTraceSingleByChannel(H, A, B2, ECC_Visibility, Q)) { const ABabylonModel* Bm = Cast<ABabylonModel>(H.GetActor()); ADP_LOG(TEXT("UIDrive: ground at plan y %.0f: %.3f m on %s %s"), Py, H.ImpactPoint.Z / 100.f, Bm ? *Bm->Model : (H.GetActor() ? *H.GetActor()->GetName() : TEXT("-")), Bm ? *Bm->NodeAt(H.GetComponent(), H.Item) : TEXT("")); } } }},
 				// (-DriveThird: from behind yourself, getting in and out with E itself, as you press it)
 				{44.f, [&]() { if (FParse::Param(FCommandLine::Get(), TEXT("DriveThird"))) if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) Wk->SetThirdPerson(true); }},
 				{47.f, [&]() { if (FParse::Param(FCommandLine::Get(), TEXT("DriveThird"))) { Interact(); if (AFireTruck* T = Truck()) { ADP_LOG(TEXT("UIDrive: E pressed from third person, truck %s"), T->IsDriven() ? TEXT("taken") : TEXT("NOT taken")); T->SetView(true); } } else if (AFireTruck* T = Truck()) { T->Enter(GetOwningPawn()); T->SetView(true); } }},
@@ -2653,7 +2676,9 @@ void AADPHUD::Tick(float Dt)
 				{49.4f, [&]() { Shot(TEXT("Drive_Climb4")); }},
 				{50.0f, [&]() { Shot(TEXT("Drive_Climb5")); }},
 				{50.85f, [&]() { Shot(TEXT("Drive_In_Bay")); }},
-				{52.f, [&]() { if (AFireTruck* T = Truck()) T->SetTestInput(0.6f, 0.f, 0.f); }},   // (the walk and the climb take about 5 s)
+				// out of the bay onto the forecourt and along the road made for it (ROAD-FIRE-APRON) toward the apron
+				{52.f, [&]() { if (AFireTruck* T = Truck()) { const FVector2D S(T->GetActorLocation().X / 100.0, -T->GetActorLocation().Y / 100.0);
+					T->SetTestRoute({S, FVector2D(S.X, 26.0), FVector2D(-1205.0, 40.0), FVector2D(-1205.0, 190.0), FVector2D(-1190.0, 196.0), FVector2D(-420.0, 196.0)}, 30.f); } }},   // (the walk and the climb take about 5 s)
 				{53.f, [&]() { Shot(TEXT("Drive_T53")); }},
 				{54.f, [&]() { if (FParse::Param(FCommandLine::Get(), TEXT("DriveThird"))) if (AFireTruck* T = Truck()) { T->PressView(); ADP_LOG(TEXT("UIDrive: V pressed, view step %d (0 cab, 1 close, 2 far)"), T->ViewStep()); } }},
 				{55.f, [&]() { Shot(TEXT("Drive_T55")); }},
@@ -2662,10 +2687,10 @@ void AADPHUD::Tick(float Dt)
 				{60.f, [&]() { Shot(TEXT("Drive_Out")); }},
 				{60.5f, [&]() { if (AFireTruck* T = Truck()) { T->SetTestTurn(2); T->SetView(false); } }},
 				{60.9f, [&]() { Shot(TEXT("Drive_Indicator_Stalk")); if (AFireTruck* T = Truck()) T->SetView(true); }},
-				{61.f, [&]() { if (AFireTruck* T = Truck()) { T->SetTestInput(0.4f, 0.f, 0.6f); T->ToggleSiren(); } }},
+				{61.f, [&]() { if (AFireTruck* T = Truck()) T->ToggleSiren(); }},
 				{67.f, [&]() { Shot(TEXT("Drive_Turn")); }},
 				{69.5f, [&]() { if (AFireTruck* T = Truck()) ADP_LOG(TEXT("UIDrive: indicator now %d (0 = off)"), T->TurnState()); }},
-				{68.f, [&]() { if (AFireTruck* T = Truck()) { T->SetTestInput(0.3f, 0.f, -0.4f); T->SetView(false); } }},
+				{68.f, [&]() { if (AFireTruck* T = Truck()) T->SetView(false); }},
 				{72.f, [&]() { Shot(TEXT("Drive_Cab")); }},
 				{73.f, [&]() { if (AFireTruck* T = Truck()) { T->SetTestInput(0.f, 1.f, 0.f); T->SetView(true); } }},
 				{75.f, [&]() { if (AFireTruck* T = Truck()) T->SetTestInput(0.f, 1.f, 0.f); }},

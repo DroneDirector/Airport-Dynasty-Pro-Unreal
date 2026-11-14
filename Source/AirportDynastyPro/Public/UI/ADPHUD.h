@@ -144,6 +144,9 @@ public:
 	TWeakObjectPtr<APawn> DroneFrom;
 	FRotator DroneFromLook = FRotator::ZeroRotator;
 	bool bButtonsBeforeDrone = false;
+	/** The fire station's bay doors: within 25 m their button (O / D-pad right) works and shows in the Buttons panel. */
+	void ToggleBayDoors();
+	bool bNearStation = false;
 	void GoApron();
 	void GoEntrance();
 	void GoTowerCab();
