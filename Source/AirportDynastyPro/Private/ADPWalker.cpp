@@ -422,9 +422,10 @@ void AADPWalker::ArmIK()
 			EyeBody->SetBoneRotationByName(Bn, (FQuat(Ax, FMath::DegreesToRadians(As[k] * ArmW)) * Wt(Bn).GetRotation()).Rotator(), EBoneSpaces::WorldSpace);
 		}
 	};
-	Bend3(TEXT("middle"), 100.f, 115.f, 90.f);
-	Bend3(TEXT("ring"), 102.f, 115.f, 90.f);
-	Bend3(TEXT("pinky"), 105.f, 110.f, 85.f);
+	// (the owner's own hand, photographed 2026-11-14: a tight fist, fingertips into the palm)
+	Bend3(TEXT("middle"), 90.f, 105.f, 65.f);
+	Bend3(TEXT("ring"), 92.f, 105.f, 65.f);
+	Bend3(TEXT("pinky"), 95.f, 100.f, 60.f);
 	// the index finger: its second and third bones brought into line with its first (straight out)
 	for (const TCHAR* B : {TEXT("index_02_r"), TEXT("index_03_r")})
 	{
@@ -435,8 +436,29 @@ void AADPWalker::ArmIK()
 		const FQuat QI = FQuat::FindBetweenNormals(Db, D1);
 		EyeBody->SetBoneRotationByName(Bn, (FQuat::Slerp(FQuat::Identity, QI, ArmW) * Wt(Bn).GetRotation()).Rotator(), EBoneSpaces::WorldSpace);
 	}
-	Bend3(TEXT("thumb"), 0.f, 35.f, 45.f);
-	(void)Roll;
+	// the thumb (his photos): lying along the outside of the folded middle finger, its tip resting against that finger's
+	// middle joint - steered there, joint by joint (its tip aimed at the spot, a few passes), not bent by fixed amounts
+	{
+		const FName Th1(TEXT("thumb_01_r")), Th2(TEXT("thumb_02_r")), Th3(TEXT("thumb_03_r"));
+		if (EyeBody->GetBoneIndex(Th1) != INDEX_NONE && EyeBody->GetBoneIndex(Th2) != INDEX_NONE && EyeBody->GetBoneIndex(Th3) != INDEX_NONE && EyeBody->GetBoneIndex(TEXT("middle_02_r")) != INDEX_NONE)
+		{
+			// the spot: on the outside of the folded middle finger's middle joint (out of the palm, a finger's thickness)
+			const FVector Spot = P(TEXT("middle_02_r")) - Palm * 1.4f + (P(TEXT("index_01_r")) - P(TEXT("pinky_01_r"))).GetSafeNormal() * 0.6f;
+			auto TipNow = [&]() { const FVector A = P(TEXT("thumb_02_r")), B = P(TEXT("thumb_03_r")); return B + (B - A) * 0.85f; };
+			for (int32 Pass = 0; Pass < 4; ++Pass)
+				for (const FName& Bn : {Th2, Th1})
+				{
+					const FVector O = Wt(Bn).GetLocation(), V1 = (TipNow() - O).GetSafeNormal(), V2 = (Spot - O).GetSafeNormal();
+					FQuat Qt = FQuat::FindBetweenNormals(V1, V2);
+					const float Ang = FMath::Min(Qt.GetAngle(), FMath::DegreesToRadians(Bn == Th1 ? 45.f : 60.f));
+					Qt = FQuat(Qt.GetRotationAxis(), Ang * ArmW);
+					EyeBody->SetBoneRotationByName(Bn, (Qt * Wt(Bn).GetRotation()).Rotator(), EBoneSpaces::WorldSpace);
+				}
+			// its last joint lies straight along the finger (a thumb resting flat, not hooked)
+			const FVector A2 = P(TEXT("thumb_02_r")), A3 = P(TEXT("thumb_03_r"));
+			(void)A2; (void)A3;
+		}
+	}
 }
 
 bool AADPWalker::FingerTipNow(FVector& Out) const
