@@ -281,7 +281,21 @@ for s in (-1, 1):
          [(x, face_y(1.535) + 0.012, 1.535), (x, face_y(1.60) + 0.02, 1.62), (x * 0.97, 0.005, HZ - 0.005), (x * 0.94, 0.06, HZ - 0.03), (x * 0.90, 0.11, 1.59), (x * 0.88, head_back(1.555) - 0.02, 1.555)],
          0.021, M['grey'])
 tube('Kiosk_HandleTop', [(-HX * 0.97, 0.005, HZ - 0.005), (-HX * 0.80, 0.003, HZ + 0.002), (0, 0.0, HZ + 0.004), (HX * 0.80, 0.003, HZ + 0.002), (HX * 0.97, 0.005, HZ - 0.005)], 0.0215, M['grey'])
-tube('Kiosk_StatusLight', [(-0.15, 0.0, HZ + 0.0235), (0, -0.001, HZ + 0.0255), (0.15, 0.0, HZ + 0.0235)], 0.0062, M['green'], res=32, prof_res=6)
+# the green lamp follows the whole handle (owner, 2026-11-14): along the top of the top bar, round both corners and down
+# the outside of both side hooks to the kiosk, front and back - set out from each tube's middle line by 19.5 mm (the lamp
+# standing 4 mm proud of the grey), turned from straight up on the bar to straight out on the hooks, one piece per half
+# meeting the bar's half at the same corner point (no gap)
+LAMP_OFF, LAMP_R = 0.0195, 0.0062
+def lamp_pts(pts, dirs):
+    return [(p[0] + LAMP_OFF * d[0], p[1] + LAMP_OFF * d[1], p[2] + LAMP_OFF * d[2]) for p, d in zip(pts, dirs)]
+C45 = math.sqrt(0.5)
+for s in (-1, 1):
+    x = s * HX
+    side = [(x, face_y(1.535) + 0.012, 1.535), (x, face_y(1.60) + 0.02, 1.62), (x * 0.97, 0.005, HZ - 0.005), (x * 0.94, 0.06, HZ - 0.03), (x * 0.90, 0.11, 1.59), (x * 0.88, head_back(1.555) - 0.02, 1.555)]
+    out = (s, 0, 0); corner = (s * C45, 0, C45)
+    tube('Kiosk_StatusLightSide' + ('L' if s < 0 else 'R'), lamp_pts(side, [out, (s * 0.9, 0, 0.44), corner, (s * 0.9, 0, 0.44), out, out]), LAMP_R, M['green'], res=32, prof_res=6)
+top = [(-HX * 0.97, 0.005, HZ - 0.005), (-HX * 0.80, 0.003, HZ + 0.002), (0, 0.0, HZ + 0.004), (HX * 0.80, 0.003, HZ + 0.002), (HX * 0.97, 0.005, HZ - 0.005)]
+tube('Kiosk_StatusLight', lamp_pts(top, [(-C45, 0, C45), (-0.3, 0, 0.95), (0, 0, 1), (0.3, 0, 0.95), (C45, 0, C45)]), LAMP_R, M['green'], res=32, prof_res=6)
 # #endregion
 
 # #region The back: the vent grid (textured from the back photo), the lock, our type label
