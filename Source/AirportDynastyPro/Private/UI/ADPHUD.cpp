@@ -1258,6 +1258,7 @@ void AADPHUD::CloseWhoAreYou(bool bGoOn, const FString& Difficulty)
 		// on: the game's own new-game flow (the pilot, the airline, the Overview); back: the title screen
 		const FString D = Difficulty.IsEmpty() ? TEXT("normal") : Difficulty.Left(12).Replace(TEXT("'"), TEXT(""));
 		Browser->ExecuteJavascript(bGoOn ? FString::Printf(TEXT("window.__ueNewGameDone && window.__ueNewGameDone('%s', '%s')"), *D, ADPCharacterCreate::UiOnRight() ? TEXT("f") : TEXT("m")) : TEXT("window.__ueNewGameCancel && window.__ueNewGameCancel()"));
+		if (bGoOn) StartUnrealLoad();   // (you, your hair and the terminal loading for real, shown on the loading screen)
 	}
 	// the menus in front again (they were, before the stage)
 	if (!bGame) ToggleGame();
@@ -1723,6 +1724,7 @@ void AADPHUD::RefreshControls()
 
 void AADPHUD::Tick(float Dt)
 {
+	TickUnrealLoad(Dt);
 	if (bWardrobe && (++WardrobeTicks == 20 || WardrobeTicks == 90)) FillWardrobe();
 	// within 25 m of the fire station (on foot or driving): the bay doors' button works and shows in the Buttons panel
 	{
@@ -3208,6 +3210,17 @@ void AADPHUD::Tick(float Dt)
 			}
 			if (!K && Before < 43.f && ShotClock >= 43.f) ADP_ERROR(TEXT("UIKiosk: KIOSK-1 isn't placed"));
 			if (Before < 43.f + UE_ARRAY_COUNT(Shots) * 4.f + 2.f && ShotClock >= 43.f + UE_ARRAY_COUNT(Shots) * 4.f + 2.f) FGenericPlatformMisc::RequestExit(false);
+		}
+		// -UILoadReal (to-do 32h): the neon loading screen as after Start game, with what Unreal itself loads and its progress
+		if (FParse::Param(FCommandLine::Get(), TEXT("UILoadReal")))
+		{
+			auto Pic = [](const TCHAR* N) { FScreenshotRequest::RequestScreenshot(N, true, false); };   // (with the web overlay the loading screen is on)
+			if (Before < 41.f && ShotClock >= 41.f && Browser.IsValid()) { Browser->ExecuteJavascript(TEXT("window.__ueNewGameDone && window.__ueNewGameDone('normal', 'm')")); StartUnrealLoad(); }
+			if (Before < 42.5f && ShotClock >= 42.5f) Pic(TEXT("LoadReal_1"));
+			if (Before < 45.f && ShotClock >= 45.f) Pic(TEXT("LoadReal_2"));
+			if (Before < 50.f && ShotClock >= 50.f) Pic(TEXT("LoadReal_3"));
+			if (Before < 60.f && ShotClock >= 60.f) Pic(TEXT("LoadReal_4"));
+			if (Before < 62.f && ShotClock >= 62.f) FGenericPlatformMisc::RequestExit(false);
 		}
 		// -UIDoorRule (to-do 20): at a hinged door - shut as you stand at it, the Buttons panel offering E, opened with E,
 		// and its closer pulling it shut after you've walked away

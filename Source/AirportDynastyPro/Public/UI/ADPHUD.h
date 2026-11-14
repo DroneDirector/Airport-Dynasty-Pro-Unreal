@@ -154,7 +154,13 @@ public:
 	bool bHoseHeld = false, bNearHose = false;
 	/** A seat within reach, or sitting on one (Seats.h). */
 	bool bNearSeat = false, bSeated = false;
-	bool bNearDoor = false, bDoorOpen = false;   // at a hinged door (BabylonModel UseDoor): the Buttons panel's open / close
+	bool bNearDoor = false, bDoorOpen = false;
+	// the new career's loading screen: what Unreal itself loads, with its real progress (UI/NewGameLoad.cpp, to-do 32h)
+	void StartUnrealLoad();
+	void TickUnrealLoad(float Dt);
+	TArray<TSharedPtr<struct FStreamableHandle>> PreLoad;
+	TArray<FString> PreNames;
+	float PreSent = 0.f; bool bPreLoading = false, bPreDone = false;   // at a hinged door (BabylonModel UseDoor): the Buttons panel's open / close
 	void GoApron();
 	void GoEntrance();
 	void GoTowerCab();
