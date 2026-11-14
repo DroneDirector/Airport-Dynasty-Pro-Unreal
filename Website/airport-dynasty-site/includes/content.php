@@ -23,17 +23,17 @@ function ads_content() {
                 ['image' => ads_img('dealer_int.jpg'), 'caption' => 'Inside the showroom'],
                 ['image' => ads_img('villa_drive.jpg'), 'caption' => 'Coming home along your own drive'],
             ],
-            // The feature slider: one slide per line, ICON|TITLE|TEXT (icons: terminal, globe, people, plane, home, sun, mesh, more)
-            'slides' => "terminal|Grow your terminal|Start small, then add new wings piece by piece as more passengers arrive.\nglobe|The whole Earth in 3D|Plan your routes on a fully rendered globe with real terrain, rivers and coastlines.\npeople|Thousands of people|Every passenger has a booking, a mood, money in their pocket and a trip to finish.\npeople|Talk to anyone|Every NPC, inside the terminal and out, stops to talk when you walk up to them.\nplane|AI airlines fly your routes|You plan the routes and the timetables. Your hired crews do the flying.\nbank|A real economy|Pay salaries, maintenance, fuel and supplies, and follow every in and out in your bank app.\nhome|Your villa and your town|Drive home after work to your own villa in a small Icelandic town.\nmesh|Real airfield markings|Every line, sign and marking on the runway, taxiways and aprons, and every distance between them, follows the ICAO and FAA diagrams.\nsun|Real weather, day and night|Sunsets, storms and snow, following the real date and time.\nmesh|AAA graphics in Unreal Engine 5|Nanite, Lumen and MetaHumans bring film-like detail, light and people to every corner.\nmore|And much more|New buildings and features join with every update.",
+            // The feature slider: one slide per line, ICON|TITLE|TEXT (icons: terminal, globe, people, plane, home, sun, mesh, bank, fire, car, more)
+            'slides' => "terminal|Grow your terminal|Start small, then add new wings piece by piece as more passengers arrive.\nglobe|The whole Earth in 3D|Plan your routes on a fully rendered globe with real terrain, rivers and coastlines.\npeople|Thousands of people|Every passenger has a booking, a mood, money in their pocket and a trip to finish.\npeople|Talk to anyone|Every NPC, inside the terminal and out, stops to talk when you walk up to them.\nplane|AI airlines fly your routes|You plan the routes and the timetables. Your hired crews do the flying.\nbank|A real economy|Pay salaries, maintenance, fuel and supplies, and follow every in and out in your bank app.\nhome|Your villa and your town|Drive home after work to your own villa in a small Icelandic town.\nsun|Rainy days and snow|The ground darkens and shines in the rain, puddles fill and ripple, and snow settles in the joints and cracks.\nfire|Drive the fire truck|Climb in, switch on the flashing light bar and drive at up to 135 km/h, then wash it down with the hose.\nplane|Drone mode|Fly a free camera over everything, from just above the apron up to the clouds.\nmesh|AAA graphics in Unreal Engine 5|Nanite, Lumen and MetaHumans bring film-like detail, light and people to every corner.\nmore|And much more|New buildings and features join with every update.",
         ],
         // #endregion
         // #region ── Ticker ──
-        'ticker' => "Check-in · Security · Gates · Jetways · Control tower · Fire station · Hangars · Car rental · Airlines · Timetables · Crews · The whole Earth · Day and night · Weather · Talk to every NPC · Salaries and bills · Your bank account · Your villa · Your home town · And much more",
+        'ticker' => "Check-in · Security · Gates · Jetways · Control tower · Fire station · Hangars · Car rental · Airlines · Timetables · Crews · The whole Earth · Day and night · Weather · Rainy days · Puddles · Snow · Drive the fire truck · Drone mode · Sit anywhere · Talk to every NPC · Salaries and bills · Your bank account · Your villa · Your home town · And much more",
         // #endregion
         // #region ── Numbers ──
         'stats' => [
             ['num' => '5,000', 'label' => 'career ranks, from first day to legend'],
-            ['num' => '6.7 km', 'label' => 'of road from the terminal to your town'],
+            ['num' => '7.8 km', 'label' => 'of road from the terminal to your town'],
             ['num' => '24 h', 'label' => 'real day and night on the real date'],
             ['num' => '360°', 'label' => 'the whole Earth, fully rendered'],
         ],
@@ -46,8 +46,9 @@ function ads_content() {
             'items'   => [
                 ['icon' => 'terminal', 'name' => 'The terminal', 'text' => 'Check passengers in, run security and the shops, and add new wings as traffic grows.', 'status' => 'In the game', 'arrow' => '→'],
                 ['icon' => 'tower', 'name' => 'Control tower', 'text' => 'Climb to the top and watch every aircraft move on the field below.', 'status' => 'In the game', 'arrow' => '↑'],
-                ['icon' => 'hangar', 'name' => 'Hangars', 'text' => 'Where your aircraft are serviced, repaired and kept ready to fly.', 'status' => 'In the game', 'arrow' => '←'],
-                ['icon' => 'fire', 'name' => 'Fire station', 'text' => 'Meet the fire crews, climb into the fire trucks and drive them yourself.', 'status' => 'In the game', 'arrow' => '↗'],
+                ['icon' => 'hangar', 'name' => 'Hangars', 'text' => 'Open the big doors from the button panel and keep your aircraft serviced, repaired and ready to fly.', 'status' => 'In the game', 'arrow' => '←'],
+                ['icon' => 'fire', 'name' => 'Fire station', 'text' => 'Climb into the fire trucks and drive them yourself, light bar flashing, then wash them down with the hose.', 'status' => 'In the game', 'arrow' => '↗'],
+                ['icon' => 'car', 'name' => 'Car rental', 'text' => 'Rent a car at the desks; the rental cars and shuttle buses wait in their marked bays outside.', 'status' => 'In the game', 'arrow' => '↘'],
                 ['icon' => 'car', 'name' => 'Car dealership', 'text' => 'Buy yourself a new car, sell your current one, or trade it in for another.', 'status' => 'Being built', 'arrow' => '→'],
                 ['icon' => 'home', 'name' => 'Your villa', 'text' => 'Your own home at the end of its own road, with a garage for your car.', 'status' => 'Being built', 'arrow' => '↓'],
                 ['icon' => 'more', 'name' => 'And much more', 'text' => 'Shops, a petrol station, a hairdresser and more of the town on the way.', 'status' => 'Coming', 'arrow' => '…'],
@@ -91,13 +92,13 @@ function ads_content() {
             'title'   => 'Four ways <em>to play.</em>',
             'items'   => [
                 ['name' => 'The airport', 'image' => ads_img('overview.jpg'),
-                    'points' => "Walk every corner of your terminal\nExpand it, piece by piece, as traffic grows\nJetways, stands, timetable screens and announcements\nTower, fire station and hangars\nSunsets, storms and snow on the real date\n…and much more"],
+                    'points' => "Walk every corner of your terminal\nExpand it, piece by piece, as traffic grows\nJetways, stands, timetable screens and announcements\nReal roads: the forecourt, bus and taxi stands, a roundabout and a car park with almost 4,000 spaces\nTower, fire station and hangars\nRainy days with puddles, and snow, on the real date\n…and much more"],
                 ['name' => 'The people', 'image' => ads_img('dealer_int.jpg'),
                     'points' => "Thousands of passengers with their own trips\nTalk to every NPC, inside the terminal and out\nHire, dress and schedule your staff\nSecurity, police and sniffer dogs\nIncidents to handle as they happen\n…and much more"],
                 ['name' => 'Airlines & world', 'image' => ads_img('dealer_ext.jpg'),
                     'points' => "Buy, sell or lease aircraft\nCrews, timetables and rival airlines\nPlan routes on a fully rendered 3D globe\nRankings, thousands of awards and your own museum\nShops, car rental and parking income\n…and much more"],
                 ['name' => 'Your life', 'image' => ads_img('villa_garden.jpg'),
-                    'points' => "Create your character: she or he, looks, a pet, a partner\nYour own villa, garage and car\nDrive the 6.7 km road home to town\nShops, a car dealership and a hairdresser\nRadio and news on the way\n…and much more"],
+                    'points' => "Create your character: she or he, looks, a pet, a partner\nDress the part: a tailored suit or a t-shirt\nWalk in first person and see your own hands and feet, or sit down anywhere\nDrive the fire truck, or fly over it all in drone mode\nYour own villa, garage and car\nDrive the 7.8 km road home to town\nShops, a car dealership and a hairdresser\nRadio and news on the way\n…and much more"],
             ],
         ],
         // #endregion
@@ -111,7 +112,7 @@ function ads_content() {
                 ['image' => ads_img('dealer_int.jpg'), 'caption' => 'Inside the showroom: the turntable never stops'],
                 ['image' => ads_img('villa_garden.jpg'), 'caption' => 'Your own villa, the glacier to the north'],
                 ['image' => ads_img('villa_drive.jpg'), 'caption' => 'Coming home along your own drive'],
-                ['image' => ads_img('overview.jpg'), 'caption' => 'The airport, the 6.7 km road and your town'],
+                ['image' => ads_img('overview.jpg'), 'caption' => 'The airport, the 7.8 km road and your town'],
                 ['image' => ads_img('town.jpg'), 'caption' => 'Your home town, with the road signs to the airport'],
             ],
         ],
@@ -121,7 +122,7 @@ function ads_content() {
             'eyebrow' => 'Under the hood',
             'title'   => 'Unreal Engine 5. <em>AAA graphics.</em>',
             'text'    => 'Airport Dynasty Pro is built for a AAA look, on the same engine the biggest games and films use. Two of its features shape how the game looks and runs; the rest of the picture is below.',
-            'extras'  => "Virtual Shadow Maps|Crisp, soft shadows on every detail, from the tail fins to a coffee cup\nGlass and reflections|The terminal’s glass walls reflect the apron, the sky and the people\nMetaHumans|Faces, skin, hair and movement that look like real people\nWeather and sky|Clouds, rain, snow, fog and lightning, lit by the real sun\nTemporal Super Resolution|Sharp 4K-like pictures at higher frame rates\nAnd much more|More graphics features arrive with every update",
+            'extras'  => "Virtual Shadow Maps|Crisp, soft shadows on every detail, from the tail fins to a coffee cup\nReal glass and reflections|Clear when you look straight through, a mirror at a glancing angle: the sky, the apron and the people\nGround from real scans|The runway, taxiways and aprons from photographed asphalt and concrete, with cracks, tar repairs and real markings\nRain, puddles and snow|Wet ground darkens and shines, puddles ripple, snow settles in joints and cracks\nMetaHumans|Faces, skin, hair and movement that look like real people\nWeather and sky|Clouds, rain, snow, fog and lightning, lit by the real sun\nTemporal Super Resolution|Sharp 4K-like pictures at higher frame rates\nAnd much more|More graphics features arrive with every update",
             'nanite_look' => 'Buildings, aircraft and every bench are made of millions of tiny triangles, film-quality detail. Edges stay round, surfaces stay sharp, from across the apron or a metre away, with no models popping in and out as you move.',
             'nanite_perf' => 'Nanite only draws the detail your screen can actually show and streams the rest as needed. So more detail costs far less than it used to: a huge, detailed airport runs smoothly instead of grinding your PC down.',
             'lumen_look'  => 'Light bounces like real light: sunshine off the floor, through the glass, onto the people. Nothing is painted on in advance, so dawn, sunsets, storms and night shifts all light up the airport the way they would in life, as the sun moves.',
@@ -134,7 +135,7 @@ function ads_content() {
             'eyebrow' => 'Flight plan',
             'title'   => 'Where it’s <em>heading.</em>',
             'items'   => [
-                ['when' => 'Now', 'title' => 'The airport comes alive', 'text' => 'Terminal, people, staff and uniforms, airlines, aircraft, timetables, the 3D globe, rankings and awards.'],
+                ['when' => 'Now', 'title' => 'The airport comes alive', 'text' => 'Terminal, people, staff and uniforms, airlines, aircraft, timetables, the 3D globe, the airport’s roads and car park, rankings and awards.'],
                 ['when' => 'Next', 'title' => 'Your town and your home', 'text' => 'The town fully built: your villa, the car dealership, shops and the hairdresser. Staff drive home after work.'],
                 ['when' => 'Then', 'title' => 'A bigger airport', 'text' => 'Terminal extensions over the new apron, more gates and stands, the fire station and hangars in full use.'],
                 ['when' => 'Later', 'title' => 'And much more', 'text' => 'Interact with everything you see, more events and incidents, and new things with every update.'],
