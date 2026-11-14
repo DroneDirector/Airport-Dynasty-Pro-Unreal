@@ -204,6 +204,8 @@ void ATerminalCrowd::Next(FPaxFragment& P)
 	}
 }
 
+TArray<FVector4> ATerminalCrowd::Obstacles;
+
 void ATerminalCrowd::Step(FPaxFragment& P, float Dt)
 {
 	if (!P.bWalking)
@@ -221,6 +223,16 @@ void ATerminalCrowd::Step(FPaxFragment& P, float Dt)
 		if (D <= Left) { P.Pos = W[P.Step]; Left -= D; ++P.Step; continue; }
 		P.Pos += To / D * Left;
 		Left = 0;
+	}
+	// round the placed props' clear zones (a kiosk, TerminalProps.h): out to the zone's edge, to the side it is passed on
+	for (const FVector4& Ob : Obstacles)
+	{
+		if (FMath::Abs(P.Pos.Y - Ob.Y) > 1.0) continue;
+		const FVector2D D(P.Pos.X - Ob.X, P.Pos.Z - Ob.Z);
+		const double L = D.Size();
+		if (L >= Ob.W) continue;
+		const FVector2D Out = L > 0.01 ? D / L : FVector2D(1, 0);
+		P.Pos.X = Ob.X + Out.X * Ob.W; P.Pos.Z = Ob.Z + Out.Y * Ob.W;
 	}
 	if (P.Step >= W.Num())
 	{

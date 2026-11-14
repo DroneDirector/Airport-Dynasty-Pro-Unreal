@@ -26,6 +26,7 @@
 #include "TowerADC.h"
 #include "Hangar.h"
 #include "RoadNetwork.h"
+#include "TerminalProps.h"
 #include "Misc/Paths.h"
 #include "Components/VolumetricCloudComponent.h"
 #include "Engine/World.h"
@@ -93,6 +94,8 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 			if (ATerminalScreens* Screens = W->SpawnActor<ATerminalScreens>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 				Screens->Build(Plan);
 		}
+		// the terminal's placed props from data: the self check-in kiosk... (TerminalProps.h)
+		if (ATerminalProps* Props = W->SpawnActor<ATerminalProps>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Props->Build();
 		// the control tower (ADC) at site A, west of the pier: walked into, its lift, doors and desk flap moving
 		if (ATowerADC* Tower = W->SpawnActor<ATowerADC>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Tower->Build();
 		// the apron light masts, one in front of each gate and two in front of each hangar

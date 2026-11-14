@@ -21,6 +21,8 @@ class AIRPORTDYNASTYPRO_API ATerminalCrowd : public AActor
 	GENERATED_BODY()
 
 public:
+	/** Places passengers walk round (plan metres: x, floor height, z, radius): the placed props' clear zones (TerminalProps.h). */
+	static TArray<FVector4> Obstacles;
 	ATerminalCrowd();
 
 	/** Makes Count passengers, spread over every stage of the trip. */
