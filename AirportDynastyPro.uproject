@@ -20,6 +20,10 @@
 	],
 	"Plugins": [
 		{
+			"Name": "MetaRoad",
+			"Enabled": true
+		},
+		{
 			"Name": "CableComponent",
 			"Enabled": true
 		},

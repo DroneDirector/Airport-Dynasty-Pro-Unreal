@@ -1,0 +1,55 @@
+{
+ "source": "Tools/make_roads.py",
+ "roads": [
+  {
+   "id": "TEST-PART1",
+   "pts": [
+    [
+     -1262,
+     70
+    ],
+    [
+     -1285,
+     110
+    ],
+    [
+     -1315,
+     150
+    ],
+    [
+     -1330,
+     200
+    ],
+    [
+     -1332,
+     260
+    ]
+   ],
+   "lanes": {
+    "left": [
+     {
+      "type": "Driving",
+      "w": 3.5
+     },
+     {
+      "type": "Sidewalk",
+      "w": 2.5,
+      "kerb": 15
+     }
+    ],
+    "right": [
+     {
+      "type": "Driving",
+      "w": 3.5
+     },
+     {
+      "type": "Sidewalk",
+      "w": 2.5,
+      "kerb": 15
+     }
+    ]
+   },
+   "test": true
+  }
+ ]
+}

@@ -24,3 +24,9 @@ Every third-party part used in Airport Dynasty Pro (Unreal Engine 5 edition), it
 asphalt_04 (Sergej Majboroda, Jenelle van Heerden), asphalt_02 (Rob Tuytel), concrete_floor_worn_001 (Dimitrios Savva,
 Rico Cilliers), brushed_concrete_04 (Amal Kumar), aerial_grass_rock (Rob Tuytel), sparse_grass (Amal Kumar), grass_ground (Charlotte Baglioni), from https://polyhaven.com, CC0 1.0 (public domain). The airfield's
 asphalt and concrete and the pavement edges (Art/Ground/Scans, Tools/set_ground.py, Tools/set_edge_bands.py).
+
+## MetaRoad Free - udrive (Ivan Zhukov), Fab Standard License
+MetaRoad 3.3.0 (https://www.fab.com/listings/a425c08b-d82a-4b42-ab94-101c3eb23f28), installed to Unreal Engine 5.7 from
+the owner's Fab library. Licensed under the Fab Standard License (https://www.fab.com/eula): used to author and bake the
+airport's, the road's and the town's road network (Tools/build_roads.py); baked roads ship as static meshes, the plugin
+is packed for its run-time road graph only. The plugin itself is not redistributed on its own.
