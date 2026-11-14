@@ -1,5 +1,6 @@
 // The road network (RoadNetwork.h).
 #include "RoadNetwork.h"
+#include "LandCorridor.h"
 #include "ADPLog.h"
 #include "Airfield.h"
 #include "TerminalBuilder.h"
@@ -239,6 +240,9 @@ namespace
 // the embankment's lift (m) out on the land: 1 m from the airfield's edge out, rising over its last 60 m inside
 static double BankLift(double X, double Y)
 {
+	// (none on our own land along the roads: the road lies on it exactly - only where the globe is still the ground)
+	double Zc;
+	if (ALandCorridor::HeightAt(X, Y, Zc)) return 0.0;
 	const FAirfieldData::FRect& B = AAirfield::Shared().Boundary;
 	const double In = FMath::Min(FMath::Min(X - B.X0, B.X1 - X), FMath::Min(Y - B.Y0, B.Y1 - Y));
 	return 1.0 * (1.0 - FMath::SmoothStep(0.0, 60.0, In));
@@ -252,7 +256,8 @@ double ARoadNetwork::GroundAt(double X, double Y)
 	const double In = FMath::Min(FMath::Min(X - B.X0, B.X1 - X), FMath::Min(Y - B.Y0, B.Y1 - Y));
 	if (In >= 60.0) return Field;
 	double Z;
-	if (!GlobeAt(X, Y, Z)) return Field;
+	// our own land along the roads (ALandCorridor, 2026-11-14), else the globe as measured
+	if (!ALandCorridor::HeightAt(X, Y, Z) && !GlobeAt(X, Y, Z)) return Field;
 	return FMath::Lerp(Z, Field, FMath::SmoothStep(0.0, 60.0, In));
 }
 
@@ -374,6 +379,12 @@ int32 ARoadNetwork::Build()
 			for (int32 i = 0; i < FMath::Min(K, Ls.Num()); ++i) O += Ls[i].Width.Eval(float(D * 100.0)) / 100.0;
 			return O;
 		};
+		// the road's surface for our own land along it (shaped under the road: ALandCorridor), every 2 m
+		for (double D = 0.0; D <= RoadLen; D += 2.0)
+		{
+			FVector P_, F_, R_; OnRoad(D, P_, F_, R_);
+			ALandCorridor::AddRoadSample(P_.X / 100.0, -P_.Y / 100.0, P_.Z / 100.0, FMath::Max(Edge(true, 99, D), Edge(false, 99, D)));
+		}
 		auto SideOf = [](const TSharedPtr<FJsonObject>& O) { FString Sd = TEXT("right"); O->TryGetStringField(TEXT("side"), Sd); return Sd != TEXT("left"); };
 		// a signed offset (m, + to the right) at D: {side, edge, off (further out)}
 		auto Off = [&](const TSharedPtr<FJsonObject>& O, double D)
@@ -430,7 +441,8 @@ int32 ARoadNetwork::Build()
 					const FVector E = FVector(P_.X + R_.X * Sg * Ed * 100.0, P_.Y + R_.Y * Sg * Ed * 100.0, EIn.Z - 1.0);
 					const double PX = E.X / 100.0, PY = -E.Y / 100.0;
 					const bool bOut = FMath::Min(FMath::Min(PX - FB.X0, FB.X1 - PX), FMath::Min(PY - FB.Y0, FB.Y1 - PY)) < 60.0;
-					if (!bOut) { Prev = -1; continue; }
+					double Zc;
+					if (!bOut || ALandCorridor::HeightAt(PX, PY, Zc)) { Prev = -1; continue; }   // (none on our own land)
 					const FVector O = E + R_ * (Sg * SW * 100.0) - FVector(0, 0, SD * 100.0);
 					const int32 Bi = B.V.Num();
 					B.V.Add(E - GetActorLocation()); B.V.Add(O - GetActorLocation());

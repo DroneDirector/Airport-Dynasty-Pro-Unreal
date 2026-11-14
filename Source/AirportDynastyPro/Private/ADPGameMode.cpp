@@ -26,6 +26,7 @@
 #include "TowerADC.h"
 #include "Hangar.h"
 #include "RoadNetwork.h"
+#include "LandCorridor.h"
 #include "TerminalProps.h"
 #include "Misc/Paths.h"
 #include "Components/VolumetricCloudComponent.h"
@@ -110,6 +111,8 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 				if (AHangar* Hg = W->SpawnActor<AHangar>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Hg->Build(H.Size, H.X, H.Y, H.bOpen);
 			// the road network: forecourt, the road to town, the town's streets (RoadNetwork.h, MetaRoad Free)
 			if (ARoadNetwork* Roads = W->SpawnActor<ARoadNetwork>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Roads->Build();
+			// our own land along the roads outside the airfield, shaped under them (LandCorridor.h)
+			if (ALandCorridor* Land = W->SpawnActor<ALandCorridor>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Land->Build();
 			if (!bBabylon)
 				if (AAirTraffic* Traffic = W->SpawnActor<AAirTraffic>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 					Traffic->Start(Field->Data());

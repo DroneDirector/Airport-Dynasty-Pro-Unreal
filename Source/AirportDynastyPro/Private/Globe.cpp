@@ -1,6 +1,7 @@
 // The globe: a Cesium georeference at the terminal's origin, turned to the runway's heading; the Earth's ellipsoid as a
 // tileset with the Sentinel-2 cloudless 2016 imagery on it.
 #include "Globe.h"
+#include "LandCorridor.h"
 #include "ADPLog.h"
 // (Windows' own OPAQUE macro would break Cesium's glTF names when the build puts a Windows file before this one)
 #ifdef OPAQUE
@@ -115,6 +116,14 @@ void AGlobe::Build(const FAirfieldData& F)
 			UCesiumPolygonRasterOverlay* Cut = NewObject<UCesiumPolygonRasterOverlay>(Tiles, TEXT("AirfieldCut"));
 			Cut->MaterialLayerKey = TEXT("Clipping");
 			Cut->Polygons.Add(Poly);
+			// and the band along the roads outside the airfield, where our own land is the ground (LandCorridor.h)
+			for (const TArray<FVector2D>& Ring : ALandCorridor::GlobeCut())
+			{
+				TArray<FVector> LL;
+				for (const FVector2D& C : Ring) LL.Add(G->TransformUnrealPositionToLongitudeLatitudeHeight(FTerminalPlan::ToWorld(C.X, 0.f, C.Y)));
+				if (ACesiumCartographicPolygon* RP = W->SpawnActor<ACesiumCartographicPolygon>(FVector::ZeroVector, FRotator::ZeroRotator, P))
+				{ RP->SetPolygonPoints(ECesiumCoordinateReferenceSystem::LongitudeLatitudeHeight, LL); Cut->Polygons.Add(RP); }
+			}
 			Cut->ExcludeSelectedTiles = true;
 			Tiles->AddInstanceComponent(Cut);
 			Cut->RegisterComponent();
