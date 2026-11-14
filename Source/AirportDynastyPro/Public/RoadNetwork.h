@@ -22,4 +22,7 @@ public:
 private:
 	UPROPERTY() TObjectPtr<class UMetaRoadRuntimeBuildHost> Host;
 	UPROPERTY() TArray<TObjectPtr<AActor>> Roads;
+	UPROPERTY() TObjectPtr<class AStreetLights> Lights;
+	UPROPERTY() TObjectPtr<class UProceduralMeshComponent> Zebras;   // the zebra crossings' white bars (all roads)
+	int32 ZebraSections = 0;   // every road's street lights (StreetLights.h)
 };

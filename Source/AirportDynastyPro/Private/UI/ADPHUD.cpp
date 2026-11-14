@@ -2909,7 +2909,7 @@ void AADPHUD::Tick(float Dt)
 				else RCam->SetActorLocationAndRotation(At, (To - At).Rotation());
 				if (RCam.IsValid()) { RCam->GetCameraComponent()->SetConstraintAspectRatio(false); RCam->GetCameraComponent()->SetFieldOfView(60.f); PC->SetViewTarget(RCam.Get()); }
 			};
-			struct FV { const TCHAR* Name; float X, H, Y, LX, LH, LY; };
+			struct FV { const TCHAR* Name; float X, H, Y, LX, LH, LY; float Hour = 13.f; };
 			const FV Views[] = {
 				{TEXT("Road_High"), -1270.f, 25.f, 40.f, -1310.f, 0.f, 170.f},
 				{TEXT("Road_Eye"),  -1268.f, 1.7f, 80.f, -1320.f, 1.f, 170.f},
@@ -2918,6 +2918,12 @@ void AADPHUD::Tick(float Dt)
 				{TEXT("Road_Bend"), -1345.f, 6.f, 175.f, -1312.f, 0.f, 150.f},
 				// the road's end and taxiway A side by side from straight above (their colours must match)
 				{TEXT("Road_Taxi"), -1325.f, 150.f, 323.f, -1325.5f, 0.f, 323.f},
+				// the zebra crossing (30 m along) and the street lights, by day and at night
+				{TEXT("Road_Zebra"), -1267.f, 1.7f, 80.f, -1278.f, 0.f, 97.f},
+				{TEXT("Road_Lights"), -1252.f, 5.f, 58.f, -1318.f, 3.f, 185.f},
+				{TEXT("Road_LampClose"), -1281.f, 7.6f, 102.f, -1279.f, 8.f, 92.f},
+				{TEXT("Road_Night"), -1268.f, 1.7f, 80.f, -1320.f, 1.f, 170.f, 1.5f},
+				{TEXT("Road_NightHigh"), -1252.f, 14.f, 50.f, -1318.f, 0.f, 185.f, 1.5f},
 			};
 			if (Before < 41.f && ShotClock >= 41.f)
 			{
@@ -2928,7 +2934,7 @@ void AADPHUD::Tick(float Dt)
 			for (int32 i = 0; i < UE_ARRAY_COUNT(Views); ++i)
 			{
 				const float T0 = 43.f + i * 4.f; const FV& V = Views[i];
-				if (Before < T0 && ShotClock >= T0) View(V.X, V.H, V.Y, V.LX, V.LH, V.LY);
+				if (Before < T0 && ShotClock >= T0) { View(V.X, V.H, V.Y, V.LX, V.LH, V.LY); if (ASunClock::HourOverride != V.Hour) { ASunClock::HourOverride = V.Hour; ASunClock::Refresh(); } }
 				if (Before < T0 + 3.f && ShotClock >= T0 + 3.f) Shot(*(FString(V.Name) + Tag));
 			}
 			if (Before < 43.f + UE_ARRAY_COUNT(Views) * 4.f + 2.f && ShotClock >= 43.f + UE_ARRAY_COUNT(Views) * 4.f + 2.f) FGenericPlatformMisc::RequestExit(false);

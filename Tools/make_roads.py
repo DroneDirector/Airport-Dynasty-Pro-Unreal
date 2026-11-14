@@ -30,7 +30,10 @@ def lane(t, w, **kw):
 # ground west of the fire station, curving, to see MetaRoad's road on our ground ----
 TWO_LANE_TOWN = dict(left=[lane('Driving', 3.5), lane('Sidewalk', 2.5, kerb=15)],
                      right=[lane('Driving', 3.5), lane('Sidewalk', 2.5, kerb=15)])
-road('TEST-PART1', [(-1262, 70), (-1285, 110), (-1315, 150), (-1330, 200), (-1332, 260)], test=True, **TWO_LANE_TOWN)
+# street lights (Faroese swan-neck posts, StreetLights.h): at the airport both sides, the approach one side, none from
+# about 1 km out; the town both sides, narrow one-way streets one side. Zebra crossings at the forecourt.
+road('TEST-PART1', [(-1262, 70), (-1285, 110), (-1315, 150), (-1330, 200), (-1332, 260)], test=True,
+     lights=dict(spacing=35, sides='both'), crossings=[dict(at=30, w=3.0)], **TWO_LANE_TOWN)
 
 out = ROOT / 'Data' / 'roads.json'
 out.write_text(json.dumps({'source': 'Tools/make_roads.py', 'roads': roads}, indent=1), encoding='utf-8')

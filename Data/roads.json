@@ -49,7 +49,17 @@
      }
     ]
    },
-   "test": true
+   "test": true,
+   "lights": {
+    "spacing": 35,
+    "sides": "both"
+   },
+   "crossings": [
+    {
+     "at": 30,
+     "w": 3.0
+    }
+   ]
   }
  ]
 }
