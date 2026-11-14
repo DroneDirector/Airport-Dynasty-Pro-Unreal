@@ -2797,10 +2797,22 @@ void AADPHUD::Tick(float Dt)
 				// from behind: spraying again
 				{64.f, [&]() { Third(true); if (AWashHose* H = AWashHose::Held()) H->bTestSpray = true; }},
 				{66.f, [&]() { Shot(TEXT("Hose_Third_Person")); }},
-				{67.f, [&]() { if (AWashHose* H = AWashHose::Held()) H->bTestSpray = false; }},
+				// the jet's reach (owner, 2026-11-14: 15 m more before it falls): held level, out across the open forecourt
+				{66.3f, [&]() { if (APlayerController* P = GetOwningPlayerController()) P->SetControlRotation(FRotator(2.f, BaseYaw - 100.f, 0.f)); if (AWashHose* H = AWashHose::Held()) H->bTestSpray = true; }},
+				{67.6f, [&]() { Shot(TEXT("Hose_Reach")); }},
+				// and from the side, 22 m off, the whole jet in view (seen from behind it runs away from you and looks short)
+				{67.8f, [&]() { if (APawn* Me = GetOwningPawn()) if (APlayerController* P = GetOwningPlayerController())
+				{
+					const FVector F = FRotator(0.f, BaseYaw - 100.f, 0.f).Vector(), Rt(-F.Y, F.X, 0.f);
+					const FVector Mid = Me->GetActorLocation() + F * 1800.f, E = Mid + Rt * 2600.f + FVector(0, 0, 250.f);
+					static TWeakObjectPtr<ACameraActor> HC; if (!HC.IsValid()) HC = GetWorld()->SpawnActor<ACameraActor>(E, (Mid - E).Rotation()); else HC->SetActorLocationAndRotation(E, (Mid - E).Rotation());
+					if (HC.IsValid()) { HC->GetCameraComponent()->SetConstraintAspectRatio(false); HC->GetCameraComponent()->SetFieldOfView(75.f); P->SetViewTarget(HC.Get()); }
+				} }},
+				{68.6f, [&]() { Shot(TEXT("Hose_Reach_Side")); }},
+				{68.9f, [&]() { if (AWashHose* H = AWashHose::Held()) H->bTestSpray = false; if (APlayerController* P = GetOwningPlayerController()) if (APawn* Me = GetOwningPawn()) P->SetViewTarget(Me); }},
 				// the hose from the coil to your hand
-				{67.5f, [&]() { if (APlayerController* P = GetOwningPlayerController()) P->SetControlRotation(FRotator(-25.f, BaseYaw + 150.f, 0.f)); }},
-				{68.5f, [&]() { Shot(TEXT("Hose_Laid_Out")); }},
+				{69.0f, [&]() { if (APlayerController* P = GetOwningPlayerController()) P->SetControlRotation(FRotator(-25.f, BaseYaw + 150.f, 0.f)); }},
+				{69.3f, [&]() { Shot(TEXT("Hose_Laid_Out")); }},
 				{69.5f, [&]() { Interact(); ADP_LOG(TEXT("UIHose: E away from the mount, hose %s"), AWashHose::Held() ? TEXT("still in hand (right)") : TEXT("HUNG UP (wrong)")); }},
 				{69.8f, [&]() { }},
 				{70.6f, [&]() { float BS = -9.f, WH = 20.5f; const FVector O = Out(); for (float Hr = 5.f; Hr <= 22.f; Hr += 0.5f) { ASunClock::HourOverride = Hr; ASunClock::Refresh(); for (TActorIterator<ADirectionalLight> It(GetWorld()); It; ++It) { const FVector ToSun = -It->GetActorForwardVector(); const float Sc = FVector::DotProduct(ToSun.GetSafeNormal2D(), O) + (ToSun.Z > 0.2f ? 0.f : -5.f); if (Sc > BS) { BS = Sc; WH = Hr; } break; } } ASunClock::HourOverride = WH; ASunClock::Refresh(); }},
@@ -2816,7 +2828,7 @@ void AADPHUD::Tick(float Dt)
 			for (const FStep& St : HSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
 			// sweeping the jet along the truck's side, up and down, while spraying
-			const bool bSweep = (ShotClock > 50.f && ShotClock < 62.f) || (ShotClock > 64.f && ShotClock < 67.f);
+			const bool bSweep = (ShotClock > 50.f && ShotClock < 62.f) || (ShotClock > 64.f && ShotClock < 66.2f);
 			if (bSweep) if (APlayerController* P = GetOwningPlayerController())
 			{
 				const float U = ShotClock - 50.f;

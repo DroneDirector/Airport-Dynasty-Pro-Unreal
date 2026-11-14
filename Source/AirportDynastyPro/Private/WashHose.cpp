@@ -23,7 +23,9 @@ namespace
 	// (owner, 2026-11-14: a more powerful jet - about double the reach, so you can hit a truck without standing close: held
 	// level from the hand it carries about 19 m, was 10; the air slows it, so aimed high it doesn't fly absurdly far;
 	// drops let go twice as often so the faster jet still joins into one line)
-	constexpr float JetSpeed = 4500.f, JetDrag = 0.8f, HoseGravity = 980.f, DropsPerSecond = 520.f, MaxDropLife = 2.f;
+	// (owner, later the same day: 15 m more before the big fall - the jet's core holds together at first, gravity only taking
+	// it over in its first 1.1 s: held level it now runs nearly straight about 28 m, landing about 37 m out; was 13 / 18)
+	constexpr float JetSpeed = 5000.f, JetDrag = 0.35f, JetHold = 1.1f, HoseGravity = 980.f, DropsPerSecond = 560.f, MaxDropLife = 2.5f;
 	constexpr int32 MaxWet = 160;   // (owner, 2026-11-14: hosing leaves more water on the ground - was 40)
 	constexpr float WetDries = 180.f;   // a wet patch dries off in three minutes (cool, damp air)
 	constexpr int32 HoseRate = 44100;
@@ -442,7 +444,7 @@ void AWashHose::Spray(float Dt, const FVector& Tip, const FVector& Aim)
 		FDrop& Dp = Live[i];
 		Dp.Life += Dt;
 		const FVector From = Dp.P;
-		Dp.V.Z -= HoseGravity * Dt;
+		Dp.V.Z -= HoseGravity * Dt * ((Dp.bMist || Dp.bSplash) ? 1.f : 0.1f + 0.9f * FMath::Min(1.f, Dp.Life / JetHold));   // (the jet's core holding together at first)
 		Dp.P += Dp.V * Dt;
 		bool bGone = Dp.Life > (Dp.bMist ? 0.9f : Dp.bSplash ? 0.35f : MaxDropLife);
 		if (Dp.bMist) Dp.V *= FMath::Max(0.f, 1.f - 3.f * Dt);   // (the spray slows in the air and hangs)
