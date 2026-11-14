@@ -56,5 +56,9 @@ private:
 	void Update();
 	void ApplyWeather();
 	static TWeakObjectPtr<ASunClock> Current;
+public:
+	/** The sun's height now, degrees over the horizon (under 0 at night). */
+	static float SunElevation;
+private:
 	UPROPERTY() TObjectPtr<class UMaterialInstanceDynamic> CloudMat;
 };

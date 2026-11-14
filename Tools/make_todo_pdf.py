@@ -101,6 +101,9 @@ ITEMS = [
     ('49', 'Shorts for your Tee outfit: the outfit holds only the tee, so the hips look see-through and cast no shadow; rebuild it with the kit shorts, body hidden only under them, whole shadow; front/back previews + in-game shot first; check the AI people in tees too (their fix rides the next people rebuild pass)', '1-1.5 h', ['none'], '', False),
     ('50', 'Small updates: binary patches inside each changed file (only the bytes that differ), the updater rebuilding the new file from the old one and checking it matches exactly; small changes tens of MB instead of 1.4 GB', '3-4 h', ['none'], '', False),
     ('51', 'FIRST AFTER THE TERMINAL: the update screen - its progress flashes wildly (fix); and its look exactly as the new-career steps (the neon look, its effects, glass and materials, not only the colours); then the small byte-level updates (50)', '2-3 h', ['rel'], '', False),
+    ('52', 'Terminal advertising: huge LED advertisement screens inside the terminal where real airports put them (check-in hall, airside walkways, gate areas, baggage claim), moving adverts on bright LED panels, our own made-up brands', '6-10 h', ['gfx'], '', False),
+    ('53', 'Tyre tracks off-road (question only, not ordered): deep-looking tracks behind the trucks on grass and soft ground, flattened grass, fading in time - decals 8-12 h, real ruts 16-24 h', '8-12 h', ['field'], '', False),
+    ('54', 'Wash hose: a more powerful jet - about double the reach, so you can hit a truck without standing close; still cut off where it hits something (never through it)', '1 h', ['field'], '', False),
     ('40g', 'Iceland scenery: mountains torn into walls and steps - rebuild the Iceland/Faroes height tiles with feathered edges where they meet the world map', '3-4 h', ['field'], '', False),
 ]
 c = canvas.Canvas('AirportDynastyPro-ToDo.pdf', pagesize=(W, H))

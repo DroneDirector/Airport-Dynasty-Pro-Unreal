@@ -2,6 +2,12 @@
 // overlay, all in Slate, styled in the Android edition's holographic blues.
 #include "UI/ADPHUD.h"
 #include "FireTruck.h"
+#include "WashHose.h"
+#include "InteractOutline.h"
+#include "Seats.h"
+#include "Components/InstancedStaticMeshComponent.h"
+#include "Engine/DirectionalLight.h"
+#include "EngineUtils.h"
 #include "DroneCam.h"
 #include "UI/TitleBg.h"
 #include "ADPLog.h"
@@ -227,6 +233,8 @@ namespace
 
 void AADPHUD::BeginPlay()
 {
+	// the thin glow round what you can use (InteractOutline.h)
+	if (UWorld* W = GetWorld()) { W->SpawnActor<AInteractOutline>(); W->SpawnActor<ASeats>(); }
 	Super::BeginPlay();
 	Current = this;
 	// indoors the shadows are lifted: where the lamps don't reach it is only about a quarter dark (the owner's choice,
@@ -1423,6 +1431,7 @@ void AADPHUD::HideUI()
 
 void AADPHUD::ShowUI()
 {
+	if (AWashHose::Held()) return;   // (a double click while spraying)
 	if (bHidden) { bHidden = false; Root->SetVisibility(EVisibility::SelfHitTestInvisible); return; }
 	// Esc while a panel is open closes it
 	if (bGame) ToggleGame();
@@ -1483,6 +1492,10 @@ void AADPHUD::Interact()
 	// in a fire truck: E / X gets you out (FireTruck.h)
 	if (AFireTruck* T = Cast<AFireTruck>(GetOwningPawn())) { T->Exit(); return; }
 	if (Drone.IsValid()) return;   // (a drone presses nothing)
+	// sitting: E / X stands you up (Seats.h)
+	if (ASeats::IsSitting()) { ASeats::Interact(GetOwningPawn()); return; }
+	// the wash hose in your hand: the left mouse button sprays (WashHose.h), E / X hangs it back up
+	if (AWashHose::Held()) { if (!PC->IsInputKeyDown(EKeys::LeftMouseButton)) AWashHose::Interact(GetOwningPawn(), nullptr); return; }
 	FVector Eye; FRotator Look;
 	PC->GetPlayerViewPoint(Eye, Look);
 	FHitResult Hit;
@@ -1498,6 +1511,8 @@ void AADPHUD::Interact()
 	{
 		// a fire truck within reach: you get in (FireTruck.h)
 		if (AFireTruck* T = AFireTruck::FromActor(Hit.GetActor())) { T->Enter(GetOwningPawn()); return; }
+		// the wash hose on the fire station's wall: its gun into your hand (E / X only, not a click)
+		if (!PC->IsInputKeyDown(EKeys::LeftMouseButton) && AWashHose::Interact(GetOwningPawn(), Hit.GetActor())) return;
 		// the office wardrobe: open, the outfits listed (Wardrobe.h)
 		if (AWardrobe* Wd = Cast<AWardrobe>(Hit.GetActor())) { OpenWardrobe(Wd); return; }
 		// your phone, the operations monitor, your office's computer (Devices.cpp)
@@ -1507,6 +1522,10 @@ void AADPHUD::Interact()
 		const FString N = Hit.GetComponent()->GetName();
 		if (N.Contains(TEXT("screenPanel")) || N.Contains(TEXT("black"))) { ToggleGame(); return; }
 	}
+	// standing at the wash hose's hook: its gun
+	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton) && AWashHose::Interact(GetOwningPawn(), nullptr)) return;
+	// a chair, stool, bench or gate seat right by you: sit down (Seats.h)
+	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton) && ASeats::Interact(GetOwningPawn())) return;
 	// a fire truck right beside you that you face: in, even when the aim missed it
 	if (AFireTruck* T = AFireTruck::Beside(GetOwningPawn())) T->Enter(GetOwningPawn());
 }
@@ -1680,6 +1699,9 @@ void AADPHUD::RefreshControls()
 			if (A.Name != TEXT("Buttons")) ButtonsList->AddSlot().AutoHeight()[Row(A, false)];
 		// near the fire station: its bay doors' button
 		if (bNearStation && !Drone.IsValid()) ButtonsList->AddSlot().AutoHeight()[Row(ADPInput::BayDoorsAction(), false)];
+		// the wash hose: in your hand, or by its hook
+		if ((bHoseHeld || bNearHose) && !Drone.IsValid()) for (const ADPInput::FAction& A : ADPInput::HoseActions(bHoseHeld, bNearHose)) ButtonsList->AddSlot().AutoHeight()[Row(A, false)];
+		if ((bSeated || (bNearSeat && !bHoseHeld)) && !Drone.IsValid()) ButtonsList->AddSlot().AutoHeight()[Row(ADPInput::SeatAction(bSeated), false)];
 	}
 	if (SettingsControls.IsValid())
 	{
@@ -1708,6 +1730,11 @@ void AADPHUD::Tick(float Dt)
 		const APawn* Me = GetOwningPawn();
 		const bool bNear = Me && !Drone.IsValid() && AFireStationDoors::InReach(Me->GetActorLocation());
 		if (bNear != bNearStation) { bNearStation = bNear; RefreshControls(); }
+		const bool bHeld = AWashHose::Held() != nullptr;
+		const bool bByHose = Me && !Drone.IsValid() && AWashHose::NearHook(Me->GetActorLocation());
+		if (bHeld != bHoseHeld || bByHose != bNearHose) { bHoseHeld = bHeld; bNearHose = bByHose; RefreshControls(); }
+		const bool bSat = ASeats::IsSitting(), bBySeat = !bSat && Me && !Drone.IsValid() && ASeats::NearSeat(Me->GetActorLocation());
+		if (bSat != bSeated || bBySeat != bNearSeat) { bSeated = bSat; bNearSeat = bBySeat; RefreshControls(); }
 	}
 	// the stage's transition over: the creator's panel on the free side
 	if (bWhoAreYou && !bWhoAreYouCreator && ADPCharacterCreate::Done() && Browser.IsValid())
@@ -2659,6 +2686,8 @@ void AADPHUD::Tick(float Dt)
 				{46.f, [&]() { Shot(TEXT("Drive_Walker_Bay")); if (APlayerController* P = GetOwningPlayerController()) if (P->PlayerCameraManager) ADP_LOG(TEXT("UIDrive: walker camera at %s"), *P->PlayerCameraManager->GetCameraLocation().ToString()); }},
 				{45.f, [&]() { if (AFireTruck* T = Truck()) if (APawn* Me = GetOwningPawn()) { const FVector At = T->DoorSpot(); Me->TeleportTo(At, FRotator(0.f, (T->GetActorLocation() - At).Rotation().Yaw, 0.f)); if (GetOwningPlayerController()) GetOwningPlayerController()->SetControlRotation(FRotator(-5.f, (T->GetActorLocation() - At).Rotation().Yaw, 0.f)); } }},
 				{46.5f, [&]() { Shot(TEXT("Drive_Before")); }},
+				// (this test only: just washed - beads all over - to see them blown off as it gathers speed)
+				{46.6f, [&]() { if (AFireTruck* T = Truck()) for (float& B : T->Beads) B = 1.f; }},
 				// (the bay doors only by their button now: pressed at the door, within 25 m of the station)
 				{46.7f, [&]() { ADP_LOG(TEXT("UIDrive: near the station %d, the bay doors' button pressed"), bNearStation ? 1 : 0); ToggleBayDoors(); }},
 				// (the ground in front of the bays: what's there and how high, plan y 10 (in the hall) to 45 (out on the forecourt))
@@ -2678,7 +2707,7 @@ void AADPHUD::Tick(float Dt)
 				{50.85f, [&]() { Shot(TEXT("Drive_In_Bay")); }},
 				// out of the bay onto the forecourt and along the road made for it (ROAD-FIRE-APRON) toward the apron
 				{52.f, [&]() { if (AFireTruck* T = Truck()) { const FVector2D S(T->GetActorLocation().X / 100.0, -T->GetActorLocation().Y / 100.0);
-					T->SetTestRoute({S, FVector2D(S.X, 26.0), FVector2D(-1205.0, 40.0), FVector2D(-1205.0, 190.0), FVector2D(-1190.0, 196.0), FVector2D(-420.0, 196.0)}, 30.f); } }},   // (the walk and the climb take about 5 s)
+					T->SetTestRoute({S, FVector2D(S.X, 26.0), FVector2D(-1205.0, 40.0), FVector2D(-1205.0, 190.0), FVector2D(-1190.0, 196.0), FVector2D(-420.0, 196.0), FVector2D(-230.0, 196.0)}, FParse::Param(FCommandLine::Get(), TEXT("DriveFast")) ? 140.f : 30.f); } }},   // (the walk and the climb take about 5 s)
 				{53.f, [&]() { Shot(TEXT("Drive_T53")); }},
 				{54.f, [&]() { if (FParse::Param(FCommandLine::Get(), TEXT("DriveThird"))) if (AFireTruck* T = Truck()) { T->PressView(); ADP_LOG(TEXT("UIDrive: V pressed, view step %d (0 cab, 1 close, 2 far)"), T->ViewStep()); } }},
 				{55.f, [&]() { Shot(TEXT("Drive_T55")); }},
@@ -2714,7 +2743,189 @@ void AADPHUD::Tick(float Dt)
 			for (const FStep& St : DSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
 			if (ShotClock > 47.f && ShotClock < 80.f && FMath::Fmod(ShotClock, 1.f) < FMath::Fmod(Before, 1.f))
-				if (AFireTruck* T = Truck()) ADP_LOG(TEXT("UIDrive: %.0f s, %.1f km/h at %s, turning %.2f deg/s"), ShotClock, T->SpeedKmh(), *T->GetActorLocation().ToString(), T->TurnRate());
+				if (AFireTruck* T = Truck()) ADP_LOG(TEXT("UIDrive: %.0f s, %.1f km/h at %s, turning %.2f deg/s; gauges: speed %.0f deg, revs %.0f deg, temp %.0f deg; beads %.2f, dirt %.2f"), ShotClock, T->SpeedKmh(), *T->GetActorLocation().ToString(), T->TurnRate(), T->NeedleNow(0), T->NeedleNow(1), T->NeedleNow(2), T->Beads[2], T->DirtZone[2]);
+		}
+		// -UIHose: in daylight, a very dirty fire truck put out on the forecourt (for this test only); the hose's gun taken from
+		// its wall mount (the arm reaching), the truck washed (the dirt running off), seen from your eyes and from behind,
+		// the hose laid out from the coil, E away from the mount doing nothing, and the gun hung back up at the mount.
+		// -UIVideo: the washing also as frames for a film (Saved/Screenshots/.../Vid_*)
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIHose")))
+		{
+			auto Shot = [](const TCHAR* Name) { if (!FParse::Param(FCommandLine::Get(), TEXT("UIVideo"))) FScreenshotRequest::RequestScreenshot(Name, false, false); };
+			static TWeakObjectPtr<AFireTruck> Dirty;
+			static float BaseYaw = 0.f;
+			static float WashH = -1.f;
+			auto Dirt = [&](const TCHAR* When) { if (AFireTruck* T = Dirty.Get()) { FString S; for (float Z : T->DirtZone) S += FString::Printf(TEXT(" %.2f"), Z); ADP_LOG(TEXT("UIHose %s: truck dirt%s"), When, *S); } };
+			auto Face = [this](const FVector& At, float Yaw, float Pitch) { if (APawn* Me = GetOwningPawn()) { Me->TeleportTo(At, FRotator(0.f, Yaw, 0.f)); if (APlayerController* P = GetOwningPlayerController()) P->SetControlRotation(FRotator(Pitch, Yaw, 0.f)); } };
+			auto Out = []() { AWashHose* H = AWashHose::First(); return H ? (H->HookSpot() - H->HookAt()).GetSafeNormal2D() : FVector::ForwardVector; };
+			auto Third = [this](bool bOn) { if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) Wk->SetThirdPerson(bOn); };
+			struct FStep { float At; TFunction<void()> Do; };
+			const FStep HSteps[] = {
+				{40.f, [&]() { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::Theme = 1; GoFireStation(2); Third(false);
+					float BestH = 13.f, BestS = -9.f; const FVector O = Out();
+					for (float Hr = 5.f; Hr <= 22.f; Hr += 0.5f)
+					{
+						ASunClock::HourOverride = Hr; ASunClock::Refresh();
+						for (TActorIterator<ADirectionalLight> It(GetWorld()); It; ++It)
+						{
+							const FVector ToSun = -It->GetActorForwardVector();
+							const float Sc = FVector::DotProduct(ToSun.GetSafeNormal2D(), -O) + (ToSun.Z > 0.42f ? 0.f : -5.f);   // (behind you as you face the truck, high enough that the station's shadow stays short)
+							if (Sc > BestS) { BestS = Sc; BestH = Hr; }
+							break;
+						}
+					}
+					ASunClock::HourOverride = BestH; ASunClock::Refresh(); if (APlayerController* P = GetOwningPlayerController()) P->ConsoleCommand(TEXT("r.MotionBlurQuality 0"));
+					ADP_LOG(TEXT("UIHose: %.1f h, the sun on the forecourt (score %.2f)"), BestH, BestS); }},
+				// the dirty truck: 10 m out in front of the hose, alongside the wall
+				{42.f, [&]() { if (AWashHose* H = AWashHose::First()) { const FVector O = Out(); const FVector At = FVector(H->HookAt().X, H->HookAt().Y, H->HookAt().Z - 100.f) + O * 1500.f;
+					FActorSpawnParameters Sp; Sp.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+					if (AFireTruck* T = GetWorld()->SpawnActor<AFireTruck>(At, FRotator(0.f, O.Rotation().Yaw, 0.f), Sp)) { if (T->Setup(TEXT("Firetruck1"))) { T->SetDirt(2.f); Dirty = T; ADP_LOG(TEXT("UIHose: a very dirty truck out on the forecourt")); } else T->Destroy(); } } }},
+				{43.5f, [&]() { WashH = ASunClock::HourOverride; static float WallH = -1.f; if (WallH < 0.f) { float BS = -9.f; const FVector O = Out(); for (float Hr = 5.f; Hr <= 22.f; Hr += 0.5f) { ASunClock::HourOverride = Hr; ASunClock::Refresh(); for (TActorIterator<ADirectionalLight> It(GetWorld()); It; ++It) { const FVector ToSun = -It->GetActorForwardVector(); const float Sc = FVector::DotProduct(ToSun.GetSafeNormal2D(), O) + (ToSun.Z > 0.2f ? 0.f : -5.f); if (Sc > BS) { BS = Sc; WallH = Hr; } break; } } }
+					ASunClock::HourOverride = WallH; ASunClock::Refresh(); ADP_LOG(TEXT("UIHose: %.1f h for the wall"), WallH); }},
+				{44.f, [&]() { if (AWashHose* H = AWashHose::First()) Face(H->HookSpot(), (H->HookAt() - H->HookSpot()).Rotation().Yaw, -15.f); }},
+				{46.f, [&]() { Shot(TEXT("Hose_OnHook")); }},
+				{47.f, [&]() { Interact(); ADP_LOG(TEXT("UIHose: E at the mount, %s"), AWashHose::Held() ? TEXT("reaching for the gun") : TEXT("NOTHING")); }},
+				{47.35f, [&]() { Shot(TEXT("Hose_Reaching")); }},
+				{47.75f, [&]() { Shot(TEXT("Hose_Taking")); }},
+				{48.8f, [&]() { Shot(TEXT("Hose_InHand")); if (AWashHose* H = AWashHose::Held()) ADP_LOG(TEXT("UIHose: gun ready in hand %d"), H->IsReady() ? 1 : 0); }},
+				// out between the wall and the truck, 4.5 m from its side, facing it
+				{49.f, [&]() { if (WashH >= 0.f) { ASunClock::HourOverride = WashH; ASunClock::Refresh(); } if (AWashHose* H = AWashHose::First()) { const FVector O = Out(); BaseYaw = O.Rotation().Yaw; Face(FVector(H->HookAt().X, H->HookAt().Y, H->HookAt().Z - 20.f) + O * 1000.f, BaseYaw, -6.f); } Dirt(TEXT("before")); }},
+				{49.6f, [&]() { Shot(TEXT("Hose_Dirty_Truck")); }},
+				{50.f, [&]() { if (AWashHose* H = AWashHose::Held()) H->bTestSpray = true; }},
+				{52.f, [&]() { Shot(TEXT("Hose_Spraying")); }},
+				{56.f, [&]() { Shot(TEXT("Hose_Washing")); Dirt(TEXT("half way")); }},
+				{62.f, [&]() { if (AWashHose* H = AWashHose::Held()) H->bTestSpray = false; Dirt(TEXT("after")); }},
+				{63.5f, [&]() { Shot(TEXT("Hose_Washed")); }},
+				// from behind: spraying again
+				{64.f, [&]() { Third(true); if (AWashHose* H = AWashHose::Held()) H->bTestSpray = true; }},
+				{66.f, [&]() { Shot(TEXT("Hose_Third_Person")); }},
+				{67.f, [&]() { if (AWashHose* H = AWashHose::Held()) H->bTestSpray = false; }},
+				// the hose from the coil to your hand
+				{67.5f, [&]() { if (APlayerController* P = GetOwningPlayerController()) P->SetControlRotation(FRotator(-25.f, BaseYaw + 150.f, 0.f)); }},
+				{68.5f, [&]() { Shot(TEXT("Hose_Laid_Out")); }},
+				{69.5f, [&]() { Interact(); ADP_LOG(TEXT("UIHose: E away from the mount, hose %s"), AWashHose::Held() ? TEXT("still in hand (right)") : TEXT("HUNG UP (wrong)")); }},
+				{69.8f, [&]() { }},
+				{70.6f, [&]() { float BS = -9.f, WH = 20.5f; const FVector O = Out(); for (float Hr = 5.f; Hr <= 22.f; Hr += 0.5f) { ASunClock::HourOverride = Hr; ASunClock::Refresh(); for (TActorIterator<ADirectionalLight> It(GetWorld()); It; ++It) { const FVector ToSun = -It->GetActorForwardVector(); const float Sc = FVector::DotProduct(ToSun.GetSafeNormal2D(), O) + (ToSun.Z > 0.2f ? 0.f : -5.f); if (Sc > BS) { BS = Sc; WH = Hr; } break; } } ASunClock::HourOverride = WH; ASunClock::Refresh(); }},
+				{70.f, [&]() { if (AWashHose* H = AWashHose::First()) Face(H->HookSpot(), (H->HookAt() - H->HookSpot()).Rotation().Yaw, -10.f); }},
+				{71.f, [&]() { Interact(); ADP_LOG(TEXT("UIHose: E at the mount again")); }},
+				{71.35f, [&]() { Shot(TEXT("Hose_Hanging_Up")); }},
+				{73.f, [&]() { Shot(TEXT("Hose_Hung_Up")); ADP_LOG(TEXT("UIHose: hose %s"), AWashHose::Held() ? TEXT("STILL in hand") : TEXT("hung up")); }},
+				// a hangar's hose, on its inside wall by the big doors
+				{73.5f, [&]() { TArray<AWashHose*> L = AWashHose::All(); ADP_LOG(TEXT("UIHose: %d hoses in all"), L.Num()); if (L.Num() > 1) { AWashHose* H = L[1]; const FVector Back = H->HookSpot() + (H->HookSpot() - H->HookAt()).GetSafeNormal2D() * 250.f + FVector(0, 0, 40.f); Third(false); Face(Back, (H->HookAt() - Back).Rotation().Yaw, -10.f); } }},
+				{75.f, [&]() { Shot(TEXT("Hose_Hangar")); }},
+				{76.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+			};
+			for (const FStep& St : HSteps)
+				if (Before < St.At && ShotClock >= St.At) St.Do();
+			// sweeping the jet along the truck's side, up and down, while spraying
+			const bool bSweep = (ShotClock > 50.f && ShotClock < 62.f) || (ShotClock > 64.f && ShotClock < 67.f);
+			if (bSweep) if (APlayerController* P = GetOwningPlayerController())
+			{
+				const float U = ShotClock - 50.f;
+				P->SetControlRotation(FRotator(-4.f + 5.f * FMath::Sin(U * 2.1f), BaseYaw + 55.f * FMath::Sin(U * 0.55f), 0.f));
+			}
+			// the film: 20 frames a second while washing
+			static float NextFrame = 0.f; static int32 Frame = 0;
+			if (FParse::Param(FCommandLine::Get(), TEXT("UIVideo")) && ShotClock > 46.5f && ShotClock < 73.5f && ShotClock >= NextFrame)
+			{
+				NextFrame = ShotClock + 1.f / 30.f - 0.001f;   // (every frame, run at a fixed 30 a second: -benchmark -fps=30)
+				FScreenshotRequest::RequestScreenshot(FString::Printf(TEXT("Vid_%04d"), Frame++), false, false);
+			}
+		}
+		// -UISit: sitting down on a gate seat and an office chair (first person, then from behind) and standing up again
+		if (FParse::Param(FCommandLine::Get(), TEXT("UISit")))
+		{
+			auto Shot = [](const TCHAR* Name) { FScreenshotRequest::RequestScreenshot(Name, false, false); };
+			auto Go = [this](int32 I) { FVector At; float Yaw; if (ASeats::StandSpot(I, At, Yaw)) if (APawn* Me = GetOwningPawn()) { Me->TeleportTo(At, FRotator(0.f, Yaw, 0.f)); if (APlayerController* P = GetOwningPlayerController()) P->SetControlRotation(FRotator(-25.f, Yaw, 0.f)); } };
+			auto Third = [this](bool bOn) { if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) Wk->SetThirdPerson(bOn); };
+			static int32 Pick = INDEX_NONE;
+			struct FStep { float At; TFunction<void()> Do; };
+			const FStep SSteps[] = {
+				{40.f, [&]() { if (bGame) ToggleGame(); ASunClock::HourOverride = 13.f; ASunClock::Refresh(); ShowTerminal(); Third(false); }},
+				{44.f, [&]() { ADP_LOG(TEXT("UISit: %d seats"), ASeats::Count()); Pick = ASeats::Count() / 2; Go(Pick); }},
+				{45.5f, [&]() { Shot(TEXT("Sit_Before")); ADP_LOG(TEXT("UISit: near a seat %d"), bNearSeat ? 1 : 0); }},
+				{46.f, [&]() { Interact(); }},
+				{46.45f, [&]() { Shot(TEXT("Sit_Going_Down")); }},
+				{47.5f, [&]() { Shot(TEXT("Sit_Seated_Eyes")); if (APlayerController* P = GetOwningPlayerController()) { FRotator R = P->GetControlRotation(); R.Pitch = -55.f; P->SetControlRotation(R); } }},
+				{48.5f, [&]() { Shot(TEXT("Sit_Looking_Down")); Third(true); if (APlayerController* P = GetOwningPlayerController()) { FRotator R = P->GetControlRotation(); R.Pitch = -15.f; R.Yaw += 160.f; P->SetControlRotation(R); } }},
+				{50.f, [&]() { Shot(TEXT("Sit_Seated_Behind")); }},
+				{50.5f, [&]() { Interact(); }},
+				{51.0f, [&]() { Shot(TEXT("Sit_Getting_Up")); }},
+				{52.5f, [&]() { Shot(TEXT("Sit_Stood_Up")); ADP_LOG(TEXT("UISit: sitting %d"), ASeats::IsSitting() ? 1 : 0); Third(false); Pick = ASeats::Count() / 5; Go(Pick); }},
+				{54.f, [&]() { Interact(); }},
+				{55.5f, [&]() { Third(true); if (APlayerController* P = GetOwningPlayerController()) { FRotator R = P->GetControlRotation(); R.Pitch = -15.f; R.Yaw += 160.f; P->SetControlRotation(R); } }},
+				{57.f, [&]() { Shot(TEXT("Sit_Second_Seat")); Interact(); }},
+				{59.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+			};
+			for (const FStep& St : SSteps)
+				if (Before < St.At && ShotClock >= St.At) St.Do();
+		}
+		// -UISpeed: a fire truck on the hangar and cargo aprons' 1.25 km straight, flat out from a standstill: its speed,
+		// the distance run and the speedometer's needle each second (owner, 2026-11-14: tops out at 135 km/h)
+		if (FParse::Param(FCommandLine::Get(), TEXT("UISpeed")))
+		{
+			static TWeakObjectPtr<AFireTruck> Fast; static FVector From = FVector::ZeroVector; static float Top = 0.f;
+			if (Before < 42.f && ShotClock >= 42.f)
+			{
+				if (bGame) ToggleGame();
+				const float Gz = AAirfield::GroundAt(-560.f, 1150.f);
+				From = FVector(-56000.f, -115000.f, Gz * 100.f + 160.f);
+				FActorSpawnParameters Sp; Sp.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+				if (AFireTruck* T = GetWorld()->SpawnActor<AFireTruck>(From, FRotator::ZeroRotator, Sp)) { if (T->Setup(TEXT("Firetruck1"))) Fast = T; else T->Destroy(); }
+				if (APawn* Me = GetOwningPawn()) Me->TeleportTo(From + FVector(-1500.f, 600.f, 200.f), FRotator(0.f, -20.f, 0.f));
+			}
+			if (Before < 44.f && ShotClock >= 44.f) if (AFireTruck* T = Fast.Get()) { T->Enter(GetOwningPawn()); }
+			if (Before < 50.f && ShotClock >= 50.f) if (AFireTruck* T = Fast.Get()) T->SetTestInput(1.f, 0.f, 0.f);
+			if (AFireTruck* T = Fast.Get())
+			{
+				if (ShotClock > 50.f) Top = FMath::Max(Top, T->SpeedKmh());
+				if (ShotClock > 50.f && ShotClock < 112.f && FMath::Fmod(ShotClock, 1.f) < FMath::Fmod(Before, 1.f))
+					ADP_LOG(TEXT("UISpeed: %.0f s, %.1f km/h, %.0f m run, speedometer needle %.0f deg (should be %.0f)"), ShotClock - 50.f, T->SpeedKmh(), FVector::Dist2D(T->GetActorLocation(), From) / 100.f, T->NeedleNow(0), -120.f + 240.f * FMath::Min(T->SpeedKmh(), 140.f) / 140.f);
+				// (the apron runs out at 1.25 km: brakes on before its end)
+				if (ShotClock > 50.f && FVector::Dist2D(T->GetActorLocation(), From) > 118000.f) T->SetTestInput(0.f, 1.f, 0.f);
+			}
+			if (Before < 112.f && ShotClock >= 112.f) { ADP_LOG(TEXT("UISpeed: top speed %.1f km/h"), Top); FGenericPlatformMisc::RequestExit(false); }
+		}
+		// -UIPanels: every door button panel in pictures (inside the fire station by each bay door, inside each hangar)
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIPanels")))
+		{
+			static TArray<TWeakObjectPtr<ABabylonModel>> Panels;
+			if (Before < 41.f && ShotClock >= 41.f)
+			{
+				if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 13.f; ASunClock::Refresh();
+				for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It) if (It->Model == TEXT("DoorPanel")) Panels.Add(*It);
+				if (APlayerController* PCm = GetOwningPlayerController()) PCm->ConsoleCommand(TEXT("r.MotionBlurQuality 0"));
+				ADP_LOG(TEXT("UIPanels: %d door panels"), Panels.Num());
+			}
+			for (int32 i = 0; i < Panels.Num(); ++i)
+			{
+				const float T0 = 43.f + i * 5.f;
+				ABabylonModel* P = Panels[i].Get();
+				if (!P) continue;
+				// 1.4 m in front of it, a little to the side, eyes at 1.65 m
+				FVector Front = P->GetActorRightVector(); const FVector Side = P->GetActorForwardVector();
+				{ TArray<TTuple<UInstancedStaticMeshComponent*, int32, FString>> Bt, Pl; P->InstancesNamed(TEXT("BtnOpen"), false, Bt); P->InstancesNamed(TEXT("DoorPanelPlate"), false, Pl); FTransform Tb, Tp;
+				  if (Bt.Num() && Pl.Num() && Bt[0].Get<0>()->GetInstanceTransform(Bt[0].Get<1>(), Tb, true) && Pl[0].Get<0>()->GetInstanceTransform(Pl[0].Get<1>(), Tp, true)) Front = P->GetActorRightVector() * (FVector::DotProduct(Tb.GetLocation() - Tp.GetLocation(), P->GetActorRightVector()) >= 0.f ? 1.f : -1.f); }   // (straight out of its face: the side its buttons stand out on)
+				const FVector Eye = P->GetActorLocation() + Front * 75.f + FVector(0, 0, 140.f);
+				if (Before < T0 && ShotClock >= T0) if (APawn* Me = GetOwningPawn()) { Me->SetActorLocationAndRotation(Eye - FVector(0, 0, 70.f), FRotator(0.f, (P->GetActorLocation() - Eye).Rotation().Yaw, 0.f), false, nullptr, ETeleportType::TeleportPhysics); if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation((P->GetActorLocation() + FVector(0, 0, 135.f) - Eye).Rotation()); }
+				if (Before < T0 + 2.4f && ShotClock >= T0 + 2.4f) if (APlayerController* PC = GetOwningPlayerController()) if (PC->PlayerCameraManager)
+				{
+					// what's between your eye and the panel's plate (anything nearer than the plate hides it)
+					const FVector Cam = PC->PlayerCameraManager->GetCameraLocation();
+					TArray<FHitResult> Hs; FCollisionQueryParams Q(SCENE_QUERY_STAT(ADPPanelSee), true); if (APawn* Me = GetOwningPawn()) Q.AddIgnoredActor(Me);
+					GetWorld()->LineTraceMultiByChannel(Hs, Cam, P->GetActorLocation() + FVector(0, 0, 135.f) - Front * 30.f, ECC_Visibility, Q);
+					FString L; for (const FHitResult& H : Hs) L += FString::Printf(TEXT(" [%s/%s %.1f cm]"), H.GetActor() ? *H.GetActor()->GetName() : TEXT("-"), H.GetComponent() ? *H.GetComponent()->GetName() : TEXT("-"), H.Distance);
+					ADP_LOG(TEXT("UIPanels: panel %d is %.1f cm from the eye; in the way:%s"), i, FVector::Dist(Cam, P->GetActorLocation() + FVector(0, 0, 135.f)), *L);
+				}
+				if (Before < T0 + 2.6f && ShotClock >= T0 + 2.6f) if (APawn* Me = GetOwningPawn()) { const FVector Far = P->GetActorLocation() + Front * 400.f + Side * 60.f + FVector(0, 0, 165.f); Me->SetActorLocationAndRotation(Far - FVector(0, 0, 70.f), FRotator::ZeroRotator, false, nullptr, ETeleportType::TeleportPhysics); if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation((P->GetActorLocation() + FVector(0, 0, 120.f) - Far).Rotation()); }
+				if (Before < T0 + 3.6f && ShotClock >= T0 + 3.6f) FScreenshotRequest::RequestScreenshot(FString::Printf(TEXT("PanelWide_%d"), i), false, false);
+				if (Before < T0 + 2.5f && ShotClock >= T0 + 2.5f) { FScreenshotRequest::RequestScreenshot(FString::Printf(TEXT("Panel_%d"), i), false, false); ADP_LOG(TEXT("UIPanels: panel %d at %s facing %s"), i, *P->GetActorLocation().ToString(), *Front.ToString()); }
+			}
+			// the fire station's hall: from inside at the back, looking at the doors with their panels
+			const float TH = 43.f + Panels.Num() * 5.f;
+			if (Before < TH && ShotClock >= TH) { GoFireStation(2); if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) Wk->SetThirdPerson(false); }
+			if (Before < TH + 3.f && ShotClock >= TH + 3.f) FScreenshotRequest::RequestScreenshot(TEXT("Panel_Hall"), false, false);
+			if (Before < TH + 4.f && ShotClock >= TH + 4.f) FGenericPlatformMisc::RequestExit(false);
 		}
 		// -UILoading: from the menus into the airport, the loading screen pictured while it works and when it's done
 		if (FParse::Param(FCommandLine::Get(), TEXT("UILoading")))
@@ -2892,7 +3103,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

@@ -2,6 +2,7 @@
 #include "ADPWalker.h"
 #include "Wardrobe.h"
 #include "DriverPoseAnim.h"
+#include "TwoBoneIK.h"
 #include "Materials/MaterialInterface.h"
 #include "Components/PoseableMeshComponent.h"
 #include "Animation/BlendSpace.h"
@@ -217,14 +218,19 @@ bool AADPWalker::WearMetaHuman(const FString& Who)
 void AADPWalker::UseEyeBody(bool bOn)
 {
 	bOn = bOn && EyeBody && HumanBody && !bLent;
-	if (bOn == bEyeBody) return;
-	bEyeBody = bOn;
+	if (bOn == bEyeBody && bThird == bEyeThird) return;
+	bEyeBody = bOn; bEyeThird = bThird;
+	// (from behind - an arm posed by hand - the posed copy and its clothes are what you and your shadow show; through your
+	// own eyes the real body keeps casting the whole shadow)
+	if (EyeBody) EyeBody->SetCastShadow(bOn && bThird);
+	for (USkeletalMeshComponent* E : EyeClothes) if (E) E->SetCastShadow(bOn && bThird);
+	for (USkeletalMeshComponent* C : Clothes) if (C) { C->bCastHiddenShadow = !bThird; C->MarkRenderStateDirty(); }
 	// the clothes follow the body you see; the real body is hidden from view but keeps casting your whole shadow
 	for (USkeletalMeshComponent* C : Clothes) if (C) C->SetVisibility(!bOn, false);
 	for (USkeletalMeshComponent* E : EyeClothes) if (E) E->SetVisibility(bOn, false);
 	if (EyeBody) EyeBody->SetVisibility(bOn);
 	HumanBody->SetVisibility(!bOn, false);
-	HumanBody->bCastHiddenShadow = bOn;
+	HumanBody->bCastHiddenShadow = bOn && !bThird;
 	HumanBody->MarkRenderStateDirty();
 	if (bOn) PoseEyeBody();
 }
@@ -233,6 +239,8 @@ void AADPWalker::PoseEyeBody()
 {
 	if (!bEyeBody || !EyeBody || !HumanBody) return;
 	EyeBody->CopyPoseFromSkeletalComponent(HumanBody);
+	ArmIK();
+	if (bThird) return;   // (from behind: whole, only the arm posed)
 	// everything above the waist folded into the spine (spine_02 shrunk to nothing, the chest and neck with it: the
 	// garment and body close to a point, no opening to look into), then the
 	// shoulders put back exactly where they were, so the arms and hands stay whole
@@ -345,6 +353,58 @@ void AADPWalker::SetThirdPerson(bool bOn)
 	GConfig->Flush(false, GGameUserSettingsIni);
 }
 
+void AADPWalker::ArmIK()
+{
+	if (ArmW <= 0.f || !EyeBody) return;
+	static const FName Up(TEXT("upperarm_r")), Lo(TEXT("lowerarm_r")), Ha(TEXT("hand_r")), Mid(TEXT("middle_01_r")), Th(TEXT("thumb_01_r"));
+	if (EyeBody->GetBoneIndex(Ha) == INDEX_NONE || EyeBody->GetBoneIndex(Up) == INDEX_NONE) return;
+	auto Wt = [this](FName N) { return EyeBody->GetBoneTransformByName(N, EBoneSpaces::WorldSpace); };
+	const FTransform TU = Wt(Up), TL = Wt(Lo), TH = Wt(Ha);
+	const FVector P0 = TU.GetLocation(), P1 = TL.GetLocation(), P2 = TH.GetLocation();
+	const FVector Goal = FMath::Lerp(P2, ArmAt, ArmW);
+	// the elbow out to the side and down, a little back, as an arm reaches
+	const FVector Fw = GetActorForwardVector(), Rt = GetActorRightVector();
+	const FVector Pole = P1 + (Rt * 0.6f - Fw * 0.3f - FVector::UpVector * 0.6f).GetSafeNormal() * 40.f;
+	FVector NJ, NE;
+	AnimationCore::SolveTwoBoneIK(P0, P1, P2, Pole, Goal, NJ, NE, false, 1.0, 1.0);
+	FQuat Q = FQuat::FindBetweenNormals((P1 - P0).GetSafeNormal(), (NJ - P0).GetSafeNormal());
+	EyeBody->SetBoneRotationByName(Up, (Q * TU.GetRotation()).Rotator(), EBoneSpaces::WorldSpace);
+	const FTransform TL2 = Wt(Lo), TH2 = Wt(Ha);
+	Q = FQuat::FindBetweenNormals((TH2.GetLocation() - TL2.GetLocation()).GetSafeNormal(), (NE - TL2.GetLocation()).GetSafeNormal());
+	EyeBody->SetBoneRotationByName(Lo, (Q * TL2.GetRotation()).Rotator(), EBoneSpaces::WorldSpace);
+	// the hand turned so its fingers and thumb point as asked
+	if (EyeBody->GetBoneIndex(Mid) == INDEX_NONE || EyeBody->GetBoneIndex(Th) == INDEX_NONE) return;
+	const FTransform TH3 = Wt(Ha);
+	const FVector F = (Wt(Mid).GetLocation() - TH3.GetLocation()).GetSafeNormal();
+	FVector T = Wt(Th).GetLocation() - TH3.GetLocation(); T = (T - F * FVector::DotProduct(T, F)).GetSafeNormal();
+	const FVector F2 = ArmF.GetSafeNormal();
+	FVector T2 = ArmT - F2 * FVector::DotProduct(ArmT, F2); T2 = T2.GetSafeNormal();
+	if (F.IsNearlyZero() || T.IsNearlyZero() || F2.IsNearlyZero() || T2.IsNearlyZero()) return;
+	const FQuat Qa = FMatrix(F, T, FVector::CrossProduct(F, T), FVector::ZeroVector).ToQuat();
+	const FQuat Qb = FMatrix(F2, T2, FVector::CrossProduct(F2, T2), FVector::ZeroVector).ToQuat();
+	const FQuat Want = Qb * Qa.Inverse() * TH3.GetRotation();
+	EyeBody->SetBoneRotationByName(Ha, FQuat::Slerp(TH3.GetRotation(), Want, ArmW).Rotator(), EBoneSpaces::WorldSpace);
+}
+
+bool AADPWalker::PalmNow(FTransform& Out) const
+{
+	static const FName Ha(TEXT("hand_r")), Mid(TEXT("middle_01_r"));
+	USkinnedMeshComponent* B = bEyeBody && EyeBody ? static_cast<USkinnedMeshComponent*>(EyeBody) : static_cast<USkinnedMeshComponent*>(HumanBody);
+	if (!B || B->GetBoneIndex(Ha) == INDEX_NONE) return false;
+	const FTransform H = B->GetBoneTransform(B->GetBoneIndex(Ha));
+	const FVector M = B->GetBoneIndex(Mid) != INDEX_NONE ? B->GetBoneTransform(B->GetBoneIndex(Mid)).GetLocation() : H.GetLocation();
+	Out = FTransform(H.GetRotation(), (H.GetLocation() + M) * 0.5f);
+	return true;
+}
+
+FVector AADPWalker::ShoulderNow() const
+{
+	static const FName Up(TEXT("upperarm_r"));
+	USkinnedMeshComponent* B = bEyeBody && EyeBody ? static_cast<USkinnedMeshComponent*>(EyeBody) : static_cast<USkinnedMeshComponent*>(HumanBody);
+	if (B && B->GetBoneIndex(Up) != INDEX_NONE) return B->GetBoneTransform(B->GetBoneIndex(Up)).GetLocation();
+	return GetActorLocation() + GetActorRightVector() * 18.f + FVector(0, 0, 55.f);
+}
+
 FTransform AADPWalker::ViewFrom(const FVector& At, const FRotator& Look) const
 {
 	if (!bThird) return FTransform(Look, At + FRotator(0.f, Look.Yaw, 0.f).RotateVector(FVector(14.f, 0.f, 70.f)));
@@ -356,6 +416,7 @@ void AADPWalker::Tick(float Dt)
 {
 	Super::Tick(Dt);
 	DriveHuman(Dt);
+	UseEyeBody(!bThird || ArmW > 0.f);
 	PoseEyeBody();
 	// in first person you look down at most 80 degrees (owner, 2026-11-13: as far as his picture - your hands, feet and
 	// shadow in view, never down into your own body); from behind as far as the camera allows

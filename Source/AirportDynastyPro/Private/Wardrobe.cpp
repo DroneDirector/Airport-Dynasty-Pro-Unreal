@@ -222,3 +222,5 @@ void AWardrobe::LookBack(APlayerController* PC)
 	if (PC && PC->GetPawn()) PC->SetViewTargetWithBlend(PC->GetPawn(), 0.6f, EViewTargetBlendFunction::VTBlend_EaseInOut, 2.f);
 	if (Cam) { Cam->Destroy(); Cam = nullptr; }
 }
+
+UPrimitiveComponent* AWardrobe::BodyPart() const { return Body; }

@@ -47,6 +47,24 @@ namespace ADPInput
 		return A;
 	}
 
+	const FAction& SeatAction(bool bSitting)
+	{
+		static const FAction Sit = {TEXT("Sit down"), EKeys::E, TEXT("E"), EKeys::Gamepad_FaceButton_Left, TEXT("X"), TEXT("Square"), TEXT("X")};
+		static const FAction Up = {TEXT("Stand up"), EKeys::E, TEXT("E"), EKeys::Gamepad_FaceButton_Left, TEXT("X"), TEXT("Square"), TEXT("X")};
+		return bSitting ? Up : Sit;
+	}
+
+	const TArray<FAction>& HoseActions(bool bHeld, bool bAtMount)
+	{
+		static const TArray<FAction> Held = {
+			{TEXT("Spray water (wash hose)"), EKeys::Invalid, TEXT("Left mouse"), EKeys::Gamepad_RightTriggerAxis, TEXT("RT"), TEXT("R2"), TEXT("Right trigger")},
+			{TEXT("Hang the hose back up"), EKeys::E, TEXT("E"), EKeys::Gamepad_FaceButton_Left, TEXT("X"), TEXT("Square"), TEXT("X")}};
+		static const TArray<FAction> Take = {
+			{TEXT("Take the wash hose"), EKeys::E, TEXT("E"), EKeys::Gamepad_FaceButton_Left, TEXT("X"), TEXT("Square"), TEXT("X")}};
+		static const TArray<FAction> Away = {Held[0]};   // (hung up only at the wall mount)
+		return bHeld ? (bAtMount ? Held : Away) : Take;
+	}
+
 	const TArray<FAction>& DroneActions()
 	{
 		static const TArray<FAction> A = {

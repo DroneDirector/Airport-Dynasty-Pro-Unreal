@@ -154,6 +154,24 @@ bool ABabylonModel::Place(const FString& Name)
 			FVector PieceOff = FVector::ZeroVector;
 			const bool bPiece = Pieces.Num() > 0;
 			if (const TPair<FString, FVector>* Pc = bPiece ? Pieces.Find(Asset) : nullptr) { Asset = Pc->Key; PieceOff = Pc->Value; }
+			// (owner, 2026-11-14: always the part's own imported name) - the layout names it after its glTF mesh or after its
+			// object; when that file isn't there but the other naming is, the other one is the imported part (logged)
+			bool bNodeNamed = bByNode;
+			if (!bPiece)
+			{
+				auto Exists = [&](const FString& A) { return FPackageName::DoesPackageExist(FString::Printf(TEXT("/Game/Babylon/%s/%s/StaticMeshes/%s"), *Name, *Name.ToLower(), *A)); };
+				if (!Exists(Asset))
+				{
+					FString Other = FString::Printf(TEXT("%s_mesh_%d"), *Name.ToLower(), Mesh);
+					if (!bByNode) N->TryGetStringField(TEXT("name"), Other);
+					if (Exists(Other))
+					{
+						static TSet<FString> Told; if (!Told.Contains(Name)) { Told.Add(Name); ADP_WARN(TEXT("Babylon model %s: its layout names parts %s, the imported files are named %s - using the imported names (re-run Tools/glb_nodes.py after importing)"), *Name, bByNode ? TEXT("by object") : TEXT("by mesh"), bByNode ? TEXT("by mesh") : TEXT("by object")); }
+						Asset = Other; bNodeNamed = !bByNode;
+					}
+					else ADP_WARN(TEXT("Babylon model %s: no imported part %s"), *Name, *Asset);
+				}
+			}
 			// a door's parts in lists of their own (they move; the big shared lists never need rebuilding)
 			const FString Key = bDoor ? Asset + TEXT("#door") : Canopy[I] ? Asset + TEXT("#canopy") : Asset;
 			if (TObjectPtr<UInstancedStaticMeshComponent>* F = ByMesh.Find(Key)) K = *F;
@@ -176,7 +194,7 @@ bool ABabylonModel::Place(const FString& Name)
 			// importer builds each object's position into its mesh), so they go in as they are
 			if (K)
 			{
-				FTransform At = bByNode ? FTransform::Identity : FTransform(PieceOff) * World;
+				FTransform At = bNodeNamed ? FTransform::Identity : FTransform(PieceOff) * World;
 				if (Nudge.Num()) { FString Nn; N->TryGetStringField(TEXT("name"), Nn); if (const FVector* Nv = Nudge.Find(Nn)) At.AddToTranslation(*Nv); }
 				const int32 Ix = K->AddInstance(At, false);
 				NodeInst[I] = TPair<UInstancedStaticMeshComponent*, int32>(K, Ix); ++Placed;
@@ -541,7 +559,7 @@ void ABabylonModel::ReplaceSeats(const TArray<TSharedPtr<FJsonValue>>& Nodes, co
 		++Rows; Places += N;
 	}
 	for (UInstancedStaticMeshComponent* K : {Seats, Legs, Arms}) K->MarkRenderStateDirty();
-	ADP_LOG(TEXT("Seats: %d rows, %d places in the new seating"), Rows, Places);
+	if (Rows) ADP_LOG(TEXT("Seats: %d rows, %d places in the new seating"), Rows, Places);
 }
 
 void ABabylonModel::AddFire(const FVector& LightAt)
@@ -1100,3 +1118,197 @@ void ABabylonModel::SetPartsCollision(bool bOn)
 	for (UInstancedStaticMeshComponent* K : Parts) K->SetCollisionEnabled(bOn ? ECollisionEnabled::QueryAndPhysics : ECollisionEnabled::NoCollision);
 }
 #pragma endregion
+
+void ABabylonModel::SeatSpots(TArray<FSeatSpot>& Out) const
+{
+	if (!Root || Model.StartsWith(TEXT("Firetruck"))) return;   // (the trucks' own seats are the truck's)
+	const FTransform RootW = Root->GetComponentTransform();
+	auto Under = [this](int32 I, TArray<int32>& Nodes) { TArray<int32> St = {I}; while (St.Num()) { const int32 N = St.Pop(); if (!NRoot.IsValidIndex(N)) continue; Nodes.Add(N); St.Append(NKids[N]); } };
+	auto LastPart = [](const FString& N) { int32 P; return N.FindLastChar(TEXT('/'), P) ? N.Mid(P + 1) : N; };
+	auto InstBox = [](UInstancedStaticMeshComponent* K, int32 Item, FBox& B) -> bool
+	{
+		FTransform T; if (!K || !K->GetStaticMesh() || !K->GetInstanceTransform(Item, T, true) || T.GetScale3D().GetMin() < 0.01f) return false;
+		B = K->GetStaticMesh()->GetBoundingBox().TransformBy(T); return true;
+	};
+	UInstancedStaticMeshComponent* GateSeats = nullptr;
+	for (const auto& P : ByMesh) if (P.Value && P.Value->GetStaticMesh() && P.Value->GetStaticMesh()->GetName() == TEXT("SeatModule")) GateSeats = P.Value.Get();
+	for (UActorComponent* C : GetComponents()) if (UInstancedStaticMeshComponent* K = Cast<UInstancedStaticMeshComponent>(C)) if (K->GetStaticMesh() && K->GetStaticMesh()->GetName() == TEXT("SeatModule")) GateSeats = K;
+	for (int32 I = 0; I < NName.Num(); ++I)
+	{
+		const FString Last = LastPart(NName[I]).ToUpper();
+		// the gate rows (their seats rebuilt as the new seating): each back with the seat in front of it
+		if (Last.StartsWith(TEXT("SEATS-")))
+		{
+			TArray<int32> Backs, Pans;
+			for (int32 C : NKids[I]) { const float Y = NRoot[C].GetLocation().Z - NRoot[I].GetLocation().Z; (FMath::IsNearlyEqual(Y, 72.f, 3.f) ? Backs : FMath::IsNearlyEqual(Y, 44.f, 3.f) ? Pans : Backs).Add(C); }
+			for (int32 Bk : Backs)
+			{
+				if (!FMath::IsNearlyEqual(NRoot[Bk].GetLocation().Z - NRoot[I].GetLocation().Z, 72.f, 3.f)) continue;
+				const FVector BW = RootW.TransformPosition(NRoot[Bk].GetLocation());
+				int32 Best = INDEX_NONE; float BD = 1e9f;
+				for (int32 Pn : Pans) { const float D = FVector::Dist2D(RootW.TransformPosition(NRoot[Pn].GetLocation()), BW); if (D < BD) { BD = D; Best = Pn; } }
+				if (Best == INDEX_NONE) continue;
+				const FVector PW = RootW.TransformPosition(NRoot[Best].GetLocation());
+				FSeatSpot S; S.Facing = (PW - BW).GetSafeNormal2D(); if (S.Facing.IsNearlyZero()) continue;
+				const float Floor = RootW.TransformPosition(NRoot[I].GetLocation()).Z;
+				S.SeatH = 46.f; S.At = FVector(PW.X, PW.Y, Floor + S.SeatH);
+				// its piece of the new seating: the seat module nearest
+				if (GateSeats)
+				{
+					int32 Near = INDEX_NONE; float ND = 80.f;
+					for (int32 k = 0; k < GateSeats->GetInstanceCount(); ++k) { FTransform T; GateSeats->GetInstanceTransform(k, T, true); const float D = FVector::Dist2D(T.GetLocation(), S.At); if (D < ND) { ND = D; Near = k; } }
+					if (Near != INDEX_NONE) S.Parts.Add(TPair<UInstancedStaticMeshComponent*, int32>(GateSeats, Near));
+				}
+				Out.Add(S);
+			}
+			continue;
+		}
+		const bool bStool = Last.Contains(TEXT("STOOL"));
+		if (!(Last.Contains(TEXT("CHAIR")) || bStool || Last.Contains(TEXT("BENCH")) || Last.Contains(TEXT("SOFA")))) continue;
+		// a chair's pieces, all of them under its node: their extent, the floor under them, the seat's height
+		TArray<int32> Nodes; Under(I, Nodes);
+		FSeatSpot S; FBox All(ForceInit);
+		for (int32 N : Nodes) if (NInst.IsValidIndex(N) && NInst[N].Key) { FBox B; if (InstBox(NInst[N].Key, NInst[N].Value, B)) { All += B; S.Parts.Add(NInst[N]); } }
+		if (!All.IsValid || S.Parts.Num() == 0) continue;
+		const float Floor = All.Min.Z, Tall = All.Max.Z - Floor;
+		if (Tall < 30.f || Tall > 160.f) continue;
+		S.SeatH = bStool ? FMath::Min(76.f, Tall - 2.f) : FMath::Min(46.f, Tall - 2.f);
+		// which way it faces: away from its back (the pieces standing well over the seat)
+		FVector BackAt = FVector::ZeroVector; int32 NB = 0;
+		for (const auto& P : S.Parts) { FBox B; if (InstBox(P.Key, P.Value, B) && B.Max.Z > Floor + S.SeatH + 18.f && B.Min.Z > Floor + S.SeatH - 15.f) { BackAt += B.GetCenter(); ++NB; } }
+		const FVector C = All.GetCenter();
+		if (NB) S.Facing = (C - BackAt / NB).GetSafeNormal2D();
+		if (!NB || S.Facing.IsNearlyZero()) S.Facing = (RootW.GetRotation() * NRoot[I].GetRotation()).GetForwardVector().GetSafeNormal2D();
+		if (S.Facing.IsNearlyZero()) S.Facing = FVector::ForwardVector;
+		S.At = FVector(C.X, C.Y, Floor + S.SeatH);
+		S.bYours = Model.StartsWith(TEXT("Office")) || Model.StartsWith(TEXT("Ops"));   // (your office's and the ops room's chairs)
+		Out.Add(S);
+	}
+}
+
+ABabylonModel* ABabylonModel::PlaceDoorPanel(UWorld* W, const FVector& From, const FVector& Dir, float FloorZ, const TArray<AActor*>& Ignore, float Proud)
+{
+	if (!W) return nullptr;
+	FHitResult H;
+	FCollisionQueryParams Q(SCENE_QUERY_STAT(ADPDoorPanel), true);
+	Q.AddIgnoredActors(Ignore);
+	const FVector A(From.X, From.Y, FloorZ + 135.f);
+	if (!W->LineTraceSingleByChannel(H, A, A + Dir.GetSafeNormal() * 1500.f, ECC_Visibility, Q)) return nullptr;
+	// flat on the wall: the model's front (its -Y) along the wall's normal, its back on the wall, its foot on the floor
+	// (it faces back the way we looked from - inside - whichever way the wall's own surface says it faces)
+	const FVector N = (-Dir).GetSafeNormal2D();
+	// a ribbed wall (the hangars' sheeting): mounted on its ribs - the face nearest the room anywhere behind the panel
+	{
+		const FVector Tan = FVector::CrossProduct(FVector::UpVector, N).GetSafeNormal();
+		float Nearest = H.Distance;
+		for (int32 a = -2; a <= 2; ++a) for (int32 b = -1; b <= 1; ++b)
+		{
+			const FVector S0 = A + Tan * (a * 4.f) + FVector(0, 0, b * 7.f);
+			FHitResult Hb;
+			if (W->LineTraceSingleByChannel(Hb, S0, S0 + Dir.GetSafeNormal() * 1500.f, ECC_Visibility, Q)) Nearest = FMath::Min(Nearest, Hb.Distance);
+		}
+		if (Nearest < H.Distance - 0.5f) { ADP_LOG(TEXT("Door panel: on the wall's ribs, %.1f cm proud of where the first look met it"), H.Distance - Nearest); H.ImpactPoint = A + Dir.GetSafeNormal() * Nearest; }
+	}
+	// (the model's face - Blender's +y - is its root's -Y, and Place gives the root a half turn on top of the actor's: so the
+	// face looks along the actor's right - turned to the room)
+	const FRotator R(0.f, N.Rotation().Yaw - 90.f, 0.f);
+	// (Proud: a lining drawn in front of the wall that a trace can't find - it has no collision - the panel goes on its face)
+	const FVector At = FVector(H.ImpactPoint.X, H.ImpactPoint.Y, FloorZ) + N * Proud;
+	FActorSpawnParameters S; S.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	ABabylonModel* P = W->SpawnActor<ABabylonModel>(At, R, S);   // (its back right on the wall)
+	if (P && !P->Place(TEXT("DoorPanel"))) { P->Destroy(); P = nullptr; }
+	// which way its face really looks: the green button stands out of the face, so it lies on the face's side of the plate;
+	// if that's the wall's side, the panel is turned round (about its back, which stays on the wall)
+	if (P)
+	{
+		TArray<TTuple<UInstancedStaticMeshComponent*, int32, FString>> Bt, Pl;
+		P->InstancesNamed(TEXT("BtnOpen"), false, Bt); P->InstancesNamed(TEXT("DoorPanelPlate"), false, Pl);
+		FTransform Tb, Tp;
+		if (Bt.Num() && Pl.Num() && Bt[0].Get<0>()->GetInstanceTransform(Bt[0].Get<1>(), Tb, true) && Pl[0].Get<0>()->GetInstanceTransform(Pl[0].Get<1>(), Tp, true))
+		{
+			const float Out = float(FVector::DotProduct(Tb.GetLocation() - Tp.GetLocation(), N));
+			if (Out < 0.f)
+			{
+				P->SetActorRotation(P->GetActorRotation() + FRotator(0.f, 180.f, 0.f));
+				ADP_LOG(TEXT("Door panel: turned round to face the room"));
+			}
+		}
+	}
+	// (the parts as imported lie behind the model's origin, toward its back: brought out by the panel's own depth, so its
+	// back touches the wall and its face looks into the room)
+	if (P)
+	{
+		FVector O, E; P->GetActorBounds(false, O, E);
+		const float Depth = FMath::Abs(E.X * N.X) + FMath::Abs(E.Y * N.Y);
+		const float Behind = float(FVector::DotProduct(O - P->GetActorLocation(), N));   // (negative: its middle is behind the origin)
+		P->SetActorLocation(P->GetActorLocation() + N * (Depth - Behind + 0.05f));
+	}
+	// seen as you'd see it: from a metre in front, straight at it - any surface met before the panel (a lining in front of
+	// the wall the first look found) is the wall you see, and the panel goes onto that
+	if (P)
+	{
+		FCollisionQueryParams Q2(SCENE_QUERY_STAT(ADPDoorPanelSee), true); Q2.AddIgnoredActors(Ignore); Q2.AddIgnoredActor(P);
+		for (int32 Pass = 0; Pass < 3; ++Pass)
+		{
+			const FVector Here = P->GetActorLocation(), Eye = FVector(Here.X, Here.Y, FloorZ + 135.f) + N * 100.f;
+			FHitResult H2;
+			if (!W->LineTraceSingleByChannel(H2, Eye, Eye - N * 140.f, ECC_Visibility, Q2) || H2.Distance > 99.f) break;
+			P->SetActorLocation(FVector(H2.ImpactPoint.X, H2.ImpactPoint.Y, FloorZ) + N * 0.2f);
+			ADP_LOG(TEXT("Door panel: brought forward onto %s (it was %.0f cm behind it)"), H2.GetComponent() ? *H2.GetComponent()->GetName() : TEXT("-"), 100.f - H2.Distance);
+		}
+	}
+	if (P) LightDoorPanel(P, true);
+	if (P) { FVector O, E; P->GetActorBounds(false, O, E); ADP_LOG(TEXT("Door panel: looked from %s, hit %s/%s at %s (%.0f cm on), normal %s; placed at %s, its parts round %s (%s across)"), *A.ToString(), H.GetActor() ? *H.GetActor()->GetName() : TEXT("-"), H.GetComponent() ? *H.GetComponent()->GetName() : TEXT("-"), *H.ImpactPoint.ToString(), H.Distance, *H.ImpactNormal.ToString(), *P->GetActorLocation().ToString(), *O.ToString(), *(E * 2.f).ToString()); }
+	return P;
+}
+
+void ABabylonModel::LightDoorPanel(ABabylonModel* P, bool bGreen)
+{
+	if (!P) return;
+	// each button's cap glows from inside in its own colour, the other one dark (its own list per panel: a panel is its
+	// own model, so each one's light is its own)
+	for (int32 k = 0; k < 2; ++k)
+	{
+		const bool bOpen = k == 0, bLit = bOpen == bGreen;
+		TArray<TTuple<UInstancedStaticMeshComponent*, int32, FString>> F;
+		P->InstancesNamed(bOpen ? TEXT("BtnOpen") : TEXT("BtnClose"), false, F);
+		for (const auto& X : F)
+		{
+			UInstancedStaticMeshComponent* K = X.Get<0>();
+			if (!K) continue;
+			UMaterialInstanceDynamic* D = Cast<UMaterialInstanceDynamic>(K->GetMaterial(0));
+			if (!D) { D = UMaterialInstanceDynamic::Create(K->GetMaterial(0), P); K->SetMaterial(0, D); }
+			const FLinearColor C = bOpen ? FLinearColor(0.1f, 1.f, 0.2f) : FLinearColor(1.f, 0.08f, 0.05f);
+			D->SetVectorParameterValue(TEXT("EmissiveFactor"), bLit ? C : FLinearColor::Black);
+			D->SetVectorParameterValue(TEXT("EmissiveColor"), bLit ? C : FLinearColor::Black);
+			SetGlow(D, bLit ? 6.f : 0.f);
+		}
+	}
+}
+
+ABabylonModel* ABabylonModel::PlaceDoorPanelAt(UWorld* W, const FVector& At, const FVector& N, float FloorZ)
+{
+	if (!W) return nullptr;
+	// a wall we know (a lining with no collision, which no look can find): the panel goes straight onto it, looking along N
+	const FVector From = At + N.GetSafeNormal2D() * 60.f;
+	TArray<AActor*> None;
+	// (a look from just in front, through nothing collidable to a far stop behind the face, then put back onto the face)
+	FActorSpawnParameters S; S.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	const FVector Nn = N.GetSafeNormal2D();
+	ABabylonModel* P = W->SpawnActor<ABabylonModel>(FVector(At.X, At.Y, FloorZ), FRotator(0.f, Nn.Rotation().Yaw - 90.f, 0.f), S);
+	if (P && !P->Place(TEXT("DoorPanel"))) { P->Destroy(); return nullptr; }
+	if (!P) return nullptr;
+	LightDoorPanel(P, true);
+	// its face to the room (the green button stands out of it), its back on the face
+	TArray<TTuple<UInstancedStaticMeshComponent*, int32, FString>> Bt, Pl;
+	P->InstancesNamed(TEXT("BtnOpen"), false, Bt); P->InstancesNamed(TEXT("DoorPanelPlate"), false, Pl);
+	FTransform Tb, Tp;
+	if (Bt.Num() && Pl.Num() && Bt[0].Get<0>()->GetInstanceTransform(Bt[0].Get<1>(), Tb, true) && Pl[0].Get<0>()->GetInstanceTransform(Pl[0].Get<1>(), Tp, true)
+		&& FVector::DotProduct(Tb.GetLocation() - Tp.GetLocation(), Nn) < 0.f)
+		P->SetActorRotation(P->GetActorRotation() + FRotator(0.f, 180.f, 0.f));
+	FVector O, E; P->GetActorBounds(false, O, E);
+	const float Depth = FMath::Abs(E.X * Nn.X) + FMath::Abs(E.Y * Nn.Y), Behind = float(FVector::DotProduct(O - P->GetActorLocation(), Nn));
+	P->SetActorLocation(P->GetActorLocation() + Nn * (Depth - Behind + 0.05f));
+	(void)From; (void)None;
+	return P;
+}

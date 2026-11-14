@@ -1,5 +1,8 @@
 // An aircraft hangar with its crew annex (Hangar.h), in four sizes.
 #include "Hangar.h"
+#include "TimerManager.h"
+#include "BabylonModel.h"
+#include "WashHose.h"
 #include "ADPLog.h"
 #include "TerminalBuilder.h"
 #include "TerminalPlan.h"
@@ -265,6 +268,38 @@ void AHangar::Build(const FString& SizeId, float X, float ApronEdge, bool bDoorO
 	BuildKit();
 	BuildAnnex();
 	BuildAnnexRooms();
+	// the wash hose (owner, 2026-11-14: the same one as the fire station's, working the same way, to wash vehicles in
+	// here): on the east wall's inside face, in the first bay behind the door opening - on the wall, never on the doors
+	{
+		const float Hz = BayMid(2.5f, 1.f, 8.f), Hx = S.WallX() - 0.24f;   // (on the liner's face: BuildSkin's T:Liner, 12 cm in front of the wall)
+		const FTransform At = FTransform(FRotator(0.f, -90.f, 0.f), FVector(Hx * 100.f, -Hz * 100.f, 0.f)) * GetActorTransform();
+		FActorSpawnParameters Sp; Sp.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		ABabylonModel* Hose = GetWorld()->SpawnActor<ABabylonModel>(At.GetLocation(), At.Rotator(), Sp);
+		if (Hose && Hose->Place(TEXT("WashHose")))
+		{
+			if (AWashHose* Wh = GetWorld()->SpawnActor<AWashHose>(At.GetLocation(), At.Rotator(), Sp)) Wh->Setup(Hose);
+		}
+		else { if (Hose) Hose->Destroy(); ADP_WARN(TEXT("Hangar %s: the wash hose is missing"), *S.Id); }
+	}
+	// the door button panel (owner, 2026-11-14): inside, on the east wall as near the big door as it goes - a moment after
+	// the hangar is up, when its walls can be found
+	{
+		TWeakObjectPtr<AHangar> WH = this;
+		FTimerHandle Th;
+		GetWorldTimerManager().SetTimer(Th, FTimerDelegate::CreateLambda([WH]()
+		{
+			AHangar* Hg = WH.Get();
+			if (!Hg) return;
+			const FTransform HX = Hg->GetActorTransform();
+			// (the inside of the walls is lined from 1 m up - BuildSkin's T:Liner, its face at WallX - 0.24, with no collision,
+			// so no look finds it: the panel goes straight onto the liner's face, looking into the hangar)
+			const FVector At = HX.TransformPosition(FVector((Hg->S.WallX() - 0.24f) * 100.f, -0.8f * 100.f, 0.f));
+			const FVector In = HX.TransformVectorNoScale(FVector(-1.f, 0.f, 0.f));
+			ABabylonModel* Pn = ABabylonModel::PlaceDoorPanelAt(Hg->GetWorld(), At, In, HX.GetLocation().Z);
+			if (Pn) { Pn->Tags.Add(TEXT("HangarDoor")); Pn->SetOwner(Hg); }   // (its buttons work only this hangar's door)
+			else ADP_WARN(TEXT("Hangar %s: no wall found for the door panel"), *Hg->S.Id);
+		}), 1.0f, false);
+	}
 	ADP_LOG(TEXT("Hangar %s at x %.1f: %d kits, %d lights, door %s"), *S.Id, X, Kits.Num(), Lights.Num(), bDoorOpen ? TEXT("open") : TEXT("shut"));
 }
 

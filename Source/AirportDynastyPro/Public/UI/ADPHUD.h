@@ -147,6 +147,10 @@ public:
 	/** The fire station's bay doors: within 25 m their button (O / D-pad right) works and shows in the Buttons panel. */
 	void ToggleBayDoors();
 	bool bNearStation = false;
+	/** The wash hose: in your hand, or within reach of its hook. */
+	bool bHoseHeld = false, bNearHose = false;
+	/** A seat within reach, or sitting on one (Seats.h). */
+	bool bNearSeat = false, bSeated = false;
 	void GoApron();
 	void GoEntrance();
 	void GoTowerCab();

@@ -1,8 +1,8 @@
 // The airport's crash tenders, drivable (owner, 2026-11-11: "driving physics that of a fire truck", the driving phase).
 // Each truck is a physics body (a box the size of the truck, 28 t, its weight low) on six raycast wheels: a spring and
 // damper each (about 10 cm of sag standing, 15 cm of bump, 10 cm of droop), anti-roll on every axle, tyres that grip by
-// their load (a friction circle), all six wheels driven (an electric drive's power curve, about 520 kW: some 25 s to
-// 80 km/h, 115 km/h top), brakes and a handbrake on the rear axles, the front wheels steering up to 25 deg about their
+// their load (a friction circle), all six wheels driven (an electric drive's power curve, about 780 kW, tops out at 135 km/h: some 17 s to
+// 80 km/h), brakes and a handbrake on the rear axles, the front wheels steering up to 25 deg about their
 // kingpins (Ackermann, less at speed) and the rearmost axle the other way, up to 10 deg (rear-axle steering).
 // Its model (Art/FireTruck, Content/Babylon/Firetruck<n>) rides on the body: the wheels roll, steer and travel, the
 // arms swing, the springs compress, the dampers slide, the drive shafts follow, the steering wheel turns, the pedals go
@@ -58,6 +58,26 @@ public:
 	int32 TurnState() const { return int32(Signal); }
 	/** The truck an actor belongs to (the truck or its model), or null. */
 	static AFireTruck* FromActor(AActor* A);
+	/** The wash hose's jet landing on the truck at At (world): that part of it a little cleaner (WashHose.h). */
+	void Wash(const FVector& At, float Amount);
+	/** How dirty each part still is (0 washed .. 1 as dirty as it gets): 6 lengths of 2 m, rear to front, x 2 sides
+	 *  (left 0-5, right 6-11). Driving dirties it again, slowly. */
+	float DirtZone[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+	/** Where each part's dirt is heading: the jet lowers it, the paint follows over a few seconds (owner, 2026-11-14:
+	 *  you see the dirt slowly leave, like the puddles drying). */
+	float DirtGoal[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+	/** Tests: the whole truck this dirty (1 usual, 2 back from the mud). */
+	/** Beads of water the hose left on each part (0 dry .. 1 just washed; owner, 2026-11-14: they stay a while, dry in
+	 *  about 20 minutes, and blow off - pushed back along the truck - once you drive, the faster the sooner), and how far
+	 *  the airflow has pushed them (cm). */
+	float Beads[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+	float Blow = 0.f;
+	UPROPERTY() TArray<TObjectPtr<class UMaterialInstanceDynamic>> GlassMids;
+	void SetDirt(float V) { for (int32 i = 0; i < 12; ++i) DirtZone[i] = DirtGoal[i] = V; }
+	FVector DirtCenter = FVector::ZeroVector; bool bDirtCenter = false;
+	FVector DirtAxis = FVector::ForwardVector;   // the truck's length, in its own frame (from its parts' extent)
+	FVector DirtAxisWorld() const { return GetActorTransform().TransformVectorNoScale(DirtAxis); }
+	void PushDirt(float Dt);
 	/** The truck right beside you (within 2.5 m of it) that you're facing, or null: E gets you in even when your aim
 	 *  misses it, and from behind yourself (third person) too (owner, 2026-11-13: "it doesn't notice, not always"). */
 	static AFireTruck* Beside(const APawn* P);
@@ -154,6 +174,22 @@ private:
 	};
 	TArray<FWheel> Wheels;
 	int32 GDoor[2] = {-1, -1}, GSteeringWheel = -1, GAccel = -1, GBrake = -1;
+	// the gauge cluster (owner, 2026-11-14: needles that move as you drive, the dials true to the truck, a gentle glow in
+	// the dark): speed 0-140 km/h and revs 0-3000 over 240 degrees, temperature, oil, fuel and volts over 120; each needle
+	// on a little spring so it swings and settles like a real one
+	int32 GNeedle[6] = {-1, -1, -1, -1, -1, -1};
+	FTransform BNeedle[6];
+	float NeedleAng[6] = {0, 0, 0, 0, 0, 0}, NeedleVel[6] = {0, 0, 0, 0, 0, 0};
+	float EngineTemp = 15.f, RevShown = 0.f, DashGlow = -1.f;
+	TArray<TPair<UInstancedStaticMeshComponent*, int32>> NeedleLens;   // the needles' white and red, lit at night
+	UPROPERTY() TObjectPtr<class UPointLightComponent> ClusterLight;
+	void UpdateGauges(float Dt);
+public:
+	/** Tests: what a gauge's needle shows now (0 speed, 1 revs, 2 temp, 3 oil, 4 fuel, 5 volts), degrees from its dial's middle. */
+	float NeedleNow(int32 I) const { return I >= 0 && I < 6 ? NeedleAng[I] : 0.f; }
+private:
+	// the dirt (owner, 2026-11-14: only from bad weather or driving off the paving): what's under the wheels
+	float GroundCheck = 0.f; bool bOffRoad = false;
 	FTransform BSteeringWheel, BAccel, BBrake;
 	FVector HingeRoot[2], BrakePin = FVector::ZeroVector;
 	float SpinSign = 1.f, SteerSign = 1.f, DoorSign = 1.f;

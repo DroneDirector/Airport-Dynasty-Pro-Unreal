@@ -15,6 +15,9 @@ UCLASS()
 class AIRPORTDYNASTYPRO_API AWardrobe : public AActor
 {
 	GENERATED_BODY()
+public:
+	/** Its body (the interaction outline, InteractOutline.h). */
+	UPrimitiveComponent* BodyPart() const;
 
 public:
 	AWardrobe();

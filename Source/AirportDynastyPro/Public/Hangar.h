@@ -69,6 +69,8 @@ public:
 	 *  pocket's front): true if C was one. The door then runs as a real one: OPEN or CLOSE starts it, STOP holds it
 	 *  where it is; fully open or shut takes 10 minutes. */
 	bool Press(const UPrimitiveComponent* C);
+	/** Its door buttons (the interaction outline, InteractOutline.h). */
+	TArray<UStaticMeshComponent*> ButtonList() const { TArray<UStaticMeshComponent*> L; for (const auto& B : Buttons) L.Add(B.Get()); return L; }
 	/** How far the main door is open (0 shut, 1 open), and where it is going (-1 closing, 0 still, 1 opening). */
 	float DoorOpen() const { return DoorK; }
 	int32 DoorMoving() const { return DoorRun; }

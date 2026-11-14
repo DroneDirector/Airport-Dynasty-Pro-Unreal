@@ -61,6 +61,8 @@ ASunClock::ASunClock()
 	Current = this;
 }
 
+float ASunClock::SunElevation = 30.f;
+
 void ASunClock::SunAt(const FDateTime& Utc, double Lat, double Lon, double& Elevation, double& Azimuth)
 {
 	const double D = (Utc - FDateTime(2000, 1, 1, 12)).GetTotalDays();   // days since J2000.0
@@ -87,6 +89,7 @@ void ASunClock::Update()
 	if (DayOverride > 0) When = FDateTime(When.GetYear(), 1, 1) + FTimespan::FromDays(DayOverride - 1) + When.GetTimeOfDay();
 	if (HourOverride >= 0) { const FDateTime D = When.GetDate(); When = D + FTimespan::FromHours(FMath::Clamp(HourOverride, 0.f, 23.999f)); }
 	SunAt(When, Lat, Lon, El, Az);
+	SunElevation = float(El);
 	ADirectionalLight* Sun = Cast<ADirectionalLight>(UGameplayStatics::GetActorOfClass(this, ADirectionalLight::StaticClass()));
 	if (!Sun) return;
 	// the world's x runs along the runway (its heading from north), y to its right, z up; the light shines from the sun

@@ -3,8 +3,10 @@
 #include "ADPLog.h"
 #include "BabylonModel.h"
 #include "FireTruck.h"
+#include "WashHose.h"
 #include "TerminalPlan.h"
 #include "Engine/World.h"
+#include "TimerManager.h"
 
 namespace ADPFireStation
 {
@@ -29,7 +31,32 @@ namespace ADPFireStation
 		// the pier between bay doors 4 and 5 (the sketch's (50.5, 0, -0.05)), facing out over the forecourt
 		const FVector HoseAt = Station->GetActorTransform().TransformPosition(FVector(-(BayX(3) + BayX(4)) * 0.5f, -0.05f, 0.f) * 100.f);
 		ABabylonModel* Hose = W->SpawnActor<ABabylonModel>(HoseAt, FRotator(0, Yaw, 0), S);
-		if (!Hose || !Hose->Place(TEXT("WashHose"))) { if (Hose) Hose->Destroy(); ADP_ERROR(TEXT("Fire station: the wash hose is missing (Content/Babylon/WashHose)")); }
+		if (!Hose || !Hose->Place(TEXT("WashHose"))) { if (Hose) { Hose->Destroy(); Hose = nullptr; } ADP_ERROR(TEXT("Fire station: the wash hose is missing (Content/Babylon/WashHose)")); }
+		// (owner, 2026-11-14: it works - take the gun with E / X, drag the hose about, spray, wash the trucks: WashHose.h)
+		if (Hose) if (AWashHose* Wh = W->SpawnActor<AWashHose>(Hose->GetActorLocation(), Hose->GetActorRotation(), S)) Wh->Setup(Hose);
+		// the door button panels (owner, 2026-11-14): inside the apparatus hall, on the wall piece beside each bay door
+		// (35 cm from its edge, never on the door), all at the same height, flat on the wall. A moment after the station
+		// is up, when its walls can be found (straight after spawning, their collision isn't there yet)
+		{
+			TWeakObjectPtr<ABabylonModel> WS = Station;
+			FTimerHandle Th;
+			W->GetTimerManager().SetTimer(Th, FTimerDelegate::CreateLambda([W, WS]()
+			{
+				ABabylonModel* St = WS.Get();
+				if (!St) return;
+				TArray<AActor*> Ign; for (const TWeakObjectPtr<AFireTruck>& T : AFireTruck::All) if (T.IsValid()) Ign.Add(T.Get());
+				const FTransform SX = St->GetActorTransform();
+				int32 NP = 0;
+				for (int32 i = 0; i < 5; ++i)
+				{
+					const float Px = BayX(i) + 2.8f + 0.35f;
+					const FVector From = SX.TransformPosition(FVector(-Px, 8.0f, 0.f) * 100.f), To = SX.TransformPosition(FVector(-Px, -1.f, 0.f) * 100.f);   // (from well inside the hall, out to the front wall: the first face met is the one you see)
+					// (owner, 2026-11-14: its buttons work only the door right beside it - this bay's)
+					if (ABabylonModel* Pn = ABabylonModel::PlaceDoorPanel(W, From, To - From, SX.GetLocation().Z, Ign)) { Pn->Tags.Add(FName(*FString::Printf(TEXT("BayDoor%d"), i))); Pn->SetOwner(St); ++NP; }
+				}
+				ADP_LOG(TEXT("Fire station: %d door button panels inside, one by each bay door"), NP);
+			}), 1.0f, false);
+		}
 		// the bay doors open for the trucks (FireTruck.h)
 		if (AFireStationDoors* D = W->SpawnActor<AFireStationDoors>(Station->GetActorLocation(), FRotator::ZeroRotator, S)) D->Setup(Station);
 		ADP_LOG(TEXT("Fire station at plan (%.0f, %.0f) with %d trucks and the wash hose"), X, Y, Trucks);

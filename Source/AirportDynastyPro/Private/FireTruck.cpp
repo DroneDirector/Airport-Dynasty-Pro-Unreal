@@ -5,6 +5,9 @@
 #include "ADPLog.h"
 #include "BabylonModel.h"
 #include "FireStation.h"
+#include "SunClock.h"
+#include "Puddles.h"
+#include "Airfield.h"
 #include "ADPWalker.h"
 #include "DriverPoseAnim.h"
 #include "GameFramework/PawnMovementComponent.h"
@@ -43,7 +46,7 @@ namespace
 	constexpr float TruckMass = 28000.f, Gravity = 9.81f;
 	constexpr float KSpring = 458000.f, CDamp = 42000.f, AntiRoll = 180000.f;   // N/m, N s/m
 	constexpr float BumpCm = 15.f, DroopCm = 10.f, StrokeCm = BumpCm + DroopCm, WheelRCm = WheelR * 100.f;
-	constexpr float TyreMu = 0.9f, DrivePower = 520000.f, TopSpeed = 32.f, ReverseTop = 4.2f;
+	constexpr float TyreMu = 0.9f, DrivePower = 780000.f, TopSpeed = 39.3f, ReverseTop = 4.2f;   // (owner, 2026-11-14: tops out at 135 km/h, a big crash tender's ~1050 hp)
 	constexpr float MaxSteer = 25.f, Wheelbase = 5.4f, RearOff = 1.65f, TrackWidth = 2.44f;
 	FVector BlenderToRoot(float X, float Y, float Z) { return FVector(X, -Y, Z) * 100.f; }
 	FTransform About(const FVector& P, const FQuat& Q) { return FTransform(-P) * FTransform(Q) * FTransform(P); }
@@ -306,7 +309,7 @@ AFireTruck::AFireTruck()
 	Body->SetCollisionProfileName(TEXT("PhysicsActor"));
 	Body->SetMobility(EComponentMobility::Movable);
 	Body->SetSimulatePhysics(false);
-	Body->SetLinearDamping(0.02f);
+	Body->SetLinearDamping(0.005f);   // (the air's drag at speed: with the power, it settles at about 135 km/h)
 	Body->SetAngularDamping(0.6f);
 	Body->BodyInstance.SetMassOverride(TruckMass, true);
 	Body->BodyInstance.COMNudge = FVector(0, 0, -80.f);   // the weight low (the tank, the chassis)
@@ -390,6 +393,40 @@ bool AFireTruck::Setup(const FString& ModelName)
 	FTransform PadT;
 	if (Model->NodeBase(TEXT("Pedal_Brake"), PadT)) BrakePad = PadT.GetLocation();
 	WheelNow = BSteeringWheel; AccelNow = BAccel; BrakeNow = FTransform(BrakePin);
+	{
+		static const TCHAR* NeedleNames[6] = {TEXT("Speed"), TEXT("Rev"), TEXT("Temp"), TEXT("Oil"), TEXT("Fuel"), TEXT("Volts")};
+		static const float Rest[6] = {-120.f, -120.f, -60.f, -60.f, -40.f, 0.f};   // as modelled (Art/FireTruck/make_panther.py)
+		int32 NN = 0;
+		for (int32 i = 0; i < 6; ++i)
+		{
+			FTransform B;
+			const FString N = FString(TEXT("Needle_")) + NeedleNames[i];
+			if (!Model->NodeBase(N, B)) continue;
+			// (the pivot taken back to the needle's zero: the dials' lowest mark)
+			BNeedle[i] = B; NeedleAng[i] = Rest[i];
+			GNeedle[i] = Model->BindGroup({N, N + TEXT("Tip")}, false, B);
+			NN += GNeedle[i] != INDEX_NONE;
+			TArray<TTuple<UInstancedStaticMeshComponent*, int32, FString>> F;
+			Model->InstancesNamed(N, false, F); Model->InstancesNamed(N + TEXT("Tip"), false, F);
+			for (const auto& X : F) NeedleLens.Add(TPair<UInstancedStaticMeshComponent*, int32>(X.Get<0>(), X.Get<1>()));
+		}
+		// a soft backlight in the cluster's hood (night only)
+		FTransform CF;
+		if (Model->NodeBase(TEXT("ClusterFace"), CF) || Model->NodeBase(TEXT("ClusterRoot"), CF))
+		{
+			ClusterLight = NewObject<UPointLightComponent>(this);
+			ClusterLight->SetupAttachment(Model->GetModelRoot());
+			ClusterLight->SetRelativeLocation(CF.GetLocation() + FVector(0.f, -9.f, 4.f));
+			ClusterLight->SetIntensityUnits(ELightUnits::Candelas);
+			ClusterLight->SetIntensity(0.25f);
+			ClusterLight->SetAttenuationRadius(45.f);
+			ClusterLight->SetLightColor(FLinearColor(0.75f, 0.85f, 1.f));
+			ClusterLight->SetCastShadows(false);
+			ClusterLight->SetVisibility(false);
+			ClusterLight->RegisterComponent();
+		}
+		ADP_LOG(TEXT("Fire truck %s: %d gauge needles, cluster light %d"), *ModelName, NN, ClusterLight ? 1 : 0);
+	}
 	// your body for getting in and driving: the walker's own mannequin, posed by hand (TruckDriverRig.h)
 	if (USkeletalMesh* Manny = LoadObject<USkeletalMesh>(nullptr, TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple")))
 	{
@@ -852,6 +889,144 @@ void AFireTruck::UpdateLamps(float Dt)
 	UpdateLenses(bRunning, bBraking, bTurnOn);
 	// the paint's dirt and spray measured from where the truck stands
 	if (Model) for (UMaterialInstanceDynamic* D : PaintMids) if (D) D->SetScalarParameterValue(TEXT("GroundZ"), Model->GetModelRoot()->GetComponentLocation().Z);
+	PushDirt(GetWorld() ? GetWorld()->GetDeltaSeconds() : 0.f);
+}
+
+void AFireTruck::UpdateGauges(float Dt)
+{
+	if (!Model) return;
+	const bool bOn = Driver != nullptr;
+	// the engine: idling at 750, up with the throttle and the road speed (as its sound), off when nobody's in
+	const float RpmWant = bOn ? 750.f + 1400.f * InThrottle + 6.f * FMath::Min(SpeedKmh(), 100.f) : 0.f;
+	RevShown = FMath::FInterpTo(RevShown, RpmWant, Dt, bOn ? 3.f : 1.2f);
+	EngineTemp = FMath::FInterpConstantTo(EngineTemp, bOn ? 85.f : 15.f, Dt, bOn ? 1.1f : 0.05f);   // (warm in about a minute)
+	// what each needle shows, degrees from its dial's middle
+	float Want[6];
+	Want[0] = -120.f + 240.f * FMath::Clamp(SpeedKmh() / 140.f, 0.f, 1.f);                       // km/h
+	Want[1] = -120.f + 240.f * FMath::Clamp(RevShown / 3000.f, 0.f, 1.f);                         // rpm
+	Want[2] = -60.f + 120.f * FMath::Clamp((EngineTemp - 40.f) / 80.f, 0.f, 1.f);                 // 40-120 C
+	Want[3] = -60.f + 120.f * FMath::Clamp((bOn ? 1.6f + RevShown * 0.0016f : 0.f) / 8.f, 0.f, 1.f);   // oil, bar
+	Want[4] = -60.f + 120.f * (bOn ? 0.83f : 0.f);                                                // fuel
+	Want[5] = -60.f + 120.f * FMath::Clamp(((bOn ? 27.8f : 24.6f) - 18.f) / 12.f, 0.f, 1.f);     // volts
+	static const float Rest[6] = {-120.f, -120.f, -60.f, -60.f, -40.f, 0.f};
+	for (int32 i = 0; i < 6; ++i)
+	{
+		if (GNeedle[i] < 0) continue;
+		// a light spring, a little under-damped: it swings to the value and settles
+		// (small fixed steps, so a long frame never throws it round the dial; and never past its stops)
+		const float K = i < 2 ? 160.f : 30.f, C = i < 2 ? 18.f : 9.f;
+		for (float Left = FMath::Min(Dt, 0.25f); Left > 0.f; Left -= 1.f / 240.f)
+		{
+			const float H = FMath::Min(Left, 1.f / 240.f);
+			NeedleVel[i] += ((Want[i] - NeedleAng[i]) * K - NeedleVel[i] * C) * H;
+			NeedleAng[i] += NeedleVel[i] * H;
+		}
+		const float Lo = i < 2 ? -124.f : -64.f, Hi = i < 2 ? 124.f : 64.f;
+		if (NeedleAng[i] < Lo || NeedleAng[i] > Hi || !FMath::IsFinite(NeedleAng[i])) { NeedleAng[i] = FMath::Clamp(FMath::IsFinite(NeedleAng[i]) ? NeedleAng[i] : Want[i], Lo, Hi); NeedleVel[i] = 0.f; }
+		// turned about its own hub's axis (the dial's normal), from the angle it was modelled at
+		const FVector Axis = BNeedle[i].GetRotation().GetAxisY();
+		const FQuat Q(Axis, FMath::DegreesToRadians(-(NeedleAng[i] - Rest[i])));
+		Model->MoveGroup(GNeedle[i], FTransform(Q * BNeedle[i].GetRotation(), BNeedle[i].GetLocation()));
+	}
+	// in the dark, with the engine on: the dials' backlight and the needles glowing softly
+	const float Glow = bOn && ASunClock::SunElevation < 4.f ? FMath::Clamp((4.f - ASunClock::SunElevation) / 8.f, 0.f, 1.f) : 0.f;
+	if (FMath::Abs(Glow - DashGlow) > 0.02f)
+	{
+		DashGlow = Glow;
+		for (const auto& L : NeedleLens) if (L.Key) L.Key->SetCustomDataValue(L.Value, 0, 0.06f * Glow, true);
+		if (ClusterLight) { ClusterLight->SetVisibility(Glow > 0.f); ClusterLight->SetIntensity(0.3f * Glow); }
+	}
+}
+
+void AFireTruck::PushDirt(float Dt)
+{
+	if (!Model || PaintMids.Num() == 0) return;
+	// the truck's middle, once, in its own frame (its parts' bounds)
+	if (!bDirtCenter)
+	{
+		// the truck's middle and its length, from its parts in the model's own frame (the model's nose isn't along the
+		// actor's forward)
+		const FBox LB = Model->CalculateComponentsBoundingBoxInLocalSpace(true);
+		const FVector E = LB.GetExtent();
+		const FVector AxisM = E.X >= E.Y ? FVector::ForwardVector : FVector::RightVector;
+		const FTransform MT = Model->GetActorTransform();
+		DirtCenter = GetActorTransform().InverseTransformPosition(MT.TransformPosition(LB.GetCenter()));
+		DirtAxis = GetActorTransform().InverseTransformVectorNoScale(MT.TransformVectorNoScale(AxisM)).GetSafeNormal();
+		bDirtCenter = true;
+		ADP_LOG(TEXT("Fire truck %s: %.1f m long, %.1f m wide (the dirt's areas along its length)"), *GetName(), FMath::Max(E.X, E.Y) / 50.f, FMath::Min(E.X, E.Y) / 50.f);
+	}
+	// driving muddies it again: about 2 % a kilometre
+	const float Ms = SpeedKmh() / 3.6f;
+	// what's under the wheels, twice a second: the airfield's paving or a building's floor, or grass and bare ground
+	GroundCheck -= Dt;
+	if (GroundCheck <= 0.f && Ms > 0.5f && GetWorld())
+	{
+		GroundCheck = 0.5f;
+		const FVector C = GetActorTransform().TransformPosition(DirtCenter);
+		FHitResult H; FCollisionQueryParams Q(SCENE_QUERY_STAT(ADPTruckGround), false, this); Q.AddIgnoredActor(Model);
+		bOffRoad = false;
+		if (GetWorld()->LineTraceSingleByChannel(H, C + FVector(0, 0, 50.f), C - FVector(0, 0, 400.f), ECC_Visibility, Q))
+		{
+			const UMaterialInterface* M = H.GetComponent() ? H.GetComponent()->GetMaterial(0) : nullptr;
+			const FString MN = M ? M->GetName() : FString();
+			const bool bPaved = (Cast<AAirfield>(H.GetActor()) && !MN.Contains(TEXT("grass"), ESearchCase::IgnoreCase)) || Cast<ABabylonModel>(H.GetActor());
+			bOffRoad = !bPaved;
+		}
+	}
+	// dirt builds only off the paving (fully muddy after about 4 km) or in the wet (about 20 km; off-road in the wet twice
+	// as fast); on clean dry paving it stays as it is
+	const float Wet = APuddles::Get() ? APuddles::Get()->GetWetness() : 0.f;
+	const float PerM = (bOffRoad ? 0.00025f : 0.f) * (1.f + Wet) + (Wet > 0.3f ? 0.00005f * Wet : 0.f);
+	const float Most = bOffRoad ? 2.f : 1.f;   // (off-road, driven a lot: as filthy as a truck gets)
+	if (Ms > 0.5f && PerM > 0.f) for (float& Z : DirtGoal) if (Z < Most) Z = FMath::Min(Most, Z + Ms * Dt * PerM);
+	// the paint follows: the dirt runs off over a few seconds
+	for (int32 i = 0; i < 12; ++i) DirtZone[i] = FMath::FInterpConstantTo(DirtZone[i], DirtGoal[i], Dt, DirtZone[i] > DirtGoal[i] ? 0.3f : 0.05f);
+	// the beads: drying (about 20 minutes), and blown off by the airflow once you drive - slowly in town, fast on the road
+	for (float& B : Beads) if (B > 0.f) B = FMath::Max(0.f, B - Dt / 1200.f - Dt * FMath::Max(0.f, Ms - 3.f) / 45.f);
+	Blow += Ms * Dt * 0.6f;
+	const FVector O = GetActorTransform().TransformPosition(DirtCenter), F = DirtAxisWorld();
+	for (UMaterialInstanceDynamic* D : GlassMids)
+	{
+		if (!D) continue;
+		D->SetVectorParameterValue(TEXT("Origin"), FLinearColor(O.X, O.Y, O.Z, 0.f));
+		D->SetVectorParameterValue(TEXT("AxisF"), FLinearColor(F.X, F.Y, F.Z, 0.f));
+		D->SetVectorParameterValue(TEXT("B0"), FLinearColor(Beads[0], Beads[1], Beads[2], Beads[3]));
+		D->SetVectorParameterValue(TEXT("B1"), FLinearColor(Beads[4], Beads[5], Beads[6], Beads[7]));
+		D->SetVectorParameterValue(TEXT("B2"), FLinearColor(Beads[8], Beads[9], Beads[10], Beads[11]));
+		D->SetScalarParameterValue(TEXT("Blow"), Blow);
+	}
+	for (UMaterialInstanceDynamic* D : PaintMids)
+	{
+		if (!D) continue;
+		D->SetVectorParameterValue(TEXT("B0"), FLinearColor(Beads[0], Beads[1], Beads[2], Beads[3]));
+		D->SetVectorParameterValue(TEXT("B1"), FLinearColor(Beads[4], Beads[5], Beads[6], Beads[7]));
+		D->SetVectorParameterValue(TEXT("B2"), FLinearColor(Beads[8], Beads[9], Beads[10], Beads[11]));
+		D->SetScalarParameterValue(TEXT("Blow"), Blow);
+		D->SetVectorParameterValue(TEXT("Origin"), FLinearColor(O.X, O.Y, O.Z, 0.f));
+		D->SetVectorParameterValue(TEXT("AxisF"), FLinearColor(F.X, F.Y, F.Z, 0.f));
+		D->SetVectorParameterValue(TEXT("Z0"), FLinearColor(DirtZone[0], DirtZone[1], DirtZone[2], DirtZone[3]));
+		D->SetVectorParameterValue(TEXT("Z1"), FLinearColor(DirtZone[4], DirtZone[5], DirtZone[6], DirtZone[7]));
+		D->SetVectorParameterValue(TEXT("Z2"), FLinearColor(DirtZone[8], DirtZone[9], DirtZone[10], DirtZone[11]));
+	}
+}
+
+void AFireTruck::Wash(const FVector& At, float Amount)
+{
+	// the same areas as the paint's (Tools/set_truck_materials.py): 2 m lengths over 12 m, the two sides blended over 40 cm
+	if (!bDirtCenter) return;
+	const FVector Lp = At - GetActorTransform().TransformPosition(DirtCenter), F = DirtAxisWorld();
+	const FVector Ar = FVector::CrossProduct(FVector::UpVector, F).GetSafeNormal();
+	const float Fa = FMath::Clamp(float(FVector::DotProduct(Lp, F)) / 100.f + 6.f, 0.f, 11.999f) / 2.f;
+	const float Sd = FMath::Clamp(float(FVector::DotProduct(Lp, Ar)) / 40.f + 0.5f, 0.f, 1.f);
+	const int32 I0 = FMath::Min(int32(Fa), 5), I1 = FMath::Min(I0 + 1, 5);
+	const float Ft = FMath::Clamp(Fa - I0, 0.f, 1.f);
+	auto Take = [&](int32 I, float Wt) { DirtGoal[I] = FMath::Max(0.f, DirtGoal[I] - Amount * Wt * 2.f); };
+	Take(I0, (1.f - Ft) * (1.f - Sd)); Take(I1, Ft * (1.f - Sd)); Take(6 + I0, (1.f - Ft) * Sd); Take(6 + I1, Ft * Sd);
+	// and beads of water left behind there (the water runs a little way round: the neighbours a little wet too)
+	auto Wet = [&](int32 I, float Wt) { Beads[I] = FMath::Min(1.f, Beads[I] + Amount * 40.f * Wt); };
+	Wet(I0, 1.f - Sd); Wet(I1, 1.f - Sd); Wet(6 + I0, Sd); Wet(6 + I1, Sd);
+	if (I0 > 0) Wet(I0 - 1, 0.25f * (1.f - Sd));
+	if (I1 < 5) Wet(I1 + 1, 0.25f * (1.f - Sd));
 }
 
 void AFireTruck::FollowRoute()
@@ -881,7 +1056,7 @@ void AFireTruck::FollowRoute()
 	InSteer = float(FMath::Clamp(-Ang / 25.0, -1.0, 1.0));
 	const float Want = TestKmh * (FMath::Abs(Ang) > 20.0 ? 0.55f : 1.f), Now = SpeedKmh();
 	const bool bEnd = (TestRoute.Last() - P).Size() < 8.0;
-	InThrottle = bEnd ? 0.f : Now < Want ? 0.55f : 0.f;
+	InThrottle = bEnd ? 0.f : Now < Want - 15.f ? 1.f : Now < Want ? 0.55f : 0.f;
 	InBrake = bEnd ? 1.f : Now > Want + 6.f ? 0.4f : 0.f;
 }
 
@@ -894,7 +1069,7 @@ void AFireTruck::DressMaterials()
 	// the painted and worn parts: how much road dirt each gathers and how worn it gets
 	struct FKind { const TCHAR* Name; float Dirt, Wear; };
 	static const FKind Painted[] = {{TEXT("TruckPaint"), 0.45f, 0.35f}, {TEXT("TruckTeal"), 0.45f, 0.35f}, {TEXT("TruckWarningStripes"), 0.4f, 0.3f},
-		{TEXT("TruckLettering"), 0.4f, 0.2f}, {TEXT("TruckBlack"), 0.55f, 0.4f}, {TEXT("TruckRim"), 0.75f, 0.5f}, {TEXT("TruckTreadPlate"), 0.6f, 0.8f}, {TEXT("TruckSatin"), 0.45f, 0.3f}};
+		{TEXT("TruckLettering"), 0.4f, 0.2f}, {TEXT("TruckBlack"), 0.55f, 0.4f}, {TEXT("TruckRim"), 0.75f, 0.5f}, {TEXT("TruckTreadPlate"), 0.6f, 0.8f}, {TEXT("TruckSatin"), 0.45f, 0.3f}, {TEXT("TruckRubber"), 0.75f, 0.1f}};
 	TMap<UMaterialInterface*, UMaterialInterface*> Swap;
 	TArray<UInstancedStaticMeshComponent*> Parts; Model->Parts(Parts);
 	auto V = [](UMaterialInterface* M, const TCHAR* N, const FLinearColor& D) { FLinearColor C = D; M->GetVectorParameterValue(FHashedMaterialParameterInfo(N), C); return C; };
@@ -927,6 +1102,16 @@ void AFireTruck::DressMaterials()
 					D->SetScalarParameterValue(TEXT("Dirt"), Kd.Dirt); D->SetScalarParameterValue(TEXT("Wear"), Kd.Wear);
 					PaintMids.Add(D); ++NPaint;
 				}
+			if (!D && MN.Contains(TEXT("Glass")))
+			{
+				static UMaterialInterface* GlassM = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Truck/M_TruckGlass.M_TruckGlass"));
+				if (GlassM)
+				{
+					D = UMaterialInstanceDynamic::Create(GlassM, this);
+					D->SetVectorParameterValue(TEXT("BC"), V(M, TEXT("BaseColorFactor"), FLinearColor(0.015f, 0.022f, 0.026f, 0.38f)));
+					GlassMids.Add(D);
+				}
+			}
 			if (!D && MN.StartsWith(TEXT("TruckLens")))
 			{
 				D = UMaterialInstanceDynamic::Create(Lens, this);
@@ -1409,6 +1594,7 @@ void AFireTruck::Animate(float Dt)
 	if (GSteeringWheel >= 0) Model->MoveGroup(GSteeringWheel, WheelNow);
 	if (GAccel >= 0) Model->MoveGroup(GAccel, AccelNow);
 	if (GBrake >= 0) Model->MoveGroup(GBrake, BrakeNow);
+	UpdateGauges(Dt);
 	// the driver's door: swung open as you reach for it, pulled shut behind you (with their sounds)
 	if (DoorK != DoorTarget)
 	{

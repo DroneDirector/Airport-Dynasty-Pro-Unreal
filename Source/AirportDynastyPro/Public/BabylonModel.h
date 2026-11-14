@@ -70,6 +70,20 @@ public:
 	void Parts(TArray<UInstancedStaticMeshComponent*>& Out) const { for (const auto& P : ByMesh) if (P.Value) Out.AddUnique(P.Value.Get()); }
 	/** The model's root (its frame). */
 	USceneComponent* GetModelRoot() const { return Root; }
+	/** A place to sit (owner, 2026-11-14: sit on any chair at the airport): the middle of its seat (world), which way you
+	 *  face sitting on it, its seat's height over the floor (cm), and its pieces (for the outline). */
+	struct FSeatSpot { FVector At = FVector::ZeroVector; FVector Facing = FVector::ForwardVector; float SeatH = 46.f; bool bYours = false; TArray<TPair<UInstancedStaticMeshComponent*, int32>> Parts; };
+	/** Every chair, stool, armchair, bench and gate seat in this model. */
+	void SeatSpots(TArray<FSeatSpot>& Out) const;
+	/** The garage-door button panel (owner, 2026-11-14: inside the fire station by each bay door, inside each hangar by
+	 *  its big door; Art/DoorPanel): put flat on the first wall found from From (inside) looking along Dir, its middle
+	 *  1.35 m over Floor. Null when no wall is there. */
+	/** Which of a door panel's buttons is lit (owner, 2026-11-14: green by default; press red and red lights, green goes
+	 *  dark; green again and it swaps back). */
+	static void LightDoorPanel(ABabylonModel* P, bool bGreen);
+	/** The same, at a known spot: At on the wall's face, N the way into the room. */
+	static ABabylonModel* PlaceDoorPanelAt(UWorld* W, const FVector& At, const FVector& N, float FloorZ);
+	static ABabylonModel* PlaceDoorPanel(UWorld* W, const FVector& From, const FVector& Dir, float FloorZ, const TArray<AActor*>& Ignore, float Proud = 0.f);
 	/** Collision on or off for all the model's parts (a fire truck collides with its physics body instead). */
 	void SetPartsCollision(bool bOn);
 	#pragma endregion
