@@ -48,7 +48,7 @@ function ads_content() {
                 ['icon' => 'tower', 'name' => 'Control tower', 'text' => 'Climb to the top and watch every aircraft move on the field below.', 'status' => 'In the game', 'arrow' => '↑'],
                 ['icon' => 'hangar', 'name' => 'Hangars', 'text' => 'Open the big doors from the button panel and keep your aircraft serviced, repaired and ready to fly.', 'status' => 'In the game', 'arrow' => '←'],
                 ['icon' => 'fire', 'name' => 'Fire station', 'text' => 'Climb into the fire trucks and drive them yourself, light bar flashing, then wash them down with the hose.', 'status' => 'In the game', 'arrow' => '↗'],
-                ['icon' => 'car', 'name' => 'Car rental', 'text' => 'Rent a car at the desks; the rental cars and shuttle buses wait in their marked bays outside.', 'status' => 'In the game', 'arrow' => '↘'],
+                ['icon' => 'car', 'name' => 'Car rental', 'text' => 'Your passengers (NPCs) rent cars at the desks, and the rental cars and shuttle buses wait in their marked bays outside.', 'status' => 'In the game', 'arrow' => '↘'],
                 ['icon' => 'car', 'name' => 'Car dealership', 'text' => 'Buy yourself a new car, sell your current one, or trade it in for another.', 'status' => 'Being built', 'arrow' => '→'],
                 ['icon' => 'home', 'name' => 'Your villa', 'text' => 'Your own home at the end of its own road, with a garage for your car.', 'status' => 'Being built', 'arrow' => '↓'],
                 ['icon' => 'more', 'name' => 'And much more', 'text' => 'Shops, a petrol station, a hairdresser and more of the town on the way.', 'status' => 'Coming', 'arrow' => '…'],
