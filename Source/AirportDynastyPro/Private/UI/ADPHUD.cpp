@@ -2936,6 +2936,28 @@ void AADPHUD::Tick(float Dt)
 				{TEXT("AR_NightForecourt"), 230.f, 6.f, -48.f, 0.f, 1.f, -18.f, 1.5f},
 				{TEXT("AR_NightHigh"), 75.f, 60.f, -125.f, 75.f, 0.f, -20.f, 1.5f},
 			};
+			// -UIRoadAirport -TerminalShots: the terminal with the forecourt and the car park for the owner (2026-11-14), in the
+			// afternoon sun: from high behind it (over its roof), its corners, the car park side, and eye level on the forecourt
+			const FV TerminalViews[] = {
+				{TEXT("TS_1_BehindHigh"), 81.f, 120.f, 300.f, 81.f, 0.f, -90.f, 15.5f},
+				{TEXT("TS_2_BehindWest"), -190.f, 95.f, 250.f, 110.f, 0.f, -110.f, 15.5f},
+				{TEXT("TS_3_BehindEast"), 360.f, 95.f, 250.f, 40.f, 0.f, -110.f, 15.5f},
+				{TEXT("TS_4_CarParkHighEast"), 380.f, 70.f, -280.f, 70.f, 2.f, -15.f, 15.5f},
+				{TEXT("TS_5_CarParkHighWest"), -200.f, 70.f, -280.f, 110.f, 2.f, -15.f, 15.5f},
+				{TEXT("TS_6_LowWest"), -120.f, 1.7f, -60.f, 140.f, 5.f, -18.f, 15.5f},
+				{TEXT("TS_7_LowEast"), 310.f, 1.7f, -56.f, 30.f, 5.f, -15.f, 15.5f},
+				{TEXT("TS_8_LowCarPark"), 75.f, 1.7f, -120.f, 75.f, 6.f, 0.f, 15.5f},
+			};
+			// -UIRoadAirport -TownRoad: the road to town (the bend past 3 km, the big roundabout, the 5-7 km stretch, the town end)
+			const FV TownViews[] = {
+				{TEXT("TR_1_BendHigh"), 2000.f, 160.f, -250.f, 2250.f, 0.f, -650.f, 14.f},
+				{TEXT("TR_2_RoundaboutHigh"), 2217.f, 90.f, -1080.f, 2217.f, 0.f, -1168.f, 14.f},
+				{TEXT("TR_3_RoundaboutDrive"), 2160.f, 1.3f, -1430.f, 2210.f, 1.f, -1200.f, 14.f},
+				{TEXT("TR_4_JoinBackRoad"), 2050.f, 1.3f, -1100.f, 2200.f, 1.f, -1166.f, 14.f},
+				{TEXT("TR_5_SouthDrive"), 2125.f, 1.3f, -1700.f, 2190.f, 1.f, -2100.f, 14.f},
+				{TEXT("TR_6_SixKmHigh"), 2400.f, 140.f, -2450.f, 2900.f, 0.f, -2850.f, 14.f},
+				{TEXT("TR_7_TownEnd"), 3700.f, 1.3f, -3140.f, 4300.f, 1.f, -3480.f, 14.f},
+			};
 			const FV RoadViews[] = {
 				{TEXT("Road_High"), -1270.f, 25.f, 40.f, -1310.f, 0.f, 170.f},
 				{TEXT("Road_Eye"),  -1268.f, 1.7f, 80.f, -1320.f, 1.f, 170.f},
@@ -2962,7 +2984,9 @@ void AADPHUD::Tick(float Dt)
 			}
 			const FString Tag = FParse::Param(FCommandLine::Get(), TEXT("RainyDay")) ? TEXT("_Rain") : FParse::Param(FCommandLine::Get(), TEXT("SnowDay")) ? TEXT("_Snow") : TEXT("");
 			const bool bAirportSet = FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport"));
-			const FV* Set = bAirportSet ? AirportViews : RoadViews; const int32 NSet = bAirportSet ? UE_ARRAY_COUNT(AirportViews) : UE_ARRAY_COUNT(RoadViews);
+			const bool bTerminalSet = FParse::Param(FCommandLine::Get(), TEXT("TerminalShots")), bTownSet = FParse::Param(FCommandLine::Get(), TEXT("TownRoad"));
+			const FV* Set = bTownSet ? TownViews : bTerminalSet ? TerminalViews : bAirportSet ? AirportViews : RoadViews;
+			const int32 NSet = bTownSet ? UE_ARRAY_COUNT(TownViews) : bTerminalSet ? UE_ARRAY_COUNT(TerminalViews) : bAirportSet ? UE_ARRAY_COUNT(AirportViews) : UE_ARRAY_COUNT(RoadViews);
 			for (int32 i = 0; i < NSet; ++i)
 			{
 				const float T0 = 43.f + i * 4.f; const FV& V = Set[i];
@@ -2995,6 +3019,100 @@ void AADPHUD::Tick(float Dt)
 				if (Before < T0 && ShotClock >= T0) { View(Vw.X, Vw.H, Vw.Y, Vw.LX, Vw.LH, Vw.LY); if (ASunClock::HourOverride != V.Hour) { ASunClock::HourOverride = V.Hour; ASunClock::Refresh(); } }
 				if (Before < T0 + 3.f && ShotClock >= T0 + 3.f) Shot(*(FString(V.Name) + Tag));
 			}
+			// -RoadGroundProbe: the globe's ground measured under every road and car park outside the airfield (owner, 2026-11-14:
+			// the road floated over the land falling toward the coast) - the camera flown from place to place so Cesium has its
+			// finest tiles there, every point within 600 m of it traced to the globe only (the roads ignored), written to
+			// Data/road-ground.json (and Content/Data). Run again whenever the terrain is rebuilt.
+			if (FParse::Param(FCommandLine::Get(), TEXT("RoadGroundProbe")))
+			{
+				static TArray<FVector2D> Want; static int32 Stop = -1; static float StopAt = 0.f; static TArray<FVector> Got; static TArray<FVector2D> Stops;
+				if (Want.Num() == 0 && ShotClock >= 40.f)
+				{
+					// every road's points every 10 m (and 6 m either side), the car parks every 10 m, outside the boundary less 70 m
+					FString Text; TSharedPtr<FJsonObject> R;
+					FFileHelper::LoadFileToString(Text, *(FPaths::ProjectContentDir() / TEXT("Data/roads.json")));
+					FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), R);
+					const FAirfieldData::FRect& B = AAirfield::Shared().Boundary;
+					auto Out = [&](const FVector2D& Q) { return FMath::Min(FMath::Min(Q.X - B.X0, B.X1 - Q.X), FMath::Min(Q.Y - B.Y0, B.Y1 - Q.Y)) < 70.0; };
+					if (R.IsValid())
+					{
+						for (const TSharedPtr<FJsonValue>& V : R->GetArrayField(TEXT("roads")))
+						{
+							TArray<FVector2D> P; for (const TSharedPtr<FJsonValue>& Pt : V->AsObject()->GetArrayField(TEXT("pts"))) { const auto& A = Pt->AsArray(); P.Add(FVector2D(A[0]->AsNumber(), A[1]->AsNumber())); }
+							for (int32 i = 0; i + 1 < P.Num(); ++i)
+							{
+								const FVector2D D = P[i + 1] - P[i]; const double L = D.Size(); if (L < 0.01) continue;
+								const FVector2D Nm(-D.Y / L, D.X / L);
+								for (double t = 0; t < L; t += 10.0) for (const double o : {-12.0, 0.0, 12.0}) { const FVector2D Q = P[i] + D * (t / L) + Nm * o; if (Out(Q)) Want.Add(Q); }
+							}
+						}
+						const TArray<TSharedPtr<FJsonValue>>* LJ;
+						if (R->TryGetArrayField(TEXT("lots"), LJ))
+							for (const TSharedPtr<FJsonValue>& V : *LJ)
+							{
+								const TSharedPtr<FJsonObject> O = V->AsObject();
+								for (double X = O->GetNumberField(TEXT("x0")) - 10; X <= O->GetNumberField(TEXT("x1")) + 10; X += 10)
+									for (double Y = O->GetNumberField(TEXT("y0")) - 10; Y <= O->GetNumberField(TEXT("y1")) + 10; Y += 10) if (Out(FVector2D(X, Y))) Want.Add(FVector2D(X, Y));
+							}
+					}
+					// the stops: enough that every point has one within 140 m (owner, 2026-11-14: coarse tiles further off read up to 15 m wrong)
+					for (const FVector2D& Q : Want) { bool bNear = false; for (const FVector2D& S : Stops) if (FVector2D::Distance(S, Q) < 140.0) bNear = true; if (!bNear) Stops.Add(Q); }   // (every point within 140 m of a stop: the terrain at its finest there)
+					ADP_LOG(TEXT("RoadGroundProbe: %d points, %d stops"), Want.Num(), Stops.Num());
+					Stop = 0; StopAt = ShotClock;
+					if (bGame) ToggleGame();
+				}
+				if (Stop >= 0 && Stop < Stops.Num())
+				{
+					APlayerController* PC = GetOwningPlayerController();
+					const FVector2D S = Stops[Stop];
+					if (PC && ShotClock - StopAt < 0.1f)
+					{
+						static TWeakObjectPtr<ACameraActor> PCam;
+						const FVector At(S.X * 100.0, -S.Y * 100.0, 6000.0);   // (60 m up: the tiles round it at their finest)
+						if (!PCam.IsValid()) PCam = GetWorld()->SpawnActor<ACameraActor>(At, FRotator(-89.f, 0.f, 0.f));
+						else PCam->SetActorLocationAndRotation(At, FRotator(-89.f, 0.f, 0.f));
+						PC->SetViewTarget(PCam.Get());
+					}
+					if (ShotClock - StopAt > 5.f)
+					{
+						int32 Hit = 0;
+						for (const FVector2D& Q : Want)
+						{
+							if (FVector2D::Distance(Q, S) > 160.0) continue;
+							const FVector Top(Q.X * 100.0, -Q.Y * 100.0, 60000.0);
+							TArray<FHitResult> Hs; FCollisionQueryParams QP(SCENE_QUERY_STAT(ADPGlobeProbe), true);
+							GetWorld()->LineTraceMultiByChannel(Hs, Top, Top - FVector(0, 0, 130000.0), ECC_Visibility, QP);
+							for (const FHitResult& H : Hs) if (H.GetActor() && H.GetActor()->GetClass()->GetName().StartsWith(TEXT("Cesium"))) { Got.Add(FVector(Q.X, Q.Y, H.ImpactPoint.Z / 100.0)); ++Hit; break; }
+						}
+						ADP_LOG(TEXT("RoadGroundProbe: stop %d/%d at %.0f, %.0f - %d points"), Stop + 1, Stops.Num(), S.X, S.Y, Hit);
+						++Stop; StopAt = ShotClock;
+					}
+				}
+				else if (Stop >= 0 && Stop == Stops.Num())
+				{
+					// (each point once: a later stop's sharper tiles win)
+					TMap<FIntPoint, FVector> One; for (const FVector& G : Got) One.Add(FIntPoint(FMath::RoundToInt(G.X * 10), FMath::RoundToInt(G.Y * 10)), G);
+					FString J = TEXT("{\"source\": \"-UIRoadAirport -RoadGroundProbe (Cesium terrain under the roads, plan m)\", \"pts\": [");
+					int32 k = 0; for (const TPair<FIntPoint, FVector>& It : One) J += FString::Printf(TEXT("%s[%.1f,%.1f,%.2f]"), k++ ? TEXT(",") : TEXT(""), It.Value.X, It.Value.Y, It.Value.Z);
+					J += TEXT("]}");
+					FFileHelper::SaveStringToFile(J, *(FPaths::ProjectDir() / TEXT("Data/road-ground.json")));
+					FFileHelper::SaveStringToFile(J, *(FPaths::ProjectContentDir() / TEXT("Data/road-ground.json")));
+					ADP_LOG(TEXT("RoadGroundProbe: %d points written to Data/road-ground.json (of %d wanted)"), One.Num(), Want.Num());
+					Stop = Stops.Num() + 1;
+					FGenericPlatformMisc::RequestExit(false);
+				}
+				return;
+			}
+			// (the town road: how far below the road the globe's own ground lies, along it - the tiles loaded by now)
+			if (bTownSet && Before < 42.f && ShotClock >= 42.f)
+				for (const FVector2D& Q : {FVector2D(1500, -300), FVector2D(1900, -200), FVector2D(2100, -500), FVector2D(2217, -1300), FVector2D(2130, -1800), FVector2D(2600, -2700), FVector2D(3500, -3090), FVector2D(4300, -3480)})
+				{
+					const FVector Top(Q.X * 100.0, -Q.Y * 100.0, 50000.0);
+					TArray<FHitResult> Hs; FCollisionQueryParams QP(SCENE_QUERY_STAT(ADPGlobeProbe), true);
+					GetWorld()->LineTraceMultiByChannel(Hs, Top, Top - FVector(0, 0, 100000.0), ECC_Visibility, QP);
+					FString L; for (const FHitResult& H : Hs) L += FString::Printf(TEXT(" [%s %.2f m]"), H.GetActor() ? *H.GetActor()->GetClass()->GetName() : TEXT("-"), H.ImpactPoint.Z / 100.0);
+					ADP_LOG(TEXT("GlobeProbe: plan %.0f, %.0f (airfield ground %.2f m):%s"), Q.X, Q.Y, AAirfield::GroundAt(Q.X, Q.Y), *L);
+				}
 			if (Before < 43.f + NSet * 4.f + 2.f && ShotClock >= 43.f + NSet * 4.f + 2.f) FGenericPlatformMisc::RequestExit(false);
 		}
 		// -UIPanels: every door button panel in pictures (inside the fire station by each bay door, inside each hangar)

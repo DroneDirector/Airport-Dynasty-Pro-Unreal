@@ -18,6 +18,10 @@ public:
 	ARoadNetwork();
 	/** Builds every road in Data/roads.json (a road marked "test" only with -RoadTest). Returns how many were built. */
 	int32 Build();
+	/** The ground's height (m) at a plan point: the airfield's own inside its boundary, the globe's outside it (measured by the
+	 *  -RoadGroundProbe run into Data/road-ground.json: Cesium's terrain, which falls away from the airport toward the coast),
+	 *  blended over the last 60 m inside the boundary so there is no step at the fence. */
+	static double GroundAt(double X, double Y);
 	/** A few placed things the -UIRoadAirport test looks at (world cm): a gully grating and a manhole cover, and which way out. */
 	static FVector TestDrain;
 	static FVector TestDrainOut;

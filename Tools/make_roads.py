@@ -200,8 +200,31 @@ road('AIRPORT-WEST-CLOSED', [(RB[0] - 20.0, RB[1]), (moved(-1130, -150.5)[0], RB
 # The road back to town (two lanes): from the roundabout's south side round the loop and east past the car park's
 # south edge (drawing: the loop, then straight at y about -375, then curving away south-east toward the big roundabout).
 # Lights on one side for its first kilometre (the approach); give way into the roundabout on the lane going in.
+# (east of x 1139 it runs on as traced off the overview to the big roundabout: TOWN, below)
+TRACES = json.loads((ROOT / 'Data' / 'road-traces.json').read_text(encoding='utf-8'))   # Tools/trace_road.py, the overview
+
+
+def tidy(pts, every=5, window=11):
+    """A traced line made smooth (a running mean over `window` points, 88 m: the tracer's pixel wobble and its swerves round
+    the drawing's labels and sign markers out - the drawn roads are all wide gentle curves) and thinned to
+    every `every`-th point (the game's own curve runs smoothly between); its ends kept exactly."""
+    n = len(pts); out = []
+    for i in range(n):
+        lo, hi = max(0, i - window // 2), min(n, i + window // 2 + 1)
+        out.append((sum(p[0] for p in pts[lo:hi]) / (hi - lo), sum(p[1] for p in pts[lo:hi]) / (hi - lo)))
+    out[0], out[-1] = tuple(pts[0]), tuple(pts[-1])
+    keep = out[::every]
+    if keep[-1] != out[-1]: keep.append(out[-1])
+    return [(round(x, 2), round(y, 2)) for x, y in keep]
+
+
+BIG_RB = (2217.2, -1169.5)   # the roundabout where the roads meet (the overview's 'roundabout', under its sign marker)
+def to_ring(pts, r=20.0):
+    """A traced road cut where it meets the big roundabout: it ends (or starts) 1 m inside the ring's outer edge."""
+    return [p for p in pts if math.dist(p, BIG_RB) > r] 
+BACK_EAST = to_ring(tidy(TRACES['back']))
 BT_PTS = [(RB[0], RB[1] - 20.0)] + [moved(*p) for p in [(-798, -222), (-786, -251), (-765, -288), (-742, -317), (-710, -341),
-          (-676, -358), (-597, -375), (-282, -375), (35, -375), (298, -375), (545, -380), (781, -421), (948, -476), (1139, -576)]]
+          (-676, -358), (-597, -375), (-282, -375), (35, -375), (298, -375), (545, -380), (781, -421), (948, -476)]] +          [moved(*p) for p in BACK_EAST] + [moved(*(BIG_RB[0] + (BACK_EAST[-1][0] - BIG_RB[0]) * 20.0 / math.dist(BACK_EAST[-1], BIG_RB), BIG_RB[1] + (BACK_EAST[-1][1] - BIG_RB[1]) * 20.0 / math.dist(BACK_EAST[-1], BIG_RB)))]
 road('AIRPORT-BACK-TO-TOWN', BT_PTS, paint=two_paint() + [dict(kind='teeth', at=0.8, dir=-1, o0=-3.4, o1=-0.15)],
      lights=[dict(side='right', edge=2, off=0.9, spacing=45, **{'from': 30, 'to': 1000})], step=4.0, **TWO)
 
@@ -223,6 +246,27 @@ for g0, n in ((174, 2), (190, 3), (210, 3), (230, 3), (250, 3), (270, 3)):
 rental['boxes'] = [dict(x0=x - 6.5, y0=-15.6, x1=x + 6.5, y1=-12.4, color='yellow') for x in (202.0, 242.0)]
 rental['y0'] = -16.0
 lots.append(rental)
+
+# ---------------------------------------------------------------------------------------------------------------------
+# THE ROAD TO TOWN (owner's overview: 'two lanes, 90 km/h, no pavements, flat sand all the way', 7.8 km), traced off the
+# drawing: from the 3 km mark (the forecourt road's end) round to the big roundabout, and from it south and east past
+# the 5, 6 and 7 km marks to the edge of the town. Two 3.5 m lanes, 0.75 m paved edges outside white edge lines, a
+# dashed yellow middle; no kerbs, no lights from 1 km out (owner: as in this part of the world).
+def ring_point(p, r=20.0):
+    d = math.dist(p, BIG_RB); return (round(BIG_RB[0] + (p[0] - BIG_RB[0]) * r / d, 2), round(BIG_RB[1] + (p[1] - BIG_RB[1]) * r / d, 2))
+main = to_ring(tidy(TRACES['main']))
+main = [moved(*FC_PTS[0])] + [moved(*p) for p in main[1:]] + [ring_point(main[-1])]
+road('TOWN-ROAD-NORTH', main, step=6.0, paint=two_paint(), **TWO)
+south = to_ring(tidy(TRACES['south']))
+south = [ring_point(south[0])] + south
+road('TOWN-ROAD-SOUTH', south, step=6.0, paint=two_paint() + [dict(kind='teeth', at=0.8, dir=-1, o0=-3.4, o1=-0.15)], **TWO)
+# give way into the big roundabout on the other two roads' lanes going in
+roads[-2]['paint'].append(dict(kind='teeth', at=round(Along(main).len - 0.8, 2), dir=1, o0=0.15, o1=3.4))
+# the big roundabout: as the airport's (a 7 m ring, a low apron for long vehicles, a raised grass middle), lights round it
+ring2 = [(BIG_RB[0] + RS * math.cos(2 * math.pi * k / 24), BIG_RB[1] + RS * math.sin(2 * math.pi * k / 24)) for k in range(24)]
+road('TOWN-ROUNDABOUT', [(round(x, 2), round(y, 2)) for x, y in ring2], closed=True, lift=0.055,
+     left=[lane('Driving', 3.25), lane('Apron', 1.5, kerb=5), lane('Island', 6.5, kerb=15)], right=[lane('Driving', 3.75)],
+     disc=dict(r=RS - 3.25 - 1.5 - 6.5 + 0.25, kerb=0.15), lights=[dict(side='right', edge=1, off=1.6, spacing=27.0)])
 
 out = ROOT / 'Data' / 'roads.json'
 out.write_text(json.dumps({'source': 'Tools/make_roads.py', 'roads': roads, 'lots': lots}, indent=1, ensure_ascii=False), encoding='utf-8')

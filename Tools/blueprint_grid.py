@@ -9,8 +9,15 @@ import math, sys
 from PIL import Image, ImageDraw, ImageFont
 
 Image.MAX_IMAGE_PIXELS = None
-SRC = r'C:/Users/Simon/Documents/Airport-Dynasty-Pro-Unreal/Art/Maps/Airport-Only-v11.png'
-L = (508.7, 2755.0); R = (5032.3, 927.7)
+import os
+# the overview (Airport-Road-Town-Overview-v11.png: the road to town and the town) with ADP_MAP=overview, calibrated the
+# same way on its runway ends (2026-11-14): end 08 at (1067, 3796), end 26 at (5592, 1967) - the same 1.22 px per metre
+if os.environ.get('ADP_MAP') == 'overview':
+    SRC = r'C:/Users/Simon/Documents/Airport-Dynasty-Pro-Unreal/Art/Maps/Airport-Road-Town-Overview-v11.png'
+    L = (1067.0, 3796.0); R = (5592.0, 1967.0)
+else:
+    SRC = r'C:/Users/Simon/Documents/Airport-Dynasty-Pro-Unreal/Art/Maps/Airport-Only-v11.png'
+    L = (508.7, 2755.0); R = (5032.3, 927.7)
 dx, dy = R[0] - L[0], R[1] - L[1]
 PXM = math.hypot(dx, dy) / 4000.0
 U = (dx / math.hypot(dx, dy), dy / math.hypot(dx, dy))      # plan +x in the image

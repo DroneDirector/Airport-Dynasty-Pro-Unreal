@@ -185,6 +185,69 @@ namespace
 	}
 }
 
+namespace
+{
+	// the globe's ground, probed: a coarse grid of cells (25 m), each its samples
+	struct FGlobeGround { TMap<FIntPoint, TArray<FVector>> Cells; bool bLoaded = false; };
+	FGlobeGround& Globe()
+	{
+		static FGlobeGround G;
+		if (G.bLoaded) return G;
+		G.bLoaded = true;
+		FString Text;
+		if (!FFileHelper::LoadFileToString(Text, *(FPaths::ProjectContentDir() / TEXT("Data/road-ground.json"))) && !FFileHelper::LoadFileToString(Text, *(FPaths::ProjectDir() / TEXT("Data/road-ground.json")))) return G;
+		TSharedPtr<FJsonObject> R;
+		if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), R) || !R.IsValid()) return G;
+		int32 N = 0;
+		for (const TSharedPtr<FJsonValue>& V : R->GetArrayField(TEXT("pts")))
+		{
+			const TArray<TSharedPtr<FJsonValue>>& A = V->AsArray();
+			const FVector P(A[0]->AsNumber(), A[1]->AsNumber(), A[2]->AsNumber());
+			G.Cells.FindOrAdd(FIntPoint(FMath::FloorToInt(P.X / 25.0), FMath::FloorToInt(P.Y / 25.0))).Add(P); ++N;
+		}
+		ADP_LOG(TEXT("Roads: the globe's ground under the roads - %d probed points"), N);
+		return G;
+	}
+	// the probed ground at a point: inverse-distance over the samples within 40 m (none: the nearest within 200 m)
+	bool GlobeAt(double X, double Y, double& Z)
+	{
+		const FGlobeGround& G = Globe();
+		if (!G.Cells.Num()) return false;
+		const int32 Cx = FMath::FloorToInt(X / 25.0), Cy = FMath::FloorToInt(Y / 25.0);
+		double Sw = 0, Sz = 0, Best = 1e18, BestZ = 0;
+		for (int32 R = 0; R <= 8; ++R)
+		{
+			for (int32 i = Cx - R; i <= Cx + R; ++i) for (int32 j = Cy - R; j <= Cy + R; ++j)
+			{
+				if (FMath::Max(FMath::Abs(i - Cx), FMath::Abs(j - Cy)) != R) continue;
+				if (const TArray<FVector>* C = G.Cells.Find(FIntPoint(i, j)))
+					for (const FVector& P : *C)
+					{
+						const double D2 = FMath::Square(P.X - X) + FMath::Square(P.Y - Y);
+						if (D2 < Best) { Best = D2; BestZ = P.Z; }
+						if (D2 < 1600.0) { const double W = 1.0 / FMath::Max(D2, 0.01); Sw += W; Sz += W * P.Z; }
+					}
+			}
+			if (Sw > 0 && R >= 2) break;
+		}
+		if (Sw > 0) { Z = Sz / Sw; return true; }
+		if (Best < 40000.0) { Z = BestZ; return true; }
+		return false;
+	}
+}
+
+double ARoadNetwork::GroundAt(double X, double Y)
+{
+	const double Field = AAirfield::GroundAt(X, Y);
+	const FAirfieldData::FRect& B = AAirfield::Shared().Boundary;
+	// how far inside the boundary (m; negative outside)
+	const double In = FMath::Min(FMath::Min(X - B.X0, B.X1 - X), FMath::Min(Y - B.Y0, B.Y1 - Y));
+	if (In >= 60.0) return Field;
+	double Z;
+	if (!GlobeAt(X, Y, Z)) return Field;
+	return FMath::Lerp(Z, Field, FMath::SmoothStep(0.0, 60.0, In));
+}
+
 FVector ARoadNetwork::TestDrain = FVector::ZeroVector;
 FVector ARoadNetwork::TestDrainOut = FVector::ForwardVector;
 FVector ARoadNetwork::TestManhole = FVector::ZeroVector;
@@ -254,7 +317,7 @@ int32 ARoadNetwork::Build()
 		Road->AddInstanceComponent(S);
 		S->AttachToComponent(Road->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 		S->RegisterComponent();
-		TArray<double> Z; for (const FVector2D& D : Dense) Z.Add(AAirfield::GroundAt(D.X, D.Y));
+		TArray<double> Z; for (const FVector2D& D : Dense) Z.Add(ARoadNetwork::GroundAt(D.X, D.Y));
 		Z = SmoothHeights(Z, Dense, Lift);
 		TArray<FVector> Pts;
 		for (int32 k = 0; k < Dense.Num(); ++k) Pts.Add(FVector(Dense[k].X * 100.0, -Dense[k].Y * 100.0, Z[k] * 100.0) - Origin);
@@ -477,7 +540,7 @@ int32 ARoadNetwork::Build()
 				FVector P_, F_, R_; OnRoad(D, P_, F_, R_);
 				const FVector Fw = F_ * (Dir >= 0 ? 1.0 : -1.0), Rt(-Fw.Y, Fw.X, 0.0);
 				FVector SAt = P_ + Rt * ((Edge(Dir >= 0, 99, D) + 1.5) * 100.0);
-				SAt.Z = AAirfield::GroundAt(SAt.X / 100.0, -SAt.Y / 100.0) * 100.0;
+				SAt.Z = ARoadNetwork::GroundAt(SAt.X / 100.0, -SAt.Y / 100.0) * 100.0;
 				Signs->AddSign(SAt, -Fw, Km);
 			}
 		}
@@ -487,7 +550,7 @@ int32 ARoadNetwork::Build()
 		{
 			double Rd = 5.0, Kb = 0.15; (*DJ)->TryGetNumberField(TEXT("r"), Rd); (*DJ)->TryGetNumberField(TEXT("kerb"), Kb);
 			FVector2D Cn(0, 0); for (const FVector2D& D : Dense) Cn += D; Cn /= Dense.Num();
-			const double Zc = AAirfield::GroundAt(Cn.X, Cn.Y) + Lift + 0.03 + Kb - 0.01;
+			const double Zc = ARoadNetwork::GroundAt(Cn.X, Cn.Y) + Lift + 0.03 + Kb - 0.01;
 			FPaintBuf& B = Paint.FindOrAdd(FName(TEXT("ggrass")));
 			const int32 Bi = B.V.Num();
 			B.V.Add(FVector(Cn.X * 100.0, -Cn.Y * 100.0, Zc * 100.0) - GetActorLocation()); B.N.Add(FVector::UpVector); B.UV.Add(FVector2D(0.5, 0.5)); B.C.Add(FLinearColor::White);
@@ -510,7 +573,7 @@ int32 ARoadNetwork::Build()
 			const TSharedPtr<FJsonObject> O = LV->AsObject();
 			const double X0 = O->GetNumberField(TEXT("x0")), Y0 = O->GetNumberField(TEXT("y0")), X1 = O->GetNumberField(TEXT("x1")), Y1 = O->GetNumberField(TEXT("y1"));
 			double Lf = 0.03; O->TryGetNumberField(TEXT("lift"), Lf);
-			auto LotAt = [&](double X, double Y, double Up) { return FVector(X * 100.0, -Y * 100.0, (AAirfield::GroundAt(X, Y) + Lf + Up) * 100.0) - GetActorLocation(); };
+			auto LotAt = [&](double X, double Y, double Up) { return FVector(X * 100.0, -Y * 100.0, (ARoadNetwork::GroundAt(X, Y) + Lf + Up) * 100.0) - GetActorLocation(); };
 			auto LotGrime = [](double D) { return 0.3f + 0.5f * float(FMath::Frac(FMath::Sin(D * 12.9898) * 43758.5453)); };
 			auto Rect = [&](FName Mat, double A0, double B0, double A1, double B1, double Up, double Step)
 			{
