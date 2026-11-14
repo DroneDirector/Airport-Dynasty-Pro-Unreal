@@ -76,7 +76,7 @@ void AADPHUD::CheckForUpdates()
 		if (!bOk || !Res.IsValid() || Res->GetResponseCode() != 200 || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Res->GetContentAsString()), List))
 		{ H->UpdateStatus = TEXT("Couldn't reach the update server. Check the internet connection and try again."); return; }
 		// every PC release: its version, its update package (from which version) and its full installer
-		struct FRel { FString Ver, From, UpdateUrl, SetupUrl, Page; int64 Size = 0; };
+		struct FRel { FString Ver, From, UpdateUrl, SetupUrl, Page; int64 Size = 0; bool bSplit = false; };
 		TArray<FRel> Rels;
 		for (const TSharedPtr<FJsonValue>& V : List)
 		{
@@ -97,6 +97,8 @@ void AADPHUD::CheckForUpdates()
 						if (Rt.LeftChop(4).Split(TEXT("-to-"), &From, &To) && To == Rel.Ver) { Rel.From = From; Rel.UpdateUrl = Url; Rel.Size = int64(A->GetNumberField(TEXT("size"))); }
 					}
 					else if (Name.Contains(TEXT("-Setup-")) && Name.EndsWith(TEXT(".exe"))) Rel.SetupUrl = Url;
+					// (an installer split in pieces - Setup.exe + Setup-N.bin, GitHub's 2 GiB limit: the release page, to get them all)
+					else if (Name.Contains(TEXT("-Setup-")) && Name.EndsWith(TEXT(".bin"))) Rel.bSplit = true;
 				}
 			Rels.Add(Rel);
 		}
@@ -113,7 +115,7 @@ void AADPHUD::CheckForUpdates()
 		{
 			// no unbroken chain (a version too old for patches): the full installer, which installs over this one
 			H->UpdateChain.Reset();
-			H->UpdateFullUrl = Newest->SetupUrl.IsEmpty() ? Newest->Page : Newest->SetupUrl;
+			H->UpdateFullUrl = Newest->SetupUrl.IsEmpty() || Newest->bSplit ? Newest->Page : Newest->SetupUrl;
 			H->UpdateStatus = FString::Printf(TEXT("Version %s is out. This version is too old for a small update: Install downloads the full installer (it installs over this one; your saves stay)."), *Newest->Ver);
 			return;
 		}

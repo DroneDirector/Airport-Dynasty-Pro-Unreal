@@ -24,6 +24,10 @@ UninstallDisplayIcon={app}\AirportDynastyPro.exe
 UninstallDisplayName=Airport Dynasty Pro (Unreal)
 Compression=lzma2/max
 SolidCompression=yes
+; GitHub takes files under 2 GiB: the setup in pieces (Setup.exe + Setup-1.bin, -2.bin ... beside it, 1.9 GB each)
+DiskSpanning=yes
+DiskSliceSize=1900000000
+SlicesPerDisk=1
 WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible

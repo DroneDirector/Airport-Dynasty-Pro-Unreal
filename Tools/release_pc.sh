@@ -5,7 +5,9 @@
 #   - patch cook based on 0.12.1 (-generatepatch); -iterate can't be used with patching (full cook, ~40-60 min)
 #   - the full game = 0.12.1/Windows + this version's Windows on top; smoke-tested with ADP_LOG=1 (no CRASH lines)
 #   - update zips from the two previous versions (Tools/MakeUpdate.py); the installer via Inno Setup
-#   - no full zip on GitHub (over 2 GB); upload Setup + Update zips, then push pc-version.json only after the upload
+#   - GitHub takes files under 2 GiB: the installer is split (Setup.exe + Setup-N.bin, Installer/setup.iss DiskSpanning);
+#     no full zip on GitHub; every file must be on the release before pc-version.json is pushed - this script pushes it
+#     itself, only after checking (0.17.14's first try pushed the version with no release: the updater saw nothing to get)
 #   bash Tools/release_pc.sh 0.17.13 0.17.12 0.17.11            (builds everything, stops before uploading)
 #   bash Tools/release_pc.sh 0.17.13 0.17.12 0.17.11 --upload   (then uploads the GitHub release)
 set -e
@@ -44,6 +46,13 @@ print(' '.join(sorted(set(m.group(0).decode('utf-16-le') for m in re.finditer(rb
   echo "== built: run again with --upload to publish"
 else
   echo "== GitHub release"
-  gh release create pc-unreal-v$V --prerelease --title "Airport Dynasty Pro (Unreal) $V" --notes-file release-notes-pc/$V.md "Packaged/AirportDynastyPro-Unreal-PC-Setup-$V.exe" "$P/AirportDynastyPro-Unreal-PC-Update-$A-to-$V.zip" "$P/AirportDynastyPro-Unreal-PC-Update-$B-to-$V.zip" 2>&1 | tail -2
+  rm -f Packaged/*$V*.zip.bad 2>/dev/null
+  FILES="Packaged/AirportDynastyPro-Unreal-PC-Setup-$V.exe $(ls Packaged/AirportDynastyPro-Unreal-PC-Setup-$V-*.bin 2>/dev/null) $P/AirportDynastyPro-Unreal-PC-Update-$A-to-$V.zip $P/AirportDynastyPro-Unreal-PC-Update-$B-to-$V.zip"
+  for F in $FILES; do S=$(stat -c %s "$F"); [ "$S" -lt 2147483648 ] || { echo "STOP: $F is over 2 GiB"; exit 1; }; done
+  gh release create pc-unreal-v$V --prerelease --title "Airport Dynasty Pro (Unreal) $V" --notes-file release-notes-pc/$V.md $FILES 2>&1 | tail -2
+  N=$(echo $FILES | wc -w); GOT=$(gh release view pc-unreal-v$V --json assets -q '.assets | length' 2>/dev/null || echo 0)
   gh release view pc-unreal-v$V --json assets -q '.assets[] | "\(.name) \(.size)"'
+  [ "$GOT" = "$N" ] || { echo "STOP: $GOT of $N files on the release - pc-version.json NOT pushed"; exit 1; }
+  echo "== pc-version.json (the updater sees $V now)"
+  git pull -q --rebase --autostash && git add pc-version.json release-notes-pc/$V.md && git -c user.name=DroneDirector -c user.email=simon@dronedirector.fo commit -qm "PC $V" && git push -q
 fi
