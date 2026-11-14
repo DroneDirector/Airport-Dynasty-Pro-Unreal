@@ -4,6 +4,7 @@ The one complete list of what is still open, updated 2026-11-11 (after 0.14.7). 
 details behind each item. Marks: [ ] open, [~] started or partly done, [?] built earlier but the owner should check it.
 
 ## 0. Now, in this order (owner, 2026-11-11)
+- [ ] **NUMBER ONE (owner, 2026-11-14): the wash hose's water jet like Art/Reference/water-jet-reference.jpg** - one solid glassy column with the reference's flecked, streaked texture racing along it very fast, perfectly connected to the nozzle at its exact width, breaking into spray further out. HANDOVER.md, top section.
 - [ ] **Self check-in kiosk in the main hall** (owner, 2026-11-14): model ready in Art/Kiosk; reflective screen like the windows; placed from data near the hall's middle with a clear zone. HANDOVER.md.
 - [ ] **NEXT, right after the t-shirt / wardrobe work** (owner, 2026-11-13; ahead of everything else below):
       **puddles and wet ground, the fast way** (material-based like The Matrix Awakens, about 4-7 h): see HANDOVER.md

@@ -2,6 +2,29 @@
 
 Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md (where everything is) first.
 
+## NUMBER ONE when you start building again: the wash hose's water jet like the reference (owner, 2026-11-14 22:13)
+Reference picture: **Art/Reference/water-jet-reference.jpg** (a real fire hose jet, the owner's photo of a screen). If it
+isn't there yet (the PC was offline when the cloud chat had it), ask the owner to attach it in this chat and save it there.
+The water coming out of the wash hose must have the same look and realism as that picture:
+
+- **One solid, glassy column of water**, not loose particles: a smooth, bright silvery-white rope of water that
+  catches the light round its curved surface (bright along one side, darker along the other edge) and reflects
+  the surroundings' colours (in the picture the red light round it tints its edges).
+- **The texture in the water (owner):** the surface is covered in dark flecks, streaks and mottling, elongated along
+  the flow, denser and coarser further from the nozzle; small ripples and lumps over the whole surface. That
+  pattern races along the jet: the water moves very fast (about 25-35 m/s out of the nozzle).
+- **Perfectly connected to the hose (owner):** the jet starts exactly at the nozzle's tip with the nozzle's own
+  width, no gap, no thinner or fatter start, no particles first; it stays one piece, widening only very slightly
+  along its length, and follows the nozzle every frame as you aim (no lag between the nozzle and the water).
+- **Width matches the hose's nozzle** at the start, then the slight taper/spread of a real jet.
+- Further out, where the jet loses its speed and falls, it breaks up into ropes and drops, then spray and mist
+  (the existing spray and splash effects), and hits the ground or a truck with the existing splash and wet patch.
+- How (suggestion): a tube mesh following the jet's arc (spline mesh, rebuilt each frame from the nozzle's position
+  and direction, gravity bending it), with a water material: fresnel reflections and Lumen like the windows, a
+  slight refraction, a streaked noise for the flecks and ripples (normal and colour) panning along the tube at the
+  water's real speed, a subtle wobble and twist; the end of the tube fading into the break-up particles.
+- The owner judges it himself in the game (no renders or screenshots). Chapters, CODE-MAP.md as usual.
+
 ## NEWEST: STOP AND READ (2026-11-13 12:15, from the owner via the phone chat) — puddles come next
 
 The PC session lost its sign-in at 10:16 today (the game's last test run, 0.17.8 with -UIShot -UIWardrobe, closed
