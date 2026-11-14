@@ -12,7 +12,7 @@
 namespace
 {
 	const float PostLumens = 6500.f;   // a modern LED road light (about 50 W)
-	const float FaceGlow = 5.f;        // the LED face's glow at full night
+	const float StreetFaceGlow = 5.f;        // the LED face's glow at full night
 }
 
 AStreetLights::AStreetLights()
@@ -98,5 +98,5 @@ void AStreetLights::Tick(float Dt)
 		if (L->IsVisible() != bOn) L->SetVisibility(bOn);
 		if (FMath::Abs(L->Intensity - Want) > 50.f) L->SetIntensity(Want);
 	}
-	if (Faces) Faces->SetScalarParameterValue(TEXT("Glow"), bOn ? FaceGlow * FMath::Max(Dark, 0.35f) : 0.f);
+	if (Faces) Faces->SetScalarParameterValue(TEXT("Glow"), bOn ? StreetFaceGlow * FMath::Max(Dark, 0.35f) : 0.f);
 }

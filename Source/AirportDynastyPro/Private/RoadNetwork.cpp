@@ -4,6 +4,7 @@
 #include "Airfield.h"
 #include "TerminalBuilder.h"
 #include "StreetLights.h"
+#include "RoadSigns.h"
 #include "ProceduralMeshComponent.h"
 #include "MetaRoadActor.h"
 #include "MetaRoadTypes.h"
@@ -295,6 +296,34 @@ int32 ARoadNetwork::Build()
 				}
 			}
 			ADP_LOG(TEXT("Roads: %s has %d street lights (every %.0f m, %s)"), *Id, Placed, Spacing, *Sides);
+		}
+		// its airport signs ("signs": [{at: m along, km: "2", dir: 1 for the cars driving along the path, -1 against it}]):
+		// on the right-hand side of those cars, 1.5 m out past the road's (or its pavement's) edge on the ground,
+		// facing them
+		const TArray<TSharedPtr<FJsonValue>>* SJ = nullptr;
+		if (R->TryGetArrayField(TEXT("signs"), SJ) && SJ->Num())
+		{
+			if (!Signs) Signs = W->SpawnActor<ARoadSigns>(FVector::ZeroVector, FRotator::ZeroRotator);
+			auto SideW = [&](const TCHAR* Key) { double W_ = 0.0; for (const TSharedPtr<FJsonValue>& L : Lanes->GetArrayField(Key)) { double Wd = 3.5; if (!L->AsObject()->TryGetNumberField(TEXT("w"), Wd)) { const TArray<TSharedPtr<FJsonValue>>* WA; if (L->AsObject()->TryGetArrayField(TEXT("w"), WA) && WA->Num()) Wd = (*WA)[0]->AsArray()[1]->AsNumber(); } W_ += Wd; } return W_; };
+			TArray<double> Al; Al.Add(0.0);
+			for (int32 k = 1; k < Pts.Num(); ++k) Al.Add(Al.Last() + FVector::Dist2D(Pts[k], Pts[k - 1]) / 100.0);
+			int32 Placed = 0;
+			for (const TSharedPtr<FJsonValue>& SV : *SJ)
+			{
+				const TSharedPtr<FJsonObject> O = SV->AsObject();
+				const double D = O->GetNumberField(TEXT("at")); double Dir = 1.0; O->TryGetNumberField(TEXT("dir"), Dir);
+				FString Km = TEXT("2"); O->TryGetStringField(TEXT("km"), Km);
+				int32 Sg = 0; while (Sg + 2 < Al.Num() && Al[Sg + 1] < D) ++Sg;
+				const double F = (D - Al[Sg]) / FMath::Max(Al[Sg + 1] - Al[Sg], 1e-6);
+				const FVector SP = Origin + FMath::Lerp(Pts[Sg], Pts[Sg + 1], F);
+				const FVector Fw = (Pts[Sg + 1] - Pts[Sg]).GetSafeNormal2D() * (Dir >= 0 ? 1.0 : -1.0);   // the cars' way
+				const FVector Right(-Fw.Y, Fw.X, 0.0);
+				const double Out = (SideW(Dir >= 0 ? TEXT("right") : TEXT("left")) + 1.5) * 100.0;
+				FVector At = SP + Right * Out;
+				At.Z = AAirfield::GroundAt(At.X / 100.0, -At.Y / 100.0) * 100.0;
+				if (Signs->AddSign(At, -Fw, Km)) ++Placed;
+			}
+			ADP_LOG(TEXT("Roads: %s has %d airport signs"), *Id, Placed);
 		}
 		// its zebra crossings ("crossings": [{at: m along it, w: m wide (3)}]): white bars 0.5 m wide with 0.5 m gaps
 		// across the whole carriageway (kerb to kerb), each bar running along the road, in the airfield's white paint

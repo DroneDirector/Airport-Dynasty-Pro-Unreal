@@ -39,6 +39,7 @@
 #include "HAL/IConsoleManager.h"
 #include "UnrealClient.h"
 #include "TerminalPlan.h"
+#include "RoadSigns.h"
 #include "OpsMonitors.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
@@ -2922,6 +2923,10 @@ void AADPHUD::Tick(float Dt)
 				{TEXT("Road_Zebra"), -1267.f, 1.7f, 80.f, -1278.f, 0.f, 97.f},
 				{TEXT("Road_Lights"), -1252.f, 5.f, 58.f, -1318.f, 3.f, 185.f},
 				{TEXT("Road_LampClose"), -1281.f, 7.6f, 102.f, -1279.f, 8.f, 92.f},
+				// the airport sign (120 m along, for the cars driving back toward the start): from the driver's seat and close
+				{TEXT("Road_Sign"), -1335.f, 1.3f, 210.f, -1322.f, 2.4f, 162.f},
+				{TEXT("Road_SignClose"), -1316.f, 2.0f, 172.f, -1323.f, 2.6f, 164.f},
+				{TEXT("Road_SignBack"), -1326.f, 2.2f, 152.f, -1323.f, 2.6f, 162.f},
 				{TEXT("Road_Night"), -1268.f, 1.7f, 80.f, -1320.f, 1.f, 170.f, 1.5f},
 				{TEXT("Road_NightHigh"), -1252.f, 14.f, 50.f, -1318.f, 0.f, 185.f, 1.5f},
 			};
@@ -2934,7 +2939,17 @@ void AADPHUD::Tick(float Dt)
 			for (int32 i = 0; i < UE_ARRAY_COUNT(Views); ++i)
 			{
 				const float T0 = 43.f + i * 4.f; const FV& V = Views[i];
-				if (Before < T0 && ShotClock >= T0) { View(V.X, V.H, V.Y, V.LX, V.LH, V.LY); if (ASunClock::HourOverride != V.Hour) { ASunClock::HourOverride = V.Hour; ASunClock::Refresh(); } }
+				FV Vw = V;
+				if (FString(V.Name).StartsWith(TEXT("Road_SignClose")) || FString(V.Name).StartsWith(TEXT("Road_SignBack")))
+				{
+					// at the sign itself (wherever it stands): 6 m in front of its face, a little to the road side, or 4 m behind it
+					const FVector A = ARoadSigns::TestAt, F = ARoadSigns::TestFace, Rt(-F.Y, F.X, 0.0);
+					const bool bBack = FString(V.Name).StartsWith(TEXT("Road_SignBack"));
+					const FVector E = bBack ? A - F * 400.0 + Rt * 120.0 : A + F * 650.0 - Rt * 120.0;
+					Vw.X = E.X / 100.0; Vw.Y = -E.Y / 100.0; Vw.H = bBack ? 2.2f : 2.0f;
+					Vw.LX = A.X / 100.0; Vw.LY = -A.Y / 100.0; Vw.LH = 2.55f;
+				}
+				if (Before < T0 && ShotClock >= T0) { View(Vw.X, Vw.H, Vw.Y, Vw.LX, Vw.LH, Vw.LY); if (ASunClock::HourOverride != V.Hour) { ASunClock::HourOverride = V.Hour; ASunClock::Refresh(); } }
 				if (Before < T0 + 3.f && ShotClock >= T0 + 3.f) Shot(*(FString(V.Name) + Tag));
 			}
 			if (Before < 43.f + UE_ARRAY_COUNT(Views) * 4.f + 2.f && ShotClock >= 43.f + UE_ARRAY_COUNT(Views) * 4.f + 2.f) FGenericPlatformMisc::RequestExit(false);
