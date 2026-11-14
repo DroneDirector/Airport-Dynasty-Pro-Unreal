@@ -3121,12 +3121,16 @@ void AADPHUD::Tick(float Dt)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIKiosk")))
 		{
 			static TWeakObjectPtr<ACameraActor> KCam;
+			// through the player's own eyes (first person: the terminal's indoor exposure as in the game), set where wanted
 			auto Look = [this](const FVector& At, const FVector& To, float Fov)
 			{
-				APlayerController* PC = GetOwningPlayerController(); if (!PC) return;
-				if (!KCam.IsValid()) KCam = GetWorld()->SpawnActor<ACameraActor>(At, (To - At).Rotation());
-				else KCam->SetActorLocationAndRotation(At, (To - At).Rotation());
-				if (KCam.IsValid()) { KCam->GetCameraComponent()->SetConstraintAspectRatio(false); KCam->GetCameraComponent()->SetFieldOfView(Fov); PC->SetViewTarget(KCam.Get()); }
+				APlayerController* PC = GetOwningPlayerController(); APawn* Me = GetOwningPawn(); if (!PC || !Me) return;
+				if (AADPWalker* Wk = Cast<AADPWalker>(Me)) Wk->SetThirdPerson(false);
+				Me->SetActorEnableCollision(false);
+				const FVector Eye = Me->GetPawnViewLocation() - Me->GetActorLocation();
+				Me->SetActorLocationAndRotation(At - Eye, FRotator(0.f, (To - At).Rotation().Yaw, 0.f), false, nullptr, ETeleportType::TeleportPhysics);
+				PC->SetControlRotation((To - At).Rotation());
+				if (PC->PlayerCameraManager) PC->PlayerCameraManager->SetFOV(Fov);
 			};
 			struct FK { const TCHAR* Name; float Ang, Dist, H, LookH, Fov; };
 			// (angle round it from straight in front, metres out, eye height, the height looked at)

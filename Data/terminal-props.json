@@ -1,7 +1,37 @@
 {
  "source": "the terminal's placed props (Source/.../TerminalProps.cpp): x along the building, z into it from the landside front (plan metres), floor 1 or 2, heading 0 = facing the landside entrances (90 = facing +x); clear = metres kept free in front, at the sides and behind (passengers walk round it). Move one by changing its numbers; add another kiosk as another entry.",
  "props": [
-  {"id": "KIOSK-1", "what": "self check-in kiosk (Art/Kiosk, Tools/set_kiosk.py)", "mesh": "/Game/Terminal/Props/Kiosk/SM_CheckinKiosk/StaticMeshes/SM_CheckinKiosk.SM_CheckinKiosk",
-   "x": 70.0, "z": 9.0, "floor": 1, "heading": 0, "modelFrontYaw": -90, "clear": {"front": 1.5, "sides": 0.6, "back": 0.6}}
+  {
+   "id": "KIOSK-1",
+   "what": "self check-in kiosk (Art/Kiosk, Tools/set_kiosk.py)",
+   "mesh": "/Game/Terminal/Props/Kiosk/SM_CheckinKiosk/StaticMeshes/SM_CheckinKiosk.SM_CheckinKiosk",
+   "x": 70.0,
+   "z": 9.0,
+   "floor": 1,
+   "heading": 0,
+   "modelFrontYaw": 90,
+   "clear": {
+    "front": 1.5,
+    "sides": 0.6,
+    "back": 0.6
+   },
+   "lights": [
+    {
+     "what": "the green status lamp on top of the handle (owner: a faint glow, the floor only faintly lit)",
+     "at": [
+      0,
+      0,
+      169
+     ],
+     "color": [
+      0.15,
+      1.0,
+      0.45
+     ],
+     "lumens": 3,
+     "radius": 90
+    }
+   ]
+  }
  ]
 }

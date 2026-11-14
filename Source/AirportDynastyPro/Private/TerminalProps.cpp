@@ -4,6 +4,7 @@
 #include "TerminalCrowd.h"
 #include "TerminalPlan.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Components/PointLightComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -51,6 +52,24 @@ int32 ATerminalProps::Build()
 		const FVector At = FTerminalPlan::ToWorld(X, Plan.FloorY(Floor), Z);
 		C->AddInstance(FTransform(FRotator(0.0, FacingWorldYaw - FrontYaw, 0.0), At), true);
 		const FVector Dir = FRotator(0.0, FacingWorldYaw, 0.0).Vector();
+		// its own lights ("lights": [{at: [x, y, z] cm in the model, color: [r, g, b], lumens, radius cm}]): the kiosk's
+		// green status lamp shining on its handle and round its top (owner, 2026-11-14: lit by Lumen, glowing)
+		const TArray<TSharedPtr<FJsonValue>>* LJ = nullptr;
+		if (O->TryGetArrayField(TEXT("lights"), LJ))
+			for (const TSharedPtr<FJsonValue>& LV : *LJ)
+			{
+				const TSharedPtr<FJsonObject> L = LV->AsObject();
+				const TArray<TSharedPtr<FJsonValue>>& A = L->GetArrayField(TEXT("at")); const TArray<TSharedPtr<FJsonValue>>& Cl = L->GetArrayField(TEXT("color"));
+				double Lm = 20, Rad = 150; L->TryGetNumberField(TEXT("lumens"), Lm); L->TryGetNumberField(TEXT("radius"), Rad);
+				UPointLightComponent* PL = NewObject<UPointLightComponent>(this);
+				PL->SetupAttachment(Root); PL->SetMobility(EComponentMobility::Movable);
+				const FTransform T(FRotator(0.0, FacingWorldYaw - FrontYaw, 0.0), At);
+				PL->SetWorldLocation(T.TransformPosition(FVector(A[0]->AsNumber(), A[1]->AsNumber(), A[2]->AsNumber())));
+				PL->SetIntensityUnits(ELightUnits::Lumens); PL->SetIntensity(Lm);
+				PL->SetLightColor(FLinearColor(Cl[0]->AsNumber(), Cl[1]->AsNumber(), Cl[2]->AsNumber()));
+				PL->SetAttenuationRadius(Rad); PL->SetSourceRadius(4.f); PL->SetSourceLength(28.f); PL->SetCastShadows(false);
+				PL->RegisterComponent(); AddInstanceComponent(PL);
+			}
 		Placed.Add(Id, TPair<FVector, FVector>(At, Dir));
 		// its clear zone for the passengers: a circle round its middle as wide as its widest side's clearance, set toward
 		// the front by half the front/back difference (plan metres)
