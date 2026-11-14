@@ -15,6 +15,13 @@
 import unreal
 
 eal = unreal.EditorAssetLibrary; mel = unreal.MaterialEditingLibrary
+# (Git LFS 'lockable' leaves committed assets read-only: every save failed quietly - made writable first, 2026-11-14)
+import os as _os, stat as _st
+_R = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir())
+for _d in ('Materials', 'Ground', 'Weather', 'Babylon', 'Terminal'):
+    for _p, _, _fs in _os.walk(_os.path.join(_R, 'Content', _d)):
+        for _f in _fs:
+            if _f.endswith('.uasset'): _os.chmod(_os.path.join(_p, _f), _st.S_IWRITE | _st.S_IREAD)
 tools = unreal.AssetToolsHelpers.get_asset_tools()
 def log(m): unreal.log('ADP_GROUND ' + str(m))
 
@@ -206,6 +213,45 @@ float tdA = smoothstep(RwyDisp.x + 5000, RwyDisp.x + 25000, s_) * (1 - smoothste
 float tdB = smoothstep(RwyDisp.y + 5000, RwyDisp.y + 25000, L - s_) * (1 - smoothstep(RwyDisp.y + 60000, RwyDisp.y + 110000, L - s_));
 float rub = Texture2DSample(TyreTex, TyreTexSampler, float2(s_ / 6400.0, d_ / 3200.0 + 0.5)).r;
 float tyre = saturate(rub * saturate(tdA + tdB) * inRwy * TyreAmt * Tyres) * up;
+// ---- the runway's own wear (to-do 10, from photos of real runways): on the runway only (inRwy), on the surfaces that take
+// tyre rubber (TyreAmt: the runway's asphalt and its paint)
+float inR = inRwy * up * saturate(TyreAmt);
+// skid marks: in the touchdown zones, single black streaks 15-45 m long where a main gear's tyres spun up - a mark either
+// side of the centre line 3.5-7 m out (the gear's track), starting faint, a slight drift sideways, most cells with one
+float skid = 0.0;
+[unroll] for (int k = -1; k <= 0; k++) {
+  float c0 = floor(s_ / 3000.0) + k;
+  float h1 = frac(sin(c0 * 12.9898 + 1.3) * 43758.5453), h2 = frac(sin(c0 * 78.233 + 2.1) * 43758.5453), h3 = frac(sin(c0 * 39.425 + 3.7) * 43758.5453);
+  float st = c0 * 3000.0 + h1 * 3000.0, ln = 1500.0 + h2 * 3000.0, t = (s_ - st) / ln;
+  float lat = 350.0 + h2 * 350.0, drift = t * t * (h1 - 0.5) * 140.0;
+  float dd = min(abs(d_ - lat - drift), abs(d_ + lat - drift * 0.8));
+  float w = 22.0 + 14.0 * h3;
+  skid += step(0.3, h3) * step(0.0, t) * step(t, 1.0) * (1.0 - smoothstep(w * 0.5, w, dd)) * smoothstep(0.0, 0.1, t) * (1.0 - smoothstep(0.65, 1.0, t)) * (0.55 + 0.45 * h1);
+}
+skid = saturate(skid) * saturate(tdA + tdB) * inR * Tyres;
+// the paving lanes' sealed joints, lengthwise every 7.5 m (the paver's width), not out at the edges
+float ljd = abs(frac(d_ / 750.0 + 0.5) - 0.5) * 750.0;
+float ljoint = (1.0 - smoothstep(1.5, 4.5, ljd)) * inR * step(abs(d_), halfW - 150.0);
+// repair patches: in a 200 m stretch one time in three, a rectangle of newer, darker asphalt 6-30 m long, 4-16 m wide,
+// with its sealed edge
+float rc = floor(s_ / 20000.0);
+float r1 = frac(sin(rc * 12.9898 + 7.7) * 43758.5453), r2 = frac(sin(rc * 78.233 + 5.5) * 43758.5453), r3 = frac(sin(rc * 39.346 + 9.1) * 43758.5453), r4 = frac(sin(rc * 11.135 + 6.3) * 43758.5453);
+float rs0 = rc * 20000.0 + r2 * 14000.0, rln = 600.0 + r3 * 2400.0, rwd = 400.0 + r4 * 1200.0, rcen = (r1 - 0.5) * halfW * 1.1;
+float rin = min(min(s_ - rs0, rs0 + rln - s_), rwd * 0.5 - abs(d_ - rcen));
+float rpatch = step(0.0, rin) * step(0.66, r1) * inR;
+float rpb = (1.0 - smoothstep(4.0, 12.0, abs(rin))) * step(0.66, r1) * inR * step(-12.0, rin);
+// stains: oil, fuel and hydraulic fluid in blotches - where aircraft turn and line up at the ends (the first and last
+// 300 m) and down the centre line, where the nose gear and engines stand
+float2 rsq = WP.xy / 180.0; float rsn = 0.0, rsa = 0.6;
+[unroll] for (int j = 0; j < 3; j++) {
+  float2 ip = floor(rsq), f = frac(rsq); f = f * f * (3 - 2 * f);
+  float a0 = frac(sin(dot(ip, float2(269.5, 183.3))) * 43758.5453), a1 = frac(sin(dot(ip + float2(1, 0), float2(269.5, 183.3))) * 43758.5453);
+  float a2 = frac(sin(dot(ip + float2(0, 1), float2(269.5, 183.3))) * 43758.5453), a3 = frac(sin(dot(ip + float2(1, 1), float2(269.5, 183.3))) * 43758.5453);
+  rsn += rsa * lerp(lerp(a0, a1, f.x), lerp(a2, a3, f.x), f.y); rsq = rsq * 2.07 + 11.0; rsa *= 0.5;
+}
+float endz = (1.0 - smoothstep(15000.0, 30000.0, s_)) + (1.0 - smoothstep(15000.0, 30000.0, L - s_));
+float cz = exp(-pow(d_ / 450.0, 2.0));
+float rstain = smoothstep(0.66, 0.8, rsn) * saturate(endz * 0.9 + cz * 0.45) * inR;
 float2 q = M / max(Size, 0.3);
 float n = 0, a = 0.55;
 [unroll] for (int i = 0; i < 3; i++) {
@@ -257,6 +303,11 @@ c *= lerp(1.0, 0.35, openC);
 c *= lerp(1.0, 0.5, joint);
 c = lerp(c, c * 0.28, tyre);
 r = lerp(r, 0.55, tyre);
+c = lerp(c, c * 0.62, ljoint * 0.85); r = lerp(r, 0.42, ljoint * 0.6);                           // the paving lanes' sealed joints
+c = lerp(c, c * 0.74, rpatch); r = lerp(r, r * 0.9, rpatch);                                    // a newer patch
+c = lerp(c, float3(0.025, 0.024, 0.023), rpb * 0.85); r = lerp(r, 0.4, rpb);                    // its sealed edge
+c = lerp(c, c * float3(0.5, 0.47, 0.43), rstain * 0.85); r = lerp(r, 0.3, rstain * 0.7);        // oil and fuel stains (a faint sheen)
+c = lerp(c, float3(0.016, 0.016, 0.017), skid * 0.9); r = lerp(r, 0.5, skid);                   // the skid marks
 if (isRoad + isWalk > 0.001) {
   c = lerp(c, c * float3(1.14, 1.14, 1.16), wpath * 0.8); r = lerp(r, r * 0.76, wpath);      // polished wheel paths
   c *= lerp(1.0, 0.8, oil * (0.55 + 0.45 * n));                                              // the oil strip

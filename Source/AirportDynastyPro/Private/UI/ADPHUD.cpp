@@ -2333,6 +2333,11 @@ void AADPHUD::Tick(float Dt)
 				// the runway's touchdown zone (tyre rubber), low and from 12 m; the whole airport from 250 m up
 				{TEXT("Ground_Touchdown"),    F.RwyX0 + 520.f, 2.5f, F.RwyY - 10.f, F.RwyX0 + 900.f, 0.5f, F.RwyY},
 				{TEXT("Ground_TouchdownHigh"), F.RwyX0 + 380.f, 14.f, F.RwyY - 45.f, F.RwyX0 + 900.f, 0.f, F.RwyY + 5.f},
+				// the runway's own wear (to-do 10): skid marks low in the touchdown zone, its end where aircraft turn, a stretch with
+				// the paving joints and a patch from above
+				{TEXT("Ground_RwySkid"), F.RwyX0 + 560.f, 1.8f, F.RwyY + 7.f, F.RwyX0 + 680.f, 0.f, F.RwyY + 4.f},
+				{TEXT("Ground_RwyEnd"), F.RwyX0 + 110.f, 7.f, F.RwyY - 30.f, F.RwyX0 + 15.f, 0.f, F.RwyY},
+				{TEXT("Ground_RwyMid"), F.RwyX0 + 1500.f, 30.f, F.RwyY - 45.f, F.RwyX0 + 1720.f, 0.f, F.RwyY},
 				{TEXT("Ground_RoadTower"),     -120.f, 30.f, 230.f, -190.f, 0.f, 140.f},
 				{TEXT("Ground_RoadFire"),      -1130.f, 45.f, 90.f, -1205.f, 0.f, 200.f},
 				{TEXT("Ground_LotFire"),       -1120.f, 22.f, 75.f, -1185.f, 0.f, 30.f},
