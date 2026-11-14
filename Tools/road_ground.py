@@ -61,7 +61,7 @@ class Tiles:
         return None
 
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument('--tiles', default='F:/ADP-Terrain/tiles-v2'); a = ap.parse_args()
+    ap = argparse.ArgumentParser(); ap.add_argument('--tiles', default='F:/ADP-Terrain/tiles-v2'); ap.add_argument('--probe', action='store_true'); a = ap.parse_args()
     F = json.loads((ROOT / 'Data' / 'airfield.json').read_text(encoding='utf-8')); ap_ = F['airport']; rw = F['runway']
     AH = json.loads((ROOT / 'Data' / 'terrain.json').read_text())['airportHeight']
     # the origin, as Globe.cpp places it: the runway's middle at the airport's coordinates, the plan turned to its heading
@@ -106,12 +106,14 @@ def main():
     for x, y in want:
         z = game_height(x, y)
         if z is not None: pts.append([round(x, 1), round(y, 1), round(z, 2)])
+    # (--probe only - not used: the probe saw the ground at one terrain quality and window size; the coarser levels
+    # differ from the finest by up to 8 m over the hills, so the roads follow the finest, the true ground, 2026-11-14)
     # the ground the game actually draws, where it was measured (ADPHUD -RoadGroundProbe: Data/road-ground-probe.json,
     # 2026-11-14): the tiles' heights read here differ from it by up to 3 m, more toward the town (the road floated
     # there), in a way no single cause explained - so every point is corrected to the measurements: the difference at
     # the measured points, spread to the rest by distance (the 6 nearest within 400 m)
     PR = ROOT / 'Data' / 'road-ground-probe.json'
-    if PR.exists() and pts:
+    if a.probe and PR.exists() and pts:
         from scipy.spatial import cKDTree
         M = np.array(json.loads(PR.read_text())['pts']); Q = np.array(pts)
         t = cKDTree(Q[:, :2]); d, i = t.query(M[:, :2]); ok = d < 3.0

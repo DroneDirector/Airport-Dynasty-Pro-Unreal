@@ -410,12 +410,12 @@ int32 ARoadNetwork::Build()
 		};
 		// ---- its shoulders (owner, 2026-11-14: the road floated over the land near the town, and the land's detail follows
 		// the player's terrain quality): outside the airfield every road stands on a grass embankment, from its outer edge
-		// 4 m out and 2.6 m down: 1 m of bank above the land, 1.6 m into it, so whatever detail the globe is drawn at, the road meets the ground with no
+		// 6 m out and 5 m down: 1 m of bank above the land, 4 m into it, so whatever detail the globe is drawn at, the road meets the ground with no
 		// gap or shadow under it (as the real roads across the sandur, on their banks). Inside the airfield (its ground
 		// drawn by us, exact) there's none.
 		{
 			const FAirfieldData::FRect& FB = AAirfield::Shared().Boundary;
-			const double SW = 4.0, SD = 2.6, SStep = 4.0;   // (1 m of bank over the land, 1.6 m into it)
+			const double SW = 6.0, SD = 5.0, SStep = 4.0;   // (1 m of bank over the land, 4 m into it: the coarser distant levels)
 			for (const bool bR : {true, false})
 			{
 				FPaintBuf& B = Paint.FindOrAdd(FName(TEXT("ggrass")));

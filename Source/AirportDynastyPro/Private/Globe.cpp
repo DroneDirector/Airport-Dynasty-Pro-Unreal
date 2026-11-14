@@ -81,7 +81,9 @@ void AGlobe::Build(const FAirfieldData& F)
 	Tiles->EnableFrustumCulling = false;
 	Tiles->EnforceCulledScreenSpaceError = true;
 	Tiles->CulledScreenSpaceError = 64.0;
-	GConfig->GetFloat(TEXT("ADP.Graphics"), TEXT("LandError"), LandError, GGameUserSettingsIni);
+	// the terrain's detail fixed at Normal (owner, 2026-11-14: its setting removed - lower detail let the coarse distant
+	// land stand through the roads); a saved older setting is ignored
+	LandError = 16.f;
 	LandError = FMath::Clamp(LandError, 4.f, 32.f);
 	Tiles->SetMaximumScreenSpaceError(LandError);
 	Tiles->CulledScreenSpaceError = LandError * 4.0;
