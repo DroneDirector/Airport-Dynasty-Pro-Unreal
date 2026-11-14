@@ -99,6 +99,7 @@ ITEMS = [
     ('48', 'AI drivers: NPC firefighters (and later other crews) walk to a vehicle, climb in with the same climb as yours (any MetaHuman at its own size), drive it along a route (fire station, apron, taxiways, runway) with steering, speed and stopping, and climb out at the scene', '6-10 h', ['field'], '', False),
     ('49', 'Shorts for your Tee outfit: the outfit holds only the tee, so the hips look see-through and cast no shadow; rebuild it with the kit shorts, body hidden only under them, whole shadow; front/back previews + in-game shot first; check the AI people in tees too (their fix rides the next people rebuild pass)', '1-1.5 h', ['none'], '', False),
     ('50', 'Small updates: binary patches inside each changed file (only the bytes that differ), the updater rebuilding the new file from the old one and checking it matches exactly; small changes tens of MB instead of 1.4 GB', '3-4 h', ['none'], '', False),
+    ('51', 'FIRST AFTER THE TERMINAL: the update screen - its progress flashes wildly (fix); and its look exactly as the new-career steps (the neon look, its effects, glass and materials, not only the colours); then the small byte-level updates (50)', '2-3 h', ['rel'], '', False),
     ('40g', 'Iceland scenery: mountains torn into walls and steps - rebuild the Iceland/Faroes height tiles with feathered edges where they meet the world map', '3-4 h', ['field'], '', False),
 ]
 c = canvas.Canvas('AirportDynastyPro-ToDo.pdf', pagesize=(W, H))
