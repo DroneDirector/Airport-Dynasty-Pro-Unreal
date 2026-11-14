@@ -5,6 +5,8 @@
 #include "TerminalBuilder.h"
 #include "StreetLights.h"
 #include "RoadSigns.h"
+#include "Components/InstancedStaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
 #include "ProceduralMeshComponent.h"
 #include "MetaRoadActor.h"
 #include "MetaRoadTypes.h"
@@ -93,15 +95,15 @@ namespace
 	}
 
 	// super smooth (owner, 2026-11-14: "you can zoom very far and see each and every section" - like his plans): the
-	// mesh's outlines kept within 1 cm of the true curve (MetaRoad's default 5 cm), a point at least every metre along
-	// the road (default 3.75 m), the lane lines within 2 cm. Set by name: the property sets' classes are private to
+	// mesh's outlines kept within 2 cm of the true curve (MetaRoad's default 5 cm), a point at least every 2 m along
+	// the road (default 3.75 m), the lane lines within 3 cm (1 cm / 1 m took 25 s for the 2.6 km forecourt at start). Set by name: the property sets' classes are private to
 	// the plugin.
 	void MakeFine(AMetaRoad* Road)
 	{
 		UMetaRoadBuildSettings* S = UMetaRoadBuildSettings::GetForActor(Road, true);
 		if (!S) return;
 		S->EnsureDefaultPropertySets();
-		static const TPair<const TCHAR*, double> Want[] = {{TEXT("ErrorTolerance"), 1.0}, {TEXT("MaxSegmentLength"), 100.0}, {TEXT("MaxSquareDistanceFromSpline"), 4.0}};
+		static const TPair<const TCHAR*, double> Want[] = {{TEXT("ErrorTolerance"), 2.0}, {TEXT("MaxSegmentLength"), 200.0}, {TEXT("MaxSquareDistanceFromSpline"), 9.0}};
 		int32 Set = 0;
 		for (const TObjectPtr<UMetaRoadBuildSettingsBase>& Ptr : S->PropertySets)
 		{
@@ -169,13 +171,23 @@ namespace
 		Z.ZoneType = ZoneTypeFor(Type);
 		if (UMaterialInterface* M = SurfaceFor(Outer, Type)) { Z.bOverrideMaterial = true; Z.OverrideMaterial = M; }
 		if (WKeys.Num() == 0) L.Width.AddKey(0.f, float(W));
-		for (const TPair<double, double>& K : WKeys) { const FKeyHandle H = L.Width.AddKey(float(K.Key), float(K.Value)); L.Width.SetKeyInterpMode(H, RCIM_Cubic); L.Width.SetKeyTangentMode(H, RCTM_Auto); }
-		if (WKeys.Num()) L.Width.AutoSetTangents();
+		// each change of width an S-shaped ease, flat at every key (zero tangents): never past the widths asked for (auto
+		// tangents bulged a long full-width stretch about 4 m wider in its middle - owner's terminal, 2026-11-14)
+		for (const TPair<double, double>& K : WKeys)
+		{
+			const FKeyHandle H = L.Width.AddKey(float(K.Key), float(K.Value));
+			L.Width.SetKeyInterpMode(H, RCIM_Cubic); L.Width.SetKeyTangentMode(H, RCTM_User);
+			FRichCurveKey& Ky = L.Width.GetKey(H); Ky.ArriveTangent = 0.f; Ky.LeaveTangent = 0.f;
+		}
 		bool bInvert = false;
 		if (J->TryGetBoolField(TEXT("invert"), bInvert) && bInvert) L.Direction = ERoadLaneDirection::Invert;
 		return L;
 	}
 }
+
+FVector ARoadNetwork::TestDrain = FVector::ZeroVector;
+FVector ARoadNetwork::TestDrainOut = FVector::ForwardVector;
+FVector ARoadNetwork::TestManhole = FVector::ZeroVector;
 
 ARoadNetwork::ARoadNetwork()
 {
@@ -255,7 +267,9 @@ int32 ARoadNetwork::Build()
 		for (const TSharedPtr<FJsonValue>& L : Lanes->GetArrayField(TEXT("right"))) Sec.Right.Add(MakeLane(this, L->AsObject()));
 		S->UpdateRoadLayout();
 		MakeFine(Road);
+		const double TB = FPlatformTime::Seconds();
 		if (!Host->BuildRoad(Road)) { ADP_ERROR(TEXT("Roads: %s did not build"), *Id); continue; }
+		ADP_LOG(TEXT("Roads: %s built in %.2f s (%.0f m)"), *Id, FPlatformTime::Seconds() - TB, Pts.Num() > 1 ? FVector::Dist(Pts[0], Pts.Last()) / 100.0 : 0.0);
 		++Built; Roads.Add(Road);
 		// ---- along the road: where each point is (m), the way it runs, its right (Unreal: x forward, y right) ----
 		TArray<double> Al; Al.Add(0.0);
@@ -413,6 +427,42 @@ int32 ARoadNetwork::Build()
 				}
 				ADP_LOG(TEXT("Roads: %s - %d street lights (every %.0f m)"), *Id, Placed, Spacing);
 			}
+		// ---- its fittings ("props": [{mesh: drain / manhole, side, edge, off, spacing, from, to, out: 1}]): gully gratings
+		// in the gutter by a kerb (their bars along the road, the hinge toward the kerb: out 1 turns the model's +x away
+		// from the path), manhole covers on a pavement - each on the surface there, instanced (one draw per model, Nanite)
+		const TArray<TSharedPtr<FJsonValue>>* FJ = nullptr;
+		if (R->TryGetArrayField(TEXT("props"), FJ))
+			for (const TSharedPtr<FJsonValue>& FV : *FJ)
+			{
+				const TSharedPtr<FJsonObject> O = FV->AsObject();
+				const FString MeshName = O->GetStringField(TEXT("mesh"));
+				TObjectPtr<UInstancedStaticMeshComponent>& C = Props.FindOrAdd(MeshName);
+				if (!C)
+				{
+					const FString Cap = MeshName.Left(1).ToUpper() + MeshName.Mid(1);
+					UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, *FString::Printf(TEXT("/Game/RoadProps/%s/%s/StaticMeshes/%s.%s"), *Cap, *MeshName, *MeshName, *MeshName));
+					if (!M) { ADP_WARN(TEXT("Roads: the %s model is missing (Tools/set_road_props.py)"), *MeshName); continue; }
+					C = NewObject<UInstancedStaticMeshComponent>(this, *(TEXT("Road_") + Cap));
+					C->SetupAttachment(RootComponent); C->SetStaticMesh(M); C->SetMobility(EComponentMobility::Movable);
+					C->SetCollisionEnabled(ECollisionEnabled::QueryOnly); C->RegisterComponent(); AddInstanceComponent(C);
+				}
+				double Spacing = 22.0, From = -1, To = RoadLen, OutF = 1.0;
+				O->TryGetNumberField(TEXT("spacing"), Spacing); O->TryGetNumberField(TEXT("from"), From); O->TryGetNumberField(TEXT("to"), To); O->TryGetNumberField(TEXT("out"), OutF);
+				if (From < 0) From = Spacing * 0.5;
+				int32 Placed = 0;
+				for (double D = From; D <= FMath::Min(To, RoadLen); D += Spacing)
+				{
+					FVector P_, F_, R_; OnRoad(D, P_, F_, R_);
+					const double Ofs = Off(O, D);
+					const FVector Dir = R_ * ((Ofs >= 0 ? 1.0 : -1.0) * (OutF >= 0 ? 1.0 : -1.0));
+					const FVector At = Surface(P_ + R_ * (Ofs * 100.0)) - GetActorLocation();
+					C->AddInstance(FTransform(FRotator(0.0, FMath::RadiansToDegrees(FMath::Atan2(Dir.Y, Dir.X)), 0.0), At), false);
+					if (Placed == 3 && MeshName == TEXT("drain") && TestDrain.IsZero()) { TestDrain = At + GetActorLocation(); TestDrainOut = Dir; }
+					if (Placed == 1 && MeshName == TEXT("manhole") && TestManhole.IsZero()) TestManhole = At + GetActorLocation();
+					++Placed;
+				}
+				ADP_LOG(TEXT("Roads: %s - %d %s (every %.0f m)"), *Id, Placed, *MeshName, Spacing);
+			}
 		// ---- its airport signs ("signs": [{at, km, dir: 1 for the cars driving along the path, -1 against it}]): on those
 		// cars' right, 1.5 m out past the road's outer edge, on the ground, facing them ----
 		const TArray<TSharedPtr<FJsonValue>>* SJ = nullptr;
@@ -474,7 +524,8 @@ int32 ARoadNetwork::Build()
 				}
 				for (int32 j = 0; j < Ny; ++j) for (int32 i = 0; i < Nx; ++i) { const int32 a = Bi + j * (Nx + 1) + i; B.I.Append({a, a + 1, a + Nx + 2, a, a + Nx + 2, a + Nx + 1}); }
 			};
-			Rect(FName(TEXT("groad")), X0, Y0, X1, Y1, 0.0, 4.0);
+			bool bPaved = true; O->TryGetBoolField(TEXT("paved"), bPaved);   // (false: lines only, on what is there - a pavement)
+			if (bPaved) Rect(FName(TEXT("groad")), X0, Y0, X1, Y1, 0.0, 4.0);
 			int32 Spaces = 0;
 			const TArray<TSharedPtr<FJsonValue>>* RJ = nullptr;
 			if (O->TryGetArrayField(TEXT("rows"), RJ))
@@ -488,6 +539,19 @@ int32 ARoadNetwork::Build()
 					for (int32 b = 0; b <= Nb; ++b) { const double X = RX0 + b * Ww; Rect(FName(TEXT("paintwhite")), X - 0.06, FMath::Min(RY, YH), X + 0.06, FMath::Max(RY, YH), 0.006, 2.5); }
 					Rect(FName(TEXT("paintwhite")), RX0, YH - 0.06, RX0 + Nb * Ww, YH + 0.06, 0.006, 3.0);
 					Spaces += Nb;
+				}
+			// single marked boxes ("boxes": [{x0, y0, x1, y1, color}]: a shuttle bus's bay): four lines, the ends between the sides
+			const TArray<TSharedPtr<FJsonValue>>* BJ = nullptr;
+			if (O->TryGetArrayField(TEXT("boxes"), BJ))
+				for (const TSharedPtr<FJsonValue>& BV : *BJ)
+				{
+					const TSharedPtr<FJsonObject> Bx = BV->AsObject();
+					const double A0 = Bx->GetNumberField(TEXT("x0")), B0 = Bx->GetNumberField(TEXT("y0")), A1 = Bx->GetNumberField(TEXT("x1")), B1 = Bx->GetNumberField(TEXT("y1"));
+					FString Cl = TEXT("white"); Bx->TryGetStringField(TEXT("color"), Cl);
+					const FName M(*(FString(TEXT("paint")) + Cl)); const double Lw = 0.15;
+					Rect(M, A0, B0, A1, B0 + Lw, 0.006, 2.0); Rect(M, A0, B1 - Lw, A1, B1, 0.006, 2.0);
+					Rect(M, A0, B0 + Lw, A0 + Lw, B1 - Lw, 0.006, 2.0); Rect(M, A1 - Lw, B0 + Lw, A1, B1 - Lw, 0.006, 2.0);
+					++Spaces;
 				}
 			ADP_LOG(TEXT("Roads: a car park %.0f x %.0f m with %d spaces"), X1 - X0, Y1 - Y0, Spaces);
 		}

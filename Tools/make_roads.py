@@ -114,9 +114,15 @@ s_c0a, s_c0, s_c1, s_c1a = A.x(402), A.x(372), A.x(-93), A.x(-123)      # the ca
 band = lambda w: keys((0, z), (s_ne0, z), (s_ne1, w), (s_sw1, w), (s_sw0, z), (A.len, z))
 term = lambda w: keys((0, z), (s_t0a, z), (s_t0, w), (s_t1, w), (s_t1a, z), (A.len, z))
 park = lambda w: keys((0, z), (s_c0a, z), (s_c0, w), (s_c1, w), (s_c1a, z), (A.len, z))
+# the terminal's pavement runs on past the stands to x 300 at the east end (the terminal model's rental area: its cars
+# 7 m out and its row of birches 18.5 m out, x 164-286, Data/babylon-terminal.json RENTAL/) and 40 m past the west end;
+# where the stands narrow away it widens by as much, so its outer edge stays on the building's line (y 0)
+s_w0a, s_w0, s_w1, s_w1a = A.x(340), A.x(300), A.x(-120), A.x(-160)
+STANDS = 3.1 + 3.5
+walk = lambda w: keys((0, z), (s_w0a, z), (s_w0, w + STANDS), (s_t0a, w + STANDS), (s_t0, w), (s_t1, w), (s_t1a, w + STANDS), (s_w1, w + STANDS), (s_w1a, z), (A.len, z))
 FC_RIGHT = [lane('Driving', 3.5), lane('Shoulder', 1.0), lane('Island', band(3.5), kerb=15), lane('Driving', band(3.6)),
             lane('Driving', band(3.55)), lane('Parking', term(3.1)), lane('Bus', band(3.5)), lane('Parking', term(3.5)),
-            lane('Sidewalk', term(TP), kerb=15)]
+            lane('Sidewalk', walk(TP), kerb=15)]
 FC_LEFT = [lane('Driving', 3.5, invert=True), lane('Shoulder', 1.0), lane('Sidewalk', park(3.0), kerb=15)]
 x_ent = (50, 75, 101)          # the terminal's three entrances (Data/terminal-plan.json: F1-ENTR-W/C/E)
 fc_paint = [
@@ -159,7 +165,19 @@ fc_lights = [
     dict(side='left', edge=2, off=0.9, spacing=30.5, **{'from': s_c1a, 'to': s_sw1}),
     dict(side='right', edge=2, off=0.9, spacing=45, **{'from': 15, 'to': s_ne1}),                   # the approach: one side
 ]
-road('AIRPORT-FORECOURT', FC, FC_LEFT, FC_RIGHT, paint=fc_paint, crossings=fc_cross, lights=fc_lights)
+# Drainage (owner, 2026-11-14: as real roads, at real distances): a gully grating in the gutter by every kerb every 22 m
+# (the usual spacing on kerbed streets, 20-25 m), the grating 0.31 m from the kerb's face - by the terminal's pavement,
+# both sides of the island, by the car park's pavement; round manhole covers far apart on the pavements (every 90-110 m).
+# The country stretches have no kerbs: they drain to the verge, as real ones do.
+fc_props = [
+    dict(mesh='drain', side='right', edge=8, off=-0.31, spacing=22, out=1, **{'from': s_t0, 'to': s_t1}),
+    dict(mesh='drain', side='right', edge=3, off=0.31, spacing=22, out=-1, **{'from': s_ne1, 'to': s_sw1}),
+    dict(mesh='drain', side='right', edge=2, off=-0.31, spacing=22, out=1, **{'from': s_ne1 + 11, 'to': s_sw1}),
+    dict(mesh='drain', side='left', edge=2, off=-0.31, spacing=22, out=1, **{'from': s_c0, 'to': s_c1}),
+    dict(mesh='manhole', side='right', edge=8, off=7.5, spacing=95, **{'from': s_t0 + 20, 'to': s_t1}),
+    dict(mesh='manhole', side='left', edge=2, off=1.5, spacing=110, **{'from': s_c0 + 35, 'to': s_c1}),
+]
+road('AIRPORT-FORECOURT', FC, FC_LEFT, FC_RIGHT, paint=fc_paint, crossings=fc_cross, lights=fc_lights, props=fc_props, step=6.0)   # (a point every 6 m: MetaRoad's spline curves smoothly between; 2 m took 25 s to build)
 
 # The roundabout at the west end ("turn back to town", drawing centre (-801, -150)): 21 m to its outer edge, a 7 m ring
 # (one lane, wide enough for a bus), a low concrete apron for long vehicles' back wheels, a raised grass middle; round
@@ -185,7 +203,7 @@ road('AIRPORT-WEST-CLOSED', [(RB[0] - 20.0, RB[1]), (moved(-1130, -150.5)[0], RB
 BT_PTS = [(RB[0], RB[1] - 20.0)] + [moved(*p) for p in [(-798, -222), (-786, -251), (-765, -288), (-742, -317), (-710, -341),
           (-676, -358), (-597, -375), (-282, -375), (35, -375), (298, -375), (545, -380), (781, -421), (948, -476), (1139, -576)]]
 road('AIRPORT-BACK-TO-TOWN', BT_PTS, paint=two_paint() + [dict(kind='teeth', at=0.8, dir=-1, o0=-3.4, o1=-0.15)],
-     lights=[dict(side='right', edge=2, off=0.9, spacing=45, **{'from': 30, 'to': 1000})], **TWO)
+     lights=[dict(side='right', edge=2, off=0.9, spacing=45, **{'from': 30, 'to': 1000})], step=4.0, **TWO)
 
 # The large car park across the through road (drawing x -130..330 -> -93..367; from the pavement to the road back to
 # town): aisles 6.5 m along it, double rows of 2.5 x 5 m spaces back to back between them
@@ -196,6 +214,15 @@ while y - 10.0 > cp['y0'] + 6.0:
     cp['rows'].append(dict(x0=cp['x0'] + 3.0, x1=cp['x1'] - 3.0, y=round(y - 10.0, 2), d=4.9, dir=1, w=2.5))
     y -= 16.5
 lots.append(cp)
+# the rental cars' bays on the terminal's pavement (its cars stand in groups 4 m apart, nose in, 4-10 m out): white
+# lines on the pavement round each, no paving of their own (the pavement is it), at the pavement's height
+rental = dict(x0=174.0, x1=282.0, y0=-10.5, y1=-3.5, paved=False, lift=0.226, rows=[])
+for g0, n in ((174, 2), (190, 3), (210, 3), (230, 3), (250, 3), (270, 3)):
+    rental['rows'].append(dict(x0=g0, x1=g0 + 4.0 * n, y=-4.0, d=6.0, dir=-1, w=4.0))
+# its two shuttle buses (RENTAL/SHUTTLE-1, -2: side-on, 14 m out): a yellow bay each
+rental['boxes'] = [dict(x0=x - 6.5, y0=-15.6, x1=x + 6.5, y1=-12.4, color='yellow') for x in (202.0, 242.0)]
+rental['y0'] = -16.0
+lots.append(rental)
 
 out = ROOT / 'Data' / 'roads.json'
 out.write_text(json.dumps({'source': 'Tools/make_roads.py', 'roads': roads, 'lots': lots}, indent=1, ensure_ascii=False), encoding='utf-8')

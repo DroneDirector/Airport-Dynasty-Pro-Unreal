@@ -18,12 +18,17 @@ public:
 	ARoadNetwork();
 	/** Builds every road in Data/roads.json (a road marked "test" only with -RoadTest). Returns how many were built. */
 	int32 Build();
+	/** A few placed things the -UIRoadAirport test looks at (world cm): a gully grating and a manhole cover, and which way out. */
+	static FVector TestDrain;
+	static FVector TestDrainOut;
+	static FVector TestManhole;
 
 private:
 	UPROPERTY() TObjectPtr<class UMetaRoadRuntimeBuildHost> Host;
 	UPROPERTY() TArray<TObjectPtr<AActor>> Roads;
 	UPROPERTY() TObjectPtr<class AStreetLights> Lights;
 	UPROPERTY() TObjectPtr<class ARoadSigns> Signs;   // the roadside airport signs (RoadSigns.h)
+	UPROPERTY() TMap<FString, TObjectPtr<class UInstancedStaticMeshComponent>> Props;   // the roads' fittings by model: gully gratings, manhole covers
 	UPROPERTY() TObjectPtr<class UProceduralMeshComponent> Zebras;   // the zebra crossings' white bars (all roads)
 	int32 ZebraSections = 0;   // every road's street lights (StreetLights.h)
 };

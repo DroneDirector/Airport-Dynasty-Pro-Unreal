@@ -40,6 +40,8 @@
 #include "UnrealClient.h"
 #include "TerminalPlan.h"
 #include "RoadSigns.h"
+#include "RoadNetwork.h"
+#include "Engine/OverlapResult.h"
 #include "OpsMonitors.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
@@ -2918,13 +2920,18 @@ void AADPHUD::Tick(float Dt)
 				// the entrance from straight above, and from the pavement looking at it (owner, 2026-11-14: it must stand on the pavement)
 				{TEXT("AR_EntranceTop"), 75.f, 70.f, -25.f, 75.5f, 0.f, -25.f},
 				{TEXT("AR_EntranceWalk"), 40.f, 1.7f, -24.f, 75.f, 3.f, -6.f},
+				// a gully grating by the terminal's kerb (x 44) and a manhole cover on its pavement (x 127)
+				{TEXT("AR_Drain"), 46.5f, 0.9f, -23.6f, 44.f, 0.f, -21.85f},
+				{TEXT("AR_Manhole"), 128.5f, 1.3f, -12.f, 127.f, 0.f, -14.f},
+				// the rental cars on their bays and the birches along the pavement (the terminal's east end)
+				{TEXT("AR_Rental"), 225.f, 14.f, -45.f, 225.f, 0.f, -8.f},
 				{TEXT("AR_Pavement"), 165.f, 1.7f, -3.f, 20.f, 1.f, -16.f},
 				{TEXT("AR_Stands"), 135.f, 3.0f, -14.f, 60.f, 0.5f, -6.f},
 				{TEXT("AR_Crossing"), 75.f, 1.7f, -45.f, 75.f, 0.f, -10.f},
 				{TEXT("AR_Widening"), 1010.f, 28.f, -85.f, 830.f, 0.f, -28.f},
 				{TEXT("AR_CarPark"), 140.f, 90.f, -300.f, 140.f, 0.f, -150.f},
-				{TEXT("AR_RoundaboutHigh"), -764.f, 75.f, -95.f, -764.f, 0.f, -31.f},
-				{TEXT("AR_RoundaboutDrive"), -660.f, 1.3f, -32.f, -764.f, 0.5f, -30.f},
+				{TEXT("AR_RoundaboutHigh"), -764.f, 85.f, -115.f, -764.f, 0.f, -50.f},
+				{TEXT("AR_RoundaboutDrive"), -680.f, 1.3f, -48.5f, -764.f, 0.5f, -42.f},
 				{TEXT("AR_BackRoad"), -640.f, 45.f, -150.f, -720.f, 0.f, -205.f},
 				{TEXT("AR_NightForecourt"), 230.f, 6.f, -48.f, 0.f, 1.f, -18.f, 1.5f},
 				{TEXT("AR_NightHigh"), 75.f, 60.f, -125.f, 75.f, 0.f, -20.f, 1.5f},
@@ -2968,6 +2975,22 @@ void AADPHUD::Tick(float Dt)
 					const FVector E = bBack ? A - F * 400.0 + Rt * 120.0 : A + F * 650.0 - Rt * 120.0;
 					Vw.X = E.X / 100.0; Vw.Y = -E.Y / 100.0; Vw.H = bBack ? 2.2f : 2.0f;
 					Vw.LX = A.X / 100.0; Vw.LY = -A.Y / 100.0; Vw.LH = 2.55f;
+				}
+				if (FString(V.Name) == TEXT("AR_Drain") || FString(V.Name) == TEXT("AR_Manhole"))
+				{
+					// at a placed one (wherever it is): 2 m off it, from the road side, low
+					const bool bD = FString(V.Name) == TEXT("AR_Drain");
+					const FVector A = bD ? ARoadNetwork::TestDrain : ARoadNetwork::TestManhole, O = bD ? ARoadNetwork::TestDrainOut : FVector(0, 1, 0);
+					const FVector E = A - O * 500.0 + FVector(O.Y, -O.X, 0) * 300.0;
+					Vw.X = E.X / 100.0; Vw.Y = -E.Y / 100.0; Vw.H = bD ? 2.6f : 2.2f; Vw.LX = A.X / 100.0; Vw.LY = -A.Y / 100.0; Vw.LH = 0.f;
+					if (Before < T0 && ShotClock >= T0)
+					{
+						// what stands within 2 m of it (a check for things in the road)
+						TArray<FOverlapResult> Ov; FCollisionQueryParams Q(SCENE_QUERY_STAT(ADPRoadCheck), false);
+						GetWorld()->OverlapMultiByChannel(Ov, A + FVector(0, 0, 100), FQuat::Identity, ECC_Visibility, FCollisionShape::MakeSphere(200.f), Q);
+						FString L; for (const FOverlapResult& R : Ov) if (R.GetComponent()) L += FString::Printf(TEXT(" [%s/%s]"), R.GetActor() ? *R.GetActor()->GetName() : TEXT("-"), *R.GetComponent()->GetName());
+						ADP_LOG(TEXT("UIRoadAirport: %s at %s (plan %.1f, %.1f); near it:%s"), V.Name, *A.ToString(), A.X / 100.0, -A.Y / 100.0, *L);
+					}
 				}
 				if (Before < T0 && ShotClock >= T0) { View(Vw.X, Vw.H, Vw.Y, Vw.LX, Vw.LH, Vw.LY); if (ASunClock::HourOverride != V.Hour) { ASunClock::HourOverride = V.Hour; ASunClock::Refresh(); } }
 				if (Before < T0 + 3.f && ShotClock >= T0 + 3.f) Shot(*(FString(V.Name) + Tag));
