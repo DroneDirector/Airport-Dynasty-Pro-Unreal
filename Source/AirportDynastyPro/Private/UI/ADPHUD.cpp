@@ -2897,7 +2897,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		// -UIRoad (with -RoadTest; -RainyDay / -SnowDay for the weather): the road network's test road from above, from eye
 		// height along it, low at the kerb and at its outer edge on the grass (owner, 2026-11-14: nothing poking through)
-		if (FParse::Param(FCommandLine::Get(), TEXT("UIRoad")))
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIRoad")) || FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport")))
 		{
 			auto Shot = [this](const TCHAR* Name) { if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 2 filename=%s"), Name)); };
 			static TWeakObjectPtr<ACameraActor> RCam;
@@ -2911,7 +2911,25 @@ void AADPHUD::Tick(float Dt)
 				if (RCam.IsValid()) { RCam->GetCameraComponent()->SetConstraintAspectRatio(false); RCam->GetCameraComponent()->SetFieldOfView(60.f); PC->SetViewTarget(RCam.Get()); }
 			};
 			struct FV { const TCHAR* Name; float X, H, Y, LX, LH, LY; float Hour = 13.f; };
-			const FV Views[] = {
+			// -UIRoadAirport: the airport's roads (the forecourt, its widening, the stands, the crossings, the roundabout, the
+			// road back to town, the car park; day and night)
+			const FV AirportViews[] = {
+				{TEXT("AR_ForecourtHigh"), 75.f, 60.f, -125.f, 75.f, 0.f, -20.f},
+				// the entrance from straight above, and from the pavement looking at it (owner, 2026-11-14: it must stand on the pavement)
+				{TEXT("AR_EntranceTop"), 75.f, 70.f, -25.f, 75.5f, 0.f, -25.f},
+				{TEXT("AR_EntranceWalk"), 40.f, 1.7f, -24.f, 75.f, 3.f, -6.f},
+				{TEXT("AR_Pavement"), 165.f, 1.7f, -3.f, 20.f, 1.f, -16.f},
+				{TEXT("AR_Stands"), 135.f, 3.0f, -14.f, 60.f, 0.5f, -6.f},
+				{TEXT("AR_Crossing"), 75.f, 1.7f, -45.f, 75.f, 0.f, -10.f},
+				{TEXT("AR_Widening"), 1010.f, 28.f, -85.f, 830.f, 0.f, -28.f},
+				{TEXT("AR_CarPark"), 140.f, 90.f, -300.f, 140.f, 0.f, -150.f},
+				{TEXT("AR_RoundaboutHigh"), -764.f, 75.f, -95.f, -764.f, 0.f, -31.f},
+				{TEXT("AR_RoundaboutDrive"), -660.f, 1.3f, -32.f, -764.f, 0.5f, -30.f},
+				{TEXT("AR_BackRoad"), -640.f, 45.f, -150.f, -720.f, 0.f, -205.f},
+				{TEXT("AR_NightForecourt"), 230.f, 6.f, -48.f, 0.f, 1.f, -18.f, 1.5f},
+				{TEXT("AR_NightHigh"), 75.f, 60.f, -125.f, 75.f, 0.f, -20.f, 1.5f},
+			};
+			const FV RoadViews[] = {
 				{TEXT("Road_High"), -1270.f, 25.f, 40.f, -1310.f, 0.f, 170.f},
 				{TEXT("Road_Eye"),  -1268.f, 1.7f, 80.f, -1320.f, 1.f, 170.f},
 				{TEXT("Road_Kerb"), -1294.f, 0.5f, 128.f, -1300.f, 0.f, 136.f},
@@ -2936,9 +2954,11 @@ void AADPHUD::Tick(float Dt)
 				if (APlayerController* PCm = GetOwningPlayerController()) PCm->ConsoleCommand(TEXT("r.MotionBlurQuality 0"));
 			}
 			const FString Tag = FParse::Param(FCommandLine::Get(), TEXT("RainyDay")) ? TEXT("_Rain") : FParse::Param(FCommandLine::Get(), TEXT("SnowDay")) ? TEXT("_Snow") : TEXT("");
-			for (int32 i = 0; i < UE_ARRAY_COUNT(Views); ++i)
+			const bool bAirportSet = FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport"));
+			const FV* Set = bAirportSet ? AirportViews : RoadViews; const int32 NSet = bAirportSet ? UE_ARRAY_COUNT(AirportViews) : UE_ARRAY_COUNT(RoadViews);
+			for (int32 i = 0; i < NSet; ++i)
 			{
-				const float T0 = 43.f + i * 4.f; const FV& V = Views[i];
+				const float T0 = 43.f + i * 4.f; const FV& V = Set[i];
 				FV Vw = V;
 				if (FString(V.Name).StartsWith(TEXT("Road_SignClose")) || FString(V.Name).StartsWith(TEXT("Road_SignBack")))
 				{
@@ -2952,7 +2972,7 @@ void AADPHUD::Tick(float Dt)
 				if (Before < T0 && ShotClock >= T0) { View(Vw.X, Vw.H, Vw.Y, Vw.LX, Vw.LH, Vw.LY); if (ASunClock::HourOverride != V.Hour) { ASunClock::HourOverride = V.Hour; ASunClock::Refresh(); } }
 				if (Before < T0 + 3.f && ShotClock >= T0 + 3.f) Shot(*(FString(V.Name) + Tag));
 			}
-			if (Before < 43.f + UE_ARRAY_COUNT(Views) * 4.f + 2.f && ShotClock >= 43.f + UE_ARRAY_COUNT(Views) * 4.f + 2.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 43.f + NSet * 4.f + 2.f && ShotClock >= 43.f + NSet * 4.f + 2.f) FGenericPlatformMisc::RequestExit(false);
 		}
 		// -UIPanels: every door button panel in pictures (inside the fire station by each bay door, inside each hangar)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIPanels")))
@@ -3202,7 +3222,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanelUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoad")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanelUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoad")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

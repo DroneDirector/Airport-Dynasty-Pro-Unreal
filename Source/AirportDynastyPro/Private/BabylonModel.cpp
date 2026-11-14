@@ -1,6 +1,9 @@
 // Places the Babylon model: walks its node tree from the roots, works out each node's transform the way Unreal's glTF
 // importer converts them, and adds an instance of the node's imported mesh there.
 #include "BabylonModel.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+static FString GRoadsProbe;   // (the road network's data is there: the model's own landside steps aside)
 #include "Misc/PackageName.h"
 #include "ADPLog.h"
 #include "TerminalBuilder.h"
@@ -130,6 +133,12 @@ bool ABabylonModel::Place(const FString& Name)
 		  // the model's own lawn round the terminal lay 25 cm over the airfield's grass (a step at its edge, the taxiways
 		  // under it): the airfield's grass, the same, runs under the whole terminal instead (owner, 2026-11-13)
 		  if (Name == TEXT("Terminal") && Nm == TEXT("SITE/GRASS")) return;
+		  // the model's own landside - its road, markings, kerb, car park with its lines, parked cars and trees - is the road
+		  // network's now (owner, 2026-11-14: the roads from his blueprint, RoadNetwork.cpp); its canopies, benches and the
+		  // departures sign (KERB/) stay, on the road network's 16 m terminal pavement
+		  if (Name == TEXT("Terminal") && (Nm == TEXT("SITE/ROAD") || Nm == TEXT("SITE/ROAD-MARKING") || Nm == TEXT("SITE/KERB") || Nm == TEXT("SITE/KERB-EDGE")
+		      || Nm == TEXT("SITE/CARPARK") || Nm == TEXT("SITE/PARKING-LINES") || Nm.StartsWith(TEXT("SITE/CAR-")) || Nm.StartsWith(TEXT("SITE/TREE-")))
+		      && FFileHelper::LoadFileToString(GRoadsProbe, *(FPaths::ProjectContentDir() / TEXT("Data/roads.json")))) return;
 		  // the fire station model's own ground (its 190 x 160 m ground sheet b27, its forecourt b28, the walk b35 and its
 		  // kerb b37) lay a few centimetres off the airfield's and cars bumped over its edges: the airfield lays that
 		  // paving now (Data/airfield.json LOT-FIRE-*), one ground everywhere (owner, 2026-11-14)

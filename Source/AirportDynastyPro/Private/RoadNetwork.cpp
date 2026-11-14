@@ -22,6 +22,7 @@
 
 namespace
 {
+	struct FPaintBuf { TArray<FVector> V; TArray<int32> I; TArray<FVector> N; TArray<FVector2D> UV; TArray<FLinearColor> C; };
 	// the surfaces: the airfield's own ground materials (owner, 2026-11-14) - the same asphalt and concrete as the
 	// aprons, with their puddles, wetness and snow (Tools/set_ground.py), lit by Lumen like the rest; MetaRoad's own for
 	// the bus lane's colour and hatched areas
@@ -30,7 +31,8 @@ namespace
 		static TMap<FString, TWeakObjectPtr<UMaterialInterface>> Cache;
 		if (const TWeakObjectPtr<UMaterialInterface>* F = Cache.Find(Type)) if (F->IsValid()) return F->Get();
 		UMaterialInterface* M = nullptr;
-		if (Type == TEXT("Bus")) M = LoadObject<UMaterialInterface>(nullptr, TEXT("/MetaRoad/Materials/MI_Bus.MI_Bus"));
+		if (Type == TEXT("Island")) M = ATerminalBuilder::KitMaterial(Outer, FName(TEXT("ggrass")));
+		else if (Type == TEXT("Apron")) M = ATerminalBuilder::KitMaterial(Outer, FName(TEXT("gconcrete")));
 		else if (Type == TEXT("Median") || Type == TEXT("Restricted")) M = LoadObject<UMaterialInterface>(nullptr, TEXT("/MetaRoad/Materials/MI_Restricted.MI_Restricted"));
 		else M = ATerminalBuilder::KitMaterial(Outer, Type == TEXT("Sidewalk") ? FName(TEXT("gwalk")) : FName(TEXT("groad")));
 		Cache.Add(Type, M);
@@ -140,7 +142,8 @@ namespace
 		if (T == TEXT("Median")) return ERoadZoneTypes::Median;
 		if (T == TEXT("Restricted")) return ERoadZoneTypes::Restricted;
 		if (T == TEXT("Biking")) return ERoadZoneTypes::Biking;
-		if (T == TEXT("Bus")) return FRoadZoneType(TEXT("Bus"));
+		if (T == TEXT("Bus")) return ERoadZoneTypes::Driving;
+	if (T == TEXT("Island") || T == TEXT("Apron")) return ERoadZoneTypes::Median;
 		return ERoadZoneTypes::Driving;
 	}
 
@@ -155,7 +158,7 @@ namespace
 		const TArray<TSharedPtr<FJsonValue>>* WA = nullptr;
 		if (J->TryGetArrayField(TEXT("w"), WA)) { for (const TSharedPtr<FJsonValue>& K : *WA) { const auto& KA = K->AsArray(); WKeys.Add({KA[0]->AsNumber() * 100.0, KA[1]->AsNumber() * 100.0}); } }
 		else W = J->GetNumberField(TEXT("w")) * 100.0;
-		if (Type == TEXT("Sidewalk"))
+		if (Type == TEXT("Sidewalk") || Type == TEXT("Island") || Type == TEXT("Apron"))
 		{
 			L.RoadZone.InitializeAs<FRoadZoneSidewalk>();
 			double H = 15.0; J->TryGetNumberField(TEXT("kerb"), H);
@@ -197,7 +200,8 @@ int32 ARoadNetwork::Build()
 	Host = NewObject<UMetaRoadRuntimeBuildHost>(this);
 	Host->MeshOutput = ERoadRuntimeMeshOutput::TransientStaticMesh;   // (built once, never changing: the cheaper draw path)
 	int32 Built = 0;
-	int32 ZebraLog = 0;
+	int32 Crossings = 0;
+	TMap<FName, FPaintBuf> Paint;   // every road's markings, the car parks, the roundabouts' middles: by material
 	const double T0 = FPlatformTime::Seconds();
 	for (const TSharedPtr<FJsonValue>& V : Root->GetArrayField(TEXT("roads")))
 	{
@@ -251,157 +255,259 @@ int32 ARoadNetwork::Build()
 		for (const TSharedPtr<FJsonValue>& L : Lanes->GetArrayField(TEXT("right"))) Sec.Right.Add(MakeLane(this, L->AsObject()));
 		S->UpdateRoadLayout();
 		MakeFine(Road);
-		if (Host->BuildRoad(Road)) { ++Built; Roads.Add(Road); }
-		// its street lights ("lights": {spacing m, sides both / left / right, from / to m along it}): at the back of the
-		// pavement (0.45 m in from its outer edge) where it has one, else 0.8 m out past the road's edge, the arm toward the road
-		const TSharedPtr<FJsonObject>* LJ = nullptr;
-		if (R->TryGetObjectField(TEXT("lights"), LJ))
+		if (!Host->BuildRoad(Road)) { ADP_ERROR(TEXT("Roads: %s did not build"), *Id); continue; }
+		++Built; Roads.Add(Road);
+		// ---- along the road: where each point is (m), the way it runs, its right (Unreal: x forward, y right) ----
+		TArray<double> Al; Al.Add(0.0);
+		for (int32 k = 1; k < Pts.Num(); ++k) Al.Add(Al.Last() + FVector::Dist2D(Pts[k], Pts[k - 1]) / 100.0);
+		const double RoadLen = Al.Last();
+		auto OnRoad = [&](double D, FVector& OP, FVector& Fw, FVector& Rt)
 		{
-			if (!Lights) Lights = W->SpawnActor<AStreetLights>(FVector::ZeroVector, FRotator::ZeroRotator);
-			double Spacing = 35.0, From = 0.0, To = 1e9; FString Sides = TEXT("both");
-			(*LJ)->TryGetNumberField(TEXT("spacing"), Spacing); (*LJ)->TryGetNumberField(TEXT("from"), From); (*LJ)->TryGetNumberField(TEXT("to"), To); (*LJ)->TryGetStringField(TEXT("sides"), Sides);
-			// how far out each side's post stands (m) and how high (the kerb)
-			auto SideOut = [&](const TCHAR* Key, double& Out, double& Up)
+			D = FMath::Clamp(D, 0.0, RoadLen);
+			int32 Lo = 0, Hi = Al.Num() - 1;
+			while (Hi - Lo > 1) { const int32 Md = (Lo + Hi) / 2; if (Al[Md] <= D) Lo = Md; else Hi = Md; }
+			const int32 Sg = FMath::Min(Lo, Al.Num() - 2);
+			const double F = (D - Al[Sg]) / FMath::Max(Al[Sg + 1] - Al[Sg], 1e-6);
+			OP = Origin + FMath::Lerp(Pts[Sg], Pts[Sg + 1], F);
+			Fw = (Pts[Sg + 1] - Pts[Sg]).GetSafeNormal2D(); Rt = FVector(-Fw.Y, Fw.X, 0.0);
+		};
+		// a lane edge: how far out from the path edge K is on a side (0 = the path, 1 = the first lane's outer edge...), at
+		// D m along - from MetaRoad's own width curves, so everything laid by it follows the lanes' gradual widening
+		auto Edge = [&](bool bRight, int32 K, double D)
+		{
+			const TArray<FRoadLane>& Ls = bRight ? Sec.Right : Sec.Left;
+			double O = 0.0;
+			for (int32 i = 0; i < FMath::Min(K, Ls.Num()); ++i) O += Ls[i].Width.Eval(float(D * 100.0)) / 100.0;
+			return O;
+		};
+		auto SideOf = [](const TSharedPtr<FJsonObject>& O) { FString Sd = TEXT("right"); O->TryGetStringField(TEXT("side"), Sd); return Sd != TEXT("left"); };
+		// a signed offset (m, + to the right) at D: {side, edge, off (further out)}
+		auto Off = [&](const TSharedPtr<FJsonObject>& O, double D)
+		{
+			const bool bR = SideOf(O); double K = 0, Ex = 0; O->TryGetNumberField(TEXT("edge"), K); O->TryGetNumberField(TEXT("off"), Ex);
+			return (bR ? 1.0 : -1.0) * (Edge(bR, int32(K), D) + Ex);
+		};
+		// the built surface under a point (the road's mesh, its pavements' tops, or the ground off it)
+		auto Surface = [&](FVector Q)
+		{
+			FHitResult Hit; FCollisionQueryParams QP(SCENE_QUERY_STAT(ADPRoadPaint), true);
+			if (W->LineTraceSingleByChannel(Hit, Q + FVector(0, 0, 200), Q - FVector(0, 0, 200), ECC_Visibility, QP)) Q.Z = Hit.ImpactPoint.Z;
+			return Q;
+		};
+		auto Grime = [](double D) { return 0.3f + 0.5f * float(FMath::Frac(FMath::Sin(D * 12.9898) * 43758.5453)); };
+		// paint: a strip along the road from D0 to D1 between two offsets (functions of D), on the surface, 6 mm up
+		auto Strip = [&](FName Mat, double D0, double D1, TFunctionRef<double(double)> OA, TFunctionRef<double(double)> OB, double Step, float Gr)
+		{
+			if (D1 <= D0) return;
+			FPaintBuf& B = Paint.FindOrAdd(Mat);
+			const int32 N = FMath::Max(1, FMath::CeilToInt((D1 - D0) / Step));
+			const int32 Base = B.V.Num();
+			for (int32 s = 0; s <= N; ++s)
 			{
-				double W_ = 0.0; Up = 0.0; bool bKerb = false;
-				for (const TSharedPtr<FJsonValue>& L : Lanes->GetArrayField(Key))
+				const double D = FMath::Lerp(D0, D1, double(s) / N);
+				FVector P_, F_, R_; OnRoad(D, P_, F_, R_);
+				for (const double O : {OA(D), OB(D)})
 				{
-					const TSharedPtr<FJsonObject> O = L->AsObject();
-					if (O->GetStringField(TEXT("type")) == TEXT("Sidewalk")) { bKerb = true; double K = 15.0; O->TryGetNumberField(TEXT("kerb"), K); Up = K / 100.0; double SW = 2.5; O->TryGetNumberField(TEXT("w"), SW); W_ += SW; break; }
-					double Wd = 3.5; if (!O->TryGetNumberField(TEXT("w"), Wd)) { const TArray<TSharedPtr<FJsonValue>>* WA; if (O->TryGetArrayField(TEXT("w"), WA) && WA->Num()) Wd = (*WA)[0]->AsArray()[1]->AsNumber(); }
-					W_ += Wd;
-				}
-				Out = bKerb ? W_ - 0.45 : W_ + 0.8;   // (owner, 2026-11-14: at the back of the pavement, away from the road)
-			};
-			double OutL, UpL, OutR, UpR; SideOut(TEXT("left"), OutL, UpL); SideOut(TEXT("right"), OutR, UpR);
-			// along the road (world cm): its points, and how far along each is
-			TArray<double> Along; Along.Add(0.0);
-			for (int32 k = 1; k < Pts.Num(); ++k) Along.Add(Along.Last() + FVector::Dist2D(Pts[k], Pts[k - 1]) / 100.0);
-			int32 Placed = 0, Seg = 0;
-			for (double D = FMath::Max(From, Spacing * 0.5); D < FMath::Min(To, Along.Last()); D += Spacing)
-			{
-				while (Seg + 2 < Along.Num() && Along[Seg + 1] < D) ++Seg;
-				const double F = (D - Along[Seg]) / FMath::Max(Along[Seg + 1] - Along[Seg], 1e-6);
-				const FVector PostAt = Origin + FMath::Lerp(Pts[Seg], Pts[Seg + 1], F);
-				const FVector Fw = (Pts[Seg + 1] - Pts[Seg]).GetSafeNormal2D();
-				const FVector Right(-Fw.Y, Fw.X, 0.0);   // (Unreal: x forward, y right)
-				for (int32 Sd = 0; Sd < 2; ++Sd)
-				{
-					const bool bLeft = Sd == 0;
-					if (Sides == TEXT("left") && !bLeft) continue;
-					if (Sides == TEXT("right") && bLeft) continue;
-					const FVector Dir = bLeft ? -Right : Right;
-					const double Out = (bLeft ? OutL : OutR) * 100.0, Up = (bLeft ? UpL : UpR) * 100.0 - Lift * 100.0;
-					if (Lights->AddPost(PostAt + Dir * Out + FVector(0, 0, Up), -Dir)) ++Placed;
+					B.V.Add(Surface(P_ + R_ * (O * 100.0)) + FVector(0, 0, 0.6) - GetActorLocation());
+					B.N.Add(FVector::UpVector); B.UV.Add(FVector2D(O, D)); B.C.Add(FLinearColor(1.f, Gr, 1.f, 1.f));
 				}
 			}
-			ADP_LOG(TEXT("Roads: %s has %d street lights (every %.0f m, %s)"), *Id, Placed, Spacing, *Sides);
-		}
-		// its airport signs ("signs": [{at: m along, km: "2", dir: 1 for the cars driving along the path, -1 against it}]):
-		// on the right-hand side of those cars, 1.5 m out past the road's (or its pavement's) edge on the ground,
-		// facing them
+			for (int32 s = 0; s < N; ++s) { const int32 a = Base + s * 2; B.I.Append({a, a + 2, a + 1, a + 1, a + 2, a + 3}); }
+		};
+		auto ColourOf = [](const TSharedPtr<FJsonObject>& O) { FString Cl = TEXT("white"); O->TryGetStringField(TEXT("color"), Cl); return FName(*(FString(TEXT("paint")) + Cl)); };
+		// ---- its markings ("paint": lines, dashes, the boxes of the bus and taxi stands, give-way teeth) ----
+		const TArray<TSharedPtr<FJsonValue>>* PJ = nullptr;
+		if (R->TryGetArrayField(TEXT("paint"), PJ))
+			for (const TSharedPtr<FJsonValue>& PV : *PJ)
+			{
+				const TSharedPtr<FJsonObject> O = PV->AsObject();
+				FString Kind = TEXT("line"); O->TryGetStringField(TEXT("kind"), Kind);
+				double From = 0.0, To = RoadLen, Wl = 0.15; O->TryGetNumberField(TEXT("from"), From); O->TryGetNumberField(TEXT("to"), To); O->TryGetNumberField(TEXT("w"), Wl);
+				To = FMath::Min(To, RoadLen); From = FMath::Max(From, 0.0);
+				const FName Mat = ColourOf(O);
+				if (Kind == TEXT("line") || Kind == TEXT("dash"))
+				{
+					double Dash = 1e9, Gap = 0.0; O->TryGetNumberField(TEXT("dash"), Dash); O->TryGetNumberField(TEXT("gap"), Gap);
+					for (double D = From; D < To; D += Dash + Gap)
+						Strip(Mat, D, FMath::Min(D + Dash, To), [&](double d) { return Off(O, d) - Wl / 2; }, [&](double d) { return Off(O, d) + Wl / 2; }, 1.0, Grime(D));
+				}
+				else if (Kind == TEXT("boxes"))
+				{
+					// a row of boxes along a lane (a bus or a taxi each): its two long sides, its two ends
+					const bool bR = SideOf(O); double K = 0, Nb = 1, Len = 6, Gp = 1, In = 0.25; O->TryGetNumberField(TEXT("lane"), K); O->TryGetNumberField(TEXT("n"), Nb);
+					O->TryGetNumberField(TEXT("len"), Len); O->TryGetNumberField(TEXT("gap"), Gp); O->TryGetNumberField(TEXT("inset"), In);
+					const double Sg = bR ? 1.0 : -1.0;
+					auto E0 = [&](double d) { return Sg * (Edge(bR, int32(K), d) + In); };
+					auto E1 = [&](double d) { return Sg * (Edge(bR, int32(K) + 1, d) - In); };
+					for (int32 b = 0; b < int32(Nb); ++b)
+					{
+						const double S0 = From + b * (Len + Gp), S1 = S0 + Len;
+						if (S1 > To) break;
+						Strip(Mat, S0, S1, [&](double d) { return E0(d) - Sg * Wl / 2; }, [&](double d) { return E0(d) + Sg * Wl / 2; }, 1.0, Grime(S0));
+						Strip(Mat, S0, S1, [&](double d) { return E1(d) - Sg * Wl / 2; }, [&](double d) { return E1(d) + Sg * Wl / 2; }, 1.0, Grime(S0));
+						Strip(Mat, S0, S0 + Wl, E0, E1, 1.0, Grime(S0));
+						Strip(Mat, S1 - Wl, S1, E0, E1, 1.0, Grime(S0));
+					}
+				}
+				else if (Kind == TEXT("teeth"))
+				{
+					// give way: a row of triangles across the lanes at D, their points toward the cars coming (dir: the cars' way)
+					double At = 0, Dir = 1, Sz = 0.6, A0 = 0, A1 = 0; O->TryGetNumberField(TEXT("at"), At); O->TryGetNumberField(TEXT("dir"), Dir); O->TryGetNumberField(TEXT("size"), Sz);
+					O->TryGetNumberField(TEXT("o0"), A0); O->TryGetNumberField(TEXT("o1"), A1);
+					FPaintBuf& B = Paint.FindOrAdd(Mat);
+					FVector P_, F_, R_; OnRoad(At, P_, F_, R_);
+					const FVector Back = F_ * (Dir >= 0 ? -1.0 : 1.0);
+					for (double X = FMath::Min(A0, A1); X + Sz <= FMath::Max(A0, A1) + 1e-3; X += Sz * 1.5)
+					{
+						const int32 Bi = B.V.Num();
+						const FVector Qs[3] = {P_ + R_ * (X * 100.0), P_ + R_ * ((X + Sz) * 100.0), P_ + R_ * ((X + Sz / 2) * 100.0) + Back * (Sz * 1.5 * 100.0)};
+						for (const FVector& Q : Qs) { B.V.Add(Surface(Q) + FVector(0, 0, 0.6) - GetActorLocation()); B.N.Add(FVector::UpVector); B.UV.Add(FVector2D(X, At)); B.C.Add(FLinearColor(1.f, Grime(At), 1.f, 1.f)); }
+						B.I.Append({Bi, Bi + 1, Bi + 2});
+					}
+				}
+			}
+		// ---- its zebra crossings ("crossings": [{at, w (3), o0, o1: from - to across it, m, + to the right}]): white bars
+		// 0.5 m wide with 0.5 m gaps, each running along the road (default: kerb to kerb across the carriageway) ----
+		const TArray<TSharedPtr<FJsonValue>>* CJ = nullptr;
+		if (R->TryGetArrayField(TEXT("crossings"), CJ))
+			for (const TSharedPtr<FJsonValue>& CV : *CJ)
+			{
+				const TSharedPtr<FJsonObject> O = CV->AsObject();
+				const double At = O->GetNumberField(TEXT("at")); double Wd = 3.0; O->TryGetNumberField(TEXT("w"), Wd);
+				auto Carriage = [&](bool bR)
+				{
+					int32 i = 0;
+					for (const TSharedPtr<FJsonValue>& L : Lanes->GetArrayField(bR ? TEXT("right") : TEXT("left")))
+					{ const FString T = L->AsObject()->GetStringField(TEXT("type")); if (T == TEXT("Sidewalk") || T == TEXT("Island")) break; ++i; }
+					return Edge(bR, i, At);
+				};
+				double A0 = -Carriage(false), A1 = Carriage(true); O->TryGetNumberField(TEXT("o0"), A0); O->TryGetNumberField(TEXT("o1"), A1);
+				const double Lo = FMath::Min(A0, A1), Hi = FMath::Max(A0, A1);
+				const int32 Bars = FMath::Max(1, FMath::FloorToInt((Hi - Lo - 0.25) / 1.0));
+				const double Start = Lo + ((Hi - Lo) - (Bars * 1.0 - 0.5)) / 2.0;
+				for (int32 b = 0; b < Bars; ++b)
+				{
+					const double X0 = Start + b * 1.0;
+					Strip(FName(TEXT("paintwhite")), At - Wd / 2, At + Wd / 2, [X0](double) { return X0; }, [X0](double) { return X0 + 0.5; }, Wd / 4, Grime(At));
+				}
+				++Crossings;
+			}
+		// ---- its street lights ("lights": [{side, edge, off, spacing, from, to, toward: road / out}]): a row of posts on a
+		// lane edge (the back of a pavement, an island's middle, past a road's edge), standing on what is there ----
+		const TArray<TSharedPtr<FJsonValue>>* LJ = nullptr;
+		if (R->TryGetArrayField(TEXT("lights"), LJ))
+			for (const TSharedPtr<FJsonValue>& LV : *LJ)
+			{
+				if (!Lights) Lights = W->SpawnActor<AStreetLights>(FVector::ZeroVector, FRotator::ZeroRotator);
+				const TSharedPtr<FJsonObject> O = LV->AsObject();
+				double Spacing = 30.0, From = -1, To = RoadLen; FString Toward = TEXT("road");
+				O->TryGetNumberField(TEXT("spacing"), Spacing); O->TryGetNumberField(TEXT("from"), From); O->TryGetNumberField(TEXT("to"), To); O->TryGetStringField(TEXT("toward"), Toward);
+				if (From < 0) From = Spacing * 0.5;
+				int32 Placed = 0;
+				for (double D = From; D <= FMath::Min(To, RoadLen); D += Spacing)
+				{
+					FVector P_, F_, R_; OnRoad(D, P_, F_, R_);
+					const double Ofs = Off(O, D);
+					const FVector Out = R_ * (Ofs >= 0 ? 1.0 : -1.0);
+					if (Lights->AddPost(Surface(P_ + R_ * (Ofs * 100.0)), Toward == TEXT("out") ? Out : -Out)) ++Placed;
+				}
+				ADP_LOG(TEXT("Roads: %s - %d street lights (every %.0f m)"), *Id, Placed, Spacing);
+			}
+		// ---- its airport signs ("signs": [{at, km, dir: 1 for the cars driving along the path, -1 against it}]): on those
+		// cars' right, 1.5 m out past the road's outer edge, on the ground, facing them ----
 		const TArray<TSharedPtr<FJsonValue>>* SJ = nullptr;
 		if (R->TryGetArrayField(TEXT("signs"), SJ) && SJ->Num())
 		{
 			if (!Signs) Signs = W->SpawnActor<ARoadSigns>(FVector::ZeroVector, FRotator::ZeroRotator);
-			auto SideW = [&](const TCHAR* Key) { double W_ = 0.0; for (const TSharedPtr<FJsonValue>& L : Lanes->GetArrayField(Key)) { double Wd = 3.5; if (!L->AsObject()->TryGetNumberField(TEXT("w"), Wd)) { const TArray<TSharedPtr<FJsonValue>>* WA; if (L->AsObject()->TryGetArrayField(TEXT("w"), WA) && WA->Num()) Wd = (*WA)[0]->AsArray()[1]->AsNumber(); } W_ += Wd; } return W_; };
-			TArray<double> Al; Al.Add(0.0);
-			for (int32 k = 1; k < Pts.Num(); ++k) Al.Add(Al.Last() + FVector::Dist2D(Pts[k], Pts[k - 1]) / 100.0);
-			int32 Placed = 0;
 			for (const TSharedPtr<FJsonValue>& SV : *SJ)
 			{
 				const TSharedPtr<FJsonObject> O = SV->AsObject();
 				const double D = O->GetNumberField(TEXT("at")); double Dir = 1.0; O->TryGetNumberField(TEXT("dir"), Dir);
 				FString Km = TEXT("2"); O->TryGetStringField(TEXT("km"), Km);
-				int32 Sg = 0; while (Sg + 2 < Al.Num() && Al[Sg + 1] < D) ++Sg;
-				const double F = (D - Al[Sg]) / FMath::Max(Al[Sg + 1] - Al[Sg], 1e-6);
-				const FVector SP = Origin + FMath::Lerp(Pts[Sg], Pts[Sg + 1], F);
-				const FVector Fw = (Pts[Sg + 1] - Pts[Sg]).GetSafeNormal2D() * (Dir >= 0 ? 1.0 : -1.0);   // the cars' way
-				const FVector Right(-Fw.Y, Fw.X, 0.0);
-				const double Out = (SideW(Dir >= 0 ? TEXT("right") : TEXT("left")) + 1.5) * 100.0;
-				FVector At = SP + Right * Out;
-				At.Z = AAirfield::GroundAt(At.X / 100.0, -At.Y / 100.0) * 100.0;
-				if (Signs->AddSign(At, -Fw, Km)) ++Placed;
+				FVector P_, F_, R_; OnRoad(D, P_, F_, R_);
+				const FVector Fw = F_ * (Dir >= 0 ? 1.0 : -1.0), Rt(-Fw.Y, Fw.X, 0.0);
+				FVector SAt = P_ + Rt * ((Edge(Dir >= 0, 99, D) + 1.5) * 100.0);
+				SAt.Z = AAirfield::GroundAt(SAt.X / 100.0, -SAt.Y / 100.0) * 100.0;
+				Signs->AddSign(SAt, -Fw, Km);
 			}
-			ADP_LOG(TEXT("Roads: %s has %d airport signs"), *Id, Placed);
 		}
-		// its zebra crossings ("crossings": [{at: m along it, w: m wide (3)}]): white bars 0.5 m wide with 0.5 m gaps
-		// across the whole carriageway (kerb to kerb), each bar running along the road, in the airfield's white paint
-		// (its grime, the cracks through it, wetness and snow: Tools/set_ground.py MI_paintwhite), draped on the road
-		// 6 mm up (never in its surface)
-		const TArray<TSharedPtr<FJsonValue>>* CJ = nullptr;
-		if (R->TryGetArrayField(TEXT("crossings"), CJ) && CJ->Num())
+		// ---- a roundabout's middle ("disc": {r, kerb}): grass, raised, filling the ring's inside ----
+		const TSharedPtr<FJsonObject>* DJ = nullptr;
+		if (R->TryGetObjectField(TEXT("disc"), DJ))
 		{
-			if (!Zebras)
+			double Rd = 5.0, Kb = 0.15; (*DJ)->TryGetNumberField(TEXT("r"), Rd); (*DJ)->TryGetNumberField(TEXT("kerb"), Kb);
+			FVector2D Cn(0, 0); for (const FVector2D& D : Dense) Cn += D; Cn /= Dense.Num();
+			const double Zc = AAirfield::GroundAt(Cn.X, Cn.Y) + Lift + 0.03 + Kb - 0.01;
+			FPaintBuf& B = Paint.FindOrAdd(FName(TEXT("ggrass")));
+			const int32 Bi = B.V.Num();
+			B.V.Add(FVector(Cn.X * 100.0, -Cn.Y * 100.0, Zc * 100.0) - GetActorLocation()); B.N.Add(FVector::UpVector); B.UV.Add(FVector2D(0.5, 0.5)); B.C.Add(FLinearColor::White);
+			const int32 Seg = 48;
+			for (int32 k = 0; k <= Seg; ++k)
 			{
-				Zebras = NewObject<UProceduralMeshComponent>(this, TEXT("ZebraCrossings"));
-				Zebras->SetupAttachment(RootComponent); Zebras->SetCollisionEnabled(ECollisionEnabled::NoCollision); Zebras->RegisterComponent();
-				AddInstanceComponent(Zebras);
+				const double A = 2 * PI * k / Seg;
+				B.V.Add(FVector((Cn.X + Rd * FMath::Cos(A)) * 100.0, -(Cn.Y + Rd * FMath::Sin(A)) * 100.0, Zc * 100.0) - GetActorLocation());
+				B.N.Add(FVector::UpVector); B.UV.Add(FVector2D(0.5 + 0.5 * FMath::Cos(A), 0.5 + 0.5 * FMath::Sin(A))); B.C.Add(FLinearColor::White);
+				if (k) B.I.Append({Bi, Bi + k, Bi + k + 1});
 			}
-			// the carriageway's edges either side (m): the lanes up to the kerb or the road's edge
-			auto Carriage = [&](const TCHAR* Key)
-			{
-				double W_ = 0.0;
-				for (const TSharedPtr<FJsonValue>& L : Lanes->GetArrayField(Key))
-				{
-					const TSharedPtr<FJsonObject> O = L->AsObject();
-					if (O->GetStringField(TEXT("type")) == TEXT("Sidewalk")) break;
-					double Wd = 3.5; if (!O->TryGetNumberField(TEXT("w"), Wd)) { const TArray<TSharedPtr<FJsonValue>>* WA; if (O->TryGetArrayField(TEXT("w"), WA) && WA->Num()) Wd = (*WA)[0]->AsArray()[1]->AsNumber(); }
-					W_ += Wd;
-				}
-				return W_;
-			};
-			const double CL = Carriage(TEXT("left")), CR = Carriage(TEXT("right"));
-			TArray<double> Along; Along.Add(0.0);
-			for (int32 k = 1; k < Pts.Num(); ++k) Along.Add(Along.Last() + FVector::Dist2D(Pts[k], Pts[k - 1]) / 100.0);
-			auto OnRoad = [&](double D, FVector& OP, FVector& Right)
-			{
-				int32 Sg = 0; while (Sg + 2 < Along.Num() && Along[Sg + 1] < D) ++Sg;
-				const double F = (D - Along[Sg]) / FMath::Max(Along[Sg + 1] - Along[Sg], 1e-6);
-				OP = Origin + FMath::Lerp(Pts[Sg], Pts[Sg + 1], F);
-				const FVector Fw = (Pts[Sg + 1] - Pts[Sg]).GetSafeNormal2D(); Right = FVector(-Fw.Y, Fw.X, 0.0);
-			};
-			TArray<FVector> ZV; TArray<int32> Ix; TArray<FVector> N; TArray<FVector2D> UV; TArray<FLinearColor> C;
-			for (const TSharedPtr<FJsonValue>& CV : *CJ)
-			{
-				const TSharedPtr<FJsonObject> O = CV->AsObject();
-				const double At = O->GetNumberField(TEXT("at")); double Wd = 3.0; O->TryGetNumberField(TEXT("w"), Wd);
-				// the bars, from the left kerb across to the right one (a whole number of them, centred)
-				const int32 Bars = FMath::Max(1, FMath::FloorToInt((CL + CR - 0.25) / 1.0));
-				const double Start = -CL + ((CL + CR) - (Bars * 1.0 - 0.5)) / 2.0;
-				const float Grime = FMath::Frac(FMath::Sin(At * 12.9898) * 43758.5453);
-				for (int32 b = 0; b < Bars; ++b)
-				{
-					const double X0 = Start + b * 1.0, X1 = X0 + 0.5;
-					// each bar in pieces along its length, laid on the road's own height there
-					const int32 Steps = 4;
-					const int32 Base = ZV.Num();
-					for (int32 s = 0; s <= Steps; ++s)
-					{
-						FVector BP, Rt; OnRoad(At - Wd / 2 + Wd * s / Steps, BP, Rt);
-						for (const double X : {X0, X1})
-						{
-							// on the road's own built surface (MetaRoad's mesh can sit a little off its spline): traced, 6 mm up
-							FVector Q = BP + Rt * (X * 100.0);
-							FHitResult Hit; FCollisionQueryParams QP(SCENE_QUERY_STAT(ADPZebra), true);
-							if (W->LineTraceSingleByChannel(Hit, Q + FVector(0, 0, 150), Q - FVector(0, 0, 150), ECC_Visibility, QP)) { if (ZebraLog++ < 2) ADP_LOG(TEXT("Roads: zebra point %.1f cm off the spline (hit %s)"), Hit.ImpactPoint.Z - Q.Z, Hit.GetActor() ? *Hit.GetActor()->GetName() : TEXT("-")); Q.Z = Hit.ImpactPoint.Z; }
-							else if (ZebraLog++ < 2) ADP_LOG(TEXT("Roads: zebra point - no road surface found under it"));
-							ZV.Add(Q + FVector(0, 0, 0.6) - GetActorLocation());
-							N.Add(FVector::UpVector); UV.Add(FVector2D(X, s * Wd / Steps)); C.Add(FLinearColor(1.f, 0.3f + 0.5f * Grime, 1.f, 1.f));
-						}
-					}
-					for (int32 s = 0; s < Steps; ++s) { const int32 a = Base + s * 2; Ix.Append({a, a + 2, a + 1, a + 1, a + 2, a + 3}); }
-				}
-			}
-			// (wound to face up: Unreal shows a triangle from the side its corners run clockwise on - as AAirfield::Tri)
-			for (int32 t = 0; t + 2 < Ix.Num(); t += 3) if (FVector::CrossProduct(ZV[Ix[t + 1]] - ZV[Ix[t]], ZV[Ix[t + 2]] - ZV[Ix[t]]).Z > 0) Swap(Ix[t + 1], Ix[t + 2]);
-			Zebras->CreateMeshSection_LinearColor(ZebraSections, ZV, Ix, N, UV, C, TArray<FProcMeshTangent>(), false);
-			Zebras->SetMaterial(ZebraSections, ATerminalBuilder::KitMaterial(this, FName(TEXT("paintwhite"))));
-			++ZebraSections;
-			ADP_LOG(TEXT("Roads: %s has %d zebra crossings"), *Id, CJ->Num());
 		}
-		else ADP_ERROR(TEXT("Roads: %s did not build"), *Id);
 	}
-	ADP_LOG(TEXT("Roads: %d built in %.2f s (MetaRoad Free, at run time)"), Built, FPlatformTime::Seconds() - T0);
+	// ---- the car parks ("lots": [{x0, y0, x1, y1 (plan m), lift, rows: [{x0, x1, y, d, dir, w}]}]): tarmac on our ground,
+	// the spaces' white lines (one between every two, one across their heads) ----
+	const TArray<TSharedPtr<FJsonValue>>* LotJ = nullptr;
+	if (Root->TryGetArrayField(TEXT("lots"), LotJ))
+		for (const TSharedPtr<FJsonValue>& LV : *LotJ)
+		{
+			const TSharedPtr<FJsonObject> O = LV->AsObject();
+			const double X0 = O->GetNumberField(TEXT("x0")), Y0 = O->GetNumberField(TEXT("y0")), X1 = O->GetNumberField(TEXT("x1")), Y1 = O->GetNumberField(TEXT("y1"));
+			double Lf = 0.03; O->TryGetNumberField(TEXT("lift"), Lf);
+			auto LotAt = [&](double X, double Y, double Up) { return FVector(X * 100.0, -Y * 100.0, (AAirfield::GroundAt(X, Y) + Lf + Up) * 100.0) - GetActorLocation(); };
+			auto LotGrime = [](double D) { return 0.3f + 0.5f * float(FMath::Frac(FMath::Sin(D * 12.9898) * 43758.5453)); };
+			auto Rect = [&](FName Mat, double A0, double B0, double A1, double B1, double Up, double Step)
+			{
+				FPaintBuf& B = Paint.FindOrAdd(Mat);
+				const int32 Nx = FMath::Max(1, FMath::CeilToInt((A1 - A0) / Step)), Ny = FMath::Max(1, FMath::CeilToInt((B1 - B0) / Step));
+				const int32 Bi = B.V.Num();
+				for (int32 j = 0; j <= Ny; ++j) for (int32 i = 0; i <= Nx; ++i)
+				{
+					const double X = FMath::Lerp(A0, A1, double(i) / Nx), Y = FMath::Lerp(B0, B1, double(j) / Ny);
+					B.V.Add(LotAt(X, Y, Up)); B.N.Add(FVector::UpVector); B.UV.Add(FVector2D(0.4, Y / 4.0)); B.C.Add(FLinearColor(1.f, LotGrime(X + Y), 1.f, 1.f));
+				}
+				for (int32 j = 0; j < Ny; ++j) for (int32 i = 0; i < Nx; ++i) { const int32 a = Bi + j * (Nx + 1) + i; B.I.Append({a, a + 1, a + Nx + 2, a, a + Nx + 2, a + Nx + 1}); }
+			};
+			Rect(FName(TEXT("groad")), X0, Y0, X1, Y1, 0.0, 4.0);
+			int32 Spaces = 0;
+			const TArray<TSharedPtr<FJsonValue>>* RJ = nullptr;
+			if (O->TryGetArrayField(TEXT("rows"), RJ))
+				for (const TSharedPtr<FJsonValue>& RV : *RJ)
+				{
+					const TSharedPtr<FJsonObject> Rw = RV->AsObject();
+					const double RX0 = Rw->GetNumberField(TEXT("x0")), RX1 = Rw->GetNumberField(TEXT("x1")), RY = Rw->GetNumberField(TEXT("y"));
+					double Dd = 5.0, Dr = 1.0, Ww = 2.5; Rw->TryGetNumberField(TEXT("d"), Dd); Rw->TryGetNumberField(TEXT("dir"), Dr); Rw->TryGetNumberField(TEXT("w"), Ww);
+					const double YH = RY + Dr * Dd;
+					const int32 Nb = FMath::FloorToInt((RX1 - RX0) / Ww);
+					for (int32 b = 0; b <= Nb; ++b) { const double X = RX0 + b * Ww; Rect(FName(TEXT("paintwhite")), X - 0.06, FMath::Min(RY, YH), X + 0.06, FMath::Max(RY, YH), 0.006, 2.5); }
+					Rect(FName(TEXT("paintwhite")), RX0, YH - 0.06, RX0 + Nb * Ww, YH + 0.06, 0.006, 3.0);
+					Spaces += Nb;
+				}
+			ADP_LOG(TEXT("Roads: a car park %.0f x %.0f m with %d spaces"), X1 - X0, Y1 - Y0, Spaces);
+		}
+	// ---- every road's paint, the car parks and the roundabouts' middles: one mesh, a section per material ----
+	if (Paint.Num())
+	{
+		UProceduralMeshComponent* PM = NewObject<UProceduralMeshComponent>(this, TEXT("RoadPaint"));
+		PM->SetupAttachment(RootComponent); PM->SetCollisionEnabled(ECollisionEnabled::QueryOnly); PM->RegisterComponent();
+		AddInstanceComponent(PM);
+		int32 Sct = 0;
+		for (TPair<FName, FPaintBuf>& It : Paint)
+		{
+			FPaintBuf& B = It.Value;
+			// (wound to face up: Unreal shows a triangle from the side its corners run clockwise on - as AAirfield::Tri)
+			for (int32 t = 0; t + 2 < B.I.Num(); t += 3) if (FVector::CrossProduct(B.V[B.I[t + 1]] - B.V[B.I[t]], B.V[B.I[t + 2]] - B.V[B.I[t]]).Z > 0) Swap(B.I[t + 1], B.I[t + 2]);
+			PM->CreateMeshSection_LinearColor(Sct, B.V, B.I, B.N, B.UV, B.C, TArray<FProcMeshTangent>(), It.Key == TEXT("ggrass") || It.Key == TEXT("groad"));
+			PM->SetMaterial(Sct, ATerminalBuilder::KitMaterial(this, It.Key));
+			++Sct;
+		}
+	}
+	ADP_LOG(TEXT("Roads: %d built, %d zebra crossings, in %.2f s (MetaRoad Free, at run time)"), Built, Crossings, FPlatformTime::Seconds() - T0);
 	return Built;
 }

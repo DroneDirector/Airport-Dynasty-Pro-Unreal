@@ -281,7 +281,7 @@ void AAirfield::EdgeBands(bool bModelSite)
 {
 	// the runway, taxiways and aprons get theirs from the paving's outline (PaveTaxiways); here only the landside road
 	// and car park, on its open sides
-	if (!bModelSite) EdgeRect(-160, -170, 392, -0.5f, -0.05f, 1.f, 13);
+	// (the landside slab's edges went with it: the road network lays the forecourt)
 }
 
 #pragma region The taxiway system
@@ -1079,7 +1079,8 @@ bool AAirfield::Build(bool bModelSite)
 	// has come back down to it)
 	Quad("grass", D.Boundary.X0, D.Boundary.Y0, D.Boundary.X1, D.Boundary.Y1, -0.08f, 8.f);   // fine enough that it never pokes through the shoulders on the grade
 	// landside in front of the terminal: the kerb, the road and the car park (level ground)
-	if (!bModelSite) Quad("asphalt", -160, -170, 392, -0.5f, -0.05f, 50.f);
+	// (the landside in front of the terminal - its pavement, forecourt and car park - is the road network's now:
+	// RoadNetwork.cpp, Tools/make_roads.py, 2026-11-14)
 	// the aprons (concrete, level); with the Babylon model only those away from the terminal (it has the terminal's own)
 	Aprons(bModelSite);   // every apron and every stand's markings and wear, from the layout
 	ServiceRoads(bModelSite);
