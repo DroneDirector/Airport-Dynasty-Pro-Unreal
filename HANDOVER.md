@@ -63,6 +63,35 @@ textures (crack masks, rubber streaks), as the licence rules require.
 - Sliders for these on the same tuning panel (amount of rubber, cracks, edge wear), saved with the puddle settings.
 
 
+### Self check-in kiosk in the main hall (owner, 2026-11-14) — do this soon, it's small
+The cloud chat modelled it from the owner's four reference photos of a real kiosk (our own design: no brand or logo
+from the photos; the screen shows our own UI). Files on the PC, not committed yet (commit them, big files via LFS):
+- Art/Kiosk/SM_CheckinKiosk.glb (and .fbx, .blend): one mesh, ~10,600 triangles, real metres, 0.64 x 0.68 x 1.69 m
+  (base plate to the top of the handle), origin on the floor in the middle of the base plate, front facing -Y in
+  Blender. Parts: base plate, faceted white body leaning out to the counter, front door with lock and bag-tag slot,
+  black device bay (receipt printer, passport/document scanner, payment terminal with keys and card slot, barcode
+  camera), screen tilted back 11 deg in a white housing with black glass, dark grey handle loop with the green
+  status light, rear vents, lock and our own type label.
+- Art/Kiosk/T_Kiosk_ScreenUI.png (1600x1200, "Self check-in / Touch to start", our plane logo, language buttons) and
+  T_Kiosk_Label.png. Tools/kiosk_model.py rebuilds the model (needs the two PNGs next to it, named screen_ui.png and
+  label.png).
+
+To do:
+1. Import with Nanite on into the terminal's own set (e.g. /Game/Terminal/Props/Kiosk). Replace the imported
+   materials with the terminal's masters: white powder coat (lacquered surface), dark grey handle, black plastic,
+   the green light emissive.
+2. **The screen must reflect like the terminal's windows (owner):** the display uses the same glass treatment as the
+   windows (very low roughness, clear coat, Lumen reflections) with the UI texture as emissive UNDER that glass, so
+   the hall, the lights and people passing show in it; the black glass bezel round it reflects too.
+3. **Place it in the main hall (F1-HALL), near the middle, facing the passengers** (e.g. in front of the check-in
+   desks, F1-CHECKIN/DESK-*), and keep it clear: nothing within about 1.5 m in front and 0.6 m round the sides and
+   back (move queue posts, bins, planters, seats if needed), the walkers' navigation goes round it, and nothing
+   overlaps it.
+4. **It will be moved later, so place it from data, not by hand:** an entry in the terminal layout's placed props
+   (position, heading, floor) so moving it is changing numbers; later more kiosks can be added the same way.
+5. No render or screenshot (the owner looks himself). Chapters and CODE-MAP.md as usual; THIRD-PARTY-NOTICES: nothing
+   (all our own; Inter font OFL is already listed for the UI text).
+
 ### Then: what The Matrix Awakens / City Sample uses that fits this game (owner, 2026-11-13, in this order)
 
 **Set up first (about 30 min): Unreal's MCP server for Claude Code.** In the editor console run
