@@ -236,6 +236,14 @@ namespace
 	}
 }
 
+// the embankment's lift (m) out on the land: 1 m from the airfield's edge out, rising over its last 60 m inside
+static double BankLift(double X, double Y)
+{
+	const FAirfieldData::FRect& B = AAirfield::Shared().Boundary;
+	const double In = FMath::Min(FMath::Min(X - B.X0, B.X1 - X), FMath::Min(Y - B.Y0, B.Y1 - Y));
+	return 1.0 * (1.0 - FMath::SmoothStep(0.0, 60.0, In));
+}
+
 double ARoadNetwork::GroundAt(double X, double Y)
 {
 	const double Field = AAirfield::GroundAt(X, Y);
@@ -319,6 +327,15 @@ int32 ARoadNetwork::Build()
 		S->RegisterComponent();
 		TArray<double> Z; for (const FVector2D& D : Dense) Z.Add(ARoadNetwork::GroundAt(D.X, D.Y));
 		Z = SmoothHeights(Z, Dense, Lift);
+		// out on the land, on an embankment 1 m over the ground (owner, 2026-11-14: far off, the globe is drawn coarser -
+		// the player's terrain quality too - and stood through the road in patches; the real roads across the sandur are
+		// raised so): from the airfield's edge out, rising over its last 60 m inside; the grass shoulders run down from it
+		{
+			for (int32 k = 0; k < Dense.Num(); ++k)
+			{
+				Z[k] += BankLift(Dense[k].X, Dense[k].Y);
+			}
+		}
 		TArray<FVector> Pts;
 		for (int32 k = 0; k < Dense.Num(); ++k) Pts.Add(FVector(Dense[k].X * 100.0, -Dense[k].Y * 100.0, Z[k] * 100.0) - Origin);
 		S->SetClosedLoop(bClosedPath, false);
@@ -391,6 +408,41 @@ int32 ARoadNetwork::Build()
 			}
 			for (int32 s = 0; s < N; ++s) { const int32 a = Base + s * 2; B.I.Append({a, a + 2, a + 1, a + 1, a + 2, a + 3}); }
 		};
+		// ---- its shoulders (owner, 2026-11-14: the road floated over the land near the town, and the land's detail follows
+		// the player's terrain quality): outside the airfield every road stands on a grass embankment, from its outer edge
+		// 4 m out and 2.6 m down: 1 m of bank above the land, 1.6 m into it, so whatever detail the globe is drawn at, the road meets the ground with no
+		// gap or shadow under it (as the real roads across the sandur, on their banks). Inside the airfield (its ground
+		// drawn by us, exact) there's none.
+		{
+			const FAirfieldData::FRect& FB = AAirfield::Shared().Boundary;
+			const double SW = 4.0, SD = 2.6, SStep = 4.0;   // (1 m of bank over the land, 1.6 m into it)
+			for (const bool bR : {true, false})
+			{
+				FPaintBuf& B = Paint.FindOrAdd(FName(TEXT("ggrass")));
+				int32 Prev = -1;
+				const int32 N = FMath::Max(1, FMath::CeilToInt(RoadLen / SStep));
+				for (int32 sI = 0; sI <= N; ++sI)
+				{
+					const double D = RoadLen * sI / N;
+					FVector P_, F_, R_; OnRoad(D, P_, F_, R_);
+					const double Sg = bR ? 1.0 : -1.0, Ed = Edge(bR, 99, D);
+					const FVector EIn = Surface(P_ + R_ * (Sg * (Ed - 0.05) * 100.0));
+					const FVector E = FVector(P_.X + R_.X * Sg * Ed * 100.0, P_.Y + R_.Y * Sg * Ed * 100.0, EIn.Z - 1.0);
+					const double PX = E.X / 100.0, PY = -E.Y / 100.0;
+					const bool bOut = FMath::Min(FMath::Min(PX - FB.X0, FB.X1 - PX), FMath::Min(PY - FB.Y0, FB.Y1 - PY)) < 60.0;
+					if (!bOut) { Prev = -1; continue; }
+					const FVector O = E + R_ * (Sg * SW * 100.0) - FVector(0, 0, SD * 100.0);
+					const int32 Bi = B.V.Num();
+					B.V.Add(E - GetActorLocation()); B.V.Add(O - GetActorLocation());
+					const FVector Nn = FVector(-R_.X * Sg * SD, -R_.Y * Sg * SD, SW).GetSafeNormal();
+					B.N.Add(Nn); B.N.Add(Nn);
+					B.UV.Add(FVector2D(E.X / 100.0, E.Y / 100.0)); B.UV.Add(FVector2D(O.X / 100.0, O.Y / 100.0));
+					B.C.Add(FLinearColor::White); B.C.Add(FLinearColor::White);
+					if (Prev >= 0) B.I.Append({Prev, Bi, Prev + 1, Prev + 1, Bi, Bi + 1});
+					Prev = Bi;
+				}
+			}
+		}
 		auto ColourOf = [](const TSharedPtr<FJsonObject>& O) { FString Cl = TEXT("white"); O->TryGetStringField(TEXT("color"), Cl); return FName(*(FString(TEXT("paint")) + Cl)); };
 		// ---- its markings ("paint": lines, dashes, the boxes of the bus and taxi stands, give-way teeth) ----
 		const TArray<TSharedPtr<FJsonValue>>* PJ = nullptr;
@@ -550,7 +602,7 @@ int32 ARoadNetwork::Build()
 		{
 			double Rd = 5.0, Kb = 0.15; (*DJ)->TryGetNumberField(TEXT("r"), Rd); (*DJ)->TryGetNumberField(TEXT("kerb"), Kb);
 			FVector2D Cn(0, 0); for (const FVector2D& D : Dense) Cn += D; Cn /= Dense.Num();
-			const double Zc = ARoadNetwork::GroundAt(Cn.X, Cn.Y) + Lift + 0.03 + Kb - 0.01;
+			const double Zc = ARoadNetwork::GroundAt(Cn.X, Cn.Y) + BankLift(Cn.X, Cn.Y) + Lift + 0.03 + Kb - 0.01;
 			FPaintBuf& B = Paint.FindOrAdd(FName(TEXT("ggrass")));
 			const int32 Bi = B.V.Num();
 			B.V.Add(FVector(Cn.X * 100.0, -Cn.Y * 100.0, Zc * 100.0) - GetActorLocation()); B.N.Add(FVector::UpVector); B.UV.Add(FVector2D(0.5, 0.5)); B.C.Add(FLinearColor::White);

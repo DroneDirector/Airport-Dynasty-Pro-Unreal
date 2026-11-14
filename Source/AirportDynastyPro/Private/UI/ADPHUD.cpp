@@ -2902,7 +2902,7 @@ void AADPHUD::Tick(float Dt)
 		// height along it, low at the kerb and at its outer edge on the grass (owner, 2026-11-14: nothing poking through)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIRoad")) || FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport")))
 		{
-			auto Shot = [this](const TCHAR* Name) { if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 2 filename=%s"), Name)); };
+			auto Shot = [this](const TCHAR* Name) { int32 K = 2; FParse::Value(FCommandLine::Get(), TEXT("ShotScale="), K); if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(FString::Printf(TEXT("HighResShot %d filename=%s"), FMath::Clamp(K, 1, 4), Name)); };
 			static TWeakObjectPtr<ACameraActor> RCam;
 			// a free camera at a plan point, h metres over our ground, looking at another
 			auto View = [this](float X, float H, float Y, float LX, float LH, float LY)

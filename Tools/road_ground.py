@@ -106,6 +106,21 @@ def main():
     for x, y in want:
         z = game_height(x, y)
         if z is not None: pts.append([round(x, 1), round(y, 1), round(z, 2)])
+    # the ground the game actually draws, where it was measured (ADPHUD -RoadGroundProbe: Data/road-ground-probe.json,
+    # 2026-11-14): the tiles' heights read here differ from it by up to 3 m, more toward the town (the road floated
+    # there), in a way no single cause explained - so every point is corrected to the measurements: the difference at
+    # the measured points, spread to the rest by distance (the 6 nearest within 400 m)
+    PR = ROOT / 'Data' / 'road-ground-probe.json'
+    if PR.exists() and pts:
+        from scipy.spatial import cKDTree
+        M = np.array(json.loads(PR.read_text())['pts']); Q = np.array(pts)
+        t = cKDTree(Q[:, :2]); d, i = t.query(M[:, :2]); ok = d < 3.0
+        Mx, Md = M[ok, :2], M[ok, 2] - Q[i[ok], 2]
+        tm = cKDTree(Mx); dd, ii = tm.query(Q[:, :2], k=min(6, len(Mx)))
+        w = 1.0 / np.maximum(dd, 1.0) ** 2; w[dd > 400.0] = 0.0
+        corr = np.where(w.sum(1) > 0, (w * Md[ii]).sum(1) / np.maximum(w.sum(1), 1e-12), Md[ii[:, 0]])
+        for k in range(len(pts)): pts[k][2] = round(pts[k][2] + float(corr[k]), 2)
+        print('road_ground: corrected to %d measured points (difference %.2f to %.2f m)' % (len(Mx), Md.min(), Md.max()))
     J = json.dumps({'source': 'Tools/road_ground.py (terrain tiles %s, level 13)' % a.tiles, 'pts': pts})
     for d in (ROOT / 'Data', ROOT / 'Content' / 'Data'): (d / 'road-ground.json').write_text(J)
     zs = [p[2] for p in pts]
