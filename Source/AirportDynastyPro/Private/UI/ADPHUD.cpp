@@ -3186,6 +3186,40 @@ void AADPHUD::Tick(float Dt)
 			if (!K && Before < 43.f && ShotClock >= 43.f) ADP_ERROR(TEXT("UIKiosk: KIOSK-1 isn't placed"));
 			if (Before < 43.f + UE_ARRAY_COUNT(Shots) * 4.f + 2.f && ShotClock >= 43.f + UE_ARRAY_COUNT(Shots) * 4.f + 2.f) FGenericPlatformMisc::RequestExit(false);
 		}
+		// -UISticker: the no-smoking sticker on the terminal's entrance doors (to-do 31), close from both sides and from the
+		// forecourt - PNG (HighResShot), midday
+		if (FParse::Param(FCommandLine::Get(), TEXT("UISticker")))
+		{
+			static TWeakObjectPtr<ACameraActor> SCam; static FVector SAt = FVector::ZeroVector, SN = FVector::UpVector;
+			if (Before < 41.f && ShotClock >= 41.f)
+			{
+				if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 12.5f; ASunClock::Refresh();
+				for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It)
+				{
+					TArray<UStaticMeshComponent*> Cs; It->GetComponents(Cs);
+					for (UStaticMeshComponent* C : Cs)
+						if (C->GetMaterial(0) && C->GetMaterial(0)->GetName() == TEXT("M_NoSmoking")) { SAt = C->GetComponentLocation(); SN = C->GetUpVector(); break; }
+					if (!SAt.IsZero()) break;
+				}
+				ADP_LOG(TEXT("UISticker: sticker at %s, facing %s"), *SAt.ToString(), *SN.ToString());
+			}
+			struct FS { const TCHAR* Name; float Dist, Side, Up; };
+			const FS Shots[] = { {TEXT("Sticker_1_Front"), 120.f, 0.f, 10.f}, {TEXT("Sticker_2_Back"), -120.f, 0.f, 10.f}, {TEXT("Sticker_3_Door"), 450.f, 120.f, 20.f}, {TEXT("Sticker_4_Forecourt"), 900.f, -250.f, 30.f} };
+			for (int32 i = 0; !SAt.IsZero() && i < UE_ARRAY_COUNT(Shots); ++i)
+			{
+				const float T0 = 43.f + i * 4.f; const FS& S = Shots[i];
+				if (Before < T0 && ShotClock >= T0)
+				{
+					FVector Hz = SN; Hz.Z = 0; Hz = Hz.GetSafeNormal(); const FVector Rt(-Hz.Y, Hz.X, 0);
+					const FVector E = SAt + Hz * S.Dist + Rt * S.Side + FVector(0, 0, S.Up);
+					if (!SCam.IsValid()) SCam = GetWorld()->SpawnActor<ACameraActor>(E, (SAt - E).Rotation()); else SCam->SetActorLocationAndRotation(E, (SAt - E).Rotation());
+					if (APlayerController* PC = GetOwningPlayerController()) if (SCam.IsValid()) { SCam->GetCameraComponent()->SetConstraintAspectRatio(false); SCam->GetCameraComponent()->SetFieldOfView(S.Dist > 200.f ? 55.f : 40.f); PC->SetViewTarget(SCam.Get()); }
+				}
+				if (Before < T0 + 3.f && ShotClock >= T0 + 3.f) if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 2 filename=%s"), S.Name));
+			}
+			if (SAt.IsZero() && Before < 43.f && ShotClock >= 43.f) ADP_ERROR(TEXT("UISticker: no sticker found on the doors"));
+			if (Before < 43.f + UE_ARRAY_COUNT(Shots) * 4.f + 2.f && ShotClock >= 43.f + UE_ARRAY_COUNT(Shots) * 4.f + 2.f) FGenericPlatformMisc::RequestExit(false);
+		}
 		// -UIPanels: every door button panel in pictures (inside the fire station by each bay door, inside each hangar)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIPanels")))
 		{

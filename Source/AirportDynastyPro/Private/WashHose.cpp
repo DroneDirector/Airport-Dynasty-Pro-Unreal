@@ -20,8 +20,11 @@
 namespace
 {
 	TArray<TWeakObjectPtr<AWashHose>> AllHoses;
-	constexpr float JetSpeed = 2000.f, HoseGravity = 980.f, DropsPerSecond = 260.f, MaxDropLife = 2.f;
-	constexpr int32 MaxWet = 40;
+	// (owner, 2026-11-14: a more powerful jet - about double the reach, so you can hit a truck without standing close: held
+	// level from the hand it carries about 19 m, was 10; the air slows it, so aimed high it doesn't fly absurdly far;
+	// drops let go twice as often so the faster jet still joins into one line)
+	constexpr float JetSpeed = 4500.f, JetDrag = 0.8f, HoseGravity = 980.f, DropsPerSecond = 520.f, MaxDropLife = 2.f;
+	constexpr int32 MaxWet = 160;   // (owner, 2026-11-14: hosing leaves more water on the ground - was 40)
 	constexpr float WetDries = 180.f;   // a wet patch dries off in three minutes (cool, damp air)
 	constexpr int32 HoseRate = 44100;
 
@@ -443,6 +446,7 @@ void AWashHose::Spray(float Dt, const FVector& Tip, const FVector& Aim)
 		Dp.P += Dp.V * Dt;
 		bool bGone = Dp.Life > (Dp.bMist ? 0.9f : Dp.bSplash ? 0.35f : MaxDropLife);
 		if (Dp.bMist) Dp.V *= FMath::Max(0.f, 1.f - 3.f * Dt);   // (the spray slows in the air and hangs)
+		else if (!Dp.bSplash) Dp.V *= FMath::Max(0.f, 1.f - JetDrag * Dt);   // (the jet slowed by the air)
 		if (!Dp.bSplash && !bGone)
 		{
 			FHitResult H;
@@ -520,7 +524,14 @@ void AWashHose::WetAt(const FVector& At, const FVector& Normal)
 {
 	// one patch per spot: a fresh hit near an old one wets it again
 	for (int32 i = 0; i < Wet.Num(); ++i)
-		if (Wet[i] && FVector::Dist(Wet[i]->GetComponentLocation(), At) < 70.f) { WetAge[i] = FMath::Min(WetAge[i], 0.f); return; }
+		if (Wet[i] && FVector::Dist(Wet[i]->GetComponentLocation(), At) < 70.f)
+		{
+			// wetted again: wetter, and the water spreading out as more lands on it (up to 2.4 m across)
+			WetAge[i] = FMath::Min(WetAge[i], 0.f);
+			FVector S = Wet[i]->DecalSize; const float G = FMath::Min(S.Y * 1.015f, 120.f) / FMath::Max(S.Y, 1.f);
+			S.Y *= G; S.Z *= G; Wet[i]->DecalSize = S; Wet[i]->MarkRenderStateDirty();
+			return;
+		}
 	WetClock -= 1.f;
 	if (Wet.Num() >= MaxWet)
 	{
@@ -532,9 +543,9 @@ void AWashHose::WetAt(const FVector& At, const FVector& Normal)
 	if (!Base) return;
 	UDecalComponent* Dc = NewObject<UDecalComponent>(this);
 	UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(Base, this);
-	M->SetScalarParameterValue(TEXT("Amount"), 0.85f);
+	M->SetScalarParameterValue(TEXT("Amount"), 1.0f);
 	Dc->SetDecalMaterial(M);
-	const float R = FMath::FRandRange(55.f, 95.f);
+	const float R = FMath::FRandRange(80.f, 130.f);   // (bigger patches: more water on the ground)
 	Dc->DecalSize = FVector(40.f, R, R);
 	Dc->SetUsingAbsoluteLocation(true); Dc->SetUsingAbsoluteRotation(true);
 	Dc->SetupAttachment(RootComponent);

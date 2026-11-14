@@ -21,7 +21,7 @@ ITEMS = [
  ('16',  'Voice comparison: Chatterbox / Kokoro, calm + angry', 'done', ['voice'], '', True),
  ('2',   'Re-fit the 120 people (runs on its own)', '2-4 h', ['people'], '1', False),
  ('3',   '7 very overweight people + 10 teenagers', '1 h', ['people'], '1', False),
- ('31',  'No-smoking sign on the entrance doors: compile + check', '15 min', ['none'], '', False),
+ ('31',  'No-smoking sign on the entrance doors: compile + check', '15 min', ['none'], '', True),
  ('6',   'Airfield ground surface, runway slopes + crown: compile + look', '2 h', ['field'], '', False),
  ('7',   'Aircraft + vehicles on the slope: check', '30 min', ['field'], '6', False),
  ('8',   'Markings on the surface: check', '30 min', ['field'], '6', False),
@@ -103,7 +103,7 @@ ITEMS = [
     ('51', 'FIRST AFTER THE TERMINAL: the update screen - its progress flashes wildly (fix); and its look exactly as the new-career steps (the neon look, its effects, glass and materials, not only the colours); then the small byte-level updates (50)', '2-3 h', ['rel'], '', False),
     ('52', 'Terminal advertising: huge LED advertisement screens inside the terminal where real airports put them (check-in hall, airside walkways, gate areas, baggage claim), moving adverts on bright LED panels, our own made-up brands', '6-10 h', ['gfx'], '', False),
     ('53', 'Tyre tracks off-road (question only, not ordered): deep-looking tracks behind the trucks on grass and soft ground, flattened grass, fading in time - decals 8-12 h, real ruts 16-24 h', '8-12 h', ['field'], '', False),
-    ('54', 'Wash hose: a more powerful jet - about double the reach, so you can hit a truck without standing close; still cut off where it hits something (never through it)', '1 h', ['field'], '', False),
+    ('54', 'Wash hose: a more powerful jet - about double the reach, so you can hit a truck without standing close; still cut off where it hits something (never through it)', '1 h', ['field'], '', True),
     ('55', 'Road network with MetaRoad Free (HANDOVER 3b, the owner map plans in Art/Maps): you add MetaRoad Free from Fab and install it to 5.7 first; licence + 5.7 check; then 10 parts with a stop after each - setup; forecourt lanes (wider, bus + taxi lanes); bays and car park [publish A]; terminal roundabout + road out both ends to 2 km; 2-5 km; 5-7.8 km + town roundabout [publish B]; main street; north loops; Torgvegur/Skolavegur/Sudurbogi; pavements, zebras, lights, plots [publish C]. Town buildings not built. Then scheduled vehicles (3 parts) and staff commutes (1)', '37-50 h + 22-34 h', ['field'], '', False),
     ('40g', 'Iceland scenery: mountains torn into walls and steps - rebuild the Iceland/Faroes height tiles with feathered edges where they meet the world map', '3-4 h', ['field'], '', False),
 ]
