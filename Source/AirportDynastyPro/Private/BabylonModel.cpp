@@ -42,6 +42,24 @@ bool ABabylonModel::Place(const FString& Name)
 	TSharedPtr<FJsonObject> J;
 	if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), J) || !J) return false;
 	const TArray<TSharedPtr<FJsonValue>>& Nodes = J->GetArrayField(TEXT("nodes"));
+	// the true-Unreal terminal (to-do 42): its native piece set (/Game/Terminal/Meshes, Tools/terminal_native_meshes.py),
+	// every copy of a piece drawn from that one mesh as one instanced list (Data/terminal-pieces.json: each imported
+	// mesh's piece and its offset); -OldTerminal shows the Babylon-exported set as before, to compare
+	TMap<FString, TPair<FString, FVector>> Pieces;
+	if (Name == TEXT("Terminal") && !FParse::Param(FCommandLine::Get(), TEXT("OldTerminal")))
+	{
+		FString PText, PPath = FPaths::Combine(FPaths::ProjectContentDir(), TEXT("Data/terminal-pieces.json"));
+		if (!FPaths::FileExists(PPath)) PPath = FPaths::Combine(FPaths::ProjectDir(), TEXT("Data/terminal-pieces.json"));
+		TSharedPtr<FJsonObject> PJ;
+		if (FFileHelper::LoadFileToString(PText, *PPath) && FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(PText), PJ) && PJ)
+			for (const TPair<FString, TSharedPtr<FJsonValue>>& E : PJ->Values)
+			{
+				const TArray<TSharedPtr<FJsonValue>>& A = E.Value->AsArray();
+				if (A.Num() == 4) Pieces.Add(E.Key, TPair<FString, FVector>(A[0]->AsString(), FVector(A[1]->AsNumber(), A[2]->AsNumber(), A[3]->AsNumber())));
+			}
+		if (Pieces.Num() && !FPackageName::DoesPackageExist(TEXT("/Game/Terminal/Meshes/") + Pieces.CreateConstIterator()->Value.Key)) Pieces.Reset();
+		ADP_LOG(TEXT("Terminal: %s"), Pieces.Num() ? *FString::Printf(TEXT("native pieces (%d meshes)"), Pieces.Num()) : TEXT("the Babylon-exported set"));
+	}
 	// the imported meshes are named after the glTF mesh's number (the terminal) or after their object (the lounge)
 	FString AssetNames;
 	J->TryGetStringField(TEXT("assetNames"), AssetNames);
@@ -106,12 +124,17 @@ bool ABabylonModel::Place(const FString& Name)
 			UInstancedStaticMeshComponent* K = nullptr;
 			FString Asset = FString::Printf(TEXT("%s_mesh_%d"), *Name.ToLower(), Mesh);
 			if (bByNode) N->TryGetStringField(TEXT("name"), Asset);
+			// the native terminal: this copy's piece, and where the copy sat against it
+			FVector PieceOff = FVector::ZeroVector;
+			const bool bPiece = Pieces.Num() > 0;
+			if (const TPair<FString, FVector>* Pc = bPiece ? Pieces.Find(Asset) : nullptr) { Asset = Pc->Key; PieceOff = Pc->Value; }
 			// a door's parts in lists of their own (they move; the big shared lists never need rebuilding)
 			const FString Key = bDoor ? Asset + TEXT("#door") : Canopy[I] ? Asset + TEXT("#canopy") : Asset;
 			if (TObjectPtr<UInstancedStaticMeshComponent>* F = ByMesh.Find(Key)) K = *F;
 			else
 			{
-				const FString MeshPath = FString::Printf(TEXT("/Game/Babylon/%s/%s/StaticMeshes/%s.%s"), *Name, *Name.ToLower(), *Asset, *Asset);
+				const FString MeshPath = bPiece ? FString::Printf(TEXT("/Game/Terminal/Meshes/%s.%s"), *Asset, *Asset)
+					: FString::Printf(TEXT("/Game/Babylon/%s/%s/StaticMeshes/%s.%s"), *Name, *Name.ToLower(), *Asset, *Asset);
 				if (UStaticMesh* SM = LoadObject<UStaticMesh>(nullptr, *MeshPath))
 				{
 					K = NewObject<UInstancedStaticMeshComponent>(this);
@@ -127,7 +150,7 @@ bool ABabylonModel::Place(const FString& Name)
 			// importer builds each object's position into its mesh), so they go in as they are
 			if (K)
 			{
-				const int32 Ix = K->AddInstance(bByNode ? FTransform::Identity : World, false);
+				const int32 Ix = K->AddInstance(bByNode ? FTransform::Identity : FTransform(PieceOff) * World, false);
 				NodeInst[I] = TPair<UInstancedStaticMeshComponent*, int32>(K, Ix); ++Placed;
 				FString NodeName; N->TryGetStringField(TEXT("name"), NodeName);
 				TArray<FString>& Names = InstNames.FindOrAdd(K); if (Names.Num() <= Ix) Names.SetNum(Ix + 1); Names[Ix] = NodeName;
