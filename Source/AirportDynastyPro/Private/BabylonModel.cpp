@@ -292,9 +292,11 @@ bool ABabylonModel::Place(const FString& Name)
 			}
 			// the entrance doors' leaves wear the no-smoking sticker
 			if (Door.Id.Contains(TEXT("-ENTR-"))) for (FPart& P : Door.Parts) if (P.Slide != 0) AddSticker(P);
+			for (const FPart& Pt : Door.Parts) if (Pt.Slide != 0) Door.bSlide = true;
 			if (Door.Parts.Num()) Doors.Add(MoveTemp(Door));
 		}
 		ADP_LOG(TEXT("Babylon model %s: %d doors that move"), *Name, Doors.Num());
+		if (Doors.Num()) AllModels.AddUnique(this);   // (its hinged doors open with E / X: UseDoor)
 		// the gate screens (nodes M-F<floor>-G<gate>): their face ("scr"), each its own mesh, for the live gate pictures
 		for (int32 G = 0; G < Nodes.Num(); ++G)
 		{
@@ -1020,7 +1022,10 @@ void ABabylonModel::Tick(float Dt)
 	{
 		if (D.bSpin) { for (FPart& Part : D.Parts) if (Part.bSpin) MovePart(Part, 0, Clock * 0.6f); continue; }
 		const bool bNear = FVector2D::Distance(FVector2D(Me), FVector2D(D.At)) < D.Reach * 100.f && FMath::Abs(Me.Z - D.At.Z) < 250.f;
-		const float Want = bNear ? 1.f : 0.f;
+		// sliding doors open by themselves as you come; any other door only when you open it (UseDoor), and its closer
+		// pulls it shut 4 s after you've gone from it
+		if (!D.bSlide && D.bOpen) { D.Away = bNear ? 0.f : D.Away + Dt; if (D.Away > 4.f) D.bOpen = false; }
+		const float Want = (D.bSlide ? bNear : D.bOpen) ? 1.f : 0.f;
 		if (FMath::Abs(D.K - Want) < 0.001f) continue;
 		D.K += FMath::Sign(Want - D.K) * FMath::Min(FMath::Abs(Want - D.K), Dt * 1.6f);
 		const float E = D.K * D.K * (3 - 2 * D.K);   // eased, as doors.ts
@@ -1031,6 +1036,71 @@ void ABabylonModel::Tick(float Dt)
 #pragma endregion
 
 #pragma endregion
+
+TArray<TWeakObjectPtr<ABabylonModel>> ABabylonModel::AllModels;
+
+int32 ABabylonModel::FindDoor(const FVector& Feet, const FVector& Facing) const
+{
+	const FTransform T = Root->GetComponentTransform();
+	const FVector Me = T.InverseTransformPosition(Feet);
+	int32 Best = -1; float BestD = 1e9f;
+	for (int32 i = 0; i < Doors.Num(); ++i)
+	{
+		const FDoor& D = Doors[i];
+		if (D.bSlide || D.bSpin) continue;
+		const float Dist = FVector2D::Distance(FVector2D(Me), FVector2D(D.At));
+		if (Dist > 190.f || FMath::Abs(Me.Z - D.At.Z) > 250.f) continue;
+		// you face it (within about 65 degrees), so the right one of two doors side by side opens
+		const FVector To = (T.TransformPosition(D.At) - Feet).GetSafeNormal2D();
+		if (Dist > 60.f && FVector::DotProduct(To, Facing.GetSafeNormal2D()) < 0.42f) continue;
+		if (Dist < BestD) { BestD = Dist; Best = i; }
+	}
+	return Best;
+}
+
+bool ABabylonModel::DoorNear(const FVector& Feet, const FVector& Facing, bool& bIsOpen)
+{
+	for (const TWeakObjectPtr<ABabylonModel>& W : AllModels)
+		if (const ABabylonModel* M = W.Get())
+		{
+			const int32 i = M->FindDoor(Feet, Facing);
+			if (i >= 0) { bIsOpen = M->Doors[i].bOpen; return true; }
+		}
+	return false;
+}
+
+bool ABabylonModel::TestHingedDoor(FVector& At, int32& NSlide, int32& NHinged)
+{
+	NSlide = NHinged = 0; bool bGot = false;
+	for (const TWeakObjectPtr<ABabylonModel>& W : AllModels)
+		if (const ABabylonModel* M = W.Get())
+			for (const FDoor& D : M->Doors)
+			{
+				if (D.bSpin) continue;
+				if (D.bSlide) { ++NSlide; continue; }
+				++NHinged;
+				if (!bGot && D.At.Z < 200.f) { At = M->Root->GetComponentTransform().TransformPosition(D.At); bGot = true; }
+			}
+	return bGot;
+}
+
+bool ABabylonModel::UseDoor(const APawn* Me)
+{
+	if (!Me) return false;
+	const FVector Feet = Me->GetActorLocation() - FVector(0, 0, Me->GetSimpleCollisionHalfHeight());
+	const FVector Facing = Me->GetControlRotation().Vector();
+	for (const TWeakObjectPtr<ABabylonModel>& W : AllModels)
+		if (ABabylonModel* M = W.Get())
+		{
+			const int32 i = M->FindDoor(Feet, Facing);
+			if (i < 0) continue;
+			FDoor& D = M->Doors[i];
+			D.bOpen = !D.bOpen; D.Away = 0.f;
+			ADP_LOG(TEXT("Door %s %s (E / X)"), *D.Id, D.bOpen ? TEXT("opened") : TEXT("closed"));
+			return true;
+		}
+	return false;
+}
 
 FString ABabylonModel::NodeAt(const UPrimitiveComponent* C, int32 Item) const
 {

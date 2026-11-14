@@ -27,7 +27,7 @@ ITEMS = [
  ('8',   'Markings on the surface: check', '15 min', ['field'], '6', True),
  ('12',  'Edge bands: compile, look, tune the textures by eye', '45 min', ['field'], '8', True),
  ('29',  'F: backup of generated folders', '15 min + copy time', ['none'], '', False),
- ('20',  'Door rule: only sliding doors open themselves; E / X elsewhere', '30 min', ['none'], '', False),
+ ('20',  'Door rule: only sliding doors open themselves; E / X elsewhere', '30 min', ['none'], '', True),
  ('5',   'Release 0.17.7: truck pass, engine sound, sign, airfield', '1.5 h', ['rel'], '2, 3, 6-8, 12', True),
  ('21a', 'Hero people built at full (strand) hair quality', '45 min + PC build', ['people'], '2', False),
  ('21b', 'Settings option "Hair: cards / strands", near / far switch; the quality shows on the people everywhere they stand: the new-career gender screen, the creator, the wardrobe, the airport', '40 min', ['people'], '21a', False),

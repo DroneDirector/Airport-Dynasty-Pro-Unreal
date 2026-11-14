@@ -1515,6 +1515,8 @@ void AADPHUD::Interact()
 		const FString N = Hit.GetComponent()->GetName();
 		if (N.Contains(TEXT("screenPanel")) || N.Contains(TEXT("black"))) { ToggleGame(); return; }
 	}
+	// a hinged door you face: open or close it (only sliding doors open by themselves - owner's door rule, to-do 20)
+	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton) && ABabylonModel::UseDoor(GetOwningPawn())) return;
 	// a door panel by you: E steps up to it, your finger out (not a click)
 	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton) && ADoorPanelUse::Interact(GetOwningPawn(), nullptr)) return;
 	// standing at the wash hose's hook: its gun
@@ -1698,6 +1700,7 @@ void AADPHUD::RefreshControls()
 		// the wash hose: in your hand, or by its hook
 		if ((bHoseHeld || bNearHose) && !Drone.IsValid()) for (const ADPInput::FAction& A : ADPInput::HoseActions(bHoseHeld, bNearHose)) ButtonsList->AddSlot().AutoHeight()[Row(A, false)];
 		if ((bSeated || (bNearSeat && !bHoseHeld)) && !Drone.IsValid()) ButtonsList->AddSlot().AutoHeight()[Row(ADPInput::SeatAction(bSeated), false)];
+		if (bNearDoor && !Drone.IsValid()) ButtonsList->AddSlot().AutoHeight()[Row(ADPInput::DoorAction(bDoorOpen), false)];
 	}
 	if (SettingsControls.IsValid())
 	{
@@ -1733,6 +1736,9 @@ void AADPHUD::Tick(float Dt)
 		if (bHeld != bHoseHeld || bByHose != bNearHose) { bHoseHeld = bHeld; bNearHose = bByHose; RefreshControls(); }
 		const bool bSat = ASeats::IsSitting(), bBySeat = !bSat && Me && !Drone.IsValid() && ASeats::NearSeat(Me->GetActorLocation());
 		if (bSat != bSeated || bBySeat != bNearSeat) { bSeated = bSat; bNearSeat = bBySeat; RefreshControls(); }
+		bool bDOpen = false;
+		const bool bByDoor = Me && !Drone.IsValid() && !bSat && !bHeld && ABabylonModel::DoorNear(Me->GetActorLocation() - FVector(0, 0, Me->GetSimpleCollisionHalfHeight()), Me->GetControlRotation().Vector(), bDOpen);
+		if (bByDoor != bNearDoor || (bByDoor && bDOpen != bDoorOpen)) { bNearDoor = bByDoor; bDoorOpen = bDOpen; RefreshControls(); }
 	}
 	// the stage's transition over: the creator's panel on the free side
 	if (bWhoAreYou && !bWhoAreYouCreator && ADPCharacterCreate::Done() && Browser.IsValid())
@@ -3202,6 +3208,43 @@ void AADPHUD::Tick(float Dt)
 			}
 			if (!K && Before < 43.f && ShotClock >= 43.f) ADP_ERROR(TEXT("UIKiosk: KIOSK-1 isn't placed"));
 			if (Before < 43.f + UE_ARRAY_COUNT(Shots) * 4.f + 2.f && ShotClock >= 43.f + UE_ARRAY_COUNT(Shots) * 4.f + 2.f) FGenericPlatformMisc::RequestExit(false);
+		}
+		// -UIDoorRule (to-do 20): at a hinged door - shut as you stand at it, the Buttons panel offering E, opened with E,
+		// and its closer pulling it shut after you've walked away
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIDoorRule")))
+		{
+			static FVector DAt = FVector::ZeroVector;
+			auto HighResShotNamed = [this](const TCHAR* N) { if (APlayerController* P = GetOwningPlayerController()) P->ConsoleCommand(FString::Printf(TEXT("HighResShot 2 filename=%s"), N)); };
+			auto Stand = [this](const FVector& At, float Back)
+			{
+				APawn* Me = GetOwningPawn(); APlayerController* PC = GetOwningPlayerController(); if (!Me || !PC) return;
+				if (AADPWalker* Wk = Cast<AADPWalker>(Me)) Wk->SetThirdPerson(true);
+				// in front of the door on the open side: tried both ways, the side the hall is (the longer clear trace)
+				FVector Best = At; float BestLen = -1.f; FVector BestDir = FVector::ForwardVector;
+				for (int32 a = 0; a < 8; ++a)
+				{
+					const FVector Dir = FRotator(0.f, a * 45.f, 0.f).Vector(); FHitResult H;
+					const FVector From = At + FVector(0, 0, 100.f), To = From + Dir * 400.f;
+					const float Len = GetWorld()->LineTraceSingleByChannel(H, From, To, ECC_Visibility) ? H.Distance : 400.f;
+					if (Len > BestLen) { BestLen = Len; BestDir = Dir; }
+				}
+				const FVector P = At + BestDir * Back + FVector(0, 0, Me->GetSimpleCollisionHalfHeight() + 5.f);
+				Me->TeleportTo(P, (-BestDir).Rotation()); PC->SetControlRotation(FRotator(-5.f, (-BestDir).Rotation().Yaw, 0.f));
+			};
+			if (Before < 41.f && ShotClock >= 41.f)
+			{
+				if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 12.5f; ASunClock::Refresh();
+				int32 NS = 0, NH = 0; const bool bGot = ABabylonModel::TestHingedDoor(DAt, NS, NH);
+				ADP_LOG(TEXT("UIDoorRule: %d sliding doors (open by themselves), %d hinged (E / X); test door %s"), NS, NH, bGot ? *DAt.ToString() : TEXT("none"));
+				if (bGot) Stand(DAt, 140.f);
+			}
+			if (Before < 44.f && ShotClock >= 44.f) { HighResShotNamed(TEXT("Door_1_Shut")); ADP_LOG(TEXT("UIDoorRule: by the door - Buttons panel offers it %d (open %d)"), bNearDoor ? 1 : 0, bDoorOpen ? 1 : 0); }
+			if (Before < 45.f && ShotClock >= 45.f) Interact();
+			if (Before < 47.f && ShotClock >= 47.f) { HighResShotNamed(TEXT("Door_2_Opened")); ADP_LOG(TEXT("UIDoorRule: after E - open %d"), bDoorOpen ? 1 : 0); }
+			if (Before < 48.f && ShotClock >= 48.f) if (APawn* Me = GetOwningPawn()) Me->TeleportTo(Me->GetActorLocation() + Me->GetActorForwardVector() * -600.f, Me->GetActorRotation());
+			if (Before < 55.f && ShotClock >= 55.f) { if (APawn* Me = GetOwningPawn()) Stand(DAt, 260.f); }
+			if (Before < 57.f && ShotClock >= 57.f) { HighResShotNamed(TEXT("Door_3_ClosedAgain")); ADP_LOG(TEXT("UIDoorRule: after walking away - the Buttons panel says %s"), bDoorOpen ? TEXT("close (still open: WRONG)") : TEXT("open (shut again)")); }
+			if (Before < 58.f && ShotClock >= 58.f) FGenericPlatformMisc::RequestExit(false);
 		}
 		// -UISticker: the no-smoking sticker on the terminal's entrance doors (to-do 31), close from both sides and from the
 		// forecourt - PNG (HighResShot), midday

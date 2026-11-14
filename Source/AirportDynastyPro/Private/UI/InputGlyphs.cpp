@@ -47,6 +47,14 @@ namespace ADPInput
 		return A;
 	}
 
+	const FAction& DoorAction(bool bOpen)
+	{
+		// (owner's door rule: only sliding doors open by themselves - the rest with E / X)
+		static const FAction Open = {TEXT("Open the door"), EKeys::E, TEXT("E"), EKeys::Gamepad_FaceButton_Left, TEXT("X"), TEXT("Square"), TEXT("X")};
+		static const FAction Close = {TEXT("Close the door"), EKeys::E, TEXT("E"), EKeys::Gamepad_FaceButton_Left, TEXT("X"), TEXT("Square"), TEXT("X")};
+		return bOpen ? Close : Open;
+	}
+
 	const FAction& PanelAction()
 	{
 		static const FAction A = {TEXT("Use the door panel"), EKeys::E, TEXT("E"), EKeys::Gamepad_FaceButton_Left, TEXT("X"), TEXT("Square"), TEXT("X")};

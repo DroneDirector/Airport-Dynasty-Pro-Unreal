@@ -35,6 +35,8 @@ namespace ADPInput
 	const FAction& SeatAction(bool bSitting);
 	/** A door panel: step up to it and use its buttons. */
 	const FAction& PanelAction();
+	/** At a hinged door you face: open or close it (E / X). */
+	const FAction& DoorAction(bool bOpen);
 	/** The action called Name (nullptr when there's none). */
 	const FAction* Find(const FString& Name);
 	/** Logs (and puts in the problem log) any key or button used by two actions; true when there's none. */

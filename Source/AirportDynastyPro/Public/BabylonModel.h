@@ -100,11 +100,23 @@ private:
 	// under it; moving it moves them (and their collision).
 	struct FInst { UInstancedStaticMeshComponent* K; int32 I; FTransform Rel; };
 	struct FPart { FTransform Base, Parent; TArray<FInst> Inst; float Slide = 0; float Swing = 0; bool bSpin = false; USceneComponent* Sticker = nullptr; FTransform StickerRel; };
-	struct FDoor { FString Id; FVector At; float Reach = 2.6f; float K = 0; TArray<FPart> Parts; bool bSpin = false; };
+	// (owner's door rule, 2026-11-12 / to-do 20: only sliding doors open by themselves; every other door with the use key
+	// E / X, shown in the Buttons panel, and a door closer pulls it shut 4 s after you've gone)
+	struct FDoor { FString Id; FVector At; float Reach = 2.6f; float K = 0; TArray<FPart> Parts; bool bSpin = false; bool bSlide = false; bool bOpen = false; float Away = 0.f; };
 	/** The no-smoking sticker on an entrance door's sliding leaf (owner, 2026-11-12): a small square on the glass at eye
 	 *  height, seen from both sides, carried along as the leaf slides (/Game/Signs, Tools/set_no_smoking_sign.py). */
 	void AddSticker(FPart& Leaf);
 	TArray<FDoor> Doors;
+public:
+	/** A hinged door within reach of you that you face (world feet position, the way you look): its open state; false when none. */
+	static bool DoorNear(const FVector& Feet, const FVector& Facing, bool& bIsOpen);
+	/** E / X at a hinged door you face: opens or closes it. True when there was one. */
+	static bool UseDoor(const APawn* Me);
+	/** For the -UIDoorRule test: a hinged door's place (world) and how many doors slide / swing. */
+	static bool TestHingedDoor(FVector& At, int32& NSlide, int32& NHinged);
+private:
+	int32 FindDoor(const FVector& Feet, const FVector& Facing) const;
+	static TArray<TWeakObjectPtr<ABabylonModel>> AllModels;
 	// every node kept after placing (for the moving parts): its name, glTF mesh, place in root space, children, instance
 	TArray<FString> NName; TArray<int32> NMesh; TArray<FTransform> NRoot; TArray<TArray<int32>> NKids;
 	TArray<TPair<UInstancedStaticMeshComponent*, int32>> NInst;

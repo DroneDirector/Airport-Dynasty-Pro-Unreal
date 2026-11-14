@@ -154,6 +154,7 @@ public:
 	bool bHoseHeld = false, bNearHose = false;
 	/** A seat within reach, or sitting on one (Seats.h). */
 	bool bNearSeat = false, bSeated = false;
+	bool bNearDoor = false, bDoorOpen = false;   // at a hinged door (BabylonModel UseDoor): the Buttons panel's open / close
 	void GoApron();
 	void GoEntrance();
 	void GoTowerCab();
