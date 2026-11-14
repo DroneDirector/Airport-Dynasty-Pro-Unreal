@@ -1,0 +1,7 @@
+Detail normal maps for the terminal surfaces (Tools/set_terminal_materials.py). All CC0 (public domain), free for commercial use, from Poly Haven.
+T_Detail_fabric_N.jpg: Poly Haven "Fabric Pattern 07" (fabric_pattern_07), normal map 1k, CC0 - https://polyhaven.com/a/fabric_pattern_07
+T_Detail_carpet_N.jpg: Poly Haven "Dirty Carpet" (dirty_carpet), normal map 1k, CC0 - https://polyhaven.com/a/dirty_carpet
+T_Detail_wood_N.jpg: Poly Haven "Fine Grained Wood" (fine_grained_wood), normal map 1k, CC0 - https://polyhaven.com/a/fine_grained_wood
+T_Detail_leather_N.jpg: Poly Haven "Brown Leather" (brown_leather), normal map 1k, CC0 - https://polyhaven.com/a/brown_leather
+T_Detail_plaster_N.jpg: Poly Haven "Painted Plaster Wall" (painted_plaster_wall), normal map 1k, CC0 - https://polyhaven.com/a/painted_plaster_wall
+T_Detail_concrete_N.jpg: Poly Haven "Concrete Floor Worn 001" (concrete_floor_worn_001), normal map 1k, CC0 - https://polyhaven.com/a/concrete_floor_worn_001

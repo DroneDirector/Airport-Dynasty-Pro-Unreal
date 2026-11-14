@@ -111,6 +111,9 @@ bool ABabylonModel::Place(const FString& Name)
 		  // the model's own lawn round the terminal lay 25 cm over the airfield's grass (a step at its edge, the taxiways
 		  // under it): the airfield's grass, the same, runs under the whole terminal instead (owner, 2026-11-13)
 		  if (Name == TEXT("Terminal") && Nm == TEXT("SITE/GRASS")) return;
+		  // the yellow "GATE n" signs hanging at each gate's window (F1-GATE-5..8, F2-GATE-1..4 /SIGN-001) are gone (owner,
+		  // 2026-11-14: they shouldn't be at the window)
+		  if (Name == TEXT("Terminal") && Nm.Contains(TEXT("-GATE-")) && Nm.EndsWith(TEXT("/SIGN-001"))) return;
 		  // his jetways come from their own export now (Data/babylon-jetways.json: J-1 to J-4 rebuilt by his generator for
 		  // the stands 12 m out - longer tunnel sections, the corridor at 3.3 degrees); the terminal's older ones stay out
 		  if (Name == TEXT("Terminal") && Nm.Len() == 3 && Nm.StartsWith(TEXT("J-")) && FPackageName::DoesPackageExist(TEXT("/Game/Babylon/Jetways/jetways/StaticMeshes/jetways_mesh_0"))) return;
@@ -259,6 +262,40 @@ bool ABabylonModel::Place(const FString& Name)
 	return Placed > 0;
 }
 
+namespace
+{
+	// the terminal's materials: the true-Unreal ones (/Game/Terminal/Materials/MI_T_<name>, Tools/set_terminal_materials.py:
+	// BC, M, R, EB) or the Babylon-exported (BaseColorFactor, MetallicFactor, RoughnessFactor, EmissiveStrength); the
+	// adjustments below work on either, by the material's own name
+	FString MatName(const UMaterialInterface* M)
+	{
+		const UMaterialInstanceDynamic* D = Cast<UMaterialInstanceDynamic>(M);
+		FString N = D && D->Parent ? D->Parent->GetName() : M ? M->GetName() : FString();
+		if (N.StartsWith(TEXT("MI_T_"))) N.RightChopInline(5);
+		return N;
+	}
+	bool GetBaseColor(const UMaterialInterface* M, FLinearColor& C)
+	{
+		return M->GetVectorParameterValue(FHashedMaterialParameterInfo(TEXT("BC")), C) || M->GetVectorParameterValue(FHashedMaterialParameterInfo(TEXT("BaseColorFactor")), C);
+	}
+	bool GetGlow(const UMaterialInterface* M, float& S)
+	{
+		return M->GetScalarParameterValue(FHashedMaterialParameterInfo(TEXT("EB")), S) || M->GetScalarParameterValue(FHashedMaterialParameterInfo(TEXT("EmissiveStrength")), S);
+	}
+	void SetBaseColor(UMaterialInstanceDynamic* D, const FLinearColor& C) { D->SetVectorParameterValue(TEXT("BC"), C); D->SetVectorParameterValue(TEXT("BaseColorFactor"), C); }
+	void SetGlow(UMaterialInstanceDynamic* D, float S) { D->SetScalarParameterValue(TEXT("EB"), S); D->SetScalarParameterValue(TEXT("EmissiveStrength"), S); }
+	void SetMetalRough(UMaterialInstanceDynamic* D, float Metal, float Rough)
+	{
+		D->SetScalarParameterValue(TEXT("M"), Metal); D->SetScalarParameterValue(TEXT("MetallicFactor"), Metal);
+		D->SetScalarParameterValue(TEXT("R"), Rough); D->SetScalarParameterValue(TEXT("RoughnessFactor"), Rough);
+	}
+	UMaterialInterface* TerminalMaterial(const TCHAR* N)
+	{
+		if (UMaterialInterface* M = LoadObject<UMaterialInterface>(nullptr, *FString::Printf(TEXT("/Game/Terminal/Materials/MI_T_%s.MI_T_%s"), N, N))) return M;
+		return LoadObject<UMaterialInterface>(nullptr, *FString::Printf(TEXT("/Game/Babylon/Terminal/terminal/Materials/%s.%s"), N, N));
+	}
+}
+
 void ABabylonModel::ToneDown()
 {
 	// whites as real paint is (about 78% at most: the Babylon colours go to 98%, which glows under Unreal's light), and
@@ -274,20 +311,20 @@ void ABabylonModel::ToneDown()
 			if (!M || Cast<UMaterialInstanceDynamic>(M)) continue;
 			if (UMaterialInterface** F = Done.Find(M)) { if (*F) K->SetMaterial(S, *F); continue; }
 			UMaterialInterface* Out = nullptr;
-			const FString MN = M->GetName();
+			const FString MN = MatName(M);
 			const bool bLamp = MN.StartsWith(TEXT("glow")) || MN.EndsWith(TEXT("_LED")) || MN.StartsWith(TEXT("fids-")) || MN.StartsWith(TEXT("pic_"));
 			const EBlendMode Blend = M->GetBlendMode();
 			if (!bLamp && Blend == BLEND_Opaque)
 			{
 				FLinearColor Base;
 				float Strength = 0;
-				const bool bWhite = M->GetVectorParameterValue(FHashedMaterialParameterInfo(TEXT("BaseColorFactor")), Base) && Base.GetLuminance() > 0.8f;
-				const bool bGlow = M->GetScalarParameterValue(FHashedMaterialParameterInfo(TEXT("EmissiveStrength")), Strength) && Strength > 1.f;
+				const bool bWhite = GetBaseColor(M, Base) && Base.GetLuminance() > 0.8f;
+				const bool bGlow = GetGlow(M, Strength) && Strength > 1.f;
 				if (bWhite || bGlow)
 				{
 					UMaterialInstanceDynamic* D = UMaterialInstanceDynamic::Create(M, this);
-					if (bWhite) { D->SetVectorParameterValue(TEXT("BaseColorFactor"), Base * (0.78f / Base.GetLuminance())); ++Whites; }
-					if (bGlow) { D->SetScalarParameterValue(TEXT("EmissiveStrength"), Strength * 0.5f); ++Glows; }
+					if (bWhite) { SetBaseColor(D, Base * (0.78f / Base.GetLuminance())); ++Whites; }
+					if (bGlow) { SetGlow(D, Strength * 0.5f); ++Glows; }
 					Out = D;
 				}
 			}
@@ -301,15 +338,15 @@ void ABabylonModel::MatchSurfaces()
 {
 	// (owner, 2026-11-11) the entrance canopies' undersides aren't lamps: matte, as the kerb's departures sign (whiteGloss,
 	// toned as paint, no glow); the entrance doors' glass the same glass as the big windows on the terminal's back
-	UMaterialInterface* White = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Babylon/Terminal/terminal/Materials/whiteGloss.whiteGloss"));
-	UMaterialInterface* Facade = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Babylon/Terminal/terminal/Materials/glassOuter.glassOuter"));
+	UMaterialInterface* White = TerminalMaterial(TEXT("whiteGloss"));
+	UMaterialInterface* Facade = TerminalMaterial(TEXT("glassOuter"));
 	UMaterialInstanceDynamic* Matte = nullptr;
 	if (White)
 	{
 		Matte = UMaterialInstanceDynamic::Create(White, this);
 		FLinearColor Base;
-		if (Matte->GetVectorParameterValue(FHashedMaterialParameterInfo(TEXT("BaseColorFactor")), Base) && Base.GetLuminance() > 0.78f) Matte->SetVectorParameterValue(TEXT("BaseColorFactor"), Base * (0.78f / Base.GetLuminance()));
-		Matte->SetScalarParameterValue(TEXT("EmissiveStrength"), 0.f);
+		if (GetBaseColor(Matte, Base) && Base.GetLuminance() > 0.78f) SetBaseColor(Matte, Base * (0.78f / Base.GetLuminance()));
+		SetGlow(Matte, 0.f);
 	}
 	int32 Canopies = 0, Glass = 0;
 	for (const auto& It : ByMesh)
@@ -321,8 +358,7 @@ void ABabylonModel::MatchSurfaces()
 		for (int32 S = 0; S < K->GetNumMaterials(); ++S)
 		{
 			UMaterialInterface* M = K->GetMaterial(S);
-			const UMaterialInstanceDynamic* D = Cast<UMaterialInstanceDynamic>(M);
-			const FString MN = D && D->Parent ? D->Parent->GetName() : M ? M->GetName() : FString();
+			const FString MN = MatName(M);
 			if (bCanopy && Matte && MN.StartsWith(TEXT("glow"))) { K->SetMaterial(S, Matte); ++Canopies; }
 			if (bDoor && Facade && MN == TEXT("glass")) { K->SetMaterial(S, Facade); ++Glass; }
 		}
@@ -431,13 +467,13 @@ void ABabylonModel::ReplaceSeats(const TArray<TSharedPtr<FJsonValue>>& Nodes, co
 	if (Blue)
 	{
 		UMaterialInstanceDynamic* Navy = UMaterialInstanceDynamic::Create(Blue, this);
-		Navy->SetVectorParameterValue(TEXT("BaseColorFactor"), FLinearColor(FColor(0x1C, 0x2D, 0x52)));
+		SetBaseColor(Navy, FLinearColor(FColor(0x1C, 0x2D, 0x52)));
 		Blue = Navy;
 	}
 	UMaterialInstanceDynamic* Chrome = Steel ? UMaterialInstanceDynamic::Create(Steel, this) : nullptr;
-	if (Chrome) { Chrome->SetVectorParameterValue(TEXT("BaseColorFactor"), FLinearColor(0.75f, 0.75f, 0.75f)); Chrome->SetScalarParameterValue(TEXT("MetallicFactor"), 1.f); Chrome->SetScalarParameterValue(TEXT("RoughnessFactor"), 0.36f); }
+	if (Chrome) { SetBaseColor(Chrome, FLinearColor(0.75f, 0.75f, 0.75f)); SetMetalRough(Chrome, 1.f, 0.36f); }
 	UMaterialInstanceDynamic* Dark = Steel ? UMaterialInstanceDynamic::Create(Steel, this) : nullptr;
-	if (Dark) { Dark->SetVectorParameterValue(TEXT("BaseColorFactor"), FLinearColor(0.015f, 0.015f, 0.015f)); Dark->SetScalarParameterValue(TEXT("MetallicFactor"), 0.f); Dark->SetScalarParameterValue(TEXT("RoughnessFactor"), 0.5f); }
+	if (Dark) { SetBaseColor(Dark, FLinearColor(0.015f, 0.015f, 0.015f)); SetMetalRough(Dark, 0.f, 0.5f); }
 	// the pieces' material slots: Shell, Metal (and Black on the legs), as made in make_gate_seat.py
 	auto Dress = [&](UInstancedStaticMeshComponent* K)
 	{

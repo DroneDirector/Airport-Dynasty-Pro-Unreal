@@ -41,6 +41,8 @@ void AADPHUD::Breadcrumb(const FString& What)
 
 bool AADPHUD::FindNewCrash()
 {
+	// (test runs: no box over the pictures - the editor tools that run between them crash on closing, harmlessly)
+	if (FParse::Param(FCommandLine::Get(), TEXT("UIShot"))) return false;
 	// the newest crash record; shown once (the one last shown is remembered)
 	const FString Dir = FPaths::ProjectSavedDir() / TEXT("Crashes");
 	TArray<FString> Found;

@@ -66,7 +66,9 @@ void AADPHUD::OnBoard(const FString& Key, const FString& B64)
 					// (a material already copied to be toned down, ToneDown, is known by the one it was copied from)
 					const UMaterialInstanceDynamic* Copy = Cast<UMaterialInstanceDynamic>(Mat);
 					const UMaterialInterface* Named = Copy && Copy->Parent ? Copy->Parent.Get() : Mat;
-					if (!Named->GetName().StartsWith(Want) && !Mat->GetName().StartsWith(Want)) continue;
+					// (the true-Unreal terminal's materials are MI_T_<the same name>)
+					const auto Plain = [](const FString& N) { return N.StartsWith(TEXT("MI_T_")) ? N.RightChop(5) : N; };
+					if (!Plain(Named->GetName()).StartsWith(Want) && !Plain(Mat->GetName()).StartsWith(Want)) continue;
 					UMaterialInstanceDynamic* D = Cast<UMaterialInstanceDynamic>(Mat);
 					if (!D) { D = UMaterialInstanceDynamic::Create(Mat, this); K->SetMaterial(S, D); }
 					L.Add(D);
@@ -86,6 +88,7 @@ void AADPHUD::OnBoard(const FString& Key, const FString& B64)
 			// the screen dark in the packaged game)
 			const FString P = I.Name.ToString();
 			if (Key.StartsWith(TEXT("opsmon")) && !P.Contains(TEXT("baseColor"), ESearchCase::IgnoreCase) && !P.Contains(TEXT("emissive"), ESearchCase::IgnoreCase)) continue;
+			if (P == TEXT("Nrm") || P == TEXT("Det")) continue;   // (the true-Unreal materials: the picture is colour and light only)
 			D->SetTextureParameterValueByInfo(I, T);   // the colour and the light: the same picture
 		}
 	}
