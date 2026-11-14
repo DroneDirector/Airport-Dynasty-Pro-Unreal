@@ -1,18 +1,11 @@
-# Stop note (2026-11-13, 22:20 - owner shutting down the PC)
+# Stop note (2026-11-14, morning - owner stopped the terminal conversion to ask a question)
 
-**Done (committed and pushed):**
-- 0.17.11 published (the ground job).
-- Fire truck with your own MetaHuman (step, handles, middle seat, hands on the wheel), E in/out from any view.
-- V in the truck: cab, close outside, far outside; your view carried in and out.
-- Walking/running: clips in place, steps match speed, lean into turns, steady third-person camera.
-- First person: chest hidden from your own eyes, whole shadow, look-down limit 80 degrees.
-- Drone mode (map's DRONE MODE button; WASD, Space/Ctrl, wheel, Shift boost to 300 m/s, Esc back).
-- The map's shortcut buttons in their own column beside the map.
-- Title screen film drawn by Unreal on the graphics card (M_TitleBg), the page's neon on top, Android unchanged.
+**Done (committed and pushed):** installer finds the installed copy and makes fresh shortcuts; the game remembers its
+folder; to-do 50 (small binary updates). 0.17.12 rebuilt with the right number inside (0.17.12), tested (no crashes).
 
-**Half-done:** nothing. Nothing building, nothing running.
+**Running:** only the upload replacing the 0.17.12 files on GitHub (the installer and the two updates) - allowed.
 
-**Not verified by the owner:** all of the above since 0.17.11 is unpublished; title smoothness only provable by watching it.
+**Half-done:** terminal conversion part 1 (inventory). Tools/terminal_inventory.py written, not committed; its run was
+stopped (docs/terminal-inventory.json may be missing or partial). Nothing in the terminal has been changed.
 
-**Next (owner decides):** publish 0.17.12 (about 1-1.5 working hours), or the to-do list
-(e.g. 49 shorts for the Tee outfit, 45/46 stand wear, 47 PC/Android update notices, 48 AI drivers).
+**Next:** answer the owner's question, then wait for his go-ahead before going on with the inventory.
