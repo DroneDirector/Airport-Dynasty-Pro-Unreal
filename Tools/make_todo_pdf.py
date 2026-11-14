@@ -107,8 +107,20 @@ ITEMS = [
     ('55', 'Road network with MetaRoad Free (HANDOVER 3b, the owner map plans in Art/Maps): you add MetaRoad Free from Fab and install it to 5.7 first; licence + 5.7 check; then 10 parts with a stop after each - setup; forecourt lanes (wider, bus + taxi lanes); bays and car park [publish A]; terminal roundabout + road out both ends to 2 km; 2-5 km; 5-7.8 km + town roundabout [publish B]; main street; north loops; Torgvegur/Skolavegur/Sudurbogi; pavements, zebras, lights, plots [publish C]. Town buildings not built. Then scheduled vehicles (3 parts) and staff commutes (1)', '3 h left', ['field'], '', False),
     ('40g', 'Iceland scenery: mountains torn into walls and steps - rebuild the Iceland/Faroes height tiles with feathered edges where they meet the world map', '20 min + 35 min PC', ['field'], '', False),
     ('56', 'Your tablet, always with you: one button (a key on the keyboard; a pad button, or a combination if needed) brings it up into your hand - you see yourself take it out and hold it (first and third person), and on it the same as on your office PC and the operations room screens (the airline game, the ops monitor); the same button puts it away. Its own model from reference photos, instanced + Nanite', '1.5 h', ['none'], '', False),
+    ('57', 'Self check-in kiosk rebuilt from the owner’s photos and close-ups (open sloping deck, wall on one side, photo textures, reflective screen, faces the entrances); the green lamp along the whole handle', '1 h', ['none'], '', True),
+    ('58', 'Zinc standing-seam roof (owner’s texture) on top of the terminal’s wave roof and the car rental roof, true size, never stretched', '40 min', ['none'], '', True),
+    ('59a', 'World terrain tiles rebuilt with the transpose fix (build only)', '35 min PC', ['field'], '', True),
+    ('59b', 'World terrain packs uploaded (only when the owner says)', '1 h PC', ['rel'], '59a', False),
+    ('60a', 'Land along the roads: our own Nanite ground in a band along the roads, the roads lying on it exactly at every distance; the globe’s picture on it, a flared rim, grass clumps; terrain detail locked at Normal', '2 h', ['field'], '', True),
+    ('60b', 'Land along the roads: the pale streaks in the high view', '30 min', ['field'], '60a', False),
+    ('60c', 'Land along the roads: stones along the edge (reference photos first)', '1 h', ['field'], '60a', False),
+    ('61', 'Wash hose: jet runs straight about 28 m (lands about 37 m), more water left on the ground', '20 min', ['field'], '', True),
+    ('62', 'New career loading screen: what Unreal loads (you, your hair, the terminal) with real percentages', '40 min', ['people'], '', True),
 ]
-c = canvas.Canvas('AirportDynastyPro-ToDo.pdf', pagesize=(W, H))
+import os as _os
+# (into docs/, wherever it is run from: it used to land in the current folder and docs/ kept an old copy, 2026-11-14)
+OUT_PDF = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), 'docs', 'AirportDynastyPro-ToDo.pdf')
+c = canvas.Canvas(OUT_PDF, pagesize=(W, H))
 c.setTitle('Airport Dynasty Pro - to-do checklist')
 BG, FG, DIM, RULE = HexColor('#1b1b1f'), white, HexColor('#b0b0b8'), HexColor('#44444c')
 def header(y):
@@ -120,13 +132,13 @@ def header(y):
     c.drawString(8*mm, y-19, 'into parts of 2-3 hours, one part per session. The letters after a')
     c.drawString(8*mm, y-28, 'number (15a, 15b ...) are those parts, in order.')
     c.setFont('Helvetica', 6.5); c.setFillColor(DIM)
-    c.drawString(8*mm, y-38, 'In build order. "needs": what must be done before. Times: real clock time, from how long such jobs really took (2026-11-14); PC = machine time.')
+    c.drawString(8*mm, y-38, 'In build order. "needs": what must be done before.')
     c.setFillColor(FG); c.setFont('Helvetica-Bold', 7)
-    c.drawString(8*mm, y-48, 'ALL TIMES ARE WORKING HOURS, not clock time: "1 day" = 8 hours of work,')
-    c.drawString(8*mm, y-57, 'so "1.5-2.5 days" = 12-20 hours of work. Calendar time can be shorter,')
-    c.drawString(8*mm, y-66, 'since builds run on their own and work can go on into the evening.')
+    c.drawString(8*mm, y-48, 'ALL TIMES ARE REAL CLOCK TIME: how long the job really takes, from how long')
+    c.drawString(8*mm, y-57, 'such jobs have taken. "PC" = time the machine runs on its own.')
+    c.drawString(8*mm, y-66, 'A green check mark = done.')
     c.setFont('Helvetica', 6.5); c.setFillColor(DIM)
-    c.drawString(8*mm, y-76, 'Updated 2026-11-13.')
+    c.drawString(8*mm, y-76, 'Updated 2026-11-14 (evening).')
     c.setFillColor(FG)
     return y-83
 y = H - 12*mm
@@ -151,7 +163,14 @@ for no, title, est, groups, needs, done in ITEMS:
     if y - rowh < 10*mm:
         c.showPage(); y = H - 12*mm; y = header(y); y -= 4
     x = 8*mm
-    c.acroForm.checkbox(name='item_' + no, x=x, y=y-rowh+3, size=9, buttonStyle='check', borderWidth=1, borderColor=white, fillColor=HexColor('#2c2c33'), textColor=white, checked=done, forceBorder=True)
+    if done:
+        bx, by = x, y-rowh+3
+        c.setFillColor(HexColor('#1f6f3a')); c.rect(bx, by, 9, 9, fill=1, stroke=0)
+        c.setStrokeColor(HexColor('#7dffa8')); c.setLineWidth(1.6)
+        p_ = c.beginPath(); p_.moveTo(bx+1.8, by+4.6); p_.lineTo(bx+3.8, by+2.2); p_.lineTo(bx+7.6, by+7.4); c.drawPath(p_, stroke=1, fill=0)
+        c.setLineWidth(1)
+    else:
+        c.acroForm.checkbox(name='item_' + no, x=x, y=y-rowh+3, size=9, buttonStyle='check', borderWidth=1, borderColor=white, fillColor=HexColor('#2c2c33'), textColor=white, checked=False, forceBorder=True)
     x += 13
     for g in groups:
         c.setFillColor(HexColor(G[g][0])); c.rect(x, y-rowh+3, 5, 9, fill=1, stroke=0); x += 7
