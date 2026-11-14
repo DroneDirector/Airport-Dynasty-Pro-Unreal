@@ -55,7 +55,7 @@ def imp(file, dest, name, kind):
     eal.save_loaded_asset(a, only_if_is_dirty=False)
     return a
 SCAN = {}
-for sid in ('asphalt_04', 'asphalt_02', 'concrete_floor_worn_001', 'brushed_concrete_04', 'grass_ground'):
+for sid in ('asphalt_04', 'asphalt_02', 'concrete_floor_worn_001', 'brushed_concrete_04', 'grass_ground', 'asphalt_pit_lane'):
     d = os.path.join(ROOT, 'Art', 'Ground', 'Scans', sid)
     SCAN[sid] = {k: imp(os.path.join(d, '%s_%s_4k.jpg' % (sid, f)), '/Game/Ground/Scans/' + sid, 'T_%s_%s' % (sid, k), kind)
                  for k, f, kind in (('diff', 'diff', 'color'), ('nor', 'nor_dx', 'normal'), ('rough', 'rough', 'mask'))}
@@ -168,6 +168,9 @@ cstyle = sp('CrackStyle', 0.0, -1600, 180); camt = sp('CrackAmount', 0.6, -1600,
 tamt = sp('TyreAmount', 1.0, -1600, 300)
 pdirt = sp('PaintDirt', 0.0, -1600, 330)
 sbias = sp('SnowBias', 0.0, -1600, 360)
+# the roads (owner, 2026-11-14): 1 a road lane, 2 a pavement, by MetaRoad's lane UVs (UV0: u across the one lane, 0..1;
+# v along it, 1 per 4 m) - 0 everything else (the airfield's sheets, whose UVs mean something else)
+rwear = sp('RoadWear', 0.0, -1600, 380)
 vcol = E(unreal.MaterialExpressionVertexColor, -1600, 400)
 crackt = tobj('CrackLayer', LAYER['cracks_asphalt'], -1600, 360)
 tyret = tobj('TyreLayer', LAYER['tyre_rubber'], -1600, 440)
@@ -189,7 +192,7 @@ if (UseScan > 0.5) {
   rgh = saturate(ScanR * RScale);
 }
 float3 cl = Texture2DSample(CrackTex, CrackTexSampler, M / 16.0).rgb;
-float ca = saturate(CAmount * Cracks) * (1.0 - none);
+float ca = saturate(CAmount * Cracks) * (1.0 - none) * (1.0 - step(1.5, RW));
 float seal = cl.r * ca * up * (1.0 - isConcrete);
 float openC = cl.g * saturate(ca * 1.5) * up;
 float stain = cl.b * ca * up;
@@ -213,7 +216,34 @@ float n = 0, a = 0.55;
   float h11 = frac(sin(dot(ip + float2(1, 1), float2(127.1, 311.7))) * 43758.5453);
   n += a * lerp(lerp(h00, h10, f.x), lerp(h01, h11, f.x), f.y); q = q * 2.03 + 17.0; a *= 0.5;
 }
-float edge = (1.0 - saturate(Amount + Bias) * 0.6) + (1.0 - saturate(Wet)) * 0.30;
+// ---- the roads' own wear (RW 1, from reference photos of Faroese and Icelandic roads): the wheel paths polished lighter
+// and smoother (and a touch sunk: the rain gathers there first), an oil strip down the middle of each lane, grit and
+// dust along the lane's edges, and a repair patch now and then, far apart, with its sealed joint. The pavements (RW 2):
+// the road's asphalt a little brighter, a small crack here and there, the odd patch - never the road's cracks.
+float isRoad = step(0.5, RW) * step(RW, 1.5) * up, isWalk = step(1.5, RW) * up;
+float lu = UV0.x, lv = UV0.y * 4.0;
+float wvc = floor(lv / 9.0), wvf = smoothstep(0.0, 1.0, frac(lv / 9.0));
+float wv = (lerp(frac(sin(wvc * 127.1) * 43758.5453), frac(sin((wvc + 1.0) * 127.1) * 43758.5453), wvf) - 0.5) * 0.05;
+float wpath = saturate(exp(-pow((lu - 0.28 - wv) / 0.065, 2.0)) + exp(-pow((lu - 0.72 - wv) / 0.065, 2.0))) * isRoad;
+float oil = exp(-pow((lu - 0.5 - wv) / 0.07, 2.0)) * isRoad;
+float egrit = saturate(smoothstep(0.12, 0.0, lu) + smoothstep(0.88, 1.0, lu)) * isRoad;
+// a patch: in a 70 m stretch of road lane only one time in four, in a 25 m stretch of pavement one time in seven
+float pcl = isRoad > 0.5 ? 70.0 : 25.0, pch = isRoad > 0.5 ? 0.75 : 0.86;
+float pc = floor(lv / pcl);
+float ph1 = frac(sin(pc * 12.9898 + 3.1) * 43758.5453), ph2 = frac(sin(pc * 78.233 + 1.7) * 43758.5453);
+float ph3 = frac(sin(pc * 39.346 + 5.3) * 43758.5453), ph4 = frac(sin(pc * 11.135 + 8.9) * 43758.5453);
+float ps = pc * pcl + ph2 * (pcl - 8.0), pl = 1.5 + ph3 * (isRoad > 0.5 ? 5.0 : 2.5);
+float pu0 = isRoad > 0.5 ? ph4 * 0.45 : 0.0, pu1 = isRoad > 0.5 ? min(pu0 + 0.3 + ph1 * 0.5, 1.0) : 1.0;
+float pin = min(min(lv - ps, ps + pl - lv), min(lu - pu0, pu1 - lu) * 3.0);
+float pOn = step(pch, ph1) * saturate(isRoad + isWalk);
+float patchA = step(0.0, pin) * pOn;
+float pborder = (1.0 - smoothstep(0.015, 0.04, abs(pin))) * pOn;
+// the pavement's few small cracks (a short wandering line across part of it, one stretch in six)
+float kc = floor(lv / 3.0), kh = frac(sin(kc * 91.7 + 4.4) * 43758.5453), kh2 = frac(sin(kc * 17.3 + 2.2) * 43758.5453);
+float kt = frac(lv / 3.0);
+float kline = abs(lu - (kh2 * 0.6 + 0.2 + (kt - 0.5) * (kh - 0.5) * 0.9 + sin(lv * 23.0 + kh * 9.0) * 0.012 + sin(lv * 61.0) * 0.005));
+float wcrack = (1.0 - smoothstep(0.002, 0.006, kline)) * step(0.83, kh) * step(0.15, kt) * step(kt, 0.85) * isWalk;
+float edge = (1.0 - saturate(Amount + Bias) * 0.6) + (1.0 - saturate(Wet)) * 0.30 - wpath * 0.22 - egrit * 0.10;
 float pmask = up * saturate(Puddles) * step(0.02, Wet);
 float puddle = smoothstep(edge, edge + 0.06, n) * pmask;
 float rim = smoothstep(edge - 0.10, edge, n) * pmask * saturate(Wet);
@@ -227,6 +257,14 @@ c *= lerp(1.0, 0.35, openC);
 c *= lerp(1.0, 0.5, joint);
 c = lerp(c, c * 0.28, tyre);
 r = lerp(r, 0.55, tyre);
+if (isRoad + isWalk > 0.001) {
+  c = lerp(c, c * float3(1.14, 1.14, 1.16), wpath * 0.8); r = lerp(r, r * 0.76, wpath);      // polished wheel paths
+  c *= lerp(1.0, 0.8, oil * (0.55 + 0.45 * n));                                              // the oil strip
+  c = lerp(c, c * float3(0.93, 0.89, 0.81), egrit * 0.7); r = lerp(r, saturate(r * 1.1), egrit);   // grit at the edges
+  c = lerp(c, c * (isRoad > 0.5 ? 0.7 : 0.86), patchA); r = lerp(r, r * 0.85, patchA);     // a newer patch
+  c = lerp(c, float3(0.03, 0.029, 0.028), pborder * (isRoad > 0.5 ? 0.85 : 0.5)); r = lerp(r, 0.4, pborder * isRoad);
+  c *= lerp(1.0, 0.4, wcrack);
+}
 // the markings' own grime (PaintDirt: the paint instances; the vertex colour's green: how dirty this one marking is,
 // different on every one): tyre-grey smudges and a brownish film, patchy, never covering it
 float grime = saturate(PDirt * VC.g) * up;
@@ -250,7 +288,7 @@ if (snowA > 0.001) {
     float h01 = frac(sin(dot(ip + float2(0, 1), float2(41.3, 289.1))) * 43758.5453), h11 = frac(sin(dot(ip + float2(1, 1), float2(41.3, 289.1))) * 43758.5453);
     s1 += sa * lerp(lerp(h00, h10, f.x), lerp(h01, h11, f.x), f.y); sq = sq * 2.31 + 13.0; sa *= 0.5;
   }
-  float cov = s1 * 0.8 + cl.g * 0.7 + joint * 0.9 * smoothstep(0.42, 0.72, s1) + saturate(SBias) * 0.55 - tyre * 0.6;   // the joints hold it only here and there
+  float cov = s1 * 0.8 + cl.g * 0.7 + joint * 0.9 * smoothstep(0.42, 0.72, s1) + saturate(SBias) * 0.55 - tyre * 0.6 + egrit * 0.5 + oil * 0.15 - wpath * 0.9;   // the joints hold it only here and there
   float thr = 1.05 - snowA * 0.8;
   float snow = smoothstep(thr, thr + 0.16, cov);
   float3 sc = float3(0.80, 0.83, 0.88) * (0.82 + 0.18 * s1);
@@ -285,9 +323,9 @@ REFL = COMMON + r"""
 float wetAll = saturate(Wet) * up;
 return saturate(puddle * lerp(0.35, 0.8, saturate(Shine)) + wetAll * 0.05);
 """
-ALL = ['RScale', 'WP', 'N', 'Bias', 'Puddles', 'Wet', 'Amount', 'Size', 'Style', 'CAmount', 'Cracks', 'Col', 'Rough', 'UseScan', 'ScanCol', 'ScanBig', 'ScanR',
+ALL = ['RW', 'UV0', 'RScale', 'WP', 'N', 'Bias', 'Puddles', 'Wet', 'Amount', 'Size', 'Style', 'CAmount', 'Cracks', 'Col', 'Rough', 'UseScan', 'ScanCol', 'ScanBig', 'ScanR',
        'CrackTex', 'TyreTex', 'RwyA', 'RwyB', 'RwyDisp', 'TyreAmt', 'Tyres']
-SRC = lambda: {'WP': (wp, ''), 'N': (vn, ''), 'Bias': (bias, ''), 'Puddles': (pon, ''), 'Wet': (cps['Wetness'], ''), 'Amount': (cps['PuddleAmount'], ''),
+SRC = lambda: {'RW': (rwear, ''), 'UV0': (uv, ''), 'WP': (wp, ''), 'N': (vn, ''), 'Bias': (bias, ''), 'Puddles': (pon, ''), 'Wet': (cps['Wetness'], ''), 'Amount': (cps['PuddleAmount'], ''),
        'Size': (cps['PuddleSize'], ''), 'Style': (cstyle, ''), 'CAmount': (camt, ''), 'Cracks': (cps['Cracks'], ''), 'Col': (use, ''),
        'Rough': (rough, ''), 'UseScan': (usescan, ''), 'ScanCol': (sdiff, ''), 'ScanBig': (sbig, ''), 'ScanR': (srgh, ''),
        'ScanN': (snor, ''), 'CrackTex': (crackt, ''), 'TyreTex': (tyret, ''), 'RwyA': (cvs['RwyA'], ''), 'RwyB': (cvs['RwyB'], ''),
@@ -350,6 +388,18 @@ inst(KIT + 'MI_gasphalt', dict(Color=unreal.LinearColor(0.68, 0.68, 0.70, 1),   
 # are paved for jet blast, rarely driven on)
 inst(KIT + 'MI_shoulder', dict(Color=unreal.LinearColor(0.75, 0.75, 0.76, 1), UseScan=1.0, ScanSize=4.04, CrackStyle=0.0, CrackAmount=0.95, TyreAmount=0.0, Variation=0.0, SnowBias=0.4, Spec=0.4, RoughScale=0.92),
      textures=dict(scan('asphalt_04', 'asphalt_02'), CrackLayer=LAYER['cracks_asphalt']))
+# the roads (owner, 2026-11-14; reference photos of Faroese and Icelandic roads): a real road scan (Poly Haven
+# asphalt_pit_lane, CC0) in the darker asphalt tone the owner picked (about half MI_gasphalt's brightness), with the road
+# wear (RoadWear 1); the airfield's cracks only lightly
+inst(KIT + 'MI_groad', dict(Color=unreal.LinearColor(1.55, 1.80, 2.10, 1), UseScan=1.0, ScanSize=3.0, CrackStyle=0.0, CrackAmount=0.25, TyreAmount=0.0, RoadWear=1.0, Variation=0.0, SnowBias=0.1, Spec=0.42, RoughScale=0.86),
+     textures=dict(scan('asphalt_pit_lane'), CrackLayer=LAYER['cracks_asphalt']))
+# the pavements (owner, 2026-11-14): a copy of the road's asphalt a little brighter, with their own small cracks and the
+# odd patch (RoadWear 2) - none of the road's cracks
+inst(KIT + 'MI_gwalk', dict(Color=unreal.LinearColor(2.0, 2.32, 2.70, 1), UseScan=1.0, ScanSize=3.0, CrackStyle=0.0, CrackAmount=0.0, TyreAmount=0.0, RoadWear=2.0, Variation=0.0, SnowBias=0.45, Spec=0.42, RoughScale=0.9),
+     textures=dict(scan('asphalt_pit_lane'), CrackLayer=LAYER['cracks_asphalt']))
+# the kerbs: precast concrete kerb stones, lighter and cleaner than the pavement
+inst(KIT + 'MI_gkerb', dict(Color=unreal.LinearColor(1.22, 1.21, 1.18, 1), UseScan=1.0, ScanSize=1.5, CrackStyle=2.0, CrackAmount=0.0, TyreAmount=0.0, RoadWear=0.0, Puddles=0.0, Variation=0.0, SnowBias=0.3, Spec=0.5, RoughScale=0.9),
+     textures=dict(scan('brushed_concrete_04'), CrackLayer=LAYER['cracks_concrete']))
 # the airfield's ground grass (owner, 2026-11-13: the edges must look real, so the grass they meet must too): a real
 # grass-and-soil scan, a touch greener for a northern summer, no cracks, no tyre rubber, damp but no puddles
 inst(KIT + 'MI_ggrass', dict(Color=unreal.LinearColor(0.66, 1.16, 0.50, 1), UseScan=1.0, ScanSize=2.51, CrackStyle=2.0, CrackAmount=0.0, TyreAmount=0.0, Puddles=0.0, Variation=0.0, SnowBias=0.7, Spec=0.3),

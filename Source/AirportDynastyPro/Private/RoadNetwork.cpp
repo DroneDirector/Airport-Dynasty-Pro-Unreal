@@ -29,7 +29,7 @@ namespace
 		UMaterialInterface* M = nullptr;
 		if (Type == TEXT("Bus")) M = LoadObject<UMaterialInterface>(nullptr, TEXT("/MetaRoad/Materials/MI_Bus.MI_Bus"));
 		else if (Type == TEXT("Median") || Type == TEXT("Restricted")) M = LoadObject<UMaterialInterface>(nullptr, TEXT("/MetaRoad/Materials/MI_Restricted.MI_Restricted"));
-		else M = ATerminalBuilder::KitMaterial(Outer, Type == TEXT("Sidewalk") ? FName(TEXT("gconcrete")) : FName(TEXT("gasphalt")));
+		else M = ATerminalBuilder::KitMaterial(Outer, Type == TEXT("Sidewalk") ? FName(TEXT("gwalk")) : FName(TEXT("groad")));
 		Cache.Add(Type, M);
 		return M;
 	}
@@ -105,6 +105,26 @@ namespace
 			for (const TPair<const TCHAR*, double>& W : Want)
 				if (FDoubleProperty* Pr = FindFProperty<FDoubleProperty>(PS->GetClass(), W.Key)) { Pr->SetPropertyValue_InContainer(PS, W.Value); ++Set; }
 		}
+		// the pavements: MetaRoad builds them from the road-wide zone materials (Triangulation > Override Materials), not
+		// the lane's own - so MI_gwalk goes in there for the Sidewalk zone
+		if (UMaterialInterface* Walk = ATerminalBuilder::KitMaterial(Road, FName(TEXT("gwalk"))))
+			for (const TObjectPtr<UMetaRoadBuildSettingsBase>& Ptr : S->PropertySets)
+				if (UObject* PS = Ptr.Get()) if (PS->GetClass()->GetName() == TEXT("TriangulateRoadToolProperties"))
+					if (FMapProperty* MP = FindFProperty<FMapProperty>(PS->GetClass(), TEXT("OverrideMaterials")))
+					{
+						FScriptMapHelper H(MP, MP->ContainerPtrToValuePtr<void>(PS));
+						const FRoadZoneType Key = ERoadZoneTypes::Sidewalk;
+						const int32 i = H.AddDefaultValue_Invalid_NeedsRehash();
+						MP->KeyProp->CopyCompleteValue(H.GetKeyPtr(i), &Key);
+						H.Rehash();
+						if (FStructProperty* VS = CastField<FStructProperty>(MP->ValueProp))
+							if (FObjectProperty* MM = FindFProperty<FObjectProperty>(VS->Struct, TEXT("MeshMaterial"))) { MM->SetObjectPropertyValue_InContainer(H.GetValuePtr(i), Walk); ++Set; }
+					}
+		// the kerbs: our own kerb stone (Tools/set_ground.py MI_gkerb), on the curb property set's override
+		if (UMaterialInterface* Kerb = ATerminalBuilder::KitMaterial(Road, FName(TEXT("gkerb"))))
+			for (const TObjectPtr<UMetaRoadBuildSettingsBase>& Ptr : S->PropertySets)
+				if (UObject* PS = Ptr.Get()) if (PS->GetClass()->GetName() == TEXT("RoadCurbToolProperties"))
+					if (FObjectProperty* Pr = FindFProperty<FObjectProperty>(PS->GetClass(), TEXT("OverrideMaterial"))) { Pr->SetObjectPropertyValue_InContainer(PS, Kerb); ++Set; }
 		static bool bSaid = false;
 		if (!bSaid) { bSaid = true; ADP_LOG(TEXT("Roads: fine curves (%d settings on %d property sets)"), Set, S->PropertySets.Num()); }
 	}

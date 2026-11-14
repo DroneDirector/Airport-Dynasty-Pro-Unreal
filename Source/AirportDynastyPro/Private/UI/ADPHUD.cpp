@@ -2916,6 +2916,8 @@ void AADPHUD::Tick(float Dt)
 				{TEXT("Road_Kerb"), -1294.f, 0.5f, 128.f, -1300.f, 0.f, 136.f},
 				{TEXT("Road_Edge"), -1288.f, 1.2f, 139.f, -1296.f, 0.f, 133.f},
 				{TEXT("Road_Bend"), -1345.f, 6.f, 175.f, -1312.f, 0.f, 150.f},
+				// the road's end and taxiway A side by side from straight above (their colours must match)
+				{TEXT("Road_Taxi"), -1325.f, 150.f, 323.f, -1325.5f, 0.f, 323.f},
 			};
 			if (Before < 41.f && ShotClock >= 41.f)
 			{
