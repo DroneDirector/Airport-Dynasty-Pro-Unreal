@@ -10,6 +10,9 @@ if [ "$2" = "fabrics" ]; then
   timeout 600 "$ED/UnrealEditor-Cmd.exe" "$R/AirportDynastyPro.uproject" -ExecutePythonScript="$R/Tools/set_fabrics.py" -unattended -nullrhi -nosplash > /dev/null 2>&1
   grep -c "ADP_FABRIC instance" "$LOG" | sed 's/^/fabrics: /'
 fi
+# (committed Unreal files are read-only on disk - Git LFS "lockable": the tool could not replace the garment's old
+#  materials and stopped, 2026-11-15 shorts)
+cmd //c "attrib -R /S $(cygpath -w "$R/Content/Clothes/$O")\*" > /dev/null 2>&1
 timeout 600 "$ED/UnrealEditor-Cmd.exe" "$R/AirportDynastyPro.uproject" -ExecutePythonScript="$R/Tools/make_outfit.py $O resize" -unattended -RenderOffscreen -nosplash > /dev/null 2>&1
 grep -E "ADP_OUTFIT (DONE|failed)" "$LOG" | sed 's/^.*ADP_OUTFIT //'
 timeout 1500 "$ED/UnrealEditor-Cmd.exe" "$R/AirportDynastyPro.uproject" -ExecutePythonScript="$R/Tools/make_metahumans.py outfit $O" -unattended -nosplash -RenderOffscreen -dx12 > /dev/null 2>&1
