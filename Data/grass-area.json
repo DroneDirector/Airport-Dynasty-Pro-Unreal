@@ -1,0 +1,11 @@
+{
+ "source": "Tools/make_grass_area.py",
+ "x0": -7600.0,
+ "y0": -5770.0,
+ "step": 5.0,
+ "nx": 3089,
+ "ny": 2539,
+ "ring": 5000.0,
+ "margin": 300.0,
+ "waterGap": 30.0
+}

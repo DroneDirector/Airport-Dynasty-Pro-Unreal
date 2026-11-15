@@ -437,11 +437,14 @@ def meet(pts, at_start, host_id):
     rate = vx * rx + vy * ry
     E = (P[0][0] - vx * nd / rate, P[0][1] - vy * nd / rate) if abs(rate) > 0.3 else c
     P = [(round(E[0], 2), round(E[1], 2))] + P
-    CUTS.setdefault(host_id, []).append(('right' if sg > 0 else 'left', H['s'][i], 6.0 / cos + 3.5 * sin / cos + 0.5))
-    corner_fills(E, (-vx, -vy), c, (tx, ty), (rx * sg, ry * sg))
-    return (P if at_start else list(reversed(P))), c, 6.0 / cos + 0.5
+    # the host's pavement opens across the mouth to where the corner curves end on it; the street's own pavements start
+    # where the curves end on it (FILL_R: the curves' radius)
+    CUTS.setdefault(host_id, []).append(('right' if sg > 0 else 'left', H['s'][i], (3.5 + FILL_R) / cos + 3.5 * sin / cos))
+    corner_fills(E, (-vx, -vy), c, (tx, ty), (rx * sg, ry * sg), R=FILL_R)
+    return (P if at_start else list(reversed(P))), c, 3.5 / cos + FILL_R
 
 
+FILL_R = 6.0                 # the junctions' corner curves' radius (m)
 FILLS = []                   # the corners' curves: [{pts (plan m), lift}] - asphalt the game lays on our ground
 
 
@@ -543,8 +546,8 @@ for name, h0, h1, lf, oneway, rid in SIDE:
     for at_start, h in ((True, h0), (False, h1)):
         if h.startswith('bulb:'):
             P = bulb(P, at_start, tuple(float(v) for v in h[5:].split(',')))
-            if at_start: e0 = 12.5
-            else: e1 = 12.5
+            if at_start: e0 = 8.8
+            else: e1 = 8.8
         else:
             P, c, e = meet(P, at_start, h); ends.append((at_start, c, h, e))
             if at_start: e0 = e
@@ -610,13 +613,24 @@ road('TOWN-VILLA-DRIVE', dr, step=4.0, lift=0.03, left=[lane('Driving', 3.25, in
 
 # the turning circles: a paved disc (its path a 5 m circle, the lane inward filling it), a pavement round it, open
 # where a street comes in (the ring starts opposite its first street, so no opening straddles its start)
+MOUTH = 0.62                 # a turning circle's opening each side of a street coming in (rad: clear of its pavements)
 for n, (C, angs) in enumerate(BULBS):
     a0 = angs[0] + math.pi
     ring_b = [(round(C[0] + BR * math.cos(a0 + 2 * math.pi * k / 16), 2), round(C[1] + BR * math.sin(a0 + 2 * math.pi * k / 16), 2)) for k in range(16)]
     rid = 'TOWN-TURN-%d' % n
-    road(rid, ring_b, closed=True, lift=0.04, **BULB)
-    CUTS[rid] = [('right', BR * ((a - a0) % (2 * math.pi)), 4.4) for a in angs]
+    road(rid, ring_b, closed=True, lift=0.04, left=[lane('Driving', 4.99)], right=[lane('Driving', 4.5)])
     TSTREET[rid] = dict(L=2 * math.pi * BR)
+    # its pavement: arcs round its edge (9.5 m out) from one opening to the next, a few lamps on them
+    A_ = sorted(x % (2 * math.pi) for x in angs)
+    for j, a_ in enumerate(A_):
+        b_ = A_[(j + 1) % len(A_)] + (2 * math.pi if j + 1 == len(A_) else 0.0)
+        lo, hi = a_ + MOUTH, b_ - MOUTH
+        if hi - lo < 0.3: continue
+        m = max(3, int((hi - lo) / 0.25))
+        arc = [(round(C[0] + 9.5 * math.cos(lo + (hi - lo) * k / m), 2), round(C[1] + 9.5 * math.sin(lo + (hi - lo) * k / m), 2)) for k in range(m + 1)]
+        La = 9.5 * (hi - lo)
+        road('%s-WALK-%d' % (rid, j), arc, lift=0.045, step=1.0, left=[lane('Driving', 0.05)], right=[lane('Sidewalk', 2.5, kerb=15)],
+             lights=[dict(side='right', edge=1, off=-0.45, spacing=14.0, **{'from': 3.0, 'to': round(La - 3.0, 2)})])
 
 
 def sidewalk_keys(L, cuts, w=2.5):
@@ -648,8 +662,7 @@ for r in roads:
         mine = [(s, h) for sd, s, h in cuts if sd == side] + [(s, h) for s, h in ENDCUTS.get(r['id'], []) if h > 0]
         lanes = r['lanes'][side]
         if not lanes or lanes[-1]['type'] != 'Sidewalk': continue
-        if mine: lanes[-1] = dict(lanes[-1], w=sidewalk_keys(L, mine))
-        if r.get('closed'): continue
+        if r.get('closed') or '-WALK-' in r['id']: continue
         segs, lo = [], 4.0
         for s, h in sorted(mine) + [(L + 4.0, 0.0)]:
             hi = s - h - 4.0
@@ -659,12 +672,6 @@ for r in roads:
         for a, b in segs:
             st = first + 32.0 * math.ceil((a - first) / 32.0)
             if st <= b: r.setdefault('lights', []).append(dict(side=side, edge=2, off=-0.45, spacing=32, **{'from': round(st, 2), 'to': round(b, 2)}))
-    if r.get('closed'):   # a turning circle: a few lights round its pavement, clear of the openings
-        r['lights'] = []
-        for k in range(4):
-            s = L * (k + 0.5) / 4
-            if all(min(abs(s - c[1]), L - abs(s - c[1])) > c[2] + 3.0 for c in cuts):
-                r['lights'].append(dict(side='right', edge=2, off=-0.45, spacing=1000, **{'from': round(s, 2), 'to': round(s + 1, 2)}))
 # Sign A (Main Street, about 135 m before the roundabout, for the cars driving west out of town) and Sign D (the road
 # out of town, past the roundabout: the airport 7 km)
 road_ms.setdefault('signs', []).append(dict(at=135.0, km='7', dir=-1))
@@ -674,6 +681,82 @@ for u in (3300, 4500, 6700, 7700):
     H = TSTREET['TOWN-MAIN-STREET']; c = TP_.to_plan(u, 4250)
     i = min(range(len(H['d'])), key=lambda k: math.dist(H['d'][k], c))
     road_ms.setdefault('crossings', []).append(dict(at=round(H['s'][i], 2), w=3.0))
+
+
+def sections(r):
+    """A town street cut into sections where its pavements stop (owner, 2026-11-15: thin pavement strips crossed the
+    junctions - a pavement narrowed away still kept a sliver of kerb): a section has a pavement on a side or none - none
+    across the mouth of a street meeting it (its white edge line stops there too), none on the end that runs into the
+    street it meets or into a turning circle. Paint, zebras, signs and lights go to the section they fall in."""
+    P = [tuple(p[:2]) for p in r['pts']]
+    D = smooth(P, 2.0); S_ = [0.0]
+    for i in range(1, len(D)): S_.append(S_[-1] + math.dist(D[i], D[i - 1]))
+    L = S_[-1]
+    nos = {'right': [], 'left': []}
+    for sd, s0, h in CUTS.get(r['id'], []): nos[sd].append((max(0.0, s0 - h), min(L, s0 + h), 'cut'))
+    for s0, e in ENDCUTS.get(r['id'], []):
+        if e <= 0: continue
+        iv = (0.0, e, 'end') if s0 < 1 else (L - e, L, 'end')
+        nos['right'].append(iv); nos['left'].append(iv)
+    if not any(nos.values()): return [r]
+    br = sorted(set([0.0, L] + [x for v in nos.values() for a, b, _ in v for x in (a, b) if 0.0 < x < L]))
+    br2 = [0.0]
+    for x in br[1:]:
+        if x - br2[-1] >= 1.0: br2.append(x)
+    br2[-1] = L
+    def at(x):
+        i = 1
+        while i < len(S_) - 1 and S_[i] < x: i += 1
+        f = (x - S_[i - 1]) / max(S_[i] - S_[i - 1], 1e-9)
+        return (round(D[i - 1][0] + (D[i][0] - D[i - 1][0]) * f, 2), round(D[i - 1][1] + (D[i][1] - D[i - 1][1]) * f, 2))
+    out_ = []
+    for k in range(len(br2) - 1):
+        a, b = br2[k], br2[k + 1]; mid = (a + b) / 2
+        pts = [at(a)] + [tuple(round(v, 2) for v in D[i]) for i in range(len(D)) if a + 0.5 < S_[i] < b - 0.5] + [at(b)]
+        q = {kk: v for kk, v in r.items() if kk not in ('pts', 'lanes', 'paint', 'crossings', 'signs', 'lights')}
+        q['id'] = r['id'] if k == 0 else '%s-%d' % (r['id'], k)
+        q['pts'] = [list(p) for p in pts]; q['step'] = 2.0
+        lanes, kind = {}, {}
+        for sd in ('left', 'right'):
+            hit = [t for a_, b_, t in nos[sd] if a_ - 0.01 <= mid <= b_ + 0.01]
+            kind[sd] = hit[0] if hit else None
+            ls = [dict(l) for l in r['lanes'][sd]]
+            if hit: ls = [l for l in ls if l['type'] != 'Sidewalk']
+            for l in ls:
+                if l['type'] == 'Sidewalk': l['w'] = 2.5
+            lanes[sd] = ls
+        q['lanes'] = lanes
+        pa = []
+        for p in r.get('paint', []):
+            if p['kind'] == 'teeth':
+                if a <= p['at'] < b: pa.append(dict(p, at=round(p['at'] - a, 2)))
+                continue
+            f0, t0 = max(p.get('from', 0.0), a), min(p.get('to', L), b)
+            if t0 - f0 < 0.5: continue
+            if p['kind'] == 'line' and p.get('edge') == 1 and kind.get(p.get('side')) == 'cut': continue   # (no edge line across a mouth)
+            pa.append(dict(p, **{'from': round(f0 - a, 2), 'to': round(t0 - a, 2)}))
+        q['paint'] = pa
+        q['crossings'] = [dict(c, at=round(c['at'] - a, 2)) for c in r.get('crossings', []) if a <= c['at'] < b]
+        q['signs'] = [dict(g, at=round(g['at'] - a, 2)) for g in r.get('signs', []) if a <= g['at'] < b]
+        li = []
+        for lt in r.get('lights', []):
+            if kind.get(lt['side']): continue
+            sp = lt.get('spacing', 30.0); f0 = lt.get('from', sp * 0.5); t0 = lt.get('to', L)
+            first = f0 + sp * max(0, math.ceil((a - f0) / sp))
+            last = min(t0, b)
+            if first <= last: li.append(dict(lt, **{'from': round(first - a, 2), 'to': round(last - a, 2)}))
+        q['lights'] = li
+        out_.append(q)
+    return out_
+
+
+_new = []
+for r in roads:
+    if not r['id'].startswith('TOWN-') or r.get('closed') or '-WALK-' in r['id'] or \
+            r['id'] in ('TOWN-ROAD-NORTH', 'TOWN-ROAD-SOUTH', 'TOWN-VILLA-DRIVE', 'TOWN-RB9', 'TOWN-ROUNDABOUT'):
+        _new.append(r); continue
+    _new += sections(r)
+roads[:] = _new
 
 out = ROOT / 'Data' / 'roads.json'
 out.write_text(json.dumps({'source': 'Tools/make_roads.py', 'roads': roads, 'lots': lots, 'fills': FILLS}, indent=1, ensure_ascii=False), encoding='utf-8')

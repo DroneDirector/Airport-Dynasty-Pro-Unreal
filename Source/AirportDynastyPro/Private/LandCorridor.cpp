@@ -1,5 +1,6 @@
 // Our own land along the roads (LandCorridor.h).
 #include "LandCorridor.h"
+#include "TerminalBuilder.h"
 #include "ADPLog.h"
 #include "Airfield.h"
 #include "Globe.h"
@@ -144,7 +145,7 @@ void ALandCorridor::PlantRim(const void*)
 	ADP_LOG(TEXT("Land corridor: %d grass clumps along its rim"), Xf.Num());
 }
 
-void ALandCorridor::AddRoadSample(double X, double Y, double Z, double HalfWidth) { RoadSamples.Add(FVector4(X, Y, Z, HalfWidth)); }
+void ALandCorridor::AddRoadSample(double X, double Y, double Z, double HalfWidth, bool bKerbEdge) { RoadSamples.Add(FVector4(X, Y, Z, bKerbEdge ? -HalfWidth : HalfWidth)); }
 
 bool ALandCorridor::HeightAt(double X, double Y, double& Z)
 {
@@ -187,15 +188,21 @@ int32 ALandCorridor::Build()
 					for (const int32 k : Near)
 					{
 						const FVector4& S = RoadSamples[k];
-						const double D = FMath::Sqrt(FMath::Square(S.X - X) + FMath::Square(S.Y - Y)) - S.W;   // (m beyond its edge)
+						const double D = FMath::Sqrt(FMath::Square(S.X - X) + FMath::Square(S.Y - Y)) - FMath::Abs(S.W);   // (m beyond its edge)
 						if (D < Best) { Best = D; RZ = S.Z; HW = S.W; }
 					}
 				}
-				// (30 cm under the road's middle line: on a rise the road's own curve sags a little below the straight line
-				// between its height points, and the land poked through the asphalt there - Main Street, 2026-11-15)
-				const double Under = RZ - 0.30;
-				if (Best <= 0.6) V = float(Under);
-				else if (Best < 6.6) { const double t = FMath::SmoothStep(0.6, 6.6, Best); V = float(FMath::Lerp(Under, double(V), t)); }
+				// (owner, 2026-11-15: "the roads float above the custom ground - as far down as possible without glitching"):
+				// under the road 12 cm below its surface (its curve sags a few cm between its height points on a rise: the
+				// land never shows through); right beside it the land comes up to its edge - behind a raised pavement 8 cm
+				// over the road (the pavement's top is 15 cm up: its back edge meets the grass, no slab side shows), beside
+				// a flush edge 3 cm under it - then eases back to the land over 6 m. The land's points are 2.5 m apart: a
+				// triangle reaching from under the road to its side stays below the edge it crosses.
+				const bool bKerb = HW < 0;
+				const double Under = RZ - 0.12, Side = bKerb ? RZ + 0.08 : RZ - 0.03;
+				if (Best <= 0.0) V = float(Under);
+				else if (Best <= 1.5) V = float(Side);
+				else if (Best < 7.5) { const double t = FMath::SmoothStep(1.5, 7.5, Best); V = float(FMath::Lerp(Side, double(V), t)); }
 			}
 	}
 	// ---- where it runs into the airfield: its land eased under the airfield's own ground (10 cm below it, over 40 m
@@ -315,7 +322,9 @@ int32 ALandCorridor::Build()
 			{
 				UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this, *Name);
 				C->SetupAttachment(RootComponent); C->SetStaticMesh(SM); C->SetCollisionProfileName(TEXT("BlockAll"));
-				if (Mat) C->SetMaterial(0, Mat);
+				// the airfield's own grass ground (owner, 2026-11-15: our land covered by the same grass; the blades on it:
+				// GrassField.cpp)
+				if (UMaterialInterface* Gm = ATerminalBuilder::KitMaterial(this, TEXT("ggrass"))) C->SetMaterial(0, Gm); else if (Mat) C->SetMaterial(0, Mat);
 				C->RegisterComponent(); AddInstanceComponent(C);
 			}
 			else ADP_WARN(TEXT("Land corridor: %s missing - run Tools/make_land_nanite.sh"), *Name);
@@ -323,7 +332,7 @@ int32 ALandCorridor::Build()
 		else
 		{
 			Mesh->CreateMeshSection_LinearColor(Sct, V, I, N, T, TArray<FLinearColor>(), TArray<FProcMeshTangent>(), true);
-			if (Mat) Mesh->SetMaterial(Sct, Mat);
+			if (UMaterialInterface* Gm = ATerminalBuilder::KitMaterial(this, TEXT("ggrass"))) Mesh->SetMaterial(Sct, Gm); else if (Mat) Mesh->SetMaterial(Sct, Mat);
 		}
 		++Sct; Tris += I.Num() / 3;
 	}

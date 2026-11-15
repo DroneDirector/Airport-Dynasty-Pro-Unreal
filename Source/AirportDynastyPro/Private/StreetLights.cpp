@@ -49,6 +49,27 @@ bool AStreetLights::Ready()
 	return true;
 }
 
+void AStreetLights::Resettle()
+{
+	// (owner, 2026-11-15: the roads, signs and posts down on the ground: the land is shaped after they were set out)
+	if (!Posts) return;
+	FCollisionQueryParams Q(SCENE_QUERY_STAT(ADPPostDown), true, this);
+	int32 Moved = 0;
+	for (int32 i = 0; i < Posts->GetInstanceCount(); ++i)
+	{
+		FTransform T; if (!Posts->GetInstanceTransform(i, T, true)) continue;
+		const FVector At = T.GetLocation(); FHitResult H;
+		if (!GetWorld()->LineTraceSingleByChannel(H, At + FVector(0, 0, 150.f), At - FVector(0, 0, 250.f), ECC_Visibility, Q)) continue;
+		const float Dz = H.ImpactPoint.Z - At.Z;
+		if (FMath::Abs(Dz) < 0.5f) continue;
+		T.AddToTranslation(FVector(0, 0, Dz)); Posts->UpdateInstanceTransform(i, T, true, false);
+		if (Lights.IsValidIndex(i) && Lights[i]) Lights[i]->AddWorldOffset(FVector(0, 0, Dz));
+		++Moved;
+	}
+	Posts->MarkRenderStateDirty();
+	ADP_LOG(TEXT("Street lights: %d posts set down on the ground under them"), Moved);
+}
+
 bool AStreetLights::AddPost(const FVector& At, const FVector& Toward)
 {
 	if (!Ready()) return false;

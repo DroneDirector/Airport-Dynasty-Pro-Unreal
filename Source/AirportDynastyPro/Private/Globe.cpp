@@ -249,11 +249,37 @@ void AGlobe::Probe(int32 S)
 	Source = Wanted;
 }
 
+void AGlobe::AddGrassColour(const TCHAR* Key)
+{
+	// the airfield's grass colour over the globe in the ring round the airport and round our own land (owner,
+	// 2026-11-15: "cover it by grass ... several kilometres ... the exact same grass"): Tools/make_grass_area.py's
+	// tiles (geographic, y from the south, see-through outside the area and over water), on top of the picture
+	if (GrassColour) { GrassColour->DestroyComponent(); GrassColour = nullptr; }
+	const FString Dir = FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir() / TEXT("Data/grass-tiles"));
+	FString Text; TSharedPtr<FJsonObject> J;
+	if (!FFileHelper::LoadFileToString(Text, *(Dir / TEXT("tiles.json"))) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), J) || !J.IsValid()) { ADP_WARN(TEXT("Globe: no grass colour tiles (Tools/make_grass_area.py)")); return; }
+	UCesiumUrlTemplateRasterOverlay* O = NewObject<UCesiumUrlTemplateRasterOverlay>(Earth, TEXT("GrassColour"));
+	O->TemplateUrl = TEXT("file:///") + Dir / TEXT("{z}/{x}/{y}.png");
+	O->Projection = ECesiumUrlTemplateRasterOverlayProjection::Geographic;
+	O->bSpecifyTilingScheme = true;
+	O->RootTilesX = 1; O->RootTilesY = 1;   // (one root tile over the area: Cesium numbers the tiles inside the rectangle)
+	O->RectangleWest = J->GetNumberField(TEXT("west")); O->RectangleSouth = J->GetNumberField(TEXT("south"));
+	O->RectangleEast = J->GetNumberField(TEXT("east")); O->RectangleNorth = J->GetNumberField(TEXT("north"));
+	O->MinimumLevel = int32(J->GetNumberField(TEXT("minLevel"))); O->MaximumLevel = int32(J->GetNumberField(TEXT("maxLevel")));
+	O->TileWidth = 256; O->TileHeight = 256;
+	O->MaterialLayerKey = Key;
+	if (FBoolProperty* Show = FindFProperty<FBoolProperty>(UCesiumRasterOverlay::StaticClass(), TEXT("ShowCreditsOnScreen"))) Show->SetPropertyValue_InContainer(O, false);
+	O->RegisterComponent();
+	Earth->AddInstanceComponent(O);
+	GrassColour = O;
+}
+
 void AGlobe::SetImagery(int32 S)
 {
 	if (!Earth) return;
 	if (Imagery) { Imagery->DestroyComponent(); Imagery = nullptr; }
 	if (Detail) { Detail->DestroyComponent(); Detail = nullptr; }
+	AddGrassColour(S == 3 ? TEXT("Overlay2") : TEXT("Overlay1"));
 	if (S == 3)
 	{
 		// the land cover: the world (geographic, 2 x 1 root tiles, to level 8) and the North Atlantic over it (its own

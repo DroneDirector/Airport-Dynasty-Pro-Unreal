@@ -379,11 +379,24 @@ int32 ARoadNetwork::Build()
 			for (int32 i = 0; i < FMath::Min(K, Ls.Num()); ++i) O += Ls[i].Width.Eval(float(D * 100.0)) / 100.0;
 			return O;
 		};
-		// the road's surface for our own land along it (shaped under the road: ALandCorridor), every 2 m
+		// the road's surface for our own land along it (shaped under the road: ALandCorridor), every 2 m; whether its
+		// outer edge is a raised pavement (the land then comes up behind the pavement's edge, not to the asphalt)
+		bool bWalk[2] = {false, false};   // (left, right: its outermost lane a pavement)
+		for (int32 k = 0; k < 2; ++k)
+		{
+			const TArray<TSharedPtr<FJsonValue>>& Ls = Lanes->GetArrayField(k ? TEXT("right") : TEXT("left"));
+			bWalk[k] = Ls.Num() && Ls.Last()->AsObject()->GetStringField(TEXT("type")) == TEXT("Sidewalk");
+		}
+		const bool bKerbEdge = bWalk[0] && bWalk[1];
+		auto PavementAt = [&](bool bR, double D)   // (a real pavement there: not one narrowed away at a junction's mouth)
+		{
+			const TArray<FRoadLane>& Ls = bR ? Sec.Right : Sec.Left;
+			return Ls.Num() > 0 && Ls.Last().Width.Eval(float(D * 100.0)) > 100.f;
+		};
 		for (double D = 0.0; D <= RoadLen; D += 2.0)
 		{
 			FVector P_, F_, R_; OnRoad(D, P_, F_, R_);
-			ALandCorridor::AddRoadSample(P_.X / 100.0, -P_.Y / 100.0, P_.Z / 100.0, FMath::Max(Edge(true, 99, D), Edge(false, 99, D)));
+			ALandCorridor::AddRoadSample(P_.X / 100.0, -P_.Y / 100.0, P_.Z / 100.0, FMath::Max(Edge(true, 99, D), Edge(false, 99, D)), bKerbEdge && PavementAt(true, D) && PavementAt(false, D));
 		}
 		auto SideOf = [](const TSharedPtr<FJsonObject>& O) { FString Sd = TEXT("right"); O->TryGetStringField(TEXT("side"), Sd); return Sd != TEXT("left"); };
 		// a signed offset (m, + to the right) at D: {side, edge, off (further out)}

@@ -18,6 +18,8 @@ public:
 	AStreetLights();
 	/** A post standing at At (world, cm, its foot), its arm reaching out along Toward (world, flat). False if the model is missing. */
 	bool AddPost(const FVector& At, const FVector& Toward);
+	/** Every post set down on what is under it now (after our land is shaped round the roads: ALandCorridor). */
+	void Resettle();
 	int32 Num() const { return Count; }
 	virtual void Tick(float Dt) override;
 

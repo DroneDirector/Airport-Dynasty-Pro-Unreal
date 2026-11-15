@@ -21,7 +21,7 @@ public:
 	/** The band's natural ground (m, the game's z) at a plan point, if the point is on it. */
 	static bool HeightAt(double X, double Y, double& Z);
 	/** A road's surface along its middle (plan m, z m, its half width m), sent by the road network as it builds. */
-	static void AddRoadSample(double X, double Y, double Z, double HalfWidth);
+	static void AddRoadSample(double X, double Y, double Z, double HalfWidth, bool bKerbEdge = false);
 	/** Draws the band (after the roads are built: it is shaped under them). Returns its triangles. */
 	int32 Build();
 	/** The band's outline cut out of the globe (plan m), for AGlobe. */

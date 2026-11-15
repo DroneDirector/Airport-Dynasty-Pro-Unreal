@@ -19,6 +19,9 @@ class AIRPORTDYNASTYPRO_API AGlobe : public AActor
 	UPROPERTY() TObjectPtr<class UCesiumUrlTemplateRasterOverlay> Imagery;
 	/** The land cover's sharper North Atlantic layer (the Faroes and Iceland), over the world one. */
 	UPROPERTY() TObjectPtr<class UCesiumUrlTemplateRasterOverlay> Detail;
+	/** The airfield grass's colour over the globe round the airport and our land (Content/Data/grass-tiles). */
+	UPROPERTY() TObjectPtr<class UCesiumUrlTemplateRasterOverlay> GrassColour;
+	void AddGrassColour(const TCHAR* Key);
 	static TWeakObjectPtr<AGlobe> Current;
 	void SetImagery(int32 S);
 	void Probe(int32 S);

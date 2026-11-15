@@ -15,7 +15,17 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
+#include "Camera/PlayerCameraManager.h"
 #include "CollisionQueryParams.h"
+#include "LandCorridor.h"
+#include "IImageWrapper.h"
+#include "IImageWrapperModule.h"
+#include "Modules/ModuleManager.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
 
 namespace
 {
@@ -37,6 +47,36 @@ namespace
 	constexpr float FarStep = 250.f;        // the far tufts: one in every 2.5 m square (wide, so the field reads as grass)
 	constexpr int32 FarRowsPerTick = 2;     // 4 m rows of the whole airfield laid per frame
 
+	/** Where the airfield's grass also grows outside it (owner, 2026-11-15): Data/grass-area.png + .json (Tools/
+	 *  make_grass_area.py) - a ring 5 km round the airfield and all our own land along the roads and in the town, never
+	 *  within 30 m of water. Plan metres, 5 m a pixel. */
+	struct FGrassArea
+	{
+		double X0 = 0, Y0 = 0, Step = 5; int32 NX = 0, NY = 0; TArray<uint8> Px; bool bRead = false;
+		bool At(double X, double Y) const
+		{
+			const int32 i = FMath::FloorToInt((X - X0) / Step), j = FMath::FloorToInt((Y - Y0) / Step);
+			return i >= 0 && j >= 0 && i < NX && j < NY && Px[j * NX + i] > 127;
+		}
+	};
+	const FGrassArea& GrassArea()
+	{
+		static FGrassArea A;
+		if (A.bRead) return A;
+		A.bRead = true;
+		auto File = [](const TCHAR* N) { const FString C = FPaths::ProjectContentDir() / TEXT("Data") / N; return FPaths::FileExists(C) ? C : FPaths::ProjectDir() / TEXT("Data") / N; };
+		FString Text; TSharedPtr<FJsonObject> J; TArray<uint8> Png, Raw;
+		if (!FFileHelper::LoadFileToString(Text, *File(TEXT("grass-area.json"))) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), J) || !J.IsValid()) return A;
+		if (!FFileHelper::LoadFileToArray(Png, *File(TEXT("grass-area.png")))) return A;
+		IImageWrapperModule& M = FModuleManager::LoadModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
+		TSharedPtr<IImageWrapper> W = M.CreateImageWrapper(EImageFormat::PNG);
+		if (!W.IsValid() || !W->SetCompressed(Png.GetData(), Png.Num()) || !W->GetRaw(ERGBFormat::Gray, 8, Raw)) return A;
+		A.X0 = J->GetNumberField(TEXT("x0")); A.Y0 = J->GetNumberField(TEXT("y0")); A.Step = J->GetNumberField(TEXT("step"));
+		A.NX = W->GetWidth(); A.NY = W->GetHeight(); A.Px = MoveTemp(Raw);
+		ADP_LOG(TEXT("Grass: the area outside the airfield %d x %d at %.0f m"), A.NX, A.NY, A.Step);
+		return A;
+	}
+
 	/** Is what the look down found grass? The airfield's grass slab (its "grass" list) or the model's lawns. */
 	bool IsGrass(const FHitResult& H)
 	{
@@ -45,8 +85,15 @@ namespace
 		if (C->GetFName() == TEXT("grass")) return true;
 		if (const UStaticMeshComponent* S = Cast<UStaticMeshComponent>(C))
 			if (const UStaticMesh* M = S->GetStaticMesh()) if (M->GetName() == TEXT("terminal_mesh_2611")) return true;
+		// our own land along the roads and the town, and the globe in the ring round the airfield: the same grass,
+		// wherever the area says (owner, 2026-11-15: black sand too, 30 m clear of water); roads, kerbs, pavements,
+		// corners and car parks are met first by the look down and stay bare
+		const bool bOurLand = C->GetOwner() && C->GetOwner()->IsA<ALandCorridor>();
+		const bool bGlobe = C->GetOwner() && C->GetOwner()->IsA<ACesium3DTileset>();
+		if ((bOurLand || bGlobe) && GrassArea().At(H.ImpactPoint.X / 100.0, -H.ImpactPoint.Y / 100.0)) return true;
+		if (bOurLand) return false;
 		// the real ground (the globe's terrain): grass where the land cover says the land is grassy
-		if (C->GetOwner() && C->GetOwner()->IsA<ACesium3DTileset>())
+		if (bGlobe)
 			if (ACesiumGeoreference* G = GrassGlobeGeo(C->GetWorld()))
 			{
 				const FVector LL = G->TransformUnrealPositionToLongitudeLatitudeHeight(H.ImpactPoint);
@@ -175,10 +222,14 @@ void AGrassField::Tick(float Dt)
 		if (T.Num()) { K->AddInstances(T, false, true); FarRows.Add(K); } else K->DestroyComponent();
 	}
 
+	// round the camera, wherever it is (walking, the drone, a view camera, the picture tests): the blades are where you look
+	// from (2026-11-15: they grew round your body only, so a camera elsewhere saw none)
 	const APlayerController* PC = GetWorld()->GetFirstPlayerController();
-	const APawn* Me = PC ? PC->GetPawn() : nullptr;
-	if (!Me) return;
-	const FVector L = Me->GetActorLocation();
+	if (!PC) return;
+	FVector L;
+	if (PC->PlayerCameraManager) L = PC->PlayerCameraManager->GetCameraLocation();
+	else if (const APawn* Me = PC->GetPawn()) L = Me->GetActorLocation();
+	else return;
 	const FIntPoint At(FMath::FloorToInt(L.X / Cell), FMath::FloorToInt(L.Y / Cell));
 	const float NearReach = bOn ? FMath::Clamp(NearDistance, 0.f, 150.f) * 100.f : 0.f;
 

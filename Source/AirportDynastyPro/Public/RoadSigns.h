@@ -18,6 +18,8 @@ public:
 	ARoadSigns();
 	/** A sign standing at At (world, cm, on the ground between its posts), its face looking along Face (flat), Km to go. */
 	bool AddSign(const FVector& At, const FVector& Face, const FString& Km);
+	/** Every sign set down on what is under it now (after our land is shaped round the roads: ALandCorridor). */
+	void Resettle();
 	/** The airport's name and the local word for airport ("Flugvöllur" in Iceland ... "Airport" where English is spoken). */
 	static void AirportWords(FString& Name, FString& Word);
 	/** The last sign placed (the -UIRoad test's camera looks at it). */

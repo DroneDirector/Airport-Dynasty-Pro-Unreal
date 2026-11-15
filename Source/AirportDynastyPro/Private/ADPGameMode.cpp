@@ -25,6 +25,10 @@
 #include "FireStation.h"
 #include "TownBuildings.h"
 #include "ParkedAircraft.h"
+#include "TimerManager.h"
+#include "EngineUtils.h"
+#include "RoadSigns.h"
+#include "StreetLights.h"
 #include "TowerADC.h"
 #include "Hangar.h"
 #include "RoadNetwork.h"
@@ -119,6 +123,15 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 			ADPTown::Place(W);
 			// our own land along the roads outside the airfield, shaped under them (LandCorridor.h)
 			if (ALandCorridor* Land = W->SpawnActor<ALandCorridor>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Land->Build();
+			// the posts and signs along the roads set down on the land as now shaped (a moment later: its collision is up)
+			{
+				FTimerHandle Th;
+				W->GetTimerManager().SetTimer(Th, FTimerDelegate::CreateLambda([W]()
+				{
+					for (TActorIterator<AStreetLights> It(W); It; ++It) It->Resettle();
+					for (TActorIterator<ARoadSigns> It(W); It; ++It) It->Resettle();
+				}), 1.0f, false);
+			}
 			if (!bBabylon)
 				if (AAirTraffic* Traffic = W->SpawnActor<AAirTraffic>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 					Traffic->Start(Field->Data());

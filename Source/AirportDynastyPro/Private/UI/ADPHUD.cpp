@@ -3023,6 +3023,16 @@ void AADPHUD::Tick(float Dt)
 				{TEXT("AP_10_NightHigh"), 80.f, 55.f, 255.f, 80.f, 0.f, 140.f, 1.5f},
 				{TEXT("AP_11_NightFromGate4Window"), 190.f, 7.7f, 69.6f, 183.14f, 3.5f, 135.f, 1.5f},
 			};
+			// -UIRoadAirport -GrassShots: the airfield's grass on our land and the globe's ring round the airport (2026-11-15)
+			const FV GrassViews[] = {
+				{TEXT("GR_01_RingHighSouth"), 0.0f, 450.0f, -3200.0f, 0.0f, 0.0f, -900.0f, 13.0f},
+				{TEXT("GR_02_RoadToTownEye"), 2160.0f, 1.7f, -1430.0f, 2210.0f, 1.0f, -1200.0f, 13.0f},
+				{TEXT("GR_03_RoadToTownLow"), 2100.0f, 12.0f, -1500.0f, 2400.0f, 0.0f, -1250.0f, 13.0f},
+				{TEXT("GR_04_TownStreetEye"), 4593.3f, 1.7f, -3581.7f, 4575.1f, 1.0f, -3557.5f, 13.0f},
+				{TEXT("GR_05_TownHigh"), 4792.0f, 420.0f, -4458.8f, 5070.8f, 0.0f, -3769.1f, 13.0f},
+				{TEXT("GR_06_RingEdge"), 0.0f, 80.0f, -4700.0f, 0.0f, 0.0f, -5800.0f, 13.0f},
+				{TEXT("GR_07_AirfieldToRing"), -900.0f, 35.0f, 300.0f, -1300.0f, 0.0f, -1200.0f, 13.0f},
+			};
 			const FV TownViews[] = {
 				{TEXT("TR_1_BendHigh"), 2000.f, 160.f, -250.f, 2250.f, 0.f, -650.f, 14.f},
 				{TEXT("TR_2_RoundaboutHigh"), 2217.f, 90.f, -1080.f, 2217.f, 0.f, -1168.f, 14.f},
@@ -3062,14 +3072,16 @@ void AADPHUD::Tick(float Dt)
 			const bool bRoofSet = FParse::Param(FCommandLine::Get(), TEXT("RoofShots"));
 			const bool bTownStreets = FParse::Param(FCommandLine::Get(), TEXT("TownShots"));
 			const bool bApron = FParse::Param(FCommandLine::Get(), TEXT("ApronShots"));
-			const FV* Set = bApron ? ApronViews : bTownStreets ? TownStreetViews : bRoofSet ? RoofViews : bTownSet ? TownViews : bTerminalSet ? TerminalViews : bAirportSet ? AirportViews : RoadViews;
-			const int32 NSet = bApron ? UE_ARRAY_COUNT(ApronViews) : bTownStreets ? UE_ARRAY_COUNT(TownStreetViews) : bRoofSet ? UE_ARRAY_COUNT(RoofViews) : bTownSet ? UE_ARRAY_COUNT(TownViews) : bTerminalSet ? UE_ARRAY_COUNT(TerminalViews) : bAirportSet ? UE_ARRAY_COUNT(AirportViews) : UE_ARRAY_COUNT(RoadViews);
+			const bool bGrassSet = FParse::Param(FCommandLine::Get(), TEXT("GrassShots"));
+			const FV* Set = bGrassSet ? GrassViews : bApron ? ApronViews : bTownStreets ? TownStreetViews : bRoofSet ? RoofViews : bTownSet ? TownViews : bTerminalSet ? TerminalViews : bAirportSet ? AirportViews : RoadViews;
+			const int32 NSet = bGrassSet ? UE_ARRAY_COUNT(GrassViews) : bApron ? UE_ARRAY_COUNT(ApronViews) : bTownStreets ? UE_ARRAY_COUNT(TownStreetViews) : bRoofSet ? UE_ARRAY_COUNT(RoofViews) : bTownSet ? UE_ARRAY_COUNT(TownViews) : bTerminalSet ? UE_ARRAY_COUNT(TerminalViews) : bAirportSet ? UE_ARRAY_COUNT(AirportViews) : UE_ARRAY_COUNT(RoadViews);
 			for (int32 i = 0; i < NSet; ++i)
 			{
-				const float T0 = 43.f + i * 4.f; const FV& V = Set[i];
+				const float Gap = bGrassSet ? 14.f : 4.f;   // (the grass grows in round a new camera place over some seconds)
+				const float T0 = 43.f + i * Gap; const FV& V = Set[i];
 				FV Vw = V;
 				// (the town lies ~28 m under the airport: its views' heights are from the ground under them)
-				if (FString(V.Name).StartsWith(TEXT("TW_"))) { Vw.H += ARoadNetwork::GroundAt(V.X, V.Y); Vw.LH += ARoadNetwork::GroundAt(V.LX, V.LY); }
+				if (FString(V.Name).StartsWith(TEXT("TW_")) || FString(V.Name).StartsWith(TEXT("GR_"))) { Vw.H += ARoadNetwork::GroundAt(V.X, V.Y); Vw.LH += ARoadNetwork::GroundAt(V.LX, V.LY); }
 				if (FString(V.Name).StartsWith(TEXT("Road_SignClose")) || FString(V.Name).StartsWith(TEXT("Road_SignBack")))
 				{
 					// at the sign itself (wherever it stands): 6 m in front of its face, a little to the road side, or 4 m behind it
@@ -3125,7 +3137,7 @@ void AADPHUD::Tick(float Dt)
 						if (!RCam.IsValid()) RCam = GetWorld()->SpawnActor<ACameraActor>(WE, (WL - WE).Rotation()); else RCam->SetActorLocationAndRotation(WE, (WL - WE).Rotation());
 						if (RCam.IsValid()) { RCam->GetCameraComponent()->SetConstraintAspectRatio(false); RCam->GetCameraComponent()->SetFieldOfView(60.f); PCw->SetViewTarget(RCam.Get()); }
 					} if (ASunClock::HourOverride != V.Hour) { ASunClock::HourOverride = V.Hour; ASunClock::Refresh(); } }
-				if (Before < T0 + 3.f && ShotClock >= T0 + 3.f) Shot(*(FString(V.Name) + Tag));
+				if (Before < T0 + Gap - 1.f && ShotClock >= T0 + Gap - 1.f) Shot(*(FString(V.Name) + Tag));
 			}
 			// -RoadGroundProbe: the globe's ground measured under every road and car park outside the airfield (owner, 2026-11-14:
 			// the road floated over the land falling toward the coast) - the camera flown from place to place so Cesium has its
@@ -3221,7 +3233,7 @@ void AADPHUD::Tick(float Dt)
 					FString L; for (const FHitResult& H : Hs) L += FString::Printf(TEXT(" [%s %.2f m]"), H.GetActor() ? *H.GetActor()->GetClass()->GetName() : TEXT("-"), H.ImpactPoint.Z / 100.0);
 					ADP_LOG(TEXT("GlobeProbe: plan %.0f, %.0f (airfield ground %.2f m):%s"), Q.X, Q.Y, AAirfield::GroundAt(Q.X, Q.Y), *L);
 				}
-			if (Before < 43.f + NSet * 4.f + 2.f && ShotClock >= 43.f + NSet * 4.f + 2.f) FGenericPlatformMisc::RequestExit(false);
+			{ const float Per = bGrassSet ? 14.f : 4.f; if (Before < 43.f + NSet * Per + 2.f && ShotClock >= 43.f + NSet * Per + 2.f) FGenericPlatformMisc::RequestExit(false); }
 		}
 		// -UIKiosk: the self check-in kiosk in the main hall from all round (owner, 2026-11-14): front, both front corners, the
 		// side, the back, the screen close up, and the hall wide with it - PNG (HighResShot), at midday

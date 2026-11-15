@@ -120,6 +120,22 @@ UTexture* ARoadSigns::Compose(const FString& Km)
 	return RT;
 }
 
+void ARoadSigns::Resettle()
+{
+	FCollisionQueryParams Q(SCENE_QUERY_STAT(ADPSignDown), true, this);
+	TArray<UStaticMeshComponent*> Cs; GetComponents(Cs);
+	int32 Moved = 0;
+	for (UStaticMeshComponent* S : Cs)
+	{
+		const FVector At = S->GetComponentLocation(); FHitResult H;
+		if (!GetWorld()->LineTraceSingleByChannel(H, At + FVector(0, 0, 150.f), At - FVector(0, 0, 250.f), ECC_Visibility, Q)) continue;
+		const float Dz = H.ImpactPoint.Z - At.Z;
+		if (FMath::Abs(Dz) < 0.5f) continue;
+		S->AddWorldOffset(FVector(0, 0, Dz)); ++Moved;
+	}
+	ADP_LOG(TEXT("Road signs: %d set down on the ground under them"), Moved);
+}
+
 bool ARoadSigns::AddSign(const FVector& At, const FVector& Face, const FString& Km)
 {
 	if (!Ready()) return false;
