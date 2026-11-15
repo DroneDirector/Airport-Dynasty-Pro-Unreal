@@ -63,6 +63,8 @@
 #include "Widgets/Input/SSlider.h"
 #include "Puddles.h"
 #include "GrassField.h"
+#include "RenderCore.h"
+#include "RHI.h"
 #include "FlightViewer.h"
 #include "CharacterCreate.h"
 #include "TerrainPacks.h"
@@ -3074,7 +3076,7 @@ void AADPHUD::Tick(float Dt)
 			const bool bApron = FParse::Param(FCommandLine::Get(), TEXT("ApronShots"));
 			const bool bGrassSet = FParse::Param(FCommandLine::Get(), TEXT("GrassShots"));
 			const FV* Set = bGrassSet ? GrassViews : bApron ? ApronViews : bTownStreets ? TownStreetViews : bRoofSet ? RoofViews : bTownSet ? TownViews : bTerminalSet ? TerminalViews : bAirportSet ? AirportViews : RoadViews;
-			const int32 NSet = bGrassSet ? UE_ARRAY_COUNT(GrassViews) : bApron ? UE_ARRAY_COUNT(ApronViews) : bTownStreets ? UE_ARRAY_COUNT(TownStreetViews) : bRoofSet ? UE_ARRAY_COUNT(RoofViews) : bTownSet ? UE_ARRAY_COUNT(TownViews) : bTerminalSet ? UE_ARRAY_COUNT(TerminalViews) : bAirportSet ? UE_ARRAY_COUNT(AirportViews) : UE_ARRAY_COUNT(RoadViews);
+			const int32 NSet = FParse::Param(FCommandLine::Get(), TEXT("GrassPerf")) ? 0 : bGrassSet ? UE_ARRAY_COUNT(GrassViews) : bApron ? UE_ARRAY_COUNT(ApronViews) : bTownStreets ? UE_ARRAY_COUNT(TownStreetViews) : bRoofSet ? UE_ARRAY_COUNT(RoofViews) : bTownSet ? UE_ARRAY_COUNT(TownViews) : bTerminalSet ? UE_ARRAY_COUNT(TerminalViews) : bAirportSet ? UE_ARRAY_COUNT(AirportViews) : UE_ARRAY_COUNT(RoadViews);
 			for (int32 i = 0; i < NSet; ++i)
 			{
 				const float Gap = bGrassSet ? 14.f : 4.f;   // (the grass grows in round a new camera place over some seconds)
@@ -3233,7 +3235,39 @@ void AADPHUD::Tick(float Dt)
 					FString L; for (const FHitResult& H : Hs) L += FString::Printf(TEXT(" [%s %.2f m]"), H.GetActor() ? *H.GetActor()->GetClass()->GetName() : TEXT("-"), H.ImpactPoint.Z / 100.0);
 					ADP_LOG(TEXT("GlobeProbe: plan %.0f, %.0f (airfield ground %.2f m):%s"), Q.X, Q.Y, AAirfield::GroundAt(Q.X, Q.Y), *L);
 				}
+			if (!FParse::Param(FCommandLine::Get(), TEXT("GrassPerf")))
 			{ const float Per = bGrassSet ? 14.f : 4.f; if (Before < 43.f + NSet * Per + 2.f && ShotClock >= 43.f + NSet * Per + 2.f) FGenericPlatformMisc::RequestExit(false); }
+			// -UIRoadAirport -GrassPerf: the frame time with the grass on and off, at eye level by the road to town and high
+			// over the ring (2026-11-15: is the grass - near, middle, far - cheap enough?)
+			if (FParse::Param(FCommandLine::Get(), TEXT("GrassPerf")))
+			{
+				struct FPhase { float T; float X, H, Y, LX, LH, LY; bool bGrass; const TCHAR* Name; };
+				static const FPhase Ph[] = {
+					{40.f, 2160.f, 1.7f, -1430.f, 2210.f, 1.f, -1200.f, true, TEXT("eye, grass on")},
+					{70.f, 2160.f, 1.7f, -1430.f, 2210.f, 1.f, -1200.f, false, TEXT("eye, grass off")},
+					{100.f, 0.f, 450.f, -3200.f, 0.f, 0.f, -900.f, true, TEXT("high, grass on")},
+					{130.f, 0.f, 450.f, -3200.f, 0.f, 0.f, -900.f, false, TEXT("high, grass off")},
+					{160.f, 2160.f, 1.7f, -1430.f, 2210.f, 1.f, -1200.f, true, TEXT("eye again, grass on")},
+					{190.f, 2160.f, 1.7f, -1430.f, 2210.f, 1.f, -1200.f, false, TEXT("eye again, grass off")},
+				};
+				static double Sum = 0, SumG = 0, SumR = 0, SumGpu = 0; static int32 Frames = 0;
+				for (int32 p = 0; p < 6; ++p)
+				{
+					if (Before < Ph[p].T && ShotClock >= Ph[p].T) { ASunClock::HourOverride = 13.f; ASunClock::Refresh(); View(Ph[p].X, Ph[p].H + ARoadNetwork::GroundAt(Ph[p].X, Ph[p].Y), Ph[p].Y, Ph[p].LX, Ph[p].LH + ARoadNetwork::GroundAt(Ph[p].LX, Ph[p].LY), Ph[p].LY); AGrassField::bOn = Ph[p].bGrass; }
+					if (ShotClock >= Ph[p].T + 18.f && ShotClock < Ph[p].T + 28.f)
+					{ Sum += FApp::GetDeltaTime(); SumG += FPlatformTime::ToMilliseconds(GGameThreadTime); SumR += FPlatformTime::ToMilliseconds(GRenderThreadTime); SumGpu += FPlatformTime::ToMilliseconds(RHIGetGPUFrameCycles()); ++Frames; }
+					if (Before < Ph[p].T + 28.f && ShotClock >= Ph[p].T + 28.f && Frames)
+					{ ADP_LOG(TEXT("GrassPerf: %s: %.1f ms a frame (%.0f fps) - game %.1f, render %.1f, GPU %.1f ms - over %d frames"), Ph[p].Name, Sum / Frames * 1000.0, Frames / Sum, SumG / Frames, SumR / Frames, SumGpu / Frames, Frames); Sum = SumG = SumR = SumGpu = 0; Frames = 0; }
+					// (each view's picture for the owner, after its measuring: high quality PNG)
+					if (Before < Ph[p].T + 28.5f && ShotClock >= Ph[p].T + 28.5f)
+						if (APlayerController* PCs = GetOwningPlayerController())
+						{
+							FString N = FString::Printf(TEXT("GP_%d_%s"), p + 1, Ph[p].Name); N.ReplaceInline(TEXT(", "), TEXT("_")); N.ReplaceInline(TEXT(" "), TEXT("_"));
+							PCs->ConsoleCommand(FString::Printf(TEXT("HighResShot 3 filename=%s"), *N));
+						}
+				}
+				if (Before < 220.f && ShotClock >= 220.f) FGenericPlatformMisc::RequestExit(false);
+			}
 		}
 		// -UIKiosk: the self check-in kiosk in the main hall from all round (owner, 2026-11-14): front, both front corners, the
 		// side, the back, the screen close up, and the hall wide with it - PNG (HighResShot), at midday

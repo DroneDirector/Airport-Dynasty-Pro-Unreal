@@ -116,6 +116,7 @@ ITEMS = [
     ('60c', 'Land along the roads: stones along the edge (reference photos first)', '1 h', ['field'], '60a', False),
     ('61', 'Wash hose: jet runs straight about 28 m (lands about 37 m), more water left on the ground', '20 min', ['field'], '', True),
     ('62', 'New career loading screen: what Unreal loads (you, your hair, the terminal) with real percentages', '40 min', ['people'], '', True),
+    ('63', 'Grass performance: with the grass on a frame takes about 8 ms more on the ground (eye level, settled: 17 fps against 20 in the test build) and about 10 ms more 450 m up (27 against 37 fps, the far grass out to 2.5 km), nearly all game-thread time; the grass code itself uses only about 2.6 ms while filling in and almost nothing after - find what in Unreal costs the rest (likely the 650-1150 grass patches being separate components: merge them into a few) and bring it down', '2 h', ['field'], '', False),
 ]
 import os as _os
 # (into docs/, wherever it is run from: it used to land in the current folder and docs/ kept an old copy, 2026-11-14)

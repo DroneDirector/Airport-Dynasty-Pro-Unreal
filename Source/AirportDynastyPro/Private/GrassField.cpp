@@ -1,5 +1,6 @@
 // The grass round the airport (see GrassField.h).
 #include "GrassField.h"
+#include "Misc/ScopeExit.h"
 #include "ADPLog.h"
 #include "LandCover.h"
 // (Windows' own OPAQUE macro would break Cesium's glTF names when the build puts a Windows file before this one)
@@ -32,12 +33,18 @@ namespace
 	/** The globe's own georeference (Globe.cpp spawns it); Cesium's "default" one is another, at 0 N 0 E. */
 	ACesiumGeoreference* GrassGlobeGeo(UWorld* W)
 	{
-		if (W) for (TActorIterator<ACesiumGeoreference> It(W); It; ++It) if (!It->GetName().Contains(TEXT("Default"))) return *It;
+		// (kept once found: it was searched for on every look down - 2026-11-15)
+		static TWeakObjectPtr<ACesiumGeoreference> Kept;
+		if (Kept.IsValid() && Kept->GetWorld() == W) return Kept.Get();
+		if (W) for (TActorIterator<ACesiumGeoreference> It(W); It; ++It) if (!It->GetName().Contains(TEXT("Default"))) { Kept = *It; return *It; }
 		return nullptr;
 	}
 }
 
 float AGrassField::NearDistance = 45.f;
+float AGrassField::FarReach = 2500.f;
+float AGrassField::FarReachGround = 600.f;
+static int32 FarTufts = 0;
 bool AGrassField::bOn = true;
 bool AGrassField::bAway = false;
 
@@ -136,19 +143,27 @@ bool AGrassField::GroundAt(float X, float Y, float& Z) const
 	return true;
 }
 
-const AGrassField::FPatch& AGrassField::Patch(const FIntPoint& C)
+bool AGrassField::PatchStep(const FIntPoint& C, double Deadline)
 {
-	if (const FPatch* P = Patches.Find(C)) return *P;
-	FPatch& P = Patches.Add(C);
+	FPatch& P = Patches.FindOrAdd(C);
 	const int32 N = int32(Cell / 100.f);
-	P.H.SetNumUninitialized(N * N);
-	for (int32 j = 0; j < N; ++j)
+	if (P.H.Num() != N * N) { P.H.SetNumUninitialized(N * N); P.Rows = 0; }
+	while (P.Rows < N && FPlatformTime::Seconds() < Deadline)
+	{
+		const int32 j = P.Rows++;
 		for (int32 i = 0; i < N; ++i)
 		{
 			float Z;
 			P.H[j * N + i] = GroundAt(C.X * Cell + (i + 0.5f) * 100.f, C.Y * Cell + (j + 0.5f) * 100.f, Z) ? Z : TNumericLimits<float>::Lowest();
 		}
-	return P;
+	}
+	return P.Rows >= N;
+}
+
+const AGrassField::FPatch& AGrassField::Patch(const FIntPoint& C)
+{
+	PatchStep(C, 1e30);
+	return Patches.FindChecked(C);
 }
 
 UHierarchicalInstancedStaticMeshComponent* AGrassField::NewLayer(UStaticMesh* Mesh, float WpoUntil, float CullFrom, float CullTo)
@@ -168,7 +183,7 @@ UHierarchicalInstancedStaticMeshComponent* AGrassField::NewLayer(UStaticMesh* Me
 	return K;
 }
 
-void AGrassField::FillCell(UHierarchicalInstancedStaticMeshComponent* K, const FIntPoint& C, float PerM2, float S0, float S1, int32 Seed)
+void AGrassField::FillCell(UHierarchicalInstancedStaticMeshComponent* K, const FIntPoint& C, float PerM2, float S0, float S1, int32 Seed, const FVector& From, float Reach)
 {
 	const FPatch& P = Patch(C);
 	const int32 N = int32(Cell / 100.f);
@@ -183,8 +198,17 @@ void AGrassField::FillCell(UHierarchicalInstancedStaticMeshComponent* K, const F
 			int32 Count = int32(PerM2); if (R.FRand() < PerM2 - Count) ++Count;
 			for (int32 k = 0; k < Count; ++k)
 			{
-				const float S = R.FRandRange(S0, S1);
-				T.Add(FTransform(FRotator(0, R.FRandRange(0, 360), 0), FVector(C.X * Cell + (i + R.FRand()) * 100.f, C.Y * Cell + (j + R.FRand()) * 100.f, Z - 1.f), FVector(S, S, S * R.FRandRange(0.85f, 1.2f))));
+				float S = R.FRandRange(S0, S1);
+				const FVector At(C.X * Cell + (i + R.FRand()) * 100.f, C.Y * Cell + (j + R.FRand()) * 100.f, Z - 1.f);
+				// (the outer quarter of the layer's reach: fewer and smaller toward its edge, so it fades into the ground's own
+				// grass colour - no hard square of grass round the camera, 2026-11-15)
+				if (Reach > 0.f)
+				{
+					const float D = FVector2D::Distance(FVector2D(At), FVector2D(From)), F = FMath::Clamp((Reach - D) / (Reach * 0.25f), 0.f, 1.f);
+					if (F <= 0.f || R.FRand() > F) continue;
+					S *= FMath::Lerp(0.55f, 1.f, F);
+				}
+				T.Add(FTransform(FRotator(0, R.FRandRange(0, 360), 0), At, FVector(S, S, S * R.FRandRange(0.85f, 1.2f))));
 			}
 		}
 	if (T.Num()) K->AddInstances(T, false, true);
@@ -194,17 +218,21 @@ void AGrassField::ApplyOn()
 {
 	for (auto& It : NearCells) if (It.Value) It.Value->SetVisibility(bOn);
 	for (auto& It : MidCells) if (It.Value) It.Value->SetVisibility(bOn);
+	for (auto& It : FarCells) if (It.Value) It.Value->SetVisibility(bOn);
 	for (auto& K : FarRows) if (K) K->SetVisibility(bOn);
 	bLastOn = bOn;
 }
 
+static double GrassTickSum = 0; static int32 GrassTickN = 0;
 void AGrassField::Tick(float Dt)
 {
 	Super::Tick(Dt);
+	const double TickStart = FPlatformTime::Seconds();
+	ON_SCOPE_EXIT { GrassTickSum += FPlatformTime::Seconds() - TickStart; ++GrassTickN; };
 	if (!Near || !Mid || !Tuft || !Field.bIsValid) return;
 	if (bOn != bLastOn) ApplyOn();
 	// away from the airport: its field's far tufts hidden; the patches found there forgotten (the ground moved)
-	if (bAway != bLastAway) { bLastAway = bAway; for (auto& K : FarRows) if (K) K->SetVisibility(!bAway && bOn); Patches.Reset(); for (auto& It : NearCells) if (It.Value) It.Value->DestroyComponent(); NearCells.Reset(); for (auto& It : MidCells) if (It.Value) It.Value->DestroyComponent(); MidCells.Reset(); }
+	if (bAway != bLastAway) { bLastAway = bAway; for (auto& K : FarRows) if (K) K->SetVisibility(!bAway && bOn); Patches.Reset(); for (auto& It : NearCells) if (It.Value) It.Value->DestroyComponent(); NearCells.Reset(); for (auto& It : MidCells) if (It.Value) It.Value->DestroyComponent(); MidCells.Reset(); for (auto& It : FarCells) if (It.Value) It.Value->DestroyComponent(); FarCells.Reset(); }
 
 	// the whole airfield's tufts, a few rows each frame until it's all laid (once)
 	if (FarY < Field.Max.Y && !bAway)
@@ -233,43 +261,168 @@ void AGrassField::Tick(float Dt)
 	const FIntPoint At(FMath::FloorToInt(L.X / Cell), FMath::FloorToInt(L.Y / Cell));
 	const float NearReach = bOn ? FMath::Clamp(NearDistance, 0.f, 150.f) * 100.f : 0.f;
 
-	// the layers' cells round you: dropped when out of reach, the nearest missing one added (one a frame, no stutter)
-	auto Keep = [&](TMap<FIntPoint, TObjectPtr<UHierarchicalInstancedStaticMeshComponent>>& Cells, float Reach)
+	// the layers' cells round you: dropped when out of reach, the nearest missing ones added
+	auto Keep = [&](TMap<FIntPoint, TObjectPtr<UHierarchicalInstancedStaticMeshComponent>>& Cells, float Reach, float Sz)
 	{
 		for (auto It = Cells.CreateIterator(); It; ++It)
 		{
-			const FVector2D Mid2((It.Key().X + 0.5f) * Cell, (It.Key().Y + 0.5f) * Cell);
-			if (FVector2D::Distance(Mid2, FVector2D(L)) > Reach + Cell) { if (It.Value()) It.Value()->DestroyComponent(); It.RemoveCurrent(); }
+			const FVector2D Mid2((It.Key().X + 0.5f) * Sz, (It.Key().Y + 0.5f) * Sz);
+			if (FVector2D::Distance(Mid2, FVector2D(L)) > Reach + Sz) { if (It.Value()) It.Value()->DestroyComponent(); It.RemoveCurrent(); }
 		}
 	};
-	auto Missing = [&](const TMap<FIntPoint, TObjectPtr<UHierarchicalInstancedStaticMeshComponent>>& Cells, float Reach, FIntPoint& Out)
+	auto Missing = [&](const TMap<FIntPoint, TObjectPtr<UHierarchicalInstancedStaticMeshComponent>>& Cells, float Reach, float Sz, FIntPoint& Out)
 	{
-		const int32 R = FMath::CeilToInt(Reach / Cell);
+		const FIntPoint At2(FMath::FloorToInt(L.X / Sz), FMath::FloorToInt(L.Y / Sz));
+		const int32 R = FMath::CeilToInt(Reach / Sz);
 		float Best = TNumericLimits<float>::Max();
 		for (int32 y = -R; y <= R; ++y)
 			for (int32 x = -R; x <= R; ++x)
 			{
-				const FIntPoint C(At.X + x, At.Y + y);
-				const FVector2D Mid2((C.X + 0.5f) * Cell, (C.Y + 0.5f) * Cell);
+				const FIntPoint C(At2.X + x, At2.Y + y);
+				const FVector2D Mid2((C.X + 0.5f) * Sz, (C.Y + 0.5f) * Sz);
 				const float D = FVector2D::Distance(Mid2, FVector2D(L));
-				if (D > Reach + Cell * 0.7f || Cells.Contains(C)) continue;
+				if (D > Reach + Sz * 0.7f || Cells.Contains(C)) continue;
 				if (D < Best) { Best = D; Out = C; }
 			}
 		return Best < TNumericLimits<float>::Max();
 	};
-	Keep(NearCells, NearReach);
-	Keep(MidCells, bOn ? MidReach : 0.f);
+	// the far grass's reach: FarReachGround on the ground, rising with the camera's height over it to FarReach by 300 m
+	// up (owner, 2026-11-15: walking and driving need less; from a helicopter or a plane the grass goes on far)
+	if (FPlatformTime::Seconds() - CamHeightAt > 0.5)
+	{
+		CamHeightAt = FPlatformTime::Seconds();
+		FHitResult HH; FCollisionQueryParams QQ(SCENE_QUERY_STAT(GrassCam), false, this);
+		if (GetWorld()->LineTraceSingleByChannel(HH, L, L - FVector(0, 0, 500000.f), ECC_Visibility, QQ)) CamHeight = (L.Z - HH.ImpactPoint.Z) / 100.f;
+	}
+	const float Lift = FMath::Clamp((CamHeight - 20.f) / 280.f, 0.f, 1.f);
+	const float FarR = bOn ? FMath::Lerp(FMath::Min(FarReachGround, FarReach), FMath::Clamp(FarReach, 0.f, 4000.f), Lift) * 100.f : 0.f;
+	Keep(NearCells, NearReach, Cell);
+	Keep(MidCells, bOn ? MidReach : 0.f, Cell);
+	Keep(FarCells, FarR, FarCell);
+	// one patch laid at a time, its ground measured a little each frame within about 2.5 ms (2026-11-15: whole patches
+	// at once stalled the game at 3 to 9 frames a second); the layers take turns - near, middle, far
+	const double Deadline = FPlatformTime::Seconds() + 0.0025;
+	static int32 Turn = 0;
 	FIntPoint C;
-	if (NearReach > 0 && Missing(NearCells, NearReach, C))
+	while (FPlatformTime::Seconds() < Deadline)
 	{
-		UHierarchicalInstancedStaticMeshComponent* K = NewLayer(Near, 5000.f, NearReach * 0.8f, NearReach);
-		FillCell(K, C, 14.f, 0.85f, 1.2f, 1);
-		NearCells.Add(C, K);
+		if (Job.Layer < 0)
+		{
+			bool bGot = false;
+			for (int32 t = 0; t < 3 && !bGot; ++t)
+			{
+				const int32 Ly = (Turn + t) % 3;
+				if (Ly == 0 && NearReach > 0 && Missing(NearCells, NearReach, Cell, C)) { Job = FJob(); Job.Layer = 0; Job.C = C; Job.Reach = NearReach; bGot = true; }
+				else if (Ly == 1 && bOn && Missing(MidCells, MidReach, Cell, C)) { Job = FJob(); Job.Layer = 1; Job.C = C; Job.Reach = MidReach; Job.Grid.SetNumUninitialized(MidGrid * MidGrid); bGot = true; }
+				else if (Ly == 2 && FarR > 0 && Missing(FarCells, FarR, FarCell, C)) { Job = FJob(); Job.Layer = 2; Job.C = C; Job.Reach = FarR; Job.Grid.SetNumUninitialized(FarGrid * FarGrid); bGot = true; }
+			}
+			Turn = (Turn + 1) % 3;
+			if (!bGot) break;
+			Job.From = L;
+		}
+		if (Job.Layer == 0)
+		{
+			if (!PatchStep(Job.C, Deadline)) break;
+			UHierarchicalInstancedStaticMeshComponent* K = NewLayer(Near, 5000.f, Job.Reach * 0.85f, Job.Reach);
+			FillCell(K, Job.C, 14.f, 0.85f, 1.2f, 1, Job.From, Job.Reach);
+			NearCells.Add(Job.C, K);
+			Job.Layer = -1;
+		}
+		else if (Job.Layer == 1)
+		{
+			const float GS = Cell / (MidGrid - 1);
+			while (Job.Done < MidGrid * MidGrid && FPlatformTime::Seconds() < Deadline)
+			{
+				const int32 gi = Job.Done % MidGrid, gj = Job.Done / MidGrid;
+				float Z;
+				Job.Grid[Job.Done++] = GroundAt(Job.C.X * Cell + gi * GS, Job.C.Y * Cell + gj * GS, Z) ? Z : TNumericLimits<float>::Lowest();
+			}
+			if (Job.Done < MidGrid * MidGrid) break;
+			UHierarchicalInstancedStaticMeshComponent* K = NewLayer(Mid, 12000.f, Job.Reach * 0.9f, Job.Reach);
+			FillMidCell(K, Job.C, Job.From, Job.Reach, Job.Grid);
+			MidCells.Add(Job.C, K);
+			Job.Layer = -1;
+		}
+		else
+		{
+			const float GS = FarCell / (FarGrid - 1);
+			while (Job.Done < FarGrid * FarGrid && FPlatformTime::Seconds() < Deadline)
+			{
+				const int32 gi = Job.Done % FarGrid, gj = Job.Done / FarGrid;
+				float Z;
+				Job.Grid[Job.Done++] = GroundAt(Job.C.X * FarCell + gi * GS, Job.C.Y * FarCell + gj * GS, Z) ? Z : TNumericLimits<float>::Lowest();
+			}
+			if (Job.Done < FarGrid * FarGrid) break;
+			UHierarchicalInstancedStaticMeshComponent* K = NewLayer(Tuft, 0.f, FarReach * 100.f * 0.92f, FarReach * 100.f);
+			FillFarCell(K, Job.C, Job.From, Job.Reach, Job.Grid);
+			FarCells.Add(Job.C, K);
+			Job.Layer = -1;
+		}
 	}
-	else if (bOn && Missing(MidCells, MidReach, C))
-	{
-		UHierarchicalInstancedStaticMeshComponent* K = NewLayer(Mid, 12000.f, MidReach * 0.85f, MidReach);
-		FillCell(K, C, 3.f, 1.3f, 1.8f, 2);
-		MidCells.Add(C, K);
-	}
+	{ static double LastLog = 0; const double Now = FPlatformTime::Seconds(); if (Now - LastLog > 5.0) { LastLog = Now; ADP_LOG(TEXT("Grass: %d near, %d mid, %d far patches (%d far tufts so far), %d ground patches known; camera %.0f m up, far grass to %.0f m; its own work %.2f ms a frame"), NearCells.Num(), MidCells.Num(), FarCells.Num(), FarTufts, Patches.Num(), CamHeight, FarR / 100.f, GrassTickN ? GrassTickSum / GrassTickN * 1000.0 : 0.0); GrassTickSum = 0; GrassTickN = 0; } }
+}
+
+void AGrassField::FillMidCell(UHierarchicalInstancedStaticMeshComponent* K, const FIntPoint& C, const FVector& From, float Reach, const TArray<float>& Grid)
+{
+	// the middle grass (45-300 m): 3 swaying clumps a square metre, their height from the patch's ground measured every
+	// 2.5 m (MidGrid; a look down for every metre was 280 000 of them round you, 2026-11-15), none where a corner round
+	// them is not grass (so they keep 2.5 m off a road at most), fewer and smaller over the outer quarter of the reach
+	const int32 G = MidGrid, N = int32(Cell / 100.f);
+	const float GS = Cell / (G - 1), Lo = TNumericLimits<float>::Lowest();
+	FRandomStream R(2 ^ (C.X * 73856093) ^ (C.Y * 19349663));
+	TArray<FTransform> T;
+	for (int32 j = 0; j < N; ++j)
+		for (int32 i = 0; i < N; ++i)
+		{
+			int32 Count = 3;
+			for (int32 k = 0; k < Count; ++k)
+			{
+				const float LX = (i + R.FRand()) * 100.f, LY = (j + R.FRand()) * 100.f;
+				float S = R.FRandRange(1.3f, 1.8f); const float Ry = R.FRandRange(0, 360), Rh = R.FRandRange(0.85f, 1.2f), Rs = R.FRand();
+				const float X = C.X * Cell + LX, Y = C.Y * Cell + LY;
+				const float D = FVector2D::Distance(FVector2D(X, Y), FVector2D(From)), F = FMath::Clamp((Reach - D) / (Reach * 0.25f), 0.f, 1.f);
+				if (F <= 0.f || Rs > F) continue;
+				S *= FMath::Lerp(0.55f, 1.f, F);
+				const int32 gi = FMath::Min(int32(LX / GS), G - 2), gj = FMath::Min(int32(LY / GS), G - 2);
+				const float fx = LX / GS - gi, fy = LY / GS - gj;
+				const float z00 = Grid[gj * G + gi], z10 = Grid[gj * G + gi + 1], z01 = Grid[(gj + 1) * G + gi], z11 = Grid[(gj + 1) * G + gi + 1];
+				if (z00 == Lo || z10 == Lo || z01 == Lo || z11 == Lo) continue;
+				const float Z = FMath::Lerp(FMath::Lerp(z00, z10, fx), FMath::Lerp(z01, z11, fx), fy);
+				T.Add(FTransform(FRotator(0, Ry, 0), FVector(X, Y, Z - 2.f), FVector(S, S, S * Rh)));
+			}
+		}
+	if (T.Num()) K->AddInstances(T, false, true);
+}
+
+void AGrassField::FillFarCell(UHierarchicalInstancedStaticMeshComponent* K, const FIntPoint& C, const FVector& From, float Reach, const TArray<float>& Grid)
+{
+	// one wide still tuft in every 4 m square, its height from the patch's ground measured every 20 m (FarGrid: the far
+	// grass needs no finer - 2026-11-15: a look down for every tuft stalled the game), fewer and smaller over the outer
+	// quarter of the reach so it fades into the ground's own grass colour; none inside the airfield (its tufts are laid
+	// once, AGrassField::Start), none where a corner round it is not grass
+	const float Step = 400.f; const int32 G = FarGrid, N = int32(FarCell / Step);
+	const float GS = FarCell / (G - 1);
+	FRandomStream R(7 ^ (C.X * 73856093) ^ (C.Y * 19349663));
+	TArray<FTransform> T;
+	for (int32 j = 0; j < N; ++j)
+		for (int32 i = 0; i < N; ++i)
+		{
+			const float LX = (i + R.FRand()) * Step, LY = (j + R.FRand()) * Step;
+			const float X = C.X * FarCell + LX, Y = C.Y * FarCell + LY;
+			const float Rs = R.FRand(), Ry = R.FRandRange(0, 360), Rh = R.FRandRange(0.75f, 0.95f);
+			float S = R.FRandRange(2.8f, 4.0f);
+			if (!bAway && Field.IsInside(FVector2D(X, Y))) continue;
+			const float D = FVector2D::Distance(FVector2D(X, Y), FVector2D(From)), F = FMath::Clamp((Reach - D) / (Reach * 0.25f), 0.f, 1.f);
+			if (F <= 0.f || Rs > F) continue;
+			S *= FMath::Lerp(0.6f, 1.f, F);
+			const int32 gi = FMath::Min(int32(LX / GS), G - 2), gj = FMath::Min(int32(LY / GS), G - 2);
+			const float fx = LX / GS - gi, fy = LY / GS - gj;
+			const float z00 = Grid[gj * G + gi], z10 = Grid[gj * G + gi + 1], z01 = Grid[(gj + 1) * G + gi], z11 = Grid[(gj + 1) * G + gi + 1];
+			const float Lo = TNumericLimits<float>::Lowest();
+			if (z00 == Lo || z10 == Lo || z01 == Lo || z11 == Lo) continue;
+			const float Z = FMath::Lerp(FMath::Lerp(z00, z10, fx), FMath::Lerp(z01, z11, fx), fy);
+			T.Add(FTransform(FRotator(0, Ry, 0), FVector(X, Y, Z - 6.f), FVector(S, S, S * Rh)));
+		}
+	if (T.Num()) K->AddInstances(T, false, true);
+	FarTufts += T.Num();
 }

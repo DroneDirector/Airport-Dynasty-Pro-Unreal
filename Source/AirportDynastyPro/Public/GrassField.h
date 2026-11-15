@@ -33,12 +33,14 @@ public:
 
 private:
 	/** A patch of ground (25 m square): the grass's height at each metre (none where it isn't grass). */
-	struct FPatch { TArray<float> H; };
+	struct FPatch { TArray<float> H; int32 Rows = 0; };
+	/** Measures more of a patch's ground (a row at a time) until the deadline; true once it is all known. */
+	bool PatchStep(const FIntPoint& C, double Deadline);
 	static constexpr float Cell = 2500.f;    // cm
 	const FPatch& Patch(const FIntPoint& C);
 	bool GroundAt(float X, float Y, float& Z) const;
 	UHierarchicalInstancedStaticMeshComponent* NewLayer(UStaticMesh* Mesh, float WpoUntil, float CullFrom, float CullTo);
-	void FillCell(UHierarchicalInstancedStaticMeshComponent* K, const FIntPoint& C, float PerM2, float S0, float S1, int32 Seed);
+	void FillCell(UHierarchicalInstancedStaticMeshComponent* K, const FIntPoint& C, float PerM2, float S0, float S1, int32 Seed, const FVector& From = FVector::ZeroVector, float Reach = 0.f);
 	void ApplyOn();
 
 	UPROPERTY() TObjectPtr<USceneComponent> Root;
@@ -47,8 +49,25 @@ private:
 	UPROPERTY() TObjectPtr<UStaticMesh> Tuft;
 	UPROPERTY() TMap<FIntPoint, TObjectPtr<UHierarchicalInstancedStaticMeshComponent>> NearCells;
 	UPROPERTY() TMap<FIntPoint, TObjectPtr<UHierarchicalInstancedStaticMeshComponent>> MidCells;
+	/** The far grass round the camera (owner, 2026-11-15: "much higher draw distance ... very low quality far off"): the
+	 *  airfield's still tufts, sparse and wide, on 100 m patches out to FarReach - from the air the grass goes on. */
+	UPROPERTY() TMap<FIntPoint, TObjectPtr<UHierarchicalInstancedStaticMeshComponent>> FarCells;
+	void FillFarCell(UHierarchicalInstancedStaticMeshComponent* K, const FIntPoint& C, const FVector& From, float Reach, const TArray<float>& Grid);
+	void FillMidCell(UHierarchicalInstancedStaticMeshComponent* K, const FIntPoint& C, const FVector& From, float Reach, const TArray<float>& Grid);
+	/** The patch being laid now (its ground measured a little each frame: never a stall): layer 0 near, 1 middle, 2 far. */
+	struct FJob { int32 Layer = -1; FIntPoint C; TArray<float> Grid; int32 Done = 0; float Reach = 0; FVector From = FVector::ZeroVector; };
+	FJob Job;
+	float CamHeight = 0.f; double CamHeightAt = 0.0;
+public:
+	/** How far the far grass reaches (m): on the ground FarReachGround, rising with the camera's height to FarReach. */
+	static float FarReach;
+	static float FarReachGround;
+private:
 	UPROPERTY() TArray<TObjectPtr<UHierarchicalInstancedStaticMeshComponent>> FarRows;
 	TMap<FIntPoint, FPatch> Patches;
+	static constexpr float FarCell = 10000.f;   // cm (the far grass's patches: 100 m)
+	static constexpr int32 FarGrid = 6;         // its ground measured on a 6 x 6 grid (20 m apart)
+	static constexpr int32 MidGrid = 11;        // the middle grass's ground on an 11 x 11 grid over its 25 m patch (2.5 m apart)
 	FBox2D Field;                 // world cm
 	float FarY = 0;               // the far tufts laid row by row from the start, a few each frame
 	bool bLastOn = true;
