@@ -14,7 +14,7 @@
 import json, math, shutil, sys
 from pathlib import Path
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw
 from scipy import ndimage
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -25,7 +25,7 @@ RING = 5000.0        # m round the airfield's boundary
 MARGIN = 300.0       # m round our own land (its band along the roads, the town)
 WATER_GAP = 30.0     # m kept clear of water
 FADE = 250.0         # m the globe's grass colour fades into the satellite picture
-STEP = 5.0           # m a pixel of the map
+STEP = 2.5           # m a pixel of the map (fine enough to keep the far grass off an 8 m road)
 TINT = (0.66, 1.16, 0.50)   # MI_ggrass's Color (Tools/set_ground.py)
 ZMIN, ZMAX = 0, 5    # the colour tiles' levels, one root over the area (5: about 2 m a pixel)
 
@@ -47,7 +47,6 @@ def main():
     d_air = np.hypot(dx, dy)
     inside_air = (d_air == 0)
     # our land: its outline filled, then MARGIN round it
-    from PIL import ImageDraw
     im = Image.new('L', (nx, ny), 0); dr = ImageDraw.Draw(im)
     for o in outline: dr.polygon([((px - x0) / STEP, (py - y0) / STEP) for px, py in o], fill=255)
     land = np.asarray(im) > 0
@@ -63,6 +62,44 @@ def main():
     water = ndimage.binary_opening(water, iterations=1)       # (single specks are the picture's noise, not water)
     d_water = ndimage.distance_transform_edt(~water) * STEP
     grass = area & (d_water >= WATER_GAP)
+    # no grass on what is built: every road (its lanes and pavements, 1 m more), the car parks, the junctions' corners,
+    # the town's buildings - the far and middle grass measure the ground only every 20 m / 2.5 m and stood on the roads
+    # (2026-11-15); the map says where they may not
+    built = Image.new('L', (nx, ny), 0); bd = ImageDraw.Draw(built)
+    RJ = json.loads((ROOT / 'Data' / 'roads.json').read_text(encoding='utf-8'))
+    def px(p): return ((p[0] - x0) / STEP, (p[1] - y0) / STEP)
+    def lw(l): return l['w'] if isinstance(l['w'], (int, float)) else max(w for _, w in l['w'])
+    for r in RJ['roads']:
+        if r.get('test'): continue
+        P = [tuple(p[:2]) for p in r['pts']]
+        if r.get('closed'): P = P + [P[0]]
+        half = max(sum(lw(l) for l in r['lanes']['left']), sum(lw(l) for l in r['lanes']['right'])) + 1.0
+        dense = []
+        for i in range(len(P) - 1):
+            for k in range(4): t = k / 4; dense.append((P[i][0] * (1 - t) + P[i + 1][0] * t, P[i][1] * (1 - t) + P[i + 1][1] * t))
+        dense.append(P[-1])
+        bd.line([px(p) for p in dense], fill=255, width=max(1, int(round(2 * half / STEP))), joint='curve')
+        for p in (dense[0], dense[-1]):
+            c = px(p); rr = half / STEP; bd.ellipse([c[0] - rr, c[1] - rr, c[0] + rr, c[1] + rr], fill=255)
+        if r.get('closed'):   # a turning circle or a roundabout: its middle too
+            cx = sum(p[0] for p in P[:-1]) / (len(P) - 1); cy = sum(p[1] for p in P[:-1]) / (len(P) - 1)
+            c = px((cx, cy)); rr = (max(math.dist((cx, cy), p) for p in P) + half) / STEP
+            bd.ellipse([c[0] - rr, c[1] - rr, c[0] + rr, c[1] + rr], fill=255)
+    for f_ in RJ.get('fills', []): bd.polygon([px(p) for p in f_['pts']], fill=255)
+    for lot in RJ.get('lots', []):
+        fr = lot.get('frame')
+        if fr: o, u, v = fr['o'], fr['u'], fr['v']; corner = lambda a, b: (o[0] + u[0] * a + v[0] * b, o[1] + u[1] * a + v[1] * b)
+        else: corner = lambda a, b: (a, b)
+        bd.polygon([px(corner(a, b)) for a, b in ((lot['x0'], lot['y0']), (lot['x1'], lot['y0']), (lot['x1'], lot['y1']), (lot['x0'], lot['y1']))], fill=255)
+    TB = ROOT / 'Data' / 'town-buildings.json'
+    if TB.exists():
+        for b in json.loads(TB.read_text(encoding='utf-8'))['buildings'].values():
+            o, u, v, sz = b['o'], b['u'], b['v'], b['size']
+            corner = lambda a, c: (o[0] + u[0] * a + v[0] * c, o[1] + u[1] * a + v[1] * c)
+            bd.polygon([px(corner(a, c)) for a, c in ((sz[0] - 1, sz[1] - 1), (sz[2] + 1, sz[1] - 1), (sz[2] + 1, sz[3] + 1), (sz[0] - 1, sz[3] + 1))], fill=255)
+    built = np.asarray(built) > 0
+    grass &= ~built
+    print('built over (roads, car parks, buildings): %.2f km2' % (built.sum() * STEP * STEP / 1e6))
     print('grass %.1f km2, water near it %.2f km2' % (grass.sum() * STEP * STEP / 1e6, (water & (d_land <= MARGIN + 500)).sum() * STEP * STEP / 1e6))
     # the map for the blades (row 0 = y0, the plan's south... as the json says: pixel (i, j) is at x0 + i*step, y0 + j*step)
     Image.fromarray((grass * 255).astype(np.uint8)).save(ROOT / 'Data' / 'grass-area.png', optimize=True)
@@ -70,7 +107,7 @@ def main():
         'ring': RING, 'margin': MARGIN, 'waterGap': WATER_GAP}, indent=1), encoding='utf-8')
     for f in ('grass-area.png', 'grass-area.json'): shutil.copyfile(ROOT / 'Data' / f, ROOT / 'Content' / 'Data' / f)
     # the colour's strength: full on the grass, fading out over FADE m beyond it; nothing over water (with its gap)
-    d_out = ndimage.distance_transform_edt(~grass) * STEP
+    d_out = ndimage.distance_transform_edt(~(grass | built)) * STEP
     alpha = np.clip(1.0 - d_out / FADE, 0, 1); alpha = alpha * alpha * (3 - 2 * alpha)
     alpha[d_water < WATER_GAP] = np.clip((d_water[d_water < WATER_GAP] - WATER_GAP * 0.4) / (WATER_GAP * 0.6), 0, 1) * alpha[d_water < WATER_GAP]
     # (inside the airfield too: where the land rises above the airfield's own ground, it shows - green, not black sand)

@@ -65,9 +65,12 @@ public:
 private:
 	UPROPERTY() TArray<TObjectPtr<UHierarchicalInstancedStaticMeshComponent>> FarRows;
 	TMap<FIntPoint, FPatch> Patches;
-	static constexpr float FarCell = 10000.f;   // cm (the far grass's patches: 100 m)
-	static constexpr int32 FarGrid = 6;         // its ground measured on a 6 x 6 grid (20 m apart)
-	static constexpr int32 MidGrid = 11;        // the middle grass's ground on an 11 x 11 grid over its 25 m patch (2.5 m apart)
+	// (big pieces: each is one component Unreal manages every frame - 650 to 1150 small ones cost 8-10 ms a frame on the
+	// game thread, 2026-11-15)
+	static constexpr float FarCell = 40000.f;   // cm (the far grass's pieces: 400 m)
+	static constexpr int32 FarGrid = 21;        // its ground measured on a 21 x 21 grid (20 m apart)
+	static constexpr float MidCell = 10000.f;   // cm (the middle grass's pieces: 100 m)
+	static constexpr int32 MidGrid = 41;        // its ground on a 41 x 41 grid (2.5 m apart)
 	FBox2D Field;                 // world cm
 	float FarY = 0;               // the far tufts laid row by row from the start, a few each frame
 	bool bLastOn = true;

@@ -50,7 +50,7 @@ bool AGrassField::bAway = false;
 
 namespace
 {
-	constexpr float MidReach = 30000.f;     // the simpler swaying clumps: to 300 m
+	constexpr float MidReachGround = 18000.f, MidReachAir = 40000.f;   // the simpler swaying clumps: 180 m on the ground, 400 m in the air
 	constexpr float FarStep = 250.f;        // the far tufts: one in every 2.5 m square (wide, so the field reads as grass)
 	constexpr int32 FarRowsPerTick = 2;     // 4 m rows of the whole airfield laid per frame
 
@@ -60,6 +60,12 @@ namespace
 	struct FGrassArea
 	{
 		double X0 = 0, Y0 = 0, Step = 5; int32 NX = 0, NY = 0; TArray<uint8> Px; bool bRead = false;
+		/** Inside the map and not grass there (a road, a car park, a building, water, outside the ring): none may grow. */
+		bool Bare(double X, double Y) const
+		{
+			const int32 i = FMath::FloorToInt((X - X0) / Step), j = FMath::FloorToInt((Y - Y0) / Step);
+			return i >= 0 && j >= 0 && i < NX && j < NY && Px[j * NX + i] <= 127;
+		}
 		bool At(double X, double Y) const
 		{
 			const int32 i = FMath::FloorToInt((X - X0) / Step), j = FMath::FloorToInt((Y - Y0) / Step);
@@ -297,7 +303,10 @@ void AGrassField::Tick(float Dt)
 	const float Lift = FMath::Clamp((CamHeight - 20.f) / 280.f, 0.f, 1.f);
 	const float FarR = bOn ? FMath::Lerp(FMath::Min(FarReachGround, FarReach), FMath::Clamp(FarReach, 0.f, 4000.f), Lift) * 100.f : 0.f;
 	Keep(NearCells, NearReach, Cell);
-	Keep(MidCells, bOn ? MidReach : 0.f, Cell);
+	// (the middle grass too: 180 m on the ground - the near grass and the land's own rise hide what is further - to 400 m
+	// in the air; owner, 2026-11-15: at ground level the frames matter, from up high the grass must not visibly stop)
+	const float MidReach = FMath::Lerp(MidReachGround, MidReachAir, Lift);
+	Keep(MidCells, bOn ? MidReach : 0.f, MidCell);
 	Keep(FarCells, FarR, FarCell);
 	// one patch laid at a time, its ground measured a little each frame within about 2.5 ms (2026-11-15: whole patches
 	// at once stalled the game at 3 to 9 frames a second); the layers take turns - near, middle, far
@@ -313,7 +322,7 @@ void AGrassField::Tick(float Dt)
 			{
 				const int32 Ly = (Turn + t) % 3;
 				if (Ly == 0 && NearReach > 0 && Missing(NearCells, NearReach, Cell, C)) { Job = FJob(); Job.Layer = 0; Job.C = C; Job.Reach = NearReach; bGot = true; }
-				else if (Ly == 1 && bOn && Missing(MidCells, MidReach, Cell, C)) { Job = FJob(); Job.Layer = 1; Job.C = C; Job.Reach = MidReach; Job.Grid.SetNumUninitialized(MidGrid * MidGrid); bGot = true; }
+				else if (Ly == 1 && bOn && Missing(MidCells, MidReach, MidCell, C)) { Job = FJob(); Job.Layer = 1; Job.C = C; Job.Reach = MidReach; Job.Grid.SetNumUninitialized(MidGrid * MidGrid); bGot = true; }
 				else if (Ly == 2 && FarR > 0 && Missing(FarCells, FarR, FarCell, C)) { Job = FJob(); Job.Layer = 2; Job.C = C; Job.Reach = FarR; Job.Grid.SetNumUninitialized(FarGrid * FarGrid); bGot = true; }
 			}
 			Turn = (Turn + 1) % 3;
@@ -330,12 +339,12 @@ void AGrassField::Tick(float Dt)
 		}
 		else if (Job.Layer == 1)
 		{
-			const float GS = Cell / (MidGrid - 1);
+			const float GS = MidCell / (MidGrid - 1);
 			while (Job.Done < MidGrid * MidGrid && FPlatformTime::Seconds() < Deadline)
 			{
 				const int32 gi = Job.Done % MidGrid, gj = Job.Done / MidGrid;
 				float Z;
-				Job.Grid[Job.Done++] = GroundAt(Job.C.X * Cell + gi * GS, Job.C.Y * Cell + gj * GS, Z) ? Z : TNumericLimits<float>::Lowest();
+				Job.Grid[Job.Done++] = GroundAt(Job.C.X * MidCell + gi * GS, Job.C.Y * MidCell + gj * GS, Z) ? Z : TNumericLimits<float>::Lowest();
 			}
 			if (Job.Done < MidGrid * MidGrid) break;
 			UHierarchicalInstancedStaticMeshComponent* K = NewLayer(Mid, 12000.f, Job.Reach * 0.9f, Job.Reach);
@@ -367,8 +376,8 @@ void AGrassField::FillMidCell(UHierarchicalInstancedStaticMeshComponent* K, cons
 	// the middle grass (45-300 m): 3 swaying clumps a square metre, their height from the patch's ground measured every
 	// 2.5 m (MidGrid; a look down for every metre was 280 000 of them round you, 2026-11-15), none where a corner round
 	// them is not grass (so they keep 2.5 m off a road at most), fewer and smaller over the outer quarter of the reach
-	const int32 G = MidGrid, N = int32(Cell / 100.f);
-	const float GS = Cell / (G - 1), Lo = TNumericLimits<float>::Lowest();
+	const int32 G = MidGrid, N = int32(MidCell / 100.f);
+	const float GS = MidCell / (G - 1), Lo = TNumericLimits<float>::Lowest();
 	FRandomStream R(2 ^ (C.X * 73856093) ^ (C.Y * 19349663));
 	TArray<FTransform> T;
 	for (int32 j = 0; j < N; ++j)
@@ -379,7 +388,8 @@ void AGrassField::FillMidCell(UHierarchicalInstancedStaticMeshComponent* K, cons
 			{
 				const float LX = (i + R.FRand()) * 100.f, LY = (j + R.FRand()) * 100.f;
 				float S = R.FRandRange(1.3f, 1.8f); const float Ry = R.FRandRange(0, 360), Rh = R.FRandRange(0.85f, 1.2f), Rs = R.FRand();
-				const float X = C.X * Cell + LX, Y = C.Y * Cell + LY;
+				const float X = C.X * MidCell + LX, Y = C.Y * MidCell + LY;
+				if (!bAway && GrassArea().Bare(X / 100.0, -Y / 100.0)) continue;
 				const float D = FVector2D::Distance(FVector2D(X, Y), FVector2D(From)), F = FMath::Clamp((Reach - D) / (Reach * 0.25f), 0.f, 1.f);
 				if (F <= 0.f || Rs > F) continue;
 				S *= FMath::Lerp(0.55f, 1.f, F);
@@ -412,6 +422,7 @@ void AGrassField::FillFarCell(UHierarchicalInstancedStaticMeshComponent* K, cons
 			const float Rs = R.FRand(), Ry = R.FRandRange(0, 360), Rh = R.FRandRange(0.75f, 0.95f);
 			float S = R.FRandRange(2.8f, 4.0f);
 			if (!bAway && Field.IsInside(FVector2D(X, Y))) continue;
+			if (!bAway && GrassArea().Bare(X / 100.0, -Y / 100.0)) continue;   // (its 20 m ground grid can't see an 8 m road: the map can)
 			const float D = FVector2D::Distance(FVector2D(X, Y), FVector2D(From)), F = FMath::Clamp((Reach - D) / (Reach * 0.25f), 0.f, 1.f);
 			if (F <= 0.f || Rs > F) continue;
 			S *= FMath::Lerp(0.6f, 1.f, F);
