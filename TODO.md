@@ -89,21 +89,23 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       the Dynamic Wind plugin (wind by bones, not World Position Offset). Our own plants, made in the Procedural
       Vegetation Editor or Blender (no marketplace assets unless the licence is checked first). Distant trees turn into
       Nanite voxels (real 3D geometry, not picture impostors). Turn on: Project Settings > Rendering > Nanite Foliage.
-      **First: the downy birch (Icelandic birch, "Atlantic birch") on its own**, then the rest. Rough time:
-      - [ ] Nanite Foliage + Dynamic Wind turned on and tested: 3-4 h
-      - [ ] Downy birch, 2-3 size variants: 4-6 h  <- FIRST
-      - [ ] Mountain birch (low, twisted): 3-4 h
-      - [ ] Rowan (red berries in autumn): 3-4 h
-      - [ ] Crowberry heath patches: 2-3 h
-      - [ ] Moss carpets and lumps on the lava fields: 3-4 h
-      - [ ] Lyme grass clumps on sand and verges: 2-3 h
-      - [ ] Wind tied to the game's weather (calm, breeze, storm): 3-4 h
-      - [ ] Planted automatically (PCG) around the airport, the road, the town and the courthouse: 6-8 h
-      - [ ] Seasons: green summer, yellow autumn, bare winter birches: 3-4 h
-      - [ ] Smoothness tuning on the PC: 3-4 h
-      Hours are nonstop (around the clock) working hours: total about 35-48 h, about 1.5-2 days around the clock
-      (realistically 2-3 days with pauses); first downy birch incl. setup 7-10 h. Add 4-8 h if the experimental
-      feature misbehaves.
+      **First: the downy birch (Icelandic birch, "Atlantic birch") on its own**, then the rest.
+      Times are NONSTOP hours (the PC chat working around the clock), as the owner asked:
+      - [ ] Nanite Foliage + Dynamic Wind turned on and tested: 3-4 h nonstop
+      - [ ] Downy birch, 2-3 size variants (young, medium, old): 4-6 h nonstop  <- FIRST
+            (first downy birch incl. the setup above: 7-10 h nonstop, same day)
+      - [ ] Mountain birch (low, twisted): 3-4 h nonstop
+      - [ ] Rowan (red berries in autumn): 3-4 h nonstop
+            (the three trees together incl. setup: 14-18 h nonstop, under 1 day around the clock)
+      - [ ] Crowberry heath patches: 2-3 h nonstop
+      - [ ] Moss carpets and lumps on the lava fields: 3-4 h nonstop
+      - [ ] Lyme grass clumps on sand and verges: 2-3 h nonstop
+      - [ ] Wind tied to the game's weather (calm, breeze, storm): 3-4 h nonstop
+      - [ ] Planted automatically (PCG) around the airport, the road, the town and the courthouse: 6-8 h nonstop
+      - [ ] Seasons: green summer, yellow autumn, bare winter birches: 3-4 h nonstop
+      - [ ] Smoothness tuning on the PC: 3-4 h nonstop
+      Whole release: 35-48 h nonstop = about 1.5-2 days around the clock (2-3 days with normal pauses). With the Unreal
+      MCP connection set up it lands nearer the low end; add 4-8 h nonstop if the experimental feature misbehaves.
 
 ## 3. The airport and buildings
 - [ ] **The player's villa** (shown to the owner 2026-11-13): bring in Art/Villa (Villa.glb, Nanite, materials redone in
