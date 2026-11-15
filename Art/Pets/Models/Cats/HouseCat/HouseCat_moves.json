@@ -1,0 +1,44 @@
+{
+ "fps": 30,
+ "moves": {
+  "Idle": {
+   "frames": 180,
+   "loop": false
+  },
+  "SitDown": {
+   "frames": 30,
+   "loop": false
+  },
+  "SitIdle": {
+   "frames": 180,
+   "loop": false
+  },
+  "StandUp": {
+   "frames": 26,
+   "loop": false
+  },
+  "LieDown": {
+   "frames": 44,
+   "loop": false
+  },
+  "LieIdle": {
+   "frames": 180,
+   "loop": false
+  },
+  "GetUp": {
+   "frames": 40,
+   "loop": false
+  },
+  "WalkFast": {
+   "frames": 14,
+   "loop": true
+  },
+  "RollOver": {
+   "frames": 75,
+   "loop": false
+  }
+ },
+ "speeds_m_per_s": {
+  "WalkFast": 0.8559451116423302
+ }
+}
