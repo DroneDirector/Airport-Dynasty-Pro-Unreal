@@ -1,4 +1,5 @@
 // The grass round the airport (see GrassField.h).
+#include "Engine/GameViewportClient.h"
 #include "GrassField.h"
 #include "Misc/ScopeExit.h"
 #include "ADPLog.h"
@@ -236,6 +237,9 @@ void AGrassField::Tick(float Dt)
 	const double TickStart = FPlatformTime::Seconds();
 	ON_SCOPE_EXIT { GrassTickSum += FPlatformTime::Seconds() - TickStart; ++GrassTickN; };
 	if (!Near || !Mid || !Tuft || !Field.bIsValid) return;
+	// nothing grown while the menus cover the world (it isn't drawn then): the start's loading and the title film stay
+	// smooth (owner, 2026-11-15); it grows when you go into the 3D world
+	if (GEngine && GEngine->GameViewport && GEngine->GameViewport->bDisableWorldRendering) return;
 	if (bOn != bLastOn) ApplyOn();
 	// away from the airport: its field's far tufts hidden; the patches found there forgotten (the ground moved)
 	if (bAway != bLastAway) { bLastAway = bAway; for (auto& K : FarRows) if (K) K->SetVisibility(!bAway && bOn); Patches.Reset(); for (auto& It : NearCells) if (It.Value) It.Value->DestroyComponent(); NearCells.Reset(); for (auto& It : MidCells) if (It.Value) It.Value->DestroyComponent(); MidCells.Reset(); for (auto& It : FarCells) if (It.Value) It.Value->DestroyComponent(); FarCells.Reset(); }

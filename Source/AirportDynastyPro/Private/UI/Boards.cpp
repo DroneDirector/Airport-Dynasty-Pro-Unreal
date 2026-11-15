@@ -22,6 +22,19 @@ void AADPHUD::OnBoard(const FString& Key, const FString& B64)
 	TSharedPtr<IImageWrapper> W = M.CreateImageWrapper(EImageFormat::PNG);
 	TArray<uint8> Bgra;
 	if (!W.IsValid() || !W->SetCompressed(Png.GetData(), Png.Num()) || !W->GetRaw(ERGBFormat::BGRA, 8, Bgra)) return;
+	// the same board again at the same size: its new pixels written into the picture it already has (a new picture every
+	// refresh made the game wait for the old one's cleanup - a stall of up to 0.4 s every few seconds, the title film
+	// stuttering; owner 2026-11-15)
+	if (TObjectPtr<UTexture2D>* Old = BoardTex.Find(Key))
+		if (UTexture2D* OT = Old->Get())
+			if (OT->GetSizeX() == W->GetWidth() && OT->GetSizeY() == W->GetHeight() && OT->GetResource())
+			{
+				const int32 Wd = W->GetWidth(), Ht = W->GetHeight();
+				uint8* Copy = (uint8*)FMemory::Malloc(Bgra.Num()); FMemory::Memcpy(Copy, Bgra.GetData(), Bgra.Num());
+				FUpdateTextureRegion2D* R = new FUpdateTextureRegion2D(0, 0, 0, 0, Wd, Ht);
+				OT->UpdateTextureRegions(0, 1, R, Wd * 4, 4, Copy, [](uint8* Data, const FUpdateTextureRegion2D* Rg) { FMemory::Free(Data); delete Rg; });
+				return;
+			}
 	UTexture2D* T = UTexture2D::CreateTransient(W->GetWidth(), W->GetHeight(), PF_B8G8R8A8, FName(*(TEXT("Board_") + Key)));
 	if (!T) return;
 	T->SRGB = true;

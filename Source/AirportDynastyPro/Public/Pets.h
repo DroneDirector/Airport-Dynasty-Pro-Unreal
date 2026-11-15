@@ -64,6 +64,8 @@ private:
 	void Arrived();
 
 	UPROPERTY() TObjectPtr<USkeletalMeshComponent> Body;
+	UPROPERTY() TMap<FString, TObjectPtr<UAnimSequence>> Moves;   // every move loaded once when placed (a move loaded on first use stalled the game)
+	UAnimSequence* Move(const TCHAR* Name) const;
 	ADPPets::FModel M;
 	EState State = EState::Standing;
 	float StateT = 0.f, WaitFor = 0.f;

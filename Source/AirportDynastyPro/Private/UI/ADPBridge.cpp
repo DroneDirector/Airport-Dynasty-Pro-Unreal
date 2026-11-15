@@ -146,3 +146,8 @@ void UADPBridge::WhoAreYou(const FString& Action, const FString& Arg)
 {
 	if (AADPHUD* H = Hud.Get()) H->WhoAreYouFromPage(Action, Arg);
 }
+
+void UADPBridge::StartLoad()
+{
+	if (AADPHUD* H = Hud.Get()) H->StartUnrealLoad();
+}

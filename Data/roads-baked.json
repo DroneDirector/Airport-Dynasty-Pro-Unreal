@@ -1,0 +1,9783 @@
+{
+	"about": "ARoadNetwork::BakeAll (Tools/bake_roads.sh): each road's saved parts; a road whose plan changed is built again at run time until the next bake",
+	"roads":
+	{
+		"AIRPORT-FORECOURT":
+		{
+			"hash": 1387035448,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_FORECOURT_0.SM_AIRPORT_FORECOURT_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_FORECOURT_1.SM_AIRPORT_FORECOURT_1",
+					"t": [
+						-130013.00069634966,
+						-3415.8650507288639,
+						7.3833420320725054,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_FORECOURT_2.SM_AIRPORT_FORECOURT_2",
+					"t": [
+						-129993.55375470886,
+						-3764.7811697698926,
+						7.3833420320725054,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_FORECOURT_3.SM_AIRPORT_FORECOURT_3",
+					"t": [
+						-129987.44185876424,
+						-4227.0929770434177,
+						7.3833420320725054,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_FORECOURT_4.SM_AIRPORT_FORECOURT_4",
+					"t": [
+						-129987.16404531211,
+						-4407.0774930137386,
+						7.3833420320725054,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_FORECOURT_5.SM_AIRPORT_FORECOURT_5",
+					"t": [
+						-129986.60841840789,
+						-4742.0446825244107,
+						7.3833420320725054,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_FORECOURT_6.SM_AIRPORT_FORECOURT_6",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_FORECOURT_7.SM_AIRPORT_FORECOURT_7",
+					"t": [
+						-130037.58646184608,
+						-3141.1978330153397,
+						11.634372272849919,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_FORECOURT_8.SM_AIRPORT_FORECOURT_8",
+					"t": [
+						-130037.8642752975,
+						-3136.2133170260477,
+						11.634372135921938,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_FORECOURT_9.SM_AIRPORT_FORECOURT_9",
+					"t": [
+						-129987.58004060158,
+						-4038.4107105486491,
+						11.634372135122153,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_FORECOURT_10.SM_AIRPORT_FORECOURT_10",
+					"t": [
+						-129987.30222715068,
+						-4047.1160766251714,
+						11.634372287428231,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_FORECOURT_11.SM_AIRPORT_FORECOURT_11",
+					"t": [
+						-129985.9131598939,
+						-4922.0368140626597,
+						11.634372135535104,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_FORECOURT_12.SM_AIRPORT_FORECOURT_12",
+					"t": [
+						-129985.6353464425,
+						-6004.521228095161,
+						11.634372287824657,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"AIRPORT-ROUNDABOUT":
+		{
+			"hash": 936343161,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_ROUNDABOUT_0.SM_AIRPORT_ROUNDABOUT_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_ROUNDABOUT_1.SM_AIRPORT_ROUNDABOUT_1",
+					"t": [
+						-1725,
+						-3.3651303965598345e-11,
+						8.5,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_ROUNDABOUT_2.SM_AIRPORT_ROUNDABOUT_2",
+					"t": [
+						-1724.9999999214779,
+						0,
+						8.5,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_ROUNDABOUT_3.SM_AIRPORT_ROUNDABOUT_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_ROUNDABOUT_4.SM_AIRPORT_ROUNDABOUT_4",
+					"t": [
+						-1725.0019749527564,
+						4.7803041525185108e-08,
+						12.751030922207075,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_ROUNDABOUT_5.SM_AIRPORT_ROUNDABOUT_5",
+					"t": [
+						-1725.002027365641,
+						9.8787495517171919e-08,
+						12.751030916384963,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_ROUNDABOUT_6.SM_AIRPORT_ROUNDABOUT_6",
+					"t": [
+						-1725.0019701678539,
+						4.3370164348743856e-08,
+						2.7510309219021796,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_ROUNDABOUT_7.SM_AIRPORT_ROUNDABOUT_7",
+					"t": [
+						-1725.0019749527564,
+						4.7854882723186165e-08,
+						2.7510309215143014,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"AIRPORT-WEST-CLOSED":
+		{
+			"hash": 2576911087,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_WEST_CLOSED_0.SM_AIRPORT_WEST_CLOSED_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_WEST_CLOSED_1.SM_AIRPORT_WEST_CLOSED_1",
+					"t": [
+						-15450,
+						175,
+						7,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_WEST_CLOSED_2.SM_AIRPORT_WEST_CLOSED_2",
+					"t": [
+						-15450,
+						-175,
+						7,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"AIRPORT-BACK-TO-TOWN":
+		{
+			"hash": 3210512235,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_BACK_TO_TOWN_0.SM_AIRPORT_BACK_TO_TOWN_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_BACK_TO_TOWN_1.SM_AIRPORT_BACK_TO_TOWN_1",
+					"t": [
+						148094.98349387309,
+						54974.676190307604,
+						-41.036757224228495,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_AIRPORT_BACK_TO_TOWN_2.SM_AIRPORT_BACK_TO_TOWN_2",
+					"t": [
+						147896.93561095031,
+						55160.417506395483,
+						-41.036757492449397,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-ROAD-NORTH":
+		{
+			"hash": 2823541350,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_ROAD_NORTH_0.SM_TOWN_ROAD_NORTH_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_ROAD_NORTH_1.SM_TOWN_ROAD_NORTH_1",
+					"t": [
+						24514.999102706963,
+						51640.799083127684,
+						-43.827712796941341,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_ROAD_NORTH_2.SM_TOWN_ROAD_NORTH_2",
+					"t": [
+						24298.9867225333,
+						51758.500170302716,
+						-43.827712886348309,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-ROAD-SOUTH":
+		{
+			"hash": 2215489076,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_ROAD_SOUTH_0.SM_TOWN_ROAD_SOUTH_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_ROAD_SOUTH_1.SM_TOWN_ROAD_SOUTH_1",
+					"t": [
+						101214.90617296129,
+						114493.00884341766,
+						-1498.9168608374021,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_ROAD_SOUTH_2.SM_TOWN_ROAD_SOUTH_2",
+					"t": [
+						100968.35609059781,
+						114625.9291719363,
+						-1498.9168608374021,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-ROUNDABOUT":
+		{
+			"hash": 763639911,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_ROUNDABOUT_0.SM_TOWN_ROUNDABOUT_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_ROUNDABOUT_1.SM_TOWN_ROUNDABOUT_1",
+					"t": [
+						-1724.9999980997236,
+						1.2136297300457954e-06,
+						-102.30807393542,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_ROUNDABOUT_2.SM_TOWN_ROUNDABOUT_2",
+					"t": [
+						-1725,
+						-2.1245796233415604e-09,
+						-102.30807393542,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_ROUNDABOUT_3.SM_TOWN_ROUNDABOUT_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_ROUNDABOUT_4.SM_TOWN_ROUNDABOUT_4",
+					"t": [
+						-1725.0019678239769,
+						-2.305605448782444e-07,
+						-98.057043661085217,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_ROUNDABOUT_5.SM_TOWN_ROUNDABOUT_5",
+					"t": [
+						-1725.0020206811605,
+						-8.5862120613455772e-06,
+						-98.061172851030918,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_ROUNDABOUT_6.SM_TOWN_ROUNDABOUT_6",
+					"t": [
+						-1725.0019745259488,
+						-7.110153092071414e-06,
+						-108.05704348809351,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_ROUNDABOUT_7.SM_TOWN_ROUNDABOUT_7",
+					"t": [
+						-1725.0019712590438,
+						-2.0141887944191694e-06,
+						-108.05705005903152,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-RB9":
+		{
+			"hash": 665751689,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_RB9_0.SM_TOWN_RB9_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_RB9_1.SM_TOWN_RB9_1",
+					"t": [
+						-1724.9999922267743,
+						6.4333435148000717e-06,
+						-2907.531789269513,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_RB9_2.SM_TOWN_RB9_2",
+					"t": [
+						-1725.0000000065775,
+						5.6461431086063385e-09,
+						-2907.531789269513,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_RB9_3.SM_TOWN_RB9_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_RB9_4.SM_TOWN_RB9_4",
+					"t": [
+						-1725.0019708448672,
+						-1.1864467523992062e-06,
+						-2903.2807468846422,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_RB9_5.SM_TOWN_RB9_5",
+					"t": [
+						-1725.0020190504729,
+						-4.5025371946394444e-05,
+						-2903.2813373894382,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_RB9_6.SM_TOWN_RB9_6",
+					"t": [
+						-1725.0020131835481,
+						-3.7623569369316101e-05,
+						-2913.2807280677948,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_RB9_7.SM_TOWN_RB9_7",
+					"t": [
+						-1725.0019847083022,
+						-1.0713236406445503e-05,
+						-2913.2808001389467,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-MAIN-STREET":
+		{
+			"hash": 3373746737,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_0.SM_TOWN_MAIN_STREET_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_1.SM_TOWN_MAIN_STREET_1",
+					"t": [
+						7256.6140111773857,
+						2209.4643410916324,
+						-2900.2529726031562,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_2.SM_TOWN_MAIN_STREET_2",
+					"t": [
+						7154.4520434386213,
+						2543.5791489110561,
+						-2900.253022045209,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_3.SM_TOWN_MAIN_STREET_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_4.SM_TOWN_MAIN_STREET_4",
+					"t": [
+						7317.2486341093318,
+						2039.5191529503791,
+						-2896.0067849000466,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_5.SM_TOWN_MAIN_STREET_5",
+					"t": [
+						7390.2202026267187,
+						1800.8654770586872,
+						-2896.0064787940009,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_6.SM_TOWN_MAIN_STREET_6",
+					"t": [
+						7112.9279169146321,
+						2707.7495628629113,
+						-2896.0072254978777,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_7.SM_TOWN_MAIN_STREET_7",
+					"t": [
+						7039.9563785483479,
+						2946.4032474773703,
+						-2896.0074631181328,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-MAIN-STREET-1":
+		{
+			"hash": 1024048016,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_1_0.SM_TOWN_MAIN_STREET_1_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_1_1.SM_TOWN_MAIN_STREET_1_1",
+					"t": [
+						480.22106920822989,
+						-52.015487635275349,
+						-2831.7497657739314,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_1_2.SM_TOWN_MAIN_STREET_1_2",
+					"t": [
+						388.99239399842918,
+						285.88568172743544,
+						-2831.7497621976545,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_1_3.SM_TOWN_MAIN_STREET_1_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_1_4.SM_TOWN_MAIN_STREET_1_4",
+					"t": [
+						525.7578953547636,
+						-220.90285899071023,
+						-2827.5029501103609,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_1_5.SM_TOWN_MAIN_STREET_1_5",
+					"t": [
+						590.85883654898498,
+						-462.25496390624903,
+						-2827.5029706899627,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-MAIN-STREET-2":
+		{
+			"hash": 4053490432,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_2_0.SM_TOWN_MAIN_STREET_2_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_2_1.SM_TOWN_MAIN_STREET_2_1",
+					"t": [
+						2334.8271143007441,
+						354.49822760140523,
+						-2799.258454832996,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_2_2.SM_TOWN_MAIN_STREET_2_2",
+					"t": [
+						2245.0428701758501,
+						692.78434927167837,
+						-2799.2584551906239,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_2_3.SM_TOWN_MAIN_STREET_2_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_2_4.SM_TOWN_MAIN_STREET_2_4",
+					"t": [
+						2380.2663137190393,
+						185.2161476444453,
+						-2795.0073662322839,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_2_5.SM_TOWN_MAIN_STREET_2_5",
+					"t": [
+						2444.3372659290908,
+						-56.41144165082369,
+						-2795.0073705235218,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_2_6.SM_TOWN_MAIN_STREET_2_6",
+					"t": [
+						2200.6367556853802,
+						861.79377268906683,
+						-2795.0073671189239,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_2_7.SM_TOWN_MAIN_STREET_2_7",
+					"t": [
+						2136.5662948227837,
+						1103.4212217866443,
+						-2795.0073613016057,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-MAIN-STREET-3":
+		{
+			"hash": 452837995,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_3_0.SM_TOWN_MAIN_STREET_3_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_3_1.SM_TOWN_MAIN_STREET_3_1",
+					"t": [
+						1109.47072369745,
+						116.31751061638352,
+						-2787.4527306163318,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_3_2.SM_TOWN_MAIN_STREET_3_2",
+					"t": [
+						1023.250624679029,
+						455.51460322871571,
+						-2787.4527307057388,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_3_3.SM_TOWN_MAIN_STREET_3_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_3_4.SM_TOWN_MAIN_STREET_3_4",
+					"t": [
+						1154.1487320908345,
+						-53.678750195074826,
+						-2783.2016988326868,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_3_5.SM_TOWN_MAIN_STREET_3_5",
+					"t": [
+						1215.7313101858017,
+						-295.96238964656368,
+						-2783.2016992842691,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-MAIN-STREET-4":
+		{
+			"hash": 1184278811,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_4_0.SM_TOWN_MAIN_STREET_4_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_4_1.SM_TOWN_MAIN_STREET_4_1",
+					"t": [
+						403.35257231123978,
+						-85.838188720634207,
+						-2787.1440910824058,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_4_2.SM_TOWN_MAIN_STREET_4_2",
+					"t": [
+						327.31457071186742,
+						255.69550611893646,
+						-2787.1440910824058,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_4_3.SM_TOWN_MAIN_STREET_4_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_4_4.SM_TOWN_MAIN_STREET_4_4",
+					"t": [
+						445.35495957644889,
+						-257.49333223054418,
+						-2782.8930673286004,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_4_5.SM_TOWN_MAIN_STREET_4_5",
+					"t": [
+						499.6678459502873,
+						-501.44597218185663,
+						-2782.893065661759,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_4_6.SM_TOWN_MAIN_STREET_4_6",
+					"t": [
+						293.27887386950897,
+						425.57406050467398,
+						-2782.8930660817077,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_4_7.SM_TOWN_MAIN_STREET_4_7",
+					"t": [
+						238.96598571108188,
+						669.52670076279901,
+						-2782.8930665307935,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-MAIN-STREET-5":
+		{
+			"hash": 2770000905,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_5_0.SM_TOWN_MAIN_STREET_5_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_5_1.SM_TOWN_MAIN_STREET_5_1",
+					"t": [
+						1007.9745198455639,
+						10.176958722644486,
+						-2786.3964301187843,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_5_2.SM_TOWN_MAIN_STREET_5_2",
+					"t": [
+						936.31074121117126,
+						352.76156913174782,
+						-2786.3964301187843,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_5_3.SM_TOWN_MAIN_STREET_5_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_5_4.SM_TOWN_MAIN_STREET_5_4",
+					"t": [
+						900.34189196123043,
+						524.08358461188618,
+						-2782.1454031418489,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_5_5.SM_TOWN_MAIN_STREET_5_5",
+					"t": [
+						849.15412815124728,
+						768.78687825519592,
+						-2782.145401970552,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-MAIN-STREET-6":
+		{
+			"hash": 118198317,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_6_0.SM_TOWN_MAIN_STREET_6_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_6_1.SM_TOWN_MAIN_STREET_6_1",
+					"t": [
+						9017.5020668439684,
+						4024.8182796529727,
+						-2770.101541583037,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_6_2.SM_TOWN_MAIN_STREET_6_2",
+					"t": [
+						8887.1443498377339,
+						4343.6099243852077,
+						-2770.101541583037,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_6_3.SM_TOWN_MAIN_STREET_6_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_6_4.SM_TOWN_MAIN_STREET_6_4",
+					"t": [
+						9055.0926809223602,
+						3876.7036478024093,
+						-2765.8505108552063,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_6_5.SM_TOWN_MAIN_STREET_6_5",
+					"t": [
+						9148.205315164756,
+						3648.9953305008821,
+						-2765.8505102183562,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_6_6.SM_TOWN_MAIN_STREET_6_6",
+					"t": [
+						8794.3772263957071,
+						4514.2869355317671,
+						-2765.8505105269405,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_6_7.SM_TOWN_MAIN_STREET_6_7",
+					"t": [
+						8701.264563559962,
+						4741.9952528406284,
+						-2765.8505108278869,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-MAIN-STREET-7":
+		{
+			"hash": 3970243354,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_7_0.SM_TOWN_MAIN_STREET_7_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_7_1.SM_TOWN_MAIN_STREET_7_1",
+					"t": [
+						899.87973071215674,
+						344.94592071569059,
+						-2757.0831898892329,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_7_2.SM_TOWN_MAIN_STREET_7_2",
+					"t": [
+						720.36426696553826,
+						645.08994576777332,
+						-2757.0831898892329,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_7_3.SM_TOWN_MAIN_STREET_7_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_7_4.SM_TOWN_MAIN_STREET_7_4",
+					"t": [
+						995.26083889853908,
+						191.50749977887608,
+						-2752.8321638043781,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_7_5.SM_TOWN_MAIN_STREET_7_5",
+					"t": [
+						1123.486183436471,
+						-22.881083591608331,
+						-2752.8321625056633,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-MAIN-STREET-8":
+		{
+			"hash": 720938094,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_8_0.SM_TOWN_MAIN_STREET_8_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_8_1.SM_TOWN_MAIN_STREET_8_1",
+					"t": [
+						542.36375589785166,
+						82.560707080876455,
+						-2758.2699040423722,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_8_2.SM_TOWN_MAIN_STREET_8_2",
+					"t": [
+						382.20054480218096,
+						393.72438861761475,
+						-2758.2699040423722,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_8_3.SM_TOWN_MAIN_STREET_8_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_8_4.SM_TOWN_MAIN_STREET_8_4",
+					"t": [
+						624.56665155675728,
+						-74.114286612020805,
+						-2754.0188745183641,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_8_5.SM_TOWN_MAIN_STREET_8_5",
+					"t": [
+						738.96894724591402,
+						-296.37405857432168,
+						-2754.0188737103917,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_8_6.SM_TOWN_MAIN_STREET_8_6",
+					"t": [
+						304.24022311653243,
+						548.21307514084037,
+						-2754.0188739594332,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_8_7.SM_TOWN_MAIN_STREET_8_7",
+					"t": [
+						189.83792740112403,
+						770.47284711361863,
+						-2754.0188742496925,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-MAIN-STREET-9":
+		{
+			"hash": 3243824836,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_9_0.SM_TOWN_MAIN_STREET_9_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_9_1.SM_TOWN_MAIN_STREET_9_1",
+					"t": [
+						933.844922046992,
+						298.69768816616852,
+						-2759.0280978603605,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_9_2.SM_TOWN_MAIN_STREET_9_2",
+					"t": [
+						763.29705409833696,
+						603.84124893037369,
+						-2759.0280978603605,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_9_3.SM_TOWN_MAIN_STREET_9_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_9_4.SM_TOWN_MAIN_STREET_9_4",
+					"t": [
+						670.77674409881001,
+						760.46170298190555,
+						-2754.7770674990097,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_9_5.SM_TOWN_MAIN_STREET_9_5",
+					"t": [
+						548.95683666103287,
+						978.42139015707653,
+						-2754.7770677295084,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-MAIN-STREET-10":
+		{
+			"hash": 3055101999,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_10_0.SM_TOWN_MAIN_STREET_10_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_10_1.SM_TOWN_MAIN_STREET_10_1",
+					"t": [
+						14709.36478794401,
+						5498.6298005071003,
+						-2790.8657042912073,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_10_2.SM_TOWN_MAIN_STREET_10_2",
+					"t": [
+						14566.913988279295,
+						5814.5418095566565,
+						-2790.8657042912073,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_10_3.SM_TOWN_MAIN_STREET_10_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_10_4.SM_TOWN_MAIN_STREET_10_4",
+					"t": [
+						14802.00168442179,
+						5331.0179689474171,
+						-2786.6146747638786,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_10_5.SM_TOWN_MAIN_STREET_10_5",
+					"t": [
+						14903.745336596388,
+						5105.3665213515051,
+						-2786.6146753167804,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_10_6.SM_TOWN_MAIN_STREET_10_6",
+					"t": [
+						14517.093213321117,
+						5962.8420222140849,
+						-2786.6146774485715,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_10_7.SM_TOWN_MAIN_STREET_10_7",
+					"t": [
+						14415.349374233978,
+						6188.493469584093,
+						-2786.6146752949826,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-MAIN-STREET-11":
+		{
+			"hash": 2250176841,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_11_0.SM_TOWN_MAIN_STREET_11_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_11_1.SM_TOWN_MAIN_STREET_11_1",
+					"t": [
+						966.70661228091922,
+						83.83697620104067,
+						-2826.709349943575,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_11_2.SM_TOWN_MAIN_STREET_11_2",
+					"t": [
+						876.84970706095919,
+						422.08676310168812,
+						-2826.7093497647611,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_11_3.SM_TOWN_MAIN_STREET_11_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_11_4.SM_TOWN_MAIN_STREET_11_4",
+					"t": [
+						833.5674430350773,
+						590.76842439634493,
+						-2822.4583725306265,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_11_5.SM_TOWN_MAIN_STREET_11_5",
+					"t": [
+						769.392318846134,
+						832.3754258195404,
+						-2822.4583664899528,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-MAIN-STREET-12":
+		{
+			"hash": 3114028085,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_12_0.SM_TOWN_MAIN_STREET_12_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_12_1.SM_TOWN_MAIN_STREET_12_1",
+					"t": [
+						3432.9183965979028,
+						594.87378650961909,
+						-2828.4744626718057,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_12_2.SM_TOWN_MAIN_STREET_12_2",
+					"t": [
+						3354.9892245580559,
+						936.06201554671861,
+						-2828.4744627612126,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_12_3.SM_TOWN_MAIN_STREET_12_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_12_4.SM_TOWN_MAIN_STREET_12_4",
+					"t": [
+						3473.8413757285452,
+						423.83161923848093,
+						-2824.2234670052694,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_12_5.SM_TOWN_MAIN_STREET_12_5",
+					"t": [
+						3529.5050485105603,
+						180.12573742086533,
+						-2824.2234654859444,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_12_6.SM_TOWN_MAIN_STREET_12_6",
+					"t": [
+						3317.9830861010123,
+						1106.2080902227899,
+						-2824.2234664379307,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_12_7.SM_TOWN_MAIN_STREET_12_7",
+					"t": [
+						3262.3194133197539,
+						1349.9139720197418,
+						-2824.2234670272887,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-MAIN-STREET-13":
+		{
+			"hash": 411493369,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_13_0.SM_TOWN_MAIN_STREET_13_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_13_1.SM_TOWN_MAIN_STREET_13_1",
+					"t": [
+						285.04527986777248,
+						-117.44514122157125,
+						-2821.5567562406777,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_13_2.SM_TOWN_MAIN_STREET_13_2",
+					"t": [
+						212.03595724672778,
+						224.84980994369835,
+						-2821.5567563300847,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_13_3.SM_TOWN_MAIN_STREET_13_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_13_4.SM_TOWN_MAIN_STREET_13_4",
+					"t": [
+						322.46896636701422,
+						-288.78558811778203,
+						-2817.3057620801915,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_13_5.SM_TOWN_MAIN_STREET_13_5",
+					"t": [
+						374.61846992775099,
+						-533.28198367846198,
+						-2817.305758634388,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-MAIN-STREET-14":
+		{
+			"hash": 1520235614,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_14_0.SM_TOWN_MAIN_STREET_14_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_14_1.SM_TOWN_MAIN_STREET_14_1",
+					"t": [
+						1036.7938880425645,
+						20.873829330550507,
+						-2816.9564855020553,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_14_2.SM_TOWN_MAIN_STREET_14_2",
+					"t": [
+						972.86940894066356,
+						364.85603676841129,
+						-2816.9564856808693,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-MAIN-STREET-15":
+		{
+			"hash": 2079767705,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_15_0.SM_TOWN_MAIN_STREET_15_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_15_1.SM_TOWN_MAIN_STREET_15_1",
+					"t": [
+						871.07938953046687,
+						-54.147811838891357,
+						-2810.1335692888997,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_15_2.SM_TOWN_MAIN_STREET_15_2",
+					"t": [
+						818.88954525010195,
+						291.90202753373887,
+						-2810.1335692888997,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_15_3.SM_TOWN_MAIN_STREET_15_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_15_4.SM_TOWN_MAIN_STREET_15_4",
+					"t": [
+						899.58401084062643,
+						-227.53308324096724,
+						-2805.8825799291858,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_15_5.SM_TOWN_MAIN_STREET_15_5",
+					"t": [
+						936.8536189525621,
+						-474.71154024265707,
+						-2805.8825822957015,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-MAIN-STREET-16":
+		{
+			"hash": 402314939,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_16_0.SM_TOWN_MAIN_STREET_16_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_16_1.SM_TOWN_MAIN_STREET_16_1",
+					"t": [
+						8723.528116513975,
+						2357.2443491161102,
+						-2819.7187696477276,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_16_2.SM_TOWN_MAIN_STREET_16_2",
+					"t": [
+						8622.863478008192,
+						2688.1240434542997,
+						-2819.7187696477276,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_16_3.SM_TOWN_MAIN_STREET_16_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_16_4.SM_TOWN_MAIN_STREET_16_4",
+					"t": [
+						8749.2767570365686,
+						2199.2850436577573,
+						-2815.4677342609821,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_16_5.SM_TOWN_MAIN_STREET_16_5",
+					"t": [
+						8821.1602913535899,
+						1962.9424080495955,
+						-2815.4677346641352,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_16_6.SM_TOWN_MAIN_STREET_16_6",
+					"t": [
+						8547.927706979448,
+						2861.0444216148462,
+						-2815.4677322207181,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_16_7.SM_TOWN_MAIN_STREET_16_7",
+					"t": [
+						8476.0442269989289,
+						3097.3870571984444,
+						-2815.4677347539332,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-MAIN-STREET-17":
+		{
+			"hash": 2962529731,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_17_0.SM_TOWN_MAIN_STREET_17_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_17_1.SM_TOWN_MAIN_STREET_17_1",
+					"t": [
+						937.79149669758044,
+						231.71325546136359,
+						-2856.1914561686217,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_17_2.SM_TOWN_MAIN_STREET_17_2",
+					"t": [
+						792.34259862662293,
+						549.99397032608977,
+						-2856.1914567944705,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_17_3.SM_TOWN_MAIN_STREET_17_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_17_4.SM_TOWN_MAIN_STREET_17_4",
+					"t": [
+						1013.3354593776166,
+						71.275291928905062,
+						-2851.9405766591849,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_17_5.SM_TOWN_MAIN_STREET_17_5",
+					"t": [
+						1117.2090577470371,
+						-156.06803620309802,
+						-2851.9405645054953,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-MAIN-STREET-18":
+		{
+			"hash": 1296143574,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_18_0.SM_TOWN_MAIN_STREET_18_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_18_1.SM_TOWN_MAIN_STREET_18_1",
+					"t": [
+						6888.1090669261757,
+						3555.5807354312856,
+						-2887.286858737989,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_18_2.SM_TOWN_MAIN_STREET_18_2",
+					"t": [
+						6728.6010970387142,
+						3866.3346563072992,
+						-2887.2868590062099,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_18_3.SM_TOWN_MAIN_STREET_18_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_18_4.SM_TOWN_MAIN_STREET_18_4",
+					"t": [
+						6958.4388754421379,
+						3405.0261193428887,
+						-2883.0360847995676,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_18_5.SM_TOWN_MAIN_STREET_18_5",
+					"t": [
+						7072.3597722470295,
+						3183.0603089864599,
+						-2883.0360708098087,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_18_6.SM_TOWN_MAIN_STREET_18_6",
+					"t": [
+						6639.409533175407,
+						4026.5349606791278,
+						-2883.0360832233746,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_18_7.SM_TOWN_MAIN_STREET_18_7",
+					"t": [
+						6525.4881301050773,
+						4248.5010860051261,
+						-2883.0360909397555,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-MAIN-STREET-19":
+		{
+			"hash": 1582273279,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_19_0.SM_TOWN_MAIN_STREET_19_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_19_1.SM_TOWN_MAIN_STREET_19_1",
+					"t": [
+						907.13443535170518,
+						353.8765574862482,
+						-2917.4059187154126,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_19_2.SM_TOWN_MAIN_STREET_19_2",
+					"t": [
+						725.02152511849999,
+						652.57472733187024,
+						-2917.405917374308,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_19_3.SM_TOWN_MAIN_STREET_19_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_19_4.SM_TOWN_MAIN_STREET_19_4",
+					"t": [
+						629.58028288255446,
+						804.57699259062065,
+						-2913.1550740072253,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_19_5.SM_TOWN_MAIN_STREET_19_5",
+					"t": [
+						499.51168754289392,
+						1017.9310289305868,
+						-2913.1550475421873,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-MAIN-STREET-20":
+		{
+			"hash": 1643928788,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_20_0.SM_TOWN_MAIN_STREET_20_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_20_1.SM_TOWN_MAIN_STREET_20_1",
+					"t": [
+						3783.7673141045962,
+						2868.6845454741851,
+						-2957.2408228000531,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_20_2.SM_TOWN_MAIN_STREET_20_2",
+					"t": [
+						3517.7653046178166,
+						3058.9772513477365,
+						-2957.240822978868,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_20_3.SM_TOWN_MAIN_STREET_20_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_20_4.SM_TOWN_MAIN_STREET_20_4",
+					"t": [
+						3882.0517336539924,
+						2822.0319369758363,
+						-2952.9899760065591,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_20_5.SM_TOWN_MAIN_STREET_20_5",
+					"t": [
+						4072.0531888853293,
+						2686.1269109253772,
+						-2952.9899686178119,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_20_6.SM_TOWN_MAIN_STREET_20_6",
+					"t": [
+						3350.047651194036,
+						3202.6356126135797,
+						-2952.9899742862485,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MAIN_STREET_20_7.SM_TOWN_MAIN_STREET_20_7",
+					"t": [
+						3160.0461957666557,
+						3338.5406546288868,
+						-2952.9899773844531,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-EAST-LOOP":
+		{
+			"hash": 606777772,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_LOOP_0.SM_TOWN_EAST_LOOP_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_LOOP_1.SM_TOWN_EAST_LOOP_1",
+					"t": [
+						-12431.243775436655,
+						12248.602590018185,
+						-3033.6015885416355,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_LOOP_2.SM_TOWN_EAST_LOOP_2",
+					"t": [
+						-12537.498604373541,
+						12063.062392206979,
+						-3033.6015885416355,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_LOOP_3.SM_TOWN_EAST_LOOP_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_LOOP_4.SM_TOWN_EAST_LOOP_4",
+					"t": [
+						-12428.972211290617,
+						12262.65573280328,
+						-3029.3506557676537,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_LOOP_5.SM_TOWN_EAST_LOOP_5",
+					"t": [
+						-12353.075947770383,
+						12395.184448708897,
+						-3029.3506554596202,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_LOOP_6.SM_TOWN_EAST_LOOP_6",
+					"t": [
+						-12641.481743523153,
+						11891.575332298235,
+						-3029.3506556222228,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_LOOP_7.SM_TOWN_EAST_LOOP_7",
+					"t": [
+						-12717.378009187756,
+						11759.046616227541,
+						-3029.3506557677752,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-EAST-LOOP-1":
+		{
+			"hash": 2319145368,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_LOOP_1_0.SM_TOWN_EAST_LOOP_1_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_LOOP_1_1.SM_TOWN_EAST_LOOP_1_1",
+					"t": [
+						-1887.068560579326,
+						-1574.8533500962076,
+						-3021.9086451606308,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_LOOP_1_2.SM_TOWN_EAST_LOOP_1_2",
+					"t": [
+						-1664.2422865480185,
+						-1818.0453999657184,
+						-3021.9086449818169,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_LOOP_1_3.SM_TOWN_EAST_LOOP_1_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_LOOP_1_4.SM_TOWN_EAST_LOOP_1_4",
+					"t": [
+						-1511.5277124210261,
+						-1977.496826107963,
+						-3017.6576664765089,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_LOOP_1_5.SM_TOWN_EAST_LOOP_1_5",
+					"t": [
+						-1352.3662485727109,
+						-2151.205408766109,
+						-3017.6576599500368,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-EAST-LOOP-2":
+		{
+			"hash": 3320795195,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_LOOP_2_0.SM_TOWN_EAST_LOOP_2_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_LOOP_2_1.SM_TOWN_EAST_LOOP_2_1",
+					"t": [
+						905.99771559867077,
+						-16888.12786411494,
+						-2937.9351925507772,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_LOOP_2_2.SM_TOWN_EAST_LOOP_2_2",
+					"t": [
+						1234.0240609620232,
+						-16884.493648498319,
+						-2937.9351922825563,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_LOOP_2_3.SM_TOWN_EAST_LOOP_2_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_LOOP_2_4.SM_TOWN_EAST_LOOP_2_4",
+					"t": [
+						752.50212924974039,
+						-16888.210716817528,
+						-2933.6841886066372,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_LOOP_2_5.SM_TOWN_EAST_LOOP_2_5",
+					"t": [
+						518.19763631082606,
+						-16890.812086816179,
+						-2933.6841941279908,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_LOOP_2_6.SM_TOWN_EAST_LOOP_2_6",
+					"t": [
+						1408.5547240681481,
+						-16880.947393922019,
+						-2933.6841937981485,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_LOOP_2_7.SM_TOWN_EAST_LOOP_2_7",
+					"t": [
+						1642.8592169018229,
+						-16878.346081869444,
+						-2933.6841817861437,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-EAST-LOOP-3":
+		{
+			"hash": 2936012506,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_LOOP_3_0.SM_TOWN_EAST_LOOP_3_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_LOOP_3_1.SM_TOWN_EAST_LOOP_3_1",
+					"t": [
+						68.835001378320158,
+						-501.6520203219261,
+						-2860.5909331419343,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_LOOP_3_2.SM_TOWN_EAST_LOOP_3_2",
+					"t": [
+						377.74611766939051,
+						-337.11281523422804,
+						-2860.5909331419343,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-NORDURBOGI":
+		{
+			"hash": 48035557,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_0.SM_TOWN_NORDURBOGI_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_1.SM_TOWN_NORDURBOGI_1",
+					"t": [
+						-27.674749360885471,
+						-507.02721694787033,
+						-2785.1220361606465,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_2.SM_TOWN_NORDURBOGI_2",
+					"t": [
+						306.58297025581123,
+						-403.24046341120265,
+						-2785.1220360712396,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-NORDURBOGI-1":
+		{
+			"hash": 4092469069,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_1_0.SM_TOWN_NORDURBOGI_1_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_1_1.SM_TOWN_NORDURBOGI_1_1",
+					"t": [
+						2156.6889624049072,
+						-7882.5849370892392,
+						-2762.8847376695476,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_1_2.SM_TOWN_NORDURBOGI_1_2",
+					"t": [
+						2481.59123196773,
+						-7755.1878345636651,
+						-2762.8847376695476,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_1_3.SM_TOWN_NORDURBOGI_1_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_1_4.SM_TOWN_NORDURBOGI_1_4",
+					"t": [
+						1998.8893442601548,
+						-7934.4306975187501,
+						-2758.6337088392957,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_1_5.SM_TOWN_NORDURBOGI_1_5",
+					"t": [
+						1766.8162979524932,
+						-8025.4224805571139,
+						-2758.6337103084252,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_1_6.SM_TOWN_NORDURBOGI_1_6",
+					"t": [
+						2648.6938753878931,
+						-7679.630248931353,
+						-2758.6337080446929,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_1_7.SM_TOWN_NORDURBOGI_1_7",
+					"t": [
+						2880.7669216401991,
+						-7588.6385141096544,
+						-2758.6337101783552,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-NORDURBOGI-2":
+		{
+			"hash": 1661765224,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_2_0.SM_TOWN_NORDURBOGI_2_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_2_1.SM_TOWN_NORDURBOGI_2_1",
+					"t": [
+						468.76995296619134,
+						-1215.9761074406561,
+						-2753.8388526963099,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_2_2.SM_TOWN_NORDURBOGI_2_2",
+					"t": [
+						773.32496120489668,
+						-1045.2293131560436,
+						-2753.838852338682,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_2_3.SM_TOWN_NORDURBOGI_2_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_2_4.SM_TOWN_NORDURBOGI_2_4",
+					"t": [
+						931.29962083464488,
+						-949.71331637835829,
+						-2749.5878937040561,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_2_5.SM_TOWN_NORDURBOGI_2_5",
+					"t": [
+						1148.838875157875,
+						-827.75125728582498,
+						-2749.5878800981109,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-NORDURBOGI-3":
+		{
+			"hash": 4269424967,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_3_0.SM_TOWN_NORDURBOGI_3_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_3_1.SM_TOWN_NORDURBOGI_3_1",
+					"t": [
+						6674.6120719618048,
+						-7586.9214027870912,
+						-2650.007489017783,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_3_2.SM_TOWN_NORDURBOGI_3_2",
+					"t": [
+						6894.6453288506018,
+						-7333.9042167472071,
+						-2650.0074885707472,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_3_3.SM_TOWN_NORDURBOGI_3_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_3_4.SM_TOWN_NORDURBOGI_3_4",
+					"t": [
+						6600.8474455729011,
+						-7681.932898938423,
+						-2645.7567539102356,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_3_5.SM_TOWN_NORDURBOGI_3_5",
+					"t": [
+						6443.680871351622,
+						-7862.6536657340475,
+						-2645.7567581273111,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_3_6.SM_TOWN_NORDURBOGI_3_6",
+					"t": [
+						7040.91385801055,
+						-7175.8928129718406,
+						-2645.7567595920841,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_3_7.SM_TOWN_NORDURBOGI_3_7",
+					"t": [
+						7198.080432126415,
+						-6995.1718496903777,
+						-2645.7567462489669,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-NORDURBOGI-4":
+		{
+			"hash": 4148218397,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_4_0.SM_TOWN_NORDURBOGI_4_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_4_1.SM_TOWN_NORDURBOGI_4_1",
+					"t": [
+						881.0723430623766,
+						-559.51454201783054,
+						-2551.4883300331676,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_4_2.SM_TOWN_NORDURBOGI_4_2",
+					"t": [
+						1014.8454807145754,
+						-236.23711100645596,
+						-2551.4883300331676,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_4_3.SM_TOWN_NORDURBOGI_4_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_4_4.SM_TOWN_NORDURBOGI_4_4",
+					"t": [
+						818.51540551299695,
+						-719.35915099130943,
+						-2547.237298897749,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_4_5.SM_TOWN_NORDURBOGI_4_5",
+					"t": [
+						722.97978925099596,
+						-950.27160530770198,
+						-2547.2373003097091,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-NORDURBOGI-5":
+		{
+			"hash": 1724301928,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_5_0.SM_TOWN_NORDURBOGI_5_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_5_1.SM_TOWN_NORDURBOGI_5_1",
+					"t": [
+						10939.779399567109,
+						-922.59447689389344,
+						-2517.4505019013786,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_5_2.SM_TOWN_NORDURBOGI_5_2",
+					"t": [
+						10964.997268155566,
+						-583.53046012989944,
+						-2517.4505019013786,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_5_3.SM_TOWN_NORDURBOGI_5_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_5_4.SM_TOWN_NORDURBOGI_5_4",
+					"t": [
+						10939.24168041884,
+						-1086.8926788945682,
+						-2513.1994946944114,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_5_5.SM_TOWN_NORDURBOGI_5_5",
+					"t": [
+						10921.228914139909,
+						-1329.0812575133168,
+						-2513.1994953482608,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_5_6.SM_TOWN_NORDURBOGI_5_6",
+					"t": [
+						10989.677426519687,
+						-408.76465277560055,
+						-2513.1994956068111,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_5_7.SM_TOWN_NORDURBOGI_5_7",
+					"t": [
+						11007.690192747512,
+						-166.5760742808925,
+						-2513.1994940510176,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-NORDURBOGI-6":
+		{
+			"hash": 2913200533,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_6_0.SM_TOWN_NORDURBOGI_6_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_6_1.SM_TOWN_NORDURBOGI_6_1",
+					"t": [
+						978.37351833481807,
+						20.117121193325147,
+						-2473.8234788071322,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_6_2.SM_TOWN_NORDURBOGI_6_2",
+					"t": [
+						907.60216973390197,
+						362.88732941861963,
+						-2473.8234788071322,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_6_3.SM_TOWN_NORDURBOGI_6_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_6_4.SM_TOWN_NORDURBOGI_6_4",
+					"t": [
+						1013.7731229856145,
+						-151.27003397291992,
+						-2469.5724468636899,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_6_5.SM_TOWN_NORDURBOGI_6_5",
+					"t": [
+						1064.3163294444676,
+						-396.10589731857181,
+						-2469.5724468309395,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-NORDURBOGI-7":
+		{
+			"hash": 3908167294,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_7_0.SM_TOWN_NORDURBOGI_7_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_7_1.SM_TOWN_NORDURBOGI_7_1",
+					"t": [
+						10171.028737296467,
+						4824.0985947940499,
+						-2477.62362225984,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_7_2.SM_TOWN_NORDURBOGI_7_2",
+					"t": [
+						10027.213560900767,
+						5132.7895190065028,
+						-2477.62362225984,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_7_3.SM_TOWN_NORDURBOGI_7_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_7_4.SM_TOWN_NORDURBOGI_7_4",
+					"t": [
+						10207.895135084633,
+						4686.0767032335862,
+						-2473.372594113901,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_7_5.SM_TOWN_NORDURBOGI_7_5",
+					"t": [
+						10310.608911619987,
+						4465.5885502055753,
+						-2473.372594224712,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_7_6.SM_TOWN_NORDURBOGI_7_6",
+					"t": [
+						9920.2534369917703,
+						5303.4639148315182,
+						-2473.3725945760107,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_7_7.SM_TOWN_NORDURBOGI_7_7",
+					"t": [
+						9817.5396567712305,
+						5523.9520709606004,
+						-2473.3725939071951,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-NORDURBOGI-8":
+		{
+			"hash": 1848836324,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_8_0.SM_TOWN_NORDURBOGI_8_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_8_1.SM_TOWN_NORDURBOGI_8_1",
+					"t": [
+						879.48215865262318,
+						478.43342120887246,
+						-2459.4151066657505,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_8_2.SM_TOWN_NORDURBOGI_8_2",
+					"t": [
+						660.21951887791511,
+						751.2323298927513,
+						-2459.4151065763435,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_8_3.SM_TOWN_NORDURBOGI_8_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_8_4.SM_TOWN_NORDURBOGI_8_4",
+					"t": [
+						988.3055852483958,
+						342.66852353542345,
+						-2455.1641785439751,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_8_5.SM_TOWN_NORDURBOGI_8_5",
+					"t": [
+						1144.9123545876937,
+						147.81660884257872,
+						-2455.1641794631869,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-NORDURBOGI-9":
+		{
+			"hash": 1929034851,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_9_0.SM_TOWN_NORDURBOGI_9_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_9_1.SM_TOWN_NORDURBOGI_9_1",
+					"t": [
+						5316.0084049431607,
+						14804.030127013451,
+						-2577.4289490444635,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_9_2.SM_TOWN_NORDURBOGI_9_2",
+					"t": [
+						5030.706682004733,
+						14875.51106282766,
+						-2577.4289488656495,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_9_3.SM_TOWN_NORDURBOGI_9_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_9_4.SM_TOWN_NORDURBOGI_9_4",
+					"t": [
+						5427.6859066941543,
+						14802.501216280973,
+						-2573.1780725981744,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_9_5.SM_TOWN_NORDURBOGI_9_5",
+					"t": [
+						5631.4728398760781,
+						14751.426670558227,
+						-2573.1780740265422,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_9_6.SM_TOWN_NORDURBOGI_9_6",
+					"t": [
+						4857.0824910644442,
+						14945.446432547644,
+						-2573.178077434447,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_9_7.SM_TOWN_NORDURBOGI_9_7",
+					"t": [
+						4653.2955579782138,
+						14996.520767057082,
+						-2573.1780709365021,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-NORDURBOGI-10":
+		{
+			"hash": 4178162428,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_10_0.SM_TOWN_NORDURBOGI_10_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_10_1.SM_TOWN_NORDURBOGI_10_1",
+					"t": [
+						-782.67435152595863,
+						1911.2354814984137,
+						-2700.8825527743184,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_10_2.SM_TOWN_NORDURBOGI_10_2",
+					"t": [
+						-1096.552533126669,
+						1759.1808385006152,
+						-2700.8825506285511,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_10_3.SM_TOWN_NORDURBOGI_10_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_10_4.SM_TOWN_NORDURBOGI_10_4",
+					"t": [
+						-1259.6008520224132,
+						1670.5108439001488,
+						-2696.6316938950772,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_10_5.SM_TOWN_NORDURBOGI_10_5",
+					"t": [
+						-1483.7996507587377,
+						1561.9078712058254,
+						-2696.6316537679786,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-NORDURBOGI-11":
+		{
+			"hash": 2253223728,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_11_0.SM_TOWN_NORDURBOGI_11_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_11_1.SM_TOWN_NORDURBOGI_11_1",
+					"t": [
+						-4860.9346584881423,
+						6795.2933830207912,
+						-2763.0265665071283,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_11_2.SM_TOWN_NORDURBOGI_11_2",
+					"t": [
+						-5153.5034252569312,
+						6603.8297833935358,
+						-2763.0265663283144,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_11_3.SM_TOWN_NORDURBOGI_11_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_11_4.SM_TOWN_NORDURBOGI_11_4",
+					"t": [
+						-4718.7447772400919,
+						6884.7480720519088,
+						-2758.7756370994839,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_11_5.SM_TOWN_NORDURBOGI_11_5",
+					"t": [
+						-4509.7670752996346,
+						7021.5015560075408,
+						-2758.7756395955994,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_11_6.SM_TOWN_NORDURBOGI_11_6",
+					"t": [
+						-5303.8823452646611,
+						6501.8147175124614,
+						-2758.775639830706,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_11_7.SM_TOWN_NORDURBOGI_11_7",
+					"t": [
+						-5512.8600470992969,
+						6365.0611856143223,
+						-2758.7756330276225,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-NORDURBOGI-12":
+		{
+			"hash": 1034573203,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_12_0.SM_TOWN_NORDURBOGI_12_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_12_1.SM_TOWN_NORDURBOGI_12_1",
+					"t": [
+						-138.32088476396166,
+						488.87244292697869,
+						-2815.8751857419393,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NORDURBOGI_12_2.SM_TOWN_NORDURBOGI_12_2",
+					"t": [
+						-422.44592102797469,
+						284.48852502304362,
+						-2815.8751856525323,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-SUDURBOGI":
+		{
+			"hash": 2042011164,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_0.SM_TOWN_SUDURBOGI_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_1.SM_TOWN_SUDURBOGI_1",
+					"t": [
+						-15.569662607973441,
+						513.14941887627356,
+						-2790.3457279032473,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_2.SM_TOWN_SUDURBOGI_2",
+					"t": [
+						-341.32597908104071,
+						385.15438271738822,
+						-2790.3457278138403,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-SUDURBOGI-1":
+		{
+			"hash": 2008691314,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_1_0.SM_TOWN_SUDURBOGI_1_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_1_1.SM_TOWN_SUDURBOGI_1_1",
+					"t": [
+						-5029.2128322303179,
+						20814.008210389758,
+						-2973.2930921523948,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_1_2.SM_TOWN_SUDURBOGI_1_2",
+					"t": [
+						-5367.0655216189916,
+						20815.894519348396,
+						-2973.2930922418018,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_1_3.SM_TOWN_SUDURBOGI_1_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_1_4.SM_TOWN_SUDURBOGI_1_4",
+					"t": [
+						-4854.4694017299335,
+						20812.152293726685,
+						-2969.0421578455775,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_1_5.SM_TOWN_SUDURBOGI_1_5",
+					"t": [
+						-4613.1460580928833,
+						20810.804940891161,
+						-2969.0421520110804,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_1_6.SM_TOWN_SUDURBOGI_1_6",
+					"t": [
+						-5530.174766166776,
+						20815.924876750098,
+						-2969.04215488197,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_1_7.SM_TOWN_SUDURBOGI_1_7",
+					"t": [
+						-5771.498109862092,
+						20817.272229457565,
+						-2969.0421566137838,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-SUDURBOGI-2":
+		{
+			"hash": 4268232067,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_2_0.SM_TOWN_SUDURBOGI_2_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_2_1.SM_TOWN_SUDURBOGI_2_1",
+					"t": [
+						581.63914432533784,
+						875.69247703097062,
+						-3154.5368291737477,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_2_2.SM_TOWN_SUDURBOGI_2_2",
+					"t": [
+						262.55090533359908,
+						1019.0268971780315,
+						-3154.5368291737477,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-SUDURBOGI-3":
+		{
+			"hash": 1839898815,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_3_0.SM_TOWN_SUDURBOGI_3_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_3_1.SM_TOWN_SUDURBOGI_3_1",
+					"t": [
+						7648.8330643859808,
+						7512.7204597898526,
+						-3182.9000869694146,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_3_2.SM_TOWN_SUDURBOGI_3_2",
+					"t": [
+						7394.7135764067061,
+						7735.9145434099482,
+						-3182.9000866117867,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_3_3.SM_TOWN_SUDURBOGI_3_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_3_4.SM_TOWN_SUDURBOGI_3_4",
+					"t": [
+						7804.3520185414236,
+						7368.7589862340828,
+						-3178.6497230366003,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_3_5.SM_TOWN_SUDURBOGI_3_5",
+					"t": [
+						7985.8659567523864,
+						7209.3346595652401,
+						-3178.6497284869179,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_3_6.SM_TOWN_SUDURBOGI_3_6",
+					"t": [
+						7296.1129847673001,
+						7815.1471056886949,
+						-3178.6497292489894,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_3_7.SM_TOWN_SUDURBOGI_3_7",
+					"t": [
+						7114.5990467997035,
+						7974.571432244149,
+						-3178.6497155587176,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-SUDURBOGI-4":
+		{
+			"hash": 3252490273,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_4_0.SM_TOWN_SUDURBOGI_4_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_4_1.SM_TOWN_SUDURBOGI_4_1",
+					"t": [
+						890.51251236145617,
+						380.11574736732291,
+						-3070.754122722873,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_4_2.SM_TOWN_SUDURBOGI_4_2",
+					"t": [
+						697.83084319834597,
+						672.30263328971341,
+						-3070.754122722873,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_4_3.SM_TOWN_SUDURBOGI_4_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_4_4.SM_TOWN_SUDURBOGI_4_4",
+					"t": [
+						601.78542851528618,
+						818.1971532177995,
+						-3066.5030725490897,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_4_5.SM_TOWN_SUDURBOGI_4_5",
+					"t": [
+						464.1766815307783,
+						1026.8938803430647,
+						-3066.5030743179882,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-SUDURBOGI-5":
+		{
+			"hash": 465185537,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_5_0.SM_TOWN_SUDURBOGI_5_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_5_1.SM_TOWN_SUDURBOGI_5_1",
+					"t": [
+						11508.607059901813,
+						3978.3187956407201,
+						-3058.7879894520929,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_5_2.SM_TOWN_SUDURBOGI_5_2",
+					"t": [
+						11397.555041445536,
+						4299.3032240580069,
+						-3058.7879894520929,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_5_3.SM_TOWN_SUDURBOGI_5_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_5_4.SM_TOWN_SUDURBOGI_5_4",
+					"t": [
+						11602.341326381953,
+						3804.6073116697371,
+						-3054.5370693041732,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_5_5.SM_TOWN_SUDURBOGI_5_5",
+					"t": [
+						11681.664194492856,
+						3575.3327200229978,
+						-3054.5370691694216,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_5_6.SM_TOWN_SUDURBOGI_5_6",
+					"t": [
+						11380.237294960942,
+						4446.5761685071047,
+						-3054.5370693614259,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_5_7.SM_TOWN_SUDURBOGI_5_7",
+					"t": [
+						11300.914426825708,
+						4675.8507601608871,
+						-3054.5370694836893,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-SUDURBOGI-6":
+		{
+			"hash": 1247015408,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_6_0.SM_TOWN_SUDURBOGI_6_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_6_1.SM_TOWN_SUDURBOGI_6_1",
+					"t": [
+						1010.0476552353939,
+						-88.770915169559885,
+						-3066.9128525536717,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_6_2.SM_TOWN_SUDURBOGI_6_2",
+					"t": [
+						978.03286907071015,
+						259.76178814913146,
+						-3066.9128525536717,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_6_3.SM_TOWN_SUDURBOGI_6_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_6_4.SM_TOWN_SUDURBOGI_6_4",
+					"t": [
+						961.9824057527585,
+						434.03266481729224,
+						-3062.6618360675438,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_6_5.SM_TOWN_SUDURBOGI_6_5",
+					"t": [
+						939.12105007789796,
+						682.98459557560273,
+						-3062.6618338945218,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-SUDURBOGI-7":
+		{
+			"hash": 172056012,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_7_0.SM_TOWN_SUDURBOGI_7_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_7_1.SM_TOWN_SUDURBOGI_7_1",
+					"t": [
+						16931.498277484265,
+						-21061.004461305216,
+						-2941.0614122385696,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_7_2.SM_TOWN_SUDURBOGI_7_2",
+					"t": [
+						17091.238121689239,
+						-20871.961873000255,
+						-2941.0614125961974,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_7_3.SM_TOWN_SUDURBOGI_7_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_7_4.SM_TOWN_SUDURBOGI_7_4",
+					"t": [
+						16775.184362999047,
+						-21232.559777806629,
+						-2936.8104557937468,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_7_5.SM_TOWN_SUDURBOGI_7_5",
+					"t": [
+						16661.079630599532,
+						-21367.590124530194,
+						-2936.8104270147301,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_7_6.SM_TOWN_SUDURBOGI_7_6",
+					"t": [
+						17094.659242278431,
+						-20854.474781914789,
+						-2936.8104410938627,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_7_7.SM_TOWN_SUDURBOGI_7_7",
+					"t": [
+						17208.763967058854,
+						-20719.444434394711,
+						-2936.8104534217127,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-SUDURBOGI-8":
+		{
+			"hash": 1464018153,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_8_0.SM_TOWN_SUDURBOGI_8_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_8_1.SM_TOWN_SUDURBOGI_8_1",
+					"t": [
+						-72.570731230371166,
+						-628.08833661256358,
+						-2814.0514171511586,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_8_2.SM_TOWN_SUDURBOGI_8_2",
+					"t": [
+						273.64414289128035,
+						-581.71610125224106,
+						-2814.0514168829386,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-TORGVEGUR":
+		{
+			"hash": 3534412713,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TORGVEGUR_0.SM_TOWN_TORGVEGUR_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TORGVEGUR_1.SM_TOWN_TORGVEGUR_1",
+					"t": [
+						103.76908993057441,
+						-495.53743653895799,
+						-2756.7282944066537,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TORGVEGUR_2.SM_TOWN_TORGVEGUR_2",
+					"t": [
+						400.51962213322986,
+						-309.96050197392469,
+						-2756.7282944066537,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-TORGVEGUR-1":
+		{
+			"hash": 2147024511,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TORGVEGUR_1_0.SM_TOWN_TORGVEGUR_1_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TORGVEGUR_1_1.SM_TOWN_TORGVEGUR_1_1",
+					"t": [
+						17233.528011954331,
+						-538.51099491550121,
+						-2741.1087644067593,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TORGVEGUR_1_2.SM_TOWN_TORGVEGUR_1_2",
+					"t": [
+						17207.596119210182,
+						-407.99590110674035,
+						-2741.1087644067593,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TORGVEGUR_1_3.SM_TOWN_TORGVEGUR_1_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TORGVEGUR_1_4.SM_TOWN_TORGVEGUR_1_4",
+					"t": [
+						17234.085441388073,
+						-541.29630280903075,
+						-2736.857724937372,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TORGVEGUR_1_5.SM_TOWN_TORGVEGUR_1_5",
+					"t": [
+						17252.608219655231,
+						-634.53868672979297,
+						-2736.8577277037102,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TORGVEGUR_1_6.SM_TOWN_TORGVEGUR_1_6",
+					"t": [
+						17182.221631478169,
+						-280.2834634190076,
+						-2736.8577272386692,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TORGVEGUR_1_7.SM_TOWN_TORGVEGUR_1_7",
+					"t": [
+						17163.698856538744,
+						-187.04096473567188,
+						-2736.8577244471926,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-TORGVEGUR-2":
+		{
+			"hash": 1440600454,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TORGVEGUR_2_0.SM_TOWN_TORGVEGUR_2_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TORGVEGUR_2_1.SM_TOWN_TORGVEGUR_2_1",
+					"t": [
+						48.210862803796772,
+						504.43425224279054,
+						-2825.5573074882313,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TORGVEGUR_2_2.SM_TOWN_TORGVEGUR_2_2",
+					"t": [
+						-290.13904505077517,
+						414.88400457846001,
+						-2825.5573074882313,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-VILLA-ROAD":
+		{
+			"hash": 62641979,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_VILLA_ROAD_0.SM_TOWN_VILLA_ROAD_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_VILLA_ROAD_1.SM_TOWN_VILLA_ROAD_1",
+					"t": [
+						222.03127376025077,
+						-454.60845147666987,
+						-2915.3021193321347,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_VILLA_ROAD_2.SM_TOWN_VILLA_ROAD_2",
+					"t": [
+						464.33960890769958,
+						-202.04872365662595,
+						-2915.3021193321347,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-VILLA-ROAD-1":
+		{
+			"hash": 2838631826,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_VILLA_ROAD_1_0.SM_TOWN_VILLA_ROAD_1_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_VILLA_ROAD_1_1.SM_TOWN_VILLA_ROAD_1_1",
+					"t": [
+						6878.688815328991,
+						-12739.747315360757,
+						-2854.2268725919193,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_VILLA_ROAD_1_2.SM_TOWN_VILLA_ROAD_1_2",
+					"t": [
+						7172.3776644697646,
+						-12577.319428643212,
+						-2854.2268726813263,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_VILLA_ROAD_1_3.SM_TOWN_VILLA_ROAD_1_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_VILLA_ROAD_1_4.SM_TOWN_VILLA_ROAD_1_4",
+					"t": [
+						6708.8391997751314,
+						-12862.571037095389,
+						-2849.9761081618994,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_VILLA_ROAD_1_5.SM_TOWN_VILLA_ROAD_1_5",
+					"t": [
+						6499.0614018209744,
+						-12978.590919996437,
+						-2849.9761070563882,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_VILLA_ROAD_1_6.SM_TOWN_VILLA_ROAD_1_6",
+					"t": [
+						7296.2170448065735,
+						-12537.715351860912,
+						-2849.9761080496401,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_VILLA_ROAD_1_7.SM_TOWN_VILLA_ROAD_1_7",
+					"t": [
+						7505.9948407122865,
+						-12421.695469274884,
+						-2849.9761085025484,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-VILLA-ROAD-2":
+		{
+			"hash": 2678896892,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_VILLA_ROAD_2_0.SM_TOWN_VILLA_ROAD_2_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_VILLA_ROAD_2_1.SM_TOWN_VILLA_ROAD_2_1",
+					"t": [
+						-73.464164372184314,
+						-466.99765399604803,
+						-2764.8957390983642,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_VILLA_ROAD_2_2.SM_TOWN_VILLA_ROAD_2_2",
+					"t": [
+						267.81782506708987,
+						-389.38350645825267,
+						-2764.8957391877711,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-SKOLAVEGUR":
+		{
+			"hash": 533597203,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_0.SM_TOWN_SKOLAVEGUR_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_1.SM_TOWN_SKOLAVEGUR_1",
+					"t": [
+						-84.32964916434139,
+						499.98316781641915,
+						-2761.3212877967771,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_2.SM_TOWN_SKOLAVEGUR_2",
+					"t": [
+						-387.78627406462329,
+						325.59611247852445,
+						-2761.3212877073693,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-SKOLAVEGUR-1":
+		{
+			"hash": 2376358602,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_1_0.SM_TOWN_SKOLAVEGUR_1_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_1_1.SM_TOWN_SKOLAVEGUR_1_1",
+					"t": [
+						-3653.0813845341327,
+						12518.508440684353,
+						-2837.4819970978178,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_1_2.SM_TOWN_SKOLAVEGUR_1_2",
+					"t": [
+						-3903.7780314103002,
+						12590.178662279446,
+						-2837.4819969190039,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_1_3.SM_TOWN_SKOLAVEGUR_1_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_1_4.SM_TOWN_SKOLAVEGUR_1_4",
+					"t": [
+						-3480.2125078318641,
+						12448.363006354892,
+						-2833.2310934061297,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_1_5.SM_TOWN_SKOLAVEGUR_1_5",
+					"t": [
+						-3301.1434566914104,
+						12397.16996277601,
+						-2833.2310964381577,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_1_6.SM_TOWN_SKOLAVEGUR_1_6",
+					"t": [
+						-3981.6058086676057,
+						12591.703520744806,
+						-2833.2310959057413,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_1_7.SM_TOWN_SKOLAVEGUR_1_7",
+					"t": [
+						-4160.6748535941588,
+						12642.896564338473,
+						-2833.2310889423579,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-SKOLAVEGUR-2":
+		{
+			"hash": 1504890278,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_2_0.SM_TOWN_SKOLAVEGUR_2_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_2_1.SM_TOWN_SKOLAVEGUR_2_1",
+					"t": [
+						472.16582210792694,
+						29.942477280390449,
+						-2909.7825736996638,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_2_2.SM_TOWN_SKOLAVEGUR_2_2",
+					"t": [
+						323.44339935004245,
+						346.77238334447611,
+						-2909.7825736996638,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-SKOLAVEGUR-ONEWAY":
+		{
+			"hash": 890829150,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_ONEWAY_0.SM_TOWN_SKOLAVEGUR_ONEWAY_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_ONEWAY_1.SM_TOWN_SKOLAVEGUR_ONEWAY_1",
+					"t": [
+						452.33480264456011,
+						23.108032870979514,
+						-2909.6654548942734,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_ONEWAY_2.SM_TOWN_SKOLAVEGUR_ONEWAY_2",
+					"t": [
+						386.48328805319034,
+						238.2523016303312,
+						-2909.6654548942734,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-SKOLAVEGUR-ONEWAY-1":
+		{
+			"hash": 345113935,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_ONEWAY_1_0.SM_TOWN_SKOLAVEGUR_ONEWAY_1_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_ONEWAY_1_1.SM_TOWN_SKOLAVEGUR_ONEWAY_1_1",
+					"t": [
+						9474.4281659102417,
+						2838.2353646705742,
+						-2918.5179444982414,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_ONEWAY_1_2.SM_TOWN_SKOLAVEGUR_ONEWAY_1_2",
+					"t": [
+						9406.5801225168398,
+						3052.7619199750479,
+						-2918.5179444982414,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_ONEWAY_1_3.SM_TOWN_SKOLAVEGUR_ONEWAY_1_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_ONEWAY_1_4.SM_TOWN_SKOLAVEGUR_ONEWAY_1_4",
+					"t": [
+						9508.3473951521446,
+						2730.9736651907442,
+						-2914.2669136571776,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_ONEWAY_1_5.SM_TOWN_SKOLAVEGUR_ONEWAY_1_5",
+					"t": [
+						9583.7341103450744,
+						2492.6108256400912,
+						-2914.2669132856731,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_ONEWAY_1_6.SM_TOWN_SKOLAVEGUR_ONEWAY_1_6",
+					"t": [
+						9372.651308114815,
+						3160.0267762626754,
+						-2914.2669131682724,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_ONEWAY_1_7.SM_TOWN_SKOLAVEGUR_ONEWAY_1_7",
+					"t": [
+						9297.2645929176942,
+						3398.3896158151911,
+						-2914.2669137065786,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-SKOLAVEGUR-ONEWAY-2":
+		{
+			"hash": 988821507,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_ONEWAY_2_0.SM_TOWN_SKOLAVEGUR_ONEWAY_2_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_ONEWAY_2_1.SM_TOWN_SKOLAVEGUR_ONEWAY_2_1",
+					"t": [
+						453.5589484059019,
+						27.029250544670504,
+						-2932.6645355996498,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SKOLAVEGUR_ONEWAY_2_2.SM_TOWN_SKOLAVEGUR_ONEWAY_2_2",
+					"t": [
+						384.16644650814123,
+						241.06101509433938,
+						-2932.6645355996498,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-EAST-CULDESAC":
+		{
+			"hash": 1148593731,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_CULDESAC_0.SM_TOWN_EAST_CULDESAC_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_CULDESAC_1.SM_TOWN_EAST_CULDESAC_1",
+					"t": [
+						16.844590220833197,
+						664.02021201286698,
+						-3032.7379215030687,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_CULDESAC_2.SM_TOWN_EAST_CULDESAC_2",
+					"t": [
+						-324.45785384369083,
+						587.39763673645211,
+						-3032.7379216818827,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-EAST-CULDESAC-1":
+		{
+			"hash": 1213629288,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_CULDESAC_1_0.SM_TOWN_EAST_CULDESAC_1_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_CULDESAC_1_1.SM_TOWN_EAST_CULDESAC_1_1",
+					"t": [
+						-1850.0745351533405,
+						9087.8266853427631,
+						-3076.0138680307309,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_CULDESAC_1_2.SM_TOWN_EAST_CULDESAC_1_2",
+					"t": [
+						-2194.6597590097226,
+						9027.3227176973596,
+						-3076.013867941324,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_CULDESAC_1_3.SM_TOWN_EAST_CULDESAC_1_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_CULDESAC_1_4.SM_TOWN_EAST_CULDESAC_1_4",
+					"t": [
+						-1676.9504419132136,
+						9122.8079273549956,
+						-3071.7628498538634,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_CULDESAC_1_5.SM_TOWN_EAST_CULDESAC_1_5",
+					"t": [
+						-1430.8181296410039,
+						9166.0126219296362,
+						-3071.762856334939,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_CULDESAC_1_6.SM_TOWN_EAST_CULDESAC_1_6",
+					"t": [
+						-2366.1209192709066,
+						9001.7876446537557,
+						-3071.7628602981649,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_CULDESAC_1_7.SM_TOWN_EAST_CULDESAC_1_7",
+					"t": [
+						-2612.2532311684918,
+						8958.5829275613069,
+						-3071.7628436176997,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-EAST-CULDESAC-2":
+		{
+			"hash": 1983506728,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_CULDESAC_2_0.SM_TOWN_EAST_CULDESAC_2_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_CULDESAC_2_1.SM_TOWN_EAST_CULDESAC_2_1",
+					"t": [
+						110.67215427337214,
+						459.78305871697376,
+						-3112.4917510836522,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_EAST_CULDESAC_2_2.SM_TOWN_EAST_CULDESAC_2_2",
+					"t": [
+						-235.80919797997922,
+						410.28797421365744,
+						-3112.4917511730591,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-MIDBOGI":
+		{
+			"hash": 3404985625,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MIDBOGI_0.SM_TOWN_MIDBOGI_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MIDBOGI_1.SM_TOWN_MIDBOGI_1",
+					"t": [
+						14.931121871282812,
+						505.4690665906528,
+						-2475.605877746626,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MIDBOGI_2.SM_TOWN_MIDBOGI_2",
+					"t": [
+						-317.14719091466395,
+						394.90892189741135,
+						-2475.605877746626,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-MIDBOGI-1":
+		{
+			"hash": 2085040521,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MIDBOGI_1_0.SM_TOWN_MIDBOGI_1_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MIDBOGI_1_1.SM_TOWN_MIDBOGI_1_1",
+					"t": [
+						7720.9398662525928,
+						13993.051039600512,
+						-2547.7805720348924,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MIDBOGI_1_2.SM_TOWN_MIDBOGI_1_2",
+					"t": [
+						7693.5193316746154,
+						14112.373485760763,
+						-2547.7805720348924,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MIDBOGI_1_3.SM_TOWN_MIDBOGI_1_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MIDBOGI_1_4.SM_TOWN_MIDBOGI_1_4",
+					"t": [
+						7747.7714865774033,
+						13876.277726970497,
+						-2543.5295443508808,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MIDBOGI_1_5.SM_TOWN_MIDBOGI_1_5",
+					"t": [
+						7767.357601399126,
+						13791.047394777299,
+						-2543.5295447891754,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MIDBOGI_1_6.SM_TOWN_MIDBOGI_1_6",
+					"t": [
+						7692.9303966271109,
+						14114.922641100944,
+						-2543.5295414772841,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MIDBOGI_1_7.SM_TOWN_MIDBOGI_1_7",
+					"t": [
+						7673.3442853834131,
+						14200.1529710826,
+						-2543.5295426121324,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-MIDBOGI-2":
+		{
+			"hash": 745409713,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MIDBOGI_2_0.SM_TOWN_MIDBOGI_2_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MIDBOGI_2_1.SM_TOWN_MIDBOGI_2_1",
+					"t": [
+						110.45962517394219,
+						-494.74835732451174,
+						-2460.4806356099798,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_MIDBOGI_2_2.SM_TOWN_MIDBOGI_2_2",
+					"t": [
+						404.63471296010539,
+						-305.11452761176042,
+						-2460.4806356099798,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-NW-CULDESAC-1":
+		{
+			"hash": 61967256,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_1_0.SM_TOWN_NW_CULDESAC_1_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_1_1.SM_TOWN_NW_CULDESAC_1_1",
+					"t": [
+						-442.91664394922554,
+						-292.90651017817436,
+						-2762.6456758128152,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_1_2.SM_TOWN_NW_CULDESAC_1_2",
+					"t": [
+						-163.49624510627473,
+						-503.67623425391503,
+						-2762.6456764386639,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-NW-CULDESAC-1-1":
+		{
+			"hash": 3884523868,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_1_1_0.SM_TOWN_NW_CULDESAC_1_1_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_1_1_1.SM_TOWN_NW_CULDESAC_1_1_1",
+					"t": [
+						-4255.2340144279879,
+						-7125.7623108887929,
+						-2857.8790498171275,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_1_1_2.SM_TOWN_NW_CULDESAC_1_1_2",
+					"t": [
+						-3952.9450253049145,
+						-7295.1068910879549,
+						-2857.8790498171275,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_1_1_3.SM_TOWN_NW_CULDESAC_1_1_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_1_1_4.SM_TOWN_NW_CULDESAC_1_1_4",
+					"t": [
+						-4394.8035647138022,
+						-7061.7318822145462,
+						-2853.6294620719382,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_1_1_5.SM_TOWN_NW_CULDESAC_1_1_5",
+					"t": [
+						-4610.7242611046531,
+						-6940.7714480764116,
+						-2853.6294615012007,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_1_1_6.SM_TOWN_NW_CULDESAC_1_1_6",
+					"t": [
+						-3790.2256113346666,
+						-7400.4211060935631,
+						-2853.6294614442986,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_1_1_7.SM_TOWN_NW_CULDESAC_1_1_7",
+					"t": [
+						-3574.3049149146536,
+						-7521.381540390139,
+						-2853.6294621287279,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-NW-CULDESAC-1-2":
+		{
+			"hash": 2022035232,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_1_2_0.SM_TOWN_NW_CULDESAC_1_2_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_1_2_1.SM_TOWN_NW_CULDESAC_1_2_1",
+					"t": [
+						-321.82543682807591,
+						-348.22060712164966,
+						-2769.939960866106,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_1_2_2.SM_TOWN_NW_CULDESAC_1_2_2",
+					"t": [
+						5.0673972680815496,
+						-473.28341389255365,
+						-2769.9399605084791,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-NW-CULDESAC-2":
+		{
+			"hash": 3810805543,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_2_0.SM_TOWN_NW_CULDESAC_2_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_2_1.SM_TOWN_NW_CULDESAC_2_1",
+					"t": [
+						375.5408757411642,
+						344.0747739643557,
+						-2552.6647301217163,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_2_2.SM_TOWN_NW_CULDESAC_2_2",
+					"t": [
+						64.577877790201455,
+						504.70462693407899,
+						-2552.6647301217163,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-NW-CULDESAC-2-1":
+		{
+			"hash": 1863779818,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_2_1_0.SM_TOWN_NW_CULDESAC_2_1_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_2_1_1.SM_TOWN_NW_CULDESAC_2_1_1",
+					"t": [
+						1870.0009633160662,
+						8448.3161014736397,
+						-2575.7703767183157,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_2_1_2.SM_TOWN_NW_CULDESAC_2_1_2",
+					"t": [
+						1539.7007006414933,
+						8494.0064601845806,
+						-2575.7703766289087,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_2_1_3.SM_TOWN_NW_CULDESAC_2_1_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_2_1_4.SM_TOWN_NW_CULDESAC_2_1_4",
+					"t": [
+						2025.7226517563104,
+						8447.3491779991891,
+						-2571.5193434785233,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_2_1_5.SM_TOWN_NW_CULDESAC_2_1_5",
+					"t": [
+						2261.6514044016367,
+						8414.6925946507836,
+						-2571.5193427114141,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_2_1_6.SM_TOWN_NW_CULDESAC_2_1_6",
+					"t": [
+						1365.1221420736983,
+						8538.7094356575981,
+						-2571.5193457412643,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_2_1_7.SM_TOWN_NW_CULDESAC_2_1_7",
+					"t": [
+						1129.1933894442045,
+						8571.3656158426893,
+						-2571.519344995736,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-NW-CULDESAC-2-2":
+		{
+			"hash": 3761656747,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_2_2_0.SM_TOWN_NW_CULDESAC_2_2_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_2_2_1.SM_TOWN_NW_CULDESAC_2_2_1",
+					"t": [
+						87.48250052559888,
+						466.30727078358177,
+						-2602.9070469420794,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NW_CULDESAC_2_2_2.SM_TOWN_NW_CULDESAC_2_2_2",
+					"t": [
+						-256.10989455651725,
+						399.67152575834189,
+						-2602.9070465844516,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-NE-CULDESAC":
+		{
+			"hash": 3407823946,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NE_CULDESAC_0.SM_TOWN_NE_CULDESAC_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NE_CULDESAC_1.SM_TOWN_NE_CULDESAC_1",
+					"t": [
+						592.96387540211435,
+						-153.32663028000388,
+						-2694.9179735463595,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NE_CULDESAC_2.SM_TOWN_NE_CULDESAC_2",
+					"t": [
+						584.19944385997951,
+						196.49713770690141,
+						-2694.9179736357655,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-NE-CULDESAC-1":
+		{
+			"hash": 4187686436,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NE_CULDESAC_1_0.SM_TOWN_NE_CULDESAC_1_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NE_CULDESAC_1_1.SM_TOWN_NE_CULDESAC_1_1",
+					"t": [
+						8555.4981405676808,
+						-2214.3689956986345,
+						-2706.2395992013971,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NE_CULDESAC_1_2.SM_TOWN_NE_CULDESAC_1_2",
+					"t": [
+						8642.4557942451211,
+						-1888.9968147348263,
+						-2706.2395992013971,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NE_CULDESAC_1_3.SM_TOWN_NE_CULDESAC_1_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NE_CULDESAC_1_4.SM_TOWN_NE_CULDESAC_1_4",
+					"t": [
+						8470.4021868384443,
+						-2388.8406443233835,
+						-2701.9885689664084,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NE_CULDESAC_1_5.SM_TOWN_NE_CULDESAC_1_5",
+					"t": [
+						8408.2799049984897,
+						-2621.2493470573681,
+						-2701.9885678583742,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NE_CULDESAC_1_6.SM_TOWN_NE_CULDESAC_1_6",
+					"t": [
+						8644.3075036322698,
+						-1738.0962800735724,
+						-2701.9885676240483,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NE_CULDESAC_1_7.SM_TOWN_NE_CULDESAC_1_7",
+					"t": [
+						8706.4298864018638,
+						-1505.6875775349326,
+						-2701.9885692697417,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-NE-CULDESAC-2":
+		{
+			"hash": 1759207089,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NE_CULDESAC_2_0.SM_TOWN_NE_CULDESAC_2_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NE_CULDESAC_2_1.SM_TOWN_NE_CULDESAC_2_1",
+					"t": [
+						288.80407024233136,
+						-375.90791016304865,
+						-2726.0158843497366,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_NE_CULDESAC_2_2.SM_TOWN_NE_CULDESAC_2_2",
+					"t": [
+						466.95914894505404,
+						-74.643927291559521,
+						-2726.0158843497366,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-SUDURBOGI-INNER":
+		{
+			"hash": 4244517904,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_INNER_0.SM_TOWN_SUDURBOGI_INNER_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_INNER_1.SM_TOWN_SUDURBOGI_INNER_1",
+					"t": [
+						57.839212056540418,
+						-502.62309622426983,
+						-3062.2648993724097,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_INNER_2.SM_TOWN_SUDURBOGI_INNER_2",
+					"t": [
+						370.33034123305697,
+						-344.98703069030307,
+						-3062.2648993724097,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-SUDURBOGI-INNER-1":
+		{
+			"hash": 17121120,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_INNER_1_0.SM_TOWN_SUDURBOGI_INNER_1_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_INNER_1_1.SM_TOWN_SUDURBOGI_INNER_1_1",
+					"t": [
+						14266.437670141633,
+						-4815.2248582887696,
+						-3004.8238790348869,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_INNER_1_2.SM_TOWN_SUDURBOGI_INNER_1_2",
+					"t": [
+						14247.636885699816,
+						-4689.9987203178462,
+						-3004.8238790348869,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_INNER_1_3.SM_TOWN_SUDURBOGI_INNER_1_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_INNER_1_4.SM_TOWN_SUDURBOGI_INNER_1_4",
+					"t": [
+						14266.843382714782,
+						-4817.9066239346866,
+						-3000.5728475476803,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_INNER_1_5.SM_TOWN_SUDURBOGI_INNER_1_5",
+					"t": [
+						14280.272312492947,
+						-4907.3567887684912,
+						-3000.5728475114411,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_INNER_1_6.SM_TOWN_SUDURBOGI_INNER_1_6",
+					"t": [
+						14229.242139907903,
+						-4567.457266403886,
+						-3000.5728477170205,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_INNER_1_7.SM_TOWN_SUDURBOGI_INNER_1_7",
+					"t": [
+						14215.813266685,
+						-4478.0071231109323,
+						-3000.5728478644569,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-SUDURBOGI-INNER-2":
+		{
+			"hash": 3650376341,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_INNER_2_0.SM_TOWN_SUDURBOGI_INNER_2_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_INNER_2_1.SM_TOWN_SUDURBOGI_INNER_2_1",
+					"t": [
+						33.886965448851697,
+						505.90856558759697,
+						-3067.0007995064825,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SUDURBOGI_INNER_2_2.SM_TOWN_SUDURBOGI_INNER_2_2",
+					"t": [
+						-302.02915392705472,
+						407.62268946791301,
+						-3067.0007995958895,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-SW-CULDESAC-1":
+		{
+			"hash": 1407230348,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_1_0.SM_TOWN_SW_CULDESAC_1_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_1_1.SM_TOWN_SW_CULDESAC_1_1",
+					"t": [
+						-448.96209450456081,
+						243.19006465608254,
+						-3147.2774631768925,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_1_2.SM_TOWN_SW_CULDESAC_1_2",
+					"t": [
+						-500.0555209852173,
+						-103.0592247529421,
+						-3147.2774628192647,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-SW-CULDESAC-1-1":
+		{
+			"hash": 1070333885,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_1_1_0.SM_TOWN_SW_CULDESAC_1_1_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_1_1_1.SM_TOWN_SW_CULDESAC_1_1_1",
+					"t": [
+						-9012.2840713571059,
+						1196.6620493564988,
+						-3057.3227266488448,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_1_1_2.SM_TOWN_SW_CULDESAC_1_1_2",
+					"t": [
+						-9048.3591926499503,
+						848.82561855792301,
+						-3057.3227268276587,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_1_1_3.SM_TOWN_SW_CULDESAC_1_1_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_1_1_4.SM_TOWN_SW_CULDESAC_1_1_4",
+					"t": [
+						-9001.0816680088756,
+						1369.8684903281974,
+						-3053.0716548452806,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_1_1_5.SM_TOWN_SW_CULDESAC_1_1_5",
+					"t": [
+						-8975.4059289808501,
+						1618.3230819258606,
+						-3053.0716597550454,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_1_1_6.SM_TOWN_SW_CULDESAC_1_1_6",
+					"t": [
+						-9073.3241015920066,
+						674.19563580129761,
+						-3053.0716539247755,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_1_1_7.SM_TOWN_SW_CULDESAC_1_1_7",
+					"t": [
+						-9098.9996360834339,
+						425.74104423751123,
+						-3053.0716543821409,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-SW-CULDESAC-1-2":
+		{
+			"hash": 2020868684,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_1_2_0.SM_TOWN_SW_CULDESAC_1_2_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_1_2_1.SM_TOWN_SW_CULDESAC_1_2_1",
+					"t": [
+						-427.5829840907827,
+						203.12987845565658,
+						-3052.4286019224473,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_1_2_2.SM_TOWN_SW_CULDESAC_1_2_2",
+					"t": [
+						-450.43634419579757,
+						-146.12321352900472,
+						-3052.4286019224473,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-SW-CULDESAC-2":
+		{
+			"hash": 3382163843,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_2_0.SM_TOWN_SW_CULDESAC_2_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_2_1.SM_TOWN_SW_CULDESAC_2_1",
+					"t": [
+						396.68326456611976,
+						-317.28417342971079,
+						-3159.8419516903332,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_2_2.SM_TOWN_SW_CULDESAC_2_2",
+					"t": [
+						508.087109733955,
+						14.511847571877297,
+						-3159.8419516903323,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-SW-CULDESAC-2-1":
+		{
+			"hash": 2100372226,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_2_1_0.SM_TOWN_SW_CULDESAC_2_1_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_2_1_1.SM_TOWN_SW_CULDESAC_2_1_1",
+					"t": [
+						6013.9631703748018,
+						-4732.1625011433498,
+						-3080.8084720406578,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_2_1_2.SM_TOWN_SW_CULDESAC_2_1_2",
+					"t": [
+						6220.4737999513745,
+						-4478.3828220712021,
+						-3080.8084719512517,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_2_1_3.SM_TOWN_SW_CULDESAC_2_1_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_2_1_4.SM_TOWN_SW_CULDESAC_2_1_4",
+					"t": [
+						5864.5506159889046,
+						-4896.5992268387927,
+						-3076.5575553422264,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_2_1_5.SM_TOWN_SW_CULDESAC_2_1_5",
+					"t": [
+						5717.0430322706816,
+						-5077.8704311517067,
+						-3076.5575547463845,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_2_1_6.SM_TOWN_SW_CULDESAC_2_1_6",
+					"t": [
+						6277.5718526272103,
+						-4389.0398526103236,
+						-3076.5575562392696,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_2_1_7.SM_TOWN_SW_CULDESAC_2_1_7",
+					"t": [
+						6425.0794363769237,
+						-4207.7686483015423,
+						-3076.5575559063154,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-SW-CULDESAC-2-2":
+		{
+			"hash": 2310405466,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_2_2_0.SM_TOWN_SW_CULDESAC_2_2_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_2_2_1.SM_TOWN_SW_CULDESAC_2_2_1",
+					"t": [
+						67.944416465586983,
+						-468.39353293320164,
+						-2951.2452080347339,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_SW_CULDESAC_2_2_2.SM_TOWN_SW_CULDESAC_2_2_2",
+					"t": [
+						371.60516109247692,
+						-294.35511750972364,
+						-2951.2452080347339,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-VILLA-DRIVE":
+		{
+			"hash": 1610179066,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_VILLA_DRIVE_0.SM_TOWN_VILLA_DRIVE_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_VILLA_DRIVE_1.SM_TOWN_VILLA_DRIVE_1",
+					"t": [
+						2436.9350837757811,
+						-2303.4186519403011,
+						-2731.2868502334495,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_VILLA_DRIVE_2.SM_TOWN_VILLA_DRIVE_2",
+					"t": [
+						2701.2160969686229,
+						-2136.0625518915476,
+						-2731.2868550614257,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-TURN-0":
+		{
+			"hash": 1125492903,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_0_0.SM_TOWN_TURN_0_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_0_1.SM_TOWN_TURN_0_1",
+					"t": [
+						-90.779276976943947,
+						491.51658230391331,
+						-2759.8016992779239,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_0_2.SM_TOWN_TURN_0_2",
+					"t": [
+						-90.790734503883868,
+						491.50831116799964,
+						-2759.8016906948551,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-TURN-0-WALK-0":
+		{
+			"hash": 315788466,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_0_WALK_0_0.SM_TOWN_TURN_0_WALK_0_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_0_WALK_0_1.SM_TOWN_TURN_0_WALK_0_1",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_0_WALK_0_2.SM_TOWN_TURN_0_WALK_0_2",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_0_WALK_0_3.SM_TOWN_TURN_0_WALK_0_3",
+					"t": [
+						-635.63333225622773,
+						750.00808676541783,
+						-2755.8024636924356,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_0_WALK_0_4.SM_TOWN_TURN_0_WALK_0_4",
+					"t": [
+						-732.02262890269049,
+						702.37827307265252,
+						-2755.8024843365852,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-TURN-0-WALK-1":
+		{
+			"hash": 1333050669,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_0_WALK_1_0.SM_TOWN_TURN_0_WALK_1_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_0_WALK_1_1.SM_TOWN_TURN_0_WALK_1_1",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_0_WALK_1_2.SM_TOWN_TURN_0_WALK_1_2",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_0_WALK_1_3.SM_TOWN_TURN_0_WALK_1_3",
+					"t": [
+						275.77932592015713,
+						-423.73330249334686,
+						-2759.3968640267685,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_0_WALK_1_4.SM_TOWN_TURN_0_WALK_1_4",
+					"t": [
+						464.83401336928364,
+						-302.46111500437837,
+						-2759.3968640267822,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-TURN-1":
+		{
+			"hash": 1907107367,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_1_0.SM_TOWN_TURN_1_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_1_1.SM_TOWN_TURN_1_1",
+					"t": [
+						-464.99633963638917,
+						-182.0000511999242,
+						-2907.921441004406,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_1_2.SM_TOWN_TURN_1_2",
+					"t": [
+						-464.98538196377922,
+						-182.00092748599127,
+						-2907.1776935142188,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-TURN-1-WALK-0":
+		{
+			"hash": 2125309038,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_1_WALK_0_0.SM_TOWN_TURN_1_WALK_0_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_1_WALK_0_1.SM_TOWN_TURN_1_WALK_0_1",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_1_WALK_0_2.SM_TOWN_TURN_1_WALK_0_2",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_1_WALK_0_3.SM_TOWN_TURN_1_WALK_0_3",
+					"t": [
+						721.21105381118832,
+						360.81574719038326,
+						-2907.8850662341893,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_1_WALK_0_4.SM_TOWN_TURN_1_WALK_0_4",
+					"t": [
+						661.53328491770662,
+						528.89776629605331,
+						-2907.8850650787263,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-TURN-1-WALK-1":
+		{
+			"hash": 246460398,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_1_WALK_1_0.SM_TOWN_TURN_1_WALK_1_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_1_WALK_1_1.SM_TOWN_TURN_1_WALK_1_1",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_1_WALK_1_2.SM_TOWN_TURN_1_WALK_1_2",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_1_WALK_1_3.SM_TOWN_TURN_1_WALK_1_3",
+					"t": [
+						-717.70211395871593,
+						-357.15288541995687,
+						-2897.894974007851,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_1_WALK_1_4.SM_TOWN_TURN_1_WALK_1_4",
+					"t": [
+						-657.76500540226698,
+						-526.68743421079125,
+						-2897.8949882638699,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-TURN-2":
+		{
+			"hash": 3156445934,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_2_0.SM_TOWN_TURN_2_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_2_1.SM_TOWN_TURN_2_1",
+					"t": [
+						-448.10504049854353,
+						-221.0740708115045,
+						-2932.4812122810745,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_2_2.SM_TOWN_TURN_2_2",
+					"t": [
+						-448.16328717174474,
+						-221.12312766595278,
+						-2932.4812085259819,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-TURN-2-WALK-0":
+		{
+			"hash": 551707480,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_2_WALK_0_0.SM_TOWN_TURN_2_WALK_0_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_2_WALK_0_1.SM_TOWN_TURN_2_WALK_0_1",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_2_WALK_0_2.SM_TOWN_TURN_2_WALK_0_2",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_2_WALK_0_3.SM_TOWN_TURN_2_WALK_0_3",
+					"t": [
+						944.11858459218638,
+						-153.16777965088841,
+						-2928.1113011948391,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_2_WALK_0_4.SM_TOWN_TURN_2_WALK_0_4",
+					"t": [
+						948.35343430179637,
+						-153.17287972348277,
+						-2928.1113147102906,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-TURN-3":
+		{
+			"hash": 752343776,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_3_0.SM_TOWN_TURN_3_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_3_1.SM_TOWN_TURN_3_1",
+					"t": [
+						96.742066651699133,
+						-490.72878840408521,
+						-3113.0555851276413,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_3_2.SM_TOWN_TURN_3_2",
+					"t": [
+						96.744633066118695,
+						-490.73494424426463,
+						-3113.0552186281966,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-TURN-3-WALK-0":
+		{
+			"hash": 2290641060,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_3_WALK_0_0.SM_TOWN_TURN_3_WALK_0_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_3_WALK_0_1.SM_TOWN_TURN_3_WALK_0_1",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_3_WALK_0_2.SM_TOWN_TURN_3_WALK_0_2",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_3_WALK_0_3.SM_TOWN_TURN_3_WALK_0_3",
+					"t": [
+						392.78190765529871,
+						908.24935580656165,
+						-3108.7294943518204,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_3_WALK_0_4.SM_TOWN_TURN_3_WALK_0_4",
+					"t": [
+						392.78526111040264,
+						925.10893801786005,
+						-3108.7295031293597,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-TURN-4":
+		{
+			"hash": 2255965487,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_4_0.SM_TOWN_TURN_4_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_4_1.SM_TOWN_TURN_4_1",
+					"t": [
+						179.49639307422331,
+						466.03002461977303,
+						-2760.6445396867794,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_4_2.SM_TOWN_TURN_4_2",
+					"t": [
+						179.48026440682588,
+						465.9855282054632,
+						-2760.1302584192563,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-TURN-4-WALK-0":
+		{
+			"hash": 2626879195,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_4_WALK_0_0.SM_TOWN_TURN_4_WALK_0_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_4_WALK_0_1.SM_TOWN_TURN_4_WALK_0_1",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_4_WALK_0_2.SM_TOWN_TURN_4_WALK_0_2",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_4_WALK_0_3.SM_TOWN_TURN_4_WALK_0_3",
+					"t": [
+						-792.82171734806616,
+						-538.21269698580727,
+						-2756.3256180127155,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_4_WALK_0_4.SM_TOWN_TURN_4_WALK_0_4",
+					"t": [
+						-792.80603622237686,
+						-545.77789804985514,
+						-2756.3256612325968,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-TURN-5":
+		{
+			"hash": 3111395141,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_5_0.SM_TOWN_TURN_5_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_5_1.SM_TOWN_TURN_5_1",
+					"t": [
+						105.00701521179872,
+						-488.48446747509297,
+						-2606.5210043155203,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_5_2.SM_TOWN_TURN_5_2",
+					"t": [
+						105.00927453947952,
+						-488.49184870917816,
+						-2605.6311399652295,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-TURN-5-WALK-0":
+		{
+			"hash": 3266484154,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_5_WALK_0_0.SM_TOWN_TURN_5_WALK_0_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_5_WALK_0_1.SM_TOWN_TURN_5_WALK_0_1",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_5_WALK_0_2.SM_TOWN_TURN_5_WALK_0_2",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_5_WALK_0_3.SM_TOWN_TURN_5_WALK_0_3",
+					"t": [
+						377.81577186053619,
+						911.31628716440173,
+						-2602.2602935933719,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_5_WALK_0_4.SM_TOWN_TURN_5_WALK_0_4",
+					"t": [
+						377.80702581530204,
+						926.95207016944187,
+						-2602.2602805140459,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-TURN-6":
+		{
+			"hash": 987512462,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_6_0.SM_TOWN_TURN_6_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_6_1.SM_TOWN_TURN_6_1",
+					"t": [
+						-436.48040783312172,
+						244.43678801797796,
+						-2726.0785885285968,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_6_2.SM_TOWN_TURN_6_2",
+					"t": [
+						-436.48035011684988,
+						244.45231686346233,
+						-2724.7204229638,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-TURN-6-WALK-0":
+		{
+			"hash": 1242622904,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_6_WALK_0_0.SM_TOWN_TURN_6_WALK_0_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_6_WALK_0_1.SM_TOWN_TURN_6_WALK_0_1",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_6_WALK_0_2.SM_TOWN_TURN_6_WALK_0_2",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_6_WALK_0_3.SM_TOWN_TURN_6_WALK_0_3",
+					"t": [
+						407.58306625229307,
+						-860.28471378568793,
+						-2721.0759921764297,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_6_WALK_0_4.SM_TOWN_TURN_6_WALK_0_4",
+					"t": [
+						410.31405315943994,
+						-860.30484093166888,
+						-2721.0760012745172,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-TURN-7":
+		{
+			"hash": 3889400990,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_7_0.SM_TOWN_TURN_7_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_7_1.SM_TOWN_TURN_7_1",
+					"t": [
+						499.98678253829712,
+						2.9977433677995577,
+						-3059.8367264302406,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_7_2.SM_TOWN_TURN_7_2",
+					"t": [
+						500.000526441494,
+						3.0047366205835715,
+						-3058.5957254730283,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-TURN-7-WALK-0":
+		{
+			"hash": 1458289979,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_7_WALK_0_0.SM_TOWN_TURN_7_WALK_0_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_7_WALK_0_1.SM_TOWN_TURN_7_WALK_0_1",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_7_WALK_0_2.SM_TOWN_TURN_7_WALK_0_2",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_7_WALK_0_3.SM_TOWN_TURN_7_WALK_0_3",
+					"t": [
+						-864.41922182700364,
+						547.33066557860002,
+						-3052.5408839286411,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_7_WALK_0_4.SM_TOWN_TURN_7_WALK_0_4",
+					"t": [
+						-895.19131187425228,
+						547.32130327576306,
+						-3052.5408919927841,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-TURN-8":
+		{
+			"hash": 314465349,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_8_0.SM_TOWN_TURN_8_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_8_1.SM_TOWN_TURN_8_1",
+					"t": [
+						-245.50321791414171,
+						435.87976369488752,
+						-2947.6636560102843,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_8_2.SM_TOWN_TURN_8_2",
+					"t": [
+						-245.50038630736526,
+						435.90279649704462,
+						-2947.502687587621,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-TURN-8-WALK-0":
+		{
+			"hash": 2701042635,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_8_WALK_0_0.SM_TOWN_TURN_8_WALK_0_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_8_WALK_0_1.SM_TOWN_TURN_8_WALK_0_1",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_8_WALK_0_2.SM_TOWN_TURN_8_WALK_0_2",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_8_WALK_0_3.SM_TOWN_TURN_8_WALK_0_3",
+					"t": [
+						-101.77489147806773,
+						-947.0788729233318,
+						-2942.2562931866742,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/SM_TOWN_TURN_8_WALK_0_4.SM_TOWN_TURN_8_WALK_0_4",
+					"t": [
+						-101.75176898727659,
+						-949.67122552293586,
+						-2942.2563065811446,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		}
+	}
+}

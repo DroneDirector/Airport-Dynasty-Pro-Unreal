@@ -239,9 +239,10 @@ namespace ADPLateWorld
 		ARoadNetwork* R = W->SpawnActor<ARoadNetwork>(FVector::ZeroVector, FRotator::ZeroRotator, P);
 		Roads = R;
 		if (R) R->Build();
-		// (built straight away, behind the start's loading screen: owner, 2026-11-15 - the loading screen finishes only
-		// when everything is in)
-		Go();
+		// (built when New game, Continue or Load game opens the loading screen, or when you first go into the 3D world;
+		// test runs, the photo tour and -LateWorldNow straight away: they show the world from the start)
+		const TCHAR* C = FCommandLine::Get();
+		if ((FParse::Param(C, TEXT("UIShot")) && !FParse::Param(C, TEXT("UIContinueShots"))) || FParse::Param(C, TEXT("PhotoTour")) || FParse::Param(C, TEXT("LateWorldNow"))) Go();
 	}
 
 	void Go()
@@ -255,7 +256,7 @@ namespace ADPLateWorld
 			if (!W) { bDone = true; return false; }
 			switch (Stage)
 			{
-			case 0: if (!Roads.IsValid() || Roads->BuildSome(0.0)) Stage = 1; return true;   // one road a frame
+			case 0: if (!Roads.IsValid() || Roads->BuildSome(0.25)) Stage = 1; return true;   // (saved roads: many a frame; a road built from scratch: one)
 			case 1: ADPTown::Place(W); Stage = 2; return true;
 			case 2:
 			{

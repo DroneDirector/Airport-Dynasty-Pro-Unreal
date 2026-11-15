@@ -600,3 +600,6 @@ html.ts-native .game-frame { background: transparent !important; }
 .ln.boot.out { opacity: 0; }
 .ln.boot.done .ln-t { color: #fff; text-shadow: 0 0 4px #fff, 0 0 12px var(--neo2), 0 0 30px var(--neo2), 0 0 50px rgba(53, 240, 255, .6); }
 .ln.boot.done .ln-file { color: #fff; letter-spacing: .3em; }
+
+.ln.done .ln-t { color: #fff; text-shadow: 0 0 4px #fff, 0 0 12px var(--neo2), 0 0 30px var(--neo2), 0 0 50px rgba(53, 240, 255, .6); }
+.ln.done .ln-file { color: #fff; letter-spacing: .3em; }

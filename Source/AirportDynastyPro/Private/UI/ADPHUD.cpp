@@ -539,6 +539,11 @@ void AADPHUD::BeginPlay()
 		];
 
 	if (GEngine && GEngine->GameViewport) GEngine->GameViewport->AddViewportWidgetContent(Root.ToSharedRef(), 10);
+	// from launch until the menus' page is up: black, nothing of the airport (the page then shows the loading screen)
+	if (GEngine && GEngine->GameViewport && !FParse::Param(FCommandLine::Get(), TEXT("PhotoTour")))
+		GEngine->GameViewport->AddViewportWidgetContent(
+			SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(FLinearColor(0.012f, 0.008f, 0.04f, 1.f))
+			.Visibility_Lambda([this]() { return bMenusReady ? EVisibility::Collapsed : EVisibility::Visible; }), 50);
 	// while the roads and the town are still being built (ADPLateWorld), a note at the top of the 3D view
 	if (GEngine && GEngine->GameViewport)
 		GEngine->GameViewport->AddViewportWidgetContent(
@@ -1826,7 +1831,8 @@ void AADPHUD::Tick(float Dt)
 	// the title screen and the menus run as smoothly as on Android (two engines drawing at once made them stutter)
 	if (GEngine && GEngine->GameViewport)
 	{
-		const bool bBehind = bGame && GameBox.IsValid() && GameBox->GetVisibility() == EVisibility::Visible;
+		// (also hidden until the menus are up: the airport never shows before the start's loading screen - owner, 2026-11-15)
+		const bool bBehind = (bGame && GameBox.IsValid() && GameBox->GetVisibility() == EVisibility::Visible) || (bMenusPending || (!bMenusReady && !FParse::Param(FCommandLine::Get(), TEXT("PhotoTour"))));
 		if (GEngine->GameViewport->bDisableWorldRendering != bBehind) GEngine->GameViewport->bDisableWorldRendering = bBehind;
 	}
 	// stuck inside something: the panel (and the pointer free to click it); gone again once you move
@@ -1840,16 +1846,6 @@ void AADPHUD::Tick(float Dt)
 	Super::Tick(Dt);
 	// (the menus opened once the airport has loaded: a couple of frames after the loading frame, see BeginPlay)
 	if (bMenusPending && ++MenusWaitFrames >= 3) { bMenusPending = false; if (!bGame) ToggleGame(); }
-	// the start's loading screen (owner, 2026-11-15): the menus' page shows it as soon as it has loaded, fed the real
-	// progress until everything is in (window.__ueBoot), then "Loading complete · Get ready for takeoff" for 4 s
-	if (!bBootSent && bMenusReady && Browser.IsValid() && (BootT += Dt) >= 0.25f)
-	{
-		BootT = 0.f;
-		const bool bAll = ADPLateWorld::Done();
-		Browser->ExecuteJavascript(FString::Printf(TEXT("window.__ueBoot && window.__ueBoot([{\"n\":\"The airport\",\"p\":1},{\"n\":\"The roads\",\"p\":%.3f},{\"n\":\"The town and the land\",\"p\":%.3f}], %s)"),
-			ADPLateWorld::RoadsProgress(), ADPLateWorld::LandProgress(), bAll ? TEXT("true") : TEXT("false")));
-		if (bAll) bBootSent = true;
-	}
 	// the controller to the menus' page whenever it changes (and once more, all released, when they close)
 	if (PadToMenus.IsValid() && PadToMenus->bDirty && Browser.IsValid() && (bGame || bPadSent))
 	{
@@ -2756,10 +2752,31 @@ void AADPHUD::Tick(float Dt)
 			if (B < 12.f && A >= 12.f) FScreenshotRequest::RequestScreenshot(TEXT("Update_Installing"), true, false);
 			if (B < 13.f && A >= 13.f) ADP_SHOT_EXIT();
 		}
+		// -UIContinueShots: the start, then Continue game clicked at 45 s: pictures every 2 s (the title, the loading screen,
+		// its end, the game)
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIContinueShots")))
+		{
+			if (Before < 45.f && ShotClock >= 45.f && Browser.IsValid()) Browser->ExecuteJavascript(TEXT("(function(){var b=document.querySelector('[data-id=\"game:continue\"]');if(b)b.click();})()"));
+			if (int32(ShotClock / 2.f) != int32(Before / 2.f) && ShotClock < 100.f) FScreenshotRequest::RequestScreenshot(*FString::Printf(TEXT("Cont_%03d"), int32(ShotClock)), true, false);
+			if (Before < 100.f && ShotClock >= 100.f) ADP_SHOT_EXIT();
+		}
 		// -UIBootShots: the game's start filmed: a picture every 2 s for 80 s (the loading screen, its end, the title)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIBootShots")))
 		{
-			if (int32(ShotClock / 2.f) != int32(Before / 2.f) && ShotClock < 80.f) FScreenshotRequest::RequestScreenshot(*FString::Printf(TEXT("Boot_%03d"), int32(ShotClock)), true, false);
+			if (int32(ShotClock / 2.f) != int32(Before / 2.f) && ShotClock < 80.f && !FParse::Param(FCommandLine::Get(), TEXT("NoBootPics"))) FScreenshotRequest::RequestScreenshot(*FString::Printf(TEXT("Boot_%03d"), int32(ShotClock)), true, false);
+			// the title's smoothness: frames, the worst frame, every 5 s (with what the frame was spent on)
+			{
+				static int32 N = 0; static float Sum = 0.f, Worst = 0.f;
+				++N; Sum += Dt; Worst = FMath::Max(Worst, Dt);
+				if (Dt > 0.08f && ShotClock > 30.f) ADP_LOG(TEXT("Title hitch: %.0f ms"), Dt * 1000.f);
+				if (int32(ShotClock / 5.f) != int32(Before / 5.f))
+				{
+					ADP_LOG(TEXT("Title perf: %.0f fps (worst frame %.0f ms), game thread %.1f ms, render %.1f ms, GPU %.1f ms, world drawn %s, menus %s"),
+						N / FMath::Max(Sum, 0.001f), Worst * 1000.f, FPlatformTime::ToMilliseconds(GGameThreadTime), FPlatformTime::ToMilliseconds(GRenderThreadTime), FPlatformTime::ToMilliseconds(RHIGetGPUFrameCycles()),
+						GEngine && GEngine->GameViewport && !GEngine->GameViewport->bDisableWorldRendering ? TEXT("yes") : TEXT("no"), bGame ? TEXT("up") : TEXT("off"));
+					N = 0; Sum = 0.f; Worst = 0.f;
+				}
+			}
 			if (Before < 80.f && ShotClock >= 80.f) ADP_SHOT_EXIT();
 		}
 		// -UIEscLook: the escalators by themselves, a few pictures, then out: outside at the kerb, the pair standing in
@@ -3958,7 +3975,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIPetStep")) && !FParse::Param(FCommandLine::Get(), TEXT("UIUpdateSim")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBootShots")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UIPlanView=")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanelUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoad")) && !FParse::Param(FCommandLine::Get(), TEXT("UIKiosk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) ADP_SHOT_EXIT();
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIPetStep")) && !FParse::Param(FCommandLine::Get(), TEXT("UIUpdateSim")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBootShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIContinueShots")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UIPlanView=")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanelUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoad")) && !FParse::Param(FCommandLine::Get(), TEXT("UIKiosk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) ADP_SHOT_EXIT();
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

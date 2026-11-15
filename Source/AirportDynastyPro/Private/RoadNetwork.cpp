@@ -22,6 +22,16 @@
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "Components/DynamicMeshComponent.h"
+#include "DynamicMeshToMeshDescription.h"
+#include "StaticMeshAttributes.h"
+#include "PhysicsEngine/BodySetup.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "UObject/SavePackage.h"
+#include "Policies/CondensedJsonPrintPolicy.h"
+#include "Serialization/JsonWriter.h"
+#include "Engine/StaticMesh.h"
+#include "Components/StaticMeshComponent.h"
 
 namespace
 {
@@ -35,6 +45,51 @@ namespace
 		TMap<FName, FPaintBuf> Paint;
 	};
 	TMap<const ARoadNetwork*, FRoadJob>& Jobs() { static TMap<const ARoadNetwork*, FRoadJob> J; return J; }
+
+	// ---- the baked roads (ARoadNetwork::BakeAll): each road's fingerprint and its finished parts ----
+	bool GBaking = false;
+	struct FBakedRoad { uint32 Hash = 0; TArray<TPair<FString, FTransform>> Parts; };
+	uint32 GroundCrc()
+	{
+		static uint32 C = 0; static bool bDone = false;
+		if (!bDone)
+		{
+			bDone = true; FString T;
+			if (FFileHelper::LoadFileToString(T, *(FPaths::ProjectContentDir() / TEXT("Data/road-ground.json"))) || FFileHelper::LoadFileToString(T, *(FPaths::ProjectDir() / TEXT("Data/road-ground.json")))) C = FCrc::StrCrc32(*T);
+		}
+		return C;
+	}
+	uint32 RoadHash(const TSharedPtr<FJsonObject>& R)
+	{
+		FString J; TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> Wr = TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&J);
+		FJsonSerializer::Serialize(R.ToSharedRef(), Wr);
+		return HashCombine(FCrc::StrCrc32(*J), GroundCrc()) ^ 0x5eed0002u;   // (the last number: bumped when the road builder itself changes)
+	}
+	const TMap<FString, FBakedRoad>& Baked()
+	{
+		static TMap<FString, FBakedRoad> M; static bool bRead = false;
+		if (bRead) return M;
+		bRead = true;
+		FString T;
+		if (!FFileHelper::LoadFileToString(T, *(FPaths::ProjectContentDir() / TEXT("Data/roads-baked.json"))) && !FFileHelper::LoadFileToString(T, *(FPaths::ProjectDir() / TEXT("Data/roads-baked.json")))) return M;
+		TSharedPtr<FJsonObject> J;
+		if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(T), J) || !J.IsValid()) return M;
+		for (const TPair<FString, TSharedPtr<FJsonValue>>& E : J->GetObjectField(TEXT("roads"))->Values)
+		{
+			const TSharedPtr<FJsonObject> O = E.Value->AsObject();
+			FBakedRoad& B = M.Add(E.Key);
+			B.Hash = uint32(O->GetNumberField(TEXT("hash")));
+			for (const TSharedPtr<FJsonValue>& PV : O->GetArrayField(TEXT("parts")))
+			{
+				const TSharedPtr<FJsonObject> P = PV->AsObject();
+				const TArray<TSharedPtr<FJsonValue>>& A = P->GetArrayField(TEXT("t"));
+				if (A.Num() < 10) continue;
+				const FTransform Tr(FQuat(A[3]->AsNumber(), A[4]->AsNumber(), A[5]->AsNumber(), A[6]->AsNumber()), FVector(A[0]->AsNumber(), A[1]->AsNumber(), A[2]->AsNumber()), FVector(A[7]->AsNumber(), A[8]->AsNumber(), A[9]->AsNumber()));
+				B.Parts.Add({P->GetStringField(TEXT("mesh")), Tr});
+			}
+		}
+		return M;
+	}
 	// the surfaces: the airfield's own ground materials (owner, 2026-11-14) - the same asphalt and concrete as the
 	// aprons, with their puddles, wetness and snow (Tools/set_ground.py), lit by Lumen like the rest; MetaRoad's own for
 	// the bus lane's colour and hatched areas
@@ -294,7 +349,7 @@ int32 ARoadNetwork::Build()
 	TSharedPtr<FJsonObject> Root;
 	if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Root) || !Root.IsValid()) { ADP_ERROR(TEXT("Roads: Data/roads.json can't be read")); return 0; }
 	Host = NewObject<UMetaRoadRuntimeBuildHost>(this);
-	Host->MeshOutput = ERoadRuntimeMeshOutput::TransientStaticMesh;   // (built once, never changing: the cheaper draw path)
+	Host->MeshOutput = GBaking ? ERoadRuntimeMeshOutput::DynamicMeshComponent : ERoadRuntimeMeshOutput::TransientStaticMesh;   // (built once, never changing: the cheaper draw path; editable meshes when saving them)
 	FRoadJob& St = Jobs().Add(this);
 	St = FRoadJob(); St.Root = Root; St.bTest = FParse::Param(FCommandLine::Get(), TEXT("RoadTest")); St.T0 = FPlatformTime::Seconds();
 	St.Total = Root->GetArrayField(TEXT("roads")).Num();
@@ -385,9 +440,32 @@ bool ARoadNetwork::BuildSome(double Budget)
 		S->UpdateRoadLayout();
 		MakeFine(Road);
 		const double TB = FPlatformTime::Seconds();
-		if (!Host->BuildRoad(Road)) { ADP_ERROR(TEXT("Roads: %s did not build"), *Id); continue; }
-		ADP_LOG(TEXT("Roads: %s built in %.2f s (%.0f m)"), *Id, FPlatformTime::Seconds() - TB, Pts.Num() > 1 ? FVector::Dist(Pts[0], Pts.Last()) / 100.0 : 0.0);
-		++Built; Roads.Add(Road);
+		// saved once already, and its plan unchanged: its finished parts placed, nothing built (ARoadNetwork::BakeAll)
+		bool bFromBake = false;
+		if (!GBaking)
+			if (const FBakedRoad* BR = Baked().Find(Id))
+				if (BR->Hash == RoadHash(R) && BR->Parts.Num())
+				{
+					TArray<UStaticMesh*> Ms;
+					for (const TPair<FString, FTransform>& Pt : BR->Parts) Ms.Add(LoadObject<UStaticMesh>(nullptr, *Pt.Key));
+					if (!Ms.Contains(nullptr))
+					{
+						for (int32 k = 0; k < Ms.Num(); ++k)
+						{
+							UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(Road);
+							C->SetStaticMesh(Ms[k]);
+							C->SetupAttachment(Road->GetRootComponent());
+							C->SetRelativeTransform(BR->Parts[k].Value);
+							C->SetCollisionProfileName(TEXT("BlockAll"));
+							Road->AddInstanceComponent(C);
+							C->RegisterComponent();
+						}
+						bFromBake = true;
+					}
+				}
+		if (!bFromBake && !Host->BuildRoad(Road)) { ADP_ERROR(TEXT("Roads: %s did not build"), *Id); continue; }
+		ADP_LOG(TEXT("Roads: %s %s in %.2f s (%.0f m)"), *Id, bFromBake ? TEXT("placed from its saved parts") : TEXT("built"), FPlatformTime::Seconds() - TB, Pts.Num() > 1 ? FVector::Dist(Pts[0], Pts.Last()) / 100.0 : 0.0);
+		++Built; Roads.Add(Road); RoadIds.Add(Id);
 		// ---- along the road: where each point is (m), the way it runs, its right (Unreal: x forward, y right) ----
 		TArray<double> Al; Al.Add(0.0);
 		for (int32 k = 1; k < Pts.Num(); ++k) Al.Add(Al.Last() + FVector::Dist2D(Pts[k], Pts[k - 1]) / 100.0);
@@ -781,4 +859,81 @@ bool ARoadNetwork::BuildSome(double Budget)
 	ADP_LOG(TEXT("Roads: %d built, %d zebra crossings, in %.2f s (MetaRoad Free, at run time)"), Built, Crossings, FPlatformTime::Seconds() - T0);
 	St.bDone = true; St.Root.Reset(); St.Paint.Reset();
 	return true;
+}
+
+
+int32 ARoadNetwork::BakeAll(UObject* WorldContext)
+{
+#if WITH_EDITOR
+	UWorld* W = WorldContext ? WorldContext->GetWorld() : nullptr;
+	if (!W) { ADP_ERROR(TEXT("Roads bake: no world")); return 0; }
+	GBaking = true;
+	FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	ARoadNetwork* Net = W->SpawnActor<ARoadNetwork>(FVector::ZeroVector, FRotator::ZeroRotator, P);
+	if (!Net) { GBaking = false; return 0; }
+	Net->Build();
+	while (!Net->BuildSome(1e9)) {}
+	FString Text;
+	if (!FFileHelper::LoadFileToString(Text, *(FPaths::ProjectDir() / TEXT("Data/roads.json")))) { GBaking = false; return 0; }
+	TSharedPtr<FJsonObject> Root; FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Root);
+	TMap<FString, TSharedPtr<FJsonObject>> ById;
+	for (const TSharedPtr<FJsonValue>& V : Root->GetArrayField(TEXT("roads"))) ById.Add(V->AsObject()->GetStringField(TEXT("id")), V->AsObject());
+	TSharedRef<FJsonObject> Man = MakeShared<FJsonObject>(), RJ = MakeShared<FJsonObject>();
+	int32 Saved = 0;
+	for (int32 i = 0; i < Net->Roads.Num() && i < Net->RoadIds.Num(); ++i)
+	{
+		AActor* Road = Net->Roads[i]; const FString Id = Net->RoadIds[i];
+		if (!Road || !ById.Contains(Id)) continue;
+		TArray<UDynamicMeshComponent*> Comps; Road->GetComponents(Comps);
+		TArray<TSharedPtr<FJsonValue>> Parts;
+		bool bOk = Comps.Num() > 0;
+		for (int32 k = 0; k < Comps.Num(); ++k)
+		{
+			UDynamicMeshComponent* C = Comps[k];
+			FMeshDescription MD; FStaticMeshAttributes Attr(MD); Attr.Register();
+			FDynamicMeshToMeshDescription Conv;
+			C->ProcessMesh([&](const UE::Geometry::FDynamicMesh3& Mesh) { Conv.Convert(&Mesh, MD, true); });
+			const FString Name = FString::Printf(TEXT("SM_%s_%d"), *Id.Replace(TEXT("-"), TEXT("_")), k);
+			const FString PkgName = TEXT("/Game/Roads/Baked/") + Name;
+			UPackage* Pkg = CreatePackage(*PkgName);
+			UStaticMesh* SM = NewObject<UStaticMesh>(Pkg, *Name, RF_Public | RF_Standalone);
+			for (int32 m = 0; m < C->GetNumMaterials(); ++m)
+			{
+				FStaticMaterial& Slot = SM->GetStaticMaterials().Emplace_GetRef(C->GetMaterial(m));
+				Slot.UVChannelData = FMeshUVChannelInfo(1.f);
+			}
+			UStaticMesh::FBuildMeshDescriptionsParams BP; BP.bFastBuild = false; BP.bBuildSimpleCollision = false; BP.bMarkPackageDirty = true; BP.bCommitMeshDescription = true;
+			if (!SM->BuildFromMeshDescriptions({&MD}, BP)) { ADP_ERROR(TEXT("Roads bake: %s failed"), *Name); bOk = false; continue; }
+			if (!SM->GetBodySetup()) SM->CreateBodySetup();
+			if (UBodySetup* BS = SM->GetBodySetup()) BS->CollisionTraceFlag = ECollisionTraceFlag::CTF_UseComplexAsSimple;
+			FAssetRegistryModule::AssetCreated(SM);
+			FSavePackageArgs SA; SA.TopLevelFlags = RF_Public | RF_Standalone;
+			UPackage::SavePackage(Pkg, SM, *FPackageName::LongPackageNameToFilename(PkgName, FPackageName::GetAssetPackageExtension()), SA);
+			const FTransform T = C->GetComponentTransform().GetRelativeTransform(Road->GetActorTransform());
+			TSharedRef<FJsonObject> PO = MakeShared<FJsonObject>();
+			PO->SetStringField(TEXT("mesh"), PkgName + TEXT(".") + Name);
+			const FQuat Q = T.GetRotation(); const FVector L = T.GetLocation(), S3 = T.GetScale3D();
+			TArray<TSharedPtr<FJsonValue>> A;
+			for (double v : {L.X, L.Y, L.Z, Q.X, Q.Y, Q.Z, Q.W, S3.X, S3.Y, S3.Z}) A.Add(MakeShared<FJsonValueNumber>(v));
+			PO->SetArrayField(TEXT("t"), A);
+			Parts.Add(MakeShared<FJsonValueObject>(PO));
+		}
+		if (!bOk) continue;
+		TSharedRef<FJsonObject> O = MakeShared<FJsonObject>();
+		O->SetNumberField(TEXT("hash"), double(RoadHash(ById[Id])));
+		O->SetArrayField(TEXT("parts"), Parts);
+		RJ->SetObjectField(Id, O);
+		++Saved;
+	}
+	Man->SetStringField(TEXT("about"), TEXT("ARoadNetwork::BakeAll (Tools/bake_roads.sh): each road's saved parts; a road whose plan changed is built again at run time until the next bake"));
+	Man->SetObjectField(TEXT("roads"), RJ);
+	FString Out; FJsonSerializer::Serialize(Man, TJsonWriterFactory<>::Create(&Out));
+	FFileHelper::SaveStringToFile(Out, *(FPaths::ProjectDir() / TEXT("Data/roads-baked.json")));
+	ADP_LOG(TEXT("Roads bake: %d of %d roads saved to /Game/Roads/Baked"), Saved, Net->Roads.Num());
+	GBaking = false;
+	Net->Destroy();
+	return Saved;
+#else
+	return 0;
+#endif
 }

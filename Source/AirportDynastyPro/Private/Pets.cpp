@@ -145,13 +145,16 @@ APet* APet::Spawn(UWorld* W, const ADPPets::FModel& Model, const FVector& At, fl
 	// its walking pace from its own size: the moves were made at ~1.8 body lengths a second (Art/Pets/anim_pet.py),
 	// shown slower here, an easy walk
 	Pet->Speed = 1.8f * Pet->Length * Pet->WalkRate;
+	for (const TCHAR* Mv : {TEXT("Idle"), TEXT("WalkFast"), TEXT("SitDown"), TEXT("SitIdle"), TEXT("StandUp"), TEXT("LieDown"), TEXT("LieIdle"), TEXT("GetUp"), TEXT("Run"), TEXT("RollOver")})
+		if (UAnimSequence* A = LoadObject<UAnimSequence>(nullptr, *FString::Printf(TEXT("/Game/Pets/%s/%s/A_%s_%s.A_%s_%s"), *Model.Folder, *Model.Id, *Model.Id, Mv, *Model.Id, Mv), nullptr, LOAD_Quiet | LOAD_NoWarn))
+			Pet->Moves.Add(Mv, A);
 	Pet->Play(TEXT("Idle"), true);
 	return Pet;
 }
 
 void APet::Play(const TCHAR* Move, bool bLoop, float Rate)
 {
-	UAnimSequence* A = LoadObject<UAnimSequence>(nullptr, *FString::Printf(TEXT("/Game/Pets/%s/%s/A_%s_%s.A_%s_%s"), *M.Folder, *M.Id, *M.Id, Move, *M.Id, Move));
+	UAnimSequence* A = this->Move(Move);
 	if (!A) { ADP_WARN(TEXT("Pets: %s has no move %s"), *M.Id, Move); return; }
 	Body->PlayAnimation(A, bLoop);
 	Body->SetPlayRate(Rate);
@@ -159,7 +162,7 @@ void APet::Play(const TCHAR* Move, bool bLoop, float Rate)
 
 float APet::MoveLength(const TCHAR* Move) const
 {
-	UAnimSequence* A = LoadObject<UAnimSequence>(nullptr, *FString::Printf(TEXT("/Game/Pets/%s/%s/A_%s_%s.A_%s_%s"), *M.Folder, *M.Id, *M.Id, Move, *M.Id, Move));
+	UAnimSequence* A = this->Move(Move);
 	return A ? A->GetPlayLength() : 1.f;
 }
 
@@ -298,4 +301,10 @@ void APet::Tick(float Dt)
 	else if (Leg == 1 && State == EState::Standing) { Leg = 2; StateT = 0.f; WaitFor = FMath::FRandRange(3.f, 8.f); }
 	else if (Leg == 2 && State == EState::Standing && StateT >= WaitFor) { Leg = 3; WalkTo(HomeAt, true, HomeYaw); }
 	else if (Leg == 3 && State == EState::Sitting) { Leg = 0; NextWander = FMath::FRandRange(25.f, 70.f); }
+}
+
+UAnimSequence* APet::Move(const TCHAR* Name) const
+{
+	const TObjectPtr<UAnimSequence>* A = Moves.Find(Name);
+	return A ? A->Get() : nullptr;
 }

@@ -13,6 +13,7 @@
 
 void AADPHUD::StartUnrealLoad()
 {
+	if (bPreLoading) return;   // (already loading: New game asks twice - from the page's screen and at Start game)
 	PreLoad.Reset(); PreNames.Reset(); PreSent = 0.f; bPreDone = false;
 	IAssetRegistry& AR = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 	TArray<FSoftObjectPath> You, Hair, Terminal;

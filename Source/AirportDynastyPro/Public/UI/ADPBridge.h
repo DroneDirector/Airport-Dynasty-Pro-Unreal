@@ -17,6 +17,8 @@ public:
 	TWeakObjectPtr<AADPHUD> Hud;
 
 	/** The title screen's Terminal: Unreal's own 3D terminal, the menus hidden (G or Esc brings them back). */
+	/** New game, Continue or Load game: the loading screen is up - Unreal loads the rest of the world behind it. */
+	UFUNCTION() void StartLoad();
 	UFUNCTION() void OpenTerminal();
 	/** The title screen's Airport site: Unreal's own world round the terminal, standing at the kerb outside. */
 	UFUNCTION() void OpenSite();

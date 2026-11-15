@@ -35,7 +35,8 @@ function frame() {
   // the bar: up to 92 % while it loads (eased, slower as it goes), the rest when the game says it is in
   const web = Ld.ready ? 100 : Math.min(92, 100 * (1 - Math.exp(-t / 4.5)));
   const ueAvg = Ld.ue && Ld.ue.length ? 100 * Ld.ue.reduce((a: number, r: any) => a + Math.min(1, +r.p || 0), 0) / Ld.ue.length : 100;
-  const target = Ld.ue ? Math.min(web, Ld.ueDone ? 100 : Math.min(97, ueAvg)) : web;
+  const pcWait = /[?&]pc=/.test(location.search) && !Ld.ue;   // (the PC version: wait for Unreal's own list)
+  const target = Ld.ue ? Math.min(web, Ld.ueDone ? 100 : Math.min(97, ueAvg)) : pcWait ? Math.min(web, 90) : web;
   Ld.pct += (target - Ld.pct) * (Ld.ready ? 0.25 : 0.08);
   const pct = Math.round(Ld.pct);
   const names = fileNames(); if (names.length) Ld.file = names[names.length - 1];
@@ -46,7 +47,18 @@ function frame() {
   if (t - Ld.tipAt > 5) { Ld.tipAt = t; Ld.tip = (Ld.tip + 1) % TIPS.length; const tp = r.querySelector('.ln-tip b') as HTMLElement; if (tp) { tp.classList.remove('in'); void tp.offsetWidth; tp.textContent = TIPS[Ld.tip]; tp.classList.add('in'); } }
   const ul = r.querySelector('.ln-ue') as HTMLElement;
   if (ul && Ld.ue) ul.innerHTML = Ld.ue.map((x: any) => { const p = Math.round(100 * Math.min(1, +x.p || 0)); return `<span style="margin:0 10px;opacity:${p >= 100 ? 0.65 : 1}">${p >= 100 ? '&#10003; ' : ''}${String(x.n).replace(/[<>&]/g, '')} ${p}%</span>`; }).join('');
-  if (Ld.ready && (!Ld.ue || Ld.ueDone) && Ld.pct > 99.5 && t > 3.2) { hide(); return; }
+  // everything in: the bar full, then four seconds of "Loading complete · Get ready for takeoff" (owner, 2026-11-15)
+  if (Ld.ready && (Ld.ue ? Ld.ueDone : !/[?&]pc=/.test(location.search)) && Ld.pct > 99.5 && t > 3.2) {
+    if (!Ld.doneAt) {
+      Ld.doneAt = performance.now(); Ld.pct = 100;
+      const tl = r.querySelector('.ln-t') as HTMLElement; if (tl) tl.textContent = 'Loading complete';
+      r.classList.add('done');
+    }
+    if (fl) fl.textContent = 'Get ready for takeoff';
+    if (pc) pc.textContent = '100%';
+    if (fill) fill.style.width = '100%';
+    if (performance.now() - Ld.doneAt > 4000) { hide(); return; }
+  }
   Ld.raf = requestAnimationFrame(frame);
 }
 
@@ -61,7 +73,10 @@ export function loadingNeonShow() {
       <div class="ln-ue" style="margin-top:10px;font-size:13px;letter-spacing:.04em;text-align:center;color:#9fe8ff"></div>
     </div>
     <div class="ln-tip"><small>Tip</small><b class="in">${TIPS[0]}</b></div>`;
-  document.body.appendChild(root); Ld.root = root; Ld.t0 = performance.now(); Ld.pct = 0; Ld.ready = false; Ld.seen = 0; Ld.file = ''; Ld.tip = 0; Ld.tipAt = 0;
+  document.body.appendChild(root); Ld.root = root; Ld.t0 = performance.now(); Ld.pct = 0; Ld.ready = false; Ld.seen = 0; Ld.file = ''; Ld.tip = 0; Ld.tipAt = 0; Ld.doneAt = 0;
+  // the PC version: Unreal loads the rest of the world now (the roads, the town, the land along the roads, you, your
+  // hair, the terminal) and tells this screen each one's progress (window.__ueLoad)
+  try { const u = (window as any).ue && (window as any).ue.adp; if (u && u.startload) u.startload(); } catch (e) { /* no link */ }
   requestAnimationFrame(() => root.classList.add('in'));
   Ld.raf = requestAnimationFrame(frame);
 }
@@ -124,7 +139,7 @@ function bootHide() {
   setTimeout(() => r.remove(), 700);
 }
 (window as any).__ueBoot = (list: any[], done: boolean) => {
-  if (!Bt.root && !Bt.doneAt) bootShow();
+  if (!Bt.root && !Bt.doneAt) bootShow();   // (in case the page started without it)
   Bt.list = list || []; Bt.done = !!done;
   const avg = Bt.list.length ? 100 * Bt.list.reduce((a: number, x: any) => a + Math.min(1, +x.p || 0), 0) / Bt.list.length : 100;
   Bt.want = done ? 100 : Math.min(99, avg);

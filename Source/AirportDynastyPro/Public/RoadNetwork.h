@@ -24,6 +24,12 @@ public:
 	bool BuildSome(double Budget);
 	/** 0..1, how much of the network is built. */
 	float Progress() const;
+	/** Editor only: builds every road once and saves its meshes as finished models in /Game/Roads/Baked, with
+	 *  Data/roads-baked.json (each road's fingerprint and its parts); the game then places unchanged roads from them
+	 *  instead of building (owner, 2026-11-15: the start's loading bar stalled on every road). A road added or changed
+	 *  later is built at run time until the next bake (Tools/bake_roads.sh). Returns the roads saved. */
+	UFUNCTION(BlueprintCallable, Category = "ADP")
+	static int32 BakeAll(UObject* WorldContext);
 	/** The ground's height (m) at a plan point: the airfield's own inside its boundary, the globe's outside it (measured by the
 	 *  -RoadGroundProbe run into Data/road-ground.json: Cesium's terrain, which falls away from the airport toward the coast),
 	 *  blended over the last 60 m inside the boundary so there is no step at the fence. */
@@ -36,6 +42,7 @@ public:
 private:
 	UPROPERTY() TObjectPtr<class UMetaRoadRuntimeBuildHost> Host;
 	UPROPERTY() TArray<TObjectPtr<AActor>> Roads;
+	TArray<FString> RoadIds;   // (each built road's id, beside Roads)
 	UPROPERTY() TObjectPtr<class AStreetLights> Lights;
 	UPROPERTY() TObjectPtr<class ARoadSigns> Signs;   // the roadside airport signs (RoadSigns.h)
 	UPROPERTY() TMap<FString, TObjectPtr<class UInstancedStaticMeshComponent>> Props;   // the roads' fittings by model: gully gratings, manhole covers
