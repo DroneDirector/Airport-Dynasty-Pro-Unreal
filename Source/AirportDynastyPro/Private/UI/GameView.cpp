@@ -65,6 +65,7 @@ namespace
 			File = FPaths::ConvertRelativePathToFull(Base / (bVoice ? Path.RightChop(11) : Path));
 			// never outside the game's (or the voice pack's) folder
 			bFound = File.StartsWith(Base) && !File.Contains(TEXT("..")) && FFileHelper::LoadFileToArray(Data, *File);
+			if (FParse::Param(FCommandLine::Get(), TEXT("WebLog"))) ADP_LOG(TEXT("Menus page: %s %s (%d bytes)"), *Path, bFound ? TEXT("served") : TEXT("NOT FOUND"), Data.Num());
 			OnHeadersReady.Execute();
 			return true;
 		}
@@ -95,7 +96,7 @@ namespace
 	class FGameFiles : public IWebBrowserSchemeHandlerFactory
 	{
 	public:
-		virtual TUniquePtr<IWebBrowserSchemeHandler> Create(FString Verb, FString Url) override { return MakeUnique<FGameFile>(); }
+		virtual TUniquePtr<IWebBrowserSchemeHandler> Create(FString Verb, FString Url) override { if (FParse::Param(FCommandLine::Get(), TEXT("WebLog"))) ADP_LOG(TEXT("Menus page: asked for %s"), *Url); return MakeUnique<FGameFile>(); }
 	};
 
 	void Register()
@@ -105,6 +106,7 @@ namespace
 		if (bDone || !IWebBrowserModule::IsAvailable()) return;
 		if (IWebBrowserSingleton* B = IWebBrowserModule::Get().GetSingleton())
 			bDone = B->RegisterSchemeHandlerFactory(TEXT("https"), Host, &Factory);
+		ADP_LOG(TEXT("Menus page: the game's files at https://%s/ %s"), Host, bDone ? TEXT("registered") : TEXT("NOT registered"));
 	}
 }
 #pragma endregion

@@ -103,6 +103,7 @@ bool UADPBridge::TitleBg(bool bOn, float Seconds)
 
 void UADPBridge::Log(const FString& Line)
 {
+	if (Line == TEXT("menus ready")) if (AADPHUD* H = Hud.Get()) H->bMenusReady = true;
 	ADP_LOG(TEXT("Menus: %s"), *Line.Left(600));
 }
 

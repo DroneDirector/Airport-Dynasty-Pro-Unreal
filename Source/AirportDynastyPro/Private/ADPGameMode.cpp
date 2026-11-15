@@ -137,7 +137,7 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 					ADPPets::PlaceHome(W);
 					// the escalators in the new escalator room (Escalators.h): their foot at the Grand Hall's side, rising
 					// west to the Floor 2 landing (their top combs on its edge, x 21), the pair in the guardrail's gap
-					if (FPackageName::DoesPackageExist(TEXT("/Game/Escalator/SM_EscStep")))
+					if (FPackageName::DoesPackageExist(TEXT("/Game/Escalator/SM_EscStep")) && !FParse::Param(FCommandLine::Get(), TEXT("NoEscalators")))
 					{
 						FActorSpawnParameters Sp; Sp.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 						const float Foot = 21.f + AEscalatorPair::LengthAlong();

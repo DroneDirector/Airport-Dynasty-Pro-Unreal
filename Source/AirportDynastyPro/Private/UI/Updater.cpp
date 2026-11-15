@@ -110,11 +110,11 @@ void AADPHUD::CheckForUpdates()
 		FString At = Have;
 		int64 Total = 0;
 		for (const FRel& Rel : Rels)
-			if (Compare(Rel.Ver, At) > 0 && Rel.From == At && !Rel.UpdateUrl.IsEmpty()) { H->UpdateChain.Add({Rel.Ver, Rel.UpdateUrl}); Total += Rel.Size; At = Rel.Ver; }
+			if (Compare(Rel.Ver, At) > 0 && Rel.From == At && !Rel.UpdateUrl.IsEmpty()) { H->UpdateChain.Add({Rel.Ver, Rel.UpdateUrl}); H->UpdateSizes.Add(Rel.Size); Total += Rel.Size; At = Rel.Ver; }
 		if (At != Newest->Ver)
 		{
 			// no unbroken chain (a version too old for patches): the full installer, which installs over this one
-			H->UpdateChain.Reset();
+			H->UpdateChain.Reset(); H->UpdateSizes.Reset();
 			H->UpdateFullUrl = Newest->SetupUrl.IsEmpty() || Newest->bSplit ? Newest->Page : Newest->SetupUrl;
 			H->UpdateStatus = FString::Printf(TEXT("Version %s is out. This version is too old for a small update: Install downloads the full installer (it installs over this one; your saves stay)."), *Newest->Ver);
 			return;
@@ -150,7 +150,11 @@ void AADPHUD::DownloadNext(int32 I, const FString& Dir)
 	{
 		if (AADPHUD* H = Me.Get())
 		{
-			const int64 Size = Req->GetResponse().IsValid() ? Req->GetResponse()->GetContentLength() : 0;
+			// the package's size: from the response, else from the release listing (GitHub redirects the download, and
+			// until the redirect's answer arrives the response has no length - the bar used to vanish and come back,
+			// flashing; owner, to-do 51)
+			int64 Size = Req->GetResponse().IsValid() ? Req->GetResponse()->GetContentLength() : 0;
+			if (Size <= 0 && H->UpdateSizes.IsValidIndex(I)) Size = H->UpdateSizes[I];
 			// the speed over the last second or so (smoothed), shown with the bar
 			const double Now = FPlatformTime::Seconds();
 			if (H->UpdateT0 <= 0 || Got < H->UpdateGot0) { H->UpdateT0 = Now; H->UpdateGot0 = Got; }
@@ -160,7 +164,8 @@ void AADPHUD::DownloadNext(int32 I, const FString& Dir)
 				H->UpdateSpeed = H->UpdateSpeed > 0 ? H->UpdateSpeed * 0.6 + Rate * 0.4 : Rate;
 				H->UpdateT0 = Now; H->UpdateGot0 = Got;
 			}
-			H->UpdateFrac = Size > 0 ? float(double(Got) / double(Size)) : -1.f;
+			// (never backwards: a redirect starts the count again from 0)
+			if (Size > 0) H->UpdateFrac = FMath::Max(H->UpdateFrac, FMath::Clamp(float(double(Got) / double(Size)), 0.f, 1.f));
 			H->UpdateStatus = Size > 0 ? FString::Printf(TEXT("Downloading the update to %s: %.0f of %.0f MB"), *Ver, Got / 1048576.0, Size / 1048576.0) : FString::Printf(TEXT("Downloading the update to %s: %.0f MB"), *Ver, Got / 1048576.0);
 		}
 	});

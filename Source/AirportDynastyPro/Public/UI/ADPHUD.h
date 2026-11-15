@@ -126,6 +126,9 @@ public:
 	/** What the menus' Settings > Updates was last told (sent again only when it changes). */
 	FString UpdateSent;
 	TArray<TPair<FString, FString>> UpdateChain;   // version, update package
+	TArray<int64> UpdateSizes;                      // each package's size from the release listing (the bar never loses its length)
+	double UpdateSentAt = 0;
+	bool bMenusReady = false;                       // the menus' page has loaded and said so                         // when the page was last told (progress at most 5 times a second)
 	TArray<FString> UpdateFiles;
 	FString UpdateFullUrl;
 	#pragma endregion

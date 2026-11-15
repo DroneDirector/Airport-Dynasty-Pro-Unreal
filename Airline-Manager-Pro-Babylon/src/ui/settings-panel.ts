@@ -1,3 +1,4 @@
+import { updateNeon } from './update-neon';
 // The settings, behind the gear that is always on the screen: Graphics and Controls only. Works with touch, the
 // mouse, the keyboard (arrows, Enter, Esc) and a controller (D-pad or left stick to move, left/right to change,
 // Cross to switch, Circle or Options to close).
@@ -23,7 +24,7 @@ const pct = (v: number) => Math.round(v * 100) + '%';
 function progressBar(frac: number, extra: string): string {
   const f = Math.max(0, Math.min(1, frac)), t = `${Math.floor(f * 100)}%${extra ? '&nbsp;&nbsp;&nbsp;' + extra : ''}`;
   const box = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;white-space:nowrap';
-  return `<div style="position:relative;height:24px;margin:6px 0 10px;border:1px solid #5a9ed9;background:#081f36;border-radius:3px;overflow:hidden">
+  return `<div class="upd-bar" style="position:relative;height:24px;margin:6px 0 10px;border:1px solid #5a9ed9;background:#081f36;border-radius:3px;overflow:hidden">
     <div style="position:absolute;left:0;top:0;bottom:0;width:${(f * 100).toFixed(2)}%;background:#3db8ff"></div>
     <div style="${box};color:#d9f2ff">${t}</div>
     <div style="${box};color:#021220;clip-path:inset(0 ${(100 - f * 100).toFixed(2)}% 0 0)">${t}</div></div>`;
@@ -98,7 +99,16 @@ const TABS: [string, string, string][] = [['gfx', 'monitor', 'Graphics'], ['ctl'
 /** Settings → Updates: the installed version, the newest one and what it holds, and the buttons to check and install. */
 /** The PC (Unreal) edition: the game's own updater, run by Unreal; it tells the page its state (window.__ueUpdate). */
 const UEU = { status: '', can: false, busy: false, ver: '', frac: -1, mbs: 0 };
-(window as any).__ueUpdate = (status: string, can: boolean, busy: boolean, ver: string, frac = -1, mbs = 0) => { Object.assign(UEU, { status, can, busy, ver, frac, mbs }); if (el && tab === 'upd') render(); };
+(window as any).__ueUpdate = (status: string, can: boolean, busy: boolean, ver: string, frac = -1, mbs = 0) => {
+  const same = UEU.busy === busy && UEU.can === can && UEU.ver === ver && (UEU.frac >= 0) === (frac >= 0);
+  Object.assign(UEU, { status, can, busy, ver, frac, mbs });
+  updateNeon(status, busy, frac, mbs);
+  if (!el || tab !== 'upd') return;
+  // only the progress moved: the bar and the status text changed in place, nothing redrawn (it flashed: to-do 51)
+  const bar = el.querySelector('.upd-bar') as HTMLElement | null, st = el.querySelector('.upd-status') as HTMLElement | null;
+  if (same && bar && st && frac >= 0) { bar.outerHTML = progressBar(frac, mbs > 0 ? `${mbs.toFixed(1)} MB/s` : ''); st.textContent = status; return; }
+  render();
+};
 const ueUpd = () => !!UE_PC && !!ue();
 function ueCheck() { try { UEU.status = 'Checking for updates…'; UEU.busy = true; if (el) render(); ue().checkupdates(); } catch (e) { /* no link */ } }
 function ueInstall() { try { ue().installupdates(); } catch (e) { /* no link */ } }
@@ -175,7 +185,7 @@ function rowHtml(r: Row, i: number): string {
   if (r.k === 'range') { const v = get(r.key); return `<div class="${cls}" data-i="${i}">${lab}<span class="sp-rng"><input type="range" min="${r.min}" max="${r.max}" step="${r.step}" value="${v}" data-key="${r.key}"><em>${esc(r.fmt(v))}</em></span></div>`; }
   if (r.k === 'html') return `<div class="${cls} html" data-i="${i}">${r.html()}</div>`;
   if (r.k === 'btn') return `<div class="${cls}" data-i="${i}">${lab}<button class="sp-btn" data-a="${r.act}">${esc(r.text)}</button></div>`;
-  return `<div class="${cls} info" data-i="${i}"><span class="sp-l"><b>${esc(r.label)}</b><small>${esc(r.text())}</small></span></div>`;
+  return `<div class="${cls} info" data-i="${i}"><span class="sp-l"><b>${esc(r.label)}</b><small${r.label === 'Status' ? ' class="upd-status"' : ''}>${esc(r.text())}</small></span></div>`;
 }
 function clickIn(e: Event) {
   const b = (e.target as HTMLElement).closest('[data-a]') as HTMLElement; if (!b) return;

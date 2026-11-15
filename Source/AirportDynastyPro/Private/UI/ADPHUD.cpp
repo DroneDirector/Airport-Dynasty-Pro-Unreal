@@ -1838,9 +1838,12 @@ void AADPHUD::Tick(float Dt)
 	{
 		const bool bCan = !UpdateBusy && (UpdateChain.Num() || !UpdateFullUrl.IsEmpty());
 		const FString Now = FString::Printf(TEXT("%s|%d|%d|%.3f|%.1f"), *UpdateStatus, bCan ? 1 : 0, UpdateBusy ? 1 : 0, UpdateFrac, UpdateSpeed / 1048576.0);
-		if (Now != UpdateSent)
+		// (progress at most 5 times a second; anything else at once)
+		const double Tnow = FPlatformTime::Seconds();
+		const bool bOnlyProgress = UpdateBusy && Now.Left(Now.Find(TEXT("|"))) .StartsWith(TEXT("Downloading")) && UpdateSent.StartsWith(TEXT("Downloading"));
+		if (Now != UpdateSent && (!bOnlyProgress || Tnow - UpdateSentAt > 0.2))
 		{
-			UpdateSent = Now;
+			UpdateSent = Now; UpdateSentAt = Tnow;
 			const FString Safe = UpdateStatus.Replace(TEXT("\\"), TEXT("\\\\")).Replace(TEXT("'"), TEXT("\\'"));
 			Browser->ExecuteJavascript(FString::Printf(TEXT("window.__ueUpdate && window.__ueUpdate('%s', %s, %s, '%s', %.4f, %.2f)"), *Safe, bCan ? TEXT("true") : TEXT("false"), UpdateBusy ? TEXT("true") : TEXT("false"), *UpdaterVersion(), UpdateFrac, UpdateSpeed / 1048576.0));
 		}
@@ -2697,6 +2700,31 @@ void AADPHUD::Tick(float Dt)
 				}
 				ADP_SHOT_EXIT();
 			}
+		}
+		// -UIUpdateSim: an update's download played out (no real download): the update screen at 20, 55 and 90 %, then
+		// installing; the page logs the bar's width every tenth of a second (it must only grow, never vanish)
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIUpdateSim")))
+		{
+			// (it starts when the menus say they are ready: in the editor's -game runs that can take a few minutes)
+			static float T0 = -1.f;
+			if (T0 < 0.f && bMenusReady) T0 = ShotClock + 5.f;
+			const float A = T0 < 0.f ? -100.f : ShotClock - T0, B = T0 < 0.f ? -100.f : Before - T0;
+			if (B < -2.f && A >= -2.f && Browser.IsValid())
+				Browser->ExecuteJavascript(TEXT("setInterval(function(){var f=document.querySelector('.un .ln-fill');ue.adp.log('UPDSIM bar '+(f?f.style.width:'none'));},100);"));
+			if (A >= 0.f && A < 10.f)
+			{
+				UpdateBusy = true;
+				const float F = FMath::Clamp(A / 10.f, 0.f, 1.f);
+				// (as the real one does: the first ticks before the size is known)
+				UpdateFrac = A < 0.6f ? 0.f : F; UpdateSpeed = 9.4 * 1048576.0;
+				UpdateStatus = FString::Printf(TEXT("Downloading the update to 0.17.16: %.0f of 1688 MB"), F * 1688.f);
+			}
+			if (B < 2.f && A >= 2.f) FScreenshotRequest::RequestScreenshot(TEXT("Update_20"), true, false);
+			if (B < 5.5f && A >= 5.5f) FScreenshotRequest::RequestScreenshot(TEXT("Update_55"), true, false);
+			if (B < 9.f && A >= 9.f) FScreenshotRequest::RequestScreenshot(TEXT("Update_90"), true, false);
+			if (B < 10.f && A >= 10.f) { UpdateFrac = 1.f; UpdateStatus = TEXT("Installing the update: the game closes and starts again in a moment…"); }
+			if (B < 12.f && A >= 12.f) FScreenshotRequest::RequestScreenshot(TEXT("Update_Installing"), true, false);
+			if (B < 13.f && A >= 13.f) ADP_SHOT_EXIT();
 		}
 		// -UIEscLook: the escalators by themselves, a few pictures, then out: outside at the kerb, the pair standing in
 		// front of the camera, seen from their foot
@@ -3894,7 +3922,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIPetStep")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UIPlanView=")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanelUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoad")) && !FParse::Param(FCommandLine::Get(), TEXT("UIKiosk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) ADP_SHOT_EXIT();
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIPetStep")) && !FParse::Param(FCommandLine::Get(), TEXT("UIUpdateSim")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UIPlanView=")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanelUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoad")) && !FParse::Param(FCommandLine::Get(), TEXT("UIKiosk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) ADP_SHOT_EXIT();
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are
