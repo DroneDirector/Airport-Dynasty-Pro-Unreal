@@ -23,7 +23,8 @@ for c in cuts:
     job.append({'node': c['node'], 'piece': piece, 'new': piece + '_cut', 'm': M, 'boxes': c['boxes']})
 jf = os.path.join(ROOT, 'Saved', 'terminal-cut-job.json'); json.dump(job, open(jf, 'w'))
 ED = r'C:/Program Files/Epic Games/UE_5.7/Engine/Binaries/Win64/UnrealEditor-Cmd.exe'
-subprocess.run([ED, os.path.join(ROOT, 'AirportDynastyPro.uproject'), '-ExecutePythonScript=%s %s' % (os.path.join(ROOT, 'Tools', 'terminal_cut_ue.py'), jf), '-unattended', '-nullrhi', '-nosplash'], capture_output=True)
+SCRIPT = os.path.join(ROOT, 'Tools', 'terminal_cut_ue.py').replace(os.sep, '/'); JOBF = jf.replace(os.sep, '/')
+subprocess.run([ED, os.path.join(ROOT, 'AirportDynastyPro.uproject'), '-ExecutePythonScript=%s %s' % (SCRIPT, JOBF), '-unattended', '-nullrhi', '-nosplash'], capture_output=True)
 log = open(os.path.join(ROOT, 'Saved', 'Logs', 'AirportDynastyPro.log'), encoding='utf-8', errors='ignore').read()
 print('\n'.join(l[l.find('ADP_CUT'):] for l in log.splitlines() if 'ADP_CUT' in l or 'LogPython: Error' in l))
 if 'ADP_CUT done' in log:

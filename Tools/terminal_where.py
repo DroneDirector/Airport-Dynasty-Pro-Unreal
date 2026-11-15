@@ -20,8 +20,8 @@ def qrot(q, v):
     return (vx + w * tx + (y * tz - z * ty), vy + w * ty + (z * tx - x * tz), vz + w * tz + (x * ty - y * tx))
 
 
-def boxes():
-    L = json.load(open(D('terminal-layout.json'))); N = L['nodes']
+def boxes(layout=None):
+    L = json.load(open(layout or D('terminal-layout.json'))); N = L['nodes']
     P = json.load(open(D('terminal-pieces.json'))); B = json.load(open(D('terminal-piece-bounds.json')))
     out = []
     def walk(i, T, path):

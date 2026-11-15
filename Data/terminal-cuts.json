@@ -1,0 +1,86 @@
+[
+ {
+  "node": 661,
+  "why": "the Grand Hall's west wall: open onto the escalator room (rebuilt above +12 by the annex)",
+  "boxes": [
+   [
+    35.4,
+    -0.5,
+    0.05,
+    36.6,
+    25,
+    29.95
+   ]
+  ]
+ },
+ {
+  "node": 7791,
+  "why": "the link's south face opens onto the landing",
+  "boxes": [
+   [
+    5.5,
+    5.9,
+    29.75,
+    14.5,
+    12.1,
+    30.3
+   ]
+  ]
+ },
+ {
+  "node": 7792,
+  "why": "the link's south face opens onto the landing",
+  "boxes": [
+   [
+    5.5,
+    5.9,
+    29.75,
+    14.5,
+    12.1,
+    30.3
+   ]
+  ]
+ },
+ {
+  "node": 7793,
+  "why": "the link's south mullions",
+  "boxes": [
+   [
+    5.5,
+    5.9,
+    29.75,
+    14.5,
+    12.1,
+    30.3
+   ]
+  ]
+ },
+ {
+  "node": 8271,
+  "why": "the food walk's south face (rebuilt from x 21 by the annex)",
+  "boxes": [
+   [
+    13.9,
+    5.9,
+    29.75,
+    56.1,
+    12.1,
+    30.3
+   ]
+  ]
+ },
+ {
+  "node": 8272,
+  "why": "the food walk's south mullions (rebuilt from x 21)",
+  "boxes": [
+   [
+    13.9,
+    5.9,
+    29.75,
+    56.1,
+    12.1,
+    30.3
+   ]
+  ]
+ }
+]

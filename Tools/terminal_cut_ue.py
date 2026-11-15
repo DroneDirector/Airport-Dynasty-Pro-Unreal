@@ -29,7 +29,7 @@ for j in job:
         pz = M[2][0] * cx + M[2][1] * cy + M[2][2] * cz + M[2][3]
         for b in boxes:
             if b[0] <= px <= b[3] and b[1] <= py <= b[4] and b[2] <= pz <= b[5]: kill.append(p); break
-    for p in kill: desc.delete_polygon(p, True, True, True, True)
+    for p in kill: desc.delete_polygon(p)
     sm.build_from_static_mesh_descriptions([desc])
     EAL.save_loaded_asset(sm)
     unreal.log('ADP_CUT %s -> %s: %d faces out' % (j['piece'], j['new'], len(kill)))
