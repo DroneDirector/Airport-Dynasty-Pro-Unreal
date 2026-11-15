@@ -2,6 +2,22 @@
 
 Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md (where everything is) first.
 
+## From the owner for the PC chat (2026-11-15 14:14, sent to the phone chat by mistake): the dog's animation clip
+
+**After** you finish what you told the owner you'd do on the dog (its jaw and its texture), and **after** the dog is
+in the creator's pet section:
+
+1. **Make an animation clip of the dog and send it to the owner:** the dog walks in a little, sits down, breathes
+   heavily (pants: the mouth opens and moves, the jaw working, a little breath vapour coming out of its mouth), then
+   gets up and walks out again. The owner said "maybe 15 minutes in total": he most likely means about 15 seconds;
+   ask him once before rendering if it isn't clear.
+2. **The background:** the same stage as the character selector where you choose she or he, **but**:
+   - not neon: **dark blue blending into turquoise** in the background;
+   - **the floor fog stays**;
+   - **the big light bars behind are removed**, but the dog is still **lit very well** (soft key and fill light,
+     no bars in view).
+3. This clip is something he asked for, so render it (it is not one of the renders to avoid) and send it to him.
+
 ## NUMBER ONE when you start building again: the wash hose's water jet like the reference (owner, 2026-11-14 22:13)
 Reference picture: **Art/Reference/water-jet-reference.jpg** (a real fire hose jet, the owner's photo of a screen). If it
 isn't there yet (the PC was offline when the cloud chat had it), ask the owner to attach it in this chat and save it there.
