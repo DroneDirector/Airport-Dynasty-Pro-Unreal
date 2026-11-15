@@ -51,3 +51,5 @@
 *.npz filter=lfs diff=lfs merge=lfs -text
 *.npy filter=lfs diff=lfs merge=lfs -text
 *.ply filter=lfs diff=lfs merge=lfs -text
+# documents are binary: never line-ending conversion
+*.pdf binary
