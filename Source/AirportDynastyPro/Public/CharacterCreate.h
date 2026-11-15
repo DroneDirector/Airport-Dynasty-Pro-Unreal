@@ -28,8 +28,11 @@ namespace ADPCharacterCreate
 	void Teardown(UWorld* W, class APlayerController* PC);
 	/** Your partner walks in from the free side's edge and stops beside you (or walks back out). */
 	void ShowPartner(bool bOn);
-	/** Your pet walks in and sits at your feet (Kind dog or cat, its coat colour); anything else: it walks out. */
-	void ShowPet(const FString& Kind, const FLinearColor& Coat);
+	/** Your pet walks in and sits beside you (Kind dog or cat; Id the model, empty for the kind's first - or, for a kind
+	 *  with no model yet, the stand-in in Coat's colour); anything else: it stands up and walks back out. */
+	void ShowPet(const FString& Kind, const FString& Id, const FLinearColor& Coat = FLinearColor(0.55f, 0.4f, 0.25f));
+	/** The pet chosen on the stage, as saved: "Dogs/GermanShepherd", or empty for none. */
+	FString PetChoice();
 	/** Partner and pet walk out (back to the choice). */
 	void ClearCompany();
 }

@@ -1,6 +1,7 @@
 // Sets up the terminal test when play starts: sun, sky, fog, the grey-box terminal, the crowd test and
 // the player standing at the plan's spawn point.
 #include "ADPGameMode.h"
+#include "Pets.h"
 #include "Misc/PackageName.h"
 #include "SunClock.h"
 #include "ADPWalker.h"
@@ -130,6 +131,8 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 				{
 					for (TActorIterator<AStreetLights> It(W); It; ++It) It->Resettle();
 					for (TActorIterator<ARoadSigns> It(W); It; ++It) It->Resettle();
+					// your pet, sitting just outside the terminal's main entrance for now (Pets.h)
+					ADPPets::PlaceHome(W);
 				}), 1.0f, false);
 			}
 			if (!bBabylon)

@@ -1,6 +1,7 @@
 // The walking-mode interface: the holographic map, the top-left bar, Hide UI, the settings panel and the performance
 // overlay, all in Slate, styled in the Android edition's holographic blues.
 #include "UI/ADPHUD.h"
+#include "Pets.h"
 #include "FireTruck.h"
 #include "WashHose.h"
 #include "InteractOutline.h"
@@ -77,6 +78,8 @@
 #include "Sound/SoundWaveProcedural.h"
 #include "Components/AudioComponent.h"
 #include "Kismet/GameplayStatics.h"
+// (every test run's end says where it came from, in the log)
+#define ADP_SHOT_EXIT() do { ADP_LOG(TEXT("Test run: exit at ADPHUD.cpp line %d"), __LINE__); FGenericPlatformMisc::RequestExit(false); } while (0)
 #include "Engine/World.h"
 #include "CollisionQueryParams.h"
 #include "SWebBrowser.h"
@@ -1232,6 +1235,8 @@ void AADPHUD::OpenWhoAreYou()
 	Breadcrumb(TEXT("A new career: who are you?"));
 	ADPCharacterCreate::BuildConcept(GetWorld(), GetOwningPlayerController(), true);
 	ADPCharacterCreate::Nobody();
+	// the pets in the game, for the pet step's dogs and cats sections (found by themselves: Pets.h)
+	Browser->ExecuteJavascript(TEXT("window.__uePets = ") + ADPPets::ListJson() + TEXT(";"));
 	Browser->ExecuteJavascript(TEXT("window.__ueWhoAreYou && window.__ueWhoAreYou('choose')"));
 	UpdateMouse();
 }
@@ -1245,8 +1250,10 @@ void AADPHUD::WhoAreYouFromPage(const FString& Action, const FString& Arg)
 	else if (Action == TEXT("partner")) ADPCharacterCreate::ShowPartner(Arg == TEXT("married"));
 	else if (Action == TEXT("pet"))
 	{
-		FString Kind, Hex; if (!Arg.Split(TEXT(":"), &Kind, &Hex)) Kind = Arg;
-		ADPCharacterCreate::ShowPet(Kind, Hex.IsEmpty() ? FLinearColor::White : FLinearColor(FColor::FromHex(Hex)));
+		// "dog:GermanShepherd" (a model) or "dog:#8a6a45" (the stand-in's coat, for a kind with no model yet)
+		FString Kind, Rest; if (!Arg.Split(TEXT(":"), &Kind, &Rest)) Kind = Arg;
+		if (Rest.StartsWith(TEXT("#"))) ADPCharacterCreate::ShowPet(Kind, FString(), FLinearColor(FColor::FromHex(Rest)));
+		else ADPCharacterCreate::ShowPet(Kind, Rest);
 	}
 	else if (Action == TEXT("cancel")) CloseWhoAreYou(false);
 	else if (Action == TEXT("done")) CloseWhoAreYou(true, Arg);
@@ -1256,6 +1263,8 @@ void AADPHUD::CloseWhoAreYou(bool bGoOn, const FString& Difficulty)
 {
 	if (!bWhoAreYou) return;
 	bWhoAreYou = false;
+	// your pet (or none) kept, and sitting outside the terminal's main entrance for now (Pets.h)
+	if (bGoOn) { ADPPets::Save(ADPCharacterCreate::PetChoice()); ADPPets::PlaceHome(GetWorld()); }
 	ADPCharacterCreate::Teardown(GetWorld(), GetOwningPlayerController());
 	if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) if (AActor* H = Wk->HumanActor()) H->SetActorHiddenInGame(false);
 	if (Browser.IsValid())
@@ -1842,7 +1851,7 @@ void AADPHUD::Tick(float Dt)
 		RefreshControls();
 	}
 	// -UIPack: the announcement preview pack, then the game closes
-	if (FParse::Param(FCommandLine::Get(), TEXT("UIPack"))) { static bool bDone = false; if (!bDone) { bDone = true; WritePreviewPack(); FGenericPlatformMisc::RequestExit(false); } }
+	if (FParse::Param(FCommandLine::Get(), TEXT("UIPack"))) { static bool bDone = false; if (!bDone) { bDone = true; WritePreviewPack(); ADP_SHOT_EXIT(); } }
 	// -UIShot: one picture with the interface showing (the title screen), then the game closes (a check of the interface)
 	static float ShotClock = 0;
 	if (FParse::Param(FCommandLine::Get(), TEXT("UIShot")))
@@ -1942,7 +1951,7 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 63.f && ShotClock >= 63.f) FScreenshotRequest::RequestScreenshot(TEXT("PillarUp"), false, false);
 			if (Before < 64.f && ShotClock >= 64.f) { GoTo(FVector(50.f, 0.f, -14.f), FVector(56.f, 4.f, -9.f)); Look(20.f); }
 			if (Before < 72.f && ShotClock >= 72.f) FScreenshotRequest::RequestScreenshot(TEXT("PillarKerb"), false, false);
-			if (Before < 75.f && ShotClock >= 75.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 75.f && ShotClock >= 75.f) ADP_SHOT_EXIT();
 		}
 		// -UIRoof: the wave roof from outside in daylight: under its edge at the kerb, from across the road, from behind
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIRoof")))
@@ -1960,7 +1969,7 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 80.f && ShotClock >= 80.f) FScreenshotRequest::RequestScreenshot(TEXT("KerbPaving"), false, false);
 			if (Before < 81.f && ShotClock >= 81.f) { GoTo(FVector(72.f, 0.f, -18.5f), FVector(76.f, 0.f, -21.f)); Look(-35.f); }
 			if (Before < 88.f && ShotClock >= 88.f) FScreenshotRequest::RequestScreenshot(TEXT("CurbRoad"), false, false);
-			if (Before < 90.f && ShotClock >= 90.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 90.f && ShotClock >= 90.f) ADP_SHOT_EXIT();
 		}
 		// -UINew: the grass on the airfield near and far, then the 3D viewer following a made-up flight off the south coast
 		if (FParse::Param(FCommandLine::Get(), TEXT("UINew")))
@@ -1982,7 +1991,7 @@ void AADPHUD::Tick(float Dt)
 			}
 			if (Before < 80.f && ShotClock >= 80.f) FScreenshotRequest::RequestScreenshot(TEXT("Viewer"), true, false);
 			if (Before < 84.f && ShotClock >= 84.f) CloseViewer();
-			if (Before < 90.f && ShotClock >= 90.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 90.f && ShotClock >= 90.f) ADP_SHOT_EXIT();
 		}
 		// -UIMap: the full-screen map from inside the tower's cab, a jetway and the car rental centre (and small, in the cab)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIMap")))
@@ -2003,7 +2012,7 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 70.f && ShotClock >= 70.f) FScreenshotRequest::RequestScreenshot(TEXT("Map_HangarSmall"), true, false);
 			if (Before < 71.f && ShotClock >= 71.f) { Open(); if (HoloMap.IsValid()) HoloMap->ShowAll(); }
 			if (Before < 73.f && ShotClock >= 73.f) FScreenshotRequest::RequestScreenshot(TEXT("Map_AllHangars"), true, false);
-			if (Before < 76.f && ShotClock >= 76.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 76.f && ShotClock >= 76.f) ADP_SHOT_EXIT();
 		}
 		// -UIFire: the lounge's fireplace, its fire burning (two pictures a moment apart)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIFire")))
@@ -2023,7 +2032,7 @@ void AADPHUD::Tick(float Dt)
 				const float At = 56.f + k * 0.2f;
 				if (Before < At && ShotClock >= At) FScreenshotRequest::RequestScreenshot(FString::Printf(TEXT("Fire_%02d"), k), false, false);
 			}
-			if (Before < 62.f && ShotClock >= 62.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 62.f && ShotClock >= 62.f) ADP_SHOT_EXIT();
 		}
 		// -UIBright: the views the owner found too bright: the tower's door, gate 4, the apron at night, the lounge
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIBright")))
@@ -2037,7 +2046,7 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 71.f && ShotClock >= 71.f) FScreenshotRequest::RequestScreenshot(TEXT("Bright_ApronNight"), false, false);
 			if (Before < 72.f && ShotClock >= 72.f) { Sun(12.f); OpenLounge(); }
 			if (Before < 82.f && ShotClock >= 82.f) FScreenshotRequest::RequestScreenshot(TEXT("Bright_Lounge"), false, false);
-			if (Before < 86.f && ShotClock >= 86.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 86.f && ShotClock >= 86.f) ADP_SHOT_EXIT();
 		}
 		// -UITower: the control tower in pictures: from the apron, at its door, from the balcony and in the cab, at midday
 		// and in the golden hour, then the same at cinematic quality in 4K
@@ -2073,7 +2082,7 @@ void AADPHUD::Tick(float Dt)
 				{146.f, [&]() { Hq(TEXT("Tower_HQ_Golden_Apron")); }},
 				{148.f, [this]() { GoTowerCab(); }},
 				{156.f, [&]() { Hq(TEXT("Tower_HQ_Golden_Cab")); }},
-				{162.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+				{162.f, []() { ADP_SHOT_EXIT(); }},
 			};
 			// -UITowerHQ: only the cinematic 4K pictures (started at once)
 			const bool bHqOnly = FParse::Param(FCommandLine::Get(), TEXT("UITowerHQ"));
@@ -2115,7 +2124,7 @@ void AADPHUD::Tick(float Dt)
 				{100.f, [&]() { Shot(TEXT("Hangar_Dusk_Outside")); }},
 				{102.f, [&]() { GoHangar(0, 1); }},
 				{110.f, [&]() { Shot(TEXT("Hangar_Dusk_Inside")); }},
-				{114.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+				{114.f, []() { ADP_SHOT_EXIT(); }},
 			};
 			for (const FStep& St : HangarSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
@@ -2142,7 +2151,7 @@ void AADPHUD::Tick(float Dt)
 				{88.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Masts_Night_Head"), false, false); }},
 				{89.f, [&]() { Foot(); }},
 				{96.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Masts_Night_Foot"), false, false); }},
-				{100.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+				{100.f, []() { ADP_SHOT_EXIT(); }},
 			};
 			for (const FStep& St : MastSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
@@ -2175,7 +2184,7 @@ void AADPHUD::Tick(float Dt)
 				// the operations desk and its monitor (the one for this window's shape), from the chair
 				{117.f, [&]() { GoTo(FVector(117.6f, 0.f, 28.8f), FVector(115.3f, 1.05f, 28.f)); }},
 				{124.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Ops_Desk"), false, false); }},
-				{126.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+				{126.f, []() { ADP_SHOT_EXIT(); }},
 			};
 			for (const FStep& St : OSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
@@ -2204,7 +2213,7 @@ void AADPHUD::Tick(float Dt)
 				{86.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_OpsBack"), false, false); }},
 				{86.5f, [&]() { GoTo(FVector(116.25f, -0.1f, 28.f), FVector(115.3f, 1.13f, 28.f)); }},
 				{87.5f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_OpsScreenClose"), false, false); }},
-				{90.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+				{90.f, []() { ADP_SHOT_EXIT(); }},
 			};
 			for (const FStep& St : DSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
@@ -2233,7 +2242,7 @@ void AADPHUD::Tick(float Dt)
 				{104.f, [&]() { Shot(TEXT("Fire_Dusk_Front")); }},
 				{106.f, [&]() { Sun(21.f, 172); if (HoloMap.IsValid() && !HoloMap->IsFull()) ToggleMap(); if (HoloMap.IsValid()) HoloMap->ShowAll(); }},
 				{109.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Fire_Map"), true, false); }},
-				{112.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+				{112.f, []() { ADP_SHOT_EXIT(); }},
 			};
 			for (const FStep& St : FSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
@@ -2284,7 +2293,7 @@ void AADPHUD::Tick(float Dt)
 				if (At(9.5f) && Stand.IsValid()) { Stand->Destroy(); Stand = nullptr; }
 			}
 			const float End = T0 + Who.Num() * Step + 1.f;
-			if (Who.Num() && Before < End && ShotClock >= End) FGenericPlatformMisc::RequestExit(false);
+			if (Who.Num() && Before < End && ShotClock >= End) ADP_SHOT_EXIT();
 		}
 		// -UIWardrobe: in your office at the wardrobe: opened (you stand beside it in what you wear), a picture, closed
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")))
@@ -2307,7 +2316,7 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 60.f && ShotClock >= 60.f) WardrobeFromPage(TEXT("category"), TEXT("Outfits"));
 			if (Before < 63.f && ShotClock >= 63.f) Shot(TEXT("Wardrobe_Outfits"));
 			if (Before < 64.f && ShotClock >= 64.f) CloseWardrobe();
-			if (Before < 67.f && ShotClock >= 67.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 67.f && ShotClock >= 67.f) ADP_SHOT_EXIT();
 		}
 		// -UIAirfield: the airfield's grade and edges: down the runway from near the 08 end, an edge close up at taxiway A,
 		// the runway's end from the grass
@@ -2323,7 +2332,7 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 57.f && ShotClock >= 57.f) Go(F.RwyX0 - 90.f, F.RwyY - 60.f, F.RwyX0 - 40.f, F.RwyY - 20.f, 0.8f);
 			if (Before < 64.f && ShotClock >= 64.f) Shot(TEXT("Airfield_End"));
 			if (Before < 65.f && ShotClock >= 65.f) { ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
-			if (Before < 66.f && ShotClock >= 66.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 66.f && ShotClock >= 66.f) ADP_SHOT_EXIT();
 		}
 		// -UIPuddles (with -RainyDay): the puddles on a rainy day (owner, 2026-11-13): the apron, a taxiway and the runway,
 		// each from eye height and from about an aircraft's tail-fin height (12 m) looking gently down with the terminal in
@@ -2402,7 +2411,7 @@ void AADPHUD::Tick(float Dt)
 			}
 			const float TE = 41.f + 8.f * Picked.Num();
 			if (Before < TE && ShotClock >= TE) { ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
-			if (Before < TE + 1.f && ShotClock >= TE + 1.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < TE + 1.f && ShotClock >= TE + 1.f) ADP_SHOT_EXIT();
 		}
 		// -UIMapCheck: on foot at the apron, the small map in its corner (owner, 2026-11-14: "the holographic map is gone")
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")))
@@ -2415,7 +2424,7 @@ void AADPHUD::Tick(float Dt)
 					MiniBox.IsValid() ? (MiniBox->GetVisibility().IsVisible() ? TEXT("visible") : TEXT("hidden")) : TEXT("-"), MiniBox.IsValid() ? *MiniBox->GetCachedGeometry().GetLocalSize().ToString() : TEXT("-"),
 					HoloMap.IsValid() ? (HoloMap->GetVisibility().IsVisible() ? TEXT("visible") : TEXT("hidden")) : TEXT("-"), HoloMap.IsValid() ? *HoloMap->GetCachedGeometry().GetLocalSize().ToString() : TEXT("-"));
 			}
-			if (Before < 47.f && ShotClock >= 47.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 47.f && ShotClock >= 47.f) ADP_SHOT_EXIT();
 		}
 		// -UITitle: the title screen with its film, pictures with the interface at a few moments (-NoNativeTitle: the
 		// page's own canvas instead of Unreal's, to compare)
@@ -2424,7 +2433,7 @@ void AADPHUD::Tick(float Dt)
 			const TCHAR* Sfx = FParse::Param(FCommandLine::Get(), TEXT("NoNativeTitle")) ? TEXT("_page") : TEXT("");
 			const float At[] = {44.f, 47.f, 51.f, 55.f, 59.f, 63.f};
 			for (int32 i = 0; i < 6; ++i) if (Before < At[i] && ShotClock >= At[i]) FScreenshotRequest::RequestScreenshot(FString::Printf(TEXT("Title_%d%s"), i, Sfx), true, false);
-			if (Before < 64.f && ShotClock >= 64.f) { ADP_LOG(TEXT("UITitle: Unreal drawing the film %d"), ADPTitleBg::IsOn() ? 1 : 0); FGenericPlatformMisc::RequestExit(false); }
+			if (Before < 64.f && ShotClock >= 64.f) { ADP_LOG(TEXT("UITitle: Unreal drawing the film %d"), ADPTitleBg::IsOn() ? 1 : 0); ADP_SHOT_EXIT(); }
 		}
 		// -UIDrone: drone mode from the full-screen map: the button, flying low, boosting up to the clouds, the interface
 		// hidden and back, and Esc back onto your feet where you stood
@@ -2449,7 +2458,7 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 62.f && ShotClock >= 62.f) { OnEscape(); APawn* Me = GetOwningPawn(); ADP_LOG(TEXT("UIDrone: Esc again: flying %d, on foot %d, %.1f m from where you stood"), Drone.IsValid() ? 1 : 0, Cast<AADPWalker>(Me) ? 1 : 0, Me ? FVector::Dist(Me->GetActorLocation(), StoodAt) / 100.f : -1.f); }
 			if (Before < 63.5f && ShotClock >= 63.5f) Shot(TEXT("Drone_Back"));
 			if (Before < 64.f && ShotClock >= 64.f) { ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
-			if (Before < 65.f && ShotClock >= 65.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 65.f && ShotClock >= 65.f) ADP_SHOT_EXIT();
 		}
 		// -UIRun: running and turning (owner, 2026-11-13): in first person the body must stay right under you (its pelvis
 		// measured against your capsule every frame), and from behind the camera must glide, not jump (its offset from you
@@ -2499,7 +2508,7 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 49.5f && ShotClock >= 49.5f) Shot(TEXT("Run_TP_Straight"));
 			if (Before < 51.5f && ShotClock >= 51.5f) Shot(TEXT("Run_TP_Turn"));
 			if (Before < 54.f && ShotClock >= 54.f) { ADP_LOG(TEXT("UIRun: third person, the camera's largest jolt %.1f cm over %d frames"), MaxJolt, NO); if (Wk) { Wk->GetCharacterMovement()->MaxWalkSpeed = 150.f; Wk->SetThirdPerson(false); } ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
-			if (Before < 55.f && ShotClock >= 55.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 55.f && ShotClock >= 55.f) ADP_SHOT_EXIT();
 		}
 		// -UIBody: you from behind in the hall: standing, then walking forward (your MetaHuman body in its outfit)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIBody")))
@@ -2573,7 +2582,7 @@ void AADPHUD::Tick(float Dt)
 			if (bTat && Before < 91.f && ShotClock >= 91.f) Shot(TEXT("Tattoo_Place_LeftThigh"));
 			const float End = bTat ? 93.f : 57.f;
 			if (Before < End - 1.f && ShotClock >= End - 1.f) { if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) Wk->SetThirdPerson(false); ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
-			if (Before < End && ShotClock >= End) FGenericPlatformMisc::RequestExit(false);
+			if (Before < End && ShotClock >= End) ADP_SHOT_EXIT();
 		}
 		// -UIHallWalk: you walking in the main hall of the passenger terminal (owner, 2026-11-12), from behind and from the front
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")))
@@ -2586,7 +2595,7 @@ void AADPHUD::Tick(float Dt)
 			if (ShotClock >= 51.f && ShotClock < 55.f) if (APawn* Me = GetOwningPawn()) Me->AddMovementInput(-Me->GetActorForwardVector(), 1.f);
 			if (Before < 53.5f && ShotClock >= 53.5f) Shot(TEXT("Hall_Walking_Front"));
 			if (Before < 56.f && ShotClock >= 56.f) { if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) Wk->SetThirdPerson(false); ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
-			if (Before < 57.f && ShotClock >= 57.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 57.f && ShotClock >= 57.f) ADP_SHOT_EXIT();
 		}
 		// -UINewGame: the real thing, driven as the page's overlay would (hover, choose, the panel, done): the title screen's
 		// New game, she hovered, chosen, the creator panel, and on into the game's own new-game flow
@@ -2631,7 +2640,67 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 114.f && ShotClock >= 114.f) Shot(TEXT("NewGame_Loading3"));
 			if (Before < 124.f && ShotClock >= 124.f) Js(TEXT("(function(){ var f = document.querySelector('.game-frame'); var c = f && f.contentWindow; if (c) ue.adp.log('NEWGAME airline=' + c.eval('JSON.stringify((function(){var x = company(); return x ? {n: x.name, i: x.icao, c: x.callsign, h: x.hub, k: x.kind, b: Math.round(x.balance)} : null})())') + ' pilot=' + c.eval('myPilot().name')); })()"));
 			if (Before < 125.f && ShotClock >= 125.f) Shot(TEXT("NewGame_OnIntoTheGame"));
-			if (Before < 127.f && ShotClock >= 127.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 127.f && ShotClock >= 127.f) ADP_SHOT_EXIT();
+		}
+		// -UIPetLook: one look at the pets' textures (owner, 2026-11-15: just a screenshot, then out): outside at the
+		// kerb, every pet model side by side in front of the camera in daylight
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIPetLook")))
+		{
+			if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 13.f; ASunClock::Refresh(); OpenSite(); }
+			if (Before < 42.f && ShotClock >= 42.f)
+				if (APlayerController* PC = GetOwningPlayerController()) if (PC->PlayerCameraManager)
+				{
+					const FVector Eye = PC->PlayerCameraManager->GetCameraLocation();
+					const FRotator Look(0.f, PC->PlayerCameraManager->GetCameraRotation().Yaw, 0.f);
+					const FVector Fwd = Look.Vector(), Right = FRotationMatrix(Look).GetUnitAxis(EAxis::Y);
+					int32 i = 0;
+					for (const ADPPets::FModel& M : ADPPets::All())
+					{
+						FVector At = Eye + Fwd * 260.f + Right * (i++ * 110.f - 55.f);
+						FHitResult H; if (GetWorld()->LineTraceSingleByChannel(H, At + FVector(0, 0, 100.f), At - FVector(0, 0, 500.f), ECC_Visibility)) At.Z = H.ImpactPoint.Z;
+						if (APet* P = APet::Spawn(GetWorld(), M, At, Look.Yaw + 180.f - 90.f + 35.f)) P->SitHere();
+					}
+					PC->SetControlRotation(FRotator(-22.f, Look.Yaw, 0.f));
+				}
+			if (Before < 46.f && ShotClock >= 46.f) FScreenshotRequest::RequestScreenshot(TEXT("PetLook"), true, false);
+			if (Before < 47.f && ShotClock >= 47.f) ADP_SHOT_EXIT();
+		}
+		// -UIPetStep: the pet step with the real pets (owner, 2026-11-15): the dog walks in and sits beside her, the cat
+		// chosen instead (the dog stands up and walks out, the cat walks in), the dog again, on into the game, and the
+		// dog at home just outside the terminal's main entrance - sitting, then a short walk and back (-PetWanderSoon)
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIPetStep")))
+		{
+			auto Shot = [](const TCHAR* Name) { FScreenshotRequest::RequestScreenshot(Name, true, false); };
+			auto Js = [this](const TCHAR* Code) { if (Browser.IsValid()) Browser->ExecuteJavascript(Code); };
+			auto Key = [&Js](const TCHAR* K) { Js(*FString::Printf(TEXT("window.dispatchEvent(new KeyboardEvent('keydown', {key: '%s'}))"), K)); };
+			if (Before < 40.f && ShotClock >= 40.f) { if (!bGame) ToggleGame(); }
+			if (Before < 46.f && ShotClock >= 46.f) Js(TEXT("(function(){ var u = window.ue && ue.adp; if (u && u.newgame) u.newgame(); })()"));
+			if (Before < 52.f && ShotClock >= 52.f) Key(TEXT("ArrowLeft"));
+			if (Before < 56.f && ShotClock >= 56.f) Key(TEXT("Enter"));            // she
+			if (Before < 66.f && ShotClock >= 66.f) Key(TEXT("Enter"));            // Next: your pet
+			if (Before < 67.f && ShotClock >= 67.f) { Key(TEXT("ArrowUp")); Key(TEXT("ArrowUp")); }   // Dog: the first dog walks in
+			static int32 Frame = 0;
+			if (ShotClock >= 67.f && ShotClock < 84.f && int32(ShotClock / 0.5f) != int32(Before / 0.5f)) Shot(*FString::Printf(TEXT("PetStep_%03d"), Frame++));
+			if (Before < 75.f && ShotClock >= 75.f) Key(TEXT("ArrowDown"));        // Cat: the dog walks out, the cat walks in
+			if (Before < 84.f && ShotClock >= 84.f) Key(TEXT("ArrowUp"));          // the dog again
+			if (Before < 90.f && ShotClock >= 90.f) Key(TEXT("Enter"));            // your partner
+			if (Before < 91.f && ShotClock >= 91.f) Key(TEXT("Enter"));            // your airline
+			if (Before < 92.f && ShotClock >= 92.f) Js(TEXT("(function(){ function put(f, v){ var e = document.querySelector('.wy [data-f=' + f + ']'); if (e) { e.value = v; e.dispatchEvent(new Event('input', {bubbles: true})); } } put('name', 'Pet Test Air'); put('pilot', 'Pet Test'); })()"));
+			if (Before < 93.f && ShotClock >= 93.f) Key(TEXT("Enter"));            // the difficulty
+			if (Before < 94.f && ShotClock >= 94.f) Key(TEXT("Enter"));            // Start game
+			if (Before < 108.f && ShotClock >= 108.f) { Js(TEXT("document.querySelectorAll('.tour, .news-pop, .modal').forEach(function(e){ e.remove(); })")); OpenSite(); }
+			// at home: the camera by the pet (the player put a few metres off, looking at it)
+			for (TActorIterator<APet> It(GetWorld()); It; ++It)
+			{
+				if (!It->ActorHasTag(TEXT("HomePet")) || ShotClock < 112.f) continue;
+				if (Before < 112.f && ShotClock >= 112.f)
+				{
+					const FVector P = It->GetActorLocation();
+					if (APawn* Me = GetOwningPawn()) { Me->SetActorLocation(P + FVector(-450.f, 380.f, 120.f)); if (AController* C = Me->GetController()) C->SetControlRotation((P - (P + FVector(-450.f, 380.f, 170.f))).Rotation()); }
+				}
+				if (ShotClock >= 114.f && ShotClock < 170.f && int32(ShotClock / 1.f) != int32(Before / 1.f)) Shot(*FString::Printf(TEXT("PetHome_%03d"), int32(ShotClock)));
+			}
+			if (Before < 171.f && ShotClock >= 171.f) ADP_SHOT_EXIT();
 		}
 		// -UIGender: the concept of the new career's "who are you" screen (owner, 2026-11-12): the dark neon room with
 		// the fog, she in the light and he in shadow, with the title screen's lettering over it
@@ -2694,7 +2763,7 @@ void AADPHUD::Tick(float Dt)
 					], 21);
 			}
 			if (Before < 64.f && ShotClock >= 64.f) Shot(bHe ? TEXT("Creator_AfterHe") : TEXT("Creator_AfterShe"));
-			if (Before < 65.f && ShotClock >= 65.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 65.f && ShotClock >= 65.f) ADP_SHOT_EXIT();
 		}
 		// -UIGate: you at gate 4's window (from behind inside, towards your face from the apron), then walking out the
 		// jetway (from behind inside it, and from outside through its glass), summer afternoon light (owner, 2026-11-12)
@@ -2722,7 +2791,7 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 58.5f && ShotClock >= 58.5f) if (APawn* Me = GetOwningPawn()) { const FVector P = Me->GetActorLocation(); Outside(FVector(P.X / 100.f + 7.f, P.Z / 100.f + 0.9f, -P.Y / 100.f + 1.5f), FVector(P.X / 100.f, P.Z / 100.f + 0.3f, -P.Y / 100.f)); }
 			if (Before < 61.5f && ShotClock >= 61.5f) Shot(TEXT("Jetway_Outside"));
 			if (Before < 62.5f && ShotClock >= 62.5f) { Back(); if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) Wk->SetThirdPerson(false); ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
-			if (Before < 63.5f && ShotClock >= 63.5f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 63.5f && ShotClock >= 63.5f) ADP_SHOT_EXIT();
 		}
 		// -UIClouds: from above the clouds (owner, 2026-11-12): broken cover, the low sun on the cloud tops, then daylight
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIClouds")))
@@ -2743,7 +2812,7 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 51.f && ShotClock >= 51.f) { ASunClock::HourOverride = 13.f; ASunClock::Refresh(); Up(); }
 			if (Before < 57.f && ShotClock >= 57.f) Shot(TEXT("Clouds_Day"));
 			if (Before < 58.f && ShotClock >= 58.f) { ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
-			if (Before < 59.f && ShotClock >= 59.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 59.f && ShotClock >= 59.f) ADP_SHOT_EXIT();
 		}
 		// -UISeason: the time of year (Settings): on the apron at noon in clear weather, 21 December then 21 June, a
 		// picture of each (the sun low and long shadows, then high), the real date put back; the log has the sun's height
@@ -2757,7 +2826,7 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 54.f && ShotClock >= 54.f) { ASunClock::SetDate(6, 21); Height(TEXT("summer")); }
 			if (Before < 60.f && ShotClock >= 60.f) Shot(TEXT("Season_Jun21"));
 			if (Before < 62.f && ShotClock >= 62.f) { ASunClock::SetDate(0, 0); ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
-			if (Before < 64.f && ShotClock >= 64.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 64.f && ShotClock >= 64.f) ADP_SHOT_EXIT();
 		}
 		// -UIDrive: a test drive in fire truck 1: in, out of the bay through its door, a turn, the driver's view, braking, out
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIDrive")))
@@ -2823,7 +2892,7 @@ void AADPHUD::Tick(float Dt)
 				{85.f, [&]() { AFireStationDoors::bTestOpen = true; GoFireStation(0); }},
 				{92.f, [&]() { Shot(TEXT("Drive_Doors_Open")); GoFireStation(2); }},
 				{98.f, [&]() { Shot(TEXT("Drive_Doors_Open_Inside")); }},
-				{100.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+				{100.f, []() { ADP_SHOT_EXIT(); }},
 			};
 			for (const FStep& St : DSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
@@ -2910,7 +2979,7 @@ void AADPHUD::Tick(float Dt)
 				// a hangar's hose, on its inside wall by the big doors
 				{73.5f, [&]() { TArray<AWashHose*> L = AWashHose::All(); ADP_LOG(TEXT("UIHose: %d hoses in all"), L.Num()); if (L.Num() > 1) { AWashHose* H = L[1]; const FVector Back = H->HookSpot() + (H->HookSpot() - H->HookAt()).GetSafeNormal2D() * 250.f + FVector(0, 0, 40.f); Third(false); Face(Back, (H->HookAt() - Back).Rotation().Yaw, -10.f); } }},
 				{75.f, [&]() { Shot(TEXT("Hose_Hangar")); }},
-				{76.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+				{76.f, []() { ADP_SHOT_EXIT(); }},
 			};
 			for (const FStep& St : HSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
@@ -2952,7 +3021,7 @@ void AADPHUD::Tick(float Dt)
 				{54.f, [&]() { Interact(); }},
 				{55.5f, [&]() { Third(true); if (APlayerController* P = GetOwningPlayerController()) { FRotator R = P->GetControlRotation(); R.Pitch = -15.f; R.Yaw += 160.f; P->SetControlRotation(R); } }},
 				{57.f, [&]() { Shot(TEXT("Sit_Second_Seat")); Interact(); }},
-				{59.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+				{59.f, []() { ADP_SHOT_EXIT(); }},
 			};
 			for (const FStep& St : SSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
@@ -2981,7 +3050,7 @@ void AADPHUD::Tick(float Dt)
 				// (the apron runs out at 1.25 km: brakes on before its end)
 				if (ShotClock > 50.f && FVector::Dist2D(T->GetActorLocation(), From) > 118000.f) T->SetTestInput(0.f, 1.f, 0.f);
 			}
-			if (Before < 112.f && ShotClock >= 112.f) { ADP_LOG(TEXT("UISpeed: top speed %.1f km/h"), Top); FGenericPlatformMisc::RequestExit(false); }
+			if (Before < 112.f && ShotClock >= 112.f) { ADP_LOG(TEXT("UISpeed: top speed %.1f km/h"), Top); ADP_SHOT_EXIT(); }
 		}
 		// -UIRoad (with -RoadTest; -RainyDay / -SnowDay for the weather): the road network's test road from above, from eye
 		// height along it, low at the kerb and at its outer edge on the grass (owner, 2026-11-14: nothing poking through)
@@ -3280,7 +3349,7 @@ void AADPHUD::Tick(float Dt)
 					FFileHelper::SaveStringToFile(J, *(FPaths::ProjectContentDir() / TEXT("Data/road-ground.json")));
 					ADP_LOG(TEXT("RoadGroundProbe: %d points written to Data/road-ground.json (of %d wanted)"), One.Num(), Want.Num());
 					Stop = Stops.Num() + 1;
-					FGenericPlatformMisc::RequestExit(false);
+					ADP_SHOT_EXIT();
 				}
 				return;
 			}
@@ -3295,7 +3364,7 @@ void AADPHUD::Tick(float Dt)
 					ADP_LOG(TEXT("GlobeProbe: plan %.0f, %.0f (airfield ground %.2f m):%s"), Q.X, Q.Y, AAirfield::GroundAt(Q.X, Q.Y), *L);
 				}
 			if (!FParse::Param(FCommandLine::Get(), TEXT("GrassPerf")))
-			{ const float Per = bGrassSet ? 14.f : 4.f; if (Before < 43.f + NSet * Per + 2.f && ShotClock >= 43.f + NSet * Per + 2.f) FGenericPlatformMisc::RequestExit(false); }
+			{ const float Per = bGrassSet ? 14.f : 4.f; if (Before < 43.f + NSet * Per + 2.f && ShotClock >= 43.f + NSet * Per + 2.f) ADP_SHOT_EXIT(); }
 			// -UIRoadAirport -GrassPerf: the frame time with the grass on and off, at eye level by the road to town and high
 			// over the ring (2026-11-15: is the grass - near, middle, far - cheap enough?)
 			if (FParse::Param(FCommandLine::Get(), TEXT("GrassPerf")))
@@ -3329,7 +3398,7 @@ void AADPHUD::Tick(float Dt)
 							PCs->ConsoleCommand(FString::Printf(TEXT("HighResShot 3 filename=%s"), *N));
 						}
 				}
-				if (Before < 220.f && ShotClock >= 220.f) FGenericPlatformMisc::RequestExit(false);
+				if (Before < 220.f && ShotClock >= 220.f) ADP_SHOT_EXIT();
 			}
 		}
 		// -UIKiosk: the self check-in kiosk in the main hall from all round (owner, 2026-11-14): front, both front corners, the
@@ -3372,7 +3441,7 @@ void AADPHUD::Tick(float Dt)
 				if (Before < T0 + 3.f && ShotClock >= T0 + 3.f) if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 1 filename=%s"), S.Name));
 			}
 			if (!K && Before < 43.f && ShotClock >= 43.f) ADP_ERROR(TEXT("UIKiosk: KIOSK-1 isn't placed"));
-			if (Before < 43.f + UE_ARRAY_COUNT(Shots) * 4.f + 2.f && ShotClock >= 43.f + UE_ARRAY_COUNT(Shots) * 4.f + 2.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 43.f + UE_ARRAY_COUNT(Shots) * 4.f + 2.f && ShotClock >= 43.f + UE_ARRAY_COUNT(Shots) * 4.f + 2.f) ADP_SHOT_EXIT();
 		}
 		// -RoadSurfaceProbe=<road id>: what lies on top along a road's middle (the road, our land or the globe), every 10 m
 		{
@@ -3417,7 +3486,7 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 45.f && ShotClock >= 45.f) Pic(TEXT("LoadReal_2"));
 			if (Before < 50.f && ShotClock >= 50.f) Pic(TEXT("LoadReal_3"));
 			if (Before < 60.f && ShotClock >= 60.f) Pic(TEXT("LoadReal_4"));
-			if (Before < 62.f && ShotClock >= 62.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 62.f && ShotClock >= 62.f) ADP_SHOT_EXIT();
 		}
 		// -UIDoorRule (to-do 20): at a hinged door - shut as you stand at it, the Buttons panel offering E, opened with E,
 		// and its closer pulling it shut after you've walked away
@@ -3454,7 +3523,7 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 48.f && ShotClock >= 48.f) if (APawn* Me = GetOwningPawn()) Me->TeleportTo(Me->GetActorLocation() + Me->GetActorForwardVector() * -600.f, Me->GetActorRotation());
 			if (Before < 55.f && ShotClock >= 55.f) { if (APawn* Me = GetOwningPawn()) Stand(DAt, 260.f); }
 			if (Before < 57.f && ShotClock >= 57.f) { HighResShotNamed(TEXT("Door_3_ClosedAgain")); ADP_LOG(TEXT("UIDoorRule: after walking away - the Buttons panel says %s"), bDoorOpen ? TEXT("close (still open: WRONG)") : TEXT("open (shut again)")); }
-			if (Before < 58.f && ShotClock >= 58.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 58.f && ShotClock >= 58.f) ADP_SHOT_EXIT();
 		}
 		// -UISticker: the no-smoking sticker on the terminal's entrance doors (to-do 31), close from both sides and from the
 		// forecourt - PNG (HighResShot), midday
@@ -3488,7 +3557,7 @@ void AADPHUD::Tick(float Dt)
 				if (Before < T0 + 3.f && ShotClock >= T0 + 3.f) if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 2 filename=%s"), S.Name));
 			}
 			if (SAt.IsZero() && Before < 43.f && ShotClock >= 43.f) ADP_ERROR(TEXT("UISticker: no sticker found on the doors"));
-			if (Before < 43.f + UE_ARRAY_COUNT(Shots) * 4.f + 2.f && ShotClock >= 43.f + UE_ARRAY_COUNT(Shots) * 4.f + 2.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 43.f + UE_ARRAY_COUNT(Shots) * 4.f + 2.f && ShotClock >= 43.f + UE_ARRAY_COUNT(Shots) * 4.f + 2.f) ADP_SHOT_EXIT();
 		}
 		// -UIPanels: every door button panel in pictures (inside the fire station by each bay door, inside each hangar)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIPanels")))
@@ -3529,7 +3598,7 @@ void AADPHUD::Tick(float Dt)
 			const float TH = 43.f + Panels.Num() * 5.f;
 			if (Before < TH && ShotClock >= TH) { GoFireStation(2); if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) Wk->SetThirdPerson(false); }
 			if (Before < TH + 3.f && ShotClock >= TH + 3.f) FScreenshotRequest::RequestScreenshot(TEXT("Panel_Hall"), false, false);
-			if (Before < TH + 4.f && ShotClock >= TH + 4.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < TH + 4.f && ShotClock >= TH + 4.f) ADP_SHOT_EXIT();
 		}
 		// -UIPanelUse: at the fire station's panel by bay door 3: stepping up (the arm out, the finger on green), the finger
 		// to red and back, green pressed (the door going up), Back (the arm down) - first person, then from behind
@@ -3557,7 +3626,7 @@ void AADPHUD::Tick(float Dt)
 				{51.f, [&]() { OnEscape(); ADP_LOG(TEXT("UIPanelUse: Back")); }},
 				{52.f, [&]() { Shot(TEXT("PanelUse_ArmDown")); ADP_LOG(TEXT("UIPanelUse: in use %d"), ADoorPanelUse::IsActive() ? 1 : 0); if (APlayerController* PCm = GetOwningPlayerController()) { FRotator R = PCm->GetControlRotation(); R.Yaw += 150.f; R.Pitch = -5.f; PCm->SetControlRotation(R); } }},
 				{60.f, [&]() { Shot(TEXT("PanelUse_Door_Opening")); }},
-				{61.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+				{61.f, []() { ADP_SHOT_EXIT(); }},
 			};
 			for (const FStep& St : PSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
@@ -3569,7 +3638,7 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 43.f && ShotClock >= 43.f) { FScreenshotRequest::RequestScreenshot(TEXT("Loading_Screen"), true, false); ADP_LOG(TEXT("LOADTEST %s %.0f%% shown %d"), *LoadStep, LoadFrac * 100.f, bLoading ? 1 : 0); }
 			static bool bLogged = false;
 			if (!bLogged && ShotClock > 41.f && !bLoading) { bLogged = true; ADP_LOG(TEXT("LOADTEST done after %.1f s"), LoadT); }
-			if (Before < 100.f && ShotClock >= 100.f) FGenericPlatformMisc::RequestExit(false);
+			if (Before < 100.f && ShotClock >= 100.f) ADP_SHOT_EXIT();
 		}
 		// -UIPart2: night on the apron (the terminal's brightness), the entrance canopies and doors, the tower's balcony and
 		// entrance lights, then the entrance by day
@@ -3588,7 +3657,7 @@ void AADPHUD::Tick(float Dt)
 				{86.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Part2_BalconyNight"), false, false); }},
 				{87.f, [&]() { Sun(13.f); GoTo(FVector(75.f, 0.f, -12.f), FVector(75.f, 3.f, 0.f)); }},
 				{96.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Part2_EntranceDay"), false, false); }},
-				{98.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+				{98.f, []() { ADP_SHOT_EXIT(); }},
 			};
 			for (const FStep& St : P2Steps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
@@ -3609,7 +3678,7 @@ void AADPHUD::Tick(float Dt)
 				{63.f, [&]() { FScreenshotRequest::RequestScreenshot(TEXT("Part1_ExitSign"), false, false); }},
 				{64.f, [&]() { GoTo(FVector(101.f, 0.f, 7.f), FVector(101.f, 3.3f, 0.f)); }},
 				{70.f, [&]() { FScreenshotRequest::RequestScreenshot(TEXT("Part1_ExitWest"), false, false); }},
-				{72.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+				{72.f, []() { ADP_SHOT_EXIT(); }},
 			};
 			for (const FStep& St : P1Steps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
@@ -3631,7 +3700,7 @@ void AADPHUD::Tick(float Dt)
 				{148.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Anywhere_Zermatt"), false, false); }},
 				{149.f, [&]() { AWalkAnywhere::Back(GetWorld()); }},
 				{158.f, [&]() { ADP_LOG(TEXT("ANYTEST %s"), *AWalkAnywhere::Status()); FScreenshotRequest::RequestScreenshot(TEXT("Anywhere_Back"), false, false); }},
-				{162.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+				{162.f, []() { ADP_SHOT_EXIT(); }},
 			};
 			for (const FStep& St : AnySteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
@@ -3659,7 +3728,7 @@ void AADPHUD::Tick(float Dt)
 				{77.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Ground_2"), false, false); }},
 				{78.f, [&]() { Stand(0.f, -1500.f, 270.f); }},
 				{94.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Ground_3"), false, false); }},
-				{96.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+				{96.f, []() { ADP_SHOT_EXIT(); }},
 			};
 			for (const FStep& St : GroundSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
@@ -3696,7 +3765,7 @@ void AADPHUD::Tick(float Dt)
 				{124.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("World_NoOcean_8km"), false, false); }},
 				{125.f, [&]() { for (TActorIterator<AActor> It(GetWorld()); It; ++It) if (It->GetClass()->GetName().Contains(TEXT("Airfield")) || It->GetClass()->GetName().Contains(TEXT("Grass"))) It->SetActorHiddenInGame(true); }},
 				{133.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("World_NoField_8km"), false, false); }},
-				{135.f, []() { FGenericPlatformMisc::RequestExit(false); }},
+				{135.f, []() { ADP_SHOT_EXIT(); }},
 			};
 			for (const FStep& St : WorldSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
@@ -3738,7 +3807,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanelUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoad")) && !FParse::Param(FCommandLine::Get(), TEXT("UIKiosk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) FGenericPlatformMisc::RequestExit(false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIPetStep")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanelUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoad")) && !FParse::Param(FCommandLine::Get(), TEXT("UIKiosk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) ADP_SHOT_EXIT();
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

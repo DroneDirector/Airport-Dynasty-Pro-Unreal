@@ -70,8 +70,13 @@ const COATS: { [k: string]: [string, string][] } = {
   dog: [['#C8913E', 'Golden'], ['#2A2420', 'Black'], ['#6B4226', 'Brown'], ['#E6D3AE', 'Cream'], ['#F2EFE8', 'White'], ['#8A8783', 'Grey'], ['#A0522D', 'Red'], ['#4A3B30', 'Dark brown']],
   cat: [['#E08A3C', 'Ginger'], ['#2A2624', 'Black'], ['#9A9590', 'Grey'], ['#F1EEE8', 'White'], ['#7A6450', 'Tabby'], ['#D9C3A0', 'Cream'], ['#5E6670', 'Blue-grey'], ['#B07A4A', 'Cinnamon']],
 };
+/** The pet models the game has, each kind its own section (owner, 2026-11-15: every dog and cat added later shows up
+ *  by itself): the game hands them over as window.__uePets = {dog: [{id, name}], cat: [...]}. With none for a kind,
+ *  its coats choose the stand-in's colour as before. Wy.coat is the place in whichever list is shown. */
+function breeds(k: string): { id: string, name: string }[] { const P = (window as any).__uePets || {}; return (P[k] || []) as { id: string, name: string }[]; }
+function petCount(k: string) { const b = breeds(k); return b.length ? b.length : COATS[k].length; }
 /** The choices so far, for the game when the career begins (main.ts reads window.__ngChoices). */
-function choicesOut() { (window as any).__ngChoices = { pet: Wy.pet || 'none', coat: Wy.coat || 0, married: Wy.partner === 'married', airline: Wy.air ? Object.assign({}, Wy.air) : null }; }
+function choicesOut() { const b = (Wy.pet === 'dog' || Wy.pet === 'cat') ? breeds(Wy.pet)[Wy.coat || 0] : null; (window as any).__ngChoices = { pet: Wy.pet || 'none', coat: b ? 0 : Wy.coat || 0, breed: b ? b.id : '', married: Wy.partner === 'married', airline: Wy.air ? Object.assign({}, Wy.air) : null }; }
 // the airline (owner, 2026-11-13: the founding is a neon step, no game form after Start game): what kind, its name,
 // ICAO code and callsign (made from the name until you type your own), your name; the home base is always the airport
 // we built, Mýrdalssandur (BIAP). Filled in already, so a pad (no keyboard) just goes on with A.
@@ -115,7 +120,12 @@ function airKind(k: string) {
   if (!a.ownName) a.name = (KINDS.find(x => x[0] === k) || KINDS[0])[3];
   renderStep(Wy.step, Wy.side); choicesOut();
 }
-function petTell() { const k = Wy.pet; if (k === 'dog' || k === 'cat') tell('pet', k + ':' + COATS[k][Wy.coat || 0][0]); else tell('pet', 'none'); choicesOut(); }
+function petTell() {
+  const k = Wy.pet;
+  if (k === 'dog' || k === 'cat') { const b = breeds(k); tell('pet', k + ':' + (b.length ? b[Math.min(b.length - 1, Wy.coat || 0)].id : COATS[k][Wy.coat || 0][0])); }
+  else tell('pet', 'none');
+  choicesOut();
+}
 function partnerTell() { tell('partner', Wy.partner === 'married' ? 'married' : 'single'); choicesOut(); }
 const DIFFS: [string, string, string][] = [
   ['cruise', 'Cruising along', 'Cheap aircraft, generous passengers, calm markets. Just enjoy flying.'],
@@ -134,7 +144,11 @@ function renderStep(n: number, side: string) {
       <div class="wd-k">${st.k}</div><div class="wd-t">${st.t}</div>
       <nav class="ts-nav">${st.id === 'pet'
         ? [['dog', 'Dog', 'Walks in and sits beside you'], ['cat', 'Cat', 'Walks in and sits beside you'], ['none', 'No pet', 'Just you']].map(([id, t, hint]) => `<button class="ts-btn ${id === (Wy.pet || 'none') ? 'on' : ''}" data-pet="${id}"><span class="ts-bi">${icon(id === 'none' ? 'close' : 'star')}</span><span class="ts-bt"><b>${t}</b><small>${hint}</small></span><i class="ts-sheen"></i></button>`).join('')
-          + (Wy.pet === 'dog' || Wy.pet === 'cat' ? `<div class="wy-coats">${COATS[Wy.pet].map(([hex, name], i) => `<button class="wy-coat ${i === (Wy.coat || 0) ? 'on' : ''}" data-coat="${i}" title="${name}" style="--c:${hex}"><i></i><small>${name}</small></button>`).join('')}</div>` : '')
+          + (Wy.pet === 'dog' || Wy.pet === 'cat'
+            ? (breeds(Wy.pet).length
+              ? `<div class="wy-coats wy-breeds">${breeds(Wy.pet).map((b, i) => `<button class="wy-coat wy-breed ${i === (Wy.coat || 0) ? 'on' : ''}" data-coat="${i}" title="${b.name}" style="--c:#2bd3e0"><i></i><small>${b.name}</small></button>`).join('')}</div>`
+              : `<div class="wy-coats">${COATS[Wy.pet].map(([hex, name], i) => `<button class="wy-coat ${i === (Wy.coat || 0) ? 'on' : ''}" data-coat="${i}" title="${name}" style="--c:${hex}"><i></i><small>${name}</small></button>`).join('')}</div>`)
+            : '')
         : st.id === 'partner'
         ? [['married', 'Married', 'Your partner walks in beside you'], ['single', 'Single', 'On your own']].map(([id, t, hint]) => `<button class="ts-btn ${id === (Wy.partner || 'single') ? 'on' : ''}" data-partner="${id}"><span class="ts-bi">${icon(id === 'single' ? 'close' : 'star')}</span><span class="ts-bt"><b>${t}</b><small>${hint}</small></span><i class="ts-sheen"></i></button>`).join('')
           + `<button class="ts-btn" disabled><span class="ts-bi">${icon('grid')}</span><span class="ts-bt"><b>Their looks</b><small>with the character creator</small></span><i class="ts-sheen"></i></button>`
@@ -225,7 +239,7 @@ function open(stage: string, side = '') {
         else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(); }
       } else if (Wy.stage === 'step' && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); stepTo(Wy.step + 1); }
       else if (Wy.stage === 'step' && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) { e.preventDefault(); optMove(e.key === 'ArrowUp' ? -1 : 1); }
-      else if (Wy.stage === 'step' && STEPS[Wy.step].id === 'pet' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && (Wy.pet === 'dog' || Wy.pet === 'cat')) { e.preventDefault(); const n = COATS[Wy.pet].length; Wy.coat = ((Wy.coat || 0) + (e.key === 'ArrowLeft' ? -1 : 1) + n) % n; renderStep(Wy.step, Wy.side); petTell(); }
+      else if (Wy.stage === 'step' && STEPS[Wy.step].id === 'pet' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && (Wy.pet === 'dog' || Wy.pet === 'cat')) { e.preventDefault(); const n = petCount(Wy.pet); Wy.coat = ((Wy.coat || 0) + (e.key === 'ArrowLeft' ? -1 : 1) + n) % n; renderStep(Wy.step, Wy.side); petTell(); }
     };
     window.addEventListener('keydown', Wy.key$, true);
     root.addEventListener('input', (e: Event) => { const t = e.target as HTMLElement; if (t && t.tagName === 'INPUT' && Wy.air) airInput(t as HTMLInputElement); });

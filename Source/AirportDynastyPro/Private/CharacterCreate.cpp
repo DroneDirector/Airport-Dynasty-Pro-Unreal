@@ -1,6 +1,7 @@
 #include "CharacterCreate.h"
 #include "ADPLog.h"
 #include "TerminalPlan.h"
+#include "Pets.h"
 #include "Engine/World.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
@@ -49,7 +50,7 @@ namespace
 	// (or gone, past the edge)
 	TWeakObjectPtr<UWorld> StageWorld;
 	TWeakObjectPtr<AActor> Partner, PetActor;
-	FString PetNow;
+	FString PetNow, PetIdNow;
 	struct FWalker { TWeakObjectPtr<AActor> A; FVector To; float Speed; bool bGone; };
 	TArray<FWalker> Walkers;
 	FTSTicker::FDelegateHandle WalkTicker;
@@ -464,8 +465,37 @@ void ADPCharacterCreate::ShowPartner(bool bOn)
 	else if (P && !P->IsHidden()) Walk(P, EdgeAt(Mark), true);
 }
 
-void ADPCharacterCreate::ShowPet(const FString& Kind, const FLinearColor& Coat)
+FString ADPCharacterCreate::PetChoice()
 {
+	if (APet* P = Cast<APet>(PetActor.Get())) return P->Model().Folder + TEXT("/") + P->Model().Id;
+	return FString();
+}
+
+void ADPCharacterCreate::ShowPet(const FString& Kind, const FString& Id, const FLinearColor& Coat)
+{
+	// a real pet model of this kind (every one in /Game/Pets, Pets.h): the first in the list, or the one chosen, walks
+	// in from the free side's edge and sits down beside you; moving the choice on, it stands up and walks back out the
+	// way it came while the next one walks in (owner, 2026-11-15)
+	if (const ADPPets::FModel* Model = (Kind == TEXT("dog") || Kind == TEXT("cat")) ? ADPPets::Find(Kind, Id) : nullptr)
+	{
+		UWorld* W = StageWorld.Get(); if (!W) return;
+		if (Kind == PetNow && Model->Id == PetIdNow && PetActor.IsValid()) return;
+		const FVector Mark = YouAt() + FVector(ToMiddle() * 72.f, -18.f, 0.f);   // beside you, towards the middle, a little in front
+		if (APet* Old = Cast<APet>(PetActor.Get())) Old->WalkTo(EdgeAt(Mark), false, 0.f, true);
+		else if (AActor* OldA = PetActor.Get()) Walk(OldA, EdgeAt(Mark), true);
+		PetNow = Kind; PetIdNow = Model->Id; PetActor = nullptr;
+		APet* Pet = APet::Spawn(W, *Model, EdgeAt(Mark), ToMiddle() > 0 ? -90.f : 90.f);
+		if (!Pet) return;
+		Spawned.Add(Pet); PetActor = Pet;
+		Pet->WalkTo(Mark, true, -180.f + ToMiddle() * 12.f);      // sits facing the camera, turned a touch towards you
+		ADP_LOG(TEXT("Character creator: the %s walks in and sits beside you"), *Model->Name);
+		return;
+	}
+	if (APet* Old = Cast<APet>(PetActor.Get()))
+	{
+		const FVector Mark = YouAt() + FVector(ToMiddle() * 72.f, -18.f, 0.f);
+		Old->WalkTo(EdgeAt(Mark), false, 0.f, true); PetActor = nullptr; PetNow.Empty(); PetIdNow.Empty();
+	}
 	// the pet's place: at your feet, towards the middle and in front; in from the free side's edge. Until the real 3D
 	// cats and dogs are made (owner, 2026-11-13) a stand-in walks in: the animal's silhouette in its coat colour with a
 	// glowing question mark above it (Tools/make_pet_placeholders.py), so it is plain it is to be replaced
@@ -506,5 +536,5 @@ void ADPCharacterCreate::ShowPet(const FString& Kind, const FLinearColor& Coat)
 void ADPCharacterCreate::ClearCompany()
 {
 	ShowPartner(false);
-	ShowPet(FString(), FLinearColor::White);
+	ShowPet(FString(), FString());
 }
