@@ -124,6 +124,90 @@
    "kind": "fingers",
    "colour": true,
    "picture": "/Game/People/Tattoos/Designs/T_TatDesign_finger_rings"
+  },
+  {
+   "id": "anchor_forearm",
+   "name": "Anchor with rope (forearm)",
+   "kind": "arm",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_anchor_forearm"
+  },
+  {
+   "id": "feather_forearm",
+   "name": "Long feather (forearm)",
+   "kind": "arm",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_feather_forearm"
+  },
+  {
+   "id": "koi_upperarm",
+   "name": "Koi in the water (upper arm)",
+   "kind": "arm",
+   "colour": true,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_koi_upperarm"
+  },
+  {
+   "id": "mountains_band",
+   "name": "Mountain ridge band (forearm)",
+   "kind": "arm",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_mountains_band"
+  },
+  {
+   "id": "puffin_forearm",
+   "name": "Puffin on a rock (forearm)",
+   "kind": "arm",
+   "colour": true,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_puffin_forearm"
+  },
+  {
+   "id": "plane_path_forearm",
+   "name": "Airliner and flight path (forearm)",
+   "kind": "arm",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_plane_path_forearm"
+  },
+  {
+   "id": "wave_calf",
+   "name": "Great wave (calf)",
+   "kind": "leg",
+   "colour": true,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_wave_calf"
+  },
+  {
+   "id": "whale_tail_calf",
+   "name": "Whale tail (calf)",
+   "kind": "leg",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_whale_tail_calf"
+  },
+  {
+   "id": "sun_thigh",
+   "name": "Dotwork sun (thigh)",
+   "kind": "leg",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_sun_thigh"
+  },
+  {
+   "id": "wings_neck",
+   "name": "Pilot wings",
+   "kind": "neck",
+   "colour": true,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_wings_neck"
+  },
+  {
+   "id": "moon_phases_neck",
+   "name": "Moon phases",
+   "kind": "neck",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_moon_phases_neck"
+  },
+  {
+   "id": "finger_dots",
+   "name": "Line and dots",
+   "kind": "fingers",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_finger_dots"
   }
  ]
 }
