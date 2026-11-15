@@ -134,12 +134,9 @@ slab(-36.0, 0.0, 0.0, 52.0, 0.01, top='MI_T_terrazzo', under='MI_T_concrete', th
 slab(0.0, 6.0, 30.0, 52.0, 0.01, top='MI_T_terrazzo', under='MI_T_concrete', thick=0.3)
 # south wall (kerb side): the door opening in the middle (6 m wide, 3.6 high), four tall windows
 WIN = [(-33.2, -30.8), (-27.2, -24.8), (-11.2, -8.8), (-5.2, -2.8)]
-wall_z(0.0, -36.0, 0.0, 0.01, 12.0, holes=[(-21.0, -15.0, 0.0, 3.6)] + [(w0, w1, 2.5, 9.5) for (w0, w1) in WIN])
+wall_z(0.0, -36.0, 0.0, 0.01, 12.0, holes=[(-20.6, -15.4, 0.0, 3.14)] + [(w0, w1, 2.5, 9.5) for (w0, w1) in WIN])
 for (w0, w1) in WIN: G.box(w0, w1, 2.5, 9.5, -0.012, 0.012, 'MI_T_glass')
-# the door: glass leaves in a steel frame, a canopy over it
-G.box(-21.0, -15.0, 0.01, 3.6, -0.012, 0.012, 'MI_T_glass')
-for x in (-21.0, -18.0, -15.0): S.box(x - 0.05, x + 0.05, 0.01, 3.6, -0.06, 0.06, 'MI_T_steel')
-S.box(-21.0, -15.0, 3.55, 3.65, -0.06, 0.06, 'MI_T_steel')
+# the door itself is the main entrance's double sliding door (Tools/terminal_edit.py); a canopy over it
 S.box(-22.0, -14.0, 3.9, 4.1, -2.5, 0.0, W)
 # west wall: tall windows every 6.5 m
 wall_x(-36.0, 0.0, 52.0, 0.01, 12.0, holes=[(z0, z0 + 2.4, 2.5, 9.5) for z0 in (4.0, 10.5, 17.0, 23.5, 30.0, 36.5, 43.0)])

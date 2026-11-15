@@ -86,6 +86,18 @@ for rn in ('F2-TAXFREE', 'F2-LANDING'):
         if '/STRUCTURE-' in nm or nm.startswith('w#'): drop(c, 'rebuilt by the annex, x 56..72')
         elif b and b[3] > 71.8: drop(c, 'beyond x 72: the bar is there now')
 
+# ---- the museum's door (owner, 2026-11-15: "make the museum door open ... not a single door"): a copy of the main
+#      entrance's double sliding glass door (5 m, two leaves sliding apart by themselves), its sign left out, in the
+#      museum hall's south wall at x -18 ----
+def copy_tree(k, skip=()):
+    n = dict(N[k]); kids = [copy_tree(c, skip) for c in N[k].get('children', []) if not N[c]['name'].startswith(skip)]
+    if kids: n['children'] = kids
+    elif 'children' in n: del n['children']
+    N.append(n); return len(N) - 1
+d = copy_tree(byname['D-F1-ENTR-C-1'], skip=('sign',))
+N[d]['name'] = 'D-F1-MUSEUM-ENTR-1'; N[d]['translation'] = [18.0, 0.0, 0.0]
+N[byname['F1']]['children'].append(d); log.append('new: the museum double sliding door')
+
 # ---- the new parts (Art/TerminalAnnex, Tools/import_annex.py): placed as they are (made in the plan's metres) ----
 def add(parent_name, name, asset):
     N.append({'name': name, 'mesh': 90000 + len(N), 'asset': asset})
