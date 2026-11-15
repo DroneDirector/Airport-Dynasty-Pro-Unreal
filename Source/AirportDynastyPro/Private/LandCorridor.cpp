@@ -1,5 +1,8 @@
 // Our own land along the roads (LandCorridor.h).
 #include "LandCorridor.h"
+#if PLATFORM_WINDOWS
+#include "Windows/WindowsHWrapper.h"   // (Windows' headers the Unreal way, before Cesium's: its own include of windows.h then leaves no min/max/GetObject macros behind for the next files of the build chunk)
+#endif
 #include "TerminalBuilder.h"
 // (Windows' own UpdateResource macro turns UTexture2D::UpdateResource into UpdateResourceW when a Windows header comes
 // in before this file in the packaged build's unity files - 2026-11-15)

@@ -1,5 +1,8 @@
 // The sea round the airport (see Ocean.h).
 #include "Ocean.h"
+#if PLATFORM_WINDOWS
+#include "Windows/WindowsHWrapper.h"   // (Windows' headers the Unreal way, before Cesium's: its own include of windows.h then leaves no min/max/GetObject macros behind for the next files of the build chunk)
+#endif
 #include "ADPLog.h"
 #include "Kismet/GameplayStatics.h"
 #include "Camera/PlayerCameraManager.h"

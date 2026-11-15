@@ -1,6 +1,9 @@
 // The globe: a Cesium georeference at the terminal's origin, turned to the runway's heading; the Earth's ellipsoid as a
 // tileset with the Sentinel-2 cloudless 2016 imagery on it.
 #include "Globe.h"
+#if PLATFORM_WINDOWS
+#include "Windows/WindowsHWrapper.h"   // (Windows' headers the Unreal way, before Cesium's: its own include of windows.h then leaves no min/max/GetObject macros behind for the next files of the build chunk)
+#endif
 #include "LandCorridor.h"
 #include "ADPLog.h"
 // (Windows' own OPAQUE macro would break Cesium's glTF names when the build puts a Windows file before this one)

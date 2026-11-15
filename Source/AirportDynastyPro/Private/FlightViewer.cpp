@@ -1,5 +1,8 @@
 // The 3D viewer in Unreal (see FlightViewer.h).
 #include "FlightViewer.h"
+#if PLATFORM_WINDOWS
+#include "Windows/WindowsHWrapper.h"   // (Windows' headers the Unreal way, before Cesium's: its own include of windows.h then leaves no min/max/GetObject macros behind for the next files of the build chunk)
+#endif
 #include "ADPLog.h"
 // (Windows' own OPAQUE macro would break Cesium's glTF names when the build puts a Windows file before this one)
 #ifdef OPAQUE
