@@ -544,8 +544,11 @@ void AADPHUD::BeginPlay()
 		PadToMenus->Hud = this;
 		FSlateApplication::Get().RegisterInputPreProcessor(PadToMenus);
 	}
-	// the game starts on the app's own title screen and main menu (not in photo mode)
-	if (!FParse::Param(FCommandLine::Get(), TEXT("PhotoTour"))) ToggleGame();
+	// the game starts on the app's own title screen and main menu (not in photo mode) - opened on the first frame after the
+	// airport has loaded, not here: the menus' browser (CEF) starts its helper processes when it is first made, and they
+	// must hear back from the game within 60 s; the airport's first frame now takes longer than that in the editor, so
+	// made here they timed out and the menus stayed black (2026-11-15)
+	bMenusPending = !FParse::Param(FCommandLine::Get(), TEXT("PhotoTour"));
 
 	// the keys: M map, Tab settings, P performance, H hide, Esc or a double-click to show again
 	if (APlayerController* PC = GetOwningPlayerController())
@@ -1820,6 +1823,8 @@ void AADPHUD::Tick(float Dt)
 		else if (!bStuck && bShown && StuckFor == 0.f && !bPointer) UnstuckPanel->SetVisibility(EVisibility::Collapsed);
 	}
 	Super::Tick(Dt);
+	// (the menus opened once the airport has loaded: a couple of frames after the loading frame, see BeginPlay)
+	if (bMenusPending && ++MenusWaitFrames >= 3) { bMenusPending = false; if (!bGame) ToggleGame(); }
 	// the controller to the menus' page whenever it changes (and once more, all released, when they close)
 	if (PadToMenus.IsValid() && PadToMenus->bDirty && Browser.IsValid() && (bGame || bPadSent))
 	{
@@ -2710,7 +2715,7 @@ void AADPHUD::Tick(float Dt)
 			if (T0 < 0.f && bMenusReady) T0 = ShotClock + 5.f;
 			const float A = T0 < 0.f ? -100.f : ShotClock - T0, B = T0 < 0.f ? -100.f : Before - T0;
 			if (B < -2.f && A >= -2.f && Browser.IsValid())
-				Browser->ExecuteJavascript(TEXT("setInterval(function(){var f=document.querySelector('.un .ln-fill');ue.adp.log('UPDSIM bar '+(f?f.style.width:'none'));},100);"));
+				Browser->ExecuteJavascript(TEXT("(function(){var o=window.__ueUpdate;ue.adp.log('UPDSIM hook '+typeof o);window.__ueUpdate=function(){ue.adp.log('UPDSIM got '+[].slice.call(arguments).join('|'));try{o.apply(null,arguments);}catch(e){ue.adp.log('UPDSIM error '+e);}};setInterval(function(){var f=document.querySelector('.un .ln-fill');ue.adp.log('UPDSIM bar '+(f?f.style.width:'none'));},100);})();"));
 			if (A >= 0.f && A < 10.f)
 			{
 				UpdateBusy = true;

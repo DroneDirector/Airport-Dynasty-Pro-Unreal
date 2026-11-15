@@ -128,7 +128,8 @@ public:
 	TArray<TPair<FString, FString>> UpdateChain;   // version, update package
 	TArray<int64> UpdateSizes;                      // each package's size from the release listing (the bar never loses its length)
 	double UpdateSentAt = 0;
-	bool bMenusReady = false;                       // the menus' page has loaded and said so                         // when the page was last told (progress at most 5 times a second)
+	bool bMenusReady = false;
+	bool bMenusPending = false; int32 MenusWaitFrames = 0;   // the title screen, opened after the loading frame                       // the menus' page has loaded and said so                         // when the page was last told (progress at most 5 times a second)
 	TArray<FString> UpdateFiles;
 	FString UpdateFullUrl;
 	#pragma endregion
