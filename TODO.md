@@ -84,6 +84,25 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 - [x] Walk anywhere: the ground stays blurry for about half a minute in a new place while the picture tiles load (show a
       short loading note, or wait for the sharp tiles before putting you down)
 
+- [ ] **Trees and plants with Nanite Foliage (own release; approved 2026-11-15, NOT started: wait for the owner's go).**
+      Unreal 5.7's Nanite Foliage (Nanite Assemblies + Nanite Skinning + Nanite Voxels, experimental) with Lumen, and
+      the Dynamic Wind plugin (wind by bones, not World Position Offset). Our own plants, made in the Procedural
+      Vegetation Editor or Blender (no marketplace assets unless the licence is checked first). Distant trees turn into
+      Nanite voxels (real 3D geometry, not picture impostors). Turn on: Project Settings > Rendering > Nanite Foliage.
+      **First: the downy birch (Icelandic birch, "Atlantic birch") on its own**, then the rest. Rough time:
+      - [ ] Nanite Foliage + Dynamic Wind turned on and tested: 3-4 h
+      - [ ] Downy birch, 2-3 size variants: 4-6 h  <- FIRST
+      - [ ] Mountain birch (low, twisted): 3-4 h
+      - [ ] Rowan (red berries in autumn): 3-4 h
+      - [ ] Crowberry heath patches: 2-3 h
+      - [ ] Moss carpets and lumps on the lava fields: 3-4 h
+      - [ ] Lyme grass clumps on sand and verges: 2-3 h
+      - [ ] Wind tied to the game's weather (calm, breeze, storm): 3-4 h
+      - [ ] Planted automatically (PCG) around the airport, the road, the town and the courthouse: 6-8 h
+      - [ ] Seasons: green summer, yellow autumn, bare winter birches: 3-4 h
+      - [ ] Smoothness tuning on the PC: 3-4 h
+      Total about 35-48 h (4-6 working days); add half a day to a day if the experimental feature misbehaves.
+
 ## 3. The airport and buildings
 - [ ] **The player's villa** (shown to the owner 2026-11-13): bring in Art/Villa (Villa.glb, Nanite, materials redone in
       Unreal) on the player's lot (town plan marker 8), furnish the bedroom wing and garage inside, the wardrobe and the
