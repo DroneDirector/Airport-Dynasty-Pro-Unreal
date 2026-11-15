@@ -24,6 +24,7 @@
 #include "Offices.h"
 #include "FireStation.h"
 #include "TownBuildings.h"
+#include "ParkedAircraft.h"
 #include "TowerADC.h"
 #include "Hangar.h"
 #include "RoadNetwork.h"
@@ -110,6 +111,8 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 			// the hangars on the hangar apron, each on its own lead-in line (Data/airfield.json "hangars")
 			for (const FAirfieldData::FHangarSite& H : Field->Data().Hangars)
 				if (AHangar* Hg = W->SpawnActor<AHangar>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Hg->Build(H.Size, H.X, H.Y, H.bOpen);
+			// his A320 on the terminal's stands, nose tyres on their stop bars (ParkedAircraft.h)
+			if (bBabylon) ADPParked::Place(W, Field->Data());
 			// the road network: forecourt, the road to town, the town's streets (RoadNetwork.h, MetaRoad Free)
 			if (ARoadNetwork* Roads = W->SpawnActor<ARoadNetwork>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Roads->Build();
 			// the town's buildings, on the land the roads shaped (TownBuildings.h)

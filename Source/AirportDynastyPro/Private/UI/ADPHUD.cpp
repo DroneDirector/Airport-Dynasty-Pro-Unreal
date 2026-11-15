@@ -3007,6 +3007,22 @@ void AADPHUD::Tick(float Dt)
 				{TEXT("TW_16_SkolavegurBend"), 4749.8f, 30.0f, -3825.9f, 4725.9f, 0.0f, -3769.6f, 13.f},
 				{TEXT("TW_17_WestCrossingEye"), 4593.3f, 1.7f, -3581.7f, 4575.1f, 1.0f, -3557.5f, 13.f},
 			};
+			// -UIRoadAirport -ApronShots: his A320 on the terminal's stands (2026-11-15): the row, a nose tyre on its stop bar,
+			// the main tyres on the lead-in line, one from the side, one from the gate
+			const FV ApronViews[] = {
+				// midday (the sun at its highest in November), then sunset, then night under the floodlight masts
+				{TEXT("AP_01_StandsHigh"), 80.f, 55.f, 255.f, 80.f, 0.f, 140.f, 12.5f},
+				{TEXT("AP_02_NoseGearEye"), 27.7f, 1.7f, 117.f, 19.71f, 0.6f, 125.1f, 12.5f},
+				{TEXT("AP_03_NoseTyreStopBar"), 23.2f, 1.1f, 129.f, 19.71f, 0.15f, 125.1f, 12.5f},
+				{TEXT("AP_04_MainGear"), 28.f, 1.3f, 142.f, 19.71f, 0.4f, 137.9f, 12.5f},
+				{TEXT("AP_05_FrontQuarter"), 81.f, 3.f, 106.f, 60.57f, 3.f, 138.f, 12.5f},
+				{TEXT("AP_06_FromGate4Window"), 190.f, 7.7f, 69.6f, 183.14f, 3.5f, 135.f, 12.5f},
+				{TEXT("AP_07_SunsetHigh"), 80.f, 55.f, 255.f, 80.f, 0.f, 140.f, 16.22f},
+				{TEXT("AP_08_SunsetFrontQuarter"), 81.f, 3.f, 106.f, 60.57f, 3.f, 138.f, 16.22f},
+				{TEXT("AP_09_SunsetFromGate4Window"), 190.f, 7.7f, 69.6f, 183.14f, 3.5f, 135.f, 16.22f},
+				{TEXT("AP_10_NightHigh"), 80.f, 55.f, 255.f, 80.f, 0.f, 140.f, 1.5f},
+				{TEXT("AP_11_NightFromGate4Window"), 190.f, 7.7f, 69.6f, 183.14f, 3.5f, 135.f, 1.5f},
+			};
 			const FV TownViews[] = {
 				{TEXT("TR_1_BendHigh"), 2000.f, 160.f, -250.f, 2250.f, 0.f, -650.f, 14.f},
 				{TEXT("TR_2_RoundaboutHigh"), 2217.f, 90.f, -1080.f, 2217.f, 0.f, -1168.f, 14.f},
@@ -3045,8 +3061,9 @@ void AADPHUD::Tick(float Dt)
 			const bool bTerminalSet = FParse::Param(FCommandLine::Get(), TEXT("TerminalShots")), bTownSet = FParse::Param(FCommandLine::Get(), TEXT("TownRoad"));
 			const bool bRoofSet = FParse::Param(FCommandLine::Get(), TEXT("RoofShots"));
 			const bool bTownStreets = FParse::Param(FCommandLine::Get(), TEXT("TownShots"));
-			const FV* Set = bTownStreets ? TownStreetViews : bRoofSet ? RoofViews : bTownSet ? TownViews : bTerminalSet ? TerminalViews : bAirportSet ? AirportViews : RoadViews;
-			const int32 NSet = bTownStreets ? UE_ARRAY_COUNT(TownStreetViews) : bRoofSet ? UE_ARRAY_COUNT(RoofViews) : bTownSet ? UE_ARRAY_COUNT(TownViews) : bTerminalSet ? UE_ARRAY_COUNT(TerminalViews) : bAirportSet ? UE_ARRAY_COUNT(AirportViews) : UE_ARRAY_COUNT(RoadViews);
+			const bool bApron = FParse::Param(FCommandLine::Get(), TEXT("ApronShots"));
+			const FV* Set = bApron ? ApronViews : bTownStreets ? TownStreetViews : bRoofSet ? RoofViews : bTownSet ? TownViews : bTerminalSet ? TerminalViews : bAirportSet ? AirportViews : RoadViews;
+			const int32 NSet = bApron ? UE_ARRAY_COUNT(ApronViews) : bTownStreets ? UE_ARRAY_COUNT(TownStreetViews) : bRoofSet ? UE_ARRAY_COUNT(RoofViews) : bTownSet ? UE_ARRAY_COUNT(TownViews) : bTerminalSet ? UE_ARRAY_COUNT(TerminalViews) : bAirportSet ? UE_ARRAY_COUNT(AirportViews) : UE_ARRAY_COUNT(RoadViews);
 			for (int32 i = 0; i < NSet; ++i)
 			{
 				const float T0 = 43.f + i * 4.f; const FV& V = Set[i];
