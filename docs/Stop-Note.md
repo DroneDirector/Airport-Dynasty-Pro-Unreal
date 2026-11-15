@@ -1,20 +1,15 @@
-# Stop note — 2026-11-15 (pause during the town roads)
+# Stop note — 2026-11-15 (morning, stopped during the packaged grass test)
 
-**Done (committed, pushed):**
-- Every town street re-traced to the plan's middle line and smoothed. Tools/check_roads.py passes all town streets except a gentle real S-bend on Main Street.
-- The road to town follows the overview from the 3 km mark; the airport area stays as approved.
-- Junctions have curved corners. Each street now has its own lanes (a shared-lanes bug had put pavement openings in the wrong places).
-- The villa and the dealership are placed in town (the villa by its drive as on the plan). Their import naming is fixed in Tools/glb_nodes.py and Tools/import_model.py.
-- The title screen has town demos (Car dealership, Your villa), and the demo buttons are half size.
-- The land is rebuilt as Nanite.
+**Done:**
+- Grass on our land and the 5 km globe ring; near/middle/far layers by height; cheaper big pieces (committed 3a75409).
+- Grass right up to the road edge again; far tufts kept off roads (grass map: 255 grass / 128 road over grass). NOT committed (owner: "do not commit").
+- Fix for the packaged build: LandCorridor.cpp `#undef UpdateResource` (Windows macro clash). NOT committed.
 
-**Half done:**
-- Thin leftover kerb strips still cross the junctions. They are the narrowed-away pavements.
-- The fix is written but not applied: cut each street into sections with no pavement across a mouth, and give turning circles their pavement as arcs round the opening. The edit never ran, so nothing is broken.
+**Half-done:**
+- Packaged Shipping test build for real frame rates (F:\ADP-Packaged\grass-test): stopped by the owner during the build.
 
-**Next:**
-1. Apply the sections fix in Tools/make_roads.py.
-2. Run `python Tools/check_roads.py`.
-3. Compile, then take the -TownShots pictures (TW_01-TW_17).
-4. Commit.
-5. The court house waits for the owner's hand-over.
+**Next (when he says):**
+- His check of the grass by the road -> then upload (commit + push).
+- Packaged frame-rate test, once only, if he still wants it.
+- MetaHumans: 7 of 137 people still to build (19, 122, 132-136), Tools/make_metahumans_all.sh, about 1-2 h PC.
+- To-do 63: the grass's remaining cost high up.
