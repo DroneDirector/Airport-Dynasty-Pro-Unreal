@@ -45,3 +45,10 @@ Progress (2026-11-15 evening):
 - Tools ready: Tools/terminal_where.py (where every terminal piece is, in plan metres), Tools/terminal_cut.py (cut boxes
   out of merged terminal pieces inside Unreal), -UIPlanView= camera pictures.
 - Open: where the floor-2 toilets and family room go once the bar moves to x 72-114.
+
+Built (2026-11-15, committed): west end (museum hall with the old museum's insides, escalator room, landing with
+guardrail, open way to the link/food walk, toilets + family room moved onto the landing, plant room narrower), the bar
+at x 72..114 open to the walkway, tax free and airside landing x 56..72, the offices x 114..156 to the walkway with the
+big window, the staff lift (inside the staff entrance hall's NE corner, not outside: the car rental's covered walk is
+at x 156+), the escalators placed. Not yet: a release with it; the lift's ride not tested by a walk; museum door is
+fixed glass (not a sliding door yet).
