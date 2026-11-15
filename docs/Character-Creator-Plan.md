@@ -48,8 +48,9 @@ choose, nothing built.
 ## D. Your pet (the step after your looks)
 
 - **Choose:** a dog, a cat, or none. Then the breed (about 20, popular ones, different sizes, and mixes), the coat colour, and a name.
-- **Shown live:** the pet stands or sits beside you on the stage and moves (breathing, tail).
-- **Status:** the pets themselves are on hold until the way of making them is found (the German Shepherd's references, landmarks and measurements are ready). Until then this step shows its placeholder panel.
+- **Shown live:** when the step opens, the first pet in the list comes walking in and sits down beside you (breathing, tail). Move the selection on and it plays in reverse: it stands up and walks back out, and the next one walks in and sits. The one you choose stays sitting beside you.
+- **Dogs and cats, each their own section,** filled automatically: every dog or cat model added later (put in its folder and imported) shows up in its section by itself - no list to edit.
+- **Status:** your German Shepherd and house cat (your Meshy models) are in, reduced to 200,000 and 120,000 faces with their textures; their skeletons and moves are being made (stand with breathing and tail, sit, lie flat, walk fast; the dog's fast run on command; the cat's rare roll-over). Until they are in the game this step shows its placeholder panel.
 - **Swappable later:** your save keeps only your choice (kind, breed, coat, name); a better model under the same name shows up in games already started.
 
 ## E. Your partner (married or not)
