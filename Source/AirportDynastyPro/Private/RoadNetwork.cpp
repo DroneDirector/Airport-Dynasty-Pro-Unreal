@@ -1,4 +1,10 @@
 // The road network (RoadNetwork.h).
+// (Windows' min/max macros, left defined by another file of the same unity chunk via the Cesium globe library,
+//  are hidden while these headers are read: Chaos headers break on them)
+#pragma push_macro("max")
+#pragma push_macro("min")
+#undef max
+#undef min
 #include "RoadNetwork.h"
 #include "LandCorridor.h"
 #include "ADPLog.h"
@@ -25,23 +31,19 @@
 #if WITH_EDITOR
 // (the roads' bake, ARoadNetwork::BakeAll, runs in the editor only: these stay out of the game's own build; Windows'
 //  min/max macros, left defined by another file in the same build chunk, are hidden while the geometry headers are read)
-#pragma push_macro("max")
-#pragma push_macro("min")
-#undef max
-#undef min
 #include "Components/DynamicMeshComponent.h"
 #include "DynamicMeshToMeshDescription.h"
 #include "StaticMeshAttributes.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "UObject/SavePackage.h"
-#pragma pop_macro("min")
-#pragma pop_macro("max")
 #endif
 #include "PhysicsEngine/BodySetup.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
 #include "Serialization/JsonWriter.h"
 #include "Engine/StaticMesh.h"
 #include "Components/StaticMeshComponent.h"
+#pragma pop_macro("min")
+#pragma pop_macro("max")
 
 namespace
 {
