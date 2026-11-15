@@ -13,6 +13,9 @@ if src.endswith('.ply'):
     bpy.ops.object.transform_apply(scale=True); bpy.ops.object.shade_smooth()
 elif src.endswith('.glb'):
     bpy.ops.import_scene.gltf(filepath=src)
+elif src.endswith('.obj'):
+    bpy.ops.wm.obj_import(filepath=src)                  # (Meshy's models: one textured mesh)
+    for o in bpy.context.selected_objects: print('OBJ', o.name, len(o.data.vertices), 'verts', len(o.data.polygons), 'faces', tuple(round(d, 3) for d in o.dimensions))
 else:
     bpy.ops.wm.open_mainfile(filepath=src)
 obs = [o for o in bpy.context.scene.objects if o.type == 'MESH']
@@ -21,7 +24,7 @@ hi = Vector((max(max((o.matrix_world @ Vector(c))[i] for c in o.bound_box) for o
 ctr = (lo + hi) / 2; size = max(hi - lo)
 sc = bpy.context.scene
 sc.render.engine = 'BLENDER_WORKBENCH'
-sc.display.shading.light = 'STUDIO'; sc.display.shading.color_type = 'MATERIAL' if src.endswith('.blend') else 'SINGLE'
+sc.display.shading.light = 'STUDIO'; sc.display.shading.color_type = 'TEXTURE' if src.endswith(('.obj', '.glb', '.blend')) else 'SINGLE'
 sc.display.shading.single_color = (0.62, 0.6, 0.57); sc.display.shading.show_cavity = True
 sc.display.shading.cavity_type = 'BOTH'; sc.display.shading.show_shadows = False
 sc.render.resolution_x, sc.render.resolution_y = 1400, 1000

@@ -1,0 +1,43 @@
+{
+  "_about": "Joint places for each pet's skeleton, measured on its side and top views (Art/Pets/Models/Views/<Name>_joints.png). Units: percent of the pet's nose-to-tail length; y from the nose tip backwards, z up from the ground, x out to the side (both sides alike). Each bone: [head joint, tail joint]. A new pet copies the closest one and gets its numbers fixed against its own picture.",
+  "GermanShepherd": {
+    "pelvis":     [[0, 72, 45], [0, 84, 43]],
+    "spine_01":   [[0, 72, 45], [0, 56, 46]],
+    "spine_02":   [[0, 56, 46], [0, 41, 47]],
+    "spine_03":   [[0, 41, 47], [0, 30, 48]],
+    "neck_01":    [[0, 30, 48], [0, 23, 57]],
+    "neck_02":    [[0, 23, 57], [0, 19, 64]],
+    "head":       [[0, 19, 64], [0, 3, 62]],
+    "ear":        [[3.5, 14, 73], [4, 13, 84]],
+    "scapula":    [[5, 31, 52], [6, 28, 38]],
+    "upperarm":   [[6, 28, 38], [6, 31, 27]],
+    "lowerarm":   [[6, 31, 27], [6, 31, 8]],
+    "hand":       [[6, 31, 8], [6, 29, 2.5]],
+    "fingers":    [[6, 29, 2.5], [6, 24, 1.5]],
+    "thigh":      [[6, 82, 42], [6.5, 77, 25]],
+    "calf":       [[6.5, 77, 25], [6.5, 85, 10]],
+    "foot":       [[6.5, 85, 10], [6.5, 83, 2.5]],
+    "toes":       [[6.5, 83, 2.5], [6.5, 78, 1.5]],
+    "tail":       [[0, 86, 44], [0, 89, 35], [0, 91, 26], [0, 94, 18], [0, 97, 10]]
+  },
+  "HouseCat": {
+    "pelvis":     [[0, 66, 38], [0, 76, 36]],
+    "spine_01":   [[0, 66, 38], [0, 52, 40]],
+    "spine_02":   [[0, 52, 40], [0, 38, 40]],
+    "spine_03":   [[0, 38, 40], [0, 27, 38]],
+    "neck_01":    [[0, 27, 38], [0, 20, 44]],
+    "neck_02":    [[0, 20, 44], [0, 14, 49]],
+    "head":       [[0, 14, 49], [0, 3, 47]],
+    "ear":        [[4, 11, 55], [5, 10, 61]],
+    "scapula":    [[4, 28, 44], [5, 25, 31]],
+    "upperarm":   [[5, 25, 31], [5, 27, 20]],
+    "lowerarm":   [[5, 27, 20], [5, 25, 5]],
+    "hand":       [[5, 25, 5], [5, 23, 1.5]],
+    "fingers":    [[5, 23, 1.5], [5, 19, 1]],
+    "thigh":      [[5, 68, 36], [5, 62, 21]],
+    "calf":       [[5, 62, 21], [5, 71, 7]],
+    "foot":       [[5, 71, 7], [5, 68, 1.5]],
+    "toes":       [[5, 68, 1.5], [5, 64, 1]],
+    "tail":       [[0, 73, 40], [0, 77, 31], [0, 82, 23], [0, 88, 18], [0, 93, 16], [0, 98, 15]]
+  }
+}
