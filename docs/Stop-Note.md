@@ -1,15 +1,17 @@
-# Stop note — 2026-11-15 (morning, stopped during the packaged grass test)
+# Stop note - 2026-11-15 evening
 
-**Done:**
-- Grass on our land and the 5 km globe ring; near/middle/far layers by height; cheaper big pieces (committed 3a75409).
-- Grass right up to the road edge again; far tufts kept off roads (grass map: 255 grass / 128 road over grass). NOT committed (owner: "do not commit").
-- Fix for the packaged build: LandCorridor.cpp `#undef UpdateResource` (Windows macro clash). NOT committed.
+**Done**
+- Release build fixed: Windows min/max/GetObject macros leaking from Cesium into the roads code (Windows headers now
+  included the Unreal way before Cesium's; RoadNetwork's includes guarded).
+- Skin material: the tattoo layers share one sampler (they took the skin past 16 samplers; its shader failed).
+- Tattoos: batches 2 and 3 drawn and OK'd (46 designs in Data/tattoos.json). Import into Unreal WAITS for his green light.
+- Pixel Norma logo splash on the to-do list (item 64, 5th open item).
 
-**Half-done:**
-- Packaged Shipping test build for real frame rates (F:\ADP-Packaged\grass-test): stopped by the owner during the build.
+**Half-done**
+- 0.17.16 NOT published. The cook still stops on one engine check ("Ensure: SerializedElementSize == ElementSize",
+  Array.h) right after "Waiting for skinned assets to be ready (SK_HouseCat / SK_GermanShepherd)" - the pets' models,
+  when the cook builds them. Cooking each pet alone passes, so it shows only in the full cook.
 
-**Next (when he says):**
-- His check of the grass by the road -> then upload (commit + push).
-- Packaged frame-rate test, once only, if he still wants it.
-- MetaHumans: 7 of 137 people still to build (19, 122, 132-136), Tools/make_metahumans_all.sh, about 1-2 h PC.
-- To-do 63: the grass's remaining cost high up.
+**Next**
+- Find what in the pets' skeletal meshes trips that check (re-import them with Tools/import_pet.py from the FBX, or
+  their build settings); then rerun `bash Tools/release_pc.sh 0.17.16 0.17.15 0.17.14`, then `--upload` (about 12 min).
