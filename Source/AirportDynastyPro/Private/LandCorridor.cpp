@@ -1,6 +1,11 @@
 // Our own land along the roads (LandCorridor.h).
 #include "LandCorridor.h"
 #include "TerminalBuilder.h"
+// (Windows' own UpdateResource macro turns UTexture2D::UpdateResource into UpdateResourceW when a Windows header comes
+// in before this file in the packaged build's unity files - 2026-11-15)
+#ifdef UpdateResource
+#undef UpdateResource
+#endif
 #include "ADPLog.h"
 #include "Airfield.h"
 #include "Globe.h"

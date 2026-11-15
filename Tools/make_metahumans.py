@@ -390,6 +390,10 @@ def player_outfit(outfit):
 def make(spec, info):
     name = 'MH_%03d_%s' % (spec['i'], spec['role'])
     path = OUT + '/' + name
+    # (made = its character AND its finished build: person 19 had a character but no build, and was skipped as made -
+    # 2026-11-15; a half-made one is made again)
+    if eal.does_asset_exist(path) and not eal.does_directory_exist('/Game/People/Built/' + name):
+        log(name + ' half made (no build): made again'); eal.delete_asset(path)
     if eal.does_asset_exist(path):
         log(name + ' already made')
         return
