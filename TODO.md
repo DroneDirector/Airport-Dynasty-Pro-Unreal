@@ -101,7 +101,9 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       - [ ] Planted automatically (PCG) around the airport, the road, the town and the courthouse: 6-8 h
       - [ ] Seasons: green summer, yellow autumn, bare winter birches: 3-4 h
       - [ ] Smoothness tuning on the PC: 3-4 h
-      Total about 35-48 h (4-6 working days); add half a day to a day if the experimental feature misbehaves.
+      Hours are nonstop (around the clock) working hours: total about 35-48 h, about 1.5-2 days around the clock
+      (realistically 2-3 days with pauses); first downy birch incl. setup 7-10 h. Add 4-8 h if the experimental
+      feature misbehaves.
 
 ## 3. The airport and buildings
 - [ ] **The player's villa** (shown to the owner 2026-11-13): bring in Art/Villa (Villa.glb, Nanite, materials redone in
