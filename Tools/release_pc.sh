@@ -21,7 +21,14 @@ if [ "$4" != "--upload" ]; then
   rm -rf Content/Web && cp -r Airline-Manager-Pro-Babylon/www Content/Web && rm -rf Content/Data && cp -r Data Content/Data
   echo "== cook and package (patch on 0.12.1)"
   rm -rf $P/$V
-  "/c/Program Files/Epic Games/UE_5.7/Engine/Build/BatchFiles/RunUAT.bat" BuildCookRun -project="$(pwd -W)/AirportDynastyPro.uproject" -noP4 -platform=Win64 -clientconfig=Shipping -build -cook -stage -pak -generatepatch -basedonreleaseversion=0.12.1 -archive -archivedirectory="F:\\ADP-Packaged\\$V" -utf8output -unattended > $P/uat-$V.log 2>&1 || { tail -20 $P/uat-$V.log; echo "STOP: packaging failed"; exit 1; }
+  "/c/Program Files/Epic Games/UE_5.7/Engine/Build/BatchFiles/RunUAT.bat" BuildCookRun -project="$(pwd -W)/AirportDynastyPro.uproject" -noP4 -platform=Win64 -clientconfig=Shipping -build -cook -stage -pak -generatepatch -basedonreleaseversion=0.12.1 -archive -archivedirectory="F:\\ADP-Packaged\\$V" -utf8output -unattended -IgnoreCookErrors > $P/uat-$V.log 2>&1 || { tail -20 $P/uat-$V.log; echo "STOP: packaging failed"; exit 1; }
+  # (the cook goes on past errors only for one known engine check, "SerializedElementSize == ElementSize" in Array.h:
+  #  a handled ensure the full cook logs once while it builds skinned meshes, every package still cooked, 2026-11-16;
+  #  any other cook error still stops the release here)
+  CK=$(ls -t "$APPDATA/Unreal Engine/AutomationTool/Logs/C+Program+Files+Epic+Games+UE_5.7"/Cook-*.txt | head -1)
+  OTHER=$(sed -n '/Warning\/Error Summary/,$p' "$CK" | grep "Error:" | grep -vE "stack for UAT|Handled ensure|SerializedElementSize == ElementSize|Error: Stack:|\[Callstack\]|Error: *$" | head -5)
+  [ -z "$OTHER" ] || { echo "$OTHER"; echo "STOP: cook errors"; exit 1; }
+  grep -q "Cook failed" $P/uat-$V.log && echo "(cook: only the known engine check - packaging went on)"
   grep -q "BUILD SUCCESSFUL" $P/uat-$V.log || { tail -20 $P/uat-$V.log; echo "STOP: no BUILD SUCCESSFUL"; exit 1; }
   echo "== the version inside the exe"
   IN=$(python -c "
