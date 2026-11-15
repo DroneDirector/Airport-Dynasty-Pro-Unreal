@@ -7,13 +7,15 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.colors import HexColor, white
 from reportlab.pdfbase.pdfmetrics import stringWidth
 
-SRC = Path(__file__).resolve().parent.parent / 'docs' / 'Wardrobe-Plan.md'
+import sys
+# (any plan in docs/: python Tools/make_wardrobe_pdf.py [docs/<Name>.md] - the character creator plan uses it too)
+SRC = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent / 'docs' / 'Wardrobe-Plan.md'
 OUT = SRC.with_suffix('.pdf')
 W, H = 110 * mm, 230 * mm
 BG, FG, DIM, RULE, HEAD = HexColor('#1b1b1f'), white, HexColor('#b0b0b8'), HexColor('#44444c'), HexColor('#8ab4f8')
 L, R = 8 * mm, W - 6 * mm
 c = canvas.Canvas(str(OUT), pagesize=(W, H))
-c.setTitle('Airport Dynasty Pro - the wardrobe plan')
+c.setTitle('Airport Dynasty Pro - ' + SRC.stem.replace('-', ' '))
 y = 0
 
 def page():
@@ -73,6 +75,9 @@ rows = []
 joined, buf = [], []
 for raw in SRC.read_text(encoding='utf-8').splitlines() + ['']:
     s = raw.rstrip()
+    if s.startswith('- ') or (s[:3].strip('.').isdigit() and s[1:3].startswith('. ')):   # (a bullet or numbered line starts its own item)
+        if buf: joined.append(' '.join(buf))
+        buf = [s.strip()]; continue
     if s and not s.startswith(('|', '#')): buf.append(s.strip()); continue
     if buf: joined.append(' '.join(buf)); buf = []
     joined.append(s)
@@ -85,6 +90,8 @@ for s in joined:
     if not s: continue
     if s.startswith('# '): need(20); c.setFont('Helvetica-Bold', 11); c.setFillColor(FG); c.drawString(L, y - 11, s[2:]); y -= 20
     elif s.startswith('## '): y -= 2; need(16); c.setFont('Helvetica-Bold', 8.5); c.setFillColor(HEAD); c.drawString(L, y - 9, s[3:]); y -= 15
+    elif s.startswith('- '): para('•  ' + s[2:], indent=4, gap=2)
+    elif s[:1].isdigit() and '. ' in s[:4]: para(s, indent=4, gap=2)
     else: para(s)
 if rows: table(rows)
 c.showPage(); c.save(); print('wrote', OUT)
