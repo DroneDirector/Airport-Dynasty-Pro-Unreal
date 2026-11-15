@@ -25,3 +25,23 @@ to the roof). Sizes: museum 36, escalator 36, Grand Hall 78, offices 42 over the
 - **The offices' big window = their west wall onto the Grand Hall** (inset): glass from the office floor (+6.00) to the
   ceiling (+11.40), flush with the wall's face, frames like the gates' windows; ~35 cm of wall left at each end; every
   pane the same width, every frame gap the same.
+
+Owner's go (2026-11-15), the blueprints confirmed, plus:
+- **Two escalators side by side**, one up, one down, as in a real airport, in fine detail (steps with their cleats,
+  the yellow edges, comb plates, balustrades, handrails). Built so the steps run endlessly: they go round under the
+  floor plates at each end, never seen on their way back; you always see the steps and where to step on.
+  References: Commons photos (CC BY / CC0 / PD), Art/Escalator/Reference.
+- **From the landing on Floor 2 a wide open way into the long gate walkway** - no door at all, wide, designed to
+  look very nice.
+- When done: pictures of every room, outside and inside: the escalators and the lift on Floor 1 and Floor 2, the
+  museum.
+- Open question sent to the owner: the Floor 2 bar (x 104-146, z 30-52) lies where the offices would stretch north.
+
+Progress (2026-11-15 evening):
+- Owner: "if there is any open ground, then just fill it so there is actually a floor" (the west end: today the
+  Vortex Gallery pod stands at x 16-36 with grass west of it).
+- Escalators: model, moving steps, smoothed handrails done (Art/Escalator, Tools/import_escalator.py, Escalators.h);
+  not yet placed in the terminal; nothing of the floor-2 changes published.
+- Tools ready: Tools/terminal_where.py (where every terminal piece is, in plan metres), Tools/terminal_cut.py (cut boxes
+  out of merged terminal pieces inside Unreal), -UIPlanView= camera pictures.
+- Open: where the floor-2 toilets and family room go once the bar moves to x 72-114.
