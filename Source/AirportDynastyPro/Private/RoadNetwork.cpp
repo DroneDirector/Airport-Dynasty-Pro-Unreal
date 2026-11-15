@@ -22,12 +22,15 @@
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#if WITH_EDITOR
+// (the roads' bake, ARoadNetwork::BakeAll, runs in the editor only: these stay out of the game's own build)
 #include "Components/DynamicMeshComponent.h"
 #include "DynamicMeshToMeshDescription.h"
 #include "StaticMeshAttributes.h"
-#include "PhysicsEngine/BodySetup.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "UObject/SavePackage.h"
+#endif
+#include "PhysicsEngine/BodySetup.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
 #include "Serialization/JsonWriter.h"
 #include "Engine/StaticMesh.h"
