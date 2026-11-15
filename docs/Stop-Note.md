@@ -1,21 +1,20 @@
-# Stop note - 2026-11-14, evening
+# Stop note — 2026-11-15 (pause during the town roads)
 
-## Done today (all committed and pushed)
-- Self check-in kiosk rebuilt from the photos and close-ups; green light along the whole handle (same brightness)
-- Zinc standing-seam roof on the terminal's wave roof and the car rental roof (true size, angle-true UVs)
-- Worldwide terrain tiles rebuilt with the transpose fix (build only - NOT packed or uploaded)
-- Land along the roads (parts 1-4): our own Nanite ground in a band along the roads, roads lie on it exactly,
-  globe's picture on it, flared rim, grass clumps; terrain detail locked at Normal (slider removed)
-- Wash hose: about 28 m straight jet (lands ~37 m), more water on the ground; no-smoking sticker checked
-- To-do: 10 runway wear, 20 door rule, 32h real Unreal loading on the loading screen; to-do 56 (tablet) added;
-  list revised to real clock time and finished items ticked off
+**Done (committed, pushed):**
+- Every town street re-traced to the plan's middle line and smoothed. Tools/check_roads.py passes all town streets except a gentle real S-bend on Main Street.
+- The road to town follows the overview from the 3 km mark; the airport area stays as approved.
+- Junctions have curved corners. Each street now has its own lanes (a shared-lanes bug had put pavement openings in the wrong places).
+- The villa and the dealership are placed in town (the villa by its drive as on the plan). Their import naming is fixed in Tools/glb_nodes.py and Tools/import_model.py.
+- The title screen has town demos (Car dealership, Your villa), and the demo buttons are half size.
+- The land is rebuilt as Nanite.
 
-## Half-done
-- Nothing half-done in the files. No. 49 (shorts for the Tee outfit) was only looked at: nothing changed yet.
+**Half done:**
+- Thin leftover kerb strips still cross the junctions. They are the narrowed-away pavements.
+- The fix is written but not applied: cut each street into sections with no pavement across a mouth, and give turning circles their pavement as arcs round the opening. The edit never ran, so nothing is broken.
 
-## Next
-- No. 49: shorts for the Tee outfit (from the suit's trouser code, cut short, Tee outfit on the full body);
-  front/back previews first, wait for the owner's corrections, then the in-game shot
-- No. 32b (creator screen) needs No. 32a first (the 19 h parts library the PC runs) - ask the owner
-- Land along the roads: pale streaks in the high view, stones along the edge (reference photos first)
-- Terrain packs: upload only when the owner says
+**Next:**
+1. Apply the sections fix in Tools/make_roads.py.
+2. Run `python Tools/check_roads.py`.
+3. Compile, then take the -TownShots pictures (TW_01-TW_17).
+4. Commit.
+5. The court house waits for the owner's hand-over.
