@@ -23,12 +23,19 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #if WITH_EDITOR
-// (the roads' bake, ARoadNetwork::BakeAll, runs in the editor only: these stay out of the game's own build)
+// (the roads' bake, ARoadNetwork::BakeAll, runs in the editor only: these stay out of the game's own build; Windows'
+//  min/max macros, left defined by another file in the same build chunk, are hidden while the geometry headers are read)
+#pragma push_macro("max")
+#pragma push_macro("min")
+#undef max
+#undef min
 #include "Components/DynamicMeshComponent.h"
 #include "DynamicMeshToMeshDescription.h"
 #include "StaticMeshAttributes.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "UObject/SavePackage.h"
+#pragma pop_macro("min")
+#pragma pop_macro("max")
 #endif
 #include "PhysicsEngine/BodySetup.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
