@@ -59,6 +59,9 @@ for id_, name, kind, colour, fn in designs_batch1.BATCH:
 import designs_batch2                                               # (the second batch, OK'd by the owner 2026-11-15)
 for id_, name, kind, colour, fn in designs_batch2.BATCH:
     save(fn(), id_, name, kind, colour)
+import designs_batch3                                               # (the third batch, OK'd 2026-11-15)
+for id_, name, kind, colour, fn in designs_batch3.BATCH:
+    save(fn(), id_, name, kind, colour)
 
 Image.new('RGBA', (4, 4), (0, 0, 0, 0)).save(os.path.join(OUT, 'T_TatDesign_None.png'))
 json.dump({'_': 'Tattoo designs (Art/Tattoos/make_designs.py). kind = the places it fits: arm (left or right), leg, neck (left, right, back, throat), fingers. One design can be on several places.',

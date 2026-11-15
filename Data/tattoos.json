@@ -208,6 +208,146 @@
    "kind": "fingers",
    "colour": false,
    "picture": "/Game/People/Tattoos/Designs/T_TatDesign_finger_dots"
+  },
+  {
+   "id": "hummingbird_forearm",
+   "name": "Hummingbird at a blossom (forearm)",
+   "kind": "arm",
+   "colour": true,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_hummingbird_forearm"
+  },
+  {
+   "id": "balloon_forearm",
+   "name": "Hot-air balloon (forearm)",
+   "kind": "arm",
+   "colour": true,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_balloon_forearm"
+  },
+  {
+   "id": "key_forearm",
+   "name": "Old key (forearm)",
+   "kind": "arm",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_key_forearm"
+  },
+  {
+   "id": "clock_upperarm",
+   "name": "Pocket watch (upper arm)",
+   "kind": "arm",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_clock_upperarm"
+  },
+  {
+   "id": "propeller_forearm",
+   "name": "Wooden propeller (forearm)",
+   "kind": "arm",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_propeller_forearm"
+  },
+  {
+   "id": "chevron_band",
+   "name": "Chevron band (upper arm)",
+   "kind": "arm",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_chevron_band"
+  },
+  {
+   "id": "lotus_calf",
+   "name": "Lotus on the water (calf)",
+   "kind": "leg",
+   "colour": true,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_lotus_calf"
+  },
+  {
+   "id": "sunflower_thigh",
+   "name": "Sunflower (thigh)",
+   "kind": "leg",
+   "colour": true,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_sunflower_thigh"
+  },
+  {
+   "id": "bee_calf",
+   "name": "Honeybee (calf)",
+   "kind": "leg",
+   "colour": true,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_bee_calf"
+  },
+  {
+   "id": "arrow_thigh",
+   "name": "Arrow (thigh)",
+   "kind": "leg",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_arrow_thigh"
+  },
+  {
+   "id": "triangles_calf",
+   "name": "Nested triangles (calf)",
+   "kind": "leg",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_triangles_calf"
+  },
+  {
+   "id": "mushrooms_calf",
+   "name": "Toadstools (calf)",
+   "kind": "leg",
+   "colour": true,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_mushrooms_calf"
+  },
+  {
+   "id": "rose_small_neck",
+   "name": "Rosebud",
+   "kind": "neck",
+   "colour": true,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_rose_small_neck"
+  },
+  {
+   "id": "three_dots_neck",
+   "name": "Three dots",
+   "kind": "neck",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_three_dots_neck"
+  },
+  {
+   "id": "moon_stars_neck",
+   "name": "Moon and stars",
+   "kind": "neck",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_moon_stars_neck"
+  },
+  {
+   "id": "heart_line_neck",
+   "name": "Heartbeat heart",
+   "kind": "neck",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_heart_line_neck"
+  },
+  {
+   "id": "radar_neck",
+   "name": "Radar scope",
+   "kind": "neck",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_radar_neck"
+  },
+  {
+   "id": "finger_hearts",
+   "name": "Red hearts",
+   "kind": "fingers",
+   "colour": true,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_finger_hearts"
+  },
+  {
+   "id": "finger_chevrons",
+   "name": "Chevrons",
+   "kind": "fingers",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_finger_chevrons"
+  },
+  {
+   "id": "finger_stars",
+   "name": "Stars and dots",
+   "kind": "fingers",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_finger_stars"
   }
  ]
 }
