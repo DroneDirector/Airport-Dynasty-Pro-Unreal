@@ -1,0 +1,129 @@
+{
+ "_": "Tattoo designs (Art/Tattoos/make_designs.py). kind = the places it fits: arm (left or right), leg, neck (left, right, back, throat), fingers. One design can be on several places.",
+ "places": {
+  "arm": [
+   "arm_l",
+   "arm_r"
+  ],
+  "leg": [
+   "leg_l",
+   "leg_r"
+  ],
+  "neck": [
+   "neck_l",
+   "neck_r",
+   "neck_back",
+   "neck_throat"
+  ],
+  "fingers": [
+   "fingers_l",
+   "fingers_r"
+  ]
+ },
+ "head_places": [
+  "neck_l",
+  "neck_r",
+  "neck_back",
+  "neck_throat"
+ ],
+ "designs": [
+  {
+   "id": "sleeve_waves",
+   "name": "Waves and mountains sleeve",
+   "kind": "arm",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_sleeve_waves"
+  },
+  {
+   "id": "sleeve_waves_colour",
+   "name": "Waves and mountains sleeve, colour",
+   "kind": "arm",
+   "colour": true,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_sleeve_waves_colour"
+  },
+  {
+   "id": "compass_forearm",
+   "name": "Compass rose (forearm)",
+   "kind": "arm",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_compass_forearm"
+  },
+  {
+   "id": "aurora_neck",
+   "name": "Aurora over mountains",
+   "kind": "neck",
+   "colour": true,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_aurora_neck"
+  },
+  {
+   "id": "fern_forearm",
+   "name": "Fern fronds (forearm)",
+   "kind": "arm",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_fern_forearm"
+  },
+  {
+   "id": "rose_upperarm",
+   "name": "Rose (upper arm)",
+   "kind": "arm",
+   "colour": true,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_rose_upperarm"
+  },
+  {
+   "id": "mandala_band",
+   "name": "Geometric band (upper arm)",
+   "kind": "arm",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_mandala_band"
+  },
+  {
+   "id": "lighthouse_calf",
+   "name": "Lighthouse (calf)",
+   "kind": "leg",
+   "colour": true,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_lighthouse_calf"
+  },
+  {
+   "id": "pine_band_calf",
+   "name": "Pine ring (lower calf)",
+   "kind": "leg",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_pine_band_calf"
+  },
+  {
+   "id": "swallows_thigh",
+   "name": "Two swallows (thigh)",
+   "kind": "leg",
+   "colour": true,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_swallows_thigh"
+  },
+  {
+   "id": "star_neck",
+   "name": "Five-point star",
+   "kind": "neck",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_star_neck"
+  },
+  {
+   "id": "knot_neck",
+   "name": "Three-loop knot",
+   "kind": "neck",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_knot_neck"
+  },
+  {
+   "id": "finger_symbols",
+   "name": "Sun, moon, star, wave",
+   "kind": "fingers",
+   "colour": false,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_finger_symbols"
+  },
+  {
+   "id": "finger_rings",
+   "name": "Teal rings with gold dots",
+   "kind": "fingers",
+   "colour": true,
+   "picture": "/Game/People/Tattoos/Designs/T_TatDesign_finger_rings"
+  }
+ ]
+}

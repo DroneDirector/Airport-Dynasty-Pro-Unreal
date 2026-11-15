@@ -1,0 +1,33 @@
+{
+ "arm_l": 68647,
+ "arm_l_marks": {
+  "elbow": 0.303,
+  "wrist": 0.808,
+  "length_cm": 52.2
+ },
+ "leg_l": 132929,
+ "leg_l_marks": {
+  "knee": 0.293,
+  "ankle": 0.781,
+  "length_cm": 85.4
+ },
+ "fingers_l": 4503,
+ "arm_r": 68708,
+ "arm_r_marks": {
+  "elbow": 0.305,
+  "wrist": 0.809,
+  "length_cm": 52.4
+ },
+ "leg_r": 132733,
+ "leg_r_marks": {
+  "knee": 0.292,
+  "ankle": 0.781,
+  "length_cm": 85.3
+ },
+ "fingers_r": 4439,
+ "neck_throat": 66961,
+ "neck_l": 55755,
+ "neck_back": 36852,
+ "neck_r": 55266,
+ "neck_size_cm": 9.0
+}

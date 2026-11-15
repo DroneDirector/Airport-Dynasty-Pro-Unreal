@@ -2513,8 +2513,67 @@ void AADPHUD::Tick(float Dt)
 			// your body turned round to face the camera (the camera stays where it is behind the capsule)
 			if (Before < 52.f && ShotClock >= 52.f) if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) if (AActor* H = Wk->HumanActor()) H->AddActorLocalRotation(FRotator(0.f, 180.f, 0.f));
 			if (Before < 55.f && ShotClock >= 55.f) Shot(TEXT("Body_Front"));
-			if (Before < 56.f && ShotClock >= 56.f) { if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) Wk->SetThirdPerson(false); ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
-			if (Before < 57.f && ShotClock >= 57.f) FGenericPlatformMisc::RequestExit(false);
+			// close-ups (2026-11-15, the tattoo samples): a camera 55 cm from the right forearm, the left forearm, the neck
+			FString TatSet; const bool bTat = FParse::Param(FCommandLine::Get(), TEXT("TattooSample")) || FParse::Value(FCommandLine::Get(), TEXT("Tattoos="), TatSet, false);
+			auto Close = [this](const TCHAR* Bone, const FVector& Off, const TCHAR* Bone2 = nullptr)
+			{
+				AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn()); AActor* H = Wk ? Wk->HumanActor() : nullptr; if (!H) return;
+				TArray<USkeletalMeshComponent*> Sk; H->GetComponents<USkeletalMeshComponent>(Sk);
+				USkeletalMeshComponent* B = nullptr; for (USkeletalMeshComponent* S : Sk) if (S->GetName().StartsWith(TEXT("Body"))) B = S;
+				if (!B) return;
+				const FVector At = Bone2 ? (B->GetSocketLocation(Bone) + B->GetSocketLocation(Bone2)) * 0.5 : B->GetSocketLocation(Bone);   // (two joints: halfway between)
+				const FVector Eye = At + H->GetActorTransform().TransformVectorNoScale(Off);
+				if (APlayerController* PC = GetOwningPlayerController())
+				{
+					ACameraActor* Cam = GetWorld()->SpawnActor<ACameraActor>(Eye, (At - Eye).Rotation());
+					if (Cam) { Cam->GetCameraComponent()->SetConstraintAspectRatio(false); Cam->GetCameraComponent()->SetFieldOfView(40.f); PC->SetViewTarget(Cam); }
+				}
+			};
+			if (bTat && Before < 56.f && ShotClock >= 56.f) Close(TEXT("lowerarm_r"), FVector(0.f, 55.f, 10.f));
+			if (bTat && Before < 58.f && ShotClock >= 58.f) Shot(TEXT("Tattoo_RightArm"));
+			if (bTat && Before < 59.f && ShotClock >= 59.f) Close(TEXT("lowerarm_l"), FVector(0.f, 55.f, 10.f), TEXT("hand_l"));
+			if (bTat && Before < 61.f && ShotClock >= 61.f) Shot(TEXT("Tattoo_LeftForearm"));
+			if (bTat && Before < 62.f && ShotClock >= 62.f) Close(TEXT("neck_02"), FVector(30.f, 35.f, 5.f));
+			if (bTat && Before < 64.f && ShotClock >= 64.f) Shot(TEXT("Tattoo_Neck"));
+			// (2026-11-15, the tattoo places) each place seen from its own side, the direction taken from the skeleton: the
+			// left from the collarbones, the front from the jaw (the face's bones)
+			auto Side = [this](const TCHAR* Bone, const TCHAR* Bone2, int32 Dir, float Dist, float Up)
+			{
+				AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn()); AActor* H = Wk ? Wk->HumanActor() : nullptr; if (!H) return;
+				TArray<USkeletalMeshComponent*> Sk; H->GetComponents<USkeletalMeshComponent>(Sk);
+				USkeletalMeshComponent* B = nullptr; USkeletalMeshComponent* F = nullptr;
+				for (USkeletalMeshComponent* S : Sk) { if (S->GetName().StartsWith(TEXT("Body"))) B = S; else if (S->GetName().StartsWith(TEXT("Face"))) F = S; }
+				if (!B) return;
+				const FVector At = Bone2 ? (B->GetSocketLocation(Bone) + B->GetSocketLocation(Bone2)) * 0.5 : B->GetSocketLocation(Bone);
+				FVector Left = (B->GetSocketLocation(TEXT("clavicle_l")) - B->GetSocketLocation(TEXT("clavicle_r"))).GetSafeNormal2D();
+				FVector Fwd = F ? (F->GetSocketLocation(TEXT("FACIAL_C_Jaw")) - B->GetSocketLocation(TEXT("neck_02"))).GetSafeNormal2D() : FVector::CrossProduct(FVector::UpVector, Left);
+				const FVector D = Dir == 0 ? Left : Dir == 1 ? -Left : Dir == 2 ? -Fwd : Fwd;      // (0 left, 1 right, 2 back, 3 front)
+				const FVector Eye = At + D * Dist + FVector(0, 0, Up);
+				if (APlayerController* PC = GetOwningPlayerController())
+					if (ACameraActor* Cam = GetWorld()->SpawnActor<ACameraActor>(Eye, (At - Eye).Rotation()))
+					{ Cam->GetCameraComponent()->SetConstraintAspectRatio(false); Cam->GetCameraComponent()->SetFieldOfView(40.f); PC->SetViewTarget(Cam); }
+			};
+			if (bTat && Before < 65.f && ShotClock >= 65.f) Side(TEXT("upperarm_r"), TEXT("hand_r"), 1, 95.f, 10.f);
+			if (bTat && Before < 67.f && ShotClock >= 67.f) Shot(TEXT("Tattoo_Place_RightArm"));
+			if (bTat && Before < 68.f && ShotClock >= 68.f) Side(TEXT("upperarm_l"), TEXT("hand_l"), 0, 95.f, 10.f);
+			if (bTat && Before < 70.f && ShotClock >= 70.f) Shot(TEXT("Tattoo_Place_LeftArm"));
+			if (bTat && Before < 71.f && ShotClock >= 71.f) Side(TEXT("hand_l"), TEXT("middle_02_l"), 0, 32.f, 6.f);
+			if (bTat && Before < 73.f && ShotClock >= 73.f) Shot(TEXT("Tattoo_Place_LeftHand"));
+			if (bTat && Before < 74.f && ShotClock >= 74.f) Side(TEXT("neck_02"), nullptr, 0, 40.f, 2.f);
+			if (bTat && Before < 76.f && ShotClock >= 76.f) Shot(TEXT("Tattoo_Place_NeckLeft"));
+			if (bTat && Before < 77.f && ShotClock >= 77.f) Side(TEXT("neck_02"), nullptr, 2, 40.f, 4.f);
+			if (bTat && Before < 79.f && ShotClock >= 79.f) Shot(TEXT("Tattoo_Place_NeckBack"));
+			if (bTat && Before < 80.f && ShotClock >= 80.f) Side(TEXT("neck_02"), nullptr, 3, 42.f, -2.f);
+			if (bTat && Before < 82.f && ShotClock >= 82.f) Shot(TEXT("Tattoo_Place_Throat"));
+			if (bTat && Before < 83.f && ShotClock >= 83.f) Side(TEXT("hand_r"), TEXT("middle_02_r"), 1, 32.f, 6.f);
+			if (bTat && Before < 85.f && ShotClock >= 85.f) Shot(TEXT("Tattoo_Place_RightHand"));
+			if (bTat && Before < 86.f && ShotClock >= 86.f) Side(TEXT("calf_l"), TEXT("foot_l"), 0, 75.f, 5.f);
+			if (bTat && Before < 88.f && ShotClock >= 88.f) Shot(TEXT("Tattoo_Place_LeftCalf"));
+			if (bTat && Before < 89.f && ShotClock >= 89.f) Side(TEXT("thigh_l"), TEXT("calf_l"), 0, 85.f, 5.f);
+			if (bTat && Before < 91.f && ShotClock >= 91.f) Shot(TEXT("Tattoo_Place_LeftThigh"));
+			const float End = bTat ? 93.f : 57.f;
+			if (Before < End - 1.f && ShotClock >= End - 1.f) { if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) Wk->SetThirdPerson(false); ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
+			if (Before < End && ShotClock >= End) FGenericPlatformMisc::RequestExit(false);
 		}
 		// -UIHallWalk: you walking in the main hall of the passenger terminal (owner, 2026-11-12), from behind and from the front
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")))
@@ -3258,6 +3317,10 @@ void AADPHUD::Tick(float Dt)
 					{ Sum += FApp::GetDeltaTime(); SumG += FPlatformTime::ToMilliseconds(GGameThreadTime); SumR += FPlatformTime::ToMilliseconds(GRenderThreadTime); SumGpu += FPlatformTime::ToMilliseconds(RHIGetGPUFrameCycles()); ++Frames; }
 					if (Before < Ph[p].T + 28.f && ShotClock >= Ph[p].T + 28.f && Frames)
 					{ ADP_LOG(TEXT("GrassPerf: %s: %.1f ms a frame (%.0f fps) - game %.1f, render %.1f, GPU %.1f ms - over %d frames"), Ph[p].Name, Sum / Frames * 1000.0, Frames / Sum, SumG / Frames, SumR / Frames, SumGpu / Frames, Frames); Sum = SumG = SumR = SumGpu = 0; Frames = 0; }
+					// (to-do 63: high up the grass costs ~9 ms of the game thread, not the graphics card - one frame's breakdown of
+					//  the game thread into the log at each view, to see where)
+					if (Before < Ph[p].T + 22.f && ShotClock >= Ph[p].T + 22.f)
+						if (APlayerController* PCd = GetOwningPlayerController()) { ADP_LOG(TEXT("GrassPerf: frame breakdown, %s"), Ph[p].Name); PCd->ConsoleCommand(TEXT("stat dumpframe -ms=0.4")); }
 					// (each view's picture for the owner, after its measuring: high quality PNG)
 					if (Before < Ph[p].T + 28.5f && ShotClock >= Ph[p].T + 28.5f)
 						if (APlayerController* PCs = GetOwningPlayerController())

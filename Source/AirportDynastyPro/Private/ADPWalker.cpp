@@ -1,5 +1,6 @@
 // The player walking through the terminal in first person: walk, run, jump and crouch.
 #include "ADPWalker.h"
+#include "Tattoo.h"
 #include "Wardrobe.h"
 #include "DriverPoseAnim.h"
 #include "TwoBoneIK.h"
@@ -144,6 +145,13 @@ bool AADPWalker::WearMetaHuman(const FString& Who)
 		else if (N.StartsWith(TEXT("Face"))) Face = S;
 	}
 	if (!HumanBody) { ADP_WARN(TEXT("Walker: %s has no Body"), *Who); Human->Destroy(); Human = nullptr; return false; }
+	// tattoos (owner, 2026-11-15): you wear your saved tattoos (chosen in the creator or at the tattooist, Tattoo.h) on
+	// your own copy of the skin material. -Tattoos=place:design,... sets and saves them (tests, pictures).
+	{
+		FString Set;
+		if (FParse::Value(FCommandLine::Get(), TEXT("Tattoos="), Set, false)) ADPTattoo::Save(ADPTattoo::Parse(Set));
+		ADPTattoo::Wear(HumanBody, Face, ADPTattoo::Saved());
+	}
 	// the clothes follow the body's pose; the face rides on the body's head bone
 	for (USkeletalMeshComponent* S : Skels)
 		if (S != HumanBody && S != Face) { S->SetLeaderPoseComponent(HumanBody); Clothes.Add(S); }
