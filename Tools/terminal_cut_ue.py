@@ -1,3 +1,4 @@
+import os
 # Cuts boxes out of terminal pieces inside Unreal (Tools/terminal_cut.py writes the job): each job piece is copied to
 # /Game/Terminal/Meshes/<piece>_cut<n>, and every face whose middle lies in one of the job's boxes (the plan's metres)
 # is taken out of the copy; materials, Nanite and collision as the original.
@@ -6,6 +7,12 @@ import unreal
 JOB = sys.argv[-1]
 job = json.load(open(JOB))
 EAL = unreal.EditorAssetLibrary
+# (Git LFS leaves committed .uasset files read-only: Unreal then can't replace them and the import fails silently -
+#  the game kept an old copy of the new parts; the flag is cleared first)
+import glob, stat
+for _f in glob.glob(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'Content', 'Terminal/Meshes', '*.uasset')):
+    os.chmod(_f, stat.S_IWRITE | stat.S_IREAD)
+
 for j in job:
     src = '/Game/Terminal/Meshes/' + j['piece']; dst = '/Game/Terminal/Meshes/' + j['new']
     if EAL.does_asset_exist(dst): EAL.delete_asset(dst)

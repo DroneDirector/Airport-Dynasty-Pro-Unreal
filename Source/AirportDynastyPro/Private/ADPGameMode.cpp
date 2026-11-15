@@ -2,6 +2,8 @@
 // the player standing at the plan's spawn point.
 #include "ADPGameMode.h"
 #include "Pets.h"
+#include "Escalators.h"
+#include "TerminalLift.h"
 #include "Misc/PackageName.h"
 #include "SunClock.h"
 #include "ADPWalker.h"
@@ -133,6 +135,16 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 					for (TActorIterator<ARoadSigns> It(W); It; ++It) It->Resettle();
 					// your pet, sitting just outside the terminal's main entrance for now (Pets.h)
 					ADPPets::PlaceHome(W);
+					// the escalators in the new escalator room (Escalators.h): their foot at the Grand Hall's side, rising
+					// west to the Floor 2 landing (their top combs on its edge, x 21), the pair in the guardrail's gap
+					if (FPackageName::DoesPackageExist(TEXT("/Game/Escalator/SM_EscStep")))
+					{
+						FActorSpawnParameters Sp; Sp.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+						const float Foot = 21.f + AEscalatorPair::LengthAlong();
+						if (AEscalatorPair* E = W->SpawnActor<AEscalatorPair>(FVector(Foot * 100.f, -14.19f * 100.f, 1.2f), FRotator(0.f, -90.f, 0.f), Sp)) E->Build();
+						// the staff lift up to the offices (TerminalLift.h): its car in the shaft in the staff entrance hall
+						if (ATerminalLift* Lf = W->SpawnActor<ATerminalLift>(FVector::ZeroVector, FRotator::ZeroRotator, Sp)) Lf->Build(152.6f, 155.6f, 47.8f, 51.2f, 48.9f, 50.1f);
+					}
 				}), 1.0f, false);
 			}
 			if (!bBabylon)

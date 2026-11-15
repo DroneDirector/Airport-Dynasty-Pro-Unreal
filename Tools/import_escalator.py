@@ -17,6 +17,12 @@ MAP = {'M_EscStainless': 'MI_T_liftBrushed', 'M_EscStepMetal': 'MI_T_jwAluB', 'M
        'M_EscFloorPlate': 'MI_T_steel', 'M_EscGlass': 'MI_T_glass', 'M_EscHandrail': 'MI_T_jwRubber',
        'M_EscTruss': 'MI_T_steel', 'M_EscLight': 'MI_T_J-1_LED'}
 def log(*a): unreal.log('ADP_ESC ' + ' '.join(str(x) for x in a))
+# (Git LFS leaves committed .uasset files read-only: Unreal then can't replace them and the import fails silently -
+#  the game kept an old copy of the new parts; the flag is cleared first)
+import glob, stat
+for _f in glob.glob(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'Content', 'Escalator', '*.uasset')):
+    os.chmod(_f, stat.S_IWRITE | stat.S_IREAD)
+
 
 for name in ('SM_EscStep', 'SM_EscBody', 'SM_EscRamp'):
     path = '%s/%s' % (DEST, name)

@@ -1,7 +1,7 @@
 [
  {
   "node": 661,
-  "why": "the Grand Hall's west wall: open onto the escalator room (rebuilt above +12 by the annex)",
+  "why": "the Grand Hall's west wall: open onto the escalator room (rebuilt above +12 by the annex); its east wall between +6 and +12: the offices' big window",
   "boxes": [
    [
     35.4,
@@ -10,6 +10,14 @@
     36.6,
     25,
     29.95
+   ],
+   [
+    113.8,
+    6.5,
+    0.0,
+    114.2,
+    11.9,
+    30.0
    ]
   ]
  },
@@ -80,6 +88,34 @@
     56.1,
     12.1,
     30.3
+   ]
+  ]
+ },
+ {
+  "node": 9698,
+  "why": "the bar's north wall: open onto the gate walkway",
+  "boxes": [
+   [
+    71.5,
+    5.9,
+    51.6,
+    114.5,
+    12.1,
+    52.4
+   ]
+  ]
+ },
+ {
+  "node": 9697,
+  "why": "the bar's north wall: open onto the gate walkway",
+  "boxes": [
+   [
+    71.5,
+    5.9,
+    51.6,
+    114.5,
+    11.5,
+    52.4
    ]
   ]
  }

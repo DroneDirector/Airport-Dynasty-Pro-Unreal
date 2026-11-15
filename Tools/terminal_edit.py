@@ -74,6 +74,18 @@ for nm in ('F2-WC-M', 'F2-WC-F', 'F2-FAMILY'):
     N[i]['translation'] = [-7.0 - 97.0, 0.0, 11.0 + 41.0]
     log.append('moved: %s onto the escalator landing' % nm)
 
+# ---- the bar: 32 m west at its full size (x 72..114, z 30..52), open to the gate walkway (its north doors and the
+#      sign on that wall out; the wall itself is cut by Tools/terminal_cut.py) ----
+i = byname['F2-BAR']; N[i]['translation'] = [32.0, 0.0, 0.0]; log.append('moved: F2-BAR 32 m west')
+for c in list(N[i]['children']):
+    if N[c]['name'] in ('D-F2-BAR-1', 'D-F2-BAR-2', 'M-F2-03'): drop(c, 'the bar opens onto the walkway')
+# ---- tax free and the airside landing: their west 16 m (x 56..72), their shells rebuilt by the annex ----
+for rn in ('F2-TAXFREE', 'F2-LANDING'):
+    for c in list(N[byname[rn]]['children']):
+        nm = N[c]['name']; b = BOX.get(c)
+        if '/STRUCTURE-' in nm or nm.startswith('w#'): drop(c, 'rebuilt by the annex, x 56..72')
+        elif b and b[3] > 71.8: drop(c, 'beyond x 72: the bar is there now')
+
 # ---- the new parts (Art/TerminalAnnex, Tools/import_annex.py): placed as they are (made in the plan's metres) ----
 def add(parent_name, name, asset):
     N.append({'name': name, 'mesh': 90000 + len(N), 'asset': asset})
@@ -93,6 +105,7 @@ def lamps(parent_name, prefix, xs, zs, y):
 lamps('F1', 'F1-ESC', [3, 9, 15], [4, 10, 16, 22, 28], 5.33)
 lamps('F1', 'F1-ESC-HIGH', [24, 30], [4, 10, 16, 22, 28], 11.28)
 lamps('F2', 'F2-ESC-LANDING', [17], [3, 9, 20, 26], 11.28)
+lamps('F2', 'F2-OFFICES', [118, 124, 130, 136, 146, 151], [4, 10, 16, 22, 28, 34, 40], 11.28)
 lamps('F1', 'F1-MUSEUM-HALL', [-32, -26, -20, -14, -8, -2], [4, 12, 20, 28, 36, 44], 11.28)
 json.dump(L, open(OUT, 'w'))
 print('\n'.join(log))

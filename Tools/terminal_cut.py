@@ -13,7 +13,7 @@ orig = json.load(open(TW.D('terminal-pieces-original.json'))) if os.path.exists(
 if not os.path.exists(TW.D('terminal-pieces-original.json')): json.dump(P, open(TW.D('terminal-pieces-original.json'), 'w'))
 L = json.load(open(TW.D('terminal-layout.json'))); N = L['nodes']
 for i, n in enumerate(N):
-    if 'mesh' in n: P['terminal_mesh_%d' % n['mesh']] = orig['terminal_mesh_%d' % n['mesh']]
+    if 'mesh' in n and 'terminal_mesh_%d' % n['mesh'] in orig: P['terminal_mesh_%d' % n['mesh']] = orig['terminal_mesh_%d' % n['mesh']]
 json.dump(P, open(TW.D('terminal-pieces.json'), 'w'))      # (the originals back first, so the matrices are the originals')
 job = []
 idx = [c['node'] for c in cuts]

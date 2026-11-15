@@ -8,6 +8,12 @@ import unreal
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EAL = unreal.EditorAssetLibrary; AT = unreal.AssetToolsHelpers.get_asset_tools()
 names = [a for a in sys.argv[1:] if not a.endswith('.py')]
+# (Git LFS leaves committed .uasset files read-only: Unreal then can't replace them and the import fails silently -
+#  the game kept an old copy of the new parts; the flag is cleared first)
+import glob, stat
+for _f in glob.glob(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'Content', 'Terminal/Meshes', '*.uasset')):
+    os.chmod(_f, stat.S_IWRITE | stat.S_IREAD)
+
 for name in names:
     path = '/Game/Terminal/Meshes/' + name
     if EAL.does_asset_exist(path): EAL.delete_asset(path)

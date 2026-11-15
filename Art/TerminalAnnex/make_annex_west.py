@@ -151,6 +151,71 @@ S.box(0.0, 6.0, 11.4, 12.0, 30.0, 52.0, W); S.box(0.0, 6.0, 11.32, 11.4, 30.0, 5
 # the museum strip's west face on Floor 1 and 2 against the link is the link's own wall (x 6, Floor 2) and the plant
 # room's new west wall (Floor 1)
 
+# ============ tax free and the airside landing, their west 16 m (x 56..72) ============
+S.box(56.0, 72.0, 5.99, 6.01, 30.0, 42.0, 'MI_T_tile', sides=('+y',))
+S.box(56.0, 72.0, 5.63, 5.99, 30.0, 52.0, 'MI_T_concrete', sides=('-y',))
+S.box(56.0, 72.0, 5.99, 6.01, 42.0, 52.0, 'MI_T_terrazzo', sides=('+y',))
+S.box(56.0, 72.0, 11.32, 11.4, 30.0, 52.0, 'MI_T_offwhite', sides=('-y',))
+S.box(56.0, 72.0, 11.4, 12.0, 30.0, 52.0, W)
+glass_front_z(30.0, 56.0, 72.0, 6.01, 11.4, transoms=())                            # tax free's glass onto the Grand Hall
+# between tax free and the landing: a wall with a wide open doorway (x 60..66)
+wall_z(42.0, 56.0, 72.0, 6.01, 11.4, m='MI_T_plaster', holes=[(60.0, 66.0, 6.0, 9.6)])
+
+# ============ the offices on Floor 2 over the staff wing (x 114..156, z 0..52) ============
+OX0, OX1, OZ0, OZ1 = 114.0, 156.0, 0.0, 52.0
+STAIR = (140.0, 143.0, 43.0, 51.0)            # the staff stairs coming up (S-STAFF)
+SHAFT = (152.4, 155.8, 47.6, 51.4)            # the lift, in the staff entrance hall's north-east corner
+def floor_with_holes(x0, x1, z0, z1, holes, top, y):
+    xs = sorted({x0, x1} | {h[0] for h in holes} | {h[1] for h in holes})
+    zs = sorted({z0, z1} | {h[2] for h in holes} | {h[3] for h in holes})
+    for xa, xb in zip(xs, xs[1:]):
+        for za, zb in zip(zs, zs[1:]):
+            if any(h[0] <= xa and xb <= h[1] and h[2] <= za and zb <= h[3] for h in holes): continue
+            S.box(xa, xb, y - 0.02, y, za, zb, top, sides=('+y',))
+            S.box(xa, xb, y - 0.38, y - 0.02, za, zb, 'MI_T_concrete', sides=('-y',))
+floor_with_holes(OX0, OX1, OZ0, OZ1, [STAIR, SHAFT], 'MI_T_carpetGrey', 6.01)
+for h in (STAIR, SHAFT):                       # the openings' edges
+    S.box(h[0], h[1], 5.63, 6.01, h[2] - 0.02, h[2], W); S.box(h[0], h[1], 5.63, 6.01, h[3], h[3] + 0.02, W)
+    S.box(h[0] - 0.02, h[0], 5.63, 6.01, h[2], h[3], W); S.box(h[1], h[1] + 0.02, 5.63, 6.01, h[2], h[3], W)
+S.box(OX0, OX1, 11.32, 11.4, OZ0, OZ1, 'MI_T_offwhite', sides=('-y',))
+S.box(OX0, OX1, 11.4, 12.0, OZ0, OZ1, W)
+# the big window onto the Grand Hall (owner: almost the whole wall, ~35 cm of wall at each end, the terminal's glass,
+# frames like the main hall's big windows, every pane the same width)
+E_, MW, NP = 0.35, 0.12, 10
+pane = (30.0 - 2 * E_ - (NP - 1) * MW) / NP
+G.box(113.988, 114.012, 6.01, 11.4, E_, 30.0 - E_, 'MI_T_glass')
+z = E_
+for i in range(NP - 1):
+    z += pane; S.box(113.925, 114.075, 6.01, 11.4, z, z + MW, 'MI_T_mullion'); z += MW
+S.box(113.925, 114.075, 6.01, 6.09, E_, 30.0 - E_, 'MI_T_mullion'); S.box(113.925, 114.075, 11.32, 11.4, E_, 30.0 - E_, 'MI_T_mullion')
+S.box(113.9, 114.1, 11.4, 12.0, 0.0, 30.0, W)
+S.box(113.9, 114.1, 6.01, 11.4, 0.0, E_, W); S.box(113.9, 114.1, 6.01, 11.4, 30.0 - E_, 30.0, W)
+print('ANNEX the offices window: %d panes of %.3f m, %d frames of %d cm, %.2f m ends' % (NP, pane, NP - 1, MW * 100, E_))
+# the kerb-side wall with ten windows, the east wall with six, the wall onto the gate walkway (no way through: staff)
+OW = [(OX0 + 1.6 + i * 4.08, OX0 + 1.6 + i * 4.08 + 2.2) for i in range(10)]
+wall_z(OZ0, OX0, OX1, 6.01, 12.0, holes=[(w0, w1, 7.3, 9.9) for (w0, w1) in OW])
+for (w0, w1) in OW: G.box(w0, w1, 7.3, 9.9, -0.012, 0.012, 'MI_T_glass')
+EW = [(3.0 + i * 6.5, 5.2 + i * 6.5) for i in range(6)]
+wall_x(OX1, OZ0, OZ1, 6.01, 12.0, holes=[(z0, z1, 7.3, 9.9) for (z0, z1) in EW])
+for (z0, z1) in EW: G.box(OX1 - 0.012, OX1 + 0.012, 7.3, 9.9, z0, z1, 'MI_T_glass')
+wall_z(OZ1, OX0, OX1, 6.01, 12.0, m='MI_T_plaster')
+# the staff stairs' open end on Floor 2: a glass rail with the black trim
+S.box(STAIR[0], STAIR[1], 6.01, 6.13, STAIR[3] - 0.16, STAIR[3] - 0.02, 'MI_T_steel')
+G.box(STAIR[0], STAIR[1], 6.11, 6.94, STAIR[3] - 0.096, STAIR[3] - 0.084, 'MI_T_glass')
+S.box(STAIR[0], STAIR[1], 6.94, 6.99, STAIR[3] - 0.12, STAIR[3] - 0.06, 'MI_T_black')
+# the lift shaft: from the staff entrance hall up through the offices, its head above the roof (to +13.2); a door on
+# each floor on its west side
+LD = (48.9, 50.1)
+for (xa, xb, za, zb) in ((SHAFT[0], SHAFT[1], SHAFT[2] - 0.1, SHAFT[2] + 0.1), (SHAFT[0], SHAFT[1], SHAFT[3] - 0.1, SHAFT[3] + 0.1),
+                         (SHAFT[1] - 0.1, SHAFT[1] + 0.1, SHAFT[2], SHAFT[3])):
+    S.box(xa, xb, 0.01, 13.2, za, zb, 'MI_T_liftBrushed' if False else W)
+wall_x(SHAFT[0], SHAFT[2], SHAFT[3], 0.01, 13.2, holes=[(LD[0], LD[1], 0.0, 2.3), (LD[0], LD[1], 6.0, 8.3)])
+S.box(SHAFT[0] - 0.1, SHAFT[1] + 0.1, 13.0, 13.2, SHAFT[2] - 0.1, SHAFT[3] + 0.1, W)
+for y0 in (0.01, 6.01):                        # stainless door frames
+    S.box(SHAFT[0] - 0.14, SHAFT[0] - 0.1, y0, y0 + 2.45, LD[0] - 0.15, LD[0], 'MI_T_steel')
+    S.box(SHAFT[0] - 0.14, SHAFT[0] - 0.1, y0, y0 + 2.45, LD[1], LD[1] + 0.15, 'MI_T_steel')
+    S.box(SHAFT[0] - 0.14, SHAFT[0] - 0.1, y0 + 2.3, y0 + 2.45, LD[0], LD[1], 'MI_T_steel')
+
 so = S.finish(); go = G.finish()
 for o in (so, go):
     print('ANNEX', o.name, len(o.data.polygons), 'faces', [m.name for m in o.data.materials])
