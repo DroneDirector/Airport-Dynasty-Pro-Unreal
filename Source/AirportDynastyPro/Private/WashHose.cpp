@@ -141,6 +141,10 @@ void AWashHose::Setup(ABabylonModel* InModel)
 	Cable->CableLength = 200.f;
 	if (HoseMat) Cable->SetMaterial(0, HoseMat);
 	Cable->SetVisibility(false);
+	// on its hook at first: not simulated (see GunToHook). Its tick starts off on its own - a component's tick starts on
+	// by default, apart from being active - and it does not switch itself on when play starts
+	Cable->bAutoActivate = false;
+	Cable->PrimaryComponentTick.bStartWithTickEnabled = false;
 	Cable->RegisterComponent();
 	if (Gun->GetStaticMesh())
 	{
@@ -221,6 +225,11 @@ void AWashHose::GunToHook(bool bOnHook)
 	}
 	Gun->SetVisibility(!bOnHook);
 	Cable->SetVisibility(!bOnHook);
+	// the hose's cable is simulated only while it is out in someone's hand (2026-11-15, to-do 63: hanging hidden on its
+	// hook it still swept its 80 segments against the world every 10 ms step - 21 ms of every frame, more when the frame
+	// was slow: the grass looked like the cost)
+	Cable->SetActive(!bOnHook);
+	Cable->SetComponentTickEnabled(!bOnHook);
 	if (bOnHook) ShowCoil(true); else PayOut(0.f);
 }
 

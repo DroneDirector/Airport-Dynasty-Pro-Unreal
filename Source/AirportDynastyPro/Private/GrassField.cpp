@@ -64,7 +64,7 @@ namespace
 		bool Bare(double X, double Y) const
 		{
 			const int32 i = FMath::FloorToInt((X - X0) / Step), j = FMath::FloorToInt((Y - Y0) / Step);
-			return i >= 0 && j >= 0 && i < NX && j < NY && Px[j * NX + i] <= 127;
+			return i >= 0 && j >= 0 && i < NX && j < NY && Px[j * NX + i] < 200;   // (128: a road over grass ground; 0: none)
 		}
 		bool At(double X, double Y) const
 		{
@@ -308,6 +308,16 @@ void AGrassField::Tick(float Dt)
 	const float MidReach = FMath::Lerp(MidReachGround, MidReachAir, Lift);
 	Keep(MidCells, bOn ? MidReach : 0.f, MidCell);
 	Keep(FarCells, FarR, FarCell);
+	// a far piece whose distance band changed (you flew closer or away) is laid again at its new spacing; 100 m of slack
+	// so a piece on a band's edge does not flicker between the two
+	for (auto It = FarCells.CreateIterator(); It; ++It)
+	{
+		const int32* B = FarBand.Find(It.Key()); if (!B) continue;
+		const float Dm = FVector2D::Distance(FVector2D((It.Key().X + 0.5f) * FarCell, (It.Key().Y + 0.5f) * FarCell), FVector2D(L)) / 100.f;
+		const int32 Lo = FarBandAt(Dm - 100.f), Hi = FarBandAt(Dm + 100.f);
+		if (*B < Lo || *B > Hi) { if (It.Value()) It.Value()->DestroyComponent(); FarBand.Remove(It.Key()); It.RemoveCurrent(); }
+	}
+	for (auto It = FarBand.CreateIterator(); It; ++It) if (!FarCells.Contains(It.Key())) It.RemoveCurrent();
 	// one patch laid at a time, its ground measured a little each frame within about 2.5 ms (2026-11-15: whole patches
 	// at once stalled the game at 3 to 9 frames a second); the layers take turns - near, middle, far
 	const double Deadline = FPlatformTime::Seconds() + 0.0025;
@@ -389,7 +399,6 @@ void AGrassField::FillMidCell(UHierarchicalInstancedStaticMeshComponent* K, cons
 				const float LX = (i + R.FRand()) * 100.f, LY = (j + R.FRand()) * 100.f;
 				float S = R.FRandRange(1.3f, 1.8f); const float Ry = R.FRandRange(0, 360), Rh = R.FRandRange(0.85f, 1.2f), Rs = R.FRand();
 				const float X = C.X * MidCell + LX, Y = C.Y * MidCell + LY;
-				if (!bAway && GrassArea().Bare(X / 100.0, -Y / 100.0)) continue;
 				const float D = FVector2D::Distance(FVector2D(X, Y), FVector2D(From)), F = FMath::Clamp((Reach - D) / (Reach * 0.25f), 0.f, 1.f);
 				if (F <= 0.f || Rs > F) continue;
 				S *= FMath::Lerp(0.55f, 1.f, F);
@@ -410,7 +419,11 @@ void AGrassField::FillFarCell(UHierarchicalInstancedStaticMeshComponent* K, cons
 	// grass needs no finer - 2026-11-15: a look down for every tuft stalled the game), fewer and smaller over the outer
 	// quarter of the reach so it fades into the ground's own grass colour; none inside the airfield (its tufts are laid
 	// once, AGrassField::Start), none where a corner round it is not grass
-	const float Step = 400.f; const int32 G = FarGrid, N = int32(FarCell / Step);
+	// the spacing band (GrassField.h FarBand): the same ground covered by fewer, bigger tufts further out
+	const int32 Band = FarBandAt(FVector2D::Distance(FVector2D((C.X + 0.5f) * FarCell, (C.Y + 0.5f) * FarCell), FVector2D(From)) / 100.f);
+	const float Mult = Band == 0 ? 1.f : Band == 1 ? 2.f : 3.f;
+	FarBand.Add(C, Band);
+	const float Step = 400.f * Mult; const int32 G = FarGrid, N = int32(FarCell / Step);
 	const float GS = FarCell / (G - 1);
 	FRandomStream R(7 ^ (C.X * 73856093) ^ (C.Y * 19349663));
 	TArray<FTransform> T;
@@ -420,7 +433,7 @@ void AGrassField::FillFarCell(UHierarchicalInstancedStaticMeshComponent* K, cons
 			const float LX = (i + R.FRand()) * Step, LY = (j + R.FRand()) * Step;
 			const float X = C.X * FarCell + LX, Y = C.Y * FarCell + LY;
 			const float Rs = R.FRand(), Ry = R.FRandRange(0, 360), Rh = R.FRandRange(0.75f, 0.95f);
-			float S = R.FRandRange(2.8f, 4.0f);
+			float S = R.FRandRange(2.8f, 4.0f) * Mult;
 			if (!bAway && Field.IsInside(FVector2D(X, Y))) continue;
 			if (!bAway && GrassArea().Bare(X / 100.0, -Y / 100.0)) continue;   // (its 20 m ground grid can't see an 8 m road: the map can)
 			const float D = FVector2D::Distance(FVector2D(X, Y), FVector2D(From)), F = FMath::Clamp((Reach - D) / (Reach * 0.25f), 0.f, 1.f);

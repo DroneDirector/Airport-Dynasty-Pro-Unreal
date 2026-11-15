@@ -52,6 +52,12 @@ private:
 	/** The far grass round the camera (owner, 2026-11-15: "much higher draw distance ... very low quality far off"): the
 	 *  airfield's still tufts, sparse and wide, on 100 m patches out to FarReach - from the air the grass goes on. */
 	UPROPERTY() TMap<FIntPoint, TObjectPtr<UHierarchicalInstancedStaticMeshComponent>> FarCells;
+	// each far piece's spacing band (owner, 2026-11-15: the same amount of grass from every height - make it cheaper
+	// some other way): 0 = a tuft every 4 m (to 1 km), 1 = every 8 m at twice the size (to 1.8 km), 2 = every 12 m at three
+	// times (beyond) - the same ground covered by a quarter to a ninth as many tufts, which is what costs (Nanite pays per
+	// tuft, not per triangle, for tufts a pixel or two wide)
+	TMap<FIntPoint, int32> FarBand;
+	static int32 FarBandAt(float DistanceM) { return DistanceM < 1000.f ? 0 : DistanceM < 1800.f ? 1 : 2; }
 	void FillFarCell(UHierarchicalInstancedStaticMeshComponent* K, const FIntPoint& C, const FVector& From, float Reach, const TArray<float>& Grid);
 	void FillMidCell(UHierarchicalInstancedStaticMeshComponent* K, const FIntPoint& C, const FVector& From, float Reach, const TArray<float>& Grid);
 	/** The patch being laid now (its ground measured a little each frame: never a stall): layer 0 near, 1 middle, 2 far. */

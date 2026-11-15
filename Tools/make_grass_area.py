@@ -73,7 +73,7 @@ def main():
         if r.get('test'): continue
         P = [tuple(p[:2]) for p in r['pts']]
         if r.get('closed'): P = P + [P[0]]
-        half = max(sum(lw(l) for l in r['lanes']['left']), sum(lw(l) for l in r['lanes']['right'])) + 1.0
+        half = max(sum(lw(l) for l in r['lanes']['left']), sum(lw(l) for l in r['lanes']['right']))   # (the road itself: grass right to its edge, 2026-11-15)
         dense = []
         for i in range(len(P) - 1):
             for k in range(4): t = k / 4; dense.append((P[i][0] * (1 - t) + P[i + 1][0] * t, P[i][1] * (1 - t) + P[i + 1][1] * t))
@@ -98,11 +98,16 @@ def main():
             corner = lambda a, c: (o[0] + u[0] * a + v[0] * c, o[1] + u[1] * a + v[1] * c)
             bd.polygon([px(corner(a, c)) for a, c in ((sz[0] - 1, sz[1] - 1), (sz[2] + 1, sz[1] - 1), (sz[2] + 1, sz[3] + 1), (sz[0] - 1, sz[3] + 1))], fill=255)
     built = np.asarray(built) > 0
-    grass &= ~built
+    # (two things in one map: 255 grass ground, 128 grass ground under a road or other built thing - the near and middle
+    # grass measure the ground themselves and find the road first, so they read only "grass ground" and grow right to its
+    # edge; only the far tufts, on a 20 m grid, keep off the 128s - 2026-11-15: one mark for both left a bare strip by
+    # the roads)
+    area_px = np.where(grass & ~built, 255, np.where(grass & built, 128, 0)).astype(np.uint8)
     print('built over (roads, car parks, buildings): %.2f km2' % (built.sum() * STEP * STEP / 1e6))
+    grass_only = grass & ~built
     print('grass %.1f km2, water near it %.2f km2' % (grass.sum() * STEP * STEP / 1e6, (water & (d_land <= MARGIN + 500)).sum() * STEP * STEP / 1e6))
     # the map for the blades (row 0 = y0, the plan's south... as the json says: pixel (i, j) is at x0 + i*step, y0 + j*step)
-    Image.fromarray((grass * 255).astype(np.uint8)).save(ROOT / 'Data' / 'grass-area.png', optimize=True)
+    Image.fromarray(area_px).save(ROOT / 'Data' / 'grass-area.png', optimize=True)
     (ROOT / 'Data' / 'grass-area.json').write_text(json.dumps({'source': 'Tools/make_grass_area.py', 'x0': x0, 'y0': y0, 'step': STEP, 'nx': nx, 'ny': ny,
         'ring': RING, 'margin': MARGIN, 'waterGap': WATER_GAP}, indent=1), encoding='utf-8')
     for f in ('grass-area.png', 'grass-area.json'): shutil.copyfile(ROOT / 'Data' / f, ROOT / 'Content' / 'Data' / f)
