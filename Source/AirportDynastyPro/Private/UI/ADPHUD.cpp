@@ -2657,7 +2657,12 @@ void AADPHUD::Tick(float Dt)
 					TArray<FString> C; V[i].ParseIntoArray(C, TEXT(","));
 					if (C.Num() < 6) continue;
 					auto F = [&C](int32 k) { return FCString::Atof(*C[k]); };
-					if (Before < 40.f && ShotClock >= 40.f && i == 0) { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 14.f; ASunClock::Refresh(); OpenSite(); }
+					// (-PlanHour=19.3 -PlanDay=250: another time of day, e.g. a low evening sun)
+					if (Before < 40.f && ShotClock >= 40.f && i == 0)
+					{
+						float Hr = 14.f; int32 Dy = 172; FParse::Value(FCommandLine::Get(), TEXT("PlanHour="), Hr); FParse::Value(FCommandLine::Get(), TEXT("PlanDay="), Dy);
+						if (bGame) ToggleGame(); ASunClock::DayOverride = Dy; ASunClock::HourOverride = Hr; ASunClock::Refresh(); OpenSite();
+					}
 					if (Before < T0 && ShotClock >= T0)
 						if (APlayerController* PC = GetOwningPlayerController()) if (APawn* Me = PC->GetPawn())
 						{
