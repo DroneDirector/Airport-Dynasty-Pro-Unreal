@@ -63,6 +63,7 @@ g.add([v.index for v in ob.data.vertices if region(v.co) != 'body'], 0.0, 'REPLA
 # (tried: Blender's vertex-group weighting strips the weighted part almost bare at any factor - the body went to a few
 #  thousand faces. The plain reduction already measures the shape error of every collapse, so it takes its faces from
 #  the flat coat first and keeps the curved eyes, nose, mouth and paws; the group stays only to count by region.)
+hi = ob.copy(); hi.data = ob.data.copy(); hi.name = NAME + '_full'; bpy.context.scene.collection.objects.link(hi)
 if n0 > FACES:
     keep = ob.data.copy(); r = FACES / n0
     for _ in range(6):
@@ -75,12 +76,75 @@ if n0 > FACES:
 counts = {}
 for p_ in ob.data.polygons: r = region(p_.center); counts[r] = counts.get(r, 0) + 1
 print('PET faces by region', counts)
-bpy.ops.object.shade_smooth()
 print('PET faces %d -> %d' % (n0, len(ob.data.polygons)))
-# the texture packed into the file, its material named for the game
-for mat in ob.data.materials:
-    mat.name = 'M_' + NAME
+
+# new texture maps for the lighter mesh, taken from the full one (owner's close-up check, 2026-11-15: the reduction
+# had smeared the texture's seams - grey patches by the eyes and on the forehead): the lighter mesh gets its own UVs,
+# then its colour and the full mesh's fine surface (the fur's ridges, as a normal map) are baked onto them
+for o in bpy.context.selected_objects: o.select_set(False)
+bpy.context.view_layer.objects.active = ob; ob.select_set(True)
+while ob.data.uv_layers: ob.data.uv_layers.remove(ob.data.uv_layers[0])
+ob.data.uv_layers.new(name='UVMap')
+# (unwrapped on a smoothed copy: the fur's ridges cut the plain unwrap into a hundred thousand one-face pieces; the
+#  smoothed body has the pet's real big shapes, and the copy has the same faces, so its UVs carry straight over)
+px = ob.copy(); px.data = ob.data.copy(); bpy.context.scene.collection.objects.link(px)
+sm = px.modifiers.new('s', 'SMOOTH'); sm.factor = 1.0; sm.iterations = 60
+bpy.context.view_layer.objects.active = px; ob.select_set(False); px.select_set(True)
+bpy.ops.object.modifier_apply(modifier='s')
+bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
+bpy.ops.uv.smart_project(angle_limit=math.radians(70), island_margin=0.004)
+bpy.ops.object.mode_set(mode='OBJECT')
+uv = np.empty(len(px.data.loops) * 2); px.data.uv_layers[0].data.foreach_get('uv', uv)
+ob.data.uv_layers[0].data.foreach_set('uv', uv)
+print('PET UV pieces made on the smoothed copy')
+bpy.data.objects.remove(px)
+bpy.context.view_layer.objects.active = ob; ob.select_set(True)
+RES = 4096
+sc = bpy.context.scene; sc.render.engine = 'CYCLES'; sc.cycles.samples = 1
+try:
+    prefs = bpy.context.preferences.addons['cycles'].preferences
+    for t in ('OPTIX', 'CUDA'):
+        try:
+            prefs.compute_device_type = t; prefs.get_devices()
+            if any(d.type == t for d in prefs.devices):
+                for d in prefs.devices: d.use = d.type == t
+                sc.cycles.device = 'GPU'; break
+        except TypeError: pass
+except Exception as e: print('PET bake on the CPU', e)
+mat = bpy.data.materials.new('M_' + NAME); mat.use_nodes = True
+nt = mat.node_tree; bsdf = nt.nodes['Principled BSDF']
+imgs = {}
+for key, cs in (('D', 'sRGB'), ('N', 'Non-Color')):
+    im = bpy.data.images.new('T_%s_%s' % (NAME, key), RES, RES, alpha=False, float_buffer=False)
+    im.colorspace_settings.name = cs
+    if key == 'N': im.generated_color = (0.5, 0.5, 1, 1)
+    n = nt.nodes.new('ShaderNodeTexImage'); n.image = im; n.name = 'tex' + key
+    imgs[key] = (im, n)
+ob.data.materials.clear(); ob.data.materials.append(mat)
+bk = sc.render.bake; bk.use_selected_to_active = True; bk.cage_extrusion = 0.004 * H / 0.86; bk.max_ray_distance = 0.03 * H / 0.86
+bk.margin = 8
+hi.select_set(True); ob.select_set(True); bpy.context.view_layer.objects.active = ob
+for key in ('D', 'N'):
+    im, n = imgs[key]
+    for x in nt.nodes: x.select = False
+    n.select = True; nt.nodes.active = n
+    if key == 'D':
+        bk.use_pass_direct = False; bk.use_pass_indirect = False; bk.use_pass_color = True
+        bpy.ops.object.bake(type='DIFFUSE', pass_filter={'COLOR'})
+    else:
+        bpy.ops.object.bake(type='NORMAL', normal_space='TANGENT')
+    im.filepath_raw = os.path.join(D, im.name + '.png'); im.file_format = 'PNG'; im.save()
+    print('PET baked', im.filepath_raw)
+nt.links.new(imgs['D'][1].outputs['Color'], bsdf.inputs['Base Color'])
+nm = nt.nodes.new('ShaderNodeNormalMap'); nt.links.new(imgs['N'][1].outputs['Color'], nm.inputs['Color'])
+nt.links.new(nm.outputs['Normal'], bsdf.inputs['Normal'])
+bsdf.inputs['Roughness'].default_value = 0.8
+bpy.data.objects.remove(hi)
+for x in nt.nodes: x.select = False
+imgs['D'][1].select = True; nt.nodes.active = imgs['D'][1]     # (the colour shows in Blender's views)
+bpy.context.view_layer.objects.active = ob; ob.select_set(True)
+bpy.ops.object.shade_smooth()
 for img in bpy.data.images:
-    if img.filepath: img.pack()
+    if img.filepath: img.reload(); img.pack()
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(D, NAME + '.blend'))
 print('PET saved', os.path.join(D, NAME + '.blend'))

@@ -65,7 +65,9 @@ def reach(j, w, l1, l2, sign, nrm):                        # two-bone reach: the
     perp = nrm.cross(dn).normalized()
     return j + dn * a_ + perp * h * sign, w
 
-DEFAULT = dict(pelvis=(0, 0, 0, 0, 0), spine=(0, 0, 0), spine_yaw=(0, 0, 0), neck=(0, 0), neck_yaw=(0, 0), head=(0, 0, 0),
+HASJAW = 'jaw' in PB
+TONGUE = sorted([b.name for b in rig.data.bones if b.name.startswith('tongue_')])
+DEFAULT = dict(jaw=0, tongue=[0, 0, 0], breath=0.0, pelvis=(0, 0, 0, 0, 0), spine=(0, 0, 0), spine_yaw=(0, 0, 0), neck=(0, 0), neck_yaw=(0, 0), head=(0, 0, 0),
                ears=(0, 0), tail=None, tail_yaw=None,
                legs={k: dict(paw=(0, 0, 0), pitch=0, toe=0, body=False) for k in LEGS}, scap=(0, 0))
 
@@ -74,7 +76,7 @@ def pose(P):
     neck: their bones' own pitch; head (pitch, yaw, roll); ears; tail: pitch per tail bone; legs: per leg the paw's
     move from where it stands (forward, out, up; with body=True it moves with the body: lying on the back), pitch:
     the paw's turn (+ = its tip back), toe: the toes' own turn; scap: the shoulder blades' pitch."""
-    for pb in PB: pb.rotation_quaternion = Quaternion(); pb.location = Vector()
+    for pb in PB: pb.rotation_quaternion = Quaternion(); pb.location = Vector(); pb.scale = Vector((1, 1, 1))
     upd()
     f, up, pi, ro, ya = P['pelvis']
     T = Matrix.Translation(PIV + Vector((0, -f * U, up * U))) @ rot(pi, ro, ya) @ Matrix.Translation(-PIV)
@@ -86,6 +88,11 @@ def pose(P):
     tp = P['tail'] or [0] * len(TAILS); ty = P['tail_yaw'] or [0] * len(TAILS)
     for i, n in enumerate(TAILS): local(n, tp[i], ty[i])
     local('scapula_l', P['scap'][0]); local('scapula_r', P['scap'][1])
+    if HASJAW:
+        local('jaw', P['jaw'])
+        for i, n in enumerate(TONGUE): local(n, P['tongue'][i])
+    if 'breath' in PB:                                      # the ribcage swelling: wider and deeper as the pet breathes in
+        b_ = P['breath']; PB['breath'].scale = Vector((1 + b_, 1 + 0.5 * b_, 1 + 0.8 * b_))
     upd()
     Rb = T.to_3x3()
     for k, (u, l, p, t) in LEGS.items():
@@ -148,6 +155,7 @@ def record(name, frames, fn, loop=False):
             pb.rotation_quaternion = q; prev[pb.name] = q
             pb.keyframe_insert('rotation_quaternion', frame=i + 1)
             if pb.name == 'pelvis': pb.keyframe_insert('location', frame=i + 1)
+            if pb.name == 'breath': pb.keyframe_insert('scale', frame=i + 1)
     act.frame_range = (1, frames + (1 if loop else 0))
     ACTIONS[name] = dict(frames=frames, loop=loop)
     print('MOVE', name, frames, 'frames')
@@ -168,7 +176,7 @@ if DOG:
                      'hl': dict(paw=(14, 4, 0), pitch=-80), 'hr': dict(paw=(14, 4, 0), pitch=-80)})
 else:
     TAIL_REST = [0, 0, 0, 0, 0, 0]
-    SIT = dict(pelvis=(5, -26, -40, 0, 0), spine=(4, 6, 6), neck=(-10, -4), head=(4, 0, 0), ears=(0, 0), scap=(-30, -30),
+    SIT = dict(pelvis=(5, -26, -40, 0, 0), spine=(4, 6, 6), neck=(-18, -10), head=(-8, 0, 0), ears=(0, 0), scap=(-30, -30),
                tail=[-50, -10, 0, 0, 0, 0], tail_yaw=[30, 30, 30, 25, 20, 10],
                legs={'fl': dict(paw=(0, 0, 0), pitch=0), 'fr': dict(paw=(0, 0, 0), pitch=0),
                      'hl': dict(paw=(16, 1.5, 0), pitch=-75, toe=0), 'hr': dict(paw=(16, 1.5, 0), pitch=-75, toe=0)})
@@ -178,10 +186,27 @@ else:
                      'hl': dict(paw=(12, 3, 0), pitch=-80), 'hr': dict(paw=(12, 3, 0), pitch=-80)})
 STAND = dict(tail=TAIL_REST)
 
-def idle_over(base, i, n, wag=1.0):
+def smooth_box(t, a, b, r):                                # 0 outside [a, b], 1 inside, eased edges r long
+    return ease(min(1, max(0, (t - a) / r))) * ease(min(1, max(0, (b - t) / r)))
+
+LOOKS = [(0.08, 0.20, 22, 4, 6), (0.30, 0.40, -16, -3, -5), (0.52, 0.60, 8, 10, 0), (0.70, 0.84, -24, 2, 8)]
+
+def idle_over(base, i, n, wag=1.0, looks=True, pant=None):
+    """A pose at rest, alive (owner, 2026-11-15: "move a little bit while they're sitting next to you, looking their head a
+    little bit around ... you have to see them breathing"): calm breaths (the ribcage swelling), the head turning to
+    look round now and then with a little tilt, an ear flick, the tail; pant=(start, end): the dog pants between them -
+    mouth open, tongue out over the lower teeth, quick shallow breaths - then shuts its mouth again."""
     p = merge(base)
-    br = wave(i, n, 2)                                      # two breaths in the loop
-    p['spine'] = [p['spine'][0] - 0.4 * br, p['spine'][1] + 0.8 * br, p['spine'][2] - 0.4 * br]
+    t = i / n
+    calm = max(1, round(n / 45))                            # a breath about every 1.5 s, a whole number per loop
+    k = smooth_box(t, pant[0], pant[1], 0.05) if pant else 0.0
+    br = (1 - k) * (0.5 + 0.5 * wave(i, n, calm)) * 0.035 + k * (0.5 + 0.5 * wave(i, n, 3.2 * n / 30)) * 0.022
+    p['breath'] = br
+    p['spine'] = [p['spine'][0] - 8 * br, p['spine'][1] + 16 * br, p['spine'][2] - 8 * br]
+    if pant and HASJAW:
+        q = wave(i, n, 3.2 * n / 30)                        # 3.2 pants a second
+        p['jaw'] = -k * (13 + 2.5 * q)
+        p['tongue'] = [-k * (4 + q), -k * (10 + 2 * q), -k * (20 + 3 * q)]
     tb = p['tail'] or TAIL_REST
     if DOG:
         p['tail_yaw'] = [wag * 9 * wave(i, n, 3, -0.08 * k) for k in range(TAILN)]
@@ -189,15 +214,19 @@ def idle_over(base, i, n, wag=1.0):
     else:                                                   # a cat's slow tip curl
         p['tail_yaw'] = [(p['tail_yaw'] or [0] * TAILN)[k] + (k / TAILN) ** 2 * 18 * wave(i, n, 1, -0.1 * k) for k in range(TAILN)]
         p['tail'] = [tb[k] + (k / TAILN) * 8 * wave(i, n, 1, 0.25) for k in range(TAILN)]
-    look = ease(min(1, max(0, (i - n * 0.35) / (n * 0.1)))) - ease(min(1, max(0, (i - n * 0.65) / (n * 0.1))))
-    h = list(p['head']); h[1] += 18 * look; h[0] += 3 * look; p['head'] = h
+    h = list(p['head']); nk = list(p['neck_yaw'])
+    if looks:
+        for a_, b_, yaw, pit, roll in LOOKS:                # looking round: the neck turns a little, the head most
+            w = smooth_box(t, a_, b_, 0.04)
+            h[1] += yaw * w; h[0] += pit * w; h[2] += roll * w; nk[1] += yaw * 0.4 * w
+    p['head'] = h; p['neck_yaw'] = nk
     fl = math.exp(-((i - n * 0.8) / 2.5) ** 2)              # one ear flick
     p['ears'] = [p['ears'][0], p['ears'][1] - 25 * fl]
     return p
 
-record('Idle', 180, lambda i, n: idle_over(STAND, i, n))
+record('Idle', 300, lambda i, n: idle_over(STAND, i, n, pant=(0.5, 0.85) if DOG else None))
 record('SitDown', 30, lambda i, n: blend(STAND, SIT, ease(i / (n - 1))))
-record('SitIdle', 180, lambda i, n: idle_over(SIT, i, n, wag=0.6))
+record('SitIdle', 360, lambda i, n: idle_over(SIT, i, n, wag=0.6, pant=(0.22, 0.62) if DOG else None))
 record('StandUp', 26, lambda i, n: blend(SIT, STAND, ease(i / (n - 1))))
 def lie_down(i, n):
     t = i / (n - 1)
@@ -205,8 +234,7 @@ def lie_down(i, n):
     return blend(SIT, LIE, ease((t - 0.45) / 0.55))
 record('LieDown', 44, lie_down)
 def lie_idle(i, n):
-    p = idle_over(LIE, i, n, wag=0.25)
-    h = list(p['head']); h[1] = 0; p['head'] = h            # head stays down, breathing only
+    p = idle_over(LIE, i, n, wag=0.25, looks=False)         # head stays down, breathing only
     return p
 record('LieIdle', 180, lie_idle)
 record('GetUp', 40, lambda i, n: lie_down(n - 1 - i, n))

@@ -29,6 +29,14 @@ PICK = {
                               'Ansicht Britisch Kurzhaar 20220114 HOF08559 20230123000984.png', 'Katzengesicht BKH 20201107 DSC5735.jpg',
                               'Schlafende Katze 20201024 DSC4879.jpg', 'Schlafende Katze 20201024 DSC4881.jpg',
                               'A Cat Resting on All Fours, Seen from Behind MET DP807592.jpg'],
+    # the jaw, teeth and tongue for panting (owner, 2026-11-15: "see its teeth and its tongue"; "the jaw very accurate"):
+    # panting dogs from the side and front, and the dog's skull and teeth for where the jaw hinges and the teeth stand
+    'dog_mouth': ['Panting-dog-No.3.jpg', 'Dog Panting on a Hot Day 2013.JPG', 'Keeshond dog panting (8109968656).jpg',
+                  'Panting (9131401632).jpg', 'Panting brown dog.jpg', 'Dog with visible tongue.jpg',
+                  'DSC09611a Search and Rescue Dog, Austrian Red Cross Perchtoldsdorf, 2024-10.jpg',
+                  'Skull of a dog.png', 'Dog anatomy head.jpg', 'Heubach dog skull.jpg', 'Anatomy and physiology of animals Dogs skull.jpg',
+                  'EB1911 Mammalia - Milk and Permanent Dentitions of the Dog.jpg', 'Animaldentition canisfamiliaris.png',
+                  'Skull of Japanese Dog - Keulemans.png'],
     # (rear views of a Labrador are not found under a usable licence: a foxhound's rear (same build of hind legs and
     # tail set) and study drawings stand in for the shape from behind)
     'dog_rear': ['Dog (A Foxhound Viewed from Behind) MET DP835554.jpg',

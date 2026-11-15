@@ -2,7 +2,7 @@
  "fps": 30,
  "moves": {
   "Idle": {
-   "frames": 180,
+   "frames": 300,
    "loop": false
   },
   "SitDown": {
@@ -10,7 +10,7 @@
    "loop": false
   },
   "SitIdle": {
-   "frames": 180,
+   "frames": 360,
    "loop": false
   },
   "StandUp": {

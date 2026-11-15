@@ -4,7 +4,8 @@
 import bpy, math, os, sys
 from mathutils import Vector
 a = sys.argv[sys.argv.index('--') + 1:]
-KIND, NAME, ONLY = a[0], a[1], a[2:]
+KIND, NAME, ONLY = a[0], a[1], [x for x in a[2:] if not x.startswith('frames=')]
+FR = next((x[7:] for x in a[2:] if x.startswith('frames=')), '')
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, 'Models', 'Views')
 bpy.ops.wm.open_mainfile(filepath=os.path.join(HERE, 'Models', KIND, NAME, NAME + '.blend'))
@@ -12,11 +13,13 @@ sc = bpy.context.scene
 rig = [o for o in bpy.data.objects if o.type == 'ARMATURE'][0]
 mesh = [o for o in bpy.data.objects if o.type == 'MESH'][0]
 L = mesh.dimensions.y; H = mesh.dimensions.z
-sc.render.engine = 'BLENDER_WORKBENCH'
-sc.display.shading.light = 'STUDIO'; sc.display.shading.color_type = 'TEXTURE'
-sc.display.shading.show_cavity = True; sc.display.shading.cavity_type = 'BOTH'
+# lit (EEVEE): the textures, the normal maps and the mouth's colours show as they will
+sc.render.engine = 'BLENDER_EEVEE_NEXT'
 sc.render.resolution_x, sc.render.resolution_y = 560, 420
-w = bpy.data.worlds.new('w'); sc.world = w
+w = bpy.data.worlds.new('w'); sc.world = w; w.use_nodes = True
+w.node_tree.nodes['Background'].inputs[0].default_value = (0.75, 0.77, 0.8, 1); w.node_tree.nodes['Background'].inputs[1].default_value = 0.6
+sun = bpy.data.objects.new('sun', bpy.data.lights.new('sun', 'SUN')); sun.data.energy = 3; sun.rotation_euler = (0.7, 0.2, -0.9)
+sc.collection.objects.link(sun)
 cam = bpy.data.objects.new('cam', bpy.data.cameras.new('cam')); sc.collection.objects.link(cam); sc.camera = cam
 cam.data.type = 'ORTHO'; cam.data.ortho_scale = L * 1.45
 # a ground line: a thin dark plate at z 0
@@ -28,7 +31,7 @@ for act in bpy.data.actions:
     if ONLY and act.name not in ONLY: continue
     rig.animation_data.action = act
     f0, f1 = int(act.frame_range[0]), int(act.frame_range[1])
-    frames = [round(f0 + (f1 - f0) * k / 5) for k in range(6)]
+    frames = [int(x) for x in FR.split(',')] if FR else [round(f0 + (f1 - f0) * k / 5) for k in range(6)]
     files = []
     for vn, d in VIEWS.items():
         d = d.normalized(); cam.location = ctr + d * L * 4
