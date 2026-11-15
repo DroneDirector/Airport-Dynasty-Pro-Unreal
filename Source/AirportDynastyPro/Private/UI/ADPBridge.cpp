@@ -27,6 +27,11 @@ void UADPBridge::OpenSite()
 	if (AADPHUD* H = Hud.Get()) H->OpenSite();
 }
 
+void UADPBridge::OpenPlace(const FString& Id)
+{
+	if (AADPHUD* H = Hud.Get()) H->OpenTownPlace(Id);
+}
+
 void UADPBridge::OpenLounge()
 {
 	if (AADPHUD* H = Hud.Get()) H->OpenLounge();

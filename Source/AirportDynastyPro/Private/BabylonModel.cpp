@@ -159,6 +159,7 @@ bool ABabylonModel::Place(const FString& Name)
 			UInstancedStaticMeshComponent* K = nullptr;
 			FString Asset = FString::Printf(TEXT("%s_mesh_%d"), *Name.ToLower(), Mesh);
 			if (bByNode) N->TryGetStringField(TEXT("name"), Asset);
+			N->TryGetStringField(TEXT("asset"), Asset);   // (the imported file's own name when it is neither: Tools/glb_nodes.py)
 			// the native terminal: this copy's piece, and where the copy sat against it
 			FVector PieceOff = FVector::ZeroVector;
 			const bool bPiece = Pieces.Num() > 0;

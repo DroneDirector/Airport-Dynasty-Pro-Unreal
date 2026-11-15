@@ -1,0 +1,976 @@
+{
+ "pairs": [
+  {
+   "a": "glass.002",
+   "b": "glass_door_side",
+   "share": 0.958
+  },
+  {
+   "a": "svc_body",
+   "b": "svc_roof",
+   "share": 0.708
+  },
+  {
+   "a": "floor",
+   "b": "slab",
+   "share": 0.667
+  },
+  {
+   "a": "back_wall",
+   "b": "lounge_tv",
+   "share": 0.583
+  },
+  {
+   "a": "svc_body",
+   "b": "svc_door",
+   "share": 0.5
+  },
+  {
+   "a": "floor",
+   "b": "turntable",
+   "share": 0.477
+  },
+  {
+   "a": "dl_room_edge.006",
+   "b": "wc_mid",
+   "share": 0.455
+  },
+  {
+   "a": "dl_out.008",
+   "b": "fascia_soffit",
+   "share": 0.45
+  },
+  {
+   "a": "dl_out.011",
+   "b": "fascia_soffit",
+   "share": 0.442
+  },
+  {
+   "a": "dl_out.013",
+   "b": "fascia_soffit",
+   "share": 0.425
+  },
+  {
+   "a": "dl_out.017",
+   "b": "fascia_soffit",
+   "share": 0.425
+  },
+  {
+   "a": "dl_out.021",
+   "b": "fascia_soffit",
+   "share": 0.425
+  },
+  {
+   "a": "dl_room_edge.017",
+   "b": "svc_wall",
+   "share": 0.42
+  },
+  {
+   "a": "bar_top",
+   "b": "coffee_bar",
+   "share": 0.417
+  },
+  {
+   "a": "dl_out.018",
+   "b": "fascia_soffit",
+   "share": 0.408
+  },
+  {
+   "a": "dl_out.022",
+   "b": "fascia_soffit",
+   "share": 0.408
+  },
+  {
+   "a": "dl_out.010",
+   "b": "fascia_soffit",
+   "share": 0.4
+  },
+  {
+   "a": "dl_out.014",
+   "b": "fascia_soffit",
+   "share": 0.4
+  },
+  {
+   "a": "dl_out.015",
+   "b": "fascia_soffit",
+   "share": 0.4
+  },
+  {
+   "a": "dl_out.023",
+   "b": "fascia_soffit",
+   "share": 0.4
+  },
+  {
+   "a": "dl_out.006",
+   "b": "fascia_soffit",
+   "share": 0.392
+  },
+  {
+   "a": "dl_out.016",
+   "b": "fascia_soffit",
+   "share": 0.392
+  },
+  {
+   "a": "dl_out.004",
+   "b": "fascia_soffit",
+   "share": 0.383
+  },
+  {
+   "a": "dl_out.009",
+   "b": "fascia_soffit",
+   "share": 0.383
+  },
+  {
+   "a": "dl_out.012",
+   "b": "fascia_soffit",
+   "share": 0.383
+  },
+  {
+   "a": "dl_out.020",
+   "b": "fascia_soffit",
+   "share": 0.383
+  },
+  {
+   "a": "dl_out.002",
+   "b": "fascia_soffit",
+   "share": 0.375
+  },
+  {
+   "a": "joint_h.001",
+   "b": "svc_body",
+   "share": 0.375
+  },
+  {
+   "a": "dl_out.019",
+   "b": "fascia_soffit",
+   "share": 0.367
+  },
+  {
+   "a": "dl_out.001",
+   "b": "fascia_soffit",
+   "share": 0.358
+  },
+  {
+   "a": "dl_out.003",
+   "b": "fascia_soffit",
+   "share": 0.358
+  },
+  {
+   "a": "dl_out.005",
+   "b": "fascia_soffit",
+   "share": 0.358
+  },
+  {
+   "a": "dl_out",
+   "b": "fascia_soffit",
+   "share": 0.325
+  },
+  {
+   "a": "reception",
+   "b": "reception_top",
+   "share": 0.32
+  },
+  {
+   "a": "dl_out.007",
+   "b": "fascia_soffit",
+   "share": 0.317
+  },
+  {
+   "a": "joint",
+   "b": "svc_body",
+   "share": 0.292
+  },
+  {
+   "a": "joint.006",
+   "b": "svc_body",
+   "share": 0.292
+  },
+  {
+   "a": "joint.005",
+   "b": "svc_body",
+   "share": 0.25
+  },
+  {
+   "a": "floor",
+   "b": "plant_pot.001",
+   "share": 0.21
+  },
+  {
+   "a": "plant_pot.001",
+   "b": "slab",
+   "share": 0.21
+  },
+  {
+   "a": "coffee_table",
+   "b": "ct_leg",
+   "share": 0.208
+  },
+  {
+   "a": "ct_leg",
+   "b": "floor",
+   "share": 0.208
+  },
+  {
+   "a": "joint.002",
+   "b": "svc_body",
+   "share": 0.208
+  },
+  {
+   "a": "joint.003",
+   "b": "svc_body",
+   "share": 0.208
+  },
+  {
+   "a": "joint.004",
+   "b": "svc_body",
+   "share": 0.208
+  },
+  {
+   "a": "floor",
+   "b": "svc_desk",
+   "share": 0.207
+  },
+  {
+   "a": "slab",
+   "b": "svc_desk",
+   "share": 0.207
+  },
+  {
+   "a": "floor",
+   "b": "reception",
+   "share": 0.203
+  },
+  {
+   "a": "floor",
+   "b": "plant_pot",
+   "share": 0.173
+  },
+  {
+   "a": "plant_pot",
+   "b": "slab",
+   "share": 0.173
+  },
+  {
+   "a": "floor",
+   "b": "toilet",
+   "share": 0.168
+  },
+  {
+   "a": "floor",
+   "b": "toilet.001",
+   "share": 0.168
+  },
+  {
+   "a": "band_s",
+   "b": "fascia_soffit",
+   "share": 0.167
+  },
+  {
+   "a": "band_w",
+   "b": "fascia_soffit",
+   "share": 0.167
+  },
+  {
+   "a": "glass.002",
+   "b": "glass_above_door",
+   "share": 0.167
+  },
+  {
+   "a": "glass.003",
+   "b": "glass_above_door",
+   "share": 0.167
+  },
+  {
+   "a": "joint.001",
+   "b": "svc_body",
+   "share": 0.167
+  },
+  {
+   "a": "fascia_soffit",
+   "b": "svc_glass_link",
+   "share": 0.167
+  },
+  {
+   "a": "lounge_rug",
+   "b": "sofa_seat.002",
+   "share": 0.137
+  },
+  {
+   "a": "dealer_w",
+   "b": "fascia_w",
+   "share": 0.13
+  },
+  {
+   "a": "lounge_rug",
+   "b": "sofa_seat.001",
+   "share": 0.11
+  },
+  {
+   "a": "bar_top",
+   "b": "coffee_machine",
+   "share": 0.083
+  },
+  {
+   "a": "joint_h",
+   "b": "svc_body",
+   "share": 0.083
+  },
+  {
+   "a": "mullion.020",
+   "b": "slab",
+   "share": 0.083
+  },
+  {
+   "a": "slab",
+   "b": "step",
+   "share": 0.083
+  },
+  {
+   "a": "portal_r",
+   "b": "portal_top",
+   "share": 0.057
+  },
+  {
+   "a": "turntable",
+   "b": "turntable_trim",
+   "share": 0.05
+  },
+  {
+   "a": "portal_l",
+   "b": "portal_top",
+   "share": 0.047
+  },
+  {
+   "a": "lounge_rug",
+   "b": "sofa_seat",
+   "share": 0.047
+  },
+  {
+   "a": "back_wall",
+   "b": "floor",
+   "share": 0.042
+  },
+  {
+   "a": "back_wall",
+   "b": "rooms_roof",
+   "share": 0.042
+  },
+  {
+   "a": "back_wall",
+   "b": "slab",
+   "share": 0.042
+  },
+  {
+   "a": "back_wall",
+   "b": "svc_body",
+   "share": 0.042
+  },
+  {
+   "a": "band_s",
+   "b": "glass.006",
+   "share": 0.042
+  },
+  {
+   "a": "door_frame",
+   "b": "door_jamb.004",
+   "share": 0.042
+  },
+  {
+   "a": "door_glass.001",
+   "b": "door_jamb.002",
+   "share": 0.042
+  },
+  {
+   "a": "fascia_s",
+   "b": "roof",
+   "share": 0.042
+  },
+  {
+   "a": "fascia_soffit",
+   "b": "fascia_w",
+   "share": 0.042
+  },
+  {
+   "a": "band_s",
+   "b": "glass_above_door",
+   "share": 0.042
+  },
+  {
+   "a": "lift_beam.002",
+   "b": "lift_post.004",
+   "share": 0.042
+  },
+  {
+   "a": "lift_beam.002",
+   "b": "lift_post.005",
+   "share": 0.042
+  },
+  {
+   "a": "lift_beam",
+   "b": "lift_post",
+   "share": 0.042
+  },
+  {
+   "a": "lift_beam.001",
+   "b": "lift_post.002",
+   "share": 0.042
+  },
+  {
+   "a": "lift_post.002",
+   "b": "svc_body",
+   "share": 0.042
+  },
+  {
+   "a": "floor",
+   "b": "lounge_wall",
+   "share": 0.042
+  },
+  {
+   "a": "lounge_wall",
+   "b": "slab",
+   "share": 0.042
+  },
+  {
+   "a": "mullion.005",
+   "b": "slab",
+   "share": 0.042
+  },
+  {
+   "a": "mullion.005",
+   "b": "step",
+   "share": 0.042
+  },
+  {
+   "a": "band_s",
+   "b": "mullion.014",
+   "share": 0.042
+  },
+  {
+   "a": "glass.017",
+   "b": "mullion.020",
+   "share": 0.042
+  },
+  {
+   "a": "mullion.029",
+   "b": "slab",
+   "share": 0.042
+  },
+  {
+   "a": "mullion.037",
+   "b": "slab",
+   "share": 0.042
+  },
+  {
+   "a": "mullion.038",
+   "b": "slab",
+   "share": 0.042
+  },
+  {
+   "a": "mullion.041",
+   "b": "slab",
+   "share": 0.042
+  },
+  {
+   "a": "mullion.042",
+   "b": "slab",
+   "share": 0.042
+  },
+  {
+   "a": "mullion.046",
+   "b": "slab",
+   "share": 0.042
+  },
+  {
+   "a": "floor",
+   "b": "price_stand.001",
+   "share": 0.042
+  },
+  {
+   "a": "floor",
+   "b": "price_stand.002",
+   "share": 0.042
+  },
+  {
+   "a": "fascia_n",
+   "b": "roof",
+   "share": 0.042
+  },
+  {
+   "a": "rooms_fascia",
+   "b": "staff_wall",
+   "share": 0.042
+  },
+  {
+   "a": "rooms_fascia",
+   "b": "wc_front",
+   "share": 0.042
+  },
+  {
+   "a": "slab",
+   "b": "ws_floor",
+   "share": 0.042
+  }
+ ],
+ "nudge": {
+  "glass_door_side": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "svc_roof": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "floor": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "lounge_tv": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "svc_door": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "turntable": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "dl_room_edge.006": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "dl_out.008": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "dl_out.011": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "dl_out.013": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "dl_out.017": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "dl_out.021": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "dl_room_edge.017": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "bar_top": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "dl_out.018": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "dl_out.022": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "dl_out.010": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "dl_out.014": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "dl_out.015": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "dl_out.023": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "dl_out.006": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "dl_out.016": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "dl_out.004": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "dl_out.009": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "dl_out.012": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "dl_out.020": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "dl_out.002": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "joint_h.001": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "dl_out.019": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "dl_out.001": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "dl_out.003": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "dl_out.005": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "dl_out": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "reception_top": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "dl_out.007": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "joint": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "joint.006": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "joint.005": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "plant_pot.001": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "ct_leg": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "joint.002": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "joint.003": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "joint.004": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "svc_desk": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "reception": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "plant_pot": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "toilet": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "toilet.001": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "band_s": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "band_w": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "glass.002": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "glass.003": [
+   0.0,
+   0.0,
+   0.0015
+  ],
+  "joint.001": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "svc_glass_link": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "sofa_seat.002": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "dealer_w": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "sofa_seat.001": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "coffee_machine": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "joint_h": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "mullion.020": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "step": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "portal_r": [
+   0.00147,
+   0.0,
+   -0.00031
+  ],
+  "turntable_trim": [
+   -0.00071,
+   0.0,
+   -0.00132
+  ],
+  "portal_l": [
+   -0.00134,
+   0.0,
+   0.00067
+  ],
+  "sofa_seat": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "back_wall": [
+   0.0015,
+   -0.0015,
+   0.0
+  ],
+  "rooms_roof": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "glass.006": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "door_jamb.004": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "door_jamb.002": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "fascia_s": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "fascia_w": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "glass_above_door": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "lift_beam.002": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "lift_beam": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "lift_beam.001": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "lift_post.002": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "lounge_wall": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "mullion.005": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "mullion.014": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "mullion.029": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "mullion.037": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "mullion.038": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "mullion.041": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "mullion.042": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "mullion.046": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "price_stand.001": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "price_stand.002": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "fascia_n": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "staff_wall": [
+   0.0,
+   0.0,
+   0.0015
+  ],
+  "wc_front": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "ws_floor": [
+   -0.0015,
+   0.0,
+   0.0
+  ]
+ }
+}

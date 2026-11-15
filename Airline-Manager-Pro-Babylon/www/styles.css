@@ -254,8 +254,12 @@ body.game-on .gear, body.game-on .exit, body.game-on .to-title, body.game-on .pl
 /* the title screen: the game first, then the demos */
 .ts-demos { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: clamp(4px, 1vh, 10px); }
 .ts-demos > small { width: 100%; font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase; color: rgba(235, 225, 255, .55); margin-left: 4px; }
-.ts-btn.ts-demo { width: auto; min-width: 0; padding: clamp(5px, 1vh, 8px) 16px clamp(5px, 1vh, 8px) 12px; }
-.ts-btn.ts-demo .ts-bt b { font-size: 13px; }
+/* (owner, 2026-11-15: the demos about half the size of the game's own buttons - New game, Load, Save...) */
+.ts-btn.ts-demo { width: auto; min-width: 0; gap: 6px; padding: clamp(2px, .5vh, 4px) 9px clamp(2px, .5vh, 4px) 7px; }
+.ts-btn.ts-demo .ts-bi { width: 16px; height: 16px; }
+.ts-btn.ts-demo .ts-bi .ic { width: 11px; height: 11px; }
+.ts-btn.ts-demo .ts-bt b { font-size: 9.5px; letter-spacing: .06em; }
+.ts-btn.ts-demo:hover, .ts-btn.ts-demo:focus-visible, .ts-btn.ts-demo.on { transform: skewX(-12deg) translateX(6px); }
 @media (max-height: 560px) { .ts-btn .ts-bt small { display: none; } .ts-nav { gap: 4px; margin-top: 8px; } }
 /* the 3D viewer following a real flight */
 .game-frame.away { display: none; pointer-events: none; }   /* fully hidden in the 3D places: it draws nothing and polls no controller (the airline keeps running) */
@@ -449,7 +453,8 @@ body.photo-on .cab-says { display: none; }
   .ts-bt small { display: none; }
   .ts-demos { gap: 4px; margin-top: 2px; }
   .ts-demos > small { font-size: 8px; }
-  .ts-btn.ts-demo { padding: 2px 8px 2px 6px; }
+  .ts-btn.ts-demo { padding: 1px 5px 1px 4px; }
+  .ts-btn.ts-demo .ts-bt b { font-size: 8px; }
   .ts-btn.ts-demo .ts-bt b { font-size: 9.5px; }
   .ts-ver { bottom: 4px; font-size: 8.5px; }
   .ts-mute { height: 26px; bottom: 6px; padding: 0 10px; font-size: 10px; }

@@ -22,6 +22,8 @@ public:
 	UFUNCTION() void OpenSite();
 	/** The title screen's Lounge: the Babylon edition's business lounge, in Unreal. */
 	UFUNCTION() void OpenLounge();
+	/** The title screen's town demos (owner, 2026-11-15): outside a town building, 25-30 m off, looking at it - "dealership", "villa". */
+	UFUNCTION() void OpenPlace(const FString& Id);
 	/** The 3D viewer: Unreal's own, following a flight (its positions come through ViewerFlight). */
 	UFUNCTION() void OpenViewer();
 	/** Where the followed flight is (the game's 3D viewer feed, JSON {me: {...}}), four times a second. */

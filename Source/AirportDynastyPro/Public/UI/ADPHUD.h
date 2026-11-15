@@ -133,6 +133,8 @@ public:
 	void TogglePointer();
 	/** From the menus: Unreal's world round the terminal, standing at the kerb outside the main entrance. */
 	void OpenSite();
+	/** Outside a town building (TownBuildings.h), from the title screen's demos or the quick-starts. */
+	void OpenTownPlace(const FString& Id);
 	/** The map's three shortcuts (and Airport site): you are put on free floor at a spot in the plan (metres: x, the
 	 *  floor's height, z), looking at another; never inside a wall or the floor. */
 	void GoTo(const FVector& PlanAt, const FVector& PlanLook);

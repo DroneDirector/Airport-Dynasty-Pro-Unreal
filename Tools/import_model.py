@@ -38,15 +38,26 @@ def editor_py(script_and_args, what):
 
 def main(blend_script, glb, name):
     lower = name.lower()
-    # 1. the model, from its Blender script
-    out = run([BLENDER, '-b', '--python', blend_script], 'Blender build')
-    if 'Traceback' in out or 'Error' in out.split('DONE')[-1:][0][:0]:
-        sys.exit(out[-3000:])
+    # 1. the model, from its Blender script ('-' : a finished .glb made elsewhere, e.g. the villa and the dealership from
+    # the phone chat, used as it is)
+    if blend_script != '-':
+        out = run([BLENDER, '-b', '--python', blend_script], 'Blender build')
+        if 'Traceback' in out or 'Error' in out.split('DONE')[-1:][0][:0]:
+            sys.exit(out[-3000:])
     # 2. no fighting surfaces
-    out = run([sys.executable, 'Tools/find_zfight.py', glb, lower], 'flicker check')
+    # (its pairs go to Data/<name>-zfight.json: the game parts them by a hair - a finished .glb is taken so, our own
+    # Blender models must have none; the second argument was the bare name and wrote a stray file in the project root)
+    zf = 'Data/%s-zfight.json' % lower
+    out = run([sys.executable, 'Tools/find_zfight.py', glb, zf], 'flicker check')
     print(out.strip().splitlines()[-1])
-    if '0 pairs fight' not in out:
+    shutil.copy(ROOT / zf, ROOT / 'Content' / zf)
+    if '0 pairs fight' not in out and blend_script != '-':
         sys.exit('surfaces fight - open the gaps in the Blender script first:\n' + out[-2000:])
+    # (the import names its folder after the file: a file named otherwise - VELDRA-dealership.glb - is imported from a
+    # copy named as the model, or the game looks in /Game/Babylon/<Name>/<name> and finds nothing)
+    if Path(glb).stem.lower() != lower:
+        cp = ROOT / 'Saved' / 'Import' / (name + '.glb'); cp.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(ROOT / glb, cp); glb = str(cp.relative_to(ROOT))
     # 3. into Unreal, one mesh per glTF mesh
     editor_py('%s %s %s --assets --shared' % (ROOT / 'Tools/import_babylon_model.py', ROOT / glb, name), 'import')
     # 4. its materials usable on instanced parts

@@ -1,0 +1,701 @@
+{
+ "pairs": [
+  {
+   "a": "living_floor",
+   "b": "living_plinth",
+   "share": 0.625
+  },
+  {
+   "a": "entry_wall",
+   "b": "living_wall",
+   "share": 0.583
+  },
+  {
+   "a": "bedrooms_floor",
+   "b": "bedrooms_plinth",
+   "share": 0.542
+  },
+  {
+   "a": "garage_floor",
+   "b": "garage_plinth",
+   "share": 0.542
+  },
+  {
+   "a": "garage_wall",
+   "b": "living_wall",
+   "share": 0.5
+  },
+  {
+   "a": "deck",
+   "b": "deck_light.002",
+   "share": 0.486
+  },
+  {
+   "a": "deck",
+   "b": "deck_light.006",
+   "share": 0.472
+  },
+  {
+   "a": "fire_pit",
+   "b": "fire_pit_flame",
+   "share": 0.417
+  },
+  {
+   "a": "deck",
+   "b": "deck_light.005",
+   "share": 0.389
+  },
+  {
+   "a": "deck",
+   "b": "deck_light",
+   "share": 0.375
+  },
+  {
+   "a": "entry_wall",
+   "b": "front_door",
+   "share": 0.375
+  },
+  {
+   "a": "front_door",
+   "b": "living_wall",
+   "share": 0.375
+  },
+  {
+   "a": "deck",
+   "b": "deck_light.004",
+   "share": 0.347
+  },
+  {
+   "a": "chimney_wall",
+   "b": "living_wall",
+   "share": 0.333
+  },
+  {
+   "a": "deck",
+   "b": "out_sofa",
+   "share": 0.327
+  },
+  {
+   "a": "deck",
+   "b": "fire_pit",
+   "share": 0.298
+  },
+  {
+   "a": "bedrooms_wall",
+   "b": "living_wall",
+   "share": 0.292
+  },
+  {
+   "a": "deck",
+   "b": "deck_light.001",
+   "share": 0.292
+  },
+  {
+   "a": "deck",
+   "b": "deck_light.003",
+   "share": 0.292
+  },
+  {
+   "a": "deck",
+   "b": "deck_light.007",
+   "share": 0.25
+  },
+  {
+   "a": "garage_roof",
+   "b": "living_roof",
+   "share": 0.25
+  },
+  {
+   "a": "garage_soffit",
+   "b": "living_soffit",
+   "share": 0.25
+  },
+  {
+   "a": "deck",
+   "b": "tub",
+   "share": 0.237
+  },
+  {
+   "a": "kitchen_back",
+   "b": "kitchen_tall",
+   "share": 0.208
+  },
+  {
+   "a": "dt_leg",
+   "b": "living_floor",
+   "share": 0.167
+  },
+  {
+   "a": "bedrooms_roof",
+   "b": "living_roof",
+   "share": 0.125
+  },
+  {
+   "a": "bedrooms_soffit",
+   "b": "living_soffit",
+   "share": 0.125
+  },
+  {
+   "a": "chimney_wall",
+   "b": "garage_roof",
+   "share": 0.125
+  },
+  {
+   "a": "chimney_wall",
+   "b": "living_roof",
+   "share": 0.125
+  },
+  {
+   "a": "dining_table",
+   "b": "dt_leg",
+   "share": 0.125
+  },
+  {
+   "a": "entry_canopy",
+   "b": "living_roof",
+   "share": 0.125
+  },
+  {
+   "a": "kitchen_tall",
+   "b": "living_wall.001",
+   "share": 0.125
+  },
+  {
+   "a": "chimney_wall",
+   "b": "living_floor",
+   "share": 0.083
+  },
+  {
+   "a": "chimney_wall",
+   "b": "living_plinth",
+   "share": 0.083
+  },
+  {
+   "a": "door_pull",
+   "b": "front_door",
+   "share": 0.083
+  },
+  {
+   "a": "garage_plinth",
+   "b": "garage_wall.002",
+   "share": 0.083
+  },
+  {
+   "a": "garage_wall",
+   "b": "garage_wall.003",
+   "share": 0.083
+  },
+  {
+   "a": "kitchen_tall",
+   "b": "living_floor",
+   "share": 0.083
+  },
+  {
+   "a": "kitchen_tall",
+   "b": "living_plinth",
+   "share": 0.083
+  },
+  {
+   "a": "bedrooms_mull.003",
+   "b": "bedrooms_roof",
+   "share": 0.042
+  },
+  {
+   "a": "bedrooms_mull.005",
+   "b": "bedrooms_roof",
+   "share": 0.042
+  },
+  {
+   "a": "bedrooms_mull.006",
+   "b": "bedrooms_roof",
+   "share": 0.042
+  },
+  {
+   "a": "bedrooms_glass.001",
+   "b": "bedrooms_plinth",
+   "share": 0.042
+  },
+  {
+   "a": "bedrooms_roof",
+   "b": "bedrooms_wall",
+   "share": 0.042
+  },
+  {
+   "a": "bedrooms_wall",
+   "b": "bedrooms_wall.002",
+   "share": 0.042
+  },
+  {
+   "a": "bedrooms_wall",
+   "b": "living_roof",
+   "share": 0.042
+  },
+  {
+   "a": "bedrooms_plinth",
+   "b": "bedrooms_wall.001",
+   "share": 0.042
+  },
+  {
+   "a": "bedrooms_wall.001",
+   "b": "bedrooms_wall.002",
+   "share": 0.042
+  },
+  {
+   "a": "bedrooms_floor",
+   "b": "bedrooms_wall.002",
+   "share": 0.042
+  },
+  {
+   "a": "bedrooms_plinth",
+   "b": "bedrooms_wall.002",
+   "share": 0.042
+  },
+  {
+   "a": "bedrooms_roof",
+   "b": "bedrooms_wall.002",
+   "share": 0.042
+  },
+  {
+   "a": "bedrooms_wall.002",
+   "b": "living_roof",
+   "share": 0.042
+  },
+  {
+   "a": "bedrooms_wall.002",
+   "b": "living_wall",
+   "share": 0.042
+  },
+  {
+   "a": "bedrooms_roof",
+   "b": "entry_canopy",
+   "share": 0.042
+  },
+  {
+   "a": "courtyard",
+   "b": "entry_path",
+   "share": 0.042
+  },
+  {
+   "a": "entry_wall",
+   "b": "living_plinth",
+   "share": 0.042
+  },
+  {
+   "a": "garage_door",
+   "b": "garage_plinth",
+   "share": 0.042
+  },
+  {
+   "a": "garage_floor",
+   "b": "garage_wall",
+   "share": 0.042
+  },
+  {
+   "a": "garage_plinth",
+   "b": "garage_wall",
+   "share": 0.042
+  },
+  {
+   "a": "garage_plinth",
+   "b": "living_plinth",
+   "share": 0.042
+  },
+  {
+   "a": "entry_canopy",
+   "b": "garage_roof",
+   "share": 0.042
+  },
+  {
+   "a": "garage_roof",
+   "b": "garage_wall",
+   "share": 0.042
+  },
+  {
+   "a": "garage_roof",
+   "b": "living_wall",
+   "share": 0.042
+  },
+  {
+   "a": "garage_wall",
+   "b": "living_roof",
+   "share": 0.042
+  },
+  {
+   "a": "garage_floor",
+   "b": "garage_wall.001",
+   "share": 0.042
+  },
+  {
+   "a": "garage_plinth",
+   "b": "garage_wall.001",
+   "share": 0.042
+  },
+  {
+   "a": "garage_roof",
+   "b": "garage_wall.001",
+   "share": 0.042
+  },
+  {
+   "a": "garage_wall",
+   "b": "garage_wall.002",
+   "share": 0.042
+  },
+  {
+   "a": "garage_wall.002",
+   "b": "living_wall",
+   "share": 0.042
+  },
+  {
+   "a": "garage_roof",
+   "b": "garage_wall.003",
+   "share": 0.042
+  },
+  {
+   "a": "living_floor",
+   "b": "living_wall",
+   "share": 0.042
+  },
+  {
+   "a": "living_floor",
+   "b": "living_glass.011",
+   "share": 0.042
+  },
+  {
+   "a": "living_glass.011",
+   "b": "living_plinth",
+   "share": 0.042
+  },
+  {
+   "a": "living_mull.002",
+   "b": "living_roof",
+   "share": 0.042
+  },
+  {
+   "a": "living_mull.003",
+   "b": "living_roof",
+   "share": 0.042
+  },
+  {
+   "a": "living_glass.005",
+   "b": "living_mull.006",
+   "share": 0.042
+  },
+  {
+   "a": "living_mull.006",
+   "b": "living_plinth",
+   "share": 0.042
+  },
+  {
+   "a": "living_mull.008",
+   "b": "living_roof",
+   "share": 0.042
+  },
+  {
+   "a": "living_floor",
+   "b": "living_mull.009",
+   "share": 0.042
+  },
+  {
+   "a": "living_mull.009",
+   "b": "living_plinth",
+   "share": 0.042
+  },
+  {
+   "a": "garage_plinth",
+   "b": "living_mull.011",
+   "share": 0.042
+  },
+  {
+   "a": "living_mull.011",
+   "b": "living_plinth",
+   "share": 0.042
+  },
+  {
+   "a": "living_mull.011",
+   "b": "living_wall",
+   "share": 0.042
+  },
+  {
+   "a": "living_mull.013",
+   "b": "living_roof",
+   "share": 0.042
+  },
+  {
+   "a": "living_mull.007",
+   "b": "living_roof",
+   "share": 0.042
+  },
+  {
+   "a": "garage_plinth",
+   "b": "living_wall",
+   "share": 0.042
+  },
+  {
+   "a": "living_plinth",
+   "b": "living_wall",
+   "share": 0.042
+  },
+  {
+   "a": "living_plinth",
+   "b": "living_wall.001",
+   "share": 0.042
+  }
+ ],
+ "nudge": {
+  "living_floor": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "entry_wall": [
+   0.0,
+   -0.0015,
+   0.0015
+  ],
+  "bedrooms_floor": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "garage_floor": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "garage_wall": [
+   0.0,
+   0.0015,
+   -0.0015
+  ],
+  "deck_light.002": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "deck_light.006": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "fire_pit_flame": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "deck_light.005": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "deck_light": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "front_door": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "deck_light.004": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "chimney_wall": [
+   0.0,
+   0.0015,
+   0.0015
+  ],
+  "out_sofa": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "fire_pit": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "bedrooms_wall": [
+   -0.0015,
+   0.0015,
+   -0.0015
+  ],
+  "deck_light.001": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "deck_light.003": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "deck_light.007": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "garage_roof": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "garage_soffit": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "tub": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "kitchen_tall": [
+   0.00134,
+   -0.0015,
+   -0.0015
+  ],
+  "dt_leg": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "bedrooms_roof": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "bedrooms_soffit": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "entry_canopy": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "door_pull": [
+   0.0,
+   0.0,
+   -0.0015
+  ],
+  "garage_wall.002": [
+   0.0,
+   -0.0015,
+   -0.0015
+  ],
+  "garage_wall.003": [
+   -0.00106,
+   0.0015,
+   -0.00106
+  ],
+  "bedrooms_mull.003": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "bedrooms_mull.005": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "bedrooms_mull.006": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "bedrooms_glass.001": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "bedrooms_wall.001": [
+   -0.0015,
+   -0.0015,
+   0.0
+  ],
+  "bedrooms_wall.002": [
+   0.0,
+   -0.0015,
+   -0.0015
+  ],
+  "entry_path": [
+   0.0,
+   0.0,
+   0.0015
+  ],
+  "garage_door": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "garage_plinth": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "living_wall": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "garage_wall.001": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "living_glass.011": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "living_mull.002": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "living_mull.003": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "living_mull.006": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "living_mull.008": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "living_mull.009": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "living_mull.011": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "living_mull.013": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "living_mull.007": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "living_wall.001": [
+   0.0,
+   -0.0015,
+   0.0
+  ]
+ }
+}

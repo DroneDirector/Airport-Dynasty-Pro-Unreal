@@ -74,6 +74,8 @@ async function enter(id: string, title: string, opts?: any) {
   // the PC version: the terminal and the airport site are Unreal's own 3D (the menus go out of sight; G brings them back)
   const u = ue(); if (u && id === 'terminal' && u.openterminal) { u.openterminal(); return; }
   if (u && id === 'site' && u.opensite) { u.opensite(); return; }
+  // the town's buildings (owner, 2026-11-15): outside each, looking at it
+  if (u && id.startsWith('town:') && u.openplace) { u.openplace(id.slice(5)); return; }
   if (u && id === 'lounge' && u.openlounge) { u.openlounge(); return; }
   // the 3D viewer following a flight: Unreal's own viewer (the airport's and crash sites' views stay the Babylon viewer)
   if (u && id === 'viewer3d' && u.openviewer && !(opts && (opts.crash || opts.apt))) {

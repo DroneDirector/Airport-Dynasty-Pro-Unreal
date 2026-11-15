@@ -51,7 +51,7 @@ export function splashOpen(enter: (id: string) => void) {
         ['game:save', 'save', 'Save game', 'Save your airline in a slot'],
         ['game:ui', 'grid', 'UI', 'Straight into the game\'s menus and screens'],
       ].map(([id, ic, t, s], i) => `<button class="ts-btn ${id === _pick ? 'on' : ''} ${id === 'game:continue' && !career ? 'dim' : ''}" data-a="enter" data-id="${id}"><span class="ts-bi">${icon(ic)}</span><span class="ts-bt"><b>${t}</b><small>${s}</small></span><i class="ts-sheen"></i></button>`).join('')}
-        <div class="ts-demos"><small>Demos</small>${[['viewer3d', 'plane', '3D viewer'], ['lounge', 'star', 'Lounge'], ...(IS_PC ? [['terminal', 'terminal', 'Terminal'], ['site', 'mountain', 'Airport site']] : [])].map(([id, ic, t]) => `<button class="ts-btn ts-demo" data-a="enter" data-id="${id}"><span class="ts-bi">${icon(ic)}</span><span class="ts-bt"><b>${t}</b></span><i class="ts-sheen"></i></button>`).join('')}</div></nav>
+        <div class="ts-demos"><small>Demos</small>${[['viewer3d', 'plane', '3D viewer'], ['lounge', 'star', 'Lounge'], ...(IS_PC ? [['terminal', 'terminal', 'Terminal'], ['site', 'mountain', 'Airport site'], ['town:dealership', 'car', 'Car dealership'], ['town:villa', 'home', 'Your villa']] : [])].map(([id, ic, t]) => `<button class="ts-btn ts-demo" data-a="enter" data-id="${id}"><span class="ts-bi">${icon(ic)}</span><span class="ts-bt"><b>${t}</b></span><i class="ts-sheen"></i></button>`).join('')}</div></nav>
     </div>
     <div class="ts-cap" aria-hidden="true"><small></small><b></b></div>
     <small class="ts-ver">${UE_PC ? `v${esc(UE_PC)} · Unreal Engine ${esc(UE_ENGINE)}` : `v${esc(APP.version)} · Babylon.js ${esc(APP.babylon)}`}</small>

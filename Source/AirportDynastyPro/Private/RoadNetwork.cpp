@@ -637,7 +637,16 @@ int32 ARoadNetwork::Build()
 			const TSharedPtr<FJsonObject> O = LV->AsObject();
 			const double X0 = O->GetNumberField(TEXT("x0")), Y0 = O->GetNumberField(TEXT("y0")), X1 = O->GetNumberField(TEXT("x1")), Y1 = O->GetNumberField(TEXT("y1"));
 			double Lf = 0.03; O->TryGetNumberField(TEXT("lift"), Lf);
-			auto LotAt = [&](double X, double Y, double Up) { return FVector(X * 100.0, -Y * 100.0, (ARoadNetwork::GroundAt(X, Y) + Lf + Up) * 100.0) - GetActorLocation(); };
+			// (a turned car park - the town's, square to its streets: "frame" {o, u, v}: its x and y are then metres along
+			// u and v from o, plan metres)
+			FVector2D FO(0, 0), FU(1, 0), FV(0, 1);
+			const TSharedPtr<FJsonObject>* FrJ = nullptr;
+			if (O->TryGetObjectField(TEXT("frame"), FrJ))
+			{
+				auto V2 = [&](const TCHAR* K) { const auto& A = (*FrJ)->GetArrayField(K); return FVector2D(A[0]->AsNumber(), A[1]->AsNumber()); };
+				FO = V2(TEXT("o")); FU = V2(TEXT("u")); FV = V2(TEXT("v"));
+			}
+			auto LotAt = [&](double LX, double LY, double Up) { const FVector2D Q = FO + FU * LX + FV * LY; return FVector(Q.X * 100.0, -Q.Y * 100.0, (ARoadNetwork::GroundAt(Q.X, Q.Y) + Lf + Up) * 100.0) - GetActorLocation(); };
 			auto LotGrime = [](double D) { return 0.3f + 0.5f * float(FMath::Frac(FMath::Sin(D * 12.9898) * 43758.5453)); };
 			auto Rect = [&](FName Mat, double A0, double B0, double A1, double B1, double Up, double Step)
 			{
@@ -682,6 +691,30 @@ int32 ARoadNetwork::Build()
 				}
 			ADP_LOG(TEXT("Roads: a car park %.0f x %.0f m with %d spaces"), X1 - X0, Y1 - Y0, Spaces);
 		}
+	// ---- the junctions' curved corners ("fills": [{pts: [[x, y] (plan m): the corner point, then its curve], lift}]):
+	// asphalt between two streets' carriageway edges and a curve touching both (owner, 2026-11-15: "make the curves
+	// meet each other when the roads connect"), on our ground, a fan from the corner point (Tools/make_roads.py) ----
+	const TArray<TSharedPtr<FJsonValue>>* FillJ = nullptr;
+	int32 Fills = 0;
+	if (Root->TryGetArrayField(TEXT("fills"), FillJ))
+		for (const TSharedPtr<FJsonValue>& FV : *FillJ)
+		{
+			const TSharedPtr<FJsonObject> O = FV->AsObject();
+			double Lf = 0.035; O->TryGetNumberField(TEXT("lift"), Lf);
+			const TArray<TSharedPtr<FJsonValue>>& Pa = O->GetArrayField(TEXT("pts"));
+			if (Pa.Num() < 3) continue;
+			FPaintBuf& B = Paint.FindOrAdd(FName(TEXT("groad")));
+			const int32 Bi = B.V.Num();
+			for (const TSharedPtr<FJsonValue>& PV : Pa)
+			{
+				const auto& A = PV->AsArray(); const double X = A[0]->AsNumber(), Y = A[1]->AsNumber();
+				B.V.Add(FVector(X * 100.0, -Y * 100.0, (ARoadNetwork::GroundAt(X, Y) + Lf) * 100.0) - GetActorLocation());
+				B.N.Add(FVector::UpVector); B.UV.Add(FVector2D(X / 4.0, Y / 4.0)); B.C.Add(FLinearColor(1.f, 0.5f, 1.f, 1.f));
+			}
+			for (int32 k = 1; k + 1 < Pa.Num(); ++k) B.I.Append({Bi, Bi + k, Bi + k + 1});
+			++Fills;
+		}
+	if (Fills) ADP_LOG(TEXT("Roads: %d curved junction corners"), Fills);
 	// ---- every road's paint, the car parks and the roundabouts' middles: one mesh, a section per material ----
 	if (Paint.Num())
 	{

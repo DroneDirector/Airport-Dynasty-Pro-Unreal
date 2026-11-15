@@ -17,6 +17,7 @@
 #include "TowerADC.h"
 #include "Hangar.h"
 #include "FireStation.h"
+#include "TownBuildings.h"
 #include "Airfield.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "UI/SHoloMap.h"
@@ -305,6 +306,9 @@ void AADPHUD::BeginPlay()
 		HangarList->AddSlot().AutoHeight().Padding(0, 0, 0, 4)[Button(TEXT("FIRE STATION: OUTSIDE"), [this]() { GoFireStation(0); })];
 		HangarList->AddSlot().AutoHeight().Padding(0, 0, 0, 4)[Button(TEXT("FIRE STATION: FROM THE SIDE"), [this]() { GoFireStation(1); })];
 		HangarList->AddSlot().AutoHeight().Padding(0, 0, 0, 10)[Button(TEXT("FIRE STATION: INSIDE, BY THE TRUCKS"), [this]() { GoFireStation(2); })];
+		// the town's buildings (owner, 2026-11-15): outside each, 25-30 m off, looking at it
+		HangarList->AddSlot().AutoHeight().Padding(0, 0, 0, 4)[Button(TEXT("TOWN: THE CAR DEALERSHIP"), [this]() { OpenTownPlace(TEXT("dealership")); })];
+		HangarList->AddSlot().AutoHeight().Padding(0, 0, 0, 10)[Button(TEXT("TOWN: YOUR VILLA"), [this]() { OpenTownPlace(TEXT("villa")); })];
 	}
 
 	Root = SNew(SOverlay).Visibility(EVisibility::SelfHitTestInvisible)
@@ -1580,6 +1584,15 @@ void AADPHUD::OpenSite()
 	Breadcrumb(TEXT("At the airport site (3D)"));
 	ShowTerminal();
 	GoEntrance();
+}
+
+void AADPHUD::OpenTownPlace(const FString& Id)
+{
+	FVector At, Look;
+	if (!ADPTown::Spot(Id, At, Look)) { ADP_WARN(TEXT("Town: no place '%s'"), *Id); return; }
+	Breadcrumb(FString::Printf(TEXT("In town: %s"), *Id));
+	ShowTerminal();
+	GoTo(At, Look);
 }
 
 void AADPHUD::GoTo(const FVector& PlanAt, const FVector& PlanLook)
@@ -2975,11 +2988,24 @@ void AADPHUD::Tick(float Dt)
 			};
 			// -UIRoadAirport -TownShots: the town's roads (2026-11-15): roundabout 9, Main Street from eye height and from above, its east end
 			const FV TownStreetViews[] = {
-				{TEXT("TW_1_Roundabout9High"), 4280.9f, 45.0f, -3466.2f, 4360.9f, 0.0f, -3496.2f, 13.f},
-				{TEXT("TW_2_MainStreetWest"), 4459.6f, 1.7f, -3524.1f, 4540.4f, 1.2f, -3550.9f, 13.f},
-				{TEXT("TW_3_MainStreetHigh"), 5012.2f, 40.0f, -3679.8f, 4991.3f, 0.0f, -3746.6f, 13.f},
-				{TEXT("TW_4_MainStreetEye"), 5337.8f, 1.7f, -3835.6f, 5424.6f, 1.2f, -3859.8f, 13.f},
-				{TEXT("TW_5_EastEnd"), 5598.4f, 25.0f, -3919.1f, 5625.9f, 0.0f, -3980.2f, 13.f},
+				// (2026-11-15: the whole town's streets, the dealership and the villa)
+				{TEXT("TW_01_WholeTown"), 4792.0f, 420.0f, -4458.8f, 5070.8f, 0.0f, -3769.1f, 13.f},
+				{TEXT("TW_02_NorthLoops"), 4965.2f, 160.0f, -3707.7f, 5088.4f, 0.0f, -3403.0f, 13.f},
+				{TEXT("TW_03_TownSquare"), 4940.8f, 70.0f, -3791.2f, 5018.6f, 0.0f, -3598.7f, 13.f},
+				{TEXT("TW_04_SouthLoops"), 4952.2f, 170.0f, -3739.8f, 4809.6f, 0.0f, -4092.7f, 13.f},
+				{TEXT("TW_05_EastLoop"), 5452.5f, 150.0f, -3792.7f, 5502.4f, 0.0f, -4130.1f, 13.f},
+				{TEXT("TW_06_JunctionEye"), 4621.1f, 1.7f, -3512.7f, 4579.6f, 1.0f, -3555.6f, 13.f},
+				{TEXT("TW_07_TurningCircle"), 4566.0f, 35.0f, -3266.5f, 4558.5f, 0.0f, -3220.6f, 13.f},
+				{TEXT("TW_08_SchoolOneWay"), 4804.1f, 30.0f, -3875.9f, 4941.1f, 0.0f, -3951.8f, 13.f},
+				{TEXT("TW_09_DealershipSpot"), 4506.6f, 1.7f, -3561.5f, 4489.0f, 4.0f, -3588.9f, 13.f},
+				{TEXT("TW_10_DealershipHigh"), 4560.2f, 55.0f, -3519.6f, 4489.4f, 0.0f, -3588.0f, 13.f},
+				{TEXT("TW_11_VillaSpot"), 5758.5f, 1.7f, -3650.9f, 5785.4f, 2.5f, -3627.2f, 13.f},
+				{TEXT("TW_12_VillaHigh"), 5785.0f, 45.0f, -3713.4f, 5787.2f, 0.0f, -3628.0f, 13.f},
+				{TEXT("TW_13_TorgEastJunction"), 5115.5f, 28.0f, -3815.2f, 5133.7f, 0.0f, -3770.3f, 13.f},
+				{TEXT("TW_14_VillaRoadJunction"), 5575.2f, 28.0f, -3973.0f, 5600.1f, 0.0f, -3934.5f, 13.f},
+				{TEXT("TW_15_NWCulDeSac2"), 4797.8f, 30.0f, -3453.5f, 4822.7f, 0.0f, -3415.0f, 13.f},
+				{TEXT("TW_16_SkolavegurBend"), 4749.8f, 30.0f, -3825.9f, 4725.9f, 0.0f, -3769.6f, 13.f},
+				{TEXT("TW_17_WestCrossingEye"), 4593.3f, 1.7f, -3581.7f, 4575.1f, 1.0f, -3557.5f, 13.f},
 			};
 			const FV TownViews[] = {
 				{TEXT("TR_1_BendHigh"), 2000.f, 160.f, -250.f, 2250.f, 0.f, -650.f, 14.f},
@@ -3025,6 +3051,8 @@ void AADPHUD::Tick(float Dt)
 			{
 				const float T0 = 43.f + i * 4.f; const FV& V = Set[i];
 				FV Vw = V;
+				// (the town lies ~28 m under the airport: its views' heights are from the ground under them)
+				if (FString(V.Name).StartsWith(TEXT("TW_"))) { Vw.H += ARoadNetwork::GroundAt(V.X, V.Y); Vw.LH += ARoadNetwork::GroundAt(V.LX, V.LY); }
 				if (FString(V.Name).StartsWith(TEXT("Road_SignClose")) || FString(V.Name).StartsWith(TEXT("Road_SignBack")))
 				{
 					// at the sign itself (wherever it stands): 6 m in front of its face, a little to the road side, or 4 m behind it
