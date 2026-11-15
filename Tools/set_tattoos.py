@@ -54,6 +54,7 @@ else:
     tat.set_editor_property('parameter_name', 'Tattoo')
     tat.set_editor_property('texture', unreal.load_asset(DEST + '/T_Tattoo_None'))
     tat.set_editor_property('sampler_type', unreal.MaterialSamplerType.SAMPLERTYPE_COLOR)
+    tat.set_editor_property('sampler_source', unreal.SamplerSourceMode.SSM_WRAP_WORLD_GROUP_SETTINGS)
     uv = mel.create_material_expression(m, unreal.MaterialExpressionTextureCoordinate, X - 200, 600)
     mel.connect_material_expressions(uv, '', tat, 'UVs')
     # the ink under the skin: base * (1 - a) + (ink * 0.85 + base * 0.12) * a; a = picture alpha * strength
@@ -108,11 +109,20 @@ def import_folder(src, dest, hdr):
 log('places %d, designs %d' % (import_folder(os.path.join(SRC, 'Spots'), DEST + '/Spots', True),
                                import_folder(os.path.join(ROOT, 'Art', 'Tattoos', 'Designs'), DEST + '/Designs', False)))
 LAYERS = 6
+# (one shared sampler for all twelve pictures: a sampler of their own each took the skin past the 16 a shader may have,
+#  its shader failed to compile and the release's cook stopped, 2026-11-15)
+_b = ['float3 c = Base;', '[branch] if (On > 0.5)', '{', '    float2 uv = frac(UV); float4 s; float4 d; float u; float a;']
+for i in range(LAYERS):
+    _b.append('    s = Spot%d.SampleLevel(View.SharedBilinearClampedSampler, uv, 0);' % i)
+    _b.append('    if (s.a > 0.5) { u = frac(atan2(s.b * 2 - 1, s.g * 2 - 1) * 0.15915494 + 0.5); d = Design%d.SampleLevel(View.SharedBilinearClampedSampler, float2(u, s.r), 0); a = d.a * Strength; c = lerp(c, d.rgb * 0.85 + c * 0.12, a); }' % i)
+_b += ['}', 'return c;']
+LAYER_CODE = chr(10).join(_b)
 mk = mel.get_material_property_input_node(m, unreal.MaterialProperty.MP_MATERIAL_ATTRIBUTES)
 lerp = mel.get_inputs_for_material_expression(m, mk)[0]
 A = mel.get_inputs_for_material_expression(m, lerp)[0]
 if A and A.get_class().get_name() == 'MaterialExpressionCustom' and A.get_editor_property('description') == 'ADP tattoo layers':
     log('tattoo places already there')
+    A.set_editor_property('code', LAYER_CODE)
 else:
     brk = A
     X, Y = 600, 1300
@@ -124,12 +134,7 @@ else:
     for n in names:
         ci = unreal.CustomInput(); ci.set_editor_property('input_name', n); ins.append(ci)
     cu.set_editor_property('inputs', ins)
-    body = ['float3 c = Base;', '[branch] if (On > 0.5)', '{', '    float2 uv = frac(UV); float4 s; float4 d; float u; float a;']
-    for i in range(LAYERS):
-        body.append('    s = Spot%d.SampleLevel(Spot%dSampler, uv, 0);' % (i, i))
-        body.append('    if (s.a > 0.5) { u = frac(atan2(s.b * 2 - 1, s.g * 2 - 1) * 0.15915494 + 0.5); d = Design%d.SampleLevel(Design%dSampler, float2(u, s.r), 0); a = d.a * Strength; c = lerp(c, d.rgb * 0.85 + c * 0.12, a); }' % (i, i))
-    body += ['}', 'return c;']
-    cu.set_editor_property('code', chr(10).join(body))
+    cu.set_editor_property('code', LAYER_CODE)
     if not mel.connect_material_expressions(brk, 'BaseColor', cu, 'Base'): raise RuntimeError('tattoo places: Base did not connect')
     uv = mel.create_material_expression(m, unreal.MaterialExpressionTextureCoordinate, X, Y)
     mel.connect_material_expressions(uv, '', cu, 'UV')
