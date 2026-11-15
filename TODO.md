@@ -5,8 +5,9 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 
 ## 0. Now, in this order (owner, 2026-11-11)
 - [ ] **Dog clip for the owner** (2026-11-15), after the dog's jaw and texture fixes and the creator's pet section:
-      walk in, sit, pant (mouth moving, breath vapour), walk out; dark blue/turquoise selector stage with fog, no light
-      bars, well lit. See HANDOVER.md "the dog's animation clip".
+      walk in, sit, pant (mouth moving, breath vapour), walk out; on a COPY of the she/he selector stage moved to its
+      own area (the real one in "Who are you?" stays untouched): dark blue/turquoise, fog, no light bars, well lit;
+      full HD, Epic settings; delete the copy when the owner says OK. About 5-8 h nonstop. See HANDOVER.md "the dog's animation clip".
 - [ ] **NUMBER ONE (owner, 2026-11-14): the wash hose's water jet like Art/Reference/water-jet-reference.jpg** - one solid glassy column, clear whitish water (NOT the reference's red tint, that's only its lighting), with the reference's flecked, streaked texture racing along it very fast, perfectly connected to the nozzle at its exact width, breaking into spray further out. HANDOVER.md, top section.
 - [ ] **Self check-in kiosk in the main hall** (owner, 2026-11-14): model ready in Art/Kiosk; reflective screen like the windows; placed from data near the hall's middle with a clear zone. HANDOVER.md.
 - [ ] **NEXT, right after the t-shirt / wardrobe work** (owner, 2026-11-13; ahead of everything else below):

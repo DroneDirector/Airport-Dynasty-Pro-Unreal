@@ -11,12 +11,22 @@ in the creator's pet section:
    heavily (pants: the mouth opens and moves, the jaw working, a little breath vapour coming out of its mouth), then
    gets up and walks out again. The owner said "maybe 15 minutes in total": he most likely means about 15 seconds;
    ask him once before rendering if it isn't clear.
-2. **The background:** the same stage as the character selector where you choose she or he, **but**:
+2. **The stage: a separate COPY, the real one stays untouched.** Do NOT change the she/he selector stage in "Who are
+   you?" (the character creator): it stays exactly as it is. Make a **copy** of that stage and move the copy to its
+   own place (its own level / area, e.g. a "PetShowcase" map, not reached from the game's menus), used **only** for
+   this dog recording. Change only the copy:
    - not neon: **dark blue blending into turquoise** in the background;
    - **the floor fog stays**;
    - **the big light bars behind are removed**, but the dog is still **lit very well** (soft key and fill light,
      no bars in view).
-3. This clip is something he asked for, so render it (it is not one of the renders to avoid) and send it to him.
+   Put **the German Shepherd** in the copy with the moves above (walk in, sit, pant with the mouth moving and a little
+   breath vapour, get up, walk out).
+3. **Record it in full HD (1920 x 1080) at Epic graphics settings** (everything on Epic: Lumen, Nanite, shadows,
+   effects; Movie Render Queue or a Sequencer recording) and send the video to the owner. This clip is something he
+   asked for, so render it (it is not one of the renders to avoid).
+4. **Afterwards, when the owner says OK: delete the copy** (the showcase level/area and anything made only for it),
+   so it never ships in the game. Until he says OK, keep it so changes can be made.
+5. Time estimate given to the owner: about 5-8 h nonstop (after the jaw and texture fixes).
 
 ## NUMBER ONE when you start building again: the wash hose's water jet like the reference (owner, 2026-11-14 22:13)
 Reference picture: **Art/Reference/water-jet-reference.jpg** (a real fire hose jet, the owner's photo of a screen). If it
