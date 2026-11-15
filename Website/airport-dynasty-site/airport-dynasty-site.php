@@ -6,7 +6,7 @@
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Requires Plugins: elementor
- * Author: Airport Dynasty Pro
+ * Author: Pixel Norma
  * License: GPL-2.0-or-later
  * Text Domain: airport-dynasty-site
  */
@@ -42,7 +42,7 @@ function ads_opt($key = null) {
         'x'          => '',
         'product_id' => '',   // WooCommerce product of the game; empty = "Coming soon"
         'buy_url'    => '',   // or any other shop link (used when no product is set)
-        'holder'     => 'Airport Dynasty Pro',
+        'holder'     => 'Pixel Norma',
         'pointer'    => '1',
     ];
     $o = wp_parse_args((array) get_option('ads_settings', []), $defaults);

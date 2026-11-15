@@ -8,7 +8,7 @@ AppId={{3B7D9E21-6A4C-4F8E-9D15-2C7A0E4B8F63}
 AppName=Airport Dynasty Pro (Unreal)
 AppVersion={#MyVer}
 AppVerName=Airport Dynasty Pro (Unreal) {#MyVer}
-AppPublisher=DroneDirector
+AppPublisher=Pixel Norma
 ; where it goes: always over the copy already installed, wherever it is (owner, 2026-11-14), found from what the game
 ; and the installer remember (InstallDirGuess below); a first install goes to Program Files
 DefaultDirName={code:InstallDirGuess}

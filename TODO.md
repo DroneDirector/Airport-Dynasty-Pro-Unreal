@@ -409,6 +409,12 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 - [ ] Chapters in the Android code: paused by the owner
 
 ## 9. Housekeeping
+- [x] **Company name is now Pixel Norma** (owner, 2026-11-15): Unreal CompanyName and CopyrightNotice, both
+      installers' publisher, the Android/Babylon edition's publisher and credits, the frame-generation plugin, the
+      website (plugin author, default copyright name). Kept on purpose: the app ids (com.dronedirector...) and the
+      installer AppIds, and the registry key Software\DroneDirector\AirportDynastyPro, because changing them would stop
+      updates installing over existing copies. On a live WordPress site, set Settings > Airport Dynasty Pro website >
+      Copyright name to "Pixel Norma" once (a saved value overrides the new default). Goes out with the next release.
 - [x] ROADMAP.md's known issue "cooking the whole /CesiumForUnreal folder crashes Shipping" is out of date: since
       0.14.0 it is cooked whole and runs fine (it was the fix for the terrain crash)
 - [x] The crash box shows an old report (14:58 on 2026-11-10, the fixed Cesium crash) on the owner's PC: clear old

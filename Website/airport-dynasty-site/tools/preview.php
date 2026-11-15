@@ -8,7 +8,7 @@ function esc_attr($s) { return esc_html($s); }
 function esc_url($s) { return esc_html($s); }
 function wp_kses_post($s) { return (string) $s; }
 function wp_json_encode($v) { return json_encode($v, JSON_UNESCAPED_UNICODE); }
-function ads_opt($k = null) { $o = ['holder' => 'Airport Dynasty Pro', 'product_id' => '', 'buy_url' => '', 'facebook' => '', 'youtube' => '', 'instagram' => '', 'tiktok' => '', 'x' => '']; return $k ? ($o[$k] ?? '') : $o; }
+function ads_opt($k = null) { $o = ['holder' => 'Pixel Norma', 'product_id' => '', 'buy_url' => '', 'facebook' => '', 'youtube' => '', 'instagram' => '', 'tiktok' => '', 'x' => '']; return $k ? ($o[$k] ?? '') : $o; }
 function ads_page_url($k) { return '#top'; }
 require ADS_DIR . 'includes/content.php';
 require ADS_DIR . 'includes/render.php';

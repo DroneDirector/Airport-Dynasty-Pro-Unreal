@@ -16,7 +16,7 @@ add_action('admin_init', function () {
             foreach (['facebook', 'youtube', 'instagram', 'tiktok', 'x', 'buy_url'] as $k) $out[$k] = esc_url_raw(trim($in[$k] ?? ''));
             $out['product_id'] = (string) absint($in['product_id'] ?? 0 ?: 0);
             if ($out['product_id'] === '0') $out['product_id'] = '';
-            $out['holder'] = sanitize_text_field($in['holder'] ?? 'Airport Dynasty Pro');
+            $out['holder'] = sanitize_text_field($in['holder'] ?? 'Pixel Norma');
             $out['pointer'] = empty($in['pointer']) ? '0' : '1';
             return $out;
         },
