@@ -89,6 +89,9 @@ public:
 	#pragma endregion
 
 private:
+	// the layout's nodes that are really in the model (reached from its roots): nodes taken out of the layout stay in its
+	// list unreached - without this their seats, doors and lamps were all built at the model's origin
+	TArray<bool> NodeInTree;
 	UPROPERTY() TObjectPtr<USceneComponent> Root;
 	UPROPERTY() TMap<FString, TObjectPtr<UInstancedStaticMeshComponent>> ByMesh;
 	TMap<const UInstancedStaticMeshComponent*, TArray<FString>> InstNames;

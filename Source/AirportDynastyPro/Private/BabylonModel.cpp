@@ -113,6 +113,7 @@ bool ABabylonModel::Place(const FString& Name)
 	TArray<TPair<UInstancedStaticMeshComponent*, int32>> NodeInst; NodeInst.Init(TPair<UInstancedStaticMeshComponent*, int32>(nullptr, INDEX_NONE), Nodes.Num());
 	// the entrance canopies' parts (KERB/CANOPY-*): in lists of their own, so their underside can be given a matte finish
 	TArray<bool> Canopy; Canopy.Init(false, Nodes.Num());
+	NodeInTree.Init(false, Nodes.Num());
 	constexpr float StandsOut = 12.f;   // metres the stands moved out (Data/airfield.json standsNote)
 	TFunction<void(int32, const FTransform&, bool)> Walk;
 	Walk = [&](int32 I, const FTransform& Parent, bool bDoor)
@@ -123,7 +124,7 @@ bool ABabylonModel::Place(const FString& Name)
 		{ FString Nm; N->TryGetStringField(TEXT("name"), Nm);
 		  if (Name == TEXT("Terminal") && Nm.StartsWith(TEXT("STAND-")) && Nm.EndsWith(TEXT("/AIRCRAFT"))) L.AddToTranslation(FVector(0, StandsOut * 100.f, 0)); }
 		const FTransform World = L * Parent;
-		NodeWorld[I] = World;
+		NodeWorld[I] = World; NodeInTree[I] = true;
 		// (all the outdoor trees stay until good-looking Unreal trees take their places, owner 2026-11-09)
 		{ FString Nm; N->TryGetStringField(TEXT("name"), Nm); bDoor = bDoor || Nm.StartsWith(TEXT("D-"));
 		  // the offices' own furniture steps aside for the old office's things (owner, 2026-11-11: Offices.cpp places them);
@@ -262,7 +263,7 @@ bool ABabylonModel::Place(const FString& Name)
 		};
 		for (int32 D = 0; D < Nodes.Num(); ++D)
 		{
-			if (!NameOf(D).StartsWith(TEXT("D-"))) continue;
+			if (!NameOf(D).StartsWith(TEXT("D-")) || !NodeInTree[D]) continue;
 			FDoor Door;
 			Door.Id = NameOf(D);
 			Door.At = NodeWorld[D].GetLocation();
@@ -510,7 +511,7 @@ void ABabylonModel::ReplaceSeats(const TArray<TSharedPtr<FJsonValue>>& Nodes, co
 	UMaterialInterface* Blue = nullptr; UMaterialInterface* Steel = nullptr;
 	for (int32 R = 0; R < Nodes.Num() && (!Blue || !Steel); ++R)
 	{
-		if (!NameOf(R).Contains(TEXT("/SEATS-"))) continue;
+		if (!NameOf(R).Contains(TEXT("/SEATS-")) || !NodeInTree.IsValidIndex(R) || !NodeInTree[R]) continue;
 		const TArray<TSharedPtr<FJsonValue>>* Kids = nullptr;
 		if (!Nodes[R]->AsObject()->TryGetArrayField(TEXT("children"), Kids)) continue;
 		for (const TSharedPtr<FJsonValue>& V : *Kids)
@@ -549,7 +550,7 @@ void ABabylonModel::ReplaceSeats(const TArray<TSharedPtr<FJsonValue>>& Nodes, co
 	Dress(Seats); Dress(Legs); Dress(Arms);
 	for (int32 R = 0; R < Nodes.Num(); ++R)
 	{
-		if (!NameOf(R).Contains(TEXT("/SEATS-"))) continue;
+		if (!NameOf(R).Contains(TEXT("/SEATS-")) || !NodeInTree.IsValidIndex(R) || !NodeInTree[R]) continue;
 		const TArray<TSharedPtr<FJsonValue>>* Kids = nullptr;
 		if (!Nodes[R]->AsObject()->TryGetArrayField(TEXT("children"), Kids)) continue;
 		// the row's seats: its backs (the boxes 0.72 m up); the old boxes hidden (shrunk away: their lists are shared)
@@ -823,6 +824,7 @@ void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, c
 	TMap<FIntPoint, UInstancedStaticMeshComponent*> LampPanels;   // the rooms' lamps, one list per size
 	for (int32 I = 0; I < Nodes.Num(); ++I)
 	{
+		if (NodeInTree.IsValidIndex(I) && !NodeInTree[I]) continue;   // (taken out of the layout)
 		const FString N = NameOf(I);
 		if (N.Contains(TEXT("DOWNLIGHT")))
 		{

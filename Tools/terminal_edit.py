@@ -68,11 +68,13 @@ for c in list(N[byname['F2-FOOD']]['children']):
 # ---- the Floor 2 toilets and family room: the three rooms together onto the landing's west side, turned round so
 #      their doors open onto the landing (x 0..14, z 0..22; their old place goes to the bar) ----
 #   layout: a half turn about y, then moved: old middle (plan 97, 41) -> new middle (plan 7, 11)
-for nm in ('F2-WC-M', 'F2-WC-F', 'F2-FAMILY'):
+for nm in ('F2-WC-M', 'F2-WC-F'):
     i = byname[nm]
     N[i]['rotation'] = [0, 1, 0, 0]
     N[i]['translation'] = [-7.0 - 97.0, 0.0, 11.0 + 41.0]
     log.append('moved: %s onto the escalator landing' % nm)
+# (the family room's door is on its east side already: moved only, so it opens onto the landing, not into the museum)
+N[byname['F2-FAMILY']]['translation'] = [90.0, 0.0, -20.0]; log.append('moved: F2-FAMILY onto the escalator landing')
 
 # ---- the bar: 32 m west at its full size (x 72..114, z 30..52), open to the gate walkway (its north doors and the
 #      sign on that wall out; the wall itself is cut by Tools/terminal_cut.py) ----
@@ -86,6 +88,31 @@ for rn in ('F2-TAXFREE', 'F2-LANDING'):
         if '/STRUCTURE-' in nm or nm.startswith('w#'): drop(c, 'rebuilt by the annex, x 56..72')
         elif b and b[3] > 71.8: drop(c, 'beyond x 72: the bar is there now')
 
+# ---- the plant room's machines out of the museum strip: the air handler and the pump 6 m east, the pipes ending at
+#      the plant room's new west wall (x 6.2..35) ----
+for c in N[byname['F1-PLANT']]['children']:
+    nm = N[c]['name']
+    if nm.endswith(('/AIR-HANDLER-001', '/PUMP-001')):
+        t = N[c].get('translation', [0, 0, 0]); N[c]['translation'] = [t[0] - 6.0, t[1], t[2]]; log.append('moved: ' + nm + ' 6 m east')
+    elif nm.endswith('/PIPES-001'):
+        # (each pipe itself shortened: a parent's stretch would act along the pipes' own turned axes, not the building's)
+        t = N[c]['translation']; N[c]['translation'] = [-(6.2 + 35.0) / 2.0, t[1], t[2]]
+        for k in N[c].get('children', []):
+            sc = N[k].get('scale', [1, 1, 1])
+            if sc[1] > 20: N[k]['scale'] = [sc[0], 35.0 - 6.2, sc[2]]
+        log.append('shortened: the plant room pipes to x 6.2..35')
+# ---- a canopy over the museum's door as over the main hall's entrances: the same 25 cm white slab with its lit
+#      underside, on two round pillars (9 m wide here, for the 5 m door) ----
+# ---- seats (owner, 2026-11-15: "all the chairs in each separate gate room should be there, and every chair in the
+#      main corridor past the gates on the second floor ... other than that, you can remove chairs"): the seat rows stay
+#      in the gate rooms, the view bays beside them and the Floor 2 gate walkway; every other row goes ----
+KEEP_SEATS = ('F1-GATE-', 'F2-GATE-', 'F2-VIEW-', 'F2-WALK')
+n_seats = 0
+for i, n in enumerate(N):
+    if '/SEATS-' in n['name'] and not n['name'].startswith(KEEP_SEATS) and i in parent and i in N[parent[i]].get('children', []):
+        N[parent[i]]['children'].remove(i); n_seats += 1
+log.append('out: %d seat rows outside the gates and the gate walkway' % n_seats)
+
 # ---- the museum's door (owner, 2026-11-15: "make the museum door open ... not a single door"): a copy of the main
 #      entrance's double sliding glass door (5 m, two leaves sliding apart by themselves), its sign left out, in the
 #      museum hall's south wall at x -18 ----
@@ -97,6 +124,13 @@ def copy_tree(k, skip=()):
 d = copy_tree(byname['D-F1-ENTR-C-1'], skip=('sign',))
 N[d]['name'] = 'D-F1-MUSEUM-ENTR-1'; N[d]['translation'] = [18.0, 0.0, 0.0]
 N[byname['F1']]['children'].append(d); log.append('new: the museum double sliding door')
+cp = copy_tree(byname['KERB/CANOPY-001'])
+N[cp]['name'] = 'KERB/CANOPY-MUSEUM'; N[cp]['translation'] = [18.0, 3.8, -2.0]
+for c in N[cp]['children']:
+    sc = N[c].get('scale', [1, 1, 1]); tr = N[c].get('translation', [0, 0, 0])
+    if sc[0] > 5: N[c]['scale'] = [sc[0] - 4.0, sc[1], sc[2]]
+    elif abs(tr[0]) > 5: N[c]['translation'] = [4.1 if tr[0] > 0 else -4.1, tr[1], tr[2]]
+N[byname['F1']]['children'].append(cp); log.append('new: the museum door canopy on two pillars')
 
 # ---- the new parts (Art/TerminalAnnex, Tools/import_annex.py): placed as they are (made in the plan's metres) ----
 def add(parent_name, name, asset):

@@ -136,8 +136,9 @@ slab(0.0, 6.0, 30.0, 52.0, 0.01, top='MI_T_terrazzo', under='MI_T_concrete', thi
 WIN = [(-33.2, -30.8), (-27.2, -24.8), (-11.2, -8.8), (-5.2, -2.8)]
 wall_z(0.0, -36.0, 0.0, 0.01, 12.0, holes=[(-20.6, -15.4, 0.0, 3.14)] + [(w0, w1, 2.5, 9.5) for (w0, w1) in WIN])
 for (w0, w1) in WIN: G.box(w0, w1, 2.5, 9.5, -0.012, 0.012, 'MI_T_glass')
-# the door itself is the main entrance's double sliding door (Tools/terminal_edit.py); a canopy over it
-S.box(-22.0, -14.0, 3.9, 4.1, -2.5, 0.0, W)
+# the door itself is the main entrance's double sliding door, its canopy the entrances' (Tools/terminal_edit.py)
+# the plant room's north wall onto the baggage hall (it went with the old shell), with the plant room's door to it
+wall_z(52.0, 0.0, 36.0, 0.01, 6.0, holes=[(16.9, 19.1, 0.0, 2.3)])
 # west wall: tall windows every 6.5 m
 wall_x(-36.0, 0.0, 52.0, 0.01, 12.0, holes=[(z0, z0 + 2.4, 2.5, 9.5) for z0 in (4.0, 10.5, 17.0, 23.5, 30.0, 36.5, 43.0)])
 for z0 in (4.0, 10.5, 17.0, 23.5, 30.0, 36.5, 43.0): G.box(-36.012, -35.988, 2.5, 9.5, z0, z0 + 2.4, 'MI_T_glass')

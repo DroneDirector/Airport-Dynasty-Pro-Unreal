@@ -2671,6 +2671,28 @@ void AADPHUD::Tick(float Dt)
 				if (Before < 42.f + V.Num() * 4.f && ShotClock >= 42.f + V.Num() * 4.f) ADP_SHOT_EXIT();
 			}
 		}
+		// -UIProbe=x,y,z: what stands there (plan metres): every component within 60 cm, its actor and mesh, to the log
+		{
+			FString Pr;
+			if (FParse::Value(FCommandLine::Get(), TEXT("UIProbe="), Pr, false) && Before < 44.f && ShotClock >= 44.f)
+			{
+				TArray<FString> C; Pr.ParseIntoArray(C, TEXT(","));
+				if (C.Num() >= 3)
+				{
+					const FVector At(FCString::Atof(*C[0]) * 100.f, -FCString::Atof(*C[2]) * 100.f, FCString::Atof(*C[1]) * 100.f);
+					TArray<FOverlapResult> O; FCollisionQueryParams Q; FCollisionObjectQueryParams Obj(FCollisionObjectQueryParams::AllObjects);
+					GetWorld()->OverlapMultiByObjectType(O, At, FQuat::Identity, Obj, FCollisionShape::MakeSphere(60.f), Q);
+					for (const FOverlapResult& R : O)
+					{
+						UPrimitiveComponent* P = R.GetComponent();
+						const UStaticMeshComponent* S = Cast<UStaticMeshComponent>(P);
+						ADP_LOG(TEXT("Probe: %s / %s (%s) mesh %s"), R.GetActor() ? *R.GetActor()->GetName() : TEXT("-"), P ? *P->GetName() : TEXT("-"), P ? *P->GetClass()->GetName() : TEXT("-"), S && S->GetStaticMesh() ? *S->GetStaticMesh()->GetPathName() : TEXT("-"));
+					}
+					ADP_LOG(TEXT("Probe: %d things at %s"), O.Num(), *Pr);
+				}
+				ADP_SHOT_EXIT();
+			}
+		}
 		// -UIEscLook: the escalators by themselves, a few pictures, then out: outside at the kerb, the pair standing in
 		// front of the camera, seen from their foot
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIEscLook")))
