@@ -77,3 +77,55 @@ function hide() {
   r.classList.remove('in'); r.classList.add('out');
   setTimeout(() => r.remove(), 700);
 }
+
+
+// ---- the game's start (owner, 2026-11-15): the same screen while Unreal builds the world, its bar only full when
+// everything is in (Unreal sends the real progress: window.__ueBoot(list, done)), then four seconds of "Loading
+// complete · Get ready for takeoff" before the title screen shows ----
+const Bt: any = { root: null as HTMLElement | null, raf: 0, pct: 0, want: 0, list: [] as any[], done: false, doneAt: 0, tip: 0, tipAt: 0, t0: 0 };
+function bootFrame() {
+  const r = Bt.root; if (!r) return;
+  const t = (performance.now() - Bt.t0) / 1000;
+  // the bar follows the real progress (never ahead of it); full only when Unreal says everything is in
+  Bt.pct += (Bt.want - Bt.pct) * 0.12;
+  if (Bt.done && Bt.want >= 100 && Bt.pct > 99.5) Bt.pct = 100;
+  const fill = r.querySelector('.ln-fill') as HTMLElement, fl = r.querySelector('.ln-file') as HTMLElement, pc = r.querySelector('.ln-pct') as HTMLElement, tl = r.querySelector('.ln-t') as HTMLElement;
+  if (fill) fill.style.width = Bt.pct.toFixed(2) + '%';
+  if (pc) pc.textContent = Math.floor(Bt.pct) + '%';
+  const now = Bt.list.find((x: any) => (+x.p || 0) < 1);
+  if (Bt.pct >= 100 && Bt.done) {
+    if (!Bt.doneAt) { Bt.doneAt = performance.now(); if (tl) tl.textContent = 'Loading complete'; if (fl) fl.textContent = 'Get ready for takeoff'; r.classList.add('done'); }
+    if (performance.now() - Bt.doneAt > 4000) { bootHide(); return; }
+  } else if (fl) fl.textContent = now ? `Loading ${String(now.n).toLowerCase()}` : 'Loading the game';
+  const ul = r.querySelector('.ln-ue') as HTMLElement;
+  if (ul) ul.innerHTML = Bt.list.map((x: any) => { const p = Math.round(100 * Math.min(1, +x.p || 0)); return `<span style="margin:0 10px;opacity:${p >= 100 ? 0.65 : 1}">${p >= 100 ? '&#10003; ' : ''}${String(x.n).replace(/[<>&]/g, '')} ${p}%</span>`; }).join('');
+  if (t - Bt.tipAt > 5 && !Bt.doneAt) { Bt.tipAt = t; Bt.tip = (Bt.tip + 1) % TIPS.length; const tp = r.querySelector('.ln-tip b') as HTMLElement; if (tp) { tp.classList.remove('in'); void tp.offsetWidth; tp.textContent = TIPS[Bt.tip]; tp.classList.add('in'); } }
+  Bt.raf = requestAnimationFrame(bootFrame);
+}
+function bootShow() {
+  if (Bt.root) return;
+  const root = document.createElement('div'); root.className = 'ln boot';
+  root.innerHTML = `<div class="ln-fx"></div>
+    <div class="ln-box">
+      <div class="wd-k">Airport Dynasty Pro  ·  starting</div><div class="ln-t">Loading the airport</div>
+      <div class="ln-bar"><div class="ln-fill"></div><div class="ln-sheen"></div></div>
+      <div class="ln-line"><span class="ln-file">Loading the game</span><span class="ln-pct">0%</span></div>
+      <div class="ln-ue" style="margin-top:10px;font-size:13px;letter-spacing:.04em;text-align:center;color:#9fe8ff"></div>
+    </div>
+    <div class="ln-tip"><small>Tip</small><b class="in">${TIPS[0]}</b></div>`;
+  document.body.appendChild(root); Bt.root = root; Bt.t0 = performance.now(); Bt.tipAt = 0;
+  root.classList.add('in');
+  Bt.raf = requestAnimationFrame(bootFrame);
+}
+function bootHide() {
+  const r = Bt.root; if (!r) return;
+  Bt.root = null; cancelAnimationFrame(Bt.raf);
+  r.classList.remove('in'); r.classList.add('out');
+  setTimeout(() => r.remove(), 700);
+}
+(window as any).__ueBoot = (list: any[], done: boolean) => {
+  if (!Bt.root && !Bt.doneAt) bootShow();
+  Bt.list = list || []; Bt.done = !!done;
+  const avg = Bt.list.length ? 100 * Bt.list.reduce((a: number, x: any) => a + Math.min(1, +x.p || 0), 0) / Bt.list.length : 100;
+  Bt.want = done ? 100 : Math.min(99, avg);
+};

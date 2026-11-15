@@ -5,6 +5,7 @@
 #include "UI/ADPHUD.h"
 #include "ADPLog.h"
 #include "Wardrobe.h"
+#include "ADPGameMode.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
@@ -44,6 +45,9 @@ void AADPHUD::StartUnrealLoad()
 		ADP_LOG(TEXT("New game loading: %s - %d assets"), Name, L.Num());
 	};
 	Start(TEXT("You"), You); Start(TEXT("Your hair"), Hair); Start(TEXT("The terminal"), Terminal);
+	// the roads, the town and the land along the roads, built behind this screen (ADPLateWorld)
+	ADPLateWorld::Go();
+	PreNames.Add(TEXT("The roads and the town")); PreLoad.Add(nullptr);
 	bPreLoading = true;
 }
 
@@ -57,7 +61,7 @@ void AADPHUD::TickUnrealLoad(float Dt)
 	for (int32 i = 0; i < PreNames.Num(); ++i)
 	{
 		const TSharedPtr<FStreamableHandle>& H = PreLoad[i];
-		const float P = !H.IsValid() ? 1.f : (H->HasLoadCompleted() ? 1.f : H->GetProgress());
+		const float P = PreNames[i] == TEXT("The roads and the town") ? ADPLateWorld::Progress() : !H.IsValid() ? 1.f : (H->HasLoadCompleted() ? 1.f : H->GetProgress());
 		bAll &= P >= 1.f;
 		J += FString::Printf(TEXT("%s{\"n\":\"%s\",\"p\":%.3f}"), i ? TEXT(",") : TEXT(""), *PreNames[i], P);
 	}

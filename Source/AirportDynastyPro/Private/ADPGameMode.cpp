@@ -2,6 +2,8 @@
 // the player standing at the plan's spawn point.
 #include "ADPGameMode.h"
 #include "Pets.h"
+#include "ADPLog.h"
+#include "Containers/Ticker.h"
 #include "Escalators.h"
 #include "TerminalLift.h"
 #include "Misc/PackageName.h"
@@ -120,19 +122,15 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 				if (AHangar* Hg = W->SpawnActor<AHangar>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Hg->Build(H.Size, H.X, H.Y, H.bOpen);
 			// his A320 on the terminal's stands, nose tyres on their stop bars (ParkedAircraft.h)
 			if (bBabylon) ADPParked::Place(W, Field->Data());
-			// the road network: forecourt, the road to town, the town's streets (RoadNetwork.h, MetaRoad Free)
-			if (ARoadNetwork* Roads = W->SpawnActor<ARoadNetwork>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Roads->Build();
-			// the town's buildings, on the land the roads shaped (TownBuildings.h)
-			ADPTown::Place(W);
-			// our own land along the roads outside the airfield, shaped under them (LandCorridor.h)
-			if (ALandCorridor* Land = W->SpawnActor<ALandCorridor>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Land->Build();
-			// the posts and signs along the roads set down on the land as now shaped (a moment later: its collision is up)
+			// the road network (forecourt, the road to town, the town's streets), the town's buildings on the land the roads
+			// shaped, our own land along the roads, and the posts and signs set down on it: built later, one road a frame,
+			// when you first go into the 3D world (or behind a new career's loading screen) - the title screen used to wait
+			// 40 s for all of it (ADPLateWorld in ADPGameMode.h; owner, 2026-11-15)
+			ADPLateWorld::Prepare(W);
 			{
 				FTimerHandle Th;
 				W->GetTimerManager().SetTimer(Th, FTimerDelegate::CreateLambda([W]()
 				{
-					for (TActorIterator<AStreetLights> It(W); It; ++It) It->Resettle();
-					for (TActorIterator<ARoadSigns> It(W); It; ++It) It->Resettle();
 					// your pet, sitting just outside the terminal's main entrance for now (Pets.h)
 					ADPPets::PlaceHome(W);
 					// the escalators in the new escalator room (Escalators.h): their foot at the Grand Hall's side, rising
@@ -223,3 +221,62 @@ void AADPGameMode::SpawnSkyAndLight()
 }
 
 #pragma endregion
+
+
+// ---- the world's late part: roads, town, land along the roads (see InitGame) ----
+namespace ADPLateWorld
+{
+	static TWeakObjectPtr<UWorld> World;
+	static TWeakObjectPtr<ARoadNetwork> Roads;
+	static bool bGo = false, bDone = false;
+	static int32 Stage = 0;
+	static FTSTicker::FDelegateHandle Tick;
+
+	void Prepare(UWorld* W)
+	{
+		World = W; bGo = false; bDone = false; Stage = 0;
+		FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		ARoadNetwork* R = W->SpawnActor<ARoadNetwork>(FVector::ZeroVector, FRotator::ZeroRotator, P);
+		Roads = R;
+		if (R) R->Build();
+		// (built straight away, behind the start's loading screen: owner, 2026-11-15 - the loading screen finishes only
+		// when everything is in)
+		Go();
+	}
+
+	void Go()
+	{
+		if (bGo || bDone) return;
+		bGo = true;
+		ADP_LOG(TEXT("World: building the roads, the town and the land along the roads"));
+		Tick = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([](float)
+		{
+			UWorld* W = World.Get();
+			if (!W) { bDone = true; return false; }
+			switch (Stage)
+			{
+			case 0: if (!Roads.IsValid() || Roads->BuildSome(0.0)) Stage = 1; return true;   // one road a frame
+			case 1: ADPTown::Place(W); Stage = 2; return true;
+			case 2:
+			{
+				FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+				if (ALandCorridor* Land = W->SpawnActor<ALandCorridor>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Land->Build();
+				Stage = 3; return true;
+			}
+			case 3: Stage = 4; return true;   // (a frame for the land's collision)
+			default:
+				for (TActorIterator<AStreetLights> It(W); It; ++It) It->Resettle();
+				for (TActorIterator<ARoadSigns> It(W); It; ++It) It->Resettle();
+				bDone = true;
+				ADP_LOG(TEXT("World: roads, town and land are in"));
+				return false;
+			}
+		}), 0.f);
+	}
+
+	bool Done() { return bDone; }
+	bool Started() { return bGo; }
+	float Progress() { return bDone ? 1.f : Roads.IsValid() ? 0.9f * Roads->Progress() + 0.1f * Stage / 4.f : 1.f; }
+	float RoadsProgress() { return bDone || Stage > 0 ? 1.f : Roads.IsValid() ? Roads->Progress() : 1.f; }
+	float LandProgress() { return bDone ? 1.f : Stage / 4.f; }
+}

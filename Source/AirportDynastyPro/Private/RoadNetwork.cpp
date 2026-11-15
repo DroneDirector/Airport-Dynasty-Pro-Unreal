@@ -26,6 +26,15 @@
 namespace
 {
 	struct FPaintBuf { TArray<FVector> V; TArray<int32> I; TArray<FVector> N; TArray<FVector2D> UV; TArray<FLinearColor> C; };
+	// one road network's build, carried over frames (one road a frame or so: each takes 1-3 s, owner 2026-11-15: the
+	// title screen took 40 s to come up while all of them were built first)
+	struct FRoadJob
+	{
+		TSharedPtr<FJsonObject> Root; bool bTest = false; double T0 = 0;
+		int32 Next = 0, Total = 0, Built = 0, Crossings = 0; bool bDone = false;
+		TMap<FName, FPaintBuf> Paint;
+	};
+	TMap<const ARoadNetwork*, FRoadJob>& Jobs() { static TMap<const ARoadNetwork*, FRoadJob> J; return J; }
 	// the surfaces: the airfield's own ground materials (owner, 2026-11-14) - the same asphalt and concrete as the
 	// aprons, with their puddles, wetness and snow (Tools/set_ground.py), lit by Lumen like the rest; MetaRoad's own for
 	// the bus lane's colour and hatched areas
@@ -284,15 +293,38 @@ int32 ARoadNetwork::Build()
 	}
 	TSharedPtr<FJsonObject> Root;
 	if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Root) || !Root.IsValid()) { ADP_ERROR(TEXT("Roads: Data/roads.json can't be read")); return 0; }
-	const bool bTest = FParse::Param(FCommandLine::Get(), TEXT("RoadTest"));
 	Host = NewObject<UMetaRoadRuntimeBuildHost>(this);
 	Host->MeshOutput = ERoadRuntimeMeshOutput::TransientStaticMesh;   // (built once, never changing: the cheaper draw path)
-	int32 Built = 0;
-	int32 Crossings = 0;
-	TMap<FName, FPaintBuf> Paint;   // every road's markings, the car parks, the roundabouts' middles: by material
-	const double T0 = FPlatformTime::Seconds();
-	for (const TSharedPtr<FJsonValue>& V : Root->GetArrayField(TEXT("roads")))
+	FRoadJob& St = Jobs().Add(this);
+	St = FRoadJob(); St.Root = Root; St.bTest = FParse::Param(FCommandLine::Get(), TEXT("RoadTest")); St.T0 = FPlatformTime::Seconds();
+	St.Total = Root->GetArrayField(TEXT("roads")).Num();
+	return St.Total;
+}
+
+float ARoadNetwork::Progress() const
+{
+	const FRoadJob* St = Jobs().Find(this);
+	return !St ? 1.f : St->bDone ? 1.f : St->Total ? float(St->Next) / float(St->Total) : 1.f;
+}
+
+bool ARoadNetwork::BuildSome(double Budget)
+{
+	FRoadJob* Sp = Jobs().Find(this);
+	if (!Sp || Sp->bDone) return true;
+	FRoadJob& St = *Sp;
+	UWorld* W = GetWorld();
+	if (!W) return true;
+	TSharedPtr<FJsonObject> Root = St.Root;
+	const bool bTest = St.bTest;
+	int32& Built = St.Built;
+	int32& Crossings = St.Crossings;
+	TMap<FName, FPaintBuf>& Paint = St.Paint;
+	const double T0 = St.T0;
+	const TArray<TSharedPtr<FJsonValue>>& RoadList = Root->GetArrayField(TEXT("roads"));
+	const double TStep = FPlatformTime::Seconds();
+	while (St.Next < RoadList.Num())
 	{
+		const TSharedPtr<FJsonValue>& V = RoadList[St.Next++];
 		const TSharedPtr<FJsonObject> R = V->AsObject();
 		bool bIsTest = false; R->TryGetBoolField(TEXT("test"), bIsTest);
 		if (bIsTest && !bTest) continue;
@@ -640,6 +672,7 @@ int32 ARoadNetwork::Build()
 				if (k) B.I.Append({Bi, Bi + k, Bi + k + 1});
 			}
 		}
+		if (FPlatformTime::Seconds() - TStep > Budget) return false;   // (more next frame)
 	}
 	// ---- the car parks ("lots": [{x0, y0, x1, y1 (plan m), lift, rows: [{x0, x1, y, d, dir, w}]}]): tarmac on our ground,
 	// the spaces' white lines (one between every two, one across their heads) ----
@@ -746,5 +779,6 @@ int32 ARoadNetwork::Build()
 		}
 	}
 	ADP_LOG(TEXT("Roads: %d built, %d zebra crossings, in %.2f s (MetaRoad Free, at run time)"), Built, Crossings, FPlatformTime::Seconds() - T0);
-	return Built;
+	St.bDone = true; St.Root.Reset(); St.Paint.Reset();
+	return true;
 }

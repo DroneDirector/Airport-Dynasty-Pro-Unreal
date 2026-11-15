@@ -594,3 +594,9 @@ html.ts-native .game-frame { background: transparent !important; }
 /* the update screen (src/ui/update-neon.ts): the new-career loading screen's look, with the download's speed under it */
 .un-mbs { margin-top: 14px; text-align: center; font-family: 'Audiowide', sans-serif; font-size: 12px; letter-spacing: .3em; color: #9fe8ff; text-shadow: 0 0 8px rgba(53, 240, 255, .55); min-height: 1em; }
 .un .ln-t .un-ver { color: var(--neo2); text-shadow: 0 0 4px #fff, 0 0 12px var(--neo2), 0 0 28px var(--neo2); }
+
+/* the game's start screen (loading-neon.ts __ueBoot): above the title; once everything is in, the title line turns to its glow */
+.ln.boot { z-index: 120; opacity: 1; }
+.ln.boot.out { opacity: 0; }
+.ln.boot.done .ln-t { color: #fff; text-shadow: 0 0 4px #fff, 0 0 12px var(--neo2), 0 0 30px var(--neo2), 0 0 50px rgba(53, 240, 255, .6); }
+.ln.boot.done .ln-file { color: #fff; letter-spacing: .3em; }

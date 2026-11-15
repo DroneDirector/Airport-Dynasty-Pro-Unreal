@@ -17,7 +17,13 @@ class AIRPORTDYNASTYPRO_API ARoadNetwork : public AActor
 public:
 	ARoadNetwork();
 	/** Builds every road in Data/roads.json (a road marked "test" only with -RoadTest). Returns how many were built. */
+	/** Reads Data/roads.json and gets the build ready; the roads themselves are built by BuildSome. Returns how many. */
 	int32 Build();
+	/** Builds roads until Budget seconds have gone (at least one road), then the paint, car parks and corners after
+	 *  the last; true when everything is built. */
+	bool BuildSome(double Budget);
+	/** 0..1, how much of the network is built. */
+	float Progress() const;
 	/** The ground's height (m) at a plan point: the airfield's own inside its boundary, the globe's outside it (measured by the
 	 *  -RoadGroundProbe run into Data/road-ground.json: Cesium's terrain, which falls away from the airport toward the coast),
 	 *  blended over the last 60 m inside the boundary so there is no step at the fence. */
