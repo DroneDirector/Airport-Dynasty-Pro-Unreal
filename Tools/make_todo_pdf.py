@@ -133,6 +133,8 @@ ITEMS = [
     ('69e', 'Security: arrive from out of sight, walk over, heard within 10 m (random closer), 20-30 s talk with the passenger; can’t calm it -> police', '3 h', ['people', 'voice'], '69d, 13b, 14a', False),
     ('69f', 'Police: talk, cuffs and escort out; 15% violent - stun gun last warning, "I will use force", always a defiant random reply, stun gun, ragdoll, cuffed face down, lifted, escorted out', '4 h', ['people', 'voice'], '69e', False),
     ('69g', 'Voices: violent passengers always firm and angry; compliant ones less so, randomised, never too far; man or woman at random', '1 h', ['voice'], '69d, 18d', False),
+    ('69h', 'Body language: violent passengers look violent (agitated, pacing, pointing, arms thrown) but never hit security, police or you', '2 h', ['people'], '69e, 14b', False),
+    ('69i', 'Stun gun as in real life: body locks rigid, falls stiff without catching itself, cries out; after the 5 s cycle goes limp, breathing hard, dazed; then cuffed face down, lifted, escorted out', '3 h', ['people'], '69f', False),
     ('67', 'PERF/LOOK, needs your OK: 12 Nanite meshes with see-through glass (bag-drop screens, stair balustrades, the gate walkway’s glass roof, the car rental) drawn the ordinary way so their glass shows as designed (Nanite can’t draw see-through parts)', '30 min', ['none'], '', False),
 ]
 import os as _os
