@@ -564,11 +564,12 @@ void AJetwayRigs::AddBeacons(FRig& R, ABabylonModel* M, const FString& Id)
 		// the light each throws: the lamps a turning beam (his generator: 75 turns a minute), the bar a beam ahead and
 		// down from the doorway; all with shadows, so nothing shines through the cab's walls and roof into it (owner)
 		USpotLightComponent* Sp = NewObject<USpotLightComponent>(this);
-		Sp->SetOuterConeAngle(bBar ? 60.f : bUnder ? 38.f : 30.f); Sp->SetInnerConeAngle(bBar ? 30.f : bUnder ? 16.f : 10.f);
+		Sp->SetOuterConeAngle(bBar ? 60.f : bUnder ? 50.f : 30.f); Sp->SetInnerConeAngle(bBar ? 30.f : bUnder ? 8.f : 10.f);
+		if (bUnder || bBar) Sp->SetSourceRadius(40.f);   // (a soft, even pool on the apron - no white-hot core)
 		Sp->SetupAttachment(R.Bcn);
 		Sp->SetRelativeLocation(bBar ? T.TransformPosition(FVector(0.f, -14.f, 0.f)) : T.TransformPosition(FVector(0, 0, 70.f)));
 		if (bBar) Sp->SetRelativeRotation(FRotator(-30.f, FMath::RadiansToDegrees(FMath::Atan2(F.Y, F.X)), 0.f));
-		Sp->SetIntensityUnits(ELightUnits::Lumens); Sp->SetIntensity(bBar ? 600.f : bUnder ? 1800.f : 9000.f); Sp->SetLightColor(bUnder || bBar ? Amber : Red);   // (the yellow pools on the apron: 60 % less, then half again - owner)
+		Sp->SetIntensityUnits(ELightUnits::Lumens); Sp->SetIntensity(bBar ? 360.f : bUnder ? 1080.f : 9000.f); Sp->SetLightColor(bUnder || bBar ? FLinearColor(1.f, 0.22f, 0.f) : Red);   // (the yellow pools on the apron: 60 % less, half again, 40 % less again, deeper amber so the brightest part stays yellow, not white - owner)
 		Sp->SetAttenuationRadius(bBar ? 900.f : bUnder ? 1200.f : 2800.f); Sp->SetCastShadows(true); Sp->SetVisibility(false); Sp->RegisterComponent();
 		// the roof lamps' faint glow on the roof round them (owner: much fainter than on the ground)
 		UPointLightComponent* Fill = nullptr;
@@ -637,6 +638,8 @@ void AJetwayRigs::AddSignLights(FRig& R, ABabylonModel* M, const FString& Id)
 		const TPair<UInstancedStaticMeshComponent*, int32> In = M->NodeInstance(I);
 		if (!In.Key || Done.Contains(In.Key)) continue;
 		Done.Add(In.Key);
+		// (owner: the sign only gives light, never takes it - no lamp, sun or beacon lights it; only its own glow shows)
+		In.Key->SetLightingChannels(false, false, false);
 		for (int32 m = 0; m < In.Key->GetNumMaterials(); ++m)
 		{
 			UMaterialInterface* Mi = In.Key->GetMaterial(m);
