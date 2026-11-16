@@ -118,9 +118,7 @@ ITEMS = [
     ('61', 'Wash hose: jet runs straight about 28 m (lands about 37 m), more water left on the ground', '20 min', ['field'], '', True),
     ('62', 'New career loading screen: what Unreal loads (you, your hair, the terminal) with real percentages', '40 min', ['people'], '', True),
     ('63', 'Grass performance (done 2026-11-15): the cost was the fire station wash hose, simulating its cable against the world every frame while hidden on its hook (21-50 ms of the game thread, more on slow frames - the grass only looked like the cost); now simulated only while in a hand. The far grass also laid in distance bands (every 4 m to 1 km, 8 m at twice the size to 1.8 km, 12 m at three times beyond: the same ground covered from every height). Measured (-GrassPerf, same views, daytime): eye level 20.4 ms with grass, 19.2 without (49 against 52 fps; before: 15 fps); 450 m up 22.8 against 21.5 ms (44 against 47 fps; before: 26 fps)', 'done', ['field'], '', True),
-    ('65', 'PERF, needs your OK (changes the look far away): the globe’s terrain tiles stop casting shadows beyond a distance - they cast shadows thousands of km wide and overflow the shadow map’s non-Nanite queue ("VSM overflow", measured); distant mountains would stop shadowing themselves', '30 min', ['gfx'], '', False),
-    ('66', 'PERF, needs your OK (changes the look far away): the 1,838 lights fade out beyond a distance - each costs every frame; up close nothing changes, the faint glow of far lamps goes', '40 min', ['gfx'], '', False),
-    ('67', 'PERF/LOOK, needs your OK: 12 Nanite meshes with see-through glass (bag-drop screens, stair balustrades, the gate walkway’s glass roof, the car rental) drawn the ordinary way so their glass shows as designed (Nanite can’t draw see-through parts)', '30 min', ['none'], '', False),
+    ('65', 'Sun shadows by what you do (done 2026-11-16): 2.6 km on foot or driving, 42 km flying / drone / flight viewer, switched on the fly', 'done', ['gfx'], '', True),
 ]
 import os as _os
 # (into docs/, wherever it is run from: it used to land in the current folder and docs/ kept an old copy, 2026-11-14)
