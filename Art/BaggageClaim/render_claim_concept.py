@@ -151,6 +151,8 @@ def bag(x, y, z, yaw, kind):
 
 # ---------------------------------------------------------------- the claim hall
 X0, X1, Y0, Y1, CEIL = -80.0, 0.0, 16.0, 52.0, 5.4
+EY0 = 37.46                                   # the escalators' foot (bottom comb's teeth): their shortened top plate ends 0.1 m short of the wall
+LAND = EY0 + 12.3                             # the Floor 2 landing's edge: where the escalators' top flat begins
 box(X0, Y0, -0.2, X1, Y1, 0.0, M['floor'], 'ClaimFloor')
 box(X0 - 80, -120, -0.25, X1 + 160, Y1 + 60, -0.2, M['grass'], 'Ground')
 # walls: south (customs, plaster with its opening), east (the museum's side: a dark basalt feature wall), north (plaster)
@@ -173,12 +175,33 @@ for y in [Y0 + 3 + 3 * k for k in range(11)]: box(X0 if y < 34.5 else -68.2, y -
 box(-68.2, 34.5, CEIL - 0.15, -67.9, Y1, 11.4, M['plaster'], 'VoidEast'); box(X0, 34.2, CEIL - 0.15, -67.9, 34.5, 11.4, M['plaster'], 'VoidSouth')
 box(X0, 34.5, 11.4, -67.9, Y1, 11.6, M['plaster'], 'VoidCeiling')
 for y in (40.0, 44.0, 48.0): box(-79.5, y - 0.3, 11.3, -68.7, y + 0.3, 11.38, M['led'])
-box(X0 - 0.06, 34.5, CEIL, X0, Y1, 11.4, M['glass'])
-for y in (37.0, 39.5, 42.0, 44.5, 47.0, 49.5, 52.0): box(X0 - 0.12, y - 0.05, CEIL, X0, y + 0.05, 11.4, M['dark'])
+# (owner, 2026-11-16) the void's west wall above the ground floor's glass: not the outside cladding seen through glass but
+# an inside feature wall in vertical Japanese cedar planks (Poly Haven, CC0, Art/BaggageClaim/textures), warm like the
+# oak ceiling beside the dark basalt; lit from above
+def cedar_mat():
+    m, nt, b = node_mat('CedarWall'); L = nt.links
+    d = os.path.join(HERE, 'textures', 'japanese_cedar_planks')
+    tc = nt.nodes.new('ShaderNodeTexCoord'); mp = nt.nodes.new('ShaderNodeMapping'); mp.inputs['Scale'].default_value = (1 / 1.13, 1 / 1.13, 1 / 1.13)
+    L.new(tc.outputs['Object'], mp.inputs['Vector'])
+    def img(f, col):
+        t = nt.nodes.new('ShaderNodeTexImage'); t.image = bpy.data.images.load(os.path.join(d, f)); t.projection = 'BOX'; t.projection_blend = 0.2
+        if not col: t.image.colorspace_settings.name = 'Non-Color'
+        L.new(mp.outputs['Vector'], t.inputs['Vector']); return t
+    dk = nt.nodes.new('ShaderNodeMix'); dk.data_type = 'RGBA'; dk.blend_type = 'MULTIPLY'; dk.inputs['Factor'].default_value = 1.0; dk.inputs['B'].default_value = (0.72, 0.68, 0.66, 1)   # (a touch deeper, less orange)
+    L.new(img('japanese_cedar_planks_diff_4k.jpg', True).outputs[0], dk.inputs['A']); L.new(dk.outputs['Result'], b.inputs['Base Color'])
+    nm = nt.nodes.new('ShaderNodeNormalMap'); L.new(img('japanese_cedar_planks_nor_dx_4k.jpg', False).outputs[0], nm.inputs['Color']); L.new(nm.outputs[0], b.inputs['Normal'])
+    L.new(img('japanese_cedar_planks_rough_4k.jpg', False).outputs[0], b.inputs['Roughness'])
+    return m
+CEDAR = cedar_mat()
+box(X0, 34.5, CEIL - 0.15, X0 + 0.06, Y1, 11.4, CEDAR, 'CedarWall')
+for y in (37.0, 42.0, 47.0):
+    l_ = bpy.data.lights.new('voidlight', 'AREA'); l_.energy = 220; l_.size = 3; l_.color = (1.0, 0.93, 0.84)
+    lo_ = bpy.data.objects.new('voidlight', l_); S.collection.objects.link(lo_); lo_.location = (-74.0, y, 11.2)
+
 # the Floor 2 top landing (2.5 m deep) in front of the doorway, the escalators, stair and lift arriving on it
-box(-76.1, 48.89, CEIL, -68.2, Y1, 6.0, M['plaster'], 'LandingSlab'); box(-76.1, 48.89, 5.99, -68.2, Y1, 6.0, M['floor'], 'LandingFloor')
+box(-76.1, LAND, CEIL, -68.2, Y1, 6.0, M['plaster'], 'LandingSlab'); box(-76.1, LAND, 5.99, -68.2, Y1, 6.0, M['floor'], 'LandingFloor')
 box(X0, 51.9, CEIL, -76.1, Y1, 6.0, M['floor'])   # (behind the escalators' top plates)
-box(-74.0, 48.84, 6.0, -71.1, 48.89, 7.1, M['glass'], 'LandingRail'); box(-74.0, 48.79, 7.05, -71.1, 48.94, 7.12, M['steel'])
+
 
 box(-72.0, Y1, 6.0, X1, Y1 + 0.3, 11.4, M['plaster']); box(X0, Y1, 9.6, -72.0, Y1 + 0.3, 11.4, M['plaster'])   # (the 8 m doorway into the gates' walkway, 3.6 m high)
 # the gates' walkway beyond (Floor 2, z 52.3..68): terrazzo, a white ceiling with LED lines, its glass onto the apron
@@ -193,8 +216,14 @@ for x in range(-80, -29, 3): box(x - 0.05, 67.8, 6.0, x + 0.05, 68.0, 11.4, M['d
 # foot at the south, rising north 6 m to the Floor 2 landing; its steps placed along it
 ESC = os.path.join(ROOT, 'Art', 'Escalator', 'Escalator.blend')
 with bpy.data.libraries.load(ESC) as (src, dst): dst.objects = [n for n in src.objects if n in ('SM_EscBody', 'SM_EscRamp', 'SM_EscStep')]
-EY0 = 36.59                                   # its foot (the bottom comb's teeth), so its top floor plate ends 0.1 m short of the wall
 def zat(u): return 0.0 if u < 1.275 else 6.0 if u > 12.3 else (u - 1.275) * 6.0 / (12.3 - 1.275)
+for o in dst.objects:
+    if o.name.startswith(('SM_EscBody', 'SM_EscRamp')) and not o.get('shortened'):
+        for v in o.data.vertices:
+            y = v.co.y
+            if y < -0.25: v.co.y = -0.25 + (y + 0.25) / 3.0
+            elif y > 14.01: v.co.y = 14.01 + (y - 14.01) / 3.0
+        o['shortened'] = True
 for xc in (-78.8, -77.1):
     for o in dst.objects:
         if o.name.startswith('SM_EscStep'): continue
@@ -203,10 +232,24 @@ for xc in (-78.8, -77.1):
     u = 0.0
     while u < 12.2:
         c = stp.copy(); S.collection.objects.link(c); c.location = (xc, EY0 + u + 0.4, zat(u + 0.2)); u += 0.4
-LAND = EY0 + 12.3                             # the Floor 2 landing's edge: where the escalators' top flat begins
-for k in range(30): box(-76.1, LAND - 11.4 + k * 0.38, 0, -74.1, LAND - 11.0 + k * 0.38, 0.2 * (k + 1), M['floor'])   # the stair
-box(-71.0, 46.4, 0, -68.6, 49.2, 9.0, M['glass'], 'LiftShaft'); box(-71.0, 46.4, 9.0, -68.6, 49.2, 9.15, M['dark'])   # (its door opens north onto the landing)
-box(-70.6, 49.18, 0.0, -69.0, 49.22, 2.2, M['steel']); box(-70.6, 49.18, 6.0, -69.0, 49.22, 8.2, M['steel'])
+for k in range(30):
+    y0 = LAND - 11.4 + k * 0.38; zt = 0.2 * (k + 1)
+    box(-76.1, y0, 0, -74.1, y0 + 0.38, zt - 0.04, M['top'])                                   # riser and body (dark stone)
+    box(-76.12, y0 - 0.02, zt - 0.04, -74.08, y0 + 0.38, zt, M['oak'])                          # the oak tread
+    box(-76.12, y0 - 0.03, zt - 0.045, -74.08, y0 + 0.03, zt + 0.002, M['dark'])                # its black non-slip nosing
+def glass_rail(x0, y0, z0, x1, y1, z1, h=1.05):
+    # a straight run from (x0, y0, z0) to (x1, y1, z1) along its foot: glass, black top trim, black shoe
+    import mathutils
+    a = mathutils.Vector((x0, y0, z0)); b_ = mathutils.Vector((x1, y1, z1)); d = b_ - a; L_ = d.length
+    yaw = math.atan2(d.y, d.x); pitch = math.atan2(d.z, math.hypot(d.x, d.y)); mid = (a + b_) / 2
+    for (zc, hh, th, mat) in ((h / 2, h - 0.06, 0.015, M['glass']), (h, 0.05, 0.06, M['dark']), (0.05, 0.1, 0.07, M['dark'])):
+        o = box(-L_ / 2, -th / 2, -hh / 2, L_ / 2, th / 2, hh / 2, mat, 'Rail')
+        o.rotation_euler = (0, -pitch, yaw); o.location = (mid.x, mid.y, mid.z + zc)
+glass_rail(-74.05, LAND - 11.4, 0.2, -74.05, LAND, 6.0)                                         # the stair's open side
+glass_rail(-74.05, LAND - 11.6, 0.0, -74.05, LAND - 11.4, 0.2)
+glass_rail(-74.1, LAND + 0.04, 6.0, -71.0, LAND + 0.04, 6.0)                                     # the landing's edge, stair to lift
+box(-71.0, LAND - 2.8, 0, -68.6, LAND, 9.0, M['glass'], 'LiftShaft'); box(-71.0, LAND - 2.8, 9.0, -68.6, LAND, 9.15, M['dark'])   # (its door opens north onto the landing)
+box(-70.6, LAND - 0.02, 0.0, -69.0, LAND + 0.02, 2.2, M['steel']); box(-70.6, LAND - 0.02, 6.0, -69.0, LAND + 0.02, 8.2, M['steel'])
 
 # ---------------------------------------------------------------- the three belts
 BELTS = [(-60.8, 31.0, 1), (-48.15, 31.0, 2), (-35.5, 31.0, 3), (-22.85, 31.0, 4), (-10.2, 31.0, 5)]   # (7.75 m walking room between and round them)

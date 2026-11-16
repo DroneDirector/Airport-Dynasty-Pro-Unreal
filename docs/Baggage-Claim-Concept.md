@@ -82,3 +82,5 @@ The same data is in `Art/BaggageClaim/cameras.json`.
 
 **The escalators**
 - The arrivals escalators are the same model as the escalator room's: moving steps and handrails, with the rounded newels at both ends.
+
+- **Cedar feature wall:** "Japanese Cedar Planks", Poly Haven (CC0), https://polyhaven.com/a/japanese_cedar_planks (4K diffuse, normal, roughness in Art/BaggageClaim/textures).
