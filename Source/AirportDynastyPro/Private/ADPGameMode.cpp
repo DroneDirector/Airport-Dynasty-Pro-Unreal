@@ -9,6 +9,7 @@
 #include "GroundDecals.h"
 #include "AirfieldLights.h"
 #include "GroundQuality.h"
+#include "Adverts.h"
 #include "TerminalLift.h"
 #include "Misc/PackageName.h"
 #include "SunClock.h"
@@ -112,6 +113,8 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 		}
 		// the terminal's placed props from data: the self check-in kiosk... (TerminalProps.h)
 		if (ATerminalProps* Props = W->SpawnActor<ATerminalProps>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Props->Build();
+		// the LED advert screens on the terminal's walls (Adverts.h)
+		if (AAdverts* Ads = W->SpawnActor<AAdverts>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Ads->Build(Plan);
 		// the control tower (ADC) at site A, west of the pier: walked into, its lift, doors and desk flap moving
 		if (ATowerADC* Tower = W->SpawnActor<ATowerADC>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Tower->Build();
 		// the apron light masts, one in front of each gate and two in front of each hangar
