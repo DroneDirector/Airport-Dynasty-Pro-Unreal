@@ -66,7 +66,7 @@ ITEMS = [
  ('9',   'Sunrise / sunset reflections on the tarmac', '1 h', ['field'], '8', True),
  ('10',  'Runway wear: skid marks, rubber, patches, cracks, stains', '40 min', ['field'], '8', True),
  ('11',  'Puddles (big ones too) + wet pavement after rain / hose (resend photos)', '2.5 h', ['field', 'gfx'], '9', True),
- ('22a', 'Cheap tier: ground decals (tyre marks, stains, patches)', '40 min', ['gfx'], '10', False),
+ ('22a', 'Cheap tier: ground decals (tyre marks, stains, patches)', '40 min', ['gfx'], '10', True),
  ('22b', 'Cheap tier: heat haze behind engines / APUs', '20 min', ['gfx'], '', True),
  ('22c', 'Cheap tier: lamp flares at night', '20 min', ['gfx'], '', True),
  ('22d', 'Cheap tier: virtual textures for big ground / building textures', '40 min', ['gfx'], '', False),
