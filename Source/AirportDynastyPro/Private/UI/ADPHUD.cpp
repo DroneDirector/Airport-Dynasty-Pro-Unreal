@@ -1849,6 +1849,53 @@ void AADPHUD::RefreshControls()
 void AADPHUD::Tick(float Dt)
 {
 	TickUnrealLoad(Dt);
+	// the sun's shadows follow what you do (owner, 2026-11-16): on foot or driving they reach about 2.6 km (the airport,
+	// the town, the hills nearby - inside buildings exactly as before), flying, in the drone or the flight viewer, or
+	// high above the ground, the full 42 km. (r.Shadow.Virtual.Clipmap.LastLevel: 18 = 2^18 cm, 22 = 2^22 cm; changed
+	// on the fly, checked twice a second, set again if a quality change put it back)
+	{
+		static float ShadowCheck = 0.f;
+		if ((ShadowCheck += Dt) >= 0.5f)
+		{
+			ShadowCheck = 0.f;
+			bool bHigh = Drone.IsValid() || bViewer;
+			if (!bHigh)
+				if (APlayerController* PCs = GetOwningPlayerController())
+					if (PCs->PlayerCameraManager)
+					{
+						const FVector Eye = PCs->PlayerCameraManager->GetCameraLocation();
+						FHitResult H; FCollisionQueryParams Q(TEXT("ShadowReach"), false, PCs->GetPawn());
+						bHigh = !GetWorld()->LineTraceSingleByChannel(H, Eye, Eye - FVector(0, 0, 30000.f), ECC_Visibility, Q);   // (over 300 m up)
+					}
+			if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.Virtual.Clipmap.LastLevel")))
+			{
+				const int32 Want = bHigh ? 22 : 18;
+				if (V->GetInt() != Want) { V->Set(Want, ECVF_SetByCode); ADP_LOG(TEXT("Shadows: the sun's shadows reach %s"), bHigh ? TEXT("42 km (flying)") : TEXT("2.6 km (on foot or driving)")); }
+			}
+			// the lamps the same way (owner, 2026-11-16): drawn up to 150 m on foot or driving, 600 m flying; the big
+			// floodlights (reach over 50 m: the masts lighting the apron) four times that, so a lit apron seen from afar
+			// stays lit; a lamp with its own shorter limit keeps it. New lamps are caught every 5 s.
+			static bool bLampsHigh = false; static float LampSweep = 99.f; static TMap<TWeakObjectPtr<ULocalLightComponent>, float> LampOwn;
+			if (bHigh != bLampsHigh || (LampSweep += 0.5f) >= 5.f)
+			{
+				const bool bChanged = bHigh != bLampsHigh;
+				bLampsHigh = bHigh; LampSweep = 0.f;
+				int32 N = 0;
+				for (TObjectIterator<ULocalLightComponent> It; It; ++It)
+				{
+					ULocalLightComponent* L = *It;
+					if (!L || L->GetWorld() != GetWorld() || L->IsTemplate()) continue;
+					float* Own = LampOwn.Find(L);
+					if (!Own) Own = &LampOwn.Add(L, L->MaxDrawDistance);           // (its own limit, 0 = none)
+					else if (!bChanged) continue;
+					const float Base = (L->AttenuationRadius > 5000.f ? 4.f : 1.f) * (bHigh ? 60000.f : 15000.f);
+					const float Limit = *Own > 0.f ? FMath::Min(*Own, Base) : Base;
+					if (!FMath::IsNearlyEqual(L->MaxDrawDistance, Limit)) { L->MaxDrawDistance = Limit; L->MaxDistanceFadeRange = Limit * 0.2f; L->MarkRenderStateDirty(); ++N; }
+				}
+				if (N) ADP_LOG(TEXT("Lamps: %d set to %s"), N, bHigh ? TEXT("600 m (floodlights 2.4 km, flying)") : TEXT("150 m (floodlights 600 m, on foot or driving)"));
+			}
+		}
+	}
 	// the stress walk: its steps; started from the title screen, back to the title at its end with what it found
 	{
 		const bool bWas = ADPStressWalk::Active();
