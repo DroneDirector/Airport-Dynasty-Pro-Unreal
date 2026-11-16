@@ -14,6 +14,9 @@ build version and no frame rate generation. Complete the jetway first, the one o
 2. **First finish the jetway in the stress walk** (the walk's gate 1 and its jetway: the walk must go all the way
    through the jetway as planned, and the jetway itself must be complete), before more performance work.
    If what "complete the jetway" means is unclear, ask him once.
+3. **Show him a preview before anything else happens with it** (he asked for this; it is not one of the renders to
+   avoid): when the jetway is built, send him preview images (or a short clip) of the jetway **at night with its
+   flashing lights on** (the warning/beacon lights flashing). Wait for his OK before moving on.
 
 ## From the owner for the PC chat (2026-11-15 14:14, sent to the phone chat by mistake): the dog's animation clip
 

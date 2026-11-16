@@ -5,7 +5,8 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 
 ## 0. Now, in this order (owner, 2026-11-11)
 - [ ] **FIRST (owner, 2026-11-16):** complete the jetway in the stress walk; measure performance only without video
-      recording, in the shipping build with frame generation on. See HANDOVER.md "about the stress walk".
+      recording, in the shipping build with frame generation on. When the jetway is built, send the owner a preview at night
+      with its flashing lights on and wait for his OK. See HANDOVER.md "about the stress walk".
 - [ ] **Dog clip for the owner** (2026-11-15), after the dog's jaw and texture fixes and the creator's pet section:
       walk in, sit, pant (mouth moving, breath vapour), walk out; on a COPY of the she/he selector stage moved to its
       own area (the real one in "Who are you?" stays untouched): dark blue/turquoise, fog, no light bars, well lit;
