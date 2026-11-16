@@ -3,7 +3,11 @@
 #   - bump pc-version.json BEFORE packaging: the version is compiled into the exe (0.17.12 shipped saying 0.17.11)
 #   - the web pages and Data are copied into Content first (the game reads Content/Web and Content/Data)
 #   - patch cook based on 0.12.1 (-generatepatch); -iterate can't be used with patching (full cook, ~40-60 min)
-#   - the full game = 0.12.1/Windows + this version's Windows on top; smoke-tested with ADP_LOG=1 (no CRASH lines)
+#   - SMALL UPDATES (owner, 2026-11-16: to-do 50): the patch is compared with the previous release's own content packs,
+#     copied into Releases/0.12.1/Windows first (the base release has no pakchunk*-Windows packs of its own, so before
+#     this nothing was compared and every update resent all the content, ~1.4 GB); -addpatchlevel puts this release's
+#     changes in a new numbered pack (pakchunkN-Windows_K_P), the earlier ones stay as they are in installed games
+#   - the full game = the previous version's full game + this version's Windows on top; smoke-tested with ADP_LOG=1
 #   - update zips from the two previous versions (Tools/MakeUpdate.py); the installer via Inno Setup
 #   - GitHub takes files under 2 GiB: the installer is split (Setup.exe + Setup-N.bin, Installer/setup.iss DiskSpanning);
 #     no full zip on GitHub; every file must be on the release before pc-version.json is pushed - this script pushes it
@@ -36,9 +40,13 @@ print('all %d folders the code loads are cooked' % len(used - SKIP))
 PYEOF
   echo "== frame-by-frame scans checked (a heavy one is a stutter)"
   python Tools/find_world_scans.py || { echo "STOP: a new scan over many objects - see above"; exit 1; }
-  echo "== cook and package (patch on 0.12.1)"
+  echo "== the previous release's content packs as the patch's base (only what changed since $A goes in the new pack)"
+  REL=Releases/0.12.1/Windows
+  cp -f $P/$A/Full/AirportDynastyPro/Content/Paks/pakchunk*-Windows_*_P.* $REL/ 2>/dev/null || true
+  ls $REL | grep -c "_P\." | sed 's/^/  packs to compare with: /'
+  echo "== cook and package (patch on 0.12.1 + the packs since)"
   rm -rf $P/$V
-  "/c/Program Files/Epic Games/UE_5.7/Engine/Build/BatchFiles/RunUAT.bat" BuildCookRun -project="$(pwd -W)/AirportDynastyPro.uproject" -noP4 -platform=Win64 -clientconfig=Shipping -build -cook -stage -pak -generatepatch -basedonreleaseversion=0.12.1 -archive -archivedirectory="F:\\ADP-Packaged\\$V" -utf8output -unattended -IgnoreCookErrors > $P/uat-$V.log 2>&1 || { tail -20 $P/uat-$V.log; echo "STOP: packaging failed"; exit 1; }
+  "/c/Program Files/Epic Games/UE_5.7/Engine/Build/BatchFiles/RunUAT.bat" BuildCookRun -project="$(pwd -W)/AirportDynastyPro.uproject" -noP4 -platform=Win64 -clientconfig=Shipping -build -cook -stage -pak -generatepatch -addpatchlevel -basedonreleaseversion=0.12.1 -archive -archivedirectory="F:\\ADP-Packaged\\$V" -utf8output -unattended -IgnoreCookErrors > $P/uat-$V.log 2>&1 || { tail -20 $P/uat-$V.log; echo "STOP: packaging failed"; exit 1; }
   # (the cook goes on past errors only for one known engine check, "SerializedElementSize == ElementSize" in Array.h:
   #  a handled ensure the full cook logs once while it builds skinned meshes, every package still cooked, 2026-11-16;
   #  any other cook error still stops the release here)
@@ -54,7 +62,7 @@ b=open(r'F:/ADP-Packaged/$V/Windows/AirportDynastyPro/Binaries/Win64/AirportDyna
 print(' '.join(sorted(set(m.group(0).decode('utf-16-le') for m in re.finditer(rb'0\x00\.\x001\x00[0-9]\x00\.\x00[0-9]\x00[0-9]?\x00?', b)))))")
   echo "inside: $IN"; echo "$IN" | grep -q "$V" || { echo "STOP: the exe doesn't carry $V"; exit 1; }
   echo "== the full game, and a smoke test"
-  rm -rf $P/$V/Full; cp -r $P/0.12.1/Windows $P/$V/Full; cp -r $P/$V/Windows/. $P/$V/Full/
+  rm -rf $P/$V/Full; cp -r $P/$A/Full $P/$V/Full; cp -r $P/$V/Windows/. $P/$V/Full/   # (the earlier packs stay; this release's pack added)
   L="$LOCALAPPDATA/AirportDynastyPro/Saved/Logs"; rm -f "$L/ADP.log"
   (cd $P/$V/Full && ADP_LOG=1 timeout 90 ./AirportDynastyPro/Binaries/Win64/AirportDynastyPro-Win64-Shipping.exe -unattended -RenderOffscreen -windowed -ResX=640 -ResY=360 > /dev/null 2>&1) || true
   C=$(grep -c CRASH "$L/ADP.log" 2>/dev/null || true); echo "smoke test crashes: ${C:-none logged}"
