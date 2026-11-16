@@ -2779,7 +2779,7 @@ void AADPHUD::Tick(float Dt)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIWeatherGround")))
 		{
 			APlayerController* PC = GetOwningPlayerController(); static TWeakObjectPtr<ACameraActor> WCam;
-			if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ASunClock::Month = 1; ASunClock::DayOverride = 20; ASunClock::HourOverride = 13.f; ASunClock::Theme = 3; ASunClock::Refresh(); }
+			if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ASunClock::Month = 3; ASunClock::DayOverride = 75; ASunClock::HourOverride = 13.f; ASunClock::Theme = 1; ASunClock::Refresh(); }
 			if (Before < 42.f && ShotClock >= 42.f && PC)
 			{
 				FAirfieldData F; F.Load();
@@ -2793,9 +2793,12 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 46.f && ShotClock >= 46.f) { APuddles::WeatherSpeed = 1800.f; ASunClock::Theme = 7; ASunClock::Refresh(); }
 			if (Before < 52.f && ShotClock >= 52.f) { FScreenshotRequest::RequestScreenshot(TEXT("WeatherGround-1-snowing"), false, false); Note(TEXT("snowing")); }
 			if (Before < 66.f && ShotClock >= 66.f) { FScreenshotRequest::RequestScreenshot(TEXT("WeatherGround-2-deep"), false, false); Note(TEXT("deep")); }
-			if (Before < 67.f && ShotClock >= 67.f) { ASunClock::Month = 7; ASunClock::DayOverride = 200; ASunClock::Theme = 6; ASunClock::Refresh(); }
-			if (Before < 80.f && ShotClock >= 80.f) { FScreenshotRequest::RequestScreenshot(TEXT("WeatherGround-3-downpour"), false, false); Note(TEXT("downpour")); }
-			if (Before < 83.f && ShotClock >= 83.f) { APuddles::WeatherSpeed = 1.f; ADP_SHOT_EXIT(); }
+			// the snow stops, the sky clears (the clock back to normal: it lies as it fell) - the day's look of it
+			if (Before < 67.f && ShotClock >= 67.f) { APuddles::WeatherSpeed = 1.f; ASunClock::Theme = 1; ASunClock::Refresh(); }
+			if (Before < 73.f && ShotClock >= 73.f) { FScreenshotRequest::RequestScreenshot(TEXT("WeatherGround-3-after-snow-sunny"), false, false); Note(TEXT("after snow")); }
+			if (Before < 74.f && ShotClock >= 74.f) { APuddles::WeatherSpeed = 1800.f; ASunClock::Month = 7; ASunClock::DayOverride = 200; ASunClock::Theme = 5; ASunClock::Refresh(); }
+			if (Before < 88.f && ShotClock >= 88.f) { FScreenshotRequest::RequestScreenshot(TEXT("WeatherGround-4-rain"), false, false); Note(TEXT("downpour")); }
+			if (Before < 91.f && ShotClock >= 91.f) { APuddles::WeatherSpeed = 1.f; ADP_SHOT_EXIT(); }
 		}
 		// -UIDockTypes (to-do 43b): jetway 1 docks in turn to each type (its aircraft relabelled), at 60x: the door points logged
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIDockTypes")))
