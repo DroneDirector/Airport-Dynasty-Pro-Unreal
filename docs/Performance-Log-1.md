@@ -4,7 +4,13 @@ Every performance change to the game, newest last. Only performance work goes in
 
 ## Waiting for your OK (visual changes for speed)
 
-(none yet)
+- **Globe tiles' shadows** (to-do 65): they cast shadows thousands of km wide (measured: tiles up to 12,751 km across,
+  not Nanite) and overflow the shadow map's non-Nanite queue. Plan: no shadows from them beyond a distance. Cost to
+  the look: distant mountains stop shadowing themselves.
+- **1,838 lights** (to-do 66): each costs every frame. Plan: small lights fade out beyond a distance. Cost to the
+  look: the faint glow of far lamps goes; nothing changes up close.
+- **Glass on Nanite meshes** (to-do 67): 12 meshes; Nanite can't draw their see-through parts. Plan: draw them the
+  ordinary way, so the glass shows as designed.
 
 ## Changes
 

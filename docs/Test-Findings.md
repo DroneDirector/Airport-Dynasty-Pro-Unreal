@@ -1,0 +1,59 @@
+# Airport Dynasty Pro - test findings
+
+One continuous file of every test and what it found (newest last). Only measured facts; where something is not proven
+yet it says so. The PDF of this file: docs/Test-Findings.pdf (Tools/make_findings_pdf.py).
+
+## 2026-11-16 - First stress walks (editor build)
+
+The stress walk ran in the editor build (Tools/perf_walk.sh editor). The editor's frame times are not the game's (it
+draws more and checks more), so these numbers say where to look, not how fast the game is; the packaged game's own
+walk follows below when it has run.
+
+### Measured: an engine warning written about 7 times a frame (editor builds only)
+
+- Unreal warned, nonstop: "Invalid material MI_T_glassOuter used on Nanite static mesh terminal_mesh_152. Only opaque
+  or masked blend modes are currently supported." 69,033 such lines in about 7 minutes, each also copied into ADP.log
+  and Problems.log by the game's problem log.
+- The packaged game does not log engine warnings, so this costs nothing there; in editor test runs it does.
+- Cause (file): see-through (translucent) materials on meshes drawn by Nanite, which can't draw them. 12 meshes:
+    /Game/Terminal/Meshes/terminal_mesh_152 (105 copies, the bag-drop points' screens)
+    terminal_mesh_827 and _834 (the gate walkway's glass roof and its gable)
+    terminal_mesh_681, _663, _555 (stair balustrade glass), terminal_mesh_814 (the bar's back bar)
+    terminal_mesh_2722 and _2730 (the car rental's glass and perforated walls), terminal_mesh_4, _179, _810, _931, _950
+    /Game/Babylon/Firestation/firestation/StaticMeshes/firestation_mesh_96 (15 copies)
+- Placed by: ABabylonModel (Source/AirportDynastyPro/Private/BabylonModel.cpp).
+- Fix (WAITING FOR YOUR OK - it changes how that glass is drawn): draw those meshes the ordinary (non-Nanite) way,
+  as Unreal's warning itself suggests; their glass would then show as designed.
+
+### Measured: the world's contents (the scene audit at the start of the walk)
+
+- 5,438 different meshes drawn. Nanite: 41.3 million triangles. Not Nanite: 1,201 meshes, 4.49 million triangles,
+  at least 1,215 draw calls a view before shadows.
+- 1,838 lights on; 15 cast shadows, all 15 movable (a shadow pass each, every frame): the Babylon models' point
+  lights (BabylonModel.cpp).
+- The largest non-Nanite meshes casting shadows are the globe's terrain tiles (Cesium3DTileset, up to 12,751 km
+  across): these fill the virtual shadow map's "non-Nanite" queue - the engine says so on screen: "[VSM] Non-Nanite
+  Marking Job Queue overflow. Performance may be affected."
+- The roads: 607 baked road meshes (/Game/Roads/Baked, made by RoadNetwork.cpp's bake), not Nanite, up to 26,080
+  triangles each, all casting shadows.
+- The control tower (TowerADC.cpp): 8,713 instanced copies of Unreal's own cube and cylinder (instanced already, so
+  few draw calls), not Nanite, casting shadows.
+
+### Measured: a slow frame every 15 seconds (editor build)
+
+- About 130 ms, exactly every 15 s, wherever the camera was. Not yet traced: the timetable screens' 15 s timer only
+  redrew once in the run, so it is not them. To be checked in the packaged game.
+
+### What is being done now (no change to the look)
+
+- The baked roads become Nanite (same triangles, drawn the Nanite way: cheaper shadows).
+- Unreal's cube, cylinder and sphere used by code-built things (the tower, hangars, fittings) get Nanite copies,
+  except where a see-through material is on them.
+
+### Waiting for your OK (they change the look)
+
+- The globe's terrain tiles casting shadows: they cast shadows for thousands of km; turning their shadows off (or only
+  far away) would cut the overflow, but distant mountains would stop shadowing themselves.
+- The 1,838 lights: fading the small ones out beyond a distance (they are not seen far away) would cost less every
+  frame; up close nothing changes, far away the faint glow of distant lamps would go.
+- The glass on Nanite meshes (above).
