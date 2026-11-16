@@ -27,6 +27,7 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/LightComponent.h"
+#include "Components/LocalLightComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
 #include "Materials/MaterialInterface.h"
@@ -48,6 +49,7 @@ namespace ADPPerfLogInternal
 	// a measured stretch (the stress walk): its frames, its findings by part and cause
 	struct FPerfFinding { FString Part, Why, Where, Files; float Worst = 0.f; int32 N = 0; };
 	FString PerfAudit;
+	TArray<float> PerfLightReach, PerfLightDraw;
 	bool bPerfSection = false; FString PerfSectionName, PerfCurPart; TArray<float> PerfSectionFrames; TArray<FPerfFinding> PerfFindings; TArray<FString> PerfNotes;
 
 	void PerfLine(const FString& L)
@@ -241,8 +243,22 @@ FString ADPPerfLog::SceneAudit(UWorld* W)
 	{
 		ULightComponent* L = *It;
 		if (!L || L->GetWorld() != W || !L->IsRegistered() || !L->IsVisible() || L->Intensity <= 0.f) continue;
+		{
+			// how far each lamp reaches, and from how far away it is drawn at all (0: no limit of its own)
+			const ULocalLightComponent* LL = Cast<ULocalLightComponent>(L);
+			if (LL) { PerfLightReach.Add(LL->AttenuationRadius / 100.f); PerfLightDraw.Add(L->MaxDrawDistance / 100.f); }
+		}
 		++Lights; if (L->CastShadows) { ++ShadowLights; if (L->Mobility == EComponentMobility::Movable) { ++MovableShadowLights; if (LightList.Num() < 12) LightList.Add((L->GetOwner() ? L->GetOwner()->GetName() : FString(TEXT("?"))) + TEXT("/") + L->GetName()); } }
 	}
+	auto Spread = [](TArray<float> V) -> FString
+	{
+		if (!V.Num()) return FString(TEXT("none"));
+		V.Sort(); auto P = [&](float q) { return V[FMath::Clamp(int32(V.Num() * q), 0, V.Num() - 1)]; };
+		return FString::Printf(TEXT("smallest %.0f m, half under %.0f m, 90%% under %.0f m, largest %.0f m"), V[0], P(0.5f), P(0.9f), V.Last());
+	};
+	int32 NoLimit = 0; for (float D : PerfLightDraw) if (D <= 0.f) ++NoLimit;
+	const FString LightText = FString::Printf(TEXT("- the lamps (%d local lights): their light reaches %s; %d of them have no draw-distance limit of their own (drawn as far as their light reaches on screen)\n"), PerfLightReach.Num(), *Spread(PerfLightReach), NoLimit);
+	PerfLightReach.Reset(); PerfLightDraw.Reset();
 	TArray<FRow> A; Rows.GenerateValueArray(A);
 	int64 NonNaniteTris = 0, NaniteTris = 0; int32 NonNaniteDraws = 0, NonNaniteMeshes = 0;
 	for (const FRow& R : A) { if (R.bNanite) NaniteTris += (int64)R.Tris * R.Copies; else { NonNaniteTris += (int64)R.Tris * R.Copies; NonNaniteDraws += R.Sections; ++NonNaniteMeshes; } }
@@ -256,6 +272,7 @@ FString ADPPerfLog::SceneAudit(UWorld* W)
 	n = 0; for (const FRow& R : A) if (!R.bNanite && R.bShadow && n++ < 12) T += FString::Printf(TEXT("    %s - %s - %.0f m across, %d copies\n"), *R.Mesh, *R.Owner, R.Size, R.Copies);
 	T += TEXT("- Nanite meshes with see-through materials (Nanite can't draw those parts):\n");
 	n = 0; for (const FRow& R : A) if (R.bNanite && R.bTranslucent && n++ < 12) T += FString::Printf(TEXT("    %s - %s - %d copies\n"), *R.Mesh, *R.Owner, R.Copies);
+	T += LightText;
 	if (LightList.Num()) T += TEXT("- movable shadow-casting lights (first 12): ") + FString::Join(LightList, TEXT(", ")) + TEXT("\n");
 	PerfLine(T);
 	return T;
