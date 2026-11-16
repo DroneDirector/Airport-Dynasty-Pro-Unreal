@@ -3442,6 +3442,8 @@ void AADPHUD::Tick(float Dt)
 						float Hr = 14.f; int32 Dy = 172; FParse::Value(FCommandLine::Get(), TEXT("PlanHour="), Hr); FParse::Value(FCommandLine::Get(), TEXT("PlanDay="), Dy);
 						if (bGame) ToggleGame(); ASunClock::DayOverride = Dy; ASunClock::HourOverride = Hr; ASunClock::Refresh(); OpenSite();
 					}
+					// (-CleanShots: the pictures without the airport's interface - hidden once the site is open)
+					if (Before < T0 - 1.f && ShotClock >= T0 - 1.f && i == 0 && FParse::Param(FCommandLine::Get(), TEXT("CleanShots")) && !bHidden) HideUI();
 					if (Before < T0 && ShotClock >= T0)
 						if (APlayerController* PC = GetOwningPlayerController()) if (APawn* Me = PC->GetPawn())
 						{
