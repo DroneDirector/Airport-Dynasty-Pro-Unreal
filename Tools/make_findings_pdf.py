@@ -1,7 +1,9 @@
 # The test findings as one PDF (owner, 2026-11-16: every test's findings in one continuous file, sent to him as a PDF;
 # black background, light text): docs/Test-Findings.md -> docs/Test-Findings.pdf. Markdown kept simple: "# " a title,
 # "## " a section, "### " a sub-heading, "- " a point (indented "  - " under it), "    " a code or log line, else text.
-#   python Tools/make_findings_pdf.py
+#   python Tools/make_findings_pdf.py          (docs/Test-Findings.pdf)
+#   python Tools/make_findings_pdf.py --mail   (Saved/Test-Findings-mail.pdf: standard PDF fonts, about 9 KB - small
+#                                               enough to attach to an email through the mail tool)
 import os, textwrap
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
@@ -13,10 +15,17 @@ from reportlab.pdfbase.pdfmetrics import stringWidth
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC, OUT = os.path.join(ROOT, 'docs', 'Test-Findings.md'), os.path.join(ROOT, 'docs', 'Test-Findings.pdf')
 F = 'C:/Windows/Fonts/'
-pdfmetrics.registerFont(TTFont('UI', F + 'segoeui.ttf')); pdfmetrics.registerFont(TTFont('UIB', F + 'segoeuib.ttf')); pdfmetrics.registerFont(TTFont('Mono', F + 'consola.ttf'))
+import sys
+MAIL = '--mail' in sys.argv
+if MAIL:
+    OUT = os.path.join(ROOT, 'Saved', 'Test-Findings-mail.pdf')
+    pdfmetrics.registerFont = lambda *a: None
+else:
+    pdfmetrics.registerFont(TTFont('UI', F + 'segoeui.ttf')); pdfmetrics.registerFont(TTFont('UIB', F + 'segoeuib.ttf')); pdfmetrics.registerFont(TTFont('Mono', F + 'consola.ttf'))
+FN = {'UI': 'Helvetica', 'UIB': 'Helvetica-Bold', 'Mono': 'Courier'} if MAIL else {'UI': 'UI', 'UIB': 'UIB', 'Mono': 'Mono'}
 W, H = A4; M = 48
 BG, FG, DIM, CY, PK = HexColor('#101018'), HexColor('#ECECF4'), HexColor('#A9A9BD'), HexColor('#35F0FF'), HexColor('#FF3FB8')
-c = canvas.Canvas(OUT, pagesize=A4); c.setTitle('Airport Dynasty Pro - test findings')
+c = canvas.Canvas(OUT, pagesize=A4, pageCompression=1); c.setTitle('Airport Dynasty Pro - test findings')
 y = 0
 def page():
     global y
@@ -28,7 +37,7 @@ def wrap(text, font, size, width):
     words, lines, cur = text.split(' '), [], ''
     for w in words:
         t = (cur + ' ' + w).strip()
-        if stringWidth(t, font, size) <= width: cur = t
+        if stringWidth(t, FN.get(font, font), size) <= width: cur = t
         else:
             if cur: lines.append(cur)
             cur = w
@@ -39,7 +48,7 @@ def para(text, font='UI', size=10, col=FG, indent=0, gap=4, bullet=None):
     lines = wrap(text, font, size, W - 2 * M - indent - (12 if bullet else 0))
     for i, l in enumerate(lines):
         need(size + 4)
-        c.setFillColor(col); c.setFont(font, size)
+        c.setFillColor(col); c.setFont(FN.get(font, font), size)
         if bullet and i == 0: c.setFillColor(CY); c.drawString(M + indent, y - size, bullet); c.setFillColor(col)
         c.drawString(M + indent + (12 if bullet else 0), y - size, l)
         y -= size + 3
