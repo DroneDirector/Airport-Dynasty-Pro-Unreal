@@ -22,3 +22,6 @@ Every performance change to the game, newest last. Only performance work goes in
 - **2026-11-16 - Nothing loaded by name is missing from the package.** 0.17.16 left out the escalator, road signs,
   street lights, land along the roads, fire-truck materials, interact glow and stand wear (the code asked for them
   and found nothing). The release now stops if any such folder is missing.
+- **2026-11-16 - The baked roads are Nanite.** 607 road meshes (up to 26,080 triangles each, all casting shadows)
+  were ordinary meshes in the shadow map's slow non-Nanite queue; now Nanite, same triangles and materials (all
+  M_Ground, opaque, made for Nanite). Checked by pictures at the terminal's forecourt: they look the same.
