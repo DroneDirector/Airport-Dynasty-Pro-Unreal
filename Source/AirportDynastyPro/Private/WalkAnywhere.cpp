@@ -1,5 +1,6 @@
 // Walk anywhere on Earth (WalkAnywhere.h).
 #include "WalkAnywhere.h"
+#include "PerfLog.h"
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"   // (Windows' headers the Unreal way, before Cesium's: its own include of windows.h then leaves no min/max/GetObject macros behind for the next files of the build chunk)
 #endif
@@ -133,6 +134,7 @@ void AWalkAnywhere::Back(UWorld* W)
 
 void AWalkAnywhere::Tick(float Dt)
 {
+	ADP_PERF_SCOPE("walk anywhere (each frame)", 2.f);
 	Super::Tick(Dt);
 	if (!bAway || bPlaced) return;
 	Wait += Dt;

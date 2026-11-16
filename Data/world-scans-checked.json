@@ -1,0 +1,90 @@
+{
+ "AFireStationDoors::Tick": {
+  "file": "Source/AirportDynastyPro/Private/FireTruck.cpp",
+  "scans": [
+   "TActorIterator<APawn>"
+  ],
+  "guarded": true
+ },
+ "AHangar::Tick": {
+  "file": "Source/AirportDynastyPro/Private/Hangar.cpp",
+  "scans": [
+   "GetActorOfClass"
+  ],
+  "guarded": true
+ },
+ "ALightMasts::Tick": {
+  "file": "Source/AirportDynastyPro/Private/LightMasts.cpp",
+  "scans": [
+   "GetActorOfClass",
+   "TActorIterator<AExponentialHeightFog>",
+   "TActorIterator<APostProcessVolume>"
+  ],
+  "guarded": true
+ },
+ "ASeats::Tick": {
+  "file": "Source/AirportDynastyPro/Private/Seats.cpp",
+  "scans": [
+   "TActorIterator<ABabylonModel>"
+  ],
+  "guarded": true
+ },
+ "AStreetLights::Tick": {
+  "file": "Source/AirportDynastyPro/Private/StreetLights.cpp",
+  "scans": [
+   "GetActorOfClass"
+  ],
+  "guarded": true
+ },
+ "ADPStressWalk::Tick": {
+  "file": "Source/AirportDynastyPro/Private/StressWalk.cpp",
+  "scans": [
+   "TActorIterator<AEscalatorPair>"
+  ],
+  "guarded": false
+ },
+ "ASunClock::Tick": {
+  "file": "Source/AirportDynastyPro/Private/SunClock.cpp",
+  "scans": [
+   "GetActorOfClass"
+  ],
+  "guarded": true
+ },
+ "ATowerADC::Tick": {
+  "file": "Source/AirportDynastyPro/Private/TowerADC.cpp",
+  "scans": [
+   "GetActorOfClass"
+  ],
+  "guarded": true
+ },
+ "AADPHUD::Tick": {
+  "file": "Source/AirportDynastyPro/Private/UI/ADPHUD.cpp",
+  "scans": [
+   "TActorIterator<AActor>",
+   "TActorIterator<ABabylonModel>",
+   "TActorIterator<ADirectionalLight>",
+   "TActorIterator<AEscalatorPair>",
+   "TActorIterator<AHangar>",
+   "TActorIterator<AOpsMonitors>",
+   "TActorIterator<APet>",
+   "TActorIterator<AVolumetricCloud>",
+   "TActorIterator<AWardrobe>",
+   "TObjectIterator<ULocalLightComponent>"
+  ],
+  "guarded": true
+ },
+ "AWalkAnywhere::Tick": {
+  "file": "Source/AirportDynastyPro/Private/WalkAnywhere.cpp",
+  "scans": [
+   "TActorIterator<ACesium3DTileset>"
+  ],
+  "guarded": true
+ },
+ "AWindSocks::Tick": {
+  "file": "Source/AirportDynastyPro/Private/WindSocks.cpp",
+  "scans": [
+   "GetActorOfClass"
+  ],
+  "guarded": true
+ }
+}

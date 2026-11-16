@@ -1,5 +1,6 @@
 // The roads' street lights (StreetLights.h).
 #include "StreetLights.h"
+#include "PerfLog.h"
 #include "ADPLog.h"
 #include "SunClock.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -101,6 +102,7 @@ bool AStreetLights::AddPost(const FVector& At, const FVector& Toward)
 
 void AStreetLights::Tick(float Dt)
 {
+	ADP_PERF_SCOPE("the street lights (each frame)", 2.f);
 	Super::Tick(Dt);
 	// a light sensor, as the apron's masts (LightMasts.cpp): on at sunset, off when the sun is 3 degrees up, on all day
 	// in fog and storms

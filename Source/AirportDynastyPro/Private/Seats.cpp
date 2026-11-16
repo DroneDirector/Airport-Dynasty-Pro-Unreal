@@ -1,5 +1,6 @@
 // Sitting down (Seats.h).
 #include "Seats.h"
+#include "PerfLog.h"
 #include "ADPLog.h"
 #include "ADPWalker.h"
 #include "DriverPoseAnim.h"
@@ -82,6 +83,7 @@ bool ASeats::StandSpot(int32 I, FVector& At, float& Yaw)
 
 void ASeats::Gather()
 {
+	ADP_PERF_SCOPE("the seats: gathering every place to sit", 4.f);
 	Spots.Reset();
 	for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It) It->SeatSpots(Spots);
 	// a seat's pieces outlined when you're near
@@ -173,9 +175,18 @@ void ASeats::Place(float K)
 
 void ASeats::Tick(float Dt)
 {
+	ADP_PERF_SCOPE("the seats (each frame)", 4.f);
 	Super::Tick(Dt);
 	One = this;
-	if ((GatherIn -= Dt) <= 0.f && State == EState::None) { Gather(); ++GatherRounds; GatherIn = GatherRounds < 3 ? 6.f : 15.f; }
+	// the seats are gathered again only when the buildings change (one added or gone - the town comes in late, say):
+	// gathering walks every piece of every building and took over 100 ms - done every 15 s it was the game's
+	// stutter (owner 2026-11-16, found by the performance log's stall watch: ASeats::Gather -> SeatSpots)
+	if ((GatherIn -= Dt) <= 0.f && State == EState::None)
+	{
+		GatherIn = 2.f;
+		int32 Models = 0; for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It) ++Models;
+		if (Models != GatheredModels) { GatheredModels = Models; Gather(); ++GatherRounds; }
+	}
 	if (AADPWalker* W = Waiting.Get())
 	{
 		WaitT += Dt;

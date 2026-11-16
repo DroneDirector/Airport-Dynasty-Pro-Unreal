@@ -118,6 +118,7 @@ FText ADPStressWalk::Note()
 
 void ADPStressWalk::Tick(UWorld* W, APlayerController* PC, float Dt)
 {
+	ADP_PERF_SCOPE("the stress walk (each frame)", 2.f);
 	using namespace ADPStressWalkInternal;
 	if (WalkEndNoteT > 0.f) { WalkEndNoteT -= Dt; if (WalkEndNoteT <= 0.f) WalkEndNote.Reset(); }
 	if (!bWalkOn || !W || !PC) return;

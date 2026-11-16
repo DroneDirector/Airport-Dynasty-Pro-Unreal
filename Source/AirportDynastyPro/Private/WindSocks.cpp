@@ -1,5 +1,6 @@
 // The runway windsocks and the wind (WindSocks.h).
 #include "WindSocks.h"
+#include "PerfLog.h"
 #include "ADPLog.h"
 #include "Airfield.h"
 #include "SunClock.h"
@@ -207,6 +208,7 @@ void AWindSocks::DrawSock(FSock& S, bool bFirst)
 
 void AWindSocks::Tick(float Dt)
 {
+	ADP_PERF_SCOPE("the wind socks (each frame)", 2.f);
 	Super::Tick(Dt);
 	if (!Socks.Num()) return;
 	Clock += Dt;

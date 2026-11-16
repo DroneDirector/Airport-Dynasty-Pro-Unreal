@@ -1,6 +1,7 @@
 // The sun's place from the time: the low-precision solar position (as in the Astronomical Almanac and NOAA's
 // calculator), good to about a hundredth of a degree for many years either side of 2000.
 #include "SunClock.h"
+#include "PerfLog.h"
 #include "Engine/DirectionalLight.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Engine/SkyLight.h"
@@ -140,6 +141,7 @@ void ASunClock::BeginPlay()
 
 void ASunClock::Tick(float Dt)
 {
+	ADP_PERF_SCOPE("the sun clock (each frame)", 2.f);
 	Super::Tick(Dt);
 	if ((Clock += Dt) >= 5.f) { Clock = 0; Update(); }
 	// the sky light follows the sun's colour now and then (it captures the sky in real time where it can)

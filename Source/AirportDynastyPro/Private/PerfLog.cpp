@@ -4,6 +4,9 @@
 // which way it looked, so a stutter can be traced to a place and a cause. Every 30 s in the airport: a short summary
 // (average, the slowest 1 % and the worst frame). The run before is kept as ADP-Perf-prev.log.
 #include "PerfLog.h"
+#if PLATFORM_WINDOWS
+#include "Windows/WindowsHWrapper.h"
+#endif
 #include "ADPLog.h"
 #include "TerminalPlan.h"
 #include "Containers/Ticker.h"
@@ -33,6 +36,12 @@
 #include "Materials/MaterialInterface.h"
 #include "StaticMeshResources.h"
 #include "Rendering/SkeletalMeshRenderData.h"
+#include "HAL/Runnable.h"
+#include "Async/Async.h"
+#include <atomic>
+#include "HAL/RunnableThread.h"
+#include "HAL/PlatformStackWalk.h"
+#include "HAL/ThreadManager.h"
 
 namespace ADPPerfLogInternal
 {
@@ -50,6 +59,44 @@ namespace ADPPerfLogInternal
 	struct FPerfFinding { FString Part, Why, Where, Files; float Worst = 0.f; int32 N = 0; };
 	FString PerfAudit;
 	TArray<float> PerfLightReach, PerfLightDraw;
+	// the watchdog (-StallWatch): a thread of its own that sees when the game thread hasn't moved on for 60 ms and writes
+	// where it is stuck at that moment (its call stack, by name where the build has its symbols)
+	void PerfLine(const FString& L);
+	std::atomic<uint64> PerfBeat{0};
+	uint32 PerfGameThreadId = 0;
+	uint64 PerfExeBase = 0;
+	class FPerfWatch : public FRunnable
+	{
+	public:
+		std::atomic<bool> bStop{false};
+		uint32 Run() override
+		{
+			uint64 Last = 0; double Since = FPlatformTime::Seconds(); bool bCaught = false;
+			while (!bStop)
+			{
+				FPlatformProcess::Sleep(0.005f);
+				const uint64 B = PerfBeat.load();
+				if (B != Last) { Last = B; Since = FPlatformTime::Seconds(); bCaught = false; continue; }
+				if (!bCaught && B > 100 && FPlatformTime::Seconds() - Since > 0.06)
+				{
+					bCaught = true;
+					uint64 Stack[48] = {};
+					const int32 N = FPlatformStackWalk::CaptureThreadStackBackTrace(PerfGameThreadId, Stack, 48);
+					FString T = FString::Printf(TEXT("STALL: the game thread hasn't moved for 60 ms; it is in:"));
+					for (int32 i = 0; i < N && i < 24; ++i)
+					{
+						ANSICHAR Name[512] = {}; FPlatformStackWalk::ProgramCounterToHumanReadableString(i, Stack[i], Name, sizeof(Name));
+						// (+offset: the address inside the game's program, for Tools/stall_names.sh where a build carries no names)
+						const uint64 Off = Stack[i] - PerfExeBase;
+						T += TEXT("\n    ") + FString(ANSI_TO_TCHAR(Name)) + (Off < 0x20000000ull ? FString::Printf(TEXT("  +0x%llx"), Off) : FString());
+					}
+					AsyncTask(ENamedThreads::GameThread, [T]() { PerfLine(T); });
+				}
+			}
+			return 0;
+		}
+	};
+	FPerfWatch* PerfWatch = nullptr; FRunnableThread* PerfWatchThread = nullptr;
 	bool bPerfSection = false; FString PerfSectionName, PerfCurPart; TArray<float> PerfSectionFrames; TArray<FPerfFinding> PerfFindings; TArray<FString> PerfNotes;
 
 	void PerfLine(const FString& L)
@@ -78,6 +125,7 @@ namespace ADPPerfLogInternal
 
 	bool PerfOnTick(float Dt)
 	{
+		PerfBeat.fetch_add(1);
 		const double Now = FPlatformTime::Seconds();
 		const float Ms = Dt * 1000.f;
 		if (Dt <= 0.f || Dt > 10.f) return true;
@@ -155,11 +203,13 @@ void ADPPerfLog::Start()
 	});
 #endif
 	PerfTick = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateStatic(&PerfOnTick));
+	if (FParse::Param(FCommandLine::Get(), TEXT("StallWatch"))) ADPPerfLog::StartStallWatch();
 	PerfLine(TEXT("Performance log: frames over 50 ms and 2.5 times the usual, with their likely cause and the camera's place"));
 }
 
 void ADPPerfLog::Stop()
 {
+	if (ADPPerfLogInternal::PerfWatch) { ADPPerfLogInternal::PerfWatch->bStop = true; if (ADPPerfLogInternal::PerfWatchThread) { ADPPerfLogInternal::PerfWatchThread->WaitForCompletion(); delete ADPPerfLogInternal::PerfWatchThread; } delete ADPPerfLogInternal::PerfWatch; ADPPerfLogInternal::PerfWatch = nullptr; ADPPerfLogInternal::PerfWatchThread = nullptr; }
 	using namespace ADPPerfLogInternal;
 	if (PerfTick.IsValid()) { FTSTicker::GetCoreTicker().RemoveTicker(PerfTick); PerfTick.Reset(); }
 	if (PerfFile) { PerfFile->Close(); delete PerfFile; PerfFile = nullptr; }
@@ -168,6 +218,7 @@ void ADPPerfLog::Stop()
 void ADPPerfLog::BeginSection(const FString& Name)
 {
 	using namespace ADPPerfLogInternal;
+	ADPPerfLog::StartStallWatch();   // (on for every measured stretch: the stress walk, owner 2026-11-16)
 	bPerfSection = true; PerfSectionName = Name; PerfCurPart.Reset(); PerfAudit.Reset(); PerfSectionFrames.Reset(); PerfFindings.Reset(); PerfNotes.Reset();
 	PerfLine(TEXT("==== ") + Name + TEXT(": start"));
 }
@@ -279,3 +330,26 @@ FString ADPPerfLog::SceneAudit(UWorld* W)
 }
 
 void ADPPerfLog::SetAudit(const FString& A) { ADPPerfLogInternal::PerfAudit = A; }
+
+void ADPPerfLog::StartStallWatch()
+{
+	using namespace ADPPerfLogInternal;
+	if (PerfWatch) return;
+	PerfGameThreadId = GGameThreadId; FPlatformStackWalk::InitStackWalking();
+#if PLATFORM_WINDOWS
+	PerfExeBase = (uint64)::GetModuleHandleW(nullptr);
+#endif
+	PerfWatch = new FPerfWatch(); PerfWatchThread = FRunnableThread::Create(PerfWatch, TEXT("ADPStallWatch"));
+	PerfLine(TEXT("Stall watch on: where the game thread is stuck whenever it stops for 60 ms (Tools/stall_names.sh names them)"));
+}
+
+void ADPPerfLog::SlowWork(const TCHAR* What, double Ms, float BudgetMs)
+{
+	using namespace ADPPerfLogInternal;
+	if (!IsInGameThread()) return;
+	static TMap<const TCHAR*, int32> Count;
+	int32& N = Count.FindOrAdd(What); ++N;
+	if (N == 1 || N % 20 == 0)
+		PerfLine(FString::Printf(TEXT("SLOW WORK: %s took %.1f ms (its budget %.0f ms; %d times over so far)"), What, Ms, BudgetMs, N));
+	if (bPerfSection && Ms > 30.0) PerfNotes.Add(FString::Printf(TEXT("slow work: %s %.0f ms"), What, Ms));
+}

@@ -2,6 +2,7 @@
 // (shaft, lobby, cab glass, floors, desk ring, roof) as procedural meshes with both faces and collision, the straight
 // pieces as instanced boxes and cylinders, the lift from TerminalLifts, and the doors and desk flap moving each frame.
 #include "TowerADC.h"
+#include "PerfLog.h"
 #include "ADPLog.h"
 #include "TerminalBuilder.h"
 #include "TerminalLifts.h"
@@ -704,6 +705,7 @@ void ATowerADC::BuildNightLights()
 
 void ATowerADC::Tick(float Dt)
 {
+	ADP_PERF_SCOPE("the control tower (each frame)", 2.f);
 	Super::Tick(Dt);
 	// the outside lights: on at sunset, off just after sunrise (the light masts' sensor), and in fog and storms
 	{

@@ -1,5 +1,6 @@
 // The apron light masts (LightMasts.h).
 #include "LightMasts.h"
+#include "PerfLog.h"
 #include "ADPLog.h"
 #include "Engine/PostProcessVolume.h"
 #include "TerminalPlan.h"
@@ -123,6 +124,7 @@ void ALightMasts::Build()
 
 void ALightMasts::Tick(float Dt)
 {
+	ADP_PERF_SCOPE("the light masts (each frame)", 2.f);
 	Super::Tick(Dt);
 	// switched as real aprons are, by a light sensor: on at sunset (the sun at the horizon), off just after sunrise
 	// (3 degrees up; a sensor turns off at more light than it turns on at), and on all day in fog and storms (low

@@ -34,6 +34,8 @@ miss = sorted(used - cooked - SKIP)
 if miss: print('not always cooked:', ', '.join(miss)); sys.exit(1)
 print('all %d folders the code loads are cooked' % len(used - SKIP))
 PYEOF
+  echo "== frame-by-frame scans checked (a heavy one is a stutter)"
+  python Tools/find_world_scans.py || { echo "STOP: a new scan over many objects - see above"; exit 1; }
   echo "== cook and package (patch on 0.12.1)"
   rm -rf $P/$V
   "/c/Program Files/Epic Games/UE_5.7/Engine/Build/BatchFiles/RunUAT.bat" BuildCookRun -project="$(pwd -W)/AirportDynastyPro.uproject" -noP4 -platform=Win64 -clientconfig=Shipping -build -cook -stage -pak -generatepatch -basedonreleaseversion=0.12.1 -archive -archivedirectory="F:\\ADP-Packaged\\$V" -utf8output -unattended -IgnoreCookErrors > $P/uat-$V.log 2>&1 || { tail -20 $P/uat-$V.log; echo "STOP: packaging failed"; exit 1; }

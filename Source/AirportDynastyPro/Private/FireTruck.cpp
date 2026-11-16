@@ -1,5 +1,6 @@
 // The airport's crash tenders, drivable (FireTruck.h); the fire station's bay doors.
 #include "FireTruck.h"
+#include "PerfLog.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "ADPLog.h"
@@ -1685,6 +1686,7 @@ void AFireStationDoors::Sound(const FBay& B, const TArray<int16>& Pcm)
 
 void AFireStationDoors::Tick(float Dt)
 {
+	ADP_PERF_SCOPE("the fire station doors (each frame)", 2.f);
 	Super::Tick(Dt);
 	if (!Station) return;
 	if (!Heard)

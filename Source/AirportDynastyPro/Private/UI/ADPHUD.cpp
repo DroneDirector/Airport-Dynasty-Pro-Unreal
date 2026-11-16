@@ -1848,6 +1848,7 @@ void AADPHUD::RefreshControls()
 
 void AADPHUD::Tick(float Dt)
 {
+	ADP_PERF_SCOPE("the interface and its checks (each frame)", 6.f);
 	TickUnrealLoad(Dt);
 	// the sun's shadows follow what you do (owner, 2026-11-16): on foot or driving they reach about 2.6 km (the airport,
 	// the town, the hills nearby - inside buildings exactly as before), flying, in the drone or the flight viewer, or
@@ -2672,6 +2673,13 @@ void AADPHUD::Tick(float Dt)
 				if (APawn* P = GetOwningPawn()) { P->TeleportTo(FTerminalPlan::ToWorld(75.f, 0.f, 15.f) + FVector(0, 0, 100.f), FRotator::ZeroRotator); }
 				ADP_LOG(TEXT("UIPerfStand: standing in the Grand Hall"));
 			}
+			// (-UIBrowserOff: the menus' built-in browser taken away altogether - to see if a hitch is the browser's)
+			if (Before < 50.f && ShotClock >= 50.f && FParse::Param(FCommandLine::Get(), TEXT("UIBrowserOff")) && GameBox.IsValid())
+			{
+				StaticCastSharedPtr<SBox>(GameBox)->SetContent(SNullWidget::NullWidget); Browser.Reset();
+				ADP_LOG(TEXT("UIPerfStand: the menus' browser taken away"));
+			}
+			if (Before < 70.f && ShotClock >= 70.f) FScreenshotRequest::RequestScreenshot(FParse::Param(FCommandLine::Get(), TEXT("UIBrowserOff")) ? TEXT("Stand_BrowserOff") : TEXT("Stand_BrowserOn"), true, false);
 			if (Before < 60.f && ShotClock >= 60.f) { ADPPerfLog::BeginSection(TEXT("standing still")); ADPPerfLog::SetAudit(ADPPerfLog::SceneAudit(GetWorld())); }
 			if (Before < 135.f && ShotClock >= 135.f) { ADP_LOG(TEXT("UIPerfStand: %s"), *ADPPerfLog::EndSection()); ADP_SHOT_EXIT(); }
 		}

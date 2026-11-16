@@ -1,6 +1,7 @@
 // Places the Babylon model: walks its node tree from the roots, works out each node's transform the way Unreal's glTF
 // importer converts them, and adds an instance of the node's imported mesh there.
 #include "BabylonModel.h"
+#include "PerfLog.h"
 #include "ParkedAircraft.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -1209,6 +1210,7 @@ void ABabylonModel::SetPartsCollision(bool bOn)
 
 void ABabylonModel::SeatSpots(TArray<FSeatSpot>& Out) const
 {
+	ADP_PERF_SCOPE("a building's places to sit", 4.f);
 	if (!Root || Model.StartsWith(TEXT("Firetruck"))) return;   // (the trucks' own seats are the truck's)
 	const FTransform RootW = Root->GetComponentTransform();
 	auto Under = [this](int32 I, TArray<int32>& Nodes) { TArray<int32> St = {I}; while (St.Num()) { const int32 N = St.Pop(); if (!NRoot.IsValidIndex(N)) continue; Nodes.Add(N); St.Append(NKids[N]); } };

@@ -1,4 +1,5 @@
 #include "Pets.h"
+#include "PerfLog.h"
 #include "ADPLog.h"
 #include "TerminalPlan.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -26,6 +27,7 @@ namespace ADPPets
 
 	const TArray<FModel>& All()
 	{
+		ADP_PERF_SCOPE("the pets: finding every pet model", 4.f);
 		static TArray<FModel> List;
 		static bool bDone = false;
 		if (bDone) return List;

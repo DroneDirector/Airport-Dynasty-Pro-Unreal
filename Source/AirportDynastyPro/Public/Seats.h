@@ -47,6 +47,7 @@ private:
 	TArray<ABabylonModel::FSeatSpot> Spots;
 	float GatherIn = 2.f;
 	int32 GatherRounds = 0;
+	int32 GatheredModels = -1;   // (how many buildings the seats were last gathered from)
 	TSet<TPair<UInstancedStaticMeshComponent*, int32>> Outlined;
 	void Gather();
 

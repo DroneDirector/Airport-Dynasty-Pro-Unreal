@@ -1,5 +1,6 @@
 // An aircraft hangar with its crew annex (Hangar.h), in four sizes.
 #include "Hangar.h"
+#include "PerfLog.h"
 #include "TimerManager.h"
 #include "BabylonModel.h"
 #include "WashHose.h"
@@ -337,6 +338,7 @@ void AHangar::Command(bool bOpen)
 
 void AHangar::Tick(float Dt)
 {
+	ADP_PERF_SCOPE("a hangar (each frame)", 2.f);
 	Super::Tick(Dt);
 	if (DoorPause > 0.f) { DoorPause -= Dt; if (DoorPause <= 0.f) DoorRun = DoorNext; }
 	// the main door: 10 minutes from shut to fully open, held by STOP; the beacons flash while it moves
