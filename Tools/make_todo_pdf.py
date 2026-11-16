@@ -86,7 +86,7 @@ ITEMS = [
     ('40b', 'Ground job: apron from the layout, ICAO/FAA markings (hold-short pattern A, red runway-ahead signs, stand lines), gate dirt, faint stand tyre marks', '2.5 h', ['field'], '40a', True),
     ('40c', 'Service roads: gate 1 to the control tower, the fire station to the taxiway by gate 1 and down to the taxiway below, vehicle markings, same detail', '2 h', ['field'], '40b', True),
     ('40d', 'Light snow layer on apron, taxiways, runway from winter reference photos', '2 h', ['field'], '40b', True),
-    ('40e', 'Taxiway lights: blue edge + tiny inset green centre lights at real spacing, modelled fixtures (runway lights researched too)', '40 min', ['field'], '40a', False),
+    ('40e', 'Taxiway lights: blue edge + tiny inset green centre lights at real spacing, modelled fixtures (runway lights researched too)', '40 min', ['field'], '40a', True),
     ('40f', 'Graphics setting "Airport ground": Low 2K / Medium / High 4K / Ultra 8K + fine relief', '20 min', ['gfx'], '40a', False),
     ('41a', 'Fire truck: its paint on a master material with wear, dirt and wetness like the ground (its own red, not the markings red); compile + publish', '1.5 h', ['none'], '', True),
     ('41b', 'Fire truck: surfaces flickering through each other (z-fighting) - find and separate them, without changing the shape of the truck', '45 min', ['none'], '', True),
