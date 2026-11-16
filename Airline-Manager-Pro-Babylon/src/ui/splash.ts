@@ -58,6 +58,10 @@ export function splashOpen(enter: (id: string) => void) {
     <button class="ts-mute ${S.music ? '' : 'off'}" data-a="mute" aria-label="Music on or off"><span class="ts-eq"><i></i><i></i><i></i><i></i></span><span class="ts-ml">${S.music ? 'Music on' : 'Music off'}</span></button>
     <div class="ts-tap" hidden>Tap anywhere for sound</div>`;
   (document.getElementById('ui') as HTMLElement).appendChild(r); T.root = r;
+  // the lit choice follows the mouse, as the keys and the pad move it (owner, 2026-11-16: the hover felt slow - the
+  // old choice stayed lit while another was under the mouse)
+  r.addEventListener('mouseover', (e: Event) => { const b = (e.target as HTMLElement).closest('.ts-btn') as HTMLElement; if (!b || b.classList.contains('on')) return;
+    r.querySelectorAll('.ts-btn.on').forEach(x => x.classList.remove('on')); b.classList.add('on'); _pick = b.getAttribute('data-id') || _pick; });
   r.addEventListener('click', (e: Event) => { const b = (e.target as HTMLElement).closest('[data-a]') as HTMLElement; if (!b) return; const a = b.getAttribute('data-a'); if (a === 'enter') { _pick = b.getAttribute('data-id') || 'game:continue'; splashEnter(); } else if (a === 'mute') splashMute(); });
   T.cv = r.querySelector('.ts-cv'); T.cx = T.cv.getContext('2d');
   T.fit = () => { const w = r.clientWidth, h = r.clientHeight, k = Math.min(1.5, window.devicePixelRatio || 1, 2200 / Math.max(1, w)); T.cv.width = Math.round(w * k); T.cv.height = Math.round(h * k); };
