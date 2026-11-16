@@ -122,8 +122,9 @@ if SOFF:
 slab(0.0, 21.0, 0.0, 30.0, 6.01, thick=0.6)
 S.box(20.96, 21.0, 5.37, 6.01, 0.0, 30.0, W, sides=('+x',))
 # the landing's guardrail: a stainless shoe, glass, black trim on top (as high as the escalators' handrails); a gap
-# where the escalators arrive (z 13.3..16.7)
-ESC_GAP = (13.3, 16.7)
+# where the escalators arrive: four of them (owner 2026-11-16: the pair copied beside itself, 50 cm apart, all four
+# centred on the landing, z 15): their outsides at z 11.53..18.47, the gap 9 cm wider each side as before
+ESC_GAP = (11.44, 18.56)
 for (za, zb) in ((0.15, ESC_GAP[0]), (ESC_GAP[1], 29.85)):
     S.box(20.82, 20.98, 6.01, 6.13, za, zb, 'MI_T_steel')
     G.box(20.894, 20.906, 6.11, 6.94, za, zb, 'MI_T_glass')

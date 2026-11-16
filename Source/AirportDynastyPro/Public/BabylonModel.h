@@ -82,6 +82,14 @@ public:
 	 *  dark; green again and it swaps back). */
 	static void LightDoorPanel(ABabylonModel* P, bool bGreen);
 	/** The same, at a known spot: At on the wall's face, N the way into the room. */
+	// the model's parts, for things that move them (the jetways, JetwayRigs.h): a part by its full name, its place in
+	// the model (the root's space), its children, and its copy (an instanced mesh and the instance's number)
+	int32 NodeIndex(const FString& FullName) const { return NName.IndexOfByKey(FullName); }
+	int32 NodeCount() const { return NName.Num(); }
+	const FString& NodeName(int32 I) const { return NName[I]; }
+	const FTransform& NodeModel(int32 I) const { return NRoot[I]; }
+	const TArray<int32>& NodeKids(int32 I) const { return NKids[I]; }
+	TPair<UInstancedStaticMeshComponent*, int32> NodeInstance(int32 I) const { return NInst.IsValidIndex(I) ? NInst[I] : TPair<UInstancedStaticMeshComponent*, int32>(nullptr, INDEX_NONE); }
 	static ABabylonModel* PlaceDoorPanelAt(UWorld* W, const FVector& At, const FVector& N, float FloorZ);
 	static ABabylonModel* PlaceDoorPanel(UWorld* W, const FVector& From, const FVector& Dir, float FloorZ, const TArray<AActor*>& Ignore, float Proud = 0.f);
 	/** Collision on or off for all the model's parts (a fire truck collides with its physics body instead). */

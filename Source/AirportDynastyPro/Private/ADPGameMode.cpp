@@ -5,6 +5,7 @@
 #include "ADPLog.h"
 #include "Containers/Ticker.h"
 #include "Escalators.h"
+#include "JetwayRigs.h"
 #include "TerminalLift.h"
 #include "Misc/PackageName.h"
 #include "SunClock.h"
@@ -139,10 +140,15 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 					{
 						FActorSpawnParameters Sp; Sp.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 						const float Foot = 21.f + AEscalatorPair::LengthAlong();
-						if (AEscalatorPair* E = W->SpawnActor<AEscalatorPair>(FVector(Foot * 100.f, -14.19f * 100.f, 1.2f), FRotator(0.f, -90.f, 0.f), Sp)) E->Build();
+						// two pairs (owner 2026-11-16: the pair copied beside itself with 50 cm between them): each pair 3.22 m
+						// across its outsides (two escalators 1.60 m wide, 1.62 m centre to centre), so the second pair's
+						// origin is 3.72 m along; all four centred on the landing (plan z 15 = Unreal y -15)
+						for (const float Y : { -12.33f, -16.05f })
+							if (AEscalatorPair* E = W->SpawnActor<AEscalatorPair>(FVector(Foot * 100.f, Y * 100.f, 1.2f), FRotator(0.f, -90.f, 0.f), Sp)) E->Build();
 						// the staff lift up to the offices (TerminalLift.h): its car in the shaft in the staff entrance hall
 						if (ATerminalLift* Lf = W->SpawnActor<ATerminalLift>(FVector::ZeroVector, FRotator::ZeroRotator, Sp)) Lf->Build(152.6f, 155.6f, 47.8f, 51.2f, 48.9f, 50.1f);
 					}
+					AJetwayRigs::Get(W);   // (his jetways rigged to move, JetwayRigs.h)
 				}), 1.0f, false);
 			}
 			if (!bBabylon)
