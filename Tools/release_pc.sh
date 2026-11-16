@@ -61,5 +61,5 @@ else
   gh release view pc-unreal-v$V --json assets -q '.assets[] | "\(.name) \(.size)"'
   [ "$GOT" = "$N" ] || { echo "STOP: $GOT of $N files on the release - pc-version.json NOT pushed"; exit 1; }
   echo "== pc-version.json (the updater sees $V now)"
-  git pull -q --rebase --autostash && git add pc-version.json release-notes-pc/$V.md && git -c user.name=DroneDirector -c user.email=simon@dronedirector.fo commit -qm "PC $V" && git push -q
+  git pull -q --rebase --autostash && git add pc-version.json release-notes-pc/$V.md && { git diff --cached --quiet || git -c user.name=DroneDirector -c user.email=simon@dronedirector.fo commit -qm "PC $V"; } && git push -q   # (already committed: just pushed)
 fi
