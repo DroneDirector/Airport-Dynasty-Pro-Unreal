@@ -297,7 +297,7 @@ void ABaggageBelts::Tick(float Dt)
 			break;
 		case EStage::Stub:
 			// the input runs with its belt (the crew start it when the first bag reaches it)
-			if (!Bt.bRun && B.P > 0.5f && !Bt.Flight.IsEmpty()) SetRunning(B.Belt, true);
+			if (!Bt.bRun && !Bt.Flight.IsEmpty() && Bt.Idle >= 0.f) SetRunning(B.Belt, true);
 			if (Bt.bRun && Free(B.Belt, EStage::Stub, B.P + CONV * Dt, 0.9f, i)) B.P += CONV * Dt;
 			if (B.P >= STUB0 - WALLZ) { B.Stage = EStage::Hidden; B.Wait = 3.f; }
 			break;
