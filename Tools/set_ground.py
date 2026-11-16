@@ -344,12 +344,16 @@ if (snowA > 0.001) {
     float h01 = frac(sin(dot(ip + float2(0, 1), float2(41.3, 289.1))) * 43758.5453), h11 = frac(sin(dot(ip + float2(1, 1), float2(41.3, 289.1))) * 43758.5453);
     s1 += sa * lerp(lerp(h00, h10, f.x), lerp(h01, h11, f.x), f.y); sq = sq * 2.31 + 13.0; sa *= 0.5;
   }
-  float cov = s1 * 0.8 + cl.g * 0.7 + joint * 0.9 * smoothstep(0.42, 0.72, s1) + saturate(SBias) * 0.55 - tyre * 0.6 + egrit * 0.5 + oil * 0.15 - wpath * 0.9;   // the joints hold it only here and there
+  // (owner, 2026-11-16: the snow lies across the lines and every paving piece alike - the same patches on all the
+  // airfield's paving, its own bias only for the grass and quiet ground; a thin even dusting under the patches)
+  float gB = saturate((SBias - 0.5) * 5.0);
+  float cov = s1 * 0.8 + cl.g * 0.25 + joint * 0.35 * smoothstep(0.42, 0.72, s1) + lerp(0.19, saturate(SBias) * 0.55, gB) - tyre * 0.6 + egrit * 0.5 + oil * 0.15 - wpath * 0.9;   // the joints hold it only here and there
   float thr = 1.05 - snowA * 0.8;
   float snow = smoothstep(thr, thr + 0.16, cov);
   float3 sc = float3(0.80, 0.83, 0.88) * (0.82 + 0.18 * s1);
-  c = lerp(c, sc, snow);
-  r = lerp(r, 0.8, snow);
+  float dust = saturate(snowA * 1.6) * 0.45 * (1.0 - wpath * 0.8) * (1.0 - tyre);   // the thin even cover between the patches
+  c = lerp(c, sc, saturate(snow + dust * (1.0 - snow)));
+  r = lerp(r, 0.8, saturate(snow + dust * 0.6));
 }
 float wetAll = saturate(Wet) * up;
 c *= lerp(1.0, 0.6, wetAll) * lerp(1.0, 0.82, rim) * lerp(1.0, 0.7, saturate(openC + joint) * wetAll);
@@ -442,7 +446,7 @@ inst(KIT + 'MI_gasphalt', dict(Color=unreal.LinearColor(0.68, 0.68, 0.70, 1),   
      textures=dict(scan('asphalt_04', 'asphalt_02'), CrackLayer=LAYER['cracks_asphalt']))
 # the taxiways' shoulders (Airfield PaveTaxiways): older, lighter asphalt with more cracks, no tyre rubber (real shoulders
 # are paved for jet blast, rarely driven on)
-inst(KIT + 'MI_shoulder', dict(Color=unreal.LinearColor(0.75, 0.75, 0.76, 1), UseScan=1.0, ScanSize=4.04, CrackStyle=0.0, CrackAmount=0.95, TyreAmount=0.0, Variation=0.0, SnowBias=0.4, Spec=0.4, RoughScale=0.92),
+inst(KIT + 'MI_shoulder', dict(Color=unreal.LinearColor(0.75, 0.75, 0.76, 1), UseScan=1.0, ScanSize=4.04, CrackStyle=0.0, CrackAmount=0.95, TyreAmount=0.0, Variation=0.0, SnowBias=0.35, Spec=0.4, RoughScale=0.92),
      textures=dict(scan('asphalt_04', 'asphalt_02'), CrackLayer=LAYER['cracks_asphalt']))
 # the roads (owner, 2026-11-14; reference photos of Faroese and Icelandic roads): a real road scan (Poly Haven
 # asphalt_pit_lane, CC0) in the darker asphalt tone the owner picked (about half MI_gasphalt's brightness), with the road
@@ -467,7 +471,7 @@ for nm, b_ in (('MI_gconcrete', 0.0), ('MI_gapron', 0.12)):
     inst(KIT + nm, dict(Color=unreal.LinearColor(1.12, 1.12, 1.10, 1), UseScan=1.0, ScanSize=3.0, CrackStyle=1.0, CrackAmount=0.6, TyreAmount=0.0, PuddleBias=b_, Variation=0.0, SnowBias=0.33 if nm == 'MI_gapron' else 0.35, Spec=0.5, RoughScale=0.9),
          textures=dict(scan('concrete_floor_worn_001', 'brushed_concrete_04'), CrackLayer=LAYER['cracks_concrete']))
 # the red of the mandatory instruction markings (the runway-ahead signs): its own paint, so the kit's red stays as it is
-inst(KIT + 'MI_paintred', dict(Color=unreal.LinearColor(0.42, 0.02, 0.02, 1), UseScan=0.0, CrackStyle=0.0, CrackAmount=0.7, TyreAmount=1.0, Roughness=0.5, Variation=0.03, PaintDirt=1.0, Spec=0.6),
+inst(KIT + 'MI_paintred', dict(Color=unreal.LinearColor(0.42, 0.02, 0.02, 1), UseScan=0.0, CrackStyle=0.0, CrackAmount=0.7, TyreAmount=1.0, Roughness=0.5, Variation=0.03, PaintDirt=1.0, SnowBias=0.35, Spec=0.6),
      textures=dict(CrackLayer=LAYER['cracks_asphalt']))
 # the kit's white and yellow (aircraft, hangars, the tower, fittings) stay on the kit's own master: no road cracks on them
 KITM = unreal.load_asset('/Game/Materials/Kit/M_Surface')
@@ -482,7 +486,7 @@ for name in ('MI_yellow', 'MI_white'):
 # (owner, 2026-11-13: cracks that cross a marking show on it, in their own colours) and a light grime that differs on
 # every marking (Airfield gives each one its own amount in the vertex colour)
 for name, col in (('MI_paintyellow', PAINT['MI_yellow']), ('MI_paintwhite', PAINT['MI_white']), ('MI_paintblack', unreal.LinearColor(0.018, 0.018, 0.018, 1))):
-    inst(KIT + name, dict(Color=col, UseScan=0.0, CrackStyle=0.0, CrackAmount=0.7, TyreAmount=1.0, Roughness=0.5 if name != 'MI_paintblack' else 0.75, Variation=0.03, PaintDirt=1.0, Spec=0.6),
+    inst(KIT + name, dict(Color=col, UseScan=0.0, CrackStyle=0.0, CrackAmount=0.7, TyreAmount=1.0, Roughness=0.5 if name != 'MI_paintblack' else 0.75, Variation=0.03, PaintDirt=1.0, SnowBias=0.35, Spec=0.6),   # (owner, 2026-11-16: snow lies on the lines as on the paving round them)
          textures=dict(CrackLayer=LAYER['cracks_asphalt']))
 BAB = '/Game/Babylon/Terminal/terminal/Materials/'
 # the model's building materials stay the model's own (owner, 2026-11-13: buildings never share the ground's kit): its

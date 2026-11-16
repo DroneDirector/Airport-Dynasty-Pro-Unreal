@@ -69,7 +69,7 @@ void APuddles::Tick(float Dt)
 	const float DryRate = 1.f / FMath::Max(60.f, GetTuning(TEXT("DryingHours")) * 3600.f);
 	float RainK = 0.f; GroundWeather(Dt, RainK);
 	const bool bWet = bRainyDay || RainK > 0.f;
-	Wetness = FMath::Clamp(Wetness + (bWet ? WetRate : -DryRate) * Dt * (bWet ? 1.f : WeatherSpeed), 0.f, 1.f);
+	Wetness = FMath::Clamp(Wetness + (bWet ? WetRate : -DryRate) * Dt * WeatherSpeed, 0.f, 1.f);   // (the test's fast clock wets and dries it too)
 	Rain = FMath::FInterpTo(Rain, bRainyDay ? 1.f : RainK, Dt, 0.6f);
 	Push();
 }
@@ -122,7 +122,7 @@ void APuddles::Push() const
 	// snow: the -SnowDay test or the panel's own amount when set; otherwise the weather's (a light ploughed cover on
 	// the paving at most, the grass to a full white over about 12 cm)
 	const float Manual = SnowDay >= 0.f ? SnowDay : GetTuning(TEXT("Snow"));
-	UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("Snow"), Manual > 0.f ? Manual : FMath::Clamp(SnowPaveCm / 1.5f, 0.f, 1.f) * 0.4f);
+	UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("Snow"), Manual > 0.f ? Manual : FMath::Clamp(SnowPaveCm / 1.5f, 0.f, 1.f) * 0.65f);   // (owner: more snow fill on the paving)
 	UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("SnowGrass"), Manual > 0.f ? FMath::Min(1.f, Manual * 1.6f) : FMath::Clamp(SnowGrassCm / 12.f, 0.f, 1.f));
 }
 
