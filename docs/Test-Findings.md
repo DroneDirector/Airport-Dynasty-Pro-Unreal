@@ -57,3 +57,33 @@ walk follows below when it has run.
 - The 1,838 lights: fading the small ones out beyond a distance (they are not seen far away) would cost less every
   frame; up close nothing changes, far away the faint glow of distant lamps would go.
 - The glass on Nanite meshes (above).
+
+## 2026-11-16 - The packaged game (0.17.17, your settings: Cinematic, 1920 x 1080)
+
+### Measured: a stress walk while Windows was locked is not valid
+
+- Run while the PC was locked: 5-7 fps all through. Windows holds back a locked screen's frames; the title screen in
+  the same run did 254 fps. Such runs are thrown away; locked runs are now drawn off-screen
+  (bash Tools/perf_walk.sh offscreen), which measures the game's own work.
+
+### Measured: the stress walk drawn off-screen
+
+- The whole walk (outside, Grand Hall, stairs, escalator, Floor 2, gate walkway, gate 1, jetway, apron):
+  87 fps on average, the slowest 1 % of frames 68 fps, worst frame 133 ms, 26 bad frames in about 6 minutes.
+- Every 30 s: 79 to 102 fps on average, the slowest 1 % 67 to 81 fps.
+- Almost all bad frames are one hitch: 115 to 133 ms, exactly every 15.0 seconds, wherever you are and whatever you
+  look at. That is the stutter you can feel.
+
+### Measured: what the 15-second hitch is NOT (standing still 75 s in the Grand Hall, one thing off at a time)
+
+- In each hitch the game's own work was 3 ms, the render thread 3 ms, the graphics card 11 ms: the frame is spent
+  WAITING, not working. (The log said "graphics card"; that wording is wrong for this case and is being fixed.)
+    with everything on:             89 fps, hitches every 15 s (152 ms)
+    virtual shadow maps off:        89 fps, hitches every 15 s (140 ms)
+    Lumen lighting off:             89 fps, hitches every 15 s (120 ms)
+    volumetric clouds off:          89 fps, hitches every 15 s (126 ms)
+    sound off:                      90 fps, hitches every 15 s (127 ms)
+    texture streaming off:          89 fps, hitches every 15 s (120 ms)
+    grass off:                      90 fps, hitches every 15 s (136 ms)
+- Not the timetable screens (their 15 s timer redrew only once in the run). Not the sun clock (5 s and 120 s steps).
+- Still to test: the menus' built-in browser, files written to disk, the holographic map.
