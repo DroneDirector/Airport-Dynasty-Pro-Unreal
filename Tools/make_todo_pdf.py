@@ -125,6 +125,14 @@ ITEMS = [
     ('68b', 'Order an NPC: E at a person -> "Ride with me" (joins you as passenger) or "Drive me" (takes the wheel with you inside)', '2 h', ['people'], '68a', False),
     ('68c', 'NPC drives you: to a mission location or to your own waypoint set on the holographic map - route on the airfield and roads, steering, speed, stopping, parking at the end', '8-10 h', ['people', 'field'], '68b, 48', False),
     ('68d', 'Multiplayer in vehicles: other players as driver or passengers - needs network play first (not in the game yet), then seats shared between players', 'after network play', ['people'], '68a', False),
+    # owner, 2026-11-16: talking to people, hiring, unruly passengers (memory: people-talk-conduct-plan)
+    ('69a', 'People outline: looking at a MetaHuman shows the thin interact glow; E opens Just talk / Ask to work for you', '1 h', ['people'], '15b', False),
+    ('69b', 'Just talk: generated questions, answers in each person’s own way; personal topics refused by some, answered by others', '2 h', ['people', 'voice'], '69a, 18c', False),
+    ('69c', 'Hire: "would you like to work for me?" - 13% yes with their own reasons, else "thanks, not looking for work"', '1 h', ['people', 'voice'], '69a', False),
+    ('69d', 'Unruly passenger: conduct-only options, two ways to deal with it; calm them - 75% apologise humbly and behave, 25% refuse -> call security', '2 h', ['people', 'voice'], '69a', False),
+    ('69e', 'Security: arrive from out of sight, walk over, heard within 10 m (random closer), 20-30 s talk with the passenger; can’t calm it -> police', '3 h', ['people', 'voice'], '69d, 13b, 14a', False),
+    ('69f', 'Police: talk, cuffs and escort out; 15% violent - stun gun last warning, "I will use force", always a defiant random reply, stun gun, ragdoll, cuffed face down, lifted, escorted out', '4 h', ['people', 'voice'], '69e', False),
+    ('69g', 'Voices: violent passengers always firm and angry; compliant ones less so, randomised, never too far; man or woman at random', '1 h', ['voice'], '69d, 18d', False),
     ('67', 'PERF/LOOK, needs your OK: 12 Nanite meshes with see-through glass (bag-drop screens, stair balustrades, the gate walkway’s glass roof, the car rental) drawn the ordinary way so their glass shows as designed (Nanite can’t draw see-through parts)', '30 min', ['none'], '', False),
 ]
 import os as _os
