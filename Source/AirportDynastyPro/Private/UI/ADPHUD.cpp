@@ -2678,7 +2678,7 @@ void AADPHUD::Tick(float Dt)
 			APlayerController* PC = GetOwningPlayerController();
 			if (Before < 40.f && ShotClock >= 40.f && bGame) ToggleGame();
 			struct FV { const TCHAR* Name; FVector Eye, At; };
-			static const FV Views[] = {
+			static const FV EscViews[] = {
 				{ TEXT("Esc4-FromHall"),    FVector(46.f, -15.f, 1.7f), FVector(24.f, -15.f, 3.5f) },
 				{ TEXT("Esc4-FromLanding"), FVector(16.f, -15.f, 7.8f), FVector(34.f, -15.f, 1.0f) },
 				{ TEXT("Esc4-Side"),        FVector(30.f, -2.5f, 4.0f), FVector(28.f, -15.f, 3.0f) },
@@ -2689,11 +2689,11 @@ void AADPHUD::Tick(float Dt)
 				if (PC && Before < T0 && ShotClock >= T0)
 				{
 					static TWeakObjectPtr<ACameraActor> ECam;
-					const FVector Eye = Views[i].Eye * 100.f, At = Views[i].At * 100.f;
+					const FVector Eye = EscViews[i].Eye * 100.f, At = EscViews[i].At * 100.f;
 					if (!ECam.IsValid()) ECam = GetWorld()->SpawnActor<ACameraActor>(Eye, (At - Eye).Rotation());
 					if (ECam.IsValid()) { ECam->SetActorLocationAndRotation(Eye, (At - Eye).Rotation()); ECam->GetCameraComponent()->SetConstraintAspectRatio(false); ECam->GetCameraComponent()->SetFieldOfView(75.f); PC->SetViewTarget(ECam.Get()); }
 				}
-				if (Before < T0 + 3.f && ShotClock >= T0 + 3.f) FScreenshotRequest::RequestScreenshot(Views[i].Name, false, false);
+				if (Before < T0 + 3.f && ShotClock >= T0 + 3.f) FScreenshotRequest::RequestScreenshot(EscViews[i].Name, false, false);
 			}
 			if (Before < 75.f && ShotClock >= 75.f) ADP_SHOT_EXIT();
 		}
@@ -3005,10 +3005,10 @@ void AADPHUD::Tick(float Dt)
 		// -UIPlanView=x,y,z,lx,ly,lz[;x,y,z,lx,ly,lz...]: pictures from points in the terminal plan's metres (x east, y up,
 		// z north), each looking at its l-point - one picture per view (PlanView_0, _1, ...), then out
 		{
-			FString Views;
-			if (FParse::Value(FCommandLine::Get(), TEXT("UIPlanView="), Views, false))
+			FString PlanViews;
+			if (FParse::Value(FCommandLine::Get(), TEXT("UIPlanView="), PlanViews, false))
 			{
-				TArray<FString> V; Views.ParseIntoArray(V, TEXT(";"));
+				TArray<FString> V; PlanViews.ParseIntoArray(V, TEXT(";"));
 				for (int32 i = 0; i < V.Num(); ++i)
 				{
 					const float T0 = 42.f + i * 4.f;

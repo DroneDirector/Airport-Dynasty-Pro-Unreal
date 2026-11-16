@@ -543,11 +543,15 @@ void AJetwayRigs::AddBeacons(FRig& R, ABabylonModel* M, const FString& Id)
 		}
 		else
 		{
-			for (float a = F1 - 70.f; !bFound && a > F1 - 220.f; a -= 15.f)   // (50 cm clear of the bellows behind: the cab turns - owner)
-				for (float In = 30.f; !bFound && In < (L1 - L0) / 2; In += 10.f)
+			// (owner's red dots, 2026-11-16: by the doorway's edge of the roof, both lamps the same distance in from their
+			//  sides - parallel; the distance in is found for both at once, the roof is rounded on one side)
+			for (float a = FAll - 100.f; !bFound && a > FAll - 300.f; a -= 15.f)
+				for (float In = 30.f; !bFound && In < (LA1 - LA0) / 2; In += 10.f)
 				{
-					P = CabL + F * a + L * (b == 0 ? L0 + In : L1 - In);
-					bFound = Hit(FVector(P.X, P.Y, CabL.Z + Z1 + 60.f), -1.f, Zh) && Zh > CabL.Z + Z1 - 40.f;   // (the roof itself, not the floor through a gap at its edge)
+					float Za = 0.f, Zb = 0.f;
+					const FVector Pa = CabL + F * a + L * (LA0 + In), Pb = CabL + F * a + L * (LA1 - In);
+					if (Hit(FVector(Pa.X, Pa.Y, CabL.Z + Z1 + 60.f), -1.f, Za) && Za > CabL.Z + Z1 - 40.f && Hit(FVector(Pb.X, Pb.Y, CabL.Z + Z1 + 60.f), -1.f, Zb) && Zb > CabL.Z + Z1 - 40.f)
+					{ bFound = true; P = b == 0 ? Pa : Pb; Zh = b == 0 ? Za : Zb; }
 				}
 			P.Z = Zh;
 		}
@@ -564,7 +568,7 @@ void AJetwayRigs::AddBeacons(FRig& R, ABabylonModel* M, const FString& Id)
 		Sp->SetupAttachment(R.Bcn);
 		Sp->SetRelativeLocation(bBar ? T.TransformPosition(FVector(0.f, -14.f, 0.f)) : T.TransformPosition(FVector(0, 0, 70.f)));
 		if (bBar) Sp->SetRelativeRotation(FRotator(-30.f, FMath::RadiansToDegrees(FMath::Atan2(F.Y, F.X)), 0.f));
-		Sp->SetIntensityUnits(ELightUnits::Lumens); Sp->SetIntensity(bBar ? 1200.f : bUnder ? 3600.f : 9000.f); Sp->SetLightColor(bUnder || bBar ? Amber : Red);   // (the yellow pools on the apron 60 % less: owner)
+		Sp->SetIntensityUnits(ELightUnits::Lumens); Sp->SetIntensity(bBar ? 600.f : bUnder ? 1800.f : 9000.f); Sp->SetLightColor(bUnder || bBar ? Amber : Red);   // (the yellow pools on the apron: 60 % less, then half again - owner)
 		Sp->SetAttenuationRadius(bBar ? 900.f : bUnder ? 1200.f : 2800.f); Sp->SetCastShadows(true); Sp->SetVisibility(false); Sp->RegisterComponent();
 		// the roof lamps' faint glow on the roof round them (owner: much fainter than on the ground)
 		UPointLightComponent* Fill = nullptr;
