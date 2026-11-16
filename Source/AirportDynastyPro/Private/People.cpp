@@ -2,6 +2,7 @@
 #include "ADPLog.h"
 #include "PerfLog.h"
 #include "InteractOutline.h"
+#include "GroomComponent.h"
 #include "EngineUtils.h"
 #include "Engine/World.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -164,6 +165,8 @@ void AADPPeople::Gather()
 			Sk->SetCollisionEnabled(ECollisionEnabled::QueryOnly); Sk->SetCollisionResponseToAllChannels(ECR_Ignore); Sk->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 			AInteractOutline::Add(Sk, INDEX_NONE, (uint64)(UPTRINT)A);
 		}
+		// their hair, brows and beard (hair strands, a component of their own) in the same outline: the whole person one shape
+		{ TArray<UGroomComponent*> Gs; A->GetComponents<UGroomComponent>(Gs); for (UGroomComponent* Gm : Gs) AInteractOutline::Add(Gm, INDEX_NONE, (uint64)(UPTRINT)A); }
 		if (W.Body)
 		{
 			for (USkeletalMeshComponent* Sk : Skels) if (Sk != W.Body && !Sk->GetName().StartsWith(TEXT("Face"))) Sk->SetLeaderPoseComponent(W.Body);
@@ -245,12 +248,12 @@ void AADPPeople::Moment(AActor* Who, const TCHAR* Name)
 void AADPPeople::Open(AActor* Who)
 {
 	FWho* W = Find(Who); if (!W) return;
-	bMenu = true; MenuWho = Who;
+	bMenu = true; MenuWho = Who; AInteractOutline::Hide = (uint64)(UPTRINT)Who;   // (no outline on them while you talk)
 	if (W->bUnruly && !SceneOn()) ShowConduct(); else ShowStart();
 	Face(Who, GetWorld()->GetFirstPlayerController() && GetWorld()->GetFirstPlayerController()->GetPawn() ? GetWorld()->GetFirstPlayerController()->GetPawn()->GetActorLocation() : Who->GetActorLocation());
 }
 
-void AADPPeople::Close() { bMenu = false; MenuWho = nullptr; MenuOptions.Reset(); }
+void AADPPeople::Close() { bMenu = false; MenuWho = nullptr; MenuOptions.Reset(); AInteractOutline::Hide = 0; }
 
 void AADPPeople::ShowStart()
 {

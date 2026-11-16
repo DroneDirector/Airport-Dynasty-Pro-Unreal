@@ -2087,6 +2087,8 @@ void AADPHUD::Tick(float Dt)
 		else if (!bStuck && bShown && StuckFor == 0.f && !bPointer) UnstuckPanel->SetVisibility(EVisibility::Collapsed);
 	}
 	Super::Tick(Dt);
+	// using something (a device, the wardrobe, a jetway's panel, the game screen, talking to someone): no outlines meanwhile
+	{ AADPPeople* Pq = AADPPeople::Get(GetWorld()); AInteractOutline::bBusy = bGame || bDevice || PhoneDir != 0 || bWardrobe || bJetMenu || (Pq && Pq->MenuOpen()); }
 	// the people menu opened or closed (by E, by walking away): the mouse pointer with it
 	if (AADPPeople* Pp = AADPPeople::Get(GetWorld())) if (Pp->MenuOpen() != bPeopleMenuWas) { bPeopleMenuWas = Pp->MenuOpen(); UpdateMouse(); }
 	// (the menus opened once the airport has loaded: a couple of frames after the loading frame, see BeginPlay)
@@ -2720,6 +2722,8 @@ void AADPHUD::Tick(float Dt)
 			{
 				const float T0 = 46.f + k * 14.f;
 				auto At = [&](float D) { return Before < T0 + D && ShotClock >= T0 + D; };
+				if (k == 0 && Before < T0 - 1.5f && ShotClock >= T0 - 1.5f) FScreenshotRequest::RequestScreenshot(TEXT("Talk-outline"), true, false);   // (the outline before talking)
+				if (k == 0 && Before < T0 + 0.5f && ShotClock >= T0 + 0.5f) FScreenshotRequest::RequestScreenshot(TEXT("Talk-outline-off"), true, false);   // (and gone while talking)
 				if (At(0.f) && Who[k].IsValid()) { Pp->Open(Who[k].Get()); ADP_LOG(TEXT("UITalk: %s - %s"), *Pp->MenuTitle, *Pp->MenuText); Pp->Choose(0); }
 				for (int32 q = 0; q < 5; ++q) if (At(1.f + q * 2.f)) { const FString Q = Pp->MenuOptions.IsValidIndex(q) ? Pp->MenuOptions[q] : FString(); Pp->Choose(q); ADP_LOG(TEXT("UITalk:   Q: %s  ->  %s"), *Q, *Pp->MenuText); if (q == 2) FScreenshotRequest::RequestScreenshot(FString::Printf(TEXT("Talk-%d"), k), true, false); Pp->Choose(0); Pp->Choose(0); }
 				if (At(12.f)) { Pp->ShowStartForTest(); Pp->Choose(1); ADP_LOG(TEXT("UITalk:   asked to work for you -> %s"), *Pp->MenuText); Pp->Close(); }

@@ -18,6 +18,8 @@
 #include "Materials/MaterialInterface.h"
 
 TArray<AInteractOutline::FThing> AInteractOutline::Listed;
+uint64 AInteractOutline::Hide = 0;
+bool AInteractOutline::bBusy = false;
 bool AInteractOutline::bOn = true;
 
 AInteractOutline::AInteractOutline()
@@ -85,7 +87,7 @@ void AInteractOutline::Tick(float Dt)
 	TArray<FNear> Near;
 	// (owner, 2026-11-14: only the one thing in the middle of your view - not every chair round you - and none while you
 	// sit or hold something)
-	const bool bWalking = Me && Me->IsA<ACharacter>() && bOn && !ASeats::IsSitting() && !AWashHose::Held() && !ADoorPanelUse::IsActive();
+	const bool bWalking = Me && Me->IsA<ACharacter>() && bOn && !ASeats::IsSitting() && !AWashHose::Held() && !ADoorPanelUse::IsActive() && !bBusy;   // (owner: an outline goes once you use the thing - the person you talk to, the device, the menu)
 	FVector Cam = Me ? Me->GetPawnViewLocation() : FVector::ZeroVector, Look = FVector::ForwardVector;
 	if (PC && PC->PlayerCameraManager) { Cam = PC->PlayerCameraManager->GetCameraLocation(); Look = PC->PlayerCameraManager->GetCameraRotation().Vector(); }
 	// at a door panel: only the button your finger is on
@@ -99,7 +101,7 @@ void AInteractOutline::Tick(float Dt)
 		const FVector At = Me->GetActorLocation();
 		auto Consider = [&](UPrimitiveComponent* C, int32 Item, uint64 Key)
 		{
-			if (!C || !C->IsVisible()) return;
+			if (!C || !C->IsVisible() || (Hide != 0 && Key == Hide)) return;   // (the person you're talking to: no outline while you talk)
 			FVector P;
 			if (Item != INDEX_NONE) { UInstancedStaticMeshComponent* K = Cast<UInstancedStaticMeshComponent>(C); FTransform T; if (!K || !K->GetInstanceTransform(Item, T, true) || T.GetScale3D().GetMin() < 0.01f) return; P = T.GetLocation(); }
 			else P = C->Bounds.Origin;

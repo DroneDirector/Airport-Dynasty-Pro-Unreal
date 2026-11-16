@@ -27,6 +27,10 @@ public:
 	/** Outlines on or off (Settings). */
 	static bool bOn;
 	static constexpr float Reach = 400.f;
+	/** A thing (its Key) whose outline is off for now - the person you're talking to (People.h). 0: none. */
+	static uint64 Hide;
+	/** You are using something (a device, the wardrobe, a menu, the game screen): no outlines at all until you're done. */
+	static bool bBusy;
 
 private:
 	// (Key: the pieces of one thing share it - a chair's legs and seat, a phone's parts - and light up together)
