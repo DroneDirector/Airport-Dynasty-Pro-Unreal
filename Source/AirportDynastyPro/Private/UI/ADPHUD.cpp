@@ -6,6 +6,12 @@
 #include "GameFramework/Character.h"
 #include "Escalators.h"
 #include "StressWalk.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
+#include "Widgets/Layout/SScrollBox.h"
+#include "HAL/PlatformApplicationMisc.h"
+#include "Misc/EngineVersion.h"
+#include "Misc/FileHelper.h"
+#include "Brushes/SlateRoundedBoxBrush.h"
 #include "PerfLog.h"
 #include "Components/CapsuleComponent.h"
 #include "FireTruck.h"
@@ -177,8 +183,15 @@ namespace
 	const FSlateColor Ink(FLinearColor(0.75f, 0.92f, 1.f));
 	FSlateFontInfo Font(int32 Size, const char* Kind = "Bold") { return FCoreStyle::GetDefaultFontStyle(Kind, Size); }
 
+	// while the Settings panel is built its options take the creator's neon look (owner, 2026-11-16)
+	bool GNeonUI = false;
+	FString GNeonLastHead;            // the section the last caption opened ("" at the top of a category)
+	bool GNeonNoDividers = false;
+	TSharedRef<SWidget> NeonButtonW(const FString& Label, TFunction<void()> Click);
+	TSharedRef<SWidget> NeonCaptionW(const FString& Words);
 	TSharedRef<SWidget> Button(const FString& Label, TFunction<void()> Click)
 	{
+		if (GNeonUI) return NeonButtonW(Label, Click);
 		return SNew(SButton)
 			.ButtonColorAndOpacity(FLinearColor(0.05f, 0.2f, 0.36f, 0.9f))
 			.ContentPadding(FMargin(10, 4))
@@ -195,6 +208,7 @@ namespace
 	}
 	TSharedRef<SWidget> Caption(const FString& Words)
 	{
+		if (GNeonUI) return NeonCaptionW(Words);
 		return SNew(STextBlock).Text(FText::FromString(Words)).Font(Font(10)).ColorAndOpacity(Ink);
 	}
 	// the title screen's own look (Content/Web/styles.css, owner 2026-11-12): dark purple glass, a faint blue edge, cyan and
@@ -240,6 +254,45 @@ namespace
 		{
 			return SNew(STextBlock).Text(FText::FromString(Words.ToUpper())).Font(Face(9, 400)).ColorAndOpacity(Col);
 		}
+	}
+	// the neon option button: a dark glass plate with a thin cyan edge, pink and lit under the mouse (Slate's own
+	// hover state, so it answers at once)
+	const FButtonStyle& NeonButtonStyle()
+	{
+		static const FButtonStyle S = []()
+		{
+			FButtonStyle B = FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("Button");
+			B.SetNormal(FSlateRoundedBoxBrush(FLinearColor(0.03f, 0.02f, 0.10f, 0.92f), 4.f, FLinearColor(Neon::Cyan.R, Neon::Cyan.G, Neon::Cyan.B, 0.5f), 1.f));
+			B.SetHovered(FSlateRoundedBoxBrush(FLinearColor(0.20f, 0.05f, 0.24f, 0.96f), 4.f, Neon::Pink, 1.5f));
+			B.SetPressed(FSlateRoundedBoxBrush(FLinearColor(0.38f, 0.08f, 0.32f, 1.f), 4.f, FLinearColor(1.f, 0.5f, 0.85f), 1.5f));
+			B.SetNormalPadding(FMargin(0)); B.SetPressedPadding(FMargin(0));
+			return B;
+		}();
+		return S;
+	}
+	TSharedRef<SWidget> NeonButtonW(const FString& Label, TFunction<void()> Click)
+	{
+		return SNew(SButton).ButtonStyle(&NeonButtonStyle()).ContentPadding(FMargin(12, 6))
+			.OnClicked_Lambda([Click]() { Click(); return FReply::Handled(); })
+			[SNew(STextBlock).Text(FText::FromString(Label.ToUpper())).Font(Neon::Face(9, 70)).ColorAndOpacity(Neon::Paper)];
+	}
+	TSharedRef<SWidget> NeonCaptionW(const FString& Words)
+	{
+		TSharedRef<SWidget> T = SNew(STextBlock).Text(FText::FromString(Words)).Font(Neon::Face(10, 30)).ColorAndOpacity(Neon::Cyan).AutoWrapText(true);
+		FString Head = Words; int32 C; if (Head.FindChar(TEXT(':'), C)) Head.LeftInline(C); else if (Head.FindChar(TEXT(' '), C)) Head.LeftInline(C);
+		const bool bDivide = !GNeonNoDividers && !GNeonLastHead.IsEmpty() && Head != GNeonLastHead;
+		GNeonLastHead = Head;
+		if (!bDivide) return T;
+		// a thin line, cyan fading at both ends, with room round it
+		return SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 10, 0, 12)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().FillWidth(1)[SNew(SBox).HeightOverride(1)[SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(FLinearColor(Neon::Cyan.R, Neon::Cyan.G, Neon::Cyan.B, 0.08f))]]
+				+ SHorizontalBox::Slot().FillWidth(4)[SNew(SBox).HeightOverride(1)[SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(FLinearColor(Neon::Cyan.R, Neon::Cyan.G, Neon::Cyan.B, 0.22f))]]
+				+ SHorizontalBox::Slot().FillWidth(1)[SNew(SBox).HeightOverride(1)[SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(FLinearColor(Neon::Cyan.R, Neon::Cyan.G, Neon::Cyan.B, 0.08f))]]
+			]
+			+ SVerticalBox::Slot().AutoHeight()[T];
 	}
 	UGameUserSettings* Prefs() { return GEngine ? GEngine->GetGameUserSettings() : nullptr; }
 	void Save(UGameUserSettings* S) { if (S) { S->ApplySettings(false); S->SaveSettings(); } }
@@ -698,335 +751,336 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 	for (const float L : {30.f, 60.f, 120.f, 0.f})
 		Limit->AddSlot().AutoWidth().Padding(0, 0, 4, 0)[Button(L > 0 ? FString::Printf(TEXT("%d FPS"), int32(L)) : TEXT("NO LIMIT"), [L]() { if (UGameUserSettings* S = Prefs()) { S->SetFrameRateLimit(L); Save(S); } })];
 
-	return SNew(SBorder)
-		.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-		.BorderBackgroundColor(Panel)
-		.Padding(18)
-		[
-			SNew(SBox).WidthOverride(560)
+	GNeonUI = true;   // (the options inside are drawn in the neon look: Button() and Caption() look at it)
+	GNeonLastHead.Reset(); GNeonNoDividers = false;
+	TSharedRef<SVerticalBox> CatGraphics = SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Graphics quality"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 10)[Quality]
+			+ SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Font(Font(10)).ColorAndOpacity(Ink).Text_Lambda([]()
+			{
+				const UGameUserSettings* S = Prefs();
+				return FText::FromString(FString::Printf(TEXT("Render scale: %d%%  (sharpened back up to full size by TSR)"), S ? FMath::RoundToInt(S->GetResolutionScaleNormalized() * 50 + 50) : 100));
+			})]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 10)
 			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 12)[SNew(STextBlock).Text(FText::FromString(TEXT("SETTINGS"))).Font(Font(14)).ColorAndOpacity(Ink)]
-				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Graphics quality"))]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 10)[Quality]
-				+ SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Font(Font(10)).ColorAndOpacity(Ink).Text_Lambda([]()
-				{
-					const UGameUserSettings* S = Prefs();
-					return FText::FromString(FString::Printf(TEXT("Render scale: %d%%  (sharpened back up to full size by TSR)"), S ? FMath::RoundToInt(S->GetResolutionScaleNormalized() * 50 + 50) : 100));
-				})]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 10)
+				SNew(SSlider)
+				.Value_Lambda([]() { const UGameUserSettings* S = Prefs(); return S ? S->GetResolutionScaleNormalized() : 1.f; })
+				.OnValueChanged_Lambda([](float V) { if (UGameUserSettings* S = Prefs()) { S->SetResolutionScaleNormalized(V); S->ApplySettings(false); } })
+				.OnMouseCaptureEnd_Lambda([]() { Save(Prefs()); })
+			]
+			// bloom (the glow round bright lights) and blur (motion blur and the soft background of depth of field):
+			// Off, Low, Medium, High, Epic; the one in use lit
+			+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Bloom (the glow round bright lights)"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 8)[LevelRow(true)]
+			+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Blur (motion blur and depth of field)"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)[LevelRow(false)]
+			// the grass: on or off, and how far the dense near blades reach (the airfield's far tufts are always there)
+			+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Grass (how far the dense blades reach)"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 8, 0)
+				[
+					SNew(SButton)
+					.ButtonColorAndOpacity_Lambda([]() { return AGrassField::bOn ? FLinearColor(0.1f, 0.45f, 0.75f, 1.f) : FLinearColor(0.05f, 0.2f, 0.36f, 0.9f); })
+					.ContentPadding(FMargin(10, 4))
+					.OnClicked_Lambda([]() { AGrassField::bOn = !AGrassField::bOn; GConfig->SetBool(TEXT("ADP.Graphics"), TEXT("Grass"), AGrassField::bOn, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); return FReply::Handled(); })
+					[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { return FText::FromString(AGrassField::bOn ? TEXT("ON") : TEXT("OFF")); })]
+				]
+				+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
 				[
 					SNew(SSlider)
-					.Value_Lambda([]() { const UGameUserSettings* S = Prefs(); return S ? S->GetResolutionScaleNormalized() : 1.f; })
-					.OnValueChanged_Lambda([](float V) { if (UGameUserSettings* S = Prefs()) { S->SetResolutionScaleNormalized(V); S->ApplySettings(false); } })
-					.OnMouseCaptureEnd_Lambda([]() { Save(Prefs()); })
+					.Value_Lambda([]() { return AGrassField::NearDistance / 150.f; })
+					.OnValueChanged_Lambda([](float V) { AGrassField::NearDistance = FMath::RoundToFloat(V * 150.f); })
+					.OnMouseCaptureEnd_Lambda([]() { GConfig->SetFloat(TEXT("ADP.Graphics"), TEXT("GrassNear"), AGrassField::NearDistance, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); })
 				]
-				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Announcements: all"))]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 6)[VolumeSlider(0)]
-				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Flight calls (boarding, final call, gate closed, delays)"))]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 6)[VolumeSlider(1)]
-				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Passenger calls (passengers asked to the gate or the information desk)"))]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 6)[VolumeSlider(2)]
-				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Information (notices for everyone)"))]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)[VolumeSlider(3)]
-				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Satellite pictures on the globe (free sources, the whole Earth)"))]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 2)
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 4, 0)[Button(TEXT("EOX SENTINEL-2 (10 M)"), []() { AGlobe::UseSource(0); })]
-					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 4, 0)[Button(TEXT("NASA LANDSAT (30 M)"), []() { AGlobe::UseSource(1); })]
-					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 4, 0)[Button(TEXT("NASA BLUE MARBLE (500 M)"), []() { AGlobe::UseSource(2); })]
-					+ SHorizontalBox::Slot().AutoWidth()[Button(TEXT("LAND COVER, OFFLINE (ESA)"), []() { AGlobe::UseSource(3); })]
-				]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true).Text_Lambda([]() { return FText::FromString(AGlobe::Note); })]
-				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Updates"))]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 2)
-				[
-					SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true)
-					.Text_Lambda([this]() { return FText::FromString(UpdateStatus.IsEmpty() ? FString::Printf(TEXT("This is version %s."), *UpdaterVersion()) : UpdateStatus); })
-				]
-				// the download's bar, its percentage in the middle and the speed beside it (while downloading)
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 4)
-				[
-					SNew(SBox).Visibility_Lambda([this]() { return UpdateFrac >= 0.f && UpdateBusy ? EVisibility::Visible : EVisibility::Collapsed; })
-					[
-						SNew(SProgressText).Height(22.f)
-						.Fraction_Lambda([this]() { return UpdateFrac; })
-						.Extra_Lambda([this]() { return UpdateSpeed > 0 ? FString::Printf(TEXT("%.1f MB/s"), UpdateSpeed / 1048576.0) : FString(); })
-					]
-				]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("CHECK FOR UPDATES"), [this]() { CheckForUpdates(); })]
-					+ SHorizontalBox::Slot().AutoWidth()
-					[
-						SNew(SBox).Visibility_Lambda([this]() { return (UpdateChain.Num() || !UpdateFullUrl.IsEmpty()) && !UpdateBusy ? EVisibility::Visible : EVisibility::Collapsed; })
-						[Button(TEXT("INSTALL UPDATE"), [this]() { InstallUpdate(); })]
-					]
-				]
-				// bloom (the glow round bright lights) and blur (motion blur and the soft background of depth of field):
-				// Off, Low, Medium, High, Epic; the one in use lit
-				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Bloom (the glow round bright lights)"))]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 8)[LevelRow(true)]
-				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Blur (motion blur and depth of field)"))]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)[LevelRow(false)]
-				// the time of year (owner, 2026-11-12): a month and a day, or the real date; the sun's height, the day's
-				// length and the sunrise and sunset follow it at once (worked out for this year, so it shifts a little
-				// from year to year as in life); and the real-world weather switch (its feed comes later)
-				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Time of year (the sun's height and the day's length follow it)"))]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 2)
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 6, 0)[SNew(SBox).WidthOverride(44)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text(FText::FromString(TEXT("Month")))]]
-					+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
-					[
-						SNew(SSlider)
-						.Value_Lambda([]() { return (FMath::Max(ASunClock::Month, 1) - 1) / 11.f; })
-						.OnValueChanged_Lambda([](float V) { ASunClock::SetDate(1 + FMath::RoundToInt(V * 11.f), FMath::Max(ASunClock::Day, 1)); })
-					]
-					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(12, 0, 6, 0)[SNew(SBox).WidthOverride(28)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text(FText::FromString(TEXT("Day")))]]
-					+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
-					[
-						SNew(SSlider)
-						.Value_Lambda([]() { return (FMath::Max(ASunClock::Day, 1) - 1) / 30.f; })
-						.OnValueChanged_Lambda([](float V) { ASunClock::SetDate(FMath::Max(ASunClock::Month, 1), 1 + FMath::RoundToInt(V * 30.f)); })
-					]
-					+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 6, 0).VAlign(VAlign_Center)
-					[SNew(SBox).WidthOverride(96)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { return FText::FromString(ASunClock::DateName()); })]]
-					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[Button(TEXT("REAL DATE"), []() { ASunClock::SetDate(0, 0); })]
-				]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 8, 0)
-					[
-						SNew(SButton)
-						.ButtonColorAndOpacity_Lambda([]() { return ASunClock::bRealWeather ? FLinearColor(0.1f, 0.45f, 0.75f, 1.f) : FLinearColor(0.05f, 0.2f, 0.36f, 0.9f); })
-						.ContentPadding(FMargin(10, 4))
-						.OnClicked_Lambda([]() { ASunClock::SetRealWeather(!ASunClock::bRealWeather); return FReply::Handled(); })
-						[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { return FText::FromString(ASunClock::bRealWeather ? TEXT("ON") : TEXT("OFF")); })]
-					]
-					+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
-					[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true).Text(FText::FromString(TEXT("Real-world weather at the airport (the live weather feed is coming; until then the weather buttons set it)")))]
-				]
-				// walk anywhere on Earth: a named place or a latitude and longitude; back to the airport
-				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Walk anywhere on Earth"))]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 4)
-				[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true).Text_Lambda([]() { return FText::FromString(AWalkAnywhere::Status() + TEXT("  Pick a place, or type a latitude and longitude (e.g. 62.01, -6.77) and press Enter.")); })]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 4)
-				[
-					SNew(SEditableTextBox).Font(Font(10, "Regular")).HintText(FText::FromString(TEXT("Latitude, longitude  or a place's name")))
-					.OnTextCommitted_Lambda([this](const FText& T, ETextCommit::Type C) { if (C == ETextCommit::OnEnter) { if (AWalkAnywhere::GoText(GetWorld(), T.ToString())) { if (bSettings) ToggleSettings(); } } })
-				]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)
-				[
-					WalkPlaces()
-				]
-				// the world's terrain: downloaded once (about 6.6 GB) and kept up to date pack by pack
-				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("The world's terrain (mountains and valleys everywhere)"))]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 4)
-				[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true).Text_Lambda([]() { return FText::FromString(ADPTerrain::Status()); })]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 4)
-				[
-					SNew(SBox).Visibility_Lambda([]() { return ADPTerrain::Fraction() >= 0.f ? EVisibility::Visible : EVisibility::Collapsed; })
-					[
-						SNew(SProgressText).Height(22.f)
-						.Fraction_Lambda([]() { return ADPTerrain::Fraction(); })
-						.Extra_Lambda([]() { const double S = ADPTerrain::Speed(); return S > 0 ? FString::Printf(TEXT("%.1f MB/s"), S / 1048576.0) : FString(); })
-					]
-				]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)
-				[
-					SNew(SBox).Visibility_Lambda([]() { return ADPTerrain::Busy() ? EVisibility::Collapsed : EVisibility::Visible; })
-					[
-						SNew(SWrapBox).UseAllottedSize(true).InnerSlotPadding(FVector2D(6, 6))
-						+ SWrapBox::Slot()[Button(TEXT("DOWNLOAD / UPDATE THE WORLD'S TERRAIN"), []() { ADPTerrain::Start(); })]
-						+ SWrapBox::Slot()[Button(TEXT("MOVE IT TO ANOTHER FOLDER"), []() { ADPTerrain::ChooseAndMove(); })]
-					]
-				]
-				// the grass: on or off, and how far the dense near blades reach (the airfield's far tufts are always there)
-				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Grass (how far the dense blades reach)"))]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 8, 0)
-					[
-						SNew(SButton)
-						.ButtonColorAndOpacity_Lambda([]() { return AGrassField::bOn ? FLinearColor(0.1f, 0.45f, 0.75f, 1.f) : FLinearColor(0.05f, 0.2f, 0.36f, 0.9f); })
-						.ContentPadding(FMargin(10, 4))
-						.OnClicked_Lambda([]() { AGrassField::bOn = !AGrassField::bOn; GConfig->SetBool(TEXT("ADP.Graphics"), TEXT("Grass"), AGrassField::bOn, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); return FReply::Handled(); })
-						[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { return FText::FromString(AGrassField::bOn ? TEXT("ON") : TEXT("OFF")); })]
-					]
-					+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
-					[
-						SNew(SSlider)
-						.Value_Lambda([]() { return AGrassField::NearDistance / 150.f; })
-						.OnValueChanged_Lambda([](float V) { AGrassField::NearDistance = FMath::RoundToFloat(V * 150.f); })
-						.OnMouseCaptureEnd_Lambda([]() { GConfig->SetFloat(TEXT("ADP.Graphics"), TEXT("GrassNear"), AGrassField::NearDistance, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); })
-					]
-					+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
-					[SNew(SBox).WidthOverride(56)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { return FText::FromString(FString::Printf(TEXT("%.0f m"), AGrassField::NearDistance)); })]]
-				]
-				// the puddles (owner, 2026-11-13): a Rainy day switch to see them wet (it wets over about a minute, then dries
-				// slowly), the wetness now, and their tuning - saved to Content/Settings/Puddles.ini when a slider is let go
-				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Puddles and wet ground (Rainy day, how wet now, and their look)"))]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 8)
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 8, 0)
-					[
-						SNew(SButton)
-						.ButtonColorAndOpacity_Lambda([]() { APuddles* P = APuddles::Get(); return P && P->IsRainyDay() ? FLinearColor(0.1f, 0.45f, 0.75f, 1.f) : FLinearColor(0.05f, 0.2f, 0.36f, 0.9f); })
-						.ContentPadding(FMargin(10, 4))
-						.OnClicked_Lambda([]() { if (APuddles* P = APuddles::Get()) P->SetRainyDay(!P->IsRainyDay()); return FReply::Handled(); })
-						[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { APuddles* P = APuddles::Get(); return FText::FromString(P && P->IsRainyDay() ? TEXT("RAINY DAY: ON") : TEXT("RAINY DAY: OFF")); })]
-					]
-					+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
-					[
-						SNew(SSlider)
-						.Value_Lambda([]() { APuddles* P = APuddles::Get(); return P ? P->GetWetness() : 0.f; })
-						.OnValueChanged_Lambda([](float V) { if (APuddles* P = APuddles::Get()) P->SetWetness(V); })
-					]
-					+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
-					[SNew(SBox).WidthOverride(72)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { APuddles* P = APuddles::Get(); return FText::FromString(P ? FString::Printf(TEXT("wet %.0f%%"), P->GetWetness() * 100.f) : TEXT("-")); })]]
-				]
-				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Puddles: how many"))]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 8)
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
-					[
-						SNew(SSlider)
-						.Value_Lambda([]() { APuddles* P = APuddles::Get(); return P ? FMath::Clamp((P->GetTuning(TEXT("Amount")) - 0.f) / (1.f - 0.f), 0.f, 1.f) : 0.f; })
-						.OnValueChanged_Lambda([](float V) { if (APuddles* P = APuddles::Get()) P->SetTuning(TEXT("Amount"), 0.f + V * (1.f - 0.f)); })
-						.OnMouseCaptureEnd_Lambda([]() { if (APuddles* P = APuddles::Get()) P->Save(); })
-					]
-					+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
-					[SNew(SBox).WidthOverride(72)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { APuddles* P = APuddles::Get(); return FText::FromString(P ? FString::Printf(TEXT("%.2f"), P->GetTuning(TEXT("Amount"))) : TEXT("-")); })]]
-				]
-				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Puddles: their size (metres)"))]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 8)
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
-					[
-						SNew(SSlider)
-						.Value_Lambda([]() { APuddles* P = APuddles::Get(); return P ? FMath::Clamp((P->GetTuning(TEXT("Size")) - 0.5f) / (12.f - 0.5f), 0.f, 1.f) : 0.f; })
-						.OnValueChanged_Lambda([](float V) { if (APuddles* P = APuddles::Get()) P->SetTuning(TEXT("Size"), 0.5f + V * (12.f - 0.5f)); })
-						.OnMouseCaptureEnd_Lambda([]() { if (APuddles* P = APuddles::Get()) P->Save(); })
-					]
-					+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
-					[SNew(SBox).WidthOverride(72)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { APuddles* P = APuddles::Get(); return FText::FromString(P ? FString::Printf(TEXT("%.1f m"), P->GetTuning(TEXT("Size"))) : TEXT("-")); })]]
-				]
-				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Puddles: how mirror-like the water is"))]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 8)
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
-					[
-						SNew(SSlider)
-						.Value_Lambda([]() { APuddles* P = APuddles::Get(); return P ? FMath::Clamp((P->GetTuning(TEXT("Shine")) - 0.f) / (1.f - 0.f), 0.f, 1.f) : 0.f; })
-						.OnValueChanged_Lambda([](float V) { if (APuddles* P = APuddles::Get()) P->SetTuning(TEXT("Shine"), 0.f + V * (1.f - 0.f)); })
-						.OnMouseCaptureEnd_Lambda([]() { if (APuddles* P = APuddles::Get()) P->Save(); })
-					]
-					+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
-					[SNew(SBox).WidthOverride(72)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { APuddles* P = APuddles::Get(); return FText::FromString(P ? FString::Printf(TEXT("%.2f"), P->GetTuning(TEXT("Shine"))) : TEXT("-")); })]]
-				]
-				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Puddles: rain ripples"))]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 8)
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
-					[
-						SNew(SSlider)
-						.Value_Lambda([]() { APuddles* P = APuddles::Get(); return P ? FMath::Clamp((P->GetTuning(TEXT("Ripples")) - 0.f) / (2.f - 0.f), 0.f, 1.f) : 0.f; })
-						.OnValueChanged_Lambda([](float V) { if (APuddles* P = APuddles::Get()) P->SetTuning(TEXT("Ripples"), 0.f + V * (2.f - 0.f)); })
-						.OnMouseCaptureEnd_Lambda([]() { if (APuddles* P = APuddles::Get()) P->Save(); })
-					]
-					+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
-					[SNew(SBox).WidthOverride(72)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { APuddles* P = APuddles::Get(); return FText::FromString(P ? FString::Printf(TEXT("%.2f"), P->GetTuning(TEXT("Ripples"))) : TEXT("-")); })]]
-				]
-				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Puddles: drying time after rain (hours)"))]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 8)
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
-					[
-						SNew(SSlider)
-						.Value_Lambda([]() { APuddles* P = APuddles::Get(); return P ? FMath::Clamp((P->GetTuning(TEXT("DryingHours")) - 0.05f) / (24.f - 0.05f), 0.f, 1.f) : 0.f; })
-						.OnValueChanged_Lambda([](float V) { if (APuddles* P = APuddles::Get()) P->SetTuning(TEXT("DryingHours"), 0.05f + V * (24.f - 0.05f)); })
-						.OnMouseCaptureEnd_Lambda([]() { if (APuddles* P = APuddles::Get()) P->Save(); })
-					]
-					+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
-					[SNew(SBox).WidthOverride(72)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { APuddles* P = APuddles::Get(); return FText::FromString(P ? FString::Printf(TEXT("%.1f h"), P->GetTuning(TEXT("DryingHours"))) : TEXT("-")); })]]
-				]
-				// (the distant landscape's sharpness slider removed, owner 2026-11-14: the roads out on the land are laid for
-				// the terrain at Normal - AGlobe::LandError is fixed)
-				// the field of view: degrees side to side as on a 16:9 screen (wider screens see more to the sides)
-				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Field of view (walking)"))]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
-					[
-						SNew(SSlider)
-						.Value_Lambda([]() { return (AADPWalker::Fov - 60.f) / 60.f; })
-						.OnValueChanged_Lambda([](float V) { AADPWalker::Fov = FMath::RoundToFloat(60.f + V * 60.f); })
-						.OnMouseCaptureEnd_Lambda([]() { GConfig->SetFloat(TEXT("ADP.Graphics"), TEXT("Fov"), AADPWalker::Fov, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); })
-					]
-					+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
-					[SNew(SBox).WidthOverride(56)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { return FText::FromString(FString::Printf(TEXT("%.0f°"), AADPWalker::Fov)); })]]
-				]
-				// the light masts' beams: how far the evening haze they show in reaches (weaker cards: shorter)
-				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Light beams (how far the masts' beams show in the haze)"))]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
-					[
-						SNew(SSlider)
-						.Value_Lambda([]() { return (ALightMasts::BeamDistance - 60.f) / 440.f; })
-						.OnValueChanged_Lambda([](float V) { ALightMasts::BeamDistance = FMath::RoundToFloat(60.f + V * 440.f); ALightMasts::Refresh(); })
-						.OnMouseCaptureEnd_Lambda([]() { GConfig->SetFloat(TEXT("ADP.Graphics"), TEXT("BeamDistance"), ALightMasts::BeamDistance, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); })
-					]
-					+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
-					[SNew(SBox).WidthOverride(56)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { return FText::FromString(FString::Printf(TEXT("%.0f m"), ALightMasts::BeamDistance)); })]]
-				]
-				+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Frame limit"))]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 10)[Limit]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 6)
-				[
-					SNew(SWrapBox).UseAllottedSize(true).InnerSlotPadding(FVector2D(6, 6))   // (wraps onto a second line, never past the panel)
-					+ SWrapBox::Slot()[Button(TEXT("VSYNC ON / OFF"), []() { if (UGameUserSettings* S = Prefs()) { S->SetVSyncEnabled(!S->IsVSyncEnabled()); Save(S); } })]
-					+ SWrapBox::Slot()[Button(TEXT("PERFORMANCE  (P)"), [this]() { TogglePerf(); })]
-					+ SWrapBox::Slot()
-					[
-						SNew(SButton)
-						.ButtonColorAndOpacity(FLinearColor(0.05f, 0.2f, 0.36f, 0.9f))
-						.ContentPadding(FMargin(10, 4))
-						.OnClicked_Lambda([this]() { SetFrameGen(!bFrameGen); return FReply::Handled(); })
-						[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([this]() { return FText::FromString(bFrameGen ? TEXT("FRAME GENERATION (AMD FSR): ON") : TEXT("FRAME GENERATION (AMD FSR): OFF")); })]
-					]
-					+ SWrapBox::Slot()
-					[
-						// the game's own frame generation (made for NVIDIA cards first): takes effect at the next start
-						SNew(SButton)
-						.ButtonColorAndOpacity_Lambda([]() { bool b = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("OwnFrameGen"), b, GGameUserSettingsIni); return b ? FLinearColor(0.1f, 0.45f, 0.75f, 1.f) : FLinearColor(0.05f, 0.2f, 0.36f, 0.9f); })
-						.ContentPadding(FMargin(10, 4))
-						.OnClicked_Lambda([this]() { bool b = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("OwnFrameGen"), b, GGameUserSettingsIni); b = !b; GConfig->SetBool(TEXT("ADP.Graphics"), TEXT("OwnFrameGen"), b, GGameUserSettingsIni); if (b && bFrameGen) SetFrameGen(false); GConfig->Flush(false, GGameUserSettingsIni); return FReply::Handled(); })
-						[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { bool b = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("OwnFrameGen"), b, GGameUserSettingsIni);
-							return FText::FromString(b == ADPFrameGen::Enabled() ? (b ? TEXT("OUR FRAME GENERATION: ON") : TEXT("OUR FRAME GENERATION: OFF")) : (b ? TEXT("OUR FRAME GENERATION: ON AT NEXT START") : TEXT("OUR FRAME GENERATION: OFF AT NEXT START"))); })]
-					]
-					+ SWrapBox::Slot()[Button(TEXT("FRAME-RATE BOX"), [this]() { bFpsBox = !bFpsBox; GConfig->SetBool(TEXT("ADP.Boxes"), TEXT("FrameRateOn"), bFpsBox, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); })]
-					+ SWrapBox::Slot()[Button(TEXT("SCAN MY PC"), []() { if (UGameUserSettings* S = Prefs()) { S->RunHardwareBenchmark(); S->ApplyHardwareBenchmarkResults(); Save(S); } })]
-					+ SWrapBox::Slot()[Button(TEXT("PROBLEM LOG"), []() { FPlatformProcess::ExploreFolder(*(FPaths::ProjectLogDir() / TEXT("Problems.log"))); })]
-				]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 12, 0, 4)[Caption(TEXT("Controls (keyboard, and the gamepad in use)"))]
-				+ SVerticalBox::Slot().AutoHeight()[SAssignNew(SettingsControls, SVerticalBox)]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 10, 0, 0)[Button(TEXT("CLOSE  (TAB)"), [this]() { ToggleSettings(); })]
+				+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
+				[SNew(SBox).WidthOverride(56)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { return FText::FromString(FString::Printf(TEXT("%.0f m"), AGrassField::NearDistance)); })]]
 			]
-		];
+			// (the distant landscape's sharpness slider removed, owner 2026-11-14: the roads out on the land are laid for
+			// the terrain at Normal - AGlobe::LandError is fixed)
+			// the field of view: degrees side to side as on a 16:9 screen (wider screens see more to the sides)
+			+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Field of view (walking)"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
+				[
+					SNew(SSlider)
+					.Value_Lambda([]() { return (AADPWalker::Fov - 60.f) / 60.f; })
+					.OnValueChanged_Lambda([](float V) { AADPWalker::Fov = FMath::RoundToFloat(60.f + V * 60.f); })
+					.OnMouseCaptureEnd_Lambda([]() { GConfig->SetFloat(TEXT("ADP.Graphics"), TEXT("Fov"), AADPWalker::Fov, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); })
+				]
+				+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
+				[SNew(SBox).WidthOverride(56)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { return FText::FromString(FString::Printf(TEXT("%.0f°"), AADPWalker::Fov)); })]]
+			]
+			// the light masts' beams: how far the evening haze they show in reaches (weaker cards: shorter)
+			+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Light beams (how far the masts' beams show in the haze)"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
+				[
+					SNew(SSlider)
+					.Value_Lambda([]() { return (ALightMasts::BeamDistance - 60.f) / 440.f; })
+					.OnValueChanged_Lambda([](float V) { ALightMasts::BeamDistance = FMath::RoundToFloat(60.f + V * 440.f); ALightMasts::Refresh(); })
+					.OnMouseCaptureEnd_Lambda([]() { GConfig->SetFloat(TEXT("ADP.Graphics"), TEXT("BeamDistance"), ALightMasts::BeamDistance, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); })
+				]
+				+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
+				[SNew(SBox).WidthOverride(56)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { return FText::FromString(FString::Printf(TEXT("%.0f m"), ALightMasts::BeamDistance)); })]]
+			]
+			+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Frame limit"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 10)[Limit]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 6)
+			[
+				SNew(SWrapBox).UseAllottedSize(true).InnerSlotPadding(FVector2D(6, 6))   // (wraps onto a second line, never past the panel)
+				+ SWrapBox::Slot()[Button(TEXT("VSYNC ON / OFF"), []() { if (UGameUserSettings* S = Prefs()) { S->SetVSyncEnabled(!S->IsVSyncEnabled()); Save(S); } })]
+				+ SWrapBox::Slot()[Button(TEXT("PERFORMANCE  (P)"), [this]() { TogglePerf(); })]
+				+ SWrapBox::Slot()
+				[
+					SNew(SButton)
+					.ButtonColorAndOpacity(FLinearColor(0.05f, 0.2f, 0.36f, 0.9f))
+					.ContentPadding(FMargin(10, 4))
+					.OnClicked_Lambda([this]() { SetFrameGen(!bFrameGen); return FReply::Handled(); })
+					[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([this]() { return FText::FromString(bFrameGen ? TEXT("FRAME GENERATION (AMD FSR): ON") : TEXT("FRAME GENERATION (AMD FSR): OFF")); })]
+				]
+				+ SWrapBox::Slot()
+				[
+					// the game's own frame generation (made for NVIDIA cards first): takes effect at the next start
+					SNew(SButton)
+					.ButtonColorAndOpacity_Lambda([]() { bool b = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("OwnFrameGen"), b, GGameUserSettingsIni); return b ? FLinearColor(0.1f, 0.45f, 0.75f, 1.f) : FLinearColor(0.05f, 0.2f, 0.36f, 0.9f); })
+					.ContentPadding(FMargin(10, 4))
+					.OnClicked_Lambda([this]() { bool b = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("OwnFrameGen"), b, GGameUserSettingsIni); b = !b; GConfig->SetBool(TEXT("ADP.Graphics"), TEXT("OwnFrameGen"), b, GGameUserSettingsIni); if (b && bFrameGen) SetFrameGen(false); GConfig->Flush(false, GGameUserSettingsIni); return FReply::Handled(); })
+					[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { bool b = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("OwnFrameGen"), b, GGameUserSettingsIni);
+						return FText::FromString(b == ADPFrameGen::Enabled() ? (b ? TEXT("OUR FRAME GENERATION: ON") : TEXT("OUR FRAME GENERATION: OFF")) : (b ? TEXT("OUR FRAME GENERATION: ON AT NEXT START") : TEXT("OUR FRAME GENERATION: OFF AT NEXT START"))); })]
+				]
+				+ SWrapBox::Slot()[Button(TEXT("FRAME-RATE BOX"), [this]() { bFpsBox = !bFpsBox; GConfig->SetBool(TEXT("ADP.Boxes"), TEXT("FrameRateOn"), bFpsBox, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); })]
+				+ SWrapBox::Slot()[Button(TEXT("SCAN MY PC"), []() { if (UGameUserSettings* S = Prefs()) { S->RunHardwareBenchmark(); S->ApplyHardwareBenchmarkResults(); Save(S); } })]
+				+ SWrapBox::Slot()[Button(TEXT("PROBLEM LOG"), []() { FPlatformProcess::ExploreFolder(*(FPaths::ProjectLogDir() / TEXT("Problems.log"))); })]
+			];
+	GNeonLastHead.Reset(); GNeonNoDividers = true;
+	TSharedRef<SVerticalBox> CatSound = SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Announcements: all"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 6)[VolumeSlider(0)]
+			+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Flight calls (boarding, final call, gate closed, delays)"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 6)[VolumeSlider(1)]
+			+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Passenger calls (passengers asked to the gate or the information desk)"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 6)[VolumeSlider(2)]
+			+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Information (notices for everyone)"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)[VolumeSlider(3)];
+	GNeonLastHead.Reset(); GNeonNoDividers = false;
+	TSharedRef<SVerticalBox> CatWorld = SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Satellite pictures on the globe (free sources, the whole Earth)"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 2)
+			[
+				SNew(SWrapBox).UseAllottedSize(true).InnerSlotPadding(FVector2D(4, 4))
+				+ SWrapBox::Slot()[Button(TEXT("EOX SENTINEL-2 (10 M)"), []() { AGlobe::UseSource(0); })]
+				+ SWrapBox::Slot()[Button(TEXT("NASA LANDSAT (30 M)"), []() { AGlobe::UseSource(1); })]
+				+ SWrapBox::Slot()[Button(TEXT("NASA BLUE MARBLE (500 M)"), []() { AGlobe::UseSource(2); })]
+				+ SWrapBox::Slot()[Button(TEXT("LAND COVER, OFFLINE (ESA)"), []() { AGlobe::UseSource(3); })]
+			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true).Text_Lambda([]() { return FText::FromString(AGlobe::Note); })]
+			// the time of year (owner, 2026-11-12): a month and a day, or the real date; the sun's height, the day's
+			// length and the sunrise and sunset follow it at once (worked out for this year, so it shifts a little
+			// from year to year as in life); and the real-world weather switch (its feed comes later)
+			+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Time of year (the sun's height and the day's length follow it)"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 2)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 6, 0)[SNew(SBox).WidthOverride(44)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text(FText::FromString(TEXT("Month")))]]
+				+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
+				[
+					SNew(SSlider)
+					.Value_Lambda([]() { return (FMath::Max(ASunClock::Month, 1) - 1) / 11.f; })
+					.OnValueChanged_Lambda([](float V) { ASunClock::SetDate(1 + FMath::RoundToInt(V * 11.f), FMath::Max(ASunClock::Day, 1)); })
+				]
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(12, 0, 6, 0)[SNew(SBox).WidthOverride(28)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text(FText::FromString(TEXT("Day")))]]
+				+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
+				[
+					SNew(SSlider)
+					.Value_Lambda([]() { return (FMath::Max(ASunClock::Day, 1) - 1) / 30.f; })
+					.OnValueChanged_Lambda([](float V) { ASunClock::SetDate(FMath::Max(ASunClock::Month, 1), 1 + FMath::RoundToInt(V * 30.f)); })
+				]
+				+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 6, 0).VAlign(VAlign_Center)
+				[SNew(SBox).WidthOverride(96)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { return FText::FromString(ASunClock::DateName()); })]]
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[Button(TEXT("REAL DATE"), []() { ASunClock::SetDate(0, 0); })]
+			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 8, 0)
+				[
+					SNew(SButton)
+					.ButtonColorAndOpacity_Lambda([]() { return ASunClock::bRealWeather ? FLinearColor(0.1f, 0.45f, 0.75f, 1.f) : FLinearColor(0.05f, 0.2f, 0.36f, 0.9f); })
+					.ContentPadding(FMargin(10, 4))
+					.OnClicked_Lambda([]() { ASunClock::SetRealWeather(!ASunClock::bRealWeather); return FReply::Handled(); })
+					[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { return FText::FromString(ASunClock::bRealWeather ? TEXT("ON") : TEXT("OFF")); })]
+				]
+				+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
+				[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true).Text(FText::FromString(TEXT("Real-world weather at the airport (the live weather feed is coming; until then the weather buttons set it)")))]
+			]
+			// walk anywhere on Earth: a named place or a latitude and longitude; back to the airport
+			+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Walk anywhere on Earth"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 4)
+			[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true).Text_Lambda([]() { return FText::FromString(AWalkAnywhere::Status() + TEXT("  Pick a place, or type a latitude and longitude (e.g. 62.01, -6.77) and press Enter.")); })]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 4)
+			[
+				SNew(SEditableTextBox).Font(Font(10, "Regular")).HintText(FText::FromString(TEXT("Latitude, longitude  or a place's name")))
+				.OnTextCommitted_Lambda([this](const FText& T, ETextCommit::Type C) { if (C == ETextCommit::OnEnter) { if (AWalkAnywhere::GoText(GetWorld(), T.ToString())) { if (bSettings) ToggleSettings(); } } })
+			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)
+			[
+				WalkPlaces()
+			]
+			// the world's terrain: downloaded once (about 6.6 GB) and kept up to date pack by pack
+			+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("The world's terrain (mountains and valleys everywhere)"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 4)
+			[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true).Text_Lambda([]() { return FText::FromString(ADPTerrain::Status()); })]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 4)
+			[
+				SNew(SBox).Visibility_Lambda([]() { return ADPTerrain::Fraction() >= 0.f ? EVisibility::Visible : EVisibility::Collapsed; })
+				[
+					SNew(SProgressText).Height(22.f)
+					.Fraction_Lambda([]() { return ADPTerrain::Fraction(); })
+					.Extra_Lambda([]() { const double S = ADPTerrain::Speed(); return S > 0 ? FString::Printf(TEXT("%.1f MB/s"), S / 1048576.0) : FString(); })
+				]
+			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)
+			[
+				SNew(SBox).Visibility_Lambda([]() { return ADPTerrain::Busy() ? EVisibility::Collapsed : EVisibility::Visible; })
+				[
+					SNew(SWrapBox).UseAllottedSize(true).InnerSlotPadding(FVector2D(6, 6))
+					+ SWrapBox::Slot()[Button(TEXT("DOWNLOAD / UPDATE THE WORLD'S TERRAIN"), []() { ADPTerrain::Start(); })]
+					+ SWrapBox::Slot()[Button(TEXT("MOVE IT TO ANOTHER FOLDER"), []() { ADPTerrain::ChooseAndMove(); })]
+				]
+			]
+			// the puddles (owner, 2026-11-13): a Rainy day switch to see them wet (it wets over about a minute, then dries
+			// slowly), the wetness now, and their tuning - saved to Content/Settings/Puddles.ini when a slider is let go
+			+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Puddles and wet ground (Rainy day, how wet now, and their look)"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 8)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 8, 0)
+				[
+					SNew(SButton)
+					.ButtonColorAndOpacity_Lambda([]() { APuddles* P = APuddles::Get(); return P && P->IsRainyDay() ? FLinearColor(0.1f, 0.45f, 0.75f, 1.f) : FLinearColor(0.05f, 0.2f, 0.36f, 0.9f); })
+					.ContentPadding(FMargin(10, 4))
+					.OnClicked_Lambda([]() { if (APuddles* P = APuddles::Get()) P->SetRainyDay(!P->IsRainyDay()); return FReply::Handled(); })
+					[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { APuddles* P = APuddles::Get(); return FText::FromString(P && P->IsRainyDay() ? TEXT("RAINY DAY: ON") : TEXT("RAINY DAY: OFF")); })]
+				]
+				+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
+				[
+					SNew(SSlider)
+					.Value_Lambda([]() { APuddles* P = APuddles::Get(); return P ? P->GetWetness() : 0.f; })
+					.OnValueChanged_Lambda([](float V) { if (APuddles* P = APuddles::Get()) P->SetWetness(V); })
+				]
+				+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
+				[SNew(SBox).WidthOverride(72)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { APuddles* P = APuddles::Get(); return FText::FromString(P ? FString::Printf(TEXT("wet %.0f%%"), P->GetWetness() * 100.f) : TEXT("-")); })]]
+			]
+			+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Puddles: how many"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 8)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
+				[
+					SNew(SSlider)
+					.Value_Lambda([]() { APuddles* P = APuddles::Get(); return P ? FMath::Clamp((P->GetTuning(TEXT("Amount")) - 0.f) / (1.f - 0.f), 0.f, 1.f) : 0.f; })
+					.OnValueChanged_Lambda([](float V) { if (APuddles* P = APuddles::Get()) P->SetTuning(TEXT("Amount"), 0.f + V * (1.f - 0.f)); })
+					.OnMouseCaptureEnd_Lambda([]() { if (APuddles* P = APuddles::Get()) P->Save(); })
+				]
+				+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
+				[SNew(SBox).WidthOverride(72)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { APuddles* P = APuddles::Get(); return FText::FromString(P ? FString::Printf(TEXT("%.2f"), P->GetTuning(TEXT("Amount"))) : TEXT("-")); })]]
+			]
+			+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Puddles: their size (metres)"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 8)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
+				[
+					SNew(SSlider)
+					.Value_Lambda([]() { APuddles* P = APuddles::Get(); return P ? FMath::Clamp((P->GetTuning(TEXT("Size")) - 0.5f) / (12.f - 0.5f), 0.f, 1.f) : 0.f; })
+					.OnValueChanged_Lambda([](float V) { if (APuddles* P = APuddles::Get()) P->SetTuning(TEXT("Size"), 0.5f + V * (12.f - 0.5f)); })
+					.OnMouseCaptureEnd_Lambda([]() { if (APuddles* P = APuddles::Get()) P->Save(); })
+				]
+				+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
+				[SNew(SBox).WidthOverride(72)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { APuddles* P = APuddles::Get(); return FText::FromString(P ? FString::Printf(TEXT("%.1f m"), P->GetTuning(TEXT("Size"))) : TEXT("-")); })]]
+			]
+			+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Puddles: how mirror-like the water is"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 8)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
+				[
+					SNew(SSlider)
+					.Value_Lambda([]() { APuddles* P = APuddles::Get(); return P ? FMath::Clamp((P->GetTuning(TEXT("Shine")) - 0.f) / (1.f - 0.f), 0.f, 1.f) : 0.f; })
+					.OnValueChanged_Lambda([](float V) { if (APuddles* P = APuddles::Get()) P->SetTuning(TEXT("Shine"), 0.f + V * (1.f - 0.f)); })
+					.OnMouseCaptureEnd_Lambda([]() { if (APuddles* P = APuddles::Get()) P->Save(); })
+				]
+				+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
+				[SNew(SBox).WidthOverride(72)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { APuddles* P = APuddles::Get(); return FText::FromString(P ? FString::Printf(TEXT("%.2f"), P->GetTuning(TEXT("Shine"))) : TEXT("-")); })]]
+			]
+			+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Puddles: rain ripples"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 8)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
+				[
+					SNew(SSlider)
+					.Value_Lambda([]() { APuddles* P = APuddles::Get(); return P ? FMath::Clamp((P->GetTuning(TEXT("Ripples")) - 0.f) / (2.f - 0.f), 0.f, 1.f) : 0.f; })
+					.OnValueChanged_Lambda([](float V) { if (APuddles* P = APuddles::Get()) P->SetTuning(TEXT("Ripples"), 0.f + V * (2.f - 0.f)); })
+					.OnMouseCaptureEnd_Lambda([]() { if (APuddles* P = APuddles::Get()) P->Save(); })
+				]
+				+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
+				[SNew(SBox).WidthOverride(72)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { APuddles* P = APuddles::Get(); return FText::FromString(P ? FString::Printf(TEXT("%.2f"), P->GetTuning(TEXT("Ripples"))) : TEXT("-")); })]]
+			]
+			+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Puddles: drying time after rain (hours)"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 8)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().FillWidth(1).VAlign(VAlign_Center)
+				[
+					SNew(SSlider)
+					.Value_Lambda([]() { APuddles* P = APuddles::Get(); return P ? FMath::Clamp((P->GetTuning(TEXT("DryingHours")) - 0.05f) / (24.f - 0.05f), 0.f, 1.f) : 0.f; })
+					.OnValueChanged_Lambda([](float V) { if (APuddles* P = APuddles::Get()) P->SetTuning(TEXT("DryingHours"), 0.05f + V * (24.f - 0.05f)); })
+					.OnMouseCaptureEnd_Lambda([]() { if (APuddles* P = APuddles::Get()) P->Save(); })
+				]
+				+ SHorizontalBox::Slot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
+				[SNew(SBox).WidthOverride(72)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { APuddles* P = APuddles::Get(); return FText::FromString(P ? FString::Printf(TEXT("%.1f h"), P->GetTuning(TEXT("DryingHours"))) : TEXT("-")); })]]
+			];
+	GNeonLastHead.Reset(); GNeonNoDividers = false;
+	TSharedRef<SVerticalBox> CatControls = SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 12, 0, 4)[Caption(TEXT("Controls (keyboard, and the gamepad in use)"))]
+			+ SVerticalBox::Slot().AutoHeight()[SAssignNew(SettingsControls, SVerticalBox)];
+	GNeonLastHead.Reset(); GNeonNoDividers = false;
+	TSharedRef<SVerticalBox> CatUpdates = SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Updates"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 2)
+			[
+				SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true)
+				.Text_Lambda([this]() { return FText::FromString(UpdateStatus.IsEmpty() ? FString::Printf(TEXT("This is version %s."), *UpdaterVersion()) : UpdateStatus); })
+			]
+			// the download's bar, its percentage in the middle and the speed beside it (while downloading)
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 4)
+			[
+				SNew(SBox).Visibility_Lambda([this]() { return UpdateFrac >= 0.f && UpdateBusy ? EVisibility::Visible : EVisibility::Collapsed; })
+				[
+					SNew(SProgressText).Height(22.f)
+					.Fraction_Lambda([this]() { return UpdateFrac; })
+					.Extra_Lambda([this]() { return UpdateSpeed > 0 ? FString::Printf(TEXT("%.1f MB/s"), UpdateSpeed / 1048576.0) : FString(); })
+				]
+			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("CHECK FOR UPDATES"), [this]() { CheckForUpdates(); })]
+				+ SHorizontalBox::Slot().AutoWidth()
+				[
+					SNew(SBox).Visibility_Lambda([this]() { return (UpdateChain.Num() || !UpdateFullUrl.IsEmpty()) && !UpdateBusy ? EVisibility::Visible : EVisibility::Collapsed; })
+					[Button(TEXT("INSTALL UPDATE"), [this]() { InstallUpdate(); })]
+				]
+			];
+	GNeonUI = false;
+	return MakeSettingsFrame(CatGraphics, CatSound, CatWorld, CatControls, CatUpdates);
 }
 
 TSharedRef<SWidget> AADPHUD::MakePerf()
@@ -2550,6 +2604,17 @@ void AADPHUD::Tick(float Dt)
 				else { Leg = -1; ADP_SHOT_EXIT(); }
 			}
 		}
+		// -UISettingsShot: the Settings panel, a picture of each category (the neon redesign, 2026-11-16)
+		if (FParse::Param(FCommandLine::Get(), TEXT("UISettingsShot")))
+		{
+			for (int32 k = 0; k < 7; ++k)
+			{
+				const float T0 = 40.f + k * 2.f;
+				if (Before < T0 && ShotClock >= T0) { if (bGame) ToggleGame(); if (!bSettings) ToggleSettings(); SettingsCat = k; }
+				if (Before < T0 + 1.f && ShotClock >= T0 + 1.f) FScreenshotRequest::RequestScreenshot(FString::Printf(TEXT("Settings_%d"), k), true, false);
+			}
+			if (Before < 55.f && ShotClock >= 55.f) ADP_SHOT_EXIT();
+		}
 		// -UIPerfWalk: the stress walk (StressWalk.h), the game closing at its end (Tools/perf_walk.sh)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIPerfWalk")) && Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ADPStressWalk::Begin(true); }
 		// -UITitle: the title screen with its film, pictures with the interface at a few moments (-NoNativeTitle: the
@@ -4070,7 +4135,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIPetStep")) && !FParse::Param(FCommandLine::Get(), TEXT("UIUpdateSim")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBootShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIContinueShots")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UIPlanView=")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanelUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoad")) && !FParse::Param(FCommandLine::Get(), TEXT("UIKiosk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) ADP_SHOT_EXIT();
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIPetStep")) && !FParse::Param(FCommandLine::Get(), TEXT("UIUpdateSim")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBootShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIContinueShots")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UIPlanView=")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UISettingsShot")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanelUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoad")) && !FParse::Param(FCommandLine::Get(), TEXT("UIKiosk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) ADP_SHOT_EXIT();
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are
@@ -4109,4 +4174,105 @@ TSharedRef<SWidget> AADPHUD::WalkPlaces()
 	}
 	Box->AddSlot()[Button(TEXT("BACK TO THE AIRPORT"), [this]() { AWalkAnywhere::Back(GetWorld()); if (bSettings) ToggleSettings(); })];
 	return Box;
+}
+
+// The Settings panel (owner, 2026-11-16): the creator's neon look; the categories down the left, the chosen one's
+// options in the bigger panel beside it (only that category's); Perf log second to last, About last.
+TSharedRef<SWidget> AADPHUD::MakeSettingsFrame(TSharedRef<SVerticalBox> CatGraphics, TSharedRef<SVerticalBox> CatSound, TSharedRef<SVerticalBox> CatWorld, TSharedRef<SVerticalBox> CatControls, TSharedRef<SVerticalBox> CatUpdates)
+{
+	static const TCHAR* Names[] = {TEXT("Graphics"), TEXT("Sound"), TEXT("World"), TEXT("Controls"), TEXT("Updates"), TEXT("Perf log"), TEXT("About")};
+	static const TCHAR* Notes[] = {TEXT("Quality, light, glow and blur, grass, field of view, frame limit"), TEXT("The loudspeakers, each kind of call on its own"),
+		TEXT("Satellite pictures, time of year, weather and puddles, the world's terrain, walk anywhere"), TEXT("Keyboard and gamepad"),
+		TEXT("Your version and new ones"), TEXT("How smoothly the game runs: the stress walk and its reports"), TEXT("The game, its version and its makers")};
+	GNeonUI = true;
+	// Perf log: the stress walk, its last report (copy it to share), and the logs' folder
+	GNeonLastHead.Reset(); GNeonNoDividers = false;
+	TSharedRef<SVerticalBox> CatPerf = SNew(SVerticalBox)
+		+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 8)[Caption(TEXT("The stress walk: the game walks the airport by itself and measures it (outside, the Grand Hall, the stairs, the escalator, Floor 2, a gate and its jetway, the apron), then shows what it found. Every very slow frame, with its cause and place, also goes to ADP-Perf.log."))]
+		+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 12)
+		[
+			SNew(SWrapBox).UseAllottedSize(true).InnerSlotPadding(FVector2D(6, 6))
+			+ SWrapBox::Slot()[Button(TEXT("Start the stress walk"), [this]() { if (bSettings) ToggleSettings(); StartStressWalk(); })]
+			+ SWrapBox::Slot()[Button(TEXT("Copy the last report"), []() { FString R; FFileHelper::LoadFileToString(R, *(FPaths::ProjectLogDir() / TEXT("StressWalk-Report.txt"))); FPlatformApplicationMisc::ClipboardCopy(*R); })]
+			+ SWrapBox::Slot()[Button(TEXT("Open the logs' folder"), []() { FPlatformProcess::ExploreFolder(*(FPaths::ProjectLogDir() / TEXT("ADP-Perf.log"))); })]
+			+ SWrapBox::Slot()[Button(TEXT("Problem log"), []() { FPlatformProcess::ExploreFolder(*(FPaths::ProjectLogDir() / TEXT("Problems.log"))); })]
+		]
+		+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)[Caption(TEXT("The last stress walk's report"))]
+		+ SVerticalBox::Slot().AutoHeight()
+		[
+			SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(FLinearColor(0.f, 0.f, 0.f, 0.35f)).Padding(10)
+			[
+				SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Mono", 9)).ColorAndOpacity(FLinearColor(0.8f, 0.92f, 1.f)).AutoWrapText(true)
+				.Text_Lambda([]()
+				{
+					static double At = -100.0; static FString R;
+					if (FPlatformTime::Seconds() - At > 2.0)
+					{
+						At = FPlatformTime::Seconds(); R.Reset();
+						if (!FFileHelper::LoadFileToString(R, *(FPaths::ProjectLogDir() / TEXT("StressWalk-Report.txt")))) R = TEXT("No stress walk yet: press Start the stress walk (or Stress walk on the title screen).");
+					}
+					return FText::FromString(R);
+				})
+			]
+		];
+	GNeonLastHead.Reset();
+	TSharedRef<SVerticalBox> CatAbout = SNew(SVerticalBox)
+		+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 6)[SNew(STextBlock).Text(FText::FromString(TEXT("AIRPORT DYNASTY PRO"))).Font(Neon::Face(20, 120)).ColorAndOpacity(Neon::Paper)]
+		+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 14)[SNew(STextBlock).Font(Neon::Face(10, 40)).ColorAndOpacity(Neon::Cyan).Text_Lambda([this]() { return FText::FromString(FString::Printf(TEXT("PC edition %s  -  Unreal Engine %s"), *UpdaterVersion(), *FEngineVersion::Current().ToString(EVersionComponent::Patch))); })]
+		+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)[Caption(TEXT("Made by Pixel Norma."))]
+		+ SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true).Text(FText::FromString(TEXT("The world's terrain: Copernicus DEM GLO-90 (DLR e.V. 2010-2014 and Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA), the Faroese Environment Agency (Umhvorvisstovan, DSM haeddarmodell 2015) and the National Land Survey of Iceland. Satellite pictures: EOX Sentinel-2 cloudless, NASA Landsat and Blue Marble. Globe: Cesium for Unreal.")))];
+	GNeonUI = false;
+	static const FSlateRoundedBoxBrush Plate(FLinearColor(0.05f, 0.035f, 0.14f, 0.55f), 8.f, FLinearColor(Neon::Cyan.R, Neon::Cyan.G, Neon::Cyan.B, 0.14f), 1.f);   // (the options' own glass plate)
+	TSharedRef<SWidget> Panels[] = {CatGraphics, CatSound, CatWorld, CatControls, CatUpdates, CatPerf, CatAbout};
+	TSharedRef<SWidgetSwitcher> Switch = SNew(SWidgetSwitcher).WidgetIndex_Lambda([this]() { return SettingsCat; });
+	for (TSharedRef<SWidget>& P : Panels) Switch->AddSlot()[SNew(SScrollBox) + SScrollBox::Slot().Padding(FMargin(4, 2, 16, 10))[P]];
+	// the categories: a bar each as on the title screen, pink and lit for the one open, brighter under the mouse
+	TSharedRef<SVerticalBox> Tabs = SNew(SVerticalBox);
+	for (int32 i = 0; i < UE_ARRAY_COUNT(Names); ++i)
+	{
+		TSharedPtr<SButton> B;
+		TSharedRef<SButton> Btn = SAssignNew(B, SButton).ButtonStyle(FCoreStyle::Get(), "NoBorder").ContentPadding(0)
+			.OnClicked_Lambda([this, i]() { SettingsCat = i; return FReply::Handled(); });
+		TWeakPtr<SButton> W = B;
+		Btn->SetContent(
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth()[SNew(SBox).WidthOverride(3)[SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor_Lambda([this, i]() { return SettingsCat == i ? Neon::Pink : FLinearColor(Neon::Cyan.R, Neon::Cyan.G, Neon::Cyan.B, 0.7f); })]]
+			+ SHorizontalBox::Slot().FillWidth(1)
+			[
+				SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).Padding(FMargin(16, 10))
+				.BorderBackgroundColor_Lambda([this, i, W]() { const bool bHover = W.IsValid() && W.Pin()->IsHovered(); return SettingsCat == i ? Neon::BarLit : bHover ? FLinearColor(0.16f, 0.07f, 0.32f, 0.85f) : Neon::BarFill; })
+				[SNew(STextBlock).Text(FText::FromString(FString(Names[i]).ToUpper())).Font(Neon::Face(12, 110)).ColorAndOpacity_Lambda([this, i]() { return SettingsCat == i ? FSlateColor(FLinearColor::White) : FSlateColor(Neon::Paper); })]
+			]);
+		Tabs->AddSlot().AutoHeight().Padding(0, 0, 0, 6)[Btn];
+	}
+	return Neon::Panel(
+		SNew(SBox).WidthOverride(1060).HeightOverride(660)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth()
+			[
+				SNew(SBox).WidthOverride(240)
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot().AutoHeight()[Neon::Small(TEXT("Airport Dynasty Pro"))]
+					+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 18)[SNew(STextBlock).Text(FText::FromString(TEXT("SETTINGS"))).Font(Neon::Face(24, 160)).ColorAndOpacity(Neon::Pink)]
+					+ SVerticalBox::Slot().AutoHeight()[Tabs]
+					+ SVerticalBox::Slot().FillHeight(1)[SNullWidget::NullWidget]
+					+ SVerticalBox::Slot().AutoHeight()[Neon::Bar(TEXT("Close  (Tab)"), [this]() { ToggleSettings(); })]
+				]
+			]
+			+ SHorizontalBox::Slot().AutoWidth().Padding(18, 0)[SNew(SBox).WidthOverride(1)[SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(Neon::Edge)]]
+			+ SHorizontalBox::Slot().FillWidth(1)
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Font(Neon::Face(18, 140)).ColorAndOpacity(Neon::Paper).Text_Lambda([this]() { return FText::FromString(FString(Names[FMath::Clamp(SettingsCat, 0, 6)]).ToUpper()); })]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 14)[SNew(STextBlock).Font(Neon::Face(9, 60)).ColorAndOpacity(FLinearColor(Neon::Cyan.R, Neon::Cyan.G, Neon::Cyan.B, 0.75f)).Text_Lambda([this]() { return FText::FromString(Notes[FMath::Clamp(SettingsCat, 0, 6)]); })]
+				+ SVerticalBox::Slot().FillHeight(1)
+				[
+					SNew(SBorder).BorderImage(&Plate)
+					.Padding(FMargin(16, 14, 6, 10))
+					[Switch]
+				]
+			]
+		], 22.f);
 }

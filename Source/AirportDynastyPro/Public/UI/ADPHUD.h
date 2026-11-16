@@ -35,6 +35,9 @@ public:
 	void ShowTerminal();
 	/** The stress walk from the title screen (StressWalk.h): into the terminal, the walk, back to the title with its report. */
 	void StartStressWalk();
+	/** The Settings panel's frame: categories on the left, the chosen one's options on the right (neon). */
+	TSharedRef<SWidget> MakeSettingsFrame(TSharedRef<class SVerticalBox> CatGraphics, TSharedRef<class SVerticalBox> CatSound, TSharedRef<class SVerticalBox> CatWorld, TSharedRef<class SVerticalBox> CatControls, TSharedRef<class SVerticalBox> CatUpdates);
+	int32 SettingsCat = 0;
 	bool bStressFromTitle = false;
 	/** The 3D viewer (Unreal's own): following a flight of the game; the menus hide. Closed by Esc or G (FlightViewer.cpp). */
 	void OpenViewer();

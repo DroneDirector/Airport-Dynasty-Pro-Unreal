@@ -33,40 +33,40 @@
 #include "StaticMeshResources.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 
-namespace
+namespace ADPPerfLogInternal
 {
-	FArchive* File = nullptr;
-	FString LastReport;
-	FTSTicker::FDelegateHandle Tick;
-	double GCStart = 0.0, GCMs = 0.0;          // the last clean-up's length, and whether it fell in this frame
-	int32 GCCount = 0, GCSeen = 0;
-	double Avg = 1.0 / 60.0;                    // a running average of the frame time (s)
-	TArray<float> Window;                       // this summary's frames (ms)
-	double WindowStart = 0.0, LastLine = 0.0;
-	int32 LinesThisSecond = 0, Bad = 0;
-	TArray<FString> SyncLoads;                  // files loaded on the spot (the game waiting for them) since the last frame
+	FArchive* PerfFile = nullptr;
+	FString PerfLastReport;
+	FTSTicker::FDelegateHandle PerfTick;
+	double PerfGCStart = 0.0, PerfGCMs = 0.0;          // the last clean-up's length, and whether it fell in this frame
+	int32 PerfGCCount = 0, PerfGCSeen = 0;
+	double PerfAvg = 1.0 / 60.0;                    // a running average of the frame time (s)
+	TArray<float> PerfWindow;                       // this summary's frames (ms)
+	double PerfWindowStart = 0.0, PerfLastLine = 0.0;
+	int32 PerfLinesThisSecond = 0, PerfBad = 0;
+	TArray<FString> PerfSyncLoads;                  // files loaded on the spot (the game waiting for them) since the last frame
 	// a measured stretch (the stress walk): its frames, its findings by part and cause
-	struct FFinding { FString Part, Why, Where, Files; float Worst = 0.f; int32 N = 0; };
-	FString Audit;
-	bool bSection = false; FString SectionName, CurPart; TArray<float> SectionFrames; TArray<FFinding> Findings; TArray<FString> Notes;
+	struct FPerfFinding { FString Part, Why, Where, Files; float Worst = 0.f; int32 N = 0; };
+	FString PerfAudit;
+	bool bPerfSection = false; FString PerfSectionName, PerfCurPart; TArray<float> PerfSectionFrames; TArray<FPerfFinding> PerfFindings; TArray<FString> PerfNotes;
 
-	void Line(const FString& L)
+	void PerfLine(const FString& L)
 	{
-		if (!File)
+		if (!PerfFile)
 		{
 			const FString Dir = FPaths::ProjectSavedDir() / TEXT("Logs"), Now = Dir / TEXT("ADP-Perf.log");
 			IFileManager& FM = IFileManager::Get(); FM.MakeDirectory(*Dir, true);
 			if (FM.FileExists(*Now)) FM.Move(*(Dir / TEXT("ADP-Perf-prev.log")), *Now, true, true, false, true);
-			File = FM.CreateFileWriter(*Now, FILEWRITE_AllowRead);
-			if (!File) return;
+			PerfFile = FM.CreateFileWriter(*Now, FILEWRITE_AllowRead);
+			if (!PerfFile) return;
 		}
 		const FString Out = FDateTime::Now().ToString(TEXT("%H:%M:%S.%s ")) + L + LINE_TERMINATOR;
 		const FTCHARToUTF8 U(*Out);
-		File->Serialize(const_cast<ANSICHAR*>(U.Get()), U.Length());
-		File->Flush();
+		PerfFile->Serialize(const_cast<ANSICHAR*>(U.Get()), U.Length());
+		PerfFile->Flush();
 	}
 
-	UWorld* GameWorld()
+	UWorld* PerfGameWorld()
 	{
 		if (!GEngine) return nullptr;
 		for (const FWorldContext& C : GEngine->GetWorldContexts())
@@ -74,21 +74,21 @@ namespace
 		return nullptr;
 	}
 
-	bool OnTick(float Dt)
+	bool PerfOnTick(float Dt)
 	{
 		const double Now = FPlatformTime::Seconds();
 		const float Ms = Dt * 1000.f;
 		if (Dt <= 0.f || Dt > 10.f) return true;
-		Window.Add(Ms);
-		const bool bGC = GCCount != GCSeen; GCSeen = GCCount;
-		const TArray<FString> Loaded = MoveTemp(SyncLoads); SyncLoads.Reset();
-		if (bSection) SectionFrames.Add(Ms);
+		PerfWindow.Add(Ms);
+		const bool bGC = PerfGCCount != PerfGCSeen; PerfGCSeen = PerfGCCount;
+		const TArray<FString> Loaded = MoveTemp(PerfSyncLoads); PerfSyncLoads.Reset();
+		if (bPerfSection) PerfSectionFrames.Add(Ms);
 		// a bad frame: over 50 ms and at least 2.5 times the frames around it
-		if (Ms > 50.f && Dt > Avg * 2.5)
+		if (Ms > 50.f && Dt > PerfAvg * 2.5)
 		{
-			++Bad;
-			if (Now - LastLine >= 1.0) { LastLine = Now; LinesThisSecond = 0; }
-			if (LinesThisSecond++ < 10)
+			++PerfBad;
+			if (Now - PerfLastLine >= 1.0) { PerfLastLine = Now; PerfLinesThisSecond = 0; }
+			if (PerfLinesThisSecond++ < 10)
 			{
 				const float GameMs = FPlatformTime::ToMilliseconds(GGameThreadTime);
 				const float RenderMs = FPlatformTime::ToMilliseconds(GRenderThreadTime);
@@ -96,43 +96,43 @@ namespace
 				const int32 Loading = GetNumAsyncPackages();
 				FString Why;
 				if (Loaded.Num()) Why = TEXT("files loaded on the spot while you play (the game waited for them; they belong behind the loading screen)");
-				else if (bGC && GCMs > Ms * 0.3) Why = FString::Printf(TEXT("a clean-up of unused memory (garbage collection, %.0f ms)"), GCMs);
+				else if (bGC && PerfGCMs > Ms * 0.3) Why = FString::Printf(TEXT("a clean-up of unused memory (garbage collection, %.0f ms)"), PerfGCMs);
 				else if (Loading > 0 && GameMs >= RenderMs && GameMs >= GpuMs) Why = FString::Printf(TEXT("files loading while you play (%d still loading)"), Loading);
 				else if (GpuMs >= GameMs && GpuMs >= RenderMs) Why = TEXT("the graphics card (too much to draw in this view)");
 				else if (RenderMs >= GameMs) Why = TEXT("the render thread (most likely a first-time shader or pipeline build for something just coming into view)");
 				else Why = TEXT("the game's own work this frame");
 				FString Where = TEXT("no camera");
-				if (UWorld* W = GameWorld())
+				if (UWorld* W = PerfGameWorld())
 					if (APlayerController* PC = W->GetFirstPlayerController())
 						if (PC->PlayerCameraManager)
 						{
 							const FVector L = PC->PlayerCameraManager->GetCameraLocation(); const FRotator R = PC->PlayerCameraManager->GetCameraRotation();
 							Where = FString::Printf(TEXT("camera at plan x %.1f, height %.1f, z %.1f m, looking %.0f deg (pitch %.0f)"), L.X / 100.f, L.Z / 100.f, -L.Y / 100.f, FRotator::NormalizeAxis(R.Yaw), R.Pitch);
 						}
-				Line(FString::Printf(TEXT("BAD FRAME %.0f ms (usual %.1f ms): game %.1f, render %.1f, GPU %.1f ms%s%s - most likely %s; %s"),
-					Ms, Avg * 1000.0, GameMs, RenderMs, GpuMs, bGC ? *FString::Printf(TEXT(", clean-up %.0f ms"), GCMs) : TEXT(""),
+				PerfLine(FString::Printf(TEXT("BAD FRAME %.0f ms (usual %.1f ms): game %.1f, render %.1f, GPU %.1f ms%s%s - most likely %s; %s"),
+					Ms, PerfAvg * 1000.0, GameMs, RenderMs, GpuMs, bGC ? *FString::Printf(TEXT(", clean-up %.0f ms"), PerfGCMs) : TEXT(""),
 					Loading ? *FString::Printf(TEXT(", %d files loading"), Loading) : TEXT(""), *Why, *Where));
 				const FString Files = FString::Join(Loaded, TEXT(", "));
-				if (Loaded.Num()) Line(TEXT("    loaded on the spot: ") + Files.Left(600));
-				if (bSection)
+				if (Loaded.Num()) PerfLine(TEXT("    loaded on the spot: ") + Files.Left(600));
+				if (bPerfSection)
 				{
-					FFinding* F = Findings.FindByPredicate([&](const FFinding& X) { return X.Part == CurPart && X.Why == Why; });
-					if (!F) { F = &Findings.AddDefaulted_GetRef(); F->Part = CurPart; F->Why = Why; F->Where = Where; }
+					FPerfFinding* F = PerfFindings.FindByPredicate([&](const FPerfFinding& X) { return X.Part == PerfCurPart && X.Why == Why; });
+					if (!F) { F = &PerfFindings.AddDefaulted_GetRef(); F->Part = PerfCurPart; F->Why = Why; F->Where = Where; }
 					++F->N; if (Ms > F->Worst) { F->Worst = Ms; F->Where = Where; }
 					if (Loaded.Num() && F->Files.Len() < 400) F->Files += (F->Files.IsEmpty() ? TEXT("") : TEXT(", ")) + Files.Left(400);
 				}
 			}
 		}
-		else Avg = Avg * 0.95 + Dt * 0.05;      // (a bad frame doesn't move the "usual")
-		if (WindowStart == 0.0) WindowStart = Now;
-		if (Now - WindowStart >= 30.0 && Window.Num() > 10)
+		else PerfAvg = PerfAvg * 0.95 + Dt * 0.05;      // (a bad frame doesn't move the "usual")
+		if (PerfWindowStart == 0.0) PerfWindowStart = Now;
+		if (Now - PerfWindowStart >= 30.0 && PerfWindow.Num() > 10)
 		{
-			TArray<float> S = Window; S.Sort();
+			TArray<float> S = PerfWindow; S.Sort();
 			double Sum = 0; for (float F : S) Sum += F;
 			const float Low1 = S[FMath::Clamp(int32(S.Num() * 0.99f), 0, S.Num() - 1)];
-			Line(FString::Printf(TEXT("30 s: %.0f fps on average (%.1f ms), slowest 1%% %.1f ms (%.0f fps), worst %.0f ms, %d bad frames"),
-				1000.0 * S.Num() / Sum, Sum / S.Num(), Low1, 1000.f / Low1, S.Last(), Bad));
-			Window.Reset(); WindowStart = Now; Bad = 0;
+			PerfLine(FString::Printf(TEXT("30 s: %.0f fps on average (%.1f ms), slowest 1%% %.1f ms (%.0f fps), worst %.0f ms, %d bad frames"),
+				1000.0 * S.Num() / Sum, Sum / S.Num(), Low1, 1000.f / Low1, S.Last(), PerfBad));
+			PerfWindow.Reset(); PerfWindowStart = Now; PerfBad = 0;
 		}
 		return true;
 	}
@@ -140,72 +140,78 @@ namespace
 
 void ADPPerfLog::Start()
 {
-	if (Tick.IsValid()) return;
-	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddLambda([]() { GCStart = FPlatformTime::Seconds(); });
-	FCoreUObjectDelegates::GetPostGarbageCollect().AddLambda([]() { GCMs = (FPlatformTime::Seconds() - GCStart) * 1000.0; ++GCCount; });
+	using namespace ADPPerfLogInternal;
+	if (PerfTick.IsValid()) return;
+	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddLambda([]() { PerfGCStart = FPlatformTime::Seconds(); });
+	FCoreUObjectDelegates::GetPostGarbageCollect().AddLambda([]() { PerfGCMs = (FPlatformTime::Seconds() - PerfGCStart) * 1000.0; ++PerfGCCount; });
 #if WITH_EDITOR
 	// (editor builds: which files the game stopped to load, by name; the packaged game has no such hook)
 	FCoreUObjectDelegates::OnEndLoadPackage.AddLambda([](const FEndLoadPackageContext& C)
 	{
 		if (!C.bSynchronous || C.RecursiveDepth > 0 || !IsInGameThread()) return;
-		for (UPackage* P : C.LoadedPackages) if (P && SyncLoads.Num() < 40) SyncLoads.Add(P->GetName());
+		for (UPackage* P : C.LoadedPackages) if (P && PerfSyncLoads.Num() < 40) PerfSyncLoads.Add(P->GetName());
 	});
 #endif
-	Tick = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateStatic(&OnTick));
-	Line(TEXT("Performance log: frames over 50 ms and 2.5 times the usual, with their likely cause and the camera's place"));
+	PerfTick = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateStatic(&PerfOnTick));
+	PerfLine(TEXT("Performance log: frames over 50 ms and 2.5 times the usual, with their likely cause and the camera's place"));
 }
 
 void ADPPerfLog::Stop()
 {
-	if (Tick.IsValid()) { FTSTicker::GetCoreTicker().RemoveTicker(Tick); Tick.Reset(); }
-	if (File) { File->Close(); delete File; File = nullptr; }
+	using namespace ADPPerfLogInternal;
+	if (PerfTick.IsValid()) { FTSTicker::GetCoreTicker().RemoveTicker(PerfTick); PerfTick.Reset(); }
+	if (PerfFile) { PerfFile->Close(); delete PerfFile; PerfFile = nullptr; }
 }
 
 void ADPPerfLog::BeginSection(const FString& Name)
 {
-	bSection = true; SectionName = Name; CurPart.Reset(); Audit.Reset(); SectionFrames.Reset(); Findings.Reset(); Notes.Reset();
-	Line(TEXT("==== ") + Name + TEXT(": start"));
+	using namespace ADPPerfLogInternal;
+	bPerfSection = true; PerfSectionName = Name; PerfCurPart.Reset(); PerfAudit.Reset(); PerfSectionFrames.Reset(); PerfFindings.Reset(); PerfNotes.Reset();
+	PerfLine(TEXT("==== ") + Name + TEXT(": start"));
 }
 
 void ADPPerfLog::Mark(const FString& What)
 {
-	if (What.StartsWith(TEXT("("))) Notes.Add(CurPart + TEXT(" ") + What); else CurPart = What;
-	Line(TEXT("---- ") + What);
+	using namespace ADPPerfLogInternal;
+	if (What.StartsWith(TEXT("("))) PerfNotes.Add(PerfCurPart + TEXT(" ") + What); else PerfCurPart = What;
+	PerfLine(TEXT("---- ") + What);
 }
 
 FString ADPPerfLog::EndSection()
 {
-	bSection = false;
+	using namespace ADPPerfLogInternal;
+	bPerfSection = false;
 	FString Sum = TEXT("no frames");
-	if (SectionFrames.Num())
+	if (PerfSectionFrames.Num())
 	{
-		TArray<float> S = SectionFrames; S.Sort(); double T = 0; for (float F : S) T += F;
+		TArray<float> S = PerfSectionFrames; S.Sort(); double T = 0; for (float F : S) T += F;
 		const float Low1 = S[FMath::Clamp(int32(S.Num() * 0.99f), 0, S.Num() - 1)];
-		Sum = FString::Printf(TEXT("%.0f fps on average, slowest 1%% %.0f fps, worst frame %.0f ms, %d bad frames"), 1000.0 * S.Num() / T, 1000.f / Low1, S.Last(), Findings.Num() ? Algo::Accumulate(Findings, 0, [](int32 A, const FFinding& F) { return A + F.N; }) : 0);
+		Sum = FString::Printf(TEXT("%.0f fps on average, slowest 1%% %.0f fps, worst frame %.0f ms, %d bad frames"), 1000.0 * S.Num() / T, 1000.f / Low1, S.Last(), PerfFindings.Num() ? Algo::Accumulate(PerfFindings, 0, [](int32 A, const FPerfFinding& F) { return A + F.N; }) : 0);
 	}
-	FString R = FString::Printf(TEXT("Airport Dynasty Pro - %s report (%s)\n%s\n"), *SectionName, *FDateTime::Now().ToString(TEXT("%Y-%m-%d %H:%M")), *Sum);
-	Findings.Sort([](const FFinding& A, const FFinding& B) { return A.Worst * A.N > B.Worst * B.N; });
-	R += Findings.Num() ? TEXT("\nWhat it found (worst first):\n") : TEXT("\nNo bad frames.\n");
-	for (const FFinding& F : Findings)
+	FString R = FString::Printf(TEXT("Airport Dynasty Pro - %s report (%s)\n%s\n"), *PerfSectionName, *FDateTime::Now().ToString(TEXT("%Y-%m-%d %H:%M")), *Sum);
+	PerfFindings.Sort([](const FPerfFinding& A, const FPerfFinding& B) { return A.Worst * A.N > B.Worst * B.N; });
+	R += PerfFindings.Num() ? TEXT("\nWhat it found (worst first):\n") : TEXT("\nNo bad frames.\n");
+	for (const FPerfFinding& F : PerfFindings)
 	{
 		R += FString::Printf(TEXT("- %s: %d bad frame%s, worst %.0f ms - %s\n    %s\n"), *F.Part, F.N, F.N == 1 ? TEXT("") : TEXT("s"), F.Worst, *F.Why, *F.Where);
 		if (!F.Files.IsEmpty()) R += TEXT("    files loaded on the spot: ") + F.Files + TEXT("\n");
 	}
-	for (const FString& N : Notes) R += TEXT("- the walk: ") + N + TEXT("\n");
+	for (const FString& N : PerfNotes) R += TEXT("- the walk: ") + N + TEXT("\n");
 	R += TEXT("\nFull detail: Saved/Logs/ADP-Perf.log; this report: Saved/Logs/StressWalk-Report.txt\n");
-	Line(TEXT("==== ") + SectionName + TEXT(": end - ") + Sum);
+	PerfLine(TEXT("==== ") + PerfSectionName + TEXT(": end - ") + Sum);
 	const FString Dir = FPaths::ProjectSavedDir() / TEXT("Logs");
 	FFileHelper::SaveStringToFile(R, *(Dir / TEXT("StressWalk-Report.txt")), FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
 	FFileHelper::SaveStringToFile(R, *(Dir / FString::Printf(TEXT("StressWalk-Report-%s.txt"), *FDateTime::Now().ToString(TEXT("%Y%m%d-%H%M")))), FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
-	LastReport = R + Audit;
-	FFileHelper::SaveStringToFile(LastReport, *(Dir / TEXT("StressWalk-Report.txt")), FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
+	PerfLastReport = R + PerfAudit;
+	FFileHelper::SaveStringToFile(PerfLastReport, *(Dir / TEXT("StressWalk-Report.txt")), FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
 	return Sum;
 }
 
-FString ADPPerfLog::Report() { return LastReport; }
+FString ADPPerfLog::Report() { return ADPPerfLogInternal::PerfLastReport; }
 
 FString ADPPerfLog::SceneAudit(UWorld* W)
 {
+	using namespace ADPPerfLogInternal;
 	if (!W) return FString();
 	// what the world holds, measured: every drawn mesh, Nanite or not, its triangles, copies, materials and shadows
 	struct FRow { FString Mesh, Owner; int32 Copies = 0, Tris = 0, Sections = 0; float Size = 0.f; bool bNanite = false, bShadow = false, bTranslucent = false; };
@@ -251,8 +257,8 @@ FString ADPPerfLog::SceneAudit(UWorld* W)
 	T += TEXT("- Nanite meshes with see-through materials (Nanite can't draw those parts):\n");
 	n = 0; for (const FRow& R : A) if (R.bNanite && R.bTranslucent && n++ < 12) T += FString::Printf(TEXT("    %s - %s - %d copies\n"), *R.Mesh, *R.Owner, R.Copies);
 	if (LightList.Num()) T += TEXT("- movable shadow-casting lights (first 12): ") + FString::Join(LightList, TEXT(", ")) + TEXT("\n");
-	Line(T);
+	PerfLine(T);
 	return T;
 }
 
-void ADPPerfLog::SetAudit(const FString& A) { Audit = A; }
+void ADPPerfLog::SetAudit(const FString& A) { ADPPerfLogInternal::PerfAudit = A; }
