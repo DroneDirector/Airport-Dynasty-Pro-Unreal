@@ -5,8 +5,18 @@
 #include "EngineUtils.h"
 #include "Engine/World.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Components/PointLightComponent.h"
+#include "Components/SpotLightComponent.h"
+#include "Components/MaterialBillboardComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "ADPKeep.h"
+#include "GameFramework/PlayerController.h"
+#include "Camera/PlayerCameraManager.h"
 
 float AJetwayRigs::Speed = 1.f;
+bool AJetwayRigs::bBeaconTest = false;
+float AJetwayRigs::SignGlow = 3.f;
+int32 AJetwayRigs::BeaconForce = -1;
 
 namespace ADPJetwayInternal
 {
@@ -15,7 +25,11 @@ namespace ADPJetwayInternal
 	constexpr float SEC1 = 10.5f, SEC2 = 10.1f, SEC3 = 9.7f, ZW = SEC3 - 1.0f;
 	constexpr float LMIN = SEC1 + 2 * BD, LMAX = SEC1 + SEC2 + SEC3 - 2 * OV + 2 * BD;
 	constexpr float PARK = 0.5f;                                               // at rest: wheels half as far out (his rule)
-	constexpr float TDrive = 75.f, TCrawl = 30.f, TCanopy = 15.f, TBack = 20.f, THome = 60.f;   // JW_TIMES
+	// real speeds (owner 2026-11-16: "real speeds"): an apron-drive bridge travels at up to 60 ft/min = 0.30 m/s
+	// (Oshkosh AeroTech Jetway sheet; AviaBridge 3T: 0.4 m/s), its cab turns 145 degrees a minute (2.4 a second), it
+	// lifts 1.1 m a minute; the last 1.5 m to the door (and the first 1.5 m away) at a creep, 0.05 m/s, as the operator
+	// inches it in; the canopy 15 s each way (his generator)
+	constexpr float VMax = 0.30f, VCreep = 0.05f, Acc = 0.10f, Creep = 1.5f, CabTurn = 145.f / 60.f * PI / 180.f, Lift = 1.1f / 60.f, TCanopy = 15.f;
 	float Ease(float T) { T = FMath::Clamp(T, 0.f, 1.f); return T * T * (3 - 2 * T); }
 	FVector Flat(const FVector& V) { return FVector(V.X, V.Y, 0.f); }
 	// a direction turned by A the way his generator turns (its yaw: atan2(x, z) in Babylon, x and y here)
@@ -61,6 +75,48 @@ void AJetwayRigs::Build()
 	for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It) if (It->Model == TEXT("Jetways") && It->NodeCount() > 0) { M = *It; break; }
 	if (!M) return;
 	bBuilt = true;
+	// the outside skin in dimmed copies of its finishes (owner, 2026-11-16: the outside washed out under the
+	// floodlights, the inside bright as it is - "if the same is used outside as inside, make a copy for the outside"):
+	// the cladding, roof and underside (outside only), jwPanel everywhere but the cab's console and the corridor, jwWall
+	// on the rotunda's drum, the sleeves, the cab's doors and front (the corridor's, tunnels' and cab's own walls are
+	// inside). The loader tones whites to 0.78; the outside copies to 0.35. One copy per finish, shared.
+	{
+		TMap<UMaterialInterface*, UMaterialInstanceDynamic*> Copy; TSet<UInstancedStaticMeshComponent*> Done; int32 N = 0;
+		for (int32 I = 0; I < M->NodeCount(); ++I)
+		{
+			const FString& Nm = M->NodeName(I);
+			const bool bClad = Nm.Contains(TEXT(":jwClad")) || Nm.EndsWith(TEXT(":jwRoof")) || Nm.EndsWith(TEXT(":jwUnder"));
+			const bool bPanel = Nm.EndsWith(TEXT(":jwPanel")) && !Nm.Contains(TEXT("CONSOLE")) && !Nm.Contains(TEXT("CORRIDOR"));
+			const bool bAlu = Nm.EndsWith(TEXT(":jwAluB")) && (Nm.Contains(TEXT("/CAB:")) || Nm.Contains(TEXT("/TUNNEL-")) || Nm.Contains(TEXT("SLEEVE")) || Nm.Contains(TEXT("/ROTUNDA:")) || Nm.Contains(TEXT("/LIFT-")) || Nm.Contains(TEXT("DRIVE-YOKE")) || Nm.Contains(TEXT("/CAB-FRONT")));
+			const bool bWall = Nm.EndsWith(TEXT(":jwWall")) && (Nm.Contains(TEXT("ROTUNDA-DRUM")) || Nm.Contains(TEXT("SLEEVE")) || Nm.Contains(TEXT("CAB-DOOR")) || Nm.Contains(TEXT("CAB-FRONT")));
+			if (!bClad && !bPanel && !bWall && !bAlu) continue;
+			const TPair<UInstancedStaticMeshComponent*, int32> In = M->NodeInstance(I);
+			if (!In.Key || Done.Contains(In.Key)) continue;
+			Done.Add(In.Key);
+			for (int32 m = 0; m < In.Key->GetNumMaterials(); ++m)
+			{
+				UMaterialInterface* Mi = In.Key->GetMaterial(m);
+				if (!Mi) continue;
+				const FString Mn = Mi->GetName();
+				if (!Mn.Contains(TEXT("jwPanel")) && !Mn.Contains(TEXT("jwAluB")) && !Mn.Contains(TEXT("jwWall")) && !Mn.Contains(TEXT("jwClad")) && !Mn.Contains(TEXT("jwRoof")) && !Mn.Contains(TEXT("jwUnder"))) continue;
+				UMaterialInstanceDynamic*& D = Copy.FindOrAdd(Mi);
+				if (!D)
+				{
+					// (made from the real material asset under the loader's copy, with the copy's settings carried over -
+					//  a copy of a copy lost its textures and showed a checkerboard)
+					UMaterialInstanceDynamic* Src = Cast<UMaterialInstanceDynamic>(Mi);
+					UMaterialInterface* Root = Src && Src->Parent ? Src->Parent.Get() : Mi;
+					D = UMaterialInstanceDynamic::Create(Root, this);
+					if (Src) D->CopyParameterOverrides(Src);
+					FLinearColor Bc(1, 1, 1, 1); D->GetVectorParameterValue(FHashedMaterialParameterInfo(TEXT("BC")), Bc);
+					const FLinearColor Dim = Bc * (0.35f / FMath::Max(0.05f, Bc.GetLuminance()));   // (owner: "way dimmer" outside)
+					D->SetVectorParameterValue(TEXT("BC"), FLinearColor(Dim.R, Dim.G, Dim.B, 1.f)); D->SetVectorParameterValue(TEXT("BaseColorFactor"), FLinearColor(Dim.R, Dim.G, Dim.B, 1.f));
+				}
+				In.Key->SetMaterial(m, D); ++N;
+			}
+		}
+		ADP_LOG(TEXT("Jetways: outside skin in its dimmed copies (%d parts, %d finishes)"), N, Copy.Num());
+	}
 	const TCHAR* Names[NumGroups] = {TEXT("ROTUNDA-SLEEVE"), nullptr, TEXT("TUNNEL-1"), TEXT("TUNNEL-2"), TEXT("TUNNEL-3"), TEXT("CAB"), TEXT("CAB-SLEEVE"), TEXT("DRIVE-UNIT"), TEXT("LIFT-SLEEVES")};
 	for (int32 n = 1; n <= 12; ++n)
 	{
@@ -80,11 +136,20 @@ void AJetwayRigs::Build()
 			for (const int32 K : M->NodeKids(Node)) Take(K, G);
 		};
 		for (int32 g = 0; g < NumGroups; ++g) if (Root[g] != INDEX_NONE) { PartGroup.Add(Root[g], g); for (const int32 K : M->NodeKids(Root[g])) Take(K, g); }
-		// the bellows follow the joints they hang on (squeezed and stretched later: plan part 3)
-		auto Follow = [&](const TCHAR* Part, int32 G) { const int32 I = M->NodeIndex(Id + TEXT("/") + Part); if (I != INDEX_NONE) { PartGroup.Add(I, G); for (const int32 K : M->NodeKids(I)) Take(K, G); } };
-		Follow(TEXT("BELLOWS-ROTUNDA"), Boom); Follow(TEXT("BELLOWS-ROTUNDA-LINING"), Boom);
-		Follow(TEXT("BELLOWS-CAB"), CabSleeve); Follow(TEXT("BELLOWS-CAB-LINING"), CabSleeve);
-		Follow(TEXT("LIFT-CABLE"), Sleeves);
+		// the jetway's own loose parts (straight under J-n): the lift cables ride with the lift; the two air hoses on the
+		// lift beam ride with it (the two under the rotunda stay); the bellows, their linings and the floor plates across
+		// them stretch between the parts they join; the service stair hangs from its landing (below)
+		const int32 JRoot = M->NodeIndex(Id);
+		TArray<int32> StretchNodes, StairNodes;
+		if (JRoot != INDEX_NONE)
+			for (const int32 K : M->NodeKids(JRoot))
+			{
+				const FString& Nm = M->NodeName(K);
+				if (Nm.EndsWith(TEXT("/LIFT-CABLE"))) PartGroup.Add(K, Sleeves);
+				else if (Nm.EndsWith(TEXT("/PCA-HOSE")) && FVector::Dist2D(M->NodeModel(K).GetLocation(), M->NodeModel(Root[Boom]).GetLocation()) > 400.f) PartGroup.Add(K, Sleeves);
+				else if (Nm.Contains(TEXT("/BELLOWS-")) || Nm.StartsWith(TEXT("box#"))) StretchNodes.Add(K);
+				else if (Nm.EndsWith(TEXT("/SERVICE-STAIR"))) { TFunction<void(int32)> All = [&](int32 I) { StairNodes.Add(I); for (const int32 C : M->NodeKids(I)) All(C); }; All(K); }
+			}
 		for (int32 g = 0; g < NumGroups; ++g) if (Root[g] != INDEX_NONE) R.G[g].Docked = M->NodeModel(Root[g]);
 		int32 Parts = 0;
 		for (const TPair<int32, int32>& O : PartGroup)
@@ -101,6 +166,48 @@ void AJetwayRigs::Build()
 		R.DirD = D.Dir; R.AxisD = D.Axis; R.LenD = D.Len; R.PitchD = D.Pitch;
 		R.PD = R.BoomO + R.DirD * (RR - 0.25f) * 100.f;
 		R.CabOff = R.G[Cab].Docked.GetLocation() - (R.PD + R.AxisD * R.LenD * 100.f + R.DirD * (CR - 0.25f) * 100.f);
+		// the stretched parts: each one's length along whichever of its own axes lies along the tunnel; its ends ride with
+		// the rotunda and the first section (near the rotunda) or the last section and the cab's sleeve (near the cab);
+		// the thin strips at the plates' ends just ride with the nearer end
+		for (const int32 I : StretchNodes)
+		{
+			const TPair<UInstancedStaticMeshComponent*, int32> In = M->NodeInstance(I);
+			if (!In.Key || In.Value == INDEX_NONE || !In.Key->GetStaticMesh()) continue;
+			FStretch X; X.P.K = In.Key; X.P.Ix = In.Value; In.Key->GetInstanceTransform(In.Value, X.P.Docked, false);
+			const FBox Bx = In.Key->GetStaticMesh()->GetBoundingBox(); const FVector C = X.P.Docked.TransformPosition(Bx.GetCenter());
+			float Best = -1.f;
+			for (int32 a = 0; a < 3; ++a) { const float Al = FMath::Abs(FVector::DotProduct(X.P.Docked.GetRotation().GetAxisX() * (a == 0) + X.P.Docked.GetRotation().GetAxisY() * (a == 1) + X.P.Docked.GetRotation().GetAxisZ() * (a == 2), R.AxisD)); if (Al > Best) { Best = Al; X.Axis = a; } }
+			const FVector Ax = X.Axis == 0 ? X.P.Docked.GetRotation().GetAxisX() : X.Axis == 1 ? X.P.Docked.GetRotation().GetAxisY() : X.P.Docked.GetRotation().GetAxisZ();
+			const float Half = Bx.GetExtent()[X.Axis] * FMath::Abs(X.P.Docked.GetScale3D()[X.Axis]);
+			FVector E1 = C - Ax * Half, E2 = C + Ax * Half; if (FVector::Dist(E1, R.BoomO) > FVector::Dist(E2, R.BoomO)) Swap(E1, E2);
+			X.E1 = E1; X.E2 = E2;
+			const bool bNearRot = FVector::Dist(C, R.BoomO) < FVector::Dist(C, R.G[Cab].Docked.GetLocation());
+			X.A = bNearRot ? Boom : Tun3; X.B = bNearRot ? Tun1 : CabSleeve;
+			if (Half * 2.f < 30.f) { const int32 G = FVector::Dist(C, R.G[X.A].Docked.GetLocation()) < FVector::Dist(C, R.G[X.B].Docked.GetLocation()) ? X.A : X.B; R.G[G].Parts.Add(X.P); ++Parts; continue; }
+			R.Stretch.Add(X); ++Parts;
+		}
+		// the service stair: its top on its landing (on the last section), its foot 0.3 m over the apron, 7.2 m long; the
+		// steps, posts and wheel forks stay level whatever its slope
+		R.Ground = R.G[Bogie].Docked.GetLocation().Z;
+		if (StairNodes.Num())
+		{
+			R.StairTop = M->NodeModel(StairNodes[0]).GetLocation();
+			FVector Foot = R.StairTop; float FarD = 0.f;
+			for (const int32 I : StairNodes) { const FVector L = M->NodeModel(I).GetLocation(); const float Dd = FVector::Dist(L, R.StairTop); if (M->NodeName(I).Contains(TEXT("STAIR-FORK")) && Dd > FarD) { FarD = Dd; Foot = L; } }
+			R.StairU = (Foot - R.StairTop).GetSafeNormal();
+			R.StairSl = FMath::Asin(FMath::Clamp(-R.StairU.Z, -1.f, 1.f));
+			{ const int32 Ld = M->NodeIndex(Id + TEXT("/STAIR-LANDING"));
+			  ADP_LOG(TEXT("Jetways: %s stair top %s, foot %s, landing %s, slope %.1f deg, ground %.0f"), *Id, *R.StairTop.ToString(), *Foot.ToString(),
+				Ld != INDEX_NONE ? *M->NodeModel(Ld).GetLocation().ToString() : TEXT("-"), FMath::RadiansToDegrees(R.StairSl), R.Ground); }
+			for (const int32 I : StairNodes)
+			{
+				const TPair<UInstancedStaticMeshComponent*, int32> In = M->NodeInstance(I);
+				if (!In.Key || In.Value == INDEX_NONE) continue;
+				FPart P; P.K = In.Key; P.Ix = In.Value; In.Key->GetInstanceTransform(In.Value, P.Docked, false);
+				const FString& Nm = M->NodeName(I);
+				R.Stair.Add(P); R.StairLevel.Add(Nm.Contains(TEXT("/STEP")) || Nm.Contains(TEXT("STAIR-POST")) || Nm.Contains(TEXT("STAIR-FORK")) || Nm.Contains(TEXT("STAIR-WHEEL"))); ++Parts;
+			}
+		}
 		const int32 Con = M->NodeIndex(Id + TEXT("/CAB-CONSOLE"));
 		R.Ctl = Con != INDEX_NONE ? M->NodeModel(Con).GetLocation() : R.G[Cab].Docked.GetLocation();
 		// at rest: pulled half way back along the line to the door, a little lower (his PARK), never shorter than it can be
@@ -114,6 +221,12 @@ void AJetwayRigs::Build()
 		const float Along = FVector::DotProduct(R.G[Tun3].Docked.GetLocation() - R.PD, R.AxisD) / 100.f;
 		ADP_LOG(TEXT("Jetways: %s rigged, %d parts; reach %.1f m docked, %.1f m at rest; section 3 at %.2f m (his measures: %.2f)"),
 			*Id, Parts, R.LenD, ADPJetwayInternal::Ik(R.BoomO, R.Wp).Len, Along, Z3);
+		// the path's length, and where along it each metre is (driving at real speeds needs distances)
+		R.Arc.SetNum(65); R.Arc[0] = 0.f;
+		{ FVector Pv = PathAt(R, 0.f); for (int32 i = 1; i <= 64; ++i) { const FVector Pn = PathAt(R, i / 64.f); R.Arc[i] = R.Arc[i - 1] + (Pn - Pv).Size() / 100.f; Pv = Pn; } }
+		R.PathL = R.Arc[64]; R.D = R.PathL;
+		AddBeacons(R, M, Id);
+		AddSignLights(R, M, Id);
 		Rigs.Add(MoveTemp(R));
 	}
 	if (!Rigs.Num()) ADP_WARN(TEXT("Jetways: none found to rig in the Jetways model"));
@@ -160,6 +273,47 @@ void AJetwayRigs::Apply(FRig& R)
 			P.K->UpdateInstanceTransform(P.Ix, P.Docked.GetRelativeTransform(R.G[g].Docked) * N[g], false, false, true);
 			Dirty.Add(P.K);
 		}
+	auto Ride = [&](int32 G, const FVector& X) { return N[G].TransformPosition(R.G[G].Docked.InverseTransformPosition(X)); };
+	// the stretched parts: their ends ride with the two parts they join; each turns to lie between them and grows or
+	// shrinks along its length - its own middle landing on the new middle (the bellows are built in place, far from
+	// their origin: scaled about the origin they would be thrown far away)
+	for (const FStretch& X : R.Stretch)
+	{
+		const FVector E1 = Ride(X.A, X.E1), E2 = Ride(X.B, X.E2), Dd = X.E2 - X.E1, Dn = E2 - E1;
+		const FQuat Q = FQuat::FindBetweenNormals(Dd.GetSafeNormal(), Dn.GetSafeNormal());
+		FVector Sc = X.P.Docked.GetScale3D(); Sc[X.Axis] *= Dn.Size() / FMath::Max(1.f, (float)Dd.Size());
+		const FVector Cl = X.P.K->GetStaticMesh()->GetBoundingBox().GetCenter();
+		const FQuat Rq = Q * X.P.Docked.GetRotation();
+		X.P.K->UpdateInstanceTransform(X.P.Ix, FTransform(Rq, (E1 + E2) / 2 - Rq.RotateVector(Sc * Cl), Sc), false, false, true); Dirty.Add(X.P.K);
+	}
+	// the service stair: its top on its landing, its foot on the apron (its slope from the landing's height), the steps,
+	// posts and wheel forks level
+	if (R.Stair.Num())
+	{
+		const FVector Top = Ride(Tun3, R.StairTop);
+		const float H = FMath::Max(1.f, (float)(Top.Z - R.Ground - 30.f)), Sl = FMath::Asin(FMath::Clamp(H / 720.f, 0.15f, 0.98f));
+		const FVector Uy = QYaw.RotateVector(R.StairU), Hz = FVector(Uy.X, Uy.Y, 0.f).GetSafeNormal();
+		const FVector Un = Hz * FMath::Cos(Sl) - FVector::UpVector * FMath::Sin(Sl);
+		const FQuat QP = FQuat::FindBetweenNormals(Uy, Un), Q = QP * QYaw;
+		for (int32 i = 0; i < R.Stair.Num(); ++i)
+		{
+			const FPart& P = R.Stair[i];
+			const FVector L = Top + Q.RotateVector(P.Docked.GetLocation() - R.StairTop);
+			const FQuat Rot = R.StairLevel[i] ? QYaw * P.Docked.GetRotation() : Q * P.Docked.GetRotation();
+			P.K->UpdateInstanceTransform(P.Ix, FTransform(Rot, L, P.Docked.GetScale3D()), false, false, true); Dirty.Add(P.K);
+		}
+	}
+	// the gate sign's soft lights ride with the cab
+	for (int32 i = 0; i < R.SignLight.Num(); ++i) if (R.SignLight[i]) R.SignLight[i]->SetRelativeLocation(N[Cab].TransformPosition(R.G[Cab].Docked.InverseTransformPosition(R.SignAt[i])));
+	// the beacons' glow and light ride with them
+	for (int32 b = 0; b < R.BcnK.Num(); ++b)
+	{
+		FTransform T; R.BcnK[b]->GetInstanceTransform(R.BcnIx[b], T, false);
+		const bool bBar = R.BcnKind[b] == 2;
+		if (R.BcnLight[b]) R.BcnLight[b]->SetRelativeLocation(bBar ? T.TransformPosition(FVector(0.f, -14.f, 0.f)) : T.TransformPosition(FVector(0.f, 0.f, 70.f)));
+		if (bBar && R.BcnLight[b]) R.BcnLight[b]->SetRelativeRotation(FRotator(-30.f, T.GetRotation().Rotator().Yaw - 90.f, 0.f));
+		if (R.BcnFill.IsValidIndex(b) && R.BcnFill[b]) R.BcnFill[b]->SetRelativeLocation(T.TransformPosition(FVector(0.f, 0.f, 50.f)));
+	}
 	for (UInstancedStaticMeshComponent* K2 : Dirty) K2->MarkRenderStateDirty();
 }
 
@@ -170,24 +324,42 @@ void AJetwayRigs::Tick(float Dt)
 	Super::Tick(Dt);
 	if (!bBuilt) { if ((Look += Dt) > 1.f) { Look = 0.f; Build(); } return; }
 	const float D = Dt * Speed;
+	BcnClock += Dt;
 	for (FRig& R : Rigs)
 	{
+		Beacons(R, bBeaconTest || R.St == EState::Docking || R.St == EState::Undocking);
 		if (R.St == EState::Docking)
 		{
-			R.T += D; const float A = TDrive, B = A + TCrawl, C = B + TCanopy;
-			if (R.T < A) R.S = 0.92f * Ease(R.T / A);
-			else if (R.T < B) { const float U = (R.T - A) / TCrawl; R.S = 0.92f + 0.08f * U; R.Turn = R.Turn0 * (1 - Ease(U)); }
-			else if (R.T < C) { R.S = 1.f; R.Turn = 0.f; }                     // (the canopy and the shutter: plan part 4)
-			else { R.St = EState::Docked; ADP_LOG(TEXT("Jetways: %s docked"), *R.Id); }
+			const float Left = R.PathL - R.D;
+			if (Left > 0.f)
+			{
+				// speed up to full speed, ease down to a creep for the last 1.5 m (stopping in time at Acc)
+				const float Want = Left > Creep ? FMath::Min(VMax, FMath::Sqrt(VCreep * VCreep + 2 * Acc * (Left - Creep))) : VCreep;
+				R.V = FMath::Min(Want, R.V + Acc * D);
+				// never lift or lower faster than the lift columns can (1.1 m a minute)
+				const float Dh = FMath::Abs(PathAt(R, SAt(R, FMath::Min(R.PathL, R.D + 0.5f))).Z - PathAt(R, R.S).Z) / 100.f;
+				if (Dh > 1e-3f) R.V = FMath::Min(R.V, Lift * 0.5f / Dh);
+				R.D = FMath::Min(R.PathL, R.D + R.V * D);
+			}
+			// the cab squares up to the fuselage in the creep, at its own turning speed
+			if (R.PathL - R.D < Creep) R.Turn = FMath::Sign(R.Turn) * FMath::Max(0.f, FMath::Abs(R.Turn) - CabTurn * D);
+			R.S = SAt(R, R.D);
+			if (R.D >= R.PathL && FMath::Abs(R.Turn) < 1e-4f) { R.T += D; if (R.T > TCanopy) { R.St = EState::Docked; R.V = 0.f; ADP_LOG(TEXT("Jetways: %s docked"), *R.Id); } }
 			Apply(R);
 		}
 		else if (R.St == EState::Undocking)
 		{
-			R.T += D; const float A = TCanopy, B = A + TBack, C = B + THome;
-			if (R.T < A) {}
-			else if (R.T < B) { const float U = (R.T - A) / TBack; R.S = 1.f - 0.08f * Ease(U); R.Turn = R.Turn0 * Ease(U); }
-			else if (R.T < C) R.S = 0.92f * (1.f - Ease((R.T - B) / THome));
-			else { R.S = 0.f; R.St = EState::Parked; ADP_LOG(TEXT("Jetways: %s at rest, half way back"), *R.Id); }
+			R.T += D;
+			if (R.T > TCanopy)
+			{
+				const float Gone = R.PathL - R.D;
+				if (Gone < Creep) R.Turn = FMath::Sign(R.Turn0) * FMath::Min(FMath::Abs(R.Turn0), FMath::Abs(R.Turn) + CabTurn * D);
+				const float Want = Gone < Creep ? VCreep : FMath::Min(VMax, FMath::Sqrt(VCreep * VCreep + 2 * Acc * R.D));
+				R.V = FMath::Min(Want, R.V + Acc * D);
+				R.D = FMath::Max(0.f, R.D - R.V * D);
+				R.S = SAt(R, R.D);
+				if (R.D <= 0.f) { R.S = 0.f; R.V = 0.f; R.St = EState::Parked; ADP_LOG(TEXT("Jetways: %s at rest, half way back"), *R.Id); }
+			}
 			Apply(R);
 		}
 	}
@@ -204,12 +376,12 @@ FString AJetwayRigs::Name(int32 J) const { return Rigs.IsValidIndex(J) ? Rigs[J]
 bool AJetwayRigs::Dock(int32 J)
 {
 	if (!Rigs.IsValidIndex(J) || Rigs[J].St != EState::Parked) return false;
-	Rigs[J].St = EState::Docking; Rigs[J].T = 0.f; ADP_LOG(TEXT("Jetways: %s driving out to the door"), *Rigs[J].Id); return true;
+	Rigs[J].St = EState::Docking; Rigs[J].T = 0.f; Rigs[J].V = 0.f; Rigs[J].Turn = Rigs[J].Turn0; ADP_LOG(TEXT("Jetways: %s driving out to the door"), *Rigs[J].Id); return true;
 }
 bool AJetwayRigs::Undock(int32 J)
 {
 	if (!Rigs.IsValidIndex(J) || Rigs[J].St != EState::Docked) return false;
-	Rigs[J].St = EState::Undocking; Rigs[J].T = 0.f; ADP_LOG(TEXT("Jetways: %s pulling back"), *Rigs[J].Id); return true;
+	Rigs[J].St = EState::Undocking; Rigs[J].T = 0.f; Rigs[J].V = 0.f; ADP_LOG(TEXT("Jetways: %s pulling back"), *Rigs[J].Id); return true;
 }
 void AJetwayRigs::Toggle(int32 J) { if (State(J) == EState::Parked) Dock(J); else if (State(J) == EState::Docked) Undock(J); }
 FVector AJetwayRigs::Console(int32 J) const
@@ -220,4 +392,259 @@ FVector AJetwayRigs::Console(int32 J) const
 	FTransform CabNow = R.G[Cab].Docked;
 	if (R.G[Cab].Parts.Num()) { FTransform T; R.G[Cab].Parts[0].K->GetInstanceTransform(R.G[Cab].Parts[0].Ix, T, false); CabNow = R.G[Cab].Docked * R.G[Cab].Parts[0].Docked.Inverse() * T; }
 	return R.Model->GetActorTransform().TransformPosition(CabNow.TransformPosition(R.G[Cab].Docked.InverseTransformPosition(R.Ctl)));
+}
+bool AJetwayRigs::Frame(int32 J, FVector& Rotunda, FVector& Door) const
+{
+	if (!Rigs.IsValidIndex(J) || !Rigs[J].Model.IsValid()) return false;
+	const FTransform A = Rigs[J].Model->GetActorTransform();
+	Rotunda = A.TransformPosition(Rigs[J].BoomO); Door = A.TransformPosition(Rigs[J].Wd); return true;
+}
+float AJetwayRigs::SAt(const FRig& R, float Dm) const
+{
+	if (R.Arc.Num() < 2 || R.PathL <= 0.f) return 1.f;
+	Dm = FMath::Clamp(Dm, 0.f, R.PathL);
+	for (int32 i = 1; i < R.Arc.Num(); ++i) if (R.Arc[i] >= Dm) { const float A = (Dm - R.Arc[i - 1]) / FMath::Max(1e-4f, R.Arc[i] - R.Arc[i - 1]); return (i - 1 + A) / (R.Arc.Num() - 1); }
+	return 1.f;
+}
+
+void AJetwayRigs::AddBeacons(FRig& R, ABabylonModel* M, const FString& Id)
+{
+	// where: the cab's footprint (its parts' corners, along the way it faces - from the cab to its front - and across),
+	// the two poles 25 cm in from its front corners standing on the roof, the third hanging under the cab's front; the
+	// roof and the underside found by looking straight down and up at the jetway itself
+	static UStaticMesh* Mesh = ADPKeep(LoadObject<UStaticMesh>(nullptr, TEXT("/Game/JetwayBeacon/SM_JwBeacon.SM_JwBeacon")));
+	static UMaterialInterface* GlowM = ADPKeep(LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/Lamps/M_LampGlow.M_LampGlow")));
+	if (!Mesh || !R.G[Cab].Parts.Num()) { ADP_WARN(TEXT("Jetways: no beacon mesh (Tools/import_jetway_beacon.py) or no cab parts on %s"), *Id); return; }
+	UInstancedStaticMeshComponent* Host = R.G[Cab].Parts[0].K;
+	const int32 Fr = M->NodeIndex(Id + TEXT("/CAB-FRONT"));
+	const FVector CabL = R.G[Cab].Docked.GetLocation();
+	// (its front: away from its sleeve, the joint to the tunnel behind it; the front frame's own origin sits mid-cab)
+	(void)Fr;
+	// (its front: towards the doorway frame with the rubber seal round it - measured from the frame's own meshes)
+	FVector Seal = FVector::ZeroVector; int32 NSeal = 0;
+	{
+		TArray<int32> Todo; const int32 Cn = M->NodeIndex(Id + TEXT("/CAB-FRONT")); if (Cn != INDEX_NONE) Todo.Add(Cn);   // (the doorway frame with its rubber seal)
+		while (Todo.Num())
+		{
+			const int32 I = Todo.Pop(); Todo.Append(M->NodeKids(I));
+			const TPair<UInstancedStaticMeshComponent*, int32> In = M->NodeInstance(I);
+			if (!In.Key || In.Value == INDEX_NONE || !In.Key->GetStaticMesh()) continue;
+			FTransform PT; In.Key->GetInstanceTransform(In.Value, PT, false);
+			Seal += PT.TransformPosition(In.Key->GetStaticMesh()->GetBoundingBox().GetCenter()); ++NSeal;
+		}
+	}
+	// (from the middle of the cab's metal body - the cab's own origin sits at its front, by the door)
+	FVector BodyMid = CabL; FBox Fb(ForceInit);
+	{
+		FBox Bb(ForceInit); const int32 Cb = M->NodeIndex(Id + TEXT("/CAB"));
+		if (Cb != INDEX_NONE) for (const int32 K : M->NodeKids(Cb))
+		{
+			if (!M->NodeName(K).StartsWith(Id + TEXT("/CAB:"))) continue;
+			const TPair<UInstancedStaticMeshComponent*, int32> In = M->NodeInstance(K);
+			if (!In.Key || In.Value == INDEX_NONE || !In.Key->GetStaticMesh()) continue;
+			FTransform PT; In.Key->GetInstanceTransform(In.Value, PT, false); Bb += In.Key->GetStaticMesh()->GetBoundingBox().TransformBy(PT);
+		}
+		if (Bb.IsValid) BodyMid = Bb.GetCenter();
+		TArray<int32> T2; const int32 Cf = M->NodeIndex(Id + TEXT("/CAB-FRONT")); if (Cf != INDEX_NONE) T2.Add(Cf);
+		while (T2.Num()) { const int32 I = T2.Pop(); T2.Append(M->NodeKids(I)); const TPair<UInstancedStaticMeshComponent*, int32> In = M->NodeInstance(I); if (!In.Key || In.Value == INDEX_NONE || !In.Key->GetStaticMesh()) continue; FTransform PT; In.Key->GetInstanceTransform(In.Value, PT, false); Fb += In.Key->GetStaticMesh()->GetBoundingBox().TransformBy(PT); }
+		ADP_LOG(TEXT("Jetways: %s cab body box %s .. %s; front frame box %s .. %s; sleeve at %s; cab node at %s"), *Id, *Bb.Min.ToString(), *Bb.Max.ToString(), *Fb.Min.ToString(), *Fb.Max.ToString(), *R.G[CabSleeve].Docked.GetLocation().ToString(), *CabL.ToString());
+	}
+	// the front: the way his CAB-FRONT part's own place lies from the cab's (the owner's picture, 2026-11-16: with this
+	// way the lights stood right on the rubber seal - so this is the front; they go 80 cm further back, on the metal)
+	FVector F = Fr != INDEX_NONE ? (M->NodeModel(Fr).GetLocation() - CabL).GetSafeNormal2D() : FVector::ZeroVector; if (F.IsNearlyZero()) F = R.DirD;
+	(void)Seal; (void)NSeal;
+	// the cab's whole outline along that way (all its parts: the seal at the very front)
+	float FAll = -1e9f, LA0 = 1e9f, LA1 = -1e9f;
+	for (const FPart& P : R.G[Cab].Parts)
+	{
+		if (!P.K || !P.K->GetStaticMesh()) continue;
+		const FBox B = P.K->GetStaticMesh()->GetBoundingBox();
+		for (int32 c = 0; c < 8; ++c)
+		{
+			const FVector V = P.Docked.TransformPosition(FVector(c & 1 ? B.Max.X : B.Min.X, c & 2 ? B.Max.Y : B.Min.Y, c & 4 ? B.Max.Z : B.Min.Z)) - CabL;
+			FAll = FMath::Max(FAll, (float)FVector::DotProduct(V, F));
+			const float b = FVector::DotProduct(V, FVector(-F.Y, F.X, 0.f)); LA0 = FMath::Min(LA0, b); LA1 = FMath::Max(LA1, b);
+		}
+	}
+	const FVector L(-F.Y, F.X, 0.f);
+	// the cab's own metal body only (the meshes straight under J-n/CAB: not its front frame, the rubber canopy or the
+	// doors), so the roof lights stand on the metal housing just behind the rubber seal (owner, 2026-11-16)
+	float F0 = 1e9f, F1 = -1e9f, L0 = 1e9f, L1 = -1e9f, Z0 = 1e9f, Z1 = -1e9f;
+	const int32 CabN = M->NodeIndex(Id + TEXT("/CAB"));
+	if (CabN != INDEX_NONE)
+		for (const int32 K : M->NodeKids(CabN))
+		{
+			if (!M->NodeName(K).StartsWith(Id + TEXT("/CAB:"))) continue;
+			const TPair<UInstancedStaticMeshComponent*, int32> In = M->NodeInstance(K);
+			if (!In.Key || In.Value == INDEX_NONE || !In.Key->GetStaticMesh()) continue;
+			FTransform PT; In.Key->GetInstanceTransform(In.Value, PT, false);
+			const FBox B = In.Key->GetStaticMesh()->GetBoundingBox();
+			for (int32 c = 0; c < 8; ++c)
+			{
+				const FVector V = PT.TransformPosition(FVector(c & 1 ? B.Max.X : B.Min.X, c & 2 ? B.Max.Y : B.Min.Y, c & 4 ? B.Max.Z : B.Min.Z)) - CabL;
+				const float a = FVector::DotProduct(V, F), b = FVector::DotProduct(V, L);
+				F0 = FMath::Min(F0, a); F1 = FMath::Max(F1, a); L0 = FMath::Min(L0, b); L1 = FMath::Max(L1, b); Z0 = FMath::Min(Z0, (float)V.Z); Z1 = FMath::Max(Z1, (float)V.Z);
+			}
+		}
+	if (F1 < F0) { ADP_WARN(TEXT("Jetways: %s - no cab body meshes found for the beacons"), *Id); return; }
+	// where the seal's frame starts, going forward (the lights stand on the metal 25 cm behind it: owner)
+	float SealA = F1;
+	if (Fb.IsValid) { SealA = 1e9f; for (int32 c = 0; c < 8; ++c) SealA = FMath::Min(SealA, (float)FVector::DotProduct(FVector(c & 1 ? Fb.Max.X : Fb.Min.X, c & 2 ? Fb.Max.Y : Fb.Min.Y, 0.f) - FVector(CabL.X, CabL.Y, 0.f), F)); }
+	const FTransform W = Host->GetComponentTransform();
+	FCollisionQueryParams Q(SCENE_QUERY_STAT(JetwayBeacon), true);
+	// the jetway's own surface (its model only) straight down (Dir -1) or up (+1) from a point (local): its local z
+	auto Hit = [&](const FVector& Local, float Dir, float& Z) -> bool
+	{
+		TArray<FHitResult> Hs; const FVector A = W.TransformPosition(Local), B2 = W.TransformPosition(Local + FVector(0, 0, Dir * 400.f));
+		GetWorld()->LineTraceMultiByChannel(Hs, A, B2, ECC_Visibility, Q);
+		for (const FHitResult& H : Hs) if (H.GetActor() == Host->GetOwner()) { Z = W.InverseTransformPosition(H.ImpactPoint).Z; return true; }
+		FHitResult H1; FCollisionQueryParams Q2 = Q; for (int32 k = 0; k < 6; ++k)
+		{
+			if (!GetWorld()->LineTraceSingleByChannel(H1, A, B2, ECC_Visibility, Q2)) break;
+			if (H1.GetActor() == Host->GetOwner()) { Z = W.InverseTransformPosition(H1.ImpactPoint).Z; return true; }
+			Q2.AddIgnoredActor(H1.GetActor());
+		}
+		return false;
+	};
+	// the copies, one list per kind (each kind its own lens colour): the yellow lamp underneath (R.Bcn, also the parent
+	// the lights hang on), the red lamps on the roof, the yellow bar over the doorway
+	static UStaticMesh* BarMesh = ADPKeep(LoadObject<UStaticMesh>(nullptr, TEXT("/Game/JetwayBeacon/SM_JwLightBar.SM_JwLightBar")));
+	static UMaterialInterface* RedLens = ADPKeep(LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/JetwayBeacon/MI_JwBeaconLensRed.MI_JwBeaconLensRed")));
+	auto MakeK = [&](UStaticMesh* Me) -> UInstancedStaticMeshComponent*
+	{
+		if (!Me) return nullptr;
+		UInstancedStaticMeshComponent* K = NewObject<UInstancedStaticMeshComponent>(this);
+		K->SetStaticMesh(Me); K->SetMobility(EComponentMobility::Movable);
+		K->SetupAttachment(Host); K->SetRelativeTransform(FTransform::Identity);
+		K->SetNumCustomDataFloats(1); K->SetCastShadow(true);
+		K->RegisterComponent();
+		return K;
+	};
+	static UStaticMesh* RedMesh = ADPKeep(LoadObject<UStaticMesh>(nullptr, TEXT("/Game/JetwayBeacon/SM_JwBeaconRed.SM_JwBeaconRed")));
+	R.Bcn = MakeK(Mesh); R.BcnRed = MakeK(RedMesh ? RedMesh : Mesh); R.Bar = MakeK(BarMesh);
+	if (R.BcnRed && RedLens) for (int32 Sl = 0; Sl < R.BcnRed->GetNumMaterials(); ++Sl) if (R.BcnRed->GetMaterial(Sl) && R.BcnRed->GetMaterial(Sl)->GetName().Contains(TEXT("Lens"))) R.BcnRed->SetMaterial(Sl, RedLens);
+	const FLinearColor Amber(1.f, 0.30f, 0.0f), Red(1.f, 0.0f, 0.0f);
+	for (int32 b = 0; b < 4; ++b)
+	{
+		const bool bUnder = b == 2, bBar = b == 3;
+		UInstancedStaticMeshComponent* K = bBar ? R.Bar : bUnder ? R.Bcn : R.BcnRed;
+		if (!K) continue;
+		// the roof lamps: on the metal housing just behind the rubber seal (the body's front edge, the seal beyond it),
+		// as far out to each side as the roof goes there; the one underneath in the middle of the cab's underside; the
+		// bar on the doorway frame's face, over the door, across the cab
+		FVector P = CabL; bool bFound = false; float Zh = 0.f; FQuat Rot = FQuat::Identity;
+		if (bUnder) { P = CabL + F * ((F0 + F1) / 2) + L * ((L0 + L1) / 2); bFound = Hit(FVector(P.X, P.Y, CabL.Z + Z0 - 60.f), 1.f, Zh); P.Z = Zh; Rot = FQuat(F, PI); }
+		else if (bBar)
+		{
+			const FVector From = CabL + F * (FAll + 120.f) + L * ((LA0 + LA1) / 2) + FVector(0, 0, 230.f);
+			TArray<FHitResult> Hs; GetWorld()->LineTraceMultiByChannel(Hs, W.TransformPosition(From), W.TransformPosition(From - F * 400.f), ECC_Visibility, Q);
+			for (const FHitResult& H : Hs) if (H.GetActor() == Host->GetOwner()) { P = W.InverseTransformPosition(H.ImpactPoint) + F * 0.5f; bFound = true; break; }
+			Rot = FRotator(0.f, FMath::RadiansToDegrees(FMath::Atan2(L.Y, L.X)), 0.f).Quaternion();   // (its length across the cab, its lens facing out)
+		}
+		else
+		{
+			for (float a = F1 - 70.f; !bFound && a > F1 - 220.f; a -= 15.f)   // (50 cm clear of the bellows behind: the cab turns - owner)
+				for (float In = 30.f; !bFound && In < (L1 - L0) / 2; In += 10.f)
+				{
+					P = CabL + F * a + L * (b == 0 ? L0 + In : L1 - In);
+					bFound = Hit(FVector(P.X, P.Y, CabL.Z + Z1 + 60.f), -1.f, Zh) && Zh > CabL.Z + Z1 - 40.f;   // (the roof itself, not the floor through a gap at its edge)
+				}
+			P.Z = Zh;
+		}
+		if (!bFound) { ADP_WARN(TEXT("Jetways: %s lamp %d - no place found on the cab, left out"), *Id, b); continue; }
+		const FTransform T(Rot, P, FVector(bBar ? 1.f : 1.5f));   // (the lamps half as big again: owner)
+		ADP_LOG(TEXT("Jetways: %s lamp %d (%s) at %s"), *Id, b, bBar ? TEXT("bar") : bUnder ? TEXT("under, yellow") : TEXT("roof, red"), *P.ToString());
+		const int32 Ix = K->AddInstance(T, false);
+		R.BcnK.Add(K); R.BcnIx.Add(Ix); R.BcnSide.Add(uint8(b == 1 ? 1 : 0)); R.BcnKind.Add(uint8(bBar ? 2 : bUnder ? 1 : 0));
+		FPart Pt; Pt.K = K; Pt.Ix = Ix; Pt.Docked = T; R.G[Cab].Parts.Add(Pt);
+		// the light each throws: the lamps a turning beam (his generator: 75 turns a minute), the bar a beam ahead and
+		// down from the doorway; all with shadows, so nothing shines through the cab's walls and roof into it (owner)
+		USpotLightComponent* Sp = NewObject<USpotLightComponent>(this);
+		Sp->SetOuterConeAngle(bBar ? 60.f : bUnder ? 38.f : 30.f); Sp->SetInnerConeAngle(bBar ? 30.f : bUnder ? 16.f : 10.f);
+		Sp->SetupAttachment(R.Bcn);
+		Sp->SetRelativeLocation(bBar ? T.TransformPosition(FVector(0.f, -14.f, 0.f)) : T.TransformPosition(FVector(0, 0, 70.f)));
+		if (bBar) Sp->SetRelativeRotation(FRotator(-30.f, FMath::RadiansToDegrees(FMath::Atan2(F.Y, F.X)), 0.f));
+		Sp->SetIntensityUnits(ELightUnits::Lumens); Sp->SetIntensity(bBar ? 1200.f : bUnder ? 3600.f : 9000.f); Sp->SetLightColor(bUnder || bBar ? Amber : Red);   // (the yellow pools on the apron 60 % less: owner)
+		Sp->SetAttenuationRadius(bBar ? 900.f : bUnder ? 1200.f : 2800.f); Sp->SetCastShadows(true); Sp->SetVisibility(false); Sp->RegisterComponent();
+		// the roof lamps' faint glow on the roof round them (owner: much fainter than on the ground)
+		UPointLightComponent* Fill = nullptr;
+		if (!bUnder && !bBar)
+		{
+			Fill = NewObject<UPointLightComponent>(this); Fill->SetupAttachment(R.Bcn);
+			Fill->SetRelativeLocation(T.TransformPosition(FVector(0, 0, 50.f)));
+			Fill->SetIntensityUnits(ELightUnits::Lumens); Fill->SetIntensity(350.f); Fill->SetLightColor(Red);
+			Fill->SetAttenuationRadius(320.f); Fill->SetSourceRadius(8.f); Fill->SetSpecularScale(0.3f); Fill->SetCastShadows(true); Fill->SetVisibility(false); Fill->RegisterComponent();
+		}
+		R.BcnGlow.Add(nullptr); R.BcnLight.Add(Sp); R.BcnFill.Add(Fill);
+		K->SetCustomDataValue(Ix, 0, 0.f, false);
+	}
+	if (R.Bcn) R.Bcn->MarkRenderStateDirty(); if (R.BcnRed) R.BcnRed->MarkRenderStateDirty(); if (R.Bar) R.Bar->MarkRenderStateDirty();
+	ADP_LOG(TEXT("Jetways: %s lamps - two red on the cab's roof, one yellow under it, the yellow bar over the doorway (cab %.1f x %.1f m)"), *Id, (F1 - F0) / 100.f, (L1 - L0) / 100.f);
+}
+
+void AJetwayRigs::Beacons(FRig& R, bool bMoving)
+{
+	// turning beacons (owner: "they should have a beacon effect" - his generator's turn, 75 times a minute): each lamp's
+	// beam sweeps round, the two on the roof opposite each other; the dome flashes bright as the beam passes the eye and
+	// glows softly between; the one underneath sweeps the apron below. The bar over the doorway is lit steadily (as on
+	// the real jetway the owner showed). All dark when the jetway stands still.
+	if (!R.BcnK.Num()) return;
+	if (!bMoving && !R.bBcnOn) return;
+	const APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+	const FVector Eye = PC && PC->PlayerCameraManager ? PC->PlayerCameraManager->GetCameraLocation() : FVector::ZeroVector;
+	const float Turn = FMath::Fmod(BcnClock * 75.f / 60.f, 1.f) * 360.f;
+	const float C = FMath::Fmod(BcnClock, 0.75f) / 0.75f * 0.75f;
+	const bool bDouble = (C < 0.06f) || (C > 0.11f && C < 0.17f);
+	for (int32 b = 0; b < R.BcnK.Num(); ++b)
+	{
+		const uint8 Kind = R.BcnKind[b];
+		const bool bOn = bMoving && BeaconForce != 0;
+		float Lens = 0.f; bool bLit = bOn;
+		(void)bDouble;
+		if (Kind == 2) { Lens = 1.f; }   // (the bar: steadily lit while the jetway moves - owner: it doesn't flash)
+		else if (USpotLightComponent* Sp = Cast<USpotLightComponent>(R.BcnLight[b]))
+		{
+			Sp->SetRelativeRotation(FRotator(Kind == 1 ? -40.f : -8.f, Turn + (R.BcnSide[b] ? 180.f : 0.f) + (Kind == 1 ? 90.f : 0.f), 0.f));
+			// how straight the beam looks at you: the dome's flash
+			const FVector Dir = Sp->GetForwardVector(), To = (Eye - Sp->GetComponentLocation()).GetSafeNormal2D();
+			const float Face = FMath::Max(0.f, (float)FVector::DotProduct(Dir.GetSafeNormal2D(), To));
+			Lens = BeaconForce == 1 ? 1.f : 0.25f + 0.75f * FMath::Pow(Face, 6.f);
+		}
+		R.BcnK[b]->SetCustomDataValue(R.BcnIx[b], 0, bOn ? Lens : 0.f, true);
+		if (R.BcnLight[b] && R.BcnLight[b]->IsVisible() != bLit) R.BcnLight[b]->SetVisibility(bLit);
+		if (UPointLightComponent* Fl = R.BcnFill.IsValidIndex(b) ? Cast<UPointLightComponent>(R.BcnFill[b]) : nullptr)
+		{
+			if (Fl->IsVisible() != bOn) Fl->SetVisibility(bOn);
+			if (bOn) Fl->SetIntensity(350.f * (0.5f + 0.5f * Lens));   // (pulsing faintly with the turning lamp)
+		}
+	}
+	R.bBcnOn = bMoving;
+}
+
+void AJetwayRigs::AddSignLights(FRig& R, ABabylonModel* M, const FString& Id)
+{
+	// the gate-number sign (J-n/GATE-NUMBER on the cab's roof): its own face glowing faintly - the blue board in its own
+	// blue, the number picture from its own picture - far weaker than the beacons, no lamp, no spot on it (owner,
+	// 2026-11-16). The terminal's materials glow by EmissiveTexture x EC x EB: the face's own colour and picture fed in.
+	TSet<UInstancedStaticMeshComponent*> Done;
+	for (int32 I = 0; I < M->NodeCount(); ++I)
+	{
+		if (!M->NodeName(I).StartsWith(Id + TEXT("/GATE-NUMBER"))) continue;
+		const TPair<UInstancedStaticMeshComponent*, int32> In = M->NodeInstance(I);
+		if (!In.Key || Done.Contains(In.Key)) continue;
+		Done.Add(In.Key);
+		for (int32 m = 0; m < In.Key->GetNumMaterials(); ++m)
+		{
+			UMaterialInterface* Mi = In.Key->GetMaterial(m);
+			if (!Mi || Mi->GetName().Contains(TEXT("AluB"))) continue;   // (the frame and posts stay plain metal)
+			UMaterialInstanceDynamic* D = In.Key->CreateDynamicMaterialInstance(m, Mi);
+			if (!D) continue;
+			FLinearColor Bc(1, 1, 1, 1); D->GetVectorParameterValue(FHashedMaterialParameterInfo(TEXT("BC")), Bc);
+			UTexture* Base = nullptr; D->GetTextureParameterValue(FHashedMaterialParameterInfo(TEXT("Base")), Base);
+			if (Base) D->SetTextureParameterValue(TEXT("Emi"), Base);
+			D->SetVectorParameterValue(TEXT("EC"), Bc);
+			D->SetScalarParameterValue(TEXT("EB"), SignGlow);
+		}
+	}
+	ADP_LOG(TEXT("Jetways: %s gate sign glowing faintly (%d parts)"), *Id, Done.Num());
 }

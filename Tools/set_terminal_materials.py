@@ -84,6 +84,7 @@ if (DS > 0)
 }
 return n;
 """
+JW_OUTSIDE, JW_OUTSIDE_DIM = ('jwCladMid', 'jwCladTop', 'jwCladBot', 'jwCladEnd', 'jwRoof', 'jwUnder'), 0.72
 CODE_EMIT = UVX + r"""
 return Emi.Sample(EmiSampler, uv).rgb * EC.rgb * EB;
 """
@@ -309,6 +310,10 @@ for p in eal.list_assets(OLD + '/Materials', recursive=False, include_folder=Fal
     if not mi: mi = at.create_asset('MI_T_' + name, T + '/Materials', unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
     mel.set_material_instance_parent(mi, MS[k])
     bc = vparam(old, 'BaseColorFactor', (1, 1, 1, 1))
+    # the jetways' OUTSIDE skins a little less bright (owner, 2026-11-16: washed out under the floodlights - a real
+    # white paint reflects about 80 %, not all of it); the inside (walls, ceiling, slats, carpet, floor) stays bright.
+    # (the jetways' outside panels and walls - those finishes are used inside too - get dimmed copies in the game: AJetwayRigs)
+    if name in JW_OUTSIDE: bc = tuple(c * JW_OUTSIDE_DIM for c in bc[:3]) + (bc[3],)
     if k[0].startswith('unlit'):
         hx = re.match(r'^l_([0-9A-Fa-f]{2,6})', name)
         if hx:                                    # a lamp named by its colour (l_FFF4D8): that colour, full

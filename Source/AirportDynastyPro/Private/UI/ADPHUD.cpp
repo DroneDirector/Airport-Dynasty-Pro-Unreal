@@ -1,6 +1,7 @@
 // The walking-mode interface: the holographic map, the top-left bar, Hide UI, the settings panel and the performance
 // overlay, all in Slate, styled in the Android edition's holographic blues.
 #include "UI/ADPHUD.h"
+#include "JetwayRigs.h"
 #include "Pets.h"
 #include "ADPGameMode.h"
 #include "GameFramework/Character.h"
@@ -2596,6 +2597,80 @@ void AADPHUD::Tick(float Dt)
 			}
 			if (Before < 47.f && ShotClock >= 47.f) ADP_SHOT_EXIT();
 		}
+		// -UIJetwayBeacons (owner, 2026-11-16: previews of the jetways' new warning beacons, by day and at night): jetway 1
+		// pulled back to its rest place, its beacons flashing; pictures at 12:00 and 21:00 from beside the cab, from the
+		// apron below it and from further off (the lights held on a flash for the pictures)
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIJetwayBeacons")))
+		{
+			APlayerController* PC = GetOwningPlayerController();
+			AJetwayRigs* JR = AJetwayRigs::Get(GetWorld());
+			static TWeakObjectPtr<ACameraActor> BCam;
+			auto Aim = [&](int32 V)
+			{
+				FVector Ro, Dr; if (!PC || !JR || !JR->Frame(0, Ro, Dr)) return;
+				const FVector Con = JR->Console(0), Dir = (Dr - Ro).GetSafeNormal2D(), Perp(-Dir.Y, Dir.X, 0.f);
+				const FVector Eye = V == 3 ? Con + Dir * 450.f - Perp * 650.f + FVector(0, 0, 550.f) : V == 0 ? Con + Dir * 650.f + Perp * 650.f + FVector(0, 0, 200.f) : V == 1 ? Con + Dir * 350.f + Perp * 700.f + FVector(0, 0, -400.f) : Con + Dir * 1600.f + Perp * 2600.f + FVector(0, 0, 600.f);
+				FVector At = V == 1 ? Con + FVector(0, 0, -150.f) : V == 3 ? Con + FVector(0, 0, 280.f) : Con + FVector(0, 0, 120.f);
+				if (V == 1) { FHitResult H; FVector E2 = Eye; if (GetWorld()->LineTraceSingleByChannel(H, Eye + FVector(0, 0, 300.f), Eye - FVector(0, 0, 3000.f), ECC_Visibility)) { E2.Z = H.ImpactPoint.Z + 160.f; } At = Con - Dir * 100.f + FVector(0, 0, -200.f); const_cast<FVector&>(Eye) = E2; }
+				if (!BCam.IsValid()) BCam = GetWorld()->SpawnActor<ACameraActor>(Eye, (At - Eye).Rotation());
+				if (BCam.IsValid()) { BCam->SetActorLocationAndRotation(Eye, (At - Eye).Rotation()); BCam->GetCameraComponent()->SetConstraintAspectRatio(false); BCam->GetCameraComponent()->SetFieldOfView(V == 2 ? 55.f : 70.f); PC->SetViewTarget(BCam.Get()); }
+			};
+			auto Shot = [&](const TCHAR* N) { FScreenshotRequest::RequestScreenshot(FString::Printf(TEXT("Beacon-%s"), N), false, false); };
+			if (Before < 40.f && ShotClock >= 40.f && bGame) ToggleGame();
+			if (Before < 42.f && ShotClock >= 42.f) { ASunClock::HourOverride = 12.f; ASunClock::Refresh(); }
+			if (Before < 46.f && ShotClock >= 46.f && JR) { AJetwayRigs::Speed = 60.f; JR->Undock(0); AJetwayRigs::bBeaconTest = true; }
+			if (Before < 56.f && ShotClock >= 56.f) { AJetwayRigs::BeaconForce = 1; Aim(0); }
+			if (Before < 59.f && ShotClock >= 59.f) Shot(TEXT("day-1-cab"));
+			if (Before < 60.f && ShotClock >= 60.f) Aim(1);
+			if (Before < 63.f && ShotClock >= 63.f) Shot(TEXT("day-2-below"));
+			if (Before < 63.5f && ShotClock >= 63.5f) Aim(3);
+			if (Before < 66.f && ShotClock >= 66.f) Shot(TEXT("day-3-roof"));
+			if (Before < 67.f && ShotClock >= 67.f) { ASunClock::HourOverride = 21.f; ASunClock::Refresh(); Aim(3); }
+			if (Before < 68.5f && ShotClock >= 68.5f) Shot(TEXT("night-0-roof"));
+			if (Before < 68.6f && ShotClock >= 68.6f) Aim(0);
+			if (Before < 70.f && ShotClock >= 70.f) Shot(TEXT("night-1-cab"));
+			if (Before < 70.5f && ShotClock >= 70.5f) Aim(1);
+			if (Before < 73.f && ShotClock >= 73.f) Shot(TEXT("night-2-below"));
+			if (Before < 74.f && ShotClock >= 74.f) Aim(2);
+			if (Before < 77.f && ShotClock >= 77.f) Shot(TEXT("night-3-far"));
+			if (Before < 78.f && ShotClock >= 78.f) AJetwayRigs::BeaconForce = 0;
+			if (Before < 80.f && ShotClock >= 80.f) Shot(TEXT("night-4-far-dark-between-flashes"));
+			if (Before < 83.f && ShotClock >= 83.f) ADP_SHOT_EXIT();
+		}
+		// -UIJetwayTest (owner, 2026-11-16: the jetways dock): jetway 1 at 10x speed pulls back from the aircraft to its rest
+		// place and drives out again; pictures from the side and from above as it goes
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIJetwayTest")))
+		{
+			APlayerController* PC = GetOwningPlayerController();
+			AJetwayRigs* JR = AJetwayRigs::Get(GetWorld());
+			static TWeakObjectPtr<ACameraActor> JCam; static int32 View = 0;
+			if (Before < 40.f && ShotClock >= 40.f && bGame) ToggleGame();
+			auto Aim = [&](int32 V)
+			{
+				FVector Ro, Dr; if (!PC || !JR || !JR->Frame(0, Ro, Dr)) return;
+				const FVector M = (Ro + Dr) / 2, Dir = (Dr - Ro).GetSafeNormal2D(), Perp(-Dir.Y, Dir.X, 0.f);
+				const FVector Eye = V == 0 ? M + Perp * 3200.f + FVector(0, 0, 1400.f) : V == 1 ? M - Perp * 3200.f + FVector(0, 0, 1400.f) : M + FVector(0, 0, 4500.f) - Dir * 100.f;
+				if (!JCam.IsValid()) JCam = GetWorld()->SpawnActor<ACameraActor>(Eye, (M - Eye).Rotation());
+				if (JCam.IsValid()) { JCam->SetActorLocationAndRotation(Eye, (M - Eye).Rotation()); JCam->GetCameraComponent()->SetConstraintAspectRatio(false); JCam->GetCameraComponent()->SetFieldOfView(70.f); PC->SetViewTarget(JCam.Get()); }
+			};
+			auto Shot = [&](const TCHAR* N) { FScreenshotRequest::RequestScreenshot(FString::Printf(TEXT("Jetway-%s"), N), false, false); };
+			if (Before < 50.f && ShotClock >= 50.f) { ADP_LOG(TEXT("UIJetwayTest: %d jetways rigged"), JR ? JR->Num() : 0); Aim(0); }
+			if (Before < 53.f && ShotClock >= 53.f) Shot(TEXT("1-docked-sideA"));
+			if (Before < 54.f && ShotClock >= 54.f) Aim(1);
+			if (Before < 56.f && ShotClock >= 56.f) Shot(TEXT("2-docked-sideB"));
+			if (Before < 57.f && ShotClock >= 57.f) Aim(2);
+			if (Before < 59.f && ShotClock >= 59.f) { Shot(TEXT("3-docked-above")); }
+			if (Before < 60.f && ShotClock >= 60.f && JR) { AJetwayRigs::Speed = 10.f; JR->Undock(0); Aim(0); }
+			if (Before < 64.f && ShotClock >= 64.f) Shot(TEXT("4-pulling-back"));
+			if (Before < 72.f && ShotClock >= 72.f) Shot(TEXT("5-rest-sideA"));
+			if (Before < 73.f && ShotClock >= 73.f) Aim(2);
+			if (Before < 75.f && ShotClock >= 75.f) Shot(TEXT("6-rest-above"));
+			if (Before < 76.f && ShotClock >= 76.f && JR) { JR->Dock(0); Aim(0); }
+			if (Before < 82.f && ShotClock >= 82.f) Shot(TEXT("7-driving-out"));
+			if (Before < 86.f && ShotClock >= 86.f) Shot(TEXT("8-crawl"));
+			if (Before < 92.f && ShotClock >= 92.f) Shot(TEXT("9-docked-again"));
+			if (Before < 95.f && ShotClock >= 95.f) ADP_SHOT_EXIT();
+		}
 		// -UIEscShots (owner, 2026-11-16: four escalators, the pair copied beside itself): pictures of them from the Grand
 		// Hall, from the landing, from the side and at the guardrail's gap (plan metres: x = Unreal X, plan z = -Unreal Y)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIEscShots")))
@@ -4229,7 +4304,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIPetStep")) && !FParse::Param(FCommandLine::Get(), TEXT("UIUpdateSim")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBootShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIContinueShots")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UIPlanView=")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfStand")) && !FParse::Param(FCommandLine::Get(), TEXT("UISettingsShot")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanelUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoad")) && !FParse::Param(FCommandLine::Get(), TEXT("UIKiosk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) ADP_SHOT_EXIT();
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIPetStep")) && !FParse::Param(FCommandLine::Get(), TEXT("UIUpdateSim")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBootShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIContinueShots")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UIPlanView=")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayTest")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayBeacons")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfStand")) && !FParse::Param(FCommandLine::Get(), TEXT("UISettingsShot")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanelUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoad")) && !FParse::Param(FCommandLine::Get(), TEXT("UIKiosk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) ADP_SHOT_EXIT();
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are
