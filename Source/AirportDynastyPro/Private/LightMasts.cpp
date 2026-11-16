@@ -16,6 +16,7 @@
 #include "SunClock.h"
 #include "Airfield.h"
 #include "Hangar.h"
+#include "LampFlares.h"
 
 namespace
 {
@@ -113,6 +114,7 @@ void ALightMasts::Build()
 			AddInstanceComponent(L);
 			Lights.Add(L);
 			LightMast.Add(MastNo);
+			if (ALampFlares* LF = ALampFlares::Get(GetWorld())) LF->Add(L, FLinearColor(1.f, 0.86f, 0.68f), 0.04f);   // (our own flare, LampFlares.h)
 		}
 		++MastNo;
 	}
@@ -166,7 +168,7 @@ void ALightMasts::Tick(float Dt)
 			{
 				static float FlareCheck = 0.f; static bool bFlares = true;
 				if ((FlareCheck -= GetWorld()->GetDeltaSeconds()) <= 0.f) { FlareCheck = 1.f; bFlares = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("LampFlares"), bFlares, GGameUserSettingsIni); }   // (off unless switched on: Unreal's flares ghost)
-				const float Want = bFlares ? 0.16f * Night : 0.f;   // (subtle: lit walls must never ghost)
+				const float Want = 0.f * (bFlares ? Night : 0.f);   // (Unreal's camera flares ghost: off for good - our own, LampFlares.h, take their place)
 				if (!It->Settings.bOverride_LensFlareIntensity || FMath::Abs(It->Settings.LensFlareIntensity - Want) > 0.01f)
 				{
 					It->Settings.bOverride_LensFlareIntensity = true; It->Settings.LensFlareIntensity = Want;

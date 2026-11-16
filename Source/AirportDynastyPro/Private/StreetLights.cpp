@@ -1,4 +1,5 @@
 // The roads' street lights (StreetLights.h).
+#include "LampFlares.h"
 #include "StreetLights.h"
 #include "PerfLog.h"
 #include "ADPLog.h"
@@ -96,6 +97,7 @@ bool AStreetLights::AddPost(const FVector& At, const FVector& Toward)
 	L->RegisterComponent();
 	AddInstanceComponent(L);
 	Lights.Add(L);
+	if (ALampFlares* LF = ALampFlares::Get(GetWorld())) LF->Add(L, FLinearColor(1.f, 0.82f, 0.6f), 0.028f);   // (our own flare, LampFlares.h)
 	++Count;
 	return true;
 }
