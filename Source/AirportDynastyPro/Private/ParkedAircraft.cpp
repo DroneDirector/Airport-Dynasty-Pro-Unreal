@@ -1,5 +1,7 @@
 // The aircraft parked at the terminal's gates (ParkedAircraft.h).
 #include "ParkedAircraft.h"
+#include "Components/MaterialBillboardComponent.h"
+#include "ADPKeep.h"
 #include "ADPLog.h"
 #include "Airfield.h"
 #include "BabylonModel.h"
@@ -44,6 +46,19 @@ namespace ADPParked
 			ABabylonModel* M = W->SpawnActor<ABabylonModel>(FTerminalPlan::ToWorld(Gx, 0.f, Gy) + FVector(0, 0, Z * 100.0), FRotator(0, Yaw, 0), S);
 			if (!M || !M->Place(TEXT("A320"))) { if (M) M->Destroy(); ADP_ERROR(TEXT("Parked aircraft: the A320 is missing (Tools/import_model.py)")); return N; }
 			M->Tags.Add(FName(*(St.Id + TEXT("/A320"))));
+			// heat haze behind the APU's exhaust at the tip of the tail cone (to-do 22b: the APU runs while it stands at the
+			// gate): a shimmer of hot air, rising (M_HeatHaze). The model's nose is the actor's +Y; the A320 is 37.6 m long,
+			// its nose tyre 5.1 m behind the nose, so the exhaust is about 32.5 m behind the nose tyre, 5 m up
+			static UMaterialInterface* Haze = ADPKeep(LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/Effects/M_HeatHaze.M_HeatHaze")));
+			if (Haze)
+			{
+				UMaterialBillboardComponent* Hz = NewObject<UMaterialBillboardComponent>(M);
+				Hz->SetupAttachment(M->GetRootComponent());
+				Hz->SetRelativeLocation(FVector(0.f, 3520.f, 500.f));   // (the loader turns the model half round on the actor: its tail is the actor's +Y)
+				Hz->AddElement(Haze, nullptr, false, 210.f, 170.f, nullptr);
+				Hz->SetCastShadow(false);
+				Hz->RegisterComponent();
+			}
 			++N;
 		}
 		ADP_LOG(TEXT("Parked aircraft: %d A320s at the terminal's stands, nose tyres on their stop bars"), N);
