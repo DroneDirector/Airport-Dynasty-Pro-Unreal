@@ -2,6 +2,8 @@
 // overlay, all in Slate, styled in the Android edition's holographic blues.
 #include "UI/ADPHUD.h"
 #include "JetwayRigs.h"
+#include "People.h"
+#include "TerminalPlan.h"
 #include "Pets.h"
 #include "ADPGameMode.h"
 #include "GameFramework/Character.h"
@@ -305,7 +307,7 @@ namespace
 void AADPHUD::BeginPlay()
 {
 	// the thin glow round what you can use (InteractOutline.h)
-	if (UWorld* W = GetWorld()) { W->SpawnActor<AInteractOutline>(); W->SpawnActor<ASeats>(); W->SpawnActor<ADoorPanelUse>(); }
+	if (UWorld* W = GetWorld()) { W->SpawnActor<AInteractOutline>(); W->SpawnActor<ASeats>(); W->SpawnActor<ADoorPanelUse>(); AADPPeople::Get(W); }
 	Super::BeginPlay();
 	Current = this;
 	// indoors the shadows are lifted: where the lamps don't reach it is only about a quarter dark (the owner's choice,
@@ -588,6 +590,35 @@ void AADPHUD::BeginPlay()
 				]
 			]
 		]
+		// talking to someone (People.h): their name and what they do, what they say, up to 8 choices
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
+		[
+			SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(Panel).Padding(FMargin(22, 16))
+			.Visibility_Lambda([this]() { AADPPeople* Pp = AADPPeople::Get(GetWorld()); return Pp && Pp->MenuOpen() && !bGame ? EVisibility::Visible : EVisibility::Collapsed; })
+			[
+				SNew(SBox).WidthOverride(560.f)
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 0, 0, 6)
+					[SNew(STextBlock).Font(Font(13)).ColorAndOpacity(Ink).Text_Lambda([this]() { AADPPeople* Pp = AADPPeople::Get(GetWorld()); return FText::FromString(Pp ? Pp->MenuTitle : FString()); })]
+					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 12)
+					[SNew(STextBlock).Font(Font(10, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true).Justification(ETextJustify::Center).Text_Lambda([this]() { AADPPeople* Pp = AADPPeople::Get(GetWorld()); return FText::FromString(Pp ? Pp->MenuText : FString()); })]
+					+ SVerticalBox::Slot().AutoHeight()[SAssignNew(PeopleChoices, SVerticalBox)]
+					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 10, 0, 0)
+					[SNew(STextBlock).Font(Font(8, "Regular")).ColorAndOpacity(FLinearColor(0.6f, 0.68f, 0.78f)).Text(FText::FromString(TEXT("E or Esc: close")))]
+				]
+			]
+		]
+		// what's said within your hearing (People.h): who, the line, and how it is said (for the voices later)
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(FMargin(0, 0, 0, 120))
+		[
+			SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(FLinearColor(0.f, 0.f, 0.f, 0.55f)).Padding(FMargin(14, 6))
+			.Visibility_Lambda([this]() { AADPPeople* Pp = AADPPeople::Get(GetWorld()); return Pp && Pp->SubT > 0.f && !bGame ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+			[
+				SNew(STextBlock).Font(Font(12, "Regular")).ColorAndOpacity(FLinearColor::White).AutoWrapText(true).Justification(ETextJustify::Center)
+				.Text_Lambda([this]() { AADPPeople* Pp = AADPPeople::Get(GetWorld()); return FText::FromString(Pp ? FString::Printf(TEXT("%s:  %s   (%s)"), *Pp->SubWho, *Pp->SubLine, AADPPeople::ToneName(Pp->SubTone)) : FString()); })
+			]
+		]
 		// the jetway's control panel menu (E at the console in its cab): its state, Dock, Undock, Close
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
 		[
@@ -658,6 +689,7 @@ void AADPHUD::BeginPlay()
 			[SNew(STextBlock).Font(Font(12)).ColorAndOpacity(Ink).Text_Lambda([this]() { return FText::FromString(TEXT("ANNOUNCEMENT  ·  ") + CallText); })]
 		];
 
+	BuildPeopleChoices();
 	if (GEngine && GEngine->GameViewport) GEngine->GameViewport->AddViewportWidgetContent(Root.ToSharedRef(), 10);
 	// from launch until the menus' page is up: black, nothing of the airport (the page then shows the loading screen)
 	if (GEngine && GEngine->GameViewport && !FParse::Param(FCommandLine::Get(), TEXT("PhotoTour")))
@@ -1160,7 +1192,7 @@ void AADPHUD::UpdateMouse()
 {
 	APlayerController* PC = GetOwningPlayerController();
 	if (!PC) return;
-	const bool bFree = bGame || bDevice || bSettings || bWardrobe || bWhoAreYou || bPointer || bJetMenu || (HoloMap.IsValid() && HoloMap->IsFull());
+	const bool bFree = bGame || bDevice || bSettings || bWardrobe || bWhoAreYou || bPointer || bJetMenu || bPeopleMenuWas || (HoloMap.IsValid() && HoloMap->IsFull());
 	// (Unreal counts these calls: cleared first, so the view is never left locked by an earlier one)
 	PC->ResetIgnoreLookInput();
 	if (bPointer && !bGame) PC->SetIgnoreLookInput(true);
@@ -1542,6 +1574,7 @@ void AADPHUD::OnEscape()
 {
 	// the jetway's control panel menu: Esc closes it
 	if (bJetMenu) { CloseJetMenu(); return; }
+	if (AADPPeople* Pp = AADPPeople::Get(GetWorld())) if (Pp->MenuOpen()) { Pp->Close(); return; }
 	// at a door panel: Back takes your arm down and lets you go (DoorPanelUse.h)
 	if (ADoorPanelUse::Leave()) return;
 	if (bWhoAreYou) { CloseWhoAreYou(false); return; }
@@ -1649,6 +1682,8 @@ void AADPHUD::Interact()
 	if (Drone.IsValid()) return;   // (a drone presses nothing)
 	// the jetway's control panel menu open: E closes it (JetwayRigs.h)
 	if (bJetMenu) { CloseJetMenu(); return; }
+	// talking to someone: E closes it (People.h)
+	if (AADPPeople* Pp = AADPPeople::Get(GetWorld())) if (Pp->MenuOpen()) { Pp->Close(); return; }
 	// at a door panel: E / the left mouse button presses the button your finger is on (DoorPanelUse.h)
 	if (ADoorPanelUse::IsActive()) { ADoorPanelUse::Interact(GetOwningPawn(), nullptr); return; }
 	// sitting: E / X stands you up (Seats.h)
@@ -1668,6 +1703,8 @@ void AADPHUD::Interact()
 	}
 	if (GetWorld()->LineTraceSingleByChannel(Hit, Eye, Eye + Look.Vector() * InteractReach, ECC_Visibility, Q) && Hit.GetComponent())
 	{
+		// a person you look at: talk to them (People.h)
+		if (AADPPeople* Pp = AADPPeople::Get(GetWorld())) if (Pp->Find(Hit.GetActor())) { Pp->Open(Hit.GetActor()); return; }
 		// a fire truck within reach: you get in (FireTruck.h)
 		if (AFireTruck* T = AFireTruck::FromActor(Hit.GetActor())) { T->Enter(GetOwningPawn()); return; }
 		// the wash hose on the fire station's wall: its gun into your hand (E / X only, not a click)
@@ -1681,6 +1718,8 @@ void AADPHUD::Interact()
 		const FString N = Hit.GetComponent()->GetName();
 		if (N.Contains(TEXT("screenPanel")) || N.Contains(TEXT("black"))) { ToggleGame(); return; }
 	}
+	// a person right by you that you face: talk to them
+	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton)) if (AADPPeople* Pp = AADPPeople::Get(GetWorld())) if (AActor* Who = Pp->Beside(GetOwningPawn())) { Pp->Open(Who); return; }
 	// standing at a jetway's control panel (in its cab): its menu - Dock / Undock (owner, 2026-11-16)
 	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton))
 		if (AJetwayRigs* JR = AJetwayRigs::Get(GetWorld())) if (APawn* Me = GetOwningPawn())
@@ -2048,6 +2087,8 @@ void AADPHUD::Tick(float Dt)
 		else if (!bStuck && bShown && StuckFor == 0.f && !bPointer) UnstuckPanel->SetVisibility(EVisibility::Collapsed);
 	}
 	Super::Tick(Dt);
+	// the people menu opened or closed (by E, by walking away): the mouse pointer with it
+	if (AADPPeople* Pp = AADPPeople::Get(GetWorld())) if (Pp->MenuOpen() != bPeopleMenuWas) { bPeopleMenuWas = Pp->MenuOpen(); UpdateMouse(); }
 	// (the menus opened once the airport has loaded: a couple of frames after the loading frame, see BeginPlay)
 	if (bMenusPending && ++MenusWaitFrames >= 3) { bMenusPending = false; if (!bGame) ToggleGame(); }
 	// the controller to the menus' page whenever it changes (and once more, all released, when they close)
@@ -2660,6 +2701,38 @@ void AADPHUD::Tick(float Dt)
 					HoloMap.IsValid() ? (HoloMap->GetVisibility().IsVisible() ? TEXT("visible") : TEXT("hidden")) : TEXT("-"), HoloMap.IsValid() ? *HoloMap->GetCachedGeometry().GetLocalSize().ToString() : TEXT("-"));
 			}
 			if (Before < 47.f && ShotClock >= 47.f) ADP_SHOT_EXIT();
+		}
+		// -UIConduct (owner, 2026-11-16: talking to people and an unruly passenger, security, police, the stun gun): in the
+		// Grand Hall a passenger shouting; you talk (asked firmly - they won't listen), call security; security can't settle
+		// it, the police come, it turns violent - the last warning, "I will use force", the defiant reply, the stun gun,
+		// cuffs face down, lifted, escorted out. Every line and moment in the log; a picture every 12 s
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIConduct")))
+		{
+			APlayerController* PC = GetOwningPlayerController(); APawn* Me = GetOwningPawn();
+			AADPPeople* Pp = AADPPeople::Get(GetWorld());
+			static TWeakObjectPtr<AActor> Pax; static float ShotT = 0.f; static int32 ShotN = 0;
+			if (Before < 40.f && ShotClock >= 40.f && bGame) ToggleGame();
+			if (Before < 43.f && ShotClock >= 43.f && Me && PC && Pp)
+			{
+				const FVector At = FTerminalPlan::ToWorld(80.f, 0.f, 10.f), Ahead = FTerminalPlan::ToWorld(80.f, 0.f, 14.f);
+				Me->TeleportTo(At + FVector(0, 0, 100.f), (Ahead - At).Rotation()); PC->SetControlRotation((Ahead - At).Rotation());
+				FString Name = TEXT("MH_016_passenger"); FParse::Value(FCommandLine::Get(), TEXT("ConductPax="), Name);
+				Pax = Pp->Spawn(Name, Ahead, (At - Ahead).Rotation().Yaw);
+				Pp->MakeUnruly(Pax.Get(), true);
+				Pp->ForceCalm = 1; Pp->ForceSecurity = 1; Pp->ForceViolent = 1; Pp->ForceObey = 0;   // (every step of the worst way, for the test)
+			}
+			if (Before < 46.f && ShotClock >= 46.f && Pp && Pax.IsValid()) { Pp->Open(Pax.Get()); ADP_LOG(TEXT("UIConduct: menu - %s / %s / options %d"), *Pp->MenuTitle, *Pp->MenuText, Pp->MenuOptions.Num()); }
+			if (Before < 48.f && ShotClock >= 48.f) FScreenshotRequest::RequestScreenshot(TEXT("Conduct-00-menu"), true, false);
+			if (Before < 50.f && ShotClock >= 50.f && Pp) Pp->Choose(0);   // (asked firmly - won't listen)
+			if (Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("Conduct-01-refused"), true, false);
+			if (Before < 54.f && ShotClock >= 54.f && Pp) Pp->Choose(0);   // (call airport security)
+			if (ShotClock > 56.f && Pp && Pax.IsValid() && PC && Me)
+			{
+				// you keep watching the passenger
+				PC->SetControlRotation(FMath::RInterpTo(PC->GetControlRotation(), (Pax->GetActorLocation() + FVector(0, 0, 120.f) - PC->PlayerCameraManager->GetCameraLocation()).Rotation(), GetWorld()->GetDeltaSeconds(), 3.f));
+				if ((ShotT += GetWorld()->GetDeltaSeconds()) > 6.f) { ShotT = 0.f; FScreenshotRequest::RequestScreenshot(FString::Printf(TEXT("Conduct-%02d"), 2 + ShotN++), true, false); }
+			}
+			if (ShotClock > 60.f && Pp && (!Pp->SceneOn() || ShotClock > 280.f) && Before <= ShotClock) { static bool bEnd = false; if (!bEnd) { bEnd = true; ADP_LOG(TEXT("UIConduct: the scene ended at %.0f s"), ShotClock); } if (ShotClock > 64.f) ADP_SHOT_EXIT(); }
 		}
 		// -UIJetwayRide (owner, 2026-11-16: you and every MetaHuman one with the moving jetway): you stand in jetway 1's cab
 		// and it pulls back at 10x; your distance from the cab's middle logged every half second (carried: it stays put)
@@ -4447,7 +4520,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIPetStep")) && !FParse::Param(FCommandLine::Get(), TEXT("UIUpdateSim")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBootShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIContinueShots")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UIPlanView=")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayTest")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayBeacons")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayViews")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfStand")) && !FParse::Param(FCommandLine::Get(), TEXT("UISettingsShot")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanelUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoad")) && !FParse::Param(FCommandLine::Get(), TEXT("UIKiosk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) ADP_SHOT_EXIT();
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIPetStep")) && !FParse::Param(FCommandLine::Get(), TEXT("UIUpdateSim")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBootShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIContinueShots")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UIPlanView=")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayTest")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayBeacons")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayViews")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIConduct")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfStand")) && !FParse::Param(FCommandLine::Get(), TEXT("UISettingsShot")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanelUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoad")) && !FParse::Param(FCommandLine::Get(), TEXT("UIKiosk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) ADP_SHOT_EXIT();
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are
@@ -4607,4 +4680,18 @@ int32 AADPHUD::NearJetway(float MaxCm) const
 	// the jetway whose cab is nearest you, within reach (the lower-right button's)
 	const APawn* Me = GetOwningPawn(); AJetwayRigs* JR = Me ? AJetwayRigs::Get(GetWorld()) : nullptr;
 	return JR ? JR->Nearest(Me->GetActorLocation(), MaxCm) : INDEX_NONE;
+}
+
+void AADPHUD::BuildPeopleChoices()
+{
+	if (!PeopleChoices.IsValid()) return;
+	PeopleChoices->ClearChildren();
+	for (int32 i = 0; i < 8; ++i)
+		PeopleChoices->AddSlot().AutoHeight().Padding(0, 3)
+		[
+			SNew(SButton).ButtonColorAndOpacity(FLinearColor(0.05f, 0.2f, 0.36f, 0.9f)).ContentPadding(FMargin(12, 6))
+			.Visibility_Lambda([this, i]() { AADPPeople* Pp = AADPPeople::Get(GetWorld()); return Pp && Pp->MenuOptions.IsValidIndex(i) ? EVisibility::Visible : EVisibility::Collapsed; })
+			.OnClicked_Lambda([this, i]() { if (AADPPeople* Pp = AADPPeople::Get(GetWorld())) Pp->Choose(i); return FReply::Handled(); })
+			[SNew(STextBlock).Font(Font(10)).ColorAndOpacity(Ink).Text_Lambda([this, i]() { AADPPeople* Pp = AADPPeople::Get(GetWorld()); return FText::FromString(Pp && Pp->MenuOptions.IsValidIndex(i) ? FString::Printf(TEXT("%d.  %s"), i + 1, *Pp->MenuOptions[i]) : FString()); })]
+		];
 }
