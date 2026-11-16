@@ -245,9 +245,51 @@ def glass_rail(x0, y0, z0, x1, y1, z1, h=1.05):
     for (zc, hh, th, mat) in ((h / 2, h - 0.06, 0.015, M['glass']), (h, 0.05, 0.06, M['dark']), (0.05, 0.1, 0.07, M['dark'])):
         o = box(-L_ / 2, -th / 2, -hh / 2, L_ / 2, th / 2, hh / 2, mat, 'Rail')
         o.rotation_euler = (0, -pitch, yaw); o.location = (mid.x, mid.y, mid.z + zc)
-glass_rail(-74.05, LAND - 11.4, 0.2, -74.05, LAND, 6.0)                                         # the stair's open side
-glass_rail(-74.05, LAND - 11.6, 0.0, -74.05, LAND - 11.4, 0.2)
-glass_rail(-74.1, LAND + 0.04, 6.0, -71.0, LAND + 0.04, 6.0)                                     # the landing's edge, stair to lift
+# the stair's open side and the landing's edge as ONE balustrade, as in a real terminal (owner, 2026-11-16): the glass with
+# upright edges following the stair's slope (its bottom edge just over the nosings), then the landing's panel butting
+# against it at the corner; one continuous black handrail on top - level at the stair's foot, a soft knee into the
+# slope, a soft knee back to level at the top, then a rounded 90-degree turn along the landing's edge to the lift
+def poly_glass(pts, name):
+    # a flat glass panel through these points (in order), 15 mm thick
+    me = bpy.data.meshes.new(name); bm = bmesh.new()
+    vs = [bm.verts.new(v) for v in pts]; bm.faces.new(vs); bm.normal_update(); bm.to_mesh(me); bm.free()
+    o = bpy.data.objects.new(name, me); S.collection.objects.link(o); me.materials.append(M['glass'])
+    so = o.modifiers.new('thick', 'SOLIDIFY'); so.thickness = 0.015; so.offset = 0.0
+    return o
+def handrail(pts, name, r=0.035):
+    cu = bpy.data.curves.new(name, 'CURVE'); cu.dimensions = '3D'; cu.bevel_depth = r; cu.bevel_resolution = 4; cu.use_fill_caps = True
+    sp = cu.splines.new('POLY'); sp.points.add(len(pts) - 1)
+    for i, q in enumerate(pts): sp.points[i].co = (q[0], q[1], q[2], 1.0)
+    o = bpy.data.objects.new(name, cu); S.collection.objects.link(o); cu.materials.append(M['rubber']); return o
+def fillet(a, b, c, rad, n=8):
+    # the corner b between a-b and b-c rounded with radius rad (points along the arc)
+    from mathutils import Vector
+    a, b, c = Vector(a), Vector(b), Vector(c); u = (a - b).normalized(); w = (c - b).normalized()
+    ang = u.angle(w); t = rad / math.tan(ang / 2); p0 = b + u * t; p1 = b + w * t
+    out = []
+    for i in range(n + 1):
+        f = i / n
+        # a quadratic Bezier through the corner: a smooth, even arc for these small knees
+        q = (1 - f) ** 2 * p0 + 2 * (1 - f) * f * b + f ** 2 * p1; out.append(tuple(q))
+    return out
+SX = -74.05; HR = 1.0; B0 = LAND - 11.4                       # the stair's side line, the handrail's height over the nosings
+def zn(y): return 0.2 + (y - B0) * (0.2 / 0.38)                 # the nosing line (first nosing 0.2 m up at B0)
+yk0, yk1 = B0 - 0.2, LAND - 0.38                               # where the slope starts (just before the first step) and ends (last nosing)
+Pf = (SX, B0 - 0.6, zn(yk0) - 0.0 + HR)                         # level run at the foot: 0.4 m before the first step
+Pk0 = (SX, yk0, zn(yk0) + HR); Pk1 = (SX, yk1, 6.0 + HR); Pc = (SX, LAND + 0.04, 6.0 + HR); Pl = (-71.0, LAND + 0.04, 6.0 + HR)
+Pf = (SX, B0 - 0.6, zn(yk0) + HR)
+path = [Pf] + fillet(Pf, Pk0, Pk1, 0.35) + fillet(Pk0, Pk1, Pc, 0.35) + fillet(Pk1, Pc, Pl, 0.18) + [Pl]
+handrail(path, 'StairHandrail')
+# the glass: the stair's panel (upright ends) from the foot to the corner; the landing's panel from the corner to the lift
+g_top = lambda y: (zn(min(max(y, yk0), yk1)) if y < yk1 else 6.0) + HR - 0.07
+g_bot = lambda y: max(0.08, (zn(min(max(y, B0), yk1)) if y < yk1 else 6.0) + 0.06)
+ys = [B0 - 0.55, yk0, B0, yk1, LAND + 0.03]
+pts = [(SX, y, g_bot(y) if y >= B0 else 0.08) for y in ys] + [(SX, y, g_top(y) if y >= yk0 else zn(yk0) + HR - 0.07) for y in reversed(ys)]
+poly_glass(pts, 'StairGlass')
+poly_glass([(SX + 0.03, LAND + 0.04, 6.06), (-71.05, LAND + 0.04, 6.06), (-71.05, LAND + 0.04, 6.0 + HR - 0.07), (SX + 0.03, LAND + 0.04, 6.0 + HR - 0.07)], 'LandingGlass')
+# the glass clamps' black shoe along the landing's edge and up the stair's side
+box(SX - 0.04, LAND + 0.0, 5.98, -71.0, LAND + 0.08, 6.08, M['dark'])
+sh = box(-0.04, -6.0, -0.05, 0.04, 6.0, 0.05, M['dark'], 'StairShoe'); sh.rotation_euler = (math.atan2(0.2, 0.38), 0, 0); sh.location = (SX, (B0 + yk1) / 2, (zn(B0) + zn(yk1)) / 2 + 0.03)
 box(-71.0, LAND - 2.8, 0, -68.6, LAND, 9.0, M['glass'], 'LiftShaft'); box(-71.0, LAND - 2.8, 9.0, -68.6, LAND, 9.15, M['dark'])   # (its door opens north onto the landing)
 box(-70.6, LAND - 0.02, 0.0, -69.0, LAND + 0.02, 2.2, M['steel']); box(-70.6, LAND - 0.02, 6.0, -69.0, LAND + 0.02, 8.2, M['steel'])
 
@@ -450,6 +492,7 @@ CAMS = [
     ('4-crew-input-sorting-hall', (-31.7, 60.8, 1.75), (-35.9, 52.6, 0.95), 24, 'Crew side, in the sorting hall: belt 3 and 4 input conveyors into the wall, a baggage cart at each'),
     ('5-escalators-from-below', (-72.5, 29.0, 1.65), (-77.0, 48.0, 5.0), 20, 'The escalators, stair and lift from the claim hall floor, up through the open void to the Floor 2 landing and the doorway into the gates walkway'),
     ('10-escalator-foot-newels', (-73.4, 32.4, 1.5), (-78.0, 35.6, 0.8), 28, 'At the foot of the escalators: the handrails running out past the combs and turning round their rounded newels'),
+    ('13-stair-balustrade-top', (-71.6, 51.4, 7.75), (-74.3, 47.2, 6.3), 26, 'At the top of the stair: its glass and the landings glass meeting under one continuous handrail'),
     ('11-escalator-top-newels', (-72.4, 51.2, 7.6), (-77.6, 48.6, 6.5), 26, 'On the Floor 2 landing: the escalators arriving, their handrails turning round the rounded newels at the top'),
     ('12-passenger-button', (-31.4, 32.4, 1.2), (-33.05, 34.2, 0.3), 32, 'The passengers start / stop button on belt 3s skirt, by the feed shaft'),
     ('9-from-the-gates-walkway', (-66.0, 62.0, 7.7), (-76.0, 47.0, 4.0), 20, 'Floor 2, in the gates walkway: through the 8 m doorway onto the landing and down the escalators into the claim hall'),
