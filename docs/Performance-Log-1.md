@@ -4,11 +4,6 @@ Every performance change to the game, newest last. Only performance work goes in
 
 ## Waiting for your OK (visual changes for speed)
 
-- **Globe tiles' shadows** (to-do 65): they cast shadows thousands of km wide (measured: tiles up to 12,751 km across,
-  not Nanite) and overflow the shadow map's non-Nanite queue. Plan: no shadows from them beyond a distance. Cost to
-  the look: distant mountains stop shadowing themselves.
-- **1,838 lights** (to-do 66): each costs every frame. Plan: small lights fade out beyond a distance. Cost to the
-  look: the faint glow of far lamps goes; nothing changes up close.
 - **Glass on Nanite meshes** (to-do 67): 12 meshes; Nanite can't draw their see-through parts. Plan: draw them the
   ordinary way, so the glass shows as designed.
 
@@ -25,3 +20,9 @@ Every performance change to the game, newest last. Only performance work goes in
 - **2026-11-16 - The baked roads are Nanite.** 607 road meshes (up to 26,080 triangles each, all casting shadows)
   were ordinary meshes in the shadow map's slow non-Nanite queue; now Nanite, same triangles and materials (all
   M_Ground, opaque, made for Nanite). Checked by pictures at the terminal's forecourt: they look the same.
+- **2026-11-16 - Shadows and lamps follow what you do** (your OK). On foot or driving: the sun's shadows reach 2.6 km
+  (were 42 km always), lamps drawn up to 150 m (963 had no limit), the floodlights (reach over 50 m) 600 m. Flying,
+  in the drone or the flight viewer, or over 300 m up: 42 km, 600 m, floodlights 2.4 km. Switched on the fly
+  (ADPHUD.cpp, twice a second); a lamp's own shorter limit kept. Measured in the packaged game (stress walk,
+  off-screen, Cinematic 1920x1080): 87 -> 92 fps on average, slowest 1 % 68 -> 75 fps; standing in the Grand Hall
+  89 -> 92 fps. Night pictures (hall, forecourt, apron, gate walkway): nothing went dark that should be lit.
