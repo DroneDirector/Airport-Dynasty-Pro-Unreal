@@ -186,22 +186,27 @@ while v <= U1 + 1e-6: us.append(round(v, 4)); v += 0.025 if (u0 - 0.3 < v < u1 +
 if us[-1] < U1: us.append(U1)
 def H(u_): return max(0.0, min(RISE, h(min(max(u_, 0.0), U_TOPCOMB))))   # the step line, flat over the plates
 DECK, GL0, GLX, CLAD, TRUSS = 0.10, 0.12, 0.62, 0.80, 1.05
+# the ends sit flush with the floor they meet (owner 2026-11-16: no end walls, nothing standing up above the floor):
+# the decking slopes down to the floor over its last 20 cm
+def END(u_): return max(0.0, min(1.0, (u_ - U0) / 0.2, (U1 - u_) / 0.2))
 for sx in (-1, 1):
     # the skirt: stainless, from below the steps to the decking
-    bd.strip([(sx * SKIRT, u_, H(u_) - 0.32) for u_ in us], [(sx * SKIRT, u_, H(u_) + DECK) for u_ in us], 'Stainless')
+    bd.strip([(sx * SKIRT, u_, H(u_) - 0.32) for u_ in us], [(sx * SKIRT, u_, H(u_) + DECK * END(u_)) for u_ in us], 'Stainless')
     # the inner decking up to the glass, the outer decking over the cladding
-    bd.strip([(sx * SKIRT, u_, H(u_) + DECK) for u_ in us], [(sx * (GLX - 0.01), u_, H(u_) + GL0) for u_ in us], 'Stainless')
-    bd.strip([(sx * (GLX + 0.02), u_, H(u_) + GL0) for u_ in us], [(sx * CLAD, u_, H(u_) + GL0) for u_ in us], 'Stainless')
+    bd.strip([(sx * SKIRT, u_, H(u_) + DECK * END(u_)) for u_ in us], [(sx * (GLX - 0.01), u_, H(u_) + GL0 * END(u_)) for u_ in us], 'Stainless')
+    bd.strip([(sx * (GLX + 0.02), u_, H(u_) + GL0 * END(u_)) for u_ in us], [(sx * CLAD, u_, H(u_) + GL0 * END(u_)) for u_ in us], 'Stainless')
     # the outer cladding down to the truss's underside (on the slope you see it from the hall)
-    bd.strip([(sx * CLAD, u_, H(u_) + GL0) for u_ in us], [(sx * CLAD, u_, H(u_) - TRUSS) for u_ in us], 'Stainless')
+    bd.strip([(sx * CLAD, u_, H(u_) + GL0 * END(u_)) for u_ in us], [(sx * CLAD, u_, H(u_) - TRUSS) for u_ in us], 'Stainless')
     # an LED line under the decking's lip, along the skirt (as on the references)
-    bd.strip([(sx * (SKIRT - 0.001), u_, H(u_) + DECK - 0.012) for u_ in us], [(sx * (SKIRT - 0.001), u_, H(u_) + DECK - 0.004) for u_ in us], 'Light')
+    bd.strip([(sx * (SKIRT - 0.001), u_, H(u_) + DECK * END(u_) - 0.012) for u_ in us if END(u_) > 0.5], [(sx * (SKIRT - 0.001), u_, H(u_) + DECK * END(u_) - 0.004) for u_ in us if END(u_) > 0.5], 'Light')
 # the underside
 bd.strip([(-CLAD, u_, H(u_) - TRUSS) for u_ in us], [(CLAD, u_, H(u_) - TRUSS) for u_ in us], 'Truss')
 # the end walls of the pits
+# (only below the floor: a 12 cm wall there stopped you stepping on and off, owner 2026-11-16 - no end walls at all)
 for uu_ in (U0, U1):
     hh = H(uu_)
-    bd.quad([(-CLAD, uu_, hh - TRUSS), (CLAD, uu_, hh - TRUSS), (CLAD, uu_, hh + GL0), (-CLAD, uu_, hh + GL0)], 'Stainless')
+    bd.quad([(-CLAD, uu_, hh - TRUSS), (CLAD, uu_, hh - TRUSS), (CLAD, uu_, hh - 0.01), (-CLAD, uu_, hh - 0.01)], 'Stainless')
+
 # floor plates (stainless, ribbed by their texture) and comb plates with teeth, at both ends
 for (ua, ub, uc, sgn, hh) in ((U0, -COMB, 0.0, 1, 0.0), (U_TOPCOMB + COMB, U1, U_TOPCOMB, -1, RISE)):
     bd.box(-SKIRT, SKIRT, ua, ub, hh - 0.01, hh + 0.004, 'FloorPlate')

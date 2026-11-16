@@ -28,6 +28,7 @@ class Piece:
     def __init__(self, name):
         self.bm = bmesh.new(); self.name = name; self.mats = []
         self.uv = self.bm.loops.layers.uv.new('UVMap')
+        self.want = []        # (face, the way it must face, in Blender's axes): set after Blender's own guess
     def mi(self, m):
         if m not in self.mats: self.mats.append(m)
         return self.mats.index(m)
@@ -42,10 +43,18 @@ class Piece:
         F = {'-y': [c(0,0,0), c(1,0,0), c(1,0,1), c(0,0,1)], '+y': [c(0,1,0), c(0,1,1), c(1,1,1), c(1,1,0)],
              '-x': [c(0,0,0), c(0,0,1), c(0,1,1), c(0,1,0)], '+x': [c(1,0,0), c(1,1,0), c(1,1,1), c(1,0,1)],
              '-z': [c(0,0,0), c(0,1,0), c(1,1,0), c(1,0,0)], '+z': [c(0,0,1), c(1,0,1), c(1,1,1), c(0,1,1)]}
+        out = {'-y': (0, 0, -1), '+y': (0, 0, 1), '-x': (1, 0, 0), '+x': (-1, 0, 0), '-z': (0, 1, 0), '+z': (0, -1, 0)}   # (plan -> Blender: x -> -x, z -> -y, y -> z)
         for k, f in F.items():
-            if sides == 'all' or k in sides: self.face(f, m)
+            if sides == 'all' or k in sides: self.want.append((self.face(f, m), out[k]))
     def finish(self):
         bmesh.ops.recalc_face_normals(self.bm, faces=self.bm.faces)
+        # every box face out of its box, whatever Blender guessed: a lone floor panel could come out facing down, and you
+        # fell through it (owner 2026-11-16: stuck at the escalators' top, the new stair landing)
+        flipped = 0
+        for f, w in self.want:
+            f.normal_update()
+            if f.normal.x * w[0] + f.normal.y * w[1] + f.normal.z * w[2] < 0: f.normal_flip(); flipped += 1
+        print('ANNEX %s: %d box faces turned the right way round' % (self.name, flipped))
         me = bpy.data.meshes.new(self.name); self.bm.to_mesh(me); self.bm.free()
         for m in self.mats: me.materials.append(mat(m))
         o = bpy.data.objects.new(self.name, me); bpy.context.scene.collection.objects.link(o)
