@@ -229,7 +229,7 @@ FString ADPPerfLog::SceneAudit(UWorld* W)
 			R.Mesh = M->GetPathName(); if (R.Owner.IsEmpty() && S->GetOwner()) R.Owner = S->GetOwner()->GetClass()->GetName();
 			R.Copies += N; R.Tris = M->GetRenderData()->LODResources[0].GetNumTriangles(); R.Sections = M->GetRenderData()->LODResources[0].Sections.Num();
 			R.Size = FMath::Max(R.Size, (float)S->Bounds.SphereRadius * 2.f / 100.f);
-			R.bNanite = M->IsNaniteEnabled() && !S->bDisallowNanite; R.bShadow |= S->CastShadow;
+			R.bNanite = M->HasValidNaniteData() && !S->bDisallowNanite; R.bShadow |= S->CastShadow;
 			for (int32 k = 0; k < S->GetNumMaterials(); ++k) if (UMaterialInterface* Mi = S->GetMaterial(k)) if (IsTranslucentBlendMode(Mi->GetBlendMode())) R.bTranslucent = true;
 		}
 		else if (USkeletalMeshComponent* K = Cast<USkeletalMeshComponent>(C))
