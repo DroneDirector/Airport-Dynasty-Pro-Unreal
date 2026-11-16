@@ -6,7 +6,7 @@ import { makeEngine, applyScale, getEngine } from './core/engine';
 import { onSettings } from './core/settings';
 import { inputInit, onButton, setPlay, onPad } from './core/input';
 import { openSection, currentSection, closeSection, SectionCtx } from './core/sections';
-import { splashOpen, splashEnter, splashIsOpen, splashNav, splashGo } from './ui/splash';
+import { splashOpen, splashEnter, splashIsOpen, splashNav, splashGo, splashStressReport } from './ui/splash';
 import { settingsShow, settingsHide, settingsOpen, settingsButton } from './ui/settings-panel';
 import { loadingShow, loadingProgress, loadingHide } from './ui/loading';
 import { icon, toast } from './ui/icons';
@@ -73,6 +73,8 @@ onPad(name => toast(name ? `${name} connected` : 'Controller disconnected'));
 async function enter(id: string, title: string, opts?: any) {
   // the PC version: the terminal and the airport site are Unreal's own 3D (the menus go out of sight; G brings them back)
   const u = ue(); if (u && id === 'terminal' && u.openterminal) { u.openterminal(); return; }
+  // the stress walk (owner, 2026-11-16): the game walks the airport by itself and measures it, then back to the title
+  if (u && id === 'stresswalk' && u.stresswalk) { u.stresswalk(); return; }
   if (u && id === 'site' && u.opensite) { u.opensite(); return; }
   // the town's buildings (owner, 2026-11-15): outside each, looking at it
   if (u && id.startsWith('town:') && u.openplace) { u.openplace(id.slice(5)); return; }
@@ -145,6 +147,7 @@ onGameReady(() => loadingNeonDone());
 onGameFounding(() => loadingNeonHide());
 onGameLoading(() => loadingNeonShow());
 onNoGame(() => { toast('No career on this PC yet: start a New game'); });
+(window as any).__ueStressReport = (text: string) => { if (!splashIsOpen()) splashOpen(pickPlace); setTimeout(() => splashStressReport(text), 700); };
 (window as any).__ueNewGameCancel = () => { if (!splashIsOpen()) splashOpen(pickPlace); };
 splashOpen(pickPlace);
 // a 3D place opened from the game (your officeâ€¦): the game waits behind it

@@ -22,6 +22,11 @@ void UADPBridge::OpenTerminal()
 	if (AADPHUD* H = Hud.Get()) H->ShowTerminal();
 }
 
+void UADPBridge::StressWalk()
+{
+	if (AADPHUD* H = Hud.Get()) H->StartStressWalk();
+}
+
 void UADPBridge::OpenSite()
 {
 	if (AADPHUD* H = Hud.Get()) H->OpenSite();

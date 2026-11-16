@@ -33,6 +33,9 @@ public:
 
 	/** From the menus: Unreal's 3D terminal, the menus hidden. */
 	void ShowTerminal();
+	/** The stress walk from the title screen (StressWalk.h): into the terminal, the walk, back to the title with its report. */
+	void StartStressWalk();
+	bool bStressFromTitle = false;
 	/** The 3D viewer (Unreal's own): following a flight of the game; the menus hide. Closed by Esc or G (FlightViewer.cpp). */
 	void OpenViewer();
 	void CloseViewer();

@@ -51,7 +51,7 @@ export function splashOpen(enter: (id: string) => void) {
         ['game:save', 'save', 'Save game', 'Save your airline in a slot'],
         ['game:ui', 'grid', 'UI', 'Straight into the game\'s menus and screens'],
       ].map(([id, ic, t, s], i) => `<button class="ts-btn ${id === _pick ? 'on' : ''} ${id === 'game:continue' && !career ? 'dim' : ''}" data-a="enter" data-id="${id}"><span class="ts-bi">${icon(ic)}</span><span class="ts-bt"><b>${t}</b><small>${s}</small></span><i class="ts-sheen"></i></button>`).join('')}
-        <div class="ts-demos"><small>Demos</small>${[['viewer3d', 'plane', '3D viewer'], ['lounge', 'star', 'Lounge'], ...(IS_PC ? [['terminal', 'terminal', 'Terminal'], ['site', 'mountain', 'Airport site'], ['town:dealership', 'car', 'Car dealership'], ['town:villa', 'home', 'Your villa']] : [])].map(([id, ic, t]) => `<button class="ts-btn ts-demo" data-a="enter" data-id="${id}"><span class="ts-bi">${icon(ic)}</span><span class="ts-bt"><b>${t}</b></span><i class="ts-sheen"></i></button>`).join('')}</div></nav>
+        <div class="ts-demos"><small>Demos</small>${[['viewer3d', 'plane', '3D viewer'], ['lounge', 'star', 'Lounge'], ...(IS_PC ? [['terminal', 'terminal', 'Terminal'], ['site', 'mountain', 'Airport site'], ['town:dealership', 'car', 'Car dealership'], ['town:villa', 'home', 'Your villa'], ['stresswalk', 'gauge', 'Stress walk']] : [])].map(([id, ic, t]) => `<button class="ts-btn ts-demo" data-a="enter" data-id="${id}"><span class="ts-bi">${icon(ic)}</span><span class="ts-bt"><b>${t}</b></span><i class="ts-sheen"></i></button>`).join('')}</div></nav>
     </div>
     <div class="ts-cap" aria-hidden="true"><small></small><b></b></div>
     <small class="ts-ver">${UE_PC ? `v${esc(UE_PC)} · Unreal Engine ${esc(UE_ENGINE)}` : `v${esc(APP.version)} · Babylon.js ${esc(APP.babylon)}`}</small>
@@ -327,4 +327,20 @@ function issueReport() {
     if (a === 'copy') { try { await navigator.clipboard.writeText(text); b.textContent = 'Copied'; } catch (er) { b.textContent = 'Could not copy'; } return; }
     if (a === 'share') { try { if ((navigator as any).share) await (navigator as any).share({ title: 'Problem report', text }); else { await navigator.clipboard.writeText(text); b.textContent = 'Copied'; } } catch (er) { /* closed */ } return; }
     pendingIssues(true); w.classList.remove('in'); setTimeout(() => w.remove(), 200); });
+}
+
+/** The stress walk's report on the title screen (owner, 2026-11-16): what it found, where and why, with Copy to share it. */
+export function splashStressReport(text: string) {
+  document.querySelectorAll('.sw-wrap').forEach(e => e.remove());
+  const w = document.createElement('div'); w.className = 'ds-wrap ir-wrap sw-wrap';
+  w.innerHTML = `<div class="ds-card" role="dialog" aria-label="Stress walk report"><div class="ds-head"><b>Stress walk: what it found</b></div>
+    <div class="ds-body"><pre class="sw-text">${esc(text)}</pre></div>
+    <div class="ds-foot"><button class="ds-no" data-sw="copy">Copy</button><button class="ds-yes" data-sw="ok">OK</button></div></div>`;
+  document.body.appendChild(w); requestAnimationFrame(() => w.classList.add('in'));
+  w.addEventListener('click', async e => { const b = (e.target as HTMLElement).closest('[data-sw]') as HTMLElement; if (!b) return;
+    if (b.getAttribute('data-sw') === 'copy') {
+      let ok = false; try { await navigator.clipboard.writeText(text); ok = true; } catch (er) { /* (the in-game browser: the old way below) */ }
+      if (!ok) { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); try { ok = document.execCommand('copy'); } catch (er) { ok = false; } t.remove(); }
+      b.textContent = ok ? 'Copied' : 'Could not copy'; return; }
+    w.classList.remove('in'); setTimeout(() => w.remove(), 200); });
 }

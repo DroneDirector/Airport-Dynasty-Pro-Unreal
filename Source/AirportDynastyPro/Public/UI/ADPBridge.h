@@ -20,6 +20,7 @@ public:
 	/** New game, Continue or Load game: the loading screen is up - Unreal loads the rest of the world behind it. */
 	UFUNCTION() void StartLoad();
 	UFUNCTION() void OpenTerminal();
+	UFUNCTION() void StressWalk();
 	/** The title screen's Airport site: Unreal's own world round the terminal, standing at the kerb outside. */
 	UFUNCTION() void OpenSite();
 	/** The title screen's Lounge: the Babylon edition's business lounge, in Unreal. */

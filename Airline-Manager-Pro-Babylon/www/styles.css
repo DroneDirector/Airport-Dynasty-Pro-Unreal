@@ -603,3 +603,6 @@ html.ts-native .game-frame { background: transparent !important; }
 
 .ln.done .ln-t { color: #fff; text-shadow: 0 0 4px #fff, 0 0 12px var(--neo2), 0 0 30px var(--neo2), 0 0 50px rgba(53, 240, 255, .6); }
 .ln.done .ln-file { color: #fff; letter-spacing: .3em; }
+/* the stress walk's report (title screen): wide, scrolling, every line readable */
+.sw-wrap .ds-card { width: min(980px, 94vw); }
+.sw-text { margin: 0; max-height: 58vh; overflow: auto; white-space: pre-wrap; font: 13px/1.5 ui-monospace, Consolas, monospace; color: #cfe9ff; background: rgba(0, 0, 0, .35); border: 1px solid rgba(53, 240, 255, .2); border-radius: 10px; padding: 12px 14px; user-select: text; }
