@@ -151,8 +151,34 @@ S.box(0.0, 6.0, 11.4, 12.0, 30.0, 52.0, W); S.box(0.0, 6.0, 11.32, 11.4, 30.0, 5
 
 # ============ tax free and the airside landing, their west 16 m (x 56..72) ============
 S.box(56.0, 72.0, 5.99, 6.01, 30.0, 42.0, 'MI_T_tile', sides=('+y',))
-S.box(56.0, 72.0, 5.63, 5.99, 30.0, 52.0, 'MI_T_concrete', sides=('-y',))
-S.box(56.0, 72.0, 5.99, 6.01, 42.0, 52.0, 'MI_T_terrazzo', sides=('+y',))
+S.box(56.0, 72.0, 5.63, 5.99, 30.0, 42.0, 'MI_T_concrete', sides=('-y',))
+# the airside landing: the herringbone wood the bar had, open over the stairs from the airside hall (S-01 climbs east
+# from x 58 to 66 between z 44 and 50 and arrives at x 66) - owner 2026-11-16: the floor had closed them off
+FSTAIR = (58.0, 66.0, 44.0, 50.0)
+xs = [56.0, FSTAIR[0], FSTAIR[1], 72.0]; zs = [42.0, FSTAIR[2], FSTAIR[3], 52.0]
+for xa, xb in zip(xs, xs[1:]):
+    for za, zb in zip(zs, zs[1:]):
+        if (xa, xb, za, zb) == FSTAIR: continue
+        S.box(xa, xb, 5.99, 6.01, za, zb, 'MI_T_herring', sides=('+y',))
+        S.box(xa, xb, 5.63, 5.99, za, zb, 'MI_T_concrete', sides=('-y',))
+x0, x1, z0, z1 = FSTAIR                                                            # the opening's edges, down to the hall's ceiling
+S.box(x0, x1, 5.36, 6.01, z0 - 0.02, z0, W); S.box(x0, x1, 5.36, 6.01, z1, z1 + 0.02, W); S.box(x0 - 0.02, x0, 5.36, 6.01, z0, z1, W)
+S.box(x1, x1 + 0.02, 5.36, 5.63, z0, z1, W)
+# the airside hall's ceiling below (x 50..90, z 42..52, its off-white at +5.36), open over the stairs
+cxs = [50.0, x0, x1, 90.0]; czs = [42.0, z0, z1, 52.0]
+for xa, xb in zip(cxs, cxs[1:]):
+    for za, zb in zip(czs, czs[1:]):
+        if (xa, xb, za, zb) != FSTAIR: S.box(xa, xb, 5.36, 5.37, za, zb, 'MI_T_offwhite', sides=('-y',))
+# its guardrail on the three open sides (the stairs arrive on the east side): steel shoe, glass, black trim on top
+for (gx0, gx1, gz0, gz1) in ((x0 - 0.16, x0, z0, z1), (x0, x1, z0 - 0.16, z0), (x0, x1, z1, z1 + 0.16)):
+    S.box(gx0, gx1, 6.01, 6.13, gz0, gz1, 'MI_T_steel')
+    cx = (gx0 + gx1) / 2; cz = (gz0 + gz1) / 2
+    if gx1 - gx0 < 0.5:
+        G.box(cx - 0.006, cx + 0.006, 6.11, 6.94, gz0, gz1, 'MI_T_glass')
+        S.box(cx - 0.03, cx + 0.03, 6.94, 6.985, gz0, gz1, 'MI_T_black'); S.box(cx - 0.02, cx + 0.02, 6.985, 7.0, gz0, gz1, 'MI_T_black')
+    else:
+        G.box(gx0, gx1, 6.11, 6.94, cz - 0.006, cz + 0.006, 'MI_T_glass')
+        S.box(gx0, gx1, 6.94, 6.985, cz - 0.03, cz + 0.03, 'MI_T_black'); S.box(gx0, gx1, 6.985, 7.0, cz - 0.02, cz + 0.02, 'MI_T_black')
 S.box(56.0, 72.0, 11.32, 11.4, 30.0, 52.0, 'MI_T_offwhite', sides=('-y',))
 S.box(56.0, 72.0, 11.4, 12.0, 30.0, 52.0, W)
 glass_front_z(30.0, 56.0, 72.0, 6.01, 11.4, transoms=())                            # tax free's glass onto the Grand Hall

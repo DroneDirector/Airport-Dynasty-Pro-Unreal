@@ -35,6 +35,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "ADPKeep.h"
 
 TArray<TWeakObjectPtr<AFireTruck>> AFireTruck::All;
 
@@ -711,7 +712,7 @@ USceneComponent* AFireTruck::LensGlow(const FVector& At, const FLinearColor& Col
 {
 	// a lamp's own shine: a soft glowing disc at the lens, always facing you (as games draw lamps), lighting nothing
 	// round it, so the paint beside a lamp stays as it is (owner, 2026-11-11)
-	static UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/Lamps/M_LampGlow.M_LampGlow"));
+	static UMaterialInterface* Base = ADPKeep(LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/Lamps/M_LampGlow.M_LampGlow")));
 	if (!Base) { static bool bTold = false; if (!bTold) { bTold = true; ADP_ERROR(TEXT("Fire truck: the lamp glow material is missing (Tools/make_lamp_glow.py)")); } return nullptr; }
 	UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(Base, this);
 	M->SetVectorParameterValue(TEXT("Color"), Col);
@@ -1104,7 +1105,7 @@ void AFireTruck::DressMaterials()
 				}
 			if (!D && MN.Contains(TEXT("Glass")))
 			{
-				static UMaterialInterface* GlassM = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Truck/M_TruckGlass.M_TruckGlass"));
+				static UMaterialInterface* GlassM = ADPKeep(LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Truck/M_TruckGlass.M_TruckGlass")));
 				if (GlassM)
 				{
 					D = UMaterialInstanceDynamic::Create(GlassM, this);

@@ -16,6 +16,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Sound/SoundAttenuation.h"
 #include "Sound/SoundWaveProcedural.h"
+#include "ADPKeep.h"
 
 namespace
 {
@@ -550,7 +551,7 @@ void AWashHose::WetAt(const FVector& At, const FVector& Normal)
 		if (Wet[Old]) Wet[Old]->DestroyComponent();
 		Wet.RemoveAt(Old); WetMids.RemoveAt(Old); WetAge.RemoveAt(Old);
 	}
-	static UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Truck/M_WetPatch.M_WetPatch"));
+	static UMaterialInterface* Base = ADPKeep(LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Truck/M_WetPatch.M_WetPatch")));
 	if (!Base) return;
 	UDecalComponent* Dc = NewObject<UDecalComponent>(this);
 	UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(Base, this);

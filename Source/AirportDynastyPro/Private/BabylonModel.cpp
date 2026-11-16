@@ -25,6 +25,7 @@ static FString GRoadsProbe;   // (the road network's data is there: the model's 
 #include "Misc/Paths.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "ADPKeep.h"
 
 #pragma region Placing
 
@@ -969,8 +970,8 @@ void ABabylonModel::MovePart(FPart& P, float E, float Spin)
 
 void ABabylonModel::AddSticker(FPart& Leaf)
 {
-	static UMaterialInterface* M = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Signs/M_NoSmoking.M_NoSmoking"));
-	static UStaticMesh* Plane = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane"));
+	static UMaterialInterface* M = ADPKeep(LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Signs/M_NoSmoking.M_NoSmoking")));
+	static UStaticMesh* Plane = ADPKeep(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane")));
 	if (!M || !Plane) { static bool bTold = false; if (!bTold) { bTold = true; ADP_WARN(TEXT("No-smoking sticker: /Game/Signs/M_NoSmoking is missing (Tools/set_no_smoking_sign.py)")); } return; }
 	UStaticMeshComponent* S = NewObject<UStaticMeshComponent>(this);
 	S->SetupAttachment(Root);

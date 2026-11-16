@@ -13,6 +13,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Animation/AnimSequence.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "ADPKeep.h"
 
 namespace
 {
@@ -127,7 +128,7 @@ void AWardrobe::Dress(const FString& Who, const FVector& LookFrom)
 		for (USkeletalMeshComponent* S : Skels) if (S->GetName().StartsWith(TEXT("Body"))) Skel = S;
 		if (Skel)
 		{
-			static UAnimSequence* Idle = LoadObject<UAnimSequence>(nullptr, TEXT("/Game/People/Anims/MM_Idle_MH.MM_Idle_MH"));
+			static UAnimSequence* Idle = ADPKeep(LoadObject<UAnimSequence>(nullptr, TEXT("/Game/People/Anims/MM_Idle_MH.MM_Idle_MH")));
 			for (USkeletalMeshComponent* S : Skels) if (S != Skel && !S->GetName().StartsWith(TEXT("Face"))) S->SetLeaderPoseComponent(Skel);
 			if (Idle) { Skel->SetAnimationMode(EAnimationMode::AnimationSingleNode); Skel->SetAnimation(Idle); Skel->Play(true); }
 		}

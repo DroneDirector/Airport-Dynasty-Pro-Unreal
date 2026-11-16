@@ -113,6 +113,13 @@ namespace ADPPets
 			if (W->LineTraceSingleByChannel(H, From, To, ECC_Visibility, Q)) At = FVector(H.ImpactPoint.X, H.ImpactPoint.Y + 300.f, Z);
 			ADP_LOG(TEXT("Pets: the terminal's front at the main entrance found %s (y %.0f)"), H.bBlockingHit ? TEXT("by looking in from the road") : TEXT("nowhere - the old plan's place"), H.bBlockingHit ? H.ImpactPoint.Y : At.Y);
 		}
+		// its own ground: the pavement under the spot itself (the road's height, 60 m out and lower, had it sunk in to its
+		// chest - owner 2026-11-16)
+		{
+			FHitResult G; FCollisionQueryParams Q(TEXT("PetHomeGround"), true);
+			if (W->LineTraceSingleByChannel(G, At + FVector(0, 0, 400.f), At - FVector(0, 0, 3000.f), ECC_Visibility, Q)) At.Z = G.ImpactPoint.Z;
+			ADP_LOG(TEXT("Pets: home ground at z %.0f (%s)"), At.Z, G.bBlockingHit ? *GetNameSafe(G.GetActor()) : TEXT("nothing under it"));
+		}
 		FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		APet* Pet = APet::Spawn(W, *M, At, 0.f);
 		if (!Pet) return;

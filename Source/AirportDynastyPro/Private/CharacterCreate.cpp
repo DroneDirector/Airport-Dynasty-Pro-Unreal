@@ -24,6 +24,7 @@
 #include "EngineUtils.h"
 #include "Containers/Ticker.h"
 #include "Components/MaterialBillboardComponent.h"
+#include "ADPKeep.h"
 
 namespace
 {
@@ -61,8 +62,8 @@ namespace
 		TArray<USkeletalMeshComponent*> Skels; A->GetComponents<USkeletalMeshComponent>(Skels);
 		for (USkeletalMeshComponent* S : Skels) if (S->GetName().StartsWith(TEXT("Body")))
 		{
-			static UAnimSequence* Walk = LoadObject<UAnimSequence>(nullptr, TEXT("/Game/People/Anims/MF_Unarmed_Walk_Fwd_MH.MF_Unarmed_Walk_Fwd_MH"));
-			static UAnimSequence* Idle = LoadObject<UAnimSequence>(nullptr, TEXT("/Game/People/Anims/MM_Idle_MH.MM_Idle_MH"));
+			static UAnimSequence* Walk = ADPKeep(LoadObject<UAnimSequence>(nullptr, TEXT("/Game/People/Anims/MF_Unarmed_Walk_Fwd_MH.MF_Unarmed_Walk_Fwd_MH")));
+			static UAnimSequence* Idle = ADPKeep(LoadObject<UAnimSequence>(nullptr, TEXT("/Game/People/Anims/MM_Idle_MH.MM_Idle_MH")));
 			if (UAnimSequence* Anim = bWalk ? Walk : Idle) { S->SetAnimationMode(EAnimationMode::AnimationSingleNode); S->SetAnimation(Anim); S->Play(true); }
 		}
 	}
@@ -198,7 +199,7 @@ namespace
 
 	UMaterialInstanceDynamic* Plain(UObject* Outer, const FLinearColor& Col, float Rough)
 	{
-		static UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/LightMast/M_LM_Plain.M_LM_Plain"));
+		static UMaterialInterface* Base = ADPKeep(LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/LightMast/M_LM_Plain.M_LM_Plain")));
 		if (!Base) return nullptr;
 		UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(Base, Outer);
 		M->SetVectorParameterValue(TEXT("BaseColor"), Col);
@@ -221,7 +222,7 @@ namespace
 		for (USkeletalMeshComponent* S : Skels) if (S->GetName().StartsWith(TEXT("Body"))) Body = S;
 		if (Body)
 		{
-			static UAnimSequence* Idle = LoadObject<UAnimSequence>(nullptr, TEXT("/Game/People/Anims/MM_Idle_MH.MM_Idle_MH"));
+			static UAnimSequence* Idle = ADPKeep(LoadObject<UAnimSequence>(nullptr, TEXT("/Game/People/Anims/MM_Idle_MH.MM_Idle_MH")));
 			for (USkeletalMeshComponent* S : Skels) if (S != Body && !S->GetName().StartsWith(TEXT("Face"))) S->SetLeaderPoseComponent(Body);
 			if (Idle) { Body->SetAnimationMode(EAnimationMode::AnimationSingleNode); Body->SetAnimation(Idle); Body->Play(true); }
 		}
@@ -268,7 +269,7 @@ void ADPCharacterCreate::BuildConcept(UWorld* W, APlayerController* PC, bool bWo
 	}
 
 	// the two neon tubes, the title screen's cyan, and the light they throw (a tall soft light behind each, into the fog)
-	static UMaterialInterface* NeonBase = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/Neon/M_Neon.M_Neon"));
+	static UMaterialInterface* NeonBase = ADPKeep(LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/Neon/M_Neon.M_Neon")));
 	UMaterialInstanceDynamic* Neon = NeonBase ? UMaterialInstanceDynamic::Create(NeonBase, W) : nullptr;
 	if (Neon) { Neon->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.45f, 0.9f, 1.f)); Neon->SetScalarParameterValue(TEXT("Strength"), 16.f); }
 	NeonMat = Neon;
@@ -513,7 +514,7 @@ void ADPCharacterCreate::ShowPet(const FString& Kind, const FString& Id, const F
 	PetNow = Kind;
 	if (Old) { Walk(Old, EdgeAt(Mark), true); PetActor = nullptr; }
 	if (!bPet) return;
-	static UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/StagePet/M_PetPlaceholder.M_PetPlaceholder"));
+	static UMaterialInterface* Base = ADPKeep(LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/StagePet/M_PetPlaceholder.M_PetPlaceholder")));
 	UTexture* Tex = LoadObject<UTexture>(nullptr, Kind == TEXT("cat") ? TEXT("/Game/StagePet/T_CatPlaceholder.T_CatPlaceholder") : TEXT("/Game/StagePet/T_DogPlaceholder.T_DogPlaceholder"));
 	if (!Base || !Tex) { ADP_WARN(TEXT("Character creator: the pet stand-in is missing (Tools/set_pet_placeholders.py)")); return; }
 	FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;

@@ -148,6 +148,9 @@ def lamps(parent_name, prefix, xs, zs, y):
             N.append({'name': '%s/LAMP-%03d' % (prefix, k), 'translation': [-x, y, z], 'children': [len(N) + 1]})
             N.append({'name': 'box#lamp', 'scale': [1.2, 0.04, 0.6], 'mesh': 186})
             N[byname[parent_name]]['children'].append(len(N) - 2)
+# the airside hall's ceiling went right over the stairs to Floor 2 (owner 2026-11-16): one 40 x 10 m panel, rebuilt by
+# the annex with the stairwell open (Art/TerminalAnnex/make_annex_west.py)
+drop(1981, 'rebuilt by the annex with the stairwell open')
 lamps('F1', 'F1-ESC', [3, 9, 15], [4, 10, 16, 22, 28], 5.33)
 lamps('F1', 'F1-ESC-HIGH', [24, 30], [4, 10, 16, 22, 28], 11.28)
 lamps('F2', 'F2-ESC-LANDING', [17], [3, 9, 20, 26], 11.28)

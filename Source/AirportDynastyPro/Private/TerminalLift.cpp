@@ -6,6 +6,7 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Materials/MaterialInterface.h"
+#include "ADPKeep.h"
 
 namespace
 {
@@ -21,7 +22,7 @@ ATerminalLift::ATerminalLift()
 
 UStaticMeshComponent* ATerminalLift::Box(USceneComponent* Parent, const FVector& Lo, const FVector& Hi, const TCHAR* Mat)
 {
-	static UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+	static UStaticMesh* Cube = ADPKeep(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube")));
 	UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
 	C->SetStaticMesh(Cube); C->SetMobility(EComponentMobility::Movable);
 	C->SetupAttachment(Parent);

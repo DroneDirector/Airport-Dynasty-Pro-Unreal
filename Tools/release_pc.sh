@@ -19,6 +19,21 @@ if [ "$4" != "--upload" ]; then
   tasklist | grep -qi "UnrealEditor.exe" && { echo "STOP: an Unreal editor is running"; exit 1; }
   echo "== web pages and data into Content"
   rm -rf Content/Web && cp -r Airline-Manager-Pro-Babylon/www Content/Web && rm -rf Content/Data && cp -r Data Content/Data
+  echo "== every folder the code loads by name is always cooked"
+  python - <<'PYEOF' || { echo "STOP: add the folders above to DirectoriesToAlwaysCook in Config/DefaultGame.ini"; exit 1; }
+import re, glob, sys
+# (0.17.16 shipped without its escalator, road signs, street lights and more: the code loads them by name, nothing in a
+#  level points at them, so the cook left them out, owner 2026-11-16. Folders already reached through a level are listed.)
+SKIP = {'Characters', 'Maps'}
+ini = open('Config/DefaultGame.ini', encoding='utf-8').read()
+cooked = set(re.findall(r'DirectoriesToAlwaysCook=\(Path="/Game/([^"/]+)', ini))
+used = set()
+for f in glob.glob('Source/AirportDynastyPro/**/*.*', recursive=True):
+    used |= set(re.findall(r'TEXT\("/Game/([A-Za-z0-9_]+)/', open(f, encoding='utf-8', errors='ignore').read()))
+miss = sorted(used - cooked - SKIP)
+if miss: print('not always cooked:', ', '.join(miss)); sys.exit(1)
+print('all %d folders the code loads are cooked' % len(used - SKIP))
+PYEOF
   echo "== cook and package (patch on 0.12.1)"
   rm -rf $P/$V
   "/c/Program Files/Epic Games/UE_5.7/Engine/Build/BatchFiles/RunUAT.bat" BuildCookRun -project="$(pwd -W)/AirportDynastyPro.uproject" -noP4 -platform=Win64 -clientconfig=Shipping -build -cook -stage -pak -generatepatch -basedonreleaseversion=0.12.1 -archive -archivedirectory="F:\\ADP-Packaged\\$V" -utf8output -unattended -IgnoreCookErrors > $P/uat-$V.log 2>&1 || { tail -20 $P/uat-$V.log; echo "STOP: packaging failed"; exit 1; }
