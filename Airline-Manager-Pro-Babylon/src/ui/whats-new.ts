@@ -4,9 +4,15 @@
 import { APP } from '../core/app';
 import { icon, esc } from './icons';
 
+import { UE_PC } from '../core/uelink';
+
 declare const __WHATS_NEW__: { v: string; md: string }[];
-export const WHATS_NEW = __WHATS_NEW__;
-const SEEN = 'ampb-seen-version', FOLD = 'ampb-wn-folded';
+declare const __WHATS_NEW_PC__: { v: string; md: string }[];
+// each edition its own news (to-do 47): in the PC game the PC notes up to the PC version, on Android the Android ones
+const vnum = (v: string) => v.split('.').map(Number), vcmp = (a: string, b: string) => { const x = vnum(a), y = vnum(b); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0); return 0; };
+export const WHATS_NEW = UE_PC ? __WHATS_NEW_PC__.filter(r => vcmp(r.v, UE_PC) <= 0).slice(0, 3) : __WHATS_NEW__;
+const MY_VERSION = UE_PC || APP.version;
+const SEEN = UE_PC ? 'ampb-seen-version-pc' : 'ampb-seen-version', FOLD = UE_PC ? 'ampb-wn-folded-pc' : 'ampb-wn-folded';
 
 /** Release notes (Markdown: headings, bold lines, points and sub-points) as HTML. */
 export function mdHtml(md: string): string {
@@ -27,7 +33,7 @@ function titleOf(md: string, v: string): string { const m = /^#\s+(.*)$/m.exec(m
 export function whatsNewHtml(): string {
   let folded = ''; try { folded = localStorage.getItem(FOLD) || ''; } catch (e) { /* none */ }
   return WHATS_NEW.map((r, i) => `<details class="wn-rel ${i === 0 ? 'wn-latest' : ''}" data-v="${esc(r.v)}" ${i === 0 && folded !== r.v ? 'open' : ''}>
-    <summary><span class="wn-ver">${esc(r.v)}</span><span class="wn-t"><b>${esc(titleOf(r.md, r.v))}</b><small>${i === 0 ? (r.v === APP.version ? 'Installed now' : 'Newest') : 'Earlier update'}</small></span>${i === 0 ? '<em class="wn-new">New</em>' : ''}<span class="wn-chev">${icon('back')}</span></summary>
+    <summary><span class="wn-ver">${esc(r.v)}</span><span class="wn-t"><b>${esc(titleOf(r.md, r.v))}</b><small>${i === 0 ? (r.v === MY_VERSION ? 'Installed now' : 'Newest') : 'Earlier update'}</small></span>${i === 0 ? '<em class="wn-new">New</em>' : ''}<span class="wn-chev">${icon('back')}</span></summary>
     <div class="wn-body">${mdHtml(r.md)}</div></details>`).join('') || '<p class="wn-none">No release notes yet.</p>';
 }
 /** Remember the newest being folded away (or opened again), until the next update. */
@@ -39,7 +45,7 @@ export function whatsNewBind(root: HTMLElement) {
 export function whatsNewOpen() {
   if (!WHATS_NEW.length || document.querySelector('.wn-pop')) return;
   const ui = document.getElementById('ui') as HTMLElement, el = document.createElement('div'); el.className = 'wn-pop';
-  el.innerHTML = `<div class="wn-box" role="dialog" aria-label="What's new"><div class="wn-head"><div><b>What's new</b><small>${esc(APP.name)} ${esc(APP.version)}</small></div><button class="sp-x" data-a="x" aria-label="Close">${icon('close')}</button></div>
+  el.innerHTML = `<div class="wn-box" role="dialog" aria-label="What's new"><div class="wn-head"><div><b>What's new</b><small>${esc(APP.name)} ${esc(MY_VERSION)}</small></div><button class="sp-x" data-a="x" aria-label="Close">${icon('close')}</button></div>
     <div class="wn-list">${whatsNewHtml()}</div><div class="wn-foot"><button class="sp-btn" data-a="x">Got it</button></div></div>`;
   ui.appendChild(el); whatsNewBind(el); requestAnimationFrame(() => el.classList.add('in'));
   el.addEventListener('click', (e: Event) => { const t = e.target as HTMLElement; if (t === el || t.closest('[data-a="x"]')) whatsNewClose(); });
@@ -49,8 +55,8 @@ export function whatsNewIsOpen(): boolean { return !!document.querySelector('.wn
 /** At start-up: once after an update (not on a brand-new install). */
 export function whatsNewOnStart() {
   let seen = ''; try { seen = localStorage.getItem(SEEN) || ''; } catch (e) { return; }
-  try { localStorage.setItem(SEEN, APP.version); } catch (e) { /* not kept */ }
+  try { localStorage.setItem(SEEN, MY_VERSION); } catch (e) { /* not kept */ }
   let used = false; try { used = !!localStorage.getItem('ampb-settings'); } catch (e) { /* new */ }
-  if (seen === APP.version || (!seen && !used)) return;
+  if (seen === MY_VERSION || (!seen && !used)) return;
   setTimeout(whatsNewOpen, 2200);
 }

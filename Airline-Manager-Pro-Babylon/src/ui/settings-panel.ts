@@ -125,7 +125,7 @@ function updRows(): Row[] {
     return R;
   }
   const busy = U.state === 'checking' || U.state === 'downloading' || U.state === 'installing', R: Row[] = [
-    { k: 'info', label: 'Installed', text: () => `${APP.name} ${APP.version}` },
+    { k: 'info', label: 'Installed', text: () => `${APP.name} ${UE_PC || APP.version}` },
     { k: 'info', label: 'Status', text: () => updateStatus() },
   ];
   if (canSelfUpdate()) {
