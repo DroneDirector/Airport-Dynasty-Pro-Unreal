@@ -14,6 +14,9 @@ from reportlab.pdfbase.pdfmetrics import stringWidth
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC, OUT = os.path.join(ROOT, 'docs', 'Test-Findings.md'), os.path.join(ROOT, 'docs', 'Test-Findings.pdf')
+# (any other document the same way: python Tools/make_findings_pdf.py docs/X.md -> docs/X.pdf)
+_args = [a for a in __import__('sys').argv[1:] if not a.startswith('--')]
+if _args: SRC = os.path.join(ROOT, _args[0]); OUT = os.path.splitext(SRC)[0] + '.pdf'
 F = 'C:/Windows/Fonts/'
 import sys
 MAIL = '--mail' in sys.argv
@@ -25,7 +28,7 @@ else:
 FN = {'UI': 'Helvetica', 'UIB': 'Helvetica-Bold', 'Mono': 'Courier'} if MAIL else {'UI': 'UI', 'UIB': 'UIB', 'Mono': 'Mono'}
 W, H = A4; M = 48
 BG, FG, DIM, CY, PK = HexColor('#101018'), HexColor('#ECECF4'), HexColor('#A9A9BD'), HexColor('#35F0FF'), HexColor('#FF3FB8')
-c = canvas.Canvas(OUT, pagesize=A4, pageCompression=1); c.setTitle('Airport Dynasty Pro - test findings')
+c = canvas.Canvas(OUT, pagesize=A4, pageCompression=1); c.setTitle(open(SRC, encoding='utf-8').readline().lstrip('# ').strip() or 'Airport Dynasty Pro')
 y = 0
 def page():
     global y
