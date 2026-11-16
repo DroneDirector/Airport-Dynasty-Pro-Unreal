@@ -11,12 +11,14 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Misc/CoreDelegates.h"
+#include "JetwayRigs.h"
+#include "SunClock.h"
 #include "UObject/UObjectGlobals.h"
 
 namespace ADPStressWalkInternal
 {
 	// one part of the walk; places in the terminal plan's metres (x east, h up, z north)
-	enum class EWalkKind : uint8 { Go, Walk, Look, Face, Escalator };
+	enum class EWalkKind : uint8 { Go, Walk, Look, Face, Escalator, Night, JetwayRide, JetwayWatch };
 	struct FWalkPart { const TCHAR* What; EWalkKind Kind; TArray<FVector> Points; float Seconds; float Yaw; };   // (Points: x, h, z)
 
 	TArray<FWalkPart> WalkRoute()
@@ -54,6 +56,13 @@ namespace ADPStressWalkInternal
 			{TEXT("out onto the apron"), EWalkKind::Walk, {P(-47.f, 0.f, 115.f), P(-42.f, 0.f, 128.f)}, 30.f, 0.f},
 			{TEXT("looking at the terminal from the apron"), EWalkKind::Face, {}, 8.f, 90.f},
 			{TEXT("looking round on the apron"), EWalkKind::Look, {}, 12.f, 0.f},
+			// the night part (owner, 2026-11-16: every stress walk - inside a jetway and outside it in the dark, the jetway
+			// moving to dock, its lights inside and out, you carried with it, also while walking in it)
+			{TEXT("night falls (21:00)"), EWalkKind::Night, {}, 4.f, 0.f},
+			{TEXT("in the jetway's cab at night"), EWalkKind::Go, {P(-58.f, 3.1f, 109.f)}, 0.f, 0.f},
+			{TEXT("the jetway pulls back with you inside, walking in it as it moves"), EWalkKind::JetwayRide, {}, 220.f, 0.f},
+			{TEXT("out on the apron at night"), EWalkKind::Go, {P(-40.f, 0.f, 124.f)}, 0.f, 0.f},
+			{TEXT("watching the jetway drive out and dock in the dark"), EWalkKind::JetwayWatch, {}, 220.f, 0.f},
 		};
 	}
 
@@ -62,6 +71,7 @@ namespace ADPStressWalkInternal
 	int32 WalkPart = -1, WalkPoint = 0, WalkSide = 1;
 	TArray<FWalkPart> WalkParts;
 	FString WalkEndNote;
+	float WalkHourWas = -1.f; int32 WalkJet = INDEX_NONE; bool WalkToCab = false;
 
 	FVector WalkWorld(const FVector& PlanP) { return FTerminalPlan::ToWorld(PlanP.X, PlanP.Y, PlanP.Z); }
 
@@ -135,6 +145,7 @@ void ADPStressWalk::Tick(UWorld* W, APlayerController* PC, float Dt)
 	if (WalkPart >= WalkParts.Num())
 	{
 		bWalkOn = false;
+		ASunClock::HourOverride = WalkHourWas; ASunClock::Refresh();   // (the night part over: the clock as it was)
 		const FString Sum = ADPPerfLog::EndSection();
 		ADP_LOG(TEXT("Stress walk: done - %s"), *Sum);
 		WalkEndNote = TEXT("STRESS WALK FINISHED\n") + Sum + TEXT("\nEvery slow frame and where it happened: Saved/Logs/ADP-Perf.log"); WalkEndNoteT = 12.f;
@@ -171,6 +182,39 @@ void ADPStressWalk::Tick(UWorld* W, APlayerController* PC, float Dt)
 	case EWalkKind::Escalator:
 		for (TActorIterator<AEscalatorPair> It(W); It; ++It) Ch->AddMovementInput(It->GetActorTransform().TransformVectorNoScale(FVector(0, -1, 0)), 0.6f);
 		bDone = WalkPartT >= Pt.Seconds; break;
+	case EWalkKind::Night:
+		if (WalkPartT <= Dt) { WalkHourWas = ASunClock::HourOverride; ASunClock::HourOverride = 21.f; ASunClock::Refresh(); }
+		bDone = WalkPartT >= Pt.Seconds; break;
+	case EWalkKind::JetwayRide:
+	case EWalkKind::JetwayWatch:
+	{
+		AJetwayRigs* JR = AJetwayRigs::Get(W);
+		if (!JR) { bDone = true; break; }
+		if (WalkPartT <= Dt)
+		{
+			WalkJet = JR->Nearest(Ch->GetActorLocation(), 6000.f);
+			if (WalkJet != INDEX_NONE) { if (JR->State(WalkJet) == AJetwayRigs::EState::Docked) JR->Undock(WalkJet); else JR->Dock(WalkJet); }
+			WalkToCab = false;
+			ADP_LOG(TEXT("Stress walk: jetway %s %s"), WalkJet != INDEX_NONE ? *JR->Name(WalkJet) : TEXT("none"), Pt.Kind == EWalkKind::JetwayRide ? TEXT("moving with you inside") : TEXT("docking, watched from outside"));
+		}
+		if (WalkJet == INDEX_NONE) { bDone = true; break; }
+		FVector Ro, Dr, Mid, Fr;
+		if (JR->Frame(WalkJet, Ro, Dr) && JR->CabView(WalkJet, Mid, Fr))
+		{
+			if (Pt.Kind == EWalkKind::JetwayRide)
+			{
+				// walking up and down the moving jetway: to the rotunda's end, back to the cab, again
+				const FVector Tgt = WalkToCab ? Mid : Ro + (Mid - Ro) * 0.15f;
+				FVector D = Tgt - Ch->GetActorLocation(); D.Z = 0.f;
+				if (D.Size() < 150.f) WalkToCab = !WalkToCab;
+				else { Ch->AddMovementInput(D.GetSafeNormal(), 0.7f); PC->SetControlRotation(FMath::RInterpTo(PC->GetControlRotation(), FRotator(0.f, D.Rotation().Yaw, 0.f), Dt, 4.f)); }
+			}
+			else PC->SetControlRotation(FMath::RInterpTo(PC->GetControlRotation(), (Mid - Ch->GetActorLocation()).Rotation(), Dt, 3.f));   // (watching the cab)
+		}
+		const AJetwayRigs::EState St = JR->State(WalkJet);
+		bDone = (WalkPartT > 8.f && (St == AJetwayRigs::EState::Docked || St == AJetwayRigs::EState::Parked)) || WalkPartT >= Pt.Seconds;
+		break;
+	}
 	case EWalkKind::Walk:
 	{
 		if (WalkPoint >= Pt.Points.Num()) { bDone = true; break; }

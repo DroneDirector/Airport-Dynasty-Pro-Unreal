@@ -2683,8 +2683,18 @@ void AADPHUD::Tick(float Dt)
 				case 3: Eye = Mid + Fr * 1000.f + FVector(0, 0, 20.f); At = Mid + FVector(0, 0, 20.f); Fov = 60.f; break;                 // the cab straight towards its doorway
 				case 4: Eye = Ro + (Dr - Ro) * 0.22f; Eye.Z = FMath::Lerp(Ro.Z, EyeZ, 0.22f) + 40.f; At = Ro + (Dr - Ro) * 0.95f; At.Z = EyeZ; Fov = 75.f; break;   // inside the tunnel, down it to the cab
 				case 5: Eye = Mid - Fr * 120.f; Eye.Z = EyeZ; At = Mid + Fr * 400.f; At.Z = EyeZ - 20.f; Fov = 80.f; break;                // inside the cab, at the doorway
-				case 6: Eye = Mid + (Mid - Con).GetSafeNormal2D() * 60.f; Eye.Z = EyeZ; At = Con + FVector(0, 0, 10.f); Fov = 65.f; break;    // the control panel, from the middle of the cab
+				case 6: Eye = Con + (Mid - Con).GetSafeNormal2D() * 110.f; At = Con; Fov = 60.f; break;    // the control panel, standing right in front of it (owner: turned towards it)
 				default: Eye = M + Perp * 3000.f + Dir * 2200.f + FVector(0, 0, 900.f); At = M + Dir * 900.f; Fov = 60.f; break;          // at night, moving, the beacons on
+				}
+				// the inside views at standing eye height: the floor straight below found, the eye 1.65 m above it (owner, 2026-11-16:
+				// the camera sat almost on the floor), looking level
+				if (V >= 4 && V <= 6)
+				{
+					FHitResult H; FCollisionQueryParams Qf(SCENE_QUERY_STAT(JetwayEye), true);
+					if (APawn* Me = PC->GetPawn()) Qf.AddIgnoredActor(Me);
+					if (GetWorld()->LineTraceSingleByChannel(H, Eye + FVector(0, 0, 120.f), Eye - FVector(0, 0, 400.f), ECC_Visibility, Qf)) { const float Lift = H.ImpactPoint.Z + 165.f - Eye.Z; Eye.Z += Lift; At.Z += Lift; }
+					if (V == 6) At.Z = Eye.Z - 70.f;   // (looking at the panel's top, a little down)
+					if (V != 6) At.Z = Eye.Z - 15.f;
 				}
 				if (!VCam.IsValid()) VCam = GetWorld()->SpawnActor<ACameraActor>(Eye, (At - Eye).Rotation());
 				if (VCam.IsValid()) { VCam->SetActorLocationAndRotation(Eye, (At - Eye).Rotation()); VCam->GetCameraComponent()->SetConstraintAspectRatio(false); VCam->GetCameraComponent()->SetFieldOfView(Fov); PC->SetViewTarget(VCam.Get()); }

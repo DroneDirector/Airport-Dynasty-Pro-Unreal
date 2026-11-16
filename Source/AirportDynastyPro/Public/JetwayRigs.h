@@ -58,6 +58,8 @@ private:
 	 *  with group A and group B, it turns to lie between them and grows or shrinks along its length. */
 	/** A cab door leaf: turned about its hinge (vertical) from open (as exported, docked) to shut. */
 	struct FLeaf { FVector H; float Close = 0.f; TArray<FPart> Parts; };
+	/** Someone standing in a moving jetway: the jetway part under them and where it was before this frame's move. */
+	struct FRider { TWeakObjectPtr<class ACharacter> Ch; UInstancedStaticMeshComponent* K = nullptr; int32 Ix = INDEX_NONE; FTransform Before; };
 	struct FStretch { FPart P; int32 A = 0, B = 0, Axis = 0; FVector E1, E2; };
 	enum EGroup { Boom, Pitch, Tun1, Tun2, Tun3, Cab, CabSleeve, Bogie, Sleeves, NumGroups };
 	struct FRig
@@ -85,6 +87,8 @@ private:
 	void AddBeacons(FRig& R, ABabylonModel* M, const FString& Id);
 	void Beacons(FRig& R, bool bMoving);
 	void Sounds(FRig& R, bool bMoving, float Dt);
+	void GatherRiders(const FRig& R, TArray<FRider>& Out) const;
+	void CarryRiders(const TArray<FRider>& Riders) const;
 	void AddSignLights(FRig& R, ABabylonModel* M, const FString& Id);
 	void Build();
 	void Apply(FRig& R);

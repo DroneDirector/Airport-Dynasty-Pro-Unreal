@@ -10,6 +10,8 @@
 #include "Components/MaterialBillboardComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "ADPKeep.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Components/AudioComponent.h"
 #include "Sound/SoundBase.h"
 #include "Engine/DirectionalLight.h"
@@ -384,6 +386,10 @@ void AJetwayRigs::Tick(float Dt)
 		Sounds(R, bMoving, Dt);
 		// the wait to drive (Syracuse spec: 3 s of beacons and bell before it moves - people step clear)
 		if (R.Wait > 0.f) { R.Wait -= Dt; continue; }
+		// everyone standing in it moves with it (owner, 2026-11-16: you and every MetaHuman as one with the jetway, also
+		// while walking in it): the part of the jetway under each person noted before it moves, each carried after
+		TArray<FRider> Riders;
+		if (bMoving) GatherRiders(R, Riders);
 		if (R.St == EState::Docking)
 		{
 			const float Left = R.PathL - R.D;
@@ -420,6 +426,7 @@ void AJetwayRigs::Tick(float Dt)
 			}
 			Apply(R);
 		}
+		CarryRiders(Riders);
 	}
 }
 
@@ -875,4 +882,42 @@ bool AJetwayRigs::CabView(int32 J, FVector& Mid, FVector& Front) const
 	Mid = A.TransformPosition(Rel.TransformPosition(R.CabMidD));
 	Front = A.TransformVector(Rel.TransformVector(R.FrontD)).GetSafeNormal2D();
 	return true;
+}
+
+void AJetwayRigs::GatherRiders(const FRig& R, TArray<FRider>& Out) const
+{
+	// each character whose floor is one of this jetway's moving parts (a tunnel section, the cab, a floor plate across
+	// the bellows): that part's copy and where it is now
+	for (TActorIterator<ACharacter> It(GetWorld()); It; ++It)
+	{
+		ACharacter* Ch = *It;
+		const UCharacterMovementComponent* Mv = Ch ? Ch->GetCharacterMovement() : nullptr;
+		if (!Mv || !Mv->CurrentFloor.IsWalkableFloor()) continue;
+		UInstancedStaticMeshComponent* K = Cast<UInstancedStaticMeshComponent>(Mv->CurrentFloor.HitResult.GetComponent());
+		const int32 Ix = Mv->CurrentFloor.HitResult.Item;
+		if (!K || Ix == INDEX_NONE) continue;
+		bool bOurs = false;
+		for (int32 g = 0; g < NumGroups && !bOurs; ++g) if (g != Boom) for (const FPart& P : R.G[g].Parts) if (P.K == K && P.Ix == Ix) { bOurs = true; break; }
+		for (const FStretch& X : R.Stretch) if (!bOurs && X.P.K == K && X.P.Ix == Ix) bOurs = true;
+		if (!bOurs) continue;
+		FRider Rd; Rd.Ch = Ch; Rd.K = K; Rd.Ix = Ix; K->GetInstanceTransform(Ix, Rd.Before, true);
+		Out.Add(Rd);
+	}
+}
+
+void AJetwayRigs::CarryRiders(const TArray<FRider>& Riders) const
+{
+	// how far and how much their part moved and turned since: the person moved and turned the same (their view too)
+	for (const FRider& Rd : Riders)
+	{
+		if (!Rd.Ch.IsValid() || !Rd.K) continue;
+		FTransform After; Rd.K->GetInstanceTransform(Rd.Ix, After, true);
+		const FTransform Delta = Rd.Before.Inverse() * After;
+		if (Delta.Equals(FTransform::Identity, 0.01f)) continue;
+		ACharacter* Ch = Rd.Ch.Get();
+		const FVector At = After.TransformPosition(Rd.Before.InverseTransformPosition(Ch->GetActorLocation()));
+		const float Yaw = (After.GetRotation() * Rd.Before.GetRotation().Inverse()).Rotator().Yaw;
+		Ch->SetActorLocationAndRotation(At, Ch->GetActorRotation() + FRotator(0.f, Yaw, 0.f), false, nullptr, ETeleportType::TeleportPhysics);
+		if (AController* C = Ch->GetController()) if (C->IsPlayerController()) C->SetControlRotation(C->GetControlRotation() + FRotator(0.f, Yaw, 0.f));
+	}
 }

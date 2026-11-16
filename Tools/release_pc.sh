@@ -7,7 +7,7 @@
 #     copied into Releases/0.12.1/Windows first (the base release has no pakchunk*-Windows packs of its own, so before
 #     this nothing was compared and every update resent all the content, ~1.4 GB); -addpatchlevel puts this release's
 #     changes in a new numbered pack (pakchunkN-Windows_K_P), the earlier ones stay as they are in installed games
-#   - the full game = the previous version's full game + this version's Windows on top; smoke-tested with ADP_LOG=1
+#   - the full game = the previous version's full game + this version's Windows on top; start-checked (it starts and runs without crashing) with ADP_LOG=1
 #   - update zips from the two previous versions (Tools/MakeUpdate.py); the installer via Inno Setup
 #   - GitHub takes files under 2 GiB: the installer is split (Setup.exe + Setup-N.bin, Installer/setup.iss DiskSpanning);
 #     no full zip on GitHub; every file must be on the release before pc-version.json is pushed - this script pushes it
@@ -61,11 +61,11 @@ import re
 b=open(r'F:/ADP-Packaged/$V/Windows/AirportDynastyPro/Binaries/Win64/AirportDynastyPro-Win64-Shipping.exe','rb').read()
 print(' '.join(sorted(set(m.group(0).decode('utf-16-le') for m in re.finditer(rb'0\x00\.\x001\x00[0-9]\x00\.\x00[0-9]\x00[0-9]?\x00?', b)))))")
   echo "inside: $IN"; echo "$IN" | grep -q "$V" || { echo "STOP: the exe doesn't carry $V"; exit 1; }
-  echo "== the full game, and a smoke test"
+  echo "== the full game, and a start check"
   rm -rf $P/$V/Full; cp -r $P/$A/Full $P/$V/Full; cp -r $P/$V/Windows/. $P/$V/Full/   # (the earlier packs stay; this release's pack added)
   L="$LOCALAPPDATA/AirportDynastyPro/Saved/Logs"; rm -f "$L/ADP.log"
   (cd $P/$V/Full && ADP_LOG=1 timeout 90 ./AirportDynastyPro/Binaries/Win64/AirportDynastyPro-Win64-Shipping.exe -unattended -RenderOffscreen -windowed -ResX=640 -ResY=360 > /dev/null 2>&1) || true
-  C=$(grep -c CRASH "$L/ADP.log" 2>/dev/null || true); echo "smoke test crashes: ${C:-none logged}"
+  C=$(grep -c CRASH "$L/ADP.log" 2>/dev/null || true); echo "start check crashes: ${C:-none logged}"
   [ "$C" = "0" ] || [ -z "$C" ] || { grep -h CRASH -A5 "$L/ADP.log" | head -20; echo "STOP: it crashed"; exit 1; }
   echo "== update zips"
   rm -f $P/AirportDynastyPro-Unreal-PC-Update-*-to-$V.zip
