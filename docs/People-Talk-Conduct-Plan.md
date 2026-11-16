@@ -56,7 +56,7 @@ Owner's design, 16 November 2026. To-do items 69a-69i. Comes after the people an
 - More cooperative passengers sound less so, varied at random but never too far.
 
 ### 11. Body language
-- Violent passengers look violent once security or the police are involved: agitated, pacing, pointing, throwing their arms about.
+- Violent passengers look way more violent once security or the police are involved: agitated, pacing, pointing, throwing their arms about.
 - They never hit a security guard, a police officer or you.
 
 ## On the to-do list (working hours)
