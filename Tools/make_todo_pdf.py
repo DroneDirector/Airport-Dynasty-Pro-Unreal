@@ -119,6 +119,8 @@ ITEMS = [
     ('62', 'New career loading screen: what Unreal loads (you, your hair, the terminal) with real percentages', '40 min', ['people'], '', True),
     ('63', 'Grass performance (done 2026-11-15): the cost was the fire station wash hose, simulating its cable against the world every frame while hidden on its hook (21-50 ms of the game thread, more on slow frames - the grass only looked like the cost); now simulated only while in a hand. The far grass also laid in distance bands (every 4 m to 1 km, 8 m at twice the size to 1.8 km, 12 m at three times beyond: the same ground covered from every height). Measured (-GrassPerf, same views, daytime): eye level 20.4 ms with grass, 19.2 without (49 against 52 fps; before: 15 fps); 450 m up 22.8 against 21.5 ms (44 against 47 fps; before: 26 fps)', 'done', ['field'], '', True),
     ('65', 'Sun shadows by what you do (done 2026-11-16): 2.6 km on foot or driving, 42 km flying / drone / flight viewer, switched on the fly', 'done', ['gfx'], '', True),
+    ('66', 'Lamps by what you do (done 2026-11-16): 150 m on foot or driving (floodlights 600 m), 600 m flying (floodlights 2.4 km), switched on the fly', 'done', ['gfx'], '', True),
+    ('67', 'PERF/LOOK, needs your OK: 12 Nanite meshes with see-through glass (bag-drop screens, stair balustrades, the gate walkway’s glass roof, the car rental) drawn the ordinary way so their glass shows as designed (Nanite can’t draw see-through parts)', '30 min', ['none'], '', False),
 ]
 import os as _os
 # (into docs/, wherever it is run from: it used to land in the current folder and docs/ kept an old copy, 2026-11-14)
