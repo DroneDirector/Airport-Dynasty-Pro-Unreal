@@ -8,6 +8,7 @@
 #include "JetwayRigs.h"
 #include "GroundDecals.h"
 #include "AirfieldLights.h"
+#include "GroundQuality.h"
 #include "TerminalLift.h"
 #include "Misc/PackageName.h"
 #include "SunClock.h"
@@ -129,6 +130,7 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 			if (AGroundDecals* GD = W->SpawnActor<AGroundDecals>()) GD->Place(Field->Data());
 			// the taxiway lights: blue edges, green centrelines (AirfieldLights.h)
 			if (AAirfieldLights* AL = W->SpawnActor<AAirfieldLights>()) AL->Place(Field->Data());
+			ADPGroundQuality::Apply(W);   // (the "Airport ground" setting, GroundQuality.h)
 			// the road network (forecourt, the road to town, the town's streets), the town's buildings on the land the roads
 			// shaped, our own land along the roads, and the posts and signs set down on it: built later, one road a frame,
 			// when you first go into the 3D world (or behind a new career's loading screen) - the title screen used to wait

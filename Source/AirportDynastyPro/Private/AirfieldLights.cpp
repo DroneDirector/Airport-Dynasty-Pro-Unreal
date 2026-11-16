@@ -20,7 +20,7 @@ AAirfieldLights::AAirfieldLights()
 
 namespace
 {
-	float SegDist(const FVector2f& P, const FVector2f& A, const FVector2f& B)
+	float TwyLightSegDist(const FVector2f& P, const FVector2f& A, const FVector2f& B)
 	{
 		const FVector2f D = B - A; const float L2 = D.SizeSquared();
 		const float T = L2 > 0.f ? FMath::Clamp(FVector2f::DotProduct(P - A, D) / L2, 0.f, 1.f) : 0.f;
@@ -66,7 +66,7 @@ void AAirfieldLights::Place(const FAirfieldData& F)
 	{
 		for (const FAirfieldData::FTwy& T : F.Taxiways)
 			for (int32 i = 0; i + 1 < T.Pts.Num(); ++i)
-				if (SegDist(P, T.Pts[i], T.Pts[i + 1]) < T.W * 0.5f - 1.f) return true;
+				if (TwyLightSegDist(P, T.Pts[i], T.Pts[i + 1]) < T.W * 0.5f - 1.f) return true;
 		return false;
 	};
 	TArray<FVector2f> DoneE, DoneC;

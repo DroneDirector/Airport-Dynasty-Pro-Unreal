@@ -27,7 +27,7 @@ def log(m): unreal.log('ADP_GROUND ' + str(m))
 
 # ---- the weather's parameters (APuddles sets them; Cracks a global amount for the tuning panel)
 MPC = '/Game/Weather/MPC_Weather'
-PARAMS = (('Wetness', 0.0), ('PuddleAmount', 0.55), ('PuddleSize', 3.0), ('PuddleShine', 0.9), ('Ripples', 1.0), ('Rain', 0.0), ('Cracks', 1.0), ('Tyres', 1.0), ('Snow', 0.0))
+PARAMS = (('Wetness', 0.0), ('PuddleAmount', 0.55), ('PuddleSize', 3.0), ('PuddleShine', 0.9), ('Ripples', 1.0), ('Rain', 0.0), ('Cracks', 1.0), ('Tyres', 1.0), ('Snow', 0.0), ('Relief', 0.6), ('FineRelief', 0.0))
 VPARAMS = (('RwyA', unreal.LinearColor(0, 0, 3000, 0)), ('RwyB', unreal.LinearColor(1, 0, 3000, 0)), ('RwyDisp', unreal.LinearColor(25000, 25000, 0, 0)))
 mpc = unreal.load_asset(MPC)
 if mpc is None:
@@ -166,6 +166,10 @@ C3, C1 = (True, True, True, False), (True, False, False, False)
 sdiff = anti('ScanDiff', SCAN['asphalt_04']['diff'], unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, suv, 0.0, C3, -1000, -1000)
 snor = anti('ScanNormal', SCAN['asphalt_04']['nor'], unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL, suv, 1.0, C3, -1000, -800)
 srgh = anti('ScanRough', SCAN['asphalt_04']['rough'], unreal.MaterialSamplerType.SAMPLERTYPE_MASKS, suv, 0.0, C1, -1000, -600)
+# the "Airport ground" setting's fine relief (to-do 40f, Ultra): the same scan's relief again, 3.7 times finer, close by only
+suv4 = E(unreal.MaterialExpressionMultiply, -1300, -700); mel.connect_material_expressions(suv, '', suv4, 'A'); suv4.set_editor_property('const_b', 3.7)
+snor2 = anti('ScanNormal', SCAN['asphalt_04']['nor'], unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL, suv4, 1.0, C3, -1000, -700)
+pdep = E(unreal.MaterialExpressionPixelDepth, -1600, -700)
 sbig = anti('ScanDiffBig', SCAN['asphalt_04']['diff'], unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, big, 0.0, C3, -1000, -1200)
 usescan = sp('UseScan', 0.0, -1600, -1000)
 
@@ -355,7 +359,7 @@ return float4(c, r);
 """
 NORMAL = COMMON + r"""
 float3 nn = N;
-if (UseScan > 0.5) nn = normalize(N + float3(ScanN.xy, 0) * 0.6 * (1.0 - puddle));   // ScanN: the scan's slope in world x, y (ANTI)
+if (UseScan > 0.5) nn = normalize(N + (float3(ScanN.xy, 0) * Relief + float3(ScanN2.xy, 0) * FineRelief * 0.5 * saturate(1.0 - PD / 2500.0)) * (1.0 - puddle));   // ScanN: the scan's slope in world x, y (ANTI); Relief, FineRelief: the Airport ground setting
 float2 uvr = WP.xy / 28.0; float2 acc = 0;
 [unroll] for (int k = 0; k < 3; k++) {
   float2 g = uvr + float2(k * 0.37, k * 0.71);
@@ -381,7 +385,7 @@ SRC = lambda: {'RW': (rwear, ''), 'UV0': (uv, ''), 'WP': (wp, ''), 'N': (vn, '')
        'Rough': (rough, ''), 'UseScan': (usescan, ''), 'ScanCol': (sdiff, ''), 'ScanBig': (sbig, ''), 'ScanR': (srgh, ''),
        'ScanN': (snor, ''), 'CrackTex': (crackt, ''), 'TyreTex': (tyret, ''), 'RwyA': (cvs['RwyA'], ''), 'RwyB': (cvs['RwyB'], ''),
        'RwyDisp': (cvs['RwyDisp'], ''), 'TyreAmt': (tamt, ''), 'Tyres': (cps['Tyres'], ''), 'VC': (vcol, ''), 'PDirt': (pdirt, ''), 'SnowP': (cps['Snow'], ''), 'SBias': (sbias, ''), 'RScale': (rscale, ''), 'Shine': (cps['PuddleShine'], ''),
-       'T': (tm, ''), 'Ripples': (cps['Ripples'], ''), 'Rain': (cps['Rain'], '')}
+       'T': (tm, ''), 'Ripples': (cps['Ripples'], ''), 'Rain': (cps['Rain'], ''), 'ScanN2': (snor2, ''), 'Relief': (cps['Relief'], ''), 'FineRelief': (cps['FineRelief'], ''), 'PD': (pdep, '')}
 def custom(code, out_type, x, y, extra):
     c = E(unreal.MaterialExpressionCustom, x, y)
     c.set_editor_property('code', code); c.set_editor_property('output_type', out_type); c.set_editor_property('description', 'GROUND')
@@ -393,7 +397,7 @@ def custom(code, out_type, x, y, extra):
     for n_ in names: mel.connect_material_expressions(src[n_][0], src[n_][1], c, n_)
     return c
 cs = custom(SURF, unreal.CustomMaterialOutputType.CMOT_FLOAT4, -300, 0, ['Shine', 'VC', 'PDirt', 'SnowP', 'SBias'])
-cn = custom(NORMAL, unreal.CustomMaterialOutputType.CMOT_FLOAT3, -300, 400, ['ScanN', 'T', 'Ripples', 'Rain'])
+cn = custom(NORMAL, unreal.CustomMaterialOutputType.CMOT_FLOAT3, -300, 400, ['ScanN', 'T', 'Ripples', 'Rain', 'ScanN2', 'Relief', 'FineRelief', 'PD'])
 cr = custom(REFL, unreal.CustomMaterialOutputType.CMOT_FLOAT1, -300, 800, ['Shine'])
 rgb = E(unreal.MaterialExpressionComponentMask, -50, 0)
 for ch, on in (('r', True), ('g', True), ('b', True), ('a', False)): rgb.set_editor_property(ch, on)
