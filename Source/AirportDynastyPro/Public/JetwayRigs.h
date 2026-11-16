@@ -30,6 +30,8 @@ public:
 	FString Name(int32 J) const;
 	/** Whether an aircraft stands at this jetway's stand (a parked one within reach of its door). */
 	bool AircraftAt(int32 J) const;
+	/** The aircraft at this jetway's stand, if any (its actor and its type, from its tag "<stand>/<TYPE>"). */
+	AActor* AircraftAtStand(int32 J, FString* Type = nullptr) const;
 	/** Why the last Dock / Undock was refused (shown on screen), empty if it went. */
 	static FString LastNote;
 	bool Dock(int32 J);
@@ -80,7 +82,8 @@ private:
 		FVector CabMidD = FVector::ZeroVector, FrontD = FVector::ForwardVector;   // the cab body's middle and the way its door faces (docked, model space)
 		FVector DirD, AxisD; float LenD = 0.f, PitchD = 0.f, Turn0 = 0.f;
 		EState St = EState::Docked; float T = 0.f, S = 1.f, Turn = 0.f;
-		float D = 0.f, V = 0.f, PathL = 0.f; TArray<float> Arc;   // (metres driven along the path, speed m/s, the path's length, S by distance)
+		float D = 0.f, V = 0.f, PathL = 0.f; TArray<float> Arc;
+		FVector WdBase = FVector::ZeroVector; FString DockedType = TEXT("A320");   // (the export's docked point: the A320's door; per type it moves from there)   // (metres driven along the path, speed m/s, the path's length, S by distance)
 	};
 	TArray<FRig> Rigs;
 	bool bBuilt = false; float Look = 0.f, BcnClock = 0.f;
@@ -93,5 +96,7 @@ private:
 	void Build();
 	void Apply(FRig& R);
 	FVector PathAt(const FRig& R, float S) const;
+	void SetDoor(FRig& R, AActor* Plane, const FString& Type);
+	void MakeArc(FRig& R) const;
 	float SAt(const FRig& R, float Dm) const;
 };

@@ -256,9 +256,7 @@ void AJetwayRigs::Build()
 		ADP_LOG(TEXT("Jetways: %s rigged, %d parts; reach %.1f m docked, %.1f m at rest; section 3 at %.2f m (his measures: %.2f)"),
 			*Id, Parts, R.LenD, ADPJetwayInternal::Ik(R.BoomO, R.Wp).Len, Along, Z3);
 		// the path's length, and where along it each metre is (driving at real speeds needs distances)
-		R.Arc.SetNum(65); R.Arc[0] = 0.f;
-		{ FVector Pv = PathAt(R, 0.f); for (int32 i = 1; i <= 64; ++i) { const FVector Pn = PathAt(R, i / 64.f); R.Arc[i] = R.Arc[i - 1] + (Pn - Pv).Size() / 100.f; Pv = Pn; } }
-		R.PathL = R.Arc[64]; R.D = R.PathL;
+		R.WdBase = R.Wd; MakeArc(R); R.D = R.PathL;
 		AddBeacons(R, M, Id);
 		AddSignLights(R, M, Id);
 		Rigs.Add(MoveTemp(R));
@@ -438,22 +436,74 @@ int32 AJetwayRigs::Nearest(const FVector& At, float MaxCm) const
 }
 AJetwayRigs::EState AJetwayRigs::State(int32 J) const { return Rigs.IsValidIndex(J) ? Rigs[J].St : EState::Parked; }
 FString AJetwayRigs::Name(int32 J) const { return Rigs.IsValidIndex(J) ? Rigs[J].Id : FString(); }
-bool AJetwayRigs::AircraftAt(int32 J) const
+AActor* AJetwayRigs::AircraftAtStand(int32 J, FString* Type) const
 {
-	// a parked aircraft (ParkedAircraft.cpp tags each "<stand>/A320") whose middle is within 40 m of the docked door
+	// a parked aircraft (ParkedAircraft.cpp tags each "<stand>/<TYPE>") whose middle is within 40 m of the docked door
 	// point - the jetway's own stand
-	FVector Ro, Dr; if (!Frame(J, Ro, Dr)) return false;
+	FVector Ro, Dr; if (!Frame(J, Ro, Dr)) return nullptr;
 	for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It)
 		for (const FName& T : It->Tags)
-			if (T.ToString().EndsWith(TEXT("/A320")) && FVector::Dist2D(It->GetActorLocation(), Dr) < 4000.f) return true;
-	return false;
+		{
+			const FString S = T.ToString(); int32 Slash;
+			if (!S.FindLastChar(TEXT('/'), Slash) || FVector::Dist2D(It->GetActorLocation(), Dr) > 4000.f) continue;
+			if (Type) *Type = S.Mid(Slash + 1);
+			return *It;
+		}
+	return nullptr;
+}
+
+bool AJetwayRigs::AircraftAt(int32 J) const { return AircraftAtStand(J) != nullptr; }
+
+namespace ADPJetwayInternal
+{
+	// each type's front door (L1), from the makers' airport planning documents (Airbus AC rev 46, Boeing D6-58325-7 rev C
+	// and D6-58327 rev H, Embraer APM 190-1 rev 21): nose tip to the door's centre, the sill's height (middle of the
+	// loaded-to-empty range), the fuselage's width. Every type stops with its nose on the same line (each its own stop bar)
+	struct FDoorType { const TCHAR* Type; float NoseToDoor, Sill, Width; };
+	const FDoorType DoorTypes[] = {
+		{TEXT("A318"), 5.04f, 3.41f, 3.95f}, {TEXT("A319"), 5.04f, 3.42f, 3.95f}, {TEXT("A320"), 5.04f, 3.43f, 3.95f}, {TEXT("A321"), 5.02f, 3.45f, 3.95f},
+		{TEXT("B737"), 5.03f, 2.67f, 3.76f}, {TEXT("B737-700"), 5.03f, 2.67f, 3.76f}, {TEXT("B737-800"), 5.03f, 2.67f, 3.76f}, {TEXT("B737-900ER"), 5.03f, 2.67f, 3.76f},
+		{TEXT("B757"), 5.05f, 3.90f, 3.76f}, {TEXT("B757-200"), 5.05f, 3.90f, 3.76f}, {TEXT("E190"), 5.18f, 2.62f, 3.01f}, {TEXT("E195"), 5.18f, 2.62f, 3.01f},
+	};
+	const FDoorType* DoorOf(const FString& T) { for (const FDoorType& D : DoorTypes) if (T.Equals(D.Type, ESearchCase::IgnoreCase)) return &D; return nullptr; }
+}
+
+void AJetwayRigs::MakeArc(FRig& R) const
+{
+	R.Arc.SetNum(65); R.Arc[0] = 0.f;
+	FVector Pv = PathAt(R, 0.f); for (int32 i = 1; i <= 64; ++i) { const FVector Pn = PathAt(R, i / 64.f); R.Arc[i] = R.Arc[i - 1] + (Pn - Pv).Size() / 100.f; Pv = Pn; }
+	R.PathL = R.Arc[64];
+}
+
+void AJetwayRigs::SetDoor(FRig& R, AActor* Plane, const FString& Type)
+{
+	// the docked point moved from the export's (made for the A320's door) to this type's door: along the fuselage by the
+	// door's place, in towards the middle by half the width difference, up or down by the sill's (the lift columns)
+	using namespace ADPJetwayInternal;
+	const FDoorType* Base = DoorOf(TEXT("A320")); const FDoorType* T = DoorOf(Type);
+	R.Wd = R.WdBase;
+	if (Plane && Base && T)
+	{
+		const FTransform A = R.Model->GetActorTransform();
+		const FVector Back = A.InverseTransformVectorNoScale(Plane->GetActorTransform().TransformVectorNoScale(FVector(0.f, 1.f, 0.f))).GetSafeNormal2D();   // (its tail: the actor's +Y)
+		FVector In = A.InverseTransformPosition(Plane->GetActorLocation()) - R.WdBase; In.Z = 0.f; In -= Back * FVector::DotProduct(In, Back); In = In.GetSafeNormal();
+		R.Wd += Back * (T->NoseToDoor - Base->NoseToDoor) * 100.f + In * (Base->Width - T->Width) * 50.f + FVector(0, 0, (T->Sill - Base->Sill) * 100.f);
+	}
+	R.DockedType = Type;
+	MakeArc(R);
+	ADP_LOG(TEXT("Jetways: %s docks to a %s - its door point moved %.2f m (sill %+.2f m)"), *R.Id, *Type, FVector::Dist(R.Wd, R.WdBase) / 100.f, (R.Wd.Z - R.WdBase.Z) / 100.f);
 }
 
 bool AJetwayRigs::Dock(int32 J)
 {
 	LastNote.Reset();
 	if (!Rigs.IsValidIndex(J) || Rigs[J].St != EState::Parked) return false;
-	if (!AircraftAt(J)) { LastNote = FString::Printf(TEXT("No aircraft at gate %s"), *Rigs[J].Id.RightChop(2)); ADP_LOG(TEXT("Jetways: %s - no aircraft at its stand, not docking"), *Rigs[J].Id); return false; }
+	FString Type; AActor* Plane = AircraftAtStand(J, &Type);
+	if (!Plane) { LastNote = FString::Printf(TEXT("No aircraft at gate %s"), *Rigs[J].Id.RightChop(2)); ADP_LOG(TEXT("Jetways: %s - no aircraft at its stand, not docking"), *Rigs[J].Id); return false; }
+	// commercial jets from the A318's size up to what the stand's markings take (A321, B757); smaller ones refused
+	if (!ADPJetwayInternal::DoorOf(Type)) { LastNote = FString::Printf(TEXT("The %s is too small for this jetway"), *Type); ADP_LOG(TEXT("Jetways: %s - a %s isn't a type it docks to"), *Rigs[J].Id, *Type); return false; }
+	// (where it is parked: the path from where it stands, to this type's door - only while at rest, the path is its own)
+	{ FRig& R = Rigs[J]; SetDoor(R, Plane, Type); R.D = 0.f; }
 	Rigs[J].St = EState::Docking; Rigs[J].T = 0.f; Rigs[J].V = 0.f; Rigs[J].Turn = Rigs[J].Turn0; Rigs[J].Wait = 3.f; ADP_LOG(TEXT("Jetways: %s driving out to the door"), *Rigs[J].Id); return true;
 }
 bool AJetwayRigs::Undock(int32 J)
