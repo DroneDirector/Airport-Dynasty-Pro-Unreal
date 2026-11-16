@@ -54,7 +54,7 @@ namespace ADPPeopleInternal
 		{TEXT("I like it."), TEXT("Honestly, it's a good place - people look out for each other, and no two days are the same."), TEXT("It's a job.")},
 		{TEXT("Eight hours."), TEXT("Twelve today, I'm covering for a colleague - but I get the next two days off."), TEXT("Too long.")},
 		{TEXT("Five years."), TEXT("Almost eight years now - I started when the old terminal was still here."), TEXT("Long enough to know better.")},
-		{TEXT("Yes, two kids."), TEXT("A husband and two little ones - they love coming to watch the planes."), TEXT("That's my business.")},
+		{TEXT("Yes, two kids."), TEXT("My partner and two little ones - they love coming to watch the planes."), TEXT("That's my business.")},
 		{TEXT("From Klaksvík."), TEXT("From Klaksvík originally, but I moved here for this job."), TEXT("Around here.")},
 		{TEXT("More staff at peak times."), TEXT("A few more hands when the morning flights all go at once - that would help a lot."), TEXT("Better pay.")},
 	};

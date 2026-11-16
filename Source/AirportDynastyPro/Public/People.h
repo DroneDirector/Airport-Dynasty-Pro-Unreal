@@ -54,6 +54,7 @@ public:
 	void Open(AActor* Who);
 	void Close();
 	void Choose(int32 I);
+	void ShowStartForTest() { ShowStart(); }
 	FString MenuTitle, MenuText;
 	TArray<FString> MenuOptions;
 
