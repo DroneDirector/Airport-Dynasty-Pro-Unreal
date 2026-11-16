@@ -22,7 +22,7 @@ public:
 	AEscalatorPair();
 	/** Both escalators at this actor (its origin: the bottom comb's teeth, in the middle of the up escalator; its -Y the
 	 *  way up). Speed in m/s (0.5 is the usual). */
-	bool Build(float Speed = 0.5f);
+	bool Build(float Speed = 0.5f, bool bShortEnds = false);   // (bShortEnds: the arrivals escalators - their ends past the combs a third as long, SM_EscBodyShort)
 	virtual void Tick(float Dt) override;
 	/** Escalators' length from the bottom comb to the top comb (m, along the floor), for placing them. */
 	static float LengthAlong();

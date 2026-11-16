@@ -1,5 +1,6 @@
 // The walking-mode interface: the holographic map, the top-left bar, Hide UI, the settings panel and the performance
 // overlay, all in Slate, styled in the Android edition's holographic blues.
+#include "BaggageBelts.h"
 #include "Adverts.h"
 #include "GroundQuality.h"
 #include "UI/ADPHUD.h"
@@ -1733,6 +1734,8 @@ void AADPHUD::Interact()
 		if (AWardrobe* Wd = Cast<AWardrobe>(Hit.GetActor())) { OpenWardrobe(Wd); return; }
 		// your phone, the operations monitor, your office's computer (Devices.cpp)
 		if (TryDevice(Hit)) return;
+		// a baggage belt's start / stop button, or a bag on it (BaggageBelts.h)
+		if (ABaggageBelts* Bb = ABaggageBelts::Get(GetWorld())) if (Bb->Interact(Hit.GetComponent(), Hit.ImpactPoint)) return;
 		// a hangar door's control button (OPEN, CLOSE, STOP)
 		if (AHangar* Hg = Cast<AHangar>(Hit.GetActor())) if (Hg->Press(Hit.GetComponent())) return;
 		const FString N = Hit.GetComponent()->GetName();
@@ -1753,6 +1756,8 @@ void AADPHUD::Interact()
 	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton) && ADoorPanelUse::Interact(GetOwningPawn(), nullptr)) return;
 	// standing at the wash hose's hook: its gun
 	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton) && AWashHose::Interact(GetOwningPawn(), nullptr)) return;
+	// a belt's button right by you (BaggageBelts.h)
+	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton)) if (ABaggageBelts* Bb = ABaggageBelts::Get(GetWorld())) if (APawn* Me = GetOwningPawn()) if (Bb->Interact(nullptr, Me->GetActorLocation() + Me->GetActorForwardVector() * 60.f)) return;
 	// a chair, stool, bench or gate seat right by you: sit down (Seats.h)
 	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton) && ASeats::Interact(GetOwningPawn())) return;
 	// a fire truck right beside you that you face: in, even when the aim missed it

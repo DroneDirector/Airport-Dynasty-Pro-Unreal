@@ -60,15 +60,15 @@ float AEscalatorPair::SlopeAt(float S) const
 	return FMath::Atan2(B.Y - A.Y, FMath::Max(1e-4f, B.X - A.X));
 }
 
-bool AEscalatorPair::Build(float Speed)
+bool AEscalatorPair::Build(float Speed, bool bShortEnds)
 {
 	if (!ReadPath(Path, PathS, Pitch, TopU)) { ADP_WARN(TEXT("Escalators: no Data/escalator.json (Art/Escalator/make_escalator.py)")); return false; }
 	PathLen = PathS.Last();
 	NSteps = FMath::CeilToInt(PathLen / Pitch) + 1;           // a loop a little longer than the path: the rest is out of sight
 	Loop = NSteps * Pitch;
 	UStaticMesh* StepM = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/Escalator/SM_EscStep.SM_EscStep"));
-	UStaticMesh* BodyM = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/Escalator/SM_EscBody.SM_EscBody"));
-	UStaticMesh* RampM = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/Escalator/SM_EscRamp.SM_EscRamp"));
+	UStaticMesh* BodyM = LoadObject<UStaticMesh>(nullptr, bShortEnds ? TEXT("/Game/Escalator/SM_EscBodyShort.SM_EscBodyShort") : TEXT("/Game/Escalator/SM_EscBody.SM_EscBody"));
+	UStaticMesh* RampM = LoadObject<UStaticMesh>(nullptr, bShortEnds ? TEXT("/Game/Escalator/SM_EscRampShort.SM_EscRampShort") : TEXT("/Game/Escalator/SM_EscRamp.SM_EscRamp"));
 	if (!StepM || !BodyM || !RampM) { ADP_WARN(TEXT("Escalators: the meshes aren't in /Game/Escalator (Tools/import_escalator.py)")); return false; }
 	for (int32 k = 0; k < 2; ++k)
 	{

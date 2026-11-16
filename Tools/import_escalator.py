@@ -24,7 +24,7 @@ for _f in glob.glob(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath
     os.chmod(_f, stat.S_IWRITE | stat.S_IREAD)
 
 
-for name in ('SM_EscStep', 'SM_EscBody', 'SM_EscRamp'):
+for name in ('SM_EscStep', 'SM_EscBody', 'SM_EscRamp', 'SM_EscBodyShort', 'SM_EscRampShort'):   # (the Short ones: the arrivals escalators, make_escalator_short.py)
     path = '%s/%s' % (DEST, name)
     if EAL.does_asset_exist(path): EAL.delete_asset(path)
     o = unreal.FbxImportUI()

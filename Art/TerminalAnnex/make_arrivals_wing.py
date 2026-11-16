@@ -82,9 +82,64 @@ for z in [ZK + 3.0 + 3.0 * k for k in range(18)]:
 S.box(VOID[1], VOID[1] + 0.3, CEIL - 0.15, 11.4, VOID[2], ZN, 'MI_T_white')
 S.box(X0, VOID[1] + 0.3, CEIL - 0.15, 11.4, VOID[2] - 0.3, VOID[2], 'MI_T_white')
 S.box(X0, VOID[1] + 0.3, 11.4, 11.55, VOID[2], ZN, 'MI_T_offwhite', sides=('-y',))
-slab(-76.1, VOID[1], LAND, ZN, F2 + 0.01, top='MI_T_terrazzo', under='MI_T_offwhite', thick=0.6)
+slab(-76.1, -71.2, LAND, ZN, F2 + 0.01, top='MI_T_terrazzo', under='MI_T_offwhite', thick=0.6)   # (the lift's shaft x -71.2..-68.4 through it)
+slab(-68.4, VOID[1], LAND, ZN, F2 + 0.01, top='MI_T_terrazzo', under='MI_T_offwhite', thick=0.6)
+slab(-71.2, -68.4, LAND, 49.4, F2 + 0.01, top='MI_T_terrazzo', under='MI_T_offwhite', thick=0.6)
 slab(X0, -76.1, ZN - 0.1, ZN, F2 + 0.01, top='MI_T_terrazzo', under='MI_T_offwhite', thick=0.6)
 
+# ---- the stair beside the escalators (x -76.1..-74.1, 30 steps of 20 x 38 cm up to the landing): dark stone with oak
+#      treads and black non-slip nosings; its open side and the landing's edge one glass balustrade under one handrail ----
+SX0, SX1 = -76.1, -74.1; B0 = LAND - 11.4
+for k in range(30):
+    z0 = B0 + k * 0.38; yt = 0.2 * (k + 1)
+    S.box(SX0, SX1, 0.01, yt - 0.04, z0, z0 + 0.38, 'MI_T_marbleDark')
+    S.box(SX0 - 0.02, SX1 + 0.02, yt - 0.04, yt, z0 - 0.02, z0 + 0.38, 'MI_T_oak')
+    S.box(SX0 - 0.02, SX1 + 0.02, yt - 0.045, yt + 0.002, z0 - 0.03, z0 + 0.03, 'MI_T_black')
+S.box(SX1, SX1 + 0.02, 0.01, 6.0, B0, LAND, 'MI_T_marbleDark', sides=('+x',))       # (its side, under the steps)
+def tube(pts, r, m):
+    # a round rail along a polyline (8 sides), for the handrails
+    import math as _m
+    for (a, b) in zip(pts, pts[1:]):
+        d = [b[i] - a[i] for i in range(3)]; L = _m.sqrt(sum(c * c for c in d)) or 1.0; t = [c / L for c in d]
+        up = (0.0, 1.0, 0.0) if abs(t[1]) < 0.9 else (1.0, 0.0, 0.0)
+        u = [up[1] * t[2] - up[2] * t[1], up[2] * t[0] - up[0] * t[2], up[0] * t[1] - up[1] * t[0]]; ul = _m.sqrt(sum(c * c for c in u)); u = [c / ul for c in u]
+        v = [t[1] * u[2] - t[2] * u[1], t[2] * u[0] - t[0] * u[2], t[0] * u[1] - t[1] * u[0]]
+        ring = lambda c, k: tuple(c[i] + r * (_m.cos(k * _m.pi / 4) * u[i] + _m.sin(k * _m.pi / 4) * v[i]) for i in range(3))
+        for k in range(8):
+            f = S.face([ring(a, k), ring(b, k), ring(b, k + 1), ring(a, k + 1)], m)
+GX = SX1 + 0.05; HR = 1.0
+def zn(z): return 0.2 + (z - B0) * (0.2 / 0.38)
+zk0, zk1 = B0 - 0.2, LAND - 0.38
+gl = [(GX, 0.08, B0 - 0.55), (GX, 0.08, B0), (GX, zn(zk1) + 0.06, zk1), (GX, F2 + 0.07, LAND + 0.03),
+      (GX, F2 + HR - 0.07, LAND + 0.03), (GX, zn(zk1) + HR - 0.07, zk1), (GX, zn(zk0) + HR - 0.07, zk0), (GX, zn(zk0) + HR - 0.07, B0 - 0.55)]
+for dx in (-0.008, 0.008): G.face([(x + dx, y, z) for (x, y, z) in gl], 'MI_T_glass')
+G.face([(GX, F2 + 0.07, LAND + 0.04), (-71.05, F2 + 0.07, LAND + 0.04), (-71.05, F2 + HR - 0.07, LAND + 0.04), (GX, F2 + HR - 0.07, LAND + 0.04)], 'MI_T_glass')
+S.box(GX, -71.0, F2, F2 + 0.1, LAND, LAND + 0.08, 'MI_T_black')                                    # the clamp shoe
+tube([(GX, zn(zk0) + HR, B0 - 0.6), (GX, zn(zk0) + HR, zk0), (GX, zn(zk0 + 0.4) + HR, zk0 + 0.4), (GX, zn(zk1 - 0.4) + HR, zk1 - 0.4),
+      (GX, F2 + HR, zk1 + 0.1), (GX, F2 + HR, LAND - 0.05), (GX + 0.05, F2 + HR, LAND + 0.04), (-71.0, F2 + HR, LAND + 0.04)], 0.035, 'MI_T_jwRubber')
+# ---- the lift's glass shaft (x -71.0..-68.6, z 49.6..51.9), from the claim hall up through the landing; its doors on the
+#      west side at both floors (the car is the staff lift's, TerminalLift.h) ----
+LX0, LX1, LZ0, LZ1 = -71.2, -68.4, 49.4, 52.0
+for (a0, a1, b0, b1) in ((LX0, LX1, LZ0, LZ0 + 0.02), (LX1 - 0.02, LX1, LZ0, LZ1)):
+    G.box(a0, a1, 0.01, 11.4, b0, b1, 'MI_T_glass')
+for (zz0, zz1) in ((LZ0, 50.15), (51.35, LZ1)): G.box(LX0, LX0 + 0.02, 0.01, 11.4, zz0, zz1, 'MI_T_glass')
+for y0 in (0.01, F2 + 0.01): G.box(LX0, LX0 + 0.02, y0 + 2.3, y0 + 5.99 if y0 < 1 else 11.4, 50.15, 51.35, 'MI_T_glass')
+for x_ in (LX0, LX1):
+    for z_ in (LZ0, LZ1): S.box(x_ - 0.04, x_ + 0.04, 0.01, 11.4, z_ - 0.04, z_ + 0.04, 'MI_T_liftBrushed')
+# ---- customs: the green channel's sign, the red channel's desk; the arrivals hall's meeting rail, desks and cafe ----
+S.box(-44.0, -36.0, 3.1, 3.9, 15.6, 15.7, 'MI_T_l_20FF40'); S.box(-54.0, -48.0, 3.1, 3.9, 15.6, 15.7, 'MI_T_l_FF2020')
+S.box(-54.5, -52.5, 0.01, 0.95, 11.0, 13.5, 'MI_T_steel'); S.box(-54.6, -52.4, 0.95, 1.0, 10.9, 13.6, 'MI_T_marbleDark')
+for (a0, a1) in ((-62.0, -46.0), (-34.0, -18.0)):
+    S.box(a0, a1, 0.95, 1.0, 3.6, 3.7, 'MI_T_steel')
+    x_ = a0
+    while x_ <= a1 + 0.01: S.box(x_ - 0.03, x_ + 0.03, 0.01, 0.95, 3.62, 3.68, 'MI_T_steel'); x_ += 2.0
+for xc in (-76.0, -70.0, -64.0):
+    S.box(xc - 2.4, xc + 2.4, 0.01, 1.05, 4.2, 5.0, 'MI_T_oak'); S.box(xc - 2.5, xc + 2.5, 1.05, 1.1, 4.15, 5.05, 'MI_T_marbleDark')
+    S.box(xc - 2.5, xc + 2.5, 0.01, 3.2, 7.4, 7.7, 'MI_T_basalt')
+S.box(-14.0, -2.0, 0.01, 1.05, 4.0, 5.0, 'MI_T_oak'); S.box(-14.1, -1.9, 1.05, 1.1, 3.95, 5.05, 'MI_T_marbleDark')
+# ---- seats: along the west glass clear of the escalators, along the basalt wall, and in the arrivals hall ----
+for (xa, xb, zc) in [(-79.2, -78.6, 18.0 + k * 3.2) for k in range(3)] + [(-0.9, -0.3, 20.0 + k * 4.0) for k in range(3)]:
+    S.box(xa, xb, 0.42, 0.48, zc, zc + 2.2, 'MI_T_oak'); S.box(xa + 0.2, xb - 0.2, 0.01, 0.42, zc + 0.5, zc + 1.7, 'MI_T_black')
 so = S.finish(); go = G.finish()
 for o in (so, go):
     print('ANNEX', o.name, len(o.data.polygons), 'faces', [m.name for m in o.data.materials])

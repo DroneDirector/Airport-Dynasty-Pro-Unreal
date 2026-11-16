@@ -1,5 +1,6 @@
 // The airport's traffic: airliners turning round at the stands, taxiing, taking off and landing on runway 08, with
 // their ground vehicles. Simple shapes for the aircraft and vehicles until proper models replace them.
+#include "BaggageBelts.h"
 #include "AirTraffic.h"
 #include "ADPLog.h"
 #include "TerminalBuilder.h"
@@ -333,7 +334,12 @@ void AAirTraffic::Tick(float Dt)
 			break;
 		}
 		case EState::TaxiIn:
-			if (Follow(P, Dt, P.Step >= P.Path.Num() - 1 ? 3.f : TaxiSpeed)) Plan(P, EState::Parked);
+			if (Follow(P, Dt, P.Step >= P.Path.Num() - 1 ? 3.f : TaxiSpeed))
+			{
+				Plan(P, EState::Parked);
+				// its bags to the baggage claim (BaggageBelts.h): the crew empty the hold
+				if (P.Root) ABaggageBelts::OnArrived(GetWorld(), P.Root->GetComponentLocation().X / 100.f, FString::Printf(TEXT("VT %d"), 200 + (i * 37) % 700));
+			}
 			break;
 		}
 	}
