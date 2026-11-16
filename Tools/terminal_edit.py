@@ -139,14 +139,14 @@ for i, n in enumerate(N):
     if n['name'].endswith('F2-WALK/PLANT-001') and i in parent: drop(i, 'in the arrivals doorway')
 
 # ---- the wave roof over the arrivals wing (owner, 2026-11-16): a copy of the Grand Hall's wave roof (x 24..126, z -16..34)
-#      at its own full size and shape (owner: the wave the same in every direction - not squeezed), moved 104 m west so
-#      its west edge is flush with the terminal's west end (x -80..22, 2 m short of the main roof), its front edge in line
-#      with the main roof's, 40 cm higher (clear of the wing's own roof line); and its two big tree pillars on the kerb
-#      (C-7, C-8) copied to the same places under it (x -48, -10) ----
+#      exactly as it is (owner, 2026-11-16: the same in every direction), placed right against it on its west side
+#      (x -78..24) so the two become one roof - the wave's two ends are the same height, so it runs on without a seam;
+#      it may reach past the terminal's west end (the gates will be extended); and its two big tree pillars on the kerb
+#      (C-7, C-8) copied to the same places under it (x -46, -8) ----
 rf = copy_tree(byname['ROOF'])
-N[rf]['name'] = 'ROOF-ARRIVALS'; N[rf]['translation'] = [104.0, 0.4, 0.0]
-N[0]['children'].append(rf); log.append('new: the wave roof over the arrivals wing (full size, x -80..22)')
-for src, x in (('C-7', 56.0 - 104.0), ('C-8', 94.0 - 104.0)):
+N[rf]['name'] = 'ROOF-ARRIVALS'; N[rf]['translation'] = [102.0, 0.0, 0.0]
+N[0]['children'].append(rf); log.append('new: the wave roof over the arrivals wing (full size, joined to the main one, x -78..24)')
+for src, x in (('C-7', 56.0 - 102.0), ('C-8', 94.0 - 102.0)):
     c = copy_tree(byname[src]); N[c]['name'] = src + '-ARRIVALS'; N[c]['translation'] = [-x, 0.0, -9.0]
     N[parent[byname[src]]]['children'].append(c); log.append('new: tree pillar %s under the arrivals roof' % src)
 

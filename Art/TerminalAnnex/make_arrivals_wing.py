@@ -54,12 +54,12 @@ for i in range(int((ZN - ZK) / 2.5) + 1):
     z = min(ZN, ZK + i * 2.5); S.box(X0 - 0.075, X0 + 0.075, 0.01, CEIL, z - 0.04, z + 0.04, 'MI_T_mullion')
 S.box(X0 - 0.075, X0 + 0.075, CEIL - 0.04, CEIL + 0.04, ZK, ZN, 'MI_T_mullion')
 # ---- above the glass: zinc cladding to the roof (outside), the void's cedar wall inside ----
-S.box(X0 - 0.2, X1, CEIL, ROOF, ZK - 0.2, ZK, 'MI_T_roofZinc')
-S.box(X0 - 0.2, X0, CEIL, ROOF, ZK, ZN, 'MI_T_roofZinc', sides=('-x', '+y', '-y', '-z', '+z'))
+S.box(X0 - 0.2, X1, CEIL, ROOF - 0.4, ZK - 0.2, ZK, 'MI_T_roofZinc')
+S.box(X0 - 0.2, X0, CEIL, ROOF - 0.4, ZK, ZN, 'MI_T_roofZinc', sides=('-x', '+y', '-y', '-z', '+z'))
 S.box(X0, X0 + 0.06, CEIL - 0.15, 11.4, VOID[2], ZN, 'MI_T_cedar', sides=('+x',))
 # ---- the roof (12 m) and its edge ----
-S.box(X0 - 0.4, X1, ROOF, ROOF + 0.5, ZK - 0.4, ZN, 'MI_T_roofZinc')
-S.box(X0 - 0.42, X1, ROOF - 0.05, ROOF + 0.55, ZK - 0.42, ZK - 0.38, 'MI_T_black'); S.box(X0 - 0.42, X0 - 0.38, ROOF - 0.05, ROOF + 0.55, ZK - 0.4, ZN, 'MI_T_black')
+S.box(X0 - 0.4, X1, ROOF - 0.4, ROOF, ZK - 0.4, ZN, 'MI_T_roofZinc')   # (its top at 12.0: under the wave roof's lowest point, 12.3)
+S.box(X0 - 0.42, X1, ROOF - 0.45, ROOF + 0.05, ZK - 0.42, ZK - 0.38, 'MI_T_black'); S.box(X0 - 0.42, X0 - 0.38, ROOF - 0.45, ROOF + 0.05, ZK - 0.4, ZN, 'MI_T_black')
 
 # ---- customs (z 8..16) and the claim hall's south wall (z 16) ----
 wall_z(Z16, X0, X1, 0.01, CEIL, m='MI_T_plaster', holes=[(-44.0, -36.0, 0.0, 3.0)])
@@ -81,7 +81,7 @@ for z in [ZK + 3.0 + 3.0 * k for k in range(18)]:
 # ---- the void: its east and south walls up to Floor 2's ceiling, the ceiling, the Floor 2 landing ----
 S.box(VOID[1], VOID[1] + 0.3, CEIL - 0.15, 11.4, VOID[2], ZN, 'MI_T_white')
 S.box(X0, VOID[1] + 0.3, CEIL - 0.15, 11.4, VOID[2] - 0.3, VOID[2], 'MI_T_white')
-S.box(X0, VOID[1] + 0.3, 11.4, 11.6, VOID[2], ZN, 'MI_T_offwhite', sides=('-y',))
+S.box(X0, VOID[1] + 0.3, 11.4, 11.55, VOID[2], ZN, 'MI_T_offwhite', sides=('-y',))
 slab(-76.1, VOID[1], LAND, ZN, F2 + 0.01, top='MI_T_terrazzo', under='MI_T_offwhite', thick=0.6)
 slab(X0, -76.1, ZN - 0.1, ZN, F2 + 0.01, top='MI_T_terrazzo', under='MI_T_offwhite', thick=0.6)
 
