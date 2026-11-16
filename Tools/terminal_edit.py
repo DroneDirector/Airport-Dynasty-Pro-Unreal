@@ -138,6 +138,18 @@ N[byname['F1']]['children'].append(cp); log.append('new: the arrivals canopy on 
 for i, n in enumerate(N):
     if n['name'].endswith('F2-WALK/PLANT-001') and i in parent: drop(i, 'in the arrivals doorway')
 
+# ---- the wave roof over the arrivals wing (owner, 2026-11-16): a copy of the Grand Hall's wave roof (x 24..126, z -16..34)
+#      at its own full size and shape (owner: the wave the same in every direction - not squeezed), moved 104 m west so
+#      its west edge is flush with the terminal's west end (x -80..22, 2 m short of the main roof), its front edge in line
+#      with the main roof's, 40 cm higher (clear of the wing's own roof line); and its two big tree pillars on the kerb
+#      (C-7, C-8) copied to the same places under it (x -48, -10) ----
+rf = copy_tree(byname['ROOF'])
+N[rf]['name'] = 'ROOF-ARRIVALS'; N[rf]['translation'] = [104.0, 0.4, 0.0]
+N[0]['children'].append(rf); log.append('new: the wave roof over the arrivals wing (full size, x -80..22)')
+for src, x in (('C-7', 56.0 - 104.0), ('C-8', 94.0 - 104.0)):
+    c = copy_tree(byname[src]); N[c]['name'] = src + '-ARRIVALS'; N[c]['translation'] = [-x, 0.0, -9.0]
+    N[parent[byname[src]]]['children'].append(c); log.append('new: tree pillar %s under the arrivals roof' % src)
+
 # ---- the new parts (Art/TerminalAnnex, Tools/import_annex.py): placed as they are (made in the plan's metres) ----
 def add(parent_name, name, asset):
     N.append({'name': name, 'mesh': 90000 + len(N), 'asset': asset})
