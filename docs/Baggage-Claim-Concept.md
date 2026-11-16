@@ -60,3 +60,25 @@ The same data is in `Art/BaggageClaim/cameras.json`.
 | 6 | -70, -2, 1.7 | -40, 8, 1.6 | 20 mm | Arrivals hall: customs exit, meeting rail, desks, doors |
 | 7 | -40, -34, 1.7 | -40, -4, 4 | 24 mm | Outside: the arrivals doors and canopy |
 | 8 | -125, -75, 32 | -38, 14, 4 | 28 mm | Outside from above: the whole wing |
+
+## How it works in the game (owner, 2026-11-16; build these with to-do 72)
+
+**The belts**
+- A belt only runs once someone starts it. The plates and the feed incline move, and so do the bags on them.
+- **Crew start button:** a ground crew member presses the green button on the yellow control box at the belt's loading end, in the sorting hall.
+- **Passenger start/stop button:** a green button on each belt's skirt. One press starts the belt, the next press stops it, and so on.
+- **The buttons:**
+  - every button has the glowing interact outline, like everything else you can use (E / X);
+  - the button visibly goes in and comes back out on each press.
+
+**The bags**
+- A bag stays fixed to the belt it sits on. It never slides or flies off as the belt turns.
+- **Who may handle bags:**
+  - only ground crew put bags on the input conveyors, and only they may take one back off;
+  - in the claim hall, only passengers take bags off the belts.
+
+**The rubber flaps**
+- The flaps at all 10 openings (the 5 feed hoods in the claim hall and the 5 crew-side wall openings) swing aside like cloth when a bag pushes through. Then they fall back and settle into place.
+
+**The escalators**
+- The arrivals escalators are the same model as the escalator room's: moving steps and handrails, with the rounded newels at both ends.

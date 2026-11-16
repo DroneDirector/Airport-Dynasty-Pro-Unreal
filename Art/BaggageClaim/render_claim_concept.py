@@ -163,21 +163,22 @@ for y in [Y0 + 2.5 * k for k in range(15)]: box(X0 - 0.12, y - 0.05, 0, X0, y + 
 box(X0 - 0.12, Y0, 0, X0, Y1, 0.12, M['dark']); box(X0 - 0.12, Y0, CEIL - 0.15, X0, Y1, CEIL, M['dark'])
 # the ceiling: oak slats over a dark plenum, LED lines between them; the Floor 2 corridor's slab over y 40..52 (its void
 # over the escalators open)
-box(-68.2, Y0, CEIL + 0.3, X1, Y1, CEIL + 0.35, M['plenum'], 'Plenum'); box(X0, Y0, CEIL + 0.3, -68.2, 37.0, CEIL + 0.35, M['plenum'])
+box(-68.2, Y0, CEIL + 0.3, X1, Y1, CEIL + 0.35, M['plenum'], 'Plenum'); box(X0, Y0, CEIL + 0.3, -68.2, 34.5, CEIL + 0.35, M['plenum'])
 slat = box(-68.2, Y0 + 0.05, CEIL - 0.12, X1, Y0 + 0.11, CEIL, M['oak'], 'Slat')
 slatw = box(X0, Y0 + 0.05, CEIL - 0.12, -68.2, Y0 + 0.11, CEIL, M['oak'], 'SlatW')   # (west of the void: only up to it)
-arw = slatw.modifiers.new('arr', 'ARRAY'); arw.count = 175; arw.use_relative_offset = False; arw.use_constant_offset = True; arw.constant_offset_displace = (0, 0.12, 0)
+arw = slatw.modifiers.new('arr', 'ARRAY'); arw.count = 154; arw.use_relative_offset = False; arw.use_constant_offset = True; arw.constant_offset_displace = (0, 0.12, 0)
 ar = slat.modifiers.new('arr', 'ARRAY'); ar.count = 300; ar.use_relative_offset = False; ar.use_constant_offset = True; ar.constant_offset_displace = (0, 0.12, 0)
-for y in [Y0 + 3 + 3 * k for k in range(11)]: box(X0 if y < 37 else -68.2, y - 0.02, CEIL - 0.13, X1, y + 0.02, CEIL - 0.11, M['led'], 'LedLine')
+for y in [Y0 + 3 + 3 * k for k in range(11)]: box(X0 if y < 34.5 else -68.2, y - 0.02, CEIL - 0.13, X1, y + 0.02, CEIL - 0.11, M['led'], 'LedLine')
 # the void's own walls up to Floor 2's ceiling (11.4), its ceiling, the west glass carried up
-box(-68.2, 37.0, CEIL, -67.9, Y1, 11.4, M['plaster'], 'VoidEast'); box(X0, 36.7, CEIL, -67.9, 37.0, 11.4, M['plaster'], 'VoidSouth')
-box(X0, 37.0, 11.4, -67.9, Y1, 11.6, M['plaster'], 'VoidCeiling')
+box(-68.2, 34.5, CEIL - 0.15, -67.9, Y1, 11.4, M['plaster'], 'VoidEast'); box(X0, 34.2, CEIL - 0.15, -67.9, 34.5, 11.4, M['plaster'], 'VoidSouth')
+box(X0, 34.5, 11.4, -67.9, Y1, 11.6, M['plaster'], 'VoidCeiling')
 for y in (40.0, 44.0, 48.0): box(-79.5, y - 0.3, 11.3, -68.7, y + 0.3, 11.38, M['led'])
-box(X0 - 0.06, 37.0, CEIL, X0, Y1, 11.4, M['glass'])
+box(X0 - 0.06, 34.5, CEIL, X0, Y1, 11.4, M['glass'])
 for y in (37.0, 39.5, 42.0, 44.5, 47.0, 49.5, 52.0): box(X0 - 0.12, y - 0.05, CEIL, X0, y + 0.05, 11.4, M['dark'])
 # the Floor 2 top landing (2.5 m deep) in front of the doorway, the escalators, stair and lift arriving on it
-box(X0, 49.5, CEIL, -68.2, Y1, 6.0, M['plaster'], 'LandingSlab'); box(X0, 49.5, 5.99, -68.2, Y1, 6.0, M['floor'], 'LandingFloor')
-box(-74.0, 49.45, 6.0, -68.2, 49.5, 7.1, M['glass'], 'LandingRail'); box(-74.0, 49.4, 7.05, -68.2, 49.55, 7.12, M['steel'])
+box(-76.1, 48.89, CEIL, -68.2, Y1, 6.0, M['plaster'], 'LandingSlab'); box(-76.1, 48.89, 5.99, -68.2, Y1, 6.0, M['floor'], 'LandingFloor')
+box(X0, 51.9, CEIL, -76.1, Y1, 6.0, M['floor'])   # (behind the escalators' top plates)
+box(-74.0, 48.84, 6.0, -71.1, 48.89, 7.1, M['glass'], 'LandingRail'); box(-74.0, 48.79, 7.05, -71.1, 48.94, 7.12, M['steel'])
 
 box(-72.0, Y1, 6.0, X1, Y1 + 0.3, 11.4, M['plaster']); box(X0, Y1, 9.6, -72.0, Y1 + 0.3, 11.4, M['plaster'])   # (the 8 m doorway into the gates' walkway, 3.6 m high)
 # the gates' walkway beyond (Floor 2, z 52.3..68): terrazzo, a white ceiling with LED lines, its glass onto the apron
@@ -187,22 +188,23 @@ box(X0, 67.9, 6.0, -30.0, 68.0, 11.4, M['glass'], 'WalkGlass'); box(X0 - 0.3, Y1
 for x in range(-80, -29, 3): box(x - 0.05, 67.8, 6.0, x + 0.05, 68.0, 11.4, M['dark'])
 
 # ---------------------------------------------------------------- escalators, stair and lift (down from the corridor)
-def escalator(x0, w, mat_side):
-    y_top, y_bot, z_top = 49.5, 37.0, 6.0
-    run = y_top - y_bot - 2.0
-    # its truss (side panels), steps, glass balustrades with steel handrails
-    pts = [(y_bot, 0), (y_bot + 1.0, 0), (y_top - 1.0, z_top - 0.0), (y_top, z_top), (y_top, z_top - 0.9), (y_top - 1.2, z_top - 0.9), (y_bot + 1.0, -0.6 + 0.0), (y_bot, -0.6)]
-    n = 40
-    for k in range(n):
-        t = k / (n - 1); y = y_bot + 1.0 + t * run; z = t * z_top
-        box(x0 + 0.12, y, z - 0.02, x0 + w - 0.12, y + run / n, z + 0.02, M['dark'])
-    for xs in (x0 + 0.05, x0 + w - 0.07):
-        o = box(xs, y_bot, 0.15, xs + 0.02, y_top, 1.05, M['glass']); o.rotation_euler = (math.atan2(z_top, run), 0, 0)
-        o.location = (xs + 0.01, (y_bot + y_top) / 2, z_top / 2 + 0.6)
-        h = box(xs - 0.03, y_bot, 1.0, xs + 0.05, y_top, 1.08, M['rubber']); h.rotation_euler = o.rotation_euler; h.location = (xs + 0.01, (y_bot + y_top) / 2, z_top / 2 + 1.1)
-    side = box(x0, y_bot + 0.8, 0, x0 + w, y_top - 0.8, 0.9, M['steel']); side.rotation_euler = (math.atan2(z_top, run), 0, 0); side.location = (x0 + w / 2, (y_bot + y_top) / 2, z_top / 2 - 0.35)
-escalator(-79.6, 1.6, M['steel']); escalator(-77.9, 1.6, M['steel'])
-for k in range(30): box(-76.2, 37.6 + k * 0.38, 0, -74.2, 38.0 + k * 0.38, 0.2 * (k + 1), M['floor'])   # the stair
+# the building's own escalator (Art/Escalator/Escalator.blend: the same as at the escalator room - rounded newels at
+# both ends, the handrail running 0.75 m past each comb and turning round its 0.32 m radius, glass curved under it), its
+# foot at the south, rising north 6 m to the Floor 2 landing; its steps placed along it
+ESC = os.path.join(ROOT, 'Art', 'Escalator', 'Escalator.blend')
+with bpy.data.libraries.load(ESC) as (src, dst): dst.objects = [n for n in src.objects if n in ('SM_EscBody', 'SM_EscRamp', 'SM_EscStep')]
+EY0 = 36.59                                   # its foot (the bottom comb's teeth), so its top floor plate ends 0.1 m short of the wall
+def zat(u): return 0.0 if u < 1.275 else 6.0 if u > 12.3 else (u - 1.275) * 6.0 / (12.3 - 1.275)
+for xc in (-78.8, -77.1):
+    for o in dst.objects:
+        if o.name.startswith('SM_EscStep'): continue
+        c = o.copy(); S.collection.objects.link(c); c.location = (xc, EY0, 0.0)
+    stp = [o for o in dst.objects if o.name.startswith('SM_EscStep')][0]
+    u = 0.0
+    while u < 12.2:
+        c = stp.copy(); S.collection.objects.link(c); c.location = (xc, EY0 + u + 0.4, zat(u + 0.2)); u += 0.4
+LAND = EY0 + 12.3                             # the Floor 2 landing's edge: where the escalators' top flat begins
+for k in range(30): box(-76.1, LAND - 11.4 + k * 0.38, 0, -74.1, LAND - 11.0 + k * 0.38, 0.2 * (k + 1), M['floor'])   # the stair
 box(-71.0, 46.4, 0, -68.6, 49.2, 9.0, M['glass'], 'LiftShaft'); box(-71.0, 46.4, 9.0, -68.6, 49.2, 9.15, M['dark'])   # (its door opens north onto the landing)
 box(-70.6, 49.18, 0.0, -69.0, 49.22, 2.2, M['steel']); box(-70.6, 49.18, 6.0, -69.0, 49.22, 8.2, M['steel'])
 
@@ -248,11 +250,11 @@ for cx, cy, n in BELTS:
     pl.scale = (1.96, 1.09, 1); pl.data.materials.append(picture('ScreenFace%d' % n, 'screen_belt%d.png' % n, 4.0))
     box(cx - 1.06, cy + 10.5, 3.0, cx + 1.06, cy + 10.6, 4.19, M['dark']); box(cx - 0.03, cy + 10.5, 4.19, cx + 0.03, cy + 10.56, CEIL, M['steel'])
 # the hall's overhead sign, seen coming off the escalators
-bpy.ops.mesh.primitive_plane_add(size=1, location=(-76.0, 35.52, 3.4), rotation=(math.pi / 2, 0, math.pi)); sg = bpy.context.object   # (its north face, for those coming down)
+bpy.ops.mesh.primitive_plane_add(size=1, location=(-76.0, 33.02, 3.4), rotation=(math.pi / 2, 0, math.pi)); sg = bpy.context.object   # (its north face, for those coming down)
 sg.scale = (6.0, 0.75, 1); sg.data.materials.append(picture('SignClaim', 'sign_claim.png', 3.0))
-bpy.ops.mesh.primitive_plane_add(size=1, location=(-76.0, 35.38, 3.4), rotation=(math.pi / 2, 0, 0)); sg2 = bpy.context.object   # (its other face, for those walking back north)
+bpy.ops.mesh.primitive_plane_add(size=1, location=(-76.0, 32.88, 3.4), rotation=(math.pi / 2, 0, 0)); sg2 = bpy.context.object   # (its other face, for those walking back north)
 sg2.scale = (6.0, 0.75, 1); sg2.data.materials.append(picture('SignClaim2', 'sign_claim.png', 3.0))
-box(-79.0, 35.42, 3.0, -73.0, 35.5, 3.8, M['dark']); box(-77, 35.44, 3.8, -76.95, 35.48, CEIL, M['steel']); box(-75.05, 35.44, 3.8, -75.0, 35.48, CEIL, M['steel'])
+box(-79.0, 32.92, 3.0, -73.0, 33.0, 3.8, M['dark']); box(-77, 32.94, 3.8, -76.95, 32.98, CEIL, M['steel']); box(-75.05, 32.94, 3.8, -75.0, 32.98, CEIL, M['steel'])
 # customs: its doorway's sign over the opening
 box(-44, Y0 - 0.32, 2.4, -36, Y0 - 0.3, 3.0, simple('CustomsGreen', (0.02, 0.35, 0.12), 0.4, emit=(0.05, 0.6, 0.2), estr=1.5))
 # a few seats along the glass
@@ -284,12 +286,28 @@ for cx, cy, n in BELTS:
 # the yellow walking lines on the sorting hall's floor
 for cx, cy, n in BELTS: box(cx - 1.0, SY0 + 0.4, 0.001, cx - 0.9, SY1 - 0.5, 0.004, M['yellow'])
 
+# ---------------------------------------------------------------- the belts' start / stop buttons (owner, 2026-11-16)
+# Passenger side: on each belt's skirt (east side, by the feed shaft), a recessed steel plate with one big green
+# illuminated push button - press: the belt starts, press again: it stops. Crew side: at each input conveyor's loading
+# end, a yellow control box on a post with the same green button facing the crew. (In the game: E/X, the glow outline,
+# the button pressed in and back out; to-do 72.)
+BTN = simple('ButtonGreen', (0.05, 0.5, 0.15), 0.25, emit=(0.15, 1.0, 0.35), estr=2.5)
+for cx, cy, n in BELTS:
+    box(cx + 2.45, cy + 2.9, 0.12, cx + 2.49, cy + 3.5, 0.36, M['dark'], 'BtnPlate%d' % n)
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.055, depth=0.04, location=(cx + 2.51, cy + 3.2, 0.24), rotation=(0, math.pi / 2, 0)); bpy.context.object.data.materials.append(BTN); bpy.context.object.name = 'Button%d' % n
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.075, depth=0.012, location=(cx + 2.495, cy + 3.2, 0.24), rotation=(0, math.pi / 2, 0)); bpy.context.object.data.materials.append(M['steel'])
+    # the crew's control box at the input's loading end
+    box(cx - 1.32, SY0 + 5.2, 0, cx - 1.22, SY0 + 5.3, 1.0, M['yellow'], 'BtnPost%d' % n)
+    box(cx - 1.45, SY0 + 5.1, 1.0, cx - 1.09, SY0 + 5.4, 1.32, M['yellow'], 'BtnBox%d' % n)
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.06, depth=0.04, location=(cx - 1.27, SY0 + 5.42, 1.16), rotation=(math.pi / 2, 0, 0)); bpy.context.object.data.materials.append(BTN); bpy.context.object.name = 'CrewButton%d' % n
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.08, depth=0.012, location=(cx - 1.27, SY0 + 5.405, 1.16), rotation=(math.pi / 2, 0, 0)); bpy.context.object.data.materials.append(M['dark'])
 # ---------------------------------------------------------------- the way out: customs, the arrivals hall, the doors
 def sign(file, x, y, z, w, h, facing_south=True, strength=3.0):
     bpy.ops.mesh.primitive_plane_add(size=1, location=(x, y, z), rotation=(math.pi / 2, 0, 0 if facing_south else math.pi)); o = bpy.context.object
     o.scale = (w, h, 1); o.data.materials.append(picture('Sign_' + file, file, strength)); return o
 AY0 = -4.0
 box(X0, AY0, -0.2, X1, Y0, 0.0, M['floor'], 'ArrFloor')
+box(X1, AY0, 0, X1 + 0.3, Y0, CEIL, M['basalt'], 'ArrEastWall')   # (owner: the arrivals hall's east end closed - the escalator room lies behind it)
 # the arrivals part's ceiling: the same oak slats and LED lines
 sl2 = box(X0, AY0 + 0.05, CEIL - 0.12, X1, AY0 + 0.11, CEIL, M['oak'], 'Slat2')
 ar2 = sl2.modifiers.new('arr', 'ARRAY'); ar2.count = 166; ar2.use_relative_offset = False; ar2.use_constant_offset = True; ar2.constant_offset_displace = (0, 0.12, 0)
@@ -386,6 +404,9 @@ CAMS = [
     ('3-belt-3-feed-shaft', (-32.1, 35.3, 1.55), (-34.9, 37.1, 0.75), 30, 'Close up at belt 3: a bag rising out of the feed shaft through the flaps onto the plates'),
     ('4-crew-input-sorting-hall', (-31.7, 60.8, 1.75), (-35.9, 52.6, 0.95), 24, 'Crew side, in the sorting hall: belt 3 and 4 input conveyors into the wall, a baggage cart at each'),
     ('5-escalators-from-below', (-72.5, 29.0, 1.65), (-77.0, 48.0, 5.0), 20, 'The escalators, stair and lift from the claim hall floor, up through the open void to the Floor 2 landing and the doorway into the gates walkway'),
+    ('10-escalator-foot-newels', (-73.4, 32.4, 1.5), (-78.0, 35.6, 0.8), 28, 'At the foot of the escalators: the handrails running out past the combs and turning round their rounded newels'),
+    ('11-escalator-top-newels', (-72.4, 51.2, 7.6), (-77.6, 48.6, 6.5), 26, 'On the Floor 2 landing: the escalators arriving, their handrails turning round the rounded newels at the top'),
+    ('12-passenger-button', (-31.4, 32.4, 1.2), (-33.05, 34.2, 0.3), 32, 'The passengers start / stop button on belt 3s skirt, by the feed shaft'),
     ('9-from-the-gates-walkway', (-66.0, 62.0, 7.7), (-76.0, 47.0, 4.0), 20, 'Floor 2, in the gates walkway: through the 8 m doorway onto the landing and down the escalators into the claim hall'),
     ('6-arrivals-hall', (-70.0, -2.0, 1.7), (-40.0, 8.0, 1.6), 20, 'The arrivals hall: the customs exit (green channel), the meeting rail, car rental and taxi desks, the doors out'),
     ('7-outside-arrivals-doors', (-40.0, -34.0, 1.7), (-40.0, -4.0, 4.0), 24, 'Outside on the forecourt: the arrivals doors under the canopy, ARRIVALS over the glass'),

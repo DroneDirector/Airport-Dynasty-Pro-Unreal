@@ -27,7 +27,7 @@ d.text((60, 128), 'Baggage claim', font=f('bahnschrift.ttf', 130), fill=(15, 20,
 d.text((1990, 128), 'Belts 1 - 5   >   Customs   >   Exit', font=f('segoeuib.ttf', 60), fill=(15, 20, 30), anchor='rm')
 im.save(os.path.join(HERE, 'sign_claim.png'))
 im = Image.new('RGB', (1024, 256), (40, 44, 50)); d = ImageDraw.Draw(im)
-d.text((40, 128), 'BELT INPUT  |  AUTHORISED STAFF ONLY', font=f('bahnschrift.ttf', 64), fill=(250, 210, 60), anchor='lm')
+d.text((40, 128), 'BELT INPUT  |  AUTHORISED STAFF ONLY', font=f('bahnschrift.ttf', 50), fill=(250, 210, 60), anchor='lm')
 im.save(os.path.join(HERE, 'sign_input.png'))
 print('SIGNS done')
 # the outside lettering over the arrivals doors, and the arrivals hall's desks
