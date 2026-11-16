@@ -68,7 +68,7 @@ ITEMS = [
  ('11',  'Puddles (big ones too) + wet pavement after rain / hose (resend photos)', '2.5 h', ['field', 'gfx'], '9', True),
  ('22a', 'Cheap tier: ground decals (tyre marks, stains, patches)', '40 min', ['gfx'], '10', False),
  ('22b', 'Cheap tier: heat haze behind engines / APUs', '20 min', ['gfx'], '', True),
- ('22c', 'Cheap tier: lamp flares at night', '20 min', ['gfx'], '', False),
+ ('22c', 'Cheap tier: lamp flares at night', '20 min', ['gfx'], '', True),
  ('22d', 'Cheap tier: virtual textures for big ground / building textures', '40 min', ['gfx'], '', False),
  ('23a', 'Advanced: hardware ray tracing for Lumen + its per-card setting', '40 min', ['gfx'], '22a', False),
  ('23b', 'Advanced: MegaLights + setting, tested with frame generation', '40 min', ['gfx'], '22c', False),
@@ -136,6 +136,7 @@ ITEMS = [
     ('69h', 'Body language: violent passengers look way more violent once security or police are involved (agitated, pacing, pointing, arms thrown) but never hit security, police or you', '2 h', ['people'], '69e, 14b', False),
     ('69i', 'Stun gun as in real life: body locks rigid, falls stiff without catching itself, cries out; after the 5 s cycle goes limp, breathing hard, dazed; then cuffed face down, lifted, escorted out', '3 h', ['people'], '69f', False),
     ('70', 'A320 tail lettering reads mirrored ("0SEA"): flip the fin texture on that side (found 16 Nov)', '20 min', ['field'], '', False),
+    ('71', 'Lamp glints: small star-like glints drawn on each lamp at night instead of the camera flares (Unreal's flares ghost: blobs and rings - the switch in Settings stays off) - your look check first', '1 h', ['gfx'], '22c', False),
     ('67', 'PERF/LOOK, needs your OK: 12 Nanite meshes with see-through glass (bag-drop screens, stair balustrades, the gate walkway’s glass roof, the car rental) drawn the ordinary way so their glass shows as designed (Nanite can’t draw see-through parts)', '30 min', ['none'], '', False),
 ]
 import os as _os

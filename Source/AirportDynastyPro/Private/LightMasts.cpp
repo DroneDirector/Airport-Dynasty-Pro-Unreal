@@ -161,6 +161,20 @@ void ALightMasts::Tick(float Dt)
 		{
 			if (FMath::Abs(It->Settings.AutoExposureBias - Bias) > 0.02f) { It->Settings.bOverride_AutoExposureBias = true; It->Settings.AutoExposureBias = Bias; }
 			if (It->Settings.bOverride_ColorOffsetShadows && !It->Settings.ColorOffsetShadows.Equals(Lift, 1e-5f)) It->Settings.ColorOffsetShadows = Lift;
+			// lamp flares at night (to-do 22c): the camera's own flares from the brightest points only - the lamps' faces
+			// after dark, never the sky or a white wall by day (a high threshold); fading in with the dark; Settings switch
+			{
+				static float FlareCheck = 0.f; static bool bFlares = true;
+				if ((FlareCheck -= GetWorld()->GetDeltaSeconds()) <= 0.f) { FlareCheck = 1.f; bFlares = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("LampFlares"), bFlares, GGameUserSettingsIni); }   // (off unless switched on: Unreal's flares ghost)
+				const float Want = bFlares ? 0.16f * Night : 0.f;   // (subtle: lit walls must never ghost)
+				if (!It->Settings.bOverride_LensFlareIntensity || FMath::Abs(It->Settings.LensFlareIntensity - Want) > 0.01f)
+				{
+					It->Settings.bOverride_LensFlareIntensity = true; It->Settings.LensFlareIntensity = Want;
+					It->Settings.bOverride_LensFlareThreshold = true; It->Settings.LensFlareThreshold = 40.f;
+					It->Settings.bOverride_LensFlareBokehSize = true; It->Settings.LensFlareBokehSize = 2.2f;
+					It->Settings.bOverride_LensFlareTint = true; It->Settings.LensFlareTint = FLinearColor(1.f, 0.92f, 0.82f);
+				}
+			}
 		}
 	// the haze the beams show in: volumetric fog while the masts are lit
 	if (bChanged)

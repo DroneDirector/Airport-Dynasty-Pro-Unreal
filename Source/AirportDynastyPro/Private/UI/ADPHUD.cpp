@@ -940,6 +940,15 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 					[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { bool b = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("OwnFrameGen"), b, GGameUserSettingsIni);
 						return FText::FromString(b == ADPFrameGen::Enabled() ? (b ? TEXT("OUR FRAME GENERATION: ON") : TEXT("OUR FRAME GENERATION: OFF")) : (b ? TEXT("OUR FRAME GENERATION: ON AT NEXT START") : TEXT("OUR FRAME GENERATION: OFF AT NEXT START"))); })]
 				]
+				+ SWrapBox::Slot()
+				[
+					// lamp flares at night (to-do 22c): on unless switched off
+					SNew(SButton)
+					.ButtonColorAndOpacity_Lambda([]() { bool b = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("LampFlares"), b, GGameUserSettingsIni); return b ? FLinearColor(0.1f, 0.45f, 0.75f, 1.f) : FLinearColor(0.05f, 0.2f, 0.36f, 0.9f); })
+					.ContentPadding(FMargin(10, 4))
+					.OnClicked_Lambda([]() { bool b = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("LampFlares"), b, GGameUserSettingsIni); GConfig->SetBool(TEXT("ADP.Graphics"), TEXT("LampFlares"), !b, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); return FReply::Handled(); })
+					[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { bool b = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("LampFlares"), b, GGameUserSettingsIni); return FText::FromString(b ? TEXT("LAMP FLARES AT NIGHT: ON") : TEXT("LAMP FLARES AT NIGHT: OFF")); })]
+				]
 				+ SWrapBox::Slot()[Button(TEXT("FRAME-RATE BOX"), [this]() { bFpsBox = !bFpsBox; GConfig->SetBool(TEXT("ADP.Boxes"), TEXT("FrameRateOn"), bFpsBox, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); })]
 				+ SWrapBox::Slot()[Button(TEXT("SCAN MY PC"), []() { if (UGameUserSettings* S = Prefs()) { S->RunHardwareBenchmark(); S->ApplyHardwareBenchmarkResults(); Save(S); } })]
 				+ SWrapBox::Slot()[Button(TEXT("PROBLEM LOG"), []() { FPlatformProcess::ExploreFolder(*(FPaths::ProjectLogDir() / TEXT("Problems.log"))); })]
