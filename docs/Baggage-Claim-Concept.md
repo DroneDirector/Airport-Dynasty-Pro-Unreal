@@ -84,3 +84,13 @@ The same data is in `Art/BaggageClaim/cameras.json`.
 - The arrivals escalators are the same model as the escalator room's: moving steps and handrails, with the rounded newels at both ends.
 
 - **Cedar feature wall:** "Japanese Cedar Planks", Poly Haven (CC0), https://polyhaven.com/a/japanese_cedar_planks (4K diffuse, normal, roughness in Art/BaggageClaim/textures).
+
+**The belt sounds** (owner, 2026-11-16)
+- **BeltStart:** plays once when a belt is started. It fades out at its end (0.8 s), so it never cuts off.
+- **BeltRun:** loops seamlessly (its ends are crossfaded) for as long as the belt runs, with no fade or gap while it runs. When the belt is stopped, by the crew or by you in a test, it fades out over about 1.5 s as the motor spins down.
+- **BeltClack:** a single click that is never cut off.
+
+**Bags arriving**
+- Every time an aircraft lands, the ground crew empty its hold (bags and cargo).
+- They bring the bags to that flight's belt input and start the belt.
+- The bags then come up on that belt in the claim hall.

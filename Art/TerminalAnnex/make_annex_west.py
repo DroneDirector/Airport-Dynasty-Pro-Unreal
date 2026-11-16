@@ -7,10 +7,11 @@
 #   wave roof (open below: the escalator room's entrance, no wall, no door);
 #   the food walk's south glass from x 21 east (the landing opens freely into the link and the food walk);
 #   the plant room's shell 6 m narrower (x 6..36);
-#   the museum hall (x -36..0, z 0..52, and the strip x 0..6, z 30..52): floor, walls with tall windows, a door opening
-#   in its south (kerb side) wall, its roof; its north side is the pier's own wall (flush).
+#   the museum strip (x 0..6, z 30..52; the museum hall west of it removed 2026-11-16 for the arrivals wing): its floor
+#   and roof - the claim hall's store.
 # Blender axes for the game's import: (x, y, z) = (-plan x, -plan z, plan y).
-#   F:/Tools/Blender-4.2/blender.exe -b --python Art/TerminalAnnex/make_annex_west.py -- <soffit points json>
+#   F:/Tools/Blender-4.2/blender.exe -b --python Art/TerminalAnnex/make_annex_west.py -- Data/wave-roof-points.json
+#   (the wave roof's points: python Tools/dump_piece_points.py Data/wave-roof-points.json 12892 - kept in Data, never run without them)
 import bpy, bmesh, json, math, os, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 a = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
@@ -139,22 +140,13 @@ S.box(6.0, 36.0, -0.3, 0.01, 30.0, 52.0, 'MI_T_epoxy', sides=('+y',))
 S.box(6.0, 36.0, 5.36, 5.4, 30.0, 52.0, 'MI_T_concrete', sides=('-y',))
 wall_z(30.0, 6.0, 36.0, 0.01, 6.0)                                                 # its south wall (the escalator room's back)
 wall_x(6.0, 30.0, 52.0, 0.01, 6.0)                                                 # its west wall (the museum strip)
-# ============ the museum hall (x -36..0, z 0..52, and the strip x 0..6, z 30..52) ============
-slab(-36.0, 0.0, 0.0, 52.0, 0.01, top='MI_T_terrazzo', under='MI_T_concrete', thick=0.3)
+# ============ the museum strip (x 0..6, z 30..52): the claim hall's store now (owner, 2026-11-16: the museum hall
+# x -36..0 removed - the arrivals wing, make_arrivals_wing.py, takes its place) ============
 slab(0.0, 6.0, 30.0, 52.0, 0.01, top='MI_T_terrazzo', under='MI_T_concrete', thick=0.3)
-# south wall (kerb side): the door opening in the middle (6 m wide, 3.6 high), four tall windows
-WIN = [(-33.2, -30.8), (-27.2, -24.8), (-11.2, -8.8), (-5.2, -2.8)]
-wall_z(0.0, -36.0, 0.0, 0.01, 12.0, holes=[(-20.6, -15.4, 0.0, 3.14)] + [(w0, w1, 2.5, 9.5) for (w0, w1) in WIN])
-for (w0, w1) in WIN: G.box(w0, w1, 2.5, 9.5, -0.012, 0.012, 'MI_T_glass')
-# the door itself is the main entrance's double sliding door, its canopy the entrances' (Tools/terminal_edit.py)
 # the plant room's north wall onto the baggage hall (it went with the old shell), with the plant room's door to it
 wall_z(52.0, 0.0, 36.0, 0.01, 6.0, holes=[(16.9, 19.1, 0.0, 2.3)])
-# west wall: tall windows every 6.5 m
-wall_x(-36.0, 0.0, 52.0, 0.01, 12.0, holes=[(z0, z0 + 2.4, 2.5, 9.5) for z0 in (4.0, 10.5, 17.0, 23.5, 30.0, 36.5, 43.0)])
-for z0 in (4.0, 10.5, 17.0, 23.5, 30.0, 36.5, 43.0): G.box(-36.012, -35.988, 2.5, 9.5, z0, z0 + 2.4, 'MI_T_glass')
 # the museum strip's south wall above the escalator room's (Floor 2: x 0..6 at z 30 is already the full-height wall)
 # the roof at +12 with its ceiling (the hall and the strip)
-S.box(-36.0, 0.0, 11.4, 12.0, 0.0, 52.0, W); S.box(-36.0, 0.0, 11.32, 11.4, 0.0, 52.0, 'MI_T_offwhite', sides=('-y',))
 S.box(0.0, 6.0, 11.4, 12.0, 30.0, 52.0, W); S.box(0.0, 6.0, 11.32, 11.4, 30.0, 52.0, 'MI_T_offwhite', sides=('-y',))
 # the museum strip's west face on Floor 1 and 2 against the link is the link's own wall (x 6, Floor 2) and the plant
 # room's new west wall (Floor 1)

@@ -43,10 +43,9 @@ for c in list(N[m]['children']):
     nm = N[c]['name']; b = BOX.get(c)
     if nm.startswith(ROUND): drop(c, 'the round museum building')
     elif b and b[0] > 35.0: drop(c, 'its old door from the Grand Hall')
-# its inside, kept as it stands, moved 44 m west and 10 m north (into the middle of the new hall)
-t = N[m].get('translation', [0, 0, 0])
-N[m]['translation'] = [t[0] + 44.0, t[1], t[2] + 10.0]
-log.append('moved: the museum\'s inside 36 m west, 10 m north')
+# its inside: removed with the museum hall (owner, 2026-11-16: "delete the museum and everything that was in it" - the
+# baggage claim's arrivals wing takes its place, Art/TerminalAnnex/make_arrivals_wing.py)
+drop(m, 'the museum and everything in it (the baggage claim takes its place)')
 
 # ---- the plant room's lamps over the strip that becomes museum (x < 6) ----
 for c in list(N[byname['F1-PLANT']]['children']):
@@ -121,16 +120,23 @@ def copy_tree(k, skip=()):
     if kids: n['children'] = kids
     elif 'children' in n: del n['children']
     N.append(n); return len(N) - 1
-d = copy_tree(byname['D-F1-ENTR-C-1'], skip=('sign',))
-N[d]['name'] = 'D-F1-MUSEUM-ENTR-1'; N[d]['translation'] = [18.0, 0.0, 0.0]
-N[byname['F1']]['children'].append(d); log.append('new: the museum double sliding door')
+# (the museum's own door and canopy went with it, 2026-11-16) - the arrivals wing's way out instead: two copies of the
+# main entrance's double sliding door in its kerb front (z -4) at x -43.5 and -36.5, and the entrances' canopy over
+# both, 17 m wide on two pillars
+for k, x in enumerate((-43.5, -36.5)):
+    d = copy_tree(byname['D-F1-ENTR-C-1'], skip=('sign',))
+    N[d]['name'] = 'D-F1-ARRIVALS-%d' % (k + 1); N[d]['translation'] = [-x, 0.0, -4.0]
+    N[byname['F1']]['children'].append(d); log.append('new: arrivals sliding door %d' % (k + 1))
 cp = copy_tree(byname['KERB/CANOPY-001'])
-N[cp]['name'] = 'KERB/CANOPY-MUSEUM'; N[cp]['translation'] = [18.0, 3.8, -2.0]
+N[cp]['name'] = 'KERB/CANOPY-ARRIVALS'; N[cp]['translation'] = [40.0, 3.8, -6.0]
 for c in N[cp]['children']:
     sc = N[c].get('scale', [1, 1, 1]); tr = N[c].get('translation', [0, 0, 0])
-    if sc[0] > 5: N[c]['scale'] = [sc[0] - 4.0, sc[1], sc[2]]
-    elif abs(tr[0]) > 5: N[c]['translation'] = [4.1 if tr[0] > 0 else -4.1, tr[1], tr[2]]
-N[byname['F1']]['children'].append(cp); log.append('new: the museum door canopy on two pillars')
+    if sc[0] > 5: N[c]['scale'] = [sc[0] + 4.0, sc[1], sc[2]]
+    elif abs(tr[0]) > 5: N[c]['translation'] = [8.1 if tr[0] > 0 else -8.1, tr[1], tr[2]]
+N[byname['F1']]['children'].append(cp); log.append('new: the arrivals canopy on two pillars')
+# the plant pot at the gate walkway's west end stood in the arrivals doorway (x -80..-72): out
+for i, n in enumerate(N):
+    if n['name'].endswith('F2-WALK/PLANT-001') and i in parent: drop(i, 'in the arrivals doorway')
 
 # ---- the new parts (Art/TerminalAnnex, Tools/import_annex.py): placed as they are (made in the plan's metres) ----
 def add(parent_name, name, asset):
@@ -138,6 +144,8 @@ def add(parent_name, name, asset):
     N[byname[parent_name]]['children'].append(len(N) - 1); log.append('new: ' + name)
 add('F1', 'F1-ANNEX-WEST/SOLID', 'annex_west_solid')
 add('F1', 'F1-ANNEX-WEST/GLASS', 'annex_west_glass')
+add('F1', 'F1-ARRIVALS/SOLID', 'annex_arrivals_solid')      # the arrivals wing (Art/TerminalAnnex/make_arrivals_wing.py)
+add('F1', 'F1-ARRIVALS/GLASS', 'annex_arrivals_glass')
 # lamps like the rest of the terminal's (their lights come with them): the escalator room under the landing and in its
 # high part, the landing, the museum
 def lamps(parent_name, prefix, xs, zs, y):
@@ -155,7 +163,10 @@ lamps('F1', 'F1-ESC', [3, 9, 15], [4, 10, 16, 22, 28], 5.33)
 lamps('F1', 'F1-ESC-HIGH', [24, 30], [4, 10, 16, 22, 28], 11.28)
 lamps('F2', 'F2-ESC-LANDING', [17], [3, 9, 20, 26], 11.28)
 lamps('F2', 'F2-OFFICES', [118, 124, 130, 136, 146, 151], [4, 10, 16, 22, 28, 34, 40], 11.28)
-lamps('F1', 'F1-MUSEUM-HALL', [-32, -26, -20, -14, -8, -2], [4, 12, 20, 28, 36, 44], 11.28)
+# the arrivals wing: the claim hall and the arrivals hall under their slatted ceilings (5.4 m), the escalators' void
+lamps('F1', 'F1-CLAIM', [-66, -58, -50, -42, -34, -26, -18, -10, -2], [19, 25, 31, 37, 43, 49], 5.22)
+lamps('F1', 'F1-ARRIVALS', [-76, -68, -60, -52, -44, -36, -28, -20, -12, -4], [-1, 5, 11], 5.22)
+lamps('F1', 'F1-CLAIM-VOID', [-77, -72], [38, 44, 50], 11.28)
 json.dump(L, open(OUT, 'w'))
 print('\n'.join(log))
 print('layout written:', OUT)
