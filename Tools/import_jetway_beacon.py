@@ -28,7 +28,18 @@ unreal.MaterialEditingLibrary.set_material_instance_vector_parameter_value(red, 
 unreal.MaterialEditingLibrary.set_material_instance_scalar_parameter_value(red, 'Glow', 8.0)   # (red stays red only this bright: driven harder the camera's colour curve turns it orange)
 EAL.save_loaded_asset(red)
 MAP = {'JwBcnSteel': '/Game/Terminal/Materials/MI_T_jwAluB', 'JwBcnDark': '/Game/Terminal/Materials/MI_T_jwDark', 'JwBcnLens': lp}
-for NAME in ('SM_JwBeacon', 'SM_JwLightBar'):
+def lens(name, col, glow):
+    pth = DEST + '/' + name
+    if EAL.does_asset_exist(pth): EAL.delete_asset(pth)
+    mi = AT.create_asset(name, DEST, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
+    unreal.MaterialEditingLibrary.set_material_instance_parent(mi, unreal.load_asset('/Game/Truck/M_TruckLens'))
+    unreal.MaterialEditingLibrary.set_material_instance_vector_parameter_value(mi, 'BC', unreal.LinearColor(*col))
+    unreal.MaterialEditingLibrary.set_material_instance_scalar_parameter_value(mi, 'Glow', glow)
+    EAL.save_loaded_asset(mi); return pth
+# the floodlights' white lens, the crew signal's green (and the red above)
+white = lens('MI_JwLensWhite', (1.0, 0.97, 0.9, 1.0), 30.0)
+green = lens('MI_JwLensGreen', (0.05, 1.0, 0.2, 1.0), 10.0)
+for NAME in ('SM_JwBeacon', 'SM_JwLightBar', 'SM_JwFlood', 'SM_JwLamp'):
   path = DEST + '/' + NAME
   if EAL.does_asset_exist(path): EAL.delete_asset(path)
   o = unreal.FbxImportUI()
@@ -65,4 +76,24 @@ for m in smr.get_editor_property('static_materials'):
     mats.append(m)
 smr.set_editor_property('static_materials', mats); EAL.save_loaded_asset(smr)
 log('SM_JwBeaconRed', [(str(m.get_editor_property('material_slot_name')), m.get_editor_property('material_interface').get_name()) for m in mats])
+# coloured copies: the floodlight with its white lens, the signal lamp red and green
+def variant(src, dst, lens_path):
+    if EAL.does_asset_exist(DEST + '/' + dst): EAL.delete_asset(DEST + '/' + dst)
+    sm2 = EAL.duplicate_asset(DEST + '/' + src, DEST + '/' + dst); ms = []
+    for m in sm2.get_editor_property('static_materials'):
+        if str(m.get_editor_property('material_slot_name')) == 'JwBcnLens': m.set_editor_property('material_interface', unreal.load_asset(lens_path))
+        ms.append(m)
+    sm2.set_editor_property('static_materials', ms); EAL.save_loaded_asset(sm2); log(dst, 'made')
+variant('SM_JwFlood', 'SM_JwFloodWhite', white)
+variant('SM_JwLamp', 'SM_JwLampRed', rp)
+variant('SM_JwLamp', 'SM_JwLampGreen', green)
+# the jetway's sounds (Art/Sounds/Jetway, CC0 from Freesound - SOURCES.md there): looping
+SD = DEST + '/Sounds'
+for n in ('JwBeeper', 'JwMotor', 'JwTyres', 'JwLift'):
+    t = unreal.AssetImportTask(); t.filename = os.path.join(ROOT, 'Art', 'Sounds', 'Jetway', n + '.wav'); t.destination_path = SD
+    t.automated = True; t.replace_existing = True; t.save = True
+    AT.import_asset_tasks([t])
+    w = unreal.load_asset(SD + '/' + n)
+    if w: w.set_editor_property('looping', True); EAL.save_loaded_asset(w); log('sound', n, 'ok', w.get_editor_property('duration'))
+    else: log('sound', n, 'MISSING')
 log('done')

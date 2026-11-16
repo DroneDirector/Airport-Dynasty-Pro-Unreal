@@ -28,6 +28,10 @@ public:
 	int32 Nearest(const FVector& At, float MaxCm = 6000.f) const;
 	EState State(int32 J) const;
 	FString Name(int32 J) const;
+	/** Whether an aircraft stands at this jetway's stand (a parked one within reach of its door). */
+	bool AircraftAt(int32 J) const;
+	/** Why the last Dock / Undock was refused (shown on screen), empty if it went. */
+	static FString LastNote;
 	bool Dock(int32 J);
 	bool Undock(int32 J);
 	/** Out if parked, back if docked (the on-screen button). */
@@ -36,6 +40,8 @@ public:
 	FVector Console(int32 J) const;
 	/** The rotunda's pivot and the docked wheels' point (world), for cameras and tests. */
 	bool Frame(int32 J, FVector& Rotunda, FVector& Door) const;
+	/** The cab's middle and the way its doorway faces, now (world) - for cameras. */
+	bool CabView(int32 J, FVector& Mid, FVector& Front) const;
 	/** Every jetway's beacons flashing (tests and pictures), as if they were all moving. */
 	static bool bBeaconTest;
 	/** How strongly the gate-number signs glow (their own colours; faint). */
@@ -50,6 +56,8 @@ private:
 	struct FGroup { FTransform Docked; TArray<FPart> Parts; };
 	/** A part stretched between two moving parts (bellows, their linings, the floor plates across them): its ends ride
 	 *  with group A and group B, it turns to lie between them and grows or shrinks along its length. */
+	/** A cab door leaf: turned about its hinge (vertical) from open (as exported, docked) to shut. */
+	struct FLeaf { FVector H; float Close = 0.f; TArray<FPart> Parts; };
 	struct FStretch { FPart P; int32 A = 0, B = 0, Axis = 0; FVector E1, E2; };
 	enum EGroup { Boom, Pitch, Tun1, Tun2, Tun3, Cab, CabSleeve, Bogie, Sleeves, NumGroups };
 	struct FRig
@@ -57,13 +65,17 @@ private:
 		FString Id; TWeakObjectPtr<ABabylonModel> Model;
 		FGroup G[NumGroups];
 		TArray<FStretch> Stretch;
+		TArray<FLeaf> Leaves; float Shut = 1.f;   // (the cab's front doors: 1 open, 0 shut)
 		// the warning beacons (two on poles on the cab's roof at its front corners, one hanging under it): their copies,
 		// their glow and the light each throws, which side's flash each follows
-		UInstancedStaticMeshComponent *Bcn = nullptr, *BcnRed = nullptr, *Bar = nullptr; TArray<UInstancedStaticMeshComponent*> BcnK; TArray<int32> BcnIx; TArray<uint8> BcnKind; TArray<USceneComponent*> BcnGlow, BcnLight, BcnFill; TArray<uint8> BcnSide; bool bBcnOn = false;
+		UInstancedStaticMeshComponent *Bcn = nullptr, *BcnRed = nullptr, *Bar = nullptr; TArray<UInstancedStaticMeshComponent*> BcnK; TArray<int32> BcnIx; TArray<uint8> BcnKind; TArray<USceneComponent*> BcnGlow, BcnLight, BcnFill; TArray<uint8> BcnSide; bool bBcnOn = false, bBarOn = false;
+		TArray<FQuat> BcnRel; TArray<bool> BcnFixed; uint32 LampKey = 0xffffffff; float Wait = 0.f, Env = 1.f, EnvLp = 20000.f;
+		class UAudioComponent *SBeep = nullptr, *SMotor = nullptr, *STyres = nullptr, *SLift = nullptr;
 		// the gate-number sign on the cab's roof, softly lit on both faces (owner: far weaker than the beacons)
 		TArray<USceneComponent*> SignLight; TArray<FVector> SignAt;
 		TArray<FPart> Stair; TArray<bool> StairLevel; FVector StairTop, StairU; float StairSl = 0.f, Ground = 0.f;
 		FVector BoomO, PD, Wd, Wp, Ctl, CabOff;     // (model space, cm)
+		FVector CabMidD = FVector::ZeroVector, FrontD = FVector::ForwardVector;   // the cab body's middle and the way its door faces (docked, model space)
 		FVector DirD, AxisD; float LenD = 0.f, PitchD = 0.f, Turn0 = 0.f;
 		EState St = EState::Docked; float T = 0.f, S = 1.f, Turn = 0.f;
 		float D = 0.f, V = 0.f, PathL = 0.f; TArray<float> Arc;   // (metres driven along the path, speed m/s, the path's length, S by distance)
@@ -72,6 +84,7 @@ private:
 	bool bBuilt = false; float Look = 0.f, BcnClock = 0.f;
 	void AddBeacons(FRig& R, ABabylonModel* M, const FString& Id);
 	void Beacons(FRig& R, bool bMoving);
+	void Sounds(FRig& R, bool bMoving, float Dt);
 	void AddSignLights(FRig& R, ABabylonModel* M, const FString& Id);
 	void Build();
 	void Apply(FRig& R);

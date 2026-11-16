@@ -239,6 +239,10 @@ private:
 	/** The Buttons panel's list, the controls in Settings and the map's legend, for the device in use. */
 	void RefreshControls();
 	bool bPointer = false, bFpsBox = false, bFrameGen = false;
+	// the jetway's control panel menu (E at its console): which jetway, open or not (JetwayRigs.h)
+	bool bJetMenu = false; int32 JetMenuJ = -1; bool bJetPointerWas = false;
+	void OpenJetMenu(int32 J); void CloseJetMenu();
+	int32 NearJetway(float MaxCm) const;
 	/** AMD's frame generation (FSR, any graphics card) on or off; kept in the settings file, off unless chosen. */
 	void SetFrameGen(bool bOn);
 	TSharedPtr<class SDragBox> FpsBox;
