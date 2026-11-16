@@ -363,7 +363,15 @@ void ADPCharacterCreate::BuildConcept(UWorld* W, APlayerController* PC, bool bWo
 		const FVector Eye = C - Y * 600.f + Z * 124.f;
 		ACameraActor* Cam = W->SpawnActor<ACameraActor>(Eye, (C + Z * 118.f - Eye).Rotation(), P);
 		Spawned.Add(Cam);
-		if (Cam) { Cam->GetCameraComponent()->SetFieldOfView(43.f); Cam->GetCameraComponent()->SetConstraintAspectRatio(false); PC->SetViewTarget(Cam); }
+		if (Cam)
+		{
+			Cam->GetCameraComponent()->SetFieldOfView(43.f); Cam->GetCameraComponent()->SetConstraintAspectRatio(false);
+			// (the view's height kept: a super-ultrawide screen sees more to the sides, never less above and below - owner
+			//  2026-11-16, 32:9: the figure and the pet were cut off at the bottom; 16:9 looks as before)
+			Cam->GetCameraComponent()->bOverrideAspectRatioAxisConstraint = true;
+			Cam->GetCameraComponent()->AspectRatioAxisConstraint = EAspectRatioAxisConstraint::AspectRatio_MaintainYFOV;
+			PC->SetViewTarget(Cam);
+		}
 	}
 	ADP_LOG(TEXT("Character creator: the concept room built, %s in the light"), bWoman ? TEXT("she") : TEXT("he"));
 }

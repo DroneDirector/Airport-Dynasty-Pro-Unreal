@@ -57,7 +57,12 @@ function frame() {
     if (fl) fl.textContent = 'Get ready for takeoff';
     if (pc) pc.textContent = '100%';
     if (fill) fill.style.width = '100%';
-    if (performance.now() - Ld.doneAt > 4000) { hide(); return; }
+    if (performance.now() - Ld.doneAt > 4000) {
+      hide();
+      // straight into the airport on foot, where you were (owner, 2026-11-16: not the Overview after loading)
+      try { const u = (window as any).ue && (window as any).ue.adp; if (u && u.openterminal) u.openterminal(); } catch (e) { /* no link */ }
+      return;
+    }
   }
   Ld.raf = requestAnimationFrame(frame);
 }
@@ -74,6 +79,8 @@ export function loadingNeonShow() {
     </div>
     <div class="ln-tip"><small>Tip</small><b class="in">${TIPS[0]}</b></div>`;
   document.body.appendChild(root); Ld.root = root; Ld.t0 = performance.now(); Ld.pct = 0; Ld.ready = false; Ld.seen = 0; Ld.file = ''; Ld.tip = 0; Ld.tipAt = 0; Ld.doneAt = 0;
+  // (a fresh list each time: the last load's, already done, made the bar start at its end - owner 2026-11-16)
+  Ld.ue = null; Ld.ueDone = false;
   // the PC version: Unreal loads the rest of the world now (the roads, the town, the land along the roads, you, your
   // hair, the terminal) and tells this screen each one's progress (window.__ueLoad)
   try { const u = (window as any).ue && (window as any).ue.adp; if (u && u.startload) u.startload(); } catch (e) { /* no link */ }
