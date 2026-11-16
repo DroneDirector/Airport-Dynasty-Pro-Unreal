@@ -87,3 +87,22 @@ walk follows below when it has run.
     grass off:                      90 fps, hitches every 15 s (136 ms)
 - Not the timetable screens (their 15 s timer redrew only once in the run). Not the sun clock (5 s and 120 s steps).
 - Still to test: the menus' built-in browser, files written to disk, the holographic map.
+
+## 2026-11-16 - The 15-second hitch: found and fixed
+
+- More eliminations first: the menus' browser removed - still there; the title screen with no airport loaded - still
+  there (every 15 s, 124 ms); no graphics device at all (-nullrhi) - still there. A plain program on the same PC had no
+  stalls, so it was inside the game, not the graphics card, a driver or an overlay (not Razer's FPSRunner either).
+- Found by a stall watch built for it (a thread that writes where the game thread is when it stops for 60 ms):
+    ASeats::Tick -> ASeats::Gather -> ABabylonModel::SeatSpots (Seats.cpp, BabylonModel.cpp)
+  The seat system re-collected every chair in every building every 15 s (first 3 times every 6 s - matching the
+  first hitches' 6 s spacing), 112 ms each time.
+- Fixed: gathered again only when a building is added or removed. Code only; nothing looks different.
+- Measured after (packaged game, stress walk off-screen, Cinematic 1920x1080): 92 fps on average, slowest 1 %
+  75 fps, worst frame 50 ms, 0 bad frames (before: 87 fps, 68 fps, 133 ms, 26 bad frames).
+
+## 2026-11-16 - Changes made for speed (no change to the look up close)
+
+- Sun shadows 2.6 km on foot or driving, 42 km flying/drone/flight viewer (your OK); lamps 150 m on foot (floodlights
+  600 m), 600 m flying (floodlights 2.4 km) (your OK): 87 -> 92 fps average, slowest 1 % 68 -> 75 fps.
+- The 607 baked road meshes drawn by Nanite (same triangles, cheaper shadows): in the next full build.

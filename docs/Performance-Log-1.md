@@ -26,3 +26,12 @@ Every performance change to the game, newest last. Only performance work goes in
   (ADPHUD.cpp, twice a second); a lamp's own shorter limit kept. Measured in the packaged game (stress walk,
   off-screen, Cinematic 1920x1080): 87 -> 92 fps on average, slowest 1 % 68 -> 75 fps; standing in the Grand Hall
   89 -> 92 fps. Night pictures (hall, forecourt, apron, gate walkway): nothing went dark that should be lit.
+- **2026-11-16 - The stutter fixed: the seats.** Found by the new stall watch (the game thread stuck in
+  ASeats::Tick -> ASeats::Gather -> ABabylonModel::SeatSpots): every 15 s the seat system walked every piece of every
+  building to find chairs again, 112 ms each time - the 120 ms hitch every 15 s, on the title screen too. Now it
+  gathers only when a building is added or removed. Measured in the packaged game (stress walk, off-screen): bad frames
+  26 -> 0, worst frame 133 -> 50 ms; standing still: 5 hitches -> none.
+- **2026-11-16 - Watchers kept for good.** The stall watch (-StallWatch, on for every stress walk; names places in a
+  packaged build with Tools/stall_names.sh); time guards (ADP_PERF_SCOPE) on every frame-by-frame scan, writing
+  "SLOW WORK" with the name when one takes longer than its budget; the release stops on a new scan without a guard
+  (Tools/find_world_scans.py, Data/world-scans-checked.json).
