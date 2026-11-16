@@ -2,61 +2,121 @@
  {
   "name": "1-from-the-stairs",
   "from_plan_m": {
-   "x": -39.2,
+   "x": -75.2,
    "z": 41.6,
    "height": 2.8
   },
   "to_plan_m": {
-   "x": -14.0,
-   "z": 25.0,
+   "x": -40.0,
+   "z": 24.0,
    "height": 0.4
   },
   "lens_mm": 18,
-  "what": "Halfway down the stair beside the escalators: the whole claim hall, all three belts"
+  "what": "Halfway down the stair beside the escalators (west end): the claim hall, all five belts"
  },
  {
   "name": "2-passenger-from-customs",
   "from_plan_m": {
-   "x": -15.5,
+   "x": -36.0,
    "z": 18.2,
    "height": 1.65
   },
   "to_plan_m": {
-   "x": -20.0,
+   "x": -44.0,
    "z": 38.0,
    "height": 1.1
   },
   "lens_mm": 22,
-  "what": "A passenger by the customs doorway looking back north: belts 2 and 3, their screens, the basalt wall"
+  "what": "By the customs doorway looking back north: belts 2, 3 and 4, their screens, the escalators beyond"
  },
  {
-  "name": "3-belt-2-feed-shaft",
+  "name": "3-belt-3-feed-shaft",
   "from_plan_m": {
-   "x": -15.6,
+   "x": -32.1,
    "z": 35.3,
    "height": 1.55
   },
   "to_plan_m": {
-   "x": -18.4,
+   "x": -34.9,
    "z": 37.1,
    "height": 0.75
   },
   "lens_mm": 30,
-  "what": "Close up at belt 2: a bag rising out of the feed shaft through the flaps onto the plates"
+  "what": "Close up at belt 3: a bag rising out of the feed shaft through the flaps onto the plates"
  },
  {
   "name": "4-crew-input-sorting-hall",
   "from_plan_m": {
-   "x": -15.2,
+   "x": -31.7,
    "z": 60.8,
    "height": 1.75
   },
   "to_plan_m": {
-   "x": -19.4,
+   "x": -35.9,
    "z": 52.6,
    "height": 0.95
   },
   "lens_mm": 24,
-  "what": "Crew side, in the sorting hall: belt 2 and 3 input conveyors into the wall, a baggage cart at each"
+  "what": "Crew side, in the sorting hall: belt 3 and 4 input conveyors into the wall, a baggage cart at each"
+ },
+ {
+  "name": "5-escalators-from-below",
+  "from_plan_m": {
+   "x": -74.5,
+   "z": 31.5,
+   "height": 1.65
+  },
+  "to_plan_m": {
+   "x": -77.8,
+   "z": 47.0,
+   "height": 4.2
+  },
+  "lens_mm": 22,
+  "what": "The escalators and stair from the claim hall floor: free to walk on, nothing in the way"
+ },
+ {
+  "name": "6-arrivals-hall",
+  "from_plan_m": {
+   "x": -70.0,
+   "z": -2.0,
+   "height": 1.7
+  },
+  "to_plan_m": {
+   "x": -40.0,
+   "z": 8.0,
+   "height": 1.6
+  },
+  "lens_mm": 20,
+  "what": "The arrivals hall: the customs exit (green channel), the meeting rail, car rental and taxi desks, the doors out"
+ },
+ {
+  "name": "7-outside-arrivals-doors",
+  "from_plan_m": {
+   "x": -40.0,
+   "z": -34.0,
+   "height": 1.7
+  },
+  "to_plan_m": {
+   "x": -40.0,
+   "z": -4.0,
+   "height": 4.0
+  },
+  "lens_mm": 24,
+  "what": "Outside on the forecourt: the arrivals doors under the canopy, ARRIVALS over the glass"
+ },
+ {
+  "name": "8-outside-whole-wing",
+  "from_plan_m": {
+   "x": -125.0,
+   "z": -75.0,
+   "height": 32.0
+  },
+  "to_plan_m": {
+   "x": -38.0,
+   "z": 14.0,
+   "height": 4.0
+  },
+  "lens_mm": 28,
+  "what": "From above the forecourt (south-west): the whole arrivals wing, flush with the end of the gates pier"
  }
 ]

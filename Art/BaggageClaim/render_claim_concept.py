@@ -2,7 +2,8 @@
 # (docs/Baggage-Claim-Blueprint.png), to its exact sizes, textured, rendered from four cameras whose from/to points are
 # written to Art/BaggageClaim/cameras.json (so the real model is built to match). Not the game model - a look to agree.
 # Plan metres: Blender X = plan x (along the building), Blender Y = plan z (north, airside), Z up.
-#   claim hall   x -44..0, y 16..52, ceiling 5.4 m (the Floor 2 arrivals corridor over y 40..52)
+#   claim hall   x -80..0 (flush with the gates' west end; the museum hall removed, owner 2026-11-16), y 16..52, ceiling 5.4 m
+#                (the Floor 2 arrivals corridor over y 40..52)
 #   belts        3 flat-plate carousels, centres x -31 / -19 / -7, y 31; straight 15 m, centre-line radius 1.8 m:
 #                41.3 m of belt each (IATA: about 37 - 40 m of presentation for a large narrow-body); plates 0.92 m
 #                wide at 0.45 m; overall 19.9 x 4.9 m; 0.46 m/s
@@ -149,11 +150,11 @@ def bag(x, y, z, yaw, kind):
     return o
 
 # ---------------------------------------------------------------- the claim hall
-X0, X1, Y0, Y1, CEIL = -44.0, 0.0, 16.0, 52.0, 5.4
+X0, X1, Y0, Y1, CEIL = -80.0, 0.0, 16.0, 52.0, 5.4
 box(X0, Y0, -0.2, X1, Y1, 0.0, M['floor'], 'ClaimFloor')
-box(X0 - 30, Y0 - 30, -0.25, X1 + 30, Y1 + 40, -0.2, M['grass'], 'Ground')
+box(X0 - 80, -120, -0.25, X1 + 160, Y1 + 60, -0.2, M['grass'], 'Ground')
 # walls: south (customs, plaster with its opening), east (the museum's side: a dark basalt feature wall), north (plaster)
-box(X0, Y0 - 0.3, 0, -32, Y0, CEIL, M['plaster']); box(-24, Y0 - 0.3, 0, X1, Y0, CEIL, M['plaster']); box(-32, Y0 - 0.3, 3.0, -24, Y0, CEIL, M['plaster'])
+box(X0, Y0 - 0.3, 0, -44, Y0, CEIL, M['plaster']); box(-36, Y0 - 0.3, 0, X1, Y0, CEIL, M['plaster']); box(-44, Y0 - 0.3, 3.0, -36, Y0, CEIL, M['plaster'])
 box(X1, Y0, 0, X1 + 0.3, Y1, CEIL, M['basalt'], 'BasaltWall')
 box(X0, Y1, 0, X1, Y1 + 0.3, 6.0, M['plaster'], 'NorthWall')
 # west: the glass wall onto the airfield side, mullions every 2.5 m
@@ -162,17 +163,32 @@ for y in [Y0 + 2.5 * k for k in range(15)]: box(X0 - 0.12, y - 0.05, 0, X0, y + 
 box(X0 - 0.12, Y0, 0, X0, Y1, 0.12, M['dark']); box(X0 - 0.12, Y0, CEIL - 0.15, X0, Y1, CEIL, M['dark'])
 # the ceiling: oak slats over a dark plenum, LED lines between them; the Floor 2 corridor's slab over y 40..52 (its void
 # over the escalators open)
-box(X0, Y0, CEIL + 0.3, X1, Y1, CEIL + 0.35, M['plenum'], 'Plenum')
-slat = box(X0, Y0 + 0.05, CEIL - 0.12, X1, Y0 + 0.11, CEIL, M['oak'], 'Slat')
+box(-68.2, Y0, CEIL + 0.3, X1, Y1, CEIL + 0.35, M['plenum'], 'Plenum'); box(X0, Y0, CEIL + 0.3, -68.2, 37.0, CEIL + 0.35, M['plenum'])
+slat = box(-68.2, Y0 + 0.05, CEIL - 0.12, X1, Y0 + 0.11, CEIL, M['oak'], 'Slat')
+slatw = box(X0, Y0 + 0.05, CEIL - 0.12, -68.2, Y0 + 0.11, CEIL, M['oak'], 'SlatW')   # (west of the void: only up to it)
+arw = slatw.modifiers.new('arr', 'ARRAY'); arw.count = 175; arw.use_relative_offset = False; arw.use_constant_offset = True; arw.constant_offset_displace = (0, 0.12, 0)
 ar = slat.modifiers.new('arr', 'ARRAY'); ar.count = 300; ar.use_relative_offset = False; ar.use_constant_offset = True; ar.constant_offset_displace = (0, 0.12, 0)
-for y in [Y0 + 3 + 3 * k for k in range(11)]: box(X0, y - 0.02, CEIL - 0.13, X1, y + 0.02, CEIL - 0.11, M['led'], 'LedLine')
-box(-37, 40, CEIL, X1, Y1, 6.0, M['plaster'], 'F2Slab'); box(X0, 40, CEIL, -37, 40.3, 6.0, M['plaster'])
-box(X0, 40, 6.0, X1, 40.3, 7.2, M['glass'], 'F2Rail')
-box(X0, Y1, 6.0, X1, Y1 + 0.3, 9.0, M['plaster'])
+for y in [Y0 + 3 + 3 * k for k in range(11)]: box(X0 if y < 37 else -68.2, y - 0.02, CEIL - 0.13, X1, y + 0.02, CEIL - 0.11, M['led'], 'LedLine')
+# the void's own walls up to Floor 2's ceiling (11.4), its ceiling, the west glass carried up
+box(-68.2, 37.0, CEIL, -67.9, Y1, 11.4, M['plaster'], 'VoidEast'); box(X0, 36.7, CEIL, -67.9, 37.0, 11.4, M['plaster'], 'VoidSouth')
+box(X0, 37.0, 11.4, -67.9, Y1, 11.6, M['plaster'], 'VoidCeiling')
+for y in (40.0, 44.0, 48.0): box(-79.5, y - 0.3, 11.3, -68.7, y + 0.3, 11.38, M['led'])
+box(X0 - 0.06, 37.0, CEIL, X0, Y1, 11.4, M['glass'])
+for y in (37.0, 39.5, 42.0, 44.5, 47.0, 49.5, 52.0): box(X0 - 0.12, y - 0.05, CEIL, X0, y + 0.05, 11.4, M['dark'])
+# the Floor 2 top landing (2.5 m deep) in front of the doorway, the escalators, stair and lift arriving on it
+box(X0, 49.5, CEIL, -68.2, Y1, 6.0, M['plaster'], 'LandingSlab'); box(X0, 49.5, 5.99, -68.2, Y1, 6.0, M['floor'], 'LandingFloor')
+box(-74.0, 49.45, 6.0, -68.2, 49.5, 7.1, M['glass'], 'LandingRail'); box(-74.0, 49.4, 7.05, -68.2, 49.55, 7.12, M['steel'])
+
+box(-72.0, Y1, 6.0, X1, Y1 + 0.3, 11.4, M['plaster']); box(X0, Y1, 9.6, -72.0, Y1 + 0.3, 11.4, M['plaster'])   # (the 8 m doorway into the gates' walkway, 3.6 m high)
+# the gates' walkway beyond (Floor 2, z 52.3..68): terrazzo, a white ceiling with LED lines, its glass onto the apron
+box(X0, Y1 + 0.3, 5.4, -30.0, 68.0, 6.0, M['floor'], 'WalkFloor'); box(X0, Y1 + 0.3, 11.4, -30.0, 68.0, 11.6, M['plaster'], 'WalkCeiling')
+for x in range(-78, -30, 4): box(x - 0.3, Y1 + 1.0, 11.3, x + 0.3, 67.3, 11.38, M['led'])
+box(X0, 67.9, 6.0, -30.0, 68.0, 11.4, M['glass'], 'WalkGlass'); box(X0 - 0.3, Y1 + 0.3, 6.0, X0, 68.0, 11.4, M['plaster'])
+for x in range(-80, -29, 3): box(x - 0.05, 67.8, 6.0, x + 0.05, 68.0, 11.4, M['dark'])
 
 # ---------------------------------------------------------------- escalators, stair and lift (down from the corridor)
 def escalator(x0, w, mat_side):
-    y_top, y_bot, z_top = 51.5, 39.0, 6.0
+    y_top, y_bot, z_top = 49.5, 37.0, 6.0
     run = y_top - y_bot - 2.0
     # its truss (side panels), steps, glass balustrades with steel handrails
     pts = [(y_bot, 0), (y_bot + 1.0, 0), (y_top - 1.0, z_top - 0.0), (y_top, z_top), (y_top, z_top - 0.9), (y_top - 1.2, z_top - 0.9), (y_bot + 1.0, -0.6 + 0.0), (y_bot, -0.6)]
@@ -185,12 +201,13 @@ def escalator(x0, w, mat_side):
         o.location = (xs + 0.01, (y_bot + y_top) / 2, z_top / 2 + 0.6)
         h = box(xs - 0.03, y_bot, 1.0, xs + 0.05, y_top, 1.08, M['rubber']); h.rotation_euler = o.rotation_euler; h.location = (xs + 0.01, (y_bot + y_top) / 2, z_top / 2 + 1.1)
     side = box(x0, y_bot + 0.8, 0, x0 + w, y_top - 0.8, 0.9, M['steel']); side.rotation_euler = (math.atan2(z_top, run), 0, 0); side.location = (x0 + w / 2, (y_bot + y_top) / 2, z_top / 2 - 0.35)
-escalator(-43.6, 1.6, M['steel']); escalator(-41.9, 1.6, M['steel'])
-for k in range(30): box(-40.2, 39.6 + k * 0.38, 0, -38.2, 40.0 + k * 0.38, 0.2 * (k + 1), M['floor'])   # the stair
-box(-36.6, 47.6, 0, -34.4, 50.4, 7.2, M['glass'], 'LiftShaft'); box(-36.6, 47.6, 7.2, -34.4, 50.4, 7.35, M['dark'])
+escalator(-79.6, 1.6, M['steel']); escalator(-77.9, 1.6, M['steel'])
+for k in range(30): box(-76.2, 37.6 + k * 0.38, 0, -74.2, 38.0 + k * 0.38, 0.2 * (k + 1), M['floor'])   # the stair
+box(-71.0, 46.4, 0, -68.6, 49.2, 9.0, M['glass'], 'LiftShaft'); box(-71.0, 46.4, 9.0, -68.6, 49.2, 9.15, M['dark'])   # (its door opens north onto the landing)
+box(-70.6, 49.18, 0.0, -69.0, 49.22, 2.2, M['steel']); box(-70.6, 49.18, 6.0, -69.0, 49.22, 8.2, M['steel'])
 
 # ---------------------------------------------------------------- the three belts
-BELTS = [(-31.0, 31.0, 1), (-19.0, 31.0, 2), (-7.0, 31.0, 3)]
+BELTS = [(-60.8, 31.0, 1), (-48.15, 31.0, 2), (-35.5, 31.0, 3), (-22.85, 31.0, 4), (-10.2, 31.0, 5)]   # (7.75 m walking room between and round them)
 L_, RC = 15.0, 1.8
 for cx, cy, n in BELTS:
     prism(track(cx, cy, 2.45), 0, 0.40, M['steel'], 'Skirt%d' % n)
@@ -231,21 +248,23 @@ for cx, cy, n in BELTS:
     pl.scale = (1.96, 1.09, 1); pl.data.materials.append(picture('ScreenFace%d' % n, 'screen_belt%d.png' % n, 4.0))
     box(cx - 1.06, cy + 10.5, 3.0, cx + 1.06, cy + 10.6, 4.19, M['dark']); box(cx - 0.03, cy + 10.5, 4.19, cx + 0.03, cy + 10.56, CEIL, M['steel'])
 # the hall's overhead sign, seen coming off the escalators
-bpy.ops.mesh.primitive_plane_add(size=1, location=(-40.0, 37.4, 3.4), rotation=(math.pi / 2, 0, math.pi)); sg = bpy.context.object
+bpy.ops.mesh.primitive_plane_add(size=1, location=(-76.0, 35.52, 3.4), rotation=(math.pi / 2, 0, math.pi)); sg = bpy.context.object   # (its north face, for those coming down)
 sg.scale = (6.0, 0.75, 1); sg.data.materials.append(picture('SignClaim', 'sign_claim.png', 3.0))
-box(-43.0, 37.42, 3.0, -37.0, 37.5, 3.8, M['dark']); box(-41, 37.44, 3.8, -40.95, 37.48, CEIL, M['steel']); box(-39.05, 37.44, 3.8, -39.0, 37.48, CEIL, M['steel'])
+bpy.ops.mesh.primitive_plane_add(size=1, location=(-76.0, 35.38, 3.4), rotation=(math.pi / 2, 0, 0)); sg2 = bpy.context.object   # (its other face, for those walking back north)
+sg2.scale = (6.0, 0.75, 1); sg2.data.materials.append(picture('SignClaim2', 'sign_claim.png', 3.0))
+box(-79.0, 35.42, 3.0, -73.0, 35.5, 3.8, M['dark']); box(-77, 35.44, 3.8, -76.95, 35.48, CEIL, M['steel']); box(-75.05, 35.44, 3.8, -75.0, 35.48, CEIL, M['steel'])
 # customs: its doorway's sign over the opening
-box(-32, Y0 - 0.32, 2.4, -24, Y0 - 0.3, 3.0, simple('CustomsGreen', (0.02, 0.35, 0.12), 0.4, emit=(0.05, 0.6, 0.2), estr=1.5))
+box(-44, Y0 - 0.32, 2.4, -36, Y0 - 0.3, 3.0, simple('CustomsGreen', (0.02, 0.35, 0.12), 0.4, emit=(0.05, 0.6, 0.2), estr=1.5))
 # a few seats along the glass
-for k in range(5): box(-43.2, 20 + k * 3.2, 0.42, -42.6, 22.2 + k * 3.2, 0.48, M['oak']); box(-43.0, 20.5 + k * 3.2, 0, -42.8, 21.7 + k * 3.2, 0.42, M['dark'])
+for k in range(5): box(-79.2, 20 + k * 3.2, 0.42, -78.6, 22.2 + k * 3.2, 0.48, M['oak']); box(-79.0, 20.5 + k * 3.2, 0, -78.8, 21.7 + k * 3.2, 0.42, M['dark'])
 
 # ---------------------------------------------------------------- the crew side: the sorting hall behind the north wall
 SY0, SY1 = Y1 + 0.3, 68.0
 box(X0, SY0, -0.2, X1 + 20, SY1, 0.0, M['concrete'], 'SortFloor')
 box(X0, SY1, 0, X1 + 20, SY1 + 0.3, CEIL, M['wallc']); box(X0 - 0.3, SY0, 0, X0, SY1, CEIL, M['wallc'])
 box(X0, SY0, CEIL, X1 + 20, SY1, CEIL + 0.2, M['wallc'], 'SortCeiling')
-for x in [X0 + 4 + 6 * k for k in range(10)]: box(x - 0.3, SY0, CEIL - 0.15, x + 0.3, SY1, CEIL - 0.1, M['led'])
-for x in [X0 + 6 * k for k in range(11)]: box(x - 0.15, SY0, CEIL - 0.7, x + 0.15, SY1, CEIL, M['dark'])
+for x in [X0 + 4 + 6 * k for k in range(16)]: box(x - 0.3, SY0, CEIL - 0.15, x + 0.3, SY1, CEIL - 0.1, M['led'])
+for x in [X0 + 6 * k for k in range(17)]: box(x - 0.15, SY0, CEIL - 0.7, x + 0.15, SY1, CEIL, M['dark'])
 for cx, cy, n in BELTS:
     # its input conveyor: 6 m from the loading point into the wall, 0.75 m high, flaps and a yellow frame at the wall
     box(cx - 0.55, SY0, 0, cx + 0.55, SY0 + 6.0, 0.70, M['dark'], 'InFrame%d' % n)
@@ -265,6 +284,83 @@ for cx, cy, n in BELTS:
 # the yellow walking lines on the sorting hall's floor
 for cx, cy, n in BELTS: box(cx - 1.0, SY0 + 0.4, 0.001, cx - 0.9, SY1 - 0.5, 0.004, M['yellow'])
 
+# ---------------------------------------------------------------- the way out: customs, the arrivals hall, the doors
+def sign(file, x, y, z, w, h, facing_south=True, strength=3.0):
+    bpy.ops.mesh.primitive_plane_add(size=1, location=(x, y, z), rotation=(math.pi / 2, 0, 0 if facing_south else math.pi)); o = bpy.context.object
+    o.scale = (w, h, 1); o.data.materials.append(picture('Sign_' + file, file, strength)); return o
+AY0 = -4.0
+box(X0, AY0, -0.2, X1, Y0, 0.0, M['floor'], 'ArrFloor')
+# the arrivals part's ceiling: the same oak slats and LED lines
+sl2 = box(X0, AY0 + 0.05, CEIL - 0.12, X1, AY0 + 0.11, CEIL, M['oak'], 'Slat2')
+ar2 = sl2.modifiers.new('arr', 'ARRAY'); ar2.count = 166; ar2.use_relative_offset = False; ar2.use_constant_offset = True; ar2.constant_offset_displace = (0, 0.12, 0)
+box(X0, AY0, CEIL + 0.3, X1, Y0, CEIL + 0.35, M['plenum'])
+for y in (-1.0, 2.0, 5.0, 8.0, 11.0, 14.0): box(X0, y - 0.02, CEIL - 0.13, X1, y + 0.02, CEIL - 0.11, M['led'])
+# customs (z 8..16): the hall x -56..-24 between the toilets (west) and the customs office (east); the green channel
+# straight through (x -44..-36), the red channel to the desk (x -54..-48)
+box(-56.3, 8.0, 0, -56.0, 16.0, CEIL, M['plaster']); box(-24.0, 8.0, 0, -23.7, 16.0, CEIL, M['plaster'])
+box(X0, 7.7, 0, -54, 8.0, CEIL, M['plaster']); box(-48, 7.7, 0, -44, 8.0, CEIL, M['plaster']); box(-36, 7.7, 0, X1, 8.0, CEIL, M['plaster'])
+box(-54, 7.7, 3.0, -48, 8.0, CEIL, M['plaster']); box(-44, 7.7, 3.0, -36, 8.0, CEIL, M['plaster'])
+box(-44, 8.3, 0.0, -36, 15.7, 0.004, simple('GreenLane', (0.05, 0.30, 0.12), 0.4), 'GreenLane')
+box(-54, 8.3, 0.0, -48, 15.7, 0.004, simple('RedLane', (0.40, 0.05, 0.04), 0.4), 'RedLane')
+box(-54.5, 11.0, 0, -52.5, 13.5, 0.95, M['steel']); box(-54.6, 10.9, 0.95, -52.4, 13.6, 1.0, M['dark'])
+sign('sign_exit.png', -40.0, 7.6, 3.6, 7.6, 1.4, True, 2.5)
+box(-44, 15.6, 3.1, -36, 15.65, 3.9, simple('GreenSign', (0.02, 0.2, 0.06), 0.4, emit=(0.1, 0.9, 0.3), estr=3.0))
+box(-54, 15.6, 3.1, -48, 15.65, 3.9, simple('RedSign', (0.2, 0.02, 0.02), 0.4, emit=(0.95, 0.1, 0.05), estr=3.0))
+# the arrivals hall (z -4..8): the meeting rail round the customs exit, desks along the west, a cafe in the east
+for x0, x1 in ((-62, -46), (-34, -18)):
+    box(x0, 3.6, 0.95, x1, 3.7, 1.0, M['steel'])
+    for x in range(int(x0), int(x1) + 1, 2): box(x - 0.03, 3.62, 0, x + 0.03, 3.68, 0.95, M['steel'])
+for file, x in (('desk_vega.png', -76.0), ('desk_vega.png', -70.0), ('desk_taxi.png', -64.0)):
+    box(x - 2.4, 4.2, 0, x + 2.4, 5.0, 1.05, M['oak']); box(x - 2.5, 4.15, 1.05, x + 2.5, 5.05, 1.1, M['top'])
+    box(x - 2.5, 7.4, 0, x + 2.5, 7.7, 3.2, M['basalt'])
+    sign(file, x, 7.38, 2.6, 4.4, 0.85, True, 2.0)
+box(-14, 4.0, 0, -2, 5.0, 1.05, M['oak']); box(-14.1, 3.95, 1.05, -1.9, 5.05, 1.1, M['top']); sign('desk_cafe.png', -8.0, 7.6, 2.8, 5.0, 0.95, True, 2.0)
+for k in range(6):
+    tx, ty = -16 + (k % 3) * 4.5, -1.5 + (k // 3) * 3.0
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.45, depth=0.04, location=(tx, ty, 0.74)); bpy.context.object.data.materials.append(M['top'])
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.04, depth=0.72, location=(tx, ty, 0.37)); bpy.context.object.data.materials.append(M['steel'])
+# the front onto the kerb (z -4): glass the whole way, mullions every 2.5 m; the doors (x -48..-32: four sliding doors,
+# open) under a canopy; above the glass the cladding band with ARRIVALS
+for x0, x1 in ((X0, -48.0), (-32.0, X1)):
+    box(x0, AY0 - 0.06, 0, x1, AY0, CEIL, M['glass'])
+for x in [X0 + 2.5 * k for k in range(33)]: box(x - 0.05, AY0 - 0.12, 0, x + 0.05, AY0, CEIL, M['dark'])
+box(-48, AY0 - 0.06, 3.0, -32, AY0, CEIL, M['glass'])
+for x in (-48.0, -44.0, -40.0, -36.0, -32.0): box(x - 0.08, AY0 - 0.15, 0, x + 0.08, AY0 + 0.05, 3.0, M['dark'])
+box(-48, AY0 - 0.15, 2.95, -32, AY0 + 0.05, 3.05, M['dark'])
+for x0 in (-47.6, -43.6, -39.6, -35.6): box(x0, AY0 - 0.04, 0, x0 + 0.9, AY0 - 0.02, 2.95, M['glass'])          # the doors, slid aside
+# the west end (x -80): glass to 5.4 m here too
+box(X0 - 0.06, AY0, 0, X0, Y0, CEIL, M['glass'])
+for y in (-1.5, 1.0, 3.5, 6.0, 8.5, 11.0, 13.5): box(X0 - 0.12, y - 0.05, 0, X0, y + 0.05, CEIL, M['dark'])
+
+# ---------------------------------------------------------------- the outside: cladding, roof, canopy, the kerb
+clad, cnt, cb = node_mat('Cladding')
+tcx = cnt.nodes.new('ShaderNodeTexCoord'); brk = cnt.nodes.new('ShaderNodeTexBrick'); brk.inputs['Scale'].default_value = 0.6; brk.inputs['Mortar Size'].default_value = 0.01; brk.offset = 0.0; brk.squash = 0.3
+brk.inputs['Color1'].default_value = (0.20, 0.21, 0.22, 1); brk.inputs['Color2'].default_value = (0.24, 0.25, 0.26, 1); brk.inputs['Mortar'].default_value = (0.05, 0.05, 0.05, 1)
+cnt.links.new(tcx.outputs['Object'], brk.inputs['Vector']); cnt.links.new(brk.outputs['Color'], cb.inputs['Base Color']); cb.inputs['Metallic'].default_value = 0.6; cb.inputs['Roughness'].default_value = 0.35
+TOP = 12.0
+box(X0 - 0.3, AY0 - 0.3, CEIL, X1, AY0, TOP, clad, 'CladSouth'); box(X0 - 0.3, AY0, CEIL, X0, Y1, TOP, clad, 'CladWest')
+box(X0 - 0.6, AY0 - 0.6, TOP, X1, Y1 + 16.3, TOP + 0.6, M['dark'], 'Roof')
+bpy.ops.mesh.primitive_plane_add(size=1, location=(-40.0, AY0 - 0.35, 8.6), rotation=(math.pi / 2, 0, 0)); lt = bpy.context.object
+lt.scale = (16.0, 3.1, 1); lt.data.materials.append(picture('ArrivalsLetters', 'sign_arrivals.png', 6.0))
+# the canopy over the doors: a slim dark roof 9 m out, oak underside, on four columns
+box(-56, AY0 - 9.0, 4.2, -24, AY0, 4.5, M['dark'], 'Canopy'); box(-56, AY0 - 9.0, 4.15, -24, AY0, 4.2, M['oak'])
+for x in (-55.0, -25.0):
+    for y in (AY0 - 8.5, AY0 - 4.5): box(x - 0.12, y - 0.12, 0, x + 0.12, y + 0.12, 4.2, M['dark'])
+# the kerb: a paved forecourt, the kerb line, the road beyond with its lane line, street lamps, a few cars
+box(X0 - 30, -43.0, -0.2, X1 + 40, AY0, 0.01, M['concrete'], 'Forecourt')
+box(X0 - 30, -43.3, 0.01, X1 + 40, -43.0, 0.15, M['steel'])
+box(X0 - 30, -60.0, -0.2, X1 + 40, -43.3, 0.0, simple('Asphalt', (0.04, 0.04, 0.045), 0.8), 'Road')
+for k in range(14): box(-110 + k * 12, -51.7, 0.0, -104 + k * 12, -51.55, 0.005, M['yellow'])
+for x in range(-76, 40, 12):
+    box(x - 0.08, -41.5, 0, x + 0.08, -41.3, 7.0, M['dark']); box(x - 0.1, -41.9, 7.0, x + 0.1, -40.6, 7.1, M['dark'])
+for x, col in ((-50, (0.85, 0.65, 0.05)), (-42, (0.9, 0.9, 0.92)), (-30, (0.05, 0.05, 0.06))):
+    box(x - 2.3, -48.0, 0.25, x + 2.3, -46.2, 1.15, simple('Car%d' % (x + 100), col, 0.25, 0.3)); box(x - 1.4, -47.9, 1.15, x + 1.0, -46.3, 1.55, M['glass'])
+# the neighbours, for context: the terminal east of the wing (glass front) and the gates' pier north of it
+box(X1, AY0 + 4.0, 0, X1 + 114, Y1, TOP, M['plaster'], 'TerminalEast'); box(X1, AY0 + 3.94, 0, X1 + 114, AY0 + 4.0, 11.0, M['glass'])
+for x in range(0, 115, 3): box(x - 0.05, AY0 + 3.85, 0, x + 0.05, AY0 + 4.0, 11.0, M['dark'])
+box(-30.0, Y1 + 0.3, 5.4, X1 + 114, Y1 + 16, TOP, clad, 'Pier'); box(X0 - 0.3, Y1 + 0.3, TOP - 0.6, -30.0, Y1 + 16.3, TOP, clad)   # (the pier's outside; its west end cut open here: the walkway is modelled inside it)
+# the Floor 2 arrivals corridor's top landing, straight from the gates' walkway onto the escalators
+
 # ---------------------------------------------------------------- light, world, cameras
 S.render.engine = 'CYCLES'
 try:
@@ -272,32 +368,41 @@ try:
     for d in pr.devices: d.use = True
     S.cycles.device = 'GPU'
 except Exception as e: print('GPU', e)
-S.cycles.samples = 160; S.cycles.use_denoising = True; S.cycles.max_bounces = 8
+S.cycles.samples = 128; S.cycles.use_denoising = True; S.cycles.max_bounces = 8
 S.render.resolution_x, S.render.resolution_y = 1920, 1080
 S.view_settings.view_transform = 'AgX'; S.view_settings.look = 'AgX - Medium High Contrast'; S.view_settings.exposure = -0.3
 W = bpy.data.worlds.new('Sky'); S.world = W; W.use_nodes = True; wn = W.node_tree.nodes; sky = wn.new('ShaderNodeTexSky'); sky.sky_type = 'NISHITA'
 sky.sun_elevation = math.radians(22); sky.sun_rotation = math.radians(250); W.node_tree.links.new(sky.outputs[0], wn['Background'].inputs[0]); wn['Background'].inputs[1].default_value = 0.35
 sun = bpy.data.lights.new('Sun', 'SUN'); sun.energy = 3.0; so = bpy.data.objects.new('Sun', sun); S.collection.objects.link(so); so.rotation_euler = (math.radians(68), 0, math.radians(-110))
-for x in range(-40, 0, 8):
+for x in range(-76, 0, 8):
     for y in range(20, 52, 8):
         l = bpy.data.lights.new('fill', 'AREA'); l.energy = 180; l.size = 4; l.color = (1.0, 0.94, 0.86)
         lo = bpy.data.objects.new('fill', l); S.collection.objects.link(lo); lo.location = (x, y, CEIL - 0.25)
-for x in range(-40, 18, 10):
+for x in range(-76, 18, 10):
     l = bpy.data.lights.new('sfill', 'AREA'); l.energy = 300; l.size = 4; lo = bpy.data.objects.new('sfill', l); S.collection.objects.link(lo); lo.location = (x, 60, CEIL - 0.8)
 CAMS = [
-    ('1-from-the-stairs', (-39.2, 41.6, 2.8), (-14.0, 25.0, 0.4), 18, 'Halfway down the stair beside the escalators: the whole claim hall, all three belts'),
-    ('2-passenger-from-customs', (-15.5, 18.2, 1.65), (-20.0, 38.0, 1.1), 22, 'A passenger by the customs doorway looking back north: belts 2 and 3, their screens, the basalt wall'),
-    ('3-belt-2-feed-shaft', (-15.6, 35.3, 1.55), (-18.4, 37.1, 0.75), 30, 'Close up at belt 2: a bag rising out of the feed shaft through the flaps onto the plates'),
-    ('4-crew-input-sorting-hall', (-15.2, 60.8, 1.75), (-19.4, 52.6, 0.95), 24, 'Crew side, in the sorting hall: belt 2 and 3 input conveyors into the wall, a baggage cart at each'),
+    ('1-from-the-stairs', (-75.2, 41.6, 3.8), (-40.0, 24.0, 0.4), 18, 'Halfway down the stair beside the escalators (west end): the claim hall, all five belts'),
+    ('2-passenger-from-customs', (-36.0, 18.2, 1.65), (-44.0, 38.0, 1.1), 22, 'By the customs doorway looking back north: belts 2, 3 and 4, their screens, the escalators beyond'),
+    ('3-belt-3-feed-shaft', (-32.1, 35.3, 1.55), (-34.9, 37.1, 0.75), 30, 'Close up at belt 3: a bag rising out of the feed shaft through the flaps onto the plates'),
+    ('4-crew-input-sorting-hall', (-31.7, 60.8, 1.75), (-35.9, 52.6, 0.95), 24, 'Crew side, in the sorting hall: belt 3 and 4 input conveyors into the wall, a baggage cart at each'),
+    ('5-escalators-from-below', (-72.5, 29.0, 1.65), (-77.0, 48.0, 5.0), 20, 'The escalators, stair and lift from the claim hall floor, up through the open void to the Floor 2 landing and the doorway into the gates walkway'),
+    ('9-from-the-gates-walkway', (-66.0, 62.0, 7.7), (-76.0, 47.0, 4.0), 20, 'Floor 2, in the gates walkway: through the 8 m doorway onto the landing and down the escalators into the claim hall'),
+    ('6-arrivals-hall', (-70.0, -2.0, 1.7), (-40.0, 8.0, 1.6), 20, 'The arrivals hall: the customs exit (green channel), the meeting rail, car rental and taxi desks, the doors out'),
+    ('7-outside-arrivals-doors', (-40.0, -34.0, 1.7), (-40.0, -4.0, 4.0), 24, 'Outside on the forecourt: the arrivals doors under the canopy, ARRIVALS over the glass'),
+    ('8-outside-whole-wing', (-125.0, -75.0, 32.0), (-38.0, 14.0, 4.0), 28, 'From above the forecourt (south-west): the whole arrivals wing, flush with the end of the gates pier'),
 ]
 out = []
+ONLY = os.environ.get('CLAIM_ONLY')
 for name, eye, at, lens, what in CAMS:
+    if ONLY and not any(name.startswith(k) for k in ONLY.split(',')): continue
     cd = bpy.data.cameras.new(name); cd.lens = lens; co = bpy.data.objects.new(name, cd); S.collection.objects.link(co); co.location = eye
     co.rotation_euler = (Vector(at) - Vector(eye)).to_track_quat('-Z', 'Y').to_euler()
     S.camera = co; S.render.filepath = os.path.join(ROOT, 'docs', 'Pictures', 'BaggageClaim', 'Claim-%s.png' % name)
     bpy.ops.render.render(write_still=True)
     out.append({'name': name, 'from_plan_m': {'x': eye[0], 'z': eye[1], 'height': eye[2]}, 'to_plan_m': {'x': at[0], 'z': at[1], 'height': at[2]}, 'lens_mm': lens, 'what': what})
     print('RENDERED', name)
-json.dump(out, open(os.path.join(HERE, 'cameras.json'), 'w'), indent=1)
-bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, 'BaggageClaim_concept.blend'))
+if not ONLY: json.dump(out, open(os.path.join(HERE, 'cameras.json'), 'w'), indent=1)
+if not ONLY or os.environ.get('CLAIM_SAVE'):
+    bpy.ops.file.pack_all()   # (its textures packed in: it opens with them on anywhere)
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, 'BaggageClaim_concept.blend'))
 print('CLAIM DONE')

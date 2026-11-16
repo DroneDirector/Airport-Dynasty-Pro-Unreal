@@ -11,9 +11,9 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle, Polygon, FancyArrowPatch, Circle
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BG, INK, DIM, WALL, NEW, BAG, FLOW, STEEL, RUB, CREW = '#000000', '#e8edf2', '#6f7c88', '#c9d2da', '#35d0e0', '#f2b544', '#ff5a5a', '#9fb0bf', '#4a4f55', '#f5d020'
-X0, X1, Y0, Y1 = -44.0, 0.0, 16.0, 52.0
+X0, X1, Y0, Y1 = -80.0, 0.0, 16.0, 52.0   # (v2: the museum hall's place, flush with the end of the gates)
 SY0, SY1 = 52.3, 68.0
-BELTS = [(-31.0, 31.0, 1), (-19.0, 31.0, 2), (-7.0, 31.0, 3)]
+BELTS = [(-60.8, 31.0, 1), (-48.15, 31.0, 2), (-35.5, 31.0, 3), (-22.85, 31.0, 4), (-10.2, 31.0, 5)]
 L, RC = 15.0, 1.8
 
 def track(cx, cy, r, l=L, seg=40):
@@ -41,33 +41,34 @@ def dim(ax, a, b, text, off, horiz=True, col=DIM):
 def arrow(ax, pts, col, lw=1.4, ls='--', ms=9):
     for a, b in zip(pts, pts[1:]): ax.add_patch(FancyArrowPatch(a, b, arrowstyle='-|>', mutation_scale=ms, color=col, lw=lw, ls=ls, zorder=6))
 
-fig = plt.figure(figsize=(16.5, 21.0), facecolor=BG)
-ax = fig.add_axes([0.05, 0.31, 0.90, 0.63]); ax.set_facecolor(BG); ax.set_aspect('equal')
-ax.set_xlim(-50, 6); ax.set_ylim(9, 70); ax.axis('off')
+fig = plt.figure(figsize=(23.4, 21.0), facecolor=BG)
+ax = fig.add_axes([0.03, 0.31, 0.94, 0.63]); ax.set_facecolor(BG); ax.set_aspect('equal')
+ax.set_xlim(-86, 10); ax.set_ylim(9, 70); ax.axis('off')
 # ---------------------------------------------------------------- walls
 rect(ax, X0, Y0 - 0.3, X1 + 0.3, Y1 + 0.3, ec=WALL, lw=2.2)
 rect(ax, X0 - 0.12, Y0, X0, Y1, fc='#1b3a44', ec=NEW, lw=0.8)                       # the west glass wall
 for y in [Y0 + 2.5 * k for k in range(15)]: ax.plot([X0 - 0.3, X0 + 0.1], [y, y], color=STEEL, lw=0.6)
 rect(ax, X1, Y0, X1 + 0.3, Y1, fc='#25282c', ec=WALL, lw=0.8)                        # the basalt wall
-ax.plot([-32, -24], [Y0 - 0.15, Y0 - 0.15], color=BG, lw=4, zorder=3)                 # the customs doorway
-ax.text(-28, Y0 - 1.6, 'to customs (doorway 8 m)', color=NEW, fontsize=7, ha='center')
+ax.plot([-44, -36], [Y0 - 0.15, Y0 - 0.15], color=BG, lw=4, zorder=3)                 # the customs doorway
+ax.text(-40, Y0 - 1.6, 'to customs (doorway 8 m)', color=NEW, fontsize=7, ha='center')
 rect(ax, X0, SY0, X1 + 8, SY1, ec=WALL, lw=1.6)                                      # the sorting hall
-ax.text(-2, SY1 - 1.2, 'BAGGAGE SORTING HALL (crew only)  -  continues east under the walkway', color=STEEL, fontsize=7.5, ha='right')
-ax.text(-22, Y0 + 1.2, 'BAGGAGE CLAIM HALL  44 x 36 m, ceiling 5.4 m', color=INK, fontsize=9, ha='center', fontweight='bold')
+ax.text(6, SY1 - 1.2, 'BAGGAGE SORTING HALL (crew only)  -  continues east under the walkway', color=STEEL, fontsize=7.5, ha='right')
+ax.text(-40, Y0 + 1.2, 'BAGGAGE CLAIM HALL  80 x 36 m, ceiling 5.4 m  (5 belts)', color=INK, fontsize=9, ha='center', fontweight='bold')
 # the Floor 2 corridor's edge overhead and the escalator void
-ax.plot([X0, X1], [40, 40], color=DIM, lw=0.8, ls=(0, (6, 4))); ax.text(-13, 39.2, 'Floor 2 corridor edge above', color=DIM, fontsize=5.5, ha='center')
+ax.plot([X0, -66], [40, 40], color=DIM, lw=0.8, ls=(0, (6, 4))); ax.plot([-66, -66], [40, Y1], color=DIM, lw=0.8, ls=(0, (6, 4))); ax.text(-72, 38.6, 'Floor 2 corridor edge above (x -80..-66)', color=DIM, fontsize=5.5, ha='center')
+rect(ax, X1 + 0.3, 30, 6, Y1, ec=WALL, lw=1.2); ax.text(3.2, 41, 'store\n(was the\nmuseum strip)', color=STEEL, fontsize=5.5, ha='center', va='center')
 # ---------------------------------------------------------------- escalators, stair, lift
-for x0 in (-43.6, -41.9):
+for x0 in (-79.6, -77.9):
     rect(ax, x0, 39.0, x0 + 1.6, 51.5, fc='#0e2a30', ec=NEW, lw=0.9)
     for k in range(26): ax.plot([x0 + 0.15, x0 + 1.45], [40 + k * 0.4, 40 + k * 0.4], color='#2c6670', lw=0.5)
     arrow(ax, [(x0 + 0.8, 50.5), (x0 + 0.8, 40.2)], NEW, 1.0, '-', 7)
-rect(ax, -40.2, 39.6, -38.2, 51.0, fc='#14303a', ec=NEW, lw=0.9)
-for k in range(30): ax.plot([-40.2, -38.2], [39.6 + k * 0.38, 39.6 + k * 0.38], color='#2c6670', lw=0.4)
+rect(ax, -76.2, 39.6, -74.2, 51.0, fc='#14303a', ec=NEW, lw=0.9)
+for k in range(30): ax.plot([-76.2, -74.2], [39.6 + k * 0.38, 39.6 + k * 0.38], color='#2c6670', lw=0.4)
 ax.text(-41.1, 52.6 - 1.6, '', color=NEW)
-ax.text(-40.6, 45.3, 'ESCALATORS (2, down)   STAIR', color=NEW, fontsize=6.2, rotation=90, ha='center', va='center')
-rect(ax, -36.6, 47.6, -34.4, 50.4, fc='#0e2a30', ec=NEW, lw=0.9); ax.plot([-36.6, -34.4], [47.6, 50.4], color=NEW, lw=0.5); ax.plot([-36.6, -34.4], [50.4, 47.6], color=NEW, lw=0.5)
-ax.text(-35.5, 46.9, 'LIFT', color=NEW, fontsize=6, ha='center')
-rect(ax, -43.0, 37.42, -37.0, 37.5, fc=BAG, ec=BAG, lw=0.5); ax.text(-40, 36.7, 'sign: Baggage claim / Belts 1-3', color=BAG, fontsize=5.5, ha='center')
+ax.text(-76.6, 45.3, 'ESCALATORS (2, down)   STAIR', color=NEW, fontsize=6.2, rotation=90, ha='center', va='center')
+rect(ax, -73.4, 47.6, -71.2, 50.4, fc='#0e2a30', ec=NEW, lw=0.9); ax.plot([-73.4, -71.2], [47.6, 50.4], color=NEW, lw=0.5); ax.plot([-73.4, -71.2], [50.4, 47.6], color=NEW, lw=0.5)
+ax.text(-72.3, 46.9, 'LIFT', color=NEW, fontsize=6, ha='center')
+rect(ax, -79.0, 37.42, -73.0, 37.5, fc=BAG, ec=BAG, lw=0.5); ax.text(-76, 36.7, 'sign: Baggage claim / Belts 1-5', color=BAG, fontsize=5.5, ha='center')
 # ---------------------------------------------------------------- the belts
 for cx, cy, n in BELTS:
     ax.add_patch(Polygon(track(cx, cy, 2.45), closed=True, fc='#2a2f35', ec=STEEL, lw=1.3, zorder=3))          # skirt
@@ -91,17 +92,17 @@ for cx, cy, n in BELTS:
     rect(ax, cx - 1.0, cy + 10.4, cx + 1.0, cy + 10.5, fc=NEW, ec=NEW, lw=1.2, z=6)
     ax.text(cx, cy + 10.9, 'screen %d' % n, color=NEW, fontsize=5.5, ha='center')
 # dimensions of belt 1 and the gaps
-dim(ax, (-31 - 2.45, 21.1), (-31 + 2.45, 21.1), '4.9 m', -2.0)
-dim(ax, (-31 - 2.45, 31 - 9.95), (-31 - 2.45, 31 + 9.95), '19.9 m overall  (15 m straight)', -0.5, horiz=False)
-dim(ax, (-31 + 2.45, 24.0), (-19 - 2.45, 24.0), '7.1 m walkway', 0)
-dim(ax, (-19 + 2.45, 24.0), (-7 - 2.45, 24.0), '7.1 m walkway', 0)
-ax.text(-19, 19.0, 'each belt: 41.3 m of plates you can reach, 0.92 m wide, top 0.45 m up, 0.46 m/s', color=BAG, fontsize=7, ha='center')
+dim(ax, (-60.8 - 2.45, 21.1), (-60.8 + 2.45, 21.1), '4.9 m', -2.0)
+dim(ax, (-60.8 - 2.45, 31 - 9.95), (-60.8 - 2.45, 31 + 9.95), '19.9 m overall  (15 m straight)', -0.5, horiz=False)
+for (a_, _, _), (b_, _, _) in zip(BELTS, BELTS[1:]): dim(ax, (a_ + 2.45, 24.0), (b_ - 2.45, 24.0), '7.75 m', 0)
+dim(ax, (-10.2 + 2.45, 24.0), (X1, 24.0), '7.75 m', 0)
+ax.text(-35.5, 19.0, 'each belt: 41.3 m of plates you can reach, 0.92 m wide, top 0.45 m up, 0.46 m/s', color=BAG, fontsize=7, ha='center')
 # the hall's own dimensions
-dim(ax, (X0, Y0 - 0.3), (X1, Y0 - 0.3), '44.0 m', -3.2, col=WALL)
+dim(ax, (X0, Y0 - 0.3), (X1, Y0 - 0.3), '80.0 m  (flush with the end of the gates at x -80)', -3.2, col=WALL)
 dim(ax, (X0, Y0), (X0, Y1), '36.0 m', -2.5, horiz=False, col=WALL)
 # seats along the glass
-for k in range(5): rect(ax, -43.2, 20 + k * 3.2, -42.6, 22.2 + k * 3.2, fc='#5a3d22', ec='#8a6a44', lw=0.5)
-ax.text(-42.2, 27, 'seats', color='#8a6a44', fontsize=5.5, rotation=90, va='center')
+for k in range(5): rect(ax, -79.2, 20 + k * 3.2, -78.6, 22.2 + k * 3.2, fc='#5a3d22', ec='#8a6a44', lw=0.5)
+ax.text(-78.2, 27, 'seats', color='#8a6a44', fontsize=5.5, rotation=90, va='center')
 # ---------------------------------------------------------------- the crew side: input conveyors
 for cx, cy, n in BELTS:
     rect(ax, cx - 0.55, SY0, cx + 0.55, SY0 + 6.0, fc=RUB, ec=STEEL, lw=1.1, z=4)
@@ -115,13 +116,13 @@ for cx, cy, n in BELTS:
     # the bag's way: along the input, into the wall (flaps), hidden, up the shaft, onto the plates
     arrow(ax, [(cx, SY0 + 5.2), (cx, SY0 + 0.6)], BAG, 1.6, '-', 9)
     arrow(ax, [(cx, SY0 - 0.2), (cx, cy + 6.75)], FLOW, 1.2, (0, (2, 3)), 8)
-ax.text(-25.5, 46.6, 'hidden: the game carries the bag from\nthe wall straight to its belt\'s shaft\n(no belt under the floor, no basement)', color=FLOW, fontsize=6.4, ha='left', va='center')
-dim(ax, (-19 + 0.55, SY0), (-19 + 0.55, SY0 + 6.0), '6.0 m', 0.9, horiz=False, col=STEEL)
+ax.text(-46.0, 46.6, 'hidden: the game carries the bag from\nthe wall straight to its belt\'s shaft\n(no belt under the floor, no basement)', color=FLOW, fontsize=6.4, ha='left', va='center')
+dim(ax, (-35.5 + 0.55, SY0), (-35.5 + 0.55, SY0 + 6.0), '6.0 m', 0.9, horiz=False, col=STEEL)
 # north arrow, scale bar, legend
 ax.add_patch(FancyArrowPatch((3.5, 60), (3.5, 64), arrowstyle='-|>', mutation_scale=14, color=INK, lw=1.4)); ax.text(3.5, 64.6, 'N\n(airside)', color=INK, fontsize=7, ha='center', va='bottom')
-for k in range(5): rect(ax, -44 + 2 * k, 9.6, -42 + 2 * k, 10.1, fc=INK if k % 2 == 0 else BG, ec=INK, lw=0.5)
-ax.text(-44, 10.5, '0', color=INK, fontsize=6); ax.text(-34, 10.5, '10 m', color=INK, fontsize=6, ha='right')
-fig.text(0.05, 0.975, 'AIRPORT DYNASTY PRO  -  BAGGAGE CLAIM, DETAIL BLUEPRINT (to-do 72)', color=INK, fontsize=16, fontweight='bold')
+for k in range(5): rect(ax, -80 + 2 * k, 9.6, -78 + 2 * k, 10.1, fc=INK if k % 2 == 0 else BG, ec=INK, lw=0.5)
+ax.text(-80, 10.5, '0', color=INK, fontsize=6); ax.text(-70, 10.5, '10 m', color=INK, fontsize=6, ha='right')
+fig.text(0.05, 0.975, 'AIRPORT DYNASTY PRO  -  BAGGAGE CLAIM, DETAIL BLUEPRINT v2 (to-do 72): 80 m, 5 belts', color=INK, fontsize=16, fontweight='bold')
 fig.text(0.05, 0.962, 'Plan view, Floor 1, plan metres (x along the building, z north).  White: walls.  Cyan: glass, escalators, stair, lift, screens.  Grey/black: belts, plates, islands.'
          '\nAmber: the bags\' way on the belts.  Red: the feed shafts and the hidden step.  Yellow: the crew side (input frames, cart spots, walking lines).', color='#a9b4bf', fontsize=9, va='top')
 
@@ -156,8 +157,8 @@ sx.add_patch(Rectangle((60, 0), 2.8, 0.42, fc='#22262a', ec=CREW, lw=0.8, ls='--
 for h, ty, t in ((0.45, 0.25, 'plates 0.45 m'), (0.62, 1.0, 'island 0.62 m'), (1.2, 1.75, 'hood 1.2 m'), (5.4, 5.0, 'ceiling 5.4 m')):
     sx.plot([20.0, 21.0], [h, h], color=DIM, lw=0.7); sx.plot([20.0, 19.6], [h, ty], color=DIM, lw=0.5); sx.text(19.5, ty, t, color=DIM, fontsize=6.5, va='center', ha='right')
 sx.plot([58.4, 59.2], [0.75, 0.75], color=DIM, lw=0.7); sx.text(59.3, 0.95, 'input 0.75 m', color=DIM, fontsize=6.5, va='bottom')
-sx.text(14.2, -1.2, 'SECTION A-A along belt 2 (x -19), looking west  -  heights drawn 2.5 x taller than lengths, to read them', color=INK, fontsize=8.5, fontweight='bold')
-sx.text(31, -0.6, 'belt 2: 19.9 m', color=STEEL, fontsize=6.5, ha='center'); sx.text(55.3, -0.6, 'sorting hall (crew)', color=CREW, fontsize=6.5, ha='center'); sx.text(26, 3.0, 'claim hall', color=INK, fontsize=7, ha='center')
+sx.text(14.2, -1.2, 'SECTION A-A along belt 3 (x -35.5), looking west  -  heights drawn 2.5 x taller than lengths, to read them', color=INK, fontsize=8.5, fontweight='bold')
+sx.text(31, -0.6, 'belt 3: 19.9 m', color=STEEL, fontsize=6.5, ha='center'); sx.text(55.3, -0.6, 'sorting hall (crew)', color=CREW, fontsize=6.5, ha='center'); sx.text(26, 3.0, 'claim hall', color=INK, fontsize=7, ha='center')
 notes = ['1  The crew park a cart at the input conveyor and put each bag on it; the conveyor carries it 6 m to the wall and through the rubber flaps.',
          '2  In the game the bag is then hidden for a moment and placed in that belt\'s feed shaft (there is no basement or tunnel under the floor).',
          '3  An 18 degree incline lifts it out of the shaft, under the stainless hood and through its flaps, and drops it onto the plates - it looks as if it came up from below.',
