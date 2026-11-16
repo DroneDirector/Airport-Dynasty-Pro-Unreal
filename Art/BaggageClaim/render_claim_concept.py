@@ -258,7 +258,9 @@ box(-79.0, 32.92, 3.0, -73.0, 33.0, 3.8, M['dark']); box(-77, 32.94, 3.8, -76.95
 # customs: its doorway's sign over the opening
 box(-44, Y0 - 0.32, 2.4, -36, Y0 - 0.3, 3.0, simple('CustomsGreen', (0.02, 0.35, 0.12), 0.4, emit=(0.05, 0.6, 0.2), estr=1.5))
 # a few seats along the glass
-for k in range(5): box(-79.2, 20 + k * 3.2, 0.42, -78.6, 22.2 + k * 3.2, 0.48, M['oak']); box(-79.0, 20.5 + k * 3.2, 0, -78.8, 21.7 + k * 3.2, 0.42, M['dark'])
+# seats: along the west glass well clear of the escalators' feet (y 18..27), and along the basalt wall in the east
+for k in range(3): box(-79.2, 18 + k * 3.2, 0.42, -78.6, 20.2 + k * 3.2, 0.48, M['oak']); box(-79.0, 18.5 + k * 3.2, 0, -78.8, 19.7 + k * 3.2, 0.42, M['dark'])
+for k in range(3): box(-0.9, 20 + k * 4.0, 0.42, -0.3, 22.2 + k * 4.0, 0.48, M['oak']); box(-0.7, 20.5 + k * 4.0, 0, -0.5, 21.7 + k * 4.0, 0.42, M['dark'])
 
 # ---------------------------------------------------------------- the crew side: the sorting hall behind the north wall
 SY0, SY1 = Y1 + 0.3, 68.0
