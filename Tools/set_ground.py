@@ -27,7 +27,7 @@ def log(m): unreal.log('ADP_GROUND ' + str(m))
 
 # ---- the weather's parameters (APuddles sets them; Cracks a global amount for the tuning panel)
 MPC = '/Game/Weather/MPC_Weather'
-PARAMS = (('Wetness', 0.0), ('PuddleAmount', 0.55), ('PuddleSize', 3.0), ('PuddleShine', 0.9), ('Ripples', 1.0), ('Rain', 0.0), ('Cracks', 1.0), ('Tyres', 1.0), ('Snow', 0.0), ('Relief', 0.6), ('FineRelief', 0.0))
+PARAMS = (('Wetness', 0.0), ('PuddleAmount', 0.55), ('PuddleSize', 3.0), ('PuddleShine', 0.9), ('Ripples', 1.0), ('Rain', 0.0), ('Cracks', 1.0), ('Tyres', 1.0), ('Snow', 0.0), ('Relief', 0.6), ('FineRelief', 0.0), ('SnowGrass', 0.0))
 VPARAMS = (('RwyA', unreal.LinearColor(0, 0, 3000, 0)), ('RwyB', unreal.LinearColor(1, 0, 3000, 0)), ('RwyDisp', unreal.LinearColor(25000, 25000, 0, 0)))
 mpc = unreal.load_asset(MPC)
 if mpc is None:
@@ -334,7 +334,8 @@ if (grime > 0.001) {
 // a light snow cover (owner, 2026-11-13; reference photos: Stockholm Bromma, Provo): the paving ploughed, thin compacted
 // snow left in patches and streaks, held in the cracks and the joints, more on quiet ground (SnowBias: shoulders, grass),
 // worn off where the wheels run; MPC_Weather Snow. (The puddles below are left exactly as they are.)
-float snowA = saturate(SnowP) * up;
+// (to-do 44: the weather's own amounts - grass ground (SnowBias over 0.5) collects SnowGrass, the ploughed paving Snow)
+float snowA = saturate(lerp(SnowP, SnowG, saturate((SBias - 0.5) * 5.0))) * up;
 if (snowA > 0.001) {
   float s1 = 0, sa = 0.55; float2 sq = M / 9.0 + 7.3;
   [unroll] for (int i = 0; i < 3; i++) {
@@ -384,7 +385,7 @@ SRC = lambda: {'RW': (rwear, ''), 'UV0': (uv, ''), 'WP': (wp, ''), 'N': (vn, '')
        'Size': (cps['PuddleSize'], ''), 'Style': (cstyle, ''), 'CAmount': (camt, ''), 'Cracks': (cps['Cracks'], ''), 'Col': (use, ''),
        'Rough': (rough, ''), 'UseScan': (usescan, ''), 'ScanCol': (sdiff, ''), 'ScanBig': (sbig, ''), 'ScanR': (srgh, ''),
        'ScanN': (snor, ''), 'CrackTex': (crackt, ''), 'TyreTex': (tyret, ''), 'RwyA': (cvs['RwyA'], ''), 'RwyB': (cvs['RwyB'], ''),
-       'RwyDisp': (cvs['RwyDisp'], ''), 'TyreAmt': (tamt, ''), 'Tyres': (cps['Tyres'], ''), 'VC': (vcol, ''), 'PDirt': (pdirt, ''), 'SnowP': (cps['Snow'], ''), 'SBias': (sbias, ''), 'RScale': (rscale, ''), 'Shine': (cps['PuddleShine'], ''),
+       'RwyDisp': (cvs['RwyDisp'], ''), 'TyreAmt': (tamt, ''), 'Tyres': (cps['Tyres'], ''), 'VC': (vcol, ''), 'PDirt': (pdirt, ''), 'SnowP': (cps['Snow'], ''), 'SnowG': (cps['SnowGrass'], ''), 'SBias': (sbias, ''), 'RScale': (rscale, ''), 'Shine': (cps['PuddleShine'], ''),
        'T': (tm, ''), 'Ripples': (cps['Ripples'], ''), 'Rain': (cps['Rain'], ''), 'ScanN2': (snor2, ''), 'Relief': (cps['Relief'], ''), 'FineRelief': (cps['FineRelief'], ''), 'PD': (pdep, '')}
 def custom(code, out_type, x, y, extra):
     c = E(unreal.MaterialExpressionCustom, x, y)
@@ -396,7 +397,7 @@ def custom(code, out_type, x, y, extra):
     src = SRC()
     for n_ in names: mel.connect_material_expressions(src[n_][0], src[n_][1], c, n_)
     return c
-cs = custom(SURF, unreal.CustomMaterialOutputType.CMOT_FLOAT4, -300, 0, ['Shine', 'VC', 'PDirt', 'SnowP', 'SBias'])
+cs = custom(SURF, unreal.CustomMaterialOutputType.CMOT_FLOAT4, -300, 0, ['Shine', 'VC', 'PDirt', 'SnowP', 'SBias', 'SnowG'])
 cn = custom(NORMAL, unreal.CustomMaterialOutputType.CMOT_FLOAT3, -300, 400, ['ScanN', 'T', 'Ripples', 'Rain', 'ScanN2', 'Relief', 'FineRelief', 'PD'])
 cr = custom(REFL, unreal.CustomMaterialOutputType.CMOT_FLOAT1, -300, 800, ['Shine'])
 rgb = E(unreal.MaterialExpressionComponentMask, -50, 0)

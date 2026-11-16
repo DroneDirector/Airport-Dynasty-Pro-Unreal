@@ -32,6 +32,17 @@ public:
 	void SetWetness(float W) { Wetness = FMath::Clamp(W, 0.f, 1.f); }
 	float GetWetness() const { return Wetness; }
 
+	/** The ground's weather (to-do 44): snow builds up while it snows and it is cold enough (heavier snow faster) and
+	 *  melts above 0 C (faster in rain and sun); the grass keeps collecting while the paving is ploughed and stays nearly
+	 *  free; puddles fill with how much it has rained. Its inputs come from the weather theme and the month and hour for
+	 *  now (a south-Iceland climate); the live weather feed will give them with SetLiveWeather. */
+	void SetLiveWeather(float RainMmPerHour, float SnowCmPerHour, float AirTempC) { bLive = true; LiveRain = RainMmPerHour; LiveSnow = SnowCmPerHour; LiveTemp = AirTempC; }
+	float GetAirTemp() const { return AirTemp; }
+	float GetSnowOnGrassCm() const { return SnowGrassCm; }
+	float GetSnowOnPavingCm() const { return SnowPaveCm; }
+	/** How many times faster the ground's weather runs than the clock (tests: -UIWeatherGround). */
+	static float WeatherSpeed;
+
 	/** The tuning: Amount, Size, Shine, Ripples, DryingHours (by name; the panel and Puddles.ini use the same names). */
 	void SetTuning(const FString& Name, float Value);
 	float GetTuning(const FString& Name) const;
@@ -49,5 +60,8 @@ private:
 	float Wetness = 0.f;
 	float Rain = 0.f;
 	float SnowDay = -1.f;   // the -SnowDay test's snow (unset: the Snow setting)
+	void GroundWeather(float Dt, float& OutRainK);
+	bool bLive = false; float LiveRain = 0.f, LiveSnow = 0.f, LiveTemp = 5.f;
+	float AirTemp = 5.f, SnowGrassCm = 0.f, SnowPaveCm = 0.f, Water = 0.f;
 	TMap<FString, float> Tuning;
 };

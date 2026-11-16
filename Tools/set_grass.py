@@ -48,6 +48,13 @@ shade = E(unreal.MaterialExpressionLinearInterpolate)
 mel.connect_material_expressions(lerp, '', shade, 'A'); mel.connect_material_expressions(op(unreal.MaterialExpressionMultiply, lerp, dry), '', shade, 'B')
 mel.connect_material_expressions(op(unreal.MaterialExpressionMultiply, rnd, c1(0.25)), '', shade, 'Alpha')
 bright = op(unreal.MaterialExpressionMultiply, shade, op(unreal.MaterialExpressionAdd, c1(0.85), op(unreal.MaterialExpressionMultiply, rnd, c1(0.3))))
+# snow (to-do 44, MPC_Weather SnowGrass from the weather): the blades whiten from their tips down as it collects
+mpcw = unreal.load_asset('/Game/Weather/MPC_Weather')
+sg = E(unreal.MaterialExpressionCollectionParameter, -1400); sg.set_editor_property('collection', mpcw); sg.set_editor_property('parameter_name', 'SnowGrass')
+cover = E(unreal.MaterialExpressionSaturate); mel.connect_material_expressions(op(unreal.MaterialExpressionMultiply, sg, op(unreal.MaterialExpressionAdd, c1(0.25), op(unreal.MaterialExpressionMultiply, v, c1(1.1)))), '', cover, '')
+snowy = E(unreal.MaterialExpressionLinearInterpolate)
+mel.connect_material_expressions(bright, '', snowy, 'A'); mel.connect_material_expressions(c3(0.72, 0.75, 0.80), '', snowy, 'B'); mel.connect_material_expressions(cover, '', snowy, 'Alpha')
+bright = snowy
 mel.connect_material_property(bright, '', unreal.MaterialProperty.MP_BASE_COLOR)
 mel.connect_material_property(c1(0.75), '', unreal.MaterialProperty.MP_ROUGHNESS)
 mel.connect_material_property(c1(0.15), '', unreal.MaterialProperty.MP_SPECULAR)
@@ -68,6 +75,7 @@ gust = op(unreal.MaterialExpressionAdd, c1(0.55), op(unreal.MaterialExpressionMu
 flex = op(unreal.MaterialExpressionMultiply, v, v)
 amp = op(unreal.MaterialExpressionMultiply, op(unreal.MaterialExpressionMultiply, op(unreal.MaterialExpressionAdd, op(unreal.MaterialExpressionMultiply, s1, c1(0.6)), c1(0.5)), gust), op(unreal.MaterialExpressionMultiply, flex, c1(6.0)))
 wpo = op(unreal.MaterialExpressionAppendVector, op(unreal.MaterialExpressionAppendVector, amp, op(unreal.MaterialExpressionMultiply, amp, c1(0.45))), c1(0.0))
+wpo = op(unreal.MaterialExpressionMultiply, wpo, op(unreal.MaterialExpressionSubtract, c1(1.0), op(unreal.MaterialExpressionMultiply, sg, c1(0.8))))   # (weighed down by snow: hardly swaying)
 mel.connect_material_property(wpo, '', unreal.MaterialProperty.MP_WORLD_POSITION_OFFSET)
 
 m.set_editor_property('two_sided', True)
