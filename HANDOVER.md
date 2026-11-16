@@ -2,6 +2,19 @@
 
 Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md (where everything is) first.
 
+## From the owner for the PC chat (2026-11-16 10:14, sent to the phone chat): about the stress walk
+
+The owner's words: "You recorded a video while playing, which normally affects performance while gaming, plus it was a
+build version and no frame rate generation. Complete the jetway first, the one of the stress test."
+
+1. **Don't judge performance from a run that records video at the same time,** or from a test/development build without
+   frame generation: those numbers are lower than what he gets when playing. Measure without recording, in the
+   shipping build he plays, with frame generation on as in his settings; record a video only in a separate run if one
+   is needed. Note this in docs/Test-Findings.md next to the affected results.
+2. **First finish the jetway in the stress walk** (the walk's gate 1 and its jetway: the walk must go all the way
+   through the jetway as planned, and the jetway itself must be complete), before more performance work.
+   If what "complete the jetway" means is unclear, ask him once.
+
 ## From the owner for the PC chat (2026-11-15 14:14, sent to the phone chat by mistake): the dog's animation clip
 
 **After** you finish what you told the owner you'd do on the dog (its jaw and its texture), and **after** the dog is

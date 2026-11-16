@@ -4,6 +4,8 @@ The one complete list of what is still open, updated 2026-11-11 (after 0.14.7). 
 details behind each item. Marks: [ ] open, [~] started or partly done, [?] built earlier but the owner should check it.
 
 ## 0. Now, in this order (owner, 2026-11-11)
+- [ ] **FIRST (owner, 2026-11-16):** complete the jetway in the stress walk; measure performance only without video
+      recording, in the shipping build with frame generation on. See HANDOVER.md "about the stress walk".
 - [ ] **Dog clip for the owner** (2026-11-15), after the dog's jaw and texture fixes and the creator's pet section:
       walk in, sit, pant (mouth moving, breath vapour), walk out; on a COPY of the she/he selector stage moved to its
       own area (the real one in "Who are you?" stays untouched): dark blue/turquoise, fog, no light bars, well lit;
