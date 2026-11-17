@@ -109,6 +109,9 @@ void AJetwayRigs::Build()
 				if (!Mi) continue;
 				const FString Mn = Mi->GetName();
 				if (!Mn.Contains(TEXT("jwPanel")) && !Mn.Contains(TEXT("jwAluB")) && !Mn.Contains(TEXT("jwWall")) && !Mn.Contains(TEXT("jwClad")) && !Mn.Contains(TEXT("jwRoof")) && !Mn.Contains(TEXT("jwUnder"))) continue;
+				// (only the part's own finish: since 2026-11-17 a part may also carry the inside walls' light grey plate in a
+				//  second slot - Tools/jetway_finish.py - and the inside stays bright)
+				{ FString Own; if (Nm.Split(TEXT(":"), nullptr, &Own, ESearchCase::IgnoreCase, ESearchDir::FromEnd) && !Own.IsEmpty() && !Mn.Contains(Own)) continue; }
 				UMaterialInstanceDynamic*& D = Copy.FindOrAdd(Mi);
 				if (!D)
 				{
