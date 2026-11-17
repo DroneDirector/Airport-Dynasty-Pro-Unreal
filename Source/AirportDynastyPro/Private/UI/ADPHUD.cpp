@@ -1989,7 +1989,19 @@ void AADPHUD::RefreshControls()
 	if (SettingsControls.IsValid())
 	{
 		SettingsControls->ClearChildren();
-		for (const ADPInput::FAction& A : ADPInput::Actions()) SettingsControls->AddSlot().AutoHeight()[Row(A, true)];
+		// in groups (owner, 2026-11-17): On foot, Driving, Fire truck, Flying, At the airport, Menus and interface, Other -
+		// each action carries its group, a new one without finds its own by its name (InputGlyphs.cpp CategoryOf)
+		const TArray<ADPInput::FAction> All = ADPInput::AllForSettings();
+		for (const FString& G : ADPInput::Categories())
+		{
+			bool bFirst = true;
+			for (const ADPInput::FAction& A : All)
+			{
+				if (A.Category != G) continue;
+				if (bFirst) { SettingsControls->AddSlot().AutoHeight().Padding(0, 10, 0, 3)[Caption(G)]; bFirst = false; }
+				SettingsControls->AddSlot().AutoHeight().Padding(10, 0, 0, 0)[Row(A, true)];
+			}
+		}
 	}
 	if (ButtonsHeaderGlyph.IsValid())
 		if (const ADPInput::FAction* B = ADPInput::Find(TEXT("Buttons"))) ButtonsHeaderGlyph->SetContent(ADPInput::Glyph(*B, bPad, Pad));

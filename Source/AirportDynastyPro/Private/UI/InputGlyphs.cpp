@@ -15,28 +15,28 @@ namespace ADPInput
 	const TArray<FAction>& Actions()
 	{
 		static const TArray<FAction> A = {
-			{TEXT("Walk"),            EKeys::Invalid,   TEXT("W A S D"), EKeys::Invalid,                   TEXT("Left stick"), TEXT("Left stick"), TEXT("Left stick")},
-			{TEXT("Look round"),      EKeys::Invalid,   TEXT("Mouse"),   EKeys::Invalid,                   TEXT("Right stick"), TEXT("Right stick"), TEXT("Right stick")},
-			{TEXT("Run"),             EKeys::LeftShift, TEXT("Shift"),   EKeys::Gamepad_LeftThumbstick,    TEXT("LS"), TEXT("L3"), TEXT("L stick press")},
-			{TEXT("Jump"),            EKeys::SpaceBar,  TEXT("Space"),   EKeys::Gamepad_FaceButton_Bottom, TEXT("A"), TEXT("✕"), TEXT("Button 1")},
-			{TEXT("Crouch"),          EKeys::C,         TEXT("C"),       EKeys::Gamepad_FaceButton_Right,  TEXT("B"), TEXT("○"), TEXT("Button 2")},
-			{TEXT("Use or press"),    EKeys::E,         TEXT("E"),       EKeys::Gamepad_FaceButton_Left,   TEXT("X"), TEXT("□"), TEXT("Button 3")},
-			{TEXT("Change view (your eyes / from behind; in a truck: driver's seat / behind it)"), EKeys::V, TEXT("V"), EKeys::Gamepad_DPad_Up, TEXT("D-pad up"), TEXT("D-pad up"), TEXT("D-pad up")},
-			{TEXT("Siren on / off (in a fire truck)"), EKeys::B, TEXT("B"), EKeys::Gamepad_DPad_Left, TEXT("D-pad left"), TEXT("D-pad left"), TEXT("D-pad left")},
-			{TEXT("High beams on / off (in a truck)"), EKeys::L, TEXT("L"), EKeys::Gamepad_DPad_Down, TEXT("D-pad down"), TEXT("D-pad down"), TEXT("D-pad down")},
-			{TEXT("Blue warning lights on / off (in a fire truck)"), EKeys::N, TEXT("N"), EKeys::Gamepad_RightThumbstick, TEXT("RS"), TEXT("R3"), TEXT("R stick press")},
-			{TEXT("Indicator left (in a truck; cancels itself after the turn)"), EKeys::Comma, TEXT(","), EKeys::Invalid, TEXT("Hold B + D-pad left"), TEXT("Hold ○ + D-pad left"), TEXT("Hold button 2 + D-pad left")},
-			{TEXT("Indicator right (in a truck)"), EKeys::Period, TEXT("."), EKeys::Invalid, TEXT("Hold B + D-pad right"), TEXT("Hold ○ + D-pad right"), TEXT("Hold button 2 + D-pad right")},
-			{TEXT("Hazard lights (in a truck)"), EKeys::F, TEXT("F"), EKeys::Invalid, TEXT("Hold B + D-pad down"), TEXT("Hold ○ + D-pad down"), TEXT("Hold button 2 + D-pad down")},
-			{TEXT("Menus"),           EKeys::G,         TEXT("G"),       EKeys::Gamepad_FaceButton_Top,    TEXT("Y"), TEXT("△"), TEXT("Button 4")},
-			{TEXT("Map"),             EKeys::M,         TEXT("M"),       EKeys::Gamepad_RightShoulder,     TEXT("RB"), TEXT("R1"), TEXT("Right shoulder")},
-			{TEXT("Hide UI"),         EKeys::H,         TEXT("H"),       EKeys::Gamepad_LeftShoulder,      TEXT("LB"), TEXT("L1"), TEXT("Left shoulder")},
-			{TEXT("Settings"),        EKeys::Tab,       TEXT("Tab"),     EKeys::Gamepad_Special_Right,     TEXT("Menu"), TEXT("Options"), TEXT("Start")},
-			{TEXT("Performance"),     EKeys::P,         TEXT("P"),       EKeys::Invalid,                   TEXT("-"), TEXT("-"), TEXT("-")},
-			{TEXT("Free pointer (drag boxes)"), EKeys::MiddleMouseButton, TEXT("Middle mouse"), EKeys::Invalid, TEXT("-"), TEXT("-"), TEXT("-")},
-			{TEXT("Back / show UI"),  EKeys::Escape,    TEXT("Esc"),     EKeys::Invalid,                   TEXT("-"), TEXT("-"), TEXT("-")},
+			{TEXT("Walk"),            EKeys::Invalid,   TEXT("W A S D"), EKeys::Invalid,                   TEXT("Left stick"), TEXT("Left stick"), TEXT("Left stick"), TEXT("On foot")},
+			{TEXT("Look round"),      EKeys::Invalid,   TEXT("Mouse"),   EKeys::Invalid,                   TEXT("Right stick"), TEXT("Right stick"), TEXT("Right stick"), TEXT("On foot")},
+			{TEXT("Run"),             EKeys::LeftShift, TEXT("Shift"),   EKeys::Gamepad_LeftThumbstick,    TEXT("LS"), TEXT("L3"), TEXT("L stick press"), TEXT("On foot")},
+			{TEXT("Jump"),            EKeys::SpaceBar,  TEXT("Space"),   EKeys::Gamepad_FaceButton_Bottom, TEXT("A"), TEXT("✕"), TEXT("Button 1"), TEXT("On foot")},
+			{TEXT("Crouch"),          EKeys::C,         TEXT("C"),       EKeys::Gamepad_FaceButton_Right,  TEXT("B"), TEXT("○"), TEXT("Button 2"), TEXT("On foot")},
+			{TEXT("Use or press"),    EKeys::E,         TEXT("E"),       EKeys::Gamepad_FaceButton_Left,   TEXT("X"), TEXT("□"), TEXT("Button 3"), TEXT("On foot")},
+			{TEXT("Change view (your eyes / from behind; in a truck: driver's seat / behind it)"), EKeys::V, TEXT("V"), EKeys::Gamepad_DPad_Up, TEXT("D-pad up"), TEXT("D-pad up"), TEXT("D-pad up"), TEXT("On foot")},
+			{TEXT("Siren on / off (in a fire truck)"), EKeys::B, TEXT("B"), EKeys::Gamepad_DPad_Left, TEXT("D-pad left"), TEXT("D-pad left"), TEXT("D-pad left"), TEXT("Fire truck")},
+			{TEXT("High beams on / off (in a truck)"), EKeys::L, TEXT("L"), EKeys::Gamepad_DPad_Down, TEXT("D-pad down"), TEXT("D-pad down"), TEXT("D-pad down"), TEXT("Driving")},
+			{TEXT("Blue warning lights on / off (in a fire truck)"), EKeys::N, TEXT("N"), EKeys::Gamepad_RightThumbstick, TEXT("RS"), TEXT("R3"), TEXT("R stick press"), TEXT("Fire truck")},
+			{TEXT("Indicator left (in a truck; cancels itself after the turn)"), EKeys::Comma, TEXT(","), EKeys::Invalid, TEXT("Hold B + D-pad left"), TEXT("Hold ○ + D-pad left"), TEXT("Hold button 2 + D-pad left"), TEXT("Driving")},
+			{TEXT("Indicator right (in a truck)"), EKeys::Period, TEXT("."), EKeys::Invalid, TEXT("Hold B + D-pad right"), TEXT("Hold ○ + D-pad right"), TEXT("Hold button 2 + D-pad right"), TEXT("Driving")},
+			{TEXT("Hazard lights (in a truck)"), EKeys::F, TEXT("F"), EKeys::Invalid, TEXT("Hold B + D-pad down"), TEXT("Hold ○ + D-pad down"), TEXT("Hold button 2 + D-pad down"), TEXT("Driving")},
+			{TEXT("Menus"),           EKeys::G,         TEXT("G"),       EKeys::Gamepad_FaceButton_Top,    TEXT("Y"), TEXT("△"), TEXT("Button 4"), TEXT("Menus and interface")},
+			{TEXT("Map"),             EKeys::M,         TEXT("M"),       EKeys::Gamepad_RightShoulder,     TEXT("RB"), TEXT("R1"), TEXT("Right shoulder"), TEXT("Menus and interface")},
+			{TEXT("Hide UI"),         EKeys::H,         TEXT("H"),       EKeys::Gamepad_LeftShoulder,      TEXT("LB"), TEXT("L1"), TEXT("Left shoulder"), TEXT("Menus and interface")},
+			{TEXT("Settings"),        EKeys::Tab,       TEXT("Tab"),     EKeys::Gamepad_Special_Right,     TEXT("Menu"), TEXT("Options"), TEXT("Start"), TEXT("Menus and interface")},
+			{TEXT("Performance"),     EKeys::P,         TEXT("P"),       EKeys::Invalid,                   TEXT("-"), TEXT("-"), TEXT("-"), TEXT("Menus and interface")},
+			{TEXT("Free pointer (drag boxes)"), EKeys::MiddleMouseButton, TEXT("Middle mouse"), EKeys::Invalid, TEXT("-"), TEXT("-"), TEXT("-"), TEXT("Menus and interface")},
+			{TEXT("Back / show UI"),  EKeys::Escape,    TEXT("Esc"),     EKeys::Invalid,                   TEXT("-"), TEXT("-"), TEXT("-"), TEXT("Menus and interface")},
 			// the Buttons panel: its own key and button, used for nothing else on any device
-			{TEXT("Buttons"),         EKeys::F1,        TEXT("F1"),      EKeys::Gamepad_Special_Left,      TEXT("View"), TEXT("Create"), TEXT("Select")},
+			{TEXT("Buttons"),         EKeys::F1,        TEXT("F1"),      EKeys::Gamepad_Special_Left,      TEXT("View"), TEXT("Create"), TEXT("Select"), TEXT("Menus and interface")},
 		};
 		return A;
 	}
@@ -93,6 +93,54 @@ namespace ADPInput
 			{TEXT("Leave drone mode (back where you stood)"), EKeys::Escape, TEXT("Esc"), EKeys::Gamepad_FaceButton_Right, TEXT("B"), TEXT("○"), TEXT("Button 2")},
 		};
 		return A;
+	}
+
+	const TArray<FString>& Categories()
+	{
+		static const TArray<FString> C = {TEXT("On foot"), TEXT("Driving"), TEXT("Fire truck"), TEXT("Flying"),
+			TEXT("At the airport"), TEXT("Menus and interface"), TEXT("Other")};
+		return C;
+	}
+
+	FString CategoryOf(const FAction& A)
+	{
+		if (!A.Category.IsEmpty() && Categories().Contains(A.Category)) return A.Category;
+		// a new key binding without a group: by the words in its name (the first match wins, the most particular first)
+		const FString N = A.Name.ToLower();
+		auto Has = [&N](std::initializer_list<const TCHAR*> Words) { for (const TCHAR* W : Words) if (N.Contains(W)) return true; return false; };
+		if (Has({TEXT("fire truck"), TEXT("siren"), TEXT("blue light"), TEXT("ladder"), TEXT("water cannon")})) return TEXT("Fire truck");
+		if (Has({TEXT("drone"), TEXT("fly"), TEXT("flying")})) return TEXT("Flying");
+		if (Has({TEXT("truck"), TEXT(" car"), TEXT("car "),TEXT("vehicle"), TEXT("drive"), TEXT("steer"), TEXT("brake"), TEXT("gear"), TEXT("indicator"),
+			TEXT("hazard"), TEXT("beam"), TEXT("headlight"), TEXT("wiper"), TEXT("horn"), TEXT("tow"), TEXT("bus")})) return TEXT("Driving");
+		if (Has({TEXT("door"), TEXT("seat"), TEXT("sit "), TEXT("stand up"), TEXT("hose"), TEXT("panel"), TEXT("lift"), TEXT("knock"),
+			TEXT("talk"), TEXT("buy"), TEXT("vending"), TEXT("pick up")})) return TEXT("At the airport");
+		if (Has({TEXT("menu"), TEXT("map"), TEXT("settings"), TEXT(" ui"), TEXT("pointer"), TEXT("performance"), TEXT("screenshot"),
+			TEXT("pause"), TEXT("phone"), TEXT("buttons")})) return TEXT("Menus and interface");
+		if (Has({TEXT("walk"), TEXT("run"), TEXT("jump"), TEXT("crouch"), TEXT("look"), TEXT("view")})) return TEXT("On foot");
+		return TEXT("Other");
+	}
+
+	TArray<FAction> AllForSettings()
+	{
+		TArray<FAction> All;
+		auto Add = [&All](const FAction& A, const TCHAR* Group)
+		{
+			// each once: the same thing on the same key (Map, Hide UI in the drone) isn't listed again
+			for (const FAction& B : All) if (B.Name == A.Name || (B.Name.StartsWith(TEXT("Hide UI")) && A.Name.StartsWith(TEXT("Hide UI")))) return;
+			FAction C = A;
+			if (C.Category.IsEmpty() && Group) C.Category = Group;
+			All.Add(C);
+		};
+		for (const FAction& A : Actions()) Add(A, nullptr);
+		for (const FAction& A : DroneActions()) Add(A, TEXT("Flying"));
+		// the ones at things (all E / X): doors, seats, door panels, the wash hose
+		Add(DoorAction(false), TEXT("At the airport"));
+		Add(SeatAction(false), TEXT("At the airport"));
+		Add(PanelAction(), TEXT("At the airport"));
+		Add(HoseActions(false, false)[0], TEXT("At the airport"));
+		for (const FAction& A : HoseActions(true, true)) Add(A, TEXT("At the airport"));
+		for (FAction& A : All) A.Category = CategoryOf(A);
+		return All;
 	}
 
 	const FAction* Find(const FString& Name)

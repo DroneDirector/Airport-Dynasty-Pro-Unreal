@@ -21,7 +21,19 @@ namespace ADPInput
 		FString KeyboardLabel;
 		FKey Pad;               // EKeys::Invalid when it's a stick
 		FString XboxLabel, PlayStationLabel, GenericLabel;
+		// its group in Settings > Controls (owner, 2026-11-17: "categorize these things ... and automatically categorize new
+		// key bindings"): one of Categories(); left empty, CategoryOf() works it out from the name, else "Other"
+		FString Category;
 	};
+
+	/** The groups Settings > Controls shows, in order: On foot, Driving, Fire truck, Flying, At the airport, Menus and
+	 *  interface, Other. */
+	const TArray<FString>& Categories();
+	/** An action's group: its own Category, else worked out from its name (truck, drone, door, map...), else "Other". */
+	FString CategoryOf(const FAction& A);
+	/** Everything Settings > Controls lists: every action, the drone's own, and the ones used at things (doors, seats,
+	 *  door panels, the wash hose), each once, with its group. */
+	TArray<FAction> AllForSettings();
 
 	/** Every action, in the order the Buttons panel and Settings list them. */
 	const TArray<FAction>& Actions();
