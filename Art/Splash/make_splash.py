@@ -40,27 +40,44 @@ def src(x, y): return (x - SX0) / (SX1 - SX0) * LW, (y - SY0) / (SY1 - SY0) * LH
 
 lum = logo.max(2)
 yy, xx = np.mgrid[0:LH, 0:LW].astype(np.float32)
-# regions: lettering (below the rock line) and everything else (fox, rock, swirls)
-a, b = src(440, 484), src(990, 712)                 # the lettering panel only; rock tips and swirls stay with the art
-text_m = ((xx > a[0]) & (xx < b[0]) & (yy > a[1]) & (yy < b[1])).astype(np.float32)
-text_m = cv2.GaussianBlur(text_m, (0, 0), LH * 0.004)
-art_m = 1.0 - text_m
-
-# letters: PIXEL x 445..985 on rows 488..605, NORMA x 475..950 on rows 600..700 (source px), 5 letters each
+# letters: each one's own shape cut from the sharpened logo (its outline and holes, no boxes) - only the letters go
+# dark and switch on; the sign panel, its outline and everything else stay as they are.
+#   PIXEL: the bright letters are separate blobs; NORMA: bright pixels split at the gaps between its letters.
 def letter_masks():
+    x0, y0, x1, y1 = 440 * 4, 484 * 4, 990 * 4, 712 * 4          # lettering area in the x4 image
+    c = up[y0:y1, x0:x1]; Lc = c.max(2)
+    bright = (Lc > 0.33).astype(np.uint8)
+    n, lab, st, _ = cv2.connectedComponentsWithStats((Lc > 0.4).astype(np.uint8), 8)
+    pix = sorted([i for i in range(1, n) if st[i, 4] > 30000 and st[i, 1] < 120 and st[i, 3] < 420], key=lambda i: st[i, 0])
+    assert len(pix) == 5, pix
+    subs = [(lab == i).astype(np.float32) for i in pix]           # PIXEL: each letter's own blob, nothing else in its box
+    cuts = [218, 562, 875, 1212, 1586, 1938]                        # NORMA: gaps between N | O | R | M | A
+    # NORMA's letters by their blue: N and A stand alone, so they get their own blob (their outline, never a straight
+    # cut); O, R, M touch through the glare and are split at their gaps
+    B_, R_ = c[..., 0], c[..., 2]
+    blue = ((Lc > 0.4) & (B_ - R_ > 0.25)).astype(np.uint8); blue[:462] = 0; blue[748:] = 0
+    n2, lab2, st2, _ = cv2.connectedComponentsWithStats(blue, 8)
+    near = cv2.dilate(blue, np.ones((9, 9), np.uint8)).astype(bool)   # the letters' light rim, not the sign's edge
+    for i in range(5):
+        if i in (0, 4):
+            cx = (cuts[i] + cuts[i + 1]) // 2
+            cand = [j for j in range(1, n2) if st2[j, 4] > 20000 and st2[j, 0] <= cx <= st2[j, 0] + st2[j, 2]]
+            assert len(cand) == 1, (i, cand)
+            blob = cv2.dilate((lab2 == cand[0]).astype(np.uint8), np.ones((9, 9), np.uint8)).astype(bool)
+            q = (bright.astype(bool) & blob).astype(np.float32)
+        else:
+            q = np.zeros_like(Lc); q[462:748, cuts[i]:cuts[i + 1]] = (bright.astype(bool) & near)[462:748, cuts[i]:cuts[i + 1]]
+        subs.append(q)
     ms = []
-    for (x0, x1, y0, y1) in ((445, 985, 470, 603), (478, 950, 603, 745)):
-        a, b = src(x0, y0), src(x1, y1)
-        for i in range(5):
-            l = a[0] + (b[0] - a[0]) * i / 5
-            r = a[0] + (b[0] - a[0]) * (i + 1) / 5
-            if i == 0: l = 0
-            if i == 4: r = LW
-            m = ((xx >= l) & (xx < r) & (yy >= a[1]) & (yy < b[1])).astype(np.float32)
-            ms.append(cv2.GaussianBlur(m, (0, 0), LH * 0.006))
+    for sub in subs:
+        sub = cv2.dilate(sub, np.ones((7, 7), np.uint8))           # the letter's own edge and inner glow
+        m = np.zeros(up.shape[:2], np.float32); m[y0:y1, x0:x1] = sub
+        m = m[SY0 * 4:SY1 * 4, SX0 * 4:SX1 * 4]
+        m = cv2.resize(m, (LW, LH), interpolation=cv2.INTER_AREA)
+        ms.append(np.clip(cv2.GaussianBlur(m, (0, 0), max(0.6, LH * 0.0006)), 0, 1))
     return ms
 LET = letter_masks()
-let_sum = np.clip(sum(LET), 1e-4, None)
+OFF = 0.12                                                        # an unlit letter: dark, still just visible
 
 def smooth(t, a, b):
     x = min(max((t - a) / (b - a), 0.0), 1.0)
@@ -83,7 +100,7 @@ psz = np.maximum(1, (rng.uniform(0.0016, 0.004, NS) * W)).astype(int)
 def region_mask(x0, y0, x1, y1):
     a, b = src(x0, y0), src(x1, y1)
     return ((xx >= a[0]) & (xx < b[0]) & (yy >= a[1]) & (yy < b[1])).astype(np.float32)
-trail = np.clip(region_mask(890, 100, 1040, 230) + region_mask(420, 190, 610, 300), 0, 1) * art_m
+trail = np.clip(region_mask(890, 100, 1040, 230) + region_mask(420, 190, 610, 300), 0, 1)
 tw_seed = rng.uniform(0, 2 * math.pi, (LH // 6 + 1, LW // 6 + 1)).astype(np.float32)
 
 def bloom(img, sig):
@@ -102,33 +119,23 @@ for f in range(NF):
     t = f / FPS
     frame = np.zeros((H, W, 3), np.float32)
 
-    # fox/rock: pixel build-up, each step snapping to a finer grid
-    k = smooth(t, 1.2, 2.8)
-    if k > 0:
-        steps = [96, 64, 40, 24, 14, 8, 4, 2, 1]
-        block = steps[min(int(k * len(steps)), len(steps) - 1)] * W / 3840
-        art = pixelate(logo * art_m[..., None], block) * min(1.0, k * 2.2)
-    else:
-        art = np.zeros_like(logo); block = 1
-
-    # letters: one by one, each flickers on like neon
-    lit = np.zeros((LH, LW), np.float32)
+    # letters: one by one, each flickers on like neon; until then only the letters themselves are dark
+    dim = np.ones((LH, LW), np.float32)
     for i, m in enumerate(LET):
         on = 2.6 + i * 0.17
         x = (t - on) / 0.32
         if x <= 0: v = 0.0
         elif x >= 1: v = 1.0
-        else:
-            ph = int(x * 8)
-            v = [0.6, 0.0, 0.9, 0.1, 0.3, 1.0, 0.7, 1.0][ph]
-        lit += m * v
-    # the sign panel is there, dark, as soon as the fox is (an unlit sign, no black box); letters light one by one,
-    # the panel's outline last
-    base = 0.14 * min(1.0, k * 2.2) + 0.86 * smooth(t, 4.15, 4.5)
-    v = np.maximum(base, np.clip(lit / let_sum * np.clip(let_sum, 0, 1), 0, 1))
-    text = pixelate(logo * text_m[..., None], block if k < 1 else 1) * v[..., None] if k > 0 else np.zeros_like(logo)
-
-    L = art + text
+        else: v = [0.6, 0.0, 0.9, 0.1, 0.3, 1.0, 0.7, 1.0][int(x * 8)]
+        if v < 1: dim *= 1 - m * (1 - (OFF + (1 - OFF) * v))
+    # the whole logo builds up from big pixels, each step snapping to a finer grid
+    k = smooth(t, 1.2, 2.8)
+    if k > 0:
+        steps = [96, 64, 40, 24, 14, 8, 4, 2, 1]
+        block = steps[min(int(k * len(steps)), len(steps) - 1)] * W / 3840
+        L = pixelate(logo * dim[..., None], block) * min(1.0, k * 2.2)
+    else:
+        L = np.zeros_like(logo)
     # light sweep
     sw = smooth(t, 4.4, 5.4)
     if 0 < sw < 1:
