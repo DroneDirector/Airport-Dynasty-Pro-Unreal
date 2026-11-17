@@ -109,9 +109,10 @@ def pixelate(img, block):
     return cv2.resize(sm, (w, h), interpolation=cv2.INTER_NEAREST)
 
 # zoom: the logo comes from a 2x-size copy, pre-blurred against aliasing, scaled about its centre every frame
-P2 = cv2.resize(crop, (LW * 2, LH * 2), interpolation=cv2.INTER_AREA)
-P2 = np.clip((P2 - 0.006) / 0.994, 0, 1) * cv2.resize(fe, (LW * 2, LH * 2), interpolation=cv2.INTER_LINEAR)[..., None]
-P2 = cv2.GaussianBlur(P2, (0, 0), 0.55)
+# the zoom draws straight from the x4 sharpened image (never enlarged): pre-filtered for its downscale, then scaled
+S2 = crop.shape[0] / float(LH)
+P2 = np.clip((crop - 0.006) / 0.994, 0, 1) * cv2.resize(fe, (crop.shape[1], crop.shape[0]), interpolation=cv2.INTER_LINEAR)[..., None]
+P2 = cv2.GaussianBlur(P2, (0, 0), 0.42 * S2)
 CX, CY = OX + LW / 2.0, OY + LH / 2.0
 def warp(img, zs, src_scale):
     a = zs / src_scale
@@ -140,7 +141,7 @@ for f in (ONLY or range(NF)):
         fx *= 1 + sp * 0.8 * tw * trail
     k = smooth(t, 1.3, 2.7)                                         # forming out of the sparks: fine-grain dissolve
     fx *= np.clip((k * 1.2 - grain) / 0.2, 0, 1) if k < 1 else 1.0
-    frame = warp(P2, ZS, 2.0) * warp(fx, ZS, 1.0)[..., None] if k > 0 else np.zeros((H, W, 3), np.float32)
+    frame = warp(P2, ZS, S2) * warp(fx, ZS, 1.0)[..., None] if k > 0 else np.zeros((H, W, 3), np.float32)
 
     # sparks
     if t < 2.8:
