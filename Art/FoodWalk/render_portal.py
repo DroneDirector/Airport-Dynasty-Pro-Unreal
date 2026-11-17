@@ -66,9 +66,39 @@ def wood_mat(name, dark=0.0, plank=(2.0, 0.2), rough=0.45):
     b.inputs['Roughness'].default_value = rough
     return m
 
+ART = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+def tex_mat(name, folder, base, size, rough=None, tint=None, rot=0.0):
+    m = bpy.data.materials.new(name); m.use_nodes = True; nt = m.node_tree
+    b = nt.nodes['Principled BSDF']
+    tc = nt.nodes.new('ShaderNodeTexCoord'); mp = nt.nodes.new('ShaderNodeMapping')
+    mp.inputs['Scale'].default_value = (1 / size[0], 1 / size[1], 1 / size[0]); mp.inputs['Rotation'].default_value = (0, 0, rot)
+    nt.links.new(tc.outputs['Object'], mp.inputs['Vector'])
+    def img(suffix, non_color=False):
+        f = os.path.join(ART, folder, base + suffix)
+        if not os.path.exists(f): return None
+        t = nt.nodes.new('ShaderNodeTexImage'); t.image = bpy.data.images.load(f); t.projection = 'BOX'; t.projection_blend = 0.2
+        if non_color: t.image.colorspace_settings.name = 'Non-Color'
+        nt.links.new(mp.outputs['Vector'], t.inputs['Vector']); return t
+    d = img('_D.png')
+    if d:
+        if tint:
+            mx = nt.nodes.new('ShaderNodeMixRGB'); mx.blend_type = 'MULTIPLY'; mx.inputs['Fac'].default_value = 1.0; mx.inputs['Color2'].default_value = (*tint, 1)
+            nt.links.new(d.outputs['Color'], mx.inputs['Color1']); nt.links.new(mx.outputs['Color'], b.inputs['Base Color'])
+        else: nt.links.new(d.outputs['Color'], b.inputs['Base Color'])
+    n = img('_N.png', True)
+    if n:
+        nm = nt.nodes.new('ShaderNodeNormalMap'); nm.inputs['Strength'].default_value = 0.6
+        nt.links.new(n.outputs['Color'], nm.inputs['Color']); nt.links.new(nm.outputs['Normal'], b.inputs['Normal'])
+    r = img('_R.png', True)
+    if r: nt.links.new(r.outputs['Color'], b.inputs['Roughness'])
+    elif rough is not None: b.inputs['Roughness'].default_value = rough
+    return m
+
 M = {
     'tiles': tiles_mat(),
-    'oak': wood_mat('oak', 0.0, (1.8, 0.19), 0.38),
+    'oak': tex_mat('floorwood', 'WoodFloor', 'T_WoodFloor', (2.4, 2.4)),
+    'slatwood': tex_mat('slatwood', 'Hangar', 'T_HangarWood', (1.5, 1.5), 0.45),
+    'pillarwood': tex_mat('pillarwood', 'Hangar', 'T_HangarWood', (1.2, 1.2), 0.35, (0.62, 0.5, 0.42)),
     'walnut': wood_mat('walnut', 0.21, (2.4, 0.12), 0.3),
     'wall': mat('wall', (0.84, 0.84, 0.82), 0.6),
     'ceil': mat('ceil', (0.78, 0.78, 0.77), 0.7),
@@ -76,7 +106,7 @@ M = {
     'led': mat('led', (1, 0.8, 0.5), 0.5, 0, (1.0, 0.72, 0.38), 18.0),
     'ledcool': mat('ledcool', (1, 1, 1), 0.5, 0, (1.0, 0.95, 0.88), 6.0),
     'sign_bg': mat('sign_bg', (0.012, 0.009, 0.007), 0.55),
-    'sign_txt': mat('sign_txt', (1, 0.8, 0.5), 0.4, 0, (1.0, 0.70, 0.36), 7.0),
+    'sign_txt': mat('sign_txt', (1, 0.3, 0.7), 0.4, 0, (1.0, 0.16, 0.62), 32.0),
     'glass': mat('glass', (0.92, 0.96, 0.97), 0.02, 0, None, 0, 1.0, 1.5),
     'steel': mat('steel', (0.72, 0.73, 0.75), 0.3, 1.0),
     'black': mat('black', (0.03, 0.03, 0.03), 0.45),
@@ -162,7 +192,7 @@ for k in range(5):
 box('plenum', -14, 24, 0, 30, H + 0.4, H + 0.6, M['black'])
 for k in range(130):
     xx = -10 + k * 0.25
-    box('slat', xx, xx + 0.08, 0.3, 30, H - 0.25, H + 0.05, M['oak'])
+    box('slat', xx, xx + 0.08, 0.3, 30, H - 0.25, H + 0.05, M['slatwood'])
 for k in range(6):
     box('ledline', -10, 22, 3 + k * 4.4, 3.06 + k * 4.4, H - 0.27, H - 0.25, M['ledcool'])
 # the left: the old tax free room wall (landing side) and the Food Walk's wall beyond
@@ -183,7 +213,7 @@ box('walk_ceil', X1 + 0.1, X1 + 16, -22, 30, H + 3, H + 3.2, M['ceil'])
 # ---------------------------------------------------------------- the portal
 PW, PD = 0.6, 0.7     # pillar width and depth
 for x0 in (X0, X1 - PW):
-    box('pillar', x0, x0 + PW, -PD / 2, PD / 2, 0, H - 1.3, M['walnut'], 0.01)
+    box('pillar', x0, x0 + PW, -PD / 2, PD / 2, 0, H - 1.3, M['pillarwood'], 0.01)
     # the warm LED line up the face of each pillar (both faces), in a brass reveal
     for yf in (-PD / 2 - 0.005, PD / 2 - 0.01):
         box('reveal', x0 + PW / 2 - 0.05, x0 + PW / 2 + 0.05, yf, yf + 0.015, 0.12, H - 1.45, M['brass'])
@@ -195,16 +225,17 @@ n = int((X1 - X0) / 0.09)
 for k in range(n):
     xx = X0 + 0.02 + k * 0.09
     for yf in (-PD / 2, PD / 2 - 0.06):
-        box('hslat', xx, xx + 0.05, yf, yf + 0.06, H - 1.3, H, M['walnut'])
+        box('hslat', xx, xx + 0.05, yf, yf + 0.06, H - 1.3, H, M['slatwood'])
 # a soft cove line under the header on both sides
 for yf in (-PD / 2 - 0.02, PD / 2 - 0.02):
     box('cove_h', X0 + PW, X1 - PW, yf, yf + 0.04, H - 1.34, H - 1.31, M['led'])
 # the sign: a dark panel framed in brass on both faces, FOOD WALK in warm light, little halo of light behind it
 for side, yf in ((-1, -PD / 2 - 0.06), (1, PD / 2 + 0.06)):
-    box('sign_frame', X0 + 2.3, X1 - 2.3, yf - 0.03, yf + 0.03, H - 1.12, H - 0.22, M['brass'], 0.01)
+    box('sign_frame', X0 + 2.3, X1 - 2.3, yf - 0.03, yf + 0.03, H - 1.12, H - 0.22, M['black'], 0.01)
     ya, yb = sorted((yf + side * 0.03, yf + side * 0.04))
     box('sign_bg', X0 + 2.36, X1 - 2.36, ya, yb, H - 1.06, H - 0.28, M['sign_bg'])
-    t = text('sign', 'FOOD WALK', (X0 + X1) / 2, yf + side * 0.042, H - 0.67, 0.46, M['sign_txt'], (math.pi / 2, 0, 0 if side < 0 else math.pi), 0.004)
+    t = text('sign', 'FOOD WALK', (X0 + X1) / 2, yf + side * 0.042, H - 0.67, 0.5, M['sign_txt'], (math.pi / 2, 0, 0 if side < 0 else math.pi), 0.012)
+    t.data.bevel_depth = 0.006
 # the planters inside the opening, 7 m clear between them
 plant(X0 + PW + 0.55, 0.0, 1.0, 1.0)
 plant(X1 - PW - 0.55, 0.0, 1.0, 1.0)
@@ -252,7 +283,8 @@ def area(name, loc, size, energy, col=(1, 0.95, 0.88), rot=(0, 0, 0)):
 for k in range(5): area('land', (5, -18 + k * 4, H - 0.05), (16, 1.2), 450)
 for k in range(6): area('fw', (2, 3 + k * 4.4, H - 0.3), (20, 1.0), 520, (1, 0.9, 0.78))
 area('walk', (X1 + 8, 4, H + 2.9), (14, 50), 6000, (0.9, 0.95, 1.0))
-area('sign_glow', ((X0 + X1) / 2, -0.9, H - 1.5), (5, 0.3), 120, (1, 0.75, 0.42))
+area('sign_glow', ((X0 + X1) / 2, -0.9, H - 0.7), (4.5, 0.5), 160, (1, 0.25, 0.65), (math.pi / 2, 0, 0))
+area('sign_glow2', ((X0 + X1) / 2, 0.9, H - 0.7), (4.5, 0.5), 160, (1, 0.25, 0.65), (-math.pi / 2, 0, 0))
 w = bpy.data.worlds.new('w'); sc.world = w; w.use_nodes = True
 w.node_tree.nodes['Background'].inputs['Color'].default_value = (0.55, 0.62, 0.72, 1); w.node_tree.nodes['Background'].inputs['Strength'].default_value = 0.35
 
@@ -274,6 +306,10 @@ sc.cycles.max_bounces = 10; sc.cycles.glossy_bounces = 6; sc.cycles.transmission
 sc.view_settings.view_transform = 'Filmic'; sc.view_settings.look = 'Medium High Contrast'; sc.view_settings.exposure = -0.35
 sc.render.resolution_x, sc.render.resolution_y = RW, RH
 sc.render.image_settings.file_format = 'PNG'
+sc.use_nodes = True; ct = sc.node_tree
+rl = ct.nodes['Render Layers']; comp = ct.nodes['Composite']
+gl = ct.nodes.new('CompositorNodeGlare'); gl.glare_type = 'FOG_GLOW'; gl.quality = 'HIGH'; gl.threshold = 1.2; gl.size = 7; gl.mix = -0.55
+ct.links.new(rl.outputs['Image'], gl.inputs['Image']); ct.links.new(gl.outputs['Image'], comp.inputs['Image'])
 
 def shoot(name, loc, target, lens=24):
     cd = bpy.data.cameras.new(name); cd.lens = lens
