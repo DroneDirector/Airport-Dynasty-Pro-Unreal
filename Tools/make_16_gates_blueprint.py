@@ -55,8 +55,10 @@ TAXI_Y = 218.0
 
 def rect(ax, x0, y0, x1, y1, ec=DIM, fc='none', lw=0.8, ls='-', z=2, alpha=1):
     ax.add_patch(Rectangle((x0, y0), x1 - x0, y1 - y0, fill=fc != 'none', fc=fc, ec=ec, lw=lw, ls=ls, zorder=z, alpha=alpha))
+FSM = [1.0]          # text size factor for the sheet being drawn (big text on the close-up sheets)
+STOPS = [True]
 def label(ax, x, y, t, c=OLDC, fs=5.2, **k):
-    k.setdefault('ha', 'center'); ax.text(x, y, t, color=c, fontsize=fs, va='center', zorder=9, **k)
+    k.setdefault('ha', 'center'); ax.text(x, y, t, color=c, fontsize=fs * FSM[0], va='center', zorder=9, **k)
 
 def plane(ax, cx, ny, kind, col=PLANE, lw=0.7):
     """Simple top view of the aircraft, nose at (cx, ny) pointing to the terminal (-y)."""
@@ -90,7 +92,9 @@ def stand_marks(ax, cx, ny, kinds, lead=True, labels=None):
     for i, k in enumerate(labels or kinds):             # stop bars: each type's nose stop
         off = i * 2.2
         ax.plot([cx - 2.5, cx + 2.5], [ny - 1 - off, ny - 1 - off], color=YEL, lw=1.2, zorder=5)
-        ax.text(cx + 3.2, ny - 1 - off, k, color=YEL, fontsize=3.4, va='center', zorder=9)
+    if STOPS[0]:
+        ax.text(cx - 4, ny - 0.5, 'stop bars:\n' + '\n'.join(labels or kinds), color=YEL, fontsize=3.4 * FSM[0], va='top', ha='right', zorder=9,
+                linespacing=1.05)
     rect(ax, cx - S / 2 - 3.75, ny - 4, cx + S / 2 + 3.75, ny + L + 3, ec=RED, lw=0.6, ls='--', z=3)   # stand safety line
     ax.plot([cx - S / 2 - 3.75, cx + S / 2 + 3.75], [ny - 6.5] * 2, color=RED, lw=0.6, zorder=3)        # equipment restraint
 
@@ -183,75 +187,85 @@ def roof(ax):
 
 def frame(ax, title, xl, yl):
     ax.set_facecolor(BG); ax.set_aspect('equal'); ax.set_xlim(*xl); ax.set_ylim(*yl)
-    ax.tick_params(colors=DIM, labelsize=5)
+    ax.tick_params(colors=DIM, labelsize=5 * min(FSM[0], 2.2))
     for sp in ax.spines.values(): sp.set_color(DIM)
-    ax.set_title(title, color=INK, fontsize=10, loc='left')
+    ax.set_title(title, color=INK, fontsize=10 * min(FSM[0], 2.0), loc='left')
 
 # ================= 1: site plan, top down =================
-fig = plt.figure(figsize=(23.4, 16.5), facecolor=BG)
-ax = fig.add_axes([0.03, 0.30, 0.94, 0.64])
-frame(ax, 'SITE PLAN, TOP DOWN  -  16 gates (8 today + 4 west + 4 east wide-body)   metres, north (apron) up', (-400, 600), (-270, 250))
-# the apron, taxilane, links
-for a in AF['aprons']:
-    if a['id'] in ('APRON-T', 'APRON-9'):
-        rect(ax, a['x0'], a['y0'], a['x1'], a['y1'], ec=GONE if a['id'] == 'APRON-9' else DIM, lw=0.6, ls='--' if a['id'] == 'APRON-9' else '-', z=1)
-rect(ax, -265, 82, 570, 238, ec=MOVE, lw=0.9, ls='-.', z=1)
-label(ax, -240, 232, 'apron extended  x -265 .. 570', c=MOVE, fs=4.5)
-ax.plot([-140, 372], [TAXI_Y] * 2, color=DIM, lw=4, alpha=0.6, zorder=1)
-ax.plot([-255, -140], [TAXI_Y] * 2, color=MOVE, lw=4, alpha=0.6, zorder=1); ax.plot([372, 560], [TAXI_Y] * 2, color=MOVE, lw=4, alpha=0.6, zorder=1)
-label(ax, 470, 224, 'taxilane T lengthened (both ends)', c=MOVE, fs=4.5)
-for t in AF['taxiways']:
-    if t['id'] in ('P1', 'P2', 'P3'): ax.plot([p[0] for p in t['pts']], [min(p[1], 250) for p in t['pts']], color=DIM, lw=4, alpha=0.6, zorder=1)
-# buildings today
-rect(ax, 0, 0, 156, 52, ec=OLDC, lw=1.0); label(ax, 78, 26, 'TERMINAL (today)\nGrand Hall, security, offices', fs=5)
-rect(ax, -80, -4, 0, 52, ec=OLDC, lw=1.0); label(ax, -40, 24, 'ARRIVALS WING\n(baggage claim, 2026-11-16)', fs=5)
-rect(ax, -80, WALK_Z0, 242, WALK_Z1, ec=OLDC, lw=1.0); label(ax, 81, 60, 'walkway to the gates (today)', fs=4.5)
-for r in P['rooms']:
-    if r['id'].startswith('F2-GATE') or r['id'].startswith('F2-VIEW'): rect(ax, r['x0'], r['z0'], r['x1'], r['z1'], ec=OLDC, lw=0.8)
-for s in AF['stands']:
-    if s['id'] in ('STAND-%d' % i for i in range(1, 9)):
-        stand_marks(ax, s['x'], s['nose'], ['A320', 'A321'] if s['jetway'] else ['A320'])
-        plane(ax, s['x'], s['nose'], 'A320', col=OLDC)
-        if s['jetway']: a320_jetway(ax, s['x'], s['nose'], col=OLDC)
-        n = int(s['id'].split('-')[1]); label(ax, s['x'], s['nose'] + 47, 'G%d' % n, c=INK, fs=5)
-# today's parts that move or go
-rect(ax, *RENTAL_OLD, ec=GONE, lw=1.0, ls='--'); label(ax, 234, 22, 'CAR RENTAL + garage (today)\n-> moved', c=GONE, fs=4.6)
-rect(ax, 174, -16, 282, -3.5, ec=GONE, lw=0.8, ls='--')
-s9 = next(s for s in AF['stands'] if s['id'] == 'STAND-9')
-rect(ax, s9['x'] - 40, s9['nose'], s9['x'] + 40, s9['nose'] + s9['len'], ec=GONE, lw=0.8, ls=':')
-label(ax, s9['x'] + 60, 46, 'remote A380 stand 9 (today)\n-> becomes gate 13 (A380 with bridges)', c=GONE, fs=4.2)
-ax.add_patch(Circle(TOWER_OLD, 9, fill=False, ec=GONE, lw=1.0, ls='--', zorder=5)); rect(ax, -232, 104, -180, 146, ec=GONE, lw=0.7, ls='--')
-label(ax, -206, 99, 'control tower (today) -> moved', c=GONE, fs=4.2)
-ax.add_patch(Circle(TOWER_NEW, 9, fill=False, ec=MOVE, lw=1.4, zorder=5)); rect(ax, TOWER_NEW[0] - 27, 104, TOWER_NEW[0] + 25, 146, ec=MOVE, lw=0.8)
-label(ax, TOWER_NEW[0], 152, 'CONTROL TOWER (moved 140 m west)\nsame tower, lot and road', c=MOVE, fs=4.4)
-ax.add_patch(FancyArrowPatch((-215, 120), (-334, 120), arrowstyle='-|>', mutation_scale=8, color=MOVE, lw=0.8, zorder=6))
-# the new parts
-new_parts(ax, 2, small=False); roof(ax)
-for i, g in enumerate(WEST):
-    stand_marks(ax, g['sj'], 120.0, ['A320', 'A321']); plane(ax, g['sj'], 120.0, 'A320'); a320_jetway(ax, g['sj'])
-    stand_marks(ax, g['sw'], 122.0, ['A320']); plane(ax, g['sw'], 122.0, 'A320')
-    ax.plot([g['sw'] - 6, g['sw'] - 6], [GATE_Z1, 122], color=NEW, lw=0.6, ls=':', zorder=4)      # walk-out path
-    label(ax, g['sj'], 167, 'G%d' % (9 + 2 * i), c=NEW, fs=5.5, fontweight='bold'); label(ax, g['sw'], 169, 'G%d' % (10 + 2 * i), c=NEW, fs=5.5, fontweight='bold')
-for e in E:
-    kinds = ['A380', 'B777-9', 'B777-300ER', 'A350-1000'] if e['kind'] == 'A380' else ['B777-9', 'B777-300ER', 'B787-10']
-    stand_marks(ax, e['x'], NOSE_WB, [e['kind'], 'B777'], labels=kinds)
-    plane(ax, e['x'], NOSE_WB, e['kind']); wb_jetways(ax, e)
-    label(ax, e['x'], 182, 'G%d  %s' % (e['gate'], 'A380' if e['kind'] == 'A380' else 'B777'), c=NEW, fs=5.8, fontweight='bold')
-# landside: roads, car parks, the car rental's new site
-ax.plot([-744, 537], [-47, -47], color=DIM, lw=6, alpha=0.5, zorder=1); label(ax, -300, -42, 'forecourt road', fs=4.5)
-ax.plot([-560, 582], [-255, -260], color=DIM, lw=6, alpha=0.5, zorder=1); label(ax, -300, -262, 'road back to town', fs=4.5)
-rect(ax, -93, -247, 367, -54.45, ec=DIM, lw=0.7); label(ax, 137, -150, 'main car park (today)', fs=5)
-ax.plot([-400, 600], [-170, -170], color='#a070ff', lw=0.8, ls='--', zorder=2); label(ax, 480, -165, 'airport boundary (y -170)', c='#a070ff', fs=4.5)
-rect(ax, *RENTAL_NEW, ec=MOVE, fc=MOVE, lw=1.4, alpha=0.08); rect(ax, *RENTAL_NEW, ec=MOVE, lw=1.4)
-rect(ax, RENTAL_NEW[0] + 4, RENTAL_NEW[1] + 30, RENTAL_NEW[0] + 60, RENTAL_NEW[3] - 4, ec=MOVE, lw=0.9)
-label(ax, RENTAL_NEW[0] + 32, (RENTAL_NEW[1] + 30 + RENTAL_NEW[3] - 4) / 2, 'rental\nhall', c=MOVE, fs=4.4)
-rect(ax, RENTAL_NEW[0] + 66, RENTAL_NEW[1] + 6, RENTAL_NEW[2] - 4, RENTAL_NEW[3] - 4, ec=MOVE, lw=0.9)
-label(ax, (RENTAL_NEW[0] + 66 + RENTAL_NEW[2] - 4) / 2, (RENTAL_NEW[1] + RENTAL_NEW[3]) / 2, 'rental garage\n(3 levels) + chargers', c=MOVE, fs=4.4)
-label(ax, (RENTAL_NEW[0] + RENTAL_NEW[2]) / 2, RENTAL_NEW[3] + 8, 'CAR RENTAL - NEW SITE (outside the boundary)', c=MOVE, fs=5, fontweight='bold')
-ax.plot([RENTAL_NEW[0] + 20, RENTAL_NEW[0] + 20, 370], [RENTAL_NEW[3], -150, -150], color=MOVE, lw=0.8, ls=':', zorder=2)
-label(ax, 390, -140, 'covered walk to the terminal', c=MOVE, fs=4)
-# notes
-nx = fig.add_axes([0.03, 0.02, 0.94, 0.26]); nx.set_facecolor(BG); nx.axis('off')
+def draw_site(ax):
+    # the apron, taxilane, links
+    for a in AF['aprons']:
+        if a['id'] in ('APRON-T', 'APRON-9'):
+            rect(ax, a['x0'], a['y0'], a['x1'], a['y1'], ec=GONE if a['id'] == 'APRON-9' else DIM, lw=0.6, ls='--' if a['id'] == 'APRON-9' else '-', z=1)
+    rect(ax, -265, 82, 570, 238, ec=MOVE, lw=0.9, ls='-.', z=1)
+    label(ax, -240, 232, 'apron extended  x -265 .. 570', c=MOVE, fs=4.5)
+    ax.plot([-140, 372], [TAXI_Y] * 2, color=DIM, lw=4, alpha=0.6, zorder=1)
+    ax.plot([-255, -140], [TAXI_Y] * 2, color=MOVE, lw=4, alpha=0.6, zorder=1); ax.plot([372, 560], [TAXI_Y] * 2, color=MOVE, lw=4, alpha=0.6, zorder=1)
+    label(ax, 470, 224, 'taxilane T lengthened (both ends)', c=MOVE, fs=4.5)
+    for t in AF['taxiways']:
+        if t['id'] in ('P1', 'P2', 'P3'): ax.plot([p[0] for p in t['pts']], [min(p[1], 250) for p in t['pts']], color=DIM, lw=4, alpha=0.6, zorder=1)
+    # buildings today
+    rect(ax, 0, 0, 156, 52, ec=OLDC, lw=1.0); label(ax, 78, 26, 'TERMINAL (today)\nGrand Hall, security, offices', fs=5)
+    rect(ax, -80, -4, 0, 52, ec=OLDC, lw=1.0); label(ax, -40, 24, 'ARRIVALS WING\n(baggage claim, 2026-11-16)', fs=5)
+    rect(ax, -80, WALK_Z0, 242, WALK_Z1, ec=OLDC, lw=1.0); label(ax, 81, 60, 'walkway to the gates (today)', fs=4.5)
+    for r in P['rooms']:
+        if r['id'].startswith('F2-GATE') or r['id'].startswith('F2-VIEW'): rect(ax, r['x0'], r['z0'], r['x1'], r['z1'], ec=OLDC, lw=0.8)
+    for s in AF['stands']:
+        if s['id'] in ('STAND-%d' % i for i in range(1, 9)):
+            stand_marks(ax, s['x'], s['nose'], ['A320', 'A321'] if s['jetway'] else ['A320'])
+            plane(ax, s['x'], s['nose'], 'A320', col=OLDC)
+            if s['jetway']: a320_jetway(ax, s['x'], s['nose'], col=OLDC)
+            n = int(s['id'].split('-')[1]); label(ax, s['x'], s['nose'] + 47, 'G%d' % n, c=INK, fs=5)
+    # today's parts that move or go
+    rect(ax, *RENTAL_OLD, ec=GONE, lw=1.0, ls='--'); label(ax, 234, 22, 'CAR RENTAL + garage (today)\n-> moved', c=GONE, fs=4.6)
+    rect(ax, 174, -16, 282, -3.5, ec=GONE, lw=0.8, ls='--')
+    s9 = next(s for s in AF['stands'] if s['id'] == 'STAND-9')
+    rect(ax, s9['x'] - 40, s9['nose'], s9['x'] + 40, s9['nose'] + s9['len'], ec=GONE, lw=0.8, ls=':')
+    label(ax, s9['x'] + 60, 46, 'remote A380 stand 9 (today)\n-> becomes gate 13 (A380 with bridges)', c=GONE, fs=4.2)
+    ax.add_patch(Circle(TOWER_OLD, 9, fill=False, ec=GONE, lw=1.0, ls='--', zorder=5)); rect(ax, -232, 104, -180, 146, ec=GONE, lw=0.7, ls='--')
+    label(ax, -206, 99, 'control tower (today) -> moved', c=GONE, fs=4.2)
+    ax.add_patch(Circle(TOWER_NEW, 9, fill=False, ec=MOVE, lw=1.4, zorder=5)); rect(ax, TOWER_NEW[0] - 27, 104, TOWER_NEW[0] + 25, 146, ec=MOVE, lw=0.8)
+    label(ax, TOWER_NEW[0], 152, 'CONTROL TOWER (moved 140 m west)\nsame tower, lot and road', c=MOVE, fs=4.4)
+    ax.add_patch(FancyArrowPatch((-215, 120), (-334, 120), arrowstyle='-|>', mutation_scale=8, color=MOVE, lw=0.8, zorder=6))
+    # the new parts
+    new_parts(ax, 2, small=False); roof(ax)
+    for i, g in enumerate(WEST):
+        stand_marks(ax, g['sj'], 120.0, ['A320', 'A321']); plane(ax, g['sj'], 120.0, 'A320'); a320_jetway(ax, g['sj'])
+        stand_marks(ax, g['sw'], 122.0, ['A320']); plane(ax, g['sw'], 122.0, 'A320')
+        ax.plot([g['sw'] - 6, g['sw'] - 6], [GATE_Z1, 122], color=NEW, lw=0.6, ls=':', zorder=4)      # walk-out path
+        label(ax, g['sj'], 167, 'G%d' % (9 + 2 * i), c=NEW, fs=5.5, fontweight='bold'); label(ax, g['sw'], 169, 'G%d' % (10 + 2 * i), c=NEW, fs=5.5, fontweight='bold')
+    for e in E:
+        kinds = ['A380', 'B777-9', 'B777-300ER', 'A350-1000'] if e['kind'] == 'A380' else ['B777-9', 'B777-300ER', 'B787-10']
+        stand_marks(ax, e['x'], NOSE_WB, [e['kind'], 'B777'], labels=kinds)
+        plane(ax, e['x'], NOSE_WB, e['kind']); wb_jetways(ax, e)
+        label(ax, e['x'], 182, 'G%d  %s' % (e['gate'], 'A380' if e['kind'] == 'A380' else 'B777'), c=NEW, fs=5.8, fontweight='bold')
+    # landside: roads, car parks, the car rental's new site
+    ax.plot([-744, 537], [-47, -47], color=DIM, lw=6, alpha=0.5, zorder=1); label(ax, -300, -42, 'forecourt road', fs=4.5)
+    ax.plot([-560, 582], [-255, -260], color=DIM, lw=6, alpha=0.5, zorder=1); label(ax, -300, -262, 'road back to town', fs=4.5)
+    rect(ax, -93, -247, 367, -54.45, ec=DIM, lw=0.7); label(ax, 137, -150, 'main car park (today)', fs=5)
+    ax.plot([-400, 600], [-170, -170], color='#a070ff', lw=0.8, ls='--', zorder=2); label(ax, 480, -165, 'airport boundary (y -170)', c='#a070ff', fs=4.5)
+    rect(ax, *RENTAL_NEW, ec=MOVE, fc=MOVE, lw=1.4, alpha=0.08); rect(ax, *RENTAL_NEW, ec=MOVE, lw=1.4)
+    rect(ax, RENTAL_NEW[0] + 4, RENTAL_NEW[1] + 30, RENTAL_NEW[0] + 60, RENTAL_NEW[3] - 4, ec=MOVE, lw=0.9)
+    label(ax, RENTAL_NEW[0] + 32, (RENTAL_NEW[1] + 30 + RENTAL_NEW[3] - 4) / 2, 'rental\nhall', c=MOVE, fs=4.4)
+    rect(ax, RENTAL_NEW[0] + 66, RENTAL_NEW[1] + 6, RENTAL_NEW[2] - 4, RENTAL_NEW[3] - 4, ec=MOVE, lw=0.9)
+    label(ax, (RENTAL_NEW[0] + 66 + RENTAL_NEW[2] - 4) / 2, (RENTAL_NEW[1] + RENTAL_NEW[3]) / 2, 'rental garage\n(3 levels) + chargers', c=MOVE, fs=4.4)
+    label(ax, (RENTAL_NEW[0] + RENTAL_NEW[2]) / 2, RENTAL_NEW[3] + 8, 'CAR RENTAL - NEW SITE (outside the boundary)', c=MOVE, fs=5, fontweight='bold')
+    ax.plot([RENTAL_NEW[0] + 20, RENTAL_NEW[0] + 20, 370], [RENTAL_NEW[3], -150, -150], color=MOVE, lw=0.8, ls=':', zorder=2)
+    label(ax, 390, -140, 'covered walk to the terminal', c=MOVE, fs=4)
+
+def site_sheet(name, title, xl, yl, fsm, size, stops=True):
+    FSM[0] = fsm; STOPS[0] = stops
+    fig = plt.figure(figsize=size, facecolor=BG); ax = fig.add_axes([0.04, 0.05, 0.93, 0.88])
+    frame(ax, title, xl, yl); draw_site(ax)
+    fig.savefig(os.path.join(OUT, name), dpi=150, facecolor=BG); plt.close(fig)
+site_sheet('16-Gates-1-Site-Plan.png', 'SITE PLAN, TOP DOWN - 16 gates (8 today + 4 west + 4 east wide-body), north (apron) up',
+           (-400, 600), (-275, 250), 1.9, (24, 13.5), stops=False)
+site_sheet('16-Gates-1a-West-End.png', 'CLOSE-UP: NEW WEST END - gates 9-12, tax free, tower moved', (-385, -30), (-20, 240), 3.0, (24, 18))
+site_sheet('16-Gates-1b-East-End.png', 'CLOSE-UP: NEW EAST END - gate 13 A380, gates 14-16 B777', (228, 592), (-20, 240), 3.0, (24, 17.5))
+site_sheet('16-Gates-1c-Car-Rental.png', 'CLOSE-UP: CAR RENTAL - new site outside the airport boundary', (120, 600), (-280, 60), 2.8, (24, 17.5))
+FSM[0] = 1.0
+fig = plt.figure(figsize=(24, 13.5), facecolor=BG)
+nx = fig.add_axes([0.03, 0.02, 0.94, 0.94]); nx.set_facecolor(BG); nx.axis('off')
 NOTES = [
  'WHAT CHANGES (each change, why)',
  '1  Walkway lengthened 161 m WEST to x -241 (2 gate pairs exactly like today\'s: gates 9 + 11 with jetways, 10 + 12 walk-out, A320 family; same 80.55 m module, stands on the same 81.7 m pitch).',
@@ -267,21 +281,21 @@ NOTES = [
  '10 Apron extended (x -265 .. 570) and taxilane T lengthened to match.  11  Gate numbers: today\'s 1-8 unchanged; new 9-12 west, 13-16 east.   12  The baggage claim (5 belts) stays as built.',
 ]
 for i, t in enumerate(NOTES):
-    nx.text(0.0, 1 - i * 0.08, t, color=INK if i else NEW, fontsize=8.6 if i else 10, fontweight='bold' if i == 0 else None, va='top', transform=nx.transAxes)
-fig.savefig(os.path.join(OUT, '16-Gates-1-Site-Plan.png'), dpi=150, facecolor=BG); plt.close(fig)
+    nx.text(0.0, 1 - i * 0.077, t, color=INK if i else NEW, fontsize=15.5 if i else 22, fontweight='bold' if i == 0 else None, va='top', transform=nx.transAxes)
+fig.savefig(os.path.join(OUT, '16-Gates-0-What-Changes.png'), dpi=150, facecolor=BG); plt.close(fig)
 
 # ================= 2: floor plans =================
-fig = plt.figure(figsize=(23.4, 7.6), facecolor=BG)
-for f, rc in ((2, [0.03, 0.53, 0.94, 0.40]), (1, [0.03, 0.05, 0.94, 0.40])):
-    ax = fig.add_axes(rc)
-    frame(ax, 'FLOOR %d  -  top down (cyan = new)' % f, (-250, 560), (-14, 90))
+FSM[0] = 2.9
+for f, half, xl in ((2, 'West', (-250, 165)), (2, 'East', (145, 560)), (1, 'West', (-250, 165)), (1, 'East', (145, 560))):
+    fig = plt.figure(figsize=(24, 7.8), facecolor=BG); ax = fig.add_axes([0.04, 0.08, 0.93, 0.80])
+    frame(ax, 'FLOOR %d, %s HALF - top down (cyan = new, grey = today)' % (f, half.upper()), xl, (-14, 90))
     rooms_today(ax, f); new_parts(ax, f)
     for s in P['stairs']:
         fl = 1 if s['from'].startswith('F1') else 2
         if fl == f: rect(ax, s['x0'], s['z0'], s['x1'], s['z1'], ec=DIM, fc='#2a3440', lw=0.4)
     rect(ax, *RENTAL_OLD, ec=GONE, lw=0.8, ls='--'); label(ax, 234, 46, 'car rental moved out', c=GONE, fs=4)
-    label(ax, -245, -11, 'KERB / FORECOURT (landside)', fs=5, ha='left'); label(ax, -245, 87, 'APRON (airside)', fs=5, ha='left')
-fig.savefig(os.path.join(OUT, '16-Gates-2-Floor-Plans.png'), dpi=150, facecolor=BG); plt.close(fig)
+    label(ax, xl[0] + 3, -10, 'KERB / FORECOURT (landside)', fs=4, ha='left'); label(ax, xl[0] + 3, 87, 'APRON (airside)', fs=4, ha='left')
+    fig.savefig(os.path.join(OUT, '16-Gates-2-Floor-%d-%s.png' % (f, half)), dpi=150, facecolor=BG); plt.close(fig)
 
 # ================= 3: elevation from the apron + section through gate 13 =================
 def wave(x0, x1, base=12.0, amp=4.2, per=80.0):
@@ -292,7 +306,8 @@ def side(ax, cx, kind, col, ground=0.0):
     rect(ax, cx - fw / 2, H[1], cx + fw / 2, H[1] + H[0], ec=col, lw=0.8, z=6)           # fuselage seen nose-on
     ax.add_patch(Polygon([(cx - 0.4, H[1] + H[0]), (cx, H[2]), (cx + 0.4, H[1] + H[0])], closed=True, fill=False, ec=col, lw=0.8, zorder=6))
     ax.plot([cx - S / 2, cx + S / 2], [H[1] + 0.8] * 2, color=col, lw=0.8, zorder=6)
-fig = plt.figure(figsize=(23.4, 13), facecolor=BG)
+FSM[0] = 2.2
+fig = plt.figure(figsize=(24, 14), facecolor=BG)
 ax = fig.add_axes([0.03, 0.55, 0.94, 0.38]); frame(ax, 'ELEVATION FROM THE APRON (looking south)  -  heights x 3', (-260, 570), (-2, 35))
 ax.set_aspect(3)
 rect(ax, -80, 0, 242, 11.4, ec=OLDC, lw=1); xs, ys = wave(-80, 242); ax.plot(xs, ys, color=OLDC, lw=1)
@@ -305,9 +320,9 @@ for g in WEST: side(ax, g['sj'], 'A320', NEW); side(ax, g['sw'], 'A320', NEW)
 for e in E: side(ax, e['x'], e['kind'], NEW); label(ax, e['x'], -1, 'G%d %s' % (e['gate'], e['kind']), c=NEW, fs=5)
 label(ax, -160, 33, 'new west end + wave roof', c=ROOFC, fs=6); label(ax, 400, 33, 'new east end + wave roof', c=ROOFC, fs=6)
 label(ax, 80, 33, 'today', fs=6)
-ax.text(-258, 6.2, 'Floor 2 +6.0', color=DIM, fontsize=5); ax.text(-258, 11.6, 'roof +11.4 / wave above', color=DIM, fontsize=5)
+ax.text(-258, 6.2, 'Floor 2 +6.0', color=DIM, fontsize=5 * FSM[0]); ax.text(-258, 11.6, 'roof +11.4 / wave above', color=DIM, fontsize=5 * FSM[0])
 # section through gate 13 (A380), looking east: landside left, apron right
-ax = fig.add_axes([0.03, 0.06, 0.94, 0.42]); frame(ax, 'SECTION THROUGH GATE 13 (A380), looking east  -  the bridges and door heights', (-15, 175), (-2, 30))
+ax = fig.add_axes([0.03, 0.06, 0.94, 0.42]); frame(ax, 'SECTION THROUGH GATE 13 (A380), looking east - bridges and door heights', (-15, 175), (-9, 30))
 rect(ax, 0, 0, 52, 11.4, ec=NEW, lw=1.2, ls='--'); label(ax, 26, 3, 'east wing (empty for now)', c=NEW, fs=6)
 rect(ax, 52, 0, 68, 5.4, ec=NEW, lw=1.2); label(ax, 60, 2.6, 'baggage hall', c=NEW, fs=5.5)
 rect(ax, 52, 6, 68, 11.4, ec=NEW, lw=1.2); label(ax, 60, 8.6, 'walkway', c=NEW, fs=5.5)
@@ -322,10 +337,10 @@ ax.add_patch(Polygon([(n + 58, 10.1), (n + 66, 24.1), (n + 71, 24.1), (n + L - 1
 ax.plot([n, n + L], [0, 0], color=DIM, lw=0.6)
 for dy, sill, lab in ((10.3, 5.2, 'M1L main deck +5.2'), (22.5, 5.2, 'M2L +5.2'), (14.5, 8.0, 'U1L upper deck +8.0')):
     ax.plot([82, n + dy], [6.0, sill], color=NEW, lw=2.4, solid_capstyle='butt', zorder=7)
-    ax.text(n + dy + 1, sill + 0.4, lab, color=NEW, fontsize=5, zorder=9)
-ax.text(82.5, 12.2, 'bridges leave the gate room (+6.0) and slope gently: down 0.8 m to the main deck, up 2.0 m to the upper deck', color=INK, fontsize=6)
+    ax.text(n + dy + 1, sill + 0.4, lab, color=NEW, fontsize=5 * FSM[0], zorder=9)
+ax.text(84, 27.5, 'Bridges leave the gate room (+6.0) and slope gently:\ndown 0.8 m to the main deck, up 2.0 m to the upper deck', color=INK, fontsize=6 * FSM[0], va='top')
 ax.plot([TAXI_Y - 0, TAXI_Y], [0, 0], color=DIM)
-ax.text(n + L + 1, 1, 'tail end y %.0f  (taxilane T at y 218: an A380 passing stays clear)' % (n + L), color=OLDC, fontsize=5.5)
+ax.text(n + 30, -1.2, 'tail end y %.0f - taxilane T at y 218:\nan A380 passing behind stays clear' % (n + L), color=OLDC, fontsize=5.5 * FSM[0], va='top')
 ax.set_aspect(2.2)
 fig.savefig(os.path.join(OUT, '16-Gates-3-Elevation-Section.png'), dpi=150, facecolor=BG); plt.close(fig)
 
@@ -348,7 +363,7 @@ def plane3(ax3, cx, ny, kind, col):
     ax3.plot([p[0] for p in full] + [full[0][0]], [p[1] for p in full] + [full[0][1]], [z] * (len(full) + 1), color=col, lw=0.6)
 fig = plt.figure(figsize=(23.4, 13), facecolor=BG)
 ax3 = fig.add_axes([-0.04, -0.10, 1.08, 1.16], projection='3d', facecolor=BG)
-fig.text(0.02, 0.96, '3D VIEW FROM THE NORTH-EAST, ABOVE THE APRON  (grey = today, cyan = new, green = moved)  -  heights x 2', color=INK, fontsize=12)
+fig.text(0.02, 0.96, '3D VIEW FROM THE NORTH-EAST, ABOVE THE APRON  (grey = today, cyan = new, green = moved)  -  heights x 2', color=INK, fontsize=22)
 box(ax3, 0, 0, 156, 52, 0, 11.4, '#8d99a6'); box(ax3, -80, -4, 0, 52, 0, 11.4, '#8d99a6')
 box(ax3, -80, WALK_Z0, 242, GATE_Z1, 0, 11.4, '#8d99a6')
 box(ax3, W_END, WALK_Z0, -80, GATE_Z1, 0, 11.4, NEW, 0.28); box(ax3, 242, WALK_Z0, E_END, GATE_Z1, 0, 11.4, NEW, 0.28)
