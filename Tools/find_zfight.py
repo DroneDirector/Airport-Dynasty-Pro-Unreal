@@ -74,6 +74,9 @@ def main(glb, out_json):
     hits = {}
     dirs = {}
     areas = {n: float(np.linalg.norm(np.cross(t[:, 1] - t[:, 0], t[:, 2] - t[:, 0]), axis=1).sum()) / 2 for n, t in P}
+    # (only parts whose boxes overlap are compared: one array test per part instead of a loop over every other part -
+    #  the jetways with the new gates' copies have ~6000 parts)
+    BLO = np.array([b[0] for b in boxes]); BHI = np.array([b[1] for b in boxes])
     for i, (na, ta) in enumerate(P):
         # samples on part A, area-weighted, with A's face normals
         ea, eb = ta[:, 1] - ta[:, 0], ta[:, 2] - ta[:, 0]
@@ -84,7 +87,9 @@ def main(glb, out_json):
         u, v = rng.random(k), rng.random(k); m = u + v > 1; u[m], v[m] = 1 - u[m], 1 - v[m]
         pts = ta[f, 0] + ea[f] * u[:, None] + eb[f] * v[:, None]
         nA = cr[f] / (area[f][:, None] + 1e-12)
-        for j, (nb, tb) in enumerate(P):
+        cand = np.nonzero(np.all(BLO <= boxes[i][1], axis=1) & np.all(BHI >= boxes[i][0], axis=1))[0]
+        for j in cand:
+            nb, tb = P[j]
             if j == i or nb == na: continue
             lo, hi = boxes[j]
             inb = np.all((pts >= lo) & (pts <= hi), axis=1)

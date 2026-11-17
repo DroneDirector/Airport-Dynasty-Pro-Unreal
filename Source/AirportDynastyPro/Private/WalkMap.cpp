@@ -25,6 +25,9 @@ void FWalkMap::Build(const FTerminalPlan& Plan)
 	// (12 m deeper since the stands moved out, owner 2026-11-13)
 	Outside(TEXT("APRON"), -80, 83, 242, 112, 0);
 	for (int32 n = 1; n <= 4; ++n) Outside(FString::Printf(TEXT("J-%d"), n), -80, 83, 242, 112, Plan.F2Y);
+	// (the new gates' jetways, 2026-11-17: J-9, J-11 west; J-13A .. J-16B east)
+	for (const TCHAR* Jn : {TEXT("J-9"), TEXT("J-11")}) Outside(Jn, -241, 83, -80, 112, Plan.F2Y);
+	for (const TCHAR* Jn : {TEXT("J-13A"), TEXT("J-13B"), TEXT("J-13C"), TEXT("J-14A"), TEXT("J-14B"), TEXT("J-15A"), TEXT("J-15B"), TEXT("J-16A"), TEXT("J-16B")}) Outside(Jn, 242, 83, 551, 125, Plan.F2Y);
 
 	for (const FPlanDoor& D : Plan.Doors)
 	{

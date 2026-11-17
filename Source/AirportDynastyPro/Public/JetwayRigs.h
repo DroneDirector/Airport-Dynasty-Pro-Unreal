@@ -90,7 +90,9 @@ private:
 		FVector DirD, AxisD; float LenD = 0.f, PitchD = 0.f, Turn0 = 0.f;
 		EState St = EState::Docked; float T = 0.f, S = 1.f, Turn = 0.f;
 		float D = 0.f, V = 0.f, PathL = 0.f; TArray<float> Arc;
-		FVector WdBase = FVector::ZeroVector; FString DockedType = TEXT("A320");   // (the export's docked point: the A320's door; per type it moves from there)   // (metres driven along the path, speed m/s, the path's length, S by distance)
+		FVector WdBase = FVector::ZeroVector; FString DockedType = TEXT("A320");
+		FVector WdExp = FVector::ZeroVector;   // (the export's own docked point: the parts' docked places are around it)
+		FString BaseType = TEXT("A320"), Door = TEXT("L1");   // (the type and door its home point is for: J-x/CAB-TARGET@<type>.<door>)   // (the export's docked point: the A320's door; per type it moves from there)   // (metres driven along the path, speed m/s, the path's length, S by distance)
 	};
 	TArray<FRig> Rigs;
 	bool bBuilt = false; float Look = 0.f, BcnClock = 0.f;
