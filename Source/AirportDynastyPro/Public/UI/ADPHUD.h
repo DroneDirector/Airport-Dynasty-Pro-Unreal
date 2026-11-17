@@ -150,6 +150,9 @@ public:
 	 *  floor's height, z), looking at another; never inside a wall or the floor. */
 	void GoTo(const FVector& PlanAt, const FVector& PlanLook);
 	void GoGate4();
+	void GoTaxFree();
+	void GoGate13();
+	void GoClaim();
 	/** Drone mode (DroneCam.h): from the full-screen map's button; Esc / B back to where you stood. */
 	void EnterDrone();
 	void LeaveDrone();

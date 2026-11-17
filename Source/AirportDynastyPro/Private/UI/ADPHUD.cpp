@@ -429,7 +429,11 @@ void AADPHUD::BeginPlay()
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)[Button(TEXT("DRONE MODE"), [this]() { EnterDrone(); })]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)[Button(TEXT("GATE 4 (UPPER FLOOR)"), [this]() { GoGate4(); })]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)[Button(TEXT("APRON: THE TERMINAL AND JETWAY"), [this]() { GoApron(); })]
-					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)[Button(TEXT("MAIN ENTRANCE"), [this]() { GoEntrance(); })]
+					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)[Button(TEXT("MAIN ENTRANCE"), [this]() { GoEntrance(); })]
+					// the 16 gates (2026-11-17): the tax free, the A380 gate, the baggage claim
+					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)[Button(TEXT("TAX FREE"), [this]() { GoTaxFree(); })]
+					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)[Button(TEXT("GATE 13 (A380)"), [this]() { GoGate13(); })]
+					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)[Button(TEXT("BAGGAGE CLAIM"), [this]() { GoClaim(); })]
 					// the control tower's three
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)[Button(TEXT("TOWER: THE CAB"), [this]() { GoTowerCab(); })]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)[Button(TEXT("TOWER: THE BALCONY"), [this]() { GoTowerBalcony(); })]
@@ -1859,6 +1863,10 @@ void AADPHUD::GoTo(const FVector& PlanAt, const FVector& PlanLook)
 }
 
 // gate 4 upstairs: behind all the rows of seats (at the walkway side of the gate room), looking out through its big windows
+// the tax free's way in, looking down its promenade; gate 13's room looking out at the A380 stand; the claim hall
+void AADPHUD::GoTaxFree() { GoTo(FVector(-95.f, Plan.F2Y, 49.f), FVector(-150.f, Plan.F2Y + 1.6f, 40.f)); }
+void AADPHUD::GoGate13() { GoTo(FVector(267.4f, Plan.F2Y, 70.f), FVector(289.4f, Plan.F2Y + 1.6f, 100.f)); }
+void AADPHUD::GoClaim() { GoTo(FVector(-40.f, 0.f, 20.f), FVector(-40.f, 1.6f, 40.f)); }
 void AADPHUD::GoGate4() { GoTo(FVector(186.f, Plan.F2Y, 69.6f), FVector(186.f, Plan.F2Y + 1.6f, 90.f)); }
 // out on the apron, looking at the terminal: gate 4, its jetway and a good part of the building in one view
 void AADPHUD::GoApron() { GoTo(FVector(236.f, 0.f, 168.f), FVector(184.f, 5.f, 84.f)); }
