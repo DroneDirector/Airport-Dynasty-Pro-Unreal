@@ -61,6 +61,7 @@ namespace ADPParked
 			}
 			return M;
 		}
+		return nullptr;
 	}
 
 	int32 Place(UWorld* W, const FAirfieldData& Field)
@@ -135,21 +136,22 @@ namespace ADPParked
 			if (ParkOne(W, St)) ++Used;
 		}
 		// the paths: each taxiway's centre line, the runway (08: west to east), and the approach to it (10 km out, 3 degrees)
-		TArray<TPair<TArray<FVector>, float>> Paths;
+		struct FPath { TArray<FVector> P; float Speed = 10.f; };
+		TArray<FPath> Paths;
 		for (const FAirfieldData::FTwy& T : Field.Taxiways)
 		{
 			if (T.Pts.Num() < 2) continue;
 			TArray<FVector> P; for (const FVector2f& Q : T.Pts) P.Add(OnGround(Q.X, Q.Y, 0.02f));
-			Paths.Add({P, 10.f});
+			FPath& Tw = Paths.AddDefaulted_GetRef(); Tw.P = MoveTemp(P); Tw.Speed = 10.f;
 		}
-		Paths.Add({{OnGround(Field.RwyX0, Field.RwyY), OnGround(Field.RwyX1, Field.RwyY)}, 60.f});
+		{ FPath& Rw = Paths.AddDefaulted_GetRef(); Rw.P.Add(OnGround(Field.RwyX0, Field.RwyY)); Rw.P.Add(OnGround(Field.RwyX1, Field.RwyY)); Rw.Speed = 60.f; }
 		const float Far = 10000.f;
-		Paths.Add({{OnGround(Field.RwyX0 - Far, Field.RwyY, Far * FMath::Tan(FMath::DegreesToRadians(3.f))), OnGround(Field.RwyX0 + 300.f, Field.RwyY)}, 70.f});
+		{ FPath& Ap = Paths.AddDefaulted_GetRef(); Ap.P.Add(OnGround(Field.RwyX0 - Far, Field.RwyY, Far * FMath::Tan(FMath::DegreesToRadians(3.f)))); Ap.P.Add(OnGround(Field.RwyX0 + 300.f, Field.RwyY)); Ap.Speed = 70.f; }
 		int32 Moving = 0;
 		for (int32 k = 0; Used < N && Paths.Num(); ++k, ++Used)
 		{
-			const TPair<TArray<FVector>, float>& P = Paths[k % Paths.Num()];
-			FMover Mv; Mv.Path = P.Key; Mv.Speed = P.Value;
+			const FPath& Pt = Paths[k % Paths.Num()];
+			FMover Mv; Mv.Path = Pt.P; Mv.Speed = Pt.Speed;
 			for (int32 i = 1; i < Mv.Path.Num(); ++i) Mv.Len += float(FVector::Dist(Mv.Path[i - 1], Mv.Path[i])) / 100.f;
 			if (Mv.Len < 1.f) continue;
 			// spread along the path when several share it

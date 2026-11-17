@@ -6,7 +6,7 @@
 #include "Styling/CoreStyle.h"
 #include "Misc/Paths.h"
 
-namespace
+namespace ADPNeonLoad
 {
 	// the title screen's colours (styles.css: --neo1 pink #FF3FB8, --neo2 cyan #35F0FF, the violet #7C5CFF, paper #EDE8FF)
 	const FLinearColor Pink = FLinearColor::FromSRGBColor(FColor(0xFF, 0x3F, 0xB8));
@@ -55,6 +55,7 @@ void SNeonLoading::Construct(const FArguments& Args)
 
 int32 SNeonLoading::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const FSlateRect& Cull, FSlateWindowElementList& Out, int32 Layer, const FWidgetStyle& Style, bool bParentEnabled) const
 {
+	using namespace ADPNeonLoad;   // (inside: a unity build puts other files next to this one)
 	const FSlateBrush* White = FCoreStyle::Get().GetBrush("GenericWhiteBox");
 	const FVector2D S = Geo.GetLocalSize();
 	const double Now = FPlatformTime::Seconds();
