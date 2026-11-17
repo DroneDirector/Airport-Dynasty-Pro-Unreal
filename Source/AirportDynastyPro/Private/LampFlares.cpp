@@ -1,5 +1,6 @@
 #include "LampFlares.h"
 #include "ADPLog.h"
+#include "PerfLog.h"
 #include "Effects.h"
 #include "ADPKeep.h"
 #include "Components/LocalLightComponent.h"
@@ -44,6 +45,7 @@ void ALampFlares::Add(ULocalLightComponent* Light, const FLinearColor& Color, fl
 
 void ALampFlares::Tick(float Dt)
 {
+	ADP_PERF_SCOPE("the lamp flares (every 0.1 s)", 2.f);
 	Super::Tick(Dt);
 	if ((Check -= Dt) <= 0.f) { Check = 1.f; bOn = ADPEffects::On(ADPEffects::LampFlares); }   // (Settings > Effects; off unless switched on - it was on whenever the setting was missing: the night lag of 2026-11-17, 36 -> 88 fps)   // (off unless switched on in Settings - it was on whenever the setting was missing: the night lag of 2026-11-17, 36 -> 88 fps)
 	static TWeakObjectPtr<ADirectionalLight> Sun;

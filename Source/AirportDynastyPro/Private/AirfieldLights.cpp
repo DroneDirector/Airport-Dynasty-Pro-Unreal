@@ -3,6 +3,7 @@
 #include "TerminalPlan.h"
 #include "SunClock.h"
 #include "ADPLog.h"
+#include "PerfLog.h"
 #include "ADPKeep.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -117,6 +118,7 @@ void AAirfieldLights::Place(const FAirfieldData& F)
 
 void AAirfieldLights::Tick(float Dt)
 {
+	ADP_PERF_SCOPE("the taxiway lights (every 0.5 s)", 1.f);
 	Super::Tick(Dt);
 	// on at dusk like the masts (and all day in fog or storms); by day they burn too, far weaker than the sun
 	static TWeakObjectPtr<ADirectionalLight> Sun;

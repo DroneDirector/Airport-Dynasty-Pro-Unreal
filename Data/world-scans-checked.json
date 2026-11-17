@@ -1,4 +1,11 @@
 {
+ "AAirfieldLights::Tick": {
+  "file": "Source/AirportDynastyPro/Private/AirfieldLights.cpp",
+  "scans": [
+   "GetActorOfClass"
+  ],
+  "guarded": true
+ },
  "AFireStationDoors::Tick": {
   "file": "Source/AirportDynastyPro/Private/FireTruck.cpp",
   "scans": [
@@ -8,6 +15,13 @@
  },
  "AHangar::Tick": {
   "file": "Source/AirportDynastyPro/Private/Hangar.cpp",
+  "scans": [
+   "GetActorOfClass"
+  ],
+  "guarded": true
+ },
+ "ALampFlares::Tick": {
+  "file": "Source/AirportDynastyPro/Private/LampFlares.cpp",
   "scans": [
    "GetActorOfClass"
   ],
@@ -41,7 +55,7 @@
   "scans": [
    "TActorIterator<AEscalatorPair>"
   ],
-  "guarded": false
+  "guarded": true
  },
  "ASunClock::Tick": {
   "file": "Source/AirportDynastyPro/Private/SunClock.cpp",
@@ -61,6 +75,7 @@
   "file": "Source/AirportDynastyPro/Private/UI/ADPHUD.cpp",
   "scans": [
    "TActorIterator<AActor>",
+   "TActorIterator<AAdverts>",
    "TActorIterator<ABabylonModel>",
    "TActorIterator<ADirectionalLight>",
    "TActorIterator<AEscalatorPair>",
