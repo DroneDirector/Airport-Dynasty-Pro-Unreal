@@ -52,50 +52,18 @@ def letter_masks():
     assert len(pix) == 5, pix
     subs = [(lab == i).astype(np.float32) for i in pix]           # PIXEL: each letter's own blob, nothing else in its box
     cuts = [218, 562, 875, 1212, 1586, 1938]                        # NORMA: gaps between N | O | R | M | A
-    # NORMA's letters by their blue: N and A stand alone, so they get their own blob (their outline, never a straight
-    # cut); O, R, M touch through the glare and are split at their gaps
-    B_, R_ = c[..., 0], c[..., 2]
-    blue = ((Lc > 0.4) & (B_ - R_ > 0.25)).astype(np.uint8); blue[:462] = 0; blue[748:] = 0
-    n2, lab2, st2, _ = cv2.connectedComponentsWithStats(blue, 8)
-    near = cv2.dilate(blue, np.ones((9, 9), np.uint8)).astype(bool)   # the letters' light rim, not the sign's edge
-    # each letter's area = the hull of its blue body, so the white light flare lying on R, M and A goes dark with them
-    orange = cv2.dilate(((c[..., 2] - c[..., 0] > 0.08) & (Lc > 0.25)).astype(np.uint8), np.ones((3, 3), np.uint8)).astype(bool)
-    def hull(mask):
-        pts = cv2.findNonZero(mask.astype(np.uint8))
-        h = np.zeros(mask.shape, np.uint8); cv2.fillConvexPoly(h, cv2.convexHull(pts), 1); return h
-    # the letters' own top and bottom line (from the stand-alone N and A), so the flare between the rows stays lit
-    na = [j for j in range(1, n2) if st2[j, 4] > 20000 and (st2[j, 0] < 400 or st2[j, 0] > 1500)]
-    top = min(st2[j, 1] for j in na) - 16; bot = max(st2[j, 1] + st2[j, 3] for j in na) + 3
-    for i in range(5):
-        if i in (0, 4):
-            cx = (cuts[i] + cuts[i + 1]) // 2
-            cand = [j for j in range(1, n2) if st2[j, 4] > 20000 and st2[j, 0] <= cx <= st2[j, 0] + st2[j, 2]]
-            assert len(cand) == 1, (i, cand)
-            body = (lab2 == cand[0])
-        else:
-            body = np.zeros(Lc.shape, bool); body[462:748, cuts[i]:cuts[i + 1]] = blue[462:748, cuts[i]:cuts[i + 1]] > 0
-            body &= ~cv2.erode(np.zeros_like(blue), None).astype(bool)
-            nb, lb, sb, _ = cv2.connectedComponentsWithStats(body.astype(np.uint8), 8)   # drop specks, keep the letter
-            body = np.isin(lb, [j for j in range(1, nb) if sb[j, 4] > 3000])
-        # the letter's own shape with the flare patches on it filled in (closing), its holes kept; the A also reaches
-        # its white top highlight
-        shape = cv2.morphologyEx(body.astype(np.uint8), cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (41, 41)))
-        grow = 23 if i == 4 else 11
-        area = cv2.dilate(shape, np.ones((grow, grow), np.uint8)).astype(bool)
-        if i in (1, 2, 3): area[:, :cuts[i]] = False; area[:, cuts[i + 1]:] = False
-        ys_ = np.nonzero(body.any(1))[0]
-        T0 = ys_.min() - 16 if i == 4 else top + 16 - 2       # the letters' true top line (the flare hides R's)
-        area[:T0] = False; area[ys_.max() + 4:] = False
-        # white flare spots lying on the letter (anywhere inside its outline hull) go dark with it too
-        hl = cv2.dilate(hull(body), np.ones((21, 21), np.uint8)).astype(bool)
-        if i in (1, 2, 3): hl[:, :cuts[i]] = False; hl[:, cuts[i + 1]:] = False
-        hl[:T0] = False; hl[ys_.max() + 4:] = False
-        area |= hl & (Lc > 0.5)
-        # never the sign's orange / yellow outline: that is the panel, it stays lit
-        subs.append((bright.astype(bool) & area & ~orange).astype(np.float32))
+    # NORMA: each letter's outline and holes traced by hand (norma_outlines.py) - exactly the letter, nothing around it
+    sys.path.insert(0, HERE); from norma_outlines import NORMA
+    for outer, holes in NORMA:
+        q = np.zeros(Lc.shape, np.uint8)
+        cv2.fillPoly(q, [np.array(outer, np.int32)], 255, cv2.LINE_AA)
+        for h in holes: cv2.fillPoly(q, [np.array(h, np.int32)], 0, cv2.LINE_AA)
+        subs.append(q.astype(np.float32) / 255.0)
+    nodil = set()                                                   # grown a hair like PIXEL: covers the light rim edge
     ms = []
-    for sub in subs:
-        sub = cv2.dilate(sub, np.ones((7, 7), np.uint8))           # the letter's own edge and inner glow
+    for k_, sub in enumerate(subs):
+        g_ = 11 if k_ >= 5 else 7                                    # NORMA a bit more: its rim glows wider
+        sub = cv2.dilate(sub, np.ones((g_, g_), np.uint8))           # the letter's own edge and inner glow
         m = np.zeros(up.shape[:2], np.float32); m[y0:y1, x0:x1] = sub
         m = m[SY0 * 4:SY1 * 4, SX0 * 4:SX1 * 4]
         m = cv2.resize(m, (LW, LH), interpolation=cv2.INTER_AREA)
