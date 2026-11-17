@@ -119,11 +119,20 @@ def map_section(S, k, centre=False, squash_inside=False):
     x, y = S[:, 0], S[:, 1]
     # up: the floor's step, the walls and glass stretched to the new ceiling, the roof above it slimmer
     yf = y - FY_OLD[k]
-    yn = np.where(yf <= 1.2, yf,
-         np.where(yf <= H_OLD[k], 1.2 + (yf - 1.2) * (H_NEW[k] - 1.2) / (H_OLD[k] - 1.2),
-                  H_NEW[k] + (yf - H_OLD[k]) * ROOF_K))
+    # (owner, 2026-11-17, photo ref-section-steps-up-and-down: each bigger section reaches as far down under the smaller
+    #  one as it reaches up over it - the floor structure deeper underneath by the same step; the walking floor stays)
+    deep = (0.22 + k * STEP_Y) / 0.22
+    yn = np.where(yf < 0, yf * deep, yn_up(yf, k))
     S[:, 1] = yn + FY_NEW[k]
     if centre: return S
+    return map_across(S, x, k, squash_inside)
+
+def yn_up(yf, k):
+    return (np.where(yf <= 1.2, yf,
+         np.where(yf <= H_OLD[k], 1.2 + (yf - 1.2) * (H_NEW[k] - 1.2) / (H_OLD[k] - 1.2),
+                  H_NEW[k] + (yf - H_OLD[k]) * ROOF_K)))
+
+def map_across(S, x, k, squash_inside):
     a = np.abs(x); s = np.sign(x)
     dx = HW_NEW[k] - HW_OLD[k]
     an = np.where(a <= 0.9, a, a + dx)
@@ -253,7 +262,15 @@ for J in jets:
             elif t and abs(abs(t[0]) - 1.55) < 0.02 and abs(abs(t[2]) - 0.66) < 0.02:   # the wheels
                 N[d]['translation'] = [t[0] + math.copysign(DRIVE_DX, t[0]), t[1], t[2]]; moved = True
             if moved: continue
-            if 'mesh' in N[d] and any(s in nm for s in ('DRIVE-YOKE', 'LIFT-BEAM', 'BOGIE:')):
+            if 'mesh' in N[d] and ('LIFT-BEAM' in nm or 'PCA-PIPES' in nm):
+                M = rel(ri, d); Mi = np.linalg.inv(M)
+                def fl(P, M=M, Mi=Mi, beam='LIFT-BEAM' in nm):
+                    S = apply(P, M); S[:, 1] -= 2 * STEP_Y
+                    if beam:
+                        a = np.abs(S[:, 0]); S[:, 0] = np.where(a > 0.6, np.sign(S[:, 0]) * (a + DRIVE_DX), S[:, 0])
+                    return apply(S, Mi)
+                set_positions(N[d]['mesh'], fl); continue
+            if 'mesh' in N[d] and any(s in nm for s in ('DRIVE-YOKE', 'BOGIE:')):
                 M = rel(ri, d); Mi = np.linalg.inv(M)
                 def fd(P, M=M, Mi=Mi):
                     S = apply(P, M); a = np.abs(S[:, 0]); S[:, 0] = np.where(a > 0.6, np.sign(S[:, 0]) * (a + DRIVE_DX), S[:, 0])
@@ -285,9 +302,10 @@ for J in jets:
                       [(-Xi + 0.02, Xi - 0.02, fbg, fbg + 0.006, zf + 0.30, zf + 0.36)])
         # the bigger section's back lip: from its outside in to just clear of the smaller section's outside
         xs = HW_NEW[s] + ENV + 0.01; xb = HW_NEW[bg] + ENV
-        yb0 = FY_NEW[bg] - 0.22; yb1 = H_NEW[bg] + FY_NEW[bg] + 0.17; ys1 = H_NEW[s] + FY_NEW[s] + 0.17 + 0.01
+        yb0 = FY_NEW[bg] - 0.22 - bg * STEP_Y; ys0 = FY_NEW[s] - 0.22 - s * STEP_Y - 0.01; yb1 = H_NEW[bg] + FY_NEW[bg] + 0.17; ys1 = H_NEW[s] + FY_NEW[s] + 0.17 + 0.01
         add_mesh_node(sec[bg], f'{J}/TUNNEL-{bg + 1}:jwAluB#joint-lip', 'jwAluB',
-                      [(xs, xb, yb0, yb1, -0.03, 0.0), (-xb, -xs, yb0, yb1, -0.03, 0.0), (-xb, xb, ys1, yb1, -0.03, 0.0)])
+                      [(xs, xb, yb0, yb1, -0.03, 0.0), (-xb, -xs, yb0, yb1, -0.03, 0.0), (-xb, xb, ys1, yb1, -0.03, 0.0),
+                       (-xb, xb, yb0, ys0, -0.03, 0.0)])
         stats['joints'] += 1
 
 # ------------------------------------------------------------------------------------------------ write
