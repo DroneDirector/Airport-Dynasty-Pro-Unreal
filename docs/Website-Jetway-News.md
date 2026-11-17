@@ -20,5 +20,9 @@ dimensions, structure and the way their lights behave.
 - **Detail you can walk up to.** The pleated rubber seal at the cab, the joint seals, the steel frames and cable trays
   under the floor, the air-conditioning unit hung under the tunnel with its two yellow hoses, and the stepped sills under
   the windows are all modelled.
-- **Real movement.** The jetway drives at real speeds, extends, lifts and turns its cab to the aircraft's front door,
-  with warning beacons, sounds and the hoses moving along with it.
+- **Real movement.** Docking and undocking run at the speeds of real jetways: a steady drive out, then a slow creep
+  over the last metre and a half to the door, the cab turning square to the fuselage and the canopy closing round it,
+  and the same care on the way back. It extends, lifts and turns with warning beacons, sounds and the hoses moving
+  along with it.
+- **You are the operator.** Step into the cab and use the jetway's own control console inside to dock it to the
+  aircraft or pull it back.
