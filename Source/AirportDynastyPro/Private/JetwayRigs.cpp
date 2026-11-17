@@ -192,13 +192,13 @@ void AJetwayRigs::Build()
 		TMap<int32, int32> SwayOf;
 		for (const TCHAR* Hn : {TEXT("/HOSE-A"), TEXT("/HOSE-B")})
 		{
-			const int32 Hi = M->NodeIndex(Id + Hn); const int32 He = M->NodeIndex(Id + Hn + TEXT("/END"));
-			if (Hi == INDEX_NONE || He == INDEX_NONE) continue;
-			FRig::FSway S; S.H = M->NodeModel(Hi).GetLocation(); S.Ax = (M->NodeModel(He).GetLocation() - S.H).GetSafeNormal();
+			const int32 HoseIx = M->NodeIndex(Id + Hn); const int32 HoseEnd = M->NodeIndex(Id + Hn + TEXT("/END"));
+			if (HoseIx == INDEX_NONE || HoseEnd == INDEX_NONE) continue;
+			FRig::FSway S; S.H = M->NodeModel(HoseIx).GetLocation(); S.Ax = (M->NodeModel(HoseEnd).GetLocation() - S.H).GetSafeNormal();
 			const bool bLoop = FCString::Strstr(Hn, TEXT("B")) != nullptr;
 			S.Amp = bLoop ? 0.075f : 0.03f; S.Ph = R.Sways.Num() * 1.9f + Rigs.Num() * 0.77f;
 			const int32 Si = R.Sways.Add(S);
-			TArray<int32> Todo{Hi}; while (Todo.Num()) { const int32 I = Todo.Pop(); SwayOf.Add(I, Si); Todo.Append(M->NodeKids(I)); }
+			TArray<int32> Todo{HoseIx}; while (Todo.Num()) { const int32 I = Todo.Pop(); SwayOf.Add(I, Si); Todo.Append(M->NodeKids(I)); }
 		}
 		{
 			const int32 Sv = M->NodeIndex(Id + TEXT("/SERVICE-DOOR"));
