@@ -24,7 +24,7 @@ HW_OLD = [IW / 2 + T / 2 + g / 2 for g in G_OLD]          # wall centre line: 1.
 H_OLD = [2.4 + g for g in G_OLD]                           # ceiling: 2.62 / 2.51 / 2.40
 FY_OLD = [0.012 * (0.22 - g) / 0.11 for g in G_OLD]        # floor: 0 / 0.012 / 0.024
 ENV = 0.11                                                 # how far the slimmed outside reaches past the wall line
-STEP_X, STEP_Y = 0.19, 0.26                                # each section this much wider (each side) and taller
+STEP_X, STEP_Y = 0.19, 0.29   # (0.29: room for the roof bracing, 2 cm, owner's wireframe)                                # each section this much wider (each side) and taller
 HW_NEW = [HW_OLD[2] + i * STEP_X for i in range(3)]        # 1.32 / 1.51 / 1.70
 H_NEW = [H_OLD[2] + i * STEP_Y for i in range(3)]          # 2.40 / 2.63 / 2.86
 FY_NEW = [0.024, 0.012, 0.0]                               # the smaller section's floor rides on the bigger one's
@@ -170,6 +170,33 @@ def box_geo(boxes):
             I += [b0, b0 + 2, b0 + 1, b0, b0 + 3, b0 + 2]
     return (np.array(P, np.float32), np.array(Nn, np.float32), np.array(U, np.float32), np.array(I, np.uint32))
 
+def beam_geo(P0, P1, w, h, up=(0, 1, 0)):
+    """A square tube from P0 to P1, w across, h in the 'up' direction."""
+    P0 = np.array(P0, float); P1 = np.array(P1, float); d = P1 - P0; L = np.linalg.norm(d); d /= L
+    u = np.array(up, float); u = u - d * np.dot(u, d); u /= np.linalg.norm(u); s = np.cross(d, u)
+    cs = [(-1, -1), (1, -1), (1, 1), (-1, 1)]
+    ring0 = [P0 + s * a * w / 2 + u * b * h / 2 for a, b in cs]; ring1 = [p + d * L for p in ring0]
+    P, Nn, U, I = [], [], [], []
+    for f in range(4):
+        a0, a1 = ring0[f], ring0[(f + 1) % 4]; b0, b1 = ring1[f], ring1[(f + 1) % 4]
+        n = np.cross(a1 - a0, b0 - a0); n /= np.linalg.norm(n)
+        if np.dot(n, (a0 + a1) / 2 - P0) < 0: n = -n
+        base = len(P); P += [a0, a1, b1, b0]; Nn += [n] * 4; U += [(0, 0), (w, 0), (w, L), (0, L)]
+        I += [base, base + 2, base + 1, base, base + 3, base + 2] if np.dot(np.cross(a1 - a0, b1 - a0), n) < 0 else [base, base + 1, base + 2, base, base + 2, base + 3]
+    return P, Nn, U, I
+
+def add_beams_node(parent_i, name, mat_name, beams):
+    P, Nn, U, I = [], [], [], []
+    for (p0, p1, w, h, up) in beams:
+        p, n, u, i = beam_geo(p0, p1, w, h, up); o = len(P); P += p; Nn += n; U += u; I += [o + v for v in i]
+    P = np.array(P, np.float32); Nn = np.array(Nn, np.float32); U = np.array(U, np.float32); I = np.array(I, np.uint32)
+    prim = {'attributes': {'POSITION': acc_new(P, 5126, 'VEC3', 34962), 'NORMAL': acc_new(Nn, 5126, 'VEC3', 34962),
+                           'TEXCOORD_0': acc_new(U, 5126, 'VEC2', 34962)},
+            'indices': acc_new(I.reshape(-1, 1), 5125, 'SCALAR', 34963), 'material': MAT[mat_name], 'mode': 4}
+    g['meshes'].append({'primitives': [prim]})
+    N.append({'name': name, 'mesh': len(g['meshes']) - 1})
+    N[parent_i].setdefault('children', []).append(len(N) - 1); par[len(N) - 1] = parent_i
+
 def add_mesh_node(parent_i, name, mat_name, boxes):
     P, Nn, U, I = box_geo(boxes)
     prim = {'attributes': {'POSITION': acc_new(P, 5126, 'VEC3', 34962), 'NORMAL': acc_new(Nn, 5126, 'VEC3', 34962),
@@ -284,6 +311,16 @@ for J in jets:
                 S = apply(P, M); a = np.abs(S[:, 0]); S[:, 0] = np.where(a > 0.6, np.sign(S[:, 0]) * (a + DRIVE_DX), S[:, 0])
                 return apply(S, Mi)
             set_positions(N[c]['mesh'], fc)
+    # ---- the box-truss structure (owner's wireframe, 2026-11-17): square corner chords the full length at the four
+    #      corners (the X-bracing only on the sides - owner: none on the roof or under the floor)
+    for k in range(3):
+        xw = HW_NEW[k] + ENV - 0.04; ytop = H_NEW[k] + FY_NEW[k] + 0.385 * ROOF_K; ybot = FY_NEW[k] - 0.22 - k * STEP_Y
+        bays = max(1, round(L[k] / 2)); bl = L[k] / bays
+        bm = []
+        for sx in (-1, 1):
+            bm.append(((sx * xw, ytop + 0.01, 0.02), (sx * xw, ytop + 0.01, L[k] - 0.02), 0.08, 0.02, (0, 1, 0)))
+            bm.append(((sx * xw, ybot - 0.01, 0.02), (sx * xw, ybot - 0.01, L[k] - 0.02), 0.08, 0.02, (0, 1, 0)))
+        add_beams_node(sec[k], f'{J}/TUNNEL-{k + 1}:jwTruss#frame', 'jwTruss', bm)
     # ---- the new joints: the smaller section's front frame (slides along the bigger one's inside: hides the gap),
     #      its floor plate onto the bigger floor, and the bigger section's back lip outside
     for k in (0, 1):
