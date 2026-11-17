@@ -39,20 +39,52 @@ namespace ADPTerrain
 
 	bool Ready() { return FPaths::FileExists(Dir() / TEXT("complete.flag")) && FPaths::FileExists(Dir() / TEXT("layer.json")); }
 
-	bool Busy() { return Proc.IsValid() && FPlatformProcess::IsProcRunning(Proc); }
+	static bool Read(TSharedPtr<FJsonObject>& O)
+	{
+		FString Text;
+		return FFileHelper::LoadFileToString(Text, *(Dir() / TEXT("progress.json"))) && FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), O) && O.IsValid();
+	}
+	// a helper from an earlier start of the game still working (it writes progress.json every 2 s): don't start a second
+	static bool HelperAlive()
+	{
+		TSharedPtr<FJsonObject> O;
+		if (!Read(O)) return false;
+		const FString State = O->GetStringField(TEXT("state"));
+		if (State != TEXT("downloading") && State != TEXT("unpacking") && State != TEXT("checking")) return false;
+		const FDateTime T = IFileManager::Get().GetTimeStamp(*(Dir() / TEXT("progress.json")));
+		return T != FDateTime::MinValue() && (FDateTime::UtcNow() - T).GetTotalSeconds() < 120.0;
+	}
+	bool Busy() { return (Proc.IsValid() && FPlatformProcess::IsProcRunning(Proc)) || HelperAlive(); }
+
+	// the bytes on disk in the download folder: what has arrived of the packs on the way (four at once)
+	static double PartBytes()
+	{
+		double Sum = 0;
+		IFileManager::Get().IterateDirectory(*(Dir() / TEXT("_download")), [&Sum](const TCHAR* Name, bool bDir)
+		{
+			if (!bDir && FString(Name).EndsWith(TEXT(".zip"))) Sum += double(IFileManager::Get().FileSize(Name));
+			return true;
+		});
+		return Sum;
+	}
 
 	void Start()
 	{
 		if (Busy()) return;
 		const FString D = Dir();
 		IFileManager::Get().MakeDirectory(*D, true);
-		// the helper: the manifest, then each pack not installed yet (or changed): downloaded, its checksum checked,
-		// unpacked next to the others (moved in place, so an update replaces the old tiles), noted as installed
+		// the helper: the manifest, then each pack not installed yet (or changed). Owner, 2026-11-17: the download was
+		// very slow and stopped after a few percent, so: four packs come at once (Windows' own curl.exe, each its own
+		// connection); a dropped connection is retried and carries on where it broke off (a half-fetched pack stays on
+		// disk and is resumed, also after a restart of the game). Each pack is checked against its checksum (a damaged
+		// one is fetched once more), unpacked next to the others (moved in place, so an update replaces the old tiles)
+		// and noted as installed. It writes progress.json every 2 s, which is also how a restarted game sees it running.
 		const FString Script = TEXT(R"PS1(param([string]$Base, [string]$Dir)
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $prog = Join-Path $Dir 'progress.json'
-function Say($o) { $o | ConvertTo-Json -Compress | Set-Content -Path $prog -Encoding UTF8 }
+function Say($o) { $o.pid = $PID; $o | ConvertTo-Json -Compress | Set-Content -Path $prog -Encoding UTF8 }
+$running = @{}
 try {
   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
   Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -63,27 +95,69 @@ try {
   $inst = @{}
   if (Test-Path $instFile) { (Get-Content $instFile -Raw | ConvertFrom-Json).psobject.Properties | ForEach-Object { $inst[$_.Name] = $_.Value } }
   $todo = @($man.packs | Where-Object { $inst[$_.name] -ne $_.sha256 })
-  $total = [double](($todo | Measure-Object -Property size -Sum).Sum); $done = 0.0; $i = 0
-  foreach ($p in $todo) {
-    $i++
-    Say @{ state = 'downloading'; pack = $p.name; packsDone = $i - 1; packsTotal = $todo.Count; done = $done; total = $total }
+  $total = [double](($todo | Measure-Object -Property size -Sum).Sum); $done = 0.0; $nDone = 0
+  $curl = Join-Path $env:SystemRoot 'System32\curl.exe'
+  $useCurl = Test-Path $curl
+  $queue = New-Object System.Collections.Queue; $todo | ForEach-Object { $queue.Enqueue($_) }
+  $running = @{}; $tries = @{}; $ready = New-Object System.Collections.Queue
+  function Fetch($p) {
     $zip = Join-Path $dl $p.name
-    Invoke-WebRequest "$Base/$($p.name)" -OutFile $zip -UseBasicParsing
-    if ((Get-FileHash $zip -Algorithm SHA256).Hash.ToLower() -ne $p.sha256) { throw "the pack $($p.name) arrived damaged" }
-    Say @{ state = 'unpacking'; pack = $p.name; packsDone = $i - 1; packsTotal = $todo.Count; done = $done; total = $total }
-    $tmp = Join-Path $dl '_unpack'
-    if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
-    [IO.Compression.ZipFile]::ExtractToDirectory($zip, $tmp)
-    robocopy $tmp $Dir /E /MOVE /NFL /NDL /NJH /NJS /NP /MT:8 | Out-Null
-    if ($LASTEXITCODE -ge 8) { throw "the pack $($p.name) couldn't be put in place" }
-    Remove-Item $zip -Force
-    $inst[$p.name] = $p.sha256
-    $inst | ConvertTo-Json | Set-Content -Path $instFile -Encoding UTF8
-    $done += [double]$p.size
+    if ($useCurl) {
+      # -C -: carry on from what is already on disk; a connection under 1 KB/s for 60 s is dropped (and retried)
+      $a = @('-L', '--fail', '-s', '-C', '-', '--retry', '10', '--retry-delay', '5', '--connect-timeout', '30', '--speed-limit', '1024', '--speed-time', '60', '-o', ('"' + $zip + '"'), ('"' + "$Base/$($p.name)" + '"'))
+      return Start-Process -FilePath $curl -ArgumentList $a -WindowStyle Hidden -PassThru
+    }
+    Invoke-WebRequest "$Base/$($p.name)" -OutFile $zip -UseBasicParsing; return $null
+  }
+  function Beat($state) { Say @{ state = $state; packsDone = $nDone; packsTotal = $todo.Count; done = $done; total = $total } }
+  while ($queue.Count -gt 0 -or $running.Count -gt 0 -or $ready.Count -gt 0) {
+    while ($queue.Count -gt 0 -and $running.Count -lt 4) {
+      $p = $queue.Dequeue(); $pr = Fetch $p
+      if ($pr) { $running[$p.name] = @{ p = $p; proc = $pr } } else { $ready.Enqueue($p) }
+    }
+    foreach ($k in @($running.Keys)) {
+      $r = $running[$k]
+      if (-not $r.proc.HasExited) { continue }
+      $running.Remove($k)
+      $zip = Join-Path $dl $k
+      $size = 0; if (Test-Path $zip) { $size = (Get-Item $zip).Length }
+      # all of it there (a pack already whole when resumed can come back with an error code: the checksum decides)
+      if ($size -ge [int64]$r.p.size) { $ready.Enqueue($r.p); continue }
+      # broken off: again from where it stopped, up to 6 times (a server that can't carry on - curl 33/36 - from the start)
+      if ($r.proc.ExitCode -eq 33 -or $r.proc.ExitCode -eq 36) { Remove-Item $zip -Force -ErrorAction SilentlyContinue }
+      $tries[$k] = 1 + [int]$tries[$k]
+      if ($tries[$k] -gt 6) { throw "the pack $k could not be downloaded (curl $($r.proc.ExitCode)); press the button again and it carries on from here" }
+      Start-Sleep -Seconds (3 * $tries[$k]); $queue.Enqueue($r.p)
+    }
+    if ($ready.Count -gt 0) {
+      $p = $ready.Dequeue(); $zip = Join-Path $dl $p.name
+      Beat 'unpacking'
+      if ((Get-FileHash $zip -Algorithm SHA256).Hash.ToLower() -ne $p.sha256) {
+        Remove-Item $zip -Force
+        $bad = '#' + $p.name; $tries[$bad] = 1 + [int]$tries[$bad]
+        if ($tries[$bad] -gt 1) { throw "the pack $($p.name) arrived damaged twice" }
+        $queue.Enqueue($p); continue
+      }
+      $tmp = Join-Path $dl '_unpack'
+      if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
+      [IO.Compression.ZipFile]::ExtractToDirectory($zip, $tmp)
+      robocopy $tmp $Dir /E /MOVE /NFL /NDL /NJH /NJS /NP /MT:8 | Out-Null
+      if ($LASTEXITCODE -ge 8) { throw "the pack $($p.name) couldn't be put in place" }
+      Remove-Item $zip -Force
+      $inst[$p.name] = $p.sha256
+      $inst | ConvertTo-Json | Set-Content -Path $instFile -Encoding UTF8
+      $done += [double]$p.size; $nDone++
+      Beat 'downloading'
+      continue
+    }
+    Beat 'downloading'; Start-Sleep -Seconds 2
   }
   Set-Content -Path (Join-Path $Dir 'complete.flag') -Value $man.version
   Say @{ state = 'ready'; packsDone = $todo.Count; packsTotal = $todo.Count; done = $total; total = $total }
-} catch { Say @{ state = 'error'; error = $_.Exception.Message } }
+} catch {
+  foreach ($r in $running.Values) { try { $r.proc.Kill() } catch {} }
+  Say @{ state = 'error'; error = $_.Exception.Message }
+}
 )PS1");
 		const FString File = D / TEXT("get-terrain.ps1");
 		FFileHelper::SaveStringToFile(Script, *File, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
@@ -127,15 +201,13 @@ try {
 
 	float Fraction()
 	{
-		FString Text; TSharedPtr<FJsonObject> O;
-		if (!FFileHelper::LoadFileToString(Text, *(Dir() / TEXT("progress.json"))) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), O) || !O.IsValid()) return -1.f;
+		TSharedPtr<FJsonObject> O;
+		if (!Read(O)) return -1.f;
 		const FString State = O->GetStringField(TEXT("state"));
 		if (State != TEXT("downloading") && State != TEXT("unpacking")) return -1.f;
 		const double T = O->GetNumberField(TEXT("total")), D = O->GetNumberField(TEXT("done"));
-		// within the pack being fetched: the part file's size so far (the helper writes it straight to disk)
-		double Part = 0; FString Pack;
-		if (O->TryGetStringField(TEXT("pack"), Pack)) Part = double(IFileManager::Get().FileSize(*(Dir() / TEXT("_download") / Pack)));
-		return T > 0 ? float(FMath::Clamp((D + FMath::Max(Part, 0.0)) / T, 0.0, 1.0)) : -1.f;
+		// the finished packs plus everything that has arrived of the ones on the way
+		return T > 0 ? float(FMath::Clamp((D + PartBytes()) / T, 0.0, 1.0)) : -1.f;
 	}
 
 	double Speed()
@@ -143,8 +215,8 @@ try {
 		static double LastT = 0, LastB = -1, Rate = 0;
 		const float F = Fraction();
 		if (F < 0) { LastB = -1; Rate = 0; return 0; }
-		FString Text; TSharedPtr<FJsonObject> O;
-		if (!FFileHelper::LoadFileToString(Text, *(Dir() / TEXT("progress.json"))) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), O) || !O.IsValid()) return Rate;
+		TSharedPtr<FJsonObject> O;
+		if (!Read(O)) return Rate;
 		const double B = F * O->GetNumberField(TEXT("total")), Now = FPlatformTime::Seconds();
 		if (LastB < 0 || B < LastB) { LastB = B; LastT = Now; return Rate; }
 		if (Now - LastT > 1.0) { const double R = (B - LastB) / (Now - LastT); Rate = Rate > 0 ? Rate * 0.6 + R * 0.4 : R; LastB = B; LastT = Now; }
@@ -153,16 +225,18 @@ try {
 
 	FString Status()
 	{
-		FString Text;
 		TSharedPtr<FJsonObject> O;
-		const bool bHave = FFileHelper::LoadFileToString(Text, *(Dir() / TEXT("progress.json"))) && FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), O) && O.IsValid();
+		const bool bHave = Read(O);
 		const FString State = bHave ? O->GetStringField(TEXT("state")) : FString();
 		if (Busy() || State == TEXT("downloading") || State == TEXT("unpacking") || State == TEXT("checking"))
 		{
 			if (!bHave || State == TEXT("checking")) return TEXT("Looking for the world's terrain…");
-			const double Done = O->GetNumberField(TEXT("done")) / 1e9, Total = O->GetNumberField(TEXT("total")) / 1e9;
-			return FString::Printf(TEXT("%s the world's terrain: pack %d of %d, %.1f of %.1f GB"), State == TEXT("unpacking") ? TEXT("Unpacking") : TEXT("Downloading"),
-				int32(O->GetNumberField(TEXT("packsDone"))) + 1, int32(O->GetNumberField(TEXT("packsTotal"))), Done, Total);
+			// owner, 2026-11-17: the GB didn't count up (it only counted finished packs, ~50 MB each) - "it should increase
+			// for every file it gets": now the bytes as they arrive, and the packs count up one by one as each is in
+			const double Total = O->GetNumberField(TEXT("total")) / 1e9;
+			const double Done = FMath::Min(Total, (O->GetNumberField(TEXT("done")) + PartBytes()) / 1e9);
+			return FString::Printf(TEXT("Downloading the world's terrain: %.2f of %.1f GB  -  %d of %d packs in"),
+				Done, Total, int32(O->GetNumberField(TEXT("packsDone"))), int32(O->GetNumberField(TEXT("packsTotal"))));
 		}
 		if (State == TEXT("moving")) return TEXT("Moving the world's terrain to ") + O->GetStringField(TEXT("to")) + TEXT("…");
 		if (State == TEXT("moved")) return TEXT("The world's terrain is kept in ") + Dir() + TEXT(".");
