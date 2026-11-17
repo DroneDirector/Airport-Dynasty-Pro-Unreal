@@ -1,9 +1,10 @@
-# The jetway as a Blender file for the owner (Art/Jetway/Jetway.blend): jetway 1 taken from the Babylon model's own
-# export (F:/ADP-Export/terminal.glb, the same geometry the game imports), everything else removed; the four jetways
-# are the same model. Run again whenever the terminal is exported again, so the file stays up to date.
+# The jetway as a Blender file for the owner (Art/Jetway/Jetway.blend): jetway 1 taken from the jetways' own export
+# (F:/ADP-Export/jetways.glb, 2026-11-13: the extended jetways the game imports as its "Jetways" model and ships in
+# 0.17.21; the older terminal.glb copy was the short jetway from before the extension), everything else removed.
+# From 2026-11-17 the jetway is changed in Blender (owner: not in Babylon any more).
 #   "C:/Program Files/Blender Foundation/Blender 3.3/blender.exe" -b --python Tools/make_jetway_blend.py
 import bpy, os
-SRC = 'F:/ADP-Export/terminal.glb'
+SRC = 'F:/ADP-Export/jetways.glb'
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'Art', 'Jetway', 'Jetway.blend')
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=SRC)
