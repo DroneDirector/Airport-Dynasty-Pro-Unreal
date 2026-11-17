@@ -181,6 +181,8 @@ lamps('F2', 'F2-OFFICES', [118, 124, 130, 136, 146, 151], [4, 10, 16, 22, 28, 34
 lamps('F1', 'F1-CLAIM', [-66, -58, -50, -42, -34, -26, -18, -10, -2], [19, 25, 31, 37, 43, 49], 5.22)
 lamps('F1', 'F1-ARRIVALS', [-76, -68, -60, -52, -44, -36, -28, -20, -12, -4], [-1, 5, 11], 5.22)
 lamps('F1', 'F1-CLAIM-VOID', [-77, -72], [38, 44, 50], 11.28)
+# the 16 gates (owner, 2026-11-17): Tools/terminal_16gates.py
+exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_16gates.py'), encoding='utf-8').read())
 json.dump(L, open(OUT, 'w'))
 print('\n'.join(log))
 print('layout written:', OUT)
