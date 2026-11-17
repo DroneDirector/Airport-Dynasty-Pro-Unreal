@@ -143,7 +143,9 @@ for i, n in enumerate(N):
 #      (x -78..24) so the two become one roof - the wave's two ends are the same height, so it runs on without a seam;
 #      it may reach past the terminal's west end (the gates will be extended); and its two big tree pillars on the kerb
 #      (C-7, C-8) copied to the same places under it (x -46, -8) ----
-rf = copy_tree(byname['ROOF'])
+# (only the wave itself: the gates' solar panel field and rooftop units hang under ROOF too, and copied they floated west
+#  of the building at 12 m - owner, 2026-11-17: 'parts that apparently were copied over')
+rf = copy_tree(byname['ROOF'], skip=('ROOF/SOLAR-PANELS', 'ROOF/ROOF-UNIT'))
 N[rf]['name'] = 'ROOF-ARRIVALS'; N[rf]['translation'] = [102.0, 0.0, 0.0]
 N[0]['children'].append(rf); log.append('new: the wave roof over the arrivals wing (full size, joined to the main one, x -78..24)')
 for src, x in (('C-7', 56.0 - 102.0), ('C-8', 94.0 - 102.0)):

@@ -122,6 +122,13 @@ void ABaggageBelts::Build()
 		Still(Conv, W(X, -0.01f, WALLZ), FRotator::ZeroRotator, FVector(1, STUB0 - WALLZ, 1));
 		Still(Frame, W(X, 0.f, 52.18f), FRotator::ZeroRotator);
 		Still(Scr, W(X, 1.25f, 52.09f), FRotator::ZeroRotator, FVector(1.4f / 2.12f, 0.2f, 1.05f / 1.2f));
+		// the crew's sign over the opening (its plate is on the frame's part): which belt this input feeds
+		{
+			UTextRenderComponent* T = NewObject<UTextRenderComponent>(this); T->SetupAttachment(GetRootComponent()); T->RegisterComponent(); Keep.Add(T);
+			T->SetWorldLocationAndRotation(W(X, 2.21f, 52.18f + 0.045f), FRotator(0, -90.f, 0));
+			T->SetHorizontalAlignment(EHTA_Center); T->SetVerticalAlignment(EVRTA_TextCenter); T->SetWorldSize(26.f);
+			T->SetTextRenderColor(FColor(245, 196, 40)); T->SetText(FText::FromString(FString::Printf(TEXT("BELT %d"), b + 1)));
+		}
 		for (int32 k = 0; k < 10; ++k)
 		{
 			FFlap F; F.K = FlapK; F.Hinge = W(X - 0.63f + k * 0.14f, 1.73f, 52.22f); F.Base = FQuat::Identity; F.Axis = FVector(1, 0, 0);

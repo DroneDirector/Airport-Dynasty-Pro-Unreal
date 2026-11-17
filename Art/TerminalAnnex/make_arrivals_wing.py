@@ -53,9 +53,10 @@ G.box(X0 - 0.012, X0 + 0.012, 0.01, CEIL, ZK, ZN, 'MI_T_glass')
 for i in range(int((ZN - ZK) / 2.5) + 1):
     z = min(ZN, ZK + i * 2.5); S.box(X0 - 0.075, X0 + 0.075, 0.01, CEIL, z - 0.04, z + 0.04, 'MI_T_mullion')
 S.box(X0 - 0.075, X0 + 0.075, CEIL - 0.04, CEIL + 0.04, ZK, ZN, 'MI_T_mullion')
-# ---- above the glass: zinc cladding to the roof (outside), the void's cedar wall inside ----
-S.box(X0 - 0.2, X1, CEIL, ROOF - 0.4, ZK - 0.2, ZK, 'MI_T_roofZinc')
-S.box(X0 - 0.2, X0, CEIL, ROOF - 0.4, ZK, ZN, 'MI_T_roofZinc', sides=('-x', '+y', '-y', '-z', '+z'))
+# ---- above the glass: cedar cladding to the roof (outside), the void's cedar wall inside ----
+#   (cedar planks outside too, owner 2026-11-17: the dark zinc looked heavy in the wave roof's shade)
+S.box(X0 - 0.2, X1, CEIL, ROOF - 0.4, ZK - 0.2, ZK, 'MI_T_cedar')
+S.box(X0 - 0.2, X0, CEIL, ROOF - 0.4, ZK, ZN, 'MI_T_cedar', sides=('-x', '+y', '-y', '-z', '+z'))
 S.box(X0, X0 + 0.06, CEIL - 0.15, 11.4, VOID[2], ZN, 'MI_T_cedar', sides=('+x',))
 # ---- the roof (12 m) and its edge ----
 S.box(X0 - 0.4, X1, ROOF - 0.4, ROOF, ZK - 0.4, ZN, 'MI_T_roofZinc')   # (its top at 12.0: under the wave roof's lowest point, 12.3)
@@ -87,12 +88,13 @@ slab(-68.4, VOID[1], LAND, ZN, F2 + 0.01, top='MI_T_terrazzo', under='MI_T_offwh
 slab(-71.2, -68.4, LAND, 49.4, F2 + 0.01, top='MI_T_terrazzo', under='MI_T_offwhite', thick=0.6)
 slab(X0, -76.1, ZN - 0.1, ZN, F2 + 0.01, top='MI_T_terrazzo', under='MI_T_offwhite', thick=0.6)
 
-# ---- the stair beside the escalators (x -76.1..-74.1, 30 steps of 20 x 38 cm up to the landing): dark stone with oak
+# ---- the stair beside the escalators (x -76.1..-74.1, 30 steps of 20 x 38 cm up to the landing): terrazzo with oak
 #      treads and black non-slip nosings; its open side and the landing's edge one glass balustrade under one handrail ----
 SX0, SX1 = -76.1, -74.1; B0 = LAND - 11.4
 for k in range(30):
     z0 = B0 + k * 0.38; yt = 0.2 * (k + 1)
-    S.box(SX0, SX1, 0.01, yt - 0.04, z0, z0 + 0.38, 'MI_T_marbleDark')
+    S.box(SX0, SX1, 0.01, yt - 0.04, z0, z0 + 0.38, 'MI_T_terrazzo')      # (light terrazzo risers, 2026-11-17: the dark ones read as a black block)
+    S.box(SX0 + 0.06, SX1 - 0.06, yt - 0.08, yt - 0.062, z0 - 0.006, z0 + 0.01, 'MI_T_l_FFFFFF')   # an LED line under each nosing
     S.box(SX0 - 0.02, SX1 + 0.02, yt - 0.04, yt, z0 - 0.02, z0 + 0.38, 'MI_T_oak')
     S.box(SX0 - 0.02, SX1 + 0.02, yt - 0.045, yt + 0.002, z0 - 0.03, z0 + 0.03, 'MI_T_black')
 S.box(SX1, SX1 + 0.02, 0.01, 6.0, B0, LAND, 'MI_T_marbleDark', sides=('+x',))       # (its side, under the steps)
