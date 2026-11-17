@@ -58,16 +58,41 @@ def letter_masks():
     blue = ((Lc > 0.4) & (B_ - R_ > 0.25)).astype(np.uint8); blue[:462] = 0; blue[748:] = 0
     n2, lab2, st2, _ = cv2.connectedComponentsWithStats(blue, 8)
     near = cv2.dilate(blue, np.ones((9, 9), np.uint8)).astype(bool)   # the letters' light rim, not the sign's edge
+    # each letter's area = the hull of its blue body, so the white light flare lying on R, M and A goes dark with them
+    orange = cv2.dilate(((c[..., 2] - c[..., 0] > 0.08) & (Lc > 0.25)).astype(np.uint8), np.ones((3, 3), np.uint8)).astype(bool)
+    def hull(mask):
+        pts = cv2.findNonZero(mask.astype(np.uint8))
+        h = np.zeros(mask.shape, np.uint8); cv2.fillConvexPoly(h, cv2.convexHull(pts), 1); return h
+    # the letters' own top and bottom line (from the stand-alone N and A), so the flare between the rows stays lit
+    na = [j for j in range(1, n2) if st2[j, 4] > 20000 and (st2[j, 0] < 400 or st2[j, 0] > 1500)]
+    top = min(st2[j, 1] for j in na) - 16; bot = max(st2[j, 1] + st2[j, 3] for j in na) + 3
     for i in range(5):
         if i in (0, 4):
             cx = (cuts[i] + cuts[i + 1]) // 2
             cand = [j for j in range(1, n2) if st2[j, 4] > 20000 and st2[j, 0] <= cx <= st2[j, 0] + st2[j, 2]]
             assert len(cand) == 1, (i, cand)
-            blob = cv2.dilate((lab2 == cand[0]).astype(np.uint8), np.ones((9, 9), np.uint8)).astype(bool)
-            q = (bright.astype(bool) & blob).astype(np.float32)
+            body = (lab2 == cand[0])
         else:
-            q = np.zeros_like(Lc); q[462:748, cuts[i]:cuts[i + 1]] = (bright.astype(bool) & near)[462:748, cuts[i]:cuts[i + 1]]
-        subs.append(q)
+            body = np.zeros(Lc.shape, bool); body[462:748, cuts[i]:cuts[i + 1]] = blue[462:748, cuts[i]:cuts[i + 1]] > 0
+            body &= ~cv2.erode(np.zeros_like(blue), None).astype(bool)
+            nb, lb, sb, _ = cv2.connectedComponentsWithStats(body.astype(np.uint8), 8)   # drop specks, keep the letter
+            body = np.isin(lb, [j for j in range(1, nb) if sb[j, 4] > 3000])
+        # the letter's own shape with the flare patches on it filled in (closing), its holes kept; the A also reaches
+        # its white top highlight
+        shape = cv2.morphologyEx(body.astype(np.uint8), cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (41, 41)))
+        grow = 23 if i == 4 else 11
+        area = cv2.dilate(shape, np.ones((grow, grow), np.uint8)).astype(bool)
+        if i in (1, 2, 3): area[:, :cuts[i]] = False; area[:, cuts[i + 1]:] = False
+        ys_ = np.nonzero(body.any(1))[0]
+        T0 = ys_.min() - 16 if i == 4 else top + 16 - 2       # the letters' true top line (the flare hides R's)
+        area[:T0] = False; area[ys_.max() + 4:] = False
+        # white flare spots lying on the letter (anywhere inside its outline hull) go dark with it too
+        hl = cv2.dilate(hull(body), np.ones((21, 21), np.uint8)).astype(bool)
+        if i in (1, 2, 3): hl[:, :cuts[i]] = False; hl[:, cuts[i + 1]:] = False
+        hl[:T0] = False; hl[ys_.max() + 4:] = False
+        area |= hl & (Lc > 0.5)
+        # never the sign's orange / yellow outline: that is the panel, it stays lit
+        subs.append((bright.astype(bool) & area & ~orange).astype(np.float32))
     ms = []
     for sub in subs:
         sub = cv2.dilate(sub, np.ones((7, 7), np.uint8))           # the letter's own edge and inner glow
@@ -77,7 +102,7 @@ def letter_masks():
         ms.append(np.clip(cv2.GaussianBlur(m, (0, 0), max(0.6, LH * 0.0006)), 0, 1))
     return ms
 LET = letter_masks()
-OFF = 0.12                                                        # an unlit letter: dark, still just visible
+OFF = 0.06                                                        # an unlit letter: off, no glow, just its dark tube
 
 def smooth(t, a, b):
     x = min(max((t - a) / (b - a), 0.0), 1.0)
@@ -115,7 +140,8 @@ def pixelate(img, block):
     sm = cv2.resize(img, (sw, sh), interpolation=cv2.INTER_AREA)
     return cv2.resize(sm, (w, h), interpolation=cv2.INTER_NEAREST)
 
-for f in range(NF):
+ONLY = [int(v) for v in os.environ.get('SPLASH_FRAMES', '').split(',') if v]   # test: just these frames
+for f in (ONLY or range(NF)):
     t = f / FPS
     frame = np.zeros((H, W, 3), np.float32)
 
