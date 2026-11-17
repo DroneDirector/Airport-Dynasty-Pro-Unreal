@@ -3,11 +3,6 @@
   {
    "a": "J-4/FIRE-EXTINGUISHER:jwDark",
    "b": "J-4/FIRE-EXTINGUISHER:jwGauge",
-   "share": 1.0
-  },
-  {
-   "a": "J-3/FIRE-EXTINGUISHER:jwDark",
-   "b": "J-3/FIRE-EXTINGUISHER:jwGauge",
    "share": 0.992
   },
   {
@@ -16,29 +11,14 @@
    "share": 0.984
   },
   {
+   "a": "J-3/FIRE-EXTINGUISHER:jwDark",
+   "b": "J-3/FIRE-EXTINGUISHER:jwGauge",
+   "share": 0.984
+  },
+  {
    "a": "J-1/FIRE-EXTINGUISHER:jwDark",
    "b": "J-1/FIRE-EXTINGUISHER:jwGauge",
    "share": 0.961
-  },
-  {
-   "a": "J-4/TUNNEL-2:jwDark#sill",
-   "b": "J-4/TUNNEL-2:jwTruss#sill",
-   "share": 0.688
-  },
-  {
-   "a": "J-1/TUNNEL-3:jwDark#pca",
-   "b": "J-1/TUNNEL-3:jwPanel#pca-labels",
-   "share": 0.667
-  },
-  {
-   "a": "J-4/TUNNEL-2:jwAluB",
-   "b": "J-4/TUNNEL-2:jwCarpet",
-   "share": 0.667
-  },
-  {
-   "a": "J-3/TUNNEL-3:jwAluB",
-   "b": "J-3/TUNNEL-3:jwPanel",
-   "share": 0.638
   },
   {
    "a": "J-1/TUNNEL-2:jwAluB",
@@ -46,54 +26,29 @@
    "share": 0.625
   },
   {
-   "a": "J-3/TUNNEL-1:jwDark#sill",
-   "b": "J-3/TUNNEL-1:jwTruss#sill",
-   "share": 0.625
+   "a": "J-3/TUNNEL-2:jwDark#sill",
+   "b": "J-3/TUNNEL-2:jwTruss#sill",
+   "share": 0.604
   },
   {
-   "a": "J-3/TUNNEL-3:jwAluB",
-   "b": "J-3/TUNNEL-3:jwCarpet",
-   "share": 0.625
+   "a": "J-3/BOGIE:jwAluB",
+   "b": "J-3/BOGIE:yellow",
+   "share": 0.604
+  },
+  {
+   "a": "J-4/TUNNEL-1:jwDark#sill",
+   "b": "J-4/TUNNEL-1:jwTruss#sill",
+   "share": 0.583
   },
   {
    "a": "J-4/TUNNEL-3:jwAluB",
-   "b": "J-4/TUNNEL-3:jwPanel",
-   "share": 0.585
-  },
-  {
-   "a": "J-2/TUNNEL-2:jwAluB",
-   "b": "J-2/TUNNEL-2:jwCarpet",
+   "b": "J-4/TUNNEL-3:jwCarpet",
    "share": 0.583
   },
   {
-   "a": "J-4/TUNNEL-3:jwDark#pca",
-   "b": "J-4/TUNNEL-3:jwPanel#pca-labels",
-   "share": 0.583
-  },
-  {
-   "a": "J-2/TUNNEL-3:jwAluB",
-   "b": "J-2/TUNNEL-3:jwPanel",
-   "share": 0.564
-  },
-  {
-   "a": "J-2/TUNNEL-3:jwDark#pca",
-   "b": "J-2/TUNNEL-3:jwPanel#pca-labels",
+   "a": "J-4/BOGIE:jwAluB",
+   "b": "J-4/BOGIE:yellow",
    "share": 0.562
-  },
-  {
-   "a": "J-3/TUNNEL-2:jwDark#sill",
-   "b": "J-3/TUNNEL-2:jwTruss#sill",
-   "share": 0.562
-  },
-  {
-   "a": "J-4/TUNNEL-2:jwHaz",
-   "b": "J-4/TUNNEL-2:jwWall",
-   "share": 0.562
-  },
-  {
-   "a": "J-1/TUNNEL-3:jwAluB",
-   "b": "J-1/TUNNEL-3:jwPanel",
-   "share": 0.553
   },
   {
    "a": "J-1/ROTUNDA:jwCarpet",
@@ -101,49 +56,64 @@
    "share": 0.55
   },
   {
-   "a": "J-1/TUNNEL-1:jwAluB",
-   "b": "J-1/TUNNEL-1:jwCarpet",
+   "a": "J-1/TUNNEL-3:J-1/LED#svc-lamp",
+   "b": "J-1/TUNNEL-3:jwAluB#svc-frame",
    "share": 0.542
   },
   {
-   "a": "J-1/TUNNEL-1:jwDark#sill",
-   "b": "J-1/TUNNEL-1:jwTruss#sill",
+   "a": "J-2/STAIR-LANDING:jwAluB",
+   "b": "J-2/STAIR-LANDING:jwHaz",
    "share": 0.542
   },
   {
-   "a": "J-1/TUNNEL-2:jwHaz",
-   "b": "J-1/TUNNEL-2:jwWall",
+   "a": "J-2/LIFT-BEAM:jwAluB",
+   "b": "J-2/LIFT-BEAM:jwDark",
    "share": 0.542
   },
   {
-   "a": "J-1/TUNNEL-3:jwAluB",
-   "b": "J-1/TUNNEL-3:jwCarpet",
+   "a": "J-3/TUNNEL-1:jwDark#sill",
+   "b": "J-3/TUNNEL-1:jwTruss#sill",
    "share": 0.542
   },
   {
-   "a": "J-1/TUNNEL-3:jwDark#sill",
-   "b": "J-1/TUNNEL-3:jwTruss#sill",
+   "a": "J-4/TUNNEL-1:jwAluB",
+   "b": "J-4/TUNNEL-1:jwCarpet",
    "share": 0.542
+  },
+  {
+   "a": "J-4/TUNNEL-3:J-4/LED#svc-lamp",
+   "b": "J-4/TUNNEL-3:jwAluB#svc-frame",
+   "share": 0.542
+  },
+  {
+   "a": "J-4/LIFT-BEAM:jwAluB",
+   "b": "J-4/LIFT-BEAM:jwDark",
+   "share": 0.542
+  },
+  {
+   "a": "J-2/ROTUNDA:jwRoof",
+   "b": "J-2/ROTUNDA:jwSlats",
+   "share": 0.54
+  },
+  {
+   "a": "J-2/CORRIDOR:jwTruss",
+   "b": "J-2/CORRIDOR:jwWall",
+   "share": 0.535
+  },
+  {
+   "a": "J-1/TUNNEL-2:J-1/LED",
+   "b": "J-1/TUNNEL-2:jwSlats",
+   "share": 0.531
   },
   {
    "a": "J-2/TUNNEL-3:jwDark#sill",
    "b": "J-2/TUNNEL-3:jwTruss#sill",
-   "share": 0.542
+   "share": 0.531
   },
   {
-   "a": "J-3/PCA-PIPES:jwAluB",
-   "b": "J-3/ROTUNDA:jwUnder",
-   "share": 0.542
-  },
-  {
-   "a": "J-3/TUNNEL-2:jwAluB",
-   "b": "J-3/TUNNEL-2:jwCarpet",
-   "share": 0.542
-  },
-  {
-   "a": "J-4/TUNNEL-1:jwDark#sill",
-   "b": "J-4/TUNNEL-1:jwTruss#sill",
-   "share": 0.542
+   "a": "J-2/CAB:jwAluB",
+   "b": "J-2/CAB:jwCarpet",
+   "share": 0.53
   },
   {
    "a": "J-1/CORRIDOR:jwTruss",
@@ -151,39 +121,39 @@
    "share": 0.528
   },
   {
+   "a": "J-2/TUNNEL-3:J-2/LED",
+   "b": "J-2/TUNNEL-3:jwSlats",
+   "share": 0.521
+  },
+  {
+   "a": "J-3/TUNNEL-3:jwDark#pca",
+   "b": "J-3/TUNNEL-3:jwPanel#pca-labels",
+   "share": 0.521
+  },
+  {
+   "a": "J-3/ROTUNDA:jwCarpet",
+   "b": "J-3/ROTUNDA:jwUnder",
+   "share": 0.517
+  },
+  {
+   "a": "J-3/TUNNEL-3:jwTruss#svc-skin",
+   "b": "J-3/TUNNEL-3:jwWall#svc-wall",
+   "share": 0.517
+  },
+  {
    "a": "J-2/CORRIDOR:jwAluB",
    "b": "J-2/CORRIDOR:jwStud",
-   "share": 0.527
+   "share": 0.511
   },
   {
-   "a": "J-1/TUNNEL-2:jwDark#sill",
-   "b": "J-1/TUNNEL-2:jwTruss#sill",
-   "share": 0.521
+   "a": "J-1/TUNNEL-3:jwTruss#svc-skin",
+   "b": "J-1/TUNNEL-3:jwWall#svc-wall",
+   "share": 0.508
   },
   {
-   "a": "J-2/TUNNEL-1:J-2/LED",
-   "b": "J-2/TUNNEL-1:jwSlats",
-   "share": 0.521
-  },
-  {
-   "a": "J-2/TUNNEL-2:jwDark#sill",
-   "b": "J-2/TUNNEL-2:jwTruss#sill",
-   "share": 0.521
-  },
-  {
-   "a": "J-4/ROTUNDA:jwCarpet",
-   "b": "J-4/ROTUNDA:jwUnder",
-   "share": 0.52
-  },
-  {
-   "a": "J-1/TUNNEL-1:J-1/LED",
-   "b": "J-1/TUNNEL-1:jwSlats",
-   "share": 0.51
-  },
-  {
-   "a": "J-4/CORRIDOR:jwTruss",
-   "b": "J-4/CORRIDOR:jwWall",
-   "share": 0.51
+   "a": "J-2/TUNNEL-3:jwTruss#svc-skin",
+   "b": "J-2/TUNNEL-3:jwWall#svc-wall",
+   "share": 0.508
   },
   {
    "a": "J-1/CORRIDOR:jwAluB",
@@ -191,18 +161,13 @@
    "share": 0.508
   },
   {
-   "a": "J-4/CAB:jwAluB",
-   "b": "J-4/CAB:jwSlats",
-   "share": 0.503
-  },
-  {
-   "a": "J-1/STAIR-LANDING:jwAluB",
-   "b": "J-1/STAIR-LANDING:jwHaz",
+   "a": "J-1/TUNNEL-3:jwDark#sill",
+   "b": "J-1/TUNNEL-3:jwTruss#sill",
    "share": 0.5
   },
   {
-   "a": "J-1/CAB:jwAluB",
-   "b": "J-1/CAB:jwCarpet",
+   "a": "J-1/TUNNEL-3:jwDark#pca",
+   "b": "J-1/TUNNEL-3:jwPanel#pca-labels",
    "share": 0.5
   },
   {
@@ -211,29 +176,44 @@
    "share": 0.5
   },
   {
-   "a": "J-2/TUNNEL-1:jwDark#sill",
-   "b": "J-2/TUNNEL-1:jwTruss#sill",
+   "a": "J-2/TUNNEL-2:jwAluB",
+   "b": "J-2/TUNNEL-2:jwCarpet",
    "share": 0.5
   },
   {
-   "a": "J-2/TUNNEL-2:J-2/LED",
-   "b": "J-2/TUNNEL-2:jwSlats",
+   "a": "J-3/ROTUNDA-MACHINERY:jwAluB",
+   "b": "J-3/ROTUNDA-MACHINERY:jwPanel",
    "share": 0.5
   },
   {
-   "a": "J-3/CORRIDOR:jwAluB",
-   "b": "J-3/CORRIDOR:jwStud",
-   "share": 0.496
+   "a": "J-3/TUNNEL-3:jwAluB",
+   "b": "J-3/TUNNEL-3:jwCarpet",
+   "share": 0.5
   },
   {
-   "a": "J-3/ROTUNDA:jwCarpet",
-   "b": "J-3/ROTUNDA:jwUnder",
-   "share": 0.493
+   "a": "J-3/LIFT-BEAM:jwAluB",
+   "b": "J-3/LIFT-BEAM:jwDark",
+   "share": 0.5
   },
   {
-   "a": "J-3/CORRIDOR:jwTruss",
-   "b": "J-3/CORRIDOR:jwWall",
-   "share": 0.493
+   "a": "J-4/ROTUNDA:jwCarpet",
+   "b": "J-4/ROTUNDA:jwUnder",
+   "share": 0.5
+  },
+  {
+   "a": "J-4/TUNNEL-2:jwAluB",
+   "b": "J-4/TUNNEL-2:jwCarpet",
+   "share": 0.5
+  },
+  {
+   "a": "J-4/TUNNEL-2:jwDark#sill",
+   "b": "J-4/TUNNEL-2:jwTruss#sill",
+   "share": 0.5
+  },
+  {
+   "a": "J-4/TUNNEL-3:jwTruss#svc-skin",
+   "b": "J-4/TUNNEL-3:jwWall#svc-wall",
+   "share": 0.492
   },
   {
    "a": "J-3/CAB:jwAluB",
@@ -241,119 +221,119 @@
    "share": 0.49
   },
   {
-   "a": "J-1/TUNNEL-2:J-1/LED",
-   "b": "J-1/TUNNEL-2:jwSlats",
-   "share": 0.49
-  },
-  {
-   "a": "J-1/TUNNEL-3:J-1/LED",
-   "b": "J-1/TUNNEL-3:jwSlats",
-   "share": 0.49
-  },
-  {
-   "a": "J-2/TUNNEL-3:J-2/LED",
-   "b": "J-2/TUNNEL-3:jwSlats",
-   "share": 0.49
-  },
-  {
-   "a": "J-4/CAB:jwAluB",
-   "b": "J-4/CAB:jwCarpet",
+   "a": "J-1/CAB:jwAluB",
+   "b": "J-1/CAB:jwCarpet",
    "share": 0.483
-  },
-  {
-   "a": "J-2/CAB:jwAluB",
-   "b": "J-2/CAB:jwSlats",
-   "share": 0.48
-  },
-  {
-   "a": "J-2/BOGIE:jwAluB",
-   "b": "J-2/BOGIE:yellow",
-   "share": 0.479
-  },
-  {
-   "a": "J-3/TUNNEL-3:jwDark#sill",
-   "b": "J-3/TUNNEL-3:jwTruss#sill",
-   "share": 0.479
-  },
-  {
-   "a": "J-3/CAB:jwAluB",
-   "b": "J-3/CAB:jwSlats",
-   "share": 0.477
-  },
-  {
-   "a": "J-2/ROTUNDA:jwRoof",
-   "b": "J-2/ROTUNDA:jwSlats",
-   "share": 0.473
-  },
-  {
-   "a": "J-2/CAB:jwAluB",
-   "b": "J-2/CAB:jwCarpet",
-   "share": 0.473
-  },
-  {
-   "a": "J-2/CORRIDOR:jwTruss",
-   "b": "J-2/CORRIDOR:jwWall",
-   "share": 0.469
-  },
-  {
-   "a": "J-3/TUNNEL-1:J-3/LED",
-   "b": "J-3/TUNNEL-1:jwSlats",
-   "share": 0.469
   },
   {
    "a": "J-2/ROTUNDA:jwCarpet",
    "b": "J-2/ROTUNDA:jwUnder",
-   "share": 0.46
+   "share": 0.483
   },
   {
-   "a": "J-3/ROTUNDA:jwRoof",
-   "b": "J-3/ROTUNDA:jwSlats",
-   "share": 0.46
+   "a": "J-2/TUNNEL-1:jwDark#sill",
+   "b": "J-2/TUNNEL-1:jwTruss#sill",
+   "share": 0.479
   },
   {
-   "a": "J-1/BOGIE:jwAluB",
-   "b": "J-1/BOGIE:yellow",
-   "share": 0.458
+   "a": "J-2/TUNNEL-3:jwDark#pca",
+   "b": "J-2/TUNNEL-3:jwPanel#pca-labels",
+   "share": 0.479
   },
   {
-   "a": "J-1/LIFT-BEAM:jwAluB",
-   "b": "J-1/LIFT-BEAM:jwDark",
-   "share": 0.458
-  },
-  {
-   "a": "J-2/LIFT-BEAM:jwAluB",
-   "b": "J-2/LIFT-BEAM:jwDark",
-   "share": 0.458
-  },
-  {
-   "a": "J-3/ROTUNDA-MACHINERY:jwAluB",
-   "b": "J-3/ROTUNDA-MACHINERY:jwPanel",
-   "share": 0.458
+   "a": "J-3/TUNNEL-1:J-3/LED",
+   "b": "J-3/TUNNEL-1:jwSlats",
+   "share": 0.479
   },
   {
    "a": "J-3/TUNNEL-2:J-3/LED",
    "b": "J-3/TUNNEL-2:jwSlats",
+   "share": 0.479
+  },
+  {
+   "a": "J-4/TUNNEL-2:J-4/LED",
+   "b": "J-4/TUNNEL-2:jwSlats",
+   "share": 0.479
+  },
+  {
+   "a": "J-4/CAB:jwAluB",
+   "b": "J-4/CAB:jwCarpet",
+   "share": 0.473
+  },
+  {
+   "a": "J-4/ROTUNDA:jwRoof",
+   "b": "J-4/ROTUNDA:jwSlats",
+   "share": 0.47
+  },
+  {
+   "a": "J-2/TUNNEL-2:J-2/LED",
+   "b": "J-2/TUNNEL-2:jwSlats",
+   "share": 0.469
+  },
+  {
+   "a": "J-4/TUNNEL-3:jwDark#sill",
+   "b": "J-4/TUNNEL-3:jwTruss#sill",
+   "share": 0.469
+  },
+  {
+   "a": "J-1/ROTUNDA-MACHINERY:jwAluB",
+   "b": "J-1/ROTUNDA-MACHINERY:jwPanel",
    "share": 0.458
   },
   {
-   "a": "J-3/TUNNEL-3:jwDark#pca",
-   "b": "J-3/TUNNEL-3:jwPanel#pca-labels",
+   "a": "J-1/TUNNEL-1:jwAluB",
+   "b": "J-1/TUNNEL-1:jwCarpet",
    "share": 0.458
   },
   {
-   "a": "J-4/TUNNEL-1:J-4/LED",
-   "b": "J-4/TUNNEL-1:jwSlats",
+   "a": "J-2/ROTUNDA-MACHINERY:jwAluB",
+   "b": "J-2/ROTUNDA-MACHINERY:jwPanel",
    "share": 0.458
   },
   {
-   "a": "J-4/TUNNEL-3:J-4/LED",
-   "b": "J-4/TUNNEL-3:jwSlats",
+   "a": "J-2/TUNNEL-2:jwDark#sill",
+   "b": "J-2/TUNNEL-2:jwTruss#sill",
    "share": 0.458
   },
   {
-   "a": "J-4/LIFT-BEAM:jwAluB",
-   "b": "J-4/LIFT-BEAM:jwDark",
+   "a": "J-3/CORRIDOR:jwTruss",
+   "b": "J-3/CORRIDOR:jwWall",
    "share": 0.458
+  },
+  {
+   "a": "J-3/TUNNEL-2:jwAluB",
+   "b": "J-3/TUNNEL-2:jwCarpet",
+   "share": 0.458
+  },
+  {
+   "a": "J-3/TUNNEL-3:J-3/LED",
+   "b": "J-3/TUNNEL-3:jwSlats",
+   "share": 0.458
+  },
+  {
+   "a": "J-4/TUNNEL-3:jwDark#pca",
+   "b": "J-4/TUNNEL-3:jwPanel#pca-labels",
+   "share": 0.458
+  },
+  {
+   "a": "J-2/CAB:jwAluB",
+   "b": "J-2/CAB:jwSlats",
+   "share": 0.457
+  },
+  {
+   "a": "J-3/ROTUNDA:jwRoof",
+   "b": "J-3/ROTUNDA:jwSlats",
+   "share": 0.457
+  },
+  {
+   "a": "J-4/CAB:jwAluB",
+   "b": "J-4/CAB:jwSlats",
+   "share": 0.457
+  },
+  {
+   "a": "J-2/TUNNEL-1:J-2/LED",
+   "b": "J-2/TUNNEL-1:jwSlats",
+   "share": 0.448
   },
   {
    "a": "J-1/ROTUNDA:jwRoof",
@@ -361,14 +341,14 @@
    "share": 0.447
   },
   {
-   "a": "J-4/ROTUNDA:jwRoof",
-   "b": "J-4/ROTUNDA:jwSlats",
+   "a": "J-3/CAB:jwAluB",
+   "b": "J-3/CAB:jwSlats",
    "share": 0.447
   },
   {
-   "a": "J-4/CORRIDOR:jwAluB",
-   "b": "J-4/CORRIDOR:jwStud",
-   "share": 0.443
+   "a": "J-4/CORRIDOR:jwTruss",
+   "b": "J-4/CORRIDOR:jwWall",
+   "share": 0.441
   },
   {
    "a": "J-1/PCA-PIPES:jwAluB",
@@ -376,14 +356,54 @@
    "share": 0.438
   },
   {
-   "a": "J-4/TUNNEL-3:jwDark#sill",
-   "b": "J-4/TUNNEL-3:jwTruss#sill",
+   "a": "J-1/TUNNEL-2:jwHaz",
+   "b": "J-1/TUNNEL-2:jwWall",
    "share": 0.438
   },
   {
-   "a": "J-3/TUNNEL-3:J-3/LED",
-   "b": "J-3/TUNNEL-3:jwSlats",
+   "a": "J-1/BOGIE:jwAluB",
+   "b": "J-1/BOGIE:yellow",
+   "share": 0.438
+  },
+  {
+   "a": "J-3/TUNNEL-3:jwDark#sill",
+   "b": "J-3/TUNNEL-3:jwTruss#sill",
+   "share": 0.438
+  },
+  {
+   "a": "J-4/TUNNEL-1:J-4/LED",
+   "b": "J-4/TUNNEL-1:jwSlats",
    "share": 0.427
+  },
+  {
+   "a": "J-3/CORRIDOR:jwAluB",
+   "b": "J-3/CORRIDOR:jwStud",
+   "share": 0.424
+  },
+  {
+   "a": "J-4/CORRIDOR:jwAluB",
+   "b": "J-4/CORRIDOR:jwStud",
+   "share": 0.42
+  },
+  {
+   "a": "J-1/TUNNEL-1:J-1/LED",
+   "b": "J-1/TUNNEL-1:jwSlats",
+   "share": 0.417
+  },
+  {
+   "a": "J-1/TUNNEL-3:jwAluB",
+   "b": "J-1/TUNNEL-3:jwCarpet",
+   "share": 0.417
+  },
+  {
+   "a": "J-1/STAIR-LANDING:jwAluB",
+   "b": "J-1/STAIR-LANDING:jwHaz",
+   "share": 0.417
+  },
+  {
+   "a": "J-1/DRIVE-YOKE:jwAluB",
+   "b": "J-1/LIFT-LEG:jwAluB",
+   "share": 0.417
   },
   {
    "a": "J-2/PCA-PIPES:jwAluB",
@@ -391,58 +411,48 @@
    "share": 0.417
   },
   {
-   "a": "J-4/ROTUNDA-MACHINERY:jwAluB",
-   "b": "J-4/ROTUNDA-MACHINERY:jwPanel",
+   "a": "J-2/TUNNEL-2:jwHaz",
+   "b": "J-2/TUNNEL-2:jwWall",
    "share": 0.417
   },
   {
-   "a": "J-4/TUNNEL-1:jwAluB",
-   "b": "J-4/TUNNEL-1:jwCarpet",
+   "a": "J-2/BOGIE:jwAluB",
+   "b": "J-2/BOGIE:yellow",
    "share": 0.417
   },
   {
-   "a": "J-4/TUNNEL-2:J-4/LED",
-   "b": "J-4/TUNNEL-2:jwSlats",
+   "a": "J-3/PCA-PIPES:jwAluB",
+   "b": "J-3/ROTUNDA:jwUnder",
    "share": 0.417
   },
   {
-   "a": "J-4/TUNNEL-3:jwAluB",
-   "b": "J-4/TUNNEL-3:jwCarpet",
+   "a": "J-3/TUNNEL-1:jwAluB",
+   "b": "J-3/TUNNEL-1:jwCarpet",
    "share": 0.417
-  },
-  {
-   "a": "J-1/TUNNEL-3:jwAluB",
-   "b": "J-1/TUNNEL-3:jwWall",
-   "share": 0.4
-  },
-  {
-   "a": "J-2/TUNNEL-3:jwAluB",
-   "b": "J-2/TUNNEL-3:jwWall",
-   "share": 0.4
-  },
-  {
-   "a": "J-3/BOGIE:jwAluB",
-   "b": "J-3/BOGIE:yellow",
-   "share": 0.396
   },
   {
    "a": "J-1/CAB:jwAluB",
    "b": "J-1/CAB:jwSlats",
-   "share": 0.39
+   "share": 0.41
   },
   {
-   "a": "J-1/ROTUNDA-MACHINERY:jwAluB",
-   "b": "J-1/ROTUNDA-MACHINERY:jwPanel",
-   "share": 0.375
+   "a": "J-1/TUNNEL-3:J-1/LED",
+   "b": "J-1/TUNNEL-3:jwSlats",
+   "share": 0.406
   },
   {
-   "a": "J-2/TUNNEL-2:jwHaz",
-   "b": "J-2/TUNNEL-2:jwWall",
-   "share": 0.375
+   "a": "J-1/TUNNEL-2:jwDark#sill",
+   "b": "J-1/TUNNEL-2:jwTruss#sill",
+   "share": 0.396
   },
   {
-   "a": "J-2/DRIVE-YOKE:jwAluB",
-   "b": "J-2/LIFT-LEG:jwAluB",
+   "a": "J-4/CAB-CONSOLE:jwDark#new",
+   "b": "J-4/CAB-FRONT:jwAluB",
+   "share": 0.38
+  },
+  {
+   "a": "J-2/TUNNEL-3:J-2/LED#svc-lamp",
+   "b": "J-2/TUNNEL-3:jwAluB#svc-frame",
    "share": 0.375
   },
   {
@@ -451,168 +461,333 @@
    "share": 0.375
   },
   {
-   "a": "J-3/STAIR-LANDING:jwAluB",
-   "b": "J-3/STAIR-LANDING:jwHaz",
+   "a": "J-4/PCA-PIPES:jwAluB",
+   "b": "J-4/ROTUNDA:jwUnder",
    "share": 0.375
   },
   {
-   "a": "J-4/BOGIE:jwAluB",
-   "b": "J-4/BOGIE:yellow",
-   "share": 0.354
+   "a": "J-4/ROTUNDA-MACHINERY:jwAluB",
+   "b": "J-4/ROTUNDA-MACHINERY:jwPanel",
+   "share": 0.375
   },
   {
-   "a": "J-3/TUNNEL-3:jwAluB",
-   "b": "J-3/TUNNEL-3:jwWall",
-   "share": 0.35
+   "a": "J-4/TUNNEL-2:jwHaz",
+   "b": "J-4/TUNNEL-2:jwWall",
+   "share": 0.375
   },
   {
-   "a": "J-3/LIFT-BEAM:jwAluB",
-   "b": "J-3/LIFT-BEAM:jwDark",
-   "share": 0.333
-  },
-  {
-   "a": "J-4/ROTUNDA-MACHINERY:jwPanel",
-   "b": "J-4/ROTUNDA:jwRoof",
-   "share": 0.333
+   "a": "J-4/TUNNEL-3:J-4/LED",
+   "b": "J-4/TUNNEL-3:jwSlats",
+   "share": 0.375
   },
   {
    "a": "J-4/STAIR-LANDING:jwAluB",
    "b": "J-4/STAIR-LANDING:jwHaz",
-   "share": 0.333
-  },
-  {
-   "a": "J-4/BEACON:jwDark",
-   "b": "J-4/CAB:jwAluB",
-   "share": 0.333
+   "share": 0.375
   },
   {
    "a": "J-4/DRIVE-YOKE:jwAluB",
    "b": "J-4/LIFT-LEG:jwAluB",
-   "share": 0.333
+   "share": 0.375
   },
   {
-   "a": "J-4/TUNNEL-3:jwAluB",
-   "b": "J-4/TUNNEL-3:jwAluB#joint-lip",
-   "share": 0.318
+   "a": "J-1/CAB-CONSOLE:jwAluB#new",
+   "b": "J-1/CAB-CONSOLE:jwChrome#new",
+   "share": 0.367
   },
   {
-   "a": "J-3/BEACON:jwDark",
-   "b": "J-3/CAB:jwAluB",
-   "share": 0.307
+   "a": "J-2/CAB-CONSOLE:jwDark#new",
+   "b": "J-2/CAB-FRONT:jwAluB",
+   "share": 0.367
   },
   {
-   "a": "J-1/DRIVE-YOKE:jwAluB",
-   "b": "J-1/DRIVE-YOKE:jwDark",
-   "share": 0.303
+   "a": "J-1/TUNNEL-1:jwDark#sill",
+   "b": "J-1/TUNNEL-1:jwTruss#sill",
+   "share": 0.354
   },
   {
-   "a": "J-1/DRIVE-YOKE:jwAluB",
-   "b": "J-1/LIFT-LEG:jwAluB",
-   "share": 0.292
-  },
-  {
-   "a": "J-2/BEACON:jwDark",
-   "b": "J-2/CAB:jwAluB",
-   "share": 0.292
-  },
-  {
-   "a": "J-3/TUNNEL-1:jwAluB",
-   "b": "J-3/TUNNEL-1:jwCarpet",
-   "share": 0.292
-  },
-  {
-   "a": "J-2/DRIVE-YOKE:jwAluB",
-   "b": "J-2/DRIVE-YOKE:jwDark",
-   "share": 0.29
-  },
-  {
-   "a": "J-3/DRIVE-YOKE:jwAluB",
-   "b": "J-3/DRIVE-YOKE:jwDark",
-   "share": 0.287
-  },
-  {
-   "a": "J-1/BEACON:jwDark",
-   "b": "J-1/CAB:jwAluB",
-   "share": 0.276
-  },
-  {
-   "a": "J-1/TUNNEL-3:jwAluB",
-   "b": "J-1/TUNNEL-3:jwAluB#joint-lip",
-   "share": 0.273
-  },
-  {
-   "a": "J-3/TUNNEL-3:jwAluB",
-   "b": "J-3/TUNNEL-3:jwAluB#joint-lip",
-   "share": 0.273
-  },
-  {
-   "a": "J-4/TUNNEL-2:jwAluB",
-   "b": "J-4/TUNNEL-2:jwAluB#joint-lip",
-   "share": 0.273
-  },
-  {
-   "a": "J-2/PCA-PIPES:jwAluB",
-   "b": "J-2/ROTUNDA:jwTruss#underframe",
-   "share": 0.271
-  },
-  {
-   "a": "J-3/TUNNEL-1:jwAluB",
-   "b": "J-3/TUNNEL-1:jwWall#joint-frame",
-   "share": 0.268
-  },
-  {
-   "a": "J-2/TUNNEL-3:jwAluB",
-   "b": "J-2/TUNNEL-3:jwAluB#joint-lip",
-   "share": 0.261
-  },
-  {
-   "a": "J-4/DRIVE-YOKE:jwAluB",
-   "b": "J-4/DRIVE-YOKE:jwDark",
-   "share": 0.257
-  },
-  {
-   "a": "J-1/TUNNEL-2:jwAluB",
-   "b": "J-1/TUNNEL-2:jwWall",
-   "share": 0.25
-  },
-  {
-   "a": "J-2/TUNNEL-3:jwAluB",
-   "b": "J-2/TUNNEL-3:jwCarpet",
-   "share": 0.25
-  },
-  {
-   "a": "J-2/LIFT-SLEEVE:jwAluB",
-   "b": "J-2/LIFT-SLEEVE:jwPanel",
-   "share": 0.25
-  },
-  {
-   "a": "J-3/ROTUNDA-MACHINERY:jwPanel",
-   "b": "J-3/ROTUNDA:jwRoof",
-   "share": 0.25
-  },
-  {
-   "a": "J-3/PCA-PIPES:jwAluB",
-   "b": "J-3/ROTUNDA:jwTruss#underframe",
-   "share": 0.25
-  },
-  {
-   "a": "J-4/PCA-PIPES:jwAluB",
-   "b": "J-4/ROTUNDA:jwUnder",
-   "share": 0.25
+   "a": "J-3/CAB-CONSOLE:jwAluB#new",
+   "b": "J-3/CAB-CONSOLE:jwChrome#new",
+   "share": 0.353
   },
   {
    "a": "J-4/TUNNEL-3:jwAluB",
    "b": "J-4/TUNNEL-3:jwWall",
+   "share": 0.35
+  },
+  {
+   "a": "J-1/CAB-CONSOLE:jwDark#new",
+   "b": "J-1/CAB-FRONT:jwAluB",
+   "share": 0.34
+  },
+  {
+   "a": "J-3/CAB-CONSOLE:jwDark#new",
+   "b": "J-3/CAB-FRONT:jwAluB",
+   "share": 0.337
+  },
+  {
+   "a": "J-1/LIFT-BEAM:jwAluB",
+   "b": "J-1/LIFT-BEAM:jwDark",
+   "share": 0.333
+  },
+  {
+   "a": "J-2/TUNNEL-3:jwAluB",
+   "b": "J-2/TUNNEL-3:jwCarpet",
+   "share": 0.333
+  },
+  {
+   "a": "J-2/SERVICE-DOOR:glassOuter",
+   "b": "J-2/SERVICE-DOOR:jwAluB",
+   "share": 0.333
+  },
+  {
+   "a": "J-3/STAIR-LANDING:jwAluB",
+   "b": "J-3/STAIR-LANDING:jwHaz",
+   "share": 0.333
+  },
+  {
+   "a": "J-3/TUNNEL-3:J-3/LED#svc-lamp",
+   "b": "J-3/TUNNEL-3:jwAluB#svc-frame",
+   "share": 0.333
+  },
+  {
+   "a": "J-4/CAB-CONSOLE:jwAluB#new",
+   "b": "J-4/CAB-CONSOLE:jwChrome#new",
+   "share": 0.333
+  },
+  {
+   "a": "J-1/CAB-CONSOLE:jwAluB#new",
+   "b": "J-1/CAB-CONSOLE:yellow#new",
+   "share": 0.33
+  },
+  {
+   "a": "J-3/CAB-CONSOLE:jwAluB#new",
+   "b": "J-3/CAB-CONSOLE:yellow#new",
+   "share": 0.32
+  },
+  {
+   "a": "J-1/TUNNEL-2:jwAluB",
+   "b": "J-1/TUNNEL-2:jwAluB#joint-lip",
+   "share": 0.318
+  },
+  {
+   "a": "J-1/TUNNEL-3:jwAluB",
+   "b": "J-1/TUNNEL-3:jwAluB#joint-lip",
+   "share": 0.318
+  },
+  {
+   "a": "J-1/DRIVE-YOKE:jwAluB",
+   "b": "J-1/DRIVE-YOKE:jwDark",
+   "share": 0.313
+  },
+  {
+   "a": "J-1/CAB-CONSOLE:jwChrome#new",
+   "b": "J-1/CAB-CONSOLE:jwLampGreen#new",
+   "share": 0.312
+  },
+  {
+   "a": "J-4/CAB-CONSOLE:jwAluB#new",
+   "b": "J-4/CAB-CONSOLE:yellow#new",
+   "share": 0.31
+  },
+  {
+   "a": "J-2/CAB-CONSOLE:jwChrome#new",
+   "b": "J-2/CAB-CONSOLE:jwLampAmber#new",
+   "share": 0.307
+  },
+  {
+   "a": "J-4/TUNNEL-2:jwAluB",
+   "b": "J-4/TUNNEL-2:jwAluB#joint-lip",
+   "share": 0.307
+  },
+  {
+   "a": "J-2/CAB-CONSOLE:jwAluB#new",
+   "b": "J-2/CAB-CONSOLE:jwChrome#new",
+   "share": 0.307
+  },
+  {
+   "a": "J-1/CAB-CONSOLE:jwDark#new",
+   "b": "J-1/CAB-CONSOLE:jwPanel#new",
+   "share": 0.303
+  },
+  {
+   "a": "J-2/DRIVE-YOKE:jwAluB",
+   "b": "J-2/DRIVE-YOKE:jwDark",
+   "share": 0.303
+  },
+  {
+   "a": "J-3/CAB-CONSOLE:jwDark#new",
+   "b": "J-3/CAB-CONSOLE:jwPanel#new",
+   "share": 0.303
+  },
+  {
+   "a": "J-3/BEACON:jwDark",
+   "b": "J-3/CAB:jwAluB",
+   "share": 0.302
+  },
+  {
+   "a": "J-3/TUNNEL-2:jwAluB",
+   "b": "J-3/TUNNEL-2:jwWall",
+   "share": 0.3
+  },
+  {
+   "a": "J-3/TUNNEL-3:jwAluB",
+   "b": "J-3/TUNNEL-3:jwWall",
+   "share": 0.3
+  },
+  {
+   "a": "J-4/DRIVE-YOKE:jwAluB",
+   "b": "J-4/DRIVE-YOKE:jwDark",
+   "share": 0.3
+  },
+  {
+   "a": "J-1/BEACON:jwDark",
+   "b": "J-1/CAB:jwAluB",
+   "share": 0.297
+  },
+  {
+   "a": "J-3/CAB-CONSOLE:jwChrome#new",
+   "b": "J-3/CAB-CONSOLE:jwLampGreen#new",
+   "share": 0.297
+  },
+  {
+   "a": "J-4/TUNNEL-3:jwAluB",
+   "b": "J-4/TUNNEL-3:jwAluB#joint-lip",
+   "share": 0.295
+  },
+  {
+   "a": "J-1/LIFT-LEG:jwAluB",
+   "b": "J-1/LIFT-LEG:jwTruss",
+   "share": 0.292
+  },
+  {
+   "a": "J-2/ROTUNDA-MACHINERY:jwPanel",
+   "b": "J-2/ROTUNDA:jwRoof",
+   "share": 0.292
+  },
+  {
+   "a": "J-2/DRIVE-YOKE:jwAluB",
+   "b": "J-2/LIFT-LEG:jwAluB",
+   "share": 0.292
+  },
+  {
+   "a": "J-3/ROTUNDA-MACHINERY:jwPanel",
+   "b": "J-3/ROTUNDA:jwRoof",
+   "share": 0.292
+  },
+  {
+   "a": "J-3/CAB-CONSOLE:jwChrome#new",
+   "b": "J-3/CAB-CONSOLE:jwLampAmber#new",
+   "share": 0.292
+  },
+  {
+   "a": "J-4/ROTUNDA-MACHINERY:jwPanel",
+   "b": "J-4/ROTUNDA:jwRoof",
+   "share": 0.292
+  },
+  {
+   "a": "J-4/CAB-CONSOLE:jwChrome#new",
+   "b": "J-4/CAB-CONSOLE:jwLampGreen#new",
+   "share": 0.292
+  },
+  {
+   "a": "J-2/CAB-CONSOLE:jwAluB#new",
+   "b": "J-2/CAB-CONSOLE:yellow#new",
+   "share": 0.287
+  },
+  {
+   "a": "J-4/CAB-CONSOLE:jwChrome#new",
+   "b": "J-4/CAB-CONSOLE:jwLampAmber#new",
+   "share": 0.286
+  },
+  {
+   "a": "J-3/TUNNEL-3:jwAluB",
+   "b": "J-3/TUNNEL-3:jwAluB#joint-lip",
+   "share": 0.284
+  },
+  {
+   "a": "J-2/CAB-CONSOLE:jwDark#new",
+   "b": "J-2/CAB-CONSOLE:jwPanel#new",
+   "share": 0.28
+  },
+  {
+   "a": "J-1/DRIVE-YOKE:jwAluB",
+   "b": "J-1/DRIVE-YOKE:jwPanel",
+   "share": 0.271
+  },
+  {
+   "a": "J-3/TUNNEL-2:jwAluB",
+   "b": "J-3/TUNNEL-2:jwAluB#joint-lip",
+   "share": 0.261
+  },
+  {
+   "a": "J-3/DRIVE-YOKE:jwAluB",
+   "b": "J-3/DRIVE-YOKE:jwDark",
+   "share": 0.26
+  },
+  {
+   "a": "J-4/CAB-CONSOLE:jwDark#new",
+   "b": "J-4/CAB-CONSOLE:jwPanel#new",
+   "share": 0.26
+  },
+  {
+   "a": "J-2/BEACON:jwDark",
+   "b": "J-2/CAB:jwAluB",
+   "share": 0.255
+  },
+  {
+   "a": "J-1/ROTUNDA-MACHINERY:jwPanel",
+   "b": "J-1/ROTUNDA:jwRoof",
    "share": 0.25
   },
   {
-   "a": "J-1/LIFT-SLEEVE:jwAluB",
-   "b": "J-1/LIFT-SLEEVE:jwDark",
+   "a": "J-2/CAB-CONSOLE:jwChrome#new",
+   "b": "J-2/CAB-CONSOLE:jwLampGreen#new",
+   "share": 0.25
+  },
+  {
+   "a": "J-3/TUNNEL-2:jwAluB",
+   "b": "J-3/TUNNEL-2:jwWall#joint-frame",
+   "share": 0.25
+  },
+  {
+   "a": "J-4/TUNNEL-1:jwAluB",
+   "b": "J-4/TUNNEL-1:jwWall#joint-frame",
+   "share": 0.25
+  },
+  {
+   "a": "J-4/LIFT-LEG:jwAluB",
+   "b": "J-4/LIFT-LEG:jwTruss",
+   "share": 0.25
+  },
+  {
+   "a": "J-1/CAB-CONSOLE:jwChrome#new",
+   "b": "J-1/CAB-CONSOLE:jwLampAmber#new",
+   "share": 0.24
+  },
+  {
+   "a": "J-2/TUNNEL-2:jwAluB",
+   "b": "J-2/TUNNEL-2:jwAluB#joint-lip",
+   "share": 0.239
+  },
+  {
+   "a": "J-4/SERVICE-DOOR:glassOuter",
+   "b": "J-4/SERVICE-DOOR:jwAluB",
    "share": 0.237
   },
   {
-   "a": "J-1/TUNNEL-1:jwAluB",
-   "b": "J-1/TUNNEL-1:jwWall#joint-frame",
+   "a": "J-4/BEACON:jwDark",
+   "b": "J-4/CAB:jwAluB",
+   "share": 0.234
+  },
+  {
+   "a": "J-2/TUNNEL-1:jwAluB",
+   "b": "J-2/TUNNEL-1:jwWall#joint-frame",
+   "share": 0.232
+  },
+  {
+   "a": "J-2/TUNNEL-2:jwAluB",
+   "b": "J-2/TUNNEL-2:jwWall#joint-frame",
    "share": 0.232
   },
   {
@@ -621,19 +796,9 @@
    "share": 0.232
   },
   {
-   "a": "J-1/STAIR:jwAluB",
-   "b": "J-1/STAIR:jwDark",
+   "a": "J-2/DRIVE-YOKE:jwDark",
+   "b": "J-2/DRIVE-YOKE:jwPanel",
    "share": 0.229
-  },
-  {
-   "a": "J-1/TUNNEL-2:jwAluB",
-   "b": "J-1/TUNNEL-2:jwAluB#joint-lip",
-   "share": 0.227
-  },
-  {
-   "a": "J-3/TUNNEL-2:jwAluB",
-   "b": "J-3/TUNNEL-2:jwAluB#joint-lip",
-   "share": 0.227
   },
   {
    "a": "J-3/LIFT-SLEEVE:jwAluB",
@@ -641,33 +806,38 @@
    "share": 0.223
   },
   {
-   "a": "J-2/TUNNEL-2:jwAluB",
-   "b": "J-2/TUNNEL-2:jwTruss#underframe",
+   "a": "J-3/SERVICE-DOOR:glassOuter",
+   "b": "J-3/SERVICE-DOOR:jwAluB",
    "share": 0.22
   },
   {
    "a": "J-4/LIFT-SLEEVE:jwAluB",
    "b": "J-4/LIFT-SLEEVE:jwDark",
+   "share": 0.22
+  },
+  {
+   "a": "J-1/SERVICE-DOOR:glassOuter",
+   "b": "J-1/SERVICE-DOOR:jwAluB",
    "share": 0.217
   },
   {
-   "a": "J-3/TUNNEL-2:jwAluB",
-   "b": "J-3/TUNNEL-2:jwWall#joint-frame",
+   "a": "J-1/LIFT-SLEEVE:jwAluB",
+   "b": "J-1/LIFT-SLEEVE:jwDark",
+   "share": 0.217
+  },
+  {
+   "a": "J-3/TUNNEL-1:jwAluB",
+   "b": "J-3/TUNNEL-1:jwWall#joint-frame",
    "share": 0.214
   },
   {
-   "a": "J-4/TUNNEL-1:jwAluB",
-   "b": "J-4/TUNNEL-1:jwWall#joint-frame",
-   "share": 0.214
+   "a": "J-1/BOGIE:jwAluB",
+   "b": "J-1/DRIVE-YOKE:jwDark",
+   "share": 0.21
   },
   {
-   "a": "J-4/TUNNEL-3:jwAluB",
-   "b": "J-4/TUNNEL-3:jwTruss#underframe",
-   "share": 0.213
-  },
-  {
-   "a": "J-2/LIFT-SLEEVE:jwAluB",
-   "b": "J-2/LIFT-SLEEVE:jwDark",
+   "a": "J-4/BOGIE:jwAluB",
+   "b": "J-4/DRIVE-YOKE:jwDark",
    "share": 0.21
   },
   {
@@ -676,28 +846,8 @@
    "share": 0.208
   },
   {
-   "a": "J-1/BELLOWS-ROTUNDA-LINING",
-   "b": "box#14080",
-   "share": 0.208
-  },
-  {
-   "a": "J-1/LIFT-LEG:jwAluB",
-   "b": "J-1/LIFT-LEG:jwTruss",
-   "share": 0.208
-  },
-  {
-   "a": "J-2/ROTUNDA-MACHINERY:jwAluB",
-   "b": "J-2/ROTUNDA-MACHINERY:jwPanel",
-   "share": 0.208
-  },
-  {
-   "a": "J-2/STAIR-LANDING:jwAluB",
-   "b": "J-2/STAIR-LANDING:jwHaz",
-   "share": 0.208
-  },
-  {
-   "a": "J-2/LIFT-LEG:jwAluB",
-   "b": "J-2/LIFT-LEG:jwTruss",
+   "a": "J-1/TUNNEL-3:jwAluB#hose-hook",
+   "b": "J-1/TUNNEL-3:jwDark#pca",
    "share": 0.208
   },
   {
@@ -706,43 +856,48 @@
    "share": 0.208
   },
   {
-   "a": "J-4/LIFT-LEG:jwAluB",
-   "b": "J-4/LIFT-LEG:jwTruss",
+   "a": "J-3/LIFT-SLEEVE:jwAluB",
+   "b": "J-3/LIFT-SLEEVE:jwPanel",
    "share": 0.208
   },
   {
-   "a": "J-1/BOGIE:jwAluB",
-   "b": "J-1/DRIVE-YOKE:jwDark",
+   "a": "J-3/STAIR:jwAluB",
+   "b": "J-3/STAIR:jwDark",
+   "share": 0.208
+  },
+  {
+   "a": "J-4/CORRIDOR:J-4/LED",
+   "b": "J-4/CORRIDOR:jwCeil",
+   "share": 0.208
+  },
+  {
+   "a": "J-2/BOGIE:jwAluB",
+   "b": "J-2/DRIVE-YOKE:jwDark",
    "share": 0.207
   },
   {
-   "a": "J-3/TUNNEL-3:jwAluB#pca-bolts",
-   "b": "J-3/TUNNEL-3:jwDark#pca",
-   "share": 0.207
+   "a": "J-2/TUNNEL-3:jwAluB",
+   "b": "J-2/TUNNEL-3:jwAluB#joint-lip",
+   "share": 0.205
   },
   {
-   "a": "J-1/TUNNEL-3:jwAluB",
-   "b": "J-1/TUNNEL-3:jwTruss#underframe",
+   "a": "J-2/LIFT-SLEEVE:jwAluB",
+   "b": "J-2/LIFT-SLEEVE:jwDark",
+   "share": 0.203
+  },
+  {
+   "a": "J-3/TUNNEL-2:jwAluB",
+   "b": "J-3/TUNNEL-2:jwTruss#underframe",
    "share": 0.203
   },
   {
    "a": "J-2/CORRIDOR:J-2/LED",
-   "b": "J-2/CORRIDOR:jwCeil",
-   "share": 0.201
-  },
-  {
-   "a": "J-3/CORRIDOR:J-3/LED",
-   "b": "J-3/CORRIDOR:jwCeil",
-   "share": 0.201
-  },
-  {
-   "a": "J-2/CORRIDOR:jwDark",
    "b": "jwp#14157",
    "share": 0.2
   },
   {
-   "a": "J-2/CORRIDOR:jwDark",
-   "b": "jwp#14156",
+   "a": "J-2/TUNNEL-1:jwAluB",
+   "b": "J-2/TUNNEL-1:jwWall",
    "share": 0.2
   },
   {
@@ -751,19 +906,9 @@
    "share": 0.2
   },
   {
-   "a": "J-4/TUNNEL-2:jwAluB",
-   "b": "J-4/TUNNEL-2:jwWall",
+   "a": "J-2/TUNNEL-3:jwAluB",
+   "b": "J-2/TUNNEL-3:jwWall",
    "share": 0.2
-  },
-  {
-   "a": "J-2/BOGIE:jwAluB",
-   "b": "J-2/DRIVE-YOKE:jwAluB",
-   "share": 0.198
-  },
-  {
-   "a": "J-1/TUNNEL-2:jwAluB",
-   "b": "J-1/TUNNEL-2:jwTruss#underframe",
-   "share": 0.197
   },
   {
    "a": "J-3/TUNNEL-3:jwAluB",
@@ -772,67 +917,32 @@
   },
   {
    "a": "J-1/TUNNEL-2:jwAluB",
-   "b": "J-1/TUNNEL-2:jwWall#joint-frame",
-   "share": 0.196
-  },
-  {
-   "a": "J-2/CAB-FRONT:jwDark",
-   "b": "J-2/CAB-FRONT:yellow",
-   "share": 0.194
-  },
-  {
-   "a": "J-4/CORRIDOR:J-4/LED",
-   "b": "J-4/CORRIDOR:jwCeil",
-   "share": 0.194
-  },
-  {
-   "a": "J-4/CAB-FRONT:jwDark",
-   "b": "J-4/CAB-FRONT:yellow",
-   "share": 0.194
-  },
-  {
-   "a": "J-1/ROTUNDA:jwTruss#underframe",
-   "b": "J-1/ROTUNDA:jwUnder",
-   "share": 0.193
-  },
-  {
-   "a": "J-2/TUNNEL-1:jwAluB",
-   "b": "J-2/TUNNEL-1:jwTruss#underframe",
-   "share": 0.193
-  },
-  {
-   "a": "J-1/TUNNEL-3:glassOuter",
-   "b": "J-1/TUNNEL-3:jwAluB",
-   "share": 0.191
-  },
-  {
-   "a": "J-2/TUNNEL-3:glassOuter",
-   "b": "J-2/TUNNEL-3:jwAluB",
-   "share": 0.191
-  },
-  {
-   "a": "J-1/TUNNEL-1:jwAluB",
-   "b": "J-1/TUNNEL-1:jwTruss#underframe",
+   "b": "J-1/TUNNEL-2:jwTruss#underframe",
    "share": 0.19
   },
   {
-   "a": "J-3/TUNNEL-2:jwAluB",
-   "b": "J-3/TUNNEL-2:jwTruss#underframe",
-   "share": 0.19
-  },
-  {
-   "a": "J-3/BOGIE:jwAluB",
-   "b": "J-3/DRIVE-YOKE:jwDark",
-   "share": 0.19
-  },
-  {
-   "a": "J-1/DRIVE-YOKE:jwAluB",
-   "b": "J-1/DRIVE-YOKE:jwPanel",
+   "a": "J-1/PCA-PIPES:jwAluB",
+   "b": "J-1/ROTUNDA:jwTruss#underframe",
    "share": 0.188
   },
   {
-   "a": "J-4/DRIVE-YOKE:jwAluB",
-   "b": "J-4/DRIVE-YOKE:jwPanel",
+   "a": "J-2/STAIR:jwAluB",
+   "b": "J-2/STAIR:jwDark",
+   "share": 0.188
+  },
+  {
+   "a": "J-3/CORRIDOR:J-3/LED",
+   "b": "J-3/CORRIDOR:jwCeil",
+   "share": 0.188
+  },
+  {
+   "a": "J-3/PCA-PIPES:jwAluB",
+   "b": "J-3/ROTUNDA:jwTruss#underframe",
+   "share": 0.188
+  },
+  {
+   "a": "J-4/TUNNEL-3:jwAluB#svc-frame",
+   "b": "J-4/TUNNEL-3:jwWall#svc-wall",
    "share": 0.188
   },
   {
@@ -841,28 +951,33 @@
    "share": 0.187
   },
   {
-   "a": "J-4/TUNNEL-2:jwAluB",
-   "b": "J-4/TUNNEL-2:jwTruss#underframe",
-   "share": 0.187
-  },
-  {
-   "a": "J-2/TUNNEL-3:jwAluB",
-   "b": "J-2/TUNNEL-3:jwTruss#underframe",
+   "a": "J-2/CAB-CONSOLE:jwPanel#new",
+   "b": "J-2/CAB-CONSOLE:yellow#new",
    "share": 0.183
   },
   {
-   "a": "J-1/ROTUNDA:jwAluB",
-   "b": "J-1/ROTUNDA:jwPanel",
-   "share": 0.182
+   "a": "J-2/CAB-FRONT:jwDark",
+   "b": "J-2/CAB-FRONT:yellow",
+   "share": 0.181
   },
   {
-   "a": "J-2/ROTUNDA:jwAluB",
-   "b": "J-2/ROTUNDA:jwPanel",
-   "share": 0.182
+   "a": "J-1/ROTUNDA:jwTruss#underframe",
+   "b": "J-1/ROTUNDA:jwUnder",
+   "share": 0.18
   },
   {
-   "a": "J-1/TUNNEL-3:jwAluB#pca-bolts",
-   "b": "J-1/TUNNEL-3:jwDark#pca",
+   "a": "J-2/TUNNEL-1:jwAluB",
+   "b": "J-2/TUNNEL-1:jwTruss#underframe",
+   "share": 0.18
+  },
+  {
+   "a": "J-4/CAB-CONSOLE:jwPanel#new",
+   "b": "J-4/CAB-CONSOLE:yellow#new",
+   "share": 0.18
+  },
+  {
+   "a": "J-2/TUNNEL-2:jwAluB",
+   "b": "J-2/TUNNEL-2:jwTruss#underframe",
    "share": 0.177
   },
   {
@@ -871,29 +986,29 @@
    "share": 0.177
   },
   {
-   "a": "J-2/BOGIE:jwAluB",
-   "b": "J-2/DRIVE-YOKE:jwDark",
+   "a": "J-4/TUNNEL-3:jwAluB",
+   "b": "J-4/TUNNEL-3:jwTruss#underframe",
    "share": 0.177
   },
   {
-   "a": "J-3/ROTUNDA:jwTruss#underframe",
-   "b": "J-3/ROTUNDA:jwUnder",
-   "share": 0.177
+   "a": "J-1/TUNNEL-3:jwAluB",
+   "b": "J-1/TUNNEL-3:jwTruss#underframe",
+   "share": 0.173
   },
   {
-   "a": "J-4/TUNNEL-1:jwAluB",
-   "b": "J-4/TUNNEL-1:jwTruss#underframe",
-   "share": 0.177
+   "a": "J-2/TUNNEL-3:jwAluB",
+   "b": "J-2/TUNNEL-3:jwTruss#underframe",
+   "share": 0.173
   },
   {
-   "a": "J-2/TUNNEL-2:jwAluB",
-   "b": "J-2/TUNNEL-2:jwAluB#joint-lip",
+   "a": "J-3/TUNNEL-1:jwAluB",
+   "b": "J-3/TUNNEL-1:jwTruss#underframe",
+   "share": 0.173
+  },
+  {
+   "a": "J-4/TUNNEL-2:jwAluB",
+   "b": "J-4/TUNNEL-2:jwTruss#underframe",
    "share": 0.17
-  },
-  {
-   "a": "J-1/ROTUNDA-MACHINERY:jwPanel",
-   "b": "J-1/ROTUNDA:jwRoof",
-   "share": 0.167
   },
   {
    "a": "J-1/LIFT-SLEEVE:jwAluB",
@@ -901,13 +1016,18 @@
    "share": 0.167
   },
   {
-   "a": "J-2/ROTUNDA:jwTruss#underframe",
-   "b": "J-2/ROTUNDA:jwUnder",
+   "a": "J-2/TUNNEL-3:jwAluB#hose-hook",
+   "b": "J-2/TUNNEL-3:jwDark#pca",
    "share": 0.167
   },
   {
-   "a": "J-2/STAIR:jwAluB",
-   "b": "J-2/STAIR:jwDark",
+   "a": "J-2/LIFT-LEG:jwAluB",
+   "b": "J-2/LIFT-LEG:jwTruss",
+   "share": 0.167
+  },
+  {
+   "a": "J-3/ROTUNDA:jwDark#column-pad",
+   "b": "J-3/ROTUNDA:jwTruss#column",
    "share": 0.167
   },
   {
@@ -916,63 +1036,78 @@
    "share": 0.167
   },
   {
-   "a": "J-3/LIFT-SLEEVE:jwAluB",
-   "b": "J-3/LIFT-SLEEVE:jwPanel",
+   "a": "J-3/DRIVE-YOKE:jwDark",
+   "b": "J-3/DRIVE-YOKE:jwPanel",
    "share": 0.167
   },
   {
-   "a": "J-3/STAIR:jwAluB",
-   "b": "J-3/STAIR:jwDark",
+   "a": "J-4/CAB-FRONT:jwDark",
+   "b": "J-4/CAB-FRONT:yellow",
    "share": 0.167
-  },
-  {
-   "a": "J-1/TUNNEL-3:jwAluB#pca-grille",
-   "b": "J-1/TUNNEL-3:jwDark#pca",
-   "share": 0.163
-  },
-  {
-   "a": "J-4/BOGIE:jwAluB",
-   "b": "J-4/DRIVE-YOKE:jwDark",
-   "share": 0.163
-  },
-  {
-   "a": "J-2/TUNNEL-1:jwAluB",
-   "b": "J-2/TUNNEL-1:jwWall#joint-frame",
-   "share": 0.161
-  },
-  {
-   "a": "J-2/TUNNEL-2:jwAluB",
-   "b": "J-2/TUNNEL-2:jwWall#joint-frame",
-   "share": 0.161
   },
   {
    "a": "J-2/TUNNEL-3:jwAluB#pca-bolts",
    "b": "J-2/TUNNEL-3:jwDark#pca",
+   "share": 0.163
+  },
+  {
+   "a": "J-3/ROTUNDA:jwTruss#underframe",
+   "b": "J-3/ROTUNDA:jwUnder",
+   "share": 0.163
+  },
+  {
+   "a": "J-3/CAB-CONSOLE:jwPanel#new",
+   "b": "J-3/CAB-CONSOLE:yellow#new",
+   "share": 0.163
+  },
+  {
+   "a": "J-4/ROTUNDA:jwAluB#column-bolts",
+   "b": "J-4/ROTUNDA:jwTruss#column",
+   "share": 0.163
+  },
+  {
+   "a": "J-3/TUNNEL-3:jwAluB#svc-frame",
+   "b": "J-3/TUNNEL-3:jwWall#svc-wall",
+   "share": 0.161
+  },
+  {
+   "a": "J-1/TUNNEL-2:jwAluB",
+   "b": "J-1/TUNNEL-2:jwWall#joint-frame",
+   "share": 0.161
+  },
+  {
+   "a": "J-1/TUNNEL-1:jwAluB",
+   "b": "J-1/TUNNEL-1:jwTruss#underframe",
    "share": 0.16
   },
   {
-   "a": "J-3/TUNNEL-3:glassOuter",
-   "b": "J-3/TUNNEL-3:jwAluB",
+   "a": "J-4/TUNNEL-1:jwAluB",
+   "b": "J-4/TUNNEL-1:jwTruss#underframe",
    "share": 0.16
   },
   {
-   "a": "J-3/TUNNEL-1:jwAluB",
-   "b": "J-3/TUNNEL-1:jwTruss#underframe",
-   "share": 0.157
+   "a": "J-2/CORRIDOR:J-2/LED",
+   "b": "J-2/CORRIDOR:jwCeil",
+   "share": 0.16
   },
   {
-   "a": "J-1/BOGIE:jwAluB",
-   "b": "J-1/DRIVE-YOKE:jwAluB",
+   "a": "J-2/BOGIE:jwAluB",
+   "b": "J-2/DRIVE-YOKE:jwAluB",
+   "share": 0.156
+  },
+  {
+   "a": "J-1/TUNNEL-3:jwAluB#svc-frame",
+   "b": "J-1/TUNNEL-3:jwWall#svc-wall",
+   "share": 0.151
+  },
+  {
+   "a": "J-2/TUNNEL-3:jwAluB#svc-frame",
+   "b": "J-2/TUNNEL-3:jwWall#svc-wall",
    "share": 0.151
   },
   {
    "a": "J-3/BOGIE:jwAluB",
    "b": "J-3/DRIVE-YOKE:jwAluB",
-   "share": 0.151
-  },
-  {
-   "a": "J-4/BOGIE:jwAluB",
-   "b": "J-4/DRIVE-YOKE:jwAluB",
    "share": 0.151
   },
   {
@@ -986,13 +1121,18 @@
    "share": 0.15
   },
   {
-   "a": "J-2/CORRIDOR:J-2/LED",
+   "a": "J-1/TUNNEL-3:jwAluB",
+   "b": "J-1/TUNNEL-3:jwWall",
+   "share": 0.15
+  },
+  {
+   "a": "J-2/CORRIDOR:jwDark",
    "b": "jwp#14155",
    "share": 0.15
   },
   {
-   "a": "J-2/TUNNEL-1:jwAluB",
-   "b": "J-2/TUNNEL-1:jwWall",
+   "a": "J-2/ROTUNDA:jwTruss#underframe",
+   "b": "J-2/ROTUNDA:jwUnder",
    "share": 0.15
   },
   {
@@ -1001,18 +1141,28 @@
    "share": 0.15
   },
   {
-   "a": "J-3/ROTUNDA-DRUM:jwWall",
-   "b": "J-3/ROTUNDA:jwPanel",
+   "a": "J-3/CORRIDOR:jwDark",
+   "b": "jwp#14253",
+   "share": 0.15
+  },
+  {
+   "a": "J-3/TUNNEL-1:jwAluB",
+   "b": "J-3/TUNNEL-1:jwWall",
+   "share": 0.15
+  },
+  {
+   "a": "J-3/TUNNEL-3:jwAluB#pca-grille",
+   "b": "J-3/TUNNEL-3:jwDark#pca",
+   "share": 0.15
+  },
+  {
+   "a": "J-3/BOGIE:jwAluB",
+   "b": "J-3/DRIVE-YOKE:jwDark",
    "share": 0.15
   },
   {
    "a": "J-4/CORRIDOR:jwDark",
-   "b": "jwp#14348",
-   "share": 0.15
-  },
-  {
-   "a": "J-4/CORRIDOR:jwDark",
-   "b": "jwp#14350",
+   "b": "jwp#14349",
    "share": 0.15
   },
   {
@@ -1021,13 +1171,13 @@
    "share": 0.15
   },
   {
-   "a": "J-4/TUNNEL-3:glassOuter",
-   "b": "J-4/TUNNEL-3:jwAluB",
-   "share": 0.149
+   "a": "J-4/TUNNEL-2:jwAluB",
+   "b": "J-4/TUNNEL-2:jwWall",
+   "share": 0.15
   },
   {
-   "a": "J-1/TUNNEL-3:jwDark#pca",
-   "b": "J-1/TUNNEL-3:jwTruss#pca-hangers",
+   "a": "J-1/CAB-CONSOLE:jwPanel#new",
+   "b": "J-1/CAB-CONSOLE:yellow#new",
    "share": 0.147
   },
   {
@@ -1036,14 +1186,39 @@
    "share": 0.147
   },
   {
-   "a": "J-4/TUNNEL-3:jwAluB#pca-grille",
-   "b": "J-4/TUNNEL-3:jwDark#pca",
+   "a": "J-2/DRIVE-YOKE:jwAluB",
+   "b": "J-2/DRIVE-YOKE:jwPanel",
+   "share": 0.146
+  },
+  {
+   "a": "J-3/TUNNEL-3:jwAluB#hose-hook",
+   "b": "J-3/TUNNEL-3:jwDark#pca",
+   "share": 0.146
+  },
+  {
+   "a": "J-4/PCA-PIPES:jwAluB",
+   "b": "J-4/ROTUNDA:jwTruss#underframe",
+   "share": 0.146
+  },
+  {
+   "a": "J-3/TUNNEL-3:jwAluB#pca-bolts",
+   "b": "J-3/TUNNEL-3:jwDark#pca",
    "share": 0.143
   },
   {
-   "a": "J-4/TUNNEL-3:jwTruss#frame",
-   "b": "J-4/TUNNEL-3:jwTruss#sill",
-   "share": 0.141
+   "a": "J-1/TUNNEL-3:jwAluB#pca-grille",
+   "b": "J-1/TUNNEL-3:jwDark#pca",
+   "share": 0.137
+  },
+  {
+   "a": "J-1/CAB-CONSOLE:jwAluB#new",
+   "b": "J-1/CAB-CONSOLE:jwRubber#new",
+   "share": 0.137
+  },
+  {
+   "a": "J-4/TUNNEL-3:jwAluB#pca-grille",
+   "b": "J-4/TUNNEL-3:jwDark#pca",
+   "share": 0.137
   },
   {
    "a": "J-3/ROTUNDA:jwAluB",
@@ -1051,9 +1226,29 @@
    "share": 0.136
   },
   {
-   "a": "J-3/TUNNEL-3:jwAluB#pca-grille",
-   "b": "J-3/TUNNEL-3:jwDark#pca",
-   "share": 0.133
+   "a": "J-4/ROTUNDA:jwAluB",
+   "b": "J-4/ROTUNDA:jwPanel",
+   "share": 0.136
+  },
+  {
+   "a": "J-4/BOGIE:jwAluB",
+   "b": "J-4/DRIVE-YOKE:jwAluB",
+   "share": 0.13
+  },
+  {
+   "a": "J-1/TUNNEL-3:jwAluB#pca-bolts",
+   "b": "J-1/TUNNEL-3:jwDark#pca",
+   "share": 0.13
+  },
+  {
+   "a": "J-3/ROTUNDA:jwAluB#column-bolts",
+   "b": "J-3/ROTUNDA:jwTruss#column",
+   "share": 0.13
+  },
+  {
+   "a": "J-3/TUNNEL-3:jwDark#pca",
+   "b": "J-3/TUNNEL-3:jwTruss#pca-hangers",
+   "share": 0.13
   },
   {
    "a": "J-2/TUNNEL-3:jwDark#pca",
@@ -1061,23 +1256,58 @@
    "share": 0.127
   },
   {
+   "a": "J-4/TUNNEL-3:jwDark#pca",
+   "b": "J-4/TUNNEL-3:jwTruss#pca-hangers",
+   "share": 0.127
+  },
+  {
+   "a": "J-1/TUNNEL-1:jwTruss#frame",
+   "b": "J-1/TUNNEL-1:jwTruss#sill",
+   "share": 0.125
+  },
+  {
+   "a": "J-1/TUNNEL-2:jwCarpet",
+   "b": "J-1/TUNNEL-2:jwHaz",
+   "share": 0.125
+  },
+  {
+   "a": "J-1/TUNNEL-3:jwTruss#frame",
+   "b": "J-1/TUNNEL-3:jwTruss#sill",
+   "share": 0.125
+  },
+  {
    "a": "J-1/CAB-FRONT:jwDark",
    "b": "J-1/CAB-FRONT:yellow",
    "share": 0.125
   },
   {
-   "a": "J-2/ROTUNDA-MACHINERY:jwPanel",
-   "b": "J-2/ROTUNDA:jwRoof",
+   "a": "J-1/BOGIE:jwAluB",
+   "b": "J-1/DRIVE-YOKE:jwAluB",
    "share": 0.125
   },
   {
-   "a": "J-2/TUNNEL-2:jwHaz#joint-edge",
-   "b": "J-2/TUNNEL-2:jwStud#joint-plate",
+   "a": "J-2/PCA-PIPES:jwAluB",
+   "b": "J-2/ROTUNDA:jwTruss#underframe",
    "share": 0.125
   },
   {
-   "a": "J-2/DRIVE-YOKE:jwAluB",
-   "b": "J-2/DRIVE-YOKE:jwPanel",
+   "a": "J-2/TUNNEL-1:jwTruss#frame",
+   "b": "J-2/TUNNEL-1:jwTruss#sill",
+   "share": 0.125
+  },
+  {
+   "a": "J-2/TUNNEL-2:jwDark#junction",
+   "b": "J-2/TUNNEL-2:jwTruss#underframe",
+   "share": 0.125
+  },
+  {
+   "a": "J-2/LIFT-SLEEVE:jwAluB",
+   "b": "J-2/LIFT-SLEEVE:jwPanel",
+   "share": 0.125
+  },
+  {
+   "a": "J-3/TUNNEL-2:jwTruss#frame",
+   "b": "J-3/TUNNEL-2:jwTruss#sill",
    "share": 0.125
   },
   {
@@ -1086,44 +1316,39 @@
    "share": 0.125
   },
   {
-   "a": "J-3/DRIVE-YOKE:jwDark",
-   "b": "J-3/DRIVE-YOKE:jwPanel",
-   "share": 0.125
-  },
-  {
    "a": "J-3/LIFT-LEG:jwAluB",
    "b": "J-3/LIFT-LEG:jwTruss",
    "share": 0.125
   },
   {
-   "a": "J-3/STEP:jwAluB",
-   "b": "J-3/STEP:jwHaz",
+   "a": "J-4/ROTUNDA:jwDark#column-pad",
+   "b": "J-4/ROTUNDA:jwTruss#column",
    "share": 0.125
   },
   {
-   "a": "J-3/TUNNEL-3:glassOuter",
-   "b": "J-3/TUNNEL-3:jwPanel",
-   "share": 0.115
+   "a": "J-4/TUNNEL-2:jwCarpet",
+   "b": "J-4/TUNNEL-2:jwHaz",
+   "share": 0.125
   },
   {
-   "a": "J-4/TUNNEL-3:glassOuter",
-   "b": "J-4/TUNNEL-3:jwPanel",
-   "share": 0.115
+   "a": "J-3/CAB-FRONT:jwWall",
+   "b": "J-3/CANOPY:jwFolds",
+   "share": 0.117
   },
   {
-   "a": "J-3/TUNNEL-3:jwDark#pca",
-   "b": "J-3/TUNNEL-3:jwTruss#pca-hangers",
+   "a": "J-1/TUNNEL-3:jwAluB#pca-bolts",
+   "b": "J-1/TUNNEL-3:jwTruss#pca-hangers",
    "share": 0.113
   },
   {
-   "a": "J-4/TUNNEL-3:jwDark#pca",
-   "b": "J-4/TUNNEL-3:jwTruss#pca-hangers",
+   "a": "J-4/TUNNEL-1:glassOuter",
+   "b": "J-4/TUNNEL-1:jwWall",
    "share": 0.11
   },
   {
-   "a": "J-3/TUNNEL-1:jwTruss#frame",
-   "b": "J-3/TUNNEL-1:jwTruss#sill",
-   "share": 0.109
+   "a": "J-2/ROTUNDA:jwAluB#column-bolts",
+   "b": "J-2/ROTUNDA:jwTruss#column",
+   "share": 0.11
   },
   {
    "a": "J-3/TUNNEL-3:jwTruss#frame",
@@ -1131,28 +1356,33 @@
    "share": 0.109
   },
   {
-   "a": "J-4/TUNNEL-2:glassOuter",
-   "b": "J-4/TUNNEL-2:jwWall#joint-frame",
+   "a": "J-1/TUNNEL-1:jwAluB",
+   "b": "J-1/TUNNEL-1:jwWall#joint-frame",
    "share": 0.107
-  },
-  {
-   "a": "J-1/TUNNEL-1:jwDark#junction",
-   "b": "J-1/TUNNEL-1:jwTruss#underframe",
-   "share": 0.104
-  },
-  {
-   "a": "J-4/TUNNEL-3:jwAluB#hose-hook",
-   "b": "J-4/TUNNEL-3:jwDark#pca",
-   "share": 0.104
   },
   {
    "a": "J-1/CAB-FRONT:jwWall",
    "b": "J-1/CANOPY:jwFolds",
+   "share": 0.107
+  },
+  {
+   "a": "J-1/ROTUNDA:jwDark#column-pad",
+   "b": "J-1/ROTUNDA:jwTruss#column",
+   "share": 0.104
+  },
+  {
+   "a": "J-2/ROTUNDA:jwDark#column-pad",
+   "b": "J-2/ROTUNDA:jwPanel#column-box",
+   "share": 0.104
+  },
+  {
+   "a": "J-1/TUNNEL-1:jwAluB",
+   "b": "J-1/TUNNEL-1:jwWall",
    "share": 0.103
   },
   {
-   "a": "J-3/TUNNEL-1:jwAluB",
-   "b": "J-3/TUNNEL-1:jwWall",
+   "a": "J-4/TUNNEL-2:glassOuter",
+   "b": "J-4/TUNNEL-2:jwWall",
    "share": 0.103
   },
   {
@@ -1161,13 +1391,13 @@
    "share": 0.1
   },
   {
-   "a": "J-2/CORRIDOR:jwDark",
-   "b": "jwp#14158",
+   "a": "J-1/TUNNEL-3:jwDark#pca",
+   "b": "J-1/TUNNEL-3:jwTruss#pca-hangers",
    "share": 0.1
   },
   {
-   "a": "J-2/CORRIDOR:jwDark",
-   "b": "jwp#14155",
+   "a": "J-1/CAB-CONSOLE:jwChrome#new",
+   "b": "J-1/CAB-CONSOLE:jwRed#new",
    "share": 0.1
   },
   {
@@ -1177,22 +1407,32 @@
   },
   {
    "a": "J-2/CORRIDOR:J-2/LED",
-   "b": "jwp#14157",
+   "b": "jwp#14158",
    "share": 0.1
   },
   {
-   "a": "J-3/TUNNEL-2:jwAluB",
-   "b": "J-3/TUNNEL-2:jwWall",
+   "a": "J-2/CORRIDOR:jwDark",
+   "b": "jwp#14158",
    "share": 0.1
   },
   {
-   "a": "J-3/CAB-FRONT:jwWall",
-   "b": "J-3/CANOPY:jwFolds",
+   "a": "J-2/CAB-CONSOLE:jwDark#new",
+   "b": "jwp#14166",
    "share": 0.1
   },
   {
-   "a": "J-4/CORRIDOR:J-4/LED",
-   "b": "jwp#14347",
+   "a": "J-3/CORRIDOR:J-3/LED",
+   "b": "jwp#14252",
+   "share": 0.1
+  },
+  {
+   "a": "J-3/CORRIDOR:jwDark",
+   "b": "jwp#14252",
+   "share": 0.1
+  },
+  {
+   "a": "J-3/CORRIDOR:jwDark",
+   "b": "jwp#14254",
    "share": 0.1
   },
   {
@@ -1201,13 +1441,18 @@
    "share": 0.1
   },
   {
-   "a": "J-4/CORRIDOR:J-4/LED",
+   "a": "J-4/CORRIDOR:jwDark",
+   "b": "jwp#14348",
+   "share": 0.1
+  },
+  {
+   "a": "J-4/CORRIDOR:jwDark",
    "b": "jwp#14350",
    "share": 0.1
   },
   {
-   "a": "J-2/TUNNEL-3:jwAluB#pca-bolts",
-   "b": "J-2/TUNNEL-3:jwTruss#pca-hangers",
+   "a": "J-1/ROTUNDA:jwAluB#column-bolts",
+   "b": "J-1/ROTUNDA:jwTruss#column",
    "share": 0.097
   },
   {
@@ -1216,98 +1461,103 @@
    "share": 0.097
   },
   {
-   "a": "J-1/TUNNEL-1:jwAluB",
-   "b": "J-1/TUNNEL-1:jwWall",
-   "share": 0.096
+   "a": "J-4/TUNNEL-3:jwAluB#pca-bolts",
+   "b": "J-4/TUNNEL-3:jwTruss#pca-hangers",
+   "share": 0.097
   },
   {
-   "a": "J-4/TUNNEL-1:glassOuter",
-   "b": "J-4/TUNNEL-1:jwWall",
-   "share": 0.096
+   "a": "J-4/CAB-FRONT:jwWall",
+   "b": "J-4/CANOPY:jwFolds",
+   "share": 0.097
   },
   {
-   "a": "J-4/TUNNEL-2:glassOuter",
-   "b": "J-4/TUNNEL-2:jwWall",
-   "share": 0.096
+   "a": "J-4/CAB-CONSOLE:jwAluB#new",
+   "b": "J-4/CAB-CONSOLE:jwRubber#new",
+   "share": 0.097
   },
   {
-   "a": "J-2/TUNNEL-2:jwTruss#frame",
-   "b": "J-2/TUNNEL-2:jwTruss#sill",
+   "a": "J-1/TUNNEL-3:glassOuter",
+   "b": "J-1/TUNNEL-3:jwAluB",
    "share": 0.094
   },
   {
-   "a": "J-1/TUNNEL-3:jwAluB#pca-bolts",
-   "b": "J-1/TUNNEL-3:jwTruss#pca-hangers",
+   "a": "J-4/TUNNEL-3:jwTruss#frame",
+   "b": "J-4/TUNNEL-3:jwTruss#sill",
+   "share": 0.094
+  },
+  {
+   "a": "J-3/CAB-CONSOLE:jwAluB#new",
+   "b": "J-3/CAB-CONSOLE:jwRubber#new",
    "share": 0.093
   },
   {
-   "a": "J-1/CAB-CONSOLE:jwDark",
-   "b": "J-1/CAB-FRONT:jwAluB",
-   "share": 0.093
-  },
-  {
-   "a": "J-2/TUNNEL-3:glassOuter",
-   "b": "J-2/TUNNEL-3:jwAluB#joint-lip",
+   "a": "J-2/ROTUNDA:jwAluB",
+   "b": "J-2/ROTUNDA:jwPanel",
    "share": 0.091
   },
   {
-   "a": "J-2/CAB-CONSOLE:jwDark",
-   "b": "J-2/CAB-FRONT:jwAluB",
+   "a": "J-4/FIRE-EXTINGUISHER:jwDark",
+   "b": "J-4/FIRE-EXTINGUISHER:yellow",
+   "share": 0.089
+  },
+  {
+   "a": "J-2/TUNNEL-2:glassOuter",
+   "b": "J-2/TUNNEL-2:jwWall",
    "share": 0.088
   },
   {
-   "a": "J-1/PCA-PIPES:jwAluB",
-   "b": "J-1/ROTUNDA:jwTruss#underframe",
+   "a": "J-3/TUNNEL-1:glassOuter",
+   "b": "J-3/TUNNEL-1:jwWall",
+   "share": 0.088
+  },
+  {
+   "a": "J-2/CAB-CONSOLE:jwAluB#new",
+   "b": "J-2/CAB-CONSOLE:jwRubber#new",
+   "share": 0.087
+  },
+  {
+   "a": "J-4/DRIVE-YOKE:jwDark",
+   "b": "J-4/DRIVE-YOKE:jwPanel",
+   "share": 0.087
+  },
+  {
+   "a": "J-1/ROTUNDA:jwDark#column-pad",
+   "b": "J-1/ROTUNDA:jwPanel#column-box",
    "share": 0.083
   },
   {
-   "a": "J-1/TUNNEL-2:jwHaz#joint-edge",
-   "b": "J-1/TUNNEL-2:jwStud#joint-plate",
+   "a": "J-1/TUNNEL-1:jwHaz#joint-edge",
+   "b": "J-1/TUNNEL-1:jwStud#joint-plate",
    "share": 0.083
   },
   {
-   "a": "J-1/TUNNEL-3:jwAluB#hose-hook",
-   "b": "J-1/TUNNEL-3:jwDark#pca",
-   "share": 0.083
-  },
-  {
-   "a": "J-1/ROTUNDA:jwUnder",
+   "a": "J-1/BELLOWS-ROTUNDA-LINING",
    "b": "box#14078",
    "share": 0.083
   },
   {
-   "a": "J-1/ROTUNDA:jwCarpet",
-   "b": "box#14078",
+   "a": "J-1/BELLOWS-ROTUNDA-LINING",
+   "b": "box#14080",
    "share": 0.083
   },
   {
-   "a": "J-1/DRIVE-YOKE:jwDark",
-   "b": "J-1/DRIVE-YOKE:jwPanel",
+   "a": "J-1/STAIR:jwAluB",
+   "b": "J-1/STAIR:jwDark",
    "share": 0.083
   },
   {
-   "a": "J-2/TUNNEL-1:glassOuter",
-   "b": "J-2/TUNNEL-1:jwWall",
+   "a": "J-1/STEP:jwAluB",
+   "b": "J-1/STEP:jwHaz",
    "share": 0.083
   },
   {
-   "a": "J-2/TUNNEL-1:jwHaz#joint-edge",
-   "b": "J-2/TUNNEL-1:jwStud#joint-plate",
+   "a": "J-2/TUNNEL-2:jwCarpet",
+   "b": "J-2/TUNNEL-2:jwHaz",
    "share": 0.083
   },
   {
-   "a": "J-2/TUNNEL-3:jwDark#junction",
-   "b": "J-2/TUNNEL-3:jwTruss#underframe",
-   "share": 0.083
-  },
-  {
-   "a": "J-2/TUNNEL-3:jwAluB#hose-hook",
-   "b": "J-2/TUNNEL-3:jwDark#pca",
-   "share": 0.083
-  },
-  {
-   "a": "J-2/BELLOWS-ROTUNDA-LINING",
-   "b": "box#14176",
+   "a": "J-3/ROTUNDA:jwDark#column-pad",
+   "b": "J-3/ROTUNDA:jwPanel#column-box",
    "share": 0.083
   },
   {
@@ -1316,17 +1566,27 @@
    "share": 0.083
   },
   {
-   "a": "J-3/TUNNEL-3:jwAluB#hose-hook",
-   "b": "J-3/TUNNEL-3:jwDark#pca",
+   "a": "J-3/STEP:jwAluB",
+   "b": "J-3/STEP:jwHaz",
    "share": 0.083
   },
   {
-   "a": "J-4/PCA-PIPES:jwAluB",
-   "b": "J-4/ROTUNDA:jwTruss#underframe",
+   "a": "J-4/ROTUNDA:jwDark#column-pad",
+   "b": "J-4/ROTUNDA:jwPanel#column-box",
    "share": 0.083
   },
   {
-   "a": "J-4/DRIVE-YOKE:jwDark",
+   "a": "J-4/TUNNEL-1:jwHaz#joint-edge",
+   "b": "J-4/TUNNEL-1:jwStud#joint-plate",
+   "share": 0.083
+  },
+  {
+   "a": "J-4/TUNNEL-3:jwAluB#hose-hook",
+   "b": "J-4/TUNNEL-3:jwDark#pca",
+   "share": 0.083
+  },
+  {
+   "a": "J-4/DRIVE-YOKE:jwAluB",
    "b": "J-4/DRIVE-YOKE:jwPanel",
    "share": 0.083
   },
@@ -1336,43 +1596,48 @@
    "share": 0.083
   },
   {
+   "a": "J-4/STAIR:jwAluB",
+   "b": "J-4/STAIR:jwDark",
+   "share": 0.083
+  },
+  {
    "a": "J-4/STEP:jwAluB",
    "b": "J-4/STEP:jwHaz",
    "share": 0.083
   },
   {
-   "a": "J-4/CAB-FRONT:jwWall",
-   "b": "J-4/CANOPY:jwFolds",
+   "a": "J-1/TUNNEL-1:glassOuter",
+   "b": "J-1/TUNNEL-1:jwWall",
+   "share": 0.081
+  },
+  {
+   "a": "J-3/FIRE-EXTINGUISHER:jwDark",
+   "b": "J-3/FIRE-EXTINGUISHER:yellow",
+   "share": 0.08
+  },
+  {
+   "a": "J-2/CAB-CONSOLE:jwRed#new",
+   "b": "J-2/CAB-CONSOLE:yellow#new",
+   "share": 0.08
+  },
+  {
+   "a": "J-2/TUNNEL-2:glassOuter",
+   "b": "J-2/TUNNEL-2:jwAluB#joint-lip",
+   "share": 0.08
+  },
+  {
+   "a": "J-3/TUNNEL-3:glassOuter",
+   "b": "J-3/TUNNEL-3:jwAluB#joint-lip",
    "share": 0.08
   },
   {
    "a": "J-1/TUNNEL-3:glassOuter",
-   "b": "J-1/TUNNEL-3:jwAluB#joint-lip",
-   "share": 0.08
-  },
-  {
-   "a": "J-4/TUNNEL-2:glassOuter",
-   "b": "J-4/TUNNEL-2:jwAluB#joint-lip",
-   "share": 0.08
-  },
-  {
-   "a": "J-1/TUNNEL-1:jwTruss#frame",
-   "b": "J-1/TUNNEL-1:jwTruss#sill",
+   "b": "J-1/TUNNEL-3:jwWall",
    "share": 0.078
   },
   {
-   "a": "J-1/TUNNEL-2:jwTruss#frame",
-   "b": "J-1/TUNNEL-2:jwTruss#sill",
-   "share": 0.078
-  },
-  {
-   "a": "J-2/TUNNEL-1:jwTruss#frame",
-   "b": "J-2/TUNNEL-1:jwTruss#sill",
-   "share": 0.078
-  },
-  {
-   "a": "J-3/TUNNEL-2:jwTruss#frame",
-   "b": "J-3/TUNNEL-2:jwTruss#sill",
+   "a": "J-4/TUNNEL-1:jwTruss#frame",
+   "b": "J-4/TUNNEL-1:jwTruss#sill",
    "share": 0.078
   },
   {
@@ -1381,13 +1646,23 @@
    "share": 0.078
   },
   {
-   "a": "J-3/TUNNEL-1:glassOuter",
-   "b": "J-3/TUNNEL-1:jwWall",
-   "share": 0.074
+   "a": "J-4/TUNNEL-3:glassOuter",
+   "b": "J-4/TUNNEL-3:jwWall",
+   "share": 0.078
+  },
+  {
+   "a": "J-3/CAB-CONSOLE:jwChrome#new",
+   "b": "J-3/CAB-CONSOLE:jwRed#new",
+   "share": 0.073
   },
   {
    "a": "J-1/FIRE-EXTINGUISHER:jwDark",
    "b": "J-1/FIRE-EXTINGUISHER:yellow",
+   "share": 0.071
+  },
+  {
+   "a": "J-1/TUNNEL-1:glassOuter",
+   "b": "J-1/TUNNEL-1:jwWall#joint-frame",
    "share": 0.071
   },
   {
@@ -1396,34 +1671,64 @@
    "share": 0.071
   },
   {
-   "a": "J-3/TUNNEL-1:jwPanel",
+   "a": "J-2/TUNNEL-1:glassOuter",
+   "b": "J-2/TUNNEL-1:jwWall#joint-frame",
+   "share": 0.071
+  },
+  {
+   "a": "J-3/TUNNEL-1:glassOuter",
    "b": "J-3/TUNNEL-1:jwWall#joint-frame",
    "share": 0.071
   },
   {
-   "a": "J-3/TUNNEL-2:glassOuter",
-   "b": "J-3/TUNNEL-2:jwWall#joint-frame",
-   "share": 0.071
-  },
-  {
-   "a": "J-4/TUNNEL-1:jwPanel",
+   "a": "J-4/TUNNEL-1:glassOuter",
    "b": "J-4/TUNNEL-1:jwWall#joint-frame",
    "share": 0.071
   },
   {
-   "a": "J-2/TUNNEL-3:glassOuter",
-   "b": "J-2/TUNNEL-3:jwWall",
-   "share": 0.069
+   "a": "J-4/TUNNEL-2:jwPanel",
+   "b": "J-4/TUNNEL-2:jwWall#joint-frame",
+   "share": 0.071
   },
   {
-   "a": "J-1/TUNNEL-1:glassOuter",
-   "b": "J-1/TUNNEL-1:jwWall",
-   "share": 0.066
+   "a": "J-1/TUNNEL-3:jwAluB",
+   "b": "J-1/TUNNEL-3:jwWall#svc-wall",
+   "share": 0.067
   },
   {
-   "a": "J-1/TUNNEL-3:glassOuter",
-   "b": "J-1/TUNNEL-3:jwWall",
-   "share": 0.066
+   "a": "J-1/CAB-CONSOLE:jwRed#new",
+   "b": "J-1/CAB-CONSOLE:yellow#new",
+   "share": 0.067
+  },
+  {
+   "a": "J-2/TUNNEL-3:jwAluB#pca-bolts",
+   "b": "J-2/TUNNEL-3:jwTruss#pca-hangers",
+   "share": 0.067
+  },
+  {
+   "a": "J-3/TUNNEL-3:jwAluB",
+   "b": "J-3/TUNNEL-3:jwWall#svc-wall",
+   "share": 0.067
+  },
+  {
+   "a": "J-3/CORRIDOR:jwAluB",
+   "b": "J-3/CORRIDOR:jwPanel",
+   "share": 0.063
+  },
+  {
+   "a": "J-3/CAB-CONSOLE:jwRed#new",
+   "b": "J-3/CAB-CONSOLE:yellow#new",
+   "share": 0.063
+  },
+  {
+   "a": "J-1/TUNNEL-1:jwDark#junction",
+   "b": "J-1/TUNNEL-1:jwTruss#underframe",
+   "share": 0.062
+  },
+  {
+   "a": "J-1/TUNNEL-2:jwTruss#frame",
+   "b": "J-1/TUNNEL-2:jwTruss#sill",
+   "share": 0.062
   },
   {
    "a": "J-1/TUNNEL-2:jwDark#junction",
@@ -1431,28 +1736,33 @@
    "share": 0.062
   },
   {
-   "a": "J-2/FIRE-EXTINGUISHER:jwDark",
-   "b": "J-2/FIRE-EXTINGUISHER:yellow",
+   "a": "J-1/DRIVE-YOKE:jwDark",
+   "b": "J-1/DRIVE-YOKE:jwPanel",
    "share": 0.062
   },
   {
-   "a": "J-2/TUNNEL-2:jwCarpet",
-   "b": "J-2/TUNNEL-2:jwHaz",
+   "a": "J-2/ROTUNDA:jwDark#column-pad",
+   "b": "J-2/ROTUNDA:jwTruss#column",
    "share": 0.062
   },
   {
-   "a": "J-2/DRIVE-YOKE:jwDark",
-   "b": "J-2/DRIVE-YOKE:jwPanel",
+   "a": "J-2/TUNNEL-1:jwDark#junction",
+   "b": "J-2/TUNNEL-1:jwTruss#underframe",
    "share": 0.062
   },
   {
-   "a": "J-3/TUNNEL-1:jwAluB",
-   "b": "J-3/TUNNEL-1:jwDark#sill",
+   "a": "J-2/TUNNEL-3:jwDark#junction",
+   "b": "J-2/TUNNEL-3:jwTruss#underframe",
    "share": 0.062
   },
   {
-   "a": "J-3/TUNNEL-2:jwDark#junction",
-   "b": "J-3/TUNNEL-2:jwTruss#underframe",
+   "a": "J-3/TUNNEL-1:jwTruss#frame",
+   "b": "J-3/TUNNEL-1:jwTruss#sill",
+   "share": 0.062
+  },
+  {
+   "a": "J-3/TUNNEL-3:jwDark#junction",
+   "b": "J-3/TUNNEL-3:jwTruss#underframe",
    "share": 0.062
   },
   {
@@ -1461,13 +1771,13 @@
    "share": 0.062
   },
   {
-   "a": "J-3/ROTUNDA-SLEEVE:jwAluB",
-   "b": "J-3/ROTUNDA:jwSlats",
+   "a": "J-1/ROTUNDA-SLEEVE:jwAluB",
+   "b": "J-1/ROTUNDA:jwRoof",
    "share": 0.062
   },
   {
-   "a": "J-3/ROTUNDA-SLEEVE:jwAluB",
-   "b": "J-3/ROTUNDA:jwRoof",
+   "a": "J-1/ROTUNDA-SLEEVE:jwAluB",
+   "b": "J-1/ROTUNDA:jwSlats",
    "share": 0.062
   },
   {
@@ -1476,63 +1786,63 @@
    "share": 0.06
   },
   {
-   "a": "J-3/CAB-FRONT:jwRubber",
-   "b": "J-3/CAB-FRONT:yellow",
-   "share": 0.06
-  },
-  {
-   "a": "J-2/TUNNEL-2:glassOuter",
-   "b": "J-2/TUNNEL-2:jwAluB#joint-lip",
+   "a": "J-1/TUNNEL-2:glassOuter",
+   "b": "J-1/TUNNEL-2:jwAluB#joint-lip",
    "share": 0.057
   },
   {
-   "a": "J-1/CAB-FRONT:jwAluB",
-   "b": "J-1/CAB:jwCarpet",
+   "a": "J-2/TUNNEL-3:jwTruss#pca-hangers",
+   "b": "J-2/TUNNEL-3:jwTruss#underframe",
    "share": 0.057
   },
   {
-   "a": "J-3/CAB-CONSOLE:jwDark",
-   "b": "J-3/CAB-FRONT:jwAluB",
+   "a": "J-3/TUNNEL-3:jwAluB#pca-bolts",
+   "b": "J-3/TUNNEL-3:jwTruss#pca-hangers",
+   "share": 0.057
+  },
+  {
+   "a": "J-4/TUNNEL-3:jwAluB",
+   "b": "J-4/TUNNEL-3:jwTruss#pca-hangers",
+   "share": 0.057
+  },
+  {
+   "a": "J-4/TUNNEL-3:jwTruss#pca-hangers",
+   "b": "J-4/TUNNEL-3:jwTruss#underframe",
+   "share": 0.057
+  },
+  {
+   "a": "J-4/CAB-CONSOLE:jwRed#new",
+   "b": "J-4/CAB-CONSOLE:yellow#new",
+   "share": 0.057
+  },
+  {
+   "a": "J-1/DRIVE-YOKE:jwAluB",
+   "b": "J-1/LIFT-LEG:jwTruss",
    "share": 0.056
   },
   {
-   "a": "J-4/CORRIDOR:jwAluB",
-   "b": "J-4/GATE-TRIM:jwTruss",
+   "a": "J-2/CORRIDOR:jwAluB",
+   "b": "J-2/GATE-TRIM:jwTruss",
    "share": 0.056
   },
   {
-   "a": "J-1/TUNNEL-1:glassOuter",
-   "b": "J-1/TUNNEL-1:jwWall#joint-frame",
+   "a": "J-4/ROTUNDA-SLEEVE:jwAluB",
+   "b": "J-4/ROTUNDA:jwRoof",
    "share": 0.054
   },
   {
-   "a": "J-1/TUNNEL-2:jwWall",
-   "b": "J-1/TUNNEL-2:jwWall#joint-frame",
+   "a": "J-4/ROTUNDA-SLEEVE:jwAluB",
+   "b": "J-4/ROTUNDA:jwSlats",
    "share": 0.054
   },
   {
-   "a": "J-2/TUNNEL-1:glassOuter",
+   "a": "J-2/FIRE-EXTINGUISHER:jwDark",
+   "b": "J-2/FIRE-EXTINGUISHER:yellow",
+   "share": 0.054
+  },
+  {
+   "a": "J-2/TUNNEL-1:jwWall",
    "b": "J-2/TUNNEL-1:jwWall#joint-frame",
-   "share": 0.054
-  },
-  {
-   "a": "J-2/TUNNEL-1:jwPanel",
-   "b": "J-2/TUNNEL-1:jwWall#joint-frame",
-   "share": 0.054
-  },
-  {
-   "a": "J-2/TUNNEL-2:jwPanel",
-   "b": "J-2/TUNNEL-2:jwWall#joint-frame",
-   "share": 0.054
-  },
-  {
-   "a": "J-3/FIRE-EXTINGUISHER:jwDark",
-   "b": "J-3/FIRE-EXTINGUISHER:yellow",
-   "share": 0.054
-  },
-  {
-   "a": "J-3/TUNNEL-1:glassOuter",
-   "b": "J-3/TUNNEL-1:jwWall#joint-frame",
    "share": 0.054
   },
   {
@@ -1541,23 +1851,28 @@
    "share": 0.054
   },
   {
-   "a": "J-4/FIRE-EXTINGUISHER:jwDark",
-   "b": "J-4/FIRE-EXTINGUISHER:yellow",
+   "a": "J-3/TUNNEL-2:glassOuter",
+   "b": "J-3/TUNNEL-2:jwWall#joint-frame",
    "share": 0.054
   },
   {
-   "a": "J-4/TUNNEL-2:jwPanel",
-   "b": "J-4/TUNNEL-2:jwWall#joint-frame",
-   "share": 0.054
-  },
-  {
-   "a": "J-4/CORRIDOR:jwAluB",
-   "b": "J-4/CORRIDOR:jwPanel",
+   "a": "J-2/TUNNEL-3:jwAluB",
+   "b": "J-2/TUNNEL-3:jwTruss#pca-hangers",
    "share": 0.053
   },
   {
-   "a": "J-2/TUNNEL-2:glassOuter",
-   "b": "J-2/TUNNEL-2:jwWall",
+   "a": "J-4/CAB-CONSOLE:jwChrome#new",
+   "b": "J-4/CAB-CONSOLE:jwPanel#new",
+   "share": 0.053
+  },
+  {
+   "a": "J-1/TUNNEL-2:glassOuter",
+   "b": "J-1/TUNNEL-2:jwWall",
+   "share": 0.051
+  },
+  {
+   "a": "J-2/TUNNEL-1:glassOuter",
+   "b": "J-2/TUNNEL-1:jwWall",
    "share": 0.051
   },
   {
@@ -1586,28 +1901,48 @@
    "share": 0.05
   },
   {
-   "a": "J-1/ROTUNDA-DRUM:jwWall",
-   "b": "J-1/ROTUNDA:jwPanel",
+   "a": "J-1/TUNNEL-2:jwAluB",
+   "b": "J-1/TUNNEL-2:jwWall",
+   "share": 0.05
+  },
+  {
+   "a": "J-1/CAB-CONSOLE:jwDark#new",
+   "b": "jwp#14068",
    "share": 0.05
   },
   {
    "a": "J-2/CORRIDOR:J-2/LED",
-   "b": "jwp#14158",
+   "b": "jwp#14155",
+   "share": 0.05
+  },
+  {
+   "a": "J-2/CORRIDOR:jwDark",
+   "b": "jwp#14157",
+   "share": 0.05
+  },
+  {
+   "a": "J-2/ROTUNDA-DRUM:jwWall",
+   "b": "J-2/ROTUNDA:jwPanel",
    "share": 0.05
   },
   {
    "a": "J-2/TUNNEL-3:jwAluB",
-   "b": "J-2/TUNNEL-3:jwTruss#pca-hangers",
+   "b": "J-2/TUNNEL-3:jwWall#svc-wall",
    "share": 0.05
   },
   {
-   "a": "J-3/CORRIDOR:jwAluB",
-   "b": "J-3/CORRIDOR:jwPanel",
+   "a": "J-2/CAB-CONSOLE:jwChrome#new",
+   "b": "J-2/CAB-CONSOLE:jwRed#new",
    "share": 0.05
   },
   {
-   "a": "J-3/CORRIDOR:jwDark",
-   "b": "jwp#14252",
+   "a": "J-2/CAB-FRONT:jwAluB",
+   "b": "J-2/CANOPY-LINING",
+   "share": 0.05
+  },
+  {
+   "a": "J-2/BELLOWS-ROTUNDA-LINING",
+   "b": "box#14174",
    "share": 0.05
   },
   {
@@ -1616,23 +1951,23 @@
    "share": 0.05
   },
   {
-   "a": "J-3/CORRIDOR:jwDark",
-   "b": "jwp#14253",
+   "a": "J-3/TUNNEL-1:jwTruss",
+   "b": "J-3/TUNNEL-1:jwWall",
    "share": 0.05
   },
   {
-   "a": "J-3/CORRIDOR:jwDark",
-   "b": "jwp#14254",
+   "a": "J-3/TUNNEL-3:glassOuter#svc",
+   "b": "J-3/TUNNEL-3:jwWall#svc-wall",
    "share": 0.05
   },
   {
-   "a": "J-3/TUNNEL-3:jwAluB#pca-bolts",
-   "b": "J-3/TUNNEL-3:jwTruss#pca-hangers",
+   "a": "J-3/CAB-FRONT:jwRubber",
+   "b": "J-3/CAB-FRONT:yellow",
    "share": 0.05
   },
   {
-   "a": "J-3/CAB-FRONT:jwAluB",
-   "b": "J-3/CANOPY-LINING",
+   "a": "J-3/CAB-CONSOLE:jwDark#new",
+   "b": "jwp#14262",
    "share": 0.05
   },
   {
@@ -1641,8 +1976,18 @@
    "share": 0.05
   },
   {
-   "a": "J-4/CORRIDOR:jwDark",
-   "b": "jwp#14349",
+   "a": "J-4/CORRIDOR:J-4/LED",
+   "b": "jwp#14347",
+   "share": 0.05
+  },
+  {
+   "a": "J-4/CORRIDOR:J-4/LED",
+   "b": "jwp#14348",
+   "share": 0.05
+  },
+  {
+   "a": "J-4/CORRIDOR:J-4/LED",
+   "b": "jwp#14350",
    "share": 0.05
   },
   {
@@ -1651,118 +1996,113 @@
    "share": 0.05
   },
   {
-   "a": "J-2/TUNNEL-3:jwTruss#frame",
-   "b": "J-2/TUNNEL-3:jwTruss#sill",
+   "a": "J-4/TUNNEL-3:jwAluB",
+   "b": "J-4/TUNNEL-3:jwWall#svc-wall",
+   "share": 0.05
+  },
+  {
+   "a": "J-4/CAB-CONSOLE:jwDark#new",
+   "b": "jwp#14358",
+   "share": 0.05
+  },
+  {
+   "a": "J-4/CAB-CONSOLE:jwChrome#new",
+   "b": "J-4/CAB-CONSOLE:jwRed#new",
+   "share": 0.05
+  },
+  {
+   "a": "J-2/TUNNEL-3:jwAluB",
+   "b": "J-2/TUNNEL-3:jwAluB#svc-frame",
    "share": 0.047
   },
   {
-   "a": "J-3/TUNNEL-1:jwAluB",
-   "b": "J-3/TUNNEL-1:jwTruss#sill",
+   "a": "J-3/TUNNEL-3:glassOuter",
+   "b": "J-3/TUNNEL-3:jwWall",
    "share": 0.047
   },
   {
-   "a": "J-2/TUNNEL-3:jwTruss#pca-hangers",
-   "b": "J-2/TUNNEL-3:jwTruss#underframe",
+   "a": "J-3/TUNNEL-3:jwAluB#svc-frame",
+   "b": "J-3/TUNNEL-3:jwTruss#svc-skin",
    "share": 0.047
   },
   {
-   "a": "J-1/ROTUNDA-SLEEVE:jwAluB",
-   "b": "J-1/ROTUNDA:jwRoof",
-   "share": 0.046
+   "a": "J-1/CAB-FRONT:jwRubber",
+   "b": "J-1/CAB-FRONT:yellow",
+   "share": 0.047
   },
   {
-   "a": "J-1/ROTUNDA-SLEEVE:jwAluB",
-   "b": "J-1/ROTUNDA:jwSlats",
-   "share": 0.046
-  },
-  {
-   "a": "J-2/ROTUNDA-SLEEVE:jwAluB",
-   "b": "J-2/ROTUNDA:jwRoof",
-   "share": 0.046
-  },
-  {
-   "a": "J-2/ROTUNDA-SLEEVE:jwAluB",
-   "b": "J-2/ROTUNDA:jwSlats",
-   "share": 0.046
-  },
-  {
-   "a": "J-1/TUNNEL-3:jwAluB#joint-lip",
-   "b": "J-1/TUNNEL-3:jwPanel",
+   "a": "J-1/ROTUNDA:jwAluB",
+   "b": "J-1/ROTUNDA:jwPanel",
    "share": 0.045
   },
   {
-   "a": "J-4/ROTUNDA:jwAluB",
-   "b": "J-4/ROTUNDA:jwPanel",
+   "a": "J-1/ROTUNDA-SLEEVE:jwWall",
+   "b": "J-1/ROTUNDA:jwPanel",
    "share": 0.045
   },
   {
-   "a": "J-1/TUNNEL-2:glassOuter",
-   "b": "J-1/TUNNEL-2:jwWall",
-   "share": 0.044
+   "a": "J-4/TUNNEL-2:jwAluB#joint-lip",
+   "b": "J-4/TUNNEL-2:jwPanel",
+   "share": 0.045
   },
   {
-   "a": "J-2/CORRIDOR:jwAluB",
-   "b": "J-2/CORRIDOR:jwPanel",
+   "a": "J-4/TUNNEL-2:glassOuter",
+   "b": "J-4/TUNNEL-2:jwAluB#joint-lip",
+   "share": 0.045
+  },
+  {
+   "a": "J-4/CORRIDOR:jwAluB",
+   "b": "J-4/CORRIDOR:jwPanel",
    "share": 0.043
   },
   {
-   "a": "J-3/CAB-FRONT:jwAluB",
-   "b": "J-3/CAB:jwAluB",
-   "share": 0.043
-  },
-  {
-   "a": "J-4/TUNNEL-3:jwAluB#pca-bolts",
-   "b": "J-4/TUNNEL-3:jwTruss#pca-hangers",
-   "share": 0.043
-  },
-  {
-   "a": "J-4/CAB-FRONT:jwAluB",
-   "b": "J-4/CAB:jwAluB",
-   "share": 0.043
-  },
-  {
-   "a": "J-1/TUNNEL-1:jwAluB",
-   "b": "J-1/TUNNEL-1:jwPanel",
+   "a": "J-4/TUNNEL-1:jwAluB",
+   "b": "J-4/TUNNEL-1:jwPanel",
    "share": 0.042
   },
   {
-   "a": "J-3/TUNNEL-1:jwAluB",
-   "b": "J-3/TUNNEL-1:jwPanel",
+   "a": "J-1/ROTUNDA:jwPanel#column-box",
+   "b": "J-1/ROTUNDA:jwTruss#column",
    "share": 0.042
   },
   {
-   "a": "J-1/TUNNEL-1:glassOuter",
-   "b": "J-1/TUNNEL-1:jwAluB",
+   "a": "J-1/TUNNEL-2:jwHaz#joint-edge",
+   "b": "J-1/TUNNEL-2:jwStud#joint-plate",
    "share": 0.042
   },
   {
-   "a": "J-1/TUNNEL-2:jwCarpet",
-   "b": "J-1/TUNNEL-2:jwHaz",
+   "a": "J-1/TUNNEL-3:jwDark#junction",
+   "b": "J-1/TUNNEL-3:jwTruss#underframe",
    "share": 0.042
   },
   {
-   "a": "J-1/CAB-DOOR:jwAluB",
-   "b": "J-1/CAB-DOOR:jwRubber",
+   "a": "J-1/TUNNEL-3:glassOuter#svc",
+   "b": "J-1/TUNNEL-3:jwWall#svc-wall",
    "share": 0.042
   },
   {
-   "a": "J-1/STEP:jwAluB",
-   "b": "J-1/STEP:jwHaz",
+   "a": "J-1/GATE-NUMBER:jwAluB",
+   "b": "J-1/GATE-NUMBER:jwSignBlue",
    "share": 0.042
   },
   {
-   "a": "J-2/TUNNEL-1:glassOuter",
-   "b": "J-2/TUNNEL-1:jwAluB",
+   "a": "J-1/ROTUNDA:jwUnder",
+   "b": "box#14078",
+   "share": 0.042
+  },
+  {
+   "a": "J-1/ROTUNDA:jwCarpet",
+   "b": "box#14078",
+   "share": 0.042
+  },
+  {
+   "a": "J-2/TUNNEL-1:jwHaz#joint-edge",
+   "b": "J-2/TUNNEL-1:jwStud#joint-plate",
    "share": 0.042
   },
   {
    "a": "J-2/TUNNEL-1:jwAluB",
-   "b": "J-2/TUNNEL-1:jwTruss#sill",
-   "share": 0.042
-  },
-  {
-   "a": "J-2/CAB-FRONT:jwSlats",
-   "b": "J-2/CAB-FRONT:jwWall",
+   "b": "J-2/TUNNEL-1:jwDark#sill",
    "share": 0.042
   },
   {
@@ -1771,33 +2111,8 @@
    "share": 0.042
   },
   {
-   "a": "J-2/ROTUNDA:jwUnder",
-   "b": "box#14174",
-   "share": 0.042
-  },
-  {
-   "a": "J-2/ROTUNDA:jwCarpet",
-   "b": "box#14174",
-   "share": 0.042
-  },
-  {
-   "a": "J-2/BELLOWS-ROTUNDA-LINING",
-   "b": "box#14174",
-   "share": 0.042
-  },
-  {
-   "a": "J-2/ROTUNDA:jwUnder",
-   "b": "box#14175",
-   "share": 0.042
-  },
-  {
-   "a": "J-2/ROTUNDA:jwCarpet",
-   "b": "box#14175",
-   "share": 0.042
-  },
-  {
-   "a": "J-2/CAB:jwCarpet",
-   "b": "box#14177",
+   "a": "J-2/CAB-DOOR:jwAluB",
+   "b": "J-2/CAB-DOOR:jwRubber",
    "share": 0.042
   },
   {
@@ -1806,33 +2121,33 @@
    "share": 0.042
   },
   {
+   "a": "J-3/CORRIDOR:glassOuter",
+   "b": "J-3/CORRIDOR:jwPanel",
+   "share": 0.042
+  },
+  {
    "a": "J-3/TUNNEL-1:jwHaz#joint-edge",
    "b": "J-3/TUNNEL-1:jwStud#joint-plate",
    "share": 0.042
   },
   {
-   "a": "J-3/TUNNEL-2:jwCarpet",
-   "b": "J-3/TUNNEL-2:jwHaz",
+   "a": "J-3/TUNNEL-2:jwHaz#joint-edge",
+   "b": "J-3/TUNNEL-2:jwStud#joint-plate",
    "share": 0.042
   },
   {
-   "a": "J-3/BELLOWS-ROTUNDA-LINING",
-   "b": "box#14270",
+   "a": "J-3/TUNNEL-2:jwDark#junction",
+   "b": "J-3/TUNNEL-2:jwTruss#underframe",
    "share": 0.042
   },
   {
-   "a": "box#14273",
-   "b": "box#14274",
+   "a": "J-3/TUNNEL-3:jwCarpet",
+   "b": "J-3/TUNNEL-3:jwWall",
    "share": 0.042
   },
   {
-   "a": "box#14273",
-   "b": "box#14275",
-   "share": 0.042
-  },
-  {
-   "a": "J-4/TUNNEL-1:glassOuter",
-   "b": "J-4/TUNNEL-1:jwTruss#sill",
+   "a": "J-3/TUNNEL-3:jwAluB",
+   "b": "J-3/TUNNEL-3:jwAluB#svc-frame",
    "share": 0.042
   },
   {
@@ -1841,54 +2156,39 @@
    "share": 0.042
   },
   {
-   "a": "J-4/TUNNEL-1:jwTruss#frame",
-   "b": "J-4/TUNNEL-1:jwTruss#sill",
+   "a": "J-4/CAB-FRONT:jwSlats",
+   "b": "J-4/CAB:jwSlats",
    "share": 0.042
   },
   {
-   "a": "J-4/TUNNEL-1:jwHaz#joint-edge",
-   "b": "J-4/TUNNEL-1:jwStud#joint-plate",
-   "share": 0.042
-  },
-  {
-   "a": "J-4/TUNNEL-1:jwDark#junction",
-   "b": "J-4/TUNNEL-1:jwTruss#underframe",
-   "share": 0.042
-  },
-  {
-   "a": "J-4/TUNNEL-2:jwCarpet",
-   "b": "J-4/TUNNEL-2:jwWall",
-   "share": 0.042
-  },
-  {
-   "a": "J-4/CAB-DOOR:jwRubber",
-   "b": "J-4/CAB-DOOR:jwWall",
-   "share": 0.042
-  },
-  {
-   "a": "J-4/CAB-CONSOLE:jwDark",
-   "b": "J-4/CAB-FRONT:jwAluB",
-   "share": 0.042
-  },
-  {
-   "a": "J-4/ROTUNDA:jwUnder",
-   "b": "box#14367",
-   "share": 0.042
-  },
-  {
-   "a": "J-4/ROTUNDA:jwCarpet",
-   "b": "box#14367",
+   "a": "J-4/GATE-NUMBER:jwAluB",
+   "b": "J-4/GATE-NUMBER:jwSignBlue",
    "share": 0.042
   },
   {
    "a": "J-4/BELLOWS-ROTUNDA-LINING",
+   "b": "box#14366",
+   "share": 0.042
+  },
+  {
+   "a": "box#14366",
    "b": "box#14368",
    "share": 0.042
   },
   {
-   "a": "box#14369",
-   "b": "box#14371",
-   "share": 0.042
+   "a": "J-3/CAB-FRONT:jwAluB",
+   "b": "J-3/CAB:jwCarpet",
+   "share": 0.04
+  },
+  {
+   "a": "J-4/CAB-FRONT:jwRubber",
+   "b": "J-4/CAB-FRONT:yellow",
+   "share": 0.04
+  },
+  {
+   "a": "J-2/TUNNEL-3:glassOuter",
+   "b": "J-2/TUNNEL-3:jwWall",
+   "share": 0.039
   },
   {
    "a": "J-2/TUNNEL-1:jwAluB",
@@ -1896,38 +2196,23 @@
    "share": 0.039
   },
   {
-   "a": "J-4/TUNNEL-1:jwAluB",
-   "b": "J-4/TUNNEL-1:jwPanel",
-   "share": 0.039
+   "a": "J-4/TUNNEL-2:jwAluB",
+   "b": "J-4/TUNNEL-2:jwPanel",
+   "share": 0.038
   },
   {
-   "a": "J-1/TUNNEL-3:glassOuter",
+   "a": "J-4/CORRIDOR:jwPanel",
+   "b": "J-4/CORRIDOR:jwStud",
+   "share": 0.038
+  },
+  {
+   "a": "J-1/TUNNEL-3:jwAluB",
    "b": "J-1/TUNNEL-3:jwPanel",
-   "share": 0.038
-  },
-  {
-   "a": "J-2/TUNNEL-3:glassOuter",
-   "b": "J-2/TUNNEL-3:jwPanel",
-   "share": 0.038
-  },
-  {
-   "a": "J-1/TUNNEL-2:jwCarpet",
-   "b": "J-1/TUNNEL-2:jwWall",
    "share": 0.037
   },
   {
-   "a": "J-3/TUNNEL-3:jwAluB#joint-lip",
-   "b": "J-3/TUNNEL-3:jwWall",
-   "share": 0.037
-  },
-  {
-   "a": "J-4/TUNNEL-3:jwCarpet",
-   "b": "J-4/TUNNEL-3:jwWall",
-   "share": 0.037
-  },
-  {
-   "a": "J-4/TUNNEL-3:glassOuter",
-   "b": "J-4/TUNNEL-3:jwWall",
+   "a": "J-3/TUNNEL-2:jwCarpet",
+   "b": "J-3/TUNNEL-2:jwWall",
    "share": 0.037
   },
   {
@@ -1936,28 +2221,48 @@
    "share": 0.037
   },
   {
-   "a": "J-3/CORRIDOR:jwPanel",
-   "b": "J-3/CORRIDOR:jwTruss",
+   "a": "J-2/CORRIDOR:jwAluB",
+   "b": "J-2/CORRIDOR:jwPanel",
    "share": 0.037
   },
   {
-   "a": "J-2/TUNNEL-2:glassOuter",
-   "b": "J-2/TUNNEL-2:jwTruss#sill",
+   "a": "J-2/CAB-FRONT:jwAluB",
+   "b": "J-2/CAB:jwCarpet",
+   "share": 0.037
+  },
+  {
+   "a": "J-2/CAB-FRONT:jwRubber",
+   "b": "J-2/CAB-FRONT:yellow",
+   "share": 0.037
+  },
+  {
+   "a": "J-3/CAB-CONSOLE:jwChrome#new",
+   "b": "J-3/CAB-CONSOLE:jwPanel#new",
+   "share": 0.037
+  },
+  {
+   "a": "J-4/CAB-FRONT:jwAluB",
+   "b": "J-4/CAB:jwCarpet",
+   "share": 0.037
+  },
+  {
+   "a": "J-1/TUNNEL-3:jwAluB",
+   "b": "J-1/TUNNEL-3:jwAluB#svc-frame",
    "share": 0.036
   },
   {
-   "a": "J-4/TUNNEL-3:glassOuter",
-   "b": "J-4/TUNNEL-3:jwTruss#sill",
+   "a": "J-2/TUNNEL-3:jwAluB#svc-frame",
+   "b": "J-2/TUNNEL-3:jwTruss#svc-skin",
    "share": 0.036
   },
   {
-   "a": "J-1/TUNNEL-1:jwPanel",
-   "b": "J-1/TUNNEL-1:jwWall#joint-frame",
+   "a": "J-3/TUNNEL-1:glassOuter",
+   "b": "J-3/TUNNEL-1:jwTruss#sill",
    "share": 0.036
   },
   {
-   "a": "J-1/TUNNEL-1:jwWall",
-   "b": "J-1/TUNNEL-1:jwWall#joint-frame",
+   "a": "J-2/TUNNEL-2:jwPanel",
+   "b": "J-2/TUNNEL-2:jwWall#joint-frame",
    "share": 0.036
   },
   {
@@ -1971,7 +2276,12 @@
    "share": 0.036
   },
   {
-   "a": "J-3/TUNNEL-1:jwWall",
+   "a": "J-2/CAB-SLEEVE:jwAluB",
+   "b": "J-2/CAB:jwAluB",
+   "share": 0.036
+  },
+  {
+   "a": "J-3/TUNNEL-1:jwPanel",
    "b": "J-3/TUNNEL-1:jwWall#joint-frame",
    "share": 0.036
   },
@@ -1981,28 +2291,38 @@
    "share": 0.036
   },
   {
-   "a": "J-4/TUNNEL-1:jwWall",
+   "a": "J-4/TUNNEL-1:jwPanel",
    "b": "J-4/TUNNEL-1:jwWall#joint-frame",
    "share": 0.036
   },
   {
-   "a": "J-4/TUNNEL-1:glassOuter",
-   "b": "J-4/TUNNEL-1:jwWall#joint-frame",
-   "share": 0.036
+   "a": "J-1/TUNNEL-1:jwAluB",
+   "b": "J-1/TUNNEL-1:jwPanel",
+   "share": 0.035
   },
   {
-   "a": "J-4/TUNNEL-2:jwWall",
-   "b": "J-4/TUNNEL-2:jwWall#joint-frame",
-   "share": 0.036
+   "a": "J-3/TUNNEL-1:jwAluB",
+   "b": "J-3/TUNNEL-1:jwPanel",
+   "share": 0.035
   },
   {
-   "a": "J-4/TUNNEL-3:jwAluB#joint-lip",
-   "b": "J-4/TUNNEL-3:jwSlats",
-   "share": 0.036
+   "a": "J-1/CAB-SLEEVE:jwAluB",
+   "b": "J-1/CAB:jwAluB",
+   "share": 0.034
+  },
+  {
+   "a": "J-1/TUNNEL-3:jwAluB#joint-lip",
+   "b": "J-1/TUNNEL-3:jwPanel",
+   "share": 0.034
   },
   {
    "a": "J-2/TUNNEL-2:jwAluB#joint-lip",
    "b": "J-2/TUNNEL-2:jwWall",
+   "share": 0.034
+  },
+  {
+   "a": "J-2/TUNNEL-3:jwAluB#joint-lip",
+   "b": "J-2/TUNNEL-3:jwSlats",
    "share": 0.034
   },
   {
@@ -2016,18 +2336,13 @@
    "share": 0.034
   },
   {
-   "a": "J-3/TUNNEL-2:jwAluB#joint-lip",
-   "b": "J-3/TUNNEL-2:jwSlats",
+   "a": "J-3/TUNNEL-3:jwAluB#joint-lip",
+   "b": "J-3/TUNNEL-3:jwWall",
    "share": 0.034
   },
   {
-   "a": "J-4/TUNNEL-2:jwAluB#joint-lip",
-   "b": "J-4/TUNNEL-2:jwWall",
-   "share": 0.034
-  },
-  {
-   "a": "J-4/TUNNEL-3:jwAluB#joint-lip",
-   "b": "J-4/TUNNEL-3:jwPanel",
+   "a": "J-3/CAB-CONSOLE:jwAluB#new",
+   "b": "J-3/CAB-CONSOLE:jwDark#new",
    "share": 0.034
   },
   {
@@ -2036,79 +2351,94 @@
    "share": 0.033
   },
   {
-   "a": "J-1/CAB-FRONT:jwRubber",
-   "b": "J-1/CAB-FRONT:yellow",
-   "share": 0.033
-  },
-  {
-   "a": "J-2/CAB-FRONT:jwRubber",
-   "b": "J-2/CAB-FRONT:yellow",
-   "share": 0.033
-  },
-  {
-   "a": "J-1/TUNNEL-3:jwTruss#frame",
-   "b": "J-1/TUNNEL-3:jwTruss#sill",
-   "share": 0.031
-  },
-  {
-   "a": "J-4/ROTUNDA-SLEEVE:jwAluB",
-   "b": "J-4/ROTUNDA:jwRoof",
-   "share": 0.031
-  },
-  {
-   "a": "J-4/ROTUNDA-SLEEVE:jwAluB",
-   "b": "J-4/ROTUNDA:jwSlats",
-   "share": 0.031
-  },
-  {
-   "a": "J-1/TUNNEL-3:jwAluB",
-   "b": "J-1/TUNNEL-3:jwTruss",
-   "share": 0.03
-  },
-  {
-   "a": "J-1/TUNNEL-3:jwAluB",
-   "b": "J-1/TUNNEL-3:jwTruss#pca-hangers",
-   "share": 0.03
-  },
-  {
    "a": "J-1/CAB-FRONT:jwAluB",
    "b": "J-1/CAB:jwAluB",
-   "share": 0.03
+   "share": 0.033
   },
   {
-   "a": "J-2/CAB-FRONT:jwAluB",
-   "b": "J-2/CAB:jwCarpet",
-   "share": 0.03
+   "a": "J-2/CAB-CONSOLE:jwChrome#new",
+   "b": "J-2/CAB-CONSOLE:jwPanel#new",
+   "share": 0.033
   },
   {
-   "a": "J-4/CAB:jwAluB",
-   "b": "J-4/CAB:jwWall",
-   "share": 0.03
+   "a": "J-3/CAB-FRONT:jwAluB",
+   "b": "J-3/CAB:jwAluB",
+   "share": 0.033
+  },
+  {
+   "a": "J-4/TUNNEL-3:glassOuter#svc",
+   "b": "J-4/TUNNEL-3:jwWall#svc-wall",
+   "share": 0.033
   },
   {
    "a": "J-4/CAB-FRONT:jwAluB",
-   "b": "J-4/CAB:jwCarpet",
+   "b": "J-4/CAB:jwAluB",
+   "share": 0.033
+  },
+  {
+   "a": "J-1/TUNNEL-1:glassOuter",
+   "b": "J-1/TUNNEL-1:jwTruss#sill",
+   "share": 0.031
+  },
+  {
+   "a": "J-1/TUNNEL-1:jwAluB",
+   "b": "J-1/TUNNEL-1:jwTruss#sill",
+   "share": 0.031
+  },
+  {
+   "a": "J-2/TUNNEL-3:glassOuter",
+   "b": "J-2/TUNNEL-3:jwTruss#sill",
+   "share": 0.031
+  },
+  {
+   "a": "J-3/ROTUNDA:jwAluB",
+   "b": "J-3/ROTUNDA:jwUnder",
+   "share": 0.031
+  },
+  {
+   "a": "J-4/TUNNEL-1:jwAluB",
+   "b": "J-4/TUNNEL-1:jwTruss#sill",
+   "share": 0.031
+  },
+  {
+   "a": "J-4/TUNNEL-3:glassOuter",
+   "b": "J-4/TUNNEL-3:jwTruss#sill",
+   "share": 0.031
+  },
+  {
+   "a": "J-4/TUNNEL-3:jwAluB",
+   "b": "J-4/TUNNEL-3:jwAluB#svc-frame",
+   "share": 0.031
+  },
+  {
+   "a": "J-2/ROTUNDA-SLEEVE:jwAluB",
+   "b": "J-2/ROTUNDA:jwSlats",
+   "share": 0.031
+  },
+  {
+   "a": "J-2/ROTUNDA-SLEEVE:jwAluB",
+   "b": "J-2/ROTUNDA:jwRoof",
+   "share": 0.031
+  },
+  {
+   "a": "J-3/ROTUNDA-SLEEVE:jwAluB",
+   "b": "J-3/ROTUNDA:jwSlats",
+   "share": 0.031
+  },
+  {
+   "a": "J-3/ROTUNDA-SLEEVE:jwAluB",
+   "b": "J-3/ROTUNDA:jwRoof",
+   "share": 0.031
+  },
+  {
+   "a": "J-1/CAB-CONSOLE:jwChrome#new",
+   "b": "J-1/CAB-CONSOLE:jwPanel#new",
    "share": 0.03
   },
   {
-   "a": "J-1/TUNNEL-3:jwCarpet",
-   "b": "J-1/TUNNEL-3:jwWall",
-   "share": 0.029
-  },
-  {
-   "a": "J-3/TUNNEL-3:glassOuter",
-   "b": "J-3/TUNNEL-3:jwWall",
-   "share": 0.029
-  },
-  {
-   "a": "J-2/TUNNEL-2:jwAluB",
-   "b": "J-2/TUNNEL-2:jwPanel",
-   "share": 0.029
-  },
-  {
-   "a": "J-4/TUNNEL-2:jwAluB",
-   "b": "J-4/TUNNEL-2:jwPanel",
-   "share": 0.029
+   "a": "J-3/CORRIDOR:jwPanel",
+   "b": "J-3/CORRIDOR:jwStud",
+   "share": 0.03
   },
   {
    "a": "J-1/CORRIDOR:jwAluB",
@@ -2116,13 +2446,13 @@
    "share": 0.028
   },
   {
-   "a": "J-2/ROTUNDA-DRUM:jwWall",
-   "b": "J-2/ROTUNDA:jwUnder",
+   "a": "J-1/ROTUNDA-DRUM:jwWall",
+   "b": "J-1/ROTUNDA:jwUnder",
    "share": 0.028
   },
   {
-   "a": "J-2/CAB-SLEEVE:jwWall",
-   "b": "J-2/CAB:jwWall",
+   "a": "J-2/TUNNEL-3:jwAluB",
+   "b": "J-2/TUNNEL-3:jwPanel",
    "share": 0.028
   },
   {
@@ -2131,18 +2461,8 @@
    "share": 0.028
   },
   {
-   "a": "J-3/CORRIDOR:glassOuter",
-   "b": "J-3/CORRIDOR:jwPanel",
-   "share": 0.028
-  },
-  {
-   "a": "J-3/CORRIDOR:jwAluB",
-   "b": "J-3/GATE-TRIM:jwTruss",
-   "share": 0.028
-  },
-  {
-   "a": "J-3/ROTUNDA:jwAluB",
-   "b": "J-3/ROTUNDA:jwUnder",
+   "a": "J-3/TUNNEL-3:jwAluB",
+   "b": "J-3/TUNNEL-3:jwPanel",
    "share": 0.028
   },
   {
@@ -2151,8 +2471,8 @@
    "share": 0.028
   },
   {
-   "a": "J-3/CAB-FRONT:yellow",
-   "b": "J-3/CANOPY-LINING",
+   "a": "J-3/DRIVE-YOKE:jwAluB",
+   "b": "J-3/LIFT-LEG:jwTruss",
    "share": 0.028
   },
   {
@@ -2161,43 +2481,13 @@
    "share": 0.028
   },
   {
-   "a": "J-2/CAB-SLEEVE:jwAluB",
-   "b": "J-2/CAB:jwAluB",
+   "a": "J-1/TUNNEL-3:jwAluB",
+   "b": "J-1/TUNNEL-3:jwTruss#pca-hangers",
    "share": 0.027
   },
   {
-   "a": "J-3/CAB-SLEEVE:jwAluB",
-   "b": "J-3/CAB:jwAluB",
-   "share": 0.027
-  },
-  {
-   "a": "J-4/CAB:jwAluB",
-   "b": "J-4/CAB:jwPanel",
-   "share": 0.027
-  },
-  {
-   "a": "J-2/CORRIDOR:glassOuter",
-   "b": "J-2/CORRIDOR:jwPanel",
-   "share": 0.027
-  },
-  {
-   "a": "J-3/CORRIDOR:jwPanel",
-   "b": "J-3/CORRIDOR:jwStud",
-   "share": 0.027
-  },
-  {
-   "a": "J-3/TUNNEL-3:jwTruss#pca-hangers",
-   "b": "J-3/TUNNEL-3:jwTruss#underframe",
-   "share": 0.027
-  },
-  {
-   "a": "J-4/TUNNEL-3:jwAluB",
-   "b": "J-4/TUNNEL-3:jwTruss#pca-hangers",
-   "share": 0.027
-  },
-  {
-   "a": "J-4/CAB-FRONT:jwRubber",
-   "b": "J-4/CAB-FRONT:yellow",
+   "a": "J-2/TUNNEL-3:jwAluB",
+   "b": "J-2/TUNNEL-3:jwTruss",
    "share": 0.027
   },
   {
@@ -2206,8 +2496,8 @@
    "share": 0.027
   },
   {
-   "a": "J-3/CAB:jwAluB",
-   "b": "J-3/CAB:jwWall",
+   "a": "J-2/CAB:jwAluB",
+   "b": "J-2/CAB:jwWall",
    "share": 0.027
   },
   {
@@ -2216,24 +2506,19 @@
    "share": 0.026
   },
   {
-   "a": "J-1/TUNNEL-1:jwAluB",
-   "b": "J-1/TUNNEL-1:jwTruss#sill",
+   "a": "J-2/TUNNEL-1:jwAluB",
+   "b": "J-2/TUNNEL-1:jwTruss#sill",
    "share": 0.026
   },
   {
-   "a": "J-1/TUNNEL-2:glassOuter",
-   "b": "J-1/TUNNEL-2:jwTruss#sill",
+   "a": "J-3/TUNNEL-1:jwAluB",
+   "b": "J-3/TUNNEL-1:jwTruss#sill",
    "share": 0.026
   },
   {
-   "a": "J-4/CORRIDOR:jwPanel",
-   "b": "J-4/CORRIDOR:jwRed",
-   "share": 0.026
-  },
-  {
-   "a": "J-4/TUNNEL-1:jwAluB",
-   "b": "J-4/TUNNEL-1:jwTruss#sill",
-   "share": 0.026
+   "a": "J-2/TUNNEL-3:jwCarpet",
+   "b": "J-2/TUNNEL-3:jwWall",
+   "share": 0.023
   },
   {
    "a": "J-1/CORRIDOR:jwPanel",
@@ -2241,13 +2526,18 @@
    "share": 0.023
   },
   {
-   "a": "J-2/CORRIDOR:jwPanel",
-   "b": "J-2/CORRIDOR:jwTruss",
+   "a": "J-1/WHEEL:jwDark",
+   "b": "J-1/WHEEL:jwRim",
    "share": 0.023
   },
   {
-   "a": "J-2/TUNNEL-3:jwAluB",
-   "b": "J-2/TUNNEL-3:jwTruss",
+   "a": "J-2/TUNNEL-1:jwAluB",
+   "b": "J-2/TUNNEL-1:jwTruss",
+   "share": 0.023
+  },
+  {
+   "a": "J-2/TUNNEL-2:jwAluB",
+   "b": "J-2/TUNNEL-2:jwPanel",
    "share": 0.023
   },
   {
@@ -2256,43 +2546,43 @@
    "share": 0.023
   },
   {
-   "a": "J-2/CAB-FRONT:jwRubber",
-   "b": "J-2/CANOPY-LINING",
+   "a": "J-2/WHEEL:jwDark",
+   "b": "J-2/WHEEL:jwRim",
    "share": 0.023
   },
   {
-   "a": "J-3/TUNNEL-3:jwAluB",
-   "b": "J-3/TUNNEL-3:jwTruss#pca-hangers",
+   "a": "J-3/ROTUNDA-SLEEVE:jwWall",
+   "b": "J-3/ROTUNDA:jwSlats",
    "share": 0.023
   },
   {
-   "a": "J-3/CAB-FRONT:jwAluB",
-   "b": "J-3/CAB:jwCarpet",
+   "a": "J-4/CORRIDOR:jwPanel",
+   "b": "J-4/CORRIDOR:jwTruss",
    "share": 0.023
   },
   {
-   "a": "J-4/TUNNEL-3:jwTruss#pca-hangers",
-   "b": "J-4/TUNNEL-3:jwTruss#underframe",
+   "a": "J-4/TUNNEL-3:jwAluB",
+   "b": "J-4/TUNNEL-3:jwPanel",
    "share": 0.023
   },
   {
-   "a": "J-1/TUNNEL-2:jwAluB#joint-lip",
-   "b": "J-1/TUNNEL-2:jwSlats",
+   "a": "J-4/CAB-FRONT:jwRubber",
+   "b": "J-4/CANOPY-LINING",
    "share": 0.023
   },
   {
-   "a": "J-1/TUNNEL-2:jwAluB#joint-lip",
-   "b": "J-1/TUNNEL-2:jwPanel",
+   "a": "J-2/CORRIDOR:jwPanel",
+   "b": "J-2/CORRIDOR:jwStud",
    "share": 0.023
   },
   {
-   "a": "J-1/TUNNEL-3:jwAluB#joint-lip",
-   "b": "J-1/TUNNEL-3:jwSlats",
+   "a": "J-2/TUNNEL-2:jwAluB#joint-lip",
+   "b": "J-2/TUNNEL-2:jwSlats",
    "share": 0.023
   },
   {
-   "a": "J-2/TUNNEL-3:jwAluB#joint-lip",
-   "b": "J-2/TUNNEL-3:jwSlats",
+   "a": "J-2/TUNNEL-2:jwAluB#joint-lip",
+   "b": "J-2/TUNNEL-2:jwPanel",
    "share": 0.023
   },
   {
@@ -2301,68 +2591,33 @@
    "share": 0.023
   },
   {
-   "a": "J-3/TUNNEL-2:jwAluB#joint-lip",
-   "b": "J-3/TUNNEL-2:jwWall",
-   "share": 0.023
-  },
-  {
-   "a": "J-4/CORRIDOR:jwPanel",
-   "b": "J-4/CORRIDOR:jwStud",
+   "a": "J-3/CAB:jwAluB",
+   "b": "J-3/CAB:jwWall",
    "share": 0.023
   },
   {
    "a": "J-4/TUNNEL-2:jwAluB#joint-lip",
-   "b": "J-4/TUNNEL-2:jwPanel",
+   "b": "J-4/TUNNEL-2:jwWall",
    "share": 0.023
   },
   {
-   "a": "J-4/TUNNEL-3:glassOuter",
-   "b": "J-4/TUNNEL-3:jwAluB#joint-lip",
+   "a": "J-4/TUNNEL-3:jwAluB#joint-lip",
+   "b": "J-4/TUNNEL-3:jwSlats",
    "share": 0.023
   },
   {
-   "a": "J-2/TUNNEL-1:jwWall",
-   "b": "J-2/TUNNEL-1:jwWall#joint-frame",
-   "share": 0.022
-  },
-  {
-   "a": "J-2/TUNNEL-2:jwCarpet",
-   "b": "J-2/TUNNEL-2:jwWall",
-   "share": 0.022
-  },
-  {
-   "a": "J-3/TUNNEL-2:jwCarpet",
-   "b": "J-3/TUNNEL-2:jwWall",
-   "share": 0.022
-  },
-  {
-   "a": "J-1/TUNNEL-1:glassOuter",
-   "b": "J-1/TUNNEL-1:jwTruss#sill",
-   "share": 0.021
-  },
-  {
-   "a": "J-1/TUNNEL-1:jwAluB",
-   "b": "J-1/TUNNEL-1:jwDark#sill",
-   "share": 0.021
+   "a": "J-4/TUNNEL-3:jwAluB#joint-lip",
+   "b": "J-4/TUNNEL-3:jwWall",
+   "share": 0.023
   },
   {
    "a": "J-1/TUNNEL-2:glassOuter",
-   "b": "J-1/TUNNEL-2:jwAluB",
+   "b": "J-1/TUNNEL-2:jwTruss#sill",
    "share": 0.021
   },
   {
-   "a": "J-1/TUNNEL-3:glassOuter",
-   "b": "J-1/TUNNEL-3:jwTruss#sill",
-   "share": 0.021
-  },
-  {
-   "a": "J-1/GATE-NUMBER:jwAluB",
-   "b": "J-1/GATE-NUMBER:jwSignBlue",
-   "share": 0.021
-  },
-  {
-   "a": "J-2/ROTUNDA:jwAluB",
-   "b": "J-2/ROTUNDA:jwUnder",
+   "a": "J-2/TUNNEL-1:glassOuter",
+   "b": "J-2/TUNNEL-1:jwAluB",
    "share": 0.021
   },
   {
@@ -2371,33 +2626,13 @@
    "share": 0.021
   },
   {
-   "a": "J-2/TUNNEL-1:jwDark#junction",
-   "b": "J-2/TUNNEL-1:jwTruss#underframe",
+   "a": "J-3/TUNNEL-1:glassOuter",
+   "b": "J-3/TUNNEL-1:jwAluB",
    "share": 0.021
   },
   {
-   "a": "J-2/TUNNEL-2:jwAluB",
-   "b": "J-2/TUNNEL-2:jwTruss#sill",
-   "share": 0.021
-  },
-  {
-   "a": "J-2/TUNNEL-2:jwDark#junction",
-   "b": "J-2/TUNNEL-2:jwTruss#underframe",
-   "share": 0.021
-  },
-  {
-   "a": "J-2/TUNNEL-3:jwAluB",
-   "b": "J-2/TUNNEL-3:jwHaz",
-   "share": 0.021
-  },
-  {
-   "a": "J-2/CAB-DOOR:jwAluB",
-   "b": "J-2/CAB-DOOR:jwRubber",
-   "share": 0.021
-  },
-  {
-   "a": "J-3/TUNNEL-2:glassOuter",
-   "b": "J-3/TUNNEL-2:jwAluB",
+   "a": "J-3/TUNNEL-2:jwCarpet",
+   "b": "J-3/TUNNEL-2:jwHaz",
    "share": 0.021
   },
   {
@@ -2406,8 +2641,18 @@
    "share": 0.021
   },
   {
+   "a": "J-3/CAB-DOOR:jwAluB",
+   "b": "J-3/CAB-DOOR:jwRubber",
+   "share": 0.021
+  },
+  {
    "a": "J-4/TUNNEL-1:glassOuter",
    "b": "J-4/TUNNEL-1:jwAluB",
+   "share": 0.021
+  },
+  {
+   "a": "J-4/TUNNEL-1:glassOuter",
+   "b": "J-4/TUNNEL-1:jwTruss#sill",
    "share": 0.021
   },
   {
@@ -2416,60 +2661,35 @@
    "share": 0.021
   },
   {
-   "a": "J-4/TUNNEL-2:jwCarpet",
-   "b": "J-4/TUNNEL-2:jwHaz",
+   "a": "J-4/TUNNEL-1:jwDark#junction",
+   "b": "J-4/TUNNEL-1:jwTruss#underframe",
    "share": 0.021
   },
   {
    "a": "J-4/TUNNEL-2:jwDark#junction",
    "b": "J-4/TUNNEL-2:jwTruss#underframe",
    "share": 0.021
-  },
-  {
-   "a": "J-4/STAIR:jwAluB",
-   "b": "J-4/STAIR:jwDark",
-   "share": 0.021
   }
  ],
  "nudge": {
   "J-4/FIRE-EXTINGUISHER:jwGauge": [
-   -2e-05,
-   -2e-05,
-   0.0015
-  ],
-  "J-3/FIRE-EXTINGUISHER:jwGauge": [
-   5e-05,
-   -6e-05,
-   -0.0015
+   -1e-05,
+   -0.00014,
+   0.00149
   ],
   "J-2/FIRE-EXTINGUISHER:jwGauge": [
-   0.00139,
-   -0.00034,
-   -0.00045
+   -4e-05,
+   -0.00011,
+   -0.0015
+  ],
+  "J-3/FIRE-EXTINGUISHER:jwGauge": [
+   0.0,
+   1e-05,
+   -0.0015
   ],
   "J-1/FIRE-EXTINGUISHER:jwGauge": [
    -6e-05,
    0.00011,
-   -0.00149
-  ],
-  "J-4/TUNNEL-2:jwDark#sill": [
-   1e-05,
-   0.0015,
-   0.00011
-  ],
-  "J-1/TUNNEL-3:jwPanel#pca-labels": [
-   0.00147,
-   0.0,
-   -0.00029
-  ],
-  "J-4/TUNNEL-2:jwAluB": [
-   0.0015,
-   0.0015,
-   0.00149
-  ],
-  "J-3/TUNNEL-3:jwAluB": [
-   0.00149,
-   0.0015,
    -0.00149
   ],
   "J-1/TUNNEL-2:jwAluB": [
@@ -2477,222 +2697,67 @@
    0.0015,
    0.00147
   ],
-  "J-3/TUNNEL-1:jwDark#sill": [
-   0.00144,
+  "J-3/TUNNEL-2:jwDark#sill": [
+   0.00134,
+   0.00067,
+   -0.0001
+  ],
+  "J-3/BOGIE:yellow": [
+   -0.00017,
+   0.0,
+   -0.00149
+  ],
+  "J-4/TUNNEL-1:jwDark#sill": [
+   0.00149,
    0.0015,
-   -0.00013
+   0.00011
   ],
   "J-4/TUNNEL-3:jwAluB": [
-   0.0015,
+   -0.0015,
    -0.0015,
    0.00149
   ],
-  "J-2/TUNNEL-2:jwAluB": [
-   -0.00148,
-   0.0015,
-   -0.00148
-  ],
-  "J-4/TUNNEL-3:jwPanel#pca-labels": [
-   0.0015,
+  "J-4/BOGIE:yellow": [
+   -0.00011,
    0.0,
-   -0.00011
-  ],
-  "J-2/TUNNEL-3:jwAluB": [
-   0.00148,
-   -0.0015,
-   0.00148
-  ],
-  "J-2/TUNNEL-3:jwPanel#pca-labels": [
-   0.00148,
-   0.0,
-   -0.00023
-  ],
-  "J-3/TUNNEL-2:jwDark#sill": [
-   -0.00133,
-   0.00067,
-   0.0002
-  ],
-  "J-4/TUNNEL-2:jwHaz": [
-   -0.0015,
-   -0.0,
-   -0.00011
-  ],
-  "J-1/TUNNEL-3:jwAluB": [
-   0.00147,
-   0.0015,
-   0.00147
+   -0.0015
   ],
   "J-1/ROTUNDA:jwCarpet": [
    0.0,
    -0.0015,
    0.0
   ],
-  "J-1/TUNNEL-1:jwCarpet": [
-   -2e-05,
-   -0.0015,
-   -0.00011
-  ],
-  "J-1/TUNNEL-1:jwDark#sill": [
-   -0.00103,
-   0.0015,
-   0.00028
-  ],
-  "J-1/TUNNEL-3:jwDark#sill": [
-   0.00106,
-   0.00106,
-   -0.00013
-  ],
-  "J-2/TUNNEL-3:jwDark#sill": [
-   -0.00104,
-   0.00106,
-   0.00024
-  ],
-  "J-3/PCA-PIPES:jwAluB": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-3/TUNNEL-2:jwAluB": [
-   -0.00149,
-   0.0015,
-   -0.00149
-  ],
-  "J-4/TUNNEL-1:jwDark#sill": [
-   -0.00147,
-   0.0015,
-   0.00013
-  ],
-  "J-1/CORRIDOR:jwWall": [
-   -0.0015,
-   0.0,
-   0.0
-  ],
-  "J-2/CORRIDOR:jwStud": [
-   0.0,
-   -0.0015,
-   -9e-05
-  ],
-  "J-1/TUNNEL-2:jwDark#sill": [
+  "J-1/TUNNEL-3:J-1/LED#svc-lamp": [
    0.00147,
-   0.0,
+   -0.0,
    -0.00029
   ],
-  "J-2/TUNNEL-1:J-2/LED": [
-   2e-05,
-   0.0015,
-   0.00011
-  ],
-  "J-2/TUNNEL-2:jwDark#sill": [
-   0.00148,
-   0.0,
-   -0.00023
-  ],
-  "J-4/ROTUNDA:jwCarpet": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-1/TUNNEL-1:J-1/LED": [
-   2e-05,
-   0.0015,
-   0.00011
-  ],
-  "J-4/CORRIDOR:jwWall": [
-   0.0015,
-   0.0,
-   0.0
-  ],
-  "J-1/CORRIDOR:jwStud": [
-   -0.0,
-   -0.0015,
-   -9e-05
-  ],
-  "J-4/CAB:jwSlats": [
-   0.0,
-   0.0015,
-   0.0
-  ],
-  "J-1/STAIR-LANDING:jwHaz": [
+  "J-2/STAIR-LANDING:jwHaz": [
    -2e-05,
    -0.0015,
    -0.00011
   ],
-  "J-1/CAB:jwCarpet": [
+  "J-2/LIFT-BEAM:jwDark": [
    0.0,
-   -0.0015,
+   0.0015,
    0.0
   ],
-  "J-2/TUNNEL-1:jwCarpet": [
-   -2e-05,
+  "J-3/TUNNEL-1:jwDark#sill": [
+   0.00149,
+   -0.0,
+   -0.00017
+  ],
+  "J-4/TUNNEL-1:jwCarpet": [
+   -1e-05,
    -0.0015,
    -0.00011
   ],
-  "J-2/TUNNEL-1:jwDark#sill": [
-   0.00148,
-   0.0,
-   -0.00023
-  ],
-  "J-2/TUNNEL-2:J-2/LED": [
-   2e-05,
-   0.0015,
-   0.00011
-  ],
-  "J-3/CORRIDOR:jwStud": [
-   -0.0,
-   -0.0015,
-   -9e-05
-  ],
-  "J-3/ROTUNDA:jwCarpet": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-3/CORRIDOR:jwWall": [
+  "J-4/TUNNEL-3:J-4/LED#svc-lamp": [
    0.0015,
    0.0,
-   0.0
+   -0.00011
   ],
-  "J-3/CAB:jwCarpet": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-1/TUNNEL-2:J-1/LED": [
-   2e-05,
-   0.0015,
-   0.00011
-  ],
-  "J-1/TUNNEL-3:J-1/LED": [
-   2e-05,
-   0.0015,
-   0.00011
-  ],
-  "J-2/TUNNEL-3:J-2/LED": [
-   2e-05,
-   0.0015,
-   0.00011
-  ],
-  "J-4/CAB:jwCarpet": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-2/CAB:jwSlats": [
-   0.0,
-   0.0015,
-   0.0
-  ],
-  "J-2/BOGIE:yellow": [
-   0.00023,
-   0.0,
-   0.00148
-  ],
-  "J-3/TUNNEL-3:jwDark#sill": [
-   -0.00066,
-   0.00134,
-   0.00017
-  ],
-  "J-3/CAB:jwSlats": [
+  "J-4/LIFT-BEAM:jwDark": [
    0.0,
    0.0015,
    0.0
@@ -2702,53 +2767,33 @@
    0.0015,
    0.0
   ],
+  "J-2/CORRIDOR:jwWall": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "J-1/TUNNEL-2:J-1/LED": [
+   2e-05,
+   0.0015,
+   0.00011
+  ],
+  "J-2/TUNNEL-3:jwDark#sill": [
+   0.00148,
+   0.0,
+   -0.00023
+  ],
   "J-2/CAB:jwCarpet": [
    0.0,
    -0.0015,
    0.0
   ],
-  "J-2/CORRIDOR:jwWall": [
-   0.0015,
-   0.0,
-   0.0
-  ],
-  "J-3/TUNNEL-1:J-3/LED": [
-   1e-05,
-   0.0015,
-   0.00011
-  ],
-  "J-2/ROTUNDA:jwCarpet": [
-   0.0,
+  "J-1/CORRIDOR:jwWall": [
    -0.0015,
+   0.0,
    0.0
   ],
-  "J-3/ROTUNDA:jwSlats": [
-   0.0,
-   0.0015,
-   0.0
-  ],
-  "J-1/BOGIE:yellow": [
-   -0.00029,
-   0.0,
-   -0.00147
-  ],
-  "J-1/LIFT-BEAM:jwDark": [
-   0.0,
-   0.0015,
-   0.0
-  ],
-  "J-2/LIFT-BEAM:jwDark": [
-   0.0,
-   0.0015,
-   0.0
-  ],
-  "J-3/ROTUNDA-MACHINERY:jwAluB": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-3/TUNNEL-2:J-3/LED": [
-   1e-05,
+  "J-2/TUNNEL-3:J-2/LED": [
+   2e-05,
    0.0015,
    0.00011
   ],
@@ -2757,24 +2802,134 @@
    0.0,
    -0.00017
   ],
-  "J-4/TUNNEL-1:J-4/LED": [
-   1e-05,
-   0.0015,
-   0.00011
+  "J-3/ROTUNDA:jwCarpet": [
+   0.0,
+   -0.0015,
+   0.0
   ],
-  "J-4/TUNNEL-3:J-4/LED": [
-   1e-05,
-   0.0015,
-   0.00011
+  "J-3/TUNNEL-3:jwTruss#svc-skin": [
+   0.00149,
+   0.0,
+   -0.00017
   ],
-  "J-4/LIFT-BEAM:jwDark": [
+  "J-2/CORRIDOR:jwStud": [
+   -0.0,
+   -0.0015,
+   -9e-05
+  ],
+  "J-1/TUNNEL-3:jwTruss#svc-skin": [
+   0.00147,
+   0.0,
+   -0.00029
+  ],
+  "J-2/TUNNEL-3:jwTruss#svc-skin": [
+   0.00148,
+   0.0,
+   -0.00023
+  ],
+  "J-1/CORRIDOR:jwStud": [
+   -0.0,
+   -0.0015,
+   -9e-05
+  ],
+  "J-1/TUNNEL-3:jwDark#sill": [
+   0.00147,
+   0.0,
+   -0.00029
+  ],
+  "J-1/TUNNEL-3:jwPanel#pca-labels": [
+   0.00147,
+   0.0,
+   -0.00029
+  ],
+  "J-2/TUNNEL-1:jwCarpet": [
+   -2e-05,
+   -0.0015,
+   -0.00011
+  ],
+  "J-2/TUNNEL-2:jwAluB": [
+   -0.00023,
+   0.0015,
+   -0.00148
+  ],
+  "J-3/ROTUNDA-MACHINERY:jwAluB": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-3/TUNNEL-3:jwAluB": [
+   -0.00149,
+   0.0015,
+   0.00149
+  ],
+  "J-3/LIFT-BEAM:jwDark": [
    0.0,
    0.0015,
    0.0
   ],
-  "J-1/ROTUNDA:jwSlats": [
+  "J-4/ROTUNDA:jwCarpet": [
    0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-4/TUNNEL-2:jwAluB": [
    0.0015,
+   0.0015,
+   0.00149
+  ],
+  "J-4/TUNNEL-2:jwDark#sill": [
+   0.00134,
+   0.00067,
+   -5e-05
+  ],
+  "J-4/TUNNEL-3:jwTruss#svc-skin": [
+   0.0015,
+   0.0,
+   -0.00011
+  ],
+  "J-3/CAB:jwCarpet": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-1/CAB:jwCarpet": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-2/ROTUNDA:jwCarpet": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-2/TUNNEL-1:jwDark#sill": [
+   -0.00142,
+   0.0015,
+   0.00025
+  ],
+  "J-2/TUNNEL-3:jwPanel#pca-labels": [
+   0.00148,
+   -0.0,
+   -0.00023
+  ],
+  "J-3/TUNNEL-1:J-3/LED": [
+   1e-05,
+   0.0015,
+   0.00011
+  ],
+  "J-3/TUNNEL-2:J-3/LED": [
+   1e-05,
+   0.0015,
+   0.00011
+  ],
+  "J-4/TUNNEL-2:J-4/LED": [
+   1e-05,
+   0.0015,
+   0.00011
+  ],
+  "J-4/CAB:jwCarpet": [
+   0.0,
+   -0.0015,
    0.0
   ],
   "J-4/ROTUNDA:jwSlats": [
@@ -2782,57 +2937,147 @@
    0.0015,
    0.0
   ],
-  "J-4/CORRIDOR:jwStud": [
-   -0.0,
-   -0.0015,
-   -9e-05
+  "J-2/TUNNEL-2:J-2/LED": [
+   2e-05,
+   0.0015,
+   0.00011
   ],
-  "J-1/PCA-PIPES:jwAluB": [
+  "J-4/TUNNEL-3:jwDark#sill": [
+   0.0015,
+   -0.0,
+   -0.00011
+  ],
+  "J-1/ROTUNDA-MACHINERY:jwAluB": [
    0.0,
    -0.0015,
    0.0
   ],
-  "J-4/TUNNEL-3:jwDark#sill": [
-   -0.00149,
-   0.00015,
-   0.00012
+  "J-1/TUNNEL-1:jwCarpet": [
+   -2e-05,
+   -0.0015,
+   -0.00011
+  ],
+  "J-2/ROTUNDA-MACHINERY:jwAluB": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-2/TUNNEL-2:jwDark#sill": [
+   0.00148,
+   0.0,
+   -0.00023
+  ],
+  "J-3/CORRIDOR:jwWall": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "J-3/TUNNEL-2:jwAluB": [
+   -0.00017,
+   0.0015,
+   -0.00149
   ],
   "J-3/TUNNEL-3:J-3/LED": [
    1e-05,
    0.0015,
    0.00011
   ],
-  "J-2/PCA-PIPES:jwAluB": [
+  "J-4/TUNNEL-3:jwPanel#pca-labels": [
+   0.0015,
    0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-4/ROTUNDA-MACHINERY:jwAluB": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-4/TUNNEL-1:jwCarpet": [
-   -1e-05,
-   -0.0015,
    -0.00011
   ],
-  "J-4/TUNNEL-2:J-4/LED": [
+  "J-2/CAB:jwSlats": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "J-3/ROTUNDA:jwSlats": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "J-4/CAB:jwSlats": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "J-2/TUNNEL-1:J-2/LED": [
+   2e-05,
+   0.0015,
+   0.00011
+  ],
+  "J-1/ROTUNDA:jwSlats": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "J-3/CAB:jwSlats": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "J-4/CORRIDOR:jwWall": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "J-1/PCA-PIPES:jwAluB": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-1/TUNNEL-2:jwHaz": [
+   -0.00147,
+   -0.0,
+   0.00029
+  ],
+  "J-1/BOGIE:yellow": [
+   0.00029,
+   0.0,
+   0.00147
+  ],
+  "J-3/TUNNEL-3:jwDark#sill": [
+   0.00149,
+   0.00011,
+   -0.00016
+  ],
+  "J-4/TUNNEL-1:J-4/LED": [
    1e-05,
    0.0015,
    0.00011
   ],
-  "J-3/BOGIE:yellow": [
-   -0.00017,
-   0.0,
-   -0.00149
+  "J-3/CORRIDOR:jwStud": [
+   -0.0,
+   -0.0015,
+   -9e-05
   ],
-  "J-1/CAB:jwSlats": [
+  "J-4/CORRIDOR:jwStud": [
    0.0,
+   -0.0015,
+   -9e-05
+  ],
+  "J-1/TUNNEL-1:J-1/LED": [
+   2e-05,
    0.0015,
+   0.00011
+  ],
+  "J-1/TUNNEL-3:jwAluB": [
+   -0.00147,
+   -0.0015,
+   0.00147
+  ],
+  "J-1/STAIR-LANDING:jwHaz": [
+   -2e-05,
+   -0.0015,
+   -0.00011
+  ],
+  "J-1/LIFT-LEG:jwAluB": [
+   0.0,
+   -0.0015,
    0.0
   ],
-  "J-1/ROTUNDA-MACHINERY:jwAluB": [
+  "J-2/PCA-PIPES:jwAluB": [
    0.0,
    -0.0015,
    0.0
@@ -2842,62 +3087,12 @@
    0.0,
    0.00023
   ],
-  "J-2/LIFT-LEG:jwAluB": [
+  "J-2/BOGIE:yellow": [
+   -0.00023,
    0.0,
-   -0.0015,
-   0.0
+   -0.00148
   ],
-  "J-3/STAIR-LANDING:jwHaz": [
-   -1e-05,
-   -0.0015,
-   -0.00011
-  ],
-  "J-4/BOGIE:yellow": [
-   -0.00011,
-   0.0,
-   -0.0015
-  ],
-  "J-3/LIFT-BEAM:jwDark": [
-   0.0,
-   0.0015,
-   0.0
-  ],
-  "J-4/ROTUNDA-MACHINERY:jwPanel": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-4/STAIR-LANDING:jwHaz": [
-   -1e-05,
-   -0.0015,
-   -0.00011
-  ],
-  "J-4/BEACON:jwDark": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-4/LIFT-LEG:jwAluB": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-3/BEACON:jwDark": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-1/DRIVE-YOKE:jwDark": [
-   0.0,
-   0.0015,
-   0.0
-  ],
-  "J-1/LIFT-LEG:jwAluB": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-2/BEACON:jwDark": [
+  "J-3/PCA-PIPES:jwAluB": [
    0.0,
    -0.0015,
    0.0
@@ -2907,32 +3102,202 @@
    -0.0015,
    -0.00011
   ],
+  "J-1/CAB:jwSlats": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "J-1/TUNNEL-3:J-1/LED": [
+   2e-05,
+   0.0015,
+   0.00011
+  ],
+  "J-1/TUNNEL-2:jwDark#sill": [
+   -0.00145,
+   0.00025,
+   0.0003
+  ],
+  "J-4/CAB-CONSOLE:jwDark#new": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-2/TUNNEL-3:J-2/LED#svc-lamp": [
+   0.00148,
+   -0.0,
+   -0.00023
+  ],
+  "J-3/TUNNEL-2:jwHaz": [
+   -0.00149,
+   -0.0,
+   -0.00017
+  ],
+  "J-4/PCA-PIPES:jwAluB": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-4/ROTUNDA-MACHINERY:jwAluB": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-4/TUNNEL-2:jwHaz": [
+   0.0015,
+   -0.0,
+   -0.00011
+  ],
+  "J-4/TUNNEL-3:J-4/LED": [
+   1e-05,
+   0.0015,
+   0.00011
+  ],
+  "J-4/STAIR-LANDING:jwHaz": [
+   -1e-05,
+   -0.0015,
+   -0.00011
+  ],
+  "J-4/LIFT-LEG:jwAluB": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-1/CAB-CONSOLE:jwChrome#new": [
+   -0.0,
+   -0.00147,
+   0.0015
+  ],
+  "J-2/CAB-CONSOLE:jwDark#new": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-1/TUNNEL-1:jwDark#sill": [
+   -0.00147,
+   0.0,
+   0.00029
+  ],
+  "J-3/CAB-CONSOLE:jwChrome#new": [
+   0.0,
+   -0.00147,
+   0.0015
+  ],
+  "J-1/CAB-CONSOLE:jwDark#new": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-3/CAB-CONSOLE:jwDark#new": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-1/LIFT-BEAM:jwDark": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "J-2/TUNNEL-3:jwAluB": [
+   -0.00148,
+   -0.0015,
+   0.00148
+  ],
+  "J-2/SERVICE-DOOR:jwAluB": [
+   -0.00022,
+   0.00032,
+   -0.00145
+  ],
+  "J-3/STAIR-LANDING:jwHaz": [
+   -1e-05,
+   -0.0015,
+   -0.00011
+  ],
+  "J-3/TUNNEL-3:J-3/LED#svc-lamp": [
+   0.00149,
+   -0.0,
+   -0.00017
+  ],
+  "J-4/CAB-CONSOLE:jwChrome#new": [
+   -0.0,
+   -0.00147,
+   0.0015
+  ],
+  "J-1/CAB-CONSOLE:yellow#new": [
+   -0.0,
+   -0.00147,
+   0.0015
+  ],
+  "J-3/CAB-CONSOLE:yellow#new": [
+   -0.0,
+   -0.00147,
+   0.0015
+  ],
+  "J-1/DRIVE-YOKE:jwDark": [
+   0.0,
+   0.0015,
+   2e-05
+  ],
+  "J-1/CAB-CONSOLE:jwLampGreen#new": [
+   -0.0,
+   -0.00147,
+   0.0003
+  ],
+  "J-4/CAB-CONSOLE:yellow#new": [
+   0.0,
+   -0.00147,
+   0.0015
+  ],
+  "J-2/CAB-CONSOLE:jwLampAmber#new": [
+   -0.0,
+   -0.00147,
+   0.0003
+  ],
+  "J-2/CAB-CONSOLE:jwChrome#new": [
+   0.0,
+   -0.00147,
+   0.0015
+  ],
+  "J-1/CAB-CONSOLE:jwPanel#new": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
   "J-2/DRIVE-YOKE:jwDark": [
    0.0,
    0.0015,
    0.0
   ],
-  "J-3/DRIVE-YOKE:jwDark": [
+  "J-3/CAB-CONSOLE:jwPanel#new": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-3/BEACON:jwDark": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-4/DRIVE-YOKE:jwDark": [
    0.0,
    0.0015,
-   2e-05
+   5e-05
   ],
   "J-1/BEACON:jwDark": [
    0.0,
    -0.0015,
    0.0
   ],
-  "J-3/TUNNEL-1:jwWall#joint-frame": [
-   0.00017,
-   -0.00011,
-   0.00149
-  ],
-  "J-4/DRIVE-YOKE:jwDark": [
+  "J-3/CAB-CONSOLE:jwLampGreen#new": [
    0.0,
-   0.0015,
+   -0.00147,
+   0.0003
+  ],
+  "J-2/ROTUNDA-MACHINERY:jwPanel": [
+   0.0,
+   -0.0015,
    0.0
   ],
-  "J-2/LIFT-SLEEVE:jwPanel": [
+  "J-2/LIFT-LEG:jwAluB": [
    0.0,
    -0.0015,
    0.0
@@ -2942,112 +3307,192 @@
    -0.0015,
    0.0
   ],
-  "J-4/PCA-PIPES:jwAluB": [
+  "J-3/CAB-CONSOLE:jwLampAmber#new": [
+   -0.0,
+   -0.00147,
+   0.0003
+  ],
+  "J-4/ROTUNDA-MACHINERY:jwPanel": [
    0.0,
    -0.0015,
    0.0
   ],
-  "J-1/LIFT-SLEEVE:jwDark": [
-   -1e-05,
+  "J-4/CAB-CONSOLE:jwLampGreen#new": [
+   -0.0,
+   -0.00147,
+   0.0003
+  ],
+  "J-2/CAB-CONSOLE:yellow#new": [
+   0.0,
+   -0.00147,
+   0.0015
+  ],
+  "J-4/CAB-CONSOLE:jwLampAmber#new": [
+   0.0,
+   -0.00147,
+   0.0003
+  ],
+  "J-2/CAB-CONSOLE:jwPanel#new": [
+   0.0,
+   -0.00149,
+   -0.00014
+  ],
+  "J-1/DRIVE-YOKE:jwPanel": [
+   -0.00029,
    -0.0015,
-   -6e-05
+   -0.00147
   ],
-  "J-1/TUNNEL-1:jwWall#joint-frame": [
-   0.00028,
-   -0.00011,
-   0.00147
+  "J-3/DRIVE-YOKE:jwDark": [
+   0.0,
+   0.0015,
+   2e-05
   ],
-  "J-1/STAIR:jwDark": [
-   -0.00026,
-   -0.00064,
-   -0.00133
-  ],
-  "J-3/LIFT-SLEEVE:jwDark": [
-   -1e-05,
+  "J-4/CAB-CONSOLE:jwPanel#new": [
+   0.0,
    -0.0015,
-   -5e-05
+   0.0
   ],
-  "J-4/LIFT-SLEEVE:jwDark": [
-   -1e-05,
+  "J-2/BEACON:jwDark": [
+   0.0,
    -0.0015,
-   -7e-05
+   0.0
+  ],
+  "J-1/ROTUNDA-MACHINERY:jwPanel": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-2/CAB-CONSOLE:jwLampGreen#new": [
+   -0.0,
+   -0.00147,
+   0.0003
   ],
   "J-4/TUNNEL-1:jwWall#joint-frame": [
    0.00011,
    -0.00011,
    0.00149
   ],
-  "J-2/LIFT-SLEEVE:jwDark": [
+  "J-1/CAB-CONSOLE:jwLampAmber#new": [
+   0.0,
+   -0.00147,
+   0.0003
+  ],
+  "J-4/SERVICE-DOOR:jwAluB": [
+   -8e-05,
+   -0.00108,
+   -0.00104
+  ],
+  "J-4/BEACON:jwDark": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-2/TUNNEL-1:jwWall#joint-frame": [
+   0.00023,
+   -0.00011,
+   0.00148
+  ],
+  "J-2/DRIVE-YOKE:jwPanel": [
+   -0.00023,
+   -0.0015,
+   -0.00148
+  ],
+  "J-3/LIFT-SLEEVE:jwDark": [
    -1e-05,
    -0.0015,
    -5e-05
+  ],
+  "J-3/SERVICE-DOOR:jwAluB": [
+   -0.00011,
+   0.00114,
+   -0.00097
+  ],
+  "J-4/LIFT-SLEEVE:jwDark": [
+   -0.0,
+   -0.0015,
+   -4e-05
+  ],
+  "J-1/SERVICE-DOOR:jwAluB": [
+   0.00024,
+   0.00081,
+   0.00124
+  ],
+  "J-1/LIFT-SLEEVE:jwDark": [
+   -0.0,
+   -0.0015,
+   -2e-05
+  ],
+  "J-3/TUNNEL-1:jwWall#joint-frame": [
+   0.00017,
+   -0.00011,
+   0.00149
   ],
   "J-1/CORRIDOR:J-1/LED": [
    0.0,
    0.0015,
    9e-05
   ],
-  "box#14080": [
-   -1e-05,
-   -0.0015,
-   -7e-05
-  ],
-  "J-2/ROTUNDA-MACHINERY:jwAluB": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-2/STAIR-LANDING:jwHaz": [
-   -2e-05,
-   -0.0015,
-   -0.00011
+  "J-1/TUNNEL-3:jwAluB#hose-hook": [
+   -0.00028,
+   0.00011,
+   -0.00147
   ],
   "J-3/LIFT-LEG:jwAluB": [
    0.0,
    -0.0015,
    0.0
   ],
-  "J-3/TUNNEL-3:jwAluB#pca-bolts": [
-   0.00149,
-   0.0015,
-   -0.00017
-  ],
-  "J-2/CORRIDOR:J-2/LED": [
-   0.0,
-   0.0015,
-   9e-05
-  ],
-  "J-3/CORRIDOR:J-3/LED": [
-   0.0,
-   0.0015,
-   9e-05
-  ],
-  "jwp#14157": [
+  "J-3/LIFT-SLEEVE:jwPanel": [
    0.0,
    -0.0015,
    0.0
   ],
-  "jwp#14156": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-2/DRIVE-YOKE:jwAluB": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-2/CAB-FRONT:yellow": [
-   -0.0015,
-   0.0,
-   0.0
+  "J-3/STAIR:jwDark": [
+   -0.00015,
+   -0.00064,
+   -0.00135
   ],
   "J-4/CORRIDOR:J-4/LED": [
    0.0,
    0.0015,
    9e-05
   ],
-  "J-4/CAB-FRONT:yellow": [
+  "J-2/LIFT-SLEEVE:jwDark": [
+   -0.0,
+   -0.0015,
+   -1e-05
+  ],
+  "jwp#14157": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-2/TUNNEL-1:jwWall": [
+   -0.00106,
+   0.00146,
+   0.00035
+  ],
+  "J-2/STAIR:jwDark": [
+   -0.0002,
+   -0.00064,
+   -0.00134
+  ],
+  "J-3/CORRIDOR:J-3/LED": [
+   0.0,
+   0.0015,
+   9e-05
+  ],
+  "J-4/TUNNEL-3:jwAluB#svc-frame": [
+   9e-05,
+   -0.00077,
+   0.00128
+  ],
+  "J-4/ROTUNDA:jwTruss#underframe": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "J-2/CAB-FRONT:yellow": [
    -0.0015,
    0.0,
    0.0
@@ -3062,122 +3507,92 @@
    0.0015,
    0.00011
   ],
-  "J-1/TUNNEL-1:jwTruss#underframe": [
-   2e-05,
-   0.0015,
-   0.00011
-  ],
-  "J-1/DRIVE-YOKE:jwPanel": [
-   -0.00029,
-   -0.0015,
-   -0.00147
-  ],
-  "J-4/DRIVE-YOKE:jwPanel": [
-   -0.00011,
-   -0.0015,
-   -0.0015
-  ],
-  "J-4/ROTUNDA:jwTruss#underframe": [
-   0.0,
-   0.0015,
-   0.0
-  ],
-  "J-1/ROTUNDA:jwPanel": [
-   -0.0015,
-   0.0,
-   0.0
-  ],
-  "J-2/ROTUNDA:jwPanel": [
-   -0.0015,
-   0.0,
-   0.0
-  ],
-  "J-1/TUNNEL-3:jwAluB#pca-bolts": [
-   0.00147,
-   0.0015,
-   -0.00029
-  ],
   "J-2/TUNNEL-3:jwAluB#pca-grille": [
-   6e-05,
+   2e-05,
    -0.00011,
-   0.00149
-  ],
-  "J-3/ROTUNDA:jwTruss#underframe": [
-   0.0,
-   0.0015,
-   0.0
-  ],
-  "J-4/TUNNEL-1:jwTruss#underframe": [
-   1e-05,
-   0.0015,
-   0.00011
-  ],
-  "J-1/ROTUNDA-MACHINERY:jwPanel": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-1/LIFT-SLEEVE:jwPanel": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-2/ROTUNDA:jwTruss#underframe": [
-   0.0,
-   0.0015,
-   0.0
-  ],
-  "J-2/STAIR:jwDark": [
-   -0.0002,
-   -0.00064,
-   -0.00134
-  ],
-  "J-3/DRIVE-YOKE:jwPanel": [
-   -0.00017,
-   -0.00148,
-   -0.00149
-  ],
-  "J-3/LIFT-SLEEVE:jwPanel": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-3/STAIR:jwDark": [
-   -0.00015,
-   -0.00064,
-   -0.00135
-  ],
-  "J-1/TUNNEL-3:jwAluB#pca-grille": [
-   0.00017,
-   -0.00011,
-   0.00149
-  ],
-  "J-2/TUNNEL-1:jwWall#joint-frame": [
-   -0.00023,
-   0.00011,
-   0.00148
-  ],
-  "J-2/TUNNEL-3:jwAluB#pca-bolts": [
-   0.00148,
-   0.0015,
-   -0.00023
+   0.0015
   ],
   "J-3/TUNNEL-1:jwTruss#underframe": [
    1e-05,
    0.0015,
    0.00011
   ],
-  "J-1/DRIVE-YOKE:jwAluB": [
+  "J-1/LIFT-SLEEVE:jwPanel": [
    0.0,
    -0.0015,
    0.0
+  ],
+  "J-2/TUNNEL-3:jwAluB#hose-hook": [
+   -0.00023,
+   0.00011,
+   -0.00148
+  ],
+  "J-3/ROTUNDA:jwDark#column-pad": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "J-3/DRIVE-YOKE:jwPanel": [
+   -0.00017,
+   -0.0015,
+   -0.00149
+  ],
+  "J-4/CAB-FRONT:yellow": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "J-2/TUNNEL-3:jwAluB#pca-bolts": [
+   0.00148,
+   0.0015,
+   -0.00023
+  ],
+  "J-3/ROTUNDA:jwTruss#underframe": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "J-4/ROTUNDA:jwAluB#column-bolts": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-3/TUNNEL-3:jwAluB#svc-frame": [
+   0.00091,
+   -0.00135,
+   -0.00116
+  ],
+  "J-1/TUNNEL-1:jwTruss#underframe": [
+   2e-05,
+   0.0015,
+   0.00011
+  ],
+  "J-4/TUNNEL-1:jwTruss#underframe": [
+   1e-05,
+   0.0015,
+   0.00011
+  ],
+  "J-2/CORRIDOR:J-2/LED": [
+   0.0,
+   0.0015,
+   9e-05
+  ],
+  "J-2/DRIVE-YOKE:jwAluB": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-1/TUNNEL-3:jwAluB#svc-frame": [
+   -0.00027,
+   -0.00045,
+   -0.0014
+  ],
+  "J-2/TUNNEL-3:jwAluB#svc-frame": [
+   0.00023,
+   -0.00135,
+   0.00148
   ],
   "J-3/DRIVE-YOKE:jwAluB": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-4/DRIVE-YOKE:jwAluB": [
    0.0,
    -0.0015,
    0.0
@@ -3197,19 +3612,244 @@
    -0.0015,
    0.0
   ],
-  "J-2/TUNNEL-1:jwWall": [
-   -0.00106,
+  "J-2/ROTUNDA:jwTruss#underframe": [
+   0.0,
    0.0015,
-   0.00011
+   0.0
   ],
   "jwp#14251": [
    0.0,
    -0.0015,
    0.0
   ],
+  "jwp#14253": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-3/TUNNEL-1:jwWall": [
+   -0.00149,
+   0.0015,
+   0.00017
+  ],
+  "J-3/TUNNEL-3:jwAluB#pca-grille": [
+   0.00047,
+   -0.00011,
+   0.00142
+  ],
+  "jwp#14349": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-4/TUNNEL-1:jwWall": [
+   0.00105,
+   0.0015,
+   -0.00016
+  ],
+  "J-4/TUNNEL-3:jwAluB#pca-bolts": [
+   0.0015,
+   0.0015,
+   0.00011
+  ],
+  "J-3/TUNNEL-3:jwAluB#hose-hook": [
+   -0.00017,
+   0.00011,
+   -0.00149
+  ],
+  "J-3/TUNNEL-3:jwAluB#pca-bolts": [
+   0.00149,
+   0.0015,
+   -0.00017
+  ],
+  "J-1/TUNNEL-3:jwAluB#pca-grille": [
+   5e-05,
+   -0.00011,
+   0.0015
+  ],
+  "J-1/CAB-CONSOLE:jwRubber#new": [
+   -0.0,
+   -0.00147,
+   0.0003
+  ],
+  "J-4/TUNNEL-3:jwAluB#pca-grille": [
+   0.00021,
+   -0.00011,
+   0.00148
+  ],
   "J-3/ROTUNDA:jwPanel": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "J-4/ROTUNDA:jwPanel": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "J-4/DRIVE-YOKE:jwAluB": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-1/TUNNEL-3:jwAluB#pca-bolts": [
+   0.00147,
+   0.0015,
+   -0.00029
+  ],
+  "J-3/ROTUNDA:jwAluB#column-bolts": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-3/TUNNEL-3:jwTruss#pca-hangers": [
+   1e-05,
+   0.0015,
+   0.00011
+  ],
+  "J-2/TUNNEL-3:jwTruss#pca-hangers": [
+   -0.00018,
+   0.0015,
+   0.00014
+  ],
+  "J-4/TUNNEL-3:jwTruss#pca-hangers": [
+   1e-05,
+   0.0015,
+   0.00011
+  ],
+  "J-1/TUNNEL-1:jwTruss#frame": [
+   2e-05,
+   0.0015,
+   0.00011
+  ],
+  "J-1/TUNNEL-3:jwTruss#frame": [
+   2e-05,
+   0.0015,
+   0.00011
+  ],
+  "J-1/CAB-FRONT:yellow": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "J-1/DRIVE-YOKE:jwAluB": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-2/TUNNEL-1:jwTruss#frame": [
+   2e-05,
+   0.0015,
+   0.00011
+  ],
+  "J-2/TUNNEL-2:jwDark#junction": [
+   2e-05,
+   0.0015,
+   0.00011
+  ],
+  "J-2/LIFT-SLEEVE:jwPanel": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-3/TUNNEL-2:jwTruss#frame": [
+   1e-05,
+   0.0015,
+   0.00011
+  ],
+  "J-3/CAB-FRONT:yellow": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "J-4/ROTUNDA:jwDark#column-pad": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "J-3/CAB-FRONT:jwWall": [
    0.0015,
    0.0,
+   0.0
+  ],
+  "J-2/ROTUNDA:jwAluB#column-bolts": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-3/TUNNEL-3:jwTruss#frame": [
+   1e-05,
+   0.0015,
+   0.00011
+  ],
+  "J-1/TUNNEL-1:jwWall#joint-frame": [
+   0.00028,
+   -0.00011,
+   0.00147
+  ],
+  "J-1/CAB-FRONT:jwWall": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "J-1/ROTUNDA:jwDark#column-pad": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "J-2/ROTUNDA:jwPanel#column-box": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-1/TUNNEL-1:jwWall": [
+   2e-05,
+   -0.0015,
+   0.00011
+  ],
+  "J-4/TUNNEL-2:jwWall": [
+   2e-05,
+   0.00148,
+   0.00022
+  ],
+  "J-1/TUNNEL-3:jwTruss#pca-hangers": [
+   -0.00027,
+   0.0015,
+   0.00016
+  ],
+  "J-1/CAB-CONSOLE:jwRed#new": [
+   0.0,
+   -0.00147,
+   0.0003
+  ],
+  "jwp#14156": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "jwp#14158": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "jwp#14166": [
+   0.0,
+   -0.0003,
+   -0.00147
+  ],
+  "jwp#14252": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "jwp#14254": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "jwp#14347": [
+   0.0,
+   -0.0015,
    0.0
   ],
   "jwp#14348": [
@@ -3222,137 +3862,7 @@
    -0.0015,
    0.0
   ],
-  "J-4/TUNNEL-1:jwWall": [
-   -0.00106,
-   0.0015,
-   0.00011
-  ],
-  "J-1/TUNNEL-3:jwTruss#pca-hangers": [
-   -0.00019,
-   0.0015,
-   0.00015
-  ],
-  "J-4/TUNNEL-3:jwAluB#pca-bolts": [
-   0.0015,
-   0.0015,
-   0.00011
-  ],
-  "J-4/TUNNEL-3:jwAluB#pca-grille": [
-   2e-05,
-   -0.00011,
-   0.0015
-  ],
-  "J-4/TUNNEL-3:jwTruss#frame": [
-   1e-05,
-   0.0015,
-   0.00011
-  ],
-  "J-3/TUNNEL-3:jwAluB#pca-grille": [
-   -6e-05,
-   -0.00011,
-   0.00149
-  ],
-  "J-2/TUNNEL-3:jwTruss#pca-hangers": [
-   -0.00037,
-   0.0015,
-   0.00016
-  ],
-  "J-1/CAB-FRONT:yellow": [
-   -0.0015,
-   0.0,
-   0.0
-  ],
-  "J-2/ROTUNDA-MACHINERY:jwPanel": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-2/TUNNEL-2:jwHaz#joint-edge": [
-   0.00023,
-   -0.00011,
-   0.00148
-  ],
-  "J-2/DRIVE-YOKE:jwPanel": [
-   -0.00023,
-   -0.0015,
-   -0.00148
-  ],
-  "J-3/CAB-FRONT:yellow": [
-   -0.0015,
-   0.0,
-   -0.0015
-  ],
-  "J-3/STEP:jwHaz": [
-   0.00017,
-   0.0,
-   0.00149
-  ],
-  "J-3/TUNNEL-3:jwPanel": [
-   0.00149,
-   -0.0,
-   -0.00017
-  ],
-  "J-4/TUNNEL-3:jwPanel": [
-   0.0015,
-   -0.0,
-   -0.00011
-  ],
-  "J-3/TUNNEL-3:jwTruss#pca-hangers": [
-   -0.00076,
-   0.0015,
-   0.00018
-  ],
-  "J-4/TUNNEL-3:jwTruss#pca-hangers": [
-   -0.00035,
-   0.0015,
-   0.00013
-  ],
-  "J-3/TUNNEL-1:jwTruss#frame": [
-   1e-05,
-   0.0015,
-   0.00011
-  ],
-  "J-3/TUNNEL-3:jwTruss#frame": [
-   1e-05,
-   0.0015,
-   0.00011
-  ],
-  "J-4/TUNNEL-2:jwWall#joint-frame": [
-   0.00011,
-   -0.00011,
-   0.00149
-  ],
-  "J-1/TUNNEL-1:jwDark#junction": [
-   2e-05,
-   0.0015,
-   0.00011
-  ],
-  "J-4/TUNNEL-3:jwAluB#hose-hook": [
-   -0.00011,
-   0.00011,
-   -0.00149
-  ],
-  "J-1/CAB-FRONT:jwWall": [
-   0.0015,
-   0.0,
-   0.0
-  ],
-  "J-3/TUNNEL-1:jwWall": [
-   -1e-05,
-   -0.0015,
-   0.00011
-  ],
-  "jwp#14158": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-3/CAB-FRONT:jwWall": [
-   0.0015,
-   0.0,
-   0.0
-  ],
-  "jwp#14347": [
+  "J-1/ROTUNDA:jwAluB#column-bolts": [
    0.0,
    -0.0015,
    0.0
@@ -3362,73 +3872,108 @@
    0.0,
    0.0
   ],
-  "J-1/TUNNEL-1:jwWall": [
-   -2e-05,
-   -0.0015,
+  "J-4/CAB-FRONT:jwWall": [
+   0.0015,
+   0.0,
+   0.0
+  ],
+  "J-4/CAB-CONSOLE:jwRubber#new": [
+   0.0,
+   -0.00147,
+   0.0003
+  ],
+  "J-4/TUNNEL-3:jwTruss#frame": [
+   1e-05,
+   0.0015,
    0.00011
   ],
-  "J-4/TUNNEL-2:jwWall": [
-   -0.0015,
-   0.00148,
-   0.00023
+  "J-3/CAB-CONSOLE:jwRubber#new": [
+   -0.0,
+   -0.00147,
+   0.0003
   ],
-  "J-2/TUNNEL-2:jwTruss#frame": [
+  "J-2/ROTUNDA:jwPanel": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "J-4/FIRE-EXTINGUISHER:yellow": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-2/TUNNEL-2:jwWall": [
    2e-05,
    0.0015,
    0.00011
   ],
-  "J-1/CAB-CONSOLE:jwDark": [
+  "J-2/CAB-CONSOLE:jwRubber#new": [
+   0.0,
+   -0.00147,
+   0.0003
+  ],
+  "J-4/DRIVE-YOKE:jwPanel": [
+   -0.00011,
+   -0.0015,
+   -0.0015
+  ],
+  "J-1/ROTUNDA:jwPanel#column-box": [
    0.0,
    -0.0015,
    0.0
   ],
-  "J-2/TUNNEL-3:jwAluB#joint-lip": [
-   -0.00023,
-   0.00011,
-   -0.00148
-  ],
-  "J-2/CAB-CONSOLE:jwDark": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-1/TUNNEL-2:jwHaz#joint-edge": [
+  "J-1/TUNNEL-1:jwHaz#joint-edge": [
    0.00028,
    -0.00011,
    0.00147
   ],
-  "J-1/TUNNEL-3:jwAluB#hose-hook": [
-   -0.00028,
-   0.00011,
-   -0.00147
-  ],
-  "J-2/TUNNEL-1:jwHaz#joint-edge": [
-   0.00023,
-   -0.00011,
-   0.00148
-  ],
-  "J-2/TUNNEL-3:jwDark#junction": [
-   2e-05,
-   0.0015,
-   0.00011
-  ],
-  "J-2/TUNNEL-3:jwAluB#hose-hook": [
-   -0.00023,
-   0.00011,
-   -0.00148
-  ],
-  "box#14176": [
+  "box#14078": [
    -1e-05,
    -0.0015,
    -7e-05
+  ],
+  "box#14080": [
+   -1e-05,
+   -0.0015,
+   -7e-05
+  ],
+  "J-1/STAIR:jwDark": [
+   -0.00026,
+   -0.00064,
+   -0.00133
+  ],
+  "J-1/STEP:jwHaz": [
+   0.00029,
+   0.0,
+   0.00147
+  ],
+  "J-3/ROTUNDA:jwPanel#column-box": [
+   0.0,
+   -0.0015,
+   0.0
   ],
   "J-3/TUNNEL-1:jwDark#junction": [
    1e-05,
    0.0015,
    0.00011
   ],
-  "J-3/TUNNEL-3:jwAluB#hose-hook": [
-   -0.00017,
+  "J-3/STEP:jwHaz": [
+   0.00017,
+   0.0,
+   0.00149
+  ],
+  "J-4/ROTUNDA:jwPanel#column-box": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-4/TUNNEL-1:jwHaz#joint-edge": [
+   0.00011,
+   -0.00011,
+   0.00149
+  ],
+  "J-4/TUNNEL-3:jwAluB#hose-hook": [
+   -0.00011,
    0.00011,
    -0.00149
   ],
@@ -3437,42 +3982,42 @@
    -0.0015,
    0.0
   ],
-  "J-4/STEP:jwHaz": [
-   0.00011,
-   0.0,
-   0.0015
+  "J-4/STAIR:jwDark": [
+   -0.0001,
+   -0.00064,
+   -0.00135
   ],
-  "J-4/CAB-FRONT:jwWall": [
-   0.0015,
+  "J-4/STEP:jwHaz": [
+   0.00035,
    0.0,
+   0.00146
+  ],
+  "J-3/FIRE-EXTINGUISHER:yellow": [
+   0.0,
+   -0.0015,
    0.0
   ],
-  "J-1/TUNNEL-3:jwAluB#joint-lip": [
-   -0.00028,
-   0.00011,
-   -0.00147
+  "J-2/CAB-CONSOLE:jwRed#new": [
+   -0.0,
+   -0.00147,
+   0.0003
   ],
-  "J-4/TUNNEL-2:jwAluB#joint-lip": [
-   -0.00011,
+  "J-2/TUNNEL-2:jwAluB#joint-lip": [
+   -0.00023,
+   0.00011,
+   -0.00148
+  ],
+  "J-3/TUNNEL-3:jwAluB#joint-lip": [
+   -0.00017,
    0.00011,
    -0.00149
   ],
-  "J-1/TUNNEL-1:jwTruss#frame": [
-   2e-05,
+  "J-1/TUNNEL-3:jwWall": [
+   -1e-05,
    0.0015,
-   0.00011
+   -5e-05
   ],
-  "J-1/TUNNEL-2:jwTruss#frame": [
-   2e-05,
-   0.0015,
-   0.00011
-  ],
-  "J-2/TUNNEL-1:jwTruss#frame": [
-   2e-05,
-   0.0015,
-   0.00011
-  ],
-  "J-3/TUNNEL-2:jwTruss#frame": [
+  "J-4/TUNNEL-1:jwTruss#frame": [
    1e-05,
    0.0015,
    0.00011
@@ -3481,6 +4026,16 @@
    1e-05,
    0.0015,
    0.00011
+  ],
+  "J-4/TUNNEL-3:jwWall": [
+   2e-05,
+   0.00147,
+   0.00027
+  ],
+  "J-3/CAB-CONSOLE:jwRed#new": [
+   -0.0,
+   -0.00147,
+   0.0003
   ],
   "J-1/FIRE-EXTINGUISHER:yellow": [
    0.0,
@@ -3492,32 +4047,52 @@
    -0.00011,
    0.00147
   ],
-  "J-3/TUNNEL-2:jwWall#joint-frame": [
-   0.00017,
+  "J-4/TUNNEL-2:jwPanel": [
    -0.00011,
-   0.00149
+   0.00011,
+   -0.00149
   ],
-  "J-2/TUNNEL-3:jwWall": [
+  "J-3/CORRIDOR:jwPanel": [
+   0.0,
+   0.0015,
+   -9e-05
+  ],
+  "J-1/TUNNEL-1:jwDark#junction": [
    2e-05,
    0.0015,
    0.00011
   ],
-  "J-1/TUNNEL-3:jwWall": [
-   -0.00147,
+  "J-1/TUNNEL-2:jwTruss#frame": [
+   2e-05,
    0.0015,
-   0.00029
+   0.00011
   ],
   "J-1/TUNNEL-2:jwDark#junction": [
    2e-05,
    0.0015,
    0.00011
   ],
-  "J-2/FIRE-EXTINGUISHER:yellow": [
+  "J-2/ROTUNDA:jwDark#column-pad": [
    0.0,
-   -0.0015,
+   0.0015,
    0.0
   ],
-  "J-3/TUNNEL-2:jwDark#junction": [
+  "J-2/TUNNEL-1:jwDark#junction": [
+   2e-05,
+   0.0015,
+   0.00011
+  ],
+  "J-2/TUNNEL-3:jwDark#junction": [
+   2e-05,
+   0.0015,
+   0.00011
+  ],
+  "J-3/TUNNEL-1:jwTruss#frame": [
+   1e-05,
+   0.0015,
+   0.00011
+  ],
+  "J-3/TUNNEL-3:jwDark#junction": [
    1e-05,
    0.0015,
    0.00011
@@ -3527,7 +4102,7 @@
    0.0015,
    0.00011
   ],
-  "J-3/ROTUNDA-SLEEVE:jwAluB": [
+  "J-1/ROTUNDA-SLEEVE:jwAluB": [
    0.0,
    0.0015,
    0.0
@@ -3537,60 +4112,50 @@
    -0.0015,
    -9e-05
   ],
-  "J-3/CAB-FRONT:jwRubber": [
-   0.0,
-   0.0,
-   0.0015
-  ],
-  "J-2/TUNNEL-2:jwAluB#joint-lip": [
-   -0.00023,
+  "J-1/TUNNEL-2:jwAluB#joint-lip": [
+   -0.00028,
    0.00011,
-   -0.00148
+   -0.00147
   ],
-  "J-3/CAB-CONSOLE:jwDark": [
+  "J-4/CAB-CONSOLE:jwRed#new": [
+   -0.0,
+   -0.00147,
+   0.0003
+  ],
+  "J-1/LIFT-LEG:jwTruss": [
    0.0,
    -0.0015,
    0.0
   ],
-  "J-4/GATE-TRIM:jwTruss": [
-   -0.00106,
-   -0.00106,
+  "J-2/GATE-TRIM:jwTruss": [
+   0.00142,
+   -0.00047,
    0.0
   ],
-  "J-2/TUNNEL-2:jwPanel": [
-   -0.00023,
-   0.00011,
-   -0.00148
-  ],
-  "J-3/FIRE-EXTINGUISHER:yellow": [
+  "J-4/ROTUNDA-SLEEVE:jwAluB": [
    0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-4/FIRE-EXTINGUISHER:yellow": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-4/TUNNEL-2:jwPanel": [
-   -0.00011,
-   0.00011,
-   -0.00149
-  ],
-  "J-4/CORRIDOR:jwPanel": [
-   0.0,
-   -0.0015,
-   9e-05
-  ],
-  "J-2/TUNNEL-2:jwWall": [
-   -0.00148,
    0.0015,
-   0.00023
+   0.0
   ],
-  "J-3/TUNNEL-2:jwWall": [
-   -0.00149,
+  "J-2/FIRE-EXTINGUISHER:yellow": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
+  "J-3/TUNNEL-2:jwWall#joint-frame": [
+   0.00017,
+   -0.00011,
+   0.00149
+  ],
+  "J-1/TUNNEL-2:jwWall": [
+   7e-05,
    0.00146,
    0.00035
+  ],
+  "J-3/TUNNEL-2:jwWall": [
+   0.00149,
+   0.0015,
+   -0.00017
   ],
   "jwp#14049": [
    0.0,
@@ -3602,80 +4167,200 @@
    -0.0015,
    0.0
   ],
-  "J-3/CORRIDOR:jwPanel": [
-   -0.0,
-   0.0015,
-   -9e-05
-  ],
-  "jwp#14252": [
+  "jwp#14068": [
    0.0,
-   -0.0015,
-   0.0
+   -0.0003,
+   -0.00147
   ],
-  "jwp#14253": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "jwp#14254": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-3/CANOPY-LINING": [
+  "J-2/CANOPY-LINING": [
    0.00021,
    -0.00148,
+   0.0
+  ],
+  "box#14174": [
+   -1e-05,
+   -0.0015,
+   -5e-05
+  ],
+  "J-3/TUNNEL-3:jwWall#svc-wall": [
+   -4e-05,
+   0.00145,
+   -0.00037
+  ],
+  "J-3/CAB-FRONT:jwRubber": [
+   0.0,
+   0.0,
+   0.0015
+  ],
+  "jwp#14262": [
+   0.0,
+   -0.0003,
+   -0.00147
+  ],
+  "J-3/CANOPY-LINING": [
+   0.00013,
+   0.0,
    0.00149
   ],
-  "jwp#14349": [
+  "jwp#14358": [
    0.0,
+   -0.0003,
+   -0.00147
+  ],
+  "J-3/TUNNEL-3:jwWall": [
+   -0.00149,
+   0.00149,
+   -0.00018
+  ],
+  "J-1/CAB-FRONT:jwRubber": [
+   0.0,
+   0.0,
+   0.0015
+  ],
+  "J-1/ROTUNDA:jwPanel": [
    -0.0015,
-   0.0
-  ],
-  "J-4/ROTUNDA:jwPanel": [
-   0.0015,
    0.0,
    0.0
   ],
-  "J-2/TUNNEL-3:jwTruss#frame": [
-   2e-05,
-   0.0015,
-   0.00011
+  "J-4/TUNNEL-2:jwAluB#joint-lip": [
+   -0.00011,
+   0.00011,
+   -0.00149
   ],
-  "J-3/TUNNEL-1:jwTruss#sill": [
+  "J-4/CORRIDOR:jwPanel": [
+   -0.0,
+   -0.0015,
+   9e-05
+  ],
+  "J-4/TUNNEL-1:jwPanel": [
    -1e-05,
    -0.0015,
    -0.00011
   ],
-  "J-1/ROTUNDA-SLEEVE:jwAluB": [
+  "J-1/TUNNEL-2:jwHaz#joint-edge": [
+   0.00028,
+   -0.00011,
+   0.00147
+  ],
+  "J-1/TUNNEL-3:jwDark#junction": [
+   2e-05,
+   0.0015,
+   0.00011
+  ],
+  "J-1/TUNNEL-3:jwWall#svc-wall": [
+   0.00018,
+   0.00118,
+   0.0009
+  ],
+  "J-1/GATE-NUMBER:jwAluB": [
    0.0,
    0.0015,
    0.0
   ],
-  "J-2/ROTUNDA-SLEEVE:jwAluB": [
+  "J-2/TUNNEL-1:jwHaz#joint-edge": [
+   0.00023,
+   -0.00011,
+   0.00148
+  ],
+  "J-2/CAB-DOOR:jwRubber": [
+   -6e-05,
+   0.0015,
+   0.0015
+  ],
+  "J-2/STEP:jwHaz": [
+   0.00023,
+   0.0,
+   0.00148
+  ],
+  "J-3/TUNNEL-1:jwHaz#joint-edge": [
+   0.00017,
+   -0.00011,
+   0.00149
+  ],
+  "J-3/TUNNEL-2:jwHaz#joint-edge": [
+   0.00017,
+   -0.00011,
+   0.00149
+  ],
+  "J-3/TUNNEL-2:jwDark#junction": [
+   1e-05,
+   0.0015,
+   0.00011
+  ],
+  "J-4/TUNNEL-1:jwAluB#exit-hanger": [
+   0.00011,
+   -0.00011,
+   0.00149
+  ],
+  "J-4/CAB-FRONT:jwSlats": [
    0.0,
    0.0015,
    0.0
   ],
-  "J-1/TUNNEL-2:jwWall": [
-   -0.00147,
+  "J-4/GATE-NUMBER:jwAluB": [
+   0.0,
    0.0015,
-   0.00029
+   0.0
+  ],
+  "box#14366": [
+   -0.0,
+   -0.0015,
+   -7e-05
+  ],
+  "box#14368": [
+   0.0015,
+   -0.0,
+   -0.00011
+  ],
+  "J-4/CAB-FRONT:jwRubber": [
+   0.0,
+   0.0,
+   0.0015
+  ],
+  "J-2/TUNNEL-3:jwWall": [
+   -0.00148,
+   0.0015,
+   0.00023
+  ],
+  "J-2/TUNNEL-1:jwPanel": [
+   -2e-05,
+   -0.0015,
+   -0.00011
   ],
   "J-2/CORRIDOR:jwPanel": [
-   -0.0,
+   0.0,
    0.0015,
    -9e-05
   ],
-  "J-3/CAB:jwAluB": [
+  "J-2/CAB-FRONT:jwRubber": [
+   0.0,
+   0.0,
+   0.0015
+  ],
+  "J-3/TUNNEL-1:jwTruss#sill": [
+   -0.00149,
+   -0.0015,
+   0.00017
+  ],
+  "J-2/TUNNEL-2:jwPanel": [
+   -0.00023,
+   0.00011,
+   -0.00148
+  ],
+  "J-2/TUNNEL-2:jwWall#joint-frame": [
+   0.00023,
+   -0.00011,
+   0.00148
+  ],
+  "J-2/CAB-SLEEVE:jwAluB": [
    0.0,
    0.0015,
    0.0
   ],
-  "J-4/CAB:jwAluB": [
-   0.0,
-   0.0015,
-   0.0
+  "J-3/TUNNEL-2:jwPanel": [
+   -0.00017,
+   0.00011,
+   -0.00149
   ],
   "J-1/TUNNEL-1:jwPanel": [
    -2e-05,
@@ -3687,257 +4372,92 @@
    -0.0015,
    -0.00011
   ],
-  "J-1/TUNNEL-1:glassOuter": [
-   0.00022,
-   0.00098,
-   0.00111
-  ],
-  "J-1/TUNNEL-2:jwHaz": [
-   -0.00147,
+  "J-1/CAB-SLEEVE:jwAluB": [
    0.0,
-   0.00029
-  ],
-  "J-1/CAB-DOOR:jwRubber": [
-   6e-05,
-   0.0,
-   0.0015
-  ],
-  "J-1/STEP:jwHaz": [
-   0.00029,
-   0.0,
-   0.00147
-  ],
-  "J-2/TUNNEL-1:glassOuter": [
-   2e-05,
    0.0015,
-   0.00011
+   0.0
   ],
-  "J-2/TUNNEL-1:jwTruss#sill": [
+  "J-1/TUNNEL-3:jwAluB#joint-lip": [
+   -0.00028,
+   0.00011,
+   -0.00147
+  ],
+  "J-2/TUNNEL-3:jwAluB#joint-lip": [
    -0.00023,
-   -0.00148,
-   -8e-05
-  ],
-  "J-2/CAB-FRONT:jwSlats": [
-   0.0,
-   0.0,
-   -0.0015
-  ],
-  "J-2/CAB-DOOR:jwRubber": [
-   6e-05,
-   -0.0015,
-   -0.0015
-  ],
-  "box#14174": [
-   1e-05,
-   0.0015,
-   -7e-05
-  ],
-  "box#14175": [
-   -1e-05,
-   -0.0015,
-   -7e-05
-  ],
-  "box#14177": [
-   -1e-05,
-   -0.0015,
-   -9e-05
-  ],
-  "J-2/STEP:jwHaz": [
-   0.00051,
-   0.0,
-   0.00141
-  ],
-  "J-3/TUNNEL-1:jwHaz#joint-edge": [
-   0.00017,
-   -0.00011,
-   0.00149
-  ],
-  "box#14270": [
-   -1e-05,
-   -0.0015,
-   -7e-05
-  ],
-  "box#14274": [
-   -0.00149,
-   0.0,
-   0.00017
-  ],
-  "box#14275": [
-   0.00149,
-   0.0,
-   -0.00017
-  ],
-  "J-4/TUNNEL-1:jwAluB#exit-hanger": [
    0.00011,
-   -0.00011,
-   0.00149
-  ],
-  "J-4/TUNNEL-1:jwTruss#frame": [
-   1e-05,
-   0.0015,
-   0.00011
-  ],
-  "J-4/TUNNEL-1:jwHaz#joint-edge": [
-   0.00011,
-   -0.00011,
-   0.00149
-  ],
-  "J-4/TUNNEL-1:jwDark#junction": [
-   1e-05,
-   0.0015,
-   0.00011
-  ],
-  "J-4/CAB-DOOR:jwRubber": [
-   0.0,
-   0.0015,
-   0.0
-  ],
-  "J-4/CAB-CONSOLE:jwDark": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "box#14367": [
-   -0.0,
-   -0.0015,
-   -7e-05
-  ],
-  "box#14368": [
-   -0.0,
-   -0.0015,
-   -7e-05
-  ],
-  "box#14371": [
-   -0.0015,
-   -0.0,
-   0.00011
-  ],
-  "J-2/TUNNEL-1:jwPanel": [
-   -2e-05,
-   -0.0015,
-   -0.00011
-  ],
-  "J-4/TUNNEL-1:jwPanel": [
-   -2e-05,
-   -0.00148,
-   -0.00026
-  ],
-  "J-1/TUNNEL-3:jwPanel": [
-   0.00147,
-   -0.0,
-   -0.00029
-  ],
-  "J-2/TUNNEL-3:jwPanel": [
-   0.00148,
-   0.0,
-   -0.00023
-  ],
-  "J-3/TUNNEL-3:jwAluB#joint-lip": [
-   0.00017,
-   -0.00011,
-   0.00149
-  ],
-  "J-4/TUNNEL-3:jwWall": [
-   -0.0015,
-   0.0015,
-   0.00011
-  ],
-  "J-3/CORRIDOR:jwTruss": [
-   0.0,
-   0.0,
-   -0.0015
-  ],
-  "J-2/TUNNEL-2:jwTruss#sill": [
-   -0.00148,
-   -0.0,
-   0.00023
-  ],
-  "J-4/TUNNEL-3:jwTruss#sill": [
-   -0.0015,
-   0.0,
-   0.00011
-  ],
-  "J-2/TUNNEL-2:jwWall#joint-frame": [
-   0.00023,
-   -0.00011,
-   0.00148
-  ],
-  "J-3/TUNNEL-2:jwPanel": [
-   -0.00017,
-   0.00011,
-   -0.00149
-  ],
-  "J-4/TUNNEL-3:jwAluB#joint-lip": [
-   -0.00011,
-   -0.00011,
-   -0.00149
+   -0.00148
   ],
   "J-3/TUNNEL-2:jwAluB#joint-lip": [
    -0.00017,
    0.00011,
    -0.00149
   ],
-  "J-1/CAB-FRONT:jwRubber": [
-   0.0,
-   0.0,
-   0.0015
-  ],
-  "J-2/CAB-FRONT:jwRubber": [
-   0.0,
-   0.0,
-   0.0015
-  ],
-  "J-1/TUNNEL-3:jwTruss#frame": [
-   2e-05,
-   0.0015,
-   0.00011
-  ],
-  "J-4/ROTUNDA-SLEEVE:jwAluB": [
-   0.0,
-   0.0015,
-   0.0
-  ],
-  "J-1/CAB:jwAluB": [
+  "J-3/CAB-CONSOLE:jwAluB#new": [
    0.0,
    -0.0015,
    0.0
   ],
-  "J-4/CAB:jwWall": [
+  "J-1/CAB:jwAluB": [
    0.0,
    0.0015,
    0.0
   ],
-  "J-3/TUNNEL-3:jwWall": [
-   -0.00011,
-   0.00114,
-   -0.00097
+  "J-3/CAB:jwAluB": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "J-4/TUNNEL-3:jwWall#svc-wall": [
+   1e-05,
+   0.0015,
+   0.00011
+  ],
+  "J-1/TUNNEL-1:jwTruss#sill": [
+   -0.00147,
+   -0.00106,
+   0.00029
+  ],
+  "J-2/TUNNEL-3:glassOuter": [
+   0.00148,
+   -0.0,
+   -0.00023
+  ],
+  "J-3/ROTUNDA:jwAluB": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "J-4/TUNNEL-1:jwTruss#sill": [
+   -0.0015,
+   -0.0015,
+   -0.00011
+  ],
+  "J-4/TUNNEL-3:glassOuter": [
+   0.0015,
+   -0.0,
+   -0.00011
+  ],
+  "J-2/ROTUNDA-SLEEVE:jwAluB": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "J-3/ROTUNDA-SLEEVE:jwAluB": [
+   0.0,
+   0.0015,
+   0.0
   ],
   "J-1/GATE-TRIM:jwTruss": [
    -0.00106,
    -0.00106,
    0.0
   ],
-  "J-2/ROTUNDA-DRUM:jwWall": [
+  "J-1/ROTUNDA-DRUM:jwWall": [
    0.0,
    -0.0015,
    0.0
-  ],
-  "J-2/CAB-SLEEVE:jwWall": [
-   -0.00148,
-   0.0,
-   0.00023
   ],
   "J-2/LIFT-LEG:jwTruss": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-3/GATE-TRIM:jwTruss": [
-   0.00106,
-   -0.00106,
-   0.0
-  ],
-  "J-3/ROTUNDA:jwUnder": [
    0.0,
    -0.0015,
    0.0
@@ -3947,39 +4467,24 @@
    -0.0015,
    0.0
   ],
+  "J-3/LIFT-LEG:jwTruss": [
+   0.0,
+   -0.0015,
+   0.0
+  ],
   "J-4/LIFT-LEG:jwTruss": [
    0.0,
    -0.0015,
    0.0
   ],
-  "J-2/CAB-SLEEVE:jwAluB": [
-   0.0,
-   0.0015,
-   0.0
-  ],
-  "J-3/CAB-SLEEVE:jwAluB": [
-   0.0,
-   0.0015,
-   0.0
-  ],
-  "J-4/CAB:jwPanel": [
-   0.0,
-   0.0015,
-   0.0
-  ],
-  "J-4/CAB-FRONT:jwRubber": [
-   0.0,
-   0.0,
-   0.0015
-  ],
   "J-1/CAB:jwWall": [
    0.0,
-   -0.0015,
+   0.0015,
    0.0
   ],
-  "J-3/CAB:jwWall": [
+  "J-2/CAB:jwWall": [
    0.0,
-   0.0015,
+   -0.0015,
    0.0
   ],
   "J-1/CORRIDOR:jwRed": [
@@ -3987,68 +4492,63 @@
    0.00069,
    -0.00133
   ],
-  "J-1/TUNNEL-1:jwTruss#sill": [
-   0.00147,
-   0.0015,
-   -0.00029
-  ],
-  "J-1/TUNNEL-2:jwTruss#sill": [
-   -0.00147,
-   0.0,
-   0.00029
-  ],
-  "J-4/CORRIDOR:jwRed": [
-   0.0,
-   0.00131,
-   0.00073
-  ],
-  "J-4/TUNNEL-1:jwTruss#sill": [
-   -1e-05,
+  "J-2/TUNNEL-1:jwTruss#sill": [
+   -0.00148,
    -0.0015,
-   -0.00011
+   0.00023
   ],
   "J-1/CORRIDOR:jwTruss": [
    0.0015,
    0.0,
    0.0
   ],
-  "J-2/CORRIDOR:jwTruss": [
-   -0.0015,
-   0.0,
-   0.0
+  "J-1/WHEEL:jwDark": [
+   0.00147,
+   -0.0,
+   -0.00029
+  ],
+  "J-2/TUNNEL-1:jwTruss": [
+   0.00148,
+   -0.0,
+   -0.00023
   ],
   "J-2/CAB:jwAluB": [
    0.0,
    -0.0015,
    0.0
   ],
-  "J-1/TUNNEL-2:jwAluB#joint-lip": [
-   -0.00028,
-   0.00011,
-   -0.00147
+  "J-2/WHEEL:jwDark": [
+   -0.00148,
+   0.0,
+   0.00023
   ],
-  "J-1/TUNNEL-3:jwTruss#sill": [
+  "J-4/CORRIDOR:jwTruss": [
+   -0.0015,
+   0.0,
+   0.0
+  ],
+  "J-3/CAB:jwWall": [
+   0.0,
+   0.0015,
+   0.0
+  ],
+  "J-4/TUNNEL-3:jwAluB#joint-lip": [
+   -0.00011,
+   0.00011,
+   -0.00149
+  ],
+  "J-1/TUNNEL-2:jwTruss#sill": [
    -0.00147,
    -0.0,
    0.00029
   ],
-  "J-1/GATE-NUMBER:jwAluB": [
-   0.0,
-   0.0015,
-   0.0
-  ],
-  "J-2/ROTUNDA:jwUnder": [
-   0.0,
-   -0.0015,
-   0.0
-  ],
-  "J-2/TUNNEL-1:jwDark#junction": [
+  "J-2/TUNNEL-1:glassOuter": [
    2e-05,
    0.0015,
    0.00011
   ],
-  "J-2/TUNNEL-2:jwDark#junction": [
-   2e-05,
+  "J-3/TUNNEL-1:glassOuter": [
+   1e-05,
    0.0015,
    0.00011
   ],
@@ -4057,7 +4557,17 @@
    0.0,
    -0.00017
   ],
+  "J-3/CAB-DOOR:jwRubber": [
+   -6e-05,
+   0.0,
+   0.0015
+  ],
   "J-4/TUNNEL-1:glassOuter": [
+   1e-05,
+   0.0015,
+   0.00011
+  ],
+  "J-4/TUNNEL-1:jwDark#junction": [
    1e-05,
    0.0015,
    0.00011
@@ -4066,11 +4576,6 @@
    1e-05,
    0.0015,
    0.00011
-  ],
-  "J-4/STAIR:jwDark": [
-   -0.0001,
-   -0.00064,
-   -0.00135
   ]
  }
 }

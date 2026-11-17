@@ -1778,6 +1778,10 @@ void AADPHUD::Interact()
 		}
 	// a hinged door you face: open or close it (only sliding doors open by themselves - owner's door rule, to-do 20)
 	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton) && ABabylonModel::UseDoor(GetOwningPawn())) return;
+	// a jetway's service door you face (it rides with the jetway: the jetways swing it)
+	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton))
+		if (AJetwayRigs* JRs = AJetwayRigs::Get(GetWorld())) if (APawn* MeD = GetOwningPawn())
+			if (JRs->UseServiceDoor(MeD->GetActorLocation() - FVector(0, 0, MeD->GetSimpleCollisionHalfHeight()), MeD->GetControlRotation().Vector())) return;
 	// a door panel by you: E steps up to it, your finger out (not a click)
 	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton) && ADoorPanelUse::Interact(GetOwningPawn(), nullptr)) return;
 	// standing at the wash hose's hook: its gun
@@ -2098,7 +2102,9 @@ void AADPHUD::Tick(float Dt)
 		const bool bSat = ASeats::IsSitting(), bBySeat = !bSat && Me && !Drone.IsValid() && ASeats::NearSeat(Me->GetActorLocation());
 		if (bSat != bSeated || bBySeat != bNearSeat) { bSeated = bSat; bNearSeat = bBySeat; RefreshControls(); }
 		bool bDOpen = false;
-		const bool bByDoor = Me && !Drone.IsValid() && !bSat && !bHeld && ABabylonModel::DoorNear(Me->GetActorLocation() - FVector(0, 0, Me->GetSimpleCollisionHalfHeight()), Me->GetControlRotation().Vector(), bDOpen);
+		bool bByDoor = Me && !Drone.IsValid() && !bSat && !bHeld && ABabylonModel::DoorNear(Me->GetActorLocation() - FVector(0, 0, Me->GetSimpleCollisionHalfHeight()), Me->GetControlRotation().Vector(), bDOpen);
+		if (!bByDoor && Me && !Drone.IsValid() && !bSat && !bHeld)
+			if (AJetwayRigs* JRs = AJetwayRigs::Get(GetWorld())) bByDoor = JRs->ServiceDoorNear(Me->GetActorLocation() - FVector(0, 0, Me->GetSimpleCollisionHalfHeight()), Me->GetControlRotation().Vector(), bDOpen);
 		if (bByDoor != bNearDoor || (bByDoor && bDOpen != bDoorOpen)) { bNearDoor = bByDoor; bDoorOpen = bDOpen; RefreshControls(); }
 	}
 	// the stage's transition over: the creator's panel on the free side

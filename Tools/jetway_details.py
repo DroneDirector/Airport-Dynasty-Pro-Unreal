@@ -297,6 +297,8 @@ for i, nd in enumerate(N):
         smooth_normals(nd['mesh'], ('jwHubCap', 'jwDome', 'jwRim')); stat4['caps'] += 1
 print('PART4', stat4)
 
+import os
+exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'jetway_part5.py'), encoding='utf-8').read())
 while len(BIN) % 4: BIN.append(0)
 g['buffers'][0]['byteLength'] = len(BIN)
 js = json.dumps(g, separators=(',', ':')).encode()

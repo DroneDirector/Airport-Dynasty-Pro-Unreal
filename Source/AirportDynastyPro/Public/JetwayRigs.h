@@ -44,6 +44,10 @@ public:
 	bool Frame(int32 J, FVector& Rotunda, FVector& Door) const;
 	/** The cab's middle and the way its doorway faces, now (world) - for cameras. */
 	bool CabView(int32 J, FVector& Mid, FVector& Front) const;
+	/** The service door in the cab-end section's side (owner, 2026-11-17): the one near you and facing it (world feet,
+	 *  the way you look), whether it is open; Use swings it open or shut (E / X). */
+	bool ServiceDoorNear(const FVector& Feet, const FVector& Facing, bool& bOpen) const;
+	bool UseServiceDoor(const FVector& Feet, const FVector& Facing);
 	/** Every jetway's beacons flashing (tests and pictures), as if they were all moving. */
 	static bool bBeaconTest;
 	/** How strongly the gate-number signs glow (their own colours; faint). */
@@ -70,6 +74,7 @@ private:
 		FGroup G[NumGroups];
 		TArray<FStretch> Stretch;
 		TArray<FLeaf> Leaves; float Shut = 1.f;   // (the cab's front doors: 1 open, 0 shut)
+		FLeaf Svc; FVector SvcMid = FVector::ZeroVector; float SvcOpen = 0.f, SvcWant = 0.f;   // (the service door: its leaf, 0 shut .. 1 open)
 		// the warning beacons (two on poles on the cab's roof at its front corners, one hanging under it): their copies,
 		// their glow and the light each throws, which side's flash each follows
 		UInstancedStaticMeshComponent *Bcn = nullptr, *BcnRed = nullptr, *Bar = nullptr; TArray<UInstancedStaticMeshComponent*> BcnK; TArray<int32> BcnIx; TArray<uint8> BcnKind; TArray<USceneComponent*> BcnGlow, BcnLight, BcnFill; TArray<uint8> BcnSide; bool bBcnOn = false, bBarOn = false;
@@ -95,6 +100,10 @@ private:
 	void AddSignLights(FRig& R, ABabylonModel* M, const FString& Id);
 	void Build();
 	void Apply(FRig& R);
+	/** The service door's leaf where the cab-end section is now (T3: that section's transform now), opened by SvcOpen. */
+	void ApplySvc(const FRig& R, const FTransform& T3) const;
+	/** A group's transform now (from its first part's copy). */
+	FTransform NowOf(const FRig& R, int32 G) const;
 	FVector PathAt(const FRig& R, float S) const;
 	void SetDoor(FRig& R, AActor* Plane, const FString& Type);
 	void MakeArc(FRig& R) const;

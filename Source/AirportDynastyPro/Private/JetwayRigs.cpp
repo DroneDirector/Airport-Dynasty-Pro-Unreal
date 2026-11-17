@@ -177,12 +177,19 @@ void AJetwayRigs::Build()
 						TArray<int32> Todo{K}; while (Todo.Num()) { const int32 I = Todo.Pop(); LeafOf.Add(I, Li); Todo.Append(M->NodeKids(I)); }
 					}
 		}
+		// the service door's leaf (J-n/SERVICE-DOOR under the cab-end section, hung on its vertical edge; Tools/jetway_part5.py)
+		TSet<int32> SvcOf;
+		{
+			const int32 Sv = M->NodeIndex(Id + TEXT("/SERVICE-DOOR"));
+			if (Sv != INDEX_NONE) { R.Svc.H = M->NodeModel(Sv).GetLocation(); TArray<int32> Todo{Sv}; while (Todo.Num()) { const int32 I = Todo.Pop(); SvcOf.Add(I); Todo.Append(M->NodeKids(I)); } }
+		}
 		for (const TPair<int32, int32>& O : PartGroup)
 		{
 			const TPair<UInstancedStaticMeshComponent*, int32> In = M->NodeInstance(O.Key);
 			if (!In.Key || In.Value == INDEX_NONE) continue;
 			FPart P; P.K = In.Key; P.Ix = In.Value; In.Key->GetInstanceTransform(In.Value, P.Docked, false);
 			if (const int32* Li = LeafOf.Find(O.Key)) { R.Leaves[*Li].Parts.Add(P); ++Parts; continue; }
+			if (SvcOf.Contains(O.Key)) { R.Svc.Parts.Add(P); ++Parts; continue; }
 			R.G[O.Value].Parts.Add(P); ++Parts;
 		}
 		// which way each shuts: the turn (his 1.53 rad) that brings the leaf's middle in towards the doorway's middle
@@ -198,12 +205,24 @@ void AJetwayRigs::Build()
 				Lf.Close = FVector::Dist2D(Turned(1.53f), Mid) < FVector::Dist2D(Turned(-1.53f), Mid) ? 1.53f : -1.53f;
 			}
 		}
+		if (R.Svc.Parts.Num())
+		{
+			FBox Bx(ForceInit); for (const FPart& P : R.Svc.Parts) if (P.K && P.K->GetStaticMesh()) Bx += P.K->GetStaticMesh()->GetBoundingBox().TransformBy(P.Docked);
+			R.SvcMid = Bx.IsValid ? Bx.GetCenter() : R.Svc.H;
+		}
 		// the docked geometry, read from his export
 		R.BoomO = R.G[Boom].Docked.GetLocation();
 		R.Wd = R.G[Tun3].Docked.TransformPosition(FVector(0.f, ZW * 100.f, 0.f));
 		const FIk D = ADPJetwayInternal::Ik(R.BoomO, R.Wd);
 		R.DirD = D.Dir; R.AxisD = D.Axis; R.LenD = D.Len; R.PitchD = D.Pitch;
 		R.PD = R.BoomO + R.DirD * (RR - 0.25f) * 100.f;
+		if (R.Svc.Parts.Num())
+		{
+			// which way it swings: outwards (its middle further from the tunnel's axis), a quarter turn and a bit
+			auto Off = [&](const FVector& X) { const FVector V = X - R.PD; return (V - R.AxisD * FVector::DotProduct(V, R.AxisD)).Size(); };
+			auto TurnedAt = [&](float A) { return R.Svc.H + FQuat(FVector::UpVector, A).RotateVector(R.SvcMid - R.Svc.H); };
+			R.Svc.Close = Off(TurnedAt(1.45f)) > Off(TurnedAt(-1.45f)) ? 1.45f : -1.45f;   // (for the service door: its open angle)
+		}
 		R.CabOff = R.G[Cab].Docked.GetLocation() - (R.PD + R.AxisD * R.LenD * 100.f + R.DirD * (CR - 0.25f) * 100.f);
 		// the stretched parts: each one's length along whichever of its own axes lies along the tunnel; its ends ride with
 		// the rotunda and the first section (near the rotunda) or the last section and the cab's sleeve (near the cab);
@@ -327,6 +346,7 @@ void AJetwayRigs::Apply(FRig& R)
 			}
 		}
 	}
+	ApplySvc(R, N[Tun3]);
 	// the stretched parts: their ends ride with the two parts they join; each turns to lie between them and grows or
 	// shrinks along its length - its own middle landing on the new middle (the bellows are built in place, far from
 	// their origin: scaled about the origin they would be thrown far away)
@@ -385,6 +405,12 @@ void AJetwayRigs::Tick(float Dt)
 	for (FRig& R : Rigs)
 	{
 		const bool bMoving = (R.St == EState::Docking || R.St == EState::Undocking) && R.Wait <= 0.f;
+		if (R.Svc.Parts.Num() && !FMath::IsNearlyEqual(R.SvcOpen, R.SvcWant))
+		{
+			// (the service door swings at its own pace, about 1.2 s, also while the jetway stands)
+			R.SvcOpen = R.SvcWant > R.SvcOpen ? FMath::Min(R.SvcWant, R.SvcOpen + Dt / 1.2f) : FMath::Max(R.SvcWant, R.SvcOpen - Dt / 1.2f);
+			if (!bMoving) ApplySvc(R, NowOf(R, Tun3));
+		}
 		Beacons(R, bMoving);
 		Sounds(R, bMoving, Dt);
 		// the wait to drive (Syracuse spec: 3 s of beacons and bell before it moves - people step clear)
@@ -975,4 +1001,53 @@ void AJetwayRigs::CarryRiders(const TArray<FRider>& Riders) const
 		Ch->SetActorLocationAndRotation(At, Ch->GetActorRotation() + FRotator(0.f, Yaw, 0.f), false, nullptr, ETeleportType::TeleportPhysics);
 		if (AController* C = Ch->GetController()) if (C->IsPlayerController()) C->SetControlRotation(C->GetControlRotation() + FRotator(0.f, Yaw, 0.f));
 	}
+}
+
+FTransform AJetwayRigs::NowOf(const FRig& R, int32 G) const
+{
+	if (!R.G[G].Parts.Num()) return R.G[G].Docked;
+	FTransform T; R.G[G].Parts[0].K->GetInstanceTransform(R.G[G].Parts[0].Ix, T, false);
+	return R.G[G].Parts[0].Docked.GetRelativeTransform(R.G[G].Docked).Inverse() * T;
+}
+
+void AJetwayRigs::ApplySvc(const FRig& R, const FTransform& T3) const
+{
+	if (!R.Svc.Parts.Num()) return;
+	const float U = FMath::Clamp(R.SvcOpen, 0.f, 1.f), E = U * U * (3 - 2 * U);
+	const FQuat Q(FVector::UpVector, R.Svc.Close * E);
+	for (const FPart& P : R.Svc.Parts)
+	{
+		const FTransform Pd(Q * P.Docked.GetRotation(), R.Svc.H + Q.RotateVector(P.Docked.GetLocation() - R.Svc.H), P.Docked.GetScale3D());
+		P.K->UpdateInstanceTransform(P.Ix, Pd.GetRelativeTransform(R.G[Tun3].Docked) * T3, false, true, true);
+	}
+}
+
+bool AJetwayRigs::ServiceDoorNear(const FVector& Feet, const FVector& Facing, bool& bOpen) const
+{
+	for (const FRig& R : Rigs)
+	{
+		if (!R.Svc.Parts.Num() || !R.Model.IsValid()) continue;
+		const FVector Mid = R.Model->GetActorTransform().TransformPosition(NowOf(R, Tun3).TransformPosition(R.G[Tun3].Docked.InverseTransformPosition(R.SvcMid)));
+		const float D = FVector::Dist2D(Feet, Mid);
+		if (D > 170.f || FMath::Abs(Feet.Z - (Mid.Z - 100.f)) > 200.f) continue;
+		if (D > 60.f && FVector::DotProduct((Mid - Feet).GetSafeNormal2D(), Facing.GetSafeNormal2D()) < 0.42f) continue;
+		bOpen = R.SvcWant > 0.5f; return true;
+	}
+	return false;
+}
+
+bool AJetwayRigs::UseServiceDoor(const FVector& Feet, const FVector& Facing)
+{
+	for (FRig& R : Rigs)
+	{
+		if (!R.Svc.Parts.Num() || !R.Model.IsValid()) continue;
+		const FVector Mid = R.Model->GetActorTransform().TransformPosition(NowOf(R, Tun3).TransformPosition(R.G[Tun3].Docked.InverseTransformPosition(R.SvcMid)));
+		const float D = FVector::Dist2D(Feet, Mid);
+		if (D > 170.f || FMath::Abs(Feet.Z - (Mid.Z - 100.f)) > 200.f) continue;
+		if (D > 60.f && FVector::DotProduct((Mid - Feet).GetSafeNormal2D(), Facing.GetSafeNormal2D()) < 0.42f) continue;
+		R.SvcWant = R.SvcWant > 0.5f ? 0.f : 1.f;
+		ADP_LOG(TEXT("Jetways: %s service door %s"), *R.Id, R.SvcWant > 0.5f ? TEXT("opening") : TEXT("closing"));
+		return true;
+	}
+	return false;
 }
