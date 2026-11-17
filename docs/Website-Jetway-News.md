@@ -8,7 +8,7 @@ jetway work is in a published build.
 ## Jetways built like the real thing
 
 The jetways at Airport Dynasty Pro are built to follow real airport passenger bridges, in their proportions,
-dimensions and structure.
+dimensions, structure and the way their lights behave.
 
 - **Telescoping tunnels in the real order.** Three tunnel sections slide into one another like a telescope: the
   smallest at the terminal end, the biggest at the cab, where the wheels and lift columns are. Each section is only a
