@@ -42,7 +42,7 @@ namespace
 #pragma region Setup
 
 // where it stands and its levels (plan metres; tower.ts TOWER_AT / TOWER)
-const float ATowerADC::AtX = -205.f;
+const float ATowerADC::AtX = -350.f;   // 16 gates (2026-11-17): 145 m west, its lot 60 m outside the apron (Tools/apply_16gates_site.py)
 const float ATowerADC::AtZ = 120.f;
 const float ATowerADC::CabY = 17.6f;
 const float ATowerADC::LobbyY = 13.5f;

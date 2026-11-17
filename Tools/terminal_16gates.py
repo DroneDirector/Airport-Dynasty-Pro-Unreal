@@ -119,3 +119,9 @@ log.append('new: 6 moving walkway pairs with their rails')
 # ---------------- the new walls (Art/TerminalAnnex/make_pier_extension.py) ----------------
 add('F1', 'F1-PIER-EXT/SOLID', 'pier_ext_solid')
 add('F1', 'F1-PIER-EXT/GLASS', 'pier_ext_glass')
+
+# ---------------- the car rental moved whole (16 gates: the east wing's room), beside the main car park outside the
+#                  airport boundary: +242 m east, -231.3 m south (its parking in Data/roads.json moves the same) ----------------
+_r = find('RENTAL'); _t = N[_r].get('translation', [0, 0, 0])
+N[_r]['translation'] = [_t[0] - 242.0, _t[1], _t[2] - 231.3]
+log.append('moved: the car rental to plan x %.0f, z %.0f' % (-N[_r]['translation'][0], N[_r]['translation'][2]))

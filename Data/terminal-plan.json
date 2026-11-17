@@ -250,9 +250,9 @@
    "id": "F1-BAGHALL",
    "f": 1,
    "name": "Baggage hall (sorting under the walkway)",
-   "x0": -80,
+   "x0": -241.1,
    "z0": 52,
-   "x1": 242,
+   "x1": 551.2,
    "z1": 68,
    "kind": "baghall"
   },
@@ -429,9 +429,9 @@
    "id": "F2-WALK",
    "f": 2,
    "name": "Walkway to the gates (moving walkways)",
-   "x0": -80,
+   "x0": -241.1,
    "z0": 52,
-   "x1": 242,
+   "x1": 551.2,
    "z1": 68,
    "kind": "walk"
   },
@@ -572,6 +572,295 @@
    "z1": 82,
    "kind": "view",
    "glass": "n"
+  },
+  {
+   "id": "F1-RAMP-9",
+   "f": 1,
+   "name": "Ramp services 9 (under Gate 9)",
+   "x0": -233.7,
+   "z0": 68,
+   "x1": -205.7,
+   "z1": 82,
+   "kind": "ramp"
+  },
+  {
+   "id": "F1-GATE-10",
+   "f": 1,
+   "name": "Gate 10 (ground, walk-out boarding)",
+   "x0": -205.7,
+   "z0": 68,
+   "x1": -165.7,
+   "z1": 82,
+   "kind": "gate1",
+   "glass": "n"
+  },
+  {
+   "id": "F2-GATE-9",
+   "f": 2,
+   "name": "Gate 9 (jetway, glass wall onto the ramp)",
+   "x0": -233.7,
+   "z0": 68,
+   "x1": -199.7,
+   "z1": 82,
+   "kind": "gate2",
+   "glass": "n"
+  },
+  {
+   "id": "F2-VIEW-9",
+   "f": 2,
+   "name": "View bay 9 (seats, windows onto the ramp)",
+   "x0": -199.7,
+   "z0": 68,
+   "x1": -165.7,
+   "z1": 82,
+   "kind": "view",
+   "glass": "n"
+  },
+  {
+   "id": "F1-RAMP-11",
+   "f": 1,
+   "name": "Ramp services 11 (under Gate 11)",
+   "x0": -153.15,
+   "z0": 68,
+   "x1": -125.15,
+   "z1": 82,
+   "kind": "ramp"
+  },
+  {
+   "id": "F1-GATE-12",
+   "f": 1,
+   "name": "Gate 12 (ground, walk-out boarding)",
+   "x0": -125.15,
+   "z0": 68,
+   "x1": -85.15,
+   "z1": 82,
+   "kind": "gate1",
+   "glass": "n"
+  },
+  {
+   "id": "F2-GATE-11",
+   "f": 2,
+   "name": "Gate 11 (jetway, glass wall onto the ramp)",
+   "x0": -153.15,
+   "z0": 68,
+   "x1": -119.15,
+   "z1": 82,
+   "kind": "gate2",
+   "glass": "n"
+  },
+  {
+   "id": "F2-VIEW-11",
+   "f": 2,
+   "name": "View bay 11 (seats, windows onto the ramp)",
+   "x0": -119.15,
+   "z0": 68,
+   "x1": -85.15,
+   "z1": 82,
+   "kind": "view",
+   "glass": "n"
+  },
+  {
+   "id": "F2-GATE-13",
+   "f": 2,
+   "name": "Gate 13 (A380, jetways, glass wall onto the ramp)",
+   "x0": 255.4,
+   "z0": 68,
+   "x1": 289.4,
+   "z1": 82,
+   "kind": "gate2",
+   "glass": "n"
+  },
+  {
+   "id": "F2-VIEW-13",
+   "f": 2,
+   "name": "View bay 13 (seats, windows onto the ramp)",
+   "x0": 289.4,
+   "z0": 68,
+   "x1": 323.4,
+   "z1": 82,
+   "kind": "view",
+   "glass": "n"
+  },
+  {
+   "id": "F1-RAMP-13",
+   "f": 1,
+   "name": "Ramp services 13 (under Gate 13)",
+   "x0": 255.4,
+   "z0": 68,
+   "x1": 283.4,
+   "z1": 82,
+   "kind": "ramp"
+  },
+  {
+   "id": "F1-RAMP-13B",
+   "f": 1,
+   "name": "Ramp services 13 B (under Gate 13)",
+   "x0": 283.4,
+   "z0": 68,
+   "x1": 323.4,
+   "z1": 82,
+   "kind": "ramp",
+   "glass": "n"
+  },
+  {
+   "id": "F2-GATE-14",
+   "f": 2,
+   "name": "Gate 14 (B777, jetways, glass wall onto the ramp)",
+   "x0": 335.2,
+   "z0": 68,
+   "x1": 369.2,
+   "z1": 82,
+   "kind": "gate2",
+   "glass": "n"
+  },
+  {
+   "id": "F2-VIEW-14",
+   "f": 2,
+   "name": "View bay 14 (seats, windows onto the ramp)",
+   "x0": 369.2,
+   "z0": 68,
+   "x1": 403.2,
+   "z1": 82,
+   "kind": "view",
+   "glass": "n"
+  },
+  {
+   "id": "F1-RAMP-14",
+   "f": 1,
+   "name": "Ramp services 14 (under Gate 14)",
+   "x0": 335.2,
+   "z0": 68,
+   "x1": 363.2,
+   "z1": 82,
+   "kind": "ramp"
+  },
+  {
+   "id": "F1-RAMP-14B",
+   "f": 1,
+   "name": "Ramp services 14 B (under Gate 14)",
+   "x0": 363.2,
+   "z0": 68,
+   "x1": 403.2,
+   "z1": 82,
+   "kind": "ramp",
+   "glass": "n"
+  },
+  {
+   "id": "F2-GATE-15",
+   "f": 2,
+   "name": "Gate 15 (B777, jetways, glass wall onto the ramp)",
+   "x0": 407.5,
+   "z0": 68,
+   "x1": 441.5,
+   "z1": 82,
+   "kind": "gate2",
+   "glass": "n"
+  },
+  {
+   "id": "F2-VIEW-15",
+   "f": 2,
+   "name": "View bay 15 (seats, windows onto the ramp)",
+   "x0": 441.5,
+   "z0": 68,
+   "x1": 475.5,
+   "z1": 82,
+   "kind": "view",
+   "glass": "n"
+  },
+  {
+   "id": "F1-RAMP-15",
+   "f": 1,
+   "name": "Ramp services 15 (under Gate 15)",
+   "x0": 407.5,
+   "z0": 68,
+   "x1": 435.5,
+   "z1": 82,
+   "kind": "ramp"
+  },
+  {
+   "id": "F1-RAMP-15B",
+   "f": 1,
+   "name": "Ramp services 15 B (under Gate 15)",
+   "x0": 435.5,
+   "z0": 68,
+   "x1": 475.5,
+   "z1": 82,
+   "kind": "ramp",
+   "glass": "n"
+  },
+  {
+   "id": "F2-GATE-16",
+   "f": 2,
+   "name": "Gate 16 (B777, jetways, glass wall onto the ramp)",
+   "x0": 479.8,
+   "z0": 68,
+   "x1": 513.8,
+   "z1": 82,
+   "kind": "gate2",
+   "glass": "n"
+  },
+  {
+   "id": "F2-VIEW-16",
+   "f": 2,
+   "name": "View bay 16 (seats, windows onto the ramp)",
+   "x0": 513.8,
+   "z0": 68,
+   "x1": 547.8,
+   "z1": 82,
+   "kind": "view",
+   "glass": "n"
+  },
+  {
+   "id": "F1-RAMP-16",
+   "f": 1,
+   "name": "Ramp services 16 (under Gate 16)",
+   "x0": 479.8,
+   "z0": 68,
+   "x1": 507.8,
+   "z1": 82,
+   "kind": "ramp"
+  },
+  {
+   "id": "F1-RAMP-16B",
+   "f": 1,
+   "name": "Ramp services 16 B (under Gate 16)",
+   "x0": 507.8,
+   "z0": 68,
+   "x1": 547.8,
+   "z1": 82,
+   "kind": "ramp",
+   "glass": "n"
+  },
+  {
+   "id": "F2-TAXFREE-W",
+   "f": 2,
+   "name": "Tax Free (the big walk-through shop beside the baggage claim)",
+   "x0": -241.1,
+   "z0": 8,
+   "x1": -80,
+   "z1": 52,
+   "kind": "taxfree",
+   "glass": "n"
+  },
+  {
+   "id": "F1-TAXFREE-UNDER",
+   "f": 1,
+   "name": "Under the tax free (empty for now)",
+   "x0": -241.1,
+   "z0": 8,
+   "x1": -80,
+   "z1": 52,
+   "kind": "empty"
+  },
+  {
+   "id": "F1-EAST-WING",
+   "f": 1,
+   "name": "East wing (empty for now)",
+   "x0": 156,
+   "z0": 0,
+   "x1": 551.2,
+   "z1": 52,
+   "kind": "empty"
   }
  ],
  "doors": [
@@ -1559,6 +1848,66 @@
    "nz": 122.0,
    "kind": "walk-out",
    "gate": "F1-GATE-8"
+  },
+  {
+   "id": "STAND-9",
+   "x": -225.42,
+   "nz": 120.0,
+   "kind": "jetway",
+   "gate": "F2-GATE-9"
+  },
+  {
+   "id": "STAND-10",
+   "x": -184.56,
+   "nz": 122.0,
+   "kind": "walk-out",
+   "gate": "F1-GATE-10"
+  },
+  {
+   "id": "STAND-11",
+   "x": -143.71,
+   "nz": 120.0,
+   "kind": "jetway",
+   "gate": "F2-GATE-11"
+  },
+  {
+   "id": "STAND-12",
+   "x": -102.85,
+   "nz": 122.0,
+   "kind": "walk-out",
+   "gate": "F1-GATE-12"
+  },
+  {
+   "id": "STAND-13",
+   "x": 289.4,
+   "nz": 95.0,
+   "kind": "jetway",
+   "gate": "F2-GATE-13",
+   "type": "A380"
+  },
+  {
+   "id": "STAND-14",
+   "x": 369.2,
+   "nz": 95.0,
+   "kind": "jetway",
+   "gate": "F2-GATE-14",
+   "type": "B777"
+  },
+  {
+   "id": "STAND-15",
+   "x": 441.5,
+   "nz": 95.0,
+   "kind": "jetway",
+   "gate": "F2-GATE-15",
+   "type": "B777"
+  },
+  {
+   "id": "STAND-16",
+   "x": 513.8,
+   "nz": 95.0,
+   "kind": "jetway",
+   "gate": "F2-GATE-16",
+   "type": "B777"
   }
  ]
 }

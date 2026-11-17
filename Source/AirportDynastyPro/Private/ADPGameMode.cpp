@@ -36,6 +36,7 @@
 #include "FireStation.h"
 #include "TownBuildings.h"
 #include "ParkedAircraft.h"
+#include "GateSigns.h"
 #include "TimerManager.h"
 #include "EngineUtils.h"
 #include "RoadSigns.h"
@@ -90,6 +91,8 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 		if (bBabylon)
 			if (ABabylonModel* Model = W->SpawnActor<ABabylonModel>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 				Model->Place(TEXT("Terminal"));
+		// the new gates' signs (16 gates, 2026-11-17): today's are in the model
+		if (bBabylon) ADPGateSigns::Place(W, Plan);
 		// his jetways, rebuilt for the stands 12 m out (owner, 2026-11-13), as their own model in the terminal's place
 		if (bBabylon && FPackageName::DoesPackageExist(TEXT("/Game/Babylon/Jetways/jetways/StaticMeshes/jetways_mesh_0")))
 			if (ABabylonModel* Jw = W->SpawnActor<ABabylonModel>(FVector::ZeroVector, FRotator::ZeroRotator, P))

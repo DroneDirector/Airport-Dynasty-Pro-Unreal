@@ -3,7 +3,7 @@
  "airport": {
   "icao": "BIAP",
   "iata": "VTX",
-  "name": "Mýrdalssandur",
+  "name": "M\u00c3\u00bdrdalssandur",
   "lat": 63.457988,
   "lon": -18.713703,
   "elevFt": 130,
@@ -247,12 +247,12 @@
    "id": "T",
    "pts": [
     [
-     -140,
-     218.0
+     -255,
+     218
     ],
     [
-     372,
-     218.0
+     560,
+     218
     ]
    ],
    "kind": "taxilane",
@@ -448,6 +448,46 @@
  ],
  "stands": [
   {
+   "id": "STAND-9",
+   "x": -225.42,
+   "nose": 120.0,
+   "dir": -1,
+   "span": 36,
+   "len": 44.5,
+   "code": "C",
+   "jetway": true
+  },
+  {
+   "id": "STAND-10",
+   "x": -184.56,
+   "nose": 122.0,
+   "dir": -1,
+   "span": 36,
+   "len": 44.5,
+   "code": "C",
+   "jetway": false
+  },
+  {
+   "id": "STAND-11",
+   "x": -143.71,
+   "nose": 120.0,
+   "dir": -1,
+   "span": 36,
+   "len": 44.5,
+   "code": "C",
+   "jetway": true
+  },
+  {
+   "id": "STAND-12",
+   "x": -102.85,
+   "nose": 122.0,
+   "dir": -1,
+   "span": 36,
+   "len": 44.5,
+   "code": "C",
+   "jetway": false
+  },
+  {
    "id": "STAND-1",
    "x": -62,
    "nose": 120.0,
@@ -528,14 +568,48 @@
    "jetway": false
   },
   {
-   "id": "STAND-9",
-   "x": 300,
-   "nose": 90.0,
+   "id": "STAND-13",
+   "x": 289.4,
+   "nose": 95.0,
    "dir": -1,
    "span": 80,
    "len": 72.7,
    "code": "F",
-   "jetway": false
+   "jetway": true,
+   "type": "A380"
+  },
+  {
+   "id": "STAND-14",
+   "x": 369.2,
+   "nose": 95.0,
+   "dir": -1,
+   "span": 65,
+   "len": 73.9,
+   "code": "E",
+   "jetway": true,
+   "type": "B777"
+  },
+  {
+   "id": "STAND-15",
+   "x": 441.5,
+   "nose": 95.0,
+   "dir": -1,
+   "span": 65,
+   "len": 73.9,
+   "code": "E",
+   "jetway": true,
+   "type": "B777"
+  },
+  {
+   "id": "STAND-16",
+   "x": 513.8,
+   "nose": 95.0,
+   "dir": -1,
+   "span": 65,
+   "len": 73.9,
+   "code": "E",
+   "jetway": true,
+   "type": "B777"
   },
   {
    "id": "C1",
@@ -623,17 +697,10 @@
  "aprons": [
   {
    "id": "APRON-T",
-   "x0": -160,
+   "x0": -265,
    "y0": 82,
-   "x1": 392,
+   "x1": 570,
    "y1": 238.0
-  },
-  {
-   "id": "APRON-9",
-   "x0": 250,
-   "y0": 40,
-   "x1": 392,
-   "y1": 82
   },
   {
    "id": "APRON-CARGO",
@@ -694,28 +761,32 @@
   }
  ],
  "hangarsNote": "hangar sites on the hangar apron west of the cargo apron: x is the centre line (on its lead-in line from taxilane K), y the apron edge the threshold meets; size S, M, L or XL (any size fits the same line)",
- "standsNote": "2026-11-13: the terminal stands, taxilane T and the terminal apron moved 12 m out from the terminal (owner: room for longer jetways); the Unreal data is the source now",
+ "standsNote": "2026-11-13: the terminal stands, taxilane T and the terminal apron moved 12 m out from the terminal (owner: room for longer jetways); the Unreal data is the source now; 2026-11-17: 16 gates - stands 9-12 west (A320 like today), 13 A380 and 14-16 B777 east (noses y 95), the old remote A380 stand 9 gone",
  "roads": [
   {
    "id": "ROAD-TOWER",
    "w": 7,
-   "note": "gate 1 to the control tower: the stands service road carried on past gate 1, off the apron to the tower",
+   "note": "the control tower: from the west end of the stands' tail-of-stand service road, off the apron at a right angle at its edge (x -265), then outside the apron to the tower lot (16 gates, 2026-11-17)",
    "pts": [
     [
-     -90,
-     160.5
+     -250,
+     171
     ],
     [
-     -150,
-     160.5
+     -268,
+     171
     ],
     [
-     -182,
-     148
+     -292,
+     171
     ],
     [
-     -198,
-     128
+     -312,
+     158
+    ],
+    [
+     -325.0,
+     136
     ]
    ]
   },
@@ -766,10 +837,10 @@
  "lots": [
   {
    "id": "LOT-TOWER",
-   "note": "tarmac round the control tower with 8 parking spaces",
-   "x0": -232,
+   "note": "tarmac round the control tower with 8 parking spaces (moved west with the tower for the 16 gates, 2026-11-17)",
+   "x0": -377.0,
    "y0": 104,
-   "x1": -180,
+   "x1": -325.0,
    "y1": 146,
    "bays": {
     "x0": -229,
