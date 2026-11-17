@@ -4,6 +4,9 @@ The one complete list of what is still open, updated 2026-11-11 (after 0.14.7). 
 details behind each item. Marks: [ ] open, [~] started or partly done, [?] built earlier but the owner should check it.
 
 ## 0. Now, in this order (owner, 2026-11-11)
+- [ ] **FIRST (owner, 2026-11-17 evening): find why performance dropped with 0.17.22** (60-70 fps with frame generation,
+      less than before): suspects in HANDOVER.md "performance dropped again" - the jetway lamps' shadow-casting
+      lights, the see-through jetway glass, the new stands' parts. Measure, report, fix the code-only ones.
 - [ ] **FIRST (owner, 2026-11-16):** complete the jetway in the stress walk; measure performance only without video
       recording, in the shipping build with frame generation on. When the jetway is built, send the owner a preview at night
       with its flashing lights on and wait for his OK. See HANDOVER.md "about the stress walk".

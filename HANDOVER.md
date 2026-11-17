@@ -2,6 +2,41 @@
 
 Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md (where everything is) first.
 
+## From the owner for the PC chat (2026-11-17 22:35, via the phone): performance dropped again - find out why (FIRST)
+
+His words, briefly: the newest update (0.17.22) plays OK with frame generation, but he gets 60-70 fps, a bit less than
+before the update. He would like it better and is sure something is going on "because I added more jetways and stuff",
+and the jetways have reflective, see-through windows, which was an issue earlier. You thought it was most likely his
+own PC; he doesn't think so. Look deeper, like last time (the 15-second hitch was found in our own code, not the PC).
+
+Read of the code from the phone chat (not measured yet - measure before changing anything that looks different):
+1. **Shadow-casting jetway lamps, many more of them now.** JetwayRigs.cpp builds per jetway up to 9 spot lights (lamps
+   0-8) and 2 point fills, all movable, all SetCastShadows(true). Lamps 2 and 3 are on whenever a jetway is docked,
+   the three floods (4-6) too at night. With 0.17.22 there are about 15 jetways (gates 1-4, 9, 11, 13 x3, 14-16 x2):
+   roughly 30 shadow-casting lights by day and about 75 at night with every jetway docked - the scene audit of
+   2026-11-16 had 15 in the whole world. Every shadow-casting local light costs virtual shadow map pages, and anything
+   moving inside its radius (people, the aircraft, the turning beacons while a jetway drives) re-renders them.
+   Test: the stress walk by day and at night, BeaconForce 0 (all lamp lights off) vs normal; `stat gpu`,
+   `r.Shadow.Virtual.ShowStats 1`, and count the lights with shadows in the audit.
+   Possible fixes to put to him (they change the look slightly, so ask): shadows only on the lamps of the jetways
+   near the camera (e.g. within 60-80 m, switched as you move), the rest unshadowed; smaller attenuation radii;
+   MaxDrawDistance on the lamp lights; or shadows only on the floods. He asked for shadows so no light shines through
+   the cab walls - keep that up close.
+2. **The see-through, reflective jetway windows** (translucent glass on every section, cab and rotunda x 15):
+   translucency overdraw and Lumen's reflections on translucent surfaces. Last time glass with Nanite on gave the
+   engine warning about Nanite and translucent materials (Test-Findings 2026-11-16). Check whether the new jetway glass
+   is Nanite-enabled or masked/translucent with the costly lighting mode, and its cost in `stat gpu` (Translucency,
+   Lumen reflections) and `profilegpu`, standing at a gate looking along the jetways.
+3. **More of everything at the 8 new stands**: aircraft, jetway parts (cable trays, junction boxes, hoses), people.
+   Check the non-Nanite triangle and draw-call counts in the scene audit against 2026-11-16 (1,201 non-Nanite meshes,
+   1,215 draw calls); the new jetway parts should be Nanite or instanced.
+4. **Things that tick every frame**: the hose sway (only near the camera - fine), JetwayRigs::Tick for all rigs
+   (cheap while parked: the lamps return early when nothing changed). Check `stat game` and the stall watch anyway.
+
+Then: measure the fair way (shipping build, frame generation on as he plays, no video recording, his own resolution),
+compare 0.17.21 vs 0.17.22 if it can be done, tell him the cause in plain words with the numbers, and fix what is code
+only straight away; anything that changes the look waits for his OK. Note it all in docs/Test-Findings.md.
+
 ## From the owner for the PC chat (2026-11-17 02:46, via the phone): 16 gates instead of 8
 
 - **Change the number of gates from 8 to 16, each with its own aircraft stand** (owner, by voice: "change the current
