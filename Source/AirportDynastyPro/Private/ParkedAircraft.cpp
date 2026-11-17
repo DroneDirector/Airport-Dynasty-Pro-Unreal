@@ -8,6 +8,10 @@
 #include "TerminalPlan.h"
 #include "Engine/World.h"
 #include "Misc/PackageName.h"
+#include "Airfield.h"
+#include "Containers/Ticker.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 
 namespace ADPParked
 {
@@ -16,15 +20,11 @@ namespace ADPParked
 		return FPackageName::DoesPackageExist(TEXT("/Game/Babylon/A320/a320/StaticMeshes/A320"));
 	}
 
-	int32 Place(UWorld* W, const FAirfieldData& Field)
+	// one A320 on a stand, its nose tyre on the stop bar; nullptr when the model is missing
+	static ABabylonModel* ParkOne(UWorld* W, const FAirfieldData::FStand& St)
 	{
-		if (!W || !HaveModel()) return 0;
 		FActorSpawnParameters S; S.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-		int32 N = 0;
-		for (const FAirfieldData::FStand& St : Field.Stands)
 		{
-			// the terminal's narrow-body stands (code C: 36 m span), not the wide-body stand or the cargo stands
-			if (St.bCargo || St.Span > 40.f) continue;
 			// its nose tyre on the stop bar, on the lead-in line; the nose toward the terminal (the stand's Dir)
 			const float B = -St.Dir;                             // (from the nose back towards the tail: Airfield.cpp)
 			const float Gx = St.X, Gy = St.Nose + B * NoseGearBehindNose;
@@ -44,7 +44,7 @@ namespace ADPParked
 			const FVector Nose(0.0, -St.Dir, 0.0);             // (world: plan (0, Dir))
 			const float Yaw = FMath::RadiansToDegrees(FMath::Atan2(-Nose.X, Nose.Y));
 			ABabylonModel* M = W->SpawnActor<ABabylonModel>(FTerminalPlan::ToWorld(Gx, 0.f, Gy) + FVector(0, 0, Z * 100.0), FRotator(0, Yaw, 0), S);
-			if (!M || !M->Place(TEXT("A320"))) { if (M) M->Destroy(); ADP_ERROR(TEXT("Parked aircraft: the A320 is missing (Tools/import_model.py)")); return N; }
+			if (!M || !M->Place(TEXT("A320"))) { if (M) M->Destroy(); ADP_ERROR(TEXT("Parked aircraft: the A320 is missing (Tools/import_model.py)")); return nullptr; }
 			M->Tags.Add(FName(*(St.Id + TEXT("/A320"))));
 			// heat haze behind the APU's exhaust at the tip of the tail cone (to-do 22b: the APU runs while it stands at the
 			// gate): a shimmer of hot air, rising (M_HeatHaze). The model's nose is the actor's +Y; the A320 is 37.6 m long,
@@ -59,9 +59,125 @@ namespace ADPParked
 				Hz->SetCastShadow(false);
 				Hz->RegisterComponent();
 			}
+			return M;
+		}
+	}
+
+	int32 Place(UWorld* W, const FAirfieldData& Field)
+	{
+		if (!W || !HaveModel()) return 0;
+		int32 N = 0;
+		for (const FAirfieldData::FStand& St : Field.Stands)
+		{
+			// the terminal's narrow-body stands (code C: 36 m span), not the wide-body stand or the cargo stands
+			if (St.bCargo || St.Span > 40.f) continue;
+			if (!ParkOne(W, St)) return N;
 			++N;
 		}
 		ADP_LOG(TEXT("Parked aircraft: %d A320s at the terminal's stands, nose tyres on their stop bars"), N);
 		return N;
+	}
+
+	// ---- the traffic stress test (to-do 74, owner 2026-11-17) ----------------------------------------------------------
+	// -TrafficTest=N: every stand filled (the narrow-body ones already are, then the wide-body, cargo and hangar stands),
+	// and what's left of N slides along the taxiways' centre lines, the runway and a straight 3 degree approach, round and
+	// round. Test movement only: the same static A320 model, no flight logic, no animation; the normal game never does it.
+	int32 TrafficTestCount()
+	{
+		int32 N = 0;
+		return FParse::Value(FCommandLine::Get(), TEXT("TrafficTest="), N) ? FMath::Clamp(N, 0, 200) : 0;
+	}
+
+	namespace
+	{
+		struct FMover { TWeakObjectPtr<ABabylonModel> M; TArray<FVector> Path; float Speed = 10.f, At = 0.f, Len = 0.f; };
+		TArray<FMover> GMovers;
+		FTSTicker::FDelegateHandle GTick;
+
+		// a plan point (m) on the ground, or Up metres above it, in the world
+		FVector OnGround(float X, float Y, float Up = 0.f) { return FTerminalPlan::ToWorld(X, AAirfield::GroundAt(X, Y) + Up, Y); }
+
+		void Pose(FMover& Mv)
+		{
+			ABabylonModel* M = Mv.M.Get();
+			if (!M || Mv.Path.Num() < 2) return;
+			float D = Mv.At;
+			for (int32 i = 1; i < Mv.Path.Num(); ++i)
+			{
+				const FVector A = Mv.Path[i - 1], B = Mv.Path[i];
+				const float L = float(FVector::Dist(A, B)) / 100.f;
+				if (D > L && i < Mv.Path.Num() - 1) { D -= L; continue; }
+				const FVector Dir = (B - A).GetSafeNormal();
+				// the model's nose is the actor's -Y here as on the stands (the loader turns it half round: ParkOne)
+				// (turned only round the vertical: the approach's 3 degrees don't matter for a cost test)
+				const float Yaw = FMath::RadiansToDegrees(FMath::Atan2(-Dir.X, Dir.Y));
+				M->SetActorLocationAndRotation(A + (B - A) * FMath::Clamp(D / FMath::Max(L, 0.01f), 0.f, 1.f), FRotator(0.f, Yaw, 0.f));
+				return;
+			}
+		}
+	}
+
+	int32 TrafficTest(UWorld* W, const FAirfieldData& Field, int32 N)
+	{
+		if (!W || N <= 0 || !HaveModel()) return 0;
+		int32 Used = 0;
+		// the narrow-body terminal stands are filled already (Place); the others now
+		for (const FAirfieldData::FStand& St : Field.Stands)
+		{
+			if (Used >= N) break;
+			if (!St.bCargo && St.Span <= 40.f) { ++Used; continue; }
+			if (ParkOne(W, St)) ++Used;
+		}
+		for (const FAirfieldData::FHangarSite& H : Field.Hangars)
+		{
+			if (Used >= N) break;
+			FAirfieldData::FStand St; St.Id = TEXT("TT-") + H.Id; St.X = H.X; St.Nose = H.Y + 40.f; St.Dir = -1.f;
+			if (ParkOne(W, St)) ++Used;
+		}
+		// the paths: each taxiway's centre line, the runway (08: west to east), and the approach to it (10 km out, 3 degrees)
+		TArray<TPair<TArray<FVector>, float>> Paths;
+		for (const FAirfieldData::FTwy& T : Field.Taxiways)
+		{
+			if (T.Pts.Num() < 2) continue;
+			TArray<FVector> P; for (const FVector2f& Q : T.Pts) P.Add(OnGround(Q.X, Q.Y, 0.02f));
+			Paths.Add({P, 10.f});
+		}
+		Paths.Add({{OnGround(Field.RwyX0, Field.RwyY), OnGround(Field.RwyX1, Field.RwyY)}, 60.f});
+		const float Far = 10000.f;
+		Paths.Add({{OnGround(Field.RwyX0 - Far, Field.RwyY, Far * FMath::Tan(FMath::DegreesToRadians(3.f))), OnGround(Field.RwyX0 + 300.f, Field.RwyY)}, 70.f});
+		int32 Moving = 0;
+		for (int32 k = 0; Used < N && Paths.Num(); ++k, ++Used)
+		{
+			const TPair<TArray<FVector>, float>& P = Paths[k % Paths.Num()];
+			FMover Mv; Mv.Path = P.Key; Mv.Speed = P.Value;
+			for (int32 i = 1; i < Mv.Path.Num(); ++i) Mv.Len += float(FVector::Dist(Mv.Path[i - 1], Mv.Path[i])) / 100.f;
+			if (Mv.Len < 1.f) continue;
+			// spread along the path when several share it
+			Mv.At = FMath::Fmod(float(k / Paths.Num()) * 400.f, Mv.Len);
+			FActorSpawnParameters S; S.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			ABabylonModel* M = W->SpawnActor<ABabylonModel>(Mv.Path[0], FRotator::ZeroRotator, S);
+			if (!M || !M->Place(TEXT("A320"))) { if (M) M->Destroy(); break; }
+			M->Tags.Add(TEXT("TrafficTest"));
+			Mv.M = M; Pose(Mv);
+			GMovers.Add(MoveTemp(Mv));
+			++Moving;
+		}
+		if (Moving && !GTick.IsValid())
+			GTick = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([](float Dt)
+			{
+				Dt = FMath::Min(Dt, 0.1f);
+				int32 Alive = 0;
+				for (FMover& Mv : GMovers)
+				{
+					if (!Mv.M.IsValid()) continue;
+					++Alive;
+					Mv.At = FMath::Fmod(Mv.At + Mv.Speed * Dt, Mv.Len);
+					Pose(Mv);
+				}
+				if (!Alive) { GMovers.Reset(); GTick.Reset(); return false; }
+				return true;
+			}));
+		ADP_LOG(TEXT("Traffic test: %d aircraft (%d on stands, %d moving)"), Used, Used - Moving, Moving);
+		return Used;
 	}
 }

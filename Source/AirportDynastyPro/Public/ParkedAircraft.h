@@ -19,6 +19,11 @@ namespace ADPParked
 	bool HaveModel();
 	/** Parks one on every narrow-body terminal stand. Returns how many. */
 	int32 Place(UWorld* W, const FAirfieldData& Field);
+	/** The traffic stress test (to-do 74): -TrafficTest=N on the command line (0 when it's not there). */
+	int32 TrafficTestCount();
+	/** Fills every other stand (wide-body, cargo, by the hangars) and slides the rest of N along the taxiways, the runway
+	 *  and the approach (test movement only). Returns how many aircraft in all. */
+	int32 TrafficTest(UWorld* W, const FAirfieldData& Field, int32 N);
 	/** The A320's nose tyre behind its nose line (m): the stop bar's distance (Airfield.cpp FStopType). */
 	constexpr float NoseGearBehindNose = 5.1f;
 }

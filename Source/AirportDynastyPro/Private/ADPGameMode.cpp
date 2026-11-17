@@ -135,6 +135,8 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 				if (AHangar* Hg = W->SpawnActor<AHangar>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Hg->Build(H.Size, H.X, H.Y, H.bOpen);
 			// his A320 on the terminal's stands, nose tyres on their stop bars (ParkedAircraft.h)
 			if (bBabylon) ADPParked::Place(W, Field->Data());
+			// the traffic stress test only (-TrafficTest=N): every stand full, the rest moving (to-do 74)
+			if (bBabylon && ADPParked::TrafficTestCount() > 0) ADPParked::TrafficTest(W, Field->Data(), ADPParked::TrafficTestCount());
 			// marks on the paving: stand stains, touchdown rubber, apron patches (GroundDecals.h)
 			if (AGroundDecals* GD = W->SpawnActor<AGroundDecals>()) GD->Place(Field->Data());
 			// the taxiway lights: blue edges, green centrelines (AirfieldLights.h)
