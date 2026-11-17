@@ -12,7 +12,7 @@ function ads_content() {
     return [
         // #region ── Hero ──
         'hero' => [
-            'sign'   => 'Welcome to Mýrdalssandur',
+            'sign'   => 'Welcome to Airport Dynasty Pro',
             'title'  => 'Run your own <em>airport.</em>',
             'text'   => 'Be the CEO of a growing airport on Iceland’s south coast. Expand the terminal, hire crews, plan routes on a fully rendered 3D globe and watch thousands of passengers live their journeys in stunning detail.',
             'film'   => 'Watch the trailer',
