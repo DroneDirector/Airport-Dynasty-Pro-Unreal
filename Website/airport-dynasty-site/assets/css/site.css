@@ -371,6 +371,35 @@ body.elementor-editor-active .ad-nav { position: relative; }
 .ad-top:hover { transform: translateY(-3px); }
 
 /* ---------------------------------------------------------------- smaller screens */
+/* #region ── The airfield: built to real airport rules ── */
+.ad-specs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin: 10px 0 46px; }
+.ad-spec { background: var(--ad-panel); border: 1px solid var(--ad-line); border-radius: 14px; padding: 22px 22px 20px; position: relative; overflow: hidden; }
+.ad-spec::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--ad-sign); }
+.ad-spec b { display: block; font-family: var(--ad-head); font-weight: 800; font-size: clamp(30px, 3.4vw, 44px); line-height: 1; color: var(--ad-sign); letter-spacing: .01em; }
+.ad-spec h3 { font-family: var(--ad-head); font-weight: 700; font-size: 21px; margin: 10px 0 6px; color: var(--ad-text); text-transform: uppercase; letter-spacing: .04em; }
+.ad-spec p { margin: 0; color: var(--ad-dim); font-size: 15px; line-height: 1.55; }
+.ad-airfield__in { display: grid; grid-template-columns: .85fr 1.15fr; gap: 56px; align-items: center; }
+.ad-airfield__fig { margin: 0; border-radius: 16px; padding: 14px; background: linear-gradient(180deg, rgba(6, 22, 36, .9), rgba(4, 12, 22, .95)); border: 1px solid rgba(90, 216, 255, .3); box-shadow: 0 0 80px -24px rgba(90, 216, 255, .4); }
+.ad-airfield__fig svg { display: block; width: 100%; height: auto; }
+.ad-airfield__fig figcaption { color: var(--ad-faint); font-size: 14px; margin: 10px 4px 2px; }
+.ad-airfield .tw { fill: rgba(170, 200, 255, .07); }
+.ad-airfield .twc { stroke: var(--ad-sign); stroke-width: 2; stroke-dasharray: 14 10; fill: none; opacity: .8; }
+.ad-airfield .term { fill: rgba(90, 216, 255, .1); stroke: rgba(90, 216, 255, .45); stroke-width: 1.5; }
+.ad-airfield .safe { fill: none; stroke: var(--ad-red); stroke-width: 1.6; stroke-dasharray: 6 5; opacity: .85; }
+.ad-airfield .restr { stroke: var(--ad-red); stroke-width: 2.4; opacity: .85; }
+.ad-airfield .lead { fill: none; stroke: var(--ad-sign); stroke-width: 3; }
+.ad-airfield .bars path { stroke: var(--ad-sign); stroke-width: 3; }
+.ad-airfield .sm { fill: var(--ad-sign); font: 700 10px var(--ad-body); }
+.ad-airfield .lbl { fill: rgba(220, 232, 250, .7); font: 700 12px var(--ad-head); letter-spacing: .12em; }
+.ad-airfield .lbl.r { fill: rgba(255, 120, 120, .9); }
+.ad-airfield .lbl.y { fill: var(--ad-sign); text-anchor: end; }
+.ad-airfield .rot { fill: #0b2238; stroke: var(--ad-cyan); stroke-width: 2.4; }
+.ad-airfield .bridge { stroke: var(--ad-cyan); stroke-width: 9; stroke-linecap: round; fill: none; opacity: .9; }
+.ad-airfield .plane path { fill: #e9f1fb; stroke: #7fa6cf; stroke-width: 1.2; }
+@media (max-width: 1100px) { .ad-specs { grid-template-columns: repeat(2, 1fr); } .ad-airfield__in { grid-template-columns: 1fr; } }
+@media (max-width: 620px) { .ad-specs { grid-template-columns: 1fr; } .ad-top { display: none !important; } }
+/* #endregion */
+
 @media (max-width: 1100px) {
   .ad-nav__clock { display: none; }
   .ad-hero__in, .ad-holo__in { grid-template-columns: 1fr; }

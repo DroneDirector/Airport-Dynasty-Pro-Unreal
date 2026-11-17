@@ -28,7 +28,7 @@ function ads_content() {
         ],
         // #endregion
         // #region ── Ticker ──
-        'ticker' => "Check-in · Security · Gates · Jetways · Control tower · Fire station · Hangars · Car rental · Airlines · Timetables · Crews · The whole Earth · Day and night · Weather · Rainy days · Puddles · Snow · Drive the fire truck · Drone mode · Sit anywhere · Talk to every NPC · Salaries and bills · Your bank account · Your villa · Your home town · And much more",
+        'ticker' => "Check-in · Security · Tax Free · Gates · Jetways · Stop bars · Lead-in lines · Control tower · Fire station · Hangars · Car rental · Airlines · Timetables · Crews · The whole Earth · Day and night · Weather · Rainy days · Puddles · Snow · Drive the fire truck · Drone mode · Sit anywhere · Talk to every NPC · Salaries and bills · Your bank account · Your villa · Your home town · And much more",
         // #endregion
         // #region ── Numbers ──
         'stats' => [
@@ -45,6 +45,7 @@ function ads_content() {
             'text'    => 'Here are some of the buildings you can walk into, and what you do inside them. More buildings with interiors are added over time, each with its own purpose.',
             'items'   => [
                 ['icon' => 'terminal', 'name' => 'The terminal', 'text' => 'Check passengers in, run security and the shops, and add new wings as traffic grows.', 'status' => 'In the game', 'arrow' => '→'],
+                ['icon' => 'shop', 'name' => 'Tax Free', 'text' => 'A big walk-through shop on the upper floor: beauty, liquor and a whisky bar, an Iceland market, luxury boutiques, and a champagne bar under an aurora ceiling.', 'status' => 'Coming', 'arrow' => '↑'],
                 ['icon' => 'tower', 'name' => 'Control tower', 'text' => 'Climb to the top and watch every aircraft move on the field below.', 'status' => 'In the game', 'arrow' => '↑'],
                 ['icon' => 'hangar', 'name' => 'Hangars', 'text' => 'Open the big doors from the button panel and keep your aircraft serviced, repaired and ready to fly.', 'status' => 'In the game', 'arrow' => '←'],
                 ['icon' => 'fire', 'name' => 'Fire station', 'text' => 'Climb into the fire trucks and drive them yourself, light bar flashing, then wash them down with the hose.', 'status' => 'In the game', 'arrow' => '↗'],
@@ -53,6 +54,17 @@ function ads_content() {
                 ['icon' => 'home', 'name' => 'Your villa', 'text' => 'Your own home at the end of its own road, with a garage for your car.', 'status' => 'Being built', 'arrow' => '↓'],
                 ['icon' => 'more', 'name' => 'And much more', 'text' => 'Shops, a petrol station, a hairdresser and more of the town on the way.', 'status' => 'Coming', 'arrow' => '…'],
             ],
+        ],
+        // #endregion
+        // #region ── The airfield: built to real airport rules ──
+        'airfield' => [
+            'eyebrow' => 'Built by the book',
+            'title'   => 'A real airport. <em>Real rules.</em>',
+            'text'    => 'Mýrdalssandur is laid out the way real airports are designed, following international airport design rules. Every runway, taxiway, stand and jetway has real-world sizes and clearances, so everything from an A320 to an A380 taxis, turns and parks exactly as it would at a real airport.',
+            // Spec cards: one per line, NUMBER|NAME|TEXT
+            'specs'   => "3,500 m|Runway|A full-length runway, with room left for parallel runways as the airport grows.\n7.5 m|Wingtip clearance|Wide-body stands keep real code E and F clearances, so a Boeing 777 or an A380 parks with room to spare.\n3|Jetways for the A380|The A380 gate gets two bridges to the main deck and one to the upper deck; the 777 gates get two each.\nPer type|Stop bars|Every stand has its own stop bars for each aircraft type that uses it, so each one stops in exactly the right place.",
+            'points'  => "Yellow lead-in lines from the taxilane to every stand, with red safety and equipment lines around it\nJetways that reach the aircraft doors at the right height, sloping gently to the main deck or up to the upper deck\nTaxi routes and taxi times worked out from real distances in metres\nParked tails stay clear of the taxilane, so even an A380 can pass behind safely\nPassengers walk real distances through the terminal, timed from the layout\nGrowing from 8 to 16 gates, including a gate built for the A380\n…and much more",
+            'cap'     => 'Watch an aircraft follow its lead-in line to the stop bar, then the jetway reaches out to the door.',
         ],
         // #endregion
         // #region ── Holographic map (people) ──
@@ -137,7 +149,7 @@ function ads_content() {
             'items'   => [
                 ['when' => 'Now', 'title' => 'The airport comes alive', 'text' => 'Terminal, people, staff and uniforms, airlines, aircraft, timetables, the 3D globe, the airport’s roads and car park, rankings and awards.'],
                 ['when' => 'Next', 'title' => 'Your town and your home', 'text' => 'The town fully built: your villa, the car dealership, shops and the hairdresser. Staff drive home after work.'],
-                ['when' => 'Then', 'title' => 'A bigger airport', 'text' => 'Terminal extensions over the new apron, more gates and stands, the fire station and hangars in full use.'],
+                ['when' => 'Then', 'title' => 'A bigger airport', 'text' => 'Terminal extensions over the new apron: 16 gates with a gate for the A380, the Tax Free shop, the escalator hall and the museum, and the fire station and hangars in full use.'],
                 ['when' => 'Later', 'title' => 'And much more', 'text' => 'Interact with everything you see, more events and incidents, and new things with every update.'],
             ],
         ],

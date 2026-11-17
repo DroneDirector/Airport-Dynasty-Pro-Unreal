@@ -18,6 +18,7 @@ function ads_pict($k) {
         'tower'    => '<path d="M9 21h6M10 21l.7-9h2.6l.7 9"/><path d="M6.5 8h11l-1.8 4H8.3z"/><path d="M9 8V5.5h6V8M12 5.5V3"/>',
         'hangar'   => '<path d="M2 20h20M3.5 20v-7a8.5 8.5 0 0 1 17 0v7"/><path d="M8 20v-5h8v5"/>',
         'fire'     => '<path d="M12 3c1 3.5 5 5 5 10a5 5 0 0 1-10 0c0-2.5 1.5-4 2.5-5 .2 1.8 1 2.8 2 3 0-3 .5-5.5.5-8z"/>',
+        'shop'     => '<path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
         'car'      => '<path d="M4 16v-3l2-5h12l2 5v3"/><path d="M3 16h18v2H3z"/><circle cx="7.5" cy="18.5" r="1.5"/><circle cx="16.5" cy="18.5" r="1.5"/><path d="M6.5 12h11"/>',
         'home'     => '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/>',
         'more'     => '<circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/>',
@@ -97,7 +98,7 @@ function ads_head($s, $center = true) {
 
 function ads_r_nav($s) {
     $home = ads_page_url('home');
-    $links = [['Buildings', '#buildings'], ['People', '#people'], ['Play', '#play'], ['Technology', '#tech'], ['Flight plan', '#route']];
+    $links = [['Buildings', '#buildings'], ['Airfield', '#airfield'], ['People', '#people'], ['Play', '#play'], ['Technology', '#tech'], ['Flight plan', '#route']];
     echo '<header class="ad ad-nav"><div class="ad-wrap ad-nav__in"><a class="ad-logo" href="' . esc_url($home) . '">' . ads_logo() . '</a><nav class="ad-nav__links" aria-label="Main">';
     foreach ($links as $l) echo '<a href="' . esc_url($l[1]) . '">' . esc_html($l[0]) . '</a>';
     echo '</nav><span class="ad-nav__clock" title="Local time at Mýrdalssandur"><i></i>MÝRDALSSANDUR <b data-clock>--:--</b></span>' . ads_buy_button('ad-btn--sm');
@@ -178,6 +179,36 @@ function ads_r_buildings($s) {
             . '<span class="ad-signboard__arrow" aria-hidden="true">' . esc_html($it['arrow']) . '</span><span class="ad-signboard__status">' . esc_html($it['status']) . '</span></div>';
     }
     echo '</div></div></section>';
+}
+
+// #endregion
+
+// #region ── The airfield: built to real airport rules ──
+
+function ads_r_airfield($s) {
+    echo '<section class="ad ad-airfield" id="airfield"><div class="ad-wrap">' . ads_head($s) . '<div class="ad-specs">';
+    foreach (ads_lines($s['specs']) as $i => $l) {
+        $p = array_pad(explode('|', $l, 3), 3, '');
+        echo '<div class="ad-spec" data-reveal style="--d:' . (int) ($i % 4) . '"><b>' . esc_html($p[0]) . '</b><h3>' . esc_html($p[1]) . '</h3><p>' . esc_html($p[2]) . '</p></div>';
+    }
+    echo '</div><div class="ad-airfield__in"><div data-reveal>' . ads_points($s['points']) . '</div>';
+    // A stand drawn like a blueprint: the taxilane, the yellow lead-in line, stop bars, safety lines, and an aircraft
+    // that follows the line in, stops at its bar, and then the jetway reaches out to its door.
+    echo '<figure class="ad-airfield__fig" data-reveal><svg viewBox="0 0 640 400" aria-hidden="true">'
+        . '<defs><pattern id="adbp" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="rgba(90,216,255,.08)"/></pattern></defs>'
+        . '<rect width="640" height="400" fill="url(#adbp)"/>'
+        . '<rect x="0" y="30" width="640" height="46" class="tw"/><path d="M0 53H640" class="twc"/>'
+        . '<rect x="0" y="330" width="640" height="70" class="term"/><text x="20" y="372" class="lbl">TERMINAL · GATE 13</text>'
+        . '<rect x="150" y="96" width="340" height="216" class="safe"/><path d="M150 300H490" class="restr"/>'
+        . '<path d="M640 53 C 420 53, 320 70, 320 160 V 286" class="lead"/>'
+        . '<g class="bars"><path d="M304 262h32M304 270h32M304 278h32M304 286h32"/></g>'
+        . '<text x="344" y="265" class="sm">A380</text><text x="344" y="276" class="sm">B777-9</text><text x="344" y="287" class="sm">B777-300ER</text><text x="420" y="276" class="sm">A350-1000</text>'
+        . '<g class="jet"><path class="bridge" d="M420 322 L420 322"><animate attributeName="d" dur="14s" repeatCount="indefinite" calcMode="spline" keyTimes="0;.6;.72;.9;1" keySplines=".4 0 .2 1;.4 0 .2 1;0 0 1 1;.4 0 .2 1" values="M420 322 L420 322;M420 322 L420 322;M420 322 L336 240;M420 322 L336 240;M420 322 L420 322"/></path><circle cx="420" cy="322" r="9" class="rot"/></g>'
+        . '<g class="plane"><path transform="scale(.9)" d="M62 0 l-10 6 h-36 l-28 74 h-10 l12 -74 h-30 l-14 18 h-8 l6 -24 l-6 -24 h8 l14 18 h30 l-12 -74 h10 l28 74 h36z"/>'
+        . '<animateMotion dur="14s" repeatCount="indefinite" rotate="auto" calcMode="spline" keyPoints="0;1;1" keyTimes="0;.55;1" keySplines=".25 .1 .25 1;0 0 1 1" path="M700 53 C 420 53, 320 70, 320 160 V 204"/>'
+        . '<animate attributeName="opacity" dur="14s" repeatCount="indefinite" keyTimes="0;.04;.95;1" values="0;1;1;0"/></g>'
+        . '<text x="20" y="22" class="lbl">TAXILANE</text><text x="160" y="114" class="lbl r">STAND SAFETY LINE</text><text x="620" y="22" class="lbl y">LEAD-IN LINE · STOP BARS</text>'
+        . '</svg><figcaption>' . esc_html($s['cap']) . '</figcaption></figure></div></div></section>';
 }
 
 // #endregion
@@ -331,7 +362,7 @@ function ads_r_footer($s) {
     $soc = ['facebook' => 'Facebook', 'youtube' => 'YouTube', 'instagram' => 'Instagram', 'tiktok' => 'TikTok', 'x' => 'X'];
     echo '<footer class="ad ad-footer"><div class="ad-runway" aria-hidden="true"></div><div class="ad-wrap"><div class="ad-footer__top"><div><a class="ad-logo" href="#top">' . ads_logo() . '</a><p>' . esc_html($s['tagline']) . '</p></div>';
     echo '<nav class="ad-footer__links" aria-label="More">';
-    foreach ([['Buildings', '#buildings'], ['People', '#people'], ['Four ways to play', '#play'], ['Technology', '#tech'], ['Flight plan', '#route'], ['Get notified', '#buy']] as $l) echo '<a href="' . esc_url($l[1]) . '">' . esc_html($l[0]) . '</a>';
+    foreach ([['Buildings', '#buildings'], ['The airfield', '#airfield'], ['People', '#people'], ['Four ways to play', '#play'], ['Technology', '#tech'], ['Flight plan', '#route'], ['Get notified', '#buy']] as $l) echo '<a href="' . esc_url($l[1]) . '">' . esc_html($l[0]) . '</a>';
     echo '</nav><div class="ad-footer__social">';
     foreach ($soc as $k => $label) { $u = ads_opt($k); echo '<a class="ad-round" href="' . esc_url($u ?: '#') . '"' . ($u ? ' target="_blank" rel="noopener"' : ' aria-disabled="true"') . ' aria-label="' . esc_attr($label) . '" title="' . esc_attr($label) . '">' . ads_icon($k) . '</a>'; }
     echo '</div></div><div class="ad-footer__bottom"><span>© ' . esc_html(function_exists('wp_date') ? wp_date('Y') : date('Y')) . ' ' . esc_html(ads_opt('holder')) . '. All rights reserved.</span><span>' . esc_html($s['note']) . '</span></div></div></footer>';

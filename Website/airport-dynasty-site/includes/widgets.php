@@ -27,8 +27,12 @@ function ads_widget_defs() {
              'link' => ['text', 'YouTube or Vimeo link (empty = “coming soon”)', ''], 'soon' => ['text', 'Text while there is no trailer', 'Trailer coming soon']], []],
         'buildings' => ['Buildings (signs)', 'eicon-sign-out', 'ads_r_buildings',
             ['eyebrow' => ['text', 'Small line above the title', $c['buildings']['eyebrow']], 'title' => $txt('Title', $c['buildings']['title']), 'text' => $txt('Text', $c['buildings']['text'])],
-            ['items' => ['Signs (keep “And much more” as the last one)', ['icon' => ['select:terminal|tower|hangar|fire|car|home|plane|more', 'Pictogram', 'terminal'], 'name' => ['text', 'Name', ''], 'text' => ['textarea', 'Text', ''],
+            ['items' => ['Signs (keep “And much more” as the last one)', ['icon' => ['select:terminal|shop|tower|hangar|fire|car|home|plane|more', 'Pictogram', 'terminal'], 'name' => ['text', 'Name', ''], 'text' => ['textarea', 'Text', ''],
                 'status' => ['text', 'Status (In the game / Being built / Coming)', 'In the game'], 'arrow' => ['text', 'Arrow', '→']], $c['buildings']['items'], 'name']]],
+        'airfield'  => ['The airfield (real airport rules)', 'eicon-flow', 'ads_r_airfield',
+            ['eyebrow' => ['text', 'Small line above the title', $c['airfield']['eyebrow']], 'title' => $txt('Title', $c['airfield']['title']), 'text' => $txt('Text', $c['airfield']['text']),
+             'specs' => $txt('Spec cards: one per line, NUMBER|NAME|TEXT', $c['airfield']['specs']), 'points' => $txt('Points (one per line; end with …and much more)', $c['airfield']['points']),
+             'cap' => $txt('Text under the drawing', $c['airfield']['cap'])], []],
         'holo'      => ['People (holographic map)', 'eicon-map-pin', 'ads_r_holo',
             ['eyebrow' => ['text', 'Small line above the title', $c['holo']['eyebrow']], 'title' => $txt('Title', $c['holo']['title']), 'text' => $txt('Text', $c['holo']['text']),
              'points' => $txt('Points (one per line; end with …and much more)', $c['holo']['points'])], []],
@@ -64,7 +68,7 @@ function ads_widget_defs() {
 }
 
 function ads_widget_classes() {
-    return ['ADS_W_Nav', 'ADS_W_Hero', 'ADS_W_Ticker', 'ADS_W_Stats', 'ADS_W_Video', 'ADS_W_Buildings', 'ADS_W_Holo', 'ADS_W_Money', 'ADS_W_Desk', 'ADS_W_Passes', 'ADS_W_Gallery', 'ADS_W_Tech', 'ADS_W_Route', 'ADS_W_Buy', 'ADS_W_Share', 'ADS_W_Footer'];
+    return ['ADS_W_Nav', 'ADS_W_Hero', 'ADS_W_Ticker', 'ADS_W_Stats', 'ADS_W_Video', 'ADS_W_Buildings', 'ADS_W_Airfield', 'ADS_W_Holo', 'ADS_W_Money', 'ADS_W_Desk', 'ADS_W_Passes', 'ADS_W_Gallery', 'ADS_W_Tech', 'ADS_W_Route', 'ADS_W_Buy', 'ADS_W_Share', 'ADS_W_Footer'];
 }
 
 abstract class ADS_Base extends Widget_Base {
@@ -119,6 +123,7 @@ class ADS_W_Ticker extends ADS_Base { protected $key = 'ticker'; }
 class ADS_W_Stats extends ADS_Base { protected $key = 'stats'; }
 class ADS_W_Video extends ADS_Base { protected $key = 'video'; }
 class ADS_W_Buildings extends ADS_Base { protected $key = 'buildings'; }
+class ADS_W_Airfield extends ADS_Base { protected $key = 'airfield'; }
 class ADS_W_Holo extends ADS_Base { protected $key = 'holo'; }
 class ADS_W_Money extends ADS_Base { protected $key = 'money'; }
 class ADS_W_Desk extends ADS_Base { protected $key = 'desk'; }
