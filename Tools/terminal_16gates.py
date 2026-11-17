@@ -125,3 +125,26 @@ add('F1', 'F1-PIER-EXT/GLASS', 'pier_ext_glass')
 _r = find('RENTAL'); _t = N[_r].get('translation', [0, 0, 0])
 N[_r]['translation'] = [_t[0] - 242.0, _t[1], _t[2] - 231.3]
 log.append('moved: the car rental to plan x %.0f, z %.0f' % (-N[_r]['translation'][0], N[_r]['translation'][2]))
+
+# ---------------- the wave roof over both new ends (owner, 2026-11-17: "as we did on the left side, so it covers the
+#                  entire length of the new area"): copies of the Grand Hall's wave (x 24..126, z -16..34, only the wave -
+#                  never the pier's solar field or rooftop units), joined end to end like the arrivals copy; each copy
+#                  a little shorter (west, 2 of them) or longer (east, 4) along the building only, so whole waves fill
+#                  each end - the zinc's seams run down the slope, along the building, so their spacing never changes;
+#                  under each its two tree pillars on the kerb ----------------
+def roof_copy(a, b, tag):
+    c = copy_tree(byname['ROOF'], skip=('ROOF/SOLAR-PANELS', 'ROOF/ROOF-UNIT'))
+    kx = (b - a) / 102.0
+    g = {'name': 'ROOF-' + tag, 'translation': [24.0 * kx - a, 0.0, 0.0], 'scale': [kx, 1.0, 1.0], 'children': [c]}
+    N.append(g); N[0]['children'].append(len(N) - 1)
+    for src, x in (('C-7', 56.0), ('C-8', 94.0)):
+        p = copy_tree(byname[src]); N[p]['name'] = src + '-' + tag
+        N[p]['translation'] = [-(a + (x - 24.0) * kx), 0.0, -9.0]
+        N[parent[byname[src]]]['children'].append(p)
+    log.append('new: wave roof %s (x %.1f..%.1f, %.0f%% along the building) and its two tree pillars' % (tag, a, b, kx * 100))
+for j in range(2):
+    a = -78.0 - (j + 1) * (W_END - 4.0 - (-78.0)) / -2.0
+    roof_copy(a, a + (-78.0 - (W_END - 4.0)) / 2.0, 'W%d' % (j + 1))
+for j in range(4):
+    L4 = (E_END + 4.0 - 126.0) / 4.0
+    roof_copy(126.0 + j * L4, 126.0 + (j + 1) * L4, 'E%d' % (j + 1))
