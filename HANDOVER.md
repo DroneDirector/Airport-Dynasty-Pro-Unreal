@@ -2,6 +2,21 @@
 
 Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md (where everything is) first.
 
+## From the owner for the PC chat (2026-11-17 02:46, via the phone): 16 gates instead of 8
+
+- **Change the number of gates from 8 to 16, each with its own aircraft stand** (owner, by voice: "change the current
+  number from 8 to 16, with aircraft stands"). He asked whether it still performs well with Lumen; he was told that
+  Lumen's cost follows the screen resolution, not the number of gates, and the extra cost (aircraft, jetways, lights,
+  passengers) should mean only a small drop from the ~87 fps measured. His answer: "If I have good performance, then
+  that's fine, and see how the game runs."
+- So: build the 16 gates and stands, then measure in the stress walk (no video recording, the shipping build, frame
+  generation on, as in the section below) and tell him the result. If performance drops noticeably, tell him what
+  costs it and the options before cutting anything.
+- Where the 8 new gates go is a layout choice (a longer pier, a second pier, or the apron extension planned towards
+  landside, 2026-11-12): the layout lives in the one layout file shared with Android (walking and taxi times follow
+  from it). Suggest the layout to him in a short message (no render needed) and get his OK before building it.
+- After the jetway work below (that stays first).
+
 ## From the owner for the PC chat (2026-11-16 10:14, sent to the phone chat): about the stress walk
 
 The owner's words: "You recorded a video while playing, which normally affects performance while gaming, plus it was a

@@ -7,6 +7,8 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 - [ ] **FIRST (owner, 2026-11-16):** complete the jetway in the stress walk; measure performance only without video
       recording, in the shipping build with frame generation on. When the jetway is built, send the owner a preview at night
       with its flashing lights on and wait for his OK. See HANDOVER.md "about the stress walk".
+- [ ] **16 gates instead of 8** (owner, 2026-11-17), each with its own aircraft stand; layout suggested to him first;
+      then measure performance in the stress walk and report. See HANDOVER.md "16 gates instead of 8".
 - [ ] **Dog clip for the owner** (2026-11-15), after the dog's jaw and texture fixes and the creator's pet section:
       walk in, sit, pant (mouth moving, breath vapour), walk out; on a COPY of the she/he selector stage moved to its
       own area (the real one in "Who are you?" stays untouched): dark blue/turquoise, fog, no light bars, well lit;
