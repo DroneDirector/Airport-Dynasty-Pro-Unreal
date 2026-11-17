@@ -4,6 +4,7 @@
 #include "Modules/ModuleManager.h"
 #include "Features/IModularFeatures.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/CommandLine.h"
 #include "Windows/IDXGISwapchainProvider.h"
 #include "FrameGenSwapChain.h"
 
@@ -32,6 +33,17 @@ public:
 	virtual void StartupModule() override
 	{
 		if (GIsEditor && !IsRunningGame()) return;
+		// the Pixel Norma logo at the start (DefaultGame.ini StartupMovies, to-do 64b) is for players only: a test run
+		// (any -UI.. switch, -Stress.., -TrafficTest, or -NoLogo) starts without it. This module loads early enough
+		// (PostConfigInit): the movies are read from the settings only after it.
+		{
+			TArray<FString> Tokens, Switches;
+			FCommandLine::Parse(FCommandLine::Get(), Tokens, Switches);
+			bool bTest = false;
+			for (const FString& Sw : Switches)
+				if (Sw.StartsWith(TEXT("UI")) || Sw.StartsWith(TEXT("Stress")) || Sw.StartsWith(TEXT("TrafficTest")) || Sw.Equals(TEXT("NoLogo"), ESearchCase::IgnoreCase)) { bTest = true; break; }
+			if (bTest && GConfig) GConfig->SetArray(TEXT("/Script/MoviePlayer.MoviePlayerSettings"), TEXT("StartupMovies"), TArray<FString>(), GGameIni);
+		}
 		bool bOn = false;
 		if (GConfig) GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("OwnFrameGen"), bOn, GGameUserSettingsIni);
 		if (FParse::Param(FCommandLine::Get(), TEXT("OwnFrameGen"))) bOn = true;
