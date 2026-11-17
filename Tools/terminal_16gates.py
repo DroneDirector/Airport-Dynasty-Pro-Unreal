@@ -148,3 +148,31 @@ for j in range(2):
 for j in range(4):
     L4 = (E_END + 4.0 - 126.0) / 4.0
     roof_copy(126.0 + j * L4, 126.0 + (j + 1) * L4, 'E%d' % (j + 1))
+
+# ---------------- the TAX FREE (owner's plan, Art/TerminalAnnex/make_taxfree.py): its shell and one-off pieces, then
+#                  every repeated model placed many times (instanced, Nanite), and lamps under its slat ceiling ----------------
+import json as _json, math as _math
+_tf = _json.load(open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'Art', 'TerminalAnnex', 'taxfree_place.json')))
+add('F2', 'TAXFREE/SHELL-SOLID', 'tf_shell_solid')
+add('F2', 'TAXFREE/SHELL-GLASS', 'tf_shell_glass')
+add('F2', 'TAXFREE/FLOOR', 'tf_floor')
+add('F2', 'TAXFREE/AURORA', 'tf_aurora')
+_cnt = {}
+for _p in _tf['place']:
+    a = _p['asset']; _cnt[a] = _cnt.get(a, 0) + 1
+    q = _math.radians(_p['rot']) / 2.0
+    nd = {'name': 'TAXFREE/%s-%03d' % (a.upper(), _cnt[a]), 'asset': a, 'mesh': 90000 + len(N),
+          'translation': [-_p['x'], _p['y'], _p['z']], 'rotation': [0.0, _math.sin(q), 0.0, _math.cos(q)]}
+    if _p.get('s'): nd['scale'] = _p['s']
+    N.append(nd); N[byname['F2']]['children'].append(len(N) - 1)
+    if a == 'tf_boutique':
+        g = dict(nd); g['name'] = nd['name'] + '/GLASS'; g['asset'] = 'tf_boutique_glass'; g['mesh'] = 90000 + len(N)
+        N.append(g); N[byname['F2']]['children'].append(len(N) - 1)
+log.append('new: the tax free - %d placed models (%s)' % (len(_tf['place']), ', '.join('%s x%d' % kv for kv in sorted(_cnt.items()))))
+lamps('F2', 'TAXFREE', [-238 + 4 * i for i in range(40)], [15, 21, 27, 33, 39, 45], 10.48)
+lamps('F1', 'F1-TAXFREE-UNDER', [-230 + 20 * i for i in range(8)], [20, 40], 5.33)
+# the TAX FREE's neon sign (3D letters and its logo, Art/TerminalAnnex/make_taxfree_sign.py) on the wall over its way in
+# and its way out, facing the gate walkway
+for _x in (-95.0, -228.1):
+    N.append({'name': 'TAXFREE/NEON-SIGN-X%+.0f' % _x, 'asset': 'tf_neon_sign', 'mesh': 90000 + len(N), 'translation': [-(_x - 0.255), 10.5, 52.14]})
+    N[byname['F2']]['children'].append(len(N) - 1)

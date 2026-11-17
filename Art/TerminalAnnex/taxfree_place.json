@@ -1,0 +1,969 @@
+{
+ "pieces": [
+  "tf_aurora",
+  "tf_boutique",
+  "tf_boutique_glass",
+  "tf_chocotower",
+  "tf_floor",
+  "tf_gondola_beauty",
+  "tf_gondola_liquor",
+  "tf_gondola_sweets",
+  "tf_gondola_tech",
+  "tf_kiosk",
+  "tf_paypoint",
+  "tf_pendant",
+  "tf_plinth",
+  "tf_pod",
+  "tf_post",
+  "tf_seat",
+  "tf_shell_glass",
+  "tf_shell_solid",
+  "tf_stool",
+  "tf_table",
+  "tf_wallbay_beauty",
+  "tf_wallbay_liquor",
+  "tf_wallbay_lux",
+  "tf_wallbay_market"
+ ],
+ "place": [
+  {
+   "asset": "tf_stool",
+   "x": -162.442,
+   "y": 6.0,
+   "z": 33.206,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_stool",
+   "x": -163.552,
+   "y": 6.0,
+   "z": 35.512,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_stool",
+   "x": -165.553,
+   "y": 6.0,
+   "z": 37.107,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_stool",
+   "x": -168.048,
+   "y": 6.0,
+   "z": 37.677,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_stool",
+   "x": -170.543,
+   "y": 6.0,
+   "z": 37.107,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_stool",
+   "x": -172.543,
+   "y": 6.0,
+   "z": 35.512,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_stool",
+   "x": -173.654,
+   "y": 6.0,
+   "z": 33.206,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_stool",
+   "x": -173.654,
+   "y": 6.0,
+   "z": 30.647,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_stool",
+   "x": -172.543,
+   "y": 6.0,
+   "z": 28.342,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_stool",
+   "x": -170.543,
+   "y": 6.0,
+   "z": 26.746,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_stool",
+   "x": -168.048,
+   "y": 6.0,
+   "z": 26.177,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_stool",
+   "x": -165.553,
+   "y": 6.0,
+   "z": 26.746,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_stool",
+   "x": -163.552,
+   "y": 6.0,
+   "z": 28.342,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_stool",
+   "x": -162.442,
+   "y": 6.0,
+   "z": 30.647,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_seat",
+   "x": -177.855,
+   "y": 6.0,
+   "z": 27.894,
+   "rot": 90.0
+  },
+  {
+   "asset": "tf_seat",
+   "x": -158.24,
+   "y": 6.0,
+   "z": 27.894,
+   "rot": 90.0
+  },
+  {
+   "asset": "tf_seat",
+   "x": -163.923,
+   "y": 6.0,
+   "z": 22.119,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_stool",
+   "x": -141.825,
+   "y": 6.0,
+   "z": 42.317,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_stool",
+   "x": -139.518,
+   "y": 6.0,
+   "z": 42.317,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_stool",
+   "x": -137.212,
+   "y": 6.0,
+   "z": 42.317,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_stool",
+   "x": -134.906,
+   "y": 6.0,
+   "z": 42.317,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_stool",
+   "x": -132.599,
+   "y": 6.0,
+   "z": 42.317,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_stool",
+   "x": -130.293,
+   "y": 6.0,
+   "z": 42.317,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_pendant",
+   "x": -236.984,
+   "y": 9.2,
+   "z": 26.427,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_pendant",
+   "x": -234.991,
+   "y": 9.2,
+   "z": 26.427,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_pendant",
+   "x": -232.998,
+   "y": 9.2,
+   "z": 26.427,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_pendant",
+   "x": -231.005,
+   "y": 9.2,
+   "z": 26.427,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_pendant",
+   "x": -229.012,
+   "y": 9.2,
+   "z": 26.427,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_pendant",
+   "x": -227.019,
+   "y": 9.2,
+   "z": 26.427,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_pendant",
+   "x": -225.026,
+   "y": 9.2,
+   "z": 26.427,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_pendant",
+   "x": -223.033,
+   "y": 9.2,
+   "z": 26.427,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_pendant",
+   "x": -221.04,
+   "y": 9.2,
+   "z": 26.427,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_pendant",
+   "x": -219.047,
+   "y": 9.2,
+   "z": 26.427,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_pendant",
+   "x": -217.054,
+   "y": 9.2,
+   "z": 26.427,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_pendant",
+   "x": -215.061,
+   "y": 9.2,
+   "z": 26.427,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_post",
+   "x": -237.784,
+   "y": 6.0,
+   "z": 28.352,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_post",
+   "x": -235.823,
+   "y": 6.0,
+   "z": 28.352,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_post",
+   "x": -233.863,
+   "y": 6.0,
+   "z": 28.352,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_post",
+   "x": -231.903,
+   "y": 6.0,
+   "z": 28.352,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_post",
+   "x": -229.943,
+   "y": 6.0,
+   "z": 28.352,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_post",
+   "x": -227.982,
+   "y": 6.0,
+   "z": 28.352,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_post",
+   "x": -226.022,
+   "y": 6.0,
+   "z": 28.352,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_post",
+   "x": -224.062,
+   "y": 6.0,
+   "z": 28.352,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_post",
+   "x": -222.102,
+   "y": 6.0,
+   "z": 28.352,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_post",
+   "x": -220.141,
+   "y": 6.0,
+   "z": 28.352,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_post",
+   "x": -218.181,
+   "y": 6.0,
+   "z": 28.352,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_post",
+   "x": -216.221,
+   "y": 6.0,
+   "z": 28.352,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_post",
+   "x": -214.261,
+   "y": 6.0,
+   "z": 28.352,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_kiosk",
+   "x": -235.875,
+   "y": 6.0,
+   "z": 30.918,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_kiosk",
+   "x": -233.191,
+   "y": 6.0,
+   "z": 30.918,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_kiosk",
+   "x": -230.507,
+   "y": 6.0,
+   "z": 30.918,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_kiosk",
+   "x": -227.823,
+   "y": 6.0,
+   "z": 30.918,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_kiosk",
+   "x": -225.138,
+   "y": 6.0,
+   "z": 30.918,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_kiosk",
+   "x": -222.454,
+   "y": 6.0,
+   "z": 30.918,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_kiosk",
+   "x": -219.77,
+   "y": 6.0,
+   "z": 30.918,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_kiosk",
+   "x": -217.085,
+   "y": 6.0,
+   "z": 30.918,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_gondola_tech",
+   "x": -211.586,
+   "y": 6.0,
+   "z": 49.067,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_gondola_tech",
+   "x": -211.586,
+   "y": 6.0,
+   "z": 45.584,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_table",
+   "x": -211.127,
+   "y": 6.0,
+   "z": 33.577,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_table",
+   "x": -209.569,
+   "y": 6.0,
+   "z": 30.368,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_boutique",
+   "x": -236.059,
+   "y": 6.0,
+   "z": 11.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_boutique",
+   "x": -227.534,
+   "y": 6.0,
+   "z": 11.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_boutique",
+   "x": -219.01,
+   "y": 6.0,
+   "z": 11.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_boutique",
+   "x": -210.303,
+   "y": 6.0,
+   "z": 11.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_gondola_sweets",
+   "x": -196.737,
+   "y": 6.0,
+   "z": 48.059,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_gondola_sweets",
+   "x": -188.396,
+   "y": 6.0,
+   "z": 48.059,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_table",
+   "x": -198.112,
+   "y": 6.0,
+   "z": 30.643,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_table",
+   "x": -187.113,
+   "y": 6.0,
+   "z": 30.643,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_paypoint",
+   "x": -202.145,
+   "y": 6.0,
+   "z": 26.885,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_chocotower",
+   "x": -192.154,
+   "y": 6.0,
+   "z": 19.828,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_chocotower",
+   "x": -184.088,
+   "y": 6.0,
+   "z": 19.828,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_gondola_liquor",
+   "x": -151.091,
+   "y": 6.0,
+   "z": 20.561,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_gondola_liquor",
+   "x": -151.091,
+   "y": 6.0,
+   "z": 16.528,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_gondola_liquor",
+   "x": -141.1,
+   "y": 6.0,
+   "z": 20.561,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_gondola_liquor",
+   "x": -141.1,
+   "y": 6.0,
+   "z": 16.528,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_gondola_liquor",
+   "x": -131.109,
+   "y": 6.0,
+   "z": 20.561,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_gondola_liquor",
+   "x": -131.109,
+   "y": 6.0,
+   "z": 16.528,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_paypoint",
+   "x": -126.618,
+   "y": 6.0,
+   "z": 24.961,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_pod",
+   "x": -117.544,
+   "y": 6.0,
+   "z": 18.911,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_gondola_beauty",
+   "x": -117.544,
+   "y": 6.0,
+   "z": 25.511,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_pod",
+   "x": -108.561,
+   "y": 6.0,
+   "z": 18.911,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_gondola_beauty",
+   "x": -108.561,
+   "y": 6.0,
+   "z": 25.511,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_pod",
+   "x": -99.578,
+   "y": 6.0,
+   "z": 18.911,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_gondola_beauty",
+   "x": -99.578,
+   "y": 6.0,
+   "z": 25.511,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_pod",
+   "x": -90.596,
+   "y": 6.0,
+   "z": 18.911,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_gondola_beauty",
+   "x": -90.596,
+   "y": 6.0,
+   "z": 25.511,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_table",
+   "x": -119.468,
+   "y": 6.0,
+   "z": 49.25,
+   "rot": 0.0,
+   "s": [
+    0.45,
+    1.0,
+    0.6
+   ]
+  },
+  {
+   "asset": "tf_table",
+   "x": -114.427,
+   "y": 6.0,
+   "z": 49.25,
+   "rot": 0.0,
+   "s": [
+    0.45,
+    1.0,
+    0.6
+   ]
+  },
+  {
+   "asset": "tf_table",
+   "x": -109.569,
+   "y": 6.0,
+   "z": 49.25,
+   "rot": 0.0,
+   "s": [
+    0.45,
+    1.0,
+    0.6
+   ]
+  },
+  {
+   "asset": "tf_paypoint",
+   "x": -87.113,
+   "y": 6.0,
+   "z": 39.993,
+   "rot": 90.0
+  },
+  {
+   "asset": "tf_wallbay_market",
+   "x": -195.262,
+   "y": 6.0,
+   "z": 11.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_wallbay_market",
+   "x": -191.262,
+   "y": 6.0,
+   "z": 11.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_wallbay_market",
+   "x": -187.262,
+   "y": 6.0,
+   "z": 11.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_wallbay_market",
+   "x": -183.262,
+   "y": 6.0,
+   "z": 11.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_wallbay_liquor",
+   "x": -154.8,
+   "y": 6.0,
+   "z": 11.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_wallbay_liquor",
+   "x": -146.4,
+   "y": 6.0,
+   "z": 11.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_wallbay_liquor",
+   "x": -142.4,
+   "y": 6.0,
+   "z": 11.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_wallbay_liquor",
+   "x": -138.4,
+   "y": 6.0,
+   "z": 11.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_wallbay_liquor",
+   "x": -134.4,
+   "y": 6.0,
+   "z": 11.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_wallbay_liquor",
+   "x": -130.4,
+   "y": 6.0,
+   "z": 11.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_wallbay_liquor",
+   "x": -126.4,
+   "y": 6.0,
+   "z": 11.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_wallbay_beauty",
+   "x": -120.8,
+   "y": 6.0,
+   "z": 11.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_wallbay_beauty",
+   "x": -116.8,
+   "y": 6.0,
+   "z": 11.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_wallbay_beauty",
+   "x": -112.8,
+   "y": 6.0,
+   "z": 11.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_wallbay_beauty",
+   "x": -106.4,
+   "y": 6.0,
+   "z": 11.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_wallbay_beauty",
+   "x": -102.4,
+   "y": 6.0,
+   "z": 11.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_wallbay_beauty",
+   "x": -98.4,
+   "y": 6.0,
+   "z": 11.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_wallbay_beauty",
+   "x": -94.4,
+   "y": 6.0,
+   "z": 11.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_wallbay_beauty",
+   "x": -90.4,
+   "y": 6.0,
+   "z": 11.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_wallbay_beauty",
+   "x": -86.4,
+   "y": 6.0,
+   "z": 11.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_wallbay_beauty",
+   "x": -80.36,
+   "y": 6.0,
+   "z": 15.0,
+   "rot": 90.0
+  },
+  {
+   "asset": "tf_wallbay_beauty",
+   "x": -80.36,
+   "y": 6.0,
+   "z": 19.0,
+   "rot": 90.0
+  },
+  {
+   "asset": "tf_wallbay_beauty",
+   "x": -80.36,
+   "y": 6.0,
+   "z": 23.0,
+   "rot": 90.0
+  },
+  {
+   "asset": "tf_wallbay_beauty",
+   "x": -80.36,
+   "y": 6.0,
+   "z": 27.0,
+   "rot": 90.0
+  },
+  {
+   "asset": "tf_wallbay_beauty",
+   "x": -80.36,
+   "y": 6.0,
+   "z": 31.0,
+   "rot": 90.0
+  },
+  {
+   "asset": "tf_wallbay_beauty",
+   "x": -80.36,
+   "y": 6.0,
+   "z": 35.0,
+   "rot": 90.0
+  },
+  {
+   "asset": "tf_wallbay_beauty",
+   "x": -80.36,
+   "y": 6.0,
+   "z": 39.0,
+   "rot": 90.0
+  },
+  {
+   "asset": "tf_wallbay_lux",
+   "x": -241.04,
+   "y": 6.0,
+   "z": 40.0,
+   "rot": -90.0
+  },
+  {
+   "asset": "tf_wallbay_lux",
+   "x": -241.04,
+   "y": 6.0,
+   "z": 44.0,
+   "rot": -90.0
+  },
+  {
+   "asset": "tf_wallbay_lux",
+   "x": -241.04,
+   "y": 6.0,
+   "z": 36.0,
+   "rot": -90.0
+  },
+  {
+   "asset": "tf_plinth",
+   "x": -210.578,
+   "y": 6.0,
+   "z": 50.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_plinth",
+   "x": -201.595,
+   "y": 6.0,
+   "z": 50.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_plinth",
+   "x": -192.612,
+   "y": 6.0,
+   "z": 50.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_plinth",
+   "x": -183.63,
+   "y": 6.0,
+   "z": 50.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_plinth",
+   "x": -174.647,
+   "y": 6.0,
+   "z": 50.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_plinth",
+   "x": -165.665,
+   "y": 6.0,
+   "z": 50.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_plinth",
+   "x": -156.682,
+   "y": 6.0,
+   "z": 50.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_plinth",
+   "x": -147.699,
+   "y": 6.0,
+   "z": 50.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_plinth",
+   "x": -138.717,
+   "y": 6.0,
+   "z": 50.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_plinth",
+   "x": -129.734,
+   "y": 6.0,
+   "z": 50.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_plinth",
+   "x": -120.752,
+   "y": 6.0,
+   "z": 50.8,
+   "rot": 0.0
+  },
+  {
+   "asset": "tf_plinth",
+   "x": -111.769,
+   "y": 6.0,
+   "z": 50.8,
+   "rot": 0.0
+  }
+ ]
+}

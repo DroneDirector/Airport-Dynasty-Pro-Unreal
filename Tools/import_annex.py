@@ -31,10 +31,12 @@ for name in names:
     mats = []
     for m in sm.get_editor_property('static_materials'):
         slot = str(m.get_editor_property('material_slot_name'))
-        mi = unreal.load_asset('/Game/Terminal/Materials/' + slot) or unreal.load_asset('/Game/Terminal/Materials/MI_T_white')
+        # the floors' own masters by name (the walkway's matte oak, the polished marble), else the terminal finish of that name
+        EXTRA = {'M_WoodFloor': '/Game/Materials/WoodFloor/M_WoodFloor', 'M_Marble': '/Game/Materials/Marble/M_Marble'}
+        mi = (unreal.load_asset(EXTRA[slot]) if slot in EXTRA else None) or unreal.load_asset('/Game/Terminal/Materials/' + slot) or unreal.load_asset('/Game/Terminal/Materials/MI_T_white')
         m.set_editor_property('material_interface', mi); mats.append(m)
     sm.set_editor_property('static_materials', mats)
-    ns = sm.get_editor_property('nanite_settings'); ns.set_editor_property('enabled', 'glass' not in name); sm.set_editor_property('nanite_settings', ns)
+    ns = sm.get_editor_property('nanite_settings'); ns.set_editor_property('enabled', 'glass' not in name and name not in ('tf_floor', 'tf_aurora'))   # (the tax free's floor: its thin curved neon lines and promenade edge stay exact without Nanite - owner 2026-11-17); sm.set_editor_property('nanite_settings', ns)
     bs = sm.get_editor_property('body_setup')
     if bs: bs.set_editor_property('collision_trace_flag', unreal.CollisionTraceFlag.CTF_USE_COMPLEX_AS_SIMPLE)
     EAL.save_loaded_asset(sm)
