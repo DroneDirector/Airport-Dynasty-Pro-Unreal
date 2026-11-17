@@ -1,6 +1,7 @@
 // The walking-mode interface: the holographic map, the top-left bar, Hide UI, the settings panel and the performance
 // overlay, all in Slate, styled in the Android edition's holographic blues.
 #include "BaggageBelts.h"
+#include "Effects.h"
 #include "Adverts.h"
 #include "GroundQuality.h"
 #include "UI/ADPHUD.h"
@@ -949,15 +950,6 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 				]
 				+ SWrapBox::Slot()
 				[
-					// lamp flares at night (to-do 22c; our own since 2026-11-16, LampFlares.h): on unless switched off
-					SNew(SButton)
-					.ButtonColorAndOpacity_Lambda([]() { bool b = true; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("LampFlares"), b, GGameUserSettingsIni); return b ? FLinearColor(0.1f, 0.45f, 0.75f, 1.f) : FLinearColor(0.05f, 0.2f, 0.36f, 0.9f); })
-					.ContentPadding(FMargin(10, 4))
-					.OnClicked_Lambda([]() { bool b = true; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("LampFlares"), b, GGameUserSettingsIni); GConfig->SetBool(TEXT("ADP.Graphics"), TEXT("LampFlares"), !b, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); return FReply::Handled(); })
-					[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { bool b = true; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("LampFlares"), b, GGameUserSettingsIni); return FText::FromString(b ? TEXT("LAMP FLARES AT NIGHT: ON") : TEXT("LAMP FLARES AT NIGHT: OFF")); })]
-				]
-				+ SWrapBox::Slot()
-				[
 					// the airport's ground (to-do 40f): Low, Medium, High, Ultra in turn - at once
 					SNew(SButton)
 					.ButtonColorAndOpacity(FLinearColor(0.05f, 0.2f, 0.36f, 0.9f))
@@ -969,6 +961,36 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 				+ SWrapBox::Slot()[Button(TEXT("SCAN MY PC"), []() { if (UGameUserSettings* S = Prefs()) { S->RunHardwareBenchmark(); S->ApplyHardwareBenchmarkResults(); Save(S); } })]
 				+ SWrapBox::Slot()[Button(TEXT("PROBLEM LOG"), []() { FPlatformProcess::ExploreFolder(*(FPaths::ProjectLogDir() / TEXT("Problems.log"))); })]
 			];
+	// Effects (owner, 2026-11-17: an on/off switch for every effect, and a quality slider where it allows one - Effects.h)
+	CatGraphics->AddSlot().AutoHeight().Padding(0, 8, 0, 0)[Caption(TEXT("Effects (each on or off; the slider sets its quality)"))];
+	for (int32 E = 0; E < ADPEffects::Count; ++E)
+	{
+		const ADPEffects::FInfo& I = ADPEffects::Info(E);
+		TSharedRef<SHorizontalBox> Row = SNew(SHorizontalBox);
+		if (I.bHasSwitch)
+			Row->AddSlot().AutoWidth().Padding(0, 0, 8, 0)
+			[
+				SNew(SButton)
+				.ButtonColorAndOpacity_Lambda([E]() { return ADPEffects::On(E) ? FLinearColor(0.1f, 0.45f, 0.75f, 1.f) : FLinearColor(0.05f, 0.2f, 0.36f, 0.9f); })
+				.ContentPadding(FMargin(10, 4))
+				.OnClicked_Lambda([this, E]() { ADPEffects::Set(E, !ADPEffects::On(E), ADPEffects::Quality(E), GetWorld()); return FReply::Handled(); })
+				[SNew(SBox).WidthOverride(28)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([E]() { return FText::FromString(ADPEffects::On(E) ? TEXT("ON") : TEXT("OFF")); })]]
+			];
+		if (I.bHasSlider)
+		{
+			Row->AddSlot().FillWidth(1).VAlign(VAlign_Center)
+			[
+				SNew(SSlider)
+				.IsEnabled_Lambda([E]() { return ADPEffects::On(E); })
+				.Value_Lambda([E]() { return ADPEffects::Quality(E); })
+				.OnValueChanged_Lambda([this, E](float V) { ADPEffects::Set(E, ADPEffects::On(E), V, GetWorld()); })
+			];
+			Row->AddSlot().AutoWidth().Padding(8, 0, 0, 0).VAlign(VAlign_Center)
+			[SNew(SBox).WidthOverride(64)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([E]() { return FText::FromString(ADPEffects::QualityText(E)); })]];
+		}
+		CatGraphics->AddSlot().AutoHeight().Padding(0, 4, 0, 0)[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).Text(FText::FromString(I.Title))];
+		CatGraphics->AddSlot().AutoHeight().Padding(0, 2, 0, 4)[Row];
+	}
 	GNeonLastHead.Reset(); GNeonNoDividers = true;
 	TSharedRef<SVerticalBox> CatSound = SNew(SVerticalBox)
 			+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Announcements: all"))]

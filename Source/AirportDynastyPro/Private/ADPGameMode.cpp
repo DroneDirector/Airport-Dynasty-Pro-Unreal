@@ -37,6 +37,7 @@
 #include "TownBuildings.h"
 #include "ParkedAircraft.h"
 #include "GateSigns.h"
+#include "Effects.h"
 #include "TimerManager.h"
 #include "EngineUtils.h"
 #include "RoadSigns.h"
@@ -138,6 +139,7 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 			if (AGroundDecals* GD = W->SpawnActor<AGroundDecals>()) GD->Place(Field->Data());
 			// the taxiway lights: blue edges, green centrelines (AirfieldLights.h)
 			if (AAirfieldLights* AL = W->SpawnActor<AAirfieldLights>()) AL->Place(Field->Data());
+			ADPEffects::Apply(W);   // (Settings > Effects: each one on or off, and its quality)
 			ADPGroundQuality::Apply(W);   // (the "Airport ground" setting, GroundQuality.h)
 			// the road network (forecourt, the road to town, the town's streets), the town's buildings on the land the roads
 			// shaped, our own land along the roads, and the posts and signs set down on it: built later, one road a frame,

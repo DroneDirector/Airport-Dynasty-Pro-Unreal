@@ -96,5 +96,5 @@ void AAdverts::Tick(float Dt)
 			Screens->SetCustomData(i, TArrayView<const float>(Data, 3), false); bAny = true;
 		}
 	}
-	if (bAny) Screens->MarkRenderStateDirty();
+	(void)bAny;   // (each screen's data goes to the GPU on its own - no full rebuild of the list, 2026-11-17)
 }

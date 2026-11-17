@@ -1,5 +1,6 @@
 #include "LampFlares.h"
 #include "ADPLog.h"
+#include "Effects.h"
 #include "ADPKeep.h"
 #include "Components/LocalLightComponent.h"
 #include "Components/MaterialBillboardComponent.h"
@@ -44,7 +45,7 @@ void ALampFlares::Add(ULocalLightComponent* Light, const FLinearColor& Color, fl
 void ALampFlares::Tick(float Dt)
 {
 	Super::Tick(Dt);
-	if ((Check -= Dt) <= 0.f) { Check = 1.f; bOn = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("LampFlares"), bOn, GGameUserSettingsIni); }   // (off unless switched on in Settings - it was on whenever the setting was missing: the night lag of 2026-11-17, 36 -> 88 fps)
+	if ((Check -= Dt) <= 0.f) { Check = 1.f; bOn = ADPEffects::On(ADPEffects::LampFlares); }   // (Settings > Effects; off unless switched on - it was on whenever the setting was missing: the night lag of 2026-11-17, 36 -> 88 fps)   // (off unless switched on in Settings - it was on whenever the setting was missing: the night lag of 2026-11-17, 36 -> 88 fps)
 	static TWeakObjectPtr<ADirectionalLight> Sun;
 	if (!Sun.IsValid()) Sun = Cast<ADirectionalLight>(UGameplayStatics::GetActorOfClass(this, ADirectionalLight::StaticClass()));
 	const float El = Sun.IsValid() ? -Sun->GetActorRotation().Pitch : 30.f;
@@ -58,7 +59,7 @@ void ALampFlares::Tick(float Dt)
 		float Want = 0.f;
 		// only the flares within 600 m: each is its own sprite, prepared every frame - the hundreds along the road to town
 		// cost the processor a lot at night and are a speck from here anyway
-		const bool bNear = FVector::DistSquared(Eye, F.Sprite->GetComponentLocation()) < FMath::Square(60000.f);
+		const bool bNear = FVector::DistSquared(Eye, F.Sprite->GetComponentLocation()) < FMath::Square(ADPEffects::FlareReachCm());
 		if (bOn && bNear && L && L->IsVisible() && Dark > 0.01f)
 		{
 			// how much the lamp faces you: a floodlight seen from below and in front flares, from behind hardly at all

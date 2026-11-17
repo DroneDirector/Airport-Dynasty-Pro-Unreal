@@ -108,10 +108,17 @@ void APuddles::GroundWeather(float Dt, float& OutRainK)
 	OutRainK = RainMm > 0.f ? FMath::Clamp(0.5f + RainMm / 12.f, 0.f, 1.f) : 0.f;   // (the ripples: half in light rain, full in a downpour)
 }
 
+bool APuddles::bGroundWeatherOn = true;
+
 void APuddles::Push() const
 {
 	if (!Mpc || !GetWorld()) return;
 	UWorld* W = GetWorld();
+	if (!bGroundWeatherOn)
+	{
+		for (const TCHAR* N : {TEXT("Wetness"), TEXT("Rain"), TEXT("PuddleAmount"), TEXT("Snow"), TEXT("SnowGrass")}) UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, N, 0.f);
+		return;
+	}
 	UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("Wetness"), Wetness);
 	UKismetMaterialLibrary::SetScalarParameterValue(W, Mpc, TEXT("Rain"), Rain);
 	// (the rainy-day switch and the tests keep their full puddles; the weather fills them by how much it rained)

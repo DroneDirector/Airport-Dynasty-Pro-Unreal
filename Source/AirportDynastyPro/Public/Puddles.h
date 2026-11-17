@@ -42,6 +42,7 @@ public:
 	float GetSnowOnPavingCm() const { return SnowPaveCm; }
 	/** How many times faster the ground's weather runs than the clock (tests: -UIWeatherGround). */
 	static float WeatherSpeed;
+	static bool bGroundWeatherOn;   // Settings > Effects: off = dry paving, no puddles or snow (Effects.h)
 
 	/** The tuning: Amount, Size, Shine, Ripples, DryingHours (by name; the panel and Puddles.ini use the same names). */
 	void SetTuning(const FString& Name, float Value);
