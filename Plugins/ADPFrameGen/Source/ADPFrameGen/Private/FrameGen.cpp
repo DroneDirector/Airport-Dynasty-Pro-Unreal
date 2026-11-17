@@ -31,6 +31,10 @@ namespace ADPFrameGen
 	bool Enabled() { return GEnabled; }
 	int32 Multiplier() { return GMultiplier.Load(); }
 	void SetEnabled(bool b) { GEnabled = b; }
+	// the menus are up: no in-between pictures (scrolling text, rows that look alike and the menus' own fades fool the
+	// motion search, and a half-guessed picture between two sharp ones reads as flicker)
+	static TAtomic<bool> GHold(false);
+	void Hold(bool bHold) { GHold = bHold; }
 
 	template <class T> static void Rel(T*& P) { if (P) { P->Release(); P = nullptr; } }
 
@@ -236,7 +240,7 @@ namespace ADPFrameGen
 			Pass(PLuma4, Conv[P], D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, nullptr, L4[P], W4, H4, W, H);
 			Pass(PDown2, L4[P], D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, nullptr, L8[P], W8, H8, W4, H4);
 			Pass(PDown2, L8[P], D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, nullptr, L16[P], W16, H16, W8, H8);
-			const bool bGen = bHavePrev && Interval < 1.0 / 20;
+			const bool bGen = bHavePrev && Interval < 1.0 / 20 && !GHold.Load();
 			if (bGen)
 			{
 				Pass(PFlow, L16[P], D3D12_RESOURCE_STATE_UNORDERED_ACCESS, L16[O], nullptr, F16, W16, H16, W16, H16, 6, 0.02f, 0);

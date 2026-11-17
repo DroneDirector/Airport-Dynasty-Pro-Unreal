@@ -9,4 +9,7 @@ namespace ADPFrameGen
 	ADPFRAMEGEN_API bool Enabled();
 	/** Pictures shown for each frame drawn right now (2 while making in-between frames, else 1). */
 	ADPFRAMEGEN_API int32 Multiplier();
+	/** A menu, Settings, the map or a device screen is up (owner, 2026-11-17: scrolling in the menus flickered): every
+	 *  frame shown as it is drawn, no in-between pictures, while it's held. */
+	ADPFRAMEGEN_API void Hold(bool bHold);
 }

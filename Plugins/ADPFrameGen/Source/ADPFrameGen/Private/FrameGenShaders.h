@@ -94,8 +94,10 @@ float At(Texture2D<float4> t, int2 p) { return t[clamp(p, int2(0, 0), int2(Size)
 	float2 h = 0.5 * f / float2(Size);
 	float3 a = T0.SampleLevel(S, uv + h, 0).rgb;    // the old frame, half-way forward
 	float3 b = T1.SampleLevel(S, uv - h, 0).rgb;    // the new frame, half-way back
-	// where the two disagree a lot (something uncovered), lean on the new frame
-	float k = saturate(abs(Luma(a) - Luma(b)) * 4);
-	U0[id.xy] = float4(lerp((a + b) * 0.5, b, k * 0.5), 1);
+	// where the two disagree (something uncovered, or the motion guess doesn't fit: glass with its reflections, screens,
+	// text) the new frame as it is, not a blend of two misplaced copies - those read as flicker (owner, 2026-11-17);
+	// fully from a difference of 0.15 in brightness, half at 0.075
+	float k = saturate(abs(Luma(a) - Luma(b)) * 6.67);
+	U0[id.xy] = float4(lerp((a + b) * 0.5, b, k), 1);
 }
 )HLSL";

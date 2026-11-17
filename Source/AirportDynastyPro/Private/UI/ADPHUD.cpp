@@ -2121,6 +2121,8 @@ void AADPHUD::Tick(float Dt)
 		bWasGame = bGame;
 		TickLoading(Dt);
 		TickDevice(Dt);
+		// our frame generation makes no in-between pictures while a menu is up (owner, 2026-11-17: scrolling flickered)
+		ADPFrameGen::Hold(bGame || bLoading || bDevice || bSettings || bWardrobe || bWhoAreYou || bJetMenu || (HoloMap.IsValid() && HoloMap->IsFull()));
 		// the fire station on the holographic map
 		if (!bFireOnMap && HoloMap.IsValid()) { TArray<FVector4f> W, D; ADPFireStation::MapOutline(W, D); HoloMap->AddHangar(TEXT("FIRE STATION"), W, D); bFireOnMap = true; }
 		// the hangars on the holographic map, once they stand (H1, H2, H3 from west to east, as the airfield lists them)
