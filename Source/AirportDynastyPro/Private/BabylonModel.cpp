@@ -200,6 +200,7 @@ bool ABabylonModel::Place(const FString& Name)
 				{
 					K = NewObject<UInstancedStaticMeshComponent>(this);
 					K->SetupAttachment(Root);
+					if (!bDoor && !Canopy[I] && FParse::Param(FCommandLine::Get(), TEXT("ListsStatic"))) K->SetMobility(EComponentMobility::Static);   // (test)
 					K->SetStaticMesh(SM); // with the materials and textures it was imported with
 					K->SetCollisionProfileName(TEXT("BlockAll"));
 					K->RegisterComponent();
@@ -417,7 +418,7 @@ void ABabylonModel::MatchSurfaces()
 	{
 		UInstancedStaticMeshComponent* K = It.Value;
 		if (!K) continue;
-		const bool bCanopy = It.Key.EndsWith(TEXT("#canopy")), bDoor = It.Key.EndsWith(TEXT("#door"));
+		const bool bCanopy = It.Key.EndsWith(TEXT("#canopy")), bDoor = It.Key.Contains(TEXT("#door"));
 		if (!bCanopy && !bDoor) continue;
 		for (int32 S = 0; S < K->GetNumMaterials(); ++S)
 		{
@@ -769,6 +770,7 @@ void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, c
 	int32 Spots = 0, Soft = 0, Strip = 0, Lamp = 0;
 	auto Add = [&](ULocalLightComponent* L, const FVector& At, float Candelas, float Reach, const FLinearColor& Col)
 	{
+		if (FParse::Param(FCommandLine::Get(), TEXT("NoLampLights"))) { L->MarkAsGarbage(); return; }   // (-NoLampLights: test)
 		L->SetupAttachment(Root);
 		L->SetRelativeLocation(At);
 		L->SetIntensityUnits(ELightUnits::Candelas);
@@ -781,13 +783,24 @@ void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, c
 		AddInstanceComponent(L);
 	};
 	const FLinearColor Warm(1.f, 0.93f, 0.82f);
+	// merged lamp lights (owner, 2026-11-17: "make the lights copies of each other" - every light costs each frame, the
+	// 16 gates brought 1100 more): the lamps' faces still all glow, but the lamps of one ceiling within a 12 m square share
+	// one big soft panel of light, as bright as all of theirs together; ceiling heights apart never share
+	struct FLampCell { FBox Box = FBox(ForceInit); float Cd = 0.f, Reach = 0.f; FLinearColor Col = FLinearColor::White; int32 N = 0; };
+	TMap<FIntVector, FLampCell> Cells;
+	auto Pool = [&](const FBox& Face, float Cd, float Reach, const FLinearColor& Col)
+	{
+		const FVector C = Face.GetCenter();
+		FLampCell& Cl = Cells.FindOrAdd(FIntVector(FMath::FloorToInt(C.X / 1200.f), FMath::FloorToInt(C.Y / 1200.f), FMath::RoundToInt(C.Z / 50.f)));
+		Cl.Box += Face; Cl.Cd += Cd; Cl.Reach = FMath::Max(Cl.Reach, Reach); Cl.Col = Col; ++Cl.N;
+	};
 	// the lamps' faces drawn with the owner's lamp texture (M_WalkLamp, glowing): a flat panel just under each fitting
 	// (the imported fittings have no texture coordinates), the fitting's own box hidden. One list of panels per kind.
 	UMaterialInterface* WalkLampM = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/WalkLamp/M_WalkLamp.M_WalkLamp"));
 	UStaticMesh* PlaneM = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane"));
 	auto Panels = [&](float Along, float Across, float Lo, float Hi, float Round) -> UInstancedStaticMeshComponent*
 	{
-		if (!WalkLampM || !PlaneM) return nullptr;
+		if (!WalkLampM || !PlaneM || FParse::Param(FCommandLine::Get(), TEXT("NoLampPanels"))) return nullptr;   // (-NoLampPanels: test)
 		UInstancedStaticMeshComponent* K = NewObject<UInstancedStaticMeshComponent>(this);
 		K->SetupAttachment(Root);
 		K->SetStaticMesh(PlaneM);
@@ -797,6 +810,15 @@ void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, c
 		K->SetMaterial(0, D);
 		K->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		K->SetCastShadow(false);
+		// (-PanelsLumen: the old way, in Lumen's scene - to compare)
+		if (!FParse::Param(FCommandLine::Get(), TEXT("PanelsLumen")))
+		{
+			K->bAffectDynamicIndirectLighting = false; K->bAffectDistanceFieldLighting = false; K->bVisibleInRayTracing = false;
+		}
+		// fixed, never movable (2026-11-17, the 16 gates' lag): these lists span the whole building and never move; made
+		// at run time they were "movable", and a movable list that big is checked against every light every frame - with
+		// the 16 gates' lamps that cost 27 -> 40 fps (stand test)
+		if (!FParse::Param(FCommandLine::Get(), TEXT("PanelsMovable"))) K->SetMobility(EComponentMobility::Static);
 		K->RegisterComponent();
 		AddInstanceComponent(K);
 		return K;
@@ -809,7 +831,7 @@ void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, c
 		const FBox B = Shared->GetStaticMesh()->GetBoundingBox().TransformBy(NodeWorld[C]);
 		if (!K) return B;
 		FTransform T;
-		if (Shared->GetInstanceTransform(NodeInst[C].Value, T, false))
+		if (!FParse::Param(FCommandLine::Get(), TEXT("KeepLampBoxes")) && Shared->GetInstanceTransform(NodeInst[C].Value, T, false))   // (-KeepLampBoxes: test)
 		{
 			FTransform Gone = T; Gone.SetScale3D(FVector(0.0001f));
 			Shared->UpdateInstanceTransform(NodeInst[C].Value, Gone, false, true);
@@ -855,18 +877,20 @@ void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, c
 					if (!K) K = Panels(Len / FMath::Max(1.f, Wid * 2.f / 3.f), 1.f, 0.f, 1.f, 0.f);
 					Face = PanelUnder(K, C);
 				}
-			if ((Lamp++ & 1) == 0)
+			// (each lamp once lit half the room's share: every other one had a light of 220 cd - now pooled)
+			// (-LampPerLamp: the old way, one light per two lamps - to compare)
+			static const bool bPerLamp = !FParse::Param(FCommandLine::Get(), TEXT("LampPool"));   // (pooled big lights measured slower, 2026-11-17: kept only as a test switch)
+			if (bPerLamp && (Lamp++ & 1) == 0)
 			{
 				URectLightComponent* L = NewObject<URectLightComponent>(this);
 				const FVector Ext = Face.IsValid ? Face.GetExtent() : FVector(60, 30, 2);
 				const bool bAlongX = Ext.X >= Ext.Y;
 				L->SetRelativeRotation(FRotationMatrix::MakeFromXZ(FVector(0, 0, -1), bAlongX ? FVector(1, 0, 0) : FVector(0, 1, 0)).Rotator());
-				L->SetSourceHeight(2.f * FMath::Max(Ext.X, Ext.Y));
-				L->SetSourceWidth(2.f * FMath::Min(Ext.X, Ext.Y));
-				L->SetBarnDoorAngle(88.f);
+				L->SetSourceHeight(2.f * FMath::Max(Ext.X, Ext.Y)); L->SetSourceWidth(2.f * FMath::Min(Ext.X, Ext.Y)); L->SetBarnDoorAngle(88.f);
 				Add(L, Face.IsValid ? FVector(Face.GetCenter().X, Face.GetCenter().Y, Face.Min.Z - 1.f) : NodeWorld[I].GetLocation() - FVector(0, 0, 5.f), 220.f, 900.f, Warm);
 				++Soft;
 			}
+			else if (!bPerLamp) { ++Lamp; if (Face.IsValid) { Pool(Face, 110.f, 900.f, Warm); ++Soft; } }
 		}
 		else if (N.Contains(TEXT("CEILING-LIGHT-")))
 		{
@@ -883,13 +907,16 @@ void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, c
 					const FBox B = NodeInst[C].Key->GetStaticMesh()->GetBoundingBox().TransformBy(NodeWorld[C]);
 					const FVector Ext = B.GetExtent();
 					const bool bAlongX = Ext.X >= Ext.Y;
-					URectLightComponent* L = NewObject<URectLightComponent>(this);
-					// facing straight down, the strip's length along its local Z, its width along its local Y
-					L->SetRelativeRotation(FRotationMatrix::MakeFromXZ(FVector(0, 0, -1), bAlongX ? FVector(1, 0, 0) : FVector(0, 1, 0)).Rotator());
-					L->SetSourceHeight(2.f * FMath::Max(Ext.X, Ext.Y));
-					L->SetSourceWidth(2.f * FMath::Min(Ext.X, Ext.Y));
-					L->SetBarnDoorAngle(88.f);
-					Add(L, B.GetCenter() - FVector(0, 0, Ext.Z + 1.f), 260.f, 1100.f, FLinearColor(1.f, 0.96f, 0.9f));
+					static const bool bPerStrip = !FParse::Param(FCommandLine::Get(), TEXT("LampPool"));
+					if (!bPerStrip) Pool(B, 260.f, 1100.f, FLinearColor(1.f, 0.96f, 0.9f));
+					else
+					{
+						const FVector Ex2 = B.GetExtent(); const bool bX2 = Ex2.X >= Ex2.Y;
+						URectLightComponent* L = NewObject<URectLightComponent>(this);
+						L->SetRelativeRotation(FRotationMatrix::MakeFromXZ(FVector(0, 0, -1), bX2 ? FVector(1, 0, 0) : FVector(0, 1, 0)).Rotator());
+						L->SetSourceHeight(2.f * FMath::Max(Ex2.X, Ex2.Y)); L->SetSourceWidth(2.f * FMath::Min(Ex2.X, Ex2.Y)); L->SetBarnDoorAngle(88.f);
+						Add(L, B.GetCenter() - FVector(0, 0, Ex2.Z + 1.f), 260.f, 1100.f, FLinearColor(1.f, 0.96f, 0.9f));
+					}
 					++Strip;
 				}
 		}
@@ -912,6 +939,23 @@ void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, c
 			}
 		}
 	}
+	{ int32 Ni = 0; for (const TPair<FIntPoint, UInstancedStaticMeshComponent*>& P : LampPanels) if (P.Value) Ni += P.Value->GetInstanceCount();
+	  ADP_LOG(TEXT("Lamp panels: %d lists, %d panels (+ walkway strips %d); material blend %d"), LampPanels.Num(), Ni, WalkLamps ? WalkLamps->GetInstanceCount() : 0,
+		WalkLampM ? int32(WalkLampM->GetBlendMode()) : -1); }
+	// the pooled lamp lights: one soft panel per cell, the cell's whole ceiling area, facing down
+	for (const TPair<FIntVector, FLampCell>& It : Cells)
+	{
+		const FLampCell& Cl = It.Value;
+		const FVector Ext = Cl.Box.GetExtent();
+		const bool bAlongX = Ext.X >= Ext.Y;
+		URectLightComponent* L = NewObject<URectLightComponent>(this);
+		L->SetRelativeRotation(FRotationMatrix::MakeFromXZ(FVector(0, 0, -1), bAlongX ? FVector(1, 0, 0) : FVector(0, 1, 0)).Rotator());
+		L->SetSourceHeight(FMath::Max(60.f, 2.f * FMath::Max(Ext.X, Ext.Y)));
+		L->SetSourceWidth(FMath::Max(30.f, 2.f * FMath::Min(Ext.X, Ext.Y)));
+		L->SetBarnDoorAngle(88.f);
+		Add(L, FVector(Cl.Box.GetCenter().X, Cl.Box.GetCenter().Y, Cl.Box.Min.Z - 1.f), Cl.Cd, Cl.Reach + FMath::Max(Ext.X, Ext.Y), Cl.Col);
+	}
+	ADP_LOG(TEXT("Babylon model %s: lamp lights pooled into %d (one per 12 m of ceiling)"), *GetName(), Cells.Num());
 	// the glowing materials (the lamps, downlights, LED strips, signs' lights) brighter, so they bloom as lit fittings do
 	TArray<UInstancedStaticMeshComponent*> Parts;
 	GetComponents(Parts);
@@ -964,7 +1008,7 @@ void ABabylonModel::MovePart(FPart& P, float E, float Spin)
 		I.K->UpdateInstanceTransform(I.I, I.Rel * Now, false, false, true);
 		Touched.Add(I.K);
 	}
-	for (UInstancedStaticMeshComponent* K : Touched) K->MarkRenderStateDirty();
+	(void)Touched;   // (no full rebuild: each moved instance already went to the GPU on its own - the full rebuild re-sent every part of these lists every frame, owner 2026-11-17 lag)
 	// the sticker rides on the leaf (the leaf's frame without the box's own scale)
 	if (P.Sticker) { FTransform F = L; F.SetScale3D(FVector(1.f)); P.Sticker->SetRelativeTransform(P.StickerRel * F * P.Parent); }
 }
@@ -1169,7 +1213,7 @@ void ABabylonModel::MoveGroup(int32 Group, const FTransform& NewPivot)
 
 void ABabylonModel::FlushMoves()
 {
-	for (UInstancedStaticMeshComponent* K : MovedLists) if (K) K->MarkRenderStateDirty();
+	// (no full rebuild: each moved instance already went to the GPU on its own - the full rebuild re-sent every part of these lists every frame, owner 2026-11-17 lag)
 	MovedLists.Reset();
 }
 

@@ -366,7 +366,7 @@ void AJetwayRigs::Apply(FRig& R)
 		if (R.BcnFill.IsValidIndex(b) && R.BcnFill[b]) R.BcnFill[b]->SetRelativeLocation(T.TransformPosition(FVector(0.f, 0.f, 50.f)));
 		if (Kd == 7) for (UAudioComponent* A : {R.SBeep, R.SMotor, R.STyres, R.SLift}) if (A) A->SetRelativeLocation(T.GetLocation() + FVector(0, 0, 60.f));
 	}
-	for (UInstancedStaticMeshComponent* K2 : Dirty) K2->MarkRenderStateDirty();
+	(void)Dirty;   // (no full rebuild: each moved instance already went to the GPU on its own - the full rebuild re-sent every part of these lists every frame, owner 2026-11-17 lag)
 }
 
 void AJetwayRigs::Tick(float Dt)

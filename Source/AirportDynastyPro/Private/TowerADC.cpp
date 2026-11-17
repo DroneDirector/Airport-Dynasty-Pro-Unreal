@@ -296,7 +296,7 @@ void ATowerADC::Build()
 	BuildCab();
 	BuildDesk();
 	BuildRoof();
-	BuildNightLights();
+	if (!FParse::Param(FCommandLine::Get(), TEXT("TowerNoNight"))) BuildNightLights();   // (-TowerNoNight: test)
 
 	Shells(Frame, Solid, true, true, TEXT("ADC_SHELLS"));
 	// the glass split: its outward faces (seen from outside) and its inward faces (seen from inside, a clearer glass);
@@ -351,7 +351,7 @@ void ATowerADC::Build()
 		P->SetIntensity(700.f);
 		P->SetAttenuationRadius(900.f);
 		P->SetLightColor(FLinearColor(1.f, 0.93f, 0.84f));
-		P->SetCastShadows(true);   // kept inside the tower
+		P->SetCastShadows(!FParse::Param(FCommandLine::Get(), TEXT("TowerNoShadow")));   // kept inside the tower (-TowerNoShadow: test)
 		P->RegisterComponent();
 		AddInstanceComponent(P);
 	}

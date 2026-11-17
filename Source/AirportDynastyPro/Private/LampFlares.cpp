@@ -44,7 +44,7 @@ void ALampFlares::Add(ULocalLightComponent* Light, const FLinearColor& Color, fl
 void ALampFlares::Tick(float Dt)
 {
 	Super::Tick(Dt);
-	if ((Check -= Dt) <= 0.f) { Check = 1.f; bOn = true; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("LampFlares"), bOn, GGameUserSettingsIni); }
+	if ((Check -= Dt) <= 0.f) { Check = 1.f; bOn = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("LampFlares"), bOn, GGameUserSettingsIni); }   // (off unless switched on in Settings - it was on whenever the setting was missing: the night lag of 2026-11-17, 36 -> 88 fps)
 	static TWeakObjectPtr<ADirectionalLight> Sun;
 	if (!Sun.IsValid()) Sun = Cast<ADirectionalLight>(UGameplayStatics::GetActorOfClass(this, ADirectionalLight::StaticClass()));
 	const float El = Sun.IsValid() ? -Sun->GetActorRotation().Pitch : 30.f;
@@ -56,7 +56,10 @@ void ALampFlares::Tick(float Dt)
 		ULocalLightComponent* L = F.Light.Get();
 		if (!F.Sprite || !F.Mat) continue;
 		float Want = 0.f;
-		if (bOn && L && L->IsVisible() && Dark > 0.01f)
+		// only the flares within 600 m: each is its own sprite, prepared every frame - the hundreds along the road to town
+		// cost the processor a lot at night and are a speck from here anyway
+		const bool bNear = FVector::DistSquared(Eye, F.Sprite->GetComponentLocation()) < FMath::Square(60000.f);
+		if (bOn && bNear && L && L->IsVisible() && Dark > 0.01f)
 		{
 			// how much the lamp faces you: a floodlight seen from below and in front flares, from behind hardly at all
 			const FVector To = (Eye - F.Sprite->GetComponentLocation()).GetSafeNormal();

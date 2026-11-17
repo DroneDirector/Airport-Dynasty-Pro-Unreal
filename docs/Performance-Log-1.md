@@ -9,6 +9,16 @@ Every performance change to the game, newest last. Only performance work goes in
 
 ## Changes
 
+- **2026-11-17 - The night lag found: the lamp flares.** After the 16 gates the game felt very laggy. Measured in the
+  shipping build at a fixed hour (new stand test switches -StandDay/-StandHour): by day 87 fps, at night 34-38 fps; the
+  extension itself costs nothing (old and new build both 82 fps by day; today's build with yesterday's data just as slow
+  at night). The cause: the lamp flares (to-do 22c, 2026-11-16), meant to be off by default, were on whenever the
+  setting was missing from the settings file, and each street light and mast has its own sprite that the processor
+  prepares every frame. Fixed: off unless switched on in Settings; when on, only those within 600 m. Night, shipping,
+  frame generation on: 36 -> 87 fps (flares off), 86 fps (flares on). Also: moving parts (doors, jetways, belts,
+  crowd, escalators) no longer rebuild their whole lists every frame; the lamp panels are static. Ruled out by test:
+  the lamps' lights, merged lights (slower), per-door lists (slower), the tower, the new data. MegaLights needs hardware
+  ray tracing (not on) - kept for later, with graphics memory first: at Cinematic the game uses ~7 GB of the 8 GB card.
 - **2026-11-16 - The game's own performance log.** The game now writes `Saved/Logs/ADP-Perf.log` (next to ADP.log):
   every frame over 50 ms that is also 2.5 times slower than the frames around it, with what took the time (the game's
   own work, the render thread, the graphics card, a memory clean-up, files still loading) and where the camera was

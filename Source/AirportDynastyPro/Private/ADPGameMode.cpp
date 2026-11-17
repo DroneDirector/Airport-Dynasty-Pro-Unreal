@@ -92,7 +92,7 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 			if (ABabylonModel* Model = W->SpawnActor<ABabylonModel>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 				Model->Place(TEXT("Terminal"));
 		// the new gates' signs (16 gates, 2026-11-17): today's are in the model
-		if (bBabylon) ADPGateSigns::Place(W, Plan);
+		if (bBabylon && !FParse::Param(FCommandLine::Get(), TEXT("NoGateSigns"))) ADPGateSigns::Place(W, Plan);   // (-NoGateSigns: test)
 		// his jetways, rebuilt for the stands 12 m out (owner, 2026-11-13), as their own model in the terminal's place
 		if (bBabylon && FPackageName::DoesPackageExist(TEXT("/Game/Babylon/Jetways/jetways/StaticMeshes/jetways_mesh_0")))
 			if (ABabylonModel* Jw = W->SpawnActor<ABabylonModel>(FVector::ZeroVector, FRotator::ZeroRotator, P))
@@ -120,6 +120,7 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 		// the LED advert screens on the terminal's walls (Adverts.h)
 		if (AAdverts* Ads = W->SpawnActor<AAdverts>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Ads->Build(Plan);
 		// the control tower (ADC) at site A, west of the pier: walked into, its lift, doors and desk flap moving
+		if (!FParse::Param(FCommandLine::Get(), TEXT("NoTower")))   // (-NoTower: test)
 		if (ATowerADC* Tower = W->SpawnActor<ATowerADC>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Tower->Build();
 		// the apron light masts, one in front of each gate and two in front of each hangar
 		if (ALightMasts* MastsA = W->SpawnActor<ALightMasts>(FVector::ZeroVector, FRotator::ZeroRotator, P)) MastsA->Build();

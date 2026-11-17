@@ -276,9 +276,7 @@ void ATerminalCrowd::Tick(float Dt)
 			const FVector At = FTerminalPlan::ToWorld(P.Pos.X, P.Pos.Y, P.Pos.Z);
 			if (FVector::DistSquared(At, Eye) < FMath::Square(6000.f) || (Frame + P.Num) % 4 == 0) Draw(P, false);
 		}
-	});
-	for (UInstancedStaticMeshComponent* K : Bodies) K->MarkRenderStateDirty();
-	Heads->MarkRenderStateDirty();
+	});   // (each moved instance goes to the GPU on its own; no full rebuild every frame - 2026-11-17)
 }
 
 #pragma endregion

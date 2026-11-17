@@ -3201,6 +3201,8 @@ void AADPHUD::Tick(float Dt)
 			{
 				if (bGame) ToggleGame();
 				if (APawn* P = GetOwningPawn()) { P->TeleportTo(FTerminalPlan::ToWorld(75.f, 0.f, 15.f) + FVector(0, 0, 100.f), FRotator::ZeroRotator); }
+				// (always at noon on midsummer's day: the same light every run, so runs compare - 2026-11-17)
+				{ float H = 12.f; int32 Dy = 172; FParse::Value(FCommandLine::Get(), TEXT("StandHour="), H); FParse::Value(FCommandLine::Get(), TEXT("StandDay="), Dy); ASunClock::DayOverride = Dy; ASunClock::HourOverride = H; ASunClock::Refresh(); }   // (-StandHour=N: another hour)
 				ADP_LOG(TEXT("UIPerfStand: standing in the Grand Hall"));
 			}
 			// (-UIBrowserOff: the menus' built-in browser taken away altogether - to see if a hitch is the browser's)
@@ -3211,6 +3213,15 @@ void AADPHUD::Tick(float Dt)
 			}
 			if (Before < 70.f && ShotClock >= 70.f) FScreenshotRequest::RequestScreenshot(FParse::Param(FCommandLine::Get(), TEXT("UIBrowserOff")) ? TEXT("Stand_BrowserOff") : TEXT("Stand_BrowserOn"), true, false);
 			if (Before < 60.f && ShotClock >= 60.f) { ADPPerfLog::BeginSection(TEXT("standing still")); ADPPerfLog::SetAudit(ADPPerfLog::SceneAudit(GetWorld())); }
+			// (-UIProfileGPU: one GPU timing of every pass, written to the log - where the graphics card's time goes)
+			if (Before < 100.f && ShotClock >= 100.f && FParse::Param(FCommandLine::Get(), TEXT("UIProfileGPU")))
+				if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(TEXT("ProfileGPU"));
+			// (-UIDumpMem: what fills the graphics card's memory, to the log)
+			if (Before < 98.f && ShotClock >= 98.f && FParse::Param(FCommandLine::Get(), TEXT("UIDumpMem")))
+				if (APlayerController* PC = GetOwningPlayerController()) { PC->ConsoleCommand(TEXT("rhi.DumpMemory")); PC->ConsoleCommand(TEXT("r.Streaming.PoolSize")); PC->ConsoleCommand(TEXT("r.Shadow.Virtual.MaxPhysicalPages")); PC->ConsoleCommand(TEXT("r.Nanite.Streaming.StreamingPoolSize")); PC->ConsoleCommand(TEXT("ListTextures")); }
+			// (-UIDumpFrame: one frame's CPU work, every timed task over 0.3 ms, game and render threads, to the log)
+			if (Before < 95.f && ShotClock >= 95.f && FParse::Param(FCommandLine::Get(), TEXT("UIDumpFrame")))
+				if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(TEXT("stat dumpave -num=60 -ms=0.4"));
 			if (Before < 135.f && ShotClock >= 135.f) { ADP_LOG(TEXT("UIPerfStand: %s"), *ADPPerfLog::EndSection()); ADP_SHOT_EXIT(); }
 		}
 		// -UIPerfWalk: the stress walk (StressWalk.h), the game closing at its end (Tools/perf_walk.sh)

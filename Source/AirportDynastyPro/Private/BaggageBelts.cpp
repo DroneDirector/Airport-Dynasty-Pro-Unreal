@@ -325,7 +325,7 @@ void ABaggageBelts::Tick(float Dt)
 		}
 		PlaceBag(B);
 	}
-	for (UInstancedStaticMeshComponent* K : BagMeshes) K->MarkRenderStateDirty();
+	// (each moved instance goes to the GPU on its own; no full rebuild every frame - 2026-11-17)
 	// the belts: their plates going round while they run; the crew stop an empty belt after a minute
 	for (int32 b = 0; b < Belts.Num(); ++b)
 	{
@@ -340,7 +340,6 @@ void ABaggageBelts::Tick(float Dt)
 				FVector2f D; const FVector2f P = PathAt(k * PER / NP + Bt.Phase, D);
 				Bt.Plates->UpdateInstanceTransform(k, FTransform(FRotator(0, YawOf(D), 0), W(Bt.X + P.X, 0.425f, CZ + P.Y)), true, false, true);
 			}
-			Bt.Plates->MarkRenderStateDirty();
 			Bt.Idle = bAny ? 0.f : Bt.Idle + Dt;
 			if (Bt.Idle > 60.f && !Bt.Flight.IsEmpty()) { SetRunning(b, false); Bt.Flight.Empty(); if (Bt.Screen) Bt.Screen->SetText(FText::FromString(FString::Printf(TEXT("BELT %d"), b + 1))); }
 			if ((Bt.ClackIn -= Dt) <= 0.f) { Bt.ClackIn = FMath::FRandRange(3.f, 7.f); if (Bt.SClack && FMath::FRand() < 0.5f) Bt.SClack->Play(); }
@@ -378,7 +377,7 @@ void ABaggageBelts::Tick(float Dt)
 			F.K->UpdateInstanceTransform(F.Ix, T, true, false, true); bFlapMoved = true;
 		}
 	}
-	if (bFlapMoved && Flaps.Num()) Flaps[0].K->MarkRenderStateDirty();
+	(void)bFlapMoved;
 }
 
 void ABaggageBelts::Sounds(FBelt& Bt, int32 Index, float Dt)

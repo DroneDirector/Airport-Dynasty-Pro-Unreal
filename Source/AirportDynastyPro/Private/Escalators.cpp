@@ -104,7 +104,7 @@ void AEscalatorPair::Tick(float Dt)
 			const FVector2f P = At(S);
 			T.Add(FTransform(Local(Un.X, P.X, P.Y)));             // the tread stays level all the way, as on a real escalator
 		}
-		Un.Steps->BatchUpdateInstancesTransforms(0, T, false, true, true);
+		Un.Steps->BatchUpdateInstancesTransforms(0, T, false, false, true);   // (each moved instance goes to the GPU on its own; no full rebuild every frame - 2026-11-17)
 	}
 	Carry(Dt);
 }
