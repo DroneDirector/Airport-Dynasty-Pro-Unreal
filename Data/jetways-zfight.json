@@ -1056,18 +1056,8 @@
    "share": 0.133
   },
   {
-   "a": "J-1/CAB-FRONT:jwWall",
-   "b": "J-1/CANOPY:jwFolds",
-   "share": 0.13
-  },
-  {
    "a": "J-2/TUNNEL-3:jwDark#pca",
    "b": "J-2/TUNNEL-3:jwTruss#pca-hangers",
-   "share": 0.127
-  },
-  {
-   "a": "J-3/CAB-FRONT:jwWall",
-   "b": "J-3/CANOPY:jwFolds",
    "share": 0.127
   },
   {
@@ -1111,11 +1101,6 @@
    "share": 0.125
   },
   {
-   "a": "J-2/CAB-FRONT:jwWall",
-   "b": "J-2/CANOPY:jwFolds",
-   "share": 0.12
-  },
-  {
    "a": "J-3/TUNNEL-3:glassOuter",
    "b": "J-3/TUNNEL-3:jwPanel",
    "share": 0.115
@@ -1128,11 +1113,6 @@
   {
    "a": "J-3/TUNNEL-3:jwDark#pca",
    "b": "J-3/TUNNEL-3:jwTruss#pca-hangers",
-   "share": 0.113
-  },
-  {
-   "a": "J-4/CAB-FRONT:jwWall",
-   "b": "J-4/CANOPY:jwFolds",
    "share": 0.113
   },
   {
@@ -1164,6 +1144,11 @@
    "a": "J-4/TUNNEL-3:jwAluB#hose-hook",
    "b": "J-4/TUNNEL-3:jwDark#pca",
    "share": 0.104
+  },
+  {
+   "a": "J-1/CAB-FRONT:jwWall",
+   "b": "J-1/CANOPY:jwFolds",
+   "share": 0.103
   },
   {
    "a": "J-3/TUNNEL-1:jwAluB",
@@ -1201,6 +1186,11 @@
    "share": 0.1
   },
   {
+   "a": "J-3/CAB-FRONT:jwWall",
+   "b": "J-3/CANOPY:jwFolds",
+   "share": 0.1
+  },
+  {
    "a": "J-4/CORRIDOR:J-4/LED",
    "b": "jwp#14347",
    "share": 0.1
@@ -1218,6 +1208,11 @@
   {
    "a": "J-2/TUNNEL-3:jwAluB#pca-bolts",
    "b": "J-2/TUNNEL-3:jwTruss#pca-hangers",
+   "share": 0.097
+  },
+  {
+   "a": "J-2/CAB-FRONT:jwWall",
+   "b": "J-2/CANOPY:jwFolds",
    "share": 0.097
   },
   {
@@ -1344,6 +1339,11 @@
    "a": "J-4/STEP:jwAluB",
    "b": "J-4/STEP:jwHaz",
    "share": 0.083
+  },
+  {
+   "a": "J-4/CAB-FRONT:jwWall",
+   "b": "J-4/CANOPY:jwFolds",
+   "share": 0.08
   },
   {
    "a": "J-1/TUNNEL-3:glassOuter",
@@ -1601,11 +1601,6 @@
    "share": 0.05
   },
   {
-   "a": "J-2/CANOPY-LINING",
-   "b": "J-2/CANOPY:jwFolds",
-   "share": 0.05
-  },
-  {
    "a": "J-3/CORRIDOR:jwAluB",
    "b": "J-3/CORRIDOR:jwPanel",
    "share": 0.05
@@ -1653,11 +1648,6 @@
   {
    "a": "J-4/ROTUNDA-DRUM:jwWall",
    "b": "J-4/ROTUNDA:jwPanel",
-   "share": 0.05
-  },
-  {
-   "a": "J-4/CANOPY-LINING",
-   "b": "J-4/CANOPY:jwFolds",
    "share": 0.05
   },
   {
@@ -3262,20 +3252,10 @@
    -0.00011,
    0.00149
   ],
-  "J-1/CAB-FRONT:jwWall": [
-   0.0015,
-   0.0,
-   0.0
-  ],
   "J-2/TUNNEL-3:jwTruss#pca-hangers": [
    -0.00037,
    0.0015,
    0.00016
-  ],
-  "J-3/CAB-FRONT:jwWall": [
-   0.0015,
-   0.0,
-   0.0
   ],
   "J-1/CAB-FRONT:yellow": [
    -0.0015,
@@ -3307,11 +3287,6 @@
    0.0,
    0.00149
   ],
-  "J-2/CAB-FRONT:jwWall": [
-   0.0015,
-   0.0,
-   0.0
-  ],
   "J-3/TUNNEL-3:jwPanel": [
    0.00149,
    -0.0,
@@ -3326,11 +3301,6 @@
    -0.00076,
    0.0015,
    0.00018
-  ],
-  "J-4/CAB-FRONT:jwWall": [
-   0.0015,
-   0.0,
-   0.0
   ],
   "J-4/TUNNEL-3:jwTruss#pca-hangers": [
    -0.00035,
@@ -3362,6 +3332,11 @@
    0.00011,
    -0.00149
   ],
+  "J-1/CAB-FRONT:jwWall": [
+   0.0015,
+   0.0,
+   0.0
+  ],
   "J-3/TUNNEL-1:jwWall": [
    -1e-05,
    -0.0015,
@@ -3372,9 +3347,19 @@
    -0.0015,
    0.0
   ],
+  "J-3/CAB-FRONT:jwWall": [
+   0.0015,
+   0.0,
+   0.0
+  ],
   "jwp#14347": [
    0.0,
    -0.0015,
+   0.0
+  ],
+  "J-2/CAB-FRONT:jwWall": [
+   0.0015,
+   0.0,
    0.0
   ],
   "J-1/TUNNEL-1:jwWall": [
@@ -3456,6 +3441,11 @@
    0.00011,
    0.0,
    0.0015
+  ],
+  "J-4/CAB-FRONT:jwWall": [
+   0.0015,
+   0.0,
+   0.0
   ],
   "J-1/TUNNEL-3:jwAluB#joint-lip": [
    -0.00028,
@@ -3612,11 +3602,6 @@
    -0.0015,
    0.0
   ],
-  "J-2/CANOPY-LINING": [
-   0.0,
-   3e-05,
-   0.0015
-  ],
   "J-3/CORRIDOR:jwPanel": [
    -0.0,
    0.0015,
@@ -3651,11 +3636,6 @@
    0.0015,
    0.0,
    0.0
-  ],
-  "J-4/CANOPY-LINING": [
-   0.00013,
-   0.0,
-   -0.00149
   ],
   "J-2/TUNNEL-3:jwTruss#frame": [
    2e-05,

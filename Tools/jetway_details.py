@@ -258,6 +258,45 @@ for J in sorted(JROOTS):
     hook = Geo(); hook.box(0.42, 0.58, -1.62, -1.50, uz1, uz1 + 0.12); hook.box(0.42, 0.58, -1.62, -1.40, uz1 + 0.10, uz1 + 0.14)
     add_node(s3, f'{J}/TUNNEL-3:jwAluB#hose-hook', 'jwAluB', hook); stat['hoses_new'] += 2
 
+
+# ------------------------------------------------------------------------------------------------ part 4 (fixes 8, 11)
+def set_positions(mesh_i, fn):
+    for p in g['meshes'][mesh_i]['primitives']:
+        P = acc_read(p['attributes']['POSITION']).astype(np.float64)
+        p['attributes']['POSITION'] = acc_new(fn(P).astype(np.float32), 5126, 'VEC3', 34962)
+
+def smooth_normals(mesh_i, mats):
+    """Round parts drawn smooth: each corner's normal the average over the faces meeting at that point."""
+    for p in g['meshes'][mesh_i]['primitives']:
+        if g['materials'][p.get('material', 0)]['name'] not in mats or 'NORMAL' not in p['attributes']: continue
+        P = acc_read(p['attributes']['POSITION']).astype(float); Nn = acc_read(p['attributes']['NORMAL']).astype(float)
+        key = [tuple(v) for v in np.round(P, 4)]; acc = {}
+        for k2, n in zip(key, Nn): acc[k2] = acc.get(k2, 0) + n
+        out = np.array([acc[k2] / max(np.linalg.norm(acc[k2]), 1e-9) for k2 in key], np.float32)
+        # (where the faces meet at a hard edge - the cap's rim against its flat side - keep the original)
+        hard = np.sum(out * Nn, 1) < 0.6
+        out[hard] = Nn[hard]
+        p['attributes']['NORMAL'] = acc_new(out, 5126, 'VEC3', 34962)
+
+stat4 = {'canopy': 0, 'caps': 0}
+for i, nd in enumerate(N):
+    nm = nd.get('name', '')
+    if 'mesh' not in nd: continue
+    # fix 11: the front seal's side bands half as far in towards the doorway (its outside size kept; the top band as is)
+    if nm.endswith('/CANOPY') or nm.endswith('/CANOPY:jwFolds') or (nm.startswith('J-') and 'CANOPY' in nm and 'LINING' not in nm):
+        def fc(P):
+            P = P.copy()
+            kk = np.clip(np.round((np.abs(P[:, 0]) - 0.05) / 0.11), 0, 4); grow = kk * 0.08
+            zout = (3.4 + grow) / 2; ytop = 2.4 + 0.4 + grow - 0.09
+            side = (np.abs(P[:, 2]) > zout - 0.5 - grow / 2 - 0.01) & (P[:, 1] < ytop)
+            P[:, 2] = np.where(side, np.sign(P[:, 2]) * (zout - (zout - np.abs(P[:, 2])) * 0.5), P[:, 2])
+            return P
+        set_positions(nd['mesh'], fc); stat4['canopy'] += 1
+    # fix 8: the wheels' centre caps (and the stair wheels', the camera dome) smooth and round
+    if ('WHEEL' in nm) or nm.endswith(':jwDome'):
+        smooth_normals(nd['mesh'], ('jwHubCap', 'jwDome', 'jwRim')); stat4['caps'] += 1
+print('PART4', stat4)
+
 while len(BIN) % 4: BIN.append(0)
 g['buffers'][0]['byteLength'] = len(BIN)
 js = json.dumps(g, separators=(',', ':')).encode()

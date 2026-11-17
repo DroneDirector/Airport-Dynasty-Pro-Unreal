@@ -716,7 +716,7 @@ void AJetwayRigs::AddBeacons(FRig& R, ABabylonModel* M, const FString& Id)
 		{
 			// at the feet of the lift columns, on the drive unit's yoke, a little outboard
 			G = Bogie;
-			if (Legs.Num() >= 2) { const FVector Leg = Legs[b - 7]; const FVector Out = FVector(Leg.X - BogieAt.X, Leg.Y - BogieAt.Y, 0.f).GetSafeNormal(); P = Leg + Out * 32.f; bFound = true; }
+			if (Legs.Num() >= 2) { const FVector Leg = Legs[b - 7]; const FVector Out = FVector(Leg.X - BogieAt.X, Leg.Y - BogieAt.Y, 0.f).GetSafeNormal(); P = Leg + Out * 26.f; bFound = true; }   // (26 cm: its base plate fully on the yoke's plate - owner, 2026-11-17: it stuck out)
 			Scale = 1.f;
 		}
 		else
