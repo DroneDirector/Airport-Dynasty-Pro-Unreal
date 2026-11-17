@@ -57,7 +57,9 @@ namespace ADPJetwayInternal
 	{
 		Len = FMath::Clamp(Len, LMIN, LMAX);
 		Z1 = BD; Z3 = Len - BD - SEC3;
-		const float Lo = FMath::Max(Z1, Z3 + OV - SEC2), Hi = FMath::Min3(Z1 + SEC1 - OV, Z3, Z3 + SEC3 - SEC2);
+		// (the real-world order, owner 2026-11-17: the smallest section at the rotunda slides inside the middle one, which
+		//  slides inside the cab end's - so the middle one never ends before the first one's front: Z1 + SEC1 - SEC2)
+		const float Lo = FMath::Max3(Z1, Z1 + SEC1 - SEC2, Z3 + OV - SEC2), Hi = FMath::Min3(Z1 + SEC1 - OV, Z3, Z3 + SEC3 - SEC2);
 		Z2 = Lo <= Hi ? (Lo + Hi) / 2 : (Z1 + Z3) / 2;
 	}
 }
