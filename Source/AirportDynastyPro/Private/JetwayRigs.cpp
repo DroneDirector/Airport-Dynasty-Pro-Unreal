@@ -2,6 +2,9 @@
 #include "BabylonModel.h"
 #include "ADPLog.h"
 #include "PerfLog.h"
+#include "ADPAnimations.h"
+#include "GameFramework/PlayerController.h"
+#include "Camera/PlayerCameraManager.h"
 #include "EngineUtils.h"
 #include "Engine/World.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -18,6 +21,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "SunClock.h"
 #include "GameFramework/PlayerController.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Camera/PlayerCameraManager.h"
 
 float AJetwayRigs::Speed = 1.f;
@@ -179,6 +183,17 @@ void AJetwayRigs::Build()
 		}
 		// the service door's leaf (J-n/SERVICE-DOOR under the cab-end section, hung on its vertical edge; Tools/jetway_part5.py)
 		TSet<int32> SvcOf;
+		TMap<int32, int32> SwayOf;
+		for (const TCHAR* Hn : {TEXT("/HOSE-A"), TEXT("/HOSE-B")})
+		{
+			const int32 Hi = M->NodeIndex(Id + Hn); const int32 He = M->NodeIndex(Id + Hn + TEXT("/END"));
+			if (Hi == INDEX_NONE || He == INDEX_NONE) continue;
+			FRig::FSway S; S.H = M->NodeModel(Hi).GetLocation(); S.Ax = (M->NodeModel(He).GetLocation() - S.H).GetSafeNormal();
+			const bool bLoop = FCString::Strstr(Hn, TEXT("B")) != nullptr;
+			S.Amp = bLoop ? 0.075f : 0.03f; S.Ph = R.Sways.Num() * 1.9f + Rigs.Num() * 0.77f;
+			const int32 Si = R.Sways.Add(S);
+			TArray<int32> Todo{Hi}; while (Todo.Num()) { const int32 I = Todo.Pop(); SwayOf.Add(I, Si); Todo.Append(M->NodeKids(I)); }
+		}
 		{
 			const int32 Sv = M->NodeIndex(Id + TEXT("/SERVICE-DOOR"));
 			if (Sv != INDEX_NONE) { R.Svc.H = M->NodeModel(Sv).GetLocation(); TArray<int32> Todo{Sv}; while (Todo.Num()) { const int32 I = Todo.Pop(); SvcOf.Add(I); Todo.Append(M->NodeKids(I)); } }
@@ -190,6 +205,7 @@ void AJetwayRigs::Build()
 			FPart P; P.K = In.Key; P.Ix = In.Value; In.Key->GetInstanceTransform(In.Value, P.Docked, false);
 			if (const int32* Li = LeafOf.Find(O.Key)) { R.Leaves[*Li].Parts.Add(P); ++Parts; continue; }
 			if (SvcOf.Contains(O.Key)) { R.Svc.Parts.Add(P); ++Parts; continue; }
+			if (const int32* Si = SwayOf.Find(O.Key)) { R.Sways[*Si].Parts.Add(P); ++Parts; continue; }
 			R.G[O.Value].Parts.Add(P); ++Parts;
 		}
 		// which way each shuts: the turn (his 1.53 rad) that brings the leaf's middle in towards the doorway's middle
@@ -347,6 +363,7 @@ void AJetwayRigs::Apply(FRig& R)
 		}
 	}
 	ApplySvc(R, N[Tun3]);
+	ApplySway(R, N[Tun3], GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f, !ADPAnim::HoseSway);
 	// the stretched parts: their ends ride with the two parts they join; each turns to lie between them and grows or
 	// shrinks along its length - its own middle landing on the new middle (the bellows are built in place, far from
 	// their origin: scaled about the origin they would be thrown far away)
@@ -402,6 +419,9 @@ void AJetwayRigs::Tick(float Dt)
 	if (!bBuilt) { if ((Look += Dt) > 1.f) { Look = 0.f; Build(); } return; }
 	const float D = Dt * Speed;
 	BcnClock += Dt;
+	const float Now = GetWorld()->GetTimeSeconds();
+	FVector Eye = FVector(0, 0, 1e9f);
+	if (APlayerController* PCe = GetWorld()->GetFirstPlayerController()) if (PCe->PlayerCameraManager) Eye = PCe->PlayerCameraManager->GetCameraLocation();
 	for (FRig& R : Rigs)
 	{
 		const bool bMoving = (R.St == EState::Docking || R.St == EState::Undocking) && R.Wait <= 0.f;
@@ -410,6 +430,12 @@ void AJetwayRigs::Tick(float Dt)
 			// (the service door swings at its own pace, about 1.2 s, also while the jetway stands)
 			R.SvcOpen = R.SvcWant > R.SvcOpen ? FMath::Min(R.SvcWant, R.SvcOpen + Dt / 1.2f) : FMath::Max(R.SvcWant, R.SvcOpen - Dt / 1.2f);
 			if (!bMoving) ApplySvc(R, NowOf(R, Tun3));
+		}
+		// the yellow hoses sway a little (Settings > Graphics > Animations); only near the camera, and once back to still
+		if (R.Sways.Num() && !bMoving && R.Model.IsValid())
+		{
+			const bool bOn = ADPAnim::HoseSway && FVector::DistSquared(Eye, R.Model->GetActorTransform().TransformPosition(R.Sways[0].H)) < FMath::Square(9000.f);
+			if (bOn || !R.bSwayRest) { ApplySway(R, NowOf(R, Tun3), Now, !bOn); R.bSwayRest = !bOn; }
 		}
 		Beacons(R, bMoving);
 		Sounds(R, bMoving, Dt);
@@ -1050,4 +1076,19 @@ bool AJetwayRigs::UseServiceDoor(const FVector& Feet, const FVector& Facing)
 		return true;
 	}
 	return false;
+}
+
+void AJetwayRigs::ApplySway(const FRig& R, const FTransform& T3, float Time, bool bStill) const
+{
+	for (const FRig::FSway& S : R.Sways)
+	{
+		// two slow waves, like air moving under the bridge: a few degrees for the loop, less for the one in the pipe
+		const float A = bStill ? 0.f : S.Amp * (0.7f * FMath::Sin(Time * 0.85f + S.Ph) + 0.3f * FMath::Sin(Time * 2.1f + S.Ph * 1.7f));
+		const FQuat Q(S.Ax, A);
+		for (const FPart& P : S.Parts)
+		{
+			const FTransform Pd(Q * P.Docked.GetRotation(), S.H + Q.RotateVector(P.Docked.GetLocation() - S.H), P.Docked.GetScale3D());
+			P.K->UpdateInstanceTransform(P.Ix, Pd.GetRelativeTransform(R.G[Tun3].Docked) * T3, false, true, true);
+		}
+	}
 }

@@ -6,6 +6,7 @@
 #include "GroundQuality.h"
 #include "UI/ADPHUD.h"
 #include "JetwayRigs.h"
+#include "ADPAnimations.h"
 #include "People.h"
 #include "TerminalPlan.h"
 #include "Pets.h"
@@ -330,6 +331,7 @@ void AADPHUD::BeginPlay()
 	}
 	GConfig->GetBool(TEXT("ADP.Boxes"), TEXT("FrameRateOn"), bFpsBox, GGameUserSettingsIni);
 	{ bool bFG = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("FrameGeneration"), bFG, GGameUserSettingsIni); SetFrameGen(bFG); }
+	ADPAnim::Load();
 	// an update that could not be put in place last time is said in Settings > Updates (not passed over in silence)
 	{ const FString P = LastUpdateProblem(); if (!P.IsEmpty()) UpdateStatus = TEXT("The last update could not be installed: ") + P.RightChop(15).TrimStart() + TEXT(" Check for updates and install it again (Windows asks for permission)."); }
 	// bloom and blur as last chosen (Settings: Off, Low, Medium, High, Epic)
@@ -990,6 +992,28 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 		}
 		CatGraphics->AddSlot().AutoHeight().Padding(0, 4, 0, 0)[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).Text(FText::FromString(I.Title))];
 		CatGraphics->AddSlot().AutoHeight().Padding(0, 2, 0, 4)[Row];
+	}
+	// Animations (owner, 2026-11-17, to-do 98): the small extras only; the main animations are never switchable
+	CatGraphics->AddSlot().AutoHeight().Padding(0, 8, 0, 0)[Caption(TEXT("Animations (small extras; the main ones always play)"))];
+	{
+		auto AnimRow = [&](const TCHAR* Title, bool* Flag)
+		{
+			CatGraphics->AddSlot().AutoHeight().Padding(0, 4, 0, 0)[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).Text(FText::FromString(Title))];
+			CatGraphics->AddSlot().AutoHeight().Padding(0, 2, 0, 4)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth()
+				[
+					SNew(SButton)
+					.ButtonColorAndOpacity_Lambda([Flag]() { return *Flag ? FLinearColor(0.1f, 0.45f, 0.75f, 1.f) : FLinearColor(0.05f, 0.2f, 0.36f, 0.9f); })
+					.ContentPadding(FMargin(10, 4))
+					.OnClicked_Lambda([Flag]() { *Flag = !*Flag; ADPAnim::Save(); return FReply::Handled(); })
+					[SNew(SBox).WidthOverride(28)[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([Flag]() { return FText::FromString(*Flag ? TEXT("ON") : TEXT("OFF")); })]]
+				]
+			];
+		};
+		AnimRow(TEXT("Jetway air hoses sway a little"), &ADPAnim::HoseSway);
+		AnimRow(TEXT("Baggage belt strip curtains swing as bags pass"), &ADPAnim::BeltFlaps);
 	}
 	GNeonLastHead.Reset(); GNeonNoDividers = true;
 	TSharedRef<SVerticalBox> CatSound = SNew(SVerticalBox)

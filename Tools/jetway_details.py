@@ -248,13 +248,19 @@ for J in sorted(JROOTS):
             if W[:, 2].mean() > 0 and (pipe is None or W[:, 2].mean() < pipe[2]):
                 pipe = np.array([(W[:, 0].min() + W[:, 0].max()) / 2, W[:, 1].min(), (W[:, 2].min() + W[:, 2].max()) / 2])
     if pipe is None: pipe = np.array([-0.75, -1.85, 9.37])
-    ghs = Geo()
     a0 = np.array([-0.35, ub - 0.10, 5.7])
-    ghs.tube(smooth([a0, a0 + (0, -0.35, 0.25), (pipe[0] * 0.6 - 0.1, -2.75, (5.7 + pipe[2]) / 2), (pipe[0], pipe[1] - 0.55, pipe[2] - 0.35), (pipe[0], pipe[1] - 0.12, pipe[2]), (pipe[0], pipe[1] + 0.05, pipe[2])], 8), 0.14, 14, (0.06, 0.05))
+    hose_a = smooth([a0, a0 + (0, -0.35, 0.25), (pipe[0] * 0.6 - 0.1, -2.75, (5.7 + pipe[2]) / 2), (pipe[0], pipe[1] - 0.55, pipe[2] - 0.35), (pipe[0], pipe[1] - 0.12, pipe[2]), (pipe[0], pipe[1] + 0.05, pipe[2])], 8)
     b0 = np.array([0.35, ub - 0.10, 5.7])
     # (the loose one hangs in a loop and ends on its hook at the unit's cab-side end: the grille face stays clear)
-    ghs.tube(smooth([b0, b0 + (0.02, -0.4, 0.05), (0.42, -2.95, 6.05), (0.5, -2.75, 6.6), (0.52, -2.05, 6.62), (0.5, -1.66, 6.36)], 8), 0.14, 14, (0.06, 0.05))
-    add_node(s3, f'{J}/TUNNEL-3:jwHose#hoses', 'jwHose', ghs)
+    hose_b = smooth([b0, b0 + (0.02, -0.4, 0.05), (0.42, -2.95, 6.05), (0.5, -2.75, 6.6), (0.52, -2.05, 6.62), (0.5, -1.66, 6.36)], 8)
+    # each hose is its own pivot node at its unit end, with an empty END child at its other fixed end: the game swings it
+    # a little about the line through both ends (JetwayRigs: HOSE-A / HOSE-B; Settings > Graphics > Animations)
+    for nmh, pts in (('HOSE-A', hose_a), ('HOSE-B', hose_b)):
+        o = np.array(pts[0], float); e = np.array(pts[-1], float)
+        N.append({'name': f'{J}/{nmh}', 'translation': [float(v) for v in o]}); N[s3].setdefault('children', []).append(len(N) - 1); par[len(N) - 1] = s3; pv = len(N) - 1
+        N.append({'name': f'{J}/{nmh}/END', 'translation': [float(v) for v in (e - o)]}); N[pv]['children'] = [len(N) - 1]; par[len(N) - 1] = pv
+        gh_ = Geo(); gh_.tube([np.array(p, float) - o for p in pts], 0.14, 14, (0.06, 0.05))
+        add_node(pv, f'{J}/{nmh}:jwHose', 'jwHose', gh_)
     hook = Geo(); hook.box(0.42, 0.58, -1.62, -1.50, uz1, uz1 + 0.12); hook.box(0.42, 0.58, -1.62, -1.40, uz1 + 0.10, uz1 + 0.14)
     add_node(s3, f'{J}/TUNNEL-3:jwAluB#hose-hook', 'jwAluB', hook); stat['hoses_new'] += 2
 

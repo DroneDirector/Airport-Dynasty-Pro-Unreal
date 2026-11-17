@@ -75,6 +75,8 @@ private:
 		TArray<FStretch> Stretch;
 		TArray<FLeaf> Leaves; float Shut = 1.f;   // (the cab's front doors: 1 open, 0 shut)
 		FLeaf Svc; FVector SvcMid = FVector::ZeroVector; float SvcOpen = 0.f, SvcWant = 0.f;   // (the service door: its leaf, 0 shut .. 1 open)
+		struct FSway { TArray<FPart> Parts; FVector H = FVector::ZeroVector, Ax = FVector::UpVector; float Amp = 0.f, Ph = 0.f; };
+		TArray<FSway> Sways; bool bSwayRest = true;   // (the yellow hoses: each swings about the line through its ends)
 		// the warning beacons (two on poles on the cab's roof at its front corners, one hanging under it): their copies,
 		// their glow and the light each throws, which side's flash each follows
 		UInstancedStaticMeshComponent *Bcn = nullptr, *BcnRed = nullptr, *Bar = nullptr; TArray<UInstancedStaticMeshComponent*> BcnK; TArray<int32> BcnIx; TArray<uint8> BcnKind; TArray<USceneComponent*> BcnGlow, BcnLight, BcnFill; TArray<uint8> BcnSide; bool bBcnOn = false, bBarOn = false;
@@ -104,6 +106,8 @@ private:
 	void ApplySvc(const FRig& R, const FTransform& T3) const;
 	/** A group's transform now (from its first part's copy). */
 	FTransform NowOf(const FRig& R, int32 G) const;
+	/** The hoses where the cab-end section is now, swung by the time (or hanging still with Animations off). */
+	void ApplySway(const FRig& R, const FTransform& T3, float Time, bool bStill) const;
 	FVector PathAt(const FRig& R, float S) const;
 	void SetDoor(FRig& R, AActor* Plane, const FString& Type);
 	void MakeArc(FRig& R) const;

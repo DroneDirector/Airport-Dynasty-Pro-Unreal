@@ -1,6 +1,7 @@
 #include "BaggageBelts.h"
 #include "ADPLog.h"
 #include "ADPKeep.h"
+#include "ADPAnimations.h"
 #include "InteractOutline.h"
 #include "TerminalPlan.h"
 #include "Components/AudioComponent.h"
@@ -361,7 +362,7 @@ void ABaggageBelts::Tick(float Dt)
 	for (FFlap& F : Flaps)
 	{
 		float Want = 0.f;
-		for (const FBag& B : Bags)
+		if (ADPAnim::BeltFlaps) for (const FBag& B : Bags)
 		{
 			if (B.Stage != EStage::Rise && B.Stage != EStage::Stub) continue;
 			FTransform T; BagMeshes[B.Kind]->GetInstanceTransform(B.Ix, T, true);
