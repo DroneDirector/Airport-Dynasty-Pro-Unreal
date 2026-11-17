@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Airport Dynasty Pro Website
  * Description: The Airport Dynasty Pro website for Elementor: the game's showcase page with its own look (dark glass, amber glow, glowing pointer), every text and picture editable in Elementor, a launch-day email list and a WooCommerce buy button.
- * Version: 1.0.0
+ * Version: 1.0.1
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Requires Plugins: elementor
@@ -13,7 +13,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('ADS_VERSION', '1.0.0');
+define('ADS_VERSION', '1.0.1');
 define('ADS_FILE', __FILE__);
 define('ADS_DIR', plugin_dir_path(__FILE__));
 define('ADS_URL', plugin_dir_url(__FILE__));

@@ -4,6 +4,7 @@ if (!defined('ABSPATH')) exit;
 
 use Elementor\Controls_Manager;
 use Elementor\Repeater;
+use Elementor\Group_Control_Typography;
 use Elementor\Widget_Base;
 
 require_once ADS_DIR . 'includes/content.php';
@@ -18,7 +19,7 @@ function ads_widget_defs() {
         'hero'      => ['Hero and feature slider', 'eicon-banner', 'ads_r_hero',
             ['sign' => ['text', 'Yellow sign', $c['hero']['sign']], 'title' => $txt('Title (<em>word</em> = glowing)', $c['hero']['title']), 'text' => $txt('Text', $c['hero']['text']),
              'film' => ['text', 'Trailer button', $c['hero']['film']], 'note' => ['text', 'Small line under the buttons', $c['hero']['note']],
-             'board' => $txt('Departures board: one row per line, FLIGHT|TO|GATE|STATUS', $c['hero']['board'])],
+             'slides' => $txt('Feature slider: one row per line, ICON|TITLE|TEXT', $c['hero']['slides'])],
             ['images' => ['Background pictures (they fade one into the next)', ['image' => ['media', 'Picture', ''], 'caption' => ['text', 'Caption', '']], $c['hero']['images'], 'caption']]],
         'ticker'    => ['Ticker line', 'eicon-animation-text', 'ads_r_ticker', ['ticker' => $txt('Text (separate with ·)', $c['ticker'])], []],
         'stats'     => ['Numbers', 'eicon-counter', 'ads_r_stats', [], ['items' => ['Numbers', ['num' => ['text', 'Number', ''], 'label' => ['text', 'Label', '']], $c['stats'], 'num']]],
@@ -107,6 +108,43 @@ abstract class ADS_Base extends Widget_Base {
             foreach ($rf as $fid => $f) $this->add_field($fid, $f, $rep);
             $this->add_control($id, ['label' => $label, 'type' => Controls_Manager::REPEATER, 'fields' => $rep->get_controls(), 'default' => $rows, 'title_field' => '{{{ ' . $title . ' }}}']);
         }
+        $this->end_controls_section();
+        $this->register_style_controls();
+    }
+
+    /**
+     * The Style tab, the same on every section: its colours (they feed the site's colour variables, so every accent,
+     * card and line in the section follows), fonts for the titles and the text, background and spacing.
+     * Elementor's own Advanced tab (margins, hide on phone / tablet / desktop, animations) works as usual.
+     */
+    protected function register_style_controls() {
+        $W = '{{WRAPPER}}';
+        $this->start_controls_section('ads_style_colors', ['label' => 'Colours', 'tab' => Controls_Manager::TAB_STYLE]);
+        foreach ([['ads_c_accent', 'Accent (yellow signs, highlights)', '--ad-sign'], ['ads_c_accent2', 'Second accent (cyan glow)', '--ad-cyan'],
+                  ['ads_c_text', 'Text', '--ad-text'], ['ads_c_dim', 'Softer text', '--ad-dim'], ['ads_c_panel', 'Cards and panels', '--ad-panel'],
+                  ['ads_c_line', 'Thin lines', '--ad-line']] as list($id, $label, $var)) {
+            $this->add_control($id, ['label' => $label, 'type' => Controls_Manager::COLOR, 'selectors' => [$W => $var . ': {{VALUE}};']]);
+        }
+        $this->add_control('ads_c_bg', ['label' => 'Section background', 'type' => Controls_Manager::COLOR, 'selectors' => [$W . ' .ad' => 'background-color: {{VALUE}};']]);
+        $this->end_controls_section();
+
+        $this->start_controls_section('ads_style_type', ['label' => 'Fonts', 'tab' => Controls_Manager::TAB_STYLE]);
+        $this->add_group_control(Group_Control_Typography::get_type(), ['name' => 'ads_t_title', 'label' => 'Titles',
+            'selector' => $W . ' .ad-h1, ' . $W . ' .ad-h2']);
+        $this->add_group_control(Group_Control_Typography::get_type(), ['name' => 'ads_t_sub', 'label' => 'Small headings',
+            'selector' => $W . ' h3, ' . $W . ' .ad-tag']);
+        $this->add_group_control(Group_Control_Typography::get_type(), ['name' => 'ads_t_text', 'label' => 'Text',
+            'selector' => $W . ' .ad-lead, ' . $W . ' p, ' . $W . ' li']);
+        $this->add_control('ads_title_color', ['label' => 'Title colour', 'type' => Controls_Manager::COLOR, 'selectors' => [$W . ' .ad-h1, ' . $W . ' .ad-h2' => 'color: {{VALUE}};']]);
+        $this->end_controls_section();
+
+        $this->start_controls_section('ads_style_space', ['label' => 'Spacing and size', 'tab' => Controls_Manager::TAB_STYLE]);
+        $this->add_responsive_control('ads_pad_top', ['label' => 'Space above', 'type' => Controls_Manager::SLIDER, 'size_units' => ['px', 'vh'],
+            'range' => ['px' => ['min' => 0, 'max' => 300], 'vh' => ['min' => 0, 'max' => 50]], 'selectors' => [$W . ' section.ad' => 'padding-top: {{SIZE}}{{UNIT}};']]);
+        $this->add_responsive_control('ads_pad_bottom', ['label' => 'Space below', 'type' => Controls_Manager::SLIDER, 'size_units' => ['px', 'vh'],
+            'range' => ['px' => ['min' => 0, 'max' => 300], 'vh' => ['min' => 0, 'max' => 50]], 'selectors' => [$W . ' section.ad' => 'padding-bottom: {{SIZE}}{{UNIT}};']]);
+        $this->add_responsive_control('ads_width', ['label' => 'Content width', 'type' => Controls_Manager::SLIDER, 'size_units' => ['px', '%'],
+            'range' => ['px' => ['min' => 600, 'max' => 2400], '%' => ['min' => 50, 'max' => 100]], 'selectors' => [$W => '--ad-wrap: {{SIZE}}{{UNIT}};']]);
         $this->end_controls_section();
     }
 
