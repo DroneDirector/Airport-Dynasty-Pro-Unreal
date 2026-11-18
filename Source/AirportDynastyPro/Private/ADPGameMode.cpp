@@ -167,7 +167,7 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 							if (AEscalatorPair* E = W->SpawnActor<AEscalatorPair>(FVector(Foot * 100.f, Y * 100.f, 1.2f), FRotator(0.f, -90.f, 0.f), Sp)) E->Build();
 						// the arrivals escalators (to-do 72): at the claim hall's west end, their foot at plan z 37.46, rising north
 						// 6 m to the Floor 2 landing at the gate walkway's doorway; ends past the combs a third as long
-						if (AEscalatorPair* E = W->SpawnActor<AEscalatorPair>(FVector(-78.8f * 100.f, -37.46f * 100.f, 1.2f), FRotator::ZeroRotator, Sp)) E->Build(0.5f, true);
+						if (AEscalatorPair* E = W->SpawnActor<AEscalatorPair>(FVector(-78.8f * 100.f, -37.46f * 100.f, 1.2f), FRotator::ZeroRotator, Sp)) { E->Build(0.5f, true); E->AddFixedStair(-75.1f, 38.36f, 0.38f, 0.2f, 30); }   // (and the stair beside them: Art/TerminalAnnex/make_arrivals_wing.py's x -76.1..-74.1, 30 steps up to the landing)
 						// the arrivals lift in its glass shaft beside them, its door on the west side
 						// the baggage claim's belts and the conveyors that feed them (BaggageBelts.h)
 						if (ABaggageBelts* Bb = W->SpawnActor<ABaggageBelts>(FVector::ZeroVector, FRotator::ZeroRotator, Sp)) Bb->Build();

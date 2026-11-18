@@ -98,6 +98,7 @@ def mat(name, col, rough=0.4, metal=0.0):
 
 M = {k: mat(*v) for k, v in {
     'StepMetal': ('M_EscStepMetal', (0.42, 0.43, 0.45), 0.45, 1.0),
+    'StepGroove': ('M_EscStepGroove', (0.07, 0.075, 0.08), 0.7, 0.3),   # (the grooves between the cleats: dark, as in his photo)
     'StepYellow': ('M_EscYellow', (0.95, 0.72, 0.05), 0.5, 0.0),
     'Stainless': ('M_EscStainless', (0.78, 0.78, 0.8), 0.22, 1.0),
     'FloorPlate': ('M_EscFloorPlate', (0.7, 0.7, 0.72), 0.35, 1.0),
@@ -156,43 +157,51 @@ class Builder:
 
 
 # ---------- the step ----------
-st = Builder('SM_EscStep')
+# (owner 2026-11-18, photo Art/Escalator/Reference/Owner-2026-11-18/3-steps-texture.jpg: bright cleats with dark grooves
+#  between them, on the treads and the risers alike - the groove floors and the risers' recesses are dark metal)
 T = 0.40; RIB = 0.0085; RIBW = 0.0028; GROOVE = 0.008; TH = 0.012
-# the tread: its top a field of ribs along Y, from its lower edge (y = -T) to its upper edge (y = 0); yellow strips
-# on both sides (35 mm) and the upper edge (45 mm)
 YEL_S, YEL_U = 0.035, 0.045
-x = -W / 2
-while x < W / 2 - 1e-6:
-    x1 = min(W / 2, x + RIB)
-    side = x < -W / 2 + YEL_S or x1 > W / 2 - YEL_S
-    # the rib (raised) and the groove beside it
-    rx1 = min(x1, x + RIBW)
-    for (ya, yb, key) in (((-T, -YEL_U, 'StepYellow' if side else 'StepMetal'), (-YEL_U, 0.0, 'StepYellow'))):
-        st.box(x, rx1, ya, yb, -GROOVE, 0.0, key)
-        st.box(rx1, x1, ya, yb, -GROOVE - TH, -GROOVE, key)
-    x = x1
-# the riser: a cleated curve hanging below the lower edge, 0.22 deep, bowed in (concentric with the step below)
-N = 8
-for i in range(N):
-    a0, a1 = i / N, (i + 1) / N
-    def rp(t): return (-T + 0.03 * math.sin(math.pi * t) * 0.6 + 0.018 * t, -0.22 * t - GROOVE)
-    (y0_, z0_), (y1_, z1_) = rp(a0), rp(a1)
-    x = -W / 2
-    k = 0
-    while x < W / 2 - 1e-6:
-        x1 = min(W / 2, x + RIB); rx1 = min(x1, x + RIBW)
-        st.quad([(x, y0_, z0_), (rx1, y0_, z0_), (rx1, y1_, z1_), (x, y1_, z1_)], 'StepMetal')
-        st.quad([(rx1, y0_ + 0.006, z0_), (x1, y0_ + 0.006, z0_), (x1, y1_ + 0.006, z1_), (rx1, y1_ + 0.006, z1_)], 'StepMetal')
+def make_step(name, Wd, Td, riser, bowed):
+    """a cleated step Wd wide, Td deep: its tread (ribs along Y from y = -Td to 0, yellow sides and upper edge) and its
+    cleated riser hanging 'riser' metres below the lower edge (bowed: the escalator's curved riser; else straight)"""
+    st = Builder(name)
+    x = -Wd / 2
+    while x < Wd / 2 - 1e-6:
+        x1 = min(Wd / 2, x + RIB)
+        side = x < -Wd / 2 + YEL_S or x1 > Wd / 2 - YEL_S
+        rx1 = min(x1, x + RIBW)
+        for (ya, yb, key) in ((-Td, -YEL_U, 'StepYellow' if side else 'StepMetal'), (-YEL_U, 0.0, 'StepYellow')):
+            st.box(x, rx1, ya, yb, -GROOVE, 0.0, key)
+            st.box(rx1, x1, ya, yb, -GROOVE - TH, -GROOVE, key if key == 'StepYellow' else 'StepGroove')
         x = x1
-# side plates (the step's frame) and its axle
-for sx in (-1, 1):
-    xx = sx * (W / 2 - 0.004)
-    tri = [(xx, -T + 0.02, -0.02), (xx, -0.01, -0.02), (xx, -T + 0.05, -0.26)]
-    f = st.quad([tri[0], tri[1], tri[2], tri[2]], 'Truss') if False else None
-    st.box(xx - 0.004 * sx, xx, -T + 0.02, -0.01, -0.06, -0.02, 'Truss')
-    st.box(xx - 0.004 * sx, xx, -T + 0.03, -T + 0.09, -0.26, -0.06, 'Truss')
-st.box(-W / 2 + 0.01, W / 2 - 0.01, -T + 0.04, -T + 0.08, -0.25, -0.21, 'Truss')
-step = st.finish()
+    N = 8 if bowed else 1
+    for i in range(N):
+        a0, a1 = i / N, (i + 1) / N
+        if bowed:
+            def rp(t): return (-Td + 0.03 * math.sin(math.pi * t) * 0.6 + 0.018 * t, -riser * t - GROOVE)
+        else:
+            def rp(t): return (-Td, -riser * t)
+        (y0_, z0_), (y1_, z1_) = rp(a0), rp(a1)
+        x = -Wd / 2
+        while x < Wd / 2 - 1e-6:
+            x1 = min(Wd / 2, x + RIB); rx1 = min(x1, x + RIBW)
+            st.quad([(x, y0_, z0_), (rx1, y0_, z0_), (rx1, y1_, z1_), (x, y1_, z1_)], 'StepMetal')
+            st.quad([(rx1, y0_ + 0.006, z0_), (x1, y0_ + 0.006, z0_), (x1, y1_ + 0.006, z1_), (rx1, y1_ + 0.006, z1_)], 'StepGroove')
+            # (the rib's sides, so the cleats stand out of the riser)
+            st.quad([(rx1, y0_, z0_), (rx1, y0_ + 0.006, z0_), (rx1, y1_ + 0.006, z1_), (rx1, y1_, z1_)], 'StepMetal')
+            st.quad([(x, y0_ + 0.006, z0_), (x, y0_, z0_), (x, y1_, z1_), (x, y1_ + 0.006, z1_)], 'StepMetal')
+            x = x1
+    if bowed:
+        for sx in (-1, 1):
+            xx = sx * (Wd / 2 - 0.004)
+            st.box(xx - 0.004 * sx, xx, -Td + 0.02, -0.01, -0.06, -0.02, 'Truss')
+            st.box(xx - 0.004 * sx, xx, -Td + 0.03, -Td + 0.09, -0.26, -0.06, 'Truss')
+        st.box(-Wd / 2 + 0.01, Wd / 2 - 0.01, -Td + 0.04, -Td + 0.08, -0.25, -0.21, 'Truss')
+    return st.finish()
+step = make_step('SM_EscStep', W, T, 0.22, True)
+# the fixed stair beside the arrivals escalators (owner 2026-11-18: its steps as the escalator's, not wood): one step
+# 2.0 m wide, 38 cm deep, a straight cleated 20 cm riser; the game lays 30 of them (Escalators.cpp, BuildArrivalsStair)
+stair = make_step('SM_StairStep', 2.0, 0.38, 0.20, False)
 
 # ---------- the body ----------
 bd = Builder('SM_EscBody')
@@ -363,13 +372,13 @@ rp = Builder('SM_EscRamp')
 rp.strip([(-0.5, u_, H(u_) + 0.005) for u_ in us], [(0.5, u_, H(u_) + 0.005) for u_ in us], 'Truss')
 ramp = rp.finish()
 
-for o in (step, body, ramp):
+for o in (step, stair, body, ramp):
     print('ESC', o.name, len(o.data.polygons), 'faces', [m.name for m in o.data.materials])
 if SHORT:
     body.name = 'SM_EscBodyShort'; ramp.name = 'SM_EscRampShort'
 out = os.path.join(HERE, 'EscalatorShort.blend' if SHORT else 'Escalator.blend')
 bpy.ops.wm.save_as_mainfile(filepath=out)
-for o in ((body, ramp) if SHORT else (step, body, ramp)):
+for o in ((body, ramp) if SHORT else (step, stair, body, ramp)):
     for x in bpy.context.selected_objects: x.select_set(False)
     o.select_set(True); bpy.context.view_layer.objects.active = o
     bpy.ops.export_scene.fbx(filepath=os.path.join(HERE, o.name + '.fbx'), use_selection=True, object_types={'MESH'},

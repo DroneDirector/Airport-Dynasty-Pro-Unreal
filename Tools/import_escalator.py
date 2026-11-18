@@ -16,7 +16,8 @@ TM = '/Game/Terminal/Materials/'
 MAP = {'M_EscStainless': 'MI_T_escStainless', 'M_EscStepMetal': 'MI_T_jwAluB', 'M_EscYellow': 'MI_T_yellow',
        'M_EscFloorPlate': 'MI_T_escFloorPlate', 'M_EscGlass': 'MI_T_glass', 'M_EscHandrail': 'MI_T_jwRubber',
        'M_EscTruss': 'MI_T_steel', 'M_EscLight': 'MI_T_J-1_LED',
-       'M_EscRed': 'MI_T_l_FF2020', 'M_EscGreen': 'MI_T_l_20FF40', 'M_EscDark': 'MI_T_black'}   # (the new escalator's details, 2026-11-18)
+       'M_EscRed': 'MI_T_l_FF2020', 'M_EscGreen': 'MI_T_l_20FF40', 'M_EscDark': 'MI_T_black',
+       'M_EscStepGroove': 'MI_T_jwDark'}   # (the steps' dark grooves, 2026-11-18)   # (the new escalator's details, 2026-11-18)
 def log(*a): unreal.log('ADP_ESC ' + ' '.join(str(x) for x in a))
 # (Git LFS leaves committed .uasset files read-only: Unreal then can't replace them and the import fails silently -
 #  the game kept an old copy of the new parts; the flag is cleared first)
@@ -25,7 +26,7 @@ for _f in glob.glob(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath
     os.chmod(_f, stat.S_IWRITE | stat.S_IREAD)
 
 
-for name in ('SM_EscStep', 'SM_EscBody', 'SM_EscRamp', 'SM_EscBodyShort', 'SM_EscRampShort'):   # (the Short ones: the arrivals escalators, make_escalator_short.py)
+for name in ('SM_EscStep', 'SM_StairStep', 'SM_EscBody', 'SM_EscRamp', 'SM_EscBodyShort', 'SM_EscRampShort'):   # (the Short ones: the arrivals escalators, make_escalator_short.py)
     path = '%s/%s' % (DEST, name)
     if EAL.does_asset_exist(path): EAL.delete_asset(path)
     o = unreal.FbxImportUI()
@@ -46,14 +47,14 @@ for name in ('SM_EscStep', 'SM_EscBody', 'SM_EscRamp', 'SM_EscBodyShort', 'SM_Es
         slot = str(m.get_editor_property('material_slot_name'))
         mi = unreal.load_asset(TM + MAP.get(slot, 'MI_T_steel'))
         # (owner 2026-11-18: the moving steps only about 5 % reflective - their own matte metal, Tools/fix_glass_steps.py)
-        if name == 'SM_EscStep' and slot == 'M_EscStepMetal' and unreal.EditorAssetLibrary.does_asset_exist(TM + 'MI_T_escStep'): mi = unreal.load_asset(TM + 'MI_T_escStep')
+        if name in ('SM_EscStep', 'SM_StairStep') and slot == 'M_EscStepMetal' and unreal.EditorAssetLibrary.does_asset_exist(TM + 'MI_T_escStep'): mi = unreal.load_asset(TM + 'MI_T_escStep')
         m.set_editor_property('material_interface', mi); mats.append(m)
     sm.set_editor_property('static_materials', mats)
-    ns = sm.get_editor_property('nanite_settings'); ns.set_editor_property('enabled', name == 'SM_EscStep')
+    ns = sm.get_editor_property('nanite_settings'); ns.set_editor_property('enabled', name in ('SM_EscStep', 'SM_StairStep'))
     sm.set_editor_property('nanite_settings', ns)
     bs = sm.get_editor_property('body_setup')
     if bs:
-        bs.set_editor_property('collision_trace_flag', unreal.CollisionTraceFlag.CTF_USE_COMPLEX_AS_SIMPLE if name != 'SM_EscStep' else unreal.CollisionTraceFlag.CTF_USE_DEFAULT)
+        bs.set_editor_property('collision_trace_flag', unreal.CollisionTraceFlag.CTF_USE_COMPLEX_AS_SIMPLE if name not in ('SM_EscStep', 'SM_StairStep') else unreal.CollisionTraceFlag.CTF_USE_DEFAULT)
     EAL.save_loaded_asset(sm)
     log(name, 'slots', [str(m.get_editor_property('material_slot_name')) for m in mats], 'bounds', sm.get_bounds().box_extent)
 log('done')

@@ -89,6 +89,22 @@ bool AEscalatorPair::Build(float Speed, bool bShortEnds)
 	return true;
 }
 
+void AEscalatorPair::AddFixedStair(float CX, float Z0, float Run, float Rise, int32 Count)
+{
+	UStaticMesh* StairM = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/Escalator/SM_StairStep.SM_StairStep"));
+	if (!StairM) { ADP_WARN(TEXT("Escalators: no SM_StairStep (Art/Escalator/make_escalator.py, Tools/import_escalator.py)")); return; }
+	UHierarchicalInstancedStaticMeshComponent* St = NewObject<UHierarchicalInstancedStaticMeshComponent>(this);
+	St->SetStaticMesh(StairM); St->SetupAttachment(GetRootComponent()); St->SetMobility(EComponentMobility::Movable);
+	St->SetCollisionEnabled(ECollisionEnabled::NoCollision);   // (the stair's own solid steps in the terminal are what you walk on)
+	St->RegisterComponent();
+	// each step's anchor: the north (upper) edge of its tread, on top of it; the tread runs south from there and its riser
+	// hangs below its south edge (plan x east = Unreal X, plan z north = Unreal -Y, plan y up = Unreal Z)
+	TArray<FTransform> T;
+	for (int32 k = 0; k < Count; ++k) T.Add(FTransform(FVector(CX * 100.f, -(Z0 + (k + 1) * Run) * 100.f, (k + 1) * Rise * 100.f)));
+	St->AddInstances(T, false, true);
+	ADP_LOG(TEXT("Escalators: the fixed stair beside them, %d cleated metal steps"), Count);
+}
+
 void AEscalatorPair::Tick(float Dt)
 {
 	Super::Tick(Dt);

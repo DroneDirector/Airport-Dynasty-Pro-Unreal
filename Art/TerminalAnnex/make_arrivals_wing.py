@@ -92,17 +92,21 @@ slab(-76.1, -71.2, LAND, ZN, F2 + 0.01, top='M_WoodFloor', under='MI_T_offwhite'
 slab(-68.4, VOID[1], LAND, ZN, F2 + 0.01, top='M_WoodFloor', under='MI_T_offwhite', thick=0.6)
 slab(-71.2, -68.4, LAND, 49.4, F2 + 0.01, top='M_WoodFloor', under='MI_T_offwhite', thick=0.6)
 slab(X0, -76.1, ZN - 0.1, ZN, F2 + 0.01, top='M_WoodFloor', under='MI_T_offwhite', thick=0.6)
-slab(X0, -76.1, LAND, ZN - 0.1, F2 + 0.01, top='M_WoodFloor', under='MI_T_offwhite', thick=0.6)   # (the floor past the escalators' ends, out onto the walkway)
+# (owner 2026-11-18, to-do 113: the wood ran over the escalators' top ends - their floor plates, combs and newels reach
+#  z 51.90 and are x -79.60..-76.38 across (Escalators.cpp: the pair at x -78.8, 1.62 apart, each 1.60 wide); the wood now
+#  stops at their sides and only runs on past their ends)
+slab(X0, -79.62, LAND, ZN - 0.1, F2 + 0.01, top='M_WoodFloor', under='MI_T_offwhite', thick=0.6)
+slab(-76.36, -76.1, LAND, ZN - 0.1, F2 + 0.01, top='M_WoodFloor', under='MI_T_offwhite', thick=0.6)
 
 # ---- the stair beside the escalators (x -76.1..-74.1, 30 steps of 20 x 38 cm up to the landing): terrazzo with oak
 #      treads and black non-slip nosings; its open side and the landing's edge one glass balustrade under one handrail ----
 SX0, SX1 = -76.1, -74.1; B0 = LAND - 11.4
+# (owner 2026-11-18: the stair's steps as the escalators' - cleated metal, not wood. The visible steps are the game's
+#  SM_StairStep copies (Escalators.cpp AddFixedStair, Art/Escalator/make_escalator.py); here only the solid under them,
+#  set 12 mm back from each riser and 25 mm under each tread so it never shows through the cleats)
 for k in range(30):
     z0 = B0 + k * 0.38; yt = 0.2 * (k + 1)
-    S.box(SX0, SX1, 0.01, yt - 0.04, z0, z0 + 0.38, 'MI_T_terrazzo')      # (light terrazzo risers, 2026-11-17: the dark ones read as a black block)
-    S.box(SX0 + 0.06, SX1 - 0.06, yt - 0.08, yt - 0.062, z0 - 0.006, z0 + 0.01, 'MI_T_l_FFFFFF')   # an LED line under each nosing
-    S.box(SX0 - 0.02, SX1 + 0.02, yt - 0.04, yt, z0 - 0.02, z0 + 0.38, 'MI_T_oak')
-    S.box(SX0 - 0.02, SX1 + 0.02, yt - 0.045, yt + 0.002, z0 - 0.03, z0 + 0.03, 'MI_T_black')
+    S.box(SX0, SX1, 0.01, yt - 0.025, z0 + 0.012, z0 + 0.38, 'MI_T_terrazzo')
 S.box(SX1, SX1 + 0.02, 0.01, 6.0, B0, LAND, 'MI_T_marbleDark', sides=('+x',))       # (its side, under the steps)
 def tube(pts, r, m):
     # a round rail along a polyline (8 sides), for the handrails
@@ -115,16 +119,45 @@ def tube(pts, r, m):
         ring = lambda c, k: tuple(c[i] + r * (_m.cos(k * _m.pi / 4) * u[i] + _m.sin(k * _m.pi / 4) * v[i]) for i in range(3))
         for k in range(8):
             f = S.face([ring(a, k), ring(b, k), ring(b, k + 1), ring(a, k + 1)], m)
+            # (each face out of the rail, set by hand: Blender's guess on loose faces flips some in, and the rail looked
+            #  broken - owner 2026-11-18; plan -> Blender axes: (x, y, z) -> (-x, -z, y))
+            c_, s_ = _m.cos((k + 0.5) * _m.pi / 4), _m.sin((k + 0.5) * _m.pi / 4)
+            o_ = [c_ * u[i] + s_ * v[i] for i in range(3)]
+            S.want.append((f, (-o_[0], -o_[2], o_[1])))
 GX = SX1 + 0.05; HR = 1.0
 def zn(z): return 0.2 + (z - B0) * (0.2 / 0.38)
-zk0, zk1 = B0 - 0.2, LAND - 0.38
-gl = [(GX, 0.08, B0 - 0.55), (GX, 0.08, B0), (GX, zn(zk1) + 0.06, zk1), (GX, F2 + 0.07, LAND + 0.03),
-      (GX, F2 + HR - 0.07, LAND + 0.03), (GX, zn(zk1) + HR - 0.07, zk1), (GX, zn(zk0) + HR - 0.07, zk0), (GX, zn(zk0) + HR - 0.07, B0 - 0.55)]
-for dx in (-0.008, 0.008): G.face([(x + dx, y, z) for (x, y, z) in gl], 'MI_T_glass')
-G.face([(GX, F2 + 0.07, LAND + 0.04), (-71.05, F2 + 0.07, LAND + 0.04), (-71.05, F2 + HR - 0.07, LAND + 0.04), (GX, F2 + HR - 0.07, LAND + 0.04)], 'MI_T_glass')
-S.box(GX, -71.0, F2, F2 + 0.1, LAND, LAND + 0.08, 'MI_T_black')                                    # the clamp shoe
-tube([(GX, zn(zk0) + HR, B0 - 0.6), (GX, zn(zk0) + HR, zk0), (GX, zn(zk0 + 0.4) + HR, zk0 + 0.4), (GX, zn(zk1 - 0.4) + HR, zk1 - 0.4),
-      (GX, F2 + HR, zk1 + 0.1), (GX, F2 + HR, LAND - 0.05), (GX + 0.05, F2 + HR, LAND + 0.04), (-71.0, F2 + HR, LAND + 0.04)], 0.035, 'MI_T_jwRubber')
+# (owner 2026-11-18, to-do 114: the guard looked broken at the top - the sloped glass and the landing's glass met in a
+#  sharp corner with a kinked rail. Now as the escalators' guards: one glass ribbon under one handrail, its slope easing
+#  into the level with no kink and turning the corner onto the landing's edge in a round bend; the glass runs up into
+#  the rail)
+import math as _m
+def smin(a, b, k):
+    h = max(k - abs(a - b), 0.0) / k; return min(a, b) - h * h * k / 4
+def smax(a, b, k): return -smin(-a, -b, k)
+zk0 = B0 - 0.2
+def rail_y(z): return HR + smax(zn(zk0), smin(F2, zn(z), 0.18), 0.18)
+def glass_lo(z): return smax(0.08, smin(F2 + 0.03, zn(z) - 0.14, 0.18), 0.18)   # (at the top: into the clamp shoe)
+RC, ZE = 0.15, LAND + 0.04                     # the corner's radius, the landing glass's line
+path = []                                      # (x, z, the side the glass faces (nx, nz))
+z = B0 - 0.6
+while z < ZE - RC - 1e-6: path.append((GX, z)); z += 0.05
+for i in range(13):
+    a = (_m.pi / 2) * i / 12
+    path.append((GX + RC * (1 - _m.cos(a)), ZE - RC + RC * _m.sin(a)))
+x = GX + RC
+while x < -71.05 - 1e-6: x += 0.10; path.append((min(x, -71.05), ZE))
+def at(i):
+    x_, z_ = path[i]; zz = min(z_, ZE - RC)                 # (the bend and the landing: level, as at the slope's top)
+    return x_, z_, rail_y(zz), glass_lo(zz)
+pts = [at(i) for i in range(len(path))]
+for i in range(len(pts) - 1):
+    (xa, za, ra, la), (xb, zb, rb, lb) = pts[i], pts[i + 1]
+    dx, dz = xb - xa, zb - za; L = _m.hypot(dx, dz) or 1.0; nx, nz = dz / L * 0.008, -dx / L * 0.008
+    for o in (-1, 1):
+        f = G.face([(xa + o * nx, la, za + o * nz), (xb + o * nx, lb, zb + o * nz), (xb + o * nx, rb - 0.02, zb + o * nz), (xa + o * nx, ra - 0.02, za + o * nz)], 'MI_T_glass')
+        G.want.append((f, (-o * nx, -o * nz, 0.0)))          # (each face of the pane facing out of its side, all alike)
+S.box(GX + RC, -71.0, F2, F2 + 0.1, ZE - 0.04, ZE + 0.04, 'MI_T_black')                                 # the clamp shoe along the landing
+tube([(x_, r_, z_) for (x_, z_, r_, l_) in pts] + [(-71.0, pts[-1][2], ZE)], 0.035, 'MI_T_jwRubber')
 # ---- the lift's glass shaft (x -71.0..-68.6, z 49.6..51.9), from the claim hall up through the landing; its doors on the
 #      west side at both floors (the car is the staff lift's, TerminalLift.h) ----
 LX0, LX1, LZ0, LZ1 = -71.2, -68.4, 49.4, 52.0

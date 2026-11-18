@@ -26,6 +26,10 @@ public:
 	virtual void Tick(float Dt) override;
 	/** Escalators' length from the bottom comb to the top comb (m, along the floor), for placing them. */
 	static float LengthAlong();
+	/** A fixed stair beside the escalators with the escalators' own cleated metal steps (owner 2026-11-18: not wood):
+	 *  Count copies of SM_StairStep (Nanite, one instanced component), plan metres - its middle CX, the first step's
+	 *  south edge Z0 (rising north), Run and Rise per step. */
+	void AddFixedStair(float CX, float Z0, float Run, float Rise, int32 Count);
 
 private:
 	struct FUnit
