@@ -1231,7 +1231,7 @@ void AJetwayRigs::ApplySvc(const FRig& R, const FTransform& T3) const
 	for (const FPart& P : R.Svc.Parts)
 	{
 		const FTransform Pd(Q * P.Docked.GetRotation(), R.Svc.H + Q.RotateVector(P.Docked.GetLocation() - R.Svc.H), P.Docked.GetScale3D());
-		P.K->UpdateInstanceTransform(P.Ix, Pd.GetRelativeTransform(R.G[Tun3].Docked) * T3, false, true, true);
+		P.K->UpdateInstanceTransform(P.Ix, Pd.GetRelativeTransform(R.G[Tun3].Docked) * T3, false, false, true);   // (no full rebuild of the list: each moved copy goes on its own - 2026-11-18, the hoses brought the 11-17 lag back)
 	}
 }
 
@@ -1275,7 +1275,7 @@ void AJetwayRigs::ApplySway(const FRig& R, const FTransform& T3, float Time, boo
 		for (const FPart& P : S.Parts)
 		{
 			const FTransform Pd(Q * P.Docked.GetRotation(), S.H + Q.RotateVector(P.Docked.GetLocation() - S.H), P.Docked.GetScale3D());
-			P.K->UpdateInstanceTransform(P.Ix, Pd.GetRelativeTransform(R.G[Tun3].Docked) * T3, false, true, true);
+			P.K->UpdateInstanceTransform(P.Ix, Pd.GetRelativeTransform(R.G[Tun3].Docked) * T3, false, false, true);   // (no full rebuild of the list: each moved copy goes on its own - 2026-11-18, the hoses brought the 11-17 lag back)
 		}
 	}
 }
