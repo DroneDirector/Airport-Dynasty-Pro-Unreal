@@ -27,6 +27,21 @@ and an alarm lamp (red = active alarm, amber = warning, grey = none).
 3. **Cameras** - the door camera (as now: CAM 1 - DOOR 1L, door outline, green guide line), the bogie camera
    (wheels, apron below) and the cab-floor camera; live pictures from small scene cameras (low resolution, only while
    the screen is open - no cost otherwise).
+   **The cameras in 3D on every jetway** (owner, 2026-11-18: "create the cameras in 3D and place them on the jetway,
+   find where they are located in real life, and how they look"). Where real ones sit (research 2026-11-18):
+   - *Bogie camera* - a weatherproof bullet camera (white housing, sun shield, swivel bracket, cable in a conduit)
+     under the tunnel at the drive column, looking down at the drive wheels and the apron round them; shown on the
+     console all the time (Syracuse airport PBB specification: "a camera image of the PBB horizontal drive wheels
+     area").
+   - *Door camera* - a small camera inside the cab at the front, high above the doorway, looking out at the aircraft
+     door (ShinMaywa's docking camera "installed inside the cab at the front"); and an *outside door camera* on the
+     cab's front roof edge (newer bridges: AI/stereo cameras outside the cab find the door - TK Elevator, ShinMaywa).
+   - *Cab ceiling dome* - a 360 degree dome camera in the cab ceiling, watching the operator and the cab.
+   Modelled from reference photos our own way (Art/JetwayCamera/JetwayCamera.blend), instanced + Nanite, riding with the
+   part they're fixed to; each feeds its picture on the HMI.
+   How the pictures look (as a real jetway's CCTV): wide-angle with a little barrel bend at the edges, slightly soft
+   and grainy, muted colour (the bogie camera at night black-and-white with its IR glow), a timestamp and camera name
+   burnt in, the door camera with its docking guide lines over it.
 4. **Auto-levelling** - the cab floor against the aircraft door sill: height difference (mm), auto-level ON/OFF, the
    levelling wheel state; as the aircraft is loaded or unloaded the game's aircraft sinks or rises a little and the
    cab follows.
@@ -83,8 +98,9 @@ Ideas for later (not in the first build):
    bar, tabs) - 2-3 h
 2. Position screen live (plan + side view, values), DOCK/UNDOCK/STOP, MANUAL jog driving the real jetway - 3 h
 3. Pre-positioning (stored positions per type/door) + Auto-levelling - 2-3 h
-4. Cameras (door, bogie, cab floor) live on the page, only while open - 2-3 h
+4. Cameras: the 3D camera models placed on every jetway (bogie, door inside + outside, cab dome), and their live
+   CCTV-looking pictures on the page, only while open - 4-5 h
 5. System status + Safety + Alarms + Alarm history (in the save) - 3 h
 6. Maintenance (system check that runs) + Settings + Login roles - 2-3 h
 7. The crew using it (arrival, departure, maintenance, faults), pushback held until the bridge is clear - 3 h
-Total about 17-21 working hours (about 2.5 days).
+Total about 19-23 working hours (about 3 days).
