@@ -14,7 +14,7 @@ EAL = unreal.EditorAssetLibrary
 AT = unreal.AssetToolsHelpers.get_asset_tools()
 TM = '/Game/Terminal/Materials/'
 MAP = {'M_EscStainless': 'MI_T_escStainless', 'M_EscStepMetal': 'MI_T_jwAluB', 'M_EscYellow': 'MI_T_yellow',
-       'M_EscFloorPlate': 'MI_T_escFloorPlate', 'M_EscGlass': 'MI_T_glass', 'M_EscHandrail': 'MI_T_jwRubber',
+       'M_EscFloorPlate': 'MI_T_escFloorPlate', 'M_EscGlass': 'MI_T_escGlass', 'M_EscHandrail': 'MI_T_jwRubber',
        'M_EscTruss': 'MI_T_steel', 'M_EscLight': 'MI_T_J-1_LED',
        'M_EscRed': 'MI_T_l_FF2020', 'M_EscGreen': 'MI_T_l_20FF40', 'M_EscDark': 'MI_T_black',
        'M_EscStepGroove': 'MI_T_jwDark'}   # (the steps' dark grooves, 2026-11-18)   # (the new escalator's details, 2026-11-18)

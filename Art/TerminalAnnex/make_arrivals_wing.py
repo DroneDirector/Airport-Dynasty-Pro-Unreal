@@ -158,22 +158,37 @@ def side_dir(i):
     a, b = pts[max(0, i - 1)], pts[min(len(pts) - 1, i + 1)]
     dx, dz = b[0] - a[0], b[1] - a[1]; L = _m.hypot(dx, dz) or 1.0
     return dz / L, -dx / L
-def sweep(P, sec, m):
-    """faces between consecutive cross-sections; sec(i) -> list of (plan point, outward plan direction), a closed loop"""
+def sweep(P, sec, m, hard=True):
+    """one continuous skin between consecutive cross-sections (sec(i) -> closed loop of (plan point, outward plan
+    direction)); the vertices are shared along the path and the faces smooth-shaded, so the bend reads as one smooth
+    surface (owner 2026-11-18: "make sure it's smooth"). hard: the loop's corners stay sharp (the glass's faces and its
+    edges, the shoe's sides); else smooth all round (the round rail)"""
     rings = [sec(i) for i in range(len(pts))]
+    n = len(rings[0]); bm = P.bm
+    B = lambda q: (-q[0], -q[2], q[1])                               # plan -> Blender axes
+    if hard:   # each side of the loop its own two columns of vertices
+        cols = [[(bm.verts.new(B(rings[i][k][0])), bm.verts.new(B(rings[i][(k + 1) % n][0]))) for i in range(len(pts))] for k in range(n)]
+    else:
+        ring_v = [[bm.verts.new(B(rings[i][k][0])) for k in range(n)] for i in range(len(pts))]
+    L = 0.0
     for i in range(len(pts) - 1):
-        A, B = rings[i], rings[i + 1]; n = len(A)
+        d = _m.dist(rings[i][0][0], rings[i + 1][0][0])
         for k in range(n):
             k1 = (k + 1) % n
-            f = P.face([A[k][0], B[k][0], B[k1][0], A[k1][0]], m)
-            o_ = [(A[k][1][c] + A[k1][1][c]) * 0.5 for c in range(3)]
-            P.want.append((f, (-o_[0], -o_[2], o_[1])))
+            if hard: vs = [cols[k][i][0], cols[k][i + 1][0], cols[k][i + 1][1], cols[k][i][1]]
+            else: vs = [ring_v[i][k], ring_v[i + 1][k], ring_v[i + 1][k1], ring_v[i][k1]]
+            f = bm.faces.new(vs); f.material_index = P.mi(m); f.smooth = True
+            for l in f.loops:
+                c = l.vert.co; l[P.uv].uv = (-c.x - c.y, c.z)              # (world-space, as the Piece's own faces)
+            o_ = [(rings[i][k][1][c] + rings[i][k1][1][c]) * 0.5 for c in range(3)]
+            P.want.append((f, B(o_)))
+        L += d
 # the glass: 16 mm thick, its edges closed, from the shoe up into the rail
 def glass_sec(i):
     x_, z_, r_, l_ = pts[i]; nx, nz = side_dir(i); t = 0.008
     return [((x_ + nx * t, l_, z_ + nz * t), (nx, 0, nz)), ((x_ + nx * t, r_ - 0.02, z_ + nz * t), (0, 1, 0)),
             ((x_ - nx * t, r_ - 0.02, z_ - nz * t), (-nx, 0, -nz)), ((x_ - nx * t, l_, z_ - nz * t), (0, -1, 0))]
-sweep(G, glass_sec, 'MI_T_glass')
+sweep(G, glass_sec, 'MI_T_escGlass')   # (the escalators' smoked glass, Tools/escalator_glass.py)
 # the handrail: a round 70 mm rail, 16 sides
 def rail_sec(i):
     x_, z_, r_, l_ = pts[i]; nx, nz = side_dir(i)
@@ -188,7 +203,7 @@ def rail_sec(i):
         d = tuple(c_ * u[q] + s_ * v[q] for q in range(3))
         out.append(((x_ + 0.035 * d[0], r_ + 0.035 * d[1], z_ + 0.035 * d[2]), d))
     return out
-sweep(S, rail_sec, 'MI_T_jwRubber')
+sweep(S, rail_sec, 'MI_T_jwRubber', hard=False)
 # the black clamp shoe under the glass wherever the guard stands level on the landing - round the bend too
 lvl = [i for i in range(len(pts)) if pts[i][1] >= ZE - RC - 1e-6]
 def shoe_sec(i):
