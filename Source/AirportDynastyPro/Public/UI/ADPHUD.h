@@ -108,7 +108,7 @@ private:
 	TWeakObjectPtr<class ACameraActor> HmiCam; bool bHmiPointer = false;
 	void TickTablet(float Dt);
 	TWeakObjectPtr<class ABabylonModel> Tablet;
-	float TabWant = 0.f, TabK = 0.f, TabCloseWant = 0.f, TabCloseK = 0.f, BlurK = 0.f; bool bTabAway = false;
+	float TabWant = 0.f, TabK = 0.f, TabCloseWant = 0.f, TabCloseK = 0.f, BlurK = 0.f, TabHomeLeft = 0.f; bool bTabAway = false;
 	UPROPERTY() TObjectPtr<class UMaterialInstanceDynamic> TabScreenMat;
 	UPROPERTY() TObjectPtr<class UTexture2D> TabWallTex;
 	FString OverviewReturn, HintText; float HintLeft = 0.f;
@@ -119,6 +119,9 @@ public:
 	/** Your tablet (Tablet.cpp, to-do 117): Tab / the pad's D-pad Down takes it up into your hands or puts it away;
 	 *  TabletUse (E while holding it) brings it up close and its screen opens. */
 	void ToggleTablet();
+	/** The phone or the tablet in your hands (held, on its way, or up close): the game's own UI steps aside, only the
+	 *  Buttons legend stays (owner, 2026-11-18, to-do 120). */
+	bool HoldingDevice() const;
 	bool TabletUse();
 	/** Its 3D screen's picture (a JPEG data URL from its screen; empty: just make sure it has its material). */
 	void TabletScreen(const FString& DataUrl);

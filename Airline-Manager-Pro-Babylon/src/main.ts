@@ -245,6 +245,11 @@ if (UE_PC) {
 // wallpaper to Unreal for its 3D screen (owner, 2026-11-18)
 (window as any).__ueOverviewFrom = (kind: string) => { const u = ue(); if (u && u.overview) u.overview(String(kind || '')); };
 (window as any).__ueOverviewBack = (kind: string) => { const u = ue(); if (u && u.overviewback) u.overviewback(String(kind || '')); };
+// the held tablet's screen (Unreal asks when you take it up and while you hold it): its home screen drawn by the game
+(window as any).__ueTabletHome = () => {
+  const u = ue(); const lg = (m: string) => { try { if (u && u.log) u.log('Tablet screen: ' + m); } catch (e) { /* none */ } };
+  try { if (!gameExists()) { let last = ''; try { last = localStorage.getItem('adp-tablet-home') || ''; } catch (e) { /* none */ } if (last) { (window as any).__ueWallpaper('tablet', last); lg('no game open yet - its last home screen'); } else lg('no game open yet - the wallpaper only'); return; } const r = gameEval('typeof devHomeSend === "function" ? (devHomeSend(), "drawing") : "no devHomeSend"'); lg(String(r)); } catch (e) { lg('error ' + e); }
+};
 (window as any).__ueWallpaper = (kind: string, data: string) => { const u = ue(); if (u && u.wallpaper) u.wallpaper(String(kind || ''), String(data || '')); };
 // Esc in the 3D world with nothing open: leave to the title screen? (the Overview no longer opens from the 3D world)
 (window as any).__ueLeave3D = () => {

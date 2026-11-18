@@ -259,6 +259,7 @@ function lapDeskHtml(): string {
 }
 
 function lapAppHtml(k: string): string {
+  if (k === 'weather') return wxAppHtml();   // (the Weather app: screens/wx-app.ts)
   if (k === 'msgs' || k === 'call' || k === 'store') return phAppHtml(k);
   if (k === 'mail') return lapMailHtml();
   if (k === 'calendar') return lapCalHtml();

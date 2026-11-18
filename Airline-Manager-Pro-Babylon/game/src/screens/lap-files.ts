@@ -375,8 +375,8 @@ function lapSettingsHtml(): string {
       <div class="ch-row"><span><b>Brightness</b><small>${D.autoBright !== false ? 'A little darker at night.' : 'Always as set.'}</small></span><div class="seg">${[40, 60, 80, 100].map(v => `<button class="${(+D.bright || 100) === v ? 'on' : ''}" data-act="lapset" data-k="bright" data-v="${v}">${v} %</button>`).join('')}<button class="${D.autoBright !== false ? 'on' : ''}" data-act="lapset" data-k="autoBright" data-v="${D.autoBright !== false ? '0' : '1'}">Auto</button></div></div>
       <div class="ch-row"><span><b>Notifications</b><small>Messages sliding in at the top while you use it.</small></span><div class="seg">${[['1', 'On'], ['0', 'Off']].map(o => `<button class="${(D.notes !== false ? '1' : '0') === o[0] ? 'on' : ''}" data-act="lapset" data-k="notes" data-v="${o[0]}">${o[1]}</button>`).join('')}</div></div>
       <div class="ch-row"><span><b>Do not disturb</b><small>No notifications and no sounds until you switch it off.</small></span><div class="seg">${[['1', 'On'], ['0', 'Off']].map(o => `<button class="${(D.dnd ? '1' : '0') === o[0] ? 'on' : ''}" data-act="lapset" data-k="dnd" data-v="${o[0]}">${o[1]}</button>`).join('')}</div></div>
-      <div class="ch-row"><span><b>Lock code</b><small>${D.pin ? 'A 4-digit code is asked for when it opens or locks.' : 'No code: it opens straight away.'}</small></span><div class="seg"><button class="${D.pin ? '' : 'on'}" data-act="lapset" data-k="pin" data-v="">Off</button><button class="${D.pin ? 'on' : ''}" data-act="lap-pin-set">${D.pin ? 'Change code…' : 'Set a code…'}</button></div></div>
-      <div class="ch-row"><span><b>Auto-lock</b><small>Locks itself when you leave it untouched.</small></span><div class="seg">${[[0, 'Never'], [1, '1 min'], [5, '5 min'], [15, '15 min']].map(o => `<button class="${(+D.autoLock || 0) === o[0] ? 'on' : ''}" data-act="lapset" data-k="autoLock" data-v="${o[0]}">${o[1]}</button>`).join('')}</div></div>
+      <div class="ch-row"><span><b>Lock code</b><small>${D.pin ? 'Its lock screen shows when you pick it up; your code goes in by itself. No screen timer: always ready for you.' : 'No code: it opens straight away.'}</small></span><div class="seg"><button class="${D.pin ? '' : 'on'}" data-act="lapset" data-k="pin" data-v="">Off</button><button class="${D.pin ? 'on' : ''}" data-act="lap-pin-set">${D.pin ? 'Change code…' : 'Set a code…'}</button></div></div>
+      ${Lap.phone ? phToneRowsHtml(D) : ''}
       <div class="ch-row"><span><b>Keyboard clicks</b></span><div class="seg">${[['1', 'On'], ['0', 'Off']].map(o => `<button class="${(D.clicks !== false ? '1' : '0') === o[0] ? 'on' : ''}" data-act="lapset" data-k="clicks" data-v="${o[0]}">${o[1]}</button>`).join('')}</div></div>
       <div class="ch-row"><span><b>Colour</b><small>For the buttons and highlights.</small></span><div class="le-sw">${LAP_ACCENTS.map(c => `<button class="sw ${D.accent === c ? 'on' : ''}" style="--c:${c || 'var(--cyan)'}" data-act="lapset" data-k="accent" data-v="${c}" aria-label="${c || 'Standard'}"></button>`).join('')}</div></div>
       <div class="ch-row"><span><b>Text size</b></span><div class="seg">${[['s', 'Small'], ['m', 'Normal'], ['l', 'Large']].map(o => `<button class="${D.text === o[0] ? 'on' : ''}" data-act="lapset" data-k="text" data-v="${o[0]}">${o[1]}</button>`).join('')}</div></div>
@@ -385,7 +385,7 @@ function lapSettingsHtml(): string {
     <div class="set-card col"><div class="sc-h">${icon('download')}<span><b>Update</b><small>Updates the game itself (not this ${Lap.phone ? 'phone' : 'computer'}): the same as Settings → Updates in the game.</small></span></div>${upd}</div>
   </div>`;
 }
-ACTIONS['lapset'] = el => { const D = lapDev(), k = el.getAttribute('data-k'), v = el.getAttribute('data-v'); D[k] = k === 'clock24' || k === 'clicks' || k === 'autoBright' || k === 'notes' || k === 'dnd' ? v === '1' : k === 'bright' || k === 'autoLock' ? +v : v; Store.soon(); Sound.tick(); lapDevApply(); lapRender(true); if (k === 'wall') devWallSend(); };
+ACTIONS['lapset'] = el => { const D = lapDev(), k = el.getAttribute('data-k'), v = el.getAttribute('data-v'); D[k] = k === 'clock24' || k === 'clicks' || k === 'autoBright' || k === 'notes' || k === 'dnd' ? v === '1' : k === 'bright' ? +v : v; Store.soon(); Sound.tick(); lapDevApply(); lapRender(true); if (k === 'wall') devWallSend(); };
 /* ---------- your own wallpaper: a picture from your computer, cropped to this screen (owner, 2026-11-18) ---------- */
 function lapWallAspect(): number { return Lap.phone ? 9 / 19.3 : (Lap as any).tablet ? 236 / 133 : 16 / 9; }
 ACTIONS['lap-wall-own'] = () => {
@@ -432,6 +432,7 @@ function wallCrop(src: string) {
 }
 /** The tablet's 3D screen in your hands shows its wallpaper too: the chosen picture sent to Unreal as a JPEG. */
 function devWallSend() {
+  if ((Lap as any).tablet) { devHomeSend(); return; }   // (the held tablet shows its whole home screen, not the bare wallpaper)
   if (!(Lap as any).tablet) return;
   const D = lapDev(), send = (url: string) => { const img = new Image(); img.crossOrigin = 'anonymous'; img.onload = () => {
       const c = document.createElement('canvas'); c.width = 1280; c.height = Math.round(1280 * 133 / 236); const x = c.getContext('2d'); const s = Math.max(c.width / img.width, c.height / img.height);
@@ -440,6 +441,75 @@ function devWallSend() {
     img.src = url; };
   if (D.wall === 'own' && D.wallId) PhotoDb.all().then(all => { const p = all.filter((x: any) => x.id === D.wallId)[0]; if (p) send(p.data); });
   else if (D.wall === 'seastack') send('assets/wallpapers/owner-drone-sea-stack.jpg');
+}
+
+/* ---------- the held tablet's own screen (owner, 2026-11-18): not just the wallpaper - its whole home screen on top of
+   it (the app icons, the clock and calendar card, the taskbar), or its lock screen when it has a code. Drawn into a
+   picture and sent to Unreal for the tablet's 3D screen (TabletScreen) when you take it up, and every 30 s while held. */
+function devHomeLog(m: string) { try { const u = (window.parent as any).ue && (window.parent as any).ue.adp; if (u && u.log) u.log('Tablet screen: ' + m); } catch (e) { /* no Unreal */ } }
+/** Would it show its lock screen if picked up now (a code set and put away longer than its lock time)? */
+/** With a code it shows its lock screen whenever it is picked up (no timer - owner, 2026-11-18). */
+function lapWouldLock(D: any): boolean { return !!D.pin; }
+function devHomeSend() {
+  const L: any = Lap; const was = { phone: L.phone, tablet: L.tablet, ops: L.ops };
+  L.phone = false; L.tablet = true; L.ops = false;
+  let D: any, apps: [string, string, string, string][], un = 0, notes: CalNote[] = [], d = new Date();
+  try { D = lapDev(); apps = lapDeskApps(); un = lapUnread(); d = lapGameNow(); const today = lapYmd(d); notes = (lapS().calendar as CalNote[]).filter(c => c.date >= today).sort((a, b) => a.date < b.date ? -1 : 1).slice(0, 3); }
+  catch (e) { L.phone = was.phone; L.tablet = was.tablet; L.ops = was.ops; devHomeLog('no airline open yet (' + e + ')'); return; }
+  L.phone = was.phone; L.tablet = was.tablet; L.ops = was.ops;
+  const W = 1280, H = Math.round(1280 * 133 / 236), k = W / 1180;   // (the screen as laid out at about 1180 px wide)
+  const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d') as CanvasRenderingContext2D;
+  const load = (src: string) => new Promise<HTMLImageElement | null>(res => { const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
+  const svgImg = (name: string) => load('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(icon(name).replace('class="ic ', 'xmlns="http://www.w3.org/2000/svg" width="48" height="48" class="ic ').replace(/currentColor/g, '#ffffff')));
+  const wallSrc = (): Promise<string> => D.wall === 'own' && D.wallId ? PhotoDb.all().then((all: any[]) => { const p = all.filter((q: any) => q.id === D.wallId)[0]; return p ? p.data : ''; })
+    : Promise.resolve(D.wall === 'seastack' ? 'assets/wallpapers/owner-drone-sea-stack.jpg' : '');
+  const rr = (X: number, Y: number, w: number, h: number, r: number) => { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + h, r); x.arcTo(X + w, Y + h, X, Y + h, r); x.arcTo(X, Y + h, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath(); };
+  const font = (px: number, w = 600) => { x.font = `${w} ${Math.round(px * k)}px Inter, system-ui, sans-serif`; };
+  const time = D.clock24 === false ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : d.toTimeString().slice(0, 5);
+  wallSrc().then(src => Promise.all([src ? load(src) : Promise.resolve(null), Promise.all(apps.map(a => svgImg(a[2])))])).then(([wall, ics]) => {
+    // the wallpaper (or the company's colours), behind everything
+    if (wall) { const s = Math.max(W / wall.width, H / wall.height); x.drawImage(wall, (W - wall.width * s) / 2, (H - wall.height * s) / 2, wall.width * s, wall.height * s); }
+    else { const co: any = company(); const g = x.createLinearGradient(0, 0, W, H); g.addColorStop(0, co.color || '#1B4F8A'); g.addColorStop(1, co.color2 || '#0B2A55'); x.fillStyle = g; x.fillRect(0, 0, W, H); }
+    if (lapWouldLock(D)) {
+      // its lock screen: the time and date over the wallpaper, softly darkened, and the code's four dots
+      x.fillStyle = 'rgba(0,0,0,0.38)'; x.fillRect(0, 0, W, H);
+      x.fillStyle = '#fff'; x.textAlign = 'center'; x.shadowColor = 'rgba(0,0,0,.6)'; x.shadowBlur = 10;
+      font(96, 300); x.fillText(time, W / 2, H * 0.40);
+      font(22, 500); x.fillText(d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }), W / 2, H * 0.40 + 44 * k);
+      font(17, 500); x.fillText('Enter your code', W / 2, H * 0.40 + 96 * k);
+      x.shadowBlur = 0; x.strokeStyle = '#fff'; x.lineWidth = 2 * k;
+      for (let i = 0; i < 4; ++i) { x.beginPath(); x.arc(W / 2 + (i - 1.5) * 28 * k, H * 0.40 + 128 * k, 7 * k, 0, Math.PI * 2); x.stroke(); }
+    } else {
+      // the app icons (as on its home screen: columns of four from the top left), each its colour tile and white sign
+      const cols = 4, cw = 100 * k, ch = 104 * k, X0 = 22 * k, Y0 = 22 * k;
+      x.textAlign = 'center';
+      apps.forEach((a, i) => {
+        const cx = X0 + (i % cols) * cw + 46 * k, cy = Y0 + Math.floor(i / cols) * ch + 8 * k;
+        if (cy + 80 * k > H - 60 * k) return;
+        rr(cx - 25 * k, cy, 50 * k, 50 * k, 15 * k); x.fillStyle = a[3]; x.fill();
+        const im = (ics as any[])[i]; if (im) x.drawImage(im, cx - 13 * k, cy + 12 * k, 26 * k, 26 * k);
+        if (a[0] === 'mail' && un) { x.fillStyle = '#F04A4A'; x.beginPath(); x.arc(cx + 22 * k, cy + 3 * k, 9 * k, 0, Math.PI * 2); x.fill(); x.fillStyle = '#fff'; font(11, 700); x.fillText(String(un), cx + 22 * k, cy + 7 * k); }
+        x.fillStyle = '#E9F1FA'; x.shadowColor = 'rgba(0,0,0,.6)'; x.shadowBlur = 3; font(12, 600);
+        a[1].split(' ').reduce((lines: string[], w: string) => { const l = lines[lines.length - 1]; if (l && x.measureText(l + ' ' + w).width < 86 * k) lines[lines.length - 1] = l + ' ' + w; else lines.push(w); return lines; }, []).slice(0, 2)
+          .forEach((ln: string, j: number) => x.fillText(ln, cx, cy + 68 * k + j * 14 * k));
+        x.shadowBlur = 0;
+      });
+      // the clock and calendar card, top right
+      const ww = 300 * k, wx = W - 22 * k - ww, wy = 22 * k, wh = 150 * k;
+      rr(wx, wy, ww, wh, 18 * k); x.fillStyle = 'rgba(10,20,34,0.55)'; x.fill();
+      x.textAlign = 'left'; x.fillStyle = '#fff'; font(44, 700); x.fillText(time, wx + 18 * k, wy + 56 * k);
+      x.fillStyle = 'rgba(233,241,250,.85)'; font(13, 500); x.fillText(d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), wx + 18 * k, wy + 80 * k);
+      font(13, 500); x.fillText(notes.length ? notes[0].text.slice(0, 34) : 'Nothing in your calendar', wx + 18 * k, wy + 106 * k);
+      x.fillText(un ? `${un} unread ${un === 1 ? 'message' : 'messages'}` : 'No new mail', wx + 18 * k, wy + 130 * k);
+      // the taskbar along the bottom: its apps and the time
+      const th = 46 * k; x.fillStyle = 'rgba(10,18,30,0.78)'; x.fillRect(0, H - th, W, th);
+      const n = Math.min(apps.length, 18), sx = W / 2 - n * 34 * k / 2;
+      for (let i = 0; i < n; ++i) { const im = (ics as any[])[i]; if (im) { x.globalAlpha = 0.9; x.drawImage(im, sx + i * 34 * k + 6 * k, H - th + 12 * k, 22 * k, 22 * k); x.globalAlpha = 1; } }
+      x.textAlign = 'right'; x.fillStyle = '#fff'; font(13, 700); x.fillText(time, W - 18 * k, H - th + 20 * k);
+      font(11, 500); x.fillText(d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }), W - 18 * k, H - th + 36 * k);
+    }
+    try { const url = c.toDataURL('image/jpeg', 0.88); try { (window.parent as any).localStorage.setItem('adp-tablet-home', url); } catch (e) { /* full */ } (window.parent as any).__ueWallpaper && (window.parent as any).__ueWallpaper('tablet', url); devHomeLog('home screen drawn (' + apps.length + ' apps)'); } catch (e) { devHomeLog('could not send: ' + e); }
+  }).catch(e => devHomeLog('could not draw: ' + e));
 }
 
 /* ---------- the start menu (the star) ---------- */
@@ -513,10 +583,17 @@ function lapLockDraw() {
   const t = document.createElement('div'); t.innerHTML = lapLockHtml(); const n = t.firstElementChild as HTMLElement;
   if (old) old.replaceWith(n); else os.appendChild(n);
 }
-/** Locked now (when it opens with a code, or left untouched too long). */
+/** Locked now (picked up after lying put away longer than its lock time). */
 function lapLock() { LapLock.mode = 'open'; LapLock.got = ''; lapLockDraw(); }
-function lapLockOnOpen() { LapLock.lastIn = Date.now(); LapLock.mode = ''; if (lapDev().pin) lapLock(); }
-function lapLockTick() { const D = lapDev(); if (!LapLock.mode && +D.autoLock > 0 && Date.now() - LapLock.lastIn > +D.autoLock * 60000) lapLock(); }
+function lapLockOnOpen() {
+  LapLock.lastIn = Date.now(); LapLock.mode = '';
+  const D = lapDev(), pin = String(D.pin || ''); if (!pin) return;
+  // (owner, 2026-11-18: with a code it shows its lock screen whenever you pick it up, and the code goes in by itself,
+  // digit by digit, as a saved bank login does - you see it unlock; no screen timer, it is always ready for you)
+  lapLock();
+  pin.split('').forEach((ch, i) => setTimeout(() => { if (LapLock.mode !== 'open') return; const b = document.createElement('button'); b.setAttribute('data-k', ch); ACTIONS['lap-lock-key'](b, null as any); }, 450 + i * 230));
+}
+function lapLockTick() { /* (no screen timer: it never locks by itself - owner, 2026-11-18) */ }
 document.addEventListener('pointerdown', () => { LapLock.lastIn = Date.now(); }, true);
 document.addEventListener('keydown', () => { LapLock.lastIn = Date.now(); }, true);
 ACTIONS['lap-pin-set'] = () => { LapLock.mode = 'set'; LapLock.got = ''; LapLock.first = ''; Sound.tick(); lapLockDraw(); };

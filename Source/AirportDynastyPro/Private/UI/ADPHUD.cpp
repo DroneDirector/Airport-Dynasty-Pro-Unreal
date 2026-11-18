@@ -344,6 +344,7 @@ void AADPHUD::BeginPlay()
 	Plan.Load();
 	HoloMap = SNew(SHoloMap);
 	HoloMap->SetPlan(Plan);
+	HoloMap->SetHeading(AAirfield::Shared().Heading);   // (the compass: true directions on the real globe)
 	HoloMap->OnOpen = [this]() { ToggleMap(); };
 	Settings = MakeSettings();
 	MakeWardrobe();
@@ -406,7 +407,7 @@ void AADPHUD::BeginPlay()
 				})
 			]
 		]
-		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(16)[TopBar.ToSharedRef()]
+		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(16)[SNew(SBox).Visibility_Lambda([this]() { return HoldingDevice() ? EVisibility::Collapsed : EVisibility::SelfHitTestInvisible; })[TopBar.ToSharedRef()]]
 		// the stress walk's note (only while it runs: waiting for the world to load, then its result)
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
 		[
@@ -420,7 +421,7 @@ void AADPHUD::BeginPlay()
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(16)
 		[
 			SAssignNew(MiniBox, SBox).WidthOverride(240).HeightOverride(240)
-			.Visibility_Lambda([this]() { return bGame || bInLounge ? EVisibility::Collapsed : EVisibility::Visible; })
+			.Visibility_Lambda([this]() { return bGame || bInLounge || HoldingDevice() ? EVisibility::Collapsed : EVisibility::Visible; })
 			[
 				// the map, and beside it (full screen only) its shortcuts in their own column: nothing of the interface lies
 				// over the map's drawing (owner, 2026-11-13: no UI in the way of another)
@@ -461,7 +462,7 @@ void AADPHUD::BeginPlay()
 			.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
 			.BorderBackgroundColor(Panel)
 			.Padding(FMargin(10, 4))
-			.Visibility_Lambda([this]() { return bGame || bHidden || bWardrobe || bWhoAreYou ? EVisibility::Collapsed : EVisibility::Visible; })
+			.Visibility_Lambda([this]() { return bGame || bHidden || bWardrobe || bWhoAreYou || HoldingDevice() ? EVisibility::Collapsed : EVisibility::Visible; })
 			[
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
@@ -489,7 +490,7 @@ void AADPHUD::BeginPlay()
 		[
 			// the frame-rate box (Settings): small, draggable with the pointer free (middle mouse)
 			SAssignNew(FpsBox, SDragBox).Name(TEXT("FrameRate")).Start(FVector2D(0.86, 0.22))
-			.Visibility_Lambda([this]() { return bFpsBox && !bGame && !bHidden ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed; })
+			.Visibility_Lambda([this]() { return bFpsBox && !bGame && !bHidden && !HoldingDevice() ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed; })
 			[
 				SNew(SBorder)
 				.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
@@ -669,7 +670,7 @@ void AADPHUD::BeginPlay()
 		// the jetway button, lower right (owner, 2026-11-16): the nearest jetway out to the aircraft, or back
 		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Bottom).Padding(FMargin(0, 0, 14, 64))
 		[
-			SNew(SBox).Visibility_Lambda([this]() { return !bGame && !bHidden && !bJetMenu && NearJetway(4000.f) != INDEX_NONE ? EVisibility::Visible : EVisibility::Collapsed; })
+			SNew(SBox).Visibility_Lambda([this]() { return !bGame && !bHidden && !bJetMenu && !HoldingDevice() && NearJetway(4000.f) != INDEX_NONE ? EVisibility::Visible : EVisibility::Collapsed; })
 			[
 				SNew(SButton).ButtonColorAndOpacity(FLinearColor(0.05f, 0.2f, 0.36f, 0.9f)).ContentPadding(FMargin(10, 4))
 				.OnClicked_Lambda([this]()
@@ -1307,10 +1308,11 @@ void AADPHUD::UpdateMouse()
 {
 	APlayerController* PC = GetOwningPlayerController();
 	if (!PC) return;
-	const bool bFree = bGame || bDevice || bSettings || bWardrobe || bWhoAreYou || bPointer || bJetMenu || bPeopleMenuWas || (HoloMap.IsValid() && HoloMap->IsFull());
+	const bool bHold = HoldingDevice() && !bDevice;   // (holding the phone or the tablet: the pointer free to reach the Buttons legend - owner, 2026-11-18)
+	const bool bFree = bGame || bDevice || bSettings || bWardrobe || bWhoAreYou || bPointer || bJetMenu || bPeopleMenuWas || bHold || (HoloMap.IsValid() && HoloMap->IsFull());
 	// (Unreal counts these calls: cleared first, so the view is never left locked by an earlier one)
 	PC->ResetIgnoreLookInput();
-	if (bPointer && !bGame) PC->SetIgnoreLookInput(true);
+	if ((bPointer || bHold) && !bGame) PC->SetIgnoreLookInput(true);
 	// the phone or a computer up (or the phone on its way): you stay where you are, looking at it
 	PC->ResetIgnoreMoveInput();
 	if ((bDevice || bHmiPointer || HmiJ != INDEX_NONE || PhoneDir != 0 || bWardrobe || bWhoAreYou) && !bGame) { PC->SetIgnoreLookInput(true); PC->SetIgnoreMoveInput(true); }

@@ -267,6 +267,7 @@ private:
 		int32 Group = -1; FVector Pivot = FVector::ZeroVector; FVector World = FVector::ZeroVector;
 		float K = 0.f, Hold = 0.f, Pause = 0.f; int32 Dir = 0; bool bOpen = false;   // (bOpen: where its panel last sent it)   // open 0-1, kept open a while, the stop before turning back, moving up / down
 		TWeakObjectPtr<UAudioComponent> Hum;
+		bool bRec = false; float Wait = 0.f, Travel = 5.f;   // (the real recording plays: the door waits for its motor, then moves at its pace)
 	};
 	TArray<FBay> Bays;
 	static TWeakObjectPtr<AFireStationDoors> One;

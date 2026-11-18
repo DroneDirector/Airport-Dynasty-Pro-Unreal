@@ -178,17 +178,33 @@ function phCallStart(c: PhContact, incoming: boolean) {
   const S = phS(); S.phoneCalls.unshift({ id: c.id, num: '', at: Date.now(), dir: incoming ? 'in' : 'out', ok: false }); S.phoneCalls = S.phoneCalls.slice(0, 100); Store.soon();
   if (Lap.app === 'browser') lapBrowserHide(); Lap.app = 'call'; PhA.calling = null; lapRender();
   if (incoming) { phRing(); return; }
-  // ringing, then they answer (or don't, when it's very bad between you)
-  const r = phRelOf(c.id), answers = r.rel > -4 || Math.random() < 0.3;
+  // ringing (your calling tune), then they answer - or they're busy and their voicemail answers (owner, 2026-11-18)
+  try { if (PhCall.tune) PhCall.tune.stop(); PhCall.tune = phToneLoop('back'); } catch (e) { /* no sound */ }
+  const r = phRelOf(c.id), answers = (r.rel > -4 || Math.random() < 0.3) && Math.random() > 0.18;
+  if (!answers) { PhCall.ringT = setTimeout(() => { if (PhCall.c === c && PhCall.st === 'calling') phVoicemail(c); }, 6500 + Math.random() * 6000); return; }
   PhCall.ringT = setTimeout(() => { if (PhCall.c !== c || PhCall.st !== 'calling') return; if (answers) phCallAnswered(); else { PhCall.st = 'noanswer'; phCallRedraw(); setTimeout(() => { if (PhCall.c === c && PhCall.st === 'noanswer') phCallEnd(); }, 1800); } }, 2200 + Math.random() * 2200);
 }
 function phRing() {
-  const k = () => { if (PhCall.st !== 'incoming') return; try { Sound.chime(); } catch (e) { /* no sound */ } PhCall.ringT = setTimeout(k, 1600); };
+  // your chosen ringtone (screens/ph-tones.ts), round and round while it rings
+  try { if (PhCall.tune) PhCall.tune.stop(); PhCall.tune = phToneLoop('ring'); } catch (e) { /* no sound */ }
+  const k = () => { if (PhCall.st !== 'incoming') { try { if (PhCall.tune) PhCall.tune.stop(); } catch (e) { /* none */ } return; } PhCall.ringT = setTimeout(k, 400); };
   k();
   setTimeout(() => { if (PhCall.st === 'incoming') { PhCall.st = 'missed'; const c = PhCall.c; phCallEnd(); if (c) phTextFrom(c, 'Tried to call you. Call me back when you can.'); } }, 20000);
 }
+/** Nobody answers: their phone's own answer, the beep, and then whatever you say is left as a voice message. */
+function phVoicemail(c: PhContact) {
+  try { if (PhCall.tune) PhCall.tune.stop(); } catch (e) { /* none */ }
+  PhCall.st = 'vm'; PhCall.t0 = Date.now(); PhCall.log = [];
+  const first = c.name.split(' ')[0];
+  const greet = phPick(c.id, ['Hi, this is ' + first + '. I can\'t take your call right now. Please call later, or leave a message after the tone.',
+    'You\'ve reached ' + c.name + '. I\'m busy at the moment - leave a message after the tone and I\'ll get back to you.',
+    'Hello, ' + first + ' here. Sorry I missed you. Leave a message after the beep.'], 'vm');
+  PhCall.log.push({ me: false, t: greet }); phCallRedraw();
+  phSay(greet, phWho(c, 'neutral'), () => { if (PhCall.c !== c || PhCall.st !== 'vm') return; phBeep(); PhCall.log.push({ me: false, t: '(beep - speak your message)' }); phCallRedraw(); });
+}
 function phCallAnswered() {
   const c = PhCall.c as PhContact; if (!c) return;
+  try { if (PhCall.tune) PhCall.tune.stop(); } catch (e) { /* none */ }
   const S = phS(); if (S.phoneCalls[0] && S.phoneCalls[0].id === c.id) S.phoneCalls[0].ok = true;
   PhCall.st = 'on'; PhCall.t0 = Date.now(); clearTimeout(PhCall.ringT);
   const r = phRelOf(c.id), first = c.name.split(' ')[0];
@@ -200,7 +216,14 @@ function phCallAnswered() {
 }
 /** You say something on the call: your own voice, then their answer in theirs. */
 function phCallSay(text: string) {
-  text = (text || '').trim(); const c = PhCall.c as PhContact; if (!c || PhCall.st !== 'on' || !text || PhCall.busy) return;
+  text = (text || '').trim(); const c0 = PhCall.c as PhContact;
+  // on their voicemail: what you say is left as a voice message (in your voice), then you hang up
+  if (c0 && PhCall.st === 'vm' && text && !PhCall.busy) {
+    PhCall.busy = true; PhCall.log.push({ me: true, t: text }); phCallRedraw();
+    phSay(text, phMeWho(), () => { PhCall.busy = false; const S = phS(), L: PhMsg[] = S.phoneMsgs[c0.id] = S.phoneMsgs[c0.id] || []; L.push({ me: true, t: 'Voice message: ' + text, at: Date.now(), read: true }); Store.soon(); setTimeout(() => { if (PhCall.c === c0) phCallEnd(); }, 500); });
+    return;
+  }
+  const c = c0; if (!c || PhCall.st !== 'on' || !text || PhCall.busy) return;
   PhCall.busy = true; PhCall.log.push({ me: true, t: text }); phCallRedraw();
   phSay(text, phMeWho(), () => {
     if (PhCall.c !== c || PhCall.st !== 'on') { PhCall.busy = false; return; }
@@ -213,7 +236,7 @@ function phCallSay(text: string) {
   });
 }
 function phCallEnd() {
-  clearTimeout(PhCall.ringT); try { Voice.stop(); } catch (e) { /* quiet */ }
+  clearTimeout(PhCall.ringT); try { Voice.stop(); } catch (e) { /* quiet */ } try { if (PhCall.tune) PhCall.tune.stop(); } catch (e) { /* none */ }
   const c = PhCall.c; PhCall.st = 'ended'; PhCall.busy = false;
   const S = phS(); if (c && S.phoneCalls[0] && S.phoneCalls[0].id === c.id) { S.phoneCalls[0].dur = PhCall.t0 ? Math.round((Date.now() - PhCall.t0) / 1000) : 0; Store.soon(); }
   phCallRedraw(); setTimeout(() => { if (PhCall.st === 'ended') { PhCall.c = null; PhCall.st = ''; phCallRedraw(); } }, 900);
@@ -224,10 +247,10 @@ function phCallDur(): string { const s = PhCall.t0 ? Math.floor((Date.now() - Ph
 /** The call screen (shown in the Phone app while a call is on). */
 function phCallScreenHtml(): string {
   const c = PhCall.c as PhContact, st = PhCall.st;
-  const label = st === 'calling' ? 'Calling…' : st === 'incoming' ? 'Incoming call' : st === 'noanswer' ? 'No answer' : st === 'missed' ? 'Missed call' : st === 'ended' ? 'Call ended' : phCallDur();
+  const label = st === 'vm' ? 'Voicemail' : st === 'calling' ? 'Calling…' : st === 'incoming' ? 'Incoming call' : st === 'noanswer' ? 'No answer' : st === 'missed' ? 'Missed call' : st === 'ended' ? 'Call ended' : phCallDur();
   if (st === 'incoming') return `<div class="pcall in"><div class="pcall-who">${phAvatar(c, true)}<b>${esc(c.name)}</b><small>${esc(c.sub)} · ${label}</small></div><span></span>
     <div class="pcall-ans"><button class="pcall-end" data-act="ph-call-end" aria-label="Decline">${icon('phone')}</button><button class="pkp-call pc-ring" data-act="ph-call-ans" aria-label="Answer">${icon('phone')}</button></div></div>`;
-  const on = st === 'on';
+  const on = st === 'on' || st === 'vm';
   return `<div class="pcall ${on ? 'on' : ''}"><div class="pcall-who ${on ? 'sm' : ''}">${phAvatar(c, !on)}<b>${esc(c.name)}</b><small class="pcall-t">${label}</small></div>
     ${on ? `<div class="pcall-log">${PhCall.log.map((l: any) => `<div class="pm-b ${l.me ? 'me' : ''}">${esc(l.t)}</div>`).join('')}${PhCall.busy ? '<div class="pm-b pm-typing"><i></i><i></i><i></i></div>' : ''}</div>
       <div class="pcall-say">${phCallOpts(c).map(o => `<button class="pcs-o" data-act="ph-call-say" data-t="${esc(o)}" ${PhCall.busy ? 'disabled' : ''}>${esc(o)}</button>`).join('')}</div>
@@ -241,7 +264,8 @@ function phTextFrom(c: PhContact, text: string) {
   const S = phS(), L: PhMsg[] = S.phoneMsgs[c.id] = S.phoneMsgs[c.id] || [];
   const open = Lap.phone && Lap.app === 'msgs' && PhA.thread === c.id && Lap.root && Lap.root.isConnected;
   L.push({ me: false, t: text, at: Date.now(), read: !!open }); Store.soon();
-  if (open) { Sound.tick(); phRefresh(); } else { phRefresh(); phoneNote({ title: c.name, body: text, ic: 'chat', c: '#34C759', app: 'msgs', thread: c.id }); }
+  try { const L2: any = Lap; const was = L2.phone; L2.phone = true; const Dn = lapDev(); L2.phone = was; if (!Dn.dnd) phTonePlay('msg', phToneOf('msg'), 0.2); } catch (e) { /* no sound */ }
+  if (open) { phRefresh(); } else { phRefresh(); phoneNote({ title: c.name, body: text, ic: 'chat', c: '#34C759', app: 'msgs', thread: c.id }); }
 }
 /** They call you back (a little later). With the phone in use it rings; otherwise you find a missed call and a message. */
 function phCallBackLater(c: PhContact, why: string) {

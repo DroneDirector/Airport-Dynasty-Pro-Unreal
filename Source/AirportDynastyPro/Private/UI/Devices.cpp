@@ -382,6 +382,7 @@ void AADPHUD::ToggleTablet()
 		}
 		Tablet->SetActorHiddenInGame(false);
 		TabWant = 1.f; TabCloseWant = 0.f;
+		TabHomeLeft = 0.f;   // (its home screen drawn for its 3D screen right away - TickTablet)
 		Breadcrumb(TEXT("Holding your tablet"));
 		ADP_LOG(TEXT("Tablet: taken up"));
 	}
@@ -446,6 +447,13 @@ void AADPHUD::TickTablet(float Dt)
 	}
 	ABabylonModel* T = Tablet.Get();
 	if (!T || !PC) return;
+	// its 3D screen shows its whole home screen (or its lock screen), drawn by the game's own tablet screen: when you take
+	// it up and every 30 s while you hold it (the clock, the mail) - owner, 2026-11-18
+	if (TabWant > 0.5f && !bDevice && (TabHomeLeft -= Dt) <= 0.f)
+	{
+		TabHomeLeft = 30.f;
+		if (Browser.IsValid()) Browser->ExecuteJavascript(TEXT("window.__ueTabletHome ? window.__ueTabletHome() : (window.ue && ue.adp && ue.adp.log && ue.adp.log('Tablet screen: the page has no __ueTabletHome'))"));
+	}
 	TabK = FMath::Clamp(TabK + (TabWant > 0.5f ? 1.f : -1.f) * Dt / ADPTabletK::TabLift, 0.f, 1.f);
 	if (!bDevice) TabCloseK = FMath::Clamp(TabCloseK + (TabCloseWant > 0.5f ? 1.f : -1.f) * Dt / ADPTabletK::TabClose, 0.f, 1.f);
 	if (TabK <= 0.f && TabWant < 0.5f) { T->SetActorHiddenInGame(true); return; }
@@ -467,7 +475,7 @@ void AADPHUD::TabletScreenClosed()
 {
 	// its screen put away (Esc, its own button): back in your hands - or away, if Tab asked for that
 	if (Tablet.IsValid()) Tablet->SetActorHiddenInGame(false);
-	TabCloseWant = 0.f;
+	TabCloseWant = 0.f; TabHomeLeft = 0.f;   // (back in your hands: its screen drawn again as you left it)
 	if (bTabAway) { bTabAway = false; TabWant = 0.f; }
 }
 
@@ -558,4 +566,9 @@ void AADPHUD::OpenSiteStart()
 	if (bNew) { IFileManager::Get().Delete(*ADPPoseK::PoseFile(), false, true, true); GoNewGameStart(); ADP_LOG(TEXT("Pose: a new game - outside the main hall")); }
 	else if (!RestorePose()) GoNewGameStart();
 	bPoseLive = true; PoseLeft = 5.f;
+}
+
+bool AADPHUD::HoldingDevice() const
+{
+	return (Tablet.IsValid() && (TabWant > 0.5f || TabK > 0.01f)) || PhoneDir != 0 || (bDevice && (DeviceKind == TEXT("phone") || DeviceKind == TEXT("tablet")));
 }

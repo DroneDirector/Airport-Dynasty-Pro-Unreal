@@ -1740,14 +1740,28 @@ void AFireStationDoors::Tick(float Dt)
 		// the opening (then it stops where it is, or stays up)
 		const float Target = (bWant || B.Hold > 0.f) ? 1.f : (bBlocked ? B.K : 0.f);
 		const int32 Want = Target > B.K + 1e-4f ? 1 : Target < B.K - 1e-4f ? -1 : 0;
-		auto StopMotor = [&]()
+		auto StopMotor = [&](bool bArrived)
 		{
-			Sound(B, GarageClunk(true));
-			if (B.Hum.IsValid()) B.Hum->Stop();
-			B.Hum = nullptr; B.Dir = 0;
+			// the real recording (owner, 2026-11-18): it plays on to its own end when the door arrives (its landing clunks,
+			// its fade); stopped on the way, it fades quickly. Without the recordings: the made-up clunk and hum as before.
+			if (B.bRec) { if (!bArrived && B.Hum.IsValid()) B.Hum->FadeOut(0.4f, 0.f); }
+			else { Sound(B, GarageClunk(true)); if (B.Hum.IsValid()) B.Hum->Stop(); }
+			B.Hum = nullptr; B.Dir = 0; B.bRec = false;
 		};
-		if (B.Dir != 0 && Want != B.Dir) { StopMotor(); B.Pause = Want != 0 ? 1.0f : 0.f; }   // (changing its way: stops, about a second, then goes)   // stopped, or turning back: a hard stop first
+		if (B.Dir != 0 && Want != B.Dir) { StopMotor(false); B.Pause = Want != 0 ? 1.0f : 0.f; }   // (changing its way: stops, about a second, then goes)   // stopped, or turning back: a hard stop first
 		if (B.Pause > 0.f) { B.Pause -= Dt; continue; }
+		// the real garage door recordings (Art/Sounds/FireStation, CC0 - Tools/import_firestation_sounds.py)
+		static USoundBase* UpS = LoadObject<USoundBase>(nullptr, TEXT("/Game/FireStation/Sounds/FsDoorUp.FsDoorUp"));
+		static USoundBase* DownS = LoadObject<USoundBase>(nullptr, TEXT("/Game/FireStation/Sounds/FsDoorDown.FsDoorDown"));
+		if (Want != 0 && B.Dir == 0 && UpS && DownS)
+		{
+			// the door moves at the recording's own pace (owner, 2026-11-18: "change the animation length of the garage door
+			// to match the sound"): up - the switch and the motor's start, then 11.5 s of travel as its motor whines; down -
+			// 14.6 s, touching down as the recording's landing clunks begin. A door already part way goes the rest of it.
+			const bool bUp = Want > 0;
+			B.Hum = UGameplayStatics::SpawnSoundAtLocation(this, bUp ? UpS : DownS, B.World + FVector(0, 0, 300.f), FRotator::ZeroRotator, 1.f, 1.f, 0.f, Heard, nullptr, false);
+			B.bRec = true; B.Dir = Want; B.Travel = bUp ? 11.5f : 14.6f; B.Wait = bUp ? 0.7f : 0.4f;
+		}
 		if (Want != 0 && B.Dir == 0)
 		{
 			// the motor starts: its clunk, then its hum and the sections' rattle while it runs
@@ -1765,9 +1779,10 @@ void AFireStationDoors::Tick(float Dt)
 			B.Dir = Want;
 		}
 		if (B.Dir == 0) continue;
-		// about 5 s from shut to open (a fire station's fast doors)
-		B.K = FMath::Clamp(B.K + B.Dir * Dt / 5.f, 0.f, 1.f);
-		if ((B.Dir > 0 && B.K >= Target) || (B.Dir < 0 && B.K <= Target)) { B.K = Target; StopMotor(); }
+		// its travel: at the recording's pace (after its motor's start), else about 5 s from shut to open
+		if (B.Wait > 0.f) { B.Wait -= Dt; continue; }
+		B.K = FMath::Clamp(B.K + B.Dir * Dt / (B.bRec ? B.Travel : 5.f), 0.f, 1.f);
+		if ((B.Dir > 0 && B.K >= Target) || (B.Dir < 0 && B.K <= Target)) { B.K = Target; StopMotor(true); }
 		// a sectional door: its foot rises in the opening, its top runs back along the ceiling track (it never swings
 		// down into the hall)
 		const float Phi = HALF_PI * B.K;

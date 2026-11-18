@@ -67,6 +67,10 @@ private:
 
 	FVector Player = FVector::ZeroVector;
 	float Yaw = 0;
+	float HeadingDeg = 68.f;   // (the plan x axis's true heading - Data/airfield.json; the compass)
+public:
+	void SetHeading(float Deg) { HeadingDeg = Deg; }
+private:
 	bool bFull = false;
 	TArray<FVector> Route;
 	/** Your own marks (plan metres): the route goes through them in order; a click adds one, a right-click on one removes it. */

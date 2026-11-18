@@ -4,7 +4,7 @@
 // Store: the phone's apps, to open, and the ones that are coming.
 
 const PH_APPS: [string, string, string, string][] = [
-  ['msgs', 'Messages', 'chat', '#34C759'], ['call', 'Phone', 'phone', '#30B158'], ['store', 'Store', 'store', '#2F7BF6'],
+  ['msgs', 'Messages', 'chat', '#34C759'], ['call', 'Phone', 'phone', '#30B158'], ['store', 'Store', 'store', '#2F7BF6'], ['weather', 'Weather', 'sun', '#4AA8E8'],
 ];
 const PhA: any = { tab: 'recents', thread: '', dial: '', calling: null as any, callT: 0 };
 
