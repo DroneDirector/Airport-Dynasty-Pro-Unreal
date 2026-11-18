@@ -4,6 +4,21 @@ The one complete list of what is still open, updated 2026-11-11 (after 0.14.7). 
 details behind each item. Marks: [ ] open, [~] started or partly done, [?] built earlier but the owner should check it.
 
 ## 0. Now, in this order (owner, 2026-11-11)
+- [ ] **Documents folder and the title video (owner, 2026-11-18; from the PC chat's findings, put on the list by the owner):**
+      - [ ] **Documents folder opening by itself:** the game's updater restarts the game through Windows Explorer with a
+            forward-slash path (`F:/Airport Dynasty Pro Unreal/AirportDynastyPro.exe`); Explorer doesn't read it and opens
+            Documents instead (four updates on 2026-11-18, 0.17.23-0.17.26, fit "often, when it closes or starts"). Fix:
+            write the path with backslashes, or start the game directly instead of through Explorer. (The only other
+            folder openers are the "Open the logs' folder", "Problem log" and "Open the crash folder" buttons, on click.)
+      - [ ] **Title background stutters:** (1) the film snaps to the title page's music clock whenever they drift more
+            than 0.08 s apart, and the web page's timers are uneven - give Unreal its own smooth clock that is only
+            nudged gently towards the music; (2) the title page (neon logo, scanlines, menus) redraws the whole
+            3840x1080 page at up to 60 fps and each frame is copied into Unreal - cut that cost (the 3D world behind the
+            title is already off).
+      - [ ] **A real background video, light on the PC:** play a proper film (e.g. made from his MP4) behind the page
+            with **Bink Video** (recommended; Unreal's own game-video format, very low load) - or the Electra player
+            (H.264/HEVC on the RTX 3070 Ti's video chip). Both are built into Unreal 5.7 and free. Keep the smooth clock
+            from (1) either way.
 - [ ] **FIRST (owner, 2026-11-17 evening): find why performance dropped with 0.17.22** (60-70 fps with frame generation,
       less than before): suspects in HANDOVER.md "performance dropped again" - the jetway lamps' shadow-casting
       lights, the see-through jetway glass, the new stands' parts. Measure, report, fix the code-only ones.
