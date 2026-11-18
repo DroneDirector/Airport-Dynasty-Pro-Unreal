@@ -29,6 +29,9 @@ namespace
 			{1, 54.f, 47.f, -1, 0, 4.f, 2.8f, TEXT("airside lobby")},
 			{2, 35.f, 34.f, 0, -1, 6.f, 3.2f, TEXT("food walk")}, {2, 60.f, 36.f, -1, 0, 4.f, 2.8f, TEXT("tax free")},
 		};
+		// (owner 2026-11-18, to-do 105) one very big screen on the end wall over the arrivals escalators, seen all the way up
+		// from the baggage claim: 6.4 m wide (3.6 m tall), between the landing's doorway and the lift's shaft, wall all round
+		S.Add({2, -75.6f, 48.5f, 0, 1, 6.4f, 2.6f, TEXT("escalator end wall (big)")});
 		// the walkway to the gates: on its south wall, every 50 m or so, facing the people walking
 		for (const float X : {-55.f, -5.f, 45.f, 120.f, 170.f, 220.f}) S.Add({2, X, 56.f, 0, -1, 5.f, 3.0f, TEXT("walkway")});
 		// each gate's waiting area: its west wall (plan.ts MOD: the four gate modules)
