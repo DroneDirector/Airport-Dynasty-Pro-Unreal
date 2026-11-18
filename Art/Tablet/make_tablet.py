@@ -23,14 +23,15 @@ def mat(name, color, metal=0.0, rough=0.5, emit=None, strength=0.0):
     b.inputs['Base Color'].default_value = (*color, 1); b.inputs['Metallic'].default_value = metal; b.inputs['Roughness'].default_value = rough
     if emit:
         b.inputs['Emission'].default_value = (*emit, 1); b.inputs['Emission Strength'].default_value = strength
-    b.inputs['Specular'].default_value = 0.5 if metal > 0.5 else 0.3
+    b.inputs['Specular'].default_value = 0.5 if metal > 0.5 else 0.22
+    if name == 'TabletGlass': b.inputs['Specular'].default_value = 0.06; b.inputs['Roughness'].default_value = 0.22   # (owner: the front black - the bezel shows black, a faint sheen only)
     return m
 
 
 M = {
     # (owner, 2026-11-18: black, glossy but only a little - about 10 gloss: a satin black, not a mirror)
-    'frame': mat('TabletFrame', (0.010, 0.010, 0.011), 0.15, 0.50),
-    'back': mat('TabletBack', (0.010, 0.010, 0.011), 0.25, 0.58),
+    'frame': mat('TabletFrame', (0.005, 0.005, 0.0055), 0.10, 0.46),
+    'back': mat('TabletBack', (0.004, 0.004, 0.0045), 0.0, 0.50),   # (black, not grey: no metal, a soft sheen)
     'glass': mat('TabletGlass', (0.003, 0.003, 0.004), 0.0, 0.10),
     'screen': mat('TabletScreen', (0.004, 0.005, 0.006), 0.0, 0.05),
     'lens': mat('TabletLens', (0.01, 0.012, 0.016), 0.1, 0.05),
