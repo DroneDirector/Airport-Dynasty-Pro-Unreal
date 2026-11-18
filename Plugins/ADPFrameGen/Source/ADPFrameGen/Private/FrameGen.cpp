@@ -29,6 +29,8 @@ namespace ADPFrameGen
 	static bool GEnabled = false;                    // in place on the display chain (from the start)
 	static TAtomic<bool> GActive(false);             // switched on (live, from Settings)
 	static TAtomic<int32> GMultiplier(1);
+	static TAtomic<uint64> GShown(0), GMade(0);   // (pictures put on the screen; of them, in-between pictures made)
+	void Counts(uint64& Shown, uint64& Made) { Shown = GShown.Load(); Made = GMade.Load(); }
 	bool Installed() { return GEnabled; }
 	bool Enabled() { return GEnabled && GActive.Load(); }
 	void SetActive(bool b) { GActive = b; UE_LOG(LogTemp, Log, TEXT("ADPFrameGen: switched %s"), b ? TEXT("on") : TEXT("off")); }
@@ -254,7 +256,7 @@ namespace ADPFrameGen
 				CopyToScreen(Out);
 				Submit(A);
 				const HRESULT Hr = Real->Present(J.Sync, J.Flags);
-				if (FAILED(Hr)) LastHr = Hr;
+				if (FAILED(Hr)) LastHr = Hr; else { ++GShown; ++GMade; }
 				// (-FGOnlyGen, for checking: only the in-between pictures shown)
 				static const bool bOnlyGen = FParse::Param(FCommandLine::Get(), TEXT("FGOnlyGen"));
 				if (bOnlyGen) { GMultiplier = 2; bHavePrev = true; Par ^= 1; ++Frame; return; }
@@ -274,7 +276,7 @@ namespace ADPFrameGen
 				GMultiplier = 1;
 			}
 			const HRESULT Hr = Real->Present(J.Sync, J.Flags);
-			if (FAILED(Hr)) LastHr = Hr;
+			if (FAILED(Hr)) LastHr = Hr; else ++GShown;
 			bHavePrev = true; Par ^= 1; ++Frame;
 		}
 

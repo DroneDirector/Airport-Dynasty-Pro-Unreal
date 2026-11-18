@@ -821,6 +821,7 @@ void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, c
 		if (!FParse::Param(FCommandLine::Get(), TEXT("PanelsMovable"))) K->SetMobility(EComponentMobility::Static);
 		K->RegisterComponent();
 		AddInstanceComponent(K);
+		PanelLists.Add(K);
 		return K;
 	};
 	// a fitting's box (node C) hidden and a panel put just under it, the panel's U along the fitting's long side; the box's
@@ -841,7 +842,13 @@ void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, c
 		// the plane faces up: turned over (roll 180) to face down, and a quarter turn when the fitting runs along Y
 		const FRotator Rot(0.f, bAlongX ? 0.f : 90.f, 180.f);
 		const FVector Scale(2.f * FMath::Max(Ext.X, Ext.Y) / 100.f, 2.f * FMath::Min(Ext.X, Ext.Y) / 100.f, 1.f);
-		K->AddInstance(FTransform(Rot, FVector(B.GetCenter().X, B.GetCenter().Y, B.Min.Z - 0.3f), Scale), false);
+		FTransform At(Rot, FVector(B.GetCenter().X, B.GetCenter().Y, B.Min.Z - 0.3f), Scale);
+		// the lists are fixed in place (static, for speed - 2026-11-17), and a fixed list doesn't take the model root's half
+		// turn the way everything else under the root does: every room lamp's panel stood half a turn round the terminal,
+		// out in the sky in front of it, while its fitting hung in the room (owner, 2026-11-18: "a ton of squared lights in
+		// the sky outside"). The root's own turn given to the panel itself puts it right under its fitting again.
+		if (K->Mobility == EComponentMobility::Static) At = At * Root->GetRelativeTransform();
+		K->AddInstance(At, false);
 		return B;
 	};
 	UInstancedStaticMeshComponent* WalkLamps = nullptr;   // the walkway's strips (made when the first is met)
@@ -864,6 +871,7 @@ void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, c
 			// whatever the lamp's size; every other one also lights the room as a soft panel does
 			const TArray<TSharedPtr<FJsonValue>>* Kids = nullptr;
 			FBox Face(ForceInit);
+			FLampRec& Rec = LampRecs.AddDefaulted_GetRef(); { FString Rm = N.Left(N.Find(TEXT("/LAMP-"))); int32 Sl; if (Rm.FindLastChar(TEXT('/'), Sl)) Rm.RightChopInline(Sl + 1); Rec.Room = Rm; }
 			if (Nodes[I]->AsObject()->TryGetArrayField(TEXT("children"), Kids))
 				for (const TSharedPtr<FJsonValue>& KV : *Kids)
 				{
@@ -876,6 +884,8 @@ void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, c
 					UInstancedStaticMeshComponent*& K = LampPanels.FindOrAdd(Key);
 					if (!K) K = Panels(Len / FMath::Max(1.f, Wid * 2.f / 3.f), 1.f, 0.f, 1.f, 0.f);
 					Face = PanelUnder(K, C);
+					if (K) { LampRecs.Last().Panels.Add(TPair<UInstancedStaticMeshComponent*, int32>(K, K->GetInstanceCount() - 1)); LampRecs.Last().Fits.Add(NodeInst[C]); }
+					LampRecs.Last().Face = Face;
 				}
 			// (each lamp once lit half the room's share: every other one had a light of 220 cd - now pooled)
 			// (-LampPerLamp: the old way, one light per two lamps - to compare)
@@ -888,6 +898,7 @@ void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, c
 				L->SetRelativeRotation(FRotationMatrix::MakeFromXZ(FVector(0, 0, -1), bAlongX ? FVector(1, 0, 0) : FVector(0, 1, 0)).Rotator());
 				L->SetSourceHeight(2.f * FMath::Max(Ext.X, Ext.Y)); L->SetSourceWidth(2.f * FMath::Min(Ext.X, Ext.Y)); L->SetBarnDoorAngle(88.f);
 				Add(L, Face.IsValid ? FVector(Face.GetCenter().X, Face.GetCenter().Y, Face.Min.Z - 1.f) : NodeWorld[I].GetLocation() - FVector(0, 0, 5.f), 220.f, 900.f, Warm);
+				if (LampLights.Num() && LampLights.Last() == L) LampRecs.Last().Light = L;
 				++Soft;
 			}
 			else if (!bPerLamp) { ++Lamp; if (Face.IsValid) { Pool(Face, 110.f, 900.f, Warm); ++Soft; } }
@@ -939,6 +950,7 @@ void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, c
 			}
 		}
 	}
+	if (LampRecs.Num()) LampCheckIn = 2.f;   // (once everything stands and can be hit: CheckLamps)
 	{ int32 Ni = 0; for (const TPair<FIntPoint, UInstancedStaticMeshComponent*>& P : LampPanels) if (P.Value) Ni += P.Value->GetInstanceCount();
 	  ADP_LOG(TEXT("Lamp panels: %d lists, %d panels (+ walkway strips %d); material blend %d"), LampPanels.Num(), Ni, WalkLamps ? WalkLamps->GetInstanceCount() : 0,
 		WalkLampM ? int32(WalkLampM->GetBlendMode()) : -1); }
@@ -1064,6 +1076,7 @@ void ABabylonModel::Tick(float Dt)
 {
 	FlickerFire();
 	Super::Tick(Dt);
+	if (LampCheckIn > 0.f && (LampCheckIn -= Dt) <= 0.f) CheckLamps();
 	LampsByDaylight();
 	if (!Doors.Num()) return;
 	Clock += Dt;
@@ -1445,4 +1458,36 @@ ABabylonModel* ABabylonModel::PlaceDoorPanelAt(UWorld* W, const FVector& At, con
 	P->SetActorLocation(P->GetActorLocation() + Nn * (Depth - Behind + 0.05f));
 	(void)From; (void)None;
 	return P;
+}
+
+void ABabylonModel::CheckLamps()
+{
+	// each room lamp must hang from something: a ceiling (or the roof) within 1.2 m over the top of its fitting. One
+	// with nothing over it floats in the open (owner, 2026-11-18: "a ton of squared lights in the sky outside") and is
+	// taken out for good, with its light. Every one taken out is written to the log: its room, where (plan metres) and how
+	// far down the floor is - a floor right under it means its room is there but has no ceiling (fix the room instead).
+	UWorld* W = GetWorld(); if (!W) return;
+	const FTransform T = Root->GetComponentTransform();
+	FCollisionQueryParams Q(SCENE_QUERY_STAT(ADPLampCheck), true);
+	TMap<UInstancedStaticMeshComponent*, TArray<int32>> Gone;
+	TMap<FString, int32> ByRoom; int32 Out = 0, Kept = 0;
+	for (const FLampRec& L : LampRecs)
+	{
+		if (!L.Face.IsValid || L.Room.Contains(TEXT("CROWN"))) { ++Kept; continue; }   // (the crown lights hang on their cables)
+		const FVector Top = T.TransformPosition(FVector(L.Face.GetCenter().X, L.Face.GetCenter().Y, L.Face.Max.Z + 3.f));
+		FHitResult H;
+		if (W->LineTraceSingleByChannel(H, Top, Top + FVector(0, 0, 120.f), ECC_Visibility, Q)) { ++Kept; continue; }
+		// nothing over it: out (its panels and its light)
+		FHitResult Fl; const bool bFloor = W->LineTraceSingleByChannel(Fl, Top - FVector(0, 0, 10.f), Top - FVector(0, 0, 3000.f), ECC_Visibility, Q);
+		const FVector Pl(Top.X / 100.f, Top.Z / 100.f, -Top.Y / 100.f);   // (plan metres: x, height, z - FTerminalPlan::ToWorld turned back)
+		ADP_LOG(TEXT("Lamp check: %s lamp at plan x %.1f z %.1f, %.1f m up - nothing over it, taken out (floor %s)"), *L.Room, Pl.X, Pl.Z, Pl.Y,
+			bFloor ? *FString::Printf(TEXT("%.1f m under it"), (Top.Z - Fl.ImpactPoint.Z) / 100.f) : TEXT("none under it"));
+		for (const TPair<UInstancedStaticMeshComponent*, int32>& P : L.Panels) if (P.Key) Gone.FindOrAdd(P.Key).Add(P.Value);
+		if (L.Light) { const int32 Li = LampLights.IndexOfByKey(L.Light); if (Li != INDEX_NONE) { LampLights.RemoveAt(Li); if (LampBase.IsValidIndex(Li)) LampBase.RemoveAt(Li); } L.Light->DestroyComponent(); }
+		++ByRoom.FindOrAdd(L.Room); ++Out;
+	}
+	for (TPair<UInstancedStaticMeshComponent*, TArray<int32>>& G : Gone) { G.Value.Sort([](int32 A, int32 B) { return A > B; }); for (const int32 Ix : G.Value) G.Key->RemoveInstance(Ix); }
+	FString Rooms; for (const TPair<FString, int32>& R : ByRoom) Rooms += FString::Printf(TEXT("%s%s %d"), Rooms.IsEmpty() ? TEXT("") : TEXT(", "), *R.Key, R.Value);
+	ADP_LOG(TEXT("Lamp check: %d lamps hang from their ceilings, %d floating ones taken out%s%s"), Kept, Out, Out ? TEXT(": ") : TEXT(""), *Rooms);
+	LampRecs.Empty();
 }

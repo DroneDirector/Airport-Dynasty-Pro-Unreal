@@ -4,6 +4,7 @@
 // which way it looked, so a stutter can be traced to a place and a cause. Every 30 s in the airport: a short summary
 // (average, the slowest 1 % and the worst frame). The run before is kept as ADP-Perf-prev.log.
 #include "PerfLog.h"
+#include "ADPFrameGen.h"
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"
 #endif
@@ -45,6 +46,7 @@
 
 namespace ADPPerfLogInternal
 {
+	uint64 PerfFgShown = 0, PerfFgMade = 0, PerfSecShown = 0, PerfSecMade = 0; double PerfSecStart = 0.0;   // (frame generation counts, ScreenLine)
 	FArchive* PerfFile = nullptr;
 	FString PerfLastReport;
 	FTSTicker::FDelegateHandle PerfTick;
@@ -180,8 +182,8 @@ namespace ADPPerfLogInternal
 			TArray<float> S = PerfWindow; S.Sort();
 			double Sum = 0; for (float F : S) Sum += F;
 			const float Low1 = S[FMath::Clamp(int32(S.Num() * 0.99f), 0, S.Num() - 1)];
-			PerfLine(FString::Printf(TEXT("30 s: %.0f fps on average (%.1f ms), slowest 1%% %.1f ms (%.0f fps), worst %.0f ms, %d bad frames"),
-				1000.0 * S.Num() / Sum, Sum / S.Num(), Low1, 1000.f / Low1, S.Last(), PerfBad));
+			PerfLine(FString::Printf(TEXT("30 s: %.0f fps on average (%.1f ms), slowest 1%% %.1f ms (%.0f fps), worst %.0f ms, %d bad frames%s"),
+				1000.0 * S.Num() / Sum, Sum / S.Num(), Low1, 1000.f / Low1, S.Last(), PerfBad, *ADPPerfLog::ScreenLine(Now - PerfWindowStart, PerfFgShown, PerfFgMade)));
 			PerfWindow.Reset(); PerfWindowStart = Now; PerfBad = 0;
 		}
 		return true;
@@ -215,10 +217,23 @@ void ADPPerfLog::Stop()
 	if (PerfFile) { PerfFile->Close(); delete PerfFile; PerfFile = nullptr; }
 }
 
+FString ADPPerfLog::ScreenLine(double Seconds, uint64& Shown0, uint64& Made0)
+{
+	// what the screen showed (owner, 2026-11-18): the pictures our frame generation really put on the screen in this time,
+	// and how many of them were in-between pictures it made - the fps above are the frames the game drew itself
+	uint64 Shown = 0, Made = 0; ADPFrameGen::Counts(Shown, Made);
+	const uint64 dS = Shown - Shown0, dM = Made - Made0; Shown0 = Shown; Made0 = Made;
+	if (!ADPFrameGen::Installed()) return TEXT(" | on screen: the same (our frame generation not in place)");
+	if (Seconds <= 0.0 || dS == 0) return TEXT(" | on screen: no pictures counted");
+	return FString::Printf(TEXT(" | on screen %.0f fps (frame generation %s: %.0f in-between pictures a second, %.0f%% of what was shown)"),
+		dS / Seconds, ADPFrameGen::Enabled() ? TEXT("on") : TEXT("off"), dM / Seconds, 100.0 * dM / dS);
+}
+
 void ADPPerfLog::BeginSection(const FString& Name)
 {
 	using namespace ADPPerfLogInternal;
 	ADPPerfLog::StartStallWatch();   // (on for every measured stretch: the stress walk, owner 2026-11-16)
+	{ uint64 a = 0, b = 0; ADPFrameGen::Counts(a, b); PerfSecShown = a; PerfSecMade = b; PerfSecStart = FPlatformTime::Seconds(); }
 	bPerfSection = true; PerfSectionName = Name; PerfCurPart.Reset(); PerfAudit.Reset(); PerfSectionFrames.Reset(); PerfFindings.Reset(); PerfNotes.Reset();
 	PerfLine(TEXT("==== ") + Name + TEXT(": start"));
 }
@@ -241,6 +256,7 @@ FString ADPPerfLog::EndSection()
 		const float Low1 = S[FMath::Clamp(int32(S.Num() * 0.99f), 0, S.Num() - 1)];
 		Sum = FString::Printf(TEXT("%.0f fps on average, slowest 1%% %.0f fps, worst frame %.0f ms, %d bad frames"), 1000.0 * S.Num() / T, 1000.f / Low1, S.Last(), PerfFindings.Num() ? Algo::Accumulate(PerfFindings, 0, [](int32 A, const FPerfFinding& F) { return A + F.N; }) : 0);
 	}
+	Sum = TEXT("drawn by the game: ") + Sum + ADPPerfLog::ScreenLine(FPlatformTime::Seconds() - PerfSecStart, PerfSecShown, PerfSecMade).Replace(TEXT(" | "), TEXT("\n"));
 	FString R = FString::Printf(TEXT("Airport Dynasty Pro - %s report (%s)\n%s\n"), *PerfSectionName, *FDateTime::Now().ToString(TEXT("%Y-%m-%d %H:%M")), *Sum);
 	PerfFindings.Sort([](const FPerfFinding& A, const FPerfFinding& B) { return A.Worst * A.N > B.Worst * B.N; });
 	R += PerfFindings.Num() ? TEXT("\nWhat it found (worst first):\n") : TEXT("\nNo bad frames.\n");

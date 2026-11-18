@@ -144,6 +144,13 @@ private:
 	 *  (owner, 2026-11-09), so how much they light the walls and floors follows the sun: full in the dark, dusk and
 	 *  dawn, about a fifth at midday, changing as smoothly as the daylight does. The lamps' faces stay lit. */
 	UPROPERTY() TArray<TObjectPtr<class ULocalLightComponent>> LampLights;
+	/** Every room lamp's panel(s) and light, checked once the model stands (owner, 2026-11-18: square lamps floating in
+	 *  the sky outside): a lamp with no ceiling right over it - nothing for it to hang from - is taken out, its light
+	 *  too, and written to the log (its room, where it is, whether there is a floor under it). */
+	struct FLampRec { TArray<TPair<UInstancedStaticMeshComponent*, int32>> Panels, Fits; FBox Face = FBox(ForceInit); class ULocalLightComponent* Light = nullptr; FString Room; };
+	TArray<FLampRec> LampRecs; float LampCheckIn = -1.f;
+	UPROPERTY() TArray<TObjectPtr<UInstancedStaticMeshComponent>> PanelLists;
+	void CheckLamps();
 	TArray<float> LampBase;
 	float LampScale = -1.f;
 	void LampsByDaylight();

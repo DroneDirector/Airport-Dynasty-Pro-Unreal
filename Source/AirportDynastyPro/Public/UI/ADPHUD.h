@@ -215,6 +215,8 @@ public:
 	float PreSent = 0.f; bool bPreLoading = false, bPreDone = false;   // at a hinged door (BabylonModel UseDoor): the Buttons panel's open / close
 	void GoApron();
 	void GoEntrance();
+	/** A field-of-view slider for the settings panel (-1: all views; 0..3: one view - ADPFov.h). */
+	TSharedRef<SWidget> FovSlider(int32 View);
 	/** Pose.cpp: the New Game start spot, your place kept for Continue / Load. */
 	void GoNewGameStart(); void SavePose(); bool RestorePose(); void OpenSiteStart();
 	bool bNewCareer = false, bPoseLive = false; float PoseLeft = 5.f;

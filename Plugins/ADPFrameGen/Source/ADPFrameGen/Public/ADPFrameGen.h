@@ -18,4 +18,7 @@ namespace ADPFrameGen
 	/** A menu, Settings, the map or a device screen is up (owner, 2026-11-17: scrolling in the menus flickered): every
 	 *  frame shown as it is drawn, no in-between pictures, while it's held. */
 	ADPFRAMEGEN_API void Hold(bool bHold);
+	/** Pictures really put on the screen since the start, and how many of them were in-between pictures it made (owner,
+	 *  2026-11-18: every test reports both - what the game draws and what the screen shows). */
+	ADPFRAMEGEN_API void Counts(uint64& Shown, uint64& Made);
 }

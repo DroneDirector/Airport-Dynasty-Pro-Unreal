@@ -14,6 +14,8 @@ namespace ADPPerfLog
 	void Mark(const FString& What);
 	/** Ends the stretch: its one-line summary; the full report goes to Saved/Logs/StressWalk-Report.txt (and Report()). */
 	FString EndSection();
+	/** " | on screen N fps (frame generation ...)" for the time since the counts were last taken (and takes them again). */
+	FString ScreenLine(double Seconds, uint64& Shown0, uint64& Made0);
 	FString Report();
 	/** Everything drawn in the world, measured (Nanite or not, triangles, copies, materials, shadows, lights): text. */
 	FString SceneAudit(class UWorld* W);

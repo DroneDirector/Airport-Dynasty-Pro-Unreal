@@ -111,6 +111,9 @@ private:
 		TArray<FPart> Stair; TArray<bool> StairLevel; FVector StairTop, StairU; float StairSl = 0.f, Ground = 0.f;
 		struct FCam { int32 G = 0; FVector Lens = FVector::ZeroVector, View = FVector::ForwardVector; FString Name; };
 		TArray<FCam> Cams; UInstancedStaticMeshComponent* CamHost = nullptr;   // (its CCTV cameras, model space docked)
+		// the drive unit's wheels (owner, 2026-11-18): each rolls about its own axle as far as the unit travels
+		struct FWheel { TArray<FPart> Parts; FVector Hub = FVector::ZeroVector, Axle = FVector::RightVector, Fwd = FVector::ForwardVector; float Rad = 55.f; };
+		TArray<FWheel> Wheels; float Roll = 0.f; FVector LastHub = FVector::ZeroVector; bool bRollStart = true;
 		FPart Scr;                                  // (the console's screen: J-x/CAB-CONSOLE:tealUI - the HMI, to-do 115)
 		FVector BoomO, PD, Wd, Wp, Ctl, CabOff;     // (model space, cm)
 		FVector CabMidD = FVector::ZeroVector, FrontD = FVector::ForwardVector;   // the cab body's middle and the way its door faces (docked, model space)

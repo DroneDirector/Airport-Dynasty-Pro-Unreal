@@ -1,5 +1,6 @@
 // The airport's crash tenders, drivable (FireTruck.h); the fire station's bay doors.
 #include "FireTruck.h"
+#include "ADPFov.h"
 #include "PerfLog.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -1427,6 +1428,13 @@ void AFireTruck::Sequence(float Dt)
 
 void AFireTruck::Tick(float Dt)
 {
+	// the field of view (ADPFov.h): the cab's and the climb's from "Driving, from the cab", the chase from "Driving, from behind"
+	{
+		const float C1 = ADPFov::ForScreen(ADPFov::Drive1), C3 = ADPFov::ForScreen(ADPFov::Drive3);
+		if (DriverCam && FMath::Abs(DriverCam->FieldOfView - C1) > 0.05f) DriverCam->SetFieldOfView(C1);
+		if (MoveCam && FMath::Abs(MoveCam->FieldOfView - C1) > 0.05f) MoveCam->SetFieldOfView(C1);
+		if (ChaseCam && FMath::Abs(ChaseCam->FieldOfView - C3) > 0.05f) ChaseCam->SetFieldOfView(C3);
+	}
 	Super::Tick(Dt);
 	if (!Model || Dt <= 0.f) return;
 	if (bExitPending)

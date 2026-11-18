@@ -324,6 +324,40 @@ void AJetwayRigs::Build()
 			*Id, Parts, R.LenD, ADPJetwayInternal::Ik(R.BoomO, R.Wp).Len, Along, Z3);
 		// the path's length, and where along it each metre is (driving at real speeds needs distances)
 		R.WdBase = R.Wd; MakeArc(R); R.D = R.PathL;
+		// the drive unit's wheels: the parts named J-n/WHEEL:* grouped by the wheel they belong to (their parent); each
+		// wheel's hub its parts' middle, its axle the way the wheel is thinnest (a tyre is narrow across its tread)
+		{
+			TMap<int32, int32> WheelOf;
+			for (int32 i = 0; i < M->NodeCount(); ++i)
+				for (const int32 K : M->NodeKids(i))
+				{
+					if (!M->NodeName(K).StartsWith(Id + TEXT("/WHEEL:"))) continue;
+					const TPair<UInstancedStaticMeshComponent*, int32> In = M->NodeInstance(K);
+					if (!In.Key || In.Value == INDEX_NONE) continue;
+					int32* W = WheelOf.Find(i); if (!W) { W = &WheelOf.Add(i, R.Wheels.Num()); R.Wheels.AddDefaulted(); }
+					FPart P; P.K = In.Key; P.Ix = In.Value; In.Key->GetInstanceTransform(In.Value, P.Docked, false);
+					R.Wheels[*W].Parts.Add(P);
+				}
+			for (FRig::FWheel& Wh : R.Wheels)
+			{
+				FBox B(ForceInit); for (const FPart& P : Wh.Parts) if (P.K->GetStaticMesh()) B += P.K->GetStaticMesh()->GetBoundingBox().TransformBy(P.Docked);
+				if (!B.IsValid) continue;
+				Wh.Hub = B.GetCenter();
+				// (the axle: of the level ways round the hub, the one across which the wheel is narrowest - tried every 5 degrees)
+				float Best = 1e9f; FVector BestA = FVector::RightVector;
+				for (int32 a = 0; a < 36; ++a)
+				{
+					const float An = FMath::DegreesToRadians(a * 5.f); const FVector A(FMath::Cos(An), FMath::Sin(An), 0.f);
+					float Lo = 1e9f, Hi = -1e9f;
+					for (const FPart& P : Wh.Parts) if (P.K->GetStaticMesh()) { const FBox Bp = P.K->GetStaticMesh()->GetBoundingBox(); for (int32 k = 0; k < 8; ++k) { const float Dd = FVector::DotProduct(P.Docked.TransformPosition(FVector(k & 1 ? Bp.Max.X : Bp.Min.X, k & 2 ? Bp.Max.Y : Bp.Min.Y, k & 4 ? Bp.Max.Z : Bp.Min.Z)) - Wh.Hub, A); Lo = FMath::Min(Lo, Dd); Hi = FMath::Max(Hi, Dd); } }
+					if (Hi - Lo < Best) { Best = Hi - Lo; BestA = A; }
+				}
+				Wh.Axle = BestA; Wh.Fwd = FVector::CrossProduct(FVector::UpVector, Wh.Axle).GetSafeNormal();
+				Wh.Rad = FMath::Clamp((B.Max.Z - B.Min.Z) * 0.5f, 20.f, 90.f);
+			}
+			R.G[Bogie].Parts.RemoveAll([&](const FPart& P) { for (const FRig::FWheel& Wh : R.Wheels) for (const FPart& Q : Wh.Parts) if (Q.K == P.K && Q.Ix == P.Ix) return true; return false; });
+			ADP_LOG(TEXT("Jetways: %s drive unit - %d wheels roll (radius %.0f cm)"), *Id, R.Wheels.Num(), R.Wheels.Num() ? R.Wheels[0].Rad : 0.f);
+		}
 		AddBeacons(R, M, Id);
 		AddSignLights(R, M, Id);
 		Rigs.Add(MoveTemp(R));
@@ -384,6 +418,24 @@ void AJetwayRigs::Apply(FRig& R)
 			Dirty.Add(P.K);
 		}
 	auto Ride = [&](int32 G, const FVector& X) { return N[G].TransformPosition(R.G[G].Docked.InverseTransformPosition(X)); };
+	// the wheels roll as far as the drive unit travels (owner, 2026-11-18): the way its hub moved this frame along the
+	// way the wheels point, divided by their radius, is how far they turn - forwards or backwards, at any speed
+	if (R.Wheels.Num())
+	{
+		const FRig::FWheel& W0 = R.Wheels[0];
+		const FVector Hub = Ride(Bogie, W0.Hub), Fwd = N[Bogie].TransformVectorNoScale(R.G[Bogie].Docked.InverseTransformVectorNoScale(W0.Fwd));
+		if (!R.bRollStart) R.Roll = FMath::Fmod(R.Roll + FVector::DotProduct(Hub - R.LastHub, Fwd) / W0.Rad, 2.f * PI);
+		R.LastHub = Hub; R.bRollStart = false;
+		for (const FRig::FWheel& Wh : R.Wheels)
+		{
+			const FQuat Q(Wh.Axle, R.Roll);
+			for (const FPart& P : Wh.Parts)
+			{
+				const FTransform Pd(Q * P.Docked.GetRotation(), Wh.Hub + Q.RotateVector(P.Docked.GetLocation() - Wh.Hub), P.Docked.GetScale3D());
+				P.K->UpdateInstanceTransform(P.Ix, Pd.GetRelativeTransform(R.G[Bogie].Docked) * N[Bogie], false, false, true); Dirty.Add(P.K);
+			}
+		}
+	}
 	// the cab's front doors: shut (turned about their hinges) as far as R.Shut says, riding with the cab
 	{
 		const float U = FMath::Clamp(R.Shut, 0.f, 1.f), Open = U * U * (3 - 2 * U);

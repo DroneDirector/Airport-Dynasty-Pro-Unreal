@@ -1,5 +1,6 @@
 // The player walking through the terminal in first person: walk, run, jump and crouch.
 #include "ADPWalker.h"
+#include "ADPFov.h"
 #include "Tattoo.h"
 #include "Wardrobe.h"
 #include "DriverPoseAnim.h"
@@ -525,12 +526,9 @@ void AADPWalker::Tick(float Dt)
 	if (!bHeadHidden && !bThird && GetMesh() && GetMesh()->GetSkeletalMeshAsset()) { GetMesh()->HideBoneByName(TEXT("head"), PBO_None); bHeadHidden = true; }
 	// the angle up and down held to what Fov gives on a 16:9 screen; the side angle opened up for wider screens (Unreal
 	// keeps the side angle otherwise, so a 32:9 screen saw only a thin strip up and down: everything felt too close)
-	static bool bRead = false;
-	if (!bRead) { bRead = true; GConfig->GetFloat(TEXT("ADP.Graphics"), TEXT("Fov"), Fov, GGameUserSettingsIni); Fov = FMath::Clamp(Fov, 60.f, 120.f); }
-	FVector2D Size(16, 9);
-	if (GEngine && GEngine->GameViewport) GEngine->GameViewport->GetViewportSize(Size);
-	const float Aspect = Size.Y > 1 ? FMath::Max(Size.X / Size.Y, 1.f) : 16.f / 9.f;
-	const float V = 2.f * FMath::Atan(FMath::Tan(FMath::DegreesToRadians(Fov) * 0.5f) / (16.f / 9.f));
-	const float H = FMath::RadiansToDegrees(2.f * FMath::Atan(FMath::Tan(V * 0.5f) * Aspect));
-	if (Eyes && FMath::Abs(Eyes->FieldOfView - H) > 0.05f) { Eyes->SetFieldOfView(FMath::Min(H, 170.f)); Behind->SetFieldOfView(FMath::Min(H, 170.f)); }
+	// (one value for every view unless "separate for each view" is on - ADPFov.h, owner 2026-11-18)
+	const float H1 = ADPFov::ForScreen(ADPFov::Walk1), H3 = ADPFov::ForScreen(ADPFov::Walk3);
+	Fov = ADPFov::Get(ADPFov::Walk1);
+	if (Eyes && FMath::Abs(Eyes->FieldOfView - H1) > 0.05f) Eyes->SetFieldOfView(H1);
+	if (Behind && FMath::Abs(Behind->FieldOfView - H3) > 0.05f) Behind->SetFieldOfView(H3);
 }
