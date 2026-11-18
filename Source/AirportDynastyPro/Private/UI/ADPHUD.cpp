@@ -801,9 +801,9 @@ void AADPHUD::AnswerQuality(bool bYes)
 TSharedRef<SWidget> AADPHUD::MakeTopBar()
 {
 	TSharedRef<SHorizontalBox> Bar = SNew(SHorizontalBox);
-	Bar->AddSlot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("GAME  (G)"), [this]() { ToggleGame(); })];
+	Bar->AddSlot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("TABLET  (TAB)"), [this]() { ToggleTablet(); })];
 	Bar->AddSlot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("MAP  (M)"), [this]() { ToggleMap(); })];
-	Bar->AddSlot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("SETTINGS  (TAB)"), [this]() { ToggleSettings(); })];
+	Bar->AddSlot().AutoWidth().Padding(0, 0, 6, 0)[Button(TEXT("SETTINGS  (F10)"), [this]() { ToggleSettings(); })];
 	Bar->AddSlot().AutoWidth()[Button(TEXT("HIDE UI  (H)"), [this]() { HideUI(); })];
 	// under the bar: your airline, its money and the time (once a game is running in the menus)
 	return SNew(SVerticalBox)
