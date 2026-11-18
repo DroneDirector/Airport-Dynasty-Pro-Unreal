@@ -104,3 +104,31 @@ Ideas for later (not in the first build):
 6. Maintenance (system check that runs) + Settings + Login roles - 2-3 h
 7. The crew using it (arrival, departure, maintenance, faults), pushback held until the bridge is clear - 3 h
 Total about 19-23 working hours (about 3 days).
+
+## Owner's chosen concept (2026-11-18, his ChatGPT chat "Jetway Monitor Functions") - this leads the design
+**A mode-adaptive HMI with CCTV built in:**
+- **AUTO docking** (a stored / remembered position for the aircraft type and door): the bridge docks by itself; while
+  it does, every HMI screen and the CCTV can be used freely - the docking goes on in the background. The docking
+  camera comes up as the main view when it starts.
+- **MANUAL docking** (joystick): the HMI switches by itself to a focused docking screen - aircraft detected (about
+  1.5 m out), distance, slow approach, collision protection, bumper switches (at least two must close), cab rotation,
+  wheel direction, elevation, tunnel extension, safety interlocks (which moves are allowed now) and CCTV (the bogie
+  camera while moving, the aircraft-door camera on the final approach); then trim lowering -> "TRIM ON AIRCRAFT" ->
+  canopy. Alarms and safety stay reachable.
+- **A status strip on every screen**: mode (AUTO / MANUAL), docking status and %, aircraft detected, safety system,
+  CCTV available, emergency stop.
+- **Navigation**: HOME, CCTV, BACK, DOCKING; you can leave the HMI at any time - leaving never stops a docking, never
+  turns off safety monitoring or hides an alarm.
+- **Main menu**: Docking, CCTV, System status, Alarms (+ history), Settings, Maintenance.
+- **Cameras**: 1 Bogie, 2 Aircraft interface (door, canopy), 3 Apron, 4 Bridge exterior, 5 Tunnel interior; any one
+  full screen; back to the screen you came from.
+
+## On the monitor itself (owner, 2026-11-18)
+- The HMI is **live on the jetway's monitor in 3D before you touch it** - you see its screens from across the cab.
+  Performance: one live HMI at a time (the cab you're in or nearest, within a few metres); the other jetways' monitors
+  show a still picture of their home screen (glow by material only).
+- **E** (outline on the monitor) zooms **as far in as possible** - the monitor filling the view - with no camera
+  passing through anything; you then use the HMI on the monitor itself (the mouse on the screen).
+- **A flat monitor**: the console stays as it is, but its hooded screen becomes a **flat industrial touch monitor** on
+  the console (as on real jetway consoles: a panel PC set into / on the sloped console top, bezel, mounting), the
+  console's geometry adjusted to take it - modelled from real photos.
