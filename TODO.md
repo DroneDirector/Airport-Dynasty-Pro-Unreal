@@ -245,8 +245,12 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
             markers a thump each; rumble strips on the road's edge and before the town a loud buzz and a shake
       - [ ] **Outside the airport too:** the road to the home town and the town's streets, car parks, petrol station and
             driveways, with the same surfaces, markings and rules
-      - [ ] Sounds made by the game itself (like the engine and siren now) or our own recordings; anything third-party
-            only with a commercial-use licence, listed in THIRD-PARTY-NOTICES.md. Volume in the sound settings
+      - [ ] **Where the sounds come from (owner, 2026-11-18): the Sonniss GDC Game Audio Bundles** (sonniss.com, free
+            every year since 2015; royalty-free, commercial use, no credit needed; the only limit is not training
+            models with them). Search all the yearly bundles for tyres, skids, gravel, wet roads, grass, gratings and
+            road studs; check each bundle's licence page before a file goes in and list it in THIRD-PARTY-NOTICES.md.
+            Our own recordings (and the game's own synthesis, like the engine and siren) fill any gap. Recordings are
+            played through MetaSounds, driven by each tyre's slip, load and speed. Volume in the sound settings
 
 - [ ] **Vehicle gauges: fuel and cleanliness** (owner, 2026-11-12): while driving any vehicle, two small round gauges on
       the right side of the screen, the cleanliness gauge right under the fuel gauge. Each is a small circle with an
