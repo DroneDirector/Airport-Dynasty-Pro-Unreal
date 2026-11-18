@@ -1751,8 +1751,11 @@ void AFireStationDoors::Tick(float Dt)
 		if (B.Dir != 0 && Want != B.Dir) { StopMotor(false); B.Pause = Want != 0 ? 1.0f : 0.f; }   // (changing its way: stops, about a second, then goes)   // stopped, or turning back: a hard stop first
 		if (B.Pause > 0.f) { B.Pause -= Dt; continue; }
 		// the real garage door recordings (Art/Sounds/FireStation, CC0 - Tools/import_firestation_sounds.py)
-		static USoundBase* UpS = LoadObject<USoundBase>(nullptr, TEXT("/Game/FireStation/Sounds/FsDoorUp.FsDoorUp"));
-		static USoundBase* DownS = LoadObject<USoundBase>(nullptr, TEXT("/Game/FireStation/Sounds/FsDoorDown.FsDoorDown"));
+		// (kept loaded for good: a plain static pointer isn't seen by the garbage collector, so the sounds were freed
+		// after a while and the next press of the garage button crashed the game - 0.17.26, 2026-11-18)
+		auto Keep = [](const TCHAR* Path) { USoundBase* S = LoadObject<USoundBase>(nullptr, Path); if (S) S->AddToRoot(); return S; };
+		static USoundBase* UpS = Keep(TEXT("/Game/FireStation/Sounds/FsDoorUp.FsDoorUp"));
+		static USoundBase* DownS = Keep(TEXT("/Game/FireStation/Sounds/FsDoorDown.FsDoorDown"));
 		if (Want != 0 && B.Dir == 0 && UpS && DownS)
 		{
 			// the door moves at the recording's own pace (owner, 2026-11-18: "change the animation length of the garage door

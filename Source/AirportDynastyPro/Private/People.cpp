@@ -170,7 +170,7 @@ void AADPPeople::Gather()
 		if (W.Body)
 		{
 			for (USkeletalMeshComponent* Sk : Skels) if (Sk != W.Body && !Sk->GetName().StartsWith(TEXT("Face"))) Sk->SetLeaderPoseComponent(W.Body);
-			static UBlendSpace* Move = LoadObject<UBlendSpace>(nullptr, TEXT("/Game/People/Anims/BS_Idle_Walk_Run_MH.BS_Idle_Walk_Run_MH"));
+			static UBlendSpace* Move = [] { UBlendSpace* B = LoadObject<UBlendSpace>(nullptr, TEXT("/Game/People/Anims/BS_Idle_Walk_Run_MH.BS_Idle_Walk_Run_MH")); if (B) B->AddToRoot(); return B; }();   // (kept loaded for good, like the garage door sounds)
 			if (Move) { W.Body->SetAnimationMode(EAnimationMode::AnimationSingleNode); W.Body->SetAnimation(Move); W.Body->Play(true); }
 		}
 		People.Add(W);

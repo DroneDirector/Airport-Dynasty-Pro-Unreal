@@ -9,6 +9,22 @@ Whenever the owner sends pictures in the phone chat for you, they are copied ont
 location there (with what it shows and what he said about it). Open those files; commit them (through LFS) with your
 next commit if they belong in the repo.
 
+## From the owner for the PC chat (2026-11-18 22:43, via the phone): crash pressing the fire station's garage button (0.17.26)
+- He pressed the garage door button at the fire station and the game crashed ("Fatal error!", then "The game crashed
+  last time": EXCEPTION_ACCESS_VIOLATION reading address 0x00000001e3190768, in the terminal (3D), 21:27; where in the
+  program: not recorded).
+- **Photos** (the PC was off; copy them there when it's back - the phone chat does it as soon as the PC is connected):
+  - `Art\Reference\From-Phone\2026-11-18\Crash-0.17.26-crash-report.jpg` - the game's "The game crashed last time" panel
+  - `Art\Reference\From-Phone\2026-11-18\Crash-0.17.26-garage-button.jpg` - the garage door panel (OPENING DOORS /
+    CLOSING DOOR) with its round button outlined, and the "Fatal error!" box over it
+- **Likely cause, already fixed in the code (phone chat, commit after this one; not built yet):** in
+  `AFireStationDoors::Tick` (FireTruck.cpp) the new real door recordings (0.17.26) were loaded into plain `static
+  USoundBase*` pointers. Nothing held them for the garbage collector, so after a while they were freed and the next
+  press spawned a sound from a freed object - an access violation. Now they're kept with AddToRoot. The same pattern
+  in People.cpp (the walk blend space) got the same fix. Please check the build compiles, look in the crash folder for
+  the call stack to confirm, and search for any other `static U...* = LoadObject` left. Goes in the next release.
+- "Where in the program: (not recorded)" - the crash report should carry the call stack; worth fixing in the report too.
+
 ## From the owner for the PC chat (2026-11-17 22:35, via the phone): performance dropped again - find out why (FIRST)
 
 His words, briefly: the newest update (0.17.22) plays OK with frame generation, but he gets 60-70 fps, a bit less than
