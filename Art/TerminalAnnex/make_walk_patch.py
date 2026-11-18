@@ -22,7 +22,7 @@ S.box(OX1, OX1 + 0.01, F2, 12.0, 51.92, 52.15, 'MI_T_plaster', sides=('-x',))   
 S.box(OX0, OX1, 11.4, 12.0, 51.92, 52.0, 'MI_T_white', sides=('-z', '-y'))
 S.box(OX0, OX1, 11.4, 11.42, 52.0, 52.15, 'MI_T_plaster', sides=('-y',))
 # the threshold: the landing's terrazzo carried across where the wall stood, flush with the floors either side
-S.box(OX0, OX1, F2 - 0.02, F2 + 0.01, 51.9, 52.2, 'MI_T_terrazzo', sides=('+y',))
+S.box(OX0, OX1, F2 - 0.02, F2 + 0.01, 51.9, 52.2, 'M_WoodFloor', sides=('+y',))   # (the walkway's oak, as the landing)
 o = S.finish()
 print('PATCH', o.name, len(o.data.polygons), 'faces', [m.name for m in o.data.materials])
 for x in bpy.context.selected_objects: x.select_set(False)

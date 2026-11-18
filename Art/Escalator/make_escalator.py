@@ -27,6 +27,11 @@ W = 1.0                            # tread width
 SKIRT = 0.506                      # skirts' inner face (4-6 mm gap to the step)
 COMB = 0.25                        # comb plate length (to its teeth)
 PLATE = 1.30                       # floor plate length behind the comb
+# (ESC_SHORT=1: the arrivals escalators - owner 2026-11-16: the ends a third as long; 2026-11-18: built short here, not
+#  squeezed afterwards, so the handrail's turn and the glass under it stay round and the glass sits inside the handrail as
+#  on the long escalators. Writes SM_EscBodyShort / SM_EscRampShort only; the steps and their path are the long ones')
+SHORT = os.environ.get('ESC_SHORT') == '1'
+if SHORT: PLATE = 1.30 / 3
 
 # ---- the path: tread-top height h along the horizontal u ----
 segs = []                          # (u0, u1, kind, data)
@@ -74,7 +79,7 @@ while uu <= U_TOPCOMB + 1.4 + 1e-6:
     if prev: S += math.hypot(p[0] - prev[0], p[1] - prev[1])
     samples.append([round(S, 5), round(p[0], 5), round(p[1], 5)]); prev = p; uu += 0.02
 os.makedirs(os.path.join(ROOT, 'Data'), exist_ok=True)
-json.dump({'about': 'Art/Escalator/make_escalator.py: the steps\' path - arc length s, u along the escalator, h height (m); '
+if not SHORT: json.dump({'about': 'Art/Escalator/make_escalator.py: the steps\' path - arc length s, u along the escalator, h height (m); '
                     'the treads\' upper edge rides on it; visible between the combs', 'rise': RISE, 'pitch': PITCH,
            'comb_bottom_u': 0.0, 'comb_top_u': U_TOPCOMB, 'length_u': U_TOPCOMB, 'path': samples},
           open(os.path.join(ROOT, 'Data', 'escalator.json'), 'w'), indent=0)
@@ -222,19 +227,38 @@ for (ua, ub, uc, sgn, hh) in ((U0, -COMB, 0.0, 1, 0.0), (U_TOPCOMB + COMB, U1, U
         x += RIB
 # the glass balustrades: from the decking up to under the handrail, with rounded newels at both ends
 HR = 0.93                                  # handrail top above the step line
-NEW_R = 0.32                               # the newel's turn radius
-UH0, UH1 = -COMB - 0.75, U_TOPCOMB + COMB + 0.75     # where the handrail's straight run ends at each newel
+NEW_R = 0.20 if SHORT else 0.32           # the newel's turn radius
+UHO = 0.15 if SHORT else 0.75              # the handrail's straight run past the comb
+UH0, UH1 = -COMB - UHO, U_TOPCOMB + COMB + UHO     # where the handrail's straight run ends at each newel
 def HH(u_): return H(min(max(u_, -COMB), U_TOPCOMB + COMB)) + HR
 hus = [x_ for x_ in us if UH0 <= x_ <= UH1]
 hus = [UH0] + hus + [UH1]
+hus = sorted(set([round(x_, 5) for x_ in hus] + [round(UH0 + i * 0.05, 5) for i in range(1, 11)] + [round(UH1 - i * 0.05, 5) for i in range(1, 11)]))   # (fine near the ends: the glass's rising edge)
+# (owner 2026-11-18: the glass sits inside the handrail all the way - at each end its lower edge rises over the last
+#  0.5 m to meet the handrail's turned-under end, so no glass shows below or past the handrail)
+# (owner's red line, same day: the rise runs gradually along the whole flat end - from where the slope's curve meets the
+#  flat to the handrail's end - and a stainless base fills under the glass where it has risen: no gap, nothing outside)
+RAMP_BOT, RAMP_TOP = (UH0, u0 + 0.1), (UH1, u3 - 0.1)
+def GLB(u_):
+    low = H(u_) + GL0
+    for ue, us_ in (RAMP_BOT, RAMP_TOP):
+        span = abs(ue - us_)
+        k = max(0.0, 1.0 - abs(ue - u_) / span) if (min(ue, us_) - 1e-6 <= u_ <= max(ue, us_) + 1e-6) else 0.0
+        if k > 0: low = low + (HH(ue) - 2 * NEW_R + 0.05 - (H(ue) + GL0)) * (k * k * (3 - 2 * k))
+    return low
 for sx in (-1, 1):
     gx = sx * GLX
-    bd.strip([(gx, u_, H(u_) + GL0) for u_ in hus], [(gx, u_, HH(u_) - 0.05) for u_ in hus], 'Glass')
-    bd.strip([(gx + sx * 0.012, u_, H(u_) + GL0) for u_ in hus], [(gx + sx * 0.012, u_, HH(u_) - 0.05) for u_ in hus], 'Glass')
+    bd.strip([(gx, u_, GLB(u_)) for u_ in hus], [(gx, u_, HH(u_) - 0.05) for u_ in hus], 'Glass')
+    bd.strip([(gx + sx * 0.012, u_, GLB(u_)) for u_ in hus], [(gx + sx * 0.012, u_, HH(u_) - 0.05) for u_ in hus], 'Glass')
+    # the stainless base under the risen glass (both faces), from the decking up to the glass's edge
+    for lo_, hi_ in ((UH0, RAMP_BOT[1]), (RAMP_TOP[1], UH1)):          # (each end on its own)
+        base_us = [u_ for u_ in hus if lo_ - 1e-6 <= u_ <= hi_ + 1e-6]
+        for gxx in (gx - sx * 0.004, gx + sx * 0.016):
+            bd.strip([(gxx, u_, H(u_) + GL0 * END(u_)) for u_ in base_us], [(gxx, u_, GLB(u_) + 0.002) for u_ in base_us], 'Stainless')
     for (ue, d) in ((UH0, -1), (UH1, 1)):            # the newel: the glass rounded out under the handrail's turn
         c = (ue, HH(ue) - NEW_R)
         pts = [(gx, ue + d * NEW_R * math.sin(a), c[1] + NEW_R * math.cos(a) - 0.05 * math.cos(a)) for a in [i * math.pi / 48 for i in range(49)]]
-        base = (gx, ue, H(ue) + GL0)
+        base = (gx, ue, GLB(ue))
         for i in range(48): bd.quad([base, pts[i], pts[i + 1], base], 'Glass')
     # the handrail: a C-profile in black rubber along the top and round both newels; UVs along its length
     path = []
@@ -267,9 +291,11 @@ ramp = rp.finish()
 
 for o in (step, body, ramp):
     print('ESC', o.name, len(o.data.polygons), 'faces', [m.name for m in o.data.materials])
-out = os.path.join(HERE, 'Escalator.blend')
+if SHORT:
+    body.name = 'SM_EscBodyShort'; ramp.name = 'SM_EscRampShort'
+out = os.path.join(HERE, 'EscalatorShort.blend' if SHORT else 'Escalator.blend')
 bpy.ops.wm.save_as_mainfile(filepath=out)
-for o in (step, body, ramp):
+for o in ((body, ramp) if SHORT else (step, body, ramp)):
     for x in bpy.context.selected_objects: x.select_set(False)
     o.select_set(True); bpy.context.view_layer.objects.active = o
     bpy.ops.export_scene.fbx(filepath=os.path.join(HERE, o.name + '.fbx'), use_selection=True, object_types={'MESH'},

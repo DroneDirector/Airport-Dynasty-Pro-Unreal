@@ -86,11 +86,13 @@ for z in [ZK + 3.0 + 3.0 * k for k in range(18)]:
 S.box(VOID[1], VOID[1] + 0.3, CEIL - 0.15, 11.4, VOID[2], ZN, 'MI_T_white')
 S.box(X0, VOID[1] + 0.3, CEIL - 0.15, 11.4, VOID[2] - 0.3, VOID[2], 'MI_T_white')
 S.box(X0, VOID[1] + 0.3, 11.4, 11.55, VOID[2], ZN, 'MI_T_offwhite', sides=('-y',))
-slab(-76.1, -71.2, LAND, ZN, F2 + 0.01, top='MI_T_terrazzo', under='MI_T_offwhite', thick=0.6)   # (the lift's shaft x -71.2..-68.4 through it)
-slab(-68.4, VOID[1], LAND, ZN, F2 + 0.01, top='MI_T_terrazzo', under='MI_T_offwhite', thick=0.6)
-slab(-71.2, -68.4, LAND, 49.4, F2 + 0.01, top='MI_T_terrazzo', under='MI_T_offwhite', thick=0.6)
-slab(X0, -76.1, ZN - 0.1, ZN, F2 + 0.01, top='MI_T_terrazzo', under='MI_T_offwhite', thick=0.6)
-slab(X0, -76.1, LAND, ZN - 0.1, F2 + 0.01, top='MI_T_terrazzo', under='MI_T_offwhite', thick=0.6)   # (the floor past the escalators' ends, out onto the walkway)
+# (owner 2026-11-18: the Floor 2 landing round the escalators' tops in the gate walkway's own oak, not white terrazzo -
+#  the escalators' own plates and markings unchanged)
+slab(-76.1, -71.2, LAND, ZN, F2 + 0.01, top='M_WoodFloor', under='MI_T_offwhite', thick=0.6)   # (the lift's shaft x -71.2..-68.4 through it)
+slab(-68.4, VOID[1], LAND, ZN, F2 + 0.01, top='M_WoodFloor', under='MI_T_offwhite', thick=0.6)
+slab(-71.2, -68.4, LAND, 49.4, F2 + 0.01, top='M_WoodFloor', under='MI_T_offwhite', thick=0.6)
+slab(X0, -76.1, ZN - 0.1, ZN, F2 + 0.01, top='M_WoodFloor', under='MI_T_offwhite', thick=0.6)
+slab(X0, -76.1, LAND, ZN - 0.1, F2 + 0.01, top='M_WoodFloor', under='MI_T_offwhite', thick=0.6)   # (the floor past the escalators' ends, out onto the walkway)
 
 # ---- the stair beside the escalators (x -76.1..-74.1, 30 steps of 20 x 38 cm up to the landing): terrazzo with oak
 #      treads and black non-slip nosings; its open side and the landing's edge one glass balustrade under one handrail ----
