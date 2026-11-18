@@ -14,6 +14,8 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
+#include "Components/SceneCaptureComponent2D.h"
+#include "Engine/TextureRenderTarget2D.h"
 
 namespace
 {
@@ -236,11 +238,52 @@ public:
 			Text(TEXT("Drive speed limit"), 36, 560, 22, HInk, true); Text(TEXT("0.30 m/s  (creep 0.05 m/s in the last 1.5 m)"), 36, 600, 21, HDim);
 			Text(TEXT("Up close the screen shows at its own brightness; in the cab it is dimmed like a real backlit screen."), 36, 680, 19, HDim);
 		}
-		else   // CCTV: the cameras come with the 3D cameras on the jetway (a later part)
+		else   // CCTV: the jetway's own cameras, live (as a real jetway's: wide, soft, muted, name and time burnt in)
 		{
 			PaneBox(16, 166, 1568, 734, TEXT("CCTV"));
-			static const TCHAR* Cams[] = { TEXT("CAM 1  ·  BOGIE"), TEXT("CAM 2  ·  AIRCRAFT DOOR"), TEXT("CAM 3  ·  APRON"), TEXT("CAM 4  ·  BRIDGE EXTERIOR") };
-			for (int32 i = 0; i < 4; ++i) { const float X = 34 + (i % 2) * 776, Y = 206 + (i / 2) * 340; Box(X, Y, 760, 320, FLinearColor(0.03f, 0.04f, 0.05f)); Text(Cams[i], X + 18, Y + 26, 18, HInk, true); Text(TEXT("NO SIGNAL  ·  camera being fitted"), X + 380, Y + 170, 22, HDim, true, 1); }
+			const int32 NC = O ? O->CamName.Num() : 0;
+			auto Feed = [&](int32 k, float X, float Y, float Wd, float Ht)
+			{
+				Box(X, Y, Wd, Ht, FLinearColor(0.02f, 0.025f, 0.03f), false);
+				const FSlateBrush* B = O && O->CamBrush.IsValidIndex(k) && O->CamBrush[k].GetResourceObject() ? &O->CamBrush[k] : nullptr;
+				if (B) FSlateDrawElement::MakeBox(Out, ++Lr, Geo(X, Y, Wd, Ht), B, ESlateDrawEffect::None, FLinearColor::White);
+				else Text(TEXT("NO SIGNAL"), X + Wd * 0.5f, Y + Ht * 0.5f, 22, HDim, true, 1);
+				const float Px = Ht > 500 ? 22.f : 15.f;
+				const FString Nm = FString::Printf(TEXT("CAM %d  %s"), k + 1, O && O->CamName.IsValidIndex(k) ? *O->CamName[k] : TEXT(""));
+				Text(Nm, X + 13, Y + Px * 1.1f + 1, Px, FLinearColor(0, 0, 0, 0.8f), true); Text(Nm, X + 12, Y + Px * 1.1f, Px, FLinearColor(0.95f, 0.95f, 0.9f), true);
+				const FString Ts = FDateTime::Now().ToString(TEXT("%Y-%m-%d  %H:%M:%S"));
+				Text(Ts, X + Wd - 11, Y + Ht - Px * 1.1f + 1, Px, FLinearColor(0, 0, 0, 0.8f), false, 2); Text(Ts, X + Wd - 12, Y + Ht - Px * 1.1f, Px, FLinearColor(0.95f, 0.95f, 0.9f), false, 2);
+				if (B && O && O->CamName.IsValidIndex(k) && O->CamName[k] == TEXT("AIRCRAFT DOOR"))
+				{
+					// the docking guide: two lines closing in on the door, a centre mark
+					const FLinearColor Gd(1.f, 0.85f, 0.2f, 0.85f);
+					for (int32 s2 = -1; s2 <= 1; s2 += 2)
+					{
+						TArray<FVector2D> Pts = { FVector2D((X + Wd * (0.5f + s2 * 0.38f)) * Sx, (Y + Ht) * Sy), FVector2D((X + Wd * (0.5f + s2 * 0.13f)) * Sx, (Y + Ht * 0.42f) * Sy) };
+						FSlateDrawElement::MakeLines(Out, ++Lr, G.ToPaintGeometry(), Pts, ESlateDrawEffect::None, Gd, true, 2.f);
+					}
+					Box(X + Wd * 0.5f - 1, Y + Ht * 0.42f, 2, Ht * 0.16f, Gd, false);
+				}
+			};
+			if (NC == 0) Text(TEXT("No cameras on this jetway"), 800, 520, 24, HDim, true, 1);
+			else if (O->CamFull >= 0 && O->CamFull < NC)
+			{
+				const float Wd = 1226, Ht = 690, X = (SW - Wd) / 2, Y = 196;
+				Feed(O->CamFull, X, Y, Wd, Ht);
+				Hits.Add({ FBox2D(FVector2D(X, Y), FVector2D(X + Wd, Y + Ht)), TEXT("cam:-1") });
+			}
+			else
+			{
+				const float Wd = 500, Ht = 281;
+				for (int32 k = 0; k < NC; ++k)
+				{
+					const int32 Rw = k < 3 ? 0 : 1, InRow = Rw == 0 ? FMath::Min(3, NC) : NC - 3, Col = Rw == 0 ? k : k - 3;
+					const float X = (SW - InRow * Wd - (InRow - 1) * 20) / 2 + Col * (Wd + 20), Y = 204 + Rw * (Ht + 46);
+					Feed(k, X, Y, Wd, Ht);
+					if (Hover == FString::Printf(TEXT("cam:%d"), k)) { Box(X - 2, Y - 2, Wd + 4, 3, HHov, false); Box(X - 2, Y + Ht - 1, Wd + 4, 3, HHov, false); Box(X - 2, Y, 3, Ht, HHov, false); Box(X + Wd - 1, Y, 3, Ht, HHov, false); }
+					Hits.Add({ FBox2D(FVector2D(X, Y), FVector2D(X + Wd, Y + Ht)), FString::Printf(TEXT("cam:%d"), k) });
+				}
+			}
 		}
 		// ---- the "+" (about 1.5 cm across on the 36 cm screen) ----
 		if (O && O->bShowCursor)
@@ -338,6 +381,7 @@ void AJetwayHmi::Tick(float Dt)
 	}
 	if (J == INDEX_NONE || !Screen) return;
 	Watch(Dt);
+	TickCams(Dt);
 	// on the screen's face, wherever the cab has moved to (its front to the operator: the widget faces its +X)
 	FVector Mid, N, Up; FVector2D Sz;
 	if (!JR->ScreenView(J, Mid, N, Up, Sz)) return;
@@ -416,6 +460,7 @@ void AJetwayHmi::Command(const FString& Id)
 	if (Id.StartsWith(TEXT("tab:"))) { const FString T = Id.RightChop(4); if (T != Tab) { BackStack.Add(Tab); if (BackStack.Num() > 20) BackStack.RemoveAt(0); Tab = T; } return; }
 	if (Id.StartsWith(TEXT("set:dim:"))) { DimLevel = FCString::Atof(*Id.RightChop(8)); Event(FString::Printf(TEXT("Screen brightness in the cab set to %d %%"), FMath::RoundToInt(DimLevel * 100))); return; }
 	if (Id == TEXT("set:level")) { bAutoLevel = !bAutoLevel; Event(bAutoLevel ? TEXT("Automatic levelling ON") : TEXT("Automatic levelling OFF"), 1); return; }
+	if (Id.StartsWith(TEXT("cam:"))) { CamFull = FCString::Atoi(*Id.RightChop(4)); return; }
 	if (Id == TEXT("mnt:check")) { CheckT = 0.f; Event(TEXT("System check started")); return; }
 	AJetwayRigs::LastNote.Reset();
 	bool bOk = true;
@@ -423,4 +468,51 @@ void AJetwayHmi::Command(const FString& Id)
 	else if (Id == TEXT("cmd:UNDOCK")) bOk = JR->Undock(J);
 	else if (Id.StartsWith(TEXT("jog:"))) { bOk = JR->Jog(J, Id.RightChop(4)); if (bOk) { ++Steps; Event(TEXT("Manual step: ") + Id.RightChop(4)); } }
 	if (!bOk) { Note = AJetwayRigs::LastNote.IsEmpty() ? FString(TEXT("Not possible now")) : AJetwayRigs::LastNote; Event(TEXT("Refused: ") + Note, 1); }
+}
+
+void AJetwayHmi::TickCams(float Dt)
+{
+	// the CCTV pictures: taken only while its page is open on the jetway you're at (one camera a turn, small and cheap:
+	// all of them a few times a second, the one full screen about fifteen times a second)
+	AJetwayRigs* JR = AJetwayRigs::Get(GetWorld());
+	const int32 N = JR && J != INDEX_NONE ? JR->NumCams(J) : 0;
+	CamName.SetNum(N);
+	for (int32 k = 0; k < N; ++k) { FVector A; FRotator Ro; JR->CamView(J, k, A, Ro, CamName[k]); }
+	const bool bOn = Tab == TEXT("cam") && N > 0 && Screen && Screen->IsVisible();
+	if (!bOn) return;
+	if (CamFull >= N) CamFull = -1;
+	while (Caps.Num() < N)
+	{
+		const int32 k = Caps.Num();
+		UTextureRenderTarget2D* RT = NewObject<UTextureRenderTarget2D>(this);
+		RT->RenderTargetFormat = RTF_RGBA8_SRGB; RT->ClearColor = FLinearColor::Black; RT->InitAutoFormat(640, 360); RT->UpdateResourceImmediate(true);
+		USceneCaptureComponent2D* C = NewObject<USceneCaptureComponent2D>(this);
+		C->SetupAttachment(RootComponent); C->SetUsingAbsoluteLocation(true); C->SetUsingAbsoluteRotation(true);
+		C->TextureTarget = RT; C->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
+		C->bCaptureEveryFrame = false; C->bCaptureOnMovement = false; C->bAlwaysPersistRenderingState = true;
+		C->FOVAngle = 96.f; C->LODDistanceFactor = 2.f; C->MaxViewDistanceOverride = 25000.f;
+		C->ShowFlags.SetMotionBlur(false); C->ShowFlags.SetDepthOfField(false);
+		// the CCTV look: muted colour, soft, grainy, darker corners, a little colour fringe
+		FPostProcessSettings& P = C->PostProcessSettings;
+		P.bOverride_ColorSaturation = true; P.ColorSaturation = FVector4(0.62f, 0.62f, 0.62f, 1.f);
+		P.bOverride_ColorContrast = true; P.ColorContrast = FVector4(0.92f, 0.92f, 0.92f, 1.f);
+		P.bOverride_FilmGrainIntensity = true; P.FilmGrainIntensity = 0.45f;
+		P.bOverride_VignetteIntensity = true; P.VignetteIntensity = 0.75f;
+		P.bOverride_SceneFringeIntensity = true; P.SceneFringeIntensity = 1.5f;
+		P.bOverride_BloomIntensity = true; P.BloomIntensity = 0.3f;
+		C->PostProcessBlendWeight = 1.f;
+		C->RegisterComponent();
+		Caps.Add(C); CamRT.Add(RT);
+		FSlateBrush B; B.SetResourceObject(RT); B.ImageSize = FVector2D(640, 360); B.DrawAs = ESlateBrushDrawType::Image;
+		CamBrush.Add(B);
+		ADP_LOG(TEXT("Jetway HMI: CCTV camera %d ready"), k + 1);
+	}
+	CapClock -= Dt;
+	if (CapClock > 0.f) return;
+	CapClock = CamFull >= 0 ? 1.f / 15.f : 1.f / 20.f;
+	const int32 k = CamFull >= 0 ? CamFull : (CapNext++ % N);
+	FVector A; FRotator Ro; FString Nm;
+	if (!JR->CamView(J, k, A, Ro, Nm) || !Caps.IsValidIndex(k) || !Caps[k]) return;
+	Caps[k]->SetWorldLocationAndRotation(A, Ro);
+	Caps[k]->CaptureScene();
 }

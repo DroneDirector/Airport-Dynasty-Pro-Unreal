@@ -65,6 +65,9 @@ public:
 	bool Frame(int32 J, FVector& Rotunda, FVector& Door) const;
 	/** The cab's middle and the way its doorway faces, now (world) - for cameras. */
 	bool CabView(int32 J, FVector& Mid, FVector& Front) const;
+	/** Its CCTV cameras (to-do 115 part 4): how many, and camera K's lens now (world), the way it looks and its name. */
+	int32 NumCams(int32 J) const { return Rigs.IsValidIndex(J) ? Rigs[J].Cams.Num() : 0; }
+	bool CamView(int32 J, int32 K, FVector& At, FRotator& Rot, FString& Name) const;
 	/** The service door in the cab-end section's side (owner, 2026-11-17): the one near you and facing it (world feet,
 	 *  the way you look), whether it is open; Use swings it open or shut (E / X). */
 	bool ServiceDoorNear(const FVector& Feet, const FVector& Facing, bool& bOpen) const;
@@ -106,6 +109,8 @@ private:
 		// the gate-number sign on the cab's roof, softly lit on both faces (owner: far weaker than the beacons)
 		TArray<USceneComponent*> SignLight; TArray<FVector> SignAt;
 		TArray<FPart> Stair; TArray<bool> StairLevel; FVector StairTop, StairU; float StairSl = 0.f, Ground = 0.f;
+		struct FCam { int32 G = 0; FVector Lens = FVector::ZeroVector, View = FVector::ForwardVector; FString Name; };
+		TArray<FCam> Cams; UInstancedStaticMeshComponent* CamHost = nullptr;   // (its CCTV cameras, model space docked)
 		FPart Scr;                                  // (the console's screen: J-x/CAB-CONSOLE:tealUI - the HMI, to-do 115)
 		FVector BoomO, PD, Wd, Wp, Ctl, CabOff;     // (model space, cm)
 		FVector CabMidD = FVector::ZeroVector, FrontD = FVector::ForwardVector;   // the cab body's middle and the way its door faces (docked, model space)
@@ -121,6 +126,7 @@ private:
 	TArray<FRig> Rigs;
 	bool bBuilt = false; float Look = 0.f, BcnClock = 0.f;
 	void AddBeacons(FRig& R, ABabylonModel* M, const FString& Id);
+	void AddCameras(FRig& R, UInstancedStaticMeshComponent* Host, const FVector& CabL, const FVector& F, const FVector& L, float F0, float F1, float L0, float L1, float Z0, float Z1, float FAll, TFunctionRef<bool(const FVector&, float, float&)> Hit);
 	void Beacons(FRig& R, bool bMoving);
 	void Sounds(FRig& R, bool bMoving, float Dt);
 	void GatherRiders(const FRig& R, TArray<FRider>& Out) const;

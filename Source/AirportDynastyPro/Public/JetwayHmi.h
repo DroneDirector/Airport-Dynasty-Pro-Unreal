@@ -53,6 +53,9 @@ public:
 	bool bAutoLevel = true;
 	float RunHours = 0.f; int32 Docks = 0, Steps = 0; float CheckT = -1.f; FDateTime LastCheck;
 	FVector2D Cur = FVector2D(800.f, 500.f); bool bShowCursor = false;
+	/** The CCTV (to-do 115 part 4): each camera's live picture (a brush over its render target; null brush: no signal),
+	 *  its name, the one shown full screen (-1: all of them). Pictures are taken only while the CCTV page is open. */
+	TArray<FSlateBrush> CamBrush; TArray<FString> CamName; int32 CamFull = -1;
 
 private:
 	UPROPERTY() TObjectPtr<UWidgetComponent> Screen;
@@ -62,5 +65,9 @@ private:
 	bool bPointer = false, bAim = false;
 	FVector2D GlideFrom, GlideTo; float GlideT = -1.f, GlideLen = 0.9f;
 	void Make();
+	void TickCams(float Dt);
+	UPROPERTY() TArray<TObjectPtr<class USceneCaptureComponent2D>> Caps;
+	UPROPERTY() TArray<TObjectPtr<class UTextureRenderTarget2D>> CamRT;
+	int32 CapNext = 0; float CapClock = 0.f;
 	void Watch(float Dt);
 };

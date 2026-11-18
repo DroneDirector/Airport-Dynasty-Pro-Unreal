@@ -958,6 +958,7 @@ void AJetwayRigs::AddBeacons(FRig& R, ABabylonModel* M, const FString& Id)
 		A->RegisterComponent();
 		return A;
 	};
+	AddCameras(R, Host, CabL, F, L, F0, F1, L0, L1, Z0, Z1, FAll, Hit);
 	R.SBeep = Snd(TEXT("JwBeeper")); R.SMotor = Snd(TEXT("JwMotor")); R.STyres = Snd(TEXT("JwTyres")); R.SLift = Snd(TEXT("JwLift"));
 	ADP_LOG(TEXT("Jetways: %s lamps, floodlights, crew lamp and sounds placed (cab %.1f x %.1f m)"), *Id, (F1 - F0) / 100.f, (L1 - L0) / 100.f);
 }
@@ -1150,6 +1151,69 @@ void AJetwayRigs::CarryRiders(const TArray<FRider>& Riders) const
 		Ch->SetActorLocationAndRotation(At, Ch->GetActorRotation() + FRotator(0.f, Yaw, 0.f), false, nullptr, ETeleportType::TeleportPhysics);
 		if (AController* C = Ch->GetController()) if (C->IsPlayerController()) C->SetControlRotation(C->GetControlRotation() + FRotator(0.f, Yaw, 0.f));
 	}
+}
+
+void AJetwayRigs::AddCameras(FRig& R, UInstancedStaticMeshComponent* Host, const FVector& CabL, const FVector& F, const FVector& L, float F0, float F1, float L0, float L1, float Z0, float Z1, float FAll, TFunctionRef<bool(const FVector&, float, float&)> Hit)
+{
+	// the jetway's CCTV (owner, 2026-11-18; Art/JetwayCamera): 1 under the last section looking at the drive unit's
+	// wheels (a dome), 2 on the cab's ceiling looking at the aircraft door (a dome), 3 under the cab's front looking out over
+	// the apron ahead (a dome), 4 on the first tunnel's roof by the rotunda looking along the bridge to the cab (a
+	// bullet), 5 on the first tunnel's ceiling looking down the tunnel (a dome). Each rides with its part.
+	static UStaticMesh* BulletM = ADPKeep(LoadObject<UStaticMesh>(nullptr, TEXT("/Game/JetwayCamera/SM_JwCamBullet.SM_JwCamBullet")));
+	static UStaticMesh* DomeM = ADPKeep(LoadObject<UStaticMesh>(nullptr, TEXT("/Game/JetwayCamera/SM_JwCamDome.SM_JwCamDome")));
+	if (!BulletM || !DomeM) { ADP_WARN(TEXT("Jetways: no CCTV camera meshes (Tools/import_jetway_camera.py)")); return; }
+	auto MakeK = [&](UStaticMesh* Me)
+	{
+		UInstancedStaticMeshComponent* K = NewObject<UInstancedStaticMeshComponent>(this);
+		K->SetStaticMesh(Me); K->SetMobility(EComponentMobility::Movable); K->SetupAttachment(Host); K->SetRelativeTransform(FTransform::Identity);
+		K->SetCollisionEnabled(ECollisionEnabled::NoCollision); K->SetCastShadow(true); K->RegisterComponent(); return K;
+	};
+	UInstancedStaticMeshComponent* BK = MakeK(BulletM), *DK = MakeK(DomeM);
+	R.CamHost = Host;
+	auto Yaw = [](const FVector& V) { return FRotator(0.f, FMath::RadiansToDegrees(FMath::Atan2(V.Y, V.X)), 0.f).Quaternion(); };
+	auto Pitched = [](const FVector& V, float Deg) { const FVector H = FVector(V.X, V.Y, 0.f).GetSafeNormal(); return (H * FMath::Cos(FMath::DegreesToRadians(Deg)) + FVector::UpVector * FMath::Sin(FMath::DegreesToRadians(Deg))).GetSafeNormal(); };
+	auto Put = [&](int32 G, bool bDome, const FVector& At, const FVector& View, const TCHAR* Name)
+	{
+		const FTransform T(bDome ? Yaw(View) : Yaw(View), At);
+		UInstancedStaticMeshComponent* K = bDome ? DK : BK;
+		const int32 Ix = K->AddInstance(T, false);
+		FPart Pt; Pt.K = K; Pt.Ix = Ix; Pt.Docked = T; R.G[G].Parts.Add(Pt);
+		FRig::FCam C; C.G = G; C.Lens = bDome ? At - FVector(0, 0, 6.f) : At + T.TransformVector(FVector(17.f, 0.f, 15.5f)); C.View = View; C.Name = Name;
+		R.Cams.Add(C);
+	};
+	// the first tunnel section's outline (docked): along the tunnel, its middle, its top
+	FBox Tb(ForceInit); for (const FPart& P : R.G[Tun1].Parts) if (P.K && P.K->GetStaticMesh() && P.K != BK && P.K != DK) Tb += P.K->GetStaticMesh()->GetBoundingBox().TransformBy(P.Docked);
+	const FVector Ax = R.AxisD.GetSafeNormal();
+	float A0 = 1e9f, A1 = -1e9f; if (Tb.IsValid) for (int32 c = 0; c < 8; ++c) { const float a = FVector::DotProduct(FVector(c & 1 ? Tb.Max.X : Tb.Min.X, c & 2 ? Tb.Max.Y : Tb.Min.Y, c & 4 ? Tb.Max.Z : Tb.Min.Z) - Tb.GetCenter(), Ax); A0 = FMath::Min(A0, a); A1 = FMath::Max(A1, a); }
+	float Z = 0.f;
+	// 1 the drive unit's wheels
+	{ FVector P = R.Wd - Ax * 400.f; if (Hit(FVector(P.X, P.Y, P.Z - 250.f), 1.f, Z)) { P.Z = Z; const FVector Tg(R.Wd.X, R.Wd.Y, P.Z - 420.f); Put(Tun3, true, P, (Tg - P).GetSafeNormal(), TEXT("BOGIE")); } }
+	// 2 the aircraft door, from the cab's ceiling behind it
+	{ FVector P = CabL + F * (F0 + (F1 - F0) * 0.3f) + L * ((L0 + L1) / 2); if (Hit(FVector(P.X, P.Y, CabL.Z + Z0 + 120.f), 1.f, Z) && Z < CabL.Z + Z1 + 1.f) { P.Z = Z; Put(Cab, true, P, Pitched(F, -24.f), TEXT("AIRCRAFT DOOR")); } }
+	// 3 the apron ahead, from under the cab's front
+	{ FVector P = CabL + F * (F0 + (F1 - F0) * 0.85f) + L * ((L0 + L1) / 2); if (Hit(FVector(P.X, P.Y, CabL.Z + Z0 - 60.f), 1.f, Z)) { P.Z = Z; Put(Cab, true, P, Pitched(F, -30.f), TEXT("APRON")); } }
+	if (Tb.IsValid)
+	{
+		const FVector Back = Tb.GetCenter() + Ax * (A0 + 0.18f * (A1 - A0));
+		// 4 along the bridge, from the first tunnel's roof by the rotunda
+		if (Hit(FVector(Back.X, Back.Y, Tb.Max.Z + 80.f), -1.f, Z)) Put(Tun1, false, FVector(Back.X, Back.Y, Z), Pitched(R.DirD, -6.f), TEXT("BRIDGE EXTERIOR"));
+		// 5 down the tunnel, from its ceiling
+		if (Hit(FVector(Back.X, Back.Y, Tb.GetCenter().Z - 20.f), 1.f, Z) && Z < Tb.Max.Z - 5.f) Put(Tun1, true, FVector(Back.X, Back.Y, Z), Pitched(Ax, -8.f), TEXT("TUNNEL"));
+	}
+	for (UInstancedStaticMeshComponent* K : {BK, DK}) K->MarkRenderStateDirty();
+	ADP_LOG(TEXT("Jetways: %s CCTV - %d cameras placed"), *R.Id, R.Cams.Num());
+}
+
+bool AJetwayRigs::CamView(int32 J, int32 K, FVector& At, FRotator& Rot, FString& Name) const
+{
+	if (!Rigs.IsValidIndex(J) || !Rigs[J].Cams.IsValidIndex(K) || !Rigs[J].CamHost) return false;
+	const FRig& R = Rigs[J]; const FRig::FCam& C = R.Cams[K];
+	const FTransform Rel = R.G[C.G].Docked.Inverse() * NowOf(R, C.G);   // (docked -> now)
+	const FTransform W = R.CamHost->GetComponentTransform();
+	At = W.TransformPosition(Rel.TransformPosition(C.Lens));
+	Rot = W.TransformVector(Rel.TransformVector(C.View)).Rotation();
+	Name = C.Name;
+	return true;
 }
 
 FTransform AJetwayRigs::NowOf(const FRig& R, int32 G) const

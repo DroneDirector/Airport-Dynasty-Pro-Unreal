@@ -4659,3 +4659,23 @@ html.ts-native, html.ts-native body { background: transparent !important; }
 html.ts-native .ts { background: transparent; }
 html.ts-native .ts-cv { visibility: hidden; }
 html.ts-native #app, html.ts-native #rotate-hint { visibility: hidden; }
+
+/* the devices' lock screen (lap-files.ts lapLock) */
+.lap-lock { position: absolute; inset: 0; z-index: 60; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  background: var(--lap-wall, linear-gradient(160deg,#2A2E35,#15181C)); color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,.6); cursor: default; }
+.lap-lock::before { content: ''; position: absolute; inset: 0; background: rgba(0,0,0,.38); backdrop-filter: blur(14px); z-index: -1; }
+.lap-lock .lk-time { font-size: 72px; font-weight: 300; letter-spacing: .02em; line-height: 1; }
+.lap-lock .lk-date { font-size: 18px; opacity: .9; }
+.lap-lock .lk-want { font-size: 15px; margin-top: 18px; opacity: .9; }
+.lap-lock .lk-dots { display: flex; gap: 14px; margin: 6px 0 10px; }
+.lap-lock .lk-dots i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; }
+.lap-lock .lk-dots i.on { background: #fff; }
+.lap-lock .lk-pad { display: grid; grid-template-columns: repeat(3, 72px); gap: 12px; }
+.lap-lock .lk-pad button { width: 72px; height: 72px; border-radius: 50%; border: 0; background: rgba(255,255,255,.16); color: #fff; font-size: 28px; cursor: pointer; }
+.lap-lock .lk-pad button:hover { background: rgba(255,255,255,.28); }
+.lap-lock .lk-pad button.lk-sm { font-size: 13px; background: transparent; }
+.lap-lock.lk-no .lk-dots { animation: lkShake .35s; }
+@keyframes lkShake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-12px); } 75% { transform: translateX(12px); } }
+.ph-os .lap-lock .lk-time { font-size: 56px; }
+.ph-os .lap-lock .lk-pad { grid-template-columns: repeat(3, 60px); }
+.ph-os .lap-lock .lk-pad button { width: 60px; height: 60px; font-size: 24px; }

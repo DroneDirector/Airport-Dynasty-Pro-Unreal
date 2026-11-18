@@ -375,6 +375,8 @@ function lapSettingsHtml(): string {
       <div class="ch-row"><span><b>Brightness</b><small>${D.autoBright !== false ? 'A little darker at night.' : 'Always as set.'}</small></span><div class="seg">${[40, 60, 80, 100].map(v => `<button class="${(+D.bright || 100) === v ? 'on' : ''}" data-act="lapset" data-k="bright" data-v="${v}">${v} %</button>`).join('')}<button class="${D.autoBright !== false ? 'on' : ''}" data-act="lapset" data-k="autoBright" data-v="${D.autoBright !== false ? '0' : '1'}">Auto</button></div></div>
       <div class="ch-row"><span><b>Notifications</b><small>Messages sliding in at the top while you use it.</small></span><div class="seg">${[['1', 'On'], ['0', 'Off']].map(o => `<button class="${(D.notes !== false ? '1' : '0') === o[0] ? 'on' : ''}" data-act="lapset" data-k="notes" data-v="${o[0]}">${o[1]}</button>`).join('')}</div></div>
       <div class="ch-row"><span><b>Do not disturb</b><small>No notifications and no sounds until you switch it off.</small></span><div class="seg">${[['1', 'On'], ['0', 'Off']].map(o => `<button class="${(D.dnd ? '1' : '0') === o[0] ? 'on' : ''}" data-act="lapset" data-k="dnd" data-v="${o[0]}">${o[1]}</button>`).join('')}</div></div>
+      <div class="ch-row"><span><b>Lock code</b><small>${D.pin ? 'A 4-digit code is asked for when it opens or locks.' : 'No code: it opens straight away.'}</small></span><div class="seg"><button class="${D.pin ? '' : 'on'}" data-act="lapset" data-k="pin" data-v="">Off</button><button class="${D.pin ? 'on' : ''}" data-act="lap-pin-set">${D.pin ? 'Change code…' : 'Set a code…'}</button></div></div>
+      <div class="ch-row"><span><b>Auto-lock</b><small>Locks itself when you leave it untouched.</small></span><div class="seg">${[[0, 'Never'], [1, '1 min'], [5, '5 min'], [15, '15 min']].map(o => `<button class="${(+D.autoLock || 0) === o[0] ? 'on' : ''}" data-act="lapset" data-k="autoLock" data-v="${o[0]}">${o[1]}</button>`).join('')}</div></div>
       <div class="ch-row"><span><b>Keyboard clicks</b></span><div class="seg">${[['1', 'On'], ['0', 'Off']].map(o => `<button class="${(D.clicks !== false ? '1' : '0') === o[0] ? 'on' : ''}" data-act="lapset" data-k="clicks" data-v="${o[0]}">${o[1]}</button>`).join('')}</div></div>
       <div class="ch-row"><span><b>Colour</b><small>For the buttons and highlights.</small></span><div class="le-sw">${LAP_ACCENTS.map(c => `<button class="sw ${D.accent === c ? 'on' : ''}" style="--c:${c || 'var(--cyan)'}" data-act="lapset" data-k="accent" data-v="${c}" aria-label="${c || 'Standard'}"></button>`).join('')}</div></div>
       <div class="ch-row"><span><b>Text size</b></span><div class="seg">${[['s', 'Small'], ['m', 'Normal'], ['l', 'Large']].map(o => `<button class="${D.text === o[0] ? 'on' : ''}" data-act="lapset" data-k="text" data-v="${o[0]}">${o[1]}</button>`).join('')}</div></div>
@@ -383,7 +385,7 @@ function lapSettingsHtml(): string {
     <div class="set-card col"><div class="sc-h">${icon('download')}<span><b>Update</b><small>Updates the game itself (not this ${Lap.phone ? 'phone' : 'computer'}): the same as Settings → Updates in the game.</small></span></div>${upd}</div>
   </div>`;
 }
-ACTIONS['lapset'] = el => { const D = lapDev(), k = el.getAttribute('data-k'), v = el.getAttribute('data-v'); D[k] = k === 'clock24' || k === 'clicks' || k === 'autoBright' || k === 'notes' || k === 'dnd' ? v === '1' : k === 'bright' ? +v : v; Store.soon(); Sound.tick(); lapDevApply(); lapRender(true); if (k === 'wall') devWallSend(); };
+ACTIONS['lapset'] = el => { const D = lapDev(), k = el.getAttribute('data-k'), v = el.getAttribute('data-v'); D[k] = k === 'clock24' || k === 'clicks' || k === 'autoBright' || k === 'notes' || k === 'dnd' ? v === '1' : k === 'bright' || k === 'autoLock' ? +v : v; Store.soon(); Sound.tick(); lapDevApply(); lapRender(true); if (k === 'wall') devWallSend(); };
 /* ---------- your own wallpaper: a picture from your computer, cropped to this screen (owner, 2026-11-18) ---------- */
 function lapWallAspect(): number { return Lap.phone ? 9 / 19.3 : (Lap as any).tablet ? 236 / 133 : 16 / 9; }
 ACTIONS['lap-wall-own'] = () => {
@@ -492,3 +494,51 @@ function lapSearchHtml(q: string): Promise<string> {
 document.addEventListener('input', e => { const el = e.target as HTMLInputElement; if (!el || !el.classList || !el.classList.contains('lb-search')) return; Lap.searchQ = el.value; Lap.searchOn = !!el.value.trim(); Lap.startOn = false; lapPopups(); });
 ACTIONS['lap-sr-open'] = el => { const k = el.getAttribute('data-k'); Lap.searchOn = false; LapFs.open = el.getAttribute('data-id'); Lap.app = k; Sound.tick(); lapRender(); };
 ACTIONS['lap-sr-folder'] = el => { const k = el.getAttribute('data-k'); Lap.searchOn = false; LapFs.folder[k] = el.getAttribute('data-f'); LapFs.open = ''; Lap.app = k; Sound.tick(); lapRender(); };
+
+/* ---------- the lock screen (owner, 2026-11-18: the common tablet and phone settings): a 4-digit code when it opens or
+   locks itself after being left untouched; without a code a tap opens it ---------- */
+const LapLock: any = { mode: '', got: '', first: '', lastIn: Date.now() };
+function lapLockHtml(): string {
+  const D = lapDev(), d = lapGameNow();
+  const time = D.clock24 === false ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : d.toTimeString().slice(0, 5);
+  const date = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+  const want = LapLock.mode === 'set' ? 'Choose a 4-digit code' : LapLock.mode === 'again' ? 'The same code again' : D.pin ? 'Enter your code' : 'Tap to open';
+  const pad = D.pin || LapLock.mode !== 'open' ? `<div class="lk-dots">${[0, 1, 2, 3].map(i => `<i class="${i < LapLock.got.length ? 'on' : ''}"></i>`).join('')}</div>
+      <div class="lk-pad">${['1', '2', '3', '4', '5', '6', '7', '8', '9', 'x', '0', '<'].map(k => k === 'x' ? (LapLock.mode === 'open' ? '<span></span>' : '<button data-act="lap-lock-key" data-k="x" class="lk-sm">Cancel</button>') : `<button data-act="lap-lock-key" data-k="${k}" class="${k === '<' ? 'lk-sm' : ''}">${k === '<' ? 'Delete' : k}</button>`).join('')}</div>` : '';
+  return `<div class="lap-lock" ${!D.pin && LapLock.mode === 'open' ? 'data-act="lap-lock-key" data-k="tap"' : ''}><div class="lk-time">${time}</div><div class="lk-date">${esc(date)}</div><div class="lk-want">${want}</div>${pad}</div>`;
+}
+function lapLockDraw() {
+  const R = Lap.root as HTMLElement, os = R && R.querySelector('.lap-os') as HTMLElement; if (!os) return;
+  const old = os.querySelector('.lap-lock'); if (!LapLock.mode) { if (old) old.remove(); return; }
+  const t = document.createElement('div'); t.innerHTML = lapLockHtml(); const n = t.firstElementChild as HTMLElement;
+  if (old) old.replaceWith(n); else os.appendChild(n);
+}
+/** Locked now (when it opens with a code, or left untouched too long). */
+function lapLock() { LapLock.mode = 'open'; LapLock.got = ''; lapLockDraw(); }
+function lapLockOnOpen() { LapLock.lastIn = Date.now(); LapLock.mode = ''; if (lapDev().pin) lapLock(); }
+function lapLockTick() { const D = lapDev(); if (!LapLock.mode && +D.autoLock > 0 && Date.now() - LapLock.lastIn > +D.autoLock * 60000) lapLock(); }
+document.addEventListener('pointerdown', () => { LapLock.lastIn = Date.now(); }, true);
+document.addEventListener('keydown', () => { LapLock.lastIn = Date.now(); }, true);
+ACTIONS['lap-pin-set'] = () => { LapLock.mode = 'set'; LapLock.got = ''; LapLock.first = ''; Sound.tick(); lapLockDraw(); };
+ACTIONS['lap-lock-key'] = el => {
+  const D = lapDev(), k = el.getAttribute('data-k') || '';
+  if (k === 'tap') { LapLock.mode = ''; lapLockDraw(); return; }
+  if (k === 'x') { LapLock.mode = ''; LapLock.got = ''; lapLockDraw(); return; }
+  if (k === '<') { LapLock.got = LapLock.got.slice(0, -1); lapLockDraw(); return; }
+  if (LapLock.got.length >= 4) return;
+  LapLock.got += k; Sound.tick(); lapLockDraw();
+  if (LapLock.got.length < 4) return;
+  const code = LapLock.got;
+  setTimeout(() => {
+    if (LapLock.mode === 'open') {
+      if (code === D.pin) { LapLock.mode = ''; LapLock.got = ''; lapLockDraw(); return; }
+      const n = Lap.root && (Lap.root as HTMLElement).querySelector('.lap-lock'); if (n) { n.classList.remove('lk-no'); void (n as HTMLElement).offsetWidth; n.classList.add('lk-no'); }
+      LapLock.got = ''; setTimeout(lapLockDraw, 350); return;
+    }
+    if (LapLock.mode === 'set') { LapLock.first = code; LapLock.mode = 'again'; LapLock.got = ''; lapLockDraw(); return; }
+    if (LapLock.mode === 'again') {
+      if (code === LapLock.first) { D.pin = code; Store.soon(); LapLock.mode = ''; LapLock.got = ''; lapLockDraw(); lapRender(true); toast('Lock code set'); return; }
+      LapLock.mode = 'set'; LapLock.got = ''; LapLock.first = ''; lapLockDraw(); toast('The codes were not the same - try again');
+    }
+  }, 160);
+};

@@ -201,8 +201,9 @@ function lapMount(root: HTMLElement, phone?: boolean) {
   Lap.root = root; Lap.app = ''; Lap.phone = !!phone; try { mailTick(); } catch (e) { /* later */ }
   root.innerHTML = lapOsHtml();
   lapRender();
+  try { lapLockOnOpen(); } catch (e) { /* no lock */ }
   if (!Lap.phone) { lapFit(); Lap.fit$ = () => lapFit(); window.addEventListener('resize', Lap.fit$); }
-  clearInterval(Lap.clock); Lap.clock = setInterval(() => { if (!Lap.root || !Lap.root.isConnected) { clearInterval(Lap.clock); return; } lapBar(); }, 10000);
+  clearInterval(Lap.clock); Lap.clock = setInterval(() => { if (!Lap.root || !Lap.root.isConnected) { clearInterval(Lap.clock); return; } lapBar(); try { lapLockTick(); } catch (e) { /* none */ } }, 10000);
 }
 function lapUnmount() { (Lap as any).ops = false; if (Lap.fit$) { window.removeEventListener('resize', Lap.fit$); Lap.fit$ = null; } lapBrowserClose(); clearInterval(Lap.clock); Lap.root = null; Lap.app = ''; Lap.phone = false; Lap.bankIn = false; Lap.bankBusy = false; try { clearTimeout(PhA.callT); PhA.calling = null; PhA.callState = ''; PhA.typing = ''; if (PhCall.c) phCallEnd(); } catch (e) { /* none */ } }   // closing the laptop logs you out of the bank
 function lapRefresh() { if (Lap.root && Lap.root.isConnected) lapRender(true); }
