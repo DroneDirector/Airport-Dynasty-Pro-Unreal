@@ -46,6 +46,7 @@ function mailAdd(m: Partial<LapMail> & { from: string; subject: string; body: st
 function phoneNote(n: { title: string; body?: string; ic?: string; c?: string; app?: string; id?: string; notice?: string; thread?: string }) {
   // on the phone in your hand, the laptop, or a monitor zoomed in, in a room (roomZoomEl)
   const R = Lap.root as HTMLElement; let os: HTMLElement = null;
+  try { const Dn = lapDev(); if (R && R.isConnected && (Dn.notes === false || Dn.dnd)) return; } catch (e) { /* as before */ }
   if (R && R.isConnected) os = R.querySelector(Lap.phone ? '.ph-os' : '.lap-os') as HTMLElement;
   else { try { os = roomZoomEl(); } catch (e) { os = null; } }
   if (!os) return;
@@ -244,7 +245,8 @@ function lapBar() {
  *  both), and on the Operations computer the operations screens. */
 function lapDeskApps(): [string, string, string, string][] {
   const ops: [string, string, string, string][] = Lap.ops ? OPS_TABS.filter(t => SCREENS[t[0]]).map(t => ['scr:' + t[0], t[1], t[2], '#2FB4E8'] as [string, string, string, string]) : [];
-  return ops.concat(LAP_APPS, PH_APPS.filter(a => !LAP_APPS.some(b => b[0] === a[0])));
+  const ov: [string, string, string, string][] = Lap.phone ? [] : [['overview', 'Overview', 'ops', '#F5B544']];   // (owner 2026-11-18: the Overview from the tablet and the PCs only)
+  return ov.concat(ops, LAP_APPS, PH_APPS.filter(a => !LAP_APPS.some(b => b[0] === a[0])));
 }
 function lapDeskHtml(): string {
   const co: any = company(), d = lapGameNow(), today = lapYmd(d), notes = (lapS().calendar as CalNote[]).filter(c => c.date >= today).sort((a, b) => a.date < b.date ? -1 : 1).slice(0, 3), un = lapUnread();
@@ -566,6 +568,7 @@ function roomGo(screen: string): boolean {
 /* ---------- switching apps, closing ---------- */
 ACTIONS['lap-app'] = el => {
   const k = el.getAttribute('data-k') || '';
+  if (k === 'overview') { if (Lap.phone) return; try { (window.parent as any).__ueOverviewFrom && (window.parent as any).__ueOverviewFrom(lapDevKey()); } catch (e) { /* no Unreal */ } return; }
   if (k === Lap.app) return;
   if (Lap.app === 'browser') lapBrowserHide();
   Lap.app = k; Lap.photo = ''; Lap.startOn = false; Lap.searchOn = false; Lap.startFolder = ''; LapFs.open = ''; LapFs.newDoc = false; LapFs.q = ''; Sound.tick();

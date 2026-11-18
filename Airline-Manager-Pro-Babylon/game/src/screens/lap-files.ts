@@ -350,14 +350,20 @@ function lapRecorderHtml(): string {
 ACTIONS['rec-show'] = () => { const S: any = State.settings; S.recShow = !recShown(); Store.save(); Sound.tick(); recSync(); lapRender(true); toast(S.recShow ? 'The recorder shows in every 3D place' : 'The recorder is hidden', 'ok'); };
 
 /* ---------- each computer's and the phone's own settings ---------- */
-function lapDevKey(): string { return Lap.phone ? 'phone' : Lap.ops ? 'ops' : 'office'; }
-function lapDev(): any { const S: any = State; S.devSet = S.devSet || {}; return S.devSet[lapDevKey()] = S.devSet[lapDevKey()] || { wall: 'brand', accent: '', text: 'm', clock24: true, clicks: true }; }
-const LAP_WALLS: [string, string, string][] = [['brand', 'Your airline', ''], ['sky', 'Blue sky', 'linear-gradient(160deg,#5B9BE0,#BFD9F2 60%,#E9F1F8)'], ['dusk', 'Dusk', 'linear-gradient(165deg,#2B1E4F,#C4547A 55%,#F2A65A)'], ['night', 'Night flight', 'radial-gradient(circle at 70% 20%,#3A4C7A,#0B1226 70%)'], ['ocean', 'Ocean', 'linear-gradient(170deg,#0F4C6B,#1C8CA8 60%,#7FD1D9)'], ['graphite', 'Graphite', 'linear-gradient(160deg,#2A2E35,#15181C)']];
+function lapDevKey(): string { return Lap.phone ? 'phone' : (Lap as any).tablet ? 'tablet' : Lap.ops ? 'ops' : 'office'; }
+function lapDev(): any { const S: any = State; S.devSet = S.devSet || {}; return S.devSet[lapDevKey()] = S.devSet[lapDevKey()] || { wall: lapDevKey() === 'tablet' ? 'seastack' : 'brand', accent: '', text: 'm', clock24: true, clicks: true, bright: 100, autoBright: true, notes: true, dnd: false }; }
+const LAP_WALLS: [string, string, string][] = [['brand', 'Your airline', ''], ['seastack', 'Sea stacks, Faroe Islands', "url('assets/wallpapers/owner-drone-sea-stack.jpg') center / cover no-repeat"], ['sky', 'Blue sky', 'linear-gradient(160deg,#5B9BE0,#BFD9F2 60%,#E9F1F8)'], ['dusk', 'Dusk', 'linear-gradient(165deg,#2B1E4F,#C4547A 55%,#F2A65A)'], ['night', 'Night flight', 'radial-gradient(circle at 70% 20%,#3A4C7A,#0B1226 70%)'], ['ocean', 'Ocean', 'linear-gradient(170deg,#0F4C6B,#1C8CA8 60%,#7FD1D9)'], ['graphite', 'Graphite', 'linear-gradient(160deg,#2A2E35,#15181C)']];
 const LAP_ACCENTS = ['', '#3FD0E8', '#3DDC84', '#F5B544', '#F06A6A', '#B07CF0', '#7C8CF0'];
 function lapDevApply() {
   const R = Lap.root as HTMLElement, os = R && R.querySelector('.lap-os') as HTMLElement; if (!os) return; const D = lapDev();
   const w = LAP_WALLS.filter(x => x[0] === D.wall)[0]; os.style.setProperty('--lap-wall', w && w[2] ? w[2] : '');
   os.classList.toggle('wall-own', !!(w && w[2])); os.style.setProperty('--lap-acc', D.accent || '');
+  // your own picture (kept in the photo store, cropped to this screen when you chose it)
+  if (D.wall === 'own' && D.wallId) PhotoDb.all().then(all => { const p = all.filter((x: any) => x.id === D.wallId)[0]; if (p && os.isConnected) { os.style.setProperty('--lap-wall', `url('${p.data}') center / cover no-repeat`); os.classList.add('wall-own'); } });
+  // the screen's brightness (and a little darker at night if auto)
+  let br = Math.max(20, Math.min(100, +D.bright || 100)) / 100;
+  if (D.autoBright !== false) { const h = lapGameNow().getHours(); if (h >= 22 || h < 6) br *= 0.8; }
+  os.style.filter = br < 0.999 ? `brightness(${br.toFixed(2)})` : '';
   os.classList.remove('txt-s', 'txt-m', 'txt-l'); os.classList.add('txt-' + (D.text || 'm'));
 }
 function lapSettingsHtml(): string {
@@ -365,7 +371,11 @@ function lapSettingsHtml(): string {
   const upd = (() => { try { const sec = SETTINGS.filter(s => s.id === 'support')[0]; return (sec.items[0] as any).html(); } catch (e) { return ''; } })();
   return `<div class="lap-set">
     <div class="set-card col"><div class="sc-h">${icon('sliders')}<span><b>This is ${esc(name)}</b><small>Its own settings: your other computer and your phone keep theirs.</small></span></div>
-      <div class="ch-row"><span><b>Wallpaper</b></span><div class="seg wrap">${LAP_WALLS.map(w => `<button class="${D.wall === w[0] ? 'on' : ''}" data-act="lapset" data-k="wall" data-v="${w[0]}">${esc(w[1])}</button>`).join('')}</div></div>
+      <div class="ch-row"><span><b>Wallpaper</b></span><div class="seg wrap">${LAP_WALLS.map(w => `<button class="${D.wall === w[0] ? 'on' : ''}" data-act="lapset" data-k="wall" data-v="${w[0]}">${esc(w[1])}</button>`).join('')}<button class="${D.wall === 'own' ? 'on' : ''}" data-act="lap-wall-own">${icon('camera')}Your own picture…</button></div></div>
+      <div class="ch-row"><span><b>Brightness</b><small>${D.autoBright !== false ? 'A little darker at night.' : 'Always as set.'}</small></span><div class="seg">${[40, 60, 80, 100].map(v => `<button class="${(+D.bright || 100) === v ? 'on' : ''}" data-act="lapset" data-k="bright" data-v="${v}">${v} %</button>`).join('')}<button class="${D.autoBright !== false ? 'on' : ''}" data-act="lapset" data-k="autoBright" data-v="${D.autoBright !== false ? '0' : '1'}">Auto</button></div></div>
+      <div class="ch-row"><span><b>Notifications</b><small>Messages sliding in at the top while you use it.</small></span><div class="seg">${[['1', 'On'], ['0', 'Off']].map(o => `<button class="${(D.notes !== false ? '1' : '0') === o[0] ? 'on' : ''}" data-act="lapset" data-k="notes" data-v="${o[0]}">${o[1]}</button>`).join('')}</div></div>
+      <div class="ch-row"><span><b>Do not disturb</b><small>No notifications and no sounds until you switch it off.</small></span><div class="seg">${[['1', 'On'], ['0', 'Off']].map(o => `<button class="${(D.dnd ? '1' : '0') === o[0] ? 'on' : ''}" data-act="lapset" data-k="dnd" data-v="${o[0]}">${o[1]}</button>`).join('')}</div></div>
+      <div class="ch-row"><span><b>Keyboard clicks</b></span><div class="seg">${[['1', 'On'], ['0', 'Off']].map(o => `<button class="${(D.clicks !== false ? '1' : '0') === o[0] ? 'on' : ''}" data-act="lapset" data-k="clicks" data-v="${o[0]}">${o[1]}</button>`).join('')}</div></div>
       <div class="ch-row"><span><b>Colour</b><small>For the buttons and highlights.</small></span><div class="le-sw">${LAP_ACCENTS.map(c => `<button class="sw ${D.accent === c ? 'on' : ''}" style="--c:${c || 'var(--cyan)'}" data-act="lapset" data-k="accent" data-v="${c}" aria-label="${c || 'Standard'}"></button>`).join('')}</div></div>
       <div class="ch-row"><span><b>Text size</b></span><div class="seg">${[['s', 'Small'], ['m', 'Normal'], ['l', 'Large']].map(o => `<button class="${D.text === o[0] ? 'on' : ''}" data-act="lapset" data-k="text" data-v="${o[0]}">${o[1]}</button>`).join('')}</div></div>
       <div class="ch-row"><span><b>Clock</b></span><div class="seg">${[['1', '24-hour'], ['0', '12-hour']].map(o => `<button class="${(D.clock24 ? '1' : '0') === o[0] ? 'on' : ''}" data-act="lapset" data-k="clock24" data-v="${o[0]}">${o[1]}</button>`).join('')}</div></div>
@@ -373,7 +383,62 @@ function lapSettingsHtml(): string {
     <div class="set-card col"><div class="sc-h">${icon('download')}<span><b>Update</b><small>Updates the game itself (not this ${Lap.phone ? 'phone' : 'computer'}): the same as Settings → Updates in the game.</small></span></div>${upd}</div>
   </div>`;
 }
-ACTIONS['lapset'] = el => { const D = lapDev(), k = el.getAttribute('data-k'), v = el.getAttribute('data-v'); D[k] = k === 'clock24' || k === 'clicks' ? v === '1' : v; Store.soon(); Sound.tick(); lapDevApply(); lapRender(true); };
+ACTIONS['lapset'] = el => { const D = lapDev(), k = el.getAttribute('data-k'), v = el.getAttribute('data-v'); D[k] = k === 'clock24' || k === 'clicks' || k === 'autoBright' || k === 'notes' || k === 'dnd' ? v === '1' : k === 'bright' ? +v : v; Store.soon(); Sound.tick(); lapDevApply(); lapRender(true); if (k === 'wall') devWallSend(); };
+/* ---------- your own wallpaper: a picture from your computer, cropped to this screen (owner, 2026-11-18) ---------- */
+function lapWallAspect(): number { return Lap.phone ? 9 / 19.3 : (Lap as any).tablet ? 236 / 133 : 16 / 9; }
+ACTIONS['lap-wall-own'] = () => {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+  inp.onchange = () => { const f = inp.files && inp.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => wallCrop(String(rd.result)); rd.readAsDataURL(f); };
+  inp.click();
+};
+/** Drag the picture and zoom it (wheel or the slider) in a frame the shape of this screen; Use keeps that part. */
+function wallCrop(src: string) {
+  const img = new Image(); img.onload = () => {
+    const A = lapWallAspect(), back = document.createElement('div'); back.className = 'modal-back wall-crop';
+    back.innerHTML = `<div class="modal wc-box"><h3>Your wallpaper</h3><small class="muted">Drag the picture and zoom it until the frame shows what you want.</small>
+      <div class="wc-view"><canvas></canvas><div class="wc-frame"></div></div><input type="range" class="wc-zoom" min="100" max="400" value="100">
+      <div class="btn-row"><button class="btn ghost" data-wc="no">Cancel</button><button class="btn" data-wc="ok">Use this</button></div></div>`;
+    (Lap.root as HTMLElement || document.body).closest('.ue-dev-root') ? (document.querySelector('.ue-dev-root') as HTMLElement).appendChild(back) : document.body.appendChild(back);
+    const cv = back.querySelector('canvas') as HTMLCanvasElement, view = back.querySelector('.wc-view') as HTMLElement, fr = back.querySelector('.wc-frame') as HTMLElement, zr = back.querySelector('.wc-zoom') as HTMLInputElement;
+    const VW = 720, VH = 420; cv.width = VW; cv.height = VH;
+    const FW = A >= VW / VH ? VW * 0.9 : VH * 0.9 * A, FH = FW / A, fx = (VW - FW) / 2, fy = (VH - FH) / 2;
+    fr.style.cssText = `left:${fx / VW * 100}%;top:${fy / VH * 100}%;width:${FW / VW * 100}%;height:${FH / VH * 100}%`;
+    const base = Math.max(FW / img.width, FH / img.height); let z = 1, ox = 0, oy = 0;
+    const draw = () => { const c = cv.getContext('2d'); const s = base * z, w = img.width * s, h = img.height * s;
+      ox = Math.min(fx, Math.max(fx + FW - w, ox)); oy = Math.min(fy, Math.max(fy + FH - h, oy));
+      c.fillStyle = '#05070a'; c.fillRect(0, 0, VW, VH); c.drawImage(img, ox, oy, w, h); c.fillStyle = 'rgba(0,0,0,.55)';
+      c.fillRect(0, 0, VW, fy); c.fillRect(0, fy + FH, VW, VH - fy - FH); c.fillRect(0, fy, fx, FH); c.fillRect(fx + FW, fy, VW - fx - FW, FH); };
+    ox = fx + (FW - img.width * base) / 2; oy = fy + (FH - img.height * base) / 2; draw();
+    let drag: any = null;
+    view.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, ox, oy }; view.setPointerCapture(e.pointerId); });
+    view.addEventListener('pointermove', e => { if (!drag) return; const k = VW / view.getBoundingClientRect().width; ox = drag.ox + (e.clientX - drag.x) * k; oy = drag.oy + (e.clientY - drag.y) * k; draw(); });
+    view.addEventListener('pointerup', () => { drag = null; });
+    const zoomTo = (nz: number) => { const cx = fx + FW / 2, cy = fy + FH / 2, k = nz / z; ox = cx - (cx - ox) * k; oy = cy - (cy - oy) * k; z = nz; zr.value = String(Math.round(z * 100)); draw(); };
+    view.addEventListener('wheel', e => { e.preventDefault(); zoomTo(Math.max(1, Math.min(4, z * (e.deltaY < 0 ? 1.1 : 1 / 1.1)))); }, { passive: false });
+    zr.addEventListener('input', () => zoomTo(+zr.value / 100));
+    back.addEventListener('click', e => { const b = (e.target as HTMLElement).closest('[data-wc]') as HTMLElement; if (!b) return;
+      if (b.getAttribute('data-wc') === 'ok') {
+        const s = base * z, OW = A >= 1 ? 1920 : 1080, OH = Math.round(OW / A), out = document.createElement('canvas'); out.width = OW; out.height = OH;
+        out.getContext('2d').drawImage(img, (fx - ox) / s, (fy - oy) / s, FW / s, FH / s, 0, 0, OW, OH);
+        const data = out.toDataURL('image/jpeg', 0.9), th = document.createElement('canvas'); th.width = 320; th.height = Math.round(320 / A); th.getContext('2d').drawImage(out, 0, 0, th.width, th.height);
+        const id = 'wall-' + uid(), D = lapDev();
+        PhotoDb.put({ id, log: '', at: Date.now(), data, thumb: th.toDataURL('image/jpeg', 0.8), w: OW, h: OH, cap: 'Wallpaper', mode: 'wall' }).then(() => { D.wall = 'own'; D.wallId = id; Store.soon(); lapDevApply(); lapRender(true); devWallSend(); toast('Your wallpaper is set', 'ok'); });
+      }
+      back.remove(); Sound.tick(); });
+  };
+  img.src = src;
+}
+/** The tablet's 3D screen in your hands shows its wallpaper too: the chosen picture sent to Unreal as a JPEG. */
+function devWallSend() {
+  if (!(Lap as any).tablet) return;
+  const D = lapDev(), send = (url: string) => { const img = new Image(); img.crossOrigin = 'anonymous'; img.onload = () => {
+      const c = document.createElement('canvas'); c.width = 1280; c.height = Math.round(1280 * 133 / 236); const x = c.getContext('2d'); const s = Math.max(c.width / img.width, c.height / img.height);
+      x.drawImage(img, (c.width - img.width * s) / 2, (c.height - img.height * s) / 2, img.width * s, img.height * s);
+      try { (window.parent as any).__ueWallpaper && (window.parent as any).__ueWallpaper('tablet', c.toDataURL('image/jpeg', 0.85)); } catch (e) { /* no Unreal */ } };
+    img.src = url; };
+  if (D.wall === 'own' && D.wallId) PhotoDb.all().then(all => { const p = all.filter((x: any) => x.id === D.wallId)[0]; if (p) send(p.data); });
+  else if (D.wall === 'seastack') send('assets/wallpapers/owner-drone-sea-stack.jpg');
+}
 
 /* ---------- the start menu (the star) ---------- */
 /** Folders of apps; the bank in its own, and more as the computer grows. */

@@ -236,10 +236,32 @@ if (UE_PC) {
 };
 
 // The PC version's Esc. From the 3D world (Unreal): to the Overview, always (the game opened where it was, or continued).
-(window as any).__ueOverview = () => {
-  if (gameExists()) { if (gameHidden()) gameShow(); gameSend({ ampb: 'go', screen: 'ops' }); return; }
+(window as any).__ueOverview = (from?: string) => {
+  if (gameExists()) { if (gameHidden()) gameShow(); gameEval(`window.__ovFrom = ${JSON.stringify(String(from || ''))}`); gameSend({ ampb: 'go', screen: 'ops' }); return; }
   if (inPlace) backToTitle();   // a 3D place of this page (the lounge, the viewer): closed first
   if (splashIsOpen()) splashGo('game:continue'); else pickPlace('game:continue');
+};
+// The Overview opened from your tablet or a computer (the game's screens/laptop.ts), and its logo back to it; the tablet's
+// wallpaper to Unreal for its 3D screen (owner, 2026-11-18)
+(window as any).__ueOverviewFrom = (kind: string) => { const u = ue(); if (u && u.overview) u.overview(String(kind || '')); };
+(window as any).__ueOverviewBack = (kind: string) => { const u = ue(); if (u && u.overviewback) u.overviewback(String(kind || '')); };
+(window as any).__ueWallpaper = (kind: string, data: string) => { const u = ue(); if (u && u.wallpaper) u.wallpaper(String(kind || ''), String(data || '')); };
+// Esc in the 3D world with nothing open: leave to the title screen? (the Overview no longer opens from the 3D world)
+(window as any).__ueLeave3D = () => {
+  if (document.querySelector('.ue-leave')) return;
+  document.documentElement.classList.add('ue-ask');
+  const d = document.createElement('div'); d.className = 'ue-leave';
+  d.innerHTML = `<div class="ue-leave-box"><b>Leave to the title screen?</b><small>Your airline keeps going; anything not saved since the last save is lost.</small>
+    <div class="ue-leave-row"><button data-a="save">Save and leave</button><button data-a="yes">Leave</button><button data-a="no">Stay</button></div></div>`;
+  document.body.appendChild(d);
+  const back = () => { d.remove(); document.documentElement.classList.remove('ue-ask'); window.removeEventListener('keydown', key, true); const u = ue(); if (u && u.back3d) u.back3d(); };
+  const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); back(); } };
+  window.addEventListener('keydown', key, true);
+  d.addEventListener('click', e => { const a = (e.target as HTMLElement).closest('[data-a]') as HTMLElement; if (!a) { if (e.target === d) back(); return; }
+    const k = a.getAttribute('data-a'); if (k === 'no') { back(); return; }
+    d.remove(); document.documentElement.classList.remove('ue-ask'); window.removeEventListener('keydown', key, true);
+    if (k === 'save') { gameSend({ ampb: 'save' }); setTimeout(() => { gameClose(); splashOpen(pickPlace); }, 1200); }
+    else { gameClose(); splashOpen(pickPlace); } });
 };
 // In the game: Esc closes what is open in it (the game's own way), from another screen goes to the Overview, and in the
 // Overview asks before leaving to the title screen: save first, yes or no.

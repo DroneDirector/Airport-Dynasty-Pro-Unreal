@@ -4641,6 +4641,18 @@ html.ue-dev, html.ue-dev body { background: transparent !important; }
 html.ue-dev body > *:not(.ue-dev-root) { visibility: hidden !important; }
 .ue-dev-root { position: fixed; inset: 0; z-index: 100000; }
 .ue-dev-root .ph-screen, .ue-dev-root .of-planner { position: absolute; inset: 0; }
+/* your tablet up close (screens/ue-device.ts, owner 2026-11-18): landscape, black satin body, an even black bezel, the
+   camera in the middle of the top bezel - as the 3D model (Art/Tablet) */
+.wall-crop { z-index: 100001; } .wc-box { width: min(780px, 94vw); }
+.wc-view { position: relative; margin: 12px 0; border-radius: 10px; overflow: hidden; cursor: grab; touch-action: none; } .wc-view canvas { display: block; width: 100%; height: auto; }
+.wc-frame { position: absolute; border: 2px solid #fff; border-radius: 6px; box-shadow: 0 0 0 1px rgba(0,0,0,.6); pointer-events: none; } .wc-zoom { width: 100%; }
+.tb-screen.in { background: rgba(4,6,10,.28); backdrop-filter: none; }
+.tb-frame { position: relative; width: min(88vw, 1500px); aspect-ratio: 254 / 151; max-height: 90vh; border-radius: 34px; padding: 26px; box-sizing: border-box;
+  background: linear-gradient(150deg, #111214, #050506 40%, #0b0c0e); box-shadow: 0 0 0 1px #1d1f22 inset, 0 0 0 2px #000, 0 40px 110px rgba(0,0,0,.65); transition: transform .55s cubic-bezier(.2,.8,.25,1); }
+.tb-glass { position: relative; width: 100%; height: 100%; border-radius: 12px; overflow: hidden; background: #000; box-shadow: 0 0 0 1px #000; }
+.tb-glass > .lap-os { width: 100%; height: 100%; }
+.tb-cam { position: absolute; top: 9px; left: 50%; transform: translateX(-50%); width: 9px; height: 9px; border-radius: 50%; background: #0b0d12; box-shadow: inset 1px -1px 0 2px #1b2a44; pointer-events: none; }
+.ph-screen.out .tb-frame { transition: transform .5s cubic-bezier(.5,0,.75,.4); }
 
 /* the PC version: Unreal draws the title's film behind the page (smooth); the page see-through there, its neon on top */
 html.ts-native, html.ts-native body { background: transparent !important; }

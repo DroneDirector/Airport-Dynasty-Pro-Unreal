@@ -24,6 +24,18 @@ function ueDeviceOpen(kind: string) {
     // up from below into your hand, the room dimming behind it
     const fr = ov.querySelector('.ph-frame') as HTMLElement; fr.style.transform = 'translateY(70vh) scale(.6)';
     requestAnimationFrame(() => { ov.classList.add('in'); fr.classList.add('go'); fr.style.transform = 'none'; });
+  } else if (kind === 'tablet') {
+    // your tablet (owner, 2026-11-18): its screen up close in its own frame, the computer's desktop inside (its apps,
+    // the Overview, your wallpaper); it comes up from below as the phone does
+    const ov = document.createElement('div') as any; ov.className = 'ph-screen tb-screen';
+    ov.innerHTML = `<div class="tb-frame"><div class="tb-glass"></div><span class="tb-cam"></span></div>`;
+    root.appendChild(ov);
+    ov.addEventListener('click', (e: Event) => { if (e.target === ov) { e.stopPropagation(); ueDeviceClose(); } });
+    (Lap as any).tablet = true;
+    try { lapMount(ov.querySelector('.tb-glass') as HTMLElement); } catch (e) { (ov.querySelector('.tb-glass') as HTMLElement).innerHTML = '<p class="muted">The tablet could not start.</p>'; }
+    const fr = ov.querySelector('.tb-frame') as HTMLElement; fr.style.transform = 'translateY(70vh) scale(.7)';
+    requestAnimationFrame(() => { ov.classList.add('in'); fr.classList.add('go'); fr.style.transform = 'none'; });
+    try { devWallSend(); } catch (e) { /* later */ }
   } else {
     const ov = document.createElement('div'); ov.className = 'of-planner lap-screen'; root.appendChild(ov);
     try { lapMount(ov); if (kind === 'ops') { (Lap as any).ops = true; Lap.app = 'scr:schedule'; lapRender(); } } catch (e) { ov.innerHTML = '<p class="muted">The computer could not start.</p>'; }
@@ -39,8 +51,9 @@ function ueDeviceClose(quiet?: boolean) {
   UeDev.root = null; window.removeEventListener('keydown', UeDev.key$, true);
   try { lapUnmount(); } catch (e) { /* closed */ }
   const ov = root.querySelector('.ph-screen') as any; if (ov && ov._fit) window.removeEventListener('resize', ov._fit);
+  (Lap as any).tablet = false;
   const done = () => { root.remove(); document.documentElement.classList.remove('ue-dev'); if (!quiet) { try { (window.parent as any).__ueDeviceDone && (window.parent as any).__ueDeviceDone(UeDev.kind); } catch (e) { /* no parent */ } } };
-  if (ov && !quiet) { ov.classList.add('out'); ov.classList.remove('in'); const fr = ov.querySelector('.ph-frame') as HTMLElement; if (fr) fr.style.transform = 'translateY(70vh) scale(.6)'; setTimeout(done, 420); }
+  if (ov && !quiet) { ov.classList.add('out'); ov.classList.remove('in'); const fr = ov.querySelector('.ph-frame, .tb-frame') as HTMLElement; if (fr) fr.style.transform = 'translateY(70vh) scale(.6)'; setTimeout(done, 420); }
   else done();
   try { if (!quiet) Sound.tick(); } catch (e) { /* quiet */ }
 }

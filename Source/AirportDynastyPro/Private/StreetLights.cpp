@@ -1,6 +1,6 @@
 // The roads' street lights (StreetLights.h).
-#include "LampFlares.h"
 #include "StreetLights.h"
+#include "LampFlares.h"
 #include "PerfLog.h"
 #include "ADPLog.h"
 #include "SunClock.h"

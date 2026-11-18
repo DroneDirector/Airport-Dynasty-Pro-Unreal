@@ -1,10 +1,10 @@
 // The walking-mode interface: the holographic map, the top-left bar, Hide UI, the settings panel and the performance
 // overlay, all in Slate, styled in the Android edition's holographic blues.
+#include "UI/ADPHUD.h"
 #include "BaggageBelts.h"
 #include "Effects.h"
 #include "Adverts.h"
 #include "GroundQuality.h"
-#include "UI/ADPHUD.h"
 #include "JetwayRigs.h"
 #include "ADPAnimations.h"
 #include "People.h"
@@ -539,6 +539,12 @@ void AADPHUD::BeginPlay()
 		+ SOverlay::Slot().HAlign(HAlign_Fill).VAlign(VAlign_Fill)[LoadingBox.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(FMargin(24, 0, 0, 84))[DeviceLegend.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(FMargin(0, 0, 0, 36))[PanelHint.ToSharedRef()]   // (above a computer's taskbar)
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(FMargin(0, 0, 0, 120))
+		[
+			SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(FLinearColor(0.02f, 0.05f, 0.09f, 0.82f)).Padding(FMargin(16, 9))
+			.Visibility_Lambda([this]() { return HintLeft > 0.f && !bGame ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+			[SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Regular", 13)).ColorAndOpacity(FLinearColor(0.9f, 0.96f, 1.f)).Text_Lambda([this]() { return FText::FromString(HintText); })]
+		]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
 		[
 			// the first start's question: the scan's suggestion, taken only if you say yes
@@ -742,17 +748,19 @@ void AADPHUD::BeginPlay()
 		InputComponent->BindKey(EKeys::AnyKey, IE_Pressed, this, &AADPHUD::OnAnyKey).bConsumeInput = false;
 		InputComponent->BindKey(EKeys::F1, IE_Pressed, this, &AADPHUD::ToggleButtons);
 		InputComponent->BindKey(EKeys::Gamepad_Special_Left, IE_Pressed, this, &AADPHUD::ToggleButtons);
-		InputComponent->BindKey(EKeys::Gamepad_FaceButton_Top, IE_Pressed, this, &AADPHUD::ToggleGame);
+		InputComponent->BindKey(EKeys::Gamepad_FaceButton_Top, IE_Pressed, this, &AADPHUD::MenusKey);   // (owner 2026-11-18: the Overview only from your tablet and the PCs)
+		InputComponent->BindKey(EKeys::Gamepad_DPad_Down, IE_Pressed, this, &AADPHUD::ToggleTablet).bConsumeInput = false;   // (your tablet; in a truck it stays the high beams)
 		InputComponent->BindKey(EKeys::Gamepad_RightShoulder, IE_Pressed, this, &AADPHUD::ToggleMap);
 		InputComponent->BindKey(EKeys::Gamepad_LeftShoulder, IE_Pressed, this, &AADPHUD::ToggleHide);
 		InputComponent->BindKey(EKeys::Gamepad_Special_Right, IE_Pressed, this, &AADPHUD::ToggleSettings);
 		InputComponent->BindKey(EKeys::Gamepad_FaceButton_Left, IE_Pressed, this, &AADPHUD::Interact);
-		InputComponent->BindKey(EKeys::G, IE_Pressed, this, &AADPHUD::ToggleGame);
+		InputComponent->BindKey(EKeys::G, IE_Pressed, this, &AADPHUD::MenusKey);
 		InputComponent->BindKey(EKeys::E, IE_Pressed, this, &AADPHUD::Interact);
 		// (a click on the phone or a screen uses it too; the click still goes on to everything else)
 		InputComponent->BindKey(EKeys::LeftMouseButton, IE_Pressed, this, &AADPHUD::Interact).bConsumeInput = false;
 		InputComponent->BindKey(EKeys::M, IE_Pressed, this, &AADPHUD::ToggleMap);
-		InputComponent->BindKey(EKeys::Tab, IE_Pressed, this, &AADPHUD::ToggleSettings);
+		InputComponent->BindKey(EKeys::Tab, IE_Pressed, this, &AADPHUD::ToggleTablet);     // (your tablet, to-do 117)
+		InputComponent->BindKey(EKeys::F10, IE_Pressed, this, &AADPHUD::ToggleSettings);  // (Settings moved off Tab)
 		InputComponent->BindKey(EKeys::P, IE_Pressed, this, &AADPHUD::TogglePerf);
 		InputComponent->BindKey(EKeys::H, IE_Pressed, this, &AADPHUD::HideUI);
 		InputComponent->BindKey(EKeys::Escape, IE_Pressed, this, &AADPHUD::OnEscape);
@@ -762,6 +770,7 @@ void AADPHUD::BeginPlay()
 
 void AADPHUD::EndPlay(const EEndPlayReason::Type Reason)
 {
+	SavePose();   // (your place, for Continue)
 	if (Root.IsValid() && GEngine && GEngine->GameViewport) GEngine->GameViewport->RemoveViewportWidgetContent(Root.ToSharedRef());
 	if (PadToMenus.IsValid() && FSlateApplication::IsInitialized()) FSlateApplication::Get().UnregisterInputPreProcessor(PadToMenus);
 	Super::EndPlay(Reason);
@@ -1524,7 +1533,7 @@ void AADPHUD::CloseWhoAreYou(bool bGoOn, const FString& Difficulty)
 		// on: the game's own new-game flow (the pilot, the airline, the Overview); back: the title screen
 		const FString D = Difficulty.IsEmpty() ? TEXT("normal") : Difficulty.Left(12).Replace(TEXT("'"), TEXT(""));
 		Browser->ExecuteJavascript(bGoOn ? FString::Printf(TEXT("window.__ueNewGameDone && window.__ueNewGameDone('%s', '%s')"), *D, ADPCharacterCreate::UiOnRight() ? TEXT("f") : TEXT("m")) : TEXT("window.__ueNewGameCancel && window.__ueNewGameCancel()"));
-		if (bGoOn) StartUnrealLoad();   // (you, your hair and the terminal loading for real, shown on the loading screen)
+		if (bGoOn) { bNewCareer = true; StartUnrealLoad(); }   // (you, your hair and the terminal loading for real, shown on the loading screen)
 	}
 	// the menus in front again (they were, before the stage)
 	if (!bGame) ToggleGame();
@@ -1659,6 +1668,8 @@ void AADPHUD::OnEscape()
 {
 	// up close at a jetway's monitor: Esc steps back
 	if (HmiJ != INDEX_NONE) { EndHmi(); return; }
+	// holding your tablet (its screen not open): Esc puts it away
+	if (Tablet.IsValid() && TabWant > 0.5f && !bDevice) { ToggleTablet(); return; }
 	// the jetway's control panel menu: Esc closes it
 	if (bJetMenu) { CloseJetMenu(); return; }
 	if (AADPPeople* Pp = AADPPeople::Get(GetWorld())) if (Pp->MenuOpen()) { Pp->Close(); return; }
@@ -1678,9 +1689,9 @@ void AADPHUD::OnEscape()
 	if (bWardrobe) { CloseWardrobe(); return; }
 	// flying the drone: back to where you stood
 	if (Drone.IsValid()) { LeaveDrone(); return; }
-	// nothing open: the Overview, always
+	// nothing open: leave to the title screen? (owner 2026-11-18: the Overview opens only from your tablet and the PCs)
 	ToggleGame();
-	if (Browser.IsValid()) Browser->ExecuteJavascript(TEXT("window.__ueOverview && window.__ueOverview()"));
+	if (Browser.IsValid()) Browser->ExecuteJavascript(TEXT("window.__ueLeave3D && window.__ueLeave3D()"));
 }
 
 void AADPHUD::TogglePointer()
@@ -1763,6 +1774,8 @@ void AADPHUD::Interact()
 	// up close at a jetway's monitor: E (the left mouse button, the pad's X) clicks what the "+" is over (to-do 115);
 	// Esc, the pad's B or the screen's EXIT step back
 	if (HmiJ != INDEX_NONE) { if (bHmiPointer) if (AJetwayHmi* L = AJetwayHmi::Get(GetWorld())) L->ClickCursor(); return; }
+	// holding your tablet: E brings it up close and its screen opens
+	if (TabletUse()) return;
 	// a screen in front of you (a desk's monitor, a timetable): the airline game on it
 	APlayerController* PC = GetOwningPlayerController();
 	if (bWardrobe) { CloseWardrobe(); return; }
@@ -1897,7 +1910,7 @@ void AADPHUD::OpenSite()
 {
 	Breadcrumb(TEXT("At the airport site (3D)"));
 	ShowTerminal();
-	GoEntrance();
+	OpenSiteStart();   // (a new game: outside the main hall; Continue / Load: where you were)
 }
 
 void AADPHUD::OpenTownPlace(const FString& Id)
@@ -2171,6 +2184,9 @@ void AADPHUD::Tick(float Dt)
 		bWasGame = bGame;
 		TickLoading(Dt);
 		TickDevice(Dt);
+		TickTablet(Dt);
+		if (bPoseLive && (PoseLeft -= Dt) <= 0.f) { PoseLeft = 5.f; SavePose(); }
+		if (HintLeft > 0.f) HintLeft -= Dt;
 		// our frame generation makes no in-between pictures while a menu is up (owner, 2026-11-17: scrolling flickered)
 		ADPFrameGen::Hold(bGame || bLoading || bDevice || bSettings || bWardrobe || bWhoAreYou || bJetMenu || (HoloMap.IsValid() && HoloMap->IsFull()));
 		// the fire station on the holographic map
@@ -3775,6 +3791,26 @@ void AADPHUD::Tick(float Dt)
 			};
 			for (const FStep& St : HSteps) if (Before < St.At && ShotClock >= St.At) St.Do();
 		}
+		// -UITablet (to-do 117): the New Game start spot outside the main hall; Tab: the tablet up into your hands; E: up close,
+		// its screen open; back to your hands; Tab: away. 4K pictures.
+		if (FParse::Param(FCommandLine::Get(), TEXT("UITablet")))
+		{
+			struct FStep { float At; TFunction<void()> Do; };
+			auto Shot4K = [this](const TCHAR* N) { if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 3840x2160 filename=%s"), N)); };
+			const FStep TSteps[] = {
+				{40.f, [&]() { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 13.f; ASunClock::Refresh(); GoNewGameStart(); }},
+				{46.f, [&]() { Shot4K(TEXT("Tablet-1-new-game-start")); }},
+				{48.f, [&]() { ToggleTablet(); }},
+				{52.f, [&]() { Shot4K(TEXT("Tablet-2-held")); }},
+				{54.f, [&]() { ADP_LOG(TEXT("UITablet: E -> %d"), TabletUse() ? 1 : 0); }},
+				{62.f, [&]() { ADP_LOG(TEXT("UITablet: screen open %d (%s)"), bDevice ? 1 : 0, *DeviceKind); Shot4K(TEXT("Tablet-3-up-close")); }},
+				{65.f, [&]() { if (bDevice) DeviceDone(DeviceKind); }},
+				{68.f, [&]() { Shot4K(TEXT("Tablet-4-back-in-hand")); }},
+				{70.f, [&]() { ToggleTablet(); }},
+				{74.f, []() { ADP_SHOT_EXIT(); }},
+			};
+			for (const FStep& St : TSteps) if (Before < St.At && ShotClock >= St.At) St.Do();
+		}
 		// -UIFGToggle (to-do 111): our frame generation switched on, off and on again while the game runs - each time the log
 		// says whether it is making in-between pictures; the settings put back as they were at the end
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIFGToggle")))
@@ -4735,7 +4771,7 @@ void AADPHUD::Tick(float Dt)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UILoadReal")))
 		{
 			auto Pic = [](const TCHAR* N) { FScreenshotRequest::RequestScreenshot(N, true, false); };   // (with the web overlay the loading screen is on)
-			if (Before < 41.f && ShotClock >= 41.f && Browser.IsValid()) { Browser->ExecuteJavascript(TEXT("window.__ueNewGameDone && window.__ueNewGameDone('normal', 'm')")); StartUnrealLoad(); }
+			if (Before < 41.f && ShotClock >= 41.f && Browser.IsValid()) { Browser->ExecuteJavascript(TEXT("window.__ueNewGameDone && window.__ueNewGameDone('normal', 'm')")); bNewCareer = true; StartUnrealLoad(); }
 			if (Before < 42.5f && ShotClock >= 42.5f) Pic(TEXT("LoadReal_1"));
 			if (Before < 45.f && ShotClock >= 45.f) Pic(TEXT("LoadReal_2"));
 			if (Before < 50.f && ShotClock >= 50.f) Pic(TEXT("LoadReal_3"));
@@ -5061,7 +5097,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIPetStep")) && !FParse::Param(FCommandLine::Get(), TEXT("UIUpdateSim")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBootShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIContinueShots")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UIPlanView=")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayTest")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayBeacons")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayViews")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGateJetways")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayVideo")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFGToggle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHmi")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHmiVideo")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIConduct")) && !FParse::Param(FCommandLine::Get(), TEXT("UITalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHaze")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDockTypes")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDecals")) && !FParse::Param(FCommandLine::Get(), TEXT("UITwyLights")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGroundQ")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWeatherGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFlares")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAdverts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfStand")) && !FParse::Param(FCommandLine::Get(), TEXT("UISettingsShot")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanelUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoad")) && !FParse::Param(FCommandLine::Get(), TEXT("UIKiosk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) ADP_SHOT_EXIT();
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIPetStep")) && !FParse::Param(FCommandLine::Get(), TEXT("UIUpdateSim")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBootShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIContinueShots")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UIPlanView=")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayTest")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayBeacons")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayViews")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGateJetways")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayVideo")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFGToggle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHmi")) && !FParse::Param(FCommandLine::Get(), TEXT("UITablet")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHmiVideo")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIConduct")) && !FParse::Param(FCommandLine::Get(), TEXT("UITalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHaze")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDockTypes")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDecals")) && !FParse::Param(FCommandLine::Get(), TEXT("UITwyLights")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGroundQ")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWeatherGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFlares")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAdverts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfStand")) && !FParse::Param(FCommandLine::Get(), TEXT("UISettingsShot")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanelUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoad")) && !FParse::Param(FCommandLine::Get(), TEXT("UIKiosk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) ADP_SHOT_EXIT();
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

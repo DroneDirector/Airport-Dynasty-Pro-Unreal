@@ -106,9 +106,32 @@ private:
 	void TickHmi(float Dt);
 	int32 HmiJ = -1; float HmiOpenIn = -1.f, HmiSend = 0.f, HmiBackIn = -1.f;
 	TWeakObjectPtr<class ACameraActor> HmiCam; bool bHmiPointer = false;
+	void TickTablet(float Dt);
+	TWeakObjectPtr<class ABabylonModel> Tablet;
+	float TabWant = 0.f, TabK = 0.f, TabCloseWant = 0.f, TabCloseK = 0.f, BlurK = 0.f; bool bTabAway = false;
+	UPROPERTY() TObjectPtr<class UMaterialInstanceDynamic> TabScreenMat;
+	UPROPERTY() TObjectPtr<class UTexture2D> TabWallTex;
+	FString OverviewReturn, HintText; float HintLeft = 0.f;
+	TSharedPtr<SWidget> HintBox;
 public:
 	void OpenHmi(int32 J);
 	void EndHmi();
+	/** Your tablet (Tablet.cpp, to-do 117): Tab / the pad's D-pad Down takes it up into your hands or puts it away;
+	 *  TabletUse (E while holding it) brings it up close and its screen opens. */
+	void ToggleTablet();
+	bool TabletUse();
+	/** Its 3D screen's picture (a JPEG data URL from its screen; empty: just make sure it has its material). */
+	void TabletScreen(const FString& DataUrl);
+	void TabletScreenClosed();
+	/** The Overview only from your tablet and the computers (owner, 2026-11-18); its logo brings you back there. */
+	void OverviewFrom(const FString& Kind);
+	void OverviewBack();
+	/** G / the pad's Y: no longer the Overview from the 3D world (a note instead); from the menus back into 3D. */
+	void MenusKey();
+	/** A short note low in the middle of the screen for a few seconds. */
+	void Hint(const FString& Text);
+	/** The Esc question in the 3D world answered "stay": back into the 3D view. */
+	void Back3D();
 	/** Up close at a jetway's monitor (the live HMI on it takes the mouse). */
 	bool AtHmi() const { return HmiJ != INDEX_NONE; }
 	/** A button pressed on the jetway's HMI page (ue.adp.hmi): DOCK, UNDOCK, STOP ... */
@@ -192,6 +215,9 @@ public:
 	float PreSent = 0.f; bool bPreLoading = false, bPreDone = false;   // at a hinged door (BabylonModel UseDoor): the Buttons panel's open / close
 	void GoApron();
 	void GoEntrance();
+	/** Pose.cpp: the New Game start spot, your place kept for Continue / Load. */
+	void GoNewGameStart(); void SavePose(); bool RestorePose(); void OpenSiteStart();
+	bool bNewCareer = false, bPoseLive = false; float PoseLeft = 5.f;
 	void GoTowerCab();
 	void GoTowerBalcony();
 	void GoTowerFoot();

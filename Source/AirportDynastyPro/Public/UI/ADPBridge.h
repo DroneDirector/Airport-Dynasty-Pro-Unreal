@@ -64,6 +64,13 @@ public:
 	UFUNCTION() void DeviceDone(const FString& Kind);
 	/** A button on a jetway's HMI page (ue.adp.hmi(action, arg)), to-do 115. */
 	UFUNCTION() void Hmi(const FString& Action, const FString& Arg);
+	/** The Overview from your tablet or a computer (ue.adp.overview(kind)), and its logo back (overviewback) - to-do 117. */
+	UFUNCTION() void Overview(const FString& Kind);
+	UFUNCTION() void OverviewBack(const FString& Kind);
+	/** The tablet's wallpaper for its 3D screen (ue.adp.wallpaper(kind, jpeg data url)). */
+	UFUNCTION() void Wallpaper(const FString& Kind, const FString& DataUrl);
+	/** The Esc question in the 3D world answered "stay" (ue.adp.back3d()). */
+	UFUNCTION() void Back3D();
 	/** The wardrobe menu over the room (ue.adp.wardrobe): 'category' <name>, 'wear' <outfit>, 'close'. */
 	UFUNCTION() void Wardrobe(const FString& Action, const FString& Arg);
 	/** The title screen's New game: Unreal's "who are you" stage first (CharacterCreate), the page's overlay over it. */

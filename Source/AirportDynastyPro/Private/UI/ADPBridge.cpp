@@ -132,6 +132,11 @@ void UADPBridge::GameFids(const FString& Json)
 	if (AADPHUD* H = Hud.Get()) H->OnGameFids(Json);
 }
 
+void UADPBridge::Overview(const FString& Kind) { if (AADPHUD* H = Hud.Get()) H->OverviewFrom(Kind); }
+void UADPBridge::OverviewBack(const FString& Kind) { if (AADPHUD* H = Hud.Get()) H->OverviewBack(); }
+void UADPBridge::Wallpaper(const FString& Kind, const FString& DataUrl) { if (AADPHUD* H = Hud.Get()) if (Kind == TEXT("tablet")) H->TabletScreen(DataUrl); }
+void UADPBridge::Back3D() { if (AADPHUD* H = Hud.Get()) H->Back3D(); }
+
 void UADPBridge::Hmi(const FString& Action, const FString& Arg)
 {
 	if (AADPHUD* H = Hud.Get()) H->HmiCommand(Action, Arg);

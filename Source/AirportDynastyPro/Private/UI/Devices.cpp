@@ -32,6 +32,16 @@
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/GameViewportClient.h"
 #include "CollisionQueryParams.h"
+#include "FireTruck.h"
+#include "Components/InstancedStaticMeshComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Engine/Texture2D.h"
+#include "GameFramework/Pawn.h"
+#include "ImageUtils.h"
+#include "Misc/Base64.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "HAL/FileManager.h"
 
 namespace
 {
@@ -84,7 +94,7 @@ TSharedRef<SWidget> AADPHUD::MakeDeviceLegend()
 			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 8, 0)[SNew(SPhoneDownIcon).Color(LegendInk)]
 			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
 			[SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Regular", 11)).ColorAndOpacity(LegendInk)
-				.Text_Lambda([this]() { return FText::FromString(DeviceKind == TEXT("phone") || PhoneDir != 0 ? TEXT("Put the phone down") : DeviceKind.StartsWith(TEXT("hmi")) ? TEXT("Step back from the screen") : TEXT("Back to the room")); })]
+				.Text_Lambda([this]() { return FText::FromString(DeviceKind == TEXT("phone") || PhoneDir != 0 ? TEXT("Put the phone down") : DeviceKind == TEXT("tablet") ? TEXT("Back to holding your tablet") : DeviceKind.StartsWith(TEXT("hmi")) ? TEXT("Step back from the screen") : TEXT("Back to the room")); })]
 		];
 }
 
@@ -144,7 +154,7 @@ void AADPHUD::OpenDevice(const FString& Kind)
 	if (bDevice || bGame || !GameBox.IsValid()) return;
 	MakeGameView();
 	bDevice = true; DeviceKind = Kind; DevicePending = Kind;
-	Breadcrumb(Kind == TEXT("phone") ? TEXT("Using your phone") : Kind.StartsWith(TEXT("hmi")) ? TEXT("At the jetway's control screen") : TEXT("At a computer"));
+	Breadcrumb(Kind == TEXT("phone") ? TEXT("Using your phone") : Kind == TEXT("tablet") ? TEXT("Using your tablet") : Kind.StartsWith(TEXT("hmi")) ? TEXT("At the jetway's control screen") : TEXT("At a computer"));
 	GameBox->SetVisibility(EVisibility::Visible);
 	if (TopBar.IsValid()) TopBar->SetVisibility(EVisibility::Collapsed);
 	if (Credit.IsValid()) Credit->SetVisibility(EVisibility::Collapsed);
@@ -163,6 +173,7 @@ void AADPHUD::DeviceDone(const FString& Kind)
 {
 	if (!bDevice) return;
 	if (DeviceKind.StartsWith(TEXT("hmi"))) EndHmi();   // (the jetway's HMI: the camera back to you)
+	if (DeviceKind == TEXT("tablet")) TabletScreenClosed();   // (your tablet: back in your hands)
 	bDevice = false; DevicePending.Empty();
 	if (!bGame && GameBox.IsValid()) GameBox->SetVisibility(EVisibility::Collapsed);
 	if (TopBar.IsValid()) TopBar->SetVisibility(EVisibility::Visible);
@@ -337,4 +348,214 @@ void AADPHUD::HmiCommand(const FString& Action, const FString& Arg)
 		const FString Note = AJetwayRigs::LastNote.Replace(TEXT("\\"), TEXT("/")).Replace(TEXT("'"), TEXT("`"));
 		Browser->ExecuteJavascript(FString::Printf(TEXT("window.__ueHmiNote && window.__ueHmiNote('%s')"), *Note));
 	}
+}
+
+
+// ==== your tablet (was Tablet.cpp) ====
+// Your tablet, always with you (owner, 2026-11-18, to-do 117; Art/Tablet/make_tablet.py). Tab (the pad's D-pad Down)
+// takes it up: it comes up from below into your view and you hold it, its screen showing your wallpaper; E brings it up
+// close and its screen opens (the game's own tablet screen over the room, as the phone's does), the room behind softly
+// blurred as in a portrait photo; Esc back to holding it; Tab again puts it away. Holding the phone blurs the room too.
+// The Overview opens only from the tablet and the computers (ADPHUD::OverviewFrom), and its logo brings you back here.
+
+namespace ADPTabletK
+{
+	const float TabLift = 0.55f;     // seconds, up into your hands (and down again)
+	const float TabClose = 0.45f;    // seconds, from your hands up close (and back)
+	float Ease(float K) { return K * K * (3.f - 2.f * K); }
+}
+
+void AADPHUD::ToggleTablet()
+{
+	if (bGame || bHidden || bSettings || bWardrobe || bWhoAreYou || HmiJ != INDEX_NONE || PhoneDir != 0) return;
+	if (bDevice && DeviceKind != TEXT("tablet")) return;   // (the phone or a computer is up)
+	if (Cast<AFireTruck>(GetOwningPawn())) return;        // (not while driving)
+	if (TabWant < 0.5f)
+	{
+		if (!Tablet.IsValid())
+		{
+			FActorSpawnParameters Sp; Sp.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			ABabylonModel* T = GetWorld()->SpawnActor<ABabylonModel>(FVector(0, 0, -100000.f), FRotator::ZeroRotator, Sp);
+			if (!T || !T->Place(TEXT("Tablet"))) { if (T) T->Destroy(); ADP_WARN(TEXT("Tablet: the model isn't there (/Game/Babylon/Tablet, Data/babylon-tablet.json)")); return; }
+			T->SetActorEnableCollision(false);
+			Tablet = T; TabletScreen(TEXT(""));
+		}
+		Tablet->SetActorHiddenInGame(false);
+		TabWant = 1.f; TabCloseWant = 0.f;
+		Breadcrumb(TEXT("Holding your tablet"));
+		ADP_LOG(TEXT("Tablet: taken up"));
+	}
+	else
+	{
+		if (bDevice && DeviceKind == TEXT("tablet")) { bTabAway = true; PutDeviceAway(); return; }   // (up close: first back to your hands, then away)
+		TabWant = 0.f; TabCloseWant = 0.f;
+		ADP_LOG(TEXT("Tablet: put away"));
+	}
+	UpdateMouse();
+}
+
+bool AADPHUD::TabletUse()
+{
+	// E while you hold it: up close, its screen opens
+	if (!Tablet.IsValid() || TabWant < 0.5f || TabK < 0.99f || bDevice || TabCloseWant > 0.5f) return false;
+	TabCloseWant = 1.f;
+	ADP_LOG(TEXT("Tablet: up close"));
+	return true;
+}
+
+void AADPHUD::TabletScreen(const FString& DataUrl)
+{
+	// the picture on the tablet's own screen while you hold it: your wallpaper (the default his drone photo; the tablet's
+	// screen sends the chosen one, as a JPEG, when it changes)
+	ABabylonModel* T = Tablet.Get(); if (!T) return;
+	if (!TabScreenMat)
+	{
+		UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Tablet/M_DeviceScreen.M_DeviceScreen"));
+		if (!Base) { ADP_WARN(TEXT("Tablet: no /Game/Tablet/M_DeviceScreen (Tools/make_device_screen.py)")); return; }
+		TabScreenMat = UMaterialInstanceDynamic::Create(Base, this);
+		TabScreenMat->SetScalarParameterValue(TEXT("Bright"), 0.85f);
+		const int32 Sc = T->NodeIndex(TEXT("Screen"));
+		const TPair<UInstancedStaticMeshComponent*, int32> In = Sc != INDEX_NONE ? T->NodeInstance(Sc) : TPair<UInstancedStaticMeshComponent*, int32>(nullptr, INDEX_NONE);
+		if (In.Key) In.Key->SetMaterial(0, TabScreenMat);
+	}
+	if (DataUrl.IsEmpty()) return;
+	FString B64 = DataUrl; int32 Comma; if (B64.FindChar(TEXT(','), Comma)) B64 = B64.RightChop(Comma + 1);
+	TArray<uint8> Bytes; if (!FBase64::Decode(B64, Bytes) || Bytes.Num() < 100) return;
+	if (UTexture2D* Pic = FImageUtils::ImportBufferAsTexture2D(Bytes)) { TabWallTex = Pic; TabScreenMat->SetTextureParameterValue(TEXT("Pic"), Pic); ADP_LOG(TEXT("Tablet: its wallpaper (%dx%d)"), Pic->GetSizeX(), Pic->GetSizeY()); }
+}
+
+void AADPHUD::TickTablet(float Dt)
+{
+	APlayerController* PC = GetOwningPlayerController(); APawn* Me = PC ? PC->GetPawn() : nullptr;
+	// the portrait blur: the room behind softly out of focus while you hold the tablet or the phone, or use either
+	{
+		const bool bBlur = (Tablet.IsValid() && TabK > 0.05f) || PhoneDir != 0 || (bDevice && (DeviceKind == TEXT("phone") || DeviceKind == TEXT("tablet")));
+		BlurK = FMath::FInterpConstantTo(BlurK, bBlur ? 1.f : 0.f, Dt, 2.5f);
+		if (UCameraComponent* Cam = Me ? Me->FindComponentByClass<UCameraComponent>() : nullptr)
+		{
+			FPostProcessSettings& P = Cam->PostProcessSettings;
+			const bool bOn = BlurK > 0.001f;
+			if (bOn || P.bOverride_DepthOfFieldFstop)
+			{
+				P.bOverride_DepthOfFieldFocalDistance = bOn; P.bOverride_DepthOfFieldFstop = bOn; P.bOverride_DepthOfFieldMinFstop = bOn;
+				P.DepthOfFieldFocalDistance = FMath::Lerp(48.f, 30.f, ADPTabletK::Ease(TabCloseK));   // (focused on the device in your hands)
+				P.DepthOfFieldFstop = FMath::Lerp(22.f, 1.2f, ADPTabletK::Ease(BlurK)); P.DepthOfFieldMinFstop = 1.f;
+				if (bOn) Cam->PostProcessBlendWeight = 1.f;
+			}
+		}
+	}
+	ABabylonModel* T = Tablet.Get();
+	if (!T || !PC) return;
+	TabK = FMath::Clamp(TabK + (TabWant > 0.5f ? 1.f : -1.f) * Dt / ADPTabletK::TabLift, 0.f, 1.f);
+	if (!bDevice) TabCloseK = FMath::Clamp(TabCloseK + (TabCloseWant > 0.5f ? 1.f : -1.f) * Dt / ADPTabletK::TabClose, 0.f, 1.f);
+	if (TabK <= 0.f && TabWant < 0.5f) { T->SetActorHiddenInGame(true); return; }
+	FVector Eye; FRotator Look; PC->GetPlayerViewPoint(Eye, Look);
+	const FRotationMatrix CamM(Look);
+	const FVector F = CamM.GetUnitAxis(EAxis::X), U = CamM.GetUnitAxis(EAxis::Z);
+	// where it is: below your view (away), held in front and a little low, tilted to your eyes (held), or up close
+	const FVector Away = Eye + F * 30.f - U * 62.f, Held = Eye + F * 46.f - U * 16.f, Close = Eye + F * 29.f - U * 0.5f;
+	FVector At = FMath::Lerp(Away, Held, ADPTabletK::Ease(TabK)); At = FMath::Lerp(At, Close, ADPTabletK::Ease(TabCloseK));
+	const FVector N = (Eye - At).GetSafeNormal();                                  // (its screen to your eyes)
+	const FVector Top = (U - N * FVector::DotProduct(U, N)).GetSafeNormal();        // (its top edge up)
+	// the model: its top is its -y, its screen its +z (Art/Tablet/make_tablet.py, as placed - as the phone's)
+	T->SetActorTransform(FTransform(FRotationMatrix::MakeFromYZ(-Top, N).ToQuat(), At));
+	// up close: its screen opens (the model steps aside behind it)
+	if (TabCloseWant > 0.5f && TabCloseK >= 1.f && !bDevice) { T->SetActorHiddenInGame(true); OpenDevice(TEXT("tablet")); }
+}
+
+void AADPHUD::TabletScreenClosed()
+{
+	// its screen put away (Esc, its own button): back in your hands - or away, if Tab asked for that
+	if (Tablet.IsValid()) Tablet->SetActorHiddenInGame(false);
+	TabCloseWant = 0.f;
+	if (bTabAway) { bTabAway = false; TabWant = 0.f; }
+}
+
+// ---- the Overview: only from your tablet and the computers (owner, 2026-11-18) ----------------------------------------
+void AADPHUD::OverviewFrom(const FString& Kind)
+{
+	if (Kind == TEXT("phone")) return;   // (never from the phone)
+	OverviewReturn = Kind;
+	ADP_LOG(TEXT("Overview: opened from the %s"), *Kind);
+	if (bDevice) DeviceDone(DeviceKind);
+	if (Kind == TEXT("tablet")) { TabCloseWant = 0.f; TabCloseK = 0.f; TabWant = 0.f; TabK = 0.f; if (Tablet.IsValid()) Tablet->SetActorHiddenInGame(true); }
+	if (!bGame) ToggleGame();
+	if (Browser.IsValid()) Browser->ExecuteJavascript(FString::Printf(TEXT("window.__ueOverview && window.__ueOverview('%s')"), *Kind));
+}
+
+void AADPHUD::OverviewBack()
+{
+	// the Overview's logo: back to the tablet or the computer you came from (not to the title screen)
+	const FString Kind = OverviewReturn; OverviewReturn.Reset();
+	ADP_LOG(TEXT("Overview: back to the %s"), Kind.IsEmpty() ? TEXT("3D world") : *Kind);
+	if (bGame) ToggleGame();
+	if (Kind == TEXT("tablet"))
+	{
+		if (!Tablet.IsValid()) { ToggleTablet(); }
+		else { Tablet->SetActorHiddenInGame(false); TabWant = 1.f; }
+		TabK = 1.f; TabCloseWant = 1.f;   // (straight up close again, its screen opening)
+	}
+	else if (!Kind.IsEmpty()) OpenDevice(Kind);
+}
+
+void AADPHUD::MenusKey()
+{
+	// G / the pad's Y: the Overview no longer opens from the 3D world (owner, 2026-11-18) - only from your tablet and the
+	// computers; from the menus the key still brings you back into the 3D world
+	if (bGame) { OverviewReturn.Reset(); ToggleGame(); return; }
+	Hint(TEXT("The Overview opens from your tablet (Tab) or a computer"));
+}
+
+void AADPHUD::Hint(const FString& Text) { HintText = Text; HintLeft = 3.f; }
+
+void AADPHUD::Back3D() { if (bGame) ToggleGame(); }
+
+// ==== your place (was Pose.cpp) ====
+// Where you are (owner, 2026-11-18, to-do 117/119): a New Game starts you 35 m outside the main hall, looking straight at
+// its centre entrance door; Continue / Load put you back exactly where you were, facing the same way. Your place is
+// written every few seconds while you walk the 3D world and when the game closes (Saved/ADP/pose.txt). Sitting, beds,
+// cars, public transport and the world moving on while you were away come later (to-do 119).
+
+namespace ADPPoseK
+{
+	FString PoseFile() { return FPaths::ProjectSavedDir() / TEXT("ADP") / TEXT("pose.txt"); }
+}
+
+void AADPHUD::GoNewGameStart()
+{
+	// 35 m out from the centre entrance's outer doors (plan x 75, z -4), on its axis, looking straight at them
+	GoTo(FVector(75.f, 0.f, -39.f), FVector(75.f, 1.7f, -4.f));
+}
+
+void AADPHUD::SavePose()
+{
+	APlayerController* PC = GetOwningPlayerController(); APawn* P = PC ? PC->GetPawn() : nullptr;
+	if (!P || bGame || bInLounge || Cast<AFireTruck>(P) || !bPoseLive) return;
+	const FVector L = P->GetActorLocation(); const FRotator R = PC->GetControlRotation();
+	FFileHelper::SaveStringToFile(FString::Printf(TEXT("%.1f %.1f %.1f %.2f %.2f"), L.X, L.Y, L.Z, R.Pitch, R.Yaw), *ADPPoseK::PoseFile());
+}
+
+bool AADPHUD::RestorePose()
+{
+	FString S; if (!FFileHelper::LoadFileToString(S, *ADPPoseK::PoseFile())) return false;
+	TArray<FString> V; S.TrimStartAndEnd().ParseIntoArrayWS(V); if (V.Num() < 5) return false;
+	APlayerController* PC = GetOwningPlayerController(); APawn* P = PC ? PC->GetPawn() : nullptr; if (!P) return false;
+	if (AFireTruck* T = Cast<AFireTruck>(P)) { T->ExitNow(); P = PC->GetPawn(); if (!P) return false; }
+	if (bGame) ToggleGame();
+	bInLounge = false;
+	const FVector L(FCString::Atof(*V[0]), FCString::Atof(*V[1]), FCString::Atof(*V[2]));
+	const FRotator R(FCString::Atof(*V[3]), FCString::Atof(*V[4]), 0.f);
+	P->TeleportTo(L + FVector(0, 0, 5.f), FRotator(0, R.Yaw, 0));
+	PC->SetControlRotation(R);
+	ADP_LOG(TEXT("Pose: back where you were (%s)"), *L.ToString());
+	return true;
+}
+
+void AADPHUD::OpenSiteStart()
+{
+	// New Game: the start spot (and the old place forgotten); Continue / Load: where you were, if it is known
+	const bool bNew = bNewCareer; bNewCareer = false;
+	if (bNew) { IFileManager::Get().Delete(*ADPPoseK::PoseFile(), false, true, true); GoNewGameStart(); ADP_LOG(TEXT("Pose: a new game - outside the main hall")); }
+	else if (!RestorePose()) GoNewGameStart();
+	bPoseLive = true; PoseLeft = 5.f;
 }

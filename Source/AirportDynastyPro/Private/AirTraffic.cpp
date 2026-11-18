@@ -1,7 +1,7 @@
 // The airport's traffic: airliners turning round at the stands, taxiing, taking off and landing on runway 08, with
 // their ground vehicles. Simple shapes for the aircraft and vehicles until proper models replace them.
-#include "BaggageBelts.h"
 #include "AirTraffic.h"
+#include "BaggageBelts.h"
 #include "ADPLog.h"
 #include "TerminalBuilder.h"
 #include "TerminalPlan.h"
