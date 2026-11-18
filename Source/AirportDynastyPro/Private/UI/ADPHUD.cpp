@@ -3677,7 +3677,7 @@ void AADPHUD::Tick(float Dt)
 				if (!Out.IsValid()) Out = GetWorld()->SpawnActor<ACameraActor>(Eye, (Look - Eye).Rotation());
 				if (Out.IsValid()) { Out->SetActorLocationAndRotation(Eye, (Look - Eye).Rotation()); Out->GetCameraComponent()->SetConstraintAspectRatio(false); Out->GetCameraComponent()->SetFieldOfView(62.f); PC->SetViewTarget(Out.Get()); }
 			};
-			auto Inside = [&]() { if (HmiCam.IsValid()) PC->SetViewTarget(HmiCam.Get()); };
+			auto HmiInside = [&]() { if (HmiCam.IsValid()) PC->SetViewTarget(HmiCam.Get()); };
 			if (Step == -1 && Tn >= 40.f)
 			{
 				if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 15.f; ASunClock::Refresh(); AJetwayRigs::Speed = 1.f;
@@ -3722,7 +3722,7 @@ void AADPHUD::Tick(float Dt)
 				case 7: Interact(); AJetwayRigs::Speed = 3.f; Next(0.7f); break;
 				case 8: Outside(); Until = Tn + 60.f; Next(0.f); break;
 				case 9: if (JR->State(0) != AJetwayRigs::EState::Parked && Tn < Until) break; AJetwayRigs::Speed = 1.f; Next(1.5f); break;
-				case 10: Inside(); Next(1.5f); break;
+				case 10: HmiInside(); Next(1.5f); break;
 				// manual steps: forward twice, left, the cab, up - each watched from outside
 				case 11: case 16: case 21: case 26: case 31:
 				{
@@ -3731,13 +3731,13 @@ void AADPHUD::Tick(float Dt)
 				}
 				case 12: case 17: case 22: case 27: case 32: Interact(); Next(0.5f); break;
 				case 13: case 18: case 23: case 28: case 33: Outside(); Next(2.6f); break;
-				case 14: case 19: case 24: case 29: case 34: Inside(); Next(1.0f); break;
+				case 14: case 19: case 24: case 29: case 34: HmiInside(); Next(1.0f); break;
 				case 15: case 20: case 25: case 30: case 35: Next(0.f); break;
 				case 36: L->AimAt(TEXT("cmd:DOCK")); Next(1.3f); break;
 				case 37: Interact(); AJetwayRigs::Speed = 4.f; Next(0.7f); break;
 				case 38: Outside(); Until = Tn + 90.f; Next(0.f); break;
 				case 39: if (JR->State(0) != AJetwayRigs::EState::Docked && Tn < Until) break; AJetwayRigs::Speed = 1.f; Next(2.f); break;
-				case 40: Inside(); Next(2.f); break;
+				case 40: HmiInside(); Next(2.f); break;
 				case 41: L->AimAt(TEXT("tab:home")); Next(1.2f); break;
 				case 42: Interact(); Next(2.2f); break;
 				case 43: L->AimAt(TEXT("tab:cam")); Next(1.2f); break;
