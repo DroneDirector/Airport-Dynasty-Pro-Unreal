@@ -149,15 +149,56 @@ while x < -71.05 - 1e-6: x += 0.10; path.append((min(x, -71.05), ZE))
 def at(i):
     x_, z_ = path[i]; zz = min(z_, ZE - RC)                 # (the bend and the landing: level, as at the slope's top)
     return x_, z_, rail_y(zz), glass_lo(zz)
-pts = [at(i) for i in range(len(path))]
-for i in range(len(pts) - 1):
-    (xa, za, ra, la), (xb, zb, rb, lb) = pts[i], pts[i + 1]
-    dx, dz = xb - xa, zb - za; L = _m.hypot(dx, dz) or 1.0; nx, nz = dz / L * 0.008, -dx / L * 0.008
-    for o in (-1, 1):
-        f = G.face([(xa + o * nx, la, za + o * nz), (xb + o * nx, lb, zb + o * nz), (xb + o * nx, rb - 0.02, zb + o * nz), (xa + o * nx, ra - 0.02, za + o * nz)], 'MI_T_glass')
-        G.want.append((f, (-o * nx, -o * nz, 0.0)))          # (each face of the pane facing out of its side, all alike)
-S.box(GX + RC, -71.0, F2, F2 + 0.1, ZE - 0.04, ZE + 0.04, 'MI_T_black')                                 # the clamp shoe along the landing
-tube([(x_, r_, z_) for (x_, z_, r_, l_) in pts] + [(-71.0, pts[-1][2], ZE)], 0.035, 'MI_T_jwRubber')
+pts = [at(i) for i in range(len(path))] + [(-71.0, ZE, rail_y(ZE - RC), glass_lo(ZE - RC))]
+# (owner 2026-11-18, second look: the rail showed seams and the glass broke at the corner - each little piece had its own
+#  ends. Now each is ONE continuous sweep: at every point one cross-section, set square to the path's mean direction there,
+#  shared by the pieces on both sides, so nothing gaps or overlaps round the bend)
+def side_dir(i):
+    """the plan direction the guard faces at point i (horizontal, square to the path's mean direction there)"""
+    a, b = pts[max(0, i - 1)], pts[min(len(pts) - 1, i + 1)]
+    dx, dz = b[0] - a[0], b[1] - a[1]; L = _m.hypot(dx, dz) or 1.0
+    return dz / L, -dx / L
+def sweep(P, sec, m):
+    """faces between consecutive cross-sections; sec(i) -> list of (plan point, outward plan direction), a closed loop"""
+    rings = [sec(i) for i in range(len(pts))]
+    for i in range(len(pts) - 1):
+        A, B = rings[i], rings[i + 1]; n = len(A)
+        for k in range(n):
+            k1 = (k + 1) % n
+            f = P.face([A[k][0], B[k][0], B[k1][0], A[k1][0]], m)
+            o_ = [(A[k][1][c] + A[k1][1][c]) * 0.5 for c in range(3)]
+            P.want.append((f, (-o_[0], -o_[2], o_[1])))
+# the glass: 16 mm thick, its edges closed, from the shoe up into the rail
+def glass_sec(i):
+    x_, z_, r_, l_ = pts[i]; nx, nz = side_dir(i); t = 0.008
+    return [((x_ + nx * t, l_, z_ + nz * t), (nx, 0, nz)), ((x_ + nx * t, r_ - 0.02, z_ + nz * t), (0, 1, 0)),
+            ((x_ - nx * t, r_ - 0.02, z_ - nz * t), (-nx, 0, -nz)), ((x_ - nx * t, l_, z_ - nz * t), (0, -1, 0))]
+sweep(G, glass_sec, 'MI_T_glass')
+# the handrail: a round 70 mm rail, 16 sides
+def rail_sec(i):
+    x_, z_, r_, l_ = pts[i]; nx, nz = side_dir(i)
+    a, b = pts[max(0, i - 1)], pts[min(len(pts) - 1, i + 1)]
+    tx, ty, tz = b[0] - a[0], b[2] - a[2], b[1] - a[1]; L = _m.sqrt(tx * tx + ty * ty + tz * tz) or 1.0; tx, ty, tz = tx / L, ty / L, tz / L
+    u = (nx, 0.0, nz)                                                  # across, level
+    v = (u[1] * tz - u[2] * ty, u[2] * tx - u[0] * tz, u[0] * ty - u[1] * tx)   # up-ish, square to the rail
+    if v[1] < 0: v = tuple(-c for c in v)
+    out = []
+    for k in range(16):
+        c_, s_ = _m.cos(2 * _m.pi * k / 16), _m.sin(2 * _m.pi * k / 16)
+        d = tuple(c_ * u[q] + s_ * v[q] for q in range(3))
+        out.append(((x_ + 0.035 * d[0], r_ + 0.035 * d[1], z_ + 0.035 * d[2]), d))
+    return out
+sweep(S, rail_sec, 'MI_T_jwRubber')
+# the black clamp shoe under the glass wherever the guard stands level on the landing - round the bend too
+lvl = [i for i in range(len(pts)) if pts[i][1] >= ZE - RC - 1e-6]
+def shoe_sec(i):
+    x_, z_, r_, l_ = pts[i]; nx, nz = side_dir(i); w = 0.04
+    return [((x_ + nx * w, F2, z_ + nz * w), (nx, 0, nz)), ((x_ + nx * w, F2 + 0.1, z_ + nz * w), (0, 1, 0)),
+            ((x_ - nx * w, F2 + 0.1, z_ - nz * w), (-nx, 0, -nz)), ((x_ - nx * w, F2, z_ - nz * w), (0, -1, 0))]
+_all = pts
+pts = [_all[i] for i in lvl]
+sweep(S, shoe_sec, 'MI_T_black')
+pts = _all
 # ---- the lift's glass shaft (x -71.0..-68.6, z 49.6..51.9), from the claim hall up through the landing; its doors on the
 #      west side at both floors (the car is the staff lift's, TerminalLift.h) ----
 LX0, LX1, LZ0, LZ1 = -71.2, -68.4, 49.4, 52.0
