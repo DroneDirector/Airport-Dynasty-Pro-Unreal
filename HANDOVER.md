@@ -2,6 +2,13 @@
 
 Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md (where everything is) first.
 
+## Standing rule (owner, 2026-11-18): pictures from the phone chat
+
+Whenever the owner sends pictures in the phone chat for you, they are copied onto the PC as soon as it is online, to
+`Art\Reference\From-Phone\<date>\` in this repo's folder, and each handover entry names every picture's file and
+location there (with what it shows and what he said about it). Open those files; commit them (through LFS) with your
+next commit if they belong in the repo.
+
 ## From the owner for the PC chat (2026-11-17 22:35, via the phone): performance dropped again - find out why (FIRST)
 
 His words, briefly: the newest update (0.17.22) plays OK with frame generation, but he gets 60-70 fps, a bit less than
