@@ -29,6 +29,7 @@ public:
 	static ABaggageBelts* Get(UWorld* W);
 	void Build();
 	virtual void Tick(float Dt) override;
+	FTransform PlateAt(float BeltX, const FVector2f& P, const FVector2f& D) const;
 	/** E / X: a button you look at or stand by presses it; a bag in reach is taken off. True if something was used. */
 	bool Interact(UPrimitiveComponent* Hit, const FVector& Where);
 	/** An aircraft has parked at a stand (plan x of its nose): its bags come to a belt. */

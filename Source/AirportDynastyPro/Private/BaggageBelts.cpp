@@ -63,6 +63,18 @@ static float YawOf(const FVector2f& Dir)   // the yaw that turns a part's local 
 	return FMath::RadiansToDegrees(FMath::Atan2(Wd.Y, Wd.X)) + 90.f;
 }
 
+// a plate on the belt at its place along the loop: turned to the way it goes, and tipped 6 degrees about its length so the
+// plates overlap like shingles (owner 2026-11-18, to-do 101: in the bends the flat plates lay in one plane on their inner
+// half and merged into one surface - "half of each plate hidden"); its middle 1.5 cm up so its low edge stays on the belt
+FTransform ABaggageBelts::PlateAt(float BeltX, const FVector2f& P, const FVector2f& D) const
+{
+	// (owner 2026-11-18: tipped only in the bends - just enough to clear the next plate's 3 cm - easing in over the last
+	//  30 cm before a bend and back to flat over the first 30 cm after it; flat on the straights)
+	const float Out = FMath::Max(0.f, FMath::Abs(P.Y) - BL / 2);          // how far past the straight's end (into a bend)
+	const float K = FMath::SmoothStep(0.f, 1.f, FMath::Clamp((Out + 0.3f) / 0.6f, 0.f, 1.f));
+	return FTransform(FRotator(0, YawOf(D), 6.f * K), W(BeltX + P.X, 0.425f + 0.015f * K, CZ + P.Y));
+}
+
 void ABaggageBelts::Build()
 {
 	GBelts = this;
@@ -110,13 +122,14 @@ void ABaggageBelts::Build()
 		}
 		Bt.Plates = List(Plate, true);
 		const int32 NP = FMath::FloorToInt(PER / 0.3f);
-		for (int32 k = 0; k < NP; ++k) { FVector2f D; const FVector2f P = PathAt(k * PER / NP, D); Bt.Plates->AddInstance(FTransform(FRotator(0, YawOf(D), 0), W(X + P.X, 0.425f, CZ + P.Y)), true); }
+		for (int32 k = 0; k < NP; ++k) { FVector2f D; const FVector2f P = PathAt(k * PER / NP, D); Bt.Plates->AddInstance(PlateAt(X, P, D), true); }
 		// the hood's flaps: 8 strips across its mouth (facing east), hung from the hinge bar
 		Bt.FirstFlap = Flaps.Num();
 		for (int32 k = 0; k < 8; ++k)
 		{
+			// (owner 2026-11-18, to-do 100: the strips hang all the way down to the incline, 2 cm over it, not half way)
 			FFlap F; F.K = FlapK; F.Hinge = W(X + 0.74f, 1.13f, CZ + 5.53f + k * 0.135f); F.Base = FRotator(0, 90.f, 0).Quaternion(); F.Axis = FVector(0, 1, 0);
-			F.Ix = FlapK->AddInstance(FTransform(F.Base, F.Hinge, FVector(1, 1, 1)), true); Flaps.Add(F);
+			F.Ix = FlapK->AddInstance(FTransform(F.Base, F.Hinge, FVector(1, 1, (1.13f - 0.24f) / 0.47f)), true); Flaps.Add(F);
 		}
 		// the crew side: the input conveyor from the long one to the wall, the wall's yellow frame round a dark opening,
 		// its flaps, the crew's control box
@@ -339,7 +352,7 @@ void ABaggageBelts::Tick(float Dt)
 			for (int32 k = 0; k < NP; ++k)
 			{
 				FVector2f D; const FVector2f P = PathAt(k * PER / NP + Bt.Phase, D);
-				Bt.Plates->UpdateInstanceTransform(k, FTransform(FRotator(0, YawOf(D), 0), W(Bt.X + P.X, 0.425f, CZ + P.Y)), true, false, true);
+				Bt.Plates->UpdateInstanceTransform(k, PlateAt(Bt.X, P, D), true, false, true);
 			}
 			Bt.Idle = bAny ? 0.f : Bt.Idle + Dt;
 			if (Bt.Idle > 60.f && !Bt.Flight.IsEmpty()) { SetRunning(b, false); Bt.Flight.Empty(); if (Bt.Screen) Bt.Screen->SetText(FText::FromString(FString::Printf(TEXT("BELT %d"), b + 1))); }
@@ -366,7 +379,9 @@ void ABaggageBelts::Tick(float Dt)
 		{
 			if (B.Stage != EStage::Rise && B.Stage != EStage::Stub) continue;
 			FTransform T; BagMeshes[B.Kind]->GetInstanceTransform(B.Ix, T, true);
-			const float D = FVector::Dist(T.GetLocation() + FVector(0, 0, 15.f), F.Hinge - FVector(0, 0, 40.f));
+			// (the bag near the strip anywhere along its length - the hood's strips reach down to the incline now)
+			const FVector Bp = T.GetLocation() + FVector(0, 0, 15.f);
+			const float D = FMath::Min(FVector::Dist(Bp, F.Hinge - FVector(0, 0, 40.f)), FVector::Dist(Bp, F.Hinge - FVector(0, 0, 75.f)));
 			if (D < 55.f) Want = FMath::Max(Want, 1.25f * (1.f - D / 55.f));
 		}
 		const float Acc = 60.f * (Want - F.A) - 5.f * F.V;

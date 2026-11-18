@@ -39,6 +39,20 @@ class Part:
             o.select_set(True); bpy.context.view_layer.objects.active = o
             for md in list(o.modifiers): bpy.ops.object.modifier_apply(modifier=md.name)
             o.select_set(False)
+        # (owner 2026-11-18, to-do 102: the brushed metal was stretched - every box face had the whole picture, however long)
+        # every face mapped at real size, by the axis it faces: 1 m of surface = one tile, the brushing running sideways;
+        # seamless across faces facing the same way
+        for o in s.objs:
+            me = o.data; M = o.matrix_world
+            if not me.uv_layers: me.uv_layers.new(name='UVMap')
+            uv = me.uv_layers.active.data
+            for poly in me.polygons:
+                n = poly.normal; ax = max(range(3), key=lambda i: abs(n[i]))
+                for li in poly.loop_indices:
+                    w = M @ me.vertices[me.loops[li].vertex_index].co
+                    if ax == 2: uv[li].uv = (w.x, w.y)        # up/down faces: plan x, plan z
+                    elif ax == 0: uv[li].uv = (w.y, w.z)      # faces looking along x: along y, up
+                    else: uv[li].uv = (w.x, w.z)              # faces looking along y: along x, up
         for o in s.objs: o.select_set(True)
         bpy.context.view_layer.objects.active = s.objs[0]; bpy.ops.object.join()
         ob = bpy.context.object; ob.name = s.name
@@ -67,8 +81,10 @@ bpy.data.objects.remove(cut, do_unlink=True)
 b.box(-0.45, 5.4, -0.8, 1.4, 5.42, 0.0, 'MI_T_black'); b.box(-0.45, 6.58, -0.8, 1.4, 6.6, 0.0, 'MI_T_black')   # the shaft's walls
 b.box(-0.47, 5.4, -0.8, -0.45, 6.6, 0.0, 'MI_T_black'); b.box(-0.45, 5.4, -0.82, 1.4, 6.6, -0.8, 'MI_T_black')
 for yy in (5.45, 6.51): b.box(-0.4, yy, -0.1, 1.45, yy + 0.04, 0.2, 'MI_T_steel')                       # the incline's side frames
-b.box(-0.5, 5.4, 0.64, 0.75, 5.46, 1.15, 'MI_T_steel'); b.box(-0.5, 6.54, 0.64, 0.75, 6.6, 1.15, 'MI_T_steel')
-b.box(-0.5, 5.4, 1.15, 0.75, 6.6, 1.2, 'MI_T_steel'); b.box(-0.56, 5.4, 0.64, -0.5, 6.6, 1.2, 'MI_T_steel')
+# the hood: its side walls and back go all the way down to the incline and into the shaft (owner 2026-11-18, to-do 100:
+# they stopped at the island's top with a gap under them), so the bags come out of a closed housing under its strips
+b.box(-0.5, 5.4, -0.8, 0.75, 5.46, 1.15, 'MI_T_steel'); b.box(-0.5, 6.54, -0.8, 0.75, 6.6, 1.15, 'MI_T_steel')
+b.box(-0.5, 5.4, 1.15, 0.75, 6.6, 1.2, 'MI_T_steel'); b.box(-0.56, 5.4, -0.8, -0.5, 6.6, 1.2, 'MI_T_steel')
 b.box(-0.5, 5.38, 1.2, 0.75, 6.62, 1.23, 'MI_T_black')
 b.box(0.7, 5.42, 1.12, 0.78, 6.58, 1.16, 'MI_T_steel')                                                     # the flaps' hinge bar
 b.box(-0.03, 10.45, 4.19, 0.03, 10.51, 5.4, 'MI_T_steel')                                                  # the screen's hanger

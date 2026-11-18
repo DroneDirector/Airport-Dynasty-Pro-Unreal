@@ -157,6 +157,8 @@ add('F2', 'TAXFREE/SHELL-SOLID', 'tf_shell_solid')
 add('F2', 'TAXFREE/SHELL-GLASS', 'tf_shell_glass')
 add('F2', 'TAXFREE/FLOOR', 'tf_floor')
 add('F2', 'TAXFREE/AURORA', 'tf_aurora')
+# the gate walkway's south wall rebuilt round the arrivals escalators' opening (owner 2026-11-18, Art/TerminalAnnex/make_walk_patch.py)
+add('F2', 'F2-WALK/PATCH', 'walk_patch_solid')
 _cnt = {}
 for _p in _tf['place']:
     a = _p['asset']; _cnt[a] = _cnt.get(a, 0) + 1
