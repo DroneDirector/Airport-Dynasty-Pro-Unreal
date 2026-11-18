@@ -1,5 +1,7 @@
 // An aircraft hangar with its crew annex (Hangar.h), in four sizes.
 #include "Hangar.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "PerfLog.h"
 #include "TimerManager.h"
 #include "BabylonModel.h"
@@ -264,6 +266,8 @@ void AHangar::Build(const FString& SizeId, float X, float ApronEdge, bool bDoorO
 	BuildFrame();
 	BuildSkin();
 	BuildDoor(bDoorOpen);
+	// (-HangarDoorHalf: test pictures - every main door stopped half way, to see how the leaves stack)
+	if (FParse::Param(FCommandLine::Get(), TEXT("HangarDoorHalf"))) { DoorK = 0.5f; for (const FLeaf& L : Leaves) if (L.Node) L.Node->SetRelativeLocation(FVector(L.Travel * DoorK, 0, 0)); }
 	BuildPersonnelDoors();
 	BuildLampsAndServices();
 	BuildKit();
@@ -599,7 +603,10 @@ void AHangar::BuildDoor(bool bOpen)
 	for (int32 i = 0; i < S.Leaves; ++i)
 	{
 		const bool bLeft = i < S.Leaves / 2;
-		const int32 K = bLeft ? i : S.Leaves - 1 - i, T = NT - 1 - K;
+		// (owner, 2026-11-18: like a real telescopic door - the leaf by the pocket runs on the innermost track and hardly
+		//  moves; each leaf further out runs on the next track out and travels further; the middle leaf, on the outermost
+		//  track, travels the furthest. Track 0 is the innermost: TrackZ)
+		const int32 K = bLeft ? i : S.Leaves - 1 - i, T = K;
 		const float Z = S.TrackZ(T);
 		const float Xs = -W / 2 + (W / S.Leaves) * (i + 0.5f), Xo = (bLeft ? -1.f : 1.f) * (wx + lw / 2 + 0.1f);
 		// the leaf on its own node, built shut and slid along its rail by the door's drive (Tick)
