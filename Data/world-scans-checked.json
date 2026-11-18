@@ -84,7 +84,8 @@
    "TActorIterator<APet>",
    "TActorIterator<AVolumetricCloud>",
    "TActorIterator<AWardrobe>",
-   "TObjectIterator<ULocalLightComponent>"
+   "TObjectIterator<ULocalLightComponent>",
+   "TObjectIterator<UPrimitiveComponent>"
   ],
   "guarded": true
  },

@@ -35,7 +35,7 @@ namespace
 	constexpr float SR = 1.35f, Turn = PI * 1.85f;          // the spiral stair: its radius, how far round it turns
 	constexpr int32 Steps = 22;
 	constexpr float TwoPi = 2.f * PI;
-	float Ease(float K) { return K * K * (3.f - 2.f * K); }
+	float TowerEase(float K) { return K * K * (3.f - 2.f * K); }
 }
 #pragma endregion
 
@@ -735,9 +735,9 @@ void ATowerADC::Tick(float Dt)
 	}
 
 	for (int32 i = 0; i < EntranceDoors.Num(); ++i)
-		if (USceneComponent* D = EntranceDoors[i]) D->SetRelativeLocation(U(EX0 + 0.12f, 0, (i ? 1.f : -1.f) * (0.4f + Ease(EK) * 0.78f)));
-	if (BalconyLeaf) BalconyLeaf->SetRelativeRotation(FRotator(0, DoorSign * 89.f * Ease(BK), 0));
-	if (FlapHinge) FlapHinge->SetRelativeRotation(FQuat::Slerp(FQuat::Identity, FlapOpen, Ease(FK)));
+		if (USceneComponent* D = EntranceDoors[i]) D->SetRelativeLocation(U(EX0 + 0.12f, 0, (i ? 1.f : -1.f) * (0.4f + TowerEase(EK) * 0.78f)));
+	if (BalconyLeaf) BalconyLeaf->SetRelativeRotation(FRotator(0, DoorSign * 89.f * TowerEase(BK), 0));
+	if (FlapHinge) FlapHinge->SetRelativeRotation(FQuat::Slerp(FQuat::Identity, FlapOpen, TowerEase(FK)));
 }
 
 #pragma endregion

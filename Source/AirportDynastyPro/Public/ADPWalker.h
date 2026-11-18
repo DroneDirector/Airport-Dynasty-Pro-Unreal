@@ -69,9 +69,13 @@ private:
 	void RunOn();
 	void RunOff();
 public:
-	/** The run key held (the sprint: tapped twice and held; it lasts about 7 s at full, then eases to the run, and comes
+	/** The run key held (the sprint: tapped twice and held; it lasts 15 s at full, then eases to the run, and comes
 	 *  back over about 45 s of not sprinting - a fit person's top sprint, owner 2026-11-18). */
-	bool bRunHeld = false, bSprint = false; double LastRunTap = 0.0; float SprintK = 0.f, SprintLeft = 7.f;
+	bool bRunHeld = false, bSprint = false; double LastRunTap = 0.0; float SprintK = 0.f, SprintLeft = 15.f;
+	static constexpr float SprintMax = 15.f;   // (seconds of full sprint - owner, 2026-11-18)
+	/** How much sprint you have left, 0..1 (the meter under the map). */
+	float SprintFrac() const { return SprintLeft / SprintMax; }
+	TWeakObjectPtr<class UAudioComponent> Breath;
 private:
 	void ToggleCrouch();
 	#pragma endregion

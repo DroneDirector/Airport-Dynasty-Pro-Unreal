@@ -36,7 +36,7 @@ namespace
 	};
 	constexpr int32 NumShots = UE_ARRAY_COUNT(Shots);
 	float RoundBeats() { float B = 0; for (const FShot& S : Shots) B += S.Beats; return B; }
-	float Ease(float K) { K = FMath::Clamp(K, 0.f, 1.f); return K * K * (3.f - 2.f * K); }
+	float TitleEase(float K) { K = FMath::Clamp(K, 0.f, 1.f); return K * K * (3.f - 2.f * K); }
 
 	bool bFilmOn = false, bFilmReady = false;
 	float ClockT = 0.f; double ClockAt = 0.0;
@@ -120,7 +120,7 @@ void STitleBg::Frame(float W, float H, float Dt) const
 		flip = Round % 2 == 1 ? 1.f : 0.f;
 		const int32 Id = Round * 100 + i;
 		if (Id != LastShot) { LastShot = Id; if (Sh.Kind != 'd') Flash = FMath::Max(Flash, 0.55f + kick * 0.4f); Glitch = 1.f; }
-		const float e = flip > 0.5f ? 1.f - Ease(k) : Ease(k);
+		const float e = flip > 0.5f ? 1.f - TitleEase(k) : TitleEase(k);
 		const float v[3] = {Sh.A[0] + (Sh.B[0] - Sh.A[0]) * e, Sh.A[1] + (Sh.B[1] - Sh.A[1]) * e, Sh.A[2] + (Sh.B[2] - Sh.A[2]) * e};
 		const FString Img(Sh.Img);
 		const bool bFly = Img == TEXT("fly"), bT3 = Img == TEXT("t3");
@@ -137,7 +137,7 @@ void STitleBg::Frame(float W, float H, float Dt) const
 		const float cx = FMath::Max(vw / 2, FMath::Min(iw - vw / 2, v[0] - vw * Side)), cy = FMath::Max(vh / 2, FMath::Min(ih - vh / 2, v[1]));
 		s = W / vw; ox = W / 2 - cx * s; oy = H / 2 - cy * s;
 		Mode = bT3 ? 1.f : bFly ? 2.f : 0.f;
-		if (bT3) { const float pe = Ease(k); P4 = FLinearColor(70.f - 110.f * pe, 1.24f - 0.24f * pe, -0.012f * pe, FMath::Sin(t * 9.f) * 0.6f * (1.f - k)); }
+		if (bT3) { const float pe = TitleEase(k); P4 = FLinearColor(70.f - 110.f * pe, 1.24f - 0.24f * pe, -0.012f * pe, FMath::Sin(t * 9.f) * 0.6f * (1.f - k)); }
 		if (bFly) P4 = FLinearColor(-120.f + 240.f * k, FMath::Sin(t * 0.8f) * 4.f + FMath::Sin(t * 2.1f) * 1.2f, FMath::Sin(t * 0.55f) * 0.006f, 0.f);
 		rk = Sh.Kind == 'd' ? k : -1.f;
 		// the glints (titleLights)

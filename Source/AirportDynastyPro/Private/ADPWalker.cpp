@@ -1,6 +1,9 @@
 // The player walking through the terminal in first person: walk, run, jump and crouch.
 #include "ADPWalker.h"
 #include "ADPFov.h"
+#include "Kismet/GameplayStatics.h"
+#include "Components/AudioComponent.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Tattoo.h"
 #include "Wardrobe.h"
 #include "DriverPoseAnim.h"
@@ -520,10 +523,28 @@ void AADPWalker::Tick(float Dt)
 		UCharacterMovementComponent* Mv = GetCharacterMovement();
 		// the sprint's breath: about 7 s at full (a fit athlete's top sprint), then it eases back to the run; it fills again
 		// over about 45 s while you aren't sprinting (part-filled, a shorter burst)
+		// (owner, 2026-11-18: the full sprint lasts 15 s, then back to the normal run; the meter under the map shows it)
 		const bool bSprinting = bRunHeld && bSprint && SprintLeft > 0.f && GetVelocity().Size2D() > RunSpeed * 0.6f;
-		if (bSprinting) SprintLeft = FMath::Max(0.f, SprintLeft - Dt); else if (!(bRunHeld && bSprint)) SprintLeft = FMath::Min(7.f, SprintLeft + Dt * 7.f / 45.f);
-		const float Breath = FMath::Clamp(SprintLeft / 2.f, 0.f, 1.f);   // (the last 2 s: easing down to the run)
-		const float Want = bRunHeld ? (bSprint ? RunSpeed + (SprintSpeed - RunSpeed) * Breath : RunSpeed) : WalkSpeed;
+		if (bSprinting) SprintLeft = FMath::Max(0.f, SprintLeft - Dt); else if (!(bRunHeld && bSprint)) SprintLeft = FMath::Min(SprintMax, SprintLeft + Dt * SprintMax / 45.f);
+		// your breathing (Art/Sounds/Player, CC0): heavy while you sprint flat out, then about 3 s catching your breath
+		{
+			static bool bWoman = false, bRead = false; if (!bRead) { bRead = true; GConfig->GetBool(TEXT("ADP.Player"), TEXT("Woman"), bWoman, GGameUserSettingsIni); }
+			const bool bHard = bSprinting && SprintLeft > 0.3f;
+			if (bHard && !Breath.IsValid())
+			{
+				if (USoundBase* S = LoadObject<USoundBase>(nullptr, bWoman ? TEXT("/Game/Player/Sounds/BreathSprintF.BreathSprintF") : TEXT("/Game/Player/Sounds/BreathSprintM.BreathSprintM")))
+					Breath = UGameplayStatics::SpawnSound2D(this, S, 0.55f, 1.f, FMath::FRand() * 3.f, nullptr, false, false);
+				if (Breath.IsValid()) Breath->FadeIn(0.6f, 0.55f);
+			}
+			else if (!bHard && Breath.IsValid())
+			{
+				Breath->FadeOut(0.4f, 0.f); Breath = nullptr;
+				if (USoundBase* A = LoadObject<USoundBase>(nullptr, bWoman ? TEXT("/Game/Player/Sounds/BreathAfterF.BreathAfterF") : TEXT("/Game/Player/Sounds/BreathAfterM.BreathAfterM")))
+					UGameplayStatics::PlaySound2D(this, A, 0.5f);
+			}
+		}
+		const float Ease = FMath::Clamp(SprintLeft / 2.f, 0.f, 1.f);   // (the last 2 s: easing down to the run)
+		const float Want = bRunHeld ? (bSprint ? RunSpeed + (SprintSpeed - RunSpeed) * Ease : RunSpeed) : WalkSpeed;
 		// (up to the run at once as before; up to the sprint over about 1.8 s; down again over about a second)
 		const float Rate = Want > Mv->MaxWalkSpeed ? (Want > RunSpeed ? 230.f : 100000.f) : 450.f;
 		Mv->MaxWalkSpeed = FMath::FInterpConstantTo(Mv->MaxWalkSpeed, Want, Dt, Rate);

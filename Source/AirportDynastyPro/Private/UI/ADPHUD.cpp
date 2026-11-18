@@ -426,7 +426,30 @@ void AADPHUD::BeginPlay()
 			.Visibility_Lambda([this]() { return bGame || bInLounge || bViewer || HoldingDevice() || (HoloMap.IsValid() && HoloMap->IsFull()) ? EVisibility::Collapsed : EVisibility::HitTestInvisible; })
 			[SAssignNew(Compass, SCompassStrip)]
 		]
-		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(16)
+		// the sprint meter, its own strip right under the small map and flush with it (owner, 2026-11-18): full and blue when
+		// rested; going down as you sprint flat out, its colour turning through amber to red as you tire; filling again
+		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(FMargin(16, 0, 0, 6))
+		[
+			SNew(SBox).WidthOverride(240).HeightOverride(10)
+			.Visibility_Lambda([this]() { return bGame || bInLounge || bViewer || HoldingDevice() || (HoloMap.IsValid() && HoloMap->IsFull()) ? EVisibility::Collapsed : EVisibility::HitTestInvisible; })
+			[
+				SNew(SOverlay)
+				+ SOverlay::Slot()[SNew(SImage).Image(FCoreStyle::Get().GetBrush("WhiteBrush")).ColorAndOpacity(FLinearColor(0.02f, 0.10f, 0.20f, 0.82f))]
+				+ SOverlay::Slot().Padding(FMargin(3, 2))
+				[
+					SNew(SBox).HAlign(HAlign_Left)
+					.WidthOverride_Lambda([this]() { const AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn()); return FOptionalSize(234.f * (Wk ? Wk->SprintFrac() : 1.f)); })
+					[
+						SNew(SImage).Image(FCoreStyle::Get().GetBrush("WhiteBrush"))
+						.ColorAndOpacity_Lambda([this]() {
+							const AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn()); const float F = Wk ? Wk->SprintFrac() : 1.f;   // (1 rested .. 0 spent)
+							const FLinearColor Blue(0.25f, 0.70f, 1.f), Amber(1.f, 0.72f, 0.2f), Red(1.f, 0.18f, 0.12f);
+							return FSlateColor(F > 0.5f ? FMath::Lerp(Amber, Blue, (F - 0.5f) * 2.f) : FMath::Lerp(Red, Amber, F * 2.f)); })
+					]
+				]
+			]
+		]
+		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(FMargin(16, 16, 16, 16))
 		[
 			SAssignNew(MiniBox, SBox).WidthOverride(240).HeightOverride(240)
 			.Visibility_Lambda([this]() { return bGame || bInLounge || HoldingDevice() ? EVisibility::Collapsed : EVisibility::Visible; })

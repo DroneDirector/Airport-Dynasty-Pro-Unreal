@@ -409,6 +409,7 @@ void ADPCharacterCreate::Confirm(bool bWoman)
 	if (Phase != 0) return;
 	Choose(bWoman);
 	bChoseWoman = bWoman;
+	GConfig->SetBool(TEXT("ADP.Player"), TEXT("Woman"), bWoman, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni);   // (your own breathing and voice follow it)
 	// the other one turns and walks out of the picture (the walk carried over to the MetaHuman body)
 	AActor* Off = bWoman ? He.Get() : She.Get();
 	if (Off)
