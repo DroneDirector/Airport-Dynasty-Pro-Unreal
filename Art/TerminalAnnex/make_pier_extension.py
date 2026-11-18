@@ -59,10 +59,12 @@ for side, (x0, x1) in (('W', (W_END, -80.0)), ('E', (242.0, E_END))):
     zwall(68.0, x0, x1, F2, F2C, -1, 'MI_T_plaster', 'MI_T_white', F2N[side])          # north, onto the gate rooms
     if side == 'W':
         # the tax free's shop front: glass, way IN at its east end, way OUT at its west end
-        IN, OUT = (-100.0, -90.0), (W_END + 8.0, W_END + 18.0)
-        for a, b in ((W_END + 0.1, OUT[0]), (OUT[1], IN[0]), (IN[1], x1)):
+        # (owner, 2026-11-18: the tax free ends at x -119.15 now - its way IN moved to its new east end; the old way in
+        #  (x -100..-90) stays open as the ESCALATOR HALL's way onto the walkway, from the arrivals escalators' landing)
+        IN, OUT, HALL = (-135.09, -125.09), (W_END + 8.0, W_END + 18.0), (-100.0, -90.0)
+        for a, b in ((W_END + 0.1, OUT[0]), (OUT[1], IN[0]), (IN[1], HALL[0]), (HALL[1], x1)):
             glass_front_z(52.0, a, b, F2, F2C, step=2.5, transoms=(F2 + 3.6,))
-        for a, b in (IN, OUT):
+        for a, b in (IN, OUT, HALL):
             S.box(a, b, F2 + 3.6, F2C, 51.9, 52.1, 'MI_T_white')                       # the wall over each way through
     else:
         zwall(52.0, x0, x1, F2, F2C, +1, 'MI_T_plaster', 'MI_T_white')                  # the east wing's side

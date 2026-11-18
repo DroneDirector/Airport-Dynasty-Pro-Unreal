@@ -837,7 +837,7 @@
    "name": "Tax Free (the big walk-through shop beside the baggage claim)",
    "x0": -241.1,
    "z0": 8,
-   "x1": -80,
+   "x1": -119.15,
    "z1": 52,
    "kind": "taxfree",
    "glass": "n"
@@ -861,6 +861,17 @@
    "x1": 551.2,
    "z1": 52,
    "kind": "empty"
+  },
+  {
+   "id": "F2-ESCALATOR-HALL",
+   "f": 2,
+   "name": "Escalator hall (arrivals escalators to the gate walkway)",
+   "x0": -119.15,
+   "z0": 8,
+   "x1": -80.0,
+   "z1": 52,
+   "kind": "hall",
+   "glass": "n"
   }
  ],
  "doors": [

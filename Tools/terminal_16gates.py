@@ -169,10 +169,12 @@ for _p in _tf['place']:
         g = dict(nd); g['name'] = nd['name'] + '/GLASS'; g['asset'] = 'tf_boutique_glass'; g['mesh'] = 90000 + len(N)
         N.append(g); N[byname['F2']]['children'].append(len(N) - 1)
 log.append('new: the tax free - %d placed models (%s)' % (len(_tf['place']), ', '.join('%s x%d' % kv for kv in sorted(_cnt.items()))))
-lamps('F2', 'TAXFREE', [-238 + 4 * i for i in range(40)], [15, 21, 27, 33, 39, 45], 10.48)
+# (owner 2026-11-18: the tax free ends at x -119.15; the freed part is the escalator hall, its own lamps under its ceiling)
+lamps('F2', 'TAXFREE', [-238 + 4 * i for i in range(40) if -238 + 4 * i < -120.5], [15, 21, 27, 33, 39, 45], 10.48)
+lamps('F2', 'F2-ESCALATOR-HALL', [-115.0 + 6 * i for i in range(6)], [12, 20, 28, 36, 44], 11.33)
 lamps('F1', 'F1-TAXFREE-UNDER', [-230 + 20 * i for i in range(8)], [20, 40], 5.33)
 # the TAX FREE's neon sign (3D letters and its logo, Art/TerminalAnnex/make_taxfree_sign.py) on the wall over its way in
 # and its way out, facing the gate walkway
-for _x in (-95.0, -228.1):
+for _x in (-130.09, -228.1):        # (its way in moved to its new east end, 2026-11-18)
     N.append({'name': 'TAXFREE/NEON-SIGN-X%+.0f' % _x, 'asset': 'tf_neon_sign', 'mesh': 90000 + len(N), 'translation': [-(_x - 0.255), 10.5, 52.14]})
     N[byname['F2']]['children'].append(len(N) - 1)

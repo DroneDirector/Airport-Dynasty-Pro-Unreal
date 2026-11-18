@@ -17,7 +17,16 @@ src = open(os.path.join(HERE, 'make_annex_west.py'), encoding='utf-8').read()
 exec(src[src.index('MATS = {}'):src.index("S = Piece('annex_west_solid')")])
 X0, X1, Z0, Z1 = -241.1, -80.0, 8.0, 52.0
 F2, CEIL, ROOF = 6.0, 11.4, 12.0
-def PX(px): return X0 + (px - 113) / 10.91
+# (owner, 2026-11-18: the tax free made smaller - its east wall in line with the wall between gate 11 and view bay 11,
+#  x -119.15, so the arrivals escalators' Floor 2 landing opens west into the freed part (the ESCALATOR HALL, x -119.15..-80)
+#  and through it onto the gate walkway. Everything in the shop keeps its order and size; the plan's positions are squeezed
+#  along x towards the way out (OUT, x -227.2, stays put): old x -80 -> XS. Three boutiques instead of four (8 m each).)
+XS = -119.15
+OUTX = -227.17
+SQ = (XS - OUTX) / (X1 - OUTX)
+def MX(x): return OUTX + (x - OUTX) * SQ
+def PX0(px): return X0 + (px - 113) / 10.91
+def PX(px): return MX(PX0(px))
 def PZ(py): return Z1 - (py - 330) / 10.91
 ZSTOCK = 11.7                                         # the stock rooms' wall
 PIECES = {}
@@ -155,8 +164,16 @@ S.box(X0, X1, 0.0, F2, Z0, Z0 + 0.06, 'MI_T_concrete', sides=('+z',)); S.box(X0,
 # ---- Floor 2: the oak floor (the walkway's own matte wood), the walls inside, the dark plenum, the roof ----
 FL.box(X0, X1, F2 - 0.01, F2, Z0, Z1 - 0.1, 'M_WoodFloor', sides=('+y',))     # the walkway's own oak
 S.box(X0, X1, F2, CEIL, Z0, Z0 + 0.06, 'MI_T_plaster', sides=('+z',)); S.box(X0, X0 + 0.06, F2, CEIL, Z0, Z1, 'MI_T_plaster', sides=('+x',))
-S.box(X1 - 0.36, X1 - 0.3, F2, CEIL, Z0, Z1 - 0.1, 'MI_T_plaster', sides=('-x',))      # (over the arrivals wing's cedar)
-S.box(X0, X1, CEIL, CEIL + 0.02, Z0, Z1, 'MI_T_dark', sides=('-y',))
+# the shop's east wall at XS: plaster both sides (the hall's side white), full height to the plenum
+S.box(XS - 0.1, XS + 0.1, F2, CEIL + 0.6, Z0, Z1 - 0.1, 'MI_T_plaster', sides=('-x',)); S.box(XS - 0.1, XS + 0.1, F2, CEIL + 0.6, Z0, Z1 - 0.1, 'MI_T_white', sides=('+x', '+z', '-z'))
+S.box(X0, XS, CEIL, CEIL + 0.02, Z0, Z1, 'MI_T_dark', sides=('-y',))
+# ---- the ESCALATOR HALL (x XS..X1): the walkway's oak (the floor above), white walls, a light ceiling with LED lines ----
+S.box(XS + 0.1, X1, F2, CEIL, Z0, Z0 + 0.06, 'MI_T_white', sides=('+z',))
+S.box(XS + 0.1, X1, CEIL, CEIL + 0.02, Z0, Z1, 'MI_T_offwhite', sides=('-y',))
+for zl in (14.5, 22.0, 29.5, 37.0, 44.5):
+    S.box(XS + 1.0, X1 - 1.0, CEIL - 0.03, CEIL, zl - 0.04, zl + 0.04, 'MI_T_l_FFFFFF')
+for zz in (18.0, 26.0, 34.0):                                        # benches along the shop's wall, facing east
+    place('tf_seat', XS + 1.6, zz, 90.0)
 S.box(X0 - 0.4, X1, ROOF - 0.4, ROOF, Z0 - 0.4, Z1, 'MI_T_roofZinc')
 # ---- the polished stone promenade, 5 m wide, his curve from IN (east) to OUT (west) ----
 CP = [(1708, 332), (1708, 420), (1660, 480), (1560, 530), (1400, 560), (1250, 560), (1100, 520), (1020, 470), (930, 432),
@@ -193,14 +210,14 @@ band(2.4, 2.5, 'MI_T_neonPink'); band(-2.5, -2.4, 'MI_T_neonPink')
 # (only the promenade is marble - owner 2026-11-17: the rest the gate walkway's oak)
 PCX, PCZ = PX(910), PZ(549)
 # ---- the stock rooms (south): their wall with doors, plaster both sides ----
-doors = [(-232.0, -230.6), (-196.0, -194.6), (-150.0, -148.6), (-110.0, -108.6)]
-for a, b in zip([X0 + 0.06] + [d[1] for d in doors], [d[0] for d in doors] + [X1 - 0.36]):
+doors = [(MX(a), MX(a) + 1.4) for a in (-232.0, -196.0, -150.0, -110.0)]
+for a, b in zip([X0 + 0.06] + [d[1] for d in doors], [d[0] for d in doors] + [XS - 0.1]):
     S.box(a, b, F2, CEIL, ZSTOCK - 0.1, ZSTOCK + 0.1, 'MI_T_plaster')
 for a, b in doors: S.box(a, b, F2 + 2.3, CEIL, ZSTOCK - 0.1, ZSTOCK + 0.1, 'MI_T_plaster'); S.box(a, b, F2, F2 + 2.3, ZSTOCK - 0.02, ZSTOCK + 0.02, 'MI_T_tf_slate')
-for xa in (-205.1, -157.1, -123.1): S.box(xa - 0.1, xa + 0.1, F2, CEIL, Z0 + 0.06, ZSTOCK - 0.1, 'MI_T_plaster')
+for xa in (MX(-205.1), MX(-157.1), MX(-123.1)): S.box(xa - 0.1, xa + 0.1, F2, CEIL, Z0 + 0.06, ZSTOCK - 0.1, 'MI_T_plaster')
 # ---- the ceiling: dark walnut slats across the shop, LED lines along it; the aurora's round opening over the plaza ----
 x = X0 + 0.15
-while x < X1 - 0.4:
+while x < XS - 0.4:
     if abs(x - PCX) < 9.6:
         dz = math.sqrt(max(0.0, 9.6 ** 2 - (x - PCX) ** 2))
         for a, b in ((Z0 + 0.06, PCZ - dz), (PCZ + dz, Z1 - 0.1)):
@@ -211,7 +228,7 @@ while x < X1 - 0.4:
 # (the slats end on the coffer's circle; its rim a smooth ring)
 ring(S, PCX, PCZ, 9.55, 9.65, 10.55, 11.3, 'MI_T_tf_walnut', n=160)
 for zl in (14.5, 19.5, 24.5, 29.5, 34.5, 39.5, 44.5, 49.5):          # LED lines every 5 m (his render: bright lines)
-    for a, b in ((X0 + 0.3, PCX - 10.0), (PCX + 10.0, X1 - 0.6)):
+    for a, b in ((X0 + 0.3, PCX - 10.0), (PCX + 10.0, XS - 0.6)):
         S.box(a, b, 10.5, 10.55, zl - 0.04, zl + 0.04, 'MI_T_l_FFFFFF')
 # the aurora: a round dark coffer, its glowing ribbons swirling (teal and lilac) as in his render
 S.want.append((S.face([(PCX + 9.6 * math.cos(2 * math.pi * i / 160), 11.3, PCZ + 9.6 * math.sin(2 * math.pi * i / 160)) for i in range(160)], 'MI_T_dark'), (0, 0, -1)))
@@ -290,7 +307,7 @@ so = {k: v.finish() for k, v in PIECES.items()} if False else None
 # ================= the rest of the placed models (his plan's numbers) =================
 for x, z in ((PX(435), PZ(362)), (PX(435), PZ(400))): place('tf_gondola_tech', x, z)            # 18 electronics, travel
 place('tf_table', PX(440), PZ(531)); place('tf_table', PX(457), PZ(566))                          # 19 travel essentials, 22 gift wrapping
-for px in (168, 261, 354, 449): place('tf_boutique', PX(px), ZSTOCK + 0.1)                        # 17 boutiques
+for px in (168, 308, 449): place('tf_boutique', PX(px), ZSTOCK + 0.1)                             # 17 boutiques (three: squeezed, 8 m each)
 place('tf_gondola_sweets', PX(597), PZ(373)); place('tf_gondola_sweets', PX(688), PZ(373))       # 15 sweets
 for px in (582, 702): place('tf_table', PX(px), PZ(563))                                          # 14 market tables
 place('tf_paypoint', PX(538), PZ(604))                                                            # 16 pay point
@@ -305,8 +322,8 @@ place('tf_paypoint', PX(1793), PZ(461), 90.0)                                   
 def bays(xa, xb, pal):
     n = int((xb - xa) // 4.0)
     for i in range(n): place('tf_wallbay_' + pal, xa + 2.0 + i * 4.0, ZSTOCK + 0.1)
-bays(PX(588) + 0.3, -179.6, 'market'); bays(-156.8, -150.4, 'liquor'); bays(-148.4, -123.4, 'liquor'); bays(-122.8, -110.4, 'beauty'); bays(-108.4, -84.4, 'beauty')
-for i in range(7): place('tf_wallbay_beauty', X1 - 0.36, 15.0 + i * 4.0, 90.0)       # facing west
+bays(PX(588) + 0.3, MX(-179.6), 'market'); bays(MX(-156.8), MX(-150.4), 'liquor'); bays(MX(-148.4), MX(-123.4), 'liquor'); bays(MX(-122.8), MX(-110.4), 'beauty'); bays(MX(-108.4), XS - 0.6, 'beauty')
+for i in range(7): place('tf_wallbay_beauty', XS - 0.1, 15.0 + i * 4.0, 90.0)       # facing west
 place('tf_wallbay_lux', X0 + 0.06, 40.0, -90.0); place('tf_wallbay_lux', X0 + 0.06, 44.0, -90.0); place('tf_wallbay_lux', X0 + 0.06, 36.0, -90.0)   # facing east
 # 25 window displays behind the glass shop front (facing the walkway)
 for px in (446, 544, 642, 740, 838, 936, 1034, 1132, 1230, 1328, 1426, 1524):

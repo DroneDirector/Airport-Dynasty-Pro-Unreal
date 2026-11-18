@@ -56,8 +56,16 @@ S.box(X0 - 0.075, X0 + 0.075, CEIL - 0.04, CEIL + 0.04, ZK, ZN, 'MI_T_mullion')
 # ---- above the glass: cedar cladding to the roof (outside), the void's cedar wall inside ----
 #   (cedar planks outside too, owner 2026-11-17: the dark zinc looked heavy in the wave roof's shade)
 S.box(X0 - 0.2, X1, CEIL, ROOF - 0.4, ZK - 0.2, ZK, 'MI_T_cedar')
-S.box(X0 - 0.2, X0, CEIL, ROOF - 0.4, ZK, ZN, 'MI_T_cedar', sides=('-x', '+y', '-y', '-z', '+z'))
-S.box(X0, X0 + 0.06, CEIL - 0.15, 11.4, VOID[2], ZN, 'MI_T_cedar', sides=('+x',))
+# (owner, 2026-11-18: the escalators' Floor 2 landing opens WEST through this wall into the escalator hall where the tax
+#  free used to reach - a doorway z LAND..ZN-0.1, 3.4 m high; the hall leads on to the gate walkway)
+DW0, DW1, DWH = LAND, ZN - 0.1, F2 + 3.4
+S.box(X0 - 0.2, X0, CEIL, ROOF - 0.4, ZK, DW0, 'MI_T_cedar', sides=('-x', '+y', '-y', '-z', '+z'))
+S.box(X0 - 0.2, X0, CEIL, F2, DW0, ZN, 'MI_T_cedar', sides=('-x', '+y', '-y', '-z', '+z'))
+S.box(X0 - 0.2, X0, DWH, ROOF - 0.4, DW0, ZN, 'MI_T_cedar', sides=('-x', '+y', '-y', '-z', '+z'))
+S.box(X0, X0 + 0.06, CEIL - 0.15, 11.4, VOID[2], DW0, 'MI_T_cedar', sides=('+x', '+z'))
+S.box(X0, X0 + 0.06, DWH, 11.4, DW0, ZN, 'MI_T_cedar', sides=('+x', '-y'))
+S.box(X0 - 0.2, X0 + 0.06, F2, DWH, DW0 - 0.05, DW0, 'MI_T_steel'); S.box(X0 - 0.2, X0 + 0.06, F2, DWH, DW1, DW1 + 0.05, 'MI_T_steel')   # (its frame)
+S.box(X0 - 0.2, X0 + 0.06, DWH - 0.05, DWH, DW0, DW1, 'MI_T_steel')
 # ---- the roof (12 m) and its edge ----
 S.box(X0 - 0.4, X1, ROOF - 0.4, ROOF, ZK - 0.4, ZN, 'MI_T_roofZinc')   # (its top at 12.0: under the wave roof's lowest point, 12.3)
 S.box(X0 - 0.42, X1, ROOF - 0.45, ROOF + 0.05, ZK - 0.42, ZK - 0.38, 'MI_T_black'); S.box(X0 - 0.42, X0 - 0.38, ROOF - 0.45, ROOF + 0.05, ZK - 0.4, ZN, 'MI_T_black')
@@ -87,6 +95,7 @@ slab(-76.1, -71.2, LAND, ZN, F2 + 0.01, top='MI_T_terrazzo', under='MI_T_offwhit
 slab(-68.4, VOID[1], LAND, ZN, F2 + 0.01, top='MI_T_terrazzo', under='MI_T_offwhite', thick=0.6)
 slab(-71.2, -68.4, LAND, 49.4, F2 + 0.01, top='MI_T_terrazzo', under='MI_T_offwhite', thick=0.6)
 slab(X0, -76.1, ZN - 0.1, ZN, F2 + 0.01, top='MI_T_terrazzo', under='MI_T_offwhite', thick=0.6)
+slab(X0 - 0.2, -76.1, LAND + 0.3, ZN - 0.1, F2 + 0.01, top='MI_T_terrazzo', under='MI_T_offwhite', thick=0.6)   # (the floor past the escalators' ends, through the doorway)
 
 # ---- the stair beside the escalators (x -76.1..-74.1, 30 steps of 20 x 38 cm up to the landing): terrazzo with oak
 #      treads and black non-slip nosings; its open side and the landing's edge one glass balustrade under one handrail ----
