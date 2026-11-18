@@ -511,6 +511,8 @@ void AADPHUD::MenusKey()
 	// G / the pad's Y: the Overview no longer opens from the 3D world (owner, 2026-11-18) - only from your tablet and the
 	// computers; from the menus the key still brings you back into the 3D world
 	if (bGame) { OverviewReturn.Reset(); ToggleGame(); return; }
+	// following a flight in 3D: back out to the Overview it came from (owner, 2026-11-18)
+	if (bViewer) { ToggleGame(); return; }
 	Hint(TEXT("The Overview opens from your tablet (Tab) or a computer"));
 }
 

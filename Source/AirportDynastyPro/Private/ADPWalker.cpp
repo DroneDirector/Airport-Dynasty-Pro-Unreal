@@ -31,7 +31,7 @@
 #pragma region Setup
 namespace
 {
-	constexpr float WalkSpeed = 150.f, RunSpeed = 450.f; // cm/s
+	constexpr float WalkSpeed = 150.f, RunSpeed = 450.f, SprintSpeed = 850.f; // cm/s (sprint: the run key tapped twice and held - owner, 2026-11-18)
 	// seen from behind: over the right shoulder, a little above the head
 	constexpr float ArmLen = 320.f; const FVector ArmPivot(0, 0, 60.f), ArmOffset(0, 45.f, 15.f);
 }
@@ -111,8 +111,16 @@ void AADPWalker::SetupPlayerInputComponent(UInputComponent* Input)
 
 void AADPWalker::MoveForward(float V) { if (V != 0.f && !bLed) AddMovementInput(GetActorForwardVector(), V); }
 void AADPWalker::MoveRight(float V) { if (V != 0.f && !bLed) AddMovementInput(GetActorRightVector(), V); }
-void AADPWalker::RunOn() { GetCharacterMovement()->MaxWalkSpeed = RunSpeed; }
-void AADPWalker::RunOff() { GetCharacterMovement()->MaxWalkSpeed = WalkSpeed; }
+// running: the run key held; tapped twice and held, the sprint - almost twice as fast, built up over a couple of seconds
+// (you lean in, the strides quicken, the view widens a little), and it eases back down to the run when you let go
+// (owner, 2026-11-18)
+void AADPWalker::RunOn()
+{
+	const double Now = FPlatformTime::Seconds();
+	bSprint = Now - LastRunTap < 0.35; LastRunTap = Now;
+	bRunHeld = true;
+}
+void AADPWalker::RunOff() { bRunHeld = false; bSprint = false; }
 void AADPWalker::ToggleCrouch() { if (bIsCrouched) UnCrouch(); else Crouch(); }
 
 #pragma endregion
@@ -326,13 +334,13 @@ void AADPWalker::DriveHuman(float Dt)
 		One->SetBlendSpacePosition(FVector(BlendDir, BlendSpeed, 0.f));
 		// the clips' own pace at that blend: idle to the walk's 3 m/s over the first half, then the walk's and jog's own
 		const float Natural = BlendSpeed < 150.f ? 300.f * BlendSpeed / 150.f * 0.5f + 1.f : BlendSpeed;
-		One->SetPlayRate(Speed > 20.f ? FMath::Clamp(Speed / FMath::Max(Natural, 100.f), 0.5f, 1.4f) : 1.f);
+		One->SetPlayRate(Speed > 20.f ? FMath::Clamp(Speed / FMath::Max(Natural, 100.f), 0.5f, 1.55f) : 1.f);   // (the sprint: quicker strides)
 	}
 	// leaning into a turn: by how fast the way you run is swinging round, and how fast you go
 	const float Heading = V.Rotation().Yaw;
 	const float Swing = Speed > 100.f && Dt > 0.f ? FMath::FindDeltaAngleDegrees(LastHeading, Heading) / Dt : 0.f;
 	LastHeading = Heading;
-	const float WantLean = bFalling ? 0.f : FMath::Clamp(Swing * Speed / 450.f * 0.06f, -10.f, 10.f);
+	const float WantLean = bFalling ? 0.f : FMath::Clamp(Swing * Speed / 450.f * 0.06f, -10.f, 10.f);   // (faster: leaning harder into turns)
 	BodyLean = FMath::FInterpTo(BodyLean, WantLean, Dt, 5.f);
 	// the body's own turn and lean on the capsule, about the feet (it stays right under you)
 	if (Human && Human->GetRootComponent())
@@ -508,6 +516,20 @@ FTransform AADPWalker::ViewFrom(const FVector& At, const FRotator& Look) const
 
 void AADPWalker::Tick(float Dt)
 {
+	{
+		UCharacterMovementComponent* Mv = GetCharacterMovement();
+		// the sprint's breath: about 7 s at full (a fit athlete's top sprint), then it eases back to the run; it fills again
+		// over about 45 s while you aren't sprinting (part-filled, a shorter burst)
+		const bool bSprinting = bRunHeld && bSprint && SprintLeft > 0.f && GetVelocity().Size2D() > RunSpeed * 0.6f;
+		if (bSprinting) SprintLeft = FMath::Max(0.f, SprintLeft - Dt); else if (!(bRunHeld && bSprint)) SprintLeft = FMath::Min(7.f, SprintLeft + Dt * 7.f / 45.f);
+		const float Breath = FMath::Clamp(SprintLeft / 2.f, 0.f, 1.f);   // (the last 2 s: easing down to the run)
+		const float Want = bRunHeld ? (bSprint ? RunSpeed + (SprintSpeed - RunSpeed) * Breath : RunSpeed) : WalkSpeed;
+		// (up to the run at once as before; up to the sprint over about 1.8 s; down again over about a second)
+		const float Rate = Want > Mv->MaxWalkSpeed ? (Want > RunSpeed ? 230.f : 100000.f) : 450.f;
+		Mv->MaxWalkSpeed = FMath::FInterpConstantTo(Mv->MaxWalkSpeed, Want, Dt, Rate);
+		Mv->MaxAcceleration = Mv->MaxWalkSpeed > RunSpeed + 10.f ? 2000.f : 1400.f;
+		SprintK = FMath::Clamp((Mv->MaxWalkSpeed - RunSpeed) / (SprintSpeed - RunSpeed), 0.f, 1.f) * FMath::Clamp(GetVelocity().Size2D() / RunSpeed - 0.5f, 0.f, 1.f);
+	}
 	Super::Tick(Dt);
 	DriveHuman(Dt);
 	UseEyeBody(!bThird || ArmW > 0.f);
@@ -527,7 +549,8 @@ void AADPWalker::Tick(float Dt)
 	// the angle up and down held to what Fov gives on a 16:9 screen; the side angle opened up for wider screens (Unreal
 	// keeps the side angle otherwise, so a 32:9 screen saw only a thin strip up and down: everything felt too close)
 	// (one value for every view unless "separate for each view" is on - ADPFov.h, owner 2026-11-18)
-	const float H1 = ADPFov::ForScreen(ADPFov::Walk1), H3 = ADPFov::ForScreen(ADPFov::Walk3);
+	const float Kick = 7.f * SprintK * SprintK;   // (the sprint widens the view a little, as speed does to the eye)
+	const float H1 = FMath::Min(170.f, ADPFov::ForScreen(ADPFov::Walk1) + Kick), H3 = FMath::Min(170.f, ADPFov::ForScreen(ADPFov::Walk3) + Kick);
 	Fov = ADPFov::Get(ADPFov::Walk1);
 	if (Eyes && FMath::Abs(Eyes->FieldOfView - H1) > 0.05f) Eyes->SetFieldOfView(H1);
 	if (Behind && FMath::Abs(Behind->FieldOfView - H3) > 0.05f) Behind->SetFieldOfView(H3);

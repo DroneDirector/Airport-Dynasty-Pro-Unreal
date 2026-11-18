@@ -70,6 +70,8 @@ private:
 	float HeadingDeg = 68.f;   // (the plan x axis's true heading - Data/airfield.json; the compass)
 public:
 	void SetHeading(float Deg) { HeadingDeg = Deg; }
+	/** The way you face, true bearing in degrees (0 north, 90 east) - the compass strip. */
+	float Bearing() const { return FMath::Fmod(FMath::Fmod(HeadingDeg + Yaw, 360.f) + 360.f, 360.f); }
 private:
 	bool bFull = false;
 	TArray<FVector> Route;
@@ -87,4 +89,16 @@ private:
 	FVector2f FromLocal(const FVector2f& L, const FVector2f& Size) const;
 	float Scale(const FVector2f& Size) const;
 	#pragma endregion
+};
+
+/** The compass: its own strip right above the small map, flush with it (owner, 2026-11-18). */
+class SCompassStrip : public SLeafWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SCompassStrip) {}
+	SLATE_END_ARGS()
+	void Construct(const FArguments&) {}
+	TWeakPtr<SHoloMap> Map;
+	virtual FVector2D ComputeDesiredSize(float) const override { return FVector2D(240, 26); }
+	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const FSlateRect& Cull, FSlateWindowElementList& Out, int32 Layer, const FWidgetStyle& Style, bool bParentEnabled) const override;
 };

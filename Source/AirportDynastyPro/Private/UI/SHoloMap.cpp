@@ -402,40 +402,7 @@ int32 SHoloMap::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const FSla
 		const FVector2f P = Corner + FVector2f(SX * 3, SY * 3);
 		FSlateDrawElement::MakeLines(Out, Layer + 5, PG, TArray<FVector2f>{P + FVector2f(SX * B, 0), P, P + FVector2f(0, SY * B)}, ESlateDrawEffect::None, Wall, true, 2);
 	}
-	// the compass (owner, 2026-11-18): a strip along the bottom of the small map with N, E, S, W, the points between and
-	// tick marks, sliding left and right as you turn; true directions - the plan's x runs the runway's true heading
-	// (Data/airfield.json, 068 deg), so the way you face on the real globe is the runway heading plus your turn from it
-	if (!bFull)
-	{
-		const float Bearing = FMath::Fmod(FMath::Fmod(HeadingDeg + Yaw, 360.f) + 360.f, 360.f);
-		const float H = 26.f, Y0 = Size.Y - H - 6.f, X0 = 10.f, W = Size.X - 20.f, Mid = X0 + W * 0.5f, PxPerDeg = W / 120.f;   // (120 degrees across)
-		static const FSlateBrush* Box = FCoreStyle::Get().GetBrush("WhiteBrush");
-		FSlateDrawElement::MakeBox(Out, Layer + 6, Geo.ToPaintGeometry(FVector2f(W, H), FSlateLayoutTransform(FVector2f(X0, Y0))), Box, ESlateDrawEffect::None, FLinearColor(0.01f, 0.05f, 0.10f, 0.72f));
-		const FSlateFontInfo Big = FCoreStyle::GetDefaultFontStyle("Bold", 10), Sm = FCoreStyle::GetDefaultFontStyle("Bold", 7), Num = FCoreStyle::GetDefaultFontStyle("Bold", 8);
-		const FLinearColor TickC(0.55f, 0.84f, 1.f, 0.85f), North(1.f, 0.42f, 0.25f, 1.f), Letter(0.85f, 0.95f, 1.f, 1.f);
-		for (int32 d = 0; d < 360; d += 5)
-		{
-			float Off = FMath::Fmod(d - Bearing + 540.f, 360.f) - 180.f;   // (-180..180: left of you negative)
-			if (FMath::Abs(Off) > 58.f) continue;
-			const float X = Mid + Off * PxPerDeg;
-			const bool bCard = d % 90 == 0, bInter = d % 45 == 0, bTen = d % 15 == 0;
-			const float L = bCard ? 9.f : bInter ? 7.f : bTen ? 5.f : 3.f;
-			FSlateDrawElement::MakeLines(Out, Layer + 7, PG, TArray<FVector2f>{FVector2f(X, Y0 + 2), FVector2f(X, Y0 + 2 + L)}, ESlateDrawEffect::None, d == 0 ? North : TickC, true, bCard ? 1.6f : 1.f);
-			if (bInter)
-			{
-				static const TCHAR* Pt[] = { TEXT("N"), TEXT("NE"), TEXT("E"), TEXT("SE"), TEXT("S"), TEXT("SW"), TEXT("W"), TEXT("NW") };
-				const FString T = Pt[d / 45];
-				const FSlateFontInfo& Fo = bCard ? Big : Sm;
-				const float Tw = T.Len() * (bCard ? 7.f : 5.2f);
-				FSlateDrawElement::MakeText(Out, Layer + 7, Geo.ToPaintGeometry(FVector2f(30, 14), FSlateLayoutTransform(FVector2f(X - Tw * 0.5f, Y0 + (bCard ? 10.f : 11.f)))), T, Fo, ESlateDrawEffect::None, d == 0 ? North : Letter);
-			}
-		}
-		// the way you face: a small mark at the middle, and its degrees just above the strip
-		FSlateDrawElement::MakeLines(Out, Layer + 8, PG, TArray<FVector2f>{FVector2f(Mid - 5, Y0 - 1), FVector2f(Mid, Y0 + 5), FVector2f(Mid + 5, Y0 - 1)}, ESlateDrawEffect::None, FLinearColor(1.f, 0.8f, 0.3f, 1.f), true, 2);
-		const FString Deg = FString::Printf(TEXT("%03d°"), FMath::RoundToInt(Bearing) % 360);
-		FSlateDrawElement::MakeText(Out, Layer + 8, Geo.ToPaintGeometry(FVector2f(40, 12), FSlateLayoutTransform(FVector2f(Mid - 13, Y0 - 14))), Deg, Num, ESlateDrawEffect::None, FLinearColor(1.f, 0.85f, 0.4f, 1.f));
-	}
-	return Layer + 8;
+	return Layer + 5;
 }
 
 #pragma endregion
@@ -491,3 +458,44 @@ void SHoloMap::Rebuild()
 }
 
 #pragma endregion
+
+// ---- the compass strip, its own section right above the small map (owner, 2026-11-18: not on top of the map) ----
+int32 SCompassStrip::OnPaint(const FPaintArgs&, const FGeometry& Geo, const FSlateRect&, FSlateWindowElementList& Out, int32 Layer, const FWidgetStyle&, bool) const
+{
+	// N, E, S, W, the points between and tick marks, sliding left and right as you turn; true directions - the plan's x
+	// runs the runway's true heading (Data/airfield.json, 068 deg), so the way you face on the real globe is the runway
+	// heading plus your turn from it
+	const TSharedPtr<SHoloMap> M = Map.Pin(); if (!M.IsValid()) return Layer;
+	const FVector2f Size(Geo.GetLocalSize());
+	const FPaintGeometry PG = Geo.ToPaintGeometry();
+	const float Bearing = M->Bearing();
+	const float H = Size.Y, Y0 = 0.f, X0 = 0.f, W = Size.X, Mid = X0 + W * 0.5f, PxPerDeg = W / 120.f;   // (120 degrees across)
+	static const FSlateBrush* Box = FCoreStyle::Get().GetBrush("WhiteBrush");
+	FSlateDrawElement::MakeBox(Out, Layer, Geo.ToPaintGeometry(FVector2f(W, H), FSlateLayoutTransform(FVector2f(X0, Y0))), Box, ESlateDrawEffect::None, FLinearColor(0.02f, 0.10f, 0.20f, 0.82f));
+	FSlateDrawElement::MakeLines(Out, Layer + 1, PG, TArray<FVector2f>{FVector2f(0, H - 1), FVector2f(W, H - 1)}, ESlateDrawEffect::None, FLinearColor(0.55f, 0.84f, 1.f, 0.5f), false, 1);
+	const FSlateFontInfo Big = FCoreStyle::GetDefaultFontStyle("Bold", 10), Sm = FCoreStyle::GetDefaultFontStyle("Bold", 7), Num = FCoreStyle::GetDefaultFontStyle("Bold", 8);
+	const FLinearColor TickC(0.55f, 0.84f, 1.f, 0.85f), North(1.f, 0.42f, 0.25f, 1.f), Letter(0.85f, 0.95f, 1.f, 1.f);
+	for (int32 d = 0; d < 360; d += 5)
+	{
+		const float Off = FMath::Fmod(d - Bearing + 540.f, 360.f) - 180.f;   // (-180..180: left of you negative)
+		if (FMath::Abs(Off) > 56.f) continue;
+		const float X = Mid + Off * PxPerDeg;
+		const bool bCard = d % 90 == 0, bInter = d % 45 == 0, bTen = d % 15 == 0;
+		const float L = bCard ? 9.f : bInter ? 7.f : bTen ? 5.f : 3.f;
+		FSlateDrawElement::MakeLines(Out, Layer + 2, PG, TArray<FVector2f>{FVector2f(X, H - 2), FVector2f(X, H - 2 - L)}, ESlateDrawEffect::None, d == 0 ? North : TickC, true, bCard ? 1.6f : 1.f);
+		if (bInter)
+		{
+			static const TCHAR* Pt[] = { TEXT("N"), TEXT("NE"), TEXT("E"), TEXT("SE"), TEXT("S"), TEXT("SW"), TEXT("W"), TEXT("NW") };
+			const FString T = Pt[d / 45];
+			const FSlateFontInfo& Fo = bCard ? Big : Sm;
+			const float Tw = T.Len() * (bCard ? 7.f : 5.2f);
+			FSlateDrawElement::MakeText(Out, Layer + 2, Geo.ToPaintGeometry(FVector2f(30, 14), FSlateLayoutTransform(FVector2f(X - Tw * 0.5f, bCard ? 3.f : 5.f))), T, Fo, ESlateDrawEffect::None, d == 0 ? North : Letter);
+		}
+	}
+	// the way you face: its degrees in a small box at the middle, a mark under it
+	const FString Deg = FString::Printf(TEXT("%03d"), FMath::RoundToInt(Bearing) % 360);
+	FSlateDrawElement::MakeBox(Out, Layer + 3, Geo.ToPaintGeometry(FVector2f(30, 15), FSlateLayoutTransform(FVector2f(Mid - 15, 2))), Box, ESlateDrawEffect::None, FLinearColor(0.02f, 0.08f, 0.16f, 0.95f));
+	FSlateDrawElement::MakeText(Out, Layer + 4, Geo.ToPaintGeometry(FVector2f(30, 14), FSlateLayoutTransform(FVector2f(Mid - 10, 3))), Deg, Num, ESlateDrawEffect::None, FLinearColor(1.f, 0.85f, 0.4f, 1.f));
+	FSlateDrawElement::MakeLines(Out, Layer + 4, PG, TArray<FVector2f>{FVector2f(Mid - 4, H - 1), FVector2f(Mid, H - 6), FVector2f(Mid + 4, H - 1)}, ESlateDrawEffect::None, FLinearColor(1.f, 0.8f, 0.3f, 1.f), true, 2);
+	return Layer + 4;
+}

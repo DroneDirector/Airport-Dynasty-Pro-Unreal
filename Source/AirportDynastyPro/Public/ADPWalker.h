@@ -68,6 +68,11 @@ private:
 	void LookUpBy(float V) { if (!bLed) AddControllerPitchInput(V); }
 	void RunOn();
 	void RunOff();
+public:
+	/** The run key held (the sprint: tapped twice and held; it lasts about 7 s at full, then eases to the run, and comes
+	 *  back over about 45 s of not sprinting - a fit person's top sprint, owner 2026-11-18). */
+	bool bRunHeld = false, bSprint = false; double LastRunTap = 0.0; float SprintK = 0.f, SprintLeft = 7.f;
+private:
 	void ToggleCrouch();
 	#pragma endregion
 

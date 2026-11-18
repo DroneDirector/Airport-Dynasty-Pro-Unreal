@@ -344,7 +344,8 @@ void AADPHUD::BeginPlay()
 	Plan.Load();
 	HoloMap = SNew(SHoloMap);
 	HoloMap->SetPlan(Plan);
-	HoloMap->SetHeading(AAirfield::Shared().Heading);   // (the compass: true directions on the real globe)
+	HoloMap->SetHeading(AAirfield::Shared().Heading);
+	// (the compass strip reads the map's bearing: set up below, once the strip is made)   // (the compass: true directions on the real globe)
 	HoloMap->OnOpen = [this]() { ToggleMap(); };
 	Settings = MakeSettings();
 	MakeWardrobe();
@@ -417,6 +418,13 @@ void AADPHUD::BeginPlay()
 				SNew(STextBlock).Justification(ETextJustify::Center).Font(FCoreStyle::GetDefaultFontStyle("Bold", 18)).ColorAndOpacity(FLinearColor(0.55f, 0.95f, 1.f))
 				.Text_Lambda([]() { return ADPStressWalk::Note(); })
 			]
+		]
+		// the compass, its own strip right above the small map and flush with it (owner, 2026-11-18)
+		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(FMargin(16, 0, 0, 16 + 240))
+		[
+			SNew(SBox).WidthOverride(240).HeightOverride(26)
+			.Visibility_Lambda([this]() { return bGame || bInLounge || bViewer || HoldingDevice() || (HoloMap.IsValid() && HoloMap->IsFull()) ? EVisibility::Collapsed : EVisibility::HitTestInvisible; })
+			[SAssignNew(Compass, SCompassStrip)]
 		]
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(16)
 		[
@@ -1724,6 +1732,9 @@ void AADPHUD::OnEscape()
 	if (bWardrobe) { CloseWardrobe(); return; }
 	// flying the drone: back to where you stood
 	if (Drone.IsValid()) { LeaveDrone(); return; }
+	// following a flight in 3D (opened from the world map in the Overview): back out to the Overview (owner, 2026-11-18),
+	// which you then leave to your tablet as always (its logo)
+	if (bViewer) { ToggleGame(); return; }
 	// nothing open: leave to the title screen? (owner 2026-11-18: the Overview opens only from your tablet and the PCs)
 	ToggleGame();
 	if (Browser.IsValid()) Browser->ExecuteJavascript(TEXT("window.__ueLeave3D && window.__ueLeave3D()"));
@@ -3489,7 +3500,7 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 47.f && ShotClock >= 47.f && Wk) Wk->SetThirdPerson(true);
 			if (Wk && (bRunFP || bRunTP))
 			{
-				Wk->GetCharacterMovement()->MaxWalkSpeed = 450.f;
+				Wk->bRunHeld = true;
 				Wk->AddMovementInput(Wk->GetActorForwardVector(), 1.f);
 				// running a circle (FP), then straight and into a turn (TP)
 				const float TurnSpeed = bRunFP ? 55.f : (ShotClock >= 50.f ? 70.f : 0.f);
@@ -3521,7 +3532,7 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 46.f && ShotClock >= 46.f) ADP_LOG(TEXT("UIRun: first person, the body's pelvis at most %.0f cm from your capsule while running"), MaxDrift);
 			if (Before < 49.5f && ShotClock >= 49.5f) Shot(TEXT("Run_TP_Straight"));
 			if (Before < 51.5f && ShotClock >= 51.5f) Shot(TEXT("Run_TP_Turn"));
-			if (Before < 54.f && ShotClock >= 54.f) { ADP_LOG(TEXT("UIRun: third person, the camera's largest jolt %.1f cm over %d frames"), MaxJolt, NO); if (Wk) { Wk->GetCharacterMovement()->MaxWalkSpeed = 150.f; Wk->SetThirdPerson(false); } ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
+			if (Before < 54.f && ShotClock >= 54.f) { ADP_LOG(TEXT("UIRun: third person, the camera's largest jolt %.1f cm over %d frames"), MaxJolt, NO); if (Wk) { Wk->bRunHeld = false; Wk->SetThirdPerson(false); } ASunClock::DayOverride = -1; ASunClock::HourOverride = -1.f; ASunClock::Refresh(); }
 			if (Before < 55.f && ShotClock >= 55.f) ADP_SHOT_EXIT();
 		}
 		// -UIBody: you from behind in the hall: standing, then walking forward (your MetaHuman body in its outfit)
@@ -5216,6 +5227,7 @@ void AADPHUD::Tick(float Dt)
 		const FVector L = P->GetActorLocation();
 		const float Feet = (L.Z - P->GetSimpleCollisionHalfHeight()) / 100.f;
 		HoloMap->SetPlayer(FVector(L.X / 100.f, Feet, -L.Y / 100.f), P->GetControlRotation().Yaw);
+		if (Compass.IsValid()) { if (!Compass->Map.IsValid()) Compass->Map = HoloMap; Compass->Invalidate(EInvalidateWidgetReason::Paint); }   // (the compass strip over the map)
 	}
 }
 
