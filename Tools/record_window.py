@@ -2,6 +2,7 @@
 # switches, waits for a line in the log, records the window by its title with ffmpeg (gdigrab, from imageio-ffmpeg)
 # until a second line appears or the game ends, with a time-out; the game is always closed at the end.
 #   python Tools/record_window.py <out.mp4> "<start line>" "<stop line>" <game switches...>
+#   (REC_W / REC_H: the window's size, 1600 x 900 unless set; REC_OUT=1920x1080 scales the video to exactly that)
 # e.g. python Tools/record_window.py docs/Pictures/Jetway-Final/Jetway-Docking.mp4 "docking at real speed" "docked after" -UIShot -UIJetwayVideo
 import sys, os, time, subprocess, csv, io
 import imageio_ffmpeg
@@ -22,7 +23,8 @@ def window_title(pid):
     return rows[1][-1] if len(rows) > 1 else ''
 
 if os.path.exists(LOG): os.remove(LOG)
-game = subprocess.Popen([EXE, os.path.join(ROOT, 'AirportDynastyPro.uproject'), '-game', '-windowed', '-ResX=1600', '-ResY=900', '-WinX=60', '-WinY=40', '-nosplash', '-NoLoadingScreen'] + ARGS)
+RW, RH = os.environ.get('REC_W', '1600'), os.environ.get('REC_H', '900')
+game = subprocess.Popen([EXE, os.path.join(ROOT, 'AirportDynastyPro.uproject'), '-game', '-windowed', '-ResX=' + RW, '-ResY=' + RH, '-ForceRes', '-WinX=' + os.environ.get('REC_X', '0'), '-WinY=' + os.environ.get('REC_Y', '30'), '-nosplash', '-NoLoadingScreen'] + ARGS)
 t0 = time.time(); rec = None
 try:
     while game.poll() is None and time.time() - t0 < LIMIT:
@@ -39,7 +41,7 @@ try:
             print('recording window:', title, 'at', pt.x, pt.y, w, hh)
             rec = subprocess.Popen([imageio_ffmpeg.get_ffmpeg_exe(), '-y', '-f', 'gdigrab', '-framerate', '30', '-draw_mouse', '0',
                                     '-offset_x', str(pt.x), '-offset_y', str(pt.y), '-video_size', '%dx%d' % (w, hh), '-i', 'desktop',
-                                    '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p', OUT], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                                    '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p'] + (['-vf', 'scale=%s:flags=lanczos' % os.environ['REC_OUT'].replace('x', ':')] if os.environ.get('REC_OUT') else []) + [OUT], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if rec is not None and log_has(STOP): time.sleep(3); break
         time.sleep(0.5)
 finally:

@@ -12,6 +12,14 @@
 class ABabylonModel;
 class UInstancedStaticMeshComponent;
 
+/** One jetway's live values for its HMI (JetwayHmi.h): read every frame the screen draws. */
+struct FJetwayHmiInfo
+{
+	FString Id, Type, Door; int32 State = 0;   // (State: AJetwayRigs::EState as a number)
+	bool bPlane = false, bDoorsOpen = false, bMoving = false;
+	float Progress = 0.f, Ext = 0.f, TurnDeg = 0.f, Height = 0.f, Speed = 0.f, PathLen = 0.f, Lat = 0.f, Lift = 0.f, Wait = 0.f;
+};
+
 UCLASS()
 class AIRPORTDYNASTYPRO_API AJetwayRigs : public AActor
 {
@@ -22,7 +30,7 @@ public:
 	static AJetwayRigs* Get(UWorld* W);
 	virtual void Tick(float Dt) override;
 
-	enum class EState : uint8 { Parked, Docking, Docked, Undocking };
+	enum class EState : uint8 { Parked, Docking, Docked, Undocking, Manual };   // (Manual: driven step by step from the HMI)
 	int32 Num() const { return Rigs.Num(); }
 	/** The jetway nearest a point (world), INDEX_NONE if none within MaxCm. */
 	int32 Nearest(const FVector& At, float MaxCm = 6000.f) const;
@@ -36,10 +44,23 @@ public:
 	static FString LastNote;
 	bool Dock(int32 J);
 	bool Undock(int32 J);
+	/** Manual driving from the HMI (to-do 115, owner 2026-11-18: "control the jetway in different directions"): a step
+	 *  of about 1.5 s at creep speed - FWD / BACK along its path, LEFT / RIGHT (the wheels steered sideways), UP / DOWN
+	 *  (the lift), CABL / CABR (the cab turned) - within its limits, beacons and bell on while it moves. Not while it is
+	 *  docked at an aircraft or driving itself. False (and LastNote why) if refused. */
+	bool Jog(int32 J, const FString& Dir);
 	/** Out if parked, back if docked (the on-screen button). */
 	void Toggle(int32 J);
 	/** Where its console is (world), for E. */
 	FVector Console(int32 J) const;
+	/** The console's screen now (world): its middle, the way it faces (towards the operator), its up and its size (cm) -
+	 *  for the HMI (to-do 115: E brings the camera up close to it). False if this jetway has none. */
+	bool ScreenView(int32 J, FVector& Mid, FVector& Normal, FVector& Up, FVector2D& Size) const;
+	/** The jetway whose console screen is this instance (the outline / a look at it), INDEX_NONE if none. */
+	int32 ScreenOf(const UPrimitiveComponent* C, int32 Item) const;
+	/** The HMI's live values for jetway J, as JSON (state, type at the stand, door, gate, extension, cab turn, height). */
+	FString HmiState(int32 J) const;
+	bool HmiInfo(int32 J, FJetwayHmiInfo& Out) const;
 	/** The rotunda's pivot and the docked wheels' point (world), for cameras and tests. */
 	bool Frame(int32 J, FVector& Rotunda, FVector& Door) const;
 	/** The cab's middle and the way its doorway faces, now (world) - for cameras. */
@@ -85,12 +106,15 @@ private:
 		// the gate-number sign on the cab's roof, softly lit on both faces (owner: far weaker than the beacons)
 		TArray<USceneComponent*> SignLight; TArray<FVector> SignAt;
 		TArray<FPart> Stair; TArray<bool> StairLevel; FVector StairTop, StairU; float StairSl = 0.f, Ground = 0.f;
+		FPart Scr;                                  // (the console's screen: J-x/CAB-CONSOLE:tealUI - the HMI, to-do 115)
 		FVector BoomO, PD, Wd, Wp, Ctl, CabOff;     // (model space, cm)
 		FVector CabMidD = FVector::ZeroVector, FrontD = FVector::ForwardVector;   // the cab body's middle and the way its door faces (docked, model space)
 		FVector DirD, AxisD; float LenD = 0.f, PitchD = 0.f, Turn0 = 0.f;
 		EState St = EState::Docked; float T = 0.f, S = 1.f, Turn = 0.f;
 		float D = 0.f, V = 0.f, PathL = 0.f; TArray<float> Arc;
 		FVector WdBase = FVector::ZeroVector; FString DockedType = TEXT("A320");
+		float Lat = 0.f, HOff = 0.f;               // (manual: the wheels steered sideways, the lift up/down - cm)
+		FString JogDir; float JogT = 0.f;          // (a manual step under way)
 		FVector WdExp = FVector::ZeroVector;   // (the export's own docked point: the parts' docked places are around it)
 		FString BaseType = TEXT("A320"), Door = TEXT("L1");   // (the type and door its home point is for: J-x/CAB-TARGET@<type>.<door>)   // (the export's docked point: the A320's door; per type it moves from there)   // (metres driven along the path, speed m/s, the path's length, S by distance)
 	};

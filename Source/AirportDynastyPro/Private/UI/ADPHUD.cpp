@@ -91,6 +91,7 @@
 #include "TerrainPacks.h"
 #include "Components/LocalLightComponent.h"
 #include "ADPFrameGen.h"
+#include "JetwayHmi.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "RHI.h"
@@ -1270,7 +1271,7 @@ void AADPHUD::UpdateMouse()
 	if (bPointer && !bGame) PC->SetIgnoreLookInput(true);
 	// the phone or a computer up (or the phone on its way): you stay where you are, looking at it
 	PC->ResetIgnoreMoveInput();
-	if ((bDevice || PhoneDir != 0 || bWardrobe || bWhoAreYou) && !bGame) { PC->SetIgnoreLookInput(true); PC->SetIgnoreMoveInput(true); }
+	if ((bDevice || bHmiPointer || HmiJ != INDEX_NONE || PhoneDir != 0 || bWardrobe || bWhoAreYou) && !bGame) { PC->SetIgnoreLookInput(true); PC->SetIgnoreMoveInput(true); }
 	PC->bShowMouseCursor = bFree;
 	if (bFree) { FInputModeGameAndUI M; M.SetHideCursorDuringCapture(false); PC->SetInputMode(M); }
 	else
@@ -1656,6 +1657,8 @@ void AADPHUD::LeaveDrone()
 
 void AADPHUD::OnEscape()
 {
+	// up close at a jetway's monitor: Esc steps back
+	if (HmiJ != INDEX_NONE) { EndHmi(); return; }
 	// the jetway's control panel menu: Esc closes it
 	if (bJetMenu) { CloseJetMenu(); return; }
 	if (AADPPeople* Pp = AADPPeople::Get(GetWorld())) if (Pp->MenuOpen()) { Pp->Close(); return; }
@@ -1757,6 +1760,9 @@ void AADPHUD::PlayGong()
 
 void AADPHUD::Interact()
 {
+	// up close at a jetway's monitor: E (the left mouse button, the pad's X) clicks what the "+" is over (to-do 115);
+	// Esc, the pad's B or the screen's EXIT step back
+	if (HmiJ != INDEX_NONE) { if (bHmiPointer) if (AJetwayHmi* L = AJetwayHmi::Get(GetWorld())) L->ClickCursor(); return; }
 	// a screen in front of you (a desk's monitor, a timetable): the airline game on it
 	APlayerController* PC = GetOwningPlayerController();
 	if (bWardrobe) { CloseWardrobe(); return; }
@@ -1811,7 +1817,8 @@ void AADPHUD::Interact()
 		if (AJetwayRigs* JR = AJetwayRigs::Get(GetWorld())) if (APawn* Me = GetOwningPawn())
 		{
 			const int32 J = JR->Nearest(Me->GetActorLocation(), 220.f);
-			if (J != INDEX_NONE) { OpenJetMenu(J); return; }
+			// (to-do 115: the console's screen is the jetway's HMI - E brings you up close to it)
+			if (J != INDEX_NONE) { OpenHmi(J); return; }
 		}
 	// a hinged door you face: open or close it (only sliding doors open by themselves - owner's door rule, to-do 20)
 	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton) && ABabylonModel::UseDoor(GetOwningPawn())) return;
@@ -3632,6 +3639,142 @@ void AADPHUD::Tick(float Dt)
 				if (Before < 42.f + V.Num() * 4.f && ShotClock >= 42.f + V.Num() * 4.f) ADP_SHOT_EXIT();
 			}
 		}
+		// -UIHmiVideo (owner, 2026-11-18): the video - walk in from the start of jetway 1 down to its console, E: up to the
+		// monitor, the "+" onto the screens and buttons and clicks: DOCKING, UNDOCK, manual steps (forward, left, the cab,
+		// up), AUTO DOCK - after each press the view cuts outside to the jetway moving, then back to the screen - then
+		// HOME, CCTV, ALARMS, STATUS, EXIT. A June afternoon's sun. The log says "HMIVIDEO start" / "HMIVIDEO end"
+		// (Tools/record_window.py records between them).
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIHmiVideo")))
+		{
+			static int32 Step = -1; static float At = 0.f, Until = 0.f; static TWeakObjectPtr<ACameraActor> Out;
+			AJetwayRigs* JR = AJetwayRigs::Get(GetWorld()); AJetwayHmi* L = AJetwayHmi::Get(GetWorld());
+			APlayerController* PC = GetOwningPlayerController(); ACharacter* Me = PC ? Cast<ACharacter>(PC->GetPawn()) : nullptr;
+			const float Tn = ShotClock;
+			auto Next = [&](float Wait) { ++Step; At = Tn + Wait; };
+			auto Outside = [&]()
+			{
+				FVector Ro, Dr, Mid, Fr; if (!JR || !JR->Frame(0, Ro, Dr) || !JR->CabView(0, Mid, Fr)) return;
+				const FVector Dir = (Dr - Ro).GetSafeNormal2D(), Pf(-Dir.Y, Dir.X, 0.f);
+				const FVector Side = FVector::DotProduct(Pf, FVector(-Fr.Y, Fr.X, 0.f)) >= 0.f ? Pf : -Pf;
+				const FVector M = (Ro + Mid) * 0.5f;
+				const FVector Eye = Mid + Side * 1900.f - Dir * 900.f + FVector(0, 0, 250.f), Look = Mid * 0.7f + M * 0.3f + FVector(0, 0, -120.f);
+				if (!Out.IsValid()) Out = GetWorld()->SpawnActor<ACameraActor>(Eye, (Look - Eye).Rotation());
+				if (Out.IsValid()) { Out->SetActorLocationAndRotation(Eye, (Look - Eye).Rotation()); Out->GetCameraComponent()->SetConstraintAspectRatio(false); Out->GetCameraComponent()->SetFieldOfView(62.f); PC->SetViewTarget(Out.Get()); }
+			};
+			auto Inside = [&]() { if (HmiCam.IsValid()) PC->SetViewTarget(HmiCam.Get()); };
+			if (Step == -1 && Tn >= 40.f)
+			{
+				if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 15.f; ASunClock::Refresh(); AJetwayRigs::Speed = 1.f;
+				if (!bHidden) HideUI();   // (the picture only: the game's own buttons and map hidden)
+				Step = 0; At = 46.f;
+			}
+			if (JR && L && PC && Me && Step >= 0 && Tn >= At && !(Step >= 4 && L->Gliding()))
+			{
+				FVector Mid, N, Up; FVector2D Sz; JR->ScreenView(0, Mid, N, Up, Sz);
+				FVector Ro, Dr; JR->Frame(0, Ro, Dr);
+				const FVector Fl = FVector(N.X, N.Y, 0.f).GetSafeNormal();
+				FVector StandAt = Mid + Fl * 70.f; StandAt.Z = Me->GetActorLocation().Z;
+				switch (Step)
+				{
+				case 0:   // at the start of the jetway: in the rotunda, at the gate's floor, looking down the tunnel
+				{
+					FVector P = Ro + (Dr - Ro).GetSafeNormal2D() * 250.f; FHitResult H; FCollisionQueryParams Q(SCENE_QUERY_STAT(HmiWalk), true); Q.AddIgnoredActor(Me);
+					const float FloorZ = GetWorld()->LineTraceSingleByChannel(H, FVector(P.X, P.Y, 800.f), FVector(P.X, P.Y, 300.f), ECC_Visibility, Q) ? H.ImpactPoint.Z : 600.f;
+					Me->SetActorLocation(FVector(P.X, P.Y, FloorZ + Me->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() + 5.f), false, nullptr, ETeleportType::TeleportPhysics);
+					PC->SetControlRotation((Mid - Me->GetActorLocation()).GetSafeNormal2D().Rotation());
+					ADP_LOG(TEXT("HMIVIDEO start")); Until = Tn + 45.f; Next(1.5f); break;
+				}
+				case 1:   // walking down the jetway to the console
+				{
+					const FVector To = Mid + Fl * 70.f; const FVector D2 = FVector(To.X - Me->GetActorLocation().X, To.Y - Me->GetActorLocation().Y, 0.f);
+					if (D2.Size() > 40.f && Tn < Until)
+					{
+						Me->AddMovementInput(D2.GetSafeNormal(), 1.f);
+						const FRotator Want = D2.Rotation(); PC->SetControlRotation(FMath::RInterpTo(PC->GetControlRotation(), FRotator(-8.f, Want.Yaw, 0.f), GetWorld()->GetDeltaSeconds(), 4.f));
+						break;   // (every frame until there)
+					}
+					Next(0.3f); break;
+				}
+				case 2:   // facing the screen (the "+" where the view meets it)
+					PC->SetControlRotation(FMath::RInterpTo(PC->GetControlRotation(), (Mid - (Me->GetActorLocation() + FVector(0, 0, 64.f))).Rotation(), GetWorld()->GetDeltaSeconds(), 3.f));
+					if (Tn < At + 2.2f) break;
+					Next(0.f); break;
+				case 3: OpenHmi(0); Next(2.6f); break;
+				case 4: L->AimAt(TEXT("tab:pos")); Next(1.3f); break;
+				case 5: Interact(); Next(2.f); break;
+				case 6: L->AimAt(TEXT("cmd:UNDOCK")); Next(1.3f); break;
+				case 7: Interact(); AJetwayRigs::Speed = 3.f; Next(0.7f); break;
+				case 8: Outside(); Until = Tn + 60.f; Next(0.f); break;
+				case 9: if (JR->State(0) != AJetwayRigs::EState::Parked && Tn < Until) break; AJetwayRigs::Speed = 1.f; Next(1.5f); break;
+				case 10: Inside(); Next(1.5f); break;
+				// manual steps: forward twice, left, the cab, up - each watched from outside
+				case 11: case 16: case 21: case 26: case 31:
+				{
+					static const TCHAR* Sel[] = { TEXT("jog:FWD"), TEXT("jog:FWD"), TEXT("jog:LEFT"), TEXT("jog:CABL"), TEXT("jog:UP") };
+					L->AimAt(Sel[(Step - 11) / 5]); Next(1.2f); break;
+				}
+				case 12: case 17: case 22: case 27: case 32: Interact(); Next(0.5f); break;
+				case 13: case 18: case 23: case 28: case 33: Outside(); Next(2.6f); break;
+				case 14: case 19: case 24: case 29: case 34: Inside(); Next(1.0f); break;
+				case 15: case 20: case 25: case 30: case 35: Next(0.f); break;
+				case 36: L->AimAt(TEXT("cmd:DOCK")); Next(1.3f); break;
+				case 37: Interact(); AJetwayRigs::Speed = 4.f; Next(0.7f); break;
+				case 38: Outside(); Until = Tn + 90.f; Next(0.f); break;
+				case 39: if (JR->State(0) != AJetwayRigs::EState::Docked && Tn < Until) break; AJetwayRigs::Speed = 1.f; Next(2.f); break;
+				case 40: Inside(); Next(2.f); break;
+				case 41: L->AimAt(TEXT("tab:home")); Next(1.2f); break;
+				case 42: Interact(); Next(2.2f); break;
+				case 43: L->AimAt(TEXT("tab:cam")); Next(1.2f); break;
+				case 44: Interact(); Next(1.6f); break;
+				case 45: L->AimAt(TEXT("tab:alm")); Next(1.2f); break;
+				case 46: Interact(); Next(1.6f); break;
+				case 47: L->AimAt(TEXT("tab:sys")); Next(1.2f); break;
+				case 48: Interact(); Next(1.6f); break;
+				case 49: L->AimAt(TEXT("tab:pos")); Next(1.2f); break;
+				case 50: Interact(); Next(2.f); break;
+				case 51: L->AimAt(TEXT("exit")); Next(1.2f); break;
+				case 52: Interact(); Next(2.5f); break;
+				case 53: ADP_LOG(TEXT("HMIVIDEO end")); Next(4.f); break;
+				case 54: ADP_SHOT_EXIT(); Next(100.f); break;
+				default: break;
+				}
+			}
+		}
+		// -UIHmi (to-do 115): jetway 1's cab - the live HMI on the console's flat monitor from where the operator stands and
+		// from further back; E: the camera up to the monitor; UNDOCK pressed on it (the move sped up); Esc. 4K pictures.
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIHmi")))
+		{
+			struct FStep { float At; TFunction<void()> Do; };
+			auto Shot4K = [this](const TCHAR* N) { if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 3840x2160 filename=%s"), N)); };
+			auto Stand = [this](float Back, float Side, float Eye)
+			{
+				AJetwayRigs* JR = AJetwayRigs::Get(GetWorld()); APlayerController* PC = GetOwningPlayerController(); APawn* Me = PC ? PC->GetPawn() : nullptr;
+				FVector Mid, N, Up; FVector2D Sz; if (!JR || !Me || !JR->ScreenView(0, Mid, N, Up, Sz)) return;
+				const FVector Fl = FVector(N.X, N.Y, 0.f).GetSafeNormal(), Sd = FVector::CrossProduct(FVector::UpVector, Fl);
+				FVector At = Mid + Fl * Back + Sd * Side; At.Z = JR->Console(0).Z + 92.f;
+				Me->SetActorLocation(At, false, nullptr, ETeleportType::TeleportPhysics);
+				PC->SetControlRotation((Mid - (At + FVector(0, 0, Eye))).Rotation());
+			};
+			const FStep HSteps[] = {
+				{40.f, [&]() { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 13.f; ASunClock::Refresh(); AJetwayRigs::Speed = 6.f; }},
+				{44.f, [&]() { Stand(70.f, 0.f, 72.f); ADP_LOG(TEXT("UIHmi: at the console")); }},
+				{52.f, [&]() { Shot4K(TEXT("HMI-1-operator-view")); }},
+				{54.f, [&]() { Stand(200.f, -90.f, 72.f); }},
+				{58.f, [&]() { Shot4K(TEXT("HMI-2-console-in-the-cab")); }},
+				{60.f, [&]() { Stand(70.f, 0.f, 72.f); }},
+				{62.f, [&]() { OpenHmi(0); }},
+				{68.f, [&]() { Shot4K(TEXT("HMI-3-up-close")); }},
+				{68.5f, [&]() { if (AJetwayHmi* L = AJetwayHmi::Get(GetWorld())) L->PutCursor(FVector2D(0.28f, 0.97f)); }},   // (the "+" onto DOCKING)
+				{69.2f, [&]() { Interact(); }},   // (E: a click under the "+")
+				{70.f, [&]() { if (AJetwayHmi* L = AJetwayHmi::Get(GetWorld())) L->Command(TEXT("cmd:UNDOCK")); }},
+				{73.f, [&]() { if (AJetwayHmi* L = AJetwayHmi::Get(GetWorld())) L->PutCursor(FVector2D(0.84f, 0.85f)); }},
+				{74.f, [&]() { Shot4K(TEXT("HMI-4-undocking")); }},
+				{78.f, [&]() { EndHmi(); }},
+				{90.f, [&]() { if (AJetwayHmi* L = AJetwayHmi::Get(GetWorld())) L->Command(TEXT("cmd:DOCK")); }},
+				{104.f, []() { ADP_SHOT_EXIT(); }},
+			};
+			for (const FStep& St : HSteps) if (Before < St.At && ShotClock >= St.At) St.Do();
+		}
 		// -UIFGToggle (to-do 111): our frame generation switched on, off and on again while the game runs - each time the log
 		// says whether it is making in-between pictures; the settings put back as they were at the end
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIFGToggle")))
@@ -4918,7 +5061,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIPetStep")) && !FParse::Param(FCommandLine::Get(), TEXT("UIUpdateSim")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBootShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIContinueShots")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UIPlanView=")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayTest")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayBeacons")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayViews")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGateJetways")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayVideo")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFGToggle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIConduct")) && !FParse::Param(FCommandLine::Get(), TEXT("UITalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHaze")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDockTypes")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDecals")) && !FParse::Param(FCommandLine::Get(), TEXT("UITwyLights")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGroundQ")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWeatherGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFlares")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAdverts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfStand")) && !FParse::Param(FCommandLine::Get(), TEXT("UISettingsShot")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanelUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoad")) && !FParse::Param(FCommandLine::Get(), TEXT("UIKiosk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) ADP_SHOT_EXIT();
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIPetStep")) && !FParse::Param(FCommandLine::Get(), TEXT("UIUpdateSim")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBootShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIContinueShots")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UIPlanView=")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayTest")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayBeacons")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayViews")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGateJetways")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayVideo")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFGToggle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHmi")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHmiVideo")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIConduct")) && !FParse::Param(FCommandLine::Get(), TEXT("UITalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHaze")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDockTypes")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDecals")) && !FParse::Param(FCommandLine::Get(), TEXT("UITwyLights")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGroundQ")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWeatherGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFlares")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAdverts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfStand")) && !FParse::Param(FCommandLine::Get(), TEXT("UISettingsShot")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanelUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoad")) && !FParse::Param(FCommandLine::Get(), TEXT("UIKiosk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) ADP_SHOT_EXIT();
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

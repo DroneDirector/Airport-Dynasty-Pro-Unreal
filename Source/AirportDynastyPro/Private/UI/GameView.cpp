@@ -125,6 +125,12 @@ FString ADPGameView::Folder()
 	return FString();
 }
 
+FString ADPGameView::PageUrl(const FString& Path)
+{
+	Register();
+	return FString::Printf(TEXT("https://%s/%s"), Host, *Path);
+}
+
 TSharedRef<SWidget> ADPGameView::Make(UObject* Bridge, TSharedPtr<SWebBrowser>* OutBrowser)
 {
 	if (Folder().IsEmpty())

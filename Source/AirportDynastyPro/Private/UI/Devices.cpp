@@ -24,6 +24,14 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SLeafWidget.h"
 #include "Widgets/Text/STextBlock.h"
+#include "JetwayRigs.h"
+#include "JetwayHmi.h"
+#include "ADPLog.h"
+#include "Camera/CameraActor.h"
+#include "Camera/CameraComponent.h"
+#include "Camera/PlayerCameraManager.h"
+#include "Engine/GameViewportClient.h"
+#include "CollisionQueryParams.h"
 
 namespace
 {
@@ -76,7 +84,7 @@ TSharedRef<SWidget> AADPHUD::MakeDeviceLegend()
 			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 8, 0)[SNew(SPhoneDownIcon).Color(LegendInk)]
 			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
 			[SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Regular", 11)).ColorAndOpacity(LegendInk)
-				.Text_Lambda([this]() { return FText::FromString(DeviceKind == TEXT("phone") || PhoneDir != 0 ? TEXT("Put the phone down") : TEXT("Back to the room")); })]
+				.Text_Lambda([this]() { return FText::FromString(DeviceKind == TEXT("phone") || PhoneDir != 0 ? TEXT("Put the phone down") : DeviceKind.StartsWith(TEXT("hmi")) ? TEXT("Step back from the screen") : TEXT("Back to the room")); })]
 		];
 }
 
@@ -136,7 +144,7 @@ void AADPHUD::OpenDevice(const FString& Kind)
 	if (bDevice || bGame || !GameBox.IsValid()) return;
 	MakeGameView();
 	bDevice = true; DeviceKind = Kind; DevicePending = Kind;
-	Breadcrumb(Kind == TEXT("phone") ? TEXT("Using your phone") : TEXT("At a computer"));
+	Breadcrumb(Kind == TEXT("phone") ? TEXT("Using your phone") : Kind.StartsWith(TEXT("hmi")) ? TEXT("At the jetway's control screen") : TEXT("At a computer"));
 	GameBox->SetVisibility(EVisibility::Visible);
 	if (TopBar.IsValid()) TopBar->SetVisibility(EVisibility::Collapsed);
 	if (Credit.IsValid()) Credit->SetVisibility(EVisibility::Collapsed);
@@ -154,6 +162,7 @@ void AADPHUD::PutDeviceAway()
 void AADPHUD::DeviceDone(const FString& Kind)
 {
 	if (!bDevice) return;
+	if (DeviceKind.StartsWith(TEXT("hmi"))) EndHmi();   // (the jetway's HMI: the camera back to you)
 	bDevice = false; DevicePending.Empty();
 	if (!bGame && GameBox.IsValid()) GameBox->SetVisibility(EVisibility::Collapsed);
 	if (TopBar.IsValid()) TopBar->SetVisibility(EVisibility::Visible);
@@ -168,6 +177,7 @@ void AADPHUD::DeviceDone(const FString& Kind)
 
 void AADPHUD::TickDevice(float Dt)
 {
+	TickHmi(Dt);
 	// the page asked for the phone or the computer once it's there (made the first time: it loads)
 	if (!DevicePending.IsEmpty() && Browser.IsValid() && Browser->IsLoaded())
 	{
@@ -207,4 +217,124 @@ void AADPHUD::PickPhoneNear(const FVector& At)
 	if (!Best || bDevice || PhoneDir != 0) return;
 	Phone = Best; PhoneHome = Best->GetActorTransform(); PhoneK = 0.f; PhoneDir = 1;
 	UpdateMouse();
+}
+
+// ---- the jetway's HMI (to-do 115, owner 2026-11-18; docs/Jetway-HMI-Plan.md) ---------------------------------------
+namespace
+{
+	const float HmiGlide = 0.7f;   // seconds, up to the screen (and back)
+	const float HmiFov = 50.f;     // the close camera's view (degrees across)
+	FVector2D HmiViewport() { return GEngine && GEngine->GameViewport && GEngine->GameViewport->Viewport ? FVector2D(GEngine->GameViewport->Viewport->GetSizeXY()) : FVector2D(1920, 1080); }
+}
+
+void AADPHUD::OpenHmi(int32 J)
+{
+	APlayerController* PC = GetOwningPlayerController(); APawn* Me = PC ? PC->GetPawn() : nullptr;
+	AJetwayRigs* JR = AJetwayRigs::Get(GetWorld());
+	FVector Mid, N, Up; FVector2D Sz;
+	if (!PC || !Me || !JR || bDevice || HmiOpenIn >= 0.f || !JR->ScreenView(J, Mid, N, Up, Sz)) return;
+	// how far in front of it: the screen filling about four fifths of the picture
+	const FVector2D Vp = HmiViewport();
+	const float Aspect = Vp.X / FMath::Max(1.f, (float)Vp.Y), TanH = FMath::Tan(FMath::DegreesToRadians(HmiFov * 0.5f));
+	const float FitH = (Sz.Y * 0.5f) / (TanH / Aspect) / 0.97f, FitW = (Sz.X * 0.5f) / TanH / 0.97f;   // (as far in as it goes: the screen fills the view)
+	float D = FMath::Clamp(FMath::Max(FitH, FitW), 12.f, 90.f);
+	// never inside anything: a small ball swept out from the screen along its face; it stops short of what it meets
+	FCollisionQueryParams Q(SCENE_QUERY_STAT(HmiCam), true); Q.AddIgnoredActor(Me);
+	FHitResult H;
+	if (GetWorld()->SweepSingleByChannel(H, Mid + N * 3.f, Mid + N * D, FQuat::Identity, ECC_Camera, FCollisionShape::MakeSphere(4.f), Q)) D = FMath::Max(H.Distance - 2.f, 12.f);
+	const FVector Eye = Mid + N * D;
+	const FRotator Rot = FRotationMatrix::MakeFromXZ(-N, Up).Rotator();
+	ACameraActor* Cam = HmiCam.Get();
+	if (!Cam) { Cam = GetWorld()->SpawnActor<ACameraActor>(Eye, Rot); HmiCam = Cam; }
+	if (!Cam) return;
+	Cam->SetActorLocationAndRotation(Eye, Rot);
+	Cam->GetCameraComponent()->SetConstraintAspectRatio(false); Cam->GetCameraComponent()->SetFieldOfView(HmiFov);
+	// (a screen read up close: the eye's brightness held where it was in the cab, so the bright screen filling the view
+	//  doesn't wash out)
+	{ FPostProcessSettings& P = Cam->GetCameraComponent()->PostProcessSettings; Cam->GetCameraComponent()->PostProcessBlendWeight = 1.f;
+	  P.bOverride_AutoExposureBias = true; P.AutoExposureBias = -1.2f; P.bOverride_AutoExposureSpeedUp = true; P.AutoExposureSpeedUp = 20.f; P.bOverride_AutoExposureSpeedDown = true; P.AutoExposureSpeedDown = 20.f; }
+	// the way there: straight from your eyes if nothing is between (a ball swept along it), else a short fade instead of
+	// gliding through anything
+	FVector From; FRotator FromR; PC->GetPlayerViewPoint(From, FromR);
+	const bool bClear = !GetWorld()->SweepSingleByChannel(H, From, Eye, FQuat::Identity, ECC_Camera, FCollisionShape::MakeSphere(4.f), Q);
+	HmiJ = J;
+	Me->DisableInput(PC);
+	if (AJetwayHmi* L = AJetwayHmi::Get(GetWorld())) L->Hold(J);   // (the live HMI stays on this monitor)
+	if (bClear) PC->SetViewTargetWithBlend(Cam, HmiGlide, VTBlend_EaseInOut, 2.f);
+	else { if (PC->PlayerCameraManager) PC->PlayerCameraManager->StartCameraFade(1.f, 0.f, 0.35f, FLinearColor::Black); PC->SetViewTarget(Cam); }
+	HmiOpenIn = bClear ? HmiGlide : 0.35f;
+	ADP_LOG(TEXT("Jetway HMI: %s, the camera %.0f cm in front of its screen (%.0f x %.0f cm)%s"), *JR->Name(J), D, Sz.X, Sz.Y, bClear ? TEXT("") : TEXT(", faded (something between)"));
+}
+
+void AADPHUD::TickHmi(float Dt)
+{
+	APlayerController* PC = GetOwningPlayerController();
+	// the live HMI on the jetways' monitors (JetwayHmi.h): there in airport mode, once the jetways are
+	{ static float Check = 0.f; if (!bGame && (Check -= Dt) <= 0.f) { Check = 2.f; if (AJetwayRigs* JRm = AJetwayRigs::Get(GetWorld())) if (JRm->Num() > 0) AJetwayHmi::Get(GetWorld()); } }
+	// arrived: the live HMI on the monitor takes the mouse - you use it on the screen itself
+	if (HmiOpenIn >= 0.f && (HmiOpenIn -= Dt) < 0.f)
+	{
+		HmiOpenIn = -1.f;
+		if (AJetwayHmi* L = AJetwayHmi::Get(GetWorld())) { L->Hold(HmiJ); L->SetPointer(true); }
+		bHmiPointer = true; UpdateMouse();
+	}
+	// up close: the mouse and the pad's left stick move the "+" on the screen (clicks: Interact)
+	if (bHmiPointer && PC)
+		if (AJetwayHmi* L = AJetwayHmi::Get(GetWorld()))
+		{
+			float Mx = 0.f, My = 0.f; PC->GetInputMouseDelta(Mx, My);
+			const float Sx = PC->GetInputAnalogKeyState(EKeys::Gamepad_LeftX), Sy = PC->GetInputAnalogKeyState(EKeys::Gamepad_LeftY);
+			FVector2D D(Mx * 2.2f, -My * 2.2f);
+			if (FMath::Abs(Sx) > 0.15f || FMath::Abs(Sy) > 0.15f) D += FVector2D(Sx, -Sy) * 900.f * Dt;   // (about two seconds across)
+			L->MoveCursor(D);
+		}
+	// the live values for the page, four times a second
+	if (bDevice && DeviceKind.StartsWith(TEXT("hmi")) && Browser.IsValid() && (HmiSend -= Dt) <= 0.f)
+	{
+		HmiSend = 0.25f;
+		if (AJetwayRigs* JR = AJetwayRigs::Get(GetWorld())) Browser->ExecuteJavascript(FString::Printf(TEXT("window.__ueHmi && window.__ueHmi(%s)"), *JR->HmiState(HmiJ)));
+	}
+	// back with you: your controls again once the camera is home
+	if (HmiBackIn >= 0.f && (HmiBackIn -= Dt) < 0.f)
+	{
+		HmiBackIn = -1.f;
+		if (APawn* Me = PC ? PC->GetPawn() : nullptr) Me->EnableInput(PC);
+	}
+}
+
+void AADPHUD::EndHmi()
+{
+	APlayerController* PC = GetOwningPlayerController();
+	HmiOpenIn = -1.f;
+	if (AJetwayHmi* L = AJetwayHmi::Get(GetWorld())) { L->SetPointer(false); L->Hold(INDEX_NONE); }
+	const bool bWasPointer = bHmiPointer; bHmiPointer = false;
+	if (PC && PC->GetPawn())
+	{
+		FVector Eye; FRotator R; PC->GetPawn()->GetActorEyesViewPoint(Eye, R);
+		ACameraActor* Cam = HmiCam.Get();
+		FHitResult H; FCollisionQueryParams Q(SCENE_QUERY_STAT(HmiBack), true); Q.AddIgnoredActor(PC->GetPawn());
+		const bool bClear = Cam && !GetWorld()->SweepSingleByChannel(H, Cam->GetActorLocation(), Eye, FQuat::Identity, ECC_Camera, FCollisionShape::MakeSphere(4.f), Q);
+		if (bClear) PC->SetViewTargetWithBlend(PC->GetPawn(), HmiGlide * 0.8f, VTBlend_EaseInOut, 2.f);
+		else { if (PC->PlayerCameraManager) PC->PlayerCameraManager->StartCameraFade(1.f, 0.f, 0.35f, FLinearColor::Black); PC->SetViewTarget(PC->GetPawn()); }
+		HmiBackIn = bClear ? HmiGlide * 0.8f : 0.05f;
+	}
+	ADP_LOG(TEXT("Jetway HMI: closed"));
+	HmiJ = -1;
+	if (bWasPointer) UpdateMouse();
+}
+
+void AADPHUD::HmiCommand(const FString& Action, const FString& Arg)
+{
+	AJetwayRigs* JR = AJetwayRigs::Get(GetWorld());
+	if (!JR || HmiJ == INDEX_NONE) return;
+	ADP_LOG(TEXT("Jetway HMI: %s %s on %s"), *Action, *Arg, *JR->Name(HmiJ));
+	AJetwayRigs::LastNote.Reset();
+	if (Action == TEXT("DOCK")) JR->Dock(HmiJ);
+	else if (Action == TEXT("UNDOCK")) JR->Undock(HmiJ);
+	// the page shows the answer when a move was refused (why)
+	if (Browser.IsValid() && !AJetwayRigs::LastNote.IsEmpty())
+	{
+		const FString Note = AJetwayRigs::LastNote.Replace(TEXT("\\"), TEXT("/")).Replace(TEXT("'"), TEXT("`"));
+		Browser->ExecuteJavascript(FString::Printf(TEXT("window.__ueHmiNote && window.__ueHmiNote('%s')"), *Note));
+	}
 }

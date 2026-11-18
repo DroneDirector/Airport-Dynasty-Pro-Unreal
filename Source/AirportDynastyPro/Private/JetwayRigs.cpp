@@ -1,4 +1,5 @@
 #include "JetwayRigs.h"
+#include "InteractOutline.h"
 #include "BabylonModel.h"
 #include "ADPLog.h"
 #include "PerfLog.h"
@@ -302,6 +303,14 @@ void AJetwayRigs::Build()
 		}
 		const int32 Con = M->NodeIndex(Id + TEXT("/CAB-CONSOLE"));
 		R.Ctl = Con != INDEX_NONE ? M->NodeModel(Con).GetLocation() : R.G[Cab].Docked.GetLocation();
+		// the console's flat monitor (the HMI, to-do 115; Tools/jetway_monitor.py): its housing outlined within reach like the
+		// other things you can use (E); the screen's place from its own node (the console's frame)
+		{
+			const int32 Hs = M->NodeIndex(Id + TEXT("/CAB-CONSOLE:jwDark#monitor"));
+			const TPair<UInstancedStaticMeshComponent*, int32> In = Hs != INDEX_NONE ? M->NodeInstance(Hs) : TPair<UInstancedStaticMeshComponent*, int32>(nullptr, INDEX_NONE);
+			if (In.Key && In.Value != INDEX_NONE) { R.Scr.K = In.Key; R.Scr.Ix = In.Value; In.Key->GetInstanceTransform(In.Value, R.Scr.Docked, false); AInteractOutline::Add(In.Key, In.Value, (uint64(0x4A57) << 32) + uint64(Rigs.Num())); }
+			else ADP_WARN(TEXT("Jetways: %s has no flat console monitor (CAB-CONSOLE:jwDark#monitor - Tools/jetway_monitor.py)"), *Id);
+		}
 		// at rest: pulled half way back along the line to the door, a little lower (his PARK), never shorter than it can be
 		R.Wp = R.BoomO + R.DirD * Flat(R.Wd - R.BoomO).Size() * PARK; R.Wp.Z = R.Wd.Z - 35.f;
 		{ const FIk Q = ADPJetwayInternal::Ik(R.BoomO, R.Wp); if (Q.Len < LMIN + 0.2f) R.Wp += Q.Dir * (LMIN + 0.2f - Q.Len) * 100.f; }
@@ -346,7 +355,9 @@ FVector AJetwayRigs::PathAt(const FRig& R, float S) const
 void AJetwayRigs::Apply(FRig& R)
 {
 	using namespace ADPJetwayInternal;
-	const FVector W = PathAt(R, R.S);
+	FVector W = PathAt(R, R.S);
+	if (R.Lat != 0.f || R.HOff != 0.f)   // (manual: steered sideways, lifted or lowered)
+	{ const FVector Fl = FVector(W.X - R.BoomO.X, W.Y - R.BoomO.Y, 0.f).GetSafeNormal(); W += FVector(-Fl.Y, Fl.X, 0.f) * R.Lat + FVector(0, 0, R.HOff); }
 	const FIk K = ADPJetwayInternal::Ik(R.BoomO, W);
 	const FQuat QYaw = FQuat::FindBetweenNormals(R.DirD, K.Dir);
 	const FQuat QTun = FQuat::FindBetweenNormals(QYaw.RotateVector(R.AxisD), K.Axis) * QYaw;
@@ -448,7 +459,7 @@ void AJetwayRigs::Tick(float Dt)
 	if (APlayerController* PCe = GetWorld()->GetFirstPlayerController()) if (PCe->PlayerCameraManager) Eye = PCe->PlayerCameraManager->GetCameraLocation();
 	for (FRig& R : Rigs)
 	{
-		const bool bMoving = (R.St == EState::Docking || R.St == EState::Undocking) && R.Wait <= 0.f;
+		const bool bMoving = ((R.St == EState::Docking || R.St == EState::Undocking) && R.Wait <= 0.f) || (R.St == EState::Manual && R.JogT > 0.f);
 		if (R.Svc.Parts.Num() && !FMath::IsNearlyEqual(R.SvcOpen, R.SvcWant))
 		{
 			// (the service door swings at its own pace, about 1.2 s, also while the jetway stands)
@@ -468,7 +479,25 @@ void AJetwayRigs::Tick(float Dt)
 		// everyone standing in it moves with it (owner, 2026-11-16: you and every MetaHuman as one with the jetway, also
 		// while walking in it): the part of the jetway under each person noted before it moves, each carried after
 		TArray<FRider> Riders;
-		if (bMoving) GatherRiders(R, Riders);
+		const bool bJog = R.St == EState::Manual && R.JogT > 0.f;
+		if (bMoving || bJog) GatherRiders(R, Riders);
+		if (bJog)
+		{
+			const float Step = FMath::Min(R.JogT, D); R.JogT -= Step;
+			const float V = VMax;   // (a manual step: the drive's own speed, 0.3 m/s - about 45 cm a step)
+			if (R.JogDir == TEXT("FWD")) R.D = FMath::Min(R.PathL, R.D + V * Step);
+			else if (R.JogDir == TEXT("BACK")) R.D = FMath::Max(0.f, R.D - V * Step);
+			else if (R.JogDir == TEXT("LEFT")) R.Lat = FMath::Clamp(R.Lat + V * 100.f * Step, -250.f, 250.f);
+			else if (R.JogDir == TEXT("RIGHT")) R.Lat = FMath::Clamp(R.Lat - V * 100.f * Step, -250.f, 250.f);
+			else if (R.JogDir == TEXT("UP")) R.HOff = FMath::Clamp(R.HOff + Lift * 100.f * 4.f * Step, -80.f, 80.f);
+			else if (R.JogDir == TEXT("DOWN")) R.HOff = FMath::Clamp(R.HOff - Lift * 100.f * 4.f * Step, -80.f, 80.f);
+			else if (R.JogDir == TEXT("CABL")) R.Turn = FMath::Clamp(R.Turn + CabTurn * Step, -0.6f, 0.6f);
+			else if (R.JogDir == TEXT("CABR")) R.Turn = FMath::Clamp(R.Turn - CabTurn * Step, -0.6f, 0.6f);
+			R.S = SAt(R, R.D); R.V = R.JogT > 0.f ? V : 0.f;
+			Apply(R);
+		}
+		if (R.St == EState::Docking && (R.Lat != 0.f || R.HOff != 0.f))
+		{ const float E = 30.f * D; R.Lat = FMath::Abs(R.Lat) <= E ? 0.f : R.Lat - FMath::Sign(R.Lat) * E; R.HOff = FMath::Abs(R.HOff) <= E ? 0.f : R.HOff - FMath::Sign(R.HOff) * E; }
 		if (R.St == EState::Docking)
 		{
 			const float Left = R.PathL - R.D;
@@ -587,20 +616,33 @@ void AJetwayRigs::SetDoor(FRig& R, AActor* Plane, const FString& Type)
 bool AJetwayRigs::Dock(int32 J)
 {
 	LastNote.Reset();
-	if (!Rigs.IsValidIndex(J) || Rigs[J].St != EState::Parked) return false;
+	if (!Rigs.IsValidIndex(J) || (Rigs[J].St != EState::Parked && Rigs[J].St != EState::Manual)) return false;
+	const bool bFromManual = Rigs[J].St == EState::Manual; const float DWas = Rigs[J].D;
 	FString Type; AActor* Plane = AircraftAtStand(J, &Type);
 	if (!Plane) { LastNote = FString::Printf(TEXT("No aircraft at gate %s"), *Rigs[J].Id.RightChop(2)); ADP_LOG(TEXT("Jetways: %s - no aircraft at its stand, not docking"), *Rigs[J].Id); return false; }
 	// commercial jets from the A318's size up to what the stand's markings take (A321, B757); smaller ones refused
 	if (!ADPJetwayInternal::DoorOf(Type, Rigs[J].Door)) { LastNote = FString::Printf(TEXT("The %s is too small for this jetway"), *Type); ADP_LOG(TEXT("Jetways: %s - a %s isn't a type it docks to"), *Rigs[J].Id, *Type); return false; }
 	// (where it is parked: the path from where it stands, to this type's door - only while at rest, the path is its own)
-	{ FRig& R = Rigs[J]; SetDoor(R, Plane, Type); R.D = 0.f; }
-	Rigs[J].St = EState::Docking; Rigs[J].T = 0.f; Rigs[J].V = 0.f; Rigs[J].Turn = Rigs[J].Turn0; Rigs[J].Wait = 3.f; ADP_LOG(TEXT("Jetways: %s driving out to the door"), *Rigs[J].Id); return true;
+	{ FRig& R = Rigs[J]; SetDoor(R, Plane, Type); R.D = bFromManual ? FMath::Min(DWas, R.PathL) : 0.f; R.JogT = 0.f; }
+	Rigs[J].St = EState::Docking; Rigs[J].T = 0.f; Rigs[J].V = 0.f; if (!bFromManual) Rigs[J].Turn = Rigs[J].Turn0; Rigs[J].Wait = 3.f; ADP_LOG(TEXT("Jetways: %s driving out to the door"), *Rigs[J].Id); return true;
 }
 bool AJetwayRigs::Undock(int32 J)
 {
 	LastNote.Reset();
-	if (!Rigs.IsValidIndex(J) || Rigs[J].St != EState::Docked) return false;
+	if (!Rigs.IsValidIndex(J) || (Rigs[J].St != EState::Docked && Rigs[J].St != EState::Manual)) return false;
+	if (Rigs[J].St == EState::Manual) { Rigs[J].St = EState::Undocking; Rigs[J].T = 100.f; Rigs[J].V = 0.f; Rigs[J].Wait = 3.f; Rigs[J].JogT = 0.f; ADP_LOG(TEXT("Jetways: %s back to rest from a manual position"), *Rigs[J].Id); return true; }
 	Rigs[J].St = EState::Undocking; Rigs[J].T = 0.f; Rigs[J].V = 0.f; Rigs[J].Wait = 3.f; ADP_LOG(TEXT("Jetways: %s pulling back"), *Rigs[J].Id); return true;
+}
+bool AJetwayRigs::Jog(int32 J, const FString& Dir)
+{
+	LastNote.Reset();
+	if (!Rigs.IsValidIndex(J)) return false;
+	FRig& R = Rigs[J];
+	if (R.St == EState::Docked) { LastNote = TEXT("Docked at the aircraft: UNDOCK first"); return false; }
+	if (R.St == EState::Docking || R.St == EState::Undocking) { LastNote = TEXT("Driving automatically: wait or STOP"); return false; }
+	R.St = EState::Manual; R.JogDir = Dir; R.JogT = 1.5f; R.Shut = 0.f;
+	ADP_LOG(TEXT("Jetways: %s manual step %s"), *R.Id, *Dir);
+	return true;
 }
 void AJetwayRigs::Toggle(int32 J) { if (State(J) == EState::Parked) Dock(J); else if (State(J) == EState::Docked) Undock(J); }
 FVector AJetwayRigs::Console(int32 J) const
@@ -611,6 +653,54 @@ FVector AJetwayRigs::Console(int32 J) const
 	FTransform CabNow = R.G[Cab].Docked;
 	if (R.G[Cab].Parts.Num()) { FTransform T; R.G[Cab].Parts[0].K->GetInstanceTransform(R.G[Cab].Parts[0].Ix, T, false); CabNow = R.G[Cab].Docked * R.G[Cab].Parts[0].Docked.Inverse() * T; }
 	return R.Model->GetActorTransform().TransformPosition(CabNow.TransformPosition(R.G[Cab].Docked.InverseTransformPosition(R.Ctl)));
+}
+bool AJetwayRigs::ScreenView(int32 J, FVector& Mid, FVector& Normal, FVector& Up, FVector2D& Size) const
+{
+	if (!Rigs.IsValidIndex(J) || !Rigs[J].Scr.K) return false;
+	const FRig& R = Rigs[J];
+	FTransform T; R.Scr.K->GetInstanceTransform(R.Scr.Ix, T, true);   // (where the console is now, the cab having moved)
+	// the flat monitor's screen in the console's own measures (glTF metres, Tools/jetway_monitor.py): its middle at
+	// (0, 1.24, 0.20), tilted 15 degrees back, facing the operator (-z); glTF (x, y, z) is Unreal (x, z, y) in cm
+	const float Tl = FMath::DegreesToRadians(15.f);
+	Mid = T.TransformPosition(FVector(0.f, 20.f, 124.f));
+	Normal = T.TransformVectorNoScale(FVector(0.f, -FMath::Cos(Tl), FMath::Sin(Tl))).GetSafeNormal();
+	Up = T.TransformVectorNoScale(FVector(0.f, FMath::Sin(Tl), FMath::Cos(Tl))).GetSafeNormal();
+	Size = FVector2D(36.f, 22.5f);
+	return true;
+}
+int32 AJetwayRigs::ScreenOf(const UPrimitiveComponent* C, int32 Item) const
+{
+	for (int32 J = 0; J < Rigs.Num(); ++J) if (Rigs[J].Scr.K == C && (Item == INDEX_NONE || Rigs[J].Scr.Ix == Item)) return J;
+	return INDEX_NONE;
+}
+FString AJetwayRigs::HmiState(int32 J) const
+{
+	if (!Rigs.IsValidIndex(J)) return TEXT("{}");
+	const FRig& R = Rigs[J];
+	static const TCHAR* St[] = { TEXT("PARKED"), TEXT("DOCKING"), TEXT("DOCKED"), TEXT("UNDOCKING"), TEXT("MANUAL") };
+	FString Type; AActor* Plane = AircraftAtStand(J, &Type);
+	FVector Ro, Dr; const bool bF = Frame(J, Ro, Dr);
+	FVector CabMid, Front; const bool bC = CabView(J, CabMid, Front);
+	const float Ext = bF && bC ? FVector::Dist2D(Ro, CabMid) / 100.f : 0.f;
+	const float Apron = R.Model.IsValid() ? R.Model->GetActorTransform().TransformPosition(FVector(R.G[Bogie].Docked.GetLocation().X, R.G[Bogie].Docked.GetLocation().Y, R.Ground)).Z : 0.f;
+	const float Height = bC ? (CabMid.Z - Apron) / 100.f : 0.f;   // (the cab's middle over the apron)
+	auto Esc = [](FString X) { return X.Replace(TEXT("\\"), TEXT("\\\\")).Replace(TEXT("\""), TEXT("\\\"")); };
+	return FString::Printf(TEXT("{\"id\":\"%s\",\"gate\":\"%s\",\"state\":\"%s\",\"plane\":%s,\"type\":\"%s\",\"door\":\"%s\",\"progress\":%.3f,\"ext\":%.2f,\"turn\":%.1f,\"height\":%.2f,\"speed\":%.2f,\"len\":%.2f,\"lat\":%.2f,\"lift\":%.2f}"),
+		*Esc(R.Id), *Esc(Name(J)), St[(int32)R.St], Plane ? TEXT("true") : TEXT("false"), *Esc(Type.IsEmpty() ? R.DockedType : Type), *Esc(R.Door),
+		R.S, Ext, FMath::RadiansToDegrees(R.Turn), Height, R.V, R.PathL, R.Lat / 100.f, R.HOff / 100.f);
+}
+bool AJetwayRigs::HmiInfo(int32 J, FJetwayHmiInfo& O) const
+{
+	if (!Rigs.IsValidIndex(J)) return false;
+	const FRig& R = Rigs[J];
+	FString Type; O.bPlane = AircraftAtStand(J, &Type) != nullptr;
+	FVector Ro, Dr, CabMid, Front; const bool bF = Frame(J, Ro, Dr), bC = CabView(J, CabMid, Front);
+	const float Apron = R.Model.IsValid() ? R.Model->GetActorTransform().TransformPosition(FVector(R.G[Bogie].Docked.GetLocation().X, R.G[Bogie].Docked.GetLocation().Y, R.Ground)).Z : 0.f;
+	O.Id = R.Id; O.Type = Type.IsEmpty() ? R.DockedType : Type; O.Door = R.Door; O.State = (int32)R.St;
+	O.bDoorsOpen = R.Shut > 0.5f; O.bMoving = ((R.St == EState::Docking || R.St == EState::Undocking) && R.Wait <= 0.f && R.V > 0.001f) || (R.St == EState::Manual && R.JogT > 0.f);
+	O.Progress = R.S; O.Ext = bF && bC ? FVector::Dist2D(Ro, CabMid) / 100.f : 0.f; O.TurnDeg = FMath::RadiansToDegrees(R.Turn);
+	O.Height = bC ? (CabMid.Z - Apron) / 100.f : 0.f; O.Speed = R.V; O.PathLen = R.PathL; O.Lat = R.Lat / 100.f; O.Lift = R.HOff / 100.f; O.Wait = R.Wait;
+	return true;
 }
 bool AJetwayRigs::Frame(int32 J, FVector& Rotunda, FVector& Door) const
 {

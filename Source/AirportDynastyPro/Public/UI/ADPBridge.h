@@ -62,6 +62,8 @@ public:
 	UFUNCTION() void Board(const FString& Key, const FString& B64);
 	/** The phone or a computer opened over the 3D room has been put away (ue.adp.devicedone(kind)). */
 	UFUNCTION() void DeviceDone(const FString& Kind);
+	/** A button on a jetway's HMI page (ue.adp.hmi(action, arg)), to-do 115. */
+	UFUNCTION() void Hmi(const FString& Action, const FString& Arg);
 	/** The wardrobe menu over the room (ue.adp.wardrobe): 'category' <name>, 'wear' <outfit>, 'close'. */
 	UFUNCTION() void Wardrobe(const FString& Action, const FString& Arg);
 	/** The title screen's New game: Unreal's "who are you" stage first (CharacterCreate), the page's overlay over it. */

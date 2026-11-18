@@ -101,6 +101,19 @@ private:
 	TSharedPtr<SWidget> DeviceLegend;
 	FString DeviceKind, DevicePending;
 	bool bDevice = false;
+	/** The jetway's HMI (to-do 115): E at its console's screen - the camera glides up close (its path checked so it never
+	 *  passes through the cab), then the HMI page opens exactly over the screen; Esc: the camera back to you. */
+	void TickHmi(float Dt);
+	int32 HmiJ = -1; float HmiOpenIn = -1.f, HmiSend = 0.f, HmiBackIn = -1.f;
+	TWeakObjectPtr<class ACameraActor> HmiCam; bool bHmiPointer = false;
+public:
+	void OpenHmi(int32 J);
+	void EndHmi();
+	/** Up close at a jetway's monitor (the live HMI on it takes the mouse). */
+	bool AtHmi() const { return HmiJ != INDEX_NONE; }
+	/** A button pressed on the jetway's HMI page (ue.adp.hmi): DOCK, UNDOCK, STOP ... */
+	void HmiCommand(const FString& Action, const FString& Arg);
+private:
 	/** The phone you pick up: on the desk (0) to held up in front of you (1); moving up (+1), down (-1) or still (0). */
 	TWeakObjectPtr<class ABabylonModel> Phone;
 	FTransform PhoneHome;

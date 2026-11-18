@@ -17,4 +17,6 @@ namespace ADPGameView
 	TSharedRef<SWidget> Make(UObject* Bridge = nullptr, TSharedPtr<SWebBrowser>* OutBrowser = nullptr);
 	/** Where the game's built files are (empty when they aren't there). */
 	FString Folder();
+	/** A page of the game's files by its path ("hmi/index.html"), its address registered first. */
+	FString PageUrl(const FString& Path);
 }
