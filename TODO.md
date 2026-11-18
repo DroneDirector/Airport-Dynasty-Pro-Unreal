@@ -229,6 +229,25 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       phone, bank, staff, timetable, call a vehicle, quick-start places, camera/view). Pick with mouse or stick, release
       to choose; in the controls legend; text never overlapping
 
+- [ ] **Driving sounds from the surface, tyre drifting, ground markings, in and outside the airport** (owner, 2026-11-18;
+      about 8-12 nonstop hours): every drivable vehicle (the 6x6 crash tenders now, later your own car and the others)
+      sounds different by what its wheels are on, read per wheel:
+      - [ ] **Surfaces:** asphalt (runway, taxiways, roads), concrete apron slabs (a soft tick-tick at the slab joints,
+            faster with speed), grooved runway (a light hum), gravel and dirt (crunch and stones on the underbody),
+            grass and moss (soft swish), wet (spray hiss, heavier in rain), snow and slush, ice (quieter, thinner),
+            metal (drain gratings, plates, hangar door tracks: a clank), cattle grids and speed bumps outside. Each surface
+            is a physical material on the ground pieces, so new pieces (and the town and road) pick it up by themselves
+      - [ ] **Tyre drifting:** the squeal grows with each tyre's sideways slip and with wheel spin or locked brakes
+            (the slip the tyre model already works out); a rubbery howl on asphalt, a scrub on concrete, spraying gravel
+            off-road, almost nothing on ice; skid marks left on asphalt and concrete that fade slowly
+      - [ ] **Ground markings:** painted lines give a faint rougher sound and a tiny bump under the wheel (thick
+            thermoplastic on the runway and road edge lines more than thin paint); raised road studs and reflective
+            markers a thump each; rumble strips on the road's edge and before the town a loud buzz and a shake
+      - [ ] **Outside the airport too:** the road to the home town and the town's streets, car parks, petrol station and
+            driveways, with the same surfaces, markings and rules
+      - [ ] Sounds made by the game itself (like the engine and siren now) or our own recordings; anything third-party
+            only with a commercial-use licence, listed in THIRD-PARTY-NOTICES.md. Volume in the sound settings
+
 - [ ] **Vehicle gauges: fuel and cleanliness** (owner, 2026-11-12): while driving any vehicle, two small round gauges on
       the right side of the screen, the cleanliness gauge right under the fuel gauge. Each is a small circle with an
       icon in the middle (a petrol-pump icon; a cleanliness icon such as a sparkle / water drop) and a ring around it
