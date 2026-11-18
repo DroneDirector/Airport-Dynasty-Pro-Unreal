@@ -15,7 +15,8 @@ AT = unreal.AssetToolsHelpers.get_asset_tools()
 TM = '/Game/Terminal/Materials/'
 MAP = {'M_EscStainless': 'MI_T_escStainless', 'M_EscStepMetal': 'MI_T_jwAluB', 'M_EscYellow': 'MI_T_yellow',
        'M_EscFloorPlate': 'MI_T_escFloorPlate', 'M_EscGlass': 'MI_T_glass', 'M_EscHandrail': 'MI_T_jwRubber',
-       'M_EscTruss': 'MI_T_steel', 'M_EscLight': 'MI_T_J-1_LED'}
+       'M_EscTruss': 'MI_T_steel', 'M_EscLight': 'MI_T_J-1_LED',
+       'M_EscRed': 'MI_T_l_FF2020', 'M_EscGreen': 'MI_T_l_20FF40', 'M_EscDark': 'MI_T_black'}   # (the new escalator's details, 2026-11-18)
 def log(*a): unreal.log('ADP_ESC ' + ' '.join(str(x) for x in a))
 # (Git LFS leaves committed .uasset files read-only: Unreal then can't replace them and the import fails silently -
 #  the game kept an old copy of the new parts; the flag is cleared first)

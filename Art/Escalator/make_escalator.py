@@ -104,7 +104,9 @@ M = {k: mat(*v) for k, v in {
     'Glass': ('M_EscGlass', (0.85, 0.92, 0.95), 0.03, 0.0),
     'Handrail': ('M_EscHandrail', (0.02, 0.02, 0.02), 0.55, 0.0),
     'Truss': ('M_EscTruss', (0.25, 0.26, 0.27), 0.7, 0.3),
-    'Light': ('M_EscLight', (0.9, 0.95, 1.0), 0.3, 0.0)}.items()}
+    'Light': ('M_EscLight', (0.9, 0.95, 1.0), 0.3, 0.0),
+    'Red': ('M_EscRed', (0.85, 0.05, 0.04), 0.4, 0.0), 'Green': ('M_EscGreen', (0.1, 0.85, 0.3), 0.4, 0.0),
+    'Dark': ('M_EscDark', (0.03, 0.03, 0.035), 0.6, 0.0)}.items()}
 
 
 class Builder:
@@ -211,6 +213,13 @@ for sx in (-1, 1):
     # the inner decking up to the glass, the outer decking over the cladding
     bd.strip([(sx * SKIRT, u_, H(u_) + DECK * END(u_)) for u_ in us], [(sx * (GLX - 0.01), u_, H(u_) + GL0 * END(u_)) for u_ in us], 'Stainless')
     bd.strip([(sx * (GLX + 0.02), u_, H(u_) + GL0 * END(u_)) for u_ in us], [(sx * CLAD, u_, H(u_) + GL0 * END(u_)) for u_ in us], 'Stainless')
+    # (owner 2026-11-18, to-do 112: you could see through the 3 cm slot the glass stands in where the glass and the
+    #  housings end - the slot closed all along, flush with the decking either side; the glass stands on it)
+    bd.strip([(sx * (GLX - 0.01), u_, H(u_) + GL0 * END(u_)) for u_ in us], [(sx * (GLX + 0.02), u_, H(u_) + GL0 * END(u_)) for u_ in us], 'Stainless')
+    # and the sloped end pieces closed at the very ends and underneath down to the floor: no view in under the decking
+    for uu_ in (U0, U1):
+        hh = H(uu_)
+        bd.quad([(sx * SKIRT, uu_, hh - 0.32), (sx * CLAD, uu_, hh - 0.32), (sx * CLAD, uu_, hh + 0.001), (sx * SKIRT, uu_, hh + 0.001)], 'Stainless')
     # the outer cladding down to the truss's underside (on the slope you see it from the hall)
     bd.strip([(sx * CLAD, u_, H(u_) + GL0 * END(u_)) for u_ in us], [(sx * CLAD, u_, H(u_) - TRUSS) for u_ in us], 'Stainless')
     # an LED line under the decking's lip, along the skirt (as on the references)
@@ -236,66 +245,91 @@ for (ua, ub, uc, sgn, hh) in ((U0, -COMB, 0.0, 1, 0.0), (U_TOPCOMB + COMB, U1, U
         tip = ty1 if sgn > 0 else ty0; root = ty0 if sgn > 0 else ty1
         bd.quad([(gx0, root, hh + 0.006), (gx1, root, hh + 0.006), (gx1, tip, hh - 0.006), (gx0, tip, hh - 0.006)], 'StepYellow')
         x += RIB
-# the glass balustrades and the handrail (owner, 2026-11-18, his two photos and docs/Blueprints/Escalator-Newel-Now-vs-New.png
-# - "this is the escalator from now on"): at each end the handrail runs over the top, round a big newel and straight down
-# into an inlet housing standing on the floor (stainless, a black rubber mouth with brushes - where the moving handrail
-# goes back inside); the glass follows 6 cm inside the handrail all the way round its D-shaped end, down to the housing;
-# a stainless base under the glass where its lower edge rises towards the ends
-HR = 0.93                                  # handrail top above the step line
-NEW_R = 0.30 if SHORT else 0.45            # the newel's radius
-UHO = 0.10 if SHORT else 0.45              # the handrail's straight run past the comb before the newel
+# (the new escalator, owner 2026-11-18, approved concept docs/Blueprints/EscalatorNew): the floor plates screwed down -
+# countersunk screws along their edges; a red emergency stop and a key switch on the skirt beside each comb; green/red
+# direction lights in the skirt at each end
+def screw(x, y, z, r=0.007):
+    n = 10
+    for k in range(n):
+        a0, a1 = 2 * math.pi * k / n, 2 * math.pi * (k + 1) / n
+        bd.quad([(x, y, z + 0.0012), (x + r * math.cos(a0), y + r * math.sin(a0), z + 0.0008), (x + r * math.cos(a1), y + r * math.sin(a1), z + 0.0008), (x, y, z + 0.0012)], 'Dark')
+for (ua, ub, hh) in ((U0, -COMB, 0.0), (U_TOPCOMB + COMB, U1, RISE)):
+    for xx in (-SKIRT + 0.03, SKIRT - 0.03):
+        for t in range(4): screw(xx, ua + 0.05 + (ub - ua - 0.1) * t / 3, hh + 0.004)
+    for t in range(1, 5): screw(-SKIRT + 0.03 + (2 * SKIRT - 0.06) * t / 5, (ub - 0.03) if hh == 0.0 else (ua + 0.03), hh + 0.004)
+for (uc, hh, d) in ((-0.12, 0.0, 1), (U_TOPCOMB + 0.12, RISE, -1)):
+    # the emergency stop: a red mushroom on a yellow plate, on the left skirt; the key switch on the right
+    bd.box(-SKIRT + 0.001, -SKIRT + 0.004, uc - 0.05, uc + 0.05, hh + 0.13, hh + 0.24, 'StepYellow')
+    n = 16
+    for k in range(n):
+        a0, a1 = 2 * math.pi * k / n, 2 * math.pi * (k + 1) / n
+        bd.quad([(-SKIRT + 0.004, uc + 0.022 * math.cos(a0), hh + 0.185 + 0.022 * math.sin(a0)), (-SKIRT + 0.026, uc + 0.018 * math.cos(a0), hh + 0.185 + 0.018 * math.sin(a0)),
+                 (-SKIRT + 0.026, uc + 0.018 * math.cos(a1), hh + 0.185 + 0.018 * math.sin(a1)), (-SKIRT + 0.004, uc + 0.022 * math.cos(a1), hh + 0.185 + 0.022 * math.sin(a1))], 'Red')
+    bd.box(SKIRT - 0.004, SKIRT - 0.001, uc - 0.035, uc + 0.035, hh + 0.15, hh + 0.22, 'Stainless')
+    bd.box(SKIRT - 0.012, SKIRT - 0.004, uc - 0.012, uc + 0.012, hh + 0.173, hh + 0.197, 'Dark')
+    # the direction light low in the skirt: green where you may step on (the bottom), red where you may not (the top)
+    for sx in (-1, 1): bd.box(sx * SKIRT - sx * 0.002, sx * SKIRT - sx * 0.0005, uc + d * 0.10, uc + d * 0.16, hh + 0.04, hh + 0.07, 'Green' if hh == 0.0 else 'Red')
+# the glass balustrades and the handrail (the new escalator, owner 2026-11-18, approved concept): at each end the
+# black handrail runs along the top, round a smooth round newel (a full half circle), back underneath and into a black
+# rubber inlet on the decking - at the top exactly as at the bottom; the glass sits inside the handrail all the way,
+# its lower edge rising along the flat ends to just over the handrail's return; stainless below the return
+HR = 0.95                                  # handrail top above the step line
+NEW_R = 0.34                               # the newel's radius (its return at 0.27 m over the step line)
+UHO = 0.08 if SHORT else 0.40              # the handrail's straight run past the comb before the newel
 UH0, UH1 = -COMB - UHO, U_TOPCOMB + COMB + UHO     # where the handrail's straight run ends at each newel
-INSET, HOUSE_H = 0.06, 0.42                # the glass inside the handrail; the inlet housing's height over the floor
+INSET, RET = 0.06, 0.30                    # the glass inside the handrail; the return's run back to its inlet
 def HH(u_): return H(min(max(u_, -COMB), U_TOPCOMB + COMB)) + HR
+def ZR(ue): return HH(ue) - 2 * NEW_R      # the return's height
 hus = [x_ for x_ in us if UH0 <= x_ <= UH1]
 hus = [UH0] + hus + [UH1]
 hus = sorted(set([round(x_, 5) for x_ in hus] + [round(UH0 + i * 0.05, 5) for i in range(1, 11)] + [round(UH1 - i * 0.05, 5) for i in range(1, 11)]))
 ENDS = ((UH0, -1), (UH1, 1))
-def HTOP(ue): return H(ue) + HOUSE_H                 # the housing's top (the glass stands on it)
+GTOP = lambda ue: ZR(ue) + 0.05            # the glass's lower edge at the ends: just over the return
 RAMP_BOT, RAMP_TOP = (UH0, u0 + 0.1), (UH1, u3 - 0.1)
 def GLB(u_):
-    """the glass's lower edge: on the decking along the slope, rising smoothly along the flat ends to the housing's top"""
+    """the glass's lower edge: on the clamp along the slope, rising smoothly along the flat ends to just over the return"""
     low = H(u_) + GL0
     for ue, us_ in (RAMP_BOT, RAMP_TOP):
         span = abs(ue - us_)
         k = max(0.0, 1.0 - abs(ue - u_) / span) if (min(ue, us_) - 1e-6 <= u_ <= max(ue, us_) + 1e-6) else 0.0
-        if k > 0: low = low + (HTOP(ue) + 0.01 - (H(ue) + GL0)) * (k * k * (3 - 2 * k))
+        if k > 0: low = low + (GTOP(ue) - (H(ue) + GL0)) * (k * k * (3 - 2 * k))
     return low
 for sx in (-1, 1):
     gx = sx * GLX
     for gxx in (gx, gx + sx * 0.012):                                   # the glass (two faces, 12 mm apart)
         bd.strip([(gxx, u_, GLB(u_)) for u_ in hus], [(gxx, u_, HH(u_) - INSET) for u_ in hus], 'Glass')
-        for (ue, d) in ENDS:                                             # its D-shaped end inside the newel
-            cz = HH(ue) - NEW_R; ex = ue + d * NEW_R
-            outline = [(ue, HTOP(ue) + 0.01), (ue, HH(ue) - INSET)]
-            outline += [(ue + d * (NEW_R - INSET) * math.sin(a), cz + (NEW_R - INSET) * math.cos(a)) for a in [k * math.pi / 2 / 32 for k in range(1, 33)]]
-            outline += [(ex - d * INSET, HTOP(ue) + 0.01)]
+        for (ue, d) in ENDS:                                             # its round end inside the newel
+            cz = HH(ue) - NEW_R
+            outline = [(ue, GTOP(ue)), (ue, HH(ue) - INSET)]
+            outline += [(ue + d * (NEW_R - INSET) * math.sin(a), cz + (NEW_R - INSET) * math.cos(a)) for a in [k * math.pi / 48 for k in range(1, 48)]]
+            outline += [(ue + d * 0.02, GTOP(ue))]
             cu = sum(o[0] for o in outline) / len(outline); cz_ = sum(o[1] for o in outline) / len(outline)
             for k in range(len(outline)):
                 a_, b_ = outline[k], outline[(k + 1) % len(outline)]
                 bd.quad([(gxx, cu, cz_), (gxx, a_[0], a_[1]), (gxx, b_[0], b_[1]), (gxx, cu, cz_)], 'Glass')
-    # the stainless base under the glass where it has risen, both faces, from the decking up to the glass's edge
+    # the stainless base under the glass's risen edge and under the newel down to the decking, both faces
     for (ue, d), (lo_, hi_) in zip(ENDS, ((UH0, RAMP_BOT[1]), (RAMP_TOP[1], UH1))):
         base_us = [u_ for u_ in hus if lo_ - 1e-6 <= u_ <= hi_ + 1e-6]
-        ex = ue + d * NEW_R
-        far = [ue + d * t for t in (0.0, NEW_R - 0.16)]                 # on to the housing's inner side
+        far = [ue + d * t for t in [k * NEW_R / 8 for k in range(9)]]
         for gxx in (gx - sx * 0.004, gx + sx * 0.016):
             bd.strip([(gxx, u_, H(u_) + GL0 * END(u_)) for u_ in base_us], [(gxx, u_, GLB(u_) + 0.002) for u_ in base_us], 'Stainless')
-            bd.strip([(gxx, u_, H(ue)) for u_ in far], [(gxx, u_, HTOP(ue) + 0.012) for u_ in far], 'Stainless')
-    # the inlet housings: stainless boxes on the floor under each newel's end, a black rubber mouth on top with brushes
+            bd.strip([(gxx, u_, H(min(max(u_, -COMB), U_TOPCOMB + COMB)) + GL0 * END(u_)) for u_ in far], [(gxx, u_, ZR(ue) - 0.035) for u_ in far], 'Stainless')
+        # the newel's nose: a rounded stainless cap under the handrail's turn, from the decking up to the return
+    # the inlets: black rubber boxes on the decking where the handrail's return goes back in, a stainless lip round the mouth
     for (ue, d) in ENDS:
-        ex = ue + d * NEW_R; a0, a1 = sorted((ex - d * 0.16, ex + d * 0.13)); hz = H(ue)
-        bd.box(gx - 0.075, gx + 0.075, a0, a1, hz, HTOP(ue) - 0.02, 'Stainless')
-        bd.box(gx - 0.065, gx + 0.065, a0 + 0.01, a1 - 0.01, HTOP(ue) - 0.02, HTOP(ue), 'Stainless')          # its rounded-off lid
-        bd.box(gx - 0.05, gx + 0.05, ex - 0.045, ex + 0.045, HTOP(ue) - 0.004, HTOP(ue) + 0.008, 'Handrail')  # the rubber mouth
-        for o in (-0.03, 0.03): bd.box(gx - 0.046, gx + 0.046, ex + o - 0.004, ex + o + 0.004, HTOP(ue) + 0.008, HTOP(ue) + 0.02, 'Handrail')   # brush lips
-    # the handrail: a C-profile in black rubber - over the top, round each newel, straight down into its housing's mouth;
+        iu = ue - d * RET; hz = H(min(max(iu, -COMB), U_TOPCOMB + COMB)) + GL0
+        a0, a1 = sorted((iu - d * 0.02, iu - d * 0.20))
+        bd.box(gx - 0.065, gx + 0.065, a0, a1, hz, ZR(ue) + 0.06, 'Dark')
+        f0 = a1 if d > 0 else a0                                         # its mouth (facing the newel)
+        bd.box(gx - 0.07, gx + 0.07, f0 - 0.008, f0 + 0.008, ZR(ue) - 0.05, ZR(ue) + 0.065, 'Stainless')
+        for o in (-1, 1): bd.box(gx - 0.05, gx + 0.05, f0 - 0.004 + d * 0.004, f0 + 0.004 + d * 0.004, ZR(ue) + o * 0.035 - 0.004, ZR(ue) + o * 0.035 + 0.004, 'Handrail')   # rubber lips
+    # the handrail: a C-profile in black rubber - along the top, round each newel, back underneath into its inlet;
     # UVs along its length (the game runs it)
     def end_path(ue, d):
-        cz = HH(ue) - NEW_R; ex = ue + d * NEW_R
-        arc = [(ue + d * NEW_R * math.sin(a), cz + NEW_R * math.cos(a)) for a in [k * math.pi / 2 / 32 for k in range(33)]]
-        down = [(ex, cz - (cz - (HTOP(ue) - 0.03)) * t / 8) for t in range(1, 9)]
-        return arc + down
+        cz = HH(ue) - NEW_R
+        arc = [(ue + d * NEW_R * math.sin(a), cz + NEW_R * math.cos(a)) for a in [k * math.pi / 64 for k in range(65)]]
+        back = [(ue - d * RET * t / 8, ZR(ue)) for t in range(1, 9)]
+        return arc + back
     path = end_path(UH0, -1)[::-1] + [(u_, HH(u_)) for u_ in hus[1:-1]] + end_path(UH1, 1)
     # the handrail's section: a smooth rounded C (80 mm wide, 32 mm high), its lips curling in underneath
     prof = []
@@ -315,6 +349,13 @@ for sx in (-1, 1):
             bd.quad([rings[i][k], rings[i + 1][k], rings[i + 1][k + 1], rings[i][k + 1]], 'Handrail',
                     [(L, k / (len(prof) - 1)), (L + d, k / (len(prof) - 1)), (L + d, (k + 1) / (len(prof) - 1)), (L, (k + 1) / (len(prof) - 1))])
         L += d
+    # the skirt brushes: black bristle strips along both skirts a hand over the steps (keep feet off the skirt)
+    bd.strip([(sx * (SKIRT - 0.002), u_, H(u_) + 0.035) for u_ in us if -0.2 <= u_ <= U_TOPCOMB + 0.2], [(sx * (SKIRT - 0.035), u_, H(u_) + 0.04) for u_ in us if -0.2 <= u_ <= U_TOPCOMB + 0.2], 'Dark')
+    # anti-slide studs on the outer decking (on the centre deck between a pair they stand side by side), every 1.6 m
+    for uu in [1.6 + k * 1.6 for k in range(int((U_TOPCOMB - 2.0) / 1.6))]:
+        zz = H(uu) + GL0 * END(uu); xx = sx * (GLX + 0.02 + (CLAD - GLX - 0.02) / 2)
+        tanp = math.atan2(H(uu + 0.05) - H(uu - 0.05), 0.1)
+        bd.box(xx - 0.06, xx + 0.06, uu - 0.012, uu + 0.012, zz, zz + 0.025, 'Stainless')
 body = bd.finish(smooth=('Handrail',))
 
 # ---------- the walking surface ----------

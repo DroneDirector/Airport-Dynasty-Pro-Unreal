@@ -181,6 +181,18 @@ lamps('F2', 'F2-OFFICES', [118, 124, 130, 136, 146, 151], [4, 10, 16, 22, 28, 34
 lamps('F1', 'F1-CLAIM', [-66, -58, -50, -42, -34, -26, -18, -10, -2], [19, 25, 31, 37, 43, 49], 5.22)
 lamps('F1', 'F1-ARRIVALS', [-76, -68, -60, -52, -44, -36, -28, -20, -12, -4], [-1, 5, 11], 5.22)
 lamps('F1', 'F1-CLAIM-VOID', [-77, -72], [38, 44, 50], 11.28)
+# the crown lights over the escalators (owner 2026-11-18: hanging on cables, a big crown; Art/TerminalAnnex/make_crown_light.py):
+# the crown itself only glows (its material - no light of its own, no flare); its light is ONE terminal lamp under its hub
+# (a LAMP node: the usual panel light with its distance limit), its glowing diffuser the crown's underside (performance
+# lessons, 2026-11-17: every extra light and sprite costs - so one light per crown, nothing more)
+for _nm, _asset, (_x, _y, _z) in (('F1-CROWN-HALL', 'crown_light_hall', (29.5, 8.6, 14.2)), ('F1-CROWN-CLAIM', 'crown_light_claim', (-76.0, 8.0, 43.5))):
+    N.append({'name': _nm, 'asset': _asset, 'mesh': 90000 + len(N), 'translation': [-_x, _y, _z]})
+    N[byname['F1']]['children'].append(len(N) - 1)
+    for _k, _dx in enumerate((-0.16, 0.16)):          # (two halves of one disc: the lamp system lights every other lamp)
+        N.append({'name': '%s/LAMP-%03d' % (_nm, _k + 1), 'translation': [-(_x + _dx), _y + 0.03, _z], 'children': [len(N) + 1]})
+        N.append({'name': 'box#lamp', 'scale': [0.32, 0.04, 0.64], 'mesh': 186})
+        N[byname['F1']]['children'].append(len(N) - 2)
+    log.append('new: %s (crown light over the escalators)' % _nm)
 # the 16 gates (owner, 2026-11-17): Tools/terminal_16gates.py
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_16gates.py'), encoding='utf-8').read())
 json.dump(L, open(OUT, 'w'))
