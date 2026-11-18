@@ -114,9 +114,19 @@ class Builder:
     def mi(self, key):
         if key not in self.mats: self.mats.append(key)
         return self.mats.index(key)
+    proj = False                     # (the body: every face mapped at real size by the way it faces - owner 2026-11-18, to-do 110)
     def quad(self, vs, key, uvs=None):
         vv = [self.bm.verts.new(v) for v in vs]
         f = self.bm.faces.new(vv); f.material_index = self.mi(key)
+        if not uvs and self.proj:
+            # real size and seamless: 50 cm of surface = one tile, projected along the axis the face looks along, so faces
+            # side by side continue the same picture; the brushing runs along the escalator (Y) wherever it can
+            f.normal_update(); n = f.normal; ax = max(range(3), key=lambda k: abs(n[k]))
+            for l in f.loops:
+                c = l.vert.co
+                T = 2.0                      # (50 cm per tile: a fine brushing, sharp up close)
+                l[self.uv].uv = (c.y * T, c.x * T) if ax == 2 else ((c.y * T, c.z * T) if ax == 0 else (c.x * T, c.z * T))
+            return f
         for i, l in enumerate(f.loops):
             l[self.uv].uv = uvs[i] if uvs else (l.vert.co.x + l.vert.co.z, l.vert.co.y + l.vert.co.z)
         return f
@@ -184,6 +194,7 @@ step = st.finish()
 
 # ---------- the body ----------
 bd = Builder('SM_EscBody')
+bd.proj = True
 U0, U1 = -PLATE - COMB, U_TOPCOMB + COMB + PLATE         # the whole length, floor plate to floor plate
 us = []
 v = U0

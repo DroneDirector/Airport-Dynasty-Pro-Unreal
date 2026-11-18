@@ -13,8 +13,8 @@ DEST = '/Game/Escalator'
 EAL = unreal.EditorAssetLibrary
 AT = unreal.AssetToolsHelpers.get_asset_tools()
 TM = '/Game/Terminal/Materials/'
-MAP = {'M_EscStainless': 'MI_T_liftBrushed', 'M_EscStepMetal': 'MI_T_jwAluB', 'M_EscYellow': 'MI_T_yellow',
-       'M_EscFloorPlate': 'MI_T_steel', 'M_EscGlass': 'MI_T_glass', 'M_EscHandrail': 'MI_T_jwRubber',
+MAP = {'M_EscStainless': 'MI_T_escStainless', 'M_EscStepMetal': 'MI_T_jwAluB', 'M_EscYellow': 'MI_T_yellow',
+       'M_EscFloorPlate': 'MI_T_escFloorPlate', 'M_EscGlass': 'MI_T_glass', 'M_EscHandrail': 'MI_T_jwRubber',
        'M_EscTruss': 'MI_T_steel', 'M_EscLight': 'MI_T_J-1_LED'}
 def log(*a): unreal.log('ADP_ESC ' + ' '.join(str(x) for x in a))
 # (Git LFS leaves committed .uasset files read-only: Unreal then can't replace them and the import fails silently -
