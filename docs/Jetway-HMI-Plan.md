@@ -132,3 +132,30 @@ Total about 19-23 working hours (about 3 days).
 - **A flat monitor**: the console stays as it is, but its hooded screen becomes a **flat industrial touch monitor** on
   the console (as on real jetway consoles: a panel PC set into / on the sloped console top, bezel, mounting), the
   console's geometry adjusted to take it - modelled from real photos.
+
+## The gate agent's procedure (owner, 2026-11-18) - the jetway never docks on its own
+- The jetway is switched on and operated only by the **gate agent** (or you). It **never docks by itself**.
+- The gate agent is a real person in the world: about **20 minutes before** the aircraft reaches the gate they **walk**
+  from wherever they are in the terminal (never appearing out of nowhere) through the gate and down the jetway to the
+  console, and wait there.
+- **T-10 minutes - preparation on the HMI** (no later than 10 minutes before arrival, or the jetway can't dock):
+  1. select the arriving aircraft (flight) and its assigned stand;
+  2. select the aircraft type and the passenger door;
+  3. retrieve the memorised positioning profile (if there is one);
+  4. check the mechanical and electrical status;
+  5. check the CCTV - the apron round the bogie clear;
+  6. confirm the safety systems are working;
+  7. put the jetway in STANDBY / PRE-POSITIONED.
+- **Operating sequence**:
+  1. T-10: prepare, profile, system checks (above);
+  2. aircraft approaching / arriving: confirm it is **parked, engines off, anti-collision beacon off**, stand safe -
+     docking can never start before that;
+  3. automatic (stored profile) or manual (joystick) docking;
+  4. final approach: CCTV, aircraft proximity, bumper sensors, docking information first;
+  5. docked: aircraft contact confirmed, levelling, canopy out, final safety indications.
+- If nobody prepared the jetway by T-10, the aircraft waits at the stand (a delay) until the agent (or you) has done
+  the checks.
+- **Everything connected for later**: the jetway's state (OFF -> PREPARED -> STANDBY -> DOCKING -> DOCKED ->
+  UNDOCKING -> PARKED) is one shared state per gate that the rest of the game reads - deboarding starts only when
+  DOCKED and the canopy is out; boarding only while docked; the pushback only after UNDOCKED and clear; the gate
+  agent's tasks, the flight schedule (arrival time, aircraft type, door) and the HMI all use the same state.
