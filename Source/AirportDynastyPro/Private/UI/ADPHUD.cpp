@@ -938,17 +938,18 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 					.ButtonColorAndOpacity(FLinearColor(0.05f, 0.2f, 0.36f, 0.9f))
 					.ContentPadding(FMargin(10, 4))
 					.OnClicked_Lambda([this]() { SetFrameGen(!bFrameGen); return FReply::Handled(); })
-					[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([this]() { return FText::FromString(bFrameGen ? TEXT("FRAME GENERATION (AMD FSR): ON") : TEXT("FRAME GENERATION (AMD FSR): OFF")); })]
+					[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([this]() { return FText::FromString(!bFrameGen ? TEXT("FRAME GENERATION (AMD FSR): OFF") : ADPFrameGen::Installed() ? TEXT("FRAME GENERATION (AMD FSR): ON AT NEXT START") : TEXT("FRAME GENERATION (AMD FSR): ON")); })]
 				]
 				+ SWrapBox::Slot()
 				[
-					// the game's own frame generation (made for NVIDIA cards first): takes effect at the next start
+					// the game's own frame generation (made for NVIDIA cards first): on and off live (to-do 111) - at the next start
+					// only after a start with AMD's chosen
 					SNew(SButton)
 					.ButtonColorAndOpacity_Lambda([]() { bool b = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("OwnFrameGen"), b, GGameUserSettingsIni); return b ? FLinearColor(0.1f, 0.45f, 0.75f, 1.f) : FLinearColor(0.05f, 0.2f, 0.36f, 0.9f); })
 					.ContentPadding(FMargin(10, 4))
-					.OnClicked_Lambda([this]() { bool b = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("OwnFrameGen"), b, GGameUserSettingsIni); b = !b; GConfig->SetBool(TEXT("ADP.Graphics"), TEXT("OwnFrameGen"), b, GGameUserSettingsIni); if (b && bFrameGen) SetFrameGen(false); GConfig->Flush(false, GGameUserSettingsIni); return FReply::Handled(); })
+					.OnClicked_Lambda([this]() { bool b = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("OwnFrameGen"), b, GGameUserSettingsIni); SetOwnFrameGen(!b); return FReply::Handled(); })
 					[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { bool b = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("OwnFrameGen"), b, GGameUserSettingsIni);
-						return FText::FromString(b == ADPFrameGen::Enabled() ? (b ? TEXT("OUR FRAME GENERATION: ON") : TEXT("OUR FRAME GENERATION: OFF")) : (b ? TEXT("OUR FRAME GENERATION: ON AT NEXT START") : TEXT("OUR FRAME GENERATION: OFF AT NEXT START"))); })]
+						return FText::FromString(ADPFrameGen::Installed() ? (ADPFrameGen::Enabled() ? TEXT("OUR FRAME GENERATION: ON") : TEXT("OUR FRAME GENERATION: OFF")) : (b ? TEXT("OUR FRAME GENERATION: ON AT NEXT START") : TEXT("OUR FRAME GENERATION: OFF"))); })]
 				]
 				+ SWrapBox::Slot()
 				[
@@ -1590,10 +1591,22 @@ void AADPHUD::SetBlur(int32 Level)
 
 void AADPHUD::SetFrameGen(bool bOn)
 {
-	if (ADPFrameGen::Enabled()) bOn = false;   // our own frame generation runs: AMD's stays off (one at a time)
+	// (to-do 111, owner 2026-11-18: on and off live) one frame generation at a time. Choosing AMD's switches ours off at
+	// once; AMD's itself runs live only when its display chain was put in at this start (ours not in place) - otherwise
+	// it is kept for the next start.
 	bFrameGen = bOn;
-	if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("r.FidelityFX.FI.Enabled"))) V->Set(bOn ? 1 : 0, ECVF_SetByGameSetting);
+	if (bOn && ADPFrameGen::Enabled()) { ADPFrameGen::SetActive(false); GConfig->SetBool(TEXT("ADP.Graphics"), TEXT("OwnFrameGen"), false, GGameUserSettingsIni); }
+	if (!ADPFrameGen::Installed())
+		if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("r.FidelityFX.FI.Enabled"))) V->Set(bOn ? 1 : 0, ECVF_SetByGameSetting);
 	GConfig->SetBool(TEXT("ADP.Graphics"), TEXT("FrameGeneration"), bOn, GGameUserSettingsIni);
+	GConfig->Flush(false, GGameUserSettingsIni);
+}
+
+void AADPHUD::SetOwnFrameGen(bool bOn)
+{
+	GConfig->SetBool(TEXT("ADP.Graphics"), TEXT("OwnFrameGen"), bOn, GGameUserSettingsIni);
+	if (bOn && bFrameGen) SetFrameGen(false);                // (one at a time: AMD's off)
+	if (ADPFrameGen::Installed()) ADPFrameGen::SetActive(bOn);   // live, no restart (to-do 111)
 	GConfig->Flush(false, GGameUserSettingsIni);
 }
 
@@ -3619,6 +3632,22 @@ void AADPHUD::Tick(float Dt)
 				if (Before < 42.f + V.Num() * 4.f && ShotClock >= 42.f + V.Num() * 4.f) ADP_SHOT_EXIT();
 			}
 		}
+		// -UIFGToggle (to-do 111): our frame generation switched on, off and on again while the game runs - each time the log
+		// says whether it is making in-between pictures; the settings put back as they were at the end
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIFGToggle")))
+		{
+			static bool bWas = false;
+			auto Say = [this](const TCHAR* W) { ADP_LOG(TEXT("UIFGToggle %s: in place %d, on %d, pictures per frame %d, %.0f fps drawn"), W, ADPFrameGen::Installed() ? 1 : 0, ADPFrameGen::Enabled() ? 1 : 0, ADPFrameGen::Multiplier(), FpsSmooth); };
+			if (Before < 40.f && ShotClock >= 40.f) { GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("OwnFrameGen"), bWas, GGameUserSettingsIni); if (bGame) ToggleGame(); OpenSite(); }
+			if (Before < 50.f && ShotClock >= 50.f) Say(TEXT("at the start"));
+			if (Before < 51.f && ShotClock >= 51.f) SetOwnFrameGen(true);
+			if (Before < 58.f && ShotClock >= 58.f) Say(TEXT("switched on"));
+			if (Before < 59.f && ShotClock >= 59.f) SetOwnFrameGen(false);
+			if (Before < 66.f && ShotClock >= 66.f) Say(TEXT("switched off"));
+			if (Before < 67.f && ShotClock >= 67.f) SetOwnFrameGen(true);
+			if (Before < 74.f && ShotClock >= 74.f) Say(TEXT("on again"));
+			if (Before < 75.f && ShotClock >= 75.f) { SetOwnFrameGen(bWas); ADP_SHOT_EXIT(); }
+		}
 		// -UIProbe=x,y,z: what stands there (plan metres): every component within 60 cm, its actor and mesh, to the log
 		{
 			FString Pr;
@@ -4889,7 +4918,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIPetStep")) && !FParse::Param(FCommandLine::Get(), TEXT("UIUpdateSim")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBootShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIContinueShots")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UIPlanView=")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayTest")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayBeacons")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayViews")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGateJetways")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayVideo")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIConduct")) && !FParse::Param(FCommandLine::Get(), TEXT("UITalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHaze")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDockTypes")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDecals")) && !FParse::Param(FCommandLine::Get(), TEXT("UITwyLights")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGroundQ")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWeatherGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFlares")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAdverts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfStand")) && !FParse::Param(FCommandLine::Get(), TEXT("UISettingsShot")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanelUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoad")) && !FParse::Param(FCommandLine::Get(), TEXT("UIKiosk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) ADP_SHOT_EXIT();
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIPetStep")) && !FParse::Param(FCommandLine::Get(), TEXT("UIUpdateSim")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBootShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIContinueShots")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UIPlanView=")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayTest")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayBeacons")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayViews")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGateJetways")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayVideo")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFGToggle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIConduct")) && !FParse::Param(FCommandLine::Get(), TEXT("UITalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHaze")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDockTypes")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDecals")) && !FParse::Param(FCommandLine::Get(), TEXT("UITwyLights")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGroundQ")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWeatherGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFlares")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAdverts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfStand")) && !FParse::Param(FCommandLine::Get(), TEXT("UISettingsShot")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanelUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoad")) && !FParse::Param(FCommandLine::Get(), TEXT("UIKiosk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) ADP_SHOT_EXIT();
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are

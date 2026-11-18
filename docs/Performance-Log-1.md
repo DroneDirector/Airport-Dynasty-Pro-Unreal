@@ -45,3 +45,10 @@ Every performance change to the game, newest last. Only performance work goes in
   packaged build with Tools/stall_names.sh); time guards (ADP_PERF_SCOPE) on every frame-by-frame scan, writing
   "SLOW WORK" with the name when one takes longer than its budget; the release stops on a new scan without a guard
   (Tools/find_world_scans.py, Data/world-scans-checked.json).
+
+## 2026-11-18 - our frame generation always in place, switched live (to-do 111)
+- Change: our frame generation's display chain is put in at every start (unless AMD's frame generation was chosen at
+  that start) and switched on/off live from Settings; while off, each frame goes straight through as drawn.
+- Measured (editor -game, 1600x900, airport mode, same scene, Tools: -UIFGToggle): without our chain (-NoOwnFrameGen)
+  65 fps drawn; with it in place and switched off 65 fps drawn. Switched on: 2 pictures per drawn frame (64 fps drawn).
+- Result: no measurable cost while off. Not a visual change.

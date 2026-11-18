@@ -250,6 +250,8 @@ private:
 	int32 NearJetway(float MaxCm) const;
 	/** AMD's frame generation (FSR, any graphics card) on or off; kept in the settings file, off unless chosen. */
 	void SetFrameGen(bool bOn);
+	/** Our own frame generation on or off - live while it's in place (ADPFrameGen::Installed), else at the next start. */
+	void SetOwnFrameGen(bool bOn);
 	TSharedPtr<class SDragBox> FpsBox;
 	#pragma endregion
 

@@ -26,9 +26,12 @@ DEFINE_LOG_CATEGORY_STATIC(LogADPFrameGen, Log, All);
 
 namespace ADPFrameGen
 {
-	static bool GEnabled = false;
+	static bool GEnabled = false;                    // in place on the display chain (from the start)
+	static TAtomic<bool> GActive(false);             // switched on (live, from Settings)
 	static TAtomic<int32> GMultiplier(1);
-	bool Enabled() { return GEnabled; }
+	bool Installed() { return GEnabled; }
+	bool Enabled() { return GEnabled && GActive.Load(); }
+	void SetActive(bool b) { GActive = b; UE_LOG(LogTemp, Log, TEXT("ADPFrameGen: switched %s"), b ? TEXT("on") : TEXT("off")); }
 	int32 Multiplier() { return GMultiplier.Load(); }
 	void SetEnabled(bool b) { GEnabled = b; }
 	// the menus are up: no in-between pictures (scrolling text, rows that look alike and the menus' own fades fool the
@@ -240,7 +243,7 @@ namespace ADPFrameGen
 			Pass(PLuma4, Conv[P], D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, nullptr, L4[P], W4, H4, W, H);
 			Pass(PDown2, L4[P], D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, nullptr, L8[P], W8, H8, W4, H4);
 			Pass(PDown2, L8[P], D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, nullptr, L16[P], W16, H16, W8, H8);
-			const bool bGen = bHavePrev && Interval < 1.0 / 20 && !GHold.Load();
+			const bool bGen = bHavePrev && Interval < 1.0 / 20 && !GHold.Load() && GActive.Load();   // (switched off: each frame straight through)
 			if (bGen)
 			{
 				Pass(PFlow, L16[P], D3D12_RESOURCE_STATE_UNORDERED_ACCESS, L16[O], nullptr, F16, W16, H16, W16, H16, 6, 0.02f, 0);
@@ -314,7 +317,7 @@ namespace ADPFrameGen
 			IdleEvent = CreateEventW(nullptr, 0, 1, nullptr);
 			Thread = CreateThread(nullptr, 0, &FChain::ThreadMain, this, 0, nullptr);
 			SetThreadPriority(Thread, THREAD_PRIORITY_HIGHEST);
-			UE_LOG(LogADPFrameGen, Log, TEXT("Frame generation on: %ux%u"), W, H);
+			UE_LOG(LogADPFrameGen, Log, TEXT("Frame generation in place: %ux%u"), W, H);
 			return true;
 		}
 
