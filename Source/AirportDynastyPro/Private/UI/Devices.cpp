@@ -219,11 +219,11 @@ void AADPHUD::TickDevice(float Dt)
 	// (the phone held in your hand with its screen live on it is still being tuned - the hand's pose: only with -PhoneHand
 	// for now; without it the phone comes up and opens over the room as before - owner, 2026-11-19: release first)
 	static const bool bHandOn = FParse::Param(FCommandLine::Get(), TEXT("PhoneHand"));
-	const float K = PhoneK, Reach = FMath::SmoothStep(0.f, 1.f, FMath::Min(1.f, K / 0.35f)), Lift = FMath::SmoothStep(0.f, 1.f, FMath::Max(0.f, (K - 0.35f) / 0.65f));
+	const float K = PhoneK, HandReach = FMath::SmoothStep(0.f, 1.f, FMath::Min(1.f, K / 0.35f)), Lift = FMath::SmoothStep(0.f, 1.f, FMath::Max(0.f, (K - 0.35f) / 0.65f));
 	FTransform Now; Now.Blend(PhoneHome, Held, Lift);
 	Now.AddToTranslation(U * (6.f * FMath::Sin(PI * Lift)));
 	P->SetActorTransform(Now);
-	if (bHandOn) PhoneHand(P, Reach);
+	if (bHandOn) PhoneHand(P, HandReach);
 	if (!bHandOn && PhoneDir > 0 && PhoneK >= 1.f) { PhoneDir = 0; P->SetActorHiddenInGame(true); OpenDevice(TEXT("phone")); return; }
 	if (PhoneDir > 0 && PhoneK >= 1.f) { PhoneDir = 0; bPhoneHeld = true; bPhoneLook = false; PhU = 0.5f; PhV = 0.5f; PhPtrSent.Empty(); FMemory::Memzero(PhQuad); OpenDevice(TEXT("phone")); if (FParse::Param(FCommandLine::Get(), TEXT("UIDevice"))) DevicePending.Empty(); }   // (the test run: no career, so no page - the hand and the 3D phone alone)
 	else if (PhoneDir < 0 && PhoneK <= 0.f)
@@ -276,13 +276,13 @@ void AADPHUD::TickDevice(float Dt)
 	PhThumb = FMath::Max(0.f, PhThumb - Dt / 0.18f);
 }
 
-void AADPHUD::PhoneHand(ABabylonModel* P, float Reach)
+void AADPHUD::PhoneHand(ABabylonModel* P, float HandReach)
 {
 	// your right arm and hand on the phone (his photo): the wrist under its lower right corner and behind it, the fingers
 	// across its back towards its upper left, the thumb's tip on the side button (pressed: a few mm in)
 	AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn());
 	if (!Wk) return;
-	if (!P || Reach <= 0.001f) { Wk->SetArm(0.f, FVector::ZeroVector, FVector::ForwardVector, FVector::UpVector); Wk->SetGrip(false); return; }
+	if (!P || HandReach <= 0.001f) { Wk->SetArm(0.f, FVector::ZeroVector, FVector::ForwardVector, FVector::UpVector); Wk->SetGrip(false); return; }
 	const FTransform PT = P->GetActorTransform();
 	// (on the desk the hand comes from above it; in your hand from behind it)
 	// (the actor's +z is the phone's back - checked on the test picture: -z put the hand in front of the screen)
@@ -297,8 +297,8 @@ void AADPHUD::PhoneHand(ABabylonModel* P, float Reach)
 	const int32 Ki = P->NodeIndex(TEXT("Key1"));
 	if (Ki != INDEX_NONE) { const TPair<UInstancedStaticMeshComponent*, int32> In = P->NodeInstance(Ki); FTransform KT; if (In.Key && In.Key->GetInstanceTransform(In.Value, KT, true)) Key = KT.GetLocation(); }
 	const FVector Out = PT.TransformVectorNoScale(FVector(1.f, 0.f, 0.f)).GetSafeNormal();
-	Wk->SetArm(Reach, Wrist, Fingers, Thumb);
-	{ static double SaidAt = 0.0; const double Tn = FPlatformTime::Seconds(); if (Tn - SaidAt > 0.5) { SaidAt = Tn; ADP_LOG(TEXT("Phone: hand reach %.2f, wrist %.0f cm from your eyes"), Reach, FVector::Dist(Wrist, Wk->GetPawnViewLocation())); } }
+	Wk->SetArm(HandReach, Wrist, Fingers, Thumb);
+	{ static double SaidAt = 0.0; const double Tn = FPlatformTime::Seconds(); if (Tn - SaidAt > 0.5) { SaidAt = Tn; ADP_LOG(TEXT("Phone: hand reach %.2f, wrist %.0f cm from your eyes"), HandReach, FVector::Dist(Wrist, Wk->GetPawnViewLocation())); } }
 	Wk->SetGrip(PhoneK > 0.3f, Key + Out * (0.5f - 0.35f * PhThumb));
 }
 

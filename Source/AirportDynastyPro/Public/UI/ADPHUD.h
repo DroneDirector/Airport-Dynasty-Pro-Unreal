@@ -154,7 +154,7 @@ private:
 	float PhU = 0.5f, PhV = 0.5f, PhThumb = 0.f;
 	float PhQuad[8] = {};
 	FString PhPtrSent;
-	void PhoneHand(class ABabylonModel* P, float Reach);
+	void PhoneHand(class ABabylonModel* P, float HandReach);
 public:
 	/** The phone's side button (+1 down the list, -1 up): the thumb presses it, a click, the highlight steps. */
 	void PhoneSide(int32 Dir);
