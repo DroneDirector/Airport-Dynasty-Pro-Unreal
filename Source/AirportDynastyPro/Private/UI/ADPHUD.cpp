@@ -5687,5 +5687,10 @@ void AADPHUD::TestCoaches(float Before, float ShotClock)
 	if (Before < 111.f && ShotClock >= 111.f) PC->ConsoleCommand(TEXT("HighResShot 3840x2160 filename=Coaches-4-wheel-a"), true);
 	if (Before < 114.f && ShotClock >= 114.f) Look(St[0].GetLocation() - F * 370.f - Rt * 480.f + FVector(0, 0, 90.f), St[0].GetLocation() - F * 370.f - Rt * 110.f + FVector(0, 0, 50.f));
 	if (Before < 119.f && ShotClock >= 119.f) PC->ConsoleCommand(TEXT("HighResShot 3840x2160 filename=Coaches-5-wheel-b"), true);
-	if (Before < 125.f && ShotClock >= 125.f) ADP_SHOT_EXIT();
+	// (the aspens on the grass island, 13.75 m out from the stands: along the island at eye height, and from above)
+	if (Before < 124.f && ShotClock >= 124.f) Look(Mid - Rt * 1375.f - F * 3200.f + FVector(0, 0, 230.f), Mid - Rt * 1375.f + F * 1800.f + FVector(0, 0, 300.f));
+	if (Before < 129.f && ShotClock >= 129.f) PC->ConsoleCommand(TEXT("HighResShot 3840x2160 filename=Trees-1-along-the-island"), true);
+	if (Before < 132.f && ShotClock >= 132.f) Look(Mid - Rt * 3200.f + FVector(0, 0, 1900.f), Mid - Rt * 1375.f + FVector(0, 0, 200.f));
+	if (Before < 137.f && ShotClock >= 137.f) PC->ConsoleCommand(TEXT("HighResShot 3840x2160 filename=Trees-2-from-above"), true);
+	if (Before < 143.f && ShotClock >= 143.f) ADP_SHOT_EXIT();
 }

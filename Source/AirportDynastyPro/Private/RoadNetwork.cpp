@@ -17,6 +17,8 @@
 #include "RoadSigns.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "BabylonModel.h"
 #include "Engine/StaticMesh.h"
 #include "ProceduralMeshComponent.h"
@@ -674,6 +676,65 @@ bool ARoadNetwork::BuildSome(double Budget)
 					}
 				}
 			}
+		// ---- trees on its grass island (owner, 2026-11-19: "very nice looking Unreal trees with Nanite" along the grass in the
+		// middle of the forecourt; only on grass; on the island's centre line, following it): Epic's Procedural Vegetation sample
+		// European aspens (four shapes), three between each two of the island's street lamps (7.6 m apart and from the lamps),
+		// none within 4 m of a zebra crossing's walkway over the island, only where the island is 2.5 m wide or more
+		if (!GBaking)
+		{
+			const TArray<TSharedPtr<FJsonValue>>& RL = Lanes->GetArrayField(TEXT("right"));
+			int32 Isl = INDEX_NONE;
+			for (int32 i = 0; i < RL.Num(); ++i) if (RL[i]->AsObject()->GetStringField(TEXT("type")) == TEXT("Island")) { Isl = i; break; }
+			const TArray<TSharedPtr<FJsonValue>>* LJ = nullptr;
+			if (Isl != INDEX_NONE && R->TryGetArrayField(TEXT("lights"), LJ))
+			{
+				TArray<USkeletalMesh*> Kinds;
+				for (int32 k = 1; k <= 4; ++k)
+					if (USkeletalMesh* SKm = LoadObject<USkeletalMesh>(nullptr, *FString::Printf(TEXT("/ProceduralVegetationEditor/SampleAssets/Tree_European_QuakingAspen_01/SK_European_QuakingAspen_0%d.SK_European_QuakingAspen_0%d"), k, k))) Kinds.Add(SKm);
+				// the walkways over the island: [at - w/2, at + w/2] where the crossing spans the island's middle
+				TArray<FVector2D> Walk;
+				const TArray<TSharedPtr<FJsonValue>>* CJ = nullptr;
+				if (R->TryGetArrayField(TEXT("crossings"), CJ))
+					for (const TSharedPtr<FJsonValue>& CV : *CJ)
+					{
+						const TSharedPtr<FJsonObject> C = CV->AsObject(); double At = 0, Wc = 3, O0 = 0, O1 = 0;
+						C->TryGetNumberField(TEXT("at"), At); C->TryGetNumberField(TEXT("w"), Wc); C->TryGetNumberField(TEXT("o0"), O0); C->TryGetNumberField(TEXT("o1"), O1);
+						const double IIn = Edge(true, Isl, At), IOut = Edge(true, Isl + 1, At);   // (its stripes stop at the island's kerbs: a walkway over it when they reach either edge)
+						if (FMath::Min(O0, O1) <= IOut + 0.5 && FMath::Max(O0, O1) >= IIn - 0.5) Walk.Add(FVector2D(At - Wc / 2, At + Wc / 2));
+					}
+				int32 Planted = 0;
+				FRandomStream Rng(7349);
+				for (const TSharedPtr<FJsonValue>& LV : *LJ)
+				{
+					const TSharedPtr<FJsonObject> Lo = LV->AsObject(); double Ed = -1, LSp = 30.5, F0 = 0, F1 = RoadLen;
+					Lo->TryGetNumberField(TEXT("edge"), Ed); Lo->TryGetNumberField(TEXT("spacing"), LSp); Lo->TryGetNumberField(TEXT("from"), F0); Lo->TryGetNumberField(TEXT("to"), F1);
+					FString Sd = TEXT("right"); Lo->TryGetStringField(TEXT("side"), Sd);
+					if (Sd != TEXT("right") || int32(Ed) != Isl || Kinds.Num() == 0) continue;
+					for (double L0 = FMath::Min(F0, F1); L0 + LSp <= FMath::Max(F0, F1) + 1e-3; L0 += LSp)
+						for (int32 t = 1; t <= 3; ++t)
+						{
+							const double D = L0 + LSp * t / 4.0;
+							const double In = Edge(true, Isl, D), Out = Edge(true, Isl + 1, D);
+							if (Out - In < 2.5) continue;
+							bool bNear = false;
+							for (const FVector2D& Wk : Walk) bNear |= D > Wk.X - 4.0 && D < Wk.Y + 4.0;
+							if (bNear) continue;
+							FVector Pt, Ft, Rt; OnRoad(D, Pt, Ft, Rt);
+							const FVector At = Surface(Pt + Rt * ((In + Out) / 2 * 100.0));
+							USkeletalMeshComponent* T = NewObject<USkeletalMeshComponent>(this);
+							T->SetupAttachment(RootComponent);
+							T->SetSkeletalMesh(Kinds[Planted % Kinds.Num()]);
+							T->SetWorldLocationAndRotation(At - FVector(0, 0, 3.0), FRotator(0.0, Rng.FRandRange(0.0, 360.0), 0.0));
+							T->SetWorldScale3D(FVector(Rng.FRandRange(0.88f, 1.08f)));
+							T->SetCollisionProfileName(TEXT("BlockAll"));
+							T->bEnableUpdateRateOptimizations = true;
+							T->RegisterComponent(); AddInstanceComponent(T);
+							++Planted;
+						}
+				}
+				if (Planted) ADP_LOG(TEXT("Roads: %d aspens on the grass island (%d walkways kept clear)"), Planted, Walk.Num());
+			}
+		}
 		// ---- its zebra crossings ("crossings": [{at, w (3), o0, o1: from - to across it, m, + to the right}]): white bars
 		// 0.5 m wide with 0.5 m gaps, each running along the road (default: kerb to kerb across the carriageway) ----
 		const TArray<TSharedPtr<FJsonValue>>* CJ = nullptr;

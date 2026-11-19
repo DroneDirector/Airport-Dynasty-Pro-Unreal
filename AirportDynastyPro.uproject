@@ -122,6 +122,10 @@
 		{
 			"Name": "BinkMedia",
 			"Enabled": true
+		},
+		{
+			"Name": "ProceduralVegetationEditor",
+			"Enabled": true
 		}
 	]
 }
