@@ -53,3 +53,4 @@
 *.ply filter=lfs diff=lfs merge=lfs -text
 # documents are binary: never line-ending conversion
 *.pdf binary
+Content/Movies/*.bk2 filter=lfs diff=lfs merge=lfs -text

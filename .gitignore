@@ -89,3 +89,5 @@ Art/Ground/_references/
 
 # the title films: made by Tools/make_title_bink.sh (1.2 GB, too big for LFS storage) - rebuilt there, packaged from here
 Content/Movies/*.bk2
+!Content/Movies/PixelNorma.bk2
+!Content/Movies/PixelNormaBlack.bk2
