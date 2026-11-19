@@ -42,8 +42,8 @@ namespace
 	// the film's own clock: it runs smoothly on Unreal's time and is only steered gently towards the music (a touch faster
 	// or slower), never snapped - the snaps were the title film's stutter (owner, 2026-11-19); a real jump (the music
 	// starting over, a seek) still snaps
-	float ClockT = 0.f, Rate = 1.f; double ClockAt = 0.0;
-	float Raw() { return ClockT + float(FPlatformTime::Seconds() - ClockAt) * Rate; }
+	float ClockT = 0.f, ClockRate = 1.f; double ClockAt = 0.0;
+	float Raw() { return ClockT + float(FPlatformTime::Seconds() - ClockAt) * ClockRate; }
 	float Now() { return FMath::Fmod(FMath::Max(Raw(), 0.f), TS_DUR); }
 }
 
@@ -55,9 +55,9 @@ void ADPTitleBg::Clock(bool bNowOn, float Seconds)
 	float Err = Seconds - Now();
 	if (Err > TS_DUR * 0.5f) Err -= TS_DUR; else if (Err < -TS_DUR * 0.5f) Err += TS_DUR;
 	const double T = FPlatformTime::Seconds();
-	if (FMath::Abs(Err) > 0.6f) { ClockT = Seconds; ClockAt = T; Rate = 1.f; return; }   // (a real jump: snap)
+	if (FMath::Abs(Err) > 0.6f) { ClockT = Seconds; ClockAt = T; ClockRate = 1.f; return; }   // (a real jump: snap)
 	// (else: carry on from where the film is now, a little faster or slower until it meets the music - at most 4 %)
-	ClockT = Now(); ClockAt = T; Rate = 1.f + FMath::Clamp(Err * 0.6f, -0.04f, 0.04f);
+	ClockT = Now(); ClockAt = T; ClockRate = 1.f + FMath::Clamp(Err * 0.6f, -0.04f, 0.04f);
 }
 bool ADPTitleBg::IsOn() { return bFilmOn; }
 bool ADPTitleBg::Ready() { return bFilmReady; }

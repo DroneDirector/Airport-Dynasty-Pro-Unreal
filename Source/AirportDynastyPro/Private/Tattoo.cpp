@@ -1,5 +1,6 @@
 // Tattoos on the MetaHumans (Tattoo.h).
 #include "Tattoo.h"
+#include "ADPKeep.h"
 #include "ADPLog.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/Texture2D.h"
@@ -87,8 +88,8 @@ namespace ADPTattoo
 	{
 		const TArray<UMaterialInstanceDynamic*> Skin = SkinOf(Mesh);
 		if (!Skin.Num()) return 0;
-		static UTexture2D* NoSpot = LoadTex(TEXT("/Game/People/Tattoos/Spots/T_TatSpot_None"));
-		static UTexture2D* NoDesign = LoadTex(TEXT("/Game/People/Tattoos/Designs/T_TatDesign_None"));
+		static UTexture2D* NoSpot = ADPKeep(LoadTex(TEXT("/Game/People/Tattoos/Spots/T_TatSpot_None")));   // (kept: freed by the garbage collector it would crash - 2026-11-19)
+		static UTexture2D* NoDesign = ADPKeep(LoadTex(TEXT("/Game/People/Tattoos/Designs/T_TatDesign_None")));
 		int32 N = 0;
 		for (const FWorn& W : List)
 		{
