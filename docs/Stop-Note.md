@@ -1,19 +1,26 @@
-# Stop note - 2026-11-19 evening
+# Stop note - 2026-11-19 night
 
 **Done**
-- 0.17.28 published (strollers, sitting IK). Coach modelled (exterior, interior, bench, dashboard, wheels), 7 coaches parked
-  in the 7 repainted forecourt stands (BUSES ONLY, clear of the crossings), 131 aspens on the grass island (Nanite leaves).
-- To-do 142 done: shader cache recorded again with the forecourt, day + night (6608 pipelines, committed).
-- To-dos 141-148 on the list (147 = NUMBER 2: crossings / night road textures; 148: coaches through the ground, later).
+- To-do 144 (coach working parts) built, tested, committed: doors + bays on E/X with kneel + hiss, walk in, every
+  passenger seat sittable, lamps, 2 real beams (0.8 ms), mirrors (1.6 ms), sounds, airport name plate.
+  Fixed on the way: first seat pair standing outside the coach (Tools/glb_nodes.py mesh names first), info screens hung
+  to 1.56 m (now slim bars, 1.81 m clear), crash on opening a door (sounds freed by the GC).
+- To-do 146 route built and working: -UICoachWalk / `bash Tools/perf_walk.sh coaches [offscreen|4k|screen]`, test package
+  in F:/ADP-Packaged/test-coaches (no version bump, nothing published). Readings (packaged, drawn by the game):
+  | run | drawn | slowest 1 % | bad frames |
+  |---|---|---|---|
+  | Full HD 1920x1080 (forced) | 50 fps | 30 fps | 5 |
+  | 4K 3840x2160 (forced) | 3 fps | 2 fps | 1089 - graphics card overflow, the whole game, not the coaches |
+  | his screen 3840x1080 full screen | 13 fps | 7 fps | 1 - frame generation added 0 pictures: SUSPECT |
+  Day and night, inside the coach and outside all the same in each run.
+- To-do 100-107, 110, 112, 142 ticked done on the list (already released / done).
 
-**Half-done (to-do 144, not compiled, not committed)**
-- Source/AirportDynastyPro/Public/Coaches.h + Private/Coaches.cpp: doors (E/X, swing out, kneel + hiss), luggage bays,
-  lamps (M_CoachLamp), beams (real light only on the nearest coach), mirrors (captures, nearest coach), drive hum,
-  airport name on the rear plate, hip-wide capsule inside.
-- Hooks: BabylonModel.cpp SeatSpots (coach seats, never the driver's), RoadNetwork.cpp (coaches handed to ACoaches),
-  ADPHUD.cpp (E/X on coach doors/bays; -UICoachUse test).
-- Tools/coach_setup_unreal.py (collision by shape, sounds, the two materials) written, NOT run yet.
+**Half-done**
+- To-do 139 updater fix written in Source/.../UI/Updater.cpp (log kept, waits for the game folder to be free, copy
+  retries, every file checked, version set in Windows) - script tested on a fake folder, NOT compiled, NOT committed.
+- His-screen run result looks wrong (13 fps, frame generation 0): find why before trusting it.
 
-**Next (when he says)**
-1. Run Tools/coach_setup_unreal.py (UnrealEditor-Cmd), compile, run -UICoachUse, fix, send pictures, then pause.
-2. Then to-do 146: the coaches' own stress test.
+**Next**
+1. Check his GameUserSettings (resolution scale, frame generation) after tonight's runs; rerun `coaches screen`.
+2. Compile + commit 139; mark 139 / 144 / 146 on the list.
+3. To-do 70 (A320 fin lettering): render both fin sides to see which reads mirrored.
