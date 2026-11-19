@@ -169,6 +169,7 @@ def solidify(o, t, offset=-1.0):
 
 def box_uv(objs, tile=0.25):
     for o in objs:
+        if o.get('keep_uv'): continue
         me = o.data
         if not me.uv_layers: me.uv_layers.new(name='UVMap')
         uv = me.uv_layers.active.data

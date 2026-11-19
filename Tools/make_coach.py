@@ -429,6 +429,7 @@ for d in (2.6, 11.8):
     put(rblock(f'Hatch_{d}', (d2x(d), 0, H + 0.02), (0.58, 0.58, 0.05), 0.03, M['teal'], cuts=2, segs=3), 'CoachBody')
     put(rblock(f'HatchVent_{d}', (d2x(d), 0, H + 0.05), (0.40, 0.40, 0.02), 0.01, M['grille'], cuts=1), 'CoachBody')
 
+exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'coach_interior.py'), encoding='utf-8').read())
 bpy.data.objects.remove(outer, do_unlink=True)   # (the uncut volume the cuts were made from)
 # ---------------------------------------------------------------- finish: UVs, checks, the layout, files
 K.box_uv(K.ALL, 0.5)
@@ -458,6 +459,7 @@ print('COACH:', json.dumps(tris))
 layout = {'wheels': [[AX_F, RIGHT * (W / 2 - 0.20), WR, 0], [AX_F, LEFT * (W / 2 - 0.20), WR, 180], [AX_R, RIGHT * (W / 2 - 0.20), WR, 0], [AX_R, LEFT * (W / 2 - 0.20), WR, 180],
                      [AX_R, RIGHT * (W / 2 - 0.515), WR, 180], [AX_R, LEFT * (W / 2 - 0.515), WR, 0]],
           'bays': [[d2x((a + b) / 2), s, BAY_Z[1]] for s in (RIGHT, LEFT) for a, b in BAYS], 'doors': DOORS, 'floor': FLOOR}
+layout.update(INTERIOR_LAYOUT)
 json.dump(layout, open(os.path.join(ROOT, 'Data', 'coach-layout.json'), 'w'), indent=1)
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ART, 'Coach.blend'))
 for p, c in cols.items():
@@ -480,6 +482,25 @@ if RENDER:
             n = o.copy(); n.data = o.data; bpy.context.scene.collection.objects.link(n)
             n.matrix_world = Matrix.Translation((xc - xc0, 0, 0)) if side == RIGHT else Matrix.Translation((xc, 0, 0)) @ Matrix.Rotation(math.pi, 4, 'Z') @ Matrix.Translation((-xc0, 0, 0))
     for o in bay_objs: o.hide_render = True
+    def place(part_objs, M_):
+        for o in part_objs:
+            n = o.copy(); n.data = o.data; bpy.context.scene.collection.objects.link(n); n.matrix_world = M_
+    def at(e, tilt=0.0):
+        return Matrix.Translation(e[:3]) @ Matrix.Rotation(math.radians(e[3]), 4, 'Z') @ Matrix.Diagonal((e[4], 1, 1, 1)) @ Matrix.Rotation(math.radians(tilt), 4, 'X')
+    for part, key in (('CoachDriverSeat', 'driver_seat'), ('CoachGuideSeat', 'guide_seat')):
+        objs = list(cols[part].objects); place(objs, at(layout[key])); [setattr(o, 'hide_render', True) for o in objs]
+    objs = list(cols['CoachFoldSeat'].objects)
+    for e in layout['fold_seats']: place(objs, at(e))
+    for o in objs: o.hide_render = True
+    sw = layout['steering_wheel']; objs = list(cols['CoachSteeringWheel'].objects)
+    place(objs, Matrix.Translation(sw[:3]) @ Matrix.Rotation(math.radians(-sw[5]), 4, 'Y')); [setattr(o, 'hide_render', True) for o in objs]
+    # the approved seat pair (Art/CoachSeat/coachseat.glb) at every row; the back bench for now as two pairs + a seat
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=os.path.join(ROOT, 'Art', 'CoachSeat', 'coachseat.glb'))
+    seat_objs = [o for o in bpy.data.objects if o not in before and o.type == 'MESH']
+    for o in seat_objs: o.matrix_world = Matrix.Identity(4)
+    for e in layout['seat_pairs']: place(seat_objs, at(e))
+    for o in seat_objs: o.hide_render = True
     sc = bpy.context.scene; sc.render.engine = 'BLENDER_EEVEE'
     ee = sc.eevee; ee.use_gtao = True; ee.use_ssr = True; ee.use_ssr_refraction = True; ee.use_soft_shadows = True; ee.shadow_cube_size = '2048'
     ee.shadow_cascade_size = '4096'; ee.taa_render_samples = 16 if QUICK else 96; ee.use_bloom = True; ee.bloom_intensity = 0.03
@@ -504,3 +525,16 @@ if RENDER:
     shoot('Coach-5-wheel-suspension', (AX_R + 1.6, -3.2, 0.55), (AX_R, -0.9, 0.55), 30)
     shoot('Coach-6-rear', (-19, 1.5, 1.9), (0, 0, 1.9), 50)
     shoot('Coach-7-top', (0.0, -0.01, 30), (0, 0, 0), 30)
+    # the interior: lit inside, views from inside, and cutaways (the camera's near clip cuts the roof / a wall away)
+    for k, x in enumerate((XF - 2.5, 0.0, XR + 2.5)):
+        L_ = bpy.data.lights.new(f'Cabin{k}', 'AREA'); L_.energy = 260; L_.size = 2.0; L_.color = (1, 0.95, 0.88)
+        o = bpy.data.objects.new(f'Cabin{k}', L_); sc.collection.objects.link(o); o.location = (x, 0, FLOOR + 1.85)
+    def shoot_in(name, loc, at, lens=20, clip=0.05):
+        cam_d.clip_start = clip; shoot(name, loc, at, lens); cam_d.clip_start = 0.05
+    shoot_in('Coach-8-cabin-forward', (XR + 1.4, 0.0, FLOOR + 1.62), (XF, 0.0, FLOOR + 1.2), 18)
+    shoot_in('Coach-9-cabin-back', (XF - 1.9, -0.05, FLOOR + 1.62), (XR, 0.0, FLOOR + 1.0), 18)
+    shoot_in('Coach-10-driver', (d2x(2.05), -0.20, FLOOR + 1.45), (d2x(0.50), 0.55, 1.70), 22)
+    shoot_in('Coach-10b-dashboard', (d2x(1.32), 0.62, 1.00 + 1.30), (d2x(0.55), 0.55, 1.78), 26)
+    shoot_in('Coach-11-cutaway-top', (0.0, -0.01, 12.0), (0, 0, 0), 30, 12.0 - ROOF_IN + 0.05)
+    shoot_in('Coach-12-cutaway-side', (0.0, -11.0, 2.4), (0, 0, 2.3), 30, 11.0 - (W / 2 - 0.12))
+

@@ -194,8 +194,8 @@ for k, xc in enumerate(SEATS):
 
 # the frame: two cross tubes on the aisle leg and the wall bracket, longitudinal members under each seat end
 for j, y in enumerate(TUBE_Y):
-    cyl(f'CrossTube_{j}', Vector((-0.02, y, TUBE_Z)), 0.019, 1.03, 'x', M_STEEL, 28)
-    for x in (-0.535, 0.495): cyl(f'TubeCap_{j}{x > 0}', Vector((x, y, TUBE_Z)), 0.0195, 0.006, 'x', M_BLACK, 28, 0.002)
+    cyl(f'CrossTube_{j}', Vector((0.0, y, TUBE_Z)), 0.019, 0.99, 'x', M_STEEL, 28)
+    for x in (-0.492, 0.492): cyl(f'TubeCap_{j}{x > 0}', Vector((x, y, TUBE_Z)), 0.0195, 0.006, 'x', M_BLACK, 28, 0.002)
 for i, x in enumerate((-0.47, 0.0, 0.43)):
     rblock(f'SideMember_{i}', (x, -0.25, 0.352), (0.026, 0.33, 0.034), 0.005, M_STEEL, cuts=2, segs=2, sub=0)
 
@@ -227,12 +227,13 @@ for i, t in enumerate((0.12, 0.5, 0.88)):
     cyl(f'FootBolt_{i}', Vector((LEG_X, yb, 0.0225)), 0.008, 0.006, 'z', M_STEEL, 6, 0.001)
 
 # the wall side: the side-wall rail (along the coach) and the bracket from it to the tubes
-cyl('WallRail', Vector((-0.565, -0.25, 0.30)), 0.021, 0.80, 'y', M_STEEL, 28)
-rblock('WallRailFlat', (-0.585, -0.25, 0.30), (0.012, 0.80, 0.05), 0.003, M_ALU, cuts=2, segs=2, sub=0)
+# (owner's coach: the pair fills the width between the aisle and the wall lining, so the rail runs in a channel in the lining)
+cyl('WallRail', Vector((-0.505, -0.25, 0.30)), 0.021, 0.80, 'y', M_STEEL, 28)
+rblock('WallRailFlat', (-0.522, -0.25, 0.30), (0.012, 0.80, 0.05), 0.003, M_ALU, cuts=2, segs=2, sub=0)
 for j, y in enumerate(TUBE_Y):
-    tube(f'WallBracket_{j}', [(-0.47, y, TUBE_Z), (-0.515, y, TUBE_Z - 0.003), (-0.545, y, 0.318), (-0.556, y, 0.30)], 0.015, M_ALU, res=10)
-    cyl(f'WallClamp_{j}', Vector((-0.565, y, 0.30)), 0.029, 0.05, 'y', M_ALU, 32, 0.004)
-    cyl(f'WallClampBolt_{j}', Vector((-0.565, y, 0.331)), 0.007, 0.008, 'z', M_STEEL, 6, 0.001)
+    tube(f'WallBracket_{j}', [(-0.45, y, TUBE_Z), (-0.475, y, TUBE_Z - 0.003), (-0.492, y, 0.318), (-0.498, y, 0.30)], 0.015, M_ALU, res=10)
+    cyl(f'WallClamp_{j}', Vector((-0.505, y, 0.30)), 0.029, 0.05, 'y', M_ALU, 32, 0.004)
+    cyl(f'WallClampBolt_{j}', Vector((-0.505, y, 0.331)), 0.007, 0.008, 'z', M_STEEL, 6, 0.001)
 
 # armrests: wall, middle, aisle (the aisle one lifts 80 deg on its pivot); pads 0.40 long, top 0.65
 for i, x in enumerate((-0.468, 0.0, 0.468)):
