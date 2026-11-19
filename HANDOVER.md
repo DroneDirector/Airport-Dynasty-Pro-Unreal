@@ -9,6 +9,25 @@ Whenever the owner sends pictures in the phone chat for you, they are copied ont
 location there (with what it shows and what he said about it). Open those files; commit them (through LFS) with your
 next commit if they belong in the repo.
 
+## From the owner (2026-11-19 17:55-18:35, via the phone): the airport taxi, remade in Blender from his blueprint
+- He sent a new blueprint sheet to follow instead (modern taxi saloon: side, front, rear, top, three-quarter and
+  dashboard views; 4.70 m long, 1.80 m wide, 1.45 m high): `Art\Reference\From-Phone\2026-11-19\Taxi-Ref-5-blueprint-sheet.jpg`
+  - the whole sheet, for measuring and shapes only (its grille is our own pattern, not the sheet's).
+- Rule from him: every vehicle (cars, buses, aircraft, helicopters) and every piece of airport equipment or interior is
+  modelled in Blender, never drawn with the old Python mesh drawings.
+- Done: `Art/Taxi/make_taxi.py` builds it in Blender 5.3 (run with Blender's Python module, or paste into Blender):
+  `Art/Taxi/Taxi.blend` (body with live Subdivision Surface and the wheel-arch cut, every other part a separate
+  object, one material each, named M_Taxi_*) and `Art/Taxi/Taxi.glb` (for Unreal; front to +X, metres, ground at 0).
+  Sizes as measured off his side view: 2.85 m between the wheels (the sheet's "2700" label does not match its own
+  drawing), 225/45 R17 tyres. A, B and C pillars gloss black at his request; taillights, plates (TAXI / 1024),
+  bumpers with split lines, diffuser, exhausts, parking sensors, third brake light, roof sign, aerial, mirrors, door
+  handles, fuel flap, and a simple cabin (dashboard, steering wheel, front seats, rear bench) for the MetaHumans.
+- `Taxi.blend` and `Taxi.glb` were copied straight onto the PC (the phone chat can't upload Git LFS files): the PC
+  chat should commit them (they go through LFS).
+- Check sheet sent to him: `Blueprints\Vehicles\AirportTaxi\Airport-Taxi-Saloon-Blender.png` (`Art/Taxi/render_taxi.py`).
+- Next when he approves: a proper cabin (doors that open, seats sized for seated MetaHumans), then into Unreal as a
+  Chaos vehicle.
+
 ## From the owner (2026-11-19 17:10, via the phone): reference pictures for the airport taxi ("use this as measurement")
 - He wants the airport taxi to be a sit-down saloon (not a cab), modern, a little like the new Toyota Camry but not the
   same, built to the measurements of these references (a 1990s full-size taxi saloon: 5.44 m long, 1.97 m wide,
