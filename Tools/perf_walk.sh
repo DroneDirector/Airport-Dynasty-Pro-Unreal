@@ -16,11 +16,11 @@ R=/c/Users/Simon/Documents/Airport-Dynasty-Pro-Unreal
 N=$(powershell -NoProfile -Command "@(Get-CimInstance Win32_Process | Where-Object { \$_.Name -like 'AirportDynastyPro-Win64*' -or (\$_.Name -like 'UnrealEditor*' -and \$_.CommandLine -match ' -game') }).Count")
 [ "${N//[^0-9]/}" != "0" ] && { echo "STOP: another copy of the game is running ($N) - one copy at a time; the editor itself may stay open"; exit 1; }
 # (offscreen: drawn without a window - for runs while Windows is locked, which holds a window's frames back)
-OFF=""; ROUTE="-UIPerfWalk"
+OFF=""; EXE=""; ROUTE="-UIPerfWalk"
 for a in "$@"; do
   case "$a" in
-    offscreen) OFF="-RenderOffscreen -ResX=1920 -ResY=1080 -windowed" ;;
-    4k) OFF="-RenderOffscreen -ResX=3840 -ResY=2160 -windowed" ;;
+    offscreen) OFF="-RenderOffscreen -ResX=1920 -ResY=1080 -ForceRes -windowed " ; EXE="r.SetRes 1920x1080w" ;;
+    4k) OFF="-RenderOffscreen -ResX=3840 -ResY=2160 -ForceRes -windowed " ; EXE="r.SetRes 3840x2160w" ;;
     screen) OFF="-fullscreen" ;;
     coaches) ROUTE="-UICoachWalk" ;;
   esac
@@ -37,7 +37,7 @@ else
   V=${PKG:-$(ls -d /f/ADP-Packaged/0.*/Full 2>/dev/null | sort -V | tail -1)}; [ -n "$V" ] || { echo "STOP: no packaged build"; exit 1; }
   echo "build: $V"
   L="$LOCALAPPDATA/AirportDynastyPro/Saved/Logs"
-  (cd "$V" && ADP_LOG=1 ./AirportDynastyPro/Binaries/Win64/AirportDynastyPro-Win64-Shipping.exe -UIShot $ROUTE -StallWatch $OFF > /dev/null 2>&1)
+  (cd "$V" && ADP_LOG=1 ./AirportDynastyPro/Binaries/Win64/AirportDynastyPro-Win64-Shipping.exe -UIShot $ROUTE -StallWatch $OFF ${EXE:+"-ExecCmds=$EXE"} > /dev/null 2>&1)
   STEPS=$L/ADP.log
 fi
 echo "== the walk"; grep -E "Stress walk: " "$STEPS" | grep -v "way planned" | sed 's/.*Stress walk: //' | tr '\n' '|' | sed 's/|/ > /g'; echo
