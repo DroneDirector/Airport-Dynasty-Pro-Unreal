@@ -21,7 +21,7 @@ rm -rf Content/Web && cp -r Airline-Manager-Pro-Babylon/www Content/Web && rm -r
 rm -rf $OUT; mkdir -p $OUT; touch $OUT/GUS-none
 "$UE/Engine/Build/BatchFiles/RunUAT.bat" BuildCookRun -project="$(pwd -W)/AirportDynastyPro.uproject" -noP4 -platform=Win64 -clientconfig=Shipping -build -cook -stage -pak -archive -archivedirectory="F:\\ADP-PSOBuild" -utf8output -unattended -IgnoreCookErrors > $OUT/uat.log 2>&1
 grep -q "BUILD SUCCESSFUL" $OUT/uat.log || { tail -20 $OUT/uat.log; echo "STOP: the package failed"; exit 1; }
-SHK=$(find -L Saved/Cooked/Windows -name "*.shk" -newer $OUT/GUS-none 2>/dev/null | head -20)
+SHK=$(find -L /f/UnrealCache/ADP-Saved/Cooked/Windows -name "*.shk" -newer $OUT/GUS-none 2>/dev/null | head -20)
 echo "   stable shader keys: $(echo "$SHK" | grep -c shk) files"
 [ -n "$SHK" ] || { echo "STOP: no .shk files from the cook (bShareMaterialShaderCode)"; exit 1; }
 echo "== 2. the stress walk with -logPSO (no time limit - the owner ends a walk)"
