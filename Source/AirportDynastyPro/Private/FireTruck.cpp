@@ -566,6 +566,7 @@ void AFireTruck::SetupPlayerInputComponent(UInputComponent* In)
 	In->BindKey(EKeys::Gamepad_DPad_Left, IE_Pressed, this, &AFireTruck::PadLeft);
 	In->BindKey(EKeys::Gamepad_DPad_Right, IE_Pressed, this, &AFireTruck::PadRight).bConsumeInput = false;   // (also the bay doors' button)
 	In->BindKey(EKeys::Gamepad_DPad_Down, IE_Pressed, this, &AFireTruck::PadDown);
+	In->BindKey(EKeys::Gamepad_LeftThumbstick, IE_Pressed, this, &AFireTruck::Honk);   // (the horn; H on the keyboard - the HUD hands it over while you drive)
 }
 
 void AFireTruck::Enter(APawn* Walker)
@@ -1241,20 +1242,39 @@ void AFireTruck::ToggleSiren()
 	bSiren = !bSiren;
 	if (bSiren)
 	{
-		USoundWaveProcedural* W = NewObject<USoundWaveProcedural>(this);
-		W->SetSampleRate(SndRate); W->NumChannels = 1; W->Duration = INDEFINITELY_LOOPING_DURATION; W->bLooping = false;
-		W->SoundGroup = SOUNDGROUP_Effects;
-		TSharedPtr<FSirenState> St = MakeShared<FSirenState>();
-		W->OnSoundWaveProceduralUnderflow = FOnSoundWaveProceduralUnderflow::CreateLambda([St](USoundWaveProcedural* Wv, int32 Samples)
+		// (owner, 2026-11-19: a real recording - a fire truck's two-tone siren, CC0, Art/Sounds/FireTruck/SOURCES.md - looping
+		// seamlessly; the made-up electronic wail only if the recording is missing)
+		static USoundBase* Rec = ADPKeep(LoadObject<USoundBase>(nullptr, TEXT("/Game/FireStation/Sounds/FtSiren.FtSiren")));
+		USoundBase* Snd = Rec;
+		if (!Snd)
 		{
-			TArray<int16> Buf; SirenFill(*St, Buf, FMath::Max(Samples, SndRate / 20));
-			Wv->QueueAudio(reinterpret_cast<const uint8*>(Buf.GetData()), Buf.Num() * sizeof(int16));
-		});
+			USoundWaveProcedural* W = NewObject<USoundWaveProcedural>(this);
+			W->SetSampleRate(SndRate); W->NumChannels = 1; W->Duration = INDEFINITELY_LOOPING_DURATION; W->bLooping = false;
+			W->SoundGroup = SOUNDGROUP_Effects;
+			TSharedPtr<FSirenState> St = MakeShared<FSirenState>();
+			W->OnSoundWaveProceduralUnderflow = FOnSoundWaveProceduralUnderflow::CreateLambda([St](USoundWaveProcedural* Wv, int32 Samples)
+			{
+				TArray<int16> Buf; SirenFill(*St, Buf, FMath::Max(Samples, SndRate / 20));
+				Wv->QueueAudio(reinterpret_cast<const uint8*>(Buf.GetData()), Buf.Num() * sizeof(int16));
+			});
+			Snd = W;
+		}
 		// (the speakers on the cab's roof, at the front)
-		SirenOut = UGameplayStatics::SpawnSoundAttached(W, Model->GetModelRoot(), NAME_None, BlenderToRoot(0.f, 5.4f, 3.2f), EAttachLocation::KeepRelativeOffset, false, 0.9f, 1.f, 0.f, FarSound);
+		SirenOut = UGameplayStatics::SpawnSoundAttached(Snd, Model->GetModelRoot(), NAME_None, BlenderToRoot(0.f, 5.4f, 3.2f), EAttachLocation::KeepRelativeOffset, false, 0.9f, 1.f, 0.f, FarSound);
 	}
 	else if (SirenOut) { SirenOut->Stop(); SirenOut = nullptr; }
 	ADP_LOG(TEXT("Fire truck: siren %s"), bSiren ? TEXT("on") : TEXT("off"));
+}
+
+void AFireTruck::Honk()
+{
+	// (owner, 2026-11-19: a horn you press - a truck's real air horn, CC0, Art/Sounds/FireTruck/SOURCES.md; from the front,
+	// heard far over the apron)
+	if (!Model) return;
+	static USoundBase* Horn = ADPKeep(LoadObject<USoundBase>(nullptr, TEXT("/Game/FireStation/Sounds/FtHorn.FtHorn")));
+	if (!Horn) { ADP_WARN(TEXT("Fire truck: no horn sound (Tools/import_firetruck_sounds.py)")); return; }
+	UGameplayStatics::SpawnSoundAttached(Horn, Model->GetModelRoot(), NAME_None, BlenderToRoot(0.f, 5.6f, 1.6f), EAttachLocation::KeepRelativeOffset, false, 1.f, 1.f, 0.f, FarSound);
+	ADP_LOG(TEXT("Fire truck: horn"));
 }
 
 void AFireTruck::Sound(const TArray<int16>& Pcm, const FVector& RootAt, bool bFar)

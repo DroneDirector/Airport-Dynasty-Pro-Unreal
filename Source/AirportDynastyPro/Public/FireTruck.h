@@ -47,6 +47,8 @@ public:
 	/** Out at once, no climb (the quick-starts that move you elsewhere). */
 	void ExitNow();
 	void ToggleSiren();
+	/** The horn (owner, 2026-11-19): one blast of a real air horn. H / the pad's L3 while you drive. */
+	void Honk();
 	bool IsBusy() const { return Seq != ESeq::None; }
 	/** Where you stand to climb in by the driver's door (world). */
 	FVector DoorSpot() const;

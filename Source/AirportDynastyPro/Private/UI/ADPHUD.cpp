@@ -1787,6 +1787,8 @@ void AADPHUD::TogglePerf()
 
 void AADPHUD::HideUI()
 {
+	// driving the fire truck, H is its horn (owner, 2026-11-19: the vehicle's own keys while you drive)
+	if (AFireTruck* Ft = Cast<AFireTruck>(GetOwningPawn())) { Ft->Honk(); return; }
 	bHidden = true;
 	if (HoloMap->IsFull()) ToggleMap();
 	if (bSettings) ToggleSettings();
