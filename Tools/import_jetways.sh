@@ -22,6 +22,7 @@ echo "== collision"; run "$(cygpath -m "$R/Tools/set_babylon_collision.py")"
 after=$(stat -c %Y "$R/Content/Babylon/Jetways/jetways/StaticMeshes/jetways_mesh_0.uasset" 2>/dev/null || echo 0)
 [ "$after" -gt "$before" ] || { echo "the import did not replace the meshes (still the old files)"; exit 1; }
 echo "== node tree"; python -I "$R/Tools/glb_nodes.py" "$GLB" jetways && cp "$R/Data/babylon-jetways.json" "$R/Content/Data/babylon-jetways.json"
+echo "== service door collision"; run "$(cygpath -m "$R/Tools/jetway_svc_collision.py")"   # (owner 2026-11-19: the doorway was blocked)
 cp "$R/Data/jetways-zfight.json" "$R/Content/Data/jetways-zfight.json"
 echo "== meshes: $(ls "$R/Content/Babylon/Jetways/jetways/StaticMeshes" | wc -l)"
 echo "== done"

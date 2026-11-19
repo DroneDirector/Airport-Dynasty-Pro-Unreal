@@ -3127,6 +3127,65 @@ void AADPHUD::Tick(float Dt)
 			}
 			if (ShotClock > 60.f && Pp && (!Pp->SceneOn() || ShotClock > 280.f) && Before <= ShotClock) { static bool bEnd = false; if (!bEnd) { bEnd = true; ADP_LOG(TEXT("UIConduct: the scene ended at %.0f s"), ShotClock); } if (ShotClock > 64.f) ADP_SHOT_EXIT(); }
 		}
+		// -UISvcDoor (owner, 2026-11-19: "you can't get in or out through the jetway's service door"): jetway 1's service
+		// door opened; what stands in the doorway (a capsule swept from inside to outside, every hit and its part); then
+		// you walk out through it and back in, your place logged
+		if (FParse::Param(FCommandLine::Get(), TEXT("UISvcDoor")))
+		{
+			APlayerController* PC = GetOwningPlayerController();
+			AJetwayRigs* JR = AJetwayRigs::Get(GetWorld());
+			ACharacter* Me = PC ? Cast<ACharacter>(PC->GetPawn()) : nullptr;
+			static FVector SMid, SOut; static bool bHave = false; static float LogT = 0.f;
+			if (Before < 40.f && ShotClock >= 40.f && bGame) ToggleGame();
+			if (Before < 42.f && ShotClock >= 42.f && JR && Me && (bHave = JR->ServiceDoorFrame(0, SMid, SOut)))
+			{
+				JR->SetServiceDoor(0, true);
+				const float Hh = Me->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+				Me->TeleportTo(SMid - SOut * 120.f + FVector(0, 0, Hh + 5.f), SOut.Rotation());
+				ADP_LOG(TEXT("UISvcDoor: door at %s, out %s; you inside at %s"), *SMid.ToString(), *SOut.ToString(), *Me->GetActorLocation().ToString());
+			}
+			if (Before < 46.f && ShotClock >= 46.f && bHave && Me)
+			{
+				const float Rr = Me->GetCapsuleComponent()->GetScaledCapsuleRadius(), Hh = Me->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+				FCollisionQueryParams Q(SCENE_QUERY_STAT(SvcDoor), true, Me);
+				TArray<FHitResult> Hits;
+				// (from the floor inside: the door's middle is about 1 m up)
+				FHitResult Fl; float FloorIn = SMid.Z - 103.f;
+				if (GetWorld()->LineTraceSingleByChannel(Fl, SMid - SOut * 120.f + FVector(0, 0, 50.f), SMid - SOut * 120.f - FVector(0, 0, 300.f), ECC_Visibility, Q)) FloorIn = Fl.ImpactPoint.Z;
+				const FVector A = FVector(SMid.X, SMid.Y, FloorIn + Hh + 2.f) - SOut * 120.f, B = FVector(SMid.X, SMid.Y, FloorIn + Hh + 2.f) + SOut * 160.f;
+				// what is in the doorway itself now (the leaf open): a thin box across the opening, body height
+				{
+					TArray<FOverlapResult> Ov; const FVector Across = FVector::CrossProduct(SOut, FVector::UpVector);
+					GetWorld()->OverlapMultiByChannel(Ov, FVector(SMid.X, SMid.Y, FloorIn + 100.f), FRotationMatrix::MakeFromXY(SOut, Across).ToQuat(), ECC_Pawn, FCollisionShape::MakeBox(FVector(4.f, 40.f, 70.f)), Q);
+					for (const FOverlapResult& O : Ov) { FString Part = TEXT("?"); if (ABabylonModel* Bm = Cast<ABabylonModel>(O.GetActor())) Part = Bm->NodeAt(O.GetComponent(), O.ItemIndex); ADP_LOG(TEXT("UISvcDoor:   in the doorway: %s item %d part %s"), O.GetComponent() ? *O.GetComponent()->GetName() : TEXT("-"), O.ItemIndex, *Part); }
+					ADP_LOG(TEXT("UISvcDoor:   %d things in the doorway at body height"), Ov.Num());
+				}
+				GetWorld()->SweepMultiByChannel(Hits, A, B, FQuat::Identity, ECC_Pawn, FCollisionShape::MakeCapsule(Rr, Hh), Q);
+				ADP_LOG(TEXT("UISvcDoor: capsule r %.0f hh %.0f swept out: %d hits"), Rr, Hh, Hits.Num());
+				for (const FHitResult& H : Hits)
+				{
+					FString Part = TEXT("?"); if (ABabylonModel* Bm = Cast<ABabylonModel>(H.GetActor())) Part = Bm->NodeAt(H.GetComponent(), H.Item);
+					ADP_LOG(TEXT("UISvcDoor:   hit %s / %s item %d part %s at %.0f cm along, impact height %+.0f, blocking %d"), H.GetActor() ? *H.GetActor()->GetName() : TEXT("-"), H.GetComponent() ? *H.GetComponent()->GetName() : TEXT("-"), H.Item, *Part,
+						FVector::DotProduct(H.Location - SMid, SOut), H.ImpactPoint.Z - SMid.Z, H.bBlockingHit ? 1 : 0);
+				}
+				// the floor either side
+				for (const float Dd : {-60.f, 0.f, 60.f, 120.f})
+				{
+					FHitResult F; const FVector P = SMid + SOut * Dd;
+					const bool bF = GetWorld()->LineTraceSingleByChannel(F, P + FVector(0, 0, 150.f), P - FVector(0, 0, 400.f), ECC_Visibility, Q);
+					ADP_LOG(TEXT("UISvcDoor:   floor at %+.0f cm: %s (height %+.0f) %s"), Dd, bF ? TEXT("yes") : TEXT("none"), bF ? F.ImpactPoint.Z - SMid.Z : 0.f, bF && F.GetComponent() ? *F.GetComponent()->GetName() : TEXT(""));
+				}
+			}
+			if (ShotClock >= 47.f && ShotClock < 53.f && bHave && Me) Me->AddMovementInput(SOut, 1.f);
+			if (ShotClock >= 54.f && ShotClock < 60.f && bHave && Me) Me->AddMovementInput(-SOut, 1.f);
+			if (ShotClock >= 46.f && ShotClock < 61.f && bHave && Me && (LogT += GetWorld()->GetDeltaSeconds()) > 0.5f)
+			{
+				LogT = 0.f;
+				ADP_LOG(TEXT("UISvcDoor t %.1f: you %+.0f cm out of the doorway, %+.0f along it, height %+.0f"), ShotClock, FVector::DotProduct(Me->GetActorLocation() - SMid, SOut),
+					FVector::DotProduct(Me->GetActorLocation() - SMid, FVector::CrossProduct(SOut, FVector::UpVector)), Me->GetActorLocation().Z - SMid.Z);
+			}
+			if (Before < 61.f && ShotClock >= 61.f) ADP_SHOT_EXIT();
+		}
 		// -UIJetwayRide (owner, 2026-11-16: you and every MetaHuman one with the moving jetway): you stand in jetway 1's cab
 		// and it pulls back at 10x; your distance from the cab's middle logged every half second (carried: it stays put)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIJetwayRide")))

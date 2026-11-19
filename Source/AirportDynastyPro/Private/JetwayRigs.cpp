@@ -1,5 +1,6 @@
 #include "JetwayRigs.h"
 #include "InteractOutline.h"
+#include "Sound/SoundAttenuation.h"
 #include "BabylonModel.h"
 #include "ADPLog.h"
 #include "PerfLog.h"
@@ -232,6 +233,9 @@ void AJetwayRigs::Build()
 		{
 			FBox Bx(ForceInit); for (const FPart& P : R.Svc.Parts) if (P.K && P.K->GetStaticMesh()) Bx += P.K->GetStaticMesh()->GetBoundingBox().TransformBy(P.Docked);
 			R.SvcMid = Bx.IsValid ? Bx.GetCenter() : R.Svc.H;
+			// (owner, 2026-11-19: the service door opens only with E / X - outlined when you look at it, so you know it can
+			// be used; all its pieces one thing)
+			for (const FPart& P : R.Svc.Parts) AInteractOutline::Add(P.K, P.Ix, (uint64(0x5356) << 32) + uint64(Rigs.Num()));
 		}
 		// the docked geometry, read from his export
 		R.BoomO = R.G[Boom].Docked.GetLocation();
@@ -529,7 +533,30 @@ void AJetwayRigs::Tick(float Dt)
 		if (R.Svc.Parts.Num() && !FMath::IsNearlyEqual(R.SvcOpen, R.SvcWant))
 		{
 			// (the service door swings at its own pace, about 1.2 s, also while the jetway stands)
+			const float SvcWas = R.SvcOpen;
 			R.SvcOpen = R.SvcWant > R.SvcOpen ? FMath::Min(R.SvcWant, R.SvcOpen + Dt / 1.2f) : FMath::Max(R.SvcWant, R.SvcOpen - Dt / 1.2f);
+			// its sounds (owner, 2026-11-19; a real steel door, CC0 - Art/Sounds/Jetway/SOURCES.md): the latch and the swing as
+			// it starts to open, the slam and the latch as it shuts - heard from the door (distance, walls between)
+			if ((SvcWas <= 0.f && R.SvcOpen > 0.f) || (SvcWas > 0.f && R.SvcOpen <= 0.f))
+			{
+				static USoundBase* SOpen = ADPKeep(LoadObject<USoundBase>(nullptr, TEXT("/Game/JetwayBeacon/Sounds/JwSvcOpen.JwSvcOpen")));
+				static USoundBase* SShut = ADPKeep(LoadObject<USoundBase>(nullptr, TEXT("/Game/JetwayBeacon/Sounds/JwSvcClose.JwSvcClose")));
+				static USoundAttenuation* SAtt = nullptr;
+				if (!SAtt)
+				{
+					SAtt = ADPKeep(NewObject<USoundAttenuation>(GetTransientPackage()));
+					FSoundAttenuationSettings& A = SAtt->Attenuation;
+					A.bAttenuate = true; A.bSpatialize = true; A.AttenuationShapeExtents = FVector(150.f); A.FalloffDistance = 4000.f;
+					A.DistanceAlgorithm = EAttenuationDistanceModel::NaturalSound; A.dBAttenuationAtMax = -60.f;
+					A.bEnableOcclusion = true; A.OcclusionTraceChannel = ECC_Visibility; A.OcclusionLowPassFilterFrequency = 900.f; A.OcclusionVolumeAttenuation = 0.35f; A.OcclusionInterpolationTime = 0.1f;
+				}
+				USoundBase* S = R.SvcOpen > 0.f ? SOpen : SShut;
+				if (S && R.Model.IsValid())
+				{
+					const FVector At = R.Model->GetActorTransform().TransformPosition(NowOf(R, Tun3).TransformPosition(R.G[Tun3].Docked.InverseTransformPosition(R.SvcMid)));
+					UGameplayStatics::PlaySoundAtLocation(this, S, At, 1.f, 1.f, 0.f, SAtt);
+				}
+			}
 			if (!bMoving) ApplySvc(R, NowOf(R, Tun3));
 		}
 		// the yellow hoses sway a little (Settings > Graphics > Animations); only near the camera, and once back to still
@@ -1314,6 +1341,23 @@ bool AJetwayRigs::ServiceDoorNear(const FVector& Feet, const FVector& Facing, bo
 	}
 	return false;
 }
+
+bool AJetwayRigs::ServiceDoorFrame(int32 I, FVector& Mid, FVector& Out) const
+{
+	if (!Rigs.IsValidIndex(I)) return false;
+	const FRig& R = Rigs[I];
+	if (!R.Svc.Parts.Num() || !R.Model.IsValid()) return false;
+	const FTransform W = NowOf(R, Tun3) * R.Model->GetActorTransform();
+	const FTransform& Dk = R.G[Tun3].Docked;
+	// the leaf's hinge and middle (shut) give the wall's line; out = across it, away from the section's own axis
+	const FVector H = W.TransformPosition(Dk.InverseTransformPosition(R.Svc.H)), M = W.TransformPosition(Dk.InverseTransformPosition(R.SvcMid));
+	FVector Along = (M - H).GetSafeNormal2D(); Out = FVector::CrossProduct(FVector::UpVector, Along).GetSafeNormal2D();
+	if (FVector::DotProduct(Out, M - W.GetLocation()) < 0.f) Out = -Out;
+	Mid = M; return true;
+}
+
+void AJetwayRigs::SetServiceDoor(int32 I, bool bOpen) { if (Rigs.IsValidIndex(I)) Rigs[I].SvcWant = bOpen ? 1.f : 0.f; }
+ABabylonModel* AJetwayRigs::RigModel(int32 I) const { return Rigs.IsValidIndex(I) ? Rigs[I].Model.Get() : nullptr; }
 
 bool AJetwayRigs::UseServiceDoor(const FVector& Feet, const FVector& Facing)
 {

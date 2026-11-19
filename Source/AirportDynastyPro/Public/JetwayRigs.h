@@ -75,6 +75,11 @@ public:
 	 *  the way you look), whether it is open; Use swings it open or shut (E / X). */
 	bool ServiceDoorNear(const FVector& Feet, const FVector& Facing, bool& bOpen) const;
 	bool UseServiceDoor(const FVector& Feet, const FVector& Facing);
+	/** Jetway I's service door now (world): the doorway's middle at floor height, the way out (horizontal), and its
+	 *  owner model; for the -UISvcDoor test. Open/close it with SetServiceDoor. */
+	bool ServiceDoorFrame(int32 I, FVector& Mid, FVector& Out) const;
+	void SetServiceDoor(int32 I, bool bOpen);
+	class ABabylonModel* RigModel(int32 I) const;
 	/** Every jetway's beacons flashing (tests and pictures), as if they were all moving. */
 	static bool bBeaconTest;
 	/** How strongly the gate-number signs glow (their own colours; faint). */

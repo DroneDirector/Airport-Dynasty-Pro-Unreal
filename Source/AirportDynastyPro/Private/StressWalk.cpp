@@ -13,6 +13,7 @@
 #include "Misc/CoreDelegates.h"
 #include "JetwayRigs.h"
 #include "SunClock.h"
+#include "BabylonModel.h"
 #include "UObject/UObjectGlobals.h"
 
 namespace ADPStressWalkInternal
@@ -113,7 +114,7 @@ namespace ADPStressWalkInternal
 		return H.ImpactNormal.Z > 0.6f;                                          // (a floor or a ramp ahead isn't in the way)
 	}
 
-	FVector WalkSteer(UWorld* W, ACharacter* Ch, const FVector& Want)
+	FVector WalkSteerNear(UWorld* W, ACharacter* Ch, const FVector& Want)
 	{
 		if (WalkClear(W, Ch, Want)) return Want;
 		for (const float A : {30.f, 55.f, 80.f, 110.f})
@@ -124,6 +125,177 @@ namespace ADPStressWalkInternal
 			}
 		return Want;
 	}
+
+	// ---- seeing the way (owner, 2026-11-19: "be much more aware of your surroundings ... you are constantly bumping into
+	// things ... walk around stuff to avoid hitting them"; "use escalators, open doors, walk through doors without any
+	// hiccups"): before each stretch the floor between here and the next point is looked at in small squares - is there
+	// floor (no step higher than a stair's), is a body-sized space free there - and the shortest way round the tables,
+	// chairs, pillars, belts and people is found (A*). Spread over frames (about a millisecond each) so it doesn't show in
+	// the measured frame times; then walked with the eyes ahead along it, planned again if something steps into it.
+	// Doors on the way: the automatic ones open as you come; a closed hinged door (or a jetway's service door) in front
+	// of you is opened with E as you would.
+	struct FSWGrid
+	{
+		FVector Origin = FVector::ZeroVector; int32 NX = 0, NY = 0; float Cell = 35.f;
+		TArray<int8> Ok; TArray<float> FloorZ, G; TArray<int32> From; TArray<uint8> Closed;
+		TArray<TPair<float, int32>> Open;
+		int32 Start = -1; FVector GoalW = FVector::ZeroVector; bool bActive = false; int32 Expanded = 0;
+	};
+	FSWGrid SWG; TArray<FVector> SWPath; int32 SWPathI = 0, SWReplans = 0; float SWNoGainT = 0.f, SWBest = 1e9f, SWDirectT = 0.f, SWDoorWait = 0.f;
+
+	bool SWCellFree(UWorld* W, ACharacter* Ch, int32 C, float RefZ)
+	{
+		if (SWG.Ok[C] >= 0) return SWG.Ok[C] == 1;
+		const FVector P = SWG.Origin + FVector((C % SWG.NX) * SWG.Cell, (C / SWG.NX) * SWG.Cell, 0.f);
+		FHitResult H; FCollisionQueryParams Q(TEXT("SWFloor"), false, Ch);
+		bool bOk = false;
+		if (W->LineTraceSingleByChannel(H, FVector(P.X, P.Y, RefZ + 160.f), FVector(P.X, P.Y, RefZ - 260.f), ECC_Visibility, Q) && H.ImpactNormal.Z > 0.6f)
+		{
+			SWG.FloorZ[C] = H.ImpactPoint.Z;
+			// a body standing there, from a step's height up to head height (low lips and stair noses don't count)
+			const float R = Ch->GetCapsuleComponent()->GetScaledCapsuleRadius() + 8.f;
+			bOk = !W->OverlapAnyTestByChannel(FVector(P.X, P.Y, H.ImpactPoint.Z + 115.f), FQuat::Identity, ECC_Pawn, FCollisionShape::MakeCapsule(R, 75.f), Q);
+		}
+		SWG.Ok[C] = bOk ? 1 : 0; return bOk;
+	}
+
+	bool SWLess(const TPair<float, int32>& L, const TPair<float, int32>& R) { return L.Key < R.Key; }
+
+	void SWBegin(ACharacter* Ch, const FVector& Goal)
+	{
+		const FVector A = Ch->GetActorLocation();
+		const FVector Lo(FMath::Min(A.X, Goal.X) - 1000.f, FMath::Min(A.Y, Goal.Y) - 1000.f, 0.f), Hi(FMath::Max(A.X, Goal.X) + 1000.f, FMath::Max(A.Y, Goal.Y) + 1000.f, 0.f);
+		SWG = FSWGrid(); SWG.Cell = FMath::Max(35.f, FMath::Max(Hi.X - Lo.X, Hi.Y - Lo.Y) / 240.f);
+		SWG.NX = FMath::CeilToInt((Hi.X - Lo.X) / SWG.Cell) + 1; SWG.NY = FMath::CeilToInt((Hi.Y - Lo.Y) / SWG.Cell) + 1; SWG.Origin = Lo;
+		const int32 N = SWG.NX * SWG.NY;
+		SWG.Ok.Init(-1, N); SWG.FloorZ.Init(0.f, N); SWG.G.Init(1e30f, N); SWG.From.Init(-1, N); SWG.Closed.Init(0, N);
+		const int32 sx = FMath::Clamp(FMath::RoundToInt((A.X - Lo.X) / SWG.Cell), 0, SWG.NX - 1), sy = FMath::Clamp(FMath::RoundToInt((A.Y - Lo.Y) / SWG.Cell), 0, SWG.NY - 1);
+		SWG.Start = sy * SWG.NX + sx; SWG.GoalW = Goal; SWG.bActive = true;
+		SWG.Ok[SWG.Start] = 1; SWG.FloorZ[SWG.Start] = A.Z - Ch->GetCapsuleComponent()->GetScaledCapsuleHalfHeight(); SWG.G[SWG.Start] = 0.f;
+		SWG.Open.Reset(); SWG.Open.HeapPush(TPair<float, int32>(0.f, SWG.Start), SWLess);
+		SWPath.Reset(); SWPathI = 0;
+	}
+
+	FVector SWCellW(int32 C) { return SWG.Origin + FVector((C % SWG.NX) * SWG.Cell, (C / SWG.NX) * SWG.Cell, SWG.FloorZ[C]); }
+
+	// one frame's share of the search; true when it has ended (SWPath filled, or empty: no way found)
+	bool SWStep(UWorld* W, ACharacter* Ch)
+	{
+		if (!SWG.bActive) return true;
+		const double Until = FPlatformTime::Seconds() + 0.0012;
+		const FVector2D Gl(SWG.GoalW.X, SWG.GoalW.Y);
+		while (SWG.Open.Num() && FPlatformTime::Seconds() < Until)
+		{
+			TPair<float, int32> Top; SWG.Open.HeapPop(Top, SWLess);
+			const int32 C = Top.Value; if (SWG.Closed[C]) continue; SWG.Closed[C] = 1;
+			const FVector Cw = SWCellW(C);
+			if (FVector2D::Distance(FVector2D(Cw.X, Cw.Y), Gl) < FMath::Max(60.f, SWG.Cell * 1.2f))
+			{
+				TArray<FVector> Rev; for (int32 K = C; K != -1; K = SWG.From[K]) Rev.Add(SWCellW(K));
+				for (int32 i = Rev.Num() - 1; i >= 0; --i) SWPath.Add(Rev[i]);
+				SWPath.Add(FVector(SWG.GoalW.X, SWG.GoalW.Y, Cw.Z));
+				SWG.bActive = false; return true;
+			}
+			if (++SWG.Expanded > 40000) break;
+			const int32 x = C % SWG.NX, y = C / SWG.NX;
+			for (int32 dy = -1; dy <= 1; ++dy) for (int32 dx = -1; dx <= 1; ++dx)
+			{
+				if (!dx && !dy) continue;
+				const int32 nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= SWG.NX || ny >= SWG.NY) continue;
+				const int32 Nb = ny * SWG.NX + nx; if (SWG.Closed[Nb]) continue;
+				if (!SWCellFree(W, Ch, Nb, SWG.FloorZ[C])) continue;
+				if (FMath::Abs(SWG.FloorZ[Nb] - SWG.FloorZ[C]) > 45.f) continue;
+				// (no cutting a corner past a blocked square)
+				if (dx && dy && (!SWCellFree(W, Ch, y * SWG.NX + nx, SWG.FloorZ[C]) || !SWCellFree(W, Ch, ny * SWG.NX + x, SWG.FloorZ[C]))) continue;
+				const float Ng = SWG.G[C] + SWG.Cell * ((dx && dy) ? 1.4142f : 1.f);
+				if (Ng >= SWG.G[Nb]) continue;
+				SWG.G[Nb] = Ng; SWG.From[Nb] = C;
+				const FVector Nw = SWCellW(Nb);
+				SWG.Open.HeapPush(TPair<float, int32>(Ng + FVector2D::Distance(FVector2D(Nw.X, Nw.Y), Gl), Nb), SWLess);
+			}
+		}
+		if (SWG.Open.Num() && SWG.Expanded <= 40000) return false;
+		SWG.bActive = false; SWPath.Reset(); return true;   // (no way found)
+	}
+
+	// the next point to walk to on the way: the farthest one still in plain, free sight (a body-sized sweep)
+	void SWSmooth(UWorld* W, ACharacter* Ch)
+	{
+		if (SWPathI >= SWPath.Num()) return;
+		const FVector Me = Ch->GetActorLocation();
+		const float FootZ = Me.Z - Ch->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+		const float R = Ch->GetCapsuleComponent()->GetScaledCapsuleRadius();
+		FCollisionQueryParams Q(TEXT("SWSight"), false, Ch);
+		for (int32 j = FMath::Min(SWPath.Num() - 1, SWPathI + 30); j > SWPathI; --j)
+		{
+			if (FMath::Abs(SWPath[j].Z - FootZ) > 60.f) continue;   // (over a stair: square by square)
+			FHitResult H;
+			const FVector A(Me.X, Me.Y, FootZ + 115.f), B(SWPath[j].X, SWPath[j].Y, SWPath[j].Z + 115.f);
+			if (!W->SweepSingleByChannel(H, A, B, FQuat::Identity, ECC_Pawn, FCollisionShape::MakeCapsule(R + 4.f, 75.f), Q)) { SWPathI = j; return; }
+		}
+	}
+
+	// a closed door in front of you: opened with E as you would (a hinged door, a jetway's service door). True while
+	// waiting for it to swing open.
+	bool SWDoors(UWorld* W, ACharacter* Ch, const FVector& Facing, float Dt)
+	{
+		if (SWDoorWait > 0.f) { SWDoorWait -= Dt; return true; }
+		const FVector Feet = Ch->GetActorLocation() - FVector(0, 0, Ch->GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+		bool bOpen = true;
+		if (ABabylonModel::DoorNear(Feet, Facing, bOpen) && !bOpen && ABabylonModel::UseDoor(Ch)) { ADP_LOG(TEXT("Stress walk: opening a door (E)")); SWDoorWait = 1.3f; return true; }
+		if (AJetwayRigs* JR = AJetwayRigs::Get(W))
+			if (JR->ServiceDoorNear(Feet, Facing, bOpen) && !bOpen && JR->UseServiceDoor(Feet, Facing)) { ADP_LOG(TEXT("Stress walk: opening a jetway's service door (E)")); SWDoorWait = 1.4f; return true; }
+		return false;
+	}
+
+	// walking to T round everything in the way; true once there
+	bool SWWalkTo(UWorld* W, ACharacter* Ch, APlayerController* PC, const FVector& T, float Dt, const TCHAR* What)
+	{
+		FVector D = T - Ch->GetActorLocation(); D.Z = 0.f;
+		const float Dist = D.Size();
+		if (Dist < 45.f) { SWPath.Reset(); SWG.bActive = false; SWReplans = 0; SWDirectT = 0.f; return true; }
+		if (SWDoors(W, Ch, SWPath.Num() ? (SWPath[FMath::Min(SWPathI, SWPath.Num() - 1)] - Ch->GetActorLocation()).GetSafeNormal2D() : D / Dist, Dt)) return false;
+		// no way seen (often a closed door between): straight on for a moment, steering round what's near, opening doors
+		if (SWDirectT > 0.f)
+		{
+			SWDirectT -= Dt;
+			const FVector Dir = WalkSteerNear(W, Ch, D / Dist);
+			Ch->AddMovementInput(Dir, 0.8f);
+			PC->SetControlRotation(FMath::RInterpTo(PC->GetControlRotation(), FRotator(0.f, Dir.Rotation().Yaw, 0.f), Dt, 3.f));
+			return false;
+		}
+		if (!SWG.bActive && SWPath.Num() == 0)
+		{
+			if (SWReplans > 4) return false;   // (the caller moves you on)
+			SWBegin(Ch, T); ++SWReplans; SWNoGainT = 0.f; SWBest = 1e9f;
+		}
+		if (SWG.bActive)
+		{
+			// planning: a few frames, standing and looking that way
+			if (SWStep(W, Ch))
+			{
+				if (SWPath.Num()) ADP_LOG(TEXT("Stress walk: way planned (%d squares of %.0f cm, %d looked at)"), SWPath.Num(), SWG.Cell, SWG.Expanded);
+				else { ADP_LOG(TEXT("Stress walk: no clear way seen yet to the next point of \"%s\" (try %d) - on towards it"), What, SWReplans); SWDirectT = 3.f; }
+			}
+			PC->SetControlRotation(FMath::RInterpTo(PC->GetControlRotation(), FRotator(0.f, D.Rotation().Yaw, 0.f), Dt, 2.f));
+			return false;
+		}
+		// walking the way: the farthest square in free sight next, the eyes on the way about 3 m ahead
+		SWSmooth(W, Ch);
+		const FVector Me = Ch->GetActorLocation();
+		FVector To = SWPath[FMath::Min(SWPathI, SWPath.Num() - 1)] - Me; To.Z = 0.f;
+		if (To.Size() < 40.f && SWPathI < SWPath.Num() - 1) { ++SWPathI; return false; }
+		FVector Look = To; float Acc = 0.f;
+		for (int32 j = SWPathI; j < SWPath.Num() && Acc < 300.f; ++j) { Look = SWPath[j] - Me; Look.Z = 0.f; Acc = Look.Size(); }
+		Ch->AddMovementInput(To.GetSafeNormal(), 1.f);
+		PC->SetControlRotation(FMath::RInterpTo(PC->GetControlRotation(), FRotator(0.f, Look.Rotation().Yaw, 0.f), Dt, 3.f));
+		// something stepped into the way (a person, a door): no nearer for 1.5 s - look again and plan anew
+		const float Left = To.Size();
+		if (Left < SWBest - 15.f) { SWBest = Left; SWNoGainT = 0.f; }
+		else if ((SWNoGainT += Dt) > 1.5f) { ADP_LOG(TEXT("Stress walk: the way is blocked - planning again")); SWPath.Reset(); SWBest = 1e9f; SWNoGainT = 0.f; }
+		return false;
+	}
+
 }
 
 void ADPStressWalk::Begin(bool bQuitWhenDone)
@@ -178,12 +350,7 @@ void ADPStressWalk::Tick(UWorld* W, APlayerController* PC, float Dt)
 		ADPPerfLog::Mark(Pt.What);
 		WalkPoint = 0; WalkStuckT = 0.f; WalkBestDist = 1e9f;
 		if (Pt.Kind == EWalkKind::Go) WalkSnap(W, Ch, Pt.Points[0], PC->GetControlRotation().Yaw);
-		if (Pt.Kind == EWalkKind::Escalator)
-			for (TActorIterator<AEscalatorPair> It(W); It; ++It)
-			{
-				const FTransform ET = It->GetActorTransform(); const FVector Dir = ET.TransformVectorNoScale(FVector(0, -1, 0));
-				Ch->TeleportTo(ET.TransformPosition(FVector(0, 350, 110)), Dir.Rotation()); PC->SetControlRotation(Dir.Rotation());
-			}
+		SWPath.Reset(); SWG.bActive = false; SWReplans = 0; SWDirectT = 0.f; SWDoorWait = 0.f; WalkToCab = false;
 	}
 	WalkPartT += Dt;
 	bool bDone = false;
@@ -199,8 +366,22 @@ void ADPStressWalk::Tick(UWorld* W, APlayerController* PC, float Dt)
 		PC->SetControlRotation(FMath::RInterpTo(PC->GetControlRotation(), FRotator(2.f, Pt.Yaw, 0.f), Dt, 3.f));
 		bDone = WalkPartT >= Pt.Seconds; break;
 	case EWalkKind::Escalator:
-		for (TActorIterator<AEscalatorPair> It(W); It; ++It) Ch->AddMovementInput(It->GetActorTransform().TransformVectorNoScale(FVector(0, -1, 0)), 0.6f);
-		bDone = WalkPartT >= Pt.Seconds; break;
+	{
+		// walked to its foot (round everything), then on: stepping on and riding it up, a gentle walk on the steps
+		AEscalatorPair* E = nullptr; float Bd = 1e12f;
+		for (TActorIterator<AEscalatorPair> It(W); It; ++It) { const float Dd = FVector::DistSquared(It->GetActorLocation(), Ch->GetActorLocation()); if (Dd < Bd) { Bd = Dd; E = *It; } }
+		if (!E) { bDone = true; break; }
+		const FTransform ET = E->GetActorTransform(); const FVector Up = ET.TransformVectorNoScale(FVector(0, -1, 0));
+		if (!WalkToCab)
+		{
+			if (SWWalkTo(W, Ch, PC, ET.TransformPosition(FVector(0, 350, 0)), Dt, Pt.What) || WalkPartT > 40.f) { WalkToCab = true; WalkPartT = 0.01f; ADP_LOG(TEXT("Stress walk: stepping onto the escalator")); }
+			break;
+		}
+		Ch->AddMovementInput(Up, 0.6f);
+		PC->SetControlRotation(FMath::RInterpTo(PC->GetControlRotation(), FRotator(0.f, Up.Rotation().Yaw, 0.f), Dt, 3.f));
+		bDone = WalkPartT >= Pt.Seconds; if (bDone) WalkToCab = false;
+		break;
+	}
 	case EWalkKind::Night:
 		if (WalkPartT <= Dt) { WalkHourWas = ASunClock::HourOverride; ASunClock::HourOverride = 21.f; ASunClock::Refresh(); }
 		bDone = WalkPartT >= Pt.Seconds; break;
@@ -237,20 +418,12 @@ void ADPStressWalk::Tick(UWorld* W, APlayerController* PC, float Dt)
 	case EWalkKind::Walk:
 	{
 		if (WalkPoint >= Pt.Points.Num()) { bDone = true; break; }
-		const FVector T = WalkWorld(Pt.Points[WalkPoint]);
-		FVector D = T - Ch->GetActorLocation(); D.Z = 0.f;
-		const float Dist = D.Size();
-		if (Dist < 45.f) { ++WalkPoint; WalkStuckT = 0.f; WalkBestDist = 1e9f; break; }
-		const FVector Dir = WalkSteer(W, Ch, D / Dist);
-		Ch->AddMovementInput(Dir, 1.f);
-		PC->SetControlRotation(FMath::RInterpTo(PC->GetControlRotation(), FRotator(0.f, Dir.Rotation().Yaw, 0.f), Dt, 5.f));
-		// no nearer for 3 s: stuck - noted, and on to the next point
-		if (Dist < WalkBestDist - 30.f) { WalkBestDist = Dist; WalkStuckT = 0.f; }
-		else if ((WalkStuckT += Dt) > 3.f)
+		if (SWWalkTo(W, Ch, PC, WalkWorld(Pt.Points[WalkPoint]), Dt, Pt.What)) { ++WalkPoint; break; }
+		if (SWReplans > 4 && !SWG.bActive && SWPath.Num() == 0 && SWDirectT <= 0.f)
 		{
-			ADP_WARN(TEXT("Stress walk: stuck %.1f m from a point of \"%s\" - moved on to it"), Dist / 100.f, Pt.What);
-			ADPPerfLog::Mark(FString::Printf(TEXT("(stuck %.1f m short, moved on)"), Dist / 100.f));
-			WalkSnap(W, Ch, Pt.Points[WalkPoint], PC->GetControlRotation().Yaw); ++WalkPoint; WalkStuckT = 0.f; WalkBestDist = 1e9f;
+			ADP_WARN(TEXT("Stress walk: no way found to a point of \"%s\" - moved on to it"), Pt.What);
+			ADPPerfLog::Mark(TEXT("(no way found, moved on)"));
+			WalkSnap(W, Ch, Pt.Points[WalkPoint], PC->GetControlRotation().Yaw); ++WalkPoint; SWReplans = 0;
 		}
 		if (WalkPartT > Pt.Seconds) bDone = true;
 		break;

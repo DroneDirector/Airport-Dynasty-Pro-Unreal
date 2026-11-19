@@ -69,7 +69,18 @@ void ADPTitleBg::Clock(bool bNowOn, float Seconds)
 	{
 		float VErr = Seconds - float(V->GetTime().GetTotalSeconds());
 		if (VErr > TS_DUR * 0.5f) VErr -= TS_DUR; else if (VErr < -TS_DUR * 0.5f) VErr += TS_DUR;
-		if (FMath::Abs(VErr) > 0.5f && V->SupportsSeeking()) V->Seek(FTimespan::FromSeconds(FMath::Fmod(Seconds, TS_DUR)));
+		// (owner, 2026-11-19: "the title screen video is flashing like crazy" - a jump at most every 8 s, and only when it is
+		// really off (over a second), each one logged; the video and the music clocks logged every 5 s to see them agree)
+		// (a jump takes a moment to land, so it is aimed that much ahead - learnt from each jump: the video ran a steady 0.77 s
+		// behind after its start, and jumping straight to the music made it jump again and again - the flashing)
+		static double LastSeek = -100.0, LastSay = 0.0; static int32 Seeks = 0; static float Lead = 0.f;
+		if (FMath::Abs(VErr) > 0.25f && V->SupportsSeeking() && T - LastSeek > 8.0)
+		{
+			if (Seeks > 0) Lead = FMath::Clamp(Lead + VErr, 0.f, 2.f);
+			LastSeek = T; ++Seeks; V->Seek(FTimespan::FromSeconds(FMath::Fmod(Seconds + Lead, TS_DUR)));
+			ADP_LOG(TEXT("Title film: video %.2f s off the music (video %.2f, music %.2f) - jumped to it (%d jumps so far)"), VErr, V->GetTime().GetTotalSeconds(), Seconds, Seeks);
+		}
+		if (T - LastSay > 5.0) { LastSay = T; ADP_LOG(TEXT("Title film: video at %.2f s, music at %.2f s (off %.2f)"), V->GetTime().GetTotalSeconds(), Seconds, VErr); }
 	}
 	if (FMath::Abs(Err) > 0.6f) return;
 	// (else: carry on from where the film is now, a little faster or slower until it meets the music - at most 4 %)
