@@ -216,7 +216,7 @@ function lapRender(soft?: boolean) {
   const dock = R.querySelector('.ph-dock') as HTMLElement; if (dock) dock.innerHTML = phDockHtml();
   try { lapDevApply(); lapPopups(); } catch (e) { /* as it was */ }
   if (!Lap.app) { win.hidden = true; win.innerHTML = ''; return; }
-  const sk = /^scr:/.test(Lap.app) ? Lap.app.slice(4) : '', A = sk ? [Lap.app, SCREENS[sk] ? SCREENS[sk].title : sk, (SCREENS[sk] && SCREENS[sk].icon) || 'ops', '#3FD0E8'] : LAP_APPS.concat(PH_APPS).filter(x => x[0] === Lap.app)[0]; if (!A) return;
+  const sk = /^scr:/.test(Lap.app) ? Lap.app.slice(4) : '', A = sk ? [Lap.app, SCREENS[sk] ? SCREENS[sk].title : sk, (SCREENS[sk] && SCREENS[sk].icon) || 'ops', '#3FD0E8'] : lapAppInfo(Lap.app); if (!A) return;
   if (Lap.app === 'browser' && soft && win.querySelector('.lap-br')) { lapBrowserChrome(); return; }   // the page itself is never drawn again
   win.hidden = false;
   const body = lapAppHtml(Lap.app);
@@ -246,7 +246,7 @@ function lapBar() {
  *  both), and on the Operations computer the operations screens. */
 function lapDeskApps(): [string, string, string, string][] {
   const ops: [string, string, string, string][] = Lap.ops ? OPS_TABS.filter(t => SCREENS[t[0]]).map(t => ['scr:' + t[0], t[1], t[2], '#2FB4E8'] as [string, string, string, string]) : [];
-  const ov: [string, string, string, string][] = Lap.phone ? [] : [['overview', 'Overview', 'ops', '#F5B544']];   // (owner 2026-11-18: the Overview from the tablet and the PCs only)
+  const ov: [string, string, string, string][] = Lap.phone ? [] : [['overview', 'Overview', 'ops', '#F5B544'], ['staff', 'Staff', 'pilots', '#7C8CF0']];   // (owner 2026-11-18: the Overview from the tablet and the PCs only)
   return ov.concat(ops, LAP_APPS, PH_APPS.filter(a => !LAP_APPS.some(b => b[0] === a[0])));
 }
 function lapDeskHtml(): string {
@@ -259,7 +259,8 @@ function lapDeskHtml(): string {
 }
 
 function lapAppHtml(k: string): string {
-  if (k === 'weather') return wxAppHtml();   // (the Weather app: screens/wx-app.ts)
+  if (k === 'weather') return wxAppHtml();
+  if (k === 'staff') return aptStaffAppHtml();   // (your airport's staff: screens/apt-staff.ts)   // (the Weather app: screens/wx-app.ts)
   if (k === 'msgs' || k === 'call' || k === 'store') return phAppHtml(k);
   if (k === 'mail') return lapMailHtml();
   if (k === 'calendar') return lapCalHtml();

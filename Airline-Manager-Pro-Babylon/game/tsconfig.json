@@ -176,6 +176,7 @@
     "src/screens/lap-files.ts",
     "src/screens/wx-app.ts",
     "src/screens/ph-tones.ts",
+    "src/screens/apt-staff.ts",
     "src/screens/phone-talk.ts",
     "src/data/stars.ts",
     "src/screens/v3d-sky.ts",

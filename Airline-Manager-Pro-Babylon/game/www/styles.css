@@ -4698,3 +4698,15 @@ html.ts-native #app, html.ts-native #rotate-hint { visibility: hidden; }
 .wx-work { display: flex; flex-direction: column; gap: 6px; } .wx-rw { display: grid; grid-template-columns: 1.4fr 1fr 1.6fr; gap: 8px; padding: 9px 12px; border-radius: 12px; background: rgba(255,255,255,.05); font-size: 13px; }
 .wx-rw.on { background: rgba(61,220,132,.14); } .wx-notes { display: flex; flex-direction: column; gap: 4px; font-size: 13px; } .wx-notes span { display: flex; gap: 6px; align-items: center; }
 .wx-notes svg.ic { width: 16px; height: 16px; }
+
+/* the Staff app (screens/apt-staff.ts) */
+.as-app { display: flex; flex-direction: column; gap: 10px; padding: 4px 2px 10px; }
+.as-head b { font-size: 18px; display: block; } .as-head small { opacity: .75; }
+.as-sum { padding: 9px 12px; border-radius: 12px; background: rgba(61,220,132,.14); display: flex; gap: 8px; align-items: center; font-size: 13px; }
+.as-sum.short { background: rgba(240,106,106,.16); } .as-sum svg.ic { width: 16px; height: 16px; }
+.as-rows { display: flex; flex-direction: column; gap: 5px; }
+.as-row { display: grid; grid-template-columns: 1.4fr 1fr 1.8fr auto; gap: 10px; align-items: center; padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,.05); font-size: 13px; }
+.as-row.short { background: rgba(240,106,106,.10); } .as-row small { opacity: .7; } .as-ok svg.ic { width: 16px; height: 16px; color: #3DDC84; }
+.as-sub { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; opacity: .65; margin-top: 4px; }
+.as-coming { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; }
+.as-coming span { display: flex; flex-direction: column; padding: 7px 10px; border-radius: 10px; background: rgba(255,255,255,.05); font-size: 13px; } .as-coming small { opacity: .7; }
