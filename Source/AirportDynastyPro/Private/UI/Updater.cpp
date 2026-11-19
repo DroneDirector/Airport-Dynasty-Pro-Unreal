@@ -187,6 +187,7 @@ void AADPHUD::ApplyUpdate(const FString& Dir)
 	// the script that puts the files in place once the game has closed, then starts it again
 	const FString Install = FPaths::ConvertRelativePathToFull(FPaths::RootDir());
 	const FString Exe = Install / TEXT("AirportDynastyPro.exe");
+	// (the script turns both into Windows' own backslash form itself - [IO.Path]::GetFullPath - before Explorer gets them)
 	FString Zips;
 	for (const FString& Z : UpdateFiles) Zips += (Zips.IsEmpty() ? TEXT("") : TEXT(",")) + FString::Printf(TEXT("'%s'"), *Z);
 	const FString Script = FString::Printf(TEXT(R"PS1(# Airport Dynasty Pro: puts an update in place after the game has closed, then starts it again.
@@ -213,8 +214,11 @@ try {
     "Updated to $($m.to)" | Add-Content $log
   }
 } catch { "Update failed: $_" | Add-Content $log }
-# started through Explorer: the game runs as you, not with the administrator rights this may have had
-Start-Process explorer.exe -ArgumentList ('"' + $exe + '"')
+# started through Explorer: the game runs as you, not with the administrator rights this may have had. The path in
+# Windows' own form (backslashes): given forward slashes, Explorer doesn't know it as a file and opens Documents instead
+# (owner, 2026-11-19: "it brings up a documents folder")
+$exeWin = [IO.Path]::GetFullPath($exe)
+if (Test-Path -LiteralPath $exeWin) { Start-Process explorer.exe -ArgumentList ('"' + $exeWin + '"') } else { "Restart: no game at $exeWin" | Add-Content $log }
 )PS1"), *Install, *Exe, *Zips, *Dir, int32(FPlatformProcess::GetCurrentProcessId()), *Dir);
 	const FString ScriptFile = Dir / TEXT("apply-update.ps1");
 	FFileHelper::SaveStringToFile(Script, *ScriptFile, FFileHelper::EEncodingOptions::ForceUTF8);

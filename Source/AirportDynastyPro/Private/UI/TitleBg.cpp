@@ -39,20 +39,25 @@ namespace
 	float TitleEase(float K) { K = FMath::Clamp(K, 0.f, 1.f); return K * K * (3.f - 2.f * K); }
 
 	bool bFilmOn = false, bFilmReady = false;
-	float ClockT = 0.f; double ClockAt = 0.0;
-	float Now()
-	{
-		const float T = ClockT + float(FPlatformTime::Seconds() - ClockAt);
-		return FMath::Fmod(FMath::Max(T, 0.f), TS_DUR);
-	}
+	// the film's own clock: it runs smoothly on Unreal's time and is only steered gently towards the music (a touch faster
+	// or slower), never snapped - the snaps were the title film's stutter (owner, 2026-11-19); a real jump (the music
+	// starting over, a seek) still snaps
+	float ClockT = 0.f, Rate = 1.f; double ClockAt = 0.0;
+	float Raw() { return ClockT + float(FPlatformTime::Seconds() - ClockAt) * Rate; }
+	float Now() { return FMath::Fmod(FMath::Max(Raw(), 0.f), TS_DUR); }
 }
 
 void ADPTitleBg::Clock(bool bNowOn, float Seconds)
 {
 	if (bNowOn != bFilmOn) ADP_LOG(TEXT("Title film: %s (Unreal draws it)"), bNowOn ? TEXT("on") : TEXT("off"));
 	bFilmOn = bNowOn;
-	// the page's music clock: taken when it drifts (the page sends it a few times a second)
-	if (FMath::Abs(Now() - Seconds) > 0.08f && FMath::Abs(Now() - Seconds) < TS_DUR - 0.08f) { ClockT = Seconds; ClockAt = FPlatformTime::Seconds(); }
+	// the page's music clock (a few times a second): how far off the film is, shortest way round the loop
+	float Err = Seconds - Now();
+	if (Err > TS_DUR * 0.5f) Err -= TS_DUR; else if (Err < -TS_DUR * 0.5f) Err += TS_DUR;
+	const double T = FPlatformTime::Seconds();
+	if (FMath::Abs(Err) > 0.6f) { ClockT = Seconds; ClockAt = T; Rate = 1.f; return; }   // (a real jump: snap)
+	// (else: carry on from where the film is now, a little faster or slower until it meets the music - at most 4 %)
+	ClockT = Now(); ClockAt = T; Rate = 1.f + FMath::Clamp(Err * 0.6f, -0.04f, 0.04f);
 }
 bool ADPTitleBg::IsOn() { return bFilmOn; }
 bool ADPTitleBg::Ready() { return bFilmReady; }
