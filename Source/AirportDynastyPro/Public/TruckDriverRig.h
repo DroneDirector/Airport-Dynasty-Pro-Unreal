@@ -33,6 +33,11 @@ public:
 	float PelvisHeight() const { return PelvisH; }
 	/** The last pose: every bone's local transform in the mesh's own order (handed to your MetaHuman, DriverPoseAnim.h). */
 	const TArray<FTransform>& LocalPose() const { return Local; }
+	/** The hip joint and the knee of side S in the last pose (the mesh's own space), and the hips in its rest pose - for
+	 *  resting the hands on the thighs and the thighs on a seat (People.cpp). */
+	FVector HipAt(int32 S) const { return CS.IsValidIndex(Thigh[S]) ? CS[Thigh[S]].GetLocation() : FVector::ZeroVector; }
+	FVector KneeAt(int32 S) const { return CS.IsValidIndex(Calf[S]) ? CS[Calf[S]].GetLocation() : FVector::ZeroVector; }
+	float HipWidth() const { return RefCS.IsValidIndex(Thigh[0]) && RefCS.IsValidIndex(Thigh[1]) ? FVector::Dist(RefCS[Thigh[0]].GetLocation(), RefCS[Thigh[1]].GetLocation()) : 18.f; }
 
 private:
 	UPoseableMeshComponent* Mesh = nullptr;

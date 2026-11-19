@@ -803,10 +803,41 @@ void AADPPeople::SitPose(FStroll& S, float K)
 	case 2: Si.Lean = 2.f; Si.Hand[0] = FVector(13.f, 22.f, SH + 14.f); Si.Hand[1] = FVector(-13.f, 22.f, SH + 14.f); break;    // each hand on its own thigh
 	default: Si.Lean = -7.f; Si.Hand[0] = FVector(4.f, 16.f, SH + 16.f); Si.Hand[1] = FVector(-4.f, 18.f, SH + 15.f); break;    // back in the seat, hands in the lap
 	}
+	// the seat (owner, 2026-11-19: a small IK step): its real surface measured once, straight down at the seat, and the
+	// hips one thigh's thickness over it - so the thighs rest on the seat whatever the body
+	const float ThighR = FMath::Clamp(S.Rig->HipWidth() * 0.42f, 6.f, 12.f);
+	if (!S.bSurf)
+	{
+		S.bSurf = true; S.SurfZ = SH;
+		FHitResult Hs; FCollisionQueryParams Qs(SCENE_QUERY_STAT(PeopleSeatTop), false, A);
+		const FVector Mid = SAt - SF.GetSafeNormal2D() * 20.f;
+		if (GetWorld()->LineTraceSingleByChannel(Hs, Mid + FVector(0, 0, 80.f), Mid - FVector(0, 0, 60.f), ECC_Visibility, Qs)) S.SurfZ = Hs.ImpactPoint.Z - S.Frame->GetComponentLocation().Z;
+	}
+	Si.Pelvis.Z = S.SurfZ + ThighR;
 	FDriverPose P = Si;
 	P.Pelvis = FMath::Lerp(St.Pelvis, Si.Pelvis, E); P.Lean = FMath::Lerp(0.f, Si.Lean, E) + 22.f * FMath::Sin(PI * E);
 	for (int32 s = 0; s < 2; ++s) { P.Foot[s] = FMath::Lerp(St.Foot[s], Si.Foot[s], E); P.bHand[s] = E > 0.35f; }
 	S.Rig->Pose(P);
+	// the hands (the same IK step): each one onto the top of the thigh it rests on - its own body's thigh, at its own
+	// thickness - so it lies on it, never in it or floating over it; then the pose once more with them there
+	if (E > 0.35f)
+	{
+		for (int32 h = 0; h < 2; ++h)
+		{
+			int32 Side = 0; float Bd = 1e9f;
+			for (int32 k = 0; k < 2; ++k) { const float D = FMath::Abs(S.Rig->HipAt(k).X - P.Hand[h].X) + FMath::Abs(S.Rig->KneeAt(k).X - P.Hand[h].X); if (D < Bd) { Bd = D; Side = k; } }
+			const FVector Hip = S.Rig->HipAt(Side), Knee = S.Rig->KneeAt(Side), Ax = Knee - Hip;
+			const float L2 = FMath::Max(Ax.SizeSquared(), 1.f);
+			const float T = FMath::Clamp(FVector::DotProduct(P.Hand[h] - Hip, Ax) / L2, 0.35f, 0.95f);
+			const FVector On = Hip + Ax * T;
+			// (beside the thigh's top line by the hand's own offset, a little at most; the wrist a palm over the skin)
+			const FVector Side2 = FVector::CrossProduct(Ax.GetSafeNormal(), FVector::UpVector).GetSafeNormal();
+			const float Off = FMath::Clamp(FVector::DotProduct(P.Hand[h] - On, Side2), -ThighR * 0.6f, ThighR * 0.6f);
+			const FVector Want = On + Side2 * Off + FVector(0, 0, ThighR + 3.f);
+			P.Hand[h] = FMath::Lerp(P.Hand[h], Want, FMath::Clamp((E - 0.35f) / 0.3f, 0.f, 1.f));
+		}
+		S.Rig->Pose(P);
+	}
 	if (S.Pose) S.Pose->Local = S.Rig->LocalPose();
 	// (the body on the seat's frame - the hips at the rig's own height over the seat)
 	{
@@ -882,7 +913,7 @@ void AADPPeople::StepStrollers(float Dt)
 					A->SetActorLocationAndRotation(P, FRotator(0.f, SF.Rotation().Yaw - 90.f, 0.f));
 				}
 				if (W->Body) { static UBlendSpace* Move = LoadObject<UBlendSpace>(nullptr, TEXT("/Game/People/Anims/BS_Idle_Walk_Run_MH.BS_Idle_Walk_Run_MH")); W->Body->SetAnimationMode(EAnimationMode::AnimationSingleNode); if (Move) { W->Body->SetAnimation(Move); W->Body->Play(true); } }
-				ASeats::Release(A); S.Seat = INDEX_NONE; S.Pose = nullptr; S.bLowered = false; S.Lower = 0.f;
+				ASeats::Release(A); S.Seat = INDEX_NONE; S.Pose = nullptr; S.bLowered = false; S.Lower = 0.f; S.bSurf = false;
 				S.Doing = EDoing::Stand; S.T = 0.f; S.For = Rng.FRandRange(1.f, 3.f);
 			}
 			break;
