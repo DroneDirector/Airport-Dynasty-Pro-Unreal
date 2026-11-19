@@ -48,6 +48,10 @@ for name in ('SM_EscStep', 'SM_StairStep', 'SM_EscBody', 'SM_EscRamp', 'SM_EscBo
         mi = unreal.load_asset(TM + MAP.get(slot, 'MI_T_steel'))
         # (owner 2026-11-18: the moving steps only about 5 % reflective - their own matte metal, Tools/fix_glass_steps.py)
         if name in ('SM_EscStep', 'SM_StairStep') and slot == 'M_EscStepMetal' and unreal.EditorAssetLibrary.does_asset_exist(TM + 'MI_T_escStep'): mi = unreal.load_asset(TM + 'MI_T_escStep')
+        # (owner 2026-11-19: steps 1 %, their black moving parts 3 %, handrails none - own instances, Tools/escalator_reflections.py)
+        own = {'M_EscStepGroove': 'MI_T_escStepDark', 'M_EscDark': 'MI_T_escStepDark', 'M_EscYellow': 'MI_T_escStepYellow'} if name in ('SM_EscStep', 'SM_StairStep') else {}
+        own['M_EscHandrail'] = 'MI_T_escHandrail'
+        if slot in own and unreal.EditorAssetLibrary.does_asset_exist(TM + own[slot]): mi = unreal.load_asset(TM + own[slot])
         m.set_editor_property('material_interface', mi); mats.append(m)
     sm.set_editor_property('static_materials', mats)
     ns = sm.get_editor_property('nanite_settings'); ns.set_editor_property('enabled', name in ('SM_EscStep', 'SM_StairStep'))
