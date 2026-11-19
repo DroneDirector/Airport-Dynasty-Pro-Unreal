@@ -1291,7 +1291,13 @@ void AJetwayRigs::AddCameras(FRig& R, UInstancedStaticMeshComponent* Host, const
 		// 4 along the bridge, from the first tunnel's roof by the rotunda
 		if (Hit(FVector(Back.X, Back.Y, Tb.Max.Z + 80.f), -1.f, Z)) Put(Tun1, false, FVector(Back.X, Back.Y, Z), Pitched(R.DirD, -6.f), TEXT("BRIDGE EXTERIOR"));
 		// 5 down the tunnel, from its ceiling
-		if (Hit(FVector(Back.X, Back.Y, Tb.GetCenter().Z - 20.f), 1.f, Z) && Z < Tb.Max.Z - 5.f) Put(Tun1, true, FVector(Back.X, Back.Y, Z), Pitched(Ax, -8.f), TEXT("TUNNEL"));
+		// (owner, 2026-11-19: it sat on a ceiling lamp. The first tunnel's lamp panels (Tools/jetway_*.py, its J-x/LED: 1.12 m
+		// each, at 0.44-1.56, 3.04-4.16, 5.64-6.76, 8.24-9.36 m of its 10.5 m) - at 18 % from the rotunda end it was on the one
+		// at 8.24-9.36. Now in the middle of the gap between the last two, 3.00 m from the rotunda end, still centred.)
+		{
+			const FVector S = Tb.GetCenter() + Ax * (A0 + 300.f);
+			if (Hit(FVector(S.X, S.Y, Tb.GetCenter().Z - 20.f), 1.f, Z) && Z < Tb.Max.Z - 5.f) Put(Tun1, true, FVector(S.X, S.Y, Z), Pitched(Ax, -8.f), TEXT("TUNNEL"));
+		}
 	}
 	for (UInstancedStaticMeshComponent* K : {BK, DK}) K->MarkRenderStateDirty();
 	ADP_LOG(TEXT("Jetways: %s CCTV - %d cameras placed"), *R.Id, R.Cams.Num());
