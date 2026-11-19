@@ -35,6 +35,9 @@ public:
 	 *  blended over the last 60 m inside the boundary so there is no step at the fence. */
 	static double GroundAt(double X, double Y);
 	/** A few placed things the -UIRoadAirport test looks at (world cm): a gully grating and a manhole cover, and which way out. */
+	/** The coach stands (owner, 2026-11-19): each lettered stand box's middle on the road's surface, facing the way the coaches
+	 *  drive in - filled as the forecourt's paint is laid. */
+	static TArray<FTransform> BusStands;
 	static FVector TestDrain;
 	static FVector TestDrainOut;
 	static FVector TestManhole;

@@ -17,7 +17,7 @@ import numpy as np
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 K.ART = ART = os.path.join(ROOT, 'Art', 'Coach'); os.makedirs(ART, exist_ok=True)
 SHOTS = os.path.join(ROOT, 'docs', 'Pictures', 'Coach'); os.makedirs(SHOTS, exist_ok=True)
-QUICK = '--quick' in sys.argv; CLASH = '--clash' in sys.argv; FINAL = '--final' in sys.argv; RENDER = QUICK or CLASH or FINAL or '--render' in sys.argv
+QUICK = '--quick' in sys.argv; CLASH = '--clash' in sys.argv; FINAL = '--final' in sys.argv; ASSEMBLE = '--assembled' in sys.argv; RENDER = QUICK or CLASH or FINAL or ASSEMBLE or '--render' in sys.argv
 bpy.ops.wm.read_factory_settings(use_empty=True)
 
 L, W, H, CLR = 12.90, 2.55, 3.70, 0.34
@@ -548,7 +548,7 @@ if RENDER:
     gm = mat('Preview_Asphalt', gt, 0, 0.8); g = box('Ground', -30, 30, -30, 30, -0.02, 0.0, gm); K.box_uv([g], 1.0)
     cam_d = bpy.data.cameras.new('Cam'); cam = bpy.data.objects.new('Cam', cam_d); sc.collection.objects.link(cam); sc.camera = cam
     def shoot(name, loc, at, lens=35, res=(3840, 2160)):
-        if CLASH or (FINAL and not name.startswith('Final')): return
+        if CLASH or ASSEMBLE or (FINAL and not name.startswith('Final')): return
         cam.location = loc; cam.rotation_euler = (Vector(at) - Vector(loc)).to_track_quat('-Z', 'Y').to_euler(); cam_d.lens = lens
         if QUICK: res = (res[0] // 3, res[1] // 3)
         sc.render.resolution_x, sc.render.resolution_y = res; sc.render.filepath = os.path.join(SHOTS, name + '.png')
@@ -638,3 +638,17 @@ if FINAL:
     shoot('Final-10-cockpit', (d2x(1.50), 0.32, 1.00 + 1.45), (d2x(0.40), 0.58, 1.72), 20)
     sc.view_settings.exposure = -0.9
     shoot('Final-11-wheel', (AX_F + 0.95, -2.45, 0.62), (AX_F, -1.10, 0.52), 40)
+
+# ---------------------------------------------------------------- the whole coach for the game (-- --assembled): every part at
+# its place from the layout in one file, Art/Coach/airportcoach.glb - the seats, wheels, bay doors and fold seats are copies
+# of one mesh each (the import makes each one mesh, instanced, so a seat swapped later changes every row); the pictures'
+# ground, wall and lights stay out
+if ASSEMBLE:
+    for o in bpy.context.selected_objects: o.select_set(False)
+    keep = 0
+    for o in bpy.context.scene.objects:
+        if o.type == 'MESH' and not o.hide_render and o.name not in ('Ground', 'Floor', 'Wall'):
+            o.select_set(True); keep += 1
+    out = os.path.join(ART, 'airportcoach.glb')
+    bpy.ops.export_scene.gltf(filepath=out, export_format='GLB', use_selection=True, export_apply=True)
+    print('COACH: assembled', keep, 'objects ->', out)

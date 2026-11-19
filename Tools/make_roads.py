@@ -145,8 +145,9 @@ fc_paint = [
     # the bus lane's outer edge where there are no stands
     dict(kind='line', side='right', edge=7, off=-0.25, w=0.15, from_=s_ne1, to=s_t0a),
     dict(kind='line', side='right', edge=7, off=-0.25, w=0.15, from_=s_t1a, to=s_sw1),
-    # the stands: five buses in line (yellow, 13 m each) by the main entrance, taxis (white, 6 m) toward the east end
-    dict(kind='boxes', side='right', lane=7, n=5, len=13.0, gap=2.0, color='yellow', from_=A.x(112.5)),
+    # the stands: seven airport coaches in line (owner, 2026-11-19: 7, 3 m apart; yellow, 13 m each, 20 cm lines, BUSES ONLY
+    # painted in each) by the main entrance, taxis (white, 6 m) toward the east end
+    dict(kind='boxes', side='right', lane=7, n=7, len=13.0, gap=3.0, w=0.20, color='yellow', text=['BUSES', 'ONLY'], from_=A.x(112.5)),
     dict(kind='boxes', side='right', lane=5, n=12, len=6.0, gap=0.8, from_=A.x(236)),
     # give way into the roundabout (shark teeth, on the lane going in)
     dict(kind='teeth', at=A.len - 0.8, dir=1, o0=0.15, o1=3.4),

@@ -503,10 +503,15 @@
      "kind": "boxes",
      "side": "right",
      "lane": 7,
-     "n": 5,
+     "n": 7,
      "len": 13.0,
-     "gap": 2.0,
+     "gap": 3.0,
+     "w": 0.2,
      "color": "yellow",
+     "text": [
+      "BUSES",
+      "ONLY"
+     ],
      "from": 1748.48
     },
     {

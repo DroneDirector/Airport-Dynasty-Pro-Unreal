@@ -16,6 +16,8 @@
 #include "StreetLights.h"
 #include "RoadSigns.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Components/TextRenderComponent.h"
+#include "BabylonModel.h"
 #include "Engine/StaticMesh.h"
 #include "ProceduralMeshComponent.h"
 #include "MetaRoadActor.h"
@@ -340,6 +342,7 @@ double ARoadNetwork::GroundAt(double X, double Y)
 	return FMath::Lerp(Z, Field, FMath::SmoothStep(0.0, 60.0, In));
 }
 
+TArray<FTransform> ARoadNetwork::BusStands;
 FVector ARoadNetwork::TestDrain = FVector::ZeroVector;
 FVector ARoadNetwork::TestDrainOut = FVector::ForwardVector;
 FVector ARoadNetwork::TestManhole = FVector::ZeroVector;
@@ -626,6 +629,32 @@ bool ARoadNetwork::BuildSome(double Budget)
 						Strip(Mat, S0, S1, [&](double d) { return E1(d) - Sg * Wl / 2; }, [&](double d) { return E1(d) + Sg * Wl / 2; }, 1.0, Grime(S0));
 						Strip(Mat, S0, S0 + Wl, E0, E1, 1.0, Grime(S0));
 						Strip(Mat, S1 - Wl, S1, E0, E1, 1.0, Grime(S0));
+						// (owner, 2026-11-19: the coach stands) words painted in the box's middle, one line after the other along the lane,
+						// the first nearest the driver coming in, the letters long as road lettering is; the stand itself kept for the coaches
+						// parked in it (ARoadNetwork::BusStands)
+						const TArray<TSharedPtr<FJsonValue>>* TJ = nullptr;
+						if (O->TryGetArrayField(TEXT("text"), TJ) && TJ->Num())
+						{
+							const double Dc = (S0 + S1) / 2, Oc = (E0(Dc) + E1(Dc)) / 2;
+							FVector Pc, Fc, Rc; OnRoad(Dc, Pc, Fc, Rc);
+							BusStands.Add(FTransform(FRotator(0.0, Fc.Rotation().Yaw, 0.0), Surface(Pc + Rc * (Oc * 100.0))));
+							const double WStep = 2.4, D0w = Dc - WStep * (TJ->Num() - 1) / 2;
+							for (int32 w = 0; w < TJ->Num(); ++w)
+							{
+								FVector Pw, Fw2, Rw; OnRoad(D0w + w * WStep, Pw, Fw2, Rw);
+								UTextRenderComponent* T = NewObject<UTextRenderComponent>(this);
+								T->SetupAttachment(RootComponent);
+								T->SetText(FText::FromString((*TJ)[w]->AsString()));
+								T->SetHorizontalAlignment(EHTA_Center); T->SetVerticalAlignment(EVRTA_TextCenter);
+								T->SetWorldSize(80.f); T->SetTextRenderColor(FColor(236, 178, 22));
+								const FVector At = Surface(Pw + Rw * (Oc * 100.0)) + FVector(0, 0, 0.8);
+								// face up, the letters' tops pointing the way the coaches drive in (their feet towards the driver)
+								const double Yaw = FMath::RadiansToDegrees(FMath::Atan2(-Fw2.Y, -Fw2.X));
+								T->SetWorldLocationAndRotation(At, FRotator(90.0, Yaw, 0.0));
+								T->SetWorldScale3D(FVector(1.0, 1.0, 1.9));
+								T->RegisterComponent(); AddInstanceComponent(T);
+							}
+						}
 					}
 				}
 				else if (Kind == TEXT("teeth"))
@@ -870,6 +899,22 @@ bool ARoadNetwork::BuildSome(double Budget)
 			PM->SetMaterial(Sct, ATerminalBuilder::KitMaterial(this, It.Key));
 			++Sct;
 		}
+	}
+	// the airport coaches parked in their stands (owner, 2026-11-19: seven, one per stand, empty for now; -NoCoaches leaves them
+	// out): the assembled coach model (Tools/make_coach.py -- --assembled, imported as AirportCoach), its front the way the
+	// coaches drive in; CoachYaw turns the model onto the stand (the loader mirrors a Blender model's x)
+	if (!GBaking && !FParse::Param(FCommandLine::Get(), TEXT("NoCoaches")))
+	{
+		static constexpr double CoachYaw = 180.0;
+		int32 Parked = 0;
+		for (const FTransform& Sd : BusStands)
+		{
+			if (Parked >= 7) break;
+			FActorSpawnParameters CSp; CSp.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			ABabylonModel* C = W->SpawnActor<ABabylonModel>(Sd.GetLocation(), FRotator(0.0, Sd.Rotator().Yaw + CoachYaw, 0.0), CSp);
+			if (C && C->Place(TEXT("AirportCoach"))) ++Parked; else if (C) C->Destroy();
+		}
+		ADP_LOG(TEXT("Roads: %d coaches parked in %d stands"), Parked, BusStands.Num());
 	}
 	ADP_LOG(TEXT("Roads: %d built, %d zebra crossings, in %.2f s (MetaRoad Free, at run time)"), Built, Crossings, FPlatformTime::Seconds() - T0);
 	St.bDone = true; St.Root.Reset(); St.Paint.Reset();
