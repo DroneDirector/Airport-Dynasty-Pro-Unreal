@@ -153,6 +153,7 @@ void ASeats::Sit(AADPWalker* Me, int32 I)
 	Pose = Me->LendBody(Frame);
 	if (!Pose) { ADP_WARN(TEXT("Seats: your body couldn't be lent to the seat")); return; }
 	Sitter = Me; Seat = I; State = EState::Down; T = 0.f; Before = Me->GetActorLocation();
+	Fwd = 0.f; Lift = 0.f; bCushionOk = false; CushionTries = 0;
 	Taken.Add(SpotKey(Sp.At), FTaken{Me, nullptr});
 	Me->GetCharacterMovement()->DisableMovement();
 	Me->SetActorEnableCollision(false);
@@ -179,7 +180,15 @@ void ASeats::Place(float K)
 	P.Pelvis.Y = FMath::Lerp(Standing.Pelvis.Y, Sitting.Pelvis.Y, FMath::SmoothStep(0.f, 1.f, FMath::Min(1.f, K * 1.3f)));
 	P.Lean = FMath::Lerp(0.f, Sitting.Lean, E) + 22.f * FMath::Sin(PI * E);   // (leaning forward on the way, as you do)
 	for (int32 s = 0; s < 2; ++s) { P.Foot[s] = FMath::Lerp(Standing.Foot[s], Sitting.Foot[s], E); P.bHand[s] = E > 0.35f; }
+	P.Pelvis.Z += Lift * E;
 	Rig.Pose(P);
+	// (the seat under the thighs, the same IK step as the passengers': forward a little, then up, until they lie on it)
+	if (K >= 1.f && !bCushionOk && Frame)
+	{
+		const float Deep = Rig.ThighsInSeat(GetWorld(), Frame->GetComponentTransform(), Rig.ThighRadius(), Me);
+		if (Deep <= 0.4f || CushionTries > 12) { bCushionOk = true; ADP_LOG(TEXT("Seats: on the cushion - forward %.0f cm, up %.1f cm"), Fwd, Lift); }
+		else { ++CushionTries; if (Fwd < 12.f) { Fwd += 2.f; Frame->AddWorldOffset(Spots[Seat].Facing.GetSafeNormal2D() * 2.f); } else if (Lift < 8.f) Lift = FMath::Min(8.f, Lift + Deep); else bCushionOk = true; }
+	}
 	if (E > 0.35f) Rig.RestHandsOnThighs(P, Rig.ThighRadius(), FMath::Clamp((E - 0.35f) / 0.3f, 0.f, 1.f));   // (the sitting IK step)
 	if (Pose) Pose->Local = Rig.LocalPose();
 	// your view goes with your head: the capsule kept so its eyes are where the body's are

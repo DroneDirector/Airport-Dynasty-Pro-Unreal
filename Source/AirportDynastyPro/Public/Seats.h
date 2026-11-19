@@ -67,6 +67,7 @@ private:
 	TWeakObjectPtr<AADPWalker> Waiting; int32 WaitSeat = INDEX_NONE; float WaitT = 0.f;   // waiting for your own chair to be free
 	FDriverPose Standing, Sitting;
 	FTruckDriverRig Rig;
+	float Fwd = 0.f, Lift = 0.f; bool bCushionOk = false; int32 CushionTries = 0;   // (the cushion check: forward, up)
 	UPROPERTY() TObjectPtr<UPoseableMeshComponent> Rider;
 	UPROPERTY() TObjectPtr<USceneComponent> Frame;
 	class UDriverPoseAnim* Pose = nullptr;

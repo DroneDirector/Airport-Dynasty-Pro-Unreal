@@ -36,6 +36,12 @@ bool FTruckDriverRig::Init(UPoseableMeshComponent* M)
 		for (int32 X : {Thigh[S], Calf[S], Foot[S], Upper[S], Lower[S], Hand[S]}) if (X == INDEX_NONE) { ADP_ERROR(TEXT("Truck driver: the body's skeleton has no %s-side limb bones"), Sd[S]); return false; }
 	}
 	if (Pelvis == INDEX_NONE || Head == INDEX_NONE) { ADP_ERROR(TEXT("Truck driver: the body's skeleton has no pelvis or head")); return false; }
+	for (int32 S = 0; S < 2; ++S)
+	{
+		HandPts[S].Reset(); HandPts[S].Add(Hand[S]);
+		for (const TCHAR* F : {TEXT("middle_01"), TEXT("middle_02"), TEXT("middle_03"), TEXT("index_02"), TEXT("index_03"), TEXT("ring_02"), TEXT("ring_03"), TEXT("pinky_02"), TEXT("pinky_03"), TEXT("thumb_03")})
+		{ const int32 X = B(*FString::Printf(TEXT("%s_%s"), F, Sd[S])); if (X != INDEX_NONE) HandPts[S].Add(X); }
+	}
 	AnkleH = RefCS[Foot[0]].GetLocation().Z;
 	PelvisH = RefCS[Pelvis].GetLocation().Z;
 	// the fingers: each joint closes towards the palm (the palm's side found from the hand's own shape in the reference pose)
@@ -158,5 +164,45 @@ void FTruckDriverRig::RestHandsOnThighs(FDriverPose& P, float ThighR, float Weig
 		P.Hand[h] = FMath::Lerp(P.Hand[h], On + Across * Off + FVector(0, 0, ThighR + 3.f), FMath::Clamp(Weight, 0.f, 1.f));
 		bAny = true;
 	}
-	if (bAny) Pose(P);
+	if (!bAny) return;
+	Pose(P);
+	// (then the whole hand, not just the wrist: every palm and finger joint measured against both thighs - a joint inside
+	// one lifts its hand by exactly that much and the body is posed again, a few passes, until the hand lies on the skin)
+	for (int32 Pass = 0; Pass < 4; ++Pass)
+	{
+		bool bMoved = false;
+		for (int32 h = 0; h < 2; ++h)
+		{
+			if (!P.bHand[h]) continue;
+			float Pen = 0.f;
+			for (const int32 X : HandPts[h])
+			{
+				if (!CS.IsValidIndex(X)) continue;
+				const FVector Pt = CS[X].GetLocation();
+				for (int32 k = 0; k < 2; ++k) Pen = FMath::Max(Pen, ThighR + 1.2f - FMath::PointDistToSegment(Pt, HipAt(k), KneeAt(k)));
+			}
+			if (Pen > 0.2f) { P.Hand[h].Z += Pen * FMath::Clamp(Weight, 0.f, 1.f); bMoved = true; }
+		}
+		if (!bMoved) break;
+		Pose(P);
+	}
+}
+
+float FTruckDriverRig::ThighsInSeat(UWorld* W, const FTransform& Frame, float ThighR, const AActor* Ignore) const
+{
+	if (!Mesh || !W) return 0.f;
+	FCollisionQueryParams Q(SCENE_QUERY_STAT(ThighSeat), false, Ignore);
+	if (Ignore) { TArray<AActor*> On; Ignore->GetAttachedActors(On, true, true); for (AActor* X : On) Q.AddIgnoredActor(X); }   // (your own body is its own actor on you)
+	float Deep = 0.f;
+	for (int32 k = 0; k < 2; ++k)
+		for (int32 i = 2; i <= 17; ++i)   // (along the thigh to 85 % of the way to the knee, in 5 % steps: the back of the knee may rest on the seat's edge, as people's do)
+		{
+			// a point on the thigh's middle line, its underside a thigh's thickness under it; what is right below
+			const FVector P = Frame.TransformPosition(FMath::Lerp(HipAt(k), KneeAt(k), i / 20.f));
+			FHitResult H;
+			if (!W->LineTraceSingleByChannel(H, P + FVector(0, 0, 4.f), P - FVector(0, 0, ThighR + 25.f), ECC_Visibility, Q)) continue;
+			const float D = H.ImpactPoint.Z - (P.Z - ThighR);
+			if (D > Deep) { Deep = D; static int32 Said = 0; if (D > 3.f && Said++ < 6) ADP_LOG(TEXT("Sitting IK: thigh %d at %d/10 in %.1f cm - under it: %s (%s)"), k, i, D, H.GetActor() ? *H.GetActor()->GetName() : TEXT("-"), H.GetComponent() ? *H.GetComponent()->GetName() : TEXT("-")); }
+		}
+	return Deep;
 }

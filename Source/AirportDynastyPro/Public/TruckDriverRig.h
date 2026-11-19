@@ -41,6 +41,9 @@ public:
 	 *  onto the top of the thigh it rests on (ThighR thick), by Weight, and the body posed again with them there. */
 	void RestHandsOnThighs(FDriverPose& P, float ThighR, float Weight);
 	/** A body's thigh thickness (half its thigh's width) from its own hips. */
+	/** The sitting IK step, the seat under the thighs (owner, 2026-11-19: her leg through the cushion's front): how deep (cm)
+	 *  the thighs' undersides go into what is below them, sampled from hip to knee, the mesh placed at Frame (world). */
+	float ThighsInSeat(UWorld* W, const FTransform& Frame, float ThighR, const AActor* Ignore) const;
 	float ThighRadius() const { return FMath::Clamp(HipWidth() * 0.42f, 6.f, 12.f); }
 	float HipWidth() const { return RefCS.IsValidIndex(Thigh[0]) && RefCS.IsValidIndex(Thigh[1]) ? FVector::Dist(RefCS[Thigh[0]].GetLocation(), RefCS[Thigh[1]].GetLocation()) : 18.f; }
 
@@ -50,6 +53,7 @@ private:
 	TArray<int32> Parent;
 	int32 Pelvis = INDEX_NONE, Head = INDEX_NONE;
 	int32 Thigh[2], Calf[2], Foot[2], Upper[2], Lower[2], Hand[2];
+	TArray<int32> HandPts[2];   // (the palm and the fingers' joints: the sitting IK step keeps them out of the thighs)
 	float AnkleH = 8.f, PelvisH = 95.f;
 	struct FCurl { int32 Bone; FVector Axis; float Weight; };
 	TArray<FCurl> Curl[2];

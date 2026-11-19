@@ -775,12 +775,14 @@ void AADPPeople::SitPose(FStroll& S, float K)
 	{
 		S.Rider->SetSkinnedAssetAndUpdate(W->Body->GetSkeletalMeshAsset());
 		if (!S.Rig->Init(S.Rider)) return;
-		S.Frame->SetWorldLocationAndRotation(SAt - SF.GetSafeNormal2D() * 20.f - FVector(0, 0, SH), FRotator(0.f, SF.Rotation().Yaw - 90.f, 0.f));
+
 		S.BodyInActor = W->Body->GetComponentTransform().GetRelativeTransform(A->GetActorTransform());
 		A->SetActorTransform(S.BodyInActor.Inverse() * S.Frame->GetComponentTransform());
 		W->Body->SetAnimInstanceClass(UDriverPoseAnim::StaticClass());
 		S.Pose = Cast<UDriverPoseAnim>(W->Body->GetAnimInstance());
 	}
+	// (the frame: 20 cm back into the seat, less the forward step the cushion check below asked for)
+	S.Frame->SetWorldLocationAndRotation(SAt - SF.GetSafeNormal2D() * (20.f - S.Fwd) - FVector(0, 0, SH), FRotator(0.f, SF.Rotation().Yaw - 90.f, 0.f));
 	const float PH = S.Rig->PelvisHeight(), E = FMath::SmoothStep(0.f, 1.f, K);
 	// (left and right: on these bodies side 0 is their right, so its foot and hand go on the frame's +x - with -x they
 	// crossed their legs and arms, owner 2026-11-19; the natural pose itself follows his photo)
@@ -823,7 +825,7 @@ void AADPPeople::SitPose(FStroll& S, float K)
 		const FVector Mid = SAt - SF.GetSafeNormal2D() * 20.f;
 		if (GetWorld()->LineTraceSingleByChannel(Hs, Mid + FVector(0, 0, 80.f), Mid - FVector(0, 0, 60.f), ECC_Visibility, Qs)) S.SurfZ = Hs.ImpactPoint.Z - S.Frame->GetComponentLocation().Z;
 	}
-	Si.Pelvis.Z = S.SurfZ + ThighR;
+	Si.Pelvis.Z = S.SurfZ + ThighR + S.Lift;
 	FDriverPose P = Si;
 	P.Pelvis = FMath::Lerp(St.Pelvis, Si.Pelvis, E); P.Lean = FMath::Lerp(0.f, Si.Lean, E) + 22.f * FMath::Sin(PI * E);
 	for (int32 s = 0; s < 2; ++s) { P.Foot[s] = FMath::Lerp(St.Foot[s], Si.Foot[s], E); P.bHand[s] = E > 0.35f; }
@@ -849,6 +851,14 @@ void AADPPeople::SitPose(FStroll& S, float K)
 	}
 	// the hands (the same IK step): each one onto the top of the thigh it rests on - its own body's thigh, at its own
 	// thickness - so it lies on it, never in it or floating over it; then the pose once more with them there
+	// the seat under the thighs (the IK step): sat, the thighs' undersides checked against the cushion from hip to knee;
+	// where they go into it (its raised front) the body comes forward a little at a time, up to 12 cm, then up by the rest
+	if (E >= 1.f && !S.bCushionOk)
+	{
+		const float Deep = S.Rig->ThighsInSeat(GetWorld(), S.Frame->GetComponentTransform(), ThighR, A);
+		if (Deep <= 0.4f || S.CushionTries > 12) { S.bCushionOk = true; static int32 Said = 0; if (Said++ < 4) ADP_LOG(TEXT("People: on the cushion - forward %.0f cm, up %.1f cm (thighs %.1f cm into it)"), S.Fwd, S.Lift, Deep); }
+		else { ++S.CushionTries; if (S.Fwd < 12.f) S.Fwd += 2.f; else if (S.Lift < 8.f) S.Lift = FMath::Min(8.f, S.Lift + Deep); else S.bCushionOk = true; }
+	}
 	if (E > 0.35f) S.Rig->RestHandsOnThighs(P, ThighR, FMath::Clamp((E - 0.35f) / 0.3f, 0.f, 1.f));
 	if (S.Pose) S.Pose->Local = S.Rig->LocalPose();
 	// (the body on the seat's frame - the hips at the rig's own height over the seat)
@@ -910,7 +920,7 @@ void AADPPeople::StepStrollers(float Dt)
 			break;
 		}
 		case EDoing::SitDown: SitPose(S, FMath::Min(1.f, S.T / 0.9f)); if (S.T >= 0.9f) { S.Doing = EDoing::Sit; S.T = 0.f; S.For = Rng.FRandRange(30.f, 120.f); } break;
-		case EDoing::Sit: if (S.T >= S.For) { S.Doing = EDoing::StandUp; S.T = 0.f; } break;
+		case EDoing::Sit: if (!S.bCushionOk) SitPose(S, 1.f); if (S.T >= S.For) { S.Doing = EDoing::StandUp; S.T = 0.f; } break;   // (the cushion check settles over its first frames)
 		case EDoing::StandUp:
 			SitPose(S, FMath::Max(0.f, 1.f - S.T / 0.9f));
 			if (S.T >= 0.9f)
@@ -925,7 +935,7 @@ void AADPPeople::StepStrollers(float Dt)
 					A->SetActorLocationAndRotation(P, FRotator(0.f, SF.Rotation().Yaw - 90.f, 0.f));
 				}
 				if (W->Body) { static UBlendSpace* Move = LoadObject<UBlendSpace>(nullptr, TEXT("/Game/People/Anims/BS_Idle_Walk_Run_MH.BS_Idle_Walk_Run_MH")); W->Body->SetAnimationMode(EAnimationMode::AnimationSingleNode); if (Move) { W->Body->SetAnimation(Move); W->Body->Play(true); } }
-				ASeats::Release(A); S.Seat = INDEX_NONE; S.Pose = nullptr; S.bLowered = false; S.Lower = 0.f; S.bSurf = false;
+				ASeats::Release(A); S.Seat = INDEX_NONE; S.Pose = nullptr; S.bLowered = false; S.Lower = 0.f; S.bSurf = false; S.Fwd = 0.f; S.Lift = 0.f; S.bCushionOk = false; S.CushionTries = 0;
 				S.Doing = EDoing::Stand; S.T = 0.f; S.For = Rng.FRandRange(1.f, 3.f);
 			}
 			break;
