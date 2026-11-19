@@ -17,7 +17,7 @@ import numpy as np
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 K.ART = ART = os.path.join(ROOT, 'Art', 'Coach'); os.makedirs(ART, exist_ok=True)
 SHOTS = os.path.join(ROOT, 'docs', 'Pictures', 'Coach'); os.makedirs(SHOTS, exist_ok=True)
-QUICK = '--quick' in sys.argv; RENDER = QUICK or '--render' in sys.argv
+QUICK = '--quick' in sys.argv; CLASH = '--clash' in sys.argv; RENDER = QUICK or CLASH or '--render' in sys.argv
 bpy.ops.wm.read_factory_settings(use_empty=True)
 
 L, W, H, CLR = 12.90, 2.55, 3.70, 0.34
@@ -204,7 +204,7 @@ def frit(name, cut_outer, cut_inner):
 # (the frit sits under the glass: the base is moved 12 mm in along the normals)
 fr.data.transform(Matrix.Identity(4))
 bm = bmesh.new(); bm.from_mesh(fr.data); bm.normal_update()
-for v in bm.verts: v.co -= v.normal * 0.0125
+for v in bm.verts: v.co -= v.normal * 0.026
 bm.to_mesh(fr.data); bm.free()
 fo, fi = [], []
 for side, panes in ((RIGHT, R_PANES), (LEFT, L_PANES)):
@@ -214,6 +214,10 @@ put(frit('SideFrit', fo, fi), 'CoachBody')
 put(frit('WindscreenFrit', [box('cut', XF - 0.42, XF + 0.4, -(W / 2 + 0.4), W / 2 + 0.4, WS_Z[0], WS_Z[1])],
          [box('cut', XF - 0.36, XF + 0.4, -(W / 2 + 0.4), W / 2 + 0.4, WS_Z[0] + 0.07, WS_Z[1] - 0.06)]), 'CoachBody')
 K.ALL.remove(fr); bpy.data.objects.remove(fr); K.ALL.remove(skin12); bpy.data.objects.remove(skin12)
+# (no clipping: the glass's own shape cut out of the frit, so the two never share a place)
+_wf = bpy.data.objects['WindscreenFrit']; K.ALL.remove(_wf); bpy.data.objects.remove(_wf)   # (it kept meeting the curved glass: the windscreen's own tint does its edge)
+for fn_ in ('SideFrit',):
+    boolean(bpy.data.objects[fn_], [dup(bpy.data.objects[g], 'cut', M['glass']) for g in ('SideGlass', 'Windscreen', 'WindscreenRoof')])
 
 # ---------------------------------------------------------------- livery: the turquoise sweep, the wordmark
 # the wordmark (white), below the windows behind the front axle, both sides; the airport's own name goes on at run time
@@ -303,7 +307,7 @@ put(cyl('FrontAntiRoll', Vector((AX_F + 0.30, 0, WR - 0.10)), 0.022, W - 0.9, 'y
 put(box('FrontCrossmember', AX_F - 0.32, AX_F + 0.32, -0.55, 0.55, WR + 0.02, WR + 0.18, M['chassis'], 0.02), 'CoachBody')
 # rear: a rigid drive axle with the electric motor at its middle (rear drive), four bellows, four dampers, trailing arms,
 # a V-rod on top and an anti-roll bar
-put(cyl('RearAxleBeam', Vector((AX_R, 0, WR)), 0.075, W - 0.80, 'y', M['chassis'], 32), 'CoachBody')
+put(cyl('RearAxleBeam', Vector((AX_R, 0, WR)), 0.075, 1.16, 'y', M['chassis'], 32), 'CoachBody')   # (to the inner twin wheels' hubs)
 put(lathe('RearMotor', [(0.0, -0.32), (0.20, -0.32), (0.26, -0.26), (0.27, 0.18), (0.22, 0.30), (0.0, 0.30)], M['chassis'], 48, 'y', (AX_R, 0, WR)), 'CoachBody')
 for i in range(10): put(cyl(f'MotorFin_{i}', Vector((AX_R, -0.22 + i * 0.045, WR)), 0.285, 0.012, 'y', M['chassis'], 48), 'CoachBody')
 for side in (RIGHT, LEFT):
@@ -373,8 +377,8 @@ put(rblock('FrontPlate', (FX(0.45) + 0.01, 0, 0.45), (0.01, 0.52, 0.11), 0.006, 
 put(rblock('Bumper', (XF - 0.02, 0, 0.40), (0.10, W - 0.06, 0.12), 0.05, M['trim'], cuts=4,
            deform=lambda co, u, v, w: co + Vector((0.03 * (1 - v * v), 0, 0))), 'CoachBody')
 put(rblock('TowCover', (FX(0.52) + 0.01, 0.6, 0.52), (0.012, 0.08, 0.06), 0.01, M['paint'], cuts=1), 'CoachBody')
-put(rblock('RouteDisplay', (FX(3.47) - 0.02, 0, 3.475), (0.04, 1.40, 0.15), 0.02, M['led'], cuts=2), 'CoachBody')
-put(text('RouteText', 'AIRPORT EXPRESS', Vector((FX(3.47) + 0.002, 0, 3.475)), 0.10, M['ledtext'],
+put(rblock('RouteDisplay', (FX(3.47) - 0.16, 0, 3.475), (0.04, 1.40, 0.15), 0.02, M['led'], cuts=2), 'CoachBody')   # (behind the glass)
+put(text('RouteText', 'AIRPORT EXPRESS', Vector((FX(3.47) - 0.138, 0, 3.475)), 0.10, M['ledtext'],
          Matrix.Rotation(math.pi / 2, 4, 'Z') @ Matrix.Rotation(math.pi / 2, 4, 'X') @ Matrix.Rotation(-0.10, 4, 'X')), 'CoachBody')
 # the wipers, resting at the windscreen's foot
 for side in (-1, 1):
@@ -405,12 +409,12 @@ put(box('RearGrilleMullion', XR - 0.03, XR - 0.008, -0.02, 0.02, 1.22, 2.02, M['
 for k in range(12): put(box(f'RearLouvre_{k}', XR - 0.028, XR - 0.012, -0.90, 0.90, 1.24 + k * 0.066, 1.255 + k * 0.066, M['trim'], 0.004), 'CoachBody')
 put(rblock('RearPlate', (XR - 0.005, 0, 0.62), (0.01, 0.52, 0.11), 0.006, M['plate'], cuts=1), 'CoachBody')
 put(rblock('RearBumper', (XR + 0.02, 0, 0.42), (0.10, W - 0.06, 0.14), 0.05, M['trim'], cuts=4), 'CoachBody')
-put(rblock('RearCamera', (XR - 0.03, 0, 3.36), (0.06, 0.10, 0.05), 0.02, M['black'], cuts=1), 'CoachBody')
-put(cyl('RearCameraLens', Vector((XR - 0.06, 0, 3.36)), 0.015, 0.008, 'x', M['glass'], 24), 'CoachBody')
+put(rblock('RearCamera', (XR + 0.10, 0, 3.30), (0.06, 0.10, 0.05), 0.02, M['black'], cuts=1), 'CoachBody')   # (behind the rear glass)
+put(cyl('RearCameraLens', Vector((XR + 0.068, 0, 3.30)), 0.015, 0.008, 'x', M['black'], 24), 'CoachBody')
 
 # ---------------------------------------------------------------- the side: markers, charging flap, drive hatch, emblem
 for side in (RIGHT, LEFT):
-    for d in (0.9, 3.3, 6.0, 8.3, 10.9, 12.4):
+    for d in (0.9, 2.2, 3.4, 8.2, 10.9, 12.4):   # (none on a bay door)
         put(rblock(f'Marker_{side}{d}', (d2x(d), side * (W / 2 + 0.004), 0.48), (0.07, 0.012, 0.025), 0.006, M['marker'], cuts=1), 'CoachBody')
 put(rblock('ChargeFlap', (d2x(9.88), LEFT * (W / 2 + 0.002), 1.62), (0.26, 0.008, 0.26), 0.02, M['teal'], cuts=2), 'CoachBody')
 put(rblock('SideRouteDisplay', (d2x(1.86), RIGHT * (W / 2 - 0.06), 2.52), (0.24, 0.03, 0.40), 0.01, M['led'], cuts=1), 'CoachBody')
@@ -514,6 +518,7 @@ if RENDER:
     gm = mat('Preview_Asphalt', gt, 0, 0.8); g = box('Ground', -30, 30, -30, 30, -0.02, 0.0, gm); K.box_uv([g], 1.0)
     cam_d = bpy.data.cameras.new('Cam'); cam = bpy.data.objects.new('Cam', cam_d); sc.collection.objects.link(cam); sc.camera = cam
     def shoot(name, loc, at, lens=35, res=(3840, 2160)):
+        if CLASH: return
         cam.location = loc; cam.rotation_euler = (Vector(at) - Vector(loc)).to_track_quat('-Z', 'Y').to_euler(); cam_d.lens = lens
         if QUICK: res = (res[0] // 3, res[1] // 3)
         sc.render.resolution_x, sc.render.resolution_y = res; sc.render.filepath = os.path.join(SHOTS, name + '.png')
@@ -538,3 +543,35 @@ if RENDER:
     shoot_in('Coach-11-cutaway-top', (0.0, -0.01, 12.0), (0, 0, 0), 30, 12.0 - ROOF_IN + 0.05)
     shoot_in('Coach-12-cutaway-side', (0.0, -11.0, 2.4), (0, 0, 2.3), 30, 11.0 - (W / 2 - 0.12))
 
+# ---------------------------------------------------------------- the clash check (owner: "some geometry is clipping into
+# each other"): the coach assembled as the game will place it, every part tested triangle by triangle against every
+# other model; each pair that cuts into each other printed with how many triangles cross and how deep it goes
+if CLASH:
+    from mathutils.bvhtree import BVHTree
+    dg = bpy.context.evaluated_depsgraph_get()
+    def part_of(o):
+        if o.name in PART: return PART[o.name]
+        n = o.name.rsplit('.', 1)[0] if o.name.rsplit('.', 1)[-1].isdigit() else o.name
+        return PART.get(n, 'CoachSeat')
+    items = []
+    for o in bpy.context.scene.objects:
+        if o.type != 'MESH' or o.hide_render or o.name in ('Ground',): continue
+        me = o.evaluated_get(dg).to_mesh()
+        vs = [o.matrix_world @ v.co for v in me.vertices]
+        if not vs: continue
+        tree = BVHTree.FromPolygons(vs, [tuple(p.vertices) for p in me.polygons])
+        lo = Vector((min(v.x for v in vs), min(v.y for v in vs), min(v.z for v in vs))); hi = Vector((max(v.x for v in vs), max(v.y for v in vs), max(v.z for v in vs)))
+        items.append((o, part_of(o), tree, lo, hi, vs))
+    found = []
+    for i in range(len(items)):
+        a = items[i]
+        for j in range(i + 1, len(items)):
+            b = items[j]
+            if a[1] == b[1] and a[1] not in ('CoachSeat', 'CoachDashboard', 'CoachInterior'): continue   # (one model's own pieces - but the dashboard's and the fit-out's are checked too)
+            if a[1] == 'CoachSeat' and b[1] == 'CoachSeat' and (a[0].name.split('.')[0] == b[0].name.split('.')[0]): pass
+            if any(a[3][k] > b[4][k] or b[3][k] > a[4][k] for k in range(3)): continue
+            hits = a[2].overlap(b[2])
+            if hits: found.append((len(hits), a[0].name, a[1], b[0].name, b[1]))
+    found.sort(reverse=True)
+    print('CLASH: %d pairs' % len(found))
+    for f in found: print('CLASH: %5d  %s [%s]  x  %s [%s]' % f)

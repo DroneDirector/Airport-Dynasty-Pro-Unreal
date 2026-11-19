@@ -50,9 +50,20 @@ bm.to_mesh(lin.data); bm.free()
 solidify(lin, 0.035)
 low_cut = [box('cut', XR - 1, XF + 1, -2, 2, -1, 0.38),
            box('cut', d2x(9.45), d2x(1.72), -2, 2, -1, FLOOR - 0.15), box('cut', XR - 1, d2x(10.75), -2, 2, -1, FLOOR - 0.15),
-           box('cut', d2x(10.75), d2x(9.45), 0.0, 2, -1, FLOOR - 0.15)]
+           box('cut', d2x(10.75), d2x(9.45), 0.0, 2, -1, FLOOR - 0.15), box('cut', d2x(0.40), XF + 1, -2, 2, -1, 0.98)]   # (none behind the front lamps)
 boolean(lin, opening_boxes() + windscreen_wrap() + [cyl('arch', Vector((ax, 0, WR)), 0.625, W + 0.4, 'y', M['paint'], 64) for ax in (AX_F, AX_R)] + low_cut)
 put(lin, 'CoachInterior')
+# the side-wall seat rails (the coach's own, owner: no clipping): a channel cut in the lining along each row of seats, an
+# aluminium U-profile in it and the steel rail the seats clamp onto (0.30 m over the floor, 1.22 m out from the middle)
+RAIL_Z, RAIL_Y = FLOOR + 0.30, 0.225 + 0.49 + 0.500
+RAIL_RUNS = {RIGHT: [(3.00, 9.52), (10.95, 11.80)], LEFT: [(2.20, 9.58), (10.98, 11.80)]}
+grooves = [box('cut', d2x(b), d2x(a), side * (IN_W - 0.01), side * (IN_W + 0.04), RAIL_Z - 0.044, RAIL_Z + 0.044) for side, runs in RAIL_RUNS.items() for a, b in runs]
+boolean(lin, grooves)
+for side, runs in RAIL_RUNS.items():
+    for a, b in runs:
+        bx(f'RailChannel_{side}_{a:.1f}', a, b, side * (IN_W + 0.0315), side * (IN_W + 0.0345), RAIL_Z - 0.044, RAIL_Z + 0.044, M['alloy'], r=0.0)
+        for zz in (-1, 1): bx(f'RailFlange_{side}_{a:.1f}_{zz}', a, b, side * (IN_W - 0.0), side * (IN_W + 0.0315), RAIL_Z + zz * 0.0425 - 0.0015, RAIL_Z + zz * 0.0425 + 0.0015, M['alloy'], r=0.0)
+        put(cyl(f'SeatRail_{side}_{a:.1f}', Vector((d2x((a + b) / 2), side * RAIL_Y, RAIL_Z)), 0.017, b - a, 'x', M['chrome'], 28), 'CoachInterior')
 # carpet on the walls below the windows (from the floor to the window sill), the plastic above
 wc_ = dup(lin, 'WallCarpet', M['wallcarpet'])
 boolean(wc_, [box('cut', XR - 1, XF + 1, -2, 2, FLOOR - 0.02, WIN_Z[0] - 0.02)], 'INTERSECT')
@@ -65,9 +76,9 @@ boolean(deck, [box('cut', d2x(1.66), d2x(0.20), RIGHT * 1.30, RIGHT * 0.55, 0, 2
                box('cut', d2x(1.66), d2x(0.20), 0.07, 1.30, 0, 2),                           # the driver's floor, lower
                box('cut', d2x(10.62), d2x(9.58), RIGHT * 1.30, RIGHT * 0.55, 0, 2)])         # the middle door's steps
 put(deck, 'CoachInterior')
-bx('DriverFloor', 0.18, 1.66, 0.07, IN_W + 0.03, 1.00 - 0.15, 1.00, M['floor'])
+bx('DriverFloor', 0.30, 1.66, 0.07, IN_W + 0.03, 1.00 - 0.15, 1.00, M['floor'])
 bx('DriverRiser', 1.62, 1.66, 0.07, IN_W + 0.03, 1.00, FLOOR, M['floor'], r=0.002)
-bx('DriverRiserSide', 0.20, 1.66, 0.05, 0.07, 1.00, FLOOR, M['floor'], r=0.002)
+bx('DriverRiserSide', 0.30, 1.66, 0.05, 0.07, 1.00, FLOOR, M['floor'], r=0.002)
 # the steps: three 0.35 m risers from the door sill (0.35) up to the floor
 for di, (d0, d1) in enumerate(((0.53, 1.66), (9.58, 10.62))):
     for k in range(3):
@@ -80,18 +91,18 @@ for di, (d0, d1) in enumerate(((0.53, 1.66), (9.58, 10.62))):
     bx(f'StepWellWall_{di}', d0 - 0.02, d0 + 0.01, RIGHT * (W / 2 - 0.04), RIGHT * 0.55, 0.35, FLOOR, M['lining'], r=0.0)
     bx(f'StepWellWallB_{di}', d1 - 0.01, d1 + 0.02, RIGHT * (W / 2 - 0.04), RIGHT * 0.55, 0.35, FLOOR, M['lining'], r=0.0)
     # handrails up the steps (owner's wireframe: poles by the door)
-    for dd in (d0 + 0.06, d1 - 0.06):
+    for dd in ((d0 + 0.15) if di == 0 else (d0 + 0.06), d1 - 0.06):   # (the front door's first rail clear of the dash)
         put(tube(f'DoorRail_{di}{dd:.1f}', [(d2x(dd), RIGHT * 0.58, 0.70), (d2x(dd), RIGHT * 0.58, FLOOR + 1.0), (d2x(dd), RIGHT * 0.58, ROOF_IN - 0.02)], 0.017, M['chrome'], 4, bez=False), 'CoachInterior')
 # the raised floor of the back bench
 bx('BenchPlatform', 11.90, 12.70, -(IN_W + 0.03), IN_W + 0.03, FLOOR, FLOOR + 0.25, M['floor'])
 bx('BenchPlatformEdge', 11.88, 11.92, -IN_W, IN_W, FLOOR + 0.248, FLOOR + 0.252, M['stepedge'], r=0.001)
 # floor lights along both sides of the aisle
 for side in (-1, 1):
-    bx(f'AisleLight_{side}', 1.80, 11.85, side * 0.215, side * 0.232, FLOOR, FLOOR + 0.003, M['reading'], r=0.0)
+    bx(f'AisleLight_{side}', 1.80, 11.85, side * 0.200, side * 0.214, FLOOR, FLOOR + 0.003, M['reading'], r=0.0)
 
 # ---------------------------------------------------------------- ceiling and lockers
 bx('Ceiling', 0.42, 12.70, -(IN_W - LOCK_D) - 0.01, IN_W - LOCK_D + 0.01, ROOF_IN, ROOF_IN + 0.02, M['ceiling'], r=0.0)
-bx('CeilingFront', 0.42, 1.72, -(IN_W + 0.03), IN_W + 0.03, ROOF_IN, ROOF_IN + 0.02, M['ceiling'], r=0.0)
+bx('CeilingFront', 0.64, 1.72, -(IN_W - 0.03), IN_W - 0.03, ROOF_IN, ROOF_IN + 0.02, M['ceiling'], r=0.0)
 for side in (-1, 1):
     bx(f'CeilingLight_{side}', 1.8, 12.5, side * 0.62, side * 0.66, ROOF_IN - 0.004, ROOF_IN, M['warm'], r=0.0)
 for k in range(10): bx(f'CeilingVent_{k}', 2.2 + k * 1.0, 2.5 + k * 1.0, -0.05, 0.05, ROOF_IN - 0.006, ROOF_IN, M['grille'], r=0.002)
@@ -106,14 +117,14 @@ def lockers(side, d0, d1):
         bx(f'LockerHandle_{side}_{a:.1f}', (a + b) / 2 - 0.10, (a + b) / 2 + 0.10, y_in - side * 0.008, y_in - side * 0.02, LOCK_Z0 + 0.09, LOCK_Z0 + 0.11, M['chrome'], r=0.004)
     bx(f'LockerLight_{side}_{d0:.1f}', d0, d1, y_in - side * 0.001, y_in - side * 0.03, LOCK_Z0 - 0.005, LOCK_Z0 + 0.02, M['warm'], r=0.002)
 lockers(RIGHT, 1.72, 9.55); lockers(RIGHT, 10.65, 12.65)
-lockers(LEFT, 1.72, 9.48); lockers(LEFT, 10.98, 12.65)
+lockers(LEFT, 1.72, 9.62); lockers(LEFT, 10.88, 12.65)
 
 # ---------------------------------------------------------------- the WC (driver's side, before the last row)
-bx('WC', 9.50, 10.96, LEFT * (IN_W + 0.03), LEFT * 0.23, FLOOR, ROOF_IN + 0.02, M['wc'])
-bx('WCDoor', 9.70, 10.40, LEFT * 0.23, LEFT * 0.222, FLOOR + 0.03, FLOOR + 1.90, M['locker'], r=0.006)
-bx('WCDoorHandle', 10.30, 10.36, LEFT * 0.222, LEFT * 0.205, FLOOR + 1.00, FLOOR + 1.03, M['chrome'], r=0.004)
-bx('WCSign', 9.95, 10.15, LEFT * 0.222, LEFT * 0.219, FLOOR + 1.62, FLOOR + 1.72, M['screen'], r=0.003)
-bx('WCLock', 10.30, 10.36, LEFT * 0.222, LEFT * 0.215, FLOOR + 1.10, FLOOR + 1.13, M['red'], r=0.003)
+bx('WC', 9.64, 10.86, LEFT * (IN_W + 0.03), LEFT * 0.23, FLOOR, ROOF_IN + 0.02, M['wc'])
+bx('WCDoor', 9.80, 10.48, LEFT * 0.23, LEFT * 0.222, FLOOR + 0.03, FLOOR + 1.90, M['locker'], r=0.006)
+bx('WCDoorHandle', 10.38, 10.44, LEFT * 0.222, LEFT * 0.205, FLOOR + 1.00, FLOOR + 1.03, M['chrome'], r=0.004)
+bx('WCSign', 10.04, 10.24, LEFT * 0.222, LEFT * 0.219, FLOOR + 1.62, FLOOR + 1.72, M['screen'], r=0.003)
+bx('WCLock', 10.38, 10.44, LEFT * 0.222, LEFT * 0.215, FLOOR + 1.10, FLOOR + 1.13, M['red'], r=0.003)
 
 # ---------------------------------------------------------------- the driver's area
 # the partition behind the driver (to locker height, a glazed top), the red pole at its end
@@ -195,8 +206,9 @@ put(rblock('ClusterHood', (d2x(0.68), DRV_Y, 1.252), (0.12, 0.64, 0.05), 0.022, 
            deform=lambda co, u, v, w: co + Vector((0, 0, 0.015 * (1 - v * v)))), 'CoachDashboard')
 screen('Cluster', Vector((d2x(0.745), DRV_Y, 1.19)), 0.52, 0.17, 180, 45, M['cluster'])
 # the centre screen on its arm, turned towards the driver
-screen('CentreScreen', Vector((d2x(0.68), 0.14, 1.27)), 0.27, 0.16, 180 - 20, 12, M['centrescreen'])
-put(cyl('CentreScreenArm', Vector((d2x(0.63), 0.14, 1.17)), 0.018, 0.12, 'z', M['dash'], 16), 'CoachDashboard')
+screen('CentreScreen', Vector((d2x(0.62), 0.16, 1.40)), 0.27, 0.16, 180 - 22, 14, M['centrescreen'])   # (owner: on its own arm, clear over the door console)
+put(cyl('CentreScreenArm', Vector((d2x(0.60), 0.16, 1.24)), 0.018, 0.22, 'z', M['dash'], 16), 'CoachDashboard')
+put(cyl('CentreScreenFoot', Vector((d2x(0.60), 0.16, 1.135)), 0.04, 0.012, 'z', M['dash'], 24, 0.003), 'CoachDashboard')
 # the door console between the driver and the door: sloped top, round lit buttons (front door, middle door, kneel,
 # ramp, hazard)
 put(rblock('DoorConsole', (d2x(0.80), 0.04, 1.14), (0.46, 0.24, 0.30), 0.04, M['dash'], cuts=4, sub=1,
@@ -216,7 +228,7 @@ put(rblock('Tachograph', (d2x(0.62), IN_W - 0.17, 1.03), (0.02, 0.18, 0.05), 0.0
 put(tube('MicNeck', [(d2x(0.62), -0.02, 1.17), (d2x(0.68), -0.03, 1.30), (d2x(0.76), -0.02, 1.36)], 0.007, M['black'], 12), 'CoachDashboard')
 put(cyl('MicHead', Vector((d2x(0.78), -0.02, 1.37)), 0.018, 0.05, 'x', M['grille'], 16, 0.004), 'CoachDashboard')
 # pedals: accelerator (organ type) and brake
-put(rblock('Accelerator', (d2x(0.58), DRV_Y + 0.12, 1.08), (0.04, 0.09, 0.20), 0.01, M['rubber'], cuts=1,
+put(rblock('Accelerator', (d2x(0.58), DRV_Y + 0.12, 1.083), (0.04, 0.09, 0.20), 0.01, M['rubber'], cuts=1,
            deform=lambda co, u, v, w: co + Vector((0.06 * w, 0, 0))), 'CoachDashboard')
 put(rblock('BrakePedal', (d2x(0.60), DRV_Y - 0.08, 1.12), (0.04, 0.13, 0.12), 0.01, M['rubber'], cuts=1,
            deform=lambda co, u, v, w: co + Vector((0.05 * w, 0, 0))), 'CoachDashboard')
@@ -245,8 +257,8 @@ for k, z in enumerate((FLOOR + 0.15, FLOOR + 0.70, FLOOR + 1.25)):
     bx(f'RackLip_{k}', 1.74, 2.26, RIGHT * 0.59, RIGHT * 0.61, z, z + 0.06, M['alloy'], r=0.003)
 # wheelchair space: the floor sign, a restraint belt box on the wall
 bx('WheelchairSign', 2.55, 2.85, RIGHT * 0.75, RIGHT * 1.05, FLOOR, FLOOR + 0.002, M['blade'], r=0.0)
-bx('WheelchairBelt', 2.95, 3.05, RIGHT * (IN_W - 0.01), RIGHT * (IN_W - 0.06), FLOOR + 0.60, FLOOR + 0.80, M['black'])
-bx('WheelchairButton', 2.40, 2.46, RIGHT * (IN_W - 0.01), RIGHT * (IN_W - 0.025), FLOOR + 0.90, FLOOR + 0.96, M['blade'])
+bx('WheelchairBelt', 2.66, 2.74, RIGHT * (IN_W - 0.01), RIGHT * (IN_W - 0.06), FLOOR + 1.12, FLOOR + 1.32, M['black'])
+bx('WheelchairButton', 2.40, 2.46, RIGHT * (IN_W - 0.01), RIGHT * (IN_W - 0.025), FLOOR + 1.40, FLOOR + 1.46, M['blade'])
 # the info screens (the front one over the aisle by the partition, one half way)
 for k, dd in enumerate((1.80, 6.97)):
     bx(f'InfoScreen_{k}', dd, dd + 0.03, -0.30, 0.30, ROOF_IN - 0.40, ROOF_IN - 0.05, M['black'], r=0.008)
@@ -279,10 +291,10 @@ def steering_wheel():
     put(cyl('SWColumnShroud', Vector((0, 0, -0.10)), 0.07, 0.16, 'z', M['dash'], 24, 0.01), 'CoachSteeringWheel')
 def fold_seat(name, part):
     # a folding seat on its wall bracket (the guide's by the front door, two in the wheelchair space)
-    put(rblock(name + 'Cushion', (0, -0.22, 0.45), (0.42, 0.40, 0.07), 0.025, M['wallcarpet'], cuts=4, sub=1), part)
-    put(rblock(name + 'Back', (0, 0.0, 0.80), (0.42, 0.07, 0.50), 0.025, M['wallcarpet'], cuts=4, sub=1), part)
+    put(rblock(name + 'Cushion', (0, -0.22, 0.45), (0.38, 0.40, 0.07), 0.025, M['wallcarpet'], cuts=4, sub=1), part)
+    put(rblock(name + 'Back', (0, 0.0, 0.80), (0.38, 0.07, 0.50), 0.025, M['wallcarpet'], cuts=4, sub=1), part)
     put(rblock(name + 'Bracket', (0, 0.03, 0.40), (0.30, 0.04, 0.12), 0.01, M['chassis'], cuts=1), part)
-    for s_ in (-1, 1): put(tube(name + f'Arm{s_}', [(s_ * 0.20, 0.03, 0.40), (s_ * 0.20, -0.30, 0.42)], 0.012, M['chrome'], 2, bez=False), part)
+    for s_ in (-1, 1): put(tube(name + f'Arm{s_}', [(s_ * 0.18, 0.03, 0.40), (s_ * 0.18, -0.30, 0.42)], 0.012, M['chrome'], 2, bez=False), part)
 driver_seat(); steering_wheel(); fold_seat('GuideSeat', 'CoachGuideSeat'); fold_seat('FoldSeat', 'CoachFoldSeat')
 
 # ---------------------------------------------------------------- the layout of the swappable parts
@@ -291,18 +303,18 @@ PAIR_Y = 0.225 + 0.49
 def seat_place(cf, side):
     # the pair's origin is 0.50 behind its cushion's front; it faces forward (+x); the left side's pairs are mirrored
     # (the wall at +y), so its wall rail and bracket go to the wall
-    return [d2x(cf + 0.50), side * PAIR_Y, FLOOR, 90.0, -1 if side == LEFT else 1]
+    return [d2x(cf + 0.50), side * PAIR_Y, FLOOR + 0.0005, 90.0, -1 if side == LEFT else 1]   # (half a mm over the deck)
 INTERIOR_LAYOUT = {
     'seat_pairs': [seat_place(cf, s) for s in (RIGHT, LEFT) for cf in SEAT_ROWS[s]],
     'bench': [d2x(12.12 + 0.30), 0.0, FLOOR + 0.25, 90.0, 1],
-    'driver_seat': [d2x(1.30), 0.62, 1.00, 90.0, 1],          # not sittable (owner: only the AI driver)
-    'steering_wheel': [d2x(0.98), 0.62, 1.78, 90.0, 1, 30.0],  # 0.78 m over the driver's floor, tilted 30 deg from flat
+    'driver_seat': [d2x(1.20), 0.62, 1.00, 90.0, 1],          # not sittable (owner: only the AI driver)
+    'steering_wheel': [d2x(0.95), 0.62, 1.78, 90.0, 1, 30.0],  # 0.78 m over the driver's floor, tilted 30 deg from flat
     'guide_seat': [d2x(0.75), RIGHT * 0.30, FLOOR, 90.0, 1],
-    'fold_seats': [[d2x(2.62), RIGHT * (IN_W - 0.05), FLOOR, 180.0, 1], [d2x(3.04), RIGHT * (IN_W - 0.05), FLOOR, 180.0, 1]],
+    'fold_seats': [[d2x(2.50), RIGHT * (IN_W - 0.06), FLOOR, 180.0, 1], [d2x(2.89), RIGHT * (IN_W - 0.06), FLOOR, 180.0, 1]],
     'sittable': ['seat_pairs', 'bench', 'guide_seat', 'fold_seats'],
     # (owner: the AI driver's hands lie naturally on the wheel - the rim's 9 and 3 o'clock points, for the hand IK;
     #  the wheel 0.47 m ahead of a seated driver's shoulders and 0.20 m below them, the rim 11 cm over the thighs)
     # the cluster is a screen: the game draws the live speed (centre panel), the speed and power arcs and the range bar onto it
     'cluster_live_areas': {'speed': [0.43, 0.43, 0.57, 0.67], 'speed_arc': [0.06, 0.12, 0.38, 0.86], 'power_arc': [0.62, 0.12, 0.94, 0.86], 'range_bar': [0.41, 0.19, 0.59, 0.25]},
-    'wheel_grips': [[d2x(0.98) + 0.0, 0.62 + s_ * 0.245, 1.78] for s_ in (-1, 1)],
+    'wheel_grips': [[d2x(0.95), 0.62 + s_ * 0.245, 1.78] for s_ in (-1, 1)],
     'floor': FLOOR, 'aisle_half': 0.225, 'inside_half': IN_W}
