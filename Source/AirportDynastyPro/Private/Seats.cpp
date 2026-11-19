@@ -130,17 +130,26 @@ void ASeats::Sit(AADPWalker* Me, int32 I)
 	Rider->SetSkinnedAssetAndUpdate(Body);
 	if (!Rig.Init(Rider)) { ADP_WARN(TEXT("Seats: your body couldn't be rigged")); return; }
 	// the seat's frame: on the floor under the seat's middle, its +Y the way it faces (the body's own forward)
-	const FVector Floor = Sp.At - FVector(0, 0, Sp.SeatH);
+	// (the seat's point is near its front edge: the frame 20 cm back into the seat, so you sit on it, not on its edge)
+	const FVector Floor = Sp.At - Sp.Facing.GetSafeNormal2D() * 20.f - FVector(0, 0, Sp.SeatH);
 	Frame->SetWorldLocationAndRotation(Floor, FRotator(0.f, Sp.Facing.Rotation().Yaw - 90.f, 0.f));
 	// where you start: standing just in front of it, facing away from it; where you end: on it
 	const float PH = Rig.PelvisHeight();
 	Standing = FDriverPose(); Standing.Facing = FVector(0, 1, 0);
 	Standing.Pelvis = FVector(0.f, 30.f, PH);
-	Standing.Foot[0] = FVector(-12.f, 32.f, 0.f); Standing.Foot[1] = FVector(12.f, 32.f, 0.f);
+	// (left and right: side 0 is the body's right, its foot and hand on the frame's +x - with -x the legs and arms crossed)
+	Standing.Foot[0] = FVector(12.f, 32.f, 0.f); Standing.Foot[1] = FVector(-12.f, 32.f, 0.f);
 	Sitting = FDriverPose(); Sitting.Facing = FVector(0, 1, 0); Sitting.Lean = -6.f;
-	Sitting.Pelvis = FVector(0.f, -4.f, Sp.SeatH + 9.f);
-	Sitting.Foot[0] = FVector(-14.f, 44.f, 0.f); Sitting.Foot[1] = FVector(14.f, 44.f, 0.f);
-	for (int32 s = 0; s < 2; ++s) { Sitting.bHand[s] = true; Sitting.Hand[s] = FVector(s == 0 ? -17.f : 17.f, 24.f, Sp.SeatH + 15.f); Sitting.Grip[s] = 0.25f; }
+	// (owner, 2026-11-19: the sitting IK step on your own avatar too - the seat's real surface measured straight down at
+	// the seat, the hips one thigh's thickness (your own body's) over it; the hands on your thighs in Place)
+	float Surf = Sp.SeatH;
+	{
+		FHitResult Hs; FCollisionQueryParams Qs(SCENE_QUERY_STAT(SeatTop), false, Me);
+		if (GetWorld()->LineTraceSingleByChannel(Hs, Sp.At + FVector(0, 0, 80.f), Sp.At - FVector(0, 0, 60.f), ECC_Visibility, Qs)) Surf = Hs.ImpactPoint.Z - Floor.Z;
+	}
+	Sitting.Pelvis = FVector(0.f, -4.f, Surf + Rig.ThighRadius());
+	Sitting.Foot[0] = FVector(15.f, 40.f, 0.f); Sitting.Foot[1] = FVector(-15.f, 40.f, 0.f);
+	for (int32 s = 0; s < 2; ++s) { Sitting.bHand[s] = true; Sitting.Hand[s] = FVector(s == 0 ? 13.f : -13.f, 22.f, Sp.SeatH + 14.f); Sitting.Grip[s] = 0.25f; }
 	Pose = Me->LendBody(Frame);
 	if (!Pose) { ADP_WARN(TEXT("Seats: your body couldn't be lent to the seat")); return; }
 	Sitter = Me; Seat = I; State = EState::Down; T = 0.f; Before = Me->GetActorLocation();
@@ -171,6 +180,7 @@ void ASeats::Place(float K)
 	P.Lean = FMath::Lerp(0.f, Sitting.Lean, E) + 22.f * FMath::Sin(PI * E);   // (leaning forward on the way, as you do)
 	for (int32 s = 0; s < 2; ++s) { P.Foot[s] = FMath::Lerp(Standing.Foot[s], Sitting.Foot[s], E); P.bHand[s] = E > 0.35f; }
 	Rig.Pose(P);
+	if (E > 0.35f) Rig.RestHandsOnThighs(P, Rig.ThighRadius(), FMath::Clamp((E - 0.35f) / 0.3f, 0.f, 1.f));   // (the sitting IK step)
 	if (Pose) Pose->Local = Rig.LocalPose();
 	// your view goes with your head: the capsule kept so its eyes are where the body's are
 	const FVector Eyes = Frame->GetComponentTransform().TransformPosition(Rig.Eyes());

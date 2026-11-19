@@ -37,6 +37,11 @@ public:
 	 *  resting the hands on the thighs and the thighs on a seat (People.cpp). */
 	FVector HipAt(int32 S) const { return CS.IsValidIndex(Thigh[S]) ? CS[Thigh[S]].GetLocation() : FVector::ZeroVector; }
 	FVector KneeAt(int32 S) const { return CS.IsValidIndex(Calf[S]) ? CS[Calf[S]].GetLocation() : FVector::ZeroVector; }
+	/** The sitting IK step (owner, 2026-11-19: every sitting pose, yours too): each holding hand of the pose just made moved
+	 *  onto the top of the thigh it rests on (ThighR thick), by Weight, and the body posed again with them there. */
+	void RestHandsOnThighs(FDriverPose& P, float ThighR, float Weight);
+	/** A body's thigh thickness (half its thigh's width) from its own hips. */
+	float ThighRadius() const { return FMath::Clamp(HipWidth() * 0.42f, 6.f, 12.f); }
 	float HipWidth() const { return RefCS.IsValidIndex(Thigh[0]) && RefCS.IsValidIndex(Thigh[1]) ? FVector::Dist(RefCS[Thigh[0]].GetLocation(), RefCS[Thigh[1]].GetLocation()) : 18.f; }
 
 private:

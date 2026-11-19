@@ -743,7 +743,7 @@ void AADPPeople::NextThing(FStroll& S)
 			bool bIn = true; const float L = FVector::Dist2D(From, Front);
 			for (float d = 0.f; d < L && bIn; d += 100.f) bIn = InArea(S, FMath::Lerp(From, Front, d / FMath::Max(L, 1.f)));
 			if (!bIn || GetWorld()->SweepTestByChannel(From + FVector(0, 0, 100.f), Front + FVector(0, 0, 100.f), FQuat::Identity, ECC_Pawn, FCollisionShape::MakeCapsule(28.f, 55.f), Q)) continue;
-			if (ASeats::Claim(A, SAt) == I) { S.Seat = I; S.To = Front; S.Doing = EDoing::ToSeat; S.T = 0.f; S.SitPose = Rng.RandRange(0, 7); return; }
+			if (ASeats::Claim(A, SAt) == I) { S.Seat = I; S.To = Front; S.Doing = EDoing::ToSeat; S.T = 0.f; S.SitPose = Rng.RandRange(0, 7); S.CrossLift = 0.f; static bool bCrossTest = FParse::Param(FCommandLine::Get(), TEXT("UICrossLegs")); if (bCrossTest) S.SitPose = 8; return; }
 		}
 	}
 	if (R > 0.82f) { FVector Spot; float Yaw; if (WallSpot(S, From, Spot, Yaw)) { S.To = Spot; S.LeanYaw = Yaw; S.Doing = EDoing::Lean; S.T = -1.f; S.For = Rng.FRandRange(15.f, 45.f); return; } }
@@ -803,9 +803,19 @@ void AADPPeople::SitPose(FStroll& S, float K)
 	case 2: Si.Lean = 2.f; Si.Hand[0] = FVector(13.f, 22.f, SH + 14.f); Si.Hand[1] = FVector(-13.f, 22.f, SH + 14.f); break;    // each hand on its own thigh
 	default: Si.Lean = -7.f; Si.Hand[0] = FVector(4.f, 16.f, SH + 16.f); Si.Hand[1] = FVector(-4.f, 18.f, SH + 15.f); break;    // back in the seat, hands in the lap
 	}
+	// legs crossed (owner, 2026-11-19 - shown first in the -UICrossLegs test): the left leg over the right, its foot off the
+	// floor beside the other shin, both hands on the top knee; the thighs kept apart by the IK step below
+	const bool bCross = S.SitPose == 8;
+	if (bCross)
+	{
+		Si.Lean = 2.f;
+		Si.Foot[0] = FVector(12.f, 40.f, 0.f);              // (the right foot planted)
+		Si.Foot[1] = FVector(14.f, 50.f, 30.f + S.CrossLift);   // (the left foot across, lifted - more if the thighs met)
+		Si.Hand[0] = FVector(2.f, 34.f, SH + 26.f); Si.Hand[1] = FVector(-6.f, 36.f, SH + 24.f);
+	}
 	// the seat (owner, 2026-11-19: a small IK step): its real surface measured once, straight down at the seat, and the
 	// hips one thigh's thickness over it - so the thighs rest on the seat whatever the body
-	const float ThighR = FMath::Clamp(S.Rig->HipWidth() * 0.42f, 6.f, 12.f);
+	const float ThighR = S.Rig->ThighRadius();
 	if (!S.bSurf)
 	{
 		S.bSurf = true; S.SurfZ = SH;
@@ -818,26 +828,28 @@ void AADPPeople::SitPose(FStroll& S, float K)
 	P.Pelvis = FMath::Lerp(St.Pelvis, Si.Pelvis, E); P.Lean = FMath::Lerp(0.f, Si.Lean, E) + 22.f * FMath::Sin(PI * E);
 	for (int32 s = 0; s < 2; ++s) { P.Foot[s] = FMath::Lerp(St.Foot[s], Si.Foot[s], E); P.bHand[s] = E > 0.35f; }
 	S.Rig->Pose(P);
+	// (crossed legs: the top thigh must lie on the other one, never in it - the gap between the two thighs' middle lines
+	// measured; if it is less than two thighs' thickness the crossing foot (and so its knee) goes up, a few passes)
+	if (bCross && E >= 1.f)
+	{
+		auto SegDist = [](const FVector& A0, const FVector& A1, const FVector& B0, const FVector& B1)
+		{
+			float Best = 1e9f;
+			for (int32 i = 0; i <= 12; ++i) { const FVector Pa = FMath::Lerp(A0, A1, i / 12.f); Best = FMath::Min(Best, FMath::PointDistToSegment(Pa, B0, B1)); }
+			return Best;
+		};
+		for (int32 Pass = 0; Pass < 5; ++Pass)
+		{
+			const float D = SegDist(S.Rig->HipAt(1), S.Rig->KneeAt(1), S.Rig->HipAt(0), S.Rig->KneeAt(0)), Need = 2.f * ThighR * 0.95f;
+			if (D >= Need) break;
+			S.CrossLift += (Need - D) * 1.8f; P.Foot[1].Z += (Need - D) * 1.8f;
+			S.Rig->Pose(P);
+		}
+		static int32 Said = 0; if (Said++ < 2) ADP_LOG(TEXT("People: legs crossed - the thighs %.1f cm apart (they need %.1f), the crossing foot lifted %.0f cm"), SegDist(S.Rig->HipAt(1), S.Rig->KneeAt(1), S.Rig->HipAt(0), S.Rig->KneeAt(0)), 2.f * ThighR * 0.95f, 30.f + S.CrossLift);
+	}
 	// the hands (the same IK step): each one onto the top of the thigh it rests on - its own body's thigh, at its own
 	// thickness - so it lies on it, never in it or floating over it; then the pose once more with them there
-	if (E > 0.35f)
-	{
-		for (int32 h = 0; h < 2; ++h)
-		{
-			int32 Side = 0; float Bd = 1e9f;
-			for (int32 k = 0; k < 2; ++k) { const float D = FMath::Abs(S.Rig->HipAt(k).X - P.Hand[h].X) + FMath::Abs(S.Rig->KneeAt(k).X - P.Hand[h].X); if (D < Bd) { Bd = D; Side = k; } }
-			const FVector Hip = S.Rig->HipAt(Side), Knee = S.Rig->KneeAt(Side), Ax = Knee - Hip;
-			const float L2 = FMath::Max(Ax.SizeSquared(), 1.f);
-			const float T = FMath::Clamp(FVector::DotProduct(P.Hand[h] - Hip, Ax) / L2, 0.35f, 0.95f);
-			const FVector On = Hip + Ax * T;
-			// (beside the thigh's top line by the hand's own offset, a little at most; the wrist a palm over the skin)
-			const FVector Side2 = FVector::CrossProduct(Ax.GetSafeNormal(), FVector::UpVector).GetSafeNormal();
-			const float Off = FMath::Clamp(FVector::DotProduct(P.Hand[h] - On, Side2), -ThighR * 0.6f, ThighR * 0.6f);
-			const FVector Want = On + Side2 * Off + FVector(0, 0, ThighR + 3.f);
-			P.Hand[h] = FMath::Lerp(P.Hand[h], Want, FMath::Clamp((E - 0.35f) / 0.3f, 0.f, 1.f));
-		}
-		S.Rig->Pose(P);
-	}
+	if (E > 0.35f) S.Rig->RestHandsOnThighs(P, ThighR, FMath::Clamp((E - 0.35f) / 0.3f, 0.f, 1.f));
 	if (S.Pose) S.Pose->Local = S.Rig->LocalPose();
 	// (the body on the seat's frame - the hips at the rig's own height over the seat)
 	{

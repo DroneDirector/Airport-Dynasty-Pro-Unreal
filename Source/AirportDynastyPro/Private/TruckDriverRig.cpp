@@ -138,3 +138,25 @@ void FTruckDriverRig::Pose(const FDriverPose& P)
 	for (int32 I = 0; I < Local.Num() && I < Mesh->BoneSpaceTransforms.Num(); ++I) Mesh->BoneSpaceTransforms[I] = Local[I];
 	Mesh->MarkRefreshTransformDirty();
 }
+
+void FTruckDriverRig::RestHandsOnThighs(FDriverPose& P, float ThighR, float Weight)
+{
+	if (!Mesh || Weight <= 0.f) return;
+	bool bAny = false;
+	for (int32 h = 0; h < 2; ++h)
+	{
+		if (!P.bHand[h]) continue;
+		int32 Side = 0; float Bd = 1e9f;
+		for (int32 k = 0; k < 2; ++k) { const float D = FMath::Abs(HipAt(k).X - P.Hand[h].X) + FMath::Abs(KneeAt(k).X - P.Hand[h].X); if (D < Bd) { Bd = D; Side = k; } }
+		const FVector Hip = HipAt(Side), Knee = KneeAt(Side), Ax = Knee - Hip;
+		const float L2 = FMath::Max(Ax.SizeSquared(), 1.f);
+		const float T = FMath::Clamp(FVector::DotProduct(P.Hand[h] - Hip, Ax) / L2, 0.35f, 0.95f);
+		const FVector On = Hip + Ax * T;
+		// (beside the thigh's top line by the hand's own offset, a little at most; the wrist a palm over the skin)
+		const FVector Across = FVector::CrossProduct(Ax.GetSafeNormal(), FVector::UpVector).GetSafeNormal();
+		const float Off = FMath::Clamp(FVector::DotProduct(P.Hand[h] - On, Across), -ThighR * 0.6f, ThighR * 0.6f);
+		P.Hand[h] = FMath::Lerp(P.Hand[h], On + Across * Off + FVector(0, 0, ThighR + 3.f), FMath::Clamp(Weight, 0.f, 1.f));
+		bAny = true;
+	}
+	if (bAny) Pose(P);
+}
