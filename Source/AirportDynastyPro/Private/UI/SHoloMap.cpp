@@ -1,6 +1,18 @@
 // The holographic airport map: drawn line by line in the Android edition's holographic blues (holomap.ts), with the
 // route in warm orange.
 #include "UI/SHoloMap.h"
+#include "UI/MapTrace.h"
+#include "JetwayRigs.h"
+#include "BabylonModel.h"
+#include "TerminalPlan.h"
+#include "ADPLog.h"
+#include "EngineUtils.h"
+#include "Engine/World.h"
+#include "Engine/StaticMesh.h"
+#include "Components/InstancedStaticMeshComponent.h"
+#include "Misc/DateTime.h"
+#include "MeshDescription.h"
+#include "StaticMeshAttributes.h"
 #include "Rendering/DrawElements.h"
 #include "Styling/CoreStyle.h"
 #include "TowerADC.h"
@@ -71,6 +83,32 @@ void SHoloMap::SetPlan(const FTerminalPlan& InPlan)
 		Side(true, R.Z1, R.X0, R.X1, R.Glass.Contains(TEXT("n")));
 		Side(false, R.X0, R.Z0, R.Z1, R.Glass.Contains(TEXT("w")));
 		Side(false, R.X1, R.Z0, R.Z1, R.Glass.Contains(TEXT("e")));
+	}
+	// the walls as they really stand (Data/holomap-walls.json, traced from the terminal itself - ADPMapTrace, run before
+	// every release): they take the plan rooms' place, so every part built since the plan (the 16 gates, the claim and
+	// arrivals wing, the tax free, the escalator rooms) is on the map; the plan keeps the names, the routes and the stairs
+	{
+		FString Text; TSharedPtr<FJsonObject> O;
+		for (const FString& F : {FPaths::ProjectContentDir() / TEXT("Data/holomap-walls.json"), FPaths::ProjectDir() / TEXT("Data/holomap-walls.json")})
+			if (FFileHelper::LoadFileToString(Text, *F) && FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), O) && O.IsValid()) break;
+		const TSharedPtr<FJsonObject>* Fl = nullptr;
+		if (O.IsValid() && O->TryGetObjectField(TEXT("floors"), Fl))
+		{
+			int32 N = 0;
+			for (int32 f = 1; f <= 2; ++f)
+			{
+				const TArray<TSharedPtr<FJsonValue>>* L = nullptr;
+				if (!(*Fl)->TryGetArrayField(FString::FromInt(f), L) || !L->Num()) continue;
+				Walls[f].Reset();
+				for (const TSharedPtr<FJsonValue>& V : *L)
+				{
+					const TArray<TSharedPtr<FJsonValue>>& A = V->AsArray(); if (A.Num() < 5) continue;
+					FSeg S{FVector2f(A[0]->AsNumber(), A[1]->AsNumber()), FVector2f(A[2]->AsNumber(), A[3]->AsNumber()), A[4]->AsNumber() > 0};
+					Walls[f].Add(S); Bounds += S.A; Bounds += S.B; ++N;
+				}
+			}
+			UE_LOG(LogTemp, Log, TEXT("Holographic map: %d wall lines traced from the terminal"), N);
+		}
 	}
 	for (const FPlanStair& S : Plan.Stairs)
 		for (int32 f = 1; f <= 2; ++f) StairBoxes[f].Add(FBox2f(FVector2f(S.X0, S.Z0), FVector2f(S.X1, S.Z1)));
@@ -290,9 +328,16 @@ int32 SHoloMap::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const FSla
 	for (const FSeg& S : Walls[F]) Line(S.A, S.B, InB == INDEX_NONE ? (S.bGlass ? GlassC : Wall) : FLinearColor(0.55f, 0.84f, 1.f, 0.4f), InB == INDEX_NONE ? 1.6f : 1.f);
 	// the other buildings, whole: the one you are in bright on its floor; the rest on the floor nearest your height,
 	// their other floors as ghosts
+	// the jetways, live: where each one is right now (the old traced jetways 1-4 step aside for them)
+	if (LiveJetways)
+	{
+		TArray<FVector4f> J; LiveJetways(J);
+		for (const FVector4f& S : J) Line(FVector2f(S.X, S.Y), FVector2f(S.Z, S.W), FLinearColor(0.62f, 0.88f, 1.f, 0.85f), 1.2f);
+	}
 	for (int32 b = 0; b < Buildings.Num(); ++b)
 	{
 		const FBuilding& Bd = Buildings[b];
+		if (LiveJetways && Bd.Label.StartsWith(TEXT("JETWAY"))) continue;
 		int32 Show = 0;
 		if (b == InB) Show = BF;
 		else for (int32 f = 0; f < Bd.Floors.Num(); ++f) if (Player.Y >= Bd.Floors[f].Y0 && Player.Y < Bd.Floors[f].Y1) Show = f;
@@ -498,4 +543,118 @@ int32 SCompassStrip::OnPaint(const FPaintArgs&, const FGeometry& Geo, const FSla
 	FSlateDrawElement::MakeText(Out, Layer + 4, Geo.ToPaintGeometry(FVector2f(30, 14), FSlateLayoutTransform(FVector2f(Mid - 10, 3))), Deg, Num, ESlateDrawEffect::None, FLinearColor(1.f, 0.85f, 0.4f, 1.f));
 	FSlateDrawElement::MakeLines(Out, Layer + 4, PG, TArray<FVector2f>{FVector2f(Mid - 4, H - 1), FVector2f(Mid, H - 6), FVector2f(Mid + 4, H - 1)}, ESlateDrawEffect::None, FLinearColor(1.f, 0.8f, 0.3f, 1.f), true, 2);
 	return Layer + 4;
+}
+
+// ---- the map traced from the real terminal ----
+#if WITH_EDITORONLY_DATA
+#include "MeshDescription.h"
+#include "StaticMeshAttributes.h"
+#endif
+// The holographic map traced from the real terminal (owner, 2026-11-19: "the holographic map is missing some sections
+// because the terminal has been extended ... from now on, always add new parts ... automatically"). Run in the editor's
+// game (-UIMapTrace, also by Tools/release_pc.sh before every release): every wall of the terminal model - its parts as
+// they stand in the game, the annex pieces and the 16 gates included - is cut at walking height on each floor (1.3 m
+// above Floor 1 and Floor 2); each cut through an upright face becomes a line on the map (glass kept as glass). Doors,
+// lamps, signs, seats, counters, plants, cars, the stands' aircraft, escalators and stairs are left out by their names;
+// anything shorter than a wall is left out by its height. Written to Data/holomap-walls.json (plan metres); SHoloMap
+bool ADPMapTrace::Run(UWorld* W, float F2Y)
+{
+#if WITH_EDITORONLY_DATA
+	if (!W) return false;
+	ABabylonModel* Term = nullptr;
+	for (TActorIterator<ABabylonModel> It(W); It; ++It) if (It->ModelName() == TEXT("Terminal")) { Term = *It; break; }
+	if (!Term) { ADP_WARN(TEXT("Map trace: no terminal in the world")); return false; }
+	static const TCHAR* Skip[] = { TEXT("STAND-"), TEXT("/LAMP"), TEXT("LIGHT"), TEXT("SIGN"), TEXT("SEAT"), TEXT("KIOSK"), TEXT("COUNTER"), TEXT("PLANT"),
+		TEXT("TREE"), TEXT("CAR-"), TEXT("BIN"), TEXT("DESK"), TEXT("SCREEN"), TEXT("TABLE"), TEXT("CHAIR"), TEXT("BELT"), TEXT("ESC"), TEXT("STAIR"),
+		TEXT("TRIM"), TEXT("HANDRAIL"), TEXT("BENCH"), TEXT("SHELF"), TEXT("CROWN"), TEXT("ADVERT"), TEXT("FIDS"), TEXT("MONITOR"), TEXT("TROLLEY"),
+		TEXT("LIFT-CAB"), TEXT("CANOPY"), TEXT("ROOF"), TEXT("CEIL"), TEXT("FLOOR"), TEXT("KERB"), TEXT("DOWNLIGHT"), TEXT("box#lamp") };
+	const float Cut[3] = { 0.f, 130.f, (F2Y + 1.3f) * 100.f };   // (world height of each floor's cut, cm)
+	TArray<TArray<FVector4f>> Segs; Segs.SetNum(3);
+	TSet<FIntVector4> Seen[3]; TArray<int32> Glass[3];
+	int32 Parts = 0, Kept = 0;
+	TArray<UInstancedStaticMeshComponent*> Lists; Term->GetComponents<UInstancedStaticMeshComponent>(Lists);
+	for (UInstancedStaticMeshComponent* K : Lists)
+	{
+		UStaticMesh* SM = K ? K->GetStaticMesh() : nullptr; if (!SM || !K->IsVisible()) continue;
+		const FMeshDescription* MD = SM->GetMeshDescription(0); if (!MD) continue;
+		FStaticMeshConstAttributes Attr(*MD);
+		const TVertexAttributesConstRef<FVector3f> Pos = Attr.GetVertexPositions();
+		const FString Mat = K->GetMaterial(0) ? K->GetMaterial(0)->GetName() : FString();
+		const bool bGlassMat = Mat.Contains(TEXT("glass"), ESearchCase::IgnoreCase);
+		const FBox MB = SM->GetBoundingBox();
+		for (int32 i = 0; i < K->GetInstanceCount(); ++i)
+		{
+			++Parts;
+			FTransform T; if (!K->GetInstanceTransform(i, T, true)) continue;
+			if (T.GetScale3D().GetAbsMin() < 0.001f) continue;   // (hidden copies)
+			const FString Nm = Term->NodeAt(K, i);
+			bool bSkip = Nm.StartsWith(TEXT("D-")) || Nm.Contains(TEXT("/D-"));
+			for (const TCHAR* S : Skip) if (!bSkip && Nm.Contains(S, ESearchCase::IgnoreCase)) bSkip = true;
+			if (bSkip) continue;
+			const FBox WB = MB.TransformBy(T);
+			if (WB.Max.Z - WB.Min.Z < 220.f) continue;   // (shorter than a wall)
+			bool bAny = false;
+			for (int32 f = 1; f <= 2; ++f) if (WB.Min.Z < Cut[f] && WB.Max.Z > Cut[f]) bAny = true;
+			if (!bAny) continue;
+			++Kept;
+			for (const FTriangleID Tri : MD->Triangles().GetElementIDs())
+			{
+				const TArrayView<const FVertexID> V = MD->GetTriangleVertices(Tri);
+				const FVector P0 = T.TransformPosition(FVector(Pos[V[0]])), P1 = T.TransformPosition(FVector(Pos[V[1]])), P2 = T.TransformPosition(FVector(Pos[V[2]]));
+				const FVector Nn = FVector::CrossProduct(P1 - P0, P2 - P0).GetSafeNormal();
+				if (Nn.IsNearlyZero() || FMath::Abs(Nn.Z) > 0.35f) continue;   // (upright faces only)
+				for (int32 f = 1; f <= 2; ++f)
+				{
+					const float H = Cut[f];
+					TArray<FVector, TInlineAllocator<3>> X;
+					const FVector Pt[3] = { P0, P1, P2 };
+					for (int32 e = 0; e < 3; ++e)
+					{
+						const FVector& A = Pt[e]; const FVector& B = Pt[(e + 1) % 3];
+						if ((A.Z - H) * (B.Z - H) < 0.f) { const float U = (H - A.Z) / (B.Z - A.Z); X.Add(A + (B - A) * U); }
+					}
+					if (X.Num() < 2) continue;
+					const FVector2f A2(X[0].X / 100.f, -X[0].Y / 100.f), B2(X[1].X / 100.f, -X[1].Y / 100.f);   // (plan metres: x, z)
+					if (FVector2f::Distance(A2, B2) < 0.12f) continue;
+					// (the same line once: its ends on a 5 cm grid, either way round)
+					FIntPoint QA(FMath::RoundToInt(A2.X * 20), FMath::RoundToInt(A2.Y * 20)), QB(FMath::RoundToInt(B2.X * 20), FMath::RoundToInt(B2.Y * 20));
+					if (QB.X < QA.X || (QB.X == QA.X && QB.Y < QA.Y)) Swap(QA, QB);
+					const FIntVector4 Key(QA.X, QA.Y, QB.X, QB.Y);
+					if (Seen[f].Contains(Key)) continue;
+					Seen[f].Add(Key);
+					Segs[f].Add(FVector4f(A2.X, A2.Y, B2.X, B2.Y));
+					if (bGlassMat) Glass[f].Add(Segs[f].Num() - 1);
+				}
+			}
+		}
+	}
+	// written as plan metres per floor: [x0, z0, x1, z1, glass]
+	FString J = FString::Printf(TEXT("{\"made\": \"%s\", \"parts\": %d, \"floors\": {"), *FDateTime::Now().ToString(TEXT("%Y-%m-%d %H:%M")), Kept);
+	for (int32 f = 1; f <= 2; ++f)
+	{
+		TSet<int32> G(Glass[f]);
+		J += FString::Printf(TEXT("%s\"%d\": ["), f > 1 ? TEXT(", ") : TEXT(""), f);
+		for (int32 i = 0; i < Segs[f].Num(); ++i)
+		{
+			const FVector4f& S = Segs[f][i];
+			J += FString::Printf(TEXT("%s[%.2f,%.2f,%.2f,%.2f,%d]"), i ? TEXT(",") : TEXT(""), S.X, S.Y, S.Z, S.W, G.Contains(i) ? 1 : 0);
+		}
+		J += TEXT("]");
+	}
+	J += TEXT("}");
+	// (the jetways as they stand at the trace, for checking pictures only - the map draws them live)
+	{
+		TArray<FVector4f> Jw; for (TActorIterator<AJetwayRigs> It(W); It; ++It) { It->MapShapes(Jw); break; }
+		J += TEXT(", \"jetways\": [");
+		for (int32 k = 0; k < Jw.Num(); ++k) J += FString::Printf(TEXT("%s[%.2f,%.2f,%.2f,%.2f]"), k ? TEXT(",") : TEXT(""), Jw[k].X, Jw[k].Y, Jw[k].Z, Jw[k].W);
+		J += TEXT("]}\n");
+	}
+	const FString Out = FPaths::ProjectDir() / TEXT("Data/holomap-walls.json");
+	FFileHelper::SaveStringToFile(J, *Out);
+	FFileHelper::SaveStringToFile(J, *(FPaths::ProjectContentDir() / TEXT("Data/holomap-walls.json")));
+	ADP_LOG(TEXT("Map trace: %d of %d terminal parts are walls; Floor 1 %d lines, Floor 2 %d lines -> Data/holomap-walls.json"), Kept, Parts, Segs[1].Num(), Segs[2].Num());
+	return true;
+#else
+	return false;
+#endif
 }

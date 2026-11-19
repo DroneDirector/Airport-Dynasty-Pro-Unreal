@@ -21,6 +21,15 @@ cd $R
 grep -q "\"$V\"" pc-version.json || { echo "STOP: pc-version.json is not $V - bump it first"; exit 1; }
 if [ "$4" != "--upload" ]; then
   tasklist | grep -qi "UnrealEditor.exe" && { echo "STOP: an Unreal editor is running"; exit 1; }
+  # the holographic map traced from the terminal as it stands (owner, 2026-11-19: every new part on the map, always):
+  # the editor's own build first, then its game cuts every wall at walking height -> Data/holomap-walls.json
+  echo "== the holographic map's walls traced from the terminal"
+  "C:/Program Files/Epic Games/UE_5.7/Engine/Build/BatchFiles/Build.bat" AirportDynastyProEditor Win64 Development "-Project=$(cd $R && pwd -W)/AirportDynastyPro.uproject" -WaitMutex > /dev/null 2>&1 || { echo "STOP: the editor build failed"; exit 1; }
+  BEFORE=$(stat -c %Y Data/holomap-walls.json 2>/dev/null || echo 0)
+  timeout 300 "C:/Program Files/Epic Games/UE_5.7/Engine/Binaries/Win64/UnrealEditor.exe" "$(cd $R && pwd -W)/AirportDynastyPro.uproject" -game -UIShot -UIMapTrace -windowed -ResX=1280 -ResY=720 > /dev/null 2>&1
+  AFTER=$(stat -c %Y Data/holomap-walls.json 2>/dev/null || echo 0)
+  [ "$AFTER" -gt "$BEFORE" ] || { echo "STOP: the map trace didn't write Data/holomap-walls.json"; exit 1; }
+  grep -a "Map trace:" Saved/Logs/AirportDynastyPro.log | tail -1 | sed 's/.*Map trace: /   /'
   echo "== web pages and data into Content"
   rm -rf Content/Web && cp -r Airline-Manager-Pro-Babylon/www Content/Web && rm -rf Content/Data && cp -r Data Content/Data
   echo "== every folder the code loads by name is always cooked"

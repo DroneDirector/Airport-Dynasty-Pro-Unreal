@@ -40,6 +40,8 @@ public:
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const FSlateRect& Cull, FSlateWindowElementList& Out, int32 Layer, const FWidgetStyle& Style, bool bParentEnabled) const override;
 	virtual FReply OnMouseButtonDown(const FGeometry& Geo, const FPointerEvent& Event) override;
 
+	/** The jetways as they stand now (lines in plan metres), asked for as it draws - they move as the jetways drive. */
+	TFunction<void(TArray<FVector4f>&)> LiveJetways;
 	/** Called when the small map is clicked (to open it full screen). */
 	TFunction<void()> OnOpen;
 

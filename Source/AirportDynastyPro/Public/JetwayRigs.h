@@ -66,6 +66,9 @@ public:
 	/** The cab's middle and the way its doorway faces, now (world) - for cameras. */
 	bool CabView(int32 J, FVector& Mid, FVector& Front) const;
 	/** Its CCTV cameras (to-do 115 part 4): how many, and camera K's lens now (world), the way it looks and its name. */
+	/** Every jetway's outline as it stands now, for the holographic map (owner, 2026-11-19): the rotunda, each tunnel
+	 *  section and the cab as the box it fills, in plan metres - lines (x0, z0, x1, z1); they move as the jetways drive. */
+	void MapShapes(TArray<FVector4f>& Out) const;
 	int32 NumCams(int32 J) const { return Rigs.IsValidIndex(J) ? Rigs[J].Cams.Num() : 0; }
 	bool CamView(int32 J, int32 K, FVector& At, FRotator& Rot, FString& Name) const;
 	/** The service door in the cab-end section's side (owner, 2026-11-17): the one near you and facing it (world feet,
@@ -114,6 +117,8 @@ private:
 		// the drive unit's wheels (owner, 2026-11-18): each rolls about its own axle as far as the unit travels
 		struct FWheel { TArray<FPart> Parts; FVector Hub = FVector::ZeroVector, Axle = FVector::RightVector, Fwd = FVector::ForwardVector; float Rad = 55.f; };
 		TArray<FWheel> Wheels; float Roll = 0.f; FVector LastHub = FVector::ZeroVector; bool bRollStart = true;
+		FBox MapBox[NumGroups];
+		TArray<FBox> MapFixed; UInstancedStaticMeshComponent* MapHost = nullptr;   // (its fixed corridor and rotunda, component space)   // (each group's parts as one box in its own docked space - MapShapes)
 		FPart Scr;                                  // (the console's screen: J-x/CAB-CONSOLE:tealUI - the HMI, to-do 115)
 		FVector BoomO, PD, Wd, Wp, Ctl, CabOff;     // (model space, cm)
 		FVector CabMidD = FVector::ZeroVector, FrontD = FVector::ForwardVector;   // the cab body's middle and the way its door faces (docked, model space)

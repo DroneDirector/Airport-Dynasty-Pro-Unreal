@@ -358,6 +358,20 @@ void AJetwayRigs::Build()
 			R.G[Bogie].Parts.RemoveAll([&](const FPart& P) { for (const FRig::FWheel& Wh : R.Wheels) for (const FPart& Q : Wh.Parts) if (Q.K == P.K && Q.Ix == P.Ix) return true; return false; });
 			ADP_LOG(TEXT("Jetways: %s drive unit - %d wheels roll (radius %.0f cm)"), *Id, R.Wheels.Num(), R.Wheels.Num() ? R.Wheels[0].Rad : 0.f);
 		}
+		// the outlines the holographic map draws (MapShapes): each group's parts as one box in the group's own docked space
+		for (int32 g = 0; g < NumGroups; ++g)
+		{
+			R.MapBox[g] = FBox(ForceInit);
+			for (const FPart& P : R.G[g].Parts) if (P.K && P.K->GetStaticMesh()) R.MapBox[g] += P.K->GetStaticMesh()->GetBoundingBox().TransformBy(P.Docked.GetRelativeTransform(R.G[g].Docked));
+		}
+		// (its fixed parts: the corridor from the gate and the rotunda it stands on)
+		for (const TCHAR* Fx : {TEXT("/CORRIDOR:"), TEXT("/ROTUNDA:")})
+		{
+			TArray<TTuple<UInstancedStaticMeshComponent*, int32, FString>> In; M->InstancesNamed(Id + Fx, true, In);
+			FBox B(ForceInit);
+			for (const auto& I : In) { UInstancedStaticMeshComponent* K = I.Get<0>(); FTransform T; if (K && K->GetStaticMesh() && K->GetInstanceTransform(I.Get<1>(), T, false)) { B += K->GetStaticMesh()->GetBoundingBox().TransformBy(T); R.MapHost = K; } }
+			if (B.IsValid) R.MapFixed.Add(B);
+		}
 		AddBeacons(R, M, Id);
 		AddSignLights(R, M, Id);
 		Rigs.Add(MoveTemp(R));
@@ -1328,6 +1342,36 @@ void AJetwayRigs::ApplySway(const FRig& R, const FTransform& T3, float Time, boo
 		{
 			const FTransform Pd(Q * P.Docked.GetRotation(), S.H + Q.RotateVector(P.Docked.GetLocation() - S.H), P.Docked.GetScale3D());
 			P.K->UpdateInstanceTransform(P.Ix, Pd.GetRelativeTransform(R.G[Tun3].Docked) * T3, false, false, true);   // (no full rebuild of the list: each moved copy goes on its own - 2026-11-18, the hoses brought the 11-17 lag back)
+		}
+	}
+}
+
+void AJetwayRigs::MapShapes(TArray<FVector4f>& Out) const
+{
+	// each jetway as it stands now: the rotunda, the three tunnel sections and the cab, each the box its parts fill (its
+	// floor's outline), turned and moved with it; plan metres (x east, z north) as the map draws
+	for (const FRig& R : Rigs)
+	{
+		if (R.MapHost)
+			for (const FBox& B : R.MapFixed)
+			{
+				const FTransform W = R.MapHost->GetComponentTransform(); FVector2f C[4]; int32 i = 0;
+				for (const FVector2D& K : {FVector2D(B.Min.X, B.Min.Y), FVector2D(B.Max.X, B.Min.Y), FVector2D(B.Max.X, B.Max.Y), FVector2D(B.Min.X, B.Max.Y)})
+				{ const FVector P = W.TransformPosition(FVector(K.X, K.Y, B.Min.Z)); C[i++] = FVector2f(P.X / 100.f, -P.Y / 100.f); }
+				for (int32 k = 0; k < 4; ++k) Out.Add(FVector4f(C[k].X, C[k].Y, C[(k + 1) % 4].X, C[(k + 1) % 4].Y));
+			}
+		for (const int32 g : {int32(Boom), int32(Tun1), int32(Tun2), int32(Tun3), int32(Cab)})
+		{
+			const FBox& B = R.MapBox[g];
+			if (!B.IsValid || !R.G[g].Parts.Num() || !R.G[g].Parts[0].K) continue;
+			const FTransform W = NowOf(R, g) * R.G[g].Parts[0].K->GetComponentTransform();
+			FVector2f C[4]; int32 i = 0;
+			for (const FVector2D& K : {FVector2D(B.Min.X, B.Min.Y), FVector2D(B.Max.X, B.Min.Y), FVector2D(B.Max.X, B.Max.Y), FVector2D(B.Min.X, B.Max.Y)})
+			{
+				const FVector P = W.TransformPosition(FVector(K.X, K.Y, B.Min.Z));
+				C[i++] = FVector2f(P.X / 100.f, -P.Y / 100.f);
+			}
+			for (int32 k = 0; k < 4; ++k) Out.Add(FVector4f(C[k].X, C[k].Y, C[(k + 1) % 4].X, C[(k + 1) % 4].Y));
 		}
 	}
 }
