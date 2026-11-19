@@ -21,6 +21,7 @@
 - His-screen run result looks wrong (13 fps, frame generation 0): find why before trusting it.
 
 **Next**
+0. TO-DO 149 FIRST (owner): the 4K frame rate is broken - find why and fix it; NOTHING ELSE until it is fixed.
 1. Check his GameUserSettings (resolution scale, frame generation) after tonight's runs; rerun `coaches screen`.
 2. Compile + commit 139; mark 139 / 144 / 146 on the list.
 3. To-do 70 (A320 fin lettering): render both fin sides to see which reads mirrored.
