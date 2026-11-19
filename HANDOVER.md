@@ -9,6 +9,15 @@ Whenever the owner sends pictures in the phone chat for you, they are copied ont
 location there (with what it shows and what he said about it). Open those files; commit them (through LFS) with your
 next commit if they belong in the repo.
 
+## From the owner (2026-11-19 05:26, via the phone): "Missing AirportDynastyPro Modules" on opening the editor
+- Photo: `Art\Reference\From-Phone\2026-11-19\Editor-missing-modules-rebuild.jpg` - the editor's box "The following
+  modules are missing or built with a different engine version: AirportDynastyPro, ADPEditorTools. Would you like to
+  rebuild them now?" (Yes / No).
+- Cause: the source changed since the last build (the garage button crash fix in FireTruck.cpp and People.cpp, commit
+  5343932d, pushed from the phone chat), so the editor's compiled modules were out of date. The owner was told to press
+  Yes. If that rebuild failed, build the editor target (AirportDynastyProEditor Win64 Development) and fix any compile
+  error in those two changes.
+
 ## From the owner for the PC chat (2026-11-18 22:43, via the phone): crash pressing the fire station's garage button (0.17.26)
 - He pressed the garage door button at the fire station and the game crashed ("Fatal error!", then "The game crashed
   last time": EXCEPTION_ACCESS_VIOLATION reading address 0x00000001e3190768, in the terminal (3D), 21:27; where in the
