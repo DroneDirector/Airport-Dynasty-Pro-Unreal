@@ -5657,7 +5657,7 @@ void AADPHUD::TestStrollers(float Before, float ShotClock)
 void AADPHUD::TestCoaches(float Before, float ShotClock)
 {
 	APlayerController* PC = GetOwningPlayerController();
-	if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ASunClock::HourOverride = 13.f; ASunClock::Refresh(); }
+	if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ASunClock::HourOverride = FParse::Param(FCommandLine::Get(), TEXT("UICoachesNight")) ? 23.f : 13.f;   /* (-UICoachesNight: the shader cache's night pass) */ ASunClock::Refresh(); }
 	const TArray<FTransform>& St = ARoadNetwork::BusStands;
 	if (!PC || St.Num() == 0) { if (Before < 120.f && ShotClock >= 120.f) { ADP_LOG(TEXT("UICoaches: no stands")); ADP_SHOT_EXIT(); } return; }
 	const int32 N = FMath::Min(St.Num(), 7);

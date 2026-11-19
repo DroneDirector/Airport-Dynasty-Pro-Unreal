@@ -30,6 +30,9 @@ rm -rf "$L/CollectedPSOs"
 G="$L/Config/Windows/GameUserSettings.ini"; cp "$G" $OUT/GUS-owner.ini
 EXE=$(ls -d $OUT/Windows/AirportDynastyPro/Binaries/Win64/AirportDynastyPro-Win64-Shipping.exe 2>/dev/null || ls -d $OUT/*/AirportDynastyPro/Binaries/Win64/AirportDynastyPro-Win64-Shipping.exe | head -1)
 (cd "$(dirname "$EXE")" && ADP_LOG=1 ./AirportDynastyPro-Win64-Shipping.exe -UIShot -UIPerfWalk -logPSO -fullscreen > /dev/null 2>&1)
+# (owner, 2026-11-19: the forecourt too - the coaches in their stands and the aspens on the island, by day and by night)
+(cd "$(dirname "$EXE")" && ADP_LOG=1 ./AirportDynastyPro-Win64-Shipping.exe -UIShot -UICoaches -logPSO -fullscreen > /dev/null 2>&1)
+(cd "$(dirname "$EXE")" && ADP_LOG=1 ./AirportDynastyPro-Win64-Shipping.exe -UIShot -UICoaches -UICoachesNight -logPSO -fullscreen > /dev/null 2>&1)
 cp $OUT/GUS-owner.ini "$G"
 REC=$(find "$L/CollectedPSOs" "$(dirname "$EXE")/../../Saved/CollectedPSOs" -name "*.rec.upipelinecache" 2>/dev/null)
 echo "   recordings: $(echo "$REC" | grep -c upipelinecache)"
