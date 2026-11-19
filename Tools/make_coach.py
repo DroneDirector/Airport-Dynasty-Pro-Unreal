@@ -50,17 +50,46 @@ T_WHITE = K.tex('T_Coach_White', (0.90, 0.92, 0.94), 0.02, 0.5)
 T_PLATE = K.tex('T_Coach_Plate', (0.85, 0.86, 0.84), 0.02, 0.4)
 T_LED = K.tex('T_Coach_LedPanel', (0.02, 0.02, 0.02), 0.05, 0.5, pattern=((np.abs(((xx * 64) % 1) - 0.5) < 0.3) & (np.abs(((yy * 16) % 1) - 0.5) < 0.3)).astype(float))
 
+# the livery (our own design): navy deepening towards the skirt, the teal sweep rising to the back with a white
+# pinstripe under it, teal speed-lines over the rear quarter climbing to the roof
+LW, LH = 4096, 1176
+lu, lv = np.meshgrid(np.linspace(0, 1, LW), np.linspace(0, 1, LH))   # (Blender images: row 0 = the bottom, the ground)
+zz = lv * H; dd = lu * L                                             # height (m), distance from the front (m)
+def band(c, w, soft=0.004): return np.clip((w / 2 - np.abs(zz - c)) / soft + 0.5, 0, 1)
+low, high = np.array((0.010, 0.035, 0.095)), np.array((0.035, 0.115, 0.290))
+k = np.clip((zz - 0.3) / 3.0, 0, 1) ** 0.8
+liv = low[None, None, :] * (1 - k[..., None]) + high[None, None, :] * k[..., None]
+sweep_c = 1.30 + dd / L * 0.64
+teal = np.array((0.020, 0.50, 0.46)); teal2 = np.array((0.10, 0.80, 0.72))
+tb = band(sweep_c, 0.10); tg = (dd / L)[..., None]
+liv = liv * (1 - tb[..., None]) + (teal * (1 - tg) + teal2 * tg)[None, None, :] * tb[..., None] if False else liv * (1 - tb[..., None]) + (teal[None, None, :] * (1 - tg) + teal2[None, None, :] * tg) * tb[..., None]
+pin = band(sweep_c - 0.085, 0.014)
+liv = liv * (1 - pin[..., None]) + np.array((0.85, 0.90, 0.92))[None, None, :] * pin[..., None]
+for i, (a, w) in enumerate(((0.16, 0.05), (0.32, 0.03), (0.46, 0.018))):
+    # speed-lines from the sweep at 8.3 m back, curving up towards the rear roof corner
+    t = np.clip((dd - 8.3) / (L - 8.3), 0, 1)
+    c = sweep_c + a + (H - 0.55 - sweep_c - a) * t ** 2.2 * 0.62
+    f = np.clip((dd - 8.3) / 1.2, 0, 1) * band(c, w)
+    liv = liv * (1 - f[..., None]) + (teal2 * 0.9)[None, None, :] * f[..., None]
+clean = low[None, :] * (1 - k[:, :1]) + high[None, :] * k[:, :1]
+liv[:, -16:, :] = clean[:, None, :] if clean.ndim == 2 else clean   # (a clean strip for the ends, roof and edges)
+T_LIVERY = (K.save_img('T_Coach_Livery', liv), T_PAINT[1])
 M = {}
-M['paint'] = mat('Coach_Paint', T_PAINT, 0.0, 0.32, coat=1.0)
+M['paint'] = mat('Coach_Paint', T_LIVERY, 0.0, 0.26, coat=1.0)
+# (the flake normal on its own real-size UVs, the second set: the livery's stretch along the coach doesn't touch it)
+_nt = M['paint'].node_tree; _uvn = _nt.nodes.new('ShaderNodeUVMap'); _uvn.uv_map = 'Flake'
+_nt.links.new(_uvn.outputs['UV'], [n for n in _nt.nodes if n.type == 'TEX_IMAGE' and n.image == T_PAINT[1]][0].inputs['Vector'])
 M['teal'] = mat('Coach_LiveryTeal', T_TEAL, 0.0, 0.3, coat=1.0)
 M['black'] = mat('Coach_GlossBlack', T_BLACK, 0.0, 0.12, coat=1.0)
 M['trim'] = mat('Coach_TrimBlack', T_TRIM, 0.0, 0.6)
-M['glass'] = mat('Coach_Glass', T_GLASS, 0.0, 0.03, alpha=0.62)
+M['glass'] = mat('Coach_Glass', T_GLASS, 0.0, 0.015, alpha=0.80)
 M['chrome'] = mat('Coach_Chrome', T_CHROME, 1.0, 0.08)
 M['alloy'] = mat('Coach_Alloy', T_ALLOY, 1.0, 0.25)
 M['tyre'] = mat('Coach_Tyre', T_TYRE, 0.0, 0.85)
 M['rubber'] = mat('Coach_Rubber', T_RUBBER, 0.0, 0.8)
 M['chassis'] = mat('Coach_Chassis', T_STEEL, 0.6, 0.55)
+M['caliper'] = mat('Coach_Caliper', K.tex('T_Coach_Caliper', (0.45, 0.04, 0.03), 0.05, 1.0), 0.2, 0.35, coat=0.6)
+M['drlgold'] = mat('Coach_DRLWarm', K.tex('T_Coach_DRLWarm', (0.85, 0.72, 0.45), 0.02, 0.5), 0.0, 0.2, (1.0, 0.85, 0.55), 2.5)
 M['lens'] = mat('Coach_HeadLens', T_LENS, 0.0, 0.05, (1.0, 0.98, 0.92), 0.0)
 M['drl'] = mat('Coach_DRL', T_WHITE, 0.0, 0.2, (0.9, 0.97, 1.0), 4.0)
 M['blade'] = mat('Coach_LightBlade', T_TEAL, 0.0, 0.2, (0.15, 0.95, 0.85), 3.0)
@@ -132,7 +161,9 @@ def opening_boxes(grow=0.0):
     for side in (RIGHT, LEFT):
         for d0, d1 in BAYS: bx.append(side_box(side, d0 - g, d1 + g, BAY_Z[0] - g, BAY_Z[1] + g))
     bx.append(box('cut', XF - 0.42 - g, XF + 0.4, -(W / 2 - 0.10) - g, (W / 2 - 0.10) + g, WS_Z[0] - g, WS_Z[1] + g))
+    bx.append(box('cut', XF - 0.62 - g, XF + 0.4, -(W / 2 - 0.30) - g, (W / 2 - 0.30) + g, WS_Z[1] - 0.2 - g, H + 0.5))
     bx.append(box('cut', XR - 0.4, XR + 0.25, -RW_Y - g, RW_Y + g, RW_Z[0] - g, RW_Z[1] + g))
+    bx.append(box('cut', XR - 0.4, XR + 0.45, -(W / 2 - 0.30) - g, (W / 2 - 0.30) + g, RW_Z[1] - 0.1 - g, H + 0.5))
     return bx
 def windscreen_wrap(grow=0.0):
     # the windscreen wraps round the front corners onto the sides (blueprint 1)
@@ -156,7 +187,9 @@ for side, panes in ((RIGHT, R_PANES), (LEFT, L_PANES)):
     for i, (d0, d1) in enumerate(panes): gb.append(side_box(side, d0 + 0.002, d1 - 0.002, WIN_Z[0] + 0.002, WIN_Z[1] - 0.002))
 glass_piece('SideGlass', gb)
 glass_piece('Windscreen', [box('cut', XF - 0.42 + 0.002, XF + 0.4, -(W / 2 + 0.4), W / 2 + 0.4, WS_Z[0] + 0.002, WS_Z[1] - 0.002)])
+glass_piece('WindscreenRoof', [box('cut', XF - 0.62 + 0.002, XF + 0.4, -(W / 2 - 0.30) + 0.002, (W / 2 - 0.30) - 0.002, WS_Z[1] - 0.2, H + 0.5)])
 glass_piece('RearGlass', [box('cut', XR - 0.4, XR + 0.25, -RW_Y + 0.002, RW_Y - 0.002, RW_Z[0] + 0.002, RW_Z[1] - 0.002)])
+glass_piece('RearGlassRoof', [box('cut', XR - 0.4, XR + 0.45 - 0.002, -(W / 2 - 0.30) + 0.002, (W / 2 - 0.30) - 0.002, RW_Z[1] - 0.1, H + 0.5)])
 # the black frit round every pane, printed on the inside of the glass (a band 4 cm wide just behind it)
 fr = dup(outer, 'FritBase', M['black']); solidify(fr, 0.004, -1.0)
 for v in fr.data.vertices: pass
@@ -183,39 +216,21 @@ put(frit('WindscreenFrit', [box('cut', XF - 0.42, XF + 0.4, -(W / 2 + 0.4), W / 
 K.ALL.remove(fr); bpy.data.objects.remove(fr); K.ALL.remove(skin12); bpy.data.objects.remove(skin12)
 
 # ---------------------------------------------------------------- livery: the turquoise sweep, the wordmark
-# the sweep rises from the front (1.30 m) to the back (1.94 m) on both sides, 10 cm wide, a hair proud of the paint
-def sweep_z(x): return 1.30 + (XF - x) / L * 0.64
-st = dup(outer, 'SweepBase', M['teal']); solidify(st, 0.003, 1.0)
-cut = []
-bm = bmesh.new()
-for side in (RIGHT, LEFT):
-    # a slanted slab through the side
-    for k in range(1):
-        pts = [(XF + 0.5, sweep_z(XF + 0.5) - 0.05), (XR - 0.5, sweep_z(XR - 0.5) - 0.05), (XR - 0.5, sweep_z(XR - 0.5) + 0.05), (XF + 0.5, sweep_z(XF + 0.5) + 0.05)]
-        y0, y1 = side * (W / 2 - 0.3), side * (W / 2 + 0.3)
-        vs = [bm.verts.new((x, y, z)) for y in (y0, y1) for (x, z) in pts]
-        bm.faces.new(vs[:4]); bm.faces.new(vs[4:][::-1])
-        for i in range(4): bm.faces.new((vs[i], vs[(i + 1) % 4], vs[4 + (i + 1) % 4], vs[4 + i])[::-1])
-bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
-slab = K.link('cut', bm)
-boolean(st, [slab], 'INTERSECT')
-boolean(st, opening_boxes(0.006) + windscreen_wrap(0.006) + [cyl('arch', Vector((ax, 0, WR)), 0.625, W + 0.4, 'y', M['paint'], 64) for ax in (AX_F, AX_R)])
-put(st, 'CoachBody')
 # the wordmark (white), below the windows behind the front axle, both sides; the airport's own name goes on at run time
 for side in (RIGHT, LEFT):
     rot = Matrix.Rotation(math.pi / 2, 4, 'X') @ (Matrix.Identity(4) if side == RIGHT else Matrix.Rotation(math.pi, 4, 'Y'))
     rot = Matrix.Rotation(math.pi / 2 if side == RIGHT else -math.pi / 2, 4, 'Z') @ Matrix.Rotation(math.pi / 2, 4, 'X') if False else rot
-    o = text(f'Wordmark_{side}', 'AIRPORT EXPRESS', Vector((d2x(5.9), side * (W / 2 + 0.0015), 1.62)), 0.20, M['white'],
+    o = text(f'Wordmark_{side}', 'AIRPORT EXPRESS', Vector((d2x(4.6), side * (W / 2 + 0.0015), 1.80)), 0.21, M['white'],
              (Matrix.Rotation(math.pi / 2, 4, 'X') if side == RIGHT else Matrix.Rotation(math.pi, 4, 'Z') @ Matrix.Rotation(math.pi / 2, 4, 'X')))
     put(o, 'CoachBody')
-    o2 = text(f'WordSub_{side}', 'electric  ·  zero emission', Vector((d2x(5.9), side * (W / 2 + 0.0015), 1.47)), 0.07, M['teal'],
+    o2 = text(f'WordSub_{side}', 'electric  ·  zero emission', Vector((d2x(4.6), side * (W / 2 + 0.0015), 1.66)), 0.075, M['teal'],
               (Matrix.Rotation(math.pi / 2, 4, 'X') if side == RIGHT else Matrix.Rotation(math.pi, 4, 'Z') @ Matrix.Rotation(math.pi / 2, 4, 'X')))
     put(o2, 'CoachBody')
 
 # ---------------------------------------------------------------- wheel arches: liners, mud flaps; underbody
 for ax in (AX_F, AX_R):
     for side in (RIGHT, LEFT):
-        yo, yi = side * (W / 2 - 0.035), side * (W / 2 - 0.47)
+        yo, yi = side * (W / 2 - 0.035), side * (W / 2 - (0.80 if ax == AX_R else 0.47))
         # the arch liner: a half-pipe round the wheel and a wall on the inside, black plastic
         pr = [(0.60, yi), (0.60, yo)]
         bm = bmesh.new(); rings = []
@@ -228,7 +243,8 @@ for ax in (AX_F, AX_R):
         o = K.link(f'ArchLiner_{ax:.0f}{side}', bm); solidify(o, 0.008); put(K.finish(o, M['trim']), 'CoachBody')
         put(rblock(f'MudFlap_{ax:.0f}{side}', (ax - 0.66, side * (W / 2 - 0.20), CLR + 0.05), (0.012, 0.34, 0.26), 0.004, M['rubber'], cuts=1), 'CoachBody')
 # the underbody: a flat black undertray between the arches, the floor's beams across, the side skirts' lower lip
-put(box('UnderTray', XR + 0.25, XF - 0.25, -(W / 2 - 0.05), W / 2 - 0.05, CLR - 0.002, CLR + 0.004, M['trim']), 'CoachBody')
+for i, (x0, x1) in enumerate(((XR + 0.25, AX_R - 0.66), (AX_R + 0.66, AX_F - 0.66), (AX_F + 0.66, XF - 0.25))):
+    put(box(f'UnderTray_{i}', x0, x1, -(W / 2 - 0.05), W / 2 - 0.05, CLR - 0.002, CLR + 0.004, M['trim']), 'CoachBody')
 
 # ---------------------------------------------------------------- the wheels (one model, four times)
 def wheel():
@@ -274,7 +290,7 @@ def damper(name, a, b, r=0.035):
 for side in (RIGHT, LEFT):
     yk = side * (W / 2 - 0.42)                        # the knuckle, inside the wheel
     put(rblock(f'Knuckle_{side}', (AX_F, yk, WR), (0.14, 0.10, 0.34), 0.03, M['chassis'], cuts=1), 'CoachBody')
-    put(rblock(f'Caliper_{side}F', (AX_F + 0.17, side * (W / 2 - 0.30), WR + 0.06), (0.10, 0.09, 0.16), 0.02, M['chassis'], cuts=1), 'CoachBody')
+    put(rblock(f'Caliper_{side}F', (AX_F + 0.17, side * (W / 2 - 0.30), WR + 0.06), (0.10, 0.09, 0.16), 0.02, M['caliper'], cuts=1), 'CoachBody')
     for zz, nm in ((WR - 0.16, 'Low'), (WR + 0.20, 'Up')):
         put(tube(f'Wishbone{nm}A_{side}', [(AX_F, yk, zz), (AX_F + 0.25, side * 0.45, zz + 0.04)], 0.032, M['chassis'], 2, bez=False), 'CoachBody')
         put(tube(f'Wishbone{nm}B_{side}', [(AX_F, yk, zz), (AX_F - 0.25, side * 0.45, zz + 0.04)], 0.032, M['chassis'], 2, bez=False), 'CoachBody')
@@ -292,12 +308,12 @@ put(lathe('RearMotor', [(0.0, -0.32), (0.20, -0.32), (0.26, -0.26), (0.27, 0.18)
 for i in range(10): put(cyl(f'MotorFin_{i}', Vector((AX_R, -0.22 + i * 0.045, WR)), 0.285, 0.012, 'y', M['chassis'], 48), 'CoachBody')
 for side in (RIGHT, LEFT):
     for dx in (-0.36, 0.36):
-        bellow(f'RearBellow_{side}{dx > 0}', (AX_R + dx, side * (W / 2 - 0.68), WR + 0.40), 0.14, 0.28)
-    damper(f'RearDamperA_{side}', (AX_R + 0.12, side * (W / 2 - 0.55), WR - 0.08), (AX_R + 0.20, side * (W / 2 - 0.58), WR + 0.55))
-    damper(f'RearDamperB_{side}', (AX_R - 0.12, side * (W / 2 - 0.55), WR - 0.08), (AX_R - 0.20, side * (W / 2 - 0.58), WR + 0.55))
-    put(box(f'BellowBeam_{side}', AX_R - 0.55, AX_R + 0.55, side * (W / 2 - 0.80), side * (W / 2 - 0.56), WR + 0.04, WR + 0.20, M['chassis'], 0.02), 'CoachBody')
-    put(tube(f'TrailingArm_{side}', [(AX_R + 0.85, side * (W / 2 - 0.70), WR + 0.22), (AX_R, side * (W / 2 - 0.70), WR - 0.02)], 0.04, M['chassis'], 2, bez=False), 'CoachBody')
-    put(rblock(f'Caliper_{side}R', (AX_R + 0.17, side * (W / 2 - 0.30), WR + 0.06), (0.10, 0.09, 0.16), 0.02, M['chassis'], cuts=1), 'CoachBody')
+        bellow(f'RearBellow_{side}{dx > 0}', (AX_R + dx, side * (W / 2 - 0.86), WR + 0.40), 0.13, 0.28)
+    damper(f'RearDamperA_{side}', (AX_R + 0.12, side * (W / 2 - 0.84), WR - 0.08), (AX_R + 0.20, side * (W / 2 - 0.86), WR + 0.55))
+    damper(f'RearDamperB_{side}', (AX_R - 0.12, side * (W / 2 - 0.84), WR - 0.08), (AX_R - 0.20, side * (W / 2 - 0.86), WR + 0.55))
+    put(box(f'BellowBeam_{side}', AX_R - 0.55, AX_R + 0.55, side * (W / 2 - 0.98), side * (W / 2 - 0.80), WR + 0.04, WR + 0.20, M['chassis'], 0.02), 'CoachBody')
+    put(tube(f'TrailingArm_{side}', [(AX_R + 0.85, side * (W / 2 - 0.92), WR + 0.22), (AX_R, side * (W / 2 - 0.92), WR - 0.02)], 0.04, M['chassis'], 2, bez=False), 'CoachBody')
+    put(rblock(f'Caliper_{side}R', (AX_R + 0.17, side * (W / 2 - 0.36), WR + 0.06), (0.10, 0.09, 0.16), 0.02, M['caliper'], cuts=1), 'CoachBody')
     put(tube(f'VRod_{side}', [(AX_R + 0.05, side * 0.10, WR + 0.12), (AX_R + 0.75, side * 0.55, WR + 0.30)], 0.03, M['chassis'], 2, bez=False), 'CoachBody')
     put(tube(f'AntiRollLink_{side}', [(AX_R - 0.40, side * (W / 2 - 0.85), WR - 0.05), (AX_R - 0.40, side * (W / 2 - 0.85), WR + 0.35)], 0.016, M['chassis'], 2, bez=False), 'CoachBody')
 put(cyl('RearAntiRoll', Vector((AX_R - 0.40, 0, WR - 0.05)), 0.026, W - 1.7, 'y', M['chassis'], 16), 'CoachBody')
@@ -345,7 +361,9 @@ for side in (-1, 1):
         y = yc - side * (0.14 - k * 0.12)
         put(lathe(f'HeadLens_{side}{k}', [(0.0, 0.0), (0.045, 0.0), (0.048, -0.012), (0.03, -0.02), (0.0, -0.022)], M['lens'], 32, 'x', (FX(0.76, y) + 0.012, y, 0.765)), 'CoachBody')
         put(lathe(f'HeadReflector_{side}{k}', [(0.048, 0.0), (0.05, -0.005), (0.05, -0.002)], M['chrome'], 32, 'x', (FX(0.76, y) + 0.012, y, 0.765)), 'CoachBody')
-    put(rblock(f'DrlBar_{side}', (FX(0.69, yc) + 0.012, yc, 0.69), (0.012, 0.44, 0.018), 0.006, M['drl'], cuts=2), 'CoachBody')
+    put(rblock(f'DrlBar_{side}', (FX(0.86, yc) + 0.004, yc + side * 0.04, 0.865), (0.03, 0.60, 0.03), 0.008, M['drlgold'], cuts=2), 'CoachBody')
+    put(rblock(f'DrlFin_{side}', (FX(0.78, side * 1.20) - 0.06, side * 1.215, 0.76), (0.16, 0.03, 0.20), 0.01, M['drlgold'], cuts=2,
+               deform=lambda co, u, v, w: co + Vector((-0.05 * w, 0, 0))), 'CoachBody')
     put(rblock(f'Indicator_{side}', (FX(0.62, side * 1.12) - 0.05, side * 1.13, 0.62), (0.07, 0.16, 0.05), 0.02, M['amber'], cuts=1), 'CoachBody')
 put(rblock('LightBlade', (FX(0.98) + 0.004, 0, 0.98), (0.012, W - 0.28, 0.035), 0.012, M['blade'], cuts=6,
            deform=lambda co, u, v, w: co + Vector((0.035 * (1 - u * u) - 0.012, 0, 0))), 'CoachBody')
@@ -380,9 +398,10 @@ for side in (-1, 1):
     put(rblock(f'TailColumn_{side}', (XR - 0.006, y, 2.03), (0.03, 0.19, 2.42), 0.03, M['red'], cuts=8), 'CoachBody')
     for k in range(16): put(box(f'TailLed_{side}{k}', XR - 0.024, XR - 0.020, y - 0.07, y + 0.07, 0.90 + k * 0.145, 0.93 + k * 0.145, M['drl'] if k == 2 else M['red']), 'CoachBody')
     put(rblock(f'Reverse_{side}', (XR - 0.006, side * 0.85, 0.95), (0.02, 0.14, 0.06), 0.01, M['white'], cuts=1), 'CoachBody')
-put(rblock('NameStrip', (XR - 0.004, 0, 2.47), (0.012, 1.50, 0.035), 0.008, M['red'], cuts=4), 'CoachBody')
-put(rblock('NamePlate', (XR - 0.003, 0, 2.36), (0.008, 1.30, 0.11), 0.01, M['black'], cuts=2), 'CoachBody')   # the airport's name: at run time
+for s_ in (-1, 1): put(rblock(f'RearRedBar_{s_}', (XR - 0.006, s_ * 0.44, 2.47), (0.02, 0.80, 0.05), 0.01, M['red'], cuts=4), 'CoachBody')
+put(rblock('NamePlate', (XR - 0.004, 0, 2.34), (0.012, 1.40, 0.11), 0.01, M['plate'], cuts=2), 'CoachBody')   # the airport's name: at run time
 put(rblock('RearGrille', (XR - 0.004, 0, 1.62), (0.02, 1.90, 0.84), 0.04, M['grille'], cuts=4), 'CoachBody')
+put(box('RearGrilleMullion', XR - 0.03, XR - 0.008, -0.02, 0.02, 1.22, 2.02, M['trim'], 0.004), 'CoachBody')
 for k in range(12): put(box(f'RearLouvre_{k}', XR - 0.028, XR - 0.012, -0.90, 0.90, 1.24 + k * 0.066, 1.255 + k * 0.066, M['trim'], 0.004), 'CoachBody')
 put(rblock('RearPlate', (XR - 0.005, 0, 0.62), (0.01, 0.52, 0.11), 0.006, M['plate'], cuts=1), 'CoachBody')
 put(rblock('RearBumper', (XR + 0.02, 0, 0.42), (0.10, W - 0.06, 0.14), 0.05, M['trim'], cuts=4), 'CoachBody')
@@ -393,7 +412,8 @@ put(cyl('RearCameraLens', Vector((XR - 0.06, 0, 3.36)), 0.015, 0.008, 'x', M['gl
 for side in (RIGHT, LEFT):
     for d in (0.9, 3.3, 6.0, 8.3, 10.9, 12.4):
         put(rblock(f'Marker_{side}{d}', (d2x(d), side * (W / 2 + 0.004), 0.48), (0.07, 0.012, 0.025), 0.006, M['marker'], cuts=1), 'CoachBody')
-put(rblock('ChargeFlap', (d2x(9.88), LEFT * (W / 2 + 0.002), 1.62), (0.30, 0.008, 0.20), 0.02, M['trim'], cuts=2), 'CoachBody')
+put(rblock('ChargeFlap', (d2x(9.88), LEFT * (W / 2 + 0.002), 1.62), (0.26, 0.008, 0.26), 0.02, M['teal'], cuts=2), 'CoachBody')
+put(rblock('SideRouteDisplay', (d2x(1.86), RIGHT * (W / 2 - 0.06), 2.52), (0.24, 0.03, 0.40), 0.01, M['led'], cuts=1), 'CoachBody')
 put(cyl('ChargeFlapLed', Vector((d2x(9.88) + 0.12, LEFT * (W / 2 + 0.007), 1.68)), 0.008, 0.003, 'y', M['blade'], 16), 'CoachBody')
 put(rblock('DriveHatch', (d2x(11.96), LEFT * (W / 2 + 0.002), 0.89), (1.26, 0.008, 0.70), 0.02, M['paint'], cuts=2), 'CoachBody')
 for k in range(7): put(box(f'DriveHatchSlot_{k}', d2x(11.5 + k * 0.13) - 0.02, d2x(11.5 + k * 0.13) + 0.02, LEFT * (W / 2 + 0.004), LEFT * (W / 2 + 0.008), 0.66, 1.12, M['trim'], 0.006), 'CoachBody')
@@ -406,11 +426,25 @@ for k, d in enumerate((4.3, 5.7)):
     put(cyl(f'ClimateFan_{k}', Vector((d2x(d), 0, H + 0.152)), 0.28, 0.006, 'z', M['grille'], 48), 'CoachBody')
     put(lathe(f'FanRing_{k}', [(0.28, 0.0), (0.30, 0.004), (0.30, 0.012), (0.28, 0.014)], M['trim'], 48, 'z', (d2x(d), 0, H + 0.148)), 'CoachBody')
 for d in (2.6, 11.8):
-    put(rblock(f'Hatch_{d}', (d2x(d), 0, H + 0.02), (0.58, 0.58, 0.05), 0.03, M['trim'], cuts=2, segs=3), 'CoachBody')
+    put(rblock(f'Hatch_{d}', (d2x(d), 0, H + 0.02), (0.58, 0.58, 0.05), 0.03, M['teal'], cuts=2, segs=3), 'CoachBody')
     put(rblock(f'HatchVent_{d}', (d2x(d), 0, H + 0.05), (0.40, 0.40, 0.02), 0.01, M['grille'], cuts=1), 'CoachBody')
 
+bpy.data.objects.remove(outer, do_unlink=True)   # (the uncut volume the cuts were made from)
 # ---------------------------------------------------------------- finish: UVs, checks, the layout, files
 K.box_uv(K.ALL, 0.5)
+for o in K.ALL:
+    if not o.data.materials or o.data.materials[0] != M['paint']: continue
+    me = o.data
+    me.uv_layers.active.name = 'UVMap'
+    fl = me.uv_layers.new(name='Flake'); src = me.uv_layers['UVMap'].data
+    for i in range(len(src)): fl.data[i].uv = src[i].uv
+    uv = me.uv_layers['UVMap'].data
+    for p in me.polygons:
+        side = abs(p.normal.y) > 0.55
+        for li in p.loop_indices:
+            co = me.vertices[me.loops[li].vertex_index].co
+            u = min(max((XF - co.x) / L, 0.0), 0.996) if side else 0.9995
+            uv[li].uv = (u, min(max(co.z / H, 0.0), 1.0))
 # the paint's sides: one livery tile along the coach (a real-size map)
 K.check_slots(K.ALL)
 cols = {}
@@ -421,7 +455,8 @@ for o in K.ALL:
     cols[part].objects.link(o)
 tris = {p: sum(sum(len(q.vertices) - 2 for q in o.data.polygons) for o in c.objects) for p, c in cols.items()}
 print('COACH:', json.dumps(tris))
-layout = {'wheels': [[AX_F, RIGHT * (W / 2 - 0.20), WR, 180], [AX_F, LEFT * (W / 2 - 0.20), WR, 0], [AX_R, RIGHT * (W / 2 - 0.20), WR, 180], [AX_R, LEFT * (W / 2 - 0.20), WR, 0]],
+layout = {'wheels': [[AX_F, RIGHT * (W / 2 - 0.20), WR, 0], [AX_F, LEFT * (W / 2 - 0.20), WR, 180], [AX_R, RIGHT * (W / 2 - 0.20), WR, 0], [AX_R, LEFT * (W / 2 - 0.20), WR, 180],
+                     [AX_R, RIGHT * (W / 2 - 0.515), WR, 180], [AX_R, LEFT * (W / 2 - 0.515), WR, 0]],
           'bays': [[d2x((a + b) / 2), s, BAY_Z[1]] for s in (RIGHT, LEFT) for a, b in BAYS], 'doors': DOORS, 'floor': FLOOR}
 json.dump(layout, open(os.path.join(ROOT, 'Data', 'coach-layout.json'), 'w'), indent=1)
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ART, 'Coach.blend'))
@@ -439,14 +474,20 @@ if RENDER:
             n = o.copy(); n.data = o.data; bpy.context.scene.collection.objects.link(n)
             n.matrix_world = Matrix.Translation((x, y, z)) @ Matrix.Rotation(math.radians(yaw), 4, 'Z')
     for o in wheel_objs: o.hide_render = True
+    bay_objs = list(cols['CoachBayDoor'].objects); xc0 = d2x((BAYS[0][0] + BAYS[0][1]) / 2)
+    for (xc, side, _z) in layout['bays']:
+        for o in bay_objs:
+            n = o.copy(); n.data = o.data; bpy.context.scene.collection.objects.link(n)
+            n.matrix_world = Matrix.Translation((xc - xc0, 0, 0)) if side == RIGHT else Matrix.Translation((xc, 0, 0)) @ Matrix.Rotation(math.pi, 4, 'Z') @ Matrix.Translation((-xc0, 0, 0))
+    for o in bay_objs: o.hide_render = True
     sc = bpy.context.scene; sc.render.engine = 'BLENDER_EEVEE'
     ee = sc.eevee; ee.use_gtao = True; ee.use_ssr = True; ee.use_ssr_refraction = True; ee.use_soft_shadows = True; ee.shadow_cube_size = '2048'
     ee.shadow_cascade_size = '4096'; ee.taa_render_samples = 16 if QUICK else 96; ee.use_bloom = True; ee.bloom_intensity = 0.03
     sc.view_settings.view_transform = 'Filmic'; sc.view_settings.look = 'Medium High Contrast'
     w = bpy.data.worlds.new('W'); w.use_nodes = True; bg = w.node_tree.nodes['Background']
     sky = w.node_tree.nodes.new('ShaderNodeTexSky'); sky.sky_type = 'NISHITA'; sky.sun_elevation = math.radians(28); sky.sun_rotation = math.radians(210)
-    w.node_tree.links.new(sky.outputs['Color'], bg.inputs['Color']); bg.inputs['Strength'].default_value = 0.25; sc.world = w
-    sun = bpy.data.lights.new('Sun', 'SUN'); sun.energy = 3.5; sun.angle = math.radians(1.5)
+    w.node_tree.links.new(sky.outputs['Color'], bg.inputs['Color']); bg.inputs['Strength'].default_value = 0.9; sc.world = w
+    sun = bpy.data.lights.new('Sun', 'SUN'); sun.energy = 4.5; sun.angle = math.radians(1.5)
     so = bpy.data.objects.new('Sun', sun); sc.collection.objects.link(so); so.rotation_euler = (math.radians(55), 0, math.radians(-150))
     gt = K.tex('T_Preview_Asphalt', (0.10, 0.10, 0.105), 0.25, 3.0)
     gm = mat('Preview_Asphalt', gt, 0, 0.8); g = box('Ground', -30, 30, -30, 30, -0.02, 0.0, gm); K.box_uv([g], 1.0)
@@ -461,3 +502,5 @@ if RENDER:
     shoot('Coach-3-right-side', (0, -19, 1.9), (0, 0, 1.9), 40)
     shoot('Coach-4-front', (19, -1.5, 1.9), (0, 0, 1.9), 50)
     shoot('Coach-5-wheel-suspension', (AX_R + 1.6, -3.2, 0.55), (AX_R, -0.9, 0.55), 30)
+    shoot('Coach-6-rear', (-19, 1.5, 1.9), (0, 0, 1.9), 50)
+    shoot('Coach-7-top', (0.0, -0.01, 30), (0, 0, 0), 30)
