@@ -20,6 +20,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "BabylonModel.h"
+#include "Coaches.h"
 #include "Engine/StaticMesh.h"
 #include "ProceduralMeshComponent.h"
 #include "MetaRoadActor.h"
@@ -973,7 +974,7 @@ bool ARoadNetwork::BuildSome(double Budget)
 			if (Parked >= 7) break;
 			FActorSpawnParameters CSp; CSp.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 			ABabylonModel* C = W->SpawnActor<ABabylonModel>(Sd.GetLocation(), FRotator(0.0, Sd.Rotator().Yaw + CoachYaw, 0.0), CSp);
-			if (C && C->Place(TEXT("AirportCoach"))) ++Parked; else if (C) C->Destroy();
+			if (C && C->Place(TEXT("AirportCoach"))) { ++Parked; if (ACoaches* Co = ACoaches::Get(W)) Co->Add(C); } else if (C) C->Destroy();
 		}
 		ADP_LOG(TEXT("Roads: %d coaches parked in %d stands"), Parked, BusStands.Num());
 	}

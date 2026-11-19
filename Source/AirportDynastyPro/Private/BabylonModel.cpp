@@ -1282,6 +1282,27 @@ void ABabylonModel::SeatSpots(TArray<FSeatSpot>& Out) const
 	UInstancedStaticMeshComponent* GateSeats = nullptr;
 	for (const auto& P : ByMesh) if (P.Value && P.Value->GetStaticMesh() && P.Value->GetStaticMesh()->GetName() == TEXT("SeatModule")) GateSeats = P.Value.Get();
 	for (UActorComponent* C : GetComponents()) if (UInstancedStaticMeshComponent* K = Cast<UInstancedStaticMeshComponent>(C)) if (K->GetStaticMesh() && K->GetStaticMesh()->GetName() == TEXT("SeatModule")) GateSeats = K;
+	// the airport coach (owner, 2026-11-19, to-do 144: every passenger seat sittable, never the driver's): each seat's own
+	// cushion - the pairs' and the back bench's (Cushion_A..E), the guide's and the wheelchair space's fold-up seats - facing
+	// the way the coach faces (the fold-up seats: the aisle); the seat 45 cm over its floor
+	if (Model == TEXT("AirportCoach"))
+	{
+		const FVector Fwd = RootW.GetRotation().GetForwardVector().GetSafeNormal2D();
+		for (int32 I = 0; I < NName.Num(); ++I)
+		{
+			const FString& Nm = NName[I];
+			const bool bFold = Nm.StartsWith(TEXT("FoldSeatCushion")), bGuide = Nm.StartsWith(TEXT("GuideSeatCushion"));
+			if (!(Nm.StartsWith(TEXT("Cushion_")) || bFold || bGuide) || !NInst.IsValidIndex(I) || !NInst[I].Key) continue;
+			FBox B; if (!InstBox(NInst[I].Key, NInst[I].Value, B)) continue;
+			FSeatSpot S; const FVector C = B.GetCenter();
+			S.SeatH = 45.f; S.At = FVector(C.X, C.Y, B.Max.Z - 0.5f);
+			if (bFold) { const FVector L = RootW.InverseTransformPosition(C); S.Facing = RootW.TransformVectorNoScale(FVector(0, -FMath::Sign(L.Y), 0)).GetSafeNormal2D(); }
+			else S.Facing = Fwd;
+			S.Parts.Add(NInst[I]);
+			Out.Add(S);
+		}
+		return;
+	}
 	for (int32 I = 0; I < NName.Num(); ++I)
 	{
 		const FString Last = LastPart(NName[I]).ToUpper();

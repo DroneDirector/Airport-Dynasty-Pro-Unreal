@@ -69,6 +69,7 @@
 #include "RoadSigns.h"
 #include "TerminalProps.h"
 #include "RoadNetwork.h"
+#include "Coaches.h"
 #include "Engine/OverlapResult.h"
 #include "OpsMonitors.h"
 #include "Engine/Engine.h"
@@ -1945,6 +1946,8 @@ void AADPHUD::Interact()
 	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton) && AWashHose::Interact(GetOwningPawn(), nullptr)) return;
 	// a belt's button right by you (BaggageBelts.h)
 	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton)) if (ABaggageBelts* Bb = ABaggageBelts::Get(GetWorld())) if (APawn* Me = GetOwningPawn()) if (Bb->Interact(nullptr, Me->GetActorLocation() + Me->GetActorForwardVector() * 60.f)) return;
+	// a coach's door or luggage bay you stand by (Coaches.h)
+	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton)) if (ACoaches* Co = ACoaches::Find()) if (Co->Use(GetOwningPawn())) return;
 	// a chair, stool, bench or gate seat right by you: sit down (Seats.h)
 	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton) && ASeats::Interact(GetOwningPawn())) return;
 	// a fire truck right beside you that you face: in, even when the aim missed it
@@ -3158,6 +3161,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIStrollers"))) TestStrollers(Before, ShotClock);
 		if (FParse::Param(FCommandLine::Get(), TEXT("UICoaches"))) TestCoaches(Before, ShotClock);
+		if (FParse::Param(FCommandLine::Get(), TEXT("UICoachUse"))) TestCoachUse(Before, ShotClock);
 		// -UISvcDoor (owner, 2026-11-19: "you can't get in or out through the jetway's service door"): jetway 1's service
 		// door opened; what stands in the doorway (a capsule swept from inside to outside, every hit and its part); then
 		// you walk out through it and back in, your place logged
@@ -5434,7 +5438,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
 		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIPetStep")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJwWalls")) && !FParse::Param(FCommandLine::Get(), TEXT("UIStrollers")) && !FParse::Param(FCommandLine::Get(), TEXT("UICoaches")) && !FParse::Param(FCommandLine::Get(), TEXT("UISvcDoor")) && !FParse::Param(FCommandLine::Get(), TEXT("UIUpdateSim")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBootShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIContinueShots")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UIPlanView=")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayTest")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayBeacons")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayViews")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGateJetways")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayVideo")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFGToggle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHmi")) && !FParse::Param(FCommandLine::Get(), TEXT("UITablet")) && !FParse::Param(FCommandLine::Get(), TEXT("UICctv")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapTrace")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UITitleRender=")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UIBoxProbe=")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHmiVideo")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIConduct")) && !FParse::Param(FCommandLine::Get(), TEXT("UITalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHaze")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDockTypes")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDecals")) && !FParse::Param(FCommandLine::Get(), TEXT("UITwyLights")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGroundQ")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWeatherGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFlares")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAdverts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfStand")) && !FParse::Param(FCommandLine::Get(), TEXT("UISettingsShot")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanelUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoad")) && !FParse::Param(FCommandLine::Get(), TEXT("UIKiosk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) ADP_SHOT_EXIT();
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIPetStep")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJwWalls")) && !FParse::Param(FCommandLine::Get(), TEXT("UIStrollers")) && !FParse::Param(FCommandLine::Get(), TEXT("UICoaches")) && !FParse::Param(FCommandLine::Get(), TEXT("UICoachUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UISvcDoor")) && !FParse::Param(FCommandLine::Get(), TEXT("UIUpdateSim")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBootShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIContinueShots")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UIPlanView=")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayTest")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayBeacons")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayViews")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGateJetways")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayVideo")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFGToggle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHmi")) && !FParse::Param(FCommandLine::Get(), TEXT("UITablet")) && !FParse::Param(FCommandLine::Get(), TEXT("UICctv")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapTrace")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UITitleRender=")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UIBoxProbe=")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHmiVideo")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIConduct")) && !FParse::Param(FCommandLine::Get(), TEXT("UITalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHaze")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDockTypes")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDecals")) && !FParse::Param(FCommandLine::Get(), TEXT("UITwyLights")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGroundQ")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWeatherGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFlares")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAdverts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfStand")) && !FParse::Param(FCommandLine::Get(), TEXT("UISettingsShot")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanelUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoad")) && !FParse::Param(FCommandLine::Get(), TEXT("UIKiosk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) ADP_SHOT_EXIT();
 	}
 	// the announcements, one at a time: the gong, then the words for ten seconds
 	// the announcements: the chime, then the announcer; how loud they are follows where you are
@@ -5693,4 +5697,109 @@ void AADPHUD::TestCoaches(float Before, float ShotClock)
 	if (Before < 132.f && ShotClock >= 132.f) Look(Mid - Rt * 3200.f + FVector(0, 0, 1900.f), Mid - Rt * 1375.f + FVector(0, 0, 200.f));
 	if (Before < 137.f && ShotClock >= 137.f) PC->ConsoleCommand(TEXT("HighResShot 3840x2160 filename=Trees-2-from-above"), true);
 	if (Before < 143.f && ShotClock >= 143.f) ADP_SHOT_EXIT();
+}
+
+// -UICoachUse (owner, 2026-11-19, to-do 144): the parked coach's working parts - doors and bays open (the kneel), walking in
+// for real (collision on, the hip-wide capsule), sitting down on a coach seat, the lamps at night, a mirror, the name plate
+void AADPHUD::TestCoachUse(float Before, float ShotClock)
+{
+	APlayerController* PC = GetOwningPlayerController();
+	ACoaches* Co = ACoaches::Find();
+	APawn* MeP = PC ? PC->GetPawn() : nullptr;
+	if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ASunClock::HourOverride = 13.f; ASunClock::Refresh(); }
+	if (!PC || !MeP || !Co || Co->Num() == 0) { if (Before < 120.f && ShotClock >= 120.f) { ADP_LOG(TEXT("UICoachUse: no coaches")); ADP_SHOT_EXIT(); } return; }
+	const FTransform R = Co->RootOf(0);
+	auto P = [&](float X, float Y, float Z) { return R.TransformPosition(FVector(X * 100.f, -Y * 100.f, Z * 100.f)); };   // (a Blender point on coach 0)
+	ACharacter* Ch = Cast<ACharacter>(MeP);
+	auto Look = [&](const FVector& Eye, const FVector& At, bool bFree)
+	{
+		if (AADPWalker* Wk = Cast<AADPWalker>(MeP)) if (AActor* H = Wk->HumanActor()) H->SetActorHiddenInGame(!bFree);
+		MeP->SetActorEnableCollision(bFree);
+		if (Ch) { if (bFree) Ch->GetCharacterMovement()->SetMovementMode(MOVE_Walking); else Ch->GetCharacterMovement()->DisableMovement(); }
+		MeP->SetActorLocation(Eye - FVector(0, 0, 70.f), false, nullptr, ETeleportType::TeleportPhysics);
+		PC->SetControlRotation((At - Eye).Rotation());
+	};
+	auto Shot = [&](float T, const TCHAR* Name) { if (Before < T && ShotClock >= T) { PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 3840x2160 filename=CoachUse-%s"), Name), true); ADP_LOG(TEXT("UICoachUse: picture %s"), Name); } };
+	// 0. any coach part outside the coach's body (a part placed wrong): named, before and after the doors and bays move
+	auto Stray = [&](const TCHAR* When)
+	{
+		TArray<ABabylonModel*> Ms; for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It) if (It->ModelName() == TEXT("AirportCoach")) { Ms.Add(*It); break; }
+		if (!Ms.Num()) return;
+		TArray<UInstancedStaticMeshComponent*> Ks; Ms[0]->GetComponents(Ks);
+		const FTransform RW = Ms[0]->GetModelRoot()->GetComponentTransform();
+		int32 N = 0, All = 0;
+		for (UInstancedStaticMeshComponent* K : Ks)
+			for (int32 i = 0; K->GetStaticMesh() && i < K->GetInstanceCount(); ++i)
+			{
+				FTransform T; if (!K->GetInstanceTransform(i, T, true)) continue;
+				++All;
+				const FBox B = K->GetStaticMesh()->GetBoundingBox().TransformBy(T).TransformBy(RW.Inverse());
+				if (B.Min.Y < -162.f || B.Max.Y > 162.f || B.Max.Z > 400.f || B.Min.Z < -20.f) if (N++ < 25) ADP_LOG(TEXT("UICoachUse: %s stray part %s #%d y %.0f..%.0f z %.0f..%.0f x %.0f..%.0f"), When, *K->GetStaticMesh()->GetName(), i, B.Min.Y, B.Max.Y, B.Min.Z, B.Max.Z, B.Min.X, B.Max.X);
+			}
+		ADP_LOG(TEXT("UICoachUse: %s - %d of %d parts reach outside the body"), When, N, All);
+	};
+	if (Before < 50.f && ShotClock >= 50.f) Stray(TEXT("parked"));
+	if (Before < 66.f && ShotClock >= 66.f) Stray(TEXT("doors+bays open"));
+	// 1. both doors and two bays open - the coach kneels on its door side
+	if (Before < 56.f && ShotClock >= 56.f) { Co->SetDoor(0, 0, true); Co->SetDoor(0, 1, true); Co->SetBay(0, 0, true); Co->SetBay(0, 4, true); Co->SetLamps(0, ACoaches::Tail | ACoaches::Hazard); }
+	if (Before < 62.f && ShotClock >= 62.f) Look(P(10.f, -7.f, 2.2f), P(0.f, 0.f, 1.5f), false);
+	Shot(67.f, TEXT("1-doors-open"));
+	if (Before < 70.f && ShotClock >= 70.f) Look(P(1.2f, -4.2f, 1.2f), P(-0.9f, -1.0f, 0.8f), false);
+	Shot(75.f, TEXT("2-bay-open"));
+	// 2. walking in for real: from outside the front door, through it and up its steps (collision on)
+	FVector DAt, DOut; Co->DoorSpot(0, 0, DAt, DOut);
+	if (Before < 78.f && ShotClock >= 78.f) { Look(DAt + DOut * 160.f + FVector(0, 0, 160.f), DAt - DOut * 200.f + FVector(0, 0, 160.f), true); ADP_LOG(TEXT("UICoachUse: at the front door, walking in")); }
+	if (ShotClock >= 79.f && ShotClock < 86.f && Ch)
+	{
+		const FVector Goal = DAt - DOut * 150.f;   // (inside, on the floor by the guide's seat)
+		const FVector To = (Goal - MeP->GetActorLocation()).GetSafeNormal2D();
+		Ch->AddMovementInput(To, 1.f);
+		PC->SetControlRotation(To.Rotation());
+	}
+	if (Before < 86.f && ShotClock >= 86.f) { int32 Wc = -1; const bool bIn = Co->IsInside(MeP->GetActorLocation() - FVector(0, 0, MeP->GetSimpleCollisionHalfHeight()), &Wc); ADP_LOG(TEXT("UICoachUse: walked in? %s (coach %d), feet %.0f cm over the road, capsule radius %.0f"), bIn ? TEXT("YES") : TEXT("no"), Wc, MeP->GetActorLocation().Z - MeP->GetSimpleCollisionHalfHeight() - DAt.Z, Ch ? Ch->GetCapsuleComponent()->GetScaledCapsuleRadius() : 0.f); }
+	if (Before < 87.f && ShotClock >= 87.f) { PC->SetControlRotation((P(-6.f, 0.f, 2.6f) - MeP->GetActorLocation()).Rotation()); }
+	Shot(89.f, TEXT("3-inside-walked-in"));
+	// 3. sitting down: by a seat inside, E
+	if (Before < 92.f && ShotClock >= 92.f)
+	{
+		int32 Best = INDEX_NONE; float BD = 1e9f; const FVector Want = P(1.4f, -0.48f, 1.85f);
+		for (int32 i = 0; i < ASeats::Count(); ++i) { FVector SA, SF; float SH; if (ASeats::SeatOf(i, SA, SF, SH) && Co->IsInside(SA)) { const float D = FVector::Dist(SA, Want); if (D < BD) { BD = D; Best = i; } } }
+		// (in the aisle beside it - in front of a coach seat is the next seat's back - on the floor, facing the seat)
+		FVector BSA, BSF; float BSH;
+		if (Best != INDEX_NONE && ASeats::SeatOf(Best, BSA, BSF, BSH))
+		{
+			const FVector L = R.InverseTransformPosition(BSA);
+			const FVector Aisle = R.TransformPosition(FVector(L.X + 15.f, 0.f, L.Z - BSH + 96.f));
+			if (Ch) Ch->GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+			MeP->SetActorEnableCollision(true); MeP->SetActorLocation(Aisle, false, nullptr, ETeleportType::TeleportPhysics);
+			PC->SetControlRotation(FRotator(-10.f, (BSA - Aisle).Rotation().Yaw, 0.f));
+		}
+		int32 InCoach = 0; for (int32 i = 0; i < ASeats::Count(); ++i) { FVector SA, SF; float SH; if (ASeats::SeatOf(i, SA, SF, SH) && Co->IsInside(SA)) ++InCoach; }
+		ADP_LOG(TEXT("UICoachUse: %d seats found inside the coaches; standing by seat %d"), InCoach, Best);
+	}
+	if (Before < 94.f && ShotClock >= 94.f) ADP_LOG(TEXT("UICoachUse: sit down (E) - %s"), ASeats::Interact(MeP) ? TEXT("sitting") : TEXT("no seat in reach"));
+	Shot(99.f, TEXT("4-seated"));
+	if (Before < 101.f && ShotClock >= 101.f && ASeats::IsSitting()) ASeats::Interact(MeP);
+	// 4. the lamps at night; 5. a mirror close; 6. the name plate
+	if (Before < 104.f && ShotClock >= 104.f) { ASunClock::HourOverride = 23.f; ASunClock::Refresh(); Co->SetLamps(0, ACoaches::LowBeam | ACoaches::HighBeam | ACoaches::Tail | ACoaches::TurnLeft); Co->SetDoor(0, 0, false); Co->SetDoor(0, 1, false); Co->SetBay(0, 0, false); Co->SetBay(0, 4, false); }
+	if (Before < 106.f && ShotClock >= 106.f) Look(P(19.f, -5.5f, 1.7f), P(6.f, 0.f, 1.0f), false);
+	Shot(112.f, TEXT("5-lamps-night"));
+	if (Before < 114.f && ShotClock >= 114.f) { ASunClock::HourOverride = 13.f; ASunClock::Refresh(); Look(P(7.4f, -2.2f, 2.9f), P(6.6f, -1.45f, 2.75f), false); }
+	Shot(119.f, TEXT("6-mirror"));
+	if (Before < 121.f && ShotClock >= 121.f) Look(P(-8.4f, 0.4f, 2.4f), P(-6.45f, 0.f, 2.34f), false);
+	Shot(126.f, TEXT("7-name-plate"));
+	// 7. what the real beams and the mirrors cost: frame time, 4 s each, at night by coach 0's front, beams and mirrors on /
+	// real beams off / mirrors off too (no pictures taken in these windows)
+	static double Ms[3] = {0, 0, 0}; static int32 Fr[3] = {0, 0, 0};
+	if (Before < 128.f && ShotClock >= 128.f) { ASunClock::HourOverride = 23.f; ASunClock::Refresh(); Co->SetLamps(0, ACoaches::LowBeam | ACoaches::Tail); Look(P(14.f, -3.5f, 1.7f), P(6.f, 0.f, 1.0f), false); }
+	for (int32 k = 0; k < 3; ++k)
+		if (ShotClock >= 130.f + k * 5.f && ShotClock < 134.f + k * 5.f) { Ms[k] += GetWorld()->GetDeltaSeconds() * 1000.0; ++Fr[k]; ACoaches::bNoRealBeams = k >= 1; ACoaches::bNoMirrors = k >= 2; }
+	if (Before < 146.f && ShotClock >= 146.f)
+	{
+		auto Avg = [&](int32 k) { return Fr[k] ? Ms[k] / Fr[k] : 0.0; };
+		ADP_LOG(TEXT("UICoachUse: frame time at night by the coach - beams (2 real lights) + mirrors %.2f ms (%.0f fps); real beams off %.2f ms (%.0f fps); mirrors off too %.2f ms (%.0f fps)"),
+			Avg(0), Avg(0) > 0 ? 1000.0 / Avg(0) : 0.0, Avg(1), Avg(1) > 0 ? 1000.0 / Avg(1) : 0.0, Avg(2), Avg(2) > 0 ? 1000.0 / Avg(2) : 0.0);
+		ACoaches::bNoRealBeams = ACoaches::bNoMirrors = false;
+	}
+	if (Before < 148.f && ShotClock >= 148.f) ADP_SHOT_EXIT();
 }

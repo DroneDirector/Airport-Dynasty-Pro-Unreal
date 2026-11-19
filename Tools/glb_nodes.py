@@ -25,9 +25,12 @@ by_node = not (meshes_dir / ('%s_mesh_0.uasset' % name)).exists()
 have = {p.stem.lower(): p.stem for p in meshes_dir.glob('*.uasset')} if meshes_dir.exists() else {}
 san = lambda t: re.sub(r'[^A-Za-z0-9_-]', '_', t)   # (Unreal keeps '-' in imported names)
 by_meshname = 0
+# (--node-transforms models are imported by MESH name: a node's own name can be another mesh's file - the coach's first seat
+# pair 'Cushion_A_001' took the back bench's mesh 'Cushion_A_001' and stood outside the coach - so the mesh name goes first)
+mesh_first = '--node-transforms' in sys.argv
 for nd, src_nd in zip(nodes, g['nodes']):
     if 'mesh' not in nd: continue
-    if san(nd.get('name', '')).lower() in have: continue
+    if not mesh_first and san(nd.get('name', '')).lower() in have: continue
     mn = san(g['meshes'][nd['mesh']].get('name', '')).lower()
     if mn in have: nd['asset'] = have[mn]; by_meshname += 1
 if by_meshname: print('%d parts found under their mesh names' % by_meshname)

@@ -157,6 +157,7 @@ private:
 	void PhoneHand(class ABabylonModel* P, float HandReach);
 	void TestStrollers(float Before, float ShotClock);
 	void TestCoaches(float Before, float ShotClock);
+	void TestCoachUse(float Before, float ShotClock);
 public:
 	/** The phone's side button (+1 down the list, -1 up): the thumb presses it, a click, the highlight steps. */
 	void PhoneSide(int32 Dir);

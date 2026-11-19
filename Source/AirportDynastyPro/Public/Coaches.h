@@ -1,0 +1,98 @@
+// The airport coaches (owner, 2026-11-19, to-do 144): the parked coaches' working parts - one manager for every coach the
+// road network parks in the forecourt stands (RoadNetwork.cpp; the model: Tools/make_coach.py -- --assembled, imported as
+// AirportCoach). Per coach:
+//  - the front and middle doors: E / X by a door opens or closes it; each leaf swings out on its outer edge (a plug door's
+//    swing), the coach kneels a little on the door side as it opens, with the air hiss (Art/Sounds/Coach)
+//  - the six luggage bays (three a side, through-loading): E / X by a bay lifts its door up or shuts it
+//  - its lamps: low / high beams, turn signals and hazards, tail and brake, reverse - each lens glows by its material
+//    (M_CoachLamp); a real light only for the low / high beams of the coach you're nearest, short reach, no shadows
+//    (owner: real lights only if the frame rate holds - the light rule: glow by material, one real light)
+//  - its mirrors reflect: one capture each, only on the coach you're nearest (within 25 m), a few times a second
+//  - its sounds: the doors' air, the kneel hiss; the drive's hum muffled inside and full outside (for the traffic job)
+//  - the airport's own name on the rear name plate, written at run time from Data/airfield.json (never baked)
+//  - inside it your body's capsule is hip-wide (the aisle is 0.45 m: real people pass with their shoulders over the seats)
+// The seats are sittable through ASeats (ABabylonModel::SeatSpots knows the coach's cushions; never the driver's seat).
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "Coaches.generated.h"
+
+class ABabylonModel;
+class UAudioComponent;
+class USoundBase;
+class USceneCaptureComponent2D;
+class UTextureRenderTarget2D;
+class UMaterialInstanceDynamic;
+class USpotLightComponent;
+class UTextRenderComponent;
+
+UCLASS()
+class AIRPORTDYNASTYPRO_API ACoaches : public AActor
+{
+	GENERATED_BODY()
+public:
+	ACoaches();
+	static ACoaches* Get(UWorld* W);
+	/** The manager when there is one (nothing spawned). */
+	static ACoaches* Find() { return One.Get(); }
+	/** A coach the road network parked (its model placed as AirportCoach). */
+	void Add(ABabylonModel* Coach);
+	virtual void Tick(float Dt) override;
+	/** E / X: a coach door or luggage bay you stand by and face - opened or closed. True when it did. */
+	bool Use(const APawn* Who);
+	/** Something to use within reach (the outline and the button hint). */
+	bool NearUse(const FVector& Feet, const FVector& Facing) const;
+
+	// ---- for the traffic job and the tests
+	enum ELamp : uint8 { LowBeam = 1, HighBeam = 2, TurnLeft = 4, TurnRight = 8, Tail = 16, Brake = 32, Reverse = 64, Hazard = TurnLeft | TurnRight };
+	void SetLamps(int32 Coach, uint8 Lamps);
+	void SetDoor(int32 Coach, int32 Door, bool bOpen);
+	void SetBay(int32 Coach, int32 Bay, bool bOpen);
+	/** The drive's hum (0 off .. 1 full), heard muffled inside the coach and full outside. */
+	void SetDrive(int32 Coach, float Amount);
+	int32 Num() const { return Coaches.Num(); }
+	/** Tests: the beams' two real lights and the mirrors' captures off (their cost measured against them on). */
+	static inline bool bNoRealBeams = false;
+	static inline bool bNoMirrors = false;
+	/** Tests: a coach's door / bay middle (world), the way out of it. */
+	bool DoorSpot(int32 Coach, int32 Door, FVector& At, FVector& Out) const;
+	bool BaySpot(int32 Coach, int32 Bay, FVector& At, FVector& Out) const;
+	bool IsInside(const FVector& At, int32* Which = nullptr) const;
+	/** A coach's frame (world; Blender's (x, y, z) m at (x, -y, z) * 100 in it). */
+	FTransform RootOf(int32 Coach) const { return Coaches.IsValidIndex(Coach) ? RootW(Coaches[Coach]) : FTransform::Identity; }
+
+private:
+	static TWeakObjectPtr<ACoaches> One;
+	struct FMover { int32 Group = INDEX_NONE; FTransform Pivot; FQuat OpenTurn = FQuat::Identity; FVector OpenShift = FVector::ZeroVector; };
+	struct FCoach
+	{
+		TWeakObjectPtr<ABabylonModel> M;
+		FMover Leaf[2][2];            // [door][leaf]
+		float DoorK[2] = {0, 0}; bool bDoorOpen[2] = {false, false};
+		FMover Bay[6]; float BayK[6] = {0}; bool bBayOpen[6] = {false};
+		float Kneel = 0.f;             // 0 up .. 1 knelt (a door open)
+		FTransform RootBase;           // the model root's own place (the kneel tilts it)
+		int32 Wheels = INDEX_NONE;     // the wheels, held still while the body kneels
+		uint8 Lamps = 0; uint8 LampsShown = 0xFF; float Blink = 0.f;
+		TMap<uint8, TArray<UMaterialInstanceDynamic*>> LampMats;   // (per lamp kind: its lenses' own glow)
+		TArray<USpotLightComponent*> Beams;          // (all of these also held in Keep)
+		TArray<USceneCaptureComponent2D*> Mirrors;
+		TArray<UMaterialInstanceDynamic*> MirrorMats;
+		UAudioComponent* Hum = nullptr;
+		UTextRenderComponent* Plate = nullptr;
+		float Drive = 0.f;
+	};
+	TArray<FCoach> Coaches;
+	UPROPERTY() TArray<TObjectPtr<UObject>> Keep;   // (dynamic materials, render targets, components held for the GC)
+	USoundBase* SndDoor = nullptr; USoundBase* SndKneel = nullptr; USoundBase* SndBay = nullptr; USoundBase* SndHum = nullptr;
+	int32 MirrorsOn = INDEX_NONE; float MirrorClock = 0.f;
+	bool bCapsuleSmall = false;
+	FString AirportName;
+
+	void Setup(FCoach& C);
+	void Lamp(FCoach& C, float Dt);
+	void Mirror(float Dt, const FVector& Me);
+	bool Pick(const FVector& Feet, const FVector& Facing, int32& Ci, int32& Kind, int32& Index) const;
+	FTransform RootW(const FCoach& C) const;
+};

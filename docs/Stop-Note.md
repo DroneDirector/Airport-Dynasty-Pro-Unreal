@@ -1,19 +1,19 @@
-# Stop note (2026-11-16, evening)
+# Stop note - 2026-11-19 evening
 
-**Done and pushed**
-- The baggage claim is built in the game:
-  - the museum hall is removed, and the arrivals wing stands from x -80 to 0;
-  - the wave roof copy is joined to the main roof, with its two tree pillars;
-  - the arrivals escalators have the shorter ends, plus the stair with its glass balustrade, and the lift;
-  - customs and the arrivals hall;
-  - 5 belts (ABaggageBelts) with the corridor conveyor, inputs, feed shafts, bags fixed to the belts, buttons, flaps and sounds;
-  - landings send bags to the belts.
-- Items 1-10 of the 20-item batch are built (see the to-do list), plus our own lamp flares.
+**Done**
+- 0.17.28 published (strollers, sitting IK). Coach modelled (exterior, interior, bench, dashboard, wheels), 7 coaches parked
+  in the 7 repainted forecourt stands (BUSES ONLY, clear of the crossings), 131 aspens on the grass island (Nanite leaves).
+- To-do 142 done: shader cache recorded again with the forecourt, day + night (6608 pipelines, committed).
+- To-dos 141-148 on the list (147 = NUMBER 2: crossings / night road textures; 148: coaches through the ground, later).
 
-**Half done**
-- The outside roof glitch the owner saw is not found yet. Suspect: a white box on the roof at the wing's far west end, source unknown. Waiting for his answer.
+**Half-done (to-do 144, not compiled, not committed)**
+- Source/AirportDynastyPro/Public/Coaches.h + Private/Coaches.cpp: doors (E/X, swing out, kneel + hiss), luggage bays,
+  lamps (M_CoachLamp), beams (real light only on the nearest coach), mirrors (captures, nearest coach), drive hum,
+  airport name on the rear plate, hip-wide capsule inside.
+- Hooks: BabylonModel.cpp SeatSpots (coach seats, never the driver's), RoadNetwork.cpp (coaches handed to ACoaches),
+  ADPHUD.cpp (E/X on coach doors/bays; -UICoachUse test).
+- Tools/coach_setup_unreal.py (collision by shape, sounds, the two materials) written, NOT run yet.
 
-**Next**
-1. Fix that glitch.
-2. Take the full photo set: inside the claim hall from many angles and floor levels, the escalators, the belts, the crew side, and outside front and back with the joined roof.
-3. Package and publish when the owner says so.
+**Next (when he says)**
+1. Run Tools/coach_setup_unreal.py (UnrealEditor-Cmd), compile, run -UICoachUse, fix, send pictures, then pause.
+2. Then to-do 146: the coaches' own stress test.
