@@ -33,7 +33,8 @@ if [ "$1" = "editor" ]; then
   "C:/Program Files/Epic Games/UE_5.7/Engine/Binaries/Win64/UnrealEditor.exe" "$(cd $R && pwd -W)/AirportDynastyPro.uproject" -game -UIShot $ROUTE -StallWatch -windowed -ResX=1920 -ResY=1080 -nosplash > /dev/null 2>&1
   STEPS=$L/AirportDynastyPro.log
 else
-  V=$(ls -d /f/ADP-Packaged/0.*/Full 2>/dev/null | sort -V | tail -1); [ -n "$V" ] || { echo "STOP: no packaged build"; exit 1; }
+  # (PKG=<folder> runs a test package instead, e.g. PKG=/f/ADP-Packaged/test-coaches/Windows - built without a release)
+  V=${PKG:-$(ls -d /f/ADP-Packaged/0.*/Full 2>/dev/null | sort -V | tail -1)}; [ -n "$V" ] || { echo "STOP: no packaged build"; exit 1; }
   echo "build: $V"
   L="$LOCALAPPDATA/AirportDynastyPro/Saved/Logs"
   (cd "$V" && ADP_LOG=1 ./AirportDynastyPro/Binaries/Win64/AirportDynastyPro-Win64-Shipping.exe -UIShot $ROUTE -StallWatch $OFF > /dev/null 2>&1)
