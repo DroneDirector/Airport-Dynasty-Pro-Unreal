@@ -5679,7 +5679,13 @@ void AADPHUD::TestCoaches(float Before, float ShotClock)
 	if (Before < 76.f && ShotClock >= 76.f) PC->ConsoleCommand(TEXT("HighResShot 3840x2160 filename=Coaches-1-all-seven"), true);
 	if (Before < 82.f && ShotClock >= 82.f) Look(St[0].GetLocation() - F * 1800.f - Rt * 700.f + FVector(0, 0, 260.f), Mid + FVector(0, 0, 160.f));
 	if (Before < 88.f && ShotClock >= 88.f) PC->ConsoleCommand(TEXT("HighResShot 3840x2160 filename=Coaches-2-along-the-row"), true);
-	if (Before < 94.f && ShotClock >= 94.f) Look(Mid + Rt * 150.f - F * 600.f + FVector(0, 0, 1200.f), Mid + Rt * 150.f + F * 600.f);
-	if (Before < 100.f && ShotClock >= 100.f) PC->ConsoleCommand(TEXT("HighResShot 3840x2160 filename=Coaches-3-lettering"), true);
-	if (Before < 108.f && ShotClock >= 108.f) ADP_SHOT_EXIT();
+	// (from the terminal's side: the doors should be on this side)
+	if (Before < 94.f && ShotClock >= 94.f) Look(Mid + Rt * 1500.f - F * 900.f + FVector(0, 0, 320.f), Mid + FVector(0, 0, 170.f));
+	if (Before < 100.f && ShotClock >= 100.f) PC->ConsoleCommand(TEXT("HighResShot 3840x2160 filename=Coaches-3-terminal-side"), true);
+	// (a wheel close up: the first coach's front wheels, both ends looked at from the road side)
+	if (Before < 106.f && ShotClock >= 106.f) Look(St[0].GetLocation() + F * 370.f - Rt * 480.f + FVector(0, 0, 90.f), St[0].GetLocation() + F * 370.f - Rt * 110.f + FVector(0, 0, 50.f));
+	if (Before < 111.f && ShotClock >= 111.f) PC->ConsoleCommand(TEXT("HighResShot 3840x2160 filename=Coaches-4-wheel-a"), true);
+	if (Before < 114.f && ShotClock >= 114.f) Look(St[0].GetLocation() - F * 370.f - Rt * 480.f + FVector(0, 0, 90.f), St[0].GetLocation() - F * 370.f - Rt * 110.f + FVector(0, 0, 50.f));
+	if (Before < 119.f && ShotClock >= 119.f) PC->ConsoleCommand(TEXT("HighResShot 3840x2160 filename=Coaches-5-wheel-b"), true);
+	if (Before < 125.f && ShotClock >= 125.f) ADP_SHOT_EXIT();
 }

@@ -108,6 +108,7 @@ bool ABabylonModel::Place(const FString& Name)
 		return FTransform(Q, T, S);
 	};
 
+	bool bNodeTransforms = false; J->TryGetBoolField(TEXT("nodeTransforms"), bNodeTransforms);
 	int32 Placed = 0;
 	// every node's place in the model, its parent, and its mesh instance (for the doors)
 	TArray<FTransform> NodeWorld; NodeWorld.SetNum(Nodes.Num());
@@ -212,7 +213,8 @@ bool ABabylonModel::Place(const FString& Name)
 			// importer builds each object's position into its mesh), so they go in as they are
 			if (K)
 			{
-				FTransform At = bNodeNamed ? FTransform::Identity : FTransform(PieceOff) * World;
+				// ("nodeTransforms": the coach - its shared parts are one mesh each, copied about by their nodes: every node by its own place)
+				FTransform At = bNodeNamed && !bNodeTransforms ? FTransform::Identity : FTransform(PieceOff) * World;
 				if (Nudge.Num()) { FString Nn; N->TryGetStringField(TEXT("name"), Nn); if (const FVector* Nv = Nudge.Find(Nn)) At.AddToTranslation(*Nv); }
 				const int32 Ix = K->AddInstance(At, false);
 				NodeInst[I] = TPair<UInstancedStaticMeshComponent*, int32>(K, Ix); ++Placed;

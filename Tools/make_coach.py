@@ -649,6 +649,10 @@ if ASSEMBLE:
     for o in bpy.context.scene.objects:
         if o.type == 'MESH' and not o.hide_render and o.name not in ('Ground', 'Floor', 'Wall'):
             o.select_set(True); keep += 1
+    # (no dots in names: the import changes them and the game then can't find those parts - RackPost_1.74-1.2, DoorButton_0.001)
+    for o in bpy.context.selected_objects:
+        o.name = o.name.replace('.', '_')
+        if o.data.users and '.' in o.data.name: o.data.name = o.data.name.replace('.', '_')
     out = os.path.join(ART, 'airportcoach.glb')
     bpy.ops.export_scene.gltf(filepath=out, export_format='GLB', use_selection=True, export_apply=True)
     print('COACH: assembled', keep, 'objects ->', out)

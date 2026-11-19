@@ -147,7 +147,12 @@ fc_paint = [
     dict(kind='line', side='right', edge=7, off=-0.25, w=0.15, from_=s_t1a, to=s_sw1),
     # the stands: seven airport coaches in line (owner, 2026-11-19: 7, 3 m apart; yellow, 13 m each, 20 cm lines, BUSES ONLY
     # painted in each) by the main entrance, taxis (white, 6 m) toward the east end
-    dict(kind='boxes', side='right', lane=7, n=7, len=13.0, gap=3.0, w=0.20, color='yellow', text=['BUSES', 'ONLY'], from_=A.x(112.5)),
+    # (owner, 2026-11-19: never on a zebra crossing - the boxes 13 m each, moved into the gaps between the entrances' crossings
+    # at x 101, 75, 50 (3 m wide), 1 m clear of each; 3 m apart within a group: 3 before the first, 1 in each 20 m gap, 2 after)
+    *[dict(kind='boxes', side='right', lane=7, n=n_, len=13.0, gap=3.0, w=0.20, color='yellow', text=['BUSES', 'ONLY'], from_=f_)
+      for n_, f_ in ((3, A.x(101) - 2.5 - 3 * 13.0 - 2 * 3.0),                              # (ends 1 m before the first crossing's edge)
+                     (1, (A.x(101) + A.x(75)) / 2 - 6.5), (1, (A.x(75) + A.x(50)) / 2 - 6.5),   # (in the middle of each gap)
+                     (2, A.x(50) + 2.5))],
     dict(kind='boxes', side='right', lane=5, n=12, len=6.0, gap=0.8, from_=A.x(236)),
     # give way into the roundabout (shark teeth, on the lane going in)
     dict(kind='teeth', at=A.len - 0.8, dir=1, o0=0.15, o1=3.4),

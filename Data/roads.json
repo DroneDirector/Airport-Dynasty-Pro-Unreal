@@ -503,7 +503,7 @@
      "kind": "boxes",
      "side": "right",
      "lane": 7,
-     "n": 7,
+     "n": 3,
      "len": 13.0,
      "gap": 3.0,
      "w": 0.2,
@@ -512,7 +512,52 @@
       "BUSES",
       "ONLY"
      ],
-     "from": 1748.48
+     "from": 1711.1
+    },
+    {
+     "kind": "boxes",
+     "side": "right",
+     "lane": 7,
+     "n": 1,
+     "len": 13.0,
+     "gap": 3.0,
+     "w": 0.2,
+     "color": "yellow",
+     "text": [
+      "BUSES",
+      "ONLY"
+     ],
+     "from": 1765.225
+    },
+    {
+     "kind": "boxes",
+     "side": "right",
+     "lane": 7,
+     "n": 1,
+     "len": 13.0,
+     "gap": 3.0,
+     "w": 0.2,
+     "color": "yellow",
+     "text": [
+      "BUSES",
+      "ONLY"
+     ],
+     "from": 1791.415
+    },
+    {
+     "kind": "boxes",
+     "side": "right",
+     "lane": 7,
+     "n": 2,
+     "len": 13.0,
+     "gap": 3.0,
+     "w": 0.2,
+     "color": "yellow",
+     "text": [
+      "BUSES",
+      "ONLY"
+     ],
+     "from": 1813.48
     },
     {
      "kind": "boxes",
