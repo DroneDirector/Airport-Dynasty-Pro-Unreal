@@ -87,7 +87,7 @@ private:
 		TWeakObjectPtr<AActor> A; TArray<FBox2D> Area; TArray<FString> AreaIds; float FloorZ = 0.f; EHabit Habit = EHabit::Hall;
 		EDoing Doing = EDoing::Stand; FVector To = FVector::ZeroVector; float T = 0.f, For = 0.f, LeanYaw = 0.f;
 		int32 Seat = INDEX_NONE; class FTruckDriverRig* Rig = nullptr; class UPoseableMeshComponent* Rider = nullptr; USceneComponent* Frame = nullptr;
-		class UDriverPoseAnim* Pose = nullptr; FTransform BodyInActor;
+		class UDriverPoseAnim* Pose = nullptr; FTransform BodyInActor; float Lower = 0.f; bool bLowered = false; int32 SitPose = 0;
 	};
 	TArray<FStroll> Strollers;
 	bool bStrollersStarted = false;

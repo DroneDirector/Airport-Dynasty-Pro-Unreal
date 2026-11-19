@@ -696,7 +696,7 @@ bool AADPPeople::WallSpot(const FStroll& S, const FVector& From, FVector& Out, f
 		if (!W->LineTraceSingleByChannel(H, A0, A0 + Dir * 600.f, ECC_Visibility, Q)) continue;
 		if (FMath::Abs(H.ImpactNormal.Z) > 0.2f || H.Distance < 80.f) continue;
 		const FVector N = FVector(H.ImpactNormal.X, H.ImpactNormal.Y, 0.f).GetSafeNormal();
-		const FVector Spot = FVector(H.ImpactPoint.X, H.ImpactPoint.Y, From.Z) + N * 30.f;
+		const FVector Spot = FVector(H.ImpactPoint.X, H.ImpactPoint.Y, From.Z) + N * 18.f;   // (its back right against the wall)
 		if (!InArea(S, Spot)) continue;
 		FHitResult Fl;
 		if (!W->LineTraceSingleByChannel(Fl, Spot + FVector(0, 0, 150.f), Spot - FVector(0, 0, 150.f), ECC_Visibility, Q) || FMath::Abs(Fl.ImpactPoint.Z - S.FloorZ) > 40.f) continue;
@@ -723,7 +723,7 @@ void AADPPeople::NextThing(FStroll& S)
 		{
 			FVector SAt, SF; float SH;
 			if (!ASeats::SeatOf(i, SAt, SF, SH) || ASeats::IsTaken(i)) continue;
-			if (FMath::Abs(SAt.Z - SH - S.FloorZ) > 60.f || FVector::Dist2D(SAt, From) > 2000.f) continue;
+			if (FMath::Abs(SAt.Z - SH - S.FloorZ) > 60.f || FVector::Dist2D(SAt, From) > 2000.f || SH > 55.f) continue;   // (no bar stools: too high to sit down on naturally)
 			const FVector Front = FVector(SAt.X, SAt.Y, S.FloorZ) + SF * 60.f;
 			if (!InArea(S, Front)) continue;
 			if (S.Habit == EHabit::Gates)
@@ -743,7 +743,7 @@ void AADPPeople::NextThing(FStroll& S)
 			bool bIn = true; const float L = FVector::Dist2D(From, Front);
 			for (float d = 0.f; d < L && bIn; d += 100.f) bIn = InArea(S, FMath::Lerp(From, Front, d / FMath::Max(L, 1.f)));
 			if (!bIn || GetWorld()->SweepTestByChannel(From + FVector(0, 0, 100.f), Front + FVector(0, 0, 100.f), FQuat::Identity, ECC_Pawn, FCollisionShape::MakeCapsule(28.f, 55.f), Q)) continue;
-			if (ASeats::Claim(A, SAt) == I) { S.Seat = I; S.To = Front; S.Doing = EDoing::ToSeat; S.T = 0.f; return; }
+			if (ASeats::Claim(A, SAt) == I) { S.Seat = I; S.To = Front; S.Doing = EDoing::ToSeat; S.T = 0.f; S.SitPose = Rng.RandRange(0, 7); return; }
 		}
 	}
 	if (R > 0.82f) { FVector Spot; float Yaw; if (WallSpot(S, From, Spot, Yaw)) { S.To = Spot; S.LeanYaw = Yaw; S.Doing = EDoing::Lean; S.T = -1.f; S.For = Rng.FRandRange(15.f, 45.f); return; } }
@@ -775,21 +775,47 @@ void AADPPeople::SitPose(FStroll& S, float K)
 	{
 		S.Rider->SetSkinnedAssetAndUpdate(W->Body->GetSkeletalMeshAsset());
 		if (!S.Rig->Init(S.Rider)) return;
-		S.Frame->SetWorldLocationAndRotation(SAt - FVector(0, 0, SH), FRotator(0.f, SF.Rotation().Yaw - 90.f, 0.f));
+		S.Frame->SetWorldLocationAndRotation(SAt - SF.GetSafeNormal2D() * 20.f - FVector(0, 0, SH), FRotator(0.f, SF.Rotation().Yaw - 90.f, 0.f));
 		S.BodyInActor = W->Body->GetComponentTransform().GetRelativeTransform(A->GetActorTransform());
 		A->SetActorTransform(S.BodyInActor.Inverse() * S.Frame->GetComponentTransform());
 		W->Body->SetAnimInstanceClass(UDriverPoseAnim::StaticClass());
 		S.Pose = Cast<UDriverPoseAnim>(W->Body->GetAnimInstance());
 	}
 	const float PH = S.Rig->PelvisHeight(), E = FMath::SmoothStep(0.f, 1.f, K);
-	FDriverPose St; St.Facing = FVector(0, 1, 0); St.Pelvis = FVector(0.f, 30.f, PH); St.Foot[0] = FVector(-12.f, 32.f, 0.f); St.Foot[1] = FVector(12.f, 32.f, 0.f);
-	FDriverPose Si; Si.Facing = FVector(0, 1, 0); Si.Lean = -6.f; Si.Pelvis = FVector(0.f, -4.f, SH + 9.f); Si.Foot[0] = FVector(-14.f, 44.f, 0.f); Si.Foot[1] = FVector(14.f, 44.f, 0.f);
-	for (int32 s = 0; s < 2; ++s) { Si.bHand[s] = true; Si.Hand[s] = FVector(s == 0 ? -17.f : 17.f, 24.f, SH + 15.f); Si.Grip[s] = 0.25f; }
+	// (left and right: on these bodies side 0 is their right, so its foot and hand go on the frame's +x - with -x they
+	// crossed their legs and arms, owner 2026-11-19; the natural pose itself follows his photo)
+	FDriverPose St; St.Facing = FVector(0, 1, 0); St.Pelvis = FVector(0.f, 30.f, PH); St.Foot[0] = FVector(12.f, 32.f, 0.f); St.Foot[1] = FVector(-12.f, 32.f, 0.f);
+	// (his photo, Art/Reference/From-Phone/2026-11-19/sitting-pose-reference.jpg: upright, leaning a little forward; the
+	// knees about hip-wide, the feet planted a bit wider and a little forward; the forearms on the thighs, both hands
+	// resting together over the left knee)
+	// (the seat's point is near its front edge: the whole frame goes 20 cm back into the seat - the rig keeps the hips over
+	// the frame's own point - so they sit on it, not perched on its edge)
+	// (owner: different poses so it always looks natural - each time it sits one of four, the hands always resting on
+	// the thighs, knees or lap, never through the body; the feet apart or closer together)
+	FDriverPose Si; Si.Facing = FVector(0, 1, 0); Si.Pelvis = FVector(0.f, -4.f, SH + 9.f);
+	const bool bNarrow = (S.SitPose & 4) != 0;
+	Si.Foot[0] = FVector(bNarrow ? 13.f : 23.f, bNarrow ? 44.f : 40.f, 0.f); Si.Foot[1] = FVector(bNarrow ? -13.f : -23.f, bNarrow ? 44.f : 40.f, 0.f);
+	Si.bHand[0] = Si.bHand[1] = true; Si.Grip[0] = Si.Grip[1] = 0.15f;
+	switch (S.SitPose & 3)
+	{
+	case 0: Si.Lean = 4.f; Si.Hand[0] = FVector(-10.f, 30.f, SH + 15.f); Si.Hand[1] = FVector(-19.f, 33.f, SH + 13.f); break;   // his photo: both hands on the left knee
+	case 1: Si.Lean = 4.f; Si.Hand[0] = FVector(19.f, 33.f, SH + 13.f); Si.Hand[1] = FVector(10.f, 30.f, SH + 15.f); break;     // the same on the right knee
+	case 2: Si.Lean = 2.f; Si.Hand[0] = FVector(13.f, 22.f, SH + 14.f); Si.Hand[1] = FVector(-13.f, 22.f, SH + 14.f); break;    // each hand on its own thigh
+	default: Si.Lean = -7.f; Si.Hand[0] = FVector(4.f, 16.f, SH + 16.f); Si.Hand[1] = FVector(-4.f, 18.f, SH + 15.f); break;    // back in the seat, hands in the lap
+	}
 	FDriverPose P = Si;
 	P.Pelvis = FMath::Lerp(St.Pelvis, Si.Pelvis, E); P.Lean = FMath::Lerp(0.f, Si.Lean, E) + 22.f * FMath::Sin(PI * E);
 	for (int32 s = 0; s < 2; ++s) { P.Foot[s] = FMath::Lerp(St.Foot[s], Si.Foot[s], E); P.bHand[s] = E > 0.35f; }
 	S.Rig->Pose(P);
 	if (S.Pose) S.Pose->Local = S.Rig->LocalPose();
+	// (the body on the seat's frame - the hips at the rig's own height over the seat)
+	{
+		const FTransform Base = S.BodyInActor.Inverse() * S.Frame->GetComponentTransform();
+		// (measured once: a seat's point is not on its surface - the rig's own height is right; no lowering)
+		S.Lower = 0.f;
+		A->SetActorLocation(Base.GetLocation() - FVector(0, 0, S.Lower * E));
+	}
+	if (K >= 1.f) { static int32 Said = 0; if (Said++ < 4) { const FVector Pv = W->Body->GetBoneLocation(TEXT("pelvis")); const FVector Rel = FRotationMatrix(SF.Rotation()).InverseTransformVector(Pv - SAt); ADP_LOG(TEXT("People: sat - the hips %.0f cm ahead of the seat's middle, %.0f to its side, %.0f over it (seat %.0f high)"), Rel.X, Rel.Y, Rel.Z, SH); } }
 }
 
 void AADPPeople::StepStrollers(float Dt)
@@ -856,7 +882,7 @@ void AADPPeople::StepStrollers(float Dt)
 					A->SetActorLocationAndRotation(P, FRotator(0.f, SF.Rotation().Yaw - 90.f, 0.f));
 				}
 				if (W->Body) { static UBlendSpace* Move = LoadObject<UBlendSpace>(nullptr, TEXT("/Game/People/Anims/BS_Idle_Walk_Run_MH.BS_Idle_Walk_Run_MH")); W->Body->SetAnimationMode(EAnimationMode::AnimationSingleNode); if (Move) { W->Body->SetAnimation(Move); W->Body->Play(true); } }
-				ASeats::Release(A); S.Seat = INDEX_NONE; S.Pose = nullptr;
+				ASeats::Release(A); S.Seat = INDEX_NONE; S.Pose = nullptr; S.bLowered = false; S.Lower = 0.f;
 				S.Doing = EDoing::Stand; S.T = 0.f; S.For = Rng.FRandRange(1.f, 3.f);
 			}
 			break;
