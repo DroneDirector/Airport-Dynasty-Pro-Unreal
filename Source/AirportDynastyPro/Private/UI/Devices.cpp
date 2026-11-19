@@ -295,7 +295,11 @@ void AADPHUD::TickHmi(float Dt)
 		{
 			float Mx = 0.f, My = 0.f; PC->GetInputMouseDelta(Mx, My);
 			const float Sx = PC->GetInputAnalogKeyState(EKeys::Gamepad_LeftX), Sy = PC->GetInputAnalogKeyState(EKeys::Gamepad_LeftY);
-			FVector2D D(Mx * 2.2f, -My * 2.2f);
+			// (owner, 2026-11-19: far too slow - now it follows how fast you move the mouse: slow and precise when you move it
+			// slowly, quick across the screen when you flick it)
+			const float Spd = FVector2D(Mx, My).Size() / FMath::Max(Dt, 0.001f);
+			const float Gain = 1.2f + 5.f * FMath::SmoothStep(120.f, 2500.f, Spd);
+			FVector2D D(Mx * Gain, -My * Gain);
 			if (FMath::Abs(Sx) > 0.15f || FMath::Abs(Sy) > 0.15f) D += FVector2D(Sx, -Sy) * 900.f * Dt;   // (about two seconds across)
 			L->MoveCursor(D);
 		}
@@ -439,7 +443,7 @@ void AADPHUD::TickTablet(float Dt)
 			if (bOn || P.bOverride_DepthOfFieldFstop)
 			{
 				P.bOverride_DepthOfFieldFocalDistance = bOn; P.bOverride_DepthOfFieldFstop = bOn; P.bOverride_DepthOfFieldMinFstop = bOn;
-				P.DepthOfFieldFocalDistance = FMath::Lerp(48.f, 30.f, ADPTabletK::Ease(TabCloseK));   // (focused on the device in your hands)
+				P.DepthOfFieldFocalDistance = (PhoneDir != 0 || DeviceKind == TEXT("phone")) ? 26.f : FMath::Lerp(48.f, 30.f, ADPTabletK::Ease(TabCloseK));   // (the phone held closer)   // (focused on the device in your hands)
 				P.DepthOfFieldFstop = FMath::Lerp(22.f, 1.2f, ADPTabletK::Ease(BlurK)); P.DepthOfFieldMinFstop = 1.f;
 				if (bOn) Cam->PostProcessBlendWeight = 1.f;
 			}
@@ -568,6 +572,17 @@ void AADPHUD::OpenSiteStart()
 	if (bNew) { IFileManager::Get().Delete(*ADPPoseK::PoseFile(), false, true, true); GoNewGameStart(); ADP_LOG(TEXT("Pose: a new game - outside the main hall")); }
 	else if (!RestorePose()) GoNewGameStart();
 	bPoseLive = true; PoseLeft = 5.f;
+}
+
+void AADPHUD::DevicesDown()
+{
+	// owner, 2026-11-19: Esc (and the pad's Circle) always puts the device down again - from up close straight away, not
+	// back to holding it first
+	if (bDevice && DeviceKind == TEXT("tablet")) { bTabAway = true; PutDeviceAway(); }
+	else if (bDevice && DeviceKind == TEXT("phone")) PutDeviceAway();
+	else if (PhoneDir > 0) PhoneDir = -1;   // (on its way up: back down)
+	else if (Tablet.IsValid() && TabWant > 0.5f) { TabCloseWant = 0.f; ToggleTablet(); }
+	ADP_LOG(TEXT("Devices: put down (Esc / Circle)"));
 }
 
 bool AADPHUD::HoldingDevice() const

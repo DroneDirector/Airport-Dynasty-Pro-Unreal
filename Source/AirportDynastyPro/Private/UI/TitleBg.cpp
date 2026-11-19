@@ -12,6 +12,11 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "HAL/PlatformTime.h"
+#include "BinkMediaPlayer.h"
+#include "BinkMediaTexture.h"
+#include "HAL/FileManager.h"
+#include "Engine/TextureRenderTarget2D.h"
+#include "Kismet/KismetRenderingLibrary.h"
 
 namespace
 {
@@ -44,8 +49,11 @@ namespace
 	// starting over, a seek) still snaps
 	float ClockT = 0.f, ClockRate = 1.f; double ClockAt = 0.0;
 	float Raw() { return ClockT + float(FPlatformTime::Seconds() - ClockAt) * ClockRate; }
-	float Now() { return FMath::Fmod(FMath::Max(Raw(), 0.f), TS_DUR); }
+	float ForcedT = -1.f;   // (RenderFrame: the film at a given time)
+	float Now() { return ForcedT >= 0.f ? ForcedT : FMath::Fmod(FMath::Max(Raw(), 0.f), TS_DUR); }
 }
+
+namespace { TWeakObjectPtr<UBinkMediaPlayer> GVideo; }   // (the title video playing now, for the music clock)
 
 void ADPTitleBg::Clock(bool bNowOn, float Seconds)
 {
@@ -55,7 +63,15 @@ void ADPTitleBg::Clock(bool bNowOn, float Seconds)
 	float Err = Seconds - Now();
 	if (Err > TS_DUR * 0.5f) Err -= TS_DUR; else if (Err < -TS_DUR * 0.5f) Err += TS_DUR;
 	const double T = FPlatformTime::Seconds();
-	if (FMath::Abs(Err) > 0.6f) { ClockT = Seconds; ClockAt = T; ClockRate = 1.f; return; }   // (a real jump: snap)
+	if (FMath::Abs(Err) > 0.6f) { ClockT = Seconds; ClockAt = T; ClockRate = 1.f; }   // (a real jump: snap)
+	// the video, when it plays: it runs on its own; only when it is half a second or more off the music does it jump to it
+	if (UBinkMediaPlayer* V = GVideo.Get())
+	{
+		float VErr = Seconds - float(V->GetTime().GetTotalSeconds());
+		if (VErr > TS_DUR * 0.5f) VErr -= TS_DUR; else if (VErr < -TS_DUR * 0.5f) VErr += TS_DUR;
+		if (FMath::Abs(VErr) > 0.5f && V->SupportsSeeking()) V->Seek(FTimespan::FromSeconds(FMath::Fmod(Seconds, TS_DUR)));
+	}
+	if (FMath::Abs(Err) > 0.6f) return;
 	// (else: carry on from where the film is now, a little faster or slower until it meets the music - at most 4 %)
 	ClockT = Now(); ClockAt = T; ClockRate = 1.f + FMath::Clamp(Err * 0.6f, -0.04f, 0.04f);
 }
@@ -93,7 +109,7 @@ void STitleBg::Construct(const FArguments& Args)
 	ADP_LOG(TEXT("Title film: ready (%d pictures, beat levels %d)"), Tex.Num(), Env.Num());
 }
 
-STitleBg::~STitleBg() {}
+STitleBg::~STitleBg() { if (Video.IsValid()) Video->CloseUrl(); }
 
 float STitleBg::Level(const TArray<uint8>& A, float T) const
 {
@@ -185,7 +201,42 @@ int32 STitleBg::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const FSla
 	LastPaint = T;
 	const FVector2D Px = Geo.GetAbsoluteSize();
 	static bool bSaid = false; if (!bSaid) { bSaid = true; ADP_LOG(TEXT("Title film: first frame drawn, %.0f x %.0f px"), Px.X, Px.Y); }
+	if (!bVideoTried) StartVideo(FMath::Max(1.f, float(Px.X)), FMath::Max(1.f, float(Px.Y)));
+	if (Video.IsValid() && VideoTex.IsValid())
+	{
+		FSlateDrawElement::MakeBox(Out, Layer, Geo.ToPaintGeometry(), &VideoBrush, ESlateDrawEffect::None, FLinearColor::White);
+		return Layer + 1;
+	}
 	Frame(FMath::Max(1.f, float(Px.X)), FMath::Max(1.f, float(Px.Y)), Dt);
 	FSlateDrawElement::MakeBox(Out, Layer, Geo.ToPaintGeometry(), &Brush, ESlateDrawEffect::None, FLinearColor::White);
 	return Layer + 1;
+}
+
+bool STitleBg::RenderFrame(UObject* WorldContext, UTextureRenderTarget2D* RT, float T, float Dt)
+{
+	if (!Mid.IsValid() || !RT) return false;
+	ForcedT = T;
+	Frame(float(RT->SizeX), float(RT->SizeY), Dt);
+	ForcedT = -1.f;
+	UKismetRenderingLibrary::DrawMaterialToRenderTarget(WorldContext, RT, Mid.Get());
+	return true;
+}
+
+bool STitleBg::StartVideo(float W, float H) const
+{
+	// the film as a video, the one made for this screen's shape (32:9 for very wide screens, else 16:9)
+	bVideoTried = true;
+	const FString Name = W / FMath::Max(1.f, H) > 2.6f ? TEXT("TitleFilm_32x9") : TEXT("TitleFilm_16x9");
+	if (!IFileManager::Get().FileExists(*(FPaths::ProjectContentDir() / TEXT("Movies") / (Name + TEXT(".bk2"))))) { ADP_LOG(TEXT("Title film: no %s.bk2 - drawn live"), *Name); return false; }
+	UBinkMediaPlayer* P = NewObject<UBinkMediaPlayer>(GetTransientPackage());
+	P->Looping = true; P->StartImmediately = true;
+	if (!P->OpenUrl(TEXT("./Movies/") + Name + TEXT(".bk2"))) { ADP_WARN(TEXT("Title film: %s.bk2 didn't open - drawn live"), *Name); return false; }
+	UBinkMediaTexture* T = NewObject<UBinkMediaTexture>(GetTransientPackage());
+	T->SetMediaPlayer(P);
+	T->UpdateResource();
+	Video.Reset(P); VideoTex.Reset(T); GVideo = P;
+	VideoBrush.SetResourceObject(T); VideoBrush.ImageSize = FVector2D(W, H); VideoBrush.DrawAs = ESlateBrushDrawType::Image;
+	P->Seek(FTimespan::FromSeconds(Now())); P->Play();
+	ADP_LOG(TEXT("Title film: playing %s.bk2 (Bink)"), *Name);
+	return true;
 }

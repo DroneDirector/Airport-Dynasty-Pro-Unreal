@@ -4,6 +4,7 @@
 // and a line saying what it is doing; Esc on it goes straight back to the menus. Test runs skip it.
 #include "UI/ADPHUD.h"
 #include "UI/SNeonLoading.h"
+#include "ADPLog.h"
 // (Windows' own OPAQUE macro would break Cesium's glTF names when the build puts a Windows file before this one)
 #ifdef OPAQUE
 #undef OPAQUE
@@ -12,6 +13,7 @@
 #include "ContentStreaming.h"
 #include "EngineUtils.h"
 #include "ShaderCompiler.h"
+#include "ShaderPipelineCache.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
@@ -22,6 +24,10 @@
 // the title screen's web loading screen (SNeonLoading), and like it: once all is in, "Loading complete · Get ready for
 // takeoff" for 4 s before the airport shows
 static double GLoadDoneAt = -1.0;
+// the shipped shader cache (to-do 75, owner 2026-11-19): once the airport itself is in, "Loading shader cache" - the
+// recorded pipelines (day and night, Build/Windows/PipelineCaches) built at full speed before you see the airport, so
+// the first lamp at night or the first rain doesn't stall; afterwards whatever is left goes on quietly in the background
+static int32 GPsoMax = 0; static double GPsoFrom = -1.0;
 
 TSharedRef<SWidget> AADPHUD::MakeLoading()
 {
@@ -37,7 +43,7 @@ TSharedRef<SWidget> AADPHUD::MakeLoading()
 void AADPHUD::StartLoading()
 {
 	if (!LoadingBox.IsValid()) return;
-	bLoading = true; LoadT = 0; LoadFrac = 0; LoadStep = TEXT("Getting the airport ready…"); GLoadDoneAt = -1.0;
+	bLoading = true; LoadT = 0; LoadFrac = 0; LoadStep = TEXT("Getting the airport ready…"); GLoadDoneAt = -1.0; GPsoMax = 0; GPsoFrom = -1.0;
 	ShadersMax = 1; TexMax = 1;
 	LoadingBox->SetVisibility(EVisibility::Visible);
 }
@@ -45,6 +51,7 @@ void AADPHUD::StartLoading()
 void AADPHUD::StopLoading()
 {
 	bLoading = false; GLoadDoneAt = -1.0;
+	FShaderPipelineCache::SetBatchMode(FShaderPipelineCache::BatchMode::Background);   // (the rest, if any: quietly)
 	if (LoadingBox.IsValid()) LoadingBox->SetVisibility(EVisibility::Collapsed);
 }
 
@@ -64,12 +71,24 @@ void AADPHUD::TickLoading(float Dt)
 	const float S = 1.f - float(Shaders) / float(ShadersMax), T = 1.f - float(Tex) / float(TexMax);
 	// the pictures over the terrain aren't reported: a few seconds more once the terrain is in
 	const float Pictures = FMath::Clamp((LoadT - 2.f) / 6.f, 0.f, 1.f);
-	const float Want = (S + Terrain + T + Pictures) / 4.f;
-	LoadFrac = FMath::Max(LoadFrac, FMath::Min(Want, LoadFrac + Dt * 0.6f));   // never backwards, smooth
-	LoadStep = Shaders > 0 ? FString::Printf(TEXT("Compiling shaders… (%d to go)"), Shaders)
+	const float Want = 0.85f * (S + Terrain + T + Pictures) / 4.f;   // (the airport: the bar's first 85 %)
+	const bool bWorld = (Shaders == 0 && Terrain >= 0.99f && Tex == 0 && Pictures >= 1.f) || LoadT > 120.f;
+	// then the shader cache: its last 15 %
+	const int32 Pso = (int32)FShaderPipelineCache::NumPrecompilesRemaining();
+	if (bWorld && GPsoFrom < 0.0) { GPsoFrom = LoadT; GPsoMax = FMath::Max(1, Pso); FShaderPipelineCache::SetBatchMode(FShaderPipelineCache::BatchMode::Fast); }
+	const float PsoK = GPsoFrom < 0.0 ? 0.f : 1.f - float(Pso) / float(GPsoMax);
+	const float Goal = bWorld ? 0.85f + 0.15f * PsoK : Want;
+	LoadFrac = FMath::Max(LoadFrac, FMath::Min(Goal, LoadFrac + Dt * 0.6f));   // never backwards, smooth
+	LoadStep = bWorld ? (Pso > 0 ? FString::Printf(TEXT("Loading shader cache… %d %%"), FMath::RoundToInt(100.f * PsoK)) : FString(TEXT("Ready")))
+		: Shaders > 0 ? FString::Printf(TEXT("Compiling shaders… (%d to go)"), Shaders)
 		: Terrain < 0.99f ? TEXT("Loading the terrain round the airport…")
 		: Tex > 0 ? TEXT("Loading the textures…")
 		: Pictures < 1.f ? TEXT("Loading the satellite pictures…") : TEXT("Ready");
-	const bool bDone = Shaders == 0 && Terrain >= 0.99f && Tex == 0 && Pictures >= 1.f && LoadFrac >= 0.999f;
-	if (bDone || LoadT > 120.f) { LoadFrac = 1.f; GLoadDoneAt = LoadT; }
+	// done: all of it in (the shader cache at most 90 s - beyond that it finishes in the background)
+	const bool bDone = bWorld && (Pso == 0 || LoadT - GPsoFrom > 90.0) && LoadFrac >= 0.85f + 0.15f * PsoK - 0.001f;
+	if (bDone || LoadT > 210.f)
+	{
+		LoadFrac = 1.f; GLoadDoneAt = LoadT;
+		ADP_LOG(TEXT("Loading: done after %.1f s (shader cache %d of %d built, %d left for the background)"), LoadT, GPsoMax - Pso, GPsoMax, Pso);
+	}
 }

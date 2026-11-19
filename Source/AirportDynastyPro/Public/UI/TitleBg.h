@@ -8,6 +8,9 @@
 #include "CoreMinimal.h"
 #include "Widgets/SLeafWidget.h"
 #include "Styling/SlateBrush.h"
+#include "BinkMediaPlayer.h"
+#include "BinkMediaTexture.h"
+#include "UObject/StrongObjectPtr.h"
 
 class UMaterialInstanceDynamic;
 class UTexture;
@@ -29,10 +32,20 @@ public:
 	void Construct(const FArguments& Args);
 	virtual ~STitleBg();
 	virtual FVector2D ComputeDesiredSize(float) const override { return FVector2D(16, 9); }
+	/** The film's frame at a given time (seconds into the music) drawn into a picture - for making it a video
+	 *  (-UITitleRender, owner 2026-11-19: the title film as a Bink video). */
+	bool RenderFrame(UObject* WorldContext, class UTextureRenderTarget2D* RT, float T, float Dt);
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const FSlateRect& Cull, FSlateWindowElementList& Out, int32 Layer, const FWidgetStyle& Style, bool bParentEnabled) const override;
 
 private:
 	TStrongObjectPtr<UMaterialInstanceDynamic> Mid;
+	// the film as a Bink video (Content/Movies/TitleFilm_16x9.bk2 / _32x9.bk2 - Tools/make_title_bink.sh): played as it is,
+	// in step with the music; without the files the film is drawn live as before
+	mutable TStrongObjectPtr<class UBinkMediaPlayer> Video;
+	mutable TStrongObjectPtr<class UBinkMediaTexture> VideoTex;
+	mutable FSlateBrush VideoBrush;
+	mutable bool bVideoTried = false;
+	bool StartVideo(float W, float H) const;
 	TMap<FString, TStrongObjectPtr<UTexture>> Tex;
 	FSlateBrush Brush;
 	TArray<uint8> Env, Kick;                 // the music's loudness and kick, 25 a second (the page's env.json)

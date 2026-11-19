@@ -122,6 +122,8 @@ public:
 	/** The phone or the tablet in your hands (held, on its way, or up close): the game's own UI steps aside, only the
 	 *  Buttons legend stays (owner, 2026-11-18, to-do 120). */
 	bool HoldingDevice() const;
+	/** Esc / the pad's Circle while you hold or use your phone or tablet: always put it all the way down (owner, 2026-11-19). */
+	void DevicesDown();
 	bool TabletUse();
 	/** Its 3D screen's picture (a JPEG data URL from its screen; empty: just make sure it has its material). */
 	void TabletScreen(const FString& DataUrl);
