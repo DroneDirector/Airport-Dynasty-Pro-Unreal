@@ -31,6 +31,8 @@ public:
 	/** Tests: the seats found, and a spot to stand by seat I facing it. */
 	static int32 Count();
 	static bool StandSpot(int32 I, FVector& At, float& Yaw);
+	/** Seat I itself: its middle (world), the way it faces, its height. */
+	static bool SeatOf(int32 I, FVector& At, FVector& Facing, float& SeatH);
 	static int32 NearestTo(const FVector& At);
 	/** Someone else sitting (owner, 2026-11-14: nobody sits where someone already is): Who takes the seat nearest At
 	 *  (within 1.5 m; INDEX_NONE when none is free), and is asked to get up by AskToLeave when you want your own chair

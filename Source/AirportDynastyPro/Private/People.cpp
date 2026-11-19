@@ -8,6 +8,11 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimSingleNodeInstance.h"
 #include "Animation/BlendSpace.h"
+#include "TerminalPlan.h"
+#include "Seats.h"
+#include "TruckDriverRig.h"
+#include "DriverPoseAnim.h"
+#include "Components/PoseableMeshComponent.h"
 #include "Animation/AnimSequence.h"
 #include "GameFramework/PlayerController.h"
 #include "Camera/PlayerCameraManager.h"
@@ -560,6 +565,305 @@ void AADPPeople::StepScene(float Dt)
 	}
 }
 
+// ---- strolling passengers (owner, 2026-11-19, for now - until their trips and animations are done): a group only in the
+// Grand Hall, a group only on Floor 2 (the gate corridor up and down, the tax free, the gates and their seats, the
+// benches); some lean on a wall, some sit. Never out of their own rooms: no stairs, no other floor, no jetway, never
+// through a door (doors open only for you, not for them), and every goal and every straight way to it checked first.
+void AADPPeople::StartWanderers()
+{
+	if (bStrollersStarted) return;
+	bStrollersStarted = true;
+	FTerminalPlan Plan; if (!Plan.Load()) { ADP_WARN(TEXT("People: no terminal plan - no strolling passengers")); return; }
+	auto Boxes = [&](TFunctionRef<bool(const FPlanRoom&)> Pick, TArray<FBox2D>& Out, TArray<FString>& Ids)
+	{
+		for (const FPlanRoom& Rm : Plan.Rooms)
+			if (Pick(Rm))
+			{
+				const FVector A = FTerminalPlan::ToWorld(Rm.X0 + 1.2f, 0.f, Rm.Z0 + 1.2f), B = FTerminalPlan::ToWorld(Rm.X1 - 1.2f, 0.f, Rm.Z1 - 1.2f);
+				FBox2D Bx(ForceInit); Bx += FVector2D(A.X, A.Y); Bx += FVector2D(B.X, B.Y); Out.Add(Bx); Ids.Add(Rm.Id);
+			}
+	};
+	TArray<FBox2D> Hall, F2; TArray<FString> HallIds, F2Ids;
+	Boxes([](const FPlanRoom& Rm) { return Rm.Id == TEXT("F1-HALL"); }, Hall, HallIds);
+	Boxes([](const FPlanRoom& Rm) { return Rm.Id.StartsWith(TEXT("F2-")) && (Rm.Id == TEXT("F2-FOOD") || Rm.Id == TEXT("F2-LANDING") || Rm.Id.StartsWith(TEXT("F2-TAXFREE")) || Rm.Id == TEXT("F2-LINK") || Rm.Id == TEXT("F2-WALK") || Rm.Id.StartsWith(TEXT("F2-GATE-"))); }, F2, F2Ids);
+	struct FGroup { const TCHAR* What; TArray<FBox2D>* Area; TArray<FString>* Ids; float FloorZ; TArray<EHabit> Habits; };
+	const float Z1 = FTerminalPlan::ToWorld(0.f, Plan.FloorY(1), 0.f).Z, Z2 = FTerminalPlan::ToWorld(0.f, Plan.FloorY(2), 0.f).Z;
+	const FGroup Groups[] = {
+		{ TEXT("the Grand Hall"), &Hall, &HallIds, Z1, { EHabit::Hall, EHabit::Hall, EHabit::Hall, EHabit::Hall, EHabit::Hall } },
+		{ TEXT("Floor 2"), &F2, &F2Ids, Z2, { EHabit::Corridor, EHabit::Corridor, EHabit::Shopper, EHabit::Shopper, EHabit::Gates, EHabit::Gates, EHabit::Bench, EHabit::Bench } } };
+	TSet<FString> Used;
+	for (const FGroup& G : Groups)
+	{
+		if (!G.Area->Num()) { ADP_WARN(TEXT("People: no rooms for %s"), G.What); continue; }
+		int32 Made = 0;
+		for (const EHabit Hb : G.Habits)
+		{
+			FStroll S; S.Area = *G.Area; S.AreaIds = *G.Ids; S.FloorZ = G.FloorZ; S.Habit = Hb;
+			// (a start spot: floor at its own floor's height and room for a body there - in the habit's own rooms where it has
+			// some: the corridor people in the corridor, the shoppers in the tax free, the gate people at a gate)
+			FVector Spot; bool bOk = false;
+			FCollisionQueryParams Qs(SCENE_QUERY_STAT(PeopleStart), false);
+			for (const FStroll& O : Strollers) if (AActor* Oa = O.A.Get()) Qs.AddIgnoredActor(Oa);
+			TArray<int32> Prefer;
+			for (int32 i = 0; i < S.AreaIds.Num(); ++i)
+			{
+				const FString& Id = S.AreaIds[i];
+				if ((Hb == EHabit::Corridor && Id == TEXT("F2-WALK")) || (Hb == EHabit::Shopper && Id.StartsWith(TEXT("F2-TAXFREE"))) || (Hb == EHabit::Gates && Id.StartsWith(TEXT("F2-GATE-"))) || (Hb == EHabit::Bench && (Id == TEXT("F2-FOOD") || Id == TEXT("F2-LANDING")))) Prefer.Add(i);
+			}
+			for (int32 Try = 0; Try < 40 && !bOk; ++Try)
+			{
+				const FBox2D& Bx = S.Area[Prefer.Num() ? Prefer[Rng.RandRange(0, Prefer.Num() - 1)] : Rng.RandRange(0, S.Area.Num() - 1)];
+				const FVector P(Rng.FRandRange(Bx.Min.X, Bx.Max.X), Rng.FRandRange(Bx.Min.Y, Bx.Max.Y), S.FloorZ);
+				FHitResult H;
+				if (!GetWorld()->LineTraceSingleByChannel(H, P + FVector(0, 0, 150.f), P - FVector(0, 0, 150.f), ECC_Visibility, Qs)) continue;
+				if (FMath::Abs(H.ImpactPoint.Z - S.FloorZ) > 40.f || H.ImpactNormal.Z < 0.9f) continue;
+				if (GetWorld()->OverlapAnyTestByChannel(H.ImpactPoint + FVector(0, 0, 100.f), FQuat::Identity, ECC_Pawn, FCollisionShape::MakeCapsule(35.f, 70.f), Qs)) continue;
+				Spot = H.ImpactPoint; bOk = true;
+			}
+			if (!bOk) continue;
+			FString Name; for (int32 k = 0; k < 10; ++k) { Name = PickBuilt(TEXT("passenger")); if (!Used.Contains(Name)) break; }
+			if (Name.IsEmpty()) break;
+			Used.Add(Name);
+			AActor* A = Spawn(Name, Spot, Rng.FRandRange(0.f, 360.f));
+			if (!A) continue;
+			S.A = A; S.For = Rng.FRandRange(0.5f, 4.f);
+			Strollers.Add(S); ++Made;
+		}
+		ADP_LOG(TEXT("People: %d passengers about %s (only there)"), Made, G.What);
+	}
+}
+
+bool AADPPeople::StrollerDoing(int32 Kind, FVector& At, FVector& Facing) const
+{
+	for (const FStroll& S : Strollers)
+		if (AActor* A = S.A.Get())
+			if ((Kind == 0 && S.Doing == EDoing::Sit) || (Kind == 1 && S.Doing == EDoing::Lean && S.T > 1.f) || (Kind == 2 && (S.Doing == EDoing::Stand || S.Doing == EDoing::Walk)))
+			{
+				At = A->GetActorLocation();
+				Facing = Kind == 1 ? FRotator(0.f, S.LeanYaw, 0.f).Vector() : FRotator(0.f, A->GetActorRotation().Yaw + 90.f, 0.f).Vector();
+				FVector SAt, SF; float SH; if (Kind == 0 && ASeats::SeatOf(S.Seat, SAt, SF, SH)) { At = SAt; Facing = SF; }
+				return true;
+			}
+	return false;
+}
+
+bool AADPPeople::InArea(const FStroll& S, const FVector& P) const
+{
+	for (const FBox2D& B : S.Area) if (B.IsInside(FVector2D(P.X, P.Y))) return true;
+	return false;
+}
+
+bool AADPPeople::StrollSpot(const FStroll& S, const FVector& From, FVector& Out, int32 Box)
+{
+	// a spot in its own rooms (Box: that room only) with floor at its own floor's height (not a stair, not the floor
+	// below), a clear straight way there from where it stands (no walls, desks, seats or people) that stays in its rooms,
+	// and not right on top of another stroller's goal
+	UWorld* W = GetWorld();
+	FCollisionQueryParams Q(SCENE_QUERY_STAT(PeopleStroll), false);
+	for (const FStroll& O : Strollers) if (AActor* A = O.A.Get()) Q.AddIgnoredActor(A);
+	for (int32 Try = 0; Try < 10; ++Try)
+	{
+		const FBox2D& Bx = S.Area[Box != INDEX_NONE ? Box : Rng.RandRange(0, S.Area.Num() - 1)];
+		const FVector P(Rng.FRandRange(Bx.Min.X, Bx.Max.X), Rng.FRandRange(Bx.Min.Y, Bx.Max.Y), S.FloorZ);
+		FHitResult H;
+		if (!W->LineTraceSingleByChannel(H, P + FVector(0, 0, 150.f), P - FVector(0, 0, 150.f), ECC_Visibility, Q)) continue;
+		if (FMath::Abs(H.ImpactPoint.Z - S.FloorZ) > 40.f || H.ImpactNormal.Z < 0.9f) continue;
+		const FVector Goal(P.X, P.Y, H.ImpactPoint.Z);
+		bool bNear = false; for (const FStroll& O : Strollers) bNear |= O.Doing == EDoing::Walk && FVector::Dist2D(O.To, Goal) < 150.f;
+		if (bNear) continue;
+		// the way there stays in its rooms (checked every metre) and is clear for a body
+		bool bIn = true; const float L = FVector::Dist2D(From, Goal);
+		for (float d = 0.f; d < L && bIn; d += 100.f) bIn = InArea(S, FMath::Lerp(From, Goal, d / FMath::Max(L, 1.f)));
+		if (!bIn) continue;
+		const FVector A0(From.X, From.Y, From.Z + 100.f), A1(Goal.X, Goal.Y, Goal.Z + 100.f);
+		if (L > 30.f && W->SweepTestByChannel(A0, A1, FQuat::Identity, ECC_Pawn, FCollisionShape::MakeCapsule(32.f, 60.f), Q)) continue;
+		Out = Goal; return true;
+	}
+	return false;
+}
+
+bool AADPPeople::WallSpot(const FStroll& S, const FVector& From, FVector& Out, float& Yaw)
+{
+	// a wall within 6 m that it can walk straight up to: the spot just in front of it, its back to the wall
+	UWorld* W = GetWorld(); FCollisionQueryParams Q(SCENE_QUERY_STAT(PeopleLean), false);
+	for (const FStroll& O : Strollers) if (AActor* A = O.A.Get()) Q.AddIgnoredActor(A);
+	const float Start = Rng.FRandRange(0.f, 360.f);
+	for (int32 k = 0; k < 12; ++k)
+	{
+		const FVector Dir = FRotator(0.f, Start + k * 30.f, 0.f).Vector();
+		const FVector A0 = From + FVector(0, 0, 110.f);
+		FHitResult H;
+		if (!W->LineTraceSingleByChannel(H, A0, A0 + Dir * 600.f, ECC_Visibility, Q)) continue;
+		if (FMath::Abs(H.ImpactNormal.Z) > 0.2f || H.Distance < 80.f) continue;
+		const FVector N = FVector(H.ImpactNormal.X, H.ImpactNormal.Y, 0.f).GetSafeNormal();
+		const FVector Spot = FVector(H.ImpactPoint.X, H.ImpactPoint.Y, From.Z) + N * 30.f;
+		if (!InArea(S, Spot)) continue;
+		FHitResult Fl;
+		if (!W->LineTraceSingleByChannel(Fl, Spot + FVector(0, 0, 150.f), Spot - FVector(0, 0, 150.f), ECC_Visibility, Q) || FMath::Abs(Fl.ImpactPoint.Z - S.FloorZ) > 40.f) continue;
+		if (W->SweepTestByChannel(A0, FVector(Spot.X, Spot.Y, A0.Z), FQuat::Identity, ECC_Pawn, FCollisionShape::MakeCapsule(28.f, 55.f), Q)) continue;
+		Out = FVector(Spot.X, Spot.Y, Fl.ImpactPoint.Z); Yaw = N.Rotation().Yaw;
+		return true;
+	}
+	return false;
+}
+
+void AADPPeople::NextThing(FStroll& S)
+{
+	// what it does next, by its habit: mostly strolling, now and then leaning on a wall a while or sitting down
+	AActor* A = S.A.Get(); if (!A) return;
+	const FVector From = A->GetActorLocation();
+	const float R = Rng.FRand();
+	// a seat near (a bench, a gate's seats): for the bench and gate people often, the others now and then
+	const float SitChance = S.Habit == EHabit::Bench ? 0.65f : S.Habit == EHabit::Gates ? 0.5f : 0.12f;
+	if (R < SitChance && ASeats::Count() > 0)
+	{
+		// (its own search: ASeats::NearestTo is the seat in front of YOU, within arm's reach)
+		TArray<int32> Free;
+		for (int32 i = 0; i < ASeats::Count(); ++i)
+		{
+			FVector SAt, SF; float SH;
+			if (!ASeats::SeatOf(i, SAt, SF, SH) || ASeats::IsTaken(i)) continue;
+			if (FMath::Abs(SAt.Z - SH - S.FloorZ) > 60.f || FVector::Dist2D(SAt, From) > 2000.f) continue;
+			const FVector Front = FVector(SAt.X, SAt.Y, S.FloorZ) + SF * 60.f;
+			if (!InArea(S, Front)) continue;
+			if (S.Habit == EHabit::Gates)
+			{
+				bool bGate = false;
+				for (int32 k = 0; k < S.AreaIds.Num(); ++k) bGate |= S.AreaIds[k].StartsWith(TEXT("F2-GATE-")) && S.Area[k].IsInside(FVector2D(SAt.X, SAt.Y));
+				if (!bGate && Rng.FRand() < 0.8f) continue;
+			}
+			Free.Add(i);
+		}
+		for (int32 Try = 0; Try < 6 && Free.Num(); ++Try)
+		{
+			const int32 I = Free[Rng.RandRange(0, Free.Num() - 1)];
+			FVector SAt, SF; float SH; ASeats::SeatOf(I, SAt, SF, SH);
+			const FVector Front = FVector(SAt.X, SAt.Y, S.FloorZ) + SF * 60.f;
+			FCollisionQueryParams Q(SCENE_QUERY_STAT(PeopleSeat), false, A);
+			bool bIn = true; const float L = FVector::Dist2D(From, Front);
+			for (float d = 0.f; d < L && bIn; d += 100.f) bIn = InArea(S, FMath::Lerp(From, Front, d / FMath::Max(L, 1.f)));
+			if (!bIn || GetWorld()->SweepTestByChannel(From + FVector(0, 0, 100.f), Front + FVector(0, 0, 100.f), FQuat::Identity, ECC_Pawn, FCollisionShape::MakeCapsule(28.f, 55.f), Q)) continue;
+			if (ASeats::Claim(A, SAt) == I) { S.Seat = I; S.To = Front; S.Doing = EDoing::ToSeat; S.T = 0.f; return; }
+		}
+	}
+	if (R > 0.82f) { FVector Spot; float Yaw; if (WallSpot(S, From, Spot, Yaw)) { S.To = Spot; S.LeanYaw = Yaw; S.Doing = EDoing::Lean; S.T = -1.f; S.For = Rng.FRandRange(15.f, 45.f); return; } }
+	// a stroll: the corridor people far along the corridor, the shoppers into the tax free, the gate people to a gate
+	int32 Box = INDEX_NONE;
+	for (int32 i = 0; i < S.AreaIds.Num(); ++i)
+	{
+		const FString& Id = S.AreaIds[i];
+		if ((S.Habit == EHabit::Corridor && Id == TEXT("F2-WALK")) || (S.Habit == EHabit::Shopper && Id.StartsWith(TEXT("F2-TAXFREE")) && Rng.FRand() < 0.7f) || (S.Habit == EHabit::Gates && Id.StartsWith(TEXT("F2-GATE-")) && Rng.FRand() < 0.3f)) { Box = i; break; }
+	}
+	FVector To;
+	if (StrollSpot(S, From, To, Box) || StrollSpot(S, From, To)) { S.To = To; S.Doing = EDoing::Walk; return; }
+	S.Doing = EDoing::Stand; S.For = 1.f; S.T = 0.f;
+}
+
+void AADPPeople::SitPose(FStroll& S, float K)
+{
+	// its own body posed on the seat (the same rig and pose as yours when you sit - Seats.cpp), K 0 standing .. 1 sat
+	AActor* A = S.A.Get(); FWho* W = A ? Find(A) : nullptr;
+	FVector SAt, SF; float SH;
+	if (!W || !W->Body || !ASeats::SeatOf(S.Seat, SAt, SF, SH)) return;
+	if (!S.Rig)
+	{
+		S.Rig = new FTruckDriverRig();
+		S.Rider = NewObject<UPoseableMeshComponent>(this); S.Rider->SetupAttachment(RootComponent); S.Rider->SetVisibility(false); S.Rider->RegisterComponent();
+		S.Frame = NewObject<USceneComponent>(this); S.Frame->SetupAttachment(RootComponent); S.Frame->RegisterComponent();
+	}
+	if (!S.Pose)
+	{
+		S.Rider->SetSkinnedAssetAndUpdate(W->Body->GetSkeletalMeshAsset());
+		if (!S.Rig->Init(S.Rider)) return;
+		S.Frame->SetWorldLocationAndRotation(SAt - FVector(0, 0, SH), FRotator(0.f, SF.Rotation().Yaw - 90.f, 0.f));
+		S.BodyInActor = W->Body->GetComponentTransform().GetRelativeTransform(A->GetActorTransform());
+		A->SetActorTransform(S.BodyInActor.Inverse() * S.Frame->GetComponentTransform());
+		W->Body->SetAnimInstanceClass(UDriverPoseAnim::StaticClass());
+		S.Pose = Cast<UDriverPoseAnim>(W->Body->GetAnimInstance());
+	}
+	const float PH = S.Rig->PelvisHeight(), E = FMath::SmoothStep(0.f, 1.f, K);
+	FDriverPose St; St.Facing = FVector(0, 1, 0); St.Pelvis = FVector(0.f, 30.f, PH); St.Foot[0] = FVector(-12.f, 32.f, 0.f); St.Foot[1] = FVector(12.f, 32.f, 0.f);
+	FDriverPose Si; Si.Facing = FVector(0, 1, 0); Si.Lean = -6.f; Si.Pelvis = FVector(0.f, -4.f, SH + 9.f); Si.Foot[0] = FVector(-14.f, 44.f, 0.f); Si.Foot[1] = FVector(14.f, 44.f, 0.f);
+	for (int32 s = 0; s < 2; ++s) { Si.bHand[s] = true; Si.Hand[s] = FVector(s == 0 ? -17.f : 17.f, 24.f, SH + 15.f); Si.Grip[s] = 0.25f; }
+	FDriverPose P = Si;
+	P.Pelvis = FMath::Lerp(St.Pelvis, Si.Pelvis, E); P.Lean = FMath::Lerp(0.f, Si.Lean, E) + 22.f * FMath::Sin(PI * E);
+	for (int32 s = 0; s < 2; ++s) { P.Foot[s] = FMath::Lerp(St.Foot[s], Si.Foot[s], E); P.bHand[s] = E > 0.35f; }
+	S.Rig->Pose(P);
+	if (S.Pose) S.Pose->Local = S.Rig->LocalPose();
+}
+
+void AADPPeople::StepStrollers(float Dt)
+{
+	if (!Strollers.Num()) return;
+	ADP_PERF_SCOPE("people: strolling passengers (each frame)", 1.f);
+	{ static double SaidAt = 0.0; const double Tn = FPlatformTime::Seconds(); if (Tn - SaidAt > 15.0) { SaidAt = Tn; int32 N[7] = {}; for (const FStroll& S : Strollers) ++N[(int32)S.Doing]; ADP_LOG(TEXT("People strolling: %d standing, %d walking, %d leaning, %d to a seat, %d sitting"), N[0], N[1], N[2], N[3], N[4] + N[5] + N[6]); } }
+	const APlayerController* PC = GetWorld()->GetFirstPlayerController();
+	const FVector Me = PC && PC->GetPawn() ? PC->GetPawn()->GetActorLocation() : FVector(1e9f);
+	for (FStroll& S : Strollers)
+	{
+		AActor* A = S.A.Get(); if (!A) continue;
+		FWho* W = Find(A); if (!W) continue;
+		S.T += Dt;
+		switch (S.Doing)
+		{
+		case EDoing::Stand:
+			WalkTo(W, A->GetActorLocation(), Dt, 50.f);   // (the walk eases out to the idle)
+			if (S.T >= S.For) NextThing(S);
+			break;
+		case EDoing::Walk:
+		case EDoing::ToSeat:
+		case EDoing::Lean:
+		{
+			if (S.Doing == EDoing::Lean && S.T >= 0.f)
+			{
+				// leaning on the wall: its back to it, tilted a little back against it, a while
+				WalkTo(W, A->GetActorLocation(), Dt, 50.f);
+				A->SetActorRotation(FMath::RInterpTo(A->GetActorRotation(), FRotator(0.f, S.LeanYaw - 90.f, -5.f), Dt, 3.f));
+				if (S.T >= S.For) { A->SetActorRotation(FRotator(0.f, S.LeanYaw - 90.f, 0.f)); S.Doing = EDoing::Stand; S.T = 0.f; S.For = Rng.FRandRange(1.f, 4.f); }
+				break;
+			}
+			// you in its way, close ahead: it stops and waits for you
+			const FVector Ahead = (S.To - A->GetActorLocation()).GetSafeNormal2D(), ToMe = Me - A->GetActorLocation();
+			if (ToMe.Size2D() < 110.f && FVector::DotProduct(ToMe.GetSafeNormal2D(), Ahead) > 0.5f) { WalkTo(W, A->GetActorLocation(), Dt, 50.f); break; }
+			if (WalkTo(W, S.To, Dt, 40.f))
+			{
+				if (S.Doing == EDoing::Lean) S.T = 0.f;
+				else if (S.Doing == EDoing::ToSeat) { S.Doing = EDoing::SitDown; S.T = 0.f; }
+				else { S.Doing = EDoing::Stand; S.T = 0.f; S.For = Rng.FRandRange(2.f, 8.f); }
+			}
+			// (never out of its rooms, whatever happens)
+			if (!InArea(S, A->GetActorLocation()) && S.Doing != EDoing::SitDown)
+			{
+				float Bd = 1e12f; FVector Best = A->GetActorLocation();
+				for (const FBox2D& B : S.Area) { const FVector2D C = B.GetClosestPointTo(FVector2D(A->GetActorLocation())); const float D = FVector2D::DistSquared(C, FVector2D(A->GetActorLocation())); if (D < Bd) { Bd = D; Best = FVector(C.X, C.Y, A->GetActorLocation().Z); } }
+				A->SetActorLocation(Best); S.Doing = EDoing::Stand; S.T = 0.f; S.For = 1.f;
+			}
+			break;
+		}
+		case EDoing::SitDown: SitPose(S, FMath::Min(1.f, S.T / 0.9f)); if (S.T >= 0.9f) { S.Doing = EDoing::Sit; S.T = 0.f; S.For = Rng.FRandRange(30.f, 120.f); } break;
+		case EDoing::Sit: if (S.T >= S.For) { S.Doing = EDoing::StandUp; S.T = 0.f; } break;
+		case EDoing::StandUp:
+			SitPose(S, FMath::Max(0.f, 1.f - S.T / 0.9f));
+			if (S.T >= 0.9f)
+			{
+				// back on its feet in front of the seat, walking again
+				FVector SAt, SF; float SH;
+				if (ASeats::SeatOf(S.Seat, SAt, SF, SH))
+				{
+					// (its feet on the real floor in front of the seat, not the plan's height)
+					FVector P = FVector(SAt.X, SAt.Y, S.FloorZ) + SF * 60.f; FHitResult Fl; FCollisionQueryParams Qf(SCENE_QUERY_STAT(PeopleUp), false, A);
+					if (GetWorld()->LineTraceSingleByChannel(Fl, P + FVector(0, 0, 120.f), P - FVector(0, 0, 200.f), ECC_Visibility, Qf)) P.Z = Fl.ImpactPoint.Z;
+					A->SetActorLocationAndRotation(P, FRotator(0.f, SF.Rotation().Yaw - 90.f, 0.f));
+				}
+				if (W->Body) { static UBlendSpace* Move = LoadObject<UBlendSpace>(nullptr, TEXT("/Game/People/Anims/BS_Idle_Walk_Run_MH.BS_Idle_Walk_Run_MH")); W->Body->SetAnimationMode(EAnimationMode::AnimationSingleNode); if (Move) { W->Body->SetAnimation(Move); W->Body->Play(true); } }
+				ASeats::Release(A); S.Seat = INDEX_NONE; S.Pose = nullptr;
+				S.Doing = EDoing::Stand; S.T = 0.f; S.For = Rng.FRandRange(1.f, 3.f);
+			}
+			break;
+		}
+	}
+}
+
 void AADPPeople::Tick(float Dt)
 {
 	ADP_PERF_SCOPE("people: talk and conduct (each frame)", 2.f);
@@ -568,6 +872,7 @@ void AADPPeople::Tick(float Dt)
 	People.RemoveAll([](const FWho& W) { return !W.A.IsValid(); });
 	if (SubT > 0.f) SubT -= Dt;
 	if (SceneOn()) StepScene(Dt);
+	StepStrollers(Dt);
 	// the menu closes when you walk away from the person
 	if (bMenu)
 	{

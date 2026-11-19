@@ -72,6 +72,12 @@ void ASeats::Release(AActor* Who)
 	for (auto It = One->Taken.CreateIterator(); It; ++It) if (!It->Value.Who.IsValid() || It->Value.Who.Get() == Who) It.RemoveCurrent();
 }
 
+bool ASeats::SeatOf(int32 I, FVector& At, FVector& Facing, float& SeatH)
+{
+	if (!One.IsValid() || !One->Spots.IsValidIndex(I)) return false;
+	const ABabylonModel::FSeatSpot& S = One->Spots[I]; At = S.At; Facing = S.Facing; SeatH = S.SeatH; return true;
+}
+
 bool ASeats::StandSpot(int32 I, FVector& At, float& Yaw)
 {
 	if (!One.IsValid() || !One->Spots.IsValidIndex(I)) return false;

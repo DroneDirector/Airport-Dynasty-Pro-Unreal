@@ -27,6 +27,12 @@ class AIRPORTDYNASTYPRO_API AADPPeople : public AActor
 public:
 	AADPPeople();
 	static AADPPeople* Get(UWorld* W);
+	/** Passengers about the terminal for now (owner, 2026-11-19: until their trips and animations are done): a group that
+	 *  only walks the Grand Hall and a group that only walks Floor 2 (the Food Walk and the Landing) - each strolls from
+	 *  spot to spot inside its own area, never out of it. Once, when the airport has loaded. */
+	void StartWanderers();
+	/** For the tests: a stroller sitting (Kind 0) or leaning (1) now - where it is and the way it faces. */
+	bool StrollerDoing(int32 Kind, FVector& At, FVector& Facing) const;
 	virtual void Tick(float Dt) override;
 
 	/** How a line is said (for the voices later): calm, mild, firm, a bit aggressive, very aggressive. */
@@ -71,6 +77,26 @@ public:
 
 private:
 	TArray<FWho> People;
+	/** A strolling passenger (owner, 2026-11-19): its area (boxes of the plan's rooms, world cm, on its floor's height),
+	 *  its habit (on Floor 2: up and down the gate corridor, into the tax free, to the gates and their seats, a bench),
+	 *  what it is doing now (walking somewhere, standing, leaning on a wall, sitting), and for how long. */
+	enum class EHabit : uint8 { Hall, Corridor, Shopper, Gates, Bench };
+	enum class EDoing : uint8 { Stand, Walk, Lean, ToSeat, SitDown, Sit, StandUp };
+	struct FStroll
+	{
+		TWeakObjectPtr<AActor> A; TArray<FBox2D> Area; TArray<FString> AreaIds; float FloorZ = 0.f; EHabit Habit = EHabit::Hall;
+		EDoing Doing = EDoing::Stand; FVector To = FVector::ZeroVector; float T = 0.f, For = 0.f, LeanYaw = 0.f;
+		int32 Seat = INDEX_NONE; class FTruckDriverRig* Rig = nullptr; class UPoseableMeshComponent* Rider = nullptr; USceneComponent* Frame = nullptr;
+		class UDriverPoseAnim* Pose = nullptr; FTransform BodyInActor;
+	};
+	TArray<FStroll> Strollers;
+	bool bStrollersStarted = false;
+	void StepStrollers(float Dt);
+	bool StrollSpot(const FStroll& S, const FVector& From, FVector& Out, int32 Box = INDEX_NONE);
+	bool WallSpot(const FStroll& S, const FVector& From, FVector& Out, float& Yaw);
+	bool InArea(const FStroll& S, const FVector& P) const;
+	void NextThing(FStroll& S);
+	void SitPose(FStroll& S, float K);
 	struct FRosterRow { FString Role; bool bFemale = false; int32 Age = 30; };
 	TMap<FString, FRosterRow> Roster;
 	void LoadRoster();

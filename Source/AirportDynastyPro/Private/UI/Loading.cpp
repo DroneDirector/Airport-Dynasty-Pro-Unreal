@@ -5,6 +5,7 @@
 #include "UI/ADPHUD.h"
 #include "UI/SNeonLoading.h"
 #include "ADPLog.h"
+#include "People.h"
 // (Windows' own OPAQUE macro would break Cesium's glTF names when the build puts a Windows file before this one)
 #ifdef OPAQUE
 #undef OPAQUE
@@ -51,6 +52,7 @@ void AADPHUD::StartLoading()
 void AADPHUD::StopLoading()
 {
 	bLoading = false; GLoadDoneAt = -1.0;
+	if (AADPPeople* Pp = AADPPeople::Get(GetWorld())) Pp->StartWanderers();   // (the passengers about the terminal, once it is in - owner, 2026-11-19)
 	FShaderPipelineCache::SetBatchMode(FShaderPipelineCache::BatchMode::Background);   // (the rest, if any: quietly)
 	if (LoadingBox.IsValid()) LoadingBox->SetVisibility(EVisibility::Collapsed);
 }
