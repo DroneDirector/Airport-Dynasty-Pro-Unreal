@@ -57,6 +57,9 @@ public:
 	FVector ShoulderNow() const;
 	/** The right hand pointing (a button to press): the index finger out straight, the others and the thumb curled in. */
 	void SetPoint(bool bOn) { bPoint = bOn; }
+	/** The right hand holding a phone (owner, 2026-11-19, his photo): the fingers curled round its back, the thumb's tip on
+	 *  ThumbAt (the phone's side button - moved a few mm in to press it). */
+	void SetGrip(bool bOn, const FVector& ThumbAt = FVector::ZeroVector) { bGrip = bOn; GripThumb = ThumbAt; }
 	/** The right index finger's tip now (world). False without a body. */
 	bool FingerTipNow(FVector& Out) const;
 
@@ -105,7 +108,7 @@ private:
 	void UseEyeBody(bool bOn);
 	void PoseEyeBody();
 	float ArmW = 0.f; FVector ArmAt = FVector::ZeroVector, ArmF = FVector::ForwardVector, ArmT = FVector::UpVector;
-	bool bEyeThird = false, bPoint = false;
+	bool bEyeThird = false, bPoint = false, bGrip = false; FVector GripThumb = FVector::ZeroVector;
 	void ArmIK();
 	void DriveHuman(float Dt);
 	void ToggleView() { SetThirdPerson(!bThird); }

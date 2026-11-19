@@ -798,6 +798,13 @@ void AADPHUD::BeginPlay()
 		InputComponent->BindKey(EKeys::Gamepad_FaceButton_Left, IE_Pressed, this, &AADPHUD::Interact);
 		InputComponent->BindKey(EKeys::G, IE_Pressed, this, &AADPHUD::MenusKey);
 		InputComponent->BindKey(EKeys::E, IE_Pressed, this, &AADPHUD::Interact);
+		// the phone in your hand: its side button (the arrow keys, the pad's D-pad), its screen's swipe (the mouse wheel)
+		InputComponent->BindKey(EKeys::Up, IE_Pressed, this, &AADPHUD::PhoneSideUp).bConsumeInput = false;
+		InputComponent->BindKey(EKeys::Down, IE_Pressed, this, &AADPHUD::PhoneSideDown).bConsumeInput = false;
+		InputComponent->BindKey(EKeys::Gamepad_DPad_Up, IE_Pressed, this, &AADPHUD::PhoneSideUp).bConsumeInput = false;
+		InputComponent->BindKey(EKeys::Gamepad_DPad_Down, IE_Pressed, this, &AADPHUD::PhoneSideDown).bConsumeInput = false;
+		InputComponent->BindKey(EKeys::MouseScrollUp, IE_Pressed, this, &AADPHUD::PhoneWheelUp).bConsumeInput = false;
+		InputComponent->BindKey(EKeys::MouseScrollDown, IE_Pressed, this, &AADPHUD::PhoneWheelDown).bConsumeInput = false;
 		// (a click on the phone or a screen uses it too; the click still goes on to everything else)
 		InputComponent->BindKey(EKeys::LeftMouseButton, IE_Pressed, this, &AADPHUD::Interact).bConsumeInput = false;
 		InputComponent->BindKey(EKeys::M, IE_Pressed, this, &AADPHUD::ToggleMap);
@@ -1348,7 +1355,8 @@ void AADPHUD::UpdateMouse()
 {
 	APlayerController* PC = GetOwningPlayerController();
 	if (!PC) return;
-	const bool bHold = HoldingDevice() && !bDevice;   // (holding the phone or the tablet: the pointer free to reach the Buttons legend - owner, 2026-11-18)
+	const bool bHold = HoldingDevice() && !bDevice;
+	const bool bPhoneHand = bPhoneHeld && !bGame;   // (the phone in your hand: the mouse is the "+" or the view - never the OS pointer)   // (holding the phone or the tablet: the pointer free to reach the Buttons legend - owner, 2026-11-18)
 	const bool bFree = bGame || bDevice || bSettings || bWardrobe || bWhoAreYou || bPointer || bJetMenu || bPeopleMenuWas || bHold || (HoloMap.IsValid() && HoloMap->IsFull());
 	// (Unreal counts these calls: cleared first, so the view is never left locked by an earlier one)
 	PC->ResetIgnoreLookInput();
@@ -1356,6 +1364,14 @@ void AADPHUD::UpdateMouse()
 	// the phone or a computer up (or the phone on its way): you stay where you are, looking at it
 	PC->ResetIgnoreMoveInput();
 	if ((bDevice || bHmiPointer || HmiJ != INDEX_NONE || PhoneDir != 0 || bWardrobe || bWhoAreYou) && !bGame) { PC->SetIgnoreLookInput(true); PC->SetIgnoreMoveInput(true); }
+	if (bPhoneHand)
+	{
+		PC->ResetIgnoreLookInput(); PC->ResetIgnoreMoveInput(); PC->SetIgnoreMoveInput(true);
+		if (!bPhoneLook) PC->SetIgnoreLookInput(true);
+		PC->bShowMouseCursor = false; PC->SetInputMode(FInputModeGameOnly());
+		if (FSlateApplication::IsInitialized()) FSlateApplication::Get().SetAllUserFocusToGameViewport();
+		return;
+	}
 	PC->bShowMouseCursor = bFree;
 	if (bFree) { FInputModeGameAndUI M; M.SetHideCursorDuringCapture(false); PC->SetInputMode(M); }
 	else
@@ -1774,6 +1790,8 @@ void AADPHUD::OnEscape()
 
 void AADPHUD::TogglePointer()
 {
+	// the phone in your hand: the middle mouse button swaps the "+" on its screen and looking round (owner, 2026-11-19)
+	if (bPhoneHeld) { bPhoneLook = !bPhoneLook; PhPtrSent.Empty(); UpdateMouse(); return; }
 	if (bGame || bHidden || bSettings) return;   // (with Settings open the pointer is free anyway)
 	bPointer = !bPointer;
 	UpdateMouse();
@@ -1854,6 +1872,8 @@ void AADPHUD::Interact()
 	// up close at a jetway's monitor: E (the left mouse button, the pad's X) clicks what the "+" is over (to-do 115);
 	// Esc, the pad's B or the screen's EXIT step back
 	if (HmiJ != INDEX_NONE) { if (bHmiPointer) if (AJetwayHmi* L = AJetwayHmi::Get(GetWorld())) L->ClickCursor(); return; }
+	// the phone in your hand: E / the left mouse button / the pad's X - the side button's highlighted item, else what the "+" is on
+	if (bPhoneHeld) { if (!bPhoneLook && Browser.IsValid()) Browser->ExecuteJavascript(TEXT("(window.__uePhoneActivate && window.__uePhoneActivate()) || (window.__uePhoneClick && window.__uePhoneClick())")); return; }
 	// holding your tablet: E brings it up close and its screen opens
 	if (TabletUse()) return;
 	// a screen in front of you (a desk's monitor, a timetable): the airline game on it
@@ -2691,7 +2711,14 @@ void AADPHUD::Tick(float Dt)
 				{44.f, [&]() { if (bGame) ToggleGame(); ASunClock::HourOverride = 13.f; ASunClock::Refresh(); GoTo(FVector(117.6f, 0.f, 6.4f), FVector(115.85f, 0.8f, 5.42f)); }},
 				{50.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_PhoneOnDesk"), false, false); }},
 				{51.f, [&]() { PickPhoneNear(FTerminalPlan::ToWorld(115.85f, 0.8f, 5.42f)); }},
-				{51.3f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_PhoneLifting"), true, false); }},
+				{51.35f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_PhoneLifting"), true, false); }},
+				{55.5f, [&]() { if (GameBox.IsValid()) GameBox->SetVisibility(EVisibility::Collapsed); }},   // (the 3D phone and your hand alone: no career in a test run, so the page has no phone)
+				{56.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_PhoneHeld"), true, false); }},
+				{57.f, [&]() { if (GameBox.IsValid()) GameBox->SetVisibility(EVisibility::Visible); }},
+				{58.f, [&]() { PhoneSide(1); }},
+				{58.6f, [&]() { PhoneSide(1); }},
+				{58.7f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_PhoneSidePress"), true, false); }},
+				{60.f, [&]() { PhoneWheelDown(); }},
 				{62.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_PhoneOpen"), true, false); }},
 				{63.f, [&]() { PutDeviceAway(); }},
 				{63.5f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_PhoneLowering"), true, false); }},

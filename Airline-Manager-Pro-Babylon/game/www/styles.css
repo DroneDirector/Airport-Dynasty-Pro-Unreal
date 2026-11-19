@@ -4710,3 +4710,14 @@ html.ts-native #app, html.ts-native #rotate-hint { visibility: hidden; }
 .as-sub { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; opacity: .65; margin-top: 4px; }
 .as-coming { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; }
 .as-coming span { display: flex; flex-direction: column; padding: 7px 10px; border-radius: 10px; background: rgba(255,255,255,.05); font-size: 13px; } .as-coming small { opacity: .7; }
+
+/* the phone in your hand (owner 2026-11-19): Unreal holds the 3D phone; its screen is laid exactly on the 3D screen */
+.ph-screen.ph-held, .ph-screen.ph-held.in { display: block; background: none !important; backdrop-filter: none !important; pointer-events: none; }
+.ph-held .ph-frame { position: fixed !important; left: 0; top: 0; margin: 0; transform-origin: 0 0; transition: none !important; background: none !important; box-shadow: none !important; padding: 0 !important; border-radius: 0 !important; zoom: 1 !important; width: 400px !important; height: 858px !important; }
+.ph-held .ph-glass { border-radius: 30px; overflow: hidden; }
+.ph-held .ph-side, .ph-held .ph-glare, .ph-held .ph-cam { display: none !important; }
+.ph-plus { position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; pointer-events: none; z-index: 60; }
+.ph-plus::before, .ph-plus::after { content: ''; position: absolute; background: #fff; box-shadow: 0 0 0 1.5px rgba(0,0,0,.65); border-radius: 1px; }
+.ph-plus::before { left: 12px; top: 2px; width: 2px; height: 22px; }
+.ph-plus::after { top: 12px; left: 2px; height: 2px; width: 22px; }
+.ph-held .ph-hl { outline: 2.5px solid #fff !important; outline-offset: 2px; border-radius: 10px; box-shadow: 0 0 0 5px rgba(0,0,0,.35) !important; }

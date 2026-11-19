@@ -147,6 +147,23 @@ private:
 	FTransform PhoneHome;
 	float PhoneK = 0.f;
 	int32 PhoneDir = 0;
+	/** The phone in your hand (owner, 2026-11-19; docs/Device-Hold-Plan.md): held (its screen live on the 3D one), the
+	 *  view free (middle mouse) or the "+" pointer on its screen (the default), the pointer (0..1 across and down), the
+	 *  thumb's press on the side button (1 just pressed .. 0), the screen's corners last sent to the page. */
+	bool bPhoneHeld = false, bPhoneLook = false;
+	float PhU = 0.5f, PhV = 0.5f, PhThumb = 0.f;
+	float PhQuad[8] = {};
+	FString PhPtrSent;
+	void PhoneHand(class ABabylonModel* P, float Reach);
+public:
+	/** The phone's side button (+1 down the list, -1 up): the thumb presses it, a click, the highlight steps. */
+	void PhoneSide(int32 Dir);
+	void PhoneSideUp() { PhoneSide(-1); }
+	void PhoneSideDown() { PhoneSide(1); }
+	/** The mouse wheel over the phone in your hand: a finger's swipe on its screen. */
+	void PhoneWheelUp();
+	void PhoneWheelDown();
+private:
 public:
 	bool bLoading = false, bWasGame = true;
 	float LoadT = 0, LoadFrac = 0;

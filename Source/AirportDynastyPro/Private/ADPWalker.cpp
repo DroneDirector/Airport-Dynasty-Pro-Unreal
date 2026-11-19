@@ -404,7 +404,7 @@ void AADPWalker::ArmIK()
 	const FQuat Qb = FMatrix(F2, T2, FVector::CrossProduct(F2, T2), FVector::ZeroVector).ToQuat();
 	const FQuat Want = Qb * Qa.Inverse() * TH3.GetRotation();
 	EyeBody->SetBoneRotationByName(Ha, FQuat::Slerp(TH3.GetRotation(), Want, ArmW).Rotator(), EBoneSpaces::WorldSpace);
-	if (!bPoint) return;
+	if (!bPoint && !bGrip) return;
 	// pointing: the palm's side from the knuckles (index to little finger across the hand, the fingers along it: the palm
 	// lies to one side of both, the same side on every right hand); then each bone of the middle, ring and little fingers
 	// rolled in towards the palm, the thumb over them, and the index finger straightened along its first bone
@@ -442,6 +442,31 @@ void AADPWalker::ArmIK()
 			EyeBody->SetBoneRotationByName(Bn, (FQuat(Ax, FMath::DegreesToRadians(As[k] * ArmW)) * Wt(Bn).GetRotation()).Rotator(), EBoneSpaces::WorldSpace);
 		}
 	};
+	if (bGrip)
+	{
+		// holding a phone (his photo, 2026-11-19): the four fingers curled half way round its back, the little finger under
+		// it; the thumb's tip on the side button (steered there joint by joint, as the pointing hand's thumb is)
+		// (flat along the phone's back, then bent round its left edge at the middle joint - not curled over the screen)
+		Bend3(TEXT("index"), 12.f, 68.f, 22.f);
+		Bend3(TEXT("middle"), 14.f, 74.f, 24.f);
+		Bend3(TEXT("ring"), 18.f, 74.f, 24.f);
+		Bend3(TEXT("pinky"), 26.f, 70.f, 24.f);
+		const FName Th1(TEXT("thumb_01_r")), Th2(TEXT("thumb_02_r")), Th3(TEXT("thumb_03_r"));
+		if (!GripThumb.IsZero() && EyeBody->GetBoneIndex(Th1) != INDEX_NONE && EyeBody->GetBoneIndex(Th2) != INDEX_NONE && EyeBody->GetBoneIndex(Th3) != INDEX_NONE)
+		{
+			auto TipNow = [&]() { const FVector A = P(TEXT("thumb_02_r")), B = P(TEXT("thumb_03_r")); return B + (B - A) * 0.85f; };
+			for (int32 Pass = 0; Pass < 4; ++Pass)
+				for (const FName& Bn : {Th2, Th1})
+				{
+					const FVector O = Wt(Bn).GetLocation(), V1 = (TipNow() - O).GetSafeNormal(), V2 = (GripThumb - O).GetSafeNormal();
+					FQuat Qt = FQuat::FindBetweenNormals(V1, V2);
+					const float Ang = FMath::Min(Qt.GetAngle(), FMath::DegreesToRadians(Bn == Th1 ? 40.f : 55.f));
+					Qt = FQuat(Qt.GetRotationAxis(), Ang * ArmW);
+					EyeBody->SetBoneRotationByName(Bn, (Qt * Wt(Bn).GetRotation()).Rotator(), EBoneSpaces::WorldSpace);
+				}
+		}
+		return;
+	}
 	// (the owner's own hand, photographed 2026-11-14: a tight fist, fingertips into the palm)
 	Bend3(TEXT("middle"), 90.f, 105.f, 65.f);
 	Bend3(TEXT("ring"), 92.f, 105.f, 65.f);

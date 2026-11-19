@@ -8,6 +8,9 @@
 // where it lay. The menus' page draws it, see-through over the room, which keeps being drawn behind.
 #include "DoorPanelUse.h"
 #include "UI/ADPHUD.h"
+#include "ADPWalker.h"
+#include "ADPKeep.h"
+#include "Kismet/GameplayStatics.h"
 #include "UI/ADPBridge.h"
 #include "UI/GameView.h"
 #include "BabylonModel.h"
@@ -153,7 +156,7 @@ void AADPHUD::OpenDevice(const FString& Kind)
 {
 	if (bDevice || bGame || !GameBox.IsValid()) return;
 	MakeGameView();
-	bDevice = true; DeviceKind = Kind; DevicePending = Kind;
+	bDevice = true; DeviceKind = Kind; DevicePending = Kind == TEXT("phone") && bPhoneHeld ? FString(TEXT("phone-held")) : Kind;
 	Breadcrumb(Kind == TEXT("phone") ? TEXT("Using your phone") : Kind == TEXT("tablet") ? TEXT("Using your tablet") : Kind.StartsWith(TEXT("hmi")) ? TEXT("At the jetway's control screen") : TEXT("At a computer"));
 	GameBox->SetVisibility(EVisibility::Visible);
 	if (TopBar.IsValid()) TopBar->SetVisibility(EVisibility::Collapsed);
@@ -180,7 +183,7 @@ void AADPHUD::DeviceDone(const FString& Kind)
 	if (Credit.IsValid()) Credit->SetVisibility(EVisibility::HitTestInvisible);
 	if (MiniBox.IsValid()) MiniBox->SetVisibility(EVisibility::Visible);
 	// the phone back down onto the desk
-	if (ABabylonModel* P = Phone.Get()) { P->SetActorHiddenInGame(false); PhoneDir = -1; }
+	if (ABabylonModel* P = Phone.Get()) { P->SetActorHiddenInGame(false); PhoneDir = -1; bPhoneHeld = false; bPhoneLook = false; }
 	if (PhoneDir == 0 && DeviceLegend.IsValid()) DeviceLegend->SetVisibility(EVisibility::Collapsed);
 	DeviceKind = PhoneDir != 0 ? TEXT("phone") : FString();
 	UpdateMouse();
@@ -196,29 +199,121 @@ void AADPHUD::TickDevice(float Dt)
 		DevicePending.Empty();
 		if (FSlateApplication::IsInitialized()) FSlateApplication::Get().SetAllUserFocus(Browser, EFocusCause::SetDirectly);
 	}
-	// the phone: off the desk and up in front of your eyes (its screen to you, upright), or back down where it lay
+	// the phone (owner, 2026-11-19, his photo; docs/Device-Hold-Plan.md): your right arm reaches for it on the desk, takes it
+	// and brings it up into your hand - held as in his photo, fixed in your view (the world moves, not the phone); its
+	// screen live on the 3D phone (the page lays the phone's screen exactly on it); back down the same way
 	ABabylonModel* P = Phone.Get();
-	if (!P || PhoneDir == 0) return;
+	if (!P || (PhoneDir == 0 && !bPhoneHeld)) return;
 	APlayerController* PC = GetOwningPlayerController(); if (!PC) return;
-	PhoneK = FMath::Clamp(PhoneK + PhoneDir * Dt / PhoneLift, 0.f, 1.f);
+	if (PhoneDir != 0) PhoneK = FMath::Clamp(PhoneK + PhoneDir * Dt / PhoneLift, 0.f, 1.f);
 	FVector Eye; FRotator Look; PC->GetPlayerViewPoint(Eye, Look);
 	const FRotationMatrix CamM(Look);
-	const FVector F = CamM.GetUnitAxis(EAxis::X), U = CamM.GetUnitAxis(EAxis::Z);
-	// the model's top is its -y, its screen its +z (Art/Smartphone/make_smartphone.py, as placed)
-	const FTransform Held(FRotationMatrix::MakeFromYZ(-U, -F).ToQuat(), Eye + F * 24.f - U * 1.5f);
-	const float E = FMath::SmoothStep(0.f, 1.f, PhoneK);
-	FTransform Now; Now.Blend(PhoneHome, Held, E);
-	// a little arc on the way (up first, then towards you), as a hand lifts it
-	Now.AddToTranslation(FVector(0, 0, 8.f * FMath::Sin(PI * E)));
+	const FVector F = CamM.GetUnitAxis(EAxis::X), Rt = CamM.GetUnitAxis(EAxis::Y), U = CamM.GetUnitAxis(EAxis::Z);
+	// held: a little right of the middle and low, its screen turned to your eyes, its top up (the model's top is its -y,
+	// its screen its +z - Art/Smartphone/make_smartphone.py)
+	const FVector At = Eye + F * 30.f + Rt * 6.5f - U * 5.f;
+	const FVector N = (Eye - At).GetSafeNormal();
+	const FVector Top = (U - N * FVector::DotProduct(U, N)).GetSafeNormal();
+	const FTransform Held(FRotationMatrix::MakeFromYZ(-Top, N).ToQuat(), At);
+	// two phases: the hand reaches it (the first third), then it comes up with the hand (an arc, as a hand lifts it)
+	// (the phone held in your hand with its screen live on it is still being tuned - the hand's pose: only with -PhoneHand
+	// for now; without it the phone comes up and opens over the room as before - owner, 2026-11-19: release first)
+	static const bool bHandOn = FParse::Param(FCommandLine::Get(), TEXT("PhoneHand"));
+	const float K = PhoneK, Reach = FMath::SmoothStep(0.f, 1.f, FMath::Min(1.f, K / 0.35f)), Lift = FMath::SmoothStep(0.f, 1.f, FMath::Max(0.f, (K - 0.35f) / 0.65f));
+	FTransform Now; Now.Blend(PhoneHome, Held, Lift);
+	Now.AddToTranslation(U * (6.f * FMath::Sin(PI * Lift)));
 	P->SetActorTransform(Now);
-	if (PhoneDir > 0 && PhoneK >= 1.f) { PhoneDir = 0; P->SetActorHiddenInGame(true); OpenDevice(TEXT("phone")); }
+	if (bHandOn) PhoneHand(P, Reach);
+	if (!bHandOn && PhoneDir > 0 && PhoneK >= 1.f) { PhoneDir = 0; P->SetActorHiddenInGame(true); OpenDevice(TEXT("phone")); return; }
+	if (PhoneDir > 0 && PhoneK >= 1.f) { PhoneDir = 0; bPhoneHeld = true; bPhoneLook = false; PhU = 0.5f; PhV = 0.5f; PhPtrSent.Empty(); FMemory::Memzero(PhQuad); OpenDevice(TEXT("phone")); if (FParse::Param(FCommandLine::Get(), TEXT("UIDevice"))) DevicePending.Empty(); }   // (the test run: no career, so no page - the hand and the 3D phone alone)
 	else if (PhoneDir < 0 && PhoneK <= 0.f)
 	{
 		PhoneDir = 0; P->SetActorTransform(PhoneHome); Phone = nullptr; DeviceKind.Empty();
+		PhoneHand(nullptr, 0.f);
 		if (DeviceLegend.IsValid()) DeviceLegend->SetVisibility(EVisibility::Collapsed);
 		UpdateMouse();
+		return;
 	}
+	if (!bPhoneHeld || !Browser.IsValid()) return;
+	// the "+" (the default): the mouse moves it on the phone's screen - its speed from how fast you move the mouse (slow
+	// and precise, or a flick across); the pad's left stick too
+	if (!bPhoneLook)
+	{
+		float Mx = 0.f, My = 0.f; PC->GetInputMouseDelta(Mx, My);
+		const float Spd = FVector2D(Mx, My).Size() / FMath::Max(Dt, 0.001f);
+		const float Gain = 0.35f + 1.6f * FMath::SmoothStep(120.f, 2500.f, Spd);
+		FVector2D D(Mx * Gain, -My * Gain);
+		const float Sx = PC->GetInputAnalogKeyState(EKeys::Gamepad_LeftX), Sy = PC->GetInputAnalogKeyState(EKeys::Gamepad_LeftY);
+		if (FMath::Abs(Sx) > 0.15f || FMath::Abs(Sy) > 0.15f) D += FVector2D(Sx, -Sy) * 260.f * Dt;
+		PhU = FMath::Clamp(PhU + D.X / 400.f, 0.f, 1.f); PhV = FMath::Clamp(PhV + D.Y / 858.f, 0.f, 1.f);
+	}
+	const FString Ptr = FString::Printf(TEXT("window.__uePhonePtr && window.__uePhonePtr(%.4f,%.4f,%s)"), PhU, PhV, bPhoneLook ? TEXT("false") : TEXT("true"));
+	if (Ptr != PhPtrSent) { PhPtrSent = Ptr; Browser->ExecuteJavascript(Ptr); }
+	// the screen's four corners on the window (top-left, top-right, bottom-right, bottom-left), sent when they move
+	const int32 Sc = P->NodeIndex(TEXT("Screen"));
+	const TPair<UInstancedStaticMeshComponent*, int32> In = Sc != INDEX_NONE ? P->NodeInstance(Sc) : TPair<UInstancedStaticMeshComponent*, int32>(nullptr, INDEX_NONE);
+	FTransform ST;
+	if (In.Key && In.Key->GetStaticMesh() && In.Key->GetInstanceTransform(In.Value, ST, true))
+	{
+		const FBox Bx = In.Key->GetStaticMesh()->GetBoundingBox();
+		const FVector Cs[4] = { FVector(Bx.Min.X, Bx.Min.Y, Bx.Max.Z), FVector(Bx.Max.X, Bx.Min.Y, Bx.Max.Z), FVector(Bx.Max.X, Bx.Max.Y, Bx.Max.Z), FVector(Bx.Min.X, Bx.Max.Y, Bx.Max.Z) };
+		int32 VW = 1, VH = 1; PC->GetViewportSize(VW, VH);
+		float Q[8]; bool bOk = true, bMoved = false;
+		for (int32 i = 0; i < 4; ++i)
+		{
+			FVector2D S2; bOk &= PC->ProjectWorldLocationToScreen(ST.TransformPosition(Cs[i]), S2, false);
+			Q[i * 2] = S2.X / FMath::Max(1, VW); Q[i * 2 + 1] = S2.Y / FMath::Max(1, VH);
+			bMoved |= FMath::Abs(Q[i * 2] - PhQuad[i * 2]) > 0.0004f || FMath::Abs(Q[i * 2 + 1] - PhQuad[i * 2 + 1]) > 0.0004f;
+		}
+		{ static double SaidAt = 0.0; const double Tn = FPlatformTime::Seconds(); if (Tn - SaidAt > 1.0) { SaidAt = Tn; ADP_LOG(TEXT("Phone: screen corners %.3f,%.3f %.3f,%.3f %.3f,%.3f %.3f,%.3f (ok %d, viewport %dx%d, box %s)"), Q[0], Q[1], Q[2], Q[3], Q[4], Q[5], Q[6], Q[7], bOk ? 1 : 0, VW, VH, *Bx.ToString()); } }
+		if (bOk && bMoved)
+		{
+			FMemory::Memcpy(PhQuad, Q, sizeof(Q));
+			Browser->ExecuteJavascript(FString::Printf(TEXT("window.__uePhoneQuad && window.__uePhoneQuad([%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f])"), Q[0], Q[1], Q[2], Q[3], Q[4], Q[5], Q[6], Q[7]));
+		}
+	}
+	// the thumb's press on the side button eases back
+	PhThumb = FMath::Max(0.f, PhThumb - Dt / 0.18f);
 }
+
+void AADPHUD::PhoneHand(ABabylonModel* P, float Reach)
+{
+	// your right arm and hand on the phone (his photo): the wrist under its lower right corner and behind it, the fingers
+	// across its back towards its upper left, the thumb's tip on the side button (pressed: a few mm in)
+	AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn());
+	if (!Wk) return;
+	if (!P || Reach <= 0.001f) { Wk->SetArm(0.f, FVector::ZeroVector, FVector::ForwardVector, FVector::UpVector); Wk->SetGrip(false); return; }
+	const FTransform PT = P->GetActorTransform();
+	// (on the desk the hand comes from above it; in your hand from behind it)
+	// (the actor's +z is the phone's back - checked on the test picture: -z put the hand in front of the screen)
+	const float Up = FMath::Lerp(-3.f, 3.f, FMath::Clamp((PhoneK - 0.35f) / 0.3f, 0.f, 1.f));
+	// (his photo: the palm behind the phone's right half, the fingers running left across its back and wrapping only its
+	// left edge - not over the screen; the thumb up the right edge)
+	const FVector Wrist = PT.TransformPosition(FVector(6.0f, 6.5f, Up));
+	const FVector Fingers = PT.TransformVectorNoScale(FVector(-0.92f, -0.38f, 0.f)).GetSafeNormal();
+	const FVector Thumb = PT.TransformVectorNoScale(FVector(-0.15f, 1.f, 0.25f)).GetSafeNormal();   // (the rig reads the thumb mirrored: this turns the palm to face you from behind the phone)
+	// the side button: its key on the right edge (Key1 - the middle one), the thumb's tip on its outside
+	FVector Key = PT.TransformPosition(FVector(3.75f, -1.5f, 0.f));
+	const int32 Ki = P->NodeIndex(TEXT("Key1"));
+	if (Ki != INDEX_NONE) { const TPair<UInstancedStaticMeshComponent*, int32> In = P->NodeInstance(Ki); FTransform KT; if (In.Key && In.Key->GetInstanceTransform(In.Value, KT, true)) Key = KT.GetLocation(); }
+	const FVector Out = PT.TransformVectorNoScale(FVector(1.f, 0.f, 0.f)).GetSafeNormal();
+	Wk->SetArm(Reach, Wrist, Fingers, Thumb);
+	{ static double SaidAt = 0.0; const double Tn = FPlatformTime::Seconds(); if (Tn - SaidAt > 0.5) { SaidAt = Tn; ADP_LOG(TEXT("Phone: hand reach %.2f, wrist %.0f cm from your eyes"), Reach, FVector::Dist(Wrist, Wk->GetPawnViewLocation())); } }
+	Wk->SetGrip(PhoneK > 0.3f, Key + Out * (0.5f - 0.35f * PhThumb));
+}
+
+void AADPHUD::PhoneSide(int32 Dir)
+{
+	if (!bPhoneHeld || !Browser.IsValid()) return;
+	PhThumb = 1.f;
+	Browser->ExecuteJavascript(FString::Printf(TEXT("window.__uePhoneStep && window.__uePhoneStep(%d)"), Dir));
+	// a small click from the phone's side (the side button only - not the "+", not the wheel)
+	static USoundBase* Click = ADPKeep(LoadObject<USoundBase>(nullptr, TEXT("/Game/Player/Sounds/PhSideClick.PhSideClick")));
+	if (Click && Phone.IsValid()) UGameplayStatics::PlaySoundAtLocation(this, Click, Phone->GetActorLocation(), 0.6f);
+}
+
+void AADPHUD::PhoneWheelUp() { if (bPhoneHeld && !bPhoneLook && Browser.IsValid()) Browser->ExecuteJavascript(TEXT("window.__uePhoneScroll && window.__uePhoneScroll(-140)")); }
+void AADPHUD::PhoneWheelDown() { if (bPhoneHeld && !bPhoneLook && Browser.IsValid()) Browser->ExecuteJavascript(TEXT("window.__uePhoneScroll && window.__uePhoneScroll(140)")); }
 
 void AADPHUD::PickPhoneNear(const FVector& At)
 {

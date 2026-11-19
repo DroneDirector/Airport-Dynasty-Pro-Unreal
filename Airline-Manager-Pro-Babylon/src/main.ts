@@ -143,10 +143,12 @@ let newStageDone = false;
   loadingNeonShow();
   newStageDone = true; try { pickPlace('game:new'); } finally { newStageDone = false; }
 };
-onGameReady(() => loadingNeonDone());
-onGameFounding(() => loadingNeonHide());
-onGameLoading(() => loadingNeonShow());
-onNoGame(() => { toast('No career on this PC yet: start a New game'); });
+// (a device picked up in the 3D world opens the game quietly behind it - none of these screens then: owner, 2026-11-19)
+let devQuiet = false;
+onGameReady(() => { if (!devQuiet) loadingNeonDone(); });
+onGameFounding(() => { if (!devQuiet) loadingNeonHide(); });
+onGameLoading(() => { if (!devQuiet) loadingNeonShow(); });
+onNoGame(() => { if (!devQuiet) toast('No career on this PC yet: start a New game'); });
 (window as any).__ueStressReport = (text: string) => { if (!splashIsOpen()) splashOpen(pickPlace); setTimeout(() => splashStressReport(text), 700); };
 (window as any).__ueNewGameCancel = () => { if (!splashIsOpen()) splashOpen(pickPlace); };
 splashOpen(pickPlace);
@@ -162,21 +164,31 @@ updateInit(v => toast(`Version ${v} is ready: Settings â†’ Updates`));
 // one ('phone', 'ops' or 'office'); this page and the game's frame turn see-through over Unreal's room, and the game
 // shows only that, opened as in its own rooms. Your airline is opened first if it isn't yet (the last save). When it's
 // put away the game says so here and Unreal is told (devicedone), which puts the phone back on the desk.
+// Owner, 2026-11-19: "The title screen should not appear unless you quit the game" - picking up the phone (or using a PC)
+// never shows the title screen or the game's loading screens: the game is opened quietly behind, out of sight
+// (ue-dev-wait), and the device appears once it is there; with no career there is nothing to open (back to the room).
 (window as any).__ueDevice = (kind: string) => {
-  document.documentElement.classList.add('ue-dev');
-  if (!gameExists()) pickPlace('game:continue');
+  document.documentElement.classList.add('ue-dev', 'ue-dev-wait');
+  if (!gameExists()) {
+    if (!hasCareer()) { (window as any).__ueDeviceDone(kind); return; }
+    devQuiet = true;
+    gameOpen('continue', { title: () => { if (!devQuiet) splashOpen(pickPlace); }, exit: () => exitGame(), viewer: (fid: string) => enter('viewer3d', TITLES.viewer3d, fid ? { live: fid } : undefined) });
+  }
   let tries = 0;
   const open = () => {
     const ready = gameEval(`typeof ueDeviceOpen === 'function' && typeof State !== 'undefined' && !!State.companies`);
-    if (ready) { gameEval(`ueDeviceOpen(${JSON.stringify(kind)})`); return; }
-    if (++tries > 150) { (window as any).__ueDeviceDone(kind); return; }   // 30 seconds and no airline: back to the room
+    if (ready) { gameEval(`ueDeviceOpen(${JSON.stringify(kind)})`); devQuiet = false; requestAnimationFrame(() => document.documentElement.classList.remove('ue-dev-wait')); return; }
+    if (++tries > 150) { devQuiet = false; (window as any).__ueDeviceDone(kind); return; }   // 30 seconds and no airline: back to the room
     setTimeout(open, 200);
   };
   open();
 };
+// the phone in your hand (owner, 2026-11-19; the game's screens/ue-device.ts): Unreal's calls for it handed on to the game
+for (const n of ['__uePhoneQuad', '__uePhonePtr', '__uePhoneClick', '__uePhoneScroll', '__uePhoneStep', '__uePhoneActivate'])
+  (window as any)[n] = (...a: any[]) => { const r = gameEval(`window.${n} && window.${n}(${a.map(x => JSON.stringify(x)).join(',')})`); const u = ue(); const k = '_said' + n; if (u && u.log && ((typeof r === 'string' && r.startsWith('PHLOG ')) || !(window as any)[k])) { (window as any)[k] = 1; u.log('phone ' + n + ' -> ' + typeof r + ' ' + String(r).slice(0, 300) + ' (game frame ' + (gameExists() ? 'there' : 'missing') + ', its fn ' + gameEval(`typeof window.${n}`) + ', held ' + gameEval('typeof PhHeld !== "undefined" && PhHeld.on') + ')'); } return r; };
 // Unreal's own put-away (the legend's button, Esc when the page doesn't have the keys)
 (window as any).__ueDeviceClose = () => { if (gameEval(`typeof ueDeviceOn === 'function' && ueDeviceOn()`)) gameEval('ueDeviceClose()'); else (window as any).__ueDeviceDone(''); };
-(window as any).__ueDeviceDone = (kind: string) => { document.documentElement.classList.remove('ue-dev'); (window as any).__ueBoardsNow && (window as any).__ueBoardsNow(); const u = ue(); if (u && u.devicedone) u.devicedone(String(kind || '')); };
+(window as any).__ueDeviceDone = (kind: string) => { document.documentElement.classList.remove('ue-dev', 'ue-dev-wait'); (window as any).__ueBoardsNow && (window as any).__ueBoardsNow(); const u = ue(); if (u && u.devicedone) u.devicedone(String(kind || '')); };
 // and the airline for Unreal's own interface: the departures and arrivals at your airport, the airline's name and money
 if (UE_PC) {
   setInterval(() => {

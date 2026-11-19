@@ -67,20 +67,23 @@ void ADPTitleBg::Clock(bool bNowOn, float Seconds)
 	// the video, when it plays: it runs on its own; only when it is half a second or more off the music does it jump to it
 	if (UBinkMediaPlayer* V = GVideo.Get())
 	{
-		float VErr = Seconds - float(V->GetTime().GetTotalSeconds());
+		// (owner, 2026-11-19: "the title screen video is flashing like crazy" - it was jumping to the music several times a
+		// second. Now: no reading while it starts (its clock is nonsense then); a small steady lag is learnt once (the time a
+		// jump takes to land) and the next jump aimed that much ahead; a big gap (a stall) is a plain jump; at most one jump
+		// every 8 s; each logged.)
+		const double VT = V->GetTime().GetTotalSeconds();
+		static double LastSeek = -100.0, LastSay = 0.0, Started = -1.0; static int32 Seeks = 0; static float Lead = 0.f;
+		if (Started < 0.0) Started = T;
+		const bool bSane = VT >= 0.0 && VT <= TS_DUR + 1.0 && T - Started > 2.0 && V->IsPlaying();
+		float VErr = Seconds - float(VT);
 		if (VErr > TS_DUR * 0.5f) VErr -= TS_DUR; else if (VErr < -TS_DUR * 0.5f) VErr += TS_DUR;
-		// (owner, 2026-11-19: "the title screen video is flashing like crazy" - a jump at most every 8 s, and only when it is
-		// really off (over a second), each one logged; the video and the music clocks logged every 5 s to see them agree)
-		// (a jump takes a moment to land, so it is aimed that much ahead - learnt from each jump: the video ran a steady 0.77 s
-		// behind after its start, and jumping straight to the music made it jump again and again - the flashing)
-		static double LastSeek = -100.0, LastSay = 0.0; static int32 Seeks = 0; static float Lead = 0.f;
-		if (FMath::Abs(VErr) > 0.25f && V->SupportsSeeking() && T - LastSeek > 8.0)
+		if (bSane && FMath::Abs(VErr) > 0.25f && V->SupportsSeeking() && T - LastSeek > 8.0)
 		{
-			if (Seeks > 0) Lead = FMath::Clamp(Lead + VErr, 0.f, 2.f);
+			if (Seeks > 0 && FMath::Abs(VErr) < 1.5f) Lead = FMath::Clamp(Lead + VErr, 0.f, 1.5f);
 			LastSeek = T; ++Seeks; V->Seek(FTimespan::FromSeconds(FMath::Fmod(Seconds + Lead, TS_DUR)));
-			ADP_LOG(TEXT("Title film: video %.2f s off the music (video %.2f, music %.2f) - jumped to it (%d jumps so far)"), VErr, V->GetTime().GetTotalSeconds(), Seconds, Seeks);
+			ADP_LOG(TEXT("Title film: video %.2f s off the music (video %.2f, music %.2f) - jumped, aimed %.2f s ahead (%d jumps so far)"), VErr, VT, Seconds, Lead, Seeks);
 		}
-		if (T - LastSay > 5.0) { LastSay = T; ADP_LOG(TEXT("Title film: video at %.2f s, music at %.2f s (off %.2f)"), V->GetTime().GetTotalSeconds(), Seconds, VErr); }
+		if (T - LastSay > 5.0) { LastSay = T; ADP_LOG(TEXT("Title film: video at %.2f s, music at %.2f s (off %.2f)"), VT, Seconds, VErr); }
 	}
 	if (FMath::Abs(Err) > 0.6f) return;
 	// (else: carry on from where the film is now, a little faster or slower until it meets the music - at most 4 %)
