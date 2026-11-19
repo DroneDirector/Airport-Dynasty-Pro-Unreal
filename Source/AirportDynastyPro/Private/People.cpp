@@ -857,7 +857,7 @@ void AADPPeople::SitPose(FStroll& S, float K)
 	{
 		const float Deep = S.Rig->ThighsInSeat(GetWorld(), S.Frame->GetComponentTransform(), ThighR, A);
 		if (Deep <= 0.4f || S.CushionTries > 12) { S.bCushionOk = true; static int32 Said = 0; if (Said++ < 4) ADP_LOG(TEXT("People: on the cushion - forward %.0f cm, up %.1f cm (thighs %.1f cm into it)"), S.Fwd, S.Lift, Deep); }
-		else { ++S.CushionTries; if (S.Fwd < 12.f) S.Fwd += 2.f; else if (S.Lift < 8.f) S.Lift = FMath::Min(8.f, S.Lift + Deep); else S.bCushionOk = true; }
+		else { ++S.CushionTries; if (S.Fwd < 12.f) S.Fwd += 2.f; else if (S.Lift < 8.f) S.Lift = FMath::Min(8.f, S.Lift + Deep); else { S.bCushionOk = true; static int32 SaidCap = 0; if (SaidCap++ < 4) ADP_LOG(TEXT("People: on the cushion (limits) - forward %.0f cm, up %.1f cm, thighs still %.1f cm into it"), S.Fwd, S.Lift, Deep); } }
 	}
 	if (E > 0.35f) S.Rig->RestHandsOnThighs(P, ThighR, FMath::Clamp((E - 0.35f) / 0.3f, 0.f, 1.f));
 	if (S.Pose) S.Pose->Local = S.Rig->LocalPose();
