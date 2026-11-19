@@ -22,4 +22,10 @@ Reference: `Art/Reference/From-Phone/2026-11-19/phone-hold-reference.jpg` (his o
 | 3 | **The live screen on the device.** The phone's screen in your hand IS the phone (no full-screen overlay any more): the page's phone screen drawn exactly onto the 3D screen (perspective-matched each frame), the "+" pointer on it, E / left click clicks what is under the "+". Middle mouse switches between the "+" and looking around. Same for the tablet. | 3 |
 | 4 | **The side button.** Mouse wheel / the pad's D-pad up-down press the side button: the thumb moves onto it and presses (a small click), a highlight box steps to the next/previous item on the screen (apps on the home screen, rows in an app), long lists scroll with it; E / Cross opens the highlighted item. | 2-3 |
 
-About 8-9 working hours for parts 2-4. Each part committed on its own; nothing published without his word.
+| 5 | **Calls in third person.** On a call (making or taking one) in third person, your character lifts the phone to the ear the natural way (researched from real people: the elbow up and out, the phone flat against the cheek, the head slightly tilted towards it); first person keeps today's call screen. | 2 |
+
+Side button details (owner, 2026-11-19): pressing the side button makes a small click sound and the thumb presses it;
+the mouse wheel over the screen scrolls like a finger on a touch screen - no click, no thumb; the "+" pointer's clicks
+make no side-button sound.
+
+About 10-11 working hours for parts 2-5. Each part committed on its own; nothing published without his word.
