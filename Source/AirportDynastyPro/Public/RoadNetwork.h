@@ -38,6 +38,8 @@ public:
 	/** The coach stands (owner, 2026-11-19): each lettered stand box's middle on the road's surface, facing the way the coaches
 	 *  drive in - filled as the forecourt's paint is laid. */
 	static TArray<FTransform> BusStands;
+	/** Every zebra crossing: its two ends on the ground (world), for the walks (the coaches' stress walk). */
+	static TArray<TPair<FVector, FVector>> ZebraCrossings;
 	static FVector TestDrain;
 	static FVector TestDrainOut;
 	static FVector TestManhole;

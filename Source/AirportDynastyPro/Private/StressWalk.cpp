@@ -15,12 +15,17 @@
 #include "SunClock.h"
 #include "BabylonModel.h"
 #include "UObject/UObjectGlobals.h"
+#include "Coaches.h"
+#include "RoadNetwork.h"
 
 namespace ADPStressWalkInternal
 {
 	// one part of the walk; places in the terminal plan's metres (x east, h up, z north)
-	enum class EWalkKind : uint8 { Go, Walk, Look, Face, Escalator, Night, JetwayRide, JetwayWatch };
-	struct FWalkPart { const TCHAR* What; EWalkKind Kind; TArray<FVector> Points; float Seconds; float Yaw; };   // (Points: x, h, z)
+	enum class EWalkKind : uint8 { Go, Walk, Look, Face, Escalator, Night, JetwayRide, JetwayWatch, FaceAt, Direct, CoachDoor };
+	// (Points: the terminal plan's x, h, z - or world points when bWorld: the coaches' walk, laid out from where the coaches and
+	// the crossings are; FaceAt: look at Points[0]; Direct: straight to each point, the body's own collision only - a coach's
+	// aisle is narrower than the planner's squares; CoachDoor: E at the coach door you stand by)
+	struct FWalkPart { const TCHAR* What; EWalkKind Kind; TArray<FVector> Points; float Seconds; float Yaw; bool bWorld = false; };
 
 	TArray<FWalkPart> WalkRoute()
 	{
@@ -86,7 +91,7 @@ namespace ADPStressWalkInternal
 		};
 	}
 
-	bool bWalkOn = false, bWalkQuit = false, bWalkStarted = false;
+	bool bWalkOn = false, bWalkQuit = false, bWalkStarted = false, bWalkCoaches = false;
 	float WalkWait = 15.f, WalkClock = 0.f, WalkPartT = 0.f, WalkStuckT = 0.f, WalkBestDist = 1e9f, WalkEndNoteT = 0.f;
 	int32 WalkPart = -1, WalkPoint = 0, WalkSide = 1;
 	TArray<FWalkPart> WalkParts;
@@ -94,10 +99,70 @@ namespace ADPStressWalkInternal
 	float WalkHourWas = -1.f; int32 WalkJet = INDEX_NONE; bool WalkToCab = false;
 
 	FVector WalkWorld(const FVector& PlanP) { return FTerminalPlan::ToWorld(PlanP.X, PlanP.Y, PlanP.Z); }
+	FVector PartPoint(const FWalkPart& Pt, int32 I) { return Pt.bWorld ? Pt.Points[I] : WalkWorld(Pt.Points[I]); }
 
-	void WalkSnap(UWorld* W, ACharacter* Ch, const FVector& PlanP, float Yaw)
+	// the coaches' walk, laid out from the parked coaches and the zebra crossing next to them (world points)
+	TArray<FWalkPart> CoachRoute(UWorld* W)
 	{
-		FVector At = WalkWorld(PlanP);
+		TArray<FWalkPart> R;
+		ACoaches* Co = ACoaches::Find();
+		if (!Co || Co->Num() == 0 || ARoadNetwork::ZebraCrossings.Num() == 0) { ADP_WARN(TEXT("Stress walk: no coaches or no crossings - the coaches' walk can't be laid out")); return R; }
+		FVector Mid = FVector::ZeroVector; for (int32 i = 0; i < Co->Num(); ++i) Mid += Co->RootOf(i).GetLocation(); Mid /= Co->Num();
+		// the crossing nearest the coaches; its near end (the coaches' side) and far end (the car park's)
+		int32 Ci = 0; float Cd = 1e12f;
+		for (int32 i = 0; i < ARoadNetwork::ZebraCrossings.Num(); ++i) { const float D = FVector::Dist2D((ARoadNetwork::ZebraCrossings[i].Key + ARoadNetwork::ZebraCrossings[i].Value) / 2, Mid); if (D < Cd) { Cd = D; Ci = i; } }
+		FVector Near = ARoadNetwork::ZebraCrossings[Ci].Key, Far = ARoadNetwork::ZebraCrossings[Ci].Value;
+		if (FVector::Dist2D(Far, Mid) < FVector::Dist2D(Near, Mid)) Swap(Near, Far);
+		const FVector Across = (Far - Near).GetSafeNormal2D();
+		// the coach nearest the crossing, and the others along the row from it
+		int32 K = 0; float Kd = 1e12f; for (int32 i = 0; i < Co->Num(); ++i) { const float D = FVector::Dist2D(Co->RootOf(i).GetLocation(), Near); if (D < Kd) { Kd = D; K = i; } }
+		const FTransform KR = Co->RootOf(K);
+		auto InCoach = [&](float X, float Y, float Z) { return KR.TransformPosition(FVector(X * 100.f, -Y * 100.f, Z * 100.f)); };
+		FVector DAt, DOut; Co->DoorSpot(K, 0, DAt, DOut);
+		const FVector Start = Far + Across * 2200.f;   // (in the car park across the road: the nearer one, a little back)
+		const FVector Look = Mid + FVector(0, 0, 150.f);
+		const FVector Fw = KR.GetRotation().GetForwardVector().GetSafeNormal2D();
+		const float Sg = FVector::DotProduct(Mid - KR.GetLocation(), Fw) >= 0.f ? 1.f : -1.f;
+		auto Part = [&](const TCHAR* What, EWalkKind Kind, TArray<FVector> Pts, float Sec, bool bWorld) { FWalkPart P{What, Kind, MoveTemp(Pts), Sec, 0.f}; P.bWorld = bWorld; R.Add(P); };
+		for (int32 Pass = 0; Pass < 2; ++Pass)
+		{
+			const bool bNight = Pass == 1;
+			if (bNight) Part(TEXT("night falls (21:00)"), EWalkKind::Night, {}, 4.f, false);
+			Part(bNight ? TEXT("at night: in the car park nearer the terminal") : TEXT("in the car park nearer the terminal"), EWalkKind::Go, {Start}, 0.f, true);
+			Part(TEXT("looking at the coaches across the road"), EWalkKind::FaceAt, {Look}, 6.f, true);
+			Part(TEXT("walking to the zebra crossing and over it"), EWalkKind::Walk, {Far + Across * 150.f, Far, Near, Near - Across * 200.f}, 60.f, true);
+			Part(TEXT("turning to look at the coaches"), EWalkKind::FaceAt, {Look}, 6.f, true);
+			// (inside: through the 59 cm gap between the red pole at the partition end and the stair handrail - y -0.27 m - then the
+			// aisle, 45 cm between the seats: the hip-wide body just passes)
+			// up close along them: two metres out from their door sides, past three of them
+			TArray<FVector> Along; Along.Add(DAt + DOut * 200.f);
+			for (int32 s = 1; s <= 3; ++s) Along.Add(DAt + DOut * 200.f + Fw * (Sg * s * 1300.f));
+			Part(TEXT("walking up close along the coaches"), EWalkKind::Walk, Along, 60.f, true);
+			Part(TEXT("looking along the coaches up close"), EWalkKind::Look, {}, 8.f, false);
+			Part(TEXT("back to a coach's front door"), EWalkKind::Walk, {DAt + DOut * 130.f}, 40.f, true);
+			Part(TEXT("opening the coach's front door (E)"), EWalkKind::CoachDoor, {}, 2.5f, false);
+			Part(TEXT("into the coach and down its aisle"), EWalkKind::Direct, {DAt - DOut * 60.f + FVector(0, 0, 60.f), InCoach(5.30f, -0.27f, 1.45f), InCoach(4.45f, -0.27f, 1.45f), InCoach(3.80f, -0.05f, 1.45f), InCoach(1.5f, 0.f, 1.45f), InCoach(-1.5f, 0.f, 1.45f), InCoach(-4.9f, 0.f, 1.45f)}, 45.f, true);
+			Part(TEXT("looking round at the back of the coach"), EWalkKind::Look, {}, 8.f, false);
+			Part(TEXT("back up the aisle and out"), EWalkKind::Direct, {InCoach(-1.5f, 0.f, 1.45f), InCoach(1.5f, 0.f, 1.45f), InCoach(3.80f, -0.05f, 1.45f), InCoach(4.45f, -0.27f, 1.45f), InCoach(5.30f, -0.27f, 1.45f), DAt - DOut * 60.f + FVector(0, 0, 60.f), DAt + DOut * 150.f}, 45.f, true);
+			Part(TEXT("shutting the coach's front door (E)"), EWalkKind::CoachDoor, {}, 2.5f, false);
+			// the main hall: the coaches seen through its glass
+			Part(bNight ? TEXT("at night: in the main hall") : TEXT("in the main hall"), EWalkKind::Go, {FVector(75.f, 0.f, 15.f)}, 0.f, false);
+			Part(TEXT("looking out at the coaches from the main hall"), EWalkKind::FaceAt, {Look}, 8.f, true);
+			Part(TEXT("walking to the hall's glass, the coaches in view"), EWalkKind::Walk, {FVector(75.f, 0.f, 4.f)}, 25.f, false);
+			Part(TEXT("looking at the coaches through the glass"), EWalkKind::FaceAt, {Look}, 8.f, true);
+		}
+		if (FParse::Param(FCommandLine::Get(), TEXT("CoachWalkQuick")))
+		{
+			int32 From = R.IndexOfByPredicate([](const FWalkPart& P) { return FCString::Strstr(P.What, TEXT("back to a coach's front door")) != nullptr; });
+			if (From != INDEX_NONE) { R.RemoveAt(0, From); const int32 To = R.IndexOfByPredicate([](const FWalkPart& P) { return P.Kind == EWalkKind::Night; }); if (To != INDEX_NONE) R.SetNum(To); R.Insert(FWalkPart{TEXT("at the coach (quick)"), EWalkKind::Go, {DAt + DOut * 300.f}, 0.f, 0.f}, 0); R[0].bWorld = true; }
+		}
+		ADP_LOG(TEXT("Stress walk: the coaches' walk laid out - coach %d of %d, crossing %d of %d (%.0f m from the coaches)"), K, Co->Num(), Ci, ARoadNetwork::ZebraCrossings.Num(), Cd / 100.f);
+		return R;
+	}
+
+	void WalkSnap(UWorld* W, ACharacter* Ch, const FVector& PlanP, float Yaw, bool bWorld = false)
+	{
+		FVector At = bWorld ? PlanP : WalkWorld(PlanP);
 		FHitResult H; FCollisionQueryParams Q(TEXT("StressSnap"), true, Ch);
 		if (W->LineTraceSingleByChannel(H, At + FVector(0, 0, 200.f), At - FVector(0, 0, 600.f), ECC_Visibility, Q)) At.Z = H.ImpactPoint.Z;
 		At.Z += Ch->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() + 3.f;
@@ -231,7 +296,7 @@ namespace ADPStressWalkInternal
 			if (FMath::Abs(SWPath[j].Z - FootZ) > 60.f) continue;   // (over a stair: square by square)
 			FHitResult H;
 			const FVector A(Me.X, Me.Y, FootZ + 115.f), B(SWPath[j].X, SWPath[j].Y, SWPath[j].Z + 115.f);
-			if (!W->SweepSingleByChannel(H, A, B, FQuat::Identity, ECC_Pawn, FCollisionShape::MakeCapsule(R + 4.f, 75.f), Q)) { SWPathI = j; return; }
+			if (!W->SweepSingleByChannel(H, A, B, FQuat::Identity, ECC_Pawn, FCollisionShape::MakeCapsule(R + 4.f, 75.f), Q)) { if (j != SWPathI) SWBest = 1e9f; SWPathI = j; return; }
 		}
 	}
 
@@ -284,7 +349,7 @@ namespace ADPStressWalkInternal
 		SWSmooth(W, Ch);
 		const FVector Me = Ch->GetActorLocation();
 		FVector To = SWPath[FMath::Min(SWPathI, SWPath.Num() - 1)] - Me; To.Z = 0.f;
-		if (To.Size() < 40.f && SWPathI < SWPath.Num() - 1) { ++SWPathI; return false; }
+		if (To.Size() < 40.f && SWPathI < SWPath.Num() - 1) { ++SWPathI; SWBest = 1e9f; return false; }
 		FVector Look = To; float Acc = 0.f;
 		for (int32 j = SWPathI; j < SWPath.Num() && Acc < 300.f; ++j) { Look = SWPath[j] - Me; Look.Z = 0.f; Acc = Look.Size(); }
 		Ch->AddMovementInput(To.GetSafeNormal(), 1.f);
@@ -292,7 +357,8 @@ namespace ADPStressWalkInternal
 		// something stepped into the way (a person, a door): no nearer for 1.5 s - look again and plan anew
 		const float Left = To.Size();
 		if (Left < SWBest - 15.f) { SWBest = Left; SWNoGainT = 0.f; }
-		else if ((SWNoGainT += Dt) > 1.5f) { ADP_LOG(TEXT("Stress walk: the way is blocked - planning again")); SWPath.Reset(); SWBest = 1e9f; SWNoGainT = 0.f; }
+		else if ((SWNoGainT += Dt) > 1.5f) { FHitResult Hb; FCollisionQueryParams Qb(TEXT("SWWhat"), true, Ch); const bool bHit = W->SweepSingleByChannel(Hb, Me, Me + To.GetSafeNormal() * 80.f, FQuat::Identity, ECC_Pawn, FCollisionShape::MakeCapsule(Ch->GetCapsuleComponent()->GetScaledCapsuleRadius(), Ch->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() - 5.f), Qb);
+			ADP_LOG(TEXT("Stress walk: the way is blocked (%s at %s) - planning again"), bHit ? *FString::Printf(TEXT("%s/%s"), Hb.GetActor() ? *Hb.GetActor()->GetName() : TEXT("-"), Hb.GetComponent() ? *Hb.GetComponent()->GetName() : TEXT("-")) : TEXT("nothing in front"), *Me.ToCompactString()); SWPath.Reset(); SWBest = 1e9f; SWNoGainT = 0.f; }
 		return false;
 	}
 
@@ -302,8 +368,14 @@ void ADPStressWalk::Begin(bool bQuitWhenDone)
 {
 	using namespace ADPStressWalkInternal;
 	bWalkOn = true; bWalkQuit = bQuitWhenDone; bWalkStarted = false; WalkWait = 15.f; WalkClock = 0.f; WalkPart = -1; WalkEndNote.Reset();
-	WalkParts = WalkRoute();
+	WalkParts = WalkRoute(); bWalkCoaches = false;
 	ADP_LOG(TEXT("Stress walk: waiting for the world to load in fully, then a 15 s countdown"));
+}
+
+void ADPStressWalk::BeginCoaches(bool bQuitWhenDone)
+{
+	Begin(bQuitWhenDone);
+	ADPStressWalkInternal::bWalkCoaches = true; ADPStressWalkInternal::WalkParts.Reset();   // (laid out once the world is in)
 }
 
 bool ADPStressWalk::Active() { return ADPStressWalkInternal::bWalkOn; }
@@ -330,7 +402,8 @@ void ADPStressWalk::Tick(UWorld* W, APlayerController* PC, float Dt)
 	{
 		const bool bLoaded = ADPLateWorld::Done() && !IsAsyncLoading();
 		if (bLoaded) WalkWait -= Dt;
-		if (WalkWait <= 0.f) { bWalkStarted = true; WalkPart = 0; WalkPartT = 0.f; ADPPerfLog::BeginSection(TEXT("stress walk")); ADPPerfLog::SetAudit(ADPPerfLog::SceneAudit(W)); }
+		if (WalkWait <= 0.f && bWalkCoaches) { WalkParts = CoachRoute(W); WalkHourWas = ASunClock::HourOverride; }
+		if (WalkWait <= 0.f) { bWalkStarted = true; WalkPart = 0; WalkPartT = 0.f; ADPPerfLog::BeginSection(bWalkCoaches ? TEXT("coaches stress walk") : TEXT("stress walk")); ADPPerfLog::SetAudit(ADPPerfLog::SceneAudit(W)); }
 		return;
 	}
 	if (WalkPart >= WalkParts.Num())
@@ -349,7 +422,7 @@ void ADPStressWalk::Tick(UWorld* W, APlayerController* PC, float Dt)
 		ADP_LOG(TEXT("Stress walk: %s"), Pt.What);
 		ADPPerfLog::Mark(Pt.What);
 		WalkPoint = 0; WalkStuckT = 0.f; WalkBestDist = 1e9f;
-		if (Pt.Kind == EWalkKind::Go) WalkSnap(W, Ch, Pt.Points[0], PC->GetControlRotation().Yaw);
+		if (Pt.Kind == EWalkKind::Go) WalkSnap(W, Ch, Pt.Points[0], PC->GetControlRotation().Yaw, Pt.bWorld);
 		SWPath.Reset(); SWG.bActive = false; SWReplans = 0; SWDirectT = 0.f; SWDoorWait = 0.f; WalkToCab = false;
 	}
 	WalkPartT += Dt;
@@ -365,6 +438,33 @@ void ADPStressWalk::Tick(UWorld* W, APlayerController* PC, float Dt)
 	case EWalkKind::Face:
 		PC->SetControlRotation(FMath::RInterpTo(PC->GetControlRotation(), FRotator(2.f, Pt.Yaw, 0.f), Dt, 3.f));
 		bDone = WalkPartT >= Pt.Seconds; break;
+	case EWalkKind::FaceAt:
+		PC->SetControlRotation(FMath::RInterpTo(PC->GetControlRotation(), (Pt.Points[0] - PC->PlayerCameraManager->GetCameraLocation()).Rotation(), Dt, 3.f));
+		bDone = WalkPartT >= Pt.Seconds; break;
+	case EWalkKind::CoachDoor:
+			// (turned to the nearest coach door first, as you would, then E)
+			if (ACoaches* Co = ACoaches::Find())
+			{
+				FVector Best = FVector::ZeroVector; float Bd = 400.f;
+				for (int32 c = 0; c < Co->Num(); ++c) for (int32 d = 0; d < 2; ++d) { FVector A, O; if (Co->DoorSpot(c, d, A, O)) { const float Dd = FVector::Dist2D(A, Ch->GetActorLocation()); if (Dd < Bd) { Bd = Dd; Best = A; } } }
+				if (Bd < 400.f) PC->SetControlRotation(FMath::RInterpTo(PC->GetControlRotation(), FRotator(0.f, (Best - Ch->GetActorLocation()).Rotation().Yaw, 0.f), Dt, 8.f));
+				if (WalkPartT >= 0.8f && WalkPartT - Dt < 0.8f) ADP_LOG(TEXT("Stress walk: E at the coach door - %s (%.0f cm from it)"), Co->Use(Ch) ? TEXT("used") : TEXT("nothing in reach"), Bd);
+			}
+		bDone = WalkPartT >= Pt.Seconds; break;
+	case EWalkKind::Direct:
+	{
+		// straight on to each point (a coach's aisle: the body's own collision, no planner), the eyes ahead
+		if (WalkPoint >= Pt.Points.Num()) { bDone = true; break; }
+		FVector D = Pt.Points[WalkPoint] - Ch->GetActorLocation(); D.Z = 0.f;
+		if (D.Size() < 30.f) { ++WalkPoint; WalkStuckT = 0.f; WalkBestDist = 1e9f; break; }
+		Ch->AddMovementInput(D.GetSafeNormal(), 0.7f);
+		PC->SetControlRotation(FMath::RInterpTo(PC->GetControlRotation(), FRotator(-4.f, D.Rotation().Yaw, 0.f), Dt, 4.f));
+		if (D.Size() < WalkBestDist - 10.f) { WalkBestDist = D.Size(); WalkStuckT = 0.f; }
+		else if ((WalkStuckT += Dt) > 4.f) { ADP_WARN(TEXT("Stress walk: stuck in \"%s\" (%.0f cm short of a point) - on to the next"), Pt.What, D.Size()); ADPPerfLog::Mark(TEXT("(stuck, moved on)"));
+				if (ACoaches* Cs = ACoaches::Find()) { int32 Wc = 0; Cs->IsInside(Ch->GetActorLocation(), &Wc); const FVector Lc = Cs->RootOf(Wc).InverseTransformPosition(Ch->GetActorLocation() - FVector(0, 0, Ch->GetCapsuleComponent()->GetScaledCapsuleHalfHeight())); const FVector Lt = Cs->RootOf(Wc).InverseTransformPosition(Pt.Points[FMath::Max(0, WalkPoint - 1)]); ADP_LOG(TEXT("Stress walk: (feet at x %.2f y %.2f z %.2f m in coach %d's frame, the point at x %.2f y %.2f)"), Lc.X / 100, -Lc.Y / 100, Lc.Z / 100, Wc, Lt.X / 100, -Lt.Y / 100);  static int32 Shots = 0; if (FParse::Param(FCommandLine::Get(), TEXT("CoachWalkQuick")) && Shots++ < 2) { PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 1920x1080 filename=CoachStuck-%d"), Shots), true); ADP_LOG(TEXT("Stress walk: movement mode %d, velocity %.0f, floor %s"), int32(Ch->GetCharacterMovement()->MovementMode), Ch->GetVelocity().Size(), Ch->GetCharacterMovement()->CurrentFloor.HitResult.GetComponent() ? *Ch->GetCharacterMovement()->CurrentFloor.HitResult.GetComponent()->GetName() : TEXT("-")); } } ++WalkPoint; WalkStuckT = 0.f; WalkBestDist = 1e9f; }
+		if (WalkPartT > Pt.Seconds) bDone = true;
+		break;
+	}
 	case EWalkKind::Escalator:
 	{
 		// walked to its foot (round everything), then on: stepping on and riding it up, a gentle walk on the steps
@@ -418,12 +518,12 @@ void ADPStressWalk::Tick(UWorld* W, APlayerController* PC, float Dt)
 	case EWalkKind::Walk:
 	{
 		if (WalkPoint >= Pt.Points.Num()) { bDone = true; break; }
-		if (SWWalkTo(W, Ch, PC, WalkWorld(Pt.Points[WalkPoint]), Dt, Pt.What)) { ++WalkPoint; break; }
+		if (SWWalkTo(W, Ch, PC, PartPoint(Pt, WalkPoint), Dt, Pt.What)) { ++WalkPoint; break; }
 		if (SWReplans > 4 && !SWG.bActive && SWPath.Num() == 0 && SWDirectT <= 0.f)
 		{
 			ADP_WARN(TEXT("Stress walk: no way found to a point of \"%s\" - moved on to it"), Pt.What);
 			ADPPerfLog::Mark(TEXT("(no way found, moved on)"));
-			WalkSnap(W, Ch, Pt.Points[WalkPoint], PC->GetControlRotation().Yaw); ++WalkPoint; SWReplans = 0;
+			WalkSnap(W, Ch, Pt.Points[WalkPoint], PC->GetControlRotation().Yaw, Pt.bWorld); ++WalkPoint; SWReplans = 0;
 		}
 		if (WalkPartT > Pt.Seconds) bDone = true;
 		break;

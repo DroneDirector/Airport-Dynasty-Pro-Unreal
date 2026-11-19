@@ -259,10 +259,12 @@ for k, z in enumerate((FLOOR + 0.15, FLOOR + 0.70, FLOOR + 1.25)):
 bx('WheelchairSign', 2.55, 2.85, RIGHT * 0.75, RIGHT * 1.05, FLOOR, FLOOR + 0.002, M['blade'], r=0.0)
 bx('WheelchairBelt', 2.66, 2.74, RIGHT * (IN_W - 0.01), RIGHT * (IN_W - 0.06), FLOOR + 1.12, FLOOR + 1.32, M['black'])
 bx('WheelchairButton', 2.40, 2.46, RIGHT * (IN_W - 0.01), RIGHT * (IN_W - 0.025), FLOOR + 1.40, FLOOR + 1.46, M['blade'])
-# the info screens (the front one over the aisle by the partition, one half way)
+# the info screens (the front one over the aisle by the partition, one half way): slim bar displays tight under the
+# ceiling - 1.81 m clear over the aisle floor (2026-11-19: the 35 cm deep ones hung down to 1.56 m and a 1.76 m walker hit
+# them head first in the coaches' stress walk)
 for k, dd in enumerate((1.80, 6.97)):
-    bx(f'InfoScreen_{k}', dd, dd + 0.03, -0.30, 0.30, ROOF_IN - 0.40, ROOF_IN - 0.05, M['black'], r=0.008)
-    bx(f'InfoScreenFace_{k}', dd + 0.03, dd + 0.032, -0.28, 0.28, ROOF_IN - 0.38, ROOF_IN - 0.07, M['screen'], r=0.002)
+    bx(f'InfoScreen_{k}', dd, dd + 0.03, -0.30, 0.30, ROOF_IN - 0.15, ROOF_IN - 0.01, M['black'], r=0.008)
+    bx(f'InfoScreenFace_{k}', dd + 0.03, dd + 0.032, -0.28, 0.28, ROOF_IN - 0.135, ROOF_IN - 0.025, M['screen'], r=0.002)
 
 # ---------------------------------------------------------------- the driver's seat, the wheel, the guide's seat, the fold-up seats
 def driver_seat():

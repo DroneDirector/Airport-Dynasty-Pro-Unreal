@@ -15,6 +15,10 @@ namespace ADPStressWalk
 {
 	/** Start it (the caller has put you in the airport on foot). bQuitWhenDone: close the game at the end (test runs). */
 	void Begin(bool bQuitWhenDone);
+	/** The coaches' own walk (owner, 2026-11-19, to-do 146; -UICoachWalk): from the car park nearer the terminal over the
+	 *  zebra crossing, looking at the coaches, up close along them, into one through its front door (E) and down its aisle,
+	 *  out again, then the coaches seen from the main hall through the glass - by day, then again at night. */
+	void BeginCoaches(bool bQuitWhenDone);
 	bool Active();
 	/** The note in the middle of the screen while it waits (empty when there is none). */
 	FText Note();

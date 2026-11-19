@@ -346,6 +346,7 @@ double ARoadNetwork::GroundAt(double X, double Y)
 }
 
 TArray<FTransform> ARoadNetwork::BusStands;
+TArray<TPair<FVector, FVector>> ARoadNetwork::ZebraCrossings;
 FVector ARoadNetwork::TestDrain = FVector::ZeroVector;
 FVector ARoadNetwork::TestDrainOut = FVector::ForwardVector;
 FVector ARoadNetwork::TestManhole = FVector::ZeroVector;
@@ -761,6 +762,7 @@ bool ARoadNetwork::BuildSome(double Budget)
 					Strip(FName(TEXT("paintwhite")), At - Wd / 2, At + Wd / 2, [X0](double) { return X0; }, [X0](double) { return X0 + 0.5; }, Wd / 4, Grime(At));
 				}
 				++Crossings;
+				{ FVector Pz, Fz, Rz; OnRoad(At, Pz, Fz, Rz); ARoadNetwork::ZebraCrossings.Add(TPair<FVector, FVector>(Surface(Pz + Rz * (Lo * 100.0)), Surface(Pz + Rz * (Hi * 100.0)))); }
 			}
 		// ---- its street lights ("lights": [{side, edge, off, spacing, from, to, toward: road / out}]): a row of posts on a
 		// lane edge (the back of a pavement, an island's middle, past a road's edge), standing on what is there ----
