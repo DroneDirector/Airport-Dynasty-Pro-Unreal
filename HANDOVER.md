@@ -9,6 +9,17 @@ Whenever the owner sends pictures in the phone chat for you, they are copied ont
 location there (with what it shows and what he said about it). Open those files; commit them (through LFS) with your
 next commit if they belong in the repo.
 
+## From the owner (2026-11-19 17:10, via the phone): reference pictures for the airport taxi ("use this as measurement")
+- He wants the airport taxi to be a sit-down saloon (not a cab), modern, a little like the new Toyota Camry but not the
+  same, built to the measurements of these references (a 1990s full-size taxi saloon: 5.44 m long, 1.97 m wide,
+  1.415 m high, 2.945 m wheelbase). The phone chat drew a first look to those sizes:
+  `Blueprints\Vehicles\AirportTaxi\Airport-Taxi-Saloon-First-Look.png` (waiting for his OK before the wireframes).
+- Photos (stock pictures, watermarked - for measuring only, never used in the game):
+  - `Art\Reference\From-Phone\2026-11-19\Taxi-Ref-1-rear-three-quarter-sketch.jpg` - line drawing of the taxi from the rear corner, light and dark (blueprint) versions
+  - `Art\Reference\From-Phone\2026-11-19\Taxi-Ref-2-top-wireframe.jpg` - wireframe of the taxi from the top
+  - `Art\Reference\From-Phone\2026-11-19\Taxi-Ref-3-side-wireframe.jpg` - wireframe of the taxi from the left side
+  - `Art\Reference\From-Phone\2026-11-19\Taxi-Ref-4-front-three-quarter-wireframe.jpg` - wireframe from the front-left corner, from above
+
 ## From the owner (2026-11-19 05:26, via the phone): "Missing AirportDynastyPro Modules" on opening the editor
 - Photo: `Art\Reference\From-Phone\2026-11-19\Editor-missing-modules-rebuild.jpg` - the editor's box "The following
   modules are missing or built with a different engine version: AirportDynastyPro, ADPEditorTools. Would you like to
