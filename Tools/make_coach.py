@@ -17,7 +17,7 @@ import numpy as np
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 K.ART = ART = os.path.join(ROOT, 'Art', 'Coach'); os.makedirs(ART, exist_ok=True)
 SHOTS = os.path.join(ROOT, 'docs', 'Pictures', 'Coach'); os.makedirs(SHOTS, exist_ok=True)
-QUICK = '--quick' in sys.argv; CLASH = '--clash' in sys.argv; RENDER = QUICK or CLASH or '--render' in sys.argv
+QUICK = '--quick' in sys.argv; CLASH = '--clash' in sys.argv; FINAL = '--final' in sys.argv; RENDER = QUICK or CLASH or FINAL or '--render' in sys.argv
 bpy.ops.wm.read_factory_settings(use_empty=True)
 
 L, W, H, CLR = 12.90, 2.55, 3.70, 0.34
@@ -85,7 +85,8 @@ M['trim'] = mat('Coach_TrimBlack', T_TRIM, 0.0, 0.6)
 M['glass'] = mat('Coach_Glass', T_GLASS, 0.0, 0.015, alpha=0.80)
 M['chrome'] = mat('Coach_Chrome', T_CHROME, 1.0, 0.08)
 M['alloy'] = mat('Coach_Alloy', T_ALLOY, 1.0, 0.25)
-M['tyre'] = mat('Coach_Tyre', T_TYRE, 0.0, 0.85)
+M['tyre'] = mat('Coach_Tyre', T_TYRE, 0.0, 0.78)
+M['tyre'].node_tree.nodes['Principled BSDF'].inputs['Specular'].default_value = 0.22
 M['rubber'] = mat('Coach_Rubber', T_RUBBER, 0.0, 0.8)
 M['chassis'] = mat('Coach_Chassis', T_STEEL, 0.6, 0.55)
 M['caliper'] = mat('Coach_Caliper', K.tex('T_Coach_Caliper', (0.45, 0.04, 0.03), 0.05, 1.0), 0.2, 0.35, coat=0.6)
@@ -252,30 +253,55 @@ for i, (x0, x1) in enumerate(((XR + 0.25, AX_R - 0.66), (AX_R + 0.66, AX_F - 0.6
 
 # ---------------------------------------------------------------- the wheels (one model, four times)
 def wheel():
-    # tyre 295/80 R22.5: 1.04 across, 0.295 wide; rim 22.5" (0.572), ten spokes, a brake disc behind
+    # tyre 295/80 R22.5: 1.04 across, 0.295 wide; rim 22.5" (0.572): a cast alloy dish with ten swept spoke windows cut
+    # through it (the brake disc and the red caliper behind show through), centre cap, ten nuts
     tw, rr = 0.295, 0.286
     prof = [(rr + 0.01, -tw / 2 + 0.01), (0.33, -tw / 2 - 0.004), (0.42, -tw / 2 - 0.006), (0.49, -tw / 2 + 0.01), (0.515, -tw / 2 + 0.04),
             (0.52, -0.10), (0.52, 0.10), (0.515, tw / 2 - 0.04), (0.49, tw / 2 - 0.01), (0.42, tw / 2 + 0.006), (0.33, tw / 2 + 0.004), (rr + 0.01, tw / 2 - 0.01)]
-    ty = lathe('Tyre', prof, M['tyre'], 96, 'y'); put(ty, 'CoachWheel')
-    # tread grooves: three rings cut in
+    ty = lathe('Tyre', prof, M['tyre'], 128, 'y')
+    # (an open surface: its faces turned to face out of the tyre's own cross-section)
+    me = ty.data; tot = 0.0
+    for p in me.polygons:
+        c = p.center; rad = Vector((c.x, 0, c.z)); rad = rad.normalized() * 0.41 if rad.length > 1e-6 else rad
+        tot += p.normal.dot(c - rad)
+    if tot < 0: me.flip_normals()
+    put(ty, 'CoachWheel')
     for z in (-0.06, 0.0, 0.06):
-        g = lathe('TreadGroove', [(0.505, z - 0.006), (0.505, z + 0.006)], M['rubber'], 96, 'y'); put(g, 'CoachWheel')
-    # sidewall lettering ring
-    rim = lathe('Rim', [(0.17, -0.11), (rr, -0.11), (rr, -0.13), (rr + 0.012, -0.135), (rr + 0.012, -0.145), (0.27, -0.145), (0.24, -0.12), (0.16, -0.12), (0.10, -0.13), (0.06, -0.13)], M['alloy'], 72, 'y')
+        put(lathe('TreadGroove', [(0.5045, z - 0.006), (0.5045, z + 0.006)], M['rubber'], 128, 'y'), 'CoachWheel')
+    # the rim: one closed dish (face 2 cm thick, flange, barrel)
+    dish = [(0.075, -0.125), (0.25, -0.125), (0.272, -0.136), (rr + 0.014, -0.142), (rr + 0.014, -0.130), (rr, -0.124), (rr, 0.11),
+            (rr - 0.012, 0.11), (rr - 0.012, -0.104), (0.25, -0.104), (0.075, -0.104), (0.075, -0.125)]
+    rim = lathe('Rim', dish, M['alloy'], 120, 'y', smooth=35)
+    cut = []
+    for i in range(10):
+        a = math.radians(36 * i)
+        bm = bmesh.new(); ring = []
+        rs = [0.108 + k * (0.244 - 0.108) / 5 for k in range(6)]
+        def edge(r, side):
+            half = (0.034 + (0.050 - 0.034) * (r - 0.108) / 0.136) / 2 / r      # the spoke's half width, as an angle
+            sweep = math.radians(7.0) * (r - 0.108) / 0.136                   # swept spokes
+            return a + sweep + (half if side == 0 else math.radians(36) - half)
+        outline = [(r, edge(r, 0)) for r in rs] + [(0.244, edge(0.244, 0) + (edge(0.244, 1) - edge(0.244, 0)) * t / 6) for t in range(1, 6)] + \
+                  [(r, edge(r, 1)) for r in rs[::-1]] + [(0.108, edge(0.108, 1) - (edge(0.108, 1) - edge(0.108, 0)) * t / 6) for t in range(1, 6)]
+        top = [bm.verts.new((r * math.cos(t), -0.20, r * math.sin(t))) for r, t in outline]
+        bot = [bm.verts.new((r * math.cos(t), -0.085, r * math.sin(t))) for r, t in outline]
+        bm.faces.new(top); bm.faces.new(bot[::-1])
+        n = len(outline)
+        for k in range(n): bm.faces.new((top[k], top[(k + 1) % n], bot[(k + 1) % n], bot[k]))
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+        cut.append(K.link('cut', bm))
+    boolean(rim, cut)
     put(rim, 'CoachWheel')
-    # ten spokes: each a swept blade from the hub to the rim
+    # centre cap, the nuts round it, the hub behind; the brake disc (vented) behind the spokes
+    put(lathe('Hub', [(0.0, -0.150), (0.045, -0.150), (0.062, -0.142), (0.072, -0.128), (0.076, -0.115)], M['chrome'], 64, 'y'), 'CoachWheel')
     for i in range(10):
-        a = 2 * math.pi * i / 10
-        o = rblock(f'Spoke_{i}', (0.0, -0.128, 0.165), (0.032, 0.022, 0.21), 0.008, M['alloy'], cuts=2, segs=3)
-        for v in o.data.vertices:
-            t = (v.co.z - 0.06) / 0.21
-            v.co.x *= 1.0 + 0.6 * t; v.co.y += -0.012 * t
-        o.data.transform(Matrix.Rotation(a, 4, 'Y')); put(o, 'CoachWheel')
-    put(lathe('Hub', [(0.0, -0.165), (0.06, -0.165), (0.075, -0.15), (0.08, -0.12), (0.10, -0.11)], M['chrome'], 48, 'y'), 'CoachWheel')
-    for i in range(10):
-        a = 2 * math.pi * i / 10
-        put(cyl(f'Nut_{i}', Vector((0.11 * math.cos(a), -0.128, 0.11 * math.sin(a))), 0.013, 0.025, 'y', M['chrome'], 6, 0.002), 'CoachWheel')
-    put(lathe('BrakeDisc', [(0.12, 0.0), (0.215, 0.0), (0.215, 0.045), (0.12, 0.045)], M['chassis'], 64, 'y'), 'CoachWheel')
+        a = 2 * math.pi * i / 10 + math.radians(18)
+        put(cyl(f'Nut_{i}', Vector((0.092 * math.cos(a), -0.133, 0.092 * math.sin(a))), 0.0115, 0.022, 'y', M['chrome'], 6, 0.002), 'CoachWheel')
+    put(lathe('HubBarrel', [(0.075, -0.104), (0.11, -0.08), (0.11, 0.06), (0.075, 0.08)], M['chassis'], 48, 'y'), 'CoachWheel')
+    put(lathe('BrakeDisc', [(0.12, -0.02), (0.235, -0.02), (0.235, 0.025), (0.12, 0.025), (0.12, -0.02)], M['chassis'], 96, 'y'), 'CoachWheel')
+    for k in range(24):
+        a = 2 * math.pi * k / 24
+        put(box(f'DiscVane_{k}', 0.13 * math.cos(a) - 0.004, 0.13 * math.cos(a) + 0.004, -0.0005, 0.0055, 0.13 * math.sin(a) - 0.004, 0.13 * math.sin(a) + 0.004, M['black']), 'CoachWheel') if False else None
 wheel()
 
 # ---------------------------------------------------------------- suspension (owner: several kinds, with their details)
@@ -505,6 +531,10 @@ if RENDER:
     for o in seat_objs: o.matrix_world = Matrix.Identity(4)
     for e in layout['seat_pairs']: place(seat_objs, at(e))
     for o in seat_objs: o.hide_render = True
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=os.path.join(ROOT, 'Art', 'CoachBench', 'coachbench.glb'))
+    bench_objs = [o for o in bpy.data.objects if o not in before and o.type == 'MESH']
+    for o in bench_objs: o.matrix_world = at(layout['bench'])
     sc = bpy.context.scene; sc.render.engine = 'BLENDER_EEVEE'
     ee = sc.eevee; ee.use_gtao = True; ee.use_ssr = True; ee.use_ssr_refraction = True; ee.use_soft_shadows = True; ee.shadow_cube_size = '2048'
     ee.shadow_cascade_size = '4096'; ee.taa_render_samples = 16 if QUICK else 96; ee.use_bloom = True; ee.bloom_intensity = 0.03
@@ -518,7 +548,7 @@ if RENDER:
     gm = mat('Preview_Asphalt', gt, 0, 0.8); g = box('Ground', -30, 30, -30, 30, -0.02, 0.0, gm); K.box_uv([g], 1.0)
     cam_d = bpy.data.cameras.new('Cam'); cam = bpy.data.objects.new('Cam', cam_d); sc.collection.objects.link(cam); sc.camera = cam
     def shoot(name, loc, at, lens=35, res=(3840, 2160)):
-        if CLASH: return
+        if CLASH or (FINAL and not name.startswith('Final')): return
         cam.location = loc; cam.rotation_euler = (Vector(at) - Vector(loc)).to_track_quat('-Z', 'Y').to_euler(); cam_d.lens = lens
         if QUICK: res = (res[0] // 3, res[1] // 3)
         sc.render.resolution_x, sc.render.resolution_y = res; sc.render.filepath = os.path.join(SHOTS, name + '.png')
@@ -575,3 +605,36 @@ if CLASH:
     found.sort(reverse=True)
     print('CLASH: %d pairs' % len(found))
     for f in found: print('CLASH: %5d  %s [%s]  x  %s [%s]' % f)
+
+# ---------------------------------------------------------------- the final pictures (owner, 2026-11-19): Cycles, 4K PNG -
+# left, right, front, back, both front corners, four in the cabin, the wheel close up
+if FINAL:
+    sc.render.engine = 'CYCLES'
+    cp = bpy.context.preferences.addons['cycles'].preferences
+    for kind in ('OPTIX', 'CUDA', 'HIP', 'NONE'):
+        try:
+            cp.compute_device_type = kind; cp.get_devices()
+            if kind == 'NONE' or any(d.type == kind for d in cp.devices): break
+        except Exception: pass
+    for d in cp.devices: d.use = d.type != 'CPU' or cp.compute_device_type == 'NONE'
+    sc.cycles.device = 'GPU' if cp.compute_device_type != 'NONE' else 'CPU'
+    print('COACH: rendering on', sc.cycles.device, cp.compute_device_type)
+    sc.cycles.samples = 256; sc.cycles.use_adaptive_sampling = True; sc.cycles.adaptive_threshold = 0.015
+    sc.cycles.use_denoising = True; sc.cycles.max_bounces = 10; sc.cycles.transparent_max_bounces = 16
+    sc.render.film_transparent = False; sc.view_settings.look = 'Medium High Contrast'
+    AT = (0.0, 0.0, 1.75)
+    # (outside: a softer sky and the camera's exposure down - the first set washed the navy out to silver)
+    bg.inputs['Strength'].default_value = 0.35; sun.energy = 3.2; sc.view_settings.exposure = -0.9
+    shoot('Final-1-left', (0.0, 17.5, 1.9), AT, 35)
+    shoot('Final-2-right', (0.0, -17.5, 1.9), AT, 35)
+    shoot('Final-3-front', (16.0, 0.0, 1.95), (0, 0, 1.85), 50)
+    shoot('Final-4-back', (-16.0, 0.0, 1.95), (0, 0, 1.85), 50)
+    shoot('Final-5-front-right', (13.5, -10.0, 2.3), (0.6, 0.0, 1.6), 35)
+    shoot('Final-6-front-left', (13.5, 10.0, 2.3), (0.6, 0.0, 1.6), 35)
+    sc.view_settings.exposure = 0.0
+    shoot('Final-7-cabin-forward', (XR + 1.5, 0.0, FLOOR + 1.65), (XF, 0.0, FLOOR + 1.15), 18)
+    shoot('Final-8-cabin-back', (XF - 2.05, 0.05, FLOOR + 1.65), (XR, 0.0, FLOOR + 1.05), 18)
+    shoot('Final-9-seated', (d2x(6.29 + 0.30), -0.48, FLOOR + 1.20), (XF, -0.30, FLOOR + 1.05), 22)
+    shoot('Final-10-cockpit', (d2x(1.50), 0.32, 1.00 + 1.45), (d2x(0.40), 0.58, 1.72), 20)
+    sc.view_settings.exposure = -0.9
+    shoot('Final-11-wheel', (AX_F + 0.95, -2.45, 0.62), (AX_F, -1.10, 0.52), 40)

@@ -14,7 +14,10 @@ import numpy as np
 from mathutils import Vector, Matrix
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ART = os.path.join(ROOT, 'Art', 'CoachSeat'); os.makedirs(ART, exist_ok=True)
+# -- --bench: the coach's back bench (owner's blueprint: 5 seats on the raised floor, the same seat made 5 wide; no tables or
+#    footrests on its back - the rear wall is behind it - two aisle-style legs, no wall brackets)
+BENCH = '--bench' in sys.argv
+ART = os.path.join(ROOT, 'Art', 'CoachBench' if BENCH else 'CoachSeat'); os.makedirs(ART, exist_ok=True)
 SHOTS = os.path.join(ROOT, 'docs', 'Pictures', 'CoachSeat'); os.makedirs(SHOTS, exist_ok=True)
 RENDER = '--render' in sys.argv or '--quick' in sys.argv
 QUICK = '--quick' in sys.argv
@@ -166,10 +169,10 @@ def text(name, body, c, size, m, rot):
     o = to_mesh(o, m, 30); o.data.transform(Matrix.Translation(c) @ rot); return o
 
 # ---------------------------------------------------------------- the pair
-SEATS = (-0.235, 0.235)          # the two seats' middles (wall seat A at -x, aisle seat B at +x)
+SEATS = (-0.94, -0.47, 0.0, 0.47, 0.94) if BENCH else (-0.235, 0.235)   # the seats' middles (pair: wall seat A at -x, aisle seat B at +x)
 CF, CB, CTOP = -0.50, -0.04, 0.45  # cushion front, back, top
 TUBE_Z, TUBE_Y = 0.338, (-0.377, -0.127)
-LEG_X = 0.452                    # the aisle leg (under the aisle armrest)
+LEG_X = 0.705 if BENCH else 0.452   # the aisle leg (under the aisle armrest; the bench: two, mirrored)
 RECLINE = math.radians(15)
 
 def cushion_deform(xc):
@@ -182,7 +185,7 @@ def cushion_deform(xc):
         return co
     return f
 for k, xc in enumerate(SEATS):
-    sd = 'AB'[k]
+    sd = 'ABCDE'[k]
     rblock(f'Cushion_{sd}', (xc, (CF + CB) / 2, 0.412), (0.41, CB - CF, 0.076), 0.028, M_MOQ, cuts=10, segs=4, sub=1, deform=cushion_deform(xc))
     rblock(f'CushionInset_{sd}', (xc, CF - 0.001, 0.396), (0.30, 0.008, 0.028), 0.006, M_SHELL, cuts=2, segs=3, sub=0)
     rblock(f'CushionPan_{sd}', (xc, (CF + CB) / 2 + 0.01, 0.366), (0.42, 0.44, 0.016), 0.006, M_SHELL, cuts=2, segs=2, sub=0)
@@ -194,9 +197,9 @@ for k, xc in enumerate(SEATS):
 
 # the frame: two cross tubes on the aisle leg and the wall bracket, longitudinal members under each seat end
 for j, y in enumerate(TUBE_Y):
-    cyl(f'CrossTube_{j}', Vector((0.0, y, TUBE_Z)), 0.019, 0.955, 'x', M_STEEL, 28)
-    for x in (-0.479, 0.479): cyl(f'TubeCap_{j}{x > 0}', Vector((x, y, TUBE_Z)), 0.0195, 0.006, 'x', M_BLACK, 28, 0.002)
-for i, x in enumerate((-0.47, 0.0, 0.43)):
+    cyl(f'CrossTube_{j}', Vector((0.0, y, TUBE_Z)), 0.019, 2.30 if BENCH else 0.955, 'x', M_STEEL, 28)
+    for x in ((-1.149, 1.149) if BENCH else (-0.479, 0.479)): cyl(f'TubeCap_{j}{x > 0}', Vector((x, y, TUBE_Z)), 0.0195, 0.006, 'x', M_BLACK, 28, 0.002)
+for i, x in enumerate((-1.14, -0.705, 0.705, 1.14) if BENCH else (-0.47, 0.0, 0.43)):
     rblock(f'SideMember_{i}', (x, -0.25, 0.352), (0.026, 0.33, 0.034), 0.005, M_STEEL, cuts=2, segs=2, sub=0)
 
 # the aisle leg: the blueprint's profile (A), s forward from the foot's back, z up; thickest at the foot and the top
@@ -234,8 +237,16 @@ for j, y in enumerate(TUBE_Y):
     cyl(f'WallClamp_{j}', Vector((-0.500, y, 0.30)), 0.021, 0.05, 'y', M_ALU, 32, 0.004)
     cyl(f'WallClampBolt_{j}', Vector((-0.494, y, 0.3205)), 0.005, 0.006, 'z', M_STEEL, 6, 0.001)
 
+if BENCH:
+    # the second leg (mirrored), no wall brackets
+    for o in list(ALL):
+        if o.name.startswith(('WallBracket', 'WallClamp')):
+            ALL.remove(o); bpy.data.objects.remove(o, do_unlink=True); continue
+        if o.name.startswith(('AisleLeg', 'LegBoss', 'FloorTrack', 'TrackHole', 'FootPlate', 'FootBolt')):
+            n = o.copy(); n.data = o.data.copy(); n.name = o.name + '_M'; bpy.context.collection.objects.link(n)
+            n.data.transform(Matrix.Scale(-1, 4, (1, 0, 0))); n.data.flip_normals(); ALL.append(n)
 # armrests: wall, middle, aisle (the aisle one lifts 80 deg on its pivot); pads 0.40 long, top 0.65
-for i, x in enumerate((-0.455, 0.0, 0.468)):
+for i, x in enumerate((-1.145, 1.145) if BENCH else (-0.455, 0.0, 0.468)):
     rblock(f'ArmSlot_{i}{0}', (x - 0.0285, -0.24, 0.624), (0.003, 0.28, 0.016), 0.003, M_BLACK, cuts=2, segs=2, sub=0)
     rblock(f'ArmSlot_{i}{1}', (x + 0.0285, -0.24, 0.624), (0.003, 0.28, 0.016), 0.003, M_BLACK, cuts=2, segs=2, sub=0)
     rblock(f'Armrest_{i}', (x, -0.235, 0.624), (0.056, 0.40, 0.056), 0.02, M_SHELL if i != 1 else M_SHELL, cuts=6, segs=4, sub=1,
@@ -243,8 +254,8 @@ for i, x in enumerate((-0.455, 0.0, 0.468)):
     rblock(f'ArmPad_{i}', (x, -0.25, 0.651), (0.040, 0.30, 0.006), 0.003, M_RUB, cuts=4, segs=2, sub=1)
     cyl(f'ArmPivot_{i}', Vector((x, -0.035, 0.625)), 0.026, 0.058, 'x', M_BLACK, 32, 0.004)
     cyl(f'ArmPivotCap_{i}', Vector((x + 0.0295 * (1 if x >= 0 else -1), -0.035, 0.625)), 0.016, 0.003, 'x', M_STEEL, 32)
-rblock('ArmTipLight', (0.468, -0.43, 0.6505), (0.026, 0.012, 0.002), 0.0008, M_LIGHT, cuts=1, segs=1, sub=0)
-rblock('ArmLiftButton', (0.468 + 0.0265, -0.08, 0.628), (0.003, 0.018, 0.012), 0.001, M_BLACK, cuts=1, segs=1, sub=0)
+if not BENCH: rblock('ArmTipLight', (0.468, -0.43, 0.6505), (0.026, 0.012, 0.002), 0.0008, M_LIGHT, cuts=1, segs=1, sub=0)
+if not BENCH: rblock('ArmLiftButton', (0.468 + 0.0265, -0.08, 0.628), (0.003, 0.018, 0.012), 0.001, M_BLACK, cuts=1, segs=1, sub=0)
 
 # ---------------------------------------------------------------- the backs (made upright, then reclined)
 BACK = []
@@ -252,7 +263,7 @@ def back_frame():
     # pivot at the cushion's back, 0.46 m up; local y = 0 the backrest's face, +y behind
     return Matrix.Translation((0, CB + 0.01, 0.46)) @ Matrix.Rotation(-RECLINE, 4, 'X')
 for k, xc in enumerate(SEATS):
-    sd = 'AB'[k]
+    sd = 'ABCDE'[k]
     def bdef(co, u, v, w):
         front = ss(0.6, -1.0, v)
         co.y -= front * (0.032 * ss(0.55, 0.95, abs(u)) + 0.032 * math.exp(-((co.z - 0.20) / 0.13) ** 2))   # bolsters, lumbar
@@ -277,23 +288,24 @@ for k, xc in enumerate(SEATS):
         return co
     BACK.append(rblock(f'BackShell_{sd}', (xc, 0.103, 0.395), (0.418, 0.028, 0.82), 0.014, M_SHELL, cuts=10, segs=3, sub=1, deform=shdef))
     YB = 0.117 + 0.012      # the back's rear face (with its bulge) where things sit
-    # fold-down table (closed, flush in its recess) + latch + cup holder
-    BACK.append(rblock(f'TableRecess_{sd}', (xc, YB - 0.004, 0.53), (0.31, 0.004, 0.235), 0.01, M_BLACK, cuts=2, segs=2, sub=0))
-    BACK.append(rblock(f'Table_{sd}', (xc, YB + 0.001, 0.53), (0.30, 0.008, 0.225), 0.008, M_SHELL, cuts=4, segs=3, sub=1))
-    BACK.append(rblock(f'TableLatch_{sd}', (xc, YB + 0.006, 0.655), (0.05, 0.010, 0.016), 0.004, M_STEEL, cuts=1, segs=2, sub=0))
-    for a in range(1):
-        BACK.append(tube(f'CupRing_{sd}', [(xc + 0.09 + 0.032 * math.cos(t * math.pi / 8), YB + 0.006, 0.585 + 0.032 * math.sin(t * math.pi / 8)) for t in range(17)], 0.0025, M_STEEL, res=2, bez=False))
-    # magazine pocket: a net panel bulging out, an elastic top band
-    BACK.append(rblock(f'Pocket_{sd}', (xc, YB + 0.004, 0.235), (0.30, 0.018, 0.25), 0.012, M_NET, cuts=6, segs=3, sub=1,
-                       deform=lambda co, u, v, w: co + Vector((0, 0.010 * (1 - u * u) * ss(1.0, -1.0, w) * ss(-0.5, 1.0, v), 0))))
-    BACK.append(cyl(f'PocketBand_{sd}', Vector((xc, YB + 0.014, 0.358)), 0.006, 0.30, 'x', M_BLACK, 12))
-    # USB-C + USB-A and the coat hook; the ambient light strip and the seat number
-    BACK.append(rblock(f'UsbPlate_{sd}', (xc + 0.02, YB + 0.003, 0.705), (0.07, 0.006, 0.024), 0.004, M_BLACK, cuts=1, segs=2, sub=0))
-    for j, (dx, w_) in enumerate(((0.0, 0.009), (0.025, 0.013))):
-        BACK.append(rblock(f'UsbPort_{sd}{j}', (xc + 0.008 + dx, YB + 0.0062, 0.705), (w_, 0.001, 0.005), 0.0005, M_STEEL, cuts=1, segs=1, sub=0))
-    BACK.append(tube(f'CoatHook_{sd}', [(xc - 0.10, YB, 0.72), (xc - 0.10, YB + 0.022, 0.718), (xc - 0.10, YB + 0.03, 0.70), (xc - 0.10, YB + 0.02, 0.688)], 0.005, M_STEEL, res=6))
-    BACK.append(rblock(f'LightStrip_{sd}', (xc, YB - 0.0005, 0.765), (0.24, 0.006, 0.007), 0.002, M_LIGHT, cuts=2, segs=1, sub=0))
-    BACK.append(text(f'SeatNo_{sd}', f'12 {sd}', Vector((xc, YB + 0.0005, 0.745)), 0.016, M_LABEL, Matrix.Rotation(-math.pi / 2, 4, 'X') @ Matrix.Rotation(math.pi, 4, 'Z')))
+    if not BENCH:
+        # fold-down table (closed, flush in its recess) + latch + cup holder
+        BACK.append(rblock(f'TableRecess_{sd}', (xc, YB - 0.004, 0.53), (0.31, 0.004, 0.235), 0.01, M_BLACK, cuts=2, segs=2, sub=0))
+        BACK.append(rblock(f'Table_{sd}', (xc, YB + 0.001, 0.53), (0.30, 0.008, 0.225), 0.008, M_SHELL, cuts=4, segs=3, sub=1))
+        BACK.append(rblock(f'TableLatch_{sd}', (xc, YB + 0.006, 0.655), (0.05, 0.010, 0.016), 0.004, M_STEEL, cuts=1, segs=2, sub=0))
+        for a in range(1):
+            BACK.append(tube(f'CupRing_{sd}', [(xc + 0.09 + 0.032 * math.cos(t * math.pi / 8), YB + 0.006, 0.585 + 0.032 * math.sin(t * math.pi / 8)) for t in range(17)], 0.0025, M_STEEL, res=2, bez=False))
+        # magazine pocket: a net panel bulging out, an elastic top band
+        BACK.append(rblock(f'Pocket_{sd}', (xc, YB + 0.004, 0.235), (0.30, 0.018, 0.25), 0.012, M_NET, cuts=6, segs=3, sub=1,
+                           deform=lambda co, u, v, w: co + Vector((0, 0.010 * (1 - u * u) * ss(1.0, -1.0, w) * ss(-0.5, 1.0, v), 0))))
+        BACK.append(cyl(f'PocketBand_{sd}', Vector((xc, YB + 0.014, 0.358)), 0.006, 0.30, 'x', M_BLACK, 12))
+        # USB-C + USB-A and the coat hook; the ambient light strip and the seat number
+        BACK.append(rblock(f'UsbPlate_{sd}', (xc + 0.02, YB + 0.003, 0.705), (0.07, 0.006, 0.024), 0.004, M_BLACK, cuts=1, segs=2, sub=0))
+        for j, (dx, w_) in enumerate(((0.0, 0.009), (0.025, 0.013))):
+            BACK.append(rblock(f'UsbPort_{sd}{j}', (xc + 0.008 + dx, YB + 0.0062, 0.705), (w_, 0.001, 0.005), 0.0005, M_STEEL, cuts=1, segs=1, sub=0))
+        BACK.append(tube(f'CoatHook_{sd}', [(xc - 0.10, YB, 0.72), (xc - 0.10, YB + 0.022, 0.718), (xc - 0.10, YB + 0.03, 0.70), (xc - 0.10, YB + 0.02, 0.688)], 0.005, M_STEEL, res=6))
+        BACK.append(rblock(f'LightStrip_{sd}', (xc, YB - 0.0005, 0.765), (0.24, 0.006, 0.007), 0.002, M_LIGHT, cuts=2, segs=1, sub=0))
+        BACK.append(text(f'SeatNo_{sd}', f'12 {sd}', Vector((xc, YB + 0.0005, 0.745)), 0.016, M_LABEL, Matrix.Rotation(-math.pi / 2, 4, 'X') @ Matrix.Rotation(math.pi, 4, 'Z')))
     # headrest: folding wings, a linen band across the top, on two chrome posts
     def hdef(co, u, v, w):
         wing = ss(0.42, 1.0, abs(u))
@@ -308,18 +320,19 @@ for k, xc in enumerate(SEATS):
     for j, dx in enumerate((-0.055, 0.055)):
         BACK.append(cyl(f'HeadPost_{sd}{j}', Vector((xc + dx, 0.05, 0.80)), 0.0065, 0.04, 'z', M_STEEL, 16))
         BACK.append(cyl(f'PostSleeve_{sd}{j}', Vector((xc + dx, 0.05, 0.795)), 0.011, 0.012, 'z', M_BLACK, 16, 0.002))
-# the grab handle at the aisle corner (on the aisle seat's back)
-BACK.append(tube('GrabHandle', [(0.205, 0.125, 0.80), (0.215, 0.165, 0.825), (0.215, 0.17, 0.79), (0.215, 0.165, 0.68), (0.208, 0.125, 0.665)], 0.0105, M_STEEL, res=8))
-BACK.append(cyl('GrabFootTop', Vector((0.206, 0.125, 0.80)), 0.015, 0.012, 'y', M_BLACK, 16, 0.002))
-BACK.append(cyl('GrabFootLow', Vector((0.208, 0.125, 0.665)), 0.015, 0.012, 'y', M_BLACK, 16, 0.002))
-# the grab handle sits on the aisle corner: move it out to the aisle edge of seat B
-for o in BACK[-3:]: o.data.transform(Matrix.Translation((0.235, 0, 0)))
+if not BENCH:
+    # the grab handle at the aisle corner (on the aisle seat's back)
+    BACK.append(tube('GrabHandle', [(0.205, 0.125, 0.80), (0.215, 0.165, 0.825), (0.215, 0.17, 0.79), (0.215, 0.165, 0.68), (0.208, 0.125, 0.665)], 0.0105, M_STEEL, res=8))
+    BACK.append(cyl('GrabFootTop', Vector((0.206, 0.125, 0.80)), 0.015, 0.012, 'y', M_BLACK, 16, 0.002))
+    BACK.append(cyl('GrabFootLow', Vector((0.208, 0.125, 0.665)), 0.015, 0.012, 'y', M_BLACK, 16, 0.002))
+    # the grab handle sits on the aisle corner: move it out to the aisle edge of seat B
+    for o in BACK[-3:]: o.data.transform(Matrix.Translation((0.235, 0, 0)))
 M = back_frame()
 for o in BACK: o.data.transform(M)
 
 # folding footrests for the passenger behind: one U frame under each seat, hung from the rear tube
-for k, xc in enumerate(SEATS):
-    sd = 'AB'[k]
+for k, xc in enumerate(() if BENCH else SEATS):
+    sd = 'ABCDE'[k]
     for s in (-1, 1):
         tube(f'FootrestArm_{sd}{s > 0}', [(xc + s * 0.12, TUBE_Y[1], TUBE_Z - 0.02), (xc + s * 0.12, TUBE_Y[1] + 0.12, 0.24), (xc + s * 0.12, TUBE_Y[1] + 0.30, 0.15)], 0.009, M_STEEL, res=8)
         cyl(f'FootrestHinge_{sd}{s > 0}', Vector((xc + s * 0.12, TUBE_Y[1], TUBE_Z - 0.02)), 0.016, 0.02, 'x', M_BLACK, 16, 0.002)
@@ -346,8 +359,8 @@ for o in ALL:
     col.objects.link(o)
 tris = sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in ALL)
 print('COACHSEAT: %d parts, %d triangles' % (len(ALL), tris))
-bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ART, 'CoachSeat.blend'))
-bpy.ops.export_scene.gltf(filepath=os.path.join(ART, 'coachseat.glb'), export_format='GLB', use_selection=False, export_apply=True)
+bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ART, 'CoachBench.blend' if BENCH else 'CoachSeat.blend'))
+bpy.ops.export_scene.gltf(filepath=os.path.join(ART, 'coachbench.glb' if BENCH else 'coachseat.glb'), export_format='GLB', use_selection=False, export_apply=True)
 
 # ---------------------------------------------------------------- previews
 if RENDER:

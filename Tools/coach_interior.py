@@ -306,7 +306,7 @@ def seat_place(cf, side):
     return [d2x(cf + 0.50), side * PAIR_Y, FLOOR + 0.0005, 90.0, -1 if side == LEFT else 1]   # (half a mm over the deck)
 INTERIOR_LAYOUT = {
     'seat_pairs': [seat_place(cf, s) for s in (RIGHT, LEFT) for cf in SEAT_ROWS[s]],
-    'bench': [d2x(12.12 + 0.30), 0.0, FLOOR + 0.25, 90.0, 1],
+    'bench': [d2x(12.45), 0.0, FLOOR + 0.2505, 90.0, 1],   # (its cushions' front at the raised floor's edge)
     'driver_seat': [d2x(1.20), 0.62, 1.00, 90.0, 1],          # not sittable (owner: only the AI driver)
     'steering_wheel': [d2x(0.95), 0.62, 1.78, 90.0, 1, 30.0],  # 0.78 m over the driver's floor, tilted 30 deg from flat
     'guide_seat': [d2x(0.75), RIGHT * 0.30, FLOOR, 90.0, 1],
