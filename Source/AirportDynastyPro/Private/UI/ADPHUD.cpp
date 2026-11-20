@@ -2921,7 +2921,9 @@ void AADPHUD::Tick(float Dt)
 			if (B2 < 190.f && C2 >= 190.f) Shot(TEXT("Chablais_5_Drone_Corner"));
 			if (B2 < 191.f && C2 >= 191.f) Fly(81.f, 1750.f, 50.f, 81.f, -300.f, -8.f);   // (from the west, over the Rhone side: east of the terminal the mountainside rises at once)
 			if (B2 < 220.f && C2 >= 220.f) Shot(TEXT("Chablais_6_Drone_West"));
-			if (B2 < 221.f && C2 >= 221.f) ADP_SHOT_EXIT();
+			if (B2 < 221.f && C2 >= 221.f) Fly(F.RwyX1 + 900.f, F.RwyY, 50.f, F.RwyX1 + 5000.f, F.RwyY, -6.f);   // (north of the runway: the shore and the lake)
+			if (B2 < 250.f && C2 >= 250.f) Shot(TEXT("Chablais_7_Drone_Lake"));
+			if (B2 < 251.f && C2 >= 251.f) ADP_SHOT_EXIT();
 		}
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")))
 		{
