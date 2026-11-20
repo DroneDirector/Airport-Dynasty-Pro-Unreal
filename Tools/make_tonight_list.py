@@ -10,7 +10,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.colors import HexColor
 from reportlab.pdfbase.pdfmetrics import stringWidth
-items = [i for i in ns['ITEMS'] if re.match(r'^(1[6-9]\d)$', i[0]) and 160 <= int(i[0]) <= 200 and not i[5]]
+items = [i for i in ns['ITEMS'] if re.match(r'^\d+$', i[0]) and 160 <= int(i[0]) <= 200 and not i[5]]
 W, H = A4; M = 40
 c = canvas.Canvas(str(ROOT / 'docs/Tonight-List.pdf'), pagesize=A4)
 def page():
