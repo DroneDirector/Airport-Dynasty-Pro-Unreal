@@ -12,6 +12,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Tickable.h"
+#include "Sim/ADPSimData.h"
 #include "ADPSim.generated.h"
 
 class UADPSim;
@@ -58,6 +59,13 @@ public:
 	/** Where each module has got to (simulation time) - saved with the career. */
 	FDateTime ModuleTime(FName Module) const;
 
+	// ---- the world and its save (Saved/Careers/<slot>.json, versioned; autosaved every 30 s while running)
+	FADPWorld World;
+	bool SaveCareer(const FString& Slot);
+	bool LoadCareer(const FString& Slot);
+	static TArray<FString> CareerSlots();
+	static FString CareerFile(const FString& Slot);
+
 	// FTickableGameObject
 	virtual void Tick(float Dt) override;
 	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(UADPSim, STATGROUP_Tickables); }
@@ -72,6 +80,7 @@ private:
 	double SpeedFactor = 1.0;
 	FDateTime ClockBaseSim, ClockBaseReal;   // Now() = ClockBaseSim + (real now - ClockBaseReal) x speed
 	bool bCatchingUp = false;
+	double AutosaveClock = 0.0;
 	/** Advances one module up to To in steps of its interval (at most Budget seconds of real work this call). */
 	bool Step(FSlot& S, const FDateTime& To, bool bCatchUp, double Budget);
 };

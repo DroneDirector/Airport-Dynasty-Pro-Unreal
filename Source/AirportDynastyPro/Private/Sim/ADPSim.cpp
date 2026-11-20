@@ -5,6 +5,10 @@
 #include "Engine/World.h"
 #include "Misc/CommandLine.h"
 #include "HAL/PlatformTime.h"
+#include "HAL/FileManager.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "JsonObjectConverter.h"
 
 // -SimSelfTest: a test module (every 60 s, 2 days of catch-up), the career "closed" 3 days ago - checks the catch-up
 // stops at the module's limit, runs in steps without stalling, then goes live; logs the counts and closes the game
@@ -34,6 +38,23 @@ void UADPSim::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 	ClockBaseSim = ClockBaseReal = FDateTime::UtcNow();
 	ADP_LOG(TEXT("Sim: the simulation core is up (real clock, speed %.1f)"), SpeedFactor);
+	if (FParse::Param(FCommandLine::Get(), TEXT("SimSaveTest")))
+	{
+		// a small world written, cleared, read back and compared, then removed
+		FADPAirline A; A.Id = TEXT("me"); A.Name = TEXT("Test Air"); A.bPlayer = true; A.Balance = 1234567.5; World.Airlines.Add(A);
+		for (int32 i = 0; i < 50; ++i) { FADPPerson P; P.Id = FString::Printf(TEXT("p%d"), i); P.Name = FString::Printf(TEXT("Person %d"), i); P.Role = i % 2 ? TEXT("fa") : TEXT("captain"); P.Types.Add(TEXT("A320")); World.People.Add(P); }
+		FADPAircraft C; C.Reg = TEXT("TF-ABC"); C.TypeId = TEXT("A320"); C.Condition = 87.25; World.Aircraft.Add(C);
+		FADPTxn T; T.At = FDateTime(2026, 11, 20, 8, 0, 0); T.Kind = TEXT("revenue"); T.Amount = 9999.99; World.Ledger.Add(T);
+		const bool bSaved = SaveCareer(TEXT("selftest"));
+		World = FADPWorld();
+		const bool bLoaded = LoadCareer(TEXT("selftest"));
+		const bool bSame = bSaved && bLoaded && World.Airlines.Num() == 1 && World.Airlines[0].Balance == 1234567.5 && World.People.Num() == 50 && World.People[49].Types.Num() == 1
+			&& World.Aircraft.Num() == 1 && World.Aircraft[0].Condition == 87.25 && World.Ledger.Num() == 1 && World.Ledger[0].At == FDateTime(2026, 11, 20, 8, 0, 0) && CareerSlots().Contains(TEXT("selftest"));
+		ADP_LOG(TEXT("SimSaveTest: saved %d, loaded %d, the same %d (%lld bytes) - %s"), bSaved, bLoaded, bSame, IFileManager::Get().FileSize(*CareerFile(TEXT("selftest"))), bSame ? TEXT("PASS") : TEXT("FAIL"));
+		IFileManager::Get().Delete(*CareerFile(TEXT("selftest")));
+		World = FADPWorld();
+		FPlatformMisc::RequestExit(false);
+	}
 	if (FParse::Param(FCommandLine::Get(), TEXT("SimSelfTest")))
 	{
 		GSelfTest = MakeShared<FSelfTest>(); Register(GSelfTest.ToSharedRef());
@@ -41,8 +62,42 @@ void UADPSim::Initialize(FSubsystemCollectionBase& Collection)
 	}
 }
 
+FString UADPSim::CareerFile(const FString& Slot) { return FPaths::ProjectSavedDir() / TEXT("Careers") / (Slot + TEXT(".json")); }
+
+TArray<FString> UADPSim::CareerSlots()
+{
+	TArray<FString> Files; IFileManager::Get().FindFiles(Files, *(FPaths::ProjectSavedDir() / TEXT("Careers") / TEXT("*.json")), true, false);
+	for (FString& F : Files) F = FPaths::GetBaseFilename(F);
+	return Files;
+}
+
+bool UADPSim::SaveCareer(const FString& Slot)
+{
+	World.Slot = Slot; World.SavedAt = FDateTime::UtcNow(); World.SimAt = Now();
+	World.ModuleTimes.Reset(); for (const FSlot& S : Slots) World.ModuleTimes.Add(S.M->Name().ToString(), S.At);
+	FString Text;
+	if (!FJsonObjectConverter::UStructToJsonObjectString(World, Text)) { ADP_WARN(TEXT("Sim: the career couldn't be written")); return false; }
+	// (written beside, then moved over the old one: a crash mid-write never leaves a broken save)
+	const FString F = CareerFile(Slot), Tmp = F + TEXT(".tmp");
+	if (!FFileHelper::SaveStringToFile(Text, *Tmp, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM) || !IFileManager::Get().Move(*F, *Tmp, true, true))
+	{ ADP_WARN(TEXT("Sim: saving %s failed"), *F); return false; }
+	return true;
+}
+
+bool UADPSim::LoadCareer(const FString& Slot)
+{
+	FString Text;
+	if (!FFileHelper::LoadFileToString(Text, *CareerFile(Slot))) return false;
+	FADPWorld W;
+	if (!FJsonObjectConverter::JsonObjectStringToUStruct(Text, &W, 0, 0)) { ADP_WARN(TEXT("Sim: the career %s couldn't be read"), *Slot); return false; }
+	World = MoveTemp(W);
+	ADP_LOG(TEXT("Sim: career %s loaded (version %d, saved %s, %d airlines, %d aircraft, %d people)"), *Slot, World.Version, *World.SavedAt.ToString(), World.Airlines.Num(), World.Aircraft.Num(), World.People.Num());
+	return true;
+}
+
 void UADPSim::Deinitialize()
 {
+	if (bRunning && !World.Slot.IsEmpty()) SaveCareer(World.Slot);   // (closing the game saves the career)
 	bRunning = false;
 	Slots.Reset();
 	Super::Deinitialize();
@@ -107,6 +162,7 @@ bool UADPSim::Step(FSlot& S, const FDateTime& To, bool bCatchUp, double Budget)
 void UADPSim::Tick(float Dt)
 {
 	if (!bRunning || !bRunsWorld) return;
+	if (!World.Slot.IsEmpty() && (AutosaveClock += Dt) >= 30.0) { AutosaveClock = 0.0; SaveCareer(World.Slot); }
 	const double TickT0 = FPlatformTime::Seconds();
 	const FDateTime NowT = Now();
 	// catching up: a few milliseconds of work a frame until every module is at now; then live
