@@ -761,7 +761,9 @@ void AADPHUD::BeginPlay()
 	if (GEngine && GEngine->GameViewport && !FParse::Param(FCommandLine::Get(), TEXT("PhotoTour")))
 		GEngine->GameViewport->AddViewportWidgetContent(
 			SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(FLinearColor(0.012f, 0.008f, 0.04f, 1.f))
-			.Visibility_Lambda([this]() { return bMenusReady ? EVisibility::Collapsed : EVisibility::Visible; }), 50);
+			// (the Chablais test tours draw the world without waiting for the menus' page: the cover too, so the window shows what
+			// the camera sees - owner, 2026-11-20: "I only see a violet screen")
+			.Visibility_Lambda([this]() { static const bool bTour = FParse::Param(FCommandLine::Get(), TEXT("UIChablais")); return bMenusReady || bTour ? EVisibility::Collapsed : EVisibility::Visible; }), 50);
 	// while the roads and the town are still being built (ADPLateWorld), a note at the top of the 3D view
 	if (GEngine && GEngine->GameViewport)
 		GEngine->GameViewport->AddViewportWidgetContent(
