@@ -67,7 +67,9 @@ steps, menus and Settings all become native Unreal screens. One simulation drive
 13. Title screen, new-game steps, neon sign, title music (156/157) - 10-14 h
 14. Babylon web pages switched off; a full stress walk and test - 4-6 h
 
-About 110-150 working hours in all (14-19 working days). Each part is tested and committed; a release whenever a
+15. Our own flight planning and dispatch from real-world data (no outside services) - 10-14 h
+
+About 120-165 working hours in all (15-21 working days). Each part is tested and committed; a release whenever a
 useful group is done (your go-ahead covers publishing, except the Overview's look, which waits for the demo APK).
 
 ## Questions for the owner (before part 1)
@@ -77,4 +79,8 @@ useful group is done (your go-ahead covers publishing, except the Overview's loo
 2. Time: keep the real clock (as now, with the catch-up), or add a game speed?
 3. The Android app: it keeps running its own web game for now - must the PC's new save stay readable by it (so the two
    still sync), or is the Android app rebuilt from the new design later too?
-4. The online services (SimBrief, VATSIM/IVAO, Discord, ACARS, the Flight Simulator link) - all kept?
+4. ANSWERED (owner, 2026-11-20): no links to outside services at all - no SimBrief, VATSIM/IVAO, Discord, ACARS or the
+   Flight Simulator link. Their useful features are built into our own system instead: with our own aircraft you plan
+   routes professionally - departure and arrival procedures, waypoints, airways, levels, an operational flight plan and
+   ACARS-style messages - from real-world navigation data (sources checked for a licence that allows it in a sold game
+   before use). Added as part 15: our own flight planning (10-14 h).
