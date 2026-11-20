@@ -47,6 +47,10 @@ USTRUCT() struct FADPAircraft
 	UPROPERTY() FString Status = TEXT("parked");   // parked | flying | grounded | maintenance | leased
 	UPROPERTY() FString Cabin;             // the seat layout
 	UPROPERTY() bool bCabinBuilt3D = false;   // (unfinished: the cabin's 3D model and seats - to-do 155)
+	UPROPERTY() FString RouteId;           // the route it flies (empty: standby)
+	UPROPERTY() int32 LegIdx = 0;          // the next stop in the route's list
+	UPROPERTY() FDateTime ReadyAt;         // when it may leave next (after the turnaround)
+	UPROPERTY() FDateTime WaitingSince;    // waiting at the gate since (cancelled after 5 h)
 };
 
 /** A person: staff of any kind, pilots included (passengers live in FADPPassenger). */
@@ -69,6 +73,8 @@ USTRUCT() struct FADPPerson
 	UPROPERTY() TArray<FString> Types;     // type ratings
 	UPROPERTY() FString Home;              // where they live (the town)
 	UPROPERTY() FString Shift;             // early | day | late | night
+	UPROPERTY() double DutyMin = 0.0;      // minutes on duty since the last rest (pilots)
+	UPROPERTY() FDateTime RestUntil;       // resting until
 };
 
 USTRUCT() struct FADPRoute
@@ -99,6 +105,13 @@ USTRUCT() struct FADPFlight
 	UPROPERTY() int32 PaxF = 0;
 	UPROPERTY() double CargoKg = 0.0;
 	UPROPERTY() FString Phase = TEXT("Taxi out");
+	UPROPERTY() FString TypeId;
+	UPROPERTY() double DelayMin = 0.0;    // minutes late off the gate
+	UPROPERTY() double Lat = 0.0;         // where it is now (for the map)
+	UPROPERTY() double Lon = 0.0;
+	UPROPERTY() double AltFt = 0.0;
+	UPROPERTY() double GsKt = 0.0;
+	UPROPERTY() double HeadingDeg = 0.0;
 };
 
 /** One passenger of a flight at your airport, for the 3D world and the tracking map (to-do 155). */

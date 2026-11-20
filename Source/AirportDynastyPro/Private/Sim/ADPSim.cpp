@@ -10,6 +10,7 @@
 #include "Misc/Paths.h"
 #include "JsonObjectConverter.h"
 #include "Sim/ADPWorldData.h"
+#include "Sim/ADPFlightsModule.h"
 #include "Containers/Ticker.h"
 
 // -SimSelfTest: a test module (every 60 s, 2 days of catch-up), the career "closed" 3 days ago - checks the catch-up
@@ -41,6 +42,40 @@ void UADPSim::Initialize(FSubsystemCollectionBase& Collection)
 	ClockBaseSim = ClockBaseReal = FDateTime::UtcNow();
 	ADP_LOG(TEXT("Sim: the simulation core is up (real clock, speed %.1f)"), SpeedFactor);
 	ADPWorldData::Load();   // (the airports and aircraft types, on a background thread)
+	if (FParse::Param(FCommandLine::Get(), TEXT("SimFlyTest")))
+	{
+		// a small airline flying two routes from Vagar, the career "closed" 2 days ago: the catch-up flies those 2 days
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](float) -> bool
+		{
+			static TSharedPtr<FADPFlightsModule> M; static double Live = 0.0;
+			if (!ADPWorldData::IsReady()) return true;
+			if (!M)
+			{
+				FADPAirline Me; Me.Id = TEXT("me"); Me.Name = TEXT("Test Air"); Me.bPlayer = true; World.Airlines.Add(Me);
+				const TCHAR* Regs[] = {TEXT("OY-RCA"), TEXT("OY-RCB")};
+				const TArray<TArray<FString>> Stops = {{TEXT("EKVG"), TEXT("EKCH")}, {TEXT("EKVG"), TEXT("BIKF"), TEXT("EGLL"), TEXT("BIKF")}};
+				for (int32 i = 0; i < 2; ++i)
+				{
+					FADPPerson P; P.Id = FString::Printf(TEXT("pilot%d"), i); P.Name = FString::Printf(TEXT("Captain %d"), i); P.Role = TEXT("captain"); P.AirlineId = TEXT("me"); P.Types.Add(TEXT("A320")); World.People.Add(P);
+					FADPRoute R; R.Id = FString::Printf(TEXT("r%d"), i); R.AirlineId = TEXT("me"); R.Stops = Stops[i]; R.TypeId = TEXT("A320"); R.PilotId = P.Id; World.Routes.Add(R);
+					FADPAircraft A; A.Reg = Regs[i]; A.TypeId = TEXT("A320"); A.AirlineId = TEXT("me"); A.Base = A.Location = TEXT("EKVG"); A.RouteId = R.Id; World.Aircraft.Add(A);
+				}
+				M = MakeShared<FADPFlightsModule>(); Register(M.ToSharedRef());
+				Start(Now() - FTimespan::FromDays(2.0));
+				return true;
+			}
+			if (bCatchingUp) return true;
+			if (Live == 0.0) { Live = FPlatformTime::Seconds(); return true; }
+			if (FPlatformTime::Seconds() - Live < 20.0) return true;   // (a little live flying too)
+			ADP_LOG(TEXT("SimFlyTest: 2 days flown - %lld departures, %lld landings, %lld delayed 15+ min, %lld pilot rests, %d in the air now, %d notices"),
+				M->Departures, M->Landings, M->Delayed, M->Rests, World.Flights.Num(), World.Notices.Num());
+			for (const FADPAircraft& A : World.Aircraft) ADP_LOG(TEXT("SimFlyTest: %s at %s, %s, %.1f h, %d cycles"), *A.Reg, *A.Location, *A.Status, A.HoursMin / 60.0, A.Cycles);
+			for (const FADPFlight& F : World.Flights) ADP_LOG(TEXT("SimFlyTest: in the air %s %s-%s: %s, %.0f ft, %.0f kt, at %.2f %.2f, heading %.0f"), *F.Reg, *F.From, *F.To, *F.Phase, F.AltFt, F.GsKt, F.Lat, F.Lon, F.HeadingDeg);
+			ADP_LOG(TEXT("SimFlyTest: %s"), M->Landings >= 8 && M->Rests >= 1 ? TEXT("PASS") : TEXT("FAIL"));
+			FPlatformMisc::RequestExit(false);
+			return false;
+		}), 0.2f);
+	}
 	if (FParse::Param(FCommandLine::Get(), TEXT("SimProfileTest")))
 	{
 		// flight plans for known routes, compared by eye with real block times (logged), then the game closes
