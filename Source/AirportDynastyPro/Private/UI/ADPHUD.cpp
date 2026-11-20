@@ -1671,7 +1671,7 @@ void AADPHUD::CloseWhoAreYou(bool bGoOn, const FString& Difficulty)
 		// on: the game's own new-game flow (the pilot, the airline, the Overview); back: the title screen
 		const FString D = Difficulty.IsEmpty() ? TEXT("normal") : Difficulty.Left(12).Replace(TEXT("'"), TEXT(""));
 		Browser->ExecuteJavascript(bGoOn ? FString::Printf(TEXT("window.__ueNewGameDone && window.__ueNewGameDone('%s', '%s')"), *D, ADPCharacterCreate::UiOnRight() ? TEXT("f") : TEXT("m")) : TEXT("window.__ueNewGameCancel && window.__ueNewGameCancel()"));
-		if (bGoOn) { bNewCareer = true; StartUnrealLoad(); }   // (you, your hair and the terminal loading for real, shown on the loading screen)
+		if (bGoOn) { bNewCareer = true; SimDifficulty = D; StartUnrealLoad(); }   // (you, your hair and the terminal loading for real, shown on the loading screen)
 	}
 	// the menus in front again (they were, before the stage)
 	if (!bGame) ToggleGame();

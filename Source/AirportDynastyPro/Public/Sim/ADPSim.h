@@ -59,6 +59,20 @@ public:
 	/** Where each module has got to (simulation time) - saved with the career. */
 	FDateTime ModuleTime(FName Module) const;
 
+	// ---- your career (to-do 173): New game makes it at the airport you chose, Continue / Load picks it up
+	/** A new career: your airline based at the site's airport, money by difficulty (no aircraft, no crew: you buy them),
+	 * the AI airlines founded, the hiring pool and the markets filled; then it runs on the real clock and autosaves. */
+	void NewCareer(const FString& Difficulty, const FString& AirlineName = FString());
+	/** Continue / Load: this site's career read back and caught up on the time it was closed (false: none yet - a new one is made). */
+	bool ResumeCareer();
+	/** One career per airport: Saved/Careers/career-<site>.json. */
+	static FString SiteSlot();
+	/** Money a new career starts with (USD) - easy a lot, normal a little more freedom, hard exactly one used A320-class
+	 * aircraft, its crew for a few weeks and some spare (owner's new-game economy rules, 2026-11-12). */
+	static double StartingMoney(const FString& Difficulty);
+	/** The player's airline id. */
+	static const TCHAR* Me() { return TEXT("me"); }
+
 	// ---- the world and its save (Saved/Careers/<slot>.json, versioned; autosaved every 30 s while running)
 	FADPWorld World;
 	bool SaveCareer(const FString& Slot);
@@ -83,4 +97,6 @@ private:
 	double AutosaveClock = 0.0;
 	/** Advances one module up to To in steps of its interval (at most Budget seconds of real work this call). */
 	bool Step(FSlot& S, const FDateTime& To, bool bCatchUp, double Budget);
+	/** Every game module registered once (flights, economy, staff, rivals, events). */
+	void AddGameModules();
 };

@@ -4,6 +4,7 @@
 #include "Async/Async.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "HAL/FileManager.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -22,6 +23,51 @@ namespace
 	}
 	double Num(const TSharedPtr<FJsonValue>& V) { return V.IsValid() && V->Type == EJson::Number ? V->AsNumber() : 0.0; }
 	FString Str(const TSharedPtr<FJsonValue>& V) { return V.IsValid() && V->Type == EJson::String ? V->AsString() : FString(); }
+
+	/** Our own airports (to-do 172): Iceland's (Data/airfield.json) and every site's (Data/Sites/<id>/site.json), into the
+	 * world list like any other - their codes are made up, so OurAirports has none of them. The runway: the same 4 km x 60 m
+	 * layout everywhere, its ends from the airport point along the true heading. A real airport with the same code is replaced. */
+	void AddOurAirports(TArray<FADPAirportInfo>& Aps, TMap<FString, int32>& By)
+	{
+		TArray<TPair<FString, FString>> Files;   // (file, town)
+		Files.Add({SimDataFile(TEXT("airfield.json")), TEXT("Vík")});
+		for (const FString& Root : {FPaths::ProjectContentDir() / TEXT("Data/Sites"), FPaths::ProjectDir() / TEXT("Data/Sites")})
+		{
+			TArray<FString> Dirs; IFileManager::Get().FindFiles(Dirs, *(Root / TEXT("*")), false, true);
+			for (const FString& D : Dirs) if (!Files.ContainsByPredicate([&](const TPair<FString, FString>& F) { return F.Key.EndsWith(D / TEXT("site.json")); }))
+				if (FPaths::FileExists(Root / D / TEXT("site.json"))) Files.Add({Root / D / TEXT("site.json"), FString()});
+		}
+		double RwyM = 4000, RwyW = 60;
+		{
+			FString T; TSharedPtr<FJsonObject> J; const TSharedPtr<FJsonObject>* R = nullptr;
+			if (FFileHelper::LoadFileToString(T, *SimDataFile(TEXT("airfield.json"))) && FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(T), J) && J && J->TryGetObjectField(TEXT("runway"), R))
+			{ RwyM = FMath::Abs((*R)->GetNumberField(TEXT("x1")) - (*R)->GetNumberField(TEXT("x0"))); (*R)->TryGetNumberField(TEXT("w"), RwyW); }
+		}
+		for (const TPair<FString, FString>& F : Files)
+		{
+			FString T; TSharedPtr<FJsonObject> J; const TSharedPtr<FJsonObject>* A = nullptr;
+			if (!FFileHelper::LoadFileToString(T, *F.Key) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(T), J) || !J || !J->TryGetObjectField(TEXT("airport"), A)) continue;
+			FADPAirportInfo P;
+			(*A)->TryGetStringField(TEXT("icao"), P.Icao); (*A)->TryGetStringField(TEXT("iata"), P.Iata); (*A)->TryGetStringField(TEXT("name"), P.Name);
+			if (P.Icao.IsEmpty()) continue;
+			P.Ident = P.Icao; P.Town = F.Value; P.Kind = 'M'; P.bScheduled = true;
+			if (!(*A)->TryGetStringField(TEXT("country"), P.Country)) P.Country = P.Icao.StartsWith(TEXT("BI")) ? TEXT("IS") : TEXT("CH");
+			if (P.Town.IsEmpty()) J->TryGetStringField(TEXT("town"), P.Town);
+			if (P.Town.IsEmpty()) P.Town = P.Name;
+			double Hdg = 0, Elev = 0; (*A)->TryGetNumberField(TEXT("lat"), P.Lat); (*A)->TryGetNumberField(TEXT("lon"), P.Lon); (*A)->TryGetNumberField(TEXT("elevFt"), Elev); (*A)->TryGetNumberField(TEXT("hdg"), Hdg);
+			P.ElevFt = FMath::RoundToInt(Elev);
+			FADPRunwayInfo& W = P.Runways.AddDefaulted_GetRef();
+			auto Num2 = [](int32 X) { X = ((X - 1) % 36 + 36) % 36 + 1; return FString::Printf(TEXT("%02d"), X); };
+			double Mag = 0; (*A)->TryGetNumberField(TEXT("magvar"), Mag);
+			const int32 M = FMath::RoundToInt((Hdg - Mag) / 10.0);
+			W.Le = Num2(M); W.He = Num2(M + 18); W.LengthFt = FMath::RoundToInt(RwyM / 0.3048); W.WidthFt = FMath::RoundToInt(RwyW / 0.3048); W.Surface = 'A'; W.bLit = true;
+			const double Half = RwyM / 2 / 1852.0, Dist = ADPWorldData::DistanceNm(0, 0, 0, 1);   // nm per degree on the equator
+			const double DLat = Half * FMath::Cos(FMath::DegreesToRadians(Hdg)) / Dist, DLon = Half * FMath::Sin(FMath::DegreesToRadians(Hdg)) / (Dist * FMath::Cos(FMath::DegreesToRadians(P.Lat)));
+			W.LeLat = P.Lat - DLat; W.LeLon = P.Lon - DLon; W.HeLat = P.Lat + DLat; W.HeLon = P.Lon + DLon; W.LeHdg = Hdg; W.bEnds = true;
+			if (const int32* Old = By.Find(P.Icao)) Aps[*Old] = P; else { const int32 I = Aps.Add(P); By.Add(P.Icao, I); if (!P.Iata.IsEmpty()) By.Add(P.Iata, I); }
+			ADP_LOG(TEXT("World data: our airport %s (%s) %s at %.4f, %.4f, %d ft, runway %s/%s"), *P.Icao, *P.Iata, *P.Name, P.Lat, P.Lon, P.ElevFt, *W.Le, *W.He);
+		}
+	}
 
 	void LoadNow()
 	{
@@ -56,6 +102,7 @@ namespace
 				}
 			}
 		}
+		AddOurAirports(Aps, By);
 		if (FFileHelper::LoadFileToString(Text, *SimDataFile(TEXT("aircraft-types.json"))) && FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), J) && J)
 			for (const TSharedPtr<FJsonValue>& V : J->GetArrayField(TEXT("types")))
 			{

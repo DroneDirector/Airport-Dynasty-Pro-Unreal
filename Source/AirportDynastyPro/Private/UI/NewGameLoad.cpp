@@ -10,6 +10,7 @@
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "SWebBrowser.h"
+#include "Sim/ADPSim.h"
 
 void AADPHUD::StartUnrealLoad()
 {
@@ -46,6 +47,12 @@ void AADPHUD::StartUnrealLoad()
 		ADP_LOG(TEXT("New game loading: %s - %d assets"), Name, L.Num());
 	};
 	Start(TEXT("You"), You); Start(TEXT("Your hair"), Hair); Start(TEXT("The terminal"), Terminal);
+	// the simulation (to-do 173): a new career at this airport, or yours picked up and caught up behind this screen
+	if (UADPSim* Sim = UADPSim::Get(this))
+	{
+		if (bNewCareer) Sim->NewCareer(SimDifficulty);
+		else if (!Sim->ResumeCareer()) Sim->NewCareer(TEXT("normal"));
+	}
 	// the roads, the town and the land along the roads, built behind this screen (ADPLateWorld)
 	ADPLateWorld::Go();
 	PreNames.Add(TEXT("The roads and the town")); PreLoad.Add(nullptr);

@@ -124,6 +124,18 @@ def down(job):
     return 1
 
 
+def touches_france(job, is_meta, fr):
+    """Does this job's area (a META block or one tile) touch any French 500 m photo?"""
+    z, x, y = job
+    k = META - 1 if is_meta else 0
+    x0, _, _, y1 = tile_bounds_3857(z, x, y); _, y0, x1, _ = tile_bounds_3857(z, x + k, y + k)
+    fx0, fy0, fx1, fy1 = transform_bounds('EPSG:3857', 'EPSG:2154', x0, y0, x1, y1)
+    for kx in range(int(fx0 // 500) * 500, int(fx1 // 500) * 500 + 1, 500):
+        for ky in range(int(fy0 // 500) * 500, int(fy1 // 500) * 500 + 1, 500):
+            if (kx, ky) in fr: return True
+    return False
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--swiss'); ap.add_argument('--france'); ap.add_argument('--out')
@@ -131,6 +143,7 @@ def main():
     ap.add_argument('--zall', type=int, default=19); ap.add_argument('--zmax', type=int, default=20); ap.add_argument('--zmin', type=int, default=10)
     ap.add_argument('--fine-km', type=float, default=7.0)
     ap.add_argument('--workers', type=int, default=max(1, os.cpu_count() - 2)); ap.add_argument('--resume', action='store_true')
+    ap.add_argument('--only-france', action='store_true', help='redo only the tiles that touch a French photo (after the French download finished late), every level')
     a = ap.parse_args()
     src = sources(a)
     print('%d Swiss photos, %d French photos' % (len(src[0]), len(src[1])), flush=True)
@@ -166,6 +179,8 @@ def main():
             else:
                 jobs = [(z, x, y) for x in range(tx0, tx1 + 1) for y in range(ty0, ty1 + 1)]
                 fn = down
+            if a.only_france:
+                jobs = [j for j in jobs if touches_france(j, fn is meta, src[1])]
             print('level %d: %d jobs' % (z, len(jobs)), flush=True)
             n = 0
             for i, k in enumerate(ex.map(fn, jobs, chunksize=4 if fn is meta else 64)):

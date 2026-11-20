@@ -252,6 +252,7 @@ public:
 	TSharedRef<SWidget> FovSlider(int32 View);
 	/** Pose.cpp: the New Game start spot, your place kept for Continue / Load. */
 	void GoNewGameStart(); void SavePose(); bool RestorePose(); void OpenSiteStart();
+	FString SimDifficulty;   // (the difficulty chosen at New game, for the simulation's new career - to-do 173)
 	bool bNewCareer = false, bPoseLive = false; float PoseLeft = 5.f;
 	void GoTowerCab();
 	void GoTowerBalcony();
