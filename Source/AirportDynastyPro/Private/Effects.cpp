@@ -25,10 +25,10 @@ namespace ADPEffects
 		{TEXT("WeatherGround"), TEXT("Weather on the ground (wet paving, puddles, snow)"), true, 1.f, false, true},
 		{TEXT("TextureMemory"), TEXT("Texture memory (lower on cards with little video memory)"), true, 0.5f, true, false},
 		{TEXT("ShadowDetail"), TEXT("Shadow detail (lower saves video memory)"), true, 0.5f, true, false},
-		// (owner, 2026-11-20, to-do 149: frame savers, each on or off live - no restart; off by default)
-		{TEXT("Upscaler"), TEXT("Upscaler at Quality (draws 67% of the pixels, sharpened to full size; overrides the resolution slider while on) - more frames per second; highly recommended if your system is struggling"), false, 1.f, false, true},
-		{TEXT("FastClouds"), TEXT("Faster clouds (fewer samples through the clouds) - more frames per second; highly recommended if your system is struggling"), false, 1.f, false, true},
-		{TEXT("FastLighting"), TEXT("Faster lighting (cheaper Lumen: coarser light gathering, no extra lighting inside glass) - more frames per second; highly recommended if your system is struggling"), false, 1.f, false, true},
+		// (owner, 2026-11-20, to-do 149: frame savers, each on or off live - no restart; ON by default, owner: to save frames)
+		{TEXT("Upscaler"), TEXT("Upscaler at Quality (draws 67% of the pixels, sharpened to full size; overrides the resolution slider while on) - more frames per second; highly recommended if your system is struggling"), true, 1.f, false, true},
+		{TEXT("FastClouds"), TEXT("Faster clouds (fewer samples through the clouds) - more frames per second; highly recommended if your system is struggling"), true, 1.f, false, true},
+		{TEXT("FastLighting"), TEXT("Faster lighting (cheaper Lumen: coarser light gathering, no extra lighting inside glass) - more frames per second; highly recommended if your system is struggling"), true, 1.f, false, true},
 	};
 	static bool GOn[Count];
 	static float GQ[Count];
