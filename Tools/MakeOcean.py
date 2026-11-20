@@ -20,6 +20,9 @@ ap.add_argument('--lat', type=float, default=63.457988)
 ap.add_argument('--lon', type=float, default=-18.713703)
 ap.add_argument('--km', type=float, default=30.0)
 ap.add_argument('--wc', default='F:/ADP-Terrain/worldcover')
+# a lake instead of the sea (Chablais: Lake Geneva at 372 m): the water is where a site's height model (Tools/make_site_dem.py)
+# is at the lake's level, the big body joined to the region's edge or not
+ap.add_argument('--dem'); ap.add_argument('--level', type=float)
 ap.add_argument('--out', default=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'Content', 'Data', 'ocean.bin'))
 a = ap.parse_args()
 
@@ -32,7 +35,13 @@ print('region', S, N, W, E, 'pixels', Wd, 'x', H)
 
 # ---- the water mask (10 m) ----------------------------------------------------------------------------------------
 cls = np.full((H, Wd), 80, np.uint8)          # no land tile: open sea
-for lat0 in range(int(math.floor(S / 3) * 3), int(math.floor(N / 3) * 3) + 1, 3):
+if a.dem:
+    from rasterio.enums import Resampling
+    with rasterio.open(a.dem) as r:
+        win = from_bounds(W, S, E, N, r.transform)
+        hgt = r.read(1, window=win, out_shape=(H, Wd), boundless=True, fill_value=-32767, resampling=Resampling.average)
+    cls = np.where((hgt > -500) & (hgt <= a.level + 0.3), 80, 10).astype(np.uint8)
+for lat0 in ([] if a.dem else  in range(int(math.floor(S / 3) * 3), int(math.floor(N / 3) * 3) + 1, 3)):
     for lon0 in range(int(math.floor(W / 3) * 3), int(math.floor(E / 3) * 3) + 1, 3):
         name = 'ESA_WorldCover_10m_2021_v200_%s%02d%s%03d_Map.tif' % ('N' if lat0 >= 0 else 'S', abs(lat0), 'E' if lon0 >= 0 else 'W', abs(lon0))
         p = os.path.join(a.wc, name)
@@ -49,6 +58,7 @@ for lat0 in range(int(math.floor(S / 3) * 3), int(math.floor(N / 3) * 3) + 1, 3)
 water = cls == 80
 lab, n = ndimage.label(water)
 edge = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
+if a.dem: edge = set(range(1, n + 1))   # (a lake: any big body of water, edge or not)
 # the open sea: the water touching the region's edge with the most area (and any other big edge-touching body)
 sizes = ndimage.sum(water, lab, index=list(edge)) if edge else []
 keep = [l for l, sz in zip(edge, sizes) if sz > 2e5]

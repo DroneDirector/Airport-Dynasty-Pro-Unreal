@@ -1,6 +1,7 @@
 // The timetable screens: their places and shapes from the Android edition (plan.ts SCREENS, fixtures.ts), their rows
 // the Android edition's sample flights (fids.ts sample) round the real time, refreshed every 4 seconds.
 #include "TerminalScreens.h"
+#include "Site.h"
 #include "ADPLog.h"
 #include "TerminalBuilder.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -38,8 +39,7 @@ namespace
 	struct FRow { FString Time, Flight, Place, Status; FColor Col; };
 	TArray<FRow> Sample(bool bArr, int32 N)
 	{
-		static const TCHAR* P[] = {TEXT("Reykjavík"), TEXT("Copenhagen"), TEXT("Oslo"), TEXT("London"), TEXT("Vágar"), TEXT("Amsterdam"), TEXT("Frankfurt"), TEXT("Stockholm"), TEXT("Bergen"), TEXT("Edinburgh"), TEXT("Paris"), TEXT("Helsinki")};
-		static const TCHAR* C[] = {TEXT("KEF"), TEXT("CPH"), TEXT("OSL"), TEXT("LHR"), TEXT("FAE"), TEXT("AMS"), TEXT("FRA"), TEXT("ARN"), TEXT("BGO"), TEXT("EDI"), TEXT("CDG"), TEXT("HEL")};
+		TArray<FString> P, C; ADPSite::Destinations(P, C);   // (the site's own: Site.h)
 		const FDateTime Now = FDateTime::Now();
 		const int64 NowMin = Now.GetTicks() / ETimespan::TicksPerMinute;
 		const int64 Base = NowMin / 15 * 15;
@@ -65,7 +65,7 @@ namespace
 			}
 			const int32 Mins = int32(((Sched % 1440) + 1440) % 1440);
 			Out.Add({FString::Printf(TEXT("%02d:%02d"), Mins / 60, Mins % 60), FString::Printf(TEXT("VT %d"), 200 + K * 37 + (bArr ? 1 : 0)),
-				FString::Printf(TEXT("%s %s"), C[K], P[K]), Status, Col});
+				FString::Printf(TEXT("%s %s"), *C[K % C.Num()], *P[K % P.Num()]), Status, Col});
 		}
 		return Out;
 	}
@@ -153,7 +153,9 @@ void ATerminalScreens::Panel(const FAt& O, float W, float H, float Z, float Faci
 
 void ATerminalScreens::GateScreen(const FAt& O, int32 Gate)
 {
-	static const TCHAR* Flights[] = {TEXT("AM 210 · Copenhagen"), TEXT("AM 344 · London"), TEXT("AM 118 · Oslo"), TEXT("AM 512 · Reykjavik"), TEXT("AM 230 · Amsterdam"), TEXT("AM 610 · Barcelona"), TEXT("AM 402 · Frankfurt"), TEXT("AM 120 · Vágar")};
+	TArray<FString> Dn, Dc; ADPSite::Destinations(Dn, Dc);
+	static const int32 Nums[] = {210, 344, 118, 512, 230, 610, 402, 120};
+	TArray<FString> Flights; for (int32 k = 0; k < 8; ++k) Flights.Add(FString::Printf(TEXT("AM %d · %s"), Nums[k], *Dn[k % Dn.Num()]));
 	static const TCHAR* Times[] = {TEXT("06:40"), TEXT("07:35"), TEXT("07:20"), TEXT("07:55"), TEXT("08:10"), TEXT("08:35"), TEXT("09:00"), TEXT("09:25")};
 	const int32 I = (Gate - 1) % 8;
 	Bezel(O, "black", 1.7f, 0.98f, 0.08f, 0, 0, 0);

@@ -1,6 +1,7 @@
 // The sun's place from the time: the low-precision solar position (as in the Astronomical Almanac and NOAA's
 // calculator), good to about a hundredth of a degree for many years either side of 2000.
 #include "SunClock.h"
+#include "Site.h"
 #include "PerfLog.h"
 #include "Engine/DirectionalLight.h"
 #include "Components/DirectionalLightComponent.h"
@@ -88,7 +89,7 @@ void ASunClock::Update()
 	double El = 0, Az = 0;
 	FDateTime When = FDateTime::UtcNow();
 	if (DayOverride > 0) When = FDateTime(When.GetYear(), 1, 1) + FTimespan::FromDays(DayOverride - 1) + When.GetTimeOfDay();
-	if (HourOverride >= 0) { const FDateTime D = When.GetDate(); When = D + FTimespan::FromHours(FMath::Clamp(HourOverride, 0.f, 23.999f)); }
+	if (HourOverride >= 0) { const FDateTime D = When.GetDate(); When = D + FTimespan::FromHours(FMath::Clamp(HourOverride, 0.f, 23.999f) - ADPSite::UtcOffsetHours(When)); }   // (the hour shown is the site's local time: Site.h)
 	SunAt(When, Lat, Lon, El, Az);
 	SunElevation = float(El);
 	ADirectionalLight* Sun = Cast<ADirectionalLight>(UGameplayStatics::GetActorOfClass(this, ADirectionalLight::StaticClass()));

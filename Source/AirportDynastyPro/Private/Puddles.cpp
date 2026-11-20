@@ -1,4 +1,5 @@
 #include "Puddles.h"
+#include "Site.h"
 #include "ADPLog.h"
 #include "Materials/MaterialParameterCollection.h"
 #include "Kismet/KismetMaterialLibrary.h"
@@ -85,7 +86,7 @@ void APuddles::GroundWeather(float Dt, float& OutRainK)
 	if (bLive) { AirTemp = LiveTemp; RainMm = LiveRain; SnowCm = LiveSnow; }
 	else
 	{
-		const float Hr = ASunClock::HourOverride >= 0.f ? ASunClock::HourOverride : (float)FDateTime::UtcNow().GetHour() + FDateTime::UtcNow().GetMinute() / 60.f;
+		const float Hr = ASunClock::HourOverride >= 0.f ? ASunClock::HourOverride : (float)ADPSite::LocalNow().GetHour() + ADPSite::LocalNow().GetMinute() / 60.f;   // (the site's local time)
 		float T = Mean[FMath::Clamp(ASunClock::Month, 1, 12) - 1] + 2.5f * FMath::Cos((Hr - 15.f) / 24.f * 2.f * PI);
 		if (Th <= 1 && (Hr < 7.f || Hr > 20.f)) T -= 1.5f;
 		if (Th == 7) T = FMath::Min(T, -1.5f);

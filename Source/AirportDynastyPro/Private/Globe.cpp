@@ -139,7 +139,11 @@ void AGlobe::Build(const FAirfieldData& F)
 	// the sea round the airport, meeting the real coastline, at sea level: with the shipped terrain, the airport's
 	// ground height less its height above the sea; on the smooth globe, just above it
 	if (AOcean* Sea = W->SpawnActor<AOcean>(FVector::ZeroVector, FRotator::ZeroRotator, P))
-		Sea->Build(G, bTerrain && Ground >= 0 ? Ground - F.ElevFt * 0.3048 + 0.1 : 0.25);
+	{
+		// a site by a lake (Chablais: Lake Geneva, 372 m): the water at the lake's level instead of the sea's
+		double Level = 0.0; if (TSharedPtr<FJsonObject> Si = ADPSite::Info(ADPSite::Id())) Si->TryGetNumberField(TEXT("lakeLevelM"), Level);
+		Sea->Build(G, bTerrain && Ground >= 0 ? Ground - F.ElevFt * 0.3048 + Level + 0.1 : 0.25);
+	}
 
 	Earth = Tiles;
 	Current = this;

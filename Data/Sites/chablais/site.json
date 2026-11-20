@@ -25,5 +25,55 @@
     "marginM": 120,
     "blendM": 450
   },
-  "imageryDev": "D:/ADP-Terrain/Chablais/imagery"
+  "imageryDev": "D:/ADP-Terrain/Chablais/imagery",
+  "destinations": [
+    [
+      "London",
+      "LHR"
+    ],
+    [
+      "Paris",
+      "CDG"
+    ],
+    [
+      "Amsterdam",
+      "AMS"
+    ],
+    [
+      "Frankfurt",
+      "FRA"
+    ],
+    [
+      "Barcelona",
+      "BCN"
+    ],
+    [
+      "Lisbon",
+      "LIS"
+    ],
+    [
+      "Rome",
+      "FCO"
+    ],
+    [
+      "Vienna",
+      "VIE"
+    ],
+    [
+      "Berlin",
+      "BER"
+    ],
+    [
+      "Copenhagen",
+      "CPH"
+    ],
+    [
+      "Madrid",
+      "MAD"
+    ],
+    [
+      "Nice",
+      "NCE"
+    ]
+  ]
 }

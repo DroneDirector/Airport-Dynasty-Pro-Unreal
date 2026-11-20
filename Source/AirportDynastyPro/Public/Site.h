@@ -37,5 +37,7 @@ namespace ADPSite
 	TSharedPtr<FJsonObject> AirportBlock();
 	/** The local time now at the site (its UTC offset; EU summer time where the site says so). */
 	FDateTime LocalNow();
+	/** The sample destinations on the boards and in the calls (the site's own, else the Iceland set): names and IATA codes. */
+	void Destinations(TArray<FString>& Names, TArray<FString>& Codes);
 	double UtcOffsetHours(const FDateTime& Utc);
 }

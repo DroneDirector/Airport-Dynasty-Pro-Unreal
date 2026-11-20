@@ -1,6 +1,7 @@
 // The airport's traffic: airliners turning round at the stands, taxiing, taking off and landing on runway 08, with
 // their ground vehicles. Simple shapes for the aircraft and vehicles until proper models replace them.
 #include "AirTraffic.h"
+#include "Site.h"
 #include "BaggageBelts.h"
 #include "ADPLog.h"
 #include "TerminalBuilder.h"
@@ -284,13 +285,13 @@ void AAirTraffic::Tick(float Dt)
 		case EState::Parked:
 		{
 			// the calls for this stand's flight: boarding a minute before it goes, then the final call
-			static const TCHAR* To[] = {TEXT("Copenhagen"), TEXT("London"), TEXT("Oslo"), TEXT("Reykjavík"), TEXT("Amsterdam"), TEXT("Barcelona"), TEXT("Frankfurt"), TEXT("Vágar")};
+			TArray<FString> To, ToCodes; ADPSite::Destinations(To, ToCodes);   // (the site's own: Site.h)
 			const int32 Gate = FCString::Atoi(*P.Stand.Id.RightChop(6));
 			const float Before = P.Timer;
 			P.Timer -= Dt;
 			const int32 Flight = 200 + Gate * 37;
-			if (Before > 60 && P.Timer <= 60) AADPHUD::Announce(FString::Printf(TEXT("Flight VT %d to %s is now boarding at gate %d."), Flight, To[(Gate - 1) % 8], Gate));
-			if (Before > 20 && P.Timer <= 20) AADPHUD::Announce(FString::Printf(TEXT("Final call for flight VT %d to %s, gate %d is closing."), Flight, To[(Gate - 1) % 8], Gate));
+			if (Before > 60 && P.Timer <= 60) AADPHUD::Announce(FString::Printf(TEXT("Flight VT %d to %s is now boarding at gate %d."), Flight, *To[(Gate - 1) % To.Num()], Gate));
+			if (Before > 20 && P.Timer <= 20) AADPHUD::Announce(FString::Printf(TEXT("Final call for flight VT %d to %s, gate %d is closing."), Flight, *To[(Gate - 1) % To.Num()], Gate));
 			if (P.Timer <= 0) Plan(P, EState::Pushback);
 			break;
 		}

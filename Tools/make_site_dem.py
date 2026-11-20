@@ -80,11 +80,17 @@ def main():
         for c in range(0, W, a.block):
             jobs.append((lon0 + c * a.res, lat1 - r * a.res, min(a.block, W - c), min(a.block, H - r)))
     tmp = a.out + '.part'
+    import time
+    from concurrent.futures import as_completed
+    prof.pop('num_threads', None)
+    t0 = time.time()
     with rasterio.open(tmp, 'w', **prof) as o, ProcessPoolExecutor(a.workers, initializer=init, initargs=(a, src)) as ex:
-        for i, ((bl, bt, w, h), arr) in enumerate(ex.map(block, jobs)):
+        futs = [ex.submit(block, j) for j in jobs]
+        for i, f in enumerate(as_completed(futs)):
+            (bl, bt, w, h), arr = f.result()
             c = int(round((bl - lon0) / a.res)); r = int(round((lat1 - bt) / a.res))
             o.write(arr, 1, window=rasterio.windows.Window(c, r, w, h))
-            if i % 25 == 0: print('%d / %d blocks' % (i + 1, len(jobs)), flush=True)
+            if i % 10 == 0: print('%d / %d blocks, %.0f s' % (i + 1, len(jobs), time.time() - t0), flush=True)
     os.replace(tmp, a.out)
     print('done', a.out, flush=True)
 

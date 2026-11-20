@@ -57,6 +57,10 @@ for dx, dy, L, A in WAVES:
 dist = E(unreal.MaterialExpressionPixelDepth)
 calm = fn(unreal.MaterialExpressionSaturate, op(unreal.MaterialExpressionDivide, c1(60000.0), add(dist, c1(1.0))))
 calm = add(mul(calm, c1(0.75)), c1(0.25))
+# a lake (Chablais: Lake Geneva, 2026-11-20): the parameter Lake (0 the sea, 1 a lake, set by the game per site) makes the
+# waves a third as steep and the shore's surf a gentle lap
+lake = E(unreal.MaterialExpressionScalarParameter, -1800); lake.set_editor_property('parameter_name', 'Lake'); lake.set_editor_property('default_value', 0.0)
+calm = mul(calm, lerp(c1(1.0), c1(0.32), lake))
 nrm = fn(unreal.MaterialExpressionNormalize, op(unreal.MaterialExpressionAppendVector, op(unreal.MaterialExpressionAppendVector, mul(mul(sx, c1(-1)), calm), mul(mul(sy, c1(-1)), calm)), c1(1.0)))
 mel.connect_material_property(nrm, '', unreal.MaterialProperty.MP_NORMAL)
 
@@ -67,6 +71,7 @@ brk = add(fn(unreal.MaterialExpressionSine, add(mul(X, c1(0.09)), mul(T, c1(0.21
 bands = fn(unreal.MaterialExpressionSine, add(add(mul(shore, c1(22.0)), mul(T, c1(-1.1))), mul(brk, c1(1.4))))
 bands = fn(unreal.MaterialExpressionSaturate, mul(add(bands, c1(-0.55)), c1(3.5)))
 foam = fn(unreal.MaterialExpressionSaturate, add(mul(bands, pw(shore, c1(1.6))), pw(shore, c1(10.0))))
+foam = mul(foam, lerp(c1(1.0), c1(0.12), lake))
 deep, shallow, white = c3(0.008, 0.035, 0.05), c3(0.03, 0.12, 0.12), c3(0.85, 0.88, 0.88)
 water = lerp(deep, shallow, pw(shore, c1(2.0)))
 mel.connect_material_property(lerp(water, white, foam), '', unreal.MaterialProperty.MP_BASE_COLOR)

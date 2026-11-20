@@ -129,6 +129,18 @@ double ADPSite::UtcOffsetHours(const FDateTime& Utc)
 	return (Utc >= LastSunday(3) && Utc < LastSunday(10)) ? Std + 1.0 : Std;
 }
 
+void ADPSite::Destinations(TArray<FString>& Names, TArray<FString>& Codes)
+{
+	Names = {TEXT("Reykjavík"), TEXT("Copenhagen"), TEXT("Oslo"), TEXT("London"), TEXT("Vágar"), TEXT("Amsterdam"), TEXT("Frankfurt"), TEXT("Stockholm"), TEXT("Bergen"), TEXT("Edinburgh"), TEXT("Paris"), TEXT("Helsinki")};
+	Codes = {TEXT("KEF"), TEXT("CPH"), TEXT("OSL"), TEXT("LHR"), TEXT("FAE"), TEXT("AMS"), TEXT("FRA"), TEXT("ARN"), TEXT("BGO"), TEXT("EDI"), TEXT("CDG"), TEXT("HEL")};
+	const TArray<TSharedPtr<FJsonValue>>* D;
+	if (TSharedPtr<FJsonObject> I = Info(Id())) if (I->TryGetArrayField(TEXT("destinations"), D) && D->Num() >= 8)
+	{
+		Names.Reset(); Codes.Reset();
+		for (const TSharedPtr<FJsonValue>& V : *D) { const TArray<TSharedPtr<FJsonValue>>& P = V->AsArray(); if (P.Num() == 2) { Names.Add(P[0]->AsString()); Codes.Add(P[1]->AsString()); } }
+	}
+}
+
 FDateTime ADPSite::LocalNow()
 {
 	const FDateTime U = FDateTime::UtcNow();

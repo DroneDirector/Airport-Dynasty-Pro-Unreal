@@ -214,7 +214,7 @@ NATIONAL = [
     # Chablais Airport (Switzerland, 2026-11-20): swissALTI3D 0.5 m + IGN RGE ALTI 1 m on the French side, merged into one
     # model at 0.00001 deg (~1 m) by Tools/make_site_dem.py (made directly in EPSG:4326: no source to reproject here);
     # credit "© swisstopo, © IGN". Down to level 17 (~1.2 m between the mesh's points).
-    (Path('-'), Path('D:/ADP-Terrain/Chablais/chablais_dem_4326.tif'), 0.00001, 17),
+    (Path('-'), Path('F:/ADP-Terrain/chablais/chablais_dem_4326.tif'), 0.00001, 17),
 ]
 
 def prepare_national():
