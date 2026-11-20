@@ -3,6 +3,7 @@
 #include "ADPLog.h"
 #include "Sim/ADPWeather.h"
 #include "Sim/ADPDemand.h"
+#include "Sim/ADPEconomy.h"
 
 const FADPProfile* FADPFlightsModule::ProfileOf(const FADPFlight& F)
 {
@@ -145,6 +146,7 @@ void FADPFlightsModule::Land(FADPWorld& W, int32 Idx, const FDateTime& At)
 {
 	const FADPFlight F = W.Flights[Idx];
 	W.Flights.RemoveAt(Idx);
+	ADPEconomy::BookLeg(W, F, At);   // (the leg's money: part 5)
 	Profiles.Remove(F.Id);
 	++Landings;
 	if (FADPAircraft* A = W.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == F.Reg; }))

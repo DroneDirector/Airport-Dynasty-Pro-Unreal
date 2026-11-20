@@ -12,6 +12,7 @@
 #include "Sim/ADPWorldData.h"
 #include "Sim/ADPFlightsModule.h"
 #include "Sim/ADPWeather.h"
+#include "Sim/ADPEconomy.h"
 #include "Containers/Ticker.h"
 
 // -SimSelfTest: a test module (every 60 s, 2 days of catch-up), the career "closed" 3 days ago - checks the catch-up
@@ -49,21 +50,22 @@ void UADPSim::Initialize(FSubsystemCollectionBase& Collection)
 		// a small airline flying two routes from Vagar, the career "closed" 2 days ago: the catch-up flies those 2 days
 		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](float) -> bool
 		{
-			static TSharedPtr<FADPFlightsModule> M; static double Live = 0.0;
+			static TSharedPtr<FADPFlightsModule> M; static TSharedPtr<FADPEconomyModule> Eco; static double Live = 0.0;
 			if (!ADPWorldData::IsReady()) return true;
 			if (!M)
 			{
-				FADPAirline Me; Me.Id = TEXT("me"); Me.Name = TEXT("Test Air"); Me.bPlayer = true; World.Airlines.Add(Me);
+				FADPAirline Me; Me.Id = TEXT("me"); Me.Name = TEXT("Test Air"); Me.bPlayer = true; Me.Balance = 5000000.0; World.Airlines.Add(Me);
 				const TCHAR* Regs[] = {TEXT("OY-RCA"), TEXT("OY-RCB")};
 				const TArray<TArray<FString>> Stops = {{TEXT("EKVG"), TEXT("EKCH")}, {TEXT("EKVG"), TEXT("BIKF"), TEXT("EGLL"), TEXT("BIKF")}};
 				for (int32 i = 0; i < 2; ++i)
 				{
-					FADPPerson P; P.Id = FString::Printf(TEXT("pilot%d"), i); P.Name = FString::Printf(TEXT("Captain %d"), i); P.Role = TEXT("captain"); P.AirlineId = TEXT("me"); P.Types.Add(TEXT("A320")); World.People.Add(P);
+					FADPPerson P; P.Id = FString::Printf(TEXT("pilot%d"), i); P.Name = FString::Printf(TEXT("Captain %d"), i); P.Role = TEXT("captain"); P.AirlineId = TEXT("me"); P.Salary = 2900.0; P.Types.Add(TEXT("A320")); World.People.Add(P);
 					FADPRoute R; R.Id = FString::Printf(TEXT("r%d"), i); R.AirlineId = TEXT("me"); R.Stops = Stops[i]; R.TypeId = TEXT("A320"); R.PilotId = P.Id; World.Routes.Add(R);
 					FADPAircraft A; A.Reg = Regs[i]; A.TypeId = TEXT("A320"); A.AirlineId = TEXT("me"); A.Base = A.Location = TEXT("EKVG"); A.RouteId = R.Id; World.Aircraft.Add(A);
 				}
 				M = MakeShared<FADPFlightsModule>(); Register(M.ToSharedRef());
-				Start(Now() - FTimespan::FromDays(2.0));
+				Eco = MakeShared<FADPEconomyModule>(); Register(Eco.ToSharedRef());
+				Start(Now() - FTimespan::FromDays(8.0));   // (8 days: a payday falls in them)
 				return true;
 			}
 			if (bCatchingUp) return true;
@@ -76,6 +78,11 @@ void UADPSim::Initialize(FSubsystemCollectionBase& Collection)
 			for (const TCHAR* Ap : {TEXT("EKVG"), TEXT("BIKF"), TEXT("EGLL"), TEXT("EKCH")}) if (const FADPAirportInfo* I = ADPWorldData::Airport(Ap))
 			{ const FADPWx X = ADPWeather::At(Ap, I->Lat, I->Lon, Now()); ADP_LOG(TEXT("SimFlyTest: weather %s %s: wind %03.0f/%.0f kt gust %.0f, vis %.0f m, ceiling %.0f ft, %.0f C%s%s - %s"), Ap, X.bLive ? TEXT("LIVE") : TEXT("climate"), X.WindDir, X.WindKt, X.GustKt, X.VisM, X.CeilingFt, X.TempC, X.bSnow ? TEXT(" snow") : TEXT(""), X.bStorm ? TEXT(" storm") : TEXT(""), *X.Raw); }
 			ADP_LOG(TEXT("SimFlyTest: %d live reports; weather waits %lld, de-icings %lld, holds %lld, diversions %lld, failures %lld, curfew waits %lld"), ADPWeather::NumReports(), M->WxWaits, M->DeIcings, M->Holds, M->Diversions, M->Failures, M->Curfews); ADP_LOG(TEXT("SimFlyTest: passengers %lld on %lld departures, average load %.0f%%, ticket and cargo money $%.0f"), M->PaxCarried, M->Departures, M->Departures ? M->LoadSum / M->Departures * 100.0 : 0.0, M->RevenueSum); for (const FADPFlight& F : World.Flights) ADP_LOG(TEXT("SimFlyTest: on board %s %s-%s: %d economy, %d business, %d first, %.0f kg cargo, %.0f%% full, $%.0f"), *F.Reg, *F.From, *F.To, F.Pax, F.PaxJ, F.PaxF, F.CargoKg, F.LoadFactor * 100.0, F.Revenue); for (const FADPNotice& N : World.Notices) ADP_LOG(TEXT("SimFlyTest: notice - %s"), *N.Text);
+			{
+				TMap<FString, double> ByKind; for (const FADPTxn& T : World.Ledger) ByKind.FindOrAdd(T.Kind) += T.Amount;
+				FString Lines; for (const auto& K : ByKind) Lines += FString::Printf(TEXT("%s %.0f, "), *K.Key, K.Value);
+				ADP_LOG(TEXT("SimFlyTest: money - %s%d paydays, balance $%.0f (from $5,000,000), %d ledger lines"), *Lines, Eco->Paydays, World.Airlines[0].Balance, World.Ledger.Num());
+			}
 			ADP_LOG(TEXT("SimFlyTest: %s"), M->Landings >= 8 && M->Rests >= 1 ? TEXT("PASS") : TEXT("FAIL"));
 			FPlatformMisc::RequestExit(false);
 			return false;
