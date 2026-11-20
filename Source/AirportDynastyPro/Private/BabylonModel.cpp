@@ -1,6 +1,7 @@
 // Places the Babylon model: walks its node tree from the roots, works out each node's transform the way Unreal's glTF
 // importer converts them, and adds an instance of the node's imported mesh there.
 #include "BabylonModel.h"
+#include "Site.h"
 #include "PerfLog.h"
 #include "ParkedAircraft.h"
 #include "Misc/FileHelper.h"
@@ -146,7 +147,7 @@ bool ABabylonModel::Place(const FString& Name)
 		  // departures sign (KERB/) stay, on the road network's 16 m terminal pavement
 		  if (Name == TEXT("Terminal") && (Nm == TEXT("SITE/ROAD") || Nm == TEXT("SITE/ROAD-MARKING") || Nm == TEXT("SITE/KERB") || Nm == TEXT("SITE/KERB-EDGE")
 		      || Nm == TEXT("SITE/CARPARK") || Nm == TEXT("SITE/PARKING-LINES") || Nm.StartsWith(TEXT("SITE/CAR-")) || Nm.StartsWith(TEXT("SITE/TREE-")))
-		      && FFileHelper::LoadFileToString(GRoadsProbe, *(FPaths::ProjectContentDir() / TEXT("Data/roads.json")))) return;
+		      && FFileHelper::LoadFileToString(GRoadsProbe, *ADPSite::File(TEXT("roads.json")))) return;
 		  // the fire station model's own ground (its 190 x 160 m ground sheet b27, its forecourt b28, the walk b35 and its
 		  // kerb b37) lay a few centimetres off the airfield's and cars bumped over its edges: the airfield lays that
 		  // paving now (Data/airfield.json LOT-FIRE-*), one ground everywhere (owner, 2026-11-14)

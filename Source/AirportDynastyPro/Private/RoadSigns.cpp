@@ -1,5 +1,6 @@
 // The roadside airport signs (RoadSigns.h).
 #include "RoadSigns.h"
+#include "Site.h"
 #include "ADPLog.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Canvas.h"
@@ -40,10 +41,9 @@ void ARoadSigns::AirportWords(FString& Name, FString& Word)
 {
 	Name = TEXT("Airport"); Word = TEXT("Airport");
 	FString Country;
-	if (TSharedPtr<FJsonObject> A = LoadJson(TEXT("airfield.json")))
+	if (TSharedPtr<FJsonObject> ApObj = ADPSite::AirportBlock())
 	{
-		const TSharedPtr<FJsonObject>* Ap = nullptr;
-		if (A->TryGetObjectField(TEXT("airport"), Ap))
+		const TSharedPtr<FJsonObject>* Ap = &ApObj;
 		{
 			(*Ap)->TryGetStringField(TEXT("name"), Name);
 			(*Ap)->TryGetStringField(TEXT("word"), Word);       // (the airport's own, when given)

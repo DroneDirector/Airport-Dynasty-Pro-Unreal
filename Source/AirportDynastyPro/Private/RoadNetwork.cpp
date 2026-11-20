@@ -7,6 +7,7 @@
 #undef min
 #include "RoadNetwork.h"
 #if PLATFORM_WINDOWS
+#include "Site.h"
 #include "Windows/WindowsHWrapper.h"   // (Windows' headers the Unreal way, before Cesium's: its own include of windows.h then leaves no min/max/GetObject macros behind for the next files of the build chunk)
 #endif
 #include "LandCorridor.h"
@@ -75,7 +76,7 @@ namespace
 		if (!bDone)
 		{
 			bDone = true; FString T;
-			if (FFileHelper::LoadFileToString(T, *(FPaths::ProjectContentDir() / TEXT("Data/road-ground.json"))) || FFileHelper::LoadFileToString(T, *(FPaths::ProjectDir() / TEXT("Data/road-ground.json")))) C = FCrc::StrCrc32(*T);
+			if (FFileHelper::LoadFileToString(T, *ADPSite::File(TEXT("road-ground.json")))) C = FCrc::StrCrc32(*T);
 		}
 		return C;
 	}
@@ -91,7 +92,7 @@ namespace
 		if (bRead) return M;
 		bRead = true;
 		FString T;
-		if (!FFileHelper::LoadFileToString(T, *(FPaths::ProjectContentDir() / TEXT("Data/roads-baked.json"))) && !FFileHelper::LoadFileToString(T, *(FPaths::ProjectDir() / TEXT("Data/roads-baked.json")))) return M;
+		if (!FFileHelper::LoadFileToString(T, *ADPSite::File(TEXT("roads-baked.json")))) return M;
 		TSharedPtr<FJsonObject> J;
 		if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(T), J) || !J.IsValid()) return M;
 		for (const TPair<FString, TSharedPtr<FJsonValue>>& E : J->GetObjectField(TEXT("roads"))->Values)
@@ -280,7 +281,7 @@ namespace
 		if (G.bLoaded) return G;
 		G.bLoaded = true;
 		FString Text;
-		if (!FFileHelper::LoadFileToString(Text, *(FPaths::ProjectContentDir() / TEXT("Data/road-ground.json"))) && !FFileHelper::LoadFileToString(Text, *(FPaths::ProjectDir() / TEXT("Data/road-ground.json")))) return G;
+		if (!FFileHelper::LoadFileToString(Text, *ADPSite::File(TEXT("road-ground.json")))) return G;
 		TSharedPtr<FJsonObject> R;
 		if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), R) || !R.IsValid()) return G;
 		int32 N = 0;
@@ -362,8 +363,8 @@ int32 ARoadNetwork::Build()
 	UWorld* W = GetWorld();
 	if (!W) return 0;
 	FString Text;
-	const FString File = FPaths::ProjectContentDir() / TEXT("Data/roads.json");
-	if (!FFileHelper::LoadFileToString(Text, *File) && !FFileHelper::LoadFileToString(Text, *(FPaths::ProjectDir() / TEXT("Data/roads.json"))))
+	const FString File = ADPSite::File(TEXT("roads.json"));
+	if (!FFileHelper::LoadFileToString(Text, *File))
 	{
 		ADP_LOG(TEXT("Roads: no Data/roads.json yet"));
 		return 0;

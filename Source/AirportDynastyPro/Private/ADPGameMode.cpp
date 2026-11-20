@@ -1,6 +1,7 @@
 // Sets up the terminal test when play starts: sun, sky, fog, the grey-box terminal, the crowd test and
 // the player standing at the plan's spawn point.
 #include "ADPGameMode.h"
+#include "Site.h"
 #include "Pets.h"
 #include "ADPLog.h"
 #include "Containers/Ticker.h"
@@ -71,6 +72,7 @@ AADPGameMode::AADPGameMode()
 void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
 {
 	Super::InitGame(MapName, Options, ErrorMessage);
+	ADPSite::Begin(Options);   // (which airport: Iceland or Chablais - Site.h)
 	UWorld* W = GetWorld();
 	if (!W) return;
 

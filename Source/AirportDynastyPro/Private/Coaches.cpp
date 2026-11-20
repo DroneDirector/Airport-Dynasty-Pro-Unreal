@@ -1,5 +1,6 @@
 // The airport coaches' working parts (to-do 144) - see Coaches.h.
 #include "Coaches.h"
+#include "Site.h"
 #include "BabylonModel.h"
 #include "ADPLog.h"
 #include "EngineUtils.h"
@@ -66,12 +67,7 @@ void ACoaches::Add(ABabylonModel* Coach)
 		SndHum = LoadObject<USoundBase>(nullptr, TEXT("/Game/Coach/Sounds/CoachDrive.CoachDrive"));
 		for (USoundBase* S : {SndDoor, SndKneel, SndBay, SndHum}) if (S) Keep.Add(S);   // (held: else the GC frees them)
 		// the airport's own name (never baked: Data/airfield.json, as the road signs)
-		FString Text;
-		if (FFileHelper::LoadFileToString(Text, *(FPaths::ProjectContentDir() / TEXT("Data/airfield.json"))) || FFileHelper::LoadFileToString(Text, *(FPaths::ProjectDir() / TEXT("Data/airfield.json"))))
-		{
-			TSharedPtr<FJsonObject> J; const TSharedPtr<FJsonObject>* Ap = nullptr;
-			if (FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), J) && J && J->TryGetObjectField(TEXT("airport"), Ap)) (*Ap)->TryGetStringField(TEXT("name"), AirportName);
-		}
+		ADPSite::AirportBlock()->TryGetStringField(TEXT("name"), AirportName);   // (the site's: Site.h)
 	}
 	FCoach& C = Coaches.AddDefaulted_GetRef();
 	C.M = Coach;

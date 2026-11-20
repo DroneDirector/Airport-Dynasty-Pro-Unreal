@@ -1,6 +1,7 @@
 // Our own land along the roads (LandCorridor.h).
 #include "LandCorridor.h"
 #if PLATFORM_WINDOWS
+#include "Site.h"
 #include "Windows/WindowsHWrapper.h"   // (Windows' headers the Unreal way, before Cesium's: its own include of windows.h then leaves no min/max/GetObject macros behind for the next files of the build chunk)
 #endif
 #include "TerminalBuilder.h"
@@ -45,8 +46,7 @@ namespace
 
 	FString DataFile(const TCHAR* Name)
 	{
-		const FString A = FPaths::ProjectContentDir() / TEXT("Data") / Name;
-		return FPaths::FileExists(A) ? A : FPaths::ProjectDir() / TEXT("Data") / Name;
+		return ADPSite::File(Name);   // (the site's own: Site.h)
 	}
 
 	const FBand& Load()
@@ -283,7 +283,7 @@ int32 ALandCorridor::Build()
 	// shaped land, Tools/land_nanite.py and set_land_corridor.py make /Game/Land/Corridor/LC_<block> from it) - when they
 	// are there, they are drawn instead of the mesh built here
 	const bool bDump = FParse::Param(FCommandLine::Get(), TEXT("DumpLand"));
-	const bool bNanite = !bDump && FPackageName::DoesPackageExist(TEXT("/Game/Land/Corridor/LC_Ready"));
+	const bool bNanite = !bDump && ADPSite::IsDefault() && FPackageName::DoesPackageExist(TEXT("/Game/Land/Corridor/LC_Ready"));   // (baked for the Iceland site)
 	TArray<uint8> DumpBuf;
 	auto Put = [&](const void* D, int32 N) { DumpBuf.Append(static_cast<const uint8*>(D), N); };
 	for (TPair<int32, TArray<int32>>& It : ByBlk)

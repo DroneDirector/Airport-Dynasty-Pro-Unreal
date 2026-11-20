@@ -1,5 +1,6 @@
 // The home town's buildings (TownBuildings.h).
 #include "TownBuildings.h"
+#include "Site.h"
 #include "ADPLog.h"
 #include "BabylonModel.h"
 #include "RoadNetwork.h"
@@ -22,8 +23,7 @@ namespace ADPTown
 		if (bRead) return B;
 		bRead = true;
 		FString Text;
-		if (!FFileHelper::LoadFileToString(Text, *FPaths::Combine(FPaths::ProjectContentDir(), TEXT("Data/town-buildings.json"))) &&
-			!FFileHelper::LoadFileToString(Text, *FPaths::Combine(FPaths::ProjectDir(), TEXT("Data/town-buildings.json")))) return B;
+		if (!FFileHelper::LoadFileToString(Text, *ADPSite::File(TEXT("town-buildings.json")))) return B;
 		TSharedPtr<FJsonObject> Root;
 		if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Root) || !Root.IsValid()) return B;
 		const TSharedPtr<FJsonObject>* BJ = nullptr;

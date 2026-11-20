@@ -1,6 +1,7 @@
 // The sea round the airport (see Ocean.h).
 #include "Ocean.h"
 #if PLATFORM_WINDOWS
+#include "Site.h"
 #include "Windows/WindowsHWrapper.h"   // (Windows' headers the Unreal way, before Cesium's: its own include of windows.h then leaves no min/max/GetObject macros behind for the next files of the build chunk)
 #endif
 #include "ADPLog.h"
@@ -31,7 +32,7 @@ bool AOcean::Build(ACesiumGeoreference* G, double SeaHeight)
 {
 	TArray<uint8> B;
 	bool bRead = false;
-	for (const FString& F : {FPaths::ProjectContentDir() / TEXT("Data/ocean.bin"), FPaths::ProjectDir() / TEXT("Content/Data/ocean.bin")})
+	for (const FString& F : {ADPSite::File(TEXT("ocean.bin"))})
 		if (FFileHelper::LoadFileToArray(B, *F)) { bRead = true; break; }
 	if (!G || !bRead || B.Num() < 16 || FMemory::Memcmp(B.GetData(), "ADPO", 4) != 0) { ADP_WARN(TEXT("Ocean: no ocean.bin")); return false; }
 	uint32 Ver, NV, NT;

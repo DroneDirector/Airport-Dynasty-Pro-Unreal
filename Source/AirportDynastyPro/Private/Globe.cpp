@@ -2,6 +2,7 @@
 // tileset with the Sentinel-2 cloudless 2016 imagery on it.
 #include "Globe.h"
 #if PLATFORM_WINDOWS
+#include "Site.h"
 #include "Windows/WindowsHWrapper.h"   // (Windows' headers the Unreal way, before Cesium's: its own include of windows.h then leaves no min/max/GetObject macros behind for the next files of the build chunk)
 #endif
 #include "LandCorridor.h"
@@ -68,7 +69,7 @@ void AGlobe::Build(const FAirfieldData& F)
 	{
 		FString Text;
 		TSharedPtr<FJsonObject> J;
-		for (const FString& F2 : {FPaths::ProjectContentDir() / TEXT("Data/terrain.json"), FPaths::ProjectDir() / TEXT("Data/terrain.json")})
+		for (const FString& F2 : {ADPSite::File(TEXT("terrain.json"))})
 			if (bTerrain && FFileHelper::LoadFileToString(Text, *F2) && FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), J) && J.IsValid())
 			{ Ground = J->GetNumberField(TEXT("airportHeight")); break; }
 	}
@@ -258,7 +259,7 @@ void AGlobe::AddGrassColour(const TCHAR* Key)
 	// 2026-11-15: "cover it by grass ... several kilometres ... the exact same grass"): Tools/make_grass_area.py's
 	// tiles (geographic, y from the south, see-through outside the area and over water), on top of the picture
 	if (GrassColour) { GrassColour->DestroyComponent(); GrassColour = nullptr; }
-	const FString Dir = FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir() / TEXT("Data/grass-tiles"));
+	const FString Dir = FPaths::ConvertRelativePathToFull(ADPSite::File(TEXT("grass-tiles")));
 	FString Text; TSharedPtr<FJsonObject> J;
 	if (!FFileHelper::LoadFileToString(Text, *(Dir / TEXT("tiles.json"))) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), J) || !J.IsValid()) { ADP_WARN(TEXT("Globe: no grass colour tiles (Tools/make_grass_area.py)")); return; }
 	UCesiumUrlTemplateRasterOverlay* O = NewObject<UCesiumUrlTemplateRasterOverlay>(Earth, TEXT("GrassColour"));

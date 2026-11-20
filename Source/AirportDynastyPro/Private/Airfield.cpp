@@ -2,6 +2,7 @@
 // millimetres over the one under it so they never flicker through each other: grass, then aprons, taxiways, runway,
 // then the markings. Only what stands up (the cargo building) is still a slab.
 #include "Airfield.h"
+#include "Site.h"
 #include "Algo/Reverse.h"
 #include "ADPLog.h"
 #include "TerminalBuilder.h"
@@ -33,7 +34,7 @@ bool FAirfieldData::Load()
 	RwyX0 = N(Rw, TEXT("x0")); RwyX1 = N(Rw, TEXT("x1")); RwyY = N(Rw, TEXT("y")); RwyW = N(Rw, TEXT("w"), 60);
 	const TSharedPtr<FJsonObject> Ys = R->GetObjectField(TEXT("ys"));
 	AY = N(Ys, TEXT("AY")); BY = N(Ys, TEXT("BY")); TY = N(Ys, TEXT("TY")); KY = N(Ys, TEXT("KY"));
-	const TSharedPtr<FJsonObject> Ap = R->GetObjectField(TEXT("airport"));
+	const TSharedPtr<FJsonObject> Ap = ADPSite::AirportBlock();   // (the site's own place over it: Site.h)
 	Ap->TryGetNumberField(TEXT("lat"), Lat); Ap->TryGetNumberField(TEXT("lon"), Lon);
 	ElevFt = N(Ap, TEXT("elevFt"), 130); Heading = N(Ap, TEXT("hdg"), 68);
 	for (const TSharedPtr<FJsonValue>& V : R->GetArrayField(TEXT("taxiways")))

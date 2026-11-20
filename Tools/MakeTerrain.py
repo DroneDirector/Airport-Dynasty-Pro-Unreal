@@ -150,7 +150,56 @@ def heights(lon0, lat0, lon1, lat1, n, flatten=True):
     if flatten and dist.min() < FLAT_OUT:
         k = np.clip((dist - FLAT_IN) / (FLAT_OUT - FLAT_IN), 0, 1); k = k * k * (3 - 2 * k)
         out = AIRPORT_H + (out - AIRPORT_H) * k
+    if flatten:
+        for s in SITES:
+            if 'h' not in s: continue
+            k = site_blend(s, LON, LAT)
+            if k is not None: out = s['h'] + (out - s['h']) * k
     return out.astype(np.float32), land
+#endregion
+
+#region Other sites (Site.h): each airport flat inside its fence (plus a margin), blending into the land over blendM
+SITES = []
+def load_sites():
+    af = json.loads((ROOT / 'Data' / 'airfield.json').read_text(encoding='utf-8'))
+    b = af['boundary']; mx = (af['runway']['x0'] + af['runway']['x1']) / 2; my = af['runway']['y']
+    out = []
+    for f in sorted((ROOT / 'Content' / 'Data' / 'Sites').glob('*/site.json')):
+        j = json.loads(f.read_text(encoding='utf-8')); ap = j['airport']; fl = j.get('flatten', {})
+        out.append({'id': f.parent.name, 'dir': str(f.parent), 'lat': ap['lat'], 'lon': ap['lon'], 'hdg': ap['hdg'], 'mx': mx, 'my': my,
+                    'box': (b['x0'], b['y0'], b['x1'], b['y1']), 'margin': fl.get('marginM', 120.0), 'blend': fl.get('blendM', 450.0)})
+    return out
+
+def site_plan(s, LON, LAT):
+    """The plan's x, y (metres) of each point (the airfield's own axes, Globe.cpp)."""
+    e = (LON - s['lon']) * 111320.0 * math.cos(math.radians(s['lat'])); n = (LAT - s['lat']) * 111320.0
+    H = math.radians(s['hdg'])
+    # e = dx sinH + dy sin(H-90), n = dx cosH + dy cos(H-90)  ->  dx = e sinH + n cosH, dy = e sin(H-90) + n cos(H-90)
+    dx = e * math.sin(H) + n * math.cos(H); dy = e * math.sin(H - math.pi / 2) + n * math.cos(H - math.pi / 2)
+    return dx + s['mx'], dy + s['my']
+
+def site_blend(s, LON, LAT):
+    x, y = site_plan(s, LON, LAT)
+    x0, y0, x1, y1 = s['box']; m = s['margin']
+    ox = np.maximum(np.maximum(x0 - m - x, x - x1 - m), 0); oy = np.maximum(np.maximum(y0 - m - y, y - y1 - m), 0)
+    d = np.hypot(ox, oy)
+    if d.min() >= s['blend']: return None
+    k = np.clip(d / s['blend'], 0, 1)
+    return k * k * (3 - 2 * k)
+
+def site_height(s):
+    """The site's airport level: the median ground inside its fence (ellipsoid metres)."""
+    x0, y0, x1, y1 = s['box']; pts = []
+    lat0 = s['lat']
+    for x in np.linspace(x0, x1, 40):
+        for y in np.linspace(y0, y1, 14):
+            dx, dy = x - s['mx'], y - s['my']; H = math.radians(s['hdg'])
+            e = dx * math.sin(H) + dy * math.sin(H - math.pi / 2); n = dx * math.cos(H) + dy * math.cos(H - math.pi / 2)
+            la = lat0 + n / 111320.0; lo = s['lon'] + e / (111320.0 * math.cos(math.radians(lat0)))
+            d = 0.00002
+            hh, _ = heights(lo - d, la - d, lo + d, la + d, 3, flatten=False)
+            pts.append(float(hh[1, 1]))
+    return float(np.median(pts))
 #endregion
 
 #region National models (sharper than GLO-90 where they exist)
@@ -162,12 +211,16 @@ NATIONAL = [
     # Iceland: ÍslandsDEM v1.0, 10 m (ISN93 / Lambert, EPSG:3057), Landmælingar Íslands, CC BY 4.0; credit "ÍslandsDEM v1.0
     # © Landmælingar Íslands (National Land Survey of Iceland), CC BY 4.0". Heights above sea level.
     (Path('F:/ADP-Terrain/iceland/IslandsDEMv1.0_10x10m_isn93_zmasl.tif'), Path('F:/ADP-Terrain/iceland/iceland_4326.tif'), 0.00025, 13),
+    # Chablais Airport (Switzerland, 2026-11-20): swissALTI3D 0.5 m + IGN RGE ALTI 1 m on the French side, merged into one
+    # model at 0.00001 deg (~1 m) by Tools/make_site_dem.py (made directly in EPSG:4326: no source to reproject here);
+    # credit "© swisstopo, © IGN". Down to level 17 (~1.2 m between the mesh's points).
+    (Path('-'), Path('D:/ADP-Terrain/Chablais/chablais_dem_4326.tif'), 0.00001, 17),
 ]
 
 def prepare_national():
     from rasterio.warp import calculate_default_transform, reproject, Resampling
     for src, dst, res, _ in NATIONAL:
-        if not src.exists() or dst.exists(): continue
+        if str(src) == '-' or not src.exists() or dst.exists(): continue
         with rasterio.open(src) as s:
             tr, w, h = calculate_default_transform(s.crs, 'EPSG:4326', s.width, s.height, *s.bounds, resolution=res)
             prof = s.profile.copy(); prof.update(crs='EPSG:4326', transform=tr, width=w, height=h, nodata=-32767.0, compress='deflate', tiled=True)
@@ -248,9 +301,10 @@ def make(job):
     return z, x, y
 
 AIRPORT_H = 0.0
-def init(h):
-    global AIRPORT_H
+def init(h, sites=None):
+    global AIRPORT_H, SITES
     AIRPORT_H = h
+    if sites is not None: SITES = sites
 #endregion
 
 def main():
@@ -262,6 +316,7 @@ def main():
     ap.add_argument('--workers', type=int, default=max(1, os.cpu_count() - 2))
     ap.add_argument('--minz', type=int, default=0, help='only the levels from this one down (with --bbox)')
     ap.add_argument('--resume', action='store_true', help='keep the tiles this job already made (its stamp), make the rest')
+    ap.add_argument('--write-layer', action='store_true', help='with --bbox: still write layer.json (the whole world\'s list)')
     a = ap.parse_args()
     os.environ['ADP_TERRAIN_OUT'] = a.out
     OUT = Path(a.out)
@@ -273,6 +328,13 @@ def main():
     init(0.0)
     hh, _ = heights(lon - d / math.cos(math.radians(lat)), lat - d, lon + d / math.cos(math.radians(lat)), lat + d, 33, flatten=False)
     AIRPORT_H = float(np.median(hh))
+    # the other sites' airport levels, each written to its own terrain.json (the game puts its ground there: Site.h)
+    global SITES
+    SITES = load_sites()
+    for s in SITES:
+        s['h'] = round(site_height(s), 2)
+        Path(s['dir'], 'terrain.json').write_text(json.dumps({'airportHeight': s['h'], 'note': 'WGS84 ellipsoid metres; Tools/MakeTerrain.py'}) + '\n')
+        print('Site %s: airport ground at %.2f m (ellipsoid)' % (s['id'], s['h']), flush=True)
     if not a.bbox: (ROOT / 'Data' / 'terrain.json').write_text(json.dumps({'airportHeight': round(AIRPORT_H, 2), 'note': 'WGS84 ellipsoid metres; Tools/MakeTerrain.py'}) + '\n')
     print('Airport ground at %.2f m (ellipsoid)' % AIRPORT_H, flush=True)
 
@@ -296,10 +358,10 @@ def main():
         for x, y in pairs:
             if True:
                 lon0, lat0, lon1, lat1 = tile_box(z, x, y)
-                if a.bbox and (lon1 < a.bbox[0] or lon0 > a.bbox[2] or lat1 < a.bbox[1] or lat0 > a.bbox[3]) and z > 2: continue
                 if z > FULL_TO and not has_land(z, x, y): continue
                 lvl.append((x, y))
-        jobs += [(z, x, y) for x, y in lvl]
+                if a.bbox and (lon1 < a.bbox[0] or lon0 > a.bbox[2] or lat1 < a.bbox[1] or lat0 > a.bbox[3]) and z > 2: continue
+                jobs.append((z, x, y))
         # the level's tiles as ranges: runs along x in each row
         ranges = []
         byy = {}
@@ -327,7 +389,7 @@ def main():
         stamp.write_text(time.strftime('%Y-%m-%d %H:%M:%S')); time.sleep(1.1)   # (tiles made from now on are newer than it)
     print('%d tiles to make' % len(jobs), flush=True)
     done = 0
-    with ProcessPoolExecutor(a.workers, initializer=init, initargs=(AIRPORT_H,)) as ex:
+    with ProcessPoolExecutor(a.workers, initializer=init, initargs=(AIRPORT_H, SITES)) as ex:
         for _ in ex.map(make, jobs, chunksize=64):
             done += 1
             if done % max(1, len(jobs) // 20) == 0: print('%d%% (%d of %d)' % (done * 100 // len(jobs), done, len(jobs)), flush=True)
@@ -337,7 +399,7 @@ def main():
         import subprocess; subprocess.run([sys.executable, str(ROOT / 'Tools' / 'road_ground.py'), '--tiles', str(OUT)], check=False)
     except Exception as e: print('road_ground.py:', e, flush=True)
     # a --bbox run only remakes the tiles in its box: the existing layer.json (the whole world's) stays as it is
-    if a.bbox and (OUT / 'layer.json').exists():
+    if a.bbox and (OUT / 'layer.json').exists() and not a.write_layer:
         print('Terrain done: %d tiles (box only; layer.json kept)' % len(jobs), flush=True); return
     (OUT / 'layer.json').write_text(json.dumps({
         'tilejson': '2.1.0', 'name': 'Airport Dynasty Pro terrain', 'version': '1.0.0', 'format': 'quantized-mesh-1.0',

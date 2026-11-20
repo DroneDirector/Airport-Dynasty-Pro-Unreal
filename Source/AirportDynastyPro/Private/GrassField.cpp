@@ -1,6 +1,7 @@
 // The grass round the airport (see GrassField.h).
 #include "GrassField.h"
 #if PLATFORM_WINDOWS
+#include "Site.h"
 #include "Windows/WindowsHWrapper.h"   // (Windows' headers the Unreal way, before Cesium's: its own include of windows.h then leaves no min/max/GetObject macros behind for the next files of the build chunk)
 #endif
 #include "Engine/GameViewportClient.h"
@@ -81,7 +82,7 @@ namespace
 		static FGrassArea A;
 		if (A.bRead) return A;
 		A.bRead = true;
-		auto File = [](const TCHAR* N) { const FString C = FPaths::ProjectContentDir() / TEXT("Data") / N; return FPaths::FileExists(C) ? C : FPaths::ProjectDir() / TEXT("Data") / N; };
+		auto File = [](const TCHAR* N) { return ADPSite::File(N); };   // (the site's own: Site.h)
 		FString Text; TSharedPtr<FJsonObject> J; TArray<uint8> Png, Raw;
 		if (!FFileHelper::LoadFileToString(Text, *File(TEXT("grass-area.json"))) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), J) || !J.IsValid()) return A;
 		if (!FFileHelper::LoadFileToArray(Png, *File(TEXT("grass-area.png")))) return A;
