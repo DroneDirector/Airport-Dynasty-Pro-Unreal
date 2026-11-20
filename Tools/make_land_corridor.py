@@ -62,6 +62,26 @@ def game_z(lon, lat, hh, O, U):
     P = np.stack([(nn + hh) * np.cos(la) * np.cos(lo), (nn + hh) * np.cos(la) * np.sin(lo), (nn * (1 - rg.E2) + hh) * np.sin(la)], 1)
     return (P - O[None, :]) @ U
 
+def exact_heights_at(lon, lat, tiles, z):
+    """the ground at each point exactly as the game draws level z: inside the tile's own triangles (NaN off the tiles)"""
+    out = np.full(len(lon), np.nan)
+    s = 180.0 / (1 << z); tx = ((lon + 180) / s).astype(int); ty = ((lat + 90) / s).astype(int)
+    for key in set(zip(tx, ty)):
+        t = tiles.tile(z, int(key[0]), int(key[1]))
+        if t is None: continue
+        X, Y, Hh, T = t
+        sel = np.nonzero((tx == key[0]) & (ty == key[1]))[0]
+        x1, y1, x2, y2, x3, y3 = X[T[:, 0]], Y[T[:, 0]], X[T[:, 1]], Y[T[:, 1]], X[T[:, 2]], Y[T[:, 2]]
+        d = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3); d[d == 0] = 1e-30
+        for c in range(0, len(sel), 2000):
+            ss = sel[c:c + 2000]; lo = lon[ss][:, None]; la = lat[ss][:, None]
+            l1 = ((y2 - y3) * (lo - x3) + (x3 - x2) * (la - y3)) / d; l2 = ((y3 - y1) * (lo - x3) + (x1 - x3) * (la - y3)) / d; l3 = 1 - l1 - l2
+            inside = (l1 >= -1e-9) & (l2 >= -1e-9) & (l3 >= -1e-9)
+            k = np.argmax(inside, 1); hit = inside[np.arange(len(ss)), k]
+            hv = l1[np.arange(len(ss)), k] * Hh[T[k, 0]] + l2[np.arange(len(ss)), k] * Hh[T[k, 1]] + l3[np.arange(len(ss)), k] * Hh[T[k, 2]]
+            out[ss[hit]] = hv[hit]
+    return out
+
 def heights_at(lon, lat, tiles, z_want):
     """the ground at each point from the terrain tiles at level z_want (or the finest below it there)"""
     out = np.full(len(lon), np.nan)
@@ -197,6 +217,21 @@ def main():
     d_edge = np.array([band.exterior.distance(Point(x, y)) if band.geom_type == 'Polygon' else band.boundary.distance(Point(x, y)) for x, y in zip(X, Y)])
     t = np.clip(1.0 - d_edge / EASE, 0, 1); t = t * t * (3 - 2 * t)
     z = zf * (1 - t) + zc * t
+    # (owner, 2026-11-20: our ground must never let the globe poke through) where the globe is not cut away under our land
+    # (its rim, outside the cut), it stands at least 0.1 m over the highest the globe is drawn there at ANY of its levels
+    # (11 to the finest): the skirt under the rim hides the lip; the globe can't show through, near or far
+    cutp = prep(cut)
+    outside = np.array([not cutp.contains(Point(x, y)) for x, y in zip(X, Y)])
+    if outside.any():
+        top = np.full(outside.sum(), -1e9)
+        for zl in range(COARSE_Z, (17 if SITE else 13) + 1):
+            hl = exact_heights_at(lon[outside], lat[outside], tiles, zl)
+            ok = ~np.isnan(hl)
+            gl = np.full(len(hl), -1e9); gl[ok] = game_z(lon[outside][ok], lat[outside][ok], hl[ok], O, U)
+            top = np.maximum(top, gl)
+        lift = np.maximum(0.0, top + 0.1 - z[outside])
+        z[outside] = z[outside] + lift
+        print('rim: %d points outside the cut, %d lifted (at most %.2f m) over the globe at every level' % (outside.sum(), (lift > 0).sum(), lift.max()), flush=True)
     Z = np.full((ny, nx), np.nan, np.float32); Z[inside] = z
     # the colours: the globe's land cover, one pixel a grid point
     from scipy.ndimage import distance_transform_edt
