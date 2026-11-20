@@ -1,27 +1,27 @@
-# Stop note - 2026-11-19 night
+# Stop note - 2026-11-20 night (owner going to bed)
 
-**Done**
-- To-do 144 (coach working parts) built, tested, committed: doors + bays on E/X with kneel + hiss, walk in, every
-  passenger seat sittable, lamps, 2 real beams (0.8 ms), mirrors (1.6 ms), sounds, airport name plate.
-  Fixed on the way: first seat pair standing outside the coach (Tools/glb_nodes.py mesh names first), info screens hung
-  to 1.56 m (now slim bars, 1.81 m clear), crash on opening a door (sounds freed by the GC).
-- To-do 146 route built and working: -UICoachWalk / `bash Tools/perf_walk.sh coaches [offscreen|4k|screen]`, test package
-  in F:/ADP-Packaged/test-coaches (no version bump, nothing published). Readings (packaged, drawn by the game):
-  | run | drawn | slowest 1 % | bad frames |
-  |---|---|---|---|
-  | Full HD 1920x1080 (forced) | 50 fps | 30 fps | 5 |
-  | 4K 3840x2160 (forced) | 3 fps | 2 fps | 1089 - graphics card overflow, the whole game, not the coaches |
-  | his screen 3840x1080 full screen | 13 fps | 7 fps | 1 - frame generation added 0 pictures: SUSPECT |
-  Day and night, inside the coach and outside all the same in each run.
-- To-do 100-107, 110, 112, 142 ticked done on the list (already released / done).
+## Done today (Chablais Airport, all committed)
+- Second airport site: Chablais Airport (LSCH/CLB) on the Rhone plain, "Where is your airport?" at New game, runway 33/15,
+  Swiss local time, Swiss board destinations, Lake Geneva as calm lake water, waves by open water and the live wind.
+- Swiss terrain (swissALTI3D 0.5 m + IGN 1 m), the globe now really turned under the airport (GeoFrame.h - the "hole in
+  the mountain" fixed), the black pyramids' root cause fixed in MakeTerrain (GLO-90 leaking into tile corners), all
+  Chablais tiles rebuilt, precise tiles round the airport.
+- Roads: forecourt, roundabout, car parks, the road behind the terminal, the link to the town on real swissTLM3D roads;
+  road heights and the custom ground along them; ground check: the terrain pokes through NOWHERE at any level.
+- Swiss photos: 10 cm round the airport, 20 cm over the map - all tiles made (28 GB, F:/ADP-Terrain/chablais/imagery).
+- 24-shot daylight showcase (docs/Pictures/Chablais/Showcase), all 10 spawn spots checked.
+- Holographic map comes back after a new career; terrain detail locked for everyone.
 
-**Half-done**
-- To-do 139 updater fix written in Source/.../UI/Updater.cpp (log kept, waits for the game folder to be free, copy
-  retries, every file checked, version set in Windows) - script tested on a fake folder, NOT compiled, NOT committed.
-- His-screen run result looks wrong (13 fps, frame generation 0): find why before trusting it.
+## Half done (written + committed, NOT compiled/tested - no builds tonight)
+- Test tours skip the start's violet cover (so the window shows the camera's view).
+- No outline round your own character (to-do 194).
 
-**Next**
-0. TO-DO 149 FIRST (owner): the 4K frame rate is broken - find why and fix it; NOTHING ELSE until it is fixed.
-1. Check his GameUserSettings (resolution scale, frame generation) after tonight's runs; rerun `coaches screen`.
-2. Compile + commit 139; mark 139 / 144 / 146 on the list.
-3. To-do 70 (A320 fin lettering): render both fin sides to see which reads mirrored.
+## Next (the to-do PDF, docs/AirportDynastyPro-ToDo.pdf)
+- Morning list first: 172-180 (AI: our airports in the world list, the sim starting with the career, real boards,
+  phone messages, crew screens/rostering with the EASA rules, promotions, candidates, contracts), 181-186, 192-199,
+  167 (very high: the Overview shows Chablais), 160-163 (pyramid check, walking tests, title flash, updater
+  downloads that never start over), 166 icon, 168 Swiss flags, 170 bilingual signs, 171 mountain names, 169 framings LAST.
+- Overnight batch (to-do 164: French photo redo, photo packs, Chablais terrain packs, the next game package) - NOT
+  started: waits for the owner's word.
+- After the morning list: 188 new Overview design (STOP for his OK) -> 189 native screens -> 190 sync + tracking ->
+  191 aircraft in 3D (Airbus only) with 187 and 196.
