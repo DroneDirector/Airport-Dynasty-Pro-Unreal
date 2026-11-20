@@ -93,6 +93,9 @@ void AGlobe::Build(const FAirfieldData& F)
 	// the terrain's detail fixed at Normal (owner, 2026-11-14: its setting removed - lower detail let the coarse distant
 	// land stand through the roads); a saved older setting is ignored
 	LandError = 16.f;
+	// (owner, 2026-11-20: locked for everyone - never a player setting, so the ground never breaks; only a developer's test
+	// in the editor may try another value with -LandError=N, which a released game ignores)
+	if (!FPlatformProperties::RequiresCookedData()) { float Dev = 0.f; if (FParse::Value(FCommandLine::Get(), TEXT("LandError="), Dev) && Dev > 0.f) LandError = Dev; }
 	LandError = FMath::Clamp(LandError, 4.f, 32.f);
 	Tiles->SetMaximumScreenSpaceError(LandError);
 	Tiles->CulledScreenSpaceError = LandError * 4.0;

@@ -48,7 +48,10 @@ FLAT_IN, FLAT_OUT = 2600.0, 4400.0  # metres
 FULL_TO = 6                          # every tile (land or sea) down to this level
 FEATHER = 12.0                       # grid cells over which a national model fades into GLO-90 at its edges
 PRECISE = (-19.2, 63.25, -18.25, 63.65)   # lon0, lat0, lon1, lat1: the airport, the road to town and the town, ~25 km round
-PRECISE_FROM, PRECISE_ERR, ERR = 9, 0.05, 0.25   # (the triangles' error, as a share of the grid spacing)
+PRECISE_FROM, PRECISE_ERR, ERR = 9, 0.05, 0.25
+# (2026-11-20: and round Chablais Airport, its roads and the town: the coarse levels seen from afar 5 times more exact too, so
+# they never stand over the airfield's own ground at its fence)
+PRECISE_BOXES = [PRECISE, (6.86, 46.32, 6.96, 46.41)]   # (the triangles' error, as a share of the grid spacing)
 
 #region Reading heights
 CELLS = {}
@@ -288,7 +291,7 @@ def make(job):
     # the land to 0.00 m)
     hT = np.ascontiguousarray(h)
     mesh = Martini(n).create_tile(hT)
-    near = z >= PRECISE_FROM and not (lon1 < PRECISE[0] or lon0 > PRECISE[2] or lat1 < PRECISE[1] or lat0 > PRECISE[3])
+    near = z >= PRECISE_FROM and any(not (lon1 < P[0] or lon0 > P[2] or lat1 < P[1] or lat0 > P[3]) for P in PRECISE_BOXES)
     v, tri = mesh.get_mesh(max(0.25 if near else 0.5, spacing * (PRECISE_ERR if near else ERR)))
     # the vertices with their heights, in degrees (rows run north to south in h, so y is flipped)
     pos = rescale_positions(v, hT, bounds=[lon0, lat0, lon1, lat1], flip_y=True).astype(np.float64).reshape(-1)
