@@ -1660,6 +1660,9 @@ void AADPHUD::CloseWhoAreYou(bool bGoOn, const FString& Difficulty)
 	if (bGoOn) { ADPPets::Save(ADPCharacterCreate::PetChoice()); ADPPets::PlaceHome(GetWorld()); }
 	ADPCharacterCreate::Teardown(GetWorld(), GetOwningPlayerController());
 	if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) if (AActor* H = Wk->HumanActor()) H->SetActorHiddenInGame(false);
+	// the holographic map back (OpenWhoAreYou put it away for the character screen; nothing brought it back, so after every
+	// new career it was gone until the game was started again - owner, 2026-11-20: "the holographic map is gone")
+	if (MiniBox.IsValid()) MiniBox->SetVisibility(EVisibility::Visible);
 	if (Browser.IsValid())
 	{
 		Browser->ExecuteJavascript(TEXT("window.__ueWhoAreYouClose && window.__ueWhoAreYouClose()"));
