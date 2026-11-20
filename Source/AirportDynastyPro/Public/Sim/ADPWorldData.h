@@ -50,6 +50,8 @@ namespace ADPWorldData
 	int32 NumAirports();
 	/** By ICAO, IATA or ident. */
 	const FADPAirportInfo* Airport(const FString& Code);
+	/** Every airport (for searches: alternates, the nearest). */
+	void ForEachAirport(TFunctionRef<void(const FADPAirportInfo&)> F);
 	const FADPTypeInfo* Type(const FString& Id);
 	const TArray<FADPTypeInfo>& Types();
 	double DistanceNm(double Lat1, double Lon1, double Lat2, double Lon2);

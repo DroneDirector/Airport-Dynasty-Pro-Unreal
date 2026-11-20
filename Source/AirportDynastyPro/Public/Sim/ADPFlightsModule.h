@@ -23,11 +23,15 @@ public:
 
 	/** A flight's plan (kept while it flies; made again after a load). */
 	const FADPProfile* ProfileOf(const FADPFlight& F);
-	int64 Departures = 0, Landings = 0, Delayed = 0, Rests = 0, WxWaits = 0, DeIcings = 0;
+	int64 Departures = 0, Landings = 0, Delayed = 0, Rests = 0, WxWaits = 0, DeIcings = 0, Holds = 0, Diversions = 0, Failures = 0, Curfews = 0;
+	/** A night curfew at this airport at this time (local time from the longitude). */
+	static bool InCurfew(const FString& Icao, double Lon, const FDateTime& Utc);
 
 private:
 	TMap<FString, FADPProfile> Profiles;
 	FRandomStream Rng = FRandomStream(4711);
 	void TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime& Now);
 	void Land(FADPWorld& W, int32 FlightIdx, const FDateTime& Now);
+	void OnTheWayDown(FADPWorld& W, FADPFlight& F, const FDateTime& Now);
+	bool Divert(FADPWorld& W, FADPFlight& F, const FDateTime& Now, const TCHAR* Why);
 };

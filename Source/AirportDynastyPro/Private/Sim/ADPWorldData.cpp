@@ -81,6 +81,7 @@ void ADPWorldData::Load() { if (GStarted.Exchange(true)) return; Async(EAsyncExe
 bool ADPWorldData::IsReady() { return GReady; }
 int32 ADPWorldData::NumAirports() { return GAirports.Num(); }
 const FADPAirportInfo* ADPWorldData::Airport(const FString& Code) { const int32* I = GByCode.Find(Code.ToUpper()); return I ? &GAirports[*I] : nullptr; }
+void ADPWorldData::ForEachAirport(TFunctionRef<void(const FADPAirportInfo&)> F) { for (const FADPAirportInfo& A : GAirports) F(A); }
 const TArray<FADPTypeInfo>& ADPWorldData::Types() { return GTypes; }
 const FADPTypeInfo* ADPWorldData::Type(const FString& Id) { return GTypes.FindByPredicate([&](const FADPTypeInfo& T) { return T.Id == Id; }); }
 

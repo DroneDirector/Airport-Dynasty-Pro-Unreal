@@ -21,10 +21,18 @@ void FADPFlightsModule::Advance(UADPSim& Sim, const FDateTime& From, const FDate
 		FADPFlight& F = W.Flights[i];
 		const FADPProfile* P = ProfileOf(F);
 		if (!P) { W.Flights.RemoveAt(i); continue; }
-		const double Min = (To - F.DepAt).GetTotalMinutes();
-		if (Min >= P->BlockMin()) { Land(W, i, F.DepAt + FTimespan::FromMinutes(P->BlockMin())); continue; }
+		double Min = (To - F.DepAt).GetTotalMinutes();
+		// holding: its minutes are spent at the start of the descent (circling at that height); the destination's weather is
+		// looked at once, as the descent begins
+		const double DescentAt = P->PhaseStart[FADPProfile::Descent];
+		if (!F.bWxChecked && Min >= DescentAt) { F.bWxChecked = true; OnTheWayDown(W, F, To); P = ProfileOf(F); if (!P) { W.Flights.RemoveAt(i); continue; } }
+		const double DescentAt2 = P->PhaseStart[FADPProfile::Descent];
+		Min = (To - F.DepAt).GetTotalMinutes();
+		const bool bHolding = Min >= DescentAt2 && Min < DescentAt2 + F.HoldMin;
+		if (Min >= DescentAt2) Min = FMath::Max(DescentAt2, Min - F.HoldMin);
+		if (Min >= P->BlockMin()) { Land(W, i, F.DepAt + FTimespan::FromMinutes(P->BlockMin() + F.HoldMin)); continue; }
 		const FADPProfile::FState S = P->At(FMath::Max(0.0, Min));
-		F.Phase = FADPProfile::PhaseName(S.Phase); F.Lat = S.Lat; F.Lon = S.Lon; F.AltFt = S.AltFt; F.GsKt = S.GsKt; F.HeadingDeg = S.HeadingDeg;
+		F.Phase = bHolding ? FString(TEXT("Holding")) : FString(FADPProfile::PhaseName(S.Phase)); F.Lat = S.Lat; F.Lon = S.Lon; F.AltFt = S.AltFt; F.GsKt = S.GsKt; F.HeadingDeg = S.HeadingDeg;
 	}
 	// the aircraft on the ground with a route: off when they're ready
 	for (FADPAircraft& A : W.Aircraft)
@@ -84,6 +92,12 @@ void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime
 			if ((Wa.bSnow || Wa.bFreezing || (Wa.TempC <= 3.0 && (Wa.bRain || Wa.bFog))) && T->Class != TEXT("helicopter")) { WxDelay = Rng.FRandRange(20.0, 35.0); ++DeIcings; }
 		}
 	}
+	// night curfews: no departure while the field is closed, nor one that would land at a closed destination
+	{
+		const FADPAirportInfo* Ap = ADPWorldData::Airport(A.Location); const FADPAirportInfo* Bp = ADPWorldData::Airport(Next);
+		if ((Ap && InCurfew(Ap->Icao, Ap->Lon, Now)) || (Bp && InCurfew(Bp->Icao, Bp->Lon, Now + FTimespan::FromMinutes(P.BlockMin()))))
+		{ ++Curfews; A.ReadyAt = Now + FTimespan::FromMinutes(30); return; }
+	}
 	// the duty limit: the pilot rests 12 hours first if this leg would break it
 	if (Pilot->DutyMin + P.BlockMin() > MaxDutyH * 60.0)
 	{
@@ -99,6 +113,18 @@ void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime
 	F.DepAt = Now + FTimespan::FromMinutes(Delay); F.DelayMin = Delay; F.DurMin = P.BlockMin();
 	F.Lat = P.FromLat; F.Lon = P.FromLon;
 	Profiles.Add(F.Id, P);
+	// a technical failure now and then - likelier the worse the aircraft's condition: a minor one noted and fixed at the next
+	// stop; a hydraulic fault checked on arrival; an engine failure: the crew turns for the nearest suitable airport
+	{
+		const double K = 0.6 + FMath::Max(0.0, 85.0 - A.Condition) / 25.0;
+		const double Roll = Rng.FRand();
+		auto Note = [&](const FString& Text) { FADPNotice N; N.At = Now; N.Kind = TEXT("mechanic"); N.Text = Text; W.Notices.Add(N); };
+		if (Roll < 0.000025 * K) { F.Emergency = TEXT("an engine failure"); ++Failures; }
+		else if (Roll < 0.0004 * K) { A.Condition = FMath::Max(0.0, A.Condition - 4.0); ++Failures; Note(FString::Printf(TEXT("%s: a hydraulic fault on the way to %s - checked on arrival"), *A.Reg, *Next)); }
+		else if (Roll < 0.004 * K) { A.Condition = FMath::Max(0.0, A.Condition - 1.0); ++Failures; Note(FString::Printf(TEXT("%s: a minor fault logged (cabin system) - fixed at the next stop"), *A.Reg)); }
+	}
+	// wear from every flight
+	A.Condition = FMath::Max(0.0, A.Condition - (P.BlockMin() / 60.0 * 0.12 + 0.35));
 	W.Flights.Add(F);
 	A.Status = TEXT("flying"); A.WaitingSince = FDateTime();
 	++Departures;
@@ -119,4 +145,72 @@ void FADPFlightsModule::Land(FADPWorld& W, int32 Idx, const FDateTime& At)
 	}
 	if (FADPPerson* P = W.People.FindByPredicate([&](const FADPPerson& X) { return X.Id == F.PilotId; }))
 	{ P->DutyMin += F.DurMin + TurnMin; P->Xp += F.DurMin / 60.0 + 20.0; }
+}
+
+bool FADPFlightsModule::InCurfew(const FString& Icao, double Lon, const FDateTime& Utc)
+{
+	// well-known night curfews (local hours closed .. open); local time from the longitude (real time zones come later)
+	struct FC { const TCHAR* Icao; double From, To; };
+	static const FC List[] = {{TEXT("EDDF"), 23.0, 5.0}, {TEXT("LFPO"), 23.5, 6.0}, {TEXT("EGLC"), 22.5, 6.5}, {TEXT("KSNA"), 22.0, 7.0},
+		{TEXT("YSSY"), 23.0, 6.0}, {TEXT("EDDL"), 23.0, 6.0}, {TEXT("LSZH"), 23.5, 6.0}};
+	for (const FC& C : List)
+		if (Icao == C.Icao)
+		{
+			const double H = FMath::Fmod(Utc.GetHour() + Utc.GetMinute() / 60.0 + Lon / 15.0 + 48.0, 24.0);
+			return C.From > C.To ? (H >= C.From || H < C.To) : (H >= C.From && H < C.To);
+		}
+	return false;
+}
+
+void FADPFlightsModule::OnTheWayDown(FADPWorld& W, FADPFlight& F, const FDateTime& Now)
+{
+	// an emergency on board: down at the nearest suitable airport
+	if (!F.Emergency.IsEmpty() && F.Diverted.IsEmpty()) { Divert(W, F, Now, *F.Emergency); return; }
+	const FADPAirportInfo* B = ADPWorldData::Airport(F.To); const FADPTypeInfo* T = ADPWorldData::Type(F.TypeId);
+	if (!B || !T) return;
+	const FADPWx Wx = ADPWeather::At(B->Icao.IsEmpty() ? B->Ident : B->Icao, B->Lat, B->Lon, Now);
+	const double MaxCross = T->Class == TEXT("bush") ? 20.0 : T->Class == TEXT("turboprop") ? 32.0 : 38.0;
+	double Best = 1e9;
+	for (const FADPRunwayInfo& R : B->Runways) for (const double H : {R.LeHdg, R.LeHdg + 180.0}) { double C, Tl; ADPWeather::Components(Wx, H, C, Tl); if (Tl <= 10.0) Best = FMath::Min(Best, C); }
+	if (!B->Runways.Num()) Best = 0.0;
+	const bool bBelowMins = Wx.VisM < 175.0 || Best > MaxCross;
+	if (Wx.bStorm || bBelowMins)
+	{
+		// a storm passing: hold and wait it out (7 in 10); otherwise - and below the minimums - on to the alternate
+		if (!bBelowMins && Rng.FRand() < 0.7) { F.HoldMin += Rng.FRandRange(15.0, 35.0); ++Holds; return; }
+		Divert(W, F, Now, bBelowMins ? TEXT("below the landing minimums at the destination") : TEXT("thunderstorms at the destination"));
+	}
+	else if (Rng.FRand() < 0.006) { F.HoldMin += Rng.FRandRange(5.0, 25.0); ++Holds; }   // (traffic: a short hold now and then)
+}
+
+bool FADPFlightsModule::Divert(FADPWorld& W, FADPFlight& F, const FDateTime& Now, const TCHAR* Why)
+{
+	// the alternate: the nearest large or medium airport 20..230 nm from the destination (from the aircraft itself in an
+	// emergency) with a runway long enough for the type and weather it can land in
+	const FADPAirportInfo* B = ADPWorldData::Airport(F.To); const FADPTypeInfo* T = ADPWorldData::Type(F.TypeId);
+	if (!B || !T) return false;
+	const bool bEm = !F.Emergency.IsEmpty();
+	const double RefLat = bEm ? F.Lat : B->Lat, RefLon = bEm ? F.Lon : B->Lon;
+	const double NeedFt = FMath::Max(T->LdRunwayM, T->ToRunwayM) * 3.281;
+	const FADPAirportInfo* Alt = nullptr; double BestD = bEm ? 400.0 : 230.0;
+	ADPWorldData::ForEachAirport([&](const FADPAirportInfo& Ap)
+	{
+		if ((Ap.Kind != 'L' && Ap.Kind != 'M') || Ap.Icao.IsEmpty() || Ap.Icao == F.To) return;
+		const double D = ADPWorldData::DistanceNm(RefLat, RefLon, Ap.Lat, Ap.Lon);
+		if (D >= BestD || (!bEm && D < 20.0) || Ap.LongestFt() < NeedFt) return;
+		const FADPWx X = ADPWeather::At(Ap.Icao, Ap.Lat, Ap.Lon, Now);
+		if (X.bStorm || X.VisM < 800.0) return;
+		BestD = D; Alt = &Ap;
+	});
+	if (!Alt) { F.HoldMin += 30.0; ++Holds; return false; }   // (nowhere better: hold, come in when it clears)
+	// on to the alternate: the plan from the departure airport to it, the time flown kept (the path bends a little)
+	FADPProfile P;
+	if (!ADPWorldData::MakeProfile(F.TypeId, F.From, Alt->Icao, P)) return false;
+	const double Flown = (Now - F.DepAt).GetTotalMinutes();
+	if (Flown > P.PhaseStart[FADPProfile::Descent]) F.DepAt = Now - FTimespan::FromMinutes(P.PhaseStart[FADPProfile::Descent]);
+	F.Diverted = F.To; F.To = Alt->Icao; F.bWxChecked = true;
+	Profiles.Add(F.Id, P);
+	++Diversions;
+	FADPNotice N; N.At = Now; N.Kind = TEXT("flight"); N.Text = FString::Printf(TEXT("%s diverts to %s (%s) - %s"), *F.Reg, *Alt->Name, *Alt->Icao, Why); W.Notices.Add(N);
+	return true;
 }

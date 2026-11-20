@@ -112,6 +112,10 @@ USTRUCT() struct FADPFlight
 	UPROPERTY() double AltFt = 0.0;
 	UPROPERTY() double GsKt = 0.0;
 	UPROPERTY() double HeadingDeg = 0.0;
+	UPROPERTY() double HoldMin = 0.0;       // minutes added in the air (holds before landing)
+	UPROPERTY() bool bWxChecked = false;    // the destination's weather looked at on the way down
+	UPROPERTY() FString Diverted;           // the destination it was going to, when it diverted
+	UPROPERTY() FString Emergency;          // what went wrong, when it did
 };
 
 /** One passenger of a flight at your airport, for the 3D world and the tracking map (to-do 155). */
