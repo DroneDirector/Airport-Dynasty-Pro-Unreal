@@ -2,6 +2,7 @@
 // the Android edition's sample flights (fids.ts sample) round the real time, refreshed every 4 seconds.
 #include "TerminalScreens.h"
 #include "Site.h"
+#include "Sim/ADPBoards.h"
 #include "ADPLog.h"
 #include "TerminalBuilder.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -163,9 +164,11 @@ void ATerminalScreens::GateScreen(const FAt& O, int32 Gate)
 	Bezel(O, "yellow", 1.6f, 0.2f, 0.005f, 0, 0.35f, 0.05f);
 	const float L = -0.74f;
 	Text(O, FString::Printf(TEXT("GATE %d"), Gate), L, 0.35f, 0.055f, 1, 0.13f, FColor(20, 32, 46), true);
-	Text(O, Flights[I], L, 0.1f, 0.055f, 1, 0.11f, FColor::White, true);
-	Text(O, Gate % 3 == 0 ? TEXT("Boarding") : TEXT("Gate open"), L, -0.12f, 0.055f, 1, 0.1f, FColor(59, 209, 111), true);
-	Text(O, FString(TEXT("Scheduled ")) + Times[I], L, -0.32f, 0.055f, 1, 0.08f, FColor(143, 166, 189), true);
+	FGateTexts G; G.Gate = Gate;
+	G.Flight = Text(O, Flights[I], L, 0.1f, 0.055f, 1, 0.11f, FColor::White, true);
+	G.Status = Text(O, Gate % 3 == 0 ? TEXT("Boarding") : TEXT("Gate open"), L, -0.12f, 0.055f, 1, 0.1f, FColor(59, 209, 111), true);
+	G.Time = Text(O, FString(TEXT("Scheduled ")) + Times[I], L, -0.32f, 0.055f, 1, 0.08f, FColor(143, 166, 189), true);
+	Gates.Add(G);
 }
 
 #pragma endregion
@@ -224,7 +227,16 @@ void ATerminalScreens::Refresh()
 	for (int32 a = 0; a < 2; ++a)
 	{
 		const bool bArr = a == 1;
-		const TArray<FRow> Rows = Sample(bArr, 8);
+		// the simulation's real flights at this airport while a career runs (to-do 174); the sample only before that
+		TArray<FRow> Rows;
+		const bool bLive = ADPBoards::Live(this);
+		if (bLive)
+		{
+			for (const FADPBoardRow& R : ADPBoards::Rows(this, bArr, 8))
+				Rows.Add({R.Time(), R.Flight, FString::Printf(TEXT("%s %s"), *R.PlaceCode, *R.Place), !bArr && R.Gate ? FString::Printf(TEXT("%s · Gate %d"), *R.Status, R.Gate) : R.Status, R.Col});
+			if (!Rows.Num()) Rows.Add({FString(), FString(), bArr ? TEXT("No arrivals scheduled") : TEXT("No departures scheduled"), FString(), FColor(143, 163, 184)});
+		}
+		else Rows = Sample(bArr, 8);
 		for (FBoard& B : Boards)
 		{
 			if (B.bArr != bArr) continue;
@@ -242,11 +254,24 @@ void ATerminalScreens::Refresh()
 	}
 }
 
+void ATerminalScreens::RefreshGates()
+{
+	if (!ADPBoards::Live(this)) return;   // (before a career runs: the built sample stays)
+	for (const FGateTexts& G : Gates)
+	{
+		FADPBoardRow R;
+		const bool bHas = ADPBoards::AtGate(this, G.Gate, R);
+		if (G.Flight) G.Flight->SetText(FText::FromString(bHas ? FString::Printf(TEXT("%s · %s"), *R.Flight, *R.Place) : FString()));
+		if (G.Status) { G.Status->SetText(FText::FromString(bHas ? R.Status : TEXT("Gate closed"))); G.Status->SetTextRenderColor(bHas ? R.Col : FColor(143, 163, 184)); }
+		if (G.Time) G.Time->SetText(FText::FromString(bHas ? FString::Printf(TEXT("Scheduled %s"), *R.Time()) : FString()));
+	}
+}
+
 void ATerminalScreens::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 	Clock += DeltaSeconds;
-	if (Clock >= 4.f) { Clock = 0; Refresh(); }
+	if (Clock >= 4.f) { Clock = 0; Refresh(); RefreshGates(); }
 }
 
 #pragma endregion

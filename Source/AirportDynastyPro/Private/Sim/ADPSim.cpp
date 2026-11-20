@@ -48,6 +48,7 @@ void UADPSim::Initialize(FSubsystemCollectionBase& Collection)
 	ADP_LOG(TEXT("Sim: the simulation core is up (real clock, speed %.1f)"), SpeedFactor);
 	ADPWorldData::Load();   // (the airports and aircraft types, on a background thread)
 	ADPWeather::Start();    // (the real world's weather, every 15 minutes)
+	CareerSelfTest();
 	if (FParse::Param(FCommandLine::Get(), TEXT("SimFlyTest")))
 	{
 		// a small airline flying two routes from Vagar, the career "closed" 2 days ago: the catch-up flies those 2 days

@@ -63,7 +63,8 @@ void ADPEconomy::BookLeg(FADPWorld& W, const FADPFlight& F, const FDateTime& At)
 	Pay(W, F.AirlineId, At, TEXT("fees"), -(Landing + Parking + Handling + Nav) * KC, FString::Printf(TEXT("%s: landing $%.0f, parking $%.0f, handling $%.0f, navigation $%.0f"), *Leg, Landing, Parking, Handling, Nav), F.Id);
 	// the maintenance reserve, crew allowances, booking costs and overhead
 	// (45% of the maintenance reserve is parts: it follows the parts market)
-	Pay(W, F.AirlineId, At, TEXT("maint"), -MaintPerHour(T->Class) * BlockH * (0.55 + 0.45 * W.PartsIndex) * KC, Leg + TEXT(": maintenance reserve"), F.Id);
+	// (your airline: only line maintenance here - the checks, parts and mechanics are paid for themselves: to-do 181)
+	Pay(W, F.AirlineId, At, TEXT("maint"), -MaintPerHour(T->Class) * BlockH * (0.55 + 0.45 * W.PartsIndex) * KC * (F.AirlineId == UADPSim::Me() ? 0.3 : 1.0), Leg + (F.AirlineId == UADPSim::Me() ? TEXT(": line maintenance") : TEXT(": maintenance reserve")), F.Id);
 	const int32 Crew = 2 + FMath::CeilToInt(T->Seats / 50.0);
 	Pay(W, F.AirlineId, At, TEXT("crew"), -Crew * (BlockH > 6.0 ? 250.0 : 115.0) * KC, FString::Printf(TEXT("%s: allowances for %d crew"), *Leg, Crew), F.Id);
 	Pay(W, F.AirlineId, At, TEXT("fees"), -F.Revenue * (0.055 + 0.07) * KC, Leg + TEXT(": bookings and overhead"), F.Id);

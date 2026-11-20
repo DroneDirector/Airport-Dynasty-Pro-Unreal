@@ -25,6 +25,7 @@ function phContacts(): PhContact[] {
     const st = staffOf(co.id).slice().sort((a: any, b: any) => String(a.name).localeCompare(String(b.name))).slice(0, 80);
     for (const s of st as any[]) out.push({ id: s.id, name: s.name, sub: RN[s.role] || s.role, fam: false, c: '#3FA2F0', sex: s.sex === 'f' ? 'f' : 'm' });
   } catch (e) { /* no staff */ }
+  try { out.unshift(...simContacts()); } catch (e) { /* none yet */ }
   return out;
 }
 function phContact(id: string): PhContact | undefined { return phContacts().filter(c => c.id === id)[0]; }

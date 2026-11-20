@@ -178,6 +178,7 @@
     "src/screens/ph-tones.ts",
     "src/screens/apt-staff.ts",
     "src/screens/phone-talk.ts",
+    "src/screens/sim-crew.ts",
     "src/data/stars.ts",
     "src/screens/v3d-sky.ts",
     "src/ui/qol.ts",

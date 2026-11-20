@@ -11,6 +11,8 @@
 // when there is time, running when there isn't; whoever reaches the gate before it closes boards. The gate closes 15
 // minutes before departure whatever happens (the usual closing time at airports), with its own call. Passengers
 // already waiting at a gate are never late.
+#include "Sim/ADPBoards.h"
+#include "Sim/ADPSim.h"
 #include "UI/ADPHUD.h"
 #include "ADPLog.h"
 #include "SWebBrowser.h"
@@ -299,6 +301,7 @@ static int32 GateOf(const FString& Flight)
 
 void AADPHUD::OnGameFids(const FString& Json)
 {
+	if (ADPBoards::Live(this)) return;   // (the simulation's real timetable is called instead: SimCalls)
 	TSharedPtr<FJsonObject> O;
 	if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Json), O) || !O.IsValid()) return;
 	const TArray<TSharedPtr<FJsonValue>>* Dep = nullptr;
@@ -354,12 +357,78 @@ void AADPHUD::OnGameFids(const FString& Json)
 
 FString AADPHUD::AirlineName() const { return Airline.IsEmpty() ? FString(TEXT("Airport Dynasty")) : Airline; }
 
+void AADPHUD::SimCalls()
+{
+	const UADPSim* Sim = UADPSim::Get(this);
+	if (!Sim || !ADPBoards::Live(this)) return;
+	const FDateTime NowL = ADPBoards::Local(Sim->Now());
+	const int32 NowMin = NowL.GetHour() * 60 + NowL.GetMinute();
+	for (const FADPBoardRow& R : ADPBoards::Rows(this, false, 32))
+	{
+		if (R.Status.StartsWith(TEXT("Departed"))) continue;
+		const bool bNew = !Departures.Contains(R.Flight);
+		FDeparture& D = Departures.FindOrAdd(R.Flight);
+		D.Place = R.Place; D.Gate = R.Gate;
+		D.Sched = R.Sched.GetHour() * 60 + R.Sched.GetMinute();
+		const int32 Was = D.Exp;
+		D.Exp = R.Expected.GetHour() * 60 + R.Expected.GetMinute();
+		if (R.Status != TEXT("Delayed")) D.Exp = D.Sched;
+		for (const FADPAirline& A : Sim->World.Airlines) if (A.Id == R.AirlineId) { D.Who = A.Name; break; }
+		if (bNew)
+		{
+			const int32 Left = ((D.Exp - NowMin) % 1440 + 2160) % 1440 - 720;
+			if (Left <= 40) D.bBoarding = true;
+			if (Left <= 25) D.bPaged = true;
+			if (Left <= 20) D.bFinal = true;
+			if (Left <= 15) D.bClosed = true;
+			D.Status = R.Status;
+			continue;
+		}
+		if (R.Status != D.Status)
+		{
+			const FString Who = D.Who.IsEmpty() ? AirlineName() : D.Who;
+			if (R.Status == TEXT("Delayed") && D.Exp != Was)
+				Announce(FString::Printf(TEXT("%s regrets to announce that flight %s to %s is delayed. The new expected departure time is %s. We apologise for any inconvenience."), *Who, *R.Flight, *R.Place, *Clock(D.Exp)));
+			D.Status = R.Status;
+		}
+	}
+}
+
+void AADPHUD::SimToPhone()
+{
+	UADPSim* Sim = UADPSim::Get(this);
+	if (!Sim || !Sim->IsRunning() || !Browser.IsValid() || !bMenusReady) return;
+	auto Esc = [](const FString& T) { return T.Replace(TEXT("\\"), TEXT("\\\\")).Replace(TEXT("'"), TEXT("\\'")).Replace(TEXT("\n"), TEXT("\\n")).Replace(TEXT("\r"), TEXT("")); };
+	FString List; int32 N = 0;
+	for (FADPNotice& No : Sim->World.Notices)
+	{
+		if (No.bSent || N >= 20) continue;
+		No.bSent = true; ++N;
+		FString K = No.Kind;
+		if (No.Title == TEXT("Morning briefing")) K = TEXT("brief");
+		else if (K == TEXT("cargo") || K == TEXT("charter") || K == TEXT("medical")) K = TEXT("jobs");
+		else if (K == TEXT("health")) K = TEXT("staff");
+		else if (K == TEXT("revenue") || K == TEXT("capital")) K = TEXT("finance");
+		else if (K == TEXT("regional")) K = TEXT("news");
+		List += FString::Printf(TEXT("%s{kind:'%s',title:'%s',text:'%s',prio:%d}"), List.IsEmpty() ? TEXT("") : TEXT(","), *Esc(K), *Esc(No.Title), *Esc(No.Text), No.Priority);
+	}
+	for (FADPNews& Nw : Sim->World.News)
+	{
+		if (Nw.bSent || N >= 30) continue;
+		Nw.bSent = true; ++N;
+		List += FString::Printf(TEXT("%s{kind:'news',title:'',text:'%s',prio:0}"), List.IsEmpty() ? TEXT("") : TEXT(","), *Esc(Nw.Headline));
+	}
+	if (!List.IsEmpty()) Browser->ExecuteJavascript(FString::Printf(TEXT("window.__ueSimMsgs && window.__ueSimMsgs([%s])"), *List));
+}
+
 void AADPHUD::RunCalls()
 {
+	SimCalls();
+	SimToPhone();
 	auto Announce2 = [](const FString& W) { Announce(W, 2); };
-	const FDateTime Now = FDateTime::Now();
+	const UADPSim* SimNow = UADPSim::Get(this);
+	const FDateTime Now = SimNow && ADPBoards::Live(this) ? ADPBoards::Local(SimNow->Now()) : FDateTime::Now();   // (the airport's own time)
 	const float NowMin = Now.GetHour() * 60 + Now.GetMinute() + Now.GetSecond() / 60.f;
-	const FString Who = AirlineName();
 	// now and then (every half hour to an hour): a passenger asked to the information desk, or a notice for everyone
 	const float T = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
 	if (NextInfoAt < 0) NextInfoAt = T + FMath::FRandRange(25.f, 50.f) * 60.f;
@@ -393,6 +462,7 @@ void AADPHUD::RunCalls()
 	{
 		FDeparture& D = It.Value;
 		const FString& F = It.Key;
+		const FString Who = D.Who.IsEmpty() ? AirlineName() : D.Who;
 		float Left = FMath::Fmod(D.Exp - NowMin + 2160.f, 1440.f) - 720.f;
 		if (Left < -30.f) continue;
 		if (!D.bBoarding && Left <= 40.f)

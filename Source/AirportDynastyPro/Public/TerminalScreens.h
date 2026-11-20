@@ -36,6 +36,9 @@ private:
 		TArray<TArray<UTextRenderComponent*>> Rows; // per row: time, flight, place, status
 	};
 	TArray<FBoard> Boards;
+	/** A gate's screen: its flight, status and time lines, filled each refresh from the real timetable (to-do 174). */
+	struct FGateTexts { int32 Gate = 0; UTextRenderComponent* Flight = nullptr; UTextRenderComponent* Status = nullptr; UTextRenderComponent* Time = nullptr; };
+	TArray<FGateTexts> Gates;
 	float Clock = 0;
 
 	void Panel(const FAt& O, float W, float H, float Z, float Facing, bool bArr, int32 NRows);
@@ -43,6 +46,7 @@ private:
 	void Bezel(const FAt& O, const FName Mat, float W, float H, float D, float X, float Y, float Z);
 	UTextRenderComponent* Text(const FAt& O, const FString& Words, float X, float Y, float Z, float Facing, float Size, FColor Colour, bool bLeft);
 	void Refresh();
+	void RefreshGates();
 	#pragma endregion
 
 	UPROPERTY() TObjectPtr<USceneComponent> Root;

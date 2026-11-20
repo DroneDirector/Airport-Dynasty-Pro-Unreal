@@ -99,4 +99,6 @@ private:
 	bool Step(FSlot& S, const FDateTime& To, bool bCatchUp, double Budget);
 	/** Every game module registered once (flights, economy, staff, rivals, events). */
 	void AddGameModules();
+	/** -SimCareerTest (ADPCareer.cpp). */
+	void CareerSelfTest();
 };

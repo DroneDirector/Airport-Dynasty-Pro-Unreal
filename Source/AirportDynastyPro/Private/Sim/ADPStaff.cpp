@@ -60,6 +60,7 @@ FADPPerson ADPStaff::MakePerson(const FString& Role, const FString& Country, FRa
 	P.Mood = Rng.FRandRange(60.0, 85.0);
 	P.Status = TEXT("pool");
 	if (Role == TEXT("captain") || Role == TEXT("fo")) P.Types.Add(TEXT("A320"));
+	ADPStaff::Describe(P, Country, Rng);   // (hours, languages, home, strengths, what they ask for: to-do 179)
 	return P;
 }
 
@@ -67,9 +68,52 @@ bool ADPStaff::Hire(FADPWorld& W, const FString& PersonId, const FString& Airlin
 {
 	FADPPerson* P = W.People.FindByPredicate([&](const FADPPerson& X) { return X.Id == PersonId && X.AirlineId.IsEmpty(); });
 	if (!P) return false;
-	P->AirlineId = AirlineId; P->Base = Base; P->Status = TEXT("on");
+	P->AirlineId = AirlineId; P->Base = Base; P->Status = TEXT("on"); P->HiredAt = At; P->Location = Base;
+	if (P->Asks > 0.0) P->Salary = P->Asks;
 	ADPEconomy::Pay(W, AirlineId, At, TEXT("training"), -P->Salary * (P->Role == TEXT("captain") ? 1.5 : 1.0), FString::Printf(TEXT("Hiring %s (%s)"), *P->Name, *P->Role), P->Id);
 	return true;
+}
+
+bool ADPStaff::Dismiss(FADPWorld& W, const FString& PersonId, const FDateTime& At)
+{
+	FADPPerson* P = W.People.FindByPredicate([&](const FADPPerson& X) { return X.Id == PersonId && !X.AirlineId.IsEmpty(); });
+	if (!P || P->Status == TEXT("dismissed")) return false;
+	// severance: a week's pay for every year with you, at least two; their notice period from their contract (to-do 180)
+	const double Years = P->HiredAt != FDateTime() ? (At - P->HiredAt).GetTotalDays() / 365.0 : 0.0;
+	const double Weeks = FMath::Max(2.0, FMath::FloorToDouble(Years));
+	ADPEconomy::Pay(W, P->AirlineId, At, TEXT("salary"), -P->Salary * Weeks, FString::Printf(TEXT("Severance: %s (%s)"), *P->Name, *P->Role), P->Id);
+	P->Status = TEXT("dismissed"); P->RestUntil = At + FTimespan::FromDays(FMath::Max(7, P->NoticeDays)); P->Mood = FMath::Min(P->Mood, 25.0);
+	FADPNotice N; N.At = At; N.Kind = TEXT("staff"); N.Title = TEXT("Notice given");
+	N.Text = FString::Printf(TEXT("%s (%s) has been given notice: off the roster now, leaves in %d days (their contract), %.0f weeks' pay as severance."), *P->Name, *P->Role, FMath::Max(7, P->NoticeDays), Weeks); W.Notices.Add(N);
+	return true;
+}
+
+bool ADPStaff::SetPay(FADPWorld& W, const FString& PersonId, double Weekly)
+{
+	FADPPerson* P = W.People.FindByPredicate([&](const FADPPerson& X) { return X.Id == PersonId && !X.AirlineId.IsEmpty(); });
+	if (!P || Weekly <= 0.0) return false;
+	P->Salary = FMath::Clamp(Weekly, GoingRate(P->Role, CountryOf(W, P->AirlineId)) * 0.5, GoingRate(P->Role, CountryOf(W, P->AirlineId)) * 3.0);
+	return true;
+}
+
+bool ADPStaff::SetBase(FADPWorld& W, const FString& PersonId, const FString& Base)
+{
+	FADPPerson* P = W.People.FindByPredicate([&](const FADPPerson& X) { return X.Id == PersonId && !X.AirlineId.IsEmpty(); });
+	if (!P || !ADPWorldData::Airport(Base)) return false;
+	P->Base = Base;
+	return true;
+}
+
+void ADPStaff::FillPool(FADPWorld& W, FRandomStream& Rng)
+{
+	static const TCHAR* Roles[] = {TEXT("captain"), TEXT("fo"), TEXT("fa"), TEXT("mech"), TEXT("ground"), TEXT("security"), TEXT("fuel"), TEXT("catering"), TEXT("cleaning")};
+	const FString Country = CountryOf(W, FString());
+	for (const TCHAR* R : Roles)
+	{
+		int32 InPool = 0; for (const FADPPerson& P : W.People) if (P.AirlineId.IsEmpty() && P.Role == R) ++InPool;
+		const int32 Want = FString(R) == TEXT("fa") || FString(R) == TEXT("ground") ? 12 : 8;
+		for (int32 k = InPool; k < Want; ++k) W.People.Add(MakePerson(R, Country, Rng));
+	}
 }
 
 FString ADPStaff::CountryOf(const FADPWorld& W, const FString& AirlineId)
@@ -94,7 +138,7 @@ void FADPStaffModule::Advance(UADPSim& Sim, const FDateTime& From, const FDateTi
 	// the hiring pool: every few hours some leave it and new people come (12 cabin crew and ground staff, 8 of the rest)
 	if (Rng.FRand() < 0.2)
 	{
-		static const TCHAR* Roles[] = {TEXT("captain"), TEXT("fo"), TEXT("fa"), TEXT("mech"), TEXT("ground"), TEXT("security")};
+		static const TCHAR* Roles[] = {TEXT("captain"), TEXT("fo"), TEXT("fa"), TEXT("mech"), TEXT("ground"), TEXT("security"), TEXT("fuel"), TEXT("catering"), TEXT("cleaning")};
 		const FString Country = ADPStaff::CountryOf(W, FString());   // (the player's airline's hub country)
 		for (const TCHAR* R : Roles)
 		{
@@ -124,6 +168,10 @@ void FADPStaffModule::Advance(UADPSim& Sim, const FDateTime& From, const FDateTi
 		{
 			P.Status = TEXT("notice"); P.RestUntil = To + FTimespan::FromDays(14.0);
 			FADPNotice N; N.At = To; N.Kind = TEXT("staff"); N.Text = FString::Printf(TEXT("%s (%s) has handed in their notice - 14 days"), *P.Name, *P.Role); W.Notices.Add(N);
+		}
+		else if (P.Status == TEXT("dismissed"))
+		{
+			if (P.RestUntil <= To) { FADPNotice N; N.At = To; N.Kind = TEXT("staff"); N.Text = FString::Printf(TEXT("%s (%s) has left after their notice"), *P.Name, *P.Role); W.Notices.Add(N); W.People.RemoveAt(i); }
 		}
 		else if (P.Status == TEXT("notice"))
 		{
@@ -166,6 +214,7 @@ void ADPStaff::MeetUnion(FADPWorld& W, const FString& AirlineId, const FString& 
 
 void FADPStaffModule::Daily(FADPWorld& W, const FDateTime& To)
 {
+	ADPStaff::CareerDay(W, To, Rng);   // (promotions, raises, holidays: to-do 178 / 180)
 	// type-rating courses ending: pass (likelier the better rated) or fail (a retake costs a third)
 	for (FADPPerson& P : W.People)
 		if (!P.Training.IsEmpty() && P.TrainingUntil <= To)

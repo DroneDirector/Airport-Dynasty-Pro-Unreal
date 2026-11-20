@@ -49,9 +49,9 @@ namespace
 	class FGameFile : public IWebBrowserSchemeHandler
 	{
 	public:
-		virtual bool ProcessRequest(const FString& Verb, const FString& Url, const FSimpleDelegate& OnHeadersReady) override
+		virtual bool ProcessRequest(const FString& Verb, const FString& InUrl, const FSimpleDelegate& OnHeadersReady) override
 		{
-			FString Path = Url;
+			FString Path = InUrl;
 			const int32 At = Path.Find(Host);
 			Path = At != INDEX_NONE ? Path.RightChop(At + FCString::Strlen(Host)) : TEXT("/");
 			int32 Q;
@@ -96,7 +96,7 @@ namespace
 	class FGameFiles : public IWebBrowserSchemeHandlerFactory
 	{
 	public:
-		virtual TUniquePtr<IWebBrowserSchemeHandler> Create(FString Verb, FString Url) override { if (FParse::Param(FCommandLine::Get(), TEXT("WebLog"))) ADP_LOG(TEXT("Menus page: asked for %s"), *Url); return MakeUnique<FGameFile>(); }
+		virtual TUniquePtr<IWebBrowserSchemeHandler> Create(FString Verb, FString InUrl) override { if (FParse::Param(FCommandLine::Get(), TEXT("WebLog"))) ADP_LOG(TEXT("Menus page: asked for %s"), *InUrl); return MakeUnique<FGameFile>(); }
 	};
 
 	void Register()

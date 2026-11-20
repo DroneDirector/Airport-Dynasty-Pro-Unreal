@@ -1,5 +1,8 @@
 // Hired pilots flying the routes - see Sim/ADPFlightsModule.h.
 #include "Sim/ADPFlightsModule.h"
+#include "Sim/ADPRoster.h"
+#include "Sim/ADPMaint.h"
+#include "Sim/ADPGround.h"
 #include "ADPLog.h"
 #include "Sim/ADPWeather.h"
 #include "Sim/ADPDemand.h"
@@ -61,18 +64,37 @@ void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime
 		}
 		A.ReadyAt = Now + FTimespan::FromMinutes(Min);
 	};
-	// the checks before departure (more come with their parts: weather, ground crew, strikes, curfews, stands)
-	if (!Pilot || Pilot->Status != TEXT("on")) { Wait(TEXT("no pilot"), 60); return; }
-	if (Pilot->RestUntil > Now) { A.ReadyAt = Pilot->RestUntil; return; }
-	if (ADPStaff::OnStrike(W, A.AirlineId, Pilot->Role) || ADPStaff::OnStrike(W, A.AirlineId, TEXT("fa"))) { Wait(TEXT("a strike"), 180); return; }
-	if (!Pilot->Types.Contains(A.TypeId)) { Wait(TEXT("the pilot has no type rating for this aircraft"), 240); return; }
+	// your airline: the whole crew rostered on the EASA flight time limitations (to-do 177, Sim/ADPRoster.h);
+	// the AI airlines: one pilot per route and enough cabin crew at the base (their simpler rule)
+	const bool bRoster = A.AirlineId == UADPSim::Me();
+	if (!bRoster)
+	{
+		if (!Pilot || Pilot->Status != TEXT("on")) { Wait(TEXT("no pilot"), 60); return; }
+		if (Pilot->RestUntil > Now) { A.ReadyAt = Pilot->RestUntil; return; }
+		if (ADPStaff::OnStrike(W, A.AirlineId, Pilot->Role) || ADPStaff::OnStrike(W, A.AirlineId, TEXT("fa"))) { Wait(TEXT("a strike"), 180); return; }
+		if (!Pilot->Types.Contains(A.TypeId)) { Wait(TEXT("the pilot has no type rating for this aircraft"), 240); return; }
+	}
+	else if (ADPStaff::OnStrike(W, A.AirlineId, TEXT("captain")) || ADPStaff::OnStrike(W, A.AirlineId, TEXT("fo")) || ADPStaff::OnStrike(W, A.AirlineId, TEXT("fa"))) { Wait(TEXT("a strike"), 180); return; }
 	if (A.Condition < 20.0) { Wait(TEXT("the aircraft needs repair"), 120); return; }
-	// cabin crew: enough on duty at the aircraft's base for its seats (not sick, not on leave)
-	if (const FADPTypeInfo* Tc = ADPWorldData::Type(A.TypeId))
-		if (ADPStaff::CabinCrewAt(W, A.AirlineId, A.Base) < ADPStaff::CabinCrewFor(Tc->Seats)) { ++CrewWaits; Wait(TEXT("not enough cabin crew"), 60); return; }
+	if (!bRoster)
+		if (const FADPTypeInfo* Tc = ADPWorldData::Type(A.TypeId))
+			if (ADPStaff::CabinCrewAt(W, A.AirlineId, A.Base) < ADPStaff::CabinCrewFor(Tc->Seats)) { ++CrewWaits; Wait(TEXT("not enough cabin crew"), 60); return; }
 	const FString& Next = R->Stops[(A.LegIdx + 1) % R->Stops.Num()];
 	FADPProfile P;
 	if (!ADPWorldData::MakeProfile(A.TypeId, A.Location, Next, P)) { Wait(TEXT("no flight plan"), 240); return; }
+	if (bRoster)
+	{
+		const FADPTypeInfo* Tc = ADPWorldData::Type(A.TypeId);
+		FString Why;
+		if (!ADPRoster::Crew(W, A, P.BlockMin(), ADPStaff::CabinCrewFor(Tc ? Tc->Seats : 150), R->PilotId, Now, Why))
+		{
+			++CrewWaits;
+			if (A.WaitingSince == FDateTime()) { FADPNotice N; N.At = Now; N.Kind = TEXT("flight"); N.Priority = 1; N.Title = A.Reg + TEXT(" waiting for crew"); N.Text = FString::Printf(TEXT("%s to %s can't leave: %s. Hire more crew or give it time to rest."), *A.Reg, *Next, *Why); W.Notices.Add(N); }
+			Wait(*Why, 30); return;
+		}
+		Pilot = W.People.FindByPredicate([&](const FADPPerson& X) { return X.Id == A.Crew[0]; });
+		if (!Pilot) { Wait(TEXT("no captain"), 30); return; }
+	}
 	// the weather at both ends (the real world's now, or the built-in climate): crosswind on the best runway, visibility,
 	// storms; snow or freezing rain means de-icing first
 	double WxDelay = 0.0;
@@ -114,8 +136,8 @@ void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime
 		if (!E && Bp) E = ADPEvents::ClosedBy(W, *Bp, Now + FTimespan::FromMinutes(P.BlockMin()));
 		if (E) { ++Closures; Wait(*E->Title, 60); return; }
 	}
-	// the duty limit: the pilot rests 12 hours first if this leg would break it
-	if (Pilot->DutyMin + P.BlockMin() > MaxDutyH * 60.0)
+	// the duty limit: the pilot rests 12 hours first if this leg would break it (the AI airlines; yours: the roster above)
+	if (!bRoster && Pilot->DutyMin + P.BlockMin() > MaxDutyH * 60.0)
 	{
 		Pilot->RestUntil = Now + FTimespan::FromHours(RestH); Pilot->DutyMin = 0.0; A.ReadyAt = Pilot->RestUntil; ++Rests;
 		return;
@@ -128,6 +150,7 @@ void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime
 	F.RouteId = A.RouteId; F.Reg = A.Reg; F.AirlineId = A.AirlineId; F.PilotId = Pilot->Id; F.TypeId = A.TypeId; F.From = A.Location; F.To = Next;
 	F.DepAt = Now + FTimespan::FromMinutes(Delay); F.DelayMin = Delay; F.DurMin = P.BlockMin();
 	F.Lat = P.FromLat; F.Lon = P.FromLon;
+	F.Crew = A.Crew;
 	// who flies: the passengers, classes and cargo this airline gets on this pair today (part 4)
 	{
 		const FADPAirportInfo* Ap = ADPWorldData::Airport(A.Location); const FADPAirportInfo* Bp = ADPWorldData::Airport(Next); const FADPTypeInfo* T = ADPWorldData::Type(A.TypeId);
@@ -143,7 +166,8 @@ void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime
 	// a technical failure now and then - likelier the worse the aircraft's condition: a minor one noted and fixed at the next
 	// stop; a hydraulic fault checked on arrival; an engine failure: the crew turns for the nearest suitable airport
 	{
-		const double K = 0.6 + FMath::Max(0.0, 85.0 - A.Condition) / 25.0;
+		double Over = 0.0; ADPMaint::NextDue(W, A, Now, Over);   // (an overdue check: more failures - to-do 181)
+		const double K = (0.6 + FMath::Max(0.0, 85.0 - A.Condition) / 25.0) * (Over > 1.0 ? 1.0 + (Over - 1.0) * 6.0 : 1.0);
 		const double Roll = Rng.FRand();
 		auto Note = [&](const FString& Text) { FADPNotice N; N.At = Now; N.Kind = TEXT("mechanic"); N.Text = Text; W.Notices.Add(N); };
 		if (Roll < 0.000025 * K) { F.Emergency = TEXT("an engine failure"); ++Failures; }
@@ -154,6 +178,7 @@ void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime
 	A.Condition = FMath::Max(0.0, A.Condition - (P.BlockMin() / 60.0 * 0.12 + 0.35));
 	W.Flights.Add(F);
 	A.Status = TEXT("flying"); A.WaitingSince = FDateTime();
+	ADPGround::FreeStand(A);   // (pushed back: the stand is free - to-do 183)
 	++Departures;
 }
 
@@ -169,9 +194,10 @@ void FADPFlightsModule::Land(FADPWorld& W, int32 Idx, const FDateTime& At)
 		A->HoursMin += F.DurMin; ++A->Cycles; A->Location = F.To; A->Status = TEXT("parked");
 		if (const FADPRoute* R = W.Routes.FindByPredicate([&](const FADPRoute& X) { return X.Id == A->RouteId; }))
 			A->LegIdx = (A->LegIdx + 1) % FMath::Max(1, R->Stops.Num());
-		A->ReadyAt = At + FTimespan::FromMinutes(TurnMin);
+		A->ReadyAt = At + FTimespan::FromMinutes(ADPGround::Turnaround(W, *A, At));   // (the ground teams' work: to-do 182)
 	}
-	if (FADPPerson* P = W.People.FindByPredicate([&](const FADPPerson& X) { return X.Id == F.PilotId; }))
+	if (F.Crew.Num()) ADPRoster::Landed(W, F, At);   // (your crews' flight time and duty: to-do 177)
+	else if (FADPPerson* P = W.People.FindByPredicate([&](const FADPPerson& X) { return X.Id == F.PilotId; }))
 	{ P->DutyMin += F.DurMin + TurnMin; P->Xp += F.DurMin / 60.0 + 20.0; }
 	ADPEvents::OnLanded(W, F, At);   // (punctuality, reputation, a job paid, your career: part 8)
 }

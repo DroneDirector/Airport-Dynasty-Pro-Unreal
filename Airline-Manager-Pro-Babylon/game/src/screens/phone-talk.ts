@@ -283,3 +283,35 @@ document.addEventListener('submit', e => {
   e.preventDefault(); const i = f.querySelector('.pcall-in') as HTMLInputElement; const v = i.value; i.value = ''; PhA.callDraft = ''; phCallSay(v);
 });
 document.addEventListener('keydown', e => { const t = e.target as HTMLElement; if (t && t.classList && t.classList.contains('pcall-in')) e.stopPropagation(); }, true);
+
+/* ---------- the simulation's messages (to-do 175; owner, 2026-11-20 night) ----------
+ * The Unreal simulation sends its notices, the 06:00 morning briefing and the news here (window.__ueSimMsgs). Each kind
+ * comes from its own sender in Messages; urgent and important ones ring and show a banner, the rest arrive quietly
+ * (unread, with the badge). Read / unread are kept with the career's phone (State.phoneMsgs). */
+const SIM_FROM: Record<string, [string, string, string]> = {
+  ops: ['Operations Control', 'Flights', '#F5A623'], finance: ['Finance', 'Money', '#2ECC71'], staff: ['Crew & Staff', 'People', '#3FA2F0'],
+  news: ['News', 'World and airline news', '#9B59B6'], brief: ['Morning briefing', '06:00 every day', '#E67E22'], jobs: ['Charter desk', 'Jobs on the board', '#1ABC9C'],
+  mech: ['Maintenance', 'Engineering', '#95A5A6'], authority: ['Aviation authority', 'Regulator', '#E74C3C'], company: ['Your airline', 'Company', '#F06A9A'],
+};
+function simKindOf(k: string): string {
+  if (k === 'flight' || k === 'pilot') return 'ops';
+  if (k === 'mechanic') return 'mech';
+  if (k === 'birthday') return 'staff';
+  return SIM_FROM[k] ? k : 'ops';
+}
+function simContacts(): PhContact[] {
+  const M = phS().phoneMsgs, out: PhContact[] = [];
+  for (const k in SIM_FROM) if (M['sim-' + k]) out.push({ id: 'sim-' + k, name: SIM_FROM[k][0], sub: SIM_FROM[k][1], fam: false, c: SIM_FROM[k][2] });
+  return out;
+}
+(window as any).__ueSimMsgs = (list: { kind: string; title?: string; text: string; prio?: number }[]) => {
+  for (const m of list || []) {
+    const k = simKindOf(String(m.kind || 'ops')), f = SIM_FROM[k];
+    const c: PhContact = { id: 'sim-' + k, name: f[0], sub: f[1], fam: false, c: f[2] };
+    const body = (m.title ? m.title + ' - ' : '') + String(m.text || '');
+    if ((m.prio || 0) >= 1) { phTextFrom(c, body); continue; }
+    const S = phS(), L: PhMsg[] = S.phoneMsgs[c.id] = S.phoneMsgs[c.id] || [];
+    L.push({ me: false, t: body, at: Date.now(), read: false }); if (L.length > 300) L.splice(0, L.length - 300);
+  }
+  try { Store.soon(); phRefresh(); } catch (e) { /* the phone isn't built yet */ }
+};

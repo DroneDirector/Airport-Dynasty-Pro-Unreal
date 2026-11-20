@@ -15,6 +15,27 @@ namespace ADPStaff
 	FADPPerson MakePerson(const FString& Role, const FString& Country, FRandomStream& Rng);
 	/** Hires someone from the pool for an airline at a base: the first week's wage as the hiring fee. */
 	bool Hire(FADPWorld& W, const FString& PersonId, const FString& AirlineId, const FString& Base, const FDateTime& At);
+	/** Lets someone go (to-do 176): two weeks' notice working, then gone; severance of two weeks' pay booked now. */
+	bool Dismiss(FADPWorld& W, const FString& PersonId, const FDateTime& At);
+	/** A new weekly wage (their mood follows it day by day). */
+	bool SetPay(FADPWorld& W, const FString& PersonId, double Weekly);
+	/** Moves someone to another base (their airline's airports). */
+	bool SetBase(FADPWorld& W, const FString& PersonId, const FString& Base);
+	/** A new person's story (to-do 179): flight hours, languages, home town, strengths and weak points, the pay they ask for. */
+	void Describe(FADPPerson& P, const FString& Country, FRandomStream& Rng);
+	/** Each day (to-do 178 / 180): first officers made captains, cabin crew senior crew and pursers, raises asked for,
+	 *  passed-over people losing heart, holidays asked for, approved ones taken. */
+	void CareerDay(FADPWorld& W, const FDateTime& To, FRandomStream& Rng);
+	/** An interview (to-do 179): their strengths and weak points shown; a small cost in time only. */
+	bool Interview(FADPWorld& W, const FString& PersonId);
+	/** A paid job advert (to-do 179): three better candidates for the job come into the pool. Cost by job. */
+	bool Advert(FADPWorld& W, const FString& AirlineId, const FString& Role, const FDateTime& At, FRandomStream& Rng);
+	/** Full or part time (to-do 180). */
+	bool SetContract(FADPWorld& W, const FString& PersonId, const FString& Contract);
+	/** A holiday request answered (to-do 180). */
+	bool AnswerLeave(FADPWorld& W, int32 Index, bool bYes, const FDateTime& At);
+	/** Fills the hiring pool at once (a new career: people looking for work from the first minute). */
+	void FillPool(FADPWorld& W, FRandomStream& Rng);
 	/** Cabin crew a type needs (1 per 50 seats from 20 seats), pilots 2. */
 	int32 CabinCrewFor(int32 Seats);
 	/** On-duty cabin crew of an airline at a base (not sick, not on leave). */

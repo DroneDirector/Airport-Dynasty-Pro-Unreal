@@ -9,12 +9,20 @@
 #include "Sim/ADPStaff.h"
 #include "Sim/ADPRivals.h"
 #include "Sim/ADPEvents.h"
+#include "Sim/ADPMaint.h"
+#include "Sim/ADPGround.h"
 #include "Containers/Ticker.h"
+#include "Sim/ADPRoster.h"
+#include "Sim/ADPBoards.h"
+#include "Misc/CommandLine.h"
+#include "HAL/FileManager.h"
+#include "HAL/PlatformTime.h"
 #include "Dom/JsonObject.h"
 
 namespace
 {
 	TSharedPtr<FADPRivalsModule> GCareerRivals;
+	TSharedPtr<FADPFlightsModule> GCareerFlights;
 	bool GModulesAdded = false;
 	/** The site's airport code (LSCH, BIAP...). */
 	FString SiteIcao()
@@ -54,11 +62,13 @@ void UADPSim::AddGameModules()
 {
 	if (GModulesAdded) return;
 	GModulesAdded = true;
-	Register(MakeShared<FADPFlightsModule>());
+	GCareerFlights = MakeShared<FADPFlightsModule>(); Register(GCareerFlights.ToSharedRef());
 	Register(MakeShared<FADPEconomyModule>());
 	Register(MakeShared<FADPStaffModule>());
 	GCareerRivals = MakeShared<FADPRivalsModule>(); Register(GCareerRivals.ToSharedRef());
 	Register(MakeShared<FADPEventsModule>());
+	Register(MakeShared<FADPMaintModule>());   // (to-do 181)
+	Register(MakeShared<FADPStandsModule>());  // (to-do 183)
 }
 
 void UADPSim::NewCareer(const FString& Difficulty, const FString& AirlineName)
@@ -84,6 +94,7 @@ void UADPSim::NewCareer(const FString& Difficulty, const FString& AirlineName)
 		}
 		AddGameModules();
 		if (GCareerRivals) GCareerRivals->Found(World, 12, T);
+		{ FRandomStream Rs(int32(T.GetTicks() & 0x7fffffff)); ADPStaff::FillPool(World, Rs); }   // (people looking for work from the first minute)
 		{
 			FADPNotice N; N.At = T; N.Kind = TEXT("company"); N.Priority = 1; N.Title = TEXT("Welcome to ") + (Home ? Home->Name : Icao);
 			N.Text = FString::Printf(TEXT("%s is founded at %s with $%.1f million. First hire the crew one aircraft needs, then buy or lease your first aircraft (new or used)."),
@@ -112,4 +123,65 @@ bool UADPSim::ResumeCareer()
 		ADP_LOG(TEXT("Sim: career %s resumed - %.1f hours to catch up"), *World.Slot, (Now() - Last).GetTotalHours());
 	});
 	return true;
+}
+
+// -SimCareerTest (to-do 172-177): a hard career at this site, crew hired, an A320 leased onto a route from here, four
+// days flown in the catch-up - then the roster, the boards and the messages are checked in the log and the game closes
+void UADPSim::CareerSelfTest()
+{
+	if (!FParse::Param(FCommandLine::Get(), TEXT("SimCareerTest"))) return;
+	FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](float) -> bool
+	{
+		static int32 Stage = 0; static double LiveAt = 0.0;
+		if (!ADPWorldData::IsReady()) return true;
+		const FString Here = ADPBoards::HereIcao();
+		if (Stage == 0)
+		{
+			const FADPAirportInfo* H = ADPWorldData::Airport(Here);
+			ADP_LOG(TEXT("SimCareerTest: %s in the world list: %s (%s), %d runway(s) %s/%s, %d ft"), *Here, H ? *H->Name : TEXT("MISSING"), H ? *H->Iata : TEXT("-"), H ? H->Runways.Num() : 0,
+				H && H->Runways.Num() ? *H->Runways[0].Le : TEXT("-"), H && H->Runways.Num() ? *H->Runways[0].He : TEXT("-"), H ? H->ElevFt : 0);
+			for (const TCHAR* D : {TEXT("easy"), TEXT("normal"), TEXT("hard")}) ADP_LOG(TEXT("SimCareerTest: starting money %s $%.1fM"), D, StartingMoney(D) / 1e6);
+			NewCareer(TEXT("hard"));
+			Stage = 1; return true;
+		}
+		if (Stage == 1)
+		{
+			if (!bRunning) return true;
+			const FDateTime T0 = Now() - FTimespan::FromDays(4.0);
+			int32 Hired = 0;
+			for (const TCHAR* Role : {TEXT("captain"), TEXT("captain"), TEXT("captain"), TEXT("fo"), TEXT("fo"), TEXT("fo"), TEXT("fa"), TEXT("fa"), TEXT("fa"), TEXT("fa"), TEXT("fa"), TEXT("fa"), TEXT("fa"), TEXT("fa")})
+				if (FADPPerson* P = World.People.FindByPredicate([&](const FADPPerson& X) { return X.AirlineId.IsEmpty() && X.Role == Role; }))
+					Hired += ADPStaff::Hire(World, P->Id, Me(), Here, T0);
+			const FString Reg = ADPEconomy::BuyAircraft(World, Me(), TEXT("A320"), true, Here, T0);
+			FADPRoute R; R.Id = TEXT("r-test"); R.AirlineId = Me(); R.Stops = {Here, TEXT("EGLL")}; R.TypeId = TEXT("A320"); R.OpenedAt = T0; World.Routes.Add(R);
+			if (FADPAircraft* A = World.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == Reg; })) { A->RouteId = R.Id; A->Location = Here; A->ReadyAt = T0; }
+			ADP_LOG(TEXT("SimCareerTest: hired %d, leased %s, balance $%.1fM; flying 4 days from %s"), Hired, *Reg, World.Airlines[0].Balance / 1e6, *T0.ToString());
+			Start(T0);
+			Stage = 2; return true;
+		}
+		if (Stage == 2)
+		{
+			if (bCatchingUp) return true;
+			if (LiveAt == 0.0) { LiveAt = FPlatformTime::Seconds(); return true; }
+			if (FPlatformTime::Seconds() - LiveAt < 8.0) return true;
+			const FADPFlightsModule* M = GCareerFlights.Get();
+			ADP_LOG(TEXT("SimCareerTest: %lld departures, %lld landings, crew waits %lld, %d notices"), M ? M->Departures : -1, M ? M->Landings : -1, M ? M->CrewWaits : -1, World.Notices.Num());
+			bool bLegal = true;
+			for (const FADPPerson& P : World.People) if (P.AirlineId == Me())
+			{
+				const double F28 = ADPRoster::Fly28(P) / 60.0;
+				bLegal &= F28 <= 100.0;
+				ADP_LOG(TEXT("SimCareerTest: %s %s - %.1f h in 28 days, %d days on, at %s, %s%s"), *P.Role, *P.Name, F28, P.DaysOn, P.Location.IsEmpty() ? *P.Base : *P.Location,
+					P.WithReg.IsEmpty() ? TEXT("off duty") : *(TEXT("on ") + P.WithReg), P.RestUntil > Now() ? TEXT(", resting") : TEXT(""));
+			}
+			for (const bool bArr : {false, true}) for (const FADPBoardRow& B : ADPBoards::Rows(this, bArr, 8))
+				ADP_LOG(TEXT("SimCareerTest: board %s %s %s %s %s gate %d"), bArr ? TEXT("ARR") : TEXT("DEP"), *B.Time(), *B.Flight, *B.Place, *B.Status, B.Gate);
+			int32 Shown = 0; for (const FADPNotice& N : World.Notices) if (Shown++ < 12) ADP_LOG(TEXT("SimCareerTest: notice [%s] %s %s"), *N.Kind, *N.Title, *N.Text);
+			ADP_LOG(TEXT("SimCareerTest: %s"), M && M->Landings >= 4 && bLegal ? TEXT("PASS") : TEXT("FAIL"));
+			IFileManager::Get().Delete(*CareerFile(World.Slot));
+			FPlatformMisc::RequestExit(false);
+			return false;
+		}
+		return true;
+	}), 0.2f);
 }

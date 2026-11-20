@@ -33,6 +33,20 @@ USTRUCT() struct FADPAirline
 	UPROPERTY() FString Kind = TEXT("major");   // major | regional | bush
 	UPROPERTY() FDateTime RedSince;        // in the red since (AI airlines go bankrupt after too long)
 	UPROPERTY() double OnTimeEma = 0.85;   // share of legs on time, smoothed (reputation follows it)
+	UPROPERTY() double PartsStock = 0.0;   // spare parts in stock, USD at list price (to-do 181)
+	UPROPERTY() int32 FuelTrucks = 1;      // ground vehicles at your airport (to-do 182)
+	UPROPERTY() int32 CateringTrucks = 1;
+	UPROPERTY() int32 Tractors = 1;
+};
+
+/** A maintenance check done (to-do 181): when, and the aircraft's hours and cycles then. */
+USTRUCT() struct FADPCheckRecord
+{
+	GENERATED_BODY()
+	UPROPERTY() FString Kind;              // A | C | D
+	UPROPERTY() FDateTime At;
+	UPROPERTY() double AtHoursMin = 0.0;
+	UPROPERTY() int32 AtCycles = 0;
 };
 
 USTRUCT() struct FADPAircraft
@@ -57,6 +71,22 @@ USTRUCT() struct FADPAircraft
 	UPROPERTY() double Value = 0.0;        // what it is worth now (USD; owned: falls a little every month)
 	UPROPERTY() double LeaseMonthly = 0.0; // leased: the rent a month
 	UPROPERTY() FString PrevRouteId;       // on a job from the board: the route it goes back to
+	UPROPERTY() TArray<FString> Crew;      // the crew rostered on it now (captain, first officer, cabin crew)
+	UPROPERTY() TArray<FADPCheckRecord> Checks;   // its last A, C and D checks (to-do 181)
+	UPROPERTY() FDateTime InService;       // in this airline's service since (the calendar intervals count from here)
+	UPROPERTY() FString CheckKind;         // the check it is in now
+	UPROPERTY() FDateTime CheckUntil;
+	UPROPERTY() FString Stand;             // its stand at our airport (to-do 183; empty: none / a remote stand)
+	UPROPERTY() FDateTime StandUntil;
+};
+
+/** A ground team busy until (to-do 182): one per job and team at an airport. */
+USTRUCT() struct FADPTeamSlot
+{
+	GENERATED_BODY()
+	UPROPERTY() FString Icao;
+	UPROPERTY() FString Job;
+	UPROPERTY() FDateTime Until;
 };
 
 /** A person: staff of any kind, pilots included (passengers live in FADPPassenger). */
@@ -84,6 +114,41 @@ USTRUCT() struct FADPPerson
 	UPROPERTY() FString Training;          // the type rating being trained for (empty: none)
 	UPROPERTY() FDateTime TrainingUntil;
 	UPROPERTY() int32 Warnings = 0;        // conduct warnings on their record
+	// the roster (to-do 177, EASA flight time limitations)
+	UPROPERTY() FDateTime DutyStart;       // this flight duty period began (empty: off duty)
+	UPROPERTY() int32 Sectors = 0;         // legs flown in this duty
+	UPROPERTY() FString WithReg;           // the aircraft they are crewing now
+	UPROPERTY() FString Location;          // where they are (their base, or a night stop away)
+	UPROPERTY() TArray<double> FlyDays;    // flight minutes per day, the last 28 days (newest last)
+	UPROPERTY() TArray<double> FlyWeeks;   // flight minutes per week, the last 52 weeks (newest last)
+	UPROPERTY() int32 DayKey = 0;          // the day FlyDays' last entry is for (days since 2000)
+	UPROPERTY() int32 DaysOn = 0;          // days with duty since the last days off
+	UPROPERTY() int32 LastDutyDay = 0;     // the last day they had a duty (days since 2000)
+	UPROPERTY() FDateTime OffUntil;        // days off until (rostered or asked for in the Overview)
+	// careers, candidates, contracts (to-do 178-180)
+	UPROPERTY() FString Rank;              // Captain, First officer, Senior first officer, Cabin crew, Senior cabin crew, Purser...
+	UPROPERTY() double HoursTotal = 0.0;   // flight hours in their whole career
+	UPROPERTY() TArray<FString> Languages;
+	UPROPERTY() FString Strengths;         // shown once interviewed
+	UPROPERTY() FString Weaknesses;
+	UPROPERTY() bool bInterviewed = false;
+	UPROPERTY() double Asks = 0.0;         // the weekly pay they ask for (a candidate)
+	UPROPERTY() FString Contract = TEXT("full");   // full | part (part time: 55% pay, at most 3 duty days in a row)
+	UPROPERTY() int32 NoticeDays = 30;     // the notice period of their contract
+	UPROPERTY() FDateTime HiredAt;
+	UPROPERTY() FDateTime PassedOverSince; // due for promotion but none given since
+	UPROPERTY() FDateTime RaiseAskedAt;
+};
+
+/** A holiday asked for (to-do 180): approved or refused in the Overview (unanswered after 7 days: approved). */
+USTRUCT() struct FADPLeaveRequest
+{
+	GENERATED_BODY()
+	UPROPERTY() FString PersonId;
+	UPROPERTY() FDateTime From;
+	UPROPERTY() int32 Days = 7;
+	UPROPERTY() FDateTime AskedAt;
+	UPROPERTY() FString State = TEXT("asked");   // asked | approved | refused | taken
 };
 
 USTRUCT() struct FADPRoute
@@ -133,6 +198,7 @@ USTRUCT() struct FADPFlight
 	UPROPERTY() FString Emergency;          // what went wrong, when it did
 	UPROPERTY() double LoadFactor = 0.0;    // how full (0..1)
 	UPROPERTY() double Revenue = 0.0;       // the ticket and cargo money (USD), booked by the economy
+	UPROPERTY() TArray<FString> Crew;       // who flies it (to-do 177)
 };
 
 /** One passenger of a flight at your airport, for the 3D world and the tracking map (to-do 155). */
@@ -167,6 +233,7 @@ USTRUCT() struct FADPNotice
 	UPROPERTY() bool bRead = false;
 	UPROPERTY() int32 Priority = 0;       // 0 info, 1 important, 2 urgent
 	UPROPERTY() FString Title;
+	UPROPERTY() bool bSent = false;       // handed to the phone's Messages (to-do 175)
 };
 
 /** A bank loan. */
@@ -248,6 +315,7 @@ USTRUCT() struct FADPNews
 	UPROPERTY() FDateTime At;
 	UPROPERTY() FString Topic;            // world | market | rival | airport
 	UPROPERTY() FString Headline;
+	UPROPERTY() bool bSent = false;       // handed to the phone's Messages (to-do 175)
 };
 
 /** A job on the board: a charter, cargo or a medical flight, paid on arrival. */
@@ -333,4 +401,7 @@ USTRUCT() struct FADPWorld
 	UPROPERTY() int32 NextJobId = 1;
 	UPROPERTY() FADPCareer Career;
 	UPROPERTY() TMap<FString, FDateTime> ModuleTimes;   // where each module had got to
+	UPROPERTY() TArray<FADPLeaveRequest> LeaveRequests;
+	UPROPERTY() TArray<FADPTeamSlot> TeamSlots;
+	UPROPERTY() FDateTime LastGroundNote;
 };

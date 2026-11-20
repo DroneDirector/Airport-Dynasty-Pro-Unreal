@@ -336,8 +336,12 @@ private:
 	TSharedPtr<SWebBrowser> Browser;
 	#pragma region Announcements (Announcements.cpp)
 	struct FLatePassenger { FString Name; float ArriveAt = 0; bool bRun = false, bBoarded = false; };
-	struct FDeparture { FString Place, Status; int32 Sched = -1, Exp = -1, Gate = 1; bool bBoarding = false, bPaged = false, bFinal = false, bClosed = false; TArray<FLatePassenger> Late; };
+	struct FDeparture { FString Place, Status, Who; int32 Sched = -1, Exp = -1, Gate = 1; bool bBoarding = false, bPaged = false, bFinal = false, bClosed = false; TArray<FLatePassenger> Late; };
 	TMap<FString, FDeparture> Departures;
+	/** The departures from the simulation's real timetable (to-do 174) into Departures, when a career runs. */
+	void SimCalls();
+	/** The simulation's new notices, briefing and news to the phone's Messages (to-do 175). */
+	void SimToPhone();
 	FString Airline;
 	FTerminalPlan Plan;
 	UPROPERTY() TMap<FString, TObjectPtr<class UTexture2D>> BoardTex;
