@@ -2,6 +2,7 @@
 // tileset with the Sentinel-2 cloudless 2016 imagery on it.
 #include "Globe.h"
 #if PLATFORM_WINDOWS
+#include "GeoFrame.h"
 #include "Site.h"
 #include "Windows/WindowsHWrapper.h"   // (Windows' headers the Unreal way, before Cesium's: its own include of windows.h then leaves no min/max/GetObject macros behind for the next files of the build chunk)
 #endif
@@ -81,6 +82,9 @@ void AGlobe::Build(const FAirfieldData& F)
 	ACesium3DTileset* Tiles = W->SpawnActor<ACesium3DTileset>(FVector::ZeroVector, FRotator::ZeroRotator, P);
 	if (!Tiles) return;
 	Tiles->SetGeoreference(G);
+	// held in the georeference's frame, so it turns with it: the Earth under the airport along its runway (2026-11-20:
+	// spawned loose it was never turned - the airport lay east-west on the real map; GeoFrame.h)
+	Tiles->AttachToActor(G, FAttachmentTransformRules::KeepRelativeTransform);
 	// the ground all round you loaded (not only what the camera faces), so it is solid to stand and walk on everywhere,
 	// and the grass finds it behind you too; tiles away from the view are kept at a coarser detail
 	Tiles->EnableFrustumCulling = false;
@@ -113,7 +117,7 @@ void AGlobe::Build(const FAirfieldData& F)
 		Airfield = FBox2D(FVector2D(FMath::Min(B.X0, B.X1), FMath::Min(B.Y0, B.Y1)), FVector2D(FMath::Max(B.X0, B.X1), FMath::Max(B.Y0, B.Y1)));
 		TArray<FVector> Corners;
 		for (const FVector2D& C : { FVector2D(B.X0, B.Y0), FVector2D(B.X1, B.Y0), FVector2D(B.X1, B.Y1), FVector2D(B.X0, B.Y1) })
-			Corners.Add(G->TransformUnrealPositionToLongitudeLatitudeHeight(FTerminalPlan::ToWorld(C.X, 0.f, C.Y)));
+			Corners.Add(ADPGeo::ToEarth(G, FTerminalPlan::ToWorld(C.X, 0.f, C.Y)));
 		if (ACesiumCartographicPolygon* Poly = W->SpawnActor<ACesiumCartographicPolygon>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 		{
 			Poly->SetPolygonPoints(ECesiumCoordinateReferenceSystem::LongitudeLatitudeHeight, Corners);
@@ -124,7 +128,7 @@ void AGlobe::Build(const FAirfieldData& F)
 			for (const TArray<FVector2D>& Ring : ALandCorridor::GlobeCut())
 			{
 				TArray<FVector> LL;
-				for (const FVector2D& C : Ring) LL.Add(G->TransformUnrealPositionToLongitudeLatitudeHeight(FTerminalPlan::ToWorld(C.X, 0.f, C.Y)));
+				for (const FVector2D& C : Ring) LL.Add(ADPGeo::ToEarth(G, FTerminalPlan::ToWorld(C.X, 0.f, C.Y)));
 				if (ACesiumCartographicPolygon* RP = W->SpawnActor<ACesiumCartographicPolygon>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 				{ RP->SetPolygonPoints(ECesiumCoordinateReferenceSystem::LongitudeLatitudeHeight, LL); Cut->Polygons.Add(RP); }
 			}
@@ -138,6 +142,7 @@ void AGlobe::Build(const FAirfieldData& F)
 
 	// the sea round the airport, meeting the real coastline, at sea level: with the shipped terrain, the airport's
 	// ground height less its height above the sea; on the smooth globe, just above it
+	if (!FParse::Param(FCommandLine::Get(), TEXT("NoOcean")))   // (-NoOcean: test)
 	if (AOcean* Sea = W->SpawnActor<AOcean>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 	{
 		// a site by a lake (Chablais: Lake Geneva, 372 m): the water at the lake's level instead of the sea's
@@ -150,6 +155,12 @@ void AGlobe::Build(const FAirfieldData& F)
 	GConfig->GetInt(TEXT("ADP.Graphics"), TEXT("Imagery"), Source, GGameUserSettingsIni);
 	Probe(FMath::Clamp(Source, 0, 3));
 	ADP_LOG(TEXT("Globe placed: origin %.6f N, %.6f E, runway %.0f°"), Lat, Lon, F.Heading);
+	// where the runway's ends really land on the Earth (the georeference's own answer), to check the rotation
+	for (const float X : {F.RwyX0, F.RwyX1})
+	{
+		const FVector L = ADPGeo::ToEarth(G, FTerminalPlan::ToWorld(X, 0.f, F.RwyY));
+		ADP_LOG(TEXT("Globe check: runway end x %.0f at %.6f N, %.6f E"), X, L.Y, L.X);
+	}
 }
 
 #pragma endregion

@@ -1,6 +1,7 @@
 // The sea round the airport (see Ocean.h).
 #include "Ocean.h"
 #if PLATFORM_WINDOWS
+#include "GeoFrame.h"
 #include "Sim/ADPWeather.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Site.h"
@@ -51,9 +52,12 @@ bool AOcean::Build(ACesiumGeoreference* G, double SeaHeight)
 	// held relative to the middle so the numbers stay small
 	TArray<FVector> P; P.SetNumUninitialized(NV);
 	FBox Box(ForceInit);
+	// (in the georeference's own frame, the water held in it as a child: it turns and moves with the globe, and its globe
+	// anchor reads its place in that frame as Cesium expects - GeoFrame.h)
 	for (uint32 i = 0; i < NV; ++i) { P[i] = G->TransformLongitudeLatitudeHeightPositionToUnreal(FVector(LL[i * 2], LL[i * 2 + 1], SeaHeight)); Box += P[i]; }
 	const FVector Mid = Box.GetCenter();
-	SetActorLocation(Mid);
+	AttachToActor(G, FAttachmentTransformRules::KeepRelativeTransform);
+	SetActorRelativeLocation(Mid); SetActorRelativeRotation(FRotator::ZeroRotator);
 	TArray<FVector> V; V.SetNumUninitialized(NV);
 	TArray<FVector> Nrm; Nrm.Init(FVector::UpVector, NV);
 	TArray<FColor> Col; Col.SetNumUninitialized(NV);
@@ -88,7 +92,7 @@ bool AOcean::Build(ACesiumGeoreference* G, double SeaHeight)
 		Water->SetMaterial(0, Mat);
 		WindT = 1000.f;   // (the wind at once)
 	}
-	SeaZ = Mid.Z;
+	SeaZ = GetActorLocation().Z;
 	ADP_LOG(TEXT("Ocean: %u corners, %u triangles, at %.1f m, %.0f x %.0f km"), NV, NT, SeaHeight, Box.GetSize().X / 1e5, Box.GetSize().Y / 1e5);
 	return true;
 }

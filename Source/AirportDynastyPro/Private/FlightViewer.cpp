@@ -1,6 +1,7 @@
 // The 3D viewer in Unreal (see FlightViewer.h).
 #include "FlightViewer.h"
 #if PLATFORM_WINDOWS
+#include "GeoFrame.h"
 #include "Windows/WindowsHWrapper.h"   // (Windows' headers the Unreal way, before Cesium's: its own include of windows.h then leaves no min/max/GetObject macros behind for the next files of the build chunk)
 #endif
 #include "ADPLog.h"
@@ -147,15 +148,15 @@ void AFlightViewer::Tick(float Dt)
 void AFlightViewer::Place(const FFlightSample& S, float Dt)
 {
 	const double H = FMath::Max(S.AltM, 2.0);
-	FVector P = Geo->TransformLongitudeLatitudeHeightPositionToUnreal(FVector(S.Lon, S.Lat, H));
+	FVector P = ADPGeo::ToWorld(Geo, FVector(S.Lon, S.Lat, H));
 	// the world kept round the aircraft: the globe's middle moved to it when it has gone 20 km (numbers stay small)
 	if (IsHidden() || P.Size() > 2.0e6)
 	{
 		Geo->SetOriginLongitudeLatitudeHeight(FVector(S.Lon, S.Lat, H));
-		P = Geo->TransformLongitudeLatitudeHeightPositionToUnreal(FVector(S.Lon, S.Lat, H));
+		P = ADPGeo::ToWorld(Geo, FVector(S.Lon, S.Lat, H));
 	}
 	// the aircraft's frame on the globe: east, north and up where it is
-	const FMatrix Esu = Geo->ComputeEastSouthUpToUnrealTransformation(P);
+	const FMatrix Esu = ADPGeo::EastSouthUp(Geo, P);
 	const FVector East = Esu.GetScaledAxis(EAxis::X).GetSafeNormal(), North = -Esu.GetScaledAxis(EAxis::Y).GetSafeNormal(), Up = Esu.GetScaledAxis(EAxis::Z).GetSafeNormal();
 	const float Hr = FMath::DegreesToRadians(S.Hdg);
 	const FVector Fwd = (North * FMath::Cos(Hr) + East * FMath::Sin(Hr)).GetSafeNormal();
