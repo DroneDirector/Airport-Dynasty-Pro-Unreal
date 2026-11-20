@@ -12,9 +12,9 @@
 
 namespace
 {
-	TMap<FString, FADPWx> GReports;            // by station
-	TArray<TPair<FVector2D, FString>> GWhere;  // (lat, lon) of each station, for the nearest
-	FDateTime GFetched; bool GStarted = false, GBusy = false;
+	TMap<FString, FADPWx> GWxReports;            // by station
+	TArray<TPair<FVector2D, FString>> GWxWhere;  // (lat, lon) of each station, for the nearest
+	FDateTime GWxFetched; bool GWxStarted = false, GWxBusy = false;
 	const TCHAR* Url = TEXT("https://aviationweather.gov/data/cache/metars.cache.csv.gz");
 
 	double Dist(double La1, double Lo1, double La2, double Lo2)
@@ -53,7 +53,7 @@ namespace
 			Wh.Add(TPair<FVector2D, FString>(FVector2D(D(3, 0), D(4, 0)), W.Station));
 		}
 		AsyncTask(ENamedThreads::GameThread, [R = MoveTemp(R), Wh = MoveTemp(Wh)]() mutable
-		{ GReports = MoveTemp(R); GWhere = MoveTemp(Wh); GFetched = FDateTime::UtcNow(); ADP_LOG(TEXT("Weather: %d live airport reports"), GReports.Num()); });
+		{ GWxReports = MoveTemp(R); GWxWhere = MoveTemp(Wh); GWxFetched = FDateTime::UtcNow(); ADP_LOG(TEXT("Weather: %d live airport reports"), GWxReports.Num()); });
 	}
 
 	// (owner, 2026-11-20: when the connection drops, the weather stays as it last was - so the last reports are kept, on disk
@@ -76,13 +76,13 @@ namespace
 
 	void Fetch()
 	{
-		if (GBusy) return; GBusy = true;
+		if (GWxBusy) return; GWxBusy = true;
 		TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Q = FHttpModule::Get().CreateRequest();
 		Q->SetURL(Url); Q->SetVerb(TEXT("GET")); Q->SetHeader(TEXT("User-Agent"), TEXT("AirportDynastyPro-Weather"));
 		Q->OnProcessRequestComplete().BindLambda([](FHttpRequestPtr, FHttpResponsePtr Res, bool bOk)
 		{
-			GBusy = false;
-			if (!bOk || !Res.IsValid() || Res->GetResponseCode() != 200) { ADP_WARN(TEXT("Weather: no connection - the weather stays as it last was (%d reports)"), GReports.Num()); return; }
+			GWxBusy = false;
+			if (!bOk || !Res.IsValid() || Res->GetResponseCode() != 200) { ADP_WARN(TEXT("Weather: no connection - the weather stays as it last was (%d reports)"), GWxReports.Num()); return; }
 			TArray<uint8> Gz = Res->GetContent();
 			FFileHelper::SaveArrayToFile(Gz, *CacheFile());   // (kept for when the connection drops or the game starts offline)
 			Unpack(MoveTemp(Gz), false);
@@ -111,7 +111,7 @@ namespace
 
 void ADPWeather::Start()
 {
-	if (GStarted) return; GStarted = true;
+	if (GWxStarted) return; GWxStarted = true;
 	{ TArray<uint8> Gz; if (FFileHelper::LoadFileToArray(Gz, *CacheFile(), FILEREAD_Silent)) Unpack(MoveTemp(Gz), true); }
 	Fetch();
 	FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([](float) { Fetch(); return true; }), 900.0f);   // (every 15 minutes, as the owner asked)
@@ -121,19 +121,19 @@ FADPWx ADPWeather::At(const FString& Icao, double Lat, double Lon, const FDateTi
 {
 	// the real reports for "now" - the latest we have, however old if the connection dropped (the weather as it last was);
 	// times far from now (the catch-up of days the game was closed) use the climate
-	const bool bNow = FMath::Abs((FDateTime::UtcNow() - When).GetTotalHours()) < 3.0 && GReports.Num() > 0;
+	const bool bNow = FMath::Abs((FDateTime::UtcNow() - When).GetTotalHours()) < 3.0 && GWxReports.Num() > 0;
 	if (bNow)
 	{
-		if (const FADPWx* W = GReports.Find(Icao)) return *W;
+		if (const FADPWx* W = GWxReports.Find(Icao)) return *W;
 		double Best = 60.0; const FString* Near = nullptr;
-		for (const auto& P : GWhere) { const double D = Dist(Lat, Lon, P.Key.X, P.Key.Y); if (D < Best) { Best = D; Near = &P.Value; } }
-		if (Near) if (const FADPWx* W = GReports.Find(*Near)) return *W;
+		for (const auto& P : GWxWhere) { const double D = Dist(Lat, Lon, P.Key.X, P.Key.Y); if (D < Best) { Best = D; Near = &P.Value; } }
+		if (Near) if (const FADPWx* W = GWxReports.Find(*Near)) return *W;
 	}
 	return Climate(Icao, Lat, Lon, When);
 }
 
-int32 ADPWeather::NumReports() { return GReports.Num(); }
-FDateTime ADPWeather::FetchedAt() { return GFetched; }
+int32 ADPWeather::NumReports() { return GWxReports.Num(); }
+FDateTime ADPWeather::FetchedAt() { return GWxFetched; }
 
 void ADPWeather::Components(const FADPWx& W, double RunwayHdg, double& Cross, double& Tail)
 {

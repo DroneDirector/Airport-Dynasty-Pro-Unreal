@@ -116,6 +116,8 @@ USTRUCT() struct FADPFlight
 	UPROPERTY() bool bWxChecked = false;    // the destination's weather looked at on the way down
 	UPROPERTY() FString Diverted;           // the destination it was going to, when it diverted
 	UPROPERTY() FString Emergency;          // what went wrong, when it did
+	UPROPERTY() double LoadFactor = 0.0;    // how full (0..1)
+	UPROPERTY() double Revenue = 0.0;       // the ticket and cargo money (USD), booked by the economy
 };
 
 /** One passenger of a flight at your airport, for the 3D world and the tracking map (to-do 155). */

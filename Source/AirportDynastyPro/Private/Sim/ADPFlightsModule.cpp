@@ -2,6 +2,7 @@
 #include "Sim/ADPFlightsModule.h"
 #include "ADPLog.h"
 #include "Sim/ADPWeather.h"
+#include "Sim/ADPDemand.h"
 
 const FADPProfile* FADPFlightsModule::ProfileOf(const FADPFlight& F)
 {
@@ -112,6 +113,16 @@ void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime
 	F.Reg = A.Reg; F.AirlineId = A.AirlineId; F.PilotId = Pilot->Id; F.TypeId = A.TypeId; F.From = A.Location; F.To = Next;
 	F.DepAt = Now + FTimespan::FromMinutes(Delay); F.DelayMin = Delay; F.DurMin = P.BlockMin();
 	F.Lat = P.FromLat; F.Lon = P.FromLon;
+	// who flies: the passengers, classes and cargo this airline gets on this pair today (part 4)
+	{
+		const FADPAirportInfo* Ap = ADPWorldData::Airport(A.Location); const FADPAirportInfo* Bp = ADPWorldData::Airport(Next); const FADPTypeInfo* T = ADPWorldData::Type(A.TypeId);
+		if (Ap && Bp && T)
+		{
+			const FADPBooking K = ADPDemand::Book(W, A.AirlineId, A.RouteId, *T, *Ap, *Bp, Now, Rng);
+			F.Pax = K.Pax; F.PaxJ = K.PaxJ; F.PaxF = K.PaxF; F.CargoKg = K.CargoKg; F.LoadFactor = K.LoadFactor; F.Revenue = K.Revenue;
+			PaxCarried += K.Pax + K.PaxJ + K.PaxF; RevenueSum += K.Revenue; LoadSum += K.LoadFactor;
+		}
+	}
 	Profiles.Add(F.Id, P);
 	// a technical failure now and then - likelier the worse the aircraft's condition: a minor one noted and fixed at the next
 	// stop; a hydraulic fault checked on arrival; an engine failure: the crew turns for the nearest suitable airport
