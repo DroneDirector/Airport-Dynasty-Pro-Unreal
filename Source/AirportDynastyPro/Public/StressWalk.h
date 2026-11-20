@@ -19,6 +19,8 @@ namespace ADPStressWalk
 	 *  zebra crossing, looking at the coaches, up close along them, into one through its front door (E) and down its aisle,
 	 *  out again, then the coaches seen from the main hall through the glass - by day, then again at night. */
 	void BeginCoaches(bool bQuitWhenDone);
+	/** Both in one go (owner, 2026-11-20; -UIFullWalk): the terminal's walk, then the coaches' walk by day and night. */
+	void BeginAll(bool bQuitWhenDone);
 	bool Active();
 	/** The note in the middle of the screen while it waits (empty when there is none). */
 	FText Note();

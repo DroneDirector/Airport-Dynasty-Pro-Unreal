@@ -21,7 +21,7 @@
 namespace ADPStressWalkInternal
 {
 	// one part of the walk; places in the terminal plan's metres (x east, h up, z north)
-	enum class EWalkKind : uint8 { Go, Walk, Look, Face, Escalator, Night, JetwayRide, JetwayWatch, FaceAt, Direct, CoachDoor };
+	enum class EWalkKind : uint8 { Go, Walk, Look, Face, Escalator, Night, JetwayRide, JetwayWatch, FaceAt, Direct, CoachDoor, Day };
 	// (Points: the terminal plan's x, h, z - or world points when bWorld: the coaches' walk, laid out from where the coaches and
 	// the crossings are; FaceAt: look at Points[0]; Direct: straight to each point, the body's own collision only - a coach's
 	// aisle is narrower than the planner's squares; CoachDoor: E at the coach door you stand by)
@@ -91,7 +91,7 @@ namespace ADPStressWalkInternal
 		};
 	}
 
-	bool bWalkOn = false, bWalkQuit = false, bWalkStarted = false, bWalkCoaches = false;
+	bool bWalkOn = false, bWalkQuit = false, bWalkStarted = false, bWalkCoaches = false, bWalkAll = false;
 	float WalkWait = 15.f, WalkClock = 0.f, WalkPartT = 0.f, WalkStuckT = 0.f, WalkBestDist = 1e9f, WalkEndNoteT = 0.f;
 	int32 WalkPart = -1, WalkPoint = 0, WalkSide = 1;
 	TArray<FWalkPart> WalkParts;
@@ -368,8 +368,15 @@ void ADPStressWalk::Begin(bool bQuitWhenDone)
 {
 	using namespace ADPStressWalkInternal;
 	bWalkOn = true; bWalkQuit = bQuitWhenDone; bWalkStarted = false; WalkWait = 15.f; WalkClock = 0.f; WalkPart = -1; WalkEndNote.Reset();
-	WalkParts = WalkRoute(); bWalkCoaches = false;
+	WalkParts = WalkRoute(); bWalkCoaches = false; bWalkAll = false;
 	ADP_LOG(TEXT("Stress walk: waiting for the world to load in fully, then a 15 s countdown"));
+}
+
+void ADPStressWalk::BeginAll(bool bQuitWhenDone)
+{
+	// (owner, 2026-11-20: both in one go - the terminal's walk, then by day again the coaches' own walk)
+	Begin(bQuitWhenDone);
+	ADPStressWalkInternal::bWalkAll = true;
 }
 
 void ADPStressWalk::BeginCoaches(bool bQuitWhenDone)
@@ -403,7 +410,8 @@ void ADPStressWalk::Tick(UWorld* W, APlayerController* PC, float Dt)
 		const bool bLoaded = ADPLateWorld::Done() && !IsAsyncLoading();
 		if (bLoaded) WalkWait -= Dt;
 		if (WalkWait <= 0.f && bWalkCoaches) { WalkParts = CoachRoute(W); WalkHourWas = ASunClock::HourOverride; }
-		if (WalkWait <= 0.f) { bWalkStarted = true; WalkPart = 0; WalkPartT = 0.f; ADPPerfLog::BeginSection(bWalkCoaches ? TEXT("coaches stress walk") : TEXT("stress walk")); ADPPerfLog::SetAudit(ADPPerfLog::SceneAudit(W)); }
+		if (WalkWait <= 0.f && bWalkAll) { FWalkPart D{TEXT("day again for the coaches' walk"), EWalkKind::Day, {}, 4.f, 0.f}; WalkParts.Add(D); WalkParts.Append(CoachRoute(W)); }
+		if (WalkWait <= 0.f) { bWalkStarted = true; WalkPart = 0; WalkPartT = 0.f; ADPPerfLog::BeginSection(bWalkAll ? TEXT("full stress walk (terminal + coaches)") : bWalkCoaches ? TEXT("coaches stress walk") : TEXT("stress walk")); ADPPerfLog::SetAudit(ADPPerfLog::SceneAudit(W)); }
 		return;
 	}
 	if (WalkPart >= WalkParts.Num())
@@ -482,6 +490,9 @@ void ADPStressWalk::Tick(UWorld* W, APlayerController* PC, float Dt)
 		bDone = WalkPartT >= Pt.Seconds; if (bDone) WalkToCab = false;
 		break;
 	}
+	case EWalkKind::Day:
+		if (WalkPartT <= Dt) { ASunClock::HourOverride = WalkHourWas; ASunClock::Refresh(); }
+		bDone = WalkPartT >= Pt.Seconds; break;
 	case EWalkKind::Night:
 		if (WalkPartT <= Dt) { WalkHourWas = ASunClock::HourOverride; ASunClock::HourOverride = 21.f; ASunClock::Refresh(); }
 		bDone = WalkPartT >= Pt.Seconds; break;

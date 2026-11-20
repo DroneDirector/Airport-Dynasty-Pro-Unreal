@@ -7,6 +7,7 @@
 #   bash Tools/perf_walk.sh editor     the editor build (only to check the route; its frames aren't the game's)
 #   ... coaches                        the coaches' own walk instead (to-do 146: car park, zebra crossing, along the coaches,
 #                                      into one and down its aisle, the main hall; day then night) - with any of the above
+#   ... both                           the terminal walk then the coaches walk, in one go
 #   ... 4k                             drawn off-screen at 3840x2160 (Full HD: offscreen)
 #   ... screen                         his own screen in real full screen (-fullscreen)
 # (his own resolution and window settings are saved before and put back after every run: -ResX overwrites them)
@@ -23,6 +24,7 @@ for a in "$@"; do
     4k) OFF="-RenderOffscreen -ResX=3840 -ResY=2160 -ForceRes -windowed " ; EXE="r.SetRes 3840x2160w" ;;
     screen) OFF="-fullscreen" ;;
     coaches) ROUTE="-UICoachWalk" ;;
+    both) ROUTE="-UIFullWalk" ;;
   esac
 done
 GUS="$LOCALAPPDATA/AirportDynastyPro/Saved/Config/Windows/GameUserSettings.ini"

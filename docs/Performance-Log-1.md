@@ -74,3 +74,7 @@ Every performance change to the game, newest last. Only performance work goes in
 - New, live in Settings > Graphics > Effects, off by default: Upscaler at Quality (67%), Faster clouds, Faster lighting.
   At the coach view: all off 17 fps, upscaler 30, + clouds 45, + lighting 52 (editor build, his settings); the look
   nearly the same (docs/Pictures/FrameSavers).
+- Confirmed in the packaged game (his screen 3840x1080, Cinematic, frame generation on, the three savers on), the
+  full stress walk (terminal + coaches, day and night, -UIFullWalk / perf_walk.sh both): 54 fps drawn on average,
+  slowest 1% 40, worst 82 ms; on screen about 108 (frame generation adds a picture for every drawn one again).
+  Graphics card 16-21 ms a frame everywhere (it was 50-60 outdoors with the savers off).
