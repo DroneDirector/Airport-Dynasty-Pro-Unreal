@@ -9,6 +9,18 @@ Whenever the owner sends pictures in the phone chat for you, they are copied ont
 location there (with what it shows and what he said about it). Open those files; commit them (through LFS) with your
 next commit if they belong in the repo.
 
+## From the owner (2026-11-20 20:46-21:05, via the phone): the cargo terminal, with real rooms inside
+- Made in Blender in the phone chat: `Art/CargoTerminal/` (scripts committed; `CargoTerminal.blend` / `.glb` and the 13 blueprint
+  sheets in `Blueprints/CargoTerminal/` were copied to this PC for you to commit through LFS).
+- It sits on the airfield plan's cargo building (plan x 200-590, y 1231-1301), apron and stands C1-C4 in front. Inside: offices (3 floors,
+  ops control centre over the apron), export (acceptance, weigh & measure, screening, bulk racks, mail & express, 8 build-up stations),
+  the ETV high-bay ULD store (2 ETVs, 360 positions), import (4 break-down stations, customs inspection, bonded store, release) and
+  special cargo (live animals, vet & border control, perishables, freezer, pharma 2-8 and 15-25, dangerous goods, radioactive,
+  valuables, human remains, damaged cargo, vulnerable cargo, oversize X-ray, sealed cool-chain docks). Forklift aisles 6 m, room openings 4 m.
+- The truck court needs the airport fence moved out from plan y 1320 to y 1441 (gate and gatehouse in it).
+- To bring it in: import `CargoTerminal.glb` at the cargo building's place (local X = plan x - 200, local Y = plan y - 1231,
+  pointing the airside at the apron) in place of the plain box, Nanite on; the materials named M_Cargo_* get real Unreal materials.
+
 ## From the owner (2026-11-20 06:32, via the phone): the game's own icon instead of Unreal's
 - Done in the phone chat: `Art/Icon/make_icon.py` (Blender render) and `finish_icon.py` -> `Build/Windows/Application.ico`
   (Unreal builds it into AirportDynastyPro.exe: desktop shortcut, Start menu, taskbar, window) and `Installer/app.ico`.
