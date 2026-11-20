@@ -31,6 +31,7 @@ USTRUCT() struct FADPAirline
 	UPROPERTY() double Reputation = 50.0;   // 0..100
 	UPROPERTY() double Quality = 0.75;      // rivals: 0.6..0.95
 	UPROPERTY() FString Kind = TEXT("major");   // major | regional | bush
+	UPROPERTY() FDateTime RedSince;        // in the red since (AI airlines go bankrupt after too long)
 };
 
 USTRUCT() struct FADPAircraft
@@ -92,6 +93,11 @@ USTRUCT() struct FADPRoute
 	UPROPERTY() FString TypeId;
 	UPROPERTY() FString PilotId;
 	UPROPERTY() double FareIndex = 1.0;
+	UPROPERTY() FDateTime OpenedAt;
+	UPROPERTY() int32 Legs = 0;            // legs flown on it
+	UPROPERTY() double ProfitEma = 0.0;    // each leg's profit, smoothed (the newest counts most)
+	UPROPERTY() double LoadEma = 0.0;      // how full, smoothed
+	UPROPERTY() FDateTime FareUntil;       // a fare war until (then back to normal)
 };
 
 /** A flight in the air or on its way out. */
@@ -111,6 +117,7 @@ USTRUCT() struct FADPFlight
 	UPROPERTY() int32 PaxF = 0;
 	UPROPERTY() double CargoKg = 0.0;
 	UPROPERTY() FString Phase = TEXT("Taxi out");
+	UPROPERTY() FString RouteId;
 	UPROPERTY() FString TypeId;
 	UPROPERTY() double DelayMin = 0.0;    // minutes late off the gate
 	UPROPERTY() double Lat = 0.0;         // where it is now (for the map)

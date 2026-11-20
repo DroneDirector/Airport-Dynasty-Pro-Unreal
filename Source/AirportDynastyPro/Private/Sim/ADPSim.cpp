@@ -14,6 +14,7 @@
 #include "Sim/ADPWeather.h"
 #include "Sim/ADPEconomy.h"
 #include "Sim/ADPStaff.h"
+#include "Sim/ADPRivals.h"
 #include "Containers/Ticker.h"
 
 // -SimSelfTest: a test module (every 60 s, 2 days of catch-up), the career "closed" 3 days ago - checks the catch-up
@@ -51,7 +52,7 @@ void UADPSim::Initialize(FSubsystemCollectionBase& Collection)
 		// a small airline flying two routes from Vagar, the career "closed" 2 days ago: the catch-up flies those 2 days
 		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](float) -> bool
 		{
-			static TSharedPtr<FADPFlightsModule> M; static TSharedPtr<FADPEconomyModule> Eco; static TSharedPtr<FADPStaffModule> Staff; static double Live = 0.0;
+			static TSharedPtr<FADPFlightsModule> M; static TSharedPtr<FADPEconomyModule> Eco; static TSharedPtr<FADPStaffModule> Staff; static TSharedPtr<FADPRivalsModule> Riv; static double Live = 0.0;
 			if (!ADPWorldData::IsReady()) return true;
 			if (!M)
 			{
@@ -70,6 +71,10 @@ void UADPSim::Initialize(FSubsystemCollectionBase& Collection)
 				M = MakeShared<FADPFlightsModule>(); Register(M.ToSharedRef());
 				Eco = MakeShared<FADPEconomyModule>(); Register(Eco.ToSharedRef());
 				Staff = MakeShared<FADPStaffModule>(); Register(Staff.ToSharedRef());
+				Riv = MakeShared<FADPRivalsModule>(); Register(Riv.ToSharedRef());
+				Riv->Found(World, 12, Now() - FTimespan::FromDays(25.0));
+				// one of my routes on an AI airline's pair, to see it fight
+				for (const FADPRoute& R : World.Routes) if (R.AirlineId == TEXT("ai0")) { FADPRoute Mine = R; Mine.Id = TEXT("r-fight"); Mine.AirlineId = TEXT("me"); Mine.PilotId = TEXT("pilot1"); World.Routes.Add(Mine); break; }
 				ADPStaff::StartTypeRating(World, TEXT("pilot0"), TEXT("A321"), Now() - FTimespan::FromDays(20.0));
 				ADPEconomy::TakeLoan(World, TEXT("me"), 20000000.0, 0.065, 60, Now() - FTimespan::FromDays(25.0));
 				Start(Now() - FTimespan::FromDays(25.0));   // (25 days: paydays and the 1st of the month fall in them)
@@ -104,6 +109,14 @@ void UADPSim::Initialize(FSubsystemCollectionBase& Collection)
 				const FADPPerson* Some = World.People.FindByPredicate([](const FADPPerson& P) { return P.AirlineId == TEXT("me") && P.Role == TEXT("fa"); });
 				ADP_LOG(TEXT("SimFlyTest: staff - %d employed (%d sick now), %d in the hiring pool, %d sick spells, %d quit, crew waits %lld, ratings %d, strikes %d, conduct reports %d, court cases %d; e.g. %s, %s, %d, $%.0f a week, mood %.0f"),
 					Mine, Sick, Pool, Staff->SickDays, Staff->Quits, M->CrewWaits, Staff->Ratings, Staff->Strikes, Staff->Reports, Staff->Trials, Some ? *Some->Name : TEXT("-"), Some ? *Some->Role : TEXT("-"), Some ? Some->Age : 0, Some ? Some->Salary : 0.0, Some ? Some->Mood : 0.0);
+			}
+			{
+				int32 Ai = 0, AiFleet = 0, AiRoutes = 0; for (const FADPAirline& A : World.Airlines) if (!A.bPlayer && !A.Id.StartsWith(TEXT("gone:"))) ++Ai;
+				for (const FADPAircraft& C : World.Aircraft) if (C.AirlineId.StartsWith(TEXT("ai"))) ++AiFleet;
+				for (const FADPRoute& R : World.Routes) if (R.AirlineId.StartsWith(TEXT("ai"))) ++AiRoutes;
+				ADP_LOG(TEXT("SimFlyTest: AI airlines - %d flying, %d aircraft, %d routes; bought %d, opened %d, closed %d, sold %d, bankrupt %d, fare wars %d; %d flights in the air worldwide"), Ai, AiFleet, AiRoutes, Riv->Bought, Riv->Opened, Riv->Closed, Riv->Sold, Riv->Bankrupt, Riv->FareWars, World.Flights.Num());
+				for (const FADPAirline& A : World.Airlines) if (!A.bPlayer) { int32 Fl = 0; for (const FADPAircraft& C : World.Aircraft) if (C.AirlineId == A.Id) ++Fl;
+					ADP_LOG(TEXT("SimFlyTest: %s (%s) hub %s, %d aircraft, balance $%.1fM, quality %.2f"), *A.Name, *A.Icao, *A.Hub, Fl, A.Balance / 1e6, A.Quality); }
 			}
 			ADP_LOG(TEXT("SimFlyTest: %s"), M->Landings >= 8 && M->Rests >= 1 ? TEXT("PASS") : TEXT("FAIL"));
 			FPlatformMisc::RequestExit(false);

@@ -48,6 +48,7 @@ void ADPEconomy::BookLeg(FADPWorld& W, const FADPFlight& F, const FDateTime& At)
 	const int32 Pax = F.Pax + F.PaxJ + F.PaxF;
 	const bool bIntl = A && B && A->Country != B->Country;
 	const FString Leg = FString::Printf(TEXT("%s %s-%s"), *F.Reg, *F.From, *F.To);
+	const double Before = W.Airlines.ContainsByPredicate([&](const FADPAirline& X) { return X.Id == F.AirlineId; }) ? W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == F.AirlineId; })->Balance : 0.0;
 	// income
 	Pay(W, F.AirlineId, At, TEXT("revenue"), F.Revenue * KI, Leg + TEXT(": tickets and cargo"), F.Id);
 	// fuel: the type's burn for the time flown (taxiing burns little), at the departure airport's price
@@ -66,6 +67,17 @@ void ADPEconomy::BookLeg(FADPWorld& W, const FADPFlight& F, const FDateTime& At)
 	const int32 Crew = 2 + FMath::CeilToInt(T->Seats / 50.0);
 	Pay(W, F.AirlineId, At, TEXT("crew"), -Crew * (BlockH > 6.0 ? 250.0 : 115.0) * KC, FString::Printf(TEXT("%s: allowances for %d crew"), *Leg, Crew), F.Id);
 	Pay(W, F.AirlineId, At, TEXT("fees"), -F.Revenue * (0.055 + 0.07) * KC, Leg + TEXT(": bookings and overhead"), F.Id);
+	if (FADPRoute* R = W.Routes.FindByPredicate([&](const FADPRoute& X) { return X.Id == F.RouteId; }))
+	{
+		const FADPAirline* Al = W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == F.AirlineId; });
+		const double Net = (Al ? Al->Balance : 0.0) - Before;
+		// (the aircraft's own monthly cost, spread over its legs: about 60 legs a month)
+		const FADPAircraft* C = W.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == F.Reg; });
+		const double Own = C ? (C->Ownership == TEXT("leased") ? C->LeaseMonthly : C->Value * 0.0052) / 60.0 : 0.0;
+		R->ProfitEma = R->Legs ? R->ProfitEma * 0.85 + (Net - Own) * 0.15 : Net - Own;
+		R->LoadEma = R->Legs ? R->LoadEma * 0.85 + F.LoadFactor * 0.15 : F.LoadFactor;
+		++R->Legs;
+	}
 }
 
 double ADPEconomy::LeaseRate(const FString& TypeId)

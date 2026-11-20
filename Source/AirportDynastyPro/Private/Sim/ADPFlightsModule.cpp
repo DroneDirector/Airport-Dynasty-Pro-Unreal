@@ -117,7 +117,7 @@ void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime
 	if (Delay >= 15.0) ++Delayed;
 	FADPFlight F;
 	F.Id = FString::Printf(TEXT("%s-%lld"), *A.Reg, Now.GetTicks() / ETimespan::TicksPerSecond);
-	F.Reg = A.Reg; F.AirlineId = A.AirlineId; F.PilotId = Pilot->Id; F.TypeId = A.TypeId; F.From = A.Location; F.To = Next;
+	F.RouteId = A.RouteId; F.Reg = A.Reg; F.AirlineId = A.AirlineId; F.PilotId = Pilot->Id; F.TypeId = A.TypeId; F.From = A.Location; F.To = Next;
 	F.DepAt = Now + FTimespan::FromMinutes(Delay); F.DelayMin = Delay; F.DurMin = P.BlockMin();
 	F.Lat = P.FromLat; F.Lon = P.FromLon;
 	// who flies: the passengers, classes and cargo this airline gets on this pair today (part 4)
