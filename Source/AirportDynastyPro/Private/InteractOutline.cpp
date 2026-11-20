@@ -102,6 +102,10 @@ void AInteractOutline::Tick(float Dt)
 		auto Consider = [&](UPrimitiveComponent* C, int32 Item, uint64 Key)
 		{
 			if (!C || !C->IsVisible() || (Hide != 0 && Key == Hide)) return;   // (the person you're talking to: no outline while you talk)
+			// never round yourself (owner, 2026-11-20: only AI characters and things you can use): your own body is its own
+			// person model going along with you - anything you are, own, or carry is left out
+			for (const AActor* O = C->GetOwner(); O; O = O->GetAttachParentActor())
+				if (O == Me || O->GetOwner() == Me || O->GetInstigator() == Me) return;
 			FVector P;
 			if (Item != INDEX_NONE) { UInstancedStaticMeshComponent* K = Cast<UInstancedStaticMeshComponent>(C); FTransform T; if (!K || !K->GetInstanceTransform(Item, T, true) || T.GetScale3D().GetMin() < 0.01f) return; P = T.GetLocation(); }
 			else P = C->Bounds.Origin;
