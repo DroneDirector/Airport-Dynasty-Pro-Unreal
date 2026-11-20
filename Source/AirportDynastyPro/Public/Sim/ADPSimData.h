@@ -51,6 +51,9 @@ USTRUCT() struct FADPAircraft
 	UPROPERTY() int32 LegIdx = 0;          // the next stop in the route's list
 	UPROPERTY() FDateTime ReadyAt;         // when it may leave next (after the turnaround)
 	UPROPERTY() FDateTime WaitingSince;    // waiting at the gate since (cancelled after 5 h)
+	UPROPERTY() FString Ownership = TEXT("owned");   // owned | leased
+	UPROPERTY() double Value = 0.0;        // what it is worth now (USD; owned: falls a little every month)
+	UPROPERTY() double LeaseMonthly = 0.0; // leased: the rent a month
 };
 
 /** A person: staff of any kind, pilots included (passengers live in FADPPassenger). */
@@ -152,6 +155,17 @@ USTRUCT() struct FADPNotice
 	UPROPERTY() bool bRead = false;
 };
 
+/** A bank loan. */
+USTRUCT() struct FADPLoan
+{
+	GENERATED_BODY()
+	UPROPERTY() FString AirlineId;
+	UPROPERTY() double Owed = 0.0;
+	UPROPERTY() double RateYear = 0.06;    // interest a year
+	UPROPERTY() int32 MonthsLeft = 60;
+	UPROPERTY() double Monthly = 0.0;      // the instalment (interest + repayment)
+};
+
 /** The whole simulated world of one career. */
 USTRUCT() struct FADPWorld
 {
@@ -170,5 +184,6 @@ USTRUCT() struct FADPWorld
 	UPROPERTY() TArray<FADPCoach> Coaches;
 	UPROPERTY() TArray<FADPTxn> Ledger;
 	UPROPERTY() TArray<FADPNotice> Notices;
+	UPROPERTY() TArray<FADPLoan> Loans;
 	UPROPERTY() TMap<FString, FDateTime> ModuleTimes;   // where each module had got to
 };

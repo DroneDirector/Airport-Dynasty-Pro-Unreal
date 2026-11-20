@@ -67,8 +67,56 @@ void ADPEconomy::BookLeg(FADPWorld& W, const FADPFlight& F, const FDateTime& At)
 	Pay(W, F.AirlineId, At, TEXT("fees"), -F.Revenue * (0.055 + 0.07) * KC, Leg + TEXT(": bookings and overhead"), F.Id);
 }
 
+double ADPEconomy::LeaseRate(const FString& TypeId)
+{
+	const FADPTypeInfo* T = ADPWorldData::Type(TypeId);
+	return T ? T->ValueM * 1e6 * 0.007 : 0.0;   // (an A320neo: about $385,000 a month)
+}
+
+void ADPEconomy::TakeLoan(FADPWorld& W, const FString& AirlineId, double Amount, double RateYear, int32 Months, const FDateTime& At)
+{
+	FADPLoan L; L.AirlineId = AirlineId; L.Owed = Amount; L.RateYear = RateYear; L.MonthsLeft = FMath::Max(1, Months);
+	const double R = RateYear / 12.0;
+	L.Monthly = R > 0.0 ? Amount * R / (1.0 - FMath::Pow(1.0 + R, -double(L.MonthsLeft))) : Amount / L.MonthsLeft;
+	W.Loans.Add(L);
+	Pay(W, AirlineId, At, TEXT("loan"), Amount, FString::Printf(TEXT("Loan of $%.0f at %.1f%% over %d months"), Amount, RateYear * 100.0, Months));
+}
+
+namespace
+{
+	// the 1st of the month: leases, insurance, base rent, loan instalments; owned aircraft lose a little value
+	void MonthEnd(FADPWorld& W, const FDateTime& At)
+	{
+		double KI, KC; Difficulty(W.Difficulty, KI, KC);
+		for (FADPAircraft& A : W.Aircraft)
+		{
+			const FADPTypeInfo* T = ADPWorldData::Type(A.TypeId);
+			if (A.Value <= 0.0 && T) A.Value = T->ValueM * 1e6;
+			if (A.Ownership == TEXT("leased"))
+			{
+				if (A.LeaseMonthly <= 0.0) A.LeaseMonthly = ADPEconomy::LeaseRate(A.TypeId);
+				ADPEconomy::Pay(W, A.AirlineId, At, TEXT("lease"), -A.LeaseMonthly * KC, FString::Printf(TEXT("%s: lease for the month"), *A.Reg), A.Reg);
+			}
+			else A.Value *= 0.9948;   // (about 6% a year)
+			// insurance (0.05% of the value a month) and the base's hangar and stand rent by size
+			ADPEconomy::Pay(W, A.AirlineId, At, TEXT("insurance"), -A.Value * 0.0005 * KC, FString::Printf(TEXT("%s: insurance"), *A.Reg), A.Reg);
+			const double Rent = !T ? 12000.0 : T->Class == TEXT("widebody") ? 38000.0 : T->Class == TEXT("turboprop") || T->Class == TEXT("regional") ? 9000.0 : T->Class == TEXT("bush") || T->Class == TEXT("helicopter") ? 3500.0 : 15000.0;
+			ADPEconomy::Pay(W, A.AirlineId, At, TEXT("fees"), -Rent * KC, FString::Printf(TEXT("%s: hangar and stand at %s"), *A.Reg, *A.Base), A.Reg);
+		}
+		for (int32 i = W.Loans.Num() - 1; i >= 0; --i)
+		{
+			FADPLoan& L = W.Loans[i];
+			const double Interest = L.Owed * L.RateYear / 12.0, Repay = FMath::Min(L.Owed, L.Monthly - Interest);
+			ADPEconomy::Pay(W, L.AirlineId, At, TEXT("loan"), -(Interest + Repay), FString::Printf(TEXT("Loan instalment: interest $%.0f, repaid $%.0f"), Interest, Repay));
+			L.Owed -= Repay; --L.MonthsLeft;
+			if (L.MonthsLeft <= 0 || L.Owed < 1.0) W.Loans.RemoveAt(i);
+		}
+	}
+}
+
 void FADPEconomyModule::Advance(UADPSim& Sim, const FDateTime& From, const FDateTime& To, bool bCatchUp)
 {
+	if (To.GetDay() == 1 && To.GetHour() == 0 && From.GetDay() != 1) { MonthEnd(Sim.World, To); ++MonthEnds; }
 	// payday: the hour that passes Monday 00:00 UTC - every person's week's salary, from their airline
 	const bool bPayday = To.GetDayOfWeek() == EDayOfWeek::Monday && To.GetHour() == 0 && From.GetDayOfWeek() != EDayOfWeek::Monday;
 	if (!bPayday) return;

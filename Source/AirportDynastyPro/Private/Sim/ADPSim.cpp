@@ -61,11 +61,12 @@ void UADPSim::Initialize(FSubsystemCollectionBase& Collection)
 				{
 					FADPPerson P; P.Id = FString::Printf(TEXT("pilot%d"), i); P.Name = FString::Printf(TEXT("Captain %d"), i); P.Role = TEXT("captain"); P.AirlineId = TEXT("me"); P.Salary = 2900.0; P.Types.Add(TEXT("A320")); World.People.Add(P);
 					FADPRoute R; R.Id = FString::Printf(TEXT("r%d"), i); R.AirlineId = TEXT("me"); R.Stops = Stops[i]; R.TypeId = TEXT("A320"); R.PilotId = P.Id; World.Routes.Add(R);
-					FADPAircraft A; A.Reg = Regs[i]; A.TypeId = TEXT("A320"); A.AirlineId = TEXT("me"); A.Base = A.Location = TEXT("EKVG"); A.RouteId = R.Id; World.Aircraft.Add(A);
+					FADPAircraft A; A.Reg = Regs[i]; A.TypeId = TEXT("A320"); A.Ownership = i == 0 ? TEXT("owned") : TEXT("leased"); A.AirlineId = TEXT("me"); A.Base = A.Location = TEXT("EKVG"); A.RouteId = R.Id; World.Aircraft.Add(A);
 				}
 				M = MakeShared<FADPFlightsModule>(); Register(M.ToSharedRef());
 				Eco = MakeShared<FADPEconomyModule>(); Register(Eco.ToSharedRef());
-				Start(Now() - FTimespan::FromDays(8.0));   // (8 days: a payday falls in them)
+				ADPEconomy::TakeLoan(World, TEXT("me"), 20000000.0, 0.065, 60, Now() - FTimespan::FromDays(25.0));
+				Start(Now() - FTimespan::FromDays(25.0));   // (25 days: paydays and the 1st of the month fall in them)
 				return true;
 			}
 			if (bCatchingUp) return true;
@@ -81,7 +82,7 @@ void UADPSim::Initialize(FSubsystemCollectionBase& Collection)
 			{
 				TMap<FString, double> ByKind; for (const FADPTxn& T : World.Ledger) ByKind.FindOrAdd(T.Kind) += T.Amount;
 				FString Lines; for (const auto& K : ByKind) Lines += FString::Printf(TEXT("%s %.0f, "), *K.Key, K.Value);
-				ADP_LOG(TEXT("SimFlyTest: money - %s%d paydays, balance $%.0f (from $5,000,000), %d ledger lines"), *Lines, Eco->Paydays, World.Airlines[0].Balance, World.Ledger.Num());
+				ADP_LOG(TEXT("SimFlyTest: money - %s%d paydays, %d month ends, balance $%.0f (from $5,000,000 + a $20M loan), %d ledger lines"), *Lines, Eco->Paydays, Eco->MonthEnds, World.Airlines[0].Balance, World.Ledger.Num());
 			}
 			ADP_LOG(TEXT("SimFlyTest: %s"), M->Landings >= 8 && M->Rests >= 1 ? TEXT("PASS") : TEXT("FAIL"));
 			FPlatformMisc::RequestExit(false);

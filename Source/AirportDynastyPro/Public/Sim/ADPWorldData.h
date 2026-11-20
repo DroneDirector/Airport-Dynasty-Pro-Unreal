@@ -24,6 +24,7 @@ struct FADPTypeInfo
 {
 	FString Id, Name, Class, Model; int32 Seats = 0, Engines = 2;
 	double Mtow = 0, Mlw = 0, CruiseKt = 0, CruiseMach = 0, CeilingFt = 0, RangeNm = 0, ClimbFpm = 0, DescentFpm = 0;
+	double ValueM = 0;   // market value, million USD
 	double V2Kt = 0, VappKt = 0, BurnKgH = 0, ToRunwayM = 0, LdRunwayM = 0, TaxiKt = 0, MaxBankDeg = 30, TurnDegS = 3;
 };
 

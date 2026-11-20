@@ -15,6 +15,10 @@ namespace ADPEconomy
 	void Pay(FADPWorld& W, const FString& AirlineId, const FDateTime& At, const TCHAR* Kind, double Amount, const FString& What, const FString& Link = FString());
 	/** Fuel price (USD per kg) at an airport. */
 	double FuelPrice(const FString& Icao, const FDateTime& When);
+	/** A new loan: the money in now, a fixed instalment every month (annuity). */
+	void TakeLoan(FADPWorld& W, const FString& AirlineId, double Amount, double RateYear, int32 Months, const FDateTime& At);
+	/** Monthly lease rent for a type (about 0.7 % of its value a month). */
+	double LeaseRate(const FString& TypeId);
 }
 
 /** The weekly payroll (and later the monthly items: loans, insurance, rents). */
@@ -25,5 +29,5 @@ public:
 	virtual double Interval() const override { return 3600.0; }   // (looked at every hour; pays on Monday 00:00 UTC)
 	virtual FTimespan MaxCatchUp() const override { return FTimespan::FromDays(56.0); }   // (8 weeks)
 	virtual void Advance(UADPSim& Sim, const FDateTime& From, const FDateTime& To, bool bCatchUp) override;
-	int32 Paydays = 0;
+	int32 Paydays = 0, MonthEnds = 0;
 };

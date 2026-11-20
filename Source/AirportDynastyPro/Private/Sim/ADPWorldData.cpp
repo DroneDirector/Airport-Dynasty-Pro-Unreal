@@ -66,7 +66,7 @@ namespace
 				T.Mtow = D(TEXT("mtow")); T.Mlw = D(TEXT("mlw")); T.CruiseKt = D(TEXT("cruiseKt")); T.CruiseMach = D(TEXT("cruiseMach")); T.CeilingFt = D(TEXT("ceilingFt"));
 				T.RangeNm = D(TEXT("rangeNm")); T.ClimbFpm = D(TEXT("climbFpm")); T.DescentFpm = D(TEXT("descentFpm")); T.V2Kt = D(TEXT("v2Kt")); T.VappKt = D(TEXT("vappKt"));
 				T.BurnKgH = D(TEXT("burnKgH")); T.ToRunwayM = D(TEXT("toRunwayM")); T.LdRunwayM = D(TEXT("ldRunwayM")); T.TaxiKt = D(TEXT("taxiKt"));
-				T.MaxBankDeg = D(TEXT("maxBankDeg")); T.TurnDegS = D(TEXT("turnDegS"));
+				T.MaxBankDeg = D(TEXT("maxBankDeg")); T.ValueM = D(TEXT("valueM")); T.TurnDegS = D(TEXT("turnDegS"));
 				Tys.Add(T);
 			}
 		AsyncTask(ENamedThreads::GameThread, [Aps = MoveTemp(Aps), By = MoveTemp(By), Tys = MoveTemp(Tys), T0]() mutable
