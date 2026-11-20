@@ -9,6 +9,8 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "JsonObjectConverter.h"
+#include "Sim/ADPWorldData.h"
+#include "Containers/Ticker.h"
 
 // -SimSelfTest: a test module (every 60 s, 2 days of catch-up), the career "closed" 3 days ago - checks the catch-up
 // stops at the module's limit, runs in steps without stalling, then goes live; logs the counts and closes the game
@@ -38,6 +40,31 @@ void UADPSim::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 	ClockBaseSim = ClockBaseReal = FDateTime::UtcNow();
 	ADP_LOG(TEXT("Sim: the simulation core is up (real clock, speed %.1f)"), SpeedFactor);
+	ADPWorldData::Load();   // (the airports and aircraft types, on a background thread)
+	if (FParse::Param(FCommandLine::Get(), TEXT("SimProfileTest")))
+	{
+		// flight plans for known routes, compared by eye with real block times (logged), then the game closes
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([](float) -> bool
+		{
+			if (!ADPWorldData::IsReady()) return true;
+			struct FCase { const TCHAR* T; const TCHAR* A; const TCHAR* B; const TCHAR* Real; };
+			const FCase Cases[] = {{TEXT("A320"), TEXT("EKVG"), TEXT("EKCH"), TEXT("about 2 h 25")}, {TEXT("A320"), TEXT("BIKF"), TEXT("EGLL"), TEXT("about 3 h 00")},
+				{TEXT("B789"), TEXT("BIKF"), TEXT("KJFK"), TEXT("about 5 h 50 (westbound)")}, {TEXT("AT76"), TEXT("EKVG"), TEXT("BIRK"), TEXT("about 1 h 40")},
+				{TEXT("A388"), TEXT("EGLL"), TEXT("OMDB"), TEXT("about 6 h 55")}, {TEXT("DHC6"), TEXT("BIRK"), TEXT("BIVM"), TEXT("about 30 min")}};
+			for (const FCase& C : Cases)
+			{
+				FADPProfile P;
+				if (!ADPWorldData::MakeProfile(C.T, C.A, C.B, P)) { ADP_LOG(TEXT("SimProfileTest: %s %s-%s unknown"), C.T, C.A, C.B); continue; }
+				const FADPProfile::FState Mid = P.At(P.BlockMin() / 2);
+				ADP_LOG(TEXT("SimProfileTest: %s %s-%s %.0f nm, FL%03.0f, block %d h %02d (real %s); half way: %s, %.0f ft, %.0f kt, %.2f %.2f, heading %.0f"),
+					C.T, C.A, C.B, P.DistNm, P.CruiseFt / 100.0, int32(P.BlockMin()) / 60, int32(P.BlockMin()) % 60, C.Real, FADPProfile::PhaseName(Mid.Phase), Mid.AltFt, Mid.GsKt, Mid.Lat, Mid.Lon, Mid.HeadingDeg);
+			}
+			const FADPAirportInfo* V = ADPWorldData::Airport(TEXT("EKVG"));
+			ADP_LOG(TEXT("SimProfileTest: %d airports; Vagar %s, %d runway(s), longest %d ft"), ADPWorldData::NumAirports(), V ? *V->Name : TEXT("missing"), V ? V->Runways.Num() : 0, V ? V->LongestFt() : 0);
+			FPlatformMisc::RequestExit(false);
+			return false;
+		}), 0.5f);
+	}
 	if (FParse::Param(FCommandLine::Get(), TEXT("SimSaveTest")))
 	{
 		// a small world written, cleared, read back and compared, then removed

@@ -1,6 +1,6 @@
 # Every airport in the world for the simulation (docs/AI-Simulation-Plan.md part 2): OurAirports' public-domain airport
 # and runway lists (Art/Reference/OurAirports-<date>/) trimmed to what the game uses and written compact to
-# Data/world-airports.json - shipped inside the game, read by Sim/ADPWorldData (never downloaded while playing).
+# Data/world-airports.tsv - shipped inside the game, read by Sim/ADPWorldData (never downloaded while playing).
 #   python Tools/make_world_airports.py [Art/Reference/OurAirports-2026-11-20]
 # Kept: every open airport, seaplane base and heliport. Per airport: ident, ICAO, IATA, name, town, country, kind
 # (L large, M medium, S small, H heliport, W seaplane base), lat, lon, elevation (ft), scheduled service (0/1).
@@ -47,12 +47,15 @@ with open(SRC / 'runways.csv', encoding='utf-8') as f:
                                 1 if r['lighted'] == '1' else 0, num(r['le_latitude_deg'], 5), num(r['le_longitude_deg'], 5),
                                 num(r['he_latitude_deg'], 5), num(r['he_longitude_deg'], 5), num(r['le_heading_degT'], 1)])
         nrw += 1
-out = ROOT / 'Data' / 'world-airports.json'
-doc = {'source': 'OurAirports (public domain) - ' + SRC.name + ', trimmed by Tools/make_world_airports.py',
-       'airport': ['ident', 'icao', 'iata', 'name', 'town', 'country', 'kind', 'lat', 'lon', 'elevFt', 'scheduled', 'runways'],
-       'runway': ['le', 'he', 'lengthFt', 'widthFt', 'surface', 'lit', 'leLat', 'leLon', 'heLat', 'heLon', 'leHdg'],
-       'airports': airports}
-out.write_text(json.dumps(doc, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+out = ROOT / 'Data' / 'world-airports.tsv'
+# written as plain lines (a JSON of this size took 44 s to read in Unreal; lines take well under a second):
+# A<tab>ident<tab>icao<tab>iata<tab>name<tab>town<tab>country<tab>kind<tab>lat<tab>lon<tab>elevFt<tab>scheduled
+# R<tab>le<tab>he<tab>lengthFt<tab>widthFt<tab>surface<tab>lit<tab>leLat<tab>leLon<tab>heLat<tab>heLon<tab>leHdg   (the airport above's)
+def cell(v): return '' if v is None else str(v).replace('\t', ' ').replace('\n', ' ')
+with open(ROOT / 'Data' / 'world-airports.tsv', 'w', encoding='utf-8', newline='\n') as t:
+    for a in airports:
+        t.write('A\t' + '\t'.join(cell(v) for v in a[:11]) + '\n')
+        for r in a[11]: t.write('R\t' + '\t'.join(cell(v) for v in r) + '\n')
 kinds = {}
 for a in airports: kinds[a[6]] = kinds.get(a[6], 0) + 1
 print('%s: %d airports (%s), %d runways, %.1f MB' % (out, len(airports), ', '.join('%s %d' % kv for kv in sorted(kinds.items())), nrw, out.stat().st_size / 1e6))
