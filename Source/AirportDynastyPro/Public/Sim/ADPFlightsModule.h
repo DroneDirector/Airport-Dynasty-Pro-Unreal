@@ -23,7 +23,7 @@ public:
 
 	/** A flight's plan (kept while it flies; made again after a load). */
 	const FADPProfile* ProfileOf(const FADPFlight& F);
-	int64 Departures = 0, Landings = 0, Delayed = 0, Rests = 0, WxWaits = 0, DeIcings = 0, Holds = 0, Diversions = 0, Failures = 0, Curfews = 0, PaxCarried = 0;
+	int64 Departures = 0, Landings = 0, Delayed = 0, Rests = 0, WxWaits = 0, DeIcings = 0, Holds = 0, Diversions = 0, Failures = 0, Curfews = 0, PaxCarried = 0, CrewWaits = 0;
 	double RevenueSum = 0.0, LoadSum = 0.0;
 	/** A night curfew at this airport at this time (local time from the longitude). */
 	static bool InCurfew(const FString& Icao, double Lon, const FDateTime& Utc);

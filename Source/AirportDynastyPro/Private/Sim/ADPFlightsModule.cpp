@@ -4,6 +4,7 @@
 #include "Sim/ADPWeather.h"
 #include "Sim/ADPDemand.h"
 #include "Sim/ADPEconomy.h"
+#include "Sim/ADPStaff.h"
 
 const FADPProfile* FADPFlightsModule::ProfileOf(const FADPFlight& F)
 {
@@ -63,6 +64,9 @@ void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime
 	if (!Pilot || Pilot->Status != TEXT("on")) { Wait(TEXT("no pilot"), 60); return; }
 	if (Pilot->RestUntil > Now) { A.ReadyAt = Pilot->RestUntil; return; }
 	if (A.Condition < 20.0) { Wait(TEXT("the aircraft needs repair"), 120); return; }
+	// cabin crew: enough on duty at the aircraft's base for its seats (not sick, not on leave)
+	if (const FADPTypeInfo* Tc = ADPWorldData::Type(A.TypeId))
+		if (ADPStaff::CabinCrewAt(W, A.AirlineId, A.Base) < ADPStaff::CabinCrewFor(Tc->Seats)) { ++CrewWaits; Wait(TEXT("not enough cabin crew"), 60); return; }
 	const FString& Next = R->Stops[(A.LegIdx + 1) % R->Stops.Num()];
 	FADPProfile P;
 	if (!ADPWorldData::MakeProfile(A.TypeId, A.Location, Next, P)) { Wait(TEXT("no flight plan"), 240); return; }

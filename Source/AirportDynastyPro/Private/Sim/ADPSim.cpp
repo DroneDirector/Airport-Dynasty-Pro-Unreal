@@ -13,6 +13,7 @@
 #include "Sim/ADPFlightsModule.h"
 #include "Sim/ADPWeather.h"
 #include "Sim/ADPEconomy.h"
+#include "Sim/ADPStaff.h"
 #include "Containers/Ticker.h"
 
 // -SimSelfTest: a test module (every 60 s, 2 days of catch-up), the career "closed" 3 days ago - checks the catch-up
@@ -50,11 +51,13 @@ void UADPSim::Initialize(FSubsystemCollectionBase& Collection)
 		// a small airline flying two routes from Vagar, the career "closed" 2 days ago: the catch-up flies those 2 days
 		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](float) -> bool
 		{
-			static TSharedPtr<FADPFlightsModule> M; static TSharedPtr<FADPEconomyModule> Eco; static double Live = 0.0;
+			static TSharedPtr<FADPFlightsModule> M; static TSharedPtr<FADPEconomyModule> Eco; static TSharedPtr<FADPStaffModule> Staff; static double Live = 0.0;
 			if (!ADPWorldData::IsReady()) return true;
 			if (!M)
 			{
-				FADPAirline Me; Me.Id = TEXT("me"); Me.Name = TEXT("Test Air"); Me.bPlayer = true; Me.Balance = 5000000.0; World.Airlines.Add(Me);
+				FADPAirline Me; Me.Id = TEXT("me"); Me.Name = TEXT("Test Air"); Me.Icao = TEXT("OY"); Me.Hub = TEXT("EKVG"); Me.bPlayer = true; Me.Balance = 5000000.0; World.Airlines.Add(Me);
+				// cabin crew: 8 hired from the pool at the base (each A320 needs 4)
+				{ FRandomStream Rs(9); for (int32 k = 0; k < 8; ++k) { FADPPerson Fa = ADPStaff::MakePerson(TEXT("fa"), ADPStaff::CountryOf(World, TEXT("me")), Rs); World.People.Add(Fa); ADPStaff::Hire(World, Fa.Id, TEXT("me"), TEXT("EKVG"), Now() - FTimespan::FromDays(25.0)); } }
 				const TCHAR* Regs[] = {TEXT("OY-RCA"), TEXT("OY-RCB")};
 				const TArray<TArray<FString>> Stops = {{TEXT("EKVG"), TEXT("EKCH")}, {TEXT("EKVG"), TEXT("BIKF"), TEXT("EGLL"), TEXT("BIKF")}};
 				for (int32 i = 0; i < 2; ++i)
@@ -65,6 +68,7 @@ void UADPSim::Initialize(FSubsystemCollectionBase& Collection)
 				}
 				M = MakeShared<FADPFlightsModule>(); Register(M.ToSharedRef());
 				Eco = MakeShared<FADPEconomyModule>(); Register(Eco.ToSharedRef());
+				Staff = MakeShared<FADPStaffModule>(); Register(Staff.ToSharedRef());
 				ADPEconomy::TakeLoan(World, TEXT("me"), 20000000.0, 0.065, 60, Now() - FTimespan::FromDays(25.0));
 				Start(Now() - FTimespan::FromDays(25.0));   // (25 days: paydays and the 1st of the month fall in them)
 				return true;
@@ -92,6 +96,12 @@ void UADPSim::Initialize(FSubsystemCollectionBase& Collection)
 				TMap<FString, double> ByKind; for (const FADPTxn& T : World.Ledger) ByKind.FindOrAdd(T.Kind) += T.Amount;
 				FString Lines; for (const auto& K : ByKind) Lines += FString::Printf(TEXT("%s %.0f, "), *K.Key, K.Value);
 				ADP_LOG(TEXT("SimFlyTest: money - %s%d paydays, %d month ends, balance $%.0f (from $5,000,000 + a $20M loan), %d ledger lines"), *Lines, Eco->Paydays, Eco->MonthEnds, World.Airlines[0].Balance, World.Ledger.Num());
+			}
+			{
+				int32 Pool = 0, Mine = 0, Sick = 0; for (const FADPPerson& P : World.People) { if (P.AirlineId.IsEmpty()) ++Pool; else { ++Mine; if (P.Status == TEXT("sick")) ++Sick; } }
+				const FADPPerson* Some = World.People.FindByPredicate([](const FADPPerson& P) { return P.AirlineId == TEXT("me") && P.Role == TEXT("fa"); });
+				ADP_LOG(TEXT("SimFlyTest: staff - %d employed (%d sick now), %d in the hiring pool, %d sick spells, %d quit, crew waits %lld; e.g. %s, %s, %d, $%.0f a week, mood %.0f"),
+					Mine, Sick, Pool, Staff->SickDays, Staff->Quits, M->CrewWaits, Some ? *Some->Name : TEXT("-"), Some ? *Some->Role : TEXT("-"), Some ? Some->Age : 0, Some ? Some->Salary : 0.0, Some ? Some->Mood : 0.0);
 			}
 			ADP_LOG(TEXT("SimFlyTest: %s"), M->Landings >= 8 && M->Rests >= 1 ? TEXT("PASS") : TEXT("FAIL"));
 			FPlatformMisc::RequestExit(false);
