@@ -20,6 +20,11 @@ next commit if they belong in the repo.
   with the same white airliner, on violet with a glow and a faint neon grid (`Airline-Manager-Pro-Babylon/tools/make-icons.py`).
   It is now the icon everywhere: Android, the Babylon PC app, the Unreal exe and the installer. Copied to the PC:
   `Art\Icon\Icon-Cube-1024.png` and `Icon-Cube-sizes-preview.png` (LFS; the PC chat commits them).
+- 06:52: he wants the cube icon used from now on, wherever Unreal's would show. Also done: the start-up splash
+  (`Content/Splash/Splash.bmp`, the editor's `EdSplash.bmp`: the icon, the name and Pixel Norma, the bottom strip left
+  for Unreal's own text), the installer's corner picture (`Installer/wizard-small.bmp`, in setup.iss) and the project's
+  launcher picture `AirportDynastyPro.png` (copied to the PC, LFS: the PC chat commits it). Engine-only windows (the crash
+  reporter) can't be changed.
 - It goes out with the next PC release. Windows may keep showing the old icon on an existing shortcut until its icon
   cache refreshes (or the shortcut is made again by the installer).
 

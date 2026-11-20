@@ -20,6 +20,7 @@ Every third-party part used in Airport Dynasty Pro (Unreal Engine 5 edition), it
 | ESA WorldCover 10 m 2021 v200 (the sea's outline round the airport, Content/Data/ocean.bin); modified: the open sea traced into a water surface | CC BY 4.0 | Yes | "© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium" |
 | ESA WorldCover 10 m 2021 v200 (the land cover on the globe, downloaded with the world's terrain: Tools/MakeLandCover.py); modified: the classes turned into natural colours and averaged into picture tiles | CC BY 4.0 | Yes | On screen when shown: "Land cover: ESA WorldCover 2021 © ESA WorldCover project, contains modified Copernicus Sentinel data (2021) processed by the ESA WorldCover consortium, CC BY 4.0" |
 | Blender's bundled font (Inter, by Rasmus Andersson), its letter shapes made into the taxi's plate and roof-sign lettering (Art/Taxi) | SIL Open Font License 1.1 | Yes | Licence text kept with Blender; not needed in the game's credits |
+| DejaVu Sans Bold and DejaVu Sans (the DejaVu fonts team), the lettering drawn into the start-up splash pictures (Content/Splash, Art/Icon/make_brand_images.py) | Bitstream Vera / DejaVu free licence (any use, including commercial) | Yes | Licence text with the fonts |
 
 ## Ground scans - Poly Haven (CC0)
 asphalt_04 (Sergej Majboroda, Jenelle van Heerden), asphalt_02 (Rob Tuytel), concrete_floor_worn_001 (Dimitrios Savva,
