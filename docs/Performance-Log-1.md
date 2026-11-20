@@ -52,3 +52,12 @@ Every performance change to the game, newest last. Only performance work goes in
 - Measured (editor -game, 1600x900, airport mode, same scene, Tools: -UIFGToggle): without our chain (-NoOwnFrameGen)
   65 fps drawn; with it in place and switched off 65 fps drawn. Switched on: 2 pictures per drawn frame (64 fps drawn).
 - Result: no measurable cost while off. Not a visual change.
+
+## 2026-11-20 night - to-do 149: the 4K frame rate (investigation, not finished)
+- Standing in the Grand Hall 75 s, packaged, off-screen 3840x2160 forced, Cinematic: 0.17.28 16 fps, then 7 fps on a
+  second run of the same build; the new test build (coaches + aspens) 8 fps; without the coaches 8; aspens frozen 7,
+  animated 7, none 5. So neither the coaches nor the aspens cost it, and the same build gives 16 or 7 from run to run.
+- Windows was locked all the while (LockApp running): a full-screen run behind the lock screen shows no pictures
+  (frame generation counted 0) and off-screen runs vary - the night's 4K / his-screen numbers can't be trusted.
+- Kept: the aspens frozen after their first pose (no tick, no bone update - they don't sway; same look, checked by
+  picture), -NoAspens / -AspensLive to measure them. Next: measure with Windows unlocked, on his screen.

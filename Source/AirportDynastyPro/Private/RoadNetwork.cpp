@@ -682,7 +682,7 @@ bool ARoadNetwork::BuildSome(double Budget)
 		// middle of the forecourt; only on grass; on the island's centre line, following it): Epic's Procedural Vegetation sample
 		// European aspens (four shapes), three between each two of the island's street lamps (7.6 m apart and from the lamps),
 		// none within 4 m of a zebra crossing's walkway over the island, only where the island is 2.5 m wide or more
-		if (!GBaking)
+		if (!GBaking && !FParse::Param(FCommandLine::Get(), TEXT("NoAspens")))   // (-NoAspens: measuring without them)
 		{
 			const TArray<TSharedPtr<FJsonValue>>& RL = Lanes->GetArrayField(TEXT("right"));
 			int32 Isl = INDEX_NONE;
@@ -731,6 +731,15 @@ bool ARoadNetwork::BuildSome(double Budget)
 							T->SetCollisionProfileName(TEXT("BlockAll"));
 							T->bEnableUpdateRateOptimizations = true;
 							T->RegisterComponent(); AddInstanceComponent(T);
+							// (to-do 149, 2026-11-20: frozen once its first pose is made - no sway asked for, so no bone update and no
+							// tick ever again: 131 animated skeletal trees cost every frame and their shadows were drawn again every
+							// frame; -AspensLive: the old way, for measuring)
+							if (!FParse::Param(FCommandLine::Get(), TEXT("AspensLive")))
+							{
+								T->RefreshBoneTransforms(); T->bNoSkeletonUpdate = true; T->bComponentUseFixedSkelBounds = true;
+								T->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickMontagesWhenNotRendered;
+								T->SetComponentTickEnabled(false);
+							}
 							++Planted;
 						}
 				}
