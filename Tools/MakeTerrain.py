@@ -333,8 +333,18 @@ def main():
     SITES = load_sites()
     for s in SITES:
         s['h'] = round(site_height(s), 2)
-        Path(s['dir'], 'terrain.json').write_text(json.dumps({'airportHeight': s['h'], 'note': 'WGS84 ellipsoid metres; Tools/MakeTerrain.py'}) + '\n')
+        for d in (Path(s['dir']), ROOT / 'Content' / 'Data' / 'Sites' / s['id']):   # (the source and the copy the game reads)
+            d.mkdir(parents=True, exist_ok=True)
+            (d / 'terrain.json').write_text(json.dumps({'airportHeight': s['h'], 'note': 'WGS84 ellipsoid metres; Tools/MakeTerrain.py'}) + '\n')
         print('Site %s: airport ground at %.2f m (ellipsoid)' % (s['id'], s['h']), flush=True)
+        # its height above the sea (ellipsoid less the geoid) into the site's airport block, so the game's sea / lake level
+        # (Globe.cpp: ground less elevFt, plus the lake's level) matches the levelled ground exactly
+        asl = s['h'] - float(geoid(np.array([s['lon']]), np.array([s['lat']]))[0])
+        for f in (ROOT / 'Data' / 'Sites' / s['id'] / 'site.json', ROOT / 'Content' / 'Data' / 'Sites' / s['id'] / 'site.json'):
+            if f.exists():
+                j = json.loads(f.read_text(encoding='utf-8')); j['airport']['elevFt'] = round(asl * 3.28084, 1)
+                f.write_text(json.dumps(j, indent=2, ensure_ascii=False) + chr(10), encoding='utf-8')
+        print('Site %s: %.2f m above the sea (elevFt %.1f)' % (s['id'], asl, asl * 3.28084), flush=True)
     if not a.bbox: (ROOT / 'Data' / 'terrain.json').write_text(json.dumps({'airportHeight': round(AIRPORT_H, 2), 'note': 'WGS84 ellipsoid metres; Tools/MakeTerrain.py'}) + '\n')
     print('Airport ground at %.2f m (ellipsoid)' % AIRPORT_H, flush=True)
 
