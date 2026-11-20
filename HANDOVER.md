@@ -9,6 +9,16 @@ Whenever the owner sends pictures in the phone chat for you, they are copied ont
 location there (with what it shows and what he said about it). Open those files; commit them (through LFS) with your
 next commit if they belong in the repo.
 
+## From the owner (2026-11-20 06:32, via the phone): the game's own icon instead of Unreal's
+- Done in the phone chat: `Art/Icon/make_icon.py` (Blender render) and `finish_icon.py` -> `Build/Windows/Application.ico`
+  (Unreal builds it into AirportDynastyPro.exe: desktop shortcut, Start menu, taskbar, window) and `Installer/app.ico`.
+  `.gitignore` now keeps `Build/Windows/Application.ico` in git (the rest of Build/ stays out).
+- Copied straight onto the PC (Git LFS files the phone chat can't upload; the PC chat should commit them):
+  `Art\Icon\Icon.blend`, `render.png`, `Icon-1024.png`, `Icon-256.png`, `Icon-sizes-preview.png`, and
+  `AirportDynastyPro.png` at the top of the repo (the project's picture in Epic's launcher).
+- It goes out with the next PC release. Windows may keep showing the old icon on an existing shortcut until its icon
+  cache refreshes (or the shortcut is made again by the installer).
+
 ## From the owner (2026-11-19 17:55-18:35, via the phone): the airport taxi, remade in Blender from his blueprint
 - He sent a new blueprint sheet to follow instead (modern taxi saloon: side, front, rear, top, three-quarter and
   dashboard views; 4.70 m long, 1.80 m wide, 1.45 m high): `Art\Reference\From-Phone\2026-11-19\Taxi-Ref-5-blueprint-sheet.jpg`

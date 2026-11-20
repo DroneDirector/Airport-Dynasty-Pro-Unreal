@@ -3,7 +3,10 @@ Binaries/
 DerivedDataCache/
 Intermediate/
 Saved/
-Build/
+Build/*
+!Build/Windows/
+Build/Windows/*
+!Build/Windows/Application.ico
 .vs/
 .vscode/
 .idea/
