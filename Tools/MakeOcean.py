@@ -41,7 +41,7 @@ if a.dem:
         win = from_bounds(W, S, E, N, r.transform)
         hgt = r.read(1, window=win, out_shape=(H, Wd), boundless=True, fill_value=-32767, resampling=Resampling.average)
     cls = np.where((hgt > -500) & (hgt <= a.level + 0.3), 80, 10).astype(np.uint8)
-for lat0 in ([] if a.dem else  in range(int(math.floor(S / 3) * 3), int(math.floor(N / 3) * 3) + 1, 3)):
+for lat0 in ([] if a.dem else range(int(math.floor(S / 3) * 3), int(math.floor(N / 3) * 3) + 1, 3)):
     for lon0 in range(int(math.floor(W / 3) * 3), int(math.floor(E / 3) * 3) + 1, 3):
         name = 'ESA_WorldCover_10m_2021_v200_%s%02d%s%03d_Map.tif' % ('N' if lat0 >= 0 else 'S', abs(lat0), 'E' if lon0 >= 0 else 'W', abs(lon0))
         p = os.path.join(a.wc, name)
