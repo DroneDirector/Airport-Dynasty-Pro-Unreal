@@ -23,7 +23,7 @@ public:
 
 	/** A flight's plan (kept while it flies; made again after a load). */
 	const FADPProfile* ProfileOf(const FADPFlight& F);
-	int64 Departures = 0, Landings = 0, Delayed = 0, Rests = 0;
+	int64 Departures = 0, Landings = 0, Delayed = 0, Rests = 0, WxWaits = 0, DeIcings = 0;
 
 private:
 	TMap<FString, FADPProfile> Profiles;

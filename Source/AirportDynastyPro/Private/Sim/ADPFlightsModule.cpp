@@ -1,6 +1,7 @@
 // Hired pilots flying the routes - see Sim/ADPFlightsModule.h.
 #include "Sim/ADPFlightsModule.h"
 #include "ADPLog.h"
+#include "Sim/ADPWeather.h"
 
 const FADPProfile* FADPFlightsModule::ProfileOf(const FADPFlight& F)
 {
@@ -55,6 +56,34 @@ void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime
 	const FString& Next = R->Stops[(A.LegIdx + 1) % R->Stops.Num()];
 	FADPProfile P;
 	if (!ADPWorldData::MakeProfile(A.TypeId, A.Location, Next, P)) { Wait(TEXT("no flight plan"), 240); return; }
+	// the weather at both ends (the real world's now, or the built-in climate): crosswind on the best runway, visibility,
+	// storms; snow or freezing rain means de-icing first
+	double WxDelay = 0.0;
+	{
+		const FADPAirportInfo* Ap = ADPWorldData::Airport(A.Location); const FADPAirportInfo* Bp = ADPWorldData::Airport(Next);
+		const FADPTypeInfo* T = ADPWorldData::Type(A.TypeId);
+		if (Ap && Bp && T)
+		{
+			const FADPWx Wa = ADPWeather::At(Ap->Icao.IsEmpty() ? Ap->Ident : Ap->Icao, Ap->Lat, Ap->Lon, Now);
+			const FADPWx Wb = ADPWeather::At(Bp->Icao.IsEmpty() ? Bp->Ident : Bp->Icao, Bp->Lat, Bp->Lon, Now + FTimespan::FromMinutes(P.BlockMin()));
+			const double MaxCross = T->Class == TEXT("bush") ? 20.0 : T->Class == TEXT("turboprop") ? 32.0 : T->Class == TEXT("regional") ? 33.0 : 38.0;
+			auto BestCross = [&](const FADPAirportInfo& Apt, const FADPWx& W)
+			{
+				double Best = 1e9;
+				for (const FADPRunwayInfo& R : Apt.Runways) for (const double H : {R.LeHdg, R.LeHdg + 180.0})
+				{ double C, Tl; ADPWeather::Components(W, H, C, Tl); if (Tl <= 10.0) Best = FMath::Min(Best, C); }
+				return Apt.Runways.Num() ? Best : 0.0;
+			};
+			const TCHAR* Why = nullptr;
+			if (BestCross(*Ap, Wa) > MaxCross) Why = TEXT("too much crosswind here");
+			else if (BestCross(*Bp, Wb) > MaxCross) Why = TEXT("too much crosswind at the destination");
+			else if (Wa.VisM < 175.0 || Wb.VisM < 175.0) Why = TEXT("fog below the landing minimums");
+			else if (Wa.bStorm) Why = TEXT("a thunderstorm over the field");
+			else if (Wb.bStorm && P.DistNm < 600.0) Why = TEXT("a thunderstorm at the destination");
+			if (Why) { ++WxWaits; Wait(Why, 30); return; }
+			if ((Wa.bSnow || Wa.bFreezing || (Wa.TempC <= 3.0 && (Wa.bRain || Wa.bFog))) && T->Class != TEXT("helicopter")) { WxDelay = Rng.FRandRange(20.0, 35.0); ++DeIcings; }
+		}
+	}
 	// the duty limit: the pilot rests 12 hours first if this leg would break it
 	if (Pilot->DutyMin + P.BlockMin() > MaxDutyH * 60.0)
 	{
@@ -62,7 +91,7 @@ void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime
 		return;
 	}
 	// delays at random: at the gate mostly short, now and then long (weather-driven delays come with the weather)
-	const double Delay = Rng.FRand() < 0.88 ? Rng.FRandRange(0.0, 8.0) : Rng.FRandRange(15.0, 74.0);
+	const double Delay = (Rng.FRand() < 0.88 ? Rng.FRandRange(0.0, 8.0) : Rng.FRandRange(15.0, 74.0)) + WxDelay;
 	if (Delay >= 15.0) ++Delayed;
 	FADPFlight F;
 	F.Id = FString::Printf(TEXT("%s-%lld"), *A.Reg, Now.GetTicks() / ETimespan::TicksPerSecond);

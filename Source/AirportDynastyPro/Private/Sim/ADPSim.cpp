@@ -11,6 +11,7 @@
 #include "JsonObjectConverter.h"
 #include "Sim/ADPWorldData.h"
 #include "Sim/ADPFlightsModule.h"
+#include "Sim/ADPWeather.h"
 #include "Containers/Ticker.h"
 
 // -SimSelfTest: a test module (every 60 s, 2 days of catch-up), the career "closed" 3 days ago - checks the catch-up
@@ -42,6 +43,7 @@ void UADPSim::Initialize(FSubsystemCollectionBase& Collection)
 	ClockBaseSim = ClockBaseReal = FDateTime::UtcNow();
 	ADP_LOG(TEXT("Sim: the simulation core is up (real clock, speed %.1f)"), SpeedFactor);
 	ADPWorldData::Load();   // (the airports and aircraft types, on a background thread)
+	ADPWeather::Start();    // (the real world's weather, every 15 minutes)
 	if (FParse::Param(FCommandLine::Get(), TEXT("SimFlyTest")))
 	{
 		// a small airline flying two routes from Vagar, the career "closed" 2 days ago: the catch-up flies those 2 days
@@ -71,6 +73,9 @@ void UADPSim::Initialize(FSubsystemCollectionBase& Collection)
 				M->Departures, M->Landings, M->Delayed, M->Rests, World.Flights.Num(), World.Notices.Num());
 			for (const FADPAircraft& A : World.Aircraft) ADP_LOG(TEXT("SimFlyTest: %s at %s, %s, %.1f h, %d cycles"), *A.Reg, *A.Location, *A.Status, A.HoursMin / 60.0, A.Cycles);
 			for (const FADPFlight& F : World.Flights) ADP_LOG(TEXT("SimFlyTest: in the air %s %s-%s: %s, %.0f ft, %.0f kt, at %.2f %.2f, heading %.0f"), *F.Reg, *F.From, *F.To, *F.Phase, F.AltFt, F.GsKt, F.Lat, F.Lon, F.HeadingDeg);
+			for (const TCHAR* Ap : {TEXT("EKVG"), TEXT("BIKF"), TEXT("EGLL"), TEXT("EKCH")}) if (const FADPAirportInfo* I = ADPWorldData::Airport(Ap))
+			{ const FADPWx X = ADPWeather::At(Ap, I->Lat, I->Lon, Now()); ADP_LOG(TEXT("SimFlyTest: weather %s %s: wind %03.0f/%.0f kt gust %.0f, vis %.0f m, ceiling %.0f ft, %.0f C%s%s - %s"), Ap, X.bLive ? TEXT("LIVE") : TEXT("climate"), X.WindDir, X.WindKt, X.GustKt, X.VisM, X.CeilingFt, X.TempC, X.bSnow ? TEXT(" snow") : TEXT(""), X.bStorm ? TEXT(" storm") : TEXT(""), *X.Raw); }
+			ADP_LOG(TEXT("SimFlyTest: %d live reports; weather waits %lld, de-icings %lld"), ADPWeather::NumReports(), M->WxWaits, M->DeIcings);
 			ADP_LOG(TEXT("SimFlyTest: %s"), M->Landings >= 8 && M->Rests >= 1 ? TEXT("PASS") : TEXT("FAIL"));
 			FPlatformMisc::RequestExit(false);
 			return false;
