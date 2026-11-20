@@ -52,7 +52,7 @@ void ADPEconomy::BookLeg(FADPWorld& W, const FADPFlight& F, const FDateTime& At)
 	Pay(W, F.AirlineId, At, TEXT("revenue"), F.Revenue * KI, Leg + TEXT(": tickets and cargo"), F.Id);
 	// fuel: the type's burn for the time flown (taxiing burns little), at the departure airport's price
 	const double FuelKg = T->BurnKgH * BlockH * 0.92;
-	Pay(W, F.AirlineId, At, TEXT("fuel"), -FuelKg * FuelPrice(F.From, At) * KC, FString::Printf(TEXT("%s: fuel %.0f kg"), *Leg, FuelKg), F.Id);
+	Pay(W, F.AirlineId, At, TEXT("fuel"), -FuelKg * FuelPrice(F.From, At) * W.FuelIndex * KC, FString::Printf(TEXT("%s: fuel %.0f kg"), *Leg, FuelKg), F.Id);
 	// fees: landing by weight and airport size, parking, handling per passenger and per turnaround, air navigation by
 	// distance and weight
 	const double Landing = MtowT * SizeFee(B, 9.0, 6.5, 4.5);
@@ -61,7 +61,8 @@ void ADPEconomy::BookLeg(FADPWorld& W, const FADPFlight& F, const FDateTime& At)
 	const double Nav = Nm * 1.852 / 100.0 * FMath::Sqrt(MtowT / 50.0) * 78.0;
 	Pay(W, F.AirlineId, At, TEXT("fees"), -(Landing + Parking + Handling + Nav) * KC, FString::Printf(TEXT("%s: landing $%.0f, parking $%.0f, handling $%.0f, navigation $%.0f"), *Leg, Landing, Parking, Handling, Nav), F.Id);
 	// the maintenance reserve, crew allowances, booking costs and overhead
-	Pay(W, F.AirlineId, At, TEXT("maint"), -MaintPerHour(T->Class) * BlockH * KC, Leg + TEXT(": maintenance reserve"), F.Id);
+	// (45% of the maintenance reserve is parts: it follows the parts market)
+	Pay(W, F.AirlineId, At, TEXT("maint"), -MaintPerHour(T->Class) * BlockH * (0.55 + 0.45 * W.PartsIndex) * KC, Leg + TEXT(": maintenance reserve"), F.Id);
 	const int32 Crew = 2 + FMath::CeilToInt(T->Seats / 50.0);
 	Pay(W, F.AirlineId, At, TEXT("crew"), -Crew * (BlockH > 6.0 ? 250.0 : 115.0) * KC, FString::Printf(TEXT("%s: allowances for %d crew"), *Leg, Crew), F.Id);
 	Pay(W, F.AirlineId, At, TEXT("fees"), -F.Revenue * (0.055 + 0.07) * KC, Leg + TEXT(": bookings and overhead"), F.Id);
@@ -116,6 +117,42 @@ namespace
 
 void FADPEconomyModule::Advance(UADPSim& Sim, const FDateTime& From, const FDateTime& To, bool bCatchUp)
 {
+	FADPWorld& WM = Sim.World;
+	// the markets: each hour the fuel and parts prices move 5% of the way to where the market is heading, which itself
+	// drifts back to normal; every 3-10 days some news moves it (most rises are announced a day or two ahead)
+	WM.FuelIndex += (WM.FuelTarget - WM.FuelIndex) * 0.05; WM.PartsIndex += (WM.PartsTarget - WM.PartsIndex) * 0.05;
+	WM.FuelTarget += (1.0 - WM.FuelTarget) * 0.004; WM.PartsTarget += (1.0 - WM.PartsTarget) * 0.004;
+	if (WM.NextMarketNews == FDateTime()) WM.NextMarketNews = To + FTimespan::FromDays(Rng.FRandRange(3.0, 10.0));
+	if (To >= WM.NextMarketNews)
+	{
+		static const TCHAR* Up[] = {TEXT("Refinery outage on the Gulf Coast"), TEXT("OPEC+ extends output cuts"), TEXT("Pipeline disruption in the North Sea"), TEXT("Strong summer travel lifts jet fuel demand")};
+		static const TCHAR* Down[] = {TEXT("Crude stockpiles build faster than expected"), TEXT("New refinery capacity comes online"), TEXT("Mild winter cuts heating oil demand"), TEXT("Production quotas raised")};
+		const bool bUp = Rng.FRand() < 0.5; const bool bParts = Rng.FRand() < 0.3;
+		const double Move = bUp ? Rng.FRandRange(1.08, 1.3) : Rng.FRandRange(0.78, 0.94);
+		double& Target = bParts ? WM.PartsTarget : WM.FuelTarget;
+		Target = FMath::Clamp(Target * Move, 0.55, 2.2);
+		FADPNotice N; N.At = To; N.Kind = TEXT("finance");
+		N.Text = bParts ? FString::Printf(TEXT("Parts market: suppliers %s prices (%+.0f%%)"), bUp ? TEXT("raise") : TEXT("cut"), (Move - 1.0) * 100.0)
+			: FString::Printf(TEXT("Fuel market: %s (%+.0f%%)"), bUp ? Up[Rng.RandRange(0, 3)] : Down[Rng.RandRange(0, 3)], (Move - 1.0) * 100.0);
+		WM.Notices.Add(N); ++MarketNews;
+		WM.NextMarketNews = To + FTimespan::FromDays(Rng.FRandRange(3.0, 10.0));
+	}
+	WM.FuelIndex = FMath::Clamp(WM.FuelIndex, 0.55, 2.2); WM.PartsIndex = FMath::Clamp(WM.PartsIndex, 0.55, 2.2);
+	// the used market: a new list every Monday
+	if (WM.UsedMarket.Num() == 0 || (To.GetDayOfWeek() == EDayOfWeek::Monday && To.GetHour() == 1))
+	{
+		WM.UsedMarket.Reset();
+		const TArray<FADPTypeInfo>& Ts = ADPWorldData::Types();
+		for (int32 i = 0; Ts.Num() && i < 8; ++i)
+		{
+			const FADPTypeInfo& T = Ts[Rng.RandRange(0, Ts.Num() - 1)];
+			FADPUsedOffer O; O.TypeId = T.Id; O.AgeYears = Rng.RandRange(2, 22); O.Condition = Rng.FRandRange(55.0, 95.0);
+			O.Price = T.ValueM * 1e6 * FMath::Max(0.12, FMath::Pow(0.93, O.AgeYears)) * (0.55 + 0.45 * O.Condition / 100.0);
+			WM.UsedMarket.Add(O);
+		}
+	}
+	// campaigns that ended
+	WM.Campaigns.RemoveAll([&](const FADPCampaign& C) { return C.Until <= To; });
 	if (To.GetDay() == 1 && To.GetHour() == 0 && From.GetDay() != 1) { MonthEnd(Sim.World, To); ++MonthEnds; }
 	// payday: the hour that passes Monday 00:00 UTC - every person's week's salary, from their airline
 	const bool bPayday = To.GetDayOfWeek() == EDayOfWeek::Monday && To.GetHour() == 0 && From.GetDayOfWeek() != EDayOfWeek::Monday;
@@ -132,4 +169,59 @@ void FADPEconomyModule::Advance(UADPSim& Sim, const FDateTime& From, const FDate
 	double KI, KC; Difficulty(W.Difficulty, KI, KC);
 	for (const auto& It : Total)
 		ADPEconomy::Pay(W, It.Key, To, TEXT("salary"), -It.Value * KC, FString::Printf(TEXT("Wages for the week: %d people"), Count[It.Key]));
+}
+
+FString ADPEconomy::BuyAircraft(FADPWorld& W, const FString& AirlineId, const FString& TypeId, bool bLease, const FString& Base, const FDateTime& At)
+{
+	const FADPTypeInfo* T = ADPWorldData::Type(TypeId);
+	FADPAirline* Al = W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == AirlineId; });
+	if (!T || !Al) return FString();
+	const double Price = T->ValueM * 1e6, Rent = LeaseRate(TypeId);
+	const double Now = bLease ? Rent * 2.0 : Price;
+	if (Al->Balance < Now) return FString();
+	FADPAircraft A; A.Reg = FString::Printf(TEXT("%s-%c%c%c"), Al->Icao.IsEmpty() ? TEXT("XX") : *Al->Icao.Left(2), TCHAR('A' + (W.NextReg / 676) % 26), TCHAR('A' + (W.NextReg / 26) % 26), TCHAR('A' + W.NextReg % 26)); ++W.NextReg;
+	A.TypeId = TypeId; A.AirlineId = AirlineId; A.Base = A.Location = Base; A.Value = Price; A.Condition = 100.0;
+	A.Ownership = bLease ? TEXT("leased") : TEXT("owned"); A.LeaseMonthly = bLease ? Rent : 0.0;
+	W.Aircraft.Add(A);
+	Pay(W, AirlineId, At, bLease ? TEXT("lease") : TEXT("purchase"), -Now, FString::Printf(TEXT("%s %s (%s)"), bLease ? TEXT("Lease deposit for") : TEXT("Bought"), *T->Name, *A.Reg), A.Reg);
+	return A.Reg;
+}
+
+FString ADPEconomy::BuyUsed(FADPWorld& W, const FString& AirlineId, int32 Offer, const FString& Base, const FDateTime& At)
+{
+	if (!W.UsedMarket.IsValidIndex(Offer)) return FString();
+	const FADPUsedOffer O = W.UsedMarket[Offer];
+	FADPAirline* Al = W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == AirlineId; });
+	if (!Al || Al->Balance < O.Price) return FString();
+	FADPAircraft A; A.Reg = FString::Printf(TEXT("%s-U%02d"), Al->Icao.IsEmpty() ? TEXT("XX") : *Al->Icao.Left(2), W.NextReg++ % 100);
+	A.TypeId = O.TypeId; A.AirlineId = AirlineId; A.Base = A.Location = Base; A.Value = O.Price; A.Condition = O.Condition; A.HoursMin = O.AgeYears * 3000.0 * 60.0;
+	W.Aircraft.Add(A); W.UsedMarket.RemoveAt(Offer);
+	Pay(W, AirlineId, At, TEXT("purchase"), -O.Price, FString::Printf(TEXT("Bought a used %s, %d years old (%s)"), *O.TypeId, O.AgeYears, *A.Reg), A.Reg);
+	return A.Reg;
+}
+
+bool ADPEconomy::SellAircraft(FADPWorld& W, const FString& Reg, const FDateTime& At)
+{
+	const int32 I = W.Aircraft.IndexOfByPredicate([&](const FADPAircraft& X) { return X.Reg == Reg; });
+	if (I == INDEX_NONE || W.Aircraft[I].Status == TEXT("flying")) return false;
+	const FADPAircraft A = W.Aircraft[I];
+	if (A.Ownership == TEXT("leased")) Pay(W, A.AirlineId, At, TEXT("lease"), -A.LeaseMonthly * 3.0, FString::Printf(TEXT("%s handed back early: three months' rent"), *Reg), Reg);
+	else Pay(W, A.AirlineId, At, TEXT("sale"), A.Value * (0.55 + 0.45 * A.Condition / 100.0) * 0.94, FString::Printf(TEXT("%s sold (6%% to the broker)"), *Reg), Reg);
+	W.Aircraft.RemoveAt(I);
+	return true;
+}
+
+void ADPEconomy::StartCampaign(FADPWorld& W, const FString& AirlineId, const FString& RouteId, int32 Weeks, const FDateTime& At)
+{
+	FADPCampaign C; C.AirlineId = AirlineId; C.RouteId = RouteId; C.Boost = RouteId.IsEmpty() ? 0.12 : 0.25; C.Until = At + FTimespan::FromDays(7.0 * FMath::Clamp(Weeks, 1, 4));
+	W.Campaigns.Add(C);
+	const double Cost = (RouteId.IsEmpty() ? 60000.0 : 15000.0) * FMath::Clamp(Weeks, 1, 4);
+	Pay(W, AirlineId, At, TEXT("marketing"), -Cost, FString::Printf(TEXT("Marketing campaign, %d weeks (%s)"), Weeks, RouteId.IsEmpty() ? TEXT("the whole airline") : *RouteId));
+}
+
+double ADPEconomy::CampaignBoost(const FADPWorld& W, const FString& AirlineId, const FString& RouteId, const FDateTime& At)
+{
+	double B = 0.0;
+	for (const FADPCampaign& C : W.Campaigns) if (C.AirlineId == AirlineId && C.Until > At && (C.RouteId.IsEmpty() || C.RouteId == RouteId)) B += C.Boost;
+	return FMath::Min(B, 0.35);
 }

@@ -80,6 +80,15 @@ void UADPSim::Initialize(FSubsystemCollectionBase& Collection)
 			{ const FADPWx X = ADPWeather::At(Ap, I->Lat, I->Lon, Now()); ADP_LOG(TEXT("SimFlyTest: weather %s %s: wind %03.0f/%.0f kt gust %.0f, vis %.0f m, ceiling %.0f ft, %.0f C%s%s - %s"), Ap, X.bLive ? TEXT("LIVE") : TEXT("climate"), X.WindDir, X.WindKt, X.GustKt, X.VisM, X.CeilingFt, X.TempC, X.bSnow ? TEXT(" snow") : TEXT(""), X.bStorm ? TEXT(" storm") : TEXT(""), *X.Raw); }
 			ADP_LOG(TEXT("SimFlyTest: %d live reports; weather waits %lld, de-icings %lld, holds %lld, diversions %lld, failures %lld, curfew waits %lld"), ADPWeather::NumReports(), M->WxWaits, M->DeIcings, M->Holds, M->Diversions, M->Failures, M->Curfews); ADP_LOG(TEXT("SimFlyTest: passengers %lld on %lld departures, average load %.0f%%, ticket and cargo money $%.0f"), M->PaxCarried, M->Departures, M->Departures ? M->LoadSum / M->Departures * 100.0 : 0.0, M->RevenueSum); for (const FADPFlight& F : World.Flights) ADP_LOG(TEXT("SimFlyTest: on board %s %s-%s: %d economy, %d business, %d first, %.0f kg cargo, %.0f%% full, $%.0f"), *F.Reg, *F.From, *F.To, F.Pax, F.PaxJ, F.PaxF, F.CargoKg, F.LoadFactor * 100.0, F.Revenue); for (const FADPNotice& N : World.Notices) ADP_LOG(TEXT("SimFlyTest: notice - %s"), *N.Text);
 			{
+				// buying, leasing, selling, a used one, a campaign - each booked
+				const FString B1 = ADPEconomy::BuyAircraft(World, TEXT("me"), TEXT("AT76"), false, TEXT("EKVG"), Now());
+				const FString B2 = ADPEconomy::BuyAircraft(World, TEXT("me"), TEXT("A321"), true, TEXT("EKVG"), Now());
+				const FString B3 = ADPEconomy::BuyUsed(World, TEXT("me"), 0, TEXT("EKVG"), Now());
+				const bool bSold = ADPEconomy::SellAircraft(World, B1, Now());
+				ADPEconomy::StartCampaign(World, TEXT("me"), FString(), 2, Now());
+				ADP_LOG(TEXT("SimFlyTest: deals - bought %s, leased %s, used %s, sold the first %d; fuel index %.2f, parts %.2f, %d market news, %d used offers"), *B1, *B2, *B3, bSold, World.FuelIndex, World.PartsIndex, Eco->MarketNews, World.UsedMarket.Num());
+			}
+			{
 				TMap<FString, double> ByKind; for (const FADPTxn& T : World.Ledger) ByKind.FindOrAdd(T.Kind) += T.Amount;
 				FString Lines; for (const auto& K : ByKind) Lines += FString::Printf(TEXT("%s %.0f, "), *K.Key, K.Value);
 				ADP_LOG(TEXT("SimFlyTest: money - %s%d paydays, %d month ends, balance $%.0f (from $5,000,000 + a $20M loan), %d ledger lines"), *Lines, Eco->Paydays, Eco->MonthEnds, World.Airlines[0].Balance, World.Ledger.Num());

@@ -2,6 +2,7 @@
 #include "Sim/ADPDemand.h"
 #include "Sim/ADPSimData.h"
 #include "Sim/ADPWorldData.h"
+#include "Sim/ADPEconomy.h"
 
 namespace
 {
@@ -62,7 +63,7 @@ FADPBooking ADPDemand::Book(const FADPWorld& W, const FString& AirlineId, const 
 			const FADPAirline* O = W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == R.AirlineId; });
 			Others += (0.4 + (O ? O->Quality : 0.75)) * FMath::Pow(FMath::Clamp(R.FareIndex, 0.4, 3.0), -1.6);
 		}
-	const double MyPull = (0.4 + MyQ) * FMath::Pow(MyFare, -1.6);
+	const double MyPull = (0.4 + MyQ) * FMath::Pow(MyFare, -1.6) * (1.0 + ADPEconomy::CampaignBoost(W, AirlineId, RouteId, When));
 	// the market reacts to price too: cheap fares bring more people out
 	const double Market = MarketPax(A, B, When) * FMath::Pow(MyFare, -0.6);
 	const double Share = MyPull / (MyPull + Others);

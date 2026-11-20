@@ -166,6 +166,27 @@ USTRUCT() struct FADPLoan
 	UPROPERTY() double Monthly = 0.0;      // the instalment (interest + repayment)
 };
 
+/** An aircraft offered on the used market. */
+USTRUCT() struct FADPUsedOffer
+{
+	GENERATED_BODY()
+	UPROPERTY() FString TypeId;
+	UPROPERTY() int32 AgeYears = 5;
+	UPROPERTY() double Condition = 80.0;
+	UPROPERTY() double Price = 0.0;
+	UPROPERTY() FString Location;
+};
+
+/** A marketing campaign: more travellers choose the airline (on one route, or everywhere) until it ends. */
+USTRUCT() struct FADPCampaign
+{
+	GENERATED_BODY()
+	UPROPERTY() FString AirlineId;
+	UPROPERTY() FString RouteId;           // empty: the whole airline
+	UPROPERTY() double Boost = 0.1;        // +10% pull
+	UPROPERTY() FDateTime Until;
+};
+
 /** The whole simulated world of one career. */
 USTRUCT() struct FADPWorld
 {
@@ -185,5 +206,13 @@ USTRUCT() struct FADPWorld
 	UPROPERTY() TArray<FADPTxn> Ledger;
 	UPROPERTY() TArray<FADPNotice> Notices;
 	UPROPERTY() TArray<FADPLoan> Loans;
+	UPROPERTY() double FuelIndex = 1.0;    // the fuel market (1 = normal), 0.55..2.2
+	UPROPERTY() double PartsIndex = 1.0;   // the parts market
+	UPROPERTY() double FuelTarget = 1.0;
+	UPROPERTY() double PartsTarget = 1.0;
+	UPROPERTY() FDateTime NextMarketNews;
+	UPROPERTY() TArray<FADPUsedOffer> UsedMarket;
+	UPROPERTY() TArray<FADPCampaign> Campaigns;
+	UPROPERTY() int32 NextReg = 1;
 	UPROPERTY() TMap<FString, FDateTime> ModuleTimes;   // where each module had got to
 };
