@@ -28,7 +28,7 @@ def zigzag(a):
     a = a.astype(np.int64); d = (a >> 1) ^ -(a & 1); return np.cumsum(d)
 
 class Tiles:
-    def __init__(self, root): self.root = Path(root); self.cache = {}
+    def __init__(self, root, finest=13): self.root = Path(root); self.cache = {}; self.finest = finest
     def tile(self, z, x, y):
         k = (z, x, y)
         if k in self.cache: return self.cache[k]
@@ -49,7 +49,7 @@ class Tiles:
         t = (-180 + x * s + u / 32767.0 * s, -90 + y * s + v / 32767.0 * s, minh + h / 32767.0 * (maxh - minh), ind.reshape(-1, 3))
         self.cache[k] = t; return t
     def height(self, lon, lat):
-        for z in range(13, 8, -1):   # the finest level there
+        for z in range(self.finest, 8, -1):   # the finest level there
             s = 180.0 / (1 << z); t = self.tile(z, int((lon + 180) / s), int((lat + 90) / s))
             if t is None: continue
             X, Y, H, T = t
@@ -61,9 +61,12 @@ class Tiles:
         return None
 
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument('--tiles', default='F:/ADP-Terrain/tiles-v2'); ap.add_argument('--probe', action='store_true'); a = ap.parse_args()
+    ap = argparse.ArgumentParser(); ap.add_argument('--tiles', default='F:/ADP-Terrain/tiles-v2'); ap.add_argument('--probe', action='store_true')
+    ap.add_argument('--site', help='another airport site (Data/Sites/<id>: its anchor, terrain.json and roads.json; Site.h)'); a = ap.parse_args()
     F = json.loads((ROOT / 'Data' / 'airfield.json').read_text(encoding='utf-8')); ap_ = F['airport']; rw = F['runway']
-    AH = json.loads((ROOT / 'Data' / 'terrain.json').read_text())['airportHeight']
+    SD = ROOT / 'Data' / 'Sites' / a.site if a.site else ROOT / 'Data'
+    if a.site: ap_ = dict(ap_, **json.loads((SD / 'site.json').read_text(encoding='utf-8'))['airport'])
+    AH = json.loads((SD / 'terrain.json').read_text())['airportHeight']
     # the origin, as Globe.cpp places it: the runway's middle at the airport's coordinates, the plan turned to its heading
     H = math.radians(ap_['hdg']); mx, my = (rw['x0'] + rw['x1']) / 2, rw['y']
     east0 = -mx * math.sin(H) - my * math.sin(H - math.pi / 2); north0 = -mx * math.cos(H) - my * math.cos(H - math.pi / 2)
@@ -71,7 +74,7 @@ def main():
     h0 = AH + 0.4
     O = ecef(lon0, lat0, h0); lo, la = math.radians(lon0), math.radians(lat0)
     E = np.array([-math.sin(lo), math.cos(lo), 0]); N = np.array([-math.sin(la) * math.cos(lo), -math.sin(la) * math.sin(lo), math.cos(la)]); U = np.cross(E, N)
-    tiles = Tiles(a.tiles)
+    tiles = Tiles(a.tiles, 17 if a.site else 13)   # (a new site's own model goes down to level 17)
     def game_height(x, y):
         """A plan point's ground, as the game's z: from its place on the Earth (east/north in the georeference's plane)."""
         e = x * math.sin(H) + y * math.sin(H - math.pi / 2); n = x * math.cos(H) + y * math.cos(H - math.pi / 2)
@@ -80,7 +83,7 @@ def main():
         hh = tiles.height(lon, lat)
         if hh is None: return None
         return float(np.dot(ecef(lon, lat, hh) - O, U))   # (the Earth's curve included)
-    R = json.loads((ROOT / 'Data' / 'roads.json').read_text(encoding='utf-8'))
+    R = json.loads((SD / 'roads.json').read_text(encoding='utf-8'))
     B = F['boundary']
     out_ = lambda x, y: min(x - B['x0'], B['x1'] - x, y - B['y0'], B['y1'] - y) < 70.0
     want = []
@@ -124,7 +127,7 @@ def main():
         for k in range(len(pts)): pts[k][2] = round(pts[k][2] + float(corr[k]), 2)
         print('road_ground: corrected to %d measured points (difference %.2f to %.2f m)' % (len(Mx), Md.min(), Md.max()))
     J = json.dumps({'source': 'Tools/road_ground.py (terrain tiles %s, level 13)' % a.tiles, 'pts': pts})
-    for d in (ROOT / 'Data', ROOT / 'Content' / 'Data'): (d / 'road-ground.json').write_text(J)
+    for d in ((SD, ROOT / 'Content' / 'Data' / 'Sites' / a.site) if a.site else (ROOT / 'Data', ROOT / 'Content' / 'Data')): (d / 'road-ground.json').write_text(J)
     zs = [p[2] for p in pts]
     print('road_ground: %d of %d points from the tiles (ground %.1f to %.1f m)' % (len(pts), len(want), min(zs), max(zs)))
 

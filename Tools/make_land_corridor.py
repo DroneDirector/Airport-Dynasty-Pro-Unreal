@@ -34,9 +34,13 @@ AREAS = []          # [[(x, y), ...], ...] - e.g. the town's built area, once it
 COARSE_Z = 11       # the globe's level seen at mid distance (what the edge eases to)
 LC_Z = 7            # the land cover's North Atlantic level (Globe.cpp: 4 x 2 roots over -28.125..-5.625, 56.25..67.5)
 
+SITE = None        # another airport site (--site <id>: Data/Sites/<id>; Site.h)
+def site_dir(): return ROOT / 'Data' / 'Sites' / SITE if SITE else ROOT / 'Data'
+
 def georef():
     F = json.loads((ROOT / 'Data' / 'airfield.json').read_text(encoding='utf-8')); ap = F['airport']; rw = F['runway']
-    AH = json.loads((ROOT / 'Data' / 'terrain.json').read_text())['airportHeight']
+    if SITE: ap = dict(ap, **json.loads((site_dir() / 'site.json').read_text(encoding='utf-8'))['airport'])
+    AH = json.loads((site_dir() / 'terrain.json').read_text())['airportHeight']
     H = math.radians(ap['hdg']); mx, my = (rw['x0'] + rw['x1']) / 2, rw['y']
     east0 = -mx * math.sin(H) - my * math.sin(H - math.pi / 2); north0 = -mx * math.cos(H) - my * math.cos(H - math.pi / 2)
     lat0 = ap['lat'] + north0 / 111320.0; lon0 = ap['lon'] + east0 / (111320.0 * math.cos(math.radians(ap['lat'])))
@@ -126,6 +130,26 @@ def imagery_rgb(lon, lat, src):
         rgb[sel] = (a[y0, x0] * (1 - ax) + a[y0, x0 + 1] * ax) * (1 - ay) + (a[y0 + 1, x0] * (1 - ax) + a[y0 + 1, x0 + 1] * ax) * ay
     return rgb
 
+def photo_rgb(lon, lat):
+    """The site's own aerial photo (Tools/make_site_imagery.py tiles, numbered inside its rectangle), its finest level."""
+    S = json.loads((site_dir() / 'site.json').read_text(encoding='utf-8')); D = Path(S['imageryDev'])
+    T = json.loads((D / 'tiles.json').read_text()); z0 = T['webLevel0']; L = T['maxLevel']; z = z0 + L; n0 = 1 << z0; n = 1 << z
+    def web(lo, la): return (lo + 180.0) / 360.0, (1.0 - np.log(np.tan(np.radians(la)) + 1.0 / np.cos(np.radians(la))) / math.pi) / 2.0
+    wx, wy = web(T['west'] + 1e-9, T['north'] - 1e-9); X0 = int(wx * n0); Y0 = int(wy * n0); k = 1 << L
+    fx, fy = web(lon, lat); fx = fx * n; fy = fy * n
+    tx = np.floor(fx).astype(int); ty = np.floor(fy).astype(int)
+    rgb = np.zeros((len(lon), 3), np.float32); have = np.zeros(len(lon), bool)
+    for key in set(zip(tx, ty)):
+        f = D / str(L) / str(key[0] - X0 * k) / ('%d.jpg' % (key[1] - Y0 * k))
+        if not f.exists(): continue
+        a = np.asarray(Image.open(f).convert('RGB'), np.float32); Sz = a.shape[0]
+        sel = (tx == key[0]) & (ty == key[1])
+        px = np.clip((fx[sel] - key[0]) * Sz - 0.5, 0, Sz - 1.001); py = np.clip((fy[sel] - key[1]) * Sz - 0.5, 0, Sz - 1.001)
+        x0 = px.astype(int); y0 = py.astype(int); ax = (px - x0)[:, None]; ay = (py - y0)[:, None]
+        rgb[sel] = (a[y0, x0] * (1 - ax) + a[y0, x0 + 1] * ax) * (1 - ay) + (a[y0 + 1, x0] * (1 - ax) + a[y0 + 1, x0 + 1] * ax) * ay; have[sel] = True
+    print('  photo: %d of %d points' % (have.sum(), len(lon)), flush=True)
+    return rgb
+
 def wavy(poly, amp, seed=7):
     """the outline wandering in and out by up to amp (smooth: a few long waves along it), so no straight edge shows"""
     rnd = np.random.default_rng(seed)
@@ -149,7 +173,7 @@ def wavy(poly, amp, seed=7):
 def main():
     F, H, O, E, N, U = georef()
     B = F['boundary']; field = box(min(B['x0'], B['x1']), min(B['y0'], B['y1']), max(B['x0'], B['x1']), max(B['y0'], B['y1']))
-    R = json.loads((ROOT / 'Data' / 'roads.json').read_text(encoding='utf-8'))
+    R = json.loads((site_dir() / 'roads.json').read_text(encoding='utf-8'))
     lines = [LineString([(p[0], p[1]) for p in r['pts']]) for r in R['roads'] if len(r['pts']) > 1]
     lines = [l for l in lines if not field.buffer(-60).contains(l)]
     band = unary_union([l.buffer(HALF, quad_segs=12) for l in lines] + [Polygon(a).buffer(HALF * 0.5) for a in AREAS])
@@ -166,7 +190,7 @@ def main():
     lon, lat = plan_to_lonlat(X, Y, H, O, E, N)
     tiles = rg.Tiles(TILES)
     print('heights at %d points...' % len(X), flush=True)
-    hf = heights_at(lon, lat, tiles, 13)
+    hf = heights_at(lon, lat, tiles, 17 if SITE else 13)
     hc = heights_at(lon, lat, tiles, COARSE_Z)
     zf = game_z(lon, lat, hf, O, U); zc = game_z(lon, lat, np.where(np.isnan(hc), hf, hc), O, U)
     # the last EASE metres toward the coarser level (what the globe shows round it from mid distance)
@@ -178,8 +202,9 @@ def main():
     from scipy.ndimage import distance_transform_edt
     _, (iy, ix) = distance_transform_edt(~inside, return_indices=True)
     pics = {}
+    site_rgb = photo_rgb(lon, lat) if SITE else None   # (a site with its own photo: that, whatever the globe's source)
     for src in (0, 1, 2, 3):
-        rgb = imagery_rgb(lon, lat, src) if src in SOURCES else landcover_rgb(lon, lat)
+        rgb = site_rgb if SITE else imagery_rgb(lon, lat, src) if src in SOURCES else landcover_rgb(lon, lat)
         img = np.zeros((ny, nx, 3), np.uint8); img[inside] = np.clip(rgb, 0, 255).astype(np.uint8)
         pics[src] = img[iy, ix]    # (outside the band, the nearest colour: no dark rim from filtering at the edge)
         print('  colours from source %d' % src, flush=True)
@@ -188,7 +213,7 @@ def main():
         return [[[round(x, 2), round(y, 2)] for x, y in p.exterior.coords] for p in geoms if p.area > 400]
     head = {'source': 'Tools/make_land_corridor.py (terrain %s, level 13; edge eased to level %d)' % (TILES, COARSE_Z),
             'x0': x0, 'y0': y0, 'step': STEP, 'nx': nx, 'ny': ny, 'cut': rings(cut), 'outline': rings(band)}
-    for d in (ROOT / 'Data', ROOT / 'Content' / 'Data'):
+    for d in ((site_dir(), ROOT / 'Content' / 'Data' / 'Sites' / SITE) if SITE else (ROOT / 'Data', ROOT / 'Content' / 'Data')):
         (d / 'land-corridor.json').write_text(json.dumps(head))
         Z.astype('<f4').tofile(d / 'land-corridor.bin')
         for src, img in pics.items():   # (row 0 = the north edge, y1, as images run); -0 the default (Sentinel-2)
@@ -197,4 +222,5 @@ def main():
     print('land corridor: %d points, ground %.1f to %.1f m, %d cut polygons' % (inside.sum(), np.nanmin(Z), np.nanmax(Z), len(head['cut'])))
 
 if __name__ == '__main__':
+    if '--site' in sys.argv: SITE = sys.argv[sys.argv.index('--site') + 1]
     main()
