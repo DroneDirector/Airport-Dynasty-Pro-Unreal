@@ -62,6 +62,21 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 - [ ] The rest of the graphics sliders and toggles in Settings
 - [ ] Unreal trees in place of every outdoor tree (licence allowing a paid game)
 - [ ] World Partition / HLOD (distant buildings fade, no popping) and a performance pass
+- [ ] **NUMBER 2 - right after everything above in this section is done (owner, 2026-11-20): the world rules on their
+      own JavaScript engine inside the game, and the menus moved to Unreal's interface screen by screen.**
+      - [ ] **The world rules out of the hidden web view:** the shared TypeScript world (NPC airlines and their traffic,
+            timetables and inbound flights with their gates and stands, crew and staff rotas and shifts, duties such as
+            the gate agent at the jetway console about 20 min before an arrival, passengers as data, the economy) runs on
+            a small JavaScript engine embedded in the game, from the start and whether or not a menu is open - no longer
+            only in the menus' web browser, which today is made the first time the menus open. Same code as Android, so
+            the editions never drift apart; much lighter than a whole browser (memory, background work). About 15-30 h
+            nonstop. Unreal's side stays C++ (Mass Entity, StateTree, Smart Objects): the NPCs leaving home, driving or
+            taking the bus, walking in, being at the stand on time (walking adjusted to the world's times), animations.
+      - [ ] **The menus as Unreal's own interface, screen by screen** (about 2-6 h nonstop each), each one asking the
+            embedded world for its data; when the last screen is moved, the web view goes completely.
+      - Goes with section 7 (the bridge, the one-day check in both setups, one save in the cloud). Why: the only
+        Babylon-era code still running in the PC game is the menus' web view (the buildings are all Unreal models);
+        NPC schedules need a world that always runs.
 
 ## 1. Distribution: updates, installer, selling
 - [x] **Updater shows its speed and a progress bar** (owner, 2026-11-10): while updating the game, the download speed
