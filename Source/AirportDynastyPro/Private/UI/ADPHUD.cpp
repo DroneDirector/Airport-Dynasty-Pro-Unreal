@@ -5716,19 +5716,21 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 			// (the tour starts 40 s in or once the world has finished loading, whichever is later: a busy PC loads slower)
 			static float Off = -1.f; if (Off < 0.f && ShotClock >= 40.f && ADPLateWorld::Done()) Off = ShotClock - 40.f;
 			const float B2 = Off < 0.f ? 0.f : Before - Off, C2 = Off < 0.f ? 0.f : ShotClock - Off;
+			// (-UIChablaisRoads / -UIChablaisShow: only their own list of spots, straight after the start)
+			const bool bList = FParse::Param(FCommandLine::Get(), TEXT("UIChablaisRoads")) || FParse::Param(FCommandLine::Get(), TEXT("UIChablaisShow"));
 			auto Shot = [](const TCHAR* Name) { FScreenshotRequest::RequestScreenshot(Name, false, false); };   // (the window's own size: run it at 3840 x 2160)
 			const FAirfieldData& F = AAirfield::Shared();
 			auto Go = [&](float X, float Y, float LX, float LY, float LH) { GoTo(FVector(X, 0.f, Y), FVector(LX, LH, LY)); };
 			if (B2 < 40.f && C2 >= 40.f) { if (bGame) ToggleGame(); if (GameBox.IsValid()) GameBox->SetVisibility(EVisibility::Collapsed); if (MiniBox.IsValid()) MiniBox->SetVisibility(EVisibility::Collapsed);   // (the menu page away: the 3D world on screen, owner 2026-11-20)
-			 ASunClock::DayOverride = 200; ASunClock::HourOverride = 15.f; ASunClock::Theme = 1; ASunClock::Refresh(); Go(F.RwyX0 + 200.f, F.RwyY - 70.f, F.RwyX0 + 2400.f, F.RwyY, 40.f); }
+			 ASunClock::DayOverride = 200; ASunClock::HourOverride = FParse::Param(FCommandLine::Get(), TEXT("UIChablaisShow")) ? 11.f : 15.f; ASunClock::Theme = 1; ASunClock::Refresh(); Go(F.RwyX0 + 200.f, F.RwyY - 70.f, F.RwyX0 + 2400.f, F.RwyY, 40.f); }
 			// (30 s at each spot: the terrain's finer tiles load in first)
-			if (B2 < 70.f && C2 >= 70.f) Shot(TEXT("Chablais_1_Runway_North"));
-			if (B2 < 71.f && C2 >= 71.f) Go(F.RwyX1 - 200.f, F.RwyY - 70.f, F.RwyX1 - 2400.f, F.RwyY, 120.f);
-			if (B2 < 100.f && C2 >= 100.f) Shot(TEXT("Chablais_2_Runway_South"));
-			if (B2 < 101.f && C2 >= 101.f) Go(81.f, F.AY + 31.5f, 81.f, F.AY + 1500.f, 120.f);
-			if (B2 < 130.f && C2 >= 130.f) Shot(TEXT("Chablais_3_Apron_West"));
-			if (B2 < 131.f && C2 >= 131.f) Go(81.f, F.BY + 60.f, 81.f, -300.f, 60.f);
-			if (B2 < 160.f && C2 >= 160.f) Shot(TEXT("Chablais_4_Terminal_East"));
+			if (!bList && B2 < 70.f && C2 >= 70.f) Shot(TEXT("Chablais_1_Runway_North"));
+			if (!bList && B2 < 71.f && C2 >= 71.f) Go(F.RwyX1 - 200.f, F.RwyY - 70.f, F.RwyX1 - 2400.f, F.RwyY, 120.f);
+			if (!bList && B2 < 100.f && C2 >= 100.f) Shot(TEXT("Chablais_2_Runway_South"));
+			if (!bList && B2 < 101.f && C2 >= 101.f) Go(81.f, F.AY + 31.5f, 81.f, F.AY + 1500.f, 120.f);
+			if (!bList && B2 < 130.f && C2 >= 130.f) Shot(TEXT("Chablais_3_Apron_West"));
+			if (!bList && B2 < 131.f && C2 >= 131.f) Go(81.f, F.BY + 60.f, 81.f, -300.f, 60.f);
+			if (!bList && B2 < 160.f && C2 >= 160.f) Shot(TEXT("Chablais_4_Terminal_East"));
 			// the whole airport from the drone, 50 m up, gently down so the mountains round it are in too (owner, 2026-11-20)
 			auto Fly = [this](float X, float Y, float H, float LX, float LY, float Pitch)
 			{
@@ -5742,12 +5744,12 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 				}
 				HideUI();
 			};
-			if (B2 < 161.f && C2 >= 161.f) Fly(F.RwyX0 - 700.f, -500.f, 50.f, 300.f, 900.f, -9.f);
-			if (B2 < 190.f && C2 >= 190.f) Shot(TEXT("Chablais_5_Drone_Corner"));
-			if (B2 < 191.f && C2 >= 191.f) Fly(81.f, 1750.f, 50.f, 81.f, -300.f, -8.f);   // (from the west, over the Rhone side: east of the terminal the mountainside rises at once)
-			if (B2 < 220.f && C2 >= 220.f) Shot(TEXT("Chablais_6_Drone_West"));
-			if (B2 < 221.f && C2 >= 221.f) Fly(F.RwyX1 + 900.f, F.RwyY, 50.f, F.RwyX1 + 5000.f, F.RwyY, -6.f);   // (north of the runway: the shore and the lake)
-			if (B2 < 250.f && C2 >= 250.f) Shot(TEXT("Chablais_7_Drone_Lake"));
+			if (!bList && B2 < 161.f && C2 >= 161.f) Fly(F.RwyX0 - 700.f, -500.f, 50.f, 300.f, 900.f, -9.f);
+			if (!bList && B2 < 190.f && C2 >= 190.f) Shot(TEXT("Chablais_5_Drone_Corner"));
+			if (!bList && B2 < 191.f && C2 >= 191.f) Fly(81.f, 1750.f, 50.f, 81.f, -300.f, -8.f);   // (from the west, over the Rhone side: east of the terminal the mountainside rises at once)
+			if (!bList && B2 < 220.f && C2 >= 220.f) Shot(TEXT("Chablais_6_Drone_West"));
+			if (!bList && B2 < 221.f && C2 >= 221.f) Fly(F.RwyX1 + 900.f, F.RwyY, 50.f, F.RwyX1 + 5000.f, F.RwyY, -6.f);   // (north of the runway: the shore and the lake)
+			if (!bList && B2 < 250.f && C2 >= 250.f) Shot(TEXT("Chablais_7_Drone_Lake"));
 			// every spawn spot, as in the Iceland edition (they are the terminal's own, so the same here): 20 s each to load
 			struct FSpot { const TCHAR* Name; TFunction<void()> Go; };
 			TArray<FSpot> Spots = {
@@ -5765,9 +5767,42 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 					{TEXT("ChablaisRoads_3_ToTown"), [this, Fly]() { Fly(1000.f, -420.f, 35.f, 2197.f, -1166.f, -7.f); }},
 					{TEXT("ChablaisRoads_4_LinkStart"), [this]() { if (Drone.IsValid()) LeaveDrone(); GoTo(FVector(2150.f, 0.f, -1155.f), FVector(2600.f, 1.7f, -1300.f)); }},
 					{TEXT("ChablaisRoads_5_EntranceMorning"), [this]() { ASunClock::HourOverride = 9.f; ASunClock::Refresh(); GoEntrance(); }}};
+			// -UIChablaisShow: the owner's showcase (2026-11-20): the 10-20 cm Swiss photo on the ground and the mountains from
+			// several heights, the terminal all round and close, a jetway three ways, gate 4 out to the mountains, the fire
+			// station three ways, the hangars (one with the mountains), the tower, a taxiway, and the whole runway from above its
+			// end and from behind its corner; a summer day at 11:00
+			if (FParse::Param(FCommandLine::Get(), TEXT("UIChablaisShow")))
+			{
+				const float RX0 = F.RwyX0, RX1 = F.RwyX1, RY = F.RwyY, AY = F.AY;
+				Spots = {
+					{TEXT("Show_01_High_North_Lake"), [=, this]() { Fly(RX0 - 1500.f, RY, 300.f, RX1, RY, -12.f); }},
+					{TEXT("Show_02_High_South_DentsDuMidi"), [=, this]() { Fly(RX1 + 1500.f, RY, 300.f, RX0, RY, -10.f); }},
+					{TEXT("Show_03_Ground_Photo_Fields"), [=, this]() { Fly(81.f, 2300.f, 80.f, 81.f, 2380.f, -50.f); }},
+					{TEXT("Show_04_Lake_Shore"), [=, this]() { Fly(RX1 + 1200.f, RY + 600.f, 120.f, RX1 + 3000.f, RY + 600.f, -18.f); }},
+					{TEXT("Show_05_Mountains_East"), [=, this]() { Fly(81.f, 2500.f, 200.f, 81.f, -3000.f, 1.f); }},
+					{TEXT("Show_06_Terminal_Front"), [=, this]() { Fly(150.f, -650.f, 70.f, 150.f, 0.f, -8.f); }},
+					{TEXT("Show_07_Terminal_Back"), [=, this]() { Fly(150.f, 900.f, 60.f, 150.f, 0.f, -6.f); }},
+					{TEXT("Show_08_Terminal_Side_South"), [=, this]() { Fly(-1200.f, 60.f, 50.f, 300.f, 60.f, -3.f); }},
+					{TEXT("Show_09_Terminal_Side_North"), [=, this]() { Fly(1500.f, 60.f, 50.f, 0.f, 60.f, -3.f); }},
+					{TEXT("Show_10_Terminal_Close_From_Crossing"), [=, this]() { Fly(100.f, -45.f, 14.f, 100.f, 5.f, -22.f); }},
+					{TEXT("Show_11_Jetway_Apron"), [this]() { GoApron(); }},
+					{TEXT("Show_12_Jetway_Side_Low"), [=, this]() { Fly(150.f, 140.f, 4.f, 186.f, 100.f, -5.f); }},
+					{TEXT("Show_13_Jetway_Above"), [=, this]() { Fly(232.f, 180.f, 14.f, 186.f, 95.f, -22.f); }},
+					{TEXT("Show_14_Gate4_Mountains"), [this]() { GoGate4(); }},
+					{TEXT("Show_15_FireStation_Front"), [this]() { GoFireStation(0); }},
+					{TEXT("Show_16_FireStation_Hero"), [this]() { GoFireStation(1); }},
+					{TEXT("Show_17_FireStation_Bays"), [this]() { GoFireStation(2); }},
+					{TEXT("Show_18_Hangar"), [this]() { GoHangar(0, 0); }},
+					{TEXT("Show_19_Hangars_Mountains"), [=, this]() { Fly(-350.f, 1050.f, 25.f, -350.f, 1700.f, -4.f); }},
+					{TEXT("Show_20_Tower_Cab"), [this]() { GoTowerCab(); }},
+					{TEXT("Show_21_Tower_Balcony"), [this]() { GoTowerBalcony(); }},
+					{TEXT("Show_22_Taxiway"), [this, RX0, AY]() { GoTo(FVector(900.f, 0.f, AY), FVector(RX0, 3.f, AY + 120.f)); }},
+					{TEXT("Show_23_Runway_From_End_High"), [=, this]() { Fly(RX0 - 150.f, RY, 80.f, RX1, RY, -3.f); }},
+					{TEXT("Show_24_Runway_From_Corner"), [=, this]() { Fly(RX0 - 700.f, RY - 700.f, 120.f, RX1, RY + 200.f, -5.f); }}};
+			}
 			for (int32 k = 0; k < Spots.Num(); ++k)
 			{
-				const float T = 251.f + k * 22.f;
+				const float T = (bList ? 45.f : 251.f) + k * 22.f;
 				if (B2 < T && C2 >= T) { if (Drone.IsValid()) LeaveDrone(); Spots[k].Go(); HideUI(); }
 				if (B2 < T + 20.f && C2 >= T + 20.f) Shot(Spots[k].Name);
 				// (the road tour's link-road spot: rays across the horizon, logging what stands up there - the black pyramids)
@@ -5790,7 +5825,7 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 							}
 					}
 			}
-			if (B2 < 251.f + 22.f * 10 && C2 >= 251.f + 22.f * 10) ADP_SHOT_EXIT();
+			{ const float End = (bList ? 45.f : 251.f) + 22.f * Spots.Num(); if (B2 < End && C2 >= End) ADP_SHOT_EXIT(); }
 		}
 
 void AADPHUD::TestCoaches(float Before, float ShotClock)
