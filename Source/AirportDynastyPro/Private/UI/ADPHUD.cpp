@@ -2884,47 +2884,7 @@ void AADPHUD::Tick(float Dt)
 		}
 		// -UIAirfield: the airfield's grade and edges: down the runway from near the 08 end, an edge close up at taxiway A,
 		// the runway's end from the grass
-		// -UIChablais (with -Site=chablais -LocalTerrain): the new site looked at (2026-11-20): from both runway ends along it
-		// (the lake and Villeneuve one way, the Dents du Midi the other), from the apron across to the mountains, and back at
-		// the terminal from beyond the runway; a summer afternoon
-		if (FParse::Param(FCommandLine::Get(), TEXT("UIChablais")))
-		{
-			// (the tour starts 40 s in or once the world has finished loading, whichever is later: a busy PC loads slower)
-			static float Off = -1.f; if (Off < 0.f && ShotClock >= 40.f && ADPLateWorld::Done()) Off = ShotClock - 40.f;
-			const float B2 = Off < 0.f ? 0.f : Before - Off, C2 = Off < 0.f ? 0.f : ShotClock - Off;
-			auto Shot = [](const TCHAR* Name) { FScreenshotRequest::RequestScreenshot(Name, false, false); };   // (the window's own size: run it at 3840 x 2160)
-			const FAirfieldData& F = AAirfield::Shared();
-			auto Go = [&](float X, float Y, float LX, float LY, float LH) { GoTo(FVector(X, 0.f, Y), FVector(LX, LH, LY)); };
-			if (B2 < 40.f && C2 >= 40.f) { if (bGame) ToggleGame(); ASunClock::DayOverride = 200; ASunClock::HourOverride = 15.f; ASunClock::Theme = 1; ASunClock::Refresh(); Go(F.RwyX0 + 200.f, F.RwyY - 70.f, F.RwyX0 + 2400.f, F.RwyY, 40.f); }
-			// (30 s at each spot: the terrain's finer tiles load in first)
-			if (B2 < 70.f && C2 >= 70.f) Shot(TEXT("Chablais_1_Runway_North"));
-			if (B2 < 71.f && C2 >= 71.f) Go(F.RwyX1 - 200.f, F.RwyY - 70.f, F.RwyX1 - 2400.f, F.RwyY, 120.f);
-			if (B2 < 100.f && C2 >= 100.f) Shot(TEXT("Chablais_2_Runway_South"));
-			if (B2 < 101.f && C2 >= 101.f) Go(81.f, F.AY + 31.5f, 81.f, F.AY + 1500.f, 120.f);
-			if (B2 < 130.f && C2 >= 130.f) Shot(TEXT("Chablais_3_Apron_West"));
-			if (B2 < 131.f && C2 >= 131.f) Go(81.f, F.BY + 60.f, 81.f, -300.f, 60.f);
-			if (B2 < 160.f && C2 >= 160.f) Shot(TEXT("Chablais_4_Terminal_East"));
-			// the whole airport from the drone, 50 m up, gently down so the mountains round it are in too (owner, 2026-11-20)
-			auto Fly = [this](float X, float Y, float H, float LX, float LY, float Pitch)
-			{
-				if (!Drone.IsValid()) EnterDrone();
-				if (ADroneCam* D = Drone.Get())
-				{
-					D->SetTestInput(0.f, 0.f, 0.f, false);
-					const FVector At = FTerminalPlan::ToWorld(X, H, Y), To = FTerminalPlan::ToWorld(LX, 0.f, LY);
-					D->SetActorLocation(At, false, nullptr, ETeleportType::TeleportPhysics);
-					if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(FRotator(Pitch, (To - At).Rotation().Yaw, 0.f));
-				}
-				HideUI();
-			};
-			if (B2 < 161.f && C2 >= 161.f) Fly(F.RwyX0 - 700.f, -500.f, 50.f, 300.f, 900.f, -9.f);
-			if (B2 < 190.f && C2 >= 190.f) Shot(TEXT("Chablais_5_Drone_Corner"));
-			if (B2 < 191.f && C2 >= 191.f) Fly(81.f, 1750.f, 50.f, 81.f, -300.f, -8.f);   // (from the west, over the Rhone side: east of the terminal the mountainside rises at once)
-			if (B2 < 220.f && C2 >= 220.f) Shot(TEXT("Chablais_6_Drone_West"));
-			if (B2 < 221.f && C2 >= 221.f) Fly(F.RwyX1 + 900.f, F.RwyY, 50.f, F.RwyX1 + 5000.f, F.RwyY, -6.f);   // (north of the runway: the shore and the lake)
-			if (B2 < 250.f && C2 >= 250.f) Shot(TEXT("Chablais_7_Drone_Lake"));
-			if (B2 < 251.f && C2 >= 251.f) ADP_SHOT_EXIT();
-		}
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIChablais"))) TestChablais(Before, ShotClock);
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")))
 		{
 			auto Shot = [this](const TCHAR* Name) { if (APlayerController* PC = GetOwningPlayerController()) PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 2 filename=%s"), Name)); };
@@ -5744,6 +5704,62 @@ void AADPHUD::TestStrollers(float Before, float ShotClock)
 
 // -UICoaches (owner, 2026-11-19): the seven coaches in their stands on the forecourt - one picture with all of them from
 // above the road, one along the row at eye height
+// -UIChablais (with -Site=chablais -LocalTerrain): the new site looked at (2026-11-20): from both runway ends along it
+// (the lake and Villeneuve one way, the Dents du Midi the other), from the apron across to the mountains, and back at
+// the terminal from beyond the runway; a summer afternoon
+void AADPHUD::TestChablais(float Before, float ShotClock)
+{
+			// (the tour starts 40 s in or once the world has finished loading, whichever is later: a busy PC loads slower)
+			static float Off = -1.f; if (Off < 0.f && ShotClock >= 40.f && ADPLateWorld::Done()) Off = ShotClock - 40.f;
+			const float B2 = Off < 0.f ? 0.f : Before - Off, C2 = Off < 0.f ? 0.f : ShotClock - Off;
+			auto Shot = [](const TCHAR* Name) { FScreenshotRequest::RequestScreenshot(Name, false, false); };   // (the window's own size: run it at 3840 x 2160)
+			const FAirfieldData& F = AAirfield::Shared();
+			auto Go = [&](float X, float Y, float LX, float LY, float LH) { GoTo(FVector(X, 0.f, Y), FVector(LX, LH, LY)); };
+			if (B2 < 40.f && C2 >= 40.f) { if (bGame) ToggleGame(); ASunClock::DayOverride = 200; ASunClock::HourOverride = 15.f; ASunClock::Theme = 1; ASunClock::Refresh(); Go(F.RwyX0 + 200.f, F.RwyY - 70.f, F.RwyX0 + 2400.f, F.RwyY, 40.f); }
+			// (30 s at each spot: the terrain's finer tiles load in first)
+			if (B2 < 70.f && C2 >= 70.f) Shot(TEXT("Chablais_1_Runway_North"));
+			if (B2 < 71.f && C2 >= 71.f) Go(F.RwyX1 - 200.f, F.RwyY - 70.f, F.RwyX1 - 2400.f, F.RwyY, 120.f);
+			if (B2 < 100.f && C2 >= 100.f) Shot(TEXT("Chablais_2_Runway_South"));
+			if (B2 < 101.f && C2 >= 101.f) Go(81.f, F.AY + 31.5f, 81.f, F.AY + 1500.f, 120.f);
+			if (B2 < 130.f && C2 >= 130.f) Shot(TEXT("Chablais_3_Apron_West"));
+			if (B2 < 131.f && C2 >= 131.f) Go(81.f, F.BY + 60.f, 81.f, -300.f, 60.f);
+			if (B2 < 160.f && C2 >= 160.f) Shot(TEXT("Chablais_4_Terminal_East"));
+			// the whole airport from the drone, 50 m up, gently down so the mountains round it are in too (owner, 2026-11-20)
+			auto Fly = [this](float X, float Y, float H, float LX, float LY, float Pitch)
+			{
+				if (!Drone.IsValid()) EnterDrone();
+				if (ADroneCam* D = Drone.Get())
+				{
+					D->SetTestInput(0.f, 0.f, 0.f, false);
+					const FVector At = FTerminalPlan::ToWorld(X, H, Y), To = FTerminalPlan::ToWorld(LX, 0.f, LY);
+					D->SetActorLocation(At, false, nullptr, ETeleportType::TeleportPhysics);
+					if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(FRotator(Pitch, (To - At).Rotation().Yaw, 0.f));
+				}
+				HideUI();
+			};
+			if (B2 < 161.f && C2 >= 161.f) Fly(F.RwyX0 - 700.f, -500.f, 50.f, 300.f, 900.f, -9.f);
+			if (B2 < 190.f && C2 >= 190.f) Shot(TEXT("Chablais_5_Drone_Corner"));
+			if (B2 < 191.f && C2 >= 191.f) Fly(81.f, 1750.f, 50.f, 81.f, -300.f, -8.f);   // (from the west, over the Rhone side: east of the terminal the mountainside rises at once)
+			if (B2 < 220.f && C2 >= 220.f) Shot(TEXT("Chablais_6_Drone_West"));
+			if (B2 < 221.f && C2 >= 221.f) Fly(F.RwyX1 + 900.f, F.RwyY, 50.f, F.RwyX1 + 5000.f, F.RwyY, -6.f);   // (north of the runway: the shore and the lake)
+			if (B2 < 250.f && C2 >= 250.f) Shot(TEXT("Chablais_7_Drone_Lake"));
+			// every spawn spot, as in the Iceland edition (they are the terminal's own, so the same here): 20 s each to load
+			struct FSpot { const TCHAR* Name; TFunction<void()> Go; };
+			const TArray<FSpot> Spots = {
+				{TEXT("Chablais_08_Entrance"), [this]() { GoEntrance(); }}, {TEXT("Chablais_09_BaggageClaim"), [this]() { GoClaim(); }},
+				{TEXT("Chablais_10_Gate4_Upper"), [this]() { GoGate4(); }}, {TEXT("Chablais_11_Apron_Jetway"), [this]() { GoApron(); }},
+				{TEXT("Chablais_12_Gate13"), [this]() { GoGate13(); }}, {TEXT("Chablais_13_TaxFree"), [this]() { GoTaxFree(); }},
+				{TEXT("Chablais_14_FireStation"), [this]() { GoFireStation(0); }}, {TEXT("Chablais_15_Hangar"), [this]() { GoHangar(0, 0); }},
+				{TEXT("Chablais_16_TowerCab"), [this]() { GoTowerCab(); }}, {TEXT("Chablais_17_TowerFoot"), [this]() { GoTowerFoot(); }}};
+			for (int32 k = 0; k < Spots.Num(); ++k)
+			{
+				const float T = 251.f + k * 22.f;
+				if (B2 < T && C2 >= T) { if (Drone.IsValid()) LeaveDrone(); Spots[k].Go(); HideUI(); }
+				if (B2 < T + 20.f && C2 >= T + 20.f) Shot(Spots[k].Name);
+			}
+			if (B2 < 251.f + 22.f * 10 && C2 >= 251.f + 22.f * 10) ADP_SHOT_EXIT();
+		}
+
 void AADPHUD::TestCoaches(float Before, float ShotClock)
 {
 	APlayerController* PC = GetOwningPlayerController();
