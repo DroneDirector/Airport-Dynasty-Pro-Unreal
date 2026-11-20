@@ -61,6 +61,9 @@ steps, menus and Settings all become native Unreal screens. One simulation drive
 7. Rival airlines as real AI airlines: their own economy, buying/selling aircraft, opening and closing routes, hiring, reactions, poaching, takeover, bankruptcy, league - 10-14 h
 8. Events, jobs, reputation, ranks/badges/achievements, news, notifications, mail, briefing - 6-8 h
 9. Your airport live (155): passengers from the coaches to the aircraft, staff rota in 3D, conduct scenes - 10-14 h
+9b. Aircraft in 3D from the simulation (to-do 158): his A320 for every type for now, your starting aircraft at a gate,
+   all moving on their schedules (pushback, taxi, take-off, flight, landing, parking), every light animated by phase;
+   then the static parked A320s removed - 10-14 h
 10. Sync with the Android app + the live tracking data - 6-8 h
 11. The new Overview: design previews, then the clickable demo APK for your tablet - STOP for your OK - 6-8 h
 12. The Overview and all screens built for real, Settings, menus - 20-30 h
@@ -69,7 +72,7 @@ steps, menus and Settings all become native Unreal screens. One simulation drive
 
 15. Our own flight planning and dispatch from real-world data (no outside services) - 10-14 h
 
-About 125-170 working hours in all (16-21 working days). Each part is tested and committed; a release whenever a
+About 135-185 working hours in all (17-23 working days). Each part is tested and committed; a release whenever a
 useful group is done (your go-ahead covers publishing, except the Overview's look, which waits for the demo APK).
 
 ## Questions for the owner (before part 1)
