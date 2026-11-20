@@ -80,7 +80,8 @@ useful group is done (your go-ahead covers publishing, except the Overview's loo
 1. ANSWERED (owner, 2026-11-20): rival airlines become real AI airlines - they buy (and sell) aircraft, open routes,
    hire and can go bankrupt, each running its own economy. Your own airline is yours alone: you choose its aircraft,
    routes, economy and staff - the AI never decides for it.
-2. Time: keep the real clock (as now, with the catch-up), or add a game speed?
+2. ANSWERED (owner, 2026-11-20): the real clock - the world carries on and catches up while the game is closed - with
+   the real world's weather, everything as it is in the real world right now. No game speed.
 3. The Android app: it keeps running its own web game for now - must the PC's new save stay readable by it (so the two
    still sync), or is the Android app rebuilt from the new design later too?
 4. ANSWERED (owner, 2026-11-20): no links to outside services at all - no SimBrief, VATSIM/IVAO, Discord, ACARS or the
