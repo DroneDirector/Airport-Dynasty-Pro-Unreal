@@ -1,0 +1,22 @@
+{
+  "note": "Chablais Airport (owner, 2026-11-20): the same airport as Iceland's, on the Rhone plain between Noville, Villeneuve and Roche, runway true 336/156 (magnetic 33/15). Codes made up (checked free in OurAirports). Site.h",
+  "place": "Switzerland",
+  "airport": {
+    "icao": "LSCH",
+    "iata": "CLB",
+    "name": "Chablais Airport",
+    "word": "Aéroport",
+    "country": "CH",
+    "lat": 46.362,
+    "lon": 6.906,
+    "elevFt": 1238,
+    "hdg": 336,
+    "magvar": 3
+  },
+  "runwayEnds": ["33", "15"],
+  "utcOffset": 1,
+  "euSummerTime": true,
+  "credit": "Terrain and aerial photos: © swisstopo (swissALTI3D, SWISSIMAGE); French side © IGN (RGE ALTI, BD ORTHO), Licence Ouverte 2.0",
+  "lakeLevelM": 372.0,
+  "flatten": {"marginM": 120, "blendM": 450}
+}

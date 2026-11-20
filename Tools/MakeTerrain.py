@@ -164,7 +164,7 @@ def load_sites():
     af = json.loads((ROOT / 'Data' / 'airfield.json').read_text(encoding='utf-8'))
     b = af['boundary']; mx = (af['runway']['x0'] + af['runway']['x1']) / 2; my = af['runway']['y']
     out = []
-    for f in sorted((ROOT / 'Content' / 'Data' / 'Sites').glob('*/site.json')):
+    for f in sorted((ROOT / 'Data' / 'Sites').glob('*/site.json')):   # (copied into Content/Data with the rest)
         j = json.loads(f.read_text(encoding='utf-8')); ap = j['airport']; fl = j.get('flatten', {})
         out.append({'id': f.parent.name, 'dir': str(f.parent), 'lat': ap['lat'], 'lon': ap['lon'], 'hdg': ap['hdg'], 'mx': mx, 'my': my,
                     'box': (b['x0'], b['y0'], b['x1'], b['y1']), 'margin': fl.get('marginM', 120.0), 'blend': fl.get('blendM', 450.0)})
