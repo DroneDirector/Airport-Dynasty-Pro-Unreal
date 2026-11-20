@@ -30,3 +30,6 @@ MetaRoad 3.3.0 (https://www.fab.com/listings/a425c08b-d82a-4b42-ab94-101c3eb23f2
 the owner's Fab library. Licensed under the Fab Standard License (https://www.fab.com/eula): used to author and bake the
 airport's, the road's and the town's road network (Tools/build_roads.py); baked roads ship as static meshes, the plugin
 is packed for its run-time road graph only. The plugin itself is not redistributed on its own.
+
+## Music
+- The title music (title.mp3): made by the owner with Suno AI on a Pro plan, which gives him full ownership and commercial use; safe to use everywhere, including live streams on YouTube and elsewhere (owner, 2026-11-20). Every future soundtrack is listed here with its source and licence.
