@@ -176,6 +176,9 @@ namespace ADPPerfLogInternal
 			}
 		}
 		else PerfAvg = PerfAvg * 0.95 + Dt * 0.05;      // (a bad frame doesn't move the "usual")
+		// (to-do 149: every frame's game / render / graphics-card times summed, so each 30 s line says which one holds the frame)
+		static double PerfSumGame = 0.0, PerfSumRender = 0.0, PerfSumGpu = 0.0;
+		PerfSumGame += FPlatformTime::ToMilliseconds(GGameThreadTime); PerfSumRender += FPlatformTime::ToMilliseconds(GRenderThreadTime); PerfSumGpu += FPlatformTime::ToMilliseconds(RHIGetGPUFrameCycles());
 		if (PerfWindowStart == 0.0) PerfWindowStart = Now;
 		if (Now - PerfWindowStart >= 30.0 && PerfWindow.Num() > 10)
 		{
@@ -184,6 +187,8 @@ namespace ADPPerfLogInternal
 			const float Low1 = S[FMath::Clamp(int32(S.Num() * 0.99f), 0, S.Num() - 1)];
 			PerfLine(FString::Printf(TEXT("30 s: %.0f fps on average (%.1f ms), slowest 1%% %.1f ms (%.0f fps), worst %.0f ms, %d bad frames%s"),
 				1000.0 * S.Num() / Sum, Sum / S.Num(), Low1, 1000.f / Low1, S.Last(), PerfBad, *ADPPerfLog::ScreenLine(Now - PerfWindowStart, PerfFgShown, PerfFgMade)));
+			{ const double N = FMath::Max(1, S.Num()); PerfLine(FString::Printf(TEXT("      each frame on average: game %.1f ms, render %.1f ms, graphics card %.1f ms"), PerfSumGame / N, PerfSumRender / N, PerfSumGpu / N)); }
+			PerfSumGame = PerfSumRender = PerfSumGpu = 0.0;
 			PerfWindow.Reset(); PerfWindowStart = Now; PerfBad = 0;
 		}
 		return true;
@@ -294,8 +299,11 @@ FString ADPPerfLog::SceneAudit(UWorld* W)
 			UStaticMesh* M = S->GetStaticMesh(); if (!M || !M->GetRenderData() || !M->GetRenderData()->LODResources.Num()) continue;
 			const UInstancedStaticMeshComponent* I = Cast<UInstancedStaticMeshComponent>(S);
 			const int32 N = I ? I->GetInstanceCount() : 1; if (N <= 0) continue;
-			FRow& R = Rows.FindOrAdd(M->GetPathName());
-			R.Mesh = M->GetPathName(); if (R.Owner.IsEmpty() && S->GetOwner()) R.Owner = S->GetOwner()->GetClass()->GetName();
+			// (one row per mesh AND the kind of thing placing it, see-through or not - 6671 engine cubes all showed as "Actor")
+			bool bSee = false; for (int32 k = 0; k < S->GetNumMaterials(); ++k) if (UMaterialInterface* Mi = S->GetMaterial(k)) if (IsTranslucentBlendMode(Mi->GetBlendMode())) bSee = true;
+			const FString Who = S->GetOwner() ? (S->GetOwner()->GetClass() == AActor::StaticClass() ? S->GetOwner()->GetName() : S->GetOwner()->GetClass()->GetName()) : FString(TEXT("?"));
+			FRow& R = Rows.FindOrAdd(M->GetPathName() + TEXT("|") + Who + (bSee ? TEXT("|t") : TEXT("")));
+			R.Mesh = M->GetPathName(); if (R.Owner.IsEmpty()) R.Owner = Who + (S->GetMaterial(0) ? TEXT(" [") + S->GetMaterial(0)->GetName() + TEXT("]") : FString());
 			R.Copies += N; R.Tris = M->GetRenderData()->LODResources[0].GetNumTriangles(); R.Sections = M->GetRenderData()->LODResources[0].Sections.Num();
 			R.Size = FMath::Max(R.Size, (float)S->Bounds.SphereRadius * 2.f / 100.f);
 			R.bNanite = M->HasValidNaniteData() && !S->bDisallowNanite; R.bShadow |= S->CastShadow;

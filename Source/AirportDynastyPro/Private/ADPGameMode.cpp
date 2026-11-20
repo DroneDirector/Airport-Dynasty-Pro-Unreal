@@ -131,6 +131,7 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 		if (AAirfield* Field = W->SpawnActor<AAirfield>(FVector::ZeroVector, FRotator::ZeroRotator, P); Field && Field->Build(bBabylon))
 		{
 			// the hangars on the hangar apron, each on its own lead-in line (Data/airfield.json "hangars")
+			if (!FParse::Param(FCommandLine::Get(), TEXT("NoHangars")))   // (-NoHangars: measuring, to-do 149)
 			for (const FAirfieldData::FHangarSite& H : Field->Data().Hangars)
 				if (AHangar* Hg = W->SpawnActor<AHangar>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Hg->Build(H.Size, H.X, H.Y, H.bOpen);
 			// his A320 on the terminal's stands, nose tyres on their stop bars (ParkedAircraft.h)
@@ -185,6 +186,7 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 			if (AGlobe* Globe = W->SpawnActor<AGlobe>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 				Globe->Build(Field->Data());
 			// the grass on the airfield and the lawns: real blades, from your feet to the far edge of the field
+			if (!FParse::Param(FCommandLine::Get(), TEXT("NoGrass")))   // (-NoGrass: measuring, to-do 149)
 			if (AGrassField* Grass = W->SpawnActor<AGrassField>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 			{ const auto& B = Field->Data().Boundary; Grass->Start(B.X0, B.Y0, B.X1, B.Y1); }
 			// the real sun over the airport, for the date and the time of day
@@ -234,7 +236,8 @@ void AADPGameMode::SpawnSkyAndLight()
 	}
 	W->SpawnActor<AExponentialHeightFog>(FVector::ZeroVector, FRotator::ZeroRotator, P);
 	// the weather: volumetric clouds over the airport (the shared world's real weather drives them later)
-	W->SpawnActor<AVolumetricCloud>(FVector::ZeroVector, FRotator::ZeroRotator, P);
+	if (!FParse::Param(FCommandLine::Get(), TEXT("NoClouds")))   // (-NoClouds: measuring their cost, to-do 149)
+		W->SpawnActor<AVolumetricCloud>(FVector::ZeroVector, FRotator::ZeroRotator, P);
 
 	if (APostProcessVolume* PP = W->SpawnActor<APostProcessVolume>(FVector::ZeroVector, FRotator::ZeroRotator, P))
 	{

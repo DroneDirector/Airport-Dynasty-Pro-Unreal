@@ -37,7 +37,7 @@ else
   V=${PKG:-$(ls -d /f/ADP-Packaged/0.*/Full 2>/dev/null | sort -V | tail -1)}; [ -n "$V" ] || { echo "STOP: no packaged build"; exit 1; }
   echo "build: $V"
   L="$LOCALAPPDATA/AirportDynastyPro/Saved/Logs"
-  (cd "$V" && ADP_LOG=1 ./AirportDynastyPro/Binaries/Win64/AirportDynastyPro-Win64-Shipping.exe -UIShot $ROUTE -StallWatch $OFF ${EXE:+"-ExecCmds=$EXE"} > /dev/null 2>&1)
+  (cd "$V" && ADP_LOG=1 ./AirportDynastyPro/Binaries/Win64/AirportDynastyPro-Win64-Shipping.exe -UIShot $ROUTE -StallWatch $OFF $XTRA ${EXE:+"-ExecCmds=$EXE"} > /dev/null 2>&1)
   STEPS=$L/ADP.log
 fi
 echo "== the walk"; grep -E "Stress walk: " "$STEPS" | grep -v "way planned" | sed 's/.*Stress walk: //' | tr '\n' '|' | sed 's/|/ > /g'; echo

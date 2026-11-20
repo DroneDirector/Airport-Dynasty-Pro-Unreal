@@ -55,7 +55,10 @@ FString AADPHUD::LastUpdateProblem()
 	FFileHelper::LoadFileToString(Log, *(FPaths::ProjectSavedDir() / TEXT("Update") / TEXT("update.log")));
 	TArray<FString> Lines;
 	Log.ParseIntoArrayLines(Lines);
-	return Lines.Num() && Lines.Last().StartsWith(TEXT("Update failed")) ? Lines.Last() : FString();
+	// (each line starts with its date and time; the message after it)
+	if (!Lines.Num()) return FString();
+	const int32 At = Lines.Last().Find(TEXT("Update failed"));
+	return At != INDEX_NONE ? Lines.Last().RightChop(At) : FString();
 }
 
 void AADPHUD::CheckForUpdates()
@@ -132,8 +135,12 @@ void AADPHUD::InstallUpdate()
 	UpdateBusy = true;
 	UpdateFiles.Reset();
 	const FString Dir = FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir() / TEXT("Update"));
+	// (the old packages and their unpacked files go; the log stays - to-do 139: it was wiped with them, so a failed install
+	// left no trace of why the same update was offered again)
+	FString Log; FFileHelper::LoadFileToString(Log, *(Dir / TEXT("update.log")));
 	IFileManager::Get().DeleteDirectory(*Dir, false, true);
 	IFileManager::Get().MakeDirectory(*Dir, true);
+	if (!Log.IsEmpty()) FFileHelper::SaveStringToFile(Log, *(Dir / TEXT("update.log")));
 	DownloadNext(0, Dir);
 }
 
@@ -193,8 +200,25 @@ void AADPHUD::ApplyUpdate(const FString& Dir)
 	const FString Script = FString::Printf(TEXT(R"PS1(# Airport Dynasty Pro: puts an update in place after the game has closed, then starts it again.
 $ErrorActionPreference = 'Stop'
 $install = '%s'; $exe = '%s'; $zips = @(%s); $log = '%s\update.log'
+function Note($t) { ((Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + '  ' + $t) | Add-Content $log }
+# (to-do 139: a file still held by the closing game made the copy fail, the old program stayed, and the same update was
+# offered again on the next start - so: wait for every program running from the game's folder to end, copy each file with
+# retries, and check every installed file's fingerprint before calling it done)
+function Copy-Retry($src, $dst) {
+  for ($t = 1; $t -le 40; $t++) {
+    try { Copy-Item -LiteralPath $src -Destination $dst -Force; return } catch { if ($t -eq 40) { throw "still in use after 60 s: $dst" }; Start-Sleep -Milliseconds 1500 }
+  }
+}
 try {
-  Wait-Process -Id %d -Timeout 120 -ErrorAction SilentlyContinue
+  Note "Installing: $($zips.Count) package(s)"
+  Wait-Process -Id %d -Timeout 180 -ErrorAction SilentlyContinue
+  $root = [IO.Path]::GetFullPath($install)
+  for ($t = 0; $t -lt 120; $t++) {
+    $busy = @(Get-Process -ErrorAction SilentlyContinue | Where-Object { try { $_.Path -and $_.Path.StartsWith($root, 'OrdinalIgnoreCase') } catch { $false } })
+    if ($busy.Count -eq 0) { break }
+    if ($t -eq 0) { Note ("Waiting for " + (($busy | ForEach-Object { $_.Name }) -join ', ') + " to close") }
+    Start-Sleep -Milliseconds 500
+  }
   Start-Sleep -Milliseconds 800
   foreach ($z in $zips) {
     $stage = Join-Path '%s' ('stage-' + [IO.Path]::GetFileNameWithoutExtension($z))
@@ -206,19 +230,24 @@ try {
       $h = (Get-FileHash -Algorithm SHA256 -LiteralPath $src).Hash
       if ($h -ne $f.sha256.ToUpper()) { throw "Damaged file in the update: $($f.path)" }
       New-Item -ItemType Directory -Force (Split-Path $dst) | Out-Null
-      Copy-Item -LiteralPath $src -Destination $dst -Force
+      Copy-Retry $src $dst
     }
     foreach ($d in $m.deleted) { $p = Join-Path $install $d; if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Force } }
-    $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{3B7D9E21-6A4C-4F8E-9D15-2C7A0E4B8F63}_is1'
-    if (Test-Path $key) { Set-ItemProperty $key DisplayVersion $m.to }
-    "Updated to $($m.to)" | Add-Content $log
+    foreach ($f in $m.files) {
+      $dst = Join-Path $install $f.path
+      if ((Get-FileHash -Algorithm SHA256 -LiteralPath $dst).Hash -ne $f.sha256.ToUpper()) { throw "Not replaced: $($f.path)" }
+    }
+    foreach ($key in @('HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{3B7D9E21-6A4C-4F8E-9D15-2C7A0E4B8F63}_is1', 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{3B7D9E21-6A4C-4F8E-9D15-2C7A0E4B8F63}_is1')) {
+      try { if (Test-Path $key) { Set-ItemProperty $key DisplayVersion $m.to } } catch { }
+    }
+    Note "Updated to $($m.to) ($($m.files.Count) files, every one checked)"
   }
-} catch { "Update failed: $_" | Add-Content $log }
+} catch { Note "Update failed: $_" }
 # started through Explorer: the game runs as you, not with the administrator rights this may have had. The path in
 # Windows' own form (backslashes): given forward slashes, Explorer doesn't know it as a file and opens Documents instead
 # (owner, 2026-11-19: "it brings up a documents folder")
 $exeWin = [IO.Path]::GetFullPath($exe)
-if (Test-Path -LiteralPath $exeWin) { Start-Process explorer.exe -ArgumentList ('"' + $exeWin + '"') } else { "Restart: no game at $exeWin" | Add-Content $log }
+if (Test-Path -LiteralPath $exeWin) { Start-Process explorer.exe -ArgumentList ('"' + $exeWin + '"') } else { Note "Restart: no game at $exeWin" }
 )PS1"), *Install, *Exe, *Zips, *Dir, int32(FPlatformProcess::GetCurrentProcessId()), *Dir);
 	const FString ScriptFile = Dir / TEXT("apply-update.ps1");
 	FFileHelper::SaveStringToFile(Script, *ScriptFile, FFileHelper::EEncodingOptions::ForceUTF8);

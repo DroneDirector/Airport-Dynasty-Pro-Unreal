@@ -479,6 +479,10 @@ void ABabylonModel::AddLights(const FString& Name)
 		P->SetLightColor(Colour);
 		P->SetAttenuationRadius(Range * 100.0);
 		P->SetSourceRadius(4.f);
+		// (to-do 149, 2026-11-20: no shadows from a model's own lamps either - the light rule: the sun and the sky keep theirs.
+		// Unreal lights cast shadows unless told not to: these were 45 shadow passes every frame, everywhere;
+		// -ModelLightShadows: as before, for measuring)
+		P->SetCastShadows(FParse::Param(FCommandLine::Get(), TEXT("ModelLightShadows")));
 		P->RegisterComponent();
 		AddInstanceComponent(P);
 		++Made;

@@ -5746,6 +5746,8 @@ void AADPHUD::TestCoachUse(float Before, float ShotClock)
 	if (Before < 56.f && ShotClock >= 56.f) { Co->SetDoor(0, 0, true); Co->SetDoor(0, 1, true); Co->SetBay(0, 0, true); Co->SetBay(0, 4, true); Co->SetLamps(0, ACoaches::Tail | ACoaches::Hazard); }
 	if (Before < 62.f && ShotClock >= 62.f) Look(P(10.f, -7.f, 2.2f), P(0.f, 0.f, 1.5f), false);
 	Shot(67.f, TEXT("1-doors-open"));
+	// (to-do 149: the graphics card's own pass-by-pass times of this outdoor view, into the log - -UIProfileGPU)
+	if (Before < 70.f && ShotClock >= 70.f && FParse::Param(FCommandLine::Get(), TEXT("UIProfileGPU"))) PC->ConsoleCommand(TEXT("ProfileGPU"), true);
 	if (Before < 70.f && ShotClock >= 70.f) Look(P(1.2f, -4.2f, 1.2f), P(-0.9f, -1.0f, 0.8f), false);
 	Shot(75.f, TEXT("2-bay-open"));
 	// 2. walking in for real: from outside the front door, through it and up its steps (collision on)

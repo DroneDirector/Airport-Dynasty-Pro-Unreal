@@ -1,5 +1,6 @@
 // An aircraft hangar with its crew annex (Hangar.h), in four sizes.
 #include "Hangar.h"
+#include "Shapes.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #include "PerfLog.h"
@@ -134,6 +135,7 @@ UInstancedStaticMeshComponent* AHangar::Kit(UStaticMesh* Mesh, const FName MatNa
 	K->SetMobility(EComponentMobility::Movable);
 	K->SetStaticMesh(Mesh);
 	K->SetMaterial(0, Mat(MatName));
+	ADPShapes::NoNaniteIfSeeThrough(K);
 	K->SetCollisionProfileName(bCollide ? TEXT("BlockAll") : TEXT("NoCollision"));
 	if (MatName == "glass" || MatName == "polyc" || MatName == "lamp" || MatName == "amber" || MatName == "exitGreen") K->SetCastShadow(false);
 	K->RegisterComponent();
@@ -209,6 +211,7 @@ void AHangar::Swing(float HX, float Y0, float HZ, bool bAlongX, float W, float H
 		C->SetMobility(EComponentMobility::Movable);
 		C->SetStaticMesh(Cube);
 		C->SetMaterial(0, Mat(Mm));
+		ADPShapes::NoNaniteIfSeeThrough(C);
 		C->SetRelativeLocation(bAlongX ? FVector(A * 100.f, 0, Y * 100.f) : FVector(0, -A * 100.f, Y * 100.f));
 		C->SetRelativeScale3D(bAlongX ? FVector(Len, T, Hh) : FVector(T, Len, Hh));
 		C->SetCollisionProfileName(bCollide ? TEXT("BlockAll") : TEXT("NoCollision"));
@@ -232,6 +235,7 @@ UStaticMeshComponent* AHangar::Button(const FName M, const FVector& At, const FV
 	C->SetupAttachment(Root);
 	C->SetStaticMesh(Cylinder);
 	C->SetMaterial(0, Mat(M));
+	ADPShapes::NoNaniteIfSeeThrough(C);
 	const FVector A = U(At.X, At.Y, At.Z), B = U(At.X + Dir.X * Len, At.Y + Dir.Y * Len, At.Z + Dir.Z * Len);
 	C->SetRelativeTransform(FTransform(FRotationMatrix::MakeFromZ(B - A).Rotator(), (A + B) * 0.5f, FVector(R * 2, R * 2, Len)));
 	C->SetCollisionProfileName(TEXT("BlockAll"));
@@ -248,8 +252,8 @@ UStaticMeshComponent* AHangar::Button(const FName M, const FVector& At, const FV
 void AHangar::Build(const FString& SizeId, float X, float ApronEdge, bool bDoorOpen)
 {
 	S = FHangarSpec::Get(SizeId);
-	Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
-	Cylinder = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+	Cube = ADPShapes::Cube();
+	Cylinder = ADPShapes::Cylinder();
 	if (!Cube || !Cylinder) return;
 	// the door line: the threshold's front edge on the apron's edge, the centre line on the lead-in line
 	SetActorLocation(FTerminalPlan::ToWorld(X, 0.f, ApronEdge + S.Lip()));

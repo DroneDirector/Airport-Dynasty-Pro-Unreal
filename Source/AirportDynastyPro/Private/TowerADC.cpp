@@ -2,6 +2,7 @@
 // (shaft, lobby, cab glass, floors, desk ring, roof) as procedural meshes with both faces and collision, the straight
 // pieces as instanced boxes and cylinders, the lift from TerminalLifts, and the doors and desk flap moving each frame.
 #include "TowerADC.h"
+#include "Shapes.h"
 #include "PerfLog.h"
 #include "ADPLog.h"
 #include "TerminalBuilder.h"
@@ -128,6 +129,7 @@ UInstancedStaticMeshComponent* ATowerADC::Kit(UStaticMesh* Mesh, const FName Mat
 	K->SetMobility(EComponentMobility::Movable);
 	K->SetStaticMesh(Mesh);
 	K->SetMaterial(0, Mat(MatName));
+	ADPShapes::NoNaniteIfSeeThrough(K);
 	K->SetCollisionProfileName(bCollide ? TEXT("BlockAll") : TEXT("NoCollision"));
 	if (MatName == "GLASS" || MatName == "RAILGLASS") K->SetCastShadow(false);
 	K->RegisterComponent();
@@ -162,6 +164,7 @@ UStaticMeshComponent* ATowerADC::Part(USceneComponent* Parent, UStaticMesh* Mesh
 	C->SetMobility(EComponentMobility::Movable);
 	C->SetStaticMesh(Mesh);
 	C->SetMaterial(0, Mat(M));
+	ADPShapes::NoNaniteIfSeeThrough(C);
 	C->SetRelativeLocation(U(X, Y, Z));
 	C->SetRelativeScale3D(FVector(W, D, H));
 	C->SetCollisionProfileName(bCollide ? TEXT("BlockAll") : TEXT("NoCollision"));
@@ -284,8 +287,8 @@ UProceduralMeshComponent* ATowerADC::Shells(USceneComponent* Parent, TMap<FName,
 
 void ATowerADC::Build()
 {
-	Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
-	Cylinder = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+	Cube = ADPShapes::Cube();
+	Cylinder = ADPShapes::Cylinder();
 	if (!Cube || !Cylinder) return;
 	// the tower's frame: its foot at its place on the plan (facing as the plan's x and z)
 	Frame = Node(Root, FTerminalPlan::ToWorld(AtX, 0, AtZ), FRotator::ZeroRotator, TEXT("ADC_TOWER"));
@@ -365,6 +368,7 @@ void ATowerADC::Build()
 			C->SetupAttachment(Frame);
 			C->SetStaticMesh(Mesh);
 			C->SetMaterial(0, Occ);
+			ADPShapes::NoNaniteIfSeeThrough(C);
 			C->SetRelativeTransform(T);
 			C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 			C->SetCastShadow(false);
