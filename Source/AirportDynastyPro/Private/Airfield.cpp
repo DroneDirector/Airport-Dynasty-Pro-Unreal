@@ -37,6 +37,8 @@ bool FAirfieldData::Load()
 	const TSharedPtr<FJsonObject> Ap = ADPSite::AirportBlock();   // (the site's own place over it: Site.h)
 	Ap->TryGetNumberField(TEXT("lat"), Lat); Ap->TryGetNumberField(TEXT("lon"), Lon);
 	ElevFt = N(Ap, TEXT("elevFt"), 130); Heading = N(Ap, TEXT("hdg"), 68);
+	if (TSharedPtr<FJsonObject> Si = ADPSite::Info(ADPSite::Id()))
+	{ const TArray<TSharedPtr<FJsonValue>>* E; if (Si->TryGetArrayField(TEXT("runwayEnds"), E) && E->Num() == 2) { RwyEnd0 = (*E)[0]->AsString(); RwyEnd1 = (*E)[1]->AsString(); } }
 	for (const TSharedPtr<FJsonValue>& V : R->GetArrayField(TEXT("taxiways")))
 	{
 		const TSharedPtr<FJsonObject> O = V->AsObject();
@@ -1112,7 +1114,7 @@ bool AAirfield::Build(bool bModelSite)
 		// the designator painted on the runway, read from an aircraft landing
 		UTextRenderComponent* Num = NewObject<UTextRenderComponent>(this);
 		Num->SetupAttachment(Root);
-		Num->SetText(FText::FromString(End ? TEXT("26") : TEXT("08")));
+		Num->SetText(FText::FromString(End ? D.RwyEnd1 : D.RwyEnd0));
 		Num->SetHorizontalAlignment(EHTA_Center);
 		Num->SetVerticalAlignment(EVRTA_TextCenter);
 		Num->SetWorldSize(1800.f);
@@ -1149,7 +1151,7 @@ bool AAirfield::Build(bool bModelSite)
 				const float Ya = Hold0 - S * A, Yb = Hold0 - S * FMath::Min(A + 2.7f, 45.f);
 				Quad("paintyellow", H.X + Side * 0.30f - 0.075f, FMath::Min(Ya, Yb), H.X + Side * 0.30f + 0.075f, FMath::Max(Ya, Yb), -0.018f, 3.f);
 			}
-		const FString Txt = S > 0.f ? TEXT("08-26") : TEXT("26-08");   // coming up from the south (+y), the 08 end is on the left
+		const FString Txt = S > 0.f ? D.RwyEnd0 + TEXT("-") + D.RwyEnd1 : D.RwyEnd1 + TEXT("-") + D.RwyEnd0;   // coming up from the south (+y), the 08 end is on the left
 		constexpr float TextH = 3.2f, Margin = 0.5f, TextW = 9.6f;
 		const float Near = Hold0 - S * 0.9f, Far = Near - S * (TextH + 2 * Margin), Cy = (Near + Far) / 2;
 		for (const float Side : {-1.f, 1.f})

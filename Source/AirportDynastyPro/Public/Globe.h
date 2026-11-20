@@ -25,6 +25,9 @@ class AIRPORTDYNASTYPRO_API AGlobe : public AActor
 	/** The airfield grass's colour over the globe round the airport and our land (Content/Data/grass-tiles). */
 	UPROPERTY() TObjectPtr<class UCesiumUrlTemplateRasterOverlay> GrassColour;
 	void AddGrassColour(const TCHAR* Key);
+	/** The site's own aerial photo (Chablais: swisstopo 10 cm, IGN 20 cm; Tools/make_site_imagery.py), over the picture. */
+	UPROPERTY() TObjectPtr<class UCesiumUrlTemplateRasterOverlay> SitePhoto;
+	bool AddSitePhoto(const TCHAR* Key);
 	static TWeakObjectPtr<AGlobe> Current;
 	void SetImagery(int32 S);
 	void Probe(int32 S);

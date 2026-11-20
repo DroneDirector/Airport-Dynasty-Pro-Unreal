@@ -47,6 +47,7 @@ struct AIRPORTDYNASTYPRO_API FAirfieldData
 	FRect Boundary{-2000, -170, 2240, 1320}, Cargo{200, 1231, 590, 1301};
 	double Lat = 63.457988, Lon = -18.713703;
 	float ElevFt = 130, Heading = 68;
+	FString RwyEnd0 = TEXT("08"), RwyEnd1 = TEXT("26");   // the runway's names at its x0 and x1 ends (the site's own: Site.h)
 
 	bool Load();
 	const FTwy* Find(const FString& Id) const { return Taxiways.FindByPredicate([&](const FTwy& T) { return T.Id == Id; }); }

@@ -30,12 +30,19 @@ def tile_bounds_3857(z, x, y):
     return x0, y1 - s, x0 + s, y1
 
 
-A = None; SRC = None
+A = None; SRC = None; ROOT = None   # (z0, X0, Y0): the root level's first tile (the game's own tiling: tiles.json)
 
 
-def init(a, src):
-    global A, SRC
-    A, SRC = a, src
+def init(a, src, root):
+    global A, SRC, ROOT
+    A, SRC, ROOT = a, src, root
+
+
+def tile_path(z, x, y):
+    """Tiles are numbered from the root level's first tile (Cesium's own tiling over the area's rectangle: the game asks
+    for {z}/{x}/{reverseY} counted inside it), so level z is z - z0 and x, y count from the area's corner."""
+    z0, X0, Y0 = ROOT; k = 1 << (z - z0)
+    return os.path.join(A.out, str(z - z0), str(x - X0 * k), '%d.jpg' % (y - Y0 * k))
 
 
 def sources(a):
@@ -94,7 +101,7 @@ def meta(job):
         for j in range(META):
             t = out[:, j * 256:(j + 1) * 256, i * 256:(i + 1) * 256]
             if not have[j * 256:(j + 1) * 256, i * 256:(i + 1) * 256].any(): continue
-            p = os.path.join(a.out, str(z), str(mx + i), '%d.jpg' % (my + j))
+            p = tile_path(z, mx + i, my + j)
             os.makedirs(os.path.dirname(p), exist_ok=True)
             Image.fromarray(t.transpose(1, 2, 0)).save(p, quality=86, optimize=True); n += 1
     return n
@@ -107,11 +114,11 @@ def down(job):
     canvas = Image.new('RGB', (512, 512)); any_ = False
     for dx in (0, 1):
         for dy in (0, 1):
-            p = os.path.join(a.out, str(z + 1), str(2 * x + dx), '%d.jpg' % (2 * y + dy))
+            p = tile_path(z + 1, 2 * x + dx, 2 * y + dy)
             if os.path.exists(p):
                 canvas.paste(Image.open(p), (dx * 256, dy * 256)); any_ = True
     if not any_: return 0
-    p = os.path.join(a.out, str(z), str(x), '%d.jpg' % y)
+    p = tile_path(z, x, y)
     os.makedirs(os.path.dirname(p), exist_ok=True)
     canvas.resize((256, 256), Image.LANCZOS).save(p, quality=86, optimize=True)
     return 1
@@ -121,14 +128,27 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--swiss'); ap.add_argument('--france'); ap.add_argument('--out')
     ap.add_argument('--bbox', type=float, nargs=4); ap.add_argument('--center', type=float, nargs=2)
-    ap.add_argument('--zall', type=int, default=19); ap.add_argument('--zmax', type=int, default=20); ap.add_argument('--zmin', type=int, default=8)
+    ap.add_argument('--zall', type=int, default=19); ap.add_argument('--zmax', type=int, default=20); ap.add_argument('--zmin', type=int, default=10)
     ap.add_argument('--fine-km', type=float, default=7.0)
     ap.add_argument('--workers', type=int, default=max(1, os.cpu_count() - 2)); ap.add_argument('--resume', action='store_true')
     a = ap.parse_args()
     src = sources(a)
     print('%d Swiss photos, %d French photos' % (len(src[0]), len(src[1])), flush=True)
     lon0, lat0, lon1, lat1 = a.bbox
-    with ProcessPoolExecutor(a.workers, initializer=init, initargs=(a, src)) as ex:
+    # the root: the level --zmin tiles covering the area (their rectangle is the game's tiling rectangle)
+    z0 = a.zmin
+    X0, Y0 = (int(v) for v in lonlat_to_tile(lon0, lat1, z0)); X1, Y1 = (int(v) for v in lonlat_to_tile(lon1, lat0, z0))
+    def tile_lonlat(x, y, z):
+        n = 1 << z
+        return x / n * 360.0 - 180.0, math.degrees(math.atan(math.sinh(math.pi * (1 - 2 * y / n))))
+    w, nn = tile_lonlat(X0, Y0, z0); e, ss = tile_lonlat(X1 + 1, Y1 + 1, z0)
+    os.makedirs(a.out, exist_ok=True)
+    import json
+    json.dump({'west': w, 'south': ss, 'east': e, 'north': nn, 'rootX': X1 - X0 + 1, 'rootY': Y1 - Y0 + 1, 'minLevel': 0, 'maxLevel': a.zmax - z0,
+               'projection': 'webmercator', 'webLevel0': z0, 'note': 'Tools/make_site_imagery.py: {z}/{x}/{reverseY} inside the rectangle'},
+              open(os.path.join(a.out, 'tiles.json'), 'w'), indent=1)
+    init(a, src, (z0, X0, Y0))
+    with ProcessPoolExecutor(a.workers, initializer=init, initargs=(a, src, (z0, X0, Y0))) as ex:
         for z in range(a.zmax, a.zmin - 1, -1):
             if z > a.zall:
                 # the finest level only round the airport and the town
@@ -141,7 +161,7 @@ def main():
             if z >= a.zall:
                 jobs = [(z, x, y) for x in range(tx0 - tx0 % META, tx1 + 1, META) for y in range(ty0 - ty0 % META, ty1 + 1, META)]
                 if a.resume:
-                    jobs = [j for j in jobs if not os.path.exists(os.path.join(a.out, str(z), str(j[1] + META - 1), '%d.jpg' % (j[2] + META - 1)))]
+                    jobs = [j for j in jobs if not os.path.exists(tile_path(z, j[1] + META - 1, j[2] + META - 1))]
                 fn = meta
             else:
                 jobs = [(z, x, y) for x in range(tx0, tx1 + 1) for y in range(ty0, ty1 + 1)]

@@ -253,6 +253,37 @@ void AGlobe::Probe(int32 S)
 	Source = Wanted;
 }
 
+bool AGlobe::AddSitePhoto(const TCHAR* Key)
+{
+	// where the site's photo tiles are: downloaded with the terrain (a release), the site's data folder, or (editor) the
+	// converter's output named in site.json "imageryDev"
+	FString Dir;
+	TArray<FString> Try = {ADPTerrain::Dir() / TEXT("Sites") / ADPSite::Id() / TEXT("imagery"), ADPSite::File(TEXT("imagery"))};
+	if (!FPlatformProperties::RequiresCookedData())
+		if (TSharedPtr<FJsonObject> I = ADPSite::Info(ADPSite::Id())) { FString Dev; if (I->TryGetStringField(TEXT("imageryDev"), Dev)) Try.Add(Dev); }
+	for (const FString& D : Try) if (FPaths::FileExists(D / TEXT("tiles.json"))) { Dir = FPaths::ConvertRelativePathToFull(D); break; }
+	if (Dir.IsEmpty()) return false;
+	FString Text; TSharedPtr<FJsonObject> J;
+	if (!FFileHelper::LoadFileToString(Text, *(Dir / TEXT("tiles.json"))) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), J) || !J.IsValid()) return false;
+	UCesiumUrlTemplateRasterOverlay* O = NewObject<UCesiumUrlTemplateRasterOverlay>(Earth, TEXT("SitePhoto"));
+	// numbered inside the area's own rectangle (its first web-Mercator level's tiles as the roots), rows from the north
+	O->TemplateUrl = TEXT("file:///") + Dir / TEXT("{z}/{x}/{reverseY}.jpg");
+	O->Projection = ECesiumUrlTemplateRasterOverlayProjection::WebMercator;
+	O->bSpecifyTilingScheme = true;
+	O->RootTilesX = int32(J->GetNumberField(TEXT("rootX"))); O->RootTilesY = int32(J->GetNumberField(TEXT("rootY")));
+	O->RectangleWest = J->GetNumberField(TEXT("west")); O->RectangleSouth = J->GetNumberField(TEXT("south"));
+	O->RectangleEast = J->GetNumberField(TEXT("east")); O->RectangleNorth = J->GetNumberField(TEXT("north"));
+	O->MinimumLevel = int32(J->GetNumberField(TEXT("minLevel"))); O->MaximumLevel = int32(J->GetNumberField(TEXT("maxLevel")));
+	O->TileWidth = 256; O->TileHeight = 256;
+	O->MaterialLayerKey = Key;
+	if (FBoolProperty* Show = FindFProperty<FBoolProperty>(UCesiumRasterOverlay::StaticClass(), TEXT("ShowCreditsOnScreen"))) Show->SetPropertyValue_InContainer(O, false);
+	O->RegisterComponent();
+	Earth->AddInstanceComponent(O);
+	SitePhoto = O;
+	ADP_LOG(TEXT("Globe: the site's photo from %s (to level %d)"), *Dir, O->MaximumLevel);
+	return true;
+}
+
 void AGlobe::AddGrassColour(const TCHAR* Key)
 {
 	// the airfield's grass colour over the globe in the ring round the airport and round our own land (owner,
@@ -283,7 +314,9 @@ void AGlobe::SetImagery(int32 S)
 	if (!Earth) return;
 	if (Imagery) { Imagery->DestroyComponent(); Imagery = nullptr; }
 	if (Detail) { Detail->DestroyComponent(); Detail = nullptr; }
+	if (SitePhoto) { SitePhoto->DestroyComponent(); SitePhoto = nullptr; }
 	AddGrassColour(S == 3 ? TEXT("Overlay2") : TEXT("Overlay1"));
+	if (!GrassColour) AddSitePhoto(S == 3 ? TEXT("Overlay2") : TEXT("Overlay1"));   // (a site with its own photo has no grass tiles yet)
 	if (S == 3)
 	{
 		// the land cover: the world (geographic, 2 x 1 root tiles, to level 8) and the North Atlantic over it (its own

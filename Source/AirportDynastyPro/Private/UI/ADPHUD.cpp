@@ -1,6 +1,8 @@
 // The walking-mode interface: the holographic map, the top-left bar, Hide UI, the settings panel and the performance
 // overlay, all in Slate, styled in the Android edition's holographic blues.
 #include "UI/ADPHUD.h"
+#include "UI/SSiteChoice.h"
+#include "Site.h"
 #include "ADPFov.h"
 #include "BaggageBelts.h"
 #include "Effects.h"
@@ -326,6 +328,9 @@ void AADPHUD::BeginPlay()
 	if (UWorld* W = GetWorld()) { W->SpawnActor<AInteractOutline>(); W->SpawnActor<ASeats>(); W->SpawnActor<ADoorPanelUse>(); AADPPeople::Get(W); }
 	Super::BeginPlay();
 	Current = this;
+	// the world loaded again for a new career at another site (SSiteChoice): it goes on once the menus are up
+	{ bool bNext = false; GConfig->GetBool(TEXT("ADP.Site"), TEXT("NewCareerNext"), bNext, GGameUserSettingsIni);
+	  if (bNext) { GConfig->SetBool(TEXT("ADP.Site"), TEXT("NewCareerNext"), false, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); ResumeNewGameAt = 0.f; } }
 	// indoors the shadows are lifted: where the lamps don't reach it is only about a quarter dark (the owner's choice,
 	// 2026-11-09), so the whole building can be seen; the lit areas still stand out (the lamps aren't made brighter)
 	if ((Indoor = GetWorld()->SpawnActor<APostProcessVolume>()) != nullptr)
@@ -1572,9 +1577,44 @@ void AADPHUD::WardrobeFromPage(const FString& Action, const FString& Arg)
 	}
 }
 
+void AADPHUD::OpenSiteChoice()
+{
+	if (SiteChoice.IsValid() || !GEngine || !GEngine->GameViewport) return;
+	SiteChoice = SNew(SSiteChoice);
+	SiteChoice->OnPick = [this](const FString& Id)
+	{
+		CloseSiteChoice();
+		if (Id == ADPSite::Id()) { bSitePicked = true; OpenWhoAreYou(); return; }
+		// another site: chosen for good, and the world loads again there; the new career goes on after it (BeginPlay)
+		ADPSite::Choose(Id);
+		GConfig->SetBool(TEXT("ADP.Site"), TEXT("NewCareerNext"), true, GGameUserSettingsIni);
+		GConfig->Flush(false, GGameUserSettingsIni);
+		UGameplayStatics::OpenLevel(this, FName(*UGameplayStatics::GetCurrentLevelName(this)), true, TEXT("Site=") + Id);
+	};
+	SiteChoice->OnBack = [this]()
+	{
+		CloseSiteChoice();
+		if (Browser.IsValid()) Browser->ExecuteJavascript(TEXT("window.__ueNewGameCancel && window.__ueNewGameCancel()"));
+	};
+	GEngine->GameViewport->AddViewportWidgetContent(SiteChoice.ToSharedRef(), 60);
+	FSlateApplication::Get().SetAllUserFocus(SiteChoice, EFocusCause::SetDirectly);
+	if (APlayerController* PC = GetOwningPlayerController()) PC->SetShowMouseCursor(true);
+	Breadcrumb(TEXT("A new career: where is your airport?"));
+}
+
+void AADPHUD::CloseSiteChoice()
+{
+	if (!SiteChoice.IsValid()) return;
+	if (GEngine && GEngine->GameViewport) GEngine->GameViewport->RemoveViewportWidgetContent(SiteChoice.ToSharedRef());
+	SiteChoice.Reset();
+}
+
 void AADPHUD::OpenWhoAreYou()
 {
 	if (bWhoAreYou || !Browser.IsValid()) return;
+	// more than one airport site: where first (owner, 2026-11-20 - Iceland or Chablais Airport)
+	if (!bSitePicked && ADPSite::All().Num() > 1) { OpenSiteChoice(); return; }
+	bSitePicked = false;   // (the next new career asks again)
 	bWhoAreYou = true; bWhoAreYouCreator = false; bWhoAreYouBack = false;
 	// the menus' page stays up, see-through, over the 3D stage: the world drawn again behind it
 	if (bViewer) CloseViewer();
@@ -2185,6 +2225,7 @@ void AADPHUD::Tick(float Dt)
 {
 	ADP_PERF_SCOPE("the interface and its checks (each frame)", 6.f);
 	TickUnrealLoad(Dt);
+	if (ResumeNewGameAt >= 0.f && bMenusReady && (ResumeNewGameAt += Dt) > 1.5f) { ResumeNewGameAt = -1.f; bSitePicked = true; OpenWhoAreYou(); }
 	// the sun's shadows follow what you do (owner, 2026-11-16): on foot or driving they reach about 2.6 km (the airport,
 	// the town, the hills nearby - inside buildings exactly as before), flying, in the drone or the flight viewer, or
 	// high above the ground, the full 42 km. (r.Shadow.Virtual.Clipmap.LastLevel: 18 = 2^18 cm, 22 = 2^22 cm; changed

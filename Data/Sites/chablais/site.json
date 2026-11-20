@@ -13,10 +13,17 @@
     "hdg": 336,
     "magvar": 3
   },
-  "runwayEnds": ["33", "15"],
+  "runwayEnds": [
+    "33",
+    "15"
+  ],
   "utcOffset": 1,
   "euSummerTime": true,
   "credit": "Terrain and aerial photos: © swisstopo (swissALTI3D, SWISSIMAGE); French side © IGN (RGE ALTI, BD ORTHO), Licence Ouverte 2.0",
   "lakeLevelM": 372.0,
-  "flatten": {"marginM": 120, "blendM": 450}
+  "flatten": {
+    "marginM": 120,
+    "blendM": 450
+  },
+  "imageryDev": "D:/ADP-Terrain/Chablais/imagery"
 }

@@ -196,6 +196,12 @@ public:
 	TArray<int64> UpdateSizes;                      // each package's size from the release listing (the bar never loses its length)
 	double UpdateSentAt = 0;
 	bool bMenusReady = false;
+	/** "Where is your airport?" (SSiteChoice.h, Site.h): shown first in a new career when there is more than one site. */
+	TSharedPtr<class SSiteChoice> SiteChoice;
+	bool bSitePicked = false;     // (this new career's site is chosen: go on to "who are you")
+	float ResumeNewGameAt = -1.f; // (the world loaded again for the chosen site: the new career goes on once the menus are up)
+	void OpenSiteChoice();
+	void CloseSiteChoice();
 	bool bBootSent = false; float BootT = 0.f;   // the start's loading screen told everything is in
 	bool bMenusPending = false; int32 MenusWaitFrames = 0;   // the title screen, opened after the loading frame                       // the menus' page has loaded and said so                         // when the page was last told (progress at most 5 times a second)
 	TArray<FString> UpdateFiles;
