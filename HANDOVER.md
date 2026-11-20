@@ -9,6 +9,67 @@ Whenever the owner sends pictures in the phone chat for you, they are copied ont
 location there (with what it shows and what he said about it). Open those files; commit them (through LFS) with your
 next commit if they belong in the repo.
 
+## From the owner (2026-11-20 20:46-21:05, via the phone): the cargo terminal, with real rooms inside
+- Made in Blender in the phone chat: `Art/CargoTerminal/` (scripts committed; `CargoTerminal.blend` / `.glb` and the 13 blueprint
+  sheets in `Blueprints/CargoTerminal/` were copied to this PC for you to commit through LFS).
+- It sits on the airfield plan's cargo building (plan x 200-590, y 1231-1301), apron and stands C1-C4 in front. Inside: offices (3 floors,
+  ops control centre over the apron), export (acceptance, weigh & measure, screening, bulk racks, mail & express, 8 build-up stations),
+  the ETV high-bay ULD store (2 ETVs, 360 positions), import (4 break-down stations, customs inspection, bonded store, release) and
+  special cargo (live animals, vet & border control, perishables, freezer, pharma 2-8 and 15-25, dangerous goods, radioactive,
+  valuables, human remains, damaged cargo, vulnerable cargo, oversize X-ray, sealed cool-chain docks). Forklift aisles 6 m, room openings 4 m.
+- The truck court needs the airport fence moved out from plan y 1320 to y 1441 (gate and gatehouse in it).
+- To bring it in: import `CargoTerminal.glb` at the cargo building's place (local X = plan x - 200, local Y = plan y - 1231,
+  pointing the airside at the apron) in place of the plain box, Nanite on; the materials named M_Cargo_* get real Unreal materials.
+
+## From the owner (2026-11-20 06:32, via the phone): the game's own icon instead of Unreal's
+- Done in the phone chat: `Art/Icon/make_icon.py` (Blender render) and `finish_icon.py` -> `Build/Windows/Application.ico`
+  (Unreal builds it into AirportDynastyPro.exe: desktop shortcut, Start menu, taskbar, window) and `Installer/app.ico`.
+  `.gitignore` now keeps `Build/Windows/Application.ico` in git (the rest of Build/ stays out).
+- Copied straight onto the PC (Git LFS files the phone chat can't upload; the PC chat should commit them):
+  `Art\Icon\Icon.blend`, `render.png`, `Icon-1024.png`, `Icon-256.png`, `Icon-sizes-preview.png`, and
+  `AirportDynastyPro.png` at the top of the repo (the project's picture in Epic's launcher).
+- 06:42: he chose the old neon cube icon instead, made less flat: a glossy die rendered in Blender (`Art/Icon/make_cube_icon.py`)
+  with the same white airliner, on violet with a glow and a faint neon grid (`Airline-Manager-Pro-Babylon/tools/make-icons.py`).
+  It is now the icon everywhere: Android, the Babylon PC app, the Unreal exe and the installer. Copied to the PC:
+  `Art\Icon\Icon-Cube-1024.png` and `Icon-Cube-sizes-preview.png` (LFS; the PC chat commits them).
+- 06:52: he wants the cube icon used from now on, wherever Unreal's would show. Also done: the start-up splash
+  (`Content/Splash/Splash.bmp`, the editor's `EdSplash.bmp`: the icon, the name and Pixel Norma, the bottom strip left
+  for Unreal's own text), the installer's corner picture (`Installer/wizard-small.bmp`, in setup.iss) and the project's
+  launcher picture `AirportDynastyPro.png` (copied to the PC, LFS: the PC chat commits it). Engine-only windows (the crash
+  reporter) can't be changed.
+- It goes out with the next PC release. Windows may keep showing the old icon on an existing shortcut until its icon
+  cache refreshes (or the shortcut is made again by the installer).
+
+## From the owner (2026-11-19 17:55-18:35, via the phone): the airport taxi, remade in Blender from his blueprint
+- He sent a new blueprint sheet to follow instead (modern taxi saloon: side, front, rear, top, three-quarter and
+  dashboard views; 4.70 m long, 1.80 m wide, 1.45 m high): `Art\Reference\From-Phone\2026-11-19\Taxi-Ref-5-blueprint-sheet.jpg`
+  - the whole sheet, for measuring and shapes only (its grille is our own pattern, not the sheet's).
+- Rule from him: every vehicle (cars, buses, aircraft, helicopters) and every piece of airport equipment or interior is
+  modelled in Blender, never drawn with the old Python mesh drawings.
+- Done: `Art/Taxi/make_taxi.py` builds it in Blender 5.3 (run with Blender's Python module, or paste into Blender):
+  `Art/Taxi/Taxi.blend` (body with live Subdivision Surface and the wheel-arch cut, every other part a separate
+  object, one material each, named M_Taxi_*) and `Art/Taxi/Taxi.glb` (for Unreal; front to +X, metres, ground at 0).
+  Sizes as measured off his side view: 2.85 m between the wheels (the sheet's "2700" label does not match its own
+  drawing), 225/45 R17 tyres. A, B and C pillars gloss black at his request; taillights, plates (TAXI / 1024),
+  bumpers with split lines, diffuser, exhausts, parking sensors, third brake light, roof sign, aerial, mirrors, door
+  handles, fuel flap, and a simple cabin (dashboard, steering wheel, front seats, rear bench) for the MetaHumans.
+- `Taxi.blend` and `Taxi.glb` were copied straight onto the PC (the phone chat can't upload Git LFS files): the PC
+  chat should commit them (they go through LFS).
+- Check sheet sent to him: `Blueprints\Vehicles\AirportTaxi\Airport-Taxi-Saloon-Blender.png` (`Art/Taxi/render_taxi.py`).
+- Next when he approves: a proper cabin (doors that open, seats sized for seated MetaHumans), then into Unreal as a
+  Chaos vehicle.
+
+## From the owner (2026-11-19 17:10, via the phone): reference pictures for the airport taxi ("use this as measurement")
+- He wants the airport taxi to be a sit-down saloon (not a cab), modern, a little like the new Toyota Camry but not the
+  same, built to the measurements of these references (a 1990s full-size taxi saloon: 5.44 m long, 1.97 m wide,
+  1.415 m high, 2.945 m wheelbase). The phone chat drew a first look to those sizes:
+  `Blueprints\Vehicles\AirportTaxi\Airport-Taxi-Saloon-First-Look.png` (waiting for his OK before the wireframes).
+- Photos (stock pictures, watermarked - for measuring only, never used in the game):
+  - `Art\Reference\From-Phone\2026-11-19\Taxi-Ref-1-rear-three-quarter-sketch.jpg` - line drawing of the taxi from the rear corner, light and dark (blueprint) versions
+  - `Art\Reference\From-Phone\2026-11-19\Taxi-Ref-2-top-wireframe.jpg` - wireframe of the taxi from the top
+  - `Art\Reference\From-Phone\2026-11-19\Taxi-Ref-3-side-wireframe.jpg` - wireframe of the taxi from the left side
+  - `Art\Reference\From-Phone\2026-11-19\Taxi-Ref-4-front-three-quarter-wireframe.jpg` - wireframe from the front-left corner, from above
+
 ## From the owner (2026-11-19 05:26, via the phone): "Missing AirportDynastyPro Modules" on opening the editor
 - Photo: `Art\Reference\From-Phone\2026-11-19\Editor-missing-modules-rebuild.jpg` - the editor's box "The following
   modules are missing or built with a different engine version: AirportDynastyPro, ADPEditorTools. Would you like to

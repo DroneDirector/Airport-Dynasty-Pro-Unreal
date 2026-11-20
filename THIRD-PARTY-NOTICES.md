@@ -19,6 +19,8 @@ so a site can be removed together with its notices.
 | misaki British pronunciation dictionary (the announcer's words), by hexgrad; modified: dictionaries merged, default pronunciations only | Apache 2.0 | Yes | Licence text shipped in Content/Voice (LICENSE-misaki-Apache-2.0.txt) |
 | ONNX Runtime (runs the voice model), through Unreal Engine's Neural Network Engine | MIT | Yes | Licence text kept with the engine's NNERuntimeORT plugin |
 | ESA WorldCover 10 m 2021 v200 (the land cover on the globe, downloaded with the world's terrain: Tools/MakeLandCover.py); modified: the classes turned into natural colours and averaged into picture tiles | CC BY 4.0 | Yes | On screen when shown: "Land cover: ESA WorldCover 2021 © ESA WorldCover project, contains modified Copernicus Sentinel data (2021) processed by the ESA WorldCover consortium, CC BY 4.0" |
+| Blender's bundled font (Inter, by Rasmus Andersson), its letter shapes made into the taxi's plate and roof-sign lettering (Art/Taxi) | SIL Open Font License 1.1 | Yes | Licence text kept with Blender; not needed in the game's credits |
+| DejaVu Sans Bold and DejaVu Sans (the DejaVu fonts team), the lettering drawn into the start-up splash pictures (Content/Splash, Art/Icon/make_brand_images.py) | Bitstream Vera / DejaVu free licence (any use, including commercial) | Yes | Licence text with the fonts |
 
 ## Ground scans - Poly Haven (CC0)
 asphalt_04 (Sergej Majboroda, Jenelle van Heerden), asphalt_02 (Rob Tuytel), concrete_floor_worn_001 (Dimitrios Savva,

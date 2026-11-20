@@ -29,6 +29,8 @@ DiskSpanning=yes
 DiskSliceSize=1900000000
 SlicesPerDisk=1
 WizardStyle=modern
+; the game's cube icon in the installer's corner (Art/Icon/make_brand_images.py)
+WizardSmallImageFile=wizard-small.bmp
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 CloseApplications=yes
