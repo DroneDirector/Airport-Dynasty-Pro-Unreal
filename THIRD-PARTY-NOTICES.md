@@ -1,6 +1,8 @@
 # Third-party notices
 
 Every third-party part used in Airport Dynasty Pro (Unreal Engine 5 edition), its licence and the credit it asks for.
+The table below is for the whole game. Data used only for one airport site is in that site's own section at the end,
+so a site can be removed together with its notices.
 
 | Part | Licence | Commercial use | Credit |
 |---|---|---|---|
@@ -9,7 +11,6 @@ Every third-party part used in Airport Dynasty Pro (Unreal Engine 5 edition), it
 | Chromium Embedded Framework (CEF), shipped with Unreal's web browser view (shows the airline game's screens) | BSD 3-clause (Chromium: BSD and its listed third-party licences) | Yes | Licence text kept with the engine's CEF files |
 | The airline game's own code and its third-party parts (the Android edition, shown in the web view) | See Airline-Manager-Pro-Babylon/THIRD-PARTY-NOTICES.md | Yes | As listed there |
 | Cesium for Unreal 2.31.0 (the globe), by Cesium GS | Apache 2.0 | Yes | Licence text kept with the plugin; "Cesium" shown on screen |
-| Faroe Islands elevation model: DSM hæddarmodell 2015 (10 m), by the Faroese Environment Agency, Umhvørvisstovan (foroyakort.fo) | Føroyakort terms (June 2019): free use incl. commercial, with credit | Yes | In the game: "Data from the Faroese Environment Agency, Umhvørvisstovan: DSM hæddarmodell 2015, November 2026"; terms: https://foroyakort.fo/um-foeroyakort/terms-and-conditions-in-english |
 | Copernicus DEM GLO-90 (world elevation) | Copernicus DEM licence (free, incl. commercial, with the credit) | Yes | On screen: "Copernicus DEM GLO-90 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA" |
 | Satellite pictures (fallbacks): NASA Global Imagery Browse Services (GIBS): Landsat WELD global mosaic (NASA / USGS) and Blue Marble Next Generation (NASA Earth Observatory) | NASA imagery: free to use, no restrictions; credit requested | Yes | In the game's credit line when in use: "Imagery: NASA Global Imagery Browse Services (GIBS)…" |
 | AMD FSR Upscaling plugin 4.1.1 for Unreal Engine (frame generation), by Advanced Micro Devices | MIT (plugin); AMD FidelityFX SDK binary redistribution licence (its libraries: free, binary only, no reverse engineering) | Yes | Copyright notices and licence texts kept with the plugin (Plugins/FSR/LICENSE, Source/fidelityfx-sdk/.../license.md) and shipped with the game |
@@ -17,7 +18,6 @@ Every third-party part used in Airport Dynasty Pro (Unreal Engine 5 edition), it
 | Kokoro-82M v1.0 (the announcer's voice), by hexgrad; its quantised ONNX build from kokoro-onnx by thewh1teagle | Apache 2.0 (model); MIT (ONNX build) | Yes | Licence texts shipped with the game in Content/Voice (LICENSE-Kokoro-Apache-2.0.txt, LICENSE-kokoro-onnx-MIT.txt) |
 | misaki British pronunciation dictionary (the announcer's words), by hexgrad; modified: dictionaries merged, default pronunciations only | Apache 2.0 | Yes | Licence text shipped in Content/Voice (LICENSE-misaki-Apache-2.0.txt) |
 | ONNX Runtime (runs the voice model), through Unreal Engine's Neural Network Engine | MIT | Yes | Licence text kept with the engine's NNERuntimeORT plugin |
-| ESA WorldCover 10 m 2021 v200 (the sea's outline round the airport, Content/Data/ocean.bin); modified: the open sea traced into a water surface | CC BY 4.0 | Yes | "© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium" |
 | ESA WorldCover 10 m 2021 v200 (the land cover on the globe, downloaded with the world's terrain: Tools/MakeLandCover.py); modified: the classes turned into natural colours and averaged into picture tiles | CC BY 4.0 | Yes | On screen when shown: "Land cover: ESA WorldCover 2021 © ESA WorldCover project, contains modified Copernicus Sentinel data (2021) processed by the ESA WorldCover consortium, CC BY 4.0" |
 
 ## Ground scans - Poly Haven (CC0)
@@ -33,3 +33,19 @@ is packed for its run-time road graph only. The plugin itself is not redistribut
 
 ## Music
 - The title music (title.mp3): made by the owner with Suno AI on a Pro plan, which gives him full ownership and commercial use; safe to use everywhere, including live streams on YouTube and elsewhere (owner, 2026-11-20). Every future soundtrack is listed here with its source and licence.
+
+# Site: Iceland airport (BIAP) - remove with the Iceland site
+
+| Part | Licence | Commercial use | Credit |
+|---|---|---|---|
+| Faroe Islands elevation model: DSM hæddarmodell 2015 (10 m), by the Faroese Environment Agency, Umhvørvisstovan (foroyakort.fo) | Føroyakort terms (June 2019): free use incl. commercial, with credit | Yes | In the game: "Data from the Faroese Environment Agency, Umhvørvisstovan: DSM hæddarmodell 2015, November 2026"; terms: https://foroyakort.fo/um-foeroyakort/terms-and-conditions-in-english |
+| ÍslandsDEM (Iceland elevation model, 10 m), by Náttúrufræðistofnun / Landmælingar Íslands (LMÍ) | CC BY 4.0 | Yes | "ÍslandsDEM © Landmælingar Íslands, CC BY 4.0" |
+| ESA WorldCover 10 m 2021 v200 (the sea's outline round the airport, Content/Data/ocean.bin); modified: the open sea traced into a water surface | CC BY 4.0 | Yes | "© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium" |
+
+# Site: Chablais Airport (Switzerland) - remove with the Chablais site
+
+- Heights: swissALTI3D (0.5 m) and aerial photos: SWISSIMAGE 10 cm - source: swisstopo (Federal Office of Topography),
+  open government data, free use including commercial, attribution "© swisstopo". Downloaded 2026-11-20 from data.geo.admin.ch.
+- French side of the map: RGE ALTI 1 m heights and BD ORTHO 20 cm photos - source: IGN (Institut national de l'information
+  géographique et forestière), Licence Ouverte / Open Licence 2.0 (Etalab), commercial use allowed with attribution "© IGN".
+  Downloaded 2026-11-20 from data.geopf.fr.
