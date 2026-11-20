@@ -5,6 +5,7 @@
 #include "Sim/ADPDemand.h"
 #include "Sim/ADPEconomy.h"
 #include "Sim/ADPStaff.h"
+#include "Sim/ADPEvents.h"
 
 const FADPProfile* FADPFlightsModule::ProfileOf(const FADPFlight& F)
 {
@@ -106,6 +107,13 @@ void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime
 		if ((Ap && InCurfew(Ap->Icao, Ap->Lon, Now)) || (Bp && InCurfew(Bp->Icao, Bp->Lon, Now + FTimespan::FromMinutes(P.BlockMin()))))
 		{ ++Curfews; A.ReadyAt = Now + FTimespan::FromMinutes(30); return; }
 	}
+	// closed by an event (ash, a strike) at either end: wait
+	{
+		const FADPAirportInfo* Ap = ADPWorldData::Airport(A.Location); const FADPAirportInfo* Bp = ADPWorldData::Airport(Next);
+		const FADPWorldEvent* E = Ap ? ADPEvents::ClosedBy(W, *Ap, Now) : nullptr;
+		if (!E && Bp) E = ADPEvents::ClosedBy(W, *Bp, Now + FTimespan::FromMinutes(P.BlockMin()));
+		if (E) { ++Closures; Wait(*E->Title, 60); return; }
+	}
 	// the duty limit: the pilot rests 12 hours first if this leg would break it
 	if (Pilot->DutyMin + P.BlockMin() > MaxDutyH * 60.0)
 	{
@@ -123,7 +131,8 @@ void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime
 	// who flies: the passengers, classes and cargo this airline gets on this pair today (part 4)
 	{
 		const FADPAirportInfo* Ap = ADPWorldData::Airport(A.Location); const FADPAirportInfo* Bp = ADPWorldData::Airport(Next); const FADPTypeInfo* T = ADPWorldData::Type(A.TypeId);
-		if (Ap && Bp && T)
+		if (ADPEvents::JobLoad(W, A.RouteId, Next, F)) {}
+		else if (Ap && Bp && T)
 		{
 			const FADPBooking K = ADPDemand::Book(W, A.AirlineId, A.RouteId, *T, *Ap, *Bp, Now, Rng);
 			F.Pax = K.Pax; F.PaxJ = K.PaxJ; F.PaxF = K.PaxF; F.CargoKg = K.CargoKg; F.LoadFactor = K.LoadFactor; F.Revenue = K.Revenue;
@@ -164,6 +173,7 @@ void FADPFlightsModule::Land(FADPWorld& W, int32 Idx, const FDateTime& At)
 	}
 	if (FADPPerson* P = W.People.FindByPredicate([&](const FADPPerson& X) { return X.Id == F.PilotId; }))
 	{ P->DutyMin += F.DurMin + TurnMin; P->Xp += F.DurMin / 60.0 + 20.0; }
+	ADPEvents::OnLanded(W, F, At);   // (punctuality, reputation, a job paid, your career: part 8)
 }
 
 bool FADPFlightsModule::InCurfew(const FString& Icao, double Lon, const FDateTime& Utc)
@@ -187,6 +197,7 @@ void FADPFlightsModule::OnTheWayDown(FADPWorld& W, FADPFlight& F, const FDateTim
 	if (!F.Emergency.IsEmpty() && F.Diverted.IsEmpty()) { Divert(W, F, Now, *F.Emergency); return; }
 	const FADPAirportInfo* B = ADPWorldData::Airport(F.To); const FADPTypeInfo* T = ADPWorldData::Type(F.TypeId);
 	if (!B || !T) return;
+	if (const FADPWorldEvent* E = ADPEvents::ClosedBy(W, *B, Now)) { Divert(W, F, Now, *E->Title); return; }
 	const FADPWx Wx = ADPWeather::At(B->Icao.IsEmpty() ? B->Ident : B->Icao, B->Lat, B->Lon, Now);
 	const double MaxCross = T->Class == TEXT("bush") ? 20.0 : T->Class == TEXT("turboprop") ? 32.0 : 38.0;
 	double Best = 1e9;
@@ -218,7 +229,7 @@ bool FADPFlightsModule::Divert(FADPWorld& W, FADPFlight& F, const FDateTime& Now
 		const double D = ADPWorldData::DistanceNm(RefLat, RefLon, Ap.Lat, Ap.Lon);
 		if (D >= BestD || (!bEm && D < 20.0) || Ap.LongestFt() < NeedFt) return;
 		const FADPWx X = ADPWeather::At(Ap.Icao, Ap.Lat, Ap.Lon, Now);
-		if (X.bStorm || X.VisM < 800.0) return;
+		if (X.bStorm || X.VisM < 800.0 || ADPEvents::ClosedBy(W, Ap, Now)) return;
 		BestD = D; Alt = &Ap;
 	});
 	if (!Alt) { F.HoldMin += 30.0; ++Holds; return false; }   // (nowhere better: hold, come in when it clears)

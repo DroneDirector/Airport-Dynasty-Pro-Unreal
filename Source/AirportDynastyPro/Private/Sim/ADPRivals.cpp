@@ -4,6 +4,7 @@
 #include "Sim/ADPEconomy.h"
 #include "Sim/ADPStaff.h"
 #include "Sim/ADPDemand.h"
+#include "Sim/ADPEvents.h"
 
 namespace
 {
@@ -110,6 +111,7 @@ void FADPRivalsModule::Decide(FADPWorld& W, FADPAirline& A, const FDateTime& At)
 		W.Aircraft.RemoveAll([&](const FADPAircraft& C) { return C.AirlineId == A.Id; });
 		for (FADPPerson& P : W.People) if (P.AirlineId == A.Id) { P.AirlineId.Empty(); P.Status = TEXT("pool"); }
 		FADPNotice N; N.At = At; N.Kind = TEXT("company"); N.Text = FString::Printf(TEXT("%s has gone bankrupt and stops flying - its staff look for work"), *A.Name); W.Notices.Add(N);
+		ADPEvents::News(W, At, TEXT("rival"), FString::Printf(TEXT("%s goes bankrupt"), *A.Name));
 		A.Id = TEXT("gone:") + A.Id; ++Bankrupt;
 		return;
 	}
@@ -148,7 +150,7 @@ void FADPRivalsModule::Decide(FADPWorld& W, FADPAirline& A, const FDateTime& At)
 		if (R.FareUntil != FDateTime() || A.Quality < 0.6) continue;
 		const bool bYou = W.Routes.ContainsByPredicate([&](const FADPRoute& O)
 		{ const FADPAirline* Ow = W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == O.AirlineId; }); return Ow && Ow->bPlayer && O.Stops.Contains(R.Stops[0]) && O.Stops.Contains(R.Stops.Last()); });
-		if (bYou) { R.FareIndex = 0.82; R.FareUntil = At + FTimespan::FromDays(45.0); ++FareWars;
+		if (bYou) { ADPEvents::News(W, At, TEXT("rival"), FString::Printf(TEXT("Fare war: %s cuts prices %s-%s"), *A.Name, *R.Stops[0], *R.Stops.Last())); R.FareIndex = 0.82; R.FareUntil = At + FTimespan::FromDays(45.0); ++FareWars;
 			FADPNotice Nt; Nt.At = At; Nt.Kind = TEXT("company"); Nt.Text = FString::Printf(TEXT("%s cuts its fares %s-%s to fight your route"), *A.Name, *R.Stops[0], *R.Stops.Last()); W.Notices.Add(Nt); }
 	}
 }

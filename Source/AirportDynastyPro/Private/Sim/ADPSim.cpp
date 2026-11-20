@@ -15,6 +15,7 @@
 #include "Sim/ADPEconomy.h"
 #include "Sim/ADPStaff.h"
 #include "Sim/ADPRivals.h"
+#include "Sim/ADPEvents.h"
 #include "Containers/Ticker.h"
 
 // -SimSelfTest: a test module (every 60 s, 2 days of catch-up), the career "closed" 3 days ago - checks the catch-up
@@ -52,7 +53,7 @@ void UADPSim::Initialize(FSubsystemCollectionBase& Collection)
 		// a small airline flying two routes from Vagar, the career "closed" 2 days ago: the catch-up flies those 2 days
 		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](float) -> bool
 		{
-			static TSharedPtr<FADPFlightsModule> M; static TSharedPtr<FADPEconomyModule> Eco; static TSharedPtr<FADPStaffModule> Staff; static TSharedPtr<FADPRivalsModule> Riv; static double Live = 0.0;
+			static TSharedPtr<FADPFlightsModule> M; static TSharedPtr<FADPEconomyModule> Eco; static TSharedPtr<FADPStaffModule> Staff; static TSharedPtr<FADPRivalsModule> Riv; static TSharedPtr<FADPEventsModule> Ev; static FString TestJob; static bool bTookJob = false; static double Live = 0.0;
 			if (!ADPWorldData::IsReady()) return true;
 			if (!M)
 			{
@@ -73,6 +74,14 @@ void UADPSim::Initialize(FSubsystemCollectionBase& Collection)
 				Staff = MakeShared<FADPStaffModule>(); Register(Staff.ToSharedRef());
 				Riv = MakeShared<FADPRivalsModule>(); Register(Riv.ToSharedRef());
 				Riv->Found(World, 12, Now() - FTimespan::FromDays(25.0));
+				Ev = MakeShared<FADPEventsModule>(); Register(Ev.ToSharedRef());
+				{
+					// a job taken by OY-RCA, a festival, a strike and ash somewhere in the world
+					const FDateTime T0 = Now() - FTimespan::FromDays(25.0);
+					for (int32 k = 0; k < 6 && TestJob.IsEmpty(); ++k) { TestJob = Ev->PostJob(World, T0); if (FADPJob* J = World.Jobs.FindByPredicate([&](const FADPJob& X) { return X.Id == TestJob; })) { J->Pax = FMath::Min(J->Pax, 100); J->Expires = J->Deadline = Now() + FTimespan::FromDays(5.0); } }
+					bTookJob = ADPEvents::TakeJob(World, TestJob, TEXT("OY-RCA"), T0);
+					Ev->StartEvent(World, TEXT("festival"), T0); Ev->StartEvent(World, TEXT("strike"), T0); Ev->StartEvent(World, TEXT("volcano"), T0);
+				}
 				// one of my routes on an AI airline's pair, to see it fight
 				for (const FADPRoute& R : World.Routes) if (R.AirlineId == TEXT("ai0")) { FADPRoute Mine = R; Mine.Id = TEXT("r-fight"); Mine.AirlineId = TEXT("me"); Mine.PilotId = TEXT("pilot1"); World.Routes.Add(Mine); break; }
 				ADPStaff::StartTypeRating(World, TEXT("pilot0"), TEXT("A321"), Now() - FTimespan::FromDays(20.0));
@@ -89,7 +98,7 @@ void UADPSim::Initialize(FSubsystemCollectionBase& Collection)
 			for (const FADPFlight& F : World.Flights) ADP_LOG(TEXT("SimFlyTest: in the air %s %s-%s: %s, %.0f ft, %.0f kt, at %.2f %.2f, heading %.0f"), *F.Reg, *F.From, *F.To, *F.Phase, F.AltFt, F.GsKt, F.Lat, F.Lon, F.HeadingDeg);
 			for (const TCHAR* Ap : {TEXT("EKVG"), TEXT("BIKF"), TEXT("EGLL"), TEXT("EKCH")}) if (const FADPAirportInfo* I = ADPWorldData::Airport(Ap))
 			{ const FADPWx X = ADPWeather::At(Ap, I->Lat, I->Lon, Now()); ADP_LOG(TEXT("SimFlyTest: weather %s %s: wind %03.0f/%.0f kt gust %.0f, vis %.0f m, ceiling %.0f ft, %.0f C%s%s - %s"), Ap, X.bLive ? TEXT("LIVE") : TEXT("climate"), X.WindDir, X.WindKt, X.GustKt, X.VisM, X.CeilingFt, X.TempC, X.bSnow ? TEXT(" snow") : TEXT(""), X.bStorm ? TEXT(" storm") : TEXT(""), *X.Raw); }
-			ADP_LOG(TEXT("SimFlyTest: %d live reports; weather waits %lld, de-icings %lld, holds %lld, diversions %lld, failures %lld, curfew waits %lld"), ADPWeather::NumReports(), M->WxWaits, M->DeIcings, M->Holds, M->Diversions, M->Failures, M->Curfews); ADP_LOG(TEXT("SimFlyTest: passengers %lld on %lld departures, average load %.0f%%, ticket and cargo money $%.0f"), M->PaxCarried, M->Departures, M->Departures ? M->LoadSum / M->Departures * 100.0 : 0.0, M->RevenueSum); for (const FADPFlight& F : World.Flights) ADP_LOG(TEXT("SimFlyTest: on board %s %s-%s: %d economy, %d business, %d first, %.0f kg cargo, %.0f%% full, $%.0f"), *F.Reg, *F.From, *F.To, F.Pax, F.PaxJ, F.PaxF, F.CargoKg, F.LoadFactor * 100.0, F.Revenue); for (const FADPNotice& N : World.Notices) ADP_LOG(TEXT("SimFlyTest: notice - %s"), *N.Text);
+			ADP_LOG(TEXT("SimFlyTest: %d live reports; weather waits %lld, de-icings %lld, holds %lld, diversions %lld, failures %lld, curfew waits %lld"), ADPWeather::NumReports(), M->WxWaits, M->DeIcings, M->Holds, M->Diversions, M->Failures, M->Curfews); ADP_LOG(TEXT("SimFlyTest: passengers %lld on %lld departures, average load %.0f%%, ticket and cargo money $%.0f"), M->PaxCarried, M->Departures, M->Departures ? M->LoadSum / M->Departures * 100.0 : 0.0, M->RevenueSum); for (const FADPFlight& F : World.Flights) ADP_LOG(TEXT("SimFlyTest: on board %s %s-%s: %d economy, %d business, %d first, %.0f kg cargo, %.0f%% full, $%.0f"), *F.Reg, *F.From, *F.To, F.Pax, F.PaxJ, F.PaxF, F.CargoKg, F.LoadFactor * 100.0, F.Revenue); for (const FADPNotice& N : World.Notices) if (N.Priority >= 1 || N.Kind == TEXT("company")) ADP_LOG(TEXT("SimFlyTest: notice [%s] %s - %s"), *N.Kind, *N.Title, *N.Text.Replace(TEXT("\n"), TEXT(" | ")));
 			{
 				// buying, leasing, selling, a used one, a campaign - each booked
 				const FString B1 = ADPEconomy::BuyAircraft(World, TEXT("me"), TEXT("AT76"), false, TEXT("EKVG"), Now());
@@ -117,6 +126,14 @@ void UADPSim::Initialize(FSubsystemCollectionBase& Collection)
 				ADP_LOG(TEXT("SimFlyTest: AI airlines - %d flying, %d aircraft, %d routes; bought %d, opened %d, closed %d, sold %d, bankrupt %d, fare wars %d; %d flights in the air worldwide"), Ai, AiFleet, AiRoutes, Riv->Bought, Riv->Opened, Riv->Closed, Riv->Sold, Riv->Bankrupt, Riv->FareWars, World.Flights.Num());
 				for (const FADPAirline& A : World.Airlines) if (!A.bPlayer) { int32 Fl = 0; for (const FADPAircraft& C : World.Aircraft) if (C.AirlineId == A.Id) ++Fl;
 					ADP_LOG(TEXT("SimFlyTest: %s (%s) hub %s, %d aircraft, balance $%.1fM, quality %.2f"), *A.Name, *A.Icao, *A.Hub, Fl, A.Balance / 1e6, A.Quality); }
+			}
+			{
+				const FADPCareer& C = World.Career; const FADPJob* J = World.Jobs.FindByPredicate([&](const FADPJob& X) { return X.Id == TestJob; });
+				ADP_LOG(TEXT("SimFlyTest: events - %d world events (%d active), %d news, closures waited %lld; jobs posted %d, expired %d, test job %s %s (took %d, done %d); briefings %d, gifts %d"),
+					Ev->WorldEvents, World.Events.Num(), World.News.Num(), M->Closures, Ev->JobsPosted, Ev->JobsExpired, *TestJob, J ? *J->Title : TEXT("-"), bTookJob, J ? J->bDone : -1, Ev->Briefings, Ev->Gifts);
+				ADP_LOG(TEXT("SimFlyTest: career - %s, %.0f XP, %lld legs, %lld pax, %.0f nm, %d airports, %d countries, streak %d, %d of %d badges, %d of 22 achievements: %s; reputation %.1f (on time %.0f%%)"),
+					*ADPEvents::RankName(C.Rank), C.Xp, C.Legs, C.Pax, C.Nm, C.Airports.Num(), C.Countries.Num(), C.BestStreak, C.Badges.Num(), ADPEvents::NumBadges(), C.Achievements.Num(), *FString::Join(C.Achievements, TEXT(",")), World.Airlines[0].Reputation, World.Airlines[0].OnTimeEma * 100.0);
+				for (const FADPNews& N : World.News) ADP_LOG(TEXT("SimFlyTest: news [%s] %s"), *N.Topic, *N.Headline);
 			}
 			ADP_LOG(TEXT("SimFlyTest: %s"), M->Landings >= 8 && M->Rests >= 1 ? TEXT("PASS") : TEXT("FAIL"));
 			FPlatformMisc::RequestExit(false);

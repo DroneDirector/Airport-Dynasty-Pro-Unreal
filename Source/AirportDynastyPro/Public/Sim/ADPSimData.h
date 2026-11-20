@@ -32,6 +32,7 @@ USTRUCT() struct FADPAirline
 	UPROPERTY() double Quality = 0.75;      // rivals: 0.6..0.95
 	UPROPERTY() FString Kind = TEXT("major");   // major | regional | bush
 	UPROPERTY() FDateTime RedSince;        // in the red since (AI airlines go bankrupt after too long)
+	UPROPERTY() double OnTimeEma = 0.85;   // share of legs on time, smoothed (reputation follows it)
 };
 
 USTRUCT() struct FADPAircraft
@@ -55,6 +56,7 @@ USTRUCT() struct FADPAircraft
 	UPROPERTY() FString Ownership = TEXT("owned");   // owned | leased
 	UPROPERTY() double Value = 0.0;        // what it is worth now (USD; owned: falls a little every month)
 	UPROPERTY() double LeaseMonthly = 0.0; // leased: the rent a month
+	UPROPERTY() FString PrevRouteId;       // on a job from the board: the route it goes back to
 };
 
 /** A person: staff of any kind, pilots included (passengers live in FADPPassenger). */
@@ -163,6 +165,8 @@ USTRUCT() struct FADPNotice
 	UPROPERTY() FString Kind;             // mechanic, authority, finance, pilot, company, flight, staff, birthday
 	UPROPERTY() FString Text;
 	UPROPERTY() bool bRead = false;
+	UPROPERTY() int32 Priority = 0;       // 0 info, 1 important, 2 urgent
+	UPROPERTY() FString Title;
 };
 
 /** A bank loan. */
@@ -220,6 +224,80 @@ USTRUCT() struct FADPCase
 };
 
 /** The whole simulated world of one career. */
+/** Something happening in the world: ash, a strike, a big event, a health scare (part 8). */
+USTRUCT() struct FADPWorldEvent
+{
+	GENERATED_BODY()
+	UPROPERTY() FString Id;
+	UPROPERTY() FString Kind;             // volcano | strike | festival | health
+	UPROPERTY() FString Title;
+	UPROPERTY() double Lat = 0.0;
+	UPROPERTY() double Lon = 0.0;
+	UPROPERTY() double RadiusNm = 0.0;
+	UPROPERTY() FString Country;          // (a whole country instead of a circle)
+	UPROPERTY() FDateTime From;
+	UPROPERTY() FDateTime Until;
+	UPROPERTY() double DemandMul = 1.0;
+	UPROPERTY() bool bClosed = false;     // airports in it closed
+	UPROPERTY() bool bStarted = false;
+};
+
+USTRUCT() struct FADPNews
+{
+	GENERATED_BODY()
+	UPROPERTY() FDateTime At;
+	UPROPERTY() FString Topic;            // world | market | rival | airport
+	UPROPERTY() FString Headline;
+};
+
+/** A job on the board: a charter, cargo or a medical flight, paid on arrival. */
+USTRUCT() struct FADPJob
+{
+	GENERATED_BODY()
+	UPROPERTY() FString Id;
+	UPROPERTY() FString Kind;             // charter | cargo | medical
+	UPROPERTY() FString Title;
+	UPROPERTY() FString From;
+	UPROPERTY() FString To;
+	UPROPERTY() int32 Pax = 0;
+	UPROPERTY() int32 CargoKg = 0;
+	UPROPERTY() double Pay = 0.0;
+	UPROPERTY() FDateTime Posted;
+	UPROPERTY() FDateTime Expires;        // off the board if nobody takes it
+	UPROPERTY() FDateTime Deadline;       // half pay after it
+	UPROPERTY() FString TakenBy;          // the aircraft
+	UPROPERTY() bool bDone = false;
+	UPROPERTY() FDateTime DoneAt;
+};
+
+/** Your career: XP and rank, the numbers behind the badges, badges and achievements, the day's figures for the briefing. */
+USTRUCT() struct FADPCareer
+{
+	GENERATED_BODY()
+	UPROPERTY() double Xp = 0.0;
+	UPROPERTY() int32 Rank = 0;
+	UPROPERTY() int64 Legs = 0;
+	UPROPERTY() int64 Pax = 0;
+	UPROPERTY() double Nm = 0.0;
+	UPROPERTY() double Revenue = 0.0;
+	UPROPERTY() double Hours = 0.0;
+	UPROPERTY() int32 OnTimeStreak = 0;
+	UPROPERTY() int32 BestStreak = 0;
+	UPROPERTY() int32 JobsDone = 0;
+	UPROPERTY() TArray<FString> Airports;
+	UPROPERTY() TArray<FString> Countries;
+	UPROPERTY() TArray<FString> Badges;
+	UPROPERTY() TArray<FString> Achievements;
+	UPROPERTY() TMap<FString, int32> TypeLegs;
+	UPROPERTY() int32 DayLegs = 0;
+	UPROPERTY() int64 DayPax = 0;
+	UPROPERTY() double DayRevenue = 0.0;
+	UPROPERTY() int32 DayOnTime = 0;
+	UPROPERTY() FDateTime Started;
+	UPROPERTY() FDateTime LastBriefing;
+	UPROPERTY() int32 Anniversaries = 0;
+};
+
 USTRUCT() struct FADPWorld
 {
 	GENERATED_BODY()
@@ -249,5 +327,10 @@ USTRUCT() struct FADPWorld
 	UPROPERTY() TArray<FADPUnion> Unions;
 	UPROPERTY() TArray<FADPCase> Cases;
 	UPROPERTY() int32 ConductLevel = 2;    // 0 none .. 4 often (Settings > Staff)
+	UPROPERTY() TArray<FADPWorldEvent> Events;
+	UPROPERTY() TArray<FADPNews> News;
+	UPROPERTY() TArray<FADPJob> Jobs;
+	UPROPERTY() int32 NextJobId = 1;
+	UPROPERTY() FADPCareer Career;
 	UPROPERTY() TMap<FString, FDateTime> ModuleTimes;   // where each module had got to
 };

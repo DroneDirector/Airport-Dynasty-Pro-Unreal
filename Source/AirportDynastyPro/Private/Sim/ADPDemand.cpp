@@ -3,6 +3,7 @@
 #include "Sim/ADPSimData.h"
 #include "Sim/ADPWorldData.h"
 #include "Sim/ADPEconomy.h"
+#include "Sim/ADPEvents.h"
 
 namespace
 {
@@ -61,11 +62,11 @@ FADPBooking ADPDemand::Book(const FADPWorld& W, const FString& AirlineId, const 
 		{
 			Seen.Add(R.AirlineId);
 			const FADPAirline* O = W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == R.AirlineId; });
-			Others += (0.4 + (O ? O->Quality : 0.75)) * FMath::Pow(FMath::Clamp(R.FareIndex, 0.4, 3.0), -1.6);
+			Others += ADPEvents::RepFactor(O) * (0.4 + (O ? O->Quality : 0.75)) * FMath::Pow(FMath::Clamp(R.FareIndex, 0.4, 3.0), -1.6);
 		}
-	const double MyPull = (0.4 + MyQ) * FMath::Pow(MyFare, -1.6) * (1.0 + ADPEconomy::CampaignBoost(W, AirlineId, RouteId, When));
+	const double MyPull = ADPEvents::RepFactor(Me) * (0.4 + MyQ) * FMath::Pow(MyFare, -1.6) * (1.0 + ADPEconomy::CampaignBoost(W, AirlineId, RouteId, When));
 	// the market reacts to price too: cheap fares bring more people out
-	const double Market = MarketPax(A, B, When) * FMath::Pow(MyFare, -0.6);
+	const double Market = MarketPax(A, B, When) * FMath::Pow(MyFare, -0.6) * ADPEvents::DemandFactor(W, A, B, When);
 	const double Share = MyPull / (MyPull + Others);
 	// my departures on this pair a day (each aircraft on it does about two a day) split my share between them
 	int32 Planes = 0;
