@@ -1,6 +1,7 @@
 // The walking-mode interface: the holographic map, the top-left bar, Hide UI, the settings panel and the performance
 // overlay, all in Slate, styled in the Android edition's holographic blues.
 #include "UI/ADPHUD.h"
+#include "GeoFrame.h"
 #include "UI/SSiteChoice.h"
 #include "Site.h"
 #include "ADPFov.h"
@@ -5715,7 +5716,8 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 			auto Shot = [](const TCHAR* Name) { FScreenshotRequest::RequestScreenshot(Name, false, false); };   // (the window's own size: run it at 3840 x 2160)
 			const FAirfieldData& F = AAirfield::Shared();
 			auto Go = [&](float X, float Y, float LX, float LY, float LH) { GoTo(FVector(X, 0.f, Y), FVector(LX, LH, LY)); };
-			if (B2 < 40.f && C2 >= 40.f) { if (bGame) ToggleGame(); ASunClock::DayOverride = 200; ASunClock::HourOverride = 15.f; ASunClock::Theme = 1; ASunClock::Refresh(); Go(F.RwyX0 + 200.f, F.RwyY - 70.f, F.RwyX0 + 2400.f, F.RwyY, 40.f); }
+			if (B2 < 40.f && C2 >= 40.f) { if (bGame) ToggleGame(); if (GameBox.IsValid()) GameBox->SetVisibility(EVisibility::Collapsed); if (MiniBox.IsValid()) MiniBox->SetVisibility(EVisibility::Collapsed);   // (the menu page away: the 3D world on screen, owner 2026-11-20)
+			 ASunClock::DayOverride = 200; ASunClock::HourOverride = 15.f; ASunClock::Theme = 1; ASunClock::Refresh(); Go(F.RwyX0 + 200.f, F.RwyY - 70.f, F.RwyX0 + 2400.f, F.RwyY, 40.f); }
 			// (30 s at each spot: the terrain's finer tiles load in first)
 			if (B2 < 70.f && C2 >= 70.f) Shot(TEXT("Chablais_1_Runway_North"));
 			if (B2 < 71.f && C2 >= 71.f) Go(F.RwyX1 - 200.f, F.RwyY - 70.f, F.RwyX1 - 2400.f, F.RwyY, 120.f);
@@ -5745,17 +5747,45 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 			if (B2 < 250.f && C2 >= 250.f) Shot(TEXT("Chablais_7_Drone_Lake"));
 			// every spawn spot, as in the Iceland edition (they are the terminal's own, so the same here): 20 s each to load
 			struct FSpot { const TCHAR* Name; TFunction<void()> Go; };
-			const TArray<FSpot> Spots = {
+			TArray<FSpot> Spots = {
 				{TEXT("Chablais_08_Entrance"), [this]() { GoEntrance(); }}, {TEXT("Chablais_09_BaggageClaim"), [this]() { GoClaim(); }},
 				{TEXT("Chablais_10_Gate4_Upper"), [this]() { GoGate4(); }}, {TEXT("Chablais_11_Apron_Jetway"), [this]() { GoApron(); }},
 				{TEXT("Chablais_12_Gate13"), [this]() { GoGate13(); }}, {TEXT("Chablais_13_TaxFree"), [this]() { GoTaxFree(); }},
 				{TEXT("Chablais_14_FireStation"), [this]() { GoFireStation(0); }}, {TEXT("Chablais_15_Hangar"), [this]() { GoHangar(0, 0); }},
 				{TEXT("Chablais_16_TowerCab"), [this]() { GoTowerCab(); }}, {TEXT("Chablais_17_TowerFoot"), [this]() { GoTowerFoot(); }}};
+			// -UIChablaisRoads: the roads instead (forecourt and coaches, the road behind the terminal, the way to the town, and
+			// the main entrance in the morning light)
+			if (FParse::Param(FCommandLine::Get(), TEXT("UIChablaisRoads")))
+				Spots = {
+					{TEXT("ChablaisRoads_1_Forecourt"), [this, Fly]() { Fly(200.f, -420.f, 40.f, 200.f, 0.f, -16.f); }},
+					{TEXT("ChablaisRoads_2_BehindTerminal"), [this]() { if (Drone.IsValid()) LeaveDrone(); GoTo(FVector(72.f, 0.f, -255.f), FVector(600.f, 1.7f, -255.f)); }},
+					{TEXT("ChablaisRoads_3_ToTown"), [this, Fly]() { Fly(1000.f, -420.f, 35.f, 2197.f, -1166.f, -7.f); }},
+					{TEXT("ChablaisRoads_4_LinkStart"), [this]() { if (Drone.IsValid()) LeaveDrone(); GoTo(FVector(2150.f, 0.f, -1155.f), FVector(2600.f, 1.7f, -1300.f)); }},
+					{TEXT("ChablaisRoads_5_EntranceMorning"), [this]() { ASunClock::HourOverride = 9.f; ASunClock::Refresh(); GoEntrance(); }}};
 			for (int32 k = 0; k < Spots.Num(); ++k)
 			{
 				const float T = 251.f + k * 22.f;
 				if (B2 < T && C2 >= T) { if (Drone.IsValid()) LeaveDrone(); Spots[k].Go(); HideUI(); }
 				if (B2 < T + 20.f && C2 >= T + 20.f) Shot(Spots[k].Name);
+				// (the road tour's link-road spot: rays across the horizon, logging what stands up there - the black pyramids)
+				if (k == 3 && FParse::Param(FCommandLine::Get(), TEXT("UIChablaisRoads")) && B2 < T + 18.f && C2 >= T + 18.f)
+					if (APlayerController* PC = GetOwningPlayerController()) if (PC->PlayerCameraManager)
+					{
+						const FVector From = PC->PlayerCameraManager->GetCameraLocation(); const float Yaw0 = PC->PlayerCameraManager->GetCameraRotation().Yaw;
+						for (float dy = -48.f; dy <= 48.f; dy += 0.5f)
+							for (const float Pt : {0.15f, 0.4f, 0.8f})
+							{
+								const FVector Dir = FRotator(Pt, Yaw0 + dy, 0.f).Vector();
+								FHitResult H; FCollisionQueryParams Q(TEXT("Pyramids"), true, GetOwningPawn());
+								if (GetWorld()->LineTraceSingleByChannel(H, From, From + Dir * 3000000.0, ECC_Visibility, Q) && H.GetComponent())
+								{
+									static TSet<FString> Seen; const FString Key = H.GetComponent()->GetFullName().Left(160);
+									if (H.ImpactPoint.Z - From.Z > 300.0 && H.Distance < 300000.0)
+									{ Seen.Add(Key); FVector LL = FVector::ZeroVector; for (TActorIterator<ACesiumGeoreference> It(GetWorld()); It; ++It) { LL = ADPGeo::ToEarth(*It, H.ImpactPoint); break; }
+									  ADP_LOG(TEXT("Pyramid probe: yaw %+.1f pitch %.2f hit %s (owner %s) at %.0f m, %.0f m above the eye, at %.6f N %.6f E %.1f m"), dy, Pt, *H.GetComponent()->GetName(), H.GetActor() ? *H.GetActor()->GetName() : TEXT("-"), H.Distance / 100.0, (H.ImpactPoint.Z - From.Z) / 100.0, LL.Y, LL.X, LL.Z); }
+								}
+							}
+					}
 			}
 			if (B2 < 251.f + 22.f * 10 && C2 >= 251.f + 22.f * 10) ADP_SHOT_EXIT();
 		}

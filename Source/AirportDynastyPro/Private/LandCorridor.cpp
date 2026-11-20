@@ -340,7 +340,10 @@ int32 ALandCorridor::Build()
 		else
 		{
 			Mesh->CreateMeshSection_LinearColor(Sct, V, I, N, T, TArray<FLinearColor>(), TArray<FProcMeshTangent>(), true);
-			if (UMaterialInterface* Gm = ATerminalBuilder::KitMaterial(this, TEXT("ggrass"))) Mesh->SetMaterial(Sct, Gm); else if (Mat) Mesh->SetMaterial(Sct, Mat);
+			// (a site with its own aerial photo - Chablais: the land as the photo shows it, its real fields; the Iceland site:
+			// the airfield's own grass, owner 2026-11-15)
+			UMaterialInterface* Gm = ADPSite::IsDefault() ? ATerminalBuilder::KitMaterial(this, TEXT("ggrass")) : nullptr;
+			if (Gm) Mesh->SetMaterial(Sct, Gm); else if (Mat) Mesh->SetMaterial(Sct, Mat);
 		}
 		++Sct; Tris += I.Num() / 3;
 	}

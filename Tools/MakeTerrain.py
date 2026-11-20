@@ -248,8 +248,15 @@ def national_over(lons, lats, out):
         # feathered in over its edges (no step where the national model meets GLO-90): full weight from FEATHER grid
         # cells inside its data, fading to GLO-90 at the edge; the box edges count as edges only where the model ends
         from scipy.ndimage import distance_transform_edt
-        pad = np.pad(ok, 1, constant_values=True)
-        w = np.clip(distance_transform_edt(pad)[1:-1, 1:-1] / FEATHER, 0, 1)
+        # (2026-11-20: with no gap at all in the grid, the distance transform has no background to measure from and
+        # returns small distances near one corner of every tile - GLO-90 (a surface model: treetops and roofs) leaked up
+        # to ~10 m into each tile's corner there: the 'black pyramids' and the terrain poking through our own ground, at
+        # Chablais and in Iceland. A grid fully covered by the national model takes it whole.)
+        if ok.all():
+            w = np.ones(ok.shape, np.float64)
+        else:
+            pad = np.pad(ok, 1, constant_values=True)
+            w = np.clip(distance_transform_edt(pad)[1:-1, 1:-1] / FEATHER, 0, 1)
         w[~ok] = 0
         vv = np.where(ok, v, 0)
         sub = sub * (1 - w) + vv * w
