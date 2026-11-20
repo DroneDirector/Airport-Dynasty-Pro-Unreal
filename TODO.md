@@ -113,6 +113,27 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 - [x] Walk anywhere on Earth: Settings, 12 places or a latitude and longitude, put down on the real ground, the airport
       set aside, back with one button (committed, not released yet)
 - [x] Release the two items above (next build)
+- [ ] **The airport moved to Switzerland: the Chablais plain** (owner, 2026-11-20; planned, the site studied in the
+      phone chat). Centre 46.3624 N, 6.9145 E, 374 m, on the Rhône plain between Noville, Chessel and Roche (canton of
+      Vaud), runways 34/16 (true 336°), room for a second runway 1,035 m out (independent landings), straight-in
+      approaches clear about 12 km both ways (over Lake Geneva / up the plain), ground within about 6 m under the
+      whole airport. The town is built where Rennaz / south Villeneuve are (the real buildings there removed), about
+      4 km from behind the terminal by the existing back road, never over ~1.3 %, levelling up to ~4.5 m. Maps:
+      `docs/Switzerland/` (copied to the PC); scripts `Tools/switzerland/` (swisstopo DHM200 heights; the Rhône line
+      in them is approximate). In this order:
+      - [ ] **Licences first:** swisstopo's free geodata (OGD) terms, free also for commercial use, the source must be
+            named: check the exact credit wording for SWISSIMAGE, swissALTI3D and swissTLM3D on swisstopo's terms
+            page (and the OSM wiki's note about imagery), then THIRD-PARTY-NOTICES.md and the on-screen credit.
+      - [ ] **Real roads and buildings:** download OpenStreetMap (ODbL) and/or swissTLM3D for the map area; the
+            airport joined to the real road network, the motorway/railway/villages it covers cleared or moved,
+            the town's buildings placed on the real street pattern where Rennaz is.
+      - [ ] **SWISSIMAGE stored in the game, not streamed:** download once, cut into a local tile pyramid, shipped
+            with the game or as our own download pack (like the terrain packs): 10 cm round the airport, the road
+            and the town (~1 GB), 50 cm for the rest of the ~47 x 44 km map (~2 GB; 25 cm would be ~7-9 GB);
+            Cesium shows these where they exist and the streamed Sentinel-2 everywhere else.
+      - [ ] **swissALTI3D heights** (0.5 m laser) converted to the game's local terrain for the map area, the
+            streamed terrain beyond; the airport and town keep their own ground.
+      - About 20-35 h nonstop for the imagery and heights part (tool, tiling, packing, Cesium layers, credit).
 - [ ] Rock, sand and snow as ground detail on the real terrain (now only the pictures show them; grass is the only 3D layer)
 - [ ] The land cover / relief in the 2D map (the game's menus)
 - [ ] The ocean, rest of the plan: Unreal's Water system round the player, swell with the wind and weather, waves
