@@ -49,7 +49,8 @@ def persp(name, loc, target, lens, w=3840, h=2160):
 
 CUT = ('Roofs', 'OuterWallsHigh', 'FireWallsHigh', 'HighBayGlazing', 'OfficeWindowsUpper', 'Office_F1_Slab', 'Office_F1_Walls',
        'Office_F2_Slab', 'Office_F2_Walls', 'Office_StairCore', 'ColdCeilings', 'Skylights', 'SmokeVents', 'SolarPanels',
-       'RefrigerationPlant', 'SignText', 'AirsideCanopy', 'LandsideCanopy', 'OfficeEntranceCanopy')
+       'RefrigerationPlant', 'SignText', 'AirsideCanopy', 'LandsideCanopy', 'OfficeEntranceCanopy', 'Office_Stairs',
+       'Office_F1_Doors', 'Office_F2_Doors')
 
 
 def shot(co, path):
@@ -63,12 +64,12 @@ def shot(co, path):
 
 cams = []
 # top: straight down, north of the drawing = the airside at the bottom? no: landside at the top, apron at the bottom
-top = ortho('top', (195, 22, 500), (195, 22, 0), 711, 3840, 2160)
+top = ortho('top', (232, 22, 500), (232, 22, 0), 800, 3840, 2160)
 top.rotation_euler = (0, 0, 0)
 cams.append(top)
 # elevations: two halves each, 35 m tall bands
 for nm, y, rot in (('front', -700, 1), ('back', 770, -1)):
-    for half, (xa, xb) in (('w', (-8, 200)), ('e', (190, 398))):
+    for half, (xa, xb) in (('w', (-8, 240)), ('e', (225, 473))):
         xc = (xa + xb) / 2; span = xb - xa
         h = int(round(3840 * 35 / span))
         c = ortho(f'{nm}_{half}', (xc, y, 14), (xc, 35, 14), span, 3840, h)
@@ -77,13 +78,13 @@ for nm, y, rot in (('front', -700, 1), ('back', 770, -1)):
 for nm, x in (('west', -700), ('east', 1090)):
     c = ortho(nm, (x, 25, 14), (195, 25, 14), 150, 3840, int(round(3840 * 38 / 150)))
     cams.append(c)
-cams.append(persp('airside_above', (-170, -330, 170), (205, 25, 4), 40))
-cams.append(persp('landside_above', (560, 330, 110), (190, 40, 6), 38))
-cams.append(persp('apron_low', (430, -150, 22), (170, 20, 10), 30))
+cams.append(persp('airside_above', (-185, -385, 195), (240, 25, 4), 40))
+cams.append(persp('landside_above', (660, 360, 125), (225, 40, 6), 36))
+cams.append(persp('apron_low', (520, -150, 22), (200, 20, 10), 30))
 # cutaways: straight down over the building (a 3D floor plan), and from above at the west and the east end
-c = ortho('cut_top', (195, 34, 300), (195, 34, 0), 400, 3840, 1000); c.rotation_euler = (0, 0, 0); cams.append(c)
+c = ortho('cut_top', (232, 34, 300), (232, 34, 0), 480, 3840, 1000); c.rotation_euler = (0, 0, 0); cams.append(c)
 cams.append(persp('cut_west', (-75, -150, 135), (150, 42, 0), 30))
-cams.append(persp('cut_east', (480, -125, 115), (300, 42, 0), 30))
+cams.append(persp('cut_east', (545, -115, 100), (370, 40, 0), 30))
 json.dump(VIEWS, open(os.path.join(OUT, 'views.json'), 'w'), indent=1)
 for c in cams:
     if ONLY and c.name not in ONLY: continue

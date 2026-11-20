@@ -1,5 +1,5 @@
 # Turns the cargo terminal's renders into 4K sheets (3840 x 2160) with titles, room names and dimensions in large type.
-#   python3 finish_cargo_sheets.py   ->  /tmp/cargo_views/Cargo-4..13-*.png  (1-3 are the plans, make_cargo_blueprints.py)
+#   python3 finish_cargo_sheets.py   ->  /tmp/cargo_views/Cargo-6..15-*.png  (1-5 are the plans, make_cargo_blueprints.py)
 import json, os, sys
 from PIL import Image, ImageDraw, ImageFont
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -56,7 +56,7 @@ def elevation(kind, title, sub, order, mirrored):
         pz = lambda Z: y + h / 2 - (Z - zc) * ppm
         d.text((40, y + 20), label, font=F(BOLD, 44), fill=ACC)
         # heights at the zones that are in this half
-        for X, Z, t in ((15, 14, '14 m'), (82, 16, '16 m'), (210, 24, '24 m'), (315, 16, '16 m'), (367, 12, '12 m')):
+        for X, Z, t in ((15, 14, '14 m'), (82, 16, '16 m'), (210, 24, '24 m'), (315, 16, '16 m'), (375, 12, '12 m'), (435, 12, '12 m')):
             xa, xb = sorted((v['loc'][0] - v['scale'] / 2, v['loc'][0] + v['scale'] / 2))
             if xa + 6 < X < xb - 6:
                 arrow_v(d, px(X), pz(Z), pz(0), t, size=40)
@@ -66,24 +66,24 @@ def elevation(kind, title, sub, order, mirrored):
         im.paste(Image.new('RGB', (W, 4), (40, 70, 110)), (0, y + h + 6))
         y += h + 70
     # zone lengths along the bottom
-    nm = dict(off='offices', exp='export', etv='high-bay ULD store', imp='import', spc='special')
+    nm = dict(off='offices', exp='export', etv='high-bay ULD store', imp='import', spc='special', bcp='border control')
     seg = [(a, b, f'{nm[zk]} {b - a:.0f}') for zk, (a, b), _, _ in CL.ZONES]
     yy = y + 40
-    sx = (W - 3600) / 2; k = 3600 / 390
-    X = (lambda a: sx + (390 - a) * k) if mirrored else (lambda a: sx + a * k)
+    sx = (W - 3600) / 2; k = 3600 / CL.L
+    X = (lambda a: sx + (CL.L - a) * k) if mirrored else (lambda a: sx + a * k)
     for a, b, t in seg:
         x0, x1 = sorted((X(a), X(b)))
         arrow_h(d, x0 + 4, x1 - 4, yy, t, size=36 if b - a < 60 else 42)
-    arrow_h(d, X(0) if not mirrored else X(390), X(390) if not mirrored else X(0), yy + 110, '390 m overall', col=INK, size=48)
+    arrow_h(d, X(0) if not mirrored else X(CL.L), X(CL.L) if not mirrored else X(0), yy + 110, f'{CL.L:.0f} m overall', col=INK, size=48)
     return im
 
 
 elevation('front', 'CARGO TERMINAL  -  AIRSIDE ELEVATION (FRONT)',
-          'Seen from the cargo apron  ·  21 ULD doors under the 12 m canopy, 3 special-cargo doors at the east end  ·  heights above the apron',
-          [('w', 'WEST HALF'), ('e', 'EAST HALF')], False).save(os.path.join(V, 'Cargo-6-Airside-Elevation.png'))
+          'Seen from the cargo apron  ·  21 ULD doors under the 12 m canopy (amber)  ·  cold-room and animal doors at the east end  ·  green: escape doors  ·  heights',
+          [('w', 'WEST HALF'), ('e', 'EAST HALF')], False).save(os.path.join(V, 'Cargo-8-Airside-Elevation.png'))
 elevation('back', 'CARGO TERMINAL  -  LANDSIDE ELEVATION (BACK)',
-          'Seen from the truck court  ·  24 truck docks with shelters, 3 drive-in doors, the office entrance  ·  east end on the left',
-          [('e', 'EAST HALF'), ('w', 'WEST HALF')], True).save(os.path.join(V, 'Cargo-7-Landside-Elevation.png'))
+          'Seen from the truck court  ·  24 truck docks + 8 cool-chain and BCP docks (amber), 2 drive-in doors, green escape doors  ·  east end on the left',
+          [('e', 'EAST HALF'), ('w', 'WEST HALF')], True).save(os.path.join(V, 'Cargo-9-Landside-Elevation.png'))
 # #endregion
 
 # #region ── End elevations ──
@@ -100,9 +100,9 @@ for nm, label, flip in (('west', 'WEST END  -  airside on the right', True), ('e
     hz = 14 if nm == 'west' else 24
     arrow_v(d, py(35) + (0 if flip else 0), pz(hz), pz(0), f'{hz} m' + (' offices' if nm == 'west' else ' high bay behind'), size=40)
     if nm == 'east':
-        arrow_v(d, py(55), pz(12), pz(0), '12 m special', size=36, side='r')
+        arrow_v(d, py(55), pz(12), pz(0), '12 m border control post', size=36, side='r')
     y += h + 50
-im.save(os.path.join(V, 'Cargo-8-End-Elevations.png'))
+im.save(os.path.join(V, 'Cargo-10-End-Elevations.png'))
 # #endregion
 
 # #region ── Top view ──
@@ -114,28 +114,28 @@ d.rectangle((0, 0, W, 210), fill=BG)
 d.text((60, 30), 'CARGO TERMINAL  -  TOP VIEW', font=F(BOLD, 76), fill=INK)
 d.text((62, 128), 'Apron with stands C1-C4 at the bottom, the building, the truck court and the moved fence at the top  ·  metres',
        font=F(REG, 40), fill=SUB)
-arrow_h(d, px(0), px(390), py(-170) + 40, '390 m', size=48)
-arrow_v(d, px(395) + 40, py(70), py(0), '70 m', size=44)
-arrow_v(d, px(395) + 40, py(210), py(70), '140 m truck court', size=40)
+arrow_h(d, px(0), px(CL.L), py(-170) + 40, f'{CL.L:.0f} m', size=48)
+arrow_v(d, px(CL.L + 5) + 40, py(70), py(0), '70 m', size=44)
+arrow_v(d, px(CL.L + 5) + 40, py(210), py(70), '140 m truck court', size=40)
 arrow_v(d, px(-35) - 30, py(0), py(-165), '165 m apron', size=40, side='l')
 for i, sx in enumerate((60.0, 147.5, 235.0, 322.5)):
     text_box(d, (px(sx), py(-150)), f'C{i + 1}', F(BOLD, 54), fill=ACC)
-for X, t in ((15, 'offices'), (82, 'export'), (210, 'high-bay ULD store'), (315, 'import'), (367, 'special')):
+for X, t in ((15, 'offices'), (82, 'export'), (210, 'high-bay ULD store'), (315, 'import'), (375, 'special'), (435, 'BCP')):
     text_box(d, (px(X), py(35)), t, F(BOLD, 40 if X != 210 else 46), fill=INK, bg=(20, 45, 80))
-im.save(os.path.join(V, 'Cargo-4-Top-View.png'))
+im.save(os.path.join(V, 'Cargo-6-Top-View.png'))
 # #endregion
 
 # #region ── Angled views ──
-for nm, out, title, sub in (('airside_above', 'Cargo-9-Airside-From-Above.png', 'CARGO TERMINAL  -  AIRSIDE, FROM ABOVE',
+for nm, out, title, sub in (('airside_above', 'Cargo-11-Airside-From-Above.png', 'CARGO TERMINAL  -  AIRSIDE, FROM ABOVE',
                              'The apron side: canopy over the ULD doors, ULDs waiting in the staging lanes, the high-bay store with solar panels'),
-                            ('landside_above', 'Cargo-10-Landside-Odd-Angle.png', 'CARGO TERMINAL  -  LANDSIDE, FROM AN ANGLE',
+                            ('landside_above', 'Cargo-12-Landside-Odd-Angle.png', 'CARGO TERMINAL  -  LANDSIDE, FROM AN ANGLE',
                              'The truck court: lorries at the docks, the lorry park, the staff car park, the security gate in the moved fence'),
-                            ('apron_low', 'Cargo-11-Apron-Low-Angle.png', 'CARGO TERMINAL  -  FROM THE APRON, LOW',
-                             'As a freighter crew sees it from stand C4: the airside face, 390 m long'),
-                            ('cut_west', 'Cargo-12-Cutaway-West.png', 'CARGO TERMINAL  -  CUTAWAY FROM THE WEST',
+                            ('apron_low', 'Cargo-13-Apron-Low-Angle.png', 'CARGO TERMINAL  -  FROM THE APRON, LOW',
+                             'As a freighter crew sees it from stand C4: the airside face, 465 m long'),
+                            ('cut_west', 'Cargo-14-Cutaway-West.png', 'CARGO TERMINAL  -  CUTAWAY FROM THE WEST',
                              'Roof and upper walls left out: office ground floor, export with screening, racks and build-up, the ETV store'),
-                            ('cut_east', 'Cargo-13-Cutaway-East.png', 'CARGO TERMINAL  -  CUTAWAY FROM THE EAST',
-                             'Roof and upper walls left out: special cargo rooms, import break-down, customs and bonded store, the ETV store')):
+                            ('cut_east', 'Cargo-15-Cutaway-East.png', 'CARGO TERMINAL  -  CUTAWAY FROM THE EAST',
+                             'Roof off: the border control post (horses, animals, animal products), special cargo, dangerous goods  ·  amber and green: doors')):
     r = Image.open(os.path.join(V, nm + '.png')).convert('RGB'); im = r.copy(); d = ImageDraw.Draw(im)
     d.rectangle((0, 0, W, 210), fill=BG)
     d.text((60, 30), title, font=F(BOLD, 76), fill=INK); d.text((62, 128), sub, font=F(REG, 40), fill=SUB)
@@ -150,18 +150,18 @@ for rr in CL.ROOMS:
     name, x0, y0, x1, y1, zk, kind, doors, short = rr
     if kind == 'aisle': continue
     c = (px((x0 + x1) / 2), py((y0 + y1) / 2))
-    if short: text_box(d, c, short.replace('\n', ' ') if x1 - x0 > 40 else short, F(BOLD, 34), bg=(7, 26, 51))
+    if short: text_box(d, c, short.replace('\n', ' ') if x1 - x0 > 70 else short, F(BOLD, 34), bg=(7, 26, 51))
     else:
-        n = str(CL.NUM[id(rr)]); f = F(BOLD, 34); b = d.textbbox(c, n, font=f, anchor='mm'); rad = 30
+        n = str(CL.NUM[id(rr)]); small = x1 - x0 < 9; f = F(BOLD, 24 if small else 32); rad = 19 if small else 28
         d.ellipse((c[0] - rad, c[1] - rad, c[0] + rad, c[1] + rad), fill=BG, outline=ACC, width=4); d.text(c, n, font=f, fill=INK, anchor='mm')
 yb = TOP + r.height + 60
 for a, b in [(a, b) for _, (a, b), _, _ in CL.ZONES]: arrow_h(d, px(a) + 3, px(b) - 3, yb, f'{b - a:.0f} m', size=40)
-arrow_h(d, px(0), px(390), yb + 90, '390 m', col=INK, size=44)
+arrow_h(d, px(0), px(CL.L), yb + 90, f'{CL.L:.0f} m', col=INK, size=44)
 y0l = yb + 170
 for i, rr in enumerate(CL.NUMBERED):
-    col, row = i // 7, i % 7
-    d.text((40 + col * 950, y0l + row * 62), f'{i + 1:>2}', font=F(BOLD, 36), fill=ACC)
-    d.text((110 + col * 950, y0l + row * 62), rr[0], font=F(REG, 36), fill=INK)
-im.save(os.path.join(V, 'Cargo-5-Cutaway-Plan.png'))
+    col, row = i // 13, i % 13
+    d.text((40 + col * 950, y0l + row * 52), f'{i + 1:>2}', font=F(BOLD, 30), fill=ACC)
+    d.text((100 + col * 950, y0l + row * 52), rr[0], font=F(REG, 30), fill=INK)
+im.save(os.path.join(V, 'Cargo-7-Cutaway-Plan.png'))
 # #endregion
 print('sheets done')

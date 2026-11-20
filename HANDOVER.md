@@ -9,17 +9,23 @@ Whenever the owner sends pictures in the phone chat for you, they are copied ont
 location there (with what it shows and what he said about it). Open those files; commit them (through LFS) with your
 next commit if they belong in the repo.
 
-## From the owner (2026-11-20 20:46-21:05, via the phone): the cargo terminal, with real rooms inside
-- Made in Blender in the phone chat: `Art/CargoTerminal/` (scripts committed; `CargoTerminal.blend` / `.glb` and the 13 blueprint
-  sheets in `Blueprints/CargoTerminal/` were copied to this PC for you to commit through LFS).
-- It sits on the airfield plan's cargo building (plan x 200-590, y 1231-1301), apron and stands C1-C4 in front. Inside: offices (3 floors,
-  ops control centre over the apron), export (acceptance, weigh & measure, screening, bulk racks, mail & express, 8 build-up stations),
-  the ETV high-bay ULD store (2 ETVs, 360 positions), import (4 break-down stations, customs inspection, bonded store, release) and
-  special cargo (live animals, vet & border control, perishables, freezer, pharma 2-8 and 15-25, dangerous goods, radioactive,
-  valuables, human remains, damaged cargo, vulnerable cargo, oversize X-ray, sealed cool-chain docks). Forklift aisles 6 m, room openings 4 m.
-- The truck court needs the airport fence moved out from plan y 1320 to y 1441 (gate and gatehouse in it).
+## From the owner (2026-11-20 20:46-22:14, via the phone): the cargo terminal, with every room real cargo terminals need, sized to the law
+- Made in Blender in the phone chat: `Art/CargoTerminal/` (scripts committed; `CargoTerminal.blend` / `.glb` and the 15 blueprint
+  sheets for `Blueprints/CargoTerminal/` to be copied to this PC and committed through LFS).
+- The building grew from 390 to 465 m (plan x 200-665; `Data/airfield.json` cargoBuilding x1 is now 665) for the special-cargo
+  rooms and a border control post. Inside: offices on 3 floors with 3 stairs; export (unloading, known-consignor intake, screening
+  hall, high-risk cargo screening, racks, mail, 8 build-up stations) behind a security line; the ETV store (360 positions);
+  import; special cargo (cold rooms, valuables, human remains, oversize X-ray, one fire-rated room per dangerous-goods class,
+  radioactive store); the border control post (horse and cattle stalls, small animals, inspection with restraint, feed and manure
+  stores, chilled / frozen / ambient animal-product stores, detained goods, inspection room, vet office, showers, own access lane).
+  Aisles and corridors 6.5 m; escape doors every 30 m on both faces; WC and break room in every hall. The rules are listed
+  at the top of `cargo_layout.py` and on the room schedule sheet.
+- Doors are plain to see in the model: overhead and sectional doors amber, personnel and escape doors green with exit lights,
+  fire shutters red (materials M_Cargo_Door, M_Cargo_PersonnelDoor, M_Cargo_ExitSign, M_Cargo_FireShutter).
+- The truck court needs the airport fence moved out from plan y 1320 to y 1441 (gate and gatehouse in it). The empty ULD store and
+  repair shed now sit east of the building (local x 470-512), beyond the cargo apron's east edge.
 - To bring it in: import `CargoTerminal.glb` at the cargo building's place (local X = plan x - 200, local Y = plan y - 1231,
-  pointing the airside at the apron) in place of the plain box, Nanite on; the materials named M_Cargo_* get real Unreal materials.
+  airside towards the apron) in place of the plain box, Nanite on; the M_Cargo_* materials get real Unreal materials.
 
 ## From the owner (2026-11-20 06:32, via the phone): the game's own icon instead of Unreal's
 - Done in the phone chat: `Art/Icon/make_icon.py` (Blender render) and `finish_icon.py` -> `Build/Windows/Application.ico`
