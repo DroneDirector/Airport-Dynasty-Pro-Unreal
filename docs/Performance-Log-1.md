@@ -61,3 +61,16 @@ Every performance change to the game, newest last. Only performance work goes in
   (frame generation counted 0) and off-screen runs vary - the night's 4K / his-screen numbers can't be trusted.
 - Kept: the aspens frozen after their first pose (no tick, no bone update - they don't sway; same look, checked by
   picture), -NoAspens / -AspensLive to measure them. Next: measure with Windows unlocked, on his screen.
+
+## 2026-11-20 morning - to-do 149: the cause and the frame savers
+- Correction to the night entry: Windows was not locked (the lock-screen program always runs). Measured on his screen
+  (3840x1080, Cinematic, 100% resolution): standing in the Grand Hall 30 fps drawn / 60 on screen, both 0.17.28 and new;
+  outdoors at the coaches 16-20 drawn, frame generation adding almost nothing. 0.17.28 was as slow on the normal walk
+  (22 vs 19): not a new break. Per frame outdoors: game 11 ms, render 9 ms, graphics card 50-60 ms.
+- Graphics-card profile at the coach view: Lumen gathering 22.6 ms, Lumen lamps 14 ms, glass lighting 14 ms, clouds
+  12 ms, non-Nanite base pass 12 ms, non-Nanite shadows 7 ms (the hangars' and tower's 8,500 basic shapes).
+- Fixed: model lamps cast no shadows (45 shadow passes); hangars and tower on Nanite copies of the shapes; the coaches
+  walk 16 -> 19 fps.
+- New, live in Settings > Graphics > Effects, off by default: Upscaler at Quality (67%), Faster clouds, Faster lighting.
+  At the coach view: all off 17 fps, upscaler 30, + clouds 45, + lighting 52 (editor build, his settings); the look
+  nearly the same (docs/Pictures/FrameSavers).
