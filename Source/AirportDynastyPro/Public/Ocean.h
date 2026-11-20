@@ -28,4 +28,7 @@ public:
 private:
 	UPROPERTY() TObjectPtr<class UProceduralMeshComponent> Water;
 	double SeaZ = 0;
+	/** The water's material with the wind in it (the live weather, every minute: bigger waves in a strong wind). */
+	UPROPERTY() TObjectPtr<class UMaterialInstanceDynamic> Mat;
+	float WindT = 0.f;
 };

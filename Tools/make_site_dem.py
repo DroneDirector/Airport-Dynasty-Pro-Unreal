@@ -57,6 +57,18 @@ def block(job):
     return job, out
 
 
+def block_file(job, bdir):
+    """One block made and written to its own file (the VRT ties them together)."""
+    (bl, bt, w, h), arr = block(job)
+    c = int(round((bl - A.bbox[0]) / A.res)); r = int(round((A.bbox[3] - bt) / A.res))
+    p = os.path.join(bdir, '%d_%d.tif' % (r, c))
+    if os.path.exists(p): return
+    prof = dict(driver='GTiff', width=w, height=h, count=1, dtype='float32', crs='EPSG:4326', nodata=NODATA,
+                transform=from_origin(bl, bt, A.res, A.res), tiled=True, blockxsize=512, blockysize=512, compress='deflate', predictor=3)
+    with rasterio.open(p + '.part', 'w', **prof) as o: o.write(arr, 1)
+    os.replace(p + '.part', p)
+
+
 def init(a, src):
     global A, SRC
     A, SRC = a, src
@@ -79,19 +91,29 @@ def main():
     for r in range(0, H, a.block):
         for c in range(0, W, a.block):
             jobs.append((lon0 + c * a.res, lat1 - r * a.res, min(a.block, W - c), min(a.block, H - r)))
-    tmp = a.out + '.part'
+    # each block its own small GeoTIFF (written by the worker that made it), tied together by a VRT index at --out
+    # (2026-11-20: one process writing the whole 3-gigapixel file stalled the pool); GDAL reads the VRT as one raster
     import time
     from concurrent.futures import as_completed
-    prof.pop('num_threads', None)
+    bdir = os.path.splitext(a.out)[0] + '_blocks'; os.makedirs(bdir, exist_ok=True)
     t0 = time.time()
-    with rasterio.open(tmp, 'w', **prof) as o, ProcessPoolExecutor(a.workers, initializer=init, initargs=(a, src)) as ex:
-        futs = [ex.submit(block, j) for j in jobs]
+    with ProcessPoolExecutor(a.workers, initializer=init, initargs=(a, src)) as ex:
+        futs = [ex.submit(block_file, j, bdir) for j in jobs]
         for i, f in enumerate(as_completed(futs)):
-            (bl, bt, w, h), arr = f.result()
-            c = int(round((bl - lon0) / a.res)); r = int(round((lat1 - bt) / a.res))
-            o.write(arr, 1, window=rasterio.windows.Window(c, r, w, h))
+            f.result()
             if i % 10 == 0: print('%d / %d blocks, %.0f s' % (i + 1, len(jobs), time.time() - t0), flush=True)
-    os.replace(tmp, a.out)
+    # the VRT: every block placed at its offset
+    parts = []
+    for (bl, bt, w, h) in jobs:
+        c = int(round((bl - lon0) / a.res)); r = int(round((lat1 - bt) / a.res))
+        fn = os.path.join(bdir, '%d_%d.tif' % (r, c)).replace(os.sep, '/')
+        parts.append('<ComplexSource><SourceFilename relativeToVRT="0">%s</SourceFilename><SourceBand>1</SourceBand>'
+                     '<SrcRect xOff="0" yOff="0" xSize="%d" ySize="%d"/><DstRect xOff="%d" yOff="%d" xSize="%d" ySize="%d"/>'
+                     '<NODATA>%g</NODATA></ComplexSource>' % (fn, w, h, c, r, w, h, NODATA))
+    vrt = ('<VRTDataset rasterXSize="%d" rasterYSize="%d"><SRS>EPSG:4326</SRS><GeoTransform>%.10f, %.10f, 0, %.10f, 0, %.10f</GeoTransform>'
+           '<VRTRasterBand dataType="Float32" band="1"><NoDataValue>%g</NoDataValue>%s</VRTRasterBand></VRTDataset>'
+           % (W, H, lon0, a.res, lat1, -a.res, NODATA, ''.join(parts)))
+    open(a.out, 'w').write(vrt)
     print('done', a.out, flush=True)
 
 

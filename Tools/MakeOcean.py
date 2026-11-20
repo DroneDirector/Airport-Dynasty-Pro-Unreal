@@ -73,6 +73,39 @@ CH, CW = corner.shape
 dist = ndimage.distance_transform_edt(sea) * 10.0      # metres from land (10 m pixels)
 shore_px = np.clip(1.0 - dist / 150.0, 0, 1).astype(np.float32)
 shore = shore_px[::F, ::F]
+# how open the water is round each point (owner, 2026-11-20: bigger waves the further out, calmer towards the shore): the
+# open water's reach in 16 directions (at 100 m steps, up to 30 km; past the region's edge the sea goes on), averaged and
+# scaled 0..1; the water's material grows the waves with it (and with the real wind)
+def exposure_grid(sea):
+    D = 10
+    hh, ww = sea.shape[0] // D, sea.shape[1] // D
+    s100 = sea[:hh * D, :ww * D].reshape(hh, D, ww, D).mean(axis=(1, 3)) > 0.5
+    MAXS = 300
+    total = np.zeros((hh, ww), np.float32)
+    for k in range(16):
+        ang = k * math.pi / 8; dx, dy = math.cos(ang), math.sin(ang)
+        reach = np.zeros((hh, ww), np.float32); alive = s100.copy()
+        for st in range(1, MAXS + 1):
+            oy, ox = int(round(dy * st)), int(round(dx * st))
+            sh = np.zeros_like(s100)
+            ys0, ys1 = max(0, -oy), min(hh, hh - oy); xs0, xs1 = max(0, -ox), min(ww, ww - ox)
+            if ys0 >= ys1 or xs0 >= xs1:
+                if not a.dem: reach[alive] += MAXS - st + 1
+                break
+            # (outside the region: open water for the sea, land for a lake)
+            sh[:] = not a.dem
+            sh[ys0:ys1, xs0:xs1] = s100[ys0 + oy:ys1 + oy, xs0 + ox:xs1 + ox]
+            alive &= sh
+            if not alive.any(): break
+            reach[alive] += 1
+        total += reach
+    e = np.clip((total / 16.0) / (MAXS if not a.dem else 120.0), 0, 1)   # (a lake: full exposure at 12 km of open water)
+    from scipy.ndimage import zoom, uniform_filter
+    e = uniform_filter(e, 3)
+    big = zoom(e, (sea.shape[0] / hh, sea.shape[1] / ww), order=1)[:sea.shape[0], :sea.shape[1]]
+    return big.astype(np.float32)
+expo = exposure_grid(sea)[::F, ::F]
+print('exposure: mean %.2f, max %.2f' % (float(expo[corner > 0.5].mean()) if (corner > 0.5).any() else 0, float(expo.max())))
 cell_deg = RES * F
 def lonlat(i, j): return W + j * cell_deg, N - i * cell_deg
 
@@ -80,14 +113,14 @@ verts, vid, tris = [], {}, []
 def V(i, j):
     k = (i, j)
     if k not in vid:
-        lo, la = lonlat(i, j); vid[k] = len(verts); verts.append((lo, la, float(shore[min(i, CH - 1), min(j, CW - 1)])))
+        lo, la = lonlat(i, j); vid[k] = len(verts); verts.append((lo, la, float(shore[min(i, CH - 1), min(j, CW - 1)]), float(expo[min(i, CH - 1), min(j, CW - 1)])))
     return vid[k]
 def VE(i0, j0, i1, j1, t):
     # a point on a cell edge (the coastline crossing), its shore value 1
     k = ('e', i0, j0, i1, j1, round(t, 3))
     if k not in vid:
         lo0, la0 = lonlat(i0, j0); lo1, la1 = lonlat(i1, j1)
-        vid[k] = len(verts); verts.append((lo0 + (lo1 - lo0) * t, la0 + (la1 - la0) * t, 1.0))
+        vid[k] = len(verts); verts.append((lo0 + (lo1 - lo0) * t, la0 + (la1 - la0) * t, 1.0, 0.0))
     return vid[k]
 
 full = corner > 0.5
@@ -118,8 +151,10 @@ for i, j in zip(*np.nonzero(cellm)):
 
 os.makedirs(os.path.dirname(a.out), exist_ok=True)
 with open(a.out, 'wb') as f:
-    f.write(b'ADPO'); f.write(struct.pack('<III', 1, len(verts), len(tris)))
+    # version 2: after the shore values, each corner's exposure (0 sheltered .. 1 open water)
+    f.write(b'ADPO'); f.write(struct.pack('<III', 2, len(verts), len(tris)))
     f.write(np.array([(v[0], v[1]) for v in verts], np.float64).tobytes())
     f.write(np.array([v[2] for v in verts], np.float32).tobytes())
     f.write(np.array(tris, np.uint32).tobytes())
+    f.write(np.array([v[3] for v in verts], np.float32).tobytes())
 print('ocean', len(verts), 'vertices', len(tris), 'triangles ->', a.out, os.path.getsize(a.out) // 1024, 'KB')

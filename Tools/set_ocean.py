@@ -61,6 +61,12 @@ calm = add(mul(calm, c1(0.75)), c1(0.25))
 # waves a third as steep and the shore's surf a gentle lap
 lake = E(unreal.MaterialExpressionScalarParameter, -1800); lake.set_editor_property('parameter_name', 'Lake'); lake.set_editor_property('default_value', 0.0)
 calm = mul(calm, lerp(c1(1.0), c1(0.32), lake))
+# open water grows the waves, shelter calms them (the mesh's green: 0 a sheltered bay .. 1 open water, Tools/MakeOcean.py),
+# and the real wind sets how big they are overall (the parameter Wind: 0 calm .. 1 a gale, from the live weather)
+vcw = E(unreal.MaterialExpressionVertexColor, -1800)
+wind = E(unreal.MaterialExpressionScalarParameter, -1800); wind.set_editor_property('parameter_name', 'Wind'); wind.set_editor_property('default_value', 0.45)
+calm = mul(calm, add(c1(0.25), mul(fn(unreal.MaterialExpressionSquareRoot, mask(vcw, 'g')), c1(1.05))))
+calm = mul(calm, add(c1(0.3), mul(wind, c1(1.5))))
 nrm = fn(unreal.MaterialExpressionNormalize, op(unreal.MaterialExpressionAppendVector, op(unreal.MaterialExpressionAppendVector, mul(mul(sx, c1(-1)), calm), mul(mul(sy, c1(-1)), calm)), c1(1.0)))
 mel.connect_material_property(nrm, '', unreal.MaterialProperty.MP_NORMAL)
 
@@ -72,6 +78,7 @@ bands = fn(unreal.MaterialExpressionSine, add(add(mul(shore, c1(22.0)), mul(T, c
 bands = fn(unreal.MaterialExpressionSaturate, mul(add(bands, c1(-0.55)), c1(3.5)))
 foam = fn(unreal.MaterialExpressionSaturate, add(mul(bands, pw(shore, c1(1.6))), pw(shore, c1(10.0))))
 foam = mul(foam, lerp(c1(1.0), c1(0.12), lake))
+foam = mul(foam, fn(unreal.MaterialExpressionSaturate, add(c1(0.35), mul(wind, c1(1.3)))))
 deep, shallow, white = c3(0.008, 0.035, 0.05), c3(0.03, 0.12, 0.12), c3(0.85, 0.88, 0.88)
 water = lerp(deep, shallow, pw(shore, c1(2.0)))
 mel.connect_material_property(lerp(water, white, foam), '', unreal.MaterialProperty.MP_BASE_COLOR)

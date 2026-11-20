@@ -1,6 +1,7 @@
 // The sea round the airport (see Ocean.h).
 #include "Ocean.h"
 #if PLATFORM_WINDOWS
+#include "Sim/ADPWeather.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Site.h"
 #include "Windows/WindowsHWrapper.h"   // (Windows' headers the Unreal way, before Cesium's: its own include of windows.h then leaves no min/max/GetObject macros behind for the next files of the build chunk)
@@ -43,6 +44,8 @@ bool AOcean::Build(ACesiumGeoreference* G, double SeaHeight)
 	const double* LL = reinterpret_cast<const double*>(B.GetData() + 16);
 	const float* Shore = reinterpret_cast<const float*>(B.GetData() + 16 + NV * 16);
 	const uint32* Tri = reinterpret_cast<const uint32*>(B.GetData() + 16 + NV * 20);
+	// version 2: each corner's exposure after the triangles (0 a sheltered bay .. 1 open water: the waves grow with it)
+	const float* Expo = (Ver >= 2 && B.Num() >= Need + int64(NV) * 4) ? reinterpret_cast<const float*>(B.GetData() + Need) : nullptr;
 
 	// every corner from longitude and latitude to Unreal's world through the georeference (the Earth's curve included),
 	// held relative to the middle so the numbers stay small
@@ -58,7 +61,7 @@ bool AOcean::Build(ACesiumGeoreference* G, double SeaHeight)
 	for (uint32 i = 0; i < NV; ++i)
 	{
 		V[i] = P[i] - Mid;
-		Col[i] = FColor(uint8(FMath::Clamp(Shore[i], 0.f, 1.f) * 255.f), 0, 0, 255);   // red: how close to the shore
+		Col[i] = FColor(uint8(FMath::Clamp(Shore[i], 0.f, 1.f) * 255.f), uint8(FMath::Clamp(Expo ? Expo[i] : 0.7f, 0.f, 1.f) * 255.f), 0, 255);   // red: how close to the shore; green: how open the water
 		UV[i] = FVector2D(P[i].X / 10000.0, P[i].Y / 10000.0);
 	}
 	TArray<int32> Idx; Idx.SetNumUninitialized(NT * 3);
@@ -80,8 +83,10 @@ bool AOcean::Build(ACesiumGeoreference* G, double SeaHeight)
 	{
 		// a site by a lake (Site.h: lakeLevelM): calm water, a gentle lap at the shore
 		double Lake = -1.0; if (TSharedPtr<FJsonObject> Si = ADPSite::Info(ADPSite::Id())) Si->TryGetNumberField(TEXT("lakeLevelM"), Lake);
-		if (Lake >= 0.0) { UMaterialInstanceDynamic* D = UMaterialInstanceDynamic::Create(M, this); D->SetScalarParameterValue(TEXT("Lake"), 1.f); Water->SetMaterial(0, D); }
-		else Water->SetMaterial(0, M);
+		Mat = UMaterialInstanceDynamic::Create(M, this);
+		Mat->SetScalarParameterValue(TEXT("Lake"), Lake >= 0.0 ? 1.f : 0.f);
+		Water->SetMaterial(0, Mat);
+		WindT = 1000.f;   // (the wind at once)
 	}
 	SeaZ = Mid.Z;
 	ADP_LOG(TEXT("Ocean: %u corners, %u triangles, at %.1f m, %.0f x %.0f km"), NV, NT, SeaHeight, Box.GetSize().X / 1e5, Box.GetSize().Y / 1e5);
@@ -91,6 +96,15 @@ bool AOcean::Build(ACesiumGeoreference* G, double SeaHeight)
 void AOcean::Tick(float Dt)
 {
 	Super::Tick(Dt);
+	// the real wind at the airport (live weather, else the built-in climate): every minute into the waves' size
+	if (Mat && (WindT += Dt) > 60.f)
+	{
+		WindT = 0.f;
+		const TSharedPtr<FJsonObject> Ap = ADPSite::AirportBlock();
+		double La = 0, Lo = 0; FString Icao; Ap->TryGetNumberField(TEXT("lat"), La); Ap->TryGetNumberField(TEXT("lon"), Lo); Ap->TryGetStringField(TEXT("icao"), Icao);
+		const FADPWx X = ADPWeather::At(Icao, La, Lo, FDateTime::UtcNow());
+		Mat->SetScalarParameterValue(TEXT("Wind"), FMath::Clamp(float((X.WindKt + 0.3 * FMath::Max(0.0, X.GustKt - X.WindKt)) / 35.0), 0.f, 1.f));
+	}
 	// the camera's height over the sea: the detailed water up to 600 m, the terrain's water mask above (a little
 	// overlap either way so it never flickers at the line)
 	const APlayerCameraManager* Cam = UGameplayStatics::GetPlayerCameraManager(this, 0);
