@@ -58,7 +58,7 @@ steps, menus and Settings all become native Unreal screens. One simulation drive
 4. Demand, fares, load, classes, cargo, connections, services, loyalty, lounges, alliances - 6-8 h
 5. The economy: leg P&L, fuel and markets, payroll, loans, insurance, leases, sales, shares, scenarios - 8-10 h
 6. Staff: people, hiring pool, levels, morale, unions/strikes, sickness, training, conduct, court - 10-12 h
-7. Rival airlines: schedules, reactions, poaching, takeover, league - plus (if you want) rivals that grow - 6-10 h
+7. Rival airlines as real AI airlines: their own economy, buying/selling aircraft, opening and closing routes, hiring, reactions, poaching, takeover, bankruptcy, league - 10-14 h
 8. Events, jobs, reputation, ranks/badges/achievements, news, notifications, mail, briefing - 6-8 h
 9. Your airport live (155): passengers from the coaches to the aircraft, staff rota in 3D, conduct scenes - 10-14 h
 10. Sync with the Android app + the live tracking data - 6-8 h
@@ -69,13 +69,14 @@ steps, menus and Settings all become native Unreal screens. One simulation drive
 
 15. Our own flight planning and dispatch from real-world data (no outside services) - 10-14 h
 
-About 120-165 working hours in all (15-21 working days). Each part is tested and committed; a release whenever a
+About 125-170 working hours in all (16-21 working days). Each part is tested and committed; a release whenever a
 useful group is done (your go-ahead covers publishing, except the Overview's look, which waits for the demo APK).
 
 ## Questions for the owner (before part 1)
 
-1. Rival airlines: as now (fixed fleets that react), or real AI airlines that buy and sell aircraft, open routes, hire
-   and can go bankrupt?
+1. ANSWERED (owner, 2026-11-20): rival airlines become real AI airlines - they buy (and sell) aircraft, open routes,
+   hire and can go bankrupt, each running its own economy. Your own airline is yours alone: you choose its aircraft,
+   routes, economy and staff - the AI never decides for it.
 2. Time: keep the real clock (as now, with the catch-up), or add a game speed?
 3. The Android app: it keeps running its own web game for now - must the PC's new save stay readable by it (so the two
    still sync), or is the Android app rebuilt from the new design later too?
