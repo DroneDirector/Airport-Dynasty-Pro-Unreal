@@ -21,6 +21,12 @@ namespace ADPStaff
 	int32 CabinCrewAt(const FADPWorld& W, const FString& AirlineId, const FString& Base);
 	/** The airline's country (its hub airport's) - never fixed to one place (the airport can move). */
 	FString CountryOf(const FADPWorld& W, const FString& AirlineId);
+	/** A type-rating course: cost by class, days; passed or failed at the end (a retake costs a third). */
+	bool StartTypeRating(FADPWorld& W, const FString& PersonId, const FString& TypeId, const FDateTime& At);
+	/** True while this airline's staff in this job are on strike. */
+	bool OnStrike(const FADPWorld& W, const FString& AirlineId, const FString& Role);
+	/** The player's answer to a union: meet the demands (pay to the going rate +5%), or a compromise (+half way). */
+	void MeetUnion(FADPWorld& W, const FString& AirlineId, const FString& Role, bool bFully, const FDateTime& At);
 }
 
 class AIRPORTDYNASTYPRO_API FADPStaffModule : public IADPSimModule
@@ -30,6 +36,8 @@ public:
 	virtual double Interval() const override { return 3600.0; }   // (every hour; the day's events at 00:00 UTC)
 	virtual FTimespan MaxCatchUp() const override { return FTimespan::FromDays(56.0); }
 	virtual void Advance(UADPSim& Sim, const FDateTime& From, const FDateTime& To, bool bCatchUp) override;
-	int32 SickDays = 0, Quits = 0, PoolChanges = 0;
+	int32 SickDays = 0, Quits = 0, PoolChanges = 0, Ratings = 0, Strikes = 0, Reports = 0, Trials = 0;
 	FRandomStream Rng = FRandomStream(2601);
+private:
+	void Daily(FADPWorld& W, const FDateTime& To);
 };

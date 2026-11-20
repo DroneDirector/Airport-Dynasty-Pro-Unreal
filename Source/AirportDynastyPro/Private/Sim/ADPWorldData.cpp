@@ -15,7 +15,7 @@ namespace
 	TArray<FADPTypeInfo> GTypes;
 	TAtomic<bool> GReady(false), GStarted(false);
 
-	FString DataFile(const TCHAR* Name)
+	FString SimDataFile(const TCHAR* Name)
 	{
 		const FString A = FPaths::ProjectContentDir() / TEXT("Data") / Name;   // (packaged: Content/Data)
 		return FPaths::FileExists(A) ? A : FPaths::ProjectDir() / TEXT("Data") / Name;
@@ -30,7 +30,7 @@ namespace
 		FString Text; TSharedPtr<FJsonObject> J;
 		// the airports: plain lines (A = an airport, R = a runway of the airport above), tab-separated
 		TArray<FString> Lines;
-		if (FFileHelper::LoadFileToStringArray(Lines, *DataFile(TEXT("world-airports.tsv"))))
+		if (FFileHelper::LoadFileToStringArray(Lines, *SimDataFile(TEXT("world-airports.tsv"))))
 		{
 			Aps.Reserve(Lines.Num() * 2 / 3);
 			TArray<FString> C;
@@ -56,7 +56,7 @@ namespace
 				}
 			}
 		}
-		if (FFileHelper::LoadFileToString(Text, *DataFile(TEXT("aircraft-types.json"))) && FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), J) && J)
+		if (FFileHelper::LoadFileToString(Text, *SimDataFile(TEXT("aircraft-types.json"))) && FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), J) && J)
 			for (const TSharedPtr<FJsonValue>& V : J->GetArrayField(TEXT("types")))
 			{
 				const TSharedPtr<FJsonObject> O = V->AsObject(); FADPTypeInfo T;

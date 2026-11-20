@@ -77,7 +77,10 @@ USTRUCT() struct FADPPerson
 	UPROPERTY() FString Home;              // where they live (the town)
 	UPROPERTY() FString Shift;             // early | day | late | night
 	UPROPERTY() double DutyMin = 0.0;      // minutes on duty since the last rest (pilots)
-	UPROPERTY() FDateTime RestUntil;       // resting until
+	UPROPERTY() FDateTime RestUntil;       // resting until (also: sick until, notice until)
+	UPROPERTY() FString Training;          // the type rating being trained for (empty: none)
+	UPROPERTY() FDateTime TrainingUntil;
+	UPROPERTY() int32 Warnings = 0;        // conduct warnings on their record
 };
 
 USTRUCT() struct FADPRoute
@@ -187,6 +190,28 @@ USTRUCT() struct FADPCampaign
 	UPROPERTY() FDateTime Until;
 };
 
+/** A staff group's union (one per airline and job): grievance, warnings, strike. */
+USTRUCT() struct FADPUnion
+{
+	GENERATED_BODY()
+	UPROPERTY() FString AirlineId;
+	UPROPERTY() FString Role;
+	UPROPERTY() int32 Stage = 0;           // 0 calm, 1 grievance, 2 warning, 3 final warning, 4 on strike
+	UPROPERTY() FDateTime Since;           // in this stage since
+	UPROPERTY() FDateTime Cooldown;        // no new dispute before
+};
+
+/** A court case (conduct that broke the law; later: accidents, the airline itself). */
+USTRUCT() struct FADPCase
+{
+	GENERATED_BODY()
+	UPROPERTY() FString AirlineId;
+	UPROPERTY() FString PersonId;
+	UPROPERTY() FString What;
+	UPROPERTY() FDateTime Hearing;
+	UPROPERTY() FString Outcome;           // empty until the hearing
+};
+
 /** The whole simulated world of one career. */
 USTRUCT() struct FADPWorld
 {
@@ -214,5 +239,8 @@ USTRUCT() struct FADPWorld
 	UPROPERTY() TArray<FADPUsedOffer> UsedMarket;
 	UPROPERTY() TArray<FADPCampaign> Campaigns;
 	UPROPERTY() int32 NextReg = 1;
+	UPROPERTY() TArray<FADPUnion> Unions;
+	UPROPERTY() TArray<FADPCase> Cases;
+	UPROPERTY() int32 ConductLevel = 2;    // 0 none .. 4 often (Settings > Staff)
 	UPROPERTY() TMap<FString, FDateTime> ModuleTimes;   // where each module had got to
 };

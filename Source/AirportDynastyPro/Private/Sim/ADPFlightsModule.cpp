@@ -63,6 +63,8 @@ void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime
 	// the checks before departure (more come with their parts: weather, ground crew, strikes, curfews, stands)
 	if (!Pilot || Pilot->Status != TEXT("on")) { Wait(TEXT("no pilot"), 60); return; }
 	if (Pilot->RestUntil > Now) { A.ReadyAt = Pilot->RestUntil; return; }
+	if (ADPStaff::OnStrike(W, A.AirlineId, Pilot->Role) || ADPStaff::OnStrike(W, A.AirlineId, TEXT("fa"))) { Wait(TEXT("a strike"), 180); return; }
+	if (!Pilot->Types.Contains(A.TypeId)) { Wait(TEXT("the pilot has no type rating for this aircraft"), 240); return; }
 	if (A.Condition < 20.0) { Wait(TEXT("the aircraft needs repair"), 120); return; }
 	// cabin crew: enough on duty at the aircraft's base for its seats (not sick, not on leave)
 	if (const FADPTypeInfo* Tc = ADPWorldData::Type(A.TypeId))

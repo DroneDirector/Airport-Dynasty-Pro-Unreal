@@ -57,7 +57,8 @@ void UADPSim::Initialize(FSubsystemCollectionBase& Collection)
 			{
 				FADPAirline Me; Me.Id = TEXT("me"); Me.Name = TEXT("Test Air"); Me.Icao = TEXT("OY"); Me.Hub = TEXT("EKVG"); Me.bPlayer = true; Me.Balance = 5000000.0; World.Airlines.Add(Me);
 				// cabin crew: 8 hired from the pool at the base (each A320 needs 4)
-				{ FRandomStream Rs(9); for (int32 k = 0; k < 8; ++k) { FADPPerson Fa = ADPStaff::MakePerson(TEXT("fa"), ADPStaff::CountryOf(World, TEXT("me")), Rs); World.People.Add(Fa); ADPStaff::Hire(World, Fa.Id, TEXT("me"), TEXT("EKVG"), Now() - FTimespan::FromDays(25.0)); } }
+				{ FRandomStream Rs(9); for (int32 k = 0; k < 8; ++k) { FADPPerson Fa = ADPStaff::MakePerson(TEXT("fa"), ADPStaff::CountryOf(World, TEXT("me")), Rs); World.People.Add(Fa); ADPStaff::Hire(World, Fa.Id, TEXT("me"), TEXT("EKVG"), Now() - FTimespan::FromDays(25.0)); World.People.Last().Salary *= 0.7; } }
+				World.ConductLevel = 3;
 				const TCHAR* Regs[] = {TEXT("OY-RCA"), TEXT("OY-RCB")};
 				const TArray<TArray<FString>> Stops = {{TEXT("EKVG"), TEXT("EKCH")}, {TEXT("EKVG"), TEXT("BIKF"), TEXT("EGLL"), TEXT("BIKF")}};
 				for (int32 i = 0; i < 2; ++i)
@@ -69,6 +70,7 @@ void UADPSim::Initialize(FSubsystemCollectionBase& Collection)
 				M = MakeShared<FADPFlightsModule>(); Register(M.ToSharedRef());
 				Eco = MakeShared<FADPEconomyModule>(); Register(Eco.ToSharedRef());
 				Staff = MakeShared<FADPStaffModule>(); Register(Staff.ToSharedRef());
+				ADPStaff::StartTypeRating(World, TEXT("pilot0"), TEXT("A321"), Now() - FTimespan::FromDays(20.0));
 				ADPEconomy::TakeLoan(World, TEXT("me"), 20000000.0, 0.065, 60, Now() - FTimespan::FromDays(25.0));
 				Start(Now() - FTimespan::FromDays(25.0));   // (25 days: paydays and the 1st of the month fall in them)
 				return true;
@@ -100,8 +102,8 @@ void UADPSim::Initialize(FSubsystemCollectionBase& Collection)
 			{
 				int32 Pool = 0, Mine = 0, Sick = 0; for (const FADPPerson& P : World.People) { if (P.AirlineId.IsEmpty()) ++Pool; else { ++Mine; if (P.Status == TEXT("sick")) ++Sick; } }
 				const FADPPerson* Some = World.People.FindByPredicate([](const FADPPerson& P) { return P.AirlineId == TEXT("me") && P.Role == TEXT("fa"); });
-				ADP_LOG(TEXT("SimFlyTest: staff - %d employed (%d sick now), %d in the hiring pool, %d sick spells, %d quit, crew waits %lld; e.g. %s, %s, %d, $%.0f a week, mood %.0f"),
-					Mine, Sick, Pool, Staff->SickDays, Staff->Quits, M->CrewWaits, Some ? *Some->Name : TEXT("-"), Some ? *Some->Role : TEXT("-"), Some ? Some->Age : 0, Some ? Some->Salary : 0.0, Some ? Some->Mood : 0.0);
+				ADP_LOG(TEXT("SimFlyTest: staff - %d employed (%d sick now), %d in the hiring pool, %d sick spells, %d quit, crew waits %lld, ratings %d, strikes %d, conduct reports %d, court cases %d; e.g. %s, %s, %d, $%.0f a week, mood %.0f"),
+					Mine, Sick, Pool, Staff->SickDays, Staff->Quits, M->CrewWaits, Staff->Ratings, Staff->Strikes, Staff->Reports, Staff->Trials, Some ? *Some->Name : TEXT("-"), Some ? *Some->Role : TEXT("-"), Some ? Some->Age : 0, Some ? Some->Salary : 0.0, Some ? Some->Mood : 0.0);
 			}
 			ADP_LOG(TEXT("SimFlyTest: %s"), M->Landings >= 8 && M->Rests >= 1 ? TEXT("PASS") : TEXT("FAIL"));
 			FPlatformMisc::RequestExit(false);

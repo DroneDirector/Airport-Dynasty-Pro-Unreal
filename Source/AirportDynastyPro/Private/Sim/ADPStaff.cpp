@@ -107,6 +107,7 @@ void FADPStaffModule::Advance(UADPSim& Sim, const FDateTime& From, const FDateTi
 	}
 	// the day's events at midnight UTC: sickness, getting better, morale, notice and leaving
 	if (!(To.GetHour() == 0 && From.GetHour() != 0)) return;
+	Daily(W, To);
 	for (int32 i = W.People.Num() - 1; i >= 0; --i)
 	{
 		FADPPerson& P = W.People[i];
@@ -130,4 +131,104 @@ void FADPStaffModule::Advance(UADPSim& Sim, const FDateTime& From, const FDateTi
 			else if (P.RestUntil <= To) { ++Quits; FADPNotice N; N.At = To; N.Kind = TEXT("staff"); N.Text = FString::Printf(TEXT("%s (%s) has left"), *P.Name, *P.Role); W.Notices.Add(N); W.People.RemoveAt(i); }
 		}
 	}
+}
+
+bool ADPStaff::StartTypeRating(FADPWorld& W, const FString& PersonId, const FString& TypeId, const FDateTime& At)
+{
+	FADPPerson* P = W.People.FindByPredicate([&](const FADPPerson& X) { return X.Id == PersonId; });
+	const FADPTypeInfo* T = ADPWorldData::Type(TypeId);
+	if (!P || !T || P->AirlineId.IsEmpty() || P->Types.Contains(TypeId) || !P->Training.IsEmpty()) return false;
+	const double Cost = T->Class == TEXT("widebody") ? 38000.0 : T->Class == TEXT("airliner") ? 22000.0 : T->Class == TEXT("regional") ? 15000.0 : T->Class == TEXT("turboprop") ? 9000.0 : 2500.0;
+	const int32 Days = T->Class == TEXT("widebody") ? 4 : T->Class == TEXT("airliner") || T->Class == TEXT("regional") ? 3 : 1;
+	P->Training = TypeId; P->TrainingUntil = At + FTimespan::FromDays(Days); P->Status = TEXT("training");
+	ADPEconomy::Pay(W, P->AirlineId, At, TEXT("training"), -Cost, FString::Printf(TEXT("%s: %s type rating course (%d days)"), *P->Name, *T->Name, Days), P->Id);
+	return true;
+}
+
+bool ADPStaff::OnStrike(const FADPWorld& W, const FString& AirlineId, const FString& Role)
+{
+	for (const FADPUnion& U : W.Unions) if (U.AirlineId == AirlineId && U.Role == Role && U.Stage == 4) return true;
+	return false;
+}
+
+void ADPStaff::MeetUnion(FADPWorld& W, const FString& AirlineId, const FString& Role, bool bFully, const FDateTime& At)
+{
+	const FString C = CountryOf(W, AirlineId);
+	for (FADPPerson& P : W.People)
+		if (P.AirlineId == AirlineId && P.Role == Role)
+		{
+			const double Target = GoingRate(Role, C) * 1.05;
+			if (P.Salary < Target) P.Salary = bFully ? Target : (P.Salary + Target) / 2.0;
+			P.Mood = FMath::Min(100.0, P.Mood + (bFully ? 25.0 : 12.0));
+		}
+	for (FADPUnion& U : W.Unions) if (U.AirlineId == AirlineId && U.Role == Role) { U.Stage = 0; U.Cooldown = At + FTimespan::FromDays(21.0); }
+}
+
+void FADPStaffModule::Daily(FADPWorld& W, const FDateTime& To)
+{
+	// type-rating courses ending: pass (likelier the better rated) or fail (a retake costs a third)
+	for (FADPPerson& P : W.People)
+		if (!P.Training.IsEmpty() && P.TrainingUntil <= To)
+		{
+			const bool bPass = Rng.FRand() < FMath::Clamp(0.62 + 0.075 * P.Rating, 0.8, 0.97);
+			FADPNotice N; N.At = To; N.Kind = TEXT("pilot");
+			N.Text = FString::Printf(TEXT("%s %s the %s type rating"), *P.Name, bPass ? TEXT("passed") : TEXT("failed"), *P.Training);
+			W.Notices.Add(N);
+			if (bPass) { P.Types.AddUnique(P.Training); ++Ratings; }
+			P.Training.Empty(); P.Status = TEXT("on");
+		}
+	// unions: per airline and job (3 people or more) - paid under 86% of the going rate or very unhappy is a grievance;
+	// after 3 days a warning (30% a day), 2 days later a final warning, 3 days later a strike (7 days, or until met)
+	TMap<FString, TArray<FADPPerson*>> Groups;
+	for (FADPPerson& P : W.People) if (!P.AirlineId.IsEmpty()) Groups.FindOrAdd(P.AirlineId + TEXT("|") + P.Role).Add(&P);
+	for (auto& G : Groups)
+	{
+		if (G.Value.Num() < 3) continue;
+		FString Al, Role; G.Key.Split(TEXT("|"), &Al, &Role);
+		double PayK = 0, Mood = 0; const double Going = ADPStaff::GoingRate(Role, ADPStaff::CountryOf(W, Al));
+		for (const FADPPerson* P : G.Value) { PayK += P->Salary / FMath::Max(1.0, Going); Mood += P->Mood; }
+		PayK /= G.Value.Num(); Mood /= G.Value.Num();
+		FADPUnion* U = W.Unions.FindByPredicate([&](const FADPUnion& X) { return X.AirlineId == Al && X.Role == Role; });
+		if (!U) { FADPUnion N; N.AirlineId = Al; N.Role = Role; W.Unions.Add(N); U = &W.Unions.Last(); }
+		const bool bGrievance = PayK < 0.86 || Mood < 28.0;
+		auto Say = [&](const FString& T) { FADPNotice N; N.At = To; N.Kind = TEXT("staff"); N.Text = T; W.Notices.Add(N); };
+		const double Days = (To - U->Since).GetTotalDays();
+		if (U->Stage == 0 && bGrievance && To >= U->Cooldown) { U->Stage = 1; U->Since = To; }
+		else if (U->Stage > 0 && U->Stage < 4 && !bGrievance) { U->Stage = 0; Say(FString::Printf(TEXT("The %s union's dispute is settled"), *Role)); }
+		else if (U->Stage == 1 && Days >= 3 && Rng.FRand() < 0.3) { U->Stage = 2; U->Since = To; Say(FString::Printf(TEXT("The %s union warns of action: pay %.0f%% of the going rate, mood %.0f"), *Role, PayK * 100.0, Mood)); }
+		else if (U->Stage == 2 && Days >= 2) { U->Stage = 3; U->Since = To; Say(FString::Printf(TEXT("Final warning from the %s union: a strike in 3 days unless their demands are met"), *Role)); }
+		else if (U->Stage == 3 && Days >= 3) { U->Stage = 4; U->Since = To; ++Strikes; Say(FString::Printf(TEXT("The %s are ON STRIKE - their work stops"), *Role)); }
+		else if (U->Stage == 4 && Days >= 7) { U->Stage = 0; U->Cooldown = To + FTimespan::FromDays(21.0); Say(FString::Printf(TEXT("The %s strike is over after a week"), *Role)); }
+	}
+	// conduct: on some days 1-3 reports (how often: Settings > Staff); light, moderate or severe - the person's rating
+	// drops; about 3% of reports are crimes: a court case, its hearing in 2-6 weeks
+	static const double DayChance[] = {0.0, 0.08, 0.17, 0.30, 0.55};
+	if (Rng.FRand() < DayChance[FMath::Clamp(W.ConductLevel, 0, 4)])
+	{
+		TArray<FADPPerson*> Staff; for (FADPPerson& P : W.People) if (!P.AirlineId.IsEmpty() && P.Status == TEXT("on")) Staff.Add(&P);
+		for (int32 n = Rng.RandRange(1, 3); n > 0 && Staff.Num(); --n)
+		{
+			FADPPerson* P = Staff[Rng.RandRange(0, Staff.Num() - 1)];
+			const double Sev = Rng.FRand();
+			static const TCHAR* Light[] = {TEXT("late for duty"), TEXT("rude to a passenger"), TEXT("uniform out of order")};
+			static const TCHAR* Moderate[] = {TEXT("a heated argument with a colleague"), TEXT("left the post without cover"), TEXT("ignored a safety check")};
+			static const TCHAR* Severe[] = {TEXT("came to work drunk"), TEXT("took items from the duty-free stock"), TEXT("threatened a passenger")};
+			const TCHAR* What = Sev < 0.72 ? Light[Rng.RandRange(0, 2)] : Sev < 0.94 ? Moderate[Rng.RandRange(0, 2)] : Severe[Rng.RandRange(0, 2)];
+			P->Rating = FMath::Max(0.0, P->Rating - (Sev < 0.72 ? 0.08 : Sev < 0.94 ? 0.15 : 0.3)); ++P->Warnings; ++Reports;
+			FADPNotice N; N.At = To; N.Kind = TEXT("staff"); N.Text = FString::Printf(TEXT("Conduct report: %s (%s) - %s"), *P->Name, *P->Role, What); W.Notices.Add(N);
+			if (Rng.FRand() < 0.03 || (Sev >= 0.94 && Rng.FRand() < 0.15))
+			{
+				FADPCase C; C.AirlineId = P->AirlineId; C.PersonId = P->Id; C.What = What; C.Hearing = To + FTimespan::FromDays(Rng.RandRange(14, 42)); W.Cases.Add(C); ++Trials;
+			}
+		}
+	}
+	// court hearings that are due: the verdict (guilty more likely the worse the record)
+	for (FADPCase& C : W.Cases)
+		if (C.Outcome.IsEmpty() && C.Hearing <= To)
+		{
+			const FADPPerson* P = W.People.FindByPredicate([&](const FADPPerson& X) { return X.Id == C.PersonId; });
+			const bool bGuilty = Rng.FRand() < 0.45 + 0.1 * (P ? FMath::Min(P->Warnings, 4) : 0);
+			C.Outcome = bGuilty ? TEXT("guilty: a fine and a criminal record") : TEXT("not guilty");
+			FADPNotice N; N.At = To; N.Kind = TEXT("authority"); N.Text = FString::Printf(TEXT("Court: %s - %s"), P ? *P->Name : TEXT("a former employee"), *C.Outcome); W.Notices.Add(N);
+		}
 }

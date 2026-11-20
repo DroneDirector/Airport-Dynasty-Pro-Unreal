@@ -276,8 +276,8 @@ namespace
 	// doorway (top 0.75 m), the cab floor at 1.04 m; a handle either side of the doorway inside (rear y 3.78, front
 	// y 5.12, about 1.25-1.9 m up); the middle seat's cushion at 1.6 m (y 4.08); the pedals.
 	enum class EHand : uint8 { Free, At, Wheel, Handle };   // Handle: on the door's outside handle, riding with the door
-	struct FKey { float T; FVector Pelvis; FVector2D Face; float Lean; FVector Foot[2]; EHand HM[2]; FVector Hand[2]; float Grip[2]; };
-	const FKey ClimbKeys[] = {
+	struct FPoseKey { float T; FVector Pelvis; FVector2D Face; float Lean; FVector Foot[2]; EHand HM[2]; FVector Hand[2]; float Grip[2]; };
+	const FPoseKey ClimbKeys[] = {
 		// standing at the foot of the steps (replaced by where you really are when you press E)
 		{0.00f, {-2.15f, 4.60f, 0.95f}, {1, 0}, 0.f,  {{-2.15f, 4.72f, 0.f}, {-2.15f, 4.48f, 0.f}}, {EHand::Free, EHand::Free}, {}, {0.f, 0.f}},
 		// the right hand to the door's handle (the door swings open from here, the hand riding with it), a half step back
