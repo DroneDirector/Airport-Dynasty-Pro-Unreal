@@ -5742,6 +5742,27 @@ void AADPHUD::TestCoachUse(float Before, float ShotClock)
 	};
 	if (Before < 50.f && ShotClock >= 50.f) Stray(TEXT("parked"));
 	if (Before < 66.f && ShotClock >= 66.f) Stray(TEXT("doors+bays open"));
+	// -UISavers (to-do 149): the frame savers switched live at the outdoor view, 6 s each, the frame time of each state
+	if (FParse::Param(FCommandLine::Get(), TEXT("UISavers")))
+	{
+		static double Ms[6] = {0}; static int32 Fr[6] = {0};
+		static const TCHAR* Names[6] = {TEXT("all off"), TEXT("upscaler"), TEXT("upscaler + clouds"), TEXT("upscaler + clouds + lighting"), TEXT("clouds + lighting"), TEXT("all off again")};
+		const bool States[6][3] = {{0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {1, 1, 1}, {0, 1, 1}, {0, 0, 0}};
+		if (Before < 50.f && ShotClock >= 50.f) Look(P(10.f, -7.f, 2.2f), P(0.f, 0.f, 1.5f), false);
+		for (int32 k = 0; k < 6; ++k)
+		{
+			const float T0 = 52.f + k * 8.f;
+			if (Before < T0 && ShotClock >= T0) { ADPEffects::Set(ADPEffects::Upscaler, States[k][0], 1.f, GetWorld()); ADPEffects::Set(ADPEffects::FastClouds, States[k][1], 1.f, GetWorld()); ADPEffects::Set(ADPEffects::FastLighting, States[k][2], 1.f, GetWorld()); }
+			if (ShotClock >= T0 + 2.f && ShotClock < T0 + 8.f) { Ms[k] += GetWorld()->GetDeltaSeconds() * 1000.0; ++Fr[k]; }
+			if (Before < T0 + 7.f && ShotClock >= T0 + 7.f) PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 1920x540 filename=Savers-%d"), k), true);
+		}
+		if (Before < 101.f && ShotClock >= 101.f)
+		{
+			for (int32 k = 0; k < 6; ++k) ADP_LOG(TEXT("UISavers: %-30s %.1f ms (%.0f fps)"), Names[k], Fr[k] ? Ms[k] / Fr[k] : 0.0, Fr[k] && Ms[k] > 0 ? 1000.0 * Fr[k] / Ms[k] : 0.0);
+			ADP_SHOT_EXIT();
+		}
+		return;
+	}
 	// 1. both doors and two bays open - the coach kneels on its door side
 	if (Before < 56.f && ShotClock >= 56.f) { Co->SetDoor(0, 0, true); Co->SetDoor(0, 1, true); Co->SetBay(0, 0, true); Co->SetBay(0, 4, true); Co->SetLamps(0, ACoaches::Tail | ACoaches::Hazard); }
 	if (Before < 62.f && ShotClock >= 62.f) Look(P(10.f, -7.f, 2.2f), P(0.f, 0.f, 1.5f), false);

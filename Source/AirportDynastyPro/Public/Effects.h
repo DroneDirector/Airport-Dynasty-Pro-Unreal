@@ -8,7 +8,7 @@ class UWorld;
 
 namespace ADPEffects
 {
-	enum EEffect : int32 { LampFlares, Decals, HeatHaze, TaxiwayLights, Adverts, WeatherGround, TextureMemory, ShadowDetail, Count };
+	enum EEffect : int32 { LampFlares, Decals, HeatHaze, TaxiwayLights, Adverts, WeatherGround, TextureMemory, ShadowDetail, Upscaler, FastClouds, FastLighting, Count };
 	struct FInfo { const TCHAR* Key; const TCHAR* Title; bool bDefaultOn; float DefaultQ; bool bHasSlider; bool bHasSwitch; };
 	const FInfo& Info(int32 E);
 	bool On(int32 E);

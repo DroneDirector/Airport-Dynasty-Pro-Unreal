@@ -11,6 +11,7 @@
 #include "Components/MaterialBillboardComponent.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Scalability.h"
 
 namespace ADPEffects
 {
@@ -24,6 +25,10 @@ namespace ADPEffects
 		{TEXT("WeatherGround"), TEXT("Weather on the ground (wet paving, puddles, snow)"), true, 1.f, false, true},
 		{TEXT("TextureMemory"), TEXT("Texture memory (lower on cards with little video memory)"), true, 0.5f, true, false},
 		{TEXT("ShadowDetail"), TEXT("Shadow detail (lower saves video memory)"), true, 0.5f, true, false},
+		// (owner, 2026-11-20, to-do 149: frame savers, each on or off live - no restart; off by default)
+		{TEXT("Upscaler"), TEXT("Upscaler at Quality (draws 67% of the pixels, sharpened to full size - overrides the resolution slider while on)"), false, 1.f, false, true},
+		{TEXT("FastClouds"), TEXT("Faster clouds (fewer samples through the clouds)"), false, 1.f, false, true},
+		{TEXT("FastLighting"), TEXT("Faster lighting (cheaper Lumen: coarser light gathering, no extra lighting inside glass)"), false, 1.f, false, true},
 	};
 	static bool GOn[Count];
 	static float GQ[Count];
@@ -81,9 +86,28 @@ namespace ADPEffects
 		Apply(W);
 	}
 
+	// a console value set while a saver is on; the value it had before is kept and put back when it goes off
+	static TMap<FString, FString> GSaved;
+	static void Saver(bool bOn, const TCHAR* Name, const TCHAR* Value)
+	{
+		IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(Name);
+		if (!V) { ADP_WARN(TEXT("Effects: no setting %s in this engine - skipped"), Name); return; }
+		if (bOn) { if (!GSaved.Contains(Name)) GSaved.Add(Name, V->GetString()); V->Set(Value, ECVF_SetByGameSetting); }
+		else if (const FString* Was = GSaved.Find(Name)) { V->Set(**Was, ECVF_SetByGameSetting); GSaved.Remove(Name); }
+	}
+
 	void Apply(UWorld* W)
 	{
 		if (!GLoaded) Load();
+		// the frame savers (live: console values, no restart)
+		if (GOn[Upscaler]) Saver(true, TEXT("r.ScreenPercentage"), TEXT("67"));
+		else if (GSaved.Contains(TEXT("r.ScreenPercentage"))) { Saver(false, TEXT("r.ScreenPercentage"), nullptr); if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ScreenPercentage"))) V->Set(Scalability::GetQualityLevels().ResolutionQuality, ECVF_SetByGameSetting); }
+		static const TCHAR* const Clouds[][2] = {{TEXT("r.VolumetricCloud.ViewRaySampleMaxCount"), TEXT("256")}, {TEXT("r.VolumetricCloud.ReflectionRaySampleMaxCount"), TEXT("24")},
+			{TEXT("r.VolumetricCloud.ShadowMap.RaySampleMaxCount"), TEXT("64")}, {TEXT("r.VolumetricCloud.SkyAO"), TEXT("0")}};
+		for (const auto& P : Clouds) Saver(GOn[FastClouds], P[0], P[1]);
+		static const TCHAR* const Lighting[][2] = {{TEXT("r.Lumen.ScreenProbeGather.DownsampleFactor"), TEXT("32")}, {TEXT("r.Lumen.ScreenProbeGather.TracingOctahedronResolution"), TEXT("6")},
+			{TEXT("r.Lumen.TranslucencyVolume.Enable"), TEXT("0")}};
+		for (const auto& P : Lighting) Saver(GOn[FastLighting], P[0], P[1]);
 		// video memory: the texture pool and the shadow pages (the Cinematic setting reserves 3000 MB and 8192 pages)
 		if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Streaming.PoolSize"))) V->Set(PoolMB(GQ[TextureMemory]), ECVF_SetByGameSetting);
 		if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.Virtual.MaxPhysicalPages"))) V->Set(Pages(GQ[ShadowDetail]), ECVF_SetByGameSetting);
@@ -119,7 +143,7 @@ namespace ADPEffects
 			It->SetCullDistance(HazeM(GQ[HeatHaze]) * 100.f);
 		}
 		APuddles::bGroundWeatherOn = GOn[WeatherGround];
-		ADP_LOG(TEXT("Effects applied: flares %d, marks %d, haze %d, taxiway lights %d, adverts %d, weather ground %d, textures %d MB, shadow pages %d"),
-			GOn[LampFlares], GOn[Decals], GOn[HeatHaze], GOn[TaxiwayLights], GOn[Adverts], GOn[WeatherGround], PoolMB(GQ[TextureMemory]), Pages(GQ[ShadowDetail]));
+		ADP_LOG(TEXT("Effects applied: flares %d, marks %d, haze %d, taxiway lights %d, adverts %d, weather ground %d, textures %d MB, shadow pages %d, upscaler %d, faster clouds %d, faster lighting %d"),
+			GOn[LampFlares], GOn[Decals], GOn[HeatHaze], GOn[TaxiwayLights], GOn[Adverts], GOn[WeatherGround], PoolMB(GQ[TextureMemory]), Pages(GQ[ShadowDetail]), GOn[Upscaler], GOn[FastClouds], GOn[FastLighting]);
 	}
 }
