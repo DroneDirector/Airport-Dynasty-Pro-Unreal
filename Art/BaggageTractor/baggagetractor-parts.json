@@ -1,0 +1,552 @@
+{
+ "size_m": {
+  "x_min": -1.68,
+  "x_max": 1.74,
+  "length": 3.42,
+  "width_mirrors": 2.03,
+  "width_body": 1.4,
+  "height_beacon": 2.165,
+  "height_roof": 2.0,
+  "body_length": 2.98,
+  "wheelbase": 1.58,
+  "track": 1.12,
+  "front_tyre": [
+   0.52,
+   0.16
+  ],
+  "rear_tyre": [
+   0.62,
+   0.2
+  ],
+  "floor": 0.62,
+  "deck": 1.02,
+  "seat_cushion_top": 0.92,
+  "ground_clearance": 0.14,
+  "front_axle_x": 0.72,
+  "rear_axle_x": -0.86
+ },
+ "doors": {
+  "DoorDriver": {
+   "pivot": [
+    0.347,
+    0.712,
+    1.25
+   ],
+   "axis": "z",
+   "parts": "DoorDriver* (leaf, glass, handles, trim, hinge leaves)",
+   "note": "hinged on its front edge; opens outward with a NEGATIVE rotation about +z, up to -95 deg (checked clear)"
+  }
+ },
+ "battery_lid": {
+  "pivot": [
+   -1.4,
+   0.0,
+   1.034
+  ],
+  "axis": "y",
+  "parts": "BatteryLid*",
+  "note": "hinged at its rear edge; lifts with a NEGATIVE rotation about +y, up to -100 deg (checked clear)"
+ },
+ "hitch_pins": {
+  "HitchPinRear": {
+   "parts": "HitchPinRear*",
+   "move": "translate +z",
+   "out_m": 0.4,
+   "grip": "IK_HitchPin_Rear"
+  },
+  "HitchPinFront": {
+   "parts": "HitchPinFront*",
+   "move": "translate +z",
+   "out_m": 0.2,
+   "grip": "IK_HitchPin_Front"
+  }
+ },
+ "hitches": {
+  "rear_eye_centres_z": [
+   0.28,
+   0.4,
+   0.49
+  ],
+  "rear_main_z": 0.4,
+  "rear_pin_x": -1.62,
+  "rear_slot_gap": 0.06,
+  "front_z": 0.4,
+  "front_pin_x": 1.68,
+  "front_slot_gap": 0.06,
+  "gpu_tow_eye_z": 0.4,
+  "gpu_fits_slot": true
+ },
+ "steering": {
+  "front_wheels": {
+   "FL": {
+    "pivot": [
+     0.72,
+     0.42,
+     0.26
+    ]
+   },
+   "FR": {
+    "pivot": [
+     0.72,
+     -0.42,
+     0.26
+    ]
+   }
+  },
+  "axis": "z",
+  "max_deg": 32,
+  "parts_per_wheel": "Tyre_/Rim_/WheelDisc_/Hub_/HubCap_/Nut_/Spindle_/SteerArm_ + FL|FR",
+  "steering_wheel": {
+   "parts": "SteeringWheel*",
+   "centre": [
+    0.46,
+    0.0,
+    1.25
+   ],
+   "axis": [
+    -0.7071,
+    0.0,
+    0.7071
+   ],
+   "note": "turns about the column axis (towards the driver)"
+  }
+ },
+ "pedals": {
+  "Brake": {
+   "pivot": [
+    0.76,
+    0.21,
+    0.65
+   ],
+   "axis": "y"
+  },
+  "Accel": {
+   "pivot": [
+    0.76,
+    -0.21,
+    0.65
+   ],
+   "axis": "y"
+  }
+ },
+ "wheels": {
+  "FL": [
+   0.72,
+   0.56,
+   0.26
+  ],
+  "RL": [
+   -0.86,
+   0.56,
+   0.31
+  ],
+  "FR": [
+   0.72,
+   -0.56,
+   0.26
+  ],
+  "RR": [
+   -0.86,
+   -0.56,
+   0.31
+  ]
+ },
+ "lamps": [
+  "BeaconLens",
+  "HighBeam_L_Lens",
+  "HighBeam_R_Lens",
+  "IndicatorF_L_Lens",
+  "IndicatorF_R_Lens",
+  "IndicatorR_L_Lens",
+  "IndicatorR_R_Lens",
+  "LowBeam_L_Lens",
+  "LowBeam_R_Lens",
+  "ReflectorRear_L_Lens",
+  "ReflectorRear_R_Lens",
+  "Reverse_L_Lens",
+  "Reverse_R_Lens",
+  "SideMarker_FL_Lens",
+  "SideMarker_FR_Lens",
+  "SideMarker_RL_Lens",
+  "SideMarker_RR_Lens",
+  "TailBrake_L_Lens",
+  "TailBrake_R_Lens"
+ ],
+ "ik": {
+  "IK_Wheel_FL": [
+   0.72,
+   0.56,
+   0.26
+  ],
+  "IK_Steer_FL": [
+   0.72,
+   0.42,
+   0.26
+  ],
+  "IK_Wheel_RL": [
+   -0.86,
+   0.56,
+   0.31
+  ],
+  "IK_Wheel_FR": [
+   0.72,
+   -0.56,
+   0.26
+  ],
+  "IK_Steer_FR": [
+   0.72,
+   -0.42,
+   0.26
+  ],
+  "IK_Wheel_RR": [
+   -0.86,
+   -0.56,
+   0.31
+  ],
+  "IK_Seat_Driver": [
+   -0.07,
+   0.0,
+   0.92
+  ],
+  "IK_Back_Driver": [
+   -0.31,
+   0.0,
+   1.2
+  ],
+  "IK_Hand_L": [
+   0.5236,
+   0.1559,
+   1.3136
+  ],
+  "IK_Hand_R": [
+   0.5236,
+   -0.1559,
+   1.3136
+  ],
+  "IK_SteeringWheel_Centre": [
+   0.46,
+   0.0,
+   1.25
+  ],
+  "IK_Foot_Brake": [
+   0.7,
+   0.21,
+   0.77
+  ],
+  "IK_Foot_Accel": [
+   0.7,
+   -0.21,
+   0.77
+  ],
+  "IK_Hand_Direction": [
+   0.5454,
+   0.165,
+   1.1646
+  ],
+  "IK_Hand_Key": [
+   0.8,
+   -0.155,
+   0.92
+  ],
+  "IK_Hand_ParkBrake": [
+   0.141,
+   -0.4,
+   1.0585
+  ],
+  "IK_Step": [
+   -0.01,
+   0.63,
+   0.315
+  ],
+  "IK_Grab_Outside": [
+   -0.43,
+   0.75,
+   1.41
+  ],
+  "IK_Grab_Inside": [
+   0.415,
+   0.6,
+   1.5
+  ],
+  "IK_Door_Outside": [
+   -0.2,
+   0.735,
+   1.0
+  ],
+  "IK_Door_Inside": [
+   -0.2,
+   0.625,
+   1.02
+  ],
+  "IK_Door_Hinge": [
+   0.347,
+   0.712,
+   1.25
+  ],
+  "IK_HitchPin_Rear": [
+   -1.62,
+   0.0,
+   0.625
+  ],
+  "IK_HitchPin_Front": [
+   1.68,
+   0.0,
+   0.527
+  ],
+  "IK_Hitch_Rear": [
+   -1.62,
+   0.0,
+   0.4
+  ],
+  "IK_Hitch_Rear_Low": [
+   -1.62,
+   0.0,
+   0.28
+  ],
+  "IK_Hitch_Rear_High": [
+   -1.62,
+   0.0,
+   0.49
+  ],
+  "IK_Hitch_Front": [
+   1.68,
+   0.0,
+   0.4
+  ],
+  "IK_BatteryLid_Handle": [
+   -0.68,
+   0.0,
+   1.074
+  ],
+  "IK_BatteryLid_Hinge": [
+   -1.4,
+   0.0,
+   1.034
+  ],
+  "IK_Charge_Socket": [
+   -1.52,
+   -0.14,
+   0.82
+  ],
+  "IK_EStop": [
+   -1.525,
+   0.14,
+   0.82
+  ],
+  "IK_Beacon": [
+   -0.35,
+   0.0,
+   2.083
+  ],
+  "IK_Stand_Door": [
+   -0.05,
+   1.2,
+   0.0
+  ],
+  "IK_Stand_HitchRear": [
+   -2.05,
+   0.4,
+   0.0
+  ],
+  "IK_Stand_HitchFront": [
+   2.15,
+   0.4,
+   0.0
+  ],
+  "IK_Stand_Battery": [
+   -1.0,
+   1.15,
+   0.0
+  ]
+ },
+ "checks": {
+  "interior_not_joined": [],
+  "open_edges": [],
+  "floating": [],
+  "lamp_clash": [],
+  "overhang": [],
+  "mesh_loose": [],
+  "arch_crowd": [],
+  "steer_hits": 0,
+  "door_hits": 0,
+  "lid_hits": 0,
+  "pin_hits": 0,
+  "ik_off": [],
+  "flicker": "0 pairs fight",
+  "after_flicker_fix": {
+   "floating": [],
+   "lamp_clash": [],
+   "overhang": [],
+   "mesh_loose": []
+  }
+ },
+ "faces": 35128,
+ "parts": 324,
+ "wire_views": {
+  "3-side-left": {
+   "loc": [
+    0.0,
+    12,
+    1.05
+   ],
+   "at": [
+    0.0,
+    0,
+    1.05
+   ],
+   "ortho": 4.4,
+   "res": [
+    2400,
+    1500
+   ],
+   "O": [
+    1200.0,
+    1322.73
+   ],
+   "X": [
+    654.55,
+    1322.73
+   ],
+   "Y": [
+    1200.0,
+    1322.73
+   ],
+   "Z": [
+    1200.0,
+    777.27
+   ]
+  },
+  "4-side-right": {
+   "loc": [
+    0.0,
+    -12,
+    1.05
+   ],
+   "at": [
+    0.0,
+    0,
+    1.05
+   ],
+   "ortho": 4.4,
+   "res": [
+    2400,
+    1500
+   ],
+   "O": [
+    1200.0,
+    1322.73
+   ],
+   "X": [
+    1745.45,
+    1322.73
+   ],
+   "Y": [
+    1200.0,
+    1322.73
+   ],
+   "Z": [
+    1200.0,
+    777.27
+   ]
+  },
+  "5-front": {
+   "loc": [
+    12,
+    0,
+    1.08
+   ],
+   "at": [
+    0,
+    0,
+    1.08
+   ],
+   "ortho": 2.6,
+   "res": [
+    1500,
+    1300
+   ],
+   "O": [
+    750.0,
+    1273.08
+   ],
+   "X": [
+    750.0,
+    1273.08
+   ],
+   "Y": [
+    1326.92,
+    1273.08
+   ],
+   "Z": [
+    750.0,
+    696.15
+   ]
+  },
+  "6-rear": {
+   "loc": [
+    -12,
+    0,
+    1.08
+   ],
+   "at": [
+    0,
+    0,
+    1.08
+   ],
+   "ortho": 2.6,
+   "res": [
+    1500,
+    1300
+   ],
+   "O": [
+    750.0,
+    1273.08
+   ],
+   "X": [
+    750.0,
+    1273.08
+   ],
+   "Y": [
+    173.08,
+    1273.08
+   ],
+   "Z": [
+    750.0,
+    696.15
+   ]
+  },
+  "7-top": {
+   "loc": [
+    0.0,
+    0,
+    14
+   ],
+   "at": [
+    0.0,
+    0,
+    0
+   ],
+   "ortho": 4.4,
+   "res": [
+    2400,
+    1500
+   ],
+   "O": [
+    1200.0,
+    750.0
+   ],
+   "X": [
+    1745.45,
+    750.0
+   ],
+   "Y": [
+    1200.0,
+    204.55
+   ],
+   "Z": [
+    1200.0,
+    750.0
+   ]
+  }
+ }
+}

@@ -1,0 +1,4 @@
+Blueprint sheet v2 ready (2026-11-21, interior joints fixed: steering wheel hub/spokes/rim joined, park brake grip on the shaft, 65 interior joints mesh-checked):
+C:/Users/Simon/Documents/Airport-Dynasty-Pro-Unreal/Blueprints/Vehicles/BaggageTractor/BaggageTractor-Blueprint-v2.png
+(v1 kept: Blueprints/Vehicles/BaggageTractor/BaggageTractor-Blueprint-v1.png)
+Wireframe views: Blueprints/Vehicles/BaggageTractor/wire/*.png (14 views from the real Blender mesh)

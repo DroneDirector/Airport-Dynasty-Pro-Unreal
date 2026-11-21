@@ -785,6 +785,15 @@ void AAirfield::Aprons(bool bModelSite)
 				Line("paintwhite", FVector2f(X0, Ya), FVector2f(X1, Ya), 0.15f, 0.0075f); Line("paintwhite", FVector2f(X0, Yb), FVector2f(X1, Yb), 0.15f, 0.0075f);
 				Line("paintwhite", FVector2f(X0, Ya), FVector2f(X0, Yb), 0.15f, 0.0075f); Line("paintwhite", FVector2f(X1, Ya), FVector2f(X1, Yb), 0.15f, 0.0075f);
 			}
+			// the ground power unit's box (owner 2026-11-21: the GPU parked at the head of the stand, its cable ~7 m to the
+			// A320's receptacle): white-lined, 4.3 x 2.6 m, on the side away from the jetway, 5.2-9.5 m off the centre line,
+			// just inside the nose stop line - clear of the aircraft, the tug's way in and the jetway (Tugs: GpuSetup)
+			if (St.bJetway && !St.bCargo && St.Span <= 40.f)
+			{
+				const float X0 = St.X - 9.5f, X1 = St.X - 5.2f, Ya = FMath::Min(St.Nose - B * 0.7f, St.Nose - B * 3.3f), Yb = FMath::Max(St.Nose - B * 0.7f, St.Nose - B * 3.3f);
+				Line("paintwhite", FVector2f(X0, Ya), FVector2f(X1, Ya), 0.12f, 0.0075f); Line("paintwhite", FVector2f(X0, Yb), FVector2f(X1, Yb), 0.12f, 0.0075f);
+				Line("paintwhite", FVector2f(X0, Ya), FVector2f(X0, Yb), 0.12f, 0.0075f); Line("paintwhite", FVector2f(X1, Ya), FVector2f(X1, Yb), 0.12f, 0.0075f);
+			}
 			// the jetway's red zone on the left of the nose (the aircraft's left door side): outlined and hatched, nothing
 			// parks where the bridge swings
 			if (St.bJetway)

@@ -1,6 +1,7 @@
 // The simulation's flights at our airport in 3D - see SimTraffic.h.
 #include "SimTraffic.h"
 #include "Tugs.h"
+#include "Turnaround.h"
 #include "JetwayRigs.h"
 #include "ADPLog.h"
 #include "PerfLog.h"
@@ -93,7 +94,7 @@ void ASimTraffic::Sync()
 		}
 		// boarding done about 4 minutes before off-blocks: the doors closed and the jetway pulled back to rest (its own
 		// drive: the canopy in, back to half way - Jetway rules); the pushback waits for it (Advance)
-		if (Fl.From == Here && (Fl.DepAt - Now).GetTotalMinutes() > 0.0 && (Fl.DepAt - Now).GetTotalMinutes() <= 4.0)
+		if (Fl.From == Here && (Fl.DepAt - Now).GetTotalMinutes() > 0.0 && (Fl.DepAt - Now).GetTotalMinutes() <= 3.0)   /* (Airbus AC 5-2: the door closed and the bridge off in the last minutes before off-blocks) */
 		{
 			const FADPAircraft* A1 = Sim->World.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == Fl.Reg; });
 			for (const FAirfieldData::FStand& S : F.Stands)
@@ -431,7 +432,7 @@ void ASimTraffic::Tick(float Dt)
 {
 	Super::Tick(Dt);
 	ADP_PERF_SCOPE("the simulation's aircraft in 3D (each frame)", 2.f);
-	if ((Poll += Dt) >= 2.f) { Poll = 0.f; Sync(); }
+	if ((Poll += Dt) >= 2.f) { Poll = 0.f; Sync(); if (UADPSim* Sm = UADPSim::Get(this)) if (Sm->IsRunning()) ADPTurnaround::Tick(GetWorld(), Sm->Now()); }   // (each aircraft's turnaround: Turnaround.h)
 	// the parked aircraft's tags once a second (not a walk over every model each frame - the release's scan check)
 	if ((ParkPoll += Dt) >= 1.f)
 	{
@@ -460,6 +461,7 @@ void ASimTraffic::Tick(float Dt)
 					if (S.Id == M.Stand)
 					{
 						const int32 J = JetwayAt(GetWorld(), S);
+						if (ATugs* Tg = ATugs::Get(GetWorld())) Tg->Arrived(S.X);   // (the ground power plugged in)
 						if (J != INDEX_NONE && AJetwayRigs::Get(GetWorld())->State(J) == AJetwayRigs::EState::Parked && AJetwayRigs::Get(GetWorld())->Dock(J))
 							ADP_LOG(TEXT("Traffic: %s on blocks at %s - jetway %s docking"), *M.FlightId, *M.Stand, *AJetwayRigs::Get(GetWorld())->Name(J));
 						break;

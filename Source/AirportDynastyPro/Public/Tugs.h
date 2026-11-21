@@ -24,6 +24,7 @@
 class ABabylonModel;
 class UAudioComponent;
 class UPoseableMeshComponent;
+class UCableComponent;
 class UDriverPoseAnim;
 class FTruckDriverRig;
 struct FDriverPose;
@@ -49,6 +50,8 @@ public:
 	/** The clearance words for a departure (SimTraffic.cpp): its callsign, the way it will face after the push, the
 	 *  taxi route, the runway - for the pushback's talk (docs/Pushback-Sequence.md). */
 	void Clearance(const FString& Key, const FString& Callsign, const FString& Face, const FString& Route, const FString& Runway);
+	/** An aircraft has parked on the stand (on blocks): its ground power is plugged in (GpuUnit in TugCrew.cpp). */
+	void Arrived(float StandX);
 	/** The pushback is done: the tug unhooks, backs away and drives back to the park. */
 	void Release(const FString& Key);
 	/** True when no tug is on or in front of that aircraft any more (it may taxi). */
@@ -56,6 +59,13 @@ public:
 	int32 NumAtWork() const;
 	/** Tests: where to look - the first tug at work (else the park); its facing yaw. */
 	bool WatchSpot(FVector& At, float& Yaw, bool* bHooked = nullptr, bool* bAtGate = nullptr) const;
+	/** Tests (owner 2026-11-21: the tested thing always in frame, people and moving things followed): the points that must be
+	 *  in view now - the work going on (the GPU, its plug and the person carrying it; the tug, the aircraft's nose, the
+	 *  handler; the walkers in a push) - and the side to look from. False if nothing is going on. */
+	bool WatchPoints(TArray<FVector>& Pts, FVector& Side) const;
+	/** Tests: some work was done and now everything rests again (every tug in its box, every crew member idle, no ground
+	 *  power being worked) - the test can end. */
+	bool AllDone() const;
 
 private:
 	enum class EState : uint8 { Parked, ToStand, Waiting, ToNose, Hooked, Unhook, Backing, Home, Boarding, Coupling, ShowPin, Manned };   // (Manned: the driver in it, engine off, ready for the aircraft coming in)
@@ -124,6 +134,17 @@ private:
 		struct FLine { uint8 Who = 0; FString Text; bool bRadio = false; };   // Who: 0 the ground crew, 1 the pilot, 2 ATC; bRadio: on the ground frequency (else the interphone)
 		TArray<FLine> Talk; float TalkT = 0.f;
 		FString Callsign, Face, Route, Runway; bool bDeiced = false;
+		float StandNose = 0.f, StandDir = -1.f;                   // (plan m: the stand's nose stop line, the way its aircraft face)
+		// the gate's ground power unit (owner 2026-11-21: "you should see the ground crew member actually plug it into the airplane
+		// and take it off and put it in its place again"): parked in its box at the head of the stand, its cable to the A320's
+		// receptacle (Airbus AC 5-4-4: 2.5 m ahead of the nose tyre, on the centre line, 2.0 m up)
+		struct FGpu
+		{
+			TWeakObjectPtr<ABabylonModel> M; int32 PlugG = INDEX_NONE, PanelG = INDEX_NONE; float PanelAng = 0.f, PanelWant = 0.f;
+			UCableComponent* Cable = nullptr; UAudioComponent* Idle = nullptr; float RunT = -1.f;
+			bool bConnected = false, bPower = false, bInHand = false; int32 Holder = INDEX_NONE;
+			TArray<TTuple<UInstancedStaticMeshComponent*, int32, FTransform>> Coils, RunPlug;   // (the stowed cable: hidden as it pays out)
+		} Gpu;
 		TArray<int32> Walkers; int32 WalkersReady = 0; bool bWalkersOut = false; float WalkerLook = 0.f;              // the wing walkers and tail walker on this push (Crew[])
 	};
 	TArray<FTug> Tugs;
@@ -147,6 +168,9 @@ private:
 	void StepCrew(FCrew& C, float Dt);
 	void IdleTick(FCrew& C, float Dt, bool bMayStep);
 	bool CrewWalk(FCrew& C, const FVector& To, float Dt, float Stop, float Max);
+	/** Where to walk next on the way to To: round the GPUs and the tugs that stand in the straight way (owner 2026-11-21:
+	 *  never through them, yet able to come very close - their own outline, a person's half width wider). */
+	FVector Around(const FVector& From, const FVector& To) const;
 	void ApplyPose(FCrew& C, const FPoseFn& Fn, float K);
 	void Unpose(FCrew& C);
 	void Door(FTug& T, float Dt);
@@ -161,6 +185,12 @@ private:
 	void CrewParked(int32 Tug);
 	void CrewWalkers(int32 Tug);
 	void WalkersDone(int32 Tug);
+	void GpuSetup(FTug& T);
+	void GpuTick(FTug& T, float Dt);
+	FVector GpuW(const FTug& T, float X, float Y, float Z) const;
+	FVector Receptacle(const FTug& T) const;
+	void GpuConnect(int32 Tug, FCrew& C);
+	void GpuDisconnect(int32 Tug, FCrew& C);
 	void StartBacking(FTug& T);
 	void StartHome(FTug& T);
 	void SeqTick(FTug& T, float Dt);

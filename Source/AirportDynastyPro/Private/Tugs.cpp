@@ -51,7 +51,7 @@ namespace
 	{
 		static TMap<FString, USoundBase*> Cache;
 		if (USoundBase** F = Cache.Find(Name)) return *F;
-		USoundBase* S = ADPKeep(LoadObject<USoundBase>(nullptr, *FString::Printf(TEXT("/Game/PushbackTug/Sounds/%s.%s"), Name, Name)));
+		USoundBase* S = ADPKeep(LoadObject<USoundBase>(nullptr, *FString::Printf(TEXT("/Game/%s/Sounds/%s.%s"), FCString::Strncmp(Name, TEXT("GPU"), 3) == 0 ? TEXT("GPU") : TEXT("PushbackTug"), Name, Name)));
 		Cache.Add(Name, S); return S;
 	}
 }
@@ -83,9 +83,9 @@ void ATugs::Setup()
 	for (const FAirfieldData::FStand& St : AAirfield::Shared().Stands)
 	{
 		if (!St.bJetway || St.bCargo || St.Span > 40.f) continue;
-		FTug T; T.StandX = St.X; T.Home = T.At = Plan(St.X + BoxX, BoxY);
+		FTug T; T.StandX = St.X; T.StandNose = St.Nose; T.StandDir = St.Dir; T.Home = T.At = Plan(St.X + BoxX, BoxY);
 		T.HomeYaw = T.Yaw = FVector(0.f, St.Dir < 0 ? -1.f : 1.f, 0.f).Rotation().Yaw;   // (facing along the stand, away from the terminal: plan +y is world -y)
-		if (SpawnAt(T)) { Pose(T); Tugs.Add(T); }
+		if (SpawnAt(T)) { Pose(T); GpuSetup(T); Tugs.Add(T); }
 	}
 	ADP_LOG(TEXT("Tugs: %d tugs ready at the gates"), Tugs.Num());
 	SetupCrew();
@@ -253,6 +253,13 @@ int32 ATugs::Assign(const FString& Key, float StandX)
 	return Best;
 }
 
+void ATugs::Arrived(float StandX)
+{
+	for (int32 i = 0; i < Tugs.Num(); ++i)
+		if (FMath::Abs(Tugs[i].StandX - StandX) < 1.f && !Tugs[i].Gpu.bConnected && Tugs[i].Driver != INDEX_NONE)
+		{ const int32 Ci = Tugs[i].Handler != INDEX_NONE ? Tugs[i].Handler : Tugs[i].Driver; GpuConnect(i, Crew[Ci]); ADP_LOG(TEXT("Tugs: aircraft on blocks at x %.0f - ground power going on"), StandX); }
+}
+
 void ATugs::Arriving(float StandX)
 {
 	for (int32 i = 0; i < Tugs.Num(); ++i)
@@ -290,6 +297,7 @@ bool ATugs::Push(const FString& Key, float StandX, const FVector& Fitting, const
 		T.At = T.HookAt; T.Yaw = T.HookYaw; Pose(T);
 		// (the push starts only with the wing walkers and the tail walker in their places)
 		if (T.Driver == INDEX_NONE) return true;
+		if (T.Gpu.bConnected) return false;   // (the ground power off and its cable stowed before any push)
 		if (T.WalkersReady < 3) return false;   // (no crew, no push - owner)
 		if (T.Seq == 0) { T.Seq = 1; T.SeqT = 0.f; T.SeqWait = FMath::FRandRange(2.f, 5.f); }
 		return T.Seq >= 8;   // (brakes released, "commencing pushback" - the 11 steps, SeqTick)
@@ -330,6 +338,8 @@ int32 ATugs::NumAtWork() const
 
 bool ATugs::WatchSpot(FVector& At, float& Yaw, bool* bHooked, bool* bAtGate) const
 {
+	// (the ground power being worked: the GPU, the plug and its cable - from the side)
+	for (const FTug& T : Tugs) if ((T.Gpu.bInHand || T.Gpu.PanelWant > 0.f) && T.Gpu.M.IsValid()) { const FVector G = T.Gpu.M->GetActorLocation(), R = Receptacle(T); At = (G + R) * 0.5f; Yaw = (R - G).Rotation().Yaw + 30.f; if (bHooked) *bHooked = false; if (bAtGate) *bAtGate = false; return true; }
 	if (bAtGate) { *bAtGate = false; for (const FTug& T : Tugs) if ((T.State == EState::Coupling || (T.State == EState::Hooked && FVector::Dist2D(T.At, T.Fit) < 900.f && T.WalkersReady < 3)) && T.M.IsValid()) *bAtGate = true; }
 	for (const FTug& T : Tugs) if ((T.State == EState::Hooked || T.State == EState::Unhook || T.State == EState::Coupling) && T.M.IsValid()) { At = T.At; Yaw = T.Yaw; if (bHooked) *bHooked = true; return true; }
 	// (waiting beside a stand: straight down at the parked aircraft's nose - which way it faces)
@@ -555,6 +565,7 @@ void ATugs::Tick(float Dt)
 		Wheels(T, Dt);
 		Door(T, Dt);
 		SeqTick(T, Dt);
+		GpuTick(T, Dt);
 		// (short of walkers for a departure: look for free ones every 3 s)
 		if (T.Driver != INDEX_NONE && !T.Key.IsEmpty() && T.Walkers.Num() < 3 && T.State != EState::Unhook && T.State != EState::Backing && T.State != EState::Home && (T.WalkerLook += Dt) > 3.f) { T.WalkerLook = 0.f; CrewWalkers(int32(&T - Tugs.GetData())); }
 	}
@@ -705,4 +716,44 @@ void ATugs::StartHome(FTug& T)
 	T.Path = {Plan(Sx - 1.f, Ly + 40.f), Plan(Sx - 1.f, Ly)};
 	for (int32 k = 1; k <= 8; ++k) { const float A = PI * k / 8.f; T.Path.Add(Plan(Sx - 1.f - Rl + Rl * FMath::Cos(A), Ly - Rl * FMath::Sin(A))); }
 	if (PathBlocked(T, T.Path, T.At)) RouteHome(T);
+}
+
+
+bool ATugs::WatchPoints(TArray<FVector>& Pts, FVector& Side) const
+{
+	Pts.Reset();
+	auto Person = [&](int32 Ci) { if (Crew.IsValidIndex(Ci) && Crew[Ci].A.IsValid()) { Pts.Add(Crew[Ci].A->GetActorLocation()); Pts.Add(Crew[Ci].A->GetActorLocation() + FVector(0, 0, 185.f)); } };
+	// the ground power being worked: the unit, the receptacle, the one carrying the plug
+	for (const FTug& T : Tugs)
+		if ((T.Gpu.bInHand || T.Gpu.PanelWant > 0.f || T.Gpu.PanelAng > 1.f) && T.Gpu.M.IsValid())
+		{
+			const FVector G = T.Gpu.M->GetActorLocation(), R = Receptacle(T);
+			Pts.Add(G - T.Gpu.M->GetActorForwardVector() * 130.f); Pts.Add(G + T.Gpu.M->GetActorForwardVector() * 220.f + FVector(0, 0, 180.f)); Pts.Add(R); Pts.Add(FVector(R.X, R.Y, G.Z));
+			Person(T.Handler != INDEX_NONE ? T.Handler : T.Driver);
+			Side = FVector::CrossProduct(R - G, FVector::UpVector).GetSafeNormal2D();
+			return true;
+		}
+	// a tug at work: the tug (its four corners), what it is coupled to, its crew
+	for (const FTug& T : Tugs)
+	{
+		if (T.State == EState::Parked || T.State == EState::Manned || !T.M.IsValid()) continue;
+		const FVector F = FRotator(0.f, T.Yaw, 0.f).Vector(), Rt = FRotator(0.f, T.Yaw + 90.f, 0.f).Vector();
+		for (const float a : {-280.f, 280.f}) for (const float b : {-140.f, 140.f}) Pts.Add(T.At + F * a + Rt * b);
+		Pts.Add(T.At + FVector(0, 0, 220.f));
+		if (T.State == EState::Coupling || T.State == EState::Hooked || T.State == EState::Unhook || T.State == EState::ToNose)
+		{ Pts.Add(T.Fit); Pts.Add(T.Fit + FVector(0, 0, 400.f)); Pts.Add(T.Fit + T.Fwd * 500.f + FVector(0, 0, 350.f)); }   // (the nose of the aircraft)
+		Person(T.Handler); if (T.State == EState::Boarding || T.State == EState::ShowPin) Person(T.Driver);
+		if (T.State == EState::Hooked) for (const int32 w : T.Walkers) Person(w);
+		Side = Rt;
+		return true;
+	}
+	return false;
+}
+
+bool ATugs::AllDone() const
+{
+	bool bWorked = false;
+	for (const FTug& T : Tugs) { if (!T.PinKey.IsEmpty()) bWorked = true; if (T.State != EState::Parked && T.State != EState::Manned) return false; if (T.Gpu.bInHand || T.Gpu.PanelWant > 0.f) return false; }
+	for (const FCrew& C : Crew) if (C.Q.Num() || C.Follow || C.Hold) return false;
+	return bWorked;
 }

@@ -27,6 +27,11 @@
 #include "ADPLog.h"
 #include "Airfield.h"
 #include "Site.h"
+#include "CableComponent.h"
+#include "Components/AudioComponent.h"
+#include "Sound/SoundBase.h"
+#include "Components/InstancedStaticMeshComponent.h"
+#include "Kismet/GameplayStatics.h"
 #include "Sim/ADPWeather.h"
 #include "Internationalization/Regex.h"
 #include "GameFramework/PlayerController.h"
@@ -207,17 +212,21 @@ bool ATugs::CrewWalk(FCrew& C, const FVector& To, float Dt, float Stop, float Ma
 	FVector D = To - A->GetActorLocation(); D.Z = 0.f;
 	const float Dist = D.Size();
 	const bool bThere = Dist < Stop;
+	// (the way round what stands in it - the GPU, a tug: the next corner to make for, the walk's end stays To)
+	if (!bThere) { FVector Via = Around(A->GetActorLocation(), To) - A->GetActorLocation(); Via.Z = 0.f; if (Via.SizeSquared() > 1.f && !Via.Equals(D, 1.f)) { const float Vd = Via.Size(); D = Via / Vd * FMath::Max(Vd, FMath::Min(Dist, 60.f)); } }
 	// (eased: a gentle start and stop; a little slower the last 2 m)
 	const float Want = bThere ? 0.f : FMath::Min(Max, FMath::Max(60.f, Dist * 0.9f));
 	C.Speed = FMath::FInterpTo(C.Speed, Want, Dt, 3.f);
 	if (!bThere)
 	{
-		FVector P = A->GetActorLocation() + D / Dist * FMath::Min(Dist, C.Speed * Dt);
-		FHitResult H; FCollisionQueryParams Q(SCENE_QUERY_STAT(TugCrewWalk), false, A);
-		if (GetWorld()->LineTraceSingleByChannel(H, P + FVector(0, 0, 120.f), P - FVector(0, 0, 200.f), ECC_Visibility, Q)) P.Z = H.ImpactPoint.Z;
+		FVector P = A->GetActorLocation() + D.GetSafeNormal() * FMath::Min(Dist, C.Speed * Dt);
+		// (on the apron's own surface - the one the tugs' wheels follow: a trace went through the paving to the ground under it
+		//  and their feet sank in, owner 2026-11-21)
+		P.Z = Plan(P.X / 100.f, -P.Y / 100.f).Z;
 		A->SetActorLocation(P);
 		A->SetActorRotation(FMath::RInterpTo(A->GetActorRotation(), FRotator(0.f, D.Rotation().Yaw - 90.f, 0.f), Dt, 6.f));
 	}
+	else if (!C.bPosed) { FVector P = A->GetActorLocation(); const float Gz = Plan(P.X / 100.f, -P.Y / 100.f).Z; if (FMath::Abs(P.Z - Gz) > 0.5f) { P.Z = Gz; A->SetActorLocation(P); } }   // (standing: on the surface too)
 	if (USkeletalMeshComponent* B = BodyOf(GetWorld(), A))
 		if (UAnimSingleNodeInstance* One = B->GetSingleNodeInstance())
 		{
@@ -385,6 +394,7 @@ void ATugs::CrewBoard(int32 Tug, bool bArrival)
 		// the handler out ahead of the aircraft's nose, round the west of the tug's box
 		FCrew& H = Crew[T.Handler]; const float Sx = T.StandX;
 		H.Q.Add(WaitAct(Pause()));
+		if (T.Gpu.bConnected) GpuDisconnect(Tug, H);   // (the APU is running: the ground power off, unplugged, the cable stowed)
 		H.Q.Add(WalkAct([this, Sx] { return Plan(Sx - 18.5f, 104.f); }, 60.f));
 		H.Q.Add(WalkAct([this, Sx] { return Plan(Sx - 6.f, 110.f); }));
 	}
@@ -768,4 +778,255 @@ void ATugs::SeqTick(FTug& T, float Dt)
 		Next(14, 0.f); T.EngT = -1.f; T.bEngines = false; break;
 	default: break;
 	}
+}
+
+// ------------------------------------------------------------------ the gate's ground power unit (Tools/make_gpu.py)
+
+namespace
+{
+	USoundBase* GpuSnd(const TCHAR* N)
+	{
+		static TMap<FString, USoundBase*> Cache;
+		if (USoundBase** F = Cache.Find(N)) return *F;
+		USoundBase* S = LoadObject<USoundBase>(nullptr, *FString::Printf(TEXT("/Game/GPU/Sounds/%s.%s"), N, N)); if (S) S->AddToRoot();
+		Cache.Add(N, S); return S;
+	}
+	// (Art/GPU/gpu-parts.json, Blender metres: x forward to the drawbar, y left, z up)
+	const FVector PlugNoseB(1.05f, -0.24f, 1.05f), GlandB(1.06f, -0.45f, 0.78f), PanelHingeB(-1.11f, 0.388f, 1.14f);
+}
+
+FVector ATugs::GpuW(const FTug& T, float X, float Y, float Z) const
+{
+	const ABabylonModel* M = T.Gpu.M.Get(); if (!M) return FVector::ZeroVector;
+	return M->GetActorTransform().TransformPosition(FVector(X, -Y, Z) * 100.f);
+}
+
+FVector ATugs::Receptacle(const FTug& T) const
+{
+	// on the centre line 2.5 m ahead of the nose tyre (the tyre 5.1 m behind the stop line), 2.0 m up
+	const float B = -T.StandDir;
+	return Plan(T.StandX, T.StandNose + B * (5.1f - 2.52f)) + FVector(0, 0, 234.f);   // (our model's belly there: 2.34 m, Art/A320 measured)
+}
+
+void ATugs::GpuSetup(FTug& T)
+{
+	// parked in its box at the head of the stand on the side away from the jetway (Airfield.cpp draws it), its front (the plug,
+	// the cable gland) towards the stand's centre line: ~7 m of cable to the receptacle
+	const float B = -T.StandDir;
+	const FVector At = Plan(T.StandX - 7.8f, T.StandNose - B * 2.f);
+	ABabylonModel* M = GetWorld()->SpawnActor<ABabylonModel>(At, FRotator::ZeroRotator);
+	if (!M || !M->Place(TEXT("GPU"))) { if (M) M->Destroy(); ADP_WARN(TEXT("Tugs: the GPU model is missing (Tools/import_model.py - Art/GPU/gpu.glb GPU)")); return; }
+	M->SetPartsCollision(false);
+	M->SetActorLocationAndRotation(At, FRotator(0.f, 0.f, 0.f));
+	T.Gpu.M = M;
+	// its glass: the fire truck's
+	if (UMaterialInterface* Glass = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Truck/M_TruckGlass.M_TruckGlass")))
+	{ TArray<TTuple<UInstancedStaticMeshComponent*, int32, FString>> G; M->InstancesNamed(TEXT("DoorPanel_Window"), true, G); for (const auto& X : G) X.Get<0>()->SetMaterial(0, Glass); }
+	T.Gpu.PlugG = M->BindGroup({TEXT("CablePlug")}, true, FTransform(FVector(PlugNoseB.X, -PlugNoseB.Y, PlugNoseB.Z) * 100.f));
+	T.Gpu.PanelG = M->BindGroup({TEXT("DoorPanel")}, true, FTransform(FVector(PanelHingeB.X, -PanelHingeB.Y, PanelHingeB.Z) * 100.f));
+	for (const TCHAR* N : {TEXT("CableCoil_4"), TEXT("CableCoil_3"), TEXT("CableCoil_2"), TEXT("CableCoil_1"), TEXT("CableCoil_0")})
+	{ TArray<TTuple<UInstancedStaticMeshComponent*, int32, FString>> G; M->InstancesNamed(N, true, G); for (const auto& X : G) { FTransform Tr; X.Get<0>()->GetInstanceTransform(X.Get<1>(), Tr, false); T.Gpu.Coils.Add(MakeTuple(X.Get<0>(), X.Get<1>(), Tr)); } }
+	{ TArray<TTuple<UInstancedStaticMeshComponent*, int32, FString>> G; M->InstancesNamed(TEXT("CableRun_Plug"), true, G); for (const auto& X : G) { FTransform Tr; X.Get<0>()->GetInstanceTransform(X.Get<1>(), Tr, false); T.Gpu.RunPlug.Add(MakeTuple(X.Get<0>(), X.Get<1>(), Tr)); } }
+	// the cable itself, when it is out: fully flexible (the wash hose's way - 80 pieces, lying on the ground)
+	UCableComponent* C = NewObject<UCableComponent>(M, TEXT("GpuCable"));
+	C->SetupAttachment(M->GetRootComponent()); C->SetWorldLocation(GpuW(T, GlandB.X, GlandB.Y, GlandB.Z));
+	// (owner 2026-11-21: a power cable is stiffer than the wash hose - it bends in a wider curve before it meets the ground;
+	//  its own settings, the wash hose is left as it is: stiffness on, fewer and longer pieces, more passes so it holds the curve)
+	C->CableWidth = 4.5f; C->NumSegments = 36; C->NumSides = 10; C->SolverIterations = 16; C->SubstepTime = 0.01f;
+	C->CollisionFriction = 0.9f; C->bEnableCollision = true; C->bEnableStiffness = true; C->CableLength = 200.f;
+	if (T.Gpu.Coils.Num()) C->SetMaterial(0, T.Gpu.Coils[0].Get<0>()->GetMaterial(0));
+	C->SetVisibility(false); C->bAutoActivate = false; C->RegisterComponent(); C->SetActive(false); C->SetComponentTickEnabled(false);
+	T.Gpu.Cable = C;
+	ADP_LOG(TEXT("Tugs: GPU at the gate x %.0f - plug group %d, panel %d, %d cable coils"), T.StandX, T.Gpu.PlugG, T.Gpu.PanelG, T.Gpu.Coils.Num());
+	// (the traffic test: the departing aircraft has been on ground power since it arrived)
+	if (FParse::Param(FCommandLine::Get(), TEXT("SimTrafficShot")) && T.StandX < 0.f) { T.Gpu.bConnected = T.Gpu.bPower = true; T.Gpu.RunT = 30.f; }
+}
+
+void ATugs::GpuTick(FTug& T, float Dt)
+{
+	FTug::FGpu& G = T.Gpu; ABabylonModel* M = G.M.Get(); if (!M) return;
+	const FTransform Root = M->GetActorTransform();
+	// the panel door
+	if (G.PanelG != INDEX_NONE && !FMath::IsNearlyEqual(G.PanelAng, G.PanelWant, 0.1f))
+	{
+		const float Was = G.PanelAng;
+		G.PanelAng = FMath::FInterpTo(G.PanelAng, G.PanelWant, Dt, 5.f); if (FMath::Abs(G.PanelAng - G.PanelWant) < 0.5f) G.PanelAng = G.PanelWant;
+		M->MoveGroup(G.PanelG, FTransform(FRotator(0.f, G.PanelAng, 0.f), FVector(PanelHingeB.X, -PanelHingeB.Y, PanelHingeB.Z) * 100.f));
+		if (Was > 0.f && G.PanelAng == 0.f) Sound(TEXT("GPUDoorClose"), GpuW(T, -1.1f, 0.f, 1.1f));
+	}
+	// the diesel: started (the starter, ~9 s), then its idle loop where it stands
+	if (G.RunT >= 0.f)
+	{
+		G.RunT += Dt;
+		if (G.RunT > 8.f && !G.Idle) G.Idle = UGameplayStatics::SpawnSoundAttached(GpuSnd(TEXT("GPUIdle")), M->GetRootComponent(), NAME_None, FVector(0, 0, 80.f), EAttachLocation::KeepRelativeOffset, false, 0.8f, 1.f, 0.f, nullptr, nullptr, false);
+	}
+	// the plug: in a hand, on the aircraft, or home in its socket
+	FVector PlugAt = FVector::ZeroVector, PlugDir = FVector(-1, 0, 0); bool bOut = true;
+	if (G.bInHand && Crew.IsValidIndex(G.Holder))
+	{
+		AADPPeople* Pp = AADPPeople::Get(GetWorld()); const AADPPeople::FWho* W = Pp ? Pp->Find(Crew[G.Holder].A.Get()) : nullptr;
+		PlugAt = W && W->Body ? W->Body->GetBoneLocation(TEXT("hand_r")) : Crew[G.Holder].A->GetActorLocation() + FVector(0, 0, 100.f);
+		PlugDir = (Crew[G.Holder].A->GetActorRightVector() * -1.f + FVector(0, 0, -0.6f)).GetSafeNormal();   // (carried nose down in front)
+		PlugDir = Crew[G.Holder].A->GetActorRotation().RotateVector(FVector(0, 1, 0)).GetSafeNormal() * 0.5f + FVector(0, 0, -0.85f);
+	}
+	else if (G.bConnected) { PlugAt = Receptacle(T); PlugDir = FVector(0, 0, 1); }   // (nose up into the receptacle)
+	else bOut = false;
+	if (G.PlugG != INDEX_NONE)
+	{
+		if (bOut)
+		{
+			const FVector L = Root.InverseTransformPosition(PlugAt), D = Root.InverseTransformVectorNoScale(PlugDir.GetSafeNormal());
+			M->MoveGroup(G.PlugG, FTransform(FQuat::FindBetweenNormals(FVector(-1, 0, 0), D), L));
+		}
+		else M->MoveGroup(G.PlugG, FTransform(FVector(PlugNoseB.X, -PlugNoseB.Y, PlugNoseB.Z) * 100.f));
+	}
+	// the cable: out of the gland to the plug's back, paid off the coils as far as it goes
+	if (G.Cable)
+	{
+		if (bOut)
+		{
+			const FVector Gl = GpuW(T, GlandB.X, GlandB.Y, GlandB.Z);
+			const FVector Tail = PlugAt - PlugDir.GetSafeNormal() * 31.f;   // (the plug's boot tip, 31 cm behind its nose: the cable always ends in it)
+			const float Dist = FVector::Dist(Gl, Tail);
+			G.Cable->SetWorldLocation(Gl);
+			G.Cable->EndLocation = G.Cable->GetComponentTransform().InverseTransformPosition(Tail);
+			G.Cable->CableLength = Dist * 1.04f + 45.f;   // (less slack than the hose: a stiff cable lies in a long curve)
+			if (!G.Cable->IsVisible()) { G.Cable->SetVisibility(true); G.Cable->SetActive(true); G.Cable->SetComponentTickEnabled(true); }
+			// (22.6 m stowed in 5 loops: one loop off for every 4.5 m out; the short run to the parked plug off at once)
+			const int32 Off = FMath::Clamp(FMath::CeilToInt(G.Cable->CableLength / 452.f), 0, G.Coils.Num());
+			for (int32 k = 0; k < G.Coils.Num(); ++k) { auto& X = G.Coils[k]; FTransform Tr = X.Get<2>(); if (k < Off) Tr.SetScale3D(FVector(0.0001f)); X.Get<0>()->UpdateInstanceTransform(X.Get<1>(), Tr, false, true); }
+			for (auto& X : G.RunPlug) { FTransform Tr = X.Get<2>(); Tr.SetScale3D(FVector(0.0001f)); X.Get<0>()->UpdateInstanceTransform(X.Get<1>(), Tr, false, true); }
+		}
+		else if (G.Cable->IsVisible())
+		{
+			G.Cable->SetVisibility(false); G.Cable->SetActive(false); G.Cable->SetComponentTickEnabled(false);
+			for (auto& X : G.Coils) X.Get<0>()->UpdateInstanceTransform(X.Get<1>(), X.Get<2>(), false, true);
+			for (auto& X : G.RunPlug) X.Get<0>()->UpdateInstanceTransform(X.Get<1>(), X.Get<2>(), false, true);
+		}
+	}
+	M->FlushMoves();
+}
+
+void ATugs::GpuConnect(int32 Tug, FCrew& C)
+{
+	// on blocks: the panel door open, the diesel started and warmed up, the plug off its socket and walked to the receptacle
+	// (the cable paying out), plugged in, then the contactor on at the panel and the door shut
+	auto At = [this, Tug](float X, float Y, float Z) { return [this, Tug, X, Y, Z] { return GpuW(Tugs[Tug], X, Y, Z); }; };
+	auto Face = [this, Tug] { return Tugs[Tug].Gpu.M.IsValid() ? Tugs[Tug].Gpu.M->GetActorForwardVector() : FVector(1, 0, 0); };
+	auto Press = [this, Tug, Face](float X, float Y, float Z, float Grip) { return [this, Tug, Face, X, Y, Z, Grip](float K, float PH, FDriverPose& P) { P = Reach(GpuW(Tugs[Tug], -1.65f, 0.f, 0.f), Face(), 1, GpuW(Tugs[Tug], X, Y, Z), Grip, PH, Ramp(K)); }; };
+	const int32 Ci = int32(&C - Crew.GetData());
+	C.Q.Add(WaitAct(Pause()));
+	C.Q.Add(WalkAct(At(-1.65f, 0.f, 0.f), 15.f));
+	C.Q.Add(PoseAct(Press(-1.13f, -0.30f, 1.12f, 0.8f), 1.0f));
+	C.Q.Add(DoAct([this, Tug] { Tugs[Tug].Gpu.PanelWant = 100.f; Sound(TEXT("GPUDoorOpen"), GpuW(Tugs[Tug], -1.1f, 0.f, 1.1f)); }));
+	C.Q.Add(WaitAct(0.6f));
+	C.Q.Add(PoseAct(Press(-0.98f, 0.24f, 1.10f, 0.3f), 1.0f));   // (START)
+	C.Q.Add(DoAct([this, Tug] { FTug& U = Tugs[Tug]; U.Gpu.RunT = 0.f; Sound(TEXT("GPUStart"), GpuW(U, 0.f, 0.f, 0.8f)); ADP_LOG(TEXT("Tugs: GPU started at x %.0f"), U.StandX); }));
+	C.Q.Add(WaitAct(12.f + Pause()));                              // (warming up: the frequency and voltage steady)
+	C.Q.Add(WalkAct(At(1.70f, -0.55f, 0.f), 15.f));
+	C.Q.Add(PoseAct([this, Tug, Face](float K, float PH, FDriverPose& P) { P = Reach(GpuW(Tugs[Tug], 1.70f, -0.55f, 0.f), -Face(), 1, GpuW(Tugs[Tug], 1.18f, -0.24f, 1.165f), 1.f, PH, FMath::Min(1.f, K * 2.f)); }, 1.0f));
+	C.Q.Add(DoAct([this, Tug, Ci] { FTug& U = Tugs[Tug]; U.Gpu.bInHand = true; U.Gpu.Holder = Ci; }));
+	// (under the nose, the receptacle above him, a step to the GPU's side of it)
+	auto Under = [this, Tug] { const FTug& U = Tugs[Tug]; const FVector R = Receptacle(U); const FVector G = U.Gpu.M.IsValid() ? U.Gpu.M->GetActorLocation() : R; return FVector(R.X, R.Y, G.Z) + (G - R).GetSafeNormal2D() * 45.f; };
+	C.Q.Add(WalkAct(Under, 12.f, 110.f));
+	C.Q.Add(PoseAct([this, Tug, Under](float K, float PH, FDriverPose& P) { const FVector R = Receptacle(Tugs[Tug]); const FVector At2 = Under(); P = Reach(At2, (R - At2).GetSafeNormal2D(), 1, R - FVector(0, 0, 12.f), 1.f, PH, FMath::Min(1.f, K * 1.6f)); }, 2.2f));
+	C.Q.Add(DoAct([this, Tug] { FTug& U = Tugs[Tug]; U.Gpu.bInHand = false; U.Gpu.bConnected = true; Sound(TEXT("GPUPlugConnect"), Receptacle(U)); }));
+	C.Q.Add(WalkAct(At(-1.65f, 0.f, 0.f), 15.f));
+	C.Q.Add(PoseAct(Press(-0.98f, -0.14f, 1.10f, 0.3f), 1.0f));  // (CONTACTOR ON)
+	C.Q.Add(DoAct([this, Tug] { FTug& U = Tugs[Tug]; U.Gpu.bPower = true; ADP_LOG(TEXT("Tugs: ground power on the aircraft at x %.0f (400 Hz) - its APU can go off"), U.StandX); }));
+	C.Q.Add(PoseAct(Press(-1.13f, -0.30f, 1.12f, 0.8f), 0.9f));
+	C.Q.Add(DoAct([this, Tug] { Tugs[Tug].Gpu.PanelWant = 0.f; }));
+}
+
+void ATugs::GpuDisconnect(int32 Tug, FCrew& C)
+{
+	// before departure, the APU running: the contactor off, unplugged, walked back winding the cable onto its tray, the plug
+	// in its socket, the diesel stopped, the door shut - only then can the push begin (Push)
+	auto At = [this, Tug](float X, float Y, float Z) { return [this, Tug, X, Y, Z] { return GpuW(Tugs[Tug], X, Y, Z); }; };
+	auto Face = [this, Tug] { return Tugs[Tug].Gpu.M.IsValid() ? Tugs[Tug].Gpu.M->GetActorForwardVector() : FVector(1, 0, 0); };
+	auto Press = [this, Tug, Face](float X, float Y, float Z, float Grip) { return [this, Tug, Face, X, Y, Z, Grip](float K, float PH, FDriverPose& P) { P = Reach(GpuW(Tugs[Tug], -1.65f, 0.f, 0.f), Face(), 1, GpuW(Tugs[Tug], X, Y, Z), Grip, PH, Ramp(K)); }; };
+	const int32 Ci = int32(&C - Crew.GetData());
+	// (the aircraft must be there: its APU started - the pilot's call comes with the radio app)
+	C.Q.Add(UntilAct([this, Tug](float E) { const FVector R = Receptacle(Tugs[Tug]); for (const FVector& Pl : Planes) if (FVector::Dist2D(Pl, R) < 800.f) return true; return E > 90.f; }));
+	C.Q.Add(DoAct([this, Tug] { ADP_LOG(TEXT("Tugs: APU running at x %.0f - ground power coming off"), Tugs[Tug].StandX); }));
+	C.Q.Add(WalkAct(At(-1.65f, 0.f, 0.f), 15.f));
+	C.Q.Add(PoseAct(Press(-1.13f, -0.30f, 1.12f, 0.8f), 1.0f));
+	C.Q.Add(DoAct([this, Tug] { Tugs[Tug].Gpu.PanelWant = 100.f; Sound(TEXT("GPUDoorOpen"), GpuW(Tugs[Tug], -1.1f, 0.f, 1.1f)); }));
+	C.Q.Add(WaitAct(0.6f));
+	C.Q.Add(PoseAct(Press(-0.98f, -0.24f, 1.10f, 0.3f), 1.0f));  // (CONTACTOR OFF)
+	C.Q.Add(DoAct([this, Tug] { Tugs[Tug].Gpu.bPower = false; }));
+	auto Under = [this, Tug] { const FTug& U = Tugs[Tug]; const FVector R = Receptacle(U); const FVector G = U.Gpu.M.IsValid() ? U.Gpu.M->GetActorLocation() : R; return FVector(R.X, R.Y, G.Z) + (G - R).GetSafeNormal2D() * 45.f; };
+	C.Q.Add(WalkAct(Under, 12.f));
+	C.Q.Add(PoseAct([this, Tug, Under](float K, float PH, FDriverPose& P) { const FVector R = Receptacle(Tugs[Tug]); const FVector At2 = Under(); P = Reach(At2, (R - At2).GetSafeNormal2D(), 1, R - FVector(0, 0, 12.f), 1.f, PH, FMath::Min(1.f, K * 1.6f)); }, 2.0f));
+	C.Q.Add(DoAct([this, Tug, Ci] { FTug& U = Tugs[Tug]; U.Gpu.bConnected = false; U.Gpu.bInHand = true; U.Gpu.Holder = Ci; Sound(TEXT("GPUPlugDisconnect"), Receptacle(U)); }));
+	C.Q.Add(WalkAct(At(1.70f, -0.55f, 0.f), 15.f, 110.f));          // (the cable winding back onto its tray as he comes)
+	C.Q.Add(PoseAct([this, Tug, Face](float K, float PH, FDriverPose& P) { P = Reach(GpuW(Tugs[Tug], 1.70f, -0.55f, 0.f), -Face(), 1, GpuW(Tugs[Tug], 1.18f, -0.24f, 1.165f), 1.f, PH, 1.f - FMath::Max(0.f, K * 2.f - 1.f)); }, 1.2f));
+	C.Q.Add(DoAct([this, Tug] { FTug& U = Tugs[Tug]; U.Gpu.bInHand = false; U.Gpu.Holder = INDEX_NONE; }));
+	C.Q.Add(WalkAct(At(-1.65f, 0.f, 0.f), 15.f));
+	C.Q.Add(PoseAct(Press(-0.98f, 0.14f, 1.10f, 0.3f), 1.0f));   // (STOP)
+	C.Q.Add(DoAct([this, Tug] { FTug& U = Tugs[Tug]; U.Gpu.RunT = -1.f; if (U.Gpu.Idle) { U.Gpu.Idle->Stop(); U.Gpu.Idle = nullptr; } Sound(TEXT("GPUStop"), GpuW(U, 0.f, 0.f, 0.8f)); ADP_LOG(TEXT("Tugs: ground power off and stowed at x %.0f"), U.StandX); }));
+	C.Q.Add(PoseAct(Press(-1.13f, -0.30f, 1.12f, 0.8f), 0.9f));
+	C.Q.Add(DoAct([this, Tug] { Tugs[Tug].Gpu.PanelWant = 0.f; }));
+}
+
+
+FVector ATugs::Around(const FVector& From, const FVector& To) const
+{
+	// the boxes in the way (world, flat): each GPU as its body and its thin drawbar, each tug as its hull - widened by 30 cm
+	// (a person's half width and a hair: they can stand right at a panel or a door)
+	struct FBx { FVector C; FVector X, Y; float Hx, Hy; };
+	TArray<FBx> Bs;
+	const float Pad = 30.f;
+	for (const FTug& T : Tugs)
+	{
+		if (const ABabylonModel* G = T.Gpu.M.Get())
+		{
+			const FVector Fw = G->GetActorForwardVector().GetSafeNormal2D(), Rt = FVector(-Fw.Y, Fw.X, 0.f);
+			Bs.Add({GpuW(T, -0.052f, 0.f, 0.f), Fw, Rt, 119.2f + Pad, 87.5f + Pad});      // (the body: x -1.244 .. 1.14, 1.75 wide)
+			Bs.Add({GpuW(T, 1.635f, 0.f, 0.f), Fw, Rt, 49.5f + Pad, 16.f + Pad});          // (the drawbar to the towing eye)
+		}
+		if (T.M.IsValid())
+		{
+			const FVector Fw = FRotator(0.f, T.Yaw, 0.f).Vector(), Rt = FRotator(0.f, T.Yaw + 90.f, 0.f).Vector();
+			Bs.Add({T.At, Fw, Rt, 255.f + Pad, 126.f + Pad});
+		}
+	}
+	auto Local = [](const FBx& B, const FVector& P) { const FVector D = P - B.C; return FVector2D(FVector::DotProduct(D, B.X), FVector::DotProduct(D, B.Y)); };
+	auto World = [](const FBx& B, const FVector2D& L, float Z) { return B.C + B.X * L.X + B.Y * L.Y + FVector(0, 0, Z - B.C.Z); };
+	auto Inside = [](const FBx& B, const FVector2D& L, float S) { return FMath::Abs(L.X) < B.Hx * S && FMath::Abs(L.Y) < B.Hy * S; };
+	// does the straight way from A to B (box space) cross the box (slab test)?
+	auto Crosses = [](const FBx& B, const FVector2D& A, const FVector2D& E, float S)
+	{
+		const FVector2D D = E - A; float T0 = 0.f, T1 = 1.f;
+		const float H[2] = {B.Hx * S, B.Hy * S}; const float Ao[2] = {float(A.X), float(A.Y)}, Dd[2] = {float(D.X), float(D.Y)};
+		for (int32 k = 0; k < 2; ++k)
+		{
+			if (FMath::Abs(Dd[k]) < 1e-4f) { if (FMath::Abs(Ao[k]) >= H[k]) return false; continue; }
+			float a = (-H[k] - Ao[k]) / Dd[k], b = (H[k] - Ao[k]) / Dd[k]; if (a > b) Swap(a, b);
+			T0 = FMath::Max(T0, a); T1 = FMath::Min(T1, b); if (T0 > T1) return false;
+		}
+		return T1 > 0.001f && T0 < 0.999f;
+	};
+	for (const FBx& B : Bs)
+	{
+		const FVector2D A = Local(B, From), E = Local(B, To);
+		if (Inside(B, E, 1.f)) continue;                                  // (the end is right at it: a door, the panel - go)
+		if (Inside(B, A, 0.98f))                                          // (in it: straight out the nearest side)
+		{
+			FVector2D O = A; if (B.Hx - FMath::Abs(A.X) < B.Hy - FMath::Abs(A.Y)) O.X = FMath::Sign(A.X == 0 ? 1.f : A.X) * (B.Hx + 5.f); else O.Y = FMath::Sign(A.Y == 0 ? 1.f : A.Y) * (B.Hy + 5.f);
+			return World(B, O, From.Z);
+		}
+		if (!Crosses(B, A, E, 1.f)) continue;
+		// round it: the corner (a little outside) that makes the shortest way and can be reached straight
+		float Best = 1e12f; FVector2D Pick = E;
+		for (const float sx : {-1.f, 1.f}) for (const float sy : {-1.f, 1.f})
+		{
+			const FVector2D Cn(sx * (B.Hx + 8.f), sy * (B.Hy + 8.f));
+			if (Crosses(B, A, Cn, 0.99f)) continue;
+			const float L = (Cn - A).Size() + (E - Cn).Size();
+			if (L < Best) { Best = L; Pick = Cn; }
+		}
+		if (Best < 1e11f) return World(B, Pick, From.Z);
+	}
+	return To;
 }

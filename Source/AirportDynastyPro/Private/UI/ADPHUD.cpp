@@ -5854,6 +5854,7 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 					// (-ShotHour=H: the site's hour for the pictures - day 13, night 22: the lamps and beacons in the dark)
 					float H = -1.f; if (FParse::Value(FCommandLine::Get(), TEXT("ShotHour="), H) && ASunClock::HourOverride != H) { ASunClock::HourOverride = H; ASunClock::Refresh(); }
 					FVector At; float Yaw = 0.f; bool bHooked = false; ATugs* Tg = ATugs::Get(GetWorld());
+					{ TArray<FVector> Pp; FVector Sd; if (Tg && Tg->WatchPoints(Pp, Sd)) return; }   // (work going on: the tracking camera has it)
 					bool bAtGate = false; if (!Tg || !Tg->WatchSpot(At, Yaw, &bHooked, &bAtGate)) return;
 					const float PX = At.X / 100.f, PY = -At.Y / 100.f;
 					// hooked on: straight down from 45 m over the towbar - the tug, the bar and the aircraft's nose in one picture
@@ -5875,6 +5876,36 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 					TEXT("Tug_09"), TEXT("Tug_10"), TEXT("Tug_11"), TEXT("Tug_12"), TEXT("Tug_13"), TEXT("Tug_14"), TEXT("Tug_15"), TEXT("Tug_16"),
 					TEXT("Tug_17"), TEXT("Tug_18"), TEXT("Tug_19"), TEXT("Tug_20"), TEXT("Tug_21"), TEXT("Tug_22"), TEXT("Tug_23"), TEXT("Tug_24")};
 				for (const TCHAR* N : TugNames) Spots.Add({N, WatchTug});
+			}
+			// (the tug tour: a tracking camera every frame - owner 2026-11-21: the tested thing always in frame, a smooth
+			//  cinematic move round it, up and down, following people and moving things; the spot pictures are taken from it)
+			if (FParse::Param(FCommandLine::Get(), TEXT("UITugShot")) && C2 > (bList ? 45.f : 251.f) - 1.f)
+			{
+				TArray<FVector> Pts; FVector Side(0, 1, 0);
+				ATugs* Tg = ATugs::Get(GetWorld());
+				// (all done - the work over and everyone resting for 15 s: the last picture and out, no waiting for the clock)
+				{ static float DoneFor = 0.f, ExitAt = -1.f; if (Tg && C2 > 300.f && ExitAt < 0.f && Tg->AllDone()) DoneFor += FMath::Clamp(C2 - B2, 0.f, 0.1f); else DoneFor = 0.f;
+				  if (DoneFor > 15.f && ExitAt < 0.f) { ADP_LOG(TEXT("Tug tour: all done - ending the test")); Shot(TEXT("Tug_99_AllDone")); ExitAt = C2 + 4.f; }
+				  if (ExitAt > 0.f && C2 >= ExitAt) ADP_SHOT_EXIT(); }
+				if (Tg && Tg->WatchPoints(Pts, Side) && Pts.Num())
+				{
+					if (!Drone.IsValid()) EnterDrone();
+					static FVector CamAt = FVector::ZeroVector; static float Orbit = 0.f; static bool bHave = false;
+					const float Dt = FMath::Clamp(C2 - B2, 0.f, 0.1f);
+					FBox Bx(Pts); const FVector Mid = Bx.GetCenter(); const float Rad = FMath::Max(Bx.GetExtent().Size(), 500.f);
+					// (far enough for all of it in a 60 degree view with a margin; a slow orbit of +-35 degrees round the side)
+					Orbit += Dt * 0.12f;
+					const float Dist = Rad / FMath::Tan(FMath::DegreesToRadians(26.f)) + 300.f;
+					const FVector Dir = Side.RotateAngleAxis(35.f * FMath::Sin(Orbit), FVector::UpVector);
+					const FVector Want = Mid + Dir * Dist + FVector(0, 0, 250.f + Dist * (0.32f + 0.08f * FMath::Sin(Orbit * 0.7f)));
+					CamAt = bHave ? FMath::VInterpTo(CamAt, Want, Dt, 1.6f) : Want; bHave = true;
+					if (ADroneCam* D = Drone.Get())
+					{
+						D->SetTestInput(0.f, 0.f, 0.f, false);
+						D->SetActorLocation(CamAt, false, nullptr, ETeleportType::TeleportPhysics);
+						if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(FMath::RInterpTo(PC->GetControlRotation(), (Mid - CamAt).Rotation(), Dt, 4.f));
+					}
+				}
 			}
 			for (int32 k = 0; k < Spots.Num(); ++k)
 			{
