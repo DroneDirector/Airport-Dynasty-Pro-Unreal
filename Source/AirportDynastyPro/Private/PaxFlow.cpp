@@ -23,6 +23,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "Animation/AnimSingleNodeInstance.h"
+#include "PaxAnimInstance.h"
 #include "Camera/PlayerCameraManager.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/World.h"
@@ -402,6 +403,9 @@ AActor* APaxFlow::Body(const FVector& At, float Yaw, FPx& P)
 	A->SetActorLocation(At);   // (Spawn finds the floor from above; inside a jetway's cab that is its roof - our own point)
 	P.A = A;
 	if (AADPPeople::FWho* W = People->Find(A)) P.Body = W->Body;
+	// (their own animation instance: the same walk blend space, plus the right hand closed round a carried bag's handle
+	//  and the arm a little out - PaxAnimInstance.h)
+	UPaxAnimInstance::Install(P.Body.Get());
 	// (far away their animation updates only while seen, and less often - no change up close)
 	TArray<USkeletalMeshComponent*> Sk; A->GetComponents<USkeletalMeshComponent>(Sk);
 	for (USkeletalMeshComponent* S : Sk) { S->bEnableUpdateRateOptimizations = true; S->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered; }
@@ -518,6 +522,12 @@ void APaxFlow::Anim(FPx& P)
 	if (USkeletalMeshComponent* B = P.Body.Get())
 		if (UAnimSingleNodeInstance* One = B->GetSingleNodeInstance())
 		{
+			// (the hand closed round the handle while the bag is carried - not once it is set down; it opens and closes
+			//  over a quarter of a second. A body that sat down came back on the plain instance: ours again)
+			const bool bCarry = P.bHasBag && !(!P.bArr && P.bBagDown) && P.Holder && P.Holder->GetAttachParent() == B;
+			UPaxAnimInstance* Mine = Cast<UPaxAnimInstance>(One);
+			if (!Mine && bCarry && !B->IsRunningParallelEvaluation() && !B->IsPostEvaluatingAnimation()) { Mine = UPaxAnimInstance::Install(B); One = B->GetSingleNodeInstance(); if (!One) return; }
+			if (Mine) Mine->bGripRight = bCarry;
 			// (AADPPeople::WalkTo's own mapping onto the idle-walk-run blend space)
 			One->SetBlendSpacePosition(FVector(0.f, FMath::Min(P.Speed * 1.5f, 300.f), 0.f));
 			One->SetPlayRate(P.Speed > 20.f ? FMath::Clamp(P.Speed / FMath::Max(P.Speed * 1.5f, 100.f), 0.5f, 1.4f) : 1.f);
@@ -545,20 +555,27 @@ void APaxFlow::CarryBag(FPx& P, AActor* A)
 	if (!P.bHasBag || !P.Holder || (!P.bArr && P.bBagDown)) return;
 	USkeletalMeshComponent* B = P.Body.Get();
 	const float Fy = A->GetActorRotation().Yaw + 90.f;
-	const FVector Right = FRotator(0.f, Fy + 90.f, 0.f).Vector();
-	FVector Hand = B ? B->GetBoneLocation(TEXT("hand_r")) : A->GetActorLocation() + Right * 25.f + FVector(0, 0, 80.f);
-	// (owner 2026-11-21: the hand exactly on the handle, fixed there all the way - no offset. The bag's handle point sits
-	//  at the hand's grip: between the wrist and the middle finger's first joint, where closed fingers wrap round a bar -
-	//  so the bag swings with the hand and never slides in it. Not while setting it down or picking it up: CarryBag is
-	//  only called while carried)
-	if (B && B->GetBoneIndex(TEXT("middle_01_r")) != INDEX_NONE)
-	{
-		const FVector Knuckle = B->GetBoneLocation(TEXT("middle_01_r"));
-		Hand = FMath::Lerp(Hand, Knuckle, 0.85f) - FVector(0, 0, 1.5f);
-	}
 	// (the bag hanging upright below the hand, its handle bar along the walk: a suitcase's end handle on top)
 	const FQuat Q = FRotator(0.f, Fy, 0.f).Quaternion() * (P.Handle.Y < -10.f ? PXUPRIGHT : FQuat::Identity);
-	P.Holder->SetWorldLocationAndRotation(Hand, Q);
+	// (owner 2026-11-21: the hand exactly on the handle, fixed there all the way. The holder - the bag's handle point -
+	//  rides on the hand bone itself at the grip (between the palm and the closed fingers, PaxAnimInstance::GripInHand),
+	//  so it moves with this frame's pose, not last frame's: no lag, no sliding in the hand. Only its turn is its own:
+	//  upright, facing the walk. The bags read it after the animation (the belts tick post-update). Not while setting it
+	//  down or picking it up: CarryBag is only called while carried; set down, it is let go of)
+	static const FName HandR(TEXT("hand_r"));
+	if (B && B->GetBoneIndex(HandR) != INDEX_NONE)
+	{
+		if (P.Holder->GetAttachParent() != B || P.Holder->GetAttachSocketName() != HandR)
+		{
+			P.Holder->AttachToComponent(B, FAttachmentTransformRules::SnapToTargetNotIncludingScale, HandR);
+			P.Holder->SetUsingAbsoluteRotation(true); P.Holder->SetUsingAbsoluteScale(true);
+			P.Holder->SetRelativeLocation(UPaxAnimInstance::GripInHand(B));
+		}
+		P.Holder->SetWorldRotation(Q);
+		return;
+	}
+	const FVector Right = FRotator(0.f, Fy + 90.f, 0.f).Vector();
+	P.Holder->SetWorldLocationAndRotation(A->GetActorLocation() + Right * 25.f + FVector(0, 0, 80.f), Q);
 }
 
 bool APaxFlow::Follow(FPx& P, AActor* A, float Dt)
@@ -1037,7 +1054,7 @@ void APaxFlow::StepPx(int32 i, float Dt)
 		const FVector North(0, -1, 0); Idle(P, A, Dt, &North);
 		CarryBag(P, A);
 		ADepartureBelts* D = ADepartureBelts::Get(GetWorld());
-		if (!P.bBagDown && P.T > 1.2f && D && P.Bag != INDEX_NONE) { D->SetDownOnDesk(P.Bag, P.Desk); P.bBagDown = true; P.bHasBag = false; if (R.bTest || R.Spawned <= 3) ADP_LOG(TEXT("PaxFlow: %s sets bag #%d on desk %d's weigh belt"), *P.Id, P.Bag, P.Desk); }
+		if (!P.bBagDown && P.T > 1.2f && D && P.Bag != INDEX_NONE) { D->SetDownOnDesk(P.Bag, P.Desk); P.bBagDown = true; P.bHasBag = false; if (P.Holder) P.Holder->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform); if (R.bTest || R.Spawned <= 3) ADP_LOG(TEXT("PaxFlow: %s sets bag #%d on desk %d's weigh belt"), *P.Id, P.Bag, P.Desk); }
 		if (P.T > (R.bTest ? 12.f : 30.f) + float(P.Jit.Y) / 10.f)
 		{
 			DeskLines[P.Desk - 1].Who.Remove(i);

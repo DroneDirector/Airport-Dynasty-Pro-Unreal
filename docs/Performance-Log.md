@@ -1,5 +1,14 @@
 # Performance log
 
+## 2026-11-21 late - passengers' suitcase grip (PaxAnimInstance.cpp)
+- Passengers now use their own anim instance (UPaxAnimInstance, still the single-node walk blend space). While a bag is
+  carried it adds a layer after the blend space: 15 right finger/thumb joints closed round the handle, and the right
+  upper arm and forearm held a little out (two short parent-chain walks). That is about 20 bone rotations per evaluated
+  pose, worker thread, and none when no bag is carried. Update-rate optimisation and OnlyTickPoseWhenRendered stay on,
+  and far walkers are still moved every fourth frame.
+- The bag holder is attached to hand_r (no GetBoneLocation reads each frame). The two belt actors tick in
+  TG_PostUpdateWork, so the bags read this frame's hand, with no extra work.
+
 ## 2026-11-21 evening - the passengers' trips (PaxFlow.cpp)
 - Of each flight up to 36 departing / 30 arriving passengers walk as MetaHumans (the rest stay data in the simulation -
   never a slider, the schedule decides). Their bodies use update-rate optimisation and only tick their animation while

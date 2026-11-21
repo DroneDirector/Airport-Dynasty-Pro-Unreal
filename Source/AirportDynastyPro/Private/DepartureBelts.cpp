@@ -57,6 +57,7 @@ namespace
 ADepartureBelts::ADepartureBelts()
 {
 	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.TickGroup = TG_PostUpdateWork;   // (after the animation: a bag in a hand reads this frame's hand, not last frame's - owner 2026-11-21)
 	SetRootComponent(CreateDefaultSubobject<USceneComponent>(TEXT("Root")));
 }
 
