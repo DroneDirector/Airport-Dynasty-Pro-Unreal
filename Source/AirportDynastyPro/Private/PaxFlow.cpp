@@ -546,10 +546,19 @@ void APaxFlow::CarryBag(FPx& P, AActor* A)
 	USkeletalMeshComponent* B = P.Body.Get();
 	const float Fy = A->GetActorRotation().Yaw + 90.f;
 	const FVector Right = FRotator(0.f, Fy + 90.f, 0.f).Vector();
-	const FVector Hand = B ? B->GetBoneLocation(TEXT("hand_r")) : A->GetActorLocation() + Right * 25.f + FVector(0, 0, 80.f);
-	// (the handle in the palm, the bag hanging beside the leg, upright: a suitcase's end handle on top)
+	FVector Hand = B ? B->GetBoneLocation(TEXT("hand_r")) : A->GetActorLocation() + Right * 25.f + FVector(0, 0, 80.f);
+	// (owner 2026-11-21: the hand exactly on the handle, fixed there all the way - no offset. The bag's handle point sits
+	//  at the hand's grip: between the wrist and the middle finger's first joint, where closed fingers wrap round a bar -
+	//  so the bag swings with the hand and never slides in it. Not while setting it down or picking it up: CarryBag is
+	//  only called while carried)
+	if (B && B->GetBoneIndex(TEXT("middle_01_r")) != INDEX_NONE)
+	{
+		const FVector Knuckle = B->GetBoneLocation(TEXT("middle_01_r"));
+		Hand = FMath::Lerp(Hand, Knuckle, 0.85f) - FVector(0, 0, 1.5f);
+	}
+	// (the bag hanging upright below the hand, its handle bar along the walk: a suitcase's end handle on top)
 	const FQuat Q = FRotator(0.f, Fy, 0.f).Quaternion() * (P.Handle.Y < -10.f ? PXUPRIGHT : FQuat::Identity);
-	P.Holder->SetWorldLocationAndRotation(Hand + Right * 9.f - FVector(0, 0, 6.f), Q);
+	P.Holder->SetWorldLocationAndRotation(Hand, Q);
 }
 
 bool APaxFlow::Follow(FPx& P, AActor* A, float Dt)
