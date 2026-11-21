@@ -46,9 +46,10 @@ namespace ADPStressWalkInternal
 			{TEXT("looking round the Grand Hall"), EWalkKind::Look, {}, 12.f, 0.f},
 			{TEXT("walking east through the Grand Hall"), EWalkKind::Walk, {P(92.f, 0.f, 18.f), P(105.f, 0.f, 20.f)}, 25.f, 0.f},
 			{TEXT("looking round"), EWalkKind::Look, {}, 8.f, 0.f},
-			{TEXT("at the airside stairs"), EWalkKind::Go, {P(54.f, 0.f, 47.f)}, 0.f, 0.f},
-			{TEXT("up the airside stairs to Floor 2"), EWalkKind::Walk, {P(57.5f, 0.f, 47.f), P(66.6f, 6.f, 47.f), P(67.f, 6.f, 45.f)}, 25.f, 0.f},
-			{TEXT("looking round at the top of the stairs"), EWalkKind::Look, {}, 10.f, 0.f},
+			// (the airside lobby's stairs are gone, owner 2026-11-21: up by the escalators only, along the airside corridor)
+			{TEXT("in the airside lobby"), EWalkKind::Go, {P(54.f, 0.f, 47.f)}, 0.f, 0.f},
+			{TEXT("looking round in the airside lobby"), EWalkKind::Look, {}, 10.f, 0.f},
+			{TEXT("along the airside corridor to the escalators"), EWalkKind::Walk, {P(50.f, 0.f, 48.f), P(14.f, 0.f, 48.f), P(10.f, 0.f, 44.f), P(10.f, 0.f, 30.f), P(10.f, 0.f, 27.5f), P(31.5f, 0.f, 23.f)}, 45.f, 0.f},
 			{TEXT("up the escalator"), EWalkKind::Escalator, {}, 18.f, 0.f},
 			{TEXT("looking round on Floor 2 by the escalators"), EWalkKind::Look, {}, 12.f, 0.f},
 			{TEXT("walking into the gate walkway"), EWalkKind::Walk, {P(10.f, 6.f, 26.f), P(10.f, 6.f, 45.f), P(10.f, 6.f, 59.f)}, 35.f, 0.f},

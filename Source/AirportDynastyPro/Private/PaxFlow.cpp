@@ -789,19 +789,12 @@ void APaxFlow::WayScreening(FPx& P)
 
 void APaxFlow::WayUpstairs(FPx& P)
 {
-	// up to Floor 2: the stairs from the airside lobby (round their west end), or the new airside corridor west to the
-	// escalator room and up the escalators (standing still while they carry you)
+	// up to Floor 2: along the new airside corridor west to the escalator room and up the escalators (standing still
+	// while they carry you) - the only way up (owner 2026-11-21: the airside lobby's stairs are gone)
 	P.Way.Reset(); P.Wi = 0;
 	auto Add = [&](float X, float H, float Z, uint8 Mode = 0) { FWp W; W.P = PW(X, H, Z); W.Mode = Mode; P.Way.Add(W); };
 	const float J = float(P.Jit.X) / 100.f;
-	const bool bTestRun = Runs.IsValidIndex(P.Run) && Runs[P.Run].bTest;
-	P.bEsc = true; (void)bTestRun;   // (owner 2026-11-21: everyone walks to the escalators and rides up - the lobby stairs stay for staff and the lift later)
-	if (!P.bEsc)
-	{
-		Add(67.5f, 0, 51.f); Add(57.f, 0, 50.8f); Add(57.f, 0, 47.f + J); Add(66.6f, F2Y, 47.f + J); Add(68.5f, F2Y, 47.f + J);
-		P.Stage = TEXT("up the stairs from the airside lobby");
-		return;
-	}
+	P.bEsc = true;
 	const float Foot = 16.f + AEscalatorPair::LengthAlong(), Zu = Rng.FRand() < 0.5f ? 12.33f : 16.05f;
 	Add(52.f, 0, 48.f + J); Add(50.f, 0, 48.f + J); Add(14.f, 0, 48.f + J); Add(10.f + J, 0, 46.f); Add(10.f + J, 0, 44.f); Add(10.f + J, 0, 32.f); Add(10.f + J, 0, 30.f);
 	Add(10.f, 0, 27.5f); Add(31.5f, 0, 23.f); Add(Foot + 2.5f, 0, Zu); Add(Foot + 0.3f, 0, Zu, 1);

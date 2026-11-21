@@ -138,7 +138,7 @@
   {
    "id": "F1-AIRSIDE",
    "f": 1,
-   "name": "Airside lobby (stairs, escalators, lift to Floor 2)",
+   "name": "Airside lobby (lift to Floor 2; the escalators along the airside corridor)",
    "x0": 50,
    "z0": 42,
    "x1": 90,
@@ -1921,16 +1921,6 @@
   ]
  ],
  "stairs": [
-  {
-   "id": "S-01",
-   "x0": 58,
-   "z0": 44,
-   "x1": 66,
-   "z1": 50,
-   "dir": "x+",
-   "from": "F1-AIRSIDE",
-   "to": "F2-LANDING"
-  },
   {
    "id": "S-STAFF",
    "x0": 140,

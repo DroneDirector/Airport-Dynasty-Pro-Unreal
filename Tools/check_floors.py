@@ -29,6 +29,8 @@ AREAS = [
     ('Floor 2 landing', 0.3, 15.7, 22.3, 29.7, 6.01, 11.32),
     ('Floor 2 toilets + family room', 0.3, 13.7, 0.3, 21.7, 6.008, 11.36),
     ('ramp services 13', 255.7, 283.1, 68.3, 81.7, 0.01, 5.36),
+    ('airside lobby (old stairwell closed)', 50.3, 89.7, 42.3, 51.7, 0.01, 5.36),     # (S-01 out, 2026-11-21)
+    ('Floor 2 airside landing west', 56.3, 71.7, 42.3, 51.7, 6.01, 11.32),
 ]
 HOLES = [(140.0, 143.0, 43.0, 51.0), (152.4, 155.8, 47.6, 51.4),   # the staff stair and the lift shaft (open on purpose)
          (118.9, 120.9, 17.8, 19.4)]                               # and the check-in collector's rise out of its tunnel

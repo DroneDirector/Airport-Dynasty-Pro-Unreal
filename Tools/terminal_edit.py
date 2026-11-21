@@ -172,7 +172,13 @@ def lamps(parent_name, prefix, xs, zs, y):
             N[byname[parent_name]]['children'].append(len(N) - 2)
 # the airside hall's ceiling went right over the stairs to Floor 2 (owner 2026-11-16): one 40 x 10 m panel, rebuilt by
 # the annex with the stairwell open (Art/TerminalAnnex/make_annex_west.py)
-drop(1981, 'rebuilt by the annex with the stairwell open')
+drop(1981, 'rebuilt by the annex (since 2026-11-21 closed: no stairwell)')
+# the stairs from the airside lobby up to Floor 2 (S-01, x 58..66, z 44..50): gone (owner 2026-11-21 - passengers reach
+# Floor 2 only by the escalators): its steps, its side balustrades and rails, and its old Floor 2 guardrail; the slab and
+# the hall's ceiling are closed over it by the annex (make_annex_west.py), and the hall's lamp rows (every 4 m at z 44.5
+# and 49.5, missing over the stairwell) filled in at x 60 and 64
+drop(byname['S-01'], 'the airside lobby stairs: Floor 2 only by the escalators')
+# (the lamps: appended at the very end, below, so no node added before them changes its index)
 lamps('F1', 'F1-ESC', [3, 9, 15], [4, 10, 16, 22, 28], 5.33)
 lamps('F1', 'F1-ESC-HIGH', [19, 25, 31], [4, 10, 16, 22, 28], 11.28)     # (the landing 5 m shorter, 2026-11-21: x 16..36 open to the roof)
 lamps('F2', 'F2-ESC-LANDING', [14.5], [3, 9, 20, 26], 11.28)
@@ -368,6 +374,12 @@ for i, n in enumerate(N):
     if n['name'] in ('F1-RAMP-13/LOCKERS-001', 'F1-RAMP-13/BAGGAGE-CART-003') and n.get('translation'):
         t = n['translation']; n['translation'] = [-(259.4 if 'LOCKERS' in n['name'] else 257.4) + 86.35, t[1], t[2]]
         log.append('moved: %s out of the vehicle lane' % n['name'])
+# the airside lobby's lamps over the closed stairwell (S-01 out, above): last, so every other node keeps its index
+for _k, (_x, _z) in enumerate(((60, 44.5), (60, 49.5), (64, 44.5), (64, 49.5))):
+    N.append({'name': 'F1-AIRSIDE/LAMP-%03d' % (17 + _k), 'translation': [-_x, 5.33, _z], 'children': [len(N) + 1]})
+    N.append({'name': 'box#lamp', 'scale': [1.2, 0.04, 0.6], 'mesh': 186})
+    N[byname['F1-AIRSIDE']]['children'].append(len(N) - 2)
+log.append('new: F1-AIRSIDE/LAMP-017..020 (over the closed stairwell)')
 json.dump(L, open(OUT, 'w'))
 print('\n'.join(log))
 print('layout written:', OUT)

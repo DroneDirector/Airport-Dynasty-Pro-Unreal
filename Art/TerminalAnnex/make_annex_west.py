@@ -33,20 +33,21 @@ class Piece:
     def mi(self, m):
         if m not in self.mats: self.mats.append(m)
         return self.mats.index(m)
-    def face(self, pts, m):
+    def face(self, pts, m, uvs=(1.0, 1.0)):
         vs = [self.bm.verts.new((-x, -z, y)) for (x, y, z) in pts]
         f = self.bm.faces.new(vs); f.material_index = self.mi(m)
-        # world-space UVs (the terminal's masters lay their detail in world space anyway)
-        for l, (x, y, z) in zip(f.loops, pts): l[self.uv].uv = (x + z, y)
+        # world-space UVs (the terminal's masters lay their detail in world space anyway); uvs: texture repeats per metre
+        # along / up (a wall continuing one of the terminal's own walls takes that wall's: see PLASTER_UV)
+        for l, (x, y, z) in zip(f.loops, pts): l[self.uv].uv = ((x + z) * uvs[0], y * uvs[1])
         return f
-    def box(self, x0, x1, y0, y1, z0, z1, m, sides='all'):
+    def box(self, x0, x1, y0, y1, z0, z1, m, sides='all', uvs=(1.0, 1.0)):
         c = lambda i, j, k: (x1 if i else x0, y1 if j else y0, z1 if k else z0)
         F = {'-y': [c(0,0,0), c(1,0,0), c(1,0,1), c(0,0,1)], '+y': [c(0,1,0), c(0,1,1), c(1,1,1), c(1,1,0)],
              '-x': [c(0,0,0), c(0,0,1), c(0,1,1), c(0,1,0)], '+x': [c(1,0,0), c(1,1,0), c(1,1,1), c(1,0,1)],
              '-z': [c(0,0,0), c(0,1,0), c(1,1,0), c(1,0,0)], '+z': [c(0,0,1), c(1,0,1), c(1,1,1), c(0,1,1)]}
         out = {'-y': (0, 0, -1), '+y': (0, 0, 1), '-x': (1, 0, 0), '+x': (-1, 0, 0), '-z': (0, 1, 0), '+z': (0, -1, 0)}   # (plan -> Blender: x -> -x, z -> -y, y -> z)
         for k, f in F.items():
-            if sides == 'all' or k in sides: self.want.append((self.face(f, m), out[k]))
+            if sides == 'all' or k in sides: self.want.append((self.face(f, m, uvs), out[k]))
     def finish(self):
         bmesh.ops.recalc_face_normals(self.bm, faces=self.bm.faces)
         # every box face out of its box, whatever Blender guessed: a lone floor panel could come out facing down, and you
@@ -65,7 +66,7 @@ class Piece:
 S = Piece('annex_west_solid'); G = Piece('annex_west_glass')
 W, T = 'MI_T_white', 0.2                      # walls 20 cm
 
-def wall_x(x, z0, z1, y0, y1, m_in=W, m_out=W, holes=()):
+def wall_x(x, z0, z1, y0, y1, m_in=W, m_out=W, holes=(), uvs=(1.0, 1.0)):
     """A wall in the plane x (thickness T), from z0 to z1, y0 to y1, with rectangular holes (z0, z1, y0, y1)."""
     cuts_z = sorted({z0, z1} | {h[0] for h in holes} | {h[1] for h in holes})
     for za, zb in zip(cuts_z, cuts_z[1:]):
@@ -73,16 +74,16 @@ def wall_x(x, z0, z1, y0, y1, m_in=W, m_out=W, holes=()):
         for h in holes:
             if h[0] <= za and zb <= h[1]:
                 spans = [s for sp in spans for s in ((sp[0], min(sp[1], h[2])), (max(sp[0], h[3]), sp[1])) if s[1] - s[0] > 1e-4]
-        for ya, yb in spans: S.box(x - T / 2, x + T / 2, ya, yb, za, zb, m_in)
+        for ya, yb in spans: S.box(x - T / 2, x + T / 2, ya, yb, za, zb, m_in, uvs=uvs)
 
-def wall_z(z, x0, x1, y0, y1, m=W, holes=()):
+def wall_z(z, x0, x1, y0, y1, m=W, holes=(), uvs=(1.0, 1.0)):
     cuts_x = sorted({x0, x1} | {h[0] for h in holes} | {h[1] for h in holes})
     for xa, xb in zip(cuts_x, cuts_x[1:]):
         spans = [(y0, y1)]
         for h in holes:
             if h[0] <= xa and xb <= h[1]:
                 spans = [s for sp in spans for s in ((sp[0], min(sp[1], h[2])), (max(sp[0], h[3]), sp[1])) if s[1] - s[0] > 1e-4]
-        for ya, yb in spans: S.box(xa, xb, ya, yb, z - T / 2, z + T / 2, m)
+        for ya, yb in spans: S.box(xa, xb, ya, yb, z - T / 2, z + T / 2, m, uvs=uvs)
 
 def slab(x0, x1, z0, z1, ytop, top='MI_T_terrazzo', under='MI_T_offwhite', thick=0.6):
     S.box(x0, x1, ytop - 0.02, ytop, z0, z1, top)
@@ -195,22 +196,31 @@ S.box(6.0, 56.0, 11.4, 12.0, 29.9, 30.1, W)                                     
 # ============ the airside corridor (owner 2026-11-21, Security v3): the plant room and the cleaners store are gone; from
 # the airside lobby (open at x 50) west along z 44..52, 8 m wide, then south through x 4..16 into the escalator room;
 # the staff / service room beside it (x 16..36, z 30..44) ============
-CORR = 'MI_T_terrazzo'
+# its floor (owner 2026-11-21): the Grand Hall's own polished marble (M_Marble - the hall's and the airside lobby's floor
+# material; laid by world position, 80 cm stones, so the same size and lined up with the lobby's at x 50 and the hall's;
+# only the faces that look up, the slab's top only). Its walls: the airside lobby's plaster (MI_T_plaster), at the lobby
+# north wall's texture density (that wall, x 50..90 at z 52, runs on into the corridor's: one repeat over its 40 m and its
+# 5.4 m height - the terminal's own box UVs)
+CORR = 'M_Marble'
+CW = 'MI_T_plaster'; PLASTER_UV = (1.0 / 40.0, 1.0 / 5.4)
 for (x0_, x1_, z0_, z1_) in ((4.0, 50.0, 44.0, 52.0), (4.0, 16.0, 30.0, 44.0)):
     S.box(x0_, x1_, -0.3, 0.01, z0_, z1_, CORR, sides=('+y',))
     S.box(x0_, x1_, 5.36, 5.4, z0_, z1_, 'MI_T_offwhite', sides=('-y',))
 S.box(16.0, 36.0, -0.3, 0.01, 30.0, 44.0, 'MI_T_epoxy', sides=('+y',))             # the service room
 S.box(16.0, 36.0, 5.36, 5.4, 30.0, 44.0, 'MI_T_concrete', sides=('-y',))
 wall_z(30.0, 16.0, 36.0, 0.01, 6.0)                                                # its south wall (the escalator room's back)
-wall_x(16.0, 30.0, 44.0, 0.01, 5.4)                                                # its west wall onto the corridor's way down
-wall_z(44.0, 16.0, 36.0, 0.01, 5.4, holes=[(25.4, 26.6, 0.0, 2.25)])               # its north wall, its door onto the corridor
+wall_x(16.0, 30.0, 44.0, 0.01, 5.4, m_in=CW, uvs=PLASTER_UV)                       # its west wall onto the corridor's way down
+wall_z(44.0, 16.0, 36.0, 0.01, 5.4, m=CW, holes=[(25.4, 26.6, 0.0, 2.25)], uvs=PLASTER_UV)   # its north wall, its door onto the corridor
 # its east wall (x 36): the men's toilets' west wall too (it went with the old plant room): their tiles on that side
 S.box(35.9, 36.0, 0.01, 5.36, 30.0, 44.0, W); S.box(36.0, 36.1, 0.01, 5.36, 30.0, 43.9, 'MI_T_tile')
-wall_x(4.0, 30.0, 52.0, 0.01, 12.0)                                                # the corridor's west end (the claim hall's store beyond)
+# the toilets' north walls (x 36..50, their tiled pieces F1-WC-M/F; tiles on both sides) face the corridor: a plaster
+# lining on the corridor side, 5 mm off their tiles (never lying on them - no flicker)
+S.box(36.0, 50.0, 0.01, 5.36, 44.1, 44.105, CW, sides=('+z',), uvs=PLASTER_UV)
+wall_x(4.0, 30.0, 52.0, 0.01, 12.0, m_in=CW, uvs=PLASTER_UV)                      # the corridor's west end (the claim hall's store beyond)
 # ============ the claim hall's store (x 0..4, z 30..52; the museum strip, 2 m narrower for the corridor) ============
 slab(0.0, 4.0, 30.0, 52.0, 0.01, top='MI_T_terrazzo', under='MI_T_concrete', thick=0.3)
 # the north wall onto the baggage hall, now along the corridor to the airside lobby (no door: airside)
-wall_z(52.0, 0.0, 50.0, 0.01, 6.0)
+wall_z(52.0, 0.0, 50.0, 0.01, 6.0, m=CW, uvs=PLASTER_UV)
 # the museum strip's south wall above the escalator room's (Floor 2: x 0..6 at z 30 is already the full-height wall)
 # the roof at +12 with its ceiling (the hall and the strip)
 S.box(0.0, 6.0, 11.4, 12.0, 30.0, 52.0, W); S.box(0.0, 6.0, 11.32, 11.4, 30.0, 52.0, 'MI_T_offwhite', sides=('-y',))
@@ -220,33 +230,23 @@ S.box(0.0, 6.0, 11.4, 12.0, 30.0, 52.0, W); S.box(0.0, 6.0, 11.32, 11.4, 30.0, 5
 # ============ tax free and the airside landing, their west 16 m (x 56..72) ============
 S.box(56.0, 72.0, 5.99, 6.01, 30.0, 42.0, 'MI_T_tile', sides=('+y',))
 S.box(56.0, 72.0, 5.63, 5.99, 30.0, 42.0, 'MI_T_concrete', sides=('-y',))
-# the airside landing: the herringbone wood the bar had, open over the stairs from the airside hall (S-01 climbs east
-# from x 58 to 66 between z 44 and 50 and arrives at x 66) - owner 2026-11-16: the floor had closed them off
-FSTAIR = (58.0, 66.0, 44.0, 50.0)
+# the airside landing: the herringbone wood the bar had. Its stairwell (S-01, x 58..66, z 44..50, owner 2026-11-16) is
+# closed again since the stairs went (owner 2026-11-21: Floor 2 only by the escalators): the same 3 x 3 panels as when it
+# was open (so the panels round it are exactly as before - same corners, same world-space UVs), the middle one now laid
+# too, in the same wood over the same concrete; the opening's edge strips and its guardrail are gone
+FSTAIR = (58.0, 66.0, 44.0, 50.0)                                                  # (where the stairwell was)
 xs = [56.0, FSTAIR[0], FSTAIR[1], 72.0]; zs = [42.0, FSTAIR[2], FSTAIR[3], 52.0]
 for xa, xb in zip(xs, xs[1:]):
     for za, zb in zip(zs, zs[1:]):
-        if (xa, xb, za, zb) == FSTAIR: continue
         S.box(xa, xb, 5.99, 6.01, za, zb, 'MI_T_herring', sides=('+y',))
         S.box(xa, xb, 5.63, 5.99, za, zb, 'MI_T_concrete', sides=('-y',))
-x0, x1, z0, z1 = FSTAIR                                                            # the opening's edges, down to the hall's ceiling
-S.box(x0, x1, 5.36, 6.01, z0 - 0.02, z0, W); S.box(x0, x1, 5.36, 6.01, z1, z1 + 0.02, W); S.box(x0 - 0.02, x0, 5.36, 6.01, z0, z1, W)
-S.box(x1, x1 + 0.02, 5.36, 5.63, z0, z1, W)
-# the airside hall's ceiling below (x 50..90, z 42..52, its off-white at +5.36), open over the stairs
+x0, x1, z0, z1 = FSTAIR
+# the airside hall's ceiling below (x 50..90, z 42..52, its off-white at +5.36), closed over the old stairwell the same way
+# (its lamps over it: Tools/terminal_edit.py, F1-AIRSIDE/LAMP-017..020)
 cxs = [50.0, x0, x1, 90.0]; czs = [42.0, z0, z1, 52.0]
 for xa, xb in zip(cxs, cxs[1:]):
     for za, zb in zip(czs, czs[1:]):
-        if (xa, xb, za, zb) != FSTAIR: S.box(xa, xb, 5.36, 5.37, za, zb, 'MI_T_offwhite', sides=('-y',))
-# its guardrail on the three open sides (the stairs arrive on the east side): steel shoe, glass, black trim on top
-for (gx0, gx1, gz0, gz1) in ((x0 - 0.16, x0, z0, z1), (x0, x1, z0 - 0.16, z0), (x0, x1, z1, z1 + 0.16)):
-    S.box(gx0, gx1, 6.01, 6.13, gz0, gz1, 'MI_T_steel')
-    cx = (gx0 + gx1) / 2; cz = (gz0 + gz1) / 2
-    if gx1 - gx0 < 0.5:
-        G.box(cx - 0.006, cx + 0.006, 6.11, 6.94, gz0, gz1, 'MI_T_glass')
-        S.box(cx - 0.03, cx + 0.03, 6.94, 6.985, gz0, gz1, 'MI_T_black'); S.box(cx - 0.02, cx + 0.02, 6.985, 7.0, gz0, gz1, 'MI_T_black')
-    else:
-        G.box(gx0, gx1, 6.11, 6.94, cz - 0.006, cz + 0.006, 'MI_T_glass')
-        S.box(gx0, gx1, 6.94, 6.985, cz - 0.03, cz + 0.03, 'MI_T_black'); S.box(gx0, gx1, 6.985, 7.0, cz - 0.02, cz + 0.02, 'MI_T_black')
+        S.box(xa, xb, 5.36, 5.37, za, zb, 'MI_T_offwhite', sides=('-y',))
 S.box(56.0, 72.0, 11.32, 11.4, 30.0, 52.0, 'MI_T_offwhite', sides=('-y',))
 S.box(56.0, 72.0, 11.4, 12.0, 30.0, 52.0, W)
 glass_front_z(30.0, 56.0, 72.0, 6.01, 11.4, transoms=())                            # tax free's glass onto the Grand Hall
