@@ -4,6 +4,7 @@
 #include "ADPWalker.h"
 #include "BabylonModel.h"
 #include "FireTruck.h"
+#include "VehicleDirt.h"
 #include "CableComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -462,13 +463,17 @@ void AWashHose::Spray(float Dt, const FVector& Tip, const FVector& Aim)
 		if (!Dp.bSplash && !bGone)
 		{
 			FHitResult H;
-			if (W->LineTraceSingleByChannel(H, From, Dp.P, ECC_Visibility, Q))
+			// (every other vehicle - the tugs, GPUs, baggage tractors and carts - has no collision on its parts: the jet is
+			//  tested against their boxes first, and washes them where it lands - VehicleDirt.h)
+			FVector VehP, VehN; const bool bVehicle = FVehicleDirt::WashSegment(From, Dp.P, 0.004f, VehP, VehN);
+			if (bVehicle) { H = FHitResult(); H.Location = H.ImpactPoint = VehP; H.Normal = H.ImpactNormal = VehN; }
+			if (bVehicle || W->LineTraceSingleByChannel(H, From, Dp.P, ECC_Visibility, Q))
 			{
 				bGone = true;
 				// the jet washes a truck where it lands
 				static float NextHitLog = 0.f; if (W->GetTimeSeconds() > NextHitLog) { NextHitLog = W->GetTimeSeconds() + 1.f; ADP_LOG(TEXT("Wash hose: jet lands on %s (%s) %.0f m away, %d drops in the air"), H.GetActor() ? *H.GetActor()->GetName() : TEXT("-"), H.GetComponent() ? *H.GetComponent()->GetName() : TEXT("-"), FVector::Dist(H.ImpactPoint, Tip) / 100.f, Live.Num()); }
 				if (AFireTruck* T = AFireTruck::FromActor(H.GetActor())) T->Wash(H.ImpactPoint, 0.004f);
-				if (H.ImpactNormal.Z > 0.6f) WetAt(H.ImpactPoint, H.ImpactNormal);
+				if (H.ImpactNormal.Z > 0.6f && !bVehicle) WetAt(H.ImpactPoint, H.ImpactNormal);
 				// a puff of white spray where it lands (now and then), and splashes off it
 				if (FMath::FRand() < 0.3f) { FDrop M; M.bSplash = true; M.bMist = true; M.Life = 0.f; M.Seed = FMath::FRand(); M.P = H.ImpactPoint + H.ImpactNormal * 6.f; M.V = H.ImpactNormal * 90.f + FMath::VRand() * 50.f + FVector(0, 0, 25.f); Splash.Add(M); }
 				if (FMath::FRand() < 0.7f)

@@ -1,4 +1,5 @@
 #include "Tugs.h"
+#include "GSE.h"
 #include "ADPLog.h"
 #include "PerfLog.h"
 #include "ADPKeep.h"
@@ -71,7 +72,13 @@ ATugs* ATugs::Get(UWorld* W)
 	return T;
 }
 
-FVector ATugs::Plan(float X, float Y) const { return FTerminalPlan::ToWorld(X, AAirfield::GroundAt(X, Y), Y); }
+FVector ATugs::Plan(float X, float Y) const
+{
+	// (inside the terminal - the baggage hall, the departure cart lane, where the crew walk to the baggage tractors - its
+	//  ground floor; outside the airfield's ground)
+	const bool bIn = Y < 82.6f && Y > -10.f && X > -242.f && X < 552.f;
+	return FTerminalPlan::ToWorld(X, bIn ? 0.f : AAirfield::GroundAt(X, Y), Y);
+}
 
 void ATugs::Setup()
 {
@@ -89,6 +96,8 @@ void ATugs::Setup()
 	}
 	ADP_LOG(TEXT("Tugs: %d tugs ready at the gates"), Tugs.Num());
 	SetupCrew();
+	// the baggage tractors and carts (GSE.h): the same ground crew, the same apron
+	AGSE::Get(GetWorld());
 }
 
 bool ATugs::SpawnAt(FTug& T)
@@ -146,6 +155,8 @@ bool ATugs::SpawnAt(FTug& T)
 			T.Wheel[w] = M->BindGroup(Names, true, FTransform(T.WheelAt[w]));
 		}
 	}
+	// dirt and washing as the fire truck (owner 2026-11-21: every ground vehicle - VehicleDirt.h; after the glass and lenses)
+	T.Dirt.Dress(M, this, FString::Printf(TEXT("pushback tug at x %.0f"), T.StandX));
 	Lamps(T);
 	return true;
 }
@@ -270,6 +281,8 @@ void ATugs::Arriving(float StandX)
 void ATugs::Prepare(const FString& Key, float StandX)
 {
 	Assign(Key, StandX);
+	// (its baggage goes out to it on a tractor train - GSE.h)
+	if (AGSE* G = AGSE::Get(GetWorld())) G->Departure(Key, StandX);
 }
 
 bool ATugs::Push(const FString& Key, float StandX, const FVector& Fitting, const FVector& Fwd)
@@ -281,6 +294,9 @@ bool ATugs::Push(const FString& Key, float StandX, const FVector& Fitting, const
 	T.HookAt = Fitting + F * HeadAhead * 100.f; T.HookYaw = (-F).Rotation().Yaw;
 	T.Fit = Fitting; T.Fwd = F;
 	if (T.State == EState::Boarding || T.State == EState::Coupling) return false;
+	// (a baggage train still beside the aircraft: the stand cleared of every vehicle but the tug before the push)
+	if (T.State == EState::Waiting) if (const AGSE* G = AGSE::Find(GetWorld())) if (G->BusyAt(StandX))
+	{ static TSet<FString> Told; if (!Told.Contains(Key)) { Told.Add(Key); ADP_LOG(TEXT("Tugs: %s waits - its baggage train is still at the stand"), *Key); } return false; }
 	if (T.State == EState::Waiting)
 	{
 		// in to the nose: off the road towards the stand, then straight at the aircraft, slowly
@@ -564,6 +580,14 @@ void ATugs::Tick(float Dt)
 		Lamps(T);
 		Wheels(T, Dt);
 		Door(T, Dt);
+		// dirt by distance and time, the beads drying (VehicleDirt.h): the tug, and its gate's GPU (it moves when towed)
+		T.Dirt.Tick(Dt, T.MeasSpeed);
+		if (T.Gpu.M.IsValid())
+		{
+			const FVector G = T.Gpu.M->GetActorLocation();
+			const float Gs = T.Gpu.DirtAt.IsZero() ? 0.f : FVector::Dist2D(G, T.Gpu.DirtAt) / FMath::Max(Dt, 1e-3f) / 100.f;
+			T.Gpu.DirtAt = G; T.Gpu.Dirt.Tick(Dt, FMath::Min(Gs, 10.f));
+		}
 		SeqTick(T, Dt);
 		GpuTick(T, Dt);
 		// (short of walkers for a departure: look for free ones every 3 s)
@@ -733,6 +757,12 @@ bool ATugs::WatchPoints(TArray<FVector>& Pts, FVector& Side) const
 			Side = FVector::CrossProduct(R - G, FVector::UpVector).GetSafeNormal2D();
 			return true;
 		}
+	// the baggage tractors and carts at work (GSE.h) - unless a tug is at the aircraft (the push and its coupling come first)
+	{
+		bool bTugKey = false;
+		for (const FTug& T : Tugs) if (T.State == EState::ToNose || T.State == EState::Coupling || T.State == EState::Hooked || T.State == EState::Unhook || T.State == EState::Backing || T.State == EState::ShowPin) bTugKey = true;
+		if (!bTugKey) if (const AGSE* G = AGSE::Find(GetWorld())) if (G->WatchPoints(Pts, Side)) return true;
+	}
 	// a tug at work: the tug (its four corners), what it is coupled to, its crew
 	for (const FTug& T : Tugs)
 	{
@@ -755,5 +785,7 @@ bool ATugs::AllDone() const
 	bool bWorked = false;
 	for (const FTug& T : Tugs) { if (!T.PinKey.IsEmpty()) bWorked = true; if (T.State != EState::Parked && T.State != EState::Manned) return false; if (T.Gpu.bInHand || T.Gpu.PanelWant > 0.f) return false; }
 	for (const FCrew& C : Crew) if (C.Q.Num() || C.Follow || C.Hold) return false;
+	// (-GseTest: done when the baggage tractors' jobs are done - and the push of the departure they served, if any)
+	if (const AGSE* G = AGSE::Find(GetWorld())) if (G->IsTest()) return G->AllDone() && (bWorked || !G->HadDeparture());
 	return bWorked;
 }

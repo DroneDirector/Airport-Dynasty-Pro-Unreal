@@ -19,6 +19,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "VehicleDirt.h"
 #include "Tugs.generated.h"
 
 class ABabylonModel;
@@ -68,6 +69,7 @@ public:
 	bool AllDone() const;
 
 private:
+	friend class AGSE;   // (the baggage tractors and carts: GSE.h - the same ground crew, the same apron)
 	enum class EState : uint8 { Parked, ToStand, Waiting, ToNose, Hooked, Unhook, Backing, Home, Boarding, Coupling, ShowPin, Manned };   // (Manned: the driver in it, engine off, ready for the aircraft coming in)
 	// ---- the crew (owner 2026-11-21: "the person driving the pushback truck ... exit the truck and connect"): MetaHumans of
 	// the ground staff (Content/Data/people-roster.json, role ground) - per tug a driver and the pushback handler (the headset
@@ -100,6 +102,7 @@ private:
 		// walk took them), a small step off it, a look round, and now and then a little movement of their own
 		FVector Anchor = FVector::ZeroVector; float AnchorYaw = 0.f; FVector IdleOff = FVector::ZeroVector; float IdleYawOff = 0.f, IdleT = 4.f;
 		FPoseFn Fidget; float FidgetT = 0.f, FidgetDur = 0.f; int32 LastFidget = -1;
+		bool bGse = false;               // on a baggage tractor / cart job just now (GSE.h): not free for a push
 	};
 	TArray<FCrew> Crew;
 	struct FLens { UInstancedStaticMeshComponent* K = nullptr; int32 Ix = 0; uint8 Kind = 0; int8 Side = 0; float Now = -1.f; };   // Side: indicators -1 right, +1 left
@@ -144,7 +147,9 @@ private:
 			UCableComponent* Cable = nullptr; UAudioComponent* Idle = nullptr; float RunT = -1.f;
 			bool bConnected = false, bPower = false, bInHand = false; int32 Holder = INDEX_NONE;
 			TArray<TTuple<UInstancedStaticMeshComponent*, int32, FTransform>> Coils, RunPlug;   // (the stowed cable: hidden as it pays out)
+			FVehicleDirt Dirt; FVector DirtAt = FVector::ZeroVector;   // (dirt and washing as the fire truck - VehicleDirt.h)
 		} Gpu;
+		FVehicleDirt Dirt;
 		TArray<int32> Walkers; int32 WalkersReady = 0; bool bWalkersOut = false; float WalkerLook = 0.f;              // the wing walkers and tail walker on this push (Crew[])
 	};
 	TArray<FTug> Tugs;

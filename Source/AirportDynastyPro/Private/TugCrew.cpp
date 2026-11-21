@@ -19,6 +19,7 @@
 // fingers closing round what they hold), at the tug's IK points (Tools/make_pushback_tug.py: IK_Step, IK_Grab_Outside,
 // IK_Seat_Driver, IK_Hand_L/R, IK_Foot_Brake ...). Next: the radio and interphone talk and the timed 11 steps.
 #include "Tugs.h"
+#include "GSE.h"
 #include "People.h"
 #include "CrewVoice.h"
 #include "TruckDriverRig.h"
@@ -575,7 +576,7 @@ void ATugs::CrewWalkers(int32 Tug)
 	for (int32 i = 0; i < Crew.Num() && T.Walkers.Num() < 3; ++i)
 	{
 		FCrew& C = Crew[i];
-		if (!C.bWalker || C.Tug != INDEX_NONE || !C.A.IsValid()) continue;
+		if (!C.bWalker || C.Tug != INDEX_NONE || C.bGse || !C.A.IsValid()) continue;   // (bGse: on a baggage tractor job just now)
 		const int32 Rk = T.Walkers.Num();
 		C.Tug = Tug; T.Walkers.Add(i);
 		ADP_LOG(TEXT("Tugs: walker %d to gate at x %.0f (%s)"), Rk, Sx, Rk == 2 ? TEXT("tail") : TEXT("wingtip"));
@@ -838,6 +839,8 @@ void ATugs::GpuSetup(FTug& T)
 	C->SetVisibility(false); C->bAutoActivate = false; C->RegisterComponent(); C->SetActive(false); C->SetComponentTickEnabled(false);
 	T.Gpu.Cable = C;
 	ADP_LOG(TEXT("Tugs: GPU at the gate x %.0f - plug group %d, panel %d, %d cable coils"), T.StandX, T.Gpu.PlugG, T.Gpu.PanelG, T.Gpu.Coils.Num());
+	// dirt and washing as the fire truck (owner 2026-11-21: every ground vehicle - VehicleDirt.h)
+	T.Gpu.Dirt.Dress(M, this, FString::Printf(TEXT("GPU at the gate x %.0f"), T.StandX));
 	// (the traffic test: the departing aircraft has been on ground power since it arrived)
 	if (FParse::Param(FCommandLine::Get(), TEXT("SimTrafficShot")) && T.StandX < 0.f) { T.Gpu.bConnected = T.Gpu.bPower = true; T.Gpu.RunT = 30.f; }
 }
@@ -991,6 +994,8 @@ FVector ATugs::Around(const FVector& From, const FVector& To) const
 			Bs.Add({T.At, Fw, Rt, 255.f + Pad, 126.f + Pad});
 		}
 	}
+	// (the baggage tractors and carts too - GSE.h)
+	if (const AGSE* G = AGSE::Find(GetWorld())) { TArray<AGSE::FOutline> Ol; G->Outlines(Ol); for (const AGSE::FOutline& O : Ol) Bs.Add({O.C, O.X, O.Y, O.Hx + Pad, O.Hy + Pad}); }
 	auto Local = [](const FBx& B, const FVector& P) { const FVector D = P - B.C; return FVector2D(FVector::DotProduct(D, B.X), FVector::DotProduct(D, B.Y)); };
 	auto World = [](const FBx& B, const FVector2D& L, float Z) { return B.C + B.X * L.X + B.Y * L.Y + FVector(0, 0, Z - B.C.Z); };
 	auto Inside = [](const FBx& B, const FVector2D& L, float S) { return FMath::Abs(L.X) < B.Hx * S && FMath::Abs(L.Y) < B.Hy * S; };
