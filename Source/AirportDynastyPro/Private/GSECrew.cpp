@@ -363,7 +363,8 @@ void AGSE::StartTrain(int32 Ti, const TArray<int32>& Pair)
 			ClimbOut(Ci, Ti, nullptr);
 			for (int32 k = 0; k < Pair.Num(); ++k) CoupleCart(Ci, Ti, Pair[k], k == 0 ? INDEX_NONE : Pair[k - 1], nullptr);
 			// then the bags: at the flight's make-up carousel beside the carts (GSEBags.cpp) - the train goes when it is made up
-			Do(Ci, [this, Ci, Ti] { const float Now = GetWorld()->GetTimeSeconds(); Later([this, Ci, Ti, Now] { MakeUp(Ci, Ti, Now); }); });
+			if (Tractors[Ti].bArrival) ClimbIn(Ci, Ti, [this, Ti] { TrainToStand(Ti); });   // (an empty train for the arriving bags: straight out)
+			else Do(Ci, [this, Ci, Ti] { const float Now = GetWorld()->GetTimeSeconds(); Later([this, Ci, Ti, Now] { MakeUp(Ci, Ti, Now); }); });
 		});
 	});
 }
@@ -404,6 +405,7 @@ void AGSE::TrainApron(int32 Ti)
 			}
 		if (!bAny) { ADP_WARN(TEXT("GSE: no stand for %s's train - it waits"), *T.Name); RetryIn(Ti, 10.f, [this, Ti] { TrainApron(Ti); }); return; }
 		T.StandX = BestX; if (T.Key.IsEmpty()) T.Key = TEXT("TEST");
+		if (bTest && !bTestStand) { bTestStand = true; TestStand = BestX; TestKey = T.Key; }   // (both test trains to the same stand)
 		StandGeo(T.StandX, S, N, Sp);
 	}
 	for (const int32 c : T.Train) if (Carts.IsValidIndex(c)) Carts[c].Flight = T.Key;
@@ -426,7 +428,13 @@ void AGSE::TrainHoldIn(int32 Ti)
 	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(T.StandX, S, N, Sp);
 	const FVector Nose = Plan(S, N);
 	// (and the belt loader in its place first - it turns in across this side)
-	T.Until = [this, Nose, S] { const int32 Li = LoaderAt(S); return !PlaneNear(Nose, 6000.f) && (Li == INDEX_NONE || Tractors[Li].Job == EJob::AtStand); };
+	T.Until = [this, Nose, S, Ti]
+	{
+		const int32 Li = LoaderAt(S); bool bOther = false;
+		for (int32 o = 0; o < Tractors.Num(); ++o) if (o != Ti && !Tractors[o].bLoader && Tractors[o].bArrival && FMath::Abs(Tractors[o].StandX - S) < 1.f && (Tractors[o].Job == EJob::Out || Tractors[o].Job == EJob::AtStand || Tractors[o].Job == EJob::Loading)) bOther = true;
+		// (arrivals first: a departure train waits for the arrivals train to leave the stand)
+		return !PlaneNear(Nose, 6000.f) && (Li == INDEX_NONE || Tractors[Li].Job == EJob::AtStand) && (Tractors[Ti].bArrival || !bOther);
+	};
 	T.AfterUntil = [this, Ti, S, N]
 	{
 		FTractor& U = Tractors[Ti];
@@ -438,6 +446,7 @@ void AGSE::TrainHoldIn(int32 Ti)
 
 void AGSE::TrainLoad(int32 Ti)
 {
+	if (Tractors[Ti].bArrival) { ArrivalLoad(Ti); return; }
 	FTractor& T = Tractors[Ti]; T.Job = EJob::AtStand;
 	ADP_LOG(TEXT("GSE: %s's train parked beside the aircraft at the stand x %.0f for %s"), *T.Name, T.StandX, *T.Key);
 	const int32 Ci = T.Driver;
@@ -505,7 +514,7 @@ void AGSE::ToBox(int32 Ti)
 		const int32 Ci = U.Driver;
 		ADP_LOG(TEXT("GSE: %s parked in its box, switched off"), *U.Name);
 		Wait(Ci, GscPause());
-		ClimbOut(Ci, Ti, [this, Ti] { FTractor& V = Tractors[Ti]; V.Job = EJob::None; V.Key.Reset(); V.StandX = 0.f; V.Driver = INDEX_NONE; });
+		ClimbOut(Ci, Ti, [this, Ti] { FTractor& V = Tractors[Ti]; V.Job = EJob::None; V.Key.Reset(); V.StandX = 0.f; V.Driver = INDEX_NONE; V.bArrival = false; BagKey.Remove(Ti); });
 		GiveBack(Ci);
 	});
 }

@@ -90,7 +90,10 @@ public:
 		int32 GBoom = INDEX_NONE, GBumper = INDEX_NONE, GRam[4] = {INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE};
 		UAudioComponent* BeltSnd = nullptr; UAudioComponent* BoomSnd = nullptr;
 		int32 TopCrew = INDEX_NONE;       // the loader up at the hold door
-		struct FBeltBag { int32 Id = 0; float S = 0.f, T = 0.f; uint8 Stage = 0; };   // (0 riding up, 1 at the top, 2 in the hold loader's hands)
+		struct FBeltBag { int32 Id = 0; float S = 0.f, T = 0.f; uint8 Stage = 0; };   // (up: 0 riding, 1 at the top, 2 in the hold loader's hands; arrivals down: 5 in his hands, 3 riding down, 4 at the bottom)
+		bool bArrival = false;            // a train for an arriving aircraft's bags (hold -> carts -> the arrivals conveyor)
+		int32 ArrivalsLeft = 0;           // (the belt loader: arriving bags still in the hold)
+		float ArrivalIn = 0.f; FString ArrKey;
 		TArray<FBeltBag> BeltBags;        // the bags pinned on its belt (DepartureBelts' bags)
 	};
 	struct FCart
@@ -195,6 +198,18 @@ private:
 	bool StartFor(const FString& Key, float StandX);
 	FVector PickStand(int32 Ti) const;
 	FTransform BeltOffset(const FTractor& L, float S) const;
+	// the arriving bags (GSEArrivals.cpp): the hold loader puts each on the belt top, it rides down, the train's driver
+	// lifts it onto a cart; the train to the arrivals conveyor's loading point in Ramp services 4, the bags onto it
+	void StartArrival(int32 Ti, const TArray<int32>& Pair, float StandX, const FString& Key);
+	void ArrivalLoad(int32 Ti);
+	void ArrivalToStation(int32 Ti);
+	void ArrivalUnload(int32 Ti);
+	bool ArrivalFor(float StandX, const FString& Key);
+	TArray<TPair<double, int32>> PendingRemove;   // (bags handed over to the arrivals conveyor: gone when its own bag appears)
+public:
+	/** Arrival at a stand (the turnaround's bulk task): the belt loader and an arrivals train for its hold's bags. */
+	void ArrivalAt(float StandX, const FString& Key) { EnsureLoader(StandX, Key); ArrivalFor(StandX, Key); }
+private:
 public:
 	/** The turnaround planner's bulk hold task (Turnaround.cpp): the belt loader to that stand. */
 	void BulkHold(float StandX, const FString& Key) { EnsureLoader(StandX, Key); }
