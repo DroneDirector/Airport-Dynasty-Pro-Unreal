@@ -1,0 +1,4 @@
+Blueprint sheet v1 ready (2026-11-21):
+C:/Users/Simon/Documents/Airport-Dynasty-Pro-Unreal/Blueprints/Vehicles/BeltLoader/BeltLoader-Blueprint-v1.png
+Wireframe views: Blueprints/Vehicles/BeltLoader/wire/*.png (16 views from the real Blender mesh, incl. raised to an A320 bulk sill and fully raised)
+Research: Blueprints/Vehicles/BeltLoader/RESEARCH.md

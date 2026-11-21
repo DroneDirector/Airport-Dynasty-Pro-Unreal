@@ -1,0 +1,738 @@
+{
+ "size_m": {
+  "x_min": -3.831,
+  "x_max": 4.01,
+  "length": 7.841,
+  "width_mirrors": 2.55,
+  "width_body": 2.16,
+  "height_beacon": 2.205,
+  "height_roof": 2.04,
+  "chassis_length": 5.7,
+  "boom_length": 7.6,
+  "belt_length_centres": 7.44,
+  "belt_width": 0.61,
+  "wheelbase": 3.3,
+  "track": 1.6,
+  "tyre": [
+   0.68,
+   0.18
+  ],
+  "floor": 0.45,
+  "deck": 0.95,
+  "seat_cushion_top": 0.75,
+  "ground_clearance": 0.2,
+  "front_axle_x": 1.65,
+  "rear_axle_x": -1.65,
+  "belt_top_rest": 0.976,
+  "sill_min": 0.976,
+  "sill_max": 3.424
+ },
+ "boom": {
+  "parts": "Boom*, BeltSurface, BumperPad* (+ its own swing), WorkLamp*",
+  "pivot": [
+   -3.2,
+   0.0,
+   0.76
+  ],
+  "axis": "y",
+  "note": "raises with a NEGATIVE rotation about +y through the lower hinge; 0 = rest (belt level), -20.5 deg = fully raised",
+  "range_deg": [
+   0,
+   -20.5
+  ],
+  "a320_bulk_hold_deg": -9.22,
+  "a320_sill_m": 2.1,
+  "sill_point_rest": [
+   3.83,
+   0.0,
+   0.976
+  ],
+  "deg_for_sill": "solve z(PV + Ry(-a) (SILL_PT - PV)) = sill"
+ },
+ "belt": {
+  "part": "BeltSurface",
+  "IK_Belt_Bottom": [
+   -3.55,
+   0.0,
+   0.976
+  ],
+  "IK_Belt_Top": [
+   3.6,
+   0.0,
+   0.976
+  ],
+  "width": 0.61,
+  "usable_width": 0.596,
+  "speed_mps_real": 0.45,
+  "note": "boom-local (rest pose); bags pinned along Bottom->Top, offset up by half the bag height; UV scrolls along +x"
+ },
+ "rams": {
+  "RamFront": {
+   "base_pivot": [
+    -0.4,
+    0.0,
+    0.42
+   ],
+   "top_pivot_boom_local": [
+    1.7,
+    0.0,
+    0.64
+   ],
+   "axis": "y",
+   "barrel_len": 1.465,
+   "rod_len": 1.465,
+   "length_rest": 2.1115,
+   "length_max": 2.6707,
+   "parts_barrel": "RamFront_Barrel* (turns about base_pivot)",
+   "parts_rod": "RamFront_Rod* (eye stays on the boom top pivot)"
+  },
+  "RamRear": {
+   "base_pivot": [
+    -2.7,
+    0.0,
+    0.42
+   ],
+   "top_pivot_boom_local": [
+    -1.3,
+    0.0,
+    0.64
+   ],
+   "axis": "y",
+   "barrel_len": 0.928,
+   "rod_len": 0.928,
+   "length_rest": 1.4172,
+   "length_max": 1.5951,
+   "parts_barrel": "RamRear_Barrel*",
+   "parts_rod": "RamRear_Rod*"
+  },
+  "note": "barrel angle = atan2 of (boom top pivot now - base) minus the rest angle, NEGATIVE about +y for a rise; rod = same turn, translated so its eye sits on the top pivot"
+ },
+ "bumper": {
+  "parts": "BumperPad*",
+  "pivot_boom_local": [
+   3.86,
+   0.0,
+   0.755
+  ],
+  "axis": "y",
+  "range_deg": [
+   -15,
+   22
+  ],
+  "note": "hangs upright: turn it +boom_angle (opposite the boom) about its pin after the boom turn; contact IK_Bumper_Contact"
+ },
+ "doors": {
+  "DoorDriver": {
+   "pivot": [
+    0.412,
+    1.092,
+    1.185
+   ],
+   "axis": "z",
+   "parts": "DoorDriver* (leaf, glass, handles, trim, hinge leaves)",
+   "note": "hinged on its front edge; opens outward with a NEGATIVE rotation about +z, up to -95 deg (checked clear)"
+  }
+ },
+ "steering": {
+  "front_wheels": {
+   "FL": {
+    "pivot": [
+     1.65,
+     0.72,
+     0.34
+    ]
+   },
+   "FR": {
+    "pivot": [
+     1.65,
+     -0.72,
+     0.34
+    ]
+   }
+  },
+  "axis": "z",
+  "max_deg": 30,
+  "parts_per_wheel": "Tyre_/Rim_/WheelDisc_/Hub_/HubCap_/Nut_/Spindle_/SteerArm_ + FL|FR",
+  "steering_wheel": {
+   "parts": "SteeringWheel*",
+   "centre": [
+    0.02,
+    0.8,
+    1.1
+   ],
+   "axis": [
+    -0.7071,
+    0.0,
+    0.7071
+   ]
+  }
+ },
+ "boom_joystick": {
+  "parts": "CabBoomJoystick, CabBoomJoystick_Knob",
+  "pivot": [
+   -0.34,
+   0.535,
+   0.88
+  ],
+  "axis": "y",
+  "range_deg": [
+   -20,
+   20
+  ]
+ },
+ "pedals": {
+  "Brake": {
+   "pivot": [
+    0.3,
+    0.9700000000000001,
+    0.48
+   ],
+   "axis": "y"
+  },
+  "Accel": {
+   "pivot": [
+    0.3,
+    0.63,
+    0.48
+   ],
+   "axis": "y"
+  }
+ },
+ "wheels": {
+  "FL": [
+   1.65,
+   0.8,
+   0.34
+  ],
+  "RL": [
+   -1.65,
+   0.8,
+   0.34
+  ],
+  "FR": [
+   1.65,
+   -0.8,
+   0.34
+  ],
+  "RR": [
+   -1.65,
+   -0.8,
+   0.34
+  ]
+ },
+ "lamps": [
+  "BeaconLens",
+  "HighBeam_L_Lens",
+  "HighBeam_R_Lens",
+  "IndicatorF_L_Lens",
+  "IndicatorF_R_Lens",
+  "IndicatorR_L_Lens",
+  "IndicatorR_R_Lens",
+  "LowBeam_L_Lens",
+  "LowBeam_R_Lens",
+  "ReflectorRear_L_Lens",
+  "ReflectorRear_R_Lens",
+  "Reverse_L_Lens",
+  "Reverse_R_Lens",
+  "SideMarker_FL_Lens",
+  "SideMarker_FR_Lens",
+  "SideMarker_ML_Lens",
+  "SideMarker_MR_Lens",
+  "SideMarker_RL_Lens",
+  "SideMarker_RR_Lens",
+  "TailBrake_L_Lens",
+  "TailBrake_R_Lens",
+  "WorkLamp_Lens"
+ ],
+ "ik": {
+  "IK_Wheel_FL": [
+   1.65,
+   0.8,
+   0.34
+  ],
+  "IK_Steer_FL": [
+   1.65,
+   0.72,
+   0.34
+  ],
+  "IK_Wheel_RL": [
+   -1.65,
+   0.8,
+   0.34
+  ],
+  "IK_Wheel_FR": [
+   1.65,
+   -0.8,
+   0.34
+  ],
+  "IK_Steer_FR": [
+   1.65,
+   -0.72,
+   0.34
+  ],
+  "IK_Wheel_RR": [
+   -1.65,
+   -0.8,
+   0.34
+  ],
+  "IK_Seat_Driver": [
+   -0.48,
+   0.8,
+   0.75
+  ],
+  "IK_Back_Driver": [
+   -0.71,
+   0.8,
+   1.03
+  ],
+  "IK_Hand_L": [
+   0.0766,
+   0.9386,
+   1.1566
+  ],
+  "IK_Hand_R": [
+   0.0766,
+   0.6614,
+   1.1566
+  ],
+  "IK_SteeringWheel_Centre": [
+   0.02,
+   0.8,
+   1.1
+  ],
+  "IK_Foot_Brake": [
+   0.24,
+   0.97,
+   0.6
+  ],
+  "IK_Foot_Accel": [
+   0.24,
+   0.63,
+   0.6
+  ],
+  "IK_Hand_Direction": [
+   0.094,
+   0.945,
+   1.026
+  ],
+  "IK_Hand_Key": [
+   0.34,
+   0.665,
+   0.82
+  ],
+  "IK_Hand_BoomLever": [
+   -0.34,
+   0.535,
+   0.98
+  ],
+  "IK_Step": [
+   -0.15,
+   1.01,
+   0.268
+  ],
+  "IK_Grab_Outside": [
+   -0.88,
+   1.135,
+   1.41
+  ],
+  "IK_Grab_Inside": [
+   0.5,
+   0.985,
+   1.5
+  ],
+  "IK_Door_Outside": [
+   -0.5,
+   1.115,
+   1.0
+  ],
+  "IK_Door_Inside": [
+   -0.5,
+   1.0,
+   1.02
+  ],
+  "IK_Door_Hinge": [
+   0.412,
+   1.092,
+   1.185
+  ],
+  "IK_Boom_Hinge": [
+   -3.2,
+   0.0,
+   0.76
+  ],
+  "IK_Belt_Bottom": [
+   -3.55,
+   0.0,
+   0.976
+  ],
+  "IK_Belt_Top": [
+   3.6,
+   0.0,
+   0.976
+  ],
+  "IK_Controls_Bottom": [
+   -3.5,
+   0.475,
+   0.865
+  ],
+  "IK_Controls_Top": [
+   3.2,
+   0.475,
+   0.865
+  ],
+  "IK_Bumper_Pivot": [
+   3.86,
+   0.0,
+   0.755
+  ],
+  "IK_Bumper_Contact": [
+   4.01,
+   0.0,
+   0.64
+  ],
+  "IK_Stand_Top": [
+   4.3,
+   0.0,
+   0.946
+  ],
+  "IK_Rail_Top_L": [
+   2.18,
+   0.36,
+   1.72
+  ],
+  "IK_Rail_Top_R": [
+   2.18,
+   -0.36,
+   1.72
+  ],
+  "IK_WorkLamp": [
+   3.67,
+   -0.36,
+   1.16
+  ],
+  "IK_Ram_Front_Base": [
+   -0.4,
+   0.0,
+   0.42
+  ],
+  "IK_Ram_Front_Top": [
+   1.7,
+   0.0,
+   0.64
+  ],
+  "IK_Ram_Rear_Base": [
+   -2.7,
+   0.0,
+   0.42
+  ],
+  "IK_Ram_Rear_Top": [
+   -1.3,
+   0.0,
+   0.64
+  ],
+  "IK_Stand_Load": [
+   -4.25,
+   0.25,
+   0.0
+  ],
+  "IK_Stand_ControlsBottom": [
+   -3.5,
+   0.8,
+   0.0
+  ],
+  "IK_Stand_Door": [
+   -0.15,
+   1.55,
+   0.0
+  ],
+  "IK_Charge_Socket": [
+   0.22,
+   -1.14,
+   0.66
+  ],
+  "IK_EStop": [
+   -3.365,
+   0.0,
+   0.42
+  ],
+  "IK_Beacon": [
+   -0.62,
+   0.77,
+   2.123
+  ]
+ },
+ "ik_boom_local": [
+  "IK_Belt_Bottom",
+  "IK_Belt_Top",
+  "IK_Controls_Bottom",
+  "IK_Controls_Top",
+  "IK_Bumper_Pivot",
+  "IK_Bumper_Contact",
+  "IK_Stand_Top",
+  "IK_Rail_Top_L",
+  "IK_Rail_Top_R",
+  "IK_WorkLamp",
+  "IK_Ram_Front_Top",
+  "IK_Ram_Rear_Top"
+ ],
+ "ik_bumper_local": [
+  "IK_Bumper_Contact"
+ ],
+ "checks": {
+  "joints_not_joined": [],
+  "open_edges": [],
+  "floating": [],
+  "lamp_clash": [],
+  "overhang": [],
+  "mesh_loose": [],
+  "arch_crowd": [],
+  "steer_hits": 0,
+  "door_hits": 0,
+  "boom_hits": [],
+  "bumper_hits": 0,
+  "ram_hits": [],
+  "ik_off": [],
+  "flicker": "0 pairs fight",
+  "after_flicker_fix": {
+   "floating": [],
+   "lamp_clash": [],
+   "overhang": [],
+   "mesh_loose": []
+  }
+ },
+ "faces": 37570,
+ "parts": 383,
+ "wire_views": {
+  "3-side-left": {
+   "loc": [
+    0.0,
+    20,
+    1.2
+   ],
+   "at": [
+    0.0,
+    0,
+    1.2
+   ],
+   "ortho": 9.2,
+   "res": [
+    2600,
+    1200
+   ],
+   "O": [
+    1300.0,
+    939.13
+   ],
+   "X": [
+    1017.39,
+    939.13
+   ],
+   "Y": [
+    1300.0,
+    939.13
+   ],
+   "Z": [
+    1300.0,
+    656.52
+   ]
+  },
+  "4-side-right": {
+   "loc": [
+    0.0,
+    -20,
+    1.2
+   ],
+   "at": [
+    0.0,
+    0,
+    1.2
+   ],
+   "ortho": 9.2,
+   "res": [
+    2600,
+    1200
+   ],
+   "O": [
+    1300.0,
+    939.13
+   ],
+   "X": [
+    1582.61,
+    939.13
+   ],
+   "Y": [
+    1300.0,
+    939.13
+   ],
+   "Z": [
+    1300.0,
+    656.52
+   ]
+  },
+  "5-front": {
+   "loc": [
+    20,
+    0,
+    1.15
+   ],
+   "at": [
+    0,
+    0,
+    1.15
+   ],
+   "ortho": 3.2,
+   "res": [
+    1500,
+    1300
+   ],
+   "O": [
+    750.0,
+    1189.06
+   ],
+   "X": [
+    750.0,
+    1189.06
+   ],
+   "Y": [
+    1218.75,
+    1189.06
+   ],
+   "Z": [
+    750.0,
+    720.31
+   ]
+  },
+  "6-rear": {
+   "loc": [
+    -20,
+    0,
+    1.15
+   ],
+   "at": [
+    0,
+    0,
+    1.15
+   ],
+   "ortho": 3.2,
+   "res": [
+    1500,
+    1300
+   ],
+   "O": [
+    750.0,
+    1189.06
+   ],
+   "X": [
+    750.0,
+    1189.06
+   ],
+   "Y": [
+    281.25,
+    1189.06
+   ],
+   "Z": [
+    750.0,
+    720.31
+   ]
+  },
+  "7-top": {
+   "loc": [
+    0.0,
+    0,
+    20
+   ],
+   "at": [
+    0.0,
+    0,
+    0
+   ],
+   "ortho": 9.2,
+   "res": [
+    2600,
+    1200
+   ],
+   "O": [
+    1300.0,
+    600.0
+   ],
+   "X": [
+    1582.61,
+    600.0
+   ],
+   "Y": [
+    1300.0,
+    317.39
+   ],
+   "Z": [
+    1300.0,
+    600.0
+   ]
+  },
+  "15-side-raised-A320": {
+   "loc": [
+    0.0,
+    20,
+    1.6
+   ],
+   "at": [
+    0.0,
+    0,
+    1.6
+   ],
+   "ortho": 9.2,
+   "res": [
+    2600,
+    1300
+   ],
+   "O": [
+    1300.0,
+    1102.17
+   ],
+   "X": [
+    1017.39,
+    1102.17
+   ],
+   "Y": [
+    1300.0,
+    1102.17
+   ],
+   "Z": [
+    1300.0,
+    819.57
+   ]
+  },
+  "16-side-raised-max": {
+   "loc": [
+    0.0,
+    20,
+    1.8
+   ],
+   "at": [
+    0.0,
+    0,
+    1.8
+   ],
+   "ortho": 9.2,
+   "res": [
+    2600,
+    1400
+   ],
+   "O": [
+    1300.0,
+    1208.7
+   ],
+   "X": [
+    1017.39,
+    1208.7
+   ],
+   "Y": [
+    1300.0,
+    1208.7
+   ],
+   "Z": [
+    1300.0,
+    926.09
+   ]
+  }
+ }
+}

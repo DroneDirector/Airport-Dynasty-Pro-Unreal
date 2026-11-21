@@ -1,0 +1,10 @@
+# Belt loader textures - photo-scanned materials from ambientCG (https://ambientcg.com), all CC0 (public domain), 2K JPG; the same sets as Art/BaggageTractor/Textures and Art/PushbackTug/Textures (copied 2026-11-21)
+- Paint004 - chassis + boom paint tinted GSE yellow, cab + roof tinted white, red/yellow small parts (handrails, control boxes, e-stops) (https://ambientcg.com/view?id=Paint004)
+- PaintedMetal016 - yellow/black chevron panels on the rear face (https://ambientcg.com/view?id=PaintedMetal016)
+- Metal027 - bare and dark steel (hinges, pins, ram clevises, drums, axles, mirror arms); the ram rods are this set brightened, fully metallic and smoother (https://ambientcg.com/view?id=Metal027)
+- DiamondPlate008A - deck plates, battery hatch, tool box lid, kick step (https://ambientcg.com/view?id=DiamondPlate008A)
+- Rubber004 - tyres (no modelled tread: the tread look is this texture), the conveyor belt, bumper pad + band, skirts, seat bellows, pedals (https://ambientcg.com/view?id=Rubber004)
+- Rubber001 - the cab floor mat (https://ambientcg.com/view?id=Rubber001)
+- Plastic006 - dash, pedestal, trim, consoles, mirror housings, lamp rims (https://ambientcg.com/view?id=Plastic006)
+- Leather026 - the seat's black vinyl (https://ambientcg.com/view?id=Leather026)
+Lenses, glass, mirror glass and displays are plain (emissive / glass) materials; in the game the glass uses the fire truck's glass material.
