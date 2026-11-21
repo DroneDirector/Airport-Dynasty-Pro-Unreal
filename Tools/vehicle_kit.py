@@ -294,3 +294,37 @@ def wire_setup():
         sc.render.filepath = path; bpy.ops.render.render(write_still=True); print('view', os.path.basename(path))
         for o in ALL: o.hide_render = False
     return shoot
+
+# ---------------------------------------------------------------- extra checks (added with the baggage tractor,
+# Tools/make_baggage_tractor.py; new helpers only - nothing above changed)
+def arch_crowd(arches, half_width, skip_prefix=(), margin=0.08, side_tol=0.02):
+    """Nothing on the body sides crowds a wheel arch (owner 2026-11-21): every part whose box reaches the outer sides
+    (|y| > half_width - side_tol) keeps `margin` clear of each arch lip circle. arches = [(x, z_centre, lip_radius)]."""
+    crowd = []
+    for o in ALL:
+        n = o.name
+        if n.startswith(skip_prefix): continue
+        b = bbox(o)
+        if not (b[1].y > half_width - side_tol or b[0].y < -half_width + side_tol): continue
+        for ax, az, lr in arches:
+            dx = max(b[0].x - ax, 0, ax - b[1].x); dz = max(b[0].z - az, 0, az - b[1].z)
+            if math.hypot(dx, dz) < lr + margin: crowd.append(n); break
+    return crowd
+def sweep(moving_prefix, pivot, axis, degs, static_skip_prefix=(), sign=1):
+    """Turns the parts named moving_prefix* about axis ('x','y','z') through pivot by each angle and lists every clash
+    with the parts that stay put (BVH overlap) - for doors, lids, steering, drawbars."""
+    mov = [o for o in ALL if o.name.startswith(moving_prefix)]
+    stat = {o.name: bvh(o) for o in ALL if not o.name.startswith(moving_prefix) and not o.name.startswith(static_skip_prefix)}
+    hits = set(); P = Vector(pivot)
+    for deg in degs:
+        R = Matrix.Translation(P) @ Matrix.Rotation(math.radians(sign * deg), 4, axis.upper()) @ Matrix.Translation(-P)
+        for o in mov:
+            t = BVHTree.FromPolygons([R @ (o.matrix_world @ v.co) for v in o.data.vertices], [tuple(p.vertices) for p in o.data.polygons])
+            for n, tr in stat.items():
+                if t.overlap(tr): hits.add((o.name, n, deg))
+    return hits
+def glass(m, alpha=0.22):
+    """See-through glass for the Blender pictures (the game uses the fire truck's glass material on these parts)."""
+    b = m.node_tree.nodes['Principled BSDF']; b.inputs['Alpha'].default_value = alpha
+    m.blend_method = 'BLEND'; m.shadow_method = 'HASHED'; m.use_backface_culling = False
+    return m
