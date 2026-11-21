@@ -18,8 +18,8 @@ namespace PaxPropsInternal
 	TWeakObjectPtr<APaxProps> GProps;
 	const TCHAR* KitModel[2] = {TEXT("Smartphone"), TEXT("Tablet")};
 	constexpr float TabletShare = 0.10f, BackpackShare = 0.f, EarphoneShare = 0.f;   // (out of 1; backpack / earphones 0 until to-do 204's models exist)
-	constexpr float Lift = 0.7f;   // seconds out of the pocket into the hands (and back)
-	float Ease(float K) { return FMath::SmoothStep(0.f, 1.f, K); }
+	constexpr float PropLiftS = 0.7f;   // seconds out of the pocket into the hands (and back)
+	float PropEase(float K) { return FMath::SmoothStep(0.f, 1.f, K); }
 	/** The hands' own axes (hand-local: along the fingers, out of the palm), per body asset. */
 	struct FHands { FVector Along[2], Palm[2]; bool bOk = false; };
 	TMap<const UObject*, FHands> GHands;
@@ -222,7 +222,7 @@ bool APaxProps::DeviceAt(const FWho& W, int32 Kind, float K, FTransform& Out) co
 	// both hands at its sides, the head down at it: its frame X the screen's top, Z out of the screen); sat (the seat's
 	// pose, AADPPeople::SeatDevice: both hands together in front) between the two palms, the screen up to the face.
 	// The model's own frame: its top -y, its screen +z (Art/Smartphone/make_smartphone.py, Art/Tablet/make_tablet.py).
-	FTransform Held; float Kw = Ease(K);
+	FTransform Held; float Kw = PropEase(K);
 	FTransform G; float Gw = 0.f;
 	const UPaxAnimInstance* PA = Cast<UPaxAnimInstance>(B->GetAnimInstance());
 	if (PA && PA->GetDeviceGrip(G, Gw))
@@ -285,7 +285,7 @@ void APaxProps::Tick(float Dt)
 		{
 			const bool bOut = W.bWant[k] || bAuto[k];
 			if (!bOut && W.K[k] <= 0.f) continue;
-			W.K[k] = FMath::Clamp(W.K[k] + (bOut ? Dt : -Dt) / Lift, 0.f, 1.f);
+			W.K[k] = FMath::Clamp(W.K[k] + (bOut ? Dt : -Dt) / PropLiftS, 0.f, 1.f);
 			if (W.K[k] <= 0.f)
 			{
 				// (back in the pocket: not drawn, its instances free for the next one)
