@@ -21,6 +21,7 @@ namespace
 	double GStart = 0.0;
 	bool GReady = false, GSeenBuild = false;
 	int32 GVolumes = 0;
+	bool GBuildAsked = false, GWarned = false;
 
 	/** The actors whose things move (or open, or come and go): never part of the navmesh. By class name, so this file
 	 *  needs none of their headers. */
@@ -52,12 +53,22 @@ namespace
 			BS->AggGeom.BoxElems.Add(FKBoxElem(S.X, S.Y, S.Z));
 			BC->BrushBodySetup = BS;
 			BC->SetCanEverAffectNavigation(false);
+			// (a native component is registered while the actor is spawned, before this shape is given - its bounds
+			//  were empty, and so was the walkable area the navigation took from it: "1 empty bounds" in the 18:37 test)
+			BC->UpdateBounds();
 		}
 		V->FinishSpawning(At);
 		return V;
 	}
 
 	UNavigationSystemV1* Nav(UWorld* W) { return W ? FNavigationSystem::GetCurrent<UNavigationSystemV1>(W) : nullptr; }
+	/** The walkers' navmesh: the default one, else the first in the world (the agent is named "Passenger"). */
+	ANavigationData* NavData(UWorld* W, UNavigationSystemV1* NS)
+	{
+		if (ANavigationData* ND = NS->GetDefaultNavDataInstance(FNavigationSystem::DontCreate)) return ND;
+		for (TActorIterator<ARecastNavMesh> It(W); It; ++It) return *It;
+		return nullptr;
+	}
 }
 
 void PaxNav::NoNav(AActor* A)
@@ -85,7 +96,7 @@ void PaxNav::Start(UWorld* W, const FTerminalPlan& Plan, const FBox& Landside)
 	if (!W || GNavWorld.Get() == W) return;
 	UNavigationSystemV1* NS = Nav(W);
 	if (!NS) { ADP_WARN(TEXT("PaxFlow: no navigation system in this world - walkers keep their straight ways")); return; }
-	GNavWorld = W; GReady = false; GSeenBuild = false; GVolumes = 0; GStart = FPlatformTime::Seconds();
+	GNavWorld = W; GReady = false; GSeenBuild = false; GBuildAsked = false; GWarned = false; GVolumes = 0; GStart = FPlatformTime::Seconds();
 	Sweep(W);   // (before anything is gathered: nothing that moves goes in)
 	// the walkable bounds: every finished room of the terminal on its own floor (a little over its walls, so the
 	// doorways join), the unfinished ones (kind "empty") left out - nothing outside the rooms, nothing in the rooms that
@@ -98,9 +109,9 @@ void PaxNav::Start(UWorld* W, const FTerminalPlan& Plan, const FBox& Landside)
 		FBox B(ForceInit);
 		B += FTerminalPlan::ToWorld(FMath::Min(R.X0, R.X1) - 0.6f, Y0, FMath::Min(R.Z0, R.Z1) - 0.6f);
 		B += FTerminalPlan::ToWorld(FMath::Max(R.X0, R.X1) + 0.6f, Y1, FMath::Max(R.Z0, R.Z1) + 0.6f);
-		if (BoxVolume<ANavMeshBoundsVolume>(W, B)) ++GVolumes;
+		if (ANavMeshBoundsVolume* V = BoxVolume<ANavMeshBoundsVolume>(W, B)) { NS->OnNavigationBoundsUpdated(V); ++GVolumes; }
 	}
-	if (Landside.IsValid && BoxVolume<ANavMeshBoundsVolume>(W, Landside)) ++GVolumes;
+	if (Landside.IsValid) if (ANavMeshBoundsVolume* V = BoxVolume<ANavMeshBoundsVolume>(W, Landside)) { NS->OnNavigationBoundsUpdated(V); ++GVolumes; }
 	ADP_LOG(TEXT("PaxFlow: navmesh - %d walkable areas (finished rooms on both floors + the landside), generating in the background"), GVolumes);
 }
 
@@ -109,14 +120,38 @@ bool PaxNav::Ready(UWorld* W)
 	if (!W || GNavWorld.Get() != W) return false;
 	if (GReady) return true;
 	UNavigationSystemV1* NS = Nav(W); if (!NS) return false;
-	ANavigationData* ND = NS->GetDefaultNavDataInstance(FNavigationSystem::DontCreate);
-	if (!ND) return false;
+	const double T = FPlatformTime::Seconds() - GStart;
+	ANavigationData* ND = NavData(W, NS);
+	if (!ND)
+	{
+		// (the navigation makes its navmesh actor itself when the first walkable area comes in; if it hasn't after 5 s,
+		//  ask for the build outright - once, a short wait while it is made)
+		if (T > 5.0 && !GBuildAsked)
+		{
+			GBuildAsked = true;
+			ADP_WARN(TEXT("PaxFlow: no navmesh after %.0f s (%d walkable areas registered) - building it now"), T, NS->GetNavigationBounds().Num());
+			NS->Build();
+		}
+		if (T > 60.0 && !GWarned) { GWarned = true; ADP_WARN(TEXT("PaxFlow: the navmesh never came (60 s, %d walkable areas registered, no navmesh actor) - walkers keep their straight ways"), NS->GetNavigationBounds().Num()); }
+		return false;
+	}
 	const bool bBuilding = NS->IsNavigationBuildInProgress() || NS->HasDirtyAreasQueued();
-	if (bBuilding) { GSeenBuild = true; return false; }
-	if (!GSeenBuild && FPlatformTime::Seconds() - GStart < 2.0) return false;   // (the first tiles not even queued yet)
-	GReady = true;
+	if (bBuilding)
+	{
+		GSeenBuild = true;
+		if (T > 60.0 && !GWarned) { GWarned = true; ADP_WARN(TEXT("PaxFlow: the navmesh is still building after 60 s (%d tile jobs left) - walkers keep their straight ways until it is done"), NS->GetNumRemainingBuildTasks() + NS->GetNumRunningBuildTasks()); }
+		return false;
+	}
+	if (!GSeenBuild && T < 2.0) return false;   // (the first tiles not even queued yet)
 	const ARecastNavMesh* RN = Cast<ARecastNavMesh>(ND);
-	ADP_LOG(TEXT("PaxFlow: navmesh ready (%d tiles, %.0f ms)"), RN ? RN->GetNavMeshTilesCount() : 0, (FPlatformTime::Seconds() - GStart) * 1000.0);
+	const int32 Tiles = RN ? RN->GetNavMeshTilesCount() : 0;
+	if (Tiles <= 0)
+	{
+		if (!GWarned && T > 60.0) { GWarned = true; ADP_WARN(TEXT("PaxFlow: the navmesh came out empty (0 tiles after 60 s) - walkers keep their straight ways")); }
+		return false;
+	}
+	GReady = true;
+	ADP_LOG(TEXT("PaxFlow: navmesh ready (%d tiles, %.0f ms)"), Tiles, T * 1000.0);
 	return true;
 }
 
@@ -124,7 +159,7 @@ PaxNav::EPath PaxNav::Path(UWorld* W, const FVector& From, const FVector& To, TA
 {
 	Out.Reset();
 	UNavigationSystemV1* NS = Nav(W); if (!NS || !GReady) return OffMesh;
-	ANavigationData* ND = NS->GetDefaultNavDataInstance(FNavigationSystem::DontCreate); if (!ND) return OffMesh;
+	ANavigationData* ND = NavData(W, NS); if (!ND) return OffMesh;
 	// (both ends onto the navmesh: within a stride sideways, a knee's height up or down)
 	const FVector Ext(60.f, 60.f, 120.f);
 	FNavLocation A, B;

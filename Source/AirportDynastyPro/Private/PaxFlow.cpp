@@ -1233,6 +1233,7 @@ void APaxFlow::Tick(float Dt)
 	ADP_PERF_SCOPE("pax flow: the passengers' trips (each frame)", 2.f);
 	++Frame;
 	NavBudget = 4;   // (new navmesh legs this frame - the rest walk straight a frame longer)
+	PaxNav::Ready(GetWorld());   // (each frame: "navmesh ready" logged the moment it is, or a warning if it never comes)
 	if ((NavSweepIn -= Dt) <= 0.f) { NavSweepIn = 5.f; PaxNav::Sweep(GetWorld()); if (!DoorsActor.IsValid()) for (TActorIterator<ATerminalDoors> It(GetWorld()); It; ++It) { DoorsActor = *It; break; } if (!SeatsActor.IsValid()) for (TActorIterator<ASeats> It(GetWorld()); It; ++It) { SeatsActor = *It; break; } }   // (things spawned since: off the navmesh)
 	SpawnGap -= Dt;
 	if (bTest && !bTestMade) MakeTestRuns();
