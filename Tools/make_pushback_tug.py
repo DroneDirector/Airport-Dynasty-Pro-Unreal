@@ -183,12 +183,12 @@ def lamp(name, face_pt, normal, w, h, m, depth=0.06):
         hous = box(name + '_Housing', (c.x, c.y, c.z), (depth, w + 0.03, h + 0.03), M_DARK, bevel=0.008)          # half in, half out
         rim = box(name + '_Rim', (c.x + sg * depth / 2, c.y, c.z), (0.008, w + 0.03, h + 0.03), M_PLAST, bevel=0.004)
         cutter = box(name + '_Recess', (c.x + sg * depth / 2, c.y, c.z), (0.03, w, h), M_DARK); cut(rim, cutter)
-        box(name + '_Lens', (c.x + sg * (depth / 2 - 0.008), c.y, c.z), (0.006, w, h), m, bevel=0.003)
+        box(name + '_Lens', (c.x + sg * (depth / 2 + 0.0015), c.y, c.z), (0.002, w, h), m)          # just in front of the housing, inside the rim
     else:
         hous = box(name + '_Housing', (c.x, c.y, c.z), (w + 0.03, depth, h + 0.03), M_DARK, bevel=0.008)
         rim = box(name + '_Rim', (c.x, c.y + sg * depth / 2, c.z), (w + 0.03, 0.008, h + 0.03), M_PLAST, bevel=0.004)
         cutter = box(name + '_Recess', (c.x, c.y + sg * depth / 2, c.z), (w, 0.03, h), M_DARK); cut(rim, cutter)
-        box(name + '_Lens', (c.x, c.y + sg * (depth / 2 - 0.008), c.z), (w, 0.006, h), m, bevel=0.003)
+        box(name + '_Lens', (c.x, c.y + sg * (depth / 2 + 0.0015), c.z), (w, 0.002, h), m)
 FRONT_FACE, REAR_FACE = L / 2 + 0.038, -L / 2 - 0.1005
 for s in (-1, 1):
     lamp(f'LowBeam_{s}', (FRONT_FACE, s * 0.88, GC + 0.42), 'x+', 0.13, 0.12, M_WHITE)        # outer: low beam
@@ -448,6 +448,63 @@ for n, b in BB.items():
         if math.hypot(dx, dz) < LIP_R + 0.08: crowd.append(n)
 print('TUG CHECK: %d floating %s | %d lamp clashes %s | %d crowding an arch %s' % (len(floating), floating[:12], len(clash), clash[:12], len(crowd), crowd[:12]))
 
+# ---------------------------------------------------------------- photo textures (owner 2026-11-21: free-licence photo
+# materials only, very good quality - ambientCG CC0, Art/PushbackTug/Textures/SOURCES.md); every part gets UVs at a real
+# scale (1 UV unit = 1 m, cube projection) so a texture is the same size on every part
+TEX = os.path.join(ART, 'Textures')
+def photo(m, mid, tile=1.0, tint=None, metal=None, rough_mul=1.0):
+    m.use_nodes = True; nt = m.node_tree; nt.nodes.clear()
+    out = nt.nodes.new('ShaderNodeOutputMaterial'); b = nt.nodes.new('ShaderNodeBsdfPrincipled'); nt.links.new(b.outputs[0], out.inputs[0])
+    tc = nt.nodes.new('ShaderNodeTexCoord'); mp = nt.nodes.new('ShaderNodeMapping'); mp.inputs['Scale'].default_value = (1 / tile, 1 / tile, 1)
+    nt.links.new(tc.outputs['UV'], mp.inputs['Vector'])
+    def img(suffix, noncolor):
+        f = os.path.join(TEX, mid, '%s_2K-JPG_%s.jpg' % (mid, suffix))
+        if not os.path.exists(f): return None
+        n = nt.nodes.new('ShaderNodeTexImage'); n.image = bpy.data.images.load(f, check_existing=True)
+        if noncolor: n.image.colorspace_settings.name = 'Non-Color'
+        nt.links.new(mp.outputs[0], n.inputs[0]); return n
+    col = img('Color', False); ao = img('AmbientOcclusion', True)
+    c_out = col.outputs[0]
+    if ao:
+        mx = nt.nodes.new('ShaderNodeMixRGB'); mx.blend_type = 'MULTIPLY'; mx.inputs[0].default_value = 0.7
+        nt.links.new(c_out, mx.inputs[1]); nt.links.new(ao.outputs[0], mx.inputs[2]); c_out = mx.outputs[0]
+    if tint:
+        mt = nt.nodes.new('ShaderNodeMixRGB'); mt.blend_type = 'MULTIPLY'; mt.inputs[0].default_value = 1.0
+        mt.inputs[2].default_value = (*tint, 1); nt.links.new(c_out, mt.inputs[1]); c_out = mt.outputs[0]
+    nt.links.new(c_out, b.inputs['Base Color'])
+    r = img('Roughness', True)
+    if r:
+        if rough_mul != 1.0:
+            mm = nt.nodes.new('ShaderNodeMath'); mm.operation = 'MULTIPLY'; mm.inputs[1].default_value = rough_mul
+            nt.links.new(r.outputs[0], mm.inputs[0]); nt.links.new(mm.outputs[0], b.inputs['Roughness'])
+        else: nt.links.new(r.outputs[0], b.inputs['Roughness'])
+    mtl = img('Metalness', True)
+    if metal is not None: b.inputs['Metallic'].default_value = metal
+    elif mtl: nt.links.new(mtl.outputs[0], b.inputs['Metallic'])
+    nrm = img('NormalGL', True)
+    if nrm:
+        nm = nt.nodes.new('ShaderNodeNormalMap'); nm.inputs['Strength'].default_value = 0.8
+        nt.links.new(nrm.outputs[0], nm.inputs['Color']); nt.links.new(nm.outputs[0], b.inputs['Normal'])
+    return m
+if '--plain' not in sys.argv:
+    for o in ALL:
+        bpy.context.view_layer.objects.active = o
+        for x in bpy.context.selected_objects: x.select_set(False)
+        o.select_set(True); bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.uv.cube_project(cube_size=1.0, correct_aspect=True, scale_to_bounds=False); bpy.ops.object.mode_set(mode='OBJECT'); o.select_set(False)
+    photo(M_PAINT, 'Paint004', tile=1.5, tint=(1.0, 0.50, 0.015))
+    photo(M_STEEL, 'Metal027', tile=0.6)
+    photo(M_DARK, 'Metal027', tile=0.6, tint=(0.25, 0.25, 0.27))
+    photo(M_RUB, 'Rubber004', tile=0.5, tint=(0.35, 0.35, 0.35), metal=0.0)
+    photo(M_FLOOR, 'Rubber001', tile=0.5, metal=0.0)
+    photo(M_PLAST, 'Plastic006', tile=0.4, tint=(0.35, 0.35, 0.37), metal=0.0)
+    photo(M_VINYL, 'Leather026', tile=0.35, metal=0.0)
+    M_CHEV = photo(bpy.data.materials.new('Tug_Chevrons'), 'PaintedMetal016', tile=0.9)
+    M_TREAD = photo(bpy.data.materials.new('Tug_TreadPlate'), 'DiamondPlate008A', tile=0.5)
+    for o in ALL:
+        if o.name in ('BumperFront', 'BumperRear'): o.data.materials[0] = M_CHEV
+        if o.name in ('StepTread', 'BallastRear') or o.name.startswith('BallastPlate'): o.data.materials[0] = M_TREAD
+
 # ---------------------------------------------------------------- save + export
 col = bpy.data.collections.new('PushbackTug'); bpy.context.scene.collection.children.link(col)
 for o in ALL + IKS:
@@ -455,6 +512,25 @@ for o in ALL + IKS:
     col.objects.link(o)
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ART, 'PushbackTug.blend'))
 print('TUG: %d parts, %d IK points, %d triangles' % (len(ALL), len(IKS), sum(len(o.data.polygons) for o in ALL)))
+
+# ---------------------------------------------------------------- textured pictures (lit, as it will look)
+if '--beauty' in sys.argv:
+    sc = bpy.context.scene; sc.render.engine = 'BLENDER_EEVEE'; ee = sc.eevee
+    ee.use_gtao = True; ee.gtao_distance = 0.5; ee.use_ssr = True; ee.use_soft_shadows = True; ee.shadow_cube_size = '2048'; ee.shadow_cascade_size = '4096'; ee.taa_render_samples = 64
+    sc.view_settings.view_transform = 'Filmic'; sc.view_settings.look = 'Medium High Contrast'
+    w = bpy.data.worlds.new('WB'); w.use_nodes = True; bg = w.node_tree.nodes['Background']; bg.inputs['Color'].default_value = (0.55, 0.65, 0.8, 1); bg.inputs['Strength'].default_value = 0.9; sc.world = w
+    ground = box('Ground', (0, 0, -0.01), (30, 30, 0.02), pmat('Apron', (0.32, 0.32, 0.31), 0, 0.85)); ALL.remove(ground)
+    sd = bpy.data.lights.new('Sun', 'SUN'); sd.energy = 4.5; sd.angle = 0.02; so = bpy.data.objects.new('Sun', sd); sc.collection.objects.link(so); so.rotation_euler = (math.radians(50), 0, math.radians(35))
+    cd = bpy.data.cameras.new('BCam'); bc = bpy.data.objects.new('BCam', cd); sc.collection.objects.link(bc); sc.camera = bc
+    BEAU = os.path.join(ROOT, 'docs', 'Pictures', 'Vehicles', 'PushbackTug'); os.makedirs(BEAU, exist_ok=True)
+    def bshot(name, loc, at, lens=45, res=(2400, 1500)):
+        bc.location = loc; bc.rotation_euler = (Vector(at) - Vector(loc)).to_track_quat('-Z', 'Y').to_euler(); cd.lens = lens
+        sc.render.resolution_x, sc.render.resolution_y = res; sc.render.filepath = os.path.join(BEAU, name + '.png'); bpy.ops.render.render(write_still=True); print('TUG: picture', name)
+    bshot('Tug-1-front', (6.0, 5.4, 2.6), (0, 0, 0.8)); bshot('Tug-2-rear', (-6.0, -5.2, 2.6), (0, 0, 0.8))
+    # the final renders: a slightly odd angle, low, front and back (owner 2026-11-21)
+    bshot('Tug-Final-Front', (5.2, -3.6, 1.1), (0.3, 0.2, 0.95), 35, (3840, 2160)); bshot('Tug-Final-Back', (-5.6, 3.0, 1.5), (-0.2, -0.1, 0.9), 35, (3840, 2160))
+    bshot('Tug-3-cab-close', (2.2, 3.2, 1.9), (0.0, 0.6, 1.4), 40); bshot('Tug-4-bumper-close', (4.2, 1.6, 0.9), (2.55, 0.0, 0.55), 40)
+    ground.hide_render = True
 
 # ---------------------------------------------------------------- the wireframe views (the blueprint's pictures)
 if DO_WIRE:
