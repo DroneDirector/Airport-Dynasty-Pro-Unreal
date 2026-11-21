@@ -22,6 +22,7 @@
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "PaxNav.h"
 
 namespace ADPPeopleInternal
 {
@@ -193,6 +194,7 @@ AActor* AADPPeople::Spawn(const FString& Name, const FVector& At, float Yaw)
 	FHitResult H; FCollisionQueryParams Q(SCENE_QUERY_STAT(PeopleFloor), true);
 	if (GetWorld()->LineTraceSingleByChannel(H, At + FVector(0, 0, 150.f), At - FVector(0, 0, 500.f), ECC_Visibility, Q)) Spot.Z = H.ImpactPoint.Z;
 	AActor* A = GetWorld()->SpawnActor<AActor>(C, Spot, FRotator(0.f, Yaw - 90.f, 0.f), P);   // (a MetaHuman faces along its actor's +Y: yaw - 90 turns it to face Yaw)
+	PaxNav::NoNav(A);   // (people walk on the navmesh, they never shape it: no rebuilds as they move or come and go)
 	Gather();
 	return A;
 }

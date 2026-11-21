@@ -24,6 +24,7 @@
 #include "Materials/MaterialInterface.h"
 #include "Animation/AnimSingleNodeInstance.h"
 #include "PaxAnimInstance.h"
+#include "PaxNav.h"
 #include "Camera/PlayerCameraManager.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/World.h"
@@ -179,6 +180,19 @@ bool APaxFlow::Prepare()
 			}
 		}
 		if (!GCarSpaces.Num()) for (int32 k = 0; k < 60; ++k) GCarSpaces.Add(FVector2f(30.f + k * 1.5f, -65.f - (k % 4) * 8.f));
+	}
+	// the walls and floors as they really are: the navmesh over the finished rooms and the landside (PaxNav.h), made
+	// in the background now; until it is ready the walkers keep their straight ways
+	{
+		FBox Land(ForceInit);
+		auto AddPlan = [&](float X, float Z) { const FVector P = PW(X, 0, Z); const float G = GroundZ(X, Z); Land += FVector(P.X, P.Y, G - 300.f); Land += FVector(P.X, P.Y, G + 500.f); };
+		for (const FVector2f& S : GCarSpaces) AddPlan(S.X, S.Y);
+		for (const TPair<FVector, FVector>& Zc : ARoadNetwork::ZebraCrossings) for (const FVector& Wz : {Zc.Key, Zc.Value}) if (FVector::Dist2D(Wz, PW(79.f, 0, -60.f)) < 25000.f) { Land += Wz - FVector(0, 0, 300.f); Land += Wz + FVector(0, 0, 500.f); }
+		for (float X = 40.f; X <= 116.f; X += 4.f) AddPlan(X, 1.f);   // (the front of the terminal: its entrances)
+		if (Land.IsValid) Land = Land.ExpandBy(FVector(800.f, 800.f, 0.f));
+		PaxNav::Start(W, Plan, Land);
+		for (TActorIterator<ATerminalDoors> It(W); It; ++It) { DoorsActor = *It; break; }
+		for (TActorIterator<ASeats> It(W); It; ++It) { SeatsActor = *It; break; }
 	}
 	bTest = FParse::Param(FCommandLine::Get(), TEXT("PaxFlowTest"));
 	ADP_LOG(TEXT("PaxFlow: ready - %d gates, %d car park spaces, %d passenger faces, %d zebra crossing parts%s"), Gates.Num(), GCarSpaces.Num(), Names.Num(), ARoadNetwork::ZebraCrossings.Num(), bTest ? TEXT("; -PaxFlowTest: a departure and an arrival now") : TEXT(""));
@@ -409,6 +423,7 @@ AActor* APaxFlow::Body(const FVector& At, float Yaw, FPx& P)
 	// (far away their animation updates only while seen, and less often - no change up close)
 	TArray<USkeletalMeshComponent*> Sk; A->GetComponents<USkeletalMeshComponent>(Sk);
 	for (USkeletalMeshComponent* S : Sk) { S->bEnableUpdateRateOptimizations = true; S->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered; }
+	PaxNav::NoNav(A);
 	P.Holder = NewObject<USceneComponent>(this); P.Holder->RegisterComponent(); Holders.Add(P.Holder);
 	P.Pace = Rng.FRandRange(118.f, 145.f);
 	P.Jit = FVector2D(Rng.FRandRange(-45.f, 45.f), Rng.FRandRange(-45.f, 45.f));
@@ -588,6 +603,36 @@ bool APaxFlow::Follow(FPx& P, AActor* A, float Dt)
 		return false;
 	}
 	if (P.Wi >= P.Way.Num()) { Idle(P, A, Dt); return true; }
+	// (owner 2026-11-21: they know where the walls and floors are. The leg to the next waypoint walked out once on the
+	//  navmesh - round the walls, through the real doorways - its corners put in before it. Not the escalator rides and
+	//  not the jetways (they move; off the navmesh: straight as before), not the short hand-placed steps in the security
+	//  lane, not the queues (their spot moves). No way at all: logged, and straight to the waypoint as before)
+	if (!P.Way[P.Wi].bNav && P.Way[P.Wi].Mode != 2 && P.St == EPx::Walk && !(P.Do == EDo::Screened && P.Wi < 5) && NavBudget > 0 && PaxNav::Ready(GetWorld()))
+	{
+		--NavBudget;
+		FWp& To = P.Way[P.Wi]; To.bNav = true;
+		const FVector From = A->GetActorLocation();
+		if (FVector::Dist2D(From, To.P) > 400.f)
+		{
+			TArray<FVector> Pts;
+			const PaxNav::EPath R = PaxNav::Path(GetWorld(), From, To.P, Pts);
+			// (a part way that stops short of the waypoint: only when it gets close, else it isn't a way)
+			const bool bUse = R == PaxNav::Full || (R == PaxNav::Partial && Pts.Num() >= 2 && FVector::Dist2D(Pts.Last(), To.P) < 150.f);
+			if (bUse && Pts.Num() > 2)
+			{
+				TArray<FWp> Corners;
+				for (int32 k = 1; k < Pts.Num() - 1; ++k) { FWp C; C.P = Pts[k]; C.Mode = To.Mode; C.bGround = To.bGround; C.bNav = true; Corners.Add(C); }
+				P.Way.Insert(Corners, P.Wi);
+			}
+			else if (!bUse && R != PaxNav::OffMesh)
+			{
+				const FVector Fa = PlanOf(From), Ta = PlanOf(To.P);
+				const uint64 Key = (uint64(uint16(int32(Fa.X) + 2000)) << 48) | (uint64(uint16(int32(Fa.Z) + 2000)) << 32) | (uint64(uint16(int32(Ta.X) + 2000)) << 16) | uint64(uint16(int32(Ta.Z) + 2000));
+				bool bSeen = false; NoWayLogged.Add(Key, &bSeen);
+				if (!bSeen) ADP_LOG(TEXT("PaxFlow: no walkable way from A to B - %s from plan (%.1f, %.1f) to (%.1f, %.1f) (%s); straight to the waypoint"), *P.Id, Fa.X, Fa.Z, Ta.X, Ta.Z, *P.Stage);
+			}
+		}
+	}
 	const FWp& W = P.Way[P.Wi];
 	const FVector Loc = A->GetActorLocation();
 	FVector D = W.P - Loc; D.Z = 0.f;
@@ -632,13 +677,38 @@ bool APaxFlow::Follow(FPx& P, AActor* A, float Dt)
 		P.Speed *= FMath::Lerp(1.f, Slow, FMath::Min(1.f, Dt * 6.f));
 	}
 	P.TurnYaw = FMath::FInterpTo(P.TurnYaw, TurnWant, Dt, 5.f);
-	const float Mv = FMath::Min(Dist, (bRide ? 50.f : FMath::Max(P.Speed, 25.f)) * Dt);
-	FVector N = Loc + Dn * Mv;
-	// on the floor: straight down from knee height (stairs, escalator steps, the jetway's slope), never onto another person
+	float Mv = FMath::Min(Dist, (bRide ? 50.f : FMath::Max(P.Speed, 25.f)) * Dt);
 	FHitResult H; FCollisionQueryParams Q(SCENE_QUERY_STAT(PaxFloor), false, A);
 	// (never onto a bag or a belt either: the bags go their own way through the desks, hatches and belts - owner 2026-11-21)
 	if (AActor* Db = ADepartureBelts::Get(GetWorld())) Q.AddIgnoredActor(Db);
 	if (AActor* Ab = ABaggageBelts::Get(GetWorld())) Q.AddIgnoredActor(Ab);
+	// the safety net: a knee-height look along the step against the building (never past the waypoint itself, so a
+	// spot by a wall is still reached). A wall ahead: slide along it, never through; a corner: stand. Not on the rides,
+	// the slow hand-placed steps (the arch, the escalator's foot) or in a jetway; the doors open for walkers, the chairs
+	// are sat on - neither counts
+	if (!bRide && W.Mode == 0 && P.St != EPx::Jetway && Mv > 0.f)
+	{
+		FCollisionQueryParams Qw(SCENE_QUERY_STAT(PaxWall), false, A);
+		if (AActor* Db = ADepartureBelts::Get(GetWorld())) Qw.AddIgnoredActor(Db);
+		if (AActor* Ab = ABaggageBelts::Get(GetWorld())) Qw.AddIgnoredActor(Ab);
+		if (AActor* Dr = DoorsActor.Get()) Qw.AddIgnoredActor(Dr);
+		if (AActor* St = SeatsActor.Get()) Qw.AddIgnoredActor(St);
+		const FCollisionObjectQueryParams Ob(ECC_WorldStatic);
+		const FVector Knee = Loc + FVector(0, 0, 45.f);
+		const float Look = FMath::Min(Dist, Mv + 30.f);
+		FHitResult Wh;
+		if (GetWorld()->LineTraceSingleByObjectType(Wh, Knee, Knee + Dn * Look, Ob, Qw) && FMath::Abs(Wh.ImpactNormal.Z) < 0.5f)
+		{
+			const FVector Wn = FVector(Wh.ImpactNormal.X, Wh.ImpactNormal.Y, 0.f).GetSafeNormal();
+			FVector Sl = Dn - Wn * FVector::DotProduct(Dn, Wn); Sl.Z = 0.f;
+			if (Sl.Size() < 0.2f) { const FVector Al(-Wn.Y, Wn.X, 0.f); Sl = Al * (FVector::DotProduct(Al, D) >= 0.f ? 1.f : -1.f); }   // (head on: along the wall, the waypoint's side)
+			Sl = Sl.GetSafeNormal2D();
+			if (!Sl.IsNearlyZero() && !GetWorld()->LineTraceTestByObjectType(Knee, Knee + Sl * (Mv + 30.f), Ob, Qw)) Dn = Sl;
+			else Mv = 0.f;
+		}
+	}
+	FVector N = Loc + Dn * Mv;
+	// on the floor: straight down from knee height (stairs, escalator steps, the jetway's slope), never onto another person
 	bool bFloor = false;
 	if (GetWorld()->LineTraceSingleByChannel(H, FVector(N.X, N.Y, Loc.Z + 45.f), FVector(N.X, N.Y, Loc.Z - 150.f), ECC_Visibility, Q))
 	{
@@ -1162,6 +1232,8 @@ void APaxFlow::Tick(float Dt)
 	}
 	ADP_PERF_SCOPE("pax flow: the passengers' trips (each frame)", 2.f);
 	++Frame;
+	NavBudget = 4;   // (new navmesh legs this frame - the rest walk straight a frame longer)
+	if ((NavSweepIn -= Dt) <= 0.f) { NavSweepIn = 5.f; PaxNav::Sweep(GetWorld()); if (!DoorsActor.IsValid()) for (TActorIterator<ATerminalDoors> It(GetWorld()); It; ++It) { DoorsActor = *It; break; } if (!SeatsActor.IsValid()) for (TActorIterator<ASeats> It(GetWorld()); It; ++It) { SeatsActor = *It; break; } }   // (things spawned since: off the navmesh)
 	SpawnGap -= Dt;
 	if (bTest && !bTestMade) MakeTestRuns();
 	if ((PollIn -= Dt) <= 0.f) { PollIn = 5.f; Poll(); }

@@ -63,7 +63,7 @@ public:
 private:
 	enum class EPx : uint8 { Walk, DeskQ, Desk, LaneQ, Wait, Seated, Lean, Call, Jetway, ClaimWait, ToBag, Gone };
 	enum class EDo : uint8 { None, JoinDesk, JoinLane, Screened, Upstairs, AtSeat, AtWall, AtGateSpot, Aboard, AtClaim, OutCarPark, ArrIn };
-	struct FWp { FVector P = FVector::ZeroVector; float Pause = 0.f; FVector Face = FVector::ZeroVector; uint8 Mode = 0; bool bGround = false; };   // Mode 0 walk, 1 slow, 2 ride
+	struct FWp { FVector P = FVector::ZeroVector; float Pause = 0.f; FVector Face = FVector::ZeroVector; uint8 Mode = 0; bool bGround = false; bool bNav = false; };   // Mode 0 walk, 1 slow, 2 ride; bNav: the leg to it already walked out on the navmesh
 	struct FPx
 	{
 		TWeakObjectPtr<AActor> A; TWeakObjectPtr<USkeletalMeshComponent> Body; USceneComponent* Holder = nullptr;
@@ -104,6 +104,8 @@ private:
 	UPROPERTY() TArray<TObjectPtr<USceneComponent>> Holders;
 
 	bool bReady = false, bTest = false, bTestMade = false;
+	TWeakObjectPtr<AActor> DoorsActor, SeatsActor;   // (ignored by the walkers' wall look: doors open for them, chairs are sat on)
+	int32 NavBudget = 0; float NavSweepIn = 0.f; TSet<uint64> NoWayLogged;   // (the navmesh ways: a few new legs a frame; moving things kept off it; each missing way logged once)
 	float ReadyIn = 2.f, PollIn = 0.f, SayIn = 20.f, SpawnGap = 0.f, StuckLog = 0.f;
 	double RealT = 0.0, SimT = 0.0;
 	float F2Z = 600.f, F2Y = 6.f;

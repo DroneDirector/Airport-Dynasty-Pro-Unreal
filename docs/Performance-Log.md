@@ -1,5 +1,17 @@
 # Performance log
 
+## 2026-11-21 late - the walkers' navmesh (PaxNav.cpp)
+- Unreal's navigation (Recast, dynamic, agent 30 cm / 180 cm, 10 m tiles) is generated once in the background after the
+  passenger flow is ready. It covers only the finished terminal rooms on both floors (plus 0.6 m over their walls, so
+  the doorways join) and the landside car park and forecourt box. Unfinished rooms ("empty") are left out, and so is
+  the rest of the world. Logged as "PaxFlow: navmesh ready (N tiles, X ms)".
+- No rebuilds while the game runs: geometry is gathered lazily, transform changes don't update the nav octree
+  (bUpdateNavOctreeOnComponentChange off), and people, pets, bags, belts, vehicles, jetways, doors, lifts, seats,
+  grass and trees can't affect navigation. A sweep every 5 s catches anything spawned since.
+- Per walker: each long leg (> 4 m) of a walk is found once on the navmesh, at most 4 new legs a frame across all
+  walkers, and its corners are kept in the way. There is one more knee-height line trace per moved walker as the wall
+  safety net. Far walkers are still moved every fourth frame. To be measured in the combined test.
+
 ## 2026-11-21 late - passengers' suitcase grip (PaxAnimInstance.cpp)
 - Passengers now use their own anim instance (UPaxAnimInstance, still the single-node walk blend space). While a bag is
   carried it adds a layer after the blend space: 15 right finger/thumb joints closed round the handle, and the right
