@@ -1,0 +1,149 @@
+// The passengers' trips (owner 2026-11-21: "all the passengers that are going to travel with the airline that I make or
+// other airplanes - for now they spawn at the big parking lot behind the terminal - just until the driving mechanism for
+// civilian cars and buses is in"). Every step walked and animated, nobody appears or vanishes in sight of a public place:
+//   DEPARTING: out of a car in the big landside car park (where the cars would have brought them) -> the pavement, over
+//   the forecourt at a zebra crossing -> the main entrance -> the Grand Hall -> the queue at one of their airline's desks
+//   (1..20) -> their own bag, carried by its handle, set on the desk's weigh belt (ADepartureBelts: it rides the belts to
+//   the make-up carousels) -> a walk-through between the desks -> a security door -> a lane: things on the X-ray belt,
+//   through the arch, picked up again -> the airside lobby -> up the stairs, or along the new airside corridor and up the
+//   escalators -> Floor 2 -> waiting until their flight is called: on a chair at their own gate, a free chair out on the
+//   gate walkway, or leaning on a wall (all with the sitting IK step / the lean) -> the boarding call (the announcer, as
+//   the turnaround's "board" task starts) -> at the real boarding rate (Airbus AC 5-2: about 12 a minute at one door) up,
+//   to the gate door, through the jetway's rotunda and tunnel to its cab end, aboard (no cabin yet: counted aboard).
+//   ARRIVING: as the turnaround's "deplane" starts (the jetway docked) they come off one by one at the cab end (about 20
+//   a minute), through the jetway into the gate area, the gate walkway west, down the arrivals escalators into the claim
+//   hall, to their flight's claim belt (ABaggageBelts), their own bag taken off when it comes round (tagged with their
+//   id), then out through the arrivals doors, over the forecourt at a crossing to the car park, where a car would pick
+//   them up.
+// The real numbers stay in the simulation (passengers-real-count: never a slider - the schedule decides); of each flight
+// a share walks in 3D (up to VisibleDep / VisibleArr), the rest is data. MetaHumans from Content/People/Built (role
+// passenger), their walk blend space as AADPPeople's; far away their animation updates only when seen and less often.
+// Test: -PaxFlowTest - a departure and an arrival right after the start, so one combined test sees the whole chain both
+// ways; WatchPoints() gives the tracking camera its subject (one passenger followed from start to end, then the next).
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "WalkMap.h"
+#include "PaxFlow.generated.h"
+
+class USkeletalMeshComponent;
+
+UCLASS()
+class AIRPORTDYNASTYPRO_API APaxFlow : public AActor
+{
+	GENERATED_BODY()
+public:
+	APaxFlow();
+	/** The manager (made once, when the airport has loaded - AADPPeople::StartWanderers). */
+	static APaxFlow* Get(UWorld* W);
+	static APaxFlow* Find(const UWorld* W);
+	virtual void Tick(float Dt) override;
+
+	/** Tests: what must be in view now - the passenger being followed (feet, head, its bag), and the side to look from.
+	 *  False when nobody is walking yet. */
+	bool WatchPoints(TArray<FVector>& Pts, FVector& Side) const;
+	/** Tests: who is followed and what they are doing (for a caption / the log). */
+	FString WatchWhat() const;
+	bool IsTest() const { return bTest; }
+	/** Tests: both test flights are through (the departure all aboard, the arrival all out at the car park). */
+	bool TestDone() const;
+	/** How many are walking now, and how many have gone aboard / out so far. */
+	int32 Walking() const;
+
+	enum : int32 { VisibleDep = 36, VisibleArr = 30 };
+
+private:
+	enum class EPx : uint8 { Walk, DeskQ, Desk, LaneQ, Wait, Seated, Lean, Call, Jetway, ClaimWait, ToBag, Gone };
+	enum class EDo : uint8 { None, JoinDesk, JoinLane, Screened, Upstairs, AtSeat, AtWall, AtGateSpot, Aboard, AtClaim, OutCarPark, ArrIn };
+	struct FWp { FVector P = FVector::ZeroVector; float Pause = 0.f; FVector Face = FVector::ZeroVector; uint8 Mode = 0; bool bGround = false; };   // Mode 0 walk, 1 slow, 2 ride
+	struct FPx
+	{
+		TWeakObjectPtr<AActor> A; TWeakObjectPtr<USkeletalMeshComponent> Body; USceneComponent* Holder = nullptr;
+		int32 Run = 0; FString Id, Name; bool bArr = false;
+		EPx St = EPx::Walk; EDo Do = EDo::None;
+		TArray<FWp> Way; int32 Wi = 0; float PauseT = 0.f, Speed = 0.f, Pace = 130.f, Acc = 0.f, T = 0.f;
+		FVector2D Jit = FVector2D::ZeroVector;
+		int32 Bag = INDEX_NONE; bool bBagDown = false, bHasBag = false, bArrBag = false; FVector Handle = FVector::ZeroVector;
+		int32 Desk = 0, Lane = -1, Seat = INDEX_NONE, Order = 0;
+		float LeanYaw = 0.f, Fidget = 0.f; double BoardAt = -1.0; bool bEsc = false, bPriority = false;
+		FString Stage;   // (in words, for the tests' caption)
+	};
+	struct FRun
+	{
+		FString Key, Label, AirlineId, Reg;
+		bool bArr = false, bTest = false, bPlayer = false;
+		int32 Gate = 2, Jet = INDEX_NONE;
+		double DepT = 0.0;          // departure (seconds on the run's clock: the simulation's, the test's own)
+		int32 Pax = 0, Visible = 0, Spawned = 0, Aboard = 0, Out = 0;
+		TArray<double> SpawnAt;     // (departures: when each walker gets out of their car; arrivals: off the aircraft)
+		TArray<int32> Desks;
+		bool bCalled = false, bFinal = false, bClosed = false, bAllLogged = false, bDeplaning = false, bBagsTagged = false;
+		double CallT = 0.0, BoardSpanS = 0.0, ArrStart = -1.0, NextArr = 0.0;
+		float DockWait = 0.f;
+	};
+	struct FGate { int32 N = 0; FString Room; FBox2D Box; FVector2f Jw = FVector2f::ZeroVector; int32 Place = INDEX_NONE; bool bF2 = true; };
+	struct FLine { TArray<int32> Who; };
+
+	TArray<FPx> Pax; TArray<int32> FreePx;
+	TArray<FRun> Runs;
+	TArray<FGate> Gates;
+	FLine DeskLines[20], LaneLines[6];
+	FWalkMap Map;
+	TArray<FString> Names;
+	TArray<TPair<FVector2f, float>> NoLean;   // (plan points with their keep-out radius: doors, stairs, escalators)
+	TArray<FVector> LeanSpots;
+	UPROPERTY() TArray<TObjectPtr<USceneComponent>> Holders;
+
+	bool bReady = false, bTest = false, bTestMade = false;
+	float ReadyIn = 2.f, PollIn = 0.f, SayIn = 20.f, SpawnGap = 0.f, StuckLog = 0.f;
+	double RealT = 0.0, SimT = 0.0;
+	float F2Z = 600.f, F2Y = 6.f;
+	int32 Frame = 0, Watched = INDEX_NONE, TotalAboard = 0, TotalOut = 0;
+	FRandomStream Rng;
+
+	// setting up and the flights
+	bool Prepare();
+	void Poll();
+	void MakeTestRuns();
+	double Clock(const FRun& R) const { return R.bTest ? RealT : SimT; }
+	int32 GateRoom(int32 Gate) const;
+	int32 JetwayFor(int32 GateIx) const;
+	void ChooseDesks(FRun& R);
+	void StepRun(int32 Ri, float Dt);
+	void CallBoarding(int32 Ri);
+
+	// people
+	int32 SpawnDep(int32 Ri);
+	int32 SpawnArr(int32 Ri);
+	int32 NewPx();
+	AActor* Body(const FVector& At, float Yaw, FPx& P);
+	void StepPx(int32 i, float Dt);
+	bool Follow(FPx& P, AActor* A, float Dt);
+	void Idle(FPx& P, AActor* A, float Dt, const FVector* Face = nullptr);
+	void Anim(FPx& P);
+	void Arrive(int32 i);
+	void Finish(int32 i, const TCHAR* Why);
+	void CarryBag(FPx& P, AActor* A);
+
+	// ways (world points)
+	void WayToHall(FPx& P, const FVector& From);
+	void WayFromHall(FPx& P, const FVector& From);
+	void WayToDesk(FPx& P, int32 Spot);
+	void WayToSecurity(FPx& P);
+	void WayScreening(FPx& P);
+	void WayUpstairs(FPx& P);
+	bool WayToWait(FPx& P);
+	void WayToJetway(FPx& P);
+	void WayArrivals(FPx& P);
+	void AddPlanWay(FPx& P, int32 FromPlace, const FVector& FromPlan, int32 ToPlace, const FVector& ToPlan, bool bJit = true);
+	void Crossing(FPx& P, bool bToTerminal, float NearX);
+	FVector DeskSpot(int32 Desk, int32 K) const;
+	FVector LaneSpot(int32 Lane, int32 K) const;
+	bool WallSpot(const FPx& P, const FBox2D& Region, FVector& Out, float& Yaw);
+	FVector CarParkSpot();
+	FVector PlanOf(const FVector& W) const { return FVector(W.X / 100.f, W.Z / 100.f, -W.Y / 100.f); }
+	static FVector PW(float X, float H, float Z);
+	float GroundZ(float PlanX, float PlanZ) const;
+	FVector Jit(const FPx& P, const FVector& W) const { return W + FVector(P.Jit.X, P.Jit.Y, 0.f); }
+};
