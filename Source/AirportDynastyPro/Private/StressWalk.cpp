@@ -15,6 +15,7 @@
 #include "Misc/Parse.h"
 #include "JetwayRigs.h"
 #include "SunClock.h"
+#include "Globe.h"
 #include "BabylonModel.h"
 #include "UObject/UObjectGlobals.h"
 #include "Coaches.h"
@@ -418,6 +419,14 @@ void ADPStressWalk::Tick(UWorld* W, APlayerController* PC, float Dt)
 			// (owner, 2026-11-21: "always do a stress test during daytime, only run nighttime if there is a real reason for it")
 			// every walk runs in daylight at the site (13:00 local unless -WalkHour=H), whatever the real clock says; the night
 			// parts are left out unless -WalkNight is given
+			// (owner, 2026-11-21: "always during tests, if you see that your ground is missing, stop the test and fix the ground")
+			if (AGlobe::TerrainLayer().IsEmpty())
+			{
+				ADP_LOG(TEXT("Stress walk: STOP - the ground is missing (no terrain installed: the smooth globe) - fix the ground, then walk again"));
+				bWalkOn = false; WalkEndNote = TEXT("STRESS WALK STOPPED\nThe ground is missing (no terrain installed)."); WalkEndNoteT = 12.f;
+				if (bWalkQuit) FGenericPlatformMisc::RequestExit(false);
+				return;
+			}
 			WalkHourBefore = ASunClock::HourOverride;
 			float H = 13.f; FParse::Value(FCommandLine::Get(), TEXT("WalkHour="), H);
 			ASunClock::HourOverride = FMath::Clamp(H, 0.f, 23.99f); ASunClock::Refresh(); WalkHourWas = ASunClock::HourOverride;

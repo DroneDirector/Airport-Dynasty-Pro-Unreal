@@ -42,6 +42,7 @@ else
   (cd "$V" && ADP_LOG=1 ./AirportDynastyPro/Binaries/Win64/AirportDynastyPro-Win64-Shipping.exe -UIShot $ROUTE -StallWatch $OFF $XTRA ${EXE:+"-ExecCmds=$EXE"} > /dev/null 2>&1)
   STEPS=$L/ADP.log
 fi
+grep -q "Stress walk: STOP - the ground is missing" "$STEPS" && { echo "STOP: the ground is missing (no terrain installed) - fix the ground first, then walk again"; exit 2; }
 echo "== the walk"; grep -E "Stress walk: " "$STEPS" | grep -v "way planned" | sed 's/.*Stress walk: //' | tr '\n' '|' | sed 's/|/ > /g'; echo
 echo "== every 30 s"; grep "30 s:" "$L/ADP-Perf.log" | cut -c1-200
 echo "== bad frames: $(grep -c 'BAD FRAME' "$L/ADP-Perf.log")"; grep "BAD FRAME" "$L/ADP-Perf.log" | sed 's/ - most likely / | /' | cut -c1-330

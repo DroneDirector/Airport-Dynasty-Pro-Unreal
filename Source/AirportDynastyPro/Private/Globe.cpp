@@ -37,6 +37,18 @@
 
 #pragma region Placing
 
+FString AGlobe::TerrainLayer()
+{
+	FString Layer = FPaths::ProjectContentDir() / TEXT("Terrain/layer.json");
+	// -LocalTerrain (editor only): the converter's fresh output on F: before it is packed and uploaded (a check of a rebuild)
+	if (!FPlatformProperties::RequiresCookedData() && FParse::Param(FCommandLine::Get(), TEXT("LocalTerrain")) && FPaths::FileExists(TEXT("F:/ADP-Terrain/tiles-v2/layer.json"))) Layer = TEXT("F:/ADP-Terrain/tiles-v2/layer.json");
+	// the world's terrain downloaded by the game (TerrainPacks.h), once every pack is in
+	if (!FPaths::FileExists(Layer) && ADPTerrain::Ready()) Layer = ADPTerrain::Dir() / TEXT("layer.json");
+	// the converter's output on this PC only when run from the editor (a release uses what it downloaded)
+	if (!FPaths::FileExists(Layer) && !FPlatformProperties::RequiresCookedData()) Layer = TEXT("F:/ADP-Terrain/tiles-v2/layer.json");
+	return FPaths::FileExists(Layer) ? Layer : FString();
+}
+
 void AGlobe::Build(const FAirfieldData& F)
 {
 	UWorld* W = GetWorld();
@@ -58,14 +70,8 @@ void AGlobe::Build(const FAirfieldData& F)
 	// the terrain that ships with the game (Tools/MakeTerrain.py): its layer.json in Content/Terrain (a release), or the
 	// converter's output on this PC; the airport's ground height (above the WGS84 ellipsoid) comes with it, so Unreal's
 	// ground (z = 0) sits on it. Without terrain: the smooth globe 1 m under the airport.
-	FString Layer = FPaths::ProjectContentDir() / TEXT("Terrain/layer.json");
-	// -LocalTerrain (editor only): the converter's fresh output on F: before it is packed and uploaded (a check of a rebuild)
-	if (!FPlatformProperties::RequiresCookedData() && FParse::Param(FCommandLine::Get(), TEXT("LocalTerrain")) && FPaths::FileExists(TEXT("F:/ADP-Terrain/tiles-v2/layer.json"))) Layer = TEXT("F:/ADP-Terrain/tiles-v2/layer.json");
-	// the world's terrain downloaded by the game (TerrainPacks.h), once every pack is in
-	if (!FPaths::FileExists(Layer) && ADPTerrain::Ready()) Layer = ADPTerrain::Dir() / TEXT("layer.json");
-	// the converter's output on this PC only when run from the editor (a release uses what it downloaded)
-	if (!FPaths::FileExists(Layer) && !FPlatformProperties::RequiresCookedData()) Layer = TEXT("F:/ADP-Terrain/tiles-v2/layer.json");
-	const bool bTerrain = FPaths::FileExists(Layer);
+	const FString Layer = TerrainLayer();
+	const bool bTerrain = !Layer.IsEmpty();
 	double Ground = -1.0;
 	{
 		FString Text;

@@ -5,6 +5,7 @@
 #include "SunClock.h"
 #include "Puddles.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "Globe.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -47,6 +48,9 @@ ASiteTrees::ASiteTrees()
 bool ASiteTrees::Load()
 {
 	if (ADPSite::IsDefault() || FParse::Param(FCommandLine::Get(), TEXT("NoTrees"))) return false;
+	// (owner, 2026-11-21: "the mesh is broken, the ground, the mountains") the trees stand at their real heights: without the
+	// terrain installed the ground is the smooth globe and they would float over it - none then, until the terrain is in
+	if (AGlobe::TerrainLayer().IsEmpty()) { ADP_LOG(TEXT("Trees: none - the terrain is not installed yet (they would float over the smooth globe)")); return false; }
 	TArray<uint8> Bin;
 	if (!FFileHelper::LoadFileToArray(Bin, *ADPSite::File(TEXT("trees.bin"))) || Bin.Num() < 24) { ADP_LOG(TEXT("Trees: none for this site")); return false; }
 	Count = Bin.Num() / (6 * sizeof(float));
