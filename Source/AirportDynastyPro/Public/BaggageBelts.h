@@ -40,9 +40,24 @@ public:
 	/** Tests: bags straight onto a belt's input. */
 	void Unload(int32 Belt, int32 Count, int32 Station = -1);
 
+	// ---- passengers and their own bags (PaxFlow.h, owner 2026-11-21): each arriving passenger's bag is tagged with
+	// their id, and they take exactly that bag off when it comes round ----
+	/** The belt a flight's bags go to (0..4), INDEX_NONE if none yet. */
+	static int32 BeltOf(UWorld* W, const FString& Flight);
+	/** These passengers' bags are among the next bags of that flight to come off the hold (each new bag on its belt
+	 *  takes the next id; bags without a tag are the passengers not shown). */
+	static void TagBags(UWorld* W, const FString& Flight, const TArray<FString>& PaxIds);
+	/** Where a passenger's own bag is now: on the plates (bOnBelt) or still on its way; false when it isn't in the system. */
+	bool PaxBag(const FString& Pax, FVector& At, bool& bOnBelt) const;
+	/** The passenger takes their bag off the plates into the hand: it then follows Holder (its carry handle at Holder's
+	 *  origin; OutHandle: the handle in the bag's own frame, for holding it upright). False if it isn't on the plates. */
+	bool TakePaxBag(const FString& Pax, USceneComponent* Holder, FVector* OutHandle = nullptr);
+	/** The bag is gone with its passenger (out to the car park). */
+	void DropPaxBag(const FString& Pax);
+
 private:
-	enum class EStage : uint8 { Trunk, Stub, Hidden, Rise, Belt, Gone };
-	struct FBag { EStage Stage = EStage::Gone; int32 Belt = 0, Kind = 0, Ix = 0; float P = 0.f, Yaw = 0.f, Side = 0.f, Lap = 0.f, Wait = 0.f; };
+	enum class EStage : uint8 { Trunk, Stub, Hidden, Rise, Belt, Gone, Held };
+	struct FBag { EStage Stage = EStage::Gone; int32 Belt = 0, Kind = 0, Ix = 0; float P = 0.f, Yaw = 0.f, Side = 0.f, Lap = 0.f, Wait = 0.f; FString Pax; TWeakObjectPtr<USceneComponent> Holder; FTransform Offset; };
 	struct FFlap { TObjectPtr<UInstancedStaticMeshComponent> K; int32 Ix = 0; FVector Hinge; FQuat Base; FVector Axis; float A = 0.f, V = 0.f; };
 	struct FBelt
 	{
@@ -68,6 +83,7 @@ private:
 	float SpawnIn = 0.f;
 	struct FUnload { int32 Belt, Station, Left; float Every, In; };
 	TArray<FUnload> Unloads;
+	TMap<FString, TArray<FString>> PaxTags;   // per flight: the passengers whose bags come next (TagBags)
 
 	FVector W(float X, float H, float Z) const;
 	FVector2f PathAt(float S, FVector2f& Dir) const;     // a belt's centre line (local plan x, z), anticlockwise

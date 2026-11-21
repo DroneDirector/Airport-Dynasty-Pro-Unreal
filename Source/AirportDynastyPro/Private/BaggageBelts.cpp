@@ -186,6 +186,8 @@ int32 ABaggageBelts::NewBag(int32 Belt, int32 Station)
 	UInstancedStaticMeshComponent* K = BagMeshes[B.Kind];
 	if (FreeIx[B.Kind].Num()) B.Ix = FreeIx[B.Kind].Pop();
 	else B.Ix = K->AddInstance(FTransform(FRotator::ZeroRotator, FVector(0, 0, -100000.f), FVector(0.001f)), true);
+	// (a shown passenger's bag: their id on its tag - PaxFlow)
+	if (Belts.IsValidIndex(Belt)) if (TArray<FString>* Tg = PaxTags.Find(Belts[Belt].Flight)) if (Tg->Num()) { B.Pax = (*Tg)[0]; Tg->RemoveAt(0); }
 	return Bags.Add(B);
 }
 
@@ -206,7 +208,7 @@ void ABaggageBelts::OnArrived(UWorld* Wo, float PlanX, const FString& Flight)
 	for (int32 b = 0; b < Me->Belts.Num(); ++b)
 	{
 		if (STATIONS[St] < BELTX[b] && St != 0) continue;
-		int32 N = Me->Belts[b].Waiting; for (const FBag& B : Me->Bags) if (B.Stage != EStage::Gone && B.Belt == b) ++N;
+		int32 N = Me->Belts[b].Waiting; for (const FBag& B : Me->Bags) if (B.Stage != EStage::Gone && B.Stage != EStage::Held && B.Belt == b) ++N;
 		if (N < Load) { Load = N; Best = b; }
 	}
 	if (Best == INDEX_NONE) return;
@@ -287,6 +289,9 @@ void ABaggageBelts::PlaceBag(FBag& B)
 		T = FTransform(FRotator(0, YawOf(D) + 90.f + B.Yaw, 0), W(X + P.X + N.X * B.Side, 0.45f, CZ + P.Y + N.Y * B.Side));
 		break;
 	}
+	case EStage::Held:
+		if (const USceneComponent* H = B.Holder.Get()) T = B.Offset * H->GetComponentTransform();
+		break;
 	default: break;
 	}
 	K->UpdateInstanceTransform(B.Ix, T, true, false, true);
@@ -336,7 +341,7 @@ void ABaggageBelts::Tick(float Dt)
 		case EStage::Belt:
 			if (Bt.bRun) { B.P += SPEED * Dt; B.Lap += SPEED * Dt; }
 			// the passengers of its flight take their bags as they come round (after the first lap, now and then)
-			if (Bt.bRun && B.Lap > PER * 0.6f && FMath::FRand() < Dt * 0.035f) { B.Stage = EStage::Gone; FreeIx[B.Kind].Add(B.Ix); }
+			if (Bt.bRun && B.Lap > (B.Pax.IsEmpty() ? PER * 0.6f : PER * 8.f) && FMath::FRand() < Dt * 0.035f) { B.Stage = EStage::Gone; FreeIx[B.Kind].Add(B.Ix); }   // (a shown passenger's bag waits for them - 8 rounds)
 			break;
 		default: break;
 		}
@@ -347,7 +352,7 @@ void ABaggageBelts::Tick(float Dt)
 	for (int32 b = 0; b < Belts.Num(); ++b)
 	{
 		FBelt& Bt = Belts[b];
-		bool bAny = Bt.Waiting > 0; for (const FBag& B : Bags) if (B.Stage != EStage::Gone && B.Belt == b) { bAny = true; break; }
+		bool bAny = Bt.Waiting > 0; for (const FBag& B : Bags) if (B.Stage != EStage::Gone && B.Stage != EStage::Held && B.Belt == b) { bAny = true; break; }
 		if (Bt.bRun)
 		{
 			Bt.Phase = FMath::Fmod(Bt.Phase + SPEED * Dt, PER);
@@ -420,3 +425,63 @@ void ABaggageBelts::Sounds(FBelt& Bt, int32 Index, float Dt)
 	for (UAudioComponent* A : {Bt.SStart.Get(), Bt.SRun.Get(), Bt.SClack.Get()})
 		if (A && A->IsPlaying()) { A->SetLowPassFilterFrequency(Bt.EnvLp); A->SetVolumeMultiplier(FMath::Max(0.001f, (A == Bt.SClack ? 0.7f : 1.f) * Bt.Env)); }
 }
+
+#pragma region The passengers own bags
+
+namespace
+{
+	// where a hand goes on each bag kind (its own frame, cm; its bottom at 0) - the same bag models as the departures'
+	const FVector ARRHANDLE[] = {FVector(0, -25.5f, 16.8f), FVector(0, -22.f, 14.4f), FVector(0, -28.f, 19.2f), FVector(0, 0, 36.f)};
+}
+
+int32 ABaggageBelts::BeltOf(UWorld* Wo, const FString& Flight)
+{
+	const ABaggageBelts* Me = Get(Wo); if (!Me || Flight.IsEmpty()) return INDEX_NONE;
+	for (int32 b = 0; b < Me->Belts.Num(); ++b) if (Me->Belts[b].Flight == Flight) return b;
+	return INDEX_NONE;
+}
+
+void ABaggageBelts::TagBags(UWorld* Wo, const FString& Flight, const TArray<FString>& PaxIds)
+{
+	ABaggageBelts* Me = Get(Wo); if (!Me) return;
+	Me->PaxTags.FindOrAdd(Flight).Append(PaxIds);
+	ADP_LOG(TEXT("Baggage: %d passengers' bags tagged for flight %s"), PaxIds.Num(), *Flight);
+}
+
+bool ABaggageBelts::PaxBag(const FString& Pax, FVector& At, bool& bOnBelt) const
+{
+	for (const FBag& B : Bags)
+		if (B.Stage != EStage::Gone && B.Pax == Pax)
+		{
+			FTransform T; BagMeshes[B.Kind]->GetInstanceTransform(B.Ix, T, true);
+			At = T.GetLocation(); bOnBelt = B.Stage == EStage::Belt; return true;
+		}
+	for (const TPair<FString, TArray<FString>>& It : PaxTags) if (It.Value.Contains(Pax)) { bOnBelt = false; At = FVector::ZeroVector; return true; }   // (still in the hold)
+	return false;
+}
+
+bool ABaggageBelts::TakePaxBag(const FString& Pax, USceneComponent* Holder, FVector* OutHandle)
+{
+	for (FBag& B : Bags)
+		if (B.Stage == EStage::Belt && B.Pax == Pax && Holder)
+		{
+			const FVector Hd = ARRHANDLE[FMath::Clamp(B.Kind, 0, 3)];
+			B.Stage = EStage::Held; B.Holder = Holder; B.Offset = FTransform(-Hd);
+			if (OutHandle) *OutHandle = Hd;
+			ADP_LOG(TEXT("Baggage: passenger %s takes their bag off belt %d"), *Pax, B.Belt + 1);
+			return true;
+		}
+	return false;
+}
+
+void ABaggageBelts::DropPaxBag(const FString& Pax)
+{
+	for (FBag& B : Bags)
+		if (B.Stage != EStage::Gone && B.Pax == Pax)
+		{
+			B.Stage = EStage::Gone; B.Holder = nullptr; B.Pax.Empty(); PlaceBag(B); FreeIx[B.Kind].Add(B.Ix);
+			if (BagMeshes.IsValidIndex(B.Kind)) BagMeshes[B.Kind]->MarkRenderStateDirty();
+		}
+}
+
+#pragma endregion

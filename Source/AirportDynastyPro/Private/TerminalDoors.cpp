@@ -203,6 +203,8 @@ void ATerminalDoors::BuildDoor(const FPlanDoor& D, const FTerminalPlan& Plan)
 
 #pragma region Opening and shutting
 
+TArray<FVector> ATerminalDoors::Openers;
+
 void ATerminalDoors::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
@@ -215,7 +217,14 @@ void ATerminalDoors::Tick(float DeltaSeconds)
 	for (FDoorRig& R : Rigs)
 	{
 		if (R.Wings) { R.Wings->SetRelativeRotation(FRotator(0, FMath::RadiansToDegrees(Time * 0.6f), 0)); continue; }
-		const bool bNear = R.D.Floor == PF && FMath::Sqrt(FMath::Square(PX - R.D.X) + FMath::Square(PZ - R.D.Z)) < FMath::Max(2.6f, R.D.Width * 0.7f);
+		bool bNear = R.D.Floor == PF && FMath::Sqrt(FMath::Square(PX - R.D.X) + FMath::Square(PZ - R.D.Z)) < FMath::Max(2.6f, R.D.Width * 0.7f);
+		if (!bNear && Openers.Num())
+		{
+			// (the passengers walking through: PaxFlow)
+			const float Rr = FMath::Square(FMath::Max(2.6f, R.D.Width * 0.7f) * 100.f);
+			const FVector Dw = FTerminalPlan::ToWorld(R.D.X, R.D.Floor >= 2 ? F2Y : 0.f, R.D.Z);
+			for (const FVector& O : Openers) if (FMath::Abs(O.Z - Dw.Z) < 150.f && FVector::DistSquared2D(O, Dw) < Rr) { bNear = true; break; }
+		}
 		const float Want = bNear ? 1.f : 0.f;
 		if (FMath::Abs(R.K - Want) < 0.001f) continue;
 		const float Speed = R.Slides.Num() ? 1.8f : 1.4f;

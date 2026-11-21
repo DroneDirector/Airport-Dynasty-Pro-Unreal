@@ -25,6 +25,10 @@ public:
 
 	virtual void Tick(float DeltaSeconds) override;
 
+	/** People other than you walking through the doors (world cm, refreshed every frame by whoever walks them - the
+	 *  passengers, PaxFlow.h): the doors open for them as they do for you. */
+	static TArray<FVector> Openers;
+
 private:
 	#pragma region Door rigs
 	struct FSlide { USceneComponent* Part = nullptr; float X0 = 0, Dir = 1; };

@@ -9,6 +9,7 @@
 #include "Animation/AnimSingleNodeInstance.h"
 #include "Animation/BlendSpace.h"
 #include "TerminalPlan.h"
+#include "PaxFlow.h"
 #include "Seats.h"
 #include "TruckDriverRig.h"
 #include "DriverPoseAnim.h"
@@ -573,6 +574,7 @@ void AADPPeople::StartWanderers()
 {
 	if (bStrollersStarted) return;
 	bStrollersStarted = true;
+	APaxFlow::Get(GetWorld());   // (the departing and arriving passengers' trips - PaxFlow.h - start with the airport)
 	FTerminalPlan Plan; if (!Plan.Load()) { ADP_WARN(TEXT("People: no terminal plan - no strolling passengers")); return; }
 	auto Boxes = [&](TFunctionRef<bool(const FPlanRoom&)> Pick, TArray<FBox2D>& Out, TArray<FString>& Ids)
 	{
@@ -631,6 +633,33 @@ void AADPPeople::StartWanderers()
 		}
 		ADP_LOG(TEXT("People: %d passengers about %s (only there)"), Made, G.What);
 	}
+}
+
+bool AADPPeople::SitOn(AActor* Who, int32 Seat, const TArray<FBox2D>& Area, float FloorZ)
+{
+	FVector SAt, SF; float SH;
+	if (!Who || !Find(Who) || !ASeats::SeatOf(Seat, SAt, SF, SH)) return false;
+	FStroll S; S.A = Who; S.Area = Area; S.FloorZ = FloorZ; S.Habit = EHabit::Bench; S.bHeld = true;
+	for (int32 i = 0; i < Area.Num(); ++i) S.AreaIds.Add(TEXT("PAXFLOW"));
+	S.Seat = Seat; S.To = FVector(SAt.X, SAt.Y, FloorZ) + SF * 60.f; S.Doing = EDoing::ToSeat; S.T = 0.f; S.SitPose = Rng.RandRange(0, 7);
+	Strollers.Add(S);
+	return true;
+}
+
+void AADPPeople::StandFrom(AActor* Who)
+{
+	for (FStroll& S : Strollers)
+		if (S.bHeld && S.A.Get() == Who)
+		{
+			if (S.Doing == EDoing::ToSeat) { ASeats::Release(Who); S.bRelease = true; }   // (not sat yet: free at once)
+			else { S.bStandSoon = true; if (S.Doing == EDoing::Sit) S.For = 0.f; }
+		}
+}
+
+bool AADPPeople::IsHeld(AActor* Who) const
+{
+	for (const FStroll& S : Strollers) if (S.bHeld && !S.bRelease && S.A.Get() == Who) return true;
+	return false;
 }
 
 bool AADPPeople::StrollerDoing(int32 Kind, FVector& At, FVector& Facing) const
@@ -873,6 +902,17 @@ void AADPPeople::SitPose(FStroll& S, float K)
 
 void AADPPeople::StepStrollers(float Dt)
 {
+	// (PaxFlow's passengers handed back: their rig and pose parts go)
+	for (int32 i = Strollers.Num() - 1; i >= 0; --i)
+		if (Strollers[i].bRelease || (Strollers[i].bHeld && !Strollers[i].A.IsValid()))
+		{
+			FStroll& S = Strollers[i];
+			if (!S.A.IsValid()) ASeats::Release(nullptr);
+			delete S.Rig; S.Rig = nullptr;
+			if (S.Rider) S.Rider->DestroyComponent();
+			if (S.Frame) S.Frame->DestroyComponent();
+			Strollers.RemoveAt(i);
+		}
 	if (!Strollers.Num()) return;
 	ADP_PERF_SCOPE("people: strolling passengers (each frame)", 1.f);
 	{ static double SaidAt = 0.0; const double Tn = FPlatformTime::Seconds(); if (Tn - SaidAt > 15.0) { SaidAt = Tn; int32 N[7] = {}; for (const FStroll& S : Strollers) ++N[(int32)S.Doing]; ADP_LOG(TEXT("People strolling: %d standing, %d walking, %d leaning, %d to a seat, %d sitting"), N[0], N[1], N[2], N[3], N[4] + N[5] + N[6]); } }
@@ -919,7 +959,7 @@ void AADPPeople::StepStrollers(float Dt)
 			}
 			break;
 		}
-		case EDoing::SitDown: SitPose(S, FMath::Min(1.f, S.T / 0.9f)); if (S.T >= 0.9f) { S.Doing = EDoing::Sit; S.T = 0.f; S.For = Rng.FRandRange(30.f, 120.f); } break;
+		case EDoing::SitDown: SitPose(S, FMath::Min(1.f, S.T / 0.9f)); if (S.T >= 0.9f) { S.Doing = EDoing::Sit; S.T = 0.f; S.For = S.bHeld ? (S.bStandSoon ? 0.f : 1e9f) : Rng.FRandRange(30.f, 120.f); } break;
 		case EDoing::Sit: if (!S.bCushionOk) SitPose(S, 1.f); if (S.T >= S.For) { S.Doing = EDoing::StandUp; S.T = 0.f; } break;   // (the cushion check settles over its first frames)
 		case EDoing::StandUp:
 			SitPose(S, FMath::Max(0.f, 1.f - S.T / 0.9f));
@@ -935,6 +975,7 @@ void AADPPeople::StepStrollers(float Dt)
 					A->SetActorLocationAndRotation(P, FRotator(0.f, SF.Rotation().Yaw - 90.f, 0.f));
 				}
 				if (W->Body) { static UBlendSpace* Move = LoadObject<UBlendSpace>(nullptr, TEXT("/Game/People/Anims/BS_Idle_Walk_Run_MH.BS_Idle_Walk_Run_MH")); W->Body->SetAnimationMode(EAnimationMode::AnimationSingleNode); if (Move) { W->Body->SetAnimation(Move); W->Body->Play(true); } }
+				if (S.bHeld) { ASeats::Release(A); S.bRelease = true; break; }   // (PaxFlow's passenger: handed back on its feet)
 				ASeats::Release(A); S.Seat = INDEX_NONE; S.Pose = nullptr; S.bLowered = false; S.Lower = 0.f; S.bSurf = false; S.Fwd = 0.f; S.Lift = 0.f; S.bCushionOk = false; S.CushionTries = 0;
 				S.Doing = EDoing::Stand; S.T = 0.f; S.For = Rng.FRandRange(1.f, 3.f);
 			}

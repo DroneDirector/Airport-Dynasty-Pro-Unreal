@@ -33,6 +33,14 @@ public:
 	void StartWanderers();
 	/** For the tests: a stroller sitting (Kind 0) or leaning (1) now - where it is and the way it faces. */
 	bool StrollerDoing(int32 Kind, FVector& At, FVector& Facing) const;
+	/** The departing passengers (PaxFlow.h): this person (spawned, its seat already claimed with ASeats::Claim) walks the
+	 *  last steps to the seat and sits down with the sitting IK step (SitPose), and stays sat until StandFrom. Area: the
+	 *  room it is in (world boxes); FloorZ its floor (world cm). */
+	bool SitOn(AActor* Who, int32 Seat, const TArray<FBox2D>& Area, float FloorZ);
+	/** Gets a person put down with SitOn up again; handed back (IsHeld false) once it is on its feet in front of the seat. */
+	void StandFrom(AActor* Who);
+	/** True while SitOn's person is on its way to the seat, sitting or getting up. */
+	bool IsHeld(AActor* Who) const;
 	virtual void Tick(float Dt) override;
 
 	/** How a line is said (for the voices later): calm, mild, firm, a bit aggressive, very aggressive. */
@@ -88,6 +96,7 @@ private:
 		EDoing Doing = EDoing::Stand; FVector To = FVector::ZeroVector; float T = 0.f, For = 0.f, LeanYaw = 0.f;
 		int32 Seat = INDEX_NONE; class FTruckDriverRig* Rig = nullptr; class UPoseableMeshComponent* Rider = nullptr; USceneComponent* Frame = nullptr;
 		class UDriverPoseAnim* Pose = nullptr; FTransform BodyInActor; float Lower = 0.f; bool bLowered = false; int32 SitPose = 0; bool bSurf = false; float SurfZ = 46.f; float CrossLift = 0.f; float Fwd = 0.f, Lift = 0.f; bool bCushionOk = false; int32 CushionTries = 0;
+		bool bHeld = false, bStandSoon = false, bRelease = false;   // (SitOn: PaxFlow's passenger, sat until StandFrom, then handed back)
 	};
 	TArray<FStroll> Strollers;
 	bool bStrollersStarted = false;
