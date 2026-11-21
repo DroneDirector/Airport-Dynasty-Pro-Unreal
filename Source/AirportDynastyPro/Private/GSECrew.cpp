@@ -278,13 +278,13 @@ void AGSE::CoupleGpu(int32 Ci, int32 Ti, int32 Gate, bool bOn, TFunction<void()>
 	if (Then) Do(Ci, MoveTemp(Then));
 }
 
-void AGSE::Curtains(int32 Ci, int32 Ti, bool bOpen, TFunction<void()> Then)
+void AGSE::Curtains(int32 Ci, int32 Ti, bool bOpen, TFunction<void()> Then, const FVector* Toward)
 {
 	// each cart of the train, the side facing the aircraft: the four straps unhooked (stooping to each), the hem taken in
 	// both hands and rolled up over the head - or down and strapped again
 	const FTractor& T = Tractors[Ti];
 	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(T.StandX, S, N, Sp);
-	const FVector Craft = Plan(S, N + 8.f);
+	const FVector Craft = Toward ? *Toward : Plan(S, N + 8.f);   // (the side towards the aircraft - or the make-up carousel)
 	for (const int32 c : T.Train)
 	{
 		if (!Carts.IsValidIndex(c)) continue;
@@ -362,14 +362,22 @@ void AGSE::StartTrain(int32 Ti, const TArray<int32>& Pair)
 			Wait(Ci, GscPause() * 0.5f);
 			ClimbOut(Ci, Ti, nullptr);
 			for (int32 k = 0; k < Pair.Num(); ++k) CoupleCart(Ci, Ti, Pair[k], k == 0 ? INDEX_NONE : Pair[k - 1], nullptr);
-			ClimbIn(Ci, Ti, [this, Ti] { TrainToStand(Ti); });
+			// then the bags: at the flight's make-up carousel beside the carts (GSEBags.cpp) - the train goes when it is made up
+			Do(Ci, [this, Ci, Ti] { const float Now = GetWorld()->GetTimeSeconds(); Later([this, Ci, Ti, Now] { MakeUp(Ci, Ti, Now); }); });
 		});
 	});
 }
 
 void AGSE::TrainToStand(int32 Ti)
 {
-	FTractor& T = Tractors[Ti]; T.Job = EJob::Out;
+	FTractor& T = Tractors[Ti];
+	// (made up before its departure was called: waits in the lane until its stand is known)
+	if (!bTest && !T.Key.IsEmpty() && T.StandX == 0.f)
+	{
+		if (const ATugs* G = Tg()) for (const ATugs::FTug& U : G->Tugs) if (U.Key == T.Key) T.StandX = U.StandX;
+		if (T.StandX == 0.f) { RetryIn(Ti, 15.f, [this, Ti] { TrainToStand(Ti); }); return; }
+	}
+	T.Job = EJob::Out;
 	RouteOut(T, [this, Ti] { TrainApron(Ti); });
 }
 
@@ -378,6 +386,12 @@ void AGSE::TrainApron(int32 Ti)
 	FTractor& T = Tractors[Ti];
 	// its flight's stand (the test: the next departure; with none yet, the stand nearest the apron exit with an aircraft)
 	if (T.Key.IsEmpty() && bTestStand) { T.Key = TestKey; T.StandX = TestStand; }
+	// (a train made up for its flight's bags before its departure was called: the stand from its tug, else wait for it)
+	if (!bTest && !T.Key.IsEmpty() && T.StandX == 0.f)
+	{
+		if (const ATugs* G = Tg()) for (const ATugs::FTug& U : G->Tugs) if (U.Key == T.Key) T.StandX = U.StandX;
+		if (T.StandX == 0.f) { RetryIn(Ti, 15.f, [this, Ti] { TrainApron(Ti); }); return; }
+	}
 	float S = 0.f, N = 0.f, Sp = 36.f;
 	if (T.Key.IsEmpty() || !StandGeo(T.StandX, S, N, Sp))
 	{
@@ -431,15 +445,12 @@ void AGSE::TrainLoad(int32 Ti)
 	Wait(Ci, GscPause());
 	ClimbOut(Ci, Ti, [this, Ti] { Tractors[Ti].Job = EJob::Loading; });
 	Curtains(Ci, Ti, true, nullptr);
-	// the bags up the belt loader into the bulk hold (its belt running - waited for, 2.5 min at most); the loading's own
-	// time: the test a short minute, the game 4 minutes (the bag models and the real count come next)
-	const float Load = bTest ? 60.f : 240.f;
+	// the bags up the belt loader into the bulk hold (its belt running - waited for, 2.5 min at most), bag by bag
 	const float StandX = T.StandX;
 	WaitFor(Ci, [this, StandX](float E) { const int32 Li = LoaderAt(StandX); return Li == INDEX_NONE || Tractors[Li].bBelt || E > 150.f; });
-	Do(Ci, [this, Ti, Load] { ADP_LOG(TEXT("GSE: loading %s from %s's train (%.0f s)"), *Tractors[Ti].Key, *Tractors[Ti].Name, Load); });
-	LoadingCycles(Ci, Ti, LoaderAt(StandX), Load);
-	Curtains(Ci, Ti, false, nullptr);
-	ClimbIn(Ci, Ti, [this, Ti] { Motor(Tractors[Ti], true); TrainHome(Ti); });
+	Do(Ci, [this, Ti] { ADP_LOG(TEXT("GSE: loading %s from %s's train into the bulk hold"), *Tractors[Ti].Key, *Tractors[Ti].Name); });
+	Do(Ci, [this, Ci, Ti, StandX] { Later([this, Ci, Ti, StandX] { Unload(Ci, Ti, LoaderAt(StandX)); }); });
+	// (the curtains down and the way home: queued by Unload once the bags are off - GSEBags.cpp)
 }
 
 void AGSE::TrainHome(int32 Ti)

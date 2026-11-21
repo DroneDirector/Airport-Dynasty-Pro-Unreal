@@ -13,6 +13,7 @@
 #include "GSE.h"
 #include "Tugs.h"
 #include "CrewPose.h"
+#include "DepartureBelts.h"
 #include "ADPLog.h"
 #include "BabylonModel.h"
 #include "Engine/World.h"
@@ -205,10 +206,24 @@ void AGSE::LoaderIn(int32 Li)
 		{
 			if (ATugs* G2 = Tg()) G2->Crew[Top].Hold = [this, Li](float, float PH, FDriverPose& P)
 			{
-				const FTractor& T = Tractors[Li]; const FVector Fw = FRotator(0.f, T.Yaw, 0.f).Vector(), At = BoomW(T, GslStandTop);
-				const float Cy = FMath::Frac(GetWorld()->GetTimeSeconds() / 6.f), E = FMath::Sin(Cy * PI);
+				// facing down the belt: a bag at the top taken by its grips, lifted round into the hold behind him
+				const FTractor& T = Tractors[Li]; const FVector Fw = FRotator(0.f, T.Yaw, 0.f).Vector(), Rt = FRotator(0.f, T.Yaw + 90.f, 0.f).Vector(), At = BoomW(T, GslStandTop);
 				const FVector Belt = BoomW(T, GslBeltTop - FVector(25.f, 0.f, -12.f));
-				P = ADPPose::Both(At, -Fw, Belt + FRotator(0.f, T.Yaw + 90.f, 0.f).Vector() * 14.f, Belt - FRotator(0.f, T.Yaw + 90.f, 0.f).Vector() * 14.f, 0.9f, PH, E, 12.f);
+				const ADepartureBelts* D = ADepartureBelts::Get(GetWorld());
+				const FTractor::FBeltBag* B = nullptr; for (const FTractor::FBeltBag& X : T.BeltBags) if (X.Stage >= 1) { B = &X; break; }
+				if (D && B && B->Stage == 1)
+				{
+					const FDepBagGrips G = D->Grips(B->Id); const float E = FMath::Min(1.f, B->T / 0.8f);
+					P = G.bTwoHands ? ADPPose::Both(At, -Fw, G.Left, G.Right, 1.f, PH, E, 22.f) : ADPPose::Stoop(At, -Fw, 1, G.Handle, 1.f, PH, E);
+				}
+				else if (D && B && B->Stage == 2)
+				{
+					// (turning with it into the hold, setting it down: the hands from the belt to the hold floor behind him)
+					const float K = FMath::Min(1.f, B->T / 1.6f);
+					const FVector H = FMath::Lerp(Belt + FVector(0, 0, 25.f), At + Fw * 70.f + FVector(0, 0, 40.f), FMath::SmoothStep(0.f, 1.f, K));
+					P = ADPPose::Both(At, FMath::Lerp(-Fw, Fw, K).GetSafeNormal2D().IsNearlyZero() ? Rt : FMath::Lerp(-Fw, Fw, K).GetSafeNormal2D(), H + Rt * 14.f, H - Rt * 14.f, 1.f, PH, 1.f, 16.f);
+				}
+				else P = ADPPose::Standing(At, -Fw, PH);
 			};
 			ADP_LOG(TEXT("GSE: the hold loader is up in the bulk hold"));
 		});

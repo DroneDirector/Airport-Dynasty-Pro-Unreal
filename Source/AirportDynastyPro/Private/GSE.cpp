@@ -246,6 +246,7 @@ bool AGSE::SpawnCart(FCart& C)
 		C.GRoll[s] = M->BindGroup({TEXT("CurtainRoll_") + S}, false, Piv);
 	}
 	C.Dirt.Dress(M, this, FString::Printf(TEXT("baggage cart %d"), Carts.Num() + 1));
+	C.Bags.Init(INDEX_NONE, 18);
 	C.bMoved = true;
 	return true;
 }
@@ -870,6 +871,10 @@ void AGSE::Tick(float Dt)
 		}
 	}
 	for (FCart& C : Carts) CartParts(C, Dt);
+	for (FTractor& T : Tractors) if (T.bLoader) BeltTick(T, Dt);
+	PollBags(Dt);
+	// (crew plans asked for from inside a crew act)
+	if (Deferred.Num()) { TArray<TFunction<void()>> D = MoveTemp(Deferred); Deferred.Reset(); for (TFunction<void()>& F : D) if (F) F(); }
 }
 
 // the test's own eyes (owner 2026-11-21: a vehicle on a red marking, under an aircraft or through anything is a fault -
@@ -994,6 +999,10 @@ bool AGSE::WatchPoints(TArray<FVector>& Pts, FVector& Side) const
 	// (backing to its carts: the carts it is going to couple)
 	if (T.Job == EJob::ToCarts || T.Job == EJob::Coupling) for (int32 c = 0; c < Carts.Num(); ++c) if (Carts[c].Tractor == INDEX_NONE && FVector::Dist2D(Carts[c].At, T.At) < 900.f) Pts.Add(Carts[c].At + FVector(0, 0, 180.f));
 	if (T.TowGpu != INDEX_NONE && Tg() && Tg()->Tugs.IsValidIndex(T.TowGpu) && Tg()->Tugs[T.TowGpu].Gpu.M.IsValid()) { const FVector G = Tg()->Tugs[T.TowGpu].Gpu.M->GetActorLocation(); Pts.Add(G + FVector(0, 0, 180.f)); Pts.Add(G); }
+	// (at the aircraft: its belt loader too - the boom's top at the hold door, the hold loader; making up: the carousel)
+	if (!T.bLoader && T.StandX != 0.f && (T.Job == EJob::AtStand || T.Job == EJob::Loading)) { const int32 Li = LoaderAt(T.StandX); if (Li != INDEX_NONE) { const FTractor& L = Tractors[Li]; Pts.Add(BoomW(L, FVector(400.f, 0.f, 200.f))); Pts.Add(TW(L, FVector(-390.f, 0.f, 0.f))); } }
+	if (T.bLoader) { Pts.Add(BoomW(T, FVector(400.f, 0.f, 220.f))); if (const ATugs* G = Tg()) if (G->Crew.IsValidIndex(T.TopCrew) && G->Crew[T.TopCrew].A.IsValid()) Pts.Add(G->Crew[T.TopCrew].A->GetActorLocation() + FVector(0, 0, 185.f)); }
+	if (!T.bLoader && T.StandX == 0.f && T.Job == EJob::Loading) { Pts.Add(PickStand(int32(&T - Tractors.GetData()))); Pts.Add(PickStand(int32(&T - Tractors.GetData())) + FVector(0, 0, 150.f)); }
 	Side = -Rt;   // (the driver's door side)
 	if (const ATugs* G = Tg())
 		if (G->Crew.IsValidIndex(T.Driver) && G->Crew[T.Driver].A.IsValid())
@@ -1017,14 +1026,21 @@ void AGSE::Departure(const FString& Key, float StandX)
 	if (Key.IsEmpty() || Served.Contains(Key)) return;
 	float S, N, Sp; if (!StandGeo(StandX, S, N, Sp) || Sp > 40.f) return;   // (the contact stands' A320s; the big stands' trains come with their belt loaders and containers)
 	Served.Add(Key);
-	// a train made up but not yet given its flight takes it (the test's first train goes to the next departure)
-	for (FTractor& T : Tractors) if (!T.bLoader && (T.Job == EJob::Boarding || T.Job == EJob::ToCarts || T.Job == EJob::Coupling || T.Job == EJob::Out) && T.Key.IsEmpty() && T.TowGpu == INDEX_NONE && T.StandX == 0.f)
+	// a train being made up for this flight's bags (started by its bags coming: PollBags) learns its stand; one not yet given
+	// a flight takes it (the test's first train goes to the next departure)
+	for (FTractor& T : Tractors) if (!T.bLoader && T.Key == Key && T.StandX == 0.f && T.Job != EJob::None) { T.StandX = StandX; ADP_LOG(TEXT("GSE: %s's train for %s - its stand at x %.0f"), *T.Name, *Key, StandX); return; }
+	for (FTractor& T : Tractors) if (!T.bLoader && (T.Job == EJob::Boarding || T.Job == EJob::ToCarts || T.Job == EJob::Coupling || T.Job == EJob::Loading || T.Job == EJob::Out) && T.Key.IsEmpty() && T.TowGpu == INDEX_NONE && T.StandX == 0.f)
 	{ T.Key = Key; T.StandX = StandX; for (const int32 c : T.Train) if (Carts.IsValidIndex(c)) Carts[c].Flight = Key; ADP_LOG(TEXT("GSE: %s's train goes to %s (stand at x %.0f)"), *T.Name, *Key, StandX); return; }
 	if (bTest) { if (!bTestStand) { bTestStand = true; TestKey = Key; TestStand = StandX; } return; }
+	StartFor(Key, StandX);
+}
+
+bool AGSE::StartFor(const FString& Key, float StandX)
+{
 	// a free tractor and two free carts standing coupled-ready (a pair in a row, front to back: b's eye at a's rear jaw),
 	// the front one's eye clear to back up to
 	int32 Ti = INDEX_NONE; for (int32 t = 0; t < Tractors.Num() && Ti == INDEX_NONE; ++t) if (!Tractors[t].bLoader && Tractors[t].Job == EJob::None && Tractors[t].M.IsValid()) Ti = t;
-	if (Ti == INDEX_NONE) { ADP_LOG(TEXT("GSE: no tractor free for %s's baggage"), *Key); return; }
+	if (Ti == INDEX_NONE) { ADP_LOG(TEXT("GSE: no tractor free for %s's baggage"), *Key); return false; }
 	for (int32 a = 0; a < Carts.Num(); ++a)
 	{
 		if (Carts[a].Tractor != INDEX_NONE) continue;
@@ -1034,10 +1050,12 @@ void AGSE::Departure(const FString& Key, float StandX)
 		{
 			if (a == b || Carts[b].Tractor != INDEX_NONE || FVector::Dist2D(CW(Carts[b], GseCEye), CW(Carts[a], GseCJaw)) > 30.f) continue;
 			Tractors[Ti].Key = Key; Tractors[Ti].StandX = StandX;
+			BagKey.Add(Ti, Key);
 			StartTrain(Ti, {a, b});
-			if (Tractors[Ti].Job == EJob::None) { Tractors[Ti].Key.Reset(); Tractors[Ti].StandX = 0.f; }
-			return;
+			if (Tractors[Ti].Job == EJob::None) { Tractors[Ti].Key.Reset(); Tractors[Ti].StandX = 0.f; BagKey.Remove(Ti); return false; }
+			return true;
 		}
 	}
 	ADP_LOG(TEXT("GSE: no pair of free carts for %s's baggage"), *Key);
+	return false;
 }

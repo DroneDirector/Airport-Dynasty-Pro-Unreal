@@ -90,6 +90,8 @@ public:
 		int32 GBoom = INDEX_NONE, GBumper = INDEX_NONE, GRam[4] = {INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE};
 		UAudioComponent* BeltSnd = nullptr; UAudioComponent* BoomSnd = nullptr;
 		int32 TopCrew = INDEX_NONE;       // the loader up at the hold door
+		struct FBeltBag { int32 Id = 0; float S = 0.f, T = 0.f; uint8 Stage = 0; };   // (0 riding up, 1 at the top, 2 in the hold loader's hands)
+		TArray<FBeltBag> BeltBags;        // the bags pinned on its belt (DepartureBelts' bags)
 	};
 	struct FCart
 	{
@@ -106,6 +108,7 @@ public:
 		UAudioComponent* Roll = nullptr;
 		FVehicleDirt Dirt;
 		bool bMoved = true;
+		TArray<int32> Bags;                             // its load slots (18: 3 along x 2 across x 3 high): the bag in each, or INDEX_NONE
 	};
 	/** A gate GPU being towed: its moving parts (bound when first towed). */
 	struct FGpuRig { int32 GWheel[4] = {INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE}, GAxle = INDEX_NONE; float AxleYaw = 0.f, Spin = 0.f; FVector Home = FVector::ZeroVector; float HomeYaw = 0.f; bool bBound = false; FVector PrevAt = FVector::ZeroVector; };
@@ -174,6 +177,24 @@ private:
 	void LoaderLeave(int32 Li);
 	FVector BoomW(const FTractor& T, const FVector& BoomLocal) const;
 	void LoadingCycles(int32 Ci, int32 Ti, int32 Li, float Seconds);
+	// the bags (DepartureBelts.h): the crew at the flight's make-up carousel ahead of its bags, each bag lifted off by its
+	// grips onto a cart's load slot; at the aircraft off the carts onto the belt loader's bottom end, pinned on the belt up
+	// to the hold loader, who takes it off into the hold (GSEBags.cpp)
+	class USkeletalMeshComponent* Body(int32 Ci) const;
+	FTransform CartSlot(int32 Cart, int32 Slot) const;      // (the cart's root frame)
+	void MakeUp(int32 Ci, int32 Ti, float Started);
+	void Unload(int32 Ci, int32 Ti, int32 Li);
+	void BeltTick(FTractor& L, float Dt);
+	bool BeltBottomFree(const FTractor& L) const;
+	void PollBags(float Dt);
+	FString BagFlight(int32 Ti) const;
+	float BagPoll = 0.f; int32 BagScan = 1; TSet<FString> BagFlights, MadeUp; TMap<int32, FString> BagKey;
+	TArray<TFunction<void()>> Deferred;   // (crew plans made from inside a crew act: run on the next frame)
+	void Later(TFunction<void()> F) { Deferred.Add(MoveTemp(F)); }
+	int32 Pickable(int32 Ti) const;
+	bool StartFor(const FString& Key, float StandX);
+	FVector PickStand(int32 Ti) const;
+	FTransform BeltOffset(const FTractor& L, float S) const;
 public:
 	/** The turnaround planner's bulk hold task (Turnaround.cpp): the belt loader to that stand. */
 	void BulkHold(float StandX, const FString& Key) { EnsureLoader(StandX, Key); }
@@ -188,7 +209,7 @@ private:
 	void CoupleCart(int32 Ci, int32 Ti, int32 Cart, int32 Front, TFunction<void()> Then);   // Front: the cart it couples to (INDEX_NONE: the tractor)
 	void UncoupleCart(int32 Ci, int32 Ti, int32 Cart, int32 Front, TFunction<void()> Then);
 	void CoupleGpu(int32 Ci, int32 Ti, int32 Gate, bool bOn, TFunction<void()> Then);
-	void Curtains(int32 Ci, int32 Ti, bool bOpen, TFunction<void()> Then);
+	void Curtains(int32 Ci, int32 Ti, bool bOpen, TFunction<void()> Then, const FVector* Toward = nullptr);
 	void Do(int32 Ci, TFunction<void()> Fn);
 	void Wait(int32 Ci, float S);
 	void WaitFor(int32 Ci, TFunction<bool(float)> Until);
