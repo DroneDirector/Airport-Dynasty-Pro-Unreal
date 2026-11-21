@@ -172,8 +172,8 @@ for nm, x, d in (('Rear', -L / 2 - 0.10, -1), ('Front', L / 2 + 0.038, 1)):
         box(f'HitchJaw{nm}_{z}', (x + d * 0.09, 0, z), (0.18, 0.22, 0.07), M_STEEL, bevel=0.01)
         box(f'HitchJawLow{nm}_{z}', (x + d * 0.09, 0, z - 0.09), (0.18, 0.22, 0.03), M_STEEL, bevel=0.006)
     cyl(f'HitchPin{nm}', (x + d * 0.12, 0, 0.50), 0.022, 0.42, 'z', M_STEEL, 16)
-    box(f'HitchPlate{nm}', (x + d * 0.01, 0, 0.50), (0.03, 0.40, 0.46), M_DARK, bevel=0.006)   # welded to the bumper
-    for s in (-1, 1): cyl(f'TowEye{nm}{s}', ((L / 2 + 0.038 + 0.015) if d > 0 else (-L / 2 - 0.1005 - 0.015), s * 0.80, GC + 0.18), 0.04, 0.03, 'x', M_STEEL, 16)   # on the bumper face
+    box(f'HitchPlate{nm}', (x + d * 0.01, 0, 0.495), (0.03, 0.40, 0.55), M_DARK, bevel=0.006)   # welded to the bumper
+    # (no tow eyes: a towbar tug is towed by its own hitch - owner 2026-11-21, they hung off the bumper's edge)
 # lights: every lamp is a housing SET INTO the bumper or body (half its depth inside the steel), the lens recessed in it
 def lamp(name, face_pt, normal, w, h, m, depth=0.06):
     """face_pt: a point on the face it sits in; normal: 'x+', 'x-', 'y+', 'y-'; w across, h up (m)."""
@@ -191,9 +191,9 @@ def lamp(name, face_pt, normal, w, h, m, depth=0.06):
         box(name + '_Lens', (c.x, c.y + sg * (depth / 2 - 0.008), c.z), (w, 0.006, h), m, bevel=0.003)
 FRONT_FACE, REAR_FACE = L / 2 + 0.038, -L / 2 - 0.1005
 for s in (-1, 1):
-    lamp(f'LowBeam_{s}', (FRONT_FACE, s * 0.88, GC + 0.48), 'x+', 0.13, 0.12, M_WHITE)        # outer: low beam
-    lamp(f'HighBeam_{s}', (FRONT_FACE, s * 0.71, GC + 0.48), 'x+', 0.13, 0.12, M_WHITE)       # inner: high beam
-    lamp(f'IndicatorF_{s}', (FRONT_FACE, s * 0.80, GC + 0.30), 'x+', 0.12, 0.07, M_AMBER)
+    lamp(f'LowBeam_{s}', (FRONT_FACE, s * 0.88, GC + 0.42), 'x+', 0.13, 0.12, M_WHITE)        # outer: low beam
+    lamp(f'HighBeam_{s}', (FRONT_FACE, s * 0.71, GC + 0.42), 'x+', 0.13, 0.12, M_WHITE)       # inner: high beam
+    lamp(f'IndicatorF_{s}', (FRONT_FACE, s * 0.80, GC + 0.25), 'x+', 0.12, 0.07, M_AMBER)
     lamp(f'TailBrake_{s}', (REAR_FACE, s * 0.97, GC + 0.48), 'x-', 0.13, 0.12, M_RED)       # tail + brake (brighter)
     lamp(f'Reverse_{s}', (REAR_FACE, s * 0.80, GC + 0.48), 'x-', 0.11, 0.12, M_WHITE)       # reversing lamp
     lamp(f'IndicatorR_{s}', (REAR_FACE, s * 0.90, GC + 0.30), 'x-', 0.12, 0.07, M_AMBER)
@@ -201,7 +201,7 @@ for s in (-1, 1):
         lamp(f'SideMarker_{s}{x > 0}', (x, s * W / 2, DECK - 0.47), 'y' + ('+' if s > 0 else '-'), 0.10, 0.05, M_AMBER, depth=0.04)
 # amber flashers at both rear corners, set into the deck's corner plate (they flash with the roof beacon, as the jetway's)
 for s in (-1, 1):
-    lamp(f'FlasherRear_{s}', (-L / 2 + 0.06, s * (W / 2 - 0.20), DECK - 0.06), 'x-', 0.10, 0.10, M_AMBER, depth=0.08)
+    lamp(f'FlasherRear_{s}', (-L / 2 + 0.06, s * (W / 2 - 0.25), DECK - 0.17), 'x-', 0.10, 0.10, M_AMBER, depth=0.08)
 # chevron panel frames on the bumpers (the chevrons themselves come with the paint texture)
 # ---------------------------------------------------------------- deck: engine cover, grilles, ballast, tanks, boxes
 box('EngineCover', (1.30, -0.15, DECK + 0.06), (1.20, 1.90, 0.12), M_PAINT, bevel=0.03, segs=3)      # its edges rolled (pressed sheet)
@@ -219,7 +219,7 @@ box('ToolBox', (-0.92, -0.10, DECK + 0.12), (0.45, 0.55, 0.24), M_DARK, bevel=0.
 box('ToolBoxLid', (-0.92, -0.10, DECK + 0.245), (0.47, 0.57, 0.02), M_DARK, bevel=0.005)
 # the exhaust: a stack clamped to the cab's back wall, its pipe down into the body
 cyl('Exhaust', (CABU_X0 - 0.06, CAB_Y1 - 0.25, DECK + 0.45), 0.045, 0.90, 'z', M_STEEL, 20)
-cyl('ExhaustCap', (CABU_X0 - 0.06, CAB_Y1 - 0.25, DECK + 0.91), 0.05, 0.03, 'z', M_DARK, 20)
+cyl('ExhaustCap', (CABU_X0 - 0.06, CAB_Y1 - 0.25, DECK + 0.91), 0.044, 0.03, 'z', M_DARK, 20)
 for z in (DECK + 0.25, DECK + 0.70): box(f'ExhaustClamp_{z}', (CABU_X0 - 0.03, CAB_Y1 - 0.25, z), (0.07, 0.11, 0.03), M_STEEL)
 
 # ---------------------------------------------------------------- the cab (sunk into the body; rounded corners: real cabs are pressed)
@@ -250,8 +250,8 @@ window('WinRight', (0.10, CAB_Y0, wz), (1.05, 0.12, wh))
 box('DoorSeamF', (0.56, CAB_Y1 + 0.003, (CFLOOR + CABH) / 2), (0.006, 0.006, CABH - CFLOOR - 0.12), M_DARK)
 box('DoorSeamR', (-0.15, CAB_Y1 + 0.003, (CFLOOR + CABH) / 2), (0.006, 0.006, CABH - CFLOOR - 0.12), M_DARK)
 for z in (CFLOOR + 0.25, CABH - 0.35): cyl(f'DoorHinge_{z}', (0.57, CAB_Y1 + 0.015, z), 0.015, 0.10, 'z', M_STEEL, 12)
-box('DoorHandleOut', (-0.05, CAB_Y1 + 0.03, DECK - 0.02), (0.14, 0.025, 0.035), M_STEEL, bevel=0.008)
-for x in (-0.11, 0.01): box(f'DoorHandleMount_{x}', (x, CAB_Y1 + 0.015, DECK - 0.02), (0.02, 0.03, 0.03), M_STEEL)
+box('DoorHandleOut', (-0.05, CAB_Y1 + 0.03, DECK - 0.14), (0.14, 0.025, 0.035), M_STEEL, bevel=0.008)
+for x in (-0.11, 0.01): box(f'DoorHandleMount_{x}', (x, CAB_Y1 + 0.015, DECK - 0.14), (0.02, 0.03, 0.03), M_STEEL)
 box('DoorHandleIn', (-0.05, CAB_Y1 - 0.07, DECK - 0.05), (0.12, 0.02, 0.03), M_PLAST, bevel=0.006)
 box('DoorPanelIn', (0.20, CAB_Y1 - 0.055, (CFLOOR + DECK) / 2 + 0.1), (0.66, 0.01, DECK - CFLOOR - 0.1), M_PLAST, bevel=0.005)
 # roof: drip rail round the edge, beacon on its base plate, work lamps on brackets, horn, antenna
@@ -267,9 +267,9 @@ cyl('AntennaBase', (-0.3, CAB_Y0 + 0.2, CABH + 0.01), 0.02, 0.02, 'z', M_DARK, 1
 cyl('Antenna', (-0.3, CAB_Y0 + 0.2, CABH + 0.31), 0.003, 0.60, 'z', M_DARK, 6)
 # mirrors: arms bolted to the front post, both sides
 for s, y in ((1, CAB_Y1), (-1, CAB_Y0)):
-    tube(f'MirrorArm_{s}', [(CABU_X1 - 0.05, y, CABH - 0.40), (CABU_X1 + 0.10, y + s * 0.18, CABH - 0.36), (CABU_X1 + 0.12, y + s * 0.26, CABH - 0.30)], 0.012, M_DARK)
-    box(f'Mirror_{s}', (CABU_X1 + 0.12, y + s * 0.30, CABH - 0.36), (0.04, 0.18, 0.26), M_PLAST, bevel=0.02, segs=3)
-    box(f'MirrorPlate_{s}', (CABU_X1 - 0.04, y, CABH - 0.40), (0.06, 0.012, 0.08), M_DARK)
+    tube(f'MirrorArm_{s}', [(CABU_X1 - 0.16, y + s * 0.01, CABH - 0.40), (CABU_X1 + 0.04, y + s * 0.18, CABH - 0.36), (CABU_X1 + 0.10, y + s * 0.26, CABH - 0.30)], 0.012, M_DARK)
+    box(f'Mirror_{s}', (CABU_X1 + 0.10, y + s * 0.30, CABH - 0.36), (0.04, 0.18, 0.26), M_PLAST, bevel=0.02, segs=3)
+    box(f'MirrorPlate_{s}', (CABU_X1 - 0.16, y + s * 0.004, CABH - 0.40), (0.08, 0.012, 0.08), M_DARK)   # on the flat side wall, clear of the rounded corner
 # wipers on their spindles under the front window
 for k, y in enumerate((CAB_Y0 + 0.40, CAB_Y1 - 0.45)):
     cyl(f'WiperSpindle_{k}', (CABU_X1 + 0.015, y, WIN_Z0 - 0.01), 0.012, 0.03, 'x', M_DARK, 12)
@@ -278,7 +278,7 @@ for k, y in enumerate((CAB_Y0 + 0.40, CAB_Y1 - 0.45)):
 # step and grab rails to climb in (the step on 2 brackets welded to the body side; rails bolted at both ends)
 box('StepTread', (0.0, W / 2 + 0.10, 0.533 - 0.02), (0.50, 0.20, 0.03), M_STEEL, bevel=0.004)
 for x in (-0.20, 0.20): box(f'StepBracket_{x}', (x, W / 2 + 0.06, 0.533 - 0.12), (0.03, 0.12, 0.20), M_STEEL)
-for k in range(5): box(f'StepGrip_{k}', (-0.20 + k * 0.10, W / 2 + 0.10, 0.533 - 0.003), (0.05, 0.18, 0.006), M_DARK)
+for k in range(5): box(f'StepGrip_{k}', (-0.20 + k * 0.10, W / 2 + 0.10, 0.533 - 0.003), (0.05, 0.15, 0.006), M_DARK)
 tube('GrabRailFront', [(0.62, CAB_Y1 + 0.005, DECK + 0.05), (0.62, CAB_Y1 + 0.07, DECK + 0.10), (0.62, CAB_Y1 + 0.07, DECK + 0.60), (0.62, CAB_Y1 + 0.005, DECK + 0.65)], 0.016, M_STEEL, bez=False)
 tube('GrabRailDeck', [(-0.62, W / 2 - 0.05, DECK), (-0.62, W / 2 - 0.05, DECK + 0.08), (-0.62, W / 2 - 0.05, DECK + 0.45)], 0.016, M_STEEL, bez=False)
 # mud flaps behind each wheel, bolted to the body underside
@@ -296,8 +296,8 @@ dash = box('Dash', (DX + 0.10, (IY0 + IY1) / 2, DECK - 0.05), (0.34, IY1 - IY0, 
 box('DashTop', (DX + 0.15, (IY0 + IY1) / 2, DECK + 0.13), (0.30, IY1 - IY0, 0.04), M_PLAST, bevel=0.015, segs=2)
 box('DashPedestal', (CAB_X1 - 0.12, IY1 - 0.40, (CFLOOR + DECK) / 2 - 0.08), (0.14, 0.40, DECK - CFLOOR - 0.15), M_PLAST, bevel=0.02)
 DRY = IY1 - 0.42                       # the driver's line (y)
-box('DisplayBezel', (DX - 0.07, DRY, DECK + 0.02), (0.03, 0.26, 0.17), M_PLAST, bevel=0.01)
-box('Display', (DX - 0.086, DRY, DECK + 0.02), (0.004, 0.22, 0.13), M_GLASS)
+box('DisplayBezel', (DX - 0.07, DRY, DECK - 0.01), (0.03, 0.26, 0.17), M_PLAST, bevel=0.01)
+box('Display', (DX - 0.086, DRY, DECK - 0.01), (0.004, 0.22, 0.13), M_GLASS)
 for k in range(6): cyl(f'Switch_{k}', (DX - 0.07, DRY - 0.30 + k * 0.05, DECK - 0.10), 0.011, 0.02, 'x', M_DARK, 12)
 cyl('EStop', (DX - 0.07, IY0 + 0.25, DECK - 0.02), 0.025, 0.03, 'x', M_RED, 24, bevel=0.005)
 for k in range(4): box(f'Vent_{k}', (DX - 0.07, IY0 + 0.45 + k * 0.035, DECK + 0.08), (0.02, 0.025, 0.06), M_DARK)
@@ -399,7 +399,7 @@ ik('Foot_Accel', (CAB_X1 - 0.21, DRY - 0.12, CFLOOR + 0.15)); ik('Foot_Brake', (
 ik('Hand_Selector', (SX + 0.20, SY - 0.28, SZ + 0.67)); ik('Hand_ParkBrake', (SX + 0.10, IY0 + 0.10, CFLOOR + 0.45))
 for k, x in enumerate((IX0 + 0.25, IX1 - 0.30)): ik(f'Seat_Crew{k + 2}', (x, IY0 + 0.20, CFLOOR + 0.48)); ik(f'Back_Crew{k + 2}', (x, IY0 + 0.06, CFLOOR + 0.80))
 ik('Step', (0.0, W / 2 + 0.10, 0.533)); ik('Grab_Outside', (0.62, CAB_Y1 + 0.07, DECK + 0.35)); ik('Grab_Inside', (CABU_X1 - 0.10, IY1 - 0.04, DECK + 0.48))
-ik('Door_Outside', (-0.05, CAB_Y1 + 0.05, DECK - 0.02)); ik('Door_Inside', (-0.05, CAB_Y1 - 0.08, DECK - 0.05))
+ik('Door_Outside', (-0.05, CAB_Y1 + 0.05, DECK - 0.14)); ik('Door_Inside', (-0.05, CAB_Y1 - 0.08, DECK - 0.05))
 ik('Door_Hinge', (0.57, CAB_Y1 + 0.015, (CFLOOR + CABH) / 2))
 ik('Towbar_Front', (L / 2 + 0.16, 0, 0.50)); ik('Towbar_Rear', (-L / 2 - 0.22, 0, 0.50))
 
@@ -420,6 +420,23 @@ for n, b in BB.items():
         for m, b2 in BB.items():
             if m.startswith(own) or m == n: continue
             if touch(b, b2, -0.001) and (b2[1] - b2[0]).length < 0.2: clash.append((n, m))
+# nothing hangs past the edge of the face it is fixed to: a small part touching a big one must lie inside that face's
+# outline (in the two directions along the face), 15 mm in from its edges (owner 2026-11-21: the tow eyes hung off)
+def diag(b): return (b[1] - b[0]).length
+overhang = []
+for n, b in BB.items():
+    # (allowed, checked by eye: a cap on a pipe's end is as wide as the pipe; mirrors hang on their arms; the display sits in its bezel)
+    if n in ('ExhaustCap', 'Display') or n.startswith('Mirror_'): continue
+    if diag(b) > 0.35 or n.endswith(('_Lens', '_Rim')) or n.startswith('Lug_'): continue
+    hosts = [(m, b2) for m, b2 in BB.items() if m != n and diag(b2) > 0.4 and touch(b, b2)]
+    for m, b2 in hosts:
+        pen = [min(b[1][i], b2[1][i]) - max(b[0][i], b2[0][i]) for i in range(3)]
+        nrm = min(range(3), key=lambda i: pen[i])                      # the contact direction: the thinnest overlap
+        ok = all(b[0][i] >= b2[0][i] + 0.015 and b[1][i] <= b2[1][i] - 0.015 for i in range(3) if i != nrm)
+        if ok: break
+    else:
+        if hosts: overhang.append(n)
+print('TUG CHECK overhang: %d %s' % (len(overhang), overhang))
 # nothing on the sides crowds a wheel arch: its box keeps 80 mm clear of the fender lip's circle (owner 2026-11-21)
 LIP_R = TD / 2 + 0.09 + 0.018
 crowd = []
