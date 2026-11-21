@@ -61,43 +61,48 @@ void AGSE::ArrivalLoad(int32 Ti)
 	Curtains(Ci, Ti, true, nullptr);
 	WaitFor(Ci, [this, StandX](float E) { const int32 Li = LoaderAt(StandX); return Li == INDEX_NONE || Tractors[Li].bBelt || E > 150.f; });
 	// (the bulk hold of an A320: 15-30 bags; the test a handful)
-	const int32 N = bTest ? 8 : FMath::RandRange(15, 30);
+	const int32 N = FMath::Min(bTest ? 12 : FMath::RandRange(20, 40), 24 * T.Train.Num());
 	Do(Ci, [this, Ti, StandX, N]
 	{
 		const int32 Li = LoaderAt(StandX);
 		if (Li != INDEX_NONE) { Tractors[Li].ArrivalsLeft = N; Tractors[Li].ArrKey = Tractors[Ti].Key; Tractors[Li].ArrivalIn = 0.f; }
 		ADP_LOG(TEXT("GSE: unloading %d arriving bags from the bulk hold onto %s's train"), Li != INDEX_NONE ? N : 0, *Tractors[Ti].Name);
 	});
-	if (LoaderAt(StandX) != INDEX_NONE || true)
+	const int32 Hp = Borrow(T.At);
+	if (Hp != INDEX_NONE) { Helper.Add(Ti, Hp); HelperDone.Remove(Ti); }
+	const int32 Who[2] = {Ci, Hp};
 	{
 		int32 k = 0;
 		for (const int32 c : T.Train)
-			for (int32 s = 0; s < 18 && k < N; ++s, ++k)
+			for (int32 s = 0; s < Carts[c].Bags.Num() && k < N; ++s, ++k)
 			{
+				const int32 h = (Hp != INDEX_NONE && (k % 2) == 1) ? 1 : 0; const int32 Pc = Who[h];
+				const FVector Stand = h == 0 ? GsaStandLoad : FVector(-425.f, 55.f, 0.f);
 				TSharedPtr<int32> Cur = MakeShared<int32>(INDEX_NONE);
-				WalkTo(Ci, [this, StandX] { const int32 Li = LoaderAt(StandX); return Li != INDEX_NONE ? TW(Tractors[Li], GsaStandLoad) : Plan(0.f, 0.f); }, 20.f);
-				WaitFor(Ci, [this, StandX](float E)
+				WalkTo(Pc, [this, StandX, Stand] { const int32 Li = LoaderAt(StandX); return Li != INDEX_NONE ? TW(Tractors[Li], Stand) : Plan(0.f, 0.f); }, 20.f);
+				WaitFor(Pc, [this, StandX, Cur](float E)
 				{
 					const int32 Li = LoaderAt(StandX); if (Li == INDEX_NONE) return true;
-					for (const FTractor::FBeltBag& B : Tractors[Li].BeltBags) if (B.Stage == 4) return true;
+					// (the bag at the bottom claimed: no two hands on one bag)
+					for (FTractor::FBeltBag& B : Tractors[Li].BeltBags) if (B.Stage == 4) { B.Stage = 6; *Cur = B.Id; return true; }
 					return Tractors[Li].ArrivalsLeft <= 0 && E > 30.f;
 				});
 				// off the belt's bottom end by its grips
-				PoseAct(Ci, [this, StandX](float K, float PH, FDriverPose& P)
+				PoseAct(Pc, [this, StandX, Cur, Stand](float K, float PH, FDriverPose& P)
 				{
 					const int32 Li = LoaderAt(StandX); const ADepartureBelts* D = ADepartureBelts::Get(GetWorld()); if (Li == INDEX_NONE || !D) return;
-					const FTractor& L = Tractors[Li]; int32 Id = INDEX_NONE; for (const FTractor::FBeltBag& B : L.BeltBags) if (B.Stage == 4) Id = B.Id;
-					if (Id == INDEX_NONE) { P = ADPPose::Standing(TW(L, GsaStandLoad), FRotator(0.f, L.Yaw, 0.f).Vector(), PH); return; }
-					const FDepBagGrips G = D->Grips(Id); const FVector St = TW(L, GsaStandLoad), Face = FRotator(0.f, L.Yaw, 0.f).Vector();
+					const FTractor& L = Tractors[Li]; const int32 Id = *Cur;
+					if (Id == INDEX_NONE) { P = ADPPose::Standing(TW(L, Stand), FRotator(0.f, L.Yaw, 0.f).Vector(), PH); return; }
+					const FDepBagGrips G = D->Grips(Id); const FVector St = TW(L, Stand), Face = FRotator(0.f, L.Yaw, 0.f).Vector();
 					const float E = FMath::Min(1.f, K * 1.5f);
 					P = G.bTwoHands ? ADPPose::Both(St, Face, G.Left, G.Right, 1.f, PH, E, 16.f) : ADPPose::Reach(St, Face, 1, G.Handle, 1.f, PH, E);
 				}, 0.9f);
-				Do(Ci, [this, Ci, StandX, Cur]
+				Do(Pc, [this, Pc, StandX, Cur]
 				{
 					const int32 Li = LoaderAt(StandX); ADepartureBelts* D = ADepartureBelts::Get(GetWorld()); if (Li == INDEX_NONE || !D) return;
 					FTractor& L = Tractors[Li];
-					for (int32 i = 0; i < L.BeltBags.Num(); ++i) if (L.BeltBags[i].Stage == 4) { *Cur = L.BeltBags[i].Id; L.BeltBags.RemoveAt(i); break; }
-					if (*Cur != INDEX_NONE) D->TakeBagById(*Cur, Body(Ci), GsaHand);
+					for (int32 i = 0; i < L.BeltBags.Num(); ++i) if (L.BeltBags[i].Id == *Cur) { L.BeltBags.RemoveAt(i); break; }
+					if (*Cur != INDEX_NONE) D->TakeBagById(*Cur, Body(Pc), GsaHand);
 				});
 				// to the cart's open side, into its slot
 				const float Sx = CartSlot(c, s).GetLocation().X;
@@ -106,8 +111,8 @@ void AGSE::ArrivalLoad(int32 Ti)
 					float S2 = 0.f, N2 = 0.f, Sp = 36.f; StandGeo(StandX, S2, N2, Sp);
 					return FVector::DotProduct(Plan(S2, N2 + 8.f) - Carts[c].At, FRotator(0.f, Carts[c].Yaw + 90.f, 0.f).Vector()) > 0.f ? 1.f : -1.f;
 				};
-				WalkTo(Ci, [this, c, Sx, SideY] { return CW(Carts[c], FVector(Sx, SideY() * 118.f, 0.f)); }, 15.f);
-				PoseAct(Ci, [this, c, s, Sx, Cur, SideY](float K, float PH, FDriverPose& P)
+				WalkTo(Pc, [this, c, Sx, SideY] { return CW(Carts[c], FVector(Sx, SideY() * 118.f, 0.f)); }, 15.f);
+				PoseAct(Pc, [this, c, s, Sx, Cur, SideY](float K, float PH, FDriverPose& P)
 				{
 					const ADepartureBelts* D = ADepartureBelts::Get(GetWorld()); if (!D || *Cur == INDEX_NONE) return;
 					const FCart& C = Carts[c]; const float Ys = SideY();
@@ -117,7 +122,7 @@ void AGSE::ArrivalLoad(int32 Ti)
 					if (G.bTwoHands) { Q.bHand[0] = true; Q.Hand[0] = FMath::Lerp(G.Left, SlotW.TransformPosition(Bw.InverseTransformPosition(G.Left)), K); Q.Grip[0] = 1.f; }
 					P = Q;
 				}, 1.1f);
-				Do(Ci, [this, c, s, Cur]
+				Do(Pc, [this, c, s, Cur]
 				{
 					if (*Cur == INDEX_NONE) return;
 					if (ADepartureBelts* D = ADepartureBelts::Get(GetWorld())) if (Carts[c].M.IsValid()) D->PutOnSlot(*Cur, Carts[c].M->GetRootComponent(), NAME_None, CartSlot(c, s));
@@ -125,6 +130,9 @@ void AGSE::ArrivalLoad(int32 Ti)
 				});
 			}
 	}
+	if (Hp != INDEX_NONE) { Do(Hp, [this, Ti] { HelperDone.Add(Ti); }); GiveBack(Hp); }
+	WaitFor(Ci, [this, Ti](float E) { return !Helper.Contains(Ti) || HelperDone.Contains(Ti) || E > 120.f; });
+	Do(Ci, [this, Ti] { Helper.Remove(Ti); });
 	Curtains(Ci, Ti, false, nullptr);
 	ClimbIn(Ci, Ti, [this, Ti] { Motor(Tractors[Ti], true); ArrivalToStation(Ti); });
 }
@@ -168,7 +176,7 @@ void AGSE::ArrivalUnload(int32 Ti)
 	for (const int32 c : T.Train)
 	{
 		const float Ys = FVector::DotProduct(Trunk - Carts[c].At, FRotator(0.f, Carts[c].Yaw + 90.f, 0.f).Vector()) > 0.f ? 1.f : -1.f;
-		for (int32 s = 17; s >= 0; --s)
+		for (int32 s = Carts[c].Bags.Num() - 1; s >= 0; --s)
 		{
 			const int32 Id = Carts[c].Bags[s]; if (Id == INDEX_NONE) continue;
 			const float Sx = CartSlot(c, s).GetLocation().X; const float At = GsaStationX + 0.6f * (Count % 3 - 1); ++Count;

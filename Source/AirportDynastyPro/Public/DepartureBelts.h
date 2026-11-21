@@ -93,6 +93,8 @@ public:
 	/** Until the crew load carts themselves: bags of a flight about to leave are taken off its carousel by an unseen
 	 *  crew (and searched bags cleared). Turn off once the handlers do it (TakeBag / PutOnSlot). */
 	bool bAutoClear = true;
+	/** Flights whose bags the ground crew load themselves (GSE.h): never auto-cleared, whatever bAutoClear says. */
+	TSet<FString> NoAutoClear;
 
 private:
 	enum class EState : uint8 { Gone, Belt, Held, Lowering, Slot, Waiting };

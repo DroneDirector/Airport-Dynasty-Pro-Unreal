@@ -663,6 +663,7 @@ void ADepartureBelts::AutoClear(float Dt)
 		for (const int32 j : SegBags[Carousels[c].Seg])
 		{
 			const FBag& B = Bags[j]; if (B.State != EState::Belt || B.Seg != Carousels[c].Seg) continue;
+			if (NoAutoClear.Contains(B.Tag.Flight)) continue;   // (the crew's own flights: GSE.h)
 			bool bGo = bTest && B.Lap > 2.5f * MPER;
 			if (!bGo && bSim && B.Lap > MPER && !B.Tag.Flight.StartsWith(TEXT("TEST")))
 			{

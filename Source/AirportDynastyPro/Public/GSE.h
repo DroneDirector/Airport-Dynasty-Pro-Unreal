@@ -90,6 +90,7 @@ public:
 		int32 GBoom = INDEX_NONE, GBumper = INDEX_NONE, GRam[4] = {INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE};
 		UAudioComponent* BeltSnd = nullptr; UAudioComponent* BoomSnd = nullptr;
 		int32 TopCrew = INDEX_NONE;       // the loader up at the hold door
+		bool bBottomHeld = false;         // (a handler about to lay a bag on the belt's bottom end)
 		struct FBeltBag { int32 Id = 0; float S = 0.f, T = 0.f; uint8 Stage = 0; };   // (up: 0 riding, 1 at the top, 2 in the hold loader's hands; arrivals down: 5 in his hands, 3 riding down, 4 at the bottom)
 		bool bArrival = false;            // a train for an arriving aircraft's bags (hold -> carts -> the arrivals conveyor)
 		int32 ArrivalsLeft = 0;           // (the belt loader: arriving bags still in the hold)
@@ -194,7 +195,9 @@ private:
 	float BagPoll = 0.f; int32 BagScan = 1; TSet<FString> BagFlights, MadeUp; TMap<int32, FString> BagKey;
 	TArray<TFunction<void()>> Deferred;   // (crew plans made from inside a crew act: run on the next frame)
 	void Later(TFunction<void()> F) { Deferred.Add(MoveTemp(F)); }
-	int32 Pickable(int32 Ti) const;
+	int32 Pickable(int32 Ti, int32 H = 0) const;
+	void MakeUpBy(int32 Ci, int32 Ti, float Started, int32 H);
+	TSet<int32> SlotTaken; TMap<int32, int32> Helper; TSet<int32> HelperDone;
 	bool StartFor(const FString& Key, float StandX);
 	FVector PickStand(int32 Ti) const;
 	FTransform BeltOffset(const FTractor& L, float S) const;

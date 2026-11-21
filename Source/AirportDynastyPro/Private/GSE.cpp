@@ -247,7 +247,7 @@ bool AGSE::SpawnCart(FCart& C)
 		C.GRoll[s] = M->BindGroup({TEXT("CurtainRoll_") + S}, false, Piv);
 	}
 	C.Dirt.Dress(M, this, FString::Printf(TEXT("baggage cart %d"), Carts.Num() + 1));
-	C.Bags.Init(INDEX_NONE, 18);
+	C.Bags.Init(INDEX_NONE, 24);
 	C.bMoved = true;
 	return true;
 }
