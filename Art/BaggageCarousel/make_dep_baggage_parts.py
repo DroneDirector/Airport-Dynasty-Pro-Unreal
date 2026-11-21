@@ -9,8 +9,9 @@
 #   SM_DepCorner    a 90-degree transfer corner (1.0 x 1.0, top at z 0) with its roller table look
 #   SM_DepLeg       a pair of legs with feet and a cross brace, 1 m tall (the game scales it to the conveyor's height)
 #   SM_WeighBelt    a check-in desk's weigh + tag belt (0.58 wide), from y 0 (the passenger) to y 2.15 (the collector):
-#                   the stainless weighing scale with its rubber top at z 0.40, the dispatch belt with white side
-#                   panels, its arch, and the passenger's weight display (green digits) on a post
+#                   the stainless weighing scale with its rubber top at z 0.40 and end rollers, the dispatch belt with
+#                   stainless side panels and black trims, its arch with the lit 'ready' strip, the weight display
+#   SM_DeskHatch    the hood behind a desk the takeaway belt runs into, down the shaft to the tunnel
 #   SM_CTScanner    a hold-baggage CT scanner's housing (EU Standard 3 EDS), 4.4 m along +Y, the tunnel for a belt at
 #                   0.75 m (the conveyor runs through, the curtains are SM_Flap instances), the gantry, the stripe,
 #                   the panel seams, the operator's panel and its status lamp
@@ -126,22 +127,44 @@ p.finish()
 
 # ---- the check-in weigh + tag belt ----
 p = Part('SM_WeighBelt')
-p.box(-0.29, 0.0, 0.0, 0.29, 0.9, 0.36, 'MI_T_steel')                    # the scale's stainless body
-p.box(-0.29, -0.015, 0.0, 0.29, 0.0, 0.12, 'MI_T_black')                  # its kick plate
-p.box(-0.26, 0.02, 0.36, 0.26, 0.88, 0.40, 'MI_T_jwRubber')               # the weighing belt
-p.box(-0.29, 0.9, 0.08, 0.29, 2.15, 0.36, 'MI_T_black')                   # the dispatch belt's frame
-p.box(-0.26, 0.92, 0.36, 0.26, 2.15, 0.40, 'MI_T_jwRubber')
+# (owner 2026-11-21: the hall's belts as stunning as the arrivals' carousels - the same finishes: brushed stainless
+#  skirts, the black kick and trims, rubber tops, steel rollers at every belt end, the lit display)
+p.bevel(p.box(-0.29, 0.0, 0.0, 0.29, 0.9, 0.36, 'MI_T_steel'), 0.012)       # the scale's stainless body
+p.box(-0.295, -0.012, 0.0, 0.295, 0.9, 0.08, 'MI_T_black')                   # its black kick (front and sides)
+p.box(-0.255, 0.06, 0.36, 0.255, 0.84, 0.40, 'MI_T_jwRubber')                 # the weighing belt
+for yy in (0.035, 0.865): p.cyl(0.02, 0.5, (0, yy, 0.375), (0, math.pi / 2, 0), 'MI_T_steel', 16)   # its end rollers
+p.box(-0.29, 0.9, 0.08, 0.29, 2.15, 0.36, 'MI_T_steel')                     # the dispatch belt's stainless frame
+p.box(-0.295, 0.9, 0.0, 0.295, 2.15, 0.08, 'MI_T_black')
+p.box(-0.255, 0.96, 0.36, 0.255, 2.15, 0.40, 'MI_T_jwRubber')
+p.cyl(0.02, 0.5, (0, 0.935, 0.375), (0, math.pi / 2, 0), 'MI_T_steel', 16)
+p.box(-0.27, 0.885, 0.30, 0.27, 0.915, 0.345, 'MI_T_black')                 # the gap between the belts
 for sx in (-1, 1):
-    p.box(sx * 0.27, 0.9, 0.40, sx * 0.29, 2.15, 0.78, 'MI_T_white')     # the side panels (bags can't fall off)
-    p.box(sx * 0.265, 0.9, 0.78, sx * 0.295, 2.15, 0.81, 'MI_T_steel')    # their capping
-    p.box(sx * 0.27, 0.0, 0.40, sx * 0.29, 0.9, 0.5, 'MI_T_steel')        # the scale's low edges
-    p.box(sx * 0.29, 2.0, 0.0, sx * 0.31, 2.06, 0.08, 'MI_T_steel')       # the dispatch belt's feet
-p.box(-0.29, 0.92, 0.81, 0.29, 0.98, 0.86, 'MI_T_steel')                  # the arch over the dispatch belt
-p.box(-0.2, 0.93, 0.86, 0.2, 0.97, 0.94, 'MI_T_yellow')                    # its sign plate ('MAX 32 kg' strip)
-p.box(0.31, 0.04, 0.0, 0.35, 0.08, 0.92, 'MI_T_steel')                    # the display's post (passenger side, east)
-p.box(0.26, 0.01, 0.92, 0.40, 0.09, 1.04, 'MI_T_black')                   # the weight display
-p.box(0.275, 0.005, 0.95, 0.385, 0.01, 1.01, 'MI_T_l_20FF40')             # its digits (glow by material)
-p.box(0.31, 0.03, 0.0, 0.37, 0.09, 0.01, 'MI_T_black')                    # the post's foot
+    p.box(sx * 0.27, 0.9, 0.40, sx * 0.29, 2.15, 0.74, 'MI_T_steel')        # the side panels (bags can't fall off)
+    p.box(sx * 0.262, 0.9, 0.74, sx * 0.298, 2.15, 0.775, 'MI_T_black')     # their black capping (as the carousels' trim)
+    p.box(sx * 0.27, 0.0, 0.40, sx * 0.29, 0.9, 0.47, 'MI_T_steel')         # the scale's low edges
+    p.box(sx * 0.262, 0.0, 0.47, sx * 0.298, 0.9, 0.49, 'MI_T_black')
+p.box(-0.29, 0.92, 0.775, 0.29, 0.98, 0.83, 'MI_T_steel')                   # the arch over the dispatch belt
+p.box(-0.22, 0.915, 0.79, 0.22, 0.92, 0.82, 'MI_T_l_20FF40')                # its lit strip (green: the belt is ready)
+p.box(0.31, 0.04, 0.0, 0.35, 0.08, 0.92, 'MI_T_steel')                      # the display's post (passenger side, east)
+p.bevel(p.box(0.26, 0.01, 0.92, 0.40, 0.09, 1.04, 'MI_T_black'), 0.008)     # the weight display
+p.box(0.275, 0.005, 0.95, 0.385, 0.01, 1.01, 'MI_T_l_20FF40')               # its digits (glow by material)
+p.box(0.31, 0.03, 0.0, 0.37, 0.09, 0.01, 'MI_T_black')                      # the post's foot
+p.finish()
+# the hatch behind the desk: the stainless hood the takeaway belt runs into (as the arrivals' feed hood), its floor frame
+# round the dark shaft, the hinge bar for the strip curtain (SM_Flap instances), the hazard band and a status lamp
+p = Part('SM_DeskHatch')
+for sx in (-1, 1):
+    p.box(sx * 0.31, 0.0, 0.0, sx * 0.35, 0.80, 0.82, 'MI_T_steel')         # the side walls
+    p.box(sx * 0.31, -0.03, 0.0, sx * 0.355, 0.0, 0.86, 'MI_T_black')       # the mouth's black frame
+p.box(-0.35, 0.80, 0.0, 0.35, 0.84, 0.86, 'MI_T_steel')                     # the back
+p.bevel(p.box(-0.355, 0.0, 0.82, 0.355, 0.84, 0.86, 'MI_T_steel'), 0.008)   # the roof
+p.box(-0.355, -0.03, 0.78, 0.355, 0.0, 0.86, 'MI_T_black')                  # the mouth's head (the hinge board)
+p.box(-0.3, 0.0, 0.76, 0.3, 0.03, 0.78, 'MI_T_steel')                       # the hinge bar
+p.box(-0.28, -0.035, 0.80, 0.28, -0.03, 0.845, 'MI_T_yellow')               # the hazard band
+p.cyl(0.03, 0.03, (0.25, 0.45, 0.875), (0, 0, 0), 'MI_T_l_20FF40', 16)      # the status lamp on the roof
+p.box(-0.31, 0.0, 0.0, 0.31, 0.80, 0.006, 'MI_T_screenBlack')               # the shaft (dark, down to the tunnel)
+for sx in (-1, 1): p.box(sx * 0.357, -0.05, 0.0, sx * 0.40, 0.89, 0.012, 'MI_T_black')   # the floor frame
+p.box(-0.40, 0.84, 0.0, 0.40, 0.89, 0.012, 'MI_T_black')
 p.finish()
 
 # ---- the CT scanner's housing ----

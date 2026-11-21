@@ -30,7 +30,7 @@ namespace
 	constexpr float ML = 11.f, MR = 1.8f;               // a make-up carousel's straight, its plates' centre-line radius
 	constexpr float MPER = 2.f * ML + 2.f * PI * MR;    // 33.3 m round
 	const FVector2f MAKEUP[] = {FVector2f(124.f, 33.5f), FVector2f(145.f, 33.5f)};
-	const TCHAR* BAGM[] = {TEXT("SM_Bag0"), TEXT("SM_Bag1"), TEXT("SM_Bag2"), TEXT("SM_Bag3")};
+	const TCHAR* DEPBAGM[] = {TEXT("SM_Bag0"), TEXT("SM_Bag1"), TEXT("SM_Bag2"), TEXT("SM_Bag3")};
 	// where hands go on each bag kind (its own frame, cm; its bottom at 0): the carry handle, the two sides; two hands?
 	struct FGripDef { FVector Handle, L, R; bool bTwo; float Kg0, Kg1; };
 	const FGripDef GRIP[] = {
@@ -40,8 +40,18 @@ namespace
 		{FVector(0, 0, 36.f), FVector(-14, 0, 35), FVector(14, 0, 35), false, 5.f, 15.f}};          // duffel (its straps)
 	enum EZone { ZIsl1, ZIsl2, ZLink, ZScrA, ZScrB, ZSort, ZCar1, ZCar2, ZNum };
 	TWeakObjectPtr<ADepartureBelts> GDep;
-	float YawOf(const FVector2f& D) { const FVector Wd = FTerminalPlan::ToWorld(D.X, 0, D.Y); return FMath::RadiansToDegrees(FMath::Atan2(Wd.Y, Wd.X)) + 90.f; }
-	float DeskX(int32 Desk) { const int32 d = FMath::Clamp(Desk, 1, 24) - 1; return ISLX[d / 12] + 1.05f + (d % 12) * 2.08f; }
+	float DepYawOf(const FVector2f& D) { const FVector Wd = FTerminalPlan::ToWorld(D.X, 0, D.Y); return FMath::RadiansToDegrees(FMath::Atan2(Wd.Y, Wd.X)) + 90.f; }
+	// the 20 desks (owner 2026-11-21, Checkin-Security-Flow-v1: the 4 places opposite the security doors are walk-throughs
+	// - island 1 k 6 and 7, island 2 k 1 and 2), numbered 1..20 west to east: their island, their place k on it
+	constexpr int32 NDESK = 20;
+	bool IsWalkThrough(int32 Isl, int32 k) { return Isl == 0 ? (k == 6 || k == 7) : (k == 1 || k == 2); }
+	FIntPoint DeskSlotOf(int32 Desk)
+	{
+		int32 n = 0;
+		for (int32 Isl = 0; Isl < 2; ++Isl) for (int32 k = 0; k < 12; ++k) if (!IsWalkThrough(Isl, k) && ++n == Desk) return FIntPoint(Isl, k);
+		return FIntPoint(0, 0);
+	}
+	float DeskX(int32 Desk) { const FIntPoint P = DeskSlotOf(FMath::Clamp(Desk, 1, NDESK)); return ISLX[P.X] + 1.05f + P.Y * 2.08f; }
 }
 
 ADepartureBelts::ADepartureBelts()
@@ -208,21 +218,20 @@ void ADepartureBelts::Build()
 	bTest = FParse::Param(FCommandLine::Get(), TEXT("DepBagTest"));
 	FlapK = Kit(TEXT("SM_Flap"), true, false);
 	ArmK = Kit(TEXT("SM_DiverterArm"), true, false);
-	for (const TCHAR* N : BAGM) BagMeshes.Add(Kit(N, true, true));
+	for (const TCHAR* N : DEPBAGM) BagMeshes.Add(Kit(N, true, true));
 	FreeIx.SetNum(BagMeshes.Num());
 
 	// ---- the motors' zones (each its own start / run / stop and sounds, where it is) ----
-	AddZone(TEXT("check-in 1-12"), FVector(61.f, 0.6f, COLZ)); AddZone(TEXT("check-in 13-24"), FVector(87.f, 0.6f, COLZ));
+	AddZone(TEXT("check-in 1-10"), FVector(61.f, 0.6f, COLZ)); AddZone(TEXT("check-in 11-20"), FVector(87.f, 0.6f, COLZ));
 	AddZone(TEXT("tunnel + rise"), FVector(118.f, 0.6f, COLZ)); AddZone(TEXT("screening A"), FVector(129.5f, 1.f, 7.f));
 	AddZone(TEXT("screening B"), FVector(129.5f, 1.f, 13.f)); AddZone(TEXT("sorter"), FVector(135.f, 1.f, 24.6f));
 	AddZone(TEXT("make-up 1"), FVector(MAKEUP[0].X, 0.6f, MAKEUP[0].Y)); AddZone(TEXT("make-up 2"), FVector(MAKEUP[1].X, 0.6f, MAKEUP[1].Y));
 
 	// ---- the belts (their centre lines: plan x, belt top, plan z) ----
-	// THE HALL PART IS ON HOLD (owner 2026-11-21: 2 desks per island out for walk-throughs to security; the collectors
-	// most likely UNDER the floor). For now, as that plan: each desk's takeaway drops through a hatch behind the desk
-	// into the service tunnel 2 m under the hall (TUNNEL_Y), which runs east under the wall and rises in the block from
-	// x 115.5 to the floor (crossing it at about x 120) - nothing of it on the hall's floor. Change only this block and
-	// the desks' segments below when the final hall layout comes.
+	// the hall part (owner 2026-11-21, approved Checkin-Security-Flow-v1): each desk's takeaway drops through a hatch behind
+	// the desk into the service tunnel 2 m under the hall (TUNNEL_Y), which runs east (continuous under the walk-throughs),
+	// under the wall, and rises in the block from x 115.5 to the floor (crossing it at about x 120) - nothing of it on
+	// the hall's floor
 	const int32 L = AddSeg({FVector(ISLX[0], TUNNEL_Y, COLZ), FVector(115.5f, TUNNEL_Y, COLZ), FVector(122.f, FLOOR_TOP, COLZ), FVector(123.5f, FLOOR_TOP, COLZ),
 		FVector(123.5f, FLOOR_TOP, 7.f)}, ZLink, 0.8f);
 	const int32 SA = AddSeg({FVector(123.5f, FLOOR_TOP, 7.f), FVector(139.5f, FLOOR_TOP, 7.f)}, ZScrA);
@@ -257,12 +266,12 @@ void ADepartureBelts::Build()
 			Dc.Arm = AddArm(O, Dc.At, FVector2f(0, 1)); Segs[O].Div.Add(Dc);
 		}
 	}
-	// the desks' weigh + tag belts (one per desk, all 24), each onto its island's collector
-	for (int32 d = 1; d <= 24; ++d)
+	// the desks' weigh + tag belts (one per desk, all 20), each down into the tunnel (continuous under the walk-throughs)
+	for (int32 d = 1; d <= NDESK; ++d)
 	{
 		const float BX = DeskX(d) + BELT_DX;
 		// (its belt, then down through the hatch behind the desk into the tunnel)
-		const int32 Si = AddSeg({FVector(BX, WEIGH_TOP, DESKZ), FVector(BX, WEIGH_TOP, 18.05f), FVector(BX, TUNNEL_Y, COLZ)}, d <= 12 ? ZIsl1 : ZIsl2, 0.5f);
+		const int32 Si = AddSeg({FVector(BX, WEIGH_TOP, DESKZ), FVector(BX, WEIGH_TOP, 18.2f), FVector(BX, -1.2f, 18.75f), FVector(BX, TUNNEL_Y, COLZ)}, DeskSlotOf(d).X == 0 ? ZIsl1 : ZIsl2, 0.5f);
 		FSeg& G = Segs[Si]; G.bAlong = true; G.Desk = d; G.Gap = 1.2f; G.Next = L; G.NextS = BX - ISLX[0];
 		FDesk& Dk = Desks.AddDefaulted_GetRef(); Dk.At = FVector2f(BX, DESKZ); Dk.Seg = Si;
 		Put(TEXT("SM_WeighBelt"), FVector(BX, 0, 15.95f), FRotator::ZeroRotator);
@@ -271,9 +280,10 @@ void ADepartureBelts::Build()
 		T->SetWorldLocationAndRotation(W(BX + 0.33f, 0.98f, 15.93f), FRotator(0, 90.f, 0));
 		T->SetHorizontalAlignment(EHTA_Center); T->SetVerticalAlignment(EVRTA_TextCenter); T->SetWorldSize(5.f);
 		T->SetTextRenderColor(FColor(60, 255, 90)); T->SetText(FText::FromString(TEXT("0.0 kg"))); Dk.Display = T;
-		// the hatch behind it: the steel hood with its strip curtain the bag goes through, down to the tunnel
-		Put(TEXT("SM_ChuteHood"), FVector(BX, 0, 18.14f), FRotator::ZeroRotator);
-		Curtain(FVector(BX, 0.95f, 18.18f), FVector(0, 0, 1), 1.18f, 0.5f, Si);
+		// the hatch behind it: the stainless hood (as the arrivals' feed hoods) the takeaway belt runs into, its strip
+		// curtain the bag pushes through, the dark shaft down to the tunnel
+		Put(TEXT("SM_DeskHatch"), FVector(BX, 0, 18.1f), FRotator::ZeroRotator);
+		Curtain(FVector(BX, 0.77f, 18.12f), FVector(0, 0, 1), 0.58f, 0.35f, Si, 6);
 	}
 	SegBags.SetNum(Segs.Num());
 
@@ -347,7 +357,7 @@ void ADepartureBelts::Build()
 	};
 	for (FZone& Zn : Zones) { const FVector At = W(Zn.Ear.X, Zn.Ear.Y, Zn.Ear.Z); Zn.SStart = Audio(SStart, At); Zn.SRun = Audio(SRun, At); Zn.SClack = Audio(SClack, At); }
 
-	ADP_LOG(TEXT("DepBelts: built - %d belts (24 desk weigh belts into the tunnel), %d diverters, %d flaps, 2 CT lines, 2 make-up carousels; islands at x %.1f / %.1f%s"),
+	ADP_LOG(TEXT("DepBelts: built - %d belts (20 desk weigh belts into the tunnel), %d diverters, %d flaps, 2 CT lines, 2 make-up carousels; islands at x %.1f / %.1f%s"),
 		Segs.Num(), Arms.Num(), Flaps.Num(), ISLX[0], ISLX[1], bTest ? TEXT("; -DepBagTest: passengers check bags in") : TEXT(""));
 }
 
@@ -407,7 +417,7 @@ FTransform ADepartureBelts::PlateAt(const FCarousel& Kc, float S) const
 	const FVector2f D(Dw.X, -Dw.Y);
 	const float Out = FMath::Max(0.f, FMath::Abs(P.X - Kc.C.X) - ML / 2);
 	const float Kk = FMath::SmoothStep(0.f, 1.f, FMath::Clamp((Out + 0.3f) / 0.6f, 0.f, 1.f));
-	return FTransform(FRotator(0, YawOf(D), 6.f * Kk), W(P.X, 0.425f + 0.015f * Kk + 0.01f, P.Z));
+	return FTransform(FRotator(0, DepYawOf(D), 6.f * Kk), W(P.X, 0.425f + 0.015f * Kk + 0.01f, P.Z));
 }
 
 FTransform ADepartureBelts::PlaceOnSeg(const FBag& B) const
@@ -626,7 +636,7 @@ void ADepartureBelts::TestTick(float Dt)
 	// 15 min to 4 h), or a test flight when the simulation isn't running; half of them lifted from the hand onto the belt
 	if ((TestIn -= Dt) > 0.f) return;
 	TestIn = FMath::FRandRange(1.4f, 2.6f);
-	const int32 Desk = FMath::RandRange(1, 24);
+	const int32 Desk = FMath::RandRange(1, Desks.Num());
 	if (Desks[Desk - 1].Queue.Num() > 1) return;
 	FString Flight;
 	UADPSim* Sim = UADPSim::Get(this);

@@ -15,7 +15,7 @@ for f in glob.glob(os.path.join(ROOT, 'Content', 'Baggage', 'Dep', '*.uasset')):
 MOVING = ('SM_DiverterArm',)
 NAMES = ('SM_DepConv', 'SM_DepGuard', 'SM_DepCorner', 'SM_DepLeg', 'SM_WeighBelt', 'SM_CTScanner', 'SM_DiverterPost',
          'SM_MakeupBody', 'SM_ChuteHood', 'SM_LinkTube', 'SM_TubeMouth', 'SM_LinkPost', 'SM_LinkYoke', 'SM_SearchTable',
-         'SM_EndStop') + MOVING
+         'SM_EndStop', 'SM_DeskHatch') + MOVING
 for name in NAMES:
     path = DEST + '/' + name
     if EAL.does_asset_exist(path): EAL.delete_asset(path)

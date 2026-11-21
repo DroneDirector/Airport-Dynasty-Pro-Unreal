@@ -2,7 +2,7 @@
 // a passenger checks in rides real belts from the desk to its flight's make-up carousel, pinned to the belt the whole
 // way (never flying), and keeps its tag (passenger + flight + desk) all the way. Matches the arrivals' belts
 // (BaggageBelts.h) in look and behaviour - the same plates, flaps, bags, screens and sounds.
-//   A bag's way: the passenger sets it down on the desk's WEIGH + TAG belt (24 desks, each its own belt; the weight on
+//   A bag's way: the passenger sets it down on the desk's WEIGH + TAG belt (20 desks, each its own belt; the weight on
 //   the display, the tag printed) -> through the hatch behind the desk down into the service tunnel 2 m under the hall
 //   (z 18.6; the hall part is ON HOLD - owner 2026-11-21: walk-throughs to security, collectors under the floor; built
 //   provisionally as that plan, see Build) -> east under the wall (x 114), rising into the baggage block through the
@@ -31,7 +31,7 @@ class USoundAttenuation;
 struct FDepBagTag
 {
 	FString Pax, Flight;
-	int32 Desk = 0;        // 1..24 (the desk numbers on the signs)
+	int32 Desk = 0;        // 1..20, west to east (the 4 places opposite the security doors are walk-throughs)
 	float Kg = 0.f;
 };
 
@@ -53,7 +53,7 @@ public:
 	virtual void Tick(float Dt) override;
 
 	// ---- check-in ----
-	/** A bag straight onto a desk's weigh belt (as soon as the belt is free). Desk 1..24. Returns the bag's id. */
+	/** A bag straight onto a desk's weigh belt (as soon as the belt is free). Desk 1..20. Returns the bag's id. */
 	int32 CheckIn(const FString& Pax, const FString& Flight, int32 Desk);
 	/** A passenger at a desk lifts their bag: it is in their hand (Hand + Socket, or held at their side when none) until
 	 *  SetDownOnDesk - or, with bAutoSetDown, set down by itself a moment later (lowered from the hand onto the belt's
