@@ -11,6 +11,9 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Misc/PackageName.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 namespace
 {
@@ -90,7 +93,7 @@ void ASimTraffic::Sync()
 		{
 			FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 			ABabylonModel* B = GetWorld()->SpawnActor<ABabylonModel>(FVector::ZeroVector, FRotator::ZeroRotator, P);
-			if (B && B->Place(TEXT("A320"))) { B->Tags.Add(FName(*(TEXT("MOVE/") + M.Reg))); M.Model = B; Pose(M); ADP_LOG(TEXT("Traffic: %s %s in 3D (%s)"), *M.Reg, M.bDeparture ? TEXT("departing") : TEXT("arriving"), *M.Stand); }
+			if (B && B->Place(TEXT("A320"))) { B->Tags.Add(FName(*(TEXT("MOVE/") + M.Reg))); M.Model = B; AddLights(M); Pose(M); ADP_LOG(TEXT("Traffic: %s %s in 3D (%s)"), *M.Reg, M.bDeparture ? TEXT("departing") : TEXT("arriving"), *M.Stand); }
 			else if (B) B->Destroy();
 		}
 }
@@ -104,8 +107,10 @@ void ASimTraffic::Pose(FMove& M)
 	const FVector World = FTerminalPlan::ToWorld(M.Nose.X, AAirfield::GroundAt(M.Nose.X, M.Nose.Y) + M.Height, M.Nose.Y);
 	const FVector Dir(D.X, -D.Y, 0.f);   // (plan (x, y) -> world (x, -y))
 	const float Yaw = FMath::RadiansToDegrees(FMath::Atan2(-Dir.X, Dir.Y));
-	// (level for now: the nose-up attitude in the climb and the flare comes with the model's own axes checked - 191 next)
-	B->SetActorLocationAndRotation(World, FRotator(0.f, Yaw, 0.f));
+	// the attitude: nose up about 8 degrees in the climb, about 3 on the approach (the model's nose is the actor's -Y, so
+	// nose-up is a roll about the actor's X axis); level on the ground
+	const float Up = M.Phase == EPhase::Climb ? 8.f : M.Phase == EPhase::Approach ? 3.f : (M.Phase == EPhase::Roll && M.Speed > Vr * 0.97f) ? 6.f : 0.f;
+	B->SetActorLocationAndRotation(World, FRotator(0.f, Yaw, Up));
 }
 
 bool ASimTraffic::Advance(FMove& M, float Dt)
@@ -168,13 +173,24 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 	case EPhase::Push:
 		// the tug lets go; taxi along T to the connector, up to A, along A to the holding point of the runway end in use
 		M.Phase = EPhase::Taxi;
-		M.Path = {FVector2f(M.Nose.X + Dir * 40.f, F.TY), FVector2f(bToX1 ? -130.f : 362.f, F.TY), FVector2f(bToX1 ? -130.f : 362.f, F.AY),
-			FVector2f(LineUp - Dir * 40.f, F.AY), FVector2f(LineUp, RY - Hold)};
+		M.Path = {FVector2f(M.Nose.X + Dir * 40.f, F.TY), FVector2f(bToX1 ? -130.f : 362.f, F.TY), FVector2f(bToX1 ? -130.f : 362.f, F.AY)};
+		// along A to its end, round the link curve onto A1 (or A3) and down to the holding point - every centre line
+		if (const FAirfieldData::FTwy* Cv = F.Find(bToX1 ? TEXT("CURVE-A-A1") : TEXT("CURVE-A-A3")))
+			for (int32 i = Cv->Pts.Num() - 1; i >= 0; --i) M.Path.Add(FVector2f(Cv->Pts[i].X, Cv->Pts[i].Y));
+		else M.Path.Add(FVector2f(LineUp - Dir * 40.f, F.AY));
+		M.Path.Add(FVector2f(LineUp, RY - Hold));
 		return false;
 	case EPhase::Taxi:
-		// lined up on the centre line, then the roll
+	{
+		// holding short until the runway is clear (nothing rolling, landing or on short final) and the line-up clearance
+		// a few seconds later - as the tower gives it
+		bool bBusy = false;
+		for (const FMove& O : Moves) if (&O != &M && (O.Phase == EPhase::Roll || O.Phase == EPhase::Rollout || (O.Phase == EPhase::Approach && O.Height < 200.f))) bBusy = true;
+		if (bBusy || (M.Clock += Dt) < 20.f) { M.Speed = 0.f; M.Path = {M.Nose}; M.Step = 0; return false; }
+		M.Clock = 0.f;
 		M.Phase = EPhase::Roll; M.Path = {FVector2f(LineUp, RY), FVector2f(LineUp + Dir * 1700.f, RY)};
 		return false;
+	}
 	case EPhase::Roll:
 		M.Phase = EPhase::Climb; M.Path = {FVector2f(LineUp + Dir * 9000.f, RY)};
 		return false;
@@ -198,6 +214,52 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 	}
 }
 
+void ASimTraffic::AddLights(FMove& M)
+{
+	// the A320's lights, small glows on the model (the actor sits on the nose tyre; the nose is its -Y, its right wing
+	// the +X side): wingtips 17.9 m out, about 12 m behind the nose tyre; the tail light at the tail cone; the beacons on
+	// top of the fuselage and under it, over the wing
+	static UStaticMesh* Ball = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+	static UMaterialInterface* Glow = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/Lamps/M_LampGlow.M_LampGlow"));
+	ABabylonModel* B = M.Model.Get();
+	if (!B || !Ball || !Glow) return;
+	struct FL { FVector At; FLinearColor Col; float Size; };
+	const FL List[] = {
+		{FVector(-1790.f, 1200.f, 300.f), FLinearColor(1.f, 0.05f, 0.03f), 0.22f},   // nav left: red
+		{FVector(1790.f, 1200.f, 300.f), FLinearColor(0.05f, 1.f, 0.2f), 0.22f},     // nav right: green
+		{FVector(0.f, 3250.f, 420.f), FLinearColor(1.f, 1.f, 1.f), 0.2f},            // tail: white
+		{FVector(0.f, 1050.f, 640.f), FLinearColor(1.f, 0.08f, 0.04f), 0.25f},       // beacon on top: red
+		{FVector(0.f, 1150.f, 90.f), FLinearColor(1.f, 0.08f, 0.04f), 0.25f},        // beacon under the belly: red
+		{FVector(-1790.f, 1230.f, 300.f), FLinearColor(1.f, 1.f, 1.f), 0.24f},       // strobe left
+		{FVector(1790.f, 1230.f, 300.f), FLinearColor(1.f, 1.f, 1.f), 0.24f}};       // strobe right
+	for (const FL& L : List)
+	{
+		UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(B);
+		C->SetStaticMesh(Ball); C->SetCollisionEnabled(ECollisionEnabled::NoCollision); C->SetCastShadow(false);
+		UMaterialInstanceDynamic* D = UMaterialInstanceDynamic::Create(Glow, B);
+		D->SetVectorParameterValue(TEXT("Color"), L.Col); D->SetScalarParameterValue(TEXT("Brightness"), 0.f);
+		C->SetMaterial(0, D);
+		C->SetupAttachment(B->GetRootComponent()); C->SetRelativeLocation(L.At); C->SetRelativeScale3D(FVector(L.Size));
+		C->RegisterComponent();
+		M.Lights.Add(TPair<UStaticMeshComponent*, UMaterialInstanceDynamic*>(C, D));
+	}
+}
+
+void ASimTraffic::Blink(FMove& M)
+{
+	if (M.Lights.Num() < 7) return;
+	const double T = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	// navigation and tail lights on whenever it moves; the beacons flash red once a second while engines run or it is
+	// pushed (from the pushback on); the strobes double-flash white on the runway and in the air
+	const bool bNav = true, bBeacon = true;
+	const bool bStrobe = M.Phase == EPhase::Roll || M.Phase == EPhase::Climb || M.Phase == EPhase::Approach || M.Phase == EPhase::Rollout;
+	const float Beacon = FMath::Fmod(T + M.Reg.Len() * 0.13, 1.0) < 0.12 ? 60.f : 0.f;
+	const float Ph = FMath::Fmod(T, 1.2);
+	const float Strobe = bStrobe && (Ph < 0.05 || (Ph > 0.12 && Ph < 0.17)) ? 160.f : 0.f;
+	const float Vals[] = {bNav ? 25.f : 0.f, bNav ? 25.f : 0.f, bNav ? 18.f : 0.f, bBeacon ? Beacon : 0.f, bBeacon ? Beacon : 0.f, Strobe, Strobe};
+	for (int32 i = 0; i < 7; ++i) if (M.Lights[i].Value) M.Lights[i].Value->SetScalarParameterValue(TEXT("Brightness"), Vals[i]);
+}
+
 void ASimTraffic::Tick(float Dt)
 {
 	Super::Tick(Dt);
@@ -206,6 +268,7 @@ void ASimTraffic::Tick(float Dt)
 	{
 		FMove& M = Moves[i];
 		if (!M.Model.IsValid()) continue;
+		Blink(M);
 		if (Advance(M, FMath::Min(Dt, 0.1f)))
 		{
 			// an arrival waits at its stand until the parked aircraft (the simulation's, ParkedAircraft.cpp) takes over

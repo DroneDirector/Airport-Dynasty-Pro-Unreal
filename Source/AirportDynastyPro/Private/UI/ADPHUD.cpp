@@ -5786,21 +5786,21 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 					{TEXT("Show_04_Lake_Shore"), [=, this]() { Fly(RX1 + 1200.f, RY + 600.f, 120.f, RX1 + 3000.f, RY + 600.f, -18.f); }},
 					{TEXT("Show_05_Mountains_East"), [=, this]() { Fly(81.f, 2500.f, 200.f, 81.f, -3000.f, 1.f); }},
 					{TEXT("Show_06_Terminal_Front"), [=, this]() { Fly(150.f, -650.f, 70.f, 150.f, 0.f, -8.f); }},
-					{TEXT("Show_07_Terminal_Back"), [=, this]() { Fly(150.f, 900.f, 60.f, 150.f, 0.f, -6.f); }},
-					{TEXT("Show_08_Terminal_Side_South"), [=, this]() { Fly(-1200.f, 60.f, 50.f, 300.f, 60.f, -3.f); }},
-					{TEXT("Show_09_Terminal_Side_North"), [=, this]() { Fly(1500.f, 60.f, 50.f, 0.f, 60.f, -3.f); }},
+					{TEXT("Show_07_Terminal_Back"), [=, this]() { Fly(90.f, 430.f, 40.f, 90.f, 40.f, -7.f); }},   // (to-do 169: closer - the airside face fills the frame)
+					{TEXT("Show_08_Terminal_Side_South"), [=, this]() { Fly(-290.f, -60.f, 30.f, 120.f, 60.f, -5.f); }},   // (169: from the south-west corner, close)
+					{TEXT("Show_09_Terminal_Side_North"), [=, this]() { Fly(480.f, -60.f, 30.f, 60.f, 60.f, -5.f); }},   // (169: from the north-east corner, close)
 					{TEXT("Show_10_Terminal_Close_From_Crossing"), [=, this]() { Fly(100.f, -45.f, 14.f, 100.f, 5.f, -22.f); }},
 					{TEXT("Show_11_Jetway_Apron"), [this]() { GoApron(); }},
 					{TEXT("Show_12_Jetway_Side_Low"), [=, this]() { Fly(150.f, 140.f, 4.f, 186.f, 100.f, -5.f); }},
-					{TEXT("Show_13_Jetway_Above"), [=, this]() { Fly(232.f, 180.f, 14.f, 186.f, 95.f, -22.f); }},
+					{TEXT("Show_13_Jetway_Above"), [=, this]() { Fly(215.f, 150.f, 16.f, 186.f, 95.f, -16.f); }},   // (169: lower, the bridge and its cab in line)
 					{TEXT("Show_14_Gate4_Mountains"), [this]() { GoGate4(); }},
-					{TEXT("Show_15_FireStation_Front"), [this]() { GoFireStation(0); }},
+					{TEXT("Show_15_FireStation_Front"), [=, this]() { Fly(-1090.f, -70.f, 28.f, -1180.f, 23.f, -12.f); }},   // (169: the sunny three-quarter view, no walker in front)
 					{TEXT("Show_16_FireStation_Hero"), [this]() { GoFireStation(1); }},
 					{TEXT("Show_17_FireStation_Bays"), [this]() { GoFireStation(2); }},
 					{TEXT("Show_18_Hangar"), [this]() { GoHangar(0, 0); }},
 					{TEXT("Show_19_Hangars_Mountains"), [=, this]() { Fly(-350.f, 1050.f, 25.f, -350.f, 1700.f, -4.f); }},
-					{TEXT("Show_20_Tower_Cab"), [this]() { GoTowerCab(); }},
-					{TEXT("Show_21_Tower_Balcony"), [this]() { GoTowerBalcony(); }},
+					{TEXT("Show_20_Tower_Cab"), [=, this]() { Fly(ATowerADC::AtX + 70.f, ATowerADC::AtZ - 40.f, ATowerADC::CabY + 4.f, ATowerADC::AtX, ATowerADC::AtZ, 4.f); }},   // (169: the cab from outside at its height, the glass and the controllers' desks)
+					{TEXT("Show_21_Tower_Balcony"), [=, this]() { Fly(ATowerADC::AtX + 4.f, ATowerADC::AtZ + 2.f, ATowerADC::CabY + 1.5f, ATowerADC::AtX + 400.f, ATowerADC::AtZ + 120.f, -6.f); }},   // (169: from the balcony itself, out over the apron - no back in the way)
 					{TEXT("Show_22_Taxiway"), [this, RX0, AY]() { GoTo(FVector(900.f, 0.f, AY), FVector(RX0, 3.f, AY + 120.f)); }},
 					{TEXT("Show_23_Runway_From_End_High"), [=, this]() { Fly(RX0 - 150.f, RY, 80.f, RX1, RY, -3.f); }},
 					{TEXT("Show_24_Runway_From_Corner"), [=, this]() { Fly(RX0 - 700.f, RY - 700.f, 120.f, RX1, RY + 200.f, -5.f); }}};
@@ -5836,8 +5836,10 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 					const FVector W = Target->GetActorLocation(); const float PX = W.X / 100.f, PY = -W.Y / 100.f;
 					Fly(PX + 50.f, PY + 50.f, 35.f, PX, PY, -24.f);
 				};
-				Spots = {{TEXT("Traffic_1"), Watch}, {TEXT("Traffic_2"), Watch}, {TEXT("Traffic_3"), Watch}, {TEXT("Traffic_4"), Watch}, {TEXT("Traffic_5"), Watch},
-					{TEXT("Traffic_6"), Watch}, {TEXT("Traffic_7"), Watch}, {TEXT("Traffic_8"), Watch}, {TEXT("Traffic_9"), Watch}, {TEXT("Traffic_10"), Watch}};
+				Spots.Reset();
+				static const TCHAR* Names[] = {TEXT("Traffic_01"), TEXT("Traffic_02"), TEXT("Traffic_03"), TEXT("Traffic_04"), TEXT("Traffic_05"), TEXT("Traffic_06"), TEXT("Traffic_07"), TEXT("Traffic_08"),
+					TEXT("Traffic_09"), TEXT("Traffic_10"), TEXT("Traffic_11"), TEXT("Traffic_12"), TEXT("Traffic_13"), TEXT("Traffic_14"), TEXT("Traffic_15"), TEXT("Traffic_16"), TEXT("Traffic_17"), TEXT("Traffic_18")};
+				for (const TCHAR* N : Names) Spots.Add({N, Watch});
 			}
 			for (int32 k = 0; k < Spots.Num(); ++k)
 			{

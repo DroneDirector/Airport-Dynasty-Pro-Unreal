@@ -1,27 +1,51 @@
-# Stop note - 2026-11-20 night (owner going to bed)
+# Stop note - 2026-11-21 morning (the night's work while the owner slept, full control)
 
-## Done today (Chablais Airport, all committed)
-- Second airport site: Chablais Airport (LSCH/CLB) on the Rhone plain, "Where is your airport?" at New game, runway 33/15,
-  Swiss local time, Swiss board destinations, Lake Geneva as calm lake water, waves by open water and the live wind.
-- Swiss terrain (swissALTI3D 0.5 m + IGN 1 m), the globe now really turned under the airport (GeoFrame.h - the "hole in
-  the mountain" fixed), the black pyramids' root cause fixed in MakeTerrain (GLO-90 leaking into tile corners), all
-  Chablais tiles rebuilt, precise tiles round the airport.
-- Roads: forecourt, roundabout, car parks, the road behind the terminal, the link to the town on real swissTLM3D roads;
-  road heights and the custom ground along them; ground check: the terrain pokes through NOWHERE at any level.
-- Swiss photos: 10 cm round the airport, 20 cm over the map - all tiles made (28 GB, F:/ADP-Terrain/chablais/imagery).
-- 24-shot daylight showcase (docs/Pictures/Chablais/Showcase), all 10 spawn spots checked.
-- Holographic map comes back after a new career; terrain detail locked for everyone.
+Everything below is committed and pushed to GitHub (code, tools, data, pictures). **Nothing is published as a game
+release**: your rule of 11-20 22:50 ("do not publish until everything on the to-do list is ready") - the list still has
+the multi-day items 188-191. The game is packaged for the PC as **0.18.0** (F:/ADP-Packaged/0.18.0); pc-version.json says
+0.18.0 on this PC only (not pushed - the updater must not see it before a real release exists). The release script itself
+(Tools/release_pc.sh) was blocked by the app's safety check tonight: the release with its upload needs your go.
 
-## Half done (written + committed, NOT compiled/tested - no builds tonight)
-- Test tours skip the start's violet cover (so the window shows the camera's view).
-- No outline round your own character (to-do 194).
+## Done tonight
+| # | What | State |
+|---|------|-------|
+| 172 | Our airports (BIAP, LSCH) in the simulation's world list | built, self-test PASS |
+| 173 | New game makes your career in the simulation at the site; Continue/Load picks it up and catches up | built, self-test PASS |
+| 174 | Boards, gate screens and boarding calls from the simulation's real flights (yours and AI airlines') | built (self-test: "19:08 CHB 980 London, gate 9") |
+| 175 | Simulation messages, the 06:00 briefing and news on the phone | built |
+| 176 | The Crew screen on the simulation | built |
+| 177 | EASA flight time limits rostering | built, self-test PASS |
+| 178-180 | Promotions, candidates, interviews, adverts, contracts, notice, severance, holidays | built |
+| 181-183 | Maintenance checks, ground handling teams, stands and gates | built |
+| 184-186 | Connections, frequent flyers, alliances, shares/IPO, fuel hedging, challenges, league | built |
+| 192 | Save now (F5, Esc question), named saves under Load game | built |
+| 193 | Always the real weather (METAR near the airport) | built |
+| 194 | No outline round your own character | none in the pictures |
+| 195 | Clouds: the sky capture time-sliced (first step; measuring is next) | built |
+| 197 | ICAO fire cover; fire station staffed from day one | built |
+| 199 | Night curfew, the town, and the syndic | built |
+| 163 | Updater downloads never start over | built |
+| 167 | The Overview shows Chablais | built |
+| 168 | Swiss flags: our own cloth simulation in the real wind | pictures |
+| 170 | Bilingual signs (French / English) + "Bienvenue / Welcome to Chablais Airport" | 3 faces placed - not yet seen in a picture |
+| 171 | Mountain names layer on the holographic map | built - not yet seen in a picture |
+| 188 | The new Overview: one live dashboard on the simulation | first version (no demo APK: you waived the look-first stop) |
+| 191 | Aircraft in 3D, first steps: parked at their stands, pushback, taxi on the centre lines (nose wheel on the line, 25/10/5 kt), take-off; arrivals land and taxi in | pictures (docs/Pictures/Chablais/Night-2026-11-21/Aircraft3D_*) |
+| 200 | 1.81 million real trees, seasonal | pictures (summer, autumn, winter) |
+| 161 | Walking test at Chablais (terminal, forecourt, coaches; day and night) | done: 41-48 fps in the EDITOR at 4K (not the packaged game) |
 
-## Next (the to-do PDF, docs/AirportDynastyPro-ToDo.pdf)
-- Morning list first: 172-180 (AI: our airports in the world list, the sim starting with the career, real boards,
-  phone messages, crew screens/rostering with the EASA rules, promotions, candidates, contracts), 181-186, 192-199,
-  167 (very high: the Overview shows Chablais), 160-163 (pyramid check, walking tests, title flash, updater
-  downloads that never start over), 166 icon, 168 Swiss flags, 170 bilingual signs, 171 mountain names, 169 framings LAST.
-- Overnight batch (to-do 164: French photo redo, photo packs, Chablais terrain packs, the next game package) - NOT
-  started: waits for the owner's word.
-- After the morning list: 188 new Overview design (STOP for his OK) -> 189 native screens -> 190 sync + tracking ->
-  191 aircraft in 3D (Airbus only) with 187 and 196.
+Pictures: docs/Pictures/Chablais/Night-2026-11-21 (4K) and docs/Pictures/Chablais/Trees (tree checks over the photo).
+
+## Still open
+- 188 (the rest), 189 native screens, 190 sync and live tracking, 191 (the rest: lights, control surfaces, nose-up
+  attitudes, ATC clearances, holding short, the tug; 196/198 pushback crew) - the multi-day items.
+- 160 pyramid check, 162 title flash (the film now syncs once at the start and only corrects 0.6 s+ drift - watch a
+  normal start), 169 showcase framings (new spots written, the shots still to be retaken), 195 measuring.
+- The trees up close still look a little stylised: a leaf-texture pass with reference photos is next.
+- 165 and 166 are done already (pack folder choice exists; the cube icon by the phone chat) - they go out with the release.
+
+## The overnight batch (to-do 164)
+1. French photo tiles redone - done.
+2. The 28 GB of photos into ~1 GB packs - see below.
+3. Chablais terrain packs from tiles-v2 - queued after 2.
+4. The game packaged as 0.18.0 - see below.

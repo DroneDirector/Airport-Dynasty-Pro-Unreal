@@ -22,11 +22,23 @@ def clear():
     bpy.ops.wm.read_factory_settings(use_empty=True)
 
 
+TEX = {'M_Tree_Leaves': 'T_Leaves.png', 'M_Tree_Needles': 'T_Needles.png', 'M_Tree_BarkBeech': 'T_BarkBeech.png', 'M_Tree_BarkConifer': 'T_BarkConifer.png'}
+
+
 def mat(name, rgb):
-    m = bpy.data.materials.get(name) or bpy.data.materials.new(name)
-    m.use_nodes = True
+    # (our own textures in grey tones - Art/Trees/make_tree_textures.py - the game tints them by season)
+    m = bpy.data.materials.get(name)
+    if m: return m
+    m = bpy.data.materials.new(name); m.use_nodes = True
     b = m.node_tree.nodes.get('Principled BSDF')
-    if b: b.inputs['Base Color'].default_value = (*rgb, 1.0); b.inputs['Roughness'].default_value = 0.85
+    if b:
+        b.inputs['Roughness'].default_value = 0.85
+        t = OUT / 'Textures' / TEX.get(name, '')
+        if name in TEX and t.exists():
+            im = m.node_tree.nodes.new('ShaderNodeTexImage'); im.image = bpy.data.images.load(str(t))
+            m.node_tree.links.new(im.outputs['Color'], b.inputs['Base Color'])
+        else:
+            b.inputs['Base Color'].default_value = (*rgb, 1.0)
     return m
 
 
@@ -152,6 +164,11 @@ def join(name, objs):
     for o in objs: o.select_set(True)
     bpy.context.view_layer.objects.active = objs[0]
     bpy.ops.object.join()
+    # UVs in metres (a cube projection 2.4 m across): the leaves, needles and bark repeat at their real size
+    o = objs[0]
+    bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.uv.cube_project(cube_size=2.4, scale_to_bounds=False, correct_aspect=True)
+    bpy.ops.object.mode_set(mode='OBJECT')
     objs[0].name = name; objs[0].data.name = name
     # no empty material slots (material-slot-check rule)
     assert all(s.material for s in objs[0].material_slots), name + ': empty material slot'

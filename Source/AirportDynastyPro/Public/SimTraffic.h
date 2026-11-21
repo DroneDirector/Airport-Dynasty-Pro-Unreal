@@ -40,6 +40,8 @@ private:
 		FVector2f Nose, Main;               // the nose wheel and the main gear's middle (plan m)
 		float Speed = 0.f, Height = 0.f, Clock = 0.f;
 		TWeakObjectPtr<ABabylonModel> Model;
+		// its lights (glows by material, no real lights - the lights rule): navigation, beacons, strobes
+		TArray<TPair<class UStaticMeshComponent*, class UMaterialInstanceDynamic*>> Lights;   // nav L, nav R, tail, beacon top, beacon belly, strobe L, strobe R
 	};
 	TArray<FMove> Moves;
 	FAirfieldData F;
@@ -48,5 +50,7 @@ private:
 	void Sync();
 	bool Advance(FMove& M, float Dt);
 	void Pose(FMove& M);
+	void AddLights(FMove& M);
+	void Blink(FMove& M);
 	bool RunwayToX1() const;   // the take-off and landing direction from the real wind (true: towards the runway's x1 end)
 };
