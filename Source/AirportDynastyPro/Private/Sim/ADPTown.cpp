@@ -45,6 +45,8 @@ int32 ADPTown::FireCategoryAt(const FADPWorld& W, const FString& Icao, const FDa
 
 void ADPTown::HereCurfew(double& From, double& To) { From = GCurfewFrom; To = GCurfewTo; }
 
+void ADPTown::UseWorld(const FADPWorld& W) { if (W.Town.bStarted) { GCurfewFrom = W.Town.CurfewFrom; GCurfewTo = W.Town.CurfewTo; GCurfewSet = true; } }
+
 FString ADPTown::SyndicName(const FADPWorld& W) { return W.Town.Syndic.IsEmpty() ? FString(TEXT("Claire Dufour")) : W.Town.Syndic; }
 
 bool ADPTown::CommunityFund(FADPWorld& W, double Usd, const FDateTime& At)

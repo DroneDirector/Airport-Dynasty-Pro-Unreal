@@ -11,6 +11,10 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonSerializer.h"
 
 namespace ADPBilingual
 {
@@ -52,6 +56,31 @@ namespace ADPBilingual
 		}
 	}
 
+	/** A group node's children's names, from the model's node list (Content/Data or Data/babylon-terminal.json). */
+	static TArray<FString> ChildrenOf(const FString& Name)
+	{
+		static TSharedPtr<FJsonObject> J;
+		if (!J)
+		{
+			FString T;
+			for (const FString& P : {FPaths::ProjectContentDir() / TEXT("Data/babylon-terminal.json"), FPaths::ProjectDir() / TEXT("Data/babylon-terminal.json")})
+				if (FFileHelper::LoadFileToString(T, *P) && FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(T), J) && J) break;
+		}
+		TArray<FString> Out;
+		const TArray<TSharedPtr<FJsonValue>>* Nodes;
+		if (!J || !J->TryGetArrayField(TEXT("nodes"), Nodes)) return Out;
+		for (const TSharedPtr<FJsonValue>& V : *Nodes)
+		{
+			const TSharedPtr<FJsonObject> O = V->AsObject(); FString N;
+			if (!O || !O->TryGetStringField(TEXT("name"), N) || N != Name) continue;
+			const TArray<TSharedPtr<FJsonValue>>* Ch;
+			if (O->TryGetArrayField(TEXT("children"), Ch))
+				for (const TSharedPtr<FJsonValue>& C : *Ch) { const int32 I = int32(C->AsNumber()); if (Nodes->IsValidIndex(I)) { FString CN; (*Nodes)[I]->AsObject()->TryGetStringField(TEXT("name"), CN); Out.Add(CN); } }
+			break;
+		}
+		return Out;
+	}
+
 	void Apply(UWorld* W)
 	{
 		if (!W || ADPSite::SignLanguage().IsEmpty()) return;
@@ -62,11 +91,24 @@ namespace ADPBilingual
 		int32 N = 0;
 		for (const FWords& Wd : List)
 		{
-			TArray<TTuple<UInstancedStaticMeshComponent*, int32, FString>> In; T->InstancesNamed(Wd.Node, false, In);
-			for (const auto& I : In)
+			// (the sign is a group: its parts are its children in the model's node list - Data/babylon-terminal.json)
+			TArray<TTuple<UInstancedStaticMeshComponent*, int32, FString>> In;
+			for (const FString& Child : ChildrenOf(Wd.Node)) T->InstancesNamed(Child, false, In);
+			// (the sign's biggest part is its board: one face over it)
+			int32 Best = INDEX_NONE; double BestV = 0.0;
+			for (int32 k = 0; k < In.Num(); ++k)
 			{
+				UInstancedStaticMeshComponent* C = In[k].Get<0>(); FTransform X;
+				if (!C || !C->GetStaticMesh() || !C->GetInstanceTransform(In[k].Get<1>(), X, true)) continue;
+				const FVector Sz = C->GetStaticMesh()->GetBoundingBox().GetSize() * X.GetScale3D().GetAbs();
+				const double V = Sz.X * Sz.Y + Sz.Y * Sz.Z + Sz.X * Sz.Z;
+				if (V > BestV) { BestV = V; Best = k; }
+			}
+			if (Best != INDEX_NONE)
+			{
+				const auto& I = In[Best];
 				UInstancedStaticMeshComponent* C = I.Get<0>(); FTransform Xf;
-				if (!C || !C->GetStaticMesh() || !C->GetInstanceTransform(I.Get<1>(), Xf, true)) continue;
+				C->GetInstanceTransform(I.Get<1>(), Xf, true);
 				const FBox Local = C->GetStaticMesh()->GetBoundingBox();
 				const FString En = Wd.En, Lo = ADPSite::Translate(En);
 				Face(T, Xf, Local, Lo, En, false); ++N;

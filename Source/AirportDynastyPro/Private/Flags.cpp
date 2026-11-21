@@ -13,18 +13,18 @@
 
 namespace
 {
-	const int32 N = 33;                 // particles along each side (32 cells: the cross's edges fall on cell lines)
-	const float SizeCm = 150.f;         // a 1.5 m square flag
-	const float Cell = SizeCm / (N - 1);
-	const float SubDt = 1.f / 120.f;
-	const FColor Red(213, 43, 30), White(255, 255, 255);
+	const int32 FlN = 33;                 // particles along each side (32 cells: the cross's edges fall on cell lines)
+	const float FlSizeCm = 150.f;         // a 1.5 m square flag
+	const float FlCell = FlSizeCm / (FlN - 1);
+	const float FlSubDt = 1.f / 120.f;
+	const FColor FlRed(213, 43, 30), FlWhite(255, 255, 255);
 	/** The Swiss cross: the cross 20/32 of the flag, its arms 6/32 wide (official proportions). */
-	bool InCross(int32 i, int32 j)
+	bool FlInCross(int32 i, int32 j)
 	{
 		const bool bH = j >= 13 && j < 19 && i >= 6 && i < 26, bV = i >= 13 && i < 19 && j >= 6 && j < 26;
 		return bH || bV;
 	}
-	int32 Id(int32 i, int32 j) { return j * N + i; }
+	int32 FlId(int32 i, int32 j) { return j * FlN + i; }
 }
 
 AFlags::AFlags()
@@ -68,9 +68,9 @@ void AFlags::Add(const FVector& Foot, float PoleM)
 	FCloth C;
 	C.Top = Foot + FVector(0, 0, PoleM * 100.f - 25.f);
 	// hanging down beside the pole at first (it lifts with the wind in its first seconds)
-	C.P.SetNum(N * N);
-	for (int32 j = 0; j < N; ++j) for (int32 i = 0; i < N; ++i)
-		C.P[Id(i, j)] = C.Top + FVector(6.f + i * Cell * 0.2f, i * Cell * 0.05f, -j * Cell - i * Cell * 0.95f);
+	C.P.SetNum(FlN * FlN);
+	for (int32 j = 0; j < FlN; ++j) for (int32 i = 0; i < FlN; ++i)
+		C.P[FlId(i, j)] = C.Top + FVector(6.f + i * FlCell * 0.2f, i * FlCell * 0.05f, -j * FlCell - i * FlCell * 0.95f);
 	C.Prev = C.P;
 	C.Mesh = NewObject<UProceduralMeshComponent>(this);
 	C.Mesh->SetupAttachment(GetRootComponent()); C.Mesh->SetCastShadow(true); C.Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -90,7 +90,7 @@ void AFlags::Step(FCloth& C, float H)
 	const FVector G(0, 0, -980.f);
 	for (int32 k = 0; k < C.P.Num(); ++k)
 	{
-		if (k % N == 0) continue;   // (the hoist edge: on the rope)
+		if (k % FlN == 0) continue;   // (the hoist edge: on the rope)
 		const FVector V = (C.P[k] - C.Prev[k]);
 		const FVector Turb(FMath::PerlinNoise1D(Clock * 1.7f + k * 0.031f), FMath::PerlinNoise1D(Clock * 1.3f + k * 0.017f + 7.f), FMath::PerlinNoise1D(Clock * 2.1f + k * 0.023f + 3.f));
 		// air drag towards the wind's speed (cloth is light: a strong pull), gravity
@@ -100,26 +100,26 @@ void AFlags::Step(FCloth& C, float H)
 		C.Prev[k] = C.P[k]; C.P[k] = Nw;
 	}
 	// the hoist: pinned to the rope beside the pole
-	for (int32 j = 0; j < N; ++j) { const int32 k = Id(0, j); C.P[k] = C.Top + FVector(5.f, 0, -j * Cell); C.Prev[k] = C.P[k]; }
+	for (int32 j = 0; j < FlN; ++j) { const int32 k = FlId(0, j); C.P[k] = C.Top + FVector(5.f, 0, -j * FlCell); C.Prev[k] = C.P[k]; }
 	// the springs: stretch (neighbours), shear (diagonals), bend (two apart) - a few passes
 	auto Hold = [&](int32 a, int32 b, float Rest, float K)
 	{
 		FVector D = C.P[b] - C.P[a]; const float L = D.Size(); if (L < 1e-3f) return;
 		D *= (L - Rest) / L * 0.5f * K;
-		const bool PinA = a % N == 0, PinB = b % N == 0;
+		const bool PinA = a % FlN == 0, PinB = b % FlN == 0;
 		if (!PinA) C.P[a] += PinB ? D * 2.f : D;
 		if (!PinB) C.P[b] -= PinA ? D * 2.f : D;
 	};
 	for (int32 It = 0; It < 6; ++It)
-		for (int32 j = 0; j < N; ++j) for (int32 i = 0; i < N; ++i)
+		for (int32 j = 0; j < FlN; ++j) for (int32 i = 0; i < FlN; ++i)
 		{
-			if (i + 1 < N) Hold(Id(i, j), Id(i + 1, j), Cell, 1.f);
-			if (j + 1 < N) Hold(Id(i, j), Id(i, j + 1), Cell, 1.f);
+			if (i + 1 < FlN) Hold(FlId(i, j), FlId(i + 1, j), FlCell, 1.f);
+			if (j + 1 < FlN) Hold(FlId(i, j), FlId(i, j + 1), FlCell, 1.f);
 			if (It % 2 == 0)
 			{
-				if (i + 1 < N && j + 1 < N) { Hold(Id(i, j), Id(i + 1, j + 1), Cell * 1.4142f, 0.6f); Hold(Id(i + 1, j), Id(i, j + 1), Cell * 1.4142f, 0.6f); }
-				if (i + 2 < N) Hold(Id(i, j), Id(i + 2, j), Cell * 2.f, 0.15f);
-				if (j + 2 < N) Hold(Id(i, j), Id(i, j + 2), Cell * 2.f, 0.15f);
+				if (i + 1 < FlN && j + 1 < FlN) { Hold(FlId(i, j), FlId(i + 1, j + 1), FlCell * 1.4142f, 0.6f); Hold(FlId(i + 1, j), FlId(i, j + 1), FlCell * 1.4142f, 0.6f); }
+				if (i + 2 < FlN) Hold(FlId(i, j), FlId(i + 2, j), FlCell * 2.f, 0.15f);
+				if (j + 2 < FlN) Hold(FlId(i, j), FlId(i, j + 2), FlCell * 2.f, 0.15f);
 			}
 		}
 	// never through the pole
@@ -130,19 +130,19 @@ void AFlags::Draw(FCloth& C, bool bFirst)
 {
 	// each cell its own four corners (a crisp edge between the red and the white), normals from the particles
 	TArray<FVector> V; TArray<int32> T; TArray<FVector> Nn; TArray<FVector2D> UV; TArray<FColor> Col; TArray<FProcMeshTangent> Tg;
-	V.Reserve((N - 1) * (N - 1) * 4);
+	V.Reserve((FlN - 1) * (FlN - 1) * 4);
 	auto Normal = [&](int32 i, int32 j)
 	{
-		const FVector Dx = C.P[Id(FMath::Min(i + 1, N - 1), j)] - C.P[Id(FMath::Max(i - 1, 0), j)];
-		const FVector Dy = C.P[Id(i, FMath::Min(j + 1, N - 1))] - C.P[Id(i, FMath::Max(j - 1, 0))];
+		const FVector Dx = C.P[FlId(FMath::Min(i + 1, FlN - 1), j)] - C.P[FlId(FMath::Max(i - 1, 0), j)];
+		const FVector Dy = C.P[FlId(i, FMath::Min(j + 1, FlN - 1))] - C.P[FlId(i, FMath::Max(j - 1, 0))];
 		return FVector::CrossProduct(Dy, Dx).GetSafeNormal();
 	};
-	for (int32 j = 0; j < N - 1; ++j) for (int32 i = 0; i < N - 1; ++i)
+	for (int32 j = 0; j < FlN - 1; ++j) for (int32 i = 0; i < FlN - 1; ++i)
 	{
 		const int32 B = V.Num();
-		const FColor K = InCross(i, j) ? White : Red;
+		const FColor K = FlInCross(i, j) ? FlWhite : FlRed;
 		for (const FIntPoint Q : {FIntPoint(i, j), FIntPoint(i + 1, j), FIntPoint(i + 1, j + 1), FIntPoint(i, j + 1)})
-		{ V.Add(C.P[Id(Q.X, Q.Y)]); Nn.Add(Normal(Q.X, Q.Y)); UV.Add(FVector2D(float(Q.X) / (N - 1), float(Q.Y) / (N - 1))); Col.Add(K); }
+		{ V.Add(C.P[FlId(Q.X, Q.Y)]); Nn.Add(Normal(Q.X, Q.Y)); UV.Add(FVector2D(float(Q.X) / (FlN - 1), float(Q.Y) / (FlN - 1))); Col.Add(K); }
 		T.Append({B, B + 1, B + 2, B, B + 2, B + 3});
 	}
 	if (bFirst) { C.Mesh->CreateMeshSection(0, V, T, Nn, UV, Col, Tg, false); if (Mat) C.Mesh->SetMaterial(0, Mat); }
@@ -155,15 +155,15 @@ void AFlags::Tick(float Dt)
 	Clock += Dt;
 	if (Mat) if (APuddles* P = APuddles::Get()) Mat->SetScalarParameterValue(TEXT("Wet"), P->GetWetness());
 	Accum = FMath::Min(Accum + Dt, 0.1f);
-	const int32 Steps = FMath::FloorToInt(Accum / SubDt);
-	Accum -= Steps * SubDt;
+	const int32 Steps = FMath::FloorToInt(Accum / FlSubDt);
+	Accum -= Steps * FlSubDt;
 	for (FCloth& C : Cloths)
 	{
 		// (always simulated; only while nobody has seen it for a while does it rest - and it carries on from where it was)
 		const bool bSeen = C.Mesh && C.Mesh->WasRecentlyRendered(2.f);
 		if (!bSeen && (C.Pause += Dt) > 5.f) continue;
 		if (bSeen) C.Pause = 0.f;
-		for (int32 s = 0; s < Steps; ++s) Step(C, SubDt);
+		for (int32 s = 0; s < Steps; ++s) Step(C, FlSubDt);
 		if (Steps > 0) Draw(C, false);
 	}
 }

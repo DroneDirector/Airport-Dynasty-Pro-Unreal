@@ -136,6 +136,7 @@ void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime
 			Wait(TEXT("fire cover"), 30); return;
 		}
 	}
+	ADPTown::UseWorld(W);   // (our airport's curfew as the career has it now - not only after the town's hourly step)
 	// night curfews: no departure while the field is closed, nor one that would land at a closed destination
 	{
 		const FADPAirportInfo* Ap = ADPWorldData::Airport(A.Location); const FADPAirportInfo* Bp = ADPWorldData::Airport(Next);
@@ -164,6 +165,7 @@ void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime
 	F.DepAt = Now + FTimespan::FromMinutes(Delay); F.DelayMin = Delay; F.DurMin = P.BlockMin();
 	F.Lat = P.FromLat; F.Lon = P.FromLon;
 	F.Crew = A.Crew;
+	F.FromStand = A.Stand;
 	// who flies: the passengers, classes and cargo this airline gets on this pair today (part 4)
 	{
 		const FADPAirportInfo* Ap = ADPWorldData::Airport(A.Location); const FADPAirportInfo* Bp = ADPWorldData::Airport(Next); const FADPTypeInfo* T = ADPWorldData::Type(A.TypeId);

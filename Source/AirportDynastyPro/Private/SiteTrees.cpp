@@ -107,8 +107,8 @@ void ASiteTrees::Season()
 	if (Day < 110) Leaf = FLinearColor(0.11f, 0.22f, 0.05f);              // (bare anyway)
 	else if (Day < 150) Leaf = FLinearColor(0.22f, 0.40f, 0.07f);         // fresh spring green (late April - May)
 	else if (Day < 245) Leaf = FLinearColor(0.10f, 0.21f, 0.05f);         // summer
-	else if (Day < 275) Leaf = FLinearColor(0.30f, 0.30f, 0.06f);         // turning (September)
-	else if (Day < 305) Leaf = FLinearColor(0.55f, 0.27f, 0.05f);         // beech gold and copper (October)
+	else if (Day < 275) Leaf = FLinearColor(0.22f, 0.24f, 0.05f);         // turning (September)
+	else if (Day < 305) Leaf = FLinearColor(0.40f, 0.20f, 0.045f);        // beech gold and copper (October: deep, not orange)
 	else Leaf = FLinearColor(0.32f, 0.16f, 0.06f);                        // brown, the last leaves (November)
 	const bool bWinter = Day >= 335 || Day < 100;
 	const FLinearColor Needles = bWinter ? FLinearColor(0.035f, 0.075f, 0.04f) : FLinearColor(0.045f, 0.10f, 0.045f);

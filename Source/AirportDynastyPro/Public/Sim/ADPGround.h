@@ -38,7 +38,7 @@ class AIRPORTDYNASTYPRO_API FADPStandsModule : public IADPSimModule
 {
 public:
 	virtual FName Name() const override { return TEXT("Stands"); }
-	virtual double Interval() const override { return 300.0; }
+	virtual double Interval() const override { return 30.0; }   // (every half minute: a new or landed aircraft gets its stand at once)
 	virtual FTimespan MaxCatchUp() const override { return FTimespan::FromDays(2.0); }
 	virtual void Advance(UADPSim& Sim, const FDateTime& From, const FDateTime& To, bool bCatchUp) override;
 	int32 Assigned = 0, Remote = 0, Moved = 0;

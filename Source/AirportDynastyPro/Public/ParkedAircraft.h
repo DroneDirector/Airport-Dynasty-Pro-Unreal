@@ -24,6 +24,10 @@ namespace ADPParked
 	/** Fills every other stand (wide-body, cargo, by the hangars) and slides the rest of N along the taxiways, the runway
 	 *  and the approach (test movement only). Returns how many aircraft in all. */
 	int32 TrafficTest(UWorld* W, const FAirfieldData& Field, int32 N);
+	/** The simulation's aircraft at their stands (to-do 191, first step): once a career runs, the static aircraft give
+	 *  way and each of the simulation's aircraft standing at our airport is shown at the stand it was given (A320 model
+	 *  for every type until more models come), arriving and leaving with it. Checked every few seconds. */
+	void StartLive(UWorld* W, const FAirfieldData& Field);
 	/** The A320's nose tyre behind its nose line (m): the stop bar's distance (Airfield.cpp FStopType). */
 	constexpr float NoseGearBehindNose = 5.1f;
 }

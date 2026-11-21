@@ -22,6 +22,8 @@ namespace ADPTown
 	int32 FireCategoryAt(const FADPWorld& W, const FString& Icao, const FDateTime& At);
 	/** Our airport's curfew now (local hours closed from .. to; From == To: none) - read by the flights module. */
 	void HereCurfew(double& From, double& To);
+	/** Our airport's curfew taken from the career's town (called before every departure check). */
+	void UseWorld(const FADPWorld& W);
 	// the player's ways (the Overview, ue.adp.sim)
 	bool CommunityFund(FADPWorld& W, double Usd, const FDateTime& At);
 	bool Insulate(FADPWorld& W, int32 Homes, const FDateTime& At);

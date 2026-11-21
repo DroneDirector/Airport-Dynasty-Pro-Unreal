@@ -128,15 +128,20 @@ def broadleaf(name, seed, bare):
         # leaf clumps round every limb tip and filling the dome between them
         centres = list(tips)
         # (a full dome from about 40% of the height to the top, wider than tall, as an open-grown beech)
-        for k in range(110):
+        for k in range(220):
             th = random.random() * 2 * math.pi; ph = math.acos(random.uniform(-0.75, 1.0)); rr = random.uniform(0.55, 1.0)
             centres.append(Vector((math.cos(th) * math.sin(ph) * H * 0.34 * rr, math.sin(th) * math.sin(ph) * H * 0.34 * rr, H * 0.63 + math.cos(ph) * H * 0.31 * rr)))
+        # many small, rough leaf clusters (not a few smooth balls): each a lumpy, flattened cluster turned at random,
+        # its surface broken by two scales of noise - the crown reads as foliage, its outline ragged against the sky
         for c in centres:
-            r = H * (0.05 + 0.03 * random.random())
+            r = H * (0.032 + 0.026 * random.random())
             ret = bmesh.ops.create_icosphere(bm, subdivisions=2, radius=r)
+            rot = Vector((random.random(), random.random(), random.random())) * 6.28
             for v in ret['verts']:
-                p = v.co; n = noise.noise(p * 0.9 + Vector((c.x, c.y, c.z)) * 0.3)
-                v.co = c + p * (1 + 0.35 * n) * Vector((1, 1, 0.8))
+                p = v.co.copy(); p.rotate(__import__('mathutils').Euler(rot))
+                n1 = noise.noise(p * (3.0 / r) + Vector((c.x, c.y, c.z)) * 0.37)
+                n2 = noise.noise(p * (9.0 / r) + Vector((c.y, c.z, c.x)) * 0.71)
+                v.co = c + p * (1 + 0.45 * n1 + 0.22 * n2) * Vector((1, 1, 0.72))
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
         parts.append(mesh_obj(name + '_leaves', bm, leaves))
     join(name, parts)

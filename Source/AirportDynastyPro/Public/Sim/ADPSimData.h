@@ -259,6 +259,7 @@ USTRUCT() struct FADPFlight
 	UPROPERTY() double Revenue = 0.0;       // the ticket and cargo money (USD), booked by the economy
 	UPROPERTY() TArray<FString> Crew;       // who flies it (to-do 177)
 	UPROPERTY() int32 PaxConnect = 0;       // of its passengers, changing to/from another of the airline's flights (to-do 184)
+	UPROPERTY() FString FromStand;          // the stand it pushed back from at our airport (the 3D traffic: to-do 191)
 };
 
 /** One passenger of a flight at your airport, for the 3D world and the tracking map (to-do 155). */

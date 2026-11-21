@@ -142,6 +142,33 @@ bool UADPSim::ResumeCareer()
 // days flown in the catch-up - then the roster, the boards and the messages are checked in the log and the game closes
 void UADPSim::CareerSelfTest()
 {
+	// -SimTrafficShot: a career with two A320s about to leave from here (crew, routes) and left running - for the 3D
+	// traffic's pictures (to-do 191); the game stays open
+	if (FParse::Param(FCommandLine::Get(), TEXT("SimTrafficShot")))
+	{
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](float) -> bool
+		{
+			static int32 Stage = 0;
+			if (!ADPWorldData::IsReady()) return true;
+			if (Stage == 0) { NewCareer(TEXT("easy")); Stage = 1; return true; }
+			if (!bRunning) return true;
+			const FString Here = ADPBoards::HereIcao(); const FDateTime T = Now();
+			World.Town.bStarted = true; World.Town.CurfewFrom = World.Town.CurfewTo = 0.0; World.Town.Syndic = TEXT("Claire Dufour");   // (test only: no curfew, whatever the hour)
+			for (int32 k = 0; k < 16; ++k)
+				for (const TCHAR* Role : {TEXT("captain"), TEXT("fo"), TEXT("fa"), TEXT("fa"), TEXT("fa"), TEXT("fa"), TEXT("ground"), TEXT("fuel"), TEXT("catering"), TEXT("cleaning")})
+					if (FADPPerson* P = World.People.FindByPredicate([&](const FADPPerson& X) { return X.AirlineId.IsEmpty() && X.Role == Role; })) ADPStaff::Hire(World, P->Id, Me(), Here, T);
+			const TCHAR* To[] = {TEXT("EGLL"), TEXT("LFPG")};
+			for (int32 i = 0; i < 2; ++i)
+			{
+				const FString Reg = ADPEconomy::BuyAircraft(World, Me(), TEXT("A320"), true, Here, T);
+				FADPRoute R; R.Id = FString::Printf(TEXT("r-shot%d"), i); R.AirlineId = Me(); R.Stops = {Here, To[i]}; R.TypeId = TEXT("A320"); R.OpenedAt = T; World.Routes.Add(R);
+				if (FADPAircraft* A = World.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == Reg; })) { A->RouteId = R.Id; A->Location = Here; A->ReadyAt = T + FTimespan::FromSeconds(40.0 + i * 70.0); }
+			}
+			ADP_LOG(TEXT("SimTrafficShot: two A320s about to leave %s"), *Here);
+			return false;
+		}), 0.5f);
+		return;
+	}
 	if (!FParse::Param(FCommandLine::Get(), TEXT("SimCareerTest"))) return;
 	FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](float) -> bool
 	{

@@ -5,6 +5,7 @@ class UWorld; namespace ADPBilingual { void Apply(UWorld* W); }
 #include "HAL/IConsoleManager.h"
 #include "SiteTrees.h"
 #include "Flags.h"
+#include "SimTraffic.h"
 #include "Site.h"
 #include "Pets.h"
 #include "ADPLog.h"
@@ -144,7 +145,7 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 			for (const FAirfieldData::FHangarSite& H : Field->Data().Hangars)
 				if (AHangar* Hg = W->SpawnActor<AHangar>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Hg->Build(H.Size, H.X, H.Y, H.bOpen);
 			// his A320 on the terminal's stands, nose tyres on their stop bars (ParkedAircraft.h)
-			if (bBabylon) ADPParked::Place(W, Field->Data());
+			if (bBabylon) { ADPParked::Place(W, Field->Data()); ADPParked::StartLive(W, Field->Data()); ASimTraffic::Start(W, Field->Data()); }   // (the simulation's own once a career runs, parked and moving: to-do 191)
 			// the traffic stress test only (-TrafficTest=N): every stand full, the rest moving (to-do 74)
 			if (bBabylon && ADPParked::TrafficTestCount() > 0) ADPParked::TrafficTest(W, Field->Data(), ADPParked::TrafficTestCount());
 			// marks on the paving: stand stains, touchdown rubber, apron patches (GroundDecals.h)

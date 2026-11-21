@@ -5722,7 +5722,7 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 			static float Off = -1.f; if (Off < 0.f && ShotClock >= 40.f && ADPLateWorld::Done()) Off = ShotClock - 40.f;
 			const float B2 = Off < 0.f ? 0.f : Before - Off, C2 = Off < 0.f ? 0.f : ShotClock - Off;
 			// (-UIChablaisRoads / -UIChablaisShow: only their own list of spots, straight after the start)
-			const bool bList = FParse::Param(FCommandLine::Get(), TEXT("UIChablaisRoads")) || FParse::Param(FCommandLine::Get(), TEXT("UIChablaisShow")) || FParse::Param(FCommandLine::Get(), TEXT("UIChablaisNew"));
+			const bool bList = FParse::Param(FCommandLine::Get(), TEXT("UIChablaisRoads")) || FParse::Param(FCommandLine::Get(), TEXT("UIChablaisShow")) || FParse::Param(FCommandLine::Get(), TEXT("UIChablaisNew")) || FParse::Param(FCommandLine::Get(), TEXT("UIChablaisTraffic"));
 			auto Shot = [](const TCHAR* Name) { FScreenshotRequest::RequestScreenshot(Name, false, false); };   // (the window's own size: run it at 3840 x 2160)
 			const FAirfieldData& F = AAirfield::Shared();
 			auto Go = [&](float X, float Y, float LX, float LY, float LH) { GoTo(FVector(X, 0.f, Y), FVector(LX, LH, LY)); };
@@ -5823,12 +5823,28 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 					{TEXT("New_09_Board_Bilingual"), [this]() { if (Drone.IsValid()) LeaveDrone(); GoTo(FVector(70.f, 0.f, 22.f), FVector(70.f, 4.2f, 29.75f)); }},
 					{TEXT("New_10_Holomap_Mountains"), [this]() { if (Drone.IsValid()) LeaveDrone(); GoEntrance(); }}};
 			}
+			// -UIChablaisTraffic (with -SimTrafficShot): the simulation's aircraft pushing back, taxiing and taking off (to-do 191)
+			if (FParse::Param(FCommandLine::Get(), TEXT("UIChablaisTraffic")))
+			{
+				// (the camera finds the simulation's moving aircraft - or its parked ones - and looks at it from 70 m off, 35 m up)
+				auto Watch = [this, Fly, &F]()
+				{
+					AActor* Target = nullptr;
+					for (TActorIterator<AActor> It(GetWorld()); It && !Target; ++It) for (const FName& Tg : It->Tags) if (Tg.ToString().StartsWith(TEXT("MOVE/"))) { Target = *It; break; }
+					for (TActorIterator<AActor> It(GetWorld()); It && !Target; ++It) for (const FName& Tg : It->Tags) if (Tg.ToString().StartsWith(TEXT("SIM/"))) { Target = *It; break; }
+					if (!Target) { Fly(150.f, F.TY + 120.f, 45.f, 150.f, 60.f, -30.f); return; }
+					const FVector W = Target->GetActorLocation(); const float PX = W.X / 100.f, PY = -W.Y / 100.f;
+					Fly(PX + 50.f, PY + 50.f, 35.f, PX, PY, -24.f);
+				};
+				Spots = {{TEXT("Traffic_1"), Watch}, {TEXT("Traffic_2"), Watch}, {TEXT("Traffic_3"), Watch}, {TEXT("Traffic_4"), Watch}, {TEXT("Traffic_5"), Watch},
+					{TEXT("Traffic_6"), Watch}, {TEXT("Traffic_7"), Watch}, {TEXT("Traffic_8"), Watch}, {TEXT("Traffic_9"), Watch}, {TEXT("Traffic_10"), Watch}};
+			}
 			for (int32 k = 0; k < Spots.Num(); ++k)
 			{
 				const float T = (bList ? 45.f : 251.f) + k * 22.f;
 				if (B2 < T && C2 >= T) { if (Drone.IsValid()) LeaveDrone(); Spots[k].Go(); if (!FString(Spots[k].Name).Contains(TEXT("Holomap"))) HideUI(); }
 				// (the map shot: the interface back and the full map with the mountain names, a few seconds before the picture)
-				if (FString(Spots[k].Name).Contains(TEXT("Holomap")) && B2 < T + 14.f && C2 >= T + 14.f) { ShowUI(); if (HoloMap.IsValid()) { if (!HoloMap->IsFull()) ToggleMap(); HoloMap->ShowPeaks(true); } }
+				if (FString(Spots[k].Name).Contains(TEXT("Holomap")) && B2 < T + 14.f && C2 >= T + 14.f) { ShowUI(); if (MiniBox.IsValid()) MiniBox->SetVisibility(EVisibility::Visible); if (HoloMap.IsValid()) { if (!HoloMap->IsFull()) ToggleMap(); HoloMap->ShowPeaks(true); } }
 				if (B2 < T + 20.f && C2 >= T + 20.f) Shot(Spots[k].Name);
 				// (the road tour's link-road spot: rays across the horizon, logging what stands up there - the black pyramids)
 				if (k == 3 && FParse::Param(FCommandLine::Get(), TEXT("UIChablaisRoads")) && B2 < T + 18.f && C2 >= T + 18.f)

@@ -74,10 +74,12 @@ void ADPTitleBg::Clock(bool bNowOn, float Seconds)
 		const double VT = V->GetTime().GetTotalSeconds();
 		static double LastSeek = -100.0, LastSay = 0.0, Started = -1.0; static int32 Seeks = 0; static float Lead = 0.f;
 		if (Started < 0.0) Started = T;
-		const bool bSane = VT >= 0.0 && VT <= TS_DUR + 1.0 && T - Started > 2.0 && V->IsPlaying();
+		const bool bSane = VT >= 0.0 && VT <= TS_DUR + 1.0 && T - Started > 0.5 && V->IsPlaying();
 		float VErr = Seconds - float(VT);
 		if (VErr > TS_DUR * 0.5f) VErr -= TS_DUR; else if (VErr < -TS_DUR * 0.5f) VErr += TS_DUR;
-		if (bSane && FMath::Abs(VErr) > 0.25f && V->SupportsSeeking() && T - LastSeek > 8.0)
+		// (to-do 162, 2026-11-21: every jump shows as a flash - the first one lands as early as the video allows, then only
+		// a drift of 0.6 s or more is caught up, at most every 30 s; a smaller steady drift is left alone, unseen)
+		if (bSane && FMath::Abs(VErr) > (Seeks == 0 ? 0.25f : 0.6f) && V->SupportsSeeking() && T - LastSeek > (Seeks == 0 ? 0.0 : 30.0))
 		{
 			if (Seeks > 0 && FMath::Abs(VErr) < 1.5f) Lead = FMath::Clamp(Lead + VErr, 0.f, 1.5f);
 			LastSeek = T; ++Seeks; V->Seek(FTimespan::FromSeconds(FMath::Fmod(Seconds + Lead, TS_DUR)));

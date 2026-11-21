@@ -12,6 +12,9 @@
 #include "Containers/Ticker.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
+#include "Sim/ADPSim.h"
+#include "Sim/ADPBoards.h"
+#include "EngineUtils.h"
 
 namespace ADPParked
 {
@@ -181,5 +184,57 @@ namespace ADPParked
 			}));
 		ADP_LOG(TEXT("Traffic test: %d aircraft (%d on stands, %d moving)"), Used, Used - Moving, Moving);
 		return Used;
+	}
+}
+
+namespace ADPParked
+{
+	namespace
+	{
+		TMap<FString, TPair<FString, TWeakObjectPtr<ABabylonModel>>> GLive;   // stand -> (registration, its model)
+		FTSTicker::FDelegateHandle GLiveTick;
+		bool GStaticGone = false;
+	}
+
+	void StartLive(UWorld* W, const FAirfieldData& Field)
+	{
+		if (!W || !HaveModel()) return;
+		TWeakObjectPtr<UWorld> WW(W);
+		TArray<FAirfieldData::FStand> Stands = Field.Stands;
+		if (GLiveTick.IsValid()) FTSTicker::GetCoreTicker().RemoveTicker(GLiveTick);
+		GLive.Reset(); GStaticGone = false;
+		GLiveTick = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WW, Stands](float) -> bool
+		{
+			UWorld* Wd = WW.Get();
+			if (!Wd) return false;
+			UADPSim* Sim = UADPSim::Get(Wd);
+			if (!Sim || !Sim->IsRunning()) return true;
+			// a career runs: the static aircraft go once (the simulation's own take their places)
+			if (!GStaticGone)
+			{
+				GStaticGone = true;
+				for (TActorIterator<ABabylonModel> It(Wd); It; ++It)
+					for (const FName& T : It->Tags) if (T.ToString().EndsWith(TEXT("/A320"))) { It->Destroy(); break; }
+			}
+			const FString Here = ADPBoards::HereIcao();
+			TMap<FString, FString> Want;   // stand -> registration
+			for (const FADPAircraft& A : Sim->World.Aircraft)
+				if (A.Location == Here && !A.Stand.IsEmpty() && A.Status != TEXT("flying")) Want.Add(A.Stand, A.Reg);
+			// gone or changed: removed
+			for (auto It = GLive.CreateIterator(); It; ++It)
+			{
+				const FString* R = Want.Find(It->Key);
+				if (!R || *R != It->Value.Key) { if (ABabylonModel* M = It->Value.Value.Get()) M->Destroy(); It.RemoveCurrent(); }
+			}
+			// new ones: on their stands, nose tyres on the stop bars
+			for (const auto& Wn : Want)
+			{
+				if (GLive.Contains(Wn.Key)) continue;
+				const FAirfieldData::FStand* St = Stands.FindByPredicate([&](const FAirfieldData::FStand& X) { return X.Id == Wn.Key; });
+				if (!St) continue;
+				if (ABabylonModel* M = ParkOne(Wd, *St)) { M->Tags.Add(FName(*(TEXT("SIM/") + Wn.Value))); GLive.Add(Wn.Key, TPair<FString, TWeakObjectPtr<ABabylonModel>>(Wn.Value, M)); ADP_LOG(TEXT("Parked aircraft: %s at %s (the simulation's)"), *Wn.Value, *Wn.Key); }
+			}
+			return true;
+		}), 5.f);
 	}
 }
