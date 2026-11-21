@@ -384,17 +384,6 @@
    "kind": "wc"
   },
   {
-   "id": "F2-FAMILY",
-   "f": 2,
-   "name": "Family room",
-   "x0": 90,
-   "z0": 30,
-   "x1": 104,
-   "z1": 42,
-   "kind": "family",
-   "glass": "s"
-  },
-  {
    "id": "F2-BAR",
    "f": 2,
    "name": "Bar (big bar area)",
@@ -1667,17 +1656,6 @@
    "x": 10,
    "z": 52,
    "along": "x"
-  },
-  {
-   "id": "D-F2-FAMILY-1",
-   "f": 2,
-   "a": "F2-FAMILY",
-   "b": "F2-BAR",
-   "type": "swing",
-   "w": 1.6,
-   "x": 104,
-   "z": 36,
-   "along": "z"
   },
   {
    "id": "D-F2-BAR-1",

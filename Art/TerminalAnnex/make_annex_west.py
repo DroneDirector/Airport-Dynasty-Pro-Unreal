@@ -112,7 +112,7 @@ wall_z(30.0, 0.0, 6.0, 5.41, 12.0)
 wall_z(30.0, 4.0, 16.0, 3.5, 5.41)
 # the roof at +12 with its ceiling, and its edge (the wave roof floats above its east part as over the kerb)
 S.box(0.0, 36.0, 11.4, 12.0, 0.0, 30.0, W)
-for (x0_, x1_, z0_, z1_) in ((0.0, 36.0, 22.0, 30.0), (14.0, 36.0, 0.0, 22.0)):     # (not over the Floor 2 toilets' and family room's own)
+for (x0_, x1_, z0_, z1_) in ((0.0, 36.0, 22.0, 30.0), (14.0, 36.0, 0.0, 22.0), (0.0, 14.0, 10.0, 22.0)):     # (not over the Floor 2 toilets' own; over the old family room since 2026-11-21)
     S.box(x0_, x1_, 11.32, 11.4, z0_, z1_, 'MI_T_offwhite', sides=('-y',))
 # the Grand Hall's west wall above +12, up to the wave roof's underside (sampled from the roof itself)
 if SOFF:
@@ -178,7 +178,8 @@ LX = 16.0
 # its floor where you step off the escalators: the gate walkway's dark wood (owner 2026-11-21: "add the dark wood floors
 # to the escalator floor ... where the gray area is" - was MI_T_terrazzo); M_WoodFloor is world-laid, so lined up with
 # the link's and the walkway's; the top face only (the landing's edge keeps its white strip, the escalators untouched)
-for (x0_, x1_, z0_, z1_) in ((0.0, LX, 22.0, 30.0), (14.0, LX, 0.0, 22.0)):
+# (and where the family room was, x 0..14, z 10..22 - removed, owner 2026-11-21: people walk off the escalators freely)
+for (x0_, x1_, z0_, z1_) in ((0.0, LX, 22.0, 30.0), (14.0, LX, 0.0, 22.0), (0.0, 14.0, 10.0, 22.0)):
     S.box(x0_, x1_, 5.99, 6.01, z0_, z1_, 'M_WoodFloor', sides=('+y',))
 S.box(0.0, LX, 5.41, 5.99, 0.0, 30.0, 'MI_T_concrete', sides=('-x', '+x', '-z', '+z'))
 S.box(0.0, LX, 5.37, 5.41, 0.0, 30.0, 'MI_T_offwhite')

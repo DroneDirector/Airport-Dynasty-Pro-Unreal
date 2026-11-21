@@ -27,7 +27,8 @@ AREAS = [
     ('Floor 2 offices', 114.3, 155.7, 0.3, 51.7, 6.01, 11.32),
     ('Floor 2 landing (east strip)', 14.3, 15.7, 0.3, 21.7, 6.01, 11.32),
     ('Floor 2 landing', 0.3, 15.7, 22.3, 29.7, 6.01, 11.32),
-    ('Floor 2 toilets + family room', 0.3, 13.7, 0.3, 21.7, 6.008, 11.36),
+    ('Floor 2 toilets', 0.3, 13.7, 0.3, 9.7, 6.008, 11.36),
+    ('Floor 2 landing (old family room)', 0.3, 13.7, 10.3, 21.7, 6.01, 11.32),   # (removed 2026-11-21)
     ('ramp services 13', 255.7, 283.1, 68.3, 81.7, 0.01, 5.36),
     ('airside lobby (old stairwell closed)', 50.3, 89.7, 42.3, 51.7, 0.01, 5.36),     # (S-01 out, 2026-11-21)
     ('Floor 2 airside landing west', 56.3, 71.7, 42.3, 51.7, 6.01, 11.32),

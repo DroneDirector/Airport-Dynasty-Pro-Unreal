@@ -74,6 +74,11 @@ for nm in ('F2-WC-M', 'F2-WC-F'):
     log.append('moved: %s onto the escalator landing' % nm)
 # (the family room's door is on its east side already: moved only, so it opens onto the landing, not into the museum)
 N[byname['F2-FAMILY']]['translation'] = [90.0, 0.0, -20.0]; log.append('moved: F2-FAMILY onto the escalator landing')
+# ... and gone again (owner 2026-11-21: "remove the family room" - people walk off the escalators freely): its glass front
+# (inside the men's toilets' own wall at z 10, which stays), its east wall with the door, frame and sign, its lamps,
+# furniture and its floor/ceiling/roof pieces; the annex lays the landing's dark wood and its ceiling there
+# (make_annex_west.py) and its lamps are the landing's (below, F2-ESC-LANDING-W)
+drop(byname['F2-FAMILY'], 'the family room: open landing at the escalators top')
 
 # ---- the bar: 32 m west at its full size (x 72..114, z 30..52), open to the gate walkway (its north doors and the
 #      sign on that wall out; the wall itself is cut by Tools/terminal_cut.py) ----
@@ -374,6 +379,13 @@ for i, n in enumerate(N):
     if n['name'] in ('F1-RAMP-13/LOCKERS-001', 'F1-RAMP-13/BAGGAGE-CART-003') and n.get('translation'):
         t = n['translation']; n['translation'] = [-(259.4 if 'LOCKERS' in n['name'] else 257.4) + 86.35, t[1], t[2]]
         log.append('moved: %s out of the vehicle lane' % n['name'])
+# the escalator landing's lamps where the family room was (x 0..14, z 10..22; its own lamp grid, under the landing's
+# ceiling at +11.32 like the landing's own): appended last too
+for _k, (_x, _z) in enumerate([(x, z) for x in (2.33, 7.0, 11.67) for z in (12.0, 16.0, 20.0)]):
+    N.append({'name': 'F2-ESC-LANDING-W/LAMP-%03d' % (1 + _k), 'translation': [-_x, 11.28, _z], 'children': [len(N) + 1]})
+    N.append({'name': 'box#lamp', 'scale': [1.2, 0.04, 0.6], 'mesh': 186})
+    N[byname['F2']]['children'].append(len(N) - 2)
+log.append('new: F2-ESC-LANDING-W/LAMP-001..009 (where the family room was)')
 # the airside lobby's lamps over the closed stairwell (S-01 out, above): last, so every other node keeps its index
 for _k, (_x, _z) in enumerate(((60, 44.5), (60, 49.5), (64, 44.5), (64, 49.5))):
     N.append({'name': 'F1-AIRSIDE/LAMP-%03d' % (17 + _k), 'translation': [-_x, 5.33, _z], 'children': [len(N) + 1]})
