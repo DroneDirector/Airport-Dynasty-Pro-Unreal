@@ -244,7 +244,7 @@ int32 ATugs::Assign(const FString& Key, float StandX)
 	for (int32 i = 0; i < Tugs.Num(); ++i) if ((Tugs[i].State == EState::Parked || Tugs[i].State == EState::Manned) && FMath::Abs(Tugs[i].StandX - StandX) < 1.f) Best = i;
 	if (Best == INDEX_NONE) return INDEX_NONE;
 	FTug& T = Tugs[Best];
-	T.Key = Key; T.Path.Reset();
+	T.Key = Key; T.Path.Reset(); T.Seq = 0; T.SeqT = 0.f; T.EngT = -1.f; T.bDeiced = false; T.bEngines = false; T.Talk.Reset(); T.TalkT = 0.f;
 	ADP_LOG(TEXT("Tugs: tug %d at its gate gets ready for %s"), Best, *Key);
 	// (its crew: the driver walks over and climbs in, then the engine starts - TugCrew.cpp)
 	if (T.State == EState::Manned) { T.State = EState::Waiting; Engine(T, true); CrewBoard(Best); ADP_LOG(TEXT("Tugs: the driver, already aboard, starts the engine")); }   // (CrewBoard: only the handler and walkers then)
@@ -289,7 +289,10 @@ bool ATugs::Push(const FString& Key, float StandX, const FVector& Fitting, const
 			*Key, Fitting.X / 100.f, -Fitting.Y / 100.f, F.X, -F.Y, T.HookAt.X / 100.f, -T.HookAt.Y / 100.f, T.HookYaw); }
 		T.At = T.HookAt; T.Yaw = T.HookYaw; Pose(T);
 		// (the push starts only with the wing walkers and the tail walker in their places)
-		return T.Driver == INDEX_NONE || T.WalkersReady >= 3;   // (no crew, no push - owner)
+		if (T.Driver == INDEX_NONE) return true;
+		if (T.WalkersReady < 3) return false;   // (no crew, no push - owner)
+		if (T.Seq == 0) { T.Seq = 1; T.SeqT = 0.f; T.SeqWait = FMath::FRandRange(2.f, 5.f); }
+		return T.Seq >= 8;   // (brakes released, "commencing pushback" - the 11 steps, SeqTick)
 	}
 	return false;
 }
@@ -301,6 +304,7 @@ void ATugs::Release(const FString& Key)
 		{
 			T.State = EState::Unhook; T.Clock = 0.f; ADP_LOG(TEXT("Tugs: unhooking from %s"), *Key);
 			WalkersDone(int32(&T - Tugs.GetData()));
+			if (T.Driver != INDEX_NONE && T.Seq < 9) { T.Seq = 9; T.SeqT = 0.f; T.SeqWait = FMath::FRandRange(2.f, 5.f); }   // (push complete: "set brakes")
 			if (T.Driver != INDEX_NONE) CrewUncouple(int32(&T - Tugs.GetData()));
 			else Sound(TEXT("TugHitchClunk"), T.At - FRotator(0.f, T.Yaw, 0.f).Vector() * HeadAhead * 100.f);
 		}
@@ -314,6 +318,7 @@ bool ATugs::IsClear(const FString& Key) const
 			|| T.State == EState::Boarding || T.State == EState::Coupling || T.State == EState::ShowPin)) return false;
 		// (the pilot never taxis before the bypass pin has been shown and everyone is clear - owner 2026-11-21)
 		if (T.PinKey == Key && !T.bPinShown) return false;
+		if (T.PinKey == Key && T.Driver != INDEX_NONE && T.Seq < 14) return false;   // (engines stable, ready to taxi, ATC's taxi clearance)
 	}
 	return true;
 }
@@ -549,6 +554,7 @@ void ATugs::Tick(float Dt)
 		Lamps(T);
 		Wheels(T, Dt);
 		Door(T, Dt);
+		SeqTick(T, Dt);
 		// (short of walkers for a departure: look for free ones every 3 s)
 		if (T.Driver != INDEX_NONE && !T.Key.IsEmpty() && T.Walkers.Num() < 3 && T.State != EState::Unhook && T.State != EState::Backing && T.State != EState::Home && (T.WalkerLook += Dt) > 3.f) { T.WalkerLook = 0.f; CrewWalkers(int32(&T - Tugs.GetData())); }
 	}

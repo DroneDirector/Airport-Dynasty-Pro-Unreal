@@ -15,6 +15,7 @@
 #include "Sim/ADPBoards.h"
 #include "Sim/ADPSim.h"
 #include "UI/ADPHUD.h"
+#include "G2P.h"
 #include "ADPLog.h"
 #include "SWebBrowser.h"
 #include "Components/AudioComponent.h"
@@ -244,6 +245,14 @@ void AADPHUD::PlayAnnouncer(int32 Id, const TArray<int16>& Pcm)
 	CaptionTime = FMath::Max(CaptionTime, W->Duration + 1.f);
 }
 
+bool AADPHUD::CrewIds(int32 Id, const FString& Words)
+{
+	if (!Browser.IsValid()) return false;
+	FString Safe = Words.Replace(TEXT("\\"), TEXT(" ")).Replace(TEXT("'"), TEXT("\\'")).Replace(TEXT("\n"), TEXT(" "));
+	Browser->ExecuteJavascript(FString::Printf(TEXT("try { window.__ueCrewIds && window.__ueCrewIds(%d, '%s'); } catch (e) {}"), Id, *Safe));
+	return true;
+}
+
 void AADPHUD::Speak(const FString& Words)
 {
 	if (!Browser.IsValid()) { ADP_WARN(TEXT("Announcer: no menus page to make the voice")); return; }
@@ -263,6 +272,25 @@ void AADPHUD::Speak(const FString& Words)
 		}
 	}
 	SpokenText = Said;
+	// (owner 2026-11-21: the voices in Unreal itself, no web layer - the pronunciation is ours in C++ now, G2P.cpp)
+	{
+		TWeakObjectPtr<AADPHUD> Me(this); const int32 Id = SpeechId;
+		Async(EAsyncExecution::Thread, [Me, Id, Said]()
+		{
+			const TArray<TArray<int64>> S = ADPG2P::Ready() ? ADPG2P::Ids(Said) : TArray<TArray<int64>>();
+			FString Json = TEXT("[");
+			for (int32 i = 0; i < S.Num(); ++i) { Json += i ? TEXT(",[") : TEXT("["); for (int32 k = 0; k < S[i].Num(); ++k) { if (k) Json += TEXT(","); Json += FString::Printf(TEXT("%lld"), S[i][k]); } Json += TEXT("]"); }
+			Json += TEXT("]");
+			AsyncTask(ENamedThreads::GameThread, [Me, Id, Json, bOk = S.Num() > 0]() { if (Me.IsValid() && bOk) Me->KokoroSpeak(Id, Json); else if (Me.IsValid()) Me->SpeakWeb(Id); });
+		});
+		return;
+	}
+}
+
+void AADPHUD::SpeakWeb(int32 Id)
+{
+	if (Id != SpeechId || !Browser.IsValid()) return;
+	const FString Said = SpokenText;
 	FString Safe = Said.Replace(TEXT("\\"), TEXT(" ")).Replace(TEXT("'"), TEXT("\\'"));
 	// the menus make the voice; if their speech code isn't there (or fails at once), Windows' voice is asked for
 	Browser->ExecuteJavascript(FString::Printf(TEXT("try { if (window.__ueSay) window.__ueSay(%d, '%s', %.2f); else window.ue.adp.speechfail(%d); } catch (e) { window.ue.adp.speechfail(%d); }"), SpeechId, *Safe, ZoneGain(), SpeechId, SpeechId));

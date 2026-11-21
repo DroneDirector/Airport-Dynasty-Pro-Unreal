@@ -220,6 +220,21 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 			}
 		if (M.Clock == 2.f) M.Clock = 0.f;
 		ATugs* T = ATugs::Get(GetWorld());
+		// the words for the talk: its callsign (the registration's last letters, spelt the ICAO way), the way it will face
+		// after the push (the runway in use), the runway's number, the route
+		if (T && M.Clock != 3.f)
+		{
+			static const TCHAR* Ph[] = {TEXT("Alpha"), TEXT("Bravo"), TEXT("Charlie"), TEXT("Delta"), TEXT("Echo"), TEXT("Foxtrot"), TEXT("Golf"), TEXT("Hotel"), TEXT("India"), TEXT("Juliett"), TEXT("Kilo"), TEXT("Lima"), TEXT("Mike"), TEXT("November"), TEXT("Oscar"), TEXT("Papa"), TEXT("Quebec"), TEXT("Romeo"), TEXT("Sierra"), TEXT("Tango"), TEXT("Uniform"), TEXT("Victor"), TEXT("Whiskey"), TEXT("X-ray"), TEXT("Yankee"), TEXT("Zulu")};
+			static const TCHAR* Dg[] = {TEXT("zero"), TEXT("one"), TEXT("two"), TEXT("three"), TEXT("four"), TEXT("five"), TEXT("six"), TEXT("seven"), TEXT("eight"), TEXT("niner")};
+			FString Cs; const FString Tail = M.Reg.Mid(M.Reg.Find(TEXT("-")) + 1).Right(3).ToUpper();
+			for (const TCHAR C : Tail) if (C >= 'A' && C <= 'Z') { if (!Cs.IsEmpty()) Cs += TEXT(" "); Cs += Ph[C - 'A']; }
+			double Hdg = 336.0; if (TSharedPtr<FJsonObject> Ab = ADPSite::AirportBlock()) Ab->TryGetNumberField(TEXT("hdg"), Hdg);
+			const double H = FMath::Fmod(RunwayToX1() ? Hdg : Hdg + 180.0, 360.0);
+			static const TCHAR* Comp[] = {TEXT("north"), TEXT("east"), TEXT("south"), TEXT("west")};
+			const int32 Rw = FMath::RoundToInt(H / 10.0) == 0 ? 36 : FMath::RoundToInt(H / 10.0);
+			const FString RwW = FString::Printf(TEXT("%s %s"), Dg[Rw / 10], Dg[Rw % 10]);
+			T->Clearance(M.FlightId, Cs, Comp[FMath::RoundToInt(H / 90.0) % 4], TEXT("Tango, Alpha"), RwW);
+		}
 		if (T && !T->Push(M.FlightId, StandX, Nose + Fwd * 60.f, Fwd)) { if (M.Clock == 0.f) ADP_LOG(TEXT("Traffic: %s at %s waits for its tug"), *M.FlightId, *M.Stand); M.Clock = 1.f; M.Speed = 0.f; Pose(M); return false; }
 		M.Clock = 0.f;
 		// ground control: no pushback while another aircraft taxis by on the taxilane within 120 m (it waits, hooked on)

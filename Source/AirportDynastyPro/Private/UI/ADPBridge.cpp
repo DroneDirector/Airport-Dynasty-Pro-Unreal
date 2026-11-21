@@ -1,5 +1,6 @@
 // The link from the app's menus to Unreal.
 #include "UI/ADPBridge.h"
+#include "CrewVoice.h"
 #include "UI/TitleBg.h"
 #include "ADPLog.h"
 #include "UI/ADPHUD.h"
@@ -115,6 +116,11 @@ void UADPBridge::Log(const FString& Line)
 void UADPBridge::Board(const FString& Key, const FString& B64)
 {
 	if (AADPHUD* H = Hud.Get()) H->OnBoard(Key, B64);
+}
+
+void UADPBridge::KokoroCrew(int32 Id, const FString& IdsJson)
+{
+	ADPCrewVoice::OnIds(Id, IdsJson);
 }
 
 void UADPBridge::Kokoro(int32 Id, const FString& IdsJson)

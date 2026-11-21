@@ -20,11 +20,17 @@
 // IK_Seat_Driver, IK_Hand_L/R, IK_Foot_Brake ...). Next: the radio and interphone talk and the timed 11 steps.
 #include "Tugs.h"
 #include "People.h"
+#include "CrewVoice.h"
 #include "TruckDriverRig.h"
 #include "DriverPoseAnim.h"
 #include "BabylonModel.h"
 #include "ADPLog.h"
 #include "Airfield.h"
+#include "Site.h"
+#include "Sim/ADPWeather.h"
+#include "Internationalization/Regex.h"
+#include "GameFramework/PlayerController.h"
+#include "Camera/PlayerCameraManager.h"
 #include "TerminalPlan.h"
 #include "Engine/World.h"
 #include "Components/PoseableMeshComponent.h"
@@ -387,7 +393,7 @@ void ATugs::CrewBoard(int32 Tug, bool bArrival)
 void ATugs::CrewCouple(int32 Tug)
 {
 	FTug& T = Tugs[Tug];
-	auto Geo = [this, Tug](FVector& Fit, FVector& F, FVector& L, FVector& Gear) { const FTug& U = Tugs[Tug]; Fit = U.Fit; F = U.Fwd; L = LeftOf(F); Gear = Fit - F * 60.f; };
+	auto Geo = [this, Tug](FVector& Fit, FVector& F, FVector& L, FVector& Gear) { const FTug& U = Tugs[Tug]; Fit = U.Fit; F = U.Fwd; L = -LeftOf(F); Gear = Fit - F * 60.f; };   // (L: the side the handler works on - the aircraft's RIGHT, away from the jetway and its red zone at the gate; test of 2026-11-21)
 	auto HeadSpot = [Geo] { FVector Fit, F, L, G; Geo(Fit, F, L, G); return Fit + F * 40.f + L * 90.f; };
 	auto GearSpot = [Geo] { FVector Fit, F, L, G; Geo(Fit, F, L, G); return G + L * 85.f; };
 	const FPoseFn PinHead = [Geo](float K, float PH, FDriverPose& P) { FVector Fit, F, L, G; Geo(Fit, F, L, G); P = Squat(Fit + F * 40.f + L * 90.f, -L, Fit + Up * 48.f + F * 8.f, PH, Ramp(K)); };
@@ -438,7 +444,7 @@ void ATugs::CrewUncouple(int32 Tug)
 {
 	FTug& T = Tugs[Tug];
 	T.bPinShown = false; T.PinKey = T.Key;
-	auto Geo = [this, Tug](FVector& Fit, FVector& F, FVector& L, FVector& Gear) { const FTug& U = Tugs[Tug]; Fit = U.Fit; F = U.Fwd; L = LeftOf(F); Gear = Fit - F * 60.f; };
+	auto Geo = [this, Tug](FVector& Fit, FVector& F, FVector& L, FVector& Gear) { const FTug& U = Tugs[Tug]; Fit = U.Fit; F = U.Fwd; L = -LeftOf(F); Gear = Fit - F * 60.f; };   // (L: the side the handler works on - the aircraft's RIGHT, away from the jetway and its red zone at the gate; test of 2026-11-21)
 	auto HeadSpot = [Geo] { FVector Fit, F, L, G; Geo(Fit, F, L, G); return Fit + F * 40.f + L * 90.f; };
 	auto GearSpot = [Geo] { FVector Fit, F, L, G; Geo(Fit, F, L, G); return G + L * 85.f; };
 	const FPoseFn PinHead = [Geo](float K, float PH, FDriverPose& P) { FVector Fit, F, L, G; Geo(Fit, F, L, G); P = Squat(Fit + F * 40.f + L * 90.f, -L, Fit + Up * 48.f + F * 8.f, PH, Ramp(K)); };
@@ -472,7 +478,7 @@ void ATugs::CrewUncouple(int32 Tug)
 	if (T.Handler != INDEX_NONE)
 	{
 		FCrew& H = Crew[T.Handler]; H.Follow = nullptr;
-		H.Q.Add(WaitAct(Pause()));                                       // (brakes set - the interphone call comes with the 11 steps)
+		H.Q.Add(UntilAct([this, Tug](float) { return Tugs[Tug].Seq >= 10; }));   // ("set brakes" - "brakes set": never unhooked before - step 8)
 		H.Q.Add(WalkAct(HeadSpot, 15.f));
 		H.Q.Add(PoseAct(PinHead, 2.8f));
 		H.Q.Add(DoAct([Clunk] { Clunk(); }));
@@ -482,11 +488,13 @@ void ATugs::CrewUncouple(int32 Tug)
 		H.Q.Add(UntilAct([this, Tug](float) { return Tugs[Tug].State != EState::Unhook && Tugs[Tug].State != EState::Backing; }));
 		H.Q.Add(WalkAct(GearSpot, 15.f));
 		H.Q.Add(PoseAct(PinGear, 2.8f));                                // the bypass pin out
+		H.Q.Add(DoAct([this, Tug] { FTug& U = Tugs[Tug]; if (U.Seq == 10) { U.Seq = 11; U.SeqT = 0.f; U.SeqWait = FMath::FRandRange(2.f, 5.f); } }));   // (step 9: "disconnecting headset ...")
+		H.Q.Add(UntilAct([this, Tug](float) { return Tugs[Tug].Seq >= 12; }));
 		H.Q.Add(PoseAct([Geo](float K, float PH, FDriverPose& P) { FVector Fit, F, L, G; Geo(Fit, F, L, G); P = Reach(G + L * 85.f, -L, 0, G + L * 25.f + Up * 135.f, 0.6f, PH, Ramp(K)); }, 1.6f));   // unplugged
 		H.Q.Add(WalkAct(ShowSpot, 25.f));
 		H.Q.Add(WaitAct(Pause() * 0.5f));
 		H.Q.Add(PoseAct(Show, 5.f));
-		H.Q.Add(DoAct([this, Tug] { FTug& U = Tugs[Tug]; U.bPinShown = true; ADP_LOG(TEXT("Tugs: bypass pin shown to the cockpit of %s - all clear"), *U.PinKey); }));
+		H.Q.Add(DoAct([this, Tug] { FTug& U = Tugs[Tug]; U.bPinShown = true; ADP_LOG(TEXT("Tugs: bypass pin shown to the cockpit of %s - all clear"), *U.PinKey); if (U.Seq == 12) { U.Seq = 13; U.SeqT = 0.f; U.SeqWait = FMath::FRandRange(2.f, 5.f); } }));
 		H.Q.Add(UntilAct(Gone));
 		H.Q.Add(WalkAct([this, Sx] { return Plan(Sx - 18.5f, 104.f); }, 80.f));
 		{ const FVector Home = H.Spot; H.Q.Add(WalkAct([Home] { return Home; }, 30.f)); H.Q.Add(DoAct([&H] { H.AnchorYaw = H.SpotYaw; })); }
@@ -494,7 +502,9 @@ void ATugs::CrewUncouple(int32 Tug)
 	}
 	// the driver alone: out, the towbar unpinned, the bypass pin out, back in, backs away, out again to show the pin
 	FCrew& D = Crew[T.Driver];
-	D.Q.Add(WaitAct(Pause()));
+	D.Q.Add(UntilAct([this, Tug](float) { return Tugs[Tug].Seq >= 10; }));
+	D.Q.Add(DoAct([this, Tug] { FTug& U = Tugs[Tug]; if (U.Seq == 10) { U.Seq = 11; U.SeqT = 0.f; U.SeqWait = FMath::FRandRange(2.f, 5.f); } }));
+	D.Q.Add(UntilAct([this, Tug](float) { return Tugs[Tug].Seq >= 12; }));
 	ClimbOut(D, Tug);
 	D.Q.Add(WalkAct(HeadSpot, 15.f));
 	D.Q.Add(PoseAct(PinHead, 2.8f));
@@ -513,7 +523,7 @@ void ATugs::CrewUncouple(int32 Tug)
 		if (K > 0.55f) { Dp.bHand[1] = true; Dp.Hand[1] = S.Pelvis + Up * 42.f - PL * 16.f + Face * 32.f; Dp.Grip[1] = 1.f; }
 		P = Lerp(S, Dp, Ramp(K));
 	}, 5.f));
-	D.Q.Add(DoAct([this, Tug] { FTug& U = Tugs[Tug]; U.bPinShown = true; ADP_LOG(TEXT("Tugs: the driver shows the bypass pin to %s - all clear"), *U.PinKey); }));
+	D.Q.Add(DoAct([this, Tug] { FTug& U = Tugs[Tug]; U.bPinShown = true; ADP_LOG(TEXT("Tugs: the driver shows the bypass pin to %s - all clear"), *U.PinKey); if (U.Seq == 12) { U.Seq = 13; U.SeqT = 0.f; U.SeqWait = FMath::FRandRange(2.f, 5.f); } }));
 	ClimbIn(D, Tug, [this, Tug] { StartHome(Tugs[Tug]); });
 }
 
@@ -626,4 +636,136 @@ void ATugs::IdleTick(FCrew& C, float Dt, bool bMayStep)
 		P = Lerp(S, D, E);
 	};
 	C.FidgetT = 0.f; C.FidgetDur = K == 4 ? 3.f : K == 0 ? 2.6f : FMath::FRandRange(3.f, 5.f);
+}
+
+// ------------------------------------------------------------------ the pushback's 11 steps (docs/Pushback-Sequence.md)
+
+void ATugs::Clearance(const FString& Key, const FString& Callsign, const FString& Face, const FString& Route, const FString& Runway)
+{
+	for (FTug& T : Tugs) if (T.Key == Key || T.PinKey == Key) { T.Callsign = Callsign; T.Face = Face; T.Route = Route; T.Runway = Runway; }
+}
+
+void ATugs::Say(FTug& T, uint8 Who, const FString& Text, bool bRadio)
+{
+	T.Talk.Add({Who, Text, bRadio});
+}
+
+void ATugs::SeqTick(FTug& T, float Dt)
+{
+	if (T.Driver == INDEX_NONE) return;
+	// the talk: one line after the other, each as long as it takes to say (about 0.36 s a word), a short gap between
+	if (T.Talk.Num())
+	{
+		if (T.TalkT <= 0.f)
+		{
+			const FTug::FLine& L = T.Talk[0];
+			if (L.bRadio && RadioBusy > GetWorld()->GetTimeSeconds()) return;   // (someone else is talking on the frequency)
+			static const TCHAR* WhoName[] = {TEXT("Ground crew"), TEXT("Pilot"), TEXT("ATC")};
+			ADP_LOG(TEXT("Radio: [%s] %s"), WhoName[FMath::Min<int32>(L.Who, 2)], *L.Text);
+			// heard: the ground crew's side, in their own voice, when you stand within 25 m of them (owner 2026-11-21: the
+			// pilot and ATC only on the radio - in the tower, controlling a crew member or with the radio app)
+			const int32 Ci = T.Handler != INDEX_NONE ? T.Handler : T.Driver;
+			if (L.Who == 0 && Crew.IsValidIndex(Ci) && Crew[Ci].A.IsValid())
+				if (const APlayerController* PC = GetWorld()->GetFirstPlayerController())
+					if (PC->PlayerCameraManager && FVector::Dist(PC->PlayerCameraManager->GetCameraLocation(), Crew[Ci].A->GetActorLocation()) < 2500.f)
+						if (AADPPeople* Pp = AADPPeople::Get(GetWorld()))
+						{
+							Pp->SubWho = T.Handler != INDEX_NONE ? TEXT("Pushback crew") : TEXT("Tug driver"); Pp->SubLine = L.Text; Pp->SubTone = AADPPeople::ETone::Calm; Pp->SubT = FMath::Clamp(1.5f + L.Text.Len() * 0.06f, 2.5f, 7.f);
+							const AADPPeople::FWho* Wh = Pp->Find(Crew[Ci].A.Get());
+							ADPCrewVoice::Say(Crew[Ci].A.Get(), L.Text, ADPCrewVoice::VoiceFor(Crew[Ci].Name, Wh && Wh->bFemale));
+						}
+			int32 Words = 1; for (const TCHAR C : L.Text) Words += C == TEXT(' ');
+			T.TalkT = 0.8f + Words * 0.36f + FMath::FRandRange(0.4f, 1.2f);
+			if (L.bRadio) RadioBusy = GetWorld()->GetTimeSeconds() + T.TalkT;
+		}
+		if ((T.TalkT -= Dt) <= 0.f) { T.Talk.RemoveAt(0); T.TalkT = 0.f; }
+		return;
+	}
+	// the engines: number 2 first (the yellow hydraulics: nose wheel steering, brakes), about 50 s to a stable idle, then
+	// number 1, then the after-start checks (~1 min)
+	if (T.EngT >= 0.f)
+	{
+		const float Was = T.EngT; T.EngT += Dt;
+		auto At = [&](float S) { return Was < S && T.EngT >= S; };
+		if (At(0.5f)) ADP_LOG(TEXT("Tugs: %s starting engine 2"), *T.Callsign);
+		if (At(50.f)) ADP_LOG(TEXT("Tugs: %s engine 2 stable at idle - starting engine 1"), *T.Callsign);
+		if (At(100.f)) ADP_LOG(TEXT("Tugs: %s engine 1 stable - after-start checks"), *T.Callsign);
+		if (At(160.f)) { T.bEngines = true; ADP_LOG(TEXT("Tugs: %s both engines running, after-start checks done"), *T.Callsign); }
+	}
+	if (T.Seq <= 0 || T.Seq == 8 || T.Seq == 10 || T.Seq == 12 || T.Seq >= 14)
+	{
+		// (during the push: the start clearance about 10 s in)
+		if (T.Seq == 8 && T.EngT < 0.f && (T.SeqT += Dt) > 10.f)
+		{
+			Say(T, 1, TEXT("Ground, cockpit, cleared to start engines?"));
+			Say(T, 0, TEXT("Cleared to start, cockpit."));
+			T.EngT = 0.f;
+		}
+		return;
+	}
+	// a random 2-5 s before each step (never scripted)
+	if ((T.SeqT += Dt) < T.SeqWait) return;
+	const FString Cs = T.Callsign.IsEmpty() ? FString(TEXT("Alpha Echo Foxtrot")) : T.Callsign;
+	// (owner 2026-11-21: what they ask and answer follows the real situation - the real weather, the traffic, the runway;
+	//  ICAO phraseology filled from the game's state, never free text)
+	const TSharedPtr<FJsonObject> Ab = ADPSite::AirportBlock();
+	double La = 0, Lo = 0; FString Icao; if (Ab) { Ab->TryGetNumberField(TEXT("lat"), La); Ab->TryGetNumberField(TEXT("lon"), Lo); Ab->TryGetStringField(TEXT("icao"), Icao); }
+	const FADPWx Wx = ADPWeather::At(Icao, La, Lo, FDateTime::UtcNow());
+	static const TCHAR* Ph[] = {TEXT("Alpha"), TEXT("Bravo"), TEXT("Charlie"), TEXT("Delta"), TEXT("Echo"), TEXT("Foxtrot"), TEXT("Golf"), TEXT("Hotel"), TEXT("India"), TEXT("Juliett"), TEXT("Kilo"), TEXT("Lima"), TEXT("Mike"), TEXT("November"), TEXT("Oscar"), TEXT("Papa"), TEXT("Quebec"), TEXT("Romeo"), TEXT("Sierra"), TEXT("Tango"), TEXT("Uniform"), TEXT("Victor"), TEXT("Whiskey"), TEXT("X-ray"), TEXT("Yankee"), TEXT("Zulu")};
+	const FString Info = Ph[ADPSite::LocalNow().GetHour() % 26];                       // (the ATIS: a new letter every hour)
+	int32 Qnh = 1013;
+	{ FRegexMatcher Mq(FRegexPattern(TEXT("\\bQ(\\d{4})\\b")), Wx.Raw); if (Mq.FindNext()) Qnh = FCString::Atoi(*Mq.GetCaptureGroup(1));
+	  else { FRegexMatcher Ma(FRegexPattern(TEXT("\\bA(\\d{4})\\b")), Wx.Raw); if (Ma.FindNext()) Qnh = FMath::RoundToInt(FCString::Atoi(*Ma.GetCaptureGroup(1)) / 100.0 * 33.8639); } }
+	const bool bLowVis = Wx.bFog || Wx.VisM < 800.0;
+	const bool bIcing = (Wx.bSnow || Wx.bFreezing || (Wx.bRain && Wx.TempC <= 3.0)) && Wx.TempC <= 3.0;
+	const bool bTraffic = Planes.Num() > 1;
+	const FString Gnd = ADPSite::Name(ADPSite::Id()).Replace(TEXT(" Airport"), TEXT("")) + TEXT(" Ground");
+	auto Next = [&T](int32 S, float Wait = -1.f) { T.Seq = S; T.SeqT = 0.f; T.SeqWait = Wait >= 0.f ? Wait : FMath::FRandRange(2.f, 5.f); };
+	switch (T.Seq)
+	{
+	case 1: // step 2: the headset plugged in - the interphone check
+		Say(T, 0, TEXT("Cockpit, ground."));
+		Say(T, 1, TEXT("Ground, cockpit, go ahead."));
+		Next(2); break;
+	case 2: // step 3: brakes set, doors closed, the bypass pin confirmed
+		Say(T, 1, TEXT("Parking brake is set, all doors closed. Confirm bypass pin inserted?"));
+		Say(T, 0, TEXT("Bypass pin is in, tow bar connected, ready for pushback."));
+		Next(3); break;
+	case 3: // step 4: the pilot asks ATC - ATC answers in 10-60 s (longer with traffic)
+		// (icing: de-iced on the stand first - simulated with its real time, 10-15 min, until the de-icing truck exists)
+		if (bIcing && !T.bDeiced && !FParse::Param(FCommandLine::Get(), TEXT("TugQuick")))
+		{
+			T.bDeiced = true;
+			Say(T, 1, FString::Printf(TEXT("%s, %s, information %s, request de-icing on stand before pushback."), *Gnd, *Cs, *Info), true);
+			Say(T, 2, FString::Printf(TEXT("%s, %s, de-icing on stand approved, call when ready for pushback."), *Cs, *Gnd), true);
+			ADP_LOG(TEXT("Tugs: %s - de-icing on the stand (simulated: %.0f C, snow %d, freezing %d)"), *Cs, Wx.TempC, Wx.bSnow, Wx.bFreezing);
+			T.SeqT = 0.f; T.SeqWait = FMath::FRandRange(600.f, 900.f); break;
+		}
+		Say(T, 1, FString::Printf(TEXT("%s, %s, stand at the terminal, information %s, request pushback."), *Gnd, *Cs, *Info), true);
+		Next(4, FMath::FRandRange(10.f, bTraffic ? 60.f : 30.f)); break;
+	case 4: // step 5: approved, with the way to face
+		Say(T, 2, FString::Printf(TEXT("%s, %s, pushback approved, face %s.%s"), *Cs, *Gnd, T.Face.IsEmpty() ? TEXT("north") : *T.Face, bLowVis ? TEXT(" Low visibility procedures in operation.") : TEXT("")), true);
+		Say(T, 1, FString::Printf(TEXT("Pushback approved, face %s, %s."), T.Face.IsEmpty() ? TEXT("north") : *T.Face, *Cs), true);
+		Next(5); break;
+	case 5: // step 6: the pilot tells the crew, brakes released - the push begins only now
+		Say(T, 1, FString::Printf(TEXT("Ground, cockpit, cleared for pushback, face %s, brakes released."), T.Face.IsEmpty() ? TEXT("north") : *T.Face));
+		Say(T, 0, TEXT("Brakes released, commencing pushback."));
+		Next(6, 0.f); break;
+	case 6: Next(8, 0.f); ADP_LOG(TEXT("Tugs: %s - push begins"), *Cs); break;
+	case 9: // step 8: push complete - brakes set (the tug never unhooks before)
+		Say(T, 0, TEXT("Pushback complete, set parking brake."));
+		Say(T, 1, TEXT("Parking brake set."));
+		Next(10, 0.f); break;
+	case 11: // step 9: the headset off, the signal on his side
+		Say(T, 0, TEXT("Tow bar disconnected, bypass pin removed. Disconnecting headset, watch for my signal."));
+		Say(T, 1, TEXT("Thank you, see you outside."));
+		Next(12, 0.f); break;
+	case 13: // step 11: ready to taxi - once both engines are running and the checks are done
+		if (!T.bEngines && T.EngT >= 0.f) return;
+		Say(T, 1, FString::Printf(TEXT("%s, %s, ready to taxi."), *Gnd, *Cs), true);
+		Say(T, 2, FString::Printf(TEXT("%s, taxi to holding point %s, runway %s, via %s, QNH %d.%s"), *Cs, TEXT("Alpha"), T.Runway.IsEmpty() ? TEXT("three four") : *T.Runway, T.Route.IsEmpty() ? TEXT("Tango, Alpha") : *T.Route, Qnh, bTraffic ? TEXT(" Expect a short delay, traffic on Tango.") : TEXT("")), true);
+		Say(T, 1, FString::Printf(TEXT("Taxi holding point Alpha, runway %s, via %s, QNH %d, %s."), T.Runway.IsEmpty() ? TEXT("three four") : *T.Runway, T.Route.IsEmpty() ? TEXT("Tango, Alpha") : *T.Route, Qnh, *Cs), true);
+		Next(14, 0.f); T.EngT = -1.f; T.bEngines = false; break;
+	default: break;
+	}
 }

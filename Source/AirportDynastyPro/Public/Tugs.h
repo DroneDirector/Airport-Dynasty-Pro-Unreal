@@ -46,6 +46,9 @@ public:
 	/** The pushback: Fitting the aircraft's tow fitting (world, on the ground), Fwd its nose direction (world, flat).
 	 *  True once a tug is hooked on (it drives in first); then it is posed on the aircraft. */
 	bool Push(const FString& Key, float StandX, const FVector& Fitting, const FVector& Fwd);
+	/** The clearance words for a departure (SimTraffic.cpp): its callsign, the way it will face after the push, the
+	 *  taxi route, the runway - for the pushback's talk (docs/Pushback-Sequence.md). */
+	void Clearance(const FString& Key, const FString& Callsign, const FString& Face, const FString& Route, const FString& Runway);
 	/** The pushback is done: the tug unhooks, backs away and drives back to the park. */
 	void Release(const FString& Key);
 	/** True when no tug is on or in front of that aircraft any more (it may taxi). */
@@ -115,11 +118,18 @@ private:
 		int32 DoorG = INDEX_NONE; float DoorAng = 0.f, DoorWant = 0.f;
 		TArray<FVector> Pending; bool bPendingReverse = false;        // the way on after a short reverse (or pull forward) away from an obstacle
 		float RouteCheck = 0.f;                                    // (the way home re-checked for obstacles every 2 s)
+		// the pushback's 11 steps (owner 2026-11-21, docs/Pushback-Sequence.md): each waits for the one before, a random
+		// 2-5 s pause before each; the talk between the handler (interphone), the pilot and ATC (radio)
+		int32 Seq = 0; float SeqT = 0.f, SeqWait = 0.f, EngT = -1.f; bool bEngines = false;
+		struct FLine { uint8 Who = 0; FString Text; bool bRadio = false; };   // Who: 0 the ground crew, 1 the pilot, 2 ATC; bRadio: on the ground frequency (else the interphone)
+		TArray<FLine> Talk; float TalkT = 0.f;
+		FString Callsign, Face, Route, Runway; bool bDeiced = false;
 		TArray<int32> Walkers; int32 WalkersReady = 0; bool bWalkersOut = false; float WalkerLook = 0.f;              // the wing walkers and tail walker on this push (Crew[])
 	};
 	TArray<FTug> Tugs;
 	TArray<FVector> Planes;   // the moving aircraft (taxiing, pushed), looked up once a second: vehicles always give way to them
 	float PlaneClock = 1.f;
+	float RadioBusy = 0.f;   // (the ground frequency: one transmission at a time - every aircraft's calls wait for it)
 	float Flash = 0.f;
 	bool bReady = false;
 	void Setup();
@@ -153,6 +163,8 @@ private:
 	void WalkersDone(int32 Tug);
 	void StartBacking(FTug& T);
 	void StartHome(FTug& T);
+	void SeqTick(FTug& T, float Dt);
+	void Say(FTug& T, uint8 Who, const FString& Text, bool bRadio = false);
 	/** Its way home round something in the way that shouldn't be there (owner 2026-11-21) - only then; the normal way
 	 *  otherwise. A grid search over the apron (1.5 m) round parked and moving aircraft, other tugs, the jetways' red
 	 *  zones, the stand boundary lines and the terminal; first backing off (or pulling forward) when the obstacle is right

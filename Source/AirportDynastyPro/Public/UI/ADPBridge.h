@@ -41,6 +41,8 @@ public:
 	UFUNCTION() void SpeechFail(int32 Id);
 	/** The announcer's line as Kokoro's sound numbers (JSON: a list per sentence); Unreal speaks it with the natural voice. */
 	UFUNCTION() void Kokoro(int32 Id, const FString& IdsJson);
+	/** A crew / pilot / controller line as Kokoro's sound numbers (CrewVoice.cpp asked for it). */
+	UFUNCTION() void KokoroCrew(int32 Id, const FString& IdsJson);
 	/** A timetable board's picture (PNG, base64), drawn by the menus. */
 	/** A line from the menus for the game's log (their errors; Unreal's browser doesn't pass on the page's console). */
 	UFUNCTION() void Log(const FString& Line);

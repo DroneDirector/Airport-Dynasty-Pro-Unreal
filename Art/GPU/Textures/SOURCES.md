@@ -1,0 +1,10 @@
+# Ground power unit textures - photo-scanned materials from ambientCG (https://ambientcg.com), all CC0 (public domain), 2K JPG, downloaded 2026-11-21
+- Plastic013A - the white moulded canopy and its doors (the real units' canopies are moulded polyethylene / GRP) (https://ambientcg.com/view?id=Plastic013A)
+- Metal011 - galvanised steel: chassis tub, bed plate, cable trays, drawbar, bumper (its mottled zinc look; compared with Metal009 - too brushed) (https://ambientcg.com/view?id=Metal011)
+- Metal027 - bare and dark steel: turntable, axles, hinges, bolts, wheel rims and discs (https://ambientcg.com/view?id=Metal027)
+- Paint004 - painted parts, tinted: engine + generator (dark grey), extinguisher box (red), e-stop housing, fuel cap, oil filter (yellow) (https://ambientcg.com/view?id=Paint004)
+- Rubber004 - tyres, wheel chocks, and (darker, finer) the 45 mm output cable (https://ambientcg.com/view?id=Rubber004)
+- Plastic006 - black plastic: plug, dummy socket, gland, grille, louvres, lamp rims, panel (https://ambientcg.com/view?id=Plastic006)
+- PaintedMetal016 - worn yellow/black chevrons on the rear bumper face (https://ambientcg.com/view?id=PaintedMetal016)
+- DiamondPlate008A - spare (tray floor option) (https://ambientcg.com/view?id=DiamondPlate008A)
+- (also compared, not used: Metal009, Rubber002 - blue flecks)

@@ -290,6 +290,10 @@ public:
 	void SpeechFallback(int32 Id);
 	/** The announcer's line as the voice model's sound numbers (JSON, one list per sentence): Kokoro in Unreal (Kokoro.cpp). */
 	void KokoroSpeak(int32 Id, const FString& IdsJson);
+	/** A crew line to Kokoro's sound numbers (the menus' pronunciation): answered through UADPBridge::KokoroCrew. */
+	bool CrewIds(int32 Id, const FString& Words);
+	/** The announcer's line through the menus' pronunciation - only when the game's own (G2P.cpp) can't. */
+	void SpeakWeb(int32 Id);
 	void PlayAnnouncer(int32 Id, const TArray<int16>& Pcm);
 	/** -UIPack: one of each call, as heard in the main hall, to Saved/AnnouncementPack.wav. */
 	void WritePreviewPack();

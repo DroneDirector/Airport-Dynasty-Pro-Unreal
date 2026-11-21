@@ -65,13 +65,14 @@ namespace ADPKokoro
 	}
 
 	/** One sentence (the model's sound numbers) to 24 kHz sound. */
-	static bool Synth(const TArray<int64>& Ids, float Speed, TArray<float>& Out)
+	static bool Synth(const TArray<int64>& Ids, float Speed, TArray<float>& Out, const TArray<float>* Sty = nullptr)
 	{
+		const TArray<float>& Sv = Sty ? *Sty : Style;
 		const int32 N = FMath::Min(Ids.Num(), 509);
 		TArray<int64> Tok; Tok.SetNumZeroed(N + 2);
 		for (int32 i = 0; i < N; ++i) Tok[i + 1] = Ids[i];
-		const int32 Row = FMath::Min(N, Style.Num() / 256 - 1);
-		TArray<float> St; St.Append(Style.GetData() + Row * 256, 256);
+		const int32 Row = FMath::Min(N, Sv.Num() / 256 - 1);
+		TArray<float> St; St.Append(Sv.GetData() + Row * 256, 256);
 		float Sp = Speed;
 		// the inputs in the model's own order, by name (tokens, style, speed)
 		TArray<UE::NNE::FTensorShape> Shapes;
@@ -137,4 +138,31 @@ void AADPHUD::KokoroSpeak(int32 Id, const FString& IdsJson)
 			if (bOk && Pcm.Num()) Me->PlayAnnouncer(Id, Pcm); else Me->SpeechFallback(Id);
 		});
 	});
+}
+
+
+// The crew's, pilots' and controllers' voices (owner 2026-11-21: "very high quality - we have our own voice engine"): any
+// voice of the pack (Content/Voice/voice-<name>.bin), the same model, one sentence after the other. On a worker thread.
+bool ADPKokoroSay(const TArray<TArray<int64>>& Sentences, const FString& VoiceName, float Speed, TArray<int16>& Pcm)
+{
+	FScopeLock Guard(&ADPKokoro::Lock);
+	if (!ADPKokoro::Load()) return false;
+	static TMap<FString, TArray<float>> Styles;
+	TArray<float>* Sty = Styles.Find(VoiceName);
+	if (!Sty)
+	{
+		TArray<uint8> Bin;
+		if (!FFileHelper::LoadFileToArray(Bin, *(ADPKokoro::Dir() / (TEXT("voice-") + VoiceName + TEXT(".bin")))) || Bin.Num() < 1024) { ADP_WARN(TEXT("Kokoro: no voice %s"), *VoiceName); return false; }
+		TArray<float> F; F.SetNumUninitialized(Bin.Num() / 4); FMemory::Memcpy(F.GetData(), Bin.GetData(), F.Num() * 4);
+		Sty = &Styles.Add(VoiceName, MoveTemp(F));
+	}
+	for (const TArray<int64>& Sn : Sentences)
+	{
+		if (!Sn.Num()) continue;
+		TArray<float> A;
+		if (!ADPKokoro::Synth(Sn, Speed, A, Sty)) return false;
+		for (const float V : A) Pcm.Add(int16(FMath::Clamp(V, -1.f, 1.f) * 32767.f));
+		Pcm.AddZeroed(int32(24000 * 0.18f));
+	}
+	return Pcm.Num() > 0;
 }

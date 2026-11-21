@@ -4,7 +4,9 @@ $ErrorActionPreference = 'Stop'
 $D = Join-Path $PSScriptRoot '..\Content\Voice'
 New-Item -ItemType Directory -Force $D | Out-Null
 $B = 'https://github.com/DroneDirector/Microsoft-Flight-Simulator-Projects/releases/download/amp-voice-pack-2'
-foreach ($f in 'pack.json', 'NOTICE.txt', 'LICENSE-Kokoro-Apache-2.0.txt', 'LICENSE-kokoro-onnx-MIT.txt', 'LICENSE-misaki-Apache-2.0.txt', 'lexicon-gb.json.gz', 'voice-bf_emma.bin') {
+foreach ($f in 'pack.json', 'NOTICE.txt', 'LICENSE-Kokoro-Apache-2.0.txt', 'LICENSE-kokoro-onnx-MIT.txt', 'LICENSE-misaki-Apache-2.0.txt', 'lexicon-gb.json.gz', 'voice-bf_emma.bin',
+  # the crew's own voices (owner 2026-11-21: the pushback talk - each crew member, pilot and controller their own voice)
+  'voice-bm_george.bin', 'voice-bm_lewis.bin', 'voice-bm_daniel.bin', 'voice-bm_fable.bin', 'voice-bf_alice.bin', 'voice-bf_isabella.bin', 'voice-bf_lily.bin', 'voice-am_michael.bin', 'voice-am_adam.bin', 'voice-af_sarah.bin') {
   $o = Join-Path $D $f
   if (-not (Test-Path $o)) { Write-Host "Getting $f"; Invoke-WebRequest "$B/$f" -OutFile $o -UseBasicParsing }
 }

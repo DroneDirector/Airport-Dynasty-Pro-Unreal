@@ -1,0 +1,266 @@
+{
+ "size_m": {
+  "x_min": -1.244,
+  "x_max": 2.129,
+  "length": 3.373,
+  "width": 1.75,
+  "height": 1.827
+ },
+ "doors": {
+  "DoorEngineL": {
+   "pivot": [
+    0.488,
+    0.63,
+    1.23
+   ],
+   "axis": "z",
+   "note": "opens outward: negative deg about +z"
+  },
+  "DoorGenR": {
+   "pivot": [
+    0.488,
+    -0.63,
+    1.23
+   ],
+   "axis": "z",
+   "note": "opens outward: positive deg about +z"
+  },
+  "DoorPanel": {
+   "pivot": [
+    -1.11,
+    0.388,
+    1.14
+   ],
+   "axis": "z",
+   "note": "opens outward: negative deg about +z"
+  }
+ },
+ "drawbar": {
+  "pivot": [
+   1.14,
+   0.0,
+   0.3
+  ],
+  "axis": "y",
+  "note": "parts Drawbar*; lowered = 0; stands up with a negative rotation about +y (up to -80 deg, checked clear)"
+ },
+ "front_axle": {
+  "pivot": [
+   0.62,
+   0.0,
+   0.352
+  ],
+  "axis": "z",
+  "note": "parts FrontAxle_* + front wheels; steer +-40 deg"
+ },
+ "wheels": {
+  "Wheel_FL": [
+   0.62,
+   0.7,
+   0.28
+  ],
+  "Wheel_FR": [
+   0.62,
+   -0.7,
+   0.28
+  ],
+  "Wheel_RL": [
+   -0.78,
+   0.7,
+   0.28
+  ],
+  "Wheel_RR": [
+   -0.78,
+   -0.7,
+   0.28
+  ]
+ },
+ "plug": {
+  "nose": [
+   1.05,
+   -0.24,
+   1.05
+  ],
+  "axis_into_socket": [
+   -1,
+   0,
+   0
+  ],
+  "parts": "CablePlug*"
+ },
+ "cable_gland": [
+  1.06,
+  -0.45,
+  0.78
+ ],
+ "cable_coils": [
+  "CableCoil_0",
+  "CableCoil_1",
+  "CableCoil_2",
+  "CableCoil_3",
+  "CableCoil_4"
+ ],
+ "cable_length_m": 22.6,
+ "ik": {
+  "IK_Wheel_FL": [
+   0.62,
+   0.7,
+   0.28
+  ],
+  "IK_Wheel_FR": [
+   0.62,
+   -0.7,
+   0.28
+  ],
+  "IK_Wheel_RL": [
+   -0.78,
+   0.7,
+   0.28
+  ],
+  "IK_Wheel_RR": [
+   -0.78,
+   -0.7,
+   0.28
+  ],
+  "IK_DoorEngineL_Handle": [
+   -0.63,
+   0.65,
+   1.23
+  ],
+  "IK_DoorEngineL_Hinge": [
+   0.488,
+   0.63,
+   1.23
+  ],
+  "IK_DoorGenR_Handle": [
+   -0.63,
+   -0.65,
+   1.23
+  ],
+  "IK_DoorGenR_Hinge": [
+   0.488,
+   -0.63,
+   1.23
+  ],
+  "IK_DoorPanel_Handle": [
+   -1.13,
+   -0.3,
+   1.12
+  ],
+  "IK_DoorPanel_Hinge": [
+   -1.11,
+   0.388,
+   1.14
+  ],
+  "IK_Panel_Start": [
+   -0.98,
+   0.24,
+   1.1
+  ],
+  "IK_Panel_Stop": [
+   -0.98,
+   0.14,
+   1.1
+  ],
+  "IK_Panel_ContactorOn": [
+   -0.98,
+   -0.14,
+   1.1
+  ],
+  "IK_Panel_ContactorOff": [
+   -0.98,
+   -0.24,
+   1.1
+  ],
+  "IK_Panel_EStop": [
+   -1.156,
+   -0.47,
+   1.2
+  ],
+  "IK_Stand_Panel": [
+   -1.65,
+   0.0,
+   0.0
+  ],
+  "IK_Fuel_Filler": [
+   -0.92,
+   0.65,
+   1.22
+  ],
+  "IK_Cable_Exit": [
+   1.06,
+   -0.45,
+   0.78
+  ],
+  "IK_Plug_Grip": [
+   1.18,
+   -0.24,
+   1.165
+  ],
+  "IK_Plug_Grip2": [
+   1.29,
+   -0.24,
+   1.0
+  ],
+  "IK_Stand_Plug": [
+   1.7,
+   -0.55,
+   0.0
+  ],
+  "IK_Drawbar_Handle": [
+   1.7,
+   0.0,
+   0.48
+  ],
+  "IK_TowEye": [
+   2.05,
+   0.0,
+   0.4
+  ],
+  "IK_ParkSupport": [
+   1.9,
+   0.07,
+   0.31
+  ],
+  "IK_ParkSupport_Foot": [
+   1.9,
+   0.0,
+   0.0
+  ],
+  "IK_Drawbar_Pivot": [
+   1.14,
+   0.0,
+   0.3
+  ],
+  "IK_FrontAxle_Pivot": [
+   0.62,
+   0.0,
+   0.352
+  ],
+  "IK_Stand_Drawbar": [
+   2.25,
+   0.35,
+   0.0
+  ],
+  "IK_Stand_DoorEngineL": [
+   -0.4,
+   1.3,
+   0.0
+  ],
+  "IK_Stand_DoorGenR": [
+   -0.4,
+   -1.3,
+   0.0
+  ]
+ },
+ "checks": {
+  "floating": [],
+  "lamp_clash": [],
+  "overhang": [],
+  "mesh_loose": [],
+  "steer_hits": 0,
+  "drawbar_hits": 0,
+  "door_hits": 0,
+  "cable_hits": 0
+ }
+}
