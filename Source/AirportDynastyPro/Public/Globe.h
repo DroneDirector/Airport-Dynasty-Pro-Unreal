@@ -29,8 +29,7 @@ class AIRPORTDYNASTYPRO_API AGlobe : public AActor
 	UPROPERTY() TObjectPtr<class UCesiumUrlTemplateRasterOverlay> SitePhoto;
 	bool AddSitePhoto(const TCHAR* Key);
 	static TWeakObjectPtr<AGlobe> Current;
-	/** The terrain's layer.json the globe uses (empty: none installed - the smooth globe; nothing placed at real heights may show). */
-	static FString TerrainLayer();
+
 	void SetImagery(int32 S);
 	void Probe(int32 S);
 
@@ -39,6 +38,8 @@ class AIRPORTDYNASTYPRO_API AGlobe : public AActor
 	int32 PawnOnTerrain = -1;
 
 public:
+	/** The terrain's layer.json the globe uses (empty: none installed - the smooth globe; nothing placed at real heights may show). */
+	static FString TerrainLayer();
 	AGlobe();
 	virtual void Tick(float Dt) override;
 	/** Places the globe under the airport. */
