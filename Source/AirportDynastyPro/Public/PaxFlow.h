@@ -38,6 +38,9 @@ public:
 	/** The manager (made once, when the airport has loaded - AADPPeople::StartWanderers). */
 	static APaxFlow* Get(UWorld* W);
 	static APaxFlow* Find(const UWorld* W);
+	/** True when this flight's departing passengers walk here: the boarding call is made by the passenger flow (at the
+	 *  turnaround's board task), not by the announcer's 40-minute rule - never called twice. */
+	static bool CallsBoarding(const UWorld* W, const FString& Flight);
 	virtual void Tick(float Dt) override;
 
 	/** Tests: what must be in view now - the passenger being followed (feet, head, its bag), and the side to look from.

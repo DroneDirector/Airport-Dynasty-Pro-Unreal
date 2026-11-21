@@ -33,7 +33,7 @@ public:
 	/** E / X: a button you look at or stand by presses it; a bag in reach is taken off. True if something was used. */
 	bool Interact(UPrimitiveComponent* Hit, const FVector& Where);
 	/** An aircraft has parked at a stand (plan x of its nose): its bags come to a belt. */
-	static void OnArrived(UWorld* W, float PlanX, const FString& Flight);
+	static void OnArrived(UWorld* W, float PlanX, const FString& Flight, int32 Count = -1);   // (Count -1: a random 35-70 bags stream; 0: only the belt named for the flight - the GSE crew bring the bags)
 	/** Start or stop a belt (0..4). */
 	void SetRunning(int32 Belt, bool bOn);
 	bool IsRunning(int32 Belt) const { return Belts.IsValidIndex(Belt) && Belts[Belt].bRun; }

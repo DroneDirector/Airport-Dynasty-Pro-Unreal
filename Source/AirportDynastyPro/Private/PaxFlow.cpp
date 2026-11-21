@@ -60,6 +60,13 @@ APaxFlow::APaxFlow()
 	Rng.Initialize(20261121);
 }
 
+bool APaxFlow::CallsBoarding(const UWorld* W, const FString& Flight)
+{
+	const APaxFlow* P = Find(W); if (!P || Flight.IsEmpty()) return false;
+	for (const FRun& R : P->Runs) if (!R.bArr && R.Label == Flight) return true;
+	return false;
+}
+
 APaxFlow* APaxFlow::Find(const UWorld* W)
 {
 	if (GPax.IsValid() && GPax->GetWorld() == W) return GPax.Get();
@@ -342,7 +349,8 @@ void APaxFlow::StepRun(int32 Ri, float Dt)
 		if (ABaggageBelts::BeltOf(GetWorld(), R.Label) == INDEX_NONE)
 		{
 			const int32 Gi = GateRoom(R.Gate);
-			ABaggageBelts::OnArrived(GetWorld(), Gates.IsValidIndex(Gi) ? Gates[Gi].Jw.X : 30.f, R.Label);
+			bool bCrew = false; for (const ADPTurnaround::FTurn& Tn : ADPTurnaround::All()) if (Tn.Reg == R.Reg) bCrew = true;
+			ABaggageBelts::OnArrived(GetWorld(), Gates.IsValidIndex(Gi) ? Gates[Gi].Jw.X : 30.f, R.Label, bCrew ? 0 : -1);   // (a real aircraft: the ground crew's train brings its bags)
 		}
 		ABaggageBelts::TagBags(GetWorld(), R.Label, Ids);
 		ADP_LOG(TEXT("PaxFlow: %s deplaning at gate %d%s - belt %d, %d bags tagged to their passengers"), *R.Label, R.Gate, bDocked ? TEXT("") : TEXT(" (test: the jetway is not docked - walking out anyway)"), ABaggageBelts::BeltOf(GetWorld(), R.Label) + 1, Ids.Num());

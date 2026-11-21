@@ -199,7 +199,7 @@ void ABaggageBelts::Unload(int32 Belt, int32 Count, int32 Station)
 	Unloads.Add({Belt, Station, Count, Station >= 4 ? 1.6f : 2.5f, 0.f});
 }
 
-void ABaggageBelts::OnArrived(UWorld* Wo, float PlanX, const FString& Flight)
+void ABaggageBelts::OnArrived(UWorld* Wo, float PlanX, const FString& Flight, int32 Count)
 {
 	ABaggageBelts* Me = Get(Wo); if (!Me || Me->Belts.Num() == 0) return;
 	// the loading point nearest the aircraft; a belt that is free (the one with the fewest bags on it and coming)
@@ -215,9 +215,8 @@ void ABaggageBelts::OnArrived(UWorld* Wo, float PlanX, const FString& Flight)
 	Me->Belts[Best].Flight = Flight;
 	if (Me->Belts[Best].Screen) Me->Belts[Best].Screen->SetText(FText::FromString(FString::Printf(TEXT("BELT %d   %s"), Best + 1, *Flight)));
 	// the crew start unloading the hold a few minutes after it parks: a bag every 2.5 s
-	const int32 N = FMath::RandRange(35, 70);
-	Me->Unloads.Add({Best, St, N, 2.5f, -150.f});
-	Me->Belts[Best].Waiting += N;
+	const int32 N = Count < 0 ? FMath::RandRange(35, 70) : Count;
+	if (N > 0) { Me->Unloads.Add({Best, St, N, 2.5f, -150.f}); Me->Belts[Best].Waiting += N; }
 	ADP_LOG(TEXT("Baggage: flight %s parked (plan x %.0f): %d bags to belt %d from loading point %d"), *Flight, PlanX, N, Best + 1, St + 1);
 }
 

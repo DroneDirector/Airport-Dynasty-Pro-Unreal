@@ -8,6 +8,8 @@
 //  the arrivals conveyor has no bags with ids yet - the bag is handed over with ABaggageBelts::Unload(belt, 1, the Ramp
 //  services 4 loading point).)
 #include "GSE.h"
+#include "Sim/ADPBoards.h"
+#include "Turnaround.h"
 #include "Tugs.h"
 #include "CrewPose.h"
 #include "DepartureBelts.h"
@@ -171,7 +173,13 @@ void AGSE::ArrivalUnload(int32 Ti)
 	ClimbOut(Ci, Ti, nullptr);
 	const FVector Trunk = Plan(GsaStationX, GsaTrunkZ);
 	Curtains(Ci, Ti, true, nullptr, &Trunk);
-	const int32 Belt = FMath::Abs(int32(GetTypeHash(T.Key))) % 5;
+	// (the claim belt the arriving passengers wait at: the boards' flight number for the aircraft at this stand - PaxFlow
+	//  names the belt with it; none yet: name one now, with no random bags - this train brings them)
+	FString Label = T.Key;
+	if (const ADPTurnaround::FTurn* Tn = ADPTurnaround::AtStand(T.StandX)) for (const FADPBoardRow& Row : ADPBoards::Rows(this, true, 40)) if (Row.Reg == Tn->Reg) { Label = Row.Flight; break; }
+	int32 Belt = ABaggageBelts::BeltOf(GetWorld(), Label);
+	if (Belt == INDEX_NONE) { ABaggageBelts::OnArrived(GetWorld(), T.StandX, Label, 0); Belt = ABaggageBelts::BeltOf(GetWorld(), Label); }
+	if (Belt == INDEX_NONE) Belt = FMath::Abs(int32(GetTypeHash(T.Key))) % 5;
 	int32 Count = 0;
 	for (const int32 c : T.Train)
 	{

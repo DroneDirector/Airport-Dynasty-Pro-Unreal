@@ -34,6 +34,7 @@
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "PaxFlow.h"
 
 #pragma region Where you are
 FString AADPHUD::ZoneKind() const
@@ -506,6 +507,7 @@ void AADPHUD::RunCalls()
 		const FString Who = D.Who.IsEmpty() ? AirlineName() : D.Who;
 		float Left = FMath::Fmod(D.Exp - NowMin + 2160.f, 1440.f) - 720.f;
 		if (Left < -30.f) continue;
+		if (!D.bBoarding && Left <= 40.f && APaxFlow::CallsBoarding(GetWorld(), F)) D.bBoarding = true;   // (its passengers walk here: the passenger flow calls it, at the turnaround's board task)
 		if (!D.bBoarding && Left <= 40.f)
 		{
 			D.bBoarding = true;

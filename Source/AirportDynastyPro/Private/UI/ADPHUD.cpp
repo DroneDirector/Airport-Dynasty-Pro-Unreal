@@ -3,6 +3,7 @@
 #include "UI/ADPHUD.h"
 #include "RollerDoor.h"
 #include "SiteTrees.h"
+#include "PaxFlow.h"
 #include "Tugs.h"
 #include "GeoFrame.h"
 #include "UI/SSiteChoice.h"
@@ -5889,11 +5890,18 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 			{
 				TArray<FVector> Pts; FVector Side(0, 1, 0);
 				ATugs* Tg = ATugs::Get(GetWorld());
+				// (-PaxFlowTest: the passengers too - the camera takes turns, 40 s on the vehicles' work, 40 s on a passenger)
+				APaxFlow* Px = FParse::Param(FCommandLine::Get(), TEXT("PaxFlowTest")) ? APaxFlow::Find(GetWorld()) : nullptr;
 				// (all done - the work over and everyone resting for 15 s: the last picture and out, no waiting for the clock)
-				{ static float DoneFor = 0.f, ExitAt = -1.f; if (Tg && C2 > 300.f && ExitAt < 0.f && Tg->AllDone()) DoneFor += FMath::Clamp(C2 - B2, 0.f, 0.1f); else DoneFor = 0.f;
+				{ static float DoneFor = 0.f, ExitAt = -1.f; if (Tg && C2 > 300.f && ExitAt < 0.f && Tg->AllDone() && (!Px || Px->TestDone())) DoneFor += FMath::Clamp(C2 - B2, 0.f, 0.1f); else DoneFor = 0.f;
 				  if (DoneFor > 15.f && ExitAt < 0.f) { ADP_LOG(TEXT("Tug tour: all done - ending the test")); Shot(TEXT("Tug_99_AllDone")); ExitAt = C2 + 4.f; }
 				  if (ExitAt > 0.f && C2 >= ExitAt) ADP_SHOT_EXIT(); }
-				if (Tg && Tg->WatchPoints(Pts, Side) && Pts.Num())
+				static float SubjT = 0.f; SubjT += FMath::Clamp(C2 - B2, 0.f, 0.1f);
+				bool bGot = false, bClose = false;
+				if (Px && FMath::Fmod(SubjT, 80.f) >= 40.f && Px->WatchPoints(Pts, Side)) bGot = bClose = true;
+				else if (Tg && Tg->WatchPoints(Pts, Side)) bGot = true;
+				else if (Px && Px->WatchPoints(Pts, Side)) bGot = bClose = true;
+				if (bGot && Pts.Num())
 				{
 					if (!Drone.IsValid()) EnterDrone();
 					static FVector CamAt = FVector::ZeroVector; static float Orbit = 0.f; static bool bHave = false;
@@ -5903,7 +5911,16 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 					Orbit += Dt * 0.12f;
 					const float Dist = Rad / FMath::Tan(FMath::DegreesToRadians(26.f)) + 300.f;
 					const FVector Dir = Side.RotateAngleAxis(35.f * FMath::Sin(Orbit), FVector::UpVector);
-					const FVector Want = Mid + Dir * Dist + FVector(0, 0, 250.f + Dist * (0.32f + 0.08f * FMath::Sin(Orbit * 0.7f)));
+					FVector Want = Mid + Dir * Dist + FVector(0, 0, 250.f + Dist * (0.32f + 0.08f * FMath::Sin(Orbit * 0.7f)));
+					if (bClose)
+					{
+						// (a passenger, mostly indoors: close and low - 5-9 m off, 1.5-2 m above the feet, pulled in before any wall,
+						//  glass or ceiling between the camera and them)
+						const float Dc = FMath::Clamp(Rad / FMath::Tan(FMath::DegreesToRadians(26.f)) + 150.f, 500.f, 900.f);
+						Want = Mid + Dir * Dc; Want.Z = Bx.Min.Z + 170.f + 30.f * FMath::Sin(Orbit * 0.7f);
+						FHitResult H; FCollisionQueryParams Q(TEXT("PaxCam"), false, GetOwningPawn()); if (Drone.IsValid()) Q.AddIgnoredActor(Drone.Get());
+						if (GetWorld()->LineTraceSingleByChannel(H, Mid + FVector(0, 0, 60.f), Want, ECC_Visibility, Q)) Want = H.Location + (Mid - Want).GetSafeNormal() * 40.f;
+					}
 					CamAt = bHave ? FMath::VInterpTo(CamAt, Want, Dt, 1.6f) : Want; bHave = true;
 					if (ADroneCam* D = Drone.Get())
 					{

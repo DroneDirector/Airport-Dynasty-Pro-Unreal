@@ -9,6 +9,7 @@
 //    it, it rides up at the belt's real speed (0.45 m/s) to the hold loader at the top, who takes it off into the hold
 // Tests: -GseTest with -DepBagTest (the bags fed in at check-in).
 #include "GSE.h"
+#include "Sim/ADPBoards.h"
 #include "Tugs.h"
 #include "People.h"
 #include "CrewPose.h"
@@ -46,6 +47,9 @@ FString AGSE::BagFlight(int32 Ti) const
 	const ADepartureBelts* D = ADepartureBelts::Get(GetWorld()); if (!D) return FString();
 	const FTractor& T = Tractors[Ti];
 	if (!T.Key.IsEmpty() && T.Key != TEXT("TEST") && D->BagsOf(T.Key).Num()) return T.Key;
+	// (the passengers tag their bags with the boards' flight number - the aircraft at this train's stand)
+	if (const ADPTurnaround::FTurn* Tn = T.StandX != 0.f ? ADPTurnaround::AtStand(T.StandX) : nullptr)
+		for (const FADPBoardRow& Row : ADPBoards::Rows(this, false, 40)) if (Row.Reg == Tn->Reg && D->BagsOf(Row.Flight).Num()) return Row.Flight;
 	// (no bags under its departure's name - the test: the flight with the most bags in the system)
 	FString Best; int32 N = 0;
 	for (const FString& F : BagFlights) { if (MadeUp.Contains(F) || F.StartsWith(TEXT("ARR "))) continue; const int32 K = D->BagsOf(F).Num(); if (K > N) { N = K; Best = F; } }
