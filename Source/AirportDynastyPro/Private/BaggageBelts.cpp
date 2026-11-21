@@ -1,4 +1,5 @@
 #include "BaggageBelts.h"
+#include "DepartureBelts.h"
 #include "ADPLog.h"
 #include "ADPKeep.h"
 #include "ADPAnimations.h"
@@ -78,6 +79,8 @@ FTransform ABaggageBelts::PlateAt(float BeltX, const FVector2f& P, const FVector
 void ABaggageBelts::Build()
 {
 	GBelts = this;
+	// the departure side's belts, check-in to the make-up carousels (DepartureBelts.h)
+	if (UWorld* Wd = GetWorld()) if (ADepartureBelts* Dep = Wd->SpawnActor<ADepartureBelts>(FVector::ZeroVector, FRotator::ZeroRotator)) Dep->Build();
 	UStaticMesh* Body = Mesh(TEXT("SM_BeltBody")); UStaticMesh* Plate = Mesh(TEXT("SM_BeltPlate")); UStaticMesh* Incline = Mesh(TEXT("SM_BeltIncline"));
 	UStaticMesh* Flap = Mesh(TEXT("SM_Flap")); UStaticMesh* Btn = Mesh(TEXT("SM_BeltButton")); UStaticMesh* BtnPlate = Mesh(TEXT("SM_ButtonPlate"));
 	UStaticMesh* Crew = Mesh(TEXT("SM_CrewBox")); UStaticMesh* Conv = Mesh(TEXT("SM_InputConv")); UStaticMesh* Frame = Mesh(TEXT("SM_WallFrame")); UStaticMesh* Scr = Mesh(TEXT("SM_BeltScreen"));

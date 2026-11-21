@@ -246,30 +246,27 @@ void ATerminalFittings::Hall(const FPlanRoom& R)
 	// the two check-in islands: desks 1–12 and 13–24 facing the entrance, the belt behind them, the banner over it
 	for (int32 Isl = 0; Isl < 2; ++Isl)
 	{
-		const float X0 = Isl ? 71.f : 44.f;
+		const float X0 = Isl ? 74.5f : 47.5f;   // (3.5 m east: the glass wall at x 46 - Security-Escalators-v3)
 		const FAt Banner{X0 + 12.5f, 0, 20.6f, 0};
 		Box(Banner, "navy", 25, 2.2f, 0.3f, 0, 3.4f, 0);
 		Box(Banner, "white", 25, 0.9f, 0.3f, 0, 1.6f, 0);
 		Box(Banner, "tealUI", 25, 0.25f, 0.32f, 0, 2.2f, 0);
 		Text(Banner, Isl ? TEXT("CHECK-IN  13–24") : TEXT("CHECK-IN  1–12"), 0, 3.4f, -0.17f, -1.f, 0.9f, FColor::White);
-		const FAt Belt{X0 + 12.5f, 0, 18.4f, 0};
-		Box(Belt, "steel", 25, 0.45f, 1.0f, 0, 0.22f, 0);
-		Box(Belt, "rubber", 24.8f, 0.04f, 0.8f, 0, 0.46f, 0);
+		// (the belt behind the desks and each desk's scale are the departure belts now: a weigh + tag belt east of every
+		//  desk, through a hatch to the baggage tunnel - DepartureBelts.cpp; the desk is narrower to leave it room)
 		for (int32 k = 0; k < 12; ++k)
 		{
 			const int32 N = Isl * 12 + k + 1;
 			const float X = X0 + 1.05f + k * 2.08f;
 			const FAt Desk{X, 0, 16.4f, PI};
-			Box(Desk, "white", 1.7f, 1.05f, 0.75f, 0, 0.52f, 0);
-			Box(Desk, "marbleDark", 1.74f, 0.05f, 0.85f, 0, 1.07f, 0);
+			Box(Desk, "white", 1.3f, 1.05f, 0.75f, 0.2f, 0.52f, 0);
+			Box(Desk, "marbleDark", 1.34f, 0.05f, 0.85f, 0.2f, 1.07f, 0);
 			Box(Desk, "black", 0.5f, 0.32f, 0.03f, 0.3f, 1.32f, 0.15f);
-			Box(Desk, "steel", 0.6f, 0.2f, 0.75f, -1.15f, 0.12f, 0);
-			Box(Desk, "rubber", 0.6f, 0.03f, 0.75f, -1.15f, 0.24f, 0);
 			Box(Desk, "steel", 0.04f, 0.5f, 0.04f, 0.5f, 1.3f, 0);
 			Box(Desk, "yellow", 0.5f, 0.3f, 0.03f, 0.5f, 1.6f, 0);
 			Text(Desk, FString::FromInt(N), 0.5f, 1.6f, 0.02f, 1.f, 0.22f, Navy);
 			Text(Desk, FString::FromInt(N), 0.5f, 1.6f, -0.02f, -1.f, 0.22f, Navy);
-			OfficeChair({X + 0.2f, 0, 17.25f, PI});
+			OfficeChair({X - 0.2f, 0, 17.25f, PI});
 		}
 		// queue lines in front: posts and their belts
 		for (int32 k = 0; k < 6; ++k)
