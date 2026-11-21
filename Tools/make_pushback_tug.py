@@ -82,6 +82,18 @@ def cyl(name, c, r, depth, axis, m, verts=32, bevel=0.0, r2=None):
     o = link(name, bm)
     if bevel: md = o.modifiers.new('b', 'BEVEL'); md.width = bevel; md.segments = 2; md.limit_method = 'ANGLE'; apply_mods(o)
     return finish(o, m, 35)
+def lathe(name, prof, c, m, segs=72, smooth=50):
+    """A part turned round the y axis through c (a tyre, a rim): prof = a closed outline of (radius, y-offset) points."""
+    bm = bmesh.new(); rings = []
+    for k in range(segs):
+        a = 2 * math.pi * k / segs
+        rings.append([bm.verts.new((c[0] + r * math.cos(a), c[1] + y, c[2] + r * math.sin(a))) for r, y in prof])
+    n = len(prof)
+    for k in range(segs):
+        A, B = rings[k], rings[(k + 1) % segs]
+        for i in range(n): bm.faces.new((A[i], A[(i + 1) % n], B[(i + 1) % n], B[i]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    return finish(link(name, bm), m, smooth)
 def tube(name, pts, r, m, res=8, bez=True):
     cu = bpy.data.curves.new(name, 'CURVE'); cu.dimensions = '3D'; cu.bevel_depth = r; cu.bevel_resolution = 3; cu.use_fill_caps = True; cu.resolution_u = res
     if bez:
@@ -146,18 +158,26 @@ for i, x in enumerate((FX, RX)):
     cyl(f'Diff_{i}', (x, 0, TD / 2), 0.20, 0.36, 'y', M_DARK, 32, bevel=0.02)
     for s in (-1, 1):
         y = s * TR / 2
-        tyre = cyl(f'Tyre_{i}{s}', (x, y, TD / 2), TD / 2, TW, 'y', M_RUB, 64, bevel=0.06)
-        # tread blocks: chevron lugs set into the tyre's face
-        for k in range(28):
-            a = k * 2 * math.pi / 28
-            c = Vector((x + (TD / 2 - 0.005) * math.cos(a), y, TD / 2 + (TD / 2 - 0.005) * math.sin(a)))
-            lug = box(f'Lug_{i}{s}{k}', c, (0.045, TW * 0.82, 0.03), M_RUB, bevel=0.006)
-            lug.data.transform(Matrix.Translation(c) @ Matrix.Rotation(-a, 4, 'Y') @ Matrix.Translation(-c))
-        cyl(f'Rim_{i}{s}', (x, y + s * 0.02, TD / 2), 0.29, TW * 0.9, 'y', M_STEEL, 48, bevel=0.01)
-        cyl(f'Hub_{i}{s}', (x, y + s * 0.15, TD / 2), 0.11, 0.06, 'y', M_DARK, 32, bevel=0.01)
+        # the tyre: 315/80 R22.5 turned from its cross-section - the bead on the rim, the sidewall bulging out to its widest
+        # (315) at mid-height, rounded shoulders, the crown under the tread (owner 2026-11-21: never a flat disc)
+        prof = [(0.290, -0.124), (0.318, -0.146), (0.360, -0.157), (0.410, -0.1585), (0.460, -0.154), (0.500, -0.142), (0.522, -0.124),
+                (0.534, -0.100), (0.538, -0.060), (0.539, 0.0), (0.538, 0.060), (0.534, 0.100), (0.522, 0.124), (0.500, 0.142),
+                (0.460, 0.154), (0.410, 0.1585), (0.360, 0.157), (0.318, 0.146), (0.290, 0.124), (0.286, 0.0)]
+        lathe(f'Tyre_{i}{s}', prof, (x, y, TD / 2), M_RUB, 72)
+        # (no modelled tread - owner 2026-11-21: the tread is the texture's; the tyre keeps its rounded shape)
+        # the rim: a dished steel rim - flanges over the beads, the drop centre; the wheel disc set out to the hub side
+        rprof = [(0.300, -0.130), (0.296, -0.122), (0.284, -0.118), (0.270, -0.070), (0.262, -0.050), (0.262, 0.050), (0.270, 0.070),
+                 (0.284, 0.118), (0.296, 0.122), (0.300, 0.130), (0.288, 0.132), (0.276, 0.122), (0.256, 0.060), (0.256, -0.060), (0.276, -0.122), (0.288, -0.132)]
+        lathe(f'Rim_{i}{s}', rprof, (x, y, TD / 2), M_STEEL, 72)
+        disc = cyl(f'WheelDisc_{i}{s}', (x, y + s * 0.11, TD / 2), 0.262, 0.016, 'y', M_STEEL, 64, bevel=0.004)
+        for k in range(8):                                              # the hand holes through the disc
+            a = k * 2 * math.pi / 8 + math.pi / 8
+            cut(disc, cyl(f'HandHole_{i}{s}{k}', (x + 0.205 * math.cos(a), y + s * 0.11, TD / 2 + 0.205 * math.sin(a)), 0.034, 0.05, 'y', M_DARK, 24))
+        cyl(f'Hub_{i}{s}', (x, y + s * 0.135, TD / 2), 0.11, 0.05, 'y', M_DARK, 32, bevel=0.01)
+        cyl(f'HubCap_{i}{s}', (x, y + s * 0.165, TD / 2), 0.065, 0.03, 'y', M_DARK, 32, bevel=0.008)
         for k in range(10):
             a = k * 2 * math.pi / 10
-            cyl(f'Nut_{i}{s}{k}', (x + 0.19 * math.cos(a), y + s * 0.145, TD / 2 + 0.19 * math.sin(a)), 0.016, 0.03, 'y', M_STEEL, 6)
+            cyl(f'Nut_{i}{s}{k}', (x + 0.15 * math.cos(a), y + s * 0.126, TD / 2 + 0.15 * math.sin(a)), 0.016, 0.03, 'y', M_STEEL, 6)
         cyl(f'Kingpin_{i}{s}', (x, s * (TR / 2 - 0.22), TD / 2), 0.05, 0.36, 'z', M_DARK, 16)      # the steering pivot (4WS)
 
 # ---------------------------------------------------------------- bumpers + hitches (bolted to the body ends)
@@ -174,6 +194,30 @@ for nm, x, d in (('Rear', -L / 2 - 0.10, -1), ('Front', L / 2 + 0.038, 1)):
     cyl(f'HitchPin{nm}', (x + d * 0.12, 0, 0.50), 0.022, 0.42, 'z', M_STEEL, 16)
     box(f'HitchPlate{nm}', (x + d * 0.01, 0, 0.495), (0.03, 0.40, 0.55), M_DARK, bevel=0.006)   # welded to the bumper
     # (no tow eyes: a towbar tug is towed by its own hitch - owner 2026-11-21, they hung off the bumper's edge)
+# ---------------------------------------------------------------- the towbar (owner 2026-11-21: the tug connects to the
+# aircraft's nose gear - not the wheel, the tow fitting between): its own swinging part (every name starts Towbar_), the
+# pivot on the front hitch pin (IK_Towbar_Front), the head's pin into the nose gear's towing lugs (IK_Towbar_Head).
+# A narrow-body bar: 4.3 m, a 114 mm tube, the A-frame and lunette eye at the tug end, two handling wheels on an axle
+# (they swing up off the ground once it is hooked on), the tow head with its shear-pin housing and the clevis pin.
+TB_P = Vector((L / 2 + 0.12, 0.0, 0.50)); TB_LEN = 4.30; TB_HEAD = TB_P + Vector((TB_LEN, 0, -0.05))
+def tb(v): return tuple(TB_P + Vector(v))
+cyl('Towbar_LunetteEye', TB_P, 0.075, 0.05, 'z', M_STEEL, 32, bevel=0.006)                   # round eye over the hitch pin
+for s in (-1, 1): tube(f'Towbar_AArm_{s}', [tb((0.06, s * 0.03, 0)), tb((0.70, s * 0.28, -0.01))], 0.030, M_PAINT, bez=False)
+box('Towbar_Yoke', tb((0.72, 0, -0.01)), (0.10, 0.62, 0.09), M_PAINT, bevel=0.012)
+tube('Towbar_Beam', [tb((0.74, 0, -0.01)), tuple(TB_HEAD + Vector((-0.42, 0, 0)))], 0.057, M_PAINT, bez=False)
+cyl('Towbar_WheelAxle', tb((0.78, 0, -0.17)), 0.022, 0.66, 'y', M_STEEL, 16)
+for s in (-1, 1):
+    box(f'Towbar_WheelLeg_{s}', tb((0.76, s * 0.26, -0.09)), (0.05, 0.03, 0.18), M_STEEL, bevel=0.005)   # yoke down to the axle
+    cyl(f'Towbar_Wheel_{s}', tb((0.78, s * 0.33, -0.17)), 0.13, 0.07, 'y', M_RUB, 32, bevel=0.01)
+    cyl(f'Towbar_WheelHub_{s}', tb((0.78, s * 0.37, -0.17)), 0.05, 0.02, 'y', M_STEEL, 24)
+tube('Towbar_Handle', [tb((1.10, 0, 0.05)), tb((1.10, 0, 0.30)), tb((1.30, 0, 0.36))], 0.016, M_STEEL, bez=False)
+box('Towbar_HandleClamp', tb((1.10, 0, 0.03)), (0.06, 0.13, 0.04), M_STEEL, bevel=0.005)          # clamped round the beam
+box('Towbar_ShearPinHousing', tuple(TB_HEAD + Vector((-0.36, 0, 0))), (0.18, 0.16, 0.16), M_DARK, bevel=0.012)
+cyl('Towbar_ShearPin', tuple(TB_HEAD + Vector((-0.36, 0, 0))), 0.012, 0.22, 'y', M_RED, 12)
+box('Towbar_Head', tuple(TB_HEAD + Vector((-0.15, 0, 0))), (0.30, 0.20, 0.12), M_STEEL, bevel=0.015)
+for s in (-1, 1): box(f'Towbar_Clevis_{s}', tuple(TB_HEAD + Vector((0.03, s * 0.075, 0))), (0.12, 0.03, 0.14), M_STEEL, bevel=0.008)
+cyl('Towbar_ClevisPin', tuple(TB_HEAD + Vector((0.05, 0, 0))), 0.02, 0.21, 'y', M_STEEL, 16)
+
 # lights: every lamp is a housing SET INTO the bumper or body (half its depth inside the steel), the lens recessed in it
 def lamp(name, face_pt, normal, w, h, m, depth=0.06):
     """face_pt: a point on the face it sits in; normal: 'x+', 'x-', 'y+', 'y-'; w across, h up (m)."""
@@ -209,14 +253,14 @@ for k in range(7): box(f'GrilleSlat_{k}', (0.97 + k * 0.11, -0.15, DECK + 0.125)
 for s in (-1, 1): cyl(f'CoverHinge_{s}', (0.72, -0.15 + s * 0.75, DECK + 0.05), 0.02, 0.14, 'y', M_STEEL, 12)
 box('CoverLatch', (1.91, -0.15, DECK + 0.06), (0.03, 0.12, 0.05), M_STEEL, bevel=0.004)
 box('BallastRear', (-1.65, 0, DECK + 0.075), (1.30, W - 0.30, 0.15), M_DARK, bevel=0.01)
-for k in range(4): box(f'BallastPlate_{k}', (-1.65, 0, DECK + 0.03 + k * 0.035), (1.28, W - 0.32, 0.004), M_STEEL)
+# (the plate lines were buried inside the ballast block: removed)
 for x in (-2.15, -1.15):
     for s in (-1, 1): cyl(f'BallastBolt_{x}{s}', (x, s * 1.0, DECK + 0.16), 0.025, 0.03, 'z', M_STEEL, 6)
 for s in (-1, 1): box(f'LiftEye_{s}', (-2.20, s * 1.05, DECK + 0.20), (0.06, 0.03, 0.10), M_STEEL, bevel=0.01)   # welded onto the ballast top
 cyl('FuelFiller', (-0.95, -0.95, DECK + 0.03), 0.06, 0.06, 'z', M_STEEL, 24, bevel=0.005)
 cyl('HydFiller', (-0.95, -0.55, DECK + 0.03), 0.05, 0.06, 'z', M_DARK, 24, bevel=0.005)
-box('ToolBox', (-0.92, -0.10, DECK + 0.12), (0.45, 0.55, 0.24), M_DARK, bevel=0.01)
-box('ToolBoxLid', (-0.92, -0.10, DECK + 0.245), (0.47, 0.57, 0.02), M_DARK, bevel=0.005)
+box('ToolBox', (-0.83, -0.10, DECK + 0.12), (0.28, 0.55, 0.24), M_DARK, bevel=0.01)
+box('ToolBoxLid', (-0.83, -0.10, DECK + 0.245), (0.30, 0.57, 0.02), M_DARK, bevel=0.005)
 # the exhaust: a stack clamped to the cab's back wall, its pipe down into the body
 cyl('Exhaust', (CABU_X0 - 0.06, CAB_Y1 - 0.25, DECK + 0.45), 0.045, 0.90, 'z', M_STEEL, 20)
 cyl('ExhaustCap', (CABU_X0 - 0.06, CAB_Y1 - 0.25, DECK + 0.91), 0.044, 0.03, 'z', M_DARK, 20)
@@ -238,17 +282,17 @@ cut(cab, inner3)
 WIN_Z0, WIN_Z1 = DECK + 0.10, CABH - 0.10
 def window(name, c, s):
     cutter = box(name + 'Cut', c, s, M_DARK, bevel=0.03, segs=3); cut(cab, cutter)
-    g = box(name + 'Glass', c, tuple(max(0.008, v - 0.03) if v < 0.2 else v - 0.03 for v in s), M_GLASS, bevel=0.025, segs=3)
+    g = box(name + 'Glass', c, tuple(0.010 if v < 0.2 else v + 0.02 for v in s), M_GLASS, bevel=0.004, segs=2)   # 10 mm pane, 10 mm into the frame all round
     return g
 wz, wh = (WIN_Z0 + WIN_Z1) / 2, WIN_Z1 - WIN_Z0
 window('WinFront', (CABU_X1, (CAB_Y0 + CAB_Y1) / 2, wz), (0.12, CAB_Y1 - CAB_Y0 - 0.22, wh))
 window('WinRear', (CABU_X0, (CAB_Y0 + CAB_Y1) / 2, wz + 0.1), (0.12, CAB_Y1 - CAB_Y0 - 0.30, wh - 0.30))
 window('WinDoor', (0.20, CAB_Y1, wz), (0.62, 0.12, wh))                  # the door's window (left side)
 window('WinLeftRear', (-0.38, CAB_Y1, wz), (0.42, 0.12, wh))
-window('WinRight', (0.10, CAB_Y0, wz), (1.05, 0.12, wh))
+window('WinRight', (0.0375, CAB_Y0, wz), (0.925, 0.12, wh))     # (its front edge at 500: flat panel for the mirror plate)
 # door: panel line, hinges on the front post, handles outside and in
-box('DoorSeamF', (0.56, CAB_Y1 + 0.003, (CFLOOR + CABH) / 2), (0.006, 0.006, CABH - CFLOOR - 0.12), M_DARK)
-box('DoorSeamR', (-0.15, CAB_Y1 + 0.003, (CFLOOR + CABH) / 2), (0.006, 0.006, CABH - CFLOOR - 0.12), M_DARK)
+box('DoorSeamF', (0.56, CAB_Y1 + 0.0015, (CFLOOR + CABH) / 2), (0.006, 0.006, CABH - CFLOOR - 0.12), M_DARK)
+box('DoorSeamR', (-0.15, CAB_Y1 + 0.0015, (CFLOOR + CABH) / 2), (0.006, 0.006, CABH - CFLOOR - 0.12), M_DARK)
 for z in (CFLOOR + 0.25, CABH - 0.35): cyl(f'DoorHinge_{z}', (0.57, CAB_Y1 + 0.015, z), 0.015, 0.10, 'z', M_STEEL, 12)
 box('DoorHandleOut', (-0.05, CAB_Y1 + 0.03, DECK - 0.14), (0.14, 0.025, 0.035), M_STEEL, bevel=0.008)
 for x in (-0.11, 0.01): box(f'DoorHandleMount_{x}', (x, CAB_Y1 + 0.015, DECK - 0.14), (0.02, 0.03, 0.03), M_STEEL)
@@ -262,28 +306,29 @@ cyl('BeaconCap', (0.0, (CAB_Y0 + CAB_Y1) / 2, CABH + 0.16), 0.06, 0.02, 'z', M_D
 for k, y in enumerate((CAB_Y0 + 0.25, CAB_Y1 - 0.25)):
     box(f'WorkLampBracket_{k}', (CABU_X0 + 0.10, y, CABH + 0.03), (0.04, 0.06, 0.06), M_DARK)
     box(f'WorkLamp_{k}', (CABU_X0 + 0.06, y, CABH + 0.09), (0.08, 0.16, 0.10), M_DARK, bevel=0.012)
-    box(f'WorkLampLens_{k}', (CABU_X0 + 0.026, y, CABH + 0.09), (0.006, 0.13, 0.075), M_WHITE)
+    box(f'WorkLampLens_{k}', (CABU_X0 + 0.019, y, CABH + 0.09), (0.006, 0.13, 0.075), M_WHITE)    # in the lamp's face
 cyl('AntennaBase', (-0.3, CAB_Y0 + 0.2, CABH + 0.01), 0.02, 0.02, 'z', M_DARK, 12)
 cyl('Antenna', (-0.3, CAB_Y0 + 0.2, CABH + 0.31), 0.003, 0.60, 'z', M_DARK, 6)
-# mirrors: arms bolted to the front post, both sides
+# mirrors: on the cab's sides, behind its front face (never in front of the windscreen), each on a visible arm - a plate on
+# the side wall, the arm out sideways and up, the mirror at its end facing back
 for s, y in ((1, CAB_Y1), (-1, CAB_Y0)):
-    tube(f'MirrorArm_{s}', [(CABU_X1 - 0.16, y + s * 0.01, CABH - 0.40), (CABU_X1 + 0.04, y + s * 0.18, CABH - 0.36), (CABU_X1 + 0.10, y + s * 0.26, CABH - 0.30)], 0.012, M_DARK)
-    box(f'Mirror_{s}', (CABU_X1 + 0.10, y + s * 0.30, CABH - 0.36), (0.04, 0.18, 0.26), M_PLAST, bevel=0.02, segs=3)
-    box(f'MirrorPlate_{s}', (CABU_X1 - 0.16, y + s * 0.004, CABH - 0.40), (0.08, 0.012, 0.08), M_DARK)   # on the flat side wall, clear of the rounded corner
-# wipers on their spindles under the front window
-for k, y in enumerate((CAB_Y0 + 0.40, CAB_Y1 - 0.45)):
-    cyl(f'WiperSpindle_{k}', (CABU_X1 + 0.015, y, WIN_Z0 - 0.01), 0.012, 0.03, 'x', M_DARK, 12)
-    box(f'WiperArm_{k}', (CABU_X1 + 0.03, y + 0.12, WIN_Z0 + 0.20), (0.012, 0.012, 0.48), M_DARK)
-    box(f'WiperBlade_{k}', (CABU_X1 + 0.04, y + 0.12, WIN_Z0 + 0.25), (0.01, 0.02, 0.44), M_RUB)
+    px, pz = CABU_X1 - 0.18, CABH - 0.42      # (mid-height on the flat strip between the door seam / window and the cab's front corner)
+    box(f'MirrorPlate_{s}', (px, y + s * 0.004, pz), (0.10, 0.012, 0.10), M_DARK)
+    tube(f'MirrorArm_{s}', [(px, y + s * 0.01, pz), (px, y + s * 0.24, pz), (px, y + s * 0.30, pz + 0.04)], 0.013, M_DARK, bez=False)
+    box(f'Mirror_{s}', (px, y + s * 0.32, pz + 0.14), (0.05, 0.18, 0.22), M_PLAST, bevel=0.02, segs=3)
+    box(f'MirrorGlass_{s}', (px - 0.027, y + s * 0.32, pz + 0.14), (0.006, 0.15, 0.19), M_GLASS)
+# (no wipers: nothing in front of the windscreen - owner 2026-11-21, the view out comes first)
 # step and grab rails to climb in (the step on 2 brackets welded to the body side; rails bolted at both ends)
 box('StepTread', (0.0, W / 2 + 0.10, 0.533 - 0.02), (0.50, 0.20, 0.03), M_STEEL, bevel=0.004)
 for x in (-0.20, 0.20): box(f'StepBracket_{x}', (x, W / 2 + 0.06, 0.533 - 0.12), (0.03, 0.12, 0.20), M_STEEL)
 for k in range(5): box(f'StepGrip_{k}', (-0.20 + k * 0.10, W / 2 + 0.10, 0.533 - 0.003), (0.05, 0.15, 0.006), M_DARK)
-tube('GrabRailFront', [(0.62, CAB_Y1 + 0.005, DECK + 0.05), (0.62, CAB_Y1 + 0.07, DECK + 0.10), (0.62, CAB_Y1 + 0.07, DECK + 0.60), (0.62, CAB_Y1 + 0.005, DECK + 0.65)], 0.016, M_STEEL, bez=False)
+# the grab rail beside the door: on the cab's flat lower side panel behind the door (clear of the door seam, the window
+# frames and the corners), each end on a round foot plate bolted to the panel
+GRX = -0.36
+for z in (0.80, 1.18): cyl(f'GrabRailFoot_{z}', (GRX, CAB_Y1 + 0.004, z), 0.035, 0.012, 'y', M_STEEL, 24, bevel=0.002)
+tube('GrabRailFront', [(GRX, CAB_Y1 + 0.008, 0.80), (GRX, CAB_Y1 + 0.07, 0.83), (GRX, CAB_Y1 + 0.07, 1.15), (GRX, CAB_Y1 + 0.008, 1.18)], 0.016, M_STEEL, bez=False)
 tube('GrabRailDeck', [(-0.62, W / 2 - 0.05, DECK), (-0.62, W / 2 - 0.05, DECK + 0.08), (-0.62, W / 2 - 0.05, DECK + 0.45)], 0.016, M_STEEL, bez=False)
-# mud flaps behind each wheel, bolted to the body underside
-for i, x in enumerate((FX, RX)):
-    for s in (-1, 1): box(f'MudFlap_{i}{s}', (x - TD / 2 - 0.12, s * TR / 2, GC + 0.18), (0.01, TW + 0.06, 0.36), M_RUB)
+# (no mud flaps: a towbar tug's wheels sit inside its body - owner 2026-11-21)
 
 # ---------------------------------------------------------------- the interior (all real sizes, every part on the floor or a wall)
 IX0, IX1 = CAB_X0 + 0.05, CAB_X1 - 0.05
@@ -359,7 +404,7 @@ for s in (-1, 1):
     cyl(f'HeadrestPost_{s}', tuple(HEAD_C + Vector((0.02, s * 0.08, -0.10))), 0.008, 0.10, 'z', M_STEEL, 12)
 box('SeatBackShell', tuple(BACK_C + Vector((-0.065, 0, 0))), (0.03, 0.46, 0.62), M_PLAST, bevel=0.012).data.transform(
     Matrix.Translation(BACK_C) @ Matrix.Rotation(-REC, 4, 'Y') @ Matrix.Translation(-BACK_C))
-box('SeatRecliner', (SX - 0.21, SY - 0.27, SZ + 0.34), (0.08, 0.03, 0.08), M_DARK, bevel=0.01)
+box('SeatRecliner', (SX - 0.21, SY - 0.252, SZ + 0.34), (0.08, 0.03, 0.08), M_DARK, bevel=0.01)
 # armrests: on hinges at the backrest's sides; the right one carries the drive selector and the horn
 for s in (-1, 1):
     cyl(f'ArmHinge_{s}', (SX - 0.20, SY + s * 0.28, SZ + 0.52), 0.02, 0.05, 'y', M_DARK, 16)
@@ -398,10 +443,11 @@ ik('Hand_R', tuple(wheel_c + rc @ Vector((0.19 * math.cos(math.radians(20)), 0.1
 ik('Foot_Accel', (CAB_X1 - 0.21, DRY - 0.12, CFLOOR + 0.15)); ik('Foot_Brake', (CAB_X1 - 0.21, DRY, CFLOOR + 0.15))
 ik('Hand_Selector', (SX + 0.20, SY - 0.28, SZ + 0.67)); ik('Hand_ParkBrake', (SX + 0.10, IY0 + 0.10, CFLOOR + 0.45))
 for k, x in enumerate((IX0 + 0.25, IX1 - 0.30)): ik(f'Seat_Crew{k + 2}', (x, IY0 + 0.20, CFLOOR + 0.48)); ik(f'Back_Crew{k + 2}', (x, IY0 + 0.06, CFLOOR + 0.80))
-ik('Step', (0.0, W / 2 + 0.10, 0.533)); ik('Grab_Outside', (0.62, CAB_Y1 + 0.07, DECK + 0.35)); ik('Grab_Inside', (CABU_X1 - 0.10, IY1 - 0.04, DECK + 0.48))
+ik('Step', (0.0, W / 2 + 0.10, 0.533)); ik('Grab_Outside', (GRX, CAB_Y1 + 0.07, 0.99)); ik('Grab_Inside', (CABU_X1 - 0.10, IY1 - 0.04, DECK + 0.48))
 ik('Door_Outside', (-0.05, CAB_Y1 + 0.05, DECK - 0.14)); ik('Door_Inside', (-0.05, CAB_Y1 - 0.08, DECK - 0.05))
 ik('Door_Hinge', (0.57, CAB_Y1 + 0.015, (CFLOOR + CABH) / 2))
-ik('Towbar_Front', (L / 2 + 0.16, 0, 0.50)); ik('Towbar_Rear', (-L / 2 - 0.22, 0, 0.50))
+ik('Towbar_Front', tuple(TB_P)); ik('Towbar_Rear', (-L / 2 - 0.22, 0, 0.50)); ik('Towbar_Head', tuple(TB_HEAD + Vector((0.05, 0, 0))))
+ik('Hand_Towbar', tb((1.30, 0, 0.36)))
 
 # ---------------------------------------------------------------- self-check (owner 2026-11-21: nothing floats, nothing sits
 # inside something it shouldn't): every part's box must touch another part's box (2 mm); a lamp lens must not share space
@@ -426,7 +472,7 @@ def diag(b): return (b[1] - b[0]).length
 overhang = []
 for n, b in BB.items():
     # (allowed, checked by eye: a cap on a pipe's end is as wide as the pipe; mirrors hang on their arms; the display sits in its bezel)
-    if n in ('ExhaustCap', 'Display') or n.startswith('Mirror_'): continue
+    if n in ('ExhaustCap', 'Display', 'Towbar_HandleClamp', 'Towbar_ShearPinHousing') or n.startswith(('Mirror_', 'MirrorArm_', 'Towbar_WheelLeg')): continue   # (+ a clamp/housing wraps round the beam; the wheel legs run from the yoke down to the axle)
     if diag(b) > 0.35 or n.endswith(('_Lens', '_Rim')) or n.startswith('Lug_'): continue
     hosts = [(m, b2) for m, b2 in BB.items() if m != n and diag(b2) > 0.4 and touch(b, b2)]
     for m, b2 in hosts:
@@ -437,6 +483,27 @@ for n, b in BB.items():
     else:
         if hosts: overhang.append(n)
 print('TUG CHECK overhang: %d %s' % (len(overhang), overhang))
+# the real test (owner 2026-11-21: "nothing should be floated, no matter how small"): every part's actual surface must cut
+# into or touch (1 mm) another part's surface - not just its box. BVH trees of the meshes in the world.
+from mathutils.bvhtree import BVHTree
+def bvh(o):
+    me = o.data; mw = o.matrix_world
+    return BVHTree.FromPolygons([mw @ v.co for v in me.vertices], [tuple(p.vertices) for p in me.polygons])
+TREES = {o.name: bvh(o) for o in ALL}
+def mesh_touch(a, b):
+    if TREES[a].overlap(TREES[b]): return True
+    oa = bpy.data.objects[a]; mw = oa.matrix_world
+    vs = list(oa.data.vertices)
+    for v in vs[:: max(1, len(vs) // 400)]:
+        hit = TREES[b].find_nearest(mw @ v.co)
+        if hit[0] is not None and hit[3] < 0.001: return True
+    return False
+loose = []
+for n, b in BB.items():
+    if n.startswith(('Tyre', 'Lug')): continue
+    near = [m for m, b2 in BB.items() if m != n and touch(b, b2, 0.003)]
+    if not any(mesh_touch(n, m) for m in near): loose.append(n)
+print('TUG CHECK mesh contact: %d loose %s' % (len(loose), loose))
 # nothing on the sides crowds a wheel arch: its box keeps 80 mm clear of the fender lip's circle (owner 2026-11-21)
 LIP_R = TD / 2 + 0.09 + 0.018
 crowd = []
@@ -511,6 +578,39 @@ for o in ALL + IKS:
     for c in list(o.users_collection): c.objects.unlink(o)
     col.objects.link(o)
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ART, 'PushbackTug.blend'))
+for o in ALL: assert len(o.data.materials) and all(o.data.materials), 'empty material slot on ' + o.name   # (material slot rule)
+# no flicker (Tools/find_zfight.py, the import's own check): parts whose faces lie on another's - the smaller one is made
+# 3 mm smaller round its middle and pushed 1.5 mm into the part it sits on, then the check again, until none fight
+import json, subprocess
+GLB = os.path.join(ART, 'pushbacktug.glb'); ZF = os.path.join(ART, 'zfight-check.json')
+def export():
+    for o in bpy.context.scene.objects: o.select_set(o in ALL or o in IKS)
+    bpy.ops.export_scene.gltf(filepath=GLB, export_format='GLB', use_selection=True, export_apply=True)
+OB = {o.name: o for o in ALL}
+for it in range(6):
+    export()
+    r = subprocess.run([r'C:/Python311/python.exe', '-I', os.path.join(ROOT, 'Tools', 'find_zfight.py'), GLB, ZF], capture_output=True, text=True)
+    last = (r.stdout.strip().splitlines() or ['?'])[-1]; print('TUG FLICKER pass %d: %s' % (it, last))
+    if last.strip().startswith('0 pairs fight'): break                 # (not '50 pairs fight': read the number)
+    try: pairs = json.load(open(ZF))
+    except Exception: break
+    items = pairs if isinstance(pairs, list) else pairs.get('pairs', [])
+    done = set()
+    for pr in items:
+        a, b = (pr[0], pr[1]) if isinstance(pr, (list, tuple)) else (pr.get('a'), pr.get('b'))
+        if a not in OB or b not in OB: continue
+        ba, bb = bbox(OB[a]), bbox(OB[b])
+        small, big = (a, b) if (ba[1] - ba[0]).length <= (bb[1] - bb[0]).length else (b, a)
+        if small in done: continue
+        done.add(small); o = OB[small]; bs, bg = bbox(o), bbox(OB[big])
+        c = (bs[0] + bs[1]) / 2; sz = bs[1] - bs[0]
+        k = Vector(tuple(max(0.2, (sz[i] - 0.003) / sz[i]) if sz[i] > 0.006 else 1.0 for i in range(3)))
+        pen = [min(bs[1][i], bg[1][i]) - max(bs[0][i], bg[0][i]) for i in range(3)]
+        nrm = min(range(3), key=lambda i: pen[i]); push = Vector((0, 0, 0))
+        push[nrm] = 0.003 if (bg[0][nrm] + bg[1][nrm]) / 2 > c[nrm] else -0.003      # (the shrink took 1.5 mm off the contact face: 3 mm in = 1.5 mm inside)
+        o.data.transform(Matrix.Translation(c + push) @ Matrix.Diagonal((*k, 1)) @ Matrix.Translation(-c))
+        o.data.update()
+
 print('TUG: %d parts, %d IK points, %d triangles' % (len(ALL), len(IKS), sum(len(o.data.polygons) for o in ALL)))
 
 # ---------------------------------------------------------------- textured pictures (lit, as it will look)
@@ -571,4 +671,6 @@ if DO_WIRE:
     shoot('6-top', (0, 0, 14), (0, 0, 0), 50, 6.4, res=(2400, 1400))
     CC = ((CAB_X0 + CAB_X1) / 2, (CAB_Y0 + CAB_Y1) / 2, 1.05)
     shoot('7-cab-interior', (2.0, CAB_Y1 + 2.0, 3.4), CC, 32, cutaway=True)
+    shoot('9-mirror-left', (CABU_X1 + 1.4, CAB_Y1 + 1.6, CABH + 0.2), (CABU_X1 - 0.30, CAB_Y1 + 0.2, CABH - 0.50), 40, res=(1500, 1200))
+    shoot('10-mirror-right', (CABU_X1 + 1.4, CAB_Y0 - 1.6, CABH + 0.2), (CABU_X1 - 0.30, CAB_Y0 - 0.2, CABH - 0.50), 40, res=(1500, 1200))
     shoot('8-operator-seat', (SX + 1.15, SY - 0.75, SZ + 1.55), (SX - 0.08, SY, SZ + 0.50), 35, cutaway=True)

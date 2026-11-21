@@ -1,5 +1,6 @@
 // The simulation's flights at our airport in 3D - see SimTraffic.h.
 #include "SimTraffic.h"
+#include "Tugs.h"
 #include "ADPLog.h"
 #include "PerfLog.h"
 #include "BabylonModel.h"
@@ -166,12 +167,21 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 		else M.Height = FMath::Max(0.f, FMath::Abs(M.Nose.X - M.Path.Last().X) * FMath::Tan(FMath::DegreesToRadians(Glide)));
 	}
 	Pose(M);
+	if (M.Phase == EPhase::Push)
+	{
+		// the tug on the nose gear (Tugs.h): its towbar's head on the tow fitting 60 cm ahead of the nose wheel
+		const FVector2f D2 = (M.Nose - M.Main).GetSafeNormal();
+		const FVector Fwd(D2.X, -D2.Y, 0.f);
+		const FVector Nose = FTerminalPlan::ToWorld(M.Nose.X, AAirfield::GroundAt(M.Nose.X, M.Nose.Y), M.Nose.Y);
+		if (ATugs* T = ATugs::Get(GetWorld())) T->Push(M.FlightId, Nose + Fwd * 60.f, Fwd, M.Speed);
+	}
 	if (M.Step < M.Path.Num()) return false;
 	// the next phase: its waypoints
 	M.Step = 0; M.Path.Reset();
 	switch (M.Phase)
 	{
 	case EPhase::Push:
+		if (ATugs* T = ATugs::Get(GetWorld())) T->Release(M.FlightId);
 		// the tug lets go; taxi along T to the connector, up to A, along A to the holding point of the runway end in use
 		M.Phase = EPhase::Taxi;
 		M.Path = {FVector2f(M.Nose.X + Dir * 40.f, F.TY), FVector2f(bToX1 ? -130.f : 362.f, F.TY), FVector2f(bToX1 ? -130.f : 362.f, F.AY)};

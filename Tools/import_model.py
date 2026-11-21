@@ -51,7 +51,7 @@ def main(blend_script, glb, name):
     out = run([sys.executable, 'Tools/find_zfight.py', glb, zf], 'flicker check')
     print(out.strip().splitlines()[-1])
     shutil.copy(ROOT / zf, ROOT / 'Content' / zf)
-    if '0 pairs fight' not in out and blend_script != '-':
+    if not out.strip().splitlines()[-1].strip().startswith('0 pairs fight') and blend_script != '-':   # ('50 pairs fight' contains '0 pairs fight')
         sys.exit('surfaces fight - open the gaps in the Blender script first:\n' + out[-2000:])
     # (the import names its folder after the file: a file named otherwise - VELDRA-dealership.glb - is imported from a
     # copy named as the model, or the game looks in /Game/Babylon/<Name>/<name> and finds nothing)
