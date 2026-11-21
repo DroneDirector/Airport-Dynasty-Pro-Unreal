@@ -56,5 +56,5 @@ Pictures: docs/Pictures/Chablais/Night-2026-11-21 (4K) and docs/Pictures/Chablai
 ## The overnight batch (to-do 164)
 1. French photo tiles redone - done.
 2. The 28 GB of photos into ~1 GB packs - DONE 03:24 (24 packs + manifest, F:/ADP-Terrain/packs-chablais).
-3. Chablais terrain packs from tiles-v2 - running since 03:24 (F:/ADP-Terrain/packs-v3, log pack-v4.log, "finished" at its end).
+3. Chablais terrain packs from tiles-v2 - DONE (129 packs, 9.98 GB in 32 min, F:/ADP-Terrain/packs-v3).
 4. The game packaged as 0.18.0 - see below.
