@@ -202,6 +202,9 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 		const FVector Nose = FTerminalPlan::ToWorld(M.Nose.X, AAirfield::GroundAt(M.Nose.X, M.Nose.Y), M.Nose.Y);
 		float StandX = M.Nose.X;
 		for (const FAirfieldData::FStand& S : F.Stands) if (S.Id == M.Stand) StandX = S.X;
+		// (owner 2026-11-21: everyone aboard first - whatever the jetway's state; a no-show holds it 15 min at most. Nothing
+		//  else starts before: no jetway pull-back, no pushback request, no tug)
+		if (!APaxFlow::BoardingDone(GetWorld(), M.Reg)) { if (M.Clock != 4.f) ADP_LOG(TEXT("Traffic: %s waits - boarding not complete"), *M.FlightId); M.Clock = 4.f; M.Speed = 0.f; Pose(M); return false; }
 		// the jetway first: never a pushback with it at the door - it pulls back and must be at rest before anything moves
 		for (const FAirfieldData::FStand& S : F.Stands)
 			if (S.Id == M.Stand)

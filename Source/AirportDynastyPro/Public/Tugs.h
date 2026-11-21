@@ -137,7 +137,7 @@ private:
 		int32 Seq = 0; float SeqT = 0.f, SeqWait = 0.f, EngT = -1.f; bool bEngines = false;
 		struct FLine { uint8 Who = 0; FString Text; bool bRadio = false; };   // Who: 0 the ground crew, 1 the pilot, 2 ATC; bRadio: on the ground frequency (else the interphone)
 		TArray<FLine> Talk; float TalkT = 0.f;
-		FString Callsign, Face, Route, Runway; bool bDeiced = false, bPushReq = false;   // (bPushReq: the cockpit has asked for the push - the tug stays in its box until then)
+		FString Callsign, Face, Route, Runway; bool bDeiced = false, bPushReq = false, bCleared = false; int32 PreSeq = 0; double PreAt = 0.0;   // (bPushReq: the cockpit has asked for the push - the tug stays in its box until then)
 		float StandNose = 0.f, StandDir = -1.f;                   // (plan m: the stand's nose stop line, the way its aircraft face)
 		// the gate's ground power unit (owner 2026-11-21: "you should see the ground crew member actually plug it into the airplane
 		// and take it off and put it in its place again"): parked in its box at the head of the stand, its cable to the A320's

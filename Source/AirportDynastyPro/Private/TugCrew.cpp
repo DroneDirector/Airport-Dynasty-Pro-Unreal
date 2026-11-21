@@ -755,7 +755,7 @@ void ATugs::SeqTick(FTug& T, float Dt)
 	case 2: // step 3: brakes set, doors closed, the bypass pin confirmed
 		Say(T, 1, TEXT("Parking brake is set, all doors closed. Confirm bypass pin inserted?"));
 		Say(T, 0, TEXT("Bypass pin is in, tow bar connected, ready for pushback."));
-		Next(3); break;
+		Next(T.bCleared ? 5 : 3); break;   // (cleared before the tug came out: straight to brakes released)
 	case 3: // step 4: the pilot asks ATC - ATC answers in 10-60 s (longer with traffic)
 		// (icing: de-iced on the stand first - simulated with its real time, 10-15 min, until the de-icing truck exists)
 		if (bIcing && !T.bDeiced && !FParse::Param(FCommandLine::Get(), TEXT("TugQuick")))

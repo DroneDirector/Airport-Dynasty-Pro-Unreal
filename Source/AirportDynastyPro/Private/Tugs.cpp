@@ -1,4 +1,5 @@
 #include "Tugs.h"
+#include "Site.h"
 #include "GSE.h"
 #include "ADPLog.h"
 #include "PerfLog.h"
@@ -255,7 +256,7 @@ int32 ATugs::Assign(const FString& Key, float StandX)
 	for (int32 i = 0; i < Tugs.Num(); ++i) if ((Tugs[i].State == EState::Parked || Tugs[i].State == EState::Manned) && FMath::Abs(Tugs[i].StandX - StandX) < 1.f) Best = i;
 	if (Best == INDEX_NONE) return INDEX_NONE;
 	FTug& T = Tugs[Best];
-	T.Key = Key; T.Path.Reset(); T.Seq = 0; T.SeqT = 0.f; T.EngT = -1.f; T.bDeiced = false; T.bPushReq = false; T.bEngines = false; T.Talk.Reset(); T.TalkT = 0.f;
+	T.Key = Key; T.Path.Reset(); T.Seq = 0; T.SeqT = 0.f; T.EngT = -1.f; T.bDeiced = false; T.bPushReq = false; T.bCleared = false; T.PreSeq = 0; T.PreAt = 0.0; T.bEngines = false; T.Talk.Reset(); T.TalkT = 0.f;
 	ADP_LOG(TEXT("Tugs: tug %d at its gate gets ready for %s"), Best, *Key);
 	// (its crew: the driver walks over and climbs in, then the engine starts - TugCrew.cpp)
 	if (T.State == EState::Manned) { T.State = EState::Waiting; Engine(T, true); CrewBoard(Best); ADP_LOG(TEXT("Tugs: the driver, already aboard, starts the engine")); }   // (CrewBoard: only the handler and walkers then)
@@ -301,13 +302,29 @@ bool ATugs::Push(const FString& Key, float StandX, const FVector& Fitting, const
 	{
 		// (owner 2026-11-21: the tug stays in its place until the aircraft asks to be pushed back - doors closed, the jetway
 		//  at rest: the cockpit calls the pushback crew on the ramp frequency, they answer, and only then does it come out)
-		if (!T.bPushReq && T.Driver != INDEX_NONE)   // (no crew: no talk - SeqTick needs a driver)
+		// (owner 2026-11-21: the tug stays in its place until the aircraft has its PUSHBACK CLEARANCE from ATC: doors closed,
+		//  everyone aboard, the jetway at rest - the cockpit asks ground control, ATC answers in 10-60 s, the pilot reads it
+		//  back, and only then does the tug come out to the nose; after coupling the interphone check, then brakes released)
+		if (T.Driver != INDEX_NONE && T.PreSeq < 2)
 		{
-			T.bPushReq = true;
+			const double Now = GetWorld()->GetTimeSeconds();
 			const FString Cs = T.Callsign.IsEmpty() ? Key : T.Callsign;
-			Say(T, 1, FString::Printf(TEXT("Ramp, %s, doors closed, jetway clear, request pushback."), *Cs), true);
-			Say(T, 0, FString::Printf(TEXT("%s, ramp, pushback crew on the way."), *Cs), true);
-			ADP_LOG(TEXT("Tugs: %s requests pushback - the tug comes out after the reply"), *Key);
+			const FString Gnd = ADPSite::Name(ADPSite::Id()).Replace(TEXT(" Airport"), TEXT("")) + TEXT(" Ground");
+			static const TCHAR* Ph[] = {TEXT("Alpha"), TEXT("Bravo"), TEXT("Charlie"), TEXT("Delta"), TEXT("Echo"), TEXT("Foxtrot"), TEXT("Golf"), TEXT("Hotel"), TEXT("India"), TEXT("Juliett"), TEXT("Kilo"), TEXT("Lima"), TEXT("Mike"), TEXT("November"), TEXT("Oscar"), TEXT("Papa"), TEXT("Quebec"), TEXT("Romeo"), TEXT("Sierra"), TEXT("Tango"), TEXT("Uniform"), TEXT("Victor"), TEXT("Whiskey"), TEXT("X-ray"), TEXT("Yankee"), TEXT("Zulu")};
+			if (T.PreSeq == 0)
+			{
+				T.PreSeq = 1; T.bPushReq = true;
+				Say(T, 1, FString::Printf(TEXT("%s, %s, stand at the terminal, information %s, request pushback."), *Gnd, *Cs, Ph[ADPSite::LocalNow().GetHour() % 26]), true);
+				T.PreAt = Now + FMath::FRandRange(10.f, Planes.Num() > 1 ? 45.f : 25.f);
+				ADP_LOG(TEXT("Tugs: %s requests pushback from ATC - the tug stays in its box until it is approved"), *Key);
+				return false;
+			}
+			if (T.Talk.Num() || Now < T.PreAt) return false;
+			const FString Face = T.Face.IsEmpty() ? FString(TEXT("north")) : T.Face;
+			Say(T, 2, FString::Printf(TEXT("%s, %s, pushback approved, face %s."), *Cs, *Gnd, *Face), true);
+			Say(T, 1, FString::Printf(TEXT("Pushback approved, face %s, %s."), *Face, *Cs), true);
+			T.PreSeq = 2; T.bCleared = true;
+			ADP_LOG(TEXT("Tugs: %s pushback approved by ATC - now the tug comes out"), *Key);
 			return false;
 		}
 		if (T.Talk.Num()) return false;   // (still talking: the tug stays put)
