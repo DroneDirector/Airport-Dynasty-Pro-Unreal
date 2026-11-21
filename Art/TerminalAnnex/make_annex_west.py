@@ -173,10 +173,13 @@ wall_x(45.6, 30.1, 33.2, 0.0, 5.36, m_in='MI_T_tile')                           
 wall_z(33.2, 43.1, 45.7, 0.0, 5.36, m='MI_T_tile')
 # the Floor 2 landing (x 0..16 - owner 2026-11-21, Security v3: 5 m shorter, the escalators moved 5 m west) and its edge
 LX = 16.0
-# (its terrazzo top only where nothing else is: the Floor 2 toilets and family room on its west part, x 0..14, z 0..22,
-#  have their own floors - the terrazzo 2 mm over them flickered through; 2026-11-21)
+# (its floor only where nothing else is: the Floor 2 toilets and family room on its west part, x 0..14, z 0..22,
+#  have their own floors - a top 2 mm over them flickered through; 2026-11-21)
+# its floor where you step off the escalators: the gate walkway's dark wood (owner 2026-11-21: "add the dark wood floors
+# to the escalator floor ... where the gray area is" - was MI_T_terrazzo); M_WoodFloor is world-laid, so lined up with
+# the link's and the walkway's; the top face only (the landing's edge keeps its white strip, the escalators untouched)
 for (x0_, x1_, z0_, z1_) in ((0.0, LX, 22.0, 30.0), (14.0, LX, 0.0, 22.0)):
-    S.box(x0_, x1_, 5.99, 6.01, z0_, z1_, 'MI_T_terrazzo')
+    S.box(x0_, x1_, 5.99, 6.01, z0_, z1_, 'M_WoodFloor', sides=('+y',))
 S.box(0.0, LX, 5.41, 5.99, 0.0, 30.0, 'MI_T_concrete', sides=('-x', '+x', '-z', '+z'))
 S.box(0.0, LX, 5.37, 5.41, 0.0, 30.0, 'MI_T_offwhite')
 S.box(LX - 0.04, LX, 5.37, 6.01, 0.0, 30.0, W, sides=('+x',))
