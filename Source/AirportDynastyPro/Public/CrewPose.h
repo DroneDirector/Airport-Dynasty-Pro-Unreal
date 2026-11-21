@@ -25,7 +25,20 @@ namespace ADPPose
 			const FVector Hb = B.bHand[s] ? B.Hand[s] : B.Pelvis + LeftOf(B.Facing) * (s == 0 ? 22.f : -22.f) - Up() * 15.f;
 			P.Hand[s] = FMath::Lerp(Ha, Hb, K); P.Grip[s] = FMath::Lerp(A.Grip[s], B.Grip[s], K);
 			P.bHand[s] = A.bHand[s] || B.bHand[s];
+			// (the idle movements: a hand on the body blends onto its landmark, the palm turns, the shoulders move)
+			P.ShoulderUp[s] = FMath::Lerp(A.ShoulderUp[s], B.ShoulderUp[s], K); P.ShoulderFwd[s] = FMath::Lerp(A.ShoulderFwd[s], B.ShoulderFwd[s], K);
+			const bool bOnB = B.HandOn[s] != FDriverPose::OnNone;
+			P.HandOn[s] = bOnB ? B.HandOn[s] : A.HandOn[s]; P.HandOff[s] = bOnB ? B.HandOff[s] : A.HandOff[s];
+			P.HandOnW[s] = bOnB ? FMath::Lerp(A.HandOn[s] == B.HandOn[s] ? A.HandOnW[s] : 0.f, B.HandOnW[s], K) : FMath::Lerp(A.HandOnW[s], 0.f, K);
+			const bool bPB = !B.PalmDir[s].IsNearlyZero();
+			P.PalmDir[s] = bPB ? B.PalmDir[s] : A.PalmDir[s]; P.FingerDir[s] = bPB ? B.FingerDir[s] : A.FingerDir[s];
+			P.PalmW[s] = FMath::Lerp(A.PalmW[s], bPB ? B.PalmW[s] : 0.f, K);
+			const bool bPoB = !B.Pole[s].IsNearlyZero();
+			P.Pole[s] = bPoB && !A.Pole[s].IsNearlyZero() ? FMath::Lerp(A.Pole[s], B.Pole[s], K) : (bPoB ? B.Pole[s] : A.Pole[s]);
 		}
+		P.HeadYaw = FMath::Lerp(A.HeadYaw, B.HeadYaw, K); P.HeadPitch = FMath::Lerp(A.HeadPitch, B.HeadPitch, K); P.HeadRoll = FMath::Lerp(A.HeadRoll, B.HeadRoll, K);
+		P.Twist = FMath::Lerp(A.Twist, B.Twist, K);
+		P.LookHand = B.LookHand >= 0 ? B.LookHand : A.LookHand; P.LookW = FMath::Lerp(A.LookW, B.LookHand >= 0 ? B.LookW : 0.f, K);
 		return P;
 	}
 	/** Standing at a spot facing a way (side 0 is the body's left). */

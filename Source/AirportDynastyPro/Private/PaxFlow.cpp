@@ -1413,6 +1413,20 @@ void APaxFlow::Tick(float Dt)
 		if (!bNear && (Frame + i) % 4 != 0 && i != Watched && P.St != EPx::Revolve) continue;   // (at a revolving door: every frame - its windows are short)
 		const float Step = FMath::Min(P.Acc, 0.3f); P.Acc = 0.f;
 		StepPx(i, Step);
+		// the idle movements (owner 2026-11-21, PaxAnimInstance.h): only near the camera (within 60 m: the close ones above, every frame), standing
+		// still - a desk or security queue, at the desk once the bag is on the belt, waiting at the gate or for the jetway, at
+		// the claim belt; never walking, riding an escalator, in a revolving door or while setting the bag down. A bag
+		// in the right hand: only movements that leave the right arm alone. After 30 s still, now and then one
+		if (Pax.IsValidIndex(i))
+		{
+			FPx& Q = Pax[i];
+			if (UPaxAnimInstance* Pa = Q.Body.IsValid() ? Cast<UPaxAnimInstance>(Q.Body->GetAnimInstance()) : nullptr)
+			{
+				const bool bStand = Q.St == EPx::DeskQ || Q.St == EPx::LaneQ || Q.St == EPx::Wait || Q.St == EPx::Call || Q.St == EPx::ClaimWait || (Q.St == EPx::Desk && Q.bBagDown && Q.T > 3.f);
+				const bool bStill = bNear && bStand && !Q.bRideNow && Q.MoveSpd < 15.f && Q.YieldT <= 0.f;
+				Pa->IdleFidgets(Step, bStill, false, Q.bHasBag && !(!Q.bArr && Q.bBagDown));
+			}
+		}
 		if (Pax.IsValidIndex(i)) if (const AActor* A2 = Pax[i].A.Get()) if (Pax[i].St == EPx::Walk || Pax[i].St == EPx::Jetway || Pax[i].St == EPx::Revolve) ATerminalDoors::Openers.Add(A2->GetActorLocation());   // (also the revolving doors' presence sensor)
 	}
 	// now and then: how many are where

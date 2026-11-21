@@ -34,3 +34,13 @@
 - Trees (to-do 200): 1.81 million real trees, drawn only within 4 km of you in 1 km blocks (two blocks a step, no hitch),
   instanced and Nanite, far shadows off (the 10 cm photo carries the forests' look beyond); to be measured in the
   stress walk with frame generation on (Full HD, 4K, his screen; day and night).
+
+## 2026-11-21 night - idle body movements (TugCrew.cpp, PaxAnimInstance.cpp, People.cpp)
+- Ground crew: a movement is posed with the crew's existing IK rig (FTruckDriverRig) only while it plays (2-6 s, then
+  4-20 s of the plain blend-space idle between) - the same cost as the old head-scratch fidgets; new per-pose work is a
+  few extra bone turns (spine, neck, clavicles, wrist) and the body landmarks for the hand contacts.
+- Passengers: the layer runs in the anim proxy (worker thread) only while a movement plays - two-bone IK per arm (and
+  per leg for the weight shift), a component-space rebuild per set bone. Started only for walkers within 60 m of the
+  camera (the existing near/far split; far ones get none) and only after 30 s standing still; bodies already tick their
+  pose only while seen. Seated (People.cpp): the seat pose is re-posed each frame only while a seated movement plays,
+  within 60 m. To be measured in the combined stress walk (crowds at the desks / gates).

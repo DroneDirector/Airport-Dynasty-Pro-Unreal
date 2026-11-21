@@ -42,6 +42,15 @@ bool FTruckDriverRig::Init(UPoseableMeshComponent* M)
 		for (const TCHAR* F : {TEXT("middle_01"), TEXT("middle_02"), TEXT("middle_03"), TEXT("index_02"), TEXT("index_03"), TEXT("ring_02"), TEXT("ring_03"), TEXT("pinky_02"), TEXT("pinky_03"), TEXT("thumb_03")})
 		{ const int32 X = B(*FString::Printf(TEXT("%s_%s"), F, Sd[S])); if (X != INDEX_NONE) HandPts[S].Add(X); }
 	}
+	// the idle movements' bones (the upper body's turn, the shoulders, the head's look)
+	Spine.Reset(); Neck.Reset();
+	for (int32 I = 1; I <= 5; ++I) { const int32 X = B(*FString::Printf(TEXT("spine_%02d"), I)); if (X != INDEX_NONE) Spine.Add(X); }
+	for (int32 I = 1; I <= 2; ++I) { const int32 X = B(*FString::Printf(TEXT("neck_%02d"), I)); if (X != INDEX_NONE) Neck.Add(X); }
+	Neck.Add(Head);
+	Clav[0] = B(TEXT("clavicle_l")); Clav[1] = B(TEXT("clavicle_r"));
+	LeftSign = FMath::Sign(FVector::DotProduct(RefCS[Thigh[0]].GetLocation() - RefCS[Pelvis].GetLocation(), FVector(1, 0, 0)));
+	if (LeftSign == 0.f) LeftSign = 1.f;
+	for (int32 S = 0; S < 2; ++S) { PalmL[S] = FVector::ZeroVector; AlongL[S] = FVector::ZeroVector; }
 	AnkleH = RefCS[Foot[0]].GetLocation().Z;
 	PelvisH = RefCS[Pelvis].GetLocation().Z;
 	// the fingers: each joint closes towards the palm (the palm's side found from the hand's own shape in the reference pose)
@@ -56,6 +65,7 @@ bool FTruckDriverRig::Init(UPoseableMeshComponent* M)
 		// the thumb sits on the palm's side of the hand
 		const int32 Th = B(*FString::Printf(TEXT("thumb_02_%s"), Sd[S]));
 		if (Th != INDEX_NONE && FVector::DotProduct(RefCS[Th].GetLocation() - HandAt, Palm) < 0.f) Palm = -Palm;
+		PalmL[S] = RefCS[Hand[S]].GetRotation().UnrotateVector(Palm); AlongL[S] = RefCS[Hand[S]].GetRotation().UnrotateVector(Along);
 		for (const TCHAR* F : {TEXT("index"), TEXT("middle"), TEXT("ring"), TEXT("pinky"), TEXT("thumb")})
 			for (int32 J = 1; J <= 3; ++J)
 			{
@@ -88,6 +98,49 @@ void FTruckDriverRig::SetCS(int32 Bone, const FTransform& T)
 	Rebuild();
 }
 
+void FTruckDriverRig::TurnCS(int32 Bone, const FQuat& Q)
+{
+	if (Bone == INDEX_NONE || Q.Equals(FQuat::Identity, 1e-5f)) return;
+	SetCS(Bone, FTransform(Q * CS[Bone].GetRotation(), CS[Bone].GetLocation()));
+}
+
+FVector FTruckDriverRig::Body(const FQuat& Yaw, const FVector& V) const
+{
+	// (the reference pose faces +y, its left on LeftSign x; turned by the pose's yaw)
+	return Yaw.RotateVector(FVector(V.X * LeftSign, V.Y, V.Z));
+}
+
+FVector FTruckDriverRig::Landmark(uint8 On, int32 S, const FVector& Off, const FQuat& Yaw) const
+{
+	// a place on the body, found on its own bones as they stand posed just now: the reference place (bone + a fixed offset
+	// in the upright reference body) carried by that bone's present transform - so a hand on the head goes with the head,
+	// a hand on the back with the spine. Then the wrist's own offset Off (body frame, X towards the hand's own side).
+	const float Sd = S == 0 ? 1.f : -1.f;   // (the hand's own side: +1 its left)
+	auto At = [&](int32 Bone, const FVector& RefOff) -> FVector
+	{
+		if (Bone == INDEX_NONE) return CS[Pelvis].GetLocation();
+		const FVector RefP = RefCS[Bone].GetLocation() + FVector(RefOff.X * LeftSign, RefOff.Y, RefOff.Z);
+		return CS[Bone].TransformPosition(RefCS[Bone].InverseTransformPosition(RefP));
+	};
+	const int32 Sp0 = Spine.Num() ? Spine[0] : Pelvis, SpTop = Spine.Num() ? Spine.Last() : Pelvis, Nk = Neck.Num() > 1 ? Neck[0] : Head;
+	const int32 O = 1 - S;
+	FVector P;
+	switch (On)
+	{
+	case FDriverPose::OnHeadTop:       P = At(Head, FVector(0.f, 1.f, 17.f)); break;                // (the crown)
+	case FDriverPose::OnHeadSide:      P = At(Head, FVector(Sd * 8.f, -1.f, 9.f)); break;           // (above the ear, its own side)
+	case FDriverPose::OnMouth:         P = At(Head, FVector(0.f, 11.f, 1.f)); break;
+	case FDriverPose::OnNeckBack:      P = At(Nk, FVector(Sd * 2.f, -6.f, 2.f)); break;
+	case FDriverPose::OnLowerBack:     P = At(Sp0, FVector(Sd * 9.f, -13.f, 2.f)); break;
+	case FDriverPose::OnHip:           P = At(Thigh[S], FVector(Sd * 8.f, 0.f, 9.f)); break;      // (the top of the hip bone, outside)
+	case FDriverPose::OnOtherUpperArm: P = At(Upper[O], FVector(0.f, 5.f, -15.f)); break;         // (the other arm's upper arm, its front)
+	case FDriverPose::OnOtherWrist:    P = CS[Hand[O]].GetLocation(); break;
+	case FDriverPose::OnChest:         P = At(SpTop, FVector(0.f, 14.f, -4.f)); break;
+	default:                           return CS[Pelvis].GetLocation();
+	}
+	return P + Body(Yaw, FVector(Off.X * Sd, Off.Y, Off.Z));
+}
+
 void FTruckDriverRig::Limb(int32 A, int32 Bb, int32 C, const FVector& Target, const FVector& Bend, const FVector& RefBend)
 {
 	const FVector Root = CS[A].GetLocation();
@@ -115,9 +168,56 @@ void FTruckDriverRig::Pose(const FDriverPose& P)
 	const FQuat Yaw(Up, FMath::Atan2(Fw.Y, Fw.X) - HALF_PI);   // the reference pose faces +y (a plain turn about up, even facing -y)
 	const FQuat LeanQ = FQuat::FindBetweenNormals(Up, (Up * FMath::Cos(FMath::DegreesToRadians(P.Lean)) + Fw * FMath::Sin(FMath::DegreesToRadians(P.Lean))).GetSafeNormal());
 	SetCS(Pelvis, FTransform(LeanQ * Yaw * RefCS[Pelvis].GetRotation(), P.Pelvis));
-	// (which way is the body's left: the reference pose's left foot is on its own side)
-	const float LeftSign = FMath::Sign(FVector::DotProduct(RefCS[Thigh[0]].GetLocation() - RefCS[Pelvis].GetLocation(), FVector(1, 0, 0)));
 	const FVector Left = Yaw.RotateVector(FVector(LeftSign, 0, 0));
+	// the idle movements (owner 2026-11-21), each within natural limits: the upper body's turn spread over the spine, the
+	// shoulders raised / rolled, then the head's turn and look spread over the neck - all before the arms, so the hands
+	// reach from where the shoulders now are
+	{
+		const FVector BUp = LeanQ.RotateVector(Up), BFw = LeanQ.RotateVector(Fw), BLeft = LeanQ.RotateVector(Left);
+		// (the look at a hand: where its target will be, from the body's frame before the arms are solved)
+		float LookYaw = 0.f, LookPitch = 0.f;
+		if (P.LookHand >= 0 && P.LookHand < 2 && P.LookW > 0.f && P.bHand[P.LookHand])
+		{
+			const int32 Lh = P.LookHand;
+			const FVector Eye = CS[Head].GetLocation() + BFw * 10.f;
+			const FVector Tgt = P.HandOn[Lh] != FDriverPose::OnNone && P.HandOn[Lh] != FDriverPose::OnOtherWrist
+				? FMath::Lerp(P.Hand[Lh], Landmark(P.HandOn[Lh], Lh, P.HandOff[Lh], Yaw), FMath::Clamp(P.HandOnW[Lh], 0.f, 1.f)) : P.Hand[Lh];
+			const FVector D = (Tgt - Eye).GetSafeNormal();
+			LookYaw = FMath::RadiansToDegrees(FMath::Atan2(FVector::DotProduct(D, BLeft), FVector::DotProduct(D, BFw))) * P.LookW;
+			LookPitch = FMath::RadiansToDegrees(FMath::Asin(FMath::Clamp(-FVector::DotProduct(D, BUp), -1.f, 1.f))) * P.LookW;
+		}
+		const float HY = FMath::Clamp(P.HeadYaw + LookYaw, -75.f, 75.f), HP = FMath::Clamp(P.HeadPitch + LookPitch, -35.f, 50.f), HR = FMath::Clamp(P.HeadRoll, -30.f, 30.f);
+		// (the spine: its own turn plus a fifth of the look's; at most 40 degrees. FQuat(Cross(A, B), +a) turns A towards B)
+		const float Tw = FMath::Clamp(P.Twist + HY * 0.2f, -40.f, 40.f);
+		const FVector YawAx = FVector::CrossProduct(BFw, BLeft).GetSafeNormal();
+		if (Spine.Num() && FMath::Abs(Tw) > 0.01f)
+		{
+			const FQuat Q(YawAx, FMath::DegreesToRadians(Tw) / Spine.Num());
+			for (const int32 X : Spine) TurnCS(X, Q);
+		}
+		for (int32 S = 0; S < 2; ++S)
+			if (Clav[S] != INDEX_NONE && (FMath::Abs(P.ShoulderUp[S]) > 0.01f || FMath::Abs(P.ShoulderFwd[S]) > 0.01f))
+			{
+				const FVector Out = (CS[Upper[S]].GetLocation() - CS[Clav[S]].GetLocation()).GetSafeNormal();
+				const FVector AxU = FVector::CrossProduct(Out, BUp).GetSafeNormal(), AxF = FVector::CrossProduct(Out, BFw).GetSafeNormal();
+				FQuat Q = FQuat::Identity;
+				if (!AxU.IsNearlyZero()) Q = FQuat(AxU, FMath::DegreesToRadians(FMath::Clamp(P.ShoulderUp[S], -8.f, 18.f))) * Q;
+				if (!AxF.IsNearlyZero()) Q = FQuat(AxF, FMath::DegreesToRadians(FMath::Clamp(P.ShoulderFwd[S], -14.f, 14.f))) * Q;
+				TurnCS(Clav[S], Q);
+			}
+		// (the head: the rest of the turn, the nod and the tilt over the neck's joints, in the frame the spine left it in)
+		if (Neck.Num() && (FMath::Abs(HY - Tw) > 0.01f || FMath::Abs(HP) > 0.01f || FMath::Abs(HR) > 0.01f))
+		{
+			const float N = float(Neck.Num());
+			const FQuat Sp = Spine.Num() ? FQuat(YawAx, FMath::DegreesToRadians(Tw)) : FQuat::Identity;
+			const FVector HUp = Sp.RotateVector(BUp), HFw = Sp.RotateVector(BFw), HLeft = Sp.RotateVector(BLeft);
+			const FQuat QY(YawAx, FMath::DegreesToRadians(HY - Tw) / N);
+			const FQuat QP(FVector::CrossProduct(HFw, -HUp).GetSafeNormal(), FMath::DegreesToRadians(HP) / N);   // (the face towards down)
+			const FQuat QR(FVector::CrossProduct(HUp, HLeft).GetSafeNormal(), FMath::DegreesToRadians(HR) / N);  // (the crown towards the left)
+			const FQuat Q = QY * QP * QR;
+			for (const int32 X : Neck) TurnCS(X, Q);
+		}
+	}
 	for (int32 S = 0; S < 2; ++S)
 	{
 		const FVector Out = S == 0 ? Left : -Left;
@@ -129,8 +229,32 @@ void FTruckDriverRig::Pose(const FDriverPose& P)
 		// the arm: to what it holds, the elbow down, back and out; else hanging by the side
 		const FVector Sh = CS[Upper[S]].GetLocation();
 		const float Arm = (RefCS[Lower[S]].GetLocation() - RefCS[Upper[S]].GetLocation()).Size() + (RefCS[Hand[S]].GetLocation() - RefCS[Lower[S]].GetLocation()).Size();
-		const FVector Target = P.bHand[S] ? P.Hand[S] : Sh + (-Up * 0.97f + Out * 0.16f + Fw * 0.05f).GetSafeNormal() * Arm * 0.97f;
-		Limb(Upper[S], Lower[S], Hand[S], Target, -Up * 0.6f - Fw * 0.3f + Out * 0.6f, FVector(0, -1, 0));
+		FVector Target = P.bHand[S] ? P.Hand[S] : Sh + (-Up * 0.97f + Out * 0.16f + Fw * 0.05f).GetSafeNormal() * Arm * 0.97f;
+		// (a hand on the body: the landmark on its own bones, blended in)
+		if (P.bHand[S] && P.HandOn[S] != FDriverPose::OnNone && P.HandOnW[S] > 0.f)
+			Target = FMath::Lerp(Target, Landmark(P.HandOn[S], S, P.HandOff[S], Yaw), FMath::Clamp(P.HandOnW[S], 0.f, 1.f));
+		FVector Bend = -Up * 0.6f - Fw * 0.3f + Out * 0.6f;
+		if (!P.Pole[S].IsNearlyZero()) Bend = Body(Yaw, FVector(P.Pole[S].X * (S == 0 ? 1.f : -1.f), P.Pole[S].Y, P.Pole[S].Z)).GetSafeNormal();   // (X: out to its own side)
+		Limb(Upper[S], Lower[S], Hand[S], Target, Bend, FVector(0, -1, 0));
+		// the palm the way it must face on what it lies on (the wrist turns, at most 70 degrees - the forearm took the rest)
+		if (P.PalmW[S] > 0.f && !P.PalmDir[S].IsNearlyZero() && !PalmL[S].IsNearlyZero())
+		{
+			const float Sx = S == 0 ? 1.f : -1.f;
+			const FVector WantP = Body(Yaw, FVector(P.PalmDir[S].X * Sx, P.PalmDir[S].Y, P.PalmDir[S].Z)).GetSafeNormal();
+			const FQuat HQ = CS[Hand[S]].GetRotation();
+			const FVector NowP = HQ.RotateVector(PalmL[S]), NowA = HQ.RotateVector(AlongL[S]);
+			FQuat Q = FQuat::FindBetweenNormals(NowP, WantP);
+			if (!P.FingerDir[S].IsNearlyZero())
+			{
+				FVector WantA = Body(Yaw, FVector(P.FingerDir[S].X * Sx, P.FingerDir[S].Y, P.FingerDir[S].Z));
+				WantA = (WantA - FVector::DotProduct(WantA, WantP) * WantP).GetSafeNormal();
+				if (!WantA.IsNearlyZero()) Q = FrameMap(NowA, NowP, WantA, WantP);
+			}
+			FVector Ax; float Ang; Q.ToAxisAndAngle(Ax, Ang);
+			if (Ang > PI) { Ang = 2.f * PI - Ang; Ax = -Ax; }
+			Q = FQuat(Ax, FMath::Min(Ang, FMath::DegreesToRadians(70.f)) * FMath::Clamp(P.PalmW[S], 0.f, 1.f));
+			TurnCS(Hand[S], Q);
+		}
 		// the fingers round the bar
 		const float Gr = FMath::Clamp(P.Grip[S], 0.f, 1.f);
 		if (Gr > 0.01f)

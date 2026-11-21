@@ -173,7 +173,7 @@ private:
 	// the crew (TugCrew.cpp)
 	void SetupCrew();
 	void StepCrew(FCrew& C, float Dt);
-	void IdleTick(FCrew& C, float Dt, bool bMayStep);
+	void IdleTick(FCrew& C, float Dt, bool bMayStep, float Room = 1e9f);   // (Room: seconds of the wait left - a movement starts only if it fits)
 	bool CrewWalk(FCrew& C, const FVector& To, float Dt, float Stop, float Max);
 	/** Where to walk next on the way to To: round the GPUs and the tugs that stand in the straight way (owner 2026-11-21:
 	 *  never through them, yet able to come very close - their own outline, a person's half width wider). */

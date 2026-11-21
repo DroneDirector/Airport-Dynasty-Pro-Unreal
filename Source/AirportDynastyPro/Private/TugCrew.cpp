@@ -24,6 +24,8 @@
 #include "People.h"
 #include "CrewVoice.h"
 #include "TruckDriverRig.h"
+#include "CrewPose.h"
+#include "Puddles.h"
 #include "DriverPoseAnim.h"
 #include "BabylonModel.h"
 #include "ADPLog.h"
@@ -70,22 +72,8 @@ namespace
 		AADPPeople* P = AADPPeople::Get(W); AADPPeople::FWho* Who = P && A ? P->Find(A) : nullptr;
 		return Who ? Who->Body : nullptr;
 	}
-	FDriverPose Lerp(const FDriverPose& A, const FDriverPose& B, float K)
-	{
-		FDriverPose P = B;
-		P.Pelvis = FMath::Lerp(A.Pelvis, B.Pelvis, K); P.Facing = FMath::Lerp(A.Facing, B.Facing, K).GetSafeNormal2D(); P.Lean = FMath::Lerp(A.Lean, B.Lean, K);
-		for (int32 s = 0; s < 2; ++s)
-		{
-			P.Foot[s] = FMath::Lerp(A.Foot[s], B.Foot[s], K); P.FootPitch[s] = FMath::Lerp(A.FootPitch[s], B.FootPitch[s], K);
-			P.bHand[s] = K < 0.5f ? A.bHand[s] : B.bHand[s];
-			// (a hand reaching from hanging: from beside the hip)
-			const FVector Ha = A.bHand[s] ? A.Hand[s] : A.Pelvis + LeftOf(A.Facing) * (s == 0 ? 22.f : -22.f) - Up * 15.f;
-			const FVector Hb = B.bHand[s] ? B.Hand[s] : B.Pelvis + LeftOf(B.Facing) * (s == 0 ? 22.f : -22.f) - Up * 15.f;
-			P.Hand[s] = FMath::Lerp(Ha, Hb, K); P.Grip[s] = FMath::Lerp(A.Grip[s], B.Grip[s], K);
-			if (!A.bHand[s] && !B.bHand[s]) P.bHand[s] = false; else P.bHand[s] = true;
-		}
-		return P;
-	}
+	// (the blend between two poses: the shared one, CrewPose.h - with the idle movements' head, shoulders and body contacts)
+	FDriverPose Lerp(const FDriverPose& A, const FDriverPose& B, float K) { return ADPPose::Lerp(A, B, K); }
 	// standing at a spot facing a way (side 0 is the body's left: its foot and hand on the left of the way it faces)
 	FDriverPose Standing(const FVector& At, const FVector& Face, float PH)
 	{
@@ -267,7 +255,7 @@ void ATugs::StepCrew(FCrew& C, float Dt)
 			if (bDone) { C.Anchor = Ac.To(); C.AnchorYaw = A->GetActorRotation().Yaw + 90.f; C.IdleOff = FVector::ZeroVector; C.IdleYawOff = 0.f; }
 			break;
 		case FCrewAct::Pose: C.FidgetDur = 0.f; ApplyPose(C, Ac.PoseFn, Ac.Dur > 0.f ? C.T / Ac.Dur : 1.f); bDone = C.T >= Ac.Dur; break;
-		case FCrewAct::Wait: if (C.Hold) ApplyPose(C, C.Hold, 1.f); else IdleTick(C, Dt, false); bDone = C.T >= Ac.Dur; break;
+		case FCrewAct::Wait: if (C.Hold) ApplyPose(C, C.Hold, 1.f); else IdleTick(C, Dt, false, Ac.Dur - C.T); bDone = C.T >= Ac.Dur; break;
 		case FCrewAct::WaitFor: if (C.Hold) ApplyPose(C, C.Hold, 1.f); else IdleTick(C, Dt, true); bDone = Ac.Until(C.T); break;
 		case FCrewAct::Do: if (Ac.Fn) Ac.Fn(); bDone = true; break;
 		}
@@ -622,11 +610,122 @@ void ATugs::WalkersDone(int32 Tug)
 	T.Walkers.Reset(); T.WalkersReady = 0; T.bWalkersOut = false;
 }
 
-void ATugs::IdleTick(FCrew& C, float Dt, bool bMayStep)
+namespace
 {
-	// waiting: never still as a rock (owner 2026-11-21) - the idle breathing and sway of the walk animation's rest, and every
-	// 5-12 s something of their own: a head scratch, a look at the watch, hands on hips, arms folded, a stretch, the weight
-	// on the other leg, a look round or a small step - always within 1.5 m of where they wait
+	/** One idle movement of the ground crew (owner 2026-11-21: more natural idle body movement, IK where it is needed):
+	 *  the pose at Kt (0..1 of Dur seconds), standing at At facing Face, Side +1 the left hand / -1 the right where one hand
+	 *  does it. Hands that touch the body lie on landmarks found on the body's own bones (FDriverPose::HandOn) with the palm
+	 *  turned onto the surface and the fingers lightly curled; the feet never move (the pelvis does, the knees follow). */
+	void CrewFidget(int32 K, float Side, float Dur, const FVector& At, const FVector& Face, float Kt, float PH, FDriverPose& P)
+	{
+		const FDriverPose S = Standing(At, Face, PH); FDriverPose D = S;
+		const FVector PL = LeftOf(Face); const float E = Ramp(Kt), Ts = Kt * Dur;
+		const int32 h = Side > 0.f ? 0 : 1;   // (which hand: 0 the left, 1 the right)
+		auto OutOf = [&](int32 Hd) { return PL * (Hd == 0 ? 1.f : -1.f); };
+		// (a hand onto a body landmark; Hand is only the way there - the rig puts it on the landmark itself. Body frame:
+		//  X out to the hand's own side, Y front, Z up)
+		auto On = [&](int32 Hd, uint8 L, const FVector& Off, const FVector& Palm, const FVector& Fing, float Grip, const FVector& Pole)
+		{
+			const FVector O = OutOf(Hd);
+			FVector Near = S.Pelvis;
+			switch (L)
+			{
+			case FDriverPose::OnHeadTop: case FDriverPose::OnHeadSide: Near += Up * (PH * 0.78f) + O * 14.f; break;
+			case FDriverPose::OnMouth:     Near += Up * (PH * 0.55f) + Face * 20.f + O * 6.f; break;
+			case FDriverPose::OnNeckBack:  Near += Up * (PH * 0.6f) + O * 14.f; break;
+			case FDriverPose::OnLowerBack: Near += Up * 8.f - Face * 16.f + O * 14.f; break;
+			case FDriverPose::OnHip:       Near += Up * 12.f + O * 24.f; break;
+			case FDriverPose::OnOtherUpperArm: Near += Up * (PH * 0.38f) + Face * 18.f - O * 6.f; break;
+			default:                       Near += Up * (PH * 0.1f) - Face * 14.f; break;
+			}
+			D.bHand[Hd] = true; D.Hand[Hd] = Near; D.HandOn[Hd] = L; D.HandOff[Hd] = Off; D.HandOnW[Hd] = 1.f;
+			D.PalmDir[Hd] = Palm; D.FingerDir[Hd] = Fing; D.PalmW[Hd] = 1.f; D.Grip[Hd] = Grip; D.Pole[Hd] = Pole;
+		};
+		switch (K)
+		{
+		case 0:   // scratching the head: the fingertips on the side of the crown, a few small strokes; the head leans into it
+			On(h, FDriverPose::OnHeadSide, FVector(4.f, -1.f + 1.5f * FMath::Sin(Ts * 38.f), -9.f + 1.f * FMath::Sin(Ts * 38.f + 1.f)), FVector(-1.f, 0.f, 0.3f), FVector(0.f, 0.2f, 1.f), 0.45f, FVector(1.f, 0.f, 0.3f));
+			D.HeadRoll = 6.f * Side; D.HeadPitch = 6.f; D.Lean = 2.f; break;
+		case 1:   // a look at the watch: the left wrist up in front of the chest, the palm down, the eyes on it
+			D.bHand[0] = true; D.Hand[0] = S.Pelvis + Up * (PH * 0.42f) + Face * 27.f + PL * 1.f; D.PalmDir[0] = FVector(0.f, 0.f, -1.f); D.FingerDir[0] = FVector(-1.f, 0.3f, 0.f); D.PalmW[0] = 1.f;
+			D.Grip[0] = 0.3f; D.Pole[0] = FVector(1.f, -0.2f, -0.6f); D.LookHand = 0; D.LookW = 1.f; D.Lean = 4.f; break;
+		case 2:   // hands on the hips: the palms on the top of the hip bones, the fingers forward and down, the elbows out
+			for (int32 s = 0; s < 2; ++s) On(s, FDriverPose::OnHip, FVector(3.f, -6.f, 6.f), FVector(-1.f, 0.f, 0.f), FVector(0.f, 0.6f, -0.8f), 0.25f, FVector(1.f, -0.6f, 0.f));
+			D.Lean = -2.f; D.HeadYaw = 8.f * Side; break;
+		case 3:   // arms crossed: each hand on the other upper arm's front, the left forearm over the right
+			On(0, FDriverPose::OnOtherUpperArm, FVector(9.f, 5.f, -2.f), FVector(-0.8f, -0.6f, 0.f), FVector(-1.f, -0.3f, 0.f), 0.35f, FVector(1.f, 0.5f, -0.8f));
+			On(1, FDriverPose::OnOtherUpperArm, FVector(9.f, 1.f, 0.f), FVector(-0.8f, -0.6f, 0.f), FVector(-1.f, -0.3f, 0.f), 0.35f, FVector(1.f, 0.5f, -0.8f));
+			D.Lean = -2.f; D.ShoulderFwd[0] = D.ShoulderFwd[1] = 4.f; break;
+		case 4:   // a stretch, both arms up overhead: the fingers laced, the palms up, the shoulders and the chin up
+			for (int32 s = 0; s < 2; ++s) { D.bHand[s] = true; D.Hand[s] = S.Pelvis + Up * (PH * 1.2f) + OutOf(s) * 6.f + Face * 3.f; D.PalmDir[s] = FVector(0.f, 0.f, 1.f); D.FingerDir[s] = FVector(-1.f, 0.f, 0.f); D.PalmW[s] = 1.f; D.Grip[s] = 0.35f; D.Pole[s] = FVector(1.f, -0.2f, 0.f); D.ShoulderUp[s] = 14.f; }
+			D.HeadPitch = -14.f; D.Lean = -5.f; D.Pelvis += Face * 2.f; break;
+		case 5:   // the weight from one leg to the other and back: the hips go over one foot, then the other; the feet stay put
+		{
+			const float W = FMath::Sin(2.f * PI * Kt) * Side;
+			D.Pelvis += PL * (7.f * W) - Up * (1.5f * FMath::Abs(W)); D.HeadRoll = -2.f * W; D.Lean = 1.f; break;
+		}
+		case 6:   // rubbing the back of the neck: the palm on the nape, a slow rub, the head down
+			On(h, FDriverPose::OnNeckBack, FVector(4.f, -3.f, -9.f + 1.5f * FMath::Sin(Ts * 9.f)), FVector(-0.3f, 1.f, 0.f), FVector(-0.6f, 0.f, 0.8f), 0.25f, FVector(1.f, 0.1f, 0.4f));
+			D.HeadPitch = 16.f; D.HeadRoll = -5.f * Side; break;
+		case 7:   // a back stretch: the hands on the lower back, the hips forward, leaning back, the eyes up
+			for (int32 s = 0; s < 2; ++s) On(s, FDriverPose::OnLowerBack, FVector(2.f, -3.f, -8.f), FVector(0.f, 1.f, 0.f), FVector(-0.5f, 0.f, -1.f), 0.15f, FVector(1.f, -0.5f, -0.3f));
+			D.Lean = -14.f; D.HeadPitch = -14.f; D.Pelvis += Face * 4.f; break;
+		case 8:   // a neck roll: the head tilts to one side, down, to the other side and back, slowly
+		{
+			const float Th = 2.f * PI * 1.25f * Kt * Side;
+			D.HeadRoll = 22.f * FMath::Sin(Th); D.HeadPitch = 6.f + 12.f * FMath::Cos(Th); D.ShoulderUp[0] = D.ShoulderUp[1] = 2.f; break;
+		}
+		case 9:   // shoulder rolls: up, back and down, two or three times
+		{
+			const float Th = 2.f * PI * 0.7f * Ts;
+			for (int32 s = 0; s < 2; ++s) { D.ShoulderUp[s] = 9.f * (0.5f - 0.5f * FMath::Cos(Th)); D.ShoulderFwd[s] = -6.f * FMath::Sin(Th); }
+			D.HeadPitch = 3.f; break;
+		}
+		case 10:  // rubbing the hands together against the cold: palm to palm in front of the chest, sliding, the shoulders up
+		{
+			const float R = FMath::Sin(Ts * 15.f);
+			for (int32 s = 0; s < 2; ++s)
+			{
+				const float Sg = s == 0 ? 1.f : -1.f;
+				D.bHand[s] = true; D.Hand[s] = S.Pelvis + Up * (PH * 0.3f + 1.5f * R * Sg) + Face * (24.f + 3.f * R * Sg) + OutOf(s) * 3.5f;
+				D.PalmDir[s] = FVector(-1.f, 0.f, 0.f); D.FingerDir[s] = FVector(0.f, 1.f, 0.5f); D.PalmW[s] = 1.f; D.Grip[s] = 0.15f; D.Pole[s] = FVector(1.f, 0.f, -1.f); D.ShoulderUp[s] = 7.f;
+			}
+			D.HeadPitch = 14.f; D.Lean = 4.f; break;
+		}
+		case 11:  // a look over the shoulder: the head first, then the neck, a little of the upper body
+			D.Twist = 26.f * Side; D.HeadYaw = 68.f * Side; D.HeadPitch = 4.f; break;
+		case 12:  // a yawn: a loose fist in front of the mouth, the head back, the shoulders up
+		{
+			On(h, FDriverPose::OnMouth, FVector(2.f, 3.f, -11.f), FVector(0.f, -1.f, 0.f), FVector(-0.2f, 0.f, 1.f), 0.55f, FVector(1.f, 0.f, -0.6f));
+			const float Y = FMath::SmoothStep(0.15f, 0.5f, Kt) * (1.f - FMath::SmoothStep(0.65f, 0.9f, Kt));
+			D.HeadPitch = -14.f * Y; D.ShoulderUp[0] = D.ShoulderUp[1] = 9.f * Y; D.Lean = -3.f * Y; break;
+		}
+		case 13:  // hands folded behind the back: the left wrist at the small of the back, the right hand round it
+			D.bHand[0] = true; D.Hand[0] = S.Pelvis - Face * 17.f - Up * 2.f + PL * 2.f; D.PalmDir[0] = FVector(0.f, -1.f, 0.f); D.FingerDir[0] = FVector(-0.5f, 0.f, -1.f); D.PalmW[0] = 1.f; D.Grip[0] = 0.3f; D.Pole[0] = FVector(1.f, -0.6f, -0.5f);
+			On(1, FDriverPose::OnOtherWrist, FVector(6.f, -1.f, -1.f), FVector(0.f, 1.f, 0.3f), FVector(-1.f, 0.f, 0.f), 0.6f, FVector(1.f, -0.6f, -0.5f));
+			D.Hand[1] = S.Pelvis - Face * 17.f - Up * 3.f - PL * 4.f; D.Lean = -1.f; D.ShoulderFwd[0] = D.ShoulderFwd[1] = -5.f; break;
+		default:  // looking around: the head turns to one side, then across to the other, and back
+			D.HeadYaw = 50.f * Side * FMath::Sin(2.f * PI * Kt); D.Twist = 8.f * Side * FMath::Sin(2.f * PI * Kt); D.HeadPitch = -3.f; break;
+		}
+		P = Lerp(S, D, E);
+	}
+	constexpr int32 NumCrewFidgets = 15;
+	float CrewFidgetSecs(int32 K)
+	{
+		static const float Lo[NumCrewFidgets] = {2.6f, 2.2f, 4.f, 4.f, 2.8f, 4.f, 3.f, 3.f, 4.f, 3.f, 3.f, 2.5f, 3.f, 4.f, 3.5f};
+		static const float Hi[NumCrewFidgets] = {3.2f, 3.f, 6.f, 6.f, 3.6f, 6.f, 4.f, 4.f, 5.5f, 4.f, 5.f, 3.5f, 3.8f, 6.f, 5.f};
+		return FMath::FRandRange(Lo[K], Hi[K]);
+	}
+}
+
+void ATugs::IdleTick(FCrew& C, float Dt, bool bMayStep, float Room)
+{
+	// waiting: never still as a rock (owner 2026-11-21) - the idle breathing and sway of the walk animation's rest, and now
+	// and then (4-20 s of plain sway between) a movement of their own, 2-6 s, never the same twice running (CrewFidget):
+	// a head scratch, the watch, hands on hips, arms crossed, a stretch overhead, the weight from leg to leg, the neck rubbed,
+	// a back stretch, a neck roll, shoulder rolls, hands rubbed (cold days), a look over the shoulder, a yawn, hands behind
+	// the back, a look round - or a small step / a turn. Only when truly idle: never on a vehicle job (bGse), never in a
+	// job's short pause too short for the whole movement; always within 1.5 m of where they wait
 	AActor* A = C.A.Get(); if (!A) return;
 	if (C.FidgetDur > 0.f)
 	{
@@ -639,29 +738,27 @@ void ATugs::IdleTick(FCrew& C, float Dt, bool bMayStep)
 	if (!CrewWalk(C, Want, Dt, 25.f, 90.f)) return;
 	A->SetActorRotation(FMath::RInterpTo(A->GetActorRotation(), FRotator(0.f, C.AnchorYaw + C.IdleYawOff - 90.f, 0.f), Dt, 1.5f));
 	if ((C.IdleT -= Dt) > 0.f) return;
-	C.IdleT = FMath::FRandRange(5.f, 12.f);
-	int32 K = FMath::RandRange(0, 8); if (K == C.LastFidget) K = (K + 1) % 9; C.LastFidget = K;
-	if (K == 7) { if (bMayStep) { const float a = FMath::FRandRange(0.f, 2.f * PI), r = FMath::FRandRange(0.3f, 1.4f); C.IdleOff = FVector(FMath::Cos(a) * r * 100.f, FMath::Sin(a) * r * 100.f, 0.f); } return; }   // (a small step)
-	if (K == 8) { C.IdleYawOff = FMath::FRandRange(-60.f, 60.f); return; }                                                                                                     // (a look round)
+	C.IdleT = FMath::FRandRange(4.f, 20.f);   // (the plain sway until the next one)
+	// (a small step or a turn of the body now and then - cheap, no pose)
+	if (FMath::FRand() < 0.18f)
+	{
+		if (bMayStep && FMath::RandBool()) { const float a = FMath::FRandRange(0.f, 2.f * PI), r = FMath::FRandRange(0.3f, 1.4f); C.IdleOff = FVector(FMath::Cos(a) * r * 100.f, FMath::Sin(a) * r * 100.f, 0.f); }
+		else C.IdleYawOff = FMath::FRandRange(-60.f, 60.f);
+		return;
+	}
+	if (C.bGse) return;   // (on a vehicle job: only the plain sway)
+	// a movement of their own: a random one, never the last one again; rubbing the hands only on a cold day (8 C or less)
+	const APuddles* Wx = APuddles::Get();
+	const bool bCold = Wx && Wx->GetAirTemp() <= 8.f;
+	int32 K = FMath::RandRange(0, NumCrewFidgets - 1);
+	for (int32 Try = 0; Try < NumCrewFidgets && (K == C.LastFidget || (K == 10 && !bCold)); ++Try) K = (K + 1) % NumCrewFidgets;
+	const float Dur = CrewFidgetSecs(K);
+	if (Dur + 0.5f > Room) { C.IdleT = FMath::Min(C.IdleT, 2.f); return; }   // (not enough of the wait left for the whole movement)
+	C.LastFidget = K;
 	const FVector At = A->GetActorLocation(); const FVector Face = FRotator(0.f, A->GetActorRotation().Yaw + 90.f, 0.f).Vector();
 	const float Side = FMath::RandBool() ? 1.f : -1.f;
-	C.Fidget = [At, Face, K, Side](float Kt, float PH, FDriverPose& P)
-	{
-		const FDriverPose S = Standing(At, Face, PH); FDriverPose D = S; const FVector PL = LeftOf(Face); const float E = Ramp(Kt);
-		const int32 h = Side > 0.f ? 0 : 1;   // (which hand: 0 the left, 1 the right)
-		switch (K)
-		{
-		case 0: D.bHand[h] = true; D.Hand[h] = S.Pelvis + Up * 78.f + PL * (7.f * Side) + Face * 2.f + PL * (2.5f * Side) * FMath::Sin(Kt * 40.f); D.Grip[h] = 0.5f; D.Lean = 3.f; break;   // scratching the head
-		case 1: D.bHand[0] = D.bHand[1] = true; D.Hand[0] = S.Pelvis + Up * 30.f + Face * 28.f + PL * 4.f; D.Hand[1] = S.Pelvis + Up * 26.f + Face * 26.f - PL * 4.f; D.Grip[1] = 0.4f; D.Lean = 6.f; break;   // a look at the watch
-		case 2: D.bHand[0] = D.bHand[1] = true; D.Hand[0] = S.Pelvis + Up * 6.f + PL * 21.f - Face * 2.f; D.Hand[1] = S.Pelvis + Up * 6.f - PL * 21.f - Face * 2.f; D.Grip[0] = D.Grip[1] = 0.6f; break;   // hands on the hips
-		case 3: D.bHand[0] = D.bHand[1] = true; D.Hand[0] = S.Pelvis + Up * 33.f - PL * 9.f + Face * 16.f; D.Hand[1] = S.Pelvis + Up * 35.f + PL * 9.f + Face * 17.f; D.Grip[0] = D.Grip[1] = 0.3f; D.Lean = -2.f; break;   // arms folded
-		case 4: D.bHand[0] = D.bHand[1] = true; D.Hand[0] = S.Pelvis + Up * 112.f + PL * 14.f; D.Hand[1] = S.Pelvis + Up * 112.f - PL * 14.f; D.Grip[0] = D.Grip[1] = 0.5f; D.Lean = -6.f; break;   // a stretch
-		case 5: D.Pelvis += PL * (6.f * Side) - Up * 1.5f; D.Foot[h] += Face * 8.f + PL * (5.f * Side); D.Lean = 1.f; break;   // the weight on one leg
-		default: D.bHand[h] = true; D.Hand[h] = S.Pelvis + Up * 62.f + PL * (14.f * Side) + Face * 8.f; D.Grip[h] = 0.2f; break;   // a hand to the back of the neck
-		}
-		P = Lerp(S, D, E);
-	};
-	C.FidgetT = 0.f; C.FidgetDur = K == 4 ? 3.f : K == 0 ? 2.6f : FMath::FRandRange(3.f, 5.f);
+	C.Fidget = [At, Face, K, Side, Dur](float Kt, float PH, FDriverPose& P) { CrewFidget(K, Side, Dur, At, Face, Kt, PH, P); };
+	C.FidgetT = 0.f; C.FidgetDur = Dur;
 }
 
 // ------------------------------------------------------------------ the pushback's 11 steps (docs/Pushback-Sequence.md)

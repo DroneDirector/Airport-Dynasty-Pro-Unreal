@@ -860,6 +860,33 @@ void AADPPeople::SitPose(FStroll& S, float K)
 	FDriverPose P = Si;
 	P.Pelvis = FMath::Lerp(St.Pelvis, Si.Pelvis, E); P.Lean = FMath::Lerp(0.f, Si.Lean, E) + 22.f * FMath::Sin(PI * E);
 	for (int32 s = 0; s < 2; ++s) { P.Foot[s] = FMath::Lerp(St.Foot[s], Si.Foot[s], E); P.bHand[s] = E > 0.35f; }
+	// a seated idle movement (SeatFidget), blended in and out: a look round (the head, the neck, a little of the spine),
+	// a neck roll, or the phone - both hands brought together in front at chest height, the head down at them
+	float PhoneW = 0.f;
+	if (S.FidK >= 0 && E >= 1.f && S.FidDur > 0.f)
+	{
+		const float Kt = FMath::Clamp(S.FidT / S.FidDur, 0.f, 1.f);
+		const float Ew = FMath::SmoothStep(0.f, 0.2f, Kt) * (1.f - FMath::SmoothStep(0.8f, 1.f, Kt));
+		switch (S.FidK)
+		{
+		case 0: P.HeadYaw = 45.f * S.FidSide * FMath::Sin(2.f * PI * Kt) * Ew; P.Twist = 6.f * S.FidSide * FMath::Sin(2.f * PI * Kt) * Ew; break;
+		case 1: { const float Th = 2.f * PI * 1.25f * Kt * S.FidSide; P.HeadRoll = 18.f * FMath::Sin(Th) * Ew; P.HeadPitch = (6.f + 9.f * FMath::Cos(Th)) * Ew; break; }
+		default:
+		{
+			PhoneW = Ew;
+			const float Cz = P.Pelvis.Z + 30.f;
+			for (int32 s = 0; s < 2; ++s)
+			{
+				// (side 0 is on the frame's +x on these bodies - see above)
+				const FVector Ph(s == 0 ? 4.5f : -4.5f, 28.f, Cz);
+				P.Hand[s] = FMath::Lerp(Si.Hand[s], Ph, Ew); P.Grip[s] = FMath::Lerp(Si.Grip[s], 0.45f, Ew);
+				P.PalmDir[s] = FVector(-0.6f, 0.f, 0.8f); P.FingerDir[s] = FVector(-0.3f, 0.8f, 0.5f); P.PalmW[s] = Ew;
+			}
+			P.LookHand = 0; P.LookW = Ew; P.HeadPitch = 6.f * Ew;
+			break;
+		}
+		}
+	}
 	S.Rig->Pose(P);
 	// (crossed legs: the top thigh must lie on the other one, never in it - the gap between the two thighs' middle lines
 	// measured; if it is less than two thighs' thickness the crossing foot (and so its knee) goes up, a few passes)
@@ -890,7 +917,7 @@ void AADPPeople::SitPose(FStroll& S, float K)
 		if (Deep <= 0.4f || S.CushionTries > 12) { S.bCushionOk = true; static int32 Said = 0; if (Said++ < 4) ADP_LOG(TEXT("People: on the cushion - forward %.0f cm, up %.1f cm (thighs %.1f cm into it)"), S.Fwd, S.Lift, Deep); }
 		else { ++S.CushionTries; if (S.Fwd < 12.f) S.Fwd += 2.f; else if (S.Lift < 8.f) S.Lift = FMath::Min(8.f, S.Lift + Deep); else { S.bCushionOk = true; static int32 SaidCap = 0; if (SaidCap++ < 4) ADP_LOG(TEXT("People: on the cushion (limits) - forward %.0f cm, up %.1f cm, thighs still %.1f cm into it"), S.Fwd, S.Lift, Deep); } }
 	}
-	if (E > 0.35f) S.Rig->RestHandsOnThighs(P, ThighR, FMath::Clamp((E - 0.35f) / 0.3f, 0.f, 1.f));
+	if (E > 0.35f) S.Rig->RestHandsOnThighs(P, ThighR, FMath::Clamp((E - 0.35f) / 0.3f, 0.f, 1.f) * (1.f - PhoneW));   // (the phone held: off the thighs)
 	if (S.Pose) S.Pose->Local = S.Rig->LocalPose();
 	// (the body on the seat's frame - the hips at the rig's own height over the seat)
 	{
@@ -900,6 +927,27 @@ void AADPPeople::SitPose(FStroll& S, float K)
 		A->SetActorLocation(Base.GetLocation() - FVector(0, 0, S.Lower * E));
 	}
 	if (K >= 1.f) { static int32 Said = 0; if (Said++ < 4) { const FVector Pv = W->Body->GetBoneLocation(TEXT("pelvis")); const FVector Rel = FRotationMatrix(SF.Rotation()).InverseTransformVector(Pv - SAt); ADP_LOG(TEXT("People: sat - the hips %.0f cm ahead of the seat's middle, %.0f to its side, %.0f over it (seat %.0f high)"), Rel.X, Rel.Y, Rel.Z, SH); } }
+}
+
+void AADPPeople::SeatFidget(FStroll& S, float Dt)
+{
+	// the seated idle movements (owner 2026-11-21: only the subtle ones sat down - a look round, the phone, the neck): after
+	// 30 s sat, now and then one (6-20 s apart, 3.5-6 s each, never the same twice running), only within 60 m of the
+	// camera (posing a seated body costs a little; far off nobody sees it)
+	const AActor* A = S.A.Get(); if (!A) return;
+	const APlayerController* PC = GetWorld()->GetFirstPlayerController();
+	const bool bNear = PC && PC->PlayerCameraManager && FVector::DistSquared(PC->PlayerCameraManager->GetCameraLocation(), A->GetActorLocation()) < FMath::Square(6000.f);
+	if (S.FidK >= 0)
+	{
+		S.FidT += Dt;
+		const bool bEnd = S.FidT >= S.FidDur || !bNear;
+		if (bEnd) { S.FidK = -1; S.FidNext = Rng.FRandRange(6.f, 20.f); }
+		SitPose(S, 1.f);   // (the last call, with no movement, leaves the plain sitting pose)
+		return;
+	}
+	if (!bNear || S.T < 30.f || (S.FidNext -= Dt) > 0.f) return;
+	int32 K = Rng.RandRange(0, 2); if (K == S.FidLast) K = (K + 1 + Rng.RandRange(0, 1)) % 3;
+	S.FidK = S.FidLast = K; S.FidT = 0.f; S.FidDur = Rng.FRandRange(3.5f, 6.f); S.FidSide = Rng.FRand() < 0.5f ? 1.f : -1.f;
 }
 
 void AADPPeople::StepStrollers(float Dt)
@@ -962,7 +1010,11 @@ void AADPPeople::StepStrollers(float Dt)
 			break;
 		}
 		case EDoing::SitDown: SitPose(S, FMath::Min(1.f, S.T / 0.9f)); if (S.T >= 0.9f) { S.Doing = EDoing::Sit; S.T = 0.f; S.For = S.bHeld ? (S.bStandSoon ? 0.f : 1e9f) : Rng.FRandRange(30.f, 120.f); } break;
-		case EDoing::Sit: if (!S.bCushionOk) SitPose(S, 1.f); if (S.T >= S.For) { S.Doing = EDoing::StandUp; S.T = 0.f; } break;   // (the cushion check settles over its first frames)
+		case EDoing::Sit:
+			if (!S.bCushionOk) SitPose(S, 1.f);   // (the cushion check settles over its first frames)
+			else SeatFidget(S, Dt);
+			if (S.T >= S.For) { if (S.FidK >= 0) { S.FidK = -1; SitPose(S, 1.f); } S.Doing = EDoing::StandUp; S.T = 0.f; }
+			break;
 		case EDoing::StandUp:
 			SitPose(S, FMath::Max(0.f, 1.f - S.T / 0.9f));
 			if (S.T >= 0.9f)

@@ -97,6 +97,7 @@ private:
 		int32 Seat = INDEX_NONE; class FTruckDriverRig* Rig = nullptr; class UPoseableMeshComponent* Rider = nullptr; USceneComponent* Frame = nullptr;
 		class UDriverPoseAnim* Pose = nullptr; FTransform BodyInActor; float Lower = 0.f; bool bLowered = false; int32 SitPose = 0; bool bSurf = false; float SurfZ = 46.f; float CrossLift = 0.f; float Fwd = 0.f, Lift = 0.f; bool bCushionOk = false; int32 CushionTries = 0;
 		bool bHeld = false, bStandSoon = false, bRelease = false;   // (SitOn: PaxFlow's passenger, sat until StandFrom, then handed back)
+		int32 FidK = -1, FidLast = -1; float FidT = 0.f, FidDur = 0.f, FidNext = 0.f, FidSide = 1.f;   // (a seated idle movement: SeatFidget)
 	};
 	TArray<FStroll> Strollers;
 	bool bStrollersStarted = false;
@@ -106,6 +107,7 @@ private:
 	bool InArea(const FStroll& S, const FVector& P) const;
 	void NextThing(FStroll& S);
 	void SitPose(FStroll& S, float K);
+	void SeatFidget(FStroll& S, float Dt);
 	struct FRosterRow { FString Role; bool bFemale = false; int32 Age = 30; };
 	TMap<FString, FRosterRow> Roster;
 	void LoadRoster();
