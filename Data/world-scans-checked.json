@@ -78,6 +78,13 @@
   ],
   "guarded": true
  },
+ "ATugs::Tick": {
+  "file": "Source/AirportDynastyPro/Private/Tugs.cpp",
+  "scans": [
+   "TActorIterator<ABabylonModel>"
+  ],
+  "guarded": true
+ },
  "AADPHUD::Tick": {
   "file": "Source/AirportDynastyPro/Private/UI/ADPHUD.cpp",
   "scans": [

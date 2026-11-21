@@ -776,6 +776,15 @@ void AAirfield::Aprons(bool bModelSite)
 			Line("paintred", FVector2f(Left[k], Wall), FVector2f(Left[k], Te), 0.2f, 0.0075f);
 			Line("paintred", FVector2f(Right[k], Wall), FVector2f(Right[k], Te), 0.2f, 0.0075f);
 			Line("paintred", FVector2f(Left[k], Te), FVector2f(Right[k], Te), 0.2f, 0.0075f);
+			// the pushback tug's parking box (owner 2026-11-21; real ramps' equipment parking area at the head of the stand):
+			// white-lined, 4 x 12 m, on the side away from the jetway, 11-15 m off the centre line and 4.4-16.4 m out from the
+			// terminal wall - the tug stands in it facing the gate, towbar and all, when it isn't pushing back (Tugs.cpp)
+			if (St.bJetway && !St.bCargo && St.Span <= 40.f)
+			{
+				const float X0 = St.X - 15.f, X1 = St.X - 11.f, Ya = FMath::Min(Wall + B * 4.4f, Wall + B * 16.4f), Yb = FMath::Max(Wall + B * 4.4f, Wall + B * 16.4f);
+				Line("paintwhite", FVector2f(X0, Ya), FVector2f(X1, Ya), 0.15f, 0.0075f); Line("paintwhite", FVector2f(X0, Yb), FVector2f(X1, Yb), 0.15f, 0.0075f);
+				Line("paintwhite", FVector2f(X0, Ya), FVector2f(X0, Yb), 0.15f, 0.0075f); Line("paintwhite", FVector2f(X1, Ya), FVector2f(X1, Yb), 0.15f, 0.0075f);
+			}
 			// the jetway's red zone on the left of the nose (the aircraft's left door side): outlined and hatched, nothing
 			// parks where the bridge swings
 			if (St.bJetway)

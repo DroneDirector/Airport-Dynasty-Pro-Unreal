@@ -52,6 +52,7 @@ def finish(o, m, smooth=40):
     o.data.use_auto_smooth = True; o.data.auto_smooth_angle = math.radians(smooth)
     ALL.append(o); return o
 def link(name, bm):
+    name = name.replace('.', 'p')        # (a '.' in a part's name: Unreal reads '.38' as a copy number and loses the part)
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
     o = bpy.data.objects.new(name, me); bpy.context.collection.objects.link(o); return o
 def apply_mods(o):
@@ -95,6 +96,7 @@ def lathe(name, prof, c, m, segs=72, smooth=50):
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
     return finish(link(name, bm), m, smooth)
 def tube(name, pts, r, m, res=8, bez=True):
+    name = name.replace('.', 'p')
     cu = bpy.data.curves.new(name, 'CURVE'); cu.dimensions = '3D'; cu.bevel_depth = r; cu.bevel_resolution = 3; cu.use_fill_caps = True; cu.resolution_u = res
     if bez:
         sp = cu.splines.new('BEZIER'); sp.bezier_points.add(len(pts) - 1)
@@ -197,9 +199,10 @@ for nm, x, d in (('Rear', -L / 2 - 0.10, -1), ('Front', L / 2 + 0.038, 1)):
 # ---------------------------------------------------------------- the towbar (owner 2026-11-21: the tug connects to the
 # aircraft's nose gear - not the wheel, the tow fitting between): its own swinging part (every name starts Towbar_), the
 # pivot on the front hitch pin (IK_Towbar_Front), the head's pin into the nose gear's towing lugs (IK_Towbar_Head).
-# A narrow-body bar: 4.3 m, a 114 mm tube, the A-frame and lunette eye at the tug end, two handling wheels on an axle
+# A narrow-body bar: 5.2 m, a 114 mm tube, the A-frame and lunette eye at the tug end, two handling wheels on an axle
 # (they swing up off the ground once it is hooked on), the tow head with its shear-pin housing and the clevis pin.
-TB_P = Vector((L / 2 + 0.12, 0.0, 0.50)); TB_LEN = 4.30; TB_HEAD = TB_P + Vector((TB_LEN, 0, -0.05))
+# (5.2 m: the tug stops ~0.9 m in front of an A320's nose tip, never under it)
+TB_P = Vector((L / 2 + 0.12, 0.0, 0.50)); TB_LEN = 5.20; TB_HEAD = TB_P + Vector((TB_LEN, 0, -0.05))
 def tb(v): return tuple(TB_P + Vector(v))
 cyl('Towbar_LunetteEye', TB_P, 0.075, 0.05, 'z', M_STEEL, 32, bevel=0.006)                   # round eye over the hitch pin
 for s in (-1, 1): tube(f'Towbar_AArm_{s}', [tb((0.06, s * 0.03, 0)), tb((0.70, s * 0.28, -0.01))], 0.030, M_PAINT, bez=False)

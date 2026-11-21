@@ -60,6 +60,13 @@ void ASimTraffic::Sync()
 	{
 		if (Seen.Contains(Fl.Id)) continue;
 		const FADPAircraft* A = Sim->World.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == Fl.Reg; });
+		// a departure from here within 8 minutes: its tug drives out and waits beside the stand (Tugs.h)
+		if (Fl.From == Here && (Fl.DepAt - Now).GetTotalMinutes() > 0.0 && (Fl.DepAt - Now).GetTotalMinutes() <= 8.0)
+		{
+			const FADPAircraft* A0 = Sim->World.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == Fl.Reg; });
+			for (const FAirfieldData::FStand& S : F.Stands)
+				if (S.Id == Fl.FromStand || (Fl.FromStand.IsEmpty() && A0 && S.Id == A0->Stand)) { if (ATugs* T = ATugs::Get(GetWorld())) T->Prepare(Fl.Id, S.X); break; }
+		}
 		// departures from here: from off-blocks, while it can still be on the ground or climbing (12 minutes)
 		if (Fl.From == Here && (Now - Fl.DepAt).GetTotalMinutes() >= 0.0 && (Now - Fl.DepAt).GetTotalMinutes() < 12.0)
 		{
@@ -71,7 +78,20 @@ void ASimTraffic::Sync()
 			FMove M; M.FlightId = Fl.Id; M.Reg = Fl.Reg; M.bDeparture = true; M.Stand = St->Id; M.Phase = EPhase::Push;
 			// at the stand: nose tyre on the stop bar, the body behind it, pushed straight back onto the taxilane
 			M.Nose = FVector2f(St->X, St->Nose - St->Dir * 5.1f); M.Main = M.Nose - FVector2f(0.f, St->Dir * Wheelbase);
-			M.Path = {FVector2f(St->X, F.TY + St->Dir * Wheelbase)};
+			// pushed back and turned (as a real pushback): straight back from the stand, then the tail swung round a 40 m arc so the
+			// aircraft ends on the taxilane facing the way it will taxi (towards the runway end in use) - the main gear's way
+			{
+				const float Dx = RunwayToX1() ? 1.f : -1.f, Rr = 40.f, YEnd = F.TY, Y0 = M.Main.Y;
+				const float Ybend = YEnd - (-St->Dir) * Rr;           // where the straight part ends and the arc begins
+				M.Path.Reset();
+				if ((Ybend - Y0) * (-St->Dir) > 1.f) M.Path.Add(FVector2f(St->X, Ybend));
+				const FVector2f C(St->X - Dx * Rr, Ybend);              // the arc's middle: beside the bend, on the side the tail swings to
+				for (int32 k = 1; k <= 8; ++k)
+				{
+					const float Ang = HALF_PI * k / 8.f;                // 0: going straight back, 90 deg: along the taxilane
+					M.Path.Add(C + FVector2f(Dx * Rr * FMath::Cos(Ang), (-St->Dir) * Rr * FMath::Sin(Ang)));
+				}
+			}
 			Moves.Add(M);
 		}
 		// arrivals here: from about 9 minutes before on-blocks (the approach, the landing, the taxi in)
@@ -108,7 +128,9 @@ void ASimTraffic::Pose(FMove& M)
 	const FVector2f D = (M.Nose - M.Main).GetSafeNormal();
 	const FVector World = FTerminalPlan::ToWorld(M.Nose.X, AAirfield::GroundAt(M.Nose.X, M.Nose.Y) + M.Height, M.Nose.Y);
 	const FVector Dir(D.X, -D.Y, 0.f);   // (plan (x, y) -> world (x, -y))
-	const float Yaw = FMath::RadiansToDegrees(FMath::Atan2(-Dir.X, Dir.Y));
+	// (2026-11-21: the moving aircraft drew nose-backwards - its nose away from the gate and the tug inside its body; the model is
+	//  created unturned here and turned after Place, unlike ParkedAircraft's: the half turn the other way)
+	const float Yaw = FMath::RadiansToDegrees(FMath::Atan2(Dir.X, -Dir.Y));
 	// the attitude: nose up about 8 degrees in the climb, about 3 on the approach (the model's nose is the actor's -Y, so
 	// nose-up is a roll about the actor's X axis); level on the ground
 	const float Up = M.Phase == EPhase::Climb ? 8.f : M.Phase == EPhase::Approach ? 3.f : (M.Phase == EPhase::Roll && M.Speed > Vr * 0.97f) ? 6.f : 0.f;
@@ -119,6 +141,35 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 {
 	const bool bToX1 = RunwayToX1();
 	const float Dir = bToX1 ? 1.f : -1.f, RY = F.RwyY, X0 = F.RwyX0, X1 = F.RwyX1, Hold = 107.5f;
+	// the tug (Tugs.h): pushed back only once a tug has driven in and hooked its towbar on the nose gear's tow fitting
+	// (60 cm ahead of the nose wheel) - it is posed on the aircraft from then on; taxiing only once it has backed clear
+	if (M.Phase == EPhase::Push)
+	{
+		const FVector2f D2 = (M.Nose - M.Main).GetSafeNormal();
+		const FVector Fwd(D2.X, -D2.Y, 0.f);
+		const FVector Nose = FTerminalPlan::ToWorld(M.Nose.X, AAirfield::GroundAt(M.Nose.X, M.Nose.Y), M.Nose.Y);
+		float StandX = M.Nose.X;
+		for (const FAirfieldData::FStand& S : F.Stands) if (S.Id == M.Stand) StandX = S.X;
+		ATugs* T = ATugs::Get(GetWorld());
+		if (T && !T->Push(M.FlightId, StandX, Nose + Fwd * 60.f, Fwd)) { if (M.Clock == 0.f) ADP_LOG(TEXT("Traffic: %s at %s waits for its tug"), *M.FlightId, *M.Stand); M.Clock = 1.f; M.Speed = 0.f; Pose(M); return false; }
+		M.Clock = 0.f;
+		// ground control: no pushback while another aircraft taxis by on the taxilane within 120 m (it waits, hooked on)
+		for (const FMove& O : Moves)
+			if (&O != &M && O.Phase == EPhase::Taxi && FMath::Abs(O.Nose.X - M.Nose.X) < 120.f && FMath::Abs(O.Nose.Y - F.TY) < 40.f) { M.Speed = 0.f; Pose(M); return false; }
+	}
+	// ground control: taxiing, an aircraft holds short of a pushback going on within 80 m ahead of it
+	if (M.Phase == EPhase::Taxi && M.Path.IsValidIndex(M.Step))
+	{
+		const FVector2f Ahead = (M.Path[M.Step] - M.Nose).GetSafeNormal();
+		for (const FMove& O : Moves)
+			if (&O != &M && O.Phase == EPhase::Push)
+			{
+				const FVector2f R = O.Main - M.Nose;
+				if (R.Size() < 80.f && FVector2f::DotProduct(R, Ahead) > 0.f && O.Speed > 0.05f) { M.Speed = FMath::Max(0.f, M.Speed - 2.f * Dt); Pose(M); return false; }   // (only a pushback already moving: one already taxiing goes first, then the push - never both waiting for each other)
+			}
+	}
+	if (M.Phase == EPhase::Taxi && M.Step == 0)
+		if (ATugs* T = ATugs::Get(GetWorld())) if (!T->IsClear(M.FlightId)) { M.Speed = 0.f; Pose(M); return false; }
 	const float LineUp = bToX1 ? X0 + 20.f : X1 - 20.f;
 	// the target speed: by the phase, the turn coming (the heading change over the next 60 m) and the stand
 	float Want = MaxTaxi;
@@ -169,11 +220,9 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 	Pose(M);
 	if (M.Phase == EPhase::Push)
 	{
-		// the tug on the nose gear (Tugs.h): its towbar's head on the tow fitting 60 cm ahead of the nose wheel
-		const FVector2f D2 = (M.Nose - M.Main).GetSafeNormal();
-		const FVector Fwd(D2.X, -D2.Y, 0.f);
-		const FVector Nose = FTerminalPlan::ToWorld(M.Nose.X, AAirfield::GroundAt(M.Nose.X, M.Nose.Y), M.Nose.Y);
-		if (ATugs* T = ATugs::Get(GetWorld())) T->Push(M.FlightId, Nose + Fwd * 60.f, Fwd, M.Speed);
+		const FVector2f D2 = (M.Nose - M.Main).GetSafeNormal(); const FVector Fwd(D2.X, -D2.Y, 0.f);
+		float StandX = M.Nose.X; for (const FAirfieldData::FStand& S : F.Stands) if (S.Id == M.Stand) StandX = S.X;
+		if (ATugs* T = ATugs::Get(GetWorld())) T->Push(M.FlightId, StandX, FTerminalPlan::ToWorld(M.Nose.X, AAirfield::GroundAt(M.Nose.X, M.Nose.Y), M.Nose.Y) + Fwd * 60.f, Fwd);
 	}
 	if (M.Step < M.Path.Num()) return false;
 	// the next phase: its waypoints

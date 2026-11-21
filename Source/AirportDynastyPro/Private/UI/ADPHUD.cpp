@@ -2,6 +2,7 @@
 // overlay, all in Slate, styled in the Android edition's holographic blues.
 #include "UI/ADPHUD.h"
 #include "SiteTrees.h"
+#include "Tugs.h"
 #include "GeoFrame.h"
 #include "UI/SSiteChoice.h"
 #include "Site.h"
@@ -5723,7 +5724,7 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 			static float Off = -1.f; if (Off < 0.f && ShotClock >= 40.f && ADPLateWorld::Done()) Off = ShotClock - 40.f;
 			const float B2 = Off < 0.f ? 0.f : Before - Off, C2 = Off < 0.f ? 0.f : ShotClock - Off;
 			// (-UIChablaisRoads / -UIChablaisShow: only their own list of spots, straight after the start)
-			const bool bList = FParse::Param(FCommandLine::Get(), TEXT("UIChablaisRoads")) || FParse::Param(FCommandLine::Get(), TEXT("UIChablaisShow")) || FParse::Param(FCommandLine::Get(), TEXT("UIChablaisNew")) || FParse::Param(FCommandLine::Get(), TEXT("UIChablaisTraffic"));
+			const bool bList = FParse::Param(FCommandLine::Get(), TEXT("UIChablaisRoads")) || FParse::Param(FCommandLine::Get(), TEXT("UIChablaisShow")) || FParse::Param(FCommandLine::Get(), TEXT("UIChablaisNew")) || FParse::Param(FCommandLine::Get(), TEXT("UIChablaisTraffic")) || FParse::Param(FCommandLine::Get(), TEXT("UITugShot"));
 			auto Shot = [](const TCHAR* Name) { FScreenshotRequest::RequestScreenshot(Name, false, false); };   // (the window's own size: run it at 3840 x 2160)
 			const FAirfieldData& F = AAirfield::Shared();
 			auto Go = [&](float X, float Y, float LX, float LY, float LH) { GoTo(FVector(X, 0.f, Y), FVector(LX, LH, LY)); };
@@ -5843,6 +5844,27 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 				static const TCHAR* Names[] = {TEXT("Traffic_01"), TEXT("Traffic_02"), TEXT("Traffic_03"), TEXT("Traffic_04"), TEXT("Traffic_05"), TEXT("Traffic_06"), TEXT("Traffic_07"), TEXT("Traffic_08"),
 					TEXT("Traffic_09"), TEXT("Traffic_10"), TEXT("Traffic_11"), TEXT("Traffic_12"), TEXT("Traffic_13"), TEXT("Traffic_14"), TEXT("Traffic_15"), TEXT("Traffic_16"), TEXT("Traffic_17"), TEXT("Traffic_18")};
 				for (const TCHAR* N : Names) Spots.Add({N, Watch});
+			}
+			// -UITugShot (with -SimTrafficShot): the tugs at work (Tugs.h) - out of the park, waiting beside the stand, in to the
+			// nose, the pushback, backing off and home; the camera 18 m off the tug, 9 m up
+			if (FParse::Param(FCommandLine::Get(), TEXT("UITugShot")))
+			{
+				auto WatchTug = [this, Fly]()
+				{
+					// (-ShotHour=H: the site's hour for the pictures - day 13, night 22: the lamps and beacons in the dark)
+					float H = -1.f; if (FParse::Value(FCommandLine::Get(), TEXT("ShotHour="), H) && ASunClock::HourOverride != H) { ASunClock::HourOverride = H; ASunClock::Refresh(); }
+					FVector At; float Yaw = 0.f; bool bHooked = false; ATugs* Tg = ATugs::Get(GetWorld());
+					if (!Tg || !Tg->WatchSpot(At, Yaw, &bHooked)) return;
+					const float PX = At.X / 100.f, PY = -At.Y / 100.f;
+					// hooked on: straight down from 45 m over the towbar - the tug, the bar and the aircraft's nose in one picture
+					if (bHooked) { const FVector Fw = FRotator(0.f, Yaw, 0.f).Vector(); Fly(PX + Fw.X * 5.f, PY - Fw.Y * 5.f, 32.f, PX + Fw.X * 5.5f, PY - Fw.Y * 5.5f, -89.f); return; }   // (centred between the tug and the tow fitting: the whole tug, its bar and the aircraft's nose in view)
+					const FVector Side = FRotator(0.f, Yaw + 60.f, 0.f).Vector();
+					Fly(PX + Side.X * 18.f, PY - Side.Y * 18.f, 9.f, PX, PY, -22.f);
+				};
+				Spots.Reset();
+				static const TCHAR* TugNames[] = {TEXT("Tug_01"), TEXT("Tug_02"), TEXT("Tug_03"), TEXT("Tug_04"), TEXT("Tug_05"), TEXT("Tug_06"), TEXT("Tug_07"), TEXT("Tug_08"),
+					TEXT("Tug_09"), TEXT("Tug_10"), TEXT("Tug_11"), TEXT("Tug_12"), TEXT("Tug_13"), TEXT("Tug_14"), TEXT("Tug_15"), TEXT("Tug_16")};
+				for (const TCHAR* N : TugNames) Spots.Add({N, WatchTug});
 			}
 			for (int32 k = 0; k < Spots.Num(); ++k)
 			{
