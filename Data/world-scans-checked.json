@@ -43,6 +43,13 @@
   ],
   "guarded": true
  },
+ "ASimTraffic::Tick": {
+  "file": "Source/AirportDynastyPro/Private/SimTraffic.cpp",
+  "scans": [
+   "TActorIterator<ABabylonModel>"
+  ],
+  "guarded": true
+ },
  "AStreetLights::Tick": {
   "file": "Source/AirportDynastyPro/Private/StreetLights.cpp",
   "scans": [

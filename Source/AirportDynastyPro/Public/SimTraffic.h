@@ -47,6 +47,8 @@ private:
 	FAirfieldData F;
 	float Poll = 0.f;
 	TSet<FString> Seen;
+	TSet<FString> ParkedRegs;   // the parked aircraft standing now (their SIM/<reg> tags), looked up once a second
+	float ParkPoll = 1.f;
 	void Sync();
 	bool Advance(FMove& M, float Dt);
 	void Pose(FMove& M);

@@ -1,6 +1,7 @@
 // The simulation's flights at our airport in 3D - see SimTraffic.h.
 #include "SimTraffic.h"
 #include "ADPLog.h"
+#include "PerfLog.h"
 #include "BabylonModel.h"
 #include "TerminalPlan.h"
 #include "WindSocks.h"
@@ -263,7 +264,15 @@ void ASimTraffic::Blink(FMove& M)
 void ASimTraffic::Tick(float Dt)
 {
 	Super::Tick(Dt);
+	ADP_PERF_SCOPE("the simulation's aircraft in 3D (each frame)", 2.f);
 	if ((Poll += Dt) >= 2.f) { Poll = 0.f; Sync(); }
+	// the parked aircraft's tags once a second (not a walk over every model each frame - the release's scan check)
+	if ((ParkPoll += Dt) >= 1.f)
+	{
+		ParkPoll = 0.f; ParkedRegs.Reset();
+		bool bWaiting = false; for (const FMove& W2 : Moves) bWaiting |= !W2.bDeparture;
+		if (bWaiting) for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It) for (const FName& Tg : It->Tags) { const FString S = Tg.ToString(); if (S.StartsWith(TEXT("SIM/"))) ParkedRegs.Add(S.Mid(4)); }
+	}
 	for (int32 i = Moves.Num() - 1; i >= 0; --i)
 	{
 		FMove& M = Moves[i];
@@ -274,8 +283,7 @@ void ASimTraffic::Tick(float Dt)
 			// an arrival waits at its stand until the parked aircraft (the simulation's, ParkedAircraft.cpp) takes over
 			if (!M.bDeparture && M.Clock < 600.f)
 			{
-				bool bParked = false;
-				for (TActorIterator<ABabylonModel> It(GetWorld()); It && !bParked; ++It) bParked = It->Tags.Contains(FName(*(TEXT("SIM/") + M.Reg)));
+				const bool bParked = ParkedRegs.Contains(M.Reg);
 				if (!bParked) { M.Clock += Dt; M.Phase = EPhase::Done; continue; }
 			}
 			if (ABabylonModel* B = M.Model.Get()) B->Destroy();
