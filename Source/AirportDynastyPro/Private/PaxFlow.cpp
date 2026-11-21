@@ -235,10 +235,24 @@ void APaxFlow::ChooseDesks(FRun& R)
 
 void APaxFlow::MakeTestRuns()
 {
+	// (owner 2026-11-21: the test passengers board THE aircraft at the gate - made before the simulation had registered its
+	//  turnaround they fell back to gate 2 with no aircraft, and it pushed back without them. Now: wait for a real
+	//  turnaround at a Floor 2 jetway gate - the one leaving last, so boarding has time - and link to it; never guess)
+	int32 DepGate = 2; FString DepReg; FDateTime Latest(0);
+	for (const ADPTurnaround::FTurn& T : ADPTurnaround::All())
+	{
+		const int32 G = ADPGround::GateOfStand(T.Stand); const int32 Gi = GateRoom(G);
+		if (Gi != INDEX_NONE && Gates[Gi].N == G && Gates[Gi].bF2 && T.OffBlocks > Latest) { Latest = T.OffBlocks; DepGate = G; DepReg = T.Reg; }
+	}
+	if (DepReg.IsEmpty())
+	{
+		static double FirstTry = -1.0, LastSaid = -100.0;
+		if (FirstTry < 0.0) FirstTry = RealT;
+		if (RealT - LastSaid >= 10.0) { LastSaid = RealT; ADP_LOG(TEXT("PaxFlow: test passengers wait for an aircraft's turnaround at a jetway gate (%.0f s)"), RealT - FirstTry); }
+		if (RealT - FirstTry < 300.0) return;   // (called again next tick)
+		ADP_WARN(TEXT("PaxFlow: no aircraft turnaround at a jetway gate after 5 min - the test passengers go to gate 2 with no aircraft"));
+	}
 	bTestMade = true;
-	// a real turnaround at a jetway gate if one is going on (its jetway docked), else gate 2 for the departure, 3 for the arrival
-	int32 DepGate = 2; FString DepReg;
-	for (const ADPTurnaround::FTurn& T : ADPTurnaround::All()) { const int32 G = ADPGround::GateOfStand(T.Stand); const int32 Gi = GateRoom(G); if (Gi != INDEX_NONE && Gates[Gi].N == G && Gates[Gi].bF2) { DepGate = G; DepReg = T.Reg; break; } }
 	bool bPlayerAir = false; FString PlayerId;
 	if (const UADPSim* Sim = UADPSim::Get(this)) for (const FADPAirline& A : Sim->World.Airlines) if (A.bPlayer) { bPlayerAir = true; PlayerId = A.Id; }
 	{
