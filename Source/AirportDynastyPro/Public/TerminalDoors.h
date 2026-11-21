@@ -28,6 +28,8 @@ public:
 	/** People other than you walking through the doors (world cm, refreshed every frame by whoever walks them - the
 	 *  passengers, PaxFlow.h): the doors open for them as they do for you. */
 	static TArray<FVector> Openers;
+	/** Passengers still on their way through check-in and security (PaxFlow): the security doors stand open until the last one is through. */
+	static bool bHoldSecurity;
 
 private:
 	#pragma region Door rigs

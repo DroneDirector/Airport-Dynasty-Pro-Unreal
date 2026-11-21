@@ -204,6 +204,7 @@ void ATerminalDoors::BuildDoor(const FPlanDoor& D, const FTerminalPlan& Plan)
 #pragma region Opening and shutting
 
 TArray<FVector> ATerminalDoors::Openers;
+bool ATerminalDoors::bHoldSecurity = false;
 
 void ATerminalDoors::Tick(float DeltaSeconds)
 {
@@ -225,6 +226,9 @@ void ATerminalDoors::Tick(float DeltaSeconds)
 			const FVector Dw = FTerminalPlan::ToWorld(R.D.X, R.D.Floor >= 2 ? F2Y : 0.f, R.D.Z);
 			for (const FVector& O : Openers) if (FMath::Abs(O.Z - Dw.Z) < 150.f && FVector::DistSquared2D(O, Dw) < Rr) { bNear = true; break; }
 		}
+		// (owner 2026-11-21: the security doors open as soon as passengers are in the terminal and stay open until every one
+		//  of them is out of the main hall and through security - they walked into the closed doors)
+		if (bHoldSecurity && R.D.Id.StartsWith(TEXT("D-F1-SECURITY"))) bNear = true;
 		const float Want = bNear ? 1.f : 0.f;
 		if (FMath::Abs(R.K - Want) < 0.001f) continue;
 		const float Speed = R.Slides.Num() ? 1.8f : 1.4f;

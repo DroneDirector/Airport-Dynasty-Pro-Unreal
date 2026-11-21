@@ -1302,6 +1302,18 @@ void APaxFlow::Tick(float Dt)
 	const APlayerController* PC = GetWorld()->GetFirstPlayerController();
 	const FVector Eye = PC && PC->PlayerCameraManager ? PC->PlayerCameraManager->GetCameraLocation() : FVector::ZeroVector;
 	ATerminalDoors::Openers.Reset();
+	{
+		// (anyone departing who is not yet through security - in the car park, the hall, the queues or a lane: the security doors stay open)
+		bool bHold = false;
+		for (const FPx& Q : Pax)
+		{
+			if (Q.bArr || Q.St == EPx::Gone) continue;
+			const bool bPast = Q.Do == EDo::Upstairs || Q.Do == EDo::AtSeat || Q.Do == EDo::AtWall || Q.Do == EDo::AtGateSpot || Q.Do == EDo::Aboard
+				|| Q.St == EPx::Wait || Q.St == EPx::Seated || Q.St == EPx::Lean || Q.St == EPx::Call || Q.St == EPx::Jetway;
+			if (!bPast) { bHold = true; break; }
+		}
+		ATerminalDoors::bHoldSecurity = bHold;
+	}
 	for (int32 i = 0; i < Pax.Num(); ++i)
 	{
 		FPx& P = Pax[i];
