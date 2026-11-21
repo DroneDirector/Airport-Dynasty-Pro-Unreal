@@ -1,5 +1,6 @@
 // The AI airlines - see Sim/ADPRivals.h.
 #include "Sim/ADPRivals.h"
+#include "Sim/ADPBoards.h"
 #include "Sim/ADPWorldData.h"
 #include "Sim/ADPEconomy.h"
 #include "Sim/ADPStaff.h"
@@ -83,6 +84,19 @@ bool FADPRivalsModule::OpenRoute(FADPWorld& W, FADPAirline& A, FADPAircraft& Cra
 		const double Score = ADPDemand::MarketPax(*Hub, *B, At) / (1.0 + Flying * 1.5) * Rng.FRandRange(0.8, 1.2);
 		if (Score > BestScore) { BestScore = Score; Best = B; }
 	}
+	// our airport too (2026-11-21: a new airport other airlines want to serve - its boards show their flights as well as
+	// yours): weighed like any market in reach, a little keener while few of them fly there yet
+	if (const FADPAirportInfo* Ours = ADPWorldData::Airport(ADPBoards::HereIcao()))
+		if (Ours != Hub)
+		{
+			const double D = ADPWorldData::DistanceNm(Hub->Lat, Hub->Lon, Ours->Lat, Ours->Lon);
+			if (D <= Reach && Ours->LongestFt() >= NeedFt && !(T->Class == TEXT("widebody") && D < 1800.0) && !(T->Class != TEXT("widebody") && D > 2600.0))
+			{
+				int32 Flying = 0; for (const FADPRoute& R : W.Routes) if (R.Stops.Contains(Ours->Icao)) ++Flying;
+				const double Score = ADPDemand::MarketPax(*Hub, *Ours, At) / (1.0 + Flying * 1.5) * (Flying < 4 ? 6.0 : 1.0) * Rng.FRandRange(0.8, 1.2);   // (a new airport: airlines sign on at its opening)
+				if (Score > BestScore) { BestScore = Score; Best = Ours; }
+			}
+		}
 	if (!Best) return false;
 	// its crew: a captain rated on the type and the cabin crew it needs, hired at the hub
 	FADPPerson Cap = ADPStaff::MakePerson(TEXT("captain"), Hub->Country, Rng); Cap.Types = {Craft.TypeId};

@@ -214,6 +214,7 @@ void UADPSim::CareerSelfTest()
 				ADP_LOG(TEXT("SimCareerTest: %s %s - %.1f h in 28 days, %d days on, at %s, %s%s"), *P.Role, *P.Name, F28, P.DaysOn, P.Location.IsEmpty() ? *P.Base : *P.Location,
 					P.WithReg.IsEmpty() ? TEXT("off duty") : *(TEXT("on ") + P.WithReg), P.RestUntil > Now() ? TEXT(", resting") : TEXT(""));
 			}
+			{ int32 Ai = 0; for (const FADPRoute& R : World.Routes) if (R.AirlineId != Me() && R.Stops.Contains(Here)) ++Ai; ADP_LOG(TEXT("SimCareerTest: %d AI airline routes serve %s"), Ai, *Here); }
 			ADP_LOG(TEXT("SimCareerTest: boards live %d"), ADPBoards::Live(this));
 			for (const FADPAircraft& A : World.Aircraft) if (A.AirlineId == Me()) ADP_LOG(TEXT("SimCareerTest: %s %s at %s, stand %s, ready %s, next check %s"), *A.Reg, *A.Status, *A.Location, *A.Stand, *A.ReadyAt.ToString(), *A.CheckKind);
 			for (const bool bArr : {false, true}) for (const FADPBoardRow& B : ADPBoards::Rows(this, bArr, 8))
