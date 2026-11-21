@@ -148,10 +148,13 @@ void ATerminalCrowd::Next(FPaxFragment& P)
 	{
 	case EPaxStage::Arrive:
 	{
-		// to a check-in desk: in front of one of the two islands (desks 1–12 at x 47.5–72.5, 13–24 at x 74.5–99.5: 3.5 m
-		// east of where they were, clear of the security glass wall at x 42 - owner 2026-11-21)
+		// to a check-in desk: in front of one of the two islands (x 47.5–72.5 and 74.5–99.5: 3.5 m east of where they
+		// were, clear of the security glass wall at x 42), not at the two walk-throughs to security (x 60.4–64.3 and
+		// 77–80.9, owner 2026-11-21: desks 1–20)
 		P.Stage = EPaxStage::CheckIn;
-		const float X = Rng.FRandRange(0, 1) < 0.5f ? Rng.FRandRange(48.5f, 71.5f) : Rng.FRandRange(75.5f, 98.5f);
+		static const FVector2f Spans[] = { {48.5f, 59.5f}, {65.2f, 71.5f}, {75.5f, 76.3f}, {81.8f, 98.5f} };
+		const FVector2f& Sp = Spans[FMath::Min(3, int32(Rng.FRandRange(0.f, 4.f)))];
+		const float X = Rng.FRandRange(Sp.X, Sp.Y);
 		WalkTo(P, Hall, FVector(X, 0, 15.3f));
 		P.Wait = Rng.FRandRange(15, 40);
 		break;

@@ -30,7 +30,8 @@ AREAS = [
     ('Floor 2 toilets + family room', 0.3, 13.7, 0.3, 21.7, 6.008, 11.36),
     ('ramp services 13', 255.7, 283.1, 68.3, 81.7, 0.01, 5.36),
 ]
-HOLES = [(140.0, 143.0, 43.0, 51.0), (152.4, 155.8, 47.6, 51.4)]     # the staff stair and the lift shaft (open on purpose)
+HOLES = [(140.0, 143.0, 43.0, 51.0), (152.4, 155.8, 47.6, 51.4),   # the staff stair and the lift shaft (open on purpose)
+         (118.9, 120.9, 17.8, 19.4)]                               # and the check-in collector's rise out of its tunnel
 
 
 def inside(poly, x, z):

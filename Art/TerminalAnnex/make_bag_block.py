@@ -9,7 +9,7 @@
 #   hood are here),
 #   the staff entrance hall kept (x 136..156, z 40..52: its stair and lift up to the Floor 2 offices) with walls toward
 #   the new block (its door to the cart lane where the staff corridor's was),
-#   the Grand Hall's east wall (x 114) rebuilt with the overhead conveyor link's opening (z 17.8..19.4, 2.85..4.15 m up),
+#   the Grand Hall's east wall (x 114) rebuilt plain (the bags come under it in the tunnel), the tunnel's rise (x 118.9..120.9),
 #   and ramp services 13 (x 255.4..283.4, z 68..82) as the departures vehicle passage: its shell rebuilt with a 4 m
 #   roller door's opening onto the apron (its opening onto the baggage hall: Art/TerminalAnnex/make_pier_extension.py).
 # Also the roller doors' own moving parts (roller_slat, roller_bar: one slat / the bottom bar, 1 m long, for the game's
@@ -104,17 +104,21 @@ S = Piece('annex_bag_solid'); G = Piece('annex_bag_glass')
 PL, CO, ST = 'MI_T_plaster', 'MI_T_concrete', 'MI_T_steel'
 F1C = 5.36                                   # the Floor 1 ceilings (the rooms' own, kept)
 
-# ============ the floor (the old rooms' carpets and tiles went with them): epoxy, as the plant room's ============
-for (x0, x1, z0, z1) in ((114.1, 156.0, 0.0, 40.0), (114.1, 136.0, 40.0, 51.9)):
+# ============ the floor (the old rooms' carpets and tiles went with them): epoxy, as the plant room's - open where the
+# check-in collector comes up out of its tunnel under the hall (owner 2026-11-21, Checkin-Security-Flow-v1: the tunnel
+# 2 m under the hall along z 18.6 rises through the block's floor at about x 120.2 - DepartureBelts.cpp; its tube mouth
+# frames the opening) ============
+RISE = (118.9, 120.9, 17.8, 19.4)
+for (x0, x1, z0, z1) in ((114.1, 156.0, 0.0, RISE[2]), (114.1, 156.0, RISE[3], 40.0), (114.1, RISE[0], RISE[2], RISE[3]),
+                         (RISE[1], 156.0, RISE[2], RISE[3]), (114.1, 136.0, 40.0, 51.9)):
     S.box(x0, x1, -0.3, 0.01, z0, z1, 'MI_T_epoxy', sides=('+y',))
+x0, x1, z0, z1 = RISE                                                      # the opening's concrete sides, down to the slab's foot
+S.box(x0, x1, -0.3, 0.01, z0 - 0.02, z0, 'MI_T_concrete', sides=('+z',)); S.box(x0, x1, -0.3, 0.01, z1, z1 + 0.02, 'MI_T_concrete', sides=('-z',))
+S.box(x0 - 0.02, x0, -0.3, 0.01, z0, z1, 'MI_T_concrete', sides=('+x',)); S.box(x1, x1 + 0.02, -0.3, 0.01, z0, z1, 'MI_T_concrete', sides=('-x',))
 
-# ============ the Grand Hall's east wall (x 114, 0..6 m), rebuilt: the overhead conveyor link from the check-in islands
-# comes through it at z 18.6, 3.5 m up (an enclosed belt, 1.6 x 1.3 m), and the old staff passage's door is closed ============
-LINK = (17.8, 19.4, 2.85, 4.15)
-wall_x(114.0, 0.0, 30.0, 0.0, 6.0, m_in='MI_T_white2', holes=[LINK])
-for (a, b, c, d) in ((LINK[0] - 0.1, LINK[1] + 0.1, LINK[2] - 0.1, LINK[2]), (LINK[0] - 0.1, LINK[1] + 0.1, LINK[3], LINK[3] + 0.1),
-                     (LINK[0] - 0.1, LINK[0], LINK[2], LINK[3]), (LINK[1], LINK[1] + 0.1, LINK[2], LINK[3])):
-    S.box(113.84, 113.9, c, d, a, b, ST)                                       # a steel collar round it, hall side
+# ============ the Grand Hall's east wall (x 114, 0..6 m), rebuilt plain: the old staff passage's door closed (the bags
+# come under it, in the tunnel - no opening: Checkin-Security-Flow-v1 replaced the overhead link) ============
+wall_x(114.0, 0.0, 30.0, 0.0, 6.0, m_in='MI_T_white2')
 
 # ============ hold-baggage screening (x 114..141.75, z 0..22.5) ============
 # its north wall onto the sorter: its door (D-F1-HBS-1, x 117.2..118.8) and the screened bags' way out (x 139.6..141.4)

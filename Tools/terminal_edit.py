@@ -206,6 +206,53 @@ for c in N[byname['F1-HALL']]['children']:
     if nm.startswith('F1-CHECKIN/') or nm.startswith('F1-HALL/OFFICE-CHAIR-') or nm.startswith('F1-HALL/QUEUE-POST-'):
         t = N[c]['translation']; N[c]['translation'] = [t[0] - 3.5, t[1], t[2]]; n_ci += 1
 log.append('moved: %d check-in parts 3.5 m east' % n_ci)
+# ---- two 4 m walk-throughs opposite the security doors (owner 2026-11-21, Blueprints/Terminal/Checkin-Security-Flow-v1.png):
+#      island 1's desks k 6 + 7 and island 2's k 1 + 2 (0-based) go with their chairs, screens and number signs; the
+#      remaining 20 renumbered 1-20 west to east (each desk's number sign is its own piece: the n-th desk wears desk n's);
+#      the islands' banners and the queue lines open there too; the old collector belts go (the bags go under the hall:
+#      DepartureBelts) ----
+hall = N[byname['F1-HALL']]['children']
+GONE_DESKS = ('F1-CHECKIN/DESK-07', 'F1-CHECKIN/DESK-08', 'F1-CHECKIN/DESK-14', 'F1-CHECKIN/DESK-15')
+GONE_CHAIRS = ('F1-HALL/OFFICE-CHAIR-007', 'F1-HALL/OFFICE-CHAIR-008', 'F1-HALL/OFFICE-CHAIR-014', 'F1-HALL/OFFICE-CHAIR-015')
+sign_mesh = {}
+for c in hall:
+    nm = N[c]['name']
+    if nm.startswith('F1-CHECKIN/DESK-'):
+        sign_mesh[int(nm[-2:])] = [N[k]['mesh'] for k in N[c]['children'] if N[k]['name'].startswith('dn')][0]
+for nm in GONE_DESKS + GONE_CHAIRS + ('F1-HALL/QUEUE-POST-003', 'F1-HALL/QUEUE-POST-004', 'F1-HALL/QUEUE-POST-007'):
+    drop(byname[nm], 'a walk-through to security')
+desks = sorted([c for c in hall if N[c]['name'].startswith('F1-CHECKIN/DESK-')], key=lambda c: -N[c]['translation'][0])
+chairs = sorted([c for c in hall if N[c]['name'].startswith('F1-HALL/OFFICE-CHAIR-')], key=lambda c: -N[c]['translation'][0])
+for n_, c in enumerate(desks, 1):
+    N[c] = dict(N[c]); N[c]['name'] = 'F1-CHECKIN/DESK-%02d' % n_
+    kids = []
+    for k in N[c]['children']:
+        if N[k]['name'].startswith('dn'):
+            N.append(dict(N[k], mesh=sign_mesh[n_])); kids.append(len(N) - 1)
+        else: kids.append(k)
+    N[c]['children'] = kids
+for n_, c in enumerate(chairs, 1):
+    N[c] = dict(N[c]); N[c]['name'] = 'F1-HALL/OFFICE-CHAIR-%03d' % n_
+log.append('renumbered: %d check-in desks, %d chairs' % (len(desks), len(chairs)))
+# the belts and banners in two lengths each, open across the walk-throughs (plan x; their banner graphic on the longer)
+# (the islands' old collector belts behind the desks go: each desk's weigh belt now drops through its hatch behind the
+#  desk - where the old belt lay - into the collector in the tunnel under the hall)
+for name in ('F1-CHECKIN/BELT-1', 'F1-CHECKIN/BELT-2'): drop(byname[name], 'the collector is in the tunnel under the hall now')
+for name, pieces in (('F1-CHECKIN/BANNER-1', ((47.5, 60.4), (64.3, 72.5))), ('F1-CHECKIN/BANNER-2', ((74.5, 77.0), (80.9, 99.5)))):
+    i = byname[name]; drop(i, 'split round the walk-through')
+    longest = max(pieces, key=lambda p: p[1] - p[0])
+    for k, (a, b) in enumerate(pieces):
+        kids = []
+        for c in N[i]['children']:
+            n = dict(N[c])
+            if 'scale' in n: n['scale'] = [n['scale'][0] - (25.0 - (b - a)), n['scale'][1], n['scale'][2]]
+            elif (a, b) != longest: continue          # (the banner's graphic: once, unstretched)
+            N.append(n); kids.append(len(N) - 1)
+        t = N[i]['translation']
+        N.append({'name': '%s-%s' % (name, 'AB'[k]), 'translation': [-(a + b) / 2, t[1], t[2]], 'children': kids})
+        N[byname['F1-HALL']]['children'].append(len(N) - 1)
+    log.append('split: %s round its walk-through' % name)
+
 # the men's toilets' door onto the hall's side of the glass: x 39.5 -> 44.7 (its lobby: the annex)
 t = N[byname['D-F1-WC-M-1']]['translation']; N[byname['D-F1-WC-M-1']]['translation'] = [t[0] - 5.2, t[1], t[2]]
 log.append('moved: D-F1-WC-M-1 to x 44.7 (hall side of the glass wall)')
