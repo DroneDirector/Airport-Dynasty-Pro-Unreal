@@ -14,6 +14,9 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "HAL/PlatformTime.h"
+#include "NavModifierComponent.h"
+#include "NavAreas/NavArea_Null.h"
+#include "RoadNetwork.h"
 
 namespace
 {
@@ -98,22 +101,84 @@ void PaxNav::Start(UWorld* W, const FTerminalPlan& Plan, const FBox& Landside)
 	if (!NS) { ADP_WARN(TEXT("PaxFlow: no navigation system in this world - walkers keep their straight ways")); return; }
 	GNavWorld = W; GReady = false; GSeenBuild = false; GBuildAsked = false; GWarned = false; GVolumes = 0; GStart = FPlatformTime::Seconds();
 	Sweep(W);   // (before anything is gathered: nothing that moves goes in)
-	// the walkable bounds: every finished room of the terminal on its own floor (a little over its walls, so the
-	// doorways join), the unfinished ones (kind "empty") left out - nothing outside the rooms, nothing in the rooms that
-	// aren't built; and the landside: the car park, the forecourt, its crossings
+	// the walkable bounds: only where passengers really walk (a little over the walls, so the doorways join) - the
+	// Grand Hall and its entrances, security, the airside lobby and corridor, the escalator room, Floor 2's landing,
+	// link, gallery, gate walkway and gate rooms, the baggage claim wing and its way out; the landside pavement strip
+	// and the car park with its crossings. Nothing else of the building (the 18:59 test: the whole building was 60+ s)
 	const float F2 = Plan.F2Y;
-	for (const FPlanRoom& R : Plan.Rooms)
+	auto Area = [&](int32 Floor, float X0, float Z0, float X1, float Z1, float Pad)
 	{
-		if (R.Kind == TEXT("empty")) continue;
-		const float Y0 = R.Floor >= 2 ? F2 - 0.4f : -2.f, Y1 = R.Floor >= 2 ? Plan.Roof + 1.f : F2 - 0.4f;
+		const float Y0 = Floor >= 2 ? F2 - 0.4f : -2.f, Y1 = Floor >= 2 ? Plan.Roof + 1.f : F2 - 0.4f;
 		FBox B(ForceInit);
-		B += FTerminalPlan::ToWorld(FMath::Min(R.X0, R.X1) - 0.6f, Y0, FMath::Min(R.Z0, R.Z1) - 0.6f);
-		B += FTerminalPlan::ToWorld(FMath::Max(R.X0, R.X1) + 0.6f, Y1, FMath::Max(R.Z0, R.Z1) + 0.6f);
+		B += FTerminalPlan::ToWorld(FMath::Min(X0, X1) - Pad, Y0, FMath::Min(Z0, Z1) - Pad);
+		B += FTerminalPlan::ToWorld(FMath::Max(X0, X1) + Pad, Y1, FMath::Max(Z0, Z1) + Pad);
 		if (ANavMeshBoundsVolume* V = BoxVolume<ANavMeshBoundsVolume>(W, B)) { NS->OnNavigationBoundsUpdated(V); ++GVolumes; }
+	};
+	static const TSet<FString> Ids = {
+		TEXT("F1-HALL"), TEXT("F1-ENTR-W"), TEXT("F1-ENTR-C"), TEXT("F1-ENTR-E"), TEXT("F1-SECURITY"), TEXT("F1-AIRSIDE"),
+		TEXT("F1-AIRSIDE-CORR"), TEXT("F1-ESC-PASS"), TEXT("F1-MUSEUM"),
+		TEXT("F2-LANDING"), TEXT("F2-LINK"), TEXT("F2-FOOD"), TEXT("F2-TAXFREE"), TEXT("F2-WALK") };
+	for (const FPlanRoom& R : Plan.Rooms)
+		if (R.Kind != TEXT("empty") && (Ids.Contains(R.Id) || R.Kind == TEXT("gate2") || R.Kind == TEXT("eatery")))
+			Area(R.Floor, R.X0, R.Z0, R.X1, R.Z1, 0.6f);
+	Area(2, 0.f, 8.f, 16.f, 30.f, 0.6f);      // (Floor 2 over the escalators' top: off the landing to the link)
+	Area(1, -82.f, -1.f, 0.f, 52.f, 0.6f);    // (the baggage claim wing - not in the plan file yet - with its belts and the arrivals escalators' foot)
+	// the landside: the pavement in front of the terminal (the arrivals' doors to the departures' entrances) and the car
+	// park with the crossings - its ground heights from the roads' own ground
+	auto Land = [&](float X0, float Z0, float X1, float Z1)
+	{
+		FBox B(ForceInit);
+		for (float X = X0; X <= X1 + 0.1f; X += FMath::Max(5.f, (X1 - X0) / 12.f))
+			for (float Z = Z0; Z <= Z1 + 0.1f; Z += FMath::Max(5.f, (Z1 - Z0) / 12.f))
+			{
+				const FVector P = FTerminalPlan::ToWorld(X, 0.f, Z); const float G = float(ARoadNetwork::GroundAt(X, Z) * 100.0);
+				B += FVector(P.X, P.Y, G - 300.f); B += FVector(P.X, P.Y, G + 500.f);
+			}
+		if (ANavMeshBoundsVolume* V = BoxVolume<ANavMeshBoundsVolume>(W, B)) { NS->OnNavigationBoundsUpdated(V); ++GVolumes; }
+	};
+	Land(-45.f, -14.f, 133.f, 1.f);
+	Land(17.f, -150.f, 133.f, -14.f);
+	(void)Landside;   // (PaxFlow's own landside box: the two above cover it, smaller)
+	// the revolving doors' drums: no navmesh in them (owner 2026-11-21) - nobody is ever routed through the glass; the
+	// riders go round with a compartment instead (PaxFlow: the revolving ride, off the navmesh like the escalators)
+	int32 Drums = 0;
+	for (const FPlanDoor& D : Plan.Doors)
+	{
+		if (D.Type != TEXT("revolving")) continue;
+		const FVector C = FTerminalPlan::ToWorld(D.X, Plan.FloorY(D.Floor), D.Z) + FVector(0, 0, 100.f);
+		AActor* K = W->SpawnActor<AActor>(AActor::StaticClass(), FTransform(C));
+		if (!K) continue;
+		USceneComponent* Rc = NewObject<USceneComponent>(K, TEXT("Root"));
+		K->SetRootComponent(Rc); Rc->RegisterComponent(); K->SetActorLocation(C);
+		UNavModifierComponent* M = NewObject<UNavModifierComponent>(K, TEXT("Drum"));
+		const float E = D.Width * 50.f + 20.f;
+		M->FailsafeExtent = FVector(E, E, 120.f);
+		M->AreaClass = UNavArea_Null::StaticClass();
+		M->RegisterComponent();
+		++Drums;
 	}
-	if (Landside.IsValid) if (ANavMeshBoundsVolume* V = BoxVolume<ANavMeshBoundsVolume>(W, Landside)) { NS->OnNavigationBoundsUpdated(V); ++GVolumes; }
-	ADP_LOG(TEXT("PaxFlow: navmesh - %d walkable areas (finished rooms on both floors + the landside), generating in the background"), GVolumes);
+	ADP_LOG(TEXT("PaxFlow: navmesh - %d walkable areas (where passengers walk, both floors + the landside), %d revolving door drums kept out, generating in the background"), GVolumes, Drums);
 }
+
+void PaxNav::Kick(UWorld* W)
+{
+	if (!W || GNavWorld.Get() == W) return;
+	// (as early as play begins: the terminal's pieces are placed in the very first frame - its walls are what the
+	//  navmesh is made from)
+	if (!W->HasBegunPlay()) return;
+	FTerminalPlan Plan; if (!Plan.Load()) return;
+	Start(W, Plan, FBox(ForceInit));
+}
+
+bool PaxNav::Failed(UWorld* W) { return W && GNavWorld.Get() == W && !GReady && GWarned && FPlatformTime::Seconds() - GStart > 120.0; }
+
+int32 PaxNav::JobsLeft(UWorld* W)
+{
+	UNavigationSystemV1* NS = Nav(W);
+	return NS ? NS->GetNumRemainingBuildTasks() + NS->GetNumRunningBuildTasks() : 0;
+}
+
+bool PaxNav::Started(UWorld* W) { return W && GNavWorld.Get() == W; }
 
 bool PaxNav::Ready(UWorld* W)
 {
@@ -139,7 +204,7 @@ bool PaxNav::Ready(UWorld* W)
 	if (bBuilding)
 	{
 		GSeenBuild = true;
-		if (T > 60.0 && !GWarned) { GWarned = true; ADP_WARN(TEXT("PaxFlow: the navmesh is still building after 60 s (%d tile jobs left) - walkers keep their straight ways until it is done"), NS->GetNumRemainingBuildTasks() + NS->GetNumRunningBuildTasks()); }
+		if (T > 60.0 && !GWarned) { GWarned = true; ADP_WARN(TEXT("PaxFlow: the navmesh is still building after 60 s (%d tile jobs left, %d tiles done) - walkers keep their straight ways until it is done"), NS->GetNumRemainingBuildTasks() + NS->GetNumRunningBuildTasks(), Cast<ARecastNavMesh>(ND) ? Cast<ARecastNavMesh>(ND)->GetNavMeshTilesCount() : 0); }
 		return false;
 	}
 	if (!GSeenBuild && T < 2.0) return false;   // (the first tiles not even queued yet)

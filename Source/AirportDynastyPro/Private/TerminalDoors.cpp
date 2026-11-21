@@ -9,6 +9,7 @@
 #include "Materials/MaterialInterface.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Pawn.h"
+#include "EngineUtils.h"
 
 #pragma region Setup
 
@@ -148,24 +149,30 @@ void ATerminalDoors::BuildDoor(const FPlanDoor& D, const FTerminalPlan& Plan)
 	else if (T == TEXT("revolving"))
 	{
 		const float R = W / 2;
-		// the drum: two curved glass sides (each a few straight panes), open towards the two sides of the wall
+		// the drum: two curved glass sides (each a few straight panes, 108 degrees each) across the wall's line, so its two
+		// openings (72 degrees each) face out to the kerb and in to the lobby - through the wall, as a revolving door's do.
+		// (2026-11-21: they were turned a quarter, the openings facing the wall's own ends, and the side panes stood across
+		//  the round - the Android edition's left-handed angles taken over as they were)
 		for (const float Side : {0.f, 180.f})
 			for (int32 i = 0; i < 6; ++i)
 			{
-				const float A = FMath::DegreesToRadians(Side + 36.f + i * 18.f + 9.f);
+				const float Ad = Side - 54.f + i * 18.f + 9.f, A = FMath::DegreesToRadians(Ad);
 				UStaticMeshComponent* P = Part(N, "glass", R * 0.32f, H, 0.03f, FMath::Cos(A) * R, H / 2, FMath::Sin(A) * R);
-				P->SetRelativeRotation(FRotator(0, -FMath::RadiansToDegrees(A) + 90.f, 0));
+				P->SetRelativeRotation(FRotator(0, Ad + 90.f, 0));   // (along the drum's round)
 			}
 		Part(N, "black", W + 0.24f, 0.3f, W + 0.24f, 0, H + 0.15f, 0);
 		USceneComponent* Wings = Node(N, 0, 0, 0, 0);
 		Part(Wings, "chrome", 0.12f, H - 0.1f, 0.12f, 0, H / 2, 0, false);
-		for (int32 i = 0; i < 4; ++i)
+		constexpr int32 NWings = 4;   // (four wings: four compartments - RevolvingBoard)
+		for (int32 i = 0; i < NWings; ++i)
 		{
-			const float A = i * 90.f, Rad = FMath::DegreesToRadians(A);
+			const float A = i * 360.f / NWings, Rad = FMath::DegreesToRadians(A);
 			UStaticMeshComponent* Wing = Part(Wings, "glass", R - 0.08f, H - 0.15f, 0.03f, FMath::Cos(Rad) * R / 2, H / 2, FMath::Sin(Rad) * R / 2, false);
-			Wing->SetRelativeRotation(FRotator(0, -A, 0));
+			Wing->SetRelativeRotation(FRotator(0, A, 0));
 		}
-		Rig.Wings = Wings;
+		Rig.Wings = Wings; Rig.Frame = N; Rig.NWings = NWings;
+		FRevolve V; V.Rig = Rigs.Num(); V.Comps.SetNum(NWings); V.Omega = 3.f * 6.f;
+		Revs.Add(V);
 	}
 	#pragma endregion
 
@@ -216,9 +223,10 @@ void ATerminalDoors::Tick(float DeltaSeconds)
 	const float PX = P.X / 100.f, PZ = -P.Y / 100.f;
 	const int32 PF = P.Z / 100.f > F2Y - 1.f ? 2 : 1;
 
+	for (FRevolve& V : Revs) StepRevolving(V, DeltaSeconds, P);
 	for (FDoorRig& R : Rigs)
 	{
-		if (R.Wings) { R.Wings->SetRelativeRotation(FRotator(0, FMath::RadiansToDegrees(Time * 0.6f), 0)); continue; }
+		if (R.Wings) continue;   // (the revolving doors: StepRevolving)
 		// (owner 2026-11-21: the entrance doors into the Grand Hall open 5 m ahead - they opened too late and people walked into them)
 		const float Reach = R.D.Id.StartsWith(TEXT("D-F1-ENTR")) ? 5.f : FMath::Max(2.6f, R.D.Width * 0.7f);
 		bool bNear = R.D.Floor == PF && FMath::Sqrt(FMath::Square(PX - R.D.X) + FMath::Square(PZ - R.D.Z)) < Reach;
@@ -249,6 +257,165 @@ void ATerminalDoors::Tick(float DeltaSeconds)
 		for (const FHinge& Hg : R.Hinges)
 			Hg.Leaf->SetRelativeRotation(FRotator(0, Hg.Dir * E * 86.f, 0));
 	}
+}
+
+#pragma endregion
+
+#pragma region Revolving doors
+
+namespace
+{
+	TWeakObjectPtr<ATerminalDoors> GDoors;
+	constexpr float RevExitWin = 12.f;     // (degrees either side of lined up with the exit: step out)
+	constexpr float RevMissed = 16.f;      // (past the exit by this much, still inside: the safety stop)
+	float WrapDeg(float A) { return FMath::UnwindDegrees(A); }
+	/** The opening on side Side: its local angle (the frame's +y is 90). */
+	float OpeningDeg(int32 Side) { return Side > 0 ? 90.f : 270.f; }
+}
+
+ATerminalDoors* ATerminalDoors::Find(const UWorld* W)
+{
+	if (GDoors.IsValid() && GDoors->GetWorld() == W) return GDoors.Get();
+	if (!W) return nullptr;
+	for (TActorIterator<ATerminalDoors> It(const_cast<UWorld*>(W)); It; ++It) { GDoors = *It; return *It; }
+	return nullptr;
+}
+
+int32 ATerminalDoors::NearestRevolving(const FVector& World, float* DistCm) const
+{
+	int32 Best = INDEX_NONE; float Bd = MAX_flt;
+	for (int32 i = 0; i < Revs.Num(); ++i)
+	{
+		const USceneComponent* F = Rigs[Revs[i].Rig].Frame; if (!F) continue;
+		const float D = FVector::Dist2D(F->GetComponentLocation(), World);
+		if (D < Bd) { Bd = D; Best = i; }
+	}
+	if (DistCm) *DistCm = Bd;
+	return Best;
+}
+
+bool ATerminalDoors::RevolvingFrame(int32 Ix, FVector& Centre, FVector& Axis, float& RadiusCm) const
+{
+	if (!Revs.IsValidIndex(Ix)) return false;
+	const FDoorRig& R = Rigs[Revs[Ix].Rig]; if (!R.Frame) return false;
+	Centre = R.Frame->GetComponentLocation();
+	Axis = R.Frame->GetComponentTransform().TransformVectorNoScale(FVector(0, 1, 0)).GetSafeNormal2D();
+	RadiusCm = R.D.Width * 50.f;
+	return true;
+}
+
+FString ATerminalDoors::RevolvingId(int32 Ix) const { return Revs.IsValidIndex(Ix) ? Rigs[Revs[Ix].Rig].D.Id : FString(); }
+
+int32 ATerminalDoors::RevolvingBoard(int32 Ix, int32 Side, int32 Who, const FString& Name)
+{
+	if (!Revs.IsValidIndex(Ix) || Side == 0) return INDEX_NONE;
+	FRevolve& V = Revs[Ix];
+	if (V.Mode != ERev::Run || V.Omega < 3.f) return INDEX_NONE;   // (stopped or turning back: wait)
+	for (const FComp& C : V.Comps) if (C.Who == Who) return INDEX_NONE;
+	const float Step = 360.f / V.Comps.Num();
+	for (int32 k = 0; k < V.Comps.Num(); ++k)
+	{
+		FComp& C = V.Comps[k];
+		if (C.Who != INDEX_NONE) continue;   // (one passenger or party a compartment - never strangers together)
+		// its middle coming up to the opening: from 22 degrees short of it to just past (it moves on while they step in)
+		const float D = WrapDeg(V.Angle + Step * (k + 0.5f) - OpeningDeg(Side));
+		if (D < -22.f || D > 2.f) continue;
+		C.Who = Who; C.Side = Side; C.bRiding = false; C.Progress = D; C.Name = Name;
+		return k;
+	}
+	return INDEX_NONE;
+}
+
+void ATerminalDoors::RevolvingRiding(int32 Ix, int32 Comp)
+{
+	if (Revs.IsValidIndex(Ix) && Revs[Ix].Comps.IsValidIndex(Comp)) Revs[Ix].Comps[Comp].bRiding = true;
+}
+
+FVector ATerminalDoors::RevolvingSpot(int32 Ix, int32 Comp, float Frac, FVector* Dir, float* SpeedCm) const
+{
+	if (!Revs.IsValidIndex(Ix) || !Revs[Ix].Comps.IsValidIndex(Comp)) return FVector::ZeroVector;
+	const FRevolve& V = Revs[Ix];
+	const FDoorRig& R = Rigs[V.Rig];
+	const float Rc = R.D.Width * 50.f * Frac;
+	const float C = FMath::DegreesToRadians(V.Angle + 360.f / V.Comps.Num() * (Comp + 0.5f));
+	const FTransform& T = R.Frame->GetComponentTransform();
+	if (Dir) *Dir = T.TransformVectorNoScale(FVector(-FMath::Sin(C), FMath::Cos(C), 0.f) * (V.Omega >= 0.f ? 1.f : -1.f)).GetSafeNormal2D();
+	if (SpeedCm) *SpeedCm = FMath::Abs(FMath::DegreesToRadians(V.Omega)) * Rc;
+	return T.TransformPosition(FVector(FMath::Cos(C) * Rc, FMath::Sin(C) * Rc, 0.f));
+}
+
+bool ATerminalDoors::RevolvingAtExit(int32 Ix, int32 Comp, bool* bHeld) const
+{
+	if (bHeld) *bHeld = false;
+	if (!Revs.IsValidIndex(Ix) || !Revs[Ix].Comps.IsValidIndex(Comp)) return false;
+	const FRevolve& V = Revs[Ix];
+	const FComp& C = V.Comps[Comp];
+	if (C.Who == INDEX_NONE || !C.bRiding) return false;
+	const bool bForMe = V.Safety == Comp;
+	if (bForMe && V.Mode == ERev::Hold) { if (bHeld) *bHeld = true; return true; }
+	if (bForMe && V.Mode != ERev::Run) return false;   // (being turned back to it: wait for the stop)
+	return FMath::Abs(C.Progress - 180.f) <= RevExitWin;
+}
+
+void ATerminalDoors::RevolvingLeave(int32 Ix, int32 Comp)
+{
+	if (!Revs.IsValidIndex(Ix) || !Revs[Ix].Comps.IsValidIndex(Comp)) return;
+	Revs[Ix].Comps[Comp] = FComp();
+}
+
+void ATerminalDoors::StepRevolving(FRevolve& V, float Dt, const FVector& Player)
+{
+	FDoorRig& R = Rigs[V.Rig];
+	if (!R.Wings || !R.Frame) return;
+	const FVector Ctr = R.Frame->GetComponentLocation();
+	// the presence sensor: anyone within 6 m (the player, a passenger walking up or waiting) - and someone stepping in
+	bool bNear = FMath::Abs(Player.Z - Ctr.Z) < 200.f && FVector::DistSquared2D(Player, Ctr) < FMath::Square(600.f);
+	if (!bNear) for (const FVector& O : Openers) if (FMath::Abs(O.Z - Ctr.Z) < 200.f && FVector::DistSquared2D(O, Ctr) < FMath::Square(600.f)) { bNear = true; break; }
+	bool bEntering = false;
+	for (const FComp& C : V.Comps) if (C.Who != INDEX_NONE) { bNear = true; if (!C.bRiding) bEntering = true; }
+	// (a real automatic revolving door this size turns 3-4 rpm: 3.6 with people about, a little slower while someone
+	//  steps in, 3.0 idle. rpm x 6 = degrees a second)
+	const float Rpm = bEntering ? 2.7f : bNear ? 3.6f : 3.0f;
+	FComp* S = V.Comps.IsValidIndex(V.Safety) ? &V.Comps[V.Safety] : nullptr;
+	V.ModeT += Dt;
+	switch (V.Mode)
+	{
+	case ERev::Run:
+		V.Omega = FMath::FInterpConstantTo(V.Omega, Rpm * 6.f, Dt, 4.f);
+		// (the safety stop: someone still inside after their exit has gone by - stop; never carry them on into the glass)
+		for (int32 k = 0; k < V.Comps.Num(); ++k)
+		{
+			const FComp& C = V.Comps[k];
+			if (C.Who == INDEX_NONE || !C.bRiding || C.Progress - 180.f <= RevMissed) continue;
+			V.Mode = ERev::Pause; V.ModeT = 0.f; V.Safety = k;
+			ADP_WARN(TEXT("Revolving door %s: safety stop - %s in compartment %d did not step out at the exit (%.0f degrees past it); stopping, then turning back to the exit"), *R.D.Id, *C.Name, k + 1, C.Progress - 180.f);
+			break;
+		}
+		break;
+	case ERev::Pause:
+		V.Omega = FMath::FInterpConstantTo(V.Omega, 0.f, Dt, 40.f);
+		if (!S || S->Who == INDEX_NONE) { V.Mode = ERev::Run; V.ModeT = 0.f; V.Safety = INDEX_NONE; break; }
+		if (V.ModeT > 1.5f && FMath::Abs(V.Omega) < 0.1f) { V.Mode = ERev::Back; V.ModeT = 0.f; }
+		break;
+	case ERev::Back:
+		// (slowly back, one turn a minute, to the exit; they ride back with it)
+		V.Omega = FMath::FInterpConstantTo(V.Omega, -6.f, Dt, 12.f);
+		if (!S || S->Who == INDEX_NONE || S->Progress <= 180.f + 2.f || V.ModeT > 20.f) { V.Mode = ERev::Hold; V.ModeT = 0.f; }
+		break;
+	case ERev::Hold:
+		V.Omega = FMath::FInterpConstantTo(V.Omega, 0.f, Dt, 40.f);
+		if (!S || S->Who == INDEX_NONE || V.ModeT > 10.f)
+		{
+			if (S && S->Who != INDEX_NONE) ADP_WARN(TEXT("Revolving door %s: %s still in compartment %d after 10 s at the exit - turning on"), *R.D.Id, *S->Name, V.Safety + 1);
+			else ADP_LOG(TEXT("Revolving door %s: safety stop over - they are out at the exit; turning on"), *R.D.Id);
+			V.Mode = ERev::Run; V.ModeT = 0.f; V.Safety = INDEX_NONE;
+		}
+		break;
+	}
+	const float dA = V.Omega * Dt;
+	V.Angle = FMath::Fmod(V.Angle + dA + 360.f, 360.f);
+	for (FComp& C : V.Comps) if (C.Who != INDEX_NONE) C.Progress += dA;
+	R.Wings->SetRelativeRotation(FRotator(0, V.Angle, 0));
 }
 
 #pragma endregion

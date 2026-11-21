@@ -61,21 +61,23 @@ public:
 	enum : int32 { VisibleDep = 36, VisibleArr = 30 };
 
 private:
-	enum class EPx : uint8 { Walk, DeskQ, Desk, LaneQ, Wait, Seated, Lean, Call, Jetway, ClaimWait, ToBag, Gone };
+	enum class EPx : uint8 { Walk, DeskQ, Desk, LaneQ, Wait, Seated, Lean, Call, Jetway, ClaimWait, ToBag, Revolve, Gone };   // (Revolve: at / in a revolving door - waiting, stepping in, riding round, stepping out)
 	enum class EDo : uint8 { None, JoinDesk, JoinLane, Screened, Upstairs, AtSeat, AtWall, AtGateSpot, Aboard, AtClaim, OutCarPark, ArrIn };
-	struct FWp { FVector P = FVector::ZeroVector; float Pause = 0.f; FVector Face = FVector::ZeroVector; uint8 Mode = 0; bool bGround = false; bool bNav = false; };   // Mode 0 walk, 1 slow, 2 ride; bNav: the leg to it already walked out on the navmesh
+	struct FWp { FVector P = FVector::ZeroVector; float Pause = 0.f; FVector Face = FVector::ZeroVector; uint8 Mode = 0; bool bGround = false; bool bNav = false; int8 Rev = -1, RevSide = 0; };   // Mode 0 walk, 1 slow, 2 ride, 3 a revolving door (Rev: ATerminalDoors' revolving door, RevSide: the side they come from, +-1 along its axis; P: the queue's head spot); bNav: the leg to it already walked out on the navmesh
 	struct FPx
 	{
 		TWeakObjectPtr<AActor> A; TWeakObjectPtr<USkeletalMeshComponent> Body; USceneComponent* Holder = nullptr;
 		int32 Run = 0; FString Id, Name; bool bArr = false;
 		EPx St = EPx::Walk; EDo Do = EDo::None;
 		TArray<FWp> Way; int32 Wi = 0; float PauseT = 0.f, Speed = 0.f, Pace = 130.f, Acc = 0.f, T = 0.f;
+		FVector PrevLoc = FVector::ZeroVector; double PrevTime = -1.0; float MoveDir = 0.f, MoveSpd = 0.f; bool bRideNow = false;   // (the real motion: legs follow it)
 		float TurnYaw = 0.f, YieldT = 0.f; FVector YieldOff = FVector::ZeroVector, YieldWant = FVector::ZeroVector;   // (passing people: the shoulder turn, the step aside)
 		FVector2D Jit = FVector2D::ZeroVector;
 		int32 Bag = INDEX_NONE; bool bBagDown = false, bHasBag = false, bArrBag = false; FVector Handle = FVector::ZeroVector;
 		int32 Desk = 0, Lane = -1, Seat = INDEX_NONE, Order = 0;
 		float LeanYaw = 0.f, Fidget = 0.f; double BoardAt = -1.0; bool bEsc = false, bPriority = false;
 		FString Stage;   // (in words, for the tests' caption)
+		int32 Rev = INDEX_NONE, RevComp = INDEX_NONE, RevPhase = 0, RevSide = 0; float RevT = 0.f; FVector RevFrom = FVector::ZeroVector; TArray<FWp> RevAfter;   // (a revolving door: which, the compartment, 0 waiting 1 stepping in 2 riding 3 stepping out; the way on after it)
 		float FadeT = -1.f; int32 FadeFrom = INDEX_NONE; bool bFadeSwap = false; TWeakObjectPtr<class UMaterialInstanceDynamic> FadeMid;   // (boarding: faded away halfway along the jetway)
 	};
 	struct FRun
@@ -98,6 +100,7 @@ private:
 	TArray<FRun> Runs;
 	TArray<FGate> Gates;
 	FLine DeskLines[20], LaneLines[6];
+	TArray<FLine> RevLines;   // (the short queues outside the revolving doors' openings: door x 2 + side)
 	FWalkMap Map;
 	TArray<FString> Names;
 	TArray<TPair<FVector2f, float>> NoLean;   // (plan points with their keep-out radius: doors, stairs, escalators)
@@ -111,6 +114,7 @@ private:
 	double RealT = 0.0, SimT = 0.0;
 	float F2Z = 600.f, F2Y = 6.f;
 	int32 Frame = 0, Watched = INDEX_NONE, TotalAboard = 0, TotalOut = 0;
+	bool bRevShown = false; int32 RevReturn = INDEX_NONE; float RevReturnIn = -1.f;   // (tests: the camera shows one revolving door ride, then goes back)
 	FRandomStream Rng;
 
 	// setting up and the flights
@@ -137,10 +141,16 @@ private:
 	void Finish(int32 i, const TCHAR* Why);
 	void CarryBag(FPx& P, AActor* A);
 	void StartFade(FPx& P, AActor* A);
+	// the revolving doors (ATerminalDoors): waiting for an empty compartment, the ride round, out at the far side
+	class ATerminalDoors* Doors() const;
+	FLine& RevLine(int32 Rev, int32 Side);
+	void StartRevolve(int32 i);
+	void StepRevolve(int32 i, float Dt);
+	void EndRevolve(FPx& P, bool bThrough);
 	bool StepFade(FPx& P, AActor* A, float Dt);
 
 	// ways (world points)
-	void WayToHall(FPx& P, const FVector& From);
+	void WayToHall(FPx& P, const FVector& From, int32 RevDoor = INDEX_NONE);
 	void WayFromHall(FPx& P, const FVector& From);
 	void WayToDesk(FPx& P, int32 Spot);
 	void WayToSecurity(FPx& P);

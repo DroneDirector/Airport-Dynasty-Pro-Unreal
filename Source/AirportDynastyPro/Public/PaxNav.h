@@ -16,6 +16,13 @@ namespace PaxNav
 	enum EPath : uint8 { NoWay, Full, Partial, OffMesh };
 	/** Once: the walkable bounds (the terminal, the landside box) and the cut-outs; generated in the background. */
 	void Start(UWorld* W, const FTerminalPlan& Plan, const FBox& Landside);
+	/** As early as possible (the loading screen, the passenger flow): starts the navmesh once the terminal is in. */
+	void Kick(UWorld* W);
+	bool Started(UWorld* W);
+	/** Not ready 2 minutes after it started (warned): carry on without it. */
+	bool Failed(UWorld* W);
+	/** Tile jobs still to do (for the loading screen). */
+	int32 JobsLeft(UWorld* W);
 	/** True once the first generation is done (logs "navmesh ready" once). Cheap; call every frame. */
 	bool Ready(UWorld* W);
 	/** Things that move never shape the navmesh: every primitive of every such actor (and every skeletal mesh). Call

@@ -427,7 +427,7 @@ AActor* APaxFlow::Body(const FVector& At, float Yaw, FPx& P)
 	for (USkeletalMeshComponent* S : Sk) { S->bEnableUpdateRateOptimizations = true; S->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered; }
 	PaxNav::NoNav(A);
 	P.Holder = NewObject<USceneComponent>(this); P.Holder->RegisterComponent(); Holders.Add(P.Holder);
-	P.Pace = Rng.FRandRange(118.f, 145.f);
+	P.Pace = Rng.FRand() < 0.15f ? Rng.FRandRange(150.f, 170.f) : Rng.FRandRange(105.f, 148.f);   // (everyone their own pace: some slow, most normal, a few brisk - owner 2026-11-21)
 	P.Jit = FVector2D(Rng.FRandRange(-45.f, 45.f), Rng.FRandRange(-45.f, 45.f));
 	P.bPriority = Rng.FRand() < 0.1f;
 	P.Order = Frame;
@@ -453,7 +453,9 @@ int32 APaxFlow::SpawnDep(int32 Ri)
 	if (!A) { P.St = EPx::Gone; FreePx.Add(i); return INDEX_NONE; }
 	// their bag (three in four check one; in the test all): carried by its handle until it is set on the desk's belt
 	ADepartureBelts* Dep = ADepartureBelts::Get(GetWorld());
-	const bool bBag = Dep && (R.bTest || Rng.FRand() < 0.75f) && R.Desks.Num();
+	// (-PaxFlowTest: walkers 2-4 have hand luggage only and go in by a revolving door - 2 and 4 the west one, 3 the east)
+	const bool bTestRev = R.bTest && R.Spawned >= 2 && R.Spawned <= 4;
+	const bool bBag = Dep && !bTestRev && (R.bTest || Rng.FRand() < 0.75f) && R.Desks.Num();
 	if (bBag)
 	{
 		int32 Best = R.Desks[0], Bn = MAX_int32;
@@ -468,7 +470,21 @@ int32 APaxFlow::SpawnDep(int32 Ri)
 		}
 	}
 	P.Stage = TEXT("out of the car, in the car park");
-	WayToHall(P, At);
+	// (owner 2026-11-21: the entrance. A checked bag (a suitcase carried - and later carts, strollers, wheelchairs) always the
+	//  wide sliding doors. Most people take the sliding doors anyway: hand luggage only, about one in six takes the nearest
+	//  revolving door, and only when it is clearly (8 m+) nearer on their way than the main entrance - owner 2026-11-21)
+	int32 Rev = INDEX_NONE;
+	if (!P.bHasBag) if (const ATerminalDoors* Dr = Doors()) if (Dr->NumRevolving())
+	{
+		if (bTestRev) Rev = Dr->NearestRevolving(PW(R.Spawned == 3 ? 101.f : 50.f, 0, -4.f));
+		else
+		{
+			const int32 Near = Dr->NearestRevolving(At);
+			FVector C, Ax; float Rc;
+			if (Near != INDEX_NONE && Dr->RevolvingFrame(Near, C, Ax, Rc) && FMath::Abs(PlanOf(C).X - PlanOf(At).X) + 8.f < FMath::Abs(PXDOORX - PlanOf(At).X) && Rng.FRand() < 0.18f) Rev = Near;
+		}
+	}
+	WayToHall(P, At, Rev);
 	P.Do = P.bHasBag ? EDo::JoinDesk : EDo::JoinLane;
 	if (!P.bHasBag) WayToSecurity(P);   // (no bag to check in: checked in on the phone, straight to security)
 	if (R.Spawned <= 3 || R.bTest) ADP_LOG(TEXT("PaxFlow: %s (%s) out of a car in the car park for %s%s"), *P.Id, *P.Name, *R.Label, P.bHasBag ? *FString::Printf(TEXT(", bag #%d for desk %d"), P.Bag, P.Desk) : TEXT(", no bag"));
@@ -519,6 +535,9 @@ void APaxFlow::Finish(int32 i, const TCHAR* Why)
 	FPx& P = Pax[i];
 	for (FLine& L : DeskLines) L.Who.Remove(i);
 	for (FLine& L : LaneLines) L.Who.Remove(i);
+	for (FLine& L : RevLines) L.Who.Remove(i);
+	if (P.Rev != INDEX_NONE && P.RevComp != INDEX_NONE) if (ATerminalDoors* Dr = Doors()) Dr->RevolvingLeave(P.Rev, P.RevComp);
+	P.Rev = INDEX_NONE; P.RevComp = INDEX_NONE;
 	if (AActor* A = P.A.Get())
 	{
 		LeanSpots.RemoveAll([&](const FVector& L) { return FVector::Dist2D(L, A->GetActorLocation()) < 60.f; });
@@ -545,9 +564,31 @@ void APaxFlow::Anim(FPx& P)
 			UPaxAnimInstance* Mine = Cast<UPaxAnimInstance>(One);
 			if (!Mine && bCarry && !B->IsRunningParallelEvaluation() && !B->IsPostEvaluatingAnimation()) { Mine = UPaxAnimInstance::Install(B); One = B->GetSingleNodeInstance(); if (!One) return; }
 			if (Mine) Mine->bGripRight = bCarry;
-			// (AADPPeople::WalkTo's own mapping onto the idle-walk-run blend space)
-			One->SetBlendSpacePosition(FVector(0.f, FMath::Min(P.Speed * 1.5f, 300.f), 0.f));
-			One->SetPlayRate(P.Speed > 20.f ? FMath::Clamp(P.Speed / FMath::Max(P.Speed * 1.5f, 100.f), 0.5f, 1.4f) : 1.f);
+			// (owner 2026-11-21: no moon-gliding - the legs follow the REAL motion. The blend space has Direction (x, degrees
+			//  round the body: 0 ahead, +-90 sideways, 180 back) and Speed (y); measured from how the body actually moved since
+			//  the last update - a step aside to let someone by walks sideways, a turn while walking blends the diagonals)
+			if (const AActor* A = P.A.Get())
+			{
+				const double Now = A->GetWorld()->GetTimeSeconds();
+				const FVector L = A->GetActorLocation();
+				if (P.PrevTime >= 0.0 && Now - P.PrevTime > 1e-3)
+				{
+					const float Dt = float(Now - P.PrevTime);
+					FVector V = (L - P.PrevLoc) / Dt; V.Z = 0.f;
+					const float Spd = FMath::Min(V.Size(), 400.f);
+					P.MoveSpd = FMath::FInterpTo(P.MoveSpd, Spd, Dt, 8.f);
+					if (Spd > 8.f)
+					{
+						const float Face = A->GetActorRotation().Yaw + 90.f;    // (the body faces the actor's +y)
+						const float Rel = FRotator::NormalizeAxis(V.Rotation().Yaw - Face);
+						P.MoveDir = FRotator::NormalizeAxis(P.MoveDir + FRotator::NormalizeAxis(Rel - P.MoveDir) * FMath::Min(1.f, Dt * 8.f));
+					}
+				}
+				P.PrevLoc = L; P.PrevTime = Now;
+			}
+			const float Sp = P.bRideNow ? 0.f : P.MoveSpd;
+			One->SetBlendSpacePosition(FVector(P.MoveDir, FMath::Min(Sp * 1.5f, 300.f), 0.f));
+			One->SetPlayRate(Sp > 20.f ? FMath::Clamp(Sp / FMath::Max(Sp * 1.5f, 100.f), 0.5f, 1.4f) : 1.f);
 		}
 }
 
@@ -563,7 +604,7 @@ void APaxFlow::Idle(FPx& P, AActor* A, float Dt, const FVector* Face)
 		const FVector Step = NewOff - P.YieldOff;
 		if (!Step.IsNearlyZero(0.01f)) { A->AddActorWorldOffset(FVector(Step.X, Step.Y, 0.f)); P.YieldOff = NewOff; }
 	}
-	if (Face && !Face->IsNearlyZero()) A->SetActorRotation(FMath::RInterpTo(A->GetActorRotation(), FRotator(0.f, Face->Rotation().Yaw - 90.f, 0.f), Dt, 5.f));
+	if (Face && !Face->IsNearlyZero()) A->SetActorRotation(FMath::RInterpTo(A->GetActorRotation(), FRotator(0.f, Face->Rotation().Yaw - 90.f, 0.f), Dt, 2.2f));   // (turning on the spot: gently)
 	Anim(P);
 }
 
@@ -657,7 +698,7 @@ bool APaxFlow::Follow(FPx& P, AActor* A, float Dt)
 	//  navmesh - round the walls, through the real doorways - its corners put in before it. Not the escalator rides and
 	//  not the jetways (they move; off the navmesh: straight as before), not the short hand-placed steps in the security
 	//  lane, not the queues (their spot moves). No way at all: logged, and straight to the waypoint as before)
-	if (!P.Way[P.Wi].bNav && P.Way[P.Wi].Mode != 2 && P.St == EPx::Walk && !(P.Do == EDo::Screened && P.Wi < 5) && NavBudget > 0 && PaxNav::Ready(GetWorld()))
+	if (!P.Way[P.Wi].bNav && P.Way[P.Wi].Mode != 2 && P.Way[P.Wi].Mode != 3 && P.St == EPx::Walk && !(P.Do == EDo::Screened && P.Wi < 5) && NavBudget > 0 && PaxNav::Ready(GetWorld()))
 	{
 		--NavBudget;
 		FWp& To = P.Way[P.Wi]; To.bNav = true;
@@ -687,13 +728,27 @@ bool APaxFlow::Follow(FPx& P, AActor* A, float Dt)
 	const FVector Loc = A->GetActorLocation();
 	FVector D = W.P - Loc; D.Z = 0.f;
 	const float Dist = D.Size();
-	const bool bLast = P.Wi == P.Way.Num() - 1 || W.Pause > 0.f;
+	const bool bLast = P.Wi == P.Way.Num() - 1 || W.Pause > 0.f || W.Mode == 3;
 	const bool bRide = W.Mode == 2;
+	P.bRideNow = bRide;   // (on an escalator: standing still while it carries them - no walking legs)
 	float Want = W.Mode == 1 ? 55.f : P.Pace;
+	// (late: after their flight's boarding call a fast walk, after the final call - or with the doors about to close - a
+	//  run. Only while walking between places: in the desk and security queues, at the desk and in the lanes they always
+	//  wait their turn (those steps never come through here at a hurry: queue spots are short legs, the lane steps slow)
+	if (W.Mode == 0 && !P.bArr && Runs.IsValidIndex(P.Run) && P.Do != EDo::JoinDesk && P.Do != EDo::JoinLane && P.Do != EDo::Screened)
+	{
+		const FRun& Rn = Runs[P.Run];
+		const bool bNotThere = P.Do != EDo::Aboard && P.St == EPx::Walk;
+		if (bNotThere && Rn.bFinal) Want = FMath::Max(Want, 330.f + float(FMath::Fmod(FMath::Abs(P.Jit.Y) * 97.0, 40.0)));        // (a run)
+		else if (bNotThere && Rn.bCalled) Want = FMath::Max(Want, 175.f + float(FMath::Fmod(FMath::Abs(P.Jit.Y) * 97.0, 25.0)));  // (a brisk, fast walk)
+	}
 	if (bLast && !bRide) Want *= FMath::Clamp(Dist / 90.f, 0.3f, 1.f);
 	if (bRide) P.Speed = FMath::FInterpTo(P.Speed, 0.f, Dt, 6.f); else P.Speed = FMath::FInterpTo(P.Speed, Want, Dt, 4.f);
-	if (Dist < (bRide ? 12.f : 30.f))
+	// (a revolving door: there at the end of its queue - each one waiting stands 90 cm further out)
+	const float Reach = W.Mode == 3 ? 30.f + 90.f * RevLine(W.Rev, W.RevSide).Who.Num() : bRide ? 12.f : 30.f;
+	if (Dist < Reach)
 	{
+		if (W.Mode == 3) { StartRevolve(int32(&P - Pax.GetData())); return false; }
 		if (W.Pause > 0.f) P.PauseT = W.Pause; else ++P.Wi;
 		Anim(P);
 		return P.Wi >= P.Way.Num() && P.PauseT <= 0.f;
@@ -705,19 +760,20 @@ bool APaxFlow::Follow(FPx& P, AActor* A, float Dt)
 		// (aware of the people round them - owner 2026-11-21: walk past the queues and away from the desk between people,
 		//  the shoulders turned to slip through, and people standing step aside to let them by)
 		FVector Lat = FVector::ZeroVector; float Slow = 1.f;
+		const float Look = 160.f + P.Speed * 0.6f;   // (the faster they go, the further ahead they look - a runner never runs into anyone)
 		const FVector Side(-Dn.Y, Dn.X, 0.f);
 		for (FPx& O : Pax)
 		{
 			if (&O == &P) continue;
 			const AActor* OA = O.A.Get(); if (!OA || O.St == EPx::Gone || O.St == EPx::Seated) continue;
 			FVector Rel = OA->GetActorLocation() - Loc; if (FMath::Abs(Rel.Z) > 120.f) continue; Rel.Z = 0.f;
-			const float R = Rel.Size(); if (R > 160.f || R < 1.f) continue;
+			const float R = Rel.Size(); if (R > Look || R < 1.f) continue;
 			const float Ahead = FVector::DotProduct(Rel, Dn), Off = FVector::DotProduct(Rel, Side);
 			if (Ahead < -30.f) continue;                                             // (behind: not my problem)
-			const float Near = FMath::Clamp((160.f - R) / 160.f, 0.f, 1.f);
+			const float Near = FMath::Clamp((Look - R) / Look, 0.f, 1.f);
 			Lat -= Side * FMath::Sign(Off == 0.f ? 1.f : Off) * Near * (Ahead > 0.f ? 1.f : 0.5f);   // (away from them, sideways)
 			if (R < 75.f && FMath::Abs(Off) < 60.f) TurnWant = FMath::Sign(Off == 0.f ? 1.f : Off) * -38.f;   // (a tight gap: shoulders turned)
-			if (Ahead > 0.f && FMath::Abs(Off) < 45.f && R < 60.f) Slow = FMath::Min(Slow, 0.45f);
+			if (Ahead > 0.f && FMath::Abs(Off) < 45.f && R < 60.f + P.Speed * 0.35f) Slow = FMath::Min(Slow, R < 70.f ? 0.3f : 0.6f);   // (someone right in front: slow down behind them until there is room to pass)
 			// (standing in my way: please step aside - the side away from my line)
 			const bool bStanding = O.St != EPx::Walk || O.Speed < 15.f;
 			if (bStanding && Ahead > 0.f && R < 110.f && FMath::Abs(Off) < 55.f && O.YieldT <= 0.f)
@@ -768,7 +824,7 @@ bool APaxFlow::Follow(FPx& P, AActor* A, float Dt)
 	}
 	if (!bFloor) N.Z = W.bGround ? FMath::FInterpTo(Loc.Z, W.P.Z, Dt, 4.f) : FMath::FInterpTo(Loc.Z, W.P.Z, Dt, 1.f);
 	A->SetActorLocation(N);
-	A->SetActorRotation(FMath::RInterpTo(A->GetActorRotation(), FRotator(0.f, Dn.Rotation().Yaw - 90.f + P.TurnYaw, 0.f), Dt, bRide ? 3.f : 6.f));
+	A->SetActorRotation(FMath::RInterpTo(A->GetActorRotation(), FRotator(0.f, Dn.Rotation().Yaw - 90.f + P.TurnYaw, 0.f), Dt, bRide ? 2.f : 2.6f));   // (a gentle turn - owner 2026-11-21: not abrupt)
 	Anim(P);
 	return false;
 }
@@ -835,15 +891,31 @@ void APaxFlow::Crossing(FPx& P, bool bToTerminal, float NearX)
 	FWp W1; W1.P = Last; W1.bGround = true; W1.P.Z = GroundZ(Last.X / 100.f, -Last.Y / 100.f); P.Way.Add(W1);
 }
 
-void APaxFlow::WayToHall(FPx& P, const FVector& From)
+void APaxFlow::WayToHall(FPx& P, const FVector& From, int32 RevDoor)
 {
 	// through the car park to the pavement, over the forecourt at the crossing nearest, the pavement to the main entrance,
 	// its two sliding doors, into the Grand Hall
 	(void)From;
 	P.Way.Reset(); P.Wi = 0;
-	Crossing(P, true, PXDOORX + float(P.Jit.X) * 0.6f);
 	auto Add = [&](float X, float Z, bool bG) { FWp W; W.P = PW(X, 0, Z); W.bGround = bG; if (bG) W.P.Z = GroundZ(X, Z); P.Way.Add(W); };
 	const float J = float(P.Jit.X) / 100.f;
+	FVector C, Ax; float Rc = 0.f;
+	const ATerminalDoors* Dr = RevDoor != INDEX_NONE ? Doors() : nullptr;
+	if (Dr && Dr->RevolvingFrame(RevDoor, C, Ax, Rc))
+	{
+		// a side entrance's revolving door: the crossing nearest it, up to its kerb opening (the queue's head spot), the
+		// ride round (StepRevolve - off the navmesh, like the escalators), out into the lobby, its sliding door, the hall
+		const FVector Cp = PlanOf(C);
+		Crossing(P, true, Cp.X + float(P.Jit.X) * 0.6f);
+		const int32 Side = FVector::DotProduct(PW(Cp.X, 0, Cp.Z - 4.f) - C, Ax) >= 0.f ? 1 : -1;   // (the kerb's side)
+		Add(Cp.X + J * 2.f, Cp.Z - 4.f, true);
+		FWp Q; Q.P = C + Ax * Side * (Rc + 80.f); Q.bGround = true; Q.P.Z = GroundZ(PlanOf(Q.P).X, PlanOf(Q.P).Z); Q.Mode = 3; Q.bNav = true; Q.Rev = int8(RevDoor); Q.RevSide = int8(Side);
+		P.Way.Add(Q);
+		FWp Out; Out.P = C - Ax * Side * (Rc + 70.f); Out.bNav = true; P.Way.Add(Out);   // (just out of the drum)
+		Add(Cp.X + J * 0.5f, -1.f, false); Add(Cp.X + J * 0.5f, 0.f, false); Add(Cp.X + J * 3.f, 2.5f, false);
+		return;
+	}
+	Crossing(P, true, PXDOORX + float(P.Jit.X) * 0.6f);
 	Add(PXDOORX + J * 2.f, -8.f, true); Add(PXDOORX + J, -4.f, false); Add(PXDOORX + J, -2.f, false); Add(PXDOORX + J, 0.f, false); Add(PXDOORX + J * 3.f, 2.5f, false);
 }
 
@@ -1151,6 +1223,7 @@ void APaxFlow::StepPx(int32 i, float Dt)
 		CarryBag(P, A);
 		if (Follow(P, A, Dt)) Arrive(i);
 		break;
+	case EPx::Revolve: StepRevolve(i, Dt); break;
 	case EPx::DeskQ:
 	{
 		const TArray<int32>& L = DeskLines[P.Desk - 1].Who;
@@ -1282,6 +1355,7 @@ void APaxFlow::Tick(float Dt)
 	Dt = FMath::Min(Dt, 0.1f);
 	RealT += Dt;
 	{ const UADPSim* Sim = UADPSim::Get(this); SimT = Sim && Sim->IsRunning() ? PxSec(Sim->Now()) : RealT; }
+	PaxNav::Kick(GetWorld());   // (the navmesh started as early as the airport is in - PaxNav.h)
 	if (!bReady)
 	{
 		if ((ReadyIn -= Dt) > 0.f) return;
@@ -1293,9 +1367,22 @@ void APaxFlow::Tick(float Dt)
 	++Frame;
 	NavBudget = 4;   // (new navmesh legs this frame - the rest walk straight a frame longer)
 	PaxNav::Ready(GetWorld());   // (each frame: "navmesh ready" logged the moment it is, or a warning if it never comes)
+	// (-PaxFlowTest: the first passengers wait for the navmesh rather than walk straight through walls)
+	if (bTest && !bTestMade && !PaxNav::Ready(GetWorld()) && !PaxNav::Failed(GetWorld()))
+	{
+		static double NextSay = 0.0;
+		if (RealT >= NextSay) { NextSay = RealT + 10.0; ADP_LOG(TEXT("PaxFlow: test passengers wait for the navmesh (%d tile jobs left)"), PaxNav::JobsLeft(GetWorld())); }
+		return;
+	}
 	if ((NavSweepIn -= Dt) <= 0.f) { NavSweepIn = 5.f; PaxNav::Sweep(GetWorld()); if (!DoorsActor.IsValid()) for (TActorIterator<ATerminalDoors> It(GetWorld()); It; ++It) { DoorsActor = *It; break; } if (!SeatsActor.IsValid()) for (TActorIterator<ASeats> It(GetWorld()); It; ++It) { SeatsActor = *It; break; } }   // (things spawned since: off the navmesh)
 	SpawnGap -= Dt;
 	if (bTest && !bTestMade) MakeTestRuns();
+	// (tests: after the revolving door ride, a few seconds more on the rider, then back to who was followed before)
+	if (RevReturnIn > 0.f && (RevReturnIn -= Dt) <= 0.f)
+	{
+		if (Pax.IsValidIndex(RevReturn) && Pax[RevReturn].St != EPx::Gone && Pax[RevReturn].A.IsValid()) { Watched = RevReturn; ADP_LOG(TEXT("PaxFlow: the camera goes back to %s - %s"), *Pax[Watched].Id, *Pax[Watched].Stage); }
+		RevReturn = INDEX_NONE;
+	}
 	if ((PollIn -= Dt) <= 0.f) { PollIn = 5.f; Poll(); }
 	for (int32 r = 0; r < Runs.Num(); ++r) StepRun(r, Dt);
 	// the walkers: close ones every frame, far ones every fourth (they keep going at the same speed)
@@ -1323,16 +1410,16 @@ void APaxFlow::Tick(float Dt)
 		P.Acc += Dt;
 		const AActor* A = P.A.Get();
 		const bool bNear = A && FVector::DistSquared(A->GetActorLocation(), Eye) < FMath::Square(6000.f);
-		if (!bNear && (Frame + i) % 4 != 0 && i != Watched) continue;
+		if (!bNear && (Frame + i) % 4 != 0 && i != Watched && P.St != EPx::Revolve) continue;   // (at a revolving door: every frame - its windows are short)
 		const float Step = FMath::Min(P.Acc, 0.3f); P.Acc = 0.f;
 		StepPx(i, Step);
-		if (Pax.IsValidIndex(i)) if (const AActor* A2 = Pax[i].A.Get()) if (Pax[i].St == EPx::Walk || Pax[i].St == EPx::Jetway) ATerminalDoors::Openers.Add(A2->GetActorLocation());
+		if (Pax.IsValidIndex(i)) if (const AActor* A2 = Pax[i].A.Get()) if (Pax[i].St == EPx::Walk || Pax[i].St == EPx::Jetway || Pax[i].St == EPx::Revolve) ATerminalDoors::Openers.Add(A2->GetActorLocation());   // (also the revolving doors' presence sensor)
 	}
 	// now and then: how many are where
 	if ((SayIn -= Dt) <= 0.f)
 	{
 		SayIn = 30.f;
-		int32 N[12] = {}; for (const FPx& P : Pax) ++N[(int32)P.St];
+		int32 N[13] = {}; for (const FPx& P : Pax) ++N[(int32)P.St];
 		const int32 Live = Walking();
 		if (Live || Runs.Num()) ADP_LOG(TEXT("PaxFlow: %d about - %d walking, %d in desk queues, %d at desks, %d at security, %d waiting standing, %d sitting, %d leaning, %d boarding, %d at the claim; %d aboard, %d out so far; %d flights"),
 			Live, N[(int32)EPx::Walk], N[(int32)EPx::DeskQ], N[(int32)EPx::Desk], N[(int32)EPx::LaneQ], N[(int32)EPx::Wait], N[(int32)EPx::Seated], N[(int32)EPx::Lean], N[(int32)EPx::Call] + N[(int32)EPx::Jetway], N[(int32)EPx::ClaimWait] + N[(int32)EPx::ToBag], TotalAboard, TotalOut, Runs.Num());
@@ -1354,6 +1441,15 @@ bool APaxFlow::WatchPoints(TArray<FVector>& Pts, FVector& Side) const
 	// one passenger followed from the start of their trip to its end, then the newest one still on the move
 	APaxFlow* Me = const_cast<APaxFlow*>(this);
 	auto Moving = [](const FPx& P) { return P.St != EPx::Gone && P.St != EPx::Seated && P.St != EPx::Lean && P.St != EPx::Wait && P.A.IsValid(); };
+	// (tests: the first walker to come to a revolving door is followed through it - the waiting, the ride, the step out)
+	if (bTest && !bRevShown)
+		for (int32 i = 0; i < Pax.Num(); ++i)
+			if (Pax[i].St == EPx::Revolve && Pax[i].A.IsValid())
+			{
+				Me->bRevShown = true; Me->RevReturn = Watched; Me->Watched = i;
+				ADP_LOG(TEXT("PaxFlow: the camera follows %s (%s) through revolving door %s"), *Pax[i].Id, *Pax[i].Name, Doors() ? *Doors()->RevolvingId(Pax[i].Rev) : TEXT("?"));
+				break;
+			}
 	if (!Pax.IsValidIndex(Watched) || Pax[Watched].St == EPx::Gone || !Pax[Watched].A.IsValid() || (!Moving(Pax[Watched]) && Pax[Watched].T > 15.f))
 	{
 		int32 Best = INDEX_NONE;
@@ -1369,6 +1465,7 @@ bool APaxFlow::WatchPoints(TArray<FVector>& Pts, FVector& Side) const
 	const FVector L = A->GetActorLocation();
 	Pts.Add(L); Pts.Add(L + FVector(0, 0, 180.f));
 	if (P.bHasBag && P.Holder) Pts.Add(P.Holder->GetComponentLocation() - FVector(0, 0, 40.f));
+	if (P.St == EPx::Revolve) if (const ATerminalDoors* Dr = Doors()) { FVector C, Ax; float Rc; if (Dr->RevolvingFrame(P.Rev, C, Ax, Rc)) { const FVector Sd(-Ax.Y, Ax.X, 0.f); Pts.Add(C + Sd * Rc); Pts.Add(C - Sd * Rc); Pts.Add(C + FVector(0, 0, 250.f)); } }   // (the whole drum in frame)
 	if (P.St == EPx::Desk || P.St == EPx::DeskQ) if (const ADepartureBelts* D = ADepartureBelts::Get(GetWorld())) Pts.Add(D->DeskSlot(P.Desk).GetLocation());
 	if (P.St == EPx::ToBag || P.St == EPx::ClaimWait) if (const ABaggageBelts* B = ABaggageBelts::Get(GetWorld())) { FVector At; bool bOn = false; if (B->PaxBag(P.Id, At, bOn) && bOn) Pts.Add(At); }
 	Side = FRotator(0.f, A->GetActorRotation().Yaw + 180.f, 0.f).Vector();   // (the actor's -X: the person's right - a MetaHuman faces its actor's +Y)
@@ -1380,6 +1477,172 @@ FString APaxFlow::WatchWhat() const
 	if (!Pax.IsValidIndex(Watched) || Pax[Watched].St == EPx::Gone) return FString();
 	const FPx& P = Pax[Watched];
 	return FString::Printf(TEXT("%s (%s, %s): %s"), *P.Id, P.bArr ? TEXT("arriving") : TEXT("departing"), Runs.IsValidIndex(P.Run) ? *Runs[P.Run].Label : TEXT("?"), *P.Stage);
+}
+
+#pragma endregion
+
+#pragma region Revolving doors
+
+// (owner 2026-11-21: the revolving doors work for passengers - nobody ever stuck, everyone out). At the door they wait
+// at a short queue outside its opening until an EMPTY compartment lines up with them (ATerminalDoors::RevolvingBoard:
+// one walker a compartment - PaxFlow has no parties yet; never strangers together), step in, and are then carried
+// round kinematically on the compartment's arc at the door's own speed - never steered by collision, so they can't
+// snag on the glass; the legs walk with it (Anim measures the real motion). Lined up with the far opening, they step
+// out and the compartment is free. Missed it (the way out blocked): the door's safety stop turns them back to it.
+
+ATerminalDoors* APaxFlow::Doors() const { return ATerminalDoors::Find(GetWorld()); }
+
+APaxFlow::FLine& APaxFlow::RevLine(int32 Rev, int32 Side)
+{
+	const int32 K = FMath::Max(0, Rev) * 2 + (Side > 0 ? 1 : 0);
+	if (RevLines.Num() <= K) RevLines.SetNum(K + 1);
+	return RevLines[K];
+}
+
+void APaxFlow::StartRevolve(int32 i)
+{
+	FPx& P = Pax[i];
+	const FWp W = P.Way[P.Wi];
+	P.RevAfter.Reset();
+	for (int32 k = P.Wi + 1; k < P.Way.Num(); ++k) P.RevAfter.Add(P.Way[k]);
+	P.Rev = W.Rev; P.RevSide = W.RevSide; P.RevComp = INDEX_NONE; P.RevPhase = 0; P.RevT = 0.f;
+	RevLine(P.Rev, P.RevSide).Who.AddUnique(i);
+	P.St = EPx::Revolve;
+	const ATerminalDoors* Dr = Doors();
+	const FString Id = Dr ? Dr->RevolvingId(P.Rev) : FString(TEXT("?"));
+	P.Stage = FString::Printf(TEXT("at revolving door %s, waiting for an empty compartment"), *Id);
+	if (Runs.IsValidIndex(P.Run) && (Runs[P.Run].bTest || Runs[P.Run].Spawned <= 3)) ADP_LOG(TEXT("PaxFlow: %s at revolving door %s (%d waiting there)"), *P.Id, *Id, RevLine(P.Rev, P.RevSide).Who.Num());
+}
+
+void APaxFlow::EndRevolve(FPx& P, bool bThrough)
+{
+	const int32 i = int32(&P - Pax.GetData());
+	RevLine(P.Rev, P.RevSide).Who.Remove(i);
+	if (P.RevComp != INDEX_NONE) if (ATerminalDoors* Dr = Doors()) Dr->RevolvingLeave(P.Rev, P.RevComp);
+	P.Way.Reset(); P.Wi = 0;
+	if (!bThrough)
+	{
+		// (never stuck: no way in by this door - along the front to the main entrance's sliding doors instead)
+		const float J = float(P.Jit.X) / 100.f;
+		auto Add = [&](float X, float Z, bool bG) { FWp W; W.P = PW(X, 0, Z); W.bGround = bG; if (bG) W.P.Z = GroundZ(X, Z); P.Way.Add(W); };
+		Add(PXDOORX + J * 2.f, -8.f, true); Add(PXDOORX + J, -4.f, false); Add(PXDOORX + J, 0.f, false); Add(PXDOORX + J * 3.f, 2.5f, false);
+		for (int32 k = 4; k < P.RevAfter.Num(); ++k) P.Way.Add(P.RevAfter[k]);   // (past the door's own lobby points)
+	}
+	else P.Way = P.RevAfter;
+	P.RevAfter.Reset();
+	P.Rev = INDEX_NONE; P.RevComp = INDEX_NONE; P.RevPhase = 0;
+	P.St = EPx::Walk;
+	P.Stage = bThrough ? TEXT("through the revolving door, into the hall") : TEXT("round to the main entrance");
+	if (i == Watched && RevReturn != INDEX_NONE) RevReturnIn = 4.f;
+}
+
+void APaxFlow::StepRevolve(int32 i, float Dt)
+{
+	FPx& P = Pax[i];
+	AActor* A = P.A.Get(); if (!A) return;
+	ATerminalDoors* Dr = Doors();
+	FVector C, Ax; float Rc = 0.f;
+	if (!Dr || !Dr->RevolvingFrame(P.Rev, C, Ax, Rc)) { EndRevolve(P, false); return; }
+	const FVector In = Ax * float(P.RevSide);   // (from the middle out to their own side)
+	const FVector Exit = C - In * (Rc + 70.f);
+	P.RevT += Dt;
+	P.bRideNow = false;   // (they walk with the wing: the legs follow the real motion)
+	// on the floor: straight down from knee height, never onto a person (as Follow)
+	auto Place = [&](FVector N, const FVector& Face, float Turn)
+	{
+		FHitResult H; FCollisionQueryParams Q(SCENE_QUERY_STAT(PaxRevFloor), false, A);
+		const float Z0 = A->GetActorLocation().Z;
+		N.Z = Z0;
+		if (GetWorld()->LineTraceSingleByChannel(H, FVector(N.X, N.Y, Z0 + 45.f), FVector(N.X, N.Y, Z0 - 150.f), ECC_Visibility, Q))
+		{
+			bool bPerson = false; if (const AActor* Hit = H.GetActor()) for (const FPx& O : Pax) if (O.A.Get() == Hit) { bPerson = true; break; }
+			if (!bPerson) N.Z = H.ImpactPoint.Z;
+		}
+		A->SetActorLocation(N);
+		if (!Face.IsNearlyZero()) A->SetActorRotation(FMath::RInterpTo(A->GetActorRotation(), FRotator(0.f, Face.Rotation().Yaw - 90.f, 0.f), Dt, Turn));
+		Anim(P);
+	};
+	switch (P.RevPhase)
+	{
+	case 0:   // waiting outside, in the queue
+	{
+		const TArray<int32>& L = RevLine(P.Rev, P.RevSide).Who;
+		const int32 K = FMath::Max(0, L.IndexOfByKey(i));
+		FVector Spot = C + In * (Rc + 80.f + 90.f * K);
+		Spot.Z = GroundZ(PlanOf(Spot).X, PlanOf(Spot).Z);
+		if (FVector::Dist2D(Spot, A->GetActorLocation()) > 35.f)
+		{
+			P.Way.Reset(); P.Wi = 0; FWp W; W.P = Spot; W.bGround = true; W.bNav = true; P.Way.Add(W);
+			Follow(P, A, Dt);
+			break;
+		}
+		const FVector Face = -In; Idle(P, A, Dt, &Face);
+		if (K != 0) break;
+		const int32 Comp = Dr->RevolvingBoard(P.Rev, P.RevSide, i, P.Id);
+		if (Comp != INDEX_NONE)
+		{
+			RevLine(P.Rev, P.RevSide).Who.Remove(i);
+			P.RevComp = Comp; P.RevPhase = 1; P.RevT = 0.f; P.RevFrom = A->GetActorLocation();
+			P.Stage = FString::Printf(TEXT("stepping into compartment %d of revolving door %s"), Comp + 1, *Dr->RevolvingId(P.Rev));
+			if (Runs.IsValidIndex(P.Run) && Runs[P.Run].bTest) ADP_LOG(TEXT("PaxFlow: %s steps into compartment %d of revolving door %s"), *P.Id, Comp + 1, *Dr->RevolvingId(P.Rev));
+		}
+		else if (P.RevT > 60.f)
+		{
+			ADP_WARN(TEXT("PaxFlow: %s waited 60 s at revolving door %s with no empty compartment coming round - round to the main entrance"), *P.Id, *Dr->RevolvingId(P.Rev));
+			EndRevolve(P, false);
+		}
+		break;
+	}
+	case 1:   // stepping in: onto the compartment's middle as it comes round
+	{
+		FVector Dir; float Sp = 0.f;
+		const FVector Tgt = Dr->RevolvingSpot(P.Rev, P.RevComp, 0.6f, &Dir, &Sp);
+		const float K = FMath::SmoothStep(0.f, 1.f, FMath::Min(P.RevT / 1.1f, 1.f));
+		const FVector N = FMath::Lerp(P.RevFrom, Tgt, K);
+		P.Speed = 100.f;
+		Place(N, FMath::Lerp(-In, Dir, K), 4.f);
+		if (P.RevT >= 1.1f)
+		{
+			Dr->RevolvingRiding(P.Rev, P.RevComp);
+			P.RevPhase = 2; P.RevT = 0.f;
+			P.Stage = FString::Printf(TEXT("riding round in compartment %d of revolving door %s"), P.RevComp + 1, *Dr->RevolvingId(P.Rev));
+		}
+		break;
+	}
+	case 2:   // carried round with it, walking along
+	{
+		FVector Dir; float Sp = 0.f;
+		const FVector N = Dr->RevolvingSpot(P.Rev, P.RevComp, 0.6f, &Dir, &Sp);
+		P.Speed = Sp;
+		Place(N, Sp > 3.f ? Dir : FVector::ZeroVector, 4.f);
+		bool bHeld = false;
+		if (Dr->RevolvingAtExit(P.Rev, P.RevComp, &bHeld))
+		{
+			// (out when the way out is clear - someone standing right there: wait; the door stopped for them: out now)
+			bool bClear = true;
+			for (const FPx& O : Pax)
+			{
+				if (&O == &P || O.St == EPx::Gone) continue;
+				const AActor* OA = O.A.Get(); if (!OA) continue;
+				if (FMath::Abs(OA->GetActorLocation().Z - Exit.Z) < 120.f && FVector::DistSquared2D(OA->GetActorLocation(), Exit) < FMath::Square(60.f)) { bClear = false; break; }
+			}
+			if (bClear || bHeld) { P.RevPhase = 3; P.RevT = 0.f; P.RevFrom = A->GetActorLocation(); P.Stage = TEXT("stepping out of the revolving door"); }
+		}
+		break;
+	}
+	default:   // stepping out, square through the opening
+	{
+		const float K = FMath::SmoothStep(0.f, 1.f, FMath::Min(P.RevT / 1.0f, 1.f));
+		P.Speed = 100.f;
+		Place(FMath::Lerp(P.RevFrom, Exit, K), -In, 4.f);
+		if (P.RevT >= 1.0f)
+		{
+			if (Runs.IsValidIndex(P.Run) && (Runs[P.Run].bTest || Runs[P.Run].Spawned <= 3)) ADP_LOG(TEXT("PaxFlow: %s out of revolving door %s (compartment %d free again)"), *P.Id, *Dr->RevolvingId(P.Rev), P.RevComp + 1);
+			EndRevolve(P, true);
+		}
+		break;
+	}
+	}
 }
 
 #pragma endregion

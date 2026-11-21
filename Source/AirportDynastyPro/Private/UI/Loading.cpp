@@ -6,6 +6,7 @@
 #include "UI/SNeonLoading.h"
 #include "ADPLog.h"
 #include "People.h"
+#include "PaxNav.h"
 // (Windows' own OPAQUE macro would break Cesium's glTF names when the build puts a Windows file before this one)
 #ifdef OPAQUE
 #undef OPAQUE
@@ -61,6 +62,7 @@ void AADPHUD::TickLoading(float Dt)
 {
 	if (!bLoading) return;
 	LoadT += Dt;
+	PaxNav::Kick(GetWorld());   // (the walkers' navmesh made behind the loading screen)
 	// all in: the finished look for 4 s, then the airport
 	if (GLoadDoneAt >= 0.0) { if (LoadT - GLoadDoneAt >= 4.0) StopLoading(); return; }
 	// the shaders still to compile, the terrain's tiles round here, the textures still streaming in
@@ -81,13 +83,16 @@ void AADPHUD::TickLoading(float Dt)
 	const float PsoK = GPsoFrom < 0.0 ? 0.f : 1.f - float(Pso) / float(GPsoMax);
 	const float Goal = bWorld ? 0.85f + 0.15f * PsoK : Want;
 	LoadFrac = FMath::Max(LoadFrac, FMath::Min(Goal, LoadFrac + Dt * 0.6f));   // never backwards, smooth
-	LoadStep = bWorld ? (Pso > 0 ? FString::Printf(TEXT("Loading shader cache… %d %%"), FMath::RoundToInt(100.f * PsoK)) : FString(TEXT("Ready")))
+	// and the walkers' navmesh (where the walls and floors are): all in only when it is ready (or gave up)
+	const bool bNav = PaxNav::Ready(GetWorld()) || PaxNav::Failed(GetWorld()) || (!PaxNav::Started(GetWorld()) && LoadT > 10.f) || LoadT > 150.f;
+	LoadStep = bWorld ? (Pso > 0 ? FString::Printf(TEXT("Loading shader cache… %d %%"), FMath::RoundToInt(100.f * PsoK))
+		: !bNav ? FString::Printf(TEXT("Mapping the walkways… (%d to go)"), PaxNav::JobsLeft(GetWorld())) : FString(TEXT("Ready")))
 		: Shaders > 0 ? FString::Printf(TEXT("Compiling shaders… (%d to go)"), Shaders)
 		: Terrain < 0.99f ? TEXT("Loading the terrain round the airport…")
 		: Tex > 0 ? TEXT("Loading the textures…")
 		: Pictures < 1.f ? TEXT("Loading the satellite pictures…") : TEXT("Ready");
 	// done: all of it in (the shader cache at most 90 s - beyond that it finishes in the background)
-	const bool bDone = bWorld && (Pso == 0 || LoadT - GPsoFrom > 90.0) && LoadFrac >= 0.85f + 0.15f * PsoK - 0.001f;
+	const bool bDone = bWorld && bNav && (Pso == 0 || LoadT - GPsoFrom > 90.0) && LoadFrac >= 0.85f + 0.15f * PsoK - 0.001f;
 	if (bDone || LoadT > 210.f)
 	{
 		LoadFrac = 1.f; GLoadDoneAt = LoadT;
