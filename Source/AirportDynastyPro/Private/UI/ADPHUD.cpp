@@ -5,6 +5,8 @@
 #include "SiteTrees.h"
 #include "DepartureBelts.h"
 #include "PaxFlow.h"
+#include "PaxProps.h"
+#include "PaxAnimInstance.h"
 static bool GTourTracking = false;   // (the tug tour's tracking camera has a subject this frame)
 #include "Tugs.h"
 #include "GeoFrame.h"
@@ -2252,6 +2254,41 @@ void AADPHUD::RefreshControls()
 	}
 }
 
+// -UIPaxProps (the look check): two passengers in front of the camera, one with the phone out, one with the tablet
+static void ADPPaxPropsLook(APlayerController* PC)
+{
+	static TArray<TWeakObjectPtr<AActor>> Pp;
+	AADPPeople* People = PC ? AADPPeople::Get(PC->GetWorld()) : nullptr;
+	if (!People || !PC->PlayerCameraManager) return;
+
+	const FVector Eye = PC->PlayerCameraManager->GetCameraLocation();
+	const FRotator Look(0.f, PC->PlayerCameraManager->GetCameraRotation().Yaw, 0.f);
+	const FVector Fwd = Look.Vector(), Right = FRotationMatrix(Look).GetUnitAxis(EAxis::Y);
+	TArray<FString> Names; FString Text;
+	if (FFileHelper::LoadFileToString(Text, *(FPaths::ProjectContentDir() / TEXT("Data/people-roster.json"))))
+	{
+		TArray<TSharedPtr<FJsonValue>> Rows;
+		if (FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Rows))
+			for (const TSharedPtr<FJsonValue>& V : Rows) if (const TSharedPtr<FJsonObject> O = V->AsObject()) if (O->GetStringField(TEXT("role")) == TEXT("passenger")) Names.Add(O->GetStringField(TEXT("name")));
+	}
+	for (int32 n = 0; n < Names.Num() && Pp.Num() < 2; ++n)
+	{
+		const int32 i = Pp.Num();
+		FVector At = Eye + Fwd * 240.f + Right * (i == 0 ? -45.f : 45.f);
+		FHitResult H; if (PC->GetWorld()->LineTraceSingleByChannel(H, At + FVector(0, 0, 100.f), At - FVector(0, 0, 500.f), ECC_Visibility)) At.Z = H.ImpactPoint.Z;
+		// (a MetaHuman faces its actor's +y: turned to the camera, a little to the side)
+		AActor* A = People->Spawn(Names[n], At, Look.Yaw + 180.f - 90.f + (i == 0 ? 20.f : -20.f));
+		if (!A) continue;
+		AADPPeople::FWho* W = People->Find(A); USkeletalMeshComponent* B = W ? W->Body : nullptr;
+		UPaxAnimInstance::Install(B);
+		APaxProps::Dress(A, B, 7 + i);
+		if (i == 1) { APaxProps::GiveTablet(A); APaxProps::HoldTablet(A, true); } else APaxProps::HoldPhone(A, true);
+		Pp.Add(A);
+	}
+	PC->SetControlRotation(FRotator(-8.f, Look.Yaw, 0.f));
+	ADP_LOG(TEXT("UIPaxProps: %d passengers with their devices out"), Pp.Num());
+}
+
 void AADPHUD::Tick(float Dt)
 {
 	ADP_PERF_SCOPE("the interface and its checks (each frame)", 6.f);
@@ -4353,6 +4390,16 @@ void AADPHUD::Tick(float Dt)
 				}
 			if (Before < 49.f && ShotClock >= 49.f) FScreenshotRequest::RequestScreenshot(TEXT("EscLook_Side"), true, false);
 			if (Before < 50.f && ShotClock >= 50.f) ADP_SHOT_EXIT();
+		}
+		// -UIPaxProps: one look at the passengers' hand props (PaxProps.h, owner 2026-11-21): outside at the kerb in daylight,
+		// two passengers in front of the camera - one with the phone out in both hands, one with the tablet - one picture
+		// (4K with -ResX/-ResY), then out
+		if (FParse::Param(FCommandLine::Get(), TEXT("UIPaxProps")))
+		{
+			if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ASunClock::DayOverride = 172; ASunClock::HourOverride = 13.f; ASunClock::Refresh(); OpenSite(); }
+			if (Before < 42.f && ShotClock >= 42.f) ADPPaxPropsLook(GetOwningPlayerController());
+			if (Before < 47.f && ShotClock >= 47.f) FScreenshotRequest::RequestScreenshot(TEXT("PaxProps"), true, false);
+			if (Before < 48.f && ShotClock >= 48.f) ADP_SHOT_EXIT();
 		}
 		// -UIPetLook: one look at the pets' textures (owner, 2026-11-15: just a screenshot, then out): outside at the
 		// kerb, every pet model side by side in front of the camera in daylight

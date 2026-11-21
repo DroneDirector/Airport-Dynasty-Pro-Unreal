@@ -77,6 +77,7 @@ private:
 		int32 Desk = 0, Lane = -1, Seat = INDEX_NONE, Order = 0;
 		float LeanYaw = 0.f, Fidget = 0.f; double BoardAt = -1.0; bool bEsc = false, bPriority = false;
 		FString Stage;   // (in words, for the tests' caption)
+		float DevIn = -1.f, DevFor = 0.f; uint8 Dev = 0;   // (waiting at the gate: the phone / tablet out - APaxProps; in how long, for how long, which)
 		int32 Rev = INDEX_NONE, RevComp = INDEX_NONE, RevPhase = 0, RevSide = 0; float RevT = 0.f; FVector RevFrom = FVector::ZeroVector; TArray<FWp> RevAfter;   // (a revolving door: which, the compartment, 0 waiting 1 stepping in 2 riding 3 stepping out; the way on after it)
 		float FadeT = -1.f; int32 FadeFrom = INDEX_NONE; bool bFadeSwap = false; TWeakObjectPtr<class UMaterialInstanceDynamic> FadeMid;   // (boarding: faded away halfway along the jetway)
 	};
@@ -114,6 +115,7 @@ private:
 	double RealT = 0.0, SimT = 0.0;
 	float F2Z = 600.f, F2Y = 6.f;
 	int32 Frame = 0, Watched = INDEX_NONE, TotalAboard = 0, TotalOut = 0;
+	int32 PhoneWho = INDEX_NONE, PhoneReturn = INDEX_NONE; float PhoneShowIn = -1.f; bool bPhoneShown = false;   // (tests: the camera on someone using a phone at the gate, a while)
 	bool bRevShown = false; int32 RevReturn = INDEX_NONE; float RevReturnIn = -1.f;   // (tests: the camera shows one revolving door ride, then goes back)
 	FRandomStream Rng;
 

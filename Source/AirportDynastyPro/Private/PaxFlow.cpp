@@ -27,6 +27,7 @@
 #include "Animation/AnimSingleNodeInstance.h"
 #include "PaxAnimInstance.h"
 #include "PaxNav.h"
+#include "PaxProps.h"
 #include "Camera/PlayerCameraManager.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/World.h"
@@ -422,6 +423,9 @@ AActor* APaxFlow::Body(const FVector& At, float Yaw, FPx& P)
 	// (their own animation instance: the same walk blend space, plus the right hand closed round a carried bag's handle
 	//  and the arm a little out - PaxAnimInstance.h)
 	UPaxAnimInstance::Install(P.Body.Get());
+	// (what they carry: everyone a phone, about one in ten a tablet - PaxProps.h; the test: every fourth one a tablet)
+	APaxProps::Dress(A, P.Body.Get(), Rng.RandRange(0, MAX_int32 - 1));
+	if (bTest && Runs.IsValidIndex(P.Run) && Runs[P.Run].bTest && (Runs[P.Run].Spawned % 4) == 1) APaxProps::GiveTablet(A);
 	// (far away their animation updates only while seen, and less often - no change up close)
 	TArray<USkeletalMeshComponent*> Sk; A->GetComponents<USkeletalMeshComponent>(Sk);
 	for (USkeletalMeshComponent* S : Sk) { S->bEnableUpdateRateOptimizations = true; S->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered; }
@@ -544,6 +548,7 @@ void APaxFlow::Finish(int32 i, const TCHAR* Why)
 		ASeats::Release(A);
 		if (P.bHasBag && P.bArr) if (ABaggageBelts* B = ABaggageBelts::Get(GetWorld())) B->DropPaxBag(P.Id);
 		if (P.bHasBag && !P.bArr && P.Bag != INDEX_NONE) if (ADepartureBelts* D = ADepartureBelts::Get(GetWorld())) D->RemoveBag(P.Bag);
+		APaxProps::Forget(A);
 		A->Destroy();
 	}
 	if (P.Holder) { Holders.Remove(P.Holder); P.Holder->DestroyComponent(); P.Holder = nullptr; }
@@ -1383,6 +1388,13 @@ void APaxFlow::Tick(float Dt)
 		if (Pax.IsValidIndex(RevReturn) && Pax[RevReturn].St != EPx::Gone && Pax[RevReturn].A.IsValid()) { Watched = RevReturn; ADP_LOG(TEXT("PaxFlow: the camera goes back to %s - %s"), *Pax[Watched].Id, *Pax[Watched].Stage); }
 		RevReturn = INDEX_NONE;
 	}
+	// (tests: after a while on someone using a phone at the gate, back to who was followed before)
+	if (PhoneShowIn > 0.f && (PhoneShowIn -= Dt) <= 0.f)
+	{
+		PhoneWho = INDEX_NONE;
+		if (Pax.IsValidIndex(PhoneReturn) && Pax[PhoneReturn].St != EPx::Gone && Pax[PhoneReturn].A.IsValid()) { Watched = PhoneReturn; ADP_LOG(TEXT("PaxFlow: the camera goes back to %s - %s"), *Pax[Watched].Id, *Pax[Watched].Stage); }
+		PhoneReturn = INDEX_NONE;
+	}
 	if ((PollIn -= Dt) <= 0.f) { PollIn = 5.f; Poll(); }
 	for (int32 r = 0; r < Runs.Num(); ++r) StepRun(r, Dt);
 	// the walkers: close ones every frame, far ones every fourth (they keep going at the same speed)
@@ -1427,6 +1439,37 @@ void APaxFlow::Tick(float Dt)
 				Pa->IdleFidgets(Step, bStill, false, Q.bHasBag && !(!Q.bArr && Q.bBagDown));
 			}
 		}
+		// waiting at the gate (sat, standing or leaning; owner 2026-11-21): after 20-60 s the phone comes out and stays out a
+		// long while (45 s - 3 min; a tablet owner now and then the tablet instead), away again, a while later out again;
+		// put away for the boarding call (APaxProps: both hands, the head down at it)
+		if (Pax.IsValidIndex(i))
+		{
+			FPx& Q = Pax[i];
+			AActor* QA = Q.A.Get();
+			const bool bGate = QA && !Q.bArr && (Q.St == EPx::Seated || Q.St == EPx::Lean || (Q.St == EPx::Wait && Q.MoveSpd < 15.f));
+			const bool bTestRun = Runs.IsValidIndex(Q.Run) && Runs[Q.Run].bTest;
+			if (bGate)
+			{
+				if (Q.DevIn < 0.f && !Q.Dev) Q.DevIn = bTestRun ? Rng.FRandRange(3.f, 8.f) : Rng.FRandRange(20.f, 60.f);
+				if (!Q.Dev && (Q.DevIn -= Step) <= 0.f)
+				{
+					Q.Dev = APaxProps::HasTablet(QA) && Rng.FRand() < 0.4f ? 2 : 1;
+					Q.DevFor = Rng.FRandRange(45.f, 180.f);
+					if (Q.Dev == 2) APaxProps::HoldTablet(QA, true); else APaxProps::HoldPhone(QA, true);
+					if (bTestRun) ADP_LOG(TEXT("PaxFlow: %s takes out their %s (%s)"), *Q.Id, Q.Dev == 2 ? TEXT("tablet") : TEXT("phone"), *Q.Stage);
+				}
+				else if (Q.Dev && (Q.DevFor -= Step) <= 0.f)
+				{
+					APaxProps::HoldPhone(QA, false); APaxProps::HoldTablet(QA, false);
+					Q.Dev = 0; Q.DevIn = Rng.FRandRange(10.f, 35.f);
+				}
+			}
+			else if (Q.Dev || Q.DevIn >= 0.f)
+			{
+				if (Q.Dev && QA) { APaxProps::HoldPhone(QA, false); APaxProps::HoldTablet(QA, false); }
+				Q.Dev = 0; Q.DevIn = -1.f;
+			}
+		}
 		if (Pax.IsValidIndex(i)) if (const AActor* A2 = Pax[i].A.Get()) if (Pax[i].St == EPx::Walk || Pax[i].St == EPx::Jetway || Pax[i].St == EPx::Revolve) ATerminalDoors::Openers.Add(A2->GetActorLocation());   // (also the revolving doors' presence sensor)
 	}
 	// now and then: how many are where
@@ -1464,6 +1507,30 @@ bool APaxFlow::WatchPoints(TArray<FVector>& Pts, FVector& Side) const
 				ADP_LOG(TEXT("PaxFlow: the camera follows %s (%s) through revolving door %s"), *Pax[i].Id, *Pax[i].Name, Doors() ? *Doors()->RevolvingId(Pax[i].Rev) : TEXT("?"));
 				break;
 			}
+	// (tests: the first one at the gate with a phone or tablet out in their hands is shown for 12 s - the device, the
+	//  hands, the head bent down to it - seen from their front right)
+	if (bTest && !bPhoneShown && RevReturn == INDEX_NONE)
+		if (const APaxProps* Props = APaxProps::Find(GetWorld()))
+			for (int32 i = 0; i < Pax.Num(); ++i)
+			{
+				FVector Dv;
+				if (Pax[i].Dev && Pax[i].A.IsValid() && Props->UsingPoint(Pax[i].A.Get(), Dv))
+				{
+					Me->bPhoneShown = true; Me->PhoneWho = i; Me->PhoneReturn = Watched; Me->PhoneShowIn = 12.f;
+					ADP_LOG(TEXT("PaxFlow: the camera shows %s (%s) using their %s - %s"), *Pax[i].Id, *Pax[i].Name, Pax[i].Dev == 2 ? TEXT("tablet") : TEXT("phone"), *Pax[i].Stage);
+					break;
+				}
+			}
+	if (Pax.IsValidIndex(PhoneWho) && PhoneShowIn > 0.f && Pax[PhoneWho].A.IsValid())
+	{
+		const AActor* PA = Pax[PhoneWho].A.Get();
+		const FVector L = PA->GetActorLocation(); Pts.Reset();
+		FVector Dv; if (const APaxProps* Props = APaxProps::Find(GetWorld())) if (Props->UsingPoint(PA, Dv)) Pts.Add(Dv);
+		Pts.Add(L + FVector(0, 0, 60.f)); Pts.Add(L + FVector(0, 0, 175.f));
+		const FRotator Y(0.f, PA->GetActorRotation().Yaw, 0.f);
+		Side = (FRotationMatrix(Y).GetUnitAxis(EAxis::Y) * 0.8f - FRotationMatrix(Y).GetUnitAxis(EAxis::X) * 0.6f).GetSafeNormal();   // (a MetaHuman faces its actor's +y; its right is -x)
+		return true;
+	}
 	if (!Pax.IsValidIndex(Watched) || Pax[Watched].St == EPx::Gone || !Pax[Watched].A.IsValid() || (!Moving(Pax[Watched]) && Pax[Watched].T > 15.f))
 	{
 		int32 Best = INDEX_NONE;

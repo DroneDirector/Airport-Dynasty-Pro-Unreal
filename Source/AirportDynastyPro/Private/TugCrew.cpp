@@ -56,7 +56,7 @@
 
 namespace
 {
-	const FVector Up(0, 0, 1);
+	const FVector TugUp(0, 0, 1);   // (not "Up": in a unity build this file shares a bundle with others that have their own Up)
 	// the tug's own points (cm, the model's root: Blender (x, y, z) m -> (x, -y, z) * 100; its left side is -y)
 	const FVector DoorStand(8.f, -178.f, 0.f);       // outside the door, behind its swing
 	const FVector HingeAt(57.f, -119.25f, 0.f);       // the door's hinge line (x 0.57, y CAB_Y1 + 0.015)
@@ -78,14 +78,14 @@ namespace
 	FDriverPose Standing(const FVector& At, const FVector& Face, float PH)
 	{
 		FDriverPose P; P.Facing = Face.GetSafeNormal2D(); const FVector L = LeftOf(P.Facing);
-		P.Pelvis = At + Up * PH; P.Foot[0] = At + L * 12.f; P.Foot[1] = At - L * 12.f;
+		P.Pelvis = At + TugUp * PH; P.Foot[0] = At + L * 12.f; P.Foot[1] = At - L * 12.f;
 		return P;
 	}
 	// down on the haunches at a spot, both hands at a place (the towbar's head, the nose gear's steering collar)
 	FDriverPose Squat(const FVector& At, const FVector& Face, const FVector& Hands, float PH, float E)
 	{
 		FDriverPose S = Standing(At, Face, PH); const FVector L = LeftOf(S.Facing);
-		FDriverPose D = S; D.Pelvis = At + Up * (PH * 0.55f) - S.Facing * 14.f; D.Lean = 38.f;
+		FDriverPose D = S; D.Pelvis = At + TugUp * (PH * 0.55f) - S.Facing * 14.f; D.Lean = 38.f;
 		D.Foot[0] = At + L * 19.f + S.Facing * 4.f; D.Foot[1] = At - L * 19.f + S.Facing * 4.f;
 		D.bHand[0] = D.bHand[1] = true; D.Hand[0] = Hands + L * 11.f; D.Hand[1] = Hands - L * 11.f; D.Grip[0] = D.Grip[1] = 0.8f;
 		return Lerp(S, D, E);
@@ -410,9 +410,9 @@ void ATugs::CrewCouple(int32 Tug)
 	auto Geo = [this, Tug](FVector& Fit, FVector& F, FVector& L, FVector& Gear) { const FTug& U = Tugs[Tug]; Fit = U.Fit; F = U.Fwd; L = -LeftOf(F); Gear = Fit - F * 60.f; };   // (L: the side the handler works on - the aircraft's RIGHT, away from the jetway and its red zone at the gate; test of 2026-11-21)
 	auto HeadSpot = [Geo] { FVector Fit, F, L, G; Geo(Fit, F, L, G); return Fit + F * 40.f + L * 90.f; };
 	auto GearSpot = [Geo] { FVector Fit, F, L, G; Geo(Fit, F, L, G); return G + L * 85.f; };
-	const FPoseFn PinHead = [Geo](float K, float PH, FDriverPose& P) { FVector Fit, F, L, G; Geo(Fit, F, L, G); P = Squat(Fit + F * 40.f + L * 90.f, -L, Fit + Up * 48.f + F * 8.f, PH, Ramp(K)); };
-	const FPoseFn PinGear = [Geo](float K, float PH, FDriverPose& P) { FVector Fit, F, L, G; Geo(Fit, F, L, G); P = Squat(G + L * 85.f, -L, G + L * 22.f + Up * 62.f, PH, Ramp(K)); };
-	auto Clunk = [this, Tug] { const FTug& U = Tugs[Tug]; Sound(TEXT("TugHitchClunk"), U.Fit + Up * 45.f); };
+	const FPoseFn PinHead = [Geo](float K, float PH, FDriverPose& P) { FVector Fit, F, L, G; Geo(Fit, F, L, G); P = Squat(Fit + F * 40.f + L * 90.f, -L, Fit + TugUp * 48.f + F * 8.f, PH, Ramp(K)); };
+	const FPoseFn PinGear = [Geo](float K, float PH, FDriverPose& P) { FVector Fit, F, L, G; Geo(Fit, F, L, G); P = Squat(G + L * 85.f, -L, G + L * 22.f + TugUp * 62.f, PH, Ramp(K)); };
+	auto Clunk = [this, Tug] { const FTug& U = Tugs[Tug]; Sound(TEXT("TugHitchClunk"), U.Fit + TugUp * 45.f); };
 	if (T.Handler != INDEX_NONE)
 	{
 		FCrew& H = Crew[T.Handler];
@@ -424,7 +424,7 @@ void ATugs::CrewCouple(int32 Tug)
 		{
 			FVector Fit, F, L, G; Geo(Fit, F, L, G); const FVector At = Fit + F * 40.f + L * 90.f, Face = (F - L * 0.4f).GetSafeNormal2D();
 			const FDriverPose S = Standing(At, Face, PH); FDriverPose D = S; const FVector PL = LeftOf(Face), Bk = Face * (12.f * FMath::Sin(K * 2.f * PI * 4.f));
-			D.bHand[0] = D.bHand[1] = true; D.Hand[0] = S.Pelvis + Up * 55.f + PL * 22.f + Face * 28.f - Bk; D.Hand[1] = S.Pelvis + Up * 55.f - PL * 22.f + Face * 28.f - Bk; D.Grip[0] = D.Grip[1] = 0.2f;
+			D.bHand[0] = D.bHand[1] = true; D.Hand[0] = S.Pelvis + TugUp * 55.f + PL * 22.f + Face * 28.f - Bk; D.Hand[1] = S.Pelvis + TugUp * 55.f - PL * 22.f + Face * 28.f - Bk; D.Grip[0] = D.Grip[1] = 0.2f;
 			P = Lerp(S, D, Ramp(K));
 		}, 3.f));
 		H.Q.Add(UntilAct([this, Tug](float) { return Tugs[Tug].Path.Num() == 0; }));
@@ -436,7 +436,7 @@ void ATugs::CrewCouple(int32 Tug)
 		H.Q.Add(WalkAct(GearSpot, 15.f));
 		H.Q.Add(PoseAct(PinGear, 2.8f));
 		// the headset plugged into the interphone socket on the nose gear leg
-		H.Q.Add(PoseAct([Geo](float K, float PH, FDriverPose& P) { FVector Fit, F, L, G; Geo(Fit, F, L, G); P = Reach(G + L * 85.f, -L, 0, G + L * 25.f + Up * 135.f, 0.6f, PH, Ramp(K)); }, 2.0f));
+		H.Q.Add(PoseAct([Geo](float K, float PH, FDriverPose& P) { FVector Fit, F, L, G; Geo(Fit, F, L, G); P = Reach(G + L * 85.f, -L, 0, G + L * 25.f + TugUp * 135.f, 0.6f, PH, Ramp(K)); }, 2.0f));
 		H.Q.Add(DoAct([this, Tug, Geo] { FTug& U = Tugs[Tug]; U.State = EState::Hooked; ADP_LOG(TEXT("Tugs: towbar on, bypass pin in, headset plugged - hooked on %s"), *U.Key); CrewWalkers(Tug);
 			// (beside the nose all through the push, on the cable)
 			Crew[U.Handler].Follow = [Geo] { FVector Fit, F, L, G; Geo(Fit, F, L, G); return G + L * 230.f; }; }));
@@ -461,9 +461,9 @@ void ATugs::CrewUncouple(int32 Tug)
 	auto Geo = [this, Tug](FVector& Fit, FVector& F, FVector& L, FVector& Gear) { const FTug& U = Tugs[Tug]; Fit = U.Fit; F = U.Fwd; L = -LeftOf(F); Gear = Fit - F * 60.f; };   // (L: the side the handler works on - the aircraft's RIGHT, away from the jetway and its red zone at the gate; test of 2026-11-21)
 	auto HeadSpot = [Geo] { FVector Fit, F, L, G; Geo(Fit, F, L, G); return Fit + F * 40.f + L * 90.f; };
 	auto GearSpot = [Geo] { FVector Fit, F, L, G; Geo(Fit, F, L, G); return G + L * 85.f; };
-	const FPoseFn PinHead = [Geo](float K, float PH, FDriverPose& P) { FVector Fit, F, L, G; Geo(Fit, F, L, G); P = Squat(Fit + F * 40.f + L * 90.f, -L, Fit + Up * 48.f + F * 8.f, PH, Ramp(K)); };
-	const FPoseFn PinGear = [Geo](float K, float PH, FDriverPose& P) { FVector Fit, F, L, G; Geo(Fit, F, L, G); P = Squat(G + L * 85.f, -L, G + L * 22.f + Up * 62.f, PH, Ramp(K)); };
-	auto Clunk = [this, Tug] { const FTug& U = Tugs[Tug]; Sound(TEXT("TugHitchClunk"), U.Fit + Up * 45.f); };
+	const FPoseFn PinHead = [Geo](float K, float PH, FDriverPose& P) { FVector Fit, F, L, G; Geo(Fit, F, L, G); P = Squat(Fit + F * 40.f + L * 90.f, -L, Fit + TugUp * 48.f + F * 8.f, PH, Ramp(K)); };
+	const FPoseFn PinGear = [Geo](float K, float PH, FDriverPose& P) { FVector Fit, F, L, G; Geo(Fit, F, L, G); P = Squat(G + L * 85.f, -L, G + L * 22.f + TugUp * 62.f, PH, Ramp(K)); };
+	auto Clunk = [this, Tug] { const FTug& U = Tugs[Tug]; Sound(TEXT("TugHitchClunk"), U.Fit + TugUp * 45.f); };
 	// out to the left of the nose, well clear of the wing (20 m out, 9 m ahead), facing the captain's window: the pin held up,
 	// then a thumbs up
 	// (the side towards the gates: 20 m out on the other side put him on taxiway A - the test of 2026-11-21; the pilots see
@@ -473,11 +473,11 @@ void ATugs::CrewUncouple(int32 Tug)
 	auto ShowSpot = ShowAt;
 	const FPoseFn Show = [Geo, ShowAt](float K, float PH, FDriverPose& P)
 	{
-		FVector Fit, F, L, G; Geo(Fit, F, L, G); const FVector At = ShowAt(), Cockpit = Fit + F * 210.f + Up * 350.f;
+		FVector Fit, F, L, G; Geo(Fit, F, L, G); const FVector At = ShowAt(), Cockpit = Fit + F * 210.f + TugUp * 350.f;
 		const FVector Face = (Cockpit - At).GetSafeNormal2D(), PL = LeftOf(Face);
 		const FDriverPose S = Standing(At, Face, PH); FDriverPose D = S;
-		D.bHand[0] = true; D.Hand[0] = S.Pelvis + Up * 95.f + PL * 25.f + Face * 18.f; D.Grip[0] = 1.f;                    // the pin, held high
-		if (K > 0.55f) { D.bHand[1] = true; D.Hand[1] = S.Pelvis + Up * 42.f - PL * 16.f + Face * 32.f; D.Grip[1] = 1.f; }  // a thumbs up
+		D.bHand[0] = true; D.Hand[0] = S.Pelvis + TugUp * 95.f + PL * 25.f + Face * 18.f; D.Grip[0] = 1.f;                    // the pin, held high
+		if (K > 0.55f) { D.bHand[1] = true; D.Hand[1] = S.Pelvis + TugUp * 42.f - PL * 16.f + Face * 32.f; D.Grip[1] = 1.f; }  // a thumbs up
 		P = Lerp(S, D, Ramp(K));
 	};
 	auto Gone = [this, Tug](float Elapsed)
@@ -504,7 +504,7 @@ void ATugs::CrewUncouple(int32 Tug)
 		H.Q.Add(PoseAct(PinGear, 2.8f));                                // the bypass pin out
 		H.Q.Add(DoAct([this, Tug] { FTug& U = Tugs[Tug]; if (U.Seq == 10) { U.Seq = 11; U.SeqT = 0.f; U.SeqWait = FMath::FRandRange(2.f, 5.f); } }));   // (step 9: "disconnecting headset ...")
 		H.Q.Add(UntilAct([this, Tug](float) { return Tugs[Tug].Seq >= 12; }));
-		H.Q.Add(PoseAct([Geo](float K, float PH, FDriverPose& P) { FVector Fit, F, L, G; Geo(Fit, F, L, G); P = Reach(G + L * 85.f, -L, 0, G + L * 25.f + Up * 135.f, 0.6f, PH, Ramp(K)); }, 1.6f));   // unplugged
+		H.Q.Add(PoseAct([Geo](float K, float PH, FDriverPose& P) { FVector Fit, F, L, G; Geo(Fit, F, L, G); P = Reach(G + L * 85.f, -L, 0, G + L * 25.f + TugUp * 135.f, 0.6f, PH, Ramp(K)); }, 1.6f));   // unplugged
 		H.Q.Add(WalkAct(ShowSpot, 25.f));
 		H.Q.Add(WaitAct(Pause() * 0.5f));
 		H.Q.Add(PoseAct(Show, 5.f));
@@ -530,11 +530,11 @@ void ATugs::CrewUncouple(int32 Tug)
 	ClimbOut(D, Tug);
 	D.Q.Add(PoseAct([this, Tug, Geo](float K, float PH, FDriverPose& P)
 	{
-		FVector Fit, F, L, G; Geo(Fit, F, L, G); const FTug& U = Tugs[Tug]; const FVector At = TugW(U, DoorStand), Cockpit = Fit + F * 210.f + Up * 350.f;
+		FVector Fit, F, L, G; Geo(Fit, F, L, G); const FTug& U = Tugs[Tug]; const FVector At = TugW(U, DoorStand), Cockpit = Fit + F * 210.f + TugUp * 350.f;
 		const FVector Face = (Cockpit - At).GetSafeNormal2D(), PL = LeftOf(Face);
 		const FDriverPose S = Standing(At, Face, PH); FDriverPose Dp = S;
-		Dp.bHand[0] = true; Dp.Hand[0] = S.Pelvis + Up * 95.f + PL * 25.f + Face * 18.f; Dp.Grip[0] = 1.f;
-		if (K > 0.55f) { Dp.bHand[1] = true; Dp.Hand[1] = S.Pelvis + Up * 42.f - PL * 16.f + Face * 32.f; Dp.Grip[1] = 1.f; }
+		Dp.bHand[0] = true; Dp.Hand[0] = S.Pelvis + TugUp * 95.f + PL * 25.f + Face * 18.f; Dp.Grip[0] = 1.f;
+		if (K > 0.55f) { Dp.bHand[1] = true; Dp.Hand[1] = S.Pelvis + TugUp * 42.f - PL * 16.f + Face * 32.f; Dp.Grip[1] = 1.f; }
 		P = Lerp(S, Dp, Ramp(K));
 	}, 5.f));
 	D.Q.Add(DoAct([this, Tug] { FTug& U = Tugs[Tug]; U.bPinShown = true; ADP_LOG(TEXT("Tugs: the driver shows the bypass pin to %s - all clear"), *U.PinKey); if (U.Seq == 12) { U.Seq = 13; U.SeqT = 0.f; U.SeqWait = FMath::FRandRange(2.f, 5.f); } }));
@@ -630,13 +630,13 @@ namespace
 			FVector Near = S.Pelvis;
 			switch (L)
 			{
-			case FDriverPose::OnHeadTop: case FDriverPose::OnHeadSide: Near += Up * (PH * 0.78f) + O * 14.f; break;
-			case FDriverPose::OnMouth:     Near += Up * (PH * 0.55f) + Face * 20.f + O * 6.f; break;
-			case FDriverPose::OnNeckBack:  Near += Up * (PH * 0.6f) + O * 14.f; break;
-			case FDriverPose::OnLowerBack: Near += Up * 8.f - Face * 16.f + O * 14.f; break;
-			case FDriverPose::OnHip:       Near += Up * 12.f + O * 24.f; break;
-			case FDriverPose::OnOtherUpperArm: Near += Up * (PH * 0.38f) + Face * 18.f - O * 6.f; break;
-			default:                       Near += Up * (PH * 0.1f) - Face * 14.f; break;
+			case FDriverPose::OnHeadTop: case FDriverPose::OnHeadSide: Near += TugUp * (PH * 0.78f) + O * 14.f; break;
+			case FDriverPose::OnMouth:     Near += TugUp * (PH * 0.55f) + Face * 20.f + O * 6.f; break;
+			case FDriverPose::OnNeckBack:  Near += TugUp * (PH * 0.6f) + O * 14.f; break;
+			case FDriverPose::OnLowerBack: Near += TugUp * 8.f - Face * 16.f + O * 14.f; break;
+			case FDriverPose::OnHip:       Near += TugUp * 12.f + O * 24.f; break;
+			case FDriverPose::OnOtherUpperArm: Near += TugUp * (PH * 0.38f) + Face * 18.f - O * 6.f; break;
+			default:                       Near += TugUp * (PH * 0.1f) - Face * 14.f; break;
 			}
 			D.bHand[Hd] = true; D.Hand[Hd] = Near; D.HandOn[Hd] = L; D.HandOff[Hd] = Off; D.HandOnW[Hd] = 1.f;
 			D.PalmDir[Hd] = Palm; D.FingerDir[Hd] = Fing; D.PalmW[Hd] = 1.f; D.Grip[Hd] = Grip; D.Pole[Hd] = Pole;
@@ -647,7 +647,7 @@ namespace
 			On(h, FDriverPose::OnHeadSide, FVector(4.f, -1.f + 1.5f * FMath::Sin(Ts * 38.f), -9.f + 1.f * FMath::Sin(Ts * 38.f + 1.f)), FVector(-1.f, 0.f, 0.3f), FVector(0.f, 0.2f, 1.f), 0.45f, FVector(1.f, 0.f, 0.3f));
 			D.HeadRoll = 6.f * Side; D.HeadPitch = 6.f; D.Lean = 2.f; break;
 		case 1:   // a look at the watch: the left wrist up in front of the chest, the palm down, the eyes on it
-			D.bHand[0] = true; D.Hand[0] = S.Pelvis + Up * (PH * 0.42f) + Face * 27.f + PL * 1.f; D.PalmDir[0] = FVector(0.f, 0.f, -1.f); D.FingerDir[0] = FVector(-1.f, 0.3f, 0.f); D.PalmW[0] = 1.f;
+			D.bHand[0] = true; D.Hand[0] = S.Pelvis + TugUp * (PH * 0.42f) + Face * 27.f + PL * 1.f; D.PalmDir[0] = FVector(0.f, 0.f, -1.f); D.FingerDir[0] = FVector(-1.f, 0.3f, 0.f); D.PalmW[0] = 1.f;
 			D.Grip[0] = 0.3f; D.Pole[0] = FVector(1.f, -0.2f, -0.6f); D.LookHand = 0; D.LookW = 1.f; D.Lean = 4.f; break;
 		case 2:   // hands on the hips: the palms on the top of the hip bones, the fingers forward and down, the elbows out
 			for (int32 s = 0; s < 2; ++s) On(s, FDriverPose::OnHip, FVector(3.f, -6.f, 6.f), FVector(-1.f, 0.f, 0.f), FVector(0.f, 0.6f, -0.8f), 0.25f, FVector(1.f, -0.6f, 0.f));
@@ -657,12 +657,12 @@ namespace
 			On(1, FDriverPose::OnOtherUpperArm, FVector(9.f, 1.f, 0.f), FVector(-0.8f, -0.6f, 0.f), FVector(-1.f, -0.3f, 0.f), 0.35f, FVector(1.f, 0.5f, -0.8f));
 			D.Lean = -2.f; D.ShoulderFwd[0] = D.ShoulderFwd[1] = 4.f; break;
 		case 4:   // a stretch, both arms up overhead: the fingers laced, the palms up, the shoulders and the chin up
-			for (int32 s = 0; s < 2; ++s) { D.bHand[s] = true; D.Hand[s] = S.Pelvis + Up * (PH * 1.2f) + OutOf(s) * 6.f + Face * 3.f; D.PalmDir[s] = FVector(0.f, 0.f, 1.f); D.FingerDir[s] = FVector(-1.f, 0.f, 0.f); D.PalmW[s] = 1.f; D.Grip[s] = 0.35f; D.Pole[s] = FVector(1.f, -0.2f, 0.f); D.ShoulderUp[s] = 14.f; }
+			for (int32 s = 0; s < 2; ++s) { D.bHand[s] = true; D.Hand[s] = S.Pelvis + TugUp * (PH * 1.2f) + OutOf(s) * 6.f + Face * 3.f; D.PalmDir[s] = FVector(0.f, 0.f, 1.f); D.FingerDir[s] = FVector(-1.f, 0.f, 0.f); D.PalmW[s] = 1.f; D.Grip[s] = 0.35f; D.Pole[s] = FVector(1.f, -0.2f, 0.f); D.ShoulderUp[s] = 14.f; }
 			D.HeadPitch = -14.f; D.Lean = -5.f; D.Pelvis += Face * 2.f; break;
 		case 5:   // the weight from one leg to the other and back: the hips go over one foot, then the other; the feet stay put
 		{
 			const float W = FMath::Sin(2.f * PI * Kt) * Side;
-			D.Pelvis += PL * (7.f * W) - Up * (1.5f * FMath::Abs(W)); D.HeadRoll = -2.f * W; D.Lean = 1.f; break;
+			D.Pelvis += PL * (7.f * W) - TugUp * (1.5f * FMath::Abs(W)); D.HeadRoll = -2.f * W; D.Lean = 1.f; break;
 		}
 		case 6:   // rubbing the back of the neck: the palm on the nape, a slow rub, the head down
 			On(h, FDriverPose::OnNeckBack, FVector(4.f, -3.f, -9.f + 1.5f * FMath::Sin(Ts * 9.f)), FVector(-0.3f, 1.f, 0.f), FVector(-0.6f, 0.f, 0.8f), 0.25f, FVector(1.f, 0.1f, 0.4f));
@@ -687,7 +687,7 @@ namespace
 			for (int32 s = 0; s < 2; ++s)
 			{
 				const float Sg = s == 0 ? 1.f : -1.f;
-				D.bHand[s] = true; D.Hand[s] = S.Pelvis + Up * (PH * 0.3f + 1.5f * R * Sg) + Face * (24.f + 3.f * R * Sg) + OutOf(s) * 3.5f;
+				D.bHand[s] = true; D.Hand[s] = S.Pelvis + TugUp * (PH * 0.3f + 1.5f * R * Sg) + Face * (24.f + 3.f * R * Sg) + OutOf(s) * 3.5f;
 				D.PalmDir[s] = FVector(-1.f, 0.f, 0.f); D.FingerDir[s] = FVector(0.f, 1.f, 0.5f); D.PalmW[s] = 1.f; D.Grip[s] = 0.15f; D.Pole[s] = FVector(1.f, 0.f, -1.f); D.ShoulderUp[s] = 7.f;
 			}
 			D.HeadPitch = 14.f; D.Lean = 4.f; break;
@@ -701,9 +701,9 @@ namespace
 			D.HeadPitch = -14.f * Y; D.ShoulderUp[0] = D.ShoulderUp[1] = 9.f * Y; D.Lean = -3.f * Y; break;
 		}
 		case 13:  // hands folded behind the back: the left wrist at the small of the back, the right hand round it
-			D.bHand[0] = true; D.Hand[0] = S.Pelvis - Face * 17.f - Up * 2.f + PL * 2.f; D.PalmDir[0] = FVector(0.f, -1.f, 0.f); D.FingerDir[0] = FVector(-0.5f, 0.f, -1.f); D.PalmW[0] = 1.f; D.Grip[0] = 0.3f; D.Pole[0] = FVector(1.f, -0.6f, -0.5f);
+			D.bHand[0] = true; D.Hand[0] = S.Pelvis - Face * 17.f - TugUp * 2.f + PL * 2.f; D.PalmDir[0] = FVector(0.f, -1.f, 0.f); D.FingerDir[0] = FVector(-0.5f, 0.f, -1.f); D.PalmW[0] = 1.f; D.Grip[0] = 0.3f; D.Pole[0] = FVector(1.f, -0.6f, -0.5f);
 			On(1, FDriverPose::OnOtherWrist, FVector(6.f, -1.f, -1.f), FVector(0.f, 1.f, 0.3f), FVector(-1.f, 0.f, 0.f), 0.6f, FVector(1.f, -0.6f, -0.5f));
-			D.Hand[1] = S.Pelvis - Face * 17.f - Up * 3.f - PL * 4.f; D.Lean = -1.f; D.ShoulderFwd[0] = D.ShoulderFwd[1] = -5.f; break;
+			D.Hand[1] = S.Pelvis - Face * 17.f - TugUp * 3.f - PL * 4.f; D.Lean = -1.f; D.ShoulderFwd[0] = D.ShoulderFwd[1] = -5.f; break;
 		default:  // looking around: the head turns to one side, then across to the other, and back
 			D.HeadYaw = 50.f * Side * FMath::Sin(2.f * PI * Kt); D.Twist = 8.f * Side * FMath::Sin(2.f * PI * Kt); D.HeadPitch = -3.f; break;
 		}

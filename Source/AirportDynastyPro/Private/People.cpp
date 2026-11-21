@@ -863,7 +863,22 @@ void AADPPeople::SitPose(FStroll& S, float K)
 	// a seated idle movement (SeatFidget), blended in and out: a look round (the head, the neck, a little of the spine),
 	// a neck roll, or the phone - both hands brought together in front at chest height, the head down at them
 	float PhoneW = 0.f;
-	if (S.FidK >= 0 && E >= 1.f && S.FidDur > 0.f)
+	// (a phone or tablet held for a long while - APaxProps, SeatDevice: the same hold as the phone movement, the tablet's
+	// hands wider apart at its sides, blended by DevW)
+	auto HoldDevice = [&](float Ew, float Half)
+	{
+		PhoneW = Ew;
+		const float Cz = P.Pelvis.Z + 30.f;
+		for (int32 s = 0; s < 2; ++s)
+		{
+			const FVector Ph(s == 0 ? Half : -Half, Half > 6.f ? 30.f : 28.f, Cz);
+			P.Hand[s] = FMath::Lerp(Si.Hand[s], Ph, Ew); P.Grip[s] = FMath::Lerp(Si.Grip[s], 0.45f, Ew);
+			P.PalmDir[s] = FVector(-0.6f, 0.f, 0.8f); P.FingerDir[s] = FVector(-0.3f, 0.8f, 0.5f); P.PalmW[s] = Ew;
+		}
+		P.LookHand = 0; P.LookW = Ew; P.HeadPitch = 6.f * Ew;
+	};
+	if (S.DevW > 0.f && E >= 1.f) HoldDevice(FMath::SmoothStep(0.f, 1.f, S.DevW), S.DevKind == 2 ? 12.f : 4.5f);
+	else if (S.FidK >= 0 && E >= 1.f && S.FidDur > 0.f)
 	{
 		const float Kt = FMath::Clamp(S.FidT / S.FidDur, 0.f, 1.f);
 		const float Ew = FMath::SmoothStep(0.f, 0.2f, Kt) * (1.f - FMath::SmoothStep(0.8f, 1.f, Kt));
@@ -927,6 +942,18 @@ void AADPPeople::SitPose(FStroll& S, float K)
 		A->SetActorLocation(Base.GetLocation() - FVector(0, 0, S.Lower * E));
 	}
 	if (K >= 1.f) { static int32 Said = 0; if (Said++ < 4) { const FVector Pv = W->Body->GetBoneLocation(TEXT("pelvis")); const FVector Rel = FRotationMatrix(SF.Rotation()).InverseTransformVector(Pv - SAt); ADP_LOG(TEXT("People: sat - the hips %.0f cm ahead of the seat's middle, %.0f to its side, %.0f over it (seat %.0f high)"), Rel.X, Rel.Y, Rel.Z, SH); } }
+}
+
+void AADPPeople::SeatDevice(AActor* Who, int32 Kind)
+{
+	for (FStroll& S : Strollers) if (S.A.Get() == Who) { S.Device = Kind; if (Kind > 0) S.DevKind = Kind; return; }
+}
+
+int32 AADPPeople::SeatDeviceNow(const AActor* Who) const
+{
+	for (const FStroll& S : Strollers)
+		if (S.A.Get() == Who) return S.DevW > 0.f ? S.DevKind : (S.Doing == EDoing::Sit && S.FidK == 2) ? 1 : 0;
+	return 0;
 }
 
 void AADPPeople::SeatFidget(FStroll& S, float Dt)
@@ -1012,6 +1039,14 @@ void AADPPeople::StepStrollers(float Dt)
 		case EDoing::SitDown: SitPose(S, FMath::Min(1.f, S.T / 0.9f)); if (S.T >= 0.9f) { S.Doing = EDoing::Sit; S.T = 0.f; S.For = S.bHeld ? (S.bStandSoon ? 0.f : 1e9f) : Rng.FRandRange(30.f, 120.f); } break;
 		case EDoing::Sit:
 			if (!S.bCushionOk) SitPose(S, 1.f);   // (the cushion check settles over its first frames)
+			else if (S.Device > 0 || S.DevW > 0.f)
+			{
+				// (a device held: no idle movements meanwhile; posed while the hands move, then left as it is)
+				if (S.FidK >= 0) S.FidK = -1;
+				const float Was = S.DevW; S.DevW = FMath::FInterpConstantTo(S.DevW, S.Device > 0 ? 1.f : 0.f, Dt, 1.f / 0.7f);
+				if (S.DevW != Was || S.DevPosed != S.Device) { SitPose(S, 1.f); if (S.DevW == Was) S.DevPosed = S.Device; else S.DevPosed = -1; }
+				if (S.DevW <= 0.f) { S.FidNext = Rng.FRandRange(6.f, 20.f); S.DevPosed = -1; }
+			}
 			else SeatFidget(S, Dt);
 			if (S.T >= S.For) { if (S.FidK >= 0) { S.FidK = -1; SitPose(S, 1.f); } S.Doing = EDoing::StandUp; S.T = 0.f; }
 			break;

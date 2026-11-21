@@ -41,6 +41,11 @@ public:
 	void StandFrom(AActor* Who);
 	/** True while SitOn's person is on its way to the seat, sitting or getting up. */
 	bool IsHeld(AActor* Who) const;
+	/** A seated passenger's device (APaxProps): 0 none, 1 a phone, 2 a tablet - both hands brought together in front,
+	 *  the head down at it, held while set (blended in and out over ~0.7 s). */
+	void SeatDevice(AActor* Who, int32 Kind);
+	/** What a seated passenger holds just now (theirs from SeatDevice, or the phone of the seated idle movement): 0 none. */
+	int32 SeatDeviceNow(const AActor* Who) const;
 	virtual void Tick(float Dt) override;
 
 	/** How a line is said (for the voices later): calm, mild, firm, a bit aggressive, very aggressive. */
@@ -98,6 +103,7 @@ private:
 		class UDriverPoseAnim* Pose = nullptr; FTransform BodyInActor; float Lower = 0.f; bool bLowered = false; int32 SitPose = 0; bool bSurf = false; float SurfZ = 46.f; float CrossLift = 0.f; float Fwd = 0.f, Lift = 0.f; bool bCushionOk = false; int32 CushionTries = 0;
 		bool bHeld = false, bStandSoon = false, bRelease = false;   // (SitOn: PaxFlow's passenger, sat until StandFrom, then handed back)
 		int32 FidK = -1, FidLast = -1; float FidT = 0.f, FidDur = 0.f, FidNext = 0.f, FidSide = 1.f;   // (a seated idle movement: SeatFidget)
+		int32 Device = 0, DevKind = 0, DevPosed = -1; float DevW = 0.f;   // (a phone / tablet held sat: SeatDevice)
 	};
 	TArray<FStroll> Strollers;
 	bool bStrollersStarted = false;
