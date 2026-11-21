@@ -1,6 +1,7 @@
 #include "Turnaround.h"
 #include "ADPLog.h"
 #include "Tugs.h"
+#include "GSE.h"
 #include "Airfield.h"
 #include "Sim/ADPSim.h"
 #include "Sim/ADPBoards.h"
@@ -94,9 +95,10 @@ namespace ADPTurnaround
 				if (!K.bStarted && bReady && Tm >= K.Start)
 				{
 					K.bStarted = true; K.Start = FMath::Max(K.Start, Tm);
-					const bool bVisual = K.Vehicle == TEXT("gpu") || K.Vehicle == TEXT("jetway") || K.Vehicle == TEXT("tug");
+					const bool bVisual = K.Vehicle == TEXT("gpu") || K.Vehicle == TEXT("jetway") || K.Vehicle == TEXT("tug") || K.Vehicle == TEXT("beltloader");
 					ADP_LOG(TEXT("Turnaround: %s %s starts (%.1f min, %s)"), *Tr->Reg, *K.Name, K.Dur, bVisual ? TEXT("in 3D") : K.Vehicle.IsEmpty() ? TEXT("the crew") : *FString::Printf(TEXT("%s - simulated until the vehicle is built"), *K.Vehicle));
 					if (K.Id == TEXT("gpu")) if (ATugs* Tg = ATugs::Get(W)) Tg->Arrived(Tr->StandX);   // (the ground power plugged in)
+					if (K.Id == TEXT("bulk")) if (AGSE* Gs = AGSE::Get(W)) Gs->BulkHold(Tr->StandX, Tr->Reg);   // (the belt loader to the bulk hold - GSELoader.cpp)
 				}
 				if (K.bStarted && !K.bDone && Tm >= K.Start + K.Dur) { K.bDone = true; ADP_LOG(TEXT("Turnaround: %s %s done"), *Tr->Reg, *K.Name); }
 			}

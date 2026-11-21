@@ -33,7 +33,7 @@ namespace
 	constexpr float DoorA = PI / 8, DoorW = 1.0f, DoorH = 2.25f;
 	constexpr float LR = ShaftR + 0.8f;                    // the lobby level's radius
 	constexpr float EX0 = -6.6f, EX1 = -3.0f, EZ = 1.75f;  // the entrance hall
-	constexpr float SR = 1.35f, Turn = PI * 1.85f;          // the spiral stair: its radius, how far round it turns
+	constexpr float SR = 1.35f, StairTurn = PI * 1.85f;          // the spiral stair: its radius, how far round it turns
 	constexpr int32 Steps = 22;
 	constexpr float TwoPi = 2.f * PI;
 	float TowerEase(float K) { return K * K * (3.f - 2.f * K); }
@@ -494,17 +494,17 @@ void ATowerADC::BuildStair()
 	Cyl("steel", 0.14f, Rise + 1.1f, 0, LobbyY + (Rise + 1.1f) / 2, 0);
 	for (int32 s = 0; s < Steps; ++s)
 	{
-		const float A = (float)s / Steps * Turn, Y = LobbyY + (s + 1) * Rise / Steps;
+		const float A = (float)s / Steps * StairTurn, Y = LobbyY + (s + 1) * Rise / Steps;
 		Box("oak", SR - 0.15f, 0.05f, 0.42f, FMath::Cos(A) * (SR / 2 + 0.07f), Y - 0.025f, FMath::Sin(A) * (SR / 2 + 0.07f), -A);
 		Cyl("steel", 0.012f, 1.0f, FMath::Cos(A) * (SR - 0.06f), Y + 0.5f, FMath::Sin(A) * (SR - 0.06f), false);
 	}
 	TArray<FVector> Rail;
-	for (int32 k = 0; k <= 60; ++k) { const float A = k / 60.f * Turn; Rail.Add(FVector(FMath::Cos(A) * (SR - 0.06f), LobbyY + 1.0f + k / 60.f * Rise, FMath::Sin(A) * (SR - 0.06f))); }
+	for (int32 k = 0; k <= 60; ++k) { const float A = k / 60.f * StairTurn; Rail.Add(FVector(FMath::Cos(A) * (SR - 0.06f), LobbyY + 1.0f + k / 60.f * Rise, FMath::Sin(A) * (SR - 0.06f))); }
 	Tube(Buf(Trim, "walnut"), Rail, 0.025f);
-	Ring(Buf(Solid, "oak"), 0.14f, CabY, 1.45f, CabY, Turn, TwoPi + 0.45f, 24);
+	Ring(Buf(Solid, "oak"), 0.14f, CabY, 1.45f, CabY, StairTurn, TwoPi + 0.45f, 24);
 	// the opening in the cab's floor: its edge, and the glass balustrade round it (open at the stair's top)
 	Ring(Buf(Solid, "white"), 1.45f, CabY - 0.3f, 1.45f, CabY, 0, TwoPi, 48);
-	Ring(Buf(Glass, "GLASS"), 1.45f, CabY, 1.45f, CabY + 1.0f, 0.45f, Turn, 48);
+	Ring(Buf(Glass, "GLASS"), 1.45f, CabY, 1.45f, CabY + 1.0f, 0.45f, StairTurn, 48);
 }
 #pragma endregion
 

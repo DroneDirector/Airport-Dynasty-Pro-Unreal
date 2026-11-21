@@ -24,9 +24,7 @@
 namespace
 {
 	// the tractor (root cm): the door's outside stand, its handle, the step, the grab handles, the seat, the pedals, the wheel
-	const FVector GscTStand(-5.f, -120.f, 0.f), GscTHandleOut(-20.f, -73.5f, 100.f), GscTStep(-1.f, -63.f, 31.5f);
-	const FVector GscTGrabOut(-43.f, -75.f, 141.f), GscTGrabIn(41.5f, -60.f, 150.f), GscTSeat(-7.f, 0.f, 92.f);
-	const FVector GscTBrake(70.f, -21.f, 77.f), GscTAccel(70.f, 21.f, 77.f), GscTHandL(52.4f, -15.6f, 131.4f), GscTHandR(52.4f, 15.6f, 131.4f);
+	// (the vehicle's own door, step, grab handles, seat, pedals and wheel: FTractor::K*, set when it is placed - GSE.cpp)
 	const FVector GscTPinTop(-162.f, 0.f, 62.5f), GscTPinStand(-205.f, -40.f, 0.f), GscTPinHitch(-162.f, 0.f, 40.f);
 	// the cart
 	const FVector GscCPinTop(-127.f, 0.f, 59.55f), GscCPinStand(-175.f, -45.f, 0.f), GscCBarStand(178.f, -100.f, 0.f), GscCJawAt(-127.f, 0.f, 40.f);
@@ -121,9 +119,9 @@ TFunction<void(float, float, FDriverPose&)> AGSE::SeatFn(int32 Ti) const
 	{
 		const FTractor& T = Tractors[Ti];
 		P = FDriverPose(); P.Facing = FRotator(0.f, T.Yaw, 0.f).Vector();
-		P.Pelvis = TW(T, GscTSeat + FVector(0, 0, 10.f)); P.Lean = -4.f;
-		P.Foot[0] = TW(T, GscTBrake); P.Foot[1] = TW(T, GscTAccel); P.FootPitch[0] = P.FootPitch[1] = 20.f;
-		P.bHand[0] = P.bHand[1] = true; P.Hand[0] = TW(T, GscTHandL); P.Hand[1] = TW(T, GscTHandR); P.Grip[0] = P.Grip[1] = 1.f;
+		P.Pelvis = TW(T, T.KSeat + FVector(0, 0, 10.f)); P.Lean = -4.f;
+		P.Foot[0] = TW(T, T.KBrake); P.Foot[1] = TW(T, T.KAccel); P.FootPitch[0] = P.FootPitch[1] = 20.f;
+		P.bHand[0] = P.bHand[1] = true; P.Hand[0] = TW(T, T.KHandL); P.Hand[1] = TW(T, T.KHandR); P.Grip[0] = P.Grip[1] = 1.f;
 	};
 }
 
@@ -140,18 +138,18 @@ TFunction<void(float, float, FDriverPose&)> AGSE::ClimbFn(int32 Ti, bool bIn) co
 			FDriverPose Q; Q.Facing = In;
 			switch (i)
 			{
-			case 0: Q = ADPPose::Standing(TW(T, GscTStand), In, PH); Q.bHand[1] = true; Q.Hand[1] = TW(T, GscTGrabOut); Q.Grip[1] = 1.f; break;          // at the door, a hand on the grab handle
-			case 1: Q.Pelvis = TW(T, FVector(-3.f, -100.f, PH + 16.f)); Q.Lean = 12.f;
-				Q.Foot[0] = TW(T, GscTStep + FVector(6.f, 0.f, 0.f)); Q.Foot[1] = TW(T, FVector(-12.f, -112.f, 0.f));
-				Q.bHand[0] = Q.bHand[1] = true; Q.Hand[0] = TW(T, GscTGrabIn); Q.Hand[1] = TW(T, GscTGrabOut); Q.Grip[0] = Q.Grip[1] = 1.f; break;   // the left foot on the step
-			case 2: Q.Pelvis = TW(T, FVector(-4.f, -80.f, GscTStep.Z + PH - 6.f)); Q.Lean = 14.f;
-				Q.Foot[0] = TW(T, GscTStep + FVector(6.f, 0.f, 0.f)); Q.Foot[1] = TW(T, GscTStep + FVector(-12.f, -1.f, 0.f));
-				Q.bHand[0] = Q.bHand[1] = true; Q.Hand[0] = TW(T, GscTGrabIn); Q.Hand[1] = TW(T, GscTGrabOut); Q.Grip[0] = Q.Grip[1] = 1.f; break;   // up on the step
-			case 3: Q.Pelvis = TW(T, FVector(-5.f, -50.f, 62.f + PH - 26.f)); Q.Lean = 26.f;
-				Q.Foot[0] = TW(T, FVector(12.f, -28.f, 62.f)); Q.Foot[1] = TW(T, GscTStep + FVector(-10.f, 0.f, 0.f));
-				Q.bHand[0] = true; Q.Hand[0] = TW(T, GscTGrabIn); Q.Grip[0] = 1.f; break;                                                     // in under the roof, a foot on the floor
-			case 4: Q.Facing = (In + Fwd).GetSafeNormal2D(); Q.Pelvis = TW(T, FVector(-6.f, -14.f, 62.f + PH - 38.f)); Q.Lean = 24.f;
-				Q.Foot[0] = TW(T, FVector(28.f, -16.f, 62.f)); Q.Foot[1] = TW(T, FVector(22.f, 10.f, 62.f)); break;                        // turning to the seat
+			case 0: Q = ADPPose::Standing(TW(T, T.KStand), In, PH); Q.bHand[1] = true; Q.Hand[1] = TW(T, T.KGrabOut); Q.Grip[1] = 1.f; break;          // at the door, a hand on the grab handle
+			case 1: Q.Pelvis = TW(T, FVector((T.KStand.X + T.KStep.X) * 0.5f - 1.f, (T.KStand.Y + T.KStep.Y) * 0.5f - 8.f, PH + 16.f)); Q.Lean = 12.f;
+				Q.Foot[0] = TW(T, T.KStep + FVector(6.f, 0.f, 0.f)); Q.Foot[1] = TW(T, FVector(T.KStand.X - 7.f, T.KStand.Y + 8.f, 0.f));
+				Q.bHand[0] = Q.bHand[1] = true; Q.Hand[0] = TW(T, T.KGrabIn); Q.Hand[1] = TW(T, T.KGrabOut); Q.Grip[0] = Q.Grip[1] = 1.f; break;   // the left foot on the step
+			case 2: Q.Pelvis = TW(T, FVector(T.KStep.X - 3.f, T.KStep.Y - 17.f, T.KStep.Z + PH - 6.f)); Q.Lean = 14.f;
+				Q.Foot[0] = TW(T, T.KStep + FVector(6.f, 0.f, 0.f)); Q.Foot[1] = TW(T, T.KStep + FVector(-12.f, -1.f, 0.f));
+				Q.bHand[0] = Q.bHand[1] = true; Q.Hand[0] = TW(T, T.KGrabIn); Q.Hand[1] = TW(T, T.KGrabOut); Q.Grip[0] = Q.Grip[1] = 1.f; break;   // up on the step
+			case 3: Q.Pelvis = TW(T, FVector(T.KSeat.X + 2.f, FMath::Lerp(T.KStep.Y, T.KSeat.Y, 0.2f), T.KFloor + PH - 26.f)); Q.Lean = 26.f;
+				Q.Foot[0] = TW(T, FVector(T.KSeat.X + 19.f, FMath::Lerp(T.KStep.Y, T.KSeat.Y, 0.55f), T.KFloor)); Q.Foot[1] = TW(T, T.KStep + FVector(-10.f, 0.f, 0.f));
+				Q.bHand[0] = true; Q.Hand[0] = TW(T, T.KGrabIn); Q.Grip[0] = 1.f; break;                                                     // in under the roof, a foot on the floor
+			case 4: Q.Facing = (In + Fwd).GetSafeNormal2D(); Q.Pelvis = TW(T, FVector(T.KSeat.X + 1.f, T.KSeat.Y - 14.f, T.KFloor + PH - 38.f)); Q.Lean = 24.f;
+				Q.Foot[0] = TW(T, FVector(T.KSeat.X + 35.f, T.KSeat.Y - 16.f, T.KFloor)); Q.Foot[1] = TW(T, FVector(T.KSeat.X + 29.f, T.KSeat.Y + 10.f, T.KFloor)); break;                        // turning to the seat
 			default: { const auto S = SeatFn(Ti); S(1.f, PH, Q); } break;
 			}
 			return Q;
@@ -164,10 +162,10 @@ TFunction<void(float, float, FDriverPose&)> AGSE::ClimbFn(int32 Ti, bool bIn) co
 
 void AGSE::ClimbIn(int32 Ci, int32 Ti, TFunction<void()> Then)
 {
-	WalkTo(Ci, [this, Ti] { return TW(Tractors[Ti], GscTStand); }, 15.f);
+	WalkTo(Ci, [this, Ti] { return TW(Tractors[Ti], Tractors[Ti].KStand); }, 15.f);
 	// the hand to the handle, the door swung open (its sound), up and in, sat, the door pulled shut
-	PoseAct(Ci, [this, Ti](float K, float PH, FDriverPose& P) { const FTractor& T = Tractors[Ti]; P = ADPPose::Reach(TW(T, GscTStand), FRotator(0.f, T.Yaw + 90.f, 0.f).Vector(), 1, TW(T, GscTHandleOut), 0.7f, PH, FMath::Sin(PI * K)); }, 1.0f);
-	Do(Ci, [this, Ti] { FTractor& T = Tractors[Ti]; T.DoorWant = 80.f; Sound(TEXT("BTDoorOpen"), TW(T, FVector(-20.f, -72.f, 120.f))); });
+	PoseAct(Ci, [this, Ti](float K, float PH, FDriverPose& P) { const FTractor& T = Tractors[Ti]; P = ADPPose::Reach(TW(T, T.KStand), FRotator(0.f, T.Yaw + 90.f, 0.f).Vector(), 1, TW(T, T.KHandle), 0.7f, PH, FMath::Sin(PI * K)); }, 1.0f);
+	Do(Ci, [this, Ti] { FTractor& T = Tractors[Ti]; T.DoorWant = 80.f; Sound(*T.SndDoorOpen, TW(T, T.KHandle + FVector(0.f, 0.f, 20.f))); });
 	Wait(Ci, 0.6f);
 	PoseAct(Ci, ClimbFn(Ti, true), 3.2f);
 	Do(Ci, [this, Ci, Ti] { if (ATugs* G = Tg()) G->Crew[Ci].Hold = SeatFn(Ti); Tractors[Ti].DoorWant = 0.f; });
@@ -177,12 +175,12 @@ void AGSE::ClimbIn(int32 Ci, int32 Ti, TFunction<void()> Then)
 
 void AGSE::ClimbOut(int32 Ci, int32 Ti, TFunction<void()> Then)
 {
-	Do(Ci, [this, Ti] { FTractor& T = Tractors[Ti]; T.DoorWant = 80.f; Sound(TEXT("BTDoorOpen"), TW(T, FVector(-20.f, -72.f, 120.f))); });
+	Do(Ci, [this, Ti] { FTractor& T = Tractors[Ti]; T.DoorWant = 80.f; Sound(*T.SndDoorOpen, TW(T, T.KHandle + FVector(0.f, 0.f, 20.f))); });
 	Wait(Ci, 0.7f);
 	Do(Ci, [this, Ci] { if (ATugs* G = Tg()) G->Crew[Ci].Hold = nullptr; });
 	PoseAct(Ci, ClimbFn(Ti, false), 2.8f);
 	// down: the door pushed shut behind
-	PoseAct(Ci, [this, Ti](float K, float PH, FDriverPose& P) { FTractor& T = Tractors[Ti]; P = ADPPose::Reach(TW(T, GscTStand), FRotator(0.f, T.Yaw + 90.f, 0.f).Vector(), 1, TW(T, FVector(-25.f, -78.f, 118.f)), 0.3f, PH, FMath::Sin(PI * K)); if (K > 0.4f) T.DoorWant = 0.f; }, 0.9f);
+	PoseAct(Ci, [this, Ti](float K, float PH, FDriverPose& P) { FTractor& T = Tractors[Ti]; P = ADPPose::Reach(TW(T, T.KStand), FRotator(0.f, T.Yaw + 90.f, 0.f).Vector(), 1, TW(T, T.KHandle + FVector(-5.f, -4.5f, 18.f)), 0.3f, PH, FMath::Sin(PI * K)); if (K > 0.4f) T.DoorWant = 0.f; }, 0.9f);
 	if (Then) Do(Ci, MoveTemp(Then));
 }
 
@@ -395,12 +393,13 @@ void AGSE::TrainApron(int32 Ti)
 		StandGeo(T.StandX, S, N, Sp);
 	}
 	for (const int32 c : T.Train) if (Carts.IsValidIndex(c)) Carts[c].Flight = T.Key;
-	// across the apron to the stand's side away from its jetway, past its wingtip (between the wingtips of it and its
-	// neighbour - the stand lines crossed only straight across): 13 m beside the nose, behind the wing
-	const float Xc = S - (Sp * 0.5f + 2.4f);
+	// its belt loader to the bulk hold too (GSELoader.cpp), if none is there yet
+	EnsureLoader(T.StandX, T.Key);
+	// across the apron behind the stands' tails (the stand lines crossed only straight across) to the lane end of the
+	// aircraft's right side (away from its jetway), 11 m out from its centre line: from there straight up beside it to
+	// the belt loader's bottom end, behind the wing, clear of the tailplane
 	TArray<FVector> W;
-	if (!Apron(W, T.At, Plan(Xc, N + 24.f), &T)) { RetryIn(Ti, 8.f, [this, Ti] { TrainApron(Ti); }); return; }
-	Leg(W, Xc, N + 24.f, 0.f, -1.f, Xc, N + 11.f, 0.f, -1.f, 400.f);
+	if (!Apron(W, T.At, Plan(S - 11.f, N + 48.f), &T)) { RetryIn(Ti, 8.f, [this, Ti] { TrainApron(Ti); }); return; }
 	ADP_LOG(TEXT("GSE: %s's train to %s at the stand x %.0f"), *T.Name, *T.Key, S);
 	Go(T, MoveTemp(W), false, [this, Ti] { TrainHoldIn(Ti); });
 }
@@ -412,13 +411,13 @@ void AGSE::TrainHoldIn(int32 Ti)
 	FTractor& T = Tractors[Ti];
 	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(T.StandX, S, N, Sp);
 	const FVector Nose = Plan(S, N);
-	T.Until = [this, Nose] { return !PlaneNear(Nose, 6000.f); };
-	T.AfterUntil = [this, Ti, S, N, Sp]
+	// (and the belt loader in its place first - it turns in across this side)
+	T.Until = [this, Nose, S] { const int32 Li = LoaderAt(S); return !PlaneNear(Nose, 6000.f) && (Li == INDEX_NONE || Tractors[Li].Job == EJob::AtStand); };
+	T.AfterUntil = [this, Ti, S, N]
 	{
-		FTractor& U = Tractors[Ti]; const float Xc = S - (Sp * 0.5f + 2.4f);
+		FTractor& U = Tractors[Ti];
 		TArray<FVector> W;
-		Leg(W, Xc, N + 11.f, 0.f, -1.f, S - 9.5f, N + 3.5f, 0.f, -1.f, 400.f);
-		Leg(W, S - 9.5f, N + 3.5f, 0.f, -1.f, S - 9.5f, N + 2.24f, 0.f, -1.f, 400.f);
+		Leg(W, S - 11.f, N + 48.f, 0.f, -1.f, S - 11.f, N + 25.74f, 0.f, -1.f, 400.f);   // (the tractor's front 24 m behind the nose wheel)
 		Go(U, MoveTemp(W), false, [this, Ti] { TrainLoad(Ti); });
 	};
 }
@@ -432,11 +431,13 @@ void AGSE::TrainLoad(int32 Ti)
 	Wait(Ci, GscPause());
 	ClimbOut(Ci, Ti, [this, Ti] { Tractors[Ti].Job = EJob::Loading; });
 	Curtains(Ci, Ti, true, nullptr);
-	// (the bags go in: the belt loader and the bags come next - until then the loading's own time: the test a short
-	// minute, the game 4 minutes)
-	const float Load = bTest ? 40.f : 240.f;
+	// the bags up the belt loader into the bulk hold (its belt running - waited for, 2.5 min at most); the loading's own
+	// time: the test a short minute, the game 4 minutes (the bag models and the real count come next)
+	const float Load = bTest ? 60.f : 240.f;
+	const float StandX = T.StandX;
+	WaitFor(Ci, [this, StandX](float E) { const int32 Li = LoaderAt(StandX); return Li == INDEX_NONE || Tractors[Li].bBelt || E > 150.f; });
 	Do(Ci, [this, Ti, Load] { ADP_LOG(TEXT("GSE: loading %s from %s's train (%.0f s)"), *Tractors[Ti].Key, *Tractors[Ti].Name, Load); });
-	Wait(Ci, Load);
+	LoadingCycles(Ci, Ti, LoaderAt(StandX), Load);
 	Curtains(Ci, Ti, false, nullptr);
 	ClimbIn(Ci, Ti, [this, Ti] { Motor(Tractors[Ti], true); TrainHome(Ti); });
 }
@@ -446,11 +447,12 @@ void AGSE::TrainHome(int32 Ti)
 	FTractor& T = Tractors[Ti]; T.Job = EJob::Back;
 	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(T.StandX, S, N, Sp);
 	const float Xc = S - (Sp * 0.5f + 2.4f);
-	// round to the right, away from the aircraft, ahead of the GPU and the tug's way, back past the wingtip and off the stand
+	// round to the right, away from the aircraft and the belt loader, behind the wing, out between the wingtips and off the
+	// stand
 	TArray<FVector> W;
-	float Yw = 0.f; const FVector A = PlanPose(Xc, N + 5.f, 0.f, 1.f, Yw);
+	float Yw = 0.f; const FVector A = PlanPose(Xc, N + 30.f, 0.f, 1.f, Yw);
 	Dubins(W, T.At, T.Yaw, A, Yw, 400.f);
-	Leg(W, Xc, N + 5.f, 0.f, 1.f, Xc, N + 24.f, 0.f, 1.f, 400.f);
+	Leg(W, Xc, N + 30.f, 0.f, 1.f, Xc, N + 46.f, 0.f, 1.f, 400.f);
 	ADP_LOG(TEXT("GSE: %s's train leaves the stand x %.0f"), *T.Name, S);
 	Go(T, MoveTemp(W), false, [this, Ti]
 	{

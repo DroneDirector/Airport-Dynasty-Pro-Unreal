@@ -12,14 +12,14 @@
 namespace
 {
 	constexpr float TiltDeg = 5.f;     // the fixed corridor's slope down from the gate (jetway.ts JETWAY.tiltDeg)
-	constexpr float Reach = 13.f;      // rotunda to cab, metres (the tunnel as it always was)
+	constexpr float JwReach = 13.f;      // rotunda to cab, metres (the tunnel as it always was)
 	constexpr float Module = 3.f;      // the fixed corridor's module length
 	constexpr float TunSec = 5.7f;     // each telescopic section's length (reaches 15.1 m with 1 m overlaps)
 	constexpr float RotR = 1.8f;       // the rotunda's radius
 	constexpr float CabR = 1.6f;       // the cab's radius
 	constexpr float Sill = 3.3f;       // the aircraft's front door sill height
 	constexpr float Walk = 2.5f;       // the walkway's width inside
-	constexpr float Inside = 2.4f;     // the height inside
+	constexpr float JwInside = 2.4f;     // the height inside
 }
 #pragma endregion
 
@@ -129,7 +129,7 @@ void ATerminalJetways::BuildJetway(const FPlanDoor& Door, const FPlanPoint& Stan
 	// longer to reach them, never stretched), and the tunnel slides to meet the door exactly
 	const float CabZ = Stand.Z - 0.5f;
 	const float DX = Stand.X + 5.65f - GateX;
-	const float DZ0 = FMath::Sqrt(FMath::Max(1.f, Reach * Reach - DX * DX));
+	const float DZ0 = FMath::Sqrt(FMath::Max(1.f, JwReach * JwReach - DX * DX));
 	const float CorrLen = FMath::Max(Module, FMath::FloorToFloat((CabZ - DZ0 - RotR - PN) / Module) * Module);
 	const float RZ = PN + CorrLen + RotR;
 	const float DZ = CabZ - RZ;
@@ -142,8 +142,8 @@ void ATerminalJetways::BuildJetway(const FPlanDoor& Door, const FPlanPoint& Stan
 	#pragma endregion
 
 	#pragma region Fixed corridor
-	Along("jwAlu", Gate, Gate + FVector(0, 0, 0.01f), Walk + 0.6f, 0.15f, 0, Inside + 0.2f); // the gate trim over the door
-	Section(Gate, CorrEnd, Walk, Inside, Module);
+	Along("jwAlu", Gate, Gate + FVector(0, 0, 0.01f), Walk + 0.6f, 0.15f, 0, JwInside + 0.2f); // the gate trim over the door
+	Section(Gate, CorrEnd, Walk, JwInside, Module);
 	// its legs down to the apron
 	for (float At = FMath::Min(6.f, CorrLen * 0.5f); At < CorrLen - 1.f; At += 12.f)   // a pair of legs every 12 m
 	{
@@ -154,8 +154,8 @@ void ATerminalJetways::BuildJetway(const FPlanDoor& Door, const FPlanPoint& Stan
 
 	#pragma region Rotunda
 	Drum("jwStud", FVector(Rot.X, RotY - 0.06f, Rot.Z), RotR, 0.12f);             // its floor
-	Drum("jwAlu", FVector(Rot.X, RotY + Inside / 2, Rot.Z), RotR + 0.08f, 0.15f);  // a band round it
-	Drum("jwPanel", FVector(Rot.X, RotY + Inside + 0.1f, Rot.Z), RotR + 0.1f, 0.2f); // its roof
+	Drum("jwAlu", FVector(Rot.X, RotY + JwInside / 2, Rot.Z), RotR + 0.08f, 0.15f);  // a band round it
+	Drum("jwPanel", FVector(Rot.X, RotY + JwInside + 0.1f, Rot.Z), RotR + 0.1f, 0.2f); // its roof
 	Drum("jwTruss", FVector(Rot.X, RotY / 2, Rot.Z), 0.45f, RotY);                 // its column
 	Drum("jwAlu", FVector(Rot.X, RotY - 0.4f, Rot.Z), RotR * 0.8f, 0.6f);          // the drum under it
 	// its round wall: clad panels, open towards the corridor and the tunnel
@@ -166,11 +166,11 @@ void ATerminalJetways::BuildJetway(const FPlanDoor& Door, const FPlanPoint& Stan
 		auto Near = [&](float Y) { return FMath::Abs(FMath::FindDeltaAngleDegrees(A, Y)) < 40.f; };
 		if (Near(CorrYaw) || Near(TunYaw)) continue;
 		const float Rad = FMath::DegreesToRadians(A);
-		const FVector P = FTerminalPlan::ToWorld(Rot.X, RotY + Inside / 2, Rot.Z) + FVector(FMath::Cos(Rad), FMath::Sin(Rad), 0) * RotR * 100.f;
-		Kit(0, "jwPanel")->AddInstance(FTransform(FRotator(0, A + 90.f, 0), P, FVector(RotR * 0.42f, 0.08f, Inside)));
+		const FVector P = FTerminalPlan::ToWorld(Rot.X, RotY + JwInside / 2, Rot.Z) + FVector(FMath::Cos(Rad), FMath::Sin(Rad), 0) * RotR * 100.f;
+		Kit(0, "jwPanel")->AddInstance(FTransform(FRotator(0, A + 90.f, 0), P, FVector(RotR * 0.42f, 0.08f, JwInside)));
 	}
 	// the bellows from the corridor into the rotunda
-	Along("jwBellows", CorrEnd - FVector(0, 0, 0.4f), CorrEnd + FVector(0, 0, 0.2f), Walk + 0.5f, Inside + 0.4f, 0, Inside / 2);
+	Along("jwBellows", CorrEnd - FVector(0, 0, 0.4f), CorrEnd + FVector(0, 0, 0.2f), Walk + 0.5f, JwInside + 0.4f, 0, JwInside / 2);
 	#pragma endregion
 
 	#pragma region Tunnel
@@ -181,7 +181,7 @@ void ATerminalJetways::BuildJetway(const FPlanDoor& Door, const FPlanPoint& Stan
 	const FVector TD = (TunB - TunA).GetSafeNormal();
 	const float Widths[3] = {Walk + 0.3f, Walk + 0.15f, Walk};
 	const FVector Starts[3] = {TunA, TunA + TD * (TunSec - Over), TunB - TD * TunSec};
-	for (int32 s = 0; s < 3; ++s) Section(Starts[s], Starts[s] + TD * TunSec, Widths[s], Inside + 0.1f - s * 0.05f, TunSec / 2);
+	for (int32 s = 0; s < 3; ++s) Section(Starts[s], Starts[s] + TD * TunSec, Widths[s], JwInside + 0.1f - s * 0.05f, TunSec / 2);
 	if (TunLen > 3 * TunSec - 2.f) ADP_WARN(TEXT("Jetway to %s: the tunnel needs %.1f m, more than it reaches with 1 m overlaps"), *Stand.Id, TunLen);
 	#pragma endregion
 
@@ -210,7 +210,7 @@ void ATerminalJetways::BuildJetway(const FPlanDoor& Door, const FPlanPoint& Stan
 
 	#pragma region Cab
 	Drum("jwStud", FVector(CabC.X, Sill - 0.06f, CabC.Z), CabR, 0.12f);
-	Drum("jwPanel", FVector(CabC.X, Sill + Inside + 0.1f, CabC.Z), CabR + 0.1f, 0.2f);
+	Drum("jwPanel", FVector(CabC.X, Sill + JwInside + 0.1f, CabC.Z), CabR + 0.1f, 0.2f);
 	for (int32 i = 0; i < 12; ++i)
 	{
 		const float A = i * 30.f + 15.f;
@@ -219,11 +219,11 @@ void ATerminalJetways::BuildJetway(const FPlanDoor& Door, const FPlanPoint& Stan
 		// towards the aircraft (the stand's centre line, -x of the cab): glass; the rest clad
 		const bool bFront = FMath::Abs(FMath::FindDeltaAngleDegrees(A, 180.f)) < 70.f;
 		const float Rad = FMath::DegreesToRadians(A);
-		const FVector P = FTerminalPlan::ToWorld(CabC.X, Sill + Inside / 2, CabC.Z) + FVector(FMath::Cos(Rad), FMath::Sin(Rad), 0) * CabR * 100.f;
-		Kit(0, bFront ? FName("jwBellows") : FName("jwAlu"))->AddInstance(FTransform(FRotator(0, A + 90.f, 0), P, FVector(CabR * 0.55f, 0.08f, Inside)));
+		const FVector P = FTerminalPlan::ToWorld(CabC.X, Sill + JwInside / 2, CabC.Z) + FVector(FMath::Cos(Rad), FMath::Sin(Rad), 0) * CabR * 100.f;
+		Kit(0, bFront ? FName("jwBellows") : FName("jwAlu"))->AddInstance(FTransform(FRotator(0, A + 90.f, 0), P, FVector(CabR * 0.55f, 0.08f, JwInside)));
 	}
 	// the canopy reaching to the fuselage, and the operator's console
-	Along("jwBellows", FVector(CabC.X - CabR, Sill, CabC.Z), FVector(CabC.X - CabR - 0.9f, Sill, CabC.Z), 2.4f, Inside + 0.2f, 0, Inside / 2);
+	Along("jwBellows", FVector(CabC.X - CabR, Sill, CabC.Z), FVector(CabC.X - CabR - 0.9f, Sill, CabC.Z), 2.4f, JwInside + 0.2f, 0, JwInside / 2);
 	Along("jwStud", FVector(CabC.X - CabR, Sill, CabC.Z), FVector(CabC.X - CabR - 0.9f, Sill, CabC.Z), 1.6f, 0.1f, 0, -0.05f);
 	Along("black", FVector(CabC.X - 0.6f, Sill, CabC.Z - 1.0f), FVector(CabC.X + 0.2f, Sill, CabC.Z - 1.0f), 0.5f, 1.0f, 0, 0.5f);
 	// the cab's support under it

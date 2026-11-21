@@ -80,6 +80,16 @@ public:
 		TFunction<bool()> Until; TFunction<void()> AfterUntil;                    // (waiting at a holding point until something is so)
 		FVehicleDirt Dirt;
 		FString Name;
+		// its own measures (root cm; the tractor's or the belt loader's - Art/<model>/<model>-parts.json)
+		bool bLoader = false;
+		FVector KWheel[4], KKing[2], KHinge, KWheelC, KStand, KHandle, KStep, KGrabOut, KGrabIn, KSeat, KBrake, KAccel, KHandL, KHandR;
+		float KRadF = 26.f, KRadR = 31.f, KWB = 158.f, KTrack = 112.f, KFloor = 62.f, KHalfL = 171.f, KHalfW = 72.f, KCentreX = 3.f, KTurnR = 300.f, KMaxSteer = 32.f;
+		FString SndStart, SndLoop, SndStop, SndDoorOpen, SndDoorClose, SndBeep;
+		// the belt loader: its boom (0 down .. -20.5 deg up), the rams, the bumper, the belt running
+		float Boom = 0.f, BoomWant = 0.f; bool bBelt = false;
+		int32 GBoom = INDEX_NONE, GBumper = INDEX_NONE, GRam[4] = {INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE};
+		UAudioComponent* BeltSnd = nullptr; UAudioComponent* BoomSnd = nullptr;
+		int32 TopCrew = INDEX_NONE;       // the loader up at the hold door
 	};
 	struct FCart
 	{
@@ -152,6 +162,22 @@ private:
 	void GpuApron(int32 Ti, int32 Gate);
 	void GpuLeave(int32 Ti, int32 Gate);
 	void RetryIn(int32 Ti, float Seconds, TFunction<void()> Fn);
+	// the belt loader (Art/BeltLoader/beltloader-parts.json): parked by the Ramp services 13 opening, driven to the
+	// aircraft's bulk hold door (right side, aft of the wing), the boom raised to the sill, the belt running while the
+	// train's bags go up it, the boom down and away before the push
+	void SetKind(FTractor& T, bool bLoader) const;
+	void LoaderParts(FTractor& T, float Dt);
+	int32 LoaderAt(float StandX) const;
+	void EnsureLoader(float StandX, const FString& Key);
+	void LoaderApron(int32 Li);
+	void LoaderIn(int32 Li);
+	void LoaderLeave(int32 Li);
+	FVector BoomW(const FTractor& T, const FVector& BoomLocal) const;
+	void LoadingCycles(int32 Ci, int32 Ti, int32 Li, float Seconds);
+public:
+	/** The turnaround planner's bulk hold task (Turnaround.cpp): the belt loader to that stand. */
+	void BulkHold(float StandX, const FString& Key) { EnsureLoader(StandX, Key); }
+private:
 	int32 Borrow(const FVector& Near);
 	void GiveBack(int32 Ci);
 	void WalkTo(int32 Ci, TFunction<FVector()> To, float Stop = 20.f);

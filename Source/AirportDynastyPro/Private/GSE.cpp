@@ -51,7 +51,7 @@ namespace
 	constexpr float GseGEyeToAxle = 143.f;
 	// driving (cm/s): on the apron 15 km/h, in the baggage block 9 km/h, reversing 4 km/h
 	constexpr float GseApronSpeed = 420.f, GseHallSpeed = 250.f, GseBackSpeed = 110.f, GseTurnR = 300.f;
-	enum GseELensKind : uint8 { GLow, GHigh, GTail, GMarker, GReverse, GBeacon, GIndicator };
+	enum GseELensKind : uint8 { GLow, GHigh, GTail, GMarker, GReverse, GBeacon, GIndicator, GWork };
 
 	USoundAttenuation* GseAtt()
 	{
@@ -71,7 +71,7 @@ namespace
 	{
 		static TMap<FString, USoundBase*> Cache;
 		if (USoundBase** F = Cache.Find(Name)) return *F;
-		const TCHAR* Dir = FCString::Strncmp(Name, TEXT("BC"), 2) == 0 ? TEXT("BaggageCart") : TEXT("BaggageTractor");
+		const TCHAR* Dir = FCString::Strncmp(Name, TEXT("BC"), 2) == 0 ? TEXT("BaggageCart") : FCString::Strncmp(Name, TEXT("BL"), 2) == 0 ? TEXT("BeltLoader") : TEXT("BaggageTractor");
 		USoundBase* S = ADPKeep(LoadObject<USoundBase>(nullptr, *FString::Printf(TEXT("/Game/%s/Sounds/%s.%s"), Dir, Name, Name)));
 		if (!S) ADP_WARN(TEXT("GSE: sound %s missing (/Game/%s/Sounds)"), Name, Dir);
 		Cache.Add(Name, S); return S;
@@ -142,18 +142,26 @@ void AGSE::Setup()
 	for (int32 i = 0; i < 4; ++i)
 	{
 		FTractor T; float Yw = 0.f; T.Home = T.At = PlanPose(BoxAt[i].X, BoxAt[i].Y, 1.f, 0.f, Yw); T.HomeYaw = T.Yaw = Yw;
-		T.Name = FString::Printf(TEXT("tractor %d"), i + 1);
+		T.Name = FString::Printf(TEXT("tractor %d"), i + 1); SetKind(T, false);
 		if (SpawnTractor(T)) Tractors.Add(T);
+	}
+	// the belt loader: parked on the apron west of the Ramp services 13 opening, along the terminal (2.5 m off its wall,
+	// 9.5 m clear of the stand line at x 246.5), facing the opening
+	{
+		FTractor L; float Yw = 0.f; L.Home = L.At = PlanPose(256.f, 88.f, 1.f, 0.f, Yw); L.HomeYaw = L.Yaw = Yw;
+		L.Name = TEXT("belt loader 1"); SetKind(L, true);
+		if (SpawnTractor(L)) Tractors.Add(L);
 	}
 	for (FTractor& T : Tractors) Pose(T);
 	for (FCart& C : Carts) PoseCart(C);
-	ADP_LOG(TEXT("GSE: %d baggage tractors in their boxes and %d baggage carts (unhitched, drawbars up) in the departure cart lane%s"), Tractors.Num(), Carts.Num(), bTest ? TEXT(" - test (-GseTest): a train to the next departure and a GPU move") : TEXT(""));
+	ADP_LOG(TEXT("GSE: %d baggage tractors / belt loaders in their places and %d baggage carts (unhitched, drawbars up) in the departure cart lane%s"), Tractors.Num(), Carts.Num(), bTest ? TEXT(" - test (-GseTest): a train to the next departure and a GPU move") : TEXT(""));
 }
 
 bool AGSE::SpawnTractor(FTractor& T)
 {
 	ABabylonModel* M = GetWorld()->SpawnActor<ABabylonModel>(T.At, FRotator(0.f, T.Yaw, 0.f));
-	if (!M || !M->Place(TEXT("BaggageTractor"))) { if (M) M->Destroy(); ADP_WARN(TEXT("GSE: the baggage tractor model is missing (Tools/import_model.py ... BaggageTractor)")); return false; }
+	const TCHAR* Model = T.bLoader ? TEXT("BeltLoader") : TEXT("BaggageTractor");
+	if (!M || !M->Place(Model)) { if (M) M->Destroy(); ADP_WARN(TEXT("GSE: the %s model is missing (Tools/import_model.py ... %s)"), Model, Model); return false; }
 	M->SetPartsCollision(false);
 	T.M = M;
 	// the lenses: the fire truck's lens material, one glow value per lens (its windows: the truck's glass - VehicleDirt)
@@ -180,25 +188,35 @@ bool AGSE::SpawnTractor(FTractor& T)
 		}
 	struct FW { const TCHAR* Name; GseELensKind Kind; };
 	static const FW Which[] = {{TEXT("LowBeam_"), GLow}, {TEXT("HighBeam_"), GHigh}, {TEXT("TailBrake_"), GTail}, {TEXT("SideMarker_"), GMarker}, {TEXT("Reverse_"), GReverse},
-		{TEXT("BeaconLens"), GBeacon}, {TEXT("IndicatorF_"), GIndicator}, {TEXT("IndicatorR_"), GIndicator}};
+		{TEXT("BeaconLens"), GBeacon}, {TEXT("IndicatorF_"), GIndicator}, {TEXT("IndicatorR_"), GIndicator}, {TEXT("WorkLamp_Lens"), GWork}};
 	for (const FW& Wh : Which)
 	{
 		TArray<TTuple<UInstancedStaticMeshComponent*, int32, FString>> Found; M->InstancesNamed(Wh.Name, true, Found);
 		for (const auto& F : Found)
-			if (F.Get<2>().EndsWith(TEXT("_Lens")) || F.Get<2>() == TEXT("BeaconLens"))
+			if (F.Get<2>().EndsWith(TEXT("_Lens")) || F.Get<2>() == TEXT("BeaconLens") || F.Get<2>() == TEXT("WorkLamp_Lens"))
 			{ FLens L; L.K = F.Get<0>(); L.Ix = F.Get<1>(); L.Kind = Wh.Kind; if (Wh.Kind == GIndicator) L.Side = F.Get<2>().Contains(TEXT("_L_")) ? 1 : -1; T.Lenses.Add(L); }
 	}
 	// the moving parts
 	for (int32 w = 0; w < 4; ++w)
 	{
 		TArray<FString> Names; for (const TCHAR* P : {TEXT("Tyre_"), TEXT("Rim_"), TEXT("WheelDisc_"), TEXT("Hub_"), TEXT("HubCap_"), TEXT("Nut_")}) Names.Add(FString(P) + GseWKey[w]);
-		T.GWheel[w] = M->BindGroup(Names, true, FTransform(GseTWheelAt[w]));
-		if (w < 2) T.GSteer[w] = M->BindGroup({FString(TEXT("Spindle_")) + GseWKey[w], FString(TEXT("SteerArm_")) + GseWKey[w]}, true, FTransform(GseTKing[w]));
+		T.GWheel[w] = M->BindGroup(Names, true, FTransform(T.KWheel[w]));
+		if (w < 2) T.GSteer[w] = M->BindGroup({FString(TEXT("Spindle_")) + GseWKey[w], FString(TEXT("SteerArm_")) + GseWKey[w]}, true, FTransform(T.KKing[w]));
 	}
-	T.GDoor = M->BindGroup({TEXT("DoorDriver")}, true, FTransform(GseTHinge));
-	T.GDoor2 = M->BindGroup({TEXT("HingeDoor_0"), TEXT("HingeDoor_1")}, false, FTransform(GseTHinge));
-	T.GWheelS = M->BindGroup({TEXT("SteeringWheel")}, true, FTransform(GseTWheelC));
-	T.GPin = M->BindGroup({TEXT("HitchPinRear")}, true, FTransform(GseTPinTop));
+	T.GDoor = M->BindGroup({TEXT("DoorDriver")}, true, FTransform(T.KHinge));
+	T.GDoor2 = M->BindGroup({TEXT("HingeDoor_0"), TEXT("HingeDoor_1")}, false, FTransform(T.KHinge));
+	T.GWheelS = M->BindGroup({TEXT("SteeringWheel")}, true, FTransform(T.KWheelC));
+	if (!T.bLoader) T.GPin = M->BindGroup({TEXT("HitchPinRear")}, true, FTransform(GseTPinTop));
+	else
+	{
+		// the boom (its belt, its rails, its work lamp) about its lower hinge; the bumper pad on its pin; the two rams
+		T.GBoom = M->BindGroup({TEXT("Boom_"), TEXT("BeltSurface"), TEXT("WorkLamp_")}, true, FTransform(FVector(-320.f, 0.f, 76.f)));
+		T.GBumper = M->BindGroup({TEXT("BumperPad")}, true, FTransform(FVector(386.f, 0.f, 75.5f)));
+		T.GRam[0] = M->BindGroup({TEXT("RamFront_Barrel")}, true, FTransform(FVector(-40.f, 0.f, 42.f)));
+		T.GRam[1] = M->BindGroup({TEXT("RamFront_Rod")}, true, FTransform(FVector(170.f, 0.f, 64.f)));
+		T.GRam[2] = M->BindGroup({TEXT("RamRear_Barrel")}, true, FTransform(FVector(-270.f, 0.f, 42.f)));
+		T.GRam[3] = M->BindGroup({TEXT("RamRear_Rod")}, true, FTransform(FVector(-130.f, 0.f, 64.f)));
+	}
 	T.Dirt.Dress(M, this, T.Name);
 	Lamps(T);
 	return true;
@@ -239,10 +257,10 @@ void AGSE::Pose(FTractor& T)
 	ABabylonModel* M = T.M.Get(); if (!M) return;
 	// every wheel on the surface (owner 2026-11-20): the ground under each, the body leaning with it - a degree or so
 	const FRotator R0(0.f, T.Yaw, 0.f);
-	float Z[4]; for (int32 w = 0; w < 4; ++w) { const FVector P = T.At + R0.RotateVector(GseTWheelAt[w]); Z[w] = Plan(P.X / 100.f, -P.Y / 100.f).Z; }
+	float Z[4]; for (int32 w = 0; w < 4; ++w) { const FVector P = T.At + R0.RotateVector(T.KWheel[w]); Z[w] = Plan(P.X / 100.f, -P.Y / 100.f).Z; }
 	const float Zm = (Z[0] + Z[1] + Z[2] + Z[3]) / 4.f;
-	const float Pitch = FMath::RadiansToDegrees(FMath::Atan(((Z[0] + Z[1]) - (Z[2] + Z[3])) * 0.5f / 158.f));
-	const float Roll = FMath::RadiansToDegrees(FMath::Atan(((Z[1] + Z[3]) - (Z[0] + Z[2])) * 0.5f / 112.f));
+	const float Pitch = FMath::RadiansToDegrees(FMath::Atan(((Z[0] + Z[1]) - (Z[2] + Z[3])) * 0.5f / T.KWB));
+	const float Roll = FMath::RadiansToDegrees(FMath::Atan(((Z[1] + Z[3]) - (Z[0] + Z[2])) * 0.5f / T.KTrack));
 	T.At.Z = Zm;
 	M->SetActorLocationAndRotation(T.At, FRotator(Pitch, T.Yaw, Roll));
 }
@@ -270,10 +288,10 @@ void AGSE::Motor(FTractor& T, bool bOn)
 	T.bOn = bOn;
 	if (bOn)
 	{
-		Sound(TEXT("BTStart"), T.At);
-		T.Motor = UGameplayStatics::SpawnSoundAttached(GseSnd(TEXT("BTMotorLoop")), T.M->GetRootComponent(), NAME_None, FVector(0, 0, 60.f), EAttachLocation::KeepRelativeOffset, false, 0.7f, 0.85f, 0.f, GseAtt(), nullptr, false);
+		if (!T.SndStart.IsEmpty()) Sound(*T.SndStart, T.At);
+		T.Motor = UGameplayStatics::SpawnSoundAttached(GseSnd(*T.SndLoop), T.M->GetRootComponent(), NAME_None, FVector(0, 0, 60.f), EAttachLocation::KeepRelativeOffset, false, 0.7f, 0.85f, 0.f, GseAtt(), nullptr, false);
 	}
-	else { if (T.Motor) T.Motor->Stop(); T.Motor = nullptr; Sound(TEXT("BTStop"), T.At); }
+	else { if (T.Motor) T.Motor->Stop(); T.Motor = nullptr; if (!T.SndStop.IsEmpty()) Sound(*T.SndStop, T.At); }
 }
 
 void AGSE::Lamps(FTractor& T)
@@ -298,12 +316,13 @@ void AGSE::Lamps(FTractor& T)
 		case GMarker: V = bRun ? 0.5f : 0.f; break;
 		case GReverse: V = bBack ? 1.f : 0.f; break;
 		case GBeacon: V = bFlash ? 1.f : 0.f; break;
+		case GWork: V = (bRun && T.Boom < -0.5f) ? 1.f : 0.f; break;
 		default: V = 0.f;
 		}
 		if (V != L.Now && L.K) { L.Now = V; L.K->SetCustomDataValue(L.Ix, 0, V, true); }
 	}
 	if (bBack && !T.Beep && T.M.IsValid())
-		T.Beep = UGameplayStatics::SpawnSoundAttached(GseSnd(TEXT("BTReverseBeep")), T.M->GetRootComponent(), NAME_None, FVector(-150.f, 0, 80.f), EAttachLocation::KeepRelativeOffset, false, 0.6f, 1.f, 0.f, GseAtt(), nullptr, false);
+		T.Beep = UGameplayStatics::SpawnSoundAttached(GseSnd(*T.SndBeep), T.M->GetRootComponent(), NAME_None, FVector(-150.f, 0, 80.f), EAttachLocation::KeepRelativeOffset, false, 0.6f, 1.f, 0.f, GseAtt(), nullptr, false);
 	if (!bBack && T.Beep) { T.Beep->Stop(); T.Beep = nullptr; }
 	if (T.Motor) { T.Motor->SetPitchMultiplier(0.85f + FMath::Clamp(T.MeasSpeed / 4.2f, 0.f, 1.f) * 0.45f); T.Motor->SetVolumeMultiplier(0.45f + FMath::Clamp(T.MeasSpeed / 4.2f, 0.f, 1.f) * 0.5f); }
 }
@@ -317,12 +336,12 @@ void AGSE::TractorParts(FTractor& T, float Dt)
 	const float YawRate = FMath::DegreesToRadians(FMath::FindDeltaAngleDegrees(T.PrevYaw, T.Yaw)) / Dt;
 	T.PrevAt = T.At; T.PrevYaw = T.Yaw;
 	// rolled by the distance over each tyre's radius; steered (front wheels): tan(angle) = wheelbase * yaw rate / speed
-	T.SpinF = FMath::Fmod(T.SpinF + Dir * Dist / 26.f, 2.f * PI);
-	T.SpinR = FMath::Fmod(T.SpinR + Dir * Dist / 31.f, 2.f * PI);
+	T.SpinF = FMath::Fmod(T.SpinF + Dir * Dist / T.KRadF, 2.f * PI);
+	T.SpinR = FMath::Fmod(T.SpinR + Dir * Dist / T.KRadR, 2.f * PI);
 	const float Speed = Dist / Dt / 100.f;
 	T.MeasSpeed = FMath::FInterpTo(T.MeasSpeed, Speed, Dt, 6.f);
 	T.BrakeHold = T.MeasSpeed < T.LastSpeed - 0.15f * Dt ? 0.6f : FMath::Max(0.f, T.BrakeHold - Dt); T.LastSpeed = T.MeasSpeed;
-	if (Speed > 0.05f) T.Steer = FMath::FInterpTo(T.Steer, FMath::Clamp(FMath::RadiansToDegrees(FMath::Atan(1.58f * YawRate / (Speed * Dir))), -32.f, 32.f), Dt, 5.f);
+	if (Speed > 0.05f) T.Steer = FMath::FInterpTo(T.Steer, FMath::Clamp(FMath::RadiansToDegrees(FMath::Atan(T.KWB / 100.f * YawRate / (Speed * Dir))), -T.KMaxSteer, T.KMaxSteer), Dt, 5.f);
 	for (int32 w = 0; w < 4; ++w)
 	{
 		if (T.GWheel[w] == INDEX_NONE) continue;
@@ -330,28 +349,29 @@ void AGSE::TractorParts(FTractor& T, float Dt)
 		if (w < 2)
 		{
 			const FQuat Qs(FVector::UpVector, FMath::DegreesToRadians(T.Steer));
-			M->MoveGroup(T.GWheel[w], FTransform(Qs * Spin, GseTKing[w] + Qs.RotateVector(GseTWheelAt[w] - GseTKing[w])));
-			if (T.GSteer[w] != INDEX_NONE) M->MoveGroup(T.GSteer[w], FTransform(Qs, GseTKing[w]));
+			M->MoveGroup(T.GWheel[w], FTransform(Qs * Spin, T.KKing[w] + Qs.RotateVector(T.KWheel[w] - T.KKing[w])));
+			if (T.GSteer[w] != INDEX_NONE) M->MoveGroup(T.GSteer[w], FTransform(Qs, T.KKing[w]));
 		}
-		else M->MoveGroup(T.GWheel[w], FTransform(Spin, GseTWheelAt[w]));
+		else M->MoveGroup(T.GWheel[w], FTransform(Spin, T.KWheel[w]));
 	}
 	// the steering wheel (about its column, ~16 turns of the wheel lock to lock... a gentle 8x), the door, the hitch pin
-	if (T.GWheelS != INDEX_NONE) M->MoveGroup(T.GWheelS, FTransform(FQuat(FVector(-0.7071f, 0.f, 0.7071f), FMath::DegreesToRadians(-T.Steer * 8.f)), GseTWheelC));
+	if (T.GWheelS != INDEX_NONE) M->MoveGroup(T.GWheelS, FTransform(FQuat(FVector(-0.7071f, 0.f, 0.7071f), FMath::DegreesToRadians(-T.Steer * 8.f)), T.KWheelC));
 	if (!FMath::IsNearlyEqual(T.DoorAng, T.DoorWant, 0.05f))
 	{
 		const float Was = T.DoorAng;
 		T.DoorAng = FMath::FInterpTo(T.DoorAng, T.DoorWant, Dt, 5.f); if (FMath::Abs(T.DoorAng - T.DoorWant) < 0.5f) T.DoorAng = T.DoorWant;
 		// (swung out round its front edge: Blender's negative turn about +z is the root's positive)
-		const FTransform Dr(FQuat(FVector::UpVector, FMath::DegreesToRadians(T.DoorAng)), GseTHinge);
+		const FTransform Dr(FQuat(FVector::UpVector, FMath::DegreesToRadians(T.DoorAng)), T.KHinge);
 		if (T.GDoor != INDEX_NONE) M->MoveGroup(T.GDoor, Dr);
 		if (T.GDoor2 != INDEX_NONE) M->MoveGroup(T.GDoor2, Dr);
-		if (Was > 0.f && T.DoorAng == 0.f) Sound(TEXT("BTDoorClose"), TW(T, GseTHinge));
+		if (Was > 0.f && T.DoorAng == 0.f) Sound(*T.SndDoorClose, TW(T, T.KHinge));
 	}
 	if (!FMath::IsNearlyEqual(T.Pin, T.PinWant, 0.001f))
 	{
 		T.Pin = FMath::FInterpConstantTo(T.Pin, T.PinWant, Dt, 1.2f);
 		if (T.GPin != INDEX_NONE) M->MoveGroup(T.GPin, FTransform(GseTPinTop + FVector(0, 0, 40.f * T.Pin)));
 	}
+	if (T.bLoader) LoaderParts(T, Dt);
 	M->FlushMoves();
 	T.Dirt.Tick(Dt, T.MeasSpeed);
 }
@@ -459,7 +479,7 @@ void AGSE::Drive(FTractor& T, float Dt)
 	// steering: the heading wanted (the back leads reversing), limited by the turning circle at this speed
 	const float WantYaw = T.bReverse ? (-To).Rotation().Yaw : To.Rotation().Yaw;
 	const float dYaw = FMath::FindDeltaAngleDegrees(T.Yaw, WantYaw);
-	const float MaxRate = FMath::Min(45.f, FMath::RadiansToDegrees(FMath::Max(T.Speed, 50.f) / GseTurnR));
+	const float MaxRate = FMath::Min(45.f, FMath::RadiansToDegrees(FMath::Max(T.Speed, 50.f) / T.KTurnR));
 	T.Yaw += FMath::Clamp(dYaw, -MaxRate * Dt, MaxRate * Dt);
 	// speed: the lane's in the building, the apron's outside; slower in bends ahead; a creep for the last metres
 	const bool bIn = GseIndoors(GseP2(T.At).X, GseP2(T.At).Y);
@@ -667,7 +687,7 @@ bool AGSE::Apron(TArray<FVector>& Out, const FVector& FromW, const FVector& ToW,
 		Mp.Boxes.Add({N - Fa * (13.65f * k), Fa, 18.85f * k + 0.5f, 2.2f * k});            // the fuselage, nose tip to tail
 		Mp.Boxes.Add({N - Fa * (15.5f * k), Fa, 4.5f * k, 18.f * k + 0.5f});               // the wings
 		Mp.Boxes.Add({N - Fa * (31.f * k), Fa, 2.5f * k, 6.5f * k + 0.5f});                // the tailplane
-		for (const float s : {-1.f, 1.f}) Mp.Boxes.Add({N - Fa * (3.f * k) + Sd * (5.75f * k * s), Fa, 2.6f * k, 1.3f * k});   // the engines
+		for (const float s : {-1.f, 1.f}) Mp.Boxes.Add({N - Fa * (6.5f * k) + Sd * (5.75f * k * s), Fa, 3.f * k, 1.3f * k});   // the engines
 	}
 	// the other vehicles: tugs, GPUs (not one being towed), the other tractors and carts
 	if (const ATugs* G = Tg())
@@ -802,7 +822,7 @@ bool AGSE::BusyAt(float StandX) const
 
 void AGSE::Outlines(TArray<FOutline>& Out) const
 {
-	for (const FTractor& T : Tractors) if (T.M.IsValid()) { const FVector F = FRotator(0.f, T.Yaw, 0.f).Vector(); Out.Add({T.At + F * 3.f, F, FVector(-F.Y, F.X, 0.f), GseTHalfL, 72.f}); }
+	for (const FTractor& T : Tractors) if (T.M.IsValid()) { const FVector F = FRotator(0.f, T.Yaw, 0.f).Vector(); Out.Add({T.At + F * T.KCentreX, F, FVector(-F.Y, F.X, 0.f), T.KHalfL, T.KHalfW}); }
 	for (const FCart& C : Carts) if (C.M.IsValid()) { const FVector F = FRotator(0.f, C.Yaw, 0.f).Vector(); Out.Add({C.At - F * 2.f, F, FVector(-F.Y, F.X, 0.f), 140.f, GseCHalfW}); }
 }
 
@@ -841,7 +861,7 @@ void AGSE::Tick(float Dt)
 		if (T.Path.Num()) { Drive(T, Dt); Train(T, Dt); }
 		T.JobT += Dt;
 		Lamps(T); TractorParts(T, Dt);
-		if (bCheck && (T.Path.Num() || T.Speed > 1.f)) Check(T, i);
+		if (bCheck && (T.Path.Num() || T.Speed > 1.f)) Check(T, i);   // (moving only: a belt loader's bumper on the door sill touches the aircraft on purpose)
 		if (bSay && T.Job != EJob::None)
 		{
 			static const TCHAR* JN[] = {TEXT("idle"), TEXT("the driver getting in"), TEXT("backing to the carts"), TEXT("coupling"), TEXT("towing out"), TEXT("at the stand"), TEXT("loading"), TEXT("towing back"), TEXT("uncoupling"), TEXT("to its box"), TEXT("to the GPU"), TEXT("coupling the GPU"), TEXT("moving the GPU"), TEXT("uncoupling the GPU")};
@@ -860,7 +880,7 @@ void AGSE::Tick(float Dt)
 void AGSE::Check(const FTractor& T, int32 Index)
 {
 	struct FFoot { FString What; FVector At; float Yaw, Hl, Hw; };
-	TArray<FFoot> Feet = {{T.Name, T.At, T.Yaw, GseTHalfL, 72.f}};
+	TArray<FFoot> Feet = {{T.Name, T.At + FRotator(0.f, T.Yaw, 0.f).Vector() * T.KCentreX, T.Yaw, T.KHalfL, T.KHalfW}};
 	for (const int32 c : T.Train) if (Carts.IsValidIndex(c)) Feet.Add({FString::Printf(TEXT("%s's cart %d"), *T.Name, c + 1), Carts[c].At, Carts[c].Yaw, 140.f, GseCHalfW});
 	const FAirfieldData& F = AAirfield::Shared();
 	FString Hit, Note;
@@ -908,8 +928,11 @@ void AGSE::Check(const FTractor& T, int32 Index)
 			{
 				const FVector2f D = Q - N; const float Al = FVector2f::DotProduct(D, Fa), Ac = FVector2f::DotProduct(D, Sa);
 				if (Al < 5.2f && Al > -32.5f && FMath::Abs(Ac) < 2.2f) { Hit += FString::Printf(TEXT(" %s under an aircraft's fuselage;"), *Ft.What); break; }
-				if (Al < -11.f && Al > -20.f && FMath::Abs(Ac) < 18.f) { Hit += FString::Printf(TEXT(" %s under an aircraft's wing;"), *Ft.What); break; }
-				if (Al < -0.4f && Al > -5.6f && FMath::Abs(FMath::Abs(Ac) - 5.75f) < 1.3f) { Hit += FString::Printf(TEXT(" %s at an aircraft's engine;"), *Ft.What); break; }
+				// (the A320's swept wing from the nose wheel: leading edge 7.5 m behind it at the root, 15 m at the tip; trailing
+				//  edge 13.8 m at the root, 16.6 m at the tip - each with half a metre to spare)
+				const float Lat = FMath::Abs(Ac), Bh = -Al;
+				if (Lat > 2.f && Lat < 18.4f && Bh > 7.f + 0.51f * (Lat - 2.f) && Bh < 14.3f + 0.19f * (Lat - 2.f)) { Hit += FString::Printf(TEXT(" %s under an aircraft's wing;"), *Ft.What); break; }
+				if (Bh > 3.5f && Bh < 9.5f && FMath::Abs(Lat - 5.75f) < 1.3f) { Hit += FString::Printf(TEXT(" %s at an aircraft's engine;"), *Ft.What); break; }
 			}
 		}
 		// the other vehicles
@@ -919,7 +942,7 @@ void AGSE::Check(const FTractor& T, int32 Index)
 			for (const FVector2f& Q : Pts) { const FVector2f D = Q - C; if (FMath::Abs(FVector2f::DotProduct(D, X2)) < Hl2 / 100.f && FMath::Abs(FVector2f::DotProduct(D, Y2)) < Hw2 / 100.f) return true; }
 			return false;
 		};
-		for (const FTractor& O : Tractors) if (&O != &T && O.M.IsValid() && Overlap(O.At, O.Yaw, GseTHalfL, 72.f)) Hit += FString::Printf(TEXT(" %s into %s;"), *Ft.What, *O.Name);
+		for (const FTractor& O : Tractors) if (&O != &T && O.M.IsValid() && Overlap(O.At + FRotator(0.f, O.Yaw, 0.f).Vector() * O.KCentreX, O.Yaw, O.KHalfL, O.KHalfW)) Hit += FString::Printf(TEXT(" %s into %s;"), *Ft.What, *O.Name);
 		for (int32 c = 0; c < Carts.Num(); ++c) if (!T.Train.Contains(c) && Carts[c].M.IsValid() && Overlap(Carts[c].At, Carts[c].Yaw, 140.f, GseCHalfW)) Hit += FString::Printf(TEXT(" %s into baggage cart %d;"), *Ft.What, c + 1);
 		if (const ATugs* G = Tg())
 			for (int32 g = 0; g < G->Tugs.Num(); ++g)
@@ -965,7 +988,7 @@ bool AGSE::WatchPoints(TArray<FVector>& Pts, FVector& Side) const
 	const FTractor& T = *Pick;
 	const FVector F = FRotator(0.f, T.Yaw, 0.f).Vector(), Rt = FRotator(0.f, T.Yaw + 90.f, 0.f).Vector();
 	Pts.Reset();
-	for (const float a : {-GseTHalfL, GseTHalfL}) for (const float b : {-90.f, 90.f}) Pts.Add(T.At + F * a + Rt * b);
+	for (const float a : {-T.KHalfL, T.KHalfL}) for (const float b : {-T.KHalfW - 18.f, T.KHalfW + 18.f}) Pts.Add(T.At + F * (a + T.KCentreX) + Rt * b);
 	Pts.Add(T.At + FVector(0, 0, 220.f));
 	for (const int32 c : T.Train) if (Carts.IsValidIndex(c)) { const FCart& C = Carts[c]; const FVector Cf = FRotator(0.f, C.Yaw, 0.f).Vector(); Pts.Add(C.At + Cf * 200.f); Pts.Add(C.At - Cf * 140.f + FVector(0, 0, 200.f)); }
 	// (backing to its carts: the carts it is going to couple)
@@ -995,12 +1018,12 @@ void AGSE::Departure(const FString& Key, float StandX)
 	float S, N, Sp; if (!StandGeo(StandX, S, N, Sp) || Sp > 40.f) return;   // (the contact stands' A320s; the big stands' trains come with their belt loaders and containers)
 	Served.Add(Key);
 	// a train made up but not yet given its flight takes it (the test's first train goes to the next departure)
-	for (FTractor& T : Tractors) if ((T.Job == EJob::Boarding || T.Job == EJob::ToCarts || T.Job == EJob::Coupling || T.Job == EJob::Out) && T.Key.IsEmpty() && T.TowGpu == INDEX_NONE && T.StandX == 0.f)
+	for (FTractor& T : Tractors) if (!T.bLoader && (T.Job == EJob::Boarding || T.Job == EJob::ToCarts || T.Job == EJob::Coupling || T.Job == EJob::Out) && T.Key.IsEmpty() && T.TowGpu == INDEX_NONE && T.StandX == 0.f)
 	{ T.Key = Key; T.StandX = StandX; for (const int32 c : T.Train) if (Carts.IsValidIndex(c)) Carts[c].Flight = Key; ADP_LOG(TEXT("GSE: %s's train goes to %s (stand at x %.0f)"), *T.Name, *Key, StandX); return; }
 	if (bTest) { if (!bTestStand) { bTestStand = true; TestKey = Key; TestStand = StandX; } return; }
 	// a free tractor and two free carts standing coupled-ready (a pair in a row, front to back: b's eye at a's rear jaw),
 	// the front one's eye clear to back up to
-	int32 Ti = INDEX_NONE; for (int32 t = 0; t < Tractors.Num() && Ti == INDEX_NONE; ++t) if (Tractors[t].Job == EJob::None && Tractors[t].M.IsValid()) Ti = t;
+	int32 Ti = INDEX_NONE; for (int32 t = 0; t < Tractors.Num() && Ti == INDEX_NONE; ++t) if (!Tractors[t].bLoader && Tractors[t].Job == EJob::None && Tractors[t].M.IsValid()) Ti = t;
 	if (Ti == INDEX_NONE) { ADP_LOG(TEXT("GSE: no tractor free for %s's baggage"), *Key); return; }
 	for (int32 a = 0; a < Carts.Num(); ++a)
 	{
