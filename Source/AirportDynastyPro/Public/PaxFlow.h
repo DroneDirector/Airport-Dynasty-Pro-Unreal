@@ -41,6 +41,10 @@ public:
 	/** True when this flight's departing passengers walk here: the boarding call is made by the passenger flow (at the
 	 *  turnaround's board task), not by the announcer's 40-minute rule - never called twice. */
 	static bool CallsBoarding(const UWorld* W, const FString& Flight);
+	/** May the aircraft Reg close its doors and leave? True when every passenger walking for its departure is aboard (or
+	 *  nobody walks for it). A passenger missing: the flight waits up to 15 minutes from the first ask, then goes without
+	 *  them (a no-show, logged). The jetway and the push wait on this (SimTraffic.cpp). */
+	static bool BoardingDone(const UWorld* W, const FString& Reg);
 	virtual void Tick(float Dt) override;
 
 	/** Tests: what must be in view now - the passenger being followed (feet, head, its bag), and the side to look from.
@@ -66,6 +70,7 @@ private:
 		int32 Run = 0; FString Id, Name; bool bArr = false;
 		EPx St = EPx::Walk; EDo Do = EDo::None;
 		TArray<FWp> Way; int32 Wi = 0; float PauseT = 0.f, Speed = 0.f, Pace = 130.f, Acc = 0.f, T = 0.f;
+		float TurnYaw = 0.f, YieldT = 0.f; FVector YieldOff = FVector::ZeroVector, YieldWant = FVector::ZeroVector;   // (passing people: the shoulder turn, the step aside)
 		FVector2D Jit = FVector2D::ZeroVector;
 		int32 Bag = INDEX_NONE; bool bBagDown = false, bHasBag = false, bArrBag = false; FVector Handle = FVector::ZeroVector;
 		int32 Desk = 0, Lane = -1, Seat = INDEX_NONE, Order = 0;
@@ -75,14 +80,14 @@ private:
 	struct FRun
 	{
 		FString Key, Label, AirlineId, Reg;
-		bool bArr = false, bTest = false, bPlayer = false;
+		bool bArr = false, bTest = false, bPlayer = false, bDockNoted = false;
 		int32 Gate = 2, Jet = INDEX_NONE;
 		double DepT = 0.0;          // departure (seconds on the run's clock: the simulation's, the test's own)
 		int32 Pax = 0, Visible = 0, Spawned = 0, Aboard = 0, Out = 0;
 		TArray<double> SpawnAt;     // (departures: when each walker gets out of their car; arrivals: off the aircraft)
 		TArray<int32> Desks;
 		bool bCalled = false, bFinal = false, bClosed = false, bAllLogged = false, bDeplaning = false, bBagsTagged = false;
-		double CallT = 0.0, BoardSpanS = 0.0, ArrStart = -1.0, NextArr = 0.0;
+		double CallT = 0.0, BoardSpanS = 0.0, ArrStart = -1.0, NextArr = 0.0, HoldSince = -1.0; bool bNoShowGo = false;
 		float DockWait = 0.f;
 	};
 	struct FGate { int32 N = 0; FString Room; FBox2D Box; FVector2f Jw = FVector2f::ZeroVector; int32 Place = INDEX_NONE; bool bF2 = true; };

@@ -255,7 +255,7 @@ int32 ATugs::Assign(const FString& Key, float StandX)
 	for (int32 i = 0; i < Tugs.Num(); ++i) if ((Tugs[i].State == EState::Parked || Tugs[i].State == EState::Manned) && FMath::Abs(Tugs[i].StandX - StandX) < 1.f) Best = i;
 	if (Best == INDEX_NONE) return INDEX_NONE;
 	FTug& T = Tugs[Best];
-	T.Key = Key; T.Path.Reset(); T.Seq = 0; T.SeqT = 0.f; T.EngT = -1.f; T.bDeiced = false; T.bEngines = false; T.Talk.Reset(); T.TalkT = 0.f;
+	T.Key = Key; T.Path.Reset(); T.Seq = 0; T.SeqT = 0.f; T.EngT = -1.f; T.bDeiced = false; T.bPushReq = false; T.bEngines = false; T.Talk.Reset(); T.TalkT = 0.f;
 	ADP_LOG(TEXT("Tugs: tug %d at its gate gets ready for %s"), Best, *Key);
 	// (its crew: the driver walks over and climbs in, then the engine starts - TugCrew.cpp)
 	if (T.State == EState::Manned) { T.State = EState::Waiting; Engine(T, true); CrewBoard(Best); ADP_LOG(TEXT("Tugs: the driver, already aboard, starts the engine")); }   // (CrewBoard: only the handler and walkers then)
@@ -299,6 +299,18 @@ bool ATugs::Push(const FString& Key, float StandX, const FVector& Fitting, const
 	{ static TSet<FString> Told; if (!Told.Contains(Key)) { Told.Add(Key); ADP_LOG(TEXT("Tugs: %s waits - its baggage train is still at the stand"), *Key); } return false; }
 	if (T.State == EState::Waiting)
 	{
+		// (owner 2026-11-21: the tug stays in its place until the aircraft asks to be pushed back - doors closed, the jetway
+		//  at rest: the cockpit calls the pushback crew on the ramp frequency, they answer, and only then does it come out)
+		if (!T.bPushReq && T.Driver != INDEX_NONE)   // (no crew: no talk - SeqTick needs a driver)
+		{
+			T.bPushReq = true;
+			const FString Cs = T.Callsign.IsEmpty() ? Key : T.Callsign;
+			Say(T, 1, FString::Printf(TEXT("Ramp, %s, doors closed, jetway clear, request pushback."), *Cs), true);
+			Say(T, 0, FString::Printf(TEXT("%s, ramp, pushback crew on the way."), *Cs), true);
+			ADP_LOG(TEXT("Tugs: %s requests pushback - the tug comes out after the reply"), *Key);
+			return false;
+		}
+		if (T.Talk.Num()) return false;   // (still talking: the tug stays put)
 		// in to the nose: off the road towards the stand, then straight at the aircraft, slowly
 		T.State = EState::ToNose; T.bReverse = false; ADP_LOG(TEXT("Tugs: in to the nose of %s"), *Key);
 		const FVector In = T.HookAt + F * 800.f;          // 8 m short of the hook place, in line with the nose

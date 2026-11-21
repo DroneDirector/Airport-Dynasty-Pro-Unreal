@@ -60,6 +60,28 @@ APaxFlow::APaxFlow()
 	Rng.Initialize(20261121);
 }
 
+bool APaxFlow::BoardingDone(const UWorld* W, const FString& Reg)
+{
+	APaxFlow* P = Find(W); if (!P || Reg.IsEmpty()) return true;
+	bool bAll = true;
+	for (FRun& R : P->Runs)
+	{
+		if (R.bArr || R.Reg != Reg || R.bNoShowGo) continue;
+		const bool bDone = R.bCalled && R.Spawned >= R.Visible && R.Aboard >= R.Spawned;
+		if (bDone) continue;
+		// (not yet: the first time the aircraft is ready to go, the clock starts - 15 min for the missing ones)
+		if (R.HoldSince < 0.0) { R.HoldSince = P->RealT; ADP_LOG(TEXT("PaxFlow: %s at gate %d is ready to close but %d of %d passengers are not aboard yet - holding the doors (up to 15 min)"), *R.Label, R.Gate, FMath::Max(0, R.Visible - R.Aboard), R.Visible); }
+		if (P->RealT - R.HoldSince >= 15.0 * 60.0)
+		{
+			R.bNoShowGo = true;
+			ADP_LOG(TEXT("PaxFlow: %s - %d passenger(s) did not show up after 15 min: doors closed without them (their bags come off the aircraft)"), *R.Label, FMath::Max(0, R.Visible - R.Aboard));
+			continue;
+		}
+		bAll = false;
+	}
+	return bAll;
+}
+
 bool APaxFlow::CallsBoarding(const UWorld* W, const FString& Flight)
 {
 	const APaxFlow* P = Find(W); if (!P || Flight.IsEmpty()) return false;
@@ -211,7 +233,8 @@ void APaxFlow::MakeTestRuns()
 	}
 	{
 		FRun R; R.Key = TEXT("T:ARR"); R.Label = TEXT("TEST AR1"); R.bTest = true; R.bArr = true;
-		R.Gate = DepGate == 3 ? 2 : 3; R.Pax = 14; R.Visible = 14; R.ArrStart = RealT + 40.0;
+		R.Gate = DepReg.IsEmpty() ? (DepGate == 3 ? 2 : 3) : DepGate; R.Reg = DepReg; R.Pax = 14;   // (the real aircraft: off it first, then boarding)
+		 R.Visible = 14; R.ArrStart = RealT + 40.0;
 		R.Jet = JetwayFor(GateRoom(R.Gate));
 		Runs.Add(R);
 		ADP_LOG(TEXT("PaxFlow: test arrival %s at gate %d (jetway %d) - %d passengers off the aircraft from 40 s, one every 3 s"), *R.Label, R.Gate, R.Jet, R.Visible);
@@ -342,18 +365,19 @@ void APaxFlow::StepRun(int32 Ri, float Dt)
 		AJetwayRigs* J = AJetwayRigs::Get(GetWorld());
 		const bool bDocked = R.Jet == INDEX_NONE || (J && J->State(R.Jet) == AJetwayRigs::EState::Docked);
 		R.DockWait += Dt;
-		if (!bDocked && !(R.bTest && R.DockWait > 30.f)) return;
+		// (owner 2026-11-21: the jetway fully out at the aircraft first - nobody walks before it is docked, the test too)
+		if (!bDocked) { if (R.DockWait > 60.f && !R.bDockNoted) { R.bDockNoted = true; ADP_LOG(TEXT("PaxFlow: %s waits at gate %d for the jetway to dock"), *R.Label, R.Gate); } return; }
 		R.bDeplaning = true; R.NextArr = Now;
 		// their bags: the flight's claim belt, the shown passengers' bags tagged with their ids
 		TArray<FString> Ids; for (int32 k = 0; k < R.Visible; ++k) if (k % 5 != 4) Ids.Add(FString::Printf(TEXT("%s-%02d"), *R.Label, k + 1));
 		if (ABaggageBelts::BeltOf(GetWorld(), R.Label) == INDEX_NONE)
 		{
 			const int32 Gi = GateRoom(R.Gate);
-			bool bCrew = false; for (const ADPTurnaround::FTurn& Tn : ADPTurnaround::All()) if (Tn.Reg == R.Reg) bCrew = true;
+			bool bCrew = false; if (!R.bTest) for (const ADPTurnaround::FTurn& Tn : ADPTurnaround::All()) if (Tn.Reg == R.Reg) bCrew = true;   // (the test arrival keeps its own bags)
 			ABaggageBelts::OnArrived(GetWorld(), Gates.IsValidIndex(Gi) ? Gates[Gi].Jw.X : 30.f, R.Label, bCrew ? 0 : -1);   // (a real aircraft: the ground crew's train brings its bags)
 		}
 		ABaggageBelts::TagBags(GetWorld(), R.Label, Ids);
-		ADP_LOG(TEXT("PaxFlow: %s deplaning at gate %d%s - belt %d, %d bags tagged to their passengers"), *R.Label, R.Gate, bDocked ? TEXT("") : TEXT(" (test: the jetway is not docked - walking out anyway)"), ABaggageBelts::BeltOf(GetWorld(), R.Label) + 1, Ids.Num());
+		ADP_LOG(TEXT("PaxFlow: %s deplaning at gate %d%s - belt %d, %d bags tagged to their passengers"), *R.Label, R.Gate, bDocked ? TEXT("") : TEXT(" (the jetway docked)"), ABaggageBelts::BeltOf(GetWorld(), R.Label) + 1, Ids.Num());
 	}
 	if (Now >= R.NextArr && SpawnGap <= 0.f) { SpawnArr(Ri); R.NextArr = Now + 3.0; SpawnGap = 0.5f; }
 }
@@ -503,6 +527,15 @@ void APaxFlow::Anim(FPx& P)
 void APaxFlow::Idle(FPx& P, AActor* A, float Dt, const FVector* Face)
 {
 	P.Speed = FMath::FInterpTo(P.Speed, 0.f, Dt, 5.f);
+	// (someone needs to get past: a small step to the side, held a moment, then back - owner 2026-11-21, like the people in
+	//  a real queue; under 40 cm, so a queue place stays the same)
+	{
+		P.YieldT = FMath::Max(0.f, P.YieldT - Dt);
+		const FVector Goal = P.YieldT > 0.f ? P.YieldWant : FVector::ZeroVector;
+		const FVector NewOff = FMath::VInterpTo(P.YieldOff, Goal, Dt, 3.f);
+		const FVector Step = NewOff - P.YieldOff;
+		if (!Step.IsNearlyZero(0.01f)) { A->AddActorWorldOffset(FVector(Step.X, Step.Y, 0.f)); P.YieldOff = NewOff; }
+	}
 	if (Face && !Face->IsNearlyZero()) A->SetActorRotation(FMath::RInterpTo(A->GetActorRotation(), FRotator(0.f, Face->Rotation().Yaw - 90.f, 0.f), Dt, 5.f));
 	Anim(P);
 }
@@ -544,10 +577,42 @@ bool APaxFlow::Follow(FPx& P, AActor* A, float Dt)
 		Anim(P);
 		return P.Wi >= P.Way.Num() && P.PauseT <= 0.f;
 	}
+	FVector Dn = D / Dist;
+	float TurnWant = 0.f;
+	if (!bRide)
+	{
+		// (aware of the people round them - owner 2026-11-21: walk past the queues and away from the desk between people,
+		//  the shoulders turned to slip through, and people standing step aside to let them by)
+		FVector Lat = FVector::ZeroVector; float Slow = 1.f;
+		const FVector Side(-Dn.Y, Dn.X, 0.f);
+		for (FPx& O : Pax)
+		{
+			if (&O == &P) continue;
+			const AActor* OA = O.A.Get(); if (!OA || O.St == EPx::Gone || O.St == EPx::Seated) continue;
+			FVector Rel = OA->GetActorLocation() - Loc; if (FMath::Abs(Rel.Z) > 120.f) continue; Rel.Z = 0.f;
+			const float R = Rel.Size(); if (R > 160.f || R < 1.f) continue;
+			const float Ahead = FVector::DotProduct(Rel, Dn), Off = FVector::DotProduct(Rel, Side);
+			if (Ahead < -30.f) continue;                                             // (behind: not my problem)
+			const float Near = FMath::Clamp((160.f - R) / 160.f, 0.f, 1.f);
+			Lat -= Side * FMath::Sign(Off == 0.f ? 1.f : Off) * Near * (Ahead > 0.f ? 1.f : 0.5f);   // (away from them, sideways)
+			if (R < 75.f && FMath::Abs(Off) < 60.f) TurnWant = FMath::Sign(Off == 0.f ? 1.f : Off) * -38.f;   // (a tight gap: shoulders turned)
+			if (Ahead > 0.f && FMath::Abs(Off) < 45.f && R < 60.f) Slow = FMath::Min(Slow, 0.45f);
+			// (standing in my way: please step aside - the side away from my line)
+			const bool bStanding = O.St != EPx::Walk || O.Speed < 15.f;
+			if (bStanding && Ahead > 0.f && R < 110.f && FMath::Abs(Off) < 55.f && O.YieldT <= 0.f)
+			{ O.YieldWant = Side * FMath::Sign(Off == 0.f ? 1.f : Off) * 34.f; O.YieldT = 2.2f; }
+		}
+		if (!Lat.IsNearlyZero()) Dn = (Dn + Lat * 0.8f).GetSafeNormal2D();
+		P.Speed *= FMath::Lerp(1.f, Slow, FMath::Min(1.f, Dt * 6.f));
+	}
+	P.TurnYaw = FMath::FInterpTo(P.TurnYaw, TurnWant, Dt, 5.f);
 	const float Mv = FMath::Min(Dist, (bRide ? 50.f : FMath::Max(P.Speed, 25.f)) * Dt);
-	FVector N = Loc + D / Dist * Mv;
+	FVector N = Loc + Dn * Mv;
 	// on the floor: straight down from knee height (stairs, escalator steps, the jetway's slope), never onto another person
 	FHitResult H; FCollisionQueryParams Q(SCENE_QUERY_STAT(PaxFloor), false, A);
+	// (never onto a bag or a belt either: the bags go their own way through the desks, hatches and belts - owner 2026-11-21)
+	if (AActor* Db = ADepartureBelts::Get(GetWorld())) Q.AddIgnoredActor(Db);
+	if (AActor* Ab = ABaggageBelts::Get(GetWorld())) Q.AddIgnoredActor(Ab);
 	bool bFloor = false;
 	if (GetWorld()->LineTraceSingleByChannel(H, FVector(N.X, N.Y, Loc.Z + 45.f), FVector(N.X, N.Y, Loc.Z - 150.f), ECC_Visibility, Q))
 	{
@@ -557,7 +622,7 @@ bool APaxFlow::Follow(FPx& P, AActor* A, float Dt)
 	}
 	if (!bFloor) N.Z = W.bGround ? FMath::FInterpTo(Loc.Z, W.P.Z, Dt, 4.f) : FMath::FInterpTo(Loc.Z, W.P.Z, Dt, 1.f);
 	A->SetActorLocation(N);
-	A->SetActorRotation(FMath::RInterpTo(A->GetActorRotation(), FRotator(0.f, D.Rotation().Yaw - 90.f, 0.f), Dt, bRide ? 3.f : 6.f));
+	A->SetActorRotation(FMath::RInterpTo(A->GetActorRotation(), FRotator(0.f, Dn.Rotation().Yaw - 90.f + P.TurnYaw, 0.f), Dt, bRide ? 3.f : 6.f));
 	Anim(P);
 	return false;
 }
@@ -704,7 +769,7 @@ void APaxFlow::WayUpstairs(FPx& P)
 	auto Add = [&](float X, float H, float Z, uint8 Mode = 0) { FWp W; W.P = PW(X, H, Z); W.Mode = Mode; P.Way.Add(W); };
 	const float J = float(P.Jit.X) / 100.f;
 	const bool bTestRun = Runs.IsValidIndex(P.Run) && Runs[P.Run].bTest;
-	P.bEsc = Rng.FRand() < (bTestRun ? 0.7f : 0.5f);
+	P.bEsc = true; (void)bTestRun;   // (owner 2026-11-21: everyone walks to the escalators and rides up - the lobby stairs stay for staff and the lift later)
 	if (!P.bEsc)
 	{
 		Add(67.5f, 0, 51.f); Add(57.f, 0, 50.8f); Add(57.f, 0, 47.f + J); Add(66.6f, F2Y, 47.f + J); Add(68.5f, F2Y, 47.f + J);
@@ -950,7 +1015,7 @@ void APaxFlow::StepPx(int32 i, float Dt)
 		const int32 K = L.IndexOfByKey(i);
 		const FVector To = DeskSpot(P.Desk, FMath::Max(0, K));
 		CarryBag(P, A);
-		if (FVector::Dist2D(To, A->GetActorLocation()) > 25.f) { P.Way.Reset(); P.Wi = 0; FWp W; W.P = To; P.Way.Add(W); Follow(P, A, Dt); }
+		if (FVector::Dist2D(To, A->GetActorLocation()) > 40.f) { P.Way.Reset(); P.Wi = 0; FWp W; W.P = To; P.Way.Add(W); Follow(P, A, Dt); }   // (40 cm: Follow calls it arrived at 30 - with 25 here the queue head stood 25-30 cm off for ever and nobody reached a desk, owner 2026-11-21)
 		else
 		{
 			const FVector North(0, -1, 0); Idle(P, A, Dt, &North);
@@ -975,7 +1040,7 @@ void APaxFlow::StepPx(int32 i, float Dt)
 	{
 		const int32 K = LaneLines[P.Lane].Who.IndexOfByKey(i);
 		const FVector To = LaneSpot(P.Lane, FMath::Max(0, K));
-		if (FVector::Dist2D(To, A->GetActorLocation()) > 25.f) { P.Way.Reset(); P.Wi = 0; FWp W; W.P = To; P.Way.Add(W); Follow(P, A, Dt); }
+		if (FVector::Dist2D(To, A->GetActorLocation()) > 40.f) { P.Way.Reset(); P.Wi = 0; FWp W; W.P = To; P.Way.Add(W); Follow(P, A, Dt); }   // (40 cm: Follow calls it arrived at 30 - with 25 here the queue head stood 25-30 cm off for ever and nobody reached a desk, owner 2026-11-21)
 		else
 		{
 			const FVector North(0, -1, 0); Idle(P, A, Dt, &North);
@@ -1008,7 +1073,7 @@ void APaxFlow::StepPx(int32 i, float Dt)
 		AJetwayRigs* J = AJetwayRigs::Get(GetWorld());
 		const bool bDocked = R.Jet == INDEX_NONE || (J && J->State(R.Jet) == AJetwayRigs::EState::Docked);
 		if (!bDocked) R.DockWait += Dt / FMath::Max(1, R.Spawned);
-		if (!bDocked && !(R.bTest && R.DockWait > 45.f)) { Idle(P, A, Dt); break; }
+		if (!bDocked) { if (R.DockWait > 60.f && !R.bDockNoted) { R.bDockNoted = true; ADP_LOG(TEXT("PaxFlow: %s's boarding waits at gate %d for the jetway to dock"), *R.Label, R.Gate); } Idle(P, A, Dt); break; }
 		P.Seat = INDEX_NONE;
 		WayToJetway(P); P.St = EPx::Jetway;
 		break;

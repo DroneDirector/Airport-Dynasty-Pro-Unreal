@@ -436,6 +436,7 @@ FTransform ADepartureBelts::PlaceOnSeg(const FBag& B) const
 int32 ADepartureBelts::NewBag(const FDepBagTag& InTag)
 {
 	FBag B; B.Id = NextId++; B.Kind = FMath::RandRange(0, BagMeshes.Num() - 1);
+	B.State = EState::Waiting;   // (not Gone: Find() skips Gone bags, so CheckIn / PassengerDrop found nothing and crashed - the caller sets the real state)
 	B.Yaw = FMath::FRandRange(-8.f, 8.f); B.Side = FMath::FRandRange(-0.06f, 0.06f);
 	B.Tag = InTag; if (B.Tag.Kg <= 0.f) B.Tag.Kg = FMath::RoundToFloat(FMath::FRandRange(GRIP[B.Kind].Kg0, GRIP[B.Kind].Kg1) * 10.f) / 10.f;
 	B.Desk = InTag.Desk;

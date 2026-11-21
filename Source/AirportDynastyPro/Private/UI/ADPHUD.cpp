@@ -3,7 +3,9 @@
 #include "UI/ADPHUD.h"
 #include "RollerDoor.h"
 #include "SiteTrees.h"
+#include "DepartureBelts.h"
 #include "PaxFlow.h"
+static bool GTourTracking = false;   // (the tug tour's tracking camera has a subject this frame)
 #include "Tugs.h"
 #include "GeoFrame.h"
 #include "UI/SSiteChoice.h"
@@ -5886,6 +5888,11 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 			}
 			// (the tug tour: a tracking camera every frame - owner 2026-11-21: the tested thing always in frame, a smooth
 			//  cinematic move round it, up and down, following people and moving things; the spot pictures are taken from it)
+			if (FParse::Param(FCommandLine::Get(), TEXT("PaxFlowTest")) && C2 > 15.f)
+			{
+				static bool bPaxStarted = false;
+				if (!bPaxStarted) if (AADPPeople* Pp = AADPPeople::Get(GetWorld())) { bPaxStarted = true; Pp->StartWanderers(); ADP_LOG(TEXT("Tug tour: the passengers' trips started (-PaxFlowTest)")); }
+			}
 			if (FParse::Param(FCommandLine::Get(), TEXT("UITugShot")) && C2 > (bList ? 45.f : 251.f) - 1.f)
 			{
 				TArray<FVector> Pts; FVector Side(0, 1, 0);
@@ -5901,27 +5908,47 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 				if (Px && FMath::Fmod(SubjT, 80.f) >= 40.f && Px->WatchPoints(Pts, Side)) bGot = bClose = true;
 				else if (Tg && Tg->WatchPoints(Pts, Side)) bGot = true;
 				else if (Px && Px->WatchPoints(Pts, Side)) bGot = bClose = true;
+				GTourTracking = bGot && Pts.Num();
 				if (bGot && Pts.Num())
 				{
 					if (!Drone.IsValid()) EnterDrone();
 					static FVector CamAt = FVector::ZeroVector; static float Orbit = 0.f; static bool bHave = false;
 					const float Dt = FMath::Clamp(C2 - B2, 0.f, 0.1f);
-					FBox Bx(Pts); const FVector Mid = Bx.GetCenter(); const float Rad = FMath::Max(Bx.GetExtent().Size(), 500.f);
+					FBox Bx(Pts); const float Rad = FMath::Max(Bx.GetExtent().Size(), 500.f);
+					// (owner 2026-11-21: at the check-in desks the camera jumped back and forth like crazy - the followed points, the
+					//  side to look from and the wall pull-in all flipped from frame to frame. Now everything the camera aims by is
+					//  smoothed: the middle eases after the subject (a new subject far away: a quick glide, never a cut), the side
+					//  turns slowly, and the pull-in distance closes fast but opens again only slowly; the pull-in ignores people
+					//  and bags - only walls, glass and ceilings count)
+					static FVector SmMid = FVector::ZeroVector, SmSide = FVector(0, 1, 0); static float SmAllow = 900.f;
+					const FVector RawMid = Bx.GetCenter();
+					if (!bHave) { SmMid = RawMid; SmSide = Side.GetSafeNormal2D(); }
+					SmMid = FMath::VInterpTo(SmMid, RawMid, Dt, FVector::Dist(SmMid, RawMid) > 3000.f ? 1.2f : 2.2f);
+					{ const FVector S2 = Side.GetSafeNormal2D(); if (!S2.IsNearlyZero()) SmSide = (SmSide + (S2 - SmSide) * FMath::Min(1.f, Dt * 0.6f)).GetSafeNormal2D(); if (SmSide.IsNearlyZero()) SmSide = FVector(0, 1, 0); }
+					const FVector Mid = SmMid;
 					// (far enough for all of it in a 60 degree view with a margin; a slow orbit of +-35 degrees round the side)
 					Orbit += Dt * 0.12f;
 					const float Dist = Rad / FMath::Tan(FMath::DegreesToRadians(26.f)) + 300.f;
-					const FVector Dir = Side.RotateAngleAxis(35.f * FMath::Sin(Orbit), FVector::UpVector);
+					const FVector Dir = SmSide.RotateAngleAxis(35.f * FMath::Sin(Orbit), FVector::UpVector);
 					FVector Want = Mid + Dir * Dist + FVector(0, 0, 250.f + Dist * (0.32f + 0.08f * FMath::Sin(Orbit * 0.7f)));
 					if (bClose)
 					{
 						// (a passenger, mostly indoors: close and low - 5-9 m off, 1.5-2 m above the feet, pulled in before any wall,
 						//  glass or ceiling between the camera and them)
 						const float Dc = FMath::Clamp(Rad / FMath::Tan(FMath::DegreesToRadians(26.f)) + 150.f, 500.f, 900.f);
-						Want = Mid + Dir * Dc; Want.Z = Bx.Min.Z + 170.f + 30.f * FMath::Sin(Orbit * 0.7f);
+						const float Hz = Bx.Min.Z + 170.f + 30.f * FMath::Sin(Orbit * 0.7f);
+						FVector Far = Mid + Dir * Dc; Far.Z = Hz;
+						const FVector From = Mid + FVector(0, 0, 60.f);
+						float Allow = FVector::Dist(From, Far);
 						FHitResult H; FCollisionQueryParams Q(TEXT("PaxCam"), false, GetOwningPawn()); if (Drone.IsValid()) Q.AddIgnoredActor(Drone.Get());
-						if (GetWorld()->LineTraceSingleByChannel(H, Mid + FVector(0, 0, 60.f), Want, ECC_Visibility, Q)) Want = H.Location + (Mid - Want).GetSafeNormal() * 40.f;
+						if (AActor* Db = ADepartureBelts::Get(GetWorld())) Q.AddIgnoredActor(Db);   // (the bags and belts never push the camera)
+						if (AActor* Ab = ABaggageBelts::Get(GetWorld())) Q.AddIgnoredActor(Ab);
+						if (GetWorld()->SweepSingleByObjectType(H, From, Far, FQuat::Identity, FCollisionObjectQueryParams(ECC_WorldStatic), FCollisionShape::MakeSphere(30.f), Q))
+							Allow = FMath::Max(150.f, H.Distance - 40.f);
+						SmAllow = Allow < SmAllow ? FMath::FInterpTo(SmAllow, Allow, Dt, 5.f) : FMath::FInterpTo(SmAllow, Allow, Dt, 0.5f);
+						Want = From + (Far - From).GetSafeNormal() * SmAllow;
 					}
-					CamAt = bHave ? FMath::VInterpTo(CamAt, Want, Dt, 1.6f) : Want; bHave = true;
+					CamAt = bHave ? FMath::VInterpTo(CamAt, Want, Dt, 1.3f) : Want; bHave = true;
 					if (ADroneCam* D = Drone.Get())
 					{
 						D->SetTestInput(0.f, 0.f, 0.f, false);
@@ -5933,7 +5960,8 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 			for (int32 k = 0; k < Spots.Num(); ++k)
 			{
 				const float T = (bList ? 45.f : 251.f) + k * 22.f;
-				if (B2 < T && C2 >= T) { if (Drone.IsValid()) LeaveDrone(); Spots[k].Go(); if (!FString(Spots[k].Name).Contains(TEXT("Holomap"))) HideUI(); }
+				// (the tracking camera has something: no cut to the spot - the picture is taken from the tracking view)
+				if (B2 < T && C2 >= T && !(GTourTracking && FParse::Param(FCommandLine::Get(), TEXT("UITugShot")))) { if (Drone.IsValid()) LeaveDrone(); Spots[k].Go(); if (!FString(Spots[k].Name).Contains(TEXT("Holomap"))) HideUI(); }
 				// (the map shot: the interface back and the full map with the mountain names, a few seconds before the picture)
 				if (FString(Spots[k].Name).Contains(TEXT("Holomap")) && B2 < T + 14.f && C2 >= T + 14.f) { ShowUI(); if (MiniBox.IsValid()) MiniBox->SetVisibility(EVisibility::Visible); if (HoloMap.IsValid()) { if (!HoloMap->IsFull()) ToggleMap(); HoloMap->ShowPeaks(true); } }
 				// (the map shot with the interface on it - HighResShot draws the world only)

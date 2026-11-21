@@ -1,4 +1,5 @@
 #include "GSE.h"
+#include "RollerDoor.h"
 #include "Tugs.h"
 #include "ADPLog.h"
 #include "PerfLog.h"
@@ -139,7 +140,11 @@ void AGSE::Setup()
 		FCart C; float Yw = 0.f; C.At = PlanPose(A.X, A.Y, 1.f, 0.f, Yw); C.Yaw = C.AxleYaw = Yw;
 		if (SpawnCart(C)) Carts.Add(C);
 	}
-	static const FAt BoxAt[] = {{151.f, 39.8f}, {151.f, 42.8f}, {151.f, 45.8f}, {151.f, 48.8f}};
+	// (inside the cart lane itself - x 114-136, z 40-52 (Art/TerminalAnnex/make_bag_block.py): x 136-156 is the walled staff
+	//  entrance with its stair and lift - the first test drove them into its wall and the lift. Two against the east wall
+	//  south of the staff door (z 45.2-46.8), two in the lane's north-west corner; the way to the roller door (x 128-136,
+	//  z 52) kept clear)
+	static const FAt BoxAt[] = {{133.f, 41.2f}, {133.f, 43.9f}, {117.6f, 49.8f}, {121.2f, 49.8f}};
 	for (int32 i = 0; i < 4; ++i)
 	{
 		FTractor T; float Yw = 0.f; T.Home = T.At = PlanPose(BoxAt[i].X, BoxAt[i].Y, 1.f, 0.f, Yw); T.HomeYaw = T.Yaw = Yw;
@@ -852,6 +857,13 @@ void AGSE::Tick(float Dt)
 			}
 		if (Best != INDEX_NONE && Tractors.Num() >= 4) StartGpu(3, Best);
 		else ADP_LOG(TEXT("GSE: no free GPU to move for the test (every gate has an aircraft or its GPU plugged in)"));
+	}
+	// (the roller doors open for the vehicles: anything driving within 22 m holds the nearest doors open - the first test
+	//  drove the carts into the apron door at Ramp services 13, closed)
+	if ((DoorClock += Dt) > 0.5f)
+	{
+		DoorClock = 0.f;
+		for (const FTractor& T : Tractors) if (T.Path.Num() || FMath::Abs(T.Speed) > 10.f) ARollerDoor::OpenFor(GetWorld(), T.At, 2200.f, 10.f);
 	}
 	static const bool bChecks = bTest || FParse::Param(FCommandLine::Get(), TEXT("UITugShot")) || FParse::Param(FCommandLine::Get(), TEXT("TugCheck"));
 	const bool bCheck = bChecks && (CheckClock += Dt) > 0.5f; if (bCheck) CheckClock = 0.f;

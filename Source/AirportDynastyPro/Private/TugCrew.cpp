@@ -215,6 +215,20 @@ bool ATugs::CrewWalk(FCrew& C, const FVector& To, float Dt, float Stop, float Ma
 	const bool bThere = Dist < Stop;
 	// (the way round what stands in it - the GPU, a tug: the next corner to make for, the walk's end stays To)
 	if (!bThere) { FVector Via = Around(A->GetActorLocation(), To) - A->GetActorLocation(); Via.Z = 0.f; if (Via.SizeSquared() > 1.f && !Via.Equals(D, 1.f)) { const float Vd = Via.Size(); D = Via / Vd * FMath::Max(Vd, FMath::Min(Dist, 60.f)); } }
+	// (aware of being stuck: no real progress for 2.5 s - a step to the side, away from the nearest thing, then on)
+	if (!bThere)
+	{
+		if (Dist < C.BestDist - 30.f || !C.StuckTo.Equals(To, 50.f)) { C.BestDist = Dist; C.StuckT = 0.f; C.StuckTo = To; }
+		else C.StuckT += Dt;
+		if (C.SideT > 0.f) { C.SideT -= Dt; D = C.SideDir * 80.f; }
+		else if (C.StuckT > 2.5f)
+		{
+			const FVector Here = A->GetActorLocation(); const FVector Fw = (To - Here).GetSafeNormal2D();
+			C.SideDir = FVector(-Fw.Y, Fw.X, 0.f) * (FMath::RandBool() ? 1.f : -1.f) - Fw * 0.4f; C.SideDir.Normalize();
+			C.SideT = 1.2f; C.StuckT = 0.f; C.BestDist = 1e9f;
+			ADP_LOG(TEXT("TugCrew: %s stuck on the way (%.0f m from the goal) - a step aside"), *A->GetName(), Dist / 100.f);
+		}
+	}
 	// (eased: a gentle start and stop; a little slower the last 2 m)
 	const float Want = bThere ? 0.f : FMath::Min(Max, FMath::Max(60.f, Dist * 0.9f));
 	C.Speed = FMath::FInterpTo(C.Speed, Want, Dt, 3.f);
@@ -1012,26 +1026,73 @@ FVector ATugs::Around(const FVector& From, const FVector& To) const
 		}
 		return T1 > 0.001f && T0 < 0.999f;
 	};
-	for (const FBx& B : Bs)
+	// (owner 2026-11-21: the GPU handler kept getting stuck in the GPU - the old way went round one box at a time, so between
+	//  the GPU's body and its drawbar, side by side, it swung from corner to corner. Now a real way round everything near:
+	//  the boxes within reach of the walk, their corners (a little outside) as stepping points, the shortest way through them
+	//  that crosses no box - the first point of it is where to head now)
+	const FVector2D F2(From.X, From.Y), T2(To.X, To.Y);
+	const float Reach = FVector2D::Distance(F2, T2) + 600.f;
+	TArray<FBx> Near;
+	for (const FBx& Bx : Bs)
 	{
-		const FVector2D A = Local(B, From), E = Local(B, To);
-		if (Inside(B, E, 1.f)) continue;                                  // (the end is right at it: a door, the panel - go)
-		if (Inside(B, A, 0.98f))                                          // (in it: straight out the nearest side)
+		const FVector2D C2(Bx.C.X, Bx.C.Y);
+		if (FVector2D::Distance(C2, F2) > Reach + Bx.Hx + Bx.Hy && FVector2D::Distance(C2, T2) > 600.f + Bx.Hx + Bx.Hy) continue;
+		if (Inside(Bx, Local(Bx, To), 1.f))
 		{
-			FVector2D O = A; if (B.Hx - FMath::Abs(A.X) < B.Hy - FMath::Abs(A.Y)) O.X = FMath::Sign(A.X == 0 ? 1.f : A.X) * (B.Hx + 5.f); else O.Y = FMath::Sign(A.Y == 0 ? 1.f : A.Y) * (B.Hy + 5.f);
-			return World(B, O, From.Z);
+			// (the end is close to it - the towbar head in front of the tug, the GPU panel, a door: still never through the
+			//  thing itself - its bare outline without the margin; only an end inside the bare outline (climbing in) skips it.
+			//  Owner 2026-11-21: someone walked into the pushback truck - the old way dropped the whole box here)
+			FBx Bare = Bx; Bare.Hx = FMath::Max(10.f, Bx.Hx - Pad); Bare.Hy = FMath::Max(10.f, Bx.Hy - Pad);
+			if (!Inside(Bare, Local(Bare, To), 1.f)) Near.Add(Bare);
+			continue;
 		}
-		if (!Crosses(B, A, E, 1.f)) continue;
-		// round it: the corner (a little outside) that makes the shortest way and can be reached straight
-		float Best = 1e12f; FVector2D Pick = E;
-		for (const float sx : {-1.f, 1.f}) for (const float sy : {-1.f, 1.f})
-		{
-			const FVector2D Cn(sx * (B.Hx + 8.f), sy * (B.Hy + 8.f));
-			if (Crosses(B, A, Cn, 0.99f)) continue;
-			const float L = (Cn - A).Size() + (E - Cn).Size();
-			if (L < Best) { Best = L; Pick = Cn; }
-		}
-		if (Best < 1e11f) return World(B, Pick, From.Z);
+		Near.Add(Bx);
 	}
-	return To;
+	if (!Near.Num()) return To;
+	// in one: straight out the nearest side first
+	for (const FBx& Bx : Near)
+	{
+		const FVector2D A = Local(Bx, From);
+		if (!Inside(Bx, A, 0.98f)) continue;
+		FVector2D O = A; if (Bx.Hx - FMath::Abs(A.X) < Bx.Hy - FMath::Abs(A.Y)) O.X = FMath::Sign(A.X == 0 ? 1.f : A.X) * (Bx.Hx + 12.f); else O.Y = FMath::Sign(A.Y == 0 ? 1.f : A.Y) * (Bx.Hy + 12.f);
+		return World(Bx, O, From.Z);
+	}
+	auto Clear = [&](const FVector& P, const FVector& Q)
+	{
+		for (const FBx& Bx : Near) if (Crosses(Bx, Local(Bx, P), Local(Bx, Q), 0.99f)) return false;
+		return true;
+	};
+	if (Clear(From, To)) return To;
+	// the stepping points: every near box's four corners, 20 cm outside, not inside another box
+	TArray<FVector> N; N.Add(From); N.Add(To);
+	for (const FBx& Bx : Near) for (const float sx : {-1.f, 1.f}) for (const float sy : {-1.f, 1.f})
+	{
+		const FVector P = World(Bx, FVector2D(sx * (Bx.Hx + 20.f), sy * (Bx.Hy + 20.f)), From.Z);
+		bool bIn = false; for (const FBx& O : Near) if (Inside(O, Local(O, P), 1.f)) { bIn = true; break; }
+		if (!bIn) N.Add(P);
+	}
+	// shortest way (Dijkstra over the points that see each other)
+	const int32 Nn = N.Num();
+	TArray<float> Dd; Dd.Init(1e12f, Nn); TArray<int32> Prev; Prev.Init(INDEX_NONE, Nn); TArray<bool> Done; Done.Init(false, Nn);
+	Dd[0] = 0.f;
+	for (int32 it = 0; it < Nn; ++it)
+	{
+		int32 U = INDEX_NONE; for (int32 k = 0; k < Nn; ++k) if (!Done[k] && (U == INDEX_NONE || Dd[k] < Dd[U])) U = k;
+		if (U == INDEX_NONE || Dd[U] >= 1e11f) break;
+		Done[U] = true; if (U == 1) break;
+		for (int32 V = 0; V < Nn; ++V)
+		{
+			if (Done[V] || V == U) continue;
+			const float L = Dd[U] + FVector::Dist2D(N[U], N[V]);
+			if (L < Dd[V] && Clear(N[U], N[V])) { Dd[V] = L; Prev[V] = U; }
+		}
+	}
+	if (Prev[1] == INDEX_NONE)
+	{
+		// (no clean way - boxed in: the nearest free stepping point)
+		float Bd = 1e12f; FVector Pick = To; for (int32 k = 2; k < Nn; ++k) if (Clear(From, N[k])) { const float L = FVector::Dist2D(From, N[k]) + FVector::Dist2D(N[k], To); if (L < Bd) { Bd = L; Pick = N[k]; } }
+		return Pick;
+	}
+	int32 K = 1; while (Prev[K] != 0 && Prev[K] != INDEX_NONE) K = Prev[K];
+	return N[K];
 }

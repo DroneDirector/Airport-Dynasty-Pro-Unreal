@@ -94,6 +94,7 @@ private:
 		FVector Spot = FVector::ZeroVector; float SpotYaw = 0.f;
 		FTruckDriverRig* Rig = nullptr; UPoseableMeshComponent* Rider = nullptr; UDriverPoseAnim* Anim = nullptr; FTransform BodyInActor; bool bPosed = false;
 		float Speed = 0.f, T = 0.f; TArray<FCrewAct> Q;
+		float BestDist = 1e9f, StuckT = 0.f, SideT = 0.f; FVector StuckTo = FVector::ZeroVector, SideDir = FVector::ZeroVector;   // (being stuck: CrewWalk)
 		FPoseFn Hold;                    // kept while the queue is empty (sat at the wheel)
 		TFunction<FVector()> Follow;     // walked to while the queue is empty (beside the pushed aircraft's nose)
 		float FollowMax = 230.f;         // (cm/s: the wing walkers keep up with the turning wingtip - a jog)
@@ -136,7 +137,7 @@ private:
 		int32 Seq = 0; float SeqT = 0.f, SeqWait = 0.f, EngT = -1.f; bool bEngines = false;
 		struct FLine { uint8 Who = 0; FString Text; bool bRadio = false; };   // Who: 0 the ground crew, 1 the pilot, 2 ATC; bRadio: on the ground frequency (else the interphone)
 		TArray<FLine> Talk; float TalkT = 0.f;
-		FString Callsign, Face, Route, Runway; bool bDeiced = false;
+		FString Callsign, Face, Route, Runway; bool bDeiced = false, bPushReq = false;   // (bPushReq: the cockpit has asked for the push - the tug stays in its box until then)
 		float StandNose = 0.f, StandDir = -1.f;                   // (plan m: the stand's nose stop line, the way its aircraft face)
 		// the gate's ground power unit (owner 2026-11-21: "you should see the ground crew member actually plug it into the airplane
 		// and take it off and put it in its place again"): parked in its box at the head of the stand, its cable to the A320's

@@ -125,6 +125,7 @@ private:
 	TWeakObjectPtr<ATugs> TugsRef;
 	bool bReady = false, bTest = false, bWorked = false, bTestStarted = false, bGpuDone = false;
 	float Flash = 0.f, Clock = 0.f, CheckClock = 0.f, SayClock = 0.f;
+	float DoorClock = 0.f;
 	FString TestKey; float TestStand = 0.f; bool bTestStand = false;
 	TSet<FString> Served;
 

@@ -1,5 +1,6 @@
 // The simulation's flights at our airport in 3D - see SimTraffic.h.
 #include "SimTraffic.h"
+#include "PaxFlow.h"
 #include "Tugs.h"
 #include "Turnaround.h"
 #include "JetwayRigs.h"
@@ -101,7 +102,7 @@ void ASimTraffic::Sync()
 				if (S.Id == Fl.FromStand || (Fl.FromStand.IsEmpty() && A1 && S.Id == A1->Stand))
 				{
 					const int32 J = JetwayAt(GetWorld(), S);
-					if (J != INDEX_NONE && !Undocked.Contains(Fl.Id) && AJetwayRigs::Get(GetWorld())->State(J) == AJetwayRigs::EState::Docked)
+					if (J != INDEX_NONE && !Undocked.Contains(Fl.Id) && AJetwayRigs::Get(GetWorld())->State(J) == AJetwayRigs::EState::Docked && APaxFlow::BoardingDone(GetWorld(), Fl.Reg))   // (owner 2026-11-21: never before everyone is aboard - a no-show holds it 15 min at most)
 					{ Undocked.Add(Fl.Id); AJetwayRigs::Get(GetWorld())->Undock(J); ADP_LOG(TEXT("Traffic: %s boarding complete, doors closed - jetway %s pulling back"), *Fl.Id, *AJetwayRigs::Get(GetWorld())->Name(J)); }
 					break;
 				}
@@ -212,6 +213,9 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 					const AJetwayRigs::EState Js = JR->State(J);
 					if (Js != AJetwayRigs::EState::Parked)
 					{
+						// (boarding still going on: the jetway stays at the door and the aircraft waits)
+						if ((Js == AJetwayRigs::EState::Docked || Js == AJetwayRigs::EState::Manual) && !APaxFlow::BoardingDone(GetWorld(), M.Reg))
+						{ if (M.Clock != 4.f) ADP_LOG(TEXT("Traffic: %s waits - boarding not complete"), *M.FlightId); M.Clock = 4.f; M.Speed = 0.f; Pose(M); return false; }
 						if (Js == AJetwayRigs::EState::Docked || Js == AJetwayRigs::EState::Manual) JR->Undock(J);
 						if (M.Clock != 2.f) ADP_LOG(TEXT("Traffic: %s waits for jetway %s to reach its rest position"), *M.FlightId, *JR->Name(J));
 						M.Clock = 2.f; M.Speed = 0.f; Pose(M); return false;
@@ -219,7 +223,7 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 				}
 				break;
 			}
-		if (M.Clock == 2.f) M.Clock = 0.f;
+		if (M.Clock == 2.f || M.Clock == 4.f) M.Clock = 0.f;
 		ATugs* T = ATugs::Get(GetWorld());
 		// the words for the talk: its callsign (the registration's last letters, spelt the ICAO way), the way it will face
 		// after the push (the runway in use), the runway's number, the route
