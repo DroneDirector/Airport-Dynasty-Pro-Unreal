@@ -218,11 +218,13 @@ void ATerminalDoors::Tick(float DeltaSeconds)
 	for (FDoorRig& R : Rigs)
 	{
 		if (R.Wings) { R.Wings->SetRelativeRotation(FRotator(0, FMath::RadiansToDegrees(Time * 0.6f), 0)); continue; }
-		bool bNear = R.D.Floor == PF && FMath::Sqrt(FMath::Square(PX - R.D.X) + FMath::Square(PZ - R.D.Z)) < FMath::Max(2.6f, R.D.Width * 0.7f);
+		// (owner 2026-11-21: the entrance doors into the Grand Hall open 5 m ahead - they opened too late and people walked into them)
+		const float Reach = R.D.Id.StartsWith(TEXT("D-F1-ENTR")) ? 5.f : FMath::Max(2.6f, R.D.Width * 0.7f);
+		bool bNear = R.D.Floor == PF && FMath::Sqrt(FMath::Square(PX - R.D.X) + FMath::Square(PZ - R.D.Z)) < Reach;
 		if (!bNear && Openers.Num())
 		{
 			// (the passengers walking through: PaxFlow)
-			const float Rr = FMath::Square(FMath::Max(2.6f, R.D.Width * 0.7f) * 100.f);
+			const float Rr = FMath::Square(Reach * 100.f);
 			const FVector Dw = FTerminalPlan::ToWorld(R.D.X, R.D.Floor >= 2 ? F2Y : 0.f, R.D.Z);
 			for (const FVector& O : Openers) if (FMath::Abs(O.Z - Dw.Z) < 150.f && FVector::DistSquared2D(O, Dw) < Rr) { bNear = true; break; }
 		}
