@@ -1,0 +1,159 @@
+{
+ "note": "Belt loader lift rig (metres; x forward, z up, origin on the ground mid-wheelbase). Set front (belt top at the door sill) and rear (belt top at the loading end) heights; solve: th = asin((front-rear)/boom_length); rear pin z = rear + pin_from_rear*sin(th) - belt_to_chord*cos(th); pin x = rear_arm_pivot.x + sqrt(rear_arm^2 - (pin z - rear_arm_pivot.z)^2); the front roller is where the bottom chord through the pin (direction th) meets the front arm's circle (far root). Rotate the arms to the pin / roller, the boom about the pin, slide the cylinder rods.",
+ "boom_length": 7.8,
+ "belt_to_chord": 0.26,
+ "pin_from_rear": 1.35,
+ "rear_arm": 1.0,
+ "front_arm": 2.7,
+ "rear_arm_pivot": [
+  -2.25,
+  0.0,
+  0.550000011920929
+ ],
+ "front_arm_pivot": [
+  -0.20000000298023224,
+  0.0,
+  0.550000011920929
+ ],
+ "rear_cyl_foot": [
+  -1.350000023841858,
+  0.0,
+  0.36000001430511475
+ ],
+ "front_cyl_foot": [
+  -1.149999976158142,
+  0.0,
+  0.36000001430511475
+ ],
+ "rear_cyl_on_arm": 0.6,
+ "front_cyl_on_arm": 0.55,
+ "front_range": [
+  0.84,
+  4.19
+ ],
+ "rear_range": [
+  0.85,
+  1.3
+ ],
+ "pose_saved": {
+  "front": 2.1,
+  "rear": 0.95,
+  "boom_deg": 8.48
+ },
+ "presets": {
+  "A320 forward hold": [
+   2.1,
+   0.95
+  ],
+  "A320 aft hold": [
+   2.2,
+   0.95
+  ],
+  "A320 bulk hold": [
+   2.2,
+   0.95
+  ],
+  "lowest (regional jets)": [
+   0.84,
+   0.85
+  ],
+  "highest (wide-body bulk doors)": [
+   4.19,
+   1.2
+  ]
+ },
+ "parts_on_boom": [
+  "Boom_Channel_L",
+  "Boom_ChannelLip_L",
+  "Boom_Channel_R",
+  "Boom_ChannelLip_R",
+  "Boom_Track_0",
+  "Boom_Track_1",
+  "Boom_Cross_0",
+  "Boom_Cross_1",
+  "Boom_Cross_2",
+  "Boom_Cross_3",
+  "Boom_Cross_4",
+  "Boom_Cross_5",
+  "Boom_Cross_6",
+  "Boom_Cross_7",
+  "Boom_Cross_8",
+  "Boom_RollerBed",
+  "Boom_Belt",
+  "Boom_BeltReturn",
+  "Boom_DriveDrum",
+  "Boom_DriveDrumShaft",
+  "Boom_DriveDrumWrap",
+  "Boom_IdlerDrum",
+  "Boom_IdlerDrumShaft",
+  "Boom_IdlerDrumWrap",
+  "Boom_BeltMotor",
+  "Boom_Cleat_0",
+  "Boom_Cleat_1",
+  "Boom_Cleat_2",
+  "Boom_Cleat_3",
+  "Boom_Cleat_4",
+  "Boom_Cleat_5",
+  "Boom_Cleat_6",
+  "Boom_Cleat_7",
+  "Boom_Cleat_8",
+  "Boom_Cleat_9",
+  "Boom_Cleat_10",
+  "Boom_Cleat_11",
+  "Boom_LeftGuide",
+  "Boom_LeftGuideBracket_0",
+  "Boom_LeftGuideBracket_1",
+  "Boom_LeftGuideBracket_2",
+  "Boom_LeftGuideBracket_3",
+  "Boom_LeftGuideBracket_4",
+  "Boom_LeftGuideBracket_5",
+  "Boom_LeftGuideBracket_6",
+  "Boom_RearFlare_L",
+  "Boom_RearFlareFoot_L",
+  "Boom_RearFlare_R",
+  "Boom_RearFlareFoot_R",
+  "Boom_NosePlate",
+  "Boom_FrontBumper",
+  "Boom_AntiPinchEdge",
+  "Boom_RearBumper",
+  "Boom_RailHinge_L0",
+  "Boom_RailPost_L0",
+  "Boom_RailHinge_L1",
+  "Boom_RailPost_L1",
+  "Boom_RailHinge_L2",
+  "Boom_RailPost_L2",
+  "Boom_RailHinge_L3",
+  "Boom_RailPost_L3",
+  "Boom_RailTop_L",
+  "Boom_RailMid_L",
+  "Boom_RailHinge_R0",
+  "Boom_RailPost_R0",
+  "Boom_RailHinge_R1",
+  "Boom_RailPost_R1",
+  "Boom_RailHinge_R2",
+  "Boom_RailPost_R2",
+  "Boom_RailHinge_R3",
+  "Boom_RailPost_R3",
+  "Boom_RailTop_R",
+  "Boom_RailMid_R",
+  "Boom_ControlBox",
+  "Boom_ControlBoxArm",
+  "Boom_CtlButton_0",
+  "Boom_CtlButton_0b",
+  "Boom_CtlButton_1",
+  "Boom_CtlButton_1b",
+  "Boom_CtlButton_2",
+  "Boom_CtlButton_2b",
+  "Boom_EStopFront",
+  "Boom_WorkLight_Housing",
+  "Boom_WorkLight_Rim",
+  "Boom_WorkLight_Lens",
+  "Boom_WorkLightBracket",
+  "Boom_StrobeBase",
+  "Boom_Strobe",
+  "Boom_EStopRearBox_L",
+  "Boom_EStopRear_L",
+  "Boom_EStopRearBox_R",
+  "Boom_EStopRear_R"
+ ]
+}

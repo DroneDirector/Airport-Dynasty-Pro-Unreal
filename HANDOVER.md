@@ -2,6 +2,16 @@
 
 Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md (where everything is) first.
 
+## From the phone chat (2026-11-21 ~17:30): a second belt loader design to compare - nothing replaced
+- The owner asked the phone chat (15:42) for a belt loader blueprint; the PC chat's belt loader (c77ff083, in the game) came in
+  meanwhile. The phone chat's own build is kept APART so nothing of yours is touched: `Tools/make_belt_loader_alt.py`,
+  `Art/BeltLoaderAlt/` (rig, parts, flicker check; .blend / .glb to come over through LFS), `Blueprints/Vehicles/BeltLoaderAlt/`
+  (RESEARCH.md, make_sheet.py, 4 large-text sheets + 12 wireframe views, also to come over through LFS).
+- What it adds over yours: front sill 0.84-4.19 m (yours 0.98-3.42) with the REAR end set separately (two lift arms, each its own
+  cylinder; rear arm pinned to the boom, front arm rolling under it), `beltloader-rig.json` with the sums and presets
+  (A320 forward / aft / bulk, lowest, highest), so the front comes from each aircraft's sill data. Open operator station with a
+  roof guard (yours: half-cab with door). The owner chooses which to keep, or to move the wider range / rig onto yours.
+
 ## Standing rule (owner, 2026-11-18): pictures from the phone chat
 
 Whenever the owner sends pictures in the phone chat for you, they are copied onto the PC as soon as it is online, to
