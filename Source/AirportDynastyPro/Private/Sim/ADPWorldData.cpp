@@ -46,7 +46,9 @@ namespace
 		for (const TPair<FString, FString>& F : Files)
 		{
 			FString T; TSharedPtr<FJsonObject> J; const TSharedPtr<FJsonObject>* A = nullptr;
-			if (!FFileHelper::LoadFileToString(T, *F.Key) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(T), J) || !J || !J->TryGetObjectField(TEXT("airport"), A)) continue;
+			// (read as UTF-8 bytes: the names have accents - Mýrdalssandur, Aéroport)
+			TArray<uint8> Bytes; if (FFileHelper::LoadFileToArray(Bytes, *F.Key)) { Bytes.Add(0); T = UTF8_TO_TCHAR(reinterpret_cast<const ANSICHAR*>(Bytes.GetData())); }
+			if (T.IsEmpty() || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(T), J) || !J || !J->TryGetObjectField(TEXT("airport"), A)) continue;
 			FADPAirportInfo P;
 			(*A)->TryGetStringField(TEXT("icao"), P.Icao); (*A)->TryGetStringField(TEXT("iata"), P.Iata); (*A)->TryGetStringField(TEXT("name"), P.Name);
 			if (P.Icao.IsEmpty()) continue;

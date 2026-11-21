@@ -37,6 +37,65 @@ USTRUCT() struct FADPAirline
 	UPROPERTY() int32 FuelTrucks = 1;      // ground vehicles at your airport (to-do 182)
 	UPROPERTY() int32 CateringTrucks = 1;
 	UPROPERTY() int32 Tractors = 1;
+	// network and markets (to-do 184-186)
+	UPROPERTY() bool bFrequentFlyer = false;
+	UPROPERTY() double FfMembers = 0.0;
+	UPROPERTY() double SharePrice = 10.0;   // USD
+	UPROPERTY() double SharesM = 50.0;      // million shares
+	UPROPERTY() bool bPublic = false;
+	UPROPERTY() double FloatShare = 0.0;    // part sold at the IPO
+	UPROPERTY() double Pax30 = 0.0;         // passengers, about the last 30 days
+	UPROPERTY() double Legs30 = 0.0;
+	UPROPERTY() double ProfitEma30 = 0.0;   // profit, about the last 30 days
+	UPROPERTY() double PrevBalance = 0.0;
+	UPROPERTY() double HedgeKg = 0.0;       // hedged fuel left
+	UPROPERTY() double HedgePrice = 0.0;    // its price, USD/kg
+	UPROPERTY() FDateTime HedgeUntil;
+	UPROPERTY() double WeekPax = 0.0;       // this week (the challenges)
+	UPROPERTY() int32 WeekLegs = 0;
+	UPROPERTY() int32 WeekOnTime = 0;
+	UPROPERTY() int32 FireTrucks = 2;       // your airport's fire station (to-do 197): its crash tenders
+};
+
+/** Your airport's neighbours and the night curfew (to-do 199). */
+USTRUCT() struct FADPTownState
+{
+	GENERATED_BODY()
+	UPROPERTY() bool bStarted = false;
+	UPROPERTY() double CurfewFrom = 0.0;   // local hours (From == To: no curfew)
+	UPROPERTY() double CurfewTo = 6.0;
+	UPROPERTY() double Mood = 55.0;        // 0..100
+	UPROPERTY() double Complaints = 0.0;   // this month's, fading
+	UPROPERTY() int32 Insulated = 0;       // homes insulated against noise
+	UPROPERTY() FDateTime LobbyUntil;
+	UPROPERTY() FString Syndic;
+	UPROPERTY() double Bribes = 0.0;
+	UPROPERTY() FDateTime LastBribe;
+	UPROPERTY() bool bScandal = false;
+};
+
+/** An alliance of airlines (to-do 184). */
+USTRUCT() struct FADPAlliance
+{
+	GENERATED_BODY()
+	UPROPERTY() FString Name;
+	UPROPERTY() FString Founder;
+	UPROPERTY() TArray<FString> Members;
+};
+
+/** A weekly challenge (to-do 186). */
+USTRUCT() struct FADPChallenge
+{
+	GENERATED_BODY()
+	UPROPERTY() FString Kind;      // pax | ontime | legs | airports | profit
+	UPROPERTY() FString Title;
+	UPROPERTY() double Target = 0.0;
+	UPROPERTY() double Base = 0.0;
+	UPROPERTY() double Progress = 0.0;
+	UPROPERTY() double Money = 0.0;
+	UPROPERTY() double Xp = 0.0;
+	UPROPERTY() bool bDone = false;
+	UPROPERTY() FDateTime Until;
 };
 
 /** A maintenance check done (to-do 181): when, and the aircraft's hours and cycles then. */
@@ -199,6 +258,7 @@ USTRUCT() struct FADPFlight
 	UPROPERTY() double LoadFactor = 0.0;    // how full (0..1)
 	UPROPERTY() double Revenue = 0.0;       // the ticket and cargo money (USD), booked by the economy
 	UPROPERTY() TArray<FString> Crew;       // who flies it (to-do 177)
+	UPROPERTY() int32 PaxConnect = 0;       // of its passengers, changing to/from another of the airline's flights (to-do 184)
 };
 
 /** One passenger of a flight at your airport, for the 3D world and the tracking map (to-do 155). */
@@ -403,5 +463,9 @@ USTRUCT() struct FADPWorld
 	UPROPERTY() TMap<FString, FDateTime> ModuleTimes;   // where each module had got to
 	UPROPERTY() TArray<FADPLeaveRequest> LeaveRequests;
 	UPROPERTY() TArray<FADPTeamSlot> TeamSlots;
+	UPROPERTY() TArray<FADPAlliance> Alliances;
+	UPROPERTY() TMap<FString, double> Holdings;   // your shares in AI airlines (count)
+	UPROPERTY() TArray<FADPChallenge> Challenges;
+	UPROPERTY() FADPTownState Town;
 	UPROPERTY() FDateTime LastGroundNote;
 };

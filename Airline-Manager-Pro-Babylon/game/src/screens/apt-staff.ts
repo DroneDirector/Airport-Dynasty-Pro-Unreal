@@ -27,7 +27,7 @@ const APT_SHIFTS: { id: 'early' | 'late' | 'night'; name: string; from: number; 
 const VIK_STREETS = ['Víkurbraut', 'Austurvegur', 'Sigtún', 'Mánabraut', 'Ránarbraut', 'Suðurvíkurvegur', 'Bakkabraut', 'Hátún', 'Smiðjuvegur', 'Kirkjuvegur'];
 
 function aptStaffState(): any { const S: any = State; S.aptStaff = S.aptStaff || []; return S; }
-function aptHome(): string { return 'BIAP'; }   // (the airport the 3D game is: Mýrdalssandur - Data/airfield.json)
+function aptHome(): string { return ownHomeIcao(); }   // (the airport the 3D game is: Mýrdalssandur - Data/airfield.json)
 
 /** The size of an aircraft on the board: 0 narrow-body, 1 wide-body, 2 the A380. */
 function aptAcSize(ac: string): number { const a = String(ac || '').toUpperCase(); return /A38|380/.test(a) ? 2 : /77|78|35|33|34|74|76|A30|IL96|WIDE/.test(a) ? 1 : 0; }
@@ -110,7 +110,7 @@ function aptStaffAppHtml(): string {
   const next = APT_SHIFTS[(APT_SHIFTS.indexOf(cur) + 1) % 3], comingDay = next.id === 'early' && cur.id === 'night' ? day0 + (hNow >= 22 ? 864e5 : 0) : day0;
   const coming = (S.aptStaff as AptStaff[]).filter(p => (p.shift === next.id || (p.shift === 'day' && next.id === 'early')) && aptOnDuty(p, comingDay)).slice(0, 14);
   return `<div class="as-app">
-    <div class="as-head"><b>Your airport's staff</b><small>Mýrdalssandur · ${M.dep.length} departures and ${M.arr.length} arrivals today · ${(S.aptStaff as AptStaff[]).length} people employed</small></div>
+    <div class="as-head"><b>Your airport's staff</b><small>${esc(ownHomeName())} · ${M.dep.length} departures and ${M.arr.length} arrivals today · ${(S.aptStaff as AptStaff[]).length} people employed</small></div>
     <div class="seg">${APT_SHIFTS.map(s => `<button class="${s.id === sel.id ? 'on' : ''}" data-act="apt-shift" data-s="${s.id}">${esc(s.name)}${s.id === cur.id ? ' · now' : ''}</button>`).join('')}</div>
     <div class="as-sum ${short ? 'short' : ''}">${short ? `${icon('alert')}${short} short on this shift: flights may run late` : `${icon('check')}Every job on this shift is covered`}</div>
     <div class="as-rows">${rows}</div>

@@ -218,7 +218,11 @@ def main():
         for rd in R.get('roads', []):
             pts = rd.get('pts') or []
             if len(pts) < 2: continue
-            w = sum(l.get('w', 3.0) for side in ('left', 'right') for l in (rd.get('lanes') or {}).get(side, []))
+            def lw(v):   # (a lane's width may change along the road: [[at, w], ...] or [w, ...] - its widest)
+                if isinstance(v, (int, float)): return float(v)
+                fl = [x[-1] if isinstance(x, (list, tuple)) else x for x in (v or [])]
+                return float(max(fl)) if fl else 3.0
+            w = sum(lw(l.get('w', 3.0)) for side in ('left', 'right') for l in (rd.get('lanes') or {}).get(side, []))
             X = np.array([p[0] for p in pts], float); Y = np.array([p[1] for p in pts], float)
             lo_, la_ = lc.plan_to_lonlat(X, Y, H, O, E, N); e_, n_ = to_lv.transform(lo_, la_)
             ko.append(LineString(list(zip(e_, n_))).buffer(max(w, 7.0) / 2 + 2.0))

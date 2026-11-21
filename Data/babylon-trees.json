@@ -1,0 +1,1 @@
+{"source":"Art/Trees/trees.glb from Tools/BabylonExport, the node tree only","assetNames":"node","roots":[0,1,2,3,4],"nodes":[{"mesh":0,"name":"Spruce_A","translation":[42,0,0]},{"mesh":1,"name":"Spruce_B","translation":[56,0,0]},{"mesh":2,"name":"Fir_A","translation":[28,0,0]},{"mesh":3,"name":"Beech_A"},{"mesh":4,"name":"BeechBare_A","translation":[14,0,0]}]}

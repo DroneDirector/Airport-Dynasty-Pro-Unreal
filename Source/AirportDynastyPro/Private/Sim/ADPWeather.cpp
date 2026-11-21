@@ -15,7 +15,7 @@ namespace
 	TMap<FString, FADPWx> GWxReports;            // by station
 	TArray<TPair<FVector2D, FString>> GWxWhere;  // (lat, lon) of each station, for the nearest
 	FDateTime GWxFetched; bool GWxStarted = false, GWxBusy = false;
-	const TCHAR* Url = TEXT("https://aviationweather.gov/data/cache/metars.cache.csv.gz");
+	const TCHAR* MetarUrl = TEXT("https://aviationweather.gov/data/cache/metars.cache.csv.gz");
 
 	double Dist(double La1, double Lo1, double La2, double Lo2)
 	{
@@ -78,7 +78,7 @@ namespace
 	{
 		if (GWxBusy) return; GWxBusy = true;
 		TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Q = FHttpModule::Get().CreateRequest();
-		Q->SetURL(Url); Q->SetVerb(TEXT("GET")); Q->SetHeader(TEXT("User-Agent"), TEXT("AirportDynastyPro-Weather"));
+		Q->SetURL(MetarUrl); Q->SetVerb(TEXT("GET")); Q->SetHeader(TEXT("User-Agent"), TEXT("AirportDynastyPro-Weather"));
 		Q->OnProcessRequestComplete().BindLambda([](FHttpRequestPtr, FHttpResponsePtr Res, bool bOk)
 		{
 			GWxBusy = false;

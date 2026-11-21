@@ -8,6 +8,9 @@
 #include "Sim/ADPRoster.h"
 #include "Sim/ADPMaint.h"
 #include "Sim/ADPGround.h"
+#include "Sim/ADPNetwork.h"
+#include "Sim/ADPTown.h"
+#include "Sim/ADPBoards.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
@@ -57,10 +60,26 @@ FString UADPBridge::Sim(const FString& Action, const FString& Arg)
 {
 	AADPHUD* H = Hud.Get();
 	UADPSim* S = H ? UADPSim::Get(H) : nullptr;
+	// (at the title screen too: the named saves, and one chosen to load when the game starts - to-do 192)
+	if (S && Action == TEXT("saves"))
+	{
+		TSharedRef<FJsonObject> O = MakeShared<FJsonObject>(); O->SetBoolField(TEXT("ok"), true);
+		TArray<TSharedPtr<FJsonValue>> L; for (const TSharedPtr<FJsonObject>& J : UADPSim::NamedSaves()) L.Add(MakeShared<FJsonValueObject>(J));
+		O->SetArrayField(TEXT("saves"), L); return Out(O);
+	}
+	if (S && Action == TEXT("load") && !S->IsRunning()) { S->PendingLoad = Arg; return Ok(true); }
 	if (!S || !S->IsRunning()) return Ok(false, TEXT("no career running"));
 	FADPWorld& W = S->World;
 	const FString Me = UADPSim::Me();
 	FString A, B; if (!Arg.Split(TEXT("|"), &A, &B)) A = Arg;
+	if (Action == TEXT("saves"))
+	{
+		TSharedRef<FJsonObject> O = MakeShared<FJsonObject>(); O->SetBoolField(TEXT("ok"), true);
+		TArray<TSharedPtr<FJsonValue>> L; for (const TSharedPtr<FJsonObject>& J : UADPSim::NamedSaves()) L.Add(MakeShared<FJsonValueObject>(J));
+		O->SetArrayField(TEXT("saves"), L); return Out(O);
+	}
+	if (Action == TEXT("save")) { FString Slot; const bool b = S->SaveNamed(Arg, Slot); if (b && H) H->Hint(FString::Printf(TEXT("Saved: %s"), *Arg)); return Ok(b, TEXT("nothing to save yet")); }
+	if (Action == TEXT("load")) return Ok(S->LoadNamed(Arg), TEXT("that save is from another airport - choose it at the title screen"));
 	if (Action == TEXT("crew"))
 	{
 		TSharedRef<FJsonObject> O = MakeShared<FJsonObject>(); O->SetBoolField(TEXT("ok"), true);
@@ -123,6 +142,59 @@ FString UADPBridge::Sim(const FString& Action, const FString& Arg)
 		O->SetArrayField(TEXT("aircraft"), L);
 		return Out(O);
 	}
+	if (Action == TEXT("market"))
+	{
+		// the league, alliances, shares, fuel hedge, frequent flyers and this week's challenges (to-do 184-186)
+		TSharedRef<FJsonObject> O = MakeShared<FJsonObject>(); O->SetBoolField(TEXT("ok"), true);
+		const FADPAirline* My = W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == Me; });
+		TArray<TSharedPtr<FJsonValue>> Lg; int32 Pos = 0;
+		for (const ADPNetwork::FRank& R : ADPNetwork::League(W))
+		{
+			TSharedRef<FJsonObject> X = MakeShared<FJsonObject>(); ++Pos;
+			X->SetNumberField(TEXT("pos"), Pos); X->SetStringField(TEXT("id"), R.AirlineId); X->SetStringField(TEXT("name"), R.Name); X->SetBoolField(TEXT("me"), R.AirlineId == Me);
+			X->SetNumberField(TEXT("score"), FMath::RoundToDouble(R.Score * 10.0) / 10.0); X->SetNumberField(TEXT("pax30"), FMath::RoundToDouble(R.Pax30));
+			X->SetNumberField(TEXT("onTime"), FMath::RoundToDouble(R.OnTime * 100.0)); X->SetNumberField(TEXT("reputation"), FMath::RoundToDouble(R.Reputation)); X->SetNumberField(TEXT("profit30"), FMath::RoundToDouble(R.Profit30));
+			if (const FADPAirline* A2 = W.Airlines.FindByPredicate([&](const FADPAirline& Z) { return Z.Id == R.AirlineId; }))
+			{ X->SetNumberField(TEXT("price"), FMath::RoundToDouble(A2->SharePrice * 100.0) / 100.0); X->SetNumberField(TEXT("held"), W.Holdings.FindRef(R.AirlineId)); X->SetStringField(TEXT("hub"), A2->Hub); }
+			Lg.Add(MakeShared<FJsonValueObject>(X));
+		}
+		O->SetArrayField(TEXT("league"), Lg);
+		TArray<TSharedPtr<FJsonValue>> Als;
+		for (const FADPAlliance& A2 : W.Alliances)
+		{
+			TSharedRef<FJsonObject> X = MakeShared<FJsonObject>(); X->SetStringField(TEXT("name"), A2.Name); X->SetBoolField(TEXT("mine"), A2.Members.Contains(Me));
+			TArray<TSharedPtr<FJsonValue>> Mb; for (const FString& M : A2.Members) if (const FADPAirline* Z = W.Airlines.FindByPredicate([&](const FADPAirline& Q) { return Q.Id == M; })) Mb.Add(MakeShared<FJsonValueString>(Z->Name));
+			X->SetArrayField(TEXT("members"), Mb); Als.Add(MakeShared<FJsonValueObject>(X));
+		}
+		O->SetArrayField(TEXT("alliances"), Als);
+		if (My)
+		{
+			O->SetNumberField(TEXT("sharePrice"), FMath::RoundToDouble(My->SharePrice * 100.0) / 100.0); O->SetBoolField(TEXT("public"), My->bPublic);
+			O->SetBoolField(TEXT("ff"), My->bFrequentFlyer); O->SetNumberField(TEXT("ffMembers"), FMath::RoundToDouble(My->FfMembers));
+			O->SetNumberField(TEXT("hedgeTonnes"), FMath::RoundToDouble(My->HedgeKg / 1000.0)); O->SetNumberField(TEXT("hedgePrice"), My->HedgePrice);
+			if (My->HedgeKg > 0) O->SetStringField(TEXT("hedgeUntil"), My->HedgeUntil.ToString(TEXT("%d.%m.%Y")));
+			O->SetNumberField(TEXT("fuelIndex"), W.FuelIndex); O->SetNumberField(TEXT("reputation"), My->Reputation); O->SetNumberField(TEXT("balance"), My->Balance);
+		}
+		TArray<TSharedPtr<FJsonValue>> Ch;
+		for (const FADPChallenge& C : W.Challenges)
+		{
+			TSharedRef<FJsonObject> X = MakeShared<FJsonObject>(); X->SetStringField(TEXT("title"), C.Title); X->SetNumberField(TEXT("progress"), C.Progress); X->SetNumberField(TEXT("target"), C.Target);
+			X->SetNumberField(TEXT("money"), C.Money); X->SetNumberField(TEXT("xp"), C.Xp); X->SetBoolField(TEXT("done"), C.bDone); Ch.Add(MakeShared<FJsonValueObject>(X));
+		}
+		O->SetArrayField(TEXT("challenges"), Ch);
+		// your airport: fire cover and the town (to-do 197 / 199)
+		{
+			const FString Here = ADPBoards::HereIcao();
+			O->SetNumberField(TEXT("fireCat"), ADPTown::FireCategoryAt(W, Here, S->Now())); O->SetNumberField(TEXT("fireTrucks"), My ? My->FireTrucks : 0);
+			int32 NeedCat = 0; for (const FADPAircraft& C : W.Aircraft) if (C.AirlineId == Me) NeedCat = FMath::Max(NeedCat, ADPTown::FireCategoryOf(C.TypeId));
+			O->SetNumberField(TEXT("fireNeed"), NeedCat);
+			const FADPTownState& T = W.Town;
+			O->SetNumberField(TEXT("curfewFrom"), T.CurfewFrom); O->SetNumberField(TEXT("curfewTo"), T.CurfewTo); O->SetNumberField(TEXT("townMood"), FMath::RoundToDouble(T.Mood));
+			O->SetNumberField(TEXT("complaints"), FMath::RoundToDouble(T.Complaints)); O->SetNumberField(TEXT("insulated"), T.Insulated); O->SetStringField(TEXT("syndic"), ADPTown::SyndicName(W));
+			O->SetBoolField(TEXT("lobbying"), T.LobbyUntil > S->Now()); O->SetBoolField(TEXT("scandal"), T.bScandal);
+		}
+		return Out(O);
+	}
 	const FDateTime At = S->Now();
 	if (Action == TEXT("hire"))
 	{
@@ -141,6 +213,19 @@ FString UADPBridge::Sim(const FString& Action, const FString& Arg)
 		FADPAircraft* C = W.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == A && X.AirlineId == Me; });
 		FString Why; return Ok(C && ADPMaint::StartCheck(W, *C, B.IsEmpty() ? TEXT("A") : B, At, Why), C ? Why : TEXT("not your aircraft"));
 	}
+	if (Action == TEXT("fund")) return Ok(ADPTown::CommunityFund(W, FCString::Atod(*A), At), TEXT("not enough money"));
+	if (Action == TEXT("insulate")) return Ok(ADPTown::Insulate(W, FCString::Atoi(*A), At), TEXT("not enough money"));
+	if (Action == TEXT("compensate")) return Ok(ADPTown::Compensate(W, FCString::Atod(*A), At), TEXT("not enough money"));
+	if (Action == TEXT("lobby")) { FString Why; return Ok(ADPTown::Lobby(W, At, Why), Why); }
+	if (Action == TEXT("bribe")) { FString Why; return Ok(ADPTown::Bribe(W, FCString::Atod(*A), At, Why), Why); }
+	if (Action == TEXT("firetruck")) return Ok(ADPTown::BuyFireTruck(W, At), TEXT("a crash tender costs $850,000"));
+	if (Action == TEXT("ff")) return Ok(ADPNetwork::SetFrequentFlyer(W, Me, A == TEXT("on")));
+	if (Action == TEXT("join")) { FString Why; return Ok(ADPNetwork::JoinAlliance(W, Me, A, At, Why), Why); }
+	if (Action == TEXT("found")) { FString Why; return Ok(ADPNetwork::FoundAlliance(W, Me, A, At, Why), Why); }
+	if (Action == TEXT("leaveAlliance")) return Ok(ADPNetwork::LeaveAlliance(W, Me), TEXT("not in an alliance"));
+	if (Action == TEXT("ipo")) { FString Why; return Ok(ADPNetwork::Ipo(W, Me, At, Why), Why); }
+	if (Action == TEXT("shares")) { FString Why; return Ok(ADPNetwork::TradeShares(W, A, FCString::Atod(*B), At, Why), Why); }
+	if (Action == TEXT("hedge")) { FString Why; return Ok(ADPNetwork::Hedge(W, Me, FCString::Atod(*A), B.IsEmpty() ? 3 : FCString::Atoi(*B), At, Why), Why); }
 	if (Action == TEXT("vehicle")) return Ok(ADPGround::BuyVehicle(W, Me, A, At), TEXT("not enough money"));
 	if (Action == TEXT("parts")) return Ok(ADPMaint::BuyParts(W, Me, FCString::Atod(*A), At), TEXT("not enough money"));
 	if (Action == TEXT("dayoff")) return Ok(ADPRoster::GiveDaysOff(W, A, B.IsEmpty() ? 2 : FCString::Atoi(*B), At), TEXT("not on your staff"));

@@ -11,7 +11,8 @@
     "lon": 6.906,
     "elevFt": 1237.3,
     "hdg": 336,
-    "magvar": 3
+    "magvar": 3,
+    "town": "Villeneuve"
   },
   "runwayEnds": [
     "33",

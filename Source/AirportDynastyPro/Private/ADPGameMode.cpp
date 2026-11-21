@@ -1,6 +1,7 @@
 // Sets up the terminal test when play starts: sun, sky, fog, the grey-box terminal, the crowd test and
 // the player standing at the plan's spawn point.
 #include "ADPGameMode.h"
+#include "SiteTrees.h"
 #include "Site.h"
 #include "Pets.h"
 #include "ADPLog.h"
@@ -302,7 +303,13 @@ namespace ADPLateWorld
 				if (ALandCorridor* Land = W->SpawnActor<ALandCorridor>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Land->Build();
 				Stage = 3; return true;
 			}
-			case 3: Stage = 4; return true;   // (a frame for the land's collision)
+			case 3:
+			{
+				// the real trees round the airport (to-do 200: from the surface model and the 10 cm photo; another site only)
+				FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+				W->SpawnActor<ASiteTrees>(FVector::ZeroVector, FRotator::ZeroRotator, P);
+				Stage = 4; return true;   // (and a frame for the land's collision)
+			}
 			default:
 				for (TActorIterator<AStreetLights> It(W); It; ++It) It->Resettle();
 				for (TActorIterator<ARoadSigns> It(W); It; ++It) It->Resettle();

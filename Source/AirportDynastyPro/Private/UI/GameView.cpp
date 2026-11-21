@@ -16,6 +16,21 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Runtime/Launch/Resources/Version.h"
+#include "Site.h"
+#include "GenericPlatform/GenericPlatformHttp.h"
+#include "Dom/JsonObject.h"
+
+/** The site's airport for the menus' page (to-do 167): &site=<id>&apt=ICAO|IATA|name|town|country|lon|lat|elevFt|hdg|magvar. */
+static FString SiteQuery()
+{
+	TSharedPtr<FJsonObject> A = ADPSite::AirportBlock();
+	if (!A.IsValid() || ADPSite::IsDefault()) return FString();
+	auto S = [&](const TCHAR* K) { FString V; A->TryGetStringField(K, V); return V; };
+	auto N = [&](const TCHAR* K) { double V = 0; A->TryGetNumberField(K, V); return V; };
+	const FString Apt = FString::Printf(TEXT("%s|%s|%s|%s|%s|%.6f|%.6f|%.0f|%.1f|%.1f"), *S(TEXT("icao")), *S(TEXT("iata")), *S(TEXT("name")), *S(TEXT("town")),
+		*ADPSite::Place(ADPSite::Id()), N(TEXT("lon")), N(TEXT("lat")), N(TEXT("elevFt")), N(TEXT("hdg")), N(TEXT("magvar")));
+	return FString::Printf(TEXT("&site=%s&apt=%s"), *FGenericPlatformHttp::UrlEncode(ADPSite::Id()), *FGenericPlatformHttp::UrlEncode(Apt));
+}
 
 #pragma region Serving the files
 namespace
@@ -150,7 +165,8 @@ TSharedRef<SWidget> ADPGameView::Make(UObject* Bridge, TSharedPtr<SWebBrowser>* 
 	Register();
 	TSharedRef<SWebBrowser> B = SNew(SWebBrowser)
 		// the app's own title screen and main menu, told it is the PC version (its number and the engine's)
-		.InitialURL(FString::Printf(TEXT("https://%s/index.html?pc=%s&ue=%d.%d"), Host, TEXT(ADP_PC_VERSION), ENGINE_MAJOR_VERSION, ENGINE_MINOR_VERSION))
+		// (and the airport you are at - to-do 167: the Overview shows it, not Iceland's, when you play at another site)
+		.InitialURL(FString::Printf(TEXT("https://%s/index.html?pc=%s&ue=%d.%d%s"), Host, TEXT(ADP_PC_VERSION), ENGINE_MAJOR_VERSION, ENGINE_MINOR_VERSION, *SiteQuery()))
 		.ShowControls(false)
 		.ShowAddressBar(false)
 		.ShowErrorMessage(true)

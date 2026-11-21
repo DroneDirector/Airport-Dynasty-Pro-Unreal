@@ -342,6 +342,8 @@ private:
 	void SimCalls();
 	/** The simulation's new notices, briefing and news to the phone's Messages (to-do 175). */
 	void SimToPhone();
+	/** F5 / the pad's View button: save now into a slot named by the date and place (to-do 192). */
+	void SaveNow();
 	FString Airline;
 	FTerminalPlan Plan;
 	UPROPERTY() TMap<FString, TObjectPtr<class UTexture2D>> BoardTex;

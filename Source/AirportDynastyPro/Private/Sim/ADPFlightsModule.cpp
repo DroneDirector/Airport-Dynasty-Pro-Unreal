@@ -3,6 +3,9 @@
 #include "Sim/ADPRoster.h"
 #include "Sim/ADPMaint.h"
 #include "Sim/ADPGround.h"
+#include "Sim/ADPNetwork.h"
+#include "Sim/ADPTown.h"
+#include "Sim/ADPBoards.h"
 #include "ADPLog.h"
 #include "Sim/ADPWeather.h"
 #include "Sim/ADPDemand.h"
@@ -123,6 +126,16 @@ void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime
 			if ((Wa.bSnow || Wa.bFreezing || (Wa.TempC <= 3.0 && (Wa.bRain || Wa.bFog))) && T->Class != TEXT("helicopter")) { WxDelay = Rng.FRandRange(20.0, 35.0); ++DeIcings; }
 		}
 	}
+	// fire cover at our airport (to-do 197): the station must cover the aircraft's rescue and fire-fighting category
+	{
+		const FString Here = ADPBoards::HereIcao();
+		if ((A.Location == Here || Next == Here) && ADPTown::FireCategoryAt(W, Here, Now) < ADPTown::FireCategoryOf(A.TypeId))
+		{
+			if (A.AirlineId == UADPSim::Me() && A.WaitingSince == FDateTime())
+			{ FADPNotice N; N.At = Now; N.Kind = TEXT("authority"); N.Priority = 2; N.Title = TEXT("Fire cover too low"); N.Text = FString::Printf(TEXT("%s may not use %s: the fire station covers category %d, the aircraft needs %d. Hire fire-fighters or buy a crash tender."), *A.Reg, *Here, ADPTown::FireCategoryAt(W, Here, Now), ADPTown::FireCategoryOf(A.TypeId)); W.Notices.Add(N); }
+			Wait(TEXT("fire cover"), 30); return;
+		}
+	}
 	// night curfews: no departure while the field is closed, nor one that would land at a closed destination
 	{
 		const FADPAirportInfo* Ap = ADPWorldData::Airport(A.Location); const FADPAirportInfo* Bp = ADPWorldData::Airport(Next);
@@ -159,7 +172,8 @@ void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime
 		{
 			const FADPBooking K = ADPDemand::Book(W, A.AirlineId, A.RouteId, *T, *Ap, *Bp, Now, Rng);
 			F.Pax = K.Pax; F.PaxJ = K.PaxJ; F.PaxF = K.PaxF; F.CargoKg = K.CargoKg; F.LoadFactor = K.LoadFactor; F.Revenue = K.Revenue;
-			PaxCarried += K.Pax + K.PaxJ + K.PaxF; RevenueSum += K.Revenue; LoadSum += K.LoadFactor;
+			ADPNetwork::Boost(W, F, T->Seats);   // (connections, frequent flyers, code-shares: to-do 184)
+			PaxCarried += F.Pax + F.PaxJ + F.PaxF; RevenueSum += F.Revenue; LoadSum += F.LoadFactor;
 		}
 	}
 	Profiles.Add(F.Id, P);
@@ -208,6 +222,14 @@ bool FADPFlightsModule::InCurfew(const FString& Icao, double Lon, const FDateTim
 	struct FC { const TCHAR* Icao; double From, To; };
 	static const FC List[] = {{TEXT("EDDF"), 23.0, 5.0}, {TEXT("LFPO"), 23.5, 6.0}, {TEXT("EGLC"), 22.5, 6.5}, {TEXT("KSNA"), 22.0, 7.0},
 		{TEXT("YSSY"), 23.0, 6.0}, {TEXT("EDDL"), 23.0, 6.0}, {TEXT("LSZH"), 23.5, 6.0}};
+	// our airport: its own curfew, as the town and its council have set it (to-do 199)
+	if (Icao == ADPBoards::HereIcao())
+	{
+		double From = 0, To = 6; ADPTown::HereCurfew(From, To);
+		if (From == To) return false;
+		const double H = ADPBoards::Local(Utc).GetHour() + ADPBoards::Local(Utc).GetMinute() / 60.0;
+		return From > To ? (H >= From || H < To) : (H >= From && H < To);
+	}
 	for (const FC& C : List)
 		if (Icao == C.Icao)
 		{

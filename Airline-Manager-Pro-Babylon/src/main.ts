@@ -264,18 +264,23 @@ if (UE_PC) {
 };
 (window as any).__ueWallpaper = (kind: string, data: string) => { const u = ue(); if (u && u.wallpaper) u.wallpaper(String(kind || ''), String(data || '')); };
 // Esc in the 3D world with nothing open: leave to the title screen? (the Overview no longer opens from the 3D world)
+(window as any).__ueSaveGame = () => { try { gameSend({ ampb: 'save' }); } catch (e) { /* the game isn't open */ } };
 (window as any).__ueLeave3D = () => {
   if (document.querySelector('.ue-leave')) return;
   document.documentElement.classList.add('ue-ask');
   const d = document.createElement('div'); d.className = 'ue-leave';
   d.innerHTML = `<div class="ue-leave-box"><b>Leave to the title screen?</b><small>Your airline keeps going; anything not saved since the last save is lost.</small>
-    <div class="ue-leave-row"><button data-a="save">Save and leave</button><button data-a="yes">Leave</button><button data-a="no">Stay</button></div></div>`;
+    <div class="ue-leave-row"><button data-a="savenow">Save now</button><button data-a="save">Save and leave</button><button data-a="yes">Leave</button><button data-a="no">Stay</button></div>
+    <div class="ue-leave-row ue-save-name" hidden><input type="text" maxlength="40" placeholder="Name this save"><button data-a="savego">Save</button></div></div>`;
   document.body.appendChild(d);
   const back = () => { d.remove(); document.documentElement.classList.remove('ue-ask'); window.removeEventListener('keydown', key, true); const u = ue(); if (u && u.back3d) u.back3d(); };
   const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); back(); } };
   window.addEventListener('keydown', key, true);
   d.addEventListener('click', e => { const a = (e.target as HTMLElement).closest('[data-a]') as HTMLElement; if (!a) { if (e.target === d) back(); return; }
     const k = a.getAttribute('data-a'); if (k === 'no') { back(); return; }
+    // save now, under a name of your own, and stay (to-do 192): the simulation's career and the menus' own
+    if (k === 'savenow') { const r = d.querySelector('.ue-save-name') as HTMLElement; if (r) { r.hidden = false; const i = r.querySelector('input') as HTMLInputElement; if (i) { i.value = new Date().toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); i.focus(); i.select(); } } return; }
+    if (k === 'savego') { const i = d.querySelector('.ue-save-name input') as HTMLInputElement; const n = (i && i.value.trim()) || 'Saved game'; const u = ue(); gameSend({ ampb: 'save' }); if (u && u.sim) u.sim('save', n); back(); return; }
     d.remove(); document.documentElement.classList.remove('ue-ask'); window.removeEventListener('keydown', key, true);
     if (k === 'save') { gameSend({ ampb: 'save' }); setTimeout(() => { gameClose(); splashOpen(pickPlace); }, 1200); }
     else { gameClose(); splashOpen(pickPlace); } });

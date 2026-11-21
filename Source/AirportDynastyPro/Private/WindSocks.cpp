@@ -38,6 +38,8 @@ namespace
 float AWindSocks::WindFrom = PrevailingFrom;
 float AWindSocks::WindKt = 8.f;
 float AWindSocks::Gustiness = 0.f;
+bool AWindSocks::bLive = false;
+float AWindSocks::LiveFrom = 0.f, AWindSocks::LiveKt = 0.f, AWindSocks::LiveGust = 0.f;
 
 AWindSocks::AWindSocks()
 {
@@ -133,11 +135,13 @@ void AWindSocks::UpdateWind(float Dt)
 	GConfig->GetFloat(TEXT("ADP.Testing"), TEXT("WindFrom"), FixFrom, GGameUserSettingsIni);
 	const int32 T = FMath::Clamp(ASunClock::Theme, 0, 7);
 	// the direction wanders slowly round the prevailing wind; the strength rises and falls in gusts of a few seconds
-	const float From = FixFrom >= 0.f ? FixFrom : PrevailingFrom + 25.f * FMath::Sin(Clock / 300.f) + 8.f * FMath::Sin(Clock / 47.f + 1.3f);
+	// the real wind (to-do 193): the report's direction and speed, wandering a few degrees, gusting up to its gusts
+	const bool bReal = bLive && FixKt < 0.f && FixFrom < 0.f;
+	const float From = FixFrom >= 0.f ? FixFrom : bReal ? LiveFrom + 8.f * FMath::Sin(Clock / 47.f + 1.3f) + 4.f * FMath::Sin(Clock / 13.f) : PrevailingFrom + 25.f * FMath::Sin(Clock / 300.f) + 8.f * FMath::Sin(Clock / 47.f + 1.3f);
 	const float G = FMath::Clamp(FMath::PerlinNoise1D(Clock * 0.17f) * 1.6f + 0.15f, 0.f, 1.f);
-	const float Mean = FixKt >= 0.f ? FixKt : ThemeKt[T] * (1.f + 0.15f * FMath::Sin(Clock / 120.f));
+	const float Mean = FixKt >= 0.f ? FixKt : bReal ? LiveKt * (1.f + 0.08f * FMath::Sin(Clock / 120.f)) : ThemeKt[T] * (1.f + 0.15f * FMath::Sin(Clock / 120.f));
 	WindFrom = FMath::Fmod(From + 360.f, 360.f);
-	WindKt = FMath::Max(0.f, Mean + (FixKt >= 0.f ? 0.f : ThemeGust[T] * G));
+	WindKt = FMath::Max(0.f, Mean + (FixKt >= 0.f ? 0.f : bReal ? FMath::Max(0.f, LiveGust - LiveKt) * G : ThemeGust[T] * G));
 	Gustiness = FixKt >= 0.f ? 0.f : G;
 }
 

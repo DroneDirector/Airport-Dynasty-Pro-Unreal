@@ -1,6 +1,7 @@
 // The money - see Sim/ADPEconomy.h.
 #include "Sim/ADPEconomy.h"
 #include "Sim/ADPWorldData.h"
+#include "Sim/ADPNetwork.h"
 
 namespace
 {
@@ -53,7 +54,8 @@ void ADPEconomy::BookLeg(FADPWorld& W, const FADPFlight& F, const FDateTime& At)
 	Pay(W, F.AirlineId, At, TEXT("revenue"), F.Revenue * KI, Leg + TEXT(": tickets and cargo"), F.Id);
 	// fuel: the type's burn for the time flown (taxiing burns little), at the departure airport's price
 	const double FuelKg = T->BurnKgH * BlockH * 0.92;
-	Pay(W, F.AirlineId, At, TEXT("fuel"), -FuelKg * FuelPrice(F.From, At) * W.FuelIndex * KC, FString::Printf(TEXT("%s: fuel %.0f kg"), *Leg, FuelKg), F.Id);
+	// (hedged fuel first, already paid for - to-do 185)
+	Pay(W, F.AirlineId, At, TEXT("fuel"), -ADPNetwork::FuelCost(W, F.AirlineId, FuelKg, FuelPrice(F.From, At) * W.FuelIndex) * KC, FString::Printf(TEXT("%s: fuel %.0f kg"), *Leg, FuelKg), F.Id);
 	// fees: landing by weight and airport size, parking, handling per passenger and per turnaround, air navigation by
 	// distance and weight
 	const double Landing = MtowT * SizeFee(B, 9.0, 6.5, 4.5);

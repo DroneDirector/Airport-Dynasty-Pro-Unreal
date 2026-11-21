@@ -410,7 +410,7 @@ function titlePanel(kind: string, html?: string) {
   p.innerHTML = html || ''; p.hidden = false; void p.offsetWidth; p.classList.add('in');
 }
 ACTIONS['ts-save'] = () => { Sound.tick(); try { saveNow(true); } catch (e) { /* ignore */ } titleSlots('save'); };
-ACTIONS['ts-load'] = () => { Sound.tick(); titleSlots('load'); };
+ACTIONS['ts-load'] = () => { Sound.tick(); titleSlots('load'); setTimeout(titleSimSaves, 30); };
 function titleSlots(mode: 'save' | 'load') {
   const M = GameSaves.meta();
   const row = (i: number) => {
@@ -425,10 +425,25 @@ function titleSlots(mode: 'save' | 'load') {
     ${mode === 'load' && typeof autosaveMeta === 'function' && autosaveMeta() ? (() => { const a = autosaveMeta(), d = new Date(a.at); return `<div class="ts-slots"><div class="ts-slot"><button class="ts-sb" data-act="ts-auto-game"><span class="ts-sn">${icon('clock')}</span><span class="ts-si"><b>Autosave · ${esc(a.airline || 'Airline')}</b><small>${esc(a.pilot || '')}${a.pilot ? ' · ' : ''}${esc(dateStr(d).slice(0, 10))} ${esc(d.toTimeString().slice(0, 5))}</small></span></button></div></div>`; })() : ''}
     <div class="ts-slots">${Array.from({ length: GameSaves.N }, (_, i) => row(i + 1)).join('')}</div>
     ${mode === 'save' ? `<div class="ts-danger"><label class="ts-tick"><input type="checkbox" data-ts-delbk><span></span>Also delete the automatic backups</label><button class="ts-pb danger" data-act="ts-delall">${icon('trash')}Delete all saves</button></div>` : ''}
+    ${mode === 'load' ? `<h3 class="ts-h3">Saved in the airport</h3><div class="ts-slots sim-saves"><small class="ts-p">Looking...</small></div>` : ''}
     ${mode === 'load' ? `<h3 class="ts-h3">Automatic backups</h3><div class="ts-slots auto">${auto.length ? auto.map((r: any) => `<button class="ts-slot" data-act="ts-auto-load" data-i="${r.i}"><span class="ts-sn">A${r.i}</span><span class="ts-si"><b>Backup ${r.i}</b><small>${esc(dateStr(new Date(r.at)).slice(0, 10))} ${esc(new Date(r.at).toTimeString().slice(0, 5))}</small></span></button>`).join('') : '<small class="ts-p">None yet.</small>'}</div>
       <div class="ts-row"><button class="ts-pb" data-act="backup-import">${icon('download')}Open a backup file</button></div>` : ''}`);
 }
 ACTIONS['ts-none'] = () => { /* empty */ };
+// the saves made in the 3D airport with Save now / F5 (to-do 192): listed under Load game, loaded when the game starts
+function titleSimSaves() {
+  const U = ueLink(); const box = document.querySelector('.sim-saves') as HTMLElement | null; if (!box) return;
+  if (!U || !U.sim) { box.innerHTML = '<small class="ts-p">None yet.</small>'; return; }
+  Promise.resolve(U.sim('saves', '')).then((s: any) => {
+    let d: any = {}; try { d = JSON.parse(String(s || '{}')); } catch (e) { /* none */ }
+    const L: any[] = d.saves || [];
+    box.innerHTML = L.length ? L.map((m: any) => `<button class="ts-slot" data-act="ts-sim-load" data-s="${esc(m.slot)}"><span class="ts-sn">${icon('clock')}</span><span class="ts-si"><b>${esc(m.name || '')}</b><small>${esc(m.airport || '')} · ${esc(m.saved || '')}</small><small>${esc(m.airline || '')} · ${esc(money(m.money || 0, { compact: true }))}</small></span></button>`).join('') : '<small class="ts-p">None yet - press F5 in the airport, or Save now in the Esc question.</small>';
+  });
+}
+ACTIONS['ts-sim-load'] = el => {
+  const s = el.getAttribute('data-s') || ''; const U = ueLink(); if (!s || !U || !U.sim) return; Sound.tick();
+  Promise.resolve(U.sim('load', s)).then(() => { const c = ACTIONS['ts-continue'] || ACTIONS['ts-cont']; if (c) c(el, null as any); });
+};
 ACTIONS['ts-slot-save'] = el => {
   const i = +(el.getAttribute('data-i') || 0); if (!i) return;
   const has = GameSaves.meta()[i - 1];

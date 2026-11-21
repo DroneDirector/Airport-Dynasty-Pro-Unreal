@@ -59,9 +59,10 @@ def main(blend_script, glb, name):
         cp = ROOT / 'Saved' / 'Import' / (name + '.glb'); cp.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(ROOT / glb, cp); glb = str(cp.relative_to(ROOT))
     # 3. into Unreal, one mesh per glTF mesh
-    editor_py('%s %s %s --assets --shared' % (ROOT / 'Tools/import_babylon_model.py', ROOT / glb, name), 'import')
+    # (forward slashes: the editor's command line reads backslashes as escapes - Art\Trees	rees.glb became "<tab>rees.glb")
+    editor_py('%s %s %s --assets --shared' % ((ROOT / 'Tools/import_babylon_model.py').as_posix(), (ROOT / glb).as_posix(), name), 'import')
     # 4. its materials usable on instanced parts
-    log = editor_py('%s %s' % (ROOT / 'Tools/fix_babylon_materials.py', name), 'material fix-up')
+    log = editor_py('%s %s' % ((ROOT / 'Tools/fix_babylon_materials.py').as_posix(), name), 'material fix-up')
     print([l for l in log.splitlines() if 'ADP_MATFIX' in l][-1:])
     # 5. the layout, from the names the import actually gave
     print(run([sys.executable, 'Tools/glb_nodes.py', glb, lower], 'layout from the imported names').strip())

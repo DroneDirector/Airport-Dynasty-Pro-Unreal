@@ -11,6 +11,7 @@
 // when there is time, running when there isn't; whoever reaches the gate before it closes boards. The gate closes 15
 // minutes before departure whatever happens (the usual closing time at airports), with its own call. Passengers
 // already waiting at a gate are never late.
+#include "Site.h"
 #include "Sim/ADPBoards.h"
 #include "Sim/ADPSim.h"
 #include "UI/ADPHUD.h"
@@ -392,6 +393,18 @@ void AADPHUD::SimCalls()
 			D.Status = R.Status;
 		}
 	}
+}
+
+void AADPHUD::SaveNow()
+{
+	UADPSim* Sim = UADPSim::Get(this);
+	if (!Sim || !Sim->IsRunning()) { Hint(TEXT("Nothing to save yet")); return; }
+	SavePose();
+	FString Slot;
+	const FString Name = FString::Printf(TEXT("%s %s"), *ADPSite::Name(ADPSite::Id()), *FDateTime::Now().ToString(TEXT("%d.%m %H.%M")));
+	const bool bOk = Sim->SaveNamed(Name, Slot);
+	if (Browser.IsValid()) Browser->ExecuteJavascript(TEXT("window.__ueSaveGame && window.__ueSaveGame()"));   // (the menus' own career too)
+	Hint(bOk ? FString::Printf(TEXT("Saved: %s"), *Name) : FString(TEXT("Couldn't save")));
 }
 
 void AADPHUD::SimToPhone()

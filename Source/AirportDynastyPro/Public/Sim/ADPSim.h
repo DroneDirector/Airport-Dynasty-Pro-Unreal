@@ -65,6 +65,15 @@ public:
 	void NewCareer(const FString& Difficulty, const FString& AirlineName = FString());
 	/** Continue / Load: this site's career read back and caught up on the time it was closed (false: none yet - a new one is made). */
 	bool ResumeCareer();
+	/** Save now (to-do 192): the whole career into a named slot of its own (Saved/Careers/<site>~<name>.json) with a
+	 *  little card beside it (.meta.json: its name, the date, the airport, your money) - the autosave goes on as before. */
+	bool SaveNamed(const FString& Name, FString& OutSlot);
+	/** The named saves of every airport, newest first: (slot, name, saved, site, airport, money) as JSON lines. */
+	static TArray<TSharedPtr<class FJsonObject>> NamedSaves();
+	/** Loads a named save into this airport's career (the same site only; false: another site or unreadable). */
+	bool LoadNamed(const FString& Slot);
+	/** A named save chosen at the title screen: loaded when the game starts (instead of the airport's own career). */
+	FString PendingLoad;
 	/** One career per airport: Saved/Careers/career-<site>.json. */
 	static FString SiteSlot();
 	/** Money a new career starts with (USD) - easy a lot, normal a little more freedom, hard exactly one used A320-class

@@ -61,7 +61,7 @@ if (EMBED) {
         ACTIONS['fs-scratch'](null as any, null as any);
         const d = $('.fs-modal .fs-diff') as HTMLElement; if (d) d.remove();   // chosen on the stage
         // the home base is the airport we built, Mýrdalssandur in Iceland (BIAP): fixed, not chosen (owner, 2026-11-13)
-        _fsHub = 'BIAP';
+        _fsHub = ownHomeIcao();   // (the site's airport on the PC: to-do 167)
         const hb = $('.fs-modal .fs-hub-btn') as HTMLElement;
         if (hb) { const hf = hb.closest('.field') as HTMLElement; if (hf) hf.remove(); else hb.remove(); }   // no home-base field at all
         const h = $('.fs-modal h2'), sm = $('.fs-modal .modal-head small'), w = $('.fs-modal .fine-print'), b = $('.fs-modal [data-act=fs-wipe]'), x = $('.fs-modal [data-act=close-layer]'), bk = $('.fs-modal [data-act=fs-back]');

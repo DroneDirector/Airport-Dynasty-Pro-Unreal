@@ -2,7 +2,7 @@
 // forecast for the airport you work at (Open-Meteo, free, no key: the same real weather that drives the 3D sky) -
 // now, the next 24 hours hour by hour, the week ahead; the wind's strength and the way it comes from; and what it means
 // for the work at the airport: the head- and crosswind on each runway end, gusts, visibility, freezing and de-icing.
-const WX_SITE = { name: 'Mýrdalssandur', icao: 'BIAP', lat: 63.457988, lon: -18.713703, rwy: [{ id: '08', hdg: 68 }, { id: '26', hdg: 248 }] };   // (Data/airfield.json; true headings)
+const WX_SITE: any = (() => { const o: any = (window as any).__ownSite; if (o) return { name: o.name, icao: o.icao, lat: o.lat, lon: o.lon, rwy: [{ id: OWN_AIRPORT_LIST[0][8].id1, hdg: o.hdg < 180 ? o.hdg : o.hdg - 180 }, { id: OWN_AIRPORT_LIST[0][8].id2, hdg: o.hdg < 180 ? o.hdg + 180 : o.hdg }] }; return { name: 'Mýrdalssandur', icao: 'BIAP', lat: 63.457988, lon: -18.713703, rwy: [{ id: '08', hdg: 68 }, { id: '26', hdg: 248 }] }; })();   // (Data/airfield.json; true headings)
 const WxA: any = { data: null as any, at: 0, busy: false, err: '' };
 
 function wxAppLoad(force?: boolean) {

@@ -1,5 +1,6 @@
 // Events, jobs, reputation, career, news and notifications - see Sim/ADPEvents.h.
 #include "Sim/ADPEvents.h"
+#include "Sim/ADPNetwork.h"
 #include "Sim/ADPWorldData.h"
 #include "Sim/ADPEconomy.h"
 #include "Sim/ADPWeather.h"
@@ -193,6 +194,7 @@ void ADPEvents::OnLanded(FADPWorld& W, const FADPFlight& F, const FDateTime& At)
 {
 	FADPAirline* Al = W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == F.AirlineId; });
 	if (!Al) return;
+	ADPNetwork::Landed(W, F);   // (the league's and the challenges' counters: to-do 186)
 	const bool bOnTime = F.DelayMin < 15.0 && F.Diverted.IsEmpty();
 	Al->OnTimeEma = Al->OnTimeEma * 0.98 + (bOnTime ? 0.02 : 0.0);
 	if (!F.Emergency.IsEmpty()) Al->Reputation = FMath::Max(0.0, Al->Reputation - 1.0);

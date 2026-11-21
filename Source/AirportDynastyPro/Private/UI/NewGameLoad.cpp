@@ -51,6 +51,7 @@ void AADPHUD::StartUnrealLoad()
 	if (UADPSim* Sim = UADPSim::Get(this))
 	{
 		if (bNewCareer) Sim->NewCareer(SimDifficulty);
+		else if (!Sim->PendingLoad.IsEmpty() && Sim->LoadNamed(Sim->PendingLoad)) Sim->PendingLoad.Empty();   // (a named save: to-do 192)
 		else if (!Sim->ResumeCareer()) Sim->NewCareer(TEXT("normal"));
 	}
 	// the roads, the town and the land along the roads, built behind this screen (ADPLateWorld)

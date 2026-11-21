@@ -35,6 +35,12 @@ public:
 	/** Real-world weather at the airport (the live feed): the switch is here and saved; the feed itself comes later, so
 	 *  for now the weather theme stays what it is. */
 	static bool bRealWeather;
+	/** ALWAYS REAL WEATHER (to-do 193): every minute the real report at or near the airport (its METAR: Sion / Geneva at
+	 *  Chablais) sets the sky's theme, the wind (windsocks, flags, aircraft), the rain and snow on the ground (puddles, snow
+	 *  cover) and the ground's temperature. Manual weather only in tests (-ManualWeather or a -UI test switch). */
+	void ApplyLive();
+	static bool ManualWeatherAllowed();
+	float LiveClock = 55.f;
 	static void SetRealWeather(bool bOn);
 	#pragma endregion
 

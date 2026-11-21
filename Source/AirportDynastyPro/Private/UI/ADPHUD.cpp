@@ -819,6 +819,7 @@ void AADPHUD::BeginPlay()
 		InputComponent->BindKey(EKeys::M, IE_Pressed, this, &AADPHUD::ToggleMap);
 		InputComponent->BindKey(EKeys::Tab, IE_Pressed, this, &AADPHUD::ToggleTablet);     // (your tablet, to-do 117)
 		InputComponent->BindKey(EKeys::F10, IE_Pressed, this, &AADPHUD::ToggleSettings);  // (Settings moved off Tab)
+		InputComponent->BindKey(EKeys::F5, IE_Pressed, this, &AADPHUD::SaveNow);           // (save now: to-do 192)
 		InputComponent->BindKey(EKeys::P, IE_Pressed, this, &AADPHUD::TogglePerf);
 		InputComponent->BindKey(EKeys::H, IE_Pressed, this, &AADPHUD::HideUI);
 		InputComponent->BindKey(EKeys::Escape, IE_Pressed, this, &AADPHUD::OnEscape);

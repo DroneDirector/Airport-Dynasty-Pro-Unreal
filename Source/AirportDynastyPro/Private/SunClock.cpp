@@ -1,6 +1,11 @@
 // The sun's place from the time: the low-precision solar position (as in the Astronomical Almanac and NOAA's
 // calculator), good to about a hundredth of a degree for many years either side of 2000.
 #include "SunClock.h"
+#include "Dom/JsonObject.h"
+#include "Misc/CommandLine.h"
+#include "WindSocks.h"
+#include "Puddles.h"
+#include "Sim/ADPWeather.h"
 #include "Site.h"
 #include "PerfLog.h"
 #include "Engine/DirectionalLight.h"
@@ -134,6 +139,7 @@ void ASunClock::BeginPlay()
 	// the time of year chosen in Settings (0: the real date), and the real-weather switch
 	{ int32 M = 0, D = 0; GConfig->GetInt(TEXT("ADP.World"), TEXT("Month"), M, GGameUserSettingsIni); GConfig->GetInt(TEXT("ADP.World"), TEXT("Day"), D, GGameUserSettingsIni); if (M > 0 && DayOverride < 0) { Month = M; Day = D; DayOverride = FDateTime(FDateTime::UtcNow().GetYear(), FMath::Clamp(M, 1, 12), FMath::Clamp(D, 1, FDateTime::DaysInMonth(FDateTime::UtcNow().GetYear(), FMath::Clamp(M, 1, 12)))).GetDayOfYear(); } }
 	GConfig->GetBool(TEXT("ADP.World"), TEXT("RealWeather"), bRealWeather, GGameUserSettingsIni);
+	if (!ManualWeatherAllowed()) bRealWeather = true;   // (the finished game: always the real weather - to-do 193)
 	// the sky's own light fills the shadows (as outdoors, where a shadow is never black); captured from the sky in real time
 	if (ASkyLight* Sky = Cast<ASkyLight>(UGameplayStatics::GetActorOfClass(this, ASkyLight::StaticClass())))
 		if (USkyLightComponent* S = Sky->GetLightComponent()) { S->SetIntensity(1.8f); S->bLowerHemisphereIsBlack = false; S->RecaptureSky(); }
@@ -145,6 +151,7 @@ void ASunClock::Tick(float Dt)
 	ADP_PERF_SCOPE("the sun clock (each frame)", 2.f);
 	Super::Tick(Dt);
 	if ((Clock += Dt) >= 5.f) { Clock = 0; Update(); }
+	if ((LiveClock += Dt) >= 60.f) { LiveClock = 0; ApplyLive(); }
 	// the sky light follows the sun's colour now and then (it captures the sky in real time where it can)
 	if ((SkyClock += Dt) >= 120.f)
 	{
@@ -152,4 +159,37 @@ void ASunClock::Tick(float Dt)
 		if (ASkyLight* Sky = Cast<ASkyLight>(UGameplayStatics::GetActorOfClass(this, ASkyLight::StaticClass())))
 			if (USkyLightComponent* S = Sky->GetLightComponent()) if (!S->bRealTimeCapture) S->RecaptureSky();
 	}
+}
+
+bool ASunClock::ManualWeatherAllowed()
+{
+	const TCHAR* C = FCommandLine::Get();
+	return FParse::Param(C, TEXT("ManualWeather")) || FCString::Strifind(C, TEXT("-UI")) != nullptr;
+}
+
+void ASunClock::ApplyLive()
+{
+	if (!bRealWeather) return;
+	TSharedPtr<FJsonObject> A = ADPSite::AirportBlock();
+	FString Icao = TEXT("BIAP"); double Lat = 63.458, Lon = -18.714;
+	if (A) { A->TryGetStringField(TEXT("icao"), Icao); A->TryGetNumberField(TEXT("lat"), Lat); A->TryGetNumberField(TEXT("lon"), Lon); }
+	const FADPWx X = ADPWeather::At(Icao, Lat, Lon, FDateTime::UtcNow());
+	// the sky: the report's weather first, then its cloud layers (the most covered one)
+	int32 T = 0;
+	const FString R = TEXT(" ") + X.Raw + TEXT(" ");
+	if (R.Contains(TEXT(" OVC")) || R.Contains(TEXT(" VV"))) T = 3; else if (R.Contains(TEXT(" BKN"))) T = 2; else if (R.Contains(TEXT(" SCT")) || R.Contains(TEXT(" FEW"))) T = 1;
+	if (!X.bLive) T = X.CeilingFt < 3000 ? 3 : X.CeilingFt < 8000 ? 2 : 1;
+	if (X.bFog || X.VisM < 1000) T = 4;
+	if (X.bRain) T = 5;
+	if (X.bSnow) T = 7;
+	if (X.bStorm) T = 6;
+	if (T != Theme) { Theme = T; ApplyWeather(); ADP_LOG(TEXT("Live weather: %s at %s - %s"), ThemeName(T), *X.Station, *X.Raw); }
+	// rain and snow on the ground: the report's intensity (light / moderate / heavy) as mm or cm an hour
+	auto Has = [&](const TCHAR* K) { return R.Contains(K); };
+	float Rain = 0.f, Snow = 0.f;
+	if (X.bRain) Rain = Has(TEXT("+RA")) || Has(TEXT("+SHRA")) || Has(TEXT("+TSRA")) ? 10.f : Has(TEXT("-RA")) || Has(TEXT("-SHRA")) ? 1.f : Has(TEXT("DZ")) ? 0.3f : 4.f;
+	if (X.bSnow) Snow = Has(TEXT("+SN")) || Has(TEXT("+SHSN")) ? 4.f : Has(TEXT("-SN")) || Has(TEXT("-SHSN")) ? 0.5f : 1.5f;
+	if (APuddles* P = APuddles::Get()) P->SetLiveWeather(Rain, Snow, float(X.TempC));
+	// the wind: windsocks, flags and (with the aircraft in 3D) the aircraft
+	AWindSocks::SetLive(float(X.WindDir), float(X.WindKt), float(FMath::Max(X.GustKt, X.WindKt)));
 }
