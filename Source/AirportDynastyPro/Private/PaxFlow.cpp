@@ -22,6 +22,8 @@
 #include "UI/ADPHUD.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Materials/MaterialInterface.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "GroomComponent.h"
 #include "Animation/AnimSingleNodeInstance.h"
 #include "PaxAnimInstance.h"
 #include "PaxNav.h"
@@ -593,6 +595,54 @@ void APaxFlow::CarryBag(FPx& P, AActor* A)
 	P.Holder->SetWorldLocationAndRotation(A->GetActorLocation() + Right * 25.f + FVector(0, 0, 80.f), Q);
 }
 
+void APaxFlow::StartFade(FPx& P, AActor* A)
+{
+	P.FadeT = 0.f; P.bFadeSwap = false;
+	static UMaterialInterface* Fade = [] { UMaterialInterface* M = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/PaxFade/M_PaxFade.M_PaxFade")); if (M) M->AddToRoot(); return M; }();
+	if (!Fade) { ADP_WARN(TEXT("PaxFlow: no M_PaxFade (Tools/make_pax_fade_material.py) - boarding passengers vanish without fading")); return; }
+	UMaterialInstanceDynamic* D = UMaterialInstanceDynamic::Create(Fade, A);
+	D->SetScalarParameterValue(TEXT("Up"), 0.f); D->SetScalarParameterValue(TEXT("Out"), 0.f);
+	P.FadeMid = D;
+	// (the light over everything they are and carry: body, face, clothes, anything held - their own meshes and
+	//  whatever rides on them)
+	TArray<AActor*> All; All.Add(A); A->GetAttachedActors(All, false, true);
+	for (AActor* X : All) { TArray<UMeshComponent*> Ms; X->GetComponents<UMeshComponent>(Ms); for (UMeshComponent* M : Ms) if (M->IsVisible() && !M->IsA<UGroomComponent>()) M->SetOverlayMaterial(D); }
+}
+
+bool APaxFlow::StepFade(FPx& P, AActor* A, float Dt)
+{
+	P.FadeT += Dt;
+	UMaterialInstanceDynamic* D = P.FadeMid.Get();
+	TArray<AActor*> All; All.Add(A); A->GetAttachedActors(All, false, true);
+	if (!D) { for (AActor* X : All) X->SetActorHiddenInGame(true); return true; }
+	// 0 - 0.5 s: the light rises over them from the feet (an overlay on their own materials)
+	const float Rise = 0.5f, Thin = 0.6f;
+	D->SetScalarParameterValue(TEXT("Up"), FMath::SmoothStep(0.f, 1.f, FMath::Min(P.FadeT / Rise, 1.f)));
+	if (P.FadeT >= Rise && !P.bFadeSwap)
+	{
+		// fully covered: the light itself takes their materials' place (it looks the same), so it can thin away
+		P.bFadeSwap = true;
+		for (AActor* X : All)
+		{
+			TArray<UPrimitiveComponent*> Ps; X->GetComponents<UPrimitiveComponent>(Ps);
+			for (UPrimitiveComponent* C : Ps)
+			{
+				if (UMeshComponent* M = Cast<UMeshComponent>(C))
+				{
+					if (M->GetOverlayMaterial() != D) { if (!M->IsVisible()) continue; M->SetVisibility(false); continue; }   // (hair strands and the like: no overlay - gone under the light)
+					for (int32 k = 0; k < M->GetNumMaterials(); ++k) M->SetMaterial(k, D);
+					M->SetOverlayMaterial(nullptr); M->SetCastShadow(false);
+				}
+			}
+		}
+	}
+	// 0.5 - 1.1 s: thinning away to nothing
+	D->SetScalarParameterValue(TEXT("Out"), FMath::SmoothStep(0.f, 1.f, FMath::Clamp((P.FadeT - Rise) / Thin, 0.f, 1.f)));
+	if (P.FadeT < Rise + Thin) return false;
+	for (AActor* X : All) X->SetActorHiddenInGame(true);
+	return true;
+}
+
 bool APaxFlow::Follow(FPx& P, AActor* A, float Dt)
 {
 	if (P.PauseT > 0.f)
@@ -995,9 +1045,12 @@ void APaxFlow::WayToJetway(FPx& P)
 	Add(PW(G.Jw.X, Fy, G.Jw.Y)); Add(PW(G.Jw.X, Fy, G.Jw.Y + 1.2f));
 	AJetwayRigs* J = AJetwayRigs::Get(GetWorld());
 	FVector Ro, Dr, Mid, Front;
+	P.FadeFrom = INDEX_NONE; P.FadeT = -1.f; P.bFadeSwap = false;
 	if (J && R.Jet != INDEX_NONE && J->Frame(R.Jet, Ro, Dr) && J->CabView(R.Jet, Mid, Front))
 	{
 		Ro.Z = F2Z; Add(Ro);
+		// (owner 2026-11-21: no cabin yet - halfway along the tunnel they fade away, one by one, walking on as they go)
+		Add(FMath::Lerp(Ro, Mid, 0.5f)); P.FadeFrom = P.Way.Num() - 1;
 		Add(Mid); Add(Mid + Front.GetSafeNormal2D() * 70.f);
 	}
 	P.Do = EDo::Aboard; P.Stage = TEXT("boarding - through the jetway to the aircraft");
@@ -1069,7 +1122,7 @@ void APaxFlow::Arrive(int32 i)
 	case EDo::Aboard:
 		++R.Aboard; ++TotalAboard;
 		ADP_LOG(TEXT("PaxFlow: %s aboard %s (%d of %d walkers; about %d of %d passengers aboard)"), *P.Id, *R.Label, R.Aboard, R.Visible, FMath::Min(R.Pax, FMath::RoundToInt(float(R.Aboard) / FMath::Max(1, R.Visible) * R.Pax)), R.Pax);
-		Finish(i, TEXT("is aboard (gone in at the cab's end)"));
+		Finish(i, TEXT("is aboard (faded away halfway along the jetway)"));
 		break;
 	case EDo::ArrIn: WayArrivals(P); P.St = EPx::Walk; break;
 	case EDo::AtClaim:
@@ -1168,8 +1221,14 @@ void APaxFlow::StepPx(int32 i, float Dt)
 		break;
 	}
 	case EPx::Jetway:
-		if (Follow(P, A, Dt)) Arrive(i);
+	{
+		// along the jetway; past its halfway point they fade away over a second (never a pop), and only then are they
+		// counted aboard - the aircraft (SimTraffic, BoardingDone) waits for that
+		const bool bEnd = Follow(P, A, Dt);
+		if (P.FadeT < 0.f && (bEnd || (P.FadeFrom != INDEX_NONE && P.Wi > P.FadeFrom))) StartFade(P, A);
+		if (P.FadeT >= 0.f && StepFade(P, A, Dt)) Arrive(i);
 		break;
+	}
 	case EPx::ClaimWait:
 	{
 		ABaggageBelts* B = ABaggageBelts::Get(GetWorld());

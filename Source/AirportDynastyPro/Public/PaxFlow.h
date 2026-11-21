@@ -76,6 +76,7 @@ private:
 		int32 Desk = 0, Lane = -1, Seat = INDEX_NONE, Order = 0;
 		float LeanYaw = 0.f, Fidget = 0.f; double BoardAt = -1.0; bool bEsc = false, bPriority = false;
 		FString Stage;   // (in words, for the tests' caption)
+		float FadeT = -1.f; int32 FadeFrom = INDEX_NONE; bool bFadeSwap = false; TWeakObjectPtr<class UMaterialInstanceDynamic> FadeMid;   // (boarding: faded away halfway along the jetway)
 	};
 	struct FRun
 	{
@@ -135,6 +136,8 @@ private:
 	void Arrive(int32 i);
 	void Finish(int32 i, const TCHAR* Why);
 	void CarryBag(FPx& P, AActor* A);
+	void StartFade(FPx& P, AActor* A);
+	bool StepFade(FPx& P, AActor* A, float Dt);
 
 	// ways (world points)
 	void WayToHall(FPx& P, const FVector& From);
