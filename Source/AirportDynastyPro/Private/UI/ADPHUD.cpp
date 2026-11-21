@@ -325,6 +325,19 @@ namespace
 	}
 	UGameUserSettings* Prefs() { return GEngine ? GEngine->GetGameUserSettings() : nullptr; }
 	void Save(UGameUserSettings* S) { if (S) { S->ApplySettings(false); S->SaveSettings(); } }
+	// (owner 2026-11-21: a choice row shows which one is ACTIVE - the chosen button lit: a bright cyan frame round it and
+	//  its label in cyan, the others plain)
+	TSharedRef<SWidget> ChoiceButton(const FString& Label, TFunction<void()> Click, TFunction<bool()> IsOn)
+	{
+		return SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).Padding(2.f)
+			.BorderBackgroundColor_Lambda([IsOn]() { return IsOn() ? FLinearColor(Neon::Cyan.R, Neon::Cyan.G, Neon::Cyan.B, 0.95f) : FLinearColor(0, 0, 0, 0); })
+			[
+				SNew(SButton).ButtonStyle(&NeonButtonStyle()).ContentPadding(FMargin(12, 6))
+				.OnClicked_Lambda([Click]() { Click(); return FReply::Handled(); })
+				[SNew(STextBlock).Text(FText::FromString(Label.ToUpper())).Font(Neon::Face(9, 70))
+					.ColorAndOpacity_Lambda([IsOn]() { return IsOn() ? FSlateColor(Neon::Cyan) : FSlateColor(Neon::Paper); })]
+			];
+	}
 }
 #pragma endregion
 
@@ -935,10 +948,12 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 	TSharedRef<SHorizontalBox> Quality = SNew(SHorizontalBox);
 	const TCHAR* Names[] = {TEXT("LOW"), TEXT("MEDIUM"), TEXT("HIGH"), TEXT("EPIC"), TEXT("CINEMATIC")};
 	for (int32 q = 0; q < 5; ++q)
-		Quality->AddSlot().AutoWidth().Padding(0, 0, 4, 0)[Button(Names[q], [q]() { if (UGameUserSettings* S = Prefs()) { S->SetOverallScalabilityLevel(q); Save(S); } })];
+		Quality->AddSlot().AutoWidth().Padding(0, 0, 4, 0)[ChoiceButton(Names[q], [q]() { if (UGameUserSettings* S = Prefs()) { S->SetOverallScalabilityLevel(q); Save(S); } },
+			[q]() { const UGameUserSettings* S = Prefs(); return S && S->GetOverallScalabilityLevel() == q; })];
 	TSharedRef<SHorizontalBox> Limit = SNew(SHorizontalBox);
 	for (const float L : {30.f, 60.f, 120.f, 0.f})
-		Limit->AddSlot().AutoWidth().Padding(0, 0, 4, 0)[Button(L > 0 ? FString::Printf(TEXT("%d FPS"), int32(L)) : TEXT("NO LIMIT"), [L]() { if (UGameUserSettings* S = Prefs()) { S->SetFrameRateLimit(L); Save(S); } })];
+		Limit->AddSlot().AutoWidth().Padding(0, 0, 4, 0)[ChoiceButton(L > 0 ? FString::Printf(TEXT("%d FPS"), int32(L)) : TEXT("NO LIMIT"), [L]() { if (UGameUserSettings* S = Prefs()) { S->SetFrameRateLimit(L); Save(S); } },
+			[L]() { const UGameUserSettings* S = Prefs(); return S && FMath::IsNearlyEqual(S->GetFrameRateLimit(), L, 0.5f); })];
 
 	GNeonUI = true;   // (the options inside are drawn in the neon look: Button() and Caption() look at it)
 	GNeonLastHead.Reset(); GNeonNoDividers = false;
