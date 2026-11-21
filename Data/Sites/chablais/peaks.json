@@ -1,0 +1,365 @@
+{
+ "note": "Tools/make_site_peaks.py: swissTLM3D named summits within 25 km, spread 2.5 km apart, plan metres",
+ "peaks": [
+  {
+   "name": "Haute Cime",
+   "x": -20872.5,
+   "y": 8520.4,
+   "elev": 3257,
+   "lat": 46.16108,
+   "lon": 6.92324,
+   "main": true
+  },
+  {
+   "name": "Le Sommet des Diablerets",
+   "x": -14649.2,
+   "y": -16785.9,
+   "elev": 3216,
+   "lat": 46.30442,
+   "lon": 7.19037,
+   "main": true
+  },
+  {
+   "name": "Becca d'Audon",
+   "x": -13088.3,
+   "y": -20091.6,
+   "elev": 3123,
+   "lat": 46.32925,
+   "lon": 7.22146,
+   "main": true
+  },
+  {
+   "name": "Grand Muveran",
+   "x": -19490.3,
+   "y": -9233.7,
+   "elev": 3051,
+   "lat": 46.23717,
+   "lon": 7.12615,
+   "main": true
+  },
+  {
+   "name": "Grande Dent de Morcles",
+   "x": -21757.5,
+   "y": -3954.4,
+   "elev": 2969,
+   "lat": 46.19931,
+   "lon": 7.07549,
+   "main": true
+  },
+  {
+   "name": "Tête à Pierre Grept",
+   "x": -18811.3,
+   "y": -11987.6,
+   "elev": 2904,
+   "lat": 46.25276,
+   "lon": 7.15525,
+   "main": true
+  },
+  {
+   "name": "Culan",
+   "x": -13565.7,
+   "y": -14376.4,
+   "elev": 2789,
+   "lat": 46.30458,
+   "lon": 7.15611,
+   "main": true
+  },
+  {
+   "name": "Six du Doe",
+   "x": -23943.1,
+   "y": -5656.5,
+   "elev": 2725,
+   "lat": 46.18753,
+   "lon": 7.10711,
+   "main": true
+  },
+  {
+   "name": "Tête Motte",
+   "x": -20782.2,
+   "y": 5561.4,
+   "elev": 2629,
+   "lat": 46.17262,
+   "lon": 6.95776,
+   "main": true
+  },
+  {
+   "name": "Dents de Rossétan",
+   "x": -21017.6,
+   "y": 11117.7,
+   "elev": 2616,
+   "lat": 46.15037,
+   "lon": 6.89331,
+   "main": true
+  },
+  {
+   "name": "Six Noir",
+   "x": -21676.8,
+   "y": -8008.9,
+   "elev": 2608,
+   "lat": 46.21472,
+   "lon": 7.1231,
+   "main": true
+  },
+  {
+   "name": "Tête à Grosjean",
+   "x": -17696.6,
+   "y": -14552.5,
+   "elev": 2607,
+   "lat": 46.27123,
+   "lon": 7.17984,
+   "main": true
+  },
+  {
+   "name": "Le Tarent",
+   "x": -5416.3,
+   "y": -17253.3,
+   "elev": 2548,
+   "lat": 46.38207,
+   "lon": 7.14754,
+   "main": true
+  },
+  {
+   "name": "Dent de Bonavau",
+   "x": -20759.6,
+   "y": 14092.5,
+   "elev": 2503,
+   "lat": 46.14159,
+   "lon": 6.85679,
+   "main": true
+  },
+  {
+   "name": "Gummfluh",
+   "x": -931.4,
+   "y": -23219.7,
+   "elev": 2458,
+   "lat": 46.44063,
+   "lon": 7.19497,
+   "main": true
+  },
+  {
+   "name": "Les Cornettes de Bise",
+   "x": 904.5,
+   "y": 10517.2,
+   "elev": 2432,
+   "lat": 46.33258,
+   "lon": 6.7846,
+   "main": true
+  },
+  {
+   "name": "Tour d'Aï",
+   "x": -1893.6,
+   "y": -6561.6,
+   "elev": 2331,
+   "lat": 46.37211,
+   "lon": 7.00199,
+   "main": true
+  },
+  {
+   "name": "Rochers de Naye",
+   "x": 4984.0,
+   "y": -7429.7,
+   "elev": 2042,
+   "lat": 46.4318,
+   "lon": 6.97602,
+   "main": true
+  },
+  {
+   "name": "Dent de Lys",
+   "x": 11856.1,
+   "y": -12748.9,
+   "elev": 2014,
+   "lat": 46.5077,
+   "lon": 7.003,
+   "main": true
+  },
+  {
+   "name": "Le Moléson",
+   "x": 15596.3,
+   "y": -15592.7,
+   "elev": 2002,
+   "lat": 46.54882,
+   "lon": 7.0171,
+   "main": true
+  },
+  {
+   "name": "Dent du Salentin",
+   "x": -24156.7,
+   "y": 3835.5,
+   "elev": 2483,
+   "lat": 46.15118,
+   "lon": 6.99591,
+   "main": false
+  },
+  {
+   "name": "Pointe de Pré Fleuri",
+   "x": -19332.6,
+   "y": -5083.5,
+   "elev": 2482,
+   "lat": 46.22335,
+   "lon": 7.07616,
+   "main": false
+  },
+  {
+   "name": "Haute Pointe",
+   "x": -15989.0,
+   "y": -11338.5,
+   "elev": 2422,
+   "lat": 46.2736,
+   "lon": 7.13278,
+   "main": false
+  },
+  {
+   "name": "Pointe de Bésery",
+   "x": -24355.3,
+   "y": -2558.1,
+   "elev": 2409,
+   "lat": 46.17285,
+   "lon": 7.07259,
+   "main": false
+  },
+  {
+   "name": "Pointe de Paray",
+   "x": 8244.1,
+   "y": -22409.0,
+   "elev": 2375,
+   "lat": 46.51317,
+   "lon": 7.13709,
+   "main": false
+  },
+  {
+   "name": "Pic Chaussy",
+   "x": -4838.3,
+   "y": -14579.1,
+   "elev": 2351,
+   "lat": 46.3771,
+   "lon": 7.11273,
+   "main": false
+  },
+  {
+   "name": "Witteberghore",
+   "x": -3874.9,
+   "y": -23169.2,
+   "elev": 2350,
+   "lat": 46.41623,
+   "lon": 7.20981,
+   "main": false
+  },
+  {
+   "name": "Pointe de Fornet",
+   "x": -16551.0,
+   "y": 17722.0,
+   "elev": 2298,
+   "lat": 46.16283,
+   "lon": 6.7917,
+   "main": false
+  },
+  {
+   "name": "Pointe des Mossettes",
+   "x": -14505.0,
+   "y": 14734.5,
+   "elev": 2277,
+   "lat": 46.19059,
+   "lon": 6.8162,
+   "main": false
+  },
+  {
+   "name": "Dent de Valère",
+   "x": -17946.5,
+   "y": 5783.0,
+   "elev": 2267,
+   "lat": 46.1951,
+   "lon": 6.94022,
+   "main": false
+  },
+  {
+   "name": "La Chaux",
+   "x": -7136.5,
+   "y": -19573.6,
+   "elev": 2261,
+   "lat": 46.37634,
+   "lon": 7.18416,
+   "main": false
+  },
+  {
+   "name": "Tête du Géant",
+   "x": -11505.6,
+   "y": 13315.6,
+   "elev": 2233,
+   "lat": 46.22042,
+   "lon": 6.81714,
+   "main": false
+  },
+  {
+   "name": "Les Jumelles",
+   "x": 1983.9,
+   "y": 7554.3,
+   "elev": 2215,
+   "lat": 46.35232,
+   "lon": 6.814,
+   "main": false
+  },
+  {
+   "name": "Pra de Cray",
+   "x": 7206.7,
+   "y": -20051.6,
+   "elev": 2197,
+   "lat": 46.49607,
+   "lon": 7.11447,
+   "main": false
+  },
+  {
+   "name": "Gros Van",
+   "x": -1531.1,
+   "y": -12382.5,
+   "elev": 2189,
+   "lat": 46.3963,
+   "lon": 7.06924,
+   "main": false
+  },
+  {
+   "name": "Tête à Josué",
+   "x": -3799.6,
+   "y": -19786.5,
+   "elev": 2131,
+   "lat": 46.40457,
+   "lon": 7.16919,
+   "main": false
+  },
+  {
+   "name": "Le Chamossaire",
+   "x": -8342.7,
+   "y": -8690.1,
+   "elev": 2113,
+   "lat": 46.32685,
+   "lon": 7.06122,
+   "main": false
+  },
+  {
+   "name": "Rocher du Midi",
+   "x": 685.9,
+   "y": -20424.3,
+   "elev": 2097,
+   "lat": 46.44379,
+   "lon": 7.15322,
+   "main": false
+  },
+  {
+   "name": "Linleu",
+   "x": -1792.6,
+   "y": 9014.2,
+   "elev": 2094,
+   "lat": 46.31595,
+   "lon": 6.81669,
+   "main": false
+  },
+  {
+   "name": "Seeberghore",
+   "x": -8624.6,
+   "y": -21917.7,
+   "elev": 2071,
+   "lat": 46.3726,
+   "lon": 7.21984,
+   "main": false
+  }
+ ]
+}

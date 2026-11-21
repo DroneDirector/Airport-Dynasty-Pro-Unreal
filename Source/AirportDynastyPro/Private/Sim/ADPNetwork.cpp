@@ -6,21 +6,21 @@
 
 namespace
 {
-	FADPAirline* Al(FADPWorld& W, const FString& Id) { return W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == Id; }); }
-	const FADPAirline* Al(const FADPWorld& W, const FString& Id) { return W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == Id; }); }
-	void Note(FADPWorld& W, const FDateTime& At, const TCHAR* Kind, int32 Prio, const FString& Title, const FString& Text)
+	FADPAirline* NwAl(FADPWorld& W, const FString& Id) { return W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == Id; }); }
+	const FADPAirline* NwAl(const FADPWorld& W, const FString& Id) { return W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == Id; }); }
+	void NwNote(FADPWorld& W, const FDateTime& At, const TCHAR* Kind, int32 Prio, const FString& Title, const FString& Text)
 	{ FADPNotice N; N.At = At; N.Kind = Kind; N.Priority = Prio; N.Title = Title; N.Text = Text; W.Notices.Add(N); }
-	FADPAlliance* AllianceOf(FADPWorld& W, const FString& AirlineId)
+	FADPAlliance* NwAllianceOf(FADPWorld& W, const FString& AirlineId)
 	{ return W.Alliances.FindByPredicate([&](const FADPAlliance& A) { return A.Members.Contains(AirlineId); }); }
-	double FleetValue(const FADPWorld& W, const FString& AirlineId)
+	double NwFleetValue(const FADPWorld& W, const FString& AirlineId)
 	{ double V = 0; for (const FADPAircraft& C : W.Aircraft) if (C.AirlineId == AirlineId && C.Ownership == TEXT("owned")) V += C.Value; return V; }
-	double Debt(const FADPWorld& W, const FString& AirlineId)
+	double NwDebt(const FADPWorld& W, const FString& AirlineId)
 	{ double D = 0; for (const FADPLoan& L : W.Loans) if (L.AirlineId == AirlineId) D += L.Owed; return D; }
 }
 
 void ADPNetwork::Boost(FADPWorld& W, FADPFlight& F, int32 Seats)
 {
-	const FADPAirline* A = Al(W, F.AirlineId);
+	const FADPAirline* A = NwAl(W, F.AirlineId);
 	if (!A || Seats <= 0) return;
 	double K = 0.0;
 	// connections at its hub: one more route there, a little more transfer traffic (up to +25%)
@@ -33,7 +33,7 @@ void ADPNetwork::Boost(FADPWorld& W, FADPFlight& F, int32 Seats)
 	if (A->bFrequentFlyer) K += FMath::Min(0.08, A->FfMembers / 400000.0);
 	// code-shares: a member's hub at either end (+5%)
 	if (const FADPAlliance* Ally = W.Alliances.FindByPredicate([&](const FADPAlliance& X) { return X.Members.Contains(F.AirlineId); }))
-		for (const FString& M : Ally->Members) if (M != F.AirlineId) if (const FADPAirline* O = Al(W, M)) if (O->Hub == F.From || O->Hub == F.To) { K += 0.05; break; }
+		for (const FString& M : Ally->Members) if (M != F.AirlineId) if (const FADPAirline* O = NwAl(W, M)) if (O->Hub == F.From || O->Hub == F.To) { K += 0.05; break; }
 	if (K <= 0.0) return;
 	const int32 Total = F.Pax + F.PaxJ + F.PaxF;
 	const int32 Extra = FMath::Min(Seats - Total, FMath::RoundToInt(Total * K));
@@ -44,7 +44,7 @@ void ADPNetwork::Boost(FADPWorld& W, FADPFlight& F, int32 Seats)
 
 double ADPNetwork::FuelCost(FADPWorld& W, const FString& AirlineId, double FuelKg, double SpotPerKg)
 {
-	FADPAirline* A = Al(W, AirlineId);
+	FADPAirline* A = NwAl(W, AirlineId);
 	double Cost = 0.0, Left = FuelKg;
 	if (A && A->HedgeKg > 0.0)
 	{
@@ -57,7 +57,7 @@ double ADPNetwork::FuelCost(FADPWorld& W, const FString& AirlineId, double FuelK
 
 void ADPNetwork::Landed(FADPWorld& W, const FADPFlight& F)
 {
-	FADPAirline* A = Al(W, F.AirlineId);
+	FADPAirline* A = NwAl(W, F.AirlineId);
 	if (!A) return;
 	A->Pax30 += F.Pax + F.PaxJ + F.PaxF; A->Legs30 += 1.0;
 	if (A->bFrequentFlyer) A->FfMembers += (F.Pax + F.PaxJ + F.PaxF) * 0.04;   // (about 1 in 25 passengers joins)
@@ -65,37 +65,37 @@ void ADPNetwork::Landed(FADPWorld& W, const FADPFlight& F)
 }
 
 bool ADPNetwork::SetFrequentFlyer(FADPWorld& W, const FString& AirlineId, bool bOn)
-{ FADPAirline* A = Al(W, AirlineId); if (!A) return false; A->bFrequentFlyer = bOn; return true; }
+{ FADPAirline* A = NwAl(W, AirlineId); if (!A) return false; A->bFrequentFlyer = bOn; return true; }
 
 bool ADPNetwork::JoinAlliance(FADPWorld& W, const FString& AirlineId, const FString& Name, const FDateTime& At, FString& Why)
 {
-	FADPAirline* A = Al(W, AirlineId);
+	FADPAirline* A = NwAl(W, AirlineId);
 	FADPAlliance* Ally = W.Alliances.FindByPredicate([&](const FADPAlliance& X) { return X.Name == Name; });
 	if (!A || !Ally) { Why = TEXT("no such alliance"); return false; }
-	if (AllianceOf(W, AirlineId)) { Why = TEXT("already in an alliance"); return false; }
+	if (NwAllianceOf(W, AirlineId)) { Why = TEXT("already in an alliance"); return false; }
 	if (A->Reputation < 55.0) { Why = TEXT("your reputation must be 55 or more"); return false; }
 	const double Fee = 2.0e6;
 	if (A->Balance < Fee) { Why = TEXT("the joining fee is $2 million"); return false; }
 	ADPEconomy::Pay(W, AirlineId, At, TEXT("fees"), -Fee, FString::Printf(TEXT("Joining fee: %s"), *Name));
 	Ally->Members.Add(AirlineId);
-	Note(W, At, TEXT("company"), 1, TEXT("Alliance"), FString::Printf(TEXT("%s has joined %s: code-shares with its members, their passengers connect to your flights."), *A->Name, *Name));
+	NwNote(W, At, TEXT("company"), 1, TEXT("Alliance"), FString::Printf(TEXT("%s has joined %s: code-shares with its members, their passengers connect to your flights."), *A->Name, *Name));
 	return true;
 }
 
 bool ADPNetwork::FoundAlliance(FADPWorld& W, const FString& AirlineId, const FString& Name, const FDateTime& At, FString& Why)
 {
-	FADPAirline* A = Al(W, AirlineId);
+	FADPAirline* A = NwAl(W, AirlineId);
 	if (!A || Name.IsEmpty()) { Why = TEXT("a name is needed"); return false; }
-	if (AllianceOf(W, AirlineId)) { Why = TEXT("already in an alliance"); return false; }
+	if (NwAllianceOf(W, AirlineId)) { Why = TEXT("already in an alliance"); return false; }
 	if (A->Reputation < 65.0) { Why = TEXT("your reputation must be 65 or more to found one"); return false; }
 	FADPAlliance N; N.Name = Name.Left(40); N.Founder = AirlineId; N.Members.Add(AirlineId); W.Alliances.Add(N);
-	Note(W, At, TEXT("company"), 1, TEXT("Alliance founded"), FString::Printf(TEXT("%s founded %s. AI airlines without an alliance may ask to join."), *A->Name, *N.Name));
+	NwNote(W, At, TEXT("company"), 1, TEXT("Alliance founded"), FString::Printf(TEXT("%s founded %s. AI airlines without an alliance may ask to join."), *A->Name, *N.Name));
 	return true;
 }
 
 bool ADPNetwork::LeaveAlliance(FADPWorld& W, const FString& AirlineId)
 {
-	FADPAlliance* Ally = AllianceOf(W, AirlineId);
+	FADPAlliance* Ally = NwAllianceOf(W, AirlineId);
 	if (!Ally) return false;
 	Ally->Members.Remove(AirlineId);
 	return true;
@@ -103,21 +103,21 @@ bool ADPNetwork::LeaveAlliance(FADPWorld& W, const FString& AirlineId)
 
 bool ADPNetwork::Ipo(FADPWorld& W, const FString& AirlineId, const FDateTime& At, FString& Why)
 {
-	FADPAirline* A = Al(W, AirlineId);
+	FADPAirline* A = NwAl(W, AirlineId);
 	if (!A) return false;
 	if (A->bPublic) { Why = TEXT("already public"); return false; }
 	if (A->Legs30 < 60 || A->Reputation < 50.0) { Why = TEXT("an IPO needs a record: 60 legs in 30 days and reputation 50"); return false; }
 	const double Money = A->SharePrice * A->SharesM * 1e6 * 0.30 * 0.95;   // (30% of the shares; 5% to the banks)
 	ADPEconomy::Pay(W, AirlineId, At, TEXT("loan"), Money, FString::Printf(TEXT("IPO: 30%% of %s's shares sold"), *A->Name));
 	A->bPublic = true; A->FloatShare = 0.30;
-	Note(W, At, TEXT("finance"), 1, TEXT("IPO"), FString::Printf(TEXT("%s is listed: $%.1f million raised at $%.2f a share."), *A->Name, Money / 1e6, A->SharePrice));
+	NwNote(W, At, TEXT("finance"), 1, TEXT("IPO"), FString::Printf(TEXT("%s is listed: $%.1f million raised at $%.2f a share."), *A->Name, Money / 1e6, A->SharePrice));
 	return true;
 }
 
 bool ADPNetwork::TradeShares(FADPWorld& W, const FString& Target, double Shares, const FDateTime& At, FString& Why)
 {
 	FADPAirline* Me = W.Airlines.FindByPredicate([](const FADPAirline& X) { return X.bPlayer; });
-	FADPAirline* T = Al(W, Target);
+	FADPAirline* T = NwAl(W, Target);
 	if (!Me || !T || T->bPlayer) { Why = TEXT("no such airline"); return false; }
 	double& Held = W.Holdings.FindOrAdd(Target);
 	if (Shares < 0.0 && Held < -Shares) { Why = TEXT("you hold fewer shares"); return false; }
@@ -131,7 +131,7 @@ bool ADPNetwork::TradeShares(FADPWorld& W, const FString& Target, double Shares,
 
 bool ADPNetwork::Hedge(FADPWorld& W, const FString& AirlineId, double Tonnes, int32 Months, const FDateTime& At, FString& Why)
 {
-	FADPAirline* A = Al(W, AirlineId);
+	FADPAirline* A = NwAl(W, AirlineId);
 	if (!A || Tonnes <= 0.0) { Why = TEXT("nothing to hedge"); return false; }
 	Months = FMath::Clamp(Months, 1, 6);
 	const double PerKg = ADPEconomy::FuelPrice(A->Hub, At) * W.FuelIndex * (1.0 + 0.03 * Months);
@@ -183,12 +183,12 @@ void FADPNetworkModule::Advance(UADPSim& Sim, const FDateTime& From, const FDate
 		A.Pax30 *= FMath::Exp(-1.0 / 30.0); A.Legs30 *= FMath::Exp(-1.0 / 30.0);
 		const double DayProfit = A.PrevBalance != 0.0 ? A.Balance - A.PrevBalance : 0.0; A.PrevBalance = A.Balance;
 		A.ProfitEma30 = A.ProfitEma30 * (29.0 / 30.0) + DayProfit;   // (about the last 30 days' profit)
-		const double Equity = A.Balance + FleetValue(W, A.Id) - Debt(W, A.Id);
+		const double Equity = A.Balance + NwFleetValue(W, A.Id) - NwDebt(W, A.Id);
 		const double Earnings = A.ProfitEma30 * 12.0 * 9.0;   // (a year's profit at about 9 times)
 		const double Fair = FMath::Max(0.5, (FMath::Max(0.0, Equity) * 0.6 + FMath::Max(0.0, Earnings)) * (0.7 + A.Reputation / 160.0) / (A.SharesM * 1e6));
 		A.SharePrice = FMath::Max(0.1, A.SharePrice + (Fair - A.SharePrice) * 0.08 + A.SharePrice * Rng.FRandRange(-0.015, 0.015));
 		if (A.bFrequentFlyer) ADPEconomy::Pay(W, A.Id, To, TEXT("marketing"), -A.FfMembers * 2.0 / 365.0, TEXT("Frequent-flyer scheme"));
-		if (A.HedgeKg > 0.0 && A.HedgeUntil < To) { A.HedgeKg = 0.0; if (A.bPlayer) Note(W, To, TEXT("finance"), 0, TEXT("Fuel hedge ended"), TEXT("Your fuel hedge has run out: fuel is bought at the market price again.")); }
+		if (A.HedgeKg > 0.0 && A.HedgeUntil < To) { A.HedgeKg = 0.0; if (A.bPlayer) NwNote(W, To, TEXT("finance"), 0, TEXT("Fuel hedge ended"), TEXT("Your fuel hedge has run out: fuel is bought at the market price again.")); }
 	}
 	// Monday: three new weekly challenges (the old ones paid if done)
 	FADPAirline* Me = W.Airlines.FindByPredicate([](const FADPAirline& X) { return X.bPlayer; });
@@ -204,7 +204,7 @@ void FADPNetworkModule::Advance(UADPSim& Sim, const FDateTime& From, const FDate
 			C.bDone = true;
 			ADPEconomy::Pay(W, Me->Id, To, TEXT("charter"), C.Money, FString::Printf(TEXT("Challenge won: %s"), *C.Title));
 			W.Career.Xp += C.Xp; W.Career.Badges.AddUnique(TEXT("challenge-") + C.Kind);
-			Note(W, To, TEXT("company"), 1, TEXT("Challenge won"), FString::Printf(TEXT("%s - $%.0f and %.0f XP."), *C.Title, C.Money, C.Xp));
+			NwNote(W, To, TEXT("company"), 1, TEXT("Challenge won"), FString::Printf(TEXT("%s - $%.0f and %.0f XP."), *C.Title, C.Money, C.Xp));
 		}
 	}
 	if (To.GetDayOfWeek() == EDayOfWeek::Monday || W.Challenges.Num() == 0)
@@ -226,6 +226,6 @@ void FADPNetworkModule::Advance(UADPSim& Sim, const FDateTime& From, const FDate
 			W.Challenges.Add(C);
 		}
 		FString L; for (const FADPChallenge& C : W.Challenges) L += TEXT("\n- ") + C.Title;
-		Note(W, To, TEXT("company"), 0, TEXT("This week's challenges"), TEXT("New challenges until next Monday:") + L);
+		NwNote(W, To, TEXT("company"), 0, TEXT("This week's challenges"), TEXT("New challenges until next Monday:") + L);
 	}
 }

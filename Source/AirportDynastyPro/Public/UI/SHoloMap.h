@@ -29,6 +29,8 @@ public:
 	/** The full map zoomed out to everything on it (the hangars too). */
 	void ShowAll() { View = All.ExpandBy(10.f); }
 	bool IsFull() const { return bFull; }
+	/** The mountain-name layer on or off (the MOUNTAINS button; tests). */
+	void ShowPeaks(bool bOn) { bPeaks = bOn && Peaks.Num() > 0; if (bPeaks) View = Zoomable().ExpandBy(500.f); else ResetView(); }
 	void ClearRoute() { Route.Reset(); Waypoints.Reset(); }
 	bool HasRoute() const { return Waypoints.Num() > 0; }
 	/** The legend in the full-screen map: what the symbols mean and the controls (for the device in use). */
@@ -76,6 +78,15 @@ public:
 	float Bearing() const { return FMath::Fmod(FMath::Fmod(HeadingDeg + Yaw, 360.f) + 360.f, 360.f); }
 private:
 	bool bFull = false;
+	/** The mountain-name layer (to-do 171): the summits round the airport (Data/Sites/<site>/peaks.json, swissTLM3D's
+	 *  official names and heights), switched on and off with the MOUNTAINS button in the full map's top right corner;
+	 *  on, the map can zoom out to them. */
+	struct FPeak { FString Name; FVector2f P; int32 Elev = 0; bool bMain = false; };
+	TArray<FPeak> Peaks;
+	FBox2f PeakBox = FBox2f(ForceInit);
+	bool bPeaks = false;
+	void LoadPeaks();
+	FBox2f Zoomable() const { return bPeaks && Peaks.Num() ? All + PeakBox : All; }
 	TArray<FVector> Route;
 	/** Your own marks (plan metres): the route goes through them in order; a click adds one, a right-click on one removes it. */
 	TArray<FVector> Waypoints;

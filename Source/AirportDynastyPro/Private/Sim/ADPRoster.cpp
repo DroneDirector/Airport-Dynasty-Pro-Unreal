@@ -9,10 +9,10 @@ namespace
 {
 	const double PostFlightMin = 30.0;   // (the FDP ends at on-blocks; duty goes on ~30 min after the last leg)
 	const double PreFlightMin = 60.0;    // (report time: one hour before the first departure)
-	bool IsPilot(const FString& R) { return R == TEXT("captain") || R == TEXT("fo"); }
-	FADPPerson* Find(FADPWorld& W, const FString& Id) { return W.People.FindByPredicate([&](const FADPPerson& X) { return X.Id == Id; }); }
+	bool RoIsPilot(const FString& R) { return R == TEXT("captain") || R == TEXT("fo"); }
+	FADPPerson* RoFind(FADPWorld& W, const FString& Id) { return W.People.FindByPredicate([&](const FADPPerson& X) { return X.Id == Id; }); }
 	/** Rolls the flight-time records forward to today (each new day a new slot; each new week a new slot). */
-	void Roll(FADPPerson& P, int32 Today)
+	void RoRoll(FADPPerson& P, int32 Today)
 	{
 		if (P.DayKey == 0) { P.DayKey = Today; P.FlyDays.Init(0.0, 28); P.FlyWeeks.Init(0.0, 52); return; }
 		if (P.FlyDays.Num() != 28) P.FlyDays.Init(0.0, 28);
@@ -58,7 +58,7 @@ bool ADPRoster::CanFly(const FADPWorld& W, const FADPPerson& P, const FString& T
 	if (P.RestUntil > Now) { Why = TEXT("resting"); return false; }
 	const FString Loc = P.Location.IsEmpty() ? P.Base : P.Location;
 	if (Loc != Where) { Why = TEXT("not at this airport"); return false; }
-	if (IsPilot(P.Role) && !P.Types.Contains(TypeId)) { Why = TEXT("no type rating"); return false; }
+	if (RoIsPilot(P.Role) && !P.Types.Contains(TypeId)) { Why = TEXT("no type rating"); return false; }
 	// the duty this leg would be part of
 	const bool bOnDuty = P.DutyStart != FDateTime();
 	const FDateTime Start = bOnDuty ? P.DutyStart : Now - FTimespan::FromMinutes(PreFlightMin);
@@ -83,7 +83,7 @@ void ADPRoster::Release(FADPWorld& W, FADPAircraft& A, const FDateTime& At)
 {
 	for (const FString& Id : A.Crew)
 	{
-		FADPPerson* P = Find(W, Id);
+		FADPPerson* P = RoFind(W, Id);
 		if (!P) continue;
 		const FString Loc = P->Location.IsEmpty() ? P->Base : P->Location;
 		// the duty ended 30 minutes after the last on-blocks (a crew that never flew: when it was released)
@@ -105,9 +105,9 @@ bool ADPRoster::Crew(FADPWorld& W, FADPAircraft& A, double LegMin, int32 CabinNe
 	if (A.Crew.Num())
 	{
 		bool bAll = true;
-		for (const FString& Id : A.Crew) { FADPPerson* P = Find(W, Id); FString Y; if (!P || !CanFly(W, *P, A.TypeId, A.Location, LegMin, Now, Y)) { bAll = false; break; } }
+		for (const FString& Id : A.Crew) { FADPPerson* P = RoFind(W, Id); FString Y; if (!P || !CanFly(W, *P, A.TypeId, A.Location, LegMin, Now, Y)) { bAll = false; break; } }
 		int32 Fa = 0, Cap = 0, Fo = 0;
-		for (const FString& Id : A.Crew) if (FADPPerson* P = Find(W, Id)) { Fa += P->Role == TEXT("fa"); Cap += P->Role == TEXT("captain"); Fo += P->Role == TEXT("fo"); }
+		for (const FString& Id : A.Crew) if (FADPPerson* P = RoFind(W, Id)) { Fa += P->Role == TEXT("fa"); Cap += P->Role == TEXT("captain"); Fo += P->Role == TEXT("fo"); }
 		if (bAll && Cap >= 1 && Fo >= 1 && Fa >= CabinNeeded) return true;
 		Release(W, A, Now);   // (this crew's duty ends here; a fresh one is rostered)
 	}
@@ -147,9 +147,9 @@ void ADPRoster::Landed(FADPWorld& W, const FADPFlight& F, const FDateTime& At)
 {
 	const int32 Today = DayOf(At);
 	for (const FString& Id : F.Crew)
-		if (FADPPerson* P = Find(W, Id))
+		if (FADPPerson* P = RoFind(W, Id))
 		{
-			Roll(*P, Today);
+			RoRoll(*P, Today);
 			P->FlyDays.Last() += F.DurMin + F.HoldMin; P->FlyWeeks.Last() += F.DurMin + F.HoldMin;
 			++P->Sectors; P->Location = F.To; P->Xp += F.DurMin / 60.0 + 20.0; P->HoursTotal += F.DurMin / 60.0;
 			P->DutyMin = (At - P->DutyStart).GetTotalMinutes();
@@ -158,7 +158,7 @@ void ADPRoster::Landed(FADPWorld& W, const FADPFlight& F, const FDateTime& At)
 
 bool ADPRoster::GiveDaysOff(FADPWorld& W, const FString& PersonId, int32 Days, const FDateTime& At)
 {
-	FADPPerson* P = Find(W, PersonId);
+	FADPPerson* P = RoFind(W, PersonId);
 	if (!P || P->AirlineId.IsEmpty()) return false;
 	const FDateTime From = P->WithReg.IsEmpty() ? FMath::Max(At, P->RestUntil) : At + FTimespan::FromHours(13.0);
 	P->OffUntil = From + FTimespan::FromDays(FMath::Clamp(Days, 1, 14));

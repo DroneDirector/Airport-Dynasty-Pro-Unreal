@@ -146,3 +146,30 @@ FDateTime ADPSite::LocalNow()
 	const FDateTime U = FDateTime::UtcNow();
 	return U + FTimespan::FromHours(UtcOffsetHours(U));
 }
+
+FString ADPSite::SignLanguage()
+{
+	if (IsDefault()) return FString();
+	TSharedPtr<FJsonObject> I = Info(Id());
+	const TArray<TSharedPtr<FJsonValue>>* L = nullptr;
+	if (I && I->TryGetArrayField(TEXT("languages"), L) && L->Num() && (*L)[0]->AsString() != TEXT("en")) return (*L)[0]->AsString();
+	return FString();
+}
+
+FString ADPSite::Translate(const FString& En)
+{
+	if (SignLanguage() != TEXT("fr")) return En;
+	// (Swiss French as at Geneva Airport's signs)
+	static const TMap<FString, FString> Fr = {
+		{TEXT("DEPARTURES"), TEXT("DÉPARTS")}, {TEXT("ARRIVALS"), TEXT("ARRIVÉES")}, {TEXT("BAG DROP · SELF SERVICE"), TEXT("DÉPÔT BAGAGES · LIBRE-SERVICE")},
+		{TEXT("SECURITY · ALL GATES"), TEXT("CONTRÔLE DE SÛRETÉ · TOUTES LES PORTES")}, {TEXT("STAFF ONLY"), TEXT("RÉSERVÉ AU PERSONNEL")},
+		{TEXT("STAFF ENTRANCE · ID REQUIRED"), TEXT("ENTRÉE DU PERSONNEL · BADGE OBLIGATOIRE")}, {TEXT("TAX FREE"), TEXT("HORS TAXES")}, {TEXT("THE BAR"), TEXT("LE BAR")},
+		{TEXT("BAGGAGE CLAIM"), TEXT("RETRAIT DES BAGAGES")}, {TEXT("CHECK-IN"), TEXT("ENREGISTREMENT")}, {TEXT("EXIT"), TEXT("SORTIE")}, {TEXT("TOILETS"), TEXT("TOILETTES")},
+		{TEXT("INFORMATION"), TEXT("INFORMATIONS")}, {TEXT("CAR RENTAL"), TEXT("LOCATION DE VOITURES")}, {TEXT("TAXI"), TEXT("TAXI")}, {TEXT("BUS"), TEXT("BUS")}};
+	if (const FString* F = Fr.Find(En)) return *F;
+	FString L, R;
+	if (En.Split(TEXT(" "), &L, &R) && L == TEXT("GATE")) return TEXT("PORTE ") + R;
+	if (En.Split(TEXT(" "), &L, &R) && L == TEXT("EATERY")) return TEXT("RESTAURATION ") + R;
+	if (En.StartsWith(TEXT("GATES ")) && En.Contains(TEXT("FLOOR 2"))) { FString N = En.Mid(6); N.Split(TEXT(" ·"), &N, nullptr); return TEXT("PORTES ") + N + TEXT(" · 2E ÉTAGE"); }
+	return En;
+}

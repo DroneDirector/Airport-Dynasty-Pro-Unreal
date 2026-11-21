@@ -16,6 +16,9 @@
 #include "Misc/Paths.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformProcess.h"
+#include "HAL/FileManager.h"
+#include "HAL/PlatformMisc.h"
+#include "HAL/PlatformTime.h"
 #include "Runtime/Launch/Resources/Version.h"
 
 namespace
@@ -135,58 +138,64 @@ void AADPHUD::InstallUpdate()
 	UpdateBusy = true;
 	UpdateFiles.Reset();
 	const FString Dir = FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir() / TEXT("Update"));
-	// (the old packages and their unpacked files go; the log stays - to-do 139: it was wiped with them, so a failed install
-	// left no trace of why the same update was offered again)
-	FString Log; FFileHelper::LoadFileToString(Log, *(Dir / TEXT("update.log")));
-	IFileManager::Get().DeleteDirectory(*Dir, false, true);
+	// (to-do 163, owner 2026-11-20: a download never starts over - the folder and whatever is already in it stay, every
+	// package carries on from its last byte, a finished one is never fetched again; only files of other updates go)
 	IFileManager::Get().MakeDirectory(*Dir, true);
-	if (!Log.IsEmpty()) FFileHelper::SaveStringToFile(Log, *(Dir / TEXT("update.log")));
+	TArray<FString> Have; IFileManager::Get().FindFiles(Have, *(Dir / TEXT("*.zip")), true, false);
+	for (const FString& F : Have)
+	{
+		bool bMine = false;
+		for (int32 i = 0; i < UpdateChain.Num(); ++i) if (F == FString::Printf(TEXT("%02d-%s.zip"), i, *UpdateChain[i].Key)) bMine = true;
+		if (!bMine) IFileManager::Get().Delete(*(Dir / F));
+	}
 	DownloadNext(0, Dir);
 }
 
 void AADPHUD::DownloadNext(int32 I, const FString& Dir)
 {
-	if (I >= UpdateChain.Num()) { ApplyUpdate(Dir); return; }
+	if (I >= UpdateChain.Num()) { UpdateIdx = -1; ApplyUpdate(Dir); return; }
 	const FString Ver = UpdateChain[I].Key;
-	UpdateStatus = FString::Printf(TEXT("Downloading the update to %s (%d of %d)…"), *Ver, I + 1, UpdateChain.Num());
+	const FString File = Dir / FString::Printf(TEXT("%02d-%s.zip"), I, *Ver);
+	const int64 Size = UpdateSizes.IsValidIndex(I) ? UpdateSizes[I] : 0;
+	UpdateIdx = I; UpdateDir = Dir; UpdateFile = File; UpdateTries = 0;
 	UpdateFrac = 0.f; UpdateSpeed = 0; UpdateT0 = 0; UpdateGot0 = 0;
-	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> R = Get(UpdateChain[I].Value);
-	R->SetHeader(TEXT("Accept"), TEXT("application/octet-stream"));
-	TWeakObjectPtr<AADPHUD> Me(this);
-	R->OnRequestProgress64().BindLambda([Me, Ver, I](FHttpRequestPtr Req, uint64, uint64 Got)
+	// already whole (downloaded before the game was closed): straight on to the next
+	if (Size > 0 && IFileManager::Get().FileSize(*File) == Size) { UpdateFiles.Add(File); DownloadNext(I + 1, Dir); return; }
+	UpdateStatus = FString::Printf(TEXT("Downloading the update to %s (%d of %d)…"), *Ver, I + 1, UpdateChain.Num());
+	// Windows' own curl: -C - carries on from the file's end; retries by itself; a stalled connection is dropped and retried
+	const FString Curl = FPlatformMisc::GetEnvironmentVariable(TEXT("SystemRoot")) / TEXT("System32/curl.exe");
+	const FString Args = FString::Printf(TEXT("-L --fail -s -C - --retry 10 --retry-delay 5 --retry-all-errors --connect-timeout 30 --speed-limit 1024 --speed-time 60 -H \"Accept: application/octet-stream\" -A AirportDynastyPro-Updater -o \"%s\" \"%s\""), *File, *UpdateChain[I].Value);
+	UpdateProc = FPlatformProcess::CreateProc(*Curl, *Args, true, true, true, nullptr, 0, nullptr, nullptr);
+	if (!UpdateProc.IsValid()) { UpdateBusy = false; UpdateIdx = -1; UpdateStatus = TEXT("The download couldn't start (no curl on this PC)."); }
+}
+
+void AADPHUD::TickUpdateDownload(float Dt)
+{
+	if (UpdateIdx < 0 || !UpdateProc.IsValid()) return;
+	if ((UpdatePoll += Dt) < 0.5f) return;
+	UpdatePoll = 0.f;
+	const int64 Got = FMath::Max<int64>(0, IFileManager::Get().FileSize(*UpdateFile));
+	const int64 Size = UpdateSizes.IsValidIndex(UpdateIdx) ? UpdateSizes[UpdateIdx] : 0;
+	const FString Ver = UpdateChain.IsValidIndex(UpdateIdx) ? UpdateChain[UpdateIdx].Key : FString();
+	const double Now = FPlatformTime::Seconds();
+	if (UpdateT0 <= 0) { UpdateT0 = Now; UpdateGot0 = Got; }
+	else if (Now - UpdateT0 > 1.0) { const double Rate = double(Got - UpdateGot0) / (Now - UpdateT0); UpdateSpeed = UpdateSpeed > 0 ? UpdateSpeed * 0.6 + Rate * 0.4 : Rate; UpdateT0 = Now; UpdateGot0 = Got; }
+	if (Size > 0) UpdateFrac = FMath::Max(UpdateFrac, FMath::Clamp(float(double(Got) / double(Size)), 0.f, 1.f));
+	UpdateStatus = Size > 0 ? FString::Printf(TEXT("Downloading the update to %s: %.0f of %.0f MB"), *Ver, Got / 1048576.0, Size / 1048576.0) : FString::Printf(TEXT("Downloading the update to %s: %.0f MB"), *Ver, Got / 1048576.0);
+	if (FPlatformProcess::IsProcRunning(UpdateProc)) return;
+	int32 Code = 0; FPlatformProcess::GetProcReturnCode(UpdateProc, &Code); FPlatformProcess::CloseProc(UpdateProc);
+	const bool bWhole = Size > 0 ? Got >= Size : Code == 0;
+	if (bWhole) { UpdateFiles.Add(UpdateFile); DownloadNext(UpdateIdx + 1, UpdateDir); return; }
+	// broken off: again from where it stopped (the part on disk stays), up to 8 times now - and the next press of the
+	// button, or the next start of the game, carries on from there too
+	if (++UpdateTries <= 8)
 	{
-		if (AADPHUD* H = Me.Get())
-		{
-			// the package's size: from the response, else from the release listing (GitHub redirects the download, and
-			// until the redirect's answer arrives the response has no length - the bar used to vanish and come back,
-			// flashing; owner, to-do 51)
-			int64 Size = Req->GetResponse().IsValid() ? Req->GetResponse()->GetContentLength() : 0;
-			if (Size <= 0 && H->UpdateSizes.IsValidIndex(I)) Size = H->UpdateSizes[I];
-			// the speed over the last second or so (smoothed), shown with the bar
-			const double Now = FPlatformTime::Seconds();
-			if (H->UpdateT0 <= 0 || Got < H->UpdateGot0) { H->UpdateT0 = Now; H->UpdateGot0 = Got; }
-			else if (Now - H->UpdateT0 > 0.5)
-			{
-				const double Rate = double(Got - H->UpdateGot0) / (Now - H->UpdateT0);
-				H->UpdateSpeed = H->UpdateSpeed > 0 ? H->UpdateSpeed * 0.6 + Rate * 0.4 : Rate;
-				H->UpdateT0 = Now; H->UpdateGot0 = Got;
-			}
-			// (never backwards: a redirect starts the count again from 0)
-			if (Size > 0) H->UpdateFrac = FMath::Max(H->UpdateFrac, FMath::Clamp(float(double(Got) / double(Size)), 0.f, 1.f));
-			H->UpdateStatus = Size > 0 ? FString::Printf(TEXT("Downloading the update to %s: %.0f of %.0f MB"), *Ver, Got / 1048576.0, Size / 1048576.0) : FString::Printf(TEXT("Downloading the update to %s: %.0f MB"), *Ver, Got / 1048576.0);
-		}
-	});
-	R->OnProcessRequestComplete().BindLambda([Me, I, Dir, Ver](FHttpRequestPtr, FHttpResponsePtr Res, bool bOk)
-	{
-		AADPHUD* H = Me.Get();
-		if (!H) return;
-		if (!bOk || !Res.IsValid() || Res->GetResponseCode() != 200) { H->UpdateBusy = false; H->UpdateStatus = TEXT("The download stopped. Try again."); return; }
-		const FString File = Dir / FString::Printf(TEXT("%02d-%s.zip"), I, *Ver);
-		FFileHelper::SaveArrayToFile(Res->GetContent(), *File);
-		H->UpdateFiles.Add(File);
-		H->DownloadNext(I + 1, Dir);
-	});
-	R->ProcessRequest();
+		const int32 I = UpdateIdx, Tries = UpdateTries; DownloadNext(I, UpdateDir); UpdateTries = Tries;
+		UpdateStatus = FString::Printf(TEXT("The connection dropped - carrying on (%.0f MB already here)…"), Got / 1048576.0);
+		return;
+	}
+	UpdateBusy = false; UpdateIdx = -1;
+	UpdateStatus = FString::Printf(TEXT("The download stopped at %.0f MB. Press Install again - it carries on from there."), Got / 1048576.0);
 }
 
 void AADPHUD::ApplyUpdate(const FString& Dir)

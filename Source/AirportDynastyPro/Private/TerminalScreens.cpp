@@ -135,7 +135,11 @@ void ATerminalScreens::Panel(const FAt& O, float W, float H, float Z, float Faci
 	const float Head = H * 0.16f, RowH = (H - Head - H * 0.04f) / NRows, L = -W / 2 + W * 0.03f;
 	const float FZ = Z + Facing * 0.01f;
 	Bezel(O, bArr ? FName("arrHeader") : FName("depHeader"), W, Head, 0.005f, 0, H / 2 - Head / 2, Z + Facing * 0.006f);
-	Text(O, bArr ? TEXT("ARRIVALS") : TEXT("DEPARTURES"), L, H / 2 - Head / 2, FZ + Facing * 0.004f, Facing, Head * 0.6f, FColor(14, 30, 58), true);
+	{
+		// (a French-speaking site: "DÉPARTS · DEPARTURES" - to-do 170)
+		const FString En = bArr ? TEXT("ARRIVALS") : TEXT("DEPARTURES"), Lo = ADPSite::Translate(En);
+		Text(O, Lo == En ? En : Lo + TEXT(" · ") + En, L, H / 2 - Head / 2, FZ + Facing * 0.004f, Facing, Head * 0.6f, FColor(14, 30, 58), true);
+	}
 	FBoard B;
 	B.bArr = bArr;
 	const float Sz = RowH * 0.55f;

@@ -40,4 +40,9 @@ namespace ADPSite
 	/** The sample destinations on the boards and in the calls (the site's own, else the Iceland set): names and IATA codes. */
 	void Destinations(TArray<FString>& Names, TArray<FString>& Codes);
 	double UtcOffsetHours(const FDateTime& Utc);
+	/** The site's signs in its own language first, English under it (site.json "languages": ["fr", "en"]): to-do 170.
+	 *  Empty for an English-only site (Iceland's airport keeps its own signs). */
+	FString SignLanguage();
+	/** A sign's words in the site's language (the terminal's sign texts; anything unknown comes back as it is). */
+	FString Translate(const FString& English);
 }

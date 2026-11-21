@@ -1,6 +1,7 @@
 // The holographic airport map: drawn line by line in the Android edition's holographic blues (holomap.ts), with the
 // route in warm orange.
 #include "UI/SHoloMap.h"
+#include "Site.h"
 #include "UI/MapTrace.h"
 #include "JetwayRigs.h"
 #include "BabylonModel.h"
@@ -47,8 +48,25 @@ void SHoloMap::Construct(const FArguments& Args)
 	SetClipping(EWidgetClipping::ClipToBounds);
 }
 
+void SHoloMap::LoadPeaks()
+{
+	Peaks.Reset(); PeakBox = FBox2f(ForceInit);
+	FString T; TSharedPtr<FJsonObject> J;
+	if (!FFileHelper::LoadFileToString(T, *ADPSite::File(TEXT("peaks.json"))) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(T), J) || !J) return;
+	const TArray<TSharedPtr<FJsonValue>>* L;
+	if (!J->TryGetArrayField(TEXT("peaks"), L)) return;
+	for (const TSharedPtr<FJsonValue>& V : *L)
+	{
+		const TSharedPtr<FJsonObject> O = V->AsObject(); FPeak P;
+		P.Name = O->GetStringField(TEXT("name")); P.P = FVector2f(float(O->GetNumberField(TEXT("x"))), float(O->GetNumberField(TEXT("y"))));
+		P.Elev = int32(O->GetNumberField(TEXT("elev"))); O->TryGetBoolField(TEXT("main"), P.bMain);
+		Peaks.Add(P); PeakBox += P.P;
+	}
+}
+
 void SHoloMap::SetPlan(const FTerminalPlan& InPlan)
 {
+	LoadPeaks();
 	Plan = InPlan;
 	Map.Build(Plan);
 	for (int32 f = 0; f < 3; ++f) { Walls[f].Reset(); StairBoxes[f].Reset(); LiftBoxes[f].Reset(); }
@@ -236,7 +254,7 @@ FReply SHoloMap::OnMouseWheel(const FGeometry& Geo, const FPointerEvent& Event)
 	const float K = FMath::Pow(1.25f, -Event.GetWheelDelta());
 	FVector2f NewHalf = View.GetExtent() * K;
 	// out: no further than the whole map in view; in: no closer than 20 m across
-	const FVector2f MaxHalf = All.GetExtent() * 1.1f;
+	const FVector2f MaxHalf = Zoomable().GetExtent() * 1.1f;   // (the mountains' layer on: out as far as them)
 	NewHalf *= FMath::Min(1.f, FMath::Max(MaxHalf.X / NewHalf.X, MaxHalf.Y / NewHalf.Y));
 	NewHalf *= FMath::Max(1.f, 10.f / FMath::Min(NewHalf.X, NewHalf.Y));
 	// keep the point under the pointer where it is
@@ -415,6 +433,24 @@ int32 SHoloMap::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const FSla
 		FSlateDrawElement::MakeLines(Out, Layer + 4, PG, TArray<FVector2f>{Dir(A, 9), Dir(A + 2.5f, 6), Dir(A + PI, 2), Dir(A - 2.5f, 6), Dir(A, 9)}, ESlateDrawEffect::None, FLinearColor::White, true, 2.f);
 	}
 
+	// the mountains' layer (to-do 171): a small summit mark, the name and the height; and the button that switches it
+	if (bFull && Peaks.Num())
+	{
+		if (bPeaks)
+			for (const FPeak& Pk : Peaks)
+			{
+				const FVector2f C = ToLocal(Pk.P, Size);
+				if (C.X < 0 || C.Y < 0 || C.X > Size.X || C.Y > Size.Y) continue;
+				const FLinearColor Ice(0.85f, 0.95f, 1.f, Pk.bMain ? 0.95f : 0.75f);
+				FSlateDrawElement::MakeLines(Out, Layer + 4, Geo.ToPaintGeometry(), TArray<FVector2f>{C + FVector2f(-6, 4), C + FVector2f(0, -6), C + FVector2f(6, 4), C + FVector2f(-6, 4)}, ESlateDrawEffect::None, Ice, true, 1.5f);
+				const FString Lb = FString::Printf(TEXT("%s  %d m"), *Pk.Name, Pk.Elev);
+				FSlateDrawElement::MakeText(Out, Layer + 4, Geo.ToPaintGeometry(FVector2f(260, 14), FSlateLayoutTransform(C + FVector2f(9, -8))), Lb, FCoreStyle::GetDefaultFontStyle(Pk.bMain ? "Bold" : "Regular", 9), ESlateDrawEffect::None, Ice);
+			}
+		const FVector2f O(Size.X - 150, 8);
+		FSlateDrawElement::MakeBox(Out, Layer + 6, Geo.ToPaintGeometry(FVector2f(140, 24), FSlateLayoutTransform(O)), FCoreStyle::Get().GetBrush("WhiteBrush"), ESlateDrawEffect::None, bPeaks ? FLinearColor(0.10f, 0.45f, 0.75f, 0.85f) : FLinearColor(0.02f, 0.12f, 0.22f, 0.8f));
+		FSlateDrawElement::MakeText(Out, Layer + 7, Geo.ToPaintGeometry(FVector2f(130, 18), FSlateLayoutTransform(O + FVector2f(10, 4))), bPeaks ? TEXT("MOUNTAINS  ON") : TEXT("MOUNTAINS  OFF"), FCoreStyle::GetDefaultFontStyle("Bold", 10), ESlateDrawEffect::None, FLinearColor::White);
+	}
+
 	// the legend, full screen only, in the map's lower right corner
 	if (bFull && Legend.Num() && !bLegendOpen)
 	{
@@ -464,6 +500,13 @@ FReply SHoloMap::OnMouseButtonDown(const FGeometry& Geo, const FPointerEvent& Ev
 	// full screen: a click adds a waypoint (the route goes through your marks in order); a right-click on one removes it
 	const FVector2f Size(Geo.GetLocalSize());
 	const FVector2f L(Geo.AbsoluteToLocal(Event.GetScreenSpacePosition()));
+	// the MOUNTAINS button: the names on or off (on: zoomed out so they are in view)
+	if (Peaks.Num() && L.X >= Size.X - 150 && L.X <= Size.X - 10 && L.Y >= 8 && L.Y <= 32)
+	{
+		bPeaks = !bPeaks;
+		if (bPeaks) View = Zoomable().ExpandBy(500.f); else ResetView();
+		return FReply::Handled();
+	}
 	const FVector2f P = FromLocal(L, Size);
 	const int32 F = FloorOf(Player.Y);
 	if (Event.GetEffectingButton() == EKeys::RightMouseButton)

@@ -1,6 +1,7 @@
 // The walking-mode interface: the holographic map, the top-left bar, Hide UI, the settings panel and the performance
 // overlay, all in Slate, styled in the Android edition's holographic blues.
 #include "UI/ADPHUD.h"
+#include "SiteTrees.h"
 #include "GeoFrame.h"
 #include "UI/SSiteChoice.h"
 #include "Site.h"
@@ -2232,6 +2233,7 @@ void AADPHUD::Tick(float Dt)
 {
 	ADP_PERF_SCOPE("the interface and its checks (each frame)", 6.f);
 	TickUnrealLoad(Dt);
+	TickUpdateDownload(Dt);
 	if (ResumeNewGameAt >= 0.f && bMenusReady && (ResumeNewGameAt += Dt) > 1.5f) { ResumeNewGameAt = -1.f; bSitePicked = true; OpenWhoAreYou(); }
 	// the sun's shadows follow what you do (owner, 2026-11-16): on foot or driving they reach about 2.6 km (the airport,
 	// the town, the hills nearby - inside buildings exactly as before), flying, in the drone or the flight viewer, or
@@ -5720,7 +5722,7 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 			static float Off = -1.f; if (Off < 0.f && ShotClock >= 40.f && ADPLateWorld::Done()) Off = ShotClock - 40.f;
 			const float B2 = Off < 0.f ? 0.f : Before - Off, C2 = Off < 0.f ? 0.f : ShotClock - Off;
 			// (-UIChablaisRoads / -UIChablaisShow: only their own list of spots, straight after the start)
-			const bool bList = FParse::Param(FCommandLine::Get(), TEXT("UIChablaisRoads")) || FParse::Param(FCommandLine::Get(), TEXT("UIChablaisShow"));
+			const bool bList = FParse::Param(FCommandLine::Get(), TEXT("UIChablaisRoads")) || FParse::Param(FCommandLine::Get(), TEXT("UIChablaisShow")) || FParse::Param(FCommandLine::Get(), TEXT("UIChablaisNew"));
 			auto Shot = [](const TCHAR* Name) { FScreenshotRequest::RequestScreenshot(Name, false, false); };   // (the window's own size: run it at 3840 x 2160)
 			const FAirfieldData& F = AAirfield::Shared();
 			auto Go = [&](float X, float Y, float LX, float LY, float LH) { GoTo(FVector(X, 0.f, Y), FVector(LX, LH, LY)); };
@@ -5803,10 +5805,30 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 					{TEXT("Show_23_Runway_From_End_High"), [=, this]() { Fly(RX0 - 150.f, RY, 80.f, RX1, RY, -3.f); }},
 					{TEXT("Show_24_Runway_From_Corner"), [=, this]() { Fly(RX0 - 700.f, RY - 700.f, 120.f, RX1, RY + 200.f, -5.f); }}};
 			}
+			// -UIChablaisNew (2026-11-21 night): the real trees (summer, autumn, winter), the Swiss flags, the bilingual welcome
+			// and boards, the holographic map's mountain names
+			if (FParse::Param(FCommandLine::Get(), TEXT("UIChablaisNew")))
+			{
+				const float RX1 = F.RwyX1, RY = F.RwyY;
+				auto Season = [this](int32 Day) { ASunClock::DayOverride = Day; ASunClock::Refresh(); for (TActorIterator<ASiteTrees> It(GetWorld()); It; ++It) It->RefreshSeason(); };
+				Spots = {
+					{TEXT("New_01_Trees_Slope_East"), [=, this]() { Season(200); Fly(81.f, -700.f, 140.f, 81.f, -2600.f, -9.f); }},
+					{TEXT("New_02_Trees_Plain_Low"), [=, this]() { Fly(700.f, 1500.f, 18.f, 1100.f, 1900.f, -4.f); }},
+					{TEXT("New_03_Trees_Lake_Shore"), [=, this]() { Fly(RX1 + 600.f, RY + 300.f, 70.f, RX1 + 2500.f, RY + 900.f, -6.f); }},
+					{TEXT("New_04_Trees_Autumn"), [=, this]() { Season(290); Fly(81.f, -700.f, 140.f, 81.f, -2600.f, -9.f); }},
+					{TEXT("New_05_Trees_Winter"), [=, this]() { Season(20); Fly(81.f, -700.f, 140.f, 81.f, -2600.f, -9.f); }},
+					{TEXT("New_06_Flag_FireStation"), [=, this]() { Season(200); Fly(-1168.f, -44.f, 7.f, -1180.f, -26.f, 8.f); }},
+					{TEXT("New_07_Flag_Forecourt"), [=, this]() { Fly(40.f, -80.f, 4.f, 60.f, -56.f, 16.f); }},
+					{TEXT("New_08_Welcome_Sign"), [=, this]() { Fly(75.f, -45.f, 8.f, 75.f, 0.f, 3.f); }},
+					{TEXT("New_09_Board_Bilingual"), [this]() { if (Drone.IsValid()) LeaveDrone(); GoTo(FVector(70.f, 0.f, 22.f), FVector(70.f, 4.2f, 29.75f)); }},
+					{TEXT("New_10_Holomap_Mountains"), [this]() { if (Drone.IsValid()) LeaveDrone(); GoEntrance(); }}};
+			}
 			for (int32 k = 0; k < Spots.Num(); ++k)
 			{
 				const float T = (bList ? 45.f : 251.f) + k * 22.f;
-				if (B2 < T && C2 >= T) { if (Drone.IsValid()) LeaveDrone(); Spots[k].Go(); HideUI(); }
+				if (B2 < T && C2 >= T) { if (Drone.IsValid()) LeaveDrone(); Spots[k].Go(); if (!FString(Spots[k].Name).Contains(TEXT("Holomap"))) HideUI(); }
+				// (the map shot: the interface back and the full map with the mountain names, a few seconds before the picture)
+				if (FString(Spots[k].Name).Contains(TEXT("Holomap")) && B2 < T + 14.f && C2 >= T + 14.f) { ShowUI(); if (HoloMap.IsValid()) { if (!HoloMap->IsFull()) ToggleMap(); HoloMap->ShowPeaks(true); } }
 				if (B2 < T + 20.f && C2 >= T + 20.f) Shot(Spots[k].Name);
 				// (the road tour's link-road spot: rays across the horizon, logging what stands up there - the black pyramids)
 				if (k == 3 && FParse::Param(FCommandLine::Get(), TEXT("UIChablaisRoads")) && B2 < T + 18.f && C2 >= T + 18.f)

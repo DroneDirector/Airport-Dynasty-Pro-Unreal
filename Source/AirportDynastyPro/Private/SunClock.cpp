@@ -1,5 +1,6 @@
 // The sun's place from the time: the low-precision solar position (as in the Astronomical Almanac and NOAA's
 // calculator), good to about a hundredth of a degree for many years either side of 2000.
+#include "ADPLog.h"
 #include "SunClock.h"
 #include "Dom/JsonObject.h"
 #include "Misc/CommandLine.h"
@@ -171,9 +172,9 @@ void ASunClock::ApplyLive()
 {
 	if (!bRealWeather) return;
 	TSharedPtr<FJsonObject> A = ADPSite::AirportBlock();
-	FString Icao = TEXT("BIAP"); double Lat = 63.458, Lon = -18.714;
-	if (A) { A->TryGetStringField(TEXT("icao"), Icao); A->TryGetNumberField(TEXT("lat"), Lat); A->TryGetNumberField(TEXT("lon"), Lon); }
-	const FADPWx X = ADPWeather::At(Icao, Lat, Lon, FDateTime::UtcNow());
+	FString Icao = TEXT("BIAP"); double SLat = 63.458, SLon = -18.714;
+	if (A) { A->TryGetStringField(TEXT("icao"), Icao); A->TryGetNumberField(TEXT("lat"), SLat); A->TryGetNumberField(TEXT("lon"), SLon); }
+	const FADPWx X = ADPWeather::At(Icao, SLat, SLon, FDateTime::UtcNow());
 	// the sky: the report's weather first, then its cloud layers (the most covered one)
 	int32 T = 0;
 	const FString R = TEXT(" ") + X.Raw + TEXT(" ");

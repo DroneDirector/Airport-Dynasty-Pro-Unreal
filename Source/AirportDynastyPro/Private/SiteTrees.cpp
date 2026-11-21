@@ -18,7 +18,7 @@ float ASiteTrees::TreeRadiusKm = 4.f;
 
 namespace
 {
-	const TCHAR* Names[] = {TEXT("Spruce_A"), TEXT("Spruce_B"), TEXT("Fir_A"), TEXT("Beech_A"), TEXT("BeechBare_A")};
+	const TCHAR* TreeNames[] = {TEXT("Spruce_A"), TEXT("Spruce_B"), TEXT("Fir_A"), TEXT("Beech_A"), TEXT("BeechBare_A")};
 	const float BlockM = 1000.f;
 	/** A mesh imported from Art/Trees (Content/Babylon/Trees...), found by its name. */
 	UStaticMesh* FindTree(const TCHAR* Name)
@@ -73,7 +73,7 @@ bool ASiteTrees::Load()
 		Blocks.Add(R.Key, B);
 	}
 	Trees = MoveTemp(Sorted);
-	for (const TCHAR* N : Names) Meshes.Add(FindTree(N));
+	for (const TCHAR* N : TreeNames) Meshes.Add(FindTree(N));
 	if (!Meshes[0] || !Meshes[3]) { ADP_WARN(TEXT("Trees: the tree models are missing (Art/Trees, Tools/import_model.py)")); return false; }
 	// seasonal colours on our own instances of the trees' materials (needles, bark, leaves)
 	for (UStaticMesh* M : Meshes) if (M) for (int32 s = 0; s < M->GetStaticMaterials().Num(); ++s)
@@ -127,7 +127,7 @@ void ASiteTrees::Season()
 void ASiteTrees::Show(const FIntPoint& Key, FBlock& B)
 {
 	const bool bBare = SeasonDay >= 335 || SeasonDay < 100;
-	TArray<TArray<FTransform>> Xf; Xf.SetNum(UE_ARRAY_COUNT(Names));
+	TArray<TArray<FTransform>> Xf; Xf.SetNum(UE_ARRAY_COUNT(TreeNames));
 	for (int32 i = B.First; i < B.First + B.Num; ++i)
 	{
 		const FTree& T = Trees[i];

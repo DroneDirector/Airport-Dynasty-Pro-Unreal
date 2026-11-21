@@ -304,6 +304,10 @@ def main():
     json.dump({'note': 'Tools/make_site_trees.py: float32 x, y, z (plan m), height m, crown radius m, kind (0 conifer, 1 broadleaf); cells [cx, cy, first, count] of 256 m',
                'count': int(len(G)), 'cell': 256, 'cells': cells, 'stats': stats}, open(SD / 'trees.json', 'w'))
     print(f'wrote {len(G)} trees in {len(cells)} cells to {SD / "trees.bin"} ({(SD / "trees.bin").stat().st_size / 1e6:.0f} MB)', flush=True)
+    # (the editor and the game read the site's data from Content/Data/Sites first: copied there too)
+    import shutil
+    cd = ROOT / 'Content' / 'Data' / 'Sites' / a.site; cd.mkdir(parents=True, exist_ok=True)
+    for f in ('trees.bin', 'trees.json'): shutil.copy(SD / f, cd / f)
 
 
 if __name__ == '__main__':

@@ -15,7 +15,12 @@ namespace
 			{TEXT("GB IE US CA AU NZ"), {TEXT("James"), TEXT("Oliver"), TEXT("Thomas"), TEXT("Daniel"), TEXT("Michael"), TEXT("Ryan"), TEXT("Liam"), TEXT("Jack")},
 				{TEXT("Emily"), TEXT("Sarah"), TEXT("Grace"), TEXT("Chloe"), TEXT("Olivia"), TEXT("Megan"), TEXT("Hannah"), TEXT("Kate")},
 				{TEXT("Smith"), TEXT("Jones"), TEXT("Taylor"), TEXT("Brown"), TEXT("Walker"), TEXT("Murphy"), TEXT("Campbell"), TEXT("Evans")}},
-			{TEXT("DE AT CH NL BE LU"), {TEXT("Lukas"), TEXT("Jonas"), TEXT("Felix"), TEXT("Daan"), TEXT("Luca"), TEXT("Stefan")},
+			// (Switzerland round Chablais: French-speaking Vaud and Valais - its own pool first, with the Swiss German and
+			// Italian names people there have too)
+			{TEXT("CH"), {TEXT("Nicolas"), TEXT("Julien"), TEXT("Mathieu"), TEXT("Olivier"), TEXT("Sébastien"), TEXT("Yann"), TEXT("Loïc"), TEXT("Thomas"), TEXT("Laurent"), TEXT("Pascal"), TEXT("Raphaël"), TEXT("Damien"), TEXT("Reto"), TEXT("Urs"), TEXT("Marco"), TEXT("Luca")},
+				{TEXT("Sophie"), TEXT("Camille"), TEXT("Céline"), TEXT("Valérie"), TEXT("Laura"), TEXT("Chloé"), TEXT("Mélanie"), TEXT("Nathalie"), TEXT("Isabelle"), TEXT("Aurélie"), TEXT("Sandrine"), TEXT("Manon"), TEXT("Nadia"), TEXT("Seraina"), TEXT("Giulia"), TEXT("Anna")},
+				{TEXT("Favre"), TEXT("Rochat"), TEXT("Pittet"), TEXT("Bonvin"), TEXT("Morand"), TEXT("Dubois"), TEXT("Perrin"), TEXT("Cherix"), TEXT("Chappuis"), TEXT("Michaud"), TEXT("Rey"), TEXT("Fournier"), TEXT("Vuilleumier"), TEXT("Cottier"), TEXT("Pasche"), TEXT("Mottier"), TEXT("Gay"), TEXT("Berthoud"), TEXT("Jaquet"), TEXT("Reymond"), TEXT("Meier"), TEXT("Keller"), TEXT("Bernasconi"), TEXT("Rossi")}},
+			{TEXT("DE AT NL BE LU"), {TEXT("Lukas"), TEXT("Jonas"), TEXT("Felix"), TEXT("Daan"), TEXT("Luca"), TEXT("Stefan")},
 				{TEXT("Lena"), TEXT("Anna"), TEXT("Mia"), TEXT("Sophie"), TEXT("Lotte"), TEXT("Julia")},
 				{TEXT("Müller"), TEXT("Schmidt"), TEXT("de Vries"), TEXT("Meier"), TEXT("Weber"), TEXT("Janssen")}},
 			{TEXT("FR ES IT PT"), {TEXT("Lucas"), TEXT("Pablo"), TEXT("Marco"), TEXT("João"), TEXT("Hugo"), TEXT("Matteo")},

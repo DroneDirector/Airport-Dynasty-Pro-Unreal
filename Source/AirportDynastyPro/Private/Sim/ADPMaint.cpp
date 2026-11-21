@@ -5,14 +5,15 @@
 #include "Sim/ADPBoards.h"
 #include "Site.h"
 #include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonSerializer.h"
 
 namespace
 {
-	void Note(FADPWorld& W, const FDateTime& At, int32 Prio, const FString& Title, const FString& Text)
+	void MxNote(FADPWorld& W, const FDateTime& At, int32 Prio, const FString& Title, const FString& Text)
 	{ FADPNotice N; N.At = At; N.Kind = TEXT("mechanic"); N.Priority = Prio; N.Title = Title; N.Text = Text; W.Notices.Add(N); }
-	int32 MechanicsAt(const FADPWorld& W, const FString& AirlineId, const FString& Icao)
+	int32 MxMechanicsAt(const FADPWorld& W, const FString& AirlineId, const FString& Icao)
 	{
 		int32 N = 0;
 		for (const FADPPerson& P : W.People) if (P.AirlineId == AirlineId && P.Role == TEXT("mech") && P.Base == Icao && P.Status == TEXT("on")) ++N;
@@ -57,7 +58,7 @@ int32 ADPMaint::HangarBays(const FString& Icao)
 	{
 		Bays = 1;
 		FString T; TSharedPtr<FJsonObject> J;
-		if (FFileHelper::LoadFileToString(T, *ADPSite::File(TEXT("airfield.json"))) && FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(T), J) && J)
+		if ((FFileHelper::LoadFileToString(T, *ADPSite::File(TEXT("airfield.json"))) || FFileHelper::LoadFileToString(T, *(FPaths::ProjectContentDir() / TEXT("Data/airfield.json"))) || FFileHelper::LoadFileToString(T, *(FPaths::ProjectDir() / TEXT("Data/airfield.json")))) && FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(T), J) && J)
 		{ const TArray<TSharedPtr<FJsonValue>>* H; if (J->TryGetArrayField(TEXT("hangars"), H)) Bays = FMath::Max(1, H->Num()); }
 	}
 	return Bays;
@@ -84,7 +85,7 @@ bool ADPMaint::StartCheck(FADPWorld& W, FADPAircraft& A, const FString& Kind, co
 	double Labour = 1.0, Hours = R->DurationH;
 	if (bMine)
 	{
-		const int32 Mech = MechanicsAt(W, A.AirlineId, A.Location);
+		const int32 Mech = MxMechanicsAt(W, A.AirlineId, A.Location);
 		if (Mech == 0) { Labour = 3.0; }   // (an outside team flown in)
 		else if (Mech < R->Mechanics) Hours *= double(R->Mechanics) / Mech;
 		if (R->bHangar)
@@ -104,7 +105,7 @@ bool ADPMaint::StartCheck(FADPWorld& W, FADPAircraft& A, const FString& Kind, co
 	}
 	else ADPEconomy::Pay(W, A.AirlineId, Now, TEXT("maint"), -R->PartsUsd * W.PartsIndex, FString::Printf(TEXT("%s: %s-check"), *A.Reg, R->Kind), A.Reg);
 	A.Status = TEXT("maintenance"); A.CheckKind = R->Kind; A.CheckUntil = Now + FTimespan::FromHours(Hours);
-	if (bMine) Note(W, Now, 0, FString::Printf(TEXT("%s in its %s-check"), *A.Reg, R->Kind), FString::Printf(TEXT("%s is in its %s-check at %s until %s."), *A.Reg, R->Kind, *A.Location, *ADPBoards::Local(A.CheckUntil).ToString(TEXT("%d.%m %H:%M"))));
+	if (bMine) MxNote(W, Now, 0, FString::Printf(TEXT("%s in its %s-check"), *A.Reg, R->Kind), FString::Printf(TEXT("%s is in its %s-check at %s until %s."), *A.Reg, R->Kind, *A.Location, *ADPBoards::Local(A.CheckUntil).ToString(TEXT("%d.%m %H:%M"))));
 	return true;
 }
 
@@ -125,7 +126,7 @@ void FADPMaintModule::Advance(UADPSim& Sim, const FDateTime& From, const FDateTi
 			if (A.CheckKind == TEXT("D")) for (const TCHAR* K : {TEXT("A"), TEXT("C")}) if (!A.Checks.ContainsByPredicate([&](const FADPCheckRecord& X) { return X.Kind == K; })) { FADPCheckRecord N; N.Kind = K; N.At = To; N.AtHoursMin = A.HoursMin; N.AtCycles = A.Cycles; A.Checks.Add(N); }
 			A.Condition = A.CheckKind == TEXT("D") ? 100.0 : A.CheckKind == TEXT("C") ? FMath::Max(A.Condition, 96.0) : FMath::Min(100.0, A.Condition + 8.0);
 			A.Status = TEXT("parked"); A.ReadyAt = FMath::Max(A.ReadyAt, To);
-			if (A.AirlineId == UADPSim::Me()) Note(W, To, 0, FString::Printf(TEXT("%s back in service"), *A.Reg), FString::Printf(TEXT("%s finished its %s-check - condition %.0f%%."), *A.Reg, *A.CheckKind, A.Condition));
+			if (A.AirlineId == UADPSim::Me()) MxNote(W, To, 0, FString::Printf(TEXT("%s back in service"), *A.Reg), FString::Printf(TEXT("%s finished its %s-check - condition %.0f%%."), *A.Reg, *A.CheckKind, A.Condition));
 			A.CheckKind.Empty(); ++Checks;
 			continue;
 		}
@@ -140,7 +141,7 @@ void FADPMaintModule::Advance(UADPSim& Sim, const FDateTime& From, const FDateTi
 			if (!ADPMaint::StartCheck(W, A, Due, To, Why) && F >= 1.10 && A.Status != TEXT("grounded"))
 			{
 				A.Status = TEXT("grounded"); ++Groundings;
-				if (A.AirlineId == UADPSim::Me()) Note(W, To, 2, FString::Printf(TEXT("%s grounded"), *A.Reg), FString::Printf(TEXT("%s is grounded: its %s-check is overdue (%s). It may not fly until checked."), *A.Reg, *Due, *Why));
+				if (A.AirlineId == UADPSim::Me()) MxNote(W, To, 2, FString::Printf(TEXT("%s grounded"), *A.Reg), FString::Printf(TEXT("%s is grounded: its %s-check is overdue (%s). It may not fly until checked."), *A.Reg, *Due, *Why));
 			}
 		}
 		else if (A.Status == TEXT("grounded") && F < 1.10) A.Status = TEXT("parked");

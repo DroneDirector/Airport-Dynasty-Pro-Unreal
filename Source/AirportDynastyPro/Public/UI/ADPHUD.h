@@ -8,6 +8,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/HUD.h"
 #include "TerminalPlan.h"
+#include "HAL/PlatformProcess.h"
 #include "ADPHUD.generated.h"
 
 class SHoloMap;
@@ -184,6 +185,10 @@ public:
 	void CheckForUpdates();
 	void InstallUpdate();
 	void DownloadNext(int32 I, const FString& Dir);
+	/** The update's download in progress (to-do 163): curl straight to disk, carrying on from what is there - never again
+	 *  from the start, even after the game was closed; watched here each frame (its size on disk is the progress). */
+	void TickUpdateDownload(float Dt);
+	FProcHandle UpdateProc; int32 UpdateIdx = -1, UpdateTries = 0; FString UpdateDir, UpdateFile; float UpdatePoll = 0.f;
 	void ApplyUpdate(const FString& Dir);
 	FString UpdateStatus;
 	/** The download's progress (0..1, -1 when none) and speed (bytes a second), for the bar and the menus. */

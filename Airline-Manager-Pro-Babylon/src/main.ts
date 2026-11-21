@@ -214,7 +214,13 @@ if (UE_PC) {
   // (at once after the phone or a computer is put away: the monitor shows what was changed)
   (window as any).__ueBoardsNow = () => { sent = ''; sendBoards(); };
   onGameFids(d => { const u = ue(); if (u && u.gamefids) u.gamefids(JSON.stringify({ base: d.base || '', dep: (d.dep || []).slice(0, 12), arr: (d.arr || []).slice(0, 12) }));
+    if ((boards as any).sim) return;   // (the simulation's real timetable wins: to-do 174)
     boards = { dep: d.dep || [], arr: d.arr || [], base: String(d.base || 'BIAP'), live: true, at: Date.now() }; sendBoards(); });
+  // the simulation's real timetable at the airport you are at (to-do 174): while a career runs in Unreal, the boards show
+  // its flights - every airline's, with their real times, gates and statuses
+  setInterval(() => { const u = ue(); if (!u || !u.sim) return;
+    Promise.resolve(u.sim('boards', '')).then((s: any) => { let d: any = {}; try { d = JSON.parse(String(s || '{}')); } catch (e) { return; }
+      if (!d.ok) return; boards = { dep: d.dep || [], arr: d.arr || [], base: String(d.base || ''), live: true, at: Date.now() } as any; (boards as any).sim = true; sendBoards(); }); }, 5000);
 }
 // The PC version's airport announcements: Unreal asks for a line to be spoken (window.__ueSay). The announcer is
 // always a woman: the game's own natural voice (Kokoro, a British female voice) when its voices are on this PC, made

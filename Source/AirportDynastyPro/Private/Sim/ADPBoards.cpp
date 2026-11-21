@@ -14,14 +14,14 @@ namespace
 	TMap<FString, FLanded> GLanded;
 	TMap<FString, FADPBoardRow> GLastArr;
 
-	FString Town(const FString& Icao, FString& Code)
+	FString BdTown(const FString& Icao, FString& Code)
 	{
 		const FADPAirportInfo* A = ADPWorldData::Airport(Icao);
 		Code = A && !A->Iata.IsEmpty() ? A->Iata : Icao;
 		if (!A) return Icao;
 		return A->Town.IsEmpty() ? A->Name : A->Town;
 	}
-	FString CodeOf(const FADPWorld& W, const FString& AirlineId)
+	FString BdCodeOf(const FADPWorld& W, const FString& AirlineId)
 	{
 		for (const FADPAirline& A : W.Airlines) if (A.Id == AirlineId) return A.Icao.IsEmpty() ? A.Name.Left(3).ToUpper() : A.Icao;
 		return TEXT("XX");
@@ -74,12 +74,12 @@ TArray<FADPBoardRow> ADPBoards::Rows(const UObject* Ctx, bool bArr, int32 N)
 			if (A.Location != Here || A.Status != TEXT("parked") || A.RouteId.IsEmpty()) continue;
 			const FADPRoute* R = W.Routes.FindByPredicate([&](const FADPRoute& X) { return X.Id == A.RouteId; });
 			if (!R || !R->Stops.Num()) continue;
-			const FString To = R->Stops[A.LegIdx % R->Stops.Num()];
+			const FString To = R->Stops[(A.LegIdx + 1) % R->Stops.Num()];   // (LegIdx is the stop it is at; the next one is where it goes)
 			if (To == Here) continue;
 			FADPBoardRow Row; Row.Reg = A.Reg; Row.AirlineId = A.AirlineId; Row.Gate = ADPGround::GateOfStand(A.Stand);   // (its stand: to-do 183)
 			if (Row.Gate == 0) Row.Gate = GateFor(A.Reg);   // (a remote stand: a bus gate)
-			Row.Flight = FlightNumber(CodeOf(W, A.AirlineId), R->Id, A.LegIdx);
-			Row.Place = Town(To, Row.PlaceCode);
+			Row.Flight = FlightNumber(BdCodeOf(W, A.AirlineId), R->Id, A.LegIdx);
+			Row.Place = BdTown(To, Row.PlaceCode);
 			const bool bWaiting = A.WaitingSince != FDateTime() || A.ReadyAt < NowU - FTimespan::FromMinutes(1);
 			Row.Sched = Local(bWaiting && A.WaitingSince != FDateTime() ? A.WaitingSince : A.ReadyAt);
 			Row.Expected = Local(A.ReadyAt > NowU ? A.ReadyAt : NowU + FTimespan::FromMinutes(30));
@@ -99,8 +99,8 @@ TArray<FADPBoardRow> ADPBoards::Rows(const UObject* Ctx, bool bArr, int32 N)
 			if (F.From != Here || Mins(F.DepAt) < -20) continue;
 			FADPBoardRow Row; Row.Reg = F.Reg; Row.AirlineId = F.AirlineId; Row.Gate = 0;
 			const FADPAircraft* A = W.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == F.Reg; });
-			Row.Flight = FlightNumber(CodeOf(W, F.AirlineId), F.RouteId, A ? FMath::Max(0, A->LegIdx - 1) : 0);
-			Row.Place = Town(F.To, Row.PlaceCode);
+			Row.Flight = FlightNumber(BdCodeOf(W, F.AirlineId), F.RouteId, A ? FMath::Max(0, A->LegIdx - 1) : 0);
+			Row.Place = BdTown(F.To, Row.PlaceCode);
 			Row.Sched = Local(F.DepAt - FTimespan::FromMinutes(F.DelayMin)); Row.Expected = Local(F.DepAt);
 			Row.Status = FString::Printf(TEXT("Departed %02d:%02d"), Row.Expected.GetHour(), Row.Expected.GetMinute()); Row.Col = CGrey;
 			Out.Add(Row);
@@ -116,8 +116,8 @@ TArray<FADPBoardRow> ADPBoards::Rows(const UObject* Ctx, bool bArr, int32 N)
 			FADPBoardRow Row; Row.Reg = F.Reg; Row.AirlineId = F.AirlineId;
 			const FADPAircraft* A = W.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == F.Reg; });
 			Row.Gate = A ? ADPGround::GateOfStand(A->Stand) : 0;
-			Row.Flight = FlightNumber(CodeOf(W, F.AirlineId), F.RouteId, A ? FMath::Max(0, A->LegIdx - 1) : 0);
-			Row.Place = Town(F.From, Row.PlaceCode);
+			Row.Flight = FlightNumber(BdCodeOf(W, F.AirlineId), F.RouteId, A ? FMath::Max(0, A->LegIdx - 1) : 0);
+			Row.Place = BdTown(F.From, Row.PlaceCode);
 			const FDateTime Eta = F.DepAt + FTimespan::FromMinutes(F.DurMin + F.HoldMin);
 			Row.Sched = Local(F.DepAt - FTimespan::FromMinutes(F.DelayMin) + FTimespan::FromMinutes(F.DurMin)); Row.Expected = Local(Eta);
 			const double Late = (Row.Expected - Row.Sched).GetTotalMinutes();

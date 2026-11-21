@@ -9,10 +9,10 @@ namespace
 {
 	double GCurfewFrom = 0.0, GCurfewTo = 6.0;
 	bool GCurfewSet = false;
-	void Note(FADPWorld& W, const FDateTime& At, int32 Prio, const FString& Title, const FString& Text, const TCHAR* Kind = TEXT("authority"))
+	void TwNote(FADPWorld& W, const FDateTime& At, int32 Prio, const FString& Title, const FString& Text, const TCHAR* Kind = TEXT("authority"))
 	{ FADPNotice N; N.At = At; N.Kind = Kind; N.Priority = Prio; N.Title = Title; N.Text = Text; W.Notices.Add(N); }
-	FADPAirline* Me(FADPWorld& W) { return W.Airlines.FindByPredicate([](const FADPAirline& X) { return X.bPlayer; }); }
-	int32 OnWatch(const FADPWorld& W, const FString& Icao)
+	FADPAirline* TwMe(FADPWorld& W) { return W.Airlines.FindByPredicate([](const FADPAirline& X) { return X.bPlayer; }); }
+	int32 TwOnWatch(const FADPWorld& W, const FString& Icao)
 	{
 		int32 N = 0;
 		for (const FADPPerson& P : W.People) if (P.AirlineId == UADPSim::Me() && P.Role == TEXT("fire") && P.Base == Icao && P.Status == TEXT("on")) ++N;
@@ -37,7 +37,7 @@ int32 ADPTown::FireCategoryAt(const FADPWorld& W, const FString& Icao, const FDa
 {
 	if (Icao != ADPBoards::HereIcao()) return 10;
 	const FADPAirline* A = W.Airlines.FindByPredicate([](const FADPAirline& X) { return X.bPlayer; });
-	const int32 Have = A ? A->FireTrucks : 0, People = OnWatch(W, Icao);
+	const int32 Have = A ? A->FireTrucks : 0, People = TwOnWatch(W, Icao);
 	int32 Cat = 0;
 	for (int32 c = 1; c <= 10; ++c) if (Have >= Trucks[c] && People >= Crew[c]) Cat = c;
 	return Cat;
@@ -49,7 +49,7 @@ FString ADPTown::SyndicName(const FADPWorld& W) { return W.Town.Syndic.IsEmpty()
 
 bool ADPTown::CommunityFund(FADPWorld& W, double Usd, const FDateTime& At)
 {
-	FADPAirline* A = Me(W); if (!A || Usd <= 0 || A->Balance < Usd) return false;
+	FADPAirline* A = TwMe(W); if (!A || Usd <= 0 || A->Balance < Usd) return false;
 	ADPEconomy::Pay(W, A->Id, At, TEXT("fees"), -Usd, TEXT("Community fund for the towns round the airport"));
 	W.Town.Mood = FMath::Min(100.0, W.Town.Mood + Usd / 50000.0);
 	return true;
@@ -57,7 +57,7 @@ bool ADPTown::CommunityFund(FADPWorld& W, double Usd, const FDateTime& At)
 
 bool ADPTown::Insulate(FADPWorld& W, int32 Homes, const FDateTime& At)
 {
-	FADPAirline* A = Me(W); const double Cost = Homes * 18000.0;   // (sound-proof windows and roof insulation, about CHF 16,000 a home)
+	FADPAirline* A = TwMe(W); const double Cost = Homes * 18000.0;   // (sound-proof windows and roof insulation, about CHF 16,000 a home)
 	if (!A || Homes <= 0 || A->Balance < Cost) return false;
 	ADPEconomy::Pay(W, A->Id, At, TEXT("fees"), -Cost, FString::Printf(TEXT("Noise insulation for %d homes"), Homes));
 	W.Town.Insulated += Homes; W.Town.Mood = FMath::Min(100.0, W.Town.Mood + Homes * 0.05);
@@ -66,7 +66,7 @@ bool ADPTown::Insulate(FADPWorld& W, int32 Homes, const FDateTime& At)
 
 bool ADPTown::Compensate(FADPWorld& W, double Usd, const FDateTime& At)
 {
-	FADPAirline* A = Me(W); if (!A || Usd <= 0 || A->Balance < Usd) return false;
+	FADPAirline* A = TwMe(W); if (!A || Usd <= 0 || A->Balance < Usd) return false;
 	ADPEconomy::Pay(W, A->Id, At, TEXT("fees"), -Usd, TEXT("Compensation to residents for noise"));
 	W.Town.Mood = FMath::Min(100.0, W.Town.Mood + Usd / 30000.0); W.Town.Complaints = FMath::Max(0.0, W.Town.Complaints - Usd / 2000.0);
 	return true;
@@ -74,18 +74,18 @@ bool ADPTown::Compensate(FADPWorld& W, double Usd, const FDateTime& At)
 
 bool ADPTown::Lobby(FADPWorld& W, const FDateTime& At, FString& Why)
 {
-	FADPAirline* A = Me(W); const double Cost = 250000.0;
+	FADPAirline* A = TwMe(W); const double Cost = 250000.0;
 	if (!A || A->Balance < Cost) { Why = TEXT("lobbying costs $250,000"); return false; }
 	if (W.Town.LobbyUntil > At) { Why = TEXT("already lobbying the council"); return false; }
 	ADPEconomy::Pay(W, A->Id, At, TEXT("fees"), -Cost, TEXT("Lobbying the town council (advisers, studies, meetings)"));
 	W.Town.LobbyUntil = At + FTimespan::FromDays(21.0);
-	Note(W, At, 0, TEXT("Lobbying"), TEXT("Your people are working on the council - its vote on the curfew comes in three weeks. A happier town makes a yes likelier."), TEXT("company"));
+	TwNote(W, At, 0, TEXT("Lobbying"), TEXT("Your people are working on the council - its vote on the curfew comes in three weeks. A happier town makes a yes likelier."), TEXT("company"));
 	return true;
 }
 
 bool ADPTown::Bribe(FADPWorld& W, double Usd, const FDateTime& At, FString& Why)
 {
-	FADPAirline* A = Me(W);
+	FADPAirline* A = TwMe(W);
 	if (!A || Usd < 50000.0) { Why = TEXT("the syndic won't move for less than $50,000"); return false; }
 	if (A->Balance < Usd) { Why = TEXT("not enough money"); return false; }
 	ADPEconomy::Pay(W, A->Id, At, TEXT("fees"), -Usd, TEXT("Consulting fee"));   // (booked as something else, as bribes are)
@@ -94,14 +94,14 @@ bool ADPTown::Bribe(FADPWorld& W, double Usd, const FDateTime& At, FString& Why)
 	const double Hours = FMath::Min(Usd / 150000.0, W.Town.CurfewTo - W.Town.CurfewFrom + (W.Town.CurfewFrom > W.Town.CurfewTo ? 24.0 : 0.0));
 	W.Town.CurfewFrom = FMath::Fmod(W.Town.CurfewFrom + Hours / 2.0, 24.0); W.Town.CurfewTo = FMath::Fmod(W.Town.CurfewTo - Hours / 2.0 + 24.0, 24.0);
 	if (FMath::Abs(W.Town.CurfewTo - W.Town.CurfewFrom) < 0.25) W.Town.CurfewFrom = W.Town.CurfewTo;
-	Note(W, At, 1, TEXT("The council"), FString::Printf(TEXT("After a quiet dinner with %s the council relaxes the night curfew - now %02d:%02d-%02d:%02d."), *SyndicName(W),
+	TwNote(W, At, 1, TEXT("The council"), FString::Printf(TEXT("After a quiet dinner with %s the council relaxes the night curfew - now %02d:%02d-%02d:%02d."), *SyndicName(W),
 		int32(W.Town.CurfewFrom), int32(FMath::Fmod(W.Town.CurfewFrom, 1.0) * 60), int32(W.Town.CurfewTo), int32(FMath::Fmod(W.Town.CurfewTo, 1.0) * 60)), TEXT("company"));
 	return true;
 }
 
 bool ADPTown::BuyFireTruck(FADPWorld& W, const FDateTime& At)
 {
-	FADPAirline* A = Me(W); const double Price = 850000.0;   // (an airport crash tender, 6x6)
+	FADPAirline* A = TwMe(W); const double Price = 850000.0;   // (an airport crash tender, 6x6)
 	if (!A || A->Balance < Price) return false;
 	ADPEconomy::Pay(W, A->Id, At, TEXT("purchase"), -Price, TEXT("A new airport crash tender for the fire station"));
 	++A->FireTrucks;
@@ -137,7 +137,7 @@ void FADPTownModule::Advance(UADPSim& Sim, const FDateTime& From, const FDateTim
 	if (!(To.GetHour() == 0 && From.GetHour() != 0)) return;
 	// every day: complaints fade, the mood follows them; the council's vote when lobbying ends; the bribe's risk
 	T.Mood = FMath::Clamp(T.Mood - FMath::Min(4.0, T.Complaints / 40.0) + 0.3, 0.0, 100.0);
-	if (T.Complaints > 60.0 && Rng.FRand() < 0.15) Note(W, To, 1, TEXT("Noise complaints"), FString::Printf(TEXT("Residents of Villeneuve and Rennaz complain about night flights (%d complaints this month). The town's mood: %.0f / 100."), int32(T.Complaints), T.Mood));
+	if (T.Complaints > 60.0 && Rng.FRand() < 0.15) TwNote(W, To, 1, TEXT("Noise complaints"), FString::Printf(TEXT("Residents of Villeneuve and Rennaz complain about night flights (%d complaints this month). The town's mood: %.0f / 100."), int32(T.Complaints), T.Mood));
 	T.Complaints *= 0.95;
 	if (T.LobbyUntil != FDateTime() && T.LobbyUntil <= To)
 	{
@@ -145,9 +145,9 @@ void FADPTownModule::Advance(UADPSim& Sim, const FDateTime& From, const FDateTim
 		if (T.Mood >= 60.0 && Rng.FRand() < 0.35 + (T.Mood - 60.0) / 80.0 && T.CurfewFrom != T.CurfewTo)
 		{
 			T.CurfewFrom = FMath::Fmod(T.CurfewFrom + 0.5, 24.0);
-			Note(W, To, 1, TEXT("The council voted yes"), FString::Printf(TEXT("The council shortens the night curfew by 30 minutes: now from %02d:%02d."), int32(T.CurfewFrom), int32(FMath::Fmod(T.CurfewFrom, 1.0) * 60)), TEXT("company"));
+			TwNote(W, To, 1, TEXT("The council voted yes"), FString::Printf(TEXT("The council shortens the night curfew by 30 minutes: now from %02d:%02d."), int32(T.CurfewFrom), int32(FMath::Fmod(T.CurfewFrom, 1.0) * 60)), TEXT("company"));
 		}
-		else Note(W, To, 1, TEXT("The council voted no"), FString::Printf(TEXT("The council keeps the curfew as it is (the town's mood %.0f / 100 - a happier town makes a yes likelier)."), T.Mood), TEXT("company"));
+		else TwNote(W, To, 1, TEXT("The council voted no"), FString::Printf(TEXT("The council keeps the curfew as it is (the town's mood %.0f / 100 - a happier town makes a yes likelier)."), T.Mood), TEXT("company"));
 	}
 	// a bribe found out: about 3% a week for each $100,000 paid, more in the first months, never zero
 	if (T.Bribes > 0.0 && !T.bScandal)
@@ -157,12 +157,12 @@ void FADPTownModule::Advance(UADPSim& Sim, const FDateTime& From, const FDateTim
 		if (Rng.FRand() < PerDay)
 		{
 			T.bScandal = true;
-			FADPAirline* A = Me(W);
+			FADPAirline* A = TwMe(W);
 			const double Fine = T.Bribes * 2.0 + 1000000.0;
 			if (A) { ADPEconomy::Pay(W, A->Id, To, TEXT("fine"), -Fine, TEXT("Fine: bribing a public official")); A->Reputation = FMath::Max(0.0, A->Reputation - 15.0); }
 			FADPCase C; C.AirlineId = UADPSim::Me(); C.What = FString::Printf(TEXT("Bribery of the syndic %s"), *ADPTown::SyndicName(W)); C.Hearing = To + FTimespan::FromDays(45.0); W.Cases.Add(C);
 			T.CurfewFrom = 23.0; T.CurfewTo = 6.5; T.Mood = FMath::Max(0.0, T.Mood - 40.0);
-			Note(W, To, 2, TEXT("Scandal"), FString::Printf(TEXT("A journalist has uncovered your payments to the syndic %s. Fine $%.1f million, reputation -15, a court case in 45 days - and the council brings the curfew back harder: 23:00-06:30."), *ADPTown::SyndicName(W), Fine / 1e6));
+			TwNote(W, To, 2, TEXT("Scandal"), FString::Printf(TEXT("A journalist has uncovered your payments to the syndic %s. Fine $%.1f million, reputation -15, a court case in 45 days - and the council brings the curfew back harder: 23:00-06:30."), *ADPTown::SyndicName(W), Fine / 1e6));
 			FADPNews Nw; Nw.At = To; Nw.Topic = TEXT("airport"); Nw.Headline = TEXT("Airport bribery scandal: syndic under investigation"); W.News.Add(Nw);
 		}
 	}

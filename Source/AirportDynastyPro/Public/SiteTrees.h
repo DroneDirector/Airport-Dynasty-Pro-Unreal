@@ -29,6 +29,8 @@ public:
 	/** How far the full trees reach round you (km). */
 	static float TreeRadiusKm;
 	int32 NumTrees() const { return Count; }
+	/** The season again now (the date changed: Settings, tests). */
+	void RefreshSeason() { SeasonDay = -1; Season(); }
 
 private:
 	struct FTree { float X, Y, Z, H, R, Kind; };

@@ -1,7 +1,10 @@
 // Sets up the terminal test when play starts: sun, sky, fog, the grey-box terminal, the crowd test and
 // the player standing at the plan's spawn point.
 #include "ADPGameMode.h"
+class UWorld; namespace ADPBilingual { void Apply(UWorld* W); }
+#include "HAL/IConsoleManager.h"
 #include "SiteTrees.h"
+#include "Flags.h"
 #include "Site.h"
 #include "Pets.h"
 #include "ADPLog.h"
@@ -94,7 +97,10 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 		// the Babylon model, placed as it is
 		if (bBabylon)
 			if (ABabylonModel* Model = W->SpawnActor<ABabylonModel>(FVector::ZeroVector, FRotator::ZeroRotator, P))
+			{
 				Model->Place(TEXT("Terminal"));
+				ADPBilingual::Apply(W);   // (French first, English under it at a French-speaking site: to-do 170)
+			}
 		// the new gates' signs (16 gates, 2026-11-17): today's are in the model
 		if (bBabylon && !FParse::Param(FCommandLine::Get(), TEXT("NoGateSigns"))) ADPGateSigns::Place(W, Plan);   // (-NoGateSigns: test)
 		// his jetways, rebuilt for the stands 12 m out (owner, 2026-11-13), as their own model in the terminal's place
@@ -236,6 +242,9 @@ void AADPGameMode::SpawnSkyAndLight()
 		Sky->GetRootComponent()->SetMobility(EComponentMobility::Movable);
 		Sky->GetLightComponent()->bRealTimeCapture = true;
 		Sky->FinishSpawning(At);
+		// (to-do 195: the sky light's real-time capture redrew the sky and its clouds into the lighting every frame - spread
+		// over several frames instead; the sky changes slowly, so it looks the same and the clouds cost less)
+		if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SkyLight.RealTimeReflectionCapture.TimeSlice"))) V->Set(1, ECVF_SetByGameSetting);
 	}
 	W->SpawnActor<AExponentialHeightFog>(FVector::ZeroVector, FRotator::ZeroRotator, P);
 	// the weather: volumetric clouds over the airport (the shared world's real weather drives them later)
@@ -308,6 +317,7 @@ namespace ADPLateWorld
 				// the real trees round the airport (to-do 200: from the surface model and the 10 cm photo; another site only)
 				FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 				W->SpawnActor<ASiteTrees>(FVector::ZeroVector, FRotator::ZeroRotator, P);
+				AFlags::Place(W);   // (the Swiss flags, real cloth in the real wind: to-do 168)
 				Stage = 4; return true;   // (and a frame for the land's collision)
 			}
 			default:

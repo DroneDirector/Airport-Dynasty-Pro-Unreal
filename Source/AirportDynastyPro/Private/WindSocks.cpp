@@ -39,7 +39,9 @@ float AWindSocks::WindFrom = PrevailingFrom;
 float AWindSocks::WindKt = 8.f;
 float AWindSocks::Gustiness = 0.f;
 bool AWindSocks::bLive = false;
-float AWindSocks::LiveFrom = 0.f, AWindSocks::LiveKt = 0.f, AWindSocks::LiveGust = 0.f;
+float AWindSocks::LiveFrom = 0.f;
+float AWindSocks::LiveKt = 0.f;
+float AWindSocks::LiveGust = 0.f;
 
 AWindSocks::AWindSocks()
 {

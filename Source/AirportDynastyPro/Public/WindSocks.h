@@ -37,7 +37,9 @@ public:
 	/** The real wind from the live weather (to-do 193): direction it comes from, mean and gust (kt). */
 	static void SetLive(float From, float Kt, float GustKt) { bLive = true; LiveFrom = From; LiveKt = Kt; LiveGust = GustKt; }
 	static bool bLive;
-	static float LiveFrom, LiveKt, LiveGust;
+	static float LiveFrom;
+	static float LiveKt;
+	static float LiveGust;
 	#pragma endregion
 
 private:

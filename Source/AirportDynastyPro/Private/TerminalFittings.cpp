@@ -1,6 +1,7 @@
 // The fittings of the Grand Hall and the gates, placed exactly as in the Android edition's furnish.ts (same positions,
 // sizes and materials), all as instanced pieces.
 #include "TerminalFittings.h"
+#include "Site.h"
 #include "ADPLog.h"
 #include "TerminalBuilder.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -122,9 +123,16 @@ void ATerminalFittings::Bin(const FAt& O)
 
 void ATerminalFittings::Sign(const FAt& O, const FString& Words, float W, float H, const FName Back, FColor Colour)
 {
-	// a sign board facing the object's forward, its words on the front
+	// a sign board facing the object's forward, its words on the front - at a French-speaking site (Chablais) in French
+	// first and English under it, as at Geneva (to-do 170)
 	Box(O, Back, W, H, 0.04f, 0, 0, 0);
-	Text(O, Words, 0, 0, 0.03f, 1.f, H * 0.5f, Colour);
+	const FString Local = ADPSite::Translate(Words);
+	if (Local != Words)
+	{
+		Text(O, Local, 0, H * 0.17f, 0.03f, 1.f, H * 0.4f, Colour);
+		Text(O, Words, 0, -H * 0.24f, 0.03f, 1.f, H * 0.27f, FColor(Colour.R, Colour.G, Colour.B, 220));
+	}
+	else Text(O, Words, 0, 0, 0.03f, 1.f, H * 0.5f, Colour);
 }
 
 void ATerminalFittings::Chair(const FAt& O, const FName Mat)
@@ -292,6 +300,14 @@ void ATerminalFittings::Hall(const FPlanRoom& R)
 	Sign({70, 3.4f, 29.75f, PI}, TEXT("SECURITY · ALL GATES"), 6.4f, 0.7f, "navy", White);
 	// DEPARTURES over the main entrance, outside
 	Sign({75, 7.6f, -0.4f, PI}, TEXT("DEPARTURES"), 12, 1.6f, "white", Navy);
+	// the welcome over the main entrance at a French-speaking site (to-do 170): its name from the site, never baked
+	if (!ADPSite::SignLanguage().IsEmpty())
+	{
+		const FString Name = ADPSite::Name(ADPSite::Id());
+		Box({75, 10.0f, -0.4f, PI}, "white", 18, 1.7f, 0.04f, 0, 0, 0);
+		Text({75, 10.0f, -0.4f, PI}, TEXT("BIENVENUE À ") + Name.ToUpper(), 0, 0.3f, 0.03f, 1.f, 0.62f, Navy);
+		Text({75, 10.0f, -0.4f, PI}, TEXT("WELCOME TO ") + Name.ToUpper(), 0, -0.42f, 0.03f, 1.f, 0.42f, Navy);
+	}
 	// the canopies over the three ways in, and benches on the kerb
 	for (const FVector2f& C : {FVector2f(50, 13), FVector2f(75, 17), FVector2f(101, 13)})
 	{

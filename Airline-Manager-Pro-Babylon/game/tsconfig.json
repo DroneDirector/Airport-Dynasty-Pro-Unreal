@@ -181,6 +181,7 @@
     "src/screens/phone-talk.ts",
     "src/screens/sim-crew.ts",
     "src/screens/sim-market.ts",
+    "src/screens/sim-overview.ts",
     "src/data/stars.ts",
     "src/screens/v3d-sky.ts",
     "src/ui/qol.ts",

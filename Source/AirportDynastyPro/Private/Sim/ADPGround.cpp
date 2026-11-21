@@ -6,19 +6,20 @@
 #include "Sim/ADPStaff.h"
 #include "Site.h"
 #include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonSerializer.h"
 
 namespace
 {
 	struct FStandInfo { FString Id; TCHAR Code = 'C'; bool bJetway = false, bCargo = false; };
-	const TArray<FStandInfo>& Stands()
+	const TArray<FStandInfo>& GrStands()
 	{
 		static TArray<FStandInfo> S; static bool bRead = false;
 		if (bRead) return S;
 		bRead = true;
 		FString T; TSharedPtr<FJsonObject> J;
-		if (FFileHelper::LoadFileToString(T, *ADPSite::File(TEXT("airfield.json"))) && FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(T), J) && J)
+		if ((FFileHelper::LoadFileToString(T, *ADPSite::File(TEXT("airfield.json"))) || FFileHelper::LoadFileToString(T, *(FPaths::ProjectContentDir() / TEXT("Data/airfield.json"))) || FFileHelper::LoadFileToString(T, *(FPaths::ProjectDir() / TEXT("Data/airfield.json")))) && FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(T), J) && J)
 		{
 			const TArray<TSharedPtr<FJsonValue>>* L;
 			if (J->TryGetArrayField(TEXT("stands"), L))
@@ -33,7 +34,7 @@ namespace
 		return S;
 	}
 	/** People of a job on duty at an airport now (about 40% of them: three shifts and days off; half that at night). */
-	int32 OnShift(const FADPWorld& W, const FString& AirlineId, const FString& Role, const FString& Icao, const FDateTime& Utc)
+	int32 GrOnShift(const FADPWorld& W, const FString& AirlineId, const FString& Role, const FString& Icao, const FDateTime& Utc)
 	{
 		int32 N = 0;
 		for (const FADPPerson& P : W.People) if (P.AirlineId == AirlineId && P.Role == Role && P.Base == Icao && P.Status == TEXT("on")) ++N;
@@ -42,7 +43,7 @@ namespace
 		return N == 0 ? 0 : FMath::Max(1, FMath::RoundToInt(N * Share + 0.3));
 	}
 	/** When a team of this job at this airport is free (it works one aircraft at a time; Slots = how many teams). */
-	FDateTime TeamFree(FADPWorld& W, const FString& Icao, const FString& Job, int32 Slots, const FDateTime& At)
+	FDateTime GrTeamFree(FADPWorld& W, const FString& Icao, const FString& Job, int32 Slots, const FDateTime& At)
 	{
 		TArray<FADPTeamSlot*> Mine;
 		for (FADPTeamSlot& S : W.TeamSlots) if (S.Icao == Icao && S.Job == Job) Mine.Add(&S);
@@ -51,7 +52,7 @@ namespace
 		for (int32 i = 0; i < FMath::Min(Slots, Mine.Num()); ++i) Best = FMath::Min(Best, Mine[i]->Until);
 		return FMath::Max(Best, At);
 	}
-	void TeamTake(FADPWorld& W, const FString& Icao, const FString& Job, int32 Slots, const FDateTime& Start, const FDateTime& Until)
+	void GrTeamTake(FADPWorld& W, const FString& Icao, const FString& Job, int32 Slots, const FDateTime& Start, const FDateTime& Until)
 	{
 		FADPTeamSlot* Earliest = nullptr; int32 Seen = 0;
 		for (FADPTeamSlot& S : W.TeamSlots) if (S.Icao == Icao && S.Job == Job && Seen++ < Slots) if (!Earliest || S.Until < Earliest->Until) Earliest = &S;
@@ -106,14 +107,14 @@ double ADPGround::Turnaround(FADPWorld& W, FADPAircraft& A, const FDateTime& At)
 	FString Short;
 	for (const FTask& K : Tasks)
 	{
-		const int32 People = OnShift(W, A.AirlineId, K.Job, Here, At);
+		const int32 People = GrOnShift(W, A.AirlineId, K.Job, Here, At);
 		const int32 Teams = FMath::Max(1, FMath::Min(People / FMath::Max(1, K.Team), K.Vehicles));
 		double Min = K.Min;
 		if (People == 0 || K.Vehicles == 0) { Min = K.Min * 3.0; Short += FString::Printf(TEXT("%s%s"), Short.IsEmpty() ? TEXT("") : TEXT(", "), People == 0 ? *FString::Printf(TEXT("no %s staff on shift"), K.Job) : *FString::Printf(TEXT("no %s vehicle"), K.Job)); }
 		else if (People < K.Team) { Min = K.Min * K.Team / People; Short += FString::Printf(TEXT("%s%s short-staffed"), Short.IsEmpty() ? TEXT("") : TEXT(", "), K.Job); }
-		const FDateTime Start = TeamFree(W, Here, K.Job, Teams, At + FTimespan::FromMinutes(K.Job == FString(TEXT("cleaning")) ? Deboard : 0.0));
+		const FDateTime Start = GrTeamFree(W, Here, K.Job, Teams, At + FTimespan::FromMinutes(K.Job == FString(TEXT("cleaning")) ? Deboard : 0.0));
 		const FDateTime End = Start + FTimespan::FromMinutes(Min);
-		TeamTake(W, Here, K.Job, Teams, Start, End);
+		GrTeamTake(W, Here, K.Job, Teams, Start, End);
 		Done = FMath::Max(Done, End);
 	}
 	const double Turn = (Done - At).GetTotalMinutes() + Board * 0.5;   // (boarding overlaps the end of the loading)
@@ -141,7 +142,7 @@ FString ADPGround::AssignStand(FADPWorld& W, FADPAircraft& A, const FDateTime& N
 	TSet<FString> Taken; for (const FADPAircraft& X : W.Aircraft) if (!X.Stand.IsEmpty()) Taken.Add(X.Stand);
 	// the best free stand: the right size (as small as fits), a jetway for passengers, the cargo apron for freighters
 	const FStandInfo* Best = nullptr; int32 BestScore = MAX_int32;
-	for (const FStandInfo& S : Stands())
+	for (const FStandInfo& S : GrStands())
 	{
 		if (Taken.Contains(S.Id) || S.Code < Need || S.bCargo != bCargo) continue;
 		const int32 Score = (S.Code - Need) * 10 + (S.bJetway ? 0 : 5);

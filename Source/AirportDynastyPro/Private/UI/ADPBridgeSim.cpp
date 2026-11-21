@@ -10,6 +10,8 @@
 #include "Sim/ADPGround.h"
 #include "Sim/ADPNetwork.h"
 #include "Sim/ADPTown.h"
+#include "Sim/ADPWeather.h"
+#include "Site.h"
 #include "Sim/ADPBoards.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonSerializer.h"
@@ -140,6 +142,114 @@ FString UADPBridge::Sim(const FString& Action, const FString& Arg)
 			L.Add(MakeShared<FJsonValueObject>(X));
 		}
 		O->SetArrayField(TEXT("aircraft"), L);
+		return Out(O);
+	}
+	if (Action == TEXT("boards"))
+	{
+		// the terminal's boards (drawn by the menus' page): rows as its drawing wants them (times as moments, ms since 1970)
+		TSharedRef<FJsonObject> O = MakeShared<FJsonObject>(); O->SetBoolField(TEXT("ok"), true); O->SetStringField(TEXT("base"), ADPBoards::HereIcao());
+		auto Ms = [&](const FDateTime& L) { const FDateTime U = L - FTimespan::FromHours(ADPSite::UtcOffsetHours(L)); return double((U - FDateTime(1970, 1, 1)).GetTotalMilliseconds()); };
+		for (const bool bArr : {false, true})
+		{
+			TArray<TSharedPtr<FJsonValue>> L;
+			for (const FADPBoardRow& R : ADPBoards::Rows(H, bArr, 48))
+			{
+				TSharedRef<FJsonObject> X = MakeShared<FJsonObject>();
+				X->SetStringField(TEXT("key"), R.Flight + R.Time()); X->SetNumberField(TEXT("sched"), Ms(R.Sched)); X->SetNumberField(TEXT("exp"), Ms(R.Expected));
+				X->SetStringField(TEXT("flight"), R.Flight); X->SetStringField(TEXT("place"), FString::Printf(TEXT("%s %s"), *R.PlaceCode, *R.Place.Left(13)));
+				const FADPAircraft* C = W.Aircraft.FindByPredicate([&](const FADPAircraft& Z) { return Z.Reg == R.Reg; });
+				X->SetStringField(TEXT("ac"), C ? C->TypeId : FString()); X->SetStringField(TEXT("status"), R.Gate && !bArr ? FString::Printf(TEXT("%s · G%d"), *R.Status, R.Gate) : R.Status);
+				X->SetStringField(TEXT("col"), FString::Printf(TEXT("#%02X%02X%02X"), R.Col.R, R.Col.G, R.Col.B)); X->SetNumberField(TEXT("gate"), R.Gate);
+				L.Add(MakeShared<FJsonValueObject>(X));
+			}
+			O->SetArrayField(bArr ? TEXT("arr") : TEXT("dep"), L);
+		}
+		return Out(O);
+	}
+	if (Action == TEXT("overview"))
+	{
+		// the new Overview (to-do 188): everything at a glance from the simulation, refreshed every few seconds
+		TSharedRef<FJsonObject> O = MakeShared<FJsonObject>(); O->SetBoolField(TEXT("ok"), true);
+		const FDateTime NowU = S->Now(), NowL = ADPBoards::Local(NowU);
+		const FADPAirline* My = W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == Me; });
+		auto Num = [&](const TCHAR* K, double V) { O->SetNumberField(K, V); };
+		if (My)
+		{
+			O->SetStringField(TEXT("airline"), My->Name); O->SetStringField(TEXT("hub"), My->Hub);
+			Num(TEXT("balance"), FMath::RoundToDouble(My->Balance)); Num(TEXT("sharePrice"), FMath::RoundToDouble(My->SharePrice * 100.0) / 100.0);
+			Num(TEXT("reputation"), FMath::RoundToDouble(My->Reputation)); Num(TEXT("onTime"), FMath::RoundToDouble(My->OnTimeEma * 100.0));
+			Num(TEXT("pax30"), FMath::RoundToDouble(My->Pax30)); Num(TEXT("legs30"), FMath::RoundToDouble(My->Legs30)); Num(TEXT("profit30"), FMath::RoundToDouble(My->ProfitEma30));
+			int32 Pos = 0, All = 0; for (const ADPNetwork::FRank& R : ADPNetwork::League(W)) { ++All; if (R.AirlineId == Me) Pos = All; }
+			Num(TEXT("leaguePos"), Pos); Num(TEXT("leagueOf"), All);
+		}
+		const FString Here = ADPBoards::HereIcao();
+		O->SetStringField(TEXT("airport"), ADPSite::Name(ADPSite::Id())); O->SetStringField(TEXT("icao"), Here);
+		O->SetStringField(TEXT("localTime"), NowL.ToString(TEXT("%H:%M"))); O->SetStringField(TEXT("date"), NowL.ToString(TEXT("%d.%m.%Y")));
+		if (TSharedPtr<FJsonObject> Ab = ADPSite::AirportBlock())
+		{
+			double La = 0, Lo = 0; Ab->TryGetNumberField(TEXT("lat"), La); Ab->TryGetNumberField(TEXT("lon"), Lo);
+			const FADPWx X = ADPWeather::At(Here, La, Lo, NowU);
+			TSharedRef<FJsonObject> Wx = MakeShared<FJsonObject>();
+			Wx->SetNumberField(TEXT("windDir"), X.WindDir); Wx->SetNumberField(TEXT("windKt"), X.WindKt); Wx->SetNumberField(TEXT("gustKt"), X.GustKt); Wx->SetNumberField(TEXT("tempC"), X.TempC);
+			Wx->SetNumberField(TEXT("visM"), X.VisM); Wx->SetBoolField(TEXT("rain"), X.bRain); Wx->SetBoolField(TEXT("snow"), X.bSnow); Wx->SetBoolField(TEXT("storm"), X.bStorm); Wx->SetBoolField(TEXT("fog"), X.bFog);
+			Wx->SetBoolField(TEXT("live"), X.bLive); Wx->SetStringField(TEXT("station"), X.Station); Wx->SetStringField(TEXT("metar"), X.Raw);
+			O->SetObjectField(TEXT("weather"), Wx);
+		}
+		Num(TEXT("curfewFrom"), W.Town.CurfewFrom); Num(TEXT("curfewTo"), W.Town.CurfewTo); Num(TEXT("townMood"), FMath::RoundToDouble(W.Town.Mood));
+		Num(TEXT("fireCat"), ADPTown::FireCategoryAt(W, Here, NowU));
+		// your flights in the air
+		TArray<TSharedPtr<FJsonValue>> Air;
+		for (const FADPFlight& F : W.Flights) if (F.AirlineId == Me)
+		{
+			TSharedRef<FJsonObject> X = MakeShared<FJsonObject>();
+			X->SetStringField(TEXT("reg"), F.Reg); X->SetStringField(TEXT("from"), F.From); X->SetStringField(TEXT("to"), F.To); X->SetStringField(TEXT("phase"), F.Phase);
+			X->SetNumberField(TEXT("alt"), FMath::RoundToDouble(F.AltFt)); X->SetNumberField(TEXT("gs"), FMath::RoundToDouble(F.GsKt)); X->SetNumberField(TEXT("pax"), F.Pax + F.PaxJ + F.PaxF);
+			const FDateTime Eta = ADPBoards::Local(F.DepAt + FTimespan::FromMinutes(F.DurMin + F.HoldMin)); X->SetStringField(TEXT("eta"), Eta.ToString(TEXT("%H:%M")));
+			X->SetNumberField(TEXT("progress"), FMath::Clamp((NowU - F.DepAt).GetTotalMinutes() / FMath::Max(1.0, F.DurMin + F.HoldMin), 0.0, 1.0));
+			Air.Add(MakeShared<FJsonValueObject>(X));
+		}
+		O->SetArrayField(TEXT("inAir"), Air);
+		for (const bool bArr : {false, true})
+		{
+			TArray<TSharedPtr<FJsonValue>> L;
+			for (const FADPBoardRow& R : ADPBoards::Rows(H, bArr, 7))
+			{
+				TSharedRef<FJsonObject> X = MakeShared<FJsonObject>(); X->SetStringField(TEXT("time"), R.Time()); X->SetStringField(TEXT("flight"), R.Flight);
+				X->SetStringField(TEXT("place"), R.Place); X->SetStringField(TEXT("status"), R.Status); X->SetNumberField(TEXT("gate"), R.Gate); X->SetBoolField(TEXT("mine"), R.AirlineId == Me);
+				L.Add(MakeShared<FJsonValueObject>(X));
+			}
+			O->SetArrayField(bArr ? TEXT("arrivals") : TEXT("departures"), L);
+		}
+		// the fleet and the crew in numbers
+		int32 Fl = 0, Flying = 0, Parked = 0, Mx = 0, Grounded = 0; TArray<TSharedPtr<FJsonValue>> Checks;
+		for (const FADPAircraft& C : W.Aircraft) if (C.AirlineId == Me)
+		{
+			++Fl; Flying += C.Status == TEXT("flying"); Parked += C.Status == TEXT("parked"); Mx += C.Status == TEXT("maintenance"); Grounded += C.Status == TEXT("grounded");
+			double F = 0; const FString Due = ADPMaint::NextDue(W, C, NowU, F);
+			TSharedRef<FJsonObject> X = MakeShared<FJsonObject>(); X->SetStringField(TEXT("reg"), C.Reg); X->SetStringField(TEXT("check"), Due); X->SetNumberField(TEXT("due"), FMath::RoundToDouble(F * 100.0)); X->SetNumberField(TEXT("condition"), FMath::RoundToDouble(C.Condition));
+			Checks.Add(MakeShared<FJsonValueObject>(X));
+		}
+		Num(TEXT("fleet"), Fl); Num(TEXT("flying"), Flying); Num(TEXT("parked"), Parked); Num(TEXT("inCheck"), Mx); Num(TEXT("grounded"), Grounded);
+		O->SetArrayField(TEXT("checks"), Checks);
+		int32 Staff = 0, OnDuty = 0, Resting = 0, Off = 0, Sick = 0, Leave = 0;
+		for (const FADPPerson& P : W.People) if (P.AirlineId == Me)
+		{ ++Staff; OnDuty += !P.WithReg.IsEmpty(); Resting += P.RestUntil > NowU && P.Status == TEXT("on") && P.WithReg.IsEmpty(); Off += P.OffUntil > NowU; Sick += P.Status == TEXT("sick"); Leave += P.Status == TEXT("leave"); }
+		Num(TEXT("staff"), Staff); Num(TEXT("onDuty"), OnDuty); Num(TEXT("resting"), Resting); Num(TEXT("daysOff"), Off); Num(TEXT("sick"), Sick); Num(TEXT("leave"), Leave);
+		// the newest messages and news
+		TArray<TSharedPtr<FJsonValue>> Nt;
+		for (int32 i = W.Notices.Num() - 1; i >= 0 && Nt.Num() < 8; --i)
+		{
+			const FADPNotice& N = W.Notices[i]; TSharedRef<FJsonObject> X = MakeShared<FJsonObject>();
+			X->SetStringField(TEXT("kind"), N.Kind); X->SetStringField(TEXT("title"), N.Title); X->SetStringField(TEXT("text"), N.Text); X->SetNumberField(TEXT("prio"), N.Priority);
+			X->SetStringField(TEXT("at"), ADPBoards::Local(N.At).ToString(TEXT("%d.%m %H:%M"))); Nt.Add(MakeShared<FJsonValueObject>(X));
+		}
+		O->SetArrayField(TEXT("notices"), Nt);
+		TArray<TSharedPtr<FJsonValue>> Nw;
+		for (int32 i = W.News.Num() - 1; i >= 0 && Nw.Num() < 5; --i) Nw.Add(MakeShared<FJsonValueString>(W.News[i].Headline));
+		O->SetArrayField(TEXT("news"), Nw);
+		TArray<TSharedPtr<FJsonValue>> Ch;
+		for (const FADPChallenge& C : W.Challenges) { TSharedRef<FJsonObject> X = MakeShared<FJsonObject>(); X->SetStringField(TEXT("title"), C.Title); X->SetNumberField(TEXT("progress"), C.Progress); X->SetNumberField(TEXT("target"), C.Target); X->SetBoolField(TEXT("done"), C.bDone); Ch.Add(MakeShared<FJsonValueObject>(X)); }
+		O->SetArrayField(TEXT("challenges"), Ch);
 		return Out(O);
 	}
 	if (Action == TEXT("market"))
