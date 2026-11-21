@@ -148,6 +148,8 @@ FString UADPBridge::Sim(const FString& Action, const FString& Arg)
 	{
 		// the terminal's boards (drawn by the menus' page): rows as its drawing wants them (times as moments, ms since 1970)
 		TSharedRef<FJsonObject> O = MakeShared<FJsonObject>(); O->SetBoolField(TEXT("ok"), true); O->SetStringField(TEXT("base"), ADPBoards::HereIcao());
+		// (the airport's clock and its second language, for the board's header and times)
+		O->SetNumberField(TEXT("tz"), ADPSite::UtcOffsetHours(S->Now()) * 60.0); O->SetStringField(TEXT("lang"), ADPSite::SignLanguage());
 		auto Ms = [&](const FDateTime& L) { const FDateTime U = L - FTimespan::FromHours(ADPSite::UtcOffsetHours(L)); return double((U - FDateTime(1970, 1, 1)).GetTotalMilliseconds()); };
 		for (const bool bArr : {false, true})
 		{

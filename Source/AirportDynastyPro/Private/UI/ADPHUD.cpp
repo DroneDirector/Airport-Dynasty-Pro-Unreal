@@ -33,6 +33,7 @@
 #include "Seats.h"
 #include "DoorPanelUse.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/DirectionalLight.h"
 #include "EngineUtils.h"
 #include "DroneCam.h"
@@ -5727,7 +5728,9 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 			const FAirfieldData& F = AAirfield::Shared();
 			auto Go = [&](float X, float Y, float LX, float LY, float LH) { GoTo(FVector(X, 0.f, Y), FVector(LX, LH, LY)); };
 			if (B2 < 40.f && C2 >= 40.f) { if (bGame) ToggleGame(); if (GameBox.IsValid()) GameBox->SetVisibility(EVisibility::Collapsed); if (MiniBox.IsValid()) MiniBox->SetVisibility(EVisibility::Collapsed);   // (the menu page away: the 3D world on screen, owner 2026-11-20)
-			 ASunClock::DayOverride = 200; ASunClock::HourOverride = FParse::Param(FCommandLine::Get(), TEXT("UIChablaisShow")) ? 11.f : 15.f; ASunClock::Theme = 1; ASunClock::Refresh(); Go(F.RwyX0 + 200.f, F.RwyY - 70.f, F.RwyX0 + 2400.f, F.RwyY, 40.f); }
+			 ASunClock::DayOverride = 200; ASunClock::HourOverride = FParse::Param(FCommandLine::Get(), TEXT("UIChablaisShow")) ? 11.f : 15.f; ASunClock::Theme = 1; ASunClock::Refresh();
+			 for (TActorIterator<ASiteTrees> It(GetWorld()); It; ++It) It->RefreshSeason();   // (the trees' season with the tour's summer day at once)
+			 Go(F.RwyX0 + 200.f, F.RwyY - 70.f, F.RwyX0 + 2400.f, F.RwyY, 40.f); }
 			// (30 s at each spot: the terrain's finer tiles load in first)
 			if (!bList && B2 < 70.f && C2 >= 70.f) Shot(TEXT("Chablais_1_Runway_North"));
 			if (!bList && B2 < 71.f && C2 >= 71.f) Go(F.RwyX1 - 200.f, F.RwyY - 70.f, F.RwyX1 - 2400.f, F.RwyY, 120.f);
@@ -5800,7 +5803,7 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 					{TEXT("Show_18_Hangar"), [this]() { GoHangar(0, 0); }},
 					{TEXT("Show_19_Hangars_Mountains"), [=, this]() { Fly(-350.f, 1050.f, 25.f, -350.f, 1700.f, -4.f); }},
 					{TEXT("Show_20_Tower_Cab"), [=, this]() { Fly(ATowerADC::AtX + 70.f, ATowerADC::AtZ - 40.f, ATowerADC::CabY + 4.f, ATowerADC::AtX, ATowerADC::AtZ, 4.f); }},   // (169: the cab from outside at its height, the glass and the controllers' desks)
-					{TEXT("Show_21_Tower_Balcony"), [=, this]() { Fly(ATowerADC::AtX + 4.f, ATowerADC::AtZ + 2.f, ATowerADC::CabY + 1.5f, ATowerADC::AtX + 400.f, ATowerADC::AtZ + 120.f, -6.f); }},   // (169: from the balcony itself, out over the apron - no back in the way)
+					{TEXT("Show_21_Tower_Balcony"), [=, this]() { Fly(ATowerADC::AtX + 9.f, ATowerADC::AtZ + 9.f, ATowerADC::CabY + 2.5f, ATowerADC::AtX + 400.f, ATowerADC::AtZ + 160.f, -7.f); }},   // (169: just outside the balcony rail, out over the apron - no glass or chair in the way)
 					{TEXT("Show_22_Taxiway"), [this, RX0, AY]() { GoTo(FVector(900.f, 0.f, AY), FVector(RX0, 3.f, AY + 120.f)); }},
 					{TEXT("Show_23_Runway_From_End_High"), [=, this]() { Fly(RX0 - 150.f, RY, 80.f, RX1, RY, -3.f); }},
 					{TEXT("Show_24_Runway_From_Corner"), [=, this]() { Fly(RX0 - 700.f, RY - 700.f, 120.f, RX1, RY + 200.f, -5.f); }}};
@@ -5820,7 +5823,7 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 					{TEXT("New_06_Flag_FireStation"), [=, this]() { Season(200); Fly(-1168.f, -44.f, 7.f, -1180.f, -26.f, 8.f); }},
 					{TEXT("New_07_Flag_Forecourt"), [=, this]() { Fly(40.f, -80.f, 4.f, 60.f, -56.f, 16.f); }},
 					{TEXT("New_08_Welcome_Sign"), [=, this]() { Fly(75.f, -45.f, 8.f, 75.f, 0.f, 3.f); }},
-					{TEXT("New_09_Board_Bilingual"), [this]() { if (Drone.IsValid()) LeaveDrone(); GoTo(FVector(70.f, 0.f, 22.f), FVector(70.f, 4.2f, 29.75f)); }},
+					{TEXT("New_09_Board_Bilingual"), [this]() { if (Drone.IsValid()) LeaveDrone(); GoTo(FVector(70.f, 0.f, 20.f), FVector(70.f, 4.2f, 29.75f)); }},
 					{TEXT("New_10_Holomap_Mountains"), [this]() { if (Drone.IsValid()) LeaveDrone(); GoEntrance(); }}};
 			}
 			// -UIChablaisTraffic (with -SimTrafficShot): the simulation's aircraft pushing back, taxiing and taking off (to-do 191)
@@ -5847,7 +5850,8 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 				if (B2 < T && C2 >= T) { if (Drone.IsValid()) LeaveDrone(); Spots[k].Go(); if (!FString(Spots[k].Name).Contains(TEXT("Holomap"))) HideUI(); }
 				// (the map shot: the interface back and the full map with the mountain names, a few seconds before the picture)
 				if (FString(Spots[k].Name).Contains(TEXT("Holomap")) && B2 < T + 14.f && C2 >= T + 14.f) { ShowUI(); if (MiniBox.IsValid()) MiniBox->SetVisibility(EVisibility::Visible); if (HoloMap.IsValid()) { if (!HoloMap->IsFull()) ToggleMap(); HoloMap->ShowPeaks(true); } }
-				if (B2 < T + 20.f && C2 >= T + 20.f) Shot(Spots[k].Name);
+				// (the map shot with the interface on it - HighResShot draws the world only)
+				if (B2 < T + 20.f && C2 >= T + 20.f) { if (FString(Spots[k].Name).Contains(TEXT("Holomap"))) FScreenshotRequest::RequestScreenshot(Spots[k].Name, true, false); else Shot(Spots[k].Name); }
 				// (the road tour's link-road spot: rays across the horizon, logging what stands up there - the black pyramids)
 				if (k == 3 && FParse::Param(FCommandLine::Get(), TEXT("UIChablaisRoads")) && B2 < T + 18.f && C2 >= T + 18.f)
 					if (APlayerController* PC = GetOwningPlayerController()) if (PC->PlayerCameraManager)

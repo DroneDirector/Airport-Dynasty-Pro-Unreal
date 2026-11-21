@@ -14,7 +14,7 @@ import { exitGame } from './core/exit';
 import { gameOpen, gameIsOpen, gameClose, gameShow, gameExists, gameSend, onGameRoom, onGameFids, onGameFlight, gameEval, gameHidden, gameNewExtra, onGameReady, onNoGame, onGameFounding, onGameLoading } from './ui/game-frame'
 import { loadingNeonShow, loadingNeonDone, loadingNeonHide } from './ui/loading-neon';;
 import { UE_PC, UE_ENGINE, ue } from './core/uelink';
-import { fidsCanvas, gateCanvas } from './sections/terminal/fids';
+import { fidsCanvas, gateCanvas, setBoardLocale } from './sections/terminal/fids';
 import { announcerReady, announcerIds } from './ui/announcer-voice';
 import { APP, IS_PC } from './core/app';
 import { updateInit } from './core/update';
@@ -220,7 +220,7 @@ if (UE_PC) {
   // its flights - every airline's, with their real times, gates and statuses
   setInterval(() => { const u = ue(); if (!u || !u.sim) return;
     Promise.resolve(u.sim('boards', '')).then((s: any) => { let d: any = {}; try { d = JSON.parse(String(s || '{}')); } catch (e) { return; }
-      if (!d.ok) return; boards = { dep: d.dep || [], arr: d.arr || [], base: String(d.base || ''), live: true, at: Date.now() } as any; (boards as any).sim = true; sendBoards(); }); }, 5000);
+      if (!d.ok) return; setBoardLocale(typeof d.tz === 'number' ? d.tz : null, String(d.lang || '')); boards = { dep: d.dep || [], arr: d.arr || [], base: String(d.base || ''), live: true, at: Date.now() } as any; (boards as any).sim = true; sendBoards(); }); }, 5000);
 }
 // The PC version's airport announcements: Unreal asks for a line to be spoken (window.__ueSay). The announcer is
 // always a woman: the game's own natural voice (Kokoro, a British female voice) when its voices are on this PC, made

@@ -1,7 +1,7 @@
 // The sun's place from the time: the low-precision solar position (as in the Astronomical Almanac and NOAA's
 // calculator), good to about a hundredth of a degree for many years either side of 2000.
-#include "ADPLog.h"
 #include "SunClock.h"
+#include "ADPLog.h"
 #include "Dom/JsonObject.h"
 #include "Misc/CommandLine.h"
 #include "WindSocks.h"

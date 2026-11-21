@@ -21,7 +21,15 @@ export type Shape = 'wall' | 'totem' | 'wide' | 'opswall';
 const SIZE: { [k in Shape]: [number, number] } = { wall: [2048, 745], totem: [1024, 760], wide: [1024, 576], opswall: IS_PC ? [4096, 722] : [3072, 542] };
 /** The operations wall: how many monitors across, and the rows each shows. */
 export const OPS_W = SIZE.opswall, OPS_PANELS = 6; const OPS_ROWS = 11;
-const hm = (t: number) => { const d = new Date(t); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+// the airport's own clock and second language (2026-11-21: at Chablais the boards said "Brottfarir" and showed this PC's
+// clock, an hour off the Swiss time the simulation's statuses use): set from the simulation's boards; without them, this
+// PC's clock and the page's site
+let TZ_MIN: number | null = null, LANG = '';
+export function setBoardLocale(tzMin: number | null, lang: string) { TZ_MIN = tzMin; LANG = lang || ''; }
+const siteLang = () => { if (LANG) return LANG; try { return /[?&]site=chablais/i.test(location.search) ? 'fr' : 'is'; } catch (e) { return 'is'; } };
+const second = (kind: 'dep' | 'arr') => siteLang() === 'fr' ? (kind === 'dep' ? 'Départs' : 'Arrivées') : (kind === 'dep' ? 'Brottfarir' : 'Komur');
+const hm = (t: number) => { if (TZ_MIN !== null) { const d = new Date(t + TZ_MIN * 6e4); return String(d.getUTCHours()).padStart(2, '0') + ':' + String(d.getUTCMinutes()).padStart(2, '0'); }
+  const d = new Date(t); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
 const hms = (t: number) => hm(t) + ':' + String(new Date(t).getSeconds()).padStart(2, '0');
 const ACC: { [k in Kind]: [string, string] } = { dep: ['#FFD24A', '#E8A417'], arr: ['#5FD6FF', '#1E9BD8'] };
 
@@ -66,7 +74,7 @@ function monitor(x: CanvasRenderingContext2D, X: number, Y: number, W: number, H
   x.fillStyle = 'rgba(0,0,0,0.35)'; x.fillRect(sx, sy + head - Math.max(1, head * 0.05), sw, Math.max(1, head * 0.05));
   const ic = head * 0.62; plane(x, sx + pad + ic * 0.5, sy + head / 2, ic, kind, '#0A1424');
   x.fillStyle = '#0A1424'; x.textBaseline = 'middle'; x.textAlign = 'left'; x.font = `800 ${Math.round(head * 0.52)}px Arial, sans-serif`;
-  const title = (kind === 'dep' ? 'Departures' : 'Arrivals') + (full ? '  ·  ' + (kind === 'dep' ? 'Brottfarir' : 'Komur') : '');
+  const title = (kind === 'dep' ? 'Departures' : 'Arrivals') + (full ? '  ·  ' + second(kind) : '');
   const clock = hm(now), right = (full && airport ? airport + '   ' : '') + clock; x.font = `700 ${Math.round(head * 0.46)}px Arial, sans-serif`; const rw = x.measureText(right).width;
   x.font = `800 ${Math.round(head * 0.52)}px Arial, sans-serif`; x.fillText(fit(x, title, sw - pad * 3 - ic - rw), sx + pad * 1.6 + ic, sy + head / 2 + head * 0.03);
   x.textAlign = 'right'; x.font = `700 ${Math.round(head * 0.46)}px Arial, sans-serif`; x.fillText(right, sx + sw - pad, sy + head / 2 + head * 0.03);

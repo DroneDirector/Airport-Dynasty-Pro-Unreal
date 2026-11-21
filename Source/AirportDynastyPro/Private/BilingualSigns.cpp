@@ -111,6 +111,23 @@ namespace ADPBilingual
 				C->GetInstanceTransform(I.Get<1>(), Xf, true);
 				const FBox Local = C->GetStaticMesh()->GetBoundingBox();
 				const FString En = Wd.En, Lo = ADPSite::Translate(En);
+				// the sign's old English letters (its smaller parts lying on the board's face) tucked away, so only the new
+				// two-language face reads - the posts and brackets reaching past the board stay (2026-11-21: "DÉPARTS" showed
+				// through behind the old "DEPARTURES")
+				{
+					const FVector BE = Local.GetExtent(), BC = Local.GetCenter();
+					const bool bThinX = BE.X < BE.Y;
+					for (int32 k = 0; k < In.Num(); ++k)
+					{
+						if (k == Best) continue;
+						UInstancedStaticMeshComponent* P = In[k].Get<0>(); FTransform Px;
+						if (!P || !P->GetStaticMesh() || !P->GetInstanceTransform(In[k].Get<1>(), Px, true)) continue;
+						const FVector Pc = Xf.InverseTransformPosition(Px.TransformPosition(P->GetStaticMesh()->GetBoundingBox().GetCenter())) - BC;
+						const double Across = bThinX ? FMath::Abs(Pc.Y) : FMath::Abs(Pc.X), Wide = bThinX ? BE.Y : BE.X;
+						if (Across > Wide * 1.02 || FMath::Abs(Pc.Z) > BE.Z * 1.02) continue;   // (outside the board: a post or bracket)
+						Px.SetScale3D(FVector(0.001f)); P->UpdateInstanceTransform(In[k].Get<1>(), Px, true, true, true);
+					}
+				}
 				Face(T, Xf, Local, Lo, En, false); ++N;
 				// the welcome, a little above the departures sign over the main entrance
 				if (En == TEXT("DEPARTURES"))
