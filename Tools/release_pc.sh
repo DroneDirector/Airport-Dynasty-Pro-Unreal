@@ -20,6 +20,7 @@ R=/c/Users/Simon/Documents/Airport-Dynasty-Pro-Unreal; P=/f/ADP-Packaged
 cd $R
 grep -q "\"$V\"" pc-version.json || { echo "STOP: pc-version.json is not $V - bump it first"; exit 1; }
 if [ "$4" != "--upload" ]; then
+  if [ "$4" != "--after-package" ]; then   # (--after-package: the package in F:/ADP-Packaged/$V is done, carry on from the exe check)
   tasklist | grep -qi "UnrealEditor.exe" && { echo "STOP: an Unreal editor is running"; exit 1; }
   # the holographic map traced from the terminal as it stands (owner, 2026-11-19: every new part on the map, always):
   # the editor's own build first, then its game cuts every wall at walking height -> Data/holomap-walls.json
@@ -64,11 +65,12 @@ PYEOF
   [ -z "$OTHER" ] || { echo "$OTHER"; echo "STOP: cook errors"; exit 1; }
   grep -q "Cook failed" $P/uat-$V.log && echo "(cook: only the known engine check - packaging went on)"
   grep -q "BUILD SUCCESSFUL" $P/uat-$V.log || { tail -20 $P/uat-$V.log; echo "STOP: no BUILD SUCCESSFUL"; exit 1; }
+  fi
   echo "== the version inside the exe"
   IN=$(python -c "
 import re
 b=open(r'F:/ADP-Packaged/$V/Windows/AirportDynastyPro/Binaries/Win64/AirportDynastyPro-Win64-Shipping.exe','rb').read()
-print(' '.join(sorted(set(m.group(0).decode('utf-16-le') for m in re.finditer(rb'0\x00\.\x001\x00[0-9]\x00\.\x00[0-9]\x00[0-9]?\x00?', b)))))")
+print(' '.join(sorted(set(m.group(0).decode('utf-16-le') for m in re.finditer(rb'0\x00\.\x001\x00[0-9]\x00\.\x00[0-9]\x00(?:[0-9]\x00)?', b)))))")
   echo "inside: $IN"; echo "$IN" | grep -q "$V" || { echo "STOP: the exe doesn't carry $V"; exit 1; }
   echo "== the full game, and a start check"
   rm -rf $P/$V/Full; cp -r $P/$A/Full $P/$V/Full; cp -r $P/$V/Windows/. $P/$V/Full/   # (the earlier packs stay; this release's pack added)
