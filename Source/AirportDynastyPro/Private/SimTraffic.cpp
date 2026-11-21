@@ -1,6 +1,7 @@
 // The simulation's flights at our airport in 3D - see SimTraffic.h.
 #include "SimTraffic.h"
 #include "Tugs.h"
+#include "JetwayRigs.h"
 #include "ADPLog.h"
 #include "PerfLog.h"
 #include "BabylonModel.h"
@@ -39,6 +40,21 @@ void ASimTraffic::Start(UWorld* W, const FAirfieldData& Field)
 	if (ASimTraffic* T = W->SpawnActor<ASimTraffic>(FVector::ZeroVector, FRotator::ZeroRotator, P)) T->F = Field;
 }
 
+namespace
+{
+	// the jetway serving a stand (owner 2026-11-21: "the jetway has to ... leave the airplane and get into its resting
+	// position before pushback can commence ... in the right order"): the one whose docked point is nearest the stand's nose
+	int32 JetwayAt(UWorld* W, const FAirfieldData::FStand& S)
+	{
+		if (!S.bJetway) return INDEX_NONE;
+		AJetwayRigs* R = AJetwayRigs::Get(W); if (!R) return INDEX_NONE;
+		const FVector Nose = FTerminalPlan::ToWorld(S.X, AAirfield::GroundAt(S.X, S.Nose), S.Nose);
+		int32 Best = INDEX_NONE; float Bd = 3000.f;
+		for (int32 j = 0; j < R->Num(); ++j) { FVector Ro, Dr; if (R->Frame(j, Ro, Dr) && FVector::Dist2D(Dr, Nose) < Bd) { Bd = FVector::Dist2D(Dr, Nose); Best = j; } }
+		return Best;
+	}
+}
+
 bool ASimTraffic::RunwayToX1() const
 {
 	// the runway's x0 -> x1 direction has the plan's x axis, true heading = the site's runway heading; into the wind
@@ -58,6 +74,14 @@ void ASimTraffic::Sync()
 	const float Hold = 107.5f;   // (the holding point's distance from the runway's centre line)
 	for (const FADPFlight& Fl : Sim->World.Flights)
 	{
+		const FDateTime OnBlocks3 = Fl.DepAt + FTimespan::FromMinutes(Fl.DurMin + Fl.HoldMin);
+		// 3 minutes before on-blocks: the gate's tug driver sits in his tug, ready (owner 2026-11-21)
+		if (Fl.To == Here && Fl.Diverted.IsEmpty() && !TugCalled.Contains(Fl.Id) && (OnBlocks3 - Now).GetTotalMinutes() <= 3.0 && (OnBlocks3 - Now).GetTotalMinutes() > -1.0)
+		{
+			TugCalled.Add(Fl.Id);
+			const FADPAircraft* A3 = Sim->World.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == Fl.Reg; });
+			for (const FAirfieldData::FStand& S : F.Stands) if (A3 && S.Id == A3->Stand) { if (ATugs* T = ATugs::Get(GetWorld())) T->Arriving(S.X); break; }
+		}
 		if (Seen.Contains(Fl.Id)) continue;
 		const FADPAircraft* A = Sim->World.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == Fl.Reg; });
 		// a departure from here within 8 minutes: its tug drives out and waits beside the stand (Tugs.h)
@@ -67,13 +91,39 @@ void ASimTraffic::Sync()
 			for (const FAirfieldData::FStand& S : F.Stands)
 				if (S.Id == Fl.FromStand || (Fl.FromStand.IsEmpty() && A0 && S.Id == A0->Stand)) { if (ATugs* T = ATugs::Get(GetWorld())) T->Prepare(Fl.Id, S.X); break; }
 		}
+		// boarding done about 4 minutes before off-blocks: the doors closed and the jetway pulled back to rest (its own
+		// drive: the canopy in, back to half way - Jetway rules); the pushback waits for it (Advance)
+		if (Fl.From == Here && (Fl.DepAt - Now).GetTotalMinutes() > 0.0 && (Fl.DepAt - Now).GetTotalMinutes() <= 4.0)
+		{
+			const FADPAircraft* A1 = Sim->World.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == Fl.Reg; });
+			for (const FAirfieldData::FStand& S : F.Stands)
+				if (S.Id == Fl.FromStand || (Fl.FromStand.IsEmpty() && A1 && S.Id == A1->Stand))
+				{
+					const int32 J = JetwayAt(GetWorld(), S);
+					if (J != INDEX_NONE && !Undocked.Contains(Fl.Id) && AJetwayRigs::Get(GetWorld())->State(J) == AJetwayRigs::EState::Docked)
+					{ Undocked.Add(Fl.Id); AJetwayRigs::Get(GetWorld())->Undock(J); ADP_LOG(TEXT("Traffic: %s boarding complete, doors closed - jetway %s pulling back"), *Fl.Id, *AJetwayRigs::Get(GetWorld())->Name(J)); }
+					break;
+				}
+		}
 		// departures from here: from off-blocks, while it can still be on the ground or climbing (12 minutes)
 		if (Fl.From == Here && (Now - Fl.DepAt).GetTotalMinutes() >= 0.0 && (Now - Fl.DepAt).GetTotalMinutes() < 12.0)
 		{
 			Seen.Add(Fl.Id);
 			const FAirfieldData::FStand* St = F.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return !S.bCargo && S.Span <= 40.f; });
 			// (it was parked at a stand: the one ParkedAircraft showed it at - the simulation's own record)
-			for (const FAirfieldData::FStand& S : F.Stands) if (S.Id == Fl.FromStand || (Fl.FromStand.IsEmpty() && A && S.Id == A->Stand)) St = &S;
+			{
+				bool bKnown = false;
+				for (const FAirfieldData::FStand& S : F.Stands) if (S.Id == Fl.FromStand || (Fl.FromStand.IsEmpty() && A && S.Id == A->Stand)) { St = &S; bKnown = true; }
+				// (no stand on record: a free contact stand - never one another aircraft is on; two on stand 9 in the test of 2026-11-21)
+				if (!bKnown)
+					for (const FAirfieldData::FStand& S : F.Stands)
+					{
+						if (S.bCargo || S.Span > 40.f || !S.bJetway) continue;
+						bool bTaken = false; for (const FMove& O : Moves) if (O.Stand == S.Id && (O.Phase == EPhase::Push || O.Phase == EPhase::Done)) bTaken = true;
+						for (const FADPAircraft& Oa : Sim->World.Aircraft) if (Oa.Stand == S.Id && Oa.Reg != Fl.Reg && Oa.Location == Here) bTaken = true;
+						if (!bTaken) { St = &S; break; }
+					}
+			}
 			if (!St) continue;
 			FMove M; M.FlightId = Fl.Id; M.Reg = Fl.Reg; M.bDeparture = true; M.Stand = St->Id; M.Phase = EPhase::Push;
 			// at the stand: nose tyre on the stop bar, the body behind it, pushed straight back onto the taxilane
@@ -150,6 +200,25 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 		const FVector Nose = FTerminalPlan::ToWorld(M.Nose.X, AAirfield::GroundAt(M.Nose.X, M.Nose.Y), M.Nose.Y);
 		float StandX = M.Nose.X;
 		for (const FAirfieldData::FStand& S : F.Stands) if (S.Id == M.Stand) StandX = S.X;
+		// the jetway first: never a pushback with it at the door - it pulls back and must be at rest before anything moves
+		for (const FAirfieldData::FStand& S : F.Stands)
+			if (S.Id == M.Stand)
+			{
+				const int32 J = JetwayAt(GetWorld(), S);
+				if (J != INDEX_NONE)
+				{
+					AJetwayRigs* JR = AJetwayRigs::Get(GetWorld());
+					const AJetwayRigs::EState Js = JR->State(J);
+					if (Js != AJetwayRigs::EState::Parked)
+					{
+						if (Js == AJetwayRigs::EState::Docked || Js == AJetwayRigs::EState::Manual) JR->Undock(J);
+						if (M.Clock != 2.f) ADP_LOG(TEXT("Traffic: %s waits for jetway %s to reach its rest position"), *M.FlightId, *JR->Name(J));
+						M.Clock = 2.f; M.Speed = 0.f; Pose(M); return false;
+					}
+				}
+				break;
+			}
+		if (M.Clock == 2.f) M.Clock = 0.f;
 		ATugs* T = ATugs::Get(GetWorld());
 		if (T && !T->Push(M.FlightId, StandX, Nose + Fwd * 60.f, Fwd)) { if (M.Clock == 0.f) ADP_LOG(TEXT("Traffic: %s at %s waits for its tug"), *M.FlightId, *M.Stand); M.Clock = 1.f; M.Speed = 0.f; Pose(M); return false; }
 		M.Clock = 0.f;
@@ -284,14 +353,22 @@ void ASimTraffic::AddLights(FMove& M)
 	ABabylonModel* B = M.Model.Get();
 	if (!B || !Ball || !Glow) return;
 	struct FL { FVector At; FLinearColor Col; float Size; };
+	// (owner 2026-11-21: every light on the geometry where it belongs, clearly visible - measured on Art/A320/A320.glb in
+	//  Blender: the wingtip's lower front corner, its lower rear corner, the tail cone, the fuselage's top and belly over the
+	//  wing box, the wing roots' leading edge underside, the front of the nose gear leg; each glow centred on the surface)
 	const FL List[] = {
-		{FVector(-1790.f, 1200.f, 300.f), FLinearColor(1.f, 0.05f, 0.03f), 0.22f},   // nav left: red
-		{FVector(1790.f, 1200.f, 300.f), FLinearColor(0.05f, 1.f, 0.2f), 0.22f},     // nav right: green
-		{FVector(0.f, 3250.f, 420.f), FLinearColor(1.f, 1.f, 1.f), 0.2f},            // tail: white
-		{FVector(0.f, 1050.f, 640.f), FLinearColor(1.f, 0.08f, 0.04f), 0.25f},       // beacon on top: red
-		{FVector(0.f, 1150.f, 90.f), FLinearColor(1.f, 0.08f, 0.04f), 0.25f},        // beacon under the belly: red
-		{FVector(-1790.f, 1230.f, 300.f), FLinearColor(1.f, 1.f, 1.f), 0.24f},       // strobe left
-		{FVector(1790.f, 1230.f, 300.f), FLinearColor(1.f, 1.f, 1.f), 0.24f}};       // strobe right
+		{FVector(-1640.f, 1372.f, 485.f), FLinearColor(1.f, 0.05f, 0.03f), 0.18f},   // nav left: red, the wingtip's front
+		{FVector(1640.f, 1372.f, 485.f), FLinearColor(0.05f, 1.f, 0.2f), 0.18f},     // nav right: green
+		{FVector(0.f, 3221.f, 496.f), FLinearColor(1.f, 1.f, 1.f), 0.16f},           // tail: white, on the tail cone
+		{FVector(0.f, 1200.f, 625.f), FLinearColor(1.f, 0.08f, 0.04f), 0.22f},       // beacon on top: red
+		{FVector(0.f, 1200.f, 195.f), FLinearColor(1.f, 0.08f, 0.04f), 0.22f},       // beacon under the belly: red
+		{FVector(-1641.f, 1618.f, 540.f), FLinearColor(1.f, 1.f, 1.f), 0.18f},       // strobe left: the wingtip's rear
+		{FVector(1641.f, 1618.f, 540.f), FLinearColor(1.f, 1.f, 1.f), 0.18f},        // strobe right
+		{FVector(-415.f, 684.f, 194.f), FLinearColor(1.f, 0.97f, 0.9f), 0.22f},      // landing light left: under the wing root's leading edge
+		{FVector(415.f, 684.f, 194.f), FLinearColor(1.f, 0.97f, 0.9f), 0.22f},       // landing light right
+		{FVector(0.f, -12.f, 128.f), FLinearColor(1.f, 0.97f, 0.9f), 0.14f},         // taxi / take-off light: the nose gear leg's front
+		{FVector(-15.f, -10.f, 142.f), FLinearColor(1.f, 0.97f, 0.9f), 0.11f},       // runway turn-off light left (nose gear)
+		{FVector(15.f, -10.f, 142.f), FLinearColor(1.f, 0.97f, 0.9f), 0.11f}};       // runway turn-off light right       // strobe right
 	for (const FL& L : List)
 	{
 		UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(B);
@@ -307,17 +384,32 @@ void ASimTraffic::AddLights(FMove& M)
 
 void ASimTraffic::Blink(FMove& M)
 {
-	if (M.Lights.Num() < 7) return;
+	if (M.Lights.Num() < 12) return;
 	const double T = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
-	// navigation and tail lights on whenever it moves; the beacons flash red once a second while engines run or it is
-	// pushed (from the pushback on); the strobes double-flash white on the runway and in the air
-	const bool bNav = true, bBeacon = true;
-	const bool bStrobe = M.Phase == EPhase::Roll || M.Phase == EPhase::Climb || M.Phase == EPhase::Approach || M.Phase == EPhase::Rollout;
-	const float Beacon = FMath::Fmod(T + M.Reg.Len() * 0.13, 1.0) < 0.12 ? 60.f : 0.f;
+	// the lights by the real procedure (Airbus SOP; owner 2026-11-21: "as they do in the real world ... the real timing"):
+	//  - navigation and tail (logo) lights: on whenever it is powered
+	//  - the red beacons: on from just before the pushback (doors closed, ready to push) until the engines are shut down on
+	//    the stand after arriving (a few seconds after it stops)
+	//  - taxi and runway turn-off lights: on while it taxis; the taxi light off while it stands still (holding, waiting - not
+	//    to dazzle others) and on the last stretch into the stand (the marshaller and the ground crew)
+	//  - lining up and the take-off roll: landing lights, strobes and the take-off (nose) light on; once airborne the nose
+	//    and turn-off lights go off (with the gear); the landing lights stay on below 10 000 ft
+	//  - the approach: landing lights and strobes; the nose light on short final; on the runway after landing they stay on
+	//    until it turns off; taxiing in: landing lights and strobes off, taxi and turn-off lights on
+	const bool bAir = M.Phase == EPhase::Climb || M.Phase == EPhase::Approach;
+	const bool bRunway = M.Phase == EPhase::Roll || M.Phase == EPhase::Rollout;
+	const bool bStrobe = bAir || bRunway;
+	const bool bLanding = bAir ? M.Height < 3048.f : bRunway;
+	const bool bTaxiing = (M.Phase == EPhase::Taxi || M.Phase == EPhase::TaxiIn) && M.Speed > 0.3f;
+	const bool bNearStand = M.Phase == EPhase::TaxiIn && M.Step >= M.Path.Num() - 1;
+	const bool bTaxiL = (bTaxiing && !bNearStand) || bRunway || (M.Phase == EPhase::Approach && M.Height < 300.f);
+	const bool bTurnoff = ((M.Phase == EPhase::Taxi || M.Phase == EPhase::TaxiIn) && !bNearStand) || bRunway;
+	const bool bBeaconOn = M.Phase != EPhase::Done || M.Clock < 8.f;
+	const float Beacon = bBeaconOn && FMath::Fmod(T + M.Reg.Len() * 0.13, 1.0) < 0.12 ? 60.f : 0.f;
 	const float Ph = FMath::Fmod(T, 1.2);
 	const float Strobe = bStrobe && (Ph < 0.05 || (Ph > 0.12 && Ph < 0.17)) ? 160.f : 0.f;
-	const float Vals[] = {bNav ? 25.f : 0.f, bNav ? 25.f : 0.f, bNav ? 18.f : 0.f, bBeacon ? Beacon : 0.f, bBeacon ? Beacon : 0.f, Strobe, Strobe};
-	for (int32 i = 0; i < 7; ++i) if (M.Lights[i].Value) M.Lights[i].Value->SetScalarParameterValue(TEXT("Brightness"), Vals[i]);
+	const float Vals[] = {30.f, 30.f, 22.f, Beacon, Beacon, Strobe, Strobe, bLanding ? 90.f : 0.f, bLanding ? 90.f : 0.f, bTaxiL ? 70.f : 0.f, bTurnoff ? 55.f : 0.f, bTurnoff ? 55.f : 0.f};
+	for (int32 i = 0; i < 12; ++i) if (M.Lights[i].Value) M.Lights[i].Value->SetScalarParameterValue(TEXT("Brightness"), Vals[i]);
 }
 
 void ASimTraffic::Tick(float Dt)
@@ -337,6 +429,7 @@ void ASimTraffic::Tick(float Dt)
 		FMove& M = Moves[i];
 		if (!M.Model.IsValid()) continue;
 		Blink(M);
+		Gear(M, FMath::Min(Dt, 0.1f));
 		if (Advance(M, FMath::Min(Dt, 0.1f)))
 		{
 			// an arrival waits at its stand until the parked aircraft (the simulation's, ParkedAircraft.cpp) takes over
@@ -345,8 +438,78 @@ void ASimTraffic::Tick(float Dt)
 				const bool bParked = ParkedRegs.Contains(M.Reg);
 				if (!bParked) { M.Clock += Dt; M.Phase = EPhase::Done; continue; }
 			}
+			// an arrival on its stand (the parked aircraft has taken over): engines off, beacon off - the jetway drives out to
+			// its door (Jetway rules: from rest)
+			if (!M.bDeparture)
+				for (const FAirfieldData::FStand& S : F.Stands)
+					if (S.Id == M.Stand)
+					{
+						const int32 J = JetwayAt(GetWorld(), S);
+						if (J != INDEX_NONE && AJetwayRigs::Get(GetWorld())->State(J) == AJetwayRigs::EState::Parked && AJetwayRigs::Get(GetWorld())->Dock(J))
+							ADP_LOG(TEXT("Traffic: %s on blocks at %s - jetway %s docking"), *M.FlightId, *M.Stand, *AJetwayRigs::Get(GetWorld())->Name(J));
+						break;
+					}
 			if (ABabylonModel* B = M.Model.Get()) B->Destroy();
 			Moves.RemoveAt(i);
 		}
 	}
+}
+
+namespace
+{
+	// the gear parts' pivots (the model's root, cm: Blender (x, y, z) m -> (x, -y, z) * 100 - Art/A320/make_a320_parts.py)
+	const FVector NoseAxle(0.f, 0.f, 45.4f);                  // the nose wheels' axle; the steering axis runs up through it
+	const FVector NoseLegAt(0.f, 0.f, 110.6f);
+	const FVector MainAxle[2] = {FVector(-387.8f, 1280.3f, 64.6f), FVector(385.9f, 1280.3f, 64.8f)};
+	const FVector MainLegAt[2] = {FVector(-405.4f, 1256.5f, 173.1f), FVector(410.8f, 1251.8f, 139.4f)};
+	constexpr float NoseR = 45.4f, MainR = 64.6f;             // (tyre radii, cm)
+	constexpr float SteerSign = 1.f;                          // (the root's turn sense: checked in the pictures)
+	constexpr float ExtMain = 12.f, ExtNose = 8.f;            // (cm the struts hang out in the air - inside their own cylinders)
+}
+
+void ASimTraffic::Gear(FMove& M, float Dt)
+{
+	ABabylonModel* B = M.Model.Get(); if (!B || Dt <= 0.f) return;
+	if (!M.bGear)
+	{
+		M.bGear = true;
+		M.GNoseW = B->BindGroup({TEXT("NoseWheels")}, true, FTransform(NoseAxle));
+		M.GNoseLeg = B->BindGroup({TEXT("NoseLeg")}, true, FTransform(NoseLegAt));
+		M.GMainW[0] = B->BindGroup({TEXT("MainWheels_L")}, true, FTransform(MainAxle[0])); M.GMainW[1] = B->BindGroup({TEXT("MainWheels_R")}, true, FTransform(MainAxle[1]));
+		M.GMainLeg[0] = B->BindGroup({TEXT("MainLeg_L")}, true, FTransform(MainLegAt[0])); M.GMainLeg[1] = B->BindGroup({TEXT("MainLeg_R")}, true, FTransform(MainLegAt[1]));
+		M.PrevNose = M.Nose; M.PrevMain = M.Main; M.Ext = M.Height > 0.5f ? 1.f : 0.f;
+		ADP_LOG(TEXT("Traffic: %s gear parts - nose wheels %d, nose leg %d, main wheels %d/%d, main legs %d/%d"), *M.Reg, M.GNoseW, M.GNoseLeg, M.GMainW[0], M.GMainW[1], M.GMainLeg[0], M.GMainLeg[1]);
+	}
+	if (M.GNoseW == INDEX_NONE) return;
+	const bool bGround = M.Height < 0.05f;
+	// the nose wheel's steer: the way the nose wheel actually travels against the fuselage's line (pushed: backwards)
+	const FVector2f DN = M.Nose - M.PrevNose, Body = (M.Nose - M.Main).GetSafeNormal();
+	const float DistN = DN.Size(), DistM = (M.Main - M.PrevMain).Size();
+	float Want = 0.f;
+	if (bGround && DistN > 0.002f)
+	{
+		FVector2f Trav = DN / DistN; if (FVector2f::DotProduct(Trav, Body) < 0.f) Trav = -Trav;   // (backwards in the push)
+		const float A = FMath::RadiansToDegrees(FMath::Atan2(Body.X * Trav.Y - Body.Y * Trav.X, FVector2f::DotProduct(Body, Trav)));
+		Want = FMath::Clamp(A, -75.f, 75.f);   // (the A320's tiller: 75 degrees each way)
+	}
+	else if (bGround) Want = M.Steer;              // (stopped: the wheel stays where it was)
+	M.Steer = FMath::FInterpTo(M.Steer, Want, Dt, 3.f);
+	// rolling by the distance (in the air they stop: spun up again at touchdown)
+	if (bGround) { M.RollN += FMath::RadiansToDegrees(DistN * 100.f / NoseR); M.RollM += FMath::RadiansToDegrees(DistM * 100.f / MainR); }
+	// the struts: hanging out in the air, compressing on touchdown with a little settle (a damped spring)
+	const float Target = bGround ? 0.f : 1.f;
+	M.ExtV += ((Target - M.Ext) * 90.f - M.ExtV * 11.f) * Dt; M.Ext = FMath::Clamp(M.Ext + M.ExtV * Dt, -0.25f, 1.f);
+	if (bGround && !M.bGearPrev && M.Height < 0.05f && M.Phase == EPhase::Rollout) ADP_LOG(TEXT("Traffic: %s touchdown - the main gear compresses, the wheels spin up"), *M.Reg);
+	M.bGearPrev = bGround;
+	M.PrevNose = M.Nose; M.PrevMain = M.Main;
+	const float S = SteerSign * M.Steer;
+	const FQuat QS(FVector::UpVector, FMath::DegreesToRadians(S));
+	B->MoveGroup(M.GNoseW, FTransform(QS * FQuat(FVector::ForwardVector, FMath::DegreesToRadians(-M.RollN)), NoseAxle - FVector(0, 0, ExtNose * M.Ext)));
+	if (M.GNoseLeg != INDEX_NONE) B->MoveGroup(M.GNoseLeg, FTransform(QS, NoseLegAt - FVector(0, 0, ExtNose * M.Ext)));
+	for (int32 s = 0; s < 2; ++s)
+	{
+		if (M.GMainW[s] != INDEX_NONE) B->MoveGroup(M.GMainW[s], FTransform(FQuat(FVector::ForwardVector, FMath::DegreesToRadians(-M.RollM)), MainAxle[s] - FVector(0, 0, ExtMain * M.Ext)));
+		if (M.GMainLeg[s] != INDEX_NONE) B->MoveGroup(M.GMainLeg[s], FTransform(MainLegAt[s] - FVector(0, 0, ExtMain * M.Ext)));
+	}
+	B->FlushMoves();
 }

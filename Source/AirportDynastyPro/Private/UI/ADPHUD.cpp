@@ -5854,16 +5854,26 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 					// (-ShotHour=H: the site's hour for the pictures - day 13, night 22: the lamps and beacons in the dark)
 					float H = -1.f; if (FParse::Value(FCommandLine::Get(), TEXT("ShotHour="), H) && ASunClock::HourOverride != H) { ASunClock::HourOverride = H; ASunClock::Refresh(); }
 					FVector At; float Yaw = 0.f; bool bHooked = false; ATugs* Tg = ATugs::Get(GetWorld());
-					if (!Tg || !Tg->WatchSpot(At, Yaw, &bHooked)) return;
+					bool bAtGate = false; if (!Tg || !Tg->WatchSpot(At, Yaw, &bHooked, &bAtGate)) return;
 					const float PX = At.X / 100.f, PY = -At.Y / 100.f;
 					// hooked on: straight down from 45 m over the towbar - the tug, the bar and the aircraft's nose in one picture
-					if (bHooked) { const FVector Fw = FRotator(0.f, Yaw, 0.f).Vector(); Fly(PX + Fw.X * 5.f, PY - Fw.Y * 5.f, 32.f, PX + Fw.X * 5.5f, PY - Fw.Y * 5.5f, -89.f); return; }   // (centred between the tug and the tow fitting: the whole tug, its bar and the aircraft's nose in view)
+					// (at the aircraft: low from its left front - the handler at the towbar head and the nose gear, the tug, the nose -
+					//  a top-down view hid the crew under the nose)
+					if (bHooked)
+					{
+						const FVector Fw = FRotator(0.f, Yaw, 0.f).Vector();                 // (the tug faces the aircraft)
+						const FVector Head = At + Fw * 790.f, AcF = -Fw, AcL = FVector(AcF.Y, -AcF.X, 0.f) * (bAtGate ? -1.f : 1.f);   // (at the gate from its right: its left is the jetway, the terminal)   // (owner 2026-11-21: he likes this angle for the pushback - from the aircraft's left)
+						const FVector Cam = Head + AcL * 1300.f + AcF * 900.f;
+						Fly(Cam.X / 100.f, -Cam.Y / 100.f, 4.5f, Head.X / 100.f, -Head.Y / 100.f, -14.f); return;
+					}   // (centred between the tug and the tow fitting: the whole tug, its bar and the aircraft's nose in view)
 					const FVector Side = FRotator(0.f, Yaw + 60.f, 0.f).Vector();
-					Fly(PX + Side.X * 18.f, PY - Side.Y * 18.f, 9.f, PX, PY, -22.f);
+					Fly(PX + Side.X * 14.f, PY - Side.Y * 14.f, 6.f, PX, PY, -20.f);   // (14 m off, 6 m up: the crew big enough to see)
 				};
 				Spots.Reset();
+				// (24 pictures: the crew's whole cycle - in, coupling by hand, the push, the pin shown, home - takes longer)
 				static const TCHAR* TugNames[] = {TEXT("Tug_01"), TEXT("Tug_02"), TEXT("Tug_03"), TEXT("Tug_04"), TEXT("Tug_05"), TEXT("Tug_06"), TEXT("Tug_07"), TEXT("Tug_08"),
-					TEXT("Tug_09"), TEXT("Tug_10"), TEXT("Tug_11"), TEXT("Tug_12"), TEXT("Tug_13"), TEXT("Tug_14"), TEXT("Tug_15"), TEXT("Tug_16")};
+					TEXT("Tug_09"), TEXT("Tug_10"), TEXT("Tug_11"), TEXT("Tug_12"), TEXT("Tug_13"), TEXT("Tug_14"), TEXT("Tug_15"), TEXT("Tug_16"),
+					TEXT("Tug_17"), TEXT("Tug_18"), TEXT("Tug_19"), TEXT("Tug_20"), TEXT("Tug_21"), TEXT("Tug_22"), TEXT("Tug_23"), TEXT("Tug_24")};
 				for (const TCHAR* N : TugNames) Spots.Add({N, WatchTug});
 			}
 			for (int32 k = 0; k < Spots.Num(); ++k)

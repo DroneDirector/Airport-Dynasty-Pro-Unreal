@@ -1,1 +1,1 @@
-{"source":"Art/A320/A320.glb from Tools/BabylonExport, the node tree only","assetNames":"node","roots":[0],"nodes":[{"mesh":0,"name":"A320"}]}
+{"source":"Art/A320/A320.glb from Tools/BabylonExport, the node tree only","assetNames":"node","roots":[0,1,2,3,4,5,6],"nodes":[{"mesh":0,"name":"A320"},{"mesh":1,"name":"NoseWheels"},{"mesh":2,"name":"NoseLeg"},{"mesh":3,"name":"MainWheels_L"},{"mesh":4,"name":"MainWheels_R"},{"mesh":5,"name":"MainLeg_L"},{"mesh":6,"name":"MainLeg_R"}]}

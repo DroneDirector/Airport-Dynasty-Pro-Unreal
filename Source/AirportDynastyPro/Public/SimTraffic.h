@@ -41,8 +41,14 @@ private:
 		float Speed = 0.f, Height = 0.f, Clock = 0.f;
 		TWeakObjectPtr<ABabylonModel> Model;
 		// its lights (glows by material, no real lights - the lights rule): navigation, beacons, strobes
-		TArray<TPair<class UStaticMeshComponent*, class UMaterialInstanceDynamic*>> Lights;   // nav L, nav R, tail, beacon top, beacon belly, strobe L, strobe R
+		TArray<TPair<class UStaticMeshComponent*, class UMaterialInstanceDynamic*>> Lights;
+		// its gear (Art/A320/make_a320_parts.py): the nose wheels and lower nose leg steer; all wheels roll; the struts hang
+		// extended in the air and compress on touchdown with a little settle
+		int32 GNoseW = INDEX_NONE, GNoseLeg = INDEX_NONE, GMainW[2] = {INDEX_NONE, INDEX_NONE}, GMainLeg[2] = {INDEX_NONE, INDEX_NONE};
+		bool bGear = false, bGearPrev = false; float Steer = 0.f, RollN = 0.f, RollM = 0.f, Ext = 0.f, ExtV = 0.f;
+		FVector2f PrevNose = FVector2f::ZeroVector, PrevMain = FVector2f::ZeroVector;   // nav L, nav R, tail, beacon top, beacon belly, strobe L, strobe R
 	};
+	TSet<FString> Undocked, TugCalled;   // (departures whose jetway was sent back to rest)
 	TArray<FMove> Moves;
 	FAirfieldData F;
 	float Poll = 0.f;
@@ -54,5 +60,6 @@ private:
 	void Pose(FMove& M);
 	void AddLights(FMove& M);
 	void Blink(FMove& M);
+	void Gear(FMove& M, float Dt);
 	bool RunwayToX1() const;   // the take-off and landing direction from the real wind (true: towards the runway's x1 end)
 };

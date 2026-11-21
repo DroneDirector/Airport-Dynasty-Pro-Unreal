@@ -162,7 +162,7 @@ void UADPSim::CareerSelfTest()
 			{
 				const FString Reg = ADPEconomy::BuyAircraft(World, Me(), TEXT("A320"), true, Here, T);
 				FADPRoute R; R.Id = FString::Printf(TEXT("r-shot%d"), i); R.AirlineId = Me(); R.Stops = {Here, To[i]}; R.TypeId = TEXT("A320"); R.OpenedAt = T; World.Routes.Add(R);
-				if (FADPAircraft* A = World.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == Reg; })) { A->RouteId = R.Id; A->Location = Here; A->ReadyAt = T + FTimespan::FromSeconds(40.0 + i * 70.0); }
+				if (FADPAircraft* A = World.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == Reg; })) { A->RouteId = R.Id; A->Location = Here; A->ReadyAt = T + FTimespan::FromSeconds(5.0 + i * 60.0); /* (owner 2026-11-21: a test - straight away, no waiting) */ }
 			}
 			ADP_LOG(TEXT("SimTrafficShot: two A320s about to leave %s"), *Here);
 			return false;

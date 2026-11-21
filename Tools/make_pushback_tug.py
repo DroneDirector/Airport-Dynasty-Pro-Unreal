@@ -290,15 +290,21 @@ def window(name, c, s):
 wz, wh = (WIN_Z0 + WIN_Z1) / 2, WIN_Z1 - WIN_Z0
 window('WinFront', (CABU_X1, (CAB_Y0 + CAB_Y1) / 2, wz), (0.12, CAB_Y1 - CAB_Y0 - 0.22, wh))
 window('WinRear', (CABU_X0, (CAB_Y0 + CAB_Y1) / 2, wz + 0.1), (0.12, CAB_Y1 - CAB_Y0 - 0.30, wh - 0.30))
-window('WinDoor', (0.20, CAB_Y1, wz), (0.62, 0.12, wh))                  # the door's window (left side)
 window('WinLeftRear', (-0.38, CAB_Y1, wz), (0.42, 0.12, wh))
 window('WinRight', (0.0375, CAB_Y0, wz), (0.925, 0.12, wh))     # (its front edge at 500: flat panel for the mirror plate)
-# door: panel line, hinges on the front post, handles outside and in
-box('DoorSeamF', (0.56, CAB_Y1 + 0.0015, (CFLOOR + CABH) / 2), (0.006, 0.006, CABH - CFLOOR - 0.12), M_DARK)
-box('DoorSeamR', (-0.15, CAB_Y1 + 0.0015, (CFLOOR + CABH) / 2), (0.006, 0.006, CABH - CFLOOR - 0.12), M_DARK)
-for z in (CFLOOR + 0.25, CABH - 0.35): cyl(f'DoorHinge_{z}', (0.57, CAB_Y1 + 0.015, z), 0.015, 0.10, 'z', M_STEEL, 12)
+# the door (owner 2026-11-21: the crew climb in and out - a real door, no painted seams): the opening cut through the cab's
+# upper and lower walls; the leaf a 50 mm pressed panel hanging on two hinges on the front post, swinging out forward
+# (Tugs.cpp turns the parts named Door*/WinDoorGlass round the hinge line x 0.57, y CAB_Y1 + 0.015)
+DOOR_X0, DOOR_X1, DOOR_Z0, DOOR_Z1 = -0.15, 0.56, CFLOOR + 0.08, CABH - 0.12
+for tgt in (cab, low):
+    dc = box('DoorCut', ((DOOR_X0 + DOOR_X1) / 2, CAB_Y1, (DOOR_Z0 + DOOR_Z1) / 2), (DOOR_X1 - DOOR_X0, 0.24, DOOR_Z1 - DOOR_Z0), M_DARK)
+    cut(tgt, dc)
+leaf = box('DoorLeaf', ((DOOR_X0 + DOOR_X1) / 2, CAB_Y1 - 0.025, (DOOR_Z0 + DOOR_Z1) / 2), (DOOR_X1 - DOOR_X0 - 0.012, 0.05, DOOR_Z1 - DOOR_Z0 - 0.012), M_PAINT, bevel=0.008, segs=2)
+lwc = box('DoorLeafWinCut', (0.20, CAB_Y1 - 0.025, wz), (0.56, 0.12, wh - 0.06), M_DARK, bevel=0.03, segs=3); cut(leaf, lwc)
+box('WinDoorGlass', (0.20, CAB_Y1 - 0.025, wz), (0.58, 0.010, wh - 0.04), M_GLASS, bevel=0.004, segs=2)   # (10 mm pane, 10 mm into the leaf's frame)
+for z in (DOOR_Z0 + 0.22, DOOR_Z1 - 0.25): cyl(f'DoorHinge_{z}', (0.57, CAB_Y1 + 0.015, z), 0.015, 0.10, 'z', M_STEEL, 12)
 box('DoorHandleOut', (-0.05, CAB_Y1 + 0.03, DECK - 0.14), (0.14, 0.025, 0.035), M_STEEL, bevel=0.008)
-for x in (-0.11, 0.01): box(f'DoorHandleMount_{x}', (x, CAB_Y1 + 0.015, DECK - 0.14), (0.02, 0.03, 0.03), M_STEEL)
+for x in (-0.11, 0.01): box(f'DoorHandleMount_{x}', (x, CAB_Y1 + 0.0075, DECK - 0.14), (0.02, 0.015, 0.03), M_STEEL)
 box('DoorHandleIn', (-0.05, CAB_Y1 - 0.07, DECK - 0.05), (0.12, 0.02, 0.03), M_PLAST, bevel=0.006)
 box('DoorPanelIn', (0.20, CAB_Y1 - 0.055, (CFLOOR + DECK) / 2 + 0.1), (0.66, 0.01, DECK - CFLOOR - 0.1), M_PLAST, bevel=0.005)
 # roof: drip rail round the edge, beacon on its base plate, work lamps on brackets, horn, antenna

@@ -648,7 +648,7 @@ AActor* AJetwayRigs::AircraftAtStand(int32 J, FString* Type) const
 		for (const FName& T : It->Tags)
 		{
 			const FString S = T.ToString(); int32 Slash;
-			if (!S.FindLastChar(TEXT('/'), Slash) || FVector::Dist2D(It->GetActorLocation(), Dr) > 4000.f) continue;
+			if (!S.FindLastChar(TEXT('/'), Slash) || S.StartsWith(TEXT("MOVE/")) || S.StartsWith(TEXT("SIM/")) || FVector::Dist2D(It->GetActorLocation(), Dr) > 4000.f) continue;   // (MOVE/ and SIM/ carry a registration, not a type)
 			if (Type) *Type = S.Mid(Slash + 1);
 			return *It;
 		}
