@@ -4,6 +4,7 @@
 #include "Site.h"
 #include "SunClock.h"
 #include "Puddles.h"
+#include "EngineUtils.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Globe.h"
 #include "Engine/StaticMesh.h"
@@ -16,6 +17,9 @@
 #include "Serialization/JsonSerializer.h"
 
 float ASiteTrees::TreeRadiusKm = 4.f;
+// (owner, 2026-11-21: "all year round for now") the beeches stay summer green all year, never bare; true brings back the
+// seasons (fresh spring green, autumn gold and brown, bare December-March)
+static constexpr bool bSeasonalBeech = false;
 
 namespace
 {
@@ -100,13 +104,22 @@ void ASiteTrees::BeginPlay()
 	Stream(true);
 }
 
+float ASiteTrees::SnowOnGround() const
+{
+	for (TActorIterator<APuddles> It(GetWorld()); It; ++It) return FMath::Clamp(It->GetSnowOnGrassCm() / 5.f, 0.f, 1.f);
+	return 0.f;
+}
+
 void ASiteTrees::Season()
 {
 	// the airport's own date (or the one chosen in Settings): beech bare Dec-Mar, fresh in spring, autumn colours Sep-Nov
 	const FDateTime L = ADPSite::LocalNow();
 	const int32 Day = ASunClock::DayOverride >= 0 ? ASunClock::DayOverride : L.GetDayOfYear();
-	if (Day == SeasonDay) return;
-	SeasonDay = Day;
+	// (owner, 2026-11-21: "only snow on the trees if there's actually snow on the ground in the game") the branches whiten
+	// with the snow lying on the grass (the snow layer's own measure), 5 cm and more is full; no snow on the ground, none here
+	const float Snow = SnowOnGround();
+	if (Day == SeasonDay && FMath::Abs(Snow - SnowShown) < 0.05f) return;
+	SeasonDay = Day; SnowShown = Snow;
 	FLinearColor Leaf(0.11f, 0.22f, 0.05f);
 	if (Day < 110) Leaf = FLinearColor(0.11f, 0.22f, 0.05f);              // (bare anyway)
 	else if (Day < 150) Leaf = FLinearColor(0.22f, 0.40f, 0.07f);         // fresh spring green (late April - May)
@@ -114,23 +127,28 @@ void ASiteTrees::Season()
 	else if (Day < 275) Leaf = FLinearColor(0.22f, 0.24f, 0.05f);         // turning (September)
 	else if (Day < 305) Leaf = FLinearColor(0.40f, 0.20f, 0.045f);        // beech gold and copper (October: deep, not orange)
 	else Leaf = FLinearColor(0.32f, 0.16f, 0.06f);                        // brown, the last leaves (November)
+	if (!bSeasonalBeech) Leaf = FLinearColor(0.10f, 0.21f, 0.05f);   // (summer green all year for now)
 	const bool bWinter = Day >= 335 || Day < 100;
 	const FLinearColor Needles = bWinter ? FLinearColor(0.035f, 0.075f, 0.04f) : FLinearColor(0.045f, 0.10f, 0.045f);
+	const FLinearColor White(0.80f, 0.82f, 0.86f);
+	auto Snowy = [&](const FLinearColor& C, float Most) { return FMath::Lerp(C, White, Snow * Most); };
 	for (UMaterialInstanceDynamic* M : Mats)
 	{
 		const FString N = M && M->Parent ? M->Parent->GetName() : FString();
-		if (N.Contains(TEXT("Leaves"))) Tint(M, Leaf);
-		else if (N.Contains(TEXT("Needles"))) Tint(M, Needles);
-		else if (N.Contains(TEXT("BarkBeech"))) Tint(M, FLinearColor(0.32f, 0.31f, 0.29f));
-		else if (N.Contains(TEXT("Bark"))) Tint(M, FLinearColor(0.18f, 0.11f, 0.07f));
+		if (N.Contains(TEXT("Leaves"))) Tint(M, Snowy(Leaf, 0.55f));
+		else if (N.Contains(TEXT("Needles"))) Tint(M, Snowy(Needles, 0.55f));
+		else if (N.Contains(TEXT("BarkBeech"))) Tint(M, Snowy(FLinearColor(0.32f, 0.31f, 0.29f), 0.35f));
+		else if (N.Contains(TEXT("Bark"))) Tint(M, Snowy(FLinearColor(0.18f, 0.11f, 0.07f), 0.25f));
 	}
-	// leaves on or off: the blocks in view are drawn again with the season's beech
-	for (auto& B : Blocks) if (B.Value.bIn) { Hide(B.Value); Show(B.Key, B.Value); }
+	// leaves on or off: the blocks in view are drawn again with the season's beech - only when that changes (a colour
+	// change alone is the materials above, no rebuild: no hitch)
+	const bool bBare = bSeasonalBeech && (Day >= 335 || Day < 100);
+	if (bBare != bBareShown) { bBareShown = bBare; for (auto& B : Blocks) if (B.Value.bIn) { Hide(B.Value); Show(B.Key, B.Value); } }
 }
 
 void ASiteTrees::Show(const FIntPoint& Key, FBlock& B)
 {
-	const bool bBare = SeasonDay >= 335 || SeasonDay < 100;
+	const bool bBare = bSeasonalBeech && (SeasonDay >= 335 || SeasonDay < 100);
 	TArray<TArray<FTransform>> Xf; Xf.SetNum(UE_ARRAY_COUNT(TreeNames));
 	for (int32 i = B.First; i < B.First + B.Num; ++i)
 	{
@@ -190,5 +208,5 @@ void ASiteTrees::Tick(float Dt)
 	Clock = 0.f;
 	Stream(false);
 	static float SeasonClock = 0.f;
-	if ((SeasonClock += 0.5f) >= 60.f) { SeasonClock = 0.f; Season(); }
+	if ((SeasonClock += 0.5f) >= 5.f) { SeasonClock = 0.f; Season(); }   // (the date and the snow on the ground: cheap, colours only)
 }

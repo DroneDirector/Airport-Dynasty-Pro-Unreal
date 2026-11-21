@@ -42,6 +42,9 @@ private:
 	int32 Count = 0;
 	float Clock = 0.f;
 	int32 SeasonDay = -1;
+	float SnowShown = -1.f;      // the snow on the branches now (0..1), from the snow on the ground
+	bool bBareShown = false;
+	float SnowOnGround() const;
 	bool Load();
 	void Stream(bool bAll);
 	void Show(const FIntPoint& Key, FBlock& B);
