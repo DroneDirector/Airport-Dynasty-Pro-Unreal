@@ -230,7 +230,9 @@ S.box(0.0, 6.0, 11.4, 12.0, 30.0, 52.0, W); S.box(0.0, 6.0, 11.32, 11.4, 30.0, 5
 # ============ tax free and the airside landing, their west 16 m (x 56..72) ============
 S.box(56.0, 72.0, 5.99, 6.01, 30.0, 42.0, 'MI_T_tile', sides=('+y',))
 S.box(56.0, 72.0, 5.63, 5.99, 30.0, 42.0, 'MI_T_concrete', sides=('-y',))
-# the airside landing: the herringbone wood the bar had. Its stairwell (S-01, x 58..66, z 44..50, owner 2026-11-16) is
+# the airside landing: the gate walkway's own dark wood (M_WoodFloor, owner 2026-11-21: "the same kind of color as the
+# hallway at the gates" - the bar's golden herringbone was out of tone; world-laid planks, so lined up with the walkway's
+# and the bar's and never stretched; the material keeps it to the faces that look up). Its stairwell (S-01, x 58..66, z 44..50, owner 2026-11-16) is
 # closed again since the stairs went (owner 2026-11-21: Floor 2 only by the escalators): the same 3 x 3 panels as when it
 # was open (so the panels round it are exactly as before - same corners, same world-space UVs), the middle one now laid
 # too, in the same wood over the same concrete; the opening's edge strips and its guardrail are gone
@@ -238,7 +240,7 @@ FSTAIR = (58.0, 66.0, 44.0, 50.0)                                               
 xs = [56.0, FSTAIR[0], FSTAIR[1], 72.0]; zs = [42.0, FSTAIR[2], FSTAIR[3], 52.0]
 for xa, xb in zip(xs, xs[1:]):
     for za, zb in zip(zs, zs[1:]):
-        S.box(xa, xb, 5.99, 6.01, za, zb, 'MI_T_herring', sides=('+y',))
+        S.box(xa, xb, 5.99, 6.01, za, zb, 'M_WoodFloor', sides=('+y',))
         S.box(xa, xb, 5.63, 5.99, za, zb, 'MI_T_concrete', sides=('-y',))
 x0, x1, z0, z1 = FSTAIR
 # the airside hall's ceiling below (x 50..90, z 42..52, its off-white at +5.36), closed over the old stairwell the same way
