@@ -132,6 +132,7 @@ int32 ADPWorldData::NumAirports() { return GAirports.Num(); }
 const FADPAirportInfo* ADPWorldData::Airport(const FString& Code) { const int32* I = GByCode.Find(Code.ToUpper()); return I ? &GAirports[*I] : nullptr; }
 void ADPWorldData::ForEachAirport(TFunctionRef<void(const FADPAirportInfo&)> F) { for (const FADPAirportInfo& A : GAirports) F(A); }
 const TArray<FADPTypeInfo>& ADPWorldData::Types() { return GTypes; }
+bool ADPWorldData::HasModel(const FString& TypeId) { static const TCHAR* Built[] = {TEXT("A320")}; for (const TCHAR* T : Built) if (TypeId == T) return true; return false; }
 const FADPTypeInfo* ADPWorldData::Type(const FString& Id) { return GTypes.FindByPredicate([&](const FADPTypeInfo& T) { return T.Id == Id; }); }
 
 double ADPWorldData::DistanceNm(double Lat1, double Lon1, double Lat2, double Lon2)

@@ -55,6 +55,8 @@ namespace ADPWorldData
 	void ForEachAirport(TFunctionRef<void(const FADPAirportInfo&)> F);
 	const FADPTypeInfo* Type(const FString& Id);
 	const TArray<FADPTypeInfo>& Types();
+	/** Types with a finished high-quality 3D model (owner 2026-11-21: only those can be bought - for now the A320). */
+	bool HasModel(const FString& TypeId);
 	double DistanceNm(double Lat1, double Lon1, double Lat2, double Lon2);
 	double BearingDeg(double Lat1, double Lon1, double Lat2, double Lon2);
 	/** The point a fraction F (0..1) of the way along the great circle. */

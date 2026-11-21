@@ -58,6 +58,7 @@ double UADPSim::StartingMoney(const FString& Difficulty)
 		Crew += ADPStaff::GoingRate(R, TEXT("CH")) * 9.0;
 	const double Hard = Used + Crew + 2.5e6;
 	const FString D = Difficulty.ToLower();
+	if (D == TEXT("test")) return 5e9;            // (owner 2026-11-21: for the test, money without limits - -TestMoney or difficulty "test")
 	if (D == TEXT("easy")) return Hard * 3.0;     // (a lot of freedom; the starter rule still allows one aircraft at first)
 	if (D == TEXT("hard")) return Hard;
 	return Hard * 1.4;                            // normal: a little more freedom
@@ -85,7 +86,7 @@ void UADPSim::NewCareer(const FString& Difficulty, const FString& AirlineName)
 	{
 		const FDateTime T = Now();
 		World = FADPWorld();
-		World.Slot = SiteSlot(); World.Difficulty = Difficulty.IsEmpty() ? TEXT("normal") : Difficulty.ToLower();
+		World.Slot = SiteSlot(); World.Difficulty = FParse::Param(FCommandLine::Get(), TEXT("TestMoney")) ? TEXT("test") : Difficulty.IsEmpty() ? TEXT("normal") : Difficulty.ToLower();
 		const FString Icao = SiteIcao();
 		const FADPAirportInfo* Home = ADPWorldData::Airport(Icao);
 		FADPAirline Me;

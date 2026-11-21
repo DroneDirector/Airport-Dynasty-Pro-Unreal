@@ -133,6 +133,7 @@ const DIFFS: [string, string, string][] = [
   ['normal', 'Normal', 'Real-world prices and margins. One aircraft and a little room.'],
   ['hard', 'Hard', 'Thin margins, pricier aircraft. One used aircraft, its crew, little spare.'],
   ['extreme', 'Extreme', 'Every dollar counts. Markets swing hard. For experts.'],
+  ['test', 'Test (no limits)', 'For testing: $5 billion and plenty of people to hire, so everything can run.'],
 ];
 function renderStep(n: number, side: string) {
   const r = Wy.root; if (!r) return;

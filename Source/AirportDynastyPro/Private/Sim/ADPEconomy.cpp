@@ -157,7 +157,7 @@ void FADPEconomyModule::Advance(UADPSim& Sim, const FDateTime& From, const FDate
 	if (WM.UsedMarket.Num() == 0 || (To.GetDayOfWeek() == EDayOfWeek::Monday && To.GetHour() == 1))
 	{
 		WM.UsedMarket.Reset();
-		const TArray<FADPTypeInfo>& Ts = ADPWorldData::Types();
+		TArray<FADPTypeInfo> Ts; for (const FADPTypeInfo& Ty : ADPWorldData::Types()) if (ADPWorldData::HasModel(Ty.Id)) Ts.Add(Ty);   // (high-quality models only)
 		for (int32 i = 0; Ts.Num() && i < 8; ++i)
 		{
 			const FADPTypeInfo& T = Ts[Rng.RandRange(0, Ts.Num() - 1)];
@@ -191,6 +191,7 @@ FString ADPEconomy::BuyAircraft(FADPWorld& W, const FString& AirlineId, const FS
 	const FADPTypeInfo* T = ADPWorldData::Type(TypeId);
 	FADPAirline* Al = W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == AirlineId; });
 	if (!T || !Al) return FString();
+	if (Al->bPlayer && !ADPWorldData::HasModel(TypeId)) return FString();   // (only aircraft with a high-quality model)
 	const double Price = T->ValueM * 1e6, Rent = LeaseRate(TypeId);
 	const double Now = bLease ? Rent * 2.0 : Price;
 	if (Al->Balance < Now) return FString();

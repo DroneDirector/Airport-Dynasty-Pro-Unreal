@@ -116,7 +116,8 @@ void ADPStaff::FillPool(FADPWorld& W, FRandomStream& Rng)
 	for (const TCHAR* R : Roles)
 	{
 		int32 InPool = 0; for (const FADPPerson& P : W.People) if (P.AirlineId.IsEmpty() && P.Role == R) ++InPool;
-		const int32 Want = FString(R) == TEXT("fa") || FString(R) == TEXT("ground") ? 12 : 8;
+		int32 Want = FString(R) == TEXT("fa") || FString(R) == TEXT("ground") ? 12 : 8;
+		if (W.Difficulty == TEXT("test")) Want *= 5;   // (the test: plenty of people to hire for everything)
 		for (int32 k = InPool; k < Want; ++k) W.People.Add(MakePerson(R, Country, Rng));
 	}
 }

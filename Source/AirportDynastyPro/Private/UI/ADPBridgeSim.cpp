@@ -119,7 +119,7 @@ FString UADPBridge::Sim(const FString& Action, const FString& Arg)
 			Lv.Add(MakeShared<FJsonValueObject>(X));
 		}
 		O->SetArrayField(TEXT("leave"), Lv);
-		TArray<TSharedPtr<FJsonValue>> Ty; for (const FADPTypeInfo& T : ADPWorldData::Types()) { TSharedRef<FJsonObject> X = MakeShared<FJsonObject>(); X->SetStringField(TEXT("id"), T.Id); X->SetStringField(TEXT("name"), T.Name); Ty.Add(MakeShared<FJsonValueObject>(X)); }
+		TArray<TSharedPtr<FJsonValue>> Ty; for (const FADPTypeInfo& T : ADPWorldData::Types()) if (ADPWorldData::HasModel(T.Id)) { TSharedRef<FJsonObject> X = MakeShared<FJsonObject>(); X->SetStringField(TEXT("id"), T.Id); X->SetStringField(TEXT("name"), T.Name); Ty.Add(MakeShared<FJsonValueObject>(X)); }
 		O->SetArrayField(TEXT("types"), Ty);
 		return Out(O);
 	}
