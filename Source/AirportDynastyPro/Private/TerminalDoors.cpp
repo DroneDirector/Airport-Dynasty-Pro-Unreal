@@ -205,6 +205,7 @@ void ATerminalDoors::BuildDoor(const FPlanDoor& D, const FTerminalPlan& Plan)
 
 TArray<FVector> ATerminalDoors::Openers;
 bool ATerminalDoors::bHoldSecurity = false;
+bool ATerminalDoors::bHoldEntrances = false;
 
 void ATerminalDoors::Tick(float DeltaSeconds)
 {
@@ -231,6 +232,9 @@ void ATerminalDoors::Tick(float DeltaSeconds)
 		// (owner 2026-11-21: the security doors open as soon as passengers are in the terminal and stay open until every one
 		//  of them is out of the main hall and through security - they walked into the closed doors)
 		if (bHoldSecurity && R.D.Id.StartsWith(TEXT("D-F1-SECURITY"))) bNear = true;
+		// (owner 2026-11-21: the entrance sliding doors stay open while there are passengers in or around the terminal, and
+		//  close only when the airport is empty - or, later, when the player closes them)
+		if (bHoldEntrances && R.D.Id.StartsWith(TEXT("D-F1-ENTR")) && R.Slides.Num()) bNear = true;
 		const float Want = bNear ? 1.f : 0.f;
 		if (FMath::Abs(R.K - Want) < 0.001f) continue;
 		const float Speed = R.Slides.Num() ? 1.8f : 1.4f;

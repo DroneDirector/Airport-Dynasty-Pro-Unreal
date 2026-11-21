@@ -30,6 +30,8 @@ public:
 	static TArray<FVector> Openers;
 	/** Passengers still on their way through check-in and security (PaxFlow): the security doors stand open until the last one is through. */
 	static bool bHoldSecurity;
+	/** Passengers about (PaxFlow): the entrance doors into the Grand Hall stand open until the airport is empty (a player close switch later). */
+	static bool bHoldEntrances;
 
 private:
 	#pragma region Door rigs

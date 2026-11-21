@@ -1313,6 +1313,8 @@ void APaxFlow::Tick(float Dt)
 			if (!bPast) { bHold = true; break; }
 		}
 		ATerminalDoors::bHoldSecurity = bHold;
+		bool bAny = false; for (const FPx& Q : Pax) if (Q.St != EPx::Gone) { bAny = true; break; }
+		ATerminalDoors::bHoldEntrances = bAny;
 	}
 	for (int32 i = 0; i < Pax.Num(); ++i)
 	{
