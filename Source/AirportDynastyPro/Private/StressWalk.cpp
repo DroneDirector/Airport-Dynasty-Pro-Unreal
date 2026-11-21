@@ -11,6 +11,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Misc/CoreDelegates.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "JetwayRigs.h"
 #include "SunClock.h"
 #include "BabylonModel.h"
@@ -96,7 +98,7 @@ namespace ADPStressWalkInternal
 	int32 WalkPart = -1, WalkPoint = 0, WalkSide = 1;
 	TArray<FWalkPart> WalkParts;
 	FString WalkEndNote;
-	float WalkHourWas = -1.f; int32 WalkJet = INDEX_NONE; bool WalkToCab = false;
+	float WalkHourWas = -1.f, WalkHourBefore = -1.f; int32 WalkJet = INDEX_NONE; bool WalkToCab = false;
 
 	FVector WalkWorld(const FVector& PlanP) { return FTerminalPlan::ToWorld(PlanP.X, PlanP.Y, PlanP.Z); }
 	FVector PartPoint(const FWalkPart& Pt, int32 I) { return Pt.bWorld ? Pt.Points[I] : WalkWorld(Pt.Points[I]); }
@@ -411,13 +413,34 @@ void ADPStressWalk::Tick(UWorld* W, APlayerController* PC, float Dt)
 		if (bLoaded) WalkWait -= Dt;
 		if (WalkWait <= 0.f && bWalkCoaches) { WalkParts = CoachRoute(W); WalkHourWas = ASunClock::HourOverride; }
 		if (WalkWait <= 0.f && bWalkAll) { FWalkPart D{TEXT("day again for the coaches' walk"), EWalkKind::Day, {}, 4.f, 0.f}; WalkParts.Add(D); WalkParts.Append(CoachRoute(W)); }
+		if (WalkWait <= 0.f)
+		{
+			// (owner, 2026-11-21: "always do a stress test during daytime, only run nighttime if there is a real reason for it")
+			// every walk runs in daylight at the site (13:00 local unless -WalkHour=H), whatever the real clock says; the night
+			// parts are left out unless -WalkNight is given
+			WalkHourBefore = ASunClock::HourOverride;
+			float H = 13.f; FParse::Value(FCommandLine::Get(), TEXT("WalkHour="), H);
+			ASunClock::HourOverride = FMath::Clamp(H, 0.f, 23.99f); ASunClock::Refresh(); WalkHourWas = ASunClock::HourOverride;
+			if (!FParse::Param(FCommandLine::Get(), TEXT("WalkNight")))
+			{
+				TArray<FWalkPart> Kept; bool bNight = false;
+				for (const FWalkPart& P : WalkParts)
+				{
+					if (P.Kind == EWalkKind::Night) { bNight = true; continue; }
+					if (P.Kind == EWalkKind::Day) { bNight = false; continue; }
+					if (!bNight) Kept.Add(P);
+				}
+				WalkParts = MoveTemp(Kept);
+			}
+			ADP_LOG(TEXT("Stress walk: by day at %.1f h local%s"), ASunClock::HourOverride, FParse::Param(FCommandLine::Get(), TEXT("WalkNight")) ? TEXT(", then the night parts (-WalkNight)") : TEXT(" (no night parts)"));
+		}
 		if (WalkWait <= 0.f) { bWalkStarted = true; WalkPart = 0; WalkPartT = 0.f; ADPPerfLog::BeginSection(bWalkAll ? TEXT("full stress walk (terminal + coaches)") : bWalkCoaches ? TEXT("coaches stress walk") : TEXT("stress walk")); ADPPerfLog::SetAudit(ADPPerfLog::SceneAudit(W)); }
 		return;
 	}
 	if (WalkPart >= WalkParts.Num())
 	{
 		bWalkOn = false;
-		ASunClock::HourOverride = WalkHourWas; ASunClock::Refresh();   // (the night part over: the clock as it was)
+		ASunClock::HourOverride = WalkHourBefore; ASunClock::Refresh();   // (the walk over: the clock as it was before it)
 		const FString Sum = ADPPerfLog::EndSection();
 		ADP_LOG(TEXT("Stress walk: done - %s"), *Sum);
 		WalkEndNote = TEXT("STRESS WALK FINISHED\n") + Sum + TEXT("\nEvery slow frame and where it happened: Saved/Logs/ADP-Perf.log"); WalkEndNoteT = 12.f;

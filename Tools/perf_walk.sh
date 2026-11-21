@@ -6,7 +6,7 @@
 #   bash Tools/perf_walk.sh offscreen  the packaged build drawn off-screen (when Windows is locked: it slows a window down)
 #   bash Tools/perf_walk.sh editor     the editor build (only to check the route; its frames aren't the game's)
 #   ... coaches                        the coaches' own walk instead (to-do 146: car park, zebra crossing, along the coaches,
-#                                      into one and down its aisle, the main hall; day then night) - with any of the above
+#                                      into one and down its aisle, the main hall; by day - 13:00 site time; XTRA=-WalkNight adds the night parts, only for a real reason) - with any of the above
 #   ... both                           the terminal walk then the coaches walk, in one go
 #   ... 4k                             drawn off-screen at 3840x2160 (Full HD: offscreen)
 #   ... screen                         his own screen in real full screen (-fullscreen)
