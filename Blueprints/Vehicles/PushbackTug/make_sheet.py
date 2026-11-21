@@ -34,6 +34,7 @@ rows = [('OUTSIDE', ACC), ('Length 5105 · width 2515 · deck 1321 · height wit
         ('Low/high beam, tail/brake and reversing really light up (one spot light per vehicle front, distance-limited); if frames suffer: glow-only lamps, the light only on the vehicle nearest you', INK),
         ('Amber roof beacon + 2 amber flashers in the rear corners, flashing like the jetway beacons (glow by material)', INK),
         ('Sounds (Freesound CC0, heard from where you stand): door open + close, engine start / idle / pulling / stop, reverse beeper, horn, brakes, the towbar dropping onto the hitch and its pin, the hydraulic hitch height change, the beacon relay tick inside the cab', INK),
+        ('Dirt and washing exactly as the fire truck: dirt builds up by driving, the wall hose washes it off, beads and a wet sheen on paint, rubber, plastic and glass that dry', INK),
         ('NEXT AFTER YOUR OK: photo textures (free licence only), the livery with the airport name at run time, into the game, then pictures', ACC)]
 y = 0.98
 for t, c in rows:

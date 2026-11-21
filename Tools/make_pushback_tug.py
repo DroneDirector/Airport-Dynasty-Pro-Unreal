@@ -164,16 +164,16 @@ for i, x in enumerate((FX, RX)):
 box('BumperRear', (-L / 2 - 0.05, 0, GC + 0.36), (0.101, W - 0.30, 0.47), M_DARK, bevel=0.012)
 box('BumperFront', (L / 2 + 0.019, 0, GC + 0.36), (0.038, W - 0.50, 0.40), M_DARK, bevel=0.008)
 for s in (-1, 1):
-    for x in (-L / 2 - 0.05, L / 2 + 0.019):
+    for x in (-L / 2 - 0.1005 - 0.012, L / 2 + 0.038 + 0.012):          # bolt heads sit on the bumper faces
         for z in (GC + 0.20, GC + 0.52):
-            cyl(f'BumperBolt_{x > 0}{s}{z > 0.5}', (x + (0.055 if x > 0 else -0.055), s * 0.55, z), 0.02, 0.025, 'x', M_STEEL, 6)
+            cyl(f'BumperBolt_{x > 0}{s}{z > 0.5}', (x, s * 0.55, z), 0.02, 0.025, 'x', M_STEEL, 6)
 for nm, x, d in (('Rear', -L / 2 - 0.10, -1), ('Front', L / 2 + 0.038, 1)):
     for z in (0.38, 0.62):                                                                    # multi-level jaws
         box(f'HitchJaw{nm}_{z}', (x + d * 0.09, 0, z), (0.18, 0.22, 0.07), M_STEEL, bevel=0.01)
         box(f'HitchJawLow{nm}_{z}', (x + d * 0.09, 0, z - 0.09), (0.18, 0.22, 0.03), M_STEEL, bevel=0.006)
     cyl(f'HitchPin{nm}', (x + d * 0.12, 0, 0.50), 0.022, 0.42, 'z', M_STEEL, 16)
     box(f'HitchPlate{nm}', (x + d * 0.01, 0, 0.50), (0.03, 0.40, 0.46), M_DARK, bevel=0.006)   # welded to the bumper
-    for s in (-1, 1): cyl(f'TowEye{nm}{s}', (x + d * 0.04, s * 0.95, GC + 0.15), 0.04, 0.03, 'x', M_STEEL, 16)
+    for s in (-1, 1): cyl(f'TowEye{nm}{s}', ((L / 2 + 0.038 + 0.015) if d > 0 else (-L / 2 - 0.1005 - 0.015), s * 0.80, GC + 0.18), 0.04, 0.03, 'x', M_STEEL, 16)   # on the bumper face
 # lights: every lamp is a housing SET INTO the bumper or body (half its depth inside the steel), the lens recessed in it
 def lamp(name, face_pt, normal, w, h, m, depth=0.06):
     """face_pt: a point on the face it sits in; normal: 'x+', 'x-', 'y+', 'y-'; w across, h up (m)."""
@@ -197,8 +197,8 @@ for s in (-1, 1):
     lamp(f'TailBrake_{s}', (REAR_FACE, s * 0.97, GC + 0.48), 'x-', 0.13, 0.12, M_RED)       # tail + brake (brighter)
     lamp(f'Reverse_{s}', (REAR_FACE, s * 0.80, GC + 0.48), 'x-', 0.11, 0.12, M_WHITE)       # reversing lamp
     lamp(f'IndicatorR_{s}', (REAR_FACE, s * 0.90, GC + 0.30), 'x-', 0.12, 0.07, M_AMBER)
-    for x in (-L / 2 + 0.35, L / 2 - 0.35):
-        lamp(f'SideMarker_{s}{x > 0}', (x, s * W / 2, DECK - 0.22), 'y' + ('+' if s > 0 else '-'), 0.10, 0.05, M_AMBER, depth=0.04)
+    for x in (-L / 2 + 0.45, L / 2 - 0.30):          # (front one between the arch lip and the nose, 200+ mm of flat plate all round)          # on the flat side plate: clear of the nose slope, the tail chamfer and the deck edge
+        lamp(f'SideMarker_{s}{x > 0}', (x, s * W / 2, DECK - 0.47), 'y' + ('+' if s > 0 else '-'), 0.10, 0.05, M_AMBER, depth=0.04)
 # amber flashers at both rear corners, set into the deck's corner plate (they flash with the roof beacon, as the jetway's)
 for s in (-1, 1):
     lamp(f'FlasherRear_{s}', (-L / 2 + 0.06, s * (W / 2 - 0.20), DECK - 0.06), 'x-', 0.10, 0.10, M_AMBER, depth=0.08)
@@ -212,7 +212,7 @@ box('BallastRear', (-1.65, 0, DECK + 0.075), (1.30, W - 0.30, 0.15), M_DARK, bev
 for k in range(4): box(f'BallastPlate_{k}', (-1.65, 0, DECK + 0.03 + k * 0.035), (1.28, W - 0.32, 0.004), M_STEEL)
 for x in (-2.15, -1.15):
     for s in (-1, 1): cyl(f'BallastBolt_{x}{s}', (x, s * 1.0, DECK + 0.16), 0.025, 0.03, 'z', M_STEEL, 6)
-for s in (-1, 1): box(f'LiftEye_{s}', (-2.35, s * 1.05, DECK + 0.20), (0.06, 0.03, 0.10), M_STEEL, bevel=0.01)
+for s in (-1, 1): box(f'LiftEye_{s}', (-2.20, s * 1.05, DECK + 0.20), (0.06, 0.03, 0.10), M_STEEL, bevel=0.01)   # welded onto the ballast top
 cyl('FuelFiller', (-0.95, -0.95, DECK + 0.03), 0.06, 0.06, 'z', M_STEEL, 24, bevel=0.005)
 cyl('HydFiller', (-0.95, -0.55, DECK + 0.03), 0.05, 0.06, 'z', M_DARK, 24, bevel=0.005)
 box('ToolBox', (-0.92, -0.10, DECK + 0.12), (0.45, 0.55, 0.24), M_DARK, bevel=0.01)
@@ -402,6 +402,34 @@ ik('Step', (0.0, W / 2 + 0.10, 0.533)); ik('Grab_Outside', (0.62, CAB_Y1 + 0.07,
 ik('Door_Outside', (-0.05, CAB_Y1 + 0.05, DECK - 0.02)); ik('Door_Inside', (-0.05, CAB_Y1 - 0.08, DECK - 0.05))
 ik('Door_Hinge', (0.57, CAB_Y1 + 0.015, (CFLOOR + CABH) / 2))
 ik('Towbar_Front', (L / 2 + 0.16, 0, 0.50)); ik('Towbar_Rear', (-L / 2 - 0.22, 0, 0.50))
+
+# ---------------------------------------------------------------- self-check (owner 2026-11-21: nothing floats, nothing sits
+# inside something it shouldn't): every part's box must touch another part's box (2 mm); a lamp lens must not share space
+# with any part other than its own housing/rim
+def bbox(o):
+    cs = [o.matrix_world @ Vector(c) for c in o.bound_box]
+    return Vector((min(c.x for c in cs), min(c.y for c in cs), min(c.z for c in cs))), Vector((max(c.x for c in cs), max(c.y for c in cs), max(c.z for c in cs)))
+BB = {o.name: bbox(o) for o in ALL}
+def touch(a, b, tol=0.002): return all(a[0][i] - tol <= b[1][i] and b[0][i] - tol <= a[1][i] for i in range(3))
+GROUND_OK = ('Tyre', 'Lug', 'MudFlap')
+floating = [n for n, b in BB.items() if not n.startswith(GROUND_OK) and not any(touch(b, b2) for m, b2 in BB.items() if m != n)]
+clash = []
+for n, b in BB.items():
+    if n.endswith('_Lens'):
+        own = n[:-5]
+        for m, b2 in BB.items():
+            if m.startswith(own) or m == n: continue
+            if touch(b, b2, -0.001) and (b2[1] - b2[0]).length < 0.2: clash.append((n, m))
+# nothing on the sides crowds a wheel arch: its box keeps 80 mm clear of the fender lip's circle (owner 2026-11-21)
+LIP_R = TD / 2 + 0.09 + 0.018
+crowd = []
+for n, b in BB.items():
+    if n.startswith(('Tyre', 'Lug', 'Rim', 'Hub', 'Nut', 'Axle', 'Diff', 'Kingpin', 'ArchLiner', 'FenderLip', 'MudFlap', 'Body')): continue
+    if not (b[1].y > W / 2 - 0.02 or b[0].y < -W / 2 + 0.02): continue          # only parts on the outer sides
+    for ax in (FX, RX):
+        dx = max(b[0].x - ax, 0, ax - b[1].x); dz = max(b[0].z - TD / 2, 0, TD / 2 - b[1].z)
+        if math.hypot(dx, dz) < LIP_R + 0.08: crowd.append(n)
+print('TUG CHECK: %d floating %s | %d lamp clashes %s | %d crowding an arch %s' % (len(floating), floating[:12], len(clash), clash[:12], len(crowd), crowd[:12]))
 
 # ---------------------------------------------------------------- save + export
 col = bpy.data.collections.new('PushbackTug'); bpy.context.scene.collection.children.link(col)
