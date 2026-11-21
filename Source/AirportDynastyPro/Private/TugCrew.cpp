@@ -19,6 +19,7 @@
 // fingers closing round what they hold), at the tug's IK points (Tools/make_pushback_tug.py: IK_Step, IK_Grab_Outside,
 // IK_Seat_Driver, IK_Hand_L/R, IK_Foot_Brake ...). Next: the radio and interphone talk and the timed 11 steps.
 #include "Tugs.h"
+#include "Components/BoxComponent.h"
 #include "GSE.h"
 #include "People.h"
 #include "CrewVoice.h"
@@ -863,6 +864,34 @@ void ATugs::GpuTick(FTug& T, float Dt)
 {
 	FTug::FGpu& G = T.Gpu; ABabylonModel* M = G.M.Get(); if (!M) return;
 	const FTransform Root = M->GetActorTransform();
+	// (owner 2026-11-21: the power cable never sinks through the ground - it lies on an unseen floor 0.6 cm above the
+	//  visible surface under its whole run, from the GPU to the aircraft's nose: too little to see, enough that it never
+	//  glitches. The floor blocks only the cable: people, cameras, traces and vehicles pass straight through it)
+	if (G.Cable && G.Cable->IsVisible())
+	{
+		if (!G.CableFloor)
+		{
+			G.CableFloor = NewObject<UBoxComponent>(M, TEXT("GpuCableFloor"));
+			G.CableFloor->SetupAttachment(M->GetRootComponent()); G.CableFloor->SetUsingAbsoluteLocation(true); G.CableFloor->SetUsingAbsoluteRotation(true);
+			G.CableFloor->SetCollisionObjectType(ECC_WorldStatic);
+			G.CableFloor->SetCollisionResponseToAllChannels(ECR_Ignore);
+			G.CableFloor->SetCollisionResponseToChannel(G.Cable->GetCollisionObjectType(), ECR_Block);
+			G.CableFloor->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+			G.CableFloor->SetCanEverAffectNavigation(false); G.CableFloor->SetHiddenInGame(true);
+			G.CableFloor->RegisterComponent();
+			G.Cable->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
+		}
+		const FVector A0 = M->GetActorLocation(), B0 = Receptacle(T);
+		const FVector Mid((A0.X + B0.X) * 0.5f, (A0.Y + B0.Y) * 0.5f, 0.f);
+		// (tilted with the apron between the two ends, lifted by the most the ground bulges above that line - so it follows the
+		//  slope and is never below the visible surface anywhere along the run)
+		const float Za = Plan(A0.X / 100.f, -A0.Y / 100.f).Z, Zb = Plan(B0.X / 100.f, -B0.Y / 100.f).Z, Run = FMath::Max(FVector::Dist2D(A0, B0), 1.f);
+		float Bulge = 0.f;
+		for (int32 k = 1; k < 16; ++k) { const float U = k / 16.f; const FVector P = FMath::Lerp(A0, B0, U); Bulge = FMath::Max(Bulge, Plan(P.X / 100.f, -P.Y / 100.f).Z - FMath::Lerp(Za, Zb, U)); }
+		const float Pitch = FMath::RadiansToDegrees(FMath::Atan2(Zb - Za, Run));
+		G.CableFloor->SetBoxExtent(FVector((Run + 600.f) * 0.5f, 400.f, 5.f));
+		G.CableFloor->SetWorldLocationAndRotation(FVector(Mid.X, Mid.Y, (Za + Zb) * 0.5f + Bulge + 0.6f - 5.f), FRotator(Pitch, (B0 - A0).Rotation().Yaw, 0.f));
+	}
 	// the panel door
 	if (G.PanelG != INDEX_NONE && !FMath::IsNearlyEqual(G.PanelAng, G.PanelWant, 0.1f))
 	{

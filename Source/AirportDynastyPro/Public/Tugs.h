@@ -146,6 +146,7 @@ private:
 		{
 			TWeakObjectPtr<ABabylonModel> M; int32 PlugG = INDEX_NONE, PanelG = INDEX_NONE; float PanelAng = 0.f, PanelWant = 0.f;
 			UCableComponent* Cable = nullptr; UAudioComponent* Idle = nullptr; float RunT = -1.f;
+			class UBoxComponent* CableFloor = nullptr;   // (an unseen floor for the cable alone, a hair above the visible ground - it never sinks in)
 			bool bConnected = false, bPower = false, bInHand = false; int32 Holder = INDEX_NONE;
 			TArray<TTuple<UInstancedStaticMeshComponent*, int32, FTransform>> Coils, RunPlug;   // (the stowed cable: hidden as it pays out)
 			FVehicleDirt Dirt; FVector DirtAt = FVector::ZeroVector;   // (dirt and washing as the fire truck - VehicleDirt.h)
