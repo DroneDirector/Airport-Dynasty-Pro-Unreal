@@ -15,7 +15,10 @@
 
 namespace ADPTerrain
 {
-	static const TCHAR* Base = TEXT("https://github.com/DroneDirector/Airport-Dynasty-Pro-Unreal/releases/download/terrain-v1");
+	static const TCHAR* Base = TEXT("https://github.com/DroneDirector/Airport-Dynasty-Pro-Unreal/releases/download/terrain-v3");
+	// (0.18.0: terrain-v3 = the world + swissALTI3D round Chablais, the land cover, Chablais's 10 cm photos; an older set
+	//  installed counts as not ready, so Settings asks for the update - only changed packs are fetched)
+	static const TCHAR* Version = TEXT("3");
 	static FProcHandle Proc;
 
 	static FString Home()
@@ -37,7 +40,13 @@ namespace ADPTerrain
 		return Home() / TEXT("Terrain");
 	}
 
-	bool Ready() { return FPaths::FileExists(Dir() / TEXT("complete.flag")) && FPaths::FileExists(Dir() / TEXT("layer.json")); }
+	bool Ready()
+	{
+		FString Flag;
+		if (!FFileHelper::LoadFileToString(Flag, *(Dir() / TEXT("complete.flag"))) || !FPaths::FileExists(Dir() / TEXT("layer.json"))) return false;
+		Flag.TrimStartAndEndInline();
+		return Flag == Version;
+	}
 
 	static bool Read(TSharedPtr<FJsonObject>& O)
 	{
@@ -243,6 +252,8 @@ try {
 		if (State == TEXT("error")) return TEXT("The terrain download stopped: ") + O->GetStringField(TEXT("error")) + TEXT(" Try again.");
 		if (Ready() && State != TEXT("ready")) return TEXT("The world's terrain is installed, in ") + Dir() + TEXT(".");
 		if (Ready()) return State == TEXT("ready") ? TEXT("The world's terrain is installed (mountains and valleys everywhere; used from the next start where it was just downloaded).") : TEXT("The world's terrain is installed.");
-		return TEXT("The world's terrain isn't on this PC yet (about 6.6 GB). Without it the Earth is smooth.");
+		if (FPaths::FileExists(Dir() / TEXT("complete.flag")))
+			return TEXT("A new version of the world's terrain is out: Switzerland's heights round Chablais Airport and its 10 cm aerial photos. Press the button below - only the changed packs are downloaded. Until then the Earth is smooth.");
+		return TEXT("The world's terrain isn't on this PC yet (about 37 GB, with Chablais Airport's 10 cm aerial photos). Without it the Earth is smooth.");
 	}
 }
