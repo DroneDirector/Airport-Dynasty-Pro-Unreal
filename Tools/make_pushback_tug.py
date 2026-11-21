@@ -166,7 +166,7 @@ box('BumperFront', (L / 2 + 0.019, 0, GC + 0.36), (0.038, W - 0.50, 0.40), M_DAR
 for s in (-1, 1):
     for x in (-L / 2 - 0.05, L / 2 + 0.019):
         for z in (GC + 0.20, GC + 0.52):
-            cyl(f'BumperBolt_{x > 0}{s}{z > 0.5}', (x + (0.055 if x > 0 else -0.055), s * 0.85, z), 0.02, 0.025, 'x', M_STEEL, 6)
+            cyl(f'BumperBolt_{x > 0}{s}{z > 0.5}', (x + (0.055 if x > 0 else -0.055), s * 0.55, z), 0.02, 0.025, 'x', M_STEEL, 6)
 for nm, x, d in (('Rear', -L / 2 - 0.10, -1), ('Front', L / 2 + 0.038, 1)):
     for z in (0.38, 0.62):                                                                    # multi-level jaws
         box(f'HitchJaw{nm}_{z}', (x + d * 0.09, 0, z), (0.18, 0.22, 0.07), M_STEEL, bevel=0.01)
@@ -191,12 +191,17 @@ def lamp(name, face_pt, normal, w, h, m, depth=0.06):
         box(name + '_Lens', (c.x, c.y + sg * (depth / 2 - 0.008), c.z), (w, 0.006, h), m, bevel=0.003)
 FRONT_FACE, REAR_FACE = L / 2 + 0.038, -L / 2 - 0.1005
 for s in (-1, 1):
-    lamp(f'HeadLamp_{s}', (FRONT_FACE, s * 0.95, GC + 0.48), 'x+', 0.24, 0.12, M_WHITE)
-    lamp(f'IndicatorF_{s}', (FRONT_FACE, s * 0.95, GC + 0.30), 'x+', 0.12, 0.07, M_AMBER)
-    lamp(f'TailLamp_{s}', (REAR_FACE, s * 0.90, GC + 0.48), 'x-', 0.22, 0.12, M_RED)
+    lamp(f'LowBeam_{s}', (FRONT_FACE, s * 0.88, GC + 0.48), 'x+', 0.13, 0.12, M_WHITE)        # outer: low beam
+    lamp(f'HighBeam_{s}', (FRONT_FACE, s * 0.71, GC + 0.48), 'x+', 0.13, 0.12, M_WHITE)       # inner: high beam
+    lamp(f'IndicatorF_{s}', (FRONT_FACE, s * 0.80, GC + 0.30), 'x+', 0.12, 0.07, M_AMBER)
+    lamp(f'TailBrake_{s}', (REAR_FACE, s * 0.97, GC + 0.48), 'x-', 0.13, 0.12, M_RED)       # tail + brake (brighter)
+    lamp(f'Reverse_{s}', (REAR_FACE, s * 0.80, GC + 0.48), 'x-', 0.11, 0.12, M_WHITE)       # reversing lamp
     lamp(f'IndicatorR_{s}', (REAR_FACE, s * 0.90, GC + 0.30), 'x-', 0.12, 0.07, M_AMBER)
     for x in (-L / 2 + 0.35, L / 2 - 0.35):
         lamp(f'SideMarker_{s}{x > 0}', (x, s * W / 2, DECK - 0.22), 'y' + ('+' if s > 0 else '-'), 0.10, 0.05, M_AMBER, depth=0.04)
+# amber flashers at both rear corners, set into the deck's corner plate (they flash with the roof beacon, as the jetway's)
+for s in (-1, 1):
+    lamp(f'FlasherRear_{s}', (-L / 2 + 0.06, s * (W / 2 - 0.20), DECK - 0.06), 'x-', 0.10, 0.10, M_AMBER, depth=0.08)
 # chevron panel frames on the bumpers (the chevrons themselves come with the paint texture)
 # ---------------------------------------------------------------- deck: engine cover, grilles, ballast, tanks, boxes
 box('EngineCover', (1.30, -0.15, DECK + 0.06), (1.20, 1.90, 0.12), M_PAINT, bevel=0.03, segs=3)      # its edges rolled (pressed sheet)

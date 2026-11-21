@@ -29,9 +29,14 @@ rows = [('OUTSIDE', ACC), ('Length 5105 · width 2515 · deck 1321 · height wit
         ('Operator seat: suspension base with bellows (200), seat 480 wide, cushion top 390 over the floor, back 660 high, leaning back 12°, side bolsters, headrest on 2 posts, armrests, drive selector on the right armrest, lap belt', INK),
         ('2 fold-down crew seats on the right wall (380 wide), dash with display and switches, steering wheel 380 across on a tilted column, 3 pedals, park brake, extinguisher, radio, grab handle, sun visor, lamp', INK),
         ('IK POINTS (20): driver seat + back, hands L/R on the wheel, accelerator, brake, selector, park brake, crew seats 2 + 3 (seat + back), step, grab handles outside + inside, door outside + inside + hinge, towbar front + rear', IK),
+        ('LIGHTS + SOUNDS', ACC),
+        ('Front: low beam + high beam + indicator each side · rear: tail/brake + reversing + indicator each side · side markers · cab lamp · 2 work lamps - every one a housing set into the steel', INK),
+        ('Low/high beam, tail/brake and reversing really light up (one spot light per vehicle front, distance-limited); if frames suffer: glow-only lamps, the light only on the vehicle nearest you', INK),
+        ('Amber roof beacon + 2 amber flashers in the rear corners, flashing like the jetway beacons (glow by material)', INK),
+        ('Sounds (Freesound CC0, heard from where you stand): door open + close, engine start / idle / pulling / stop, reverse beeper, horn, brakes, the towbar dropping onto the hitch and its pin, the hydraulic hitch height change, the beacon relay tick inside the cab', INK),
         ('NEXT AFTER YOUR OK: photo textures (free licence only), the livery with the airport name at run time, into the game, then pictures', ACC)]
 y = 0.98
 for t, c in rows:
-    n.text(0.0, y, t, color=c, fontsize=15 if c == ACC else 13.5, va='top', fontweight='bold' if c == ACC else 'normal', wrap=True); y -= 0.088 if c != ACC else 0.075
+    n.text(0.0, y, t, color=c, fontsize=15 if c == ACC else 13.5, va='top', fontweight='bold' if c == ACC else 'normal', wrap=True); y -= 0.064 if c != ACC else 0.055
 fig.savefig(D + 'PushbackTug-Blueprint-v2.png', facecolor=BG)
 print('ok')
