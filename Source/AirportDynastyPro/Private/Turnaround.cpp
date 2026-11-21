@@ -10,7 +10,17 @@
 namespace ADPTurnaround
 {
 	static TArray<FTurn> Turns;
+	static FDateTime Last = FDateTime(0);
 	const TArray<FTurn>& All() { return Turns; }
+	FDateTime LastNow() { return Last; }
+	const FTurn* ForFlight(const FString& Flight) { return Flight.IsEmpty() ? nullptr : Turns.FindByPredicate([&](const FTurn& X) { return X.Flight == Flight; }); }
+	const FTurn* AtStand(float StandX) { return StandX == 0.f ? nullptr : Turns.FindByPredicate([&](const FTurn& X) { return FMath::Abs(X.StandX - StandX) < 1.f; }); }
+	bool BagCutOff(const FString& Flight, float StandX)
+	{
+		// (check-in and the make-up close about 40 minutes before off-blocks - the bags go out then)
+		const FTurn* T = ForFlight(Flight); if (!T) T = AtStand(StandX);
+		return T && Last.GetTicks() > 0 && Last >= T->OffBlocks - FTimespan::FromMinutes(40.0);
+	}
 
 	TArray<FTask> PlanA320(float G, int32 Pax, float FuelL, float& LateMin)
 	{
@@ -57,6 +67,7 @@ namespace ADPTurnaround
 	void Tick(UWorld* W, const FDateTime& Now)
 	{
 		UADPSim* Sim = UADPSim::Get(W); if (!Sim || !Sim->IsRunning()) return;
+		Last = Now;
 		const FString Here = ADPBoards::HereIcao();
 		// the aircraft standing at a gate here, each with its next departure
 		TSet<FString> Seen;
@@ -72,6 +83,7 @@ namespace ADPTurnaround
 				FTurn N; N.Reg = A.Reg; N.Stand = A.Stand; N.OnBlocks = Now;
 				for (const FAirfieldData::FStand& S : AAirfield::Shared().Stands) if (S.Id == A.Stand) N.StandX = S.X;
 				N.OffBlocks = Dep ? Dep->DepAt : Now + FTimespan::FromMinutes(60.0);
+				N.Flight = Dep ? Dep->Id : FString();
 				N.Pax = Dep ? FMath::Max(1, Dep->Pax + Dep->PaxJ + Dep->PaxF) : 150;
 				const float G = float((N.OffBlocks - N.OnBlocks).GetTotalMinutes());
 				N.Tasks = PlanA320(G, N.Pax, N.FuelL, N.LateMin);
@@ -83,7 +95,7 @@ namespace ADPTurnaround
 				// (the departure moved - a delay: the tasks still to come shift with it, the gaps between them kept)
 				const float Shift = float((Dep->DepAt - Tr->OffBlocks).GetTotalMinutes());
 				for (FTask& K : Tr->Tasks) if (!K.bStarted && K.Start > float((Now - Tr->OnBlocks).GetTotalMinutes()) - 0.01f && (K.Id == TEXT("board") || K.Id == TEXT("doors") || K.Id == TEXT("apu") || K.Id == TEXT("gpuoff") || K.Id == TEXT("tug") || K.Id == TEXT("push"))) K.Start += Shift;
-				Tr->OffBlocks = Dep->DepAt;
+				Tr->OffBlocks = Dep->DepAt; Tr->Flight = Dep->Id;
 				ADP_LOG(TEXT("Turnaround: %s off-blocks moved %+.0f min - the departure tasks with it"), *Tr->Reg, Shift);
 			}
 			const float Tm = float((Now - Tr->OnBlocks).GetTotalMinutes());
@@ -98,9 +110,19 @@ namespace ADPTurnaround
 					const bool bVisual = K.Vehicle == TEXT("gpu") || K.Vehicle == TEXT("jetway") || K.Vehicle == TEXT("tug") || K.Vehicle == TEXT("beltloader");
 					ADP_LOG(TEXT("Turnaround: %s %s starts (%.1f min, %s)"), *Tr->Reg, *K.Name, K.Dur, bVisual ? TEXT("in 3D") : K.Vehicle.IsEmpty() ? TEXT("the crew") : *FString::Printf(TEXT("%s - simulated until the vehicle is built"), *K.Vehicle));
 					if (K.Id == TEXT("gpu")) if (ATugs* Tg = ATugs::Get(W)) Tg->Arrived(Tr->StandX);   // (the ground power plugged in)
-					if (K.Id == TEXT("bulk")) if (AGSE* Gs = AGSE::Get(W)) Gs->BulkHold(Tr->StandX, Tr->Reg);   // (the belt loader to the bulk hold - GSELoader.cpp)
+					// (the bulk hold: out first, then in - the belt loader and an empty train for the arriving bags; the departure
+					//  train comes once its make-up closes: GSE.h)
+					if (K.Id == TEXT("bulk")) if (AGSE* Gs = AGSE::Get(W)) Gs->ArrivalAt(Tr->StandX, Tr->Flight.IsEmpty() ? Tr->Reg : Tr->Flight);
 				}
-				if (K.bStarted && !K.bDone && Tm >= K.Start + K.Dur) { K.bDone = true; ADP_LOG(TEXT("Turnaround: %s %s done"), *Tr->Reg, *K.Name); }
+				// (the bulk hold is done when the bags are: the belt loader and the trains gone from the stand)
+				const bool bBagsBusy = K.Id == TEXT("bulk") && AGSE::Find(W) && AGSE::Find(W)->BusyAt(Tr->StandX);
+				if (K.bStarted && !K.bDone && Tm >= K.Start + K.Dur && !bBagsBusy) { K.bDone = true; ADP_LOG(TEXT("Turnaround: %s %s done"), *Tr->Reg, *K.Name); }
+				// (bags still going in when the doors are due: the departure waits - off-blocks moved 2 min at a time through the
+				//  delay path above, the whole chain with it; at most 20 min for the bags)
+				if (K.Id == TEXT("doors") && !K.bStarted && Dep && Tm >= K.Start - 0.5f && Tr->BagDelayMin < 20.f)
+					if (const AGSE* Gs = AGSE::Find(W)) if (Gs->BusyAt(Tr->StandX))
+						for (FADPFlight& F : Sim->World.Flights) if (F.Id == Dep->Id)
+						{ F.DepAt += FTimespan::FromMinutes(2.0); Tr->BagDelayMin += 2.f; ADP_LOG(TEXT("Turnaround: %s (%s) delayed 2 min (%.0f in all) - its bags are still being loaded into the hold"), *Tr->Reg, *F.Id, Tr->BagDelayMin); break; }
 			}
 		}
 		// gone (pushed back and away): its plan with it

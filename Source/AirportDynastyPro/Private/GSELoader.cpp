@@ -211,7 +211,15 @@ void AGSE::LoaderIn(int32 Li)
 				const FVector Belt = BoomW(T, GslBeltTop - FVector(25.f, 0.f, -12.f));
 				const ADepartureBelts* D = ADepartureBelts::Get(GetWorld());
 				const FTractor::FBeltBag* B = nullptr; for (const FTractor::FBeltBag& X : T.BeltBags) if (X.Stage >= 1) { B = &X; break; }
-				if (D && B && B->Stage == 1)
+				for (const FTractor::FBeltBag& X : T.BeltBags) if (X.Stage == 5) { B = &X; break; }
+				if (D && B && B->Stage == 5)
+				{
+					// (an arriving bag lifted out of the hold behind him and laid on the belt's top)
+					const float K = FMath::Min(1.f, B->T / 1.4f);
+					const FVector H = FMath::Lerp(At + Fw * 70.f + FVector(0, 0, 40.f), Belt + FVector(0, 0, 25.f), FMath::SmoothStep(0.f, 1.f, K));
+					P = ADPPose::Both(At, -Fw, H + Rt * 14.f, H - Rt * 14.f, 1.f, PH, 1.f, 16.f);
+				}
+				else if (D && B && B->Stage == 1)
 				{
 					const FDepBagGrips G = D->Grips(B->Id); const float E = FMath::Min(1.f, B->T / 0.8f);
 					P = G.bTwoHands ? ADPPose::Both(At, -Fw, G.Left, G.Right, 1.f, PH, E, 22.f) : ADPPose::Stoop(At, -Fw, 1, G.Handle, 1.f, PH, E);
@@ -234,7 +242,7 @@ void AGSE::LoaderIn(int32 Li)
 	WaitFor(Ci, [this, Li, bSeen, Wait2](float Elapsed)
 	{
 		bool bTrain = false;
-		for (const FTractor& T : Tractors) if (!T.bLoader && FMath::Abs(T.StandX - Tractors[Li].StandX) < 1.f && (T.Job == EJob::Out || T.Job == EJob::AtStand || T.Job == EJob::Loading)) bTrain = true;
+		for (const FTractor& T : Tractors) if (!T.bLoader && !T.bArrival && FMath::Abs(T.StandX - Tractors[Li].StandX) < 1.f && (T.Job == EJob::Out || T.Job == EJob::AtStand || T.Job == EJob::Loading)) bTrain = true;
 		if (bTrain) *bSeen = true;
 		return (*bSeen && !bTrain) || Elapsed > Wait2;
 	});

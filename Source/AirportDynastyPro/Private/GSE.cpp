@@ -17,6 +17,7 @@
 #include "Sound/SoundBase.h"
 #include "Sound/SoundAttenuation.h"
 #include "GameFramework/Pawn.h"
+#include "DepartureBelts.h"
 
 // The baggage tractors and carts: the vehicles themselves - their places, parts, driving, the train, the routes, the
 // lamps and sounds, the test's own checks. Their crew's part (walking over, climbing in, coupling by hand, the
@@ -838,6 +839,7 @@ void AGSE::Tick(float Dt)
 	if (bTest && !bTestStarted && Clock > 6.f && Tg())
 	{
 		bTestStarted = true;
+		if (Tractors.Num() >= 4 && Carts.Num() >= 6) StartArrival(0, {4, 5}, 0.f, FString());   // (the arriving bags first)
 		if (Tractors.Num() >= 4 && Carts.Num() >= 2) StartTrain(2, {0, 1});
 		// (a GPU to move: a gate with no aircraft, its GPU unplugged - the nearest to the apron exit)
 		int32 Best = INDEX_NONE; float BestD = 1e9f;
@@ -874,6 +876,8 @@ void AGSE::Tick(float Dt)
 	for (FTractor& T : Tractors) if (T.bLoader) BeltTick(T, Dt);
 	PollBags(Dt);
 	// (crew plans asked for from inside a crew act)
+	// (bags handed to the arrivals conveyor: gone as its own bag rides off)
+	for (int32 i = PendingRemove.Num() - 1; i >= 0; --i) if (GetWorld()->GetTimeSeconds() >= PendingRemove[i].Key) { if (ADepartureBelts* Db = ADepartureBelts::Get(GetWorld())) Db->RemoveBag(PendingRemove[i].Value); PendingRemove.RemoveAt(i); }
 	if (Deferred.Num()) { TArray<TFunction<void()>> D = MoveTemp(Deferred); Deferred.Reset(); for (TFunction<void()>& F : D) if (F) F(); }
 }
 
@@ -1029,7 +1033,7 @@ void AGSE::Departure(const FString& Key, float StandX)
 	// a train being made up for this flight's bags (started by its bags coming: PollBags) learns its stand; one not yet given
 	// a flight takes it (the test's first train goes to the next departure)
 	for (FTractor& T : Tractors) if (!T.bLoader && T.Key == Key && T.StandX == 0.f && T.Job != EJob::None) { T.StandX = StandX; ADP_LOG(TEXT("GSE: %s's train for %s - its stand at x %.0f"), *T.Name, *Key, StandX); return; }
-	for (FTractor& T : Tractors) if (!T.bLoader && (T.Job == EJob::Boarding || T.Job == EJob::ToCarts || T.Job == EJob::Coupling || T.Job == EJob::Loading || T.Job == EJob::Out) && T.Key.IsEmpty() && T.TowGpu == INDEX_NONE && T.StandX == 0.f)
+	for (FTractor& T : Tractors) if (!T.bLoader && !T.bArrival && (T.Job == EJob::Boarding || T.Job == EJob::ToCarts || T.Job == EJob::Coupling || T.Job == EJob::Loading || T.Job == EJob::Out) && T.Key.IsEmpty() && T.TowGpu == INDEX_NONE && T.StandX == 0.f)
 	{ T.Key = Key; T.StandX = StandX; for (const int32 c : T.Train) if (Carts.IsValidIndex(c)) Carts[c].Flight = Key; ADP_LOG(TEXT("GSE: %s's train goes to %s (stand at x %.0f)"), *T.Name, *Key, StandX); return; }
 	if (bTest) { if (!bTestStand) { bTestStand = true; TestKey = Key; TestStand = StandX; } return; }
 	StartFor(Key, StandX);

@@ -13,6 +13,7 @@
 #include "People.h"
 #include "CrewPose.h"
 #include "DepartureBelts.h"
+#include "Turnaround.h"
 #include "ADPLog.h"
 #include "BabylonModel.h"
 #include "Engine/World.h"
@@ -46,7 +47,7 @@ FString AGSE::BagFlight(int32 Ti) const
 	if (!T.Key.IsEmpty() && T.Key != TEXT("TEST") && D->BagsOf(T.Key).Num()) return T.Key;
 	// (no bags under its departure's name - the test: the flight with the most bags in the system)
 	FString Best; int32 N = 0;
-	for (const FString& F : BagFlights) { if (MadeUp.Contains(F)) continue; const int32 K = D->BagsOf(F).Num(); if (K > N) { N = K; Best = F; } }
+	for (const FString& F : BagFlights) { if (MadeUp.Contains(F) || F.StartsWith(TEXT("ARR "))) continue; const int32 K = D->BagsOf(F).Num(); if (K > N) { N = K; Best = F; } }
 	return Best;
 }
 
@@ -84,7 +85,7 @@ void AGSE::MakeUp(int32 Ci, int32 Ti, float Started)
 	{
 		MadeUp.Add(Fl);
 		// (the crew load the carts now - the departure belts' unseen clearing off)
-		if (D) D->bAutoClear = false;
+		if (D && bTest) D->bAutoClear = false;   // (in the game it stays on until the departure belts can switch it per flight)
 		ADP_LOG(TEXT("GSE: %s's driver at make-up carousel %d for %s's bags"), *T.Name, D ? D->CarouselOf(Fl) + 1 : 0, *Fl);
 		const FVector Toward = D ? D->CarouselCentre(FMath::Max(0, D->CarouselOf(Fl))) : Plan(124.f, 33.5f);
 		Curtains(Ci, Ti, true, nullptr, &Toward);
@@ -100,6 +101,8 @@ void AGSE::MakeUp(int32 Ci, int32 Ti, float Started)
 		if (Pickable(Ti) != INDEX_NONE && Cart != INDEX_NONE && !(bTest && Loaded >= 16)) return true;
 		const ADepartureBelts* D2 = ADepartureBelts::Get(GetWorld()); const FString* F = BagKey.Find(Ti);
 		const int32 Left = D2 && F ? D2->BagsOf(*F).Num() - Loaded : 0;
+		const FTractor& U = Tractors[Ti];
+		if (!bTest && ADPTurnaround::ForFlight(F ? *F : FString())) return Cart == INDEX_NONE || ADPTurnaround::BagCutOff(F ? *F : FString(), U.StandX);   // (the game: until the cut-off, or the carts full - more trips after)
 		return Cart == INDEX_NONE || (bTest && Loaded >= 16) || (Loaded > 0 && Left <= 0 && E > 20.f) || GetWorld()->GetTimeSeconds() - Started > Limit || (!D2 && E > 5.f);
 	});
 	Do(Ci, [this, Ci, Ti, Started, Cart, Slot] { Later([this, Ci, Ti, Started, Cart, Slot]
@@ -108,7 +111,8 @@ void AGSE::MakeUp(int32 Ci, int32 Ti, float Started)
 		const int32 Id = Pickable(Ti);
 		FTractor& U = Tractors[Ti];
 		int32 Loaded = 0; for (const int32 c : U.Train) for (const int32 b : Carts[c].Bags) Loaded += b != INDEX_NONE;
-		if (!D2 || Id == INDEX_NONE || Cart == INDEX_NONE || (bTest && Loaded >= 16) || GetWorld()->GetTimeSeconds() - Started > (bTest ? 420.f : 1800.f))
+		const bool bCut = !bTest && ADPTurnaround::BagCutOff(BagKey.FindRef(Ti), U.StandX);
+		if (!D2 || Id == INDEX_NONE || Cart == INDEX_NONE || bCut || (bTest && Loaded >= 16) || GetWorld()->GetTimeSeconds() - Started > (bTest ? 420.f : 1800.f))
 		{
 			// made up: the curtains down, back in, off to the aircraft
 			ADP_LOG(TEXT("GSE: %s's train made up - %d bags of %s on %d carts"), *U.Name, Loaded, BagKey.Contains(Ti) ? *BagKey[Ti] : TEXT("-"), U.Train.Num());
@@ -168,9 +172,35 @@ bool AGSE::BeltBottomFree(const FTractor& L) const
 void AGSE::BeltTick(FTractor& L, float Dt)
 {
 	ADepartureBelts* D = ADepartureBelts::Get(GetWorld()); if (!D || !L.M.IsValid()) return;
+	// arriving bags: the hold loader lifts the next one out of the hold and onto the belt's top (one every few seconds,
+	// once the arrivals train stands below and the top is clear)
+	if (L.ArrivalsLeft > 0 && L.bBelt && L.TopCrew != INDEX_NONE && Body(L.TopCrew))
+	{
+		bool bTopFree = true; for (const FTractor::FBeltBag& B : L.BeltBags) if (B.Stage == 5 || (B.Stage == 3 && B.S > GsbBeltLen - 90.f)) bTopFree = false;
+		bool bTrain = false; for (const FTractor& T : Tractors) if (T.bArrival && FMath::Abs(T.StandX - L.StandX) < 1.f && T.Job == EJob::Loading) bTrain = true;
+		if (bTopFree && bTrain && (L.ArrivalIn -= Dt) <= 0.f)
+		{
+			L.ArrivalIn = 5.f;
+			const ATugs* G = Tg();
+			const FString Pax = FString::Printf(TEXT("ARR %s %d"), *L.ArrKey, L.ArrivalsLeft);
+			const int32 Id = D->PassengerDrop(G && G->Crew.IsValidIndex(L.TopCrew) ? G->Crew[L.TopCrew].A.Get() : nullptr, 1, Pax, TEXT("ARR ") + L.ArrKey, Body(L.TopCrew), GsbHand, false);
+			if (Id != INDEX_NONE) { FTractor::FBeltBag B; B.Id = Id; B.S = GsbBeltLen; B.Stage = 5; L.BeltBags.Add(B); --L.ArrivalsLeft; }
+		}
+	}
 	for (int32 i = 0; i < L.BeltBags.Num(); ++i)
 	{
 		FTractor::FBeltBag& B = L.BeltBags[i];
+		if (B.Stage == 5) { if ((B.T += Dt) > 1.4f) { B.Stage = 3; B.T = 0.f; D->PutOnSlot(B.Id, L.M->GetRootComponent(), NAME_None, BeltOffset(L, B.S)); } continue; }
+		if (B.Stage == 3)
+		{
+			// riding down (a bag stops behind the one waiting at the bottom)
+			float Lim = 0.f; for (const FTractor::FBeltBag& O : L.BeltBags) if (&O != &B && (O.Stage == 3 || O.Stage == 4) && O.S < B.S) Lim = FMath::Max(Lim, O.S + 80.f);
+			const float Was = B.S; if (L.bBelt) B.S = FMath::Max(B.S - GsbBeltSpeed * Dt, Lim);
+			if (B.S != Was) D->PutOnSlot(B.Id, L.M->GetRootComponent(), NAME_None, BeltOffset(L, B.S));
+			if (B.S <= 0.5f) B.Stage = 4;
+			continue;
+		}
+		if (B.Stage == 4) continue;   // (at the bottom end: the train's driver takes it - GSEArrivals.cpp)
 		if (B.Stage == 0)
 		{
 			// riding up, pinned (a bag stops behind the one waiting at the top)
@@ -263,8 +293,9 @@ void AGSE::PollBags(float Dt)
 	if (bTest) return;
 	for (const FString& F : BagFlights)
 	{
-		if (MadeUp.Contains(F) || D->BagsOf(F).Num() == 0) continue;
-		bool bHas = false; for (const auto& K : BagKey) if (K.Value == F) bHas = true;
+		if (F.StartsWith(TEXT("ARR ")) || D->BagsOf(F).Num() == 0) continue;   // (several trips: a new train when none is on it)
+		bool bHas = false; for (const auto& K : BagKey) if (K.Value == F && Tractors.IsValidIndex(K.Key) && Tractors[K.Key].Job != EJob::None) bHas = true;
+		{ int32 OnCarts = 0; for (const FCart& C : Carts) for (const int32 b : C.Bags) if (b != INDEX_NONE) { const FDepBagTag* T = D->Tag(b); if (T && T->Flight == F) ++OnCarts; } if (D->BagsOf(F).Num() <= OnCarts) bHas = true; }
 		if (bHas) continue;
 		// a free tractor and a pair of free carts, the driver to the carousel now (its stand comes with its departure)
 		StartFor(F, 0.f);
