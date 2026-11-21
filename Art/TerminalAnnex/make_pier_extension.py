@@ -52,7 +52,12 @@ for side, x0s in (('W', west_gate_x0), ('E', east_gate_x0)):
     for x0 in x0s:
         a, b = opening_x(x0, 12.0, 8.0); F2N[side].append((a, b, F2, F2 + 3.6))          # gate room
         a, b = opening_x(x0 + 34.0, 17.0, 10.0); F2N[side].append((a, b, F2, F2 + 3.6))  # view bay
-        a, b = opening_x(x0, 14.0, 2.0); F1N[side].append((a, b, 0.0, 2.3))              # ramp room door
+        if side == 'E' and abs(x0 - 255.4) < 0.01:
+            # ramp services 13: the departures vehicle passage (owner 2026-11-21, Departure-Baggage-v2) - a 4 m roller
+            # door's opening (ARollerDoor; its guides and hood: Art/TerminalAnnex/make_bag_block.py)
+            a, b = opening_x(x0, 14.0, 4.0); F1N[side].append((a, b, 0.0, 4.1))
+        else:
+            a, b = opening_x(x0, 14.0, 2.0); F1N[side].append((a, b, 0.0, 2.3))          # ramp room door
 
 for side, (x0, x1) in (('W', (W_END, -80.0)), ('E', (242.0, E_END))):
     # ---- Floor 2: the walkway ----

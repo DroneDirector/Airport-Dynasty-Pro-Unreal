@@ -1,0 +1,144 @@
+// A roller door: the moving curtain of slats in its guides (RollerDoor.h).
+#include "RollerDoor.h"
+#include "ADPLog.h"
+#include "TerminalPlan.h"
+#include "Components/InstancedStaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "Engine/World.h"
+#include "EngineUtils.h"
+#include "GameFramework/Pawn.h"
+#include "Kismet/GameplayStatics.h"
+
+TArray<TWeakObjectPtr<ARollerDoor>> ARollerDoor::All;
+
+ARollerDoor::ARollerDoor()
+{
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.TickInterval = 0.f;
+	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+	SetRootComponent(Root);
+}
+
+ARollerDoor* ARollerDoor::Place(UWorld* W, const FString& Id, float X0, float X1, float Z, float Height)
+{
+	if (!W) return nullptr;
+	UStaticMesh* SlatM = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/Terminal/Meshes/roller_slat.roller_slat"));
+	UStaticMesh* BarM = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/Terminal/Meshes/roller_bar.roller_bar"));
+	if (!SlatM || !BarM) { ADP_WARN(TEXT("Roller door %s: its slat or bar is missing (/Game/Terminal/Meshes/roller_slat, roller_bar - Tools/import_annex.py)"), *Id); return nullptr; }
+	FActorSpawnParameters S; S.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	ARollerDoor* D = W->SpawnActor<ARollerDoor>(FTerminalPlan::ToWorld((X0 + X1) * 0.5f, 0.01f, Z), FRotator::ZeroRotator, S);
+	if (!D) return nullptr;
+	D->Id = Id; D->Width = X1 - X0; D->Height = Height;
+	auto List = [D](UStaticMesh* M)
+	{
+		UInstancedStaticMeshComponent* K = NewObject<UInstancedStaticMeshComponent>(D);
+		K->SetupAttachment(D->Root);
+		K->SetMobility(EComponentMobility::Movable);
+		K->SetStaticMesh(M);
+		K->SetCollisionProfileName(TEXT("BlockAll"));
+		K->RegisterComponent();
+		D->AddInstanceComponent(K);
+		return K;
+	};
+	D->Slats = List(SlatM); D->Bar = List(BarM);
+	// every slat of the curtain (one more than the opening's height needs: the top one runs into the hood)
+	const int32 N = FMath::CeilToInt(Height / Pitch) + 1;
+	for (int32 i = 0; i < N; ++i) D->Slats->AddInstance(FTransform::Identity, false);
+	D->Bar->AddInstance(FTransform::Identity, false);
+	D->Layout();
+	All.Add(D);
+	ADP_LOG(TEXT("Roller door %s: %.1f m wide, %.1f m high, %d slats"), *Id, D->Width, Height, N);
+	return D;
+}
+
+void ARollerDoor::Layout()
+{
+	// the curtain's foot at K x the height; the slats stacked on it; any slat above the opening's head is wound into the
+	// hood (shrunk away: its list is shared by the door's own slats only)
+	const float Foot = K * Height;
+	const int32 N = Slats->GetInstanceCount();
+	TArray<FTransform> T; T.SetNum(N);
+	for (int32 i = 0; i < N; ++i)
+	{
+		const float Y = Foot + i * Pitch;
+		const bool bIn = Y + Pitch <= Height + 0.02f;
+		T[i] = bIn ? FTransform(FQuat::Identity, FVector(0.f, 0.f, Y * 100.f), FVector(Width, 1.f, 1.f))
+		           : FTransform(FQuat::Identity, FVector(0.f, 0.f, Height * 100.f + 30.f), FVector(0.0001f));
+	}
+	Slats->BatchUpdateInstancesTransforms(0, T, false, true, true);
+	Bar->UpdateInstanceTransform(0, FTransform(FQuat::Identity, FVector(0.f, 0.f, FMath::Max(0.f, Foot - 0.06f) * 100.f), FVector(Width, 1.f, 1.f)), false, true, true);
+}
+
+bool ARollerDoor::SomethingInDoorway() const
+{
+	// the doorway's box, 1.5 m deep each side of the curtain: anyone or any vehicle in it stops the door coming down
+	FCollisionObjectQueryParams Obj;
+	Obj.AddObjectTypesToQuery(ECC_Pawn); Obj.AddObjectTypesToQuery(ECC_PhysicsBody); Obj.AddObjectTypesToQuery(ECC_Vehicle); Obj.AddObjectTypesToQuery(ECC_WorldDynamic);
+	FCollisionQueryParams Q(SCENE_QUERY_STAT(RollerDoor), false, this);
+	const FVector C = GetActorLocation() + FVector(0.f, 0.f, Height * 50.f + 10.f);
+	return GetWorld()->OverlapAnyTestByObjectType(C, FQuat::Identity, Obj, FCollisionShape::MakeBox(FVector(Width * 50.f, 150.f, Height * 50.f - 15.f)), Q);
+}
+
+void ARollerDoor::Tick(float Dt)
+{
+	Super::Tick(Dt);
+	if (!Slats) return;
+	// someone near it (the player): it stays as it is; nobody for 40 s and it closes by itself
+	const APawn* P = UGameplayStatics::GetPlayerPawn(this, 0);
+	const bool bNear = P && FVector::Dist2D(P->GetActorLocation(), GetActorLocation()) < FMath::Max(800.f, Width * 60.f);
+	Quiet = bNear ? 0.f : Quiet + Dt;
+	if (HoldOpen > 0.f) { HoldOpen -= Dt; Want = 1.f; Quiet = 0.f; }
+	if (Want > 0.5f && K >= 1.f && Quiet > 40.f && HoldOpen <= 0.f) { Want = 0.f; ADP_LOG(TEXT("Roller door %s: closing by itself (nobody near)"), *Id); }
+	// never on anyone: coming down with something in the doorway, it goes back up
+	if (Want < K && SomethingInDoorway()) { Want = 1.f; Quiet = 0.f; ADP_LOG(TEXT("Roller door %s: something in the doorway - back up"), *Id); }
+	if (FMath::IsNearlyEqual(K, Want, 0.0005f)) return;
+	// half a metre a second, as a real door's motor (the 8 m door: 8 s up)
+	K = FMath::FInterpConstantTo(K, Want, Dt, 0.5f / FMath::Max(1.f, Height));
+	Layout();
+}
+
+static ARollerDoor* FindFaced(UWorld* W, const FVector& Feet, const FVector& Facing)
+{
+	ARollerDoor* Best = nullptr; float BestD = 1e9f;
+	for (TActorIterator<ARollerDoor> It(W); It; ++It)
+	{
+		ARollerDoor* D = *It;
+		// the nearest point of the door's line (it runs along the plan's x)
+		const FVector C = D->GetActorLocation();
+		const float HalfW = D->DoorWidth() * 50.f;
+		const FVector At(FMath::Clamp(Feet.X, C.X - HalfW + 50.f, C.X + HalfW - 50.f), C.Y, C.Z);
+		const float Dist = FVector::Dist2D(Feet, At);
+		if (Dist > 300.f || FMath::Abs(Feet.Z - C.Z) > 250.f) continue;
+		const FVector To = (At - Feet).GetSafeNormal2D();
+		if (Dist > 80.f && FVector::DotProduct(To, Facing.GetSafeNormal2D()) < 0.3f) continue;
+		if (Dist < BestD) { BestD = Dist; Best = D; }
+	}
+	return Best;
+}
+
+bool ARollerDoor::DoorNear(UWorld* W, const FVector& Feet, const FVector& Facing, bool& bIsOpen)
+{
+	if (!W) return false;
+	if (ARollerDoor* D = FindFaced(W, Feet, Facing)) { bIsOpen = D->Want > 0.5f; return true; }
+	return false;
+}
+
+bool ARollerDoor::UseDoor(const APawn* Me)
+{
+	if (!Me || !Me->GetWorld()) return false;
+	const FVector Feet = Me->GetActorLocation() - FVector(0, 0, Me->GetSimpleCollisionHalfHeight());
+	const FVector Facing = Me->GetControlRotation().Vector();
+	ARollerDoor* D = FindFaced(Me->GetWorld(), Feet, Facing);
+	if (!D) return false;
+	D->Want = D->Want > 0.5f ? 0.f : 1.f; D->Quiet = 0.f;
+	if (D->Want < 0.5f) D->HoldOpen = 0.f;
+	ADP_LOG(TEXT("Roller door %s %s (E / X)"), *D->Id, D->Want > 0.5f ? TEXT("going up") : TEXT("coming down"));
+	return true;
+}
+
+void ARollerDoor::OpenFor(UWorld* W, const FVector& At, float Radius, float Seconds)
+{
+	if (!W) return;
+	for (TActorIterator<ARollerDoor> It(W); It; ++It)
+		if (FVector::Dist2D(It->GetActorLocation(), At) < Radius) { It->HoldOpen = FMath::Max(It->HoldOpen, Seconds); It->Want = 1.f; }
+}
