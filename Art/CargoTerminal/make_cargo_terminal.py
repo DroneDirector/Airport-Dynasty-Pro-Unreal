@@ -4,14 +4,15 @@
 # west end (plan x 200), Y from the airside face (plan y 1231, facing the apron at -Y) to the landside (+Y), Z up.
 # The halls are hollow with every room inside (walls with 4 m forklift openings, cold rooms with their own ceilings),
 # the office block has three floors, and the working equipment is in place; the room list is in cargo_layout.py.
-# The truck court on the landside needs the airport fence moved out from plan y 1320 to about y 1441.
+# Every door is plain to see: overhead and sectional doors amber, personnel and escape doors green with an exit sign
+# above, fire shutters red. The truck court on the landside needs the airport fence moved out from plan y 1320 to y 1441.
 #   python3 make_cargo_terminal.py   ->  CargoTerminal.blend, CargoTerminal.glb (next to this file)
 import bpy, bmesh, math, os, sys
 from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import cargo_layout as CL
-from cargo_layout import L, D, H_MAIN, H_ETV, H_OFF, H_SPEC, OFF, EXP, ETV, IMP, SPC, CANOPY_D, CANOPY_H, YARD_D
+from cargo_layout import L, D, H_MAIN, H_ETV, H_OFF, H_SPEC, OFF, EXP, ETV, IMP, SPC, BCP, CANOPY_D, CANOPY_H, YARD_D, A1, A2
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 SC = bpy.context.scene
@@ -37,7 +38,13 @@ M = dict(
     wall2=mat('M_Cargo_WallHighBay', (0.20, 0.36, 0.58)),
     roof=mat('M_Cargo_Roof', (0.10, 0.20, 0.36)),
     glass=mat('M_Cargo_Glass', (0.30, 0.55, 0.85), 0.1, 0.2),
-    door=mat('M_Cargo_Door', (0.09, 0.17, 0.30)),
+    door=mat('M_Cargo_Door', (0.98, 0.62, 0.10), emit=0.35),
+    esc=mat('M_Cargo_PersonnelDoor', (0.15, 0.85, 0.35), emit=0.6),
+    exitsign=mat('M_Cargo_ExitSign', (0.20, 1.0, 0.40), emit=2.0),
+    shutter=mat('M_Cargo_FireShutter', (0.95, 0.18, 0.18), emit=0.5),
+    concrete=mat('M_Cargo_FireRatedWall', (0.48, 0.52, 0.58)),
+    lead=mat('M_Cargo_LeadShield', (0.30, 0.32, 0.36), 0.5, 0.6),
+    fl_bcp=mat('M_Cargo_Floor_BCP', (0.30, 0.20, 0.50)),
     shelter=mat('M_Cargo_DockShelter', (0.04, 0.06, 0.10)),
     canopy=mat('M_Cargo_Canopy', (0.24, 0.42, 0.66)),
     steel=mat('M_Cargo_Steel', (0.55, 0.62, 0.70), 0.4, 0.6),
@@ -110,15 +117,24 @@ for x0, x1, h in ((-0.3, 0.0, H_OFF), (L, L + 0.3, H_SPEC)):
     lo.append(box('OW', x0, -0.3, 0, x1, D + 0.3, LOW, 'wall')); hi.append(box('OW', x0, -0.3, LOW, x1, D + 0.3, h, 'wall'))
 join('OuterWallsLow', lo); join('OuterWallsHigh', hi)
 join('Roofs', [box('Roof', x0 - 0.3, -0.3, h, x1 + 0.3, D + 0.3, h + 0.6, 'roof') for _, (x0, x1), h, _ in CL.ZONES])
-FW = ((EXP[0], H_MAIN), (ETV[0], H_ETV), (ETV[1], H_ETV), (SPC[0], H_MAIN))
-# fire walls between fire zones stand 1 m through the roof; each has two 5 m fire-shutter openings for forklifts
-fwl = []
-for x, h in FW:
-    for y0, y1 in ((-0.5, 25.0), (30.0, 52.5), (57.5, D + 0.5)):
-        fwl.append(box('FW', x - 0.4, y0, 0, x + 0.4, y1, LOW, 'wall2'))
-    fwl.append(box('FW', x - 0.4, 25.0, 5.0, x + 0.4, 30.0, LOW, 'wall2')); fwl.append(box('FW', x - 0.4, 52.5, 5.0, x + 0.4, 57.5, LOW, 'wall2'))
-join('FireWallsLow', fwl)
-join('FireWallsHigh', [box('FW', x - 0.4, -0.5, LOW, x + 0.4, D + 0.5, h + 1.6, 'wall2') for x, h in FW])
+# fire walls between fire zones stand 1 m through the roof; 6.5 m fire shutters at both aisles (none into the border
+# control post) and 1.2 m escape doors in them
+fwl, fwd, fws = [], [], []
+for x, h in CL.FIRE_WALLS:
+    gaps = [(a, b, 5.5) for a, b in (A1, A2)] if x in CL.FIRE_SHUTTERS else []
+    gaps += [(y - 0.6, y + 0.6, 2.2) for fx, y in CL.FW_DOORS if fx == x]
+    gaps.sort(); y = -0.5
+    for a, b, hd in gaps + [(D + 0.5, D + 0.5, 0)]:
+        if a > y: fwl.append(box('FW', x - 0.4, y, 0, x + 0.4, a, LOW, 'wall2'))
+        if b > a:
+            fwl.append(box('FW', x - 0.4, a, hd, x + 0.4, b, LOW, 'wall2'))
+            if hd > 3: fws.append(box('FS', x - 0.5, a, hd - 0.6, x + 0.5, b, hd, 'shutter'))          # rolled-up shutter
+            else: fwd.append(box('FD', x - 0.05, a + 0.1, 0, x + 0.05, b - 0.1, 2.1, 'esc'))           # escape door
+        y = b
+join('FireWallsLow', fwl); join('FireShutters', fws)
+join('FireWallsHigh', [box('FW', x - 0.4, -0.5, LOW, x + 0.4, D + 0.5, h + 1.6, 'wall2') for x, h in CL.FIRE_WALLS])
+# the full-height wall between the border control post's animals unit and its animal products unit
+join('BCPSplitWall', [box('BW', CL.BCP_SPLIT - 0.2, 0, 0, CL.BCP_SPLIT + 0.2, D, H_SPEC, 'wall2')])
 # office block windows: the ground floor's apart from the upper floors' so a cutaway can keep it
 wl, wu = [], []
 for f in range(3):
@@ -137,7 +153,6 @@ join('HighBayGlazing', [box('HG', ETV[0] + 3, -0.45, H_MAIN + 2, ETV[1] - 3, -0.
 
 # #region ── Rooms: coloured floors, aisles with yellow edge lines, partitions with openings, cold-room ceilings ──
 floors, aisles, lines = {}, [], []
-ground = []
 for name, x0, y0, x1, y1, zk, kind, doors, short in CL.ROOMS:
     if kind == 'aisle':
         aisles.append(box('FA', x0, y0, 0.0, x1, y1, 0.03, 'fl_aisle'))
@@ -147,24 +162,58 @@ for name, x0, y0, x1, y1, zk, kind, doors, short in CL.ROOMS:
             lines += [box('AL', x0 + 0.1, y0, 0.03, x0 + 0.3, y1, 0.05, 'yellow'), box('AL', x1 - 0.3, y0, 0.03, x1 - 0.1, y1, 0.05, 'yellow')]
         continue
     floors.setdefault(zk, []).append(box('FL', x0 + 0.15, y0 + 0.15, 0.0, x1 - 0.15, y1 - 0.15, 0.03, 'fl_' + zk))
-    if kind in ('room', 'cold'):
-        h = 4.4 if zk == 'off' else (7.0 if kind == 'cold' else 5.0)
-        ground.append((x0, y0, x1, y1, h, doors))
 for zk, objs in floors.items(): join('Floor_' + zk, objs)
 join('Floor_Aisles', aisles); join('AisleLines', lines)
-SKX = (0.0, L, EXP[0], ETV[0], ETV[1], SPC[0]); SKY = (0.0, D)
-join('Partitions', [box('PW', *w, 'part') for w in CL.walls_from_rooms([r for r in ground if r[4] != 7.0], 0.0, SKX, SKY)])
+ground = CL.ground_rooms()
+SKX, SKY = CL.SKIP_X, CL.SKIP_Y
+join('Partitions', [box('PW', *w, 'part') for w in CL.walls_from_rooms([r for r in ground if r[4] in (4.4, 5.0)], 0.0, SKX, SKY)])
 join('ColdRoomWalls', [box('CW', *w, 'cold') for w in CL.walls_from_rooms([r for r in ground if r[4] == 7.0], 0.0, SKX, SKY)])
-join('ColdCeilings', [box('CC', x0, y0, 7.0, x1, y1, 7.3, 'cold') for _, x0, y0, x1, y1, _, k, _, _ in CL.ROOMS if k == 'cold'])
-# office block upper floors (slab + its partitions each)
+join('DGWalls', [box('GW', *w, 'concrete') for w in CL.walls_from_rooms([r for r in ground if r[4] == 6.0], 0.0, SKX, SKY)])
+join('ColdCeilings', [box('CC', x0, y0, 7.0, x1, y1, 7.3, 'cold') for _, x0, y0, x1, y1, _, k, _, _ in CL.ROOMS if k == 'cold'] +
+     [box('CC', x0, y0, 6.0, x1, y1, 6.3, 'cold') for _, x0, y0, x1, y1, _, k, _, _ in CL.ROOMS if k == 'dg'])
+join('DGSumps', [box('SU', x0 + 0.8, y0 + 0.8, 0.03, x1 - 0.8, y1 - 0.8, 0.06, 'lead') for _, x0, y0, x1, y1, _, k, _, _ in CL.ROOMS if k == 'dg'])
+# a security mesh fence where no room wall forms the line between unscreened and secure cargo
+join('SecurityFence', [box('SF', a, CL.SECURITY_LINE[2] - 0.05, 0, b, CL.SECURITY_LINE[2] + 0.05, 3.0, 'fence') for a, b in CL.SECURITY_FENCE])
+
+
+def door_parts(doors, z0, tag):
+    """Room doors made plain to see: a personnel door is a green leaf with a green exit light above it; a wider
+    opening gets amber jambs, an amber header and its door rolled up under the header."""
+    lit, amber, green = [], [], []
+    for cx, cy, o, w in doors:
+        hw = w / 2
+        if w <= 1.2:
+            leaf = (cx - hw, cy - 0.06, z0, cx + hw, cy + 0.06, z0 + 2.1) if o == 'h' else (cx - 0.06, cy - hw, z0, cx + 0.06, cy + hw, z0 + 2.1)
+            green.append(box(tag + 'P', *leaf, 'esc'))
+            sign = (cx - 0.3, cy - 0.2, z0 + 2.25, cx + 0.3, cy + 0.2, z0 + 2.5) if o == 'h' else (cx - 0.2, cy - 0.3, z0 + 2.25, cx + 0.2, cy + 0.3, z0 + 2.5)
+            lit.append(box(tag + 'X', *sign, 'exitsign'))
+        else:
+            hd = 4.5 if w >= 4 else 3.4
+            for s in (-1, 1):
+                j = (cx + s * hw - 0.15, cy - 0.3, z0, cx + s * hw + 0.15, cy + 0.3, z0 + hd + 0.4) if o == 'h' else \
+                    (cx - 0.3, cy + s * hw - 0.15, z0, cx + 0.3, cy + s * hw + 0.15, z0 + hd + 0.4)
+                amber.append(box(tag + 'J', *j, 'door'))
+            hb = (cx - hw - 0.15, cy - 0.35, z0 + hd, cx + hw + 0.15, cy + 0.35, z0 + hd + 0.6) if o == 'h' else \
+                 (cx - 0.35, cy - hw - 0.15, z0 + hd, cx + 0.35, cy + hw + 0.15, z0 + hd + 0.6)
+            amber.append(box(tag + 'H', *hb, 'door'))
+            amber.append(box(tag + 'T', *((cx - hw, cy - 0.3, z0 + 0.03, cx + hw, cy + 0.3, z0 + 0.06) if o == 'h' else
+                                         (cx - 0.3, cy - hw, z0 + 0.03, cx + 0.3, cy + hw, z0 + 0.06)), 'door'))   # threshold strip
+    return green, amber, lit
+
+
+g, a_, lt = door_parts(CL.doors_from_rooms(ground, SKX, SKY), 0.0, 'G')
+join('RoomDoorsPersonnel', g); join('RoomDoorsSectional', a_); join('ExitSigns', lt)
+# office block upper floors (slab + its partitions and doors each)
 for f, rooms in CL.UPPER.items():
     z = CL.FLOOR_Z[f]
     box(f'Office_F{f}_Slab', 0.0, 0.0, z, OFF[1], D, z + 0.3, 'slab')
-    rr = [(x0, y0, x1, y1, 4.3, doors) for _, x0, y0, x1, y1, k, doors in rooms if k != 'aisle']
-    join(f'Office_F{f}_Walls', [box('UW', *w, 'part') for w in CL.walls_from_rooms(rr, z + 0.3, (0.0, OFF[1]), SKY)])
-# stairs and lifts core rising through the block on the landside
-box('Office_StairCore', 22, 60, 0, 29, 69, H_OFF + 1.5, 'wall')
-box('ReceptionDesk', 12, 63, 0, 18, 64.2, 1.1, 'steel')
+    rr = [(x0, y0, x1, y1, 4.3, doors, 1.0) for _, x0, y0, x1, y1, k, doors in rooms if k != 'aisle']
+    w_ = [box('UW', *w, 'part') for w in CL.walls_from_rooms(rr, z + 0.3, (0.0, OFF[1]), SKY)]
+    g, a_, lt = door_parts(CL.doors_from_rooms(rr, (0.0, OFF[1]), SKY), z + 0.3, f'U{f}')
+    join(f'Office_F{f}_Walls', w_); join(f'Office_F{f}_Doors', g + lt)
+# the three stair cores rising through the block (one stair per 900 m2 of floor)
+join('Office_Stairs', [box('SC', x0 + 0.3, y0 + 0.3, 0, x1 - 0.3, y1 - 0.3, H_OFF + 1.5, 'wall') for x0, y0, x1, y1 in CL.STAIRS])
+box('ReceptionDesk', 14, 63, 0, 20, 64.2, 1.1, 'steel')
 # #endregion
 
 # #region ── Equipment: transfer roller decks, build-up and break-down stations, racks, screening, ETV store ──
@@ -189,7 +238,7 @@ for zk, (xa, xb, rows) in CL.RACK_ROWS.items():
 eq_xray += [box('XR', *r[:2], 0, *r[2:], 2.2, 'xray') for r in CL.XRAY]
 eq_steel += [box('SCL', x0, y0, 0, x1, y1, 0.1, 'steel') for x0, y0, x1, y1 in CL.SCALES]
 # ETV store: rack columns and decks on both sides of the aisle, ULDs in two of three positions, the two ETVs
-for ya, yb in ((22.0, 30.0), (40.0, 48.0)):
+for ya, yb in CL.ETV_RACKS:
     xs = CL.ETV_RACK_X + [CL.ETV_RACK_X[-1] + 3.3]
     for x in xs:
         for yy in (ya, yb - 0.4):
@@ -199,21 +248,25 @@ for ya, yb in ((22.0, 30.0), (40.0, 48.0)):
     for i, x in enumerate(CL.ETV_RACK_X):
         for j, z in enumerate(CL.ETV_LEVELS):
             if (i + j * 2 + int(ya)) % 3:
-                eq_uld.append(box('EU', x + 0.2, ya + 1.0, z + 0.1, x + 3.1, yb - 1.0, z + 0.1 + (2.5 if (i + j) % 2 else 3.0), 'uld'))
-for ya in (10.0, 15.5, 52.5, 58.0):                                                          # roller-bed buffers
+                eq_uld.append(box('EU', x + 0.2, ya + 0.6, z + 0.1, x + 3.1, yb - 0.6, z + 0.1 + (2.5 if (i + j) % 2 else 3.0), 'uld'))
+for ya in (7.5, 12.5, 17.5):                                                                  # roller-bed buffer rows
     eq_steel.append(box('RB', ETV[0] + 1, ya, 0, ETV[1] - 1, ya + 3.2, 0.5, 'steel'))
+e0, e1 = CL.ETV_AISLE
 for x in CL.ETV_MACHINES:
-    eq_steel += [box('EM', x - 0.6, 30.8, 0, x + 0.6, 32.2, 23.0, 'steel'), box('EM', x - 0.6, 37.8, 0, x + 0.6, 39.2, 23.0, 'steel'),
-                 box('EC', x - 1.8, 30.8, 10.5, x + 1.8, 39.2, 11.0, 'steel')]
-    eq_fork.append(box('EB', x - 1.0, 31.0, 0, x + 1.0, 39.0, 0.8, 'fork'))
+    eq_steel += [box('EM', x - 0.6, e0 + 0.2, 0, x + 0.6, e0 + 1.2, 23.0, 'steel'), box('EM', x - 0.6, e1 - 1.2, 0, x + 0.6, e1 - 0.2, 23.0, 'steel'),
+                 box('EC', x - 1.8, e0 + 0.2, 10.5, x + 1.8, e1 - 0.2, 11.0, 'steel')]
+    eq_fork.append(box('EB', x - 1.0, e0 + 0.4, 0, x + 1.0, e1 - 0.4, 0.8, 'fork'))
 # forklifts in the aisles, ready to go
-for x, y in ((50, 27), (95, 55), (120, 27), (300, 27), (330, 55), (60, 64), (100, 64), (310, 64), (366, 31), (380, 15)):
+for x, y in ((50, 26.75), (95, 53.75), (120, 26.75), (300, 26.75), (330, 53.75), (60, 66), (100, 66), (310, 66), (366, 26.75), (420, 53.75)):
     eq_fork += [box('FK', x - 0.6, y - 1.3, 0, x + 0.6, y + 1.3, 2.1, 'fork'), box('FM', x - 0.5, y - 1.7, 0, x + 0.5, y - 1.4, 3.6, 'steel')]
-# live-animal pens and the dangerous-goods cages
-eq_steel += [box('AP', 347 + i * 3.4, 2, 0, 349.6 + i * 3.4, 6, 1.8, 'steel') for i in range(4)]
-eq_rack += [box('DG', 346 + i * 2.8, 40, 0, 348.4 + i * 2.8, 45, 2.4, 'fence') for i in range(4)]
+# border control post: horse stalls (4.05 x 4.7 m), stalls for other hoofed animals, kennels; radioactive bays
+eq_steel += [box('HS', x0, y0, 0, x1, y1, 2.2, 'steel') for x0, y0, x1, y1 in CL.HORSE_STALLS]
+eq_steel += [box('CS', x0, y0, 0, x1, y1, 1.8, 'steel') for x0, y0, x1, y1 in CL.CATTLE_STALLS]
+eq_steel += [box('KN', 406 + i * 2.3, 31, 0, 408 + i * 2.3, 33, 1.4, 'steel') for i in range(6)]
+eq_steel += [box('KN', 406 + i * 2.3, 37, 0, 408 + i * 2.3, 39, 1.4, 'steel') for i in range(6)]
+eq_rack += [box('RA', x0, y0, 0, x1, y1, 1.2, 'lead') for x0, y0, x1, y1 in CL.RADIO_BAYS]
 eq_cargo += [box('PB', 287 + i * 3.6, 60, 0, 289.6 + i * 3.6, 62.4, 1.6, 'cargo') for i in range(12)] + \
-            [box('PB', 33 + i * 4.2, 60, 0, 35.8 + i * 4.2, 62.4, 1.6, 'cargo') for i in range(18)]
+            [box('PB', 33 + i * 4.2, 66, 0, 35.8 + i * 4.2, 68.4, 1.6, 'cargo') for i in range(18)]
 join('RollerDecksAndStations', eq_steel); join('ULDsInside', eq_uld); join('Racks', eq_rack)
 join('PalletsInside', eq_cargo); join('Screening', eq_xray); join('Forklifts', eq_fork)
 # #endregion
@@ -224,7 +277,17 @@ join('CanopyColumns', [box('CC', x - 0.4, -CANOPY_D + 0.6, 0, x + 0.4, -CANOPY_D
                        for x in [EXP[0] + i * CL.BAY for i in range(int((IMP[1] - EXP[0]) / CL.BAY) + 1)]])
 join('AirsideDoors', [box('AD', x - 3.0, -0.5, 0, x + 3.0, -0.25, 5.2, 'door') for x in CL.AIR_DOORS])
 join('RollerDecks', [box('RD', x - 2.0, -6.0, 0, x + 2.0, -0.5, 0.5, 'steel') for x in CL.AIR_DOORS])
-join('SpecialDoors', [box('SD', x - 2.0, -0.5, 0, x + 2.0, -0.25, 4.5, 'door') for x in CL.SPC_AIR_DOORS])
+join('SpecialDoors', [box('SD', x - 2.0, -0.5, 0, x + 2.0, -0.25, 4.5, 'door') for x in CL.SPC_AIR_DOORS] +
+     [box('SD', x - 2.5, -0.5, 0, x + 2.5, -0.25, 4.5, 'door') for x in CL.HORSE_AIR_DOORS])
+# escape doors (1.0 x 2.1 m) on every face, a green exit light above each
+esc, sig = [], []
+for x in CL.ESC_AIR:
+    esc.append(box('ED', x - 0.5, -0.55, 0, x + 0.5, -0.25, 2.1, 'esc')); sig.append(box('EX', x - 0.35, -0.7, 2.3, x + 0.35, -0.3, 2.6, 'exitsign'))
+for x in CL.ESC_LAND:
+    esc.append(box('ED', x - 0.5, D + 0.25, 0, x + 0.5, D + 0.55, 2.1, 'esc')); sig.append(box('EX', x - 0.35, D + 0.3, 2.3, x + 0.35, D + 0.7, 2.6, 'exitsign'))
+for y in CL.ESC_EAST:
+    esc.append(box('ED', L + 0.25, y - 0.5, 0, L + 0.55, y + 0.5, 2.1, 'esc')); sig.append(box('EX', L + 0.3, y - 0.35, 2.3, L + 0.7, y + 0.35, 2.6, 'exitsign'))
+join('EscapeDoors', esc); join('EscapeSigns', sig)
 box('AirsideRoad', -40, -40, -0.05, L + 60, 0, 0.0, 'yard')
 join('ULDLanes', [box('UL', x - 2.5, -38, 0.0, x + 2.5, -30, 0.02, 'white') for x in CL.AIR_DOORS] +
      [box('ULb', -40, -40.2, 0.0, L + 60, -39.9, 0.02, 'yellow'), box('ULc', -40, -14.2, 0.0, L + 60, -13.9, 0.02, 'yellow')])
@@ -255,6 +318,10 @@ marks = [box('TM', x - 0.1, D + 2, 0.0, x + 0.1, D + 22, 0.02, 'white') for x in
 marks += [box('TMb', -10, D + 52, 0.0, L + 10, D + 52.3, 0.02, 'white')]
 marks += [box('PB', 40 + i * 5, D + 110, 0.0, 40.2 + i * 5, D + 132, 0.02, 'white') for i in range(60)]
 marks += [box('CP', -8 + i * 2.6, D + 20, 0.0, -7.9 + i * 2.6, D + 25, 0.02, 'white') for i in range(14)]
+# the border control post's own access lane (green hatching) from the gate side to its docks
+b0, b1 = CL.BCP_LANE
+marks += [box('BL', b0 - 0.2, D + 22, 0.0, b0, D + YARD_D - 2, 0.02, 'esc'), box('BL', b1, D + 22, 0.0, b1 + 0.2, D + YARD_D - 2, 0.02, 'esc')]
+marks += [box('BH', b0, y, 0.0, b1, y + 0.4, 0.02, 'esc') for y in range(int(D + 26), int(D + YARD_D - 4), 8)]
 join('CourtMarkings', marks)
 join('Fence', [box('F', -10, D + YARD_D - 0.1, 0, 150, D + YARD_D + 0.1, 2.6, 'fence'),
                box('F', 175, D + YARD_D - 0.1, 0, L + 10, D + YARD_D + 0.1, 2.6, 'fence')])
@@ -276,7 +343,7 @@ join('SmokeVents', [box('SV', x, y, h + 0.6, x + 3, y + 3, h + 1.8, 'hvac') for 
                     for x in range(int(x0) + 8, int(x1) - 6, 20) for y in (24, 44)])
 join('SolarPanels', [box('PV', ETV[0] + 5, y, H_ETV + 0.9, ETV[1] - 5, y + 4.6, H_ETV + 1.5, 'pv') for y in range(6, int(D) - 8, 7)])
 join('RefrigerationPlant', [box('RP', 350 + i * 9, 10 + j * 22, H_SPEC + 0.6, 356 + i * 9, 20 + j * 22, H_SPEC + 3.2, 'hvac')
-                            for i in range(4) for j in range(3)])
+                            for i in range(12) for j in range(3)])
 # #endregion
 
 # #region ── Sign on the airside face of the high bay ──
@@ -293,7 +360,7 @@ o = bpy.data.objects.new('SignText', me); COL.objects.link(o); o.location = loc;
 # #endregion
 
 # #region ── The cargo apron in front, with the four freighter stands' lead-in lines ──
-box('CargoApron', -40, -165, -0.06, 460, -40, -0.01, 'apron')
+box('CargoApron', -30, -165, -0.06, 450, -40, -0.01, 'apron')    # APRON-CARGO, plan x 170-650
 st = []
 for sx in (60.0, 147.5, 235.0, 322.5):         # C1-C4 (plan x 260, 347.5, 435, 522.5 -> local 60 ... 322.5)
     st.append(box('LI', sx - 0.15, -160, 0.0, sx + 0.15, -45, 0.02, 'yellow'))
