@@ -14,8 +14,8 @@
   {
    "id": "F1-HALL",
    "f": 1,
-   "name": "Grand Hall (departures, check-in, bag drop)",
-   "x0": 36,
+   "name": "Grand Hall (departures, check-in, bag drop - landside)",
+   "x0": 42,
    "z0": 0,
    "x1": 114,
    "z1": 30,
@@ -58,22 +58,12 @@
   {
    "id": "F1-MUSEUM",
    "f": 1,
-   "name": "Museum (Vortex Gallery)",
+   "name": "Escalator room (airside, escalators to Floor 2)",
    "x0": 0,
    "z0": 0,
-   "x1": 36,
+   "x1": 42,
    "z1": 30,
-   "kind": "museum"
-  },
-  {
-   "id": "F1-PLANT",
-   "f": 1,
-   "name": "Plant room",
-   "x0": 0,
-   "z0": 30,
-   "x1": 36,
-   "z1": 52,
-   "kind": "plant"
+   "kind": "airside"
   },
   {
    "id": "F1-WC-M",
@@ -96,12 +86,42 @@
    "kind": "wc"
   },
   {
-   "id": "F1-CLEAN",
+   "id": "F1-AIRSIDE-CORR",
    "f": 1,
-   "name": "Cleaners store",
-   "x0": 36,
+   "name": "Airside corridor (to the escalators)",
+   "x0": 4,
    "z0": 44,
    "x1": 50,
+   "z1": 52,
+   "kind": "airside"
+  },
+  {
+   "id": "F1-ESC-PASS",
+   "f": 1,
+   "name": "Airside corridor (down to the escalator room)",
+   "x0": 4,
+   "z0": 30,
+   "x1": 16,
+   "z1": 44,
+   "kind": "airside"
+  },
+  {
+   "id": "F1-SERVICE",
+   "f": 1,
+   "name": "Staff / service room",
+   "x0": 16,
+   "z0": 30,
+   "x1": 36,
+   "z1": 44,
+   "kind": "plant"
+  },
+  {
+   "id": "F1-STORE-W",
+   "f": 1,
+   "name": "Store",
+   "x0": 0,
+   "z0": 30,
+   "x1": 4,
    "z1": 52,
    "kind": "clean"
   },
@@ -137,104 +157,64 @@
    "h": 4.8
   },
   {
-   "id": "F1-OFFICE-1",
+   "id": "F1-HBS",
    "f": 1,
-   "name": "Office 1",
+   "name": "Hold baggage screening (2 CT lines)",
    "x0": 114,
    "z0": 0,
-   "x1": 132,
-   "z1": 10,
-   "kind": "office"
+   "x1": 141.75,
+   "z1": 22.5,
+   "kind": "baggage"
   },
   {
-   "id": "F1-OFFICE-2",
+   "id": "F1-L3",
    "f": 1,
-   "name": "Office 2",
-   "x0": 114,
-   "z0": 10,
-   "x1": 132,
-   "z1": 20,
-   "kind": "office"
-  },
-  {
-   "id": "F1-STAFF-PASS",
-   "f": 1,
-   "name": "Staff passage",
-   "x0": 114,
-   "z0": 20,
-   "x1": 132,
-   "z1": 22,
-   "kind": "passage"
-  },
-  {
-   "id": "F1-OPS",
-   "f": 1,
-   "name": "Operations (scheduling)",
-   "x0": 114,
-   "z0": 22,
-   "x1": 132,
-   "z1": 34,
-   "kind": "ops"
-  },
-  {
-   "id": "F1-STAFF-WC",
-   "f": 1,
-   "name": "Staff toilets",
-   "x0": 114,
-   "z0": 34,
-   "x1": 132,
-   "z1": 42,
-   "kind": "wc"
-  },
-  {
-   "id": "F1-CREW",
-   "f": 1,
-   "name": "Crew room",
-   "x0": 114,
-   "z0": 42,
-   "x1": 132,
-   "z1": 52,
-   "kind": "crew"
-  },
-  {
-   "id": "F1-STAFF-CORR",
-   "f": 1,
-   "name": "Staff corridor",
-   "x0": 132,
+   "name": "Level 3 manual search",
+   "x0": 141.75,
    "z0": 0,
-   "x1": 136,
-   "z1": 52,
+   "x1": 150,
+   "z1": 15.5,
+   "kind": "baggage"
+  },
+  {
+   "id": "F1-EBS",
+   "f": 1,
+   "name": "Early-bag store",
+   "x0": 141.75,
+   "z0": 15.5,
+   "x1": 150,
+   "z1": 22.5,
+   "kind": "baggage"
+  },
+  {
+   "id": "F1-BAG-EAST",
+   "f": 1,
+   "name": "Baggage passage",
+   "x0": 150,
+   "z0": 0,
+   "x1": 156,
+   "z1": 22.5,
    "kind": "corridor"
   },
   {
-   "id": "F1-ACADEMY",
+   "id": "F1-MAKEUP",
    "f": 1,
-   "name": "Academy (20 student desks, teacher desk)",
-   "x0": 136,
-   "z0": 0,
-   "x1": 156,
-   "z1": 20,
-   "kind": "academy"
-  },
-  {
-   "id": "F1-OFFICE-3",
-   "f": 1,
-   "name": "Office 3",
-   "x0": 136,
-   "z0": 20,
-   "x1": 156,
-   "z1": 30,
-   "kind": "office"
-  },
-  {
-   "id": "F1-OFFICE-4",
-   "f": 1,
-   "name": "Office 4",
-   "x0": 136,
-   "z0": 30,
+   "name": "Departure baggage sorting and make-up",
+   "x0": 114,
+   "z0": 22.5,
    "x1": 156,
    "z1": 40,
-   "kind": "office"
+   "kind": "baggage"
+  },
+  {
+   "id": "F1-CARTLANE",
+   "f": 1,
+   "name": "Cart lane (tractor trains)",
+   "x0": 114,
+   "z0": 40,
+   "x1": 136,
+   "z1": 52,
+   "kind": "baggage"
   },
   {
    "id": "F1-STAFF-ENTR",
@@ -420,10 +400,130 @@
    "name": "Bar (big bar area)",
    "x0": 104,
    "z0": 30,
-   "x1": 146,
+   "x1": 114,
    "z1": 52,
    "kind": "bar",
    "glass": "s"
+  },
+  {
+   "id": "F2-OFFICE-1",
+   "f": 2,
+   "name": "Your office",
+   "x0": 118.7,
+   "z0": 0,
+   "x1": 131,
+   "z1": 9,
+   "kind": "office"
+  },
+  {
+   "id": "F2-OFFICE-2",
+   "f": 2,
+   "name": "Office 2",
+   "x0": 131,
+   "z0": 0,
+   "x1": 139.1,
+   "z1": 9,
+   "kind": "office"
+  },
+  {
+   "id": "F2-OFFICE-3",
+   "f": 2,
+   "name": "Office 3",
+   "x0": 139.1,
+   "z0": 0,
+   "x1": 147.3,
+   "z1": 9,
+   "kind": "office"
+  },
+  {
+   "id": "F2-OFFICE-4",
+   "f": 2,
+   "name": "Office 4",
+   "x0": 147.3,
+   "z0": 0,
+   "x1": 156,
+   "z1": 9,
+   "kind": "office"
+  },
+  {
+   "id": "F2-STAFF-CORR",
+   "f": 2,
+   "name": "Staff corridor",
+   "x0": 114,
+   "z0": 9,
+   "x1": 156,
+   "z1": 12,
+   "kind": "corridor"
+  },
+  {
+   "id": "F2-STAFF-WALK",
+   "f": 2,
+   "name": "Walkway by the Grand Hall window",
+   "x0": 114,
+   "z0": 0,
+   "x1": 118.7,
+   "z1": 9,
+   "kind": "corridor"
+  },
+  {
+   "id": "F2-STAFF-WALK-N",
+   "f": 2,
+   "name": "Walkway by the Grand Hall window",
+   "x0": 114,
+   "z0": 12,
+   "x1": 118.7,
+   "z1": 26,
+   "kind": "corridor"
+  },
+  {
+   "id": "F2-OPS",
+   "f": 2,
+   "name": "Operations (scheduling)",
+   "x0": 118.7,
+   "z0": 12,
+   "x1": 133,
+   "z1": 26,
+   "kind": "ops"
+  },
+  {
+   "id": "F2-STAFF-CORR-N",
+   "f": 2,
+   "name": "Staff corridor",
+   "x0": 133,
+   "z0": 12,
+   "x1": 136,
+   "z1": 34.5,
+   "kind": "corridor"
+  },
+  {
+   "id": "F2-ACADEMY",
+   "f": 2,
+   "name": "Academy (20 student desks, teacher desk)",
+   "x0": 136,
+   "z0": 12,
+   "x1": 156,
+   "z1": 34.5,
+   "kind": "academy"
+  },
+  {
+   "id": "F2-STAFF-LOUNGE",
+   "f": 2,
+   "name": "Staff lounge",
+   "x0": 114,
+   "z0": 26,
+   "x1": 133,
+   "z1": 52,
+   "kind": "crew"
+  },
+  {
+   "id": "F2-STAFF-LOBBY",
+   "f": 2,
+   "name": "Staff stair and lift",
+   "x0": 133,
+   "z0": 34.5,
+   "x1": 156,
+   "z1": 52,
+   "kind": "staffentr"
   },
   {
    "id": "F2-WALK",
@@ -684,7 +784,7 @@
   {
    "id": "F1-RAMP-13",
    "f": 1,
-   "name": "Ramp services 13 (under Gate 13)",
+   "name": "Ramp services 13 (departures vehicle passage)",
    "x0": 255.4,
    "z0": 68,
    "x1": 283.4,
@@ -942,24 +1042,13 @@
    "along": "x"
   },
   {
-   "id": "D-F1-MUSEUM-1",
-   "f": 1,
-   "a": "F1-MUSEUM",
-   "b": "F1-HALL",
-   "type": "museum",
-   "w": 4,
-   "x": 36,
-   "z": 15,
-   "along": "z"
-  },
-  {
    "id": "D-F1-WC-M-1",
    "f": 1,
    "a": "F1-WC-M",
    "b": "F1-HALL",
    "type": "swing",
    "w": 1.2,
-   "x": 39.5,
+   "x": 44.7,
    "z": 30,
    "along": "x"
   },
@@ -972,6 +1061,50 @@
    "w": 1.2,
    "x": 46.5,
    "z": 30,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-AIRSIDE-CORR-1",
+   "f": 1,
+   "a": "F1-AIRSIDE-CORR",
+   "b": "F1-AIRSIDE",
+   "type": "open",
+   "w": 8,
+   "x": 50,
+   "z": 48,
+   "along": "z"
+  },
+  {
+   "id": "D-F1-ESC-PASS-1",
+   "f": 1,
+   "a": "F1-ESC-PASS",
+   "b": "F1-AIRSIDE-CORR",
+   "type": "open",
+   "w": 12,
+   "x": 10,
+   "z": 44,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-ESC-PASS-2",
+   "f": 1,
+   "a": "F1-ESC-PASS",
+   "b": "F1-MUSEUM",
+   "type": "open",
+   "w": 11.6,
+   "x": 10,
+   "z": 30,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-SERVICE-1",
+   "f": 1,
+   "a": "F1-SERVICE",
+   "b": "F1-AIRSIDE-CORR",
+   "type": "secure",
+   "w": 1.2,
+   "x": 26,
+   "z": 44,
    "along": "x"
   },
   {
@@ -1008,17 +1141,6 @@
    "along": "x"
   },
   {
-   "id": "D-F1-CLEAN-1",
-   "f": 1,
-   "a": "F1-CLEAN",
-   "b": "F1-AIRSIDE",
-   "type": "swing",
-   "w": 1,
-   "x": 50,
-   "z": 48,
-   "along": "z"
-  },
-  {
    "id": "D-F1-LOUNGE-1",
    "f": 1,
    "a": "F1-LOUNGE",
@@ -1030,142 +1152,76 @@
    "along": "z"
   },
   {
-   "id": "D-F1-PLANT-1",
+   "id": "D-F1-HBS-1",
    "f": 1,
-   "a": "F1-PLANT",
-   "b": "F1-BAGHALL",
+   "a": "F1-HBS",
+   "b": "F1-MAKEUP",
    "type": "secure",
-   "w": 2,
-   "x": 18,
-   "z": 52,
+   "w": 1.6,
+   "x": 118,
+   "z": 22.5,
    "along": "x"
   },
   {
-   "id": "D-F1-STAFF-PASS-1",
+   "id": "D-F1-L3-1",
    "f": 1,
-   "a": "F1-STAFF-PASS",
-   "b": "F1-HALL",
-   "type": "secure",
-   "w": 1.6,
-   "x": 114,
-   "z": 21,
-   "along": "z"
-  },
-  {
-   "id": "D-F1-STAFF-PASS-2",
-   "f": 1,
-   "a": "F1-STAFF-PASS",
-   "b": "F1-STAFF-CORR",
-   "type": "swing",
-   "w": 1.6,
-   "x": 132,
-   "z": 21,
-   "along": "z"
-  },
-  {
-   "id": "D-F1-OFFICE-1-1",
-   "f": 1,
-   "a": "F1-OFFICE-1",
-   "b": "F1-STAFF-CORR",
+   "a": "F1-L3",
+   "b": "F1-BAG-EAST",
    "type": "swing",
    "w": 1,
-   "x": 132,
-   "z": 5,
+   "x": 150,
+   "z": 13.1,
    "along": "z"
   },
   {
-   "id": "D-F1-OFFICE-2-1",
+   "id": "D-F1-EBS-1",
    "f": 1,
-   "a": "F1-OFFICE-2",
-   "b": "F1-STAFF-CORR",
+   "a": "F1-EBS",
+   "b": "F1-BAG-EAST",
    "type": "swing",
    "w": 1,
-   "x": 132,
-   "z": 15,
+   "x": 150,
+   "z": 19,
    "along": "z"
   },
   {
-   "id": "D-F1-OPS-1",
+   "id": "D-F1-BAG-EAST-1",
    "f": 1,
-   "a": "F1-OPS",
-   "b": "F1-STAFF-CORR",
-   "type": "secure",
-   "w": 1.2,
-   "x": 132,
-   "z": 28,
-   "along": "z"
+   "a": "F1-BAG-EAST",
+   "b": "F1-MAKEUP",
+   "type": "open",
+   "w": 6,
+   "x": 153,
+   "z": 22.5,
+   "along": "x"
   },
   {
-   "id": "D-F1-STAFF-WC-1",
+   "id": "D-F1-CARTLANE-1",
    "f": 1,
-   "a": "F1-STAFF-WC",
-   "b": "F1-STAFF-CORR",
-   "type": "swing",
-   "w": 1,
-   "x": 132,
-   "z": 38,
-   "along": "z"
+   "a": "F1-CARTLANE",
+   "b": "F1-MAKEUP",
+   "type": "open",
+   "w": 22,
+   "x": 125,
+   "z": 40,
+   "along": "x"
   },
   {
-   "id": "D-F1-CREW-1",
+   "id": "D-F1-CARTLANE-2",
    "f": 1,
-   "a": "F1-CREW",
-   "b": "F1-STAFF-CORR",
-   "type": "swing",
-   "w": 1.2,
-   "x": 132,
-   "z": 47,
-   "along": "z"
-  },
-  {
-   "id": "D-F1-ACADEMY-1",
-   "f": 1,
-   "a": "F1-ACADEMY",
-   "b": "F1-STAFF-CORR",
-   "type": "double",
-   "w": 1.6,
-   "x": 136,
-   "z": 5,
-   "along": "z"
-  },
-  {
-   "id": "D-F1-ACADEMY-2",
-   "f": 1,
-   "a": "F1-ACADEMY",
-   "b": "F1-STAFF-CORR",
-   "type": "swing",
-   "w": 1,
-   "x": 136,
-   "z": 15,
-   "along": "z"
-  },
-  {
-   "id": "D-F1-OFFICE-3-1",
-   "f": 1,
-   "a": "F1-OFFICE-3",
-   "b": "F1-STAFF-CORR",
-   "type": "swing",
-   "w": 1,
-   "x": 136,
-   "z": 25,
-   "along": "z"
-  },
-  {
-   "id": "D-F1-OFFICE-4-1",
-   "f": 1,
-   "a": "F1-OFFICE-4",
-   "b": "F1-STAFF-CORR",
-   "type": "swing",
-   "w": 1,
-   "x": 136,
-   "z": 35,
-   "along": "z"
+   "a": "F1-CARTLANE",
+   "b": "F1-BAGHALL",
+   "type": "roller",
+   "w": 7.8,
+   "x": 131.8,
+   "z": 52,
+   "along": "x"
   },
   {
    "id": "D-F1-STAFF-ENTR-1",
    "f": 1,
    "a": "F1-STAFF-ENTR",
-   "b": "F1-STAFF-CORR",
+   "b": "F1-CARTLANE",
    "type": "secure",
    "w": 1.6,
    "x": 136,
@@ -1182,17 +1238,6 @@
    "x": 156,
    "z": 46,
    "along": "z"
-  },
-  {
-   "id": "D-F1-STAFF-CORR-1",
-   "f": 1,
-   "a": "F1-STAFF-CORR",
-   "b": "F1-BAGHALL",
-   "type": "secure",
-   "w": 1.6,
-   "x": 134,
-   "z": 52,
-   "along": "x"
   },
   {
    "id": "D-F1-RAMP-1-1",
@@ -1655,6 +1700,182 @@
    "x": 132,
    "z": 52,
    "along": "x"
+  },
+  {
+   "id": "D-F1-RAMP-13-1",
+   "f": 1,
+   "a": "F1-RAMP-13",
+   "b": "F1-BAGHALL",
+   "type": "roller",
+   "w": 4,
+   "x": 269.4,
+   "z": 68,
+   "along": "x"
+  },
+  {
+   "id": "D-F1-RAMP-13-2",
+   "f": 1,
+   "a": "F1-RAMP-13",
+   "b": "APRON",
+   "type": "roller",
+   "w": 4,
+   "x": 269.4,
+   "z": 82,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-OFFICE-1-1",
+   "f": 2,
+   "a": "F2-OFFICE-1",
+   "b": "F2-STAFF-CORR",
+   "type": "swing",
+   "w": 1.2,
+   "x": 120.5,
+   "z": 9,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-OFFICE-2-1",
+   "f": 2,
+   "a": "F2-OFFICE-2",
+   "b": "F2-STAFF-CORR",
+   "type": "swing",
+   "w": 1.2,
+   "x": 132.8,
+   "z": 9,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-OFFICE-3-1",
+   "f": 2,
+   "a": "F2-OFFICE-3",
+   "b": "F2-STAFF-CORR",
+   "type": "swing",
+   "w": 1.2,
+   "x": 141,
+   "z": 9,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-OFFICE-4-1",
+   "f": 2,
+   "a": "F2-OFFICE-4",
+   "b": "F2-STAFF-CORR",
+   "type": "swing",
+   "w": 1.2,
+   "x": 149.2,
+   "z": 9,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-OPS-1",
+   "f": 2,
+   "a": "F2-OPS",
+   "b": "F2-STAFF-CORR",
+   "type": "swing",
+   "w": 1.2,
+   "x": 126,
+   "z": 12,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-ACADEMY-1",
+   "f": 2,
+   "a": "F2-ACADEMY",
+   "b": "F2-STAFF-CORR",
+   "type": "swing",
+   "w": 1.2,
+   "x": 140,
+   "z": 12,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-ACADEMY-2",
+   "f": 2,
+   "a": "F2-ACADEMY",
+   "b": "F2-STAFF-CORR",
+   "type": "swing",
+   "w": 1.2,
+   "x": 152,
+   "z": 12,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-STAFF-WALK-1",
+   "f": 2,
+   "a": "F2-STAFF-WALK",
+   "b": "F2-STAFF-CORR",
+   "type": "open",
+   "w": 4.7,
+   "x": 116.35,
+   "z": 9,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-STAFF-WALK-2",
+   "f": 2,
+   "a": "F2-STAFF-WALK-N",
+   "b": "F2-STAFF-CORR",
+   "type": "open",
+   "w": 4.7,
+   "x": 116.35,
+   "z": 12,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-STAFF-WALK-3",
+   "f": 2,
+   "a": "F2-STAFF-WALK-N",
+   "b": "F2-STAFF-LOUNGE",
+   "type": "open",
+   "w": 4.7,
+   "x": 116.35,
+   "z": 26,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-STAFF-CORR-N-1",
+   "f": 2,
+   "a": "F2-STAFF-CORR-N",
+   "b": "F2-STAFF-CORR",
+   "type": "open",
+   "w": 3,
+   "x": 134.5,
+   "z": 12,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-STAFF-CORR-N-2",
+   "f": 2,
+   "a": "F2-STAFF-CORR-N",
+   "b": "F2-STAFF-LOBBY",
+   "type": "open",
+   "w": 3,
+   "x": 134.5,
+   "z": 34.5,
+   "along": "x"
+  },
+  {
+   "id": "D-F2-STAFF-CORR-N-3",
+   "f": 2,
+   "a": "F2-STAFF-CORR-N",
+   "b": "F2-STAFF-LOUNGE",
+   "type": "open",
+   "w": 8.5,
+   "x": 133,
+   "z": 30.25,
+   "along": "z"
+  },
+  {
+   "id": "D-F2-STAFF-LOBBY-1",
+   "f": 2,
+   "a": "F2-STAFF-LOBBY",
+   "b": "F2-STAFF-LOUNGE",
+   "type": "open",
+   "w": 17.5,
+   "x": 133,
+   "z": 43.25,
+   "along": "z"
   }
  ],
  "columns": [
@@ -1718,7 +1939,7 @@
    "z1": 51,
    "dir": "z-",
    "from": "F1-STAFF-ENTR",
-   "to": "F2-BAR"
+   "to": "F2-STAFF-LOBBY"
   },
   {
    "id": "S-G1",

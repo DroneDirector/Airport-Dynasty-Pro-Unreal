@@ -1,7 +1,7 @@
 [
  {
   "node": 661,
-  "why": "the Grand Hall's west wall: open onto the escalator room (rebuilt above +12 by the annex); its east wall between +6 and +12: the offices' big window",
+  "why": "the Grand Hall's west wall: open onto the escalator room (rebuilt above +12 by the annex); its east wall between +6 and +12: the offices' big window; (2026-11-21) its north wall x 40.1..45.9: rebuilt by the annex with the men's toilets' new door (x 44.1..45.3); (2026-11-21) its east wall x 114 below +6: rebuilt by Art/TerminalAnnex/make_bag_block.py with the overhead conveyor link's opening",
   "boxes": [
    [
     35.4,
@@ -18,6 +18,22 @@
     114.2,
     11.9,
     30.0
+   ],
+   [
+    42.5,
+    -0.5,
+    29.8,
+    43.5,
+    6.5,
+    30.2
+   ],
+   [
+    113.85,
+    -0.1,
+    -0.05,
+    114.15,
+    6.1,
+    30.05
    ]
   ]
  },
@@ -264,6 +280,20 @@
     242.4,
     12.5,
     65.6
+   ]
+  ]
+ },
+ {
+  "node": 1345,
+  "why": "(2026-11-21) the men's toilets' east wall (x 43): rebuilt by the annex with the way in from their new lobby",
+  "boxes": [
+   [
+    42.85,
+    -0.1,
+    29.9,
+    43.15,
+    5.5,
+    43.85
    ]
   ]
  }

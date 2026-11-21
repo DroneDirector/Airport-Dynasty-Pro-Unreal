@@ -1,6 +1,7 @@
 // The walking-mode interface: the holographic map, the top-left bar, Hide UI, the settings panel and the performance
 // overlay, all in Slate, styled in the Android edition's holographic blues.
 #include "UI/ADPHUD.h"
+#include "RollerDoor.h"
 #include "SiteTrees.h"
 #include "Tugs.h"
 #include "GeoFrame.h"
@@ -1986,6 +1987,8 @@ void AADPHUD::Interact()
 		}
 	// a hinged door you face: open or close it (only sliding doors open by themselves - owner's door rule, to-do 20)
 	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton) && ABabylonModel::UseDoor(GetOwningPawn())) return;
+	// a roller door you face (the baggage block's, ramp services 13's): up or down
+	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton) && ARollerDoor::UseDoor(GetOwningPawn())) return;
 	// a jetway's service door you face (it rides with the jetway: the jetways swing it)
 	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton))
 		if (AJetwayRigs* JRs = AJetwayRigs::Get(GetWorld())) if (APawn* MeD = GetOwningPawn())
@@ -2317,6 +2320,7 @@ void AADPHUD::Tick(float Dt)
 		bool bByDoor = Me && !Drone.IsValid() && !bSat && !bHeld && ABabylonModel::DoorNear(Me->GetActorLocation() - FVector(0, 0, Me->GetSimpleCollisionHalfHeight()), Me->GetControlRotation().Vector(), bDOpen);
 		if (!bByDoor && Me && !Drone.IsValid() && !bSat && !bHeld)
 			if (AJetwayRigs* JRs = AJetwayRigs::Get(GetWorld())) bByDoor = JRs->ServiceDoorNear(Me->GetActorLocation() - FVector(0, 0, Me->GetSimpleCollisionHalfHeight()), Me->GetControlRotation().Vector(), bDOpen);
+		if (!bByDoor && Me && !Drone.IsValid() && !bSat && !bHeld) bByDoor = ARollerDoor::DoorNear(GetWorld(), Me->GetActorLocation() - FVector(0, 0, Me->GetSimpleCollisionHalfHeight()), Me->GetControlRotation().Vector(), bDOpen);
 		if (bByDoor != bNearDoor || (bByDoor && bDOpen != bDoorOpen)) { bNearDoor = bByDoor; bDoorOpen = bDOpen; RefreshControls(); }
 	}
 	// the stage's transition over: the creator's panel on the free side
@@ -2725,32 +2729,34 @@ void AADPHUD::Tick(float Dt)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
 		}
 		// -UIOffices: the old office's things in Office 1 (yours) and Office 3, the operations room's and the Academy's
+		// (on Floor 2 since 2026-11-21: Offices.cpp; plan metres, the eye's floor at F2Y)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIOffices")))
 		{
 			struct FStep { float At; TFunction<void()> Do; };
+			const float Y = Plan.F2Y;
 			const FStep OSteps[] = {
-				{44.f, [&]() { if (bGame) ToggleGame(); ASunClock::HourOverride = 13.f; ASunClock::Refresh(); GoTo(FVector(130.f, 0.f, 5.f), FVector(117.f, 1.2f, 5.f)); }},
+				{44.f, [&]() { if (bGame) ToggleGame(); ASunClock::HourOverride = 13.f; ASunClock::Refresh(); GoTo(FVector(120.5f, Y, 10.5f), FVector(124.f, Y + 1.2f, 3.f)); }},
 				{52.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Office1_FromDoor"), false, false); }},
-				{53.f, [&]() { GoTo(FVector(123.f, 0.f, 9.f), FVector(117.f, 0.6f, 3.f)); }},
+				{53.f, [&]() { GoTo(FVector(130.f, Y, 7.5f), FVector(124.f, Y + 0.6f, 2.f)); }},
 				{60.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Office1_Side"), false, false); }},
-				{61.f, [&]() { GoTo(FVector(119.5f, 0.f, 2.f), FVector(117.f, 0.9f, 5.f)); }},
+				{61.f, [&]() { GoTo(FVector(124.f, Y, 7.f), FVector(124.f, Y + 0.9f, 1.6f)); }},
 				{68.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Office1_Desk"), false, false); }},
-				{69.f, [&]() { GoTo(FVector(138.f, 0.f, 25.f), FVector(152.f, 1.2f, 25.f)); }},
+				{69.f, [&]() { GoTo(FVector(141.f, Y, 10.5f), FVector(143.2f, Y + 1.2f, 3.f)); }},
 				{76.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Office3_FromDoor"), false, false); }},
 				// from the chair's side: the drawers, the monitor and the laptop facing you
-				{77.f, [&]() { GoTo(FVector(114.5f, 0.f, 6.2f), FVector(116.4f, 0.8f, 5.f)); }},
+				{77.f, [&]() { GoTo(FVector(124.f, Y, 0.6f), FVector(124.f, Y + 0.8f, 2.5f)); }},
 				{84.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Office1_Chair"), false, false); }},
-				{85.f, [&]() { GoTo(FVector(131.f, 0.f, 28.f), FVector(115.5f, 1.f, 28.f)); }},
+				{85.f, [&]() { GoTo(FVector(126.f, Y, 11.f), FVector(120.f, Y + 1.f, 19.f)); }},
 				{92.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Ops_FromDoor"), false, false); }},
-				{93.f, [&]() { GoTo(FVector(137.5f, 0.f, 10.f), FVector(154.f, 1.2f, 10.f)); }},
+				{93.f, [&]() { GoTo(FVector(140.f, Y, 11.f), FVector(152.f, Y + 1.2f, 22.f)); }},
 				{100.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Academy_FromDoor"), false, false); }},
-				{101.f, [&]() { GoTo(FVector(147.f, 0.f, 4.f), FVector(152.f, 0.8f, 9.f)); }},
+				{101.f, [&]() { GoTo(FVector(143.f, Y, 27.f), FVector(152.f, Y + 0.8f, 20.f)); }},
 				{108.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Academy_Desks"), false, false); }},
 				// your pet asleep in its bed, the bowls and the football
-				{109.f, [&]() { GoTo(FVector(120.6f, 0.f, 9.4f), FVector(118.3f, 0.15f, 7.2f)); }},
+				{109.f, [&]() { GoTo(FVector(126.f, Y, 7.5f), FVector(124.f, Y + 0.15f, 5.f)); }},
 				{116.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Office1_Pet"), false, false); }},
 				// the operations desk and its monitor (the one for this window's shape), from the chair
-				{117.f, [&]() { GoTo(FVector(117.6f, 0.f, 28.8f), FVector(115.3f, 1.05f, 28.f)); }},
+				{117.f, [&]() { GoTo(FVector(122.3f, Y, 19.8f), FVector(120.f, Y + 1.05f, 19.f)); }},
 				{124.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Ops_Desk"), false, false); }},
 				{126.f, []() { ADP_SHOT_EXIT(); }},
 			};
@@ -2763,9 +2769,9 @@ void AADPHUD::Tick(float Dt)
 		{
 			struct FStep { float At; TFunction<void()> Do; };
 			const FStep DSteps[] = {
-				{44.f, [&]() { if (bGame) ToggleGame(); ASunClock::HourOverride = 13.f; ASunClock::Refresh(); GoTo(FVector(117.6f, 0.f, 6.4f), FVector(115.85f, 0.8f, 5.42f)); }},
+				{44.f, [&]() { if (bGame) ToggleGame(); ASunClock::HourOverride = 13.f; ASunClock::Refresh(); GoTo(FVector(123.58f, Plan.F2Y, 0.6f), FVector(123.58f, Plan.F2Y + 0.8f, 1.55f)); }},   // (your desk on Floor 2 since 2026-11-21)
 				{50.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_PhoneOnDesk"), false, false); }},
-				{51.f, [&]() { PickPhoneNear(FTerminalPlan::ToWorld(115.85f, 0.8f, 5.42f)); }},
+				{51.f, [&]() { PickPhoneNear(FTerminalPlan::ToWorld(123.58f, Plan.F2Y + 0.8f, 1.55f)); }},
 				{51.35f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_PhoneLifting"), true, false); }},
 				{55.5f, [&]() { if (GameBox.IsValid()) GameBox->SetVisibility(EVisibility::Collapsed); }},   // (the 3D phone and your hand alone: no career in a test run, so the page has no phone)
 				{56.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_PhoneHeld"), true, false); }},
@@ -2778,7 +2784,7 @@ void AADPHUD::Tick(float Dt)
 				{63.f, [&]() { PutDeviceAway(); }},
 				{63.5f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_PhoneLowering"), true, false); }},
 				{66.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_PhoneBack"), false, false); }},
-				{67.f, [&]() { GoTo(FVector(117.3f, 0.4f, 29.3f), FVector(115.3f, 1.0f, 28.f)); }},
+				{67.f, [&]() { GoTo(FVector(122.f, Plan.F2Y + 0.4f, 20.3f), FVector(120.f, Plan.F2Y + 1.0f, 19.f)); }},
 				{72.f, []() { FScreenshotRequest::RequestScreenshot(TEXT("Device_OpsDesk"), true, false); }},
 				{72.2f, [&]() { for (TActorIterator<AOpsMonitors> It(GetWorld()); It; ++It) It->Describe(); }},
 				{86.2f, [&]() { for (TActorIterator<AOpsMonitors> It(GetWorld()); It; ++It) It->Describe(); }},

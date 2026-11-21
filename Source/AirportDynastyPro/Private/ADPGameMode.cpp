@@ -18,6 +18,7 @@ class UWorld; namespace ADPBilingual { void Apply(UWorld* W); }
 #include "Adverts.h"
 #include "BaggageBelts.h"
 #include "TerminalLift.h"
+#include "RollerDoor.h"
 #include "Misc/PackageName.h"
 #include "SunClock.h"
 #include "ADPWalker.h"
@@ -166,11 +167,12 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 					// your pet, sitting just outside the terminal's main entrance for now (Pets.h)
 					ADPPets::PlaceHome(W);
 					// the escalators in the new escalator room (Escalators.h): their foot at the Grand Hall's side, rising
-					// west to the Floor 2 landing (their top combs on its edge, x 21), the pair in the guardrail's gap
+					// west to the Floor 2 landing (their top combs on its edge, x 16 since 2026-11-21: Security v3 moved them 5 m
+					// west, the landing 5 m shorter), the pair in the guardrail's gap
 					if (FPackageName::DoesPackageExist(TEXT("/Game/Escalator/SM_EscStep")) && !FParse::Param(FCommandLine::Get(), TEXT("NoEscalators")))
 					{
 						FActorSpawnParameters Sp; Sp.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-						const float Foot = 21.f + AEscalatorPair::LengthAlong();
+						const float Foot = 16.f + AEscalatorPair::LengthAlong();
 						// two pairs (owner 2026-11-16: the pair copied beside itself with 50 cm between them): each pair 3.22 m
 						// across its outsides (two escalators 1.60 m wide, 1.62 m centre to centre), so the second pair's
 						// origin is 3.72 m along; all four centred on the landing (plan z 15 = Unreal y -15)
@@ -185,6 +187,14 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 						if (ATerminalLift* La = W->SpawnActor<ATerminalLift>(FVector::ZeroVector, FRotator::ZeroRotator, Sp)) La->Build(-71.0f, -68.6f, 49.6f, 51.8f, 50.15f, 51.35f);
 						// the staff lift up to the offices (TerminalLift.h): its car in the shaft in the staff entrance hall
 						if (ATerminalLift* Lf = W->SpawnActor<ATerminalLift>(FVector::ZeroVector, FRotator::ZeroRotator, Sp)) Lf->Build(152.6f, 155.6f, 47.8f, 51.2f, 48.9f, 50.1f);
+						// the roller doors (owner 2026-11-21, Departure-Baggage-v2): the departure baggage block's 8 m door onto the
+						// baggage hall, and ramp services 13's two 4 m doors (the departures vehicle passage) - RollerDoor.h
+						if (!FParse::Param(FCommandLine::Get(), TEXT("NoRollerDoors")))
+						{
+							ARollerDoor::Place(W, TEXT("BAG-BLOCK"), 127.9f, 135.7f, 51.78f, 4.f);
+							ARollerDoor::Place(W, TEXT("RAMP-13-HALL"), 267.4f, 271.4f, 68.22f, 4.f);
+							ARollerDoor::Place(W, TEXT("RAMP-13-APRON"), 267.4f, 271.4f, 81.72f, 4.f);
+						}
 					}
 					AJetwayRigs::Get(W);   // (his jetways rigged to move, JetwayRigs.h)
 				}), 1.0f, false);

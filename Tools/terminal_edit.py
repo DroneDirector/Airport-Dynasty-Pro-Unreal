@@ -174,9 +174,9 @@ def lamps(parent_name, prefix, xs, zs, y):
 # the annex with the stairwell open (Art/TerminalAnnex/make_annex_west.py)
 drop(1981, 'rebuilt by the annex with the stairwell open')
 lamps('F1', 'F1-ESC', [3, 9, 15], [4, 10, 16, 22, 28], 5.33)
-lamps('F1', 'F1-ESC-HIGH', [24, 30], [4, 10, 16, 22, 28], 11.28)
-lamps('F2', 'F2-ESC-LANDING', [17], [3, 9, 20, 26], 11.28)
-lamps('F2', 'F2-OFFICES', [118, 124, 130, 136, 146, 151], [4, 10, 16, 22, 28, 34, 40], 11.28)
+lamps('F1', 'F1-ESC-HIGH', [19, 25, 31], [4, 10, 16, 22, 28], 11.28)     # (the landing 5 m shorter, 2026-11-21: x 16..36 open to the roof)
+lamps('F2', 'F2-ESC-LANDING', [14.5], [3, 9, 20, 26], 11.28)
+# (the offices' lamps: room by room since 2026-11-21, with the partitions - below)
 # the arrivals wing: the claim hall and the arrivals hall under their slatted ceilings (5.4 m), the escalators' void
 lamps('F1', 'F1-CLAIM', [-66, -58, -50, -42, -34, -26, -18, -10, -2], [19, 25, 31, 37, 43, 49], 5.22)
 lamps('F1', 'F1-ARRIVALS', [-76, -68, -60, -52, -44, -36, -28, -20, -12, -4], [-1, 5, 11], 5.22)
@@ -185,7 +185,8 @@ lamps('F1', 'F1-CLAIM-VOID', [-77, -72], [38, 44, 50], 11.28)
 # the crown itself only glows (its material - no light of its own, no flare); its light is ONE terminal lamp under its hub
 # (a LAMP node: the usual panel light with its distance limit), its glowing diffuser the crown's underside (performance
 # lessons, 2026-11-17: every extra light and sprite costs - so one light per crown, nothing more)
-for _nm, _asset, (_x, _y, _z) in (('F1-CROWN-HALL', 'crown_light_hall', (29.5, 8.6, 14.2)), ('F1-CROWN-CLAIM', 'crown_light_claim', (-76.0, 8.0, 43.5))):
+for _nm, _asset, (_x, _y, _z) in (('F1-CROWN-HALL', 'crown_light_hall', (24.5, 8.6, 14.2)),   # (5 m west with the escalators, 2026-11-21)
+                                     ('F1-CROWN-CLAIM', 'crown_light_claim', (-76.0, 8.0, 43.5))):
     N.append({'name': _nm, 'asset': _asset, 'mesh': 90000 + len(N), 'translation': [-_x, _y, _z]})
     N[byname['F1']]['children'].append(len(N) - 1)
     for _k, _dx in enumerate((-0.16, 0.16)):          # (two halves of one disc: the lamp system lights every other lamp)
@@ -193,8 +194,133 @@ for _nm, _asset, (_x, _y, _z) in (('F1-CROWN-HALL', 'crown_light_hall', (29.5, 8
         N.append({'name': 'box#lamp', 'scale': [0.32, 0.04, 0.64], 'mesh': 186})
         N[byname['F1']]['children'].append(len(N) - 2)
     log.append('new: %s (crown light over the escalators)' % _nm)
+# ---- security before the escalators (owner 2026-11-21, Blueprints/Terminal/Security-Escalators-v3.png; the glass wall at
+#      x 42, the corridor and the toilets' new door are Art/TerminalAnnex/make_annex_west.py) ----
+# the plant room and the cleaners store: gone - the airside corridor runs through them
+drop(byname['F1-PLANT'], 'the airside corridor and the service room take its place')
+drop(byname['F1-CLEAN'], 'the airside corridor takes its place')
+# the check-in islands 3.5 m east, clear of the new glass wall (desks 1-24, their chairs, belts, banners, queue posts)
+n_ci = 0
+for c in N[byname['F1-HALL']]['children']:
+    nm = N[c]['name']
+    if nm.startswith('F1-CHECKIN/') or nm.startswith('F1-HALL/OFFICE-CHAIR-') or nm.startswith('F1-HALL/QUEUE-POST-'):
+        t = N[c]['translation']; N[c]['translation'] = [t[0] - 3.5, t[1], t[2]]; n_ci += 1
+log.append('moved: %d check-in parts 3.5 m east' % n_ci)
+# the men's toilets' door onto the hall's side of the glass: x 39.5 -> 44.7 (its lobby: the annex)
+t = N[byname['D-F1-WC-M-1']]['translation']; N[byname['D-F1-WC-M-1']]['translation'] = [t[0] - 5.2, t[1], t[2]]
+log.append('moved: D-F1-WC-M-1 to x 44.7 (hall side of the glass wall)')
+# the corridor's seats (gate rows of 10, backs to its north wall) and two flight screens facing them
+def seat_row(name, x, z, n, half_turn):
+    src = N[byname['F1-GATE-6/SEATS-001']]; kids = src['children']
+    keep = kids[:3] + kids[3:3 + 2 * n]           # (the beam, its end legs, then seat + back pairs: the game rebuilds the row)
+    new = []
+    for k in keep:
+        N.append(dict(N[k])); new.append(len(N) - 1)
+    N.append({'name': name, 'translation': [-x, 0.0, z], 'children': new})
+    if half_turn: N[-1]['rotation'] = [0, 1, 0, 0]
+    N[byname['F1']]['children'].append(len(N) - 1); log.append('new: %s (%d seats)' % (name, n))
+for k, x in enumerate((13.0, 24.0, 35.0)):
+    seat_row('F1-AIRSIDE-CORR/SEATS-%03d' % (k + 1), x, 51.2, 10, True)
+for k, x in enumerate((19.0, 30.0)):
+    d = copy_tree(byname['M-F1-03']); N[d]['name'] = 'M-F1-CORR-%d' % (k + 1)
+    N[d]['translation'] = [-x, 0.0, 44.6]; N[d]['rotation'] = [0, 0, 0, 1]
+    N[byname['F1']]['children'].append(d); log.append('new: flight screen %d in the airside corridor' % (k + 1))
+lamps('F1', 'F1-AIRSIDE-CORR', [7, 12, 17, 22, 27, 32, 37, 42, 47], [46, 50], 5.33)
+lamps('F1', 'F1-ESC-PASS', [7, 13], [33, 38, 42], 5.33)
+lamps('F1', 'F1-SERVICE', [21, 31], [34, 40], 5.33)
+
+# ---- the departure baggage block (owner 2026-11-21, Blueprints/Terminal/Departure-Baggage-v2.png): the ground-floor
+#      office block (offices 1-4, operations, staff toilets, crew room, staff corridor and passage, the Academy) cleared -
+#      every wall, door, lamp, sign and piece of furniture; only their facades with the Floor 2 slab (STRUCTURE-white) and
+#      their ceilings (STRUCTURE-offwhite) stay. The new rooms: Art/TerminalAnnex/make_bag_block.py (the belts:
+#      DepartureBelts). The staff entrance hall stays as it is (its stair and lift up to the offices) ----
+OFFBLOCK = ('F1-OFFICE-1', 'F1-OFFICE-2', 'F1-OFFICE-3', 'F1-OFFICE-4', 'F1-OPS', 'F1-STAFF-WC', 'F1-CREW', 'F1-STAFF-CORR',
+            'F1-STAFF-PASS', 'F1-ACADEMY')
+n_off = 0
+for rn in OFFBLOCK:
+    for c in list(N[byname[rn]]['children']):
+        nm = N[c]['name']
+        if nm.endswith(('/STRUCTURE-white', '/STRUCTURE-offwhite')): continue
+        N[byname[rn]]['children'].remove(c); n_off += 1
+log.append('out: %d parts of the ground-floor office block (its facades, slab and ceilings kept)' % n_off)
+add('F1', 'F1-BAGBLOCK/SOLID', 'annex_bag_solid')
+add('F1', 'F1-BAGBLOCK/GLASS', 'annex_bag_glass')
+def door_copy(src, name, x, z):
+    d = copy_tree(byname[src], skip=('sign',)); N[d]['name'] = name
+    t = N[d]['translation']; N[d]['translation'] = [-x, t[1], z]
+    N[byname['F1']]['children'].append(d); log.append('new: door %s' % name)
+door_copy('D-F1-STAFF-CORR-1', 'D-F1-HBS-1', 118.0, 22.5)          # screening room -> sorting hall (secure, 1.6 m)
+door_copy('D-F1-OFFICE-3-1', 'D-F1-L3-1', 150.0, 13.1)             # level-3 search room (in its glass front)
+door_copy('D-F1-OFFICE-3-1', 'D-F1-EBS-1', 150.0, 19.0)            # early-bag store
+lamps('F1', 'F1-HBS', [118, 124, 130, 136], [4, 10, 16], 5.33)
+lamps('F1', 'F1-L3', [146], [4, 10], 5.33)
+lamps('F1', 'F1-EBS', [146], [19], 5.33)
+lamps('F1', 'F1-BAG-EAST', [153], [5, 12, 19], 5.33)
+lamps('F1', 'F1-MAKEUP', [118, 124, 130, 136, 142, 148, 153], [26, 31, 36], 5.33)
+lamps('F1', 'F1-CARTLANE', [118, 124, 130], [43, 48], 5.33)
+
+# ---- the Floor 2 offices (owner 2026-11-21, Blueprints/Terminal/F2-Offices-v2.png + his final word): the partitions
+#      (Art/TerminalAnnex/make_offices_f2.py), their doors (copies of the terminal's own toilet door, without its sign),
+#      and the old ground-floor rooms' own things carried up (the meeting tables with their chairs, the paintings, the
+#      operations room's clocks, the crew room's sofas, table, counter, coffee machine, lockers and TV - for the staff
+#      lounge); the offices', operations room's and Academy's models are Offices.cpp's (Source/.../Offices.cpp) ----
+add('F2', 'F2-OFFICES/SOLID', 'annex_offices_solid')
+add('F2', 'F2-OFFICES/GLASS', 'annex_offices_glass')
+F2Y = 6.01
+for name, x, z in (('D-F2-OFFICE-1-1', 120.5, 9.0), ('D-F2-OFFICE-2-1', 132.8, 9.0), ('D-F2-OFFICE-3-1', 141.0, 9.0),
+                   ('D-F2-OFFICE-4-1', 149.2, 9.0), ('D-F2-OPS-1', 126.0, 12.0), ('D-F2-ACADEMY-1', 140.0, 12.0),
+                   ('D-F2-ACADEMY-2', 152.0, 12.0)):
+    d = copy_tree(byname['D-F1-WC-M-1'], skip=('sign',)); N[d]['name'] = name
+    N[d]['translation'] = [-x, F2Y, z]
+    N[byname['F2']]['children'].append(d); log.append('new: door %s' % name)
+def carry_up(nm, x, z, rot=None):
+    """A ground-floor room's node up onto Floor 2 at plan (x, z) (it was dropped with its room above)."""
+    i = byname[nm]; t = N[i].get('translation', [0, 0, 0])
+    N[i]['translation'] = [-x, t[1] + F2Y, z]
+    if rot is not None: N[i]['rotation'] = rot
+    N[byname['F2']]['children'].append(i)
+def carry_set(room, tx, tz):
+    """A room's meeting table and its four chairs, as they stood round it, to the table's new place."""
+    tt = N[byname[room + '/MEETING-TABLE-001']]['translation']; ox, oz = -tt[0], tt[2]
+    for k in ('MEETING-TABLE-001', 'CHAIR-003', 'CHAIR-004', 'CHAIR-005', 'CHAIR-006'):
+        t = N[byname[room + '/' + k]]['translation']
+        carry_up(room + '/' + k, tx + (-t[0] - ox), tz + (t[2] - oz))
+    log.append('moved up: %s meeting table and chairs to (%.1f, %.1f)' % (room, tx, tz))
+carry_set('F1-OFFICE-1', 129.2, 4.0)       # your office, beside your desk
+carry_set('F1-OFFICE-2', 128.5, 22.5)      # Operations: a briefing table
+carry_set('F1-OFFICE-3', 125.0, 37.0)      # the staff lounge
+carry_set('F1-OFFICE-4', 140.5, 30.0)      # the Academy's back
+EAST = [0, -0.7071067811865475, 0, 0.7071067811865476]     # facing the plan's +x (on a room's west wall)
+for room, x in (('F1-OFFICE-1', 118.78), ('F1-OFFICE-2', 131.08), ('F1-OFFICE-3', 139.18), ('F1-OFFICE-4', 147.38)):
+    carry_up(room + '/PAINTING-001', x, 4.5, EAST); log.append('moved up: %s painting' % room)
+carry_up('F1-OPS/CLOCKS-001', 132.72, 19.0); log.append('moved up: the operations clocks')
+for k in ('SOFA-001', 'SOFA-002', 'TABLE-001', 'COUNTER-001', 'COFFEE-MACHINE-001', 'LOCKERS-001', 'TV-001'):
+    t = N[byname['F1-CREW/' + k]]['translation']; carry_up('F1-CREW/' + k, -t[0], t[2])
+log.append('moved up: the crew room into the staff lounge (x 114..129, z 42..52)')
+for k, (x, z) in enumerate(((120.8, 50.6), (131.9, 27.2), (132.0, 50.6), (155.0, 10.5), (137.4, 50.6), (115.6, 31.2))):
+    p_ = copy_tree(byname['F2-WALK/PLANT-002']); N[p_]['name'] = 'F2-OFFICES/PLANT-%03d' % (k + 1)
+    N[p_]['translation'] = [-x, F2Y, z]; N[byname['F2']]['children'].append(p_)
+log.append('new: 6 plants on the office floor')
+for nm, xs, zs in (('F2-OFFICE-1', [121.5, 127.5], [2.8, 6.4]), ('F2-OFFICE-2', [135.0], [2.8, 6.4]), ('F2-OFFICE-3', [143.2], [2.8, 6.4]),
+                   ('F2-OFFICE-4', [151.6], [2.8, 6.4]), ('F2-STAFF-CORR', [116, 122, 128, 134.5, 140, 146, 152], [10.5]),
+                   ('F2-STAFF-CORR-N', [134.5], [17, 23, 29]), ('F2-WALKWAY', [116.3], [16, 22, 28]), ('F2-OPS', [122, 128], [15.5, 22]),
+                   ('F2-ACADEMY', [140, 146, 152], [16, 22, 28]), ('F2-LOUNGE', [118, 124, 130], [31, 37, 43, 49]),
+                   ('F2-STAFF-LOBBY', [137.5, 146, 151], [38, 44])):
+    lamps('F2', nm, xs, zs, 11.28)
+
 # the 16 gates (owner, 2026-11-17): Tools/terminal_16gates.py
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_16gates.py'), encoding='utf-8').read())
+# ---- ramp services 13 (made by the 16 gates above): the departures vehicle passage (owner 2026-11-21) - its shell
+#      rebuilt with 4 m roller door openings (Art/TerminalAnnex/make_bag_block.py; onto the baggage hall:
+#      make_pier_extension.py); its two doors give way to the roller doors (ARollerDoor) ----
+for i in [k for k, n in enumerate(N) if n['name'] in ('F1-RAMP-13/STRUCTURE-concrete', 'F1-RAMP-13/STRUCTURE-white', 'D-F1-RAMP-13-1', 'D-F1-RAMP-13-2')]:
+    for p_ in N:
+        if i in p_.get('children', []): p_['children'].remove(i); log.append('out: %s (ramp services 13: the vehicle passage)' % N[i]['name'])
+# its lockers and one parked cart stood in the new lane (x 267.4..271.4): moved to its west side
+for i, n in enumerate(N):
+    if n['name'] in ('F1-RAMP-13/LOCKERS-001', 'F1-RAMP-13/BAGGAGE-CART-003') and n.get('translation'):
+        t = n['translation']; n['translation'] = [-(259.4 if 'LOCKERS' in n['name'] else 257.4) + 86.35, t[1], t[2]]
+        log.append('moved: %s out of the vehicle lane' % n['name'])
 json.dump(L, open(OUT, 'w'))
 print('\n'.join(log))
 print('layout written:', OUT)
