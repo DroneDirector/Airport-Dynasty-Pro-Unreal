@@ -456,6 +456,20 @@ void ASimTraffic::Tick(float Dt)
 	Super::Tick(Dt);
 	ADP_PERF_SCOPE("the simulation's aircraft in 3D (each frame)", 2.f);
 	if ((Poll += Dt) >= 2.f) { Poll = 0.f; Sync(); if (UADPSim* Sm = UADPSim::Get(this)) if (Sm->IsRunning()) ADPTurnaround::Tick(GetWorld(), Sm->Now()); }   // (each aircraft's turnaround: Turnaround.h)
+	// (the cinematic test: every jetway at a stand with an aircraft docked from the start - owner 2026-11-21: nothing may
+	//  hold the test up. Each stand once; in the game the jetway comes out when the crew board, to-do 202)
+	if (Poll == 0.f && FParse::Param(FCommandLine::Get(), TEXT("PaxFlowTest")))
+		if (AJetwayRigs* JR = AJetwayRigs::Get(GetWorld()))
+		{
+			static TSet<int32> TestDocked;
+			for (const FAirfieldData::FStand& S : AAirfield::Shared().Stands)
+			{
+				const int32 J = JetwayAt(GetWorld(), S);
+				if (J == INDEX_NONE || TestDocked.Contains(J) || !JR->AircraftAt(J)) continue;
+				TestDocked.Add(J);
+				if (JR->State(J) == AJetwayRigs::EState::Parked) { JR->Dock(J); ADP_LOG(TEXT("Traffic: test - jetway %s docked at %s from the start"), *JR->Name(J), *S.Id); }
+			}
+		}
 	// the parked aircraft's tags once a second (not a walk over every model each frame - the release's scan check)
 	if ((ParkPoll += Dt) >= 1.f)
 	{
