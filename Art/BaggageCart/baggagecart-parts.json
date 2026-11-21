@@ -1,0 +1,643 @@
+{
+ "size_m": {
+  "x_min": -1.37,
+  "x_max": 2.062,
+  "length": 3.432,
+  "width": 1.651,
+  "height": 1.972,
+  "body_length": 2.3,
+  "deck_width": 1.4,
+  "deck_height": 0.54,
+  "wheelbase": 1.6,
+  "track": 1.2,
+  "tyre": "4.00-8, 415 x 105",
+  "load_space": [
+   2.14,
+   1.21,
+   1.24
+  ]
+ },
+ "tow_eye": {
+  "centre": [
+   2.01,
+   0.0,
+   0.4
+  ],
+  "hole_diameter_mm": 40,
+  "height_m": 0.4000000059604645
+ },
+ "coupler_rear": {
+  "pin_axis": [
+   -1.27,
+   0.0,
+   0.4
+  ],
+  "height_m": 0.4000000059604645,
+  "pin_parts": "CouplerRear_Pin*",
+  "pin_open": "translate +z 0.10 m (0 = closed)",
+  "jaw": "CouplerRear_* (fixed, welded)"
+ },
+ "drawbar": {
+  "parts": "Drawbar*",
+  "pivot": [
+   1.3,
+   0.0,
+   0.3
+  ],
+  "axis": "y",
+  "lowered_deg": 0,
+  "note": "lowered (towing) = 0; raise with a NEGATIVE rotation about +y up to -82 deg (stands up, checked clear); raised = parking brake on (dead-man), the front axle may not steer while raised"
+ },
+ "front_axle": {
+  "parts": "FrontAxle_* + front wheel groups (key FL, FR)",
+  "pivot": [
+   0.8,
+   0.0,
+   0.389
+  ],
+  "axis": "z",
+  "range_deg": 80,
+  "note": "steered by the drawbar (turntable); +deg = turn left"
+ },
+ "brake": {
+  "parts": "FrontAxle_BrakeShoe_*/BrakePad_* (8 mm off the tyres)",
+  "note": "visual: set while the drawbar is raised; optional 3 deg turn of FrontAxle_Brake* about y through (1.065, 0, 0.21) to touch the tyres"
+ },
+ "wheels": {
+  "FL": [
+   0.8,
+   0.6,
+   0.2075
+  ],
+  "FR": [
+   0.8,
+   -0.6,
+   0.2075
+  ],
+  "RL": [
+   -0.8,
+   0.6,
+   0.2075
+  ],
+  "RR": [
+   -0.8,
+   -0.6,
+   0.2075
+  ]
+ },
+ "wheel_radius_m": 0.2075,
+ "curtains": {
+  "L": {
+   "sheet": "Curtain_L",
+   "sheet_pivot_z": 1.84,
+   "roll": "CurtainRoll_L",
+   "roll_axis_point": [
+    0.0,
+    0.75,
+    1.84
+   ],
+   "roll_axis": "x",
+   "animate": "open fraction f (0 closed .. 1 open), after the 4 straps are unhooked: Curtain_L scale z = 1 - 0.97 f about z = 1.840; Curtain_L_Hem + _PullStrap + _Strap_* + _Buckle_* translate +z by 1.256 f; hide _Strap_*/_Buckle_*/_PullStrap at f > 0.9 (wrapped into the roll; the hem bar stays visible under the roll as the handle); CurtainRoll_L scale y and z about its axis = 1 + 0.4 f (0.032 -> 0.045 m radius). Fully open: everything at or above z 1.789, the side opening 2180 x 1240 clear (checked)",
+   "ik_hands": {
+    "straps": [
+     "IK_Curtain_L_Strap_0",
+     "IK_Curtain_L_Strap_1",
+     "IK_Curtain_L_Strap_2",
+     "IK_Curtain_L_Strap_3"
+    ],
+    "closed": [
+     "IK_Curtain_L_Handle",
+     "IK_Curtain_L_HandL",
+     "IK_Curtain_L_HandR"
+    ],
+    "open": [
+     "IK_Curtain_L_HandleUp",
+     "IK_Curtain_L_HandLUp",
+     "IK_Curtain_L_HandRUp"
+    ],
+    "stand": "IK_Stand_Curtain_L",
+    "note": "the hand IK points ride with the hem: interpolate closed -> open with f"
+   }
+  },
+  "R": {
+   "sheet": "Curtain_R",
+   "sheet_pivot_z": 1.84,
+   "roll": "CurtainRoll_R",
+   "roll_axis_point": [
+    0.0,
+    -0.75,
+    1.84
+   ],
+   "roll_axis": "x",
+   "animate": "open fraction f (0 closed .. 1 open), after the 4 straps are unhooked: Curtain_R scale z = 1 - 0.97 f about z = 1.840; Curtain_R_Hem + _PullStrap + _Strap_* + _Buckle_* translate +z by 1.256 f; hide _Strap_*/_Buckle_*/_PullStrap at f > 0.9 (wrapped into the roll; the hem bar stays visible under the roll as the handle); CurtainRoll_R scale y and z about its axis = 1 + 0.4 f (0.032 -> 0.045 m radius). Fully open: everything at or above z 1.789, the side opening 2180 x 1240 clear (checked)",
+   "ik_hands": {
+    "straps": [
+     "IK_Curtain_R_Strap_0",
+     "IK_Curtain_R_Strap_1",
+     "IK_Curtain_R_Strap_2",
+     "IK_Curtain_R_Strap_3"
+    ],
+    "closed": [
+     "IK_Curtain_R_Handle",
+     "IK_Curtain_R_HandL",
+     "IK_Curtain_R_HandR"
+    ],
+    "open": [
+     "IK_Curtain_R_HandleUp",
+     "IK_Curtain_R_HandLUp",
+     "IK_Curtain_R_HandRUp"
+    ],
+    "stand": "IK_Stand_Curtain_R",
+    "note": "the hand IK points ride with the hem: interpolate closed -> open with f"
+   }
+  }
+ },
+ "net_gate": {
+  "parts": "NetGate* (frame, net, knuckles, hinge leaves, latch box + bolt, handle)",
+  "pivot": [
+   -1.175,
+   0.705,
+   0.0
+  ],
+  "axis": "z",
+  "range_deg": [
+   0,
+   -180
+  ],
+  "note": "closed = 0; opens outward with a NEGATIVE rotation about +z (hinges on the left rear post); at -180 it lies out to the left of the rear, the whole rear opening clear (checked). Lift the latch (IK_NetGate_Latch) then pull the handle (IK_NetGate_Handle); stand at IK_Stand_Rear.",
+  "fixed_parts": "GateHinge_* (knuckles + leaves on the post), GateKeeper"
+ },
+ "load_openings_mm": {
+  "side_each": [
+   2180,
+   1240
+  ],
+  "rear": [
+   1280,
+   1240
+  ]
+ },
+ "ik": {
+  "IK_Wheel_FL": [
+   0.8,
+   0.6,
+   0.2075
+  ],
+  "IK_Wheel_FR": [
+   0.8,
+   -0.6,
+   0.2075
+  ],
+  "IK_Wheel_RL": [
+   -0.8,
+   0.6,
+   0.2075
+  ],
+  "IK_Wheel_RR": [
+   -0.8,
+   -0.6,
+   0.2075
+  ],
+  "IK_NetGate_Handle": [
+   -1.245,
+   -0.668,
+   1.04
+  ],
+  "IK_NetGate_Latch": [
+   -1.195,
+   -0.682,
+   1.2
+  ],
+  "IK_NetGate_Hinge": [
+   -1.175,
+   0.705,
+   1.2
+  ],
+  "IK_Stand_Rear": [
+   -1.95,
+   -0.35,
+   0.0
+  ],
+  "IK_Curtain_L_Strap_0": [
+   -0.85,
+   0.8,
+   0.585
+  ],
+  "IK_Curtain_L_Strap_1": [
+   -0.3,
+   0.8,
+   0.585
+  ],
+  "IK_Curtain_L_Strap_2": [
+   0.3,
+   0.8,
+   0.585
+  ],
+  "IK_Curtain_L_Strap_3": [
+   0.85,
+   0.8,
+   0.585
+  ],
+  "IK_Curtain_L_Handle": [
+   0.0,
+   0.81,
+   0.665
+  ],
+  "IK_Curtain_L_HandL": [
+   0.125,
+   0.791,
+   0.555
+  ],
+  "IK_Curtain_L_HandR": [
+   -0.125,
+   0.791,
+   0.555
+  ],
+  "IK_Curtain_L_HandleUp": [
+   0.0,
+   0.795,
+   1.8011
+  ],
+  "IK_Curtain_L_HandLUp": [
+   0.125,
+   0.791,
+   1.8011
+  ],
+  "IK_Curtain_L_HandRUp": [
+   -0.125,
+   0.791,
+   1.8011
+  ],
+  "IK_Stand_Load_L": [
+   0.0,
+   1.3,
+   0.0
+  ],
+  "IK_Stand_Curtain_L": [
+   0.0,
+   1.15,
+   0.0
+  ],
+  "IK_Curtain_R_Strap_0": [
+   -0.85,
+   -0.8,
+   0.585
+  ],
+  "IK_Curtain_R_Strap_1": [
+   -0.3,
+   -0.8,
+   0.585
+  ],
+  "IK_Curtain_R_Strap_2": [
+   0.3,
+   -0.8,
+   0.585
+  ],
+  "IK_Curtain_R_Strap_3": [
+   0.85,
+   -0.8,
+   0.585
+  ],
+  "IK_Curtain_R_Handle": [
+   0.0,
+   -0.81,
+   0.665
+  ],
+  "IK_Curtain_R_HandL": [
+   -0.125,
+   -0.791,
+   0.555
+  ],
+  "IK_Curtain_R_HandR": [
+   0.125,
+   -0.791,
+   0.555
+  ],
+  "IK_Curtain_R_HandleUp": [
+   0.0,
+   -0.795,
+   1.8011
+  ],
+  "IK_Curtain_R_HandLUp": [
+   -0.125,
+   -0.791,
+   1.8011
+  ],
+  "IK_Curtain_R_HandRUp": [
+   0.125,
+   -0.791,
+   1.8011
+  ],
+  "IK_Stand_Load_R": [
+   0.0,
+   -1.3,
+   0.0
+  ],
+  "IK_Stand_Curtain_R": [
+   0.0,
+   -1.15,
+   0.0
+  ],
+  "IK_TowEye": [
+   2.01,
+   0.0,
+   0.4
+  ],
+  "IK_Drawbar_Handle": [
+   1.8,
+   0.0,
+   0.4554
+  ],
+  "IK_Drawbar_Pivot": [
+   1.3,
+   0.0,
+   0.3
+  ],
+  "IK_FrontAxle_Pivot": [
+   0.8,
+   0.0,
+   0.389
+  ],
+  "IK_Coupler_Rear": [
+   -1.27,
+   0.0,
+   0.4
+  ],
+  "IK_Coupler_Pin": [
+   -1.27,
+   0.0,
+   0.5955
+  ],
+  "IK_Load_Min": [
+   -1.07,
+   -0.605,
+   0.54
+  ],
+  "IK_Load_Max": [
+   1.07,
+   0.605,
+   1.78
+  ],
+  "IK_Stand_Drawbar": [
+   2.25,
+   0.4,
+   0.0
+  ],
+  "IK_Stand_Coupler": [
+   -1.75,
+   0.45,
+   0.0
+  ]
+ },
+ "checks": {
+  "floating": [],
+  "lamp_clash": [],
+  "overhang": [],
+  "mesh_loose": [],
+  "steer_hits": 0,
+  "drawbar_hits": 0,
+  "eye_hits": [],
+  "pin_hits": 0,
+  "gate_hits": 0,
+  "opening_hits": [],
+  "flicker": "0 pairs fight",
+  "after_flicker_fix": {
+   "floating": [],
+   "lamp_clash": [],
+   "overhang": [],
+   "mesh_loose": []
+  }
+ },
+ "parts": [
+  "Bulkhead",
+  "BulkheadRib_0",
+  "BulkheadRib_1",
+  "BulkheadRib_2",
+  "BulkheadRib_3",
+  "BulkheadRib_4",
+  "CouplerRear_Guide",
+  "CouplerRear_Gusset_-1",
+  "CouplerRear_Gusset_1",
+  "CouplerRear_JawBottom",
+  "CouplerRear_JawTop",
+  "CouplerRear_Pin",
+  "CouplerRear_PinCollar",
+  "CouplerRear_PinHandle",
+  "CouplerRear_Web",
+  "CrossMember_0",
+  "CrossMember_1",
+  "CrossMember_2",
+  "CurtainBracket_LB",
+  "CurtainBracket_LF",
+  "CurtainBracket_RB",
+  "CurtainBracket_RF",
+  "CurtainRoll_L",
+  "CurtainRoll_R",
+  "CurtainSeal_LB",
+  "CurtainSeal_LF",
+  "CurtainSeal_RB",
+  "CurtainSeal_RF",
+  "CurtainTube_L",
+  "CurtainTube_R",
+  "Curtain_L",
+  "Curtain_L_Buckle_0",
+  "Curtain_L_Buckle_1",
+  "Curtain_L_Buckle_2",
+  "Curtain_L_Buckle_3",
+  "Curtain_L_Hem",
+  "Curtain_L_PullStrap",
+  "Curtain_L_Strap_0",
+  "Curtain_L_Strap_1",
+  "Curtain_L_Strap_2",
+  "Curtain_L_Strap_3",
+  "Curtain_R",
+  "Curtain_R_Buckle_0",
+  "Curtain_R_Buckle_1",
+  "Curtain_R_Buckle_2",
+  "Curtain_R_Buckle_3",
+  "Curtain_R_Hem",
+  "Curtain_R_PullStrap",
+  "Curtain_R_Strap_0",
+  "Curtain_R_Strap_1",
+  "Curtain_R_Strap_2",
+  "Curtain_R_Strap_3",
+  "DeckEdge_L",
+  "DeckEdge_R",
+  "DeckEnd_B",
+  "DeckEnd_F",
+  "DeckHookTip_L0",
+  "DeckHookTip_L1",
+  "DeckHookTip_L2",
+  "DeckHookTip_L3",
+  "DeckHookTip_R0",
+  "DeckHookTip_R1",
+  "DeckHookTip_R2",
+  "DeckHookTip_R3",
+  "DeckHook_L0",
+  "DeckHook_L1",
+  "DeckHook_L2",
+  "DeckHook_L3",
+  "DeckHook_R0",
+  "DeckHook_R1",
+  "DeckHook_R2",
+  "DeckHook_R3",
+  "Drawbar_Arm_-1",
+  "Drawbar_Arm_1",
+  "Drawbar_Beam",
+  "Drawbar_BrakeCam",
+  "Drawbar_Eye",
+  "Drawbar_EyeWeld",
+  "Drawbar_Handle",
+  "Drawbar_PivotTube",
+  "FloorPlate",
+  "FrontAxle_Beam",
+  "FrontAxle_Bolster",
+  "FrontAxle_BrakeBearing_-1",
+  "FrontAxle_BrakeBearing_1",
+  "FrontAxle_BrakeLever",
+  "FrontAxle_BrakePad_-1",
+  "FrontAxle_BrakePad_1",
+  "FrontAxle_BrakeRod",
+  "FrontAxle_BrakeShaft",
+  "FrontAxle_BrakeShoe_-1",
+  "FrontAxle_BrakeShoe_1",
+  "FrontAxle_ClevisNut_-1",
+  "FrontAxle_ClevisNut_1",
+  "FrontAxle_ClevisPin",
+  "FrontAxle_Ring",
+  "FrontAxle_Stub_L",
+  "FrontAxle_Stub_R",
+  "FrontAxle_YokeArm_-1",
+  "FrontAxle_YokeArm_1",
+  "FrontAxle_YokeTie",
+  "GateHinge_0",
+  "GateHinge_0_Arm",
+  "GateHinge_0_Base",
+  "GateHinge_1",
+  "GateHinge_1_Arm",
+  "GateHinge_1_Base",
+  "GateKeeper",
+  "GussetTop_FL_-1",
+  "GussetTop_FR_-1",
+  "GussetTop_RL_1",
+  "GussetTop_RR_1",
+  "HubCap_FL",
+  "HubCap_FR",
+  "HubCap_RL",
+  "HubCap_RR",
+  "Hub_FL",
+  "Hub_FR",
+  "Hub_RL",
+  "Hub_RR",
+  "IDPlate",
+  "IDPlateRivet_0",
+  "IDPlateRivet_1",
+  "IDPlateRivet_2",
+  "IDPlateRivet_3",
+  "MainMember_L",
+  "MainMember_R",
+  "NetGate_Frame",
+  "NetGate_FrameHinge",
+  "NetGate_Handle",
+  "NetGate_HingeLeaf_0",
+  "NetGate_HingeLeaf_1",
+  "NetGate_Knuckle_0",
+  "NetGate_Knuckle_1",
+  "NetGate_LatchBolt",
+  "NetGate_LatchBox",
+  "NetGate_Net",
+  "Nut_FL0",
+  "Nut_FL1",
+  "Nut_FL2",
+  "Nut_FL3",
+  "Nut_FR0",
+  "Nut_FR1",
+  "Nut_FR2",
+  "Nut_FR3",
+  "Nut_RL0",
+  "Nut_RL1",
+  "Nut_RL2",
+  "Nut_RL3",
+  "Nut_RR0",
+  "Nut_RR1",
+  "Nut_RR2",
+  "Nut_RR3",
+  "PostShoe_FL",
+  "PostShoe_FR",
+  "PostShoe_RL",
+  "PostShoe_RR",
+  "Post_FL",
+  "Post_FR",
+  "Post_RL",
+  "Post_RR",
+  "RearAxle_Beam",
+  "RearAxle_GussetF_-1",
+  "RearAxle_GussetF_1",
+  "RearAxle_Gusset_-1",
+  "RearAxle_Gusset_1",
+  "RearAxle_Hanger_-1",
+  "RearAxle_Hanger_1",
+  "RearAxle_Stub_L",
+  "RearAxle_Stub_R",
+  "ReflectorFront_L_Housing",
+  "ReflectorFront_L_Lens",
+  "ReflectorFront_L_Rim",
+  "ReflectorFront_R_Housing",
+  "ReflectorFront_R_Lens",
+  "ReflectorFront_R_Rim",
+  "ReflectorRear_L_Housing",
+  "ReflectorRear_L_Lens",
+  "ReflectorRear_L_Rim",
+  "ReflectorRear_R_Housing",
+  "ReflectorRear_R_Lens",
+  "ReflectorRear_R_Rim",
+  "ReflectorSide_L0_Housing",
+  "ReflectorSide_L0_Lens",
+  "ReflectorSide_L0_Rim",
+  "ReflectorSide_L1_Housing",
+  "ReflectorSide_L1_Lens",
+  "ReflectorSide_L1_Rim",
+  "ReflectorSide_R0_Housing",
+  "ReflectorSide_R0_Lens",
+  "ReflectorSide_R0_Rim",
+  "ReflectorSide_R1_Housing",
+  "ReflectorSide_R1_Lens",
+  "ReflectorSide_R1_Rim",
+  "Rim_FL",
+  "Rim_FR",
+  "Rim_RL",
+  "Rim_RR",
+  "Roof",
+  "RoofBead_L",
+  "RoofBead_R",
+  "RoofBow_B",
+  "RoofBow_F",
+  "RoofBow_M0",
+  "RoofBow_M1",
+  "TopRail_B",
+  "TopRail_F",
+  "TopRail_L",
+  "TopRail_R",
+  "TurntableBolt_0",
+  "TurntableBolt_1",
+  "TurntableBolt_2",
+  "TurntableBolt_3",
+  "TurntableBolt_4",
+  "TurntableBolt_5",
+  "TurntableBolt_6",
+  "TurntableBolt_7",
+  "TurntableBolt_8",
+  "TurntableBolt_9",
+  "TurntablePlate",
+  "TurntableTop",
+  "Tyre_FL",
+  "Tyre_FR",
+  "Tyre_RL",
+  "Tyre_RR",
+  "WheelDisc_FL",
+  "WheelDisc_FR",
+  "WheelDisc_RL",
+  "WheelDisc_RR"
+ ],
+ "faces": 34422
+}

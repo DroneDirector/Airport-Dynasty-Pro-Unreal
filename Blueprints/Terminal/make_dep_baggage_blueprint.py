@@ -1,5 +1,5 @@
 # Blueprint v1 of the departure baggage system (owner 2026-11-21): drawn on the terminal's own ground-floor plan
-# (Data/terminal-plan.json); black background, light text (his documents rule). Output: Blueprints/Terminal/Departure-Baggage-v1.png
+# (Data/terminal-plan.json); black background, light text (his documents rule). Output: Blueprints/Terminal/Departure-Baggage-v2.png
 import json, os
 import matplotlib
 matplotlib.use('Agg')
@@ -14,7 +14,7 @@ NEW = '#f5b335'; BELT = '#3fd0ff'; OVER = '#c58cff'; ROAD = '#7be07b'
 
 fig, ax = plt.subplots(figsize=(26, 15), dpi=120)
 fig.patch.set_facecolor(BG); ax.set_facecolor(BG)
-X0, X1, Z0, Z1 = 30, 205, -8, 90
+X0, X1, Z0, Z1 = 30, 292, -8, 90
 for r in P['rooms']:
     if r.get('f') != 1: continue
     x0, z0, x1, z1 = r['x0'], r['z0'], r['x1'], r['z1']
@@ -34,7 +34,7 @@ for bx in (-60.8, -48.15, -35.5, -22.85, -10.2):
     ax.add_patch(FancyBboxPatch((bx - 1.8, 31 - 7.5 - 1.8), 3.6, 15 + 3.6, boxstyle='round,pad=0,rounding_size=1.8', fc='none', ec='#5fa8d3', lw=1.2))
 ax.add_patch(Rectangle((-80, 30), 80, 22, fill=False, ec='#5fa8d3', lw=1.5))
 
-ax.plot([30, 183], [63, 63], color='#5fa8d3', lw=2.5)
+ax.plot([30, 190], [63, 63], color='#5fa8d3', lw=2.5)
 ax.text(40, 64.6, 'arrivals trunk conveyor (kept, runs west to the claim hall)', color='#5fa8d3', fontsize=12.5)
 
 # ---- NEW: departure baggage system ----
@@ -75,23 +75,28 @@ ax.add_patch(Rectangle((114.5, 38), 41, 13.5, fc='#0f1f10', ec=ROAD, lw=1.2, ls=
 ax.text(135, 44.5, '7  CART LANE: tractor trains pull up beside the carousels, load, drive out', color=ROAD, ha='center', fontsize=10.0)
 ax.add_patch(Rectangle((128, 51.2), 8, 1.6, fc=ROAD, ec='none'))
 ax.text(132, 53.6, 'new 8 m roller door', color=ROAD, ha='center', fontsize=9.0)
-# 8. through the baggage hall to the apron: ramp services 4 becomes a vehicle passage
-ax.annotate('', xy=(183, 68), xytext=(132, 53), arrowprops=dict(arrowstyle='->', color=ROAD, lw=2.5))
-ax.add_patch(Rectangle((169.05, 68), 28, 14, fill=False, ec=ROAD, lw=2.5))
-ax.text(183, 75, '8  RAMP SERVICES 4\n-> vehicle passage\n(4 m roller doors\nboth ends)', color=ROAD, ha='center', va='center', fontsize=9.5)
-ax.annotate('to the apron and the stands', xy=(183, 86), xytext=(183, 82.5), color=ROAD, ha='center', fontsize=10.0, arrowprops=dict(arrowstyle='->', color=ROAD, lw=2))
-ax.text(140, 59.5, 'the trains cross the baggage hall east of the arrivals conveyor - no belts crossed', color=ROAD, fontsize=9.5)
-
+# 8. (v2) through the baggage hall to the apron WITHOUT crossing the arrivals conveyor (it runs along z 63 to x 190):
+#    the trains keep to the hall's south side (z 54-60) and turn north only east of x 190, out through Ramp services 13
+from matplotlib.patches import Rectangle as R2
+ax.add_patch(R2((132, 53.5), 137.4 - 132 + 130, 6, fc='#0f2a14', ec=ROAD, lw=1.2, alpha=0.9))
+ax.add_patch(R2((262.4, 59.5), 14, 22.5, fc='#0f2a14', ec=ROAD, lw=1.2, alpha=0.9))
+ax.annotate('', xy=(269, 84), xytext=(140, 56.5), arrowprops=dict(arrowstyle='->', color=ROAD, lw=2.5, connectionstyle='angle,angleA=0,angleB=90,rad=6'))
+ax.add_patch(R2((255.4, 68), 28, 14, fill=False, ec=ROAD, lw=2.5))
+ax.text(269.4, 75, '8  RAMP SERVICES 13\n-> departure vehicle\npassage (roller doors\nboth ends)', color=ROAD, ha='center', va='center', fontsize=9)
+ax.add_patch(R2((169.05, 68), 28, 14, fill=False, ec='#5fa8d3', lw=2))
+ax.text(183, 75, 'Ramp services 4\n(arrivals: unloading\nstation - kept)', color='#5fa8d3', ha='center', va='center', fontsize=9)
+for k in range(24): ax.plot([140 + k * 2, 141 + k * 2], [61.2, 61.2], color='#ff6b6b', lw=3)
+ax.text(165, 61.9, 'no crossing: the lane stays south of the arrivals conveyor until it ends (x 190)', color='#ff9b9b', fontsize=9)
 ax.set_xlim(X0, X1); ax.set_ylim(Z0, Z1); ax.set_aspect('equal')
 for s in ax.spines.values(): s.set_color('#33414f')
 ax.tick_params(colors=DIM, labelsize=7)
 ax.set_xlabel('plan x (m, along the building)', color=DIM); ax.set_ylabel('plan z (m, airside up)', color=DIM)
-ax.set_title('AIRPORT DYNASTY PRO  ·  DEPARTURE BAGGAGE SYSTEM  ·  BLUEPRINT v1  ·  GROUND FLOOR', color=FG, fontsize=16, weight='bold', loc='left')
+ax.set_title('AIRPORT DYNASTY PRO  ·  DEPARTURE BAGGAGE SYSTEM  ·  BLUEPRINT v2  ·  GROUND FLOOR', color=FG, fontsize=16, weight='bold', loc='left')
 notes = ('Rules: no belt crosses a room in use - the only part in a public room is the overhead link over the Grand Hall\'s east end (3.5 m up, enclosed, like real terminals); '
          'everything else is in the freed office / academy block (removed: offices 1-4, operations, staff toilets, crew room, staff corridor and passage, academy, staff entrance).\n'
          'Bag path: desk weigh belt -> island collector -> overhead link -> 2 CT screening lines (reject -> manual search) -> sorter -> make-up carousel of its flight -> the crew onto the carts -> tractor -> apron -> belt loader -> hold. '
          'Every bag keeps its tag (passenger + flight) the whole way. Arrivals (claim hall + trunk conveyor) unchanged.')
 fig.text(0.012, 0.012, notes, color=FG, fontsize=11.2, wrap=True)
-out = os.path.join(ROOT, 'Blueprints', 'Terminal', 'Departure-Baggage-v1.png')
+out = os.path.join(ROOT, 'Blueprints', 'Terminal', 'Departure-Baggage-v2.png')
 fig.savefig(out, facecolor=BG, bbox_inches='tight')
 print(out)
