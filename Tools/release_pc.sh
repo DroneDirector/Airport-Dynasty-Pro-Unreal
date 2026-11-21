@@ -27,7 +27,7 @@ if [ "$4" != "--upload" ]; then
   echo "== the holographic map's walls traced from the terminal"
   "C:/Program Files/Epic Games/UE_5.7/Engine/Build/BatchFiles/Build.bat" AirportDynastyProEditor Win64 Development "-Project=$(cd $R && pwd -W)/AirportDynastyPro.uproject" -WaitMutex > /dev/null 2>&1 || { echo "STOP: the editor build failed"; exit 1; }
   BEFORE=$(stat -c %Y Data/holomap-walls.json 2>/dev/null || echo 0)
-  timeout 300 "C:/Program Files/Epic Games/UE_5.7/Engine/Binaries/Win64/UnrealEditor.exe" "$(cd $R && pwd -W)/AirportDynastyPro.uproject" -game -UIShot -UIMapTrace -windowed -ResX=1280 -ResY=720 > /dev/null 2>&1
+  timeout 600 "C:/Program Files/Epic Games/UE_5.7/Engine/Binaries/Win64/UnrealEditor.exe" "$(cd $R && pwd -W)/AirportDynastyPro.uproject" -game -UIShot -UIMapTrace -Site=chablais -LocalTerrain -windowed -ResX=1280 -ResY=720 > /dev/null 2>&1
   AFTER=$(stat -c %Y Data/holomap-walls.json 2>/dev/null || echo 0)
   [ "$AFTER" -gt "$BEFORE" ] || { echo "STOP: the map trace didn't write Data/holomap-walls.json"; exit 1; }
   grep -a "Map trace:" Saved/Logs/AirportDynastyPro.log | tail -1 | sed 's/.*Map trace: /   /'
