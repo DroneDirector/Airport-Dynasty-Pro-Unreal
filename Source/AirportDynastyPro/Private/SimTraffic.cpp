@@ -204,6 +204,22 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 		for (const FAirfieldData::FStand& S : F.Stands) if (S.Id == M.Stand) StandX = S.X;
 		// (owner 2026-11-21: everyone aboard first - whatever the jetway's state; a no-show holds it 15 min at most. Nothing
 		//  else starts before: no jetway pull-back, no pushback request, no tug)
+		// (the cinematic test: the jetway docked at the aircraft from the start, so nothing holds the test up - owner 2026-11-21;
+		//  in the game it comes out when the crew board, to-do 202)
+		if (FParse::Param(FCommandLine::Get(), TEXT("PaxFlowTest")))
+		{
+			static TSet<FString> TestDocked;
+			if (!TestDocked.Contains(M.FlightId)) for (const FAirfieldData::FStand& S : F.Stands) if (S.Id == M.Stand)
+			{
+				const int32 J = JetwayAt(GetWorld(), S); AJetwayRigs* JR = AJetwayRigs::Get(GetWorld());
+				if (J != INDEX_NONE && JR && JR->AircraftAt(J))
+				{
+					TestDocked.Add(M.FlightId);
+					if (JR->State(J) == AJetwayRigs::EState::Parked) { JR->Dock(J); ADP_LOG(TEXT("Traffic: test - jetway %s docked to %s from the start"), *JR->Name(J), *M.FlightId); }
+				}
+				break;
+			}
+		}
 		if (!APaxFlow::BoardingDone(GetWorld(), M.Reg)) { if (M.Clock != 4.f) ADP_LOG(TEXT("Traffic: %s waits - boarding not complete"), *M.FlightId); M.Clock = 4.f; M.Speed = 0.f; Pose(M); return false; }
 		// the jetway first: never a pushback with it at the door - it pulls back and must be at rest before anything moves
 		for (const FAirfieldData::FStand& S : F.Stands)
