@@ -31,3 +31,8 @@
   1. the cinematic test and its fixes;
   2. finish the cargo terminal, then one look and publish;
   3. to-do 205.
+
+## Bugs seen in 0.18.1 on Sunday (to fix Monday after the cinematic test)
+1. New game: loading stuck at 92% with "TAF" (likely the live weather fetch, or the walking map).
+2. The character creator drawn on top of the still-playing title video.
+3. No characters shown on the "she or he" screen.
