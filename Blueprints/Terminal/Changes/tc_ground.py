@@ -3,7 +3,7 @@ import json
 from tc_common import *
 PLAN = json.load(open(os.path.join(ROOT, 'Data', 'terminal-plan.json')))
 R = {r['id']: r for r in PLAN['rooms']}
-SHORT = {'F1-HALL': 'GRAND HALL\n72 x 30 = 2160 mÂ²', 'F1-MUSEUM': 'escalator room\n(airside)', 'F1-SECURITY': 'SECURITY\n6 lanes',
+SHORT = {'F1-HALL': '', 'F1-ENTR-W': '', 'F1-ENTR-C': '', 'F1-ENTR-E': '', 'F1-MUSEUM': 'escalator room\n(airside)', 'F1-SECURITY': 'SECURITY\n6 lanes',
          'F1-AIRSIDE': 'airside lobby', 'F1-LOUNGE': 'lounge', 'F1-HBS': 'hold bag\nscreening', 'F1-L3': 'L3', 'F1-EBS': 'EBS',
          'F1-BAG-EAST': '', 'F1-MAKEUP': 'bag make-up', 'F1-CARTLANE': 'cart lane', 'F1-STAFF-ENTR': 'staff',
          'F1-WC-M': 'WC', 'F1-WC-F': 'WC', 'F1-SERVICE': 'service', 'F1-ESC-PASS': '', 'F1-AIRSIDE-CORR': 'airside corridor',
@@ -18,7 +18,7 @@ def y_box(ax, *a, **k):
 
 
 def claim_wing(ax, after, fs=8):
-    box(ax, -80, -4, 0, 8, 'ARRIVALS HALL WEST (meeters)\n80 x 12 = 960 mÂ²', fc='#18222c', fs=fs)
+    box(ax, -80, -4, 0, 8, 'ARRIVALS HALL WEST (meeters)\n80 x 12 = 960 m²', fc='#18222c', fs=fs)
     box(ax, -80, 8, 0, 16, '', fc='#1a2430')
     box(ax, -44, 8, -36, 16, 'green', fc='#10301a', ec=OK, col=OK, fs=fs - 1)
     box(ax, -54, 8, -48, 16, 'red', fc='#301010', ec='#ff5050', col='#ff8080', fs=fs - 1)
@@ -44,7 +44,7 @@ def ground(ax, after, x0=-90, x1=560, fs=8):
                 fc='#10261a', ec=OK, col=OK, fs=fs - 1)
             continue
         txt = SHORT.get(rid, r['name'][:22])
-        if rid == 'F1-EAST-WING': txt = 'EAST WING - EMPTY TODAY\n395 x 52 = 20 540 mÂ²'
+        if rid == 'F1-EAST-WING': txt = 'EAST WING - EMPTY TODAY\n395 x 52 = 20 540 m²'
         box(ax, r['x0'], r['z0'], r['x1'], r['z1'], txt, fc=FC.get(r['kind'], '#141c24'), fs=fs + (3 if rid == 'F1-EAST-WING' else 0),
             col=WARN if rid == 'F1-EAST-WING' else DIM)
     claim_wing(ax, after, fs)
@@ -74,7 +74,7 @@ def ground(ax, after, x0=-90, x1=560, fs=8):
     y_box(ax, 107, -4, 156, 0, 'LINK GALLERY 49 x 4', fs=fs - 1.5, lw=1.6)
     # the East Hall (landside, full height to the new wave roof)
     box(ax, 156, 0, 228, 40, '', fc='#22200e', ec=NEW, lw=2.2)
-    ax.text(192, 37.3, 'EAST HALL  72 x 40 = 2880 mÂ²', color=NEW, ha='center', fontsize=fs + 1, weight='bold')
+    ax.text(192, 37.3, 'EAST HALL  72 x 40 = 2880 m²', color=NEW, ha='center', fontsize=fs + 1, weight='bold')
     y_box(ax, 160, 18, 190, 22, 'long-haul check-in: 8 desks + 4 bag-drop', fs=fs - 2.5)
     y_box(ax, 191, 18, 195, 22, 'OS', fs=fs - 2.5)
     y_box(ax, 158, 2, 172, 10, 'cafe', fs=fs - 1)
@@ -93,7 +93,7 @@ def ground(ax, after, x0=-90, x1=560, fs=8):
     box(ax, 228, 40, 236, 52, 'office', fc='#1a2430', ec=NS, col=NS, fs=fs - 2.5)
     # the east claim hall (non-Schengen)
     box(ax, 236, 6, 312, 52, '', fc='#24101a', ec=NS, lw=2.0)
-    ax.text(274, 9.5, 'CLAIM HALL EAST (non-Schengen)  76 x 46 = 3496 mÂ²', color=NS, ha='center', fontsize=fs - 0.5, weight='bold')
+    ax.text(274, 9.5, 'CLAIM HALL EAST (non-Schengen)  76 x 46 = 3496 m²', color=NS, ha='center', fontsize=fs - 0.5, weight='bold')
     for cx in (256, 284):
         box(ax, cx - 4, 14, cx + 4, 48, 'wide-\nbody\nbelt', fc='#2b3a48', ec=BELT, col=BELT, fs=fs - 2)
     y_box(ax, 300, 41, 311, 51, 'lost &\nfound', fs=fs - 2)
@@ -105,7 +105,7 @@ def ground(ax, after, x0=-90, x1=560, fs=8):
     for k in range(8): box(ax, 315, 27.5 + k * 2.6, 321, 28.7 + k * 2.6, fc=NS, ec=NS)
     ax.text(318, 26.2, '6 booths / 8 e-gates', color=NS, fontsize=fs - 2.5, ha='center')
     box(ax, 324, 6, 372, 52, '', fc='#24101a', ec=NS)
-    ax.text(348, 26, 'PASSPORT CONTROL IN\nqueue 48 x 30\n(1 440 mÂ²)', color=NS, fontsize=fs, ha='center', va='center')
+    ax.text(348, 26, 'PASSPORT CONTROL IN\nqueue 48 x 30\n(1 440 m²)', color=NS, fontsize=fs, ha='center', va='center')
     box(ax, 340, 40, 368, 51, 'escalators + stair + lift\ndown from the F2 mezzanine', fc='#3a1a2a', ec=NS, col=NS, fs=fs - 2.5, ls='--')
     # staff and operations
     for (a, b, c, d, t) in ((372, 6, 404, 26, 'crew centre\n(briefing, rest)'), (404, 6, 436, 26, 'staff canteen'),
@@ -113,7 +113,7 @@ def ground(ax, after, x0=-90, x1=560, fs=8):
                             (404, 26, 436, 52, 'STAFF SECURITY\n(2 lanes) -> airside'), (436, 26, 470, 52, 'police +\nborder guard')):
         box(ax, a, b, c, d, t, fc='#1c1c2a', ec='#9a8cff', col='#c8c0ff', fs=fs - 1.5)
     # the coach and bus station
-    box(ax, 470, 0, 551.2, 52, 'COACH + BUS STATION\n81 x 52 = 4220 mÂ²\nwaiting hall, ticket desks,\ndeparture boards, cafe, WC,\ndoors to the coach bays',
+    box(ax, 470, 0, 551.2, 52, 'COACH + BUS STATION\n81 x 52 = 4220 m²\nwaiting hall, ticket desks,\ndeparture boards, cafe, WC,\ndoors to the coach bays',
         fc='#22200e', ec=NEW, col=NEW, fs=fs, lw=2.2)
     # the belts re-routed (dashed purple = tunnel under the floor, cyan = feeds)
     ax.plot([116, 116], [19.6, 23], color=TUN, lw=2.5, ls=(0, (5, 2)), zorder=7)
@@ -121,3 +121,7 @@ def ground(ax, after, x0=-90, x1=560, fs=8):
     box(ax, 150, 22.6, 153.5, 26, fc='#241a2e', ec=TUN, z=8)
     for cx in (256, 284): ax.plot([cx, cx], [48, 60], color=BELT, lw=2.5, zorder=7)
     ax.plot([156, 551.2], [0, 0], color=GLASS, lw=3, zorder=5)
+
+
+def clip(ax):
+    for t in ax.texts: t.set_clip_on(True)
