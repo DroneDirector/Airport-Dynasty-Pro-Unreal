@@ -1,7 +1,5 @@
 # Terminal changes for real departures and arrivals - summary (to-do 213)
 
-Blueprint only, for your OK. Nothing is built yet. Sheets: TC-1 capacity, TC-2a/2b ground floor, TC-3 Floor 2, TC-4 facade, TC-5 renders.
-
 ## Your rules, kept
 
 - **Grand Hall** stays 72 x 30 m = 2160 m²; nothing new in its queue zone. **Every room** stays where it is; **no gate, stand or jetway** moves.
