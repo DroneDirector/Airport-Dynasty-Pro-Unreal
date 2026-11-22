@@ -5,7 +5,7 @@ from PIL import Image, ImageDraw, ImageFont
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cargo_layout as CL
 
-V = '/tmp/cargo_views'
+V = os.environ.get('CARGO_VIEWS') or os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'docs', 'Blueprints', 'Cargo')
 VIEWS = json.load(open(os.path.join(V, 'views.json')))
 BOLD = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'; REG = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
 F = lambda p, s: ImageFont.truetype(p, s)

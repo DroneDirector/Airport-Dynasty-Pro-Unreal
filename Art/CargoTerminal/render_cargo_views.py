@@ -6,7 +6,7 @@ import bpy, math, os, sys, addon_utils, json
 from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.join('/tmp', 'cargo_views'); os.makedirs(OUT, exist_ok=True)
+OUT = os.environ.get('CARGO_VIEWS') or os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'docs', 'Blueprints', 'Cargo'); os.makedirs(OUT, exist_ok=True)
 S = float(sys.argv[1]) if len(sys.argv) > 1 else 1.0
 ONLY = sys.argv[2].split(',') if len(sys.argv) > 2 else None
 addon_utils.enable('cycles')

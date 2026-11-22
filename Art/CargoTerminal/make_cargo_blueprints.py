@@ -5,7 +5,7 @@
 #   4 detail plan of special cargo and the border control post
 #   5 site plan: the cargo apron and its freighter stands, the building, the truck court and the moved fence
 # Freight only - there is nothing for passengers here.
-#   python3 make_cargo_blueprints.py   ->  /tmp/cargo_views/Cargo-1..5-*.png
+#   python3 make_cargo_blueprints.py   ->  docs/Blueprints/Cargo/Cargo-1..5-*.png  (or $CARGO_VIEWS)
 import os, sys, textwrap
 import matplotlib
 matplotlib.use('Agg')
@@ -16,7 +16,7 @@ HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import cargo_layout as CL
 from cargo_layout import L, D
 
-OUT = '/tmp/cargo_views'; os.makedirs(OUT, exist_ok=True)
+OUT = os.environ.get('CARGO_VIEWS') or os.path.join(HERE, '..', '..', 'docs', 'Blueprints', 'Cargo'); os.makedirs(OUT, exist_ok=True)
 BG, INK, DIM, LINE, WALL = '#071a33', '#eaf2ff', '#7f9bbd', '#9ec5f0', '#ffffff'
 C = dict(off='#5aa9ff', exp='#2ed3b7', etv='#ffd166', imp='#ff9f5a', spc='#ff6b9a', bcp='#b48cff', land='#8bd17c')
 GREEN, AMBER, RED, SEC = '#3ddc6a', '#ffb020', '#ff5a5a', '#ff4fd8'
