@@ -97,7 +97,7 @@ def person(x, z, k):
 
 
 # ---- ground, forecourt
-box(-300, -120, 620, 140, -0.2, 0, GRASS, 'Ground')
+box(-900, -700, 1300, 500, -0.2, 0, GRASS, 'Ground')
 box(-90, -21.5, 560, -4, 0, 0.15, PAVE, 'Pavement'); box(-90, -40, 560, -21.5, 0.0, 0.02, ASPH, 'Road')
 for x in range(-80, 560, 6): box(x, -31, x + 3, -30.8, 0.02, 0.03, WHITE, 'Lane')
 # ---- the roof: arrivals copy, then the Grand Hall's wave continued east to the end
@@ -155,9 +155,8 @@ except Exception as e:
     print('GPU off', e)
 SHOTS = (
     ('TC-5a-Render-Forecourt', P(175, -62, 9), P(168, 10, 10.5), 22),      # from across the road: Grand Hall, link gallery, East Hall
-    ('TC-5b-Render-Whole-Front', P(600, -150, 40), P(250, 10, 6), 30),   # from the east: the whole front, one roof, one facade
-    ('TC-5c-Render-East-Hall', P(222, 3, 1.7), P(170, 28, 6.5), 18),     # inside the East Hall: glass to the wave, check-in, meeting rail
-    ('TC-5d-Render-Grand-Hall-Link', P(118, -3, 1.7), P(160, -1, 3.5), 20),  # the link gallery looking east toward the East Hall
+    ('TC-5b-Render-Whole-Front', P(640, -120, 30), P(260, 5, 8), 30),   # from the east: the whole front, one roof, one facade
+    ('TC-5c-Render-East-Hall', P(224, 36, 1.7), P(175, 2, 7.5), 16),     # inside the East Hall: glass to the wave, check-in, meeting rail
 )
 only = os.environ.get('TC_SHOT')
 for name, frm, to, lens in SHOTS:
