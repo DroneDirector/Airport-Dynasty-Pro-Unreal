@@ -1,18 +1,31 @@
 # Sheet 7: the landside facade BEFORE / AFTER with the double skin, from the game's real roof copies and pillars.
 from v2_common import *
 import numpy as np
+sys.path.insert(0, os.path.join(ROOT, 'Tools'))
+import wave_roof as WR                         # the one continuous roof (the roof builder's own numbers)
 COPIES = [(-245.1, -161.55), (-161.55, -78.0), (-78.0, 24.0), (24.0, 126.0), (126.0, 233.3), (233.3, 340.6), (340.6, 447.9), (447.9, 555.2)]
 PIL = {(-78.0, 24.0): (-46, -8), (24.0, 126.0): (56, 94), (126.0, 233.3): (159.7, 199.6), (233.3, 340.6): (266.96, 306.9), (340.6, 447.9): (374.3, 414.2), (447.9, 555.2): (481.6, 521.5)}
 lx = np.array(ROOF['x']); EY, ET, TC = np.array(ROOF['edge_y']), np.array(ROOF['edge_top']), np.array(ROOF['top_crest'])
 
 
+AFTER = [False]
+
+
 def edge(x):                  # the roof edge's underside (what the glass is seen up to) at plan x
+    if AFTER[0]: return WR.height(x, WR.south(x))
     for a, b in COPIES:
         if a <= x <= b: return float(np.interp(24 + (x - a) / (b - a) * 102, lx, EY))
     return 12.0
 
 
 def roofs(ax):
+    if AFTER[0]:
+        xs = np.arange(WR.X0, WR.X1 + 0.01, 0.5); e = np.array([edge(x) for x in xs]); cr = np.array([WR.height(x, 16.0) for x in xs]) + 0.7
+        ax.fill_between(xs, e + 0.7, cr, color='#b9c4cf', ec='none', zorder=6); ax.fill_between(xs, e, e + 0.7, color='#f2f6fa', ec='#ffffff', lw=0.8, zorder=7)
+        for p in [v for vs in PIL.values() for v in vs] + [556.0, -135.3, -104.2, -218.9, -187.8]:
+            ax.plot([p, p], [0, 4.9], color='#e8eef5', lw=4, zorder=9)
+            for dx in (-4.3, 0.2, 2.0, 4.4): ax.plot([p, p + dx], [4.9, min(15.0, edge(p + dx))], color='#e8eef5', lw=2.2, zorder=9)
+        return
     for a, b in COPIES:
         xs = a + (lx - 24) / 102 * (b - a)
         ax.fill_between(xs, ET, TC, color='#b9c4cf', ec='none', zorder=6); ax.fill_between(xs, EY, ET, color='#f2f6fa', ec='#ffffff', lw=0.8, zorder=7)
@@ -29,6 +42,7 @@ def glass(ax, a, b, top=None, step=2.5, col='#123448', z=3):
 
 
 def front(ax, after):
+    AFTER[0] = after
     ax.add_patch(Rectangle((-241.1, 0), 792.3, 12.0, fc='#161c22', ec='none', zorder=1))          # the pier behind
     ax.add_patch(Rectangle((-80, 5.4), 80, 6.6, fc='#6b4a32', ec='none', zorder=3)); glass(ax, -80, 0, 5.4)
     glass(ax, 0, 42, 12.0, 1.78); glass(ax, 42, 114, None)
@@ -43,12 +57,14 @@ def front(ax, after):
         ax.plot([114, 156], [5.4, 5.4], color=GLASS, lw=1.0, zorder=3.6); ax.add_patch(Rectangle((107, 0), 7, 3.8, fc='#2a5a72', ec=NEW, lw=1.4, zorder=5))
         ax.plot([228, 551], [6, 6], color=NEW, lw=2.2, zorder=4)                                   # the concourse's floor seen through the glass
         for d0, d1 in ENTR_E: ax.add_patch(Rectangle((d0, 0), d1 - d0, 3.8, fc='#2a5a72', ec=NEW, lw=1.4, zorder=5))
-    roofs(ax); ax.plot([-250, 562], [0, 0], color='#ffffff', lw=1.5, zorder=10)
+    roofs(ax); ax.plot([-250, 582], [0, 0], color='#ffffff', lw=1.5, zorder=10)
+    if not after:
+        for x in (-78, 24, 126, 233.3, 340.6, 447.9): ax.plot([x, x], [edge(x) - 1.6, edge(x) + 6.5], color='#ff5050', lw=2.2, ls=':', zorder=12)
 
 
-fig = sheet('SHEET 7', 'THE FRONT, SEEN FROM THE FORECOURT, BEFORE AND AFTER', 'True scale. The wave roof and the tree pillars are the real ones from the game and do not change at all: only glass and floors are added under them.')
+fig = sheet('SHEET 7', 'THE FRONT, SEEN FROM THE FORECOURT, BEFORE AND AFTER', 'True scale. Before: the 8 roof copies with their kinks (red). After: one continuous wave (Tools/wave_roof.py, the roof builder\'s numbers), glass and floors under it.')
 for k, after in enumerate((False, True)):
-    ax = ax_plan(fig, [0.008, 0.765 - k * 0.155, 0.984, 0.125], -92, 560, -5.5, 25); front(ax, after)
+    ax = ax_plan(fig, [0.008, 0.765 - k * 0.155, 0.984, 0.125], -92, 580, -5.5, 25); front(ax, after)
     fig.text(0.012, 0.893 - k * 0.155, 'AFTER' if after else 'BEFORE (today)', color=NEW if after else FG, fontsize=18, weight='bold', va='bottom')
     if not after: txt(ax, 353, -3.4, 'open grass under the roof, the pier\'s closed wall behind', WARN, 14)
     for a, b, t, c in (((42, 114, 'GRAND HALL', FG), (-80, 0, 'arrivals west', DIM), (0, 42, 'escalators', DIM), (114, 156, 'offices' if not after else 'double skin', DIM if not after else GLASS)) +
@@ -60,8 +76,8 @@ for k, (x0, x1, t) in enumerate(((96, 232, 'CLOSE-UP x 96-232: Grand Hall\'s eas
         if after: dim(ax, *((114, 156) if k == 0 else (354.6, 356)), -2.6, '42.0 second skin at z -4, inner wall with the office windows behind', fs=12) if k == 0 else txt(ax, 408, -2.8, 'concourse floor (+6.0) seen behind the glass, yellow line', NEW, 13)
         else: txt(ax, (x0 + x1) / 2, -2.8, 'today', DIM, 13)
     fig.text(0.012 + k * 0.496, 0.575, t, color=NEW, fontsize=17, weight='bold')
-L = ['CORRECTION to TC-4: it showed the roof as new east of x 126. It already runs to x 555 (four copies of the hall\'s wave, each stretched to 107.3 m, crests every 31.6 m) with eight tree pillars. Its new pillars are dropped.',
-     'GLASS: the Grand Hall\'s own wall (z 0, mullions every 2.5 m, transom at 5.4 m) from x 156 to 551, up to the wave: 13.4 to 20.3 m high at z 0. Second skin: the same glass at z -4, x 114-156, 12.5 to 19.3 m high.',
-     'NEW DOORS: four vestibules (x 186-198, 290-300, 396-406, 504-516), 4 m deep and 3.8 m high like yours. The east end (x 551) gets the same glass as an end wall, under the roof\'s last wave (it ends at x 555.2).']
+L = ['ROOF: before, 8 copies of the hall\'s wave (some squeezed to 82 %, some stretched to 105 %) met in points at x -161.5, -78, 24, 126, 233.3, 340.6, 447.9. After: crests every 30 m from x -246 to 576; the Grand Hall (x 36-114) unchanged.',
+     'GLASS: the Grand Hall\'s own wall (z 0, mullions every 2.5 m, transom at 5.4 m) from x 156 to 551, up to the wave: 13.5 to 20.3 m high at z 0. Second skin: the same glass at z -4, x 114-156, 12.6 to 19.4 m high.',
+     'NEW DOORS: four vestibules (x 186-198, 290-300, 396-406, 504-516), 4 m deep and 3.8 m high like yours. The east end (x 551) gets the same glass as an end wall, under the roof, which now runs on to x 576 with one more tree pillar at x 556.']
 for i, l in enumerate(L): fig.text(0.014, 0.125 - i * 0.032, l, color=WARN if i == 0 else FG, fontsize=15)
 save(fig, 'TCv2-7-Facade.png')
