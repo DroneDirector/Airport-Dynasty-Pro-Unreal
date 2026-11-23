@@ -215,6 +215,17 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       park), licence allowing a paid game with credit; none removed until then
 - [ ] Aircraft at the gates and moving (0.17.0 plan): the Babylon aircraft and vehicles exact, turning round, taxiing,
       take-off and landing; the jetways moving with them
+- [ ] **The apron bus into the game: IK and photoreal textures** (owner, 2026-11-23): the airside bus between the terminal
+      and the remote stands (`Art/ApronBus/`, built by `Tools/make_apron_bus.py`, sheets in `Blueprints/Vehicles/ApronBus/`).
+      - [ ] **IK:** wire up its 112 IK points and pivots (`apronbus-parts.json`): the driver seated with hands on the wheel,
+            feet on the pedals and the door switches; MetaHuman passengers standing at the poles and straps (holding on,
+            swaying when it brakes and turns), sitting on the 9 seats, putting bags on the racks, a wheelchair or pram space;
+            the 14 door leaves swinging out on their pivots, the cab door, the wipers, the front steering, kneeling 80 mm at stops
+      - [ ] **Photoreal textures** (licence allowing a paid game, CC0 preferred, listed in THIRD-PARTY-NOTICES.md): white
+            painted aluminium body with the blue band, wear and dirt by the dirt system; tinted glass, stainless and yellow
+            poles, grey anti-slip vinyl floor with yellow step edges, seat fabric, black rubber and plastics, steel wheels
+            and real tyre sidewalls; the lit destination display, door warning lamps, LED strips and flight screens
+      - [ ] Its lights and sounds (listed on sheet 4), and its route: terminal bus gates to the remote stands and back
 - [ ] OWNER BUILDS: the information desk in 3D (the announcements already send passengers there)
 - [ ] Security cameras: waiting for the owner's screenshots of where they go (feeds in your office and security, live
       people, one feed in full detail at a time)
