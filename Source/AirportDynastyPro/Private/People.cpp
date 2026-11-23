@@ -783,7 +783,7 @@ void AADPPeople::NextThing(FStroll& S)
 			bool bIn = true; const float L = FVector::Dist2D(From, Front);
 			for (float d = 0.f; d < L && bIn; d += 100.f) bIn = InArea(S, FMath::Lerp(From, Front, d / FMath::Max(L, 1.f)));
 			if (!bIn || GetWorld()->SweepTestByChannel(From + FVector(0, 0, 100.f), Front + FVector(0, 0, 100.f), FQuat::Identity, ECC_Pawn, FCollisionShape::MakeCapsule(28.f, 55.f), Q)) continue;
-			if (ASeats::Claim(A, SAt) == I) { S.Seat = I; S.To = Front; S.Doing = EDoing::ToSeat; S.T = 0.f; S.SitPose = Rng.RandRange(0, 7); S.CrossLift = 0.f; static bool bCrossTest = FParse::Param(FCommandLine::Get(), TEXT("UICrossLegs")); if (bCrossTest) S.SitPose = 8; return; }
+			if (ASeats::Claim(A, SAt) == I) { S.Seat = I; S.KeptSeat = INDEX_NONE; SeatFor(S, SAt, SF, SH); S.To = Front; S.Doing = EDoing::ToSeat; S.T = 0.f; S.SitPose = Rng.RandRange(0, 7); S.CrossLift = 0.f; static bool bCrossTest = FParse::Param(FCommandLine::Get(), TEXT("UICrossLegs")); if (bCrossTest) S.SitPose = 8; return; }
 		}
 	}
 	if (R > 0.82f) { FVector Spot; float Yaw; if (WallSpot(S, From, Spot, Yaw)) { S.To = Spot; S.LeanYaw = Yaw; S.Doing = EDoing::Lean; S.T = -1.f; S.For = Rng.FRandRange(15.f, 45.f); return; } }
@@ -833,6 +833,10 @@ void AADPPeople::SitPose(FStroll& S, float K)
 		if (!S.Rig->Init(S.Rider)) return;
 
 		S.BodyInActor = W->Body->GetComponentTransform().GetRelativeTransform(A->GetActorTransform());
+		// (the cause of to-do 233: the body took its frame's turn here, before the frame was put at the seat - a new frame,
+		// unturned - so everyone faced the world's +Y, on nearly all the rows' seats right at the backrest:
+		// Tools/check_seat_facing.py. The frame goes to the seat first, then the body)
+		S.Frame->SetWorldLocationAndRotation(SAt - SF.GetSafeNormal2D() * (20.f - S.Fwd) - FVector(0, 0, SH), FRotator(0.f, SF.Rotation().Yaw - 90.f, 0.f));
 		A->SetActorTransform(S.BodyInActor.Inverse() * S.Frame->GetComponentTransform());
 		W->Body->SetAnimInstanceClass(UDriverPoseAnim::StaticClass());
 		S.Pose = Cast<UDriverPoseAnim>(W->Body->GetAnimInstance());
@@ -967,6 +971,8 @@ void AADPPeople::SitPose(FStroll& S, float K)
 		// (its turn too, each time: it was set once only, so whoever was turned or given another seat after that sat the wrong way round)
 		A->SetActorLocationAndRotation(Base.GetLocation() - FVector(0, 0, S.Lower * E), Base.GetRotation());
 	}
+	// (the facing proved in the log, once per kind of seat: the way the thighs really point against the measured backrest)
+	if (K >= 1.f) ASeats::LogFacing(TEXT("AI"), S.Seat, SAt, SF, SH, W->Body->GetComponentTransform().TransformVector(S.Rig->KneeAt(0) + S.Rig->KneeAt(1) - S.Rig->HipAt(0) - S.Rig->HipAt(1)), A);
 	if (K >= 1.f) { static int32 Said = 0; if (Said++ < 4) { const FVector Pv = W->Body->GetBoneLocation(TEXT("pelvis")); const FVector Rel = FRotationMatrix(SF.Rotation()).InverseTransformVector(Pv - SAt); ADP_LOG(TEXT("People: sat - the hips %.0f cm ahead of the seat's middle, %.0f to its side, %.0f over it (seat %.0f high)"), Rel.X, Rel.Y, Rel.Z, SH); } }
 }
 

@@ -1421,14 +1421,18 @@ void ABabylonModel::SeatSpots(TArray<FSeatSpot>& Out) const
 		{
 			TArray<int32> Backs, Pans;
 			for (int32 C : NKids[I]) { const float Y = NRoot[C].GetLocation().Z - NRoot[I].GetLocation().Z; (FMath::IsNearlyEqual(Y, 72.f, 3.f) ? Backs : FMath::IsNearlyEqual(Y, 44.f, 3.f) ? Pans : Backs).Add(C); }
+			// (the row's seats stand about its middle (ReplaceSeats); three rows' old boxes lay 13 m along from it - F1-AIRSIDE-CORR,
+			// cut from a longer row - and so did their places to sit)
+			FVector Mid = FVector::ZeroVector; for (int32 Pn : Pans) Mid += NRoot[I].InverseTransformPosition(NRoot[Pn].GetLocation()) / Pans.Num();
+			const FVector Along = RootW.TransformVector(NRoot[I].TransformVector(FVector(FMath::Abs(Mid.X) > 20.0 ? -Mid.X : 0.0, 0.0, 0.0)));
 			for (int32 Bk : Backs)
 			{
 				if (!FMath::IsNearlyEqual(NRoot[Bk].GetLocation().Z - NRoot[I].GetLocation().Z, 72.f, 3.f)) continue;
-				const FVector BW = RootW.TransformPosition(NRoot[Bk].GetLocation());
+				const FVector BW = RootW.TransformPosition(NRoot[Bk].GetLocation()) + Along;
 				int32 Best = INDEX_NONE; float BD = 1e9f;
-				for (int32 Pn : Pans) { const float D = FVector::Dist2D(RootW.TransformPosition(NRoot[Pn].GetLocation()), BW); if (D < BD) { BD = D; Best = Pn; } }
+				for (int32 Pn : Pans) { const float D = FVector::Dist2D(RootW.TransformPosition(NRoot[Pn].GetLocation()) + Along, BW); if (D < BD) { BD = D; Best = Pn; } }
 				if (Best == INDEX_NONE) continue;
-				const FVector PW = RootW.TransformPosition(NRoot[Best].GetLocation());
+				const FVector PW = RootW.TransformPosition(NRoot[Best].GetLocation()) + Along;
 				FSeatSpot S; S.Facing = (PW - BW).GetSafeNormal2D(); if (S.Facing.IsNearlyZero()) continue;
 				const float Floor = RootW.TransformPosition(NRoot[I].GetLocation()).Z;
 				S.SeatH = 46.f; S.At = FVector(PW.X, PW.Y, Floor + S.SeatH);
@@ -1473,6 +1477,12 @@ void ABabylonModel::SeatSpots(TArray<FSeatSpot>& Out) const
 		const FVector C = All.GetCenter();
 		if (NB) S.Facing = (C - BackAt / NB).GetSafeNormal2D();
 		if (!NB || S.Facing.IsNearlyZero()) S.Facing = (RootW.GetRotation() * NRoot[I].GetRotation()).GetForwardVector().GetSafeNormal2D();
+		// (a bench without a back - the kerb's: over its long side, to the road, never along it)
+		if (!NB && !bStool)
+		{
+			const FVector Ex = All.GetSize(), Y = (RootW.GetRotation() * NRoot[I].GetRotation()).RotateVector(FVector(0, -1, 0));
+			if (FMath::Max(Ex.X, Ex.Y) > 1.5 * FMath::Min(Ex.X, Ex.Y)) { const FVector Sh = Ex.X < Ex.Y ? FVector(1, 0, 0) : FVector(0, 1, 0); S.Facing = FVector::DotProduct(Y, Sh) < 0.0 ? -Sh : Sh; }
+		}
 		if (S.Facing.IsNearlyZero()) S.Facing = FVector::ForwardVector;
 		S.At = FVector(C.X, C.Y, Floor + S.SeatH);
 		S.bYours = Model.StartsWith(TEXT("Office")) || Model.StartsWith(TEXT("Ops"));   // (your office's and the ops room's chairs)

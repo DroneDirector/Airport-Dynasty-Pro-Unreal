@@ -95,6 +95,42 @@ bool ASeats::SeatOf(int32 I, FVector& At, FVector& Facing, float& SeatH)
 	const ABabylonModel::FSeatSpot& S = One->Spots[I]; At = S.At; Facing = S.Facing; SeatH = S.SeatH; return true;
 }
 
+void ASeats::LogFacing(const TCHAR* Who, int32 I, const FVector& At, const FVector& Facing, float SeatH, const FVector& BodyDir, const AActor* Sitting)
+{
+	if (!One.IsValid() || !One->Spots.IsValidIndex(I)) return;
+	const ABabylonModel::FSeatSpot& S = One->Spots[I];
+	if (FVector::Dist(S.At, At) > 40.f) return;   // (that number is another seat now)
+	const float Yaw = FRotator::ClampAxis(Facing.Rotation().Yaw), Sq = FMath::RoundToFloat(Yaw / 90.f) * 90.f;
+	// (the kind: its mesh, its floor, the way it faces - the curved windows' seats are the ones not square to the building)
+	uint32 Kind = HashCombine(GetTypeHash(S.Parts.Num() && S.Parts[0].Key ? S.Parts[0].Key->GetStaticMesh() : nullptr), GetTypeHash(Who[0]));
+	const bool bCurve = FMath::Abs(Yaw - Sq) > 0.5f;
+	Kind = HashCombine(Kind, GetTypeHash((At.Z > 500.f ? 1000 : 0) + (bCurve ? 720 : int32(FRotator::ClampAxis(Sq)))));
+	static TSet<uint32> Said;
+	if (Said.Num() >= 24 || Said.Contains(Kind)) return;
+	Said.Add(Kind);
+	// what stands highest over each side of the seat (straight down, 10-46 cm from its point; the sitter not counted)
+	UWorld* W = One->GetWorld();
+	auto Top = [&](const FVector& Dir)
+	{
+		float H = -SeatH; FCollisionQueryParams Q(SCENE_QUERY_STAT(SeatBackSide), true, Sitting);
+		for (float D = 10.f; D <= 46.f; D += 6.f)
+		{
+			FHitResult R; const FVector P = At + Dir * D;
+			if (W->LineTraceSingleByChannel(R, P + FVector(0, 0, 85.f), P - FVector(0, 0, SeatH), ECC_Visibility, Q)
+				&& S.Parts.ContainsByPredicate([&](const TPair<UInstancedStaticMeshComponent*, int32>& X) { return X.Key == R.GetComponent(); })) H = FMath::Max(H, float(R.ImpactPoint.Z - At.Z));
+		}
+		return H;
+	};
+	const FVector F = Facing.GetSafeNormal2D();
+	const float Fr = Top(F), Bk = Top(-F);
+	const bool bBack = FMath::Max(Fr, Bk) > 12.f;                                  // (something rises over the pan at all)
+	const bool bSeatOk = !bBack || Bk > Fr, bBodyOk = FVector::DotProduct(BodyDir.GetSafeNormal2D(), F) > 0.7f;
+	ADP_LOG(TEXT("Seats: facing %s on %s%s, floor %d (seat %d at %.0f, %.0f): the seat %.0f, the sitter's thighs %.0f; the seat rises %.0f cm ahead, %.0f cm behind its point - back %s - %s"), Who,
+		S.Parts.Num() && S.Parts[0].Key ? *GetNameSafe(S.Parts[0].Key->GetStaticMesh()) : TEXT("?"), bCurve ? TEXT(" in a curve") : TEXT(""), At.Z > 500.f ? 2 : 1, I, At.X, At.Y,
+		Yaw, FRotator::ClampAxis(BodyDir.Rotation().Yaw), Fr, Bk, !bBack ? TEXT("none") : Bk > Fr ? TEXT("behind") : TEXT("AHEAD"),
+		bSeatOk && bBodyOk ? TEXT("OK") : TEXT("FLIPPED"));
+}
+
 bool ASeats::StandSpot(int32 I, FVector& At, float& Yaw)
 {
 	if (!One.IsValid() || !One->Spots.IsValidIndex(I)) return false;
@@ -208,6 +244,7 @@ void ASeats::Place(float K)
 	}
 	if (E > 0.35f) Rig.RestHandsOnThighs(P, Rig.ThighRadius(), FMath::Clamp((E - 0.35f) / 0.3f, 0.f, 1.f));   // (the sitting IK step)
 	if (Pose) Pose->Local = Rig.LocalPose();
+	if (K >= 1.f && Spots.IsValidIndex(Seat)) LogFacing(TEXT("you"), Seat, Spots[Seat].At, Spots[Seat].Facing, Spots[Seat].SeatH, Frame->GetComponentTransform().TransformVector(Rig.KneeAt(0) + Rig.KneeAt(1) - Rig.HipAt(0) - Rig.HipAt(1)), Me);
 	// your view goes with your head: the capsule kept so its eyes are where the body's are
 	const FVector Eyes = Frame->GetComponentTransform().TransformPosition(Rig.Eyes());
 	const float Yaw = Me->GetControlRotation().Yaw;

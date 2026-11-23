@@ -34,6 +34,9 @@ public:
 	/** Seat I itself: its middle (world), the way it faces, its height. */
 	static bool SeatOf(int32 I, FVector& At, FVector& Facing, float& SeatH);
 	static int32 NearestTo(const FVector& At);
+	/** One line in the log per kind of seat and per sitter (AI / you): the seat's facing, the way the sitter's thighs really
+	 *  point (BodyDir), and the side its back is on - measured by the geometry that rises above the pan - with OK / FLIPPED. */
+	static void LogFacing(const TCHAR* Who, int32 Seat, const FVector& At, const FVector& Facing, float SeatH, const FVector& BodyDir, const AActor* Sitting);
 	/** Someone else sitting (owner, 2026-11-14: nobody sits where someone already is): Who takes the seat nearest At
 	 *  (within 1.5 m; INDEX_NONE when none is free), and is asked to get up by AskToLeave when you want your own chair
 	 *  (your office's, the ops room's) - you sit once they've released it. */
