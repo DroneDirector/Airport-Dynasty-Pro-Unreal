@@ -2,6 +2,8 @@
 #include "Coaches.h"
 #include "Site.h"
 #include "BabylonModel.h"
+#include "VehicleRiders.h"
+#include "Seats.h"
 #include "ADPLog.h"
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
@@ -321,6 +323,155 @@ void ACoaches::Mirror(float Dt, const FVector& Me)
 	for (USceneCaptureComponent2D* Cap : Coaches[Near].Mirrors) if (Cap) Cap->CaptureScene();
 }
 
+void ACoaches::ApplyBody(FCoach& C)
+{
+	ABabylonModel* M = C.M.Get();
+	if (!M) return;
+	const float E = FMath::SmoothStep(0.f, 1.f, C.Kneel);
+	// (tipped about the far side's bottom edge: the door side, root +y, goes down)
+	const FVector Hinge(0.f, -CoachDim::W * 50.f, 0.f);
+	FTransform Knee = FTransform(-Hinge) * FTransform(FQuat(FVector::ForwardVector, FMath::DegreesToRadians(1.1f * E))) * FTransform(Hinge + FVector(0, 0, -6.f * E));
+	const FDriveParts& D = C.Line;
+	if (!D.bOn)
+	{
+		M->GetModelRoot()->SetRelativeTransform(Knee * C.RootBase);
+		if (C.Wheels != INDEX_NONE) M->MoveGroup(C.Wheels, Knee.Inverse());
+		return;
+	}
+	// (driving parts on: the body's lean on its springs too, each wheel rolled and steered where it stands on the road)
+	const FVector Mid(0.f, 0.f, 60.f);
+	Knee = FTransform(-Mid) * FTransform(FRotator(D.LeanPitch, 0.f, D.LeanRoll)) * FTransform(Mid) * Knee;
+	M->GetModelRoot()->SetRelativeTransform(Knee * C.RootBase);
+	const FTransform Inv = Knee.Inverse();
+	for (int32 w = 0; w < 4; ++w)
+		if (D.Wheel[w] != INDEX_NONE)
+		{
+			const FQuat Steer(FVector::UpVector, w < 2 ? FMath::DegreesToRadians(D.SteerDeg) : 0.f);
+			M->MoveGroup(D.Wheel[w], FTransform(Steer * FQuat(FVector::RightVector, D.RollRad), D.WheelAt[w]) * Inv);
+			if (w < 2 && D.Knuckle[w] != INDEX_NONE) M->MoveGroup(D.Knuckle[w], FTransform(Steer, D.WheelAt[w]) * Inv);
+		}
+}
+
+#pragma region DriveAndRiders
+// (VehicleRiders.h: the driver, the passengers, the driving - nothing of this runs while adp.CoachLine is 0)
+namespace
+{
+	/** One coach as its riders see it. */
+	class FCoachBody : public IVehicleBody
+	{
+	public:
+		FCoachBody(ACoaches* InC, int32 InI) : C(InC), I(InI) {}
+		virtual AActor* Actor() const override { return C.IsValid() ? C->ModelOf(I) : nullptr; }
+		virtual FTransform Body() const override { return C.IsValid() ? C->RootOf(I) : FTransform::Identity; }
+		virtual FTransform Road() const override { return C.IsValid() ? C->RoadOf(I) : FTransform::Identity; }
+		virtual void Place(const FDriveState& S) override { if (C.IsValid()) C->DrivePlace(I, S.Road, S.LeanRoll, S.LeanPitch, S.SteerDeg, S.RollRad, S.WheelTurn, S.Accel, S.Brake, S.SeatArm); }
+		virtual void SetDoor(int32 D, bool b) override { if (C.IsValid()) C->SetDoor(I, D, b); }
+		virtual float DoorK(int32 D) const override { return C.IsValid() ? C->DoorKOf(I, D) : 0.f; }
+		virtual bool Knelt() const override { return C.IsValid() && C->KneelOf(I) > 0.f; }
+		virtual void SetBay(int32 B, bool b) override { if (C.IsValid()) C->SetBay(I, B, b); }
+		virtual float BayK(int32 B) const override { return C.IsValid() ? C->BayKOf(I, B) : 0.f; }
+		virtual void SetLamps(bool bLit, int32 Ind, bool bBrake) override
+		{
+			if (C.IsValid()) C->SetLamps(I, uint8((bLit ? ACoaches::LowBeam | ACoaches::Tail : 0) | (Ind < 0 ? ACoaches::TurnLeft : Ind > 0 ? ACoaches::TurnRight : 0) | (bBrake ? ACoaches::Brake : 0)));
+		}
+		virtual void SetDrive(float A) override { if (C.IsValid()) C->SetDrive(I, A); }
+		virtual void SetAway(bool b) override { if (C.IsValid()) ASeats::Follow(C->ModelOf(I), b); }
+		virtual bool OtherVehicleAt(const FVector& At, float R) const override
+		{
+			if (!C.IsValid()) return false;
+			for (int32 k = 0; k < C->Num(); ++k)
+			{
+				if (k == I) continue;
+				const FVector L = C->RootOf(k).InverseTransformPosition(At);
+				if (FMath::Abs(L.X) < 645.f + R && FMath::Abs(L.Y) < 128.f + R && FMath::Abs(L.Z) < 400.f) return true;
+			}
+			return false;
+		}
+	private:
+		TWeakObjectPtr<ACoaches> C; int32 I;
+	};
+}
+
+UVehicleRiders* ACoaches::Riders(int32 Ci)
+{
+	if (!Coaches.IsValidIndex(Ci) || !UVehicleRiders::LineOn()) return nullptr;
+	if (!Coaches[Ci].Riders.IsValid() && DriveReady(Ci))
+	{
+		UVehicleRiders* R = UVehicleRiders::Make(Coaches[Ci].M.Get(), TEXT("airportcoach"), MakeUnique<FCoachBody>(this, Ci));
+		if (R) R->AddTickPrerequisiteActor(this);
+		Coaches[Ci].Riders = R;
+	}
+	return Coaches[Ci].Riders.Get();
+}
+
+bool ACoaches::DriveReady(int32 Ci)
+{
+	using namespace CoachDim;
+	if (!Coaches.IsValidIndex(Ci) || !UVehicleRiders::LineOn()) return false;
+	FCoach& C = Coaches[Ci]; FDriveParts& D = C.Line;
+	ABabylonModel* M = C.M.Get();
+	if (!M) return false;
+	if (D.bOn) return true;
+	if (D.Hand == INDEX_NONE)   // (bound once)
+	{
+		static const TCHAR* Parts[] = {TEXT("Tyre"), TEXT("Rim"), TEXT("Hub"), TEXT("Nut"), TEXT("TreadGroove"), TEXT("BrakeDisc")};
+		for (int32 w = 0; w < 4; ++w)
+		{
+			const bool bFront = w < 2; const float Side = (w & 1) ? 1.f : -1.f;   // (root y: left is -)
+			D.WheelAt[w] = FVector(bFront ? 370.f : -240.f, Side * (bFront ? 107.5f : 91.8f), 52.f);
+			D.Wheel[w] = M->BindGroupWhere([&](const FString& N, int32, const FVector& At)
+			{
+				bool bPart = false; for (const TCHAR* P : Parts) bPart |= N.StartsWith(P);
+				return bPart && FVector2D::Distance(FVector2D(At.X, At.Z), FVector2D(D.WheelAt[w].X, D.WheelAt[w].Z)) < 60.f && At.Y * Side > 30.f;
+			}, FTransform(D.WheelAt[w]));
+			if (bFront) D.Knuckle[w] = M->BindGroup({FString::Printf(TEXT("Caliper_%dF"), w == 0 ? 1 : -1), FString::Printf(TEXT("Knuckle_%d"), w == 0 ? 1 : -1)}, true, FTransform(D.WheelAt[w]));
+		}
+		D.HandAt = FTransform(Root(5.50f, 0.62f, 1.78f));
+		D.Hand = M->BindGroup({TEXT("SWRim"), TEXT("SWHub"), TEXT("SWBadge"), TEXT("SWSpoke")}, true, D.HandAt);
+		D.PedalAt = FTransform(Root(5.87f, 0.62f, 1.00f));
+		D.Accel = M->BindGroup({TEXT("Accelerator")}, true, D.PedalAt);
+		D.Brake = M->BindGroup({TEXT("BrakePedal")}, true, D.PedalAt);
+		D.ArmAt = FTransform(Root(5.04f, 0.34f, 1.62f));
+		D.Arm = M->BindGroup({TEXT("DSArm_-1")}, true, D.ArmAt);
+		ADP_LOG(TEXT("Coaches: coach %d's driving parts - wheels %d %d %d %d, knuckles %d %d, steering wheel %d, pedals %d %d, seat arm %d"), Ci, D.Wheel[0], D.Wheel[1], D.Wheel[2], D.Wheel[3], D.Knuckle[0], D.Knuckle[1], D.Hand, D.Accel, D.Brake, D.Arm);
+	}
+	D.bOn = D.Hand != INDEX_NONE && D.Wheel[0] != INDEX_NONE && D.Wheel[2] != INDEX_NONE;
+	return D.bOn;
+}
+
+void ACoaches::DrivePlace(int32 Ci, const FTransform& Road, float LeanRoll, float LeanPitch, float SteerDeg, float RollRad, float WheelTurn, float Accel, float Brake, float SeatArm)
+{
+	if (!DriveReady(Ci)) return;
+	FCoach& C = Coaches[Ci]; FDriveParts& D = C.Line; ABabylonModel* M = C.M.Get();
+	C.RootBase = Road; D.LeanRoll = LeanRoll; D.LeanPitch = LeanPitch; D.SteerDeg = SteerDeg; D.RollRad = RollRad;
+	ApplyBody(C);
+	// the steering wheel about its own tilted column (clockwise for the driver is to the right)
+	const FVector Col(-FMath::Sin(FMath::DegreesToRadians(30.f)), 0.f, FMath::Cos(FMath::DegreesToRadians(30.f)));
+	if (D.Hand != INDEX_NONE) M->MoveGroup(D.Hand, FTransform(FQuat(Col, FMath::DegreesToRadians(WheelTurn)), D.HandAt.GetLocation()));
+	// the pedals, pressed about their feet (the model's accelerator stands left of its brake: put the right way round - a
+	// driver's right foot works both, the accelerator on the right)
+	const FVector Foot = D.PedalAt.GetLocation();
+	if (D.Accel != INDEX_NONE) M->MoveGroup(D.Accel, FTransform(FQuat(FVector::RightVector, FMath::DegreesToRadians(14.f * Accel)), Foot + FVector(0.f, 24.f, 0.f)));
+	if (D.Brake != INDEX_NONE) M->MoveGroup(D.Brake, FTransform(FQuat(FVector::RightVector, FMath::DegreesToRadians(12.f * Brake)), Foot + FVector(0.f, -14.f, 0.f)));
+	if (D.Arm != INDEX_NONE) M->MoveGroup(D.Arm, FTransform(FQuat(FVector::RightVector, FMath::DegreesToRadians(-80.f * SeatArm)), D.ArmAt.GetLocation()));
+	M->FlushMoves();
+}
+
+void ACoaches::DriveOff(int32 Ci)
+{
+	if (!Coaches.IsValidIndex(Ci) || !Coaches[Ci].Line.bOn) return;
+	FCoach& C = Coaches[Ci]; FDriveParts& D = C.Line; ABabylonModel* M = C.M.Get();
+	if (!M) return;
+	for (int32 w = 0; w < 4; ++w) { if (D.Wheel[w] != INDEX_NONE) M->MoveGroup(D.Wheel[w], FTransform(D.WheelAt[w])); if (w < 2 && D.Knuckle[w] != INDEX_NONE) M->MoveGroup(D.Knuckle[w], FTransform(D.WheelAt[w])); }
+	for (const int32 G : {D.Accel, D.Brake}) if (G != INDEX_NONE) M->MoveGroup(G, D.PedalAt);
+	if (D.Hand != INDEX_NONE) M->MoveGroup(D.Hand, D.HandAt);
+	if (D.Arm != INDEX_NONE) M->MoveGroup(D.Arm, D.ArmAt);
+	D.bOn = false; D.LeanRoll = D.LeanPitch = D.SteerDeg = D.RollRad = 0.f;
+	C.Lamps = 0; C.Drive = 0.f; C.Riders = nullptr;
+	ApplyBody(C); M->FlushMoves();
+}
+#pragma endregion
+
 void ACoaches::Tick(float Dt)
 {
 	Super::Tick(Dt);
@@ -372,12 +523,7 @@ void ACoaches::Tick(float Dt)
 		if (C.Kneel != KTo)
 		{
 			C.Kneel = KTo > C.Kneel ? FMath::Min(KTo, C.Kneel + Dt / 1.8f) : FMath::Max(KTo, C.Kneel - Dt / 2.4f);
-			const float E = FMath::SmoothStep(0.f, 1.f, C.Kneel);
-			// (tipped about the far side's bottom edge: the door side, root +y, goes down)
-			const FVector Hinge(0.f, -CoachDim::W * 50.f, 0.f);
-			const FTransform Knee = FTransform(-Hinge) * FTransform(FQuat(FVector::ForwardVector, FMath::DegreesToRadians(1.1f * E))) * FTransform(Hinge + FVector(0, 0, -6.f * E));
-			M->GetModelRoot()->SetRelativeTransform(Knee * C.RootBase);
-			if (C.Wheels != INDEX_NONE) { M->MoveGroup(C.Wheels, Knee.Inverse()); bMoved = true; }
+			ApplyBody(C); bMoved = true;
 		}
 		if (bMoved) M->FlushMoves();
 		// lamps, and the real beams for the nearest coach with its beams on

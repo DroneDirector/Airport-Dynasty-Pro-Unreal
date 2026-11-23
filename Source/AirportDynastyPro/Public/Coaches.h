@@ -62,6 +62,20 @@ public:
 	/** A coach's frame (world; Blender's (x, y, z) m at (x, -y, z) * 100 in it). */
 	FTransform RootOf(int32 Coach) const { return Coaches.IsValidIndex(Coach) ? RootW(Coaches[Coach]) : FTransform::Identity; }
 
+	// ---- its driver and riders (VehicleRiders.h): all behind adp.CoachLine, 0 by default - null then, and nothing here is used
+	/** A coach's riders component (made on the first call); null while the switch is off. */
+	class UVehicleRiders* Riders(int32 Coach);
+	struct FDriveParts { bool bOn = false; int32 Wheel[4] = {INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE}, Knuckle[2] = {INDEX_NONE, INDEX_NONE}, Hand = INDEX_NONE, Accel = INDEX_NONE, Brake = INDEX_NONE, Arm = INDEX_NONE; FVector WheelAt[4]; FTransform HandAt, ArmAt, PedalAt; float LeanRoll = 0.f, LeanPitch = 0.f, SteerDeg = 0.f, RollRad = 0.f; };
+	bool DriveReady(int32 Coach);
+	void DrivePlace(int32 Coach, const FTransform& Road, float LeanRoll, float LeanPitch, float SteerDeg, float RollRad, float WheelTurn, float Accel, float Brake, float SeatArm);
+	/** Every driving part back as the parked coach has it. */
+	void DriveOff(int32 Coach);
+	FTransform RoadOf(int32 Coach) const { return Coaches.IsValidIndex(Coach) ? Coaches[Coach].RootBase : FTransform::Identity; }
+	float DoorKOf(int32 Coach, int32 Door) const { return Coaches.IsValidIndex(Coach) ? Coaches[Coach].DoorK[Door & 1] : 0.f; }
+	float BayKOf(int32 Coach, int32 Bay) const { return Coaches.IsValidIndex(Coach) && Bay >= 0 && Bay < 6 ? Coaches[Coach].BayK[Bay] : 0.f; }
+	float KneelOf(int32 Coach) const { return Coaches.IsValidIndex(Coach) ? Coaches[Coach].Kneel : 0.f; }
+	ABabylonModel* ModelOf(int32 Coach) const { return Coaches.IsValidIndex(Coach) ? Coaches[Coach].M.Get() : nullptr; }
+
 private:
 	static TWeakObjectPtr<ACoaches> One;
 	struct FMover { int32 Group = INDEX_NONE; FTransform Pivot; FQuat OpenTurn = FQuat::Identity; FVector OpenShift = FVector::ZeroVector; };
@@ -82,6 +96,8 @@ private:
 		UAudioComponent* Hum = nullptr;
 		UTextRenderComponent* Plate = nullptr;
 		float Drive = 0.f;
+		FDriveParts Line;              // (its driving parts: only once adp.CoachLine is on)
+		TWeakObjectPtr<class UVehicleRiders> Riders;
 	};
 	TArray<FCoach> Coaches;
 	UPROPERTY() TArray<TObjectPtr<UObject>> Keep;   // (dynamic materials, render targets, components held for the GC)
@@ -92,6 +108,7 @@ private:
 
 	void Setup(FCoach& C);
 	void Lamp(FCoach& C, float Dt);
+	void ApplyBody(FCoach& C);
 	void Mirror(float Dt, const FVector& Me);
 	bool Pick(const FVector& Feet, const FVector& Facing, int32& Ci, int32& Kind, int32& Index) const;
 	FTransform RootW(const FCoach& C) const;

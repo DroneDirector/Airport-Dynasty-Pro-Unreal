@@ -66,6 +66,23 @@ int32 ASeats::Claim(AActor* Who, const FVector& At, TFunction<void()> AskToLeave
 	return Best;
 }
 
+void ASeats::Follow(const ABabylonModel* Vehicle, bool bAway)
+{
+	if (!One.IsValid() || !Vehicle) return;
+	TArray<ABabylonModel::FSeatSpot> Now; Vehicle->SeatSpots(Now);
+	TArray<FTaken> Moved; TArray<FVector> To;
+	for (ABabylonModel::FSeatSpot& S : One->Spots)
+	{
+		if (!S.Parts.Num() || !S.Parts[0].Key || S.Parts[0].Key->GetOwner() != Vehicle) continue;
+		const ABabylonModel::FSeatSpot* N = Now.FindByPredicate([&](const ABabylonModel::FSeatSpot& X) { return X.Parts.Num() && X.Parts[0] == S.Parts[0]; });
+		if (!N) continue;
+		const FVector At = N->At - FVector(0, 0, bAway ? 1.0e6 : 0.0);
+		FTaken T; if (One->Taken.RemoveAndCopyValue(SpotKey(S.At), T)) { Moved.Add(T); To.Add(At); }
+		S.At = At; S.Facing = N->Facing;
+	}
+	for (int32 i = 0; i < Moved.Num(); ++i) One->Taken.Add(SpotKey(To[i]), Moved[i]);
+}
+
 void ASeats::Release(AActor* Who)
 {
 	if (!One.IsValid()) return;

@@ -1,0 +1,25 @@
+{
+ "note": "The airport coach's named points for its driver and riders (VehicleRiders.h): metres, Blender's axes as Tools/make_coach.py (x forward, y to the left, z up from the ground). The apron bus and the taxi bus get a file of their own with the same names.",
+ "points": {
+  "front_axle": [3.70, 0.0, 0.0], "rear_axle": [-2.40, 0.0, 0.0], "front_bumper": [6.45, 0.0, 0.0],
+  "door_stand": [5.38, -1.80, 0.0], "door_back": [5.38, -2.30, 0.0], "door_press": [5.36, -1.30, 1.30],
+  "aisle_front": [5.10, -0.27, 1.40], "aisle_turn": [4.40, -0.27, 1.40], "aisle_start": [3.75, -0.02, 1.40],
+  "driver_step": [5.10, 0.23, 1.00], "driver_turned": [5.16, 0.25, 1.00],
+  "driver_seat": [5.17, 0.62, 1.45], "driver_floor": [5.17, 0.62, 1.00],
+  "wheel": [5.50, 0.62, 1.78], "wheel_column": [5.56, 0.82, 1.72],
+  "accelerator": [5.66, 0.50, 1.03], "brake": [5.65, 0.68, 1.06], "left_foot": [5.62, 0.84, 1.00],
+  "door_button_0": [5.67, 0.06, 1.87], "door_button_1": [5.59, 0.06, 1.86],
+  "mirror_left": [6.60, 1.455, 2.77], "mirror_right": [6.60, -1.455, 2.77],
+  "stop_wait": [5.38, -3.30, 0.0], "bay_floor": [0.0, 0.0, 0.43]
+ },
+ "lists": {
+  "treads_front": [[5.38, -1.15, 0.70], [5.36, -0.91, 1.05], [5.32, -0.65, 1.40], [5.16, -0.30, 1.40]],
+  "rails_front": [[5.77, -0.58, 1.90], [4.90, -0.58, 1.90]],
+  "bays": [[2.165, -1.28, 1.18], [0.645, -1.28, 1.18], [-0.885, -1.28, 1.18], [2.165, 1.28, 1.18], [0.645, 1.28, 1.18], [-0.885, 1.28, 1.18]],
+  "poles": [[4.75, 0.05, 2.45], [4.90, -0.58, 2.35],
+   [2.695, -0.28, 2.15], [1.895, -0.28, 2.15], [1.095, -0.28, 2.15], [0.295, -0.28, 2.15], [-0.505, -0.28, 2.15], [-1.305, -0.28, 2.15], [-2.105, -0.28, 2.15], [-2.905, -0.28, 2.15],
+   [3.485, 0.28, 2.15], [2.685, 0.28, 2.15], [1.885, 0.28, 2.15], [1.085, 0.28, 2.15], [0.285, 0.28, 2.15], [-0.515, 0.28, 2.15], [-1.315, 0.28, 2.15], [-2.115, 0.28, 2.15], [-2.915, 0.28, 2.15]]
+ },
+ "numbers": { "wheel_radius": 0.245, "wheel_tilt": 30, "steer_ratio": 16, "tyre_radius": 0.52, "max_steer": 46, "half_width": 1.275, "aisle_y": 0.0,
+  "seat_x_min": -3.2, "seat_x_max": 3.75, "seat_back": 0.09, "row_stand": 0.33, "accel": 0.8, "brake": 1.1 }
+}

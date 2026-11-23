@@ -40,6 +40,9 @@ public:
 	static int32 Claim(AActor* Who, const FVector& At, TFunction<void()> AskToLeave = nullptr);
 	static void Release(AActor* Who);
 	static bool IsTaken(int32 Seat);
+	/** A vehicle's seats (VehicleRiders.h): out of everyone's reach while it is on its way, at its new place once it stands;
+	 *  who sits where stays. */
+	static void Follow(const ABabylonModel* Vehicle, bool bAway);
 
 	static constexpr float Reach = 130.f;
 	static constexpr float SitTime = 0.9f;

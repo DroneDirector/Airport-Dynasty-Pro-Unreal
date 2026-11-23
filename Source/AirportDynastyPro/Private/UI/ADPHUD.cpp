@@ -82,6 +82,7 @@ static bool GTourTracking = false;   // (the tug tour's tracking camera has a su
 #include "TerminalProps.h"
 #include "RoadNetwork.h"
 #include "Coaches.h"
+#include "CoachIKTest.h"
 #include "Engine/OverlapResult.h"
 #include "OpsMonitors.h"
 #include "Engine/Engine.h"
@@ -6149,6 +6150,13 @@ void AADPHUD::TestCoaches(float Before, float ShotClock)
 // for real (collision on, the hip-wide capsule), sitting down on a coach seat, the lamps at night, a mirror, the name plate
 void AADPHUD::TestCoachUse(float Before, float ShotClock)
 {
+	// -CoachIKTest (owner, 2026-11-23): the coaches' driver, a short drive and two passengers (CoachIKTest.cpp) - command line only
+	if (FParse::Param(FCommandLine::Get(), TEXT("CoachIKTest")))
+	{
+		if (Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ASunClock::HourOverride = 13.f; ASunClock::Refresh(); }
+		if (ADPCoachIKTestStep(GetOwningPlayerController(), ShotClock)) ADP_SHOT_EXIT();
+		return;
+	}
 	APlayerController* PC = GetOwningPlayerController();
 	ACoaches* Co = ACoaches::Find();
 	APawn* MeP = PC ? PC->GetPawn() : nullptr;
