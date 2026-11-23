@@ -207,13 +207,15 @@ for s, sd in ((1, 'L'), (-1, 'R')):
         for k, sg in enumerate((-1, 1)):
             lx = xc + sg * DOOR_W / 4; y = s * (W2 + 0.005)
             leaf = box(f'DoorLeaf_{tag}_{k}', (lx, y, FLOOR + DOOR_H / 2 + 0.02), (DOOR_W / 2 - 0.02, 0.05, DOOR_H - 0.02), M_PAINT, bevel=0.012)
-            box(f'DoorGlass_{tag}_{k}', (lx, y + s * 0.027, FLOOR + 1.25), (DOOR_W / 2 - 0.16, 0.006, 1.55), M_GLASS)
-            box(f'DoorGlassLow_{tag}_{k}', (lx, y + s * 0.027, FLOOR + 0.30), (DOOR_W / 2 - 0.16, 0.006, 0.32), M_GLASS)
+            cut(leaf, box('LeafWin', (lx, y, FLOOR + 1.25), (DOOR_W / 2 - 0.18, 0.2, 1.53), M_DARK))
+            cut(leaf, box('LeafWinLow', (lx, y, FLOOR + 0.30), (DOOR_W / 2 - 0.18, 0.2, 0.30), M_DARK))
+            box(f'DoorGlass_{tag}_{k}', (lx, y, FLOOR + 1.25), (DOOR_W / 2 - 0.16, 0.012, 1.55), M_GLASS)
+            box(f'DoorGlassLow_{tag}_{k}', (lx, y, FLOOR + 0.30), (DOOR_W / 2 - 0.16, 0.012, 0.32), M_GLASS)
             box(f'DoorEdgeRubber_{tag}_{k}', (xc + sg * 0.012, y, FLOOR + DOOR_H / 2 + 0.02), (0.024, 0.06, DOOR_H - 0.06), M_DARK)
             cyl(f'DoorPivot_{tag}_{k}', (xc + sg * (DOOR_W / 2 - 0.04), s * (W2 - 0.02), FLOOR + DOOR_H / 2), 0.025, DOOR_H - 0.10, 'z', M_STAIN, 16)
-            box(f'DoorHandleBar_{tag}_{k}', (lx - sg * 0.25, s * (W2 - 0.035), FLOOR + 1.0), (0.03, 0.03, 0.70), M_STAIN, bevel=0.01)
+            box(f'DoorHandleBar_{tag}_{k}', (lx - sg * 0.425, s * (W2 - 0.035), FLOOR + 1.0), (0.03, 0.03, 0.70), M_STAIN, bevel=0.01)
             piv(f'Door_{tag}_{k}', (xc + sg * (DOOR_W / 2 - 0.04), s * (W2 - 0.02), FLOOR), f'DoorPivot_{tag}_{k}')
-        lamp(f'DoorWarn_{tag}', (xc, s * (W2 - 0.01), FLOOR + DOOR_H + 0.18), 'y' + ('+' if s > 0 else '-'), 0.16, 0.05, M_AMBER, M_DARK, M_PLAST, depth=0.03)
+        lamp(f'DoorWarn_{tag}', (xc, s * (W2 - 0.01), FLOOR + DOOR_H + 0.075), 'y' + ('+' if s > 0 else '-'), 0.16, 0.05, M_AMBER, M_DARK, M_PLAST, depth=0.03)
         box(f'DoorStepEdge_{tag}', (xc, s * (W2 - 0.12), FLOOR + 0.008), (DOOR_W, 0.08, 0.008), M_YELP)
         box(f'DoorStepLight_{tag}', (xc, s * (W2 - 0.02), FLOOR - 0.06), (DOOR_W - 0.2, 0.02, 0.02), M_LED)
         # outside door open buttons (green) on the rear post
@@ -413,11 +415,61 @@ for i, (x, y) in enumerate([(-4.0, 0.0), (-1.0, 0.3), (3.2, -0.3), (-5.6, -0.4)]
     ik(f'StandSpot{i}', (x, y, FLOOR), 'FloorVinyl')
 # #endregion
 
+# #region ── The outside's photo textures and the airport's name (owner 2026-11-23: yellow outside, the inside as it is,
+# the airport's name on the sides). Photo-scanned CC0 materials from ambientCG (the pushback tug's set:
+# Art/PushbackTug/Textures/SOURCES.md), 1 UV unit = 1 m by cube projection. The paint is the livery (Livery_Body /
+# Livery_Main, recoloured in the game); the name panels show the airport's name - in the game written at run time from
+# Data/airfield.json (never baked), here drawn from it for the model and the renders.
+LIVERY_NAME = []
+if '--plain' not in sys.argv:
+    TEX = os.path.join(ROOT, 'Art', 'PushbackTug', 'Textures')
+    for o in ALL:
+        bpy.context.view_layer.objects.active = o
+        for x in bpy.context.selected_objects: x.select_set(False)
+        o.select_set(True); bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.uv.cube_project(cube_size=1.0, correct_aspect=True, scale_to_bounds=False); bpy.ops.object.mode_set(mode='OBJECT'); o.select_set(False)
+    def paint(m, rgb):                    # the scan's surface (roughness, orange peel) under an even livery colour
+        K.photo(m, TEX, 'Paint004', tile=1.5); nt = m.node_tree; b = nt.nodes['Principled BSDF']
+        for l in list(b.inputs['Base Color'].links): nt.links.remove(l)
+        b.inputs['Base Color'].default_value = (*rgb, 1)
+        nm = next((n for n in nt.nodes if n.type == 'NORMAL_MAP'), None)
+        if nm: nm.inputs['Strength'].default_value = 0.25
+    paint(M_PAINT, (0.90, 0.56, 0.01))                     # airport yellow (linear)
+    paint(M_STRIPE, (0.012, 0.025, 0.11))                  # the navy band
+    K.photo(M_RUB, TEX, 'Rubber004', tile=0.5, tint=(0.35, 0.35, 0.35), metal=0.0)
+    K.photo(M_STEEL, TEX, 'Metal027', tile=0.6)
+    K.photo(M_DARK, TEX, 'Plastic006', tile=0.4, tint=(0.9, 0.9, 0.9), metal=0.0)
+    # the name panels: a quad on each cant rail, its UVs 0..1 so the name reads from outside on both sides
+    import json as _j
+    from PIL import Image, ImageDraw, ImageFont
+    NAME = _j.load(open(os.path.join(ROOT, 'Data', 'airfield.json'), encoding='utf-8'))['airport']['name'] + ' Airport'
+    PW, PH = 6.20, 0.23
+    img = Image.new('RGBA', (4096, int(4096 * PH / PW)), (0, 0, 0, 0)); d = ImageDraw.Draw(img)
+    f = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', int(img.height * 0.78))
+    d.text((img.width / 2, img.height / 2), NAME, font=f, fill=(10, 26, 77, 255), anchor='mm')
+    png = os.path.join(ART, 'ApronBus_Name.png'); img.save(png)
+    mn = bpy.data.materials.new('AB_Livery_Name'); mn.use_nodes = True; nt = mn.node_tree; b = nt.nodes['Principled BSDF']
+    ti = nt.nodes.new('ShaderNodeTexImage'); ti.image = bpy.data.images.load(png); ti.image.alpha_mode = 'STRAIGHT'
+    nt.links.new(ti.outputs['Color'], b.inputs['Base Color']); nt.links.new(ti.outputs['Alpha'], b.inputs['Alpha'])
+    b.inputs['Roughness'].default_value = 0.35
+    if hasattr(mn, 'blend_method'): mn.blend_method = 'BLEND'
+    for s_, sd in ((1, 'L'), (-1, 'R')):
+        y = s_ * (W2 + 0.0009); z0, z1 = 2.73 - PH / 2, 2.73 + PH / 2; xa, xb = -PW / 2, PW / 2
+        bm = bmesh.new(); uv = bm.loops.layers.uv.new()
+        if s_ > 0: vs = [(xb, y, z0), (xa, y, z0), (xa, y, z1), (xb, y, z1)]; uvs = [(0, 0), (1, 0), (1, 1), (0, 1)]
+        else: vs = [(xa, y, z0), (xb, y, z0), (xb, y, z1), (xa, y, z1)]; uvs = [(0, 0), (1, 0), (1, 1), (0, 1)]
+        fc = bm.faces.new([bm.verts.new(v) for v in vs])
+        for lp, u in zip(fc.loops, uvs): lp[uv].uv = u
+        bmesh.ops.recalc_face_normals(bm, faces=[fc])
+        if (fc.normal.y > 0) != (s_ > 0): fc.normal_flip()
+        o = K.link(f'Livery_Name_{sd}', bm); o.data.materials.append(mn); ALL.append(o); LIVERY_NAME.append(o.name)
+# #endregion
+
 # #region ── Checks, save and export ──
 fl, cl, ov, lo = K.checks('APRONBUS', ground_ok=('Tyre',), overhang_skip_prefix=(
     'Strap', 'PoleButton', 'Kingpin', 'Spindle', 'MirrorArm', 'MirrorBase', 'Wiper', 'TowEye', 'Steering', 'PedalArm', 'PedalPlinth',
     'DoorButtonOut', 'DoorPivot', 'DoorHandleBar', 'SeatGrab', 'Rack', 'FIDS', 'RailHanger', 'SunVisor', 'BatteryPodRib', 'ACFan',
-    'BeaconBase', 'MudFlap', 'DoorEdgeRubber', 'DoorStep', 'TiltLight', 'Arch', 'CabDoorHandle', 'DriverHeadrest', 'Stripe', 'RubbingStrip', 'WaistRail', 'MarkerTop', 'DoorButtonIn', 'EmergencyRelease', 'DashDoorPanel'))
+    'BeaconBase', 'MudFlap', 'DoorEdgeRubber', 'DoorStep', 'TiltLight', 'Arch', 'CabDoorHandle', 'DriverHeadrest', 'Stripe', 'RubbingStrip', 'WaistRail', 'MarkerTop', 'Livery_Name', 'DoorButtonIn', 'EmergencyRelease', 'DashDoorPanel'))
 GLB = os.path.join(ART, 'apronbus.glb'); BLEND = os.path.join(ART, 'ApronBus.blend'); zf = os.path.join(ART, 'zfight-check.json')
 last = K.save_export(ROOT, BLEND, GLB, zf, 'APRONBUS', 'ApronBus')
 json.dump(dict(parts=len(ALL), ik=[o.name for o in IKS], ik_parts=IKP, floating=fl, overhang=ov, loose=lo, flicker=last),

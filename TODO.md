@@ -251,6 +251,15 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       model (`*_Livery_Body`, `*_Livery_Main`, the name panels `*_Livery_Name_*`). Default: YELLOW body (the apron bus
       first, owner 2026-11-23) with a dark navy band. The airport's name is written at run time from Data/airfield.json
       (never baked), as on the coach. Private vehicles (taxi bus, coach, cars) keep their own colours.
+- [ ] **The apron bus is APPROVED (owner, 2026-11-23)** - its model (`Tools/make_apron_bus.py`: the airport's yellow livery
+      with the airport's name on both sides, photo-scanned paint, thin clear glass) and its sounds. It must be drivable by
+      BOTH the airport's own drivers and the owner himself (his avatar from the creator), through the same IK rig as the
+      fire trucks (see "Drive every airport vehicle yourself"): walk to the cab's door, open it, sit, hands on the wheel,
+      feet on the pedals, the door switches on the dash; the doors, kneeling and the chime worked from the cab.
+      - [ ] **New staff job: "Apron bus driver"** (real title; also called airside / ramp bus driver), part of the
+            ground crew (ground handling, ramp services) next to fuel, catering, cleaning and ground (ADPStaff wages
+            table and ADPGround::TeamNeeds); needs an airside driving permit (part of hiring); one driver per bus on shift,
+            the usual three shifts; their wage is an airport cost. Without a driver on shift a bus stays parked.
 - [ ] **The buses' rules, fleets and money** (owner, 2026-11-23) - for the apron bus and the taxi bus (and the rules for
       the landside coach where they apply):
       - [ ] **Who rides the apron bus:** only passengers of a flight parked on a REMOTE stand (no jetway), both ways:
