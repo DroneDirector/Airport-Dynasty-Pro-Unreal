@@ -115,7 +115,7 @@ private:
 	struct FPart { FTransform Base, Parent; TArray<FInst> Inst; float Slide = 0; float Swing = 0; bool bSpin = false; USceneComponent* Sticker = nullptr; FTransform StickerRel; };
 	// (owner's door rule, 2026-11-12 / to-do 20: only sliding doors open by themselves; every other door with the use key
 	// E / X, shown in the Buttons panel, and a door closer pulls it shut 4 s after you've gone)
-	struct FDoor { FString Id; FVector At; float Reach = 2.6f; float K = 0; TArray<FPart> Parts; bool bSpin = false; bool bSlide = false; bool bOpen = false; float Away = 0.f; };
+	struct FDoor { FString Id; FVector At; float Reach = 2.6f; float K = 0; TArray<FPart> Parts; bool bSpin = false; bool bSlide = false; bool bOpen = false; float Away = 0.f; bool bPax = false; FVector AtW = FVector::ZeroVector; };   // bPax: a sliding door passengers use (AtW: where, world)
 	/** The no-smoking sticker on an entrance door's sliding leaf (owner, 2026-11-12): a small square on the glass at eye
 	 *  height, seen from both sides, carried along as the leaf slides (/Game/Signs, Tools/set_no_smoking_sign.py). */
 	void AddSticker(FPart& Leaf);
@@ -127,6 +127,9 @@ public:
 	static bool UseDoor(const APawn* Me);
 	/** For the -UIDoorRule test: a hinged door's place (world) and how many doors slide / swing. */
 	static bool TestHingedDoor(FVector& At, int32& NSlide, int32& NHinged);
+	/** The passengers' sliding doors (entrances, arrivals, security, into the airside lobby) opened now: the walkers' map
+	 *  is made with them open (PaxNav.h). The staff's, the apron's and the jetways' stay shut. */
+	static int32 OpenPassengerDoors();
 private:
 	int32 FindDoor(const FVector& Feet, const FVector& Facing) const;
 	static TArray<TWeakObjectPtr<ABabylonModel>> AllModels;

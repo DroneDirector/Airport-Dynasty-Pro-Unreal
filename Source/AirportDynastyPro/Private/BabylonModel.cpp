@@ -10,6 +10,7 @@ static FString GRoadsProbe;   // (the road network's data is there: the model's 
 #include "Misc/PackageName.h"
 #include "ADPLog.h"
 #include "PaxNav.h"
+#include "TerminalDoors.h"
 #include "TerminalBuilder.h"
 #include "Components/StaticMeshComponent.h"
 #include "Sound/SoundBase.h"
@@ -306,6 +307,10 @@ bool ABabylonModel::Place(const FString& Name)
 			// the entrance doors' leaves wear the no-smoking sticker
 			if (Door.Id.Contains(TEXT("-ENTR-"))) for (FPart& P : Door.Parts) if (P.Slide != 0) AddSticker(P);
 			for (const FPart& Pt : Door.Parts) if (Pt.Slide != 0) Door.bSlide = true;
+			// (a door passengers go through by themselves - sliding leaves only, never the staff's, the apron's or the jetways')
+			Door.bPax = Name == TEXT("Terminal") && Door.bSlide && !Door.Parts.ContainsByPredicate([](const FPart& Pt) { return Pt.Swing != 0; }) && !Door.Id.Contains(TEXT("STAFF"))
+				&& (Door.Id.Contains(TEXT("-ENTR-")) || Door.Id.Contains(TEXT("-ARRIVALS-")) || Door.Id.Contains(TEXT("-SECURITY-")) || Door.Id.StartsWith(TEXT("D-F1-AIRSIDE-")));
+			Door.AtW = Root->GetComponentTransform().TransformPosition(Door.At);
 			if (Door.Parts.Num()) Doors.Add(MoveTemp(Door));
 		}
 		ADP_LOG(TEXT("Babylon model %s: %d doors that move"), *Name, Doors.Num());
@@ -1125,7 +1130,19 @@ void ABabylonModel::Tick(float Dt)
 	for (FDoor& D : Doors)
 	{
 		if (D.bSpin) { for (FPart& Part : D.Parts) if (Part.bSpin) MovePart(Part, 0, Clock * 0.6f); continue; }
-		const bool bNear = FVector2D::Distance(FVector2D(Me), FVector2D(D.At)) < D.Reach * 100.f && FMath::Abs(Me.Z - D.At.Z) < 250.f;
+		bool bNear = FVector2D::Distance(FVector2D(Me), FVector2D(D.At)) < D.Reach * 100.f && FMath::Abs(Me.Z - D.At.Z) < 250.f;
+		if (D.bPax && !bNear)
+		{
+			// (the passengers' doors open for passengers too, as the old door objects did (TerminalDoors.cpp) - this terminal
+			//  has none of those, so its doors opened for you only and the walkers stood at the closed leaves (2026-11-23):
+			//  the entrances 5 m ahead and open while passengers are about, security open until all are through - and all of
+			//  them open while the walkers' map is made)
+			const bool bEntr = D.Id.Contains(TEXT("-ENTR-"));
+			bNear = PaxNav::Making() || (ATerminalDoors::bHoldEntrances && bEntr) || (ATerminalDoors::bHoldSecurity && D.Id.Contains(TEXT("-SECURITY-")));
+			const double Rr = FMath::Square(double(bEntr ? FMath::Max(D.Reach, 5.f) : D.Reach) * 100.0);
+			for (int32 k = 0; k < ATerminalDoors::Openers.Num() && !bNear; ++k)
+				bNear = FMath::Abs(ATerminalDoors::Openers[k].Z - D.AtW.Z) < 150.f && FVector::DistSquared2D(ATerminalDoors::Openers[k], D.AtW) < Rr;
+		}
 		// sliding doors open by themselves as you come; any other door only when you open it (UseDoor), and its closer
 		// pulls it shut 4 s after you've gone from it
 		if (!D.bSlide && D.bOpen) { D.Away = bNear ? 0.f : D.Away + Dt; if (D.Away > 4.f) D.bOpen = false; }
@@ -1186,6 +1203,20 @@ bool ABabylonModel::TestHingedDoor(FVector& At, int32& NSlide, int32& NHinged)
 				if (!bGot && D.At.Z < 200.f) { At = M->Root->GetComponentTransform().TransformPosition(D.At); bGot = true; }
 			}
 	return bGot;
+}
+
+int32 ABabylonModel::OpenPassengerDoors()
+{
+	int32 N = 0;
+	for (const TWeakObjectPtr<ABabylonModel>& W : AllModels)
+		if (ABabylonModel* M = W.Get())
+			for (FDoor& D : M->Doors)
+			{
+				if (!D.bPax) continue;
+				D.K = 1.f; ++N;
+				for (FPart& Part : D.Parts) M->MovePart(Part, 1.f, 0.f);
+			}
+	return N;
 }
 
 bool ABabylonModel::UseDoor(const APawn* Me)
