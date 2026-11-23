@@ -107,6 +107,7 @@ const TCHAR* UStaffPeople::TaskName(EStaffTask T)
 	case EStaffTask::BagsOut: return TEXT("bags out to the aircraft");
 	case EStaffTask::BagsIn: return TEXT("bags in from the aircraft");
 	case EStaffTask::Loader: return TEXT("belt loader");
+	case EStaffTask::Chocks: return TEXT("chocks and cones");
 	default: return TEXT("pushback");
 	}
 }
@@ -117,7 +118,7 @@ void UStaffPeople::Needs(EStaffTask T, TArray<FNeed>& Out)
 	auto Add = [&](EStaffDuty D, int32 Min, int32 Full) { FNeed N; N.Duty = D; N.Min = Min; N.Full = Full; Out.Add(N); };
 	switch (T)
 	{
-	case EStaffTask::Gpu: Add(EStaffDuty::GpuHandler, 1, 1); break;
+	case EStaffTask::Gpu: case EStaffTask::Chocks: Add(EStaffDuty::GpuHandler, 1, 1); break;
 	case EStaffTask::BagsOut: case EStaffTask::BagsIn: Add(EStaffDuty::TractorDriver, 1, 1); Add(EStaffDuty::BaggageHandler, 0, 1); break;
 	case EStaffTask::Loader: Add(EStaffDuty::LoaderOperator, 1, 1); Add(EStaffDuty::BaggageHandler, 0, 1); break;
 	case EStaffTask::Bags: Add(EStaffDuty::TractorDriver, 1, 1); Add(EStaffDuty::LoaderOperator, 1, 1); Add(EStaffDuty::BaggageHandler, 0, 2); break;

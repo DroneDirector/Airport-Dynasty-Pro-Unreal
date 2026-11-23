@@ -68,6 +68,7 @@ void ATugs::Discharge(int32 Ci)
 		if (T.GpuCi == Ci) T.GpuCi = INDEX_NONE;
 		if (T.Gpu.Holder == Ci && !T.Gpu.bInHand) T.Gpu.Holder = INDEX_NONE;
 		T.Walkers.Remove(Ci);
+		if (T.Ck.Ci == Ci) T.Ck.Ci = INDEX_NONE;
 	}
 	const FString Id = C.StaffId;
 	if (C.Rig) delete C.Rig;

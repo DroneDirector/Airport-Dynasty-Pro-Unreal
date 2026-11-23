@@ -355,6 +355,7 @@ bool ATugs::Push(const FString& Key, float StandX, const FVector& Fitting, const
 		// (the push starts only with the wing walkers and the tail walker in their places)
 		if (T.Driver == INDEX_NONE) return true;
 		if (T.Gpu.bConnected) return false;   // (the ground power off and its cable stowed before any push)
+		if (!ChkOut(T)) return false;   // (the cones in and the chocks off - the last ones once it is hooked on: TugChocks.cpp)
 		if (T.WalkersReady < (T.bHired ? T.Walkers.Num() : 3)) return false;   // (no crew, no push - owner; your own people, to-do 206: the driver and the handler at least, and every walker there is)
 		if (T.Seq == 0) { T.Seq = 1; T.SeqT = 0.f; T.SeqWait = FMath::FRandRange(2.f, 5.f); }
 		return T.Seq >= 8;   // (brakes released, "commencing pushback" - the 11 steps, SeqTick)
@@ -631,6 +632,7 @@ void ATugs::Tick(float Dt)
 		}
 		SeqTick(T, Dt);
 		GpuTick(T, Dt);
+		ChkTick(int32(&T - Tugs.GetData()), Dt);
 		// (short of walkers for a departure: look for free ones every 3 s)
 		if (T.bHired) HiredTick(int32(&T - Tugs.GetData()), Dt);
 		if (T.Driver != INDEX_NONE && !T.Key.IsEmpty() && T.Walkers.Num() < 3 && !(T.bHired && T.Seq > 0) && T.State != EState::Unhook && T.State != EState::Backing && T.State != EState::Home && (T.WalkerLook += Dt) > 3.f) { T.WalkerLook = 0.f; CrewWalkers(int32(&T - Tugs.GetData())); }

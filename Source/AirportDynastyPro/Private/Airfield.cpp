@@ -794,6 +794,13 @@ void AAirfield::Aprons(bool bModelSite)
 				Line("paintwhite", FVector2f(X0, Ya), FVector2f(X1, Ya), 0.12f, 0.0075f); Line("paintwhite", FVector2f(X0, Yb), FVector2f(X1, Yb), 0.12f, 0.0075f);
 				Line("paintwhite", FVector2f(X0, Ya), FVector2f(X0, Yb), 0.12f, 0.0075f); Line("paintwhite", FVector2f(X1, Ya), FVector2f(X1, Yb), 0.12f, 0.0075f);
 			}
+			// the chocks and cones' place beside it (to-do 212): 1.1 x 2.4 m round the rack (Tugs: ChkSetup)
+			if (St.bJetway && !St.bCargo && St.Span <= 40.f)
+			{
+				const float Cx = St.X - B * 11.6f, Cy = St.Nose - B * 2.f, X0 = Cx - 0.55f, X1 = Cx + 0.55f, Ya = Cy - 1.2f, Yb = Cy + 1.2f;
+				Line("paintwhite", FVector2f(X0, Ya), FVector2f(X1, Ya), 0.1f, 0.0075f); Line("paintwhite", FVector2f(X0, Yb), FVector2f(X1, Yb), 0.1f, 0.0075f);
+				Line("paintwhite", FVector2f(X0, Ya), FVector2f(X0, Yb), 0.1f, 0.0075f); Line("paintwhite", FVector2f(X1, Ya), FVector2f(X1, Yb), 0.1f, 0.0075f);
+			}
 			// the jetway's red zone on the left of the nose (the aircraft's left door side): outlined and hatched, nothing
 			// parks where the bridge swings
 			if (St.bJetway)

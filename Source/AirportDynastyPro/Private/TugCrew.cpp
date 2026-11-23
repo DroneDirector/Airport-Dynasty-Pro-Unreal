@@ -612,7 +612,8 @@ void ATugs::CrewWalkers(int32 Tug)
 	};
 	const bool bHooked = T.State == EState::Hooked;
 	// out to their places now that it is hooked on (the ones already standing by)
-	if (bHooked && !T.bWalkersOut) { T.bWalkersOut = true; for (int32 r = 0; r < T.Walkers.Num(); ++r) GoOut(T.Walkers[r], r); }
+	// (the chocks off first: one of them does it - ChkWork calls this again)
+	if (bHooked && !T.bWalkersOut && ChkOut(T)) { T.bWalkersOut = true; for (int32 r = 0; r < T.Walkers.Num(); ++r) GoOut(T.Walkers[r], r); }
 	const float Sx = T.StandX;
 	if (T.bHired)
 	{
@@ -1193,6 +1194,8 @@ FVector ATugs::Around(const FVector& From, const FVector& To) const
 			Bs.Add({T.At, Fw, Rt, 255.f + Pad, 126.f + Pad});
 		}
 	}
+	// (the chocks' rack and its cones at the head of the stand)
+	if (ChkMesh.Num()) for (const FTug& T : Tugs) { const FVector Ax = (ChkAt(T, 0.f, 1.f) - ChkAt(T, 0.f, 0.f)).GetSafeNormal2D(); Bs.Add({ChkAt(T, 11.6f, -7.1f), Ax, FVector(-Ax.Y, Ax.X, 0.f), 100.f + Pad, 35.f + Pad}); }
 	// (the baggage tractors and carts too - GSE.h)
 	if (const AGSE* G = AGSE::Find(GetWorld())) { TArray<AGSE::FOutline> Ol; G->Outlines(Ol); for (const AGSE::FOutline& O : Ol) Bs.Add({O.C, O.X, O.Y, O.Hx + Pad, O.Hy + Pad}); }
 	auto Local = [](const FBx& B, const FVector& P) { const FVector D = P - B.C; return FVector2D(FVector::DotProduct(D, B.X), FVector::DotProduct(D, B.Y)); };

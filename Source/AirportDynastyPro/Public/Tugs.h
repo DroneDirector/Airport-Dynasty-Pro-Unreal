@@ -56,6 +56,13 @@ public:
 	/** The clearance words for a departure (SimTraffic.cpp): its callsign, the way it will face after the push, the
 	 *  taxi route, the runway - for the pushback's talk (docs/Pushback-Sequence.md). */
 	void Clearance(const FString& Key, const FString& Callsign, const FString& Face, const FString& Route, const FString& Runway);
+	/** The chocks and cones (to-do 212, TugChocks.cpp): an aircraft on blocks - somebody sets them. When: its departure; bHired:
+	 *  your own flight, one of your hired people; bLong: it stands two hours or more; bAtOnce: they are in already. True once
+	 *  the job is taken up (or there is nothing to do). */
+	bool ChocksOn(float StandX, const FString& Reg, const FDateTime& When, bool bHired, bool bLong, bool bAtOnce);
+	bool ChocksIn(float StandX) const;
+	/** The aircraft is gone: whatever is still out is cleared. */
+	void ChocksGone(float StandX);
 	/** An aircraft has parked on the stand (on blocks): its ground power is plugged in (GpuUnit in TugCrew.cpp). */
 	void Arrived(float StandX);
 	/** The pushback is done: the tug unhooks, backs away and drives back to the park. */
@@ -161,6 +168,14 @@ private:
 			TArray<TTuple<UInstancedStaticMeshComponent*, int32, FTransform>> Coils, RunPlug;   // (the stowed cable: hidden as it pays out)
 			FVehicleDirt Dirt; FVector DirtAt = FVector::ZeroVector;   // (dirt and washing as the fire truck - VehicleDirt.h)
 		} Gpu;
+		// the chocks and cones of this gate (to-do 212, TugChocks.cpp): pairs 0-2 (nose, right main, left main), cones 3-7
+		struct FChkItem { uint8 Where = 0; float Bl = 1.f; bool bDirty = true; FTransform From[2], Now[2], Lie[2]; };   // Where: 0 rack, 1 right hand, 2 left hand, 3 out, 4 lying
+		struct FChk
+		{
+			FChkItem Items[8]; uint8 Stage = 0;   // 0 on the rack, 1 being set, 2 set, 3 the cones being brought in, 4 only the chocks in, 5 the chocks coming off
+			int32 Ci = INDEX_NONE; bool bOwn = false, bHired = false, bLong = false, bLoose = false; float Clock = 0.f, WaitT = 0.f;
+			FString Reg; FDateTime When;
+		} Ck;
 		FVehicleDirt Dirt;
 		TArray<int32> Walkers; int32 WalkersReady = 0; bool bWalkersOut = false; float WalkerLook = 0.f;              // the wing walkers and tail walker on this push (Crew[])
 	};
@@ -220,6 +235,19 @@ private:
 	FVector Receptacle(const FTug& T) const;
 	void GpuConnect(int32 Tug, FCrew& C);
 	void GpuDisconnect(int32 Tug, FCrew& C);
+	// the chocks and cones (TugChocks.cpp)
+	using FChk = FTug::FChk; using FChkItem = FTug::FChkItem;
+	TArray<UInstancedStaticMeshComponent*> ChkMesh; bool bChkReady = false; float ChkYaw = 0.f;
+	FVector ChkAt(const FTug& T, float Lat, float Aft) const;
+	void ChkSetup();
+	void ChkPlace(const FTug& T, int32 It, FTransform Out[2], uint8& Rope) const;
+	void ChkDraw(int32 Tug);
+	void ChkMove(int32 Tug, int32 It, uint8 To);
+	void ChkTake(int32 Tug, FCrew& C, int32 It, bool bTake, uint8 To);
+	void ChkWork(int32 Tug, int32 Ci);
+	int32 ChkWorker(int32 Tug);
+	void ChkTick(int32 Tug, float Dt);
+	bool ChkOut(const FTug& T) const { return T.Ck.Stage == 0; }
 	void StartBacking(FTug& T);
 	void StartHome(FTug& T);
 	void SeqTick(FTug& T, float Dt);

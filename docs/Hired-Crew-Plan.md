@@ -83,6 +83,19 @@ after another (the rule today in `ADPSchedule::MissingStaff`: 2 for the ground p
 - **Not checked:** everything in the game; the ways on foot past real wing, loader and train places; a tug pushing when its
   driver vanishes finishes that movement; a sidestep inside the hall is the crew's old one (no wall test).
 
+## Chocks and cones as built (to-do 212, 2026-11-23, not run)
+`TugChocks.cpp` (new), hooks in `Tugs.*`, `TugCrew.cpp` (walkers go out after the chocks; the rack is walked round), `TugStaff.cpp`,
+`StaffPeople.*` (`EStaffTask::Chocks`, 1 person), `Turnaround.cpp`, `Airfield.cpp` (the rack's box). Models: `Art/ApronSafety`,
+blueprint `docs/Blueprints/Apron/ApronSafety.png`.
+- **On:** the `chocks` task asks (`ATugs::ChocksOn`): your flight - `AskTeam`, 2 min ahead of its other jobs; others - a free walker,
+  else the gate's tug crew. Nose, right main (left too from 2 h on the ground), then five cones in one round. Aircraft standing here at load: in.
+- **Vehicles:** `bulk`, `fwd`, `aft`, `water`, `toilet` wait for the chocks, 4 min over their own time at most. GPU and jetway do not wait.
+- **Off:** the bags' vehicles gone and the pushback crew there: a wing walker (none: the handler) brings the cones in; hooked on:
+  the mains, then the nose chocks; then the walkers go out. `ATugs::Push` is held by `ChkOut`.
+- A worker lost: what they carried lies there, the next one goes on.
+- **Not checked:** everything in the game - the hands on the rope, cones in the hands while walking (no carry animation: the items hang
+  from the hand bones), the way under the fuselage behind the nose gear and beside the jetway's drive column, how late the push gets.
+
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
 | Where | Today | Replace with | Nobody free |
