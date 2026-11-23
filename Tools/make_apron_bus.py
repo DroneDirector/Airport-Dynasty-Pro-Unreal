@@ -442,7 +442,10 @@ if '--plain' not in sys.argv:
     # the name panels: a quad on each cant rail, its UVs 0..1 so the name reads from outside on both sides
     import json as _j
     from PIL import Image, ImageDraw, ImageFont
-    NAME = _j.load(open(os.path.join(ROOT, 'Data', 'airfield.json'), encoding='utf-8'))['airport']['name'] + ' Airport'
+    import glob as _g                     # the active site's own name (Data/Sites/<site>/site.json), else the layout's
+    _sites = sorted(_g.glob(os.path.join(ROOT, 'Data', 'Sites', '*', 'site.json')))
+    NAME = (_j.load(open(_sites[0], encoding='utf-8'))['airport']['name'] if _sites else
+            _j.load(open(os.path.join(ROOT, 'Data', 'airfield.json'), encoding='utf-8'))['airport']['name'] + ' Airport')
     PW, PH = 6.20, 0.23
     img = Image.new('RGBA', (4096, int(4096 * PH / PW)), (0, 0, 0, 0)); d = ImageDraw.Draw(img)
     f = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', int(img.height * 0.78))

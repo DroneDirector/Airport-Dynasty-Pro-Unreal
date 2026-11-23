@@ -27,11 +27,11 @@ def flat(name, rgb, rough=0.6, emit=0.0):
     m = bpy.data.materials.new(name); m.use_nodes = True; b = m.node_tree.nodes['Principled BSDF']
     b.inputs['Base Color'].default_value = (*rgb, 1); b.inputs['Roughness'].default_value = rough
     return m
-GRASS = scan('Grass', 'grass_ground', 3.0, (0.75, 0.85, 0.7))
+GRASS = scan('Grass', 'grass_ground', 3.0, (0.42, 0.62, 0.30))
 ASPH = scan('Asphalt', 'asphalt_04', 4.0, (0.55, 0.56, 0.58))
 SHOULDER = scan('Shoulder', 'asphalt_02', 4.0, (0.62, 0.62, 0.62))
-CONC = scan('StandConcrete', 'concrete_floor_worn_001', 5.0, (0.95, 0.95, 0.95))
-CONC2 = scan('ApronConcrete', 'brushed_concrete_04', 5.0, (0.9, 0.9, 0.9))
+CONC = scan('StandConcrete', 'concrete_floor_worn_001', 5.0, (0.88, 0.9, 0.95))
+CONC2 = scan('ApronConcrete', 'brushed_concrete_04', 5.0, (0.62, 0.66, 0.72))
 YEL = flat('MarkYellow', (0.85, 0.55, 0.02), 0.5); RED = flat('MarkRed', (0.65, 0.03, 0.02), 0.5)
 WHT = flat('MarkWhite', (0.85, 0.85, 0.82), 0.5); BLK = flat('MarkBlack', (0.02, 0.02, 0.02), 0.6)
 AC = flat('Aircraft', (0.85, 0.87, 0.9), 0.35); TERM = flat('Terminal', (0.55, 0.6, 0.66), 0.5); GLASSB = flat('TermGlass', (0.08, 0.12, 0.16), 0.1)
@@ -148,13 +148,10 @@ solid('BusAtR3', (35.75 - 9, 300, 1.55), (3.0, 13.9, 3.1), BUSY)
 
 # #region ── Sky, sun, cameras, render ──
 w = bpy.data.worlds.new('Sky'); w.use_nodes = True; sc.world = w; nt = w.node_tree; bg = nt.nodes['Background']
-sky = nt.nodes.new('ShaderNodeTexSky')
-for t in ('NISHITA', 'MULTIPLE_SCATTERING', 'SINGLE_SCATTERING', 'PREETHAM', 'HOSEK_WILKIE'):
-    try: sky.sky_type = t; break
-    except Exception: pass
-for k, v in (('sun_elevation', math.radians(35)), ('sun_rotation', math.radians(200))):
-    if hasattr(sky, k): setattr(sky, k, v)
-nt.links.new(sky.outputs[0], bg.inputs['Color']); bg.inputs['Strength'].default_value = 0.15
+grad = nt.nodes.new('ShaderNodeTexGradient'); tcw = nt.nodes.new('ShaderNodeTexCoord'); ramp = nt.nodes.new('ShaderNodeValToRGB')
+sep = nt.nodes.new('ShaderNodeSeparateXYZ'); nt.links.new(tcw.outputs['Generated'], sep.inputs[0])
+ramp.color_ramp.elements[0].color = (0.75, 0.85, 0.95, 1); ramp.color_ramp.elements[1].color = (0.25, 0.5, 0.9, 1)
+nt.links.new(sep.outputs['Z'], ramp.inputs[0]); nt.links.new(ramp.outputs[0], bg.inputs['Color']); bg.inputs['Strength'].default_value = 1.0
 sd = bpy.data.lights.new('Sun', 'SUN'); sd.energy = 3.2; sd.angle = math.radians(1.5)
 so = bpy.data.objects.new('Sun', sd); sc.collection.objects.link(so); so.rotation_euler = (math.radians(55), 0, math.radians(200))
 sc.render.engine = 'CYCLES'; sc.cycles.device = 'CPU'; sc.cycles.samples = SAMPLES; sc.cycles.use_denoising = True
@@ -165,9 +162,9 @@ def shoot(name, loc, at, lens=35, ortho=0, res=(2560, 1440)):
     cam_d.type = 'ORTHO' if ortho else 'PERSP'; cam_d.lens = lens; cam_d.ortho_scale = ortho or 1
     sc.render.resolution_x, sc.render.resolution_y = res; sc.render.filepath = os.path.join(OUT, f'RemoteStands-{name}.png')
     bpy.ops.render.render(write_still=True); print('rendered', name, flush=True)
-shoot('Aerial', (150, 40, 230), (190, 300, 0), 22)
-shoot('Closeup', (-150, 190, 60), (-20, 300, 0), 28)
-cam.rotation_euler = (0, 0, 0); cam.location = (230, 290, 600); cam_d.type = 'ORTHO'; cam_d.ortho_scale = 900
-sc.render.resolution_x, sc.render.resolution_y = (3000, 1300); sc.render.filepath = os.path.join(OUT, 'RemoteStands-Top.png')
+shoot('Aerial', (170, 20, 300), (180, 300, 0), 20)
+shoot('Closeup', (-130, 200, 70), (10, 300, 0), 26)
+cam.rotation_euler = (0, 0, 0); cam.location = (165, 290, 600); cam_d.type = 'ORTHO'; cam_d.ortho_scale = 860
+sc.render.resolution_x, sc.render.resolution_y = (3000, 1150); sc.render.filepath = os.path.join(OUT, 'RemoteStands-Top.png')
 bpy.ops.render.render(write_still=True); print('rendered Top', flush=True)
 # #endregion

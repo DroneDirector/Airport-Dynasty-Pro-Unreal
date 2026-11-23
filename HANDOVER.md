@@ -2,6 +2,48 @@
 
 Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md (where everything is) first.
 
+## FOR THE PC CHAT - from the phone chat (2026-11-23 13:00-14:00): the buses and the remote stands, handed over to build
+The owner (14:00): "hand all these details over to the other chat and let it build what needs building, change what needs
+changing; if the other chat has started on the same thing, let it finish first and then hand over; keep all projects in
+sync." Checked at 14:00: you were on the terminal front, the walking map and the gate arcs - nothing on buses or remote
+stands, so this is new work, nothing clashes. FINISH WHAT YOU ARE ON FIRST, then take this in. Every detail is in TODO.md
+(section 3, the items dated 2026-11-23); in order:
+1. **Bring in the binaries** (copied to your folder from the phone session, not yet committed - LFS):
+   `Art/ApronBus/ApronBus.blend`, `apronbus.glb` (rebuilt 14:05 with the active site's name, "Chablais Airport", on the
+   name panels; in the game the name is written at run time from the site, never baked), `Art/ApronBus/Renders/*.png`,
+   `Art/ApronBus/ApronBus_Name.png`, `Art/TaxiBus/*` (front redone: the owner's bonnet curve, modern lamps), the 21 sounds +
+   `ApronBus-SoundDemo.wav` in `Art/Sounds/ApronBus/`, `Blueprints/Vehicles/{ApronBus,TaxiBus}/*.png`,
+   `Blueprints/Airfield/RemoteStands-*.png`. (Also older: CargoTerminal and BeltLoaderAlt binaries.)
+2. **The apron bus is APPROVED** - import it (as the coach / tugs: one manager, ABabylonModel placement), its livery slots
+   (`AB_Livery_Body` yellow, `AB_Livery_Main` navy, `Livery_Name_L/R` the airport's name), its sounds as MetaSounds matching
+   the demo (`Tools/make_apron_bus_sound_demo.py` holds the exact gains and speed curves; SOURCES.md there), its 112 IK
+   points / pivots (`apronbus-parts.json`). Drivable by the owner's avatar AND by NPC drivers through TruckDriverRig, like
+   the fire trucks. The new staff job "Apron bus driver" (ground crew).
+3. **The remote stands - APPROVED by the owner ("draw these")**: 7 remote stands R1-R7 (owner said 8: ASK him where the 8th
+   goes - the plan had an optional R0 west of P1 if the bus depot moves), behind the gates across taxilane T, Billund-style:
+   plans `Tools/plan_remote_stands.py`, `Tools/plan_remote_stands_fit.py` (all numbers), look `Tools/render_remote_stands.py`.
+   R1 x -68.5, R2 -28 (code C, tail y 272, nose 318); R3 35.75 (flexible: 2 x A321 or 1 x A350 / B777, tail 258);
+   R4 231.75 (flexible), R5 292.5 (C); R6 445.5, R7 518 (code E, tail 258); all nose north, taxi in from T, pushed back onto
+   T. Concrete pads x -96.5..84 / 183.5..320.5 / 403..560.5, y 244..342.5 with GRASS between every pad and every taxiway
+   edge (T, P1-P3, A) - only the paved throats from T; and the owner's last ask (13:58): **no plain squares - real
+   pavement edges: curved fillets where pads / throats / links meet the taxiways, rounded corners, paved shoulders along
+   the edges, blue taxiway edge lights**. Markings: lead-in lines from T's centre line, stop bars with the type, red
+   restraint lines, stand number boxes, GSE boxes. The bus road y 335..342 behind the noses with zebra crossings + STOP at
+   P1-P3, the bus depot (6 charging bays, 3 buses) at x -240..-160 by the marked crossing of T at x -245, the bus gate
+   (new ground-floor bus lounge door) at the terminal's west end with 2 bus bays (apron ~25 m wider there). All
+   clearances ICAO Annex 14 / EASA CS ADR-DSN (43.5 m to links for code E, 51 m by P3 for the A380, 40 m to T). Into
+   Data/airfield.json (and the shared layout, so Android's 2D map shows them) + the 3D apron + the sim (ADPGround::AssignStand:
+   remote = these stands).
+4. **The bus rules and the schedule** (TODO "The apron buses run on the real flight schedule" and "The buses' rules"):
+   a world-simulation module (FADPApronBusModule) so it saves, syncs, catches up and passes the two-setup check; only
+   remote-stand flights get buses; buses wait for every registered passenger (gate close 30 min before STD ends it), with
+   nobody registered a fixed 2 min; 3 apron buses (airport-owned: price, charging, service, drivers' wages in the economy)
+   and 5 taxi buses (private, no money to the airport) at the start; more buses can be bought (the buy list shows only
+   vehicles with a 3D model).
+5. **The airport livery on every airport vehicle** and **drive every airport vehicle yourself with IK** (TODO).
+6. **The taxi bus** (not the airport's): IK, photoreal textures, its rank at the landside kerb (TODO).
+Keep CODE-MAP.md, TODO.md and this file in step as you build; the phone chat pulls before every change.
+
 ## From the phone chat (2026-11-23 11:26-12:30): the apron bus and the taxi bus, with interiors (new, nothing replaced)
 - The owner asked for an airport "taxi bus" wireframe in high detail; he meant both: the APRON BUS (airside, between the terminal
   and remote stands) and the TAXI BUS (a minibus taxi waiting at the landside kerb with the buses), "in equal stunning detail as
