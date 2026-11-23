@@ -514,12 +514,16 @@ int32 PaxNav::Legs(UWorld* W, FString* Summary)
 		FString Text; TSharedPtr<FJsonObject> Root; const TArray<TSharedPtr<FJsonValue>>* Lots = nullptr; const TArray<TSharedPtr<FJsonValue>>* RowsJ = nullptr;
 		if (FFileHelper::LoadFileToString(Text, *ADPSite::File(TEXT("roads.json"))) && FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Root) && Root.IsValid()
 			&& Root->TryGetArrayField(TEXT("lots"), Lots) && Lots->Num() && (*Lots)[0]->AsObject()->TryGetArrayField(TEXT("rows"), RowsJ))
+		{
+			TSet<int32> Ys;   // (a row is in several pieces where a lane or a footway cuts it: each lane once)
 			for (const TSharedPtr<FJsonValue>& V : *RowsJ)
 			{
 				// (the lane a car in this row opens onto, where one walks from it: 2 m out of the space)
 				const TSharedPtr<FJsonObject> R = V->AsObject(); const double Y = R->GetNumberField(TEXT("y")) - R->GetNumberField(TEXT("dir")) * 2.0;
-				if (Y > -140.0) for (const float X : {30.f, 75.f, 120.f}) Cars.Add(G(X, float(Y)));
+				bool bHad = false; Ys.Add(FMath::RoundToInt(Y * 100.0), &bHad);
+				if (Y > -140.0 && !bHad) for (const float X : {30.f, 75.f, 120.f}) Cars.Add(G(X, float(Y)));
 			}
+		}
 	}
 	for (int32 k = 0; k < Cars.Num(); ++k) Leg(FString::Printf(TEXT("car park place %d -> forecourt"), k + 1), { Cars[k], G(75.f, -8.f) });
 	if (!Cars.Num()) Leg(TEXT("car park (no spaces in the roads file)"), { G(75.f, -60.f), G(75.f, -8.f) });
