@@ -400,6 +400,8 @@ exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_eas
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_gatearc_edit.py'), encoding='utf-8').read())
 # the Floor 2 concourse's rooms and the passport wall (owner, 2026-11-23): Tools/terminal_concourse_edit.py, after the curved windows
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_concourse_edit.py'), encoding='utf-8').read())
+# the Grand Hall's check-in: its gaps and queue lines (owner, 2026-11-23, to-do 225): Tools/terminal_checkin_edit.py
+exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_checkin_edit.py'), encoding='utf-8').read())
 json.dump(L, open(OUT, 'w'))
 print('\n'.join(log))
 print('layout written:', OUT)
