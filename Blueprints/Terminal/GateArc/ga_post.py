@@ -29,13 +29,13 @@ def pair(a, b, dst, y0, title):
 
 one('apron', 'GA-3-Render-Apron.png', 'Gate 9 from the apron', 'standing eye height, 1.65 m · the curve 3.0 m deep · jetway J-9 docked to the A320, not moved')
 one('close', 'GA-3b-Render-Apron-Close.png', 'Gate 9, closer', 'standing eye height · the floor and roof edges follow the same circle, 5.40 m clear below')
-one('raised', 'GA-3c-Render-Apron-Raised.png', 'Gate 9, raised view', '15 m up · the neighbouring view bay and gate 11 stay flat, as today')
+one('raised', 'GA-3c-Render-Apron-Raised.png', 'Gate 9, raised view', '15 m up · the neighbouring view bay stays flat; gate 11 behind is drawn as it is today')
 one('front', 'GA-3d-Render-Apron-High.png', 'Gate 9, from above the stand', '20 m up · the corridor passes through the curved glass')
 one('inside', 'GA-4-Render-Inside.png', 'Inside gate 9', 'along the curve: 24 new seats, the jetway entrance standing in the bay, the lift at the far end')
 one('inside2', 'GA-4b-Render-Inside-Entrance.png', 'Inside gate 9, the jetway entrance', 'the door exactly where it is today; the curved glass runs past it into a steel collar')
 pair('apron_before', 'apron', 'GA-6-Before-After-Apron.png', 330, '')
-pair('close_before', 'close', 'GA-6b-Before-After-Close.png', 90, '')
-pair('front_before', 'front', 'GA-6c-Before-After-High.png', 150, '')
+pair('close_before', 'close', 'GA-6b-Before-After-Close.png', 190, '')
+pair('front_before', 'front', 'GA-6c-Before-After-High.png', 420, '')
 p = os.path.join(RAW, 'top.png')
 if os.path.exists(p):                                                # ortho 135 m wide, centre (-215, 98)
     im = np.array(Image.open(p).convert('RGB')); fig = plt.figure(figsize=(W, H), dpi=DPI); fig.patch.set_facecolor(BG); ax = fig.add_axes([0, 0, 1, 1]); hw, hh = 67.5, 67.5 * 9 / 16
