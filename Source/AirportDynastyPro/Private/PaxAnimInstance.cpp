@@ -87,6 +87,7 @@ void FPaxAnimProxy::PreUpdate(UAnimInstance* In, float Dt)
 		// (in and out over a quarter of a second)
 		Grip = FMath::FInterpConstantTo(Grip, A->bGripRight ? 1.f : 0.f, Dt, 4.f);
 		ArmOut = A->ArmOut;
+		Twist = FMath::Clamp(A->Twist, -42.f, 42.f);
 		// the idle movement: its time from the world clock; a new one only once the last has blended out
 		const UWorld* W = In->GetWorld();
 		const double Now = W ? W->GetTimeSeconds() : 0.0;
@@ -376,6 +377,19 @@ bool FPaxAnimProxy::Evaluate(FPoseContext& Output)
 	if (RigFor != &BC.GetReferenceSkeleton()) Rig(BC);
 	// the idle movement first (layered on the idle pose), then the bag's grip
 	if (FidKind >= 0) Fidget(Pose); else DeviceW = 0.f;
+	if (FMath::Abs(Twist) > 0.4f)
+	{
+		auto Cx = [&](int32 Mesh) { return Mesh == INDEX_NONE ? FCompactPoseBoneIndex(INDEX_NONE) : BC.MakeCompactPoseIndex(FMeshPoseBoneIndex(Mesh)); };
+		int32 N = 0; for (const int32 X : Spine) if (Cx(X) != INDEX_NONE) ++N;
+		const FQuat Q(FVector::UpVector, FMath::DegreesToRadians(Twist) / FMath::Max(1, N));
+		for (const int32 X : Spine) { const FCompactPoseBoneIndex I = Cx(X); if (I != INDEX_NONE) TurnCS(Pose, I, Q); }
+		int32 Nn = 0; for (const int32 X : Neck) if (Cx(X) != INDEX_NONE) ++Nn;
+		const FQuat Qn(FVector::UpVector, -FMath::DegreesToRadians(Twist * 0.75f) / FMath::Max(1, Nn + 1));
+		for (const int32 X : Neck) { const FCompactPoseBoneIndex I = Cx(X); if (I != INDEX_NONE) TurnCS(Pose, I, Qn); }
+		if (const FCompactPoseBoneIndex I = Cx(Head); I != INDEX_NONE) TurnCS(Pose, I, Qn);
+		// (the arms in towards the body: the one with a bag keeps its grip, held less far out)
+		ArmOut *= 1.f - 0.7f * FMath::Abs(Twist) / 42.f;
+	}
 	if (Grip <= 0.001f) return bOk;
 	const float W = FMath::SmoothStep(0.f, 1.f, Grip);
 	auto Ix = [&](int32 Mesh) { return Mesh == INDEX_NONE ? FCompactPoseBoneIndex(INDEX_NONE) : BC.MakeCompactPoseIndex(FMeshPoseBoneIndex(Mesh)); };

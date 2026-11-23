@@ -39,6 +39,11 @@ namespace PaxNav
 	/** A walk from one point to another on the navmesh: the corner points (from and to included). OffMesh when either
 	 *  end is off the navmesh (a jetway, an escalator), NoWay when both are on it but nothing joins them. */
 	EPath Path(UWorld* W, const FVector& From, const FVector& To, TArray<FVector>& Out);
+	/** From a point on the map towards another, as far as the map goes, sliding along its edge (its edge keeps a body's clearance
+	 *  from the walls): false when From isn't on it. */
+	bool Along(UWorld* W, const FVector& From, const FVector& To, FVector& Out);
+	/** The nearest point of the map within Reach cm on the same floor. */
+	bool Nearest(UWorld* W, const FVector& From, float Reach, FVector& Out);
 	/** The check of the map: every leg a passenger walks - the car park, the forecourt, every entrance, check-in, each
 	 *  security lane, the airside, Floor 2 and every gate, the arrivals' way out - each in the log ("PaxNav leg OK/FAILED"),
 	 *  and the ways that must stay shut for them. How many failed (0: all reached). The escalators and the revolving doors

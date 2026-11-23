@@ -45,6 +45,10 @@ public:
 	 *  nobody walks for it). A passenger missing: the flight waits up to 15 minutes from the first ask, then goes without
 	 *  them (a no-show, logged). The jetway and the push wait on this (SimTraffic.cpp). */
 	static bool BoardingDone(const UWorld* W, const FString& Reg);
+	/** Is everyone off the aircraft Reg that came on blocks then: the last of its walkers through the gate's door (those without a
+	 *  walker: by the turnaround's time). Asked once that time is over; from then at most 15 minutes, then it goes on, logged as a
+	 *  problem. Why: who is still inside, in words. */
+	static bool DeplaneDone(const UWorld* W, const FString& Reg, const FDateTime& OnBlocks, int32 ArrPax, FString& Why);
 	virtual void Tick(float Dt) override;
 
 	/** Tests: what must be in view now - the passenger being followed (feet, head, its bag), and the side to look from.
@@ -58,8 +62,18 @@ public:
 	/** How many are walking now, and how many have gone aboard / out so far. */
 	int32 Walking() const;
 	/** One flight's passengers in numbers (the functional test, the tracking map): its label; false when nobody walks for it. */
-	struct FCount { FString Label; bool bArr = false; int32 Pax = 0, Walkers = 0, Spawned = 0, Bags = 0, Desk = 0, Lane = 0, F2 = 0, Aboard = 0, Bag = 0, Out = 0, Late = 0, Home = 0, About = 0; bool bCalled = false, bOff = false; float CallBefore = -1.f; FString Stages; };   // (CallBefore: the boarding call, minutes before its departure as expected then)
+	struct FCount { FString Label; bool bArr = false; int32 Pax = 0, Walkers = 0, Spawned = 0, Bags = 0, Desk = 0, Lane = 0, F2 = 0, Aboard = 0, Bag = 0, Out = 0, Late = 0, Home = 0, About = 0; bool bCalled = false, bOff = false; float CallBefore = -1.f; int32 Jetway = 0, Jet = -1; FString Stages; };   // (CallBefore: the boarding call, minutes before its departure as expected then)
 	void Counts(TArray<FCount>& Out) const;
+	float Floor2Z() const { return F2Z; }
+	int32 StuckInJetways() const { return StuckJet; }
+	int32 StuckElsewhere() const { return StuckElse; }
+	/** What is going on, for the tests' camera director (ChainCam.cpp): who, where, which step (Kind: 0 walking in, 1 the desk, 2 security,
+	 *  3 up, 4 waiting at the gate, 5 boarding, 6 off the aircraft, 7 down to the claim, 8 the belt, 9 walking out; 20+ aircraft), News: how
+	 *  lately it began. Jet: in that jetway. */
+	struct FScene { FString Id, Line; FVector At = FVector::ZeroVector, Face = FVector(1, 0, 0); int32 Kind = 0, Jet = -1; double News = 0.0; TWeakObjectPtr<const AActor> Who; };
+	void Scenes(TArray<FScene>& Out) const;
+	/** The measured inside of a docked jetway (the latest flight at it): its floor's middle, from the aircraft's door to the gate's. */
+	void JetwayLine(int32 Jet, TArray<FVector>& Out) const;
 
 	enum : int32 { VisibleDep = 36, VisibleArr = 30 };
 
@@ -82,11 +96,18 @@ private:
 		FString Stage;   // (in words, for the tests' caption)
 		float DevIn = -1.f, DevFor = 0.f; uint8 Dev = 0;   // (waiting at the gate: the phone / tablet out - APaxProps; in how long, for how long, which)
 		int32 Rev = INDEX_NONE, RevComp = INDEX_NONE, RevPhase = 0, RevSide = 0; float RevT = 0.f; FVector RevFrom = FVector::ZeroVector; TArray<FWp> RevAfter;   // (a revolving door: which, the compartment, 0 waiting 1 stepping in 2 riding 3 stepping out; the way on after it)
+		int32 TunA = 0, TunB = 0;    // (the way points inside the jetway: [TunA, TunB) - held within its walls, APaxFlow::FSlice)
+		FVector StuckAt = FVector::ZeroVector; float StuckT = 0.f, ReplanT = 0.f; bool bQueued = false, bDoorWait = false; FString HeldBy;   // (not getting on: where, how long; behind someone - a queue, not stuck; what held them)
+		FVector LooseFrom = FVector::ZeroVector, LooseTo = FVector::ZeroVector; float LooseT = -1.f;       // (truly held by geometry: eased back to the nearest free point)
 		bool bHome = false;          // (on the way home: too late, or their flight is off)
 		float FadeT = -1.f; int32 FadeFrom = INDEX_NONE; bool bFadeSwap = false; TWeakObjectPtr<class UMaterialInstanceDynamic> FadeMid;   // (boarding: faded away halfway along the jetway)
 	};
+	/** The inside of a docked jetway as it stands now, cut every 40 cm from the aircraft's door to the gate: its middle on the floor,
+	 *  the way across, and how far to each side a body's middle may be (the walls and whatever stands in, less a body). */
+	struct FSlice { FVector C = FVector::ZeroVector, Rt = FVector(0, 1, 0); float Lim = 0.f; };
 	struct FRun
 	{
+		TArray<FSlice> Walk; bool bMeasured = false;
 		FString Key, Label, AirlineId, Reg, PlanId;   // (PlanId: its planned leg - Sim/ADPSchedule.h)
 		bool bArr = false, bTest = false, bPlayer = false, bDockNoted = false;
 		int32 Gate = 2, Jet = INDEX_NONE;
@@ -98,7 +119,8 @@ private:
 		TArray<int32> Desks;
 		bool bCalled = false, bFinal = false, bClosed = false, bAllLogged = false, bDeplaning = false, bBagsTagged = false;
 		float CallBefore = -1.f;
-		double CallT = 0.0, BoardSpanS = 0.0, ArrStart = -1.0, NextArr = 0.0, HoldSince = -1.0; bool bNoShowGo = false;
+		double CallT = 0.0, BoardSpanS = 0.0, ArrStart = -1.0, NextArr = 0.0, HoldSince = -1.0, SaidAt = -1.0e9; bool bNoShowGo = false, bLateTun = false;   // (arrivals: HoldSince, bNoShowGo - the wait for the last ones off, given up)
+		int32 InTunnel = 0, AtDoor = 0; float DoorT = 0.f, DoorSaid = 30.f;   // (counted four times a second: in the jetway or on their way through the gate's door; waiting at that door shut)
 		float DockWait = 0.f;
 	};
 	struct FGate { int32 N = 0; FString Room; FBox2D Box; FVector2f Jw = FVector2f::ZeroVector; int32 Place = INDEX_NONE; bool bF2 = true; };
@@ -121,6 +143,7 @@ private:
 	float ReadyIn = 2.f, PollIn = 0.f, SayIn = 20.f, SpawnGap = 0.f, StuckLog = 0.f;
 	double RealT = 0.0, SimT = 0.0;
 	float F2Z = 600.f, F2Y = 6.f;
+	int32 StuckJet = 0, StuckElse = 0;   // (how often someone was truly held, in a jetway / elsewhere: each a fault to be found)
 	int32 StaffDesk = 99, StaffLane = 99;   // (your passenger service agents / security officers on shift)
 	int32 Frame = 0, Watched = INDEX_NONE, TotalAboard = 0, TotalOut = 0;
 	int32 PhoneWho = INDEX_NONE, PhoneReturn = INDEX_NONE; float PhoneShowIn = -1.f; bool bPhoneShown = false;   // (tests: the camera on someone using a phone at the gate, a while)
@@ -170,7 +193,15 @@ private:
 	bool WayToWait(FPx& P);
 	void WayToJetway(FPx& P);
 	void WayArrivals(FPx& P);
+	/** Measures the jetway's inside (once docked; traces across it against the real parts); false: no jetway there. */
+	bool Measure(FRun& R);
+	int32 SliceAt(const FRun& R, const FVector& At) const;
+	bool PastDoor(const FPx& P) const;            // (beyond the gate's jetway door)
+	int32 Inside(int32 Ri) const;                 // (an arrival's walkers not yet through the gate's door, the ones still aboard with them)
+	void GateDoors(float Dt);                     // (which gates' jetway doors may open for passengers now)
+	float GateDoorsIn = 0.f;
 	void GoHome(int32 i, const TCHAR* Why);
+	void Held(int32 i, float Dt);
 	void AddPlanWay(FPx& P, int32 FromPlace, const FVector& FromPlan, int32 ToPlace, const FVector& ToPlan, bool bJit = true);
 	void Crossing(FPx& P, bool bToTerminal, float NearX);
 	FVector DeskSpot(int32 Desk, int32 K) const;

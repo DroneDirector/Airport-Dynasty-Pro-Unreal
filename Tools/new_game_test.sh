@@ -29,16 +29,23 @@ PARTS="Careers Saves Autosaves ADP webcache_6613 Config/Windows/GameUserSettings
 for p in $PARTS; do [ -e "$S/$p" ] && { mkdir -p "$KEEP/$(dirname $p)"; cp -rp "$S/$p" "$KEEP/$p" || { echo "STOP: $p couldn't be put aside"; rm -rf "$KEEP"; exit 1; }; }; done
 putback() { for p in $PARTS; do rm -rf "$S/$p"; [ -e "$KEEP/$p" ] && { mkdir -p "$S/$(dirname $p)"; cp -rp "$KEEP/$p" "$S/$p"; }; done; rm -rf "$KEEP"; }
 trap putback EXIT
+# a crash window of this test's own game copy (owner 2026-11-23: read, then closed at once - never left on his screen): its
+# crash kept in Saved/NewGameTest/crashes, the window watching that PID closed; never any other window
+gamepid() { powershell -NoProfile -Command "(Get-CimInstance Win32_Process -Filter \"Name='UnrealEditor.exe'\" | Where-Object { \$_.CommandLine -match '$1' } | Select-Object -First 1).ProcessId" | tr -d ''; }
+closecrash() { [ -z "$1" ] && return; powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"Name='CrashReportClientEditor.exe'\" | Where-Object { \$_.CommandLine -match '-MONITOR=$1(\D|\$)' } | ForEach-Object { Stop-Process -Id \$_.ProcessId -Force }" > /dev/null 2>&1
+  for c in $(find "$S/Crashes" -maxdepth 1 -type d -newer "$OUT/stamp" -name "UECC*" 2>/dev/null); do mkdir -p "$OUT/crashes"; cp -rp "$c" "$OUT/crashes/"; done; }
 if [ $CAREER = 1 ]; then
   CH="$OUT/chain"; mkdir -p "$CH"; SW1=-UINewGame
   if [ "$FROM" -gt 1 ]; then
     [ -f "$CH/chaintest-$FROM.json" ] || { echo "STOP: no save point of stage $FROM"; exit 1; }
-    SW1=-UIContinueGame; mkdir -p "$S/Careers"; cp "$CH/chaintest-$FROM.json" "$S/Careers/career-chablais.json"
+    mkdir -p "$S/Careers"; cp "$CH/chaintest-$FROM.json" "$S/Careers/career-chablais.json"
   else rm -f "$S/Careers/career-chablais.json"; fi
   read SW SH <<< "${NG_SIZE:-1600 900}"
   EX="/c/Program Files/Epic Games/UE_5.7/Engine/Binaries/Win64/UnrealEditor.exe"
   # (an own time limit and a kill of this copy only: the game ends by itself when the chain is through or stuck)
-  ADP_LOG=1 timeout ${NG_LIMIT:-10800} "$EX" "$(cygpath -w $PWD/AirportDynastyPro.uproject)" -game $SW1 -ChainTest=$FROM -windowed -ResX=$SW -ResY=$SH -ForceRes -Site=chablais -LocalTerrain -nosplash -log=ChainTest.log "$@" > /dev/null 2>&1
+  ADP_LOG=1 timeout ${NG_LIMIT:-10800} "$EX" "$(cygpath -w $PWD/AirportDynastyPro.uproject)" -game $SW1 -ChainTest=$FROM -windowed -ResX=$SW -ResY=$SH -ForceRes -Site=chablais -LocalTerrain -nosplash -log=ChainTest.log "$@" > /dev/null 2>&1 &
+  RUN=$!; touch "$OUT/stamp"; GP=""; for i in 1 2 3 4 5 6 7 8 9 10 11 12; do sleep 5; GP=$(gamepid 'log=ChainTest'); [ -n "$GP" ] && break; done
+  wait $RUN; sleep 3; closecrash "$GP"
   cp "$S/Logs/ChainTest.log" "$CH/log-from-$FROM.txt" 2>/dev/null
   for f in "$S"/Careers/chaintest-*.json; do [ -f "$f" ] && cp "$f" "$CH/"; done
   echo "== career chain from stage $FROM:"
@@ -55,8 +62,9 @@ for WHICH in new continue; do
     taskkill //IM AirportDynastyPro-Win64-Shipping.exe //F > /dev/null 2>&1
     L="$S/Logs/ADP.log"
   else
-    ADP_LOG=1 timeout 660 "/c/Program Files/Epic Games/UE_5.7/Engine/Binaries/Win64/UnrealEditor.exe" "$(cygpath -w $PWD/AirportDynastyPro.uproject)" -game $SW1 -windowed -ResX=$SW -ResY=$SH -ForceRes -Site=chablais -LocalTerrain -nosplash -log=NewGameTest.log "$@" > /dev/null 2>&1
-    powershell -NoProfile -Command "Get-Process CrashReportClientEditor -ErrorAction SilentlyContinue | Stop-Process -Force" > /dev/null 2>&1
+    ADP_LOG=1 timeout 660 "/c/Program Files/Epic Games/UE_5.7/Engine/Binaries/Win64/UnrealEditor.exe" "$(cygpath -w $PWD/AirportDynastyPro.uproject)" -game $SW1 -windowed -ResX=$SW -ResY=$SH -ForceRes -Site=chablais -LocalTerrain -nosplash -log=NewGameTest.log "$@" > /dev/null 2>&1 &
+    RUN=$!; GP=""; for i in 1 2 3 4 5 6 7 8 9 10 11 12; do sleep 5; GP=$(gamepid 'log=NewGameTest'); [ -n "$GP" ] && break; done
+    wait $RUN; sleep 3; closecrash "$GP"
     L="$S/Logs/NewGameTest.log"
   fi
   rm -rf "$OUT/$WHICH"; mkdir -p "$OUT/$WHICH"

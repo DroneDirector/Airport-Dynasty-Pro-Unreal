@@ -104,10 +104,12 @@ private:
 		int32 Seat = INDEX_NONE; class FTruckDriverRig* Rig = nullptr; class UPoseableMeshComponent* Rider = nullptr; USceneComponent* Frame = nullptr;
 		class UDriverPoseAnim* Pose = nullptr; FTransform BodyInActor; float Lower = 0.f; bool bLowered = false; int32 SitPose = 0; bool bSurf = false; float SurfZ = 46.f; float CrossLift = 0.f; float Fwd = 0.f, Lift = 0.f; bool bCushionOk = false; int32 CushionTries = 0;
 		bool bHeld = false, bStandSoon = false, bRelease = false;   // (SitOn: PaxFlow's passenger, sat until StandFrom, then handed back)
+		int32 KeptSeat = INDEX_NONE; FVector KeptAt = FVector::ZeroVector, KeptF = FVector::ForwardVector; float KeptH = 46.f;   // (the seat itself: the list of seats is made again as models come and go, its numbers move)
 		int32 FidK = -1, FidLast = -1; float FidT = 0.f, FidDur = 0.f, FidNext = 0.f, FidSide = 1.f;   // (a seated idle movement: SeatFidget)
 		int32 Device = 0, DevKind = 0, DevPosed = -1; float DevW = 0.f;   // (a phone / tablet held sat: SeatDevice)
 	};
 	TArray<FStroll> Strollers;
+	bool SeatFor(FStroll& S, FVector& At, FVector& Facing, float& SeatH);
 	bool bStrollersStarted = false;
 	void StepStrollers(float Dt);
 	bool StrollSpot(const FStroll& S, const FVector& From, FVector& Out, int32 Box = INDEX_NONE);

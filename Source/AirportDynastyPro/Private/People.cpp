@@ -652,7 +652,7 @@ bool AADPPeople::SitOn(AActor* Who, int32 Seat, const TArray<FBox2D>& Area, floa
 	if (!Who || !Find(Who) || !ASeats::SeatOf(Seat, SAt, SF, SH)) return false;
 	FStroll S; S.A = Who; S.Area = Area; S.FloorZ = FloorZ; S.Habit = EHabit::Bench; S.bHeld = true;
 	for (int32 i = 0; i < Area.Num(); ++i) S.AreaIds.Add(TEXT("PAXFLOW"));
-	S.Seat = Seat; S.To = FVector(SAt.X, SAt.Y, FloorZ) + SF * 60.f; S.Doing = EDoing::ToSeat; S.T = 0.f; S.SitPose = Rng.RandRange(0, 7);
+	S.Seat = Seat; SeatFor(S, SAt, SF, SH); S.To = FVector(SAt.X, SAt.Y, FloorZ) + SF * 60.f; S.Doing = EDoing::ToSeat; S.T = 0.f; S.SitPose = Rng.RandRange(0, 7);
 	Strollers.Add(S);
 	return true;
 }
@@ -799,12 +799,28 @@ void AADPPeople::NextThing(FStroll& S)
 	S.Doing = EDoing::Stand; S.For = 1.f; S.T = 0.f;
 }
 
+bool AADPPeople::SeatFor(FStroll& S, FVector& At, FVector& Facing, float& SeatH)
+{
+	// (the seat taken, not whatever has its number now: the list of seats is gathered again as models come and go)
+	if (S.KeptSeat == S.Seat && S.Seat != INDEX_NONE)
+	{
+		if (!ASeats::SeatOf(S.Seat, At, Facing, SeatH) || FVector::Dist(At, S.KeptAt) > 40.f || FVector::DotProduct(Facing, S.KeptF) < 0.5f)
+		{
+			static int32 Said = 0; if (Said++ < 4) ADP_LOG(TEXT("People: seat %d is another one in the list now - the one taken is kept"), S.Seat);
+			At = S.KeptAt; Facing = S.KeptF; SeatH = S.KeptH; return true;
+		}
+	}
+	else if (!ASeats::SeatOf(S.Seat, At, Facing, SeatH)) return false;
+	S.KeptSeat = S.Seat; S.KeptAt = At; S.KeptF = Facing; S.KeptH = SeatH;
+	return true;
+}
+
 void AADPPeople::SitPose(FStroll& S, float K)
 {
 	// its own body posed on the seat (the same rig and pose as yours when you sit - Seats.cpp), K 0 standing .. 1 sat
 	AActor* A = S.A.Get(); FWho* W = A ? Find(A) : nullptr;
 	FVector SAt, SF; float SH;
-	if (!W || !W->Body || !ASeats::SeatOf(S.Seat, SAt, SF, SH)) return;
+	if (!W || !W->Body || !SeatFor(S, SAt, SF, SH)) return;
 	if (!S.Rig)
 	{
 		S.Rig = new FTruckDriverRig();
@@ -948,7 +964,8 @@ void AADPPeople::SitPose(FStroll& S, float K)
 		const FTransform Base = S.BodyInActor.Inverse() * S.Frame->GetComponentTransform();
 		// (measured once: a seat's point is not on its surface - the rig's own height is right; no lowering)
 		S.Lower = 0.f;
-		A->SetActorLocation(Base.GetLocation() - FVector(0, 0, S.Lower * E));
+		// (its turn too, each time: it was set once only, so whoever was turned or given another seat after that sat the wrong way round)
+		A->SetActorLocationAndRotation(Base.GetLocation() - FVector(0, 0, S.Lower * E), Base.GetRotation());
 	}
 	if (K >= 1.f) { static int32 Said = 0; if (Said++ < 4) { const FVector Pv = W->Body->GetBoneLocation(TEXT("pelvis")); const FVector Rel = FRotationMatrix(SF.Rotation()).InverseTransformVector(Pv - SAt); ADP_LOG(TEXT("People: sat - the hips %.0f cm ahead of the seat's middle, %.0f to its side, %.0f over it (seat %.0f high)"), Rel.X, Rel.Y, Rel.Z, SH); } }
 }
@@ -1065,7 +1082,7 @@ void AADPPeople::StepStrollers(float Dt)
 			{
 				// back on its feet in front of the seat, walking again
 				FVector SAt, SF; float SH;
-				if (ASeats::SeatOf(S.Seat, SAt, SF, SH))
+				if (SeatFor(S, SAt, SF, SH))
 				{
 					// (its feet on the real floor in front of the seat, not the plan's height)
 					FVector P = FVector(SAt.X, SAt.Y, S.FloorZ) + SF * 60.f; FHitResult Fl; FCollisionQueryParams Qf(SCENE_QUERY_STAT(PeopleUp), false, A);
@@ -1074,7 +1091,7 @@ void AADPPeople::StepStrollers(float Dt)
 				}
 				if (W->Body) { static UBlendSpace* Move = LoadObject<UBlendSpace>(nullptr, TEXT("/Game/People/Anims/BS_Idle_Walk_Run_MH.BS_Idle_Walk_Run_MH")); W->Body->SetAnimationMode(EAnimationMode::AnimationSingleNode); if (Move) { W->Body->SetAnimation(Move); W->Body->Play(true); } }
 				if (S.bHeld) { ASeats::Release(A); S.bRelease = true; break; }   // (PaxFlow's passenger: handed back on its feet)
-				ASeats::Release(A); S.Seat = INDEX_NONE; S.Pose = nullptr; S.bLowered = false; S.Lower = 0.f; S.bSurf = false; S.Fwd = 0.f; S.Lift = 0.f; S.bCushionOk = false; S.CushionTries = 0;
+				ASeats::Release(A); S.Seat = S.KeptSeat = INDEX_NONE; S.Pose = nullptr; S.bLowered = false; S.Lower = 0.f; S.bSurf = false; S.Fwd = 0.f; S.Lift = 0.f; S.bCushionOk = false; S.CushionTries = 0;
 				S.Doing = EDoing::Stand; S.T = 0.f; S.For = Rng.FRandRange(1.f, 3.f);
 			}
 			break;

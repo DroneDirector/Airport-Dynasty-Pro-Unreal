@@ -589,6 +589,23 @@ int32 PaxNav::Legs(UWorld* W, FString* Summary)
 
 FString PaxNav::Check(UWorld* W) { FString S; Legs(W, &S); return S; }
 
+bool PaxNav::Along(UWorld* W, const FVector& From, const FVector& To, FVector& Out)
+{
+	UNavigationSystemV1* NS = Nav(W); if (!NS || !GReady) return false;
+	ANavigationData* ND = NavData(W, NS); ARecastNavMesh* RM = Cast<ARecastNavMesh>(ND); if (!RM) return false;
+	FNavLocation A; if (!NS->ProjectPointToNavigation(From, A, FVector(25.f, 25.f, 100.f), ND)) return false;
+	FNavLocation R; if (!RM->FindMoveAlongSurface(A, FVector(To.X, To.Y, A.Location.Z), R)) return false;
+	Out = R.Location; return true;
+}
+
+bool PaxNav::Nearest(UWorld* W, const FVector& From, float Reach, FVector& Out)
+{
+	UNavigationSystemV1* NS = Nav(W); if (!NS || !GReady) return false;
+	ANavigationData* ND = NavData(W, NS); if (!ND) return false;
+	FNavLocation A; if (!NS->ProjectPointToNavigation(From, A, FVector(Reach, Reach, 60.f), ND)) return false;
+	Out = A.Location; return FVector::Dist2D(From, Out) <= Reach && FMath::Abs(From.Z - Out.Z) < 60.f;
+}
+
 PaxNav::EPath PaxNav::Path(UWorld* W, const FVector& From, const FVector& To, TArray<FVector>& Out)
 {
 	Out.Reset();

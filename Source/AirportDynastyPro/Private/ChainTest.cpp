@@ -117,6 +117,12 @@ namespace
 	void ChSub() { ++GChain->Sub; GChain->SubT0 = FPlatformTime::Seconds(); }
 	void ChEnd(const FString& Why)
 	{
+		if (const APaxFlow* P = APaxFlow::Find(GChain->World.Get()))
+		{
+			ADP_LOG(TEXT("CHAIN TEST: RESULT stuck: %d in jetways, %d elsewhere"), P->StuckInJetways(), P->StuckElsewhere());
+			if (P->StuckInJetways()) ChProblem(FString::Printf(TEXT("%d times someone was stuck in a jetway"), P->StuckInJetways()));
+			if (P->StuckElsewhere()) ChProblem(FString::Printf(TEXT("%d times someone was stuck elsewhere"), P->StuckElsewhere()));
+		}
 		if (UADPSim* S = ChSim()) S->SetSpeed(1.0);
 		ADP_LOG(TEXT("CHAIN TEST: %s - %d problems, %.0f min%s%s"), GChain->Problems ? TEXT("FAILED") : TEXT("ALL PASSED"), GChain->Problems, (FPlatformTime::Seconds() - GChain->T0) / 60.0, Why.IsEmpty() ? TEXT("") : TEXT(" - "), *Why);
 		FPlatformMisc::RequestExit(false);
@@ -147,9 +153,10 @@ namespace
 		ADP_LOG(TEXT("CHAIN TEST: RESULT %s: boarding called %.0f min before its departure"), *Label, C.CallBefore);
 		if (C.CallBefore < 20.f) ChProblem(FString::Printf(TEXT("%s: boarding called only %.0f min before"), *Label, C.CallBefore));
 		if (C.Desk < C.Bags - C.Late) ChProblem(FString::Printf(TEXT("%s: %d of %d bags checked in"), *Label, C.Desk, C.Bags));
-		if (C.Lane < C.Spawned) ChProblem(FString::Printf(TEXT("%s: %d of %d passed security"), *Label, C.Lane, C.Spawned));
-		if (C.F2 < C.Spawned) ChProblem(FString::Printf(TEXT("%s: %d of %d came up to Floor 2"), *Label, C.F2, C.Spawned));
-		if (C.Aboard < C.Spawned) ChProblem(FString::Printf(TEXT("%s: %d of %d aboard - left behind: %s"), *Label, C.Aboard, C.Spawned, *C.Stages));
+		const int32 Due = FMath::Max(0, C.Spawned - C.Late);   // (too late for the check-in: home, not missing aboard)
+		if (C.Lane < Due) ChProblem(FString::Printf(TEXT("%s: %d of %d passed security"), *Label, C.Lane, Due));
+		if (C.F2 < Due) ChProblem(FString::Printf(TEXT("%s: %d of %d came up to Floor 2"), *Label, C.F2, Due));
+		if (C.Aboard < Due) ChProblem(FString::Printf(TEXT("%s: %d of %d aboard - left behind: %s"), *Label, C.Aboard, Due, *C.Stages));
 	}
 
 	bool Tick(float)
@@ -268,6 +275,8 @@ namespace
 				ChSpeed(1.f, 1.f); ChSave(3); ChSpeed(5.f, 5.f); ChSub(); return true;
 			}
 			{
+				// (a save point 12 minutes before its stand: for a run that starts just before the passengers get off)
+				if (!C.Seen.Contains(TEXT("33")) && Fa && Fa->To == Here && (Fa->DepAt + FTimespan::FromMinutes(Fa->DurMin + Fa->HoldMin) - Sn).GetTotalMinutes() < 12.0) { C.Seen.Add(TEXT("33")); ChSave(33); }
 				const FADPAircraft* Ac = S->World.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == C.A; });
 				if (!Ac || Ac->Location != Here || Ac->Status == TEXT("flying") || Ac->ArrAt < Sn - FTimespan::FromHours(3.0)) { if (T > 1500.0) { ChProblem(TEXT("not landed")); ChEnd(TEXT("stuck")); return false; } return true; }
 				APaxFlow::FCount K;
@@ -332,7 +341,7 @@ void ADPChainTest::BlockInput()
 int32 ADPChainTest::StartStage()
 {
 	int32 N = 0;
-	return FParse::Value(FCommandLine::Get(), TEXT("ChainTest="), N) ? FMath::Max(1, N) : FParse::Param(FCommandLine::Get(), TEXT("ChainTest")) ? 1 : 0;
+	return FParse::Value(FCommandLine::Get(), TEXT("ChainTest="), N) ? (N == 33 ? 3 : FMath::Max(1, N)) : FParse::Param(FCommandLine::Get(), TEXT("ChainTest")) ? 1 : 0;
 }
 
 void ADPChainTest::Begin(UWorld* W)
@@ -342,4 +351,6 @@ void ADPChainTest::Begin(UWorld* W)
 	GChain->World = W; GChain->Stage = StartStage(); GChain->T0 = GChain->SubT0 = FPlatformTime::Seconds();
 	ADP_LOG(TEXT("CHAIN TEST: started at stage %d"), GChain->Stage);
 	FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateStatic(&Tick), 0.5f);
+	TWeakObjectPtr<UWorld> Ww(W);
+	FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([Ww](float Dt) { if (!Ww.IsValid() || !GChain) return false; ADPChainTest::Camera(Ww.Get(), FMath::Min(Dt, 0.1f)); return true; }), 0.f);   // (the camera director: ChainCam.cpp)
 }

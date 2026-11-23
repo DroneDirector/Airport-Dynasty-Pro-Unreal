@@ -46,6 +46,6 @@ namespace ADPTurnaround
 	/** The turn for a departing flight (its number), or at a stand (plan x); null if none. */
 	const FTurn* ForFlight(const FString& Flight);
 	const FTurn* AtStand(float StandX);
-	/** The bags' make-up cut-off for that flight (40 min before off-blocks) has passed. False when its turn isn't known. */
+	/** The bags' make-up cut-off for that flight (32 min before off-blocks) has passed. False when its turn isn't known. */
 	bool BagCutOff(const FString& Flight, float StandX);
 }

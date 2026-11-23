@@ -155,8 +155,10 @@ void AGSE::ArrivalToStation(int32 Ti)
 	{
 		FTractor& U = Tractors[Ti];
 		TArray<FVector> R;
-		if (!Apron(R, U.At, Plan(269.f, 100.f), &U)) R.Add(Plan(269.f, 100.f));
-		Leg(R, 269.f, 100.f, 0.f, -1.f, 269.f, 61.f, 0.f, -1.f, 400.f);
+		if (!Apron(R, U.At, Plan(275.f, 114.f), &U)) R.Add(Plan(275.f, 114.f));
+		Leg(R, 275.f, 114.f, 0.f, -1.f, 275.f, 108.f, 0.f, -1.f, 400.f);
+		Leg(R, 275.f, 108.f, 0.f, -1.f, 269.f, 93.f, 0.f, -1.f, 400.f);
+		Leg(R, 269.f, 93.f, 0.f, -1.f, 269.f, 61.f, 0.f, -1.f, 400.f);
 		Leg(R, 269.f, 61.f, 0.f, -1.f, 265.f, 57.f, -1.f, 0.f, 400.f);
 		Leg(R, 265.f, 57.f, -1.f, 0.f, 192.f, 57.f, -1.f, 0.f, 400.f);
 		Leg(R, 192.f, 57.f, -1.f, 0.f, 178.f, 60.f, -1.f, 0.f, 400.f);
@@ -168,6 +170,7 @@ void AGSE::ArrivalUnload(int32 Ti)
 {
 	FTractor& T = Tractors[Ti]; T.Job = EJob::Loading;
 	const int32 Ci = T.Driver;
+	ArrAway.Add(T.ArrKey);
 	ADP_LOG(TEXT("GSE: %s at the arrivals conveyor (Ramp services 4) - the bags onto it"), *T.Name);
 	Motor(T, false);
 	ClimbOut(Ci, Ti, nullptr);

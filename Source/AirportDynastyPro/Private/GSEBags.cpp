@@ -67,7 +67,9 @@ FVector AGSE::PickStand(int32 Ti) const
 	// at the carousel's edge towards the carts (its oval 16 x 5 m), level with the train's first cart
 	const FTractor& T = Tractors[Ti];
 	const float Cx = T.Train.Num() && Carts.IsValidIndex(T.Train[0]) ? Carts[T.Train[0]].At.X / 100.f : Cp.X;
-	return Plan(FMath::Clamp(Cx, Cp.X - 6.f, Cp.X + 6.f), Cp.Y + 3.4f);
+	// (right at its edge: the bags ride 1.8 m out from its middle line, its edge is 2.5 m out - the old place, 3.4 m out, was too
+	//  far to reach a single bag)
+	return Plan(FMath::Clamp(Cx, Cp.X - 4.5f, Cp.X + 4.5f), Cp.Y + 2.78f);
 }
 
 int32 AGSE::Pickable(int32 Ti, int32 H) const
@@ -75,7 +77,7 @@ int32 AGSE::Pickable(int32 Ti, int32 H) const
 	const ADepartureBelts* D = ADepartureBelts::Get(GetWorld()); const FString* Fl = BagKey.Find(Ti);
 	if (!D || !Fl || Fl->IsEmpty()) return INDEX_NONE;
 	const FVector P = PickStand(Ti) + FVector(H * 280.f, 0.f, 0.f);
-	int32 Best = INDEX_NONE; float Bd = 115.f;
+	int32 Best = INDEX_NONE; float Bd = 135.f;
 	for (const int32 Id : D->BagsOnCarousel(*Fl)) { const float Dd = FVector::Dist2D(D->BagTransform(Id).GetLocation(), P); if (Dd < Bd) { Bd = Dd; Best = Id; } }
 	return Best;
 }
@@ -328,6 +330,8 @@ void AGSE::PollBags(float Dt)
 		bool bHas = false; for (const auto& K : BagKey) if (K.Value == F && Tractors.IsValidIndex(K.Key) && Tractors[K.Key].Job != EJob::None) bHas = true;
 		{ int32 OnCarts = 0; for (const FCart& C : Carts) for (const int32 b : C.Bags) if (b != INDEX_NONE) { const FDepBagTag* T = D->Tag(b); if (T && T->Flight == F) ++OnCarts; } if (D->BagsOf(F).Num() <= OnCarts) bHas = true; }
 		if (bHas) continue;
+		// (too late for another trip: what comes now would miss the hold - left for the next flight, never holding this one up)
+		if (const ADPTurnaround::FTurn* Tn = ADPTurnaround::ForFlight(F)) if (ADPTurnaround::LastNow() > Tn->OffBlocks - FTimespan::FromMinutes(28.0)) continue;
 		if (UADPSim* Sim = UADPSim::Get(this)) if (Sim->IsRunning())
 			if (const FADPPlanned* Pl = Sim->World.Planned.FindByPredicate([&](const FADPPlanned& X) { return X.FlightNo == F && X.State == TEXT("planned"); }))
 				if (Pl->AirlineId == UADPSim::Me() && ADPSchedule::OnShift(Sim->World, TEXT("ground"), Sim->Now()) < 2)

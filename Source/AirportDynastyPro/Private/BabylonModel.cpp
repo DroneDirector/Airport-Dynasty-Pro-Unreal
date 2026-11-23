@@ -324,6 +324,9 @@ bool ABabylonModel::Place(const FString& Name)
 			Door.bPax = Name == TEXT("Terminal") && Door.bSlide && !Door.Parts.ContainsByPredicate([](const FPart& Pt) { return Pt.Swing != 0; }) && !Door.Id.Contains(TEXT("STAFF"))
 				&& (Door.Id.Contains(TEXT("-ENTR-")) || Door.Id.Contains(TEXT("-ARRIVALS-")) || Door.Id.Contains(TEXT("-SECURITY-")) || Door.Id.StartsWith(TEXT("D-F1-AIRSIDE-")));
 			Door.AtW = Root->GetComponentTransform().TransformPosition(Door.At);
+			// (a gate's jetway door: for passengers only while its jetway is docked and a flight boards or gets off there)
+			if (Door.bSlide && Door.Id.StartsWith(TEXT("D-F2-GATE-")) && Door.Id.EndsWith(TEXT("-JW")))
+			{ const int32 Gn = FCString::Atoi(*Door.Id.Mid(10)); if (Gn > 0 && Gn <= 32) { Door.JwGate = Gn; GateDoorK[Gn] = 0.f; } }
 			if (Door.Parts.Num()) Doors.Add(MoveTemp(Door));
 		}
 		ADP_LOG(TEXT("Babylon model %s: %d doors that move"), *Name, Doors.Num());
@@ -1169,6 +1172,11 @@ void ABabylonModel::Tick(float Dt)
 			for (int32 k = 0; k < ATerminalDoors::Openers.Num() && !bNear; ++k)
 				bNear = FMath::Abs(ATerminalDoors::Openers[k].Z - D.AtW.Z) < 150.f && FVector::DistSquared2D(ATerminalDoors::Openers[k], D.AtW) < Rr;
 		}
+		// (a gate's jetway door, shut for passengers until now: 30 arrivals queued behind the closed glass - 2026-11-23. Not for
+		//  the walking map (PaxNav::Making): the jetways are off it)
+		if (D.JwGate && !bNear && (GateDoorsOn & (uint32(1) << (D.JwGate - 1))))
+			for (int32 k = 0; k < ATerminalDoors::Openers.Num() && !bNear; ++k)
+				bNear = FMath::Abs(ATerminalDoors::Openers[k].Z - D.AtW.Z) < 150.f && FVector::DistSquared2D(ATerminalDoors::Openers[k], D.AtW) < FMath::Square(double(D.Reach) * 100.0);
 		// sliding doors open by themselves as you come; any other door only when you open it (UseDoor), and its closer
 		// pulls it shut 4 s after you've gone from it
 		if (!D.bSlide && D.bOpen) { D.Away = bNear ? 0.f : D.Away + Dt; if (D.Away > 4.f) D.bOpen = false; }
@@ -1181,6 +1189,7 @@ void ABabylonModel::Tick(float Dt)
 		const float Want = (D.bSlide ? bNear : D.bOpen) ? 1.f : 0.f;
 		if (FMath::Abs(D.K - Want) < 0.001f) continue;
 		D.K += FMath::Sign(Want - D.K) * FMath::Min(FMath::Abs(Want - D.K), Dt * (D.bSlide && Want < D.K ? 0.8f : 1.6f));   // (sliding doors shut gently)
+		if (D.JwGate) GateDoorK[D.JwGate] = D.K;
 		const float E = D.K * D.K * (3 - 2 * D.K);   // eased, as doors.ts
 		for (FPart& Part : D.Parts) MovePart(Part, E, 0);
 	}
@@ -1191,6 +1200,8 @@ void ABabylonModel::Tick(float Dt)
 #pragma endregion
 
 TArray<TWeakObjectPtr<ABabylonModel>> ABabylonModel::AllModels;
+float ABabylonModel::GateDoorK[33] = {-1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f};
+uint32 ABabylonModel::GateDoorsOn = 0;
 
 int32 ABabylonModel::FindDoor(const FVector& Feet, const FVector& Facing) const
 {
@@ -1427,6 +1438,20 @@ void ABabylonModel::SeatSpots(TArray<FSeatSpot>& Out) const
 					int32 Near = INDEX_NONE; float ND = 80.f;
 					for (int32 k = 0; k < GateSeats->GetInstanceCount(); ++k) { FTransform T; GateSeats->GetInstanceTransform(k, T, true); const float D = FVector::Dist2D(T.GetLocation(), S.At); if (D < ND) { ND = D; Near = k; } }
 					if (Near != INDEX_NONE) S.Parts.Add(TPair<UInstancedStaticMeshComponent*, int32>(GateSeats, Near));
+					// the way it faces, from the seat as it stands (owner 2026-11-23: passengers sat the wrong way round): its reclined
+					// back reaches further out than its front edge, so its middle lies on the backrest's side of its own point
+					if (Near != INDEX_NONE)
+					{
+						FTransform T; GateSeats->GetInstanceTransform(Near, T, true);
+						const FVector C = GateSeats->GetStaticMesh()->GetBoundingBox().GetCenter();
+						const FVector Front = -T.TransformVector(FVector(C.X, C.Y, 0.0));
+						if (Front.Size2D() > 2.0)
+						{
+							const FVector F = Front.GetSafeNormal2D();
+							if (FVector::DotProduct(F, S.Facing) < 0.7) { static int32 Said = 0; if (Said++ < 6) ADP_WARN(TEXT("Seats: %s - the layout's facing and the seat's own back disagree: the seat's own taken"), *NName[I]); }
+							S.Facing = F;
+						}
+					}
 				}
 				Out.Add(S);
 			}

@@ -533,7 +533,7 @@ void ATugs::Tick(float Dt)
 	if ((Say += Dt) > 5.f)
 	{
 		Say = 0.f;
-		static const TCHAR* SN[] = {TEXT("parked"), TEXT("to the stand"), TEXT("waiting"), TEXT("to the nose"), TEXT("hooked"), TEXT("unhooking"), TEXT("backing"), TEXT("home"), TEXT("the driver getting in"), TEXT("coupling"), TEXT("showing the pin")};
+		static const TCHAR* SN[] = {TEXT("parked"), TEXT("to the stand"), TEXT("waiting"), TEXT("to the nose"), TEXT("hooked"), TEXT("unhooking"), TEXT("backing"), TEXT("home"), TEXT("the driver getting in"), TEXT("coupling"), TEXT("showing the pin"), TEXT("manned, engine off")};
 		for (int32 i = 0; i < Tugs.Num(); ++i) if (Tugs[i].State != EState::Parked)
 			ADP_LOG(TEXT("Tugs: tug %d %s at plan (%.1f, %.1f) facing %.0f deg%s"), i, SN[uint8(Tugs[i].State)], Tugs[i].At.X / 100.f, -Tugs[i].At.Y / 100.f, Tugs[i].Yaw, Tugs[i].bReverse ? TEXT(" (reversing)") : TEXT(""));
 	}

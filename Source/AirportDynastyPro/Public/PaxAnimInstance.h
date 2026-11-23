@@ -52,6 +52,7 @@ struct FPaxAnimProxy : public FAnimSingleNodeInstanceProxy
 
 	float Grip = 0.f;            // 0 open hand, hanging arm .. 1 closed round the handle, arm out
 	float ArmOut = 10.f;         // degrees the upper arm is held out from the body at full grip
+	float Twist = 0.f;           // degrees the upper body is turned from the way the feet go (+ to the right)
 	// the idle movement (copied from the instance each update)
 	int32 FidKind = -1; float FidKt = 0.f, FidDur = 1.f, FidFade = 0.f, FidSide = 1.f; bool bFidSeated = false;
 	FTransform DeviceCS = FTransform::Identity; float DeviceW = 0.f;   // (the phone / tablet held, component space; written on the worker)
@@ -84,6 +85,9 @@ public:
 	bool bGripRight = false;
 	/** Degrees the right upper arm is held out from the body while gripping. */
 	float ArmOut = 10.f;
+	/** Past someone where it is tight: the shoulders turned this far (degrees, + to the right, at most 42) by the spine, the feet
+	 *  going on ahead, the head still looking where they go, the arms a little in. */
+	float Twist = 0.f;
 
 	/** Play an idle movement (EPaxFidget) for Seconds (2-6 s is natural), blended in and out; Side +1 / -1 picks the way
 	 *  (the look's first side, the weight's first foot). Replaces one playing. */

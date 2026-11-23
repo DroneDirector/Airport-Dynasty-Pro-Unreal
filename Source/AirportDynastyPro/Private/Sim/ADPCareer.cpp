@@ -82,6 +82,8 @@ void UADPSim::AddGameModules()
 
 void UADPSim::NewCareer(const FString& Difficulty, const FString& AirlineName)
 {
+	// (the functional test going on from a save point: its career in place of a new one - Tools/new_game_test.sh --career --from)
+	if (ADPChainTest::StartStage() > 1) { static bool bOnce = false; if (!bOnce) { bOnce = true; if (ResumeCareer()) return; } }
 	bRunning = false;
 	WhenWorldReady([this, Difficulty, AirlineName]()
 	{

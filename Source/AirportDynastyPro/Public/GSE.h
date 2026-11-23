@@ -44,6 +44,8 @@ public:
 	virtual void Tick(float Dt) override;
 	/** A departure coming up at the stand whose nose line is at StandX (ATugs::Prepare): its baggage train goes out. */
 	void Departure(const FString& Key, float StandX);
+	/** The arriving flights whose bags are out of the hold and away (a departure train waits for that). */
+	TSet<FString> ArrAway;
 	/** That flight has left: its number may be used again tomorrow. */
 	void Gone(const FString& Key) { Served.Remove(Key); MadeUp.Remove(Key); BagFlights.Remove(Key); }
 	/** True while a baggage train is at (or going in to) that stand - the push waits for it to leave. */
@@ -70,6 +72,7 @@ public:
 		TArray<FVector> Path; bool bReverse = false; float Speed = 0.f, Hold = 0.f;
 		float MeasSpeed = 0.f, LastSpeed = 0.f, BrakeHold = 0.f, Steer = 0.f, SpinF = 0.f, SpinR = 0.f, Wheel = 0.f;
 		FVector PrevAt = FVector::ZeroVector; float PrevYaw = 0.f; bool bPrev = false;
+		bool bZone[2] = {false, false};   // (its turn in a place where only one train fits: the cart lane's door, the passage at Ramp services 13)
 		float Orbit = 0.f, OrbitYaw = 0.f; int32 OrbitN = -1;   // (how far round it has turned for the point it drives to)
 		int32 GWheel[4] = {INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE}, GSteer[2] = {INDEX_NONE, INDEX_NONE};
 		int32 GDoor = INDEX_NONE, GDoor2 = INDEX_NONE, GWheelS = INDEX_NONE, GPin = INDEX_NONE;

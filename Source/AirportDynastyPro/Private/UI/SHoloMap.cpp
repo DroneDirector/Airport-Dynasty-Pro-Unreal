@@ -276,7 +276,9 @@ float SHoloMap::Scale(const FVector2f& Size) const
 		// enough to see the next building coming
 		int32 Fl; const int32 B = BuildingAt(Player, Fl);
 		const bool bInHangar = B != INDEX_NONE && Buildings[B].bNamed;
-		const bool bOut = B == INDEX_NONE && !Bounds.IsInside(FVector2f(Player.X, Player.Z));
+		// (out on the forecourt or the apron too, not only past everything drawn: 35 m in front of the entrance no wall was in the
+		//  small map's reach and it was empty)
+		const bool bOut = B == INDEX_NONE && (!Bounds.IsInside(FVector2f(Player.X, Player.Z)) || Player.Z < -5.f || Player.Z > 86.f);
 		return Size.X / (bInHangar ? 120.f : bOut ? 220.f : MiniMetres);
 	}
 	const FVector2f E = View.GetSize();

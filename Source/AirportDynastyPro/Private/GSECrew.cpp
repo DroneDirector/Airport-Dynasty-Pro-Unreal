@@ -12,6 +12,7 @@
 // Bodies posed by the fire truck's IK rig at the models' IK points (CrewPose.h).
 #include "GSE.h"
 #include "Turnaround.h"
+#include "DepartureBelts.h"
 #include "Tugs.h"
 #include "CrewPose.h"
 #include "ADPLog.h"
@@ -380,6 +381,12 @@ void AGSE::TrainToStand(int32 Ti)
 		if (const ATugs* G = Tg()) for (const ATugs::FTug& U : G->Tugs) if (U.Key == T.Key) T.StandX = U.StandX;
 		if (T.StandX == 0.f) { RetryIn(Ti, 15.f, [this, Ti] { TrainToStand(Ti); }); return; }
 	}
+	// (the arriving bags come out of the hold first: the aircraft just in, its arrivals train not yet away with them - half an hour
+	//  at most, then it goes anyway)
+	if (!bTest && !T.bArrival && T.StandX != 0.f)
+		if (const ADPTurnaround::FTurn* Tn = ADPTurnaround::AtStand(T.StandX))
+			if (Tn->bArrival && Tn->ArrPax > 0 && !ArrAway.Contains(Tn->ArrFlight) && (ADPTurnaround::LastNow() - Tn->OnBlocks).GetTotalMinutes() < 30.0 && (Tn->OffBlocks - ADPTurnaround::LastNow()).GetTotalMinutes() > 22.0)
+			{ RetryIn(Ti, 15.f, [this, Ti] { TrainToStand(Ti); }); return; }
 	T.Job = EJob::Out; T.JobT = 0.f;   // (on its way: the departure waits for it from now - BusyAt)
 	RouteOut(T, [this, Ti] { TrainApron(Ti); });
 }
@@ -387,6 +394,14 @@ void AGSE::TrainToStand(int32 Ti)
 void AGSE::TrainApron(int32 Ti)
 {
 	FTractor& T = Tractors[Ti];
+	// (its flight has gone without it: back in, the bags to the search room's shelf - never out to an empty stand)
+	if (!bTest && !T.bArrival && !T.Key.IsEmpty() && !ADPTurnaround::ForFlight(T.Key))
+	{
+		ADP_WARN(TEXT("GSE: %s's train is too late for %s - back to the baggage block"), *T.Name, *T.Key);
+		if (ADepartureBelts* D = ADepartureBelts::Get(GetWorld())) for (const int32 c : T.Train) for (int32& b : Carts[c].Bags) if (b != INDEX_NONE) { D->RemoveBag(b); b = INDEX_NONE; }
+		T.Job = EJob::Back; RouteIn(T, T.At, T.Yaw, [this, Ti] { TrainDrop(Ti); });
+		return;
+	}
 	// its flight's stand (the test: the next departure; with none yet, the stand nearest the apron exit with an aircraft)
 	if (T.Key.IsEmpty() && bTestStand) { T.Key = TestKey; T.StandX = TestStand; }
 	// (a train made up for its flight's bags before its departure was called: the stand from its tug, else wait for it)

@@ -15,6 +15,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Airfield.h"
+#include "PaxFlow.h"
 #include "SimTraffic.generated.h"
 
 class ABabylonModel;
@@ -33,6 +34,8 @@ public:
 	static void UndockAt(UWorld* W, const FString& Stand);
 	/** It is docked / at rest (a stand without a jetway: always); not yet: asked for again. */
 	static bool JetwayReady(UWorld* W, const FString& Stand, bool bDocked);
+	/** Tests: the aircraft moving now, for the camera director (ChainCam.cpp). */
+	static void Scenes(UWorld* W, TArray<APaxFlow::FScene>& Out);
 	/** Tests: it has left the ground (its departure is in the climb or away). */
 	static bool Airborne(UWorld* W, const FString& Reg);
 	/** True while that aircraft moves in 3D (not on blocks). */

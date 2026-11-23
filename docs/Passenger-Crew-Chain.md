@@ -23,14 +23,18 @@ found; "now" is proved by the functional test (`Tools/new_game_test.sh --career`
 | Security lane | worked, never staffed | works (2); needs a security officer on shift | `JoinLane`, `Screened` |
 | Escalators, Floor 2, waiting | worked | works (2) | `WayUpstairs`, `WayToWait` |
 | Boarding call | 40-60 min guess, not tied to a departure | works (2): its turn-round; 30 min before; needs an agent and the crew aboard | `CallBoarding`, `Turnaround` |
-| Jetway, aboard (fades half way: no cabin yet) | worked | works (2) | `WayToJetway` |
+| The gate's jetway door | shut to passengers, always: boarding walkers had no wall look and **went through the closed glass** (the earlier "works (2)" was that); 30 arrivals each of CHB 102 and CHB 104 queued behind it (run of 19:30) | fixed in code, **untested**: opens for passengers only while its jetway is docked and a flight boards or gets off there; walkers wait in line 55 cm before it, both ways, until it is open | `ABabylonModel::GateDoorsOn`, `PaxFlow::GateDoors / Follow` |
+| Jetway, aboard (fades half way: no cabin yet) | not proved: reached through the closed glass | inside measured, walls kept; **untested** with the door | `WayToJetway`, `Measure` |
+| The aircraft waits for them | the 15 min no-show clock ran before boarding could start, also for the aircraft's next flight (51 no-shows, 2 aboard) | fixed in code, **untested**: the clock only runs once boarding is over by its own time; held flights are named in the log every 2 min; nobody is left in a jetway | `PaxFlow::BoardingDone` |
+| Sitting on the blue chairs (to-do 233) | owner: the wrong way round | cause **not proved** (layout and mesh both face right); in code, **untested**: facing from the chair's own back, the turn set every time, the seat kept when the list is made again | `SeatSpots`, `AADPPeople::SitPose / SeatFor` |
 | Missed / cancelled | stood there for ever | home: arrivals escalators / main entrance -> car park | `GoHome` |
 
 ## An arriving passenger
 
 | Step | Before | Now | Where |
 |---|---|---|---|
-| Off the aircraft as it is docked | also from aircraft that never arrived; count guessed | (3): the flight's own passengers | `Turnaround` bArrival, `ArrPax` |
+| Off the aircraft as it is docked | also from aircraft that never arrived; count guessed | the flight's own passengers; **stuck behind the gate's shut door in (3)**: door fixed in code, untested | `Turnaround` bArrival, `ArrPax` |
+| "Deplaned" (cleaning and boarding follow) | by the clock: boarding was called into people getting off | fixed in code, **untested**: the last walker through the gate's door, at most 15 min longer (logged as a problem) | `PaxFlow::DeplaneDone`, `Turnaround` |
 | Arrivals escalators, claim belt | worked | (3) | `WayArrivals` |
 | Their own bag | fewer bags than passengers now and then, 15 min patience | (3): one for each, 45 min | `GSEArrivals`, `TagsOf` |
 | Out, car park | worked | (3) | `WayFromHall` |
@@ -54,7 +58,7 @@ found; "now" is proved by the functional test (`Tools/new_game_test.sh --career`
 
 - All passengers visible: up to 36 departing / 30 arriving of a flight walk, the rest are numbers (to-do 205: layers of detail).
 - Agents and officers as people at the desks, lanes and gates with document hand-overs (to-do 206, 210); staff count by shifts only.
-- The cabin (to-do 202 / 209): passengers fade in the jetway; crew are data.
+- The cabin (to-do 202 / 209): passengers are meant to fade half way along the jetway (untested since the gate's door counts); crew are data.
 - Passport control, customs (terminal part 2a / to-do 212, 214): flights outside Schengen are marked in the list and pass without it.
 - Trucks (catering, fuel, de-icing, water, toilets), chocks and cones (to-do 212).
 - Gates 5-8, 10, 12 have no jetway (walk-out) and gates 13-16 no plan door: an A320 gets 9, 11, 1-4 first, then the walk-outs, 13-16 last (never with fewer than 13 aircraft here).

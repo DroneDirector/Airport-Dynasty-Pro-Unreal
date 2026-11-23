@@ -497,6 +497,22 @@ void AGSE::Drive(FTractor& T, float Dt)
 		if (Ahead(O.At, 650.f) && (O.Path.Num() > 0 || O.Job != EJob::None) && &O < &T) { bBlocked = true; Why = O.Name; }
 		for (const int32 c : O.Train) if (Carts.IsValidIndex(c) && Ahead(Carts[c].At, 450.f)) { bBlocked = true; Why = O.Name + TEXT("'s train"); }
 	}
+	// one train at a time where only one fits: the cart lane's door and the passage at Ramp services 13 (4 m doors). Who is first
+	// has it until the last cart is out; the other waits before it, on its own side of the hall or the apron
+	if (!T.bLoader)
+		for (int32 z = 0; z < 2; ++z)
+		{
+			static const FBox2f Zn[2] = {FBox2f(FVector2f(131.f, 46.f), FVector2f(147.f, 60.f)), FBox2f(FVector2f(262.f, 53.f), FVector2f(273.f, 94.f))};
+			auto In = [&](const FVector& P) { return Zn[z].IsInside(GseP2(P)); };
+			auto Has = [&](const FTractor& X) { if (In(X.At)) return true; for (const int32 c : X.Train) if (Carts.IsValidIndex(c) && In(Carts[c].At)) return true; return false; };
+			bool bSoon = false; { FVector From = T.At; float Len = 0.f; for (int32 i = 0; i < T.Path.Num() && Len < 1100.f && !bSoon; ++i) { Len += FVector::Dist2D(From, T.Path[i]); From = T.Path[i]; bSoon = Len < 1300.f && In(From); } }
+			const bool bIn = Has(T);
+			if (!bIn && !bSoon) { T.bZone[z] = false; continue; }
+			if (T.bZone[z]) continue;
+			bool bOther = false; for (const FTractor& O : Tractors) if (&O != &T && O.M.IsValid() && !O.bLoader && (O.bZone[z] || (z == 1 && O.Path.Num() && Has(O)))) { bOther = true; Why = O.Name + TEXT(" (only one train fits there)"); }
+			if (bIn || !bOther) T.bZone[z] = true;
+			else bBlocked = true;
+		}
 	if (const ATugs* G = Tg())
 	{
 		for (const ATugs::FTug& U : G->Tugs) if (U.M.IsValid() && U.State != ATugs::EState::Parked && Ahead(U.At, 800.f)) { bBlocked = true; Why = TEXT("a tug"); }
@@ -791,9 +807,11 @@ void AGSE::RouteOut(FTractor& T, TFunction<void()> Then)
 	if (P.Y < 44.5f) { Leg(W, P.X, P.Y, Hx, Hy, 134.43f, 44.0f, 0.f, 1.f, GseTurnR); Leg(W, 134.43f, 44.0f, 0.f, 1.f, 134.43f, 53.5f, 0.f, 1.f, GseTurnR); }
 	else Leg(W, P.X, P.Y, Hx, Hy, 134.43f, 53.5f, 0.f, 1.f, GseTurnR);
 	Leg(W, 134.43f, 53.5f, 0.f, 1.f, 137.93f, 57.f, 1.f, 0.f, 350.f);
-	Leg(W, 137.93f, 57.f, 1.f, 0.f, 265.f, 57.f, 1.f, 0.f, 400.f);
-	Leg(W, 265.f, 57.f, 1.f, 0.f, 269.f, 61.f, 0.f, 1.f, 400.f);
-	Leg(W, 269.f, 61.f, 0.f, 1.f, 269.f, 88.f, 0.f, 1.f, 400.f);
+	// (out on the hall's south lane, z 54.4; back in on z 57: two trains pass each other)
+	Leg(W, 137.93f, 57.f, 1.f, 0.f, 152.f, 54.4f, 1.f, 0.f, 400.f);
+	Leg(W, 152.f, 54.4f, 1.f, 0.f, 265.f, 54.4f, 1.f, 0.f, 400.f);
+	Leg(W, 265.f, 54.4f, 1.f, 0.f, 269.f, 58.4f, 0.f, 1.f, 400.f);
+	Leg(W, 269.f, 58.4f, 0.f, 1.f, 269.f, 88.f, 0.f, 1.f, 400.f);
 	ADP_LOG(TEXT("GSE: %s out of the lane, through the baggage hall and Ramp services 13 to the apron%s"), *T.Name, T.Train.Num() ? *FString::Printf(TEXT(" with %d carts"), T.Train.Num()) : TEXT(""));
 	Go(T, MoveTemp(W), false, MoveTemp(Then));
 }
@@ -802,8 +820,11 @@ void AGSE::RouteIn(FTractor& T, const FVector& ApronFrom, float FromYaw, TFuncti
 {
 	// back across the apron to Ramp services 13, south through it, west along the hall and in through the lane's door
 	TArray<FVector> W;
-	if (!Apron(W, ApronFrom, Plan(269.f, 100.f), &T)) { W.Add(Plan(269.f, 100.f)); }
-	Leg(W, 269.f, 100.f, 0.f, -1.f, 269.f, 61.f, 0.f, -1.f, 400.f);
+	// (down to the passage east of the way out, x 275: one waiting there leaves the way out free)
+	if (!Apron(W, ApronFrom, Plan(275.f, 114.f), &T)) { W.Add(Plan(275.f, 114.f)); }
+	Leg(W, 275.f, 114.f, 0.f, -1.f, 275.f, 108.f, 0.f, -1.f, 400.f);
+	Leg(W, 275.f, 108.f, 0.f, -1.f, 269.f, 93.f, 0.f, -1.f, 400.f);
+	Leg(W, 269.f, 93.f, 0.f, -1.f, 269.f, 61.f, 0.f, -1.f, 400.f);
 	Leg(W, 269.f, 61.f, 0.f, -1.f, 265.f, 57.f, -1.f, 0.f, 400.f);
 	Leg(W, 265.f, 57.f, -1.f, 0.f, 137.f, 57.f, -1.f, 0.f, 400.f);
 	Leg(W, 137.f, 57.f, -1.f, 0.f, 133.f, 53.f, 0.f, -1.f, 400.f);

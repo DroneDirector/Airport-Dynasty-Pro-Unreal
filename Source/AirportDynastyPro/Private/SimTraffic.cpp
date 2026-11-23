@@ -102,6 +102,20 @@ bool ASimTraffic::JetwayReady(UWorld* W, const FString& Stand, bool bDocked)
 	return S == AJetwayRigs::EState::Parked;
 }
 
+void ASimTraffic::Scenes(UWorld* W, TArray<APaxFlow::FScene>& Out)
+{
+	for (TActorIterator<ASimTraffic> It(W); It; ++It)
+		for (const FMove& M : It->Moves)
+		{
+			const ABabylonModel* B = M.Model.Get(); if (!B || M.Phase == EPhase::Done || M.Height > 400.f) continue;
+			static const TCHAR* Words[] = {TEXT("pushback"), TEXT("taxiing"), TEXT("take-off"), TEXT("climbing"), TEXT("landing"), TEXT("landed"), TEXT("taxiing in"), TEXT("on blocks")};
+			APaxFlow::FScene S; S.Id = TEXT("MOVE ") + M.Reg; S.Kind = 20 + int32(M.Phase); S.At = B->GetActorLocation(); const FVector2f D = (M.Nose - M.Main).GetSafeNormal(); S.Face = FVector(D.X, -D.Y, 0.f); S.Who = B;
+			S.At -= S.Face * 1200.f;   // (its middle: the actor is at the nose wheel)
+			S.Line = FString::Printf(TEXT("%s    %s"), *M.Reg, Words[FMath::Min(int32(M.Phase), 7)]);
+			Out.Add(S);
+		}
+}
+
 bool ASimTraffic::Airborne(UWorld* W, const FString& Reg)
 {
 	const UADPSim* Sim = UADPSim::Get(W);

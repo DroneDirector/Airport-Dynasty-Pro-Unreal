@@ -20,9 +20,9 @@ namespace ADPTurnaround
 	const FTurn* AtStand(float StandX) { return StandX == 0.f ? nullptr : Turns.FindByPredicate([&](const FTurn& X) { return FMath::Abs(X.StandX - StandX) < 1.f; }); }
 	bool BagCutOff(const FString& Flight, float StandX)
 	{
-		// (check-in and the make-up close about 40 minutes before off-blocks - the bags go out then)
+		// (check-in closes 45 minutes before off-blocks; the last bags are on the make-up some minutes later - they go out at 32)
 		const FTurn* T = ForFlight(Flight); if (!T) T = AtStand(StandX);
-		return T && Last.GetTicks() > 0 && Last >= T->OffBlocks - FTimespan::FromMinutes(40.0);
+		return T && Last.GetTicks() > 0 && Last >= T->OffBlocks - FTimespan::FromMinutes(32.0);
 	}
 
 	TArray<FTask> PlanA320(float G, int32 Pax, float FuelL, float& LateMin)
@@ -152,9 +152,14 @@ namespace ADPTurnaround
 				// (the bulk hold is done when the bags are: the belt loader and the trains gone from the stand)
 				const bool bBagsBusy = K.Id == TEXT("bulk") && AGSE::Find(W) && AGSE::Find(W)->BusyAt(Tr->StandX);
 				const bool bBoarding = K.Id == TEXT("board") && K.bStarted && !K.bDone && Tm >= K.Start + K.Dur && !APaxFlow::BoardingDone(W, Tr->Reg);   // (boarding is over when the last one is aboard)
+				// (off the aircraft: not by the clock alone - the last walker through the gate's door, so nobody boards into arrivals;
+				//  at most 15 min longer, then it is a problem in the log)
+				FString Inside;
+				const bool bOff = K.Id == TEXT("deplane") && K.bStarted && !K.bDone && Tr->bArrival && Tm >= K.Start + K.Dur && !APaxFlow::DeplaneDone(W, Tr->Reg, Tr->OnBlocks, Tr->ArrPax, Inside);
+				if (bOff && Tr->bMine && Tm >= K.Start + K.Dur + 3.f) ADPSchedule::Tell(Sim->World, Now, TEXT("deplane:") + Tr->Reg, TEXT("Still getting off"), FString::Printf(TEXT("%s at %s: cleaning and boarding wait - %s."), *Tr->Reg, *Tr->Stand, *Inside));
 				const bool bBridge = K.Id == TEXT("bridge") && K.bStarted && !K.bDone && !ASimTraffic::JetwayReady(W, Tr->Stand, true);
 				const bool bBack = K.Id == TEXT("doors") && K.bStarted && !K.bDone && !ASimTraffic::JetwayReady(W, Tr->Stand, false);
-				if (K.bStarted && !K.bDone && Tm >= K.Start + K.Dur && !bBagsBusy && !bBoarding && !bBridge && !bBack) { K.bDone = true; ADP_LOG(TEXT("Turnaround: %s %s done"), *Tr->Reg, *K.Name); }
+				if (K.bStarted && !K.bDone && Tm >= K.Start + K.Dur && !bBagsBusy && !bBoarding && !bOff && !bBridge && !bBack) { K.bDone = true; ADP_LOG(TEXT("Turnaround: %s %s done"), *Tr->Reg, *K.Name); }
 			}
 			// (its bags go out on the tractor train to it as soon as the stand is its own: 50 min before)
 			if (!Tr->PlanId.IsEmpty() && (Tr->OffBlocks - Now).GetTotalMinutes() < 50.0 && Crew >= 2) if (AGSE* Gs = AGSE::Get(W)) Gs->Departure(Tr->Flight, Tr->StandX);
