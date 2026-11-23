@@ -129,6 +129,13 @@ function load() {
   x.putImageData(d, 0, 0); T.grain = g; T.tmp = document.createElement('canvas');
 }
 let carried: HTMLAudioElement | null = null;
+/** The new career's stage opens over the title screen (the world loaded again for another airport: the title is up and
+ *  nobody has pressed New game on it): the title goes at once, its music carried on to the stage. */
+export function splashToStage() {
+  const T = TitleScreen; if (!T.on || T.closing) return;
+  if (T.audio) carried = T.audio;
+  T.on = false; cancelAnimationFrame(T.raf); window.removeEventListener('resize', T.fit); if (T.root) T.root.remove(); titleNativeOff(); T.audio = null; T.img = {}; T.blur = {}; T.ready = false; _enter = null;
+}
 /** The title music handed on to the new career's stage (playing on), or null. */
 export function splashTakeMusic(): HTMLAudioElement | null { const a = carried; carried = null; return a; }
 /** The music handed back (the stage left for the title screen): the title plays it on where it is. */

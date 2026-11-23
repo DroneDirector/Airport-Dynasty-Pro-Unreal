@@ -20,6 +20,8 @@ namespace ADPTitleBg
 	/** The page: the title is up (or gone), and where its music is (seconds). */
 	void Clock(bool bOn, float Seconds);
 	bool IsOn();
+	/** Another screen is up (the new career's stage, the loading, the airport): not drawn, its video paused. */
+	void Hold(bool bHold);
 	/** The material and pictures are there (the page asks before leaving the film to Unreal). */
 	bool Ready();
 }

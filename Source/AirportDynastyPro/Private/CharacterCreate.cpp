@@ -28,6 +28,7 @@
 
 namespace
 {
+	constexpr float FillCd = 4500.f;   // the soft front light on both (the key light on the chosen one: 16000)
 	// the concept's pieces, for the choice moving between them
 	TWeakObjectPtr<ASpotLight> KeyLight;
 	TWeakObjectPtr<AActor> She, He;
@@ -241,14 +242,19 @@ void ADPCharacterCreate::BuildConcept(UWorld* W, APlayerController* PC, bool bWo
 	UMaterialInstanceDynamic* Floor = Plain(W, FLinearColor(0.012f, 0.014f, 0.022f), 0.28f);   // a little shine: the neon mirrored in it
 	UMaterialInstanceDynamic* Wall = Plain(W, FLinearColor(0.008f, 0.01f, 0.018f), 0.75f);
 	const TCHAR* PlaneMesh = TEXT("/Engine/BasicShapes/Plane.Plane");
-	Shape(W, PlaneMesh, C, FRotator::ZeroRotator, FVector(16, 16, 1), Floor);
+	// (owner, 2026-11-23, 32:9: the mountains and the steel showed at both sides and along the top - the side walls and the
+	//  ceiling ended before the back wall, and the back wall before a wide picture's edge. Closed all round now, from behind
+	//  the camera (-8 m) to the back wall (15 m), and wide enough for a 48:9 picture at the back wall.)
+	constexpr float RoomY0 = -800.f, RoomY1 = 1500.f, RoomHalf = 2600.f, RoomMid = (RoomY0 + RoomY1) * 0.5f;
+	const float LenY = (RoomY1 - RoomY0) / 100.f + 1.f, LenX = RoomHalf * 2.f / 100.f + 1.f;   // (a metre over: the edges overlap)
+	Shape(W, PlaneMesh, C + Y * RoomMid, FRotator::ZeroRotator, FVector(LenX, LenY, 1), Floor);
 	for (const float Flip : {0.f, 180.f})   // (a plane shows one face: each wall both ways round, so nothing of the world shows through)
 	{
-		Shape(W, PlaneMesh, C + Z * 480.f, FRotator(Flip, 0.f, 0.f), FVector(16, 16, 1), Wall);
-		Shape(W, PlaneMesh, C + Y * 1500.f + Z * 240.f, FRotator(0.f, 0.f, 90.f + Flip), FVector(16, 6, 1), Wall);   // the back wall, well behind the fog (the tubes go back into it)
-		Shape(W, PlaneMesh, C - Y * 800.f + Z * 240.f, FRotator(0.f, 0.f, -90.f + Flip), FVector(16, 6, 1), Wall);   // behind the camera
-		Shape(W, PlaneMesh, C - X * 800.f + Z * 240.f, FRotator(90.f + Flip, 0.f, 0.f), FVector(6, 18, 1), Wall);
-		Shape(W, PlaneMesh, C + X * 800.f + Z * 240.f, FRotator(-90.f + Flip, 0.f, 0.f), FVector(6, 18, 1), Wall);
+		Shape(W, PlaneMesh, C + Y * RoomMid + Z * 480.f, FRotator(Flip, 0.f, 0.f), FVector(LenX, LenY, 1), Wall);
+		Shape(W, PlaneMesh, C + Y * RoomY1 + Z * 240.f, FRotator(0.f, 0.f, 90.f + Flip), FVector(LenX, 6, 1), Wall);   // the back wall, well behind the fog (the tubes go back into it)
+		Shape(W, PlaneMesh, C + Y * RoomY0 + Z * 240.f, FRotator(0.f, 0.f, -90.f + Flip), FVector(LenX, 6, 1), Wall);   // behind the camera
+		Shape(W, PlaneMesh, C - X * RoomHalf + Y * RoomMid + Z * 240.f, FRotator(90.f + Flip, 0.f, 0.f), FVector(6, LenY, 1), Wall);
+		Shape(W, PlaneMesh, C + X * RoomHalf + Y * RoomMid + Z * 240.f, FRotator(-90.f + Flip, 0.f, 0.f), FVector(6, LenY, 1), Wall);
 	}
 	// the fog wall behind them (owner): a bank of fog behind the tubes that hides everything beyond and takes the
 	// lights' colours (it is lit through the volumetric fog)
@@ -302,6 +308,7 @@ void ADPCharacterCreate::BuildConcept(UWorld* W, APlayerController* PC, bool bWo
 			Pt->SetIntensity(1600.f);
 			Pt->SetAttenuationRadius(650.f);
 			Pt->SetVolumetricScatteringIntensity(9.f);
+			Pt->SetSpecularScale(0.f);   // (its glare on the shiny floor was a white bar beside her feet, through the "She" label)
 			Pt->SetCastShadows(false);
 		}
 	}
@@ -326,6 +333,27 @@ void ADPCharacterCreate::BuildConcept(UWorld* W, APlayerController* PC, bool bWo
 			S->SetAttenuationRadius(900.f);
 			S->SetVolumetricScatteringIntensity(0.6f);
 			S->SetCastShadows(true);
+		}
+	}
+
+	// a soft light from the front on each of them, always on: whoever isn't in the light stands in its shadow but can still
+	// be seen (owner, 2026-11-23: she was black beside him)
+	for (const FVector& At : {Her, Him})
+	{
+		const FVector Eye = At + FVector(At.X > C.X ? -60.f : 60.f, -420.f, 210.f);
+		ASpotLight* L = W->SpawnActor<ASpotLight>(Eye, (At + Z * 105.f - Eye).Rotation(), P);
+		Spawned.Add(L);
+		if (USpotLightComponent* S = L ? L->SpotLightComponent : nullptr)
+		{
+			S->SetMobility(EComponentMobility::Movable);
+			L->SetActorRotation((At + Z * 105.f - Eye).Rotation());   // (a spot light is spawned turned 90 degrees down from what is asked: the class's own turn comes on top)
+			S->SetLightColor(FLinearColor(0.80f, 0.86f, 1.f));
+			S->SetIntensity(FillCd);
+			S->SetInnerConeAngle(12.f); S->SetOuterConeAngle(24.f);
+			S->SetAttenuationRadius(1400.f);
+			S->SetVolumetricScatteringIntensity(0.f);
+			S->SetSpecularScale(0.4f);
+			S->SetCastShadows(false);
 		}
 	}
 

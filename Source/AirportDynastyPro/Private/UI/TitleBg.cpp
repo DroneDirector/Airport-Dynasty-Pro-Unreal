@@ -43,7 +43,7 @@ namespace
 	float RoundBeats() { float B = 0; for (const FShot& S : Shots) B += S.Beats; return B; }
 	float TitleEase(float K) { K = FMath::Clamp(K, 0.f, 1.f); return K * K * (3.f - 2.f * K); }
 
-	bool bFilmOn = false, bFilmReady = false;
+	bool bFilmOn = false, bFilmReady = false, bFilmHeld = false;
 	// the film's own clock: it runs smoothly on Unreal's time and is only steered gently towards the music (a touch faster
 	// or slower), never snapped - the snaps were the title film's stutter (owner, 2026-11-19); a real jump (the music
 	// starting over, a seek) still snaps
@@ -59,6 +59,7 @@ void ADPTitleBg::Clock(bool bNowOn, float Seconds)
 {
 	if (bNowOn != bFilmOn) ADP_LOG(TEXT("Title film: %s (Unreal draws it)"), bNowOn ? TEXT("on") : TEXT("off"));
 	bFilmOn = bNowOn;
+	if (bFilmHeld) return;   // (nothing to keep in step meanwhile)
 	// the page's music clock (a few times a second): how far off the film is, shortest way round the loop
 	float Err = Seconds - Now();
 	if (Err > TS_DUR * 0.5f) Err -= TS_DUR; else if (Err < -TS_DUR * 0.5f) Err += TS_DUR;
@@ -91,7 +92,15 @@ void ADPTitleBg::Clock(bool bNowOn, float Seconds)
 	// (else: carry on from where the film is now, a little faster or slower until it meets the music - at most 4 %)
 	ClockT = Now(); ClockAt = T; ClockRate = 1.f + FMath::Clamp(Err * 0.6f, -0.04f, 0.04f);
 }
-bool ADPTitleBg::IsOn() { return bFilmOn; }
+bool ADPTitleBg::IsOn() { return bFilmOn && !bFilmHeld; }
+void ADPTitleBg::Hold(bool bHold)
+{
+	// (owner, 2026-11-23: the title's video played on behind the character creator)
+	if (bHold == bFilmHeld) return;
+	bFilmHeld = bHold;
+	ADP_LOG(TEXT("Title film: %s"), bHold ? TEXT("held (another screen is up)") : TEXT("free again"));
+	if (UBinkMediaPlayer* V = GVideo.Get()) { if (bHold) V->Pause(); else V->Play(); }
+}
 bool ADPTitleBg::Ready() { return bFilmReady; }
 
 void STitleBg::Construct(const FArguments& Args)
@@ -211,7 +220,7 @@ void STitleBg::Frame(float W, float H, float Dt) const
 
 int32 STitleBg::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const FSlateRect& Cull, FSlateWindowElementList& Out, int32 Layer, const FWidgetStyle& Style, bool bParentEnabled) const
 {
-	if (!Mid.IsValid() || !bFilmOn) return Layer;
+	if (!Mid.IsValid() || !bFilmOn || bFilmHeld) return Layer;
 	const double T = FPlatformTime::Seconds();
 	const float Dt = LastPaint > 0 ? float(FMath::Clamp(T - LastPaint, 0.0, 0.1)) : 1.f / 60.f;
 	LastPaint = T;

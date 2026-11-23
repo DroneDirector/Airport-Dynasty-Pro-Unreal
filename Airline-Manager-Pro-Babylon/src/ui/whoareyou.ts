@@ -8,7 +8,7 @@
 // The page tells Unreal: ue.adp.whoAreYou('hover', 'she'|'he'), ('choose', ...), ('cancel'), ('done').
 import { ue } from '../core/uelink';
 import { icon } from './icons';
-import { splashTakeMusic, splashGiveMusic } from './splash';
+import { splashTakeMusic, splashGiveMusic, splashToStage } from './splash';
 import { S, saveSettings } from '../core/settings';
 
 const Wy: any = { root: null as HTMLElement | null, audio: null as HTMLAudioElement | null, stage: '', side: '', step: 0, diff: '', pet: 'none', coat: 0, partner: 'single', air: null as any, padY: 0, hover: '', chosen: false, key$: null as any, raf: 0, padA: false, padB: false, padX: 0 };
@@ -85,6 +85,8 @@ const KINDS: [string, string, string, string][] = [
   ['regional', 'Regional', 'Smaller jets, turboprops and cargo', 'Fjord Regional'],
   ['bush', 'Bush outfit', 'Floatplanes and STOL aircraft', 'Tundra Wings'],
 ];
+/** The airport of the site you are at (Unreal puts it on the page's address: ICAO|IATA|name|...); Iceland's without. */
+function homeBase(): string { try { const a = (new URLSearchParams(location.search).get('apt') || '').split('|'); if (a.length > 2 && a[0]) return `${a[2]}  ·  ${a[0]}`; } catch (e) { /* the default below */ } return 'Mýrdalssandur  ·  BIAP'; }
 function airDefaults() { return { kind: 'major', name: KINDS[0][3], icao: '', call: '', pilot: '', ownIcao: false, ownCall: false, ownName: false }; }
 function icaoOf(name: string) { const w = name.toUpperCase().replace(/[^A-Z ]/g, '').split(/\s+/).filter(Boolean); const a = w.length >= 3 ? w.slice(0, 3).map(x => x[0]).join('') : w.join('').slice(0, 3); return (a || 'NEW').padEnd(3, 'X').slice(0, 3); }
 function callOf(name: string) { return (name.toUpperCase().replace(/[^A-Z ]/g, '').split(/\s+/).filter(Boolean)[0] || 'NEW').slice(0, 16); }
@@ -99,7 +101,7 @@ function airHtml(): string {
       <label class="wy-f"><span>ICAO code</span><input data-f="icao" maxlength="3" value="${esc(a.icao)}" spellcheck="false"></label>
       <label class="wy-f"><span>Callsign</span><input data-f="call" maxlength="16" value="${esc(a.call)}" spellcheck="false"></label>
       <label class="wy-f wy-f-wide"><span>Your name</span><input data-f="pilot" maxlength="40" value="${esc(a.pilot)}" placeholder="Your pilot's name" spellcheck="false"></label>
-      <div class="wy-f wy-f-wide wy-base"><span>Home base</span><b>Mýrdalssandur  ·  BIAP</b></div>
+      <div class="wy-f wy-f-wide wy-base"><span>Home base</span><b>${esc(homeBase())}</b></div>
     </div>`;
 }
 function airInput(el: HTMLInputElement) {
@@ -245,6 +247,7 @@ function open(stage: string, side = '') {
     window.addEventListener('keydown', Wy.key$, true);
     root.addEventListener('input', (e: Event) => { const t = e.target as HTMLElement; if (t && t.tagName === 'INPUT' && Wy.air) airInput(t as HTMLInputElement); });
     Wy.raf = requestAnimationFrame(padPoll);
+    splashToStage();   // (the title still up: gone, its music carried on)
     Wy.audio = splashTakeMusic();   // the title's music, playing on
     requestAnimationFrame(() => root.classList.add('in'));
   }

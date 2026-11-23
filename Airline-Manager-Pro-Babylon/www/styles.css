@@ -527,9 +527,10 @@ html.ue-stage body > *:not(.wy) { visibility: hidden !important; }
 .wy-sub { margin-top: 8px; color: rgba(225, 215, 255, .7); text-shadow: none; }
 .wy-half { position: absolute; top: 0; bottom: 0; width: 50%; cursor: pointer; }
 .wy-l { left: 0; } .wy-r { right: 0; }
-.wy-who { position: absolute; bottom: clamp(24px, 5vh, 48px); font-family: 'Audiowide', sans-serif; font-size: clamp(16px, 2.6vh, 24px); letter-spacing: .5em; text-transform: uppercase; color: rgba(225, 215, 255, .35); transition: color .3s, text-shadow .3s, transform .3s var(--spring); pointer-events: none; }
-.wy-she { left: 33%; transform: translateX(-50%); }
-.wy-he { left: 67%; transform: translateX(-50%); }
+/* over their heads, each above its own figure on every screen shape: the stage keeps the view's height, so they stand 44.4 % of the screen's height from the middle (CharacterCreate.cpp: 118 cm of the 266 cm the view shows there); at the bottom they ran into the feet and the edge (owner, 2026-11-23) */
+.wy-who { position: absolute; top: 16vh; font-family: 'Audiowide', sans-serif; font-size: clamp(16px, 2.6vh, 24px); letter-spacing: .5em; text-transform: uppercase; color: rgba(225, 215, 255, .35); transition: color .3s, text-shadow .3s, transform .3s var(--spring); pointer-events: none; }
+.wy-she { left: calc(50% - 44.4vh); transform: translateX(-50%); }
+.wy-he { left: calc(50% + 44.4vh); transform: translateX(-50%); }
 .wy-who.on { color: #fff; text-shadow: 0 0 8px #fff, 0 0 18px var(--neo1), 0 0 34px rgba(255, 63, 184, .7); transform: translateX(-50%) scale(1.12); }
 .wy.chosen .wy-half { cursor: default; }
 .wy-hint { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); display: flex; gap: 22px; align-items: center; font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: rgba(225, 215, 255, .45); white-space: nowrap; }
