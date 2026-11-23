@@ -104,6 +104,8 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 				Model->Place(TEXT("Terminal"));
 				ADPBilingual::Apply(W);   // (French first, English under it at a French-speaking site: to-do 170)
 			}
+		// the works of the model's own revolving doors: the passengers (and you) ride round in their compartments
+		if (bBabylon) if (ATerminalDoors* Doors = W->SpawnActor<ATerminalDoors>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Doors->BuildRevolving(Plan);
 		// the new gates' signs (16 gates, 2026-11-17): today's are in the model
 		if (bBabylon && !FParse::Param(FCommandLine::Get(), TEXT("NoGateSigns"))) ADPGateSigns::Place(W, Plan);   // (-NoGateSigns: test)
 		// his jetways, rebuilt for the stands 12 m out (owner, 2026-11-13), as their own model in the terminal's place

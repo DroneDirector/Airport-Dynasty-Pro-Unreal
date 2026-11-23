@@ -122,6 +122,7 @@ bool ABabylonModel::Place(const FString& Name)
 	NodeInTree.Init(false, Nodes.Num());
 	constexpr float StandsOut = 12.f;   // metres the stands moved out (Data/airfield.json standsNote)
 	TFunction<void(int32, const FTransform&, bool)> Walk;
+	TArray<bool> Wing; Wing.SetNumZeroed(Nodes.Num());   // (a revolving door's wings: lists of their own, you are never stopped by them - ATerminalDoors carries you)
 	Walk = [&](int32 I, const FTransform& Parent, bool bDoor)
 	{
 		if (!Nodes.IsValidIndex(I)) return;
@@ -129,6 +130,9 @@ bool ABabylonModel::Place(const FString& Name)
 		FTransform L = Local(N);
 		{ FString Nm; N->TryGetStringField(TEXT("name"), Nm);
 		  if (Name == TEXT("Terminal") && Nm.StartsWith(TEXT("STAND-")) && Nm.EndsWith(TEXT("/AIRCRAFT"))) L.AddToTranslation(FVector(0, StandsOut * 100.f, 0)); }
+		// the revolving doors' drum: its two curved glass sides stood across the openings (the kerb's and the lobby's), so
+		// nobody could go through - a quarter round, its openings through the wall (as ATerminalDoors, 2026-11-21)
+		if (bDoor) { FString Nm; N->TryGetStringField(TEXT("name"), Nm); if (Nm.StartsWith(TEXT("drum"))) L.SetRotation(L.GetRotation() * FQuat(FVector::UpVector, HALF_PI)); }
 		const FTransform World = L * Parent;
 		NodeWorld[I] = World; NodeInTree[I] = true;
 		// (all the outdoor trees stay until good-looking Unreal trees take their places, owner 2026-11-09)
@@ -194,7 +198,7 @@ bool ABabylonModel::Place(const FString& Name)
 				}
 			}
 			// a door's parts in lists of their own (they move; the big shared lists never need rebuilding)
-			const FString Key = bDoor ? Asset + TEXT("#door") : Canopy[I] ? Asset + TEXT("#canopy") : Asset;
+			const FString Key = Wing[I] ? Asset + TEXT("#door#wing") : bDoor ? Asset + TEXT("#door") : Canopy[I] ? Asset + TEXT("#canopy") : Asset;
 			if (TObjectPtr<UInstancedStaticMeshComponent>* F = ByMesh.Find(Key)) K = *F;
 			else
 			{
@@ -207,6 +211,7 @@ bool ABabylonModel::Place(const FString& Name)
 					if (!bDoor && !Canopy[I] && FParse::Param(FCommandLine::Get(), TEXT("ListsStatic"))) K->SetMobility(EComponentMobility::Static);   // (test)
 					K->SetStaticMesh(SM); // with the materials and textures it was imported with
 					K->SetCollisionProfileName(TEXT("BlockAll"));
+					if (Wing[I]) { K->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore); K->SetCanEverAffectNavigation(false); K->SetForceDisableNanite(true); }
 					K->RegisterComponent();
 					AddInstanceComponent(K);
 				}
@@ -231,6 +236,7 @@ bool ABabylonModel::Place(const FString& Name)
 			{
 				const int32 Ci = int32(C->AsNumber());
 				FString Nm; N->TryGetStringField(TEXT("name"), Nm);
+				if (Nodes.IsValidIndex(Ci)) Wing[Ci] = Wing[I] || (bDoor && Nm.StartsWith(TEXT("wings")));
 				if (Nodes.IsValidIndex(Ci)) Canopy[Ci] = Canopy[I] || Nm.StartsWith(TEXT("KERB/CANOPY"));
 				NodeParent[Ci] = I; Walk(Ci, World, bDoor);
 			}
@@ -280,11 +286,14 @@ bool ABabylonModel::Place(const FString& Name)
 			float W = 1.8f;
 			for (const int32 K : C) if (NameOf(K).StartsWith(TEXT("box")) && Num3(K, TEXT("scale"), 2) > 0.3 && Num3(K, TEXT("scale"), 1) > 1.5) W = FMath::Max(W, 2.f * (FMath::Abs(float(Num3(K, TEXT("translation"), 0))) - 0.05f));
 			Door.Reach = FMath::Max(2.6f, W * 0.7f);
+			// (a door on hinges has no sliding leaves: a staff door's card reader - a thin little box beside the frame - was
+			//  taken for one, so 21 staff and ramp doors opened by themselves, 2026-11-23; a leaf is half a metre or more)
+			const bool bHinged = C.ContainsByPredicate([&](const int32 K) { return NameOf(K).StartsWith(TEXT("hinge")); });
 			for (const int32 K : C)
 			{
 				const FString N = NameOf(K);
 				const double X = Num3(K, TEXT("translation"), 0);
-				if (N.StartsWith(TEXT("box")) && Num3(K, TEXT("scale"), 2) <= 0.061 && FMath::Abs(X) > 0.01 && Num3(K, TEXT("translation"), 1) > 0.5)
+				if (!bHinged && FMath::Max(Num3(K, TEXT("scale"), 0), Num3(K, TEXT("scale"), 1)) > 0.5 && N.StartsWith(TEXT("box")) && Num3(K, TEXT("scale"), 2) <= 0.061 && FMath::Abs(X) > 0.01 && Num3(K, TEXT("translation"), 1) > 0.5)
 				{
 					FPart P = MakePart(K);
 					P.Slide = FMath::Sign(float(X)) * (W / 2 - 0.08f) * 100.f;   // each leaf away from the middle
@@ -1129,7 +1138,14 @@ void ABabylonModel::Tick(float Dt)
 	if (P) Me = Root->GetComponentTransform().InverseTransformPosition(P->GetActorLocation() - FVector(0, 0, P->GetSimpleCollisionHalfHeight()));
 	for (FDoor& D : Doors)
 	{
-		if (D.bSpin) { for (FPart& Part : D.Parts) if (Part.bSpin) MovePart(Part, 0, Clock * 0.6f); continue; }
+		if (D.bSpin)
+		{
+			// (turned by the door's own works - the passengers' compartments: ATerminalDoors; alone, as doors.ts turns them)
+			float Turned = Clock * 0.6f;
+			if (const ATerminalDoors* Dr = ATerminalDoors::Find(GetWorld())) Dr->RevolvingTurn(D.Id, Turned);
+			for (FPart& Part : D.Parts) if (Part.bSpin) MovePart(Part, 0, Turned);
+			continue;
+		}
 		bool bNear = FVector2D::Distance(FVector2D(Me), FVector2D(D.At)) < D.Reach * 100.f && FMath::Abs(Me.Z - D.At.Z) < 250.f;
 		if (D.bPax && !bNear)
 		{
@@ -1192,7 +1208,7 @@ bool ABabylonModel::DoorNear(const FVector& Feet, const FVector& Facing, bool& b
 
 bool ABabylonModel::TestHingedDoor(FVector& At, int32& NSlide, int32& NHinged)
 {
-	NSlide = NHinged = 0; bool bGot = false;
+	NSlide = NHinged = 0; bool bGot = false, bStaff = false;   // (a staff door first)
 	for (const TWeakObjectPtr<ABabylonModel>& W : AllModels)
 		if (const ABabylonModel* M = W.Get())
 			for (const FDoor& D : M->Doors)
@@ -1200,7 +1216,7 @@ bool ABabylonModel::TestHingedDoor(FVector& At, int32& NSlide, int32& NHinged)
 				if (D.bSpin) continue;
 				if (D.bSlide) { ++NSlide; continue; }
 				++NHinged;
-				if (!bGot && D.At.Z < 200.f) { At = M->Root->GetComponentTransform().TransformPosition(D.At); bGot = true; }
+				if ((!bGot || (!bStaff && D.Id.Contains(TEXT("STAFF")))) && D.At.Z < 200.f) { bStaff = D.Id.Contains(TEXT("STAFF")); At = M->Root->GetComponentTransform().TransformPosition(D.At); bGot = true; }
 			}
 	return bGot;
 }
@@ -1567,6 +1583,9 @@ void ABabylonModel::CheckLamps()
 		const FVector Top = T.TransformPosition(FVector(L.Face.GetCenter().X, L.Face.GetCenter().Y, L.Face.Max.Z + 3.f));
 		FHitResult H;
 		if (W->LineTraceSingleByChannel(H, Top, Top + FVector(0, 0, 120.f), ECC_Visibility, Q)) { ++Kept; continue; }
+		// (a ceiling a hair over the lamp is under the look's start, and a roof seen from under is its back, which nothing
+		//  hits: the curved gates' 60 bay lamps were all taken out - so also from above, down onto the roof, 2026-11-23)
+		if (L.Room.StartsWith(TEXT("F2-GATE-")) && W->LineTraceSingleByChannel(H, Top + FVector(0, 0, 120.f), Top, ECC_Visibility, Q) && H.ImpactNormal.Z > 0.5f && H.ImpactPoint.Z > Top.Z + 1.f) { ++Kept; continue; }
 		// nothing over it: out (its panels and its light)
 		FHitResult Fl; const bool bFloor = W->LineTraceSingleByChannel(Fl, Top - FVector(0, 0, 10.f), Top - FVector(0, 0, 3000.f), ECC_Visibility, Q);
 		const FVector Pl(Top.X / 100.f, Top.Z / 100.f, -Top.Y / 100.f);   // (plan metres: x, height, z - FTerminalPlan::ToWorld turned back)

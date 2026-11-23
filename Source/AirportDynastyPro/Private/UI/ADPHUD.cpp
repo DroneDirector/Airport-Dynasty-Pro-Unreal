@@ -122,6 +122,7 @@ static bool GTourTracking = false;   // (the tug tour's tracking camera has a su
 #include "Engine/World.h"
 #include "CollisionQueryParams.h"
 #include "SWebBrowser.h"
+#include "TerminalDoors.h"
 #include "BabylonModel.h"
 #include "EngineUtils.h"
 #include "Framework/Application/IInputProcessor.h"
@@ -5334,7 +5335,7 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 48.f && ShotClock >= 48.f) if (APawn* Me = GetOwningPawn()) Me->TeleportTo(Me->GetActorLocation() + Me->GetActorForwardVector() * -600.f, Me->GetActorRotation());
 			if (Before < 55.f && ShotClock >= 55.f) { if (APawn* Me = GetOwningPawn()) Stand(DAt, 260.f); }
 			if (Before < 57.f && ShotClock >= 57.f) { HighResShotNamed(TEXT("Door_3_ClosedAgain")); ADP_LOG(TEXT("UIDoorRule: after walking away - the Buttons panel says %s"), bDoorOpen ? TEXT("close (still open: WRONG)") : TEXT("open (shut again)")); }
-			if (Before < 58.f && ShotClock >= 58.f) ADP_SHOT_EXIT();
+			if (Before < 58.f && ShotClock >= 58.f) { if (FParse::Param(FCommandLine::Get(), TEXT("RevTest"))) ATerminalDoors::bRevTest = true; else ADP_SHOT_EXIT(); }   // (-RevTest: then you through both revolving doors, in and out)
 		}
 		// -UISticker: the no-smoking sticker on the terminal's entrance doors (to-do 31), close from both sides and from the
 		// forecourt - PNG (HighResShot), midday

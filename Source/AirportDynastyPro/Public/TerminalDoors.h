@@ -22,6 +22,13 @@ public:
 
 	/** Places every door of the plan. */
 	void Build(const FTerminalPlan& Plan);
+	/** The real terminal (its doors are the model's, ABabylonModel): only the works of its revolving doors - their turn,
+	 *  which the model's wings follow (RevolvingTurn), and the compartments the passengers and you ride round in. */
+	void BuildRevolving(const FTerminalPlan& Plan);
+	/** (test: -UIDoorRule -RevTest) you walked through both revolving doors, in and out; the log says how it went, then the game ends. */
+	static bool bRevTest;
+	/** How far round (radians) the door with this id has turned; false: none of that name. */
+	bool RevolvingTurn(const FString& Id, float& Out) const;
 
 	virtual void Tick(float DeltaSeconds) override;
 
@@ -82,9 +89,15 @@ private:
 	TArray<FDoorRig> Rigs;
 	struct FComp { int32 Who = INDEX_NONE; int32 Side = 0; bool bRiding = false; float Progress = 0.f; FString Name; };   // Progress: degrees turned from the entry opening (180 = lined up with the exit)
 	enum class ERev : uint8 { Run, Pause, Back, Hold };
-	struct FRevolve { int32 Rig = INDEX_NONE; float Angle = 0.f, Omega = 0.f; ERev Mode = ERev::Run; float ModeT = 0.f; int32 Safety = INDEX_NONE; TArray<FComp> Comps; };   // Angle, Omega: degrees, degrees a second
+	struct FRevolve { int32 Rig = INDEX_NONE; float Angle = 0.f, Omega = 0.f; ERev Mode = ERev::Run; float ModeT = 0.f; int32 Safety = INDEX_NONE; TArray<FComp> Comps; int32 You = INDEX_NONE, YouSide = 0; float YouIn = 0.f; };   // Angle, Omega: degrees, degrees a second
 	TArray<FRevolve> Revs;
 	void StepRevolving(FRevolve& V, float Dt, const FVector& Player);
+	/** You in the drum: the wing behind you takes you along, the one ahead never lets you through (You: the compartment you are in). */
+	void StepRevTest(float Dt, class APawn* Me); int32 TestLeg = -1; float TestT = 0.f; bool bTestDone = false;
+	void CarryPlayer(FRevolve& V, class APawn* Me);
+	/** A place on compartment angle A (degrees, the way the door turns): the frame's own x, y. It turns anticlockwise from
+	 *  above, as where people keep to the right (they go in on the right). */
+	static FVector OnRound(float ADeg, float R) { const float A = FMath::DegreesToRadians(ADeg); return FVector(-FMath::Cos(A) * R, FMath::Sin(A) * R, 0.f); }
 	float Time = 0;
 	float F2Y = 6;
 	#pragma endregion

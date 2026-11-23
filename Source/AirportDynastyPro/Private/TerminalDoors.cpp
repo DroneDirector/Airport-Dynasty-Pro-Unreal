@@ -72,6 +72,33 @@ void ATerminalDoors::Build(const FTerminalPlan& Plan)
 	ADP_LOG(TEXT("Doors built: %d"), Rigs.Num());
 }
 
+void ATerminalDoors::BuildRevolving(const FTerminalPlan& Plan)
+{
+	F2Y = Plan.F2Y;
+	for (const FPlanDoor& D : Plan.Doors)
+	{
+		if (D.Type != TEXT("revolving")) continue;
+		FDoorRig Rig; Rig.D = D;
+		USceneComponent* N = NewObject<USceneComponent>(this);
+		N->SetupAttachment(Root);
+		N->SetMobility(EComponentMobility::Movable);
+		N->SetRelativeLocationAndRotation(FTerminalPlan::ToWorld(D.X, Plan.FloorY(D.Floor), D.Z), FRotator(0, D.bAlongX ? 0.f : -90.f, 0));
+		N->RegisterComponent();
+		AddInstanceComponent(N);
+		Rig.Frame = N; Rig.Wings = Node(N, 0, 0, 0, 0); Rig.NWings = 4;
+		FRevolve V; V.Rig = Rigs.Num(); V.Comps.SetNum(4); V.Omega = 3.f * 6.f;
+		Revs.Add(V);
+		Rigs.Add(MoveTemp(Rig));
+	}
+	ADP_LOG(TEXT("Revolving doors: the works of %d of the terminal's own"), Revs.Num());
+}
+
+bool ATerminalDoors::RevolvingTurn(const FString& Id, float& Out) const
+{
+	for (const FRevolve& V : Revs) if (Rigs[V.Rig].D.Id == Id) { Out = FMath::DegreesToRadians(V.Angle); return true; }
+	return false;
+}
+
 void ATerminalDoors::BuildDoor(const FPlanDoor& D, const FTerminalPlan& Plan)
 {
 	const float H = D.Height(), W = D.Width;
@@ -211,6 +238,7 @@ void ATerminalDoors::BuildDoor(const FPlanDoor& D, const FTerminalPlan& Plan)
 #pragma region Opening and shutting
 
 TArray<FVector> ATerminalDoors::Openers;
+bool ATerminalDoors::bRevTest = false;
 bool ATerminalDoors::bHoldSecurity = false;
 bool ATerminalDoors::bHoldEntrances = false;
 
@@ -223,7 +251,8 @@ void ATerminalDoors::Tick(float DeltaSeconds)
 	const float PX = P.X / 100.f, PZ = -P.Y / 100.f;
 	const int32 PF = P.Z / 100.f > F2Y - 1.f ? 2 : 1;
 
-	for (FRevolve& V : Revs) StepRevolving(V, DeltaSeconds, P);
+	if (bRevTest && Player) StepRevTest(DeltaSeconds, UGameplayStatics::GetPlayerPawn(this, 0));
+	for (FRevolve& V : Revs) { StepRevolving(V, DeltaSeconds, P); if (Player) CarryPlayer(V, UGameplayStatics::GetPlayerPawn(this, 0)); }
 	for (FDoorRig& R : Rigs)
 	{
 		if (R.Wings) continue;   // (the revolving doors: StepRevolving)
@@ -316,7 +345,7 @@ int32 ATerminalDoors::RevolvingBoard(int32 Ix, int32 Side, int32 Who, const FStr
 	for (int32 k = 0; k < V.Comps.Num(); ++k)
 	{
 		FComp& C = V.Comps[k];
-		if (C.Who != INDEX_NONE) continue;   // (one passenger or party a compartment - never strangers together)
+		if (C.Who != INDEX_NONE || k == V.You) continue;   // (one passenger or party a compartment - never strangers together)
 		// its middle coming up to the opening: from 22 degrees short of it to just past (it moves on while they step in)
 		const float D = WrapDeg(V.Angle + Step * (k + 0.5f) - OpeningDeg(Side));
 		if (D < -22.f || D > 2.f) continue;
@@ -337,11 +366,11 @@ FVector ATerminalDoors::RevolvingSpot(int32 Ix, int32 Comp, float Frac, FVector*
 	const FRevolve& V = Revs[Ix];
 	const FDoorRig& R = Rigs[V.Rig];
 	const float Rc = R.D.Width * 50.f * Frac;
-	const float C = FMath::DegreesToRadians(V.Angle + 360.f / V.Comps.Num() * (Comp + 0.5f));
+	const float Deg = V.Angle + 360.f / V.Comps.Num() * (Comp + 0.5f), C = FMath::DegreesToRadians(Deg);
 	const FTransform& T = R.Frame->GetComponentTransform();
-	if (Dir) *Dir = T.TransformVectorNoScale(FVector(-FMath::Sin(C), FMath::Cos(C), 0.f) * (V.Omega >= 0.f ? 1.f : -1.f)).GetSafeNormal2D();
+	if (Dir) *Dir = T.TransformVectorNoScale(FVector(FMath::Sin(C), FMath::Cos(C), 0.f) * (V.Omega >= 0.f ? 1.f : -1.f)).GetSafeNormal2D();
 	if (SpeedCm) *SpeedCm = FMath::Abs(FMath::DegreesToRadians(V.Omega)) * Rc;
-	return T.TransformPosition(FVector(FMath::Cos(C) * Rc, FMath::Sin(C) * Rc, 0.f));
+	return T.TransformPosition(OnRound(Deg, Rc));
 }
 
 bool ATerminalDoors::RevolvingAtExit(int32 Ix, int32 Comp, bool* bHeld) const
@@ -415,7 +444,81 @@ void ATerminalDoors::StepRevolving(FRevolve& V, float Dt, const FVector& Player)
 	const float dA = V.Omega * Dt;
 	V.Angle = FMath::Fmod(V.Angle + dA + 360.f, 360.f);
 	for (FComp& C : V.Comps) if (C.Who != INDEX_NONE) C.Progress += dA;
-	R.Wings->SetRelativeRotation(FRotator(0, V.Angle, 0));
+	R.Wings->SetRelativeRotation(FRotator(0, -V.Angle, 0));
+}
+
+void ATerminalDoors::StepRevTest(float Dt, APawn* Me)
+{
+	TestT += Dt;
+	const int32 Leg = FMath::Max(TestLeg, 0);
+	if (!Revs.IsValidIndex(Leg / 2)) return;
+	const FTransform& T = Rigs[Revs[Leg / 2].Rig].Frame->GetComponentTransform();
+	const float Rad = Rigs[Revs[Leg / 2].Rig].D.Width * 50.f, Sd = Leg % 2 ? -1.f : 1.f;
+	if (TestLeg < 0 || TestT > 25.f || bTestDone)
+	{
+		if (TestLeg >= 0 && !bTestDone) { const FVector L = T.InverseTransformPosition(Me->GetActorLocation()); ADP_WARN(TEXT("RevTest leg %d: NOT through after 25 s, at %.0f %.0f %.0f"), TestLeg, L.X, L.Y, L.Z); }
+		if (++TestLeg >= Revs.Num() * 2) { FPlatformMisc::RequestExit(false); return; }
+		TestT = 0.f; bTestDone = false;
+		const FTransform& T2 = Rigs[Revs[TestLeg / 2].Rig].Frame->GetComponentTransform();
+		Me->TeleportTo(T2.TransformPosition(FVector(0, (TestLeg % 2 ? -1.f : 1.f) * (Rad + 130.f), Me->GetSimpleCollisionHalfHeight() + 10.f)), FRotator::ZeroRotator);
+		// (where the drum's glass is: one ring of looks from the middle)
+		FString Ring;
+		for (int32 a = 0; a < 24; ++a)
+		{
+			FHitResult H; FCollisionQueryParams Q(SCENE_QUERY_STAT(RevRing), true, Me);
+			const FVector A = T2.TransformPosition(FVector(0, 0, 220.f)), B = A + T2.TransformVectorNoScale(OnRound(a * 15.f, Rad + 30.f));
+			Ring += FString::Printf(TEXT(" %d:%.0f"), a * 15, GetWorld()->LineTraceSingleByChannel(H, A, B, ECC_Pawn, Q) ? H.Distance : -1.f);
+		}
+		ADP_LOG(TEXT("RevTest leg %d: door %s; what stops a walker round it (angle:cm)%s"), TestLeg, *Rigs[Revs[TestLeg / 2].Rig].D.Id, *Ring);
+		return;
+	}
+	const FVector To = T.TransformPosition(FVector(0, -Sd * (Rad + 110.f), 0)) - Me->GetActorLocation();
+	const FVector L = T.InverseTransformPosition(Me->GetActorLocation());
+	if (L.Size2D() > 3000.f) { bTestDone = true; TestLeg = FMath::Max(TestLeg - 1, -1); return; }   // (a picture step moved you away: this leg again)
+	if (TestT > 1.f) Me->AddMovementInput(To.GetSafeNormal2D(), 0.6f, true);
+	if (L.Y * Sd < -(Rad + 60.f)) { ADP_LOG(TEXT("RevTest leg %d: through in %.1f s"), TestLeg, TestT); bTestDone = true; }
+}
+
+void ATerminalDoors::CarryPlayer(FRevolve& V, APawn* Me)
+{
+	// the wings turn by code, so collision can't push you (a moved body never pushes a walker: you stood in the glass).
+	// Inside the drum you belong to the compartment you stepped into: the wing behind takes you along at its own pace, the
+	// wing ahead stops you, and at either opening you walk out. Near the middle post you are moved out along the wing.
+	const FDoorRig& R = Rigs[V.Rig];
+	if (!Me || !R.Frame) return;
+	const FTransform& T = R.Frame->GetComponentTransform();
+	const FVector L = T.InverseTransformPosition(Me->GetActorLocation());
+	const float Rad = R.D.Width * 50.f, Cap = Me->GetSimpleCollisionRadius() + 3.f;
+	float Rr = L.Size2D();
+	if (L.Z < 0.f || L.Z > 250.f || Rr > Rad + Cap)
+	{
+		if (V.You != INDEX_NONE && Time - V.YouIn > 1.f) ADP_LOG(TEXT("Revolving door %s: you are out, %s (%.1f s in it)"), *R.D.Id, (L.Y >= 0.f ? 1 : -1) == V.YouSide ? TEXT("the way you came") : TEXT("through it"), Time - V.YouIn);
+		V.You = INDEX_NONE; return;
+	}
+	const float Step = 360.f / V.Comps.Num();
+	const float A = FMath::RadiansToDegrees(FMath::Atan2(L.Y, -L.X));   // (as OnRound)
+	const float Rel = FMath::Fmod(A - V.Angle + 720.f, 360.f);
+	if (V.You == INDEX_NONE)
+	{
+		V.You = FMath::Clamp(FMath::FloorToInt(Rel / Step), 0, V.Comps.Num() - 1); V.YouSide = L.Y >= 0.f ? 1 : -1; V.YouIn = Time;
+	}
+	Rr = FMath::Max(Rr, Cap * 1.5f);
+	const float Margin = FMath::Min(Step * 0.5f - 0.5f, FMath::RadiansToDegrees(FMath::Asin(FMath::Min(1.f, Cap / Rr))));
+	const float Mid = FMath::UnwindDegrees(Rel - Step * (V.You + 0.5f));   // (from the compartment's middle)
+	const float Want = FMath::Clamp(Mid, -(Step * 0.5f - Margin), Step * 0.5f - Margin);
+	if (FMath::IsNearlyEqual(Want, Mid, 0.01f) && FMath::IsNearlyEqual(Rr, float(L.Size2D()), 0.1f)) return;
+	const float To = V.Angle + Step * (V.You + 0.5f) + Want;
+	// (past an opening's side - 36 degrees either way of its middle - the drum's glass is there: inside it; a wing that
+	//  comes round on you while you still stand in the mouth sends you back out of it, never into the glass)
+	const float OffOpening = FMath::Min(FMath::Abs(FMath::UnwindDegrees(To - 90.f)), FMath::Abs(FMath::UnwindDegrees(To - 270.f)));
+	const float Side = 36.f - FMath::RadiansToDegrees(FMath::Asin(FMath::Min(1.f, Cap / Rad)));
+	if (OffOpening > Side && Rr > Rad - Cap)
+	{
+		if (Rr > Rad - Cap * 0.4f) { const FVector Out = T.TransformPosition(OnRound(A, Rad + Cap + 2.f)); Me->SetActorLocation(FVector(Out.X, Out.Y, Me->GetActorLocation().Z), true); V.You = INDEX_NONE; return; }
+		Rr = Rad - Cap;
+	}
+	const FVector N = T.TransformPosition(OnRound(To, Rr));
+	Me->SetActorLocation(FVector(N.X, N.Y, Me->GetActorLocation().Z), false);
 }
 
 #pragma endregion
