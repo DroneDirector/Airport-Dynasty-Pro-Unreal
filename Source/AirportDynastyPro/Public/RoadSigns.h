@@ -22,6 +22,9 @@ public:
 	void Resettle();
 	/** The airport's name and the local word for airport ("Flugvöllur" in Iceland ... "Airport" where English is spoken). */
 	static void AirportWords(FString& Name, FString& Word);
+	/** The sign letters' places in T_SignGlyphs (x, y, w, h, advance), by letter - read by hand: a JSON object's names are not
+	 *  told apart by case here, so every capital letter came out small ("chablais airport"). */
+	static const TMap<TCHAR, TArray<double>>& GlyphTable();
 	/** The last sign placed (the -UIRoad test's camera looks at it). */
 	static FVector TestAt;
 	static FVector TestFace;

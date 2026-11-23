@@ -37,6 +37,29 @@ ARoadSigns::ARoadSigns()
 	SetRootComponent(Root);
 }
 
+const TMap<TCHAR, TArray<double>>& ARoadSigns::GlyphTable()
+{
+	static TMap<TCHAR, TArray<double>> T;
+	if (T.Num()) return T;
+	FString S;
+	if (!FFileHelper::LoadFileToString(S, *(FPaths::ProjectContentDir() / TEXT("Data/sign-glyphs.json"))) && !FFileHelper::LoadFileToString(S, *(FPaths::ProjectDir() / TEXT("Data/sign-glyphs.json")))) return T;
+	int32 i = S.Find(TEXT("\"glyphs\""), ESearchCase::CaseSensitive); if (i == INDEX_NONE) return T;
+	i = S.Find(TEXT("{"), ESearchCase::CaseSensitive, ESearchDir::FromStart, i) + 1;
+	while (i > 0 && i < S.Len() && S[i] != TCHAR('}'))
+	{
+		if (S[i] != TCHAR('"')) { ++i; continue; }
+		TCHAR Ch = S[++i];
+		if (Ch == TCHAR('\\')) { Ch = S[++i]; if (Ch == TCHAR('u')) { Ch = TCHAR(FParse::HexNumber(*S.Mid(i + 1, 4))); i += 4; } }
+		const int32 A = S.Find(TEXT("["), ESearchCase::CaseSensitive, ESearchDir::FromStart, i + 2), B = S.Find(TEXT("]"), ESearchCase::CaseSensitive, ESearchDir::FromStart, A);
+		if (A == INDEX_NONE || B == INDEX_NONE) break;
+		TArray<FString> N; S.Mid(A + 1, B - A - 1).ParseIntoArray(N, TEXT(","));
+		TArray<double> V; for (const FString& X : N) V.Add(FCString::Atod(*X));
+		if (V.Num() == 5) T.Add(Ch, V);
+		i = B + 1;
+	}
+	return T;
+}
+
 void ARoadSigns::AirportWords(FString& Name, FString& Word)
 {
 	Name = TEXT("Airport"); Word = TEXT("Airport");
@@ -89,7 +112,7 @@ UTexture* ARoadSigns::Compose(const FString& Km)
 	if (C)
 	{
 		C->K2_DrawTexture(Base, FVector2D::ZeroVector, Size, FVector2D::ZeroVector, FVector2D::UnitVector, FLinearColor::White, BLEND_Opaque);
-		const TSharedPtr<FJsonObject> G = GlyphData->GetObjectField(TEXT("glyphs"));
+		const TMap<TCHAR, TArray<double>>& G = GlyphTable();
 		const TArray<TSharedPtr<FJsonValue>>& AtlasSz = GlyphData->GetArrayField(TEXT("atlas"));
 		const double AW = AtlasSz[0]->AsNumber(), AH = AtlasSz[1]->AsNumber(), Pad = GlyphData->GetNumberField(TEXT("pad")), GSize = GlyphData->GetNumberField(TEXT("size"));
 		const double K = Size.X / FW;
@@ -97,14 +120,14 @@ UTexture* ARoadSigns::Compose(const FString& Km)
 		auto Line = [&](const FString& S, double CX, double Top, double BoxH, double MaxW)
 		{
 			double Wn = 0.0;
-			for (const TCHAR Ch : S) { const TArray<TSharedPtr<FJsonValue>>* E; if (G->TryGetArrayField(FString(1, &Ch), E)) Wn += (*E)[4]->AsNumber(); else Wn += GSize * 0.5; }
+			for (const TCHAR Ch : S) { const TArray<double>* E = G.Find(Ch); Wn += E ? (*E)[4] : GSize * 0.5; }
 			const double Sc = FMath::Min(BoxH / GSize, MaxW / FMath::Max(Wn, 1.0));
 			double X = CX - Wn * Sc / 2;
 			for (const TCHAR Ch : S)
 			{
-				const TArray<TSharedPtr<FJsonValue>>* E;
-				if (!G->TryGetArrayField(FString(1, &Ch), E)) { X += GSize * 0.5 * Sc; continue; }
-				const double gx = (*E)[0]->AsNumber(), gy = (*E)[1]->AsNumber(), gw = (*E)[2]->AsNumber(), gh = (*E)[3]->AsNumber(), adv = (*E)[4]->AsNumber();
+				const TArray<double>* E = G.Find(Ch);
+				if (!E) { X += GSize * 0.5 * Sc; continue; }
+				const double gx = (*E)[0], gy = (*E)[1], gw = (*E)[2], gh = (*E)[3], adv = (*E)[4];
 				C->K2_DrawTexture(Glyphs, FVector2D((X - Pad * Sc) * K, (Top - Pad * Sc) * K), FVector2D(gw * Sc * K, gh * Sc * K),
 					FVector2D(gx / AW, gy / AH), FVector2D(gw / AW, gh / AH), FLinearColor(0.92f, 0.94f, 0.96f, 1.f), BLEND_Translucent);
 				X += adv * Sc;
