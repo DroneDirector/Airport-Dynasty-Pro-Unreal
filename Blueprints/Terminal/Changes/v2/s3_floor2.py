@@ -26,6 +26,7 @@ if 'a' in which:
         txt(ax, 201, 65, 'SCHENGEN WALKWAY' if after else 'GATE WALKWAY, 16 m wide', SCH if after else DIM, 15)
         if not after:
             gate_stairs(ax)
+            ax.plot([276.4, 278.4], [82, 82], color='#ff5050', lw=6, zorder=14); txt(ax, 277.4, 85, 'dead door', '#ff8080', 12)
             fig.text(0.012, 0.915, 'BEFORE (today)', color=FG, fontsize=19, weight='bold', va='top')
             txt(ax, 245, 35, 'nothing here: open air under the wave roof', WARN, 17); txt(ax, 220, 75, 'view bay', DIM, 14); txt(ax, 306, 75, 'view bay (its 3 jetways)', DIM, 14)
             txt(ax, 246.2, 78, 'gap\n18.4 m', DIM, 14); txt(ax, 280, 65, 'moving walkways', DIM, 14); txt(ax, 330.5, 86, '')
@@ -46,13 +47,13 @@ if 'a' in which:
                                (4, '4 passport booths; one wide for PRM, crew, families', NS), (5, '8 e-gates', NS), (6, 'Walk-through duty free 32 x 28 m', DF), (7, 'Transfers back to Schengen: closed glass lane', TRF),
                                (8, 'Swing lobby 18.4 x 14 m, in the gap between the gates,\non columns, 4.5 m clear below', NEW), (9, 'Vestibule 18.5 x 5 m at the jetways: doors to the gate\nside and to the arrivals side, never both', NS),
                                (10, 'Arrivals way down 14.8 x 7.5 m: 2 escalators, stair, lift', NS), (11, 'Gate 4\'s arrivals gallery: glass, outside the windows,\n2.6 m wide, 5.6 m clear below, over the bag trains', NS),
-                               (12, 'Gate 4\'s jetway vestibule 8.8 x 4 m', NS)], lh=0.0343, fs=15)
+                               (12, 'Gate 4\'s jetway vestibule 8.8 x 4 m. Thick green on the\nglass: real jetway doors cut in; the dead door glazed', NS)], lh=0.0343, fs=15)
     fig.text(0.685, 0.49, 'THE DOORS', color=NEW, fontsize=18, weight='bold')
     legend(fig, 0.685, 0.462, [('A', 'Gate 4 to the Schengen walkway (glass doors, new)', OK), ('B', 'Gate 13 to the non-Schengen walkway (glass doors, new)', OK), ('C', 'Lobby to the Schengen walkway', SCH), ('D', 'Lobby to the non-Schengen walkway', NS),
                                ('E', 'Lobby to gate 4\'s view bay', NEW), ('F', 'Lobby to gate 13', NEW)], lh=0.031, fs=15)
     fig.text(0.685, 0.268, 'WHY THE QUEUE IS BESIDE THE WALKWAY', color=NEW, fontsize=17, weight='bold')
     fig.text(0.685, 0.25, 'The accepted sheet had the booths IN the walkway at x 240-248.\nThe moving walkway ends at x 235 and the next starts at x 245:\nonly 10 m, no room for a queue. The wall now stands in that gap,\nso no moving walkway is cut, and the booths and the queue sit in\nthe new floor beside it.', color=FG, fontsize=15, va='top', linespacing=1.35)
-    fig.text(0.685, 0.142, 'Swing gates work only at 4 and 13: they touch the wall. A new\ndoorway in each one\'s inner wall (green dots) joins its two rooms;\npast the existing stair the way is 1.4 m wide (z 68.1-69.5).\nGates 14-16 stay non-Schengen, 1-3 and 5-12 Schengen.', color=FG, fontsize=15, va='top', linespacing=1.35)
+    fig.text(0.685, 0.142, 'THE STAIRS of gates 4 and 13 are turned along the walkway wall\n(2.8 x 11 m, foot west). Through the inner wall (green dots):\n7.8 m wide at gate 4, 3.1 m at gate 13 (it was 1.4 m).\nGates 14-16 stay non-Schengen, 1-3 and 5-12 Schengen.', color=FG, fontsize=15, va='top', linespacing=1.35)
     save(fig, 'TCv2-3a-Passport-Wall-Swing-Gates.png')
 
 if 'b' in which:
@@ -67,7 +68,7 @@ if 'b' in which:
     txt(ax, 355, 64.8, 'NON-SCHENGEN WALKWAY (existing)', NS, 15); txt(ax, 246.2, 75, 'SWING\nLOBBY', NEW, 13)
     for g in GATE_X0: v, c = core_f2(g); txt(ax, (c[0] + c[2]) / 2, 78.2, 'way\ndown', NS, 12)
     for x in STAIRS: txt(ax, x, 11.5, 'stair', OK, 11)
-    txt(ax, 430, 88.5, 'jetways (green) and stands: unchanged', OK, 14)
+    txt(ax, 430, 88.5, 'jetways (green) unchanged, their doors cut into the glass', OK, 14)
     dim(ax, 20, 52, 553.5, '32.0', vertical=True, fs=14)
     legend(fig, 0.014, 0.365, [('i', 'Transfer desk, 2 security lanes, 3 passport booths + 2 e-gates for transfers', TRF), ('ii', 'Stair, lift and 2 escalators up from the arrivals corridor (x 326-338, z 40-51)', TRF),
                                ('iii', 'Ceiling: the wave roof over z 20-34 (7 to 15 m high), a flat roof at 12 m over z 34-52 (5.4 m high, as the walkway)', GLASS),
@@ -83,9 +84,9 @@ if 'b' in which:
 if 'c' in which:
     fig = sheet('SHEET 3c', 'HOW A SWING GATE WORKS: FOUR CASES', 'Green = open. Red = locked and alarmed. Blue route: Schengen passengers. Pink route: non-Schengen passengers.')
     CASES = (('1  NORMAL', 'Gate 4 Schengen, gate 13 non-Schengen. Lobby closed on all sides.', dict(A=1, B=1, C=0, D=0, E=0, F=0), [('S', [(190, 60), (181, 60), (181, 72), (188, 74)]), ('N', [(280, 60), (306, 60), (306, 73), (312, 76.5)])]),
-             ('2  GATE 4 SWUNG TO NON-SCHENGEN (London with an A320): departing', 'Doors A locked. The lobby opens to the non-Schengen side (D) and to gate 4 (E).', dict(A=0, B=1, C=0, D=1, E=1, F=0), [('N', [(300, 60), (244.5, 60), (244.5, 73.5), (205, 73.5), (201.5, 71), (201.5, 68.8), (195, 68.8), (192.5, 76.5)])]),
+             ('2  GATE 4 SWUNG TO NON-SCHENGEN (London with an A320): departing', 'Doors A locked. The lobby opens to the non-Schengen side (D) and to gate 4 (E).', dict(A=0, B=1, C=0, D=1, E=1, F=0), [('N', [(300, 60), (244.5, 60), (244.5, 73.5), (205, 73.5), (195, 73.5), (192.5, 76.5)])]),
              ('3  GATE 4 SWUNG TO NON-SCHENGEN: arriving', 'Out of the jetway vestibule into the glass gallery, over to the way down at gate 13. Gate 13 can board all the while.', dict(A=0, B=1, C=0, D=0, E=0, F=0), [('N', [(191, 84), (191, 80), (195.5, 80), (195.5, 83.5), (301.5, 83.5), (301.5, 78), (292, 78)])]),
-             ('4  GATE 13 SWUNG TO SCHENGEN', 'Doors B locked. The lobby opens to the Schengen side (C) and to gate 13 (F), through to the jetways. Arrivals walk the same way out.', dict(A=1, B=0, C=1, D=0, E=0, F=1), [('S', [(200, 60), (238.5, 60), (238.5, 72), (262, 72), (281, 68.8), (288, 68.8), (288, 71.5), (307, 71.5), (312, 76.5)])]))
+             ('4  GATE 13 SWUNG TO SCHENGEN', 'Doors B locked. The lobby opens to the Schengen side (C) and to gate 13 (F), through to the jetways. Arrivals walk the same way out.', dict(A=1, B=0, C=1, D=0, E=0, F=1), [('S', [(200, 60), (238.5, 60), (238.5, 72.8), (298, 72.8), (307, 72.8), (312, 76.5)])]))
     for i, (t, s, d, R) in enumerate(CASES):
         x, y = 0.012 + (i % 2) * 0.494, 0.585 - (i // 2) * 0.37
         ax = ax_plan(fig, [x, y, 0.482, 0.24], 168, 318, 50, 92)
