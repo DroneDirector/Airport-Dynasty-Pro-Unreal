@@ -26,6 +26,7 @@
 namespace ADPNewGameTest
 {
 	int32 Step = 0, Sub = 0, Problems = 0;
+	bool bWentBack = false;   // (from "who are you" back to the title once, and in again)
 	double T0 = 0.0, StepT0 = 0.0, StartedLoad = 0.0, ReachedAirport = 0.0, EndAt = 0.0;
 	const TCHAR* Names[] = {TEXT("the title"), TEXT("where is your airport"), TEXT("she or he"), TEXT("your looks"), TEXT("your pet"), TEXT("your partner"),
 		TEXT("your airline"), TEXT("the difficulty"), TEXT("the loading"), TEXT("the airport")};
@@ -55,6 +56,15 @@ void AADPHUD::TestNewGame(float Dt)
 		if (bLoading) Wrong(TEXT("a loading screen is up over it"));
 		if (ADPTitleBg::IsOn()) Wrong(TEXT("the title's film plays behind it"));
 	};
+	// nothing of the airport's interface, nor its map, before the game is fully in: looked at every frame of every step (the
+	// title, the site question, the stage and its steps, back at the title, the loading to its last second) - to-do 227
+	auto HudUp = [&]() { return HudBox.IsValid() && HudBox->GetVisibility().IsVisible(); };
+	auto MapUp = [&]() { return HudUp() && MiniBox.IsValid() && MiniBox->GetVisibility().IsVisible(); };
+	{
+		static int32 Said = -1;
+		const bool bInNow = Step >= 9 || (Step == 8 && Sub > 0 && !bGame && !bLoading && !bStartLoad);
+		if (!bInNow && Said != Step && HudUp()) { Said = Step; Wrong(FString::Printf(TEXT("the airport's interface is up before the game is in (the map %s)"), MapUp() ? TEXT("too") : TEXT("not"))); }
+	}
 	if (Now - T0 > 600.0) { Fail(TEXT("10 minutes")); return; }
 
 	switch (Step)
@@ -62,7 +72,7 @@ void AADPHUD::TestNewGame(float Dt)
 	case 0:
 		if (!bMenusReady || !bGame) { if (T > 240.f) Fail(TEXT("the title never came up")); Sub = 0; return; }
 		if (Sub == 0) { Sub = 1; StepT0 = Now; if (CrashPanel.IsValid()) CrashPanel->SetVisibility(EVisibility::Collapsed); return; }   // (an earlier run's crash note: not part of this)
-		if (At(1, 8.f)) Shot(TEXT("01_Title"));
+		if (At(1, 8.f)) Shot(bWentBack ? TEXT("01_TitleAgain") : TEXT("01_Title"));
 		if (At(2, 9.f)) Js(bContinue ? TEXT("(function(){var b=document.querySelector('[data-id=\"game:continue\"]');if(b)b.click();})()") : TEXT("(function(){var b=document.querySelector('[data-id=\"game:new\"]');if(b)b.click();})()"));
 		if (Sub == 3) { if (bContinue) { Next(); Step = 8; } else Next(); }
 		return;
@@ -75,6 +85,14 @@ void AADPHUD::TestNewGame(float Dt)
 		return;
 	case 2:
 		if (!bWhoAreYou) { if (T > 20.f) Fail(TEXT("the stage didn't open")); return; }
+		if (Sub == 0 && T >= 7.f && !bWentBack)
+		{
+			// back to the title from here (the map lay over it then), and the same way in again
+			StageClean(); bWentBack = true; OnEscape();
+			if (bWhoAreYou || !bGame) Wrong(TEXT("Back didn't come out at the title"));
+			ADP_LOG(TEXT("NEWGAME TEST: back to the title from she or he")); Step = 0; Sub = 0; StepT0 = Now;
+			return;
+		}
 		if (At(0, 7.f)) { StageClean(); Shot(TEXT("03_Who")); }
 		if (At(1, 7.5f)) { Js(TEXT("document.querySelectorAll('.wy-half,.wy-who').forEach(function(e){ e.style.pointerEvents = 'none'; })")); Key(TEXT("ArrowLeft")); }   // (wherever the real mouse is)
 		if (At(2, 12.f)) Shot(TEXT("04_She"));
@@ -133,7 +151,8 @@ void AADPHUD::TestNewGame(float Dt)
 		{
 			Shot(TEXT("13_Airport"));
 			Js(TEXT("(function(){ var f = document.querySelector('.game-frame'), n = '?'; try { n = f.contentWindow.eval('State.companies.map(function(c){ return c.name }).join()'); } catch (e) { n = String(e); } window.ue && ue.adp && ue.adp.log('new game test: the menus have ' + n + ', opened with ' + (f ? f.src.slice(-240) : 'nothing')); })()"));
-			if (OwnScreen()) Wrong(TEXT("the airport's interface is away"));
+			if (!HudUp()) Wrong(TEXT("the airport's interface is away"));
+			if (!MapUp()) Wrong(TEXT("the holographic map is away"));
 			if (ADPTitleBg::IsOn()) Wrong(TEXT("the title's film is still on"));
 			if (GEngine && GEngine->GameViewport && GEngine->GameViewport->bDisableWorldRendering) Wrong(TEXT("the world isn't drawn"));
 			const UADPSim* Sim = UADPSim::Get(this);

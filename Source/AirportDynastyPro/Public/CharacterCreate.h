@@ -26,6 +26,8 @@ namespace ADPCharacterCreate
 	void Nobody();
 	/** The stage taken down: everything it spawned gone, the world's fog as it was, the camera back on you. */
 	void Teardown(UWorld* W, class APlayerController* PC);
+	/** The stage is up (nothing of the airport's interface over it). */
+	bool IsUp();
 	/** Your partner walks in from the free side's edge and stops beside you (or walks back out). */
 	void ShowPartner(bool bOn);
 	/** Your pet walks in and sits beside you (Kind dog or cat; Id the model, empty for the kind's first - or, for a kind

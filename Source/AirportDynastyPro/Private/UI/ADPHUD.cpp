@@ -431,7 +431,9 @@ void AADPHUD::BeginPlay()
 	// the airport's own interface, all of it in one layer: gone as one while a screen of its own is up (the new career's
 	// steps, the site question, the loading) - the compass, the sprint meter and the Buttons tab lay over the creator
 	// (owner, 2026-11-23)
-	TSharedRef<SWidget> HudLayer = SNew(SOverlay).Visibility_Lambda([this]() { return OwnScreen() ? EVisibility::Collapsed : EVisibility::SelfHitTestInvisible; })
+	// (owner, 2026-11-23, to-do 227: the holographic map lay over the creator; nothing of it before the game is fully in -
+	//  a positive rule now: only while you really are in the airport, InAirport())
+	TSharedRef<SWidget> HudLayer = SAssignNew(HudBox, SOverlay).Visibility_Lambda([this]() { return InAirport() ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed; })
 		// drone mode's line, bottom centre (only while flying, the map closed; clear of the time and weather bar above,
 		// the small map at the left and the Buttons panel at the right): speed, the wheel's step, height
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(16, 16, 16, 44)
@@ -494,7 +496,8 @@ void AADPHUD::BeginPlay()
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(FMargin(16, 16, 16, 16))
 		[
 			SAssignNew(MiniBox, SBox).WidthOverride(240).HeightOverride(240)
-			.Visibility_Lambda([this]() { return bGame || bInLounge || HoldingDevice() ? EVisibility::Collapsed : EVisibility::Visible; })
+			// (this alone decides: never SetVisibility on it, that replaces the rule for good and the map lay over the menus)
+			.Visibility_Lambda([this]() { return bGame || bInLounge || bViewer || bWardrobe || bDevice || bMiniAway || HoldingDevice() ? EVisibility::Collapsed : EVisibility::Visible; })
 			[
 				// the map, and beside it (full screen only) its shortcuts in their own column: nothing of the interface lies
 				// over the map's drawing (owner, 2026-11-13: no UI in the way of another)
@@ -616,31 +619,6 @@ void AADPHUD::BeginPlay()
 			SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(FLinearColor(0.02f, 0.05f, 0.09f, 0.82f)).Padding(FMargin(16, 9))
 			.Visibility_Lambda([this]() { return HintLeft > 0.f && !bGame ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
 			[SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Regular", 13)).ColorAndOpacity(FLinearColor(0.9f, 0.96f, 1.f)).Text_Lambda([this]() { return FText::FromString(HintText); })]
-		]
-		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
-		[
-			// the first start's question: the scan's suggestion, taken only if you say yes
-			SNew(SBorder)
-			.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-			.BorderBackgroundColor(Panel)
-			.Padding(20)
-			.Visibility_Lambda([this]() { return SuggestedQuality >= 0 ? EVisibility::Visible : EVisibility::Collapsed; })
-			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 8)[SNew(STextBlock).Font(Font(13)).ColorAndOpacity(Ink).Text(FText::FromString(TEXT("YOUR PC WAS MEASURED")))]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 14)
-				[
-					SNew(STextBlock).Font(Font(10, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true)
-					.Text_Lambda([this]() { const TCHAR* N[] = {TEXT("LOW"), TEXT("MEDIUM"), TEXT("HIGH"), TEXT("EPIC"), TEXT("CINEMATIC")};
-						return FText::FromString(FString::Printf(TEXT("Suggested graphics quality for this PC: %s.  Use it? Nothing changes unless you say yes; you can change it any time in Settings (Tab)."), N[FMath::Clamp(SuggestedQuality, 0, 4)])); })
-				]
-				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Right)
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 8, 0)[Button(TEXT("YES, USE IT"), [this]() { AnswerQuality(true); })]
-					+ SHorizontalBox::Slot().AutoWidth()[Button(TEXT("NO, KEEP MINE"), [this]() { AnswerQuality(false); })]
-				]
-			]
 		]
 		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Bottom).Padding(16)
 		[
@@ -780,10 +758,35 @@ void AADPHUD::BeginPlay()
 	Root = SNew(SOverlay).Visibility(EVisibility::SelfHitTestInvisible)
 		+ SOverlay::Slot()[GameBox.ToSharedRef()]
 		+ SOverlay::Slot()[HudLayer]
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
+		[
+			// the first start's question: the scan's suggestion, taken only if you say yes (a question of the menus: outside the airport's layer)
+			SNew(SBorder)
+			.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+			.BorderBackgroundColor(Panel)
+			.Padding(20)
+			.Visibility_Lambda([this]() { return SuggestedQuality >= 0 && !OwnScreen() && !bLoading ? EVisibility::Visible : EVisibility::Collapsed; })
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 8)[SNew(STextBlock).Font(Font(13)).ColorAndOpacity(Ink).Text(FText::FromString(TEXT("YOUR PC WAS MEASURED")))]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 14)
+				[
+					SNew(STextBlock).Font(Font(10, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true)
+					.Text_Lambda([this]() { const TCHAR* N[] = {TEXT("LOW"), TEXT("MEDIUM"), TEXT("HIGH"), TEXT("EPIC"), TEXT("CINEMATIC")};
+						return FText::FromString(FString::Printf(TEXT("Suggested graphics quality for this PC: %s.  Use it? Nothing changes unless you say yes; you can change it any time in Settings (Tab)."), N[FMath::Clamp(SuggestedQuality, 0, 4)])); })
+				]
+				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Right)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 8, 0)[Button(TEXT("YES, USE IT"), [this]() { AnswerQuality(true); })]
+					+ SHorizontalBox::Slot().AutoWidth()[Button(TEXT("NO, KEEP MINE"), [this]() { AnswerQuality(false); })]
+				]
+			]
+		]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[Settings.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Fill).VAlign(VAlign_Fill)[LoadingBox.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
-		[SNew(SBox).Visibility_Lambda([this]() { return OwnScreen() || bLoading ? EVisibility::Collapsed : EVisibility::SelfHitTestInvisible; })[CrashPanel.ToSharedRef()]];
+		[SNew(SBox).Visibility_Lambda([this]() { return InAirport() ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed; })[CrashPanel.ToSharedRef()]];
 
 	BuildPeopleChoices();
 	if (GEngine && GEngine->GameViewport) GEngine->GameViewport->AddViewportWidgetContent(Root.ToSharedRef(), 10);
@@ -798,7 +801,7 @@ void AADPHUD::BeginPlay()
 	if (GEngine && GEngine->GameViewport)
 		GEngine->GameViewport->AddViewportWidgetContent(
 			SNew(SBox).HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(0, 70, 0, 0))
-			.Visibility_Lambda([this]() { return !bGame && !OwnScreen() && !bLoading && ADPLateWorld::Started() && !ADPLateWorld::Done() ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+			.Visibility_Lambda([this]() { return InAirport() && ADPLateWorld::Started() && !ADPLateWorld::Done() ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
 			[
 				SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(FLinearColor(0.02f, 0.03f, 0.09f, 0.82f)).Padding(FMargin(18, 8))
 				[
@@ -918,7 +921,7 @@ TSharedRef<SWidget> AADPHUD::MakeTopBar()
 		[
 			SNew(STextBlock).Font(Font(10)).ColorAndOpacity(Ink)
 			.Visibility_Lambda([this]() { return StatusLine.IsEmpty() ? EVisibility::Collapsed : EVisibility::HitTestInvisible; })
-			.Text_Lambda([this]() { return FText::FromString(StatusLine + TEXT("   ·   ") + FDateTime::Now().ToString(TEXT("%H:%M"))); })
+			.Text_Lambda([this]() { return FText::FromString(StatusLine + TEXT("   ·   ") + ADPSite::LocalNow().ToString(TEXT("%H:%M"))); })
 		];
 }
 
@@ -1428,6 +1431,7 @@ void AADPHUD::ToggleMap()
 {
 	if (!HoloMap.IsValid() || bHidden || bInLounge) return;
 	const bool bFull = !HoloMap->IsFull();
+	if (bFull && !InAirport()) return;   // (no map before the game is in, nor over the menus)
 	HoloMap->SetFull(bFull);
 	// full screen: the map fills most of the window; small: back in its corner
 	StaticCastSharedPtr<SBox>(MiniBox)->SetWidthOverride(bFull ? FOptionalSize(1450) : FOptionalSize(240));   // (the map 1200 wide, its shortcut column beside it)
@@ -1451,7 +1455,6 @@ void AADPHUD::OpenViewer()
 	bViewer = true;
 	// the walking bar and the map belong to the airport: away while you watch the flight
 	if (TopBar.IsValid()) TopBar->SetVisibility(EVisibility::Collapsed);
-	if (MiniBox.IsValid()) MiniBox->SetVisibility(EVisibility::Collapsed);
 	UpdateMouse();
 }
 
@@ -1461,7 +1464,6 @@ void AADPHUD::CloseViewer()
 	bViewer = false;
 	if (Viewer) Viewer->Close();
 	if (TopBar.IsValid()) TopBar->SetVisibility(bGame ? EVisibility::Collapsed : EVisibility::Visible);
-	if (MiniBox.IsValid()) MiniBox->SetVisibility(EVisibility::Visible);
 	// the menus stop sending the flight
 	if (Browser.IsValid()) Browser->ExecuteJavascript(TEXT("window.__ueViewerClosed && window.__ueViewerClosed()"));
 }
@@ -1558,7 +1560,6 @@ void AADPHUD::OpenWardrobe(AWardrobe* W)
 	// your walking body away while the copy by the wardrobe stands for you (one of you in the picture, and less to draw)
 	if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) if (AActor* H = Wk->HumanActor()) H->SetActorHiddenInGame(true);
 	// the holographic map and the walking bar away while the wardrobe menu is up, back when it closes
-	if (MiniBox.IsValid()) MiniBox->SetVisibility(EVisibility::Collapsed);
 	if (TopBar.IsValid()) TopBar->SetVisibility(EVisibility::Collapsed);
 	UpdateMouse();
 }
@@ -1613,6 +1614,14 @@ void AADPHUD::WardrobeFromPage(const FString& Action, const FString& Arg)
 	}
 }
 
+bool AADPHUD::OwnScreen() const { return bWhoAreYou || bStartLoad || SiteChoice.IsValid() || ADPCharacterCreate::IsUp(); }
+
+bool AADPHUD::InAirport() const
+{
+	// (bWasGame: the menus were up until this very frame - the loading screen comes on the tick; bMenusPending: before the title)
+	return !bGame && !bWasGame && !bMenusPending && !bLoading && !OwnScreen();
+}
+
 void AADPHUD::OpenSiteChoice()
 {
 	if (SiteChoice.IsValid() || !GEngine || !GEngine->GameViewport) return;
@@ -1658,7 +1667,6 @@ void AADPHUD::OpenWhoAreYou()
 	if (GameBox.IsValid()) GameBox->SetVisibility(EVisibility::Visible);
 	if (TopBar.IsValid()) TopBar->SetVisibility(EVisibility::Collapsed);
 	if (Credit.IsValid()) Credit->SetVisibility(EVisibility::Collapsed);
-	if (MiniBox.IsValid()) MiniBox->SetVisibility(EVisibility::Collapsed);
 	if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) if (AActor* H = Wk->HumanActor()) H->SetActorHiddenInGame(true);
 	Breadcrumb(TEXT("A new career: who are you?"));
 	ADPCharacterCreate::BuildConcept(GetWorld(), GetOwningPlayerController(), true);
@@ -1695,9 +1703,6 @@ void AADPHUD::CloseWhoAreYou(bool bGoOn, const FString& Difficulty)
 	if (bGoOn) { ADPPets::Save(ADPCharacterCreate::PetChoice()); ADPPets::PlaceHome(GetWorld()); }
 	ADPCharacterCreate::Teardown(GetWorld(), GetOwningPlayerController());
 	if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) if (AActor* H = Wk->HumanActor()) H->SetActorHiddenInGame(false);
-	// the holographic map back (OpenWhoAreYou put it away for the character screen; nothing brought it back, so after every
-	// new career it was gone until the game was started again - owner, 2026-11-20: "the holographic map is gone")
-	if (MiniBox.IsValid()) MiniBox->SetVisibility(EVisibility::Visible);
 	if (Browser.IsValid())
 	{
 		Browser->ExecuteJavascript(TEXT("window.__ueWhoAreYouClose && window.__ueWhoAreYouClose()"));
@@ -1718,7 +1723,6 @@ void AADPHUD::CloseWardrobe()
 	if (Browser.IsValid()) Browser->ExecuteJavascript(TEXT("window.__ueWardrobeClose && window.__ueWardrobeClose()"));
 	if (!bGame && GameBox.IsValid()) GameBox->SetVisibility(EVisibility::Collapsed);
 	if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) if (AActor* H = Wk->HumanActor()) H->SetActorHiddenInGame(false);
-	if (MiniBox.IsValid()) MiniBox->SetVisibility(EVisibility::Visible);
 	if (TopBar.IsValid()) TopBar->SetVisibility(bGame ? EVisibility::Collapsed : EVisibility::Visible);
 	WardrobeOpen = nullptr;
 	WardrobeBox->SetVisibility(EVisibility::Collapsed);
@@ -4517,7 +4521,6 @@ void AADPHUD::Tick(float Dt)
 				ASunClock::DayOverride = 172; ASunClock::HourOverride = 23.5f; ASunClock::Theme = 1; ASunClock::Refresh();
 				if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) if (AActor* H = Wk->HumanActor()) H->SetActorHiddenInGame(true);
 				if (TopBar.IsValid()) TopBar->SetVisibility(EVisibility::Collapsed);
-				if (MiniBox.IsValid()) MiniBox->SetVisibility(EVisibility::Collapsed);
 				if (Credit.IsValid()) Credit->SetVisibility(EVisibility::Collapsed);
 				bHidden = true;   // (the airport's interface away: this is its own screen)
 				ADPCharacterCreate::BuildConcept(GetWorld(), GetOwningPlayerController(), true);
@@ -5853,7 +5856,7 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 			auto Shot = [](const TCHAR* Name) { FScreenshotRequest::RequestScreenshot(Name, false, false); };   // (the window's own size: run it at 3840 x 2160)
 			const FAirfieldData& F = AAirfield::Shared();
 			auto Go = [&](float X, float Y, float LX, float LY, float LH) { GoTo(FVector(X, 0.f, Y), FVector(LX, LH, LY)); };
-			if (B2 < 40.f && C2 >= 40.f) { if (bGame) ToggleGame(); if (GameBox.IsValid()) GameBox->SetVisibility(EVisibility::Collapsed); if (MiniBox.IsValid()) MiniBox->SetVisibility(EVisibility::Collapsed);   // (the menu page away: the 3D world on screen, owner 2026-11-20)
+			if (B2 < 40.f && C2 >= 40.f) { if (bGame) ToggleGame(); if (GameBox.IsValid()) GameBox->SetVisibility(EVisibility::Collapsed); bMiniAway = true;   // (the menu page away: the 3D world on screen, owner 2026-11-20)
 			 ASunClock::DayOverride = 200; ASunClock::HourOverride = FParse::Param(FCommandLine::Get(), TEXT("UIChablaisShow")) ? 11.f : 15.f; ASunClock::Theme = 1; ASunClock::Refresh();
 			 for (TActorIterator<ASiteTrees> It(GetWorld()); It; ++It) It->RefreshSeason();   // (the trees' season with the tour's summer day at once)
 			 Go(F.RwyX0 + 200.f, F.RwyY - 70.f, F.RwyX0 + 2400.f, F.RwyY, 40.f); }
@@ -6079,7 +6082,7 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 				// (the tracking camera has something: no cut to the spot - the picture is taken from the tracking view)
 				if (B2 < T && C2 >= T && !(GTourTracking && FParse::Param(FCommandLine::Get(), TEXT("UITugShot")))) { if (Drone.IsValid()) LeaveDrone(); Spots[k].Go(); if (!FString(Spots[k].Name).Contains(TEXT("Holomap"))) HideUI(); }
 				// (the map shot: the interface back and the full map with the mountain names, a few seconds before the picture)
-				if (FString(Spots[k].Name).Contains(TEXT("Holomap")) && B2 < T + 14.f && C2 >= T + 14.f) { ShowUI(); if (MiniBox.IsValid()) MiniBox->SetVisibility(EVisibility::Visible); if (HoloMap.IsValid()) { if (!HoloMap->IsFull()) ToggleMap(); HoloMap->ShowPeaks(true); } }
+				if (FString(Spots[k].Name).Contains(TEXT("Holomap")) && B2 < T + 14.f && C2 >= T + 14.f) { ShowUI(); bMiniAway = false; if (HoloMap.IsValid()) { if (!HoloMap->IsFull()) ToggleMap(); HoloMap->ShowPeaks(true); } }
 				// (the map shot with the interface on it - HighResShot draws the world only)
 				if (B2 < T + 20.f && C2 >= T + 20.f) { if (FString(Spots[k].Name).Contains(TEXT("Holomap"))) FScreenshotRequest::RequestScreenshot(Spots[k].Name, true, false); else Shot(Spots[k].Name); }
 				// (the road tour's link-road spot: rays across the horizon, logging what stands up there - the black pyramids)

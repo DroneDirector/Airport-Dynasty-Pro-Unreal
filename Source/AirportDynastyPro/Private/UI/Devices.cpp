@@ -161,7 +161,6 @@ void AADPHUD::OpenDevice(const FString& Kind)
 	GameBox->SetVisibility(EVisibility::Visible);
 	if (TopBar.IsValid()) TopBar->SetVisibility(EVisibility::Collapsed);
 	if (Credit.IsValid()) Credit->SetVisibility(EVisibility::Collapsed);
-	if (MiniBox.IsValid()) MiniBox->SetVisibility(EVisibility::Collapsed);
 	if (DeviceLegend.IsValid()) DeviceLegend->SetVisibility(EVisibility::Visible);
 	UpdateMouse();
 }
@@ -181,7 +180,6 @@ void AADPHUD::DeviceDone(const FString& Kind)
 	if (!bGame && GameBox.IsValid()) GameBox->SetVisibility(EVisibility::Collapsed);
 	if (TopBar.IsValid()) TopBar->SetVisibility(EVisibility::Visible);
 	if (Credit.IsValid()) Credit->SetVisibility(EVisibility::HitTestInvisible);
-	if (MiniBox.IsValid()) MiniBox->SetVisibility(EVisibility::Visible);
 	// the phone back down onto the desk
 	if (ABabylonModel* P = Phone.Get()) { P->SetActorHiddenInGame(false); PhoneDir = -1; bPhoneHeld = false; bPhoneLook = false; }
 	if (PhoneDir == 0 && DeviceLegend.IsValid()) DeviceLegend->SetVisibility(EVisibility::Collapsed);

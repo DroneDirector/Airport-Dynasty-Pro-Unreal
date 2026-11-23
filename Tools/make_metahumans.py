@@ -280,7 +280,7 @@ def dress(ch, spec, info, rng):
         return items[rng.randrange(len(items))] if items else None
     long_ok = (lambda p: True) if spec['female'] else (lambda p: '_l_' not in p or rng.random() < 0.1)
     hair = wear_one(ch, 'Hair', next((p for p in info['wardrobe'].get('Hair', []) if p.endswith('/' + spec['hair'])), None) if spec.get('hair') else pick('Hair', long_ok))
-    wear_one(ch, 'Eyebrows', pick('Eyebrows'))
+    brows = wear_one(ch, 'Eyebrows', next((p for p in info['wardrobe'].get('Eyebrows', []) if p.endswith('/' + spec['brows'])), None) if spec.get('brows') else pick('Eyebrows'))
     beard = wear_one(ch, 'Beard', pick('Beard') if spec['beard'] else None)
     # the moustache (owner, 2026-11-13: moustaches too): its own slot in Epic's wardrobe, always emptied before. Drawn
     # from the person's own 'pick' seed, not the plan's random stream, so everyone's face and looks stay as built: half
@@ -302,6 +302,9 @@ def dress(ch, spec, info, rng):
     for p in list(params(beard)) + list(params(mustache)):               # facial hair in the same colour and grey as the hair
         if p.name == 'Melanin': p.set_float(value=spec['hair_melanin'])
         if p.name in ('Greyness', 'Grayness', 'GreyAmount'): p.set_float(value=spec['grey'])
+    if spec.get('brows'):   # (only for the one asked for: everyone else's stay as built)
+        for p in params(brows):
+            if p.name == 'Melanin': p.set_float(value=spec['hair_melanin'])
     for p in params(hair):
         if p.name == 'Melanin': p.set_float(value=spec['hair_melanin'])
         if p.name in ('Greyness', 'Grayness', 'GreyAmount'): p.set_float(value=spec['grey'])
@@ -382,6 +385,41 @@ def player_outfit(outfit):
         log('%s made' % name)
     except Exception as e:
         unreal.log_error('ADP_MH: %s outfit failed: %s' % (name, e))
+    finally:
+        if mhs.is_object_added_for_editing(ch): mhs.remove_object_to_edit(ch)
+
+
+# ---- the woman of "Who are you?" (owner, 2026-11-23, to-do 224: European-looking, a ponytail, real hair): a copy of one of
+# the people already made (her face and rig as Epic's cloud made them once: nothing is asked of the cloud again), with
+# Epic's low ponytail from the engine's own wardrobe, built as close as the man beside her. (Another skin (u, v) makes
+# her skin's textures be asked of the cloud again and the build stops: leave it empty.)
+#   ... "make_metahumans.py she [source] [name] [hair melanin] [hair] [skin u] [skin v]"   (made 2026-11-23 from person 049; the wife of
+#   the "married" step: MH_071_pilot MH_911_she 0.8 WI_Hair_L_Straight)
+def she(source='MH_049_cabin', name='MH_910_she', melanin='0.5', hair='WI_Hair_S_LowPonytail', u='', v=''):
+    path = OUT + '/' + name
+    if eal.does_asset_exist(path): eal.delete_asset(path)
+    if eal.does_directory_exist(OUT + '/Built/' + name): eal.delete_directory(OUT + '/Built/' + name)
+    eal.duplicate_asset(OUT + '/' + source, path)
+    ch = unreal.load_asset(path)
+    if not mhs.try_add_object_to_edit(ch):
+        unreal.log_error('ADP_MH: could not edit ' + name); return
+    try:
+        log('%s rig %s' % (source, mhs.get_rigging_state(ch) if hasattr(mhs, 'get_rigging_state') else '?'))
+        if u:
+            sk = unreal.MetaHumanCharacterSkinSettings()
+            sp = unreal.MetaHumanCharacterSkinProperties(); sp.u = float(u); sp.v = float(v or 0.4); sp.roughness = 0.85
+            sk.skin = sp
+            fr = unreal.MetaHumanCharacterFrecklesProperties(); fr.density = 0.0; fr.strength = 0.0
+            sk.freckles = fr
+            mhs.commit_skin_settings(ch, sk)
+        # (her body as it was made: changed after the rig, the shirt no longer fits - 2026-11-23, the shoulders came through)
+        info['wardrobe']['Beard'] = []; info['wardrobe']['Mustache'] = []
+        dress(ch, {'i': 910, 'female': True, 'age': 30, 'beard': False, 'hair': hair, 'brows': 'WI_Eyebrows_M_Unruly', 'hair_melanin': float(melanin), 'grey': 0.0,
+                   'colours': ((0.42, 0.50, 0.58), (0.08, 0.09, 0.12)), 'pick': 910, 'mustache': False}, info, random.Random(910))
+        build_and_save(ch, name)
+        log('%s made from %s' % (name, source))
+    except Exception as e:
+        unreal.log_error('ADP_MH: %s failed: %s' % (name, e))
     finally:
         if mhs.is_object_added_for_editing(ch): mhs.remove_object_to_edit(ch)
 
@@ -477,6 +515,9 @@ try:
     if MODE == 'player':
         QUALITY = 'MEDIUM'
         make(player_spec(), info)
+    if MODE == 'she':
+        QUALITY = 'MEDIUM'
+        she(*args[1:])
     if MODE == 'outfit':
         QUALITY = 'MEDIUM'
         player_outfit(args[1])

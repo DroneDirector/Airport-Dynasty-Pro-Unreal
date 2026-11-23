@@ -25,6 +25,8 @@
 #include "Containers/Ticker.h"
 #include "Components/MaterialBillboardComponent.h"
 #include "ADPKeep.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 
 namespace
 {
@@ -33,6 +35,7 @@ namespace
 	TWeakObjectPtr<ASpotLight> KeyLight;
 	TWeakObjectPtr<AActor> She, He;
 	FVector HerAt, HimAt, Centre;
+	constexpr float SheTurn = 18.f;   // she stands turned a little from the camera: her ponytail shows behind her neck
 	TArray<TWeakObjectPtr<AActor>> Tubes;
 	TArray<TWeakObjectPtr<ARectLight>> TubeLights;
 	TWeakObjectPtr<UMaterialInstanceDynamic> NeonMat;
@@ -137,7 +140,7 @@ namespace
 				{
 					// on the mark: turned to the camera again, standing
 					Off->SetActorLocation(Mark);
-					Off->SetActorRotation(FRotator(0.f, -90.f - 90.f, 0.f));
+					Off->SetActorRotation(FRotator(0.f, -90.f - 90.f + (bChoseWoman ? 0.f : SheTurn), 0.f));
 					SetWalking(Off, false);
 					Phase = 0;
 				}
@@ -316,7 +319,10 @@ void ADPCharacterCreate::BuildConcept(UWorld* W, APlayerController* PC, bool bWo
 	// the two of them, facing the camera (-y): she at the left of the picture, he at the right
 	const FVector Her = C + X * 118.f, Him = C - X * 118.f;   // (the camera looks along +y: its left is +x)
 	HerAt = Her; HimAt = Him;
-	She = Person(W, TEXT("MH_003_passenger"), Her, -90.f);
+	// (owner, 2026-11-23, to-do 224: she is a European-looking woman with a ponytail; her look carries on into the creator.
+	//  Another built one can be tried with -SheIs=<name>; she must be in the always-cooked folders, Config/DefaultGame.ini)
+	FString SheIs = TEXT("MH_910_she"); FParse::Value(FCommandLine::Get(), TEXT("SheIs="), SheIs);
+	She = Person(W, SheIs, Her, -90.f + SheTurn);
 	He = Person(W, TEXT("MH_900_player"), Him, -90.f);
 	// the chosen one in the light: a soft key light from above and in front; the other stays in the tubes' rim light
 	{
@@ -452,6 +458,7 @@ void ADPCharacterCreate::Confirm(bool bWoman)
 }
 
 bool ADPCharacterCreate::Done() { return Phase >= 3; }
+bool ADPCharacterCreate::IsUp() { return She.IsValid() || He.IsValid(); }
 bool ADPCharacterCreate::UiOnRight() { return bChoseWoman; }
 
 void ADPCharacterCreate::Nobody()
@@ -495,7 +502,8 @@ void ADPCharacterCreate::ShowPartner(bool bOn)
 		if (!P)
 		{
 			// a MetaHuman of the other sex (a stand-in until the creator makes yours): he for her, she for him
-			P = Person(W, bChoseWoman ? TEXT("MH_007_passenger") : TEXT("MH_003_passenger"), EdgeAt(Mark), 0.f);
+			// (owner, 2026-11-23, to-do 230: the same ethnicity as you by default - both European-looking, and not she or he again)
+			P = Person(W, bChoseWoman ? TEXT("MH_040_cabin") : TEXT("MH_911_she"), EdgeAt(Mark), 0.f);
 			Partner = P;
 		}
 		if (P) { if (P->IsHidden()) P->SetActorLocation(EdgeAt(Mark)); Walk(P, Mark, false); }

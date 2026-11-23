@@ -90,9 +90,16 @@ public:
 	bool bStartLoad = false, bLoadCarryOn = false;
 	float StartLoadT = 0.f;
 	/** Nothing of the airport's own interface: the new career's steps, the site question, the loading (owner, 2026-11-23). */
-	bool OwnScreen() const { return bWhoAreYou || bStartLoad || SiteChoice.IsValid(); }
+	bool OwnScreen() const;
+	/** You really are in the airport: no title, menus, site question, creator or loading (to its last second) in front. Only
+	 *  then the airport's own interface shows (owner, 2026-11-23, to-do 227). */
+	bool InAirport() const;
+	TSharedPtr<SWidget> HudBox;      // the airport's interface, the one layer
+	bool bMiniAway = false;          // the holographic map away for a test's pictures
 	/** -UINewGame: the title -> new game -> steps -> loading -> airport path walked by itself (NewGameTest.cpp). */
 	void TestNewGame(float Dt);
+	/** Tests: the interface away (as H). */
+	void TestHide() { if (!bHidden) HideUI(); }
 	TSharedPtr<SWidget> LoadingBox;
 	/** Your phone and the computers in the rooms (Devices.cpp, owner 2026-11-11): the game's own phone (its apps) and
 	 *  desktop (the taskbar, the operations screens as apps) over the 3D room. Opened from the room (E, the controller's
