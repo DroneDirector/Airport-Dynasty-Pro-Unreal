@@ -44,3 +44,12 @@
   camera (the existing near/far split; far ones get none) and only after 30 s standing still; bodies already tick their
   pose only while seen. Seated (People.cpp): the seat pose is re-posed each frame only while a seated movement plays,
   within 60 m. To be measured in the combined stress walk (crowds at the desks / gates).
+
+## 2026-11-23: the terminal's east side, part 1 (the shell)
+
+- Added: 17 models (Nanite, columns and entrances instanced; the glass not Nanite, in five pieces), 326 lamps (163 real
+  lights, no shadows, 9 m reach, the terminal's lamp system), no flares. Editor game, 1920x1080, Chablais, 13:00, one frame
+  each (stat unit), before -> after: forecourt x 350: frame 20.7 -> 20.3 ms, GPU 11.7 -> 11.8, draw calls 1287 -> 1421;
+  Grand Hall: frame 17.4 -> 20.2, draw thread 17.3 -> 20.2, GPU 14.0 -> 14.2, draw calls 1753 -> 1819; kerb by the Grand
+  Hall: frame 20.2 -> 21.7, GPU 14.7 -> 15.1, draw calls 1429 -> 1515. The draw thread pays, most likely for the lights.
+  Not a stress walk: to be measured in a packaged build before the release.
