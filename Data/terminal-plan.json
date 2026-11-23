@@ -942,16 +942,6 @@
    "kind": "empty"
   },
   {
-   "id": "F1-EAST-WING",
-   "f": 1,
-   "name": "East wing (empty for now)",
-   "x0": 156,
-   "z0": 0,
-   "x1": 551.2,
-   "z1": 52,
-   "kind": "empty"
-  },
-  {
    "id": "F2-ESCALATOR-HALL",
    "f": 2,
    "name": "Escalator hall (arrivals escalators to the gate walkway)",
@@ -961,6 +951,284 @@
    "z1": 52,
    "kind": "hall",
    "glass": "n"
+  },
+  {
+   "id": "F1-LINK",
+   "f": 1,
+   "name": "Link gallery (Grand Hall to East Hall)",
+   "x0": 107,
+   "z0": -4,
+   "x1": 162,
+   "z1": 0,
+   "kind": "corridor",
+   "glass": "s"
+  },
+  {
+   "id": "F1-EAST-HALL",
+   "f": 1,
+   "name": "East Hall",
+   "x0": 156,
+   "z0": 0,
+   "x1": 228,
+   "z1": 40,
+   "kind": "hall",
+   "glass": "s"
+  },
+  {
+   "id": "F1-EAST-LANE",
+   "f": 1,
+   "name": "Staff lane",
+   "x0": 156,
+   "z0": 40,
+   "x1": 160,
+   "z1": 52,
+   "kind": "corridor"
+  },
+  {
+   "id": "F1-EAST-WC",
+   "f": 1,
+   "name": "Toilets (East Hall)",
+   "x0": 160,
+   "z0": 40,
+   "x1": 178,
+   "z1": 52,
+   "kind": "wc"
+  },
+  {
+   "id": "F1-EAST-FAMILY",
+   "f": 1,
+   "name": "Family and quiet room",
+   "x0": 178,
+   "z0": 40,
+   "x1": 190,
+   "z1": 52,
+   "kind": "wc"
+  },
+  {
+   "id": "F1-EAST-TROLLEY",
+   "f": 1,
+   "name": "Trolley store",
+   "x0": 190,
+   "z0": 40,
+   "x1": 210,
+   "z1": 52,
+   "kind": "store"
+  },
+  {
+   "id": "F1-EAST-BAGSERV",
+   "f": 1,
+   "name": "Baggage service",
+   "x0": 210,
+   "z0": 40,
+   "x1": 228,
+   "z1": 52,
+   "kind": "office"
+  },
+  {
+   "id": "F1-PROMENADE",
+   "f": 1,
+   "name": "Landside promenade",
+   "x0": 228,
+   "z0": 0,
+   "x1": 470,
+   "z1": 6,
+   "kind": "hall",
+   "glass": "s"
+  },
+  {
+   "id": "F1-CUSTOMS-E",
+   "f": 1,
+   "name": "Customs (east)",
+   "x0": 228,
+   "z0": 6,
+   "x1": 236,
+   "z1": 40,
+   "kind": "customs"
+  },
+  {
+   "id": "F1-CUSTOMS-E-OFFICE",
+   "f": 1,
+   "name": "Customs office",
+   "x0": 228,
+   "z0": 40,
+   "x1": 236,
+   "z1": 52,
+   "kind": "office"
+  },
+  {
+   "id": "F1-CLAIM-E",
+   "f": 1,
+   "name": "Baggage claim east (non-Schengen)",
+   "x0": 236,
+   "z0": 6,
+   "x1": 312,
+   "z1": 52,
+   "kind": "claim"
+  },
+  {
+   "id": "F1-PC-LINE",
+   "f": 1,
+   "name": "Passport control in",
+   "x0": 312,
+   "z0": 20,
+   "x1": 324,
+   "z1": 52,
+   "kind": "customs"
+  },
+  {
+   "id": "F1-PC-OFFICE",
+   "f": 1,
+   "name": "Border police office",
+   "x0": 312,
+   "z0": 6,
+   "x1": 324,
+   "z1": 20,
+   "kind": "office"
+  },
+  {
+   "id": "F1-PC-HALL",
+   "f": 1,
+   "name": "Passport hall",
+   "x0": 324,
+   "z0": 6,
+   "x1": 372,
+   "z1": 52,
+   "kind": "hall"
+  },
+  {
+   "id": "F1-PC-SECOND",
+   "f": 1,
+   "name": "Second-line checks",
+   "x0": 358,
+   "z0": 41,
+   "x1": 372,
+   "z1": 51,
+   "kind": "office"
+  },
+  {
+   "id": "F1-CREW-CENTRE",
+   "f": 1,
+   "name": "Crew centre",
+   "x0": 372,
+   "z0": 6,
+   "x1": 404,
+   "z1": 26,
+   "kind": "office"
+  },
+  {
+   "id": "F1-CANTEEN",
+   "f": 1,
+   "name": "Staff canteen",
+   "x0": 404,
+   "z0": 6,
+   "x1": 436,
+   "z1": 26,
+   "kind": "office"
+  },
+  {
+   "id": "F1-GROUND-OFF",
+   "f": 1,
+   "name": "Ground handling and airline offices",
+   "x0": 436,
+   "z0": 6,
+   "x1": 470,
+   "z1": 26,
+   "kind": "office"
+  },
+  {
+   "id": "F1-LOCKERS",
+   "f": 1,
+   "name": "Lockers and changing",
+   "x0": 372,
+   "z0": 26,
+   "x1": 404,
+   "z1": 52,
+   "kind": "office"
+  },
+  {
+   "id": "F1-STAFFSEC",
+   "f": 1,
+   "name": "Staff security",
+   "x0": 404,
+   "z0": 26,
+   "x1": 436,
+   "z1": 52,
+   "kind": "office"
+  },
+  {
+   "id": "F1-POLICE",
+   "f": 1,
+   "name": "Police and border guard",
+   "x0": 436,
+   "z0": 26,
+   "x1": 470,
+   "z1": 52,
+   "kind": "office"
+  },
+  {
+   "id": "F1-COACH-STATION",
+   "f": 1,
+   "name": "Coach and bus station",
+   "x0": 470,
+   "z0": 0,
+   "x1": 551.2,
+   "z1": 52,
+   "kind": "hall",
+   "glass": "se"
+  },
+  {
+   "id": "F1-ENTR-EAST1",
+   "f": 1,
+   "name": "East entrance 1 (vestibule)",
+   "x0": 188,
+   "z0": -4,
+   "x1": 200,
+   "z1": 0,
+   "kind": "vestibule",
+   "glass": "nswe"
+  },
+  {
+   "id": "F1-ENTR-EAST2",
+   "f": 1,
+   "name": "East entrance 2 (vestibule)",
+   "x0": 290,
+   "z0": -4,
+   "x1": 300,
+   "z1": 0,
+   "kind": "vestibule",
+   "glass": "nswe"
+  },
+  {
+   "id": "F1-ENTR-EAST3",
+   "f": 1,
+   "name": "East entrance 3 (vestibule)",
+   "x0": 396,
+   "z0": -4,
+   "x1": 406,
+   "z1": 0,
+   "kind": "vestibule",
+   "glass": "nswe"
+  },
+  {
+   "id": "F1-ENTR-EAST4",
+   "f": 1,
+   "name": "East entrance 4 (vestibule)",
+   "x0": 514,
+   "z0": -4,
+   "x1": 526,
+   "z1": 0,
+   "kind": "vestibule",
+   "glass": "nswe"
+  },
+  {
+   "id": "F2-CONCOURSE",
+   "f": 2,
+   "name": "Non-Schengen concourse (being built)",
+   "x0": 228,
+   "z0": 20,
+   "x1": 551.2,
+   "z1": 52,
+   "kind": "empty"
   }
  ],
  "doors": [

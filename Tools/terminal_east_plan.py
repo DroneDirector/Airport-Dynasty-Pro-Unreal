@@ -21,6 +21,6 @@ R.append(dict(id='F2-CONCOURSE', f=2, name='Non-Schengen concourse (being built)
 ids = {r['id'] for r in R} | {'F1-EAST-WING'}
 P['rooms'] = [r for r in P['rooms'] if r['id'] not in ids] + R
 nl = '\r\n' if '\r\n' in raw else '\n'
-open(F, 'w', encoding='utf-8', newline='').write(json.dumps(P, indent=1 if '\n ' in raw else None, ensure_ascii='\u' in raw).replace('\n', nl))
+open(F, 'w', encoding='utf-8', newline='').write(json.dumps(P, indent=1 if '\n ' in raw else None, ensure_ascii=raw.isascii()).replace('\n', nl))
 if os.path.exists(os.path.join(ROOT, 'Content', 'Data', 'terminal-plan.json')): shutil.copy(F, os.path.join(ROOT, 'Content', 'Data', 'terminal-plan.json'))
 print('plan: %d rooms (%d east)' % (len(P['rooms']), len(R)))
