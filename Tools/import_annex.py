@@ -49,6 +49,11 @@ for name in names:
     sm.set_editor_property('nanite_settings', ns)
     bs = sm.get_editor_property('body_setup')
     if bs: bs.set_editor_property('collision_trace_flag', unreal.CollisionTraceFlag.CTF_USE_COMPLEX_AS_SIMPLE)
+    # (the wave roof's thin open sheets: their distance field as two-sided. One-sided, the space under a sheet counted as solid and
+    #  the Grand Hall and everything under the roof went dark and blotchy in Lumen - 2026-11-23)
+    if name.startswith('wave_'):
+        _sub = unreal.get_editor_subsystem(unreal.StaticMeshEditorSubsystem); _bs = _sub.get_lod_build_settings(sm, 0)
+        _bs.set_editor_property('generate_distance_field_as_if_two_sided', True); _sub.set_lod_build_settings(sm, 0, _bs)
     EAL.save_loaded_asset(sm)
     unreal.log('ADP_ANNEX %s slots %s' % (name, [str(m.get_editor_property('material_slot_name')) for m in mats]))
     # the material slot check (memory: material-slot-check): every slot filled, after the save

@@ -3,8 +3,8 @@
 #   wave_soffit_m, wave_top_m, wave_fascia_m, wave_edge_m: underside, top, white edges, the line of light of one bow of the roof
 #     (90 m, three waves, valley to valley): 7 copies side by side
 #   ..._w / ..._e: the west and the east end (a bow and the 6 m past its valley), their free edge rounded off like the front
-#   (underside and top each a piece of their own, as before: as one 0.7 m thin closed piece their Lumen light went dark and
-#    blotchy; and their Nanite backup mesh in full, Tools/import_annex.py)
+#   (underside and top each a piece of their own, as before; Tools/import_annex.py gives them their full Nanite backup mesh and a
+#    two-sided distance field - without it Lumen took the space under the sheets as solid: dark and blotchy under the roof)
 # (the kerb's tree pillars: copies of the good part's own two, Tools/terminal_wave.py)
 # Underside: MI_T_timber, laid as it was (x/8, z/8). Top: MI_T_roofZinc, laid in metres along the roof itself (an
 # as-rigid-as-possible unwrap of one bow with its two ends joined, so the seams run on from bow to bow), the photo's 6 m a
