@@ -230,10 +230,24 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
             no engine idle; motor whine and regeneration pitched with speed; AVAS up to 20 km/h (UN R138); the air tank
             driving the compressor, dryer purge, brakes, kneeling and doors; placed at their sources, duller inside
       - [ ] Its lights, and its route: terminal bus gates to the remote stands and back
-- [ ] **The taxi bus's front needs adjusting** (owner, 2026-11-23): the minibus taxi at the landside kerb (`Art/TaxiBus/`,
-      `Tools/make_taxi_bus.py`, sheets in `Blueprints/Vehicles/TaxiBus/`). The front was redone once from his reference
-      picture (modern rounded one-box front: sloping bonnet into a raked windscreen, swept headlamps, rounded bumper) but
-      still needs adjustments; ask the owner exactly what to change before building, then re-render its views and sheets
+- [~] **The taxi bus's front needs adjusting** (owner, 2026-11-23): the minibus taxi at the landside kerb (`Art/TaxiBus/`,
+      `Tools/make_taxi_bus.py`, sheets in `Blueprints/Vehicles/TaxiBus/`). Done the same day: the bonnet follows the owner's
+      red line (starts at the windscreen foot 1.43 m up, almost flat, one smooth curve down to a vertical front over the
+      bumper) and the front made modern (slim LED headlamps with twin projectors swept round rounded corners, a full-width
+      light bar over a gloss-black band, a large slatted grille). The owner checks it; any further changes from him
+- [ ] **The taxi bus into the game: IK and photoreal textures** (owner, 2026-11-23), as the apron bus above:
+      - [ ] **IK:** wire up its 70 IK points and pivots (`taxibus-parts.json`): the driver seated with hands on the wheel,
+            feet on the pedals, reaching the taximeter, gear selector and card terminal; passengers getting in through the
+            sliding door (grab pole, entry step), sitting in the 8 seats with seat, back, head and buckle points (fastening
+            the belts), holding the roof grab handles; the driver loading bags at the rear; a wheelchair up the ramp to its
+            space; pivots for the front doors, the sliding door on its tracks, the rear doors, the ramp, wipers and steering
+      - [ ] **Photoreal textures** (licence allowing a paid game, CC0 preferred, listed in THIRD-PARTY-NOTICES.md): taxi
+            yellow paint with the black checker band, wear and dirt by the dirt system; privacy and clear glass, black
+            plastics and gloss-black front band, chrome rings, LED lamp inners; dark seat fabric with bolsters, belts,
+            rubber floor mat, grey headliner and trim panels; dashboard plastics, the lit taximeter and screens; steel
+            wheels with covers and real tyre sidewalls; the lit TAXI sign (lit when free)
+      - [ ] Its sounds (doors, sliding door run and latch, drive, indicator, meter and card beeps, reverse beeper, horn),
+            lights, and its place in the landside taxi rank
 - [ ] OWNER BUILDS: the information desk in 3D (the announcements already send passengers there)
 - [ ] Security cameras: waiting for the owner's screenshots of where they go (feeds in your office and security, live
       people, one feed in full detail at a time)
