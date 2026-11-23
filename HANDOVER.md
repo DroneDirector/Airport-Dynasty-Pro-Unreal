@@ -2,6 +2,17 @@
 
 Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md (where everything is) first.
 
+## From the phone chat (2026-11-23 11:26-12:30): the apron bus and the taxi bus, with interiors (new, nothing replaced)
+- The owner asked for an airport "taxi bus" wireframe in high detail; he meant both: the APRON BUS (airside, between the terminal
+  and remote stands) and the TAXI BUS (a minibus taxi waiting at the landside kerb with the buses), "in equal stunning detail as
+  the apron vehicles", "with interior". The taxi bus front was redone from his reference picture as a style guide (a modern rounded
+  one-box front: short sloping bonnet into a raked windscreen, swept headlamps, rounded bumper), not a copy of that van.
+- Scripts: `Tools/make_apron_bus.py`, `Tools/make_taxi_bus.py`, `Tools/make_bus_sheets.py`; research in
+  `Blueprints/Vehicles/ApronBus/RESEARCH.md` and `Blueprints/Vehicles/TaxiBus/RESEARCH.md`. All checks 0 (floating, lamp clashes,
+  overhang, loose, flicker). The .blend / .glb, the 13 wire views and 4 sheets of each come over through LFS (copy from the phone
+  session when the PC is connected, then commit). Not in the game yet: place the apron bus at the remote stands' bus road and the
+  taxi bus in the landside taxi rank, with the IK points for MetaHuman passengers and drivers.
+
 ## From the phone chat (2026-11-21 ~17:30): a second belt loader design to compare - nothing replaced
 - The owner asked the phone chat (15:42) for a belt loader blueprint; the PC chat's belt loader (c77ff083, in the game) came in
   meanwhile. The phone chat's own build is kept APART so nothing of yours is touched: `Tools/make_belt_loader_alt.py`,
