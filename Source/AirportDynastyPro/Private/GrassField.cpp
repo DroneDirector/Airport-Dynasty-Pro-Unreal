@@ -96,6 +96,74 @@ namespace
 		return A;
 	}
 
+	/** The site's car parks and roads (roads.json): at a site without a grass map the globe's ground lies within a couple of
+	 *  centimetres of the tarmac and is often met first by the look down - grass stood in the car park's lanes and on the road
+	 *  behind it (2026-11-23). Plan metres; the roads as their points, as wide as their lanes. */
+	struct FTarmac
+	{
+		struct FSeg { FVector2D A, B; double L, R; };
+		TArray<FBox2D> Lots; TArray<FSeg> Segs; FBox2D All = FBox2D(ForceInit); bool bRead = false;
+		bool On(double X, double Y) const
+		{
+			const FVector2D P(X, Y);
+			for (const FBox2D& B : Lots) if (B.IsInside(P)) return true;
+			if (!All.IsInside(P)) return false;
+			for (const FSeg& S : Segs)
+			{
+				const FVector2D D = S.B - S.A; const double Len = D.Size(); if (Len < 0.01) continue;
+				const FVector2D U = D / Len, Q = P - S.A; const double T = FVector2D::DotProduct(Q, U);
+				if (T < -2.0 || T > Len + 2.0) continue;
+				const double Off = U.X * Q.Y - U.Y * Q.X;   // (+ to the left)
+				if (Off < S.L && Off > -S.R) return true;
+			}
+			return false;
+		}
+	};
+	const FTarmac& Tarmac()
+	{
+		static FTarmac T;
+		if (T.bRead) return T;
+		T.bRead = true;
+		FString Text; TSharedPtr<FJsonObject> J;
+		if (!FFileHelper::LoadFileToString(Text, *ADPSite::File(TEXT("roads.json"))) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), J) || !J.IsValid()) return T;
+		const TArray<TSharedPtr<FJsonValue>>* A = nullptr;
+		if (J->TryGetArrayField(TEXT("lots"), A))
+			for (const TSharedPtr<FJsonValue>& V : *A)
+			{
+				const TSharedPtr<FJsonObject> O = V->AsObject(); bool bPaved = true; O->TryGetBoolField(TEXT("paved"), bPaved);
+				if (!bPaved || O->HasField(TEXT("frame"))) continue;
+				T.Lots.Add(FBox2D(FVector2D(O->GetNumberField(TEXT("x0")), O->GetNumberField(TEXT("y0"))), FVector2D(O->GetNumberField(TEXT("x1")), O->GetNumberField(TEXT("y1")))).ExpandBy(0.3));
+			}
+		if (J->TryGetArrayField(TEXT("roads"), A))
+			for (const TSharedPtr<FJsonValue>& V : *A)
+			{
+				const TSharedPtr<FJsonObject> O = V->AsObject(); const TSharedPtr<FJsonObject>* Ln = nullptr; double Wd[2] = {0, 0};
+				if (!O->TryGetObjectField(TEXT("lanes"), Ln)) continue;
+				for (int32 s = 0; s < 2; ++s)
+				{
+					const TArray<TSharedPtr<FJsonValue>>* La = nullptr;
+					if (!(*Ln)->TryGetArrayField(s ? TEXT("right") : TEXT("left"), La)) continue;
+					for (const TSharedPtr<FJsonValue>& L : *La)
+					{
+						// (a lane of a changing width counts as its narrowest, and a grass island ends the tarmac: grass is right past it)
+						const TSharedPtr<FJsonObject> Lo = L->AsObject(); if (Lo->GetStringField(TEXT("type")) == TEXT("Island")) break;
+						double W = 0; const TArray<TSharedPtr<FJsonValue>>* Wa = nullptr;
+						if (Lo->TryGetArrayField(TEXT("w"), Wa)) { W = 1e9; for (const TSharedPtr<FJsonValue>& P : *Wa) W = FMath::Min(W, P->AsArray()[1]->AsNumber()); }
+						else Lo->TryGetNumberField(TEXT("w"), W);
+						Wd[s] += W;
+					}
+				}
+				const TArray<TSharedPtr<FJsonValue>>& P = O->GetArrayField(TEXT("pts"));
+				for (int32 i = 0; i + 1 < P.Num(); ++i)
+				{
+					FTarmac::FSeg S{FVector2D(P[i]->AsArray()[0]->AsNumber(), P[i]->AsArray()[1]->AsNumber()), FVector2D(P[i + 1]->AsArray()[0]->AsNumber(), P[i + 1]->AsArray()[1]->AsNumber()), Wd[0], Wd[1]};
+					T.Segs.Add(S); T.All += S.A; T.All += S.B;
+				}
+			}
+		if (T.All.bIsValid) T.All = T.All.ExpandBy(30.0);
+		return T;
+	}
+
 	/** Is what the look down found grass? The airfield's grass slab (its "grass" list) or the model's lawns. */
 	bool IsGrass(const FHitResult& H)
 	{
@@ -109,6 +177,7 @@ namespace
 		// corners and car parks are met first by the look down and stay bare
 		const bool bOurLand = C->GetOwner() && C->GetOwner()->IsA<ALandCorridor>();
 		const bool bGlobe = C->GetOwner() && C->GetOwner()->IsA<ACesium3DTileset>();
+		if (bGlobe && !ADPSite::IsDefault() && Tarmac().On(H.ImpactPoint.X / 100.0, -H.ImpactPoint.Y / 100.0)) return false;
 		if ((bOurLand || bGlobe) && GrassArea().At(H.ImpactPoint.X / 100.0, -H.ImpactPoint.Y / 100.0)) return true;
 		if (bOurLand) return false;
 		// the real ground (the globe's terrain): grass where the land cover says the land is grassy

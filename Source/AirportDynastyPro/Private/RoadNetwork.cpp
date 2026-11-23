@@ -769,7 +769,7 @@ bool ARoadNetwork::BuildSome(double Budget)
 				for (int32 b = 0; b < Bars; ++b)
 				{
 					const double X0 = Start + b * 1.0;
-					Strip(FName(TEXT("paintwhite")), At - Wd / 2, At + Wd / 2, [X0](double) { return X0; }, [X0](double) { return X0 + 0.5; }, Wd / 4, Grime(At));
+					Strip(ColourOf(O), At - Wd / 2, At + Wd / 2, [X0](double) { return X0; }, [X0](double) { return X0 + 0.5; }, Wd / 4, Grime(At));
 				}
 				++Crossings;
 				{ FVector Pz, Fz, Rz; OnRoad(At, Pz, Fz, Rz); ARoadNetwork::ZebraCrossings.Add(TPair<FVector, FVector>(Surface(Pz + Rz * (Lo * 100.0)), Surface(Pz + Rz * (Hi * 100.0)))); }
@@ -931,7 +931,51 @@ bool ARoadNetwork::BuildSome(double Budget)
 					Rect(M, A0, B0 + Lw, A0 + Lw, B1 - Lw, 0.006, 2.0); Rect(M, A1 - Lw, B0 + Lw, A1, B1 - Lw, 0.006, 2.0);
 					++Spaces;
 				}
-			ADP_LOG(TEXT("Roads: a car park %.0f x %.0f m with %d spaces"), X1 - X0, Y1 - Y0, Spaces);
+			// markings of any other shape ("polys": [{pts: [[x, y], ...] (convex), color}]: give-way teeth, arrows, lines)
+			const TArray<TSharedPtr<FJsonValue>>* PlJ = nullptr;
+			if (O->TryGetArrayField(TEXT("polys"), PlJ))
+				for (const TSharedPtr<FJsonValue>& PV : *PlJ)
+				{
+					const TSharedPtr<FJsonObject> Po = PV->AsObject();
+					FString Cl = TEXT("white"); Po->TryGetStringField(TEXT("color"), Cl);
+					FPaintBuf& B = Paint.FindOrAdd(FName(*(FString(TEXT("paint")) + Cl)));
+					const TArray<TSharedPtr<FJsonValue>>& Pa = Po->GetArrayField(TEXT("pts"));
+					const int32 Bi = B.V.Num();
+					for (const TSharedPtr<FJsonValue>& Q : Pa)
+					{
+						const auto& A = Q->AsArray(); const double X = A[0]->AsNumber(), Y = A[1]->AsNumber();
+						B.V.Add(LotAt(X, Y, 0.016)); B.N.Add(FVector::UpVector); B.UV.Add(FVector2D(0.4, Y / 4.0)); B.C.Add(FLinearColor(1.f, LotGrime(X + Y), 1.f, 1.f));
+					}
+					for (int32 k = 1; k + 1 < Pa.Num(); ++k) B.I.Append({Bi, Bi + k, Bi + k + 1});
+				}
+			// its fittings ("props": [{mesh, x, y, yaw (plan degrees), on: "pavement" - standing on whatever is there}]): the lane
+			// barriers, the ticket columns, the pay machines, kerb islands, rails, signs - one instanced Nanite list per model
+			const TArray<TSharedPtr<FJsonValue>>* LpJ = nullptr; int32 Fit = 0;
+			if (!GBaking && O->TryGetArrayField(TEXT("props"), LpJ))
+				for (const TSharedPtr<FJsonValue>& PV : *LpJ)
+				{
+					const TSharedPtr<FJsonObject> Po = PV->AsObject();
+					const FString MeshName = Po->GetStringField(TEXT("mesh"));
+					TObjectPtr<UInstancedStaticMeshComponent>& C = Props.FindOrAdd(MeshName);
+					if (!C)
+					{
+						UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, *FString::Printf(TEXT("/Game/CarPark/%s.%s"), *MeshName, *MeshName));
+						if (!M) { ADP_WARN(TEXT("Roads: the %s model is missing (Tools/set_carpark_props.py)"), *MeshName); continue; }
+						C = NewObject<UInstancedStaticMeshComponent>(this, *(TEXT("Lot_") + MeshName));
+						C->SetupAttachment(RootComponent); C->SetStaticMesh(M); C->SetMobility(EComponentMobility::Movable);
+						C->SetCollisionProfileName(TEXT("BlockAll")); C->RegisterComponent(); AddInstanceComponent(C);
+					}
+					const double X = Po->GetNumberField(TEXT("x")), Y = Po->GetNumberField(TEXT("y")); double Yaw = 0.0; Po->TryGetNumberField(TEXT("yaw"), Yaw);
+					FVector At = LotAt(X, Y, 0.0) + GetActorLocation();
+					FString On;
+					if (Po->TryGetStringField(TEXT("on"), On))
+					{
+						FHitResult Hit; FCollisionQueryParams QP(SCENE_QUERY_STAT(ADPLotProp), true); for (const auto& It : Props) if (It.Value) QP.AddIgnoredComponent(static_cast<const UPrimitiveComponent*>(It.Value.Get()));
+						if (W->LineTraceSingleByChannel(Hit, At + FVector(0, 0, 120), At - FVector(0, 0, 120), ECC_Visibility, QP)) At.Z = Hit.ImpactPoint.Z;
+					}
+					C->AddInstance(FTransform(FRotator(0.0, -Yaw, 0.0), At - GetActorLocation()), false); ++Fit;
+				}
+			ADP_LOG(TEXT("Roads: a car park %.0f x %.0f m with %d spaces%s"), X1 - X0, Y1 - Y0, Spaces, Fit ? *FString::Printf(TEXT(", %d fittings"), Fit) : TEXT(""));
 		}
 	// ---- the junctions' curved corners ("fills": [{pts: [[x, y] (plan m): the corner point, then its curve], lift}]):
 	// asphalt between two streets' carriageway edges and a curve touching both (owner, 2026-11-15: "make the curves
