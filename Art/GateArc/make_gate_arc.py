@@ -96,6 +96,8 @@ for J in (1, 0):
             c = JX + s * 1.6135; box(P, c - 0.0085, c + 0.0085, 5.99, 6.024, 82.16, zat(c) - 0.11, RUB)
     else:
         ring(P, -L / 2, L / 2, 0.0, E1, SOFFIT, F2 - 0.004, WHITE, sides='oab+')
+    # (the flat end in front of the lift: the white edge runs on straight to the view bay's wall, over the raw slab edge and the open 23 cm under it)
+    box(P, X1 + 0.01, XR - 0.01, SOFFIT - 0.003, F2 - 0.004, 81.94, 82.012, WHITE, ('-y', '+y', '+z', '+x'))
     # (its back, inside the floor: the shape closed - its distance field, its shadow)
     put(P, [(0.0, SOFFIT, 82.02), (X1, SOFFIT, 82.02), (X1, 5.98, 82.02), (0.0, 5.98, 82.02)], WHITE, (0, 0, -1))
     # ---------------------------------------------------------------- the frame
@@ -143,8 +145,8 @@ for J in (1, 0):
 # -------------------------------------------------------------------- the roof
 P = piece('gatearc_roof')
 plate(P, CEIL, -0.05, OFFW, False, ZE)
-plate(P, ROOF, -0.049, WHITE, True, ZE)
-ring(P, -L / 2, L / 2, -0.05, E1, GTOP - 0.008, ROOF + 0.004, WHITE, sides='oabi+-')
+plate(P, ROOF, -0.043, WHITE, True, ZE)
+ring(P, -L / 2, L / 2, -0.044, E1, GTOP - 0.008, ROOF + 0.004, WHITE, sides='oabi+-')
 put(P, [(0.0, CEIL, 82.02), (X1, CEIL, 82.02), (X1, ROOF - 0.01, 82.02), (0.0, ROOF - 0.01, 82.02)], WHITE, (0, 0, -1))
 
 for P_ in PIECES:

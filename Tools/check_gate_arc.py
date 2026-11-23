@@ -86,3 +86,27 @@ for g in G.GATES:
     masts = [-43.0, -2.14, 38.71, 79.57, 120.43, 161.29, 202.14, 243.0]; line.append('mast %.1f' % min(near(x0, m, 90.0) for m in masts))
     if g == 13: line.append('bag-train door x 267.4-271.4: head 4.0, the soffit 5.40; trains 3.4 high: %.2f clear' % (G.SOFFIT - 3.4))
     print('ROUTES gate %d: %s' % (g, '; '.join(line)))
+# ---- 4 one floor, one ceiling, one roof, one soffit at every point of every gate room and its bay (a 25 cm grid; nothing missing, nothing twice)
+FL = []                                              # every level face: (y, up?, three corners x z), structure parts only
+for nm, new, V, T in OBJ:
+    if not re.search(r'STRUCTURE|ARC-(FLOOR|ROOF)|BAGBLOCK|RAMP', nm) or 'JET' in nm: continue
+    c = V[T]; n = np.cross(c[:, 1] - c[:, 0], c[:, 2] - c[:, 0]); ln = np.linalg.norm(n, axis=1); ok = (ln > 1e-7) & (np.abs(n[:, 1]) > 0.999 * ln)
+    for t, s in zip(c[ok], np.sign(n[ok, 1])): FL.append((t[0, 1], t[:, [0, 2]], s))
+FY = np.array([f[0] for f in FL]); FT = np.array([f[1] for f in FL]); FS = np.array([f[2] for f in FL])
+def count(px, pz, y0, y1):
+    k = (FY > y0) & (FY < y1); t = FT[k] + 0.0; out = np.zeros(len(px), int)
+    sg = None
+    for q in t:
+        a, b, c = q; d = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+        if abs(d) < 1e-9: continue
+        u = ((px - a[0]) * (c[1] - a[1]) - (pz - a[1]) * (c[0] - a[0])) / d; v = ((b[0] - a[0]) * (pz - a[1]) - (b[1] - a[1]) * (px - a[0])) / d
+        out += (u >= 0) & (v >= 0) & (u + v <= 1)
+    return out
+for g in G.GATES:
+    x0 = P['F2-GATE-%d' % g]['x0']; jw = G.has_corridor(JL, x0); X, Z = np.meshgrid(np.arange(0.31, 31.7, 0.25), np.arange(68.13, 85.0, 0.25)); X, Z = X.ravel() + 0.0031, Z.ravel() + 0.0017
+    edge = np.array([G.zat(x) for x in X]); ins = Z < edge - 0.12; st = (X > 28.2) & (X < 31.2) & (Z > 69.4) & (Z < 80.6)          # (the stair's opening)
+    cor = (np.abs(X - G.JX) < 1.75) & (Z > 81.95) if jw else np.zeros(len(X), bool); bay = Z > 82.1
+    bad = {}
+    for what, y0, y1, w, also in (('floor', 6.0, 6.02, ins & ~st & ~cor, None), ('ceiling', 11.35, 11.365, ins, None), ('roof', 11.99, 12.003, ins, None), ('soffit', 5.39, 5.41, ins & bay, None)):
+        n = count(X[w] + x0, Z[w], y0, y1); bad[what] = (int((n == 0).sum()), int((n > 1).sum()), int(w.sum()), [[round(float(X[w][i]), 2), round(float(Z[w][i]), 2), int(n[i])] for i in np.where(n != 1)[0][:3]])
+    print('FLOORS gate %d: %s' % (g, '; '.join('%s %d missing %d twice of %d %s' % (k, v[0], v[1], v[2], v[3] or '') for k, v in bad.items())))
