@@ -15,8 +15,8 @@ pcq = g('pc_hall') - area(G['transfer_up']) - area(G['second_line']) - 2 * 2.6 *
 nsdwell = DEP_WB * 1.5                                          # 90 minutes airside behind the wall
 R = [('Check-in + bag drop', 'bags / h', 20 * 24, 28 * 24 + 10 * 60, bags, '28 desks x 24 + 10 bag drops x 60'),
      ('Check-in queue space', 'm²', 756, 756 + 450, PH * 0.55 * 12 / 60 * 2.0, 'Grand Hall front zone + East Hall'),
-     ('Security lanes', 'people / h', 6 * 150, 6 * 280, PH, '6 lanes made automatic (280 each)'),
-     ('Security queue', 'm²', 340, 340, q10(PH, 1.2), 'same space, 10-minute queue'),
+     ('Security lanes', 'people / h', 6 * 150, 7 * 280, PH, '7 automatic lanes (280 each, sheet 2g)'),
+     ('Security queue', 'm²', 340, 340, q10(PH, 1.2), 'same space, 10-minute queue (shorter with 7 lanes)'),
      ('Gates 1-4, 9, 11 (A320)', 'm²', 952, 952, A320 * LF * 0.8 * 1.5, 'gate + view bay'),
      ('Gate 13 (A380)', 'm²', 952, gate_after, A380g, 'less the vestibule and the way down'),
      ('Gates 14-16 (B777)', 'm²', 952, gate_after, B777g, 'less the vestibule and the way down'),
@@ -49,7 +49,7 @@ for i, (n, u, b, a, need, how) in enumerate(R):
     fig.text(0.75, y, how, color=DIM, fontsize=13.5, va='center')
     print('%-28s need %6d today %4d%% after %4d%%' % (n, need, b / need * 100, a / need * 100))
 fig.text(0.016, 0.142, 'EXTENSION EAST PAST x 551: NOT NEEDED. No area is short of space after the changes, so no new gates are needed either.', color=OK, fontsize=20, weight='bold')
-L = [('#e8e05a', 'THE TIGHT ONE: security. Six automatic lanes give 1 680 an hour for 1 686 people, and the 340 m² queue is just enough (no reserve). The room is 40 m wide: a 7th lane fits if the lanes are 5.7 m apart. Question for you.'),
+L = [('#e8e05a', 'SECURITY with the 7th lane: 116 % at 280 people per lane and hour, 100 % if a lane makes only 240 (the room is short for automatic lanes). Its queue space stays just enough (101 %): with 7 lanes the queue moves faster.'),
      (DIM, 'Used: IATA optimum m² per person (ADRM): queues 1.2 (security, passport), 2.0 (check-in with trolleys), gates 1.5 for 80 % of the load, claim 1.7, arrivals hall 2.3. The ADRM tables are not free to read: these are the values'),
      (DIM, 'of the accepted sheet TC-1, not checked against the 12th edition. EES rates (booth 50-60, e-gate 120 an hour) are my own cautious guesses: Geneva and Zurich report long first-registration queues in 2026.')]
 for i, (c, t) in enumerate(L): fig.text(0.016, 0.105 - i * 0.03, t, color=c, fontsize=14.5)
