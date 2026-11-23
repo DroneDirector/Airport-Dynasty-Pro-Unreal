@@ -1,6 +1,6 @@
 # Sheet 1a / 1b: the whole terminal BEFORE / AFTER (both floors), the area table and what changes overall.
 from v2_common import *
-X0, X1, Z0, Z1 = -248, 560, -19, 90
+X0, X1, Z0, Z1 = -248, 560, -17, 96
 
 
 def plan(fig, y, title, col, floor, after):
@@ -38,7 +38,7 @@ txt(D, -180, 30, 'TAX FREE', FG, 14); txt(D, -99, 25, 'esc. hall', DIM, 12); txt
 txt(D, 10, -6, 'toilets', BELT, 12); txt(D, 192, 25, 'open: the East Hall\nseen from above', DIM, 13); txt(D, 274, 38, 'DUTY\nFREE', DF, 13, weight='bold')
 txt(D, 323, 38, 'TRANSFER\nCENTRE', TRF, 12, weight='bold'); txt(D, 370, 38, 'FOOD', NEW, 14, weight='bold'); txt(D, 412, 45, 'WC', BELT, 12)
 txt(D, 448, 38, 'LOUNGE', NEW, 14, weight='bold'); txt(D, 496, 38, 'SEATING', NEW, 14, weight='bold'); txt(D, 536, 31, 'SHOPS', NEW, 11)
-txt(D, 420, 60, 'non-Schengen walkway (the same walkway)', NS, 13); txt(D, 205, 8, 'passport\ncontrol out', NS, 12); txt(D, 225, 88, 'swing lobby', NEW, 12)
+txt(D, 420, 60, 'non-Schengen walkway (the same walkway)', NS, 13); txt(D, 205, 8, 'passport\ncontrol out', NS, 12); txt(D, 225, 90, 'swing lobby', NEW, 12)
 txt(D, 430, 8, 'NON-SCHENGEN CONCOURSE (new floor, 323 x 32 m)', NEW, 15, weight='bold')
 save(fig, 'TCv2-1a-Overall-Before-After.png')
 
