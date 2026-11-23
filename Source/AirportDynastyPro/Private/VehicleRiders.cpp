@@ -10,12 +10,15 @@
 #include "Site.h"
 #include "Animation/AnimSingleNodeInstance.h"
 #include "Animation/BlendSpace.h"
+#include "Components/BoxComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Components/PoseableMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/OverlapResult.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
@@ -295,12 +298,13 @@ void UVehicleRiders::ApplyPose(FRider& R, const FPoseFn& Fn, float K, float Dt)
 				if (D >= Need || R.CrossLift > 22.f) break;
 				R.CrossLift += (Need - D) * 1.5f; L.Foot[0].Z += (Need - D) * 1.5f; R.Rig->Pose(L);
 			}
-		// the seat under the thighs: forward a little at a time, then up, until they lie on the cushion (People's own step)
-		if (R.RestW >= 1.f && !R.bCushionOk)
+		// the seat under the thighs: forward a little, then (short legs) the heels up so the knees rise, then up a little, until
+		// they lie on the cushion and not in its front edge
+		if (R.RestW >= 1.f && !R.bCushionOk && (!R.bFrom || R.BlendT >= 1.f))   // (once it really sits, the blend over)
 		{
 			R.Deep = R.Rig->ThighsInSeat(GetWorld(), FrameW, Th, A);
 			if (R.Deep <= 0.4f || ++R.Tries > 12) R.bCushionOk = true;
-			else if (R.Fwd < 8.f) R.Fwd += 2.f; else if (R.Lift < 6.f) R.Lift = FMath::Min(6.f, R.Lift + R.Deep); else R.bCushionOk = true;
+			else if (R.Fwd < 4.f) R.Fwd += 2.f; else if (R.Tip < 8.f) R.Tip = FMath::Min(8.f, R.Tip + FMath::Max(1.f, R.Deep)); else if (R.Lift < 2.5f) R.Lift = FMath::Min(2.5f, R.Lift + R.Deep); else R.bCushionOk = true;
 		}
 		R.Rig->RestHandsOnThighs(L, Th, R.RestW);
 	}
@@ -461,6 +465,11 @@ FDriverPose UVehicleRiders::Stairs(const TArray<FVector>& T, const FVector& Face
 	P.Lean = (bUp ? 11.f : 3.f) * VrSm(FMath::Min(K, 1.f - K) * 6.f);
 	RailHands(P, Rails);
 	return P;
+}
+
+void UVehicleRiders::AddSteps(FRider& R)
+{
+	AddUntil(R, [this, &R](float) { if (OnSteps && OnSteps != &R && OnSteps->A.IsValid()) return false; OnSteps = &R; return true; });
 }
 
 void UVehicleRiders::AddClimb(FRider& R, bool bUp)
@@ -664,7 +673,7 @@ bool UVehicleRiders::PickSeat(FRider& R)
 	FVector At, F; float H; ASeats::SeatOf(Pick, At, F, H);
 	R.Seat = ASeats::Claim(R.A.Get(), At);   // (the nearest free one to it: itself)
 	if (R.Seat == INDEX_NONE || !ASeats::SeatOf(R.Seat, At, F, H)) return false;
-	R.SeatL = B.InverseTransformPosition(At); R.SurfZ = -1.f; R.Fwd = R.Lift = R.CrossLift = 0.f; R.bCushionOk = false; R.Tries = 0;
+	R.SeatL = B.InverseTransformPosition(At); R.SurfZ = -1.f; R.Fwd = R.Lift = R.CrossLift = R.Tip = 0.f; R.bCushionOk = false; R.Tries = 0;
 	ADP_LOG(TEXT("Riders: %s takes seat %d of %d free (x %.0f y %.0f z %.0f)"), *R.A->GetName(), R.Seat, Free.Num(), R.SeatL.X, R.SeatL.Y, R.SeatL.Z);
 	return true;
 }
@@ -673,7 +682,7 @@ FDriverPose UVehicleRiders::Passenger(FRider& R, float E, float PH)
 {
 	// the sitting IK step (People.cpp, Seats.cpp): the hips a thigh's thickness over the seat's real surface, the feet on the
 	// floor, the hands on the thighs, one of five ways to sit
-	const FVector S = R.SeatL; const float Floor = S.Z - 45.f + 0.5f;
+	const FVector S = R.SeatL; const float Floor = FloorZ();
 	if (R.SurfZ < 0.f)
 	{
 		R.SurfZ = float(S.Z);
@@ -690,6 +699,7 @@ FDriverPose UVehicleRiders::Passenger(FRider& R, float E, float PH)
 	const bool bNarrow = (R.SitKind & 1) != 0;
 	const float Fx = FMath::Min(38.f, 24.f + PH * 0.12f), Fy = bNarrow ? 8.f : 14.f;
 	P.Foot[0] = FVector(S.X + Fx, S.Y, Floor) + L * Fy; P.Foot[1] = FVector(S.X + Fx, S.Y, Floor) - L * Fy;
+	for (int32 s = 0; s < 2; ++s) { P.Foot[s] += FVector(-R.Tip * 0.4f, 0.f, R.Tip); P.FootPitch[s] = -R.Tip * 3.f; }   // (the heels up, the toes on the floor)
 	P.bHand[0] = P.bHand[1] = true; P.Grip[0] = P.Grip[1] = 0.15f;
 	const FVector Lap = P.Pelvis + FVector(26.f, 0.f, 4.f);
 	switch (R.SitKind)
@@ -699,7 +709,7 @@ FDriverPose UVehicleRiders::Passenger(FRider& R, float E, float PH)
 	case 2: P.Lean = -3.f; P.Hand[0] = Lap + L * 14.f + VrX * 6.f; P.Hand[1] = Lap - L * 10.f; break;
 	case 3: P.Lean = -6.f; P.Hand[0] = Lap + L * 11.f - VrX * 4.f; P.Hand[1] = Lap - L * 13.f + VrX * 3.f; break;
 	default:                                                                                                   // legs crossed, the left over the right
-		P.Lean = -5.f; P.Foot[1] = FVector(S.X + Fx - 2.f, S.Y, Floor) - L * 7.f;
+		P.Lean = -5.f; P.FootPitch[0] = 0.f; P.Foot[1] = VrZ * R.Tip + FVector(S.X + Fx - 2.f, S.Y, Floor) - L * 7.f;
 		P.Foot[0] = FVector(S.X + Fx + 6.f, S.Y, Floor + 26.f + R.CrossLift) - L * 10.f;
 		P.Hand[0] = Lap + VrZ * 10.f + L * 4.f; P.Hand[1] = Lap + VrZ * 9.f - L * 6.f; break;
 	}
@@ -722,20 +732,22 @@ bool UVehicleRiders::Board(AActor* Who)
 	AddDo(*R, [this] { if (Body->DoorK(0) < 0.5f && bAtWheel && GestT >= GestDur) { Gest = GButton; GestT = 0.f; GestDur = 1.5f; GestSide = 1; } });
 	AddWalk(*R, [this] { return Wo(Outside(TEXT("door_back"), 0.f, 20.f)); });
 	AddUntil(*R, [this](float) { return Body->DoorK(0) >= 0.99f; });
+	AddSteps(*R);
 	AddWalk(*R, [this] { return Wo(Spec.At(TEXT("door_stand"))); });
 	AddClimb(*R, true);
+	AddAisle(*R, {Spec.At(TEXT("aisle_front")), Spec.At(TEXT("aisle_turn"))});
 	AddDo(*R, [this, R]
 	{
+		if (OnSteps == R) OnSteps = nullptr;
 		if (!PickSeat(*R))
 		{
 			// (no seat left: standing by a pole)
-			AddAisle(*R, {Spec.At(TEXT("aisle_front")), Spec.At(TEXT("aisle_turn"))});
 			R->bSeated = true;
 			return;
 		}
 		const float Row = Spec.Num(TEXT("row_stand"), 0.33f) * 100.f, Ay = -Spec.Num(TEXT("aisle_y"), 0.f) * 100.f;
-		const FVector In(R->SeatL.X + Row, Ay, R->SeatL.Z - 44.5f);
-		AddAisle(*R, {Spec.At(TEXT("aisle_front")), Spec.At(TEXT("aisle_turn")), Spec.At(TEXT("aisle_start")), In});
+		const FVector In(R->SeatL.X + Row, Ay, FloorZ());
+		AddAisle(*R, {Spec.At(TEXT("aisle_start")), In});
 		AddPose(*R, 1.0f, [this, In](float K, float PH) { return VrTurnOn(In, 180.f, 0.f, K, PH); });
 		AddPose(*R, 1.4f, [this, R, In](float K, float PH)
 		{
@@ -758,16 +770,18 @@ bool UVehicleRiders::Alight(AActor* Who)
 	const float Row = Spec.Num(TEXT("row_stand"), 0.33f) * 100.f, Ay = -Spec.Num(TEXT("aisle_y"), 0.f) * 100.f;
 	if (R->Seat != INDEX_NONE)
 	{
-		const FVector In(R->SeatL.X + Row, Ay, R->SeatL.Z - 44.5f);
+		const FVector In(R->SeatL.X + Row, Ay, FloorZ());
 		AddPose(*R, 1.3f, [this, R](float K, float PH) { return Passenger(*R, 1.f - K, PH); });
 		AddPose(*R, 1.4f, [R, In](float K, float PH) { return VrSlide(FVector(In.X, R->SeatL.Y, In.Z), In, VrX, K, PH); });
 		AddDo(*R, [this, R, In] { ASeats::Release(R->A.Get()); R->Seat = INDEX_NONE; R->At = In; R->Yaw = 0.f; });
 		AddAisle(*R, {Spec.At(TEXT("aisle_start")), Spec.At(TEXT("aisle_turn"))});
 	}
 	AddUntil(*R, [this](float) { return Go.V < 1.f && !IsDriving() && Body->DoorK(0) >= 0.99f; });
+	AddSteps(*R);
 	AddAisle(*R, {Spec.At(TEXT("aisle_front")), Spec.List(TEXT("treads_front")).Last() - VrX * 2.f});
 	AddPose(*R, 0.7f, [this, R](float K, float PH) { return VrTurnOn(Spec.List(TEXT("treads_front")).Last(), 0.f, 90.f, K, PH); });
 	AddClimb(*R, false);
+	AddDo(*R, [this, R] { if (OnSteps == R) OnSteps = nullptr; });
 	AddWalk(*R, [this, R] { return Wo(Outside(TEXT("stop_wait"), -80.f - 60.f * (R->SitKind % 3), -60.f)); });
 	AddDo(*R, [R] { ADP_LOG(TEXT("Riders: %s is off"), *R->A->GetName()); });
 	return true;
@@ -834,12 +848,12 @@ bool UVehicleRiders::PutBagDown(AActor* Who, int32 Bay)
 void UVehicleRiders::AddLoad(FRider& R, FRider& O, int32 Bay, bool bIn)
 {
 	const float Sd = BaySide(Bay); const FVector Face = -VrY * Sd;
-	const FVector Spot = BaySpot(Bay, 92.f);
+	const FVector Spot = BaySpot(Bay, 74.f);
 	// (on the haunches beside the open bay, both hands at the bag's handle end; the head below the bay's raised door)
 	auto Haunch = [this, Spot, Face](const FVector& Hands, float E, float PH, float In)
 	{
 		FDriverPose P = ADPPose::Squat(GroundUnder(Spot), Face, Hands, PH, E);
-		P.Lean += 12.f * E + 8.f * In; P.Pelvis += Face * (14.f * E * In);
+		P.Lean += 12.f * E + 8.f * In; P.Pelvis += Face * (24.f * E * In);
 		return P;
 	};
 	AddWalk(R, [this, Spot] { return Wo(Spot); }, 110.f);
@@ -901,7 +915,7 @@ bool UVehicleRiders::TakeBag(AActor* Who)
 bool UVehicleRiders::UseBay(AActor* Who, int32 Bay, bool bOpen)
 {
 	FRider* R = Join(Who); if (!R || R->bAboard || IsDriving() || !Spec.List(TEXT("bays")).IsValidIndex(Bay)) return false;
-	const float Sd = BaySide(Bay); const FVector Face = -VrY * Sd, Near = BaySpot(Bay, bOpen ? 52.f : 112.f) + VrX * (bOpen ? 0.f : 35.f), Far = BaySpot(Bay, 125.f) + VrX * 35.f;
+	const float Sd = BaySide(Bay); const FVector Face = -VrY * Sd, Near = BaySpot(Bay, bOpen ? 52.f : 112.f) + VrX * (bOpen ? 0.f : 35.f), Far = BaySpot(Bay, 105.f) + VrX * 110.f;
 	AddWalk(*R, [this, Near] { return Wo(Near); });
 	auto Reach = [this, Near, Face, Bay, bOpen, Sd](float K, float PH)
 	{
@@ -925,13 +939,20 @@ FVector UVehicleRiders::OnPath(float S, FVector* Dir) const
 	return Go.Pts[i - 1] + D * (S - Go.Len[i - 1]);   // (past the end: straight on)
 }
 
+bool UVehicleRiders::YouAboard() const
+{
+	// (never with you aboard, or right against it: your own walking and sitting stay as they are)
+	const APlayerController* PC = GetWorld()->GetFirstPlayerController(); const APawn* Me = PC ? PC->GetPawn() : nullptr;
+	if (!Me || !Me->GetActorEnableCollision()) return false;
+	const FVector L = Lo(Me->GetActorLocation());
+	return FMath::Abs(L.X) < 680.f && FMath::Abs(L.Y) < 165.f && L.Z > 0.f && L.Z < 450.f;
+}
+
 bool UVehicleRiders::Drive(const TArray<FVector>& Path, float LimitMs)
 {
 	if (!LineOn() || !bAtWheel || IsDriving() || Path.Num() < 2) return false;
 	for (const TSharedPtr<FRider>& R : Riders) if (!R->bDriver && R->bAboard && !R->bSeated) return false;   // (everyone sits first)
-	if (const APlayerController* PC = GetWorld()->GetFirstPlayerController())
-		if (const APawn* Me = PC->GetPawn())   // (never with you aboard: your own walking and sitting stay as they are)
-		{ const FVector L = Lo(Me->GetActorLocation()); if (FMath::Abs(L.X) < 660.f && FMath::Abs(L.Y) < 135.f && L.Z > 0.f && L.Z < 400.f) { ADP_LOG(TEXT("Riders: you're aboard - it stays")); return false; } }
+	if (YouAboard()) { ADP_LOG(TEXT("Riders: you're aboard - it stays")); return false; }
 	Go = FGo(); Go.Pts = Path; Go.Len.SetNum(Path.Num()); Go.Len[0] = 0.f;
 	for (int32 i = 1; i < Path.Num(); ++i) Go.Len[i] = Go.Len[i - 1] + float(FVector::Dist2D(Path[i], Path[i - 1]));
 	Go.Limit = LimitMs * 100.f; Go.Rear = Body->Road().TransformPosition(Spec.At(TEXT("rear_axle")));
@@ -943,41 +964,165 @@ bool UVehicleRiders::Drive(const TArray<FVector>& Path, float LimitMs)
 	return true;
 }
 
-float UVehicleRiders::Clear(const FVector& Front, float Need)
+void UVehicleRiders::LookAround(float Since)
 {
-	// how far the way ahead of the bumper is free (cm): people and vehicles in it, people on a zebra it crosses
+	// who is round about: gathered twice a second (all the people known, whoever they belong to), their places and motion every look
 	AADPPeople* P = AADPPeople::Get(GetWorld());
-	const APlayerController* PC = GetWorld()->GetFirstPlayerController(); const APawn* Me = PC ? PC->GetPawn() : nullptr;
-	auto Someone = [&](const FVector& At, float R)
+	const FVector Me = Body->Road().GetLocation();
+	if ((Go.SeenIn -= Since) <= 0.f)
 	{
-		if (Me && Me->GetActorEnableCollision() && FVector::Dist2D(Me->GetActorLocation(), At) < R + 20.f && FMath::Abs(Me->GetActorLocation().Z - At.Z) < 250.f) return true;
-		return P && P->AnyoneNear(At, R);
-	};
-	const float Ahead = float(Spec.At(TEXT("front_bumper")).X - Spec.At(TEXT("front_axle")).X);
-	FCollisionObjectQueryParams Ob; Ob.AddObjectTypesToQuery(ECC_Vehicle); Ob.AddObjectTypesToQuery(ECC_PhysicsBody);
-	FCollisionQueryParams Q(SCENE_QUERY_STAT(RidersAhead), false, Body->Actor());
-	const float End = FMath::Min(Need, Go.Len.Last() - Go.S + 200.f);
-	for (float d = 60.f; d <= End; d += 90.f)
-	{
-		FVector D; FVector At = OnPath(Go.S + Ahead + d, &D); At.Z = Front.Z;
-		const FVector Rt(-D.Y, D.X, 0.f);
-		if (Someone(At, 150.f)) return d - 60.f;
-		for (const float s : {-105.f, 0.f, 105.f}) if (Body->OtherVehicleAt(At + Rt * s, 12.f)) return d - 60.f;
-		TArray<FOverlapResult> Hit;
-		if (GetWorld()->OverlapMultiByObjectType(Hit, At + VrZ * 120.f, FQuat::Identity, Ob, FCollisionShape::MakeSphere(95.f), Q)) return d - 60.f;
-		for (const TPair<FVector, FVector>& Z : ARoadNetwork::ZebraCrossings)
+		Go.SeenIn = 0.5f;
+		const TArray<FGo::FSeen> Was = MoveTemp(Go.Seen); Go.Seen.Reset();
+		const APlayerController* PC = GetWorld()->GetFirstPlayerController(); AActor* You = PC ? PC->GetPawn() : nullptr;
+		for (TActorIterator<AActor> It(GetWorld()); It; ++It)
 		{
-			if (FMath::PointDistToSegment(FVector(At.X, At.Y, 0.f), FVector(Z.Key.X, Z.Key.Y, 0.f), FVector(Z.Value.X, Z.Value.Y, 0.f)) > 110.f) continue;
-			// (someone on it, or at its very edge, within a lane of us either side)
-			const int32 N = FMath::Max(2, int32(FVector::Dist2D(Z.Key, Z.Value) / 100.f));
-			for (int32 i = 0; i <= N; ++i)
-			{
-				const FVector On = FMath::Lerp(Z.Key, Z.Value, float(i) / N);
-				if (FVector::Dist2D(On, At) < 620.f && Someone(FVector(On.X, On.Y, At.Z), 140.f)) return FMath::Max(0.f, d - 200.f);
-			}
+			AActor* A = *It; const FVector L = A->GetActorLocation();
+			if (FMath::Abs(L.X - Me.X) > 9000.f || FMath::Abs(L.Y - Me.Y) > 9000.f || FMath::Abs(L.Z - Me.Z) > 400.f) continue;
+			if (A == You ? !A->GetActorEnableCollision() : (!P || !P->Find(A))) continue;
+			const FGo::FSeen* W = Was.FindByPredicate([A](const FGo::FSeen& X) { return X.A.Get() == A; });
+			FGo::FSeen S; if (W) S = *W; else { S.A = A; S.At = L; }
+			Go.Seen.Add(S);
 		}
 	}
-	return 1e9f;
+	for (FGo::FSeen& S : Go.Seen) if (const AActor* A = S.A.Get()) { const FVector L = A->GetActorLocation(); S.Vel = S.bNew || Since <= 0.f ? FVector::ZeroVector : (L - S.At) / Since; S.At = L; S.bNew = false; }
+}
+
+float UVehicleRiders::Clear(float Need)
+{
+	// how far it may go (cm of its own way): people its body would come to, people on or stepping onto a zebra it crosses, vehicles
+	Go.Why.Reset();
+	const float Nose = float(Spec.At(TEXT("front_bumper")).X), Axle = float(Spec.At(TEXT("front_axle")).X), Wb = Axle - float(Spec.At(TEXT("rear_axle")).X), Tail = -645.f;
+	const float Ahead = Nose - Axle, Left = FMath::Max(0.f, Go.Len.Last() - Go.S), End = FMath::Min(Need, Left), Step = 60.f;
+	// where its body will be, on its own way: the front axle on the path, the rear one trailing (as TickDrive moves it)
+	TArray<FTransform> Fr; FVector Rear = Go.Rear;
+	for (float d = 0.f; Fr.Num() < 400; d += Step)
+	{
+		const FVector F = OnPath(Go.S + FMath::Min(d, End)); FVector Bk = Rear - F; Bk.Z = 0.f; Bk = Bk.GetSafeNormal(); Rear = F + Bk * Wb;
+		FVector O = F + Bk * Axle; O.Z = State.Road.GetLocation().Z;
+		Fr.Add(FTransform((-Bk).ToOrientationQuat(), O));
+		if (d >= End) break;
+	}
+	float Best = 1e9f; const AActor* Who = nullptr; const TCHAR* What = TEXT("");
+	// the people: all but those aboard this one (its driver and its riders, themselves - never whoever is just near them)
+	TArray<const FGo::FSeen*> Ppl;
+	for (const FGo::FSeen& S : Go.Seen)
+	{
+		const AActor* A = S.A.Get(); if (!A) continue;
+		const FRider* R = Find(A); if (R && R->bAboard) continue;
+		Ppl.Add(&S);
+	}
+	for (const FGo::FSeen* S : Ppl)
+	{
+		const FVector L0 = Fr[0].InverseTransformPositionNoScale(S->At);
+		if (FMath::Abs(L0.X) > End + 1500.f || FMath::Abs(L0.Y) > End + 1500.f || FMath::Abs(L0.Z) > 250.f) continue;
+		const bool bBeside = L0.X < Nose - 15.f;   // (not before its bumper now: in its way only when its side or tail comes to them)
+		for (int32 i = 0; i < Fr.Num() && i * Step < Best; ++i)
+		{
+			const FVector L = Fr[i].InverseTransformPositionNoScale(S->At);
+			if (L.X < Tail || L.X > Nose + 40.f || FMath::Abs(L.Y) > 150.f) continue;
+			if (bBeside && FMath::Abs(L0.Y) > 120.f && L0.X > Tail && FMath::Abs(L.Y) > FMath::Abs(L0.Y) - 4.f) continue;   // (it goes along by them)
+			Best = i * Step; Who = S->A.Get(); What = TEXT("in its way"); break;
+		}
+	}
+	// the zebras: it stops before the line for anyone on it within a lane either side, or stepping onto it there - for as long as
+	// they are (nobody is waited for who only stands on the pavement, or who walks off it, already clear of the lane)
+	const float Hw = 165.f;
+	for (const TPair<FVector, FVector>& Z : ARoadNetwork::ZebraCrossings)
+	{
+		const FVector A(Z.Key.X, Z.Key.Y, 0.f), B(Z.Value.X, Z.Value.Y, 0.f); const float Ls = float(FVector::Dist(A, B)); if (Ls < 50.f) continue;
+		const FVector Mine = Fr[0].GetLocation();
+		if (FMath::Abs(Z.Key.Z - Mine.Z) > 400.f || FMath::PointDistToSegment(FVector(Mine.X, Mine.Y, 0.f), A, B) > End + 2500.f) continue;
+		const FVector U = (B - A) / Ls;
+		auto NoseAt = [&](int32 i) { FVector N = Fr[i].TransformPositionNoScale(FVector(Nose, 0.f, 0.f)); N.Z = 0.f; return N; };
+		auto Off0 = [&](int32 i) { return float(FMath::PointDistToSegment(NoseAt(i), A, B)); };
+		int32 At = INDEX_NONE;
+		for (int32 i = 0; i < Fr.Num(); ++i) if (Off0(i) < Hw) { At = i; break; }
+		if (At == INDEX_NONE) continue;
+		if (At == 0 && (Off0(0) < Hw - 100.f || Fr.Num() < 2 || Off0(1) >= Off0(0))) continue;   // (on it already, or leaving it: only what is in its way counts)
+		const float D = FMath::Max(0.f, (At - 1) * Step); if (D >= Best) continue;
+		const float Tx = float(FVector::DotProduct(NoseAt(At) - A, U));
+		for (const FGo::FSeen* S : Ppl)
+		{
+			const FVector Q(S->At.X - A.X, S->At.Y - A.Y, 0.f); const float T = float(FVector::DotProduct(Q, U)), Along = float((Q - U * T).Size());
+			if (FMath::Abs(S->At.Z - Z.Key.Z) > 250.f || Along > Hw + 50.f || FMath::Abs(T - Tx) > 750.f) continue;
+			const float Vu = float(FVector::DotProduct(S->Vel, U)), Off = T - Tx;
+			bool bIn = false;
+			if (T > -30.f && T < Ls + 30.f) bIn = FMath::Abs(Off) < 620.f && !(FMath::Abs(Off) > 300.f && Vu * FMath::Sign(Off) > 20.f);
+			else if (T <= -30.f) bIn = T > -200.f && Vu > 20.f;
+			else bIn = T < Ls + 200.f && Vu < -20.f;
+			if (bIn) { Best = D; Who = S->A.Get(); What = TEXT("on the crossing"); break; }
+		}
+	}
+	if (Who)
+	{
+		AADPPeople* P = AADPPeople::Get(GetWorld()); const AADPPeople::FWho* W = P ? P->Find(const_cast<AActor*>(Who)) : nullptr;
+		Go.Why = FString::Printf(TEXT("%s (%s) %s"), W ? *W->First : TEXT("you"), *Who->GetName(), What);
+	}
+	// the vehicles
+	FCollisionObjectQueryParams Ob; Ob.AddObjectTypesToQuery(ECC_Vehicle); Ob.AddObjectTypesToQuery(ECC_PhysicsBody);
+	FCollisionQueryParams Q(SCENE_QUERY_STAT(RidersAhead), false, Body->Actor());
+	for (const TSharedPtr<FRider>& R : Riders) if (R->A.IsValid()) Q.AddIgnoredActor(R->A.Get());
+	const float VEnd = FMath::Min3(Need, Left + 200.f, Best + 60.f);
+	for (float d = 60.f; d <= VEnd; d += 90.f)
+	{
+		FVector D; FVector At = OnPath(Go.S + Ahead + d, &D); At.Z = State.Road.GetLocation().Z;
+		const FVector Rt(-D.Y, D.X, 0.f);
+		bool bHit = false;
+		for (const float s : {-105.f, 0.f, 105.f}) bHit |= Body->OtherVehicleAt(At + Rt * s, 12.f);
+		TArray<FOverlapResult> Hit;
+		if (bHit || GetWorld()->OverlapMultiByObjectType(Hit, At + VrZ * 120.f, FQuat::Identity, Ob, FCollisionShape::MakeSphere(95.f), Q))
+		{
+			if (d - 60.f < Best) { Best = d - 60.f; Go.Why = TEXT("a vehicle in its way"); }
+			break;
+		}
+	}
+	return Best;
+}
+
+void UVehicleRiders::TickParts()
+{
+	// (driving, every part's own body - thousands of them - would be moved every frame: one box instead. Switched a few parts a
+	// frame, the box on before the first goes off, off after the last is back on. Not before everyone's seat has been felt for
+	// - the sitting step traces the cushions -, nor with you in it; nothing traces on its parts while it drives)
+	const bool bOff = Go.Stage == EGo::Run || Go.Stage == EGo::Signal;
+	if (bOff && !Box)
+	{
+		if (YouAboard()) return;
+		for (const TSharedPtr<FRider>& R : Riders) if (!R->bDriver && R->bSeated && !R->bCushionOk) return;
+		AActor* A = Body->Actor();
+		Parts.Reset(); PartsOff = 0;
+		TArray<UPrimitiveComponent*> Cs; A->GetComponents(Cs);
+		for (UPrimitiveComponent* C : Cs) if (C->GetCollisionEnabled() != ECollisionEnabled::NoCollision) { FPart& X = Parts.AddDefaulted_GetRef(); X.C = C; X.Was = uint8(C->GetCollisionEnabled()); }
+		Box = NewObject<UBoxComponent>(A);
+		Box->SetBoxExtent(FVector(640.f, 124.f, 155.f), false); Box->SetCollisionProfileName(TEXT("BlockAll"));
+		Box->SetCanEverAffectNavigation(false); Box->SetGenerateOverlapEvents(false); Box->CanCharacterStepUpOn = ECB_No;
+		Box->SetMobility(EComponentMobility::Movable); Box->SetupAttachment(A->GetRootComponent()); Box->RegisterComponent();
+		ADP_LOG(TEXT("Riders: %d lists of parts give their collision to one box while it drives"), Parts.Num());
+	}
+	if (!Box) return;
+	Box->SetWorldTransform(FTransform(FVector(0.f, 0.f, 195.f)) * Body->Body());
+	int32 Budget = 150;   // (bodies this frame)
+	auto Count = [](UPrimitiveComponent* C) { const UInstancedStaticMeshComponent* I = Cast<UInstancedStaticMeshComponent>(C); return I ? FMath::Max(1, I->GetInstanceCount()) : 1; };
+	if (bOff) { for (; PartsOff < Parts.Num() && Budget > 0; ++PartsOff) if (UPrimitiveComponent* C = Parts[PartsOff].C.Get()) { Budget -= Count(C); C->SetCollisionEnabled(ECollisionEnabled::NoCollision); } }
+	else
+	{
+		while (PartsOff > 0 && Budget > 0) { const FPart& X = Parts[--PartsOff]; if (UPrimitiveComponent* C = X.C.Get()) { Budget -= Count(C); C->SetCollisionEnabled(ECollisionEnabled::Type(X.Was)); } }
+		if (PartsOff <= 0) PartsBack();
+	}
+}
+
+void UVehicleRiders::PartsBack()
+{
+	while (PartsOff > 0) { const FPart& X = Parts[--PartsOff]; if (UPrimitiveComponent* C = X.C.Get()) C->SetCollisionEnabled(ECollisionEnabled::Type(X.Was)); }
+	Parts.Reset();
+	if (Box) { Box->DestroyComponent(); Box = nullptr; }
+}
+
+void UVehicleRiders::OnUnregister()
+{
+	const AActor* A = GetOwner(); const UWorld* W = GetWorld();
+	if (A && !A->IsActorBeingDestroyed() && W && !W->bIsTearingDown) PartsBack();
+	Super::OnUnregister();
 }
 
 void UVehicleRiders::TickDrive(float Dt)
@@ -1006,6 +1151,9 @@ void UVehicleRiders::TickDrive(float Dt)
 	if (Go.Stage == EGo::Signal)
 	{
 		Body->SetLamps(true, Go.Indicate, true); Body->Place(State);
+		// (you stepped in meanwhile: the door opens, it waits until you are out)
+		if (YouAboard()) { if (!Go.bHeld) { Go.bHeld = true; Body->SetDoor(0, true); ADP_LOG(TEXT("Riders: you're aboard or against it - it waits, the door open")); } return; }
+		if (Go.bHeld) { Go.bHeld = false; Body->SetDoor(0, false); Go.Stage = EGo::Shut; Go.T = 0.f; return; }
 		if (Go.T > 2.4f) { Go.Stage = EGo::Run; Body->SetAway(true); }
 		return;
 	}
@@ -1020,12 +1168,14 @@ void UVehicleRiders::TickDrive(float Dt)
 		if (Ang > 0.004f) { const float Bend = FMath::Sqrt(110.f * 200.f / Ang); Want = FMath::Min(Want, FMath::Sqrt(Bend * Bend + 2.f * Brk * 0.6f * d)); }
 	}
 	Want = FMath::Min(Want, FMath::Max(Left > 4.f ? 12.f : 0.f, FMath::Sqrt(FMath::Max(0.f, 2.f * Brk * 0.75f * (Left - 5.f)))));
+	Go.LookDt += Dt;
 	if ((Go.LookIn -= Dt) <= 0.f)
 	{
 		Go.LookIn = 0.12f;
-		Go.Free = Clear(Body->Road().GetLocation(), Go.V * Go.V / (2.f * Brk * 0.6f) + 700.f);
+		LookAround(Go.LookDt); Go.LookDt = 0.f;
+		Go.Free = Clear(Go.V * Go.V / (2.f * Brk * 0.6f) + 700.f);
 		const bool bGive = Go.Free < 1e8f;
-		if (bGive != Go.bGiveWay) { Go.bGiveWay = bGive; ADP_LOG(TEXT("Riders: %s (%.1f m ahead, at %.1f km/h)"), bGive ? TEXT("giving way") : TEXT("the way is clear"), bGive ? Go.Free / 100.f : 0.f, Go.V * 0.036f); }
+		if (bGive != Go.bGiveWay) { Go.bGiveWay = bGive; ADP_LOG(TEXT("Riders: %s%s (%.1f m ahead, at %.1f km/h)"), bGive ? TEXT("giving way - ") : TEXT("the way is clear"), *Go.Why, bGive ? Go.Free / 100.f : 0.f, Go.V * 0.036f); }
 	}
 	else if (Go.Free < 1e8f) Go.Free -= Go.V * Dt;
 	float Hard = Brk;
@@ -1034,6 +1184,9 @@ void UVehicleRiders::TickDrive(float Dt)
 	Go.A = FMath::FInterpTo(Go.A, WantA, Dt, WantA < Go.A ? 9.f : 2.5f);
 	Go.V = FMath::Max(0.f, Go.V + Go.A * Dt);
 	if (Want <= 0.f && Go.V < 6.f) { Go.V = 0.f; Go.A = 0.f; }
+	// (it waits for as long as they are there: said once a minute, by name - never a time after which it drives on)
+	if (Go.V < 1.f && Go.bGiveWay) { if ((Go.Still += Dt) > Go.SayAt) { Go.SayAt += 60.f; ADP_LOG(TEXT("Riders: waiting for %.0f s - %s"), Go.Still, *Go.Why); } }
+	else if (!Go.bGiveWay) { Go.Still = 0.f; Go.SayAt = 60.f; }
 	const float Ds = FMath::Min(Go.V * Dt, FMath::Max(0.f, Left));
 	Go.S += Ds; Go.Roll += Ds / (Spec.Num(TEXT("tyre_radius"), 0.52f) * 100.f);
 	// the front axle on the path, the rear one trailing after it
@@ -1078,9 +1231,9 @@ void UVehicleRiders::TickComponent(float Dt, ELevelTick Type, FActorComponentTic
 {
 	Super::TickComponent(Dt, Type, Fn);
 	if (!Body || !Body->Actor()) return;
-	Dt = FMath::Min(Dt, 0.1f);
-	Riders.RemoveAll([this](const TSharedPtr<FRider>& R) { if (R->A.IsValid() || R.Get() == Driver) return false; if (R->BagHold) { R->Bag->DestroyComponent(); R->BagHold->DestroyComponent(); } return true; });
-	TickDriver(Dt); TickDrive(Dt);
+	Dt = FMath::Min(Dt, 0.2f);
+	Riders.RemoveAll([this](const TSharedPtr<FRider>& R) { if (R->A.IsValid() || R.Get() == Driver) return false; if (R->BagHold) { R->Bag->DestroyComponent(); R->BagHold->DestroyComponent(); } if (OnSteps == R.Get()) OnSteps = nullptr; return true; });
+	TickDriver(Dt); TickDrive(Dt); TickParts();
 	for (int32 i = 0; i < Riders.Num(); ++i) Step(*Riders[i], Dt);
 }
 
@@ -1095,8 +1248,8 @@ void UVehicleRiders::PutBack()
 		if (R->BagHold) R->BagHold->DestroyComponent();
 		if (R->Mesh) R->Mesh->DestroyComponent();
 	}
-	Riders.Reset(); Keep.Reset(); Driver = nullptr; bAtWheel = false; ArmWant = 0.f; Go = FGo();
-	State = Parked; Body->Place(State);
+	Riders.Reset(); Keep.Reset(); Driver = OnSteps = nullptr; bAtWheel = false; ArmWant = 0.f; Go = FGo();
+	State = Parked; Body->Place(State); PartsBack();
 	for (int32 d = 0; d < 2; ++d) Body->SetDoor(d, false);
 	for (int32 b = 0; b < Spec.List(TEXT("bays")).Num(); ++b) Body->SetBay(b, false);
 	Body->SetAway(false); Body->SetLamps(false, 0, false); Body->SetDrive(0.f);
@@ -1110,6 +1263,7 @@ FString UVehicleRiders::Report(const AActor* Who) const
 	auto Off = [&](const TCHAR* Bone, const FVector& Want) { return float(FVector::Dist(Lo(R->Skel->GetBoneLocation(Bone)), Want)); };
 	FString S = FString::Printf(TEXT("hips %.1f cm from theirs"), Off(TEXT("pelvis"), R->Last.Pelvis));
 	if (R->bDriver) S += FString::Printf(TEXT(", hands %.1f / %.1f cm from the rim's grips, ankles %.1f / %.1f cm over their soles' places, wheel turned %.0f, front wheels %.0f deg"), Off(TEXT("hand_l"), R->Last.Hand[0]), Off(TEXT("hand_r"), R->Last.Hand[1]), Off(TEXT("foot_l"), R->Last.Foot[0]), Off(TEXT("foot_r"), R->Last.Foot[1]), State.WheelTurn, State.SteerDeg);
-	else if (R->Seat != INDEX_NONE) S += FString::Printf(TEXT(", way to sit %d, seat top %.1f, forward %.0f, up %.1f, thighs %.1f cm into it, crossing foot +%.0f"), R->SitKind, R->SurfZ, R->Fwd, R->Lift, R->Deep, R->CrossLift);
+	else if (R->Seat != INDEX_NONE) S += FString::Printf(TEXT(", way to sit %d, seat top %.1f, forward %.0f, heels up %.1f, up %.1f, thighs %.1f cm into it, crossing foot +%.0f"), R->SitKind, R->SurfZ, R->Fwd, R->Tip, R->Lift, R->Deep, R->CrossLift);
+	if (!R->bDriver) for (int32 s = 0; s < 2; ++s) if (R->Last.bHand[s] && R->RestW <= 0.f) S += FString::Printf(TEXT(", %s hand %.1f cm from what it holds"), s == 0 ? TEXT("left") : TEXT("right"), Off(s == 0 ? TEXT("hand_l") : TEXT("hand_r"), R->Last.Hand[s]));
 	return S;
 }

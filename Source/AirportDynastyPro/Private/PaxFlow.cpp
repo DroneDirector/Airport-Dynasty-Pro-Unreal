@@ -80,7 +80,16 @@ bool APaxFlow::BoardingDone(const UWorld* W, const FString& Reg)
 		{
 			// (gone without the missing ones, but never with someone in the jetway: those past the gate's door board first)
 			int32 In = 0; for (const FPx& X : P->Pax) if (X.St == EPx::Jetway && X.Run == Ri && !X.bArr && P->PastDoor(X)) ++In;
-			if (In) bAll = false;
+			if (In)
+			{
+				bAll = false;
+				if (P->RealT - R.SaidAt > 120.0)   // (held for them, by name)
+				{
+					R.SaidAt = P->RealT; FString L;
+					for (const FPx& X : P->Pax) if (X.St == EPx::Jetway && X.Run == Ri && !X.bArr && P->PastDoor(X)) if (const AActor* Xa = X.A.Get()) { const FVector At = P->PlanOf(Xa->GetActorLocation()); L += FString::Printf(TEXT(" %s (%.1f, %.1f) %s%s%s;"), *X.Id, At.X, At.Z, *X.Stage, X.HeldBy.IsEmpty() ? TEXT("") : TEXT(", held by "), *X.HeldBy); }
+					ADP_WARN(TEXT("PaxFlow: PROBLEM - %s (%s) held, %d still in the jetway:%s"), *R.Label, *R.Reg, In, *L);
+				}
+			}
 			continue;
 		}
 		const bool bDone = R.bCalled && R.Spawned >= R.Visible && R.Aboard + R.Home >= R.Spawned;
@@ -113,18 +122,14 @@ bool APaxFlow::BoardingDone(const UWorld* W, const FString& Reg)
 		}
 		if (P->RealT - R.HoldSince >= 15.0 * 60.0)
 		{
-			// (those in the jetway already: never left in it - ten minutes more, then they fade where they are, a problem in the log)
+			// (those in the jetway already: ten minutes more, then those not past its halfway point are no-shows like the rest and walk
+			//  back out - nobody is let through from where they are stuck (owner 2026-11-23); the flight goes once the jetway is empty)
 			int32 In = 0; for (FPx& X : P->Pax) if (X.St == EPx::Jetway && X.Run == Ri && !X.bArr && P->PastDoor(X)) ++In;
+			if (In) bAll = false;
 			if (In && P->RealT - R.HoldSince < 25.0 * 60.0)
 			{
 				if (!R.bLateTun) { R.bLateTun = true; ADP_WARN(TEXT("PaxFlow: PROBLEM - %s: 15 min over and %d passengers still in the jetway: it waits for them"), *R.Label, In); }
-				bAll = false; continue;
-			}
-			if (In)
-			{
-				for (FPx& X : P->Pax) if (X.St == EPx::Jetway && X.Run == Ri && !X.bArr && X.FadeT < 0.f && P->PastDoor(X)) if (AActor* Xa = X.A.Get()) { P->StartFade(X, Xa); ADP_WARN(TEXT("PaxFlow: PROBLEM - %s stuck in %s's jetway for 25 min: counted aboard from where they are"), *X.Id, *R.Label); }
-				bAll = false;
-				if (P->RealT - R.HoldSince < 25.5 * 60.0) continue;
+				continue;
 			}
 			R.bNoShowGo = true;
 			ADP_LOG(TEXT("PaxFlow: %s - %d passenger(s) did not show up after 15 min: doors closed without them (their bags come off the aircraft)"), *R.Label, FMath::Max(0, R.Visible - R.Aboard - R.Home));
@@ -1673,8 +1678,19 @@ void APaxFlow::StepPx(int32 i, float Dt)
 		// counted aboard - the aircraft (SimTraffic, BoardingDone) waits for that
 		// (too late at the gate's door: home - never into a jetway that is going)
 		if ((R.bNoShowGo || R.bOff || R.bGone) && P.FadeT < 0.f && !PastDoor(P)) { GoHome(i, R.bOff ? TEXT("the flight is off") : TEXT("missed the flight")); break; }
+		// (closed without them while they were in it, before its halfway point: back along the way they came, out of the gate's door)
+		if (R.bNoShowGo && P.FadeT < 0.f && !P.bHome && !(P.FadeFrom != INDEX_NONE && P.Wi > P.FadeFrom))
+		{
+			const int32 Door = FMath::Max(0, (P.TunB > P.TunA ? P.TunA : P.Way.Num()) - 3);
+			TArray<FWp> Out; int32 nT = 0;
+			for (int32 k = FMath::Min(P.Wi, P.Way.Num()) - 1; k >= Door; --k) { Out.Add(P.Way[k]); if (P.TunB > P.TunA && k >= P.TunA) ++nT; }
+			P.Way = MoveTemp(Out); P.Wi = 0; P.TunA = 0; P.TunB = nT; P.PauseT = 0.f; P.FadeFrom = INDEX_NONE; P.bHome = true;
+			P.Stage = TEXT("missed the flight - walking back out of the jetway");
+			ADP_LOG(TEXT("PaxFlow: %s turns back in %s's jetway - the doors are closed without them"), *P.Id, *R.Label);
+		}
 		const bool bEnd = Follow(P, A, Dt);
 		Held(i, Dt);
+		if (P.bHome && P.FadeT < 0.f) { if (bEnd) GoHome(i, TEXT("missed the flight")); break; }
 		if (P.FadeT < 0.f && (bEnd || (P.FadeFrom != INDEX_NONE && P.Wi > P.FadeFrom))) StartFade(P, A);
 		if (P.FadeT >= 0.f && StepFade(P, A, Dt)) Arrive(i);
 		break;

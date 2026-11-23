@@ -84,6 +84,7 @@ public:
 	static bool LineOn();
 	/** Makes it for a vehicle (null while the switch is off or its points file is missing). It takes the body over. */
 	static UVehicleRiders* Make(AActor* Vehicle, const FString& SpecName, TUniquePtr<IVehicleBody> Body);
+	virtual void OnUnregister() override;
 	virtual void TickComponent(float Dt, ELevelTick Type, FActorComponentTickFunction* Fn) override;
 
 	// ---- the driver (an NPC; never the player)
@@ -139,7 +140,7 @@ private:
 		FVector At = FVector::ZeroVector; float Yaw = 0.f;   // (aboard: in the root space)
 		TArray<FAct> Q; float T = 0.f; FPoseFn Hold; FDriverPose Last, From; bool bLast = false, bFrom = false; float BlendT = 1.f;
 		float Speed = 0.f, HoldT = 0.f;
-		int32 Seat = INDEX_NONE; FVector SeatL = FVector::ZeroVector; float SurfZ = -1.f, Fwd = 0.f, Lift = 0.f, CrossLift = 0.f, Deep = 0.f, RestW = 0.f; bool bCushionOk = false; int32 Tries = 0, SitKind = 0;
+		int32 Seat = INDEX_NONE; FVector SeatL = FVector::ZeroVector; float SurfZ = -1.f, Fwd = 0.f, Lift = 0.f, CrossLift = 0.f, Tip = 0.f, Deep = 0.f, RestW = 0.f; bool bCushionOk = false; int32 Tries = 0, SitKind = 0;
 		int32 Bay = INDEX_NONE, BagState = 0;   // (0 none, 1 in a hand, 2 on the ground, 3 in the bay, 4 being moved by two hands)
 		USceneComponent* BagHold = nullptr; UStaticMeshComponent* Bag = nullptr; FTransform BagAt;   // (BagAt: 2 world, 3 / 4 the root space)
 		TWeakObjectPtr<AActor> BagBy;           // (whose hand it is in)
@@ -149,12 +150,20 @@ private:
 	TArray<TSharedPtr<FRider>> Riders;
 	UPROPERTY() TArray<TObjectPtr<UObject>> Keep;
 	IVehicleBody::FDriveState State, Parked;
-	FRider* Driver = nullptr; bool bAtWheel = false; float ArmWant = 0.f;
+	FRider* Driver = nullptr; FRider* OnSteps = nullptr; bool bAtWheel = false; float ArmWant = 0.f;
 	// the driver's hands, feet, looks
 	enum EGest : uint8 { GNone, GButton, GIndicate, GMirror };
 	float HandBase[2] = {0.f, 0.f}, RegT[2] = {1.f, 1.f}, RegFrom[2] = {0.f, 0.f}, FootMix = 1.f, GestT = 1e9f, GestDur = 1.f, MirrorIn = 4.f; EGest Gest = GNone; int32 GestSide = 0; float HeadYaw = 0.f, HeadPitch = 0.f, AccelK = 0.f, BrakeK = 1.f, WheelErr = 0.f;
 	enum class EGo : uint8 { Parked, Shut, Signal, Run };
-	struct FGo { EGo Stage = EGo::Parked; TArray<FVector> Pts; TArray<float> Len; float S = 0.f, V = 0.f, A = 0.f, Limit = 830.f, T = 0.f, Roll = 0.f; FVector Rear = FVector::ZeroVector; bool bGiveWay = false; float LookIn = 0.f, Free = 1e9f; int32 Indicate = 0; } Go;
+	struct FGo { EGo Stage = EGo::Parked; TArray<FVector> Pts; TArray<float> Len; float S = 0.f, V = 0.f, A = 0.f, Limit = 830.f, T = 0.f, Roll = 0.f; FVector Rear = FVector::ZeroVector; bool bGiveWay = false; float LookIn = 0.f, Free = 1e9f, Still = 0.f, SayAt = 60.f; int32 Indicate = 0;
+		// (the people round about, their own motion measured from look to look; who or what it waits for; held because you stepped in)
+		struct FSeen { TWeakObjectPtr<AActor> A; FVector At = FVector::ZeroVector, Vel = FVector::ZeroVector; bool bNew = true; };
+		TArray<FSeen> Seen; float SeenIn = 0.f, LookDt = 0.f; FString Why; bool bHeld = false; } Go;
+	// (while it drives: one box for the body, its thousands of parts' own collision off - each put back as it was once it stands)
+	struct FPart { TWeakObjectPtr<class UPrimitiveComponent> C; uint8 Was = 0; };
+	UPROPERTY() TObjectPtr<class UBoxComponent> Box; TArray<FPart> Parts; int32 PartsOff = 0;
+	void TickParts();
+	void PartsBack();
 
 	FRider* Find(const AActor* Who) const;
 	FRider* Join(AActor* Who);
@@ -176,11 +185,13 @@ private:
 	void AddDo(FRider& R, TFunction<void()> Fn);
 	void AddUntil(FRider& R, TFunction<bool(float)> Fn);
 	void AddClimb(FRider& R, bool bUp);
+	void AddSteps(FRider& R);   // (the door's steps: one at a time - waits for them, then they are its own until it is through)
 	void AddLoad(FRider& R, FRider& Owner, int32 Bay, bool bIn);
 	FVector Outside(const TCHAR* Name, float DX = 0.f, float DY = 0.f) const { FVector V = Spec.At(Name); V.X += DX; V.Y += DY; return V; }
 	FVector BaySpot(int32 Bay, float Out) const;
 	float BaySide(int32 Bay) const;
 	FTransform BagInBay(int32 Bay) const;
+	float FloorZ() const { return float(Spec.At(TEXT("aisle_start")).Z); }
 	FDriverPose StandAt(const FVector& Local, const FVector& Face, float PH, bool bOutside) const;
 	FDriverPose Stairs(const TArray<FVector>& T, const FVector& Face, float K, float PH, const TArray<FVector>& Rails) const;
 	FDriverPose DriverPose(float PH);
@@ -190,7 +201,9 @@ private:
 	bool PickSeat(FRider& R);
 	void TickDriver(float Dt);
 	void TickDrive(float Dt);
-	float Clear(const FVector& Front, float Need);
+	bool YouAboard() const;
+	void LookAround(float Since);
+	float Clear(float Need);
 	FVector OnPath(float S, FVector* Dir = nullptr) const;
 	void GiveBag(FRider& R);
 	void BagToHand(FRider& R, AActor* Who);
