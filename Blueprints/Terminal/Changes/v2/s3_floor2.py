@@ -68,14 +68,14 @@ if 'b' in which:
     txt(ax, 355, 64.8, 'NON-SCHENGEN WALKWAY (existing)', NS, 15); txt(ax, 246.2, 75, 'SWING\nLOBBY', NEW, 13)
     for g in GATE_X0: v, c = core_f2(g); txt(ax, (c[0] + c[2]) / 2, 78.2, 'way\ndown', NS, 12)
     for x in STAIRS: txt(ax, x, 11.5, 'stair', OK, 11)
-    txt(ax, 430, 88.5, 'jetways (green) unchanged, their doors cut into the glass', OK, 14)
+    txt(ax, 432, 91, 'jetways (green) unchanged, their doors cut into the glass', OK, 14)
     dim(ax, 20, 52, 553.5, '32.0', vertical=True, fs=14)
     legend(fig, 0.014, 0.365, [('i', 'Transfer desk, 2 security lanes, 3 passport booths + 2 e-gates for transfers', TRF), ('ii', 'Stair, lift and 2 escalators up from the arrivals corridor (x 326-338, z 40-51)', TRF),
                                ('iii', 'Ceiling: the wave roof over z 20-34 (7 to 15 m high), a flat roof at 12 m over z 34-52 (5.4 m high, as the walkway)', GLASS),
                                ('iv', 'Between them a band of glass (z 34), 1 to 8 m high: daylight', GLASS)], lh=0.034, fs=15.5)
     fig.text(0.014, 0.215, 'FINISH: the Grand Hall\'s marble, the walkway\'s oak by the gates, the same lamps, signs, screens, seats and plants (to-do 213, 4c).', color=FG, fontsize=15.5)
     fig.text(0.014, 0.182, 'SCHENGEN PASSENGERS keep their own: the big tax free (5 366 m²), food walk, eateries, bar and toilets on their side. No passenger can pass the wall without a non-Schengen boarding pass and a passport check.', color=FG, fontsize=15.5)
-    fig.text(0.014, 0.149, 'FIRE ESCAPE: every spot of the concourse is within 35 m of one of the 11 stairs (30 m apart); the walkway\'s own gate stairs stay as further ways out.', color=FG, fontsize=15.5)
+    fig.text(0.014, 0.149, 'FIRE ESCAPE: 11 stairs, 30 m apart. CORRECTION to v2: at z 52 the straight line to the nearest is up to 35.3 m, longer round the walls: over the 35 m limit. Sheet 9 (escape stairs) settles it.', color=FG, fontsize=15.5)
     fig.text(0.014, 0.116, 'STRUCTURE: the slab stands on new columns in the walls below (claim hall, passport hall, staff rooms, coach station); the 5.4 m ceiling below is the same as in your west claim hall.', color=FG, fontsize=15.5)
     fig.text(0.014, 0.083, 'CHANGED FROM THE ACCEPTED SHEET TC-3: its arrivals corridor ran on Floor 2 along z 52-56. That would close the concourse off from the walkway, and its screens would stop departing', color=WARN, fontsize=15.5)
     fig.text(0.014, 0.055, 'passengers at every arrival. So arrivals now go down at the gate. The mezzanine of TC-3 (x 330-372) is not needed any more.', color=WARN, fontsize=15.5)
@@ -103,5 +103,6 @@ if 'c' in which:
          '4 the access-control system unlocks the new side, never both (hardware interlock); 5 the gate screen, signs and boards change (\'London, non-Schengen\'); 6 an alarm calls security if a door is forced or stays open.',
          'REAL RULE: Regulation 300/2008, 4.2: screened departing passengers must not mix with arriving ones from countries without recognised security. If such a flight used the gate, the swept area is also searched before the',
          'next boarding (2015/1998, 1.1.3). Passengers from the UK, USA, Canada and the other recognised countries need only the passport separation. Doors are CCTV-covered and logged; the player passes staff doors with his badge.']
-    for i, l in enumerate(L): fig.text(0.014, 0.155 - i * 0.031, l, color=FG if i < 2 else '#cfe3f0', fontsize=15)
+    L.append('NEW: gate 4\'s stair and lift lead down to gate 8, which is Schengen. While gate 4 is swung, a door at the stair\'s top and the lift are locked too (an alarmed escape release stays).')
+    for i, l in enumerate(L): fig.text(0.014, 0.160 - i * 0.030, l, color=FG if i < 2 else (NEW if i == 4 else '#cfe3f0'), fontsize=15)
     save(fig, 'TCv2-3c-Swing-Gate-Cases.png')
