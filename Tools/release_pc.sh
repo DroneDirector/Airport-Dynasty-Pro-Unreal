@@ -33,6 +33,10 @@ if [ "$4" != "--upload" ]; then
   grep -a "Map trace:" Saved/Logs/AirportDynastyPro.log | tail -1 | sed 's/.*Map trace: /   /'
   echo "== web pages and data into Content"
   rm -rf Content/Web && cp -r Airline-Manager-Pro-Babylon/www Content/Web && rm -rf Content/Data && cp -r Data Content/Data
+  # the passengers' walking map ready-made from the terminal as it stands (owner, 2026-11-23: it was made again on every
+  # start, a minute and more) - after the data's copy: it is made from exactly what is shipped, and carries that as its key
+  echo "== the walking map baked"
+  bash Tools/bake_paxnav.sh || { echo "STOP: the walking map wasn't baked"; exit 1; }
   echo "== every folder the code loads by name is always cooked"
   python - <<'PYEOF' || { echo "STOP: add the folders above to DirectoriesToAlwaysCook in Config/DefaultGame.ini"; exit 1; }
 import re, glob, sys
@@ -78,6 +82,10 @@ print(' '.join(sorted(set(m.group(0).decode('utf-16-le') for m in re.finditer(rb
   (cd $P/$V/Full && ADP_LOG=1 timeout 90 ./AirportDynastyPro/Binaries/Win64/AirportDynastyPro-Win64-Shipping.exe -unattended -RenderOffscreen -windowed -ResX=640 -ResY=360 > /dev/null 2>&1) || true
   C=$(grep -c CRASH "$L/ADP.log" 2>/dev/null || true); echo "start check crashes: ${C:-none logged}"
   [ "$C" = "0" ] || [ -z "$C" ] || { grep -h CRASH -A5 "$L/ADP.log" | head -20; echo "STOP: it crashed"; exit 1; }
+  # a new career from the title screen to the airport, and Continue, in the packaged game (owner, 2026-11-23: 0.18.1 was
+  # released with a new game that never finished loading - the start check alone doesn't press anything)
+  echo "== the new game test in the packaged game"
+  bash Tools/new_game_test.sh --packaged $P/$V/Full || { echo "STOP: the new game test failed"; exit 1; }
   echo "== update zips"
   rm -f $P/AirportDynastyPro-Unreal-PC-Update-*-to-$V.zip
   python $R/Tools/MakeUpdate.py --old $P/$A/Full --new $P/$V/Full --from $A --to $V | tail -1

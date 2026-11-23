@@ -10,6 +10,11 @@
 R="$(cd "$(dirname "$0")/.." && pwd)"; cd "$R"
 read SW SH < <(powershell -NoProfile -ExecutionPolicy Bypass -File "$(cygpath -w "$R/Tools/screen_size.ps1")" | tr -d '\r')
 [ -z "$SW" ] && { SW=1920; SH=1080; }
+# step 1 (owner 2026-11-23): a new career from the title screen to the airport, and Continue, with a picture of every step
+# (Tools/new_game_test.sh; SKIP_NEWGAME=1 leaves it out, ONLY_NEWGAME=1 does only it)
+[ -z "$SKIP_NEWGAME" ] && bash Tools/new_game_test.sh
+[ -n "$ONLY_NEWGAME" ] && exit
+# step 2: everything working at once
 for d in Saved/Config/WindowsEditor Saved/Config/Windows; do [ -f $d/GameUserSettings.ini ] && cp $d/GameUserSettings.ini $d/GameUserSettings.ini.bak-test; done
 timeout 2700 "/c/Program Files/Epic Games/UE_5.7/Engine/Binaries/Win64/UnrealEditor.exe" "$(cygpath -w $PWD/AirportDynastyPro.uproject)" -game -windowed -ResX=$SW -ResY=$SH -ForceRes -Site=chablais -LocalTerrain -UIShot \
   -UIChablais -SimTrafficShot -UITugShot -ShotHour=13 -TugQuick -GseTest -DepBagTest -PaxFlowTest -TugCheck "$@" -nosplash -log=CinematicTest.log > /dev/null 2>&1
