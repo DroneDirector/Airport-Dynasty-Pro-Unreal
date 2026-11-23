@@ -69,13 +69,13 @@ for i, (a, b, c, d) in enumerate(rows):
     fig.text(0.352, y, '{:,}'.format(c).replace(',', ' '), color=OK if c > b else (FG if c == b else WARN), fontsize=17, weight='bold', ha='right')
     fig.text(0.372, y, d, color=DIM, fontsize=15.5)
 fig.text(0.016, 0.325, 'HOW THE AIRPORT CHANGES OVERALL', color=NEW, fontsize=19, weight='bold')
-L = ['The empty grass under the east roof becomes a real two-floor wing. The roof and its tree pillars are already there: only floors, glass, walls and rooms are added.',
+L = ['The empty grass under the east roof becomes a real two-floor wing. The roof is there already and becomes one smooth wave; floors, glass, walls and rooms are added.',
      'From the forecourt: one glass front from the Grand Hall to the east end, up to the wave roof. The offices at x 114-156 keep their windows behind a second glass skin.',
      'Non-Schengen (UK, Ireland, long-haul) gets its own world: passport control out, walk-through duty free, food, lounge, toilets, prayer room, gates 13-16.',
      'Arriving non-Schengen passengers never meet departing ones: they go DOWN at their own gate and walk a closed corridor below to passport control.',
      'Gates 4 and 13 become swing gates: either side can be opened for them, never both.',
      'West arrivals get duty free, toilets, lost and found, cash and SIM; the forecourt gets two taxi ranks and pay machines.',
-     'Nothing moves: Grand Hall, security, gates, stands, jetways, offices, the bag system and the departure bag trains stay as they are.']
+     'Nothing moves: Grand Hall, security room (now 7 lanes), gates, stands, jetways, offices, the bag system and the departure bag trains stay as they are.']
 for i, t in enumerate(L):
     fig.text(0.018, 0.287 - i * 0.0335, '•', color=NEW, fontsize=18); fig.text(0.028, 0.287 - i * 0.0335, t, color=FG, fontsize=16.5)
 fig.text(0.016, 0.035, 'TERMINAL EXTENSION PAST x 551: NOT NEEDED (sheet 6).', color=OK, fontsize=19, weight='bold')

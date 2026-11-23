@@ -107,7 +107,7 @@ if 'c' in which:
     txt(ax, 238, -30, '12 set-down bays (existing)', DIM, 13, ha='left'); txt(ax, 320, -23, 'kerb lane + pavement extended east of x 241', NEW, 13)
     dim(ax, 156, 228, -13, '72.0', fs=14); dim(ax, 228, 236, -13, '8', fs=13); dim(ax, 236, 312, -13, '76.0', fs=14); dim(ax, 312, 324, -13, '12', fs=13); dim(ax, 324, 372, -13, '48.0', fs=14)
     legend(fig, 0.012, 0.172, [(1, 'Long-haul check-in: 8 desks + 4 bag drop, 30 x 4'), (2, 'Oversize drop 4 x 4'), (3, 'Café 13 x 9'), (4, 'Shops 11 x 5'), (5, 'Kiosk + SIM 7 x 4'), (6, 'ATM + exchange 7 x 4'),
-           (7, 'Car rental, 5 counters, 24 x 4.5'), (8, 'Info + PRM help point 10 x 6'), (9, 'First aid 10 x 6'), (10, 'Meeters\' rail 19 m'), (11, 'Toilets 18 x 12'), (12, 'Family + quiet 12 x 12'),
+           (7, 'Car rental, 5 counters, 24 x 4.5'), (8, 'Info + PRM help point 10 x 6'), (9, 'First aid 10 x 6'), (10, 'Meeters\' rail 18.5 m'), (11, 'Toilets 18 x 12'), (12, 'Family + quiet 12 x 12'),
            (13, 'Trolley store 20 x 12'), (14, 'Bag service 18 x 12'), (15, 'Staff door kept: 4 m lane'), (16, 'Customs office 8 x 12', NS), (17, 'Wide-body belts, 2 of 8 x 28', BELT), (18, 'Lost and found 10.5 x 8'),
            (19, 'Toilets 11 x 11'), (20, 'Arrivals duty free 24 x 11'), (21, 'Oversize belt 11 x 9'), (22, 'Border police 12 x 14', NS), (23, '6 booths + 8 e-gates, 12 x 32', NS), (24, 'EES kiosks, 16'),
            (25, 'Up to transfers 12 x 11'), (26, 'Second-line checks 13 x 11', NS), (27, 'Closed arrivals corridor 4.5 m', NS), (28, 'Claim belt inputs (2)', BELT), (29, 'TAXI RANK EAST: 11 cabs, 80 m')],
@@ -128,9 +128,9 @@ if 'd' in which:
     for k in range(5): box(ax, 472 + 16 * k, -24.9, 485 + 16 * k, -21.6, '', fc='#2a2410', ec=NEW, lw=2, ls='--', z=5)
     txt(ax, 511, -27, '5 NEW coach bays 13 x 3.3 m (like your 7)', NEW, 14); txt(ax, 420, -19, 'pavement + kerb lane extended x 241-551', NEW, 14)
     dim(ax, 372, 470, -14, '98.0', fs=15); dim(ax, 470, 551.2, -14, '81.2', fs=15); dim(ax, 0, 52, 554, '52.0', vertical=True, fs=14); dim(ax, 291, 521, 70, '', fs=12) if False else None
-    fig.text(0.014, 0.125, 'ESCAPE STAIRS (green): 11 glass-walled stairs 1.8 m wide, 30 m apart, from the concourse straight down to the promenade doors (Swiss VKF 16-15: 35 m to a stair; 0.6 m of stair per 60 people, so 19.8 m serve 1 980).', color=FG, fontsize=15.5)
+    fig.text(0.014, 0.125, 'ESCAPE STAIRS (green): 11 of 1.8 m, 30 m apart, as v2 (0.6 m of stair per 60 people: 19.8 m serve 1 980). Their final form and the 35 m walking distance (VKF 16-15) are settled on sheet 9.', color=FG, fontsize=15.5)
     fig.text(0.014, 0.095, 'STAFF CROSSINGS (violet squares in the corridor): the ramp rooms\' doors at x 349, 421 and 493 keep their way into the baggage hall through double doors that lock while passengers walk past.', color=FG, fontsize=15.5)
-    fig.text(0.014, 0.065, 'THE PILLARS (white dots): the wave roof\'s eight east pillars already stand at x 159.7, 199.6, 267.0, 306.9, 374.3, 414.2, 481.6, 521.5 (z -9). They stay; coach bays keep south of z -21.', color=FG, fontsize=15.5)
+    fig.text(0.014, 0.065, 'THE PILLARS (white dots): the wave roof\'s eight east pillars already stand at x 159.7, 199.6, 267.0, 306.9, 374.3, 414.2, 481.6, 521.5 (z -9). They stay; one more comes at x 556 with the smooth roof.', color=FG, fontsize=15.5)
     fig.text(0.014, 0.035, 'TODAY the forecourt pavement and kerb lane end at about x 241-340 (Data/roads.json): both must be lengthened to reach the coach station, at Chablais and in Iceland.', color=WARN, fontsize=15.5)
     save(fig, 'TCv2-2d-Ground-Coach-Station.png')
 
@@ -154,7 +154,7 @@ if 'e' in which:
             txt(ax, 511, -28, '5 NEW coach bays', NEW, 14); txt(ax, 192, 9.4, 'EAST HALL', NEW, 14, weight='bold'); txt(ax, 510, 6, 'COACH STATION', NEW, 14, weight='bold'); txt(ax, 250, -66, 'CAR PARK', FG, 16); txt(ax, 460, -66, 'car rental building (x 416-524) further south', DIM, 13)
             box(ax, 217, 1, 221, 3, '', fc=NEW, ec=NEW, z=8); txt(ax, 222, -4.5, '2 pay machines inside', NEW, 12)
     fig.text(0.014, 0.135, 'PAY MACHINES: 6 outdoors at the three zebras into the car park, 2 inside each arrivals hall (10 in all). Real practice: pay on foot before walking to the car; drivers then need a barrier at the vehicle exit.', color=FG, fontsize=15.5)
-    fig.text(0.014, 0.105, 'NOT IN THE DATA: the car park has no vehicle exit lane or barrier today (roads.json has only the rows of spaces). One exit with 2 barriers is needed before pay machines make sense: a question for you.', color=WARN, fontsize=15.5)
+    fig.text(0.014, 0.105, 'THE CAR PARK has no vehicle entry or exit in the data today: sheet 2f proposes one at its back, onto the road to the town (for your OK). Pay machines make sense only with it.', color=WARN, fontsize=15.5)
     fig.text(0.014, 0.075, 'TAXI RANKS use kerb that is empty today (x -80 to 17 and 154 to 241). The main rank should be the WEST one: every Schengen arrival comes out there, about 1 230 passengers in the busiest hour.', color=FG, fontsize=15.5)
     fig.text(0.014, 0.045, 'THE RAILWAY (later) and the road traffic (to-do 132) are not drawn. Lamps and drains along the kerb (roads.json) stay; the new bays keep clear of them when built.', color=DIM, fontsize=15.5)
     save(fig, 'TCv2-2e-Forecourt.png')
