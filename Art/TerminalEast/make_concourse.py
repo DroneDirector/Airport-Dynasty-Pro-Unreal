@@ -19,14 +19,14 @@ src = open(os.path.join(ROOT, 'Art', 'TerminalAnnex', 'make_annex_west.py'), enc
 exec(src[src.index('MATS = {}'):src.index("S = Piece('annex_west_solid')")])
 W, T = 'MI_T_white', 0.2
 GL, MU, PL, MARBLE, OAK, CEDAR, BASALT = 'MI_T_glassOuter', 'MI_T_mullion', 'MI_T_plaster', 'M_Marble', 'MI_T_oak', 'MI_T_cedar', 'MI_T_basalt'
-LED, OFF, BLK, STEEL, GREEN, AMBER, RED = 'MI_T_l_FFFFFF', 'MI_T_offwhite', 'MI_T_black', 'MI_T_steel', 'MI_T_l_20FF40', 'MI_T_l_FFC870', 'MI_T_l_FF2020'
+LED, OFF, BLK, STEEL, GREEN, AMBER, RED, WHITE = 'MI_T_l_FFFFFF', 'MI_T_offwhite', 'MI_T_black', 'MI_T_steel', 'MI_T_signGreen', 'MI_T_signAmber', 'MI_T_signRed', 'MI_T_signWhite'      # (the letters: Tools/make_sign_materials.py)
 S = Piece('east_c_solid'); GW = Piece('east_c_glass_w'); GE = Piece('east_c_glass_e'); SG = Piece('east_c_signs'); WP = Piece('east_c_walkwall')
 def G(x): return GW if x < 300 else GE
 ZN = 51.885                                            # the lining of the walkway's wall
 
 # ---- letters ----
 FONT = bpy.data.fonts.load('C:/Windows/Fonts/arialbd.ttf')
-def text(P, s, cx, cy, cz, n, size, m=LED, depth=0.012, maxw=None):
+def text(P, s, cx, cy, cz, n, size, m=WHITE, depth=0.012, maxw=None):
     """A line of letters, its middle at plan (cx, cy, cz) on a face looking along n ('+x', '-x', '+z', '-z')."""
     cu = bpy.data.curves.new('t', 'FONT'); cu.body = s; cu.font = FONT; cu.size = size; cu.extrude = depth / 2; cu.resolution_u = 3
     cu.align_x = 'CENTER'; cu.align_y = 'CENTER'
@@ -42,7 +42,7 @@ def text(P, s, cx, cy, cz, n, size, m=LED, depth=0.012, maxw=None):
         f = P.face([pl(me.vertices[i]) for i in p.vertices], m); nn = p.normal
         wd = (R[0] * nn.x + N_[0] * nn.z, nn.y, R[1] * nn.x + N_[1] * nn.z); P.want.append((f, (-wd[0], -wd[2], wd[1])))
     e.to_mesh_clear(); bpy.data.objects.remove(o); bpy.data.curves.remove(cu)
-def band(n, at, u0, u1, y0, y1, s, size, m=LED, d=0.08):
+def band(n, at, u0, u1, y0, y1, s, size, m=WHITE, d=0.08):
     """A dark sign band on a face (plane z = at for '+z'/'-z', x = at for '+x'/'-x') from u0 to u1, its letters."""
     c = (u0 + u1) / 2; sg = 1 if n[0] == '+' else -1; a, b = sorted((at, at + sg * d))
     if n[1] == 'z': SG.box(u0, u1, y0, y1, a, b, BLK); text(SG, s, c, (y0 + y1) / 2, at + sg * d, n, size, m, maxw=(u1 - u0) - 0.3)
@@ -72,7 +72,8 @@ def wx(x, a, b, hl=()): wall('x', x, a, b, hl)
 def esc(x): return (x - DW, x + DW, F2, HD)
 def dr(u): return (u - 0.62, u + 0.62, F2, F2 + 2.3)
 def lid(x0, x1, z0, z1, yb=9.6):                       # an enclosed room's ceiling and its closed top, just under the walls' tops
-    S.box(x0, x1, yb, yb + 0.02, z0, z1, OFF, sides=('-y',)); S.box(x0, x1, yb + 0.3, TOP - 0.02, z0, z1, W, sides=('+y',))
+    S.box(x0, x1, yb, yb + 0.04, z0, z1, OFF, sides=('-y',)); S.box(x0, x1, yb + 0.04, yb + 0.06, z0, z1, OFF, sides=('-y',))      # (two faces: the lamps' check looks up from 2 cm over the first)
+    S.box(x0, x1, yb + 0.3, TOP - 0.02, z0, z1, W, sides=('+y',))
 def floor(x0, x1, z0, z1, m, h=0.008): S.box(x0, x1, F2, F2 + h, z0, z1, m, sides=('+y', '-x', '+x', '-z', '+z'))
 
 # ======================================================================================================== the walkway's wall x 146..242
@@ -94,9 +95,9 @@ for a, b in BIG: portal(a, b, HB)
 for a, b in LANES: portal(a, b, HL)
 for x in ESC_N: S.box(x - DW, x + DW, 5.99, F2 + 0.006, 51.897, 52.103, STEEL, sides=('+y', '-z', '+z'))
 for (a, b), s in zip(BIG, ('PASSPORT CONTROL  ·  GATES 13-16', 'TAX FREE', 'FOOD COURT  ·  CAFÉ  ·  BAR', 'SEATING  ·  KIDS  ·  WORK DESKS')):
-    c = (a + b) / 2; w = min(b - a, 14.0); band('+z', zf(c), c - w / 2, c + w / 2, 10.3, 11.05, s, 0.46, AMBER if s[0] in 'PT' else LED)
+    c = (a + b) / 2; w = min(b - a, 14.0); band('+z', zf(c), c - w / 2, c + w / 2, 10.3, 11.05, s, 0.46, AMBER if s[0] in 'PT' else WHITE)
 for (a, b), s in zip(LANES, ('NO ENTRY', 'TOILETS', 'TOILETS', 'LOUNGE', 'TOILETS')):
-    c = (a + b) / 2; band('+z', zf(c), c - 1.25, c + 1.25, 9.0, 9.5, s, 0.27, RED if s[0] == 'N' else LED)
+    c = (a + b) / 2; band('+z', zf(c), c - 1.25, c + 1.25, 9.0, 9.5, s, 0.27, RED if s[0] == 'N' else WHITE)
 # ======================================================================================================== the passport wall across the walkway (x 240)
 XW, Z0, Z1 = 240.0, 52.15, 67.85
 # its two automatic doors (D-F2-ENTR-PASSWALL-*; middles, half widths): south the staff's, north the escape way, as drawn. Until
@@ -116,8 +117,8 @@ for za, zb in zip(ed, ed[1:]):
 for z in (55.0, 65.0): S.box(XW - 0.066, XW + 0.066, 11.4, 12.17, z - 0.04, z + 0.04, MU)
 GW.box(XW - 0.015, XW + 0.015, 11.4, 12.09, 55.04, 64.96, GL, sides=('-x', '+x')); S.box(XW - 0.066, XW + 0.066, 12.09, 12.17, 55.04, 64.96, MU)
 SG.box(XW - 0.12, XW + 0.12, BY[0], BY[1], 54.0, 66.0, BLK)
-text(SG, 'PASSPORT CONTROL  ·  GATES 13-16   →', XW - 0.12, sum(BY) / 2, 60.0, '-x', 0.5, AMBER); text(SG, 'GATES 1-12  ·  ARRIVALS', XW + 0.12, sum(BY) / 2, 60.0, '+x', 0.46, LED)
-for z, s, m in ((55.2, 'STAFF', LED), (64.8, 'EMERGENCY EXIT', GREEN)):
+text(SG, 'PASSPORT CONTROL  ·  GATES 13-16   →', XW - 0.12, sum(BY) / 2, 60.0, '-x', 0.5, AMBER); text(SG, 'GATES 1-12  ·  ARRIVALS', XW + 0.12, sum(BY) / 2, 60.0, '+x', 0.46, WHITE)
+for z, s, m in ((55.2, 'STAFF', WHITE), (64.8, 'EMERGENCY EXIT', GREEN)):
     for sd, n in ((-1, '-x'), (1, '+x')):
         a, b = sorted((XW + sd * 0.075, XW + sd * 0.105)); SG.box(a, b, 9.27, 9.53, z - 1.1, z + 1.1, BLK); text(SG, s, XW + sd * 0.105, 9.4, z, n, 0.15, m)
 for za, zb in ((ed[0], ed[1]), (ed[2], ed[3]), (ed[4], ed[5])):                                         # two rows of white dots on the glass (the rule for glass walls)
@@ -203,7 +204,7 @@ for a, b, s in KI:
     for i in range(n): SHUT.append(['food', a + 0.15 + w * (i + 0.5), 27.82, 180, w])
 for x, s in ((350.3, 1), (353.7, -1), (386.3, 1), (389.7, -1)):                                        # the kiosks' ends at the ways to the gallery
     a, b = sorted((x, x + s * 0.1)); S.box(a, b, F2, TOP, 23.9, 28.0, CEDAR)
-for a, b in GAPS: S.box(a, b, 9.2, TOP, 27.86, 27.98, BLK); text(SG, 'WINDOW GALLERY', (a + b) / 2, 9.68, 27.98, '+z', 0.26, LED); S.box(a, b, 9.2, TOP, 23.9, 24.02, OAK)
+for a, b in GAPS: S.box(a, b, 9.2, TOP, 27.86, 27.98, BLK); text(SG, 'WINDOW GALLERY', (a + b) / 2, 9.68, 27.98, '+z', 0.26, WHITE); S.box(a, b, 9.2, TOP, 23.9, 24.02, OAK)
 # prayer and quiet room, toilets 2 (family, baby)
 wx(400.0, 24.1, 36.9); wx(424.0, 24.1, 36.9); wz(37.0, 399.9, 424.1, [dr(412.0)]); wz(39.0, 399.9, 424.1, [dr(404.0), dr(412.0), dr(420.0)]); wx(400.0, 39.1, ZN); wx(424.0, 39.1, ZN)
 floor(400.112, 423.888, 24.112, 36.888, 'MI_T_carpetGrey'); floor(400.112, 423.888, 39.112, 51.86, 'MI_T_tile'); lid(400.1, 423.9, 24.1, 36.9); lid(400.1, 423.9, 39.1, ZN)
@@ -261,6 +262,7 @@ def booth():                                           # TO-DO 212: only holds t
     P = Piece('east_c_booth')
     for a, b, c, d in ((-3, 3, -1.1, -0.9), (-3, -2.8, -0.9, 0.9), (2.8, 3, -0.9, 0.9), (-3, 3, 0.9, 1.1)): P.box(a, b, 0, 1.1, c, d, BASALT)
     for a, b, c, d in ((-3.03, 3.03, -1.13, -0.7), (-3.03, -2.6, -0.7, 0.7), (2.6, 3.03, -0.7, 0.7), (-3.03, 3.03, 0.7, 1.13)): P.box(a, b, 1.1, 1.15, c, d, OAK)
+    P.box(-2.6, 2.6, 1.1, 1.12, -0.7, 0.7, 'MI_T_dark', sides=('+y',))      # (closed over until 212)
     return P
 def egate():                                           # TO-DO 212: only holds the e-gate's place (4.8 x 0.7 m)
     P = Piece('east_c_egate'); P.box(-2.4, 2.4, 0, 1.0, -0.35, 0.35, STEEL); P.box(-2.42, 2.42, 1.0, 1.04, -0.37, 0.37, BLK); P.box(-2.3, 2.3, 1.04, 1.055, -0.03, 0.03, GREEN)
