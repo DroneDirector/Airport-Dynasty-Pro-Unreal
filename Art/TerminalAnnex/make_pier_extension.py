@@ -72,7 +72,9 @@ for side, (x0, x1) in (('W', (W_END, -80.0)), ('E', (242.0, E_END))):
         for a, b in (IN, OUT, HALL):
             S.box(a, b, F2 + 3.6, F2C, 51.9, 52.1, 'MI_T_white')                       # the wall over each way through
     else:
-        zwall(52.0, x0, x1, F2, F2C, +1, 'MI_T_plaster', 'MI_T_white')                  # the east wing's side
+        # the east wing's side, opened onto the Floor 2 concourse (terminal part 2a, 2026-11-23: Art/TerminalEast/conc_geom.py)
+        import sys; sys.path.insert(0, os.path.join(os.path.dirname(HERE), 'TerminalEast')); import conc_geom as CG_
+        zwall(52.0, x0, x1, F2, F2C, +1, 'MI_T_plaster', 'MI_T_white', [(a_, b_, F2, h_) for a_, b_, h_ in CG_.holes() if a_ > x0])
     # ---- Floor 1: the baggage hall ----
     zwall(68.0, x0, x1, 0.0, F2, -1, 'MI_T_concrete', 'MI_T_white', F1N[side])
     zwall(52.0, x0, x1, 0.0, F2, +1, 'MI_T_concrete', 'MI_T_white')

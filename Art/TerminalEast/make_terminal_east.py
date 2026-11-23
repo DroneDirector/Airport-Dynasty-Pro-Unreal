@@ -356,7 +356,13 @@ S.box(469.9, 470.16, CEIL, CEIL + 0.04, 6.1, F2Z0 - 0.06, W, sides=('+y', '-x', 
 def north(x0, x1, y0, y1):
     S.box(x0, x1, y0, y1, 51.885, 51.9, PL, sides=('-z',)); S.box(x0, x1, y0, y0 + 0.1, 51.87, 51.885, 'MI_T_steel', sides=('-z', '+y'))
 for a, b in ((236.1, 311.9), (312.1, 323.9), (324.1, 371.9), (470.16, X1 - 0.08)): north(a, b, 0.01, CEIL)
-north(F2X0 + 0.1, X1 - 0.08, F2, RC)
+# (Floor 2: opened onto the walkway, terminal part 2a - Art/TerminalEast/conc_geom.py)
+sys.path.insert(0, HERE); import conc_geom as CG2
+_ed = sorted({F2X0 + 0.1, X1 - 0.08} | {v for a, b, h in CG2.holes() for v in (a, b)})
+for a, b in zip(_ed, _ed[1:]):
+    _h = next((h for p, q, h in CG2.holes() if p <= a and b <= q), None)
+    if _h is None: north(a, b, F2, RC)
+    else: S.box(a, b, _h, RC, 51.885, 51.9, PL, sides=('-z', '-y'))          # (its edges: behind the openings' own frames)
 # the East Hall's back wall: oak battens to 5.4 between the doorways over a dark backing, as the link gallery's
 Z40 = [(156.1, 159.8, 3.1), (162.3, 163.7, 2.35), (168.3, 169.7, 2.35), (174.3, 175.7, 2.35), (183.1, 184.9, 2.35), (195.9, 204.1, 3.1), (215.9, 222.1, 3.1)]
 def z40_bottom(x): return next((h for a, b, h in Z40 if a < x + 0.06 and x < b), 0.11)
