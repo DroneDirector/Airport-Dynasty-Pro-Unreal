@@ -27,5 +27,5 @@ for L in Ls:
 for L in Ls:
     if 'b' in L: bx, by, w, h, t, c, x, y = L['b']; d.rectangle([bx, by, bx + w, by + h], fill=(8, 10, 13, 225), outline=c + (255,), width=max(2, int(3 * s))); d.text((bx + 18 * s, by + 8 * s), t, font=F, fill=c)
 bar = int(150 * s); out = Image.new('RGB', (W, H + bar), (0, 0, 0)); out.paste(im, (0, 0)); d = ImageDraw.Draw(out)
-d.text((40 * s, H + 14 * s), cap, font=FB, fill=(235, 240, 245)); d.text((40 * s, H + 90 * s), sub or 'Gold line + NEW = new in the plan (v2 sheets), nothing built yet. TODAY = the game's own terminal, jetways and A320. Road, cars, coaches, people and grass are simple stand-ins.', font=FC, fill=(160, 172, 184))
+d.text((40 * s, H + 14 * s), cap, font=FB, fill=(235, 240, 245)); d.text((40 * s, H + 90 * s), sub or 'Gold line + NEW = new in the plan (v2 sheets), nothing built yet. TODAY = the terminal, jetways and A320 from the game. Road, cars, coaches, people and grass are simple stand-ins.', font=FC, fill=(160, 172, 184))
 os.makedirs(OUT, exist_ok=True); out.save(os.path.join(OUT, shot + '.png')); print(os.path.join(OUT, shot + '.png'))

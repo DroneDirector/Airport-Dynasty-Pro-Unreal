@@ -9,7 +9,7 @@ OUT = os.environ.get('TC_OUT') or 'F:/ADP-Export/tc_raw'
 os.makedirs(OUT, exist_ok=True)
 def P(x, z, h): return Vector((x - 200.0, z, h))
 N, E = 'NEW', 'EXISTING'
-OUTL = [(N, 'East Hall', 192, -4, 4), (N, 'Glass front up to the curved roof, x 156-551', 345, 0, 9), (N, 'Double-skin glass front x 107-160 (offices keep their windows)', 132, -4, 9), (N, 'Taxi rank east', 198, -20, 3), (N, 'Taxi rank west', -40, -20, 3),
+OUTL = [(N, 'East Hall', 192, -4, 4), (N, 'Glass front up to the curved roof, x 156-551', 345, 0, 9), (N, 'Double-skin glass front (offices keep their windows)', 132, -4, 9), (N, 'Taxi rank east', 198, -20, 3), (N, 'Taxi rank west', -40, -20, 3),
         (N, 'Coach + bus station', 510, -2, 8), (N, 'Parking pay machines', 79, -57, 2.8), (N, '5 coach bays', 511, -23, 3), (N, 'Promenade with shops (behind the glass)', 420, 0, 3)]
 EXL = [(E, 'Grand Hall', 78, 0, 10), (E, 'Arrivals wing', -40, -4, 8), (E, 'Curved roof + tree pillars (already to x 551)', 280, -16, 20), (E, 'Coach stands', 100, -23, 3)]
 GATES = [(E, 'Gate %d' % g, x, 75, 12.2) for g, x in ((13, 272.4), (14, 352.2), (15, 424.5), (16, 496.8))]
