@@ -51,7 +51,7 @@ for name in names:
     if bs: bs.set_editor_property('collision_trace_flag', unreal.CollisionTraceFlag.CTF_USE_COMPLEX_AS_SIMPLE)
     # (the wave roof's thin open sheets: their distance field as two-sided. One-sided, the space under a sheet counted as solid and
     #  the Grand Hall and everything under the roof went dark and blotchy in Lumen - 2026-11-23)
-    if name.startswith('wave_'):
+    if name.startswith('wave_') and not name.startswith('wave_core'):
         _sub = unreal.get_editor_subsystem(unreal.StaticMeshEditorSubsystem); _bs = _sub.get_lod_build_settings(sm, 0)
         _bs.set_editor_property('generate_distance_field_as_if_two_sided', True); _sub.set_lod_build_settings(sm, 0, _bs)
     EAL.save_loaded_asset(sm)

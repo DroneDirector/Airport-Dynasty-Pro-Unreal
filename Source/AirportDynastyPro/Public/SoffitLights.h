@@ -1,9 +1,10 @@
 // The light under the terminal's wave roof, outside and in its tall halls (owner, 2026-11-23: the shade under the roof was
-// black, the front black at night). By day the sky's light that really reaches under a 12 m high open roof - the game's
-// sky light gives nothing (its real-time capture comes out black, everywhere), so it is given here, under this roof only;
+// black, the front black at night). By day what the sky and the sunlit ground throw up under a 12 m high open roof, on top of
+// the sky light's own (on since 2026-11-23);
 // by night the roof's own downlights (their fittings glow: ROOF/DOWNLIGHT) light the paving, the promenade and the halls.
 // A few long soft panels, one per 40 m, under the roof's lowest point and above every wall: no shadows, no flares, no haze,
-// nothing on the glass, a distance limit; the halls' ones off by day. Console: adp.SoffitDay / adp.SoffitNight (1 = as built).
+// nothing on the glass, a distance limit; the halls' ones at half strength by day. Console: adp.SoffitDay / adp.SoffitNight.
+// And the roof as Lumen sees it (reflections, bounced light): solid, not two thin sheets (SolidRoof).
 #pragma once
 
 #include "CoreMinimal.h"
@@ -21,10 +22,12 @@ public:
 	virtual void Tick(float Dt) override;
 
 private:
+	void SolidRoof();
 	UPROPERTY() TObjectPtr<USceneComponent> Root;
 	UPROPERTY() TArray<TObjectPtr<class URectLightComponent>> Lights;
 	struct FPanel { float DayCd = 0.f, NightCd = 0.f; };
 	TArray<FPanel> Panels;
 	float Check = 0.f, LastDay = -1.f, LastNight = -1.f;
-	bool bOn = false;
+	bool bOn = false, bSolid = false;
+	int32 SolidTries = 0;
 };

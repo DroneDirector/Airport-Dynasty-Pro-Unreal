@@ -40,7 +40,7 @@ m.set_editor_property('blend_mode', unreal.BlendMode.BLEND_ALPHA_COMPOSITE)
 m.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_DEFAULT_LIT)
 m.set_editor_property('two_sided', True)
 m.set_editor_property('translucency_lighting_mode', unreal.TranslucencyLightingMode.TLM_SURFACE_PER_PIXEL_LIGHTING)
-m.set_editor_property('used_with_instanced_static_meshes', True)
+for n in ('used_with_instanced_static_meshes', 'used_with_nanite'): m.set_editor_property(n, True)
 for n in ('allow_front_layer_translucency', 'screen_space_reflections'):
     try: m.set_editor_property(n, True)
     except Exception as e: log('no', n)
@@ -83,7 +83,7 @@ c = ex(unreal.MaterialExpressionCustom, -400, 0, code=CODE, output_type=unreal.C
 c.set_editor_property('inputs', ci)
 src = {'WP': ex(unreal.MaterialExpressionWorldPosition, -900, -400), 'WN': ex(unreal.MaterialExpressionVertexNormalWS, -900, -340), 'CV': ex(unreal.MaterialExpressionCameraVectorWS, -900, -280),
        'In': ex(unreal.MaterialExpressionTextureObjectParameter, -900, -200, parameter_name='Inside', texture=tex, sampler_type=unreal.MaterialSamplerType.SAMPLERTYPE_MASKS),
-       'Out': sca('ReflectOutside', 0.11, 0), 'Ins': sca('ReflectInside', 0.035, 70), 'Mid': sca('ReflectBetween', 0.06, 140),
+       'Out': sca('ReflectOutside', 0.14, 0), 'Ins': sca('ReflectInside', 0.035, 70), 'Mid': sca('ReflectBetween', 0.06, 140),
        'HazeOut': sca('DarkOutside', 0.10, 210), 'HazeIn': sca('DarkInside', 0.02, 280)}
 for n in NAMES: mel.connect_material_expressions(src[n], '', c, n)
 

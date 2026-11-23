@@ -123,9 +123,9 @@ void ASunClock::ApplyWeather()
 {
 	// the clouds: coverage, density and the storm (Unreal's own cloud material); the fog: how thick near the ground
 	// (the engine's material: -0.2 and 0.008 are its fair-weather wisps; coverage adds to the cloud shape, density is per metre.
-	// Until 2026-11-23 these never reached the clouds that are drawn: only the first cloud actor got the material)
-	static const float Cover[] = {-0.3f, -0.2f, -0.05f, 0.35f, 0.2f, 0.4f, 0.5f, 0.35f};
-	static const float Dense[] = {0.006f, 0.008f, 0.012f, 0.03f, 0.02f, 0.035f, 0.05f, 0.03f};
+	// Until 2026-11-23 the numbers here were 0.02..1 and 0.3..1, far outside its range: every theme was the same solid layer)
+	static const float Cover[] = {-0.35f, -0.25f, -0.05f, 0.3f, 0.3f, 0.35f, 0.45f, 0.3f};
+	static const float Dense[] = {0.006f, 0.008f, 0.012f, 0.0012f, 0.0015f, 0.002f, 0.006f, 0.0015f};   // (a whole grey lid must be thin, or no light gets through it and it looks dark blue)
 	static const float Fog[] = {0.004f, 0.006f, 0.01f, 0.02f, 0.3f, 0.05f, 0.06f, 0.07f};
 	const int32 T = FMath::Clamp(Theme, 0, 7);
 	for (TActorIterator<AVolumetricCloud> It(GetWorld()); It; ++It)
@@ -149,7 +149,7 @@ void ASunClock::ApplyWeather()
 namespace ADPSky
 {
 	static TAutoConsoleVariable<float> CVarIntensity(TEXT("adp.SkyLightIntensity"), 1.f, TEXT("The sky light's strength (1 = what the sky really gives)"));
-	static TAutoConsoleVariable<float> CVarWarm(TEXT("adp.SkyLightWarm"), 1.f, TEXT("How much of the sky's blue is balanced away in its light, as a camera does (0..1)"));
+	static TAutoConsoleVariable<float> CVarWarm(TEXT("adp.SkyLightWarm"), 1.05f, TEXT("How much of the sky's blue is balanced away in its light, as a camera does (0..1)"));
 	static TAutoConsoleVariable<int32> CVarWeather(TEXT("adp.TestWeather"), -1, TEXT("Tests only (a -UI test run): the weather theme, 0 clear .. 3 overcast .. 7 snow; -1 = leave it"));
 
 	static void Check(UWorld* W)

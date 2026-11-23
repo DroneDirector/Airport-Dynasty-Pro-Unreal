@@ -3,12 +3,15 @@
 #include "TerminalPlan.h"
 #include "ADPLog.h"
 #include "Components/DirectionalLightComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Components/RectLightComponent.h"
 #include "Engine/DirectionalLight.h"
+#include "Engine/StaticMesh.h"
+#include "UObject/UObjectIterator.h"
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
 
-static TAutoConsoleVariable<float> CVarSoffitDay(TEXT("adp.SoffitDay"), 0.85f, TEXT("The daylight under the terminal's wave roof (1 = as before the sky light gave its own)"));
+static TAutoConsoleVariable<float> CVarSoffitDay(TEXT("adp.SoffitDay"), 1.1f, TEXT("The daylight under the terminal's wave roof (1 = as before the sky light gave its own)"));
 static TAutoConsoleVariable<float> CVarSoffitNight(TEXT("adp.SoffitNight"), 1.f, TEXT("The downlights' light under the terminal's wave roof (1 = as built)"));
 
 ASoffitLights::ASoffitLights()
@@ -20,14 +23,14 @@ ASoffitLights::ASoffitLights()
 void ASoffitLights::Build()
 {
 	// (plan metres; Len along the building, Wid across it; Tilt: turned out towards the road, degrees)
-	auto Add = [this](float X, float Y, float Z, float Len, float Wid, float Tilt, float DayCd, float NightCd)
+	auto Add = [this](float X, float Y, float Z, float Len, float Wid, float Tilt, float DayCd, float NightCd, bool bUp = false)
 	{
 		URectLightComponent* L = NewObject<URectLightComponent>(this);
 		L->SetupAttachment(Root);
 		L->SetMobility(EComponentMobility::Movable);
 		const float T = FMath::DegreesToRadians(Tilt);
 		// facing down (its x), its long side along the building (its z); the plan's -z is the world's +y
-		L->SetWorldLocationAndRotation(FTerminalPlan::ToWorld(X, Y, Z), FRotationMatrix::MakeFromXZ(FVector(0, FMath::Sin(T), -FMath::Cos(T)), FVector(1, 0, 0)).Rotator());
+		L->SetWorldLocationAndRotation(FTerminalPlan::ToWorld(X, Y, Z), FRotationMatrix::MakeFromXZ(FVector(0, FMath::Sin(T), bUp ? FMath::Cos(T) : -FMath::Cos(T)), FVector(1, 0, 0)).Rotator());
 		L->SetSourceHeight(Len * 100.f); L->SetSourceWidth(Wid * 100.f);
 		L->SetBarnDoorAngle(88.f);
 		L->SetIntensityUnits(ELightUnits::Candelas); L->SetIntensity(0.f);
@@ -50,8 +53,57 @@ void ASoffitLights::Build()
 	// inside, the roof's downlights over the Grand Hall, the East Hall and the promenade (by day, with the skylights' own
 	// daylight, at half strength - owner, 2026-11-23: the hall a little brighter)
 	for (const float X : {60.f, 96.f, 174.f, 210.f}) for (const float Z : {9.f, 24.f}) Add(X, 10.4f, Z, 30.f, 3.f, 0.f, 420.f, 700.f);
+	// (and what the bright floor throws back up at the wood and the walls)
+	for (const float X : {60.f, 96.f, 174.f, 210.f}) Add(X, 5.2f, 16.f, 34.f, 14.f, 0.f, 260.f, 0.f, true);
 	for (int32 k = 0; k < 8; ++k) Add(248.f + 40.3f * k, 10.4f, 4.f, 38.f, 2.f, 0.f, 250.f, 700.f);
 	ADP_LOG(TEXT("Soffit lights: %d panels under the wave roof"), Lights.Num());
+}
+
+void ASoffitLights::SolidRoof()
+{
+	// the roof's underside and top are two thin sheets: Lumen, which sees the world by its distance fields, lost them a little
+	// way off, and the panes under the roof mirrored the wood only in patches, with sky between. It sees the same roof solid
+	// instead (Art/TerminalAnnex/make_wave_core.py, never drawn); the sheets are drawn as before
+	TArray<UInstancedStaticMeshComponent*> Sheets;
+	for (TObjectIterator<UInstancedStaticMeshComponent> It; It; ++It)
+		if (It->GetWorld() == GetWorld() && It->IsRegistered() && It->GetStaticMesh() && It->GetInstanceCount() > 0)
+		{
+			const FString N = It->GetStaticMesh()->GetName();
+			if (N.StartsWith(TEXT("wave_soffit_")) || N.StartsWith(TEXT("wave_top_"))) Sheets.Add(*It);
+		}
+	if (Sheets.Num() < 6 && SolidTries < 600) return;   // (not all placed yet)
+	bSolid = true;
+	int32 Made = 0;
+	for (UInstancedStaticMeshComponent* S : Sheets)
+	{
+		const FString N = S->GetStaticMesh()->GetName();
+		if (N.StartsWith(TEXT("wave_soffit_")))
+		{
+			TArray<UStaticMesh*> Cores;
+			for (int32 k = 0; k < 3; ++k)
+			{
+				const FString C = FString::Printf(TEXT("wave_core_%s%d"), *N.RightChop(12), k);
+				if (UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, *FString::Printf(TEXT("/Game/Terminal/Meshes/%s.%s"), *C, *C))) Cores.Add(M);
+			}
+			if (Cores.Num() < 3) { ADP_LOG(TEXT("Soffit lights: the solid roof's pieces are missing (%s)"), *N); return; }
+			for (UStaticMesh* M : Cores)
+			{
+				UInstancedStaticMeshComponent* K = NewObject<UInstancedStaticMeshComponent>(this);
+				K->SetStaticMesh(M);
+				K->SetMobility(EComponentMobility::Static);
+				K->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+				K->SetCastShadow(false);
+				K->SetAffectIndirectLightingWhileHidden(true);
+				K->SetHiddenInGame(true);
+				K->RegisterComponent();
+				AddInstanceComponent(K);
+				for (int32 i = 0; i < S->GetInstanceCount(); ++i) { FTransform T; if (S->GetInstanceTransform(i, T, true)) { K->AddInstance(T, true); ++Made; } }
+			}
+		}
+		S->SetAffectDynamicIndirectLighting(false);
+		S->SetAffectDistanceFieldLighting(false);
+	}
+	ADP_LOG(TEXT("Soffit lights: the wave roof solid for Lumen (%d pieces in place of %d sheets' parts)"), Made, Sheets.Num());
 }
 
 void ASoffitLights::Tick(float Dt)
@@ -59,6 +111,7 @@ void ASoffitLights::Tick(float Dt)
 	Super::Tick(Dt);
 	if ((Check -= Dt) > 0.f) return;
 	Check = 0.5f;
+	if (!bSolid && ++SolidTries % 4 == 0) SolidRoof();
 	static TWeakObjectPtr<ADirectionalLight> Sun;
 	if (!Sun.IsValid()) Sun = Cast<ADirectionalLight>(UGameplayStatics::GetActorOfClass(this, ADirectionalLight::StaticClass()));
 	if (!Sun.IsValid()) return;
