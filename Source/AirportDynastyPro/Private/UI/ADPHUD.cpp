@@ -364,7 +364,7 @@ void AADPHUD::BeginPlay()
 		Indoor->BlendWeight = 0.f;
 		FPostProcessSettings& S = Indoor->Settings;
 		// (2026-11-10: less washed out in the gates: a little less lift and leak, more contact shading)
-		S.bOverride_LumenSkylightLeaking = true; S.LumenSkylightLeaking = 0.12f;
+		S.bOverride_LumenSkylightLeaking = true; S.LumenSkylightLeaking = 0.f;   // (the sky light is really on since 2026-11-23: no sky through the walls)
 		S.bOverride_IndirectLightingIntensity = true; S.IndirectLightingIntensity = 1.25f;
 		S.bOverride_AmbientOcclusionIntensity = true; S.AmbientOcclusionIntensity = 0.5f;
 		S.bOverride_AutoExposureBias = true; S.AutoExposureBias = -0.5f;   // indoors a little less bright overall

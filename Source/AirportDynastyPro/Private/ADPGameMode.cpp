@@ -256,8 +256,10 @@ void AADPGameMode::SpawnSkyAndLight()
 	if (ASkyLight* Sky = W->SpawnActorDeferred<ASkyLight>(ASkyLight::StaticClass(), At, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn))
 	{
 		Sky->GetRootComponent()->SetMobility(EComponentMobility::Movable);
-		Sky->GetLightComponent()->bRealTimeCapture = true;
 		Sky->FinishSpawning(At);
+		// (after the spawn, through its setter: the flag alone, set on a component already registered, left its render proxy
+		// without the sky - the sky light gave no light at all until 2026-11-23)
+		Sky->GetLightComponent()->SetRealTimeCapture(true);
 		// (to-do 195: the sky light's real-time capture redrew the sky and its clouds into the lighting every frame - spread
 		// over several frames instead; the sky changes slowly, so it looks the same and the clouds cost less)
 		if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SkyLight.RealTimeReflectionCapture.TimeSlice"))) V->Set(1, ECVF_SetByGameSetting);

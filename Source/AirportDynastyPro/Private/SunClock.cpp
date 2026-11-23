@@ -20,9 +20,7 @@
 #include "EngineUtils.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Engine/PostProcessVolume.h"
 #include "HAL/IConsoleManager.h"
-#include "UObject/UObjectIterator.h"
 
 float ASunClock::HourOverride = -1.f;
 int32 ASunClock::DayOverride = -1;
@@ -117,118 +115,62 @@ void ASunClock::Update()
 	}
 }
 
+// (tests: the clouds' coverage and density by hand; they count from the next change of weather)
+static TAutoConsoleVariable<float> CVarCloudCover(TEXT("adp.CloudCover"), -10.f, TEXT("Tests: the clouds' coverage (-10 = by the weather)"));
+static TAutoConsoleVariable<float> CVarCloudDense(TEXT("adp.CloudDense"), 0.f, TEXT("Tests: the clouds' density (0 = by the weather)"));
+
 void ASunClock::ApplyWeather()
 {
 	// the clouds: coverage, density and the storm (Unreal's own cloud material); the fog: how thick near the ground
-	static const float Cover[] = {0.02f, 0.35f, 0.6f, 1.f, 0.85f, 1.f, 1.f, 1.f};
-	static const float Dense[] = {0.3f, 0.45f, 0.6f, 0.9f, 0.8f, 1.f, 1.f, 0.85f};
+	// (the engine's material: -0.2 and 0.008 are its fair-weather wisps; coverage adds to the cloud shape, density is per metre.
+	// Until 2026-11-23 these never reached the clouds that are drawn: only the first cloud actor got the material)
+	static const float Cover[] = {-0.3f, -0.2f, -0.05f, 0.35f, 0.2f, 0.4f, 0.5f, 0.35f};
+	static const float Dense[] = {0.006f, 0.008f, 0.012f, 0.03f, 0.02f, 0.035f, 0.05f, 0.03f};
 	static const float Fog[] = {0.004f, 0.006f, 0.01f, 0.02f, 0.3f, 0.05f, 0.06f, 0.07f};
 	const int32 T = FMath::Clamp(Theme, 0, 7);
 	for (TActorIterator<AVolumetricCloud> It(GetWorld()); It; ++It)
 		if (UVolumetricCloudComponent* C = It->FindComponentByClass<UVolumetricCloudComponent>())
 		{
-			if (!CloudMat) { CloudMat = UMaterialInstanceDynamic::Create(C->Material.LoadSynchronous(), this); C->SetMaterial(CloudMat); }
-			CloudMat->SetScalarParameterValue(TEXT("Cloud_GlobalCoverage"), Cover[T]);
-			CloudMat->SetScalarParameterValue(TEXT("Cloud_GlobalDensity"), Dense[T]);
+			if (!CloudMat) CloudMat = UMaterialInstanceDynamic::Create(C->Material.LoadSynchronous(), this);
+			if (C->GetMaterial() != CloudMat) C->SetMaterial(CloudMat);
+			const float Cv = CVarCloudCover.GetValueOnGameThread(), Dn = CVarCloudDense.GetValueOnGameThread();
+			CloudMat->SetScalarParameterValue(TEXT("Cloud_GlobalCoverage"), Cv > -9.f ? Cv : Cover[T]);
+			CloudMat->SetScalarParameterValue(TEXT("Cloud_GlobalDensity"), Dn > 0.f ? Dn : Dense[T]);
+			ADP_LOG(TEXT("Clouds: %s on %s (coverage %.2f, density %.3f)"), ThemeName(T), *It->GetName(), Cv > -9.f ? Cv : Cover[T], Dn > 0.f ? Dn : Dense[T]);
 			CloudMat->SetScalarParameterValue(TEXT("StormClouds"), T == 6 ? 1.f : 0.f);
 		}
 	for (TActorIterator<AExponentialHeightFog> It(GetWorld()); It; ++It)
 		if (UExponentialHeightFogComponent* F = It->GetComponent()) F->SetFogDensity(Fog[T]);
 }
 
-// ---- the sky light, a TRIAL (owner to decide): off unless -SkyLightTrial or adp.SkyLight 1 ----
-// The game's sky light gives no light at all: the game mode spawns it deferred, which registers the component (and makes
-// its render proxy) before bRealTimeCapture is set; setting the flag by hand does not make the proxy again, so the
-// renderer never captures the sky in real time, while the component, believing it does, skips the ordinary capture too.
-// The trial has the proxy made again (MarkRenderStateDirty): it then captures the sky in real time, as meant.
-namespace ADPSkyTrial
+// ---- the sky light (owner, 2026-11-23: on for good, a little warmer; tried first in 99ff69df) ----
+// It captures the sky in real time (ADPGameMode.cpp) and lights the shade as the sky does. The camera's white balance: the
+// sky's blue is balanced away (Warm), so white walls in the shade look white; the sunlit look is the sun's own.
+namespace ADPSky
 {
-	static TAutoConsoleVariable<int32> CVarOn(TEXT("adp.SkyLight"), 0, TEXT("The sky light trial: 1 = the sky lights the world (0 = as shipped)"));
-	static TAutoConsoleVariable<float> CVarIntensity(TEXT("adp.SkyLightIntensity"), 1.f, TEXT("Trial: the sky light's strength (1 = what the sky really gives)"));
-	static TAutoConsoleVariable<float> CVarWarm(TEXT("adp.SkyLightWarm"), 0.7f, TEXT("Trial: how much of the sky's blue is balanced away, as a camera does (0..1)"));
-	static TAutoConsoleVariable<float> CVarSoffit(TEXT("adp.SkyLightSoffit"), 0.4f, TEXT("Trial: the share of the daylight panels under the wave roof that is left"));
-	static TAutoConsoleVariable<float> CVarLeak(TEXT("adp.SkyLightLeak"), 0.f, TEXT("Trial: the sky's leak indoors (0.12 as shipped)"));
-	static TAutoConsoleVariable<int32> CVarGlass(TEXT("adp.SkyLightGlass"), 2, TEXT("Trial: the terminal's panes: 0 = as shipped, 1 = only smoother, 2 = the window glass (M_WindowGlass: clear straight on, mirroring less at a slant)"));
-	static TAutoConsoleVariable<float> CVarGlassRough(TEXT("adp.SkyLightGlassRough"), 0.02f, TEXT("Trial: the panes' roughness"));
-	static TAutoConsoleVariable<float> CVarGlassStraight(TEXT("adp.SkyLightGlassStraight"), 0.06f, TEXT("Trial, glass 2: how solid a pane is seen straight on"));
-	static TAutoConsoleVariable<float> CVarGlassSlant(TEXT("adp.SkyLightGlassSlant"), 0.35f, TEXT("Trial, glass 2: how solid at a slant"));
-	static TAutoConsoleVariable<float> CVarGlassSpec(TEXT("adp.SkyLightGlassSpec"), 0.5f, TEXT("Trial, glass 2: how much it mirrors"));
+	static TAutoConsoleVariable<float> CVarIntensity(TEXT("adp.SkyLightIntensity"), 1.f, TEXT("The sky light's strength (1 = what the sky really gives)"));
+	static TAutoConsoleVariable<float> CVarWarm(TEXT("adp.SkyLightWarm"), 1.f, TEXT("How much of the sky's blue is balanced away in its light, as a camera does (0..1)"));
 	static TAutoConsoleVariable<int32> CVarWeather(TEXT("adp.TestWeather"), -1, TEXT("Tests only (a -UI test run): the weather theme, 0 clear .. 3 overcast .. 7 snow; -1 = leave it"));
-	static FString Last(TEXT("0"));
-	static TMap<TWeakObjectPtr<UMaterialInterface>, TPair<TStrongObjectPtr<UMaterialInstanceDynamic>, TWeakObjectPtr<UMaterialInterface>>> Panes;   // the pane -> the trial's copy of it
-	static TMap<TWeakObjectPtr<APostProcessVolume>, float> Leaks;
-
-	static void Glass(UWorld* W, bool bOn)
-	{
-		static int32 LastMode = 0;
-		const int32 Mode = bOn ? CVarGlass.GetValueOnGameThread() : 0;
-		if (LastMode && Mode && Mode != LastMode) Glass(W, false);   // (the other kind: the shipped panes back first)
-		LastMode = Mode; bOn = Mode > 0;
-		UMaterialInterface* Window = Mode == 2 ? LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/Glass/M_WindowGlass.M_WindowGlass")) : nullptr;
-		TMap<UMaterialInterface*, UMaterialInterface*> Back;
-		for (auto& P : Panes) if (P.Value.Key.IsValid() && P.Value.Value.IsValid()) Back.Add(P.Value.Key.Get(), P.Value.Value.Get());
-		int32 n = 0;
-		for (TObjectIterator<UPrimitiveComponent> It; It; ++It)
-		{
-			if (It->GetWorld() != W || !It->IsRegistered()) continue;
-			for (int32 i = 0; i < It->GetNumMaterials(); ++i)
-			{
-				UMaterialInterface* M = It->GetMaterial(i);
-				if (!M) continue;
-				UMaterialInterface** Own = Back.Find(M);
-				if (!bOn) { if (Own) { It->SetMaterial(i, *Own); ++n; } continue; }
-				UMaterialInterface* Src = Own ? *Own : M;
-				if (!Src->GetName().StartsWith(TEXT("MI_T_glass"))) continue;
-				auto& P = Panes.FindOrAdd(Src);
-				if (!P.Key.IsValid())
-				{
-					P.Key = TStrongObjectPtr<UMaterialInstanceDynamic>(UMaterialInstanceDynamic::Create(Window ? Window : Src, GetTransientPackage()));
-					P.Value = Src; Back.Add(P.Key.Get(), Src);
-				}
-				P.Key->SetScalarParameterValue(Window ? TEXT("Roughness") : TEXT("R"), CVarGlassRough.GetValueOnGameThread());
-				if (Window)
-				{
-					P.Key->SetScalarParameterValue(TEXT("OpacityStraight"), CVarGlassStraight.GetValueOnGameThread());
-					P.Key->SetScalarParameterValue(TEXT("OpacitySlant"), CVarGlassSlant.GetValueOnGameThread());
-					P.Key->SetScalarParameterValue(TEXT("Specular"), CVarGlassSpec.GetValueOnGameThread());
-					FLinearColor C; if (Src->GetVectorParameterValue(FHashedMaterialParameterInfo(TEXT("BC")), C)) P.Key->SetVectorParameterValue(TEXT("Tint"), FLinearColor(C.R * 0.06f, C.G * 0.06f, C.B * 0.06f, 1.f));
-				}
-				if (M != P.Key.Get()) { It->SetMaterial(i, P.Key.Get()); ++n; }
-			}
-		}
-		if (!bOn) Panes.Reset();
-		ADP_LOG(TEXT("Sky light trial: %d glass slots %s"), n, bOn ? TEXT("tuned") : TEXT("put back"));
-	}
 
 	static void Check(UWorld* W)
 	{
-		static bool bFirst = true;
-		if (bFirst) { bFirst = false; if (FParse::Param(FCommandLine::Get(), TEXT("SkyLightTrial"))) CVarOn->Set(1); }
 		const int32 Wx = CVarWeather.GetValueOnGameThread();
 		if (Wx >= 0 && Wx != ASunClock::Theme && ASunClock::ManualWeatherAllowed()) { ASunClock::Theme = FMath::Min(Wx, 7); ASunClock::Refresh(); }
-		const bool bOn = CVarOn.GetValueOnGameThread() > 0;
-		if (!bOn && Last == TEXT("0")) return;   // (as shipped: nothing touched)
-		const FString Now = !bOn ? FString(TEXT("0")) : FString::Printf(TEXT("%.3f %.3f %.3f %.3f glass %d %.3f %.3f %.3f %.3f"), CVarIntensity.GetValueOnGameThread(), CVarWarm.GetValueOnGameThread(), CVarSoffit.GetValueOnGameThread(),
-			CVarLeak.GetValueOnGameThread(), CVarGlass.GetValueOnGameThread(), CVarGlassRough.GetValueOnGameThread(), CVarGlassStraight.GetValueOnGameThread(), CVarGlassSlant.GetValueOnGameThread(), CVarGlassSpec.GetValueOnGameThread());
-		if (Now == Last) return;
-		Last = Now;
+		static FVector2f LastCloud(-10.f, 0.f);
+		const FVector2f Cloud(CVarCloudCover.GetValueOnGameThread(), CVarCloudDense.GetValueOnGameThread());
+		if (Cloud != LastCloud) { LastCloud = Cloud; ASunClock::Refresh(); }
+		static TWeakObjectPtr<USkyLightComponent> Done;
+		static FVector2f Last(-1.f, -1.f);
+		const FVector2f Now(CVarIntensity.GetValueOnGameThread(), FMath::Clamp(CVarWarm.GetValueOnGameThread(), 0.f, 1.5f));
+		if (Done.IsValid() && Done->GetWorld() == W && Now == Last) return;
 		ASkyLight* Sky = Cast<ASkyLight>(UGameplayStatics::GetActorOfClass(W, ASkyLight::StaticClass()));
 		USkyLightComponent* S = Sky ? Sky->GetLightComponent() : nullptr;
 		if (!S) return;
-		const float Wm = FMath::Clamp(CVarWarm.GetValueOnGameThread(), 0.f, 1.f);
-		S->SetIntensity(bOn ? CVarIntensity.GetValueOnGameThread() : 1.8f);
-		S->SetLightColor(bOn ? FLinearColor(1.f, 1.f - 0.18f * Wm, 1.f - 0.42f * Wm) : FLinearColor::White);
-		S->SetVisibility(bOn);   // (off again after it was on: gives nothing, as shipped)
+		Done = S; Last = Now;
+		S->bLowerHemisphereIsBlack = false;
+		S->SetIntensity(Now.X);
+		S->SetLightColor(FLinearColor(1.f, 1.f - 0.18f * Now.Y, 1.f - 0.42f * Now.Y));
 		S->MarkRenderStateDirty();
-		if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("adp.SoffitDay"))) V->Set(bOn ? CVarSoffit.GetValueOnGameThread() : 1.f);
-		for (TActorIterator<APostProcessVolume> It(W); It; ++It)
-			if (It->Settings.bOverride_LumenSkylightLeaking)
-			{
-				float& Was = Leaks.FindOrAdd(*It, It->Settings.LumenSkylightLeaking);
-				It->Settings.LumenSkylightLeaking = bOn ? CVarLeak.GetValueOnGameThread() : Was;
-			}
-		Glass(W, bOn);
-		ADP_LOG(TEXT("Sky light trial: %s (%s)"), bOn ? TEXT("on") : TEXT("off"), *Now);
 	}
 }
 
@@ -240,9 +182,7 @@ void ASunClock::BeginPlay()
 	{ int32 M = 0, D = 0; GConfig->GetInt(TEXT("ADP.World"), TEXT("Month"), M, GGameUserSettingsIni); GConfig->GetInt(TEXT("ADP.World"), TEXT("Day"), D, GGameUserSettingsIni); if (M > 0 && DayOverride < 0) { Month = M; Day = D; DayOverride = FDateTime(FDateTime::UtcNow().GetYear(), FMath::Clamp(M, 1, 12), FMath::Clamp(D, 1, FDateTime::DaysInMonth(FDateTime::UtcNow().GetYear(), FMath::Clamp(M, 1, 12)))).GetDayOfYear(); } }
 	GConfig->GetBool(TEXT("ADP.World"), TEXT("RealWeather"), bRealWeather, GGameUserSettingsIni);
 	if (!ManualWeatherAllowed()) bRealWeather = true;   // (the finished game: always the real weather - to-do 193)
-	// the sky's own light fills the shadows (as outdoors, where a shadow is never black); captured from the sky in real time
-	if (ASkyLight* Sky = Cast<ASkyLight>(UGameplayStatics::GetActorOfClass(this, ASkyLight::StaticClass())))
-		if (USkyLightComponent* S = Sky->GetLightComponent()) { S->SetIntensity(1.8f); S->bLowerHemisphereIsBlack = false; S->RecaptureSky(); }
+	ADPSky::Check(GetWorld());   // (the sky's own light fills the shadows, as outdoors, where a shadow is never black)
 	ApplyWeather();
 }
 
@@ -250,7 +190,7 @@ void ASunClock::Tick(float Dt)
 {
 	ADP_PERF_SCOPE("the sun clock (each frame)", 2.f);
 	Super::Tick(Dt);
-	ADPSkyTrial::Check(GetWorld());
+	ADPSky::Check(GetWorld());
 	if ((Clock += Dt) >= 5.f) { Clock = 0; Update(); }
 	if ((LiveClock += Dt) >= 60.f) { LiveClock = 0; ApplyLive(); }
 	// the sky light follows the sun's colour now and then (it captures the sky in real time where it can)

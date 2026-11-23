@@ -8,7 +8,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
 
-static TAutoConsoleVariable<float> CVarSoffitDay(TEXT("adp.SoffitDay"), 1.f, TEXT("The daylight under the terminal's wave roof (1 = as built)"));
+static TAutoConsoleVariable<float> CVarSoffitDay(TEXT("adp.SoffitDay"), 0.85f, TEXT("The daylight under the terminal's wave roof (1 = as before the sky light gave its own)"));
 static TAutoConsoleVariable<float> CVarSoffitNight(TEXT("adp.SoffitNight"), 1.f, TEXT("The downlights' light under the terminal's wave roof (1 = as built)"));
 
 ASoffitLights::ASoffitLights()
@@ -47,9 +47,10 @@ void ASoffitLights::Build()
 	// the open ground under the roof's west end
 	for (int32 k = 0; k < 4; ++k) Add(-224.f + 40.f * k, 10.4f, 9.f, 38.f, 30.f, 0.f, 1000.f, 1000.f);
 	Add(566.f, 10.4f, 9.f, 22.f, 30.f, 0.f, 450.f, 500.f); Add(567.f, 10.4f, -6.f, 18.f, 2.f, 20.f, 250.f, 400.f);   // and its east end
-	// inside, the roof's downlights over the Grand Hall, the East Hall and the promenade (by night)
-	for (const float X : {60.f, 96.f, 174.f, 210.f}) for (const float Z : {9.f, 24.f}) Add(X, 10.4f, Z, 30.f, 3.f, 0.f, 0.f, 700.f);
-	for (int32 k = 0; k < 8; ++k) Add(248.f + 40.3f * k, 10.4f, 4.f, 38.f, 2.f, 0.f, 0.f, 700.f);
+	// inside, the roof's downlights over the Grand Hall, the East Hall and the promenade (by day, with the skylights' own
+	// daylight, at half strength - owner, 2026-11-23: the hall a little brighter)
+	for (const float X : {60.f, 96.f, 174.f, 210.f}) for (const float Z : {9.f, 24.f}) Add(X, 10.4f, Z, 30.f, 3.f, 0.f, 420.f, 700.f);
+	for (int32 k = 0; k < 8; ++k) Add(248.f + 40.3f * k, 10.4f, 4.f, 38.f, 2.f, 0.f, 250.f, 700.f);
 	ADP_LOG(TEXT("Soffit lights: %d panels under the wave roof"), Lights.Num());
 }
 
@@ -72,7 +73,7 @@ void ASoffitLights::Tick(float Dt)
 	const float Night = bOn ? FMath::Max(bLowVis ? 0.6f : 1.f - FMath::SmoothStep(-10.f, 3.f, El), 0.35f) * CVarSoffitNight.GetValueOnGameThread() : 0.f;
 	if (FMath::Abs(Day - LastDay) < 0.004f && FMath::Abs(Night - LastNight) < 0.004f) return;
 	LastDay = Day; LastNight = Night;
-	const FLinearColor DayCol(0.9f, 0.96f, 1.f), NightCol(1.f, 0.9f, 0.76f);
+	const FLinearColor DayCol(1.f, 0.98f, 0.95f), NightCol(1.f, 0.9f, 0.76f);
 	for (int32 i = 0; i < Lights.Num(); ++i)
 	{
 		URectLightComponent* L = Lights[i];
