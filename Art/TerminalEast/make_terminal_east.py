@@ -68,21 +68,23 @@ def rng(a, b, step):
     n = max(1, int(math.ceil((b - a) / step - 1e-6))); return [a + (b - a) * i / n for i in range(n + 1)]
 def rec(P, x0, x1, y0, y1, z0, z1, m): BOXES.append([P.name, TAG[0], round(x0, 3), round(x1, 3), round(y0, 3), round(y1, 3), round(z0, 3), round(z1, 3), m])
 
+def pane(P, put2, u0, u1, y0, top, m, step):
+    """A pane's faces along u: a plain sheet per 1.8 m up to the roof's lowest point there, above it finely stepped along the
+    curve (so the map's cut at walking height is a few long lines, not thousands of short ones)."""
+    for a, b in (lambda r: zip(r, r[1:]))(rng(u0, u1, 1.8)):
+        us = rng(a, b, step); ym = min(top(u) for u in us) - 0.1
+        if ym <= y0 + 0.2: ym = y0
+        else: put2(a, b, y0, y0, ym, ym)
+        for c, d in zip(us, us[1:]): put2(c, d, ym, ym, top(c), top(d))
 def pane_z(P, z, x0, x1, y0, top, m=GL, t=0.015):
-    """A pane (or wall) in the plane z from x0 to x1, y0 up to top(x), stepped finely along the roof's curve."""
-    xs = rng(x0, x1, 0.2)
-    for a, b in zip(xs, xs[1:]):
-        ya, yb = top(a), top(b)
-        put(P, [(a, y0, z - t), (b, y0, z - t), (b, yb, z - t), (a, ya, z - t)], m, (0, 0, -1))
-        put(P, [(a, y0, z + t), (b, y0, z + t), (b, yb, z + t), (a, ya, z + t)], m, (0, 0, 1))
-    rec(P, x0, x1, y0, max(top(x) for x in xs), z - t, z + t, m)
+    """A pane (or wall) in the plane z from x0 to x1, y0 up to top(x)."""
+    def q(a, b, ya, yb, yc, yd):
+        put(P, [(a, ya, z - t), (b, yb, z - t), (b, yd, z - t), (a, yc, z - t)], m, (0, 0, -1)); put(P, [(a, ya, z + t), (b, yb, z + t), (b, yd, z + t), (a, yc, z + t)], m, (0, 0, 1))
+    pane(P, q, x0, x1, y0, top, m, 0.2); rec(P, x0, x1, y0, max(top(x) for x in rng(x0, x1, 0.2)), z - t, z + t, m)
 def pane_x(P, x, z0, z1, y0, top, m=GL, t=0.015):
-    zs = rng(z0, z1, 0.25)
-    for a, b in zip(zs, zs[1:]):
-        ya, yb = top(a), top(b)
-        put(P, [(x - t, y0, a), (x - t, y0, b), (x - t, yb, b), (x - t, ya, a)], m, (-1, 0, 0))
-        put(P, [(x + t, y0, a), (x + t, y0, b), (x + t, yb, b), (x + t, ya, a)], m, (1, 0, 0))
-    rec(P, x - t, x + t, y0, max(top(z) for z in zs), z0, z1, m)
+    def q(a, b, ya, yb, yc, yd):
+        put(P, [(x - t, ya, a), (x - t, yb, b), (x - t, yd, b), (x - t, yc, a)], m, (-1, 0, 0)); put(P, [(x + t, ya, a), (x + t, yb, b), (x + t, yd, b), (x + t, yc, a)], m, (1, 0, 0))
+    pane(P, q, z0, z1, y0, top, m, 0.25); rec(P, x - t, x + t, y0, max(top(z) for z in rng(z0, z1, 0.25)), z0, z1, m)
 def mull_z(z, x, y0, top, h=0.04, d=0.07):            # a mullion 8 x 14 cm, its head cut along the roof
     xa, xb = x - h, x + h; ya, yb = top(xa), top(xb)
     for s in (-1, 1):
@@ -145,7 +147,13 @@ for xa, xb in zip(_xs, _xs[1:]):                       # (its free edge beside t
 # the link gallery's floor: level with the East Hall's, up a 4 % ramp to Entrance East's at its west end
 _lx = [107.0, 109.5] + [round(109.5 + 0.55 * i, 3) for i in range(1, 9)] + [LINK_X1]
 def ly(x): return 0.011 + 0.185 * (1.0 - sm1((x - 109.5) / 4.4))
-for xa, xb in zip(_lx, _lx[1:]): put(S, [(xa, ly(xa), -4.0), (xb, ly(xb), -4.0), (xb, ly(xb), -0.1), (xa, ly(xa), -0.1)], MARBLE, (0, 1, 0)); rec(S, xa, xb, -0.02, ly(xa), -4.0, -0.1, MARBLE)
+_lx = sorted(set(_lx) | {114.0})
+for xa, xb in zip(_lx, _lx[1:]):
+    ze = 0.0 if xb <= 114.0 else -0.1 if xa >= X0 else -0.08          # (to the Grand Hall's floor, the bag block's wall, the East Hall's floor)
+    if xa < X0 < xb: xs2 = [(xa, X0, -0.08), (X0, xb, -0.1)]
+    else: xs2 = [(xa, xb, ze)]
+    for a_, b_, z_ in xs2: put(S, [(a_, ly(a_), -4.0), (b_, ly(b_), -4.0), (b_, ly(b_), z_), (a_, ly(a_), z_)], MARBLE, (0, 1, 0)); rec(S, a_, b_, -0.02, ly(a_), -4.0, z_, MARBLE)
+    if xb <= 114.0: put(S, [(xa, -0.02, 0.0), (xb, -0.02, 0.0), (xb, ly(xb), 0.0), (xa, ly(xa), 0.0)], 'MI_T_steel', (0, 0, 1))   # (the ramp's side, seen through the hall's glass)
 S.box(LINK_X0, LINK_X1, -0.35, 0.01, -4.0, -0.1, 'MI_T_concrete', sides=('-z', '+x'))
 # ======================================================================================================== the front (z 0)
 TAG[0] = 'front'
