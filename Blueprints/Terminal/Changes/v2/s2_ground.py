@@ -63,9 +63,9 @@ if 'b' in which:
     fig, ax = sec('SHEET 2b', 'GROUND FLOOR AFTER: GRAND HALL, LINK GALLERY, DOUBLE-SKIN FRONT',
                   'The Grand Hall keeps its 72 x 30 m. The offices at x 114-156 keep their windows behind a second glass skin.', 34, 162, -33, 56, [0.012, 0.03, 0.64, 0.88])
     for (x, z, n) in ((61.2, 5.6, 1), (88.2, 5.6, 1), (107, 17.3, 2), (110.7, 25.7, 3), (62, 26.9, 4), (78, 26.9, 4), (45.5, 3.4, 5), (111, 3.4, 5)): num(ax, x, z, n, fs=16)
-    num(ax, 131, -2, 7, fs=16); num(ax, 135, -5.8, 8, fs=16, col=GLASS); num(ax, 70, 33, 6, fs=16)
+    num(ax, 131, -2, 7, fs=16); num(ax, 135, -5.8, 8, fs=16, col=GLASS); num(ax, 70, 30.9, 6, fs=13)
     txt(ax, 78, 12.4, 'GRAND HALL  72 x 30 = 2 160 m² (unchanged)', FG, 18, weight='bold'); txt(ax, 60, 17.3, 'island 1', FG, 14); txt(ax, 87, 17.3, 'island 2', FG, 14)
-    txt(ax, 70, 38.6, 'SECURITY, same room', FG, 15); txt(ax, 70, 50, 'airside lobby', DIM, 14); txt(ax, 102, 41, 'lounge', DIM, 15); txt(ax, 39.5, 37, 'toilets', DIM, 13)
+    txt(ax, 70, 41.1, 'SECURITY, same room, 7 lanes', FG, 13); txt(ax, 70, 50, 'airside lobby', DIM, 14); txt(ax, 102, 41, 'lounge', DIM, 15); txt(ax, 39.5, 37, 'toilets', DIM, 13)
     txt(ax, 128, 11, 'hold-bag\nscreening', DIM, 15); txt(ax, 145.8, 8, 'level 3', DIM, 12); txt(ax, 145.8, 19, 'early\nbags', DIM, 12); txt(ax, 132, 33, 'bag make-up (unchanged)', DIM, 15)
     txt(ax, 124, 46, 'cart lane', DIM, 14); txt(ax, 146, 46, 'staff\nentrance', DIM, 14); train_route(ax, 3); txt(ax, 150, 54.2, 'bag trains', '#ff8080', 13)
     txt(ax, 80, 20.8, 'bag tunnel under the floor', TUN, 13)
@@ -75,7 +75,7 @@ if 'b' in which:
     txt(ax, 82, -28, 'coach stands (7 existing, yellow)  ·  zebras (white dotted)', DIM, 14)
     legend(fig, 0.668, 0.875, [(1, 'Self-service kiosks, 2 rows of 6 (7.5 x 1.0 m each)'), (2, 'Bag drop: 6 machines, 12.0 x 3.5 m, island 2\'s east end'),
            (3, 'Airline service / ticket desk, 5.5 x 5.5 m'), (4, 'Boarding-pass e-gates, 6.0 x 1.1 m at each security door'), (5, 'Trolley bays, 5.0 x 1.2 m'),
-           (6, 'Security: the same 6 lanes become automated (ATRS)'), (7, 'Link gallery, 49.0 x 4.0 m: Grand Hall to East Hall, inside'),
+           (6, 'Security: 7 automatic lanes, 5.78 m apart (sheet 2g)'), (7, 'Link gallery, 49.0 x 4.0 m: Grand Hall to East Hall, inside'),
            (8, 'Second glass skin at z -4, floor to the wave roof', GLASS)], lh=0.031, fs=16)
     fig.text(0.668, 0.60, 'CHECK-IN DESKS (to-do 210)', color=NEW, fontsize=17, weight='bold')
     fig.text(0.668, 0.58, '20 agents\' desks (2 islands, existing), each with the\nhand-over counter; they show CLOSED at T-45. Late\npassengers go to the service desk (3).', color=FG, fontsize=16, va='top', linespacing=1.4)
