@@ -150,7 +150,7 @@ AISLE4 = (194.5, 82.2, 303, 84.8)                               # gate 4's close
 VEST4 = (188, 78, 196.8, 82)                                    # gate 4's jetway vestibule (its jetway: x 191.05)
 JETWAYS = {4: (191.05,), 13: (309.4, 314.4, 321.4), 14: (389.2, 399.2), 15: (461.5, 471.5), 16: (533.8, 543.8)}   # Data/babylon-jetways.json
 OPEN_F2 = ((231.5, 239.3), (262, 286), (344, 396), (474, 518))  # the walkway's south wall opened (z 52)
-ENTR_E = ((186, 198), (290, 300), (396, 406), (504, 516))       # new entrance vestibules, 4 m deep
+ENTR_E = ((188, 200), (290, 300), (396, 406), (514, 526))       # new entrance vestibules, 4 m deep (as built, 2026-11-23: the first 2 m, the last 10 m east - clear of the kerb pillars x 184, 506 and of stair 516)
 WEST = {'df': (-58, 43, -20, 51.5), 'lf': (-78.5, 17, -70, 24), 'wc': (-78.5, 25, -70, 33), 'os': (-6, 42, -0.8, 51),
         'trol1': (-68, 17, -60, 18.6), 'trol2': (-30, 17, -22, 18.6), 'trol3': (-16, 17, -8, 18.6),
         'cafe': (-78.5, -3.3, -72, 1.2), 'info': (-60, -3, -56, -0.5), 'kiosk': (-26, -3.3, -20, -0.3), 'atm': (-12, -3.3, -6, -0.3),

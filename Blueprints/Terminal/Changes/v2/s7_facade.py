@@ -78,6 +78,6 @@ for k, (x0, x1, t) in enumerate(((96, 232, 'CLOSE-UP x 96-232: Grand Hall\'s eas
     fig.text(0.012 + k * 0.496, 0.575, t, color=NEW, fontsize=17, weight='bold')
 L = ['ROOF: before, 8 copies of the hall\'s wave (some squeezed to 82 %, some stretched to 105 %) met in points at x -161.5, -78, 24, 126, 233.3, 340.6, 447.9. After: crests every 30 m from x -246 to 576; the Grand Hall (x 36-114) unchanged.',
      'GLASS: the Grand Hall\'s own wall (z 0, mullions every 2.5 m, transom at 5.4 m) from x 156 to 551, up to the wave: 13.5 to 20.3 m high at z 0. Second skin: the same glass at z -4, x 114-156, 12.6 to 19.4 m high.',
-     'NEW DOORS: four vestibules (x 186-198, 290-300, 396-406, 504-516), 4 m deep and 3.8 m high like yours. The east end (x 551) gets the same glass as an end wall, under the roof, which now runs on to x 576; its tree pillars stand two under every bow, as at the Grand Hall.']
+     'NEW DOORS: four vestibules (x 188-200, 290-300, 396-406, 514-526), 4 m deep and 3.8 m high like yours. The east end (x 551) gets the same glass as an end wall, under the roof, which now runs on to x 576; its tree pillars stand two under every bow, as at the Grand Hall.']
 for i, l in enumerate(L): fig.text(0.014, 0.125 - i * 0.032, l, color=WARN if i == 0 else FG, fontsize=15)
 save(fig, 'TCv2-7-Facade.png')

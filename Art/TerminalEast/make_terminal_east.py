@@ -48,7 +48,7 @@ CEIL, F2, RC, ROOF = 5.4, 6.01, 11.4, 12.0
 ZB = 33.9                                             # the glass band under the wave's back edge (it ends at z 34)
 BAY = 1.81                                            # the Grand Hall's own mullion spacing (its front: 1.75..1.92 below, 1.814 above +6)
 TRANSOM = 5.4
-GH_ENTR = ((186, 198), (290, 300), (396, 406), (504, 516))       # the four new entrances
+GH_ENTR = ((188, 200), (290, 300), (396, 406), (514, 526))       # the four new entrances (v2.1: the first 2 m, the last 10 m east of v2, clear of the kerb pillars x 184 and 506; the last also clear of the escape stair x 516)
 LINK_X0, LINK_X1 = 107.0, 162.0                       # the link gallery; it runs 6 m past the corner so it can turn in through the front
 SK = -3.91                                            # the second skin's plane: the vestibules' own front (z -3.98..-3.84)
 STAIR_DOORS = []                                      # the escape stairs' doorways in the promenade's wall (x), when sheet 9 is settled
@@ -312,7 +312,7 @@ for a, b in zip(ex, ex[1:]):
 S.box(156.3, 227.8, CEIL, CEIL + 0.04, 39.84, 39.9, LED, sides=('-z', '+y', '-y'))
 # ======================================================================================================== the ceilings, ground floor
 TAG[0] = 'ceilings'
-COLS_G = ([(x, 20.6) for x in (249.0, 262.2, 275.5, 288.8, 302.0, 331.0, 343.0, 355.0, 388.0, 420.0, 453.0, 483.0, 496.5, 510.0, 523.5, 537.0)]
+COLS_G = ([(x, 20.6) for x in (249.0, 259.5, 270.0, 282.0, 290.0, 302.0, 331.0, 343.0, 355.0, 388.0, 420.0, 453.0, 483.0, 496.5, 510.0, 523.5, 537.0)]
           + [(x, ZC) for x in (247.6, 255.6, 266.2, 275.5, 284.8, 295.4, 303.8, 338.6, 359.5, 388.0, 420.0, 453.0, 483.0, 496.5, 510.0, 523.5, 537.0)])
 CG = [(x, z, 0.38) for x, z in COLS_G]
 slats(236.1, 311.9, F2Z0, ZN, CEIL, CG)                                                    # the claim hall

@@ -394,6 +394,8 @@ for _k, (_x, _z) in enumerate(((60, 44.5), (60, 49.5), (64, 44.5), (64, 49.5))):
 log.append('new: F1-AIRSIDE/LAMP-017..020 (over the closed stairwell)')
 # the one continuous wave roof (owner, 2026-11-23): Tools/terminal_wave.py, last, so every other node keeps its index
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_wave.py'), encoding='utf-8').read())
+# the east side's shell (owner, 2026-11-23, v2 approved): Tools/terminal_east_edit.py, after the wave roof
+exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_east_edit.py'), encoding='utf-8').read())
 json.dump(L, open(OUT, 'w'))
 print('\n'.join(log))
 print('layout written:', OUT)
