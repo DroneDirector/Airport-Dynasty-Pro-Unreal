@@ -10,7 +10,7 @@ def _easset(p, name, asset, x=0.0, y=0.0, z=0.0):
     if x or y or z: n['translation'] = [-x, y, z]
     return _eput(p, n)
 for _nm, _as in (('SOLID', 'east_solid'), ('GLASS-FRONT-W', 'east_glass_front_w'), ('GLASS-FRONT-E', 'east_glass_front_e'), ('GLASS-SKIN', 'east_glass_skin'),
-                 ('GLASS-INNER', 'east_glass_inner'), ('PROMENADE-WALL', 'east_prom_wall'), ('F2-PLUG', 'east_f2_plug'), ('F2-RAIL', 'east_f2_rail'), ('F2-RAIL-GLASS', 'east_f2_rail_glass')):
+                 ('GLASS-INNER', 'east_glass_inner'), ('PROMENADE-WALL', 'east_prom_wall'), ('PAVING', 'east_pave'), ('F2-PLUG', 'east_f2_plug'), ('F2-RAIL', 'east_f2_rail'), ('F2-RAIL-GLASS', 'east_f2_rail_glass')):
     _easset('F1', 'F1-EAST/' + _nm, _as)
 for _k, (_as, _x, _y, _z) in enumerate(_E['cols']): _easset('F1', 'F1-EAST/COL-%03d' % (_k + 1), _as, _x, _y, _z)
 # the four entrances: the vestibule, the main entrance's sliding doors (both skins, without its sign), its mat, three lamps

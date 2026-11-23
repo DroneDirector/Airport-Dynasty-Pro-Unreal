@@ -77,6 +77,12 @@ class Along:
     def x(self, x):
         best = min(range(len(self.d)), key=lambda i: abs(self.d[i][0] - x))
         return round(self.s[best], 2)
+    def ex(self, x):
+        """The same, exactly (between the path's points) - for widths that change within a metre."""
+        for i in range(1, len(self.d)):
+            (xa, _), (xb, _) = self.d[i - 1], self.d[i]
+            if min(xa, xb) <= x <= max(xa, xb) and abs(xb - xa) > 1e-6: return round(self.s[i - 1] + (self.s[i] - self.s[i - 1]) * (x - xa) / (xb - xa), 2)
+        return self.x(x)
 
 
 def keys(*pairs):
@@ -113,8 +119,8 @@ A = Along(FC)
 z = 0.05                      # (a lane narrowed away: MetaRoad keeps a sliver, laid flat)
 s_ne0, s_ne1, s_sw1, s_sw0 = A.x(938), A.x(820), A.x(-560), A.x(-683)   # the band: starts widening, full, narrowing, gone
 # (owner, 2026-11-23, the east hall and coach station: the terminal's pavement and kerb lanes run on to its new east end,
-#  x 242 -> 552; the lamps, gratings and covers keep their places, new ones carry on in the same steps)
-s_t0a, s_t0, s_t1, s_t1a = A.x(592), A.x(552), A.x(-80), A.x(-120)      # the terminal's stretch (40 m tapers)
+#  x 242 -> 560; the lamps, gratings and covers keep their places, new ones carry on in the same steps)
+s_t0a, s_t0, s_t1, s_t1a = A.x(600), A.x(560), A.x(-80), A.x(-120)      # the terminal's stretch (40 m tapers)
 s_t0w = A.x(242)                                                         # where it used to start: the lamps' and gratings' first place
 s_c0a, s_c0, s_c1, s_c1a = A.x(402), A.x(372), A.x(-93), A.x(-123)      # the car park's stretch (30 m tapers)
 band = lambda w: keys((0, z), (s_ne0, z), (s_ne1, w), (s_sw1, w), (s_sw0, z), (A.len, z))
@@ -123,9 +129,14 @@ park = lambda w: keys((0, z), (s_c0a, z), (s_c0, w), (s_c1, w), (s_c1a, z), (A.l
 # the terminal's pavement runs on past the stands at the east end (x 300 until 2026-11-23: the terminal model's rental area: its cars
 # 7 m out and its row of birches 18.5 m out, x 164-286, Data/babylon-terminal.json RENTAL/) and 40 m past the west end;
 # where the stands narrow away it widens by as much, so its outer edge stays on the building's line (y 0)
-s_w0a, s_w0, s_w1, s_w1a = A.x(636), A.x(596), A.x(-120), A.x(-160)
+s_w0a, s_w0, s_w1, s_w1a = A.x(644), A.x(604), A.x(-120), A.x(-160)
 STANDS = 3.1 + 3.5
-walk = lambda w: keys((0, z), (s_w0a, z), (s_w0, w + STANDS), (s_t0a, w + STANDS), (s_t0, w), (s_t1, w), (s_t1a, w + STANDS), (s_w1, w + STANDS), (s_w1a, z), (A.len, z))
+# (2026-11-23: the pavement stands 18 cm over the terminal's floor and lay over the vestibules' floors; along the new east
+#  side, x 107..557, it ends 8.2 m out instead: the rest is the terminal's own paving, sloping down to the doors - Art/
+#  TerminalEast east_pave; the pillars' feet, z -9.6, stay on the pavement)
+EASTW = 8.2 - 0.1
+s_e0, s_e1 = A.ex(556.6), A.ex(107.6)
+walk = lambda w: keys((0, z), (s_w0a, z), (s_w0, w + STANDS), (s_t0a, w + STANDS), (s_t0, w), (round(s_e0 - 0.6, 2), w), (s_e0, w - EASTW), (s_e1, w - EASTW), (round(s_e1 + 0.6, 2), w), (s_t1, w), (s_t1a, w + STANDS), (s_w1, w + STANDS), (s_w1a, z), (A.len, z))
 FC_RIGHT = [lane('Driving', 3.5), lane('Shoulder', 1.0), lane('Island', band(3.5), kerb=15), lane('Driving', band(3.6)),
             lane('Driving', band(3.55)), lane('Parking', term(3.1)), lane('Bus', band(3.5)), lane('Parking', term(3.5)),
             lane('Sidewalk', walk(TP), kerb=15)]

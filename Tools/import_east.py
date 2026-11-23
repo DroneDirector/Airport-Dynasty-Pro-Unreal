@@ -9,7 +9,8 @@ EAL = unreal.EditorAssetLibrary; AT = unreal.AssetToolsHelpers.get_asset_tools()
 names = [a for a in sys.argv[1:] if not a.endswith('.py')] or sorted(os.path.basename(f)[:-4] for f in glob.glob(os.path.join(ROOT, 'Art', 'TerminalEast', 'east_*.fbx')))
 # (Git LFS leaves committed .uasset files read-only: Unreal then can't replace them and the import fails silently)
 for f in glob.glob(os.path.join(ROOT, 'Content', 'Terminal', 'Meshes', 'east_*.uasset')): os.chmod(f, stat.S_IWRITE | stat.S_IREAD)
-EXTRA = {'M_WoodFloor': '/Game/Materials/WoodFloor/M_WoodFloor', 'M_Marble': '/Game/Materials/Marble/M_Marble', 'M_PillarStone': '/Game/Materials/PillarStone/M_PillarStone'}
+EXTRA = {'M_WoodFloor': '/Game/Materials/WoodFloor/M_WoodFloor', 'M_Marble': '/Game/Materials/Marble/M_Marble', 'M_PillarStone': '/Game/Materials/PillarStone/M_PillarStone',
+         'MI_gwalk': '/Game/Materials/Kit/MI_gwalk'}
 for name in names:
     path = '/Game/Terminal/Meshes/' + name
     if EAL.does_asset_exist(path): EAL.delete_asset(path)

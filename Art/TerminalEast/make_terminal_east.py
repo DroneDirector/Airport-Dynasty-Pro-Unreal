@@ -12,6 +12,7 @@
 #   east_f2_plug                 the lid on that opening until the transfer stair is built (drop its node then)
 #   east_f2_rail(_glass)         the Floor 2 edge's balustrade (z 20), in a piece of its own: part 4 opens it at the escape stairs
 #                                (sheet 9: their places may still move)
+#   east_pave                    the paving from the pavement's edge (z -8.2, 18 cm up) down to the doors (z -4.2)
 #   east_prom_wall               the promenade's wall (z 6, x 228..470), in a piece of its own for the same reason: no stair
 #                                doorways in it yet (STAIR_DOORS below)
 #   east_col_g / _f2 / _hall     the round stone columns (instanced)
@@ -123,7 +124,28 @@ def front_z(G, z, x0, x1, holes=()):
 TAG[0] = 'floor'
 S.box(X0, X1 + 0.1, -0.02, 0.01, -0.1, ZN + 0.05, MARBLE, sides=('+y',))
 S.box(X0, X1 + 0.1, -0.35, 0.01, -0.1, ZN + 0.05, 'MI_T_concrete', sides=('-z', '+x'))         # its edge, down into the ground
-S.box(LINK_X0, LINK_X1, -0.02, 0.01, -4.0, -0.1, MARBLE, sides=('+y',))
+# ---- the paving between the road network's pavement (it ends 8.2 m out here, 18 cm up: Tools/make_roads.py) and the doors:
+#      the pavement's own material, sloping down 4 % to the floor's level at the vestibules (z -4.2), level from there; at both
+#      ends (x 109.5..113.9, 551.4..555) the slope runs out so it meets the full pavement with no step
+PV = Piece('east_pave'); GW = 'MI_gwalk'; TOPP, LOW = 0.185, 0.005
+def sm1(t): return min(1.0, max(0.0, t))
+def xf(x): return min(sm1((x - 109.5) / 4.4), sm1((555.0 - x) / 3.6))
+def pave(x, z): return TOPP - (TOPP - LOW) * sm1((z + 8.2) / 4.0) * xf(x)
+def pq(xa, xb, za, zb):
+    q = [(xa, pave(xa, za), za), (xb, pave(xb, za), za), (xb, pave(xb, zb), zb), (xa, pave(xa, zb), zb)]
+    f = PV.face(q, GW); PV.want.append((f, (0, 0, 1)))
+    for l, (x, y, z) in zip(f.loops, q): l[PV.uv].uv = (x / 10.0, z / 10.0)
+    rec(PV, xa, xb, min(v[1] for v in q), max(v[1] for v in q), za, zb, GW)
+_xs = [106.9, 109.5] + [109.5 + 0.55 * i for i in range(1, 9)] + [113.9 + 10.0 * i for i in range(1, 44)] + [551.3, 551.4] + [551.4 + 0.45 * i for i in range(1, 9)] + [557.0]
+_xs = sorted({round(v, 3) for v in _xs}); _zs = [-8.25, -8.2, -7.2, -6.2, -5.2, -4.2, -0.1]
+for xa, xb in zip(_xs, _xs[1:]):
+    for za, zb in zip(_zs, _zs[1:] if xb <= 551.31 else _zs[1:-1] + [0.1]): pq(xa, xb, za, zb)
+for xa, xb in zip(_xs, _xs[1:]):                       # (its free edge beside the building's east end, down into the ground)
+    if xa >= 551.29: put(PV, [(xa, -0.35, 0.1), (xb, -0.35, 0.1), (xb, pave(xb, 0.1), 0.1), (xa, pave(xa, 0.1), 0.1)], GW, (0, 0, 1))
+# the link gallery's floor: level with the East Hall's, up a 4 % ramp to Entrance East's at its west end
+_lx = [107.0, 109.5] + [round(109.5 + 0.55 * i, 3) for i in range(1, 9)] + [LINK_X1]
+def ly(x): return 0.011 + 0.185 * (1.0 - sm1((x - 109.5) / 4.4))
+for xa, xb in zip(_lx, _lx[1:]): put(S, [(xa, ly(xa), -4.0), (xb, ly(xb), -4.0), (xb, ly(xb), -0.1), (xa, ly(xa), -0.1)], MARBLE, (0, 1, 0)); rec(S, xa, xb, -0.02, ly(xa), -4.0, -0.1, MARBLE)
 S.box(LINK_X0, LINK_X1, -0.35, 0.01, -4.0, -0.1, 'MI_T_concrete', sides=('-z', '+x'))
 # ======================================================================================================== the front (z 0)
 TAG[0] = 'front'
@@ -140,7 +162,7 @@ for xx in (114.02, X0):                               # its ends, over the galle
 # ---- the link gallery: its roof (the vestibules': white 3.4..3.8, off-white ceiling 3.36), its own front x 107..114, 156..162
 TAG[0] = 'link'
 for a, b, z0 in ((LINK_X0, 114.0, -4.0), (114.0, X0, SK + 0.07), (X0, LINK_X1, -4.0)):
-    S.box(a, b, 3.4, 3.8, z0, -0.08, W, sides=('+y',) + (('-z',) if z0 == -4.0 else ()) + (('+x',) if b == LINK_X1 else ()))
+    S.box(a, b, 3.4, 3.8, z0, -0.08, W, sides=('+y', '-y') + (('-z',) if z0 == -4.0 else ()) + (('+x',) if b == LINK_X1 else ()))
     S.box(a, b, 3.36, 3.4, z0 + (0.02 if z0 == -4.0 else 0.0), -0.08, OFF, sides=('-y',))
 for a, b in ((LINK_X0, 114.0), (X0, LINK_X1)):
     GS.box(a + 0.04, b, 0.01, 3.4, SK - 0.015, SK + 0.015, GL, sides=('-z', '+z'))
@@ -320,7 +342,8 @@ slats(312.1, 323.9, F2Z0, ZN, CEIL)                                             
 slats(324.1, 371.9, F2Z0, 40.9, CEIL, CG, holes=[(TRANSFER[0] - 0.02, TRANSFER[1] + 0.02, TRANSFER[2] - 0.02, 40.9)])   # the passport hall
 slats(324.1, 357.9, 40.9, ZN, CEIL, CG, holes=[(TRANSFER[0] - 0.02, TRANSFER[1] + 0.02, 40.9, TRANSFER[3] + 0.02)])
 slats(470.16, X1 - 0.08, F2Z0, ZN, CEIL, CG)                                               # the coach station
-def ceil(x0, x1, z0, z1): S.box(x0, x1, 5.36, 5.4, z0, z1, OFF, sides=('-y',))
+def ceil(x0, x1, z0, z1):                              # (a second face at 5.40, as the terminal's own rooms: the lamps' check looks up from 5.38)
+    S.box(x0, x1, 5.36, 5.4, z0, z1, OFF, sides=('-y',)); S.box(x0, x1, 5.4, 5.41, z0, z1, OFF, sides=('-y',))
 for a, b in ((156.1, 159.9), (160.1, 177.9), (178.1, 189.9), (190.1, 209.9), (210.1, 227.9)): ceil(a, b, 40.1, ZN)
 for r in ((228.1, 235.9, 6.1, 39.9), (228.1, 235.9, 40.1, ZN), (312.1, 323.9, 6.1, 19.7), (358.1, 371.9, 41.1, 50.9), (357.9, 371.9, 51.1, ZN),
           (372.1, 403.9, 6.1, 25.9), (404.1, 435.9, 6.1, 25.9), (436.1, 469.9, 6.1, 25.9), (372.1, 403.9, 26.1, ZN), (404.1, 435.9, 26.1, ZN), (436.1, 469.9, 26.1, ZN)): ceil(*r)
@@ -344,13 +367,13 @@ TAG[0] = 'plug'
 P = Piece('east_f2_plug'); PIECES.append(P)            # (in the plan's metres: placed as it is)
 a, b, c, d = TRANSFER
 P.box(a, b, 5.99, F2, c, d, MARBLE, sides=('+y',)); P.box(a, b, 5.75, 5.99, c, d, 'MI_T_concrete', sides=('-y',)); P.box(a, b, CEIL - 0.02, CEIL, c, d, OFF, sides=('-y',))
-PIECES += [R, RG, PW]
+PIECES += [R, RG, PW, PV]
 for w in (12, 10):                                     # the vestibules, round their middle (x 0), z -4..0: as Entrance West/East's
     TAG[0] = 'vestibule'
     P = Piece('east_vest%d_solid' % w); Q = Piece('east_vest%d_glass' % w); PIECES += [P, Q]
     h = w / 2.0
     P.box(-h, h, -0.02, 0.012, -4.0, -0.1, MARBLE, sides=('+y',)); P.box(-h, h, -0.35, 0.012, -4.0, -0.1, 'MI_T_concrete', sides=('-z', '-x', '+x'))
-    P.box(-h, h, 3.4, 3.8, -4.0, -0.07, W, sides=('+y', '-z', '-x', '+x')); P.box(-h, h, 3.36, 3.4, -3.98, -0.07, OFF, sides=('-y',))
+    P.box(-h, h, 3.4, 3.8, -4.0, -0.07, W, sides=('+y', '-y', '-z', '-x', '+x')); P.box(-h, h, 3.36, 3.4, -3.98, -0.07, OFF, sides=('-y',))
     for a, b in ((-h, -2.6), (2.6, h)):
         Q.box(a, b, 0.0, 3.4, SK - 0.015, SK + 0.015, GL, sides=('-z', '+z'))
         n = max(1, round((b - a) / 1.75)); st = (b - a) / n
