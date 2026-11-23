@@ -133,7 +133,7 @@ S.box(X0, X1 + 0.1, -0.35, 0.01, -0.1, ZN + 0.05, 'MI_T_concrete', sides=('-z', 
 #      pavement with no step. (2026-11-23: along the Grand Hall and the arrivals wing too - the pavement used to stand 18 cm over
 #      their floors and lay over the vestibules', the mats and the arrivals hall's first 4 m; west of the wing, x -120.4..-85,
 #      it only carries the pavement on at its own height, where the stands narrow away)
-PV = Piece('east_pave'); GW = 'MI_gwalk'; TOPP, LOW = 0.185, 0.005
+PV = Piece('east_pave'); GW = 'MI_gwalk'; TOPP, LOW = 0.1975, 0.005
 def sm1(t): return min(1.0, max(0.0, t))
 def xf(x): return min(sm1((x + 85.0) / 4.4), sm1((555.0 - x) / 3.6))
 # (in front of Entrance West's and East's revolving doors, x 50 and 101: their drums stand out to z -5.6, so the paving is level
@@ -142,20 +142,29 @@ DRUMS = (50.0, 101.0)
 def dip(x):
     t = max(sm1((4.9 - abs(x - c)) / 3.0) for c in DRUMS); return t * t * (3 - 2 * t)
 def pave(x, z):
-    d = dip(x); return TOPP - (TOPP - LOW) * xf(x) * (sm1((z + 8.2) / 4.0) * (1 - d) + sm1((z + 9.8) / 4.1) * d)
+    d = dip(x); y = TOPP - (TOPP - LOW) * xf(x) * (sm1((z + 8.2) / 4.0) * (1 - d) + sm1((z + 9.8) / 4.1) * d)
+    return RIM + (y - RIM) * rim(x, z)
+# (it runs 55 cm over the pavement's edge - the road's kerb stone there tops out 5 mm over the pavement, at 19.5 cm, and showed as a
+#  line - and its rim dives under the pavement (19 cm, measured in the game) in its last 35 cm: no lip, no line)
+RIM = 0.186
+def rim(x, z):
+    z0 = -10.55 if 41.04 < x < 110.36 else -8.95
+    e = min((x + 121.1) / 0.35, (557.7 - x) / 0.35, (z - z0) / 0.35)
+    if z < -8.59: e = max(min(e, 1.0) if not 41.04 < x < 110.36 else -1, min((x - 41.05) / 0.35, (110.35 - x) / 0.35, (z + 10.55) / 0.35), min((z + 8.95) / 0.35, (x + 121.1) / 0.35, (557.7 - x) / 0.35))
+    return sm1(e)
 def pq(xa, xb, za, zb):
     q = [(xa, pave(xa, za), za), (xb, pave(xb, za), za), (xb, pave(xb, zb), zb), (xa, pave(xa, zb), zb)]
     f = PV.face(q, GW); PV.want.append((f, (0, 0, 1)))
     for l, (x, y, z) in zip(f.loops, q): l[PV.uv].uv = (x / 10.0, z / 10.0)
     rec(PV, xa, xb, min(v[1] for v in q), max(v[1] for v in q), za, zb, GW)
-WEST_END = -120.4
-_xs = [WEST_END, -110.0, -100.0, -92.0] + [-85.0 + 0.55 * i for i in range(9)] + [-80.2] + [-70.0 + 10.0 * i for i in range(7)] + [0.0] + [10.0 * i for i in range(1, 12)] + [113.9 + 10.0 * i for i in range(44)] + [41.7, 109.7] + [c + 0.5 * i for c in DRUMS for i in range(-10, 11)] + [551.3, 551.4] + [551.4 + 0.45 * i for i in range(1, 9)] + [557.0]
-_xs = sorted({round(v, 3) for v in _xs}); _zs = [-8.25, -8.2, -7.2, -6.2, -5.2, -4.2]
+WEST_END = -121.1
+_xs = [WEST_END, -120.75, -110.0, -100.0, -92.0] + [-85.0 + 0.55 * i for i in range(9)] + [-80.2] + [-70.0 + 10.0 * i for i in range(7)] + [0.0] + [10.0 * i for i in range(1, 12)] + [113.9 + 10.0 * i for i in range(44)] + [41.05, 41.4, 110.0, 110.35] + [c + 0.5 * i for c in DRUMS for i in range(-10, 11)] + [551.3, 551.4] + [551.4 + 0.45 * i for i in range(1, 9)] + [557.35, 557.7]
+_xs = sorted({round(v, 3) for v in _xs}); _zs = [-8.95, -8.6, -8.2, -7.2, -6.2, -5.2, -4.2]
 def z_back(xa, xb):                                    # how far in: past the building's ends 10 cm past its line; to the arrivals wing's floor (z -4); to the front's floors
     return 0.1 if xb <= -80.19 or xb > 551.31 else -3.96 if xb <= 0.0 else 0.04 if xb <= 110.0 else -0.1
 for xa, xb in zip(_xs, _xs[1:]):
     zz = _zs + [z_back(xa, xb)]
-    if 41.69 <= xa and xb <= 109.71: zz = [-9.85, -9.8, -9.3, -8.8] + _zs[1:4] + [-5.7] + _zs[4:] + [z_back(xa, xb)]
+    if 41.04 <= xa and xb <= 110.36: zz = [-10.55, -10.2, -9.8, -9.3, -8.95] + _zs[1:5] + [-5.7] + _zs[5:] + [z_back(xa, xb)]
     for za, zb in zip(zz, zz[1:]): pq(xa, xb, za, zb)
 for xa, xb in zip(_xs, _xs[1:]):                       # (its free edges beside the building's two ends, down into the ground)
     if z_back(xa, xb) == 0.1: put(PV, [(xa, -0.35, 0.1), (xb, -0.35, 0.1), (xb, pave(xb, 0.1), 0.1), (xa, pave(xa, 0.1), 0.1)], GW, (0, 0, 1))

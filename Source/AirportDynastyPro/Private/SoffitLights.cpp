@@ -43,13 +43,13 @@ void ASoffitLights::Build()
 		Lights.Add(L); Panels.Add({DayCd, NightCd});
 	};
 	// along the whole front: the pavement and the paving to the doors
-	for (int32 k = 0; k < 16; ++k) Add(-62.f + 40.f * k, 10.4f, -5.f, 38.f, 2.f, 20.f, 340.f, 1000.f);
+	for (int32 k = 0; k < 16; ++k) Add(-62.f + 40.f * k, 10.4f, -5.f, 38.f, 2.f, 20.f, 650.f, 1400.f);
 	// the open ground under the roof's west end
-	for (int32 k = 0; k < 4; ++k) Add(-224.f + 40.f * k, 10.4f, 9.f, 38.f, 30.f, 0.f, 750.f, 1000.f);
-	Add(566.f, 10.4f, 9.f, 22.f, 30.f, 0.f, 350.f, 600.f);   // and its east end
+	for (int32 k = 0; k < 4; ++k) Add(-224.f + 40.f * k, 10.4f, 9.f, 38.f, 30.f, 0.f, 1000.f, 1000.f);
+	Add(566.f, 10.4f, 9.f, 22.f, 30.f, 0.f, 450.f, 500.f); Add(567.f, 10.4f, -6.f, 18.f, 2.f, 20.f, 250.f, 400.f);   // and its east end
 	// inside, the roof's downlights over the Grand Hall, the East Hall and the promenade (by night)
-	for (const float X : {60.f, 96.f, 174.f, 210.f}) for (const float Z : {9.f, 24.f}) Add(X, 10.4f, Z, 30.f, 3.f, 0.f, 0.f, 900.f);
-	for (int32 k = 0; k < 8; ++k) Add(248.f + 40.3f * k, 10.4f, 4.f, 38.f, 2.f, 0.f, 0.f, 900.f);
+	for (const float X : {60.f, 96.f, 174.f, 210.f}) for (const float Z : {9.f, 24.f}) Add(X, 10.4f, Z, 30.f, 3.f, 0.f, 0.f, 700.f);
+	for (int32 k = 0; k < 8; ++k) Add(248.f + 40.3f * k, 10.4f, 4.f, 38.f, 2.f, 0.f, 0.f, 700.f);
 	ADP_LOG(TEXT("Soffit lights: %d panels under the wave roof"), Lights.Num());
 }
 

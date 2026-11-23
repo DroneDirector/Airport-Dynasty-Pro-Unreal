@@ -134,7 +134,7 @@ STANDS = 3.1 + 3.5
 # (2026-11-23: the pavement stands 18 cm over the terminal's floor and lay over the vestibules' floors; along the whole
 #  terminal, x -120..557 (until that evening only its new east side, x 107..557), it ends 8.2 m out instead: the rest is the terminal's own paving, sloping down to the doors - Art/
 #  TerminalEast east_pave; the pillars' feet, z -9.6, stay on the pavement)
-EASTW, DRUMW = 8.2 - 0.1, 9.8 - 0.1   # (9.8 m out by the Grand Hall's revolving doors, x 42..109: make_terminal_east.py DRUMS)
+EASTW, DRUMW = 8.4, 10.0   # (its back kerb stone stands 15 cm in from its edge, under the level part of the paving)   # (9.8 m out by the Grand Hall's revolving doors, x 42..109: make_terminal_east.py DRUMS)
 s_e0 = A.ex(556.6)
 walk = lambda w: keys((0, z), (s_w0a, z), (s_w0, w + STANDS), (s_t0a, w + STANDS), (s_t0, w), (round(s_e0 - 0.6, 2), w), (s_e0, w - EASTW), (A.ex(109.6), w - EASTW), (round(A.ex(109.6) + 0.6, 2), w - DRUMW), (A.ex(42.4), w - DRUMW), (round(A.ex(42.4) + 0.6, 2), w - EASTW), (s_t1, w - EASTW), (s_t1a, w + STANDS - EASTW), (round(s_t1a + 0.6, 2), w + STANDS), (s_w1a, z), (A.len, z))
 FC_RIGHT = [lane('Driving', 3.5), lane('Shoulder', 1.0), lane('Island', band(3.5), kerb=15), lane('Driving', band(3.6)),
@@ -332,8 +332,9 @@ road('AIRPORT-BACK-TO-TOWN', BT_PTS, paint=two_paint() + [dict(kind='teeth', at=
 
 # The large car park across the through road (drawing x -130..330 -> -93..367; from the pavement to the road back to
 # town): aisles 6.5 m along it, double rows of 2.5 x 5 m spaces back to back between them
-cp = dict(x0=-93.0, x1=367.0, y0=-247.0, y1=round(Y0 - 3.5 - 1.0 - 3.0 - 0.2, 2), lift=0.03, rows=[])
-y = cp['y1'] - 6.5
+# (2026-11-23: up to the pavement's kerb - 20 cm of grass between, 36 cm deep, kept people from walking over)
+cp = dict(x0=-93.0, x1=367.0, y0=-247.0, y1=round(Y0 - 3.5 - 1.0 - 3.0 + 0.05, 2), lift=0.03, rows=[])
+y = round(Y0 - 3.5 - 1.0 - 3.0 - 0.2, 2) - 6.5
 while y - 10.0 > cp['y0'] + 6.0:
     cp['rows'].append(dict(x0=cp['x0'] + 3.0, x1=cp['x1'] - 3.0, y=round(y, 2), d=5.0, dir=-1, w=2.5))
     cp['rows'].append(dict(x0=cp['x0'] + 3.0, x1=cp['x1'] - 3.0, y=round(y - 10.0, 2), d=4.9, dir=1, w=2.5))

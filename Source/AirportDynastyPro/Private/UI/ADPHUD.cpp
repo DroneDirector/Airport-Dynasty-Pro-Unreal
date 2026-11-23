@@ -2307,7 +2307,20 @@ static void PlanExec(APlayerController* PC, int32 View)
 		FString At, Cmds; TArray<FString> Cs;
 		if (!E.Split(TEXT(":"), &At, &Cmds) || FCString::Atoi(*At) != View) continue;
 		Cmds.ReplaceInline(TEXT("~"), TEXT(" ")); Cmds.ParseIntoArray(Cs, TEXT("|"));
-		for (const FString& C : Cs) { PC->ConsoleCommand(C); ADP_LOG(TEXT("PlanExec %d: %s"), View, *C); }
+		for (const FString& C : Cs)
+		{
+			// trace~x~z: how high the ground stands there (the plan's metres), and what it is
+			TArray<FString> T; C.ParseIntoArray(T, TEXT(" "));
+			if (T.Num() >= 3 && T[0] == TEXT("trace"))
+			{
+				const FVector Pt = FTerminalPlan::ToWorld(FCString::Atof(*T[1]), 2.f, FCString::Atof(*T[2]));
+				FHitResult H; FCollisionQueryParams Q(SCENE_QUERY_STAT(PlanTrace), true);
+				const bool bHit = PC->GetWorld()->LineTraceSingleByChannel(H, Pt, Pt - FVector(0, 0, 400.f), ECC_Visibility, Q);
+				ADP_LOG(TEXT("PlanExec trace x %s z %s: %s"), *T[1], *T[2], bHit ? *FString::Printf(TEXT("%.2f cm, %s / %s"), H.ImpactPoint.Z, *GetNameSafe(H.GetActor()), *GetNameSafe(H.GetComponent())) : TEXT("nothing"));
+				continue;
+			}
+			PC->ConsoleCommand(C); ADP_LOG(TEXT("PlanExec %d: %s"), View, *C);
+		}
 	}
 }
 
