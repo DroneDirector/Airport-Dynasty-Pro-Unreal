@@ -226,6 +226,10 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
             poles, grey anti-slip vinyl floor with yellow step edges, seat fabric, black rubber and plastics, steel wheels
             and real tyre sidewalls; the lit destination display, door warning lamps, LED strips and flight screens
       - [ ] Its lights and sounds (listed on sheet 4), and its route: terminal bus gates to the remote stands and back
+- [ ] **The taxi bus's front needs adjusting** (owner, 2026-11-23): the minibus taxi at the landside kerb (`Art/TaxiBus/`,
+      `Tools/make_taxi_bus.py`, sheets in `Blueprints/Vehicles/TaxiBus/`). The front was redone once from his reference
+      picture (modern rounded one-box front: sloping bonnet into a raked windscreen, swept headlamps, rounded bumper) but
+      still needs adjustments; ask the owner exactly what to change before building, then re-render its views and sheets
 - [ ] OWNER BUILDS: the information desk in 3D (the announcements already send passengers there)
 - [ ] Security cameras: waiting for the owner's screenshots of where they go (feeds in your office and security, live
       people, one feed in full detail at a time)
