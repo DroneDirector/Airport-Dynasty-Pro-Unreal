@@ -20,6 +20,9 @@
 #include "EngineUtils.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Engine/PostProcessVolume.h"
+#include "HAL/IConsoleManager.h"
+#include "UObject/UObjectIterator.h"
 
 float ASunClock::HourOverride = -1.f;
 int32 ASunClock::DayOverride = -1;
@@ -133,6 +136,102 @@ void ASunClock::ApplyWeather()
 		if (UExponentialHeightFogComponent* F = It->GetComponent()) F->SetFogDensity(Fog[T]);
 }
 
+// ---- the sky light, a TRIAL (owner to decide): off unless -SkyLightTrial or adp.SkyLight 1 ----
+// The game's sky light gives no light at all: the game mode spawns it deferred, which registers the component (and makes
+// its render proxy) before bRealTimeCapture is set; setting the flag by hand does not make the proxy again, so the
+// renderer never captures the sky in real time, while the component, believing it does, skips the ordinary capture too.
+// The trial has the proxy made again (MarkRenderStateDirty): it then captures the sky in real time, as meant.
+namespace ADPSkyTrial
+{
+	static TAutoConsoleVariable<int32> CVarOn(TEXT("adp.SkyLight"), 0, TEXT("The sky light trial: 1 = the sky lights the world (0 = as shipped)"));
+	static TAutoConsoleVariable<float> CVarIntensity(TEXT("adp.SkyLightIntensity"), 1.f, TEXT("Trial: the sky light's strength (1 = what the sky really gives)"));
+	static TAutoConsoleVariable<float> CVarWarm(TEXT("adp.SkyLightWarm"), 0.7f, TEXT("Trial: how much of the sky's blue is balanced away, as a camera does (0..1)"));
+	static TAutoConsoleVariable<float> CVarSoffit(TEXT("adp.SkyLightSoffit"), 0.4f, TEXT("Trial: the share of the daylight panels under the wave roof that is left"));
+	static TAutoConsoleVariable<float> CVarLeak(TEXT("adp.SkyLightLeak"), 0.f, TEXT("Trial: the sky's leak indoors (0.12 as shipped)"));
+	static TAutoConsoleVariable<int32> CVarGlass(TEXT("adp.SkyLightGlass"), 2, TEXT("Trial: the terminal's panes: 0 = as shipped, 1 = only smoother, 2 = the window glass (M_WindowGlass: clear straight on, mirroring less at a slant)"));
+	static TAutoConsoleVariable<float> CVarGlassRough(TEXT("adp.SkyLightGlassRough"), 0.02f, TEXT("Trial: the panes' roughness"));
+	static TAutoConsoleVariable<float> CVarGlassStraight(TEXT("adp.SkyLightGlassStraight"), 0.06f, TEXT("Trial, glass 2: how solid a pane is seen straight on"));
+	static TAutoConsoleVariable<float> CVarGlassSlant(TEXT("adp.SkyLightGlassSlant"), 0.35f, TEXT("Trial, glass 2: how solid at a slant"));
+	static TAutoConsoleVariable<float> CVarGlassSpec(TEXT("adp.SkyLightGlassSpec"), 0.5f, TEXT("Trial, glass 2: how much it mirrors"));
+	static TAutoConsoleVariable<int32> CVarWeather(TEXT("adp.TestWeather"), -1, TEXT("Tests only (a -UI test run): the weather theme, 0 clear .. 3 overcast .. 7 snow; -1 = leave it"));
+	static FString Last(TEXT("0"));
+	static TMap<TWeakObjectPtr<UMaterialInterface>, TPair<TStrongObjectPtr<UMaterialInstanceDynamic>, TWeakObjectPtr<UMaterialInterface>>> Panes;   // the pane -> the trial's copy of it
+	static TMap<TWeakObjectPtr<APostProcessVolume>, float> Leaks;
+
+	static void Glass(UWorld* W, bool bOn)
+	{
+		static int32 LastMode = 0;
+		const int32 Mode = bOn ? CVarGlass.GetValueOnGameThread() : 0;
+		if (LastMode && Mode && Mode != LastMode) Glass(W, false);   // (the other kind: the shipped panes back first)
+		LastMode = Mode; bOn = Mode > 0;
+		UMaterialInterface* Window = Mode == 2 ? LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/Glass/M_WindowGlass.M_WindowGlass")) : nullptr;
+		TMap<UMaterialInterface*, UMaterialInterface*> Back;
+		for (auto& P : Panes) if (P.Value.Key.IsValid() && P.Value.Value.IsValid()) Back.Add(P.Value.Key.Get(), P.Value.Value.Get());
+		int32 n = 0;
+		for (TObjectIterator<UPrimitiveComponent> It; It; ++It)
+		{
+			if (It->GetWorld() != W || !It->IsRegistered()) continue;
+			for (int32 i = 0; i < It->GetNumMaterials(); ++i)
+			{
+				UMaterialInterface* M = It->GetMaterial(i);
+				if (!M) continue;
+				UMaterialInterface** Own = Back.Find(M);
+				if (!bOn) { if (Own) { It->SetMaterial(i, *Own); ++n; } continue; }
+				UMaterialInterface* Src = Own ? *Own : M;
+				if (!Src->GetName().StartsWith(TEXT("MI_T_glass"))) continue;
+				auto& P = Panes.FindOrAdd(Src);
+				if (!P.Key.IsValid())
+				{
+					P.Key = TStrongObjectPtr<UMaterialInstanceDynamic>(UMaterialInstanceDynamic::Create(Window ? Window : Src, GetTransientPackage()));
+					P.Value = Src; Back.Add(P.Key.Get(), Src);
+				}
+				P.Key->SetScalarParameterValue(Window ? TEXT("Roughness") : TEXT("R"), CVarGlassRough.GetValueOnGameThread());
+				if (Window)
+				{
+					P.Key->SetScalarParameterValue(TEXT("OpacityStraight"), CVarGlassStraight.GetValueOnGameThread());
+					P.Key->SetScalarParameterValue(TEXT("OpacitySlant"), CVarGlassSlant.GetValueOnGameThread());
+					P.Key->SetScalarParameterValue(TEXT("Specular"), CVarGlassSpec.GetValueOnGameThread());
+					FLinearColor C; if (Src->GetVectorParameterValue(FHashedMaterialParameterInfo(TEXT("BC")), C)) P.Key->SetVectorParameterValue(TEXT("Tint"), FLinearColor(C.R * 0.06f, C.G * 0.06f, C.B * 0.06f, 1.f));
+				}
+				if (M != P.Key.Get()) { It->SetMaterial(i, P.Key.Get()); ++n; }
+			}
+		}
+		if (!bOn) Panes.Reset();
+		ADP_LOG(TEXT("Sky light trial: %d glass slots %s"), n, bOn ? TEXT("tuned") : TEXT("put back"));
+	}
+
+	static void Check(UWorld* W)
+	{
+		static bool bFirst = true;
+		if (bFirst) { bFirst = false; if (FParse::Param(FCommandLine::Get(), TEXT("SkyLightTrial"))) CVarOn->Set(1); }
+		const int32 Wx = CVarWeather.GetValueOnGameThread();
+		if (Wx >= 0 && Wx != ASunClock::Theme && ASunClock::ManualWeatherAllowed()) { ASunClock::Theme = FMath::Min(Wx, 7); ASunClock::Refresh(); }
+		const bool bOn = CVarOn.GetValueOnGameThread() > 0;
+		if (!bOn && Last == TEXT("0")) return;   // (as shipped: nothing touched)
+		const FString Now = !bOn ? FString(TEXT("0")) : FString::Printf(TEXT("%.3f %.3f %.3f %.3f glass %d %.3f %.3f %.3f %.3f"), CVarIntensity.GetValueOnGameThread(), CVarWarm.GetValueOnGameThread(), CVarSoffit.GetValueOnGameThread(),
+			CVarLeak.GetValueOnGameThread(), CVarGlass.GetValueOnGameThread(), CVarGlassRough.GetValueOnGameThread(), CVarGlassStraight.GetValueOnGameThread(), CVarGlassSlant.GetValueOnGameThread(), CVarGlassSpec.GetValueOnGameThread());
+		if (Now == Last) return;
+		Last = Now;
+		ASkyLight* Sky = Cast<ASkyLight>(UGameplayStatics::GetActorOfClass(W, ASkyLight::StaticClass()));
+		USkyLightComponent* S = Sky ? Sky->GetLightComponent() : nullptr;
+		if (!S) return;
+		const float Wm = FMath::Clamp(CVarWarm.GetValueOnGameThread(), 0.f, 1.f);
+		S->SetIntensity(bOn ? CVarIntensity.GetValueOnGameThread() : 1.8f);
+		S->SetLightColor(bOn ? FLinearColor(1.f, 1.f - 0.18f * Wm, 1.f - 0.42f * Wm) : FLinearColor::White);
+		S->SetVisibility(bOn);   // (off again after it was on: gives nothing, as shipped)
+		S->MarkRenderStateDirty();
+		if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("adp.SoffitDay"))) V->Set(bOn ? CVarSoffit.GetValueOnGameThread() : 1.f);
+		for (TActorIterator<APostProcessVolume> It(W); It; ++It)
+			if (It->Settings.bOverride_LumenSkylightLeaking)
+			{
+				float& Was = Leaks.FindOrAdd(*It, It->Settings.LumenSkylightLeaking);
+				It->Settings.LumenSkylightLeaking = bOn ? CVarLeak.GetValueOnGameThread() : Was;
+			}
+		Glass(W, bOn);
+		ADP_LOG(TEXT("Sky light trial: %s (%s)"), bOn ? TEXT("on") : TEXT("off"), *Now);
+	}
+}
+
 void ASunClock::BeginPlay()
 {
 	Super::BeginPlay();
@@ -151,6 +250,7 @@ void ASunClock::Tick(float Dt)
 {
 	ADP_PERF_SCOPE("the sun clock (each frame)", 2.f);
 	Super::Tick(Dt);
+	ADPSkyTrial::Check(GetWorld());
 	if ((Clock += Dt) >= 5.f) { Clock = 0; Update(); }
 	if ((LiveClock += Dt) >= 60.f) { LiveClock = 0; ApplyLive(); }
 	// the sky light follows the sun's colour now and then (it captures the sky in real time where it can)
