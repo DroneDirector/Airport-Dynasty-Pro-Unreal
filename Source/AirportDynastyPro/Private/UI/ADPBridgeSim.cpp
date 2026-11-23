@@ -399,7 +399,12 @@ FString UADPBridge::Sim(const FString& Action, const FString& Arg)
 	if (Action == TEXT("timetable"))
 	{
 		TSharedRef<FJsonObject> O = MakeShared<FJsonObject>(); O->SetBoolField(TEXT("ok"), true);
-		O->SetStringField(TEXT("now"), ADPBoards::Local(At).ToString(TEXT("%H:%M"))); O->SetStringField(TEXT("missing"), ADPSchedule::MissingStaff(W, At));
+		O->SetStringField(TEXT("now"), ADPBoards::Local(At).ToString(TEXT("%H:%M"))); 
+		{
+			FString Miss = ADPSchedule::MissingStaff(W, At); const FString Wt = ADPSchedule::Waiting3D ? ADPSchedule::Waiting3D() : FString();   // (the 3D airport's jobs that wait for people)
+			if (!Wt.IsEmpty()) Miss += (Miss.IsEmpty() ? TEXT("") : TEXT("; ")) + Wt;
+			O->SetStringField(TEXT("missing"), Miss);
+		}
 		auto Town = [](const FString& I) { const FADPAirportInfo* Ap = ADPWorldData::Airport(I); return !Ap ? I : Ap->Town.IsEmpty() ? Ap->Name : Ap->Town; };
 		TArray<TSharedPtr<FJsonValue>> Sl, Pl, Fl;
 		for (const FADPSlot& X0 : W.Slots)

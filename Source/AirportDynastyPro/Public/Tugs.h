@@ -44,7 +44,12 @@ public:
 	void Prepare(const FString& Key, float StandX);
 	/** An aircraft due on the stand in 3 minutes (owner 2026-11-21): its tug's driver walks over and sits in it, ready; the
 	 *  handler and the walkers come once the aircraft is parked and its departure is near (Prepare). */
-	void Arriving(float StandX);
+	void Arriving(float StandX, bool bMine = false);   // (bMine: your own flight - with your hired crew on (to-do 206) its driver comes for the push)
+	/** To-do 206, your own flight and adp.HiredCrew: the ground power is plugged in by one of your hired people. True when one
+	 *  of them has taken the job (or there is nothing to do); false: it waits - ask again. When: its departure. */
+	bool ArrivedHired(float StandX, const FString& Reg, const FDateTime& When);
+	/** To-do 206: may your flight leave - your pushback crew is there (the driver aboard)? False: why not. */
+	bool CrewReady(const FString& Key, float StandX, FString& Why);
 	/** The pushback: Fitting the aircraft's tow fitting (world, on the ground), Fwd its nose direction (world, flat).
 	 *  True once a tug is hooked on (it drives in first); then it is posed on the aircraft. */
 	bool Push(const FString& Key, float StandX, const FVector& Fitting, const FVector& Fwd);
@@ -104,6 +109,7 @@ private:
 		// walk took them), a small step off it, a look round, and now and then a little movement of their own
 		FVector Anchor = FVector::ZeroVector; float AnchorYaw = 0.f; FVector IdleOff = FVector::ZeroVector; float IdleYawOff = 0.f, IdleT = 4.f;
 		FPoseFn Fidget; float FidgetT = 0.f, FidgetDur = 0.f; int32 LastFidget = -1;
+		bool bHired = false, bLeave = false, bSlotFree = false; FString StaffId; float BlockT = 0.f;   // (to-do 206: one of your hired people for this job; done with it; an empty slot to use again)
 		bool bGse = false;               // on a baggage tractor / cart job just now (GSE.h): not free for a push
 	};
 	TArray<FCrew> Crew;
@@ -128,6 +134,9 @@ private:
 		float MeasSpeed = 0.f, LastSpeed = 0.f, BrakeHold = 0.f;   // (m/s)   // brake lamps: on while slowing (and held a moment), and at a standstill with the engine on
 		float Spin = 0.f, Steer = 0.f; FVector PrevAt = FVector::ZeroVector; float PrevYaw = 0.f; bool bPrev = false;
 		int32 Driver = INDEX_NONE, Handler = INDEX_NONE;           // its crew (Crew[])
+		// to-do 206: this departure is worked by your hired people (Driver / Handler: those two while they work it, nobody while it
+		// waits for them - never by itself); the gate's stand-ins; the hired person at its ground power
+		bool bHired = false; int32 StandInDriver = INDEX_NONE, StandInHandler = INDEX_NONE, GpuCi = INDEX_NONE; float CrewAsk = 0.f;
 		FVector Fit = FVector::ZeroVector, Fwd = FVector(1, 0, 0);  // the aircraft's tow fitting and nose direction (world)
 		bool bPinShown = true; FString PinKey;                     // the bypass pin shown to the cockpit for that departure
 		int32 DoorG = INDEX_NONE; float DoorAng = 0.f, DoorWant = 0.f;
@@ -187,6 +196,17 @@ private:
 	FPoseFn SeatFn(int32 Tug) const;
 	void ClimbIn(FCrew& C, int32 Tug, TFunction<void()> Then);
 	void ClimbOut(FCrew& C, int32 Tug);
+	// your hired people (to-do 206, Private/TugStaff.cpp)
+	bool HiredJob(const FString& Key) const;
+	bool HiredLive(const FString& Key, FDateTime* When = nullptr, FString* Flight = nullptr) const;
+	int32 Enlist(AActor* A, const FString& StaffId, const FString& Label);
+	void Discharge(int32 Ci);
+	void LeaveAct(FCrew& C);
+	void SafeWay(FCrew& C, float StandX);
+	bool HiredFree(const FTug& T) const { return T.Driver == INDEX_NONE && T.Handler == INDEX_NONE && T.GpuCi == INDEX_NONE && !T.Walkers.Num(); }
+	void HiredEnd(FTug& T);
+	void HiredTick(int32 Tug, float Dt);
+	bool PersonAhead(const FVector& Here, const FVector& Dir, float Reach) const;
 	void CrewBoard(int32 Tug, bool bArrival = false);
 	void CrewCouple(int32 Tug);
 	void CrewUncouple(int32 Tug);

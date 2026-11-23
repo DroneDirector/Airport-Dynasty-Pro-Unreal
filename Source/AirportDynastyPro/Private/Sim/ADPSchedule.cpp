@@ -12,6 +12,7 @@
 #include "Site.h"
 
 TFunction<bool(const FADPPlanned&, const FDateTime&, FString&)> ADPSchedule::Ready3D;
+TFunction<FString()> ADPSchedule::Waiting3D;
 
 namespace
 {

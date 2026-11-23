@@ -38,6 +38,19 @@ public:
 	static const TCHAR* TaskName(EStaffTask Task);
 	/** The nearest person free for a duty (their staff id; empty: nobody). */
 	FString FindFree(EStaffDuty Duty, const FVector& Near) const;
+	struct FTaken { EStaffDuty Duty = EStaffDuty::TugDriver; FString Id; TWeakObjectPtr<AActor> A; };
+	/** The queue (part 2): asks for a task's smallest team, all of it or nobody - claimed and given in Out when it is this
+	 *  job's turn (the earliest departure first) and they are free; false: it waits (ask again every couple of seconds; a job
+	 *  not asked for 10 s is out of the queue). Near: where they are needed; What: "LX 123 pushback". */
+	bool AskTeam(const FString& Key, EStaffTask Task, const FDateTime& When, const FVector& Near, const FString& What, TArray<FTaken>& Out);
+	/** One more person for a job (a wing walker): only somebody no waiting job needs. */
+	bool AskExtra(EStaffDuty Duty, const FVector& Near, const FString& What, FTaken& Out);
+	/** Why a job waits now ("1 pushback handler (none on shift)"); empty: it isn't waiting. */
+	FString WaitsFor(const FString& Key) const;
+	/** Every job that waits for people, as the missing-staff text. */
+	FString Waiting() const;
+	/** The faces your ground staff wear (given now if they have none yet): the stand-ins take others. */
+	void Faces(TSet<FString>& Out);
 	/** Takes a person for a job: from now on the caller moves and poses them, until Release. Null: not free (any more). */
 	AActor* Claim(const FString& StaffId, const FString& Job);
 	/** Done (or given up): back to their place by the gates, or home if their shift is over. Called with the person outdoors
@@ -75,6 +88,14 @@ private:
 	};
 	struct FRoom { int32 Gate = 0; float X0 = 0.f; int8 Dir = 0; int32 Inside = 0; float NextSpawn = 0.f; bool bNoDoor = false; };   // Dir: people going out (1) / in (2) through its one door now
 	TArray<FStaff> Staff;
+	struct FAsk { FString Key, What, Role, Why; EStaffTask Task = EStaffTask::Gpu; int32 Need = 0; FDateTime When, Since; double Last = 0.0; };
+	TArray<FAsk> Asks;                       // the jobs that wait, the earliest departure first
+	void DropOldAsks();
+	int32 OnDuty(const FString& Role) const;
+	/** Free to be given a job: standing by, or on the way back from the last one. */
+	bool IsFree(const FStaff& S, const FString& Role) const;
+	/** The way along the terminal (under the jetways' fixed corridors, clear of their columns) when it is far. */
+	void AlongWall(FStaff& S, const FVector& To) const;
 	TArray<FRoom> Rooms;
 	bool bRooms = false, bSaidReuse = false, bSaidNoDoor = false;
 	float Poll = 0.f, NextBody = 0.f;

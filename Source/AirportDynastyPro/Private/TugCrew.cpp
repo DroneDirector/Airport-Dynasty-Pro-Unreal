@@ -21,6 +21,8 @@
 #include "Tugs.h"
 #include "Components/BoxComponent.h"
 #include "GSE.h"
+#include "StaffPeople.h"
+#include "Misc/PackageName.h"
 #include "People.h"
 #include "CrewVoice.h"
 #include "TruckDriverRig.h"
@@ -103,10 +105,12 @@ FVector ATugs::TugW(const FTug& T, const FVector& Local) const { return T.At + F
 
 void ATugs::SetupCrew()
 {
+	// (their queued acts hold references into this list: it never moves - your hired people get slots in it as they work)
+	Crew.Reserve(512);
 	if (FParse::Param(FCommandLine::Get(), TEXT("TugNoCrew"))) return;
 	const bool bSolo = FParse::Param(FCommandLine::Get(), TEXT("TugSolo"));
 	// the ground staff that are built (the roster: role "ground")
-	TArray<FString> Names;
+	TArray<FString> Names, Spare;
 	FString Text;
 	if (FFileHelper::LoadFileToString(Text, *(FPaths::ProjectContentDir() / TEXT("Data/people-roster.json"))))
 	{
@@ -114,9 +118,26 @@ void ATugs::SetupCrew()
 		if (FJsonSerializer::Deserialize(R, Rows))
 			for (const TSharedPtr<FJsonValue>& V : Rows)
 				if (const TSharedPtr<FJsonObject> O = V->AsObject())
+					{
 					if (O->GetStringField(TEXT("role")) == TEXT("ground")) Names.Add(O->GetStringField(TEXT("name")));
+					else if (O->GetStringField(TEXT("role")) == TEXT("fire")) Spare.Add(O->GetStringField(TEXT("name")));
+				}
 	}
 	Names.Sort();
+	// (to-do 206: with your hired people on, these are only the other airlines' handling team - as many as before, but not
+	//  the same MetaHumans while others are left: the faces none of your staff wear first, then the built fire people's)
+	if (UStaffPeople::On())
+		if (UStaffPeople* Sp = UStaffPeople::Get(GetWorld()))
+		{
+			TSet<FString> Mine; Sp->Faces(Mine);
+			TArray<FString> Free, Rest; for (const FString& N : Names) (Mine.Contains(N) ? Rest : Free).Add(N);
+			Spare.Sort();
+			for (const FString& N : Spare) if (Free.Num() < Names.Num() && !Mine.Contains(N) && FPackageName::DoesPackageExist(FString::Printf(TEXT("/Game/People/Built/%s/BP_%s"), *N, *N))) Free.Add(N);
+			const int32 Own = Free.Num();
+			for (const FString& N : Rest) if (Free.Num() < Names.Num()) Free.Add(N);
+			ADP_LOG(TEXT("Tugs: the other airlines' handling team - %d people, %d with a face of their own"), Free.Num(), Own);
+			Names = MoveTemp(Free);
+		}
 	AADPPeople* P = AADPPeople::Get(GetWorld());
 	if (!P) return;
 	// (the test's ground staff are few - 16 built: six wing / tail walkers first, two pushbacks' worth; the rest drive and
@@ -135,7 +156,7 @@ void ATugs::SetupCrew()
 			AActor* A = P->Spawn(C.Name, C.Spot, C.SpotYaw);
 			if (!A) continue;
 			C.A = A; C.Anchor = C.Spot; C.AnchorYaw = C.SpotYaw;
-			(Rl == 0 ? T.Driver : T.Handler) = Crew.Add(C);
+			(Rl == 0 ? T.Driver : T.Handler) = Crew.Add(C); T.StandInDriver = T.Driver; T.StandInHandler = T.Handler;
 		}
 	}
 	// the wing walkers and the tail walker (owner 2026-11-21, his picture docs/Reference/Pushback/Pushback-Crew-Positions.jpg):
@@ -218,9 +239,24 @@ bool ATugs::CrewWalk(FCrew& C, const FVector& To, float Dt, float Stop, float Ma
 			ADP_LOG(TEXT("TugCrew: %s stuck on the way (%.0f m from the goal) - a step aside"), *A->GetName(), Dist / 100.f);
 		}
 	}
+	// (to-do 206, your hired people: never through anyone - they wait, then a step round them)
+	bool bPerson = false;
+	if (C.bHired && !bThere)
+	{
+		const FVector Here = A->GetActorLocation(), Fw = D.GetSafeNormal2D();
+		bPerson = PersonAhead(Here, Fw, FMath::Clamp(Dist, 50.f, 75.f));
+		if (!bPerson) C.BlockT = 0.f;
+		else if ((C.BlockT += Dt) > 1.5f)
+			for (const float Sg : {1.f, -1.f})
+			{
+				const FVector Sd = FVector(-Fw.Y, Fw.X, 0.f) * Sg;
+				if (-(Here + Sd * 110.f).Y < 8460.f || PersonAhead(Here, Sd, 75.f)) continue;
+				C.SideDir = Sd; C.SideT = 0.9f; C.BlockT = 0.f; C.StuckT = 0.f; break;
+			}
+	}
 	// (eased: a gentle start and stop; a little slower the last 2 m)
-	const float Want = bThere ? 0.f : FMath::Min(Max, FMath::Max(60.f, Dist * 0.9f));
-	C.Speed = FMath::FInterpTo(C.Speed, Want, Dt, 3.f);
+	const float Want = bThere || bPerson ? 0.f : FMath::Min(Max, FMath::Max(60.f, Dist * 0.9f));
+	C.Speed = FMath::FInterpTo(C.Speed, Want, Dt, bPerson ? 12.f : 3.f);
 	if (!bThere)
 	{
 		FVector P = A->GetActorLocation() + D.GetSafeNormal() * FMath::Min(Dist, C.Speed * Dt);
@@ -511,7 +547,8 @@ void ATugs::CrewUncouple(int32 Tug)
 		H.Q.Add(DoAct([this, Tug] { FTug& U = Tugs[Tug]; U.bPinShown = true; ADP_LOG(TEXT("Tugs: bypass pin shown to the cockpit of %s - all clear"), *U.PinKey); if (U.Seq == 12) { U.Seq = 13; U.SeqT = 0.f; U.SeqWait = FMath::FRandRange(2.f, 5.f); } }));
 		H.Q.Add(UntilAct(Gone));
 		H.Q.Add(WalkAct([this, Sx] { return Plan(Sx - 18.5f, 104.f); }, 80.f));
-		{ const FVector Home = H.Spot; H.Q.Add(WalkAct([Home] { return Home; }, 30.f)); H.Q.Add(DoAct([&H] { H.AnchorYaw = H.SpotYaw; })); }
+		if (H.bHired) LeaveAct(H);   // (your own: on to their next job, or back to the gates)
+		else { const FVector Home = H.Spot; H.Q.Add(WalkAct([Home] { return Home; }, 30.f)); H.Q.Add(DoAct([&H] { H.AnchorYaw = H.SpotYaw; })); }
 		return;
 	}
 	// the driver alone: out, the towbar unpinned, the bypass pin out, back in, backs away, out again to show the pin
@@ -549,7 +586,8 @@ void ATugs::CrewParked(int32 Tug)
 	D.Q.Add(WaitAct(Pause()));
 	ClimbOut(D, Tug);
 	// (back round the tug's rear to the crew spot)
-	{ const FVector Home = D.Spot; D.Q.Add(WalkAct([Home] { return Home; }, 30.f)); D.Q.Add(DoAct([&D] { D.AnchorYaw = D.SpotYaw; })); }
+	if (D.bHired) LeaveAct(D);
+	else { const FVector Home = D.Spot; D.Q.Add(WalkAct([Home] { return Home; }, 30.f)); D.Q.Add(DoAct([&D] { D.AnchorYaw = D.SpotYaw; })); }
 }
 
 void ATugs::CrewWalkers(int32 Tug)
@@ -576,6 +614,21 @@ void ATugs::CrewWalkers(int32 Tug)
 	// out to their places now that it is hooked on (the ones already standing by)
 	if (bHooked && !T.bWalkersOut) { T.bWalkersOut = true; for (int32 r = 0; r < T.Walkers.Num(); ++r) GoOut(T.Walkers[r], r); }
 	const float Sx = T.StandX;
+	if (T.bHired)
+	{
+		// your own people (to-do 206): whoever no waiting job needs, up to three; the push goes with the ones there are
+		UStaffPeople* Sp = UStaffPeople::Get(GetWorld()); FString Flight; HiredLive(T.Key, nullptr, &Flight);
+		UStaffPeople::FTaken Tk;
+		while (Sp && T.Walkers.Num() < 3 && Sp->AskExtra(EStaffDuty::WingWalker, T.At, Flight + TEXT(" pushback"), Tk))
+		{
+			const int32 i = Enlist(Tk.A.Get(), Tk.Id, TEXT("wing walker")); if (i == INDEX_NONE) break;
+			const int32 Rk = T.Walkers.Num(); FCrew& C = Crew[i]; C.FollowMax = 330.f;
+			T.Walkers.Add(i); SafeWay(C, Sx);
+			if (T.bWalkersOut) GoOut(i, Rk);
+			else C.Q.Add(WalkAct([this, Sx, Rk] { return Plan(Sx - 19.5f - Rk * 1.1f, 100.f + Rk * 0.8f); }, 30.f));
+		}
+		return;
+	}
 	for (int32 i = 0; i < Crew.Num() && T.Walkers.Num() < 3; ++i)
 	{
 		FCrew& C = Crew[i];
@@ -604,6 +657,12 @@ void ATugs::WalkersDone(int32 Tug)
 			for (const FVector& Pl : Planes) if (FVector::Dist2D(Pl, At) < 5500.f) return Elapsed > 120.f;
 			return Elapsed > 8.f;
 		}));
+		if (C.bHired)
+		{
+			const float Sx = T.StandX;
+			C.Q.Add(WalkAct([this, Sx] { return Plan(Sx - 20.5f, 104.f); }, 120.f));
+			LeaveAct(C); continue;
+		}
 		C.Q.Add(WalkAct([this, i] { return Crew[i].Spot; }, 40.f));
 		C.Q.Add(DoAct([this, i] { Crew[i].Tug = INDEX_NONE; Crew[i].AnchorYaw = Crew[i].SpotYaw; }));
 	}
@@ -775,7 +834,7 @@ void ATugs::Say(FTug& T, uint8 Who, const FString& Text, bool bRadio)
 
 void ATugs::SeqTick(FTug& T, float Dt)
 {
-	if (T.Driver == INDEX_NONE) return;
+	if (T.Driver == INDEX_NONE && !T.bHired) return;
 	// the talk: one line after the other, each as long as it takes to say (about 0.36 s a word), a short gap between
 	if (T.Talk.Num())
 	{

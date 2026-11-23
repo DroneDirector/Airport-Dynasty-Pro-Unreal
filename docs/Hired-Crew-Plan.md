@@ -1,7 +1,7 @@
 # Hired crew - your staff are the people in the 3D airport (to-do 206)
 
 Part 1 (built 2026-11-23, not run): the people and the pool - `StaffPeople.h/.cpp`, switch `adp.HiredCrew` (default 0 = as
-before), `adp.CrewList` dumps everyone. Part 2: the vehicles' crew come from the pool, the stand-ins go. Part 3: the hiring UI.
+before), `adp.CrewList` dumps everyone. Part 2a (built, not run): tug, pushback and ground power. Part 2b: bags, loader. Part 3: the hiring UI.
 
 ## Part 1 as built
 - **Who:** the simulation's people (`FADPPerson`) of your airline, role `ground`, base = this airport, status `on`, no days
@@ -34,6 +34,33 @@ job yet; `checkin`, `security`, `mech`, `captain`, `fo`, `fa`, `fire` are other 
 
 One A320 turn-round at once: 4 at the bags and loader, 1 at the GPU, then 5 for the push: 5-6 people; 2 can do it one job
 after another (the rule today in `ADPSchedule::MissingStaff`: 2 for the ground power, the bags and the pushback).
+
+## Part 2a as built (2026-11-23, compiled, not run): the pushback and the ground power
+Switch `adp.HiredCrew` still 0; `TugStaff.cpp` (new), the queue in `StaffPeople.cpp`, one-line hooks in `Tugs.cpp`, `TugCrew.cpp`,
+`Turnaround.cpp`, `SimTraffic.cpp`.
+- **Whose flight:** only the player's airline's (`ATugs::HiredJob`, by the planned leg / flight id). Other airlines keep the
+  stand-ins; with the switch on at start these take faces none of your staff wear (then the fire people's), same number; your
+  own new faces avoid the stand-ins'. Shared faces only when both lists run out.
+- **Queue:** `AskTeam(key, task, departure, ...)` - the whole smallest team or nobody, the earliest departure first (a job
+  that needs more people than are on shift holds nobody up); `AskExtra` (wing / tail walkers) only takes who no waiting job
+  needs. Someone walking back from a job can be given the next one at once.
+- **Tug:** `FTug.bHired`: while it waits the tug stays Parked with its `Key`, `Driver` / `Handler` nobody - never by itself
+  (`HiredTick` asks every 2 s). Driver + handler come together; `FCrew` slots are reused, `Crew` is reserved at 512 and never moves.
+- **Late:** `ASimTraffic::Ready` asks `ATugs::CrewReady`: no crew aboard = the flight isn't ready; its `Why`, `Hold` and `Est`
+  move (boards, Overview), the log and a notice by `ADPSchedule::Tell` after a minute; the Overview's missing-staff line has
+  the waiting jobs too (`ADPSchedule::Waiting3D`). A flight called off: the job is dropped, or the crew stands down.
+- **Ground power:** `ArrivedHired`; nobody free = the `gpu` task waits; less than 12 min to off-blocks = left out.
+- **Ways:** far walks go in to the terminal's front, along it at plan z 85.45 (under the jetways' fixed corridors, columns at
+  z 88) and out at the gate (`SafeWay`, `AlongWall`); hired people stop for people and the player and step round them.
+- **Decided here, to confirm with the owner:** the push goes with fewer than three walkers (the minimum is driver + handler,
+  logged); your driver does not sit in the tug from 3 min before the aircraft arrives (it would bind a person through the
+  whole turn-round) but comes 8 min before off-blocks.
+- Not checked: the wall lane against real columns and the curved gates, people crossing the train's way at Ramp services 13.
+
+## Part 2b replaces
+The GSE rows below (Borrow / GiveBack, trains, loader, GPU towed: same `AskTeam` / `Enlist` / `Discharge`), Turnaround's `bulk`
+and the `Crew >= 2` before `Gs->Departure`; `GSEBags.cpp:338`'s count. Then the switch default 1. (Until then, with the switch
+on, your own bags are still worked by the stand-ins.) E-talk with people who already work for you.
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 

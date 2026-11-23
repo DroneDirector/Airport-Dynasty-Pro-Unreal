@@ -8,6 +8,7 @@
 #include "Sim/ADPSchedule.h"
 #include "PaxFlow.h"
 #include "SimTraffic.h"
+#include "StaffPeople.h"
 #include "Engine/World.h"
 
 namespace ADPTurnaround
@@ -129,7 +130,16 @@ namespace ADPTurnaround
 				if (K.Id == TEXT("push")) continue;   // (the pushback itself: the tug and SimTraffic, once the flight may leave)
 				// (the doors: everyone aboard first - APaxFlow; without passengers in 3D at once)
 				if (K.Id == TEXT("doors") && bReady && !K.bStarted && Tm >= K.Start && !APaxFlow::BoardingDone(W, Tr->Reg)) bReady = false;
-				const int32 Need = K.Id == TEXT("gpu") || K.Id == TEXT("bridge") || K.Id == TEXT("doors") ? 1 : K.Id == TEXT("bulk") || K.Id == TEXT("tug") ? 2 : 0;
+				// (to-do 206: your own flights' ground power and pushback are done by the people you have hired - the job asks for them
+				//  itself and waits in their queue; what has no vehicle crew of theirs yet still goes by the count)
+				const bool bHired = Tr->bMine && UStaffPeople::On();
+				if (bHired && K.Id == TEXT("gpu") && bReady && !K.bStarted && Tm >= K.Start)
+				{
+					if (!Tr->PlanId.IsEmpty() && (Tr->OffBlocks - Now).GetTotalMinutes() < 12.0) { K.bStarted = K.bDone = true; ADP_LOG(TEXT("Turnaround: %s - no ground power, its pushback crew come now"), *Tr->Reg); continue; }
+					ATugs* Tg = ATugs::Get(W);
+					if (Tg && !Tg->ArrivedHired(Tr->StandX, Tr->Reg, Tr->OffBlocks)) bReady = false;
+				}
+				const int32 Need = bHired && (K.Id == TEXT("gpu") || K.Id == TEXT("tug")) ? 0 : K.Id == TEXT("gpu") || K.Id == TEXT("bridge") || K.Id == TEXT("doors") ? 1 : K.Id == TEXT("bulk") || K.Id == TEXT("tug") ? 2 : 0;
 				if (!K.bStarted && bReady && Tm >= K.Start && Crew < Need)
 				{
 					ADPSchedule::Tell(Sim->World, Now, TEXT("ground:") + Tr->Reg + K.Id, TEXT("No ground crew"), FString::Printf(TEXT("%s at %s: %s waits - %d of your ground crew on shift, %d needed. Hire baggage handlers under Crew."), *Tr->Reg, *Tr->Stand, *K.Name, Crew, Need));
@@ -140,7 +150,7 @@ namespace ADPTurnaround
 					K.bStarted = true; K.Start = FMath::Max(K.Start, Tm);
 					const bool bVisual = K.Vehicle == TEXT("gpu") || K.Vehicle == TEXT("jetway") || K.Vehicle == TEXT("tug") || K.Vehicle == TEXT("beltloader");
 					ADP_LOG(TEXT("Turnaround: %s %s starts (%.1f min, %s)"), *Tr->Reg, *K.Name, K.Dur, bVisual ? TEXT("in 3D") : K.Vehicle.IsEmpty() ? TEXT("the crew") : *FString::Printf(TEXT("%s - simulated until the vehicle is built"), *K.Vehicle));
-					if (K.Id == TEXT("gpu")) if (ATugs* Tg = ATugs::Get(W)) Tg->Arrived(Tr->StandX);   // (the ground power plugged in)
+					if (K.Id == TEXT("gpu") && !bHired) if (ATugs* Tg = ATugs::Get(W)) Tg->Arrived(Tr->StandX);   // (the ground power plugged in)
 					if (K.Id == TEXT("bridge")) ASimTraffic::DockAt(W, Tr->Stand);                      // (the jetway out to the door)
 					if (K.Id == TEXT("doors")) ASimTraffic::UndockAt(W, Tr->Stand);                     // (everyone aboard, the door closed: the jetway back to rest)
 					// (the bulk hold: out first, then in - the belt loader and an empty train for the arriving bags; the departure

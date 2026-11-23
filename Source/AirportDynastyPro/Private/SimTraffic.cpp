@@ -137,6 +137,8 @@ bool ASimTraffic::Ready(const FADPPlanned& P, const FDateTime& Now, FString& Why
 	if (!ADPTurnaround::Done(*T, TEXT("board"))) { Why = TEXT("boarding"); return false; }
 	if (const AGSE* G = AGSE::Find(W)) if (G->BusyAt(T->StandX)) { Why = TEXT("the bags are still being loaded"); return false; }
 	if (!ADPTurnaround::Done(*T, TEXT("doors"))) { Why = TEXT("the doors are being closed, the jetway pulled back"); return false; }
+	// (to-do 206: your own pushback crew, the people you hired - nobody free: the flight waits)
+	if (P.AirlineId == UADPSim::Me()) if (ATugs* Tg = ATugs::Get(W)) if (!Tg->CrewReady(P.Id, T->StandX, Why)) return false;
 	(void)Now;
 	return true;
 }
@@ -167,7 +169,7 @@ void ASimTraffic::Sync()
 		{
 			TugCalled.Add(Fl.Id);
 			const FADPAircraft* A3 = Sim->World.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == Fl.Reg; });
-			for (const FAirfieldData::FStand& S : F.Stands) if (A3 && S.Id == A3->Stand) { if (ATugs* T = ATugs::Get(GetWorld())) T->Arriving(S.X); break; }
+			for (const FAirfieldData::FStand& S : F.Stands) if (A3 && S.Id == A3->Stand) { if (ATugs* T = ATugs::Get(GetWorld())) T->Arriving(S.X, Fl.AirlineId == UADPSim::Me()); break; }
 		}
 		if (Seen.Contains(Fl.Id)) continue;
 		const FADPAircraft* A = Sim->World.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == Fl.Reg; });

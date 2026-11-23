@@ -43,4 +43,6 @@ namespace ADPSchedule
 	/** Set by the 3D airport while it runs: may this flight leave (everyone aboard, the bags in, the jetway back)? False:
 	 *  what it waits for. Not asked for while the career catches up. */
 	extern TFunction<bool(const FADPPlanned& P, const FDateTime& Now, FString& Why)> Ready3D;
+	/** Set by the 3D airport's hired crew (to-do 206): the jobs that wait for people now ("" = none), for the missing-staff text. */
+	extern TFunction<FString()> Waiting3D;
 }

@@ -75,7 +75,7 @@ namespace
 UStaffPeople* UStaffPeople::Get(const UWorld* W) { return W ? W->GetSubsystem<UStaffPeople>() : nullptr; }
 bool UStaffPeople::On() { return CVarHiredCrew.GetValueOnGameThread() != 0; }
 
-void UStaffPeople::Deinitialize() { Staff.Reset(); Super::Deinitialize(); }
+void UStaffPeople::Deinitialize() { ADPSchedule::Waiting3D = nullptr; Asks.Reset(); Staff.Reset(); Super::Deinitialize(); }
 
 // ------------------------------------------------------------------ the pool
 
@@ -120,12 +120,17 @@ void UStaffPeople::Needs(EStaffTask T, TArray<FNeed>& Out)
 
 const UStaffPeople::FStaff* UStaffPeople::Find(const FString& Id) const { return Staff.FindByPredicate([&](const FStaff& S) { return S.Id == Id; }); }
 
+bool UStaffPeople::IsFree(const FStaff& S, const FString& Role) const
+{
+	return (S.State == EState::Ready || (S.State == EState::Back && S.A.IsValid() && SpPlanZ(S.A->GetActorLocation()) > 83.f)) && S.bWanted && S.Role == Role && S.A.IsValid();
+}
+
 FString UStaffPeople::FindFree(EStaffDuty Duty, const FVector& Near) const
 {
 	const FStaff* Best = nullptr; double Bd = 1e18;
 	if (On()) for (const FStaff& S : Staff)
 	{
-		if (S.State != EState::Ready || !S.bWanted || S.Role != RoleOf(Duty) || !S.A.IsValid()) continue;
+		if (!IsFree(S, RoleOf(Duty))) continue;
 		const double D = FVector::DistSquared2D(S.A->GetActorLocation(), Near);
 		if (D < Bd) { Bd = D; Best = &S; }
 	}
@@ -135,15 +140,15 @@ FString UStaffPeople::FindFree(EStaffDuty Duty, const FVector& Near) const
 int32 UStaffPeople::NumFree(EStaffDuty Duty) const
 {
 	int32 N = 0;
-	if (On()) for (const FStaff& S : Staff) if (S.State == EState::Ready && S.bWanted && S.Role == RoleOf(Duty) && S.A.IsValid()) ++N;
+	if (On()) for (const FStaff& S : Staff) if (IsFree(S, RoleOf(Duty))) ++N;
 	return N;
 }
 
 AActor* UStaffPeople::Claim(const FString& StaffId, const FString& Job)
 {
 	FStaff* S = Find(StaffId);
-	if (!On() || !S || S->State != EState::Ready || !S->bWanted || !S->A.IsValid()) return nullptr;
-	S->State = EState::Busy; S->Job = Job; S->Way.Reset(); S->Speed = 0.f; S->bOvertime = false;
+	if (!On() || !S || !IsFree(*S, S->Role)) return nullptr;
+	S->State = EState::Busy; S->Job = Job; S->Way.Reset(); S->Speed = 0.f; S->BlockedT = S->SideT = 0.f; S->bOvertime = false;
 	ADP_LOG(TEXT("StaffPeople: %s takes %s"), *S->Name, *Job);
 	return S->A.Get();
 }
@@ -166,7 +171,110 @@ void UStaffPeople::Release(const FString& StaffId)
 		ADP_WARN(TEXT("StaffPeople: %s was released inside the terminal (plan z %.1f) - stays there, free"), *S->Name, SpPlanZ(A->GetActorLocation()));
 		S->State = EState::Ready; return;
 	}
+	AlongWall(*S, SpotOf(*S));
 	FLeg L; L.At = SpotOf(*S); S->Way.Add(L);
+}
+
+// a far walk: in to the terminal's front, along it at plan z 85.45 - under the jetways' fixed corridors (their columns stand
+// at z 88), past the ramp rooms' open door leaves (to z 85) and the stand-ins' waiting places (z 86) - and out again
+void UStaffPeople::AlongWall(FStaff& S, const FVector& To) const
+{
+	const AActor* A = S.A.Get(); if (!A) return;
+	const FVector Me = A->GetActorLocation();
+	if (FMath::Abs(Me.X - To.X) < 1200.f || SpPlanZ(Me) < 83.f) return;
+	for (const double X : {Me.X, To.X}) { FLeg L; L.At = SpPlan(float(X / 100.0), 85.45f); S.Way.Add(L); }
+}
+
+// ------------------------------------------------------------------ the queue (part 2)
+
+int32 UStaffPeople::OnDuty(const FString& Role) const { int32 N = 0; for (const FStaff& S : Staff) if (S.bWanted && S.Role == Role) ++N; return N; }
+
+void UStaffPeople::DropOldAsks()
+{
+	const double Now = GetWorld()->GetTimeSeconds();
+	Asks.RemoveAll([&](const FAsk& A) { return Now - A.Last > 10.0; });
+}
+
+bool UStaffPeople::AskTeam(const FString& Key, EStaffTask Task, const FDateTime& When, const FVector& Near, const FString& What, TArray<FTaken>& Out)
+{
+	Out.Reset();
+	UADPSim* Sim = UADPSim::Get(GetWorld());
+	if (!On() || !Sim) return false;
+	DropOldAsks();
+	TArray<FNeed> N; Needs(Task, N);
+	if (!N.Num()) return false;
+	int32 Need = 0; for (const FNeed& X : N) Need += X.Min;
+	const FString Role = RoleOf(N[0].Duty);
+	FAsk* Me = Asks.FindByPredicate([&](const FAsk& A) { return A.Key == Key; });
+	if (!Me) { Me = &Asks.AddDefaulted_GetRef(); Me->Key = Key; Me->Since = Sim->Now(); }
+	Me->What = What; Me->Role = Role; Me->Task = Task; Me->Need = Need; Me->When = When; Me->Last = GetWorld()->GetTimeSeconds();
+	Asks.Sort([](const FAsk& A, const FAsk& B) { return A.When != B.When ? A.When < B.When : A.Key < B.Key; });
+	// the earlier departures first: the people they need are theirs (a job that needs more than are on shift at all holds
+	// nobody up); never half a team
+	int32 Free = NumFree(N[0].Duty); const int32 All = Free, Duty = OnDuty(Role);
+	FString Before;
+	int32 Mine = INDEX_NONE;
+	for (int32 k = 0; k < Asks.Num(); ++k)
+	{
+		if (Asks[k].Key == Key) { Mine = k; break; }
+		if (Asks[k].Role == Role && Asks[k].Need <= Duty) { Free -= Asks[k].Need; if (Before.IsEmpty()) Before = Asks[k].What; }
+	}
+	if (Mine == INDEX_NONE) return false;
+	FAsk& A = Asks[Mine];
+	const double Min = (Sim->Now() - A.Since).GetTotalMinutes();
+	if (Free < Need)
+	{
+		const FString M = Missing(Task);
+		A.Why = !M.IsEmpty() ? M : FString::Printf(TEXT("%d free ground crew go to %s first"), All, *Before);
+		if (Min >= 1.0) ADPSchedule::Tell(Sim->World, Sim->Now(), TEXT("ground:") + Key, TEXT("No ground crew"), FString::Printf(TEXT("%s waits: %s. Hire ground crew under Crew."), *What, *A.Why));
+		return false;
+	}
+	for (const FNeed& X : N)
+		for (int32 i = 0; i < X.Min; ++i)
+		{
+			const FString Id = FindFree(X.Duty, Near);
+			AActor* B = Id.IsEmpty() ? nullptr : Claim(Id, FString::Printf(TEXT("%s (%s)"), *What, DutyName(X.Duty)));
+			if (!B) { for (const FTaken& T : Out) Release(T.Id); Out.Reset(); return false; }
+			FTaken T; T.Duty = X.Duty; T.Id = Id; T.A = B; Out.Add(T);
+		}
+	if (Min >= 1.0) ADP_LOG(TEXT("StaffPeople: %s waited %.0f min for its people"), *What, Min);
+	Asks.RemoveAt(Mine);
+	return true;
+}
+
+bool UStaffPeople::AskExtra(EStaffDuty Duty, const FVector& Near, const FString& What, FTaken& Out)
+{
+	if (!On()) return false;
+	DropOldAsks();
+	int32 Free = NumFree(Duty); const FString Role = RoleOf(Duty); const int32 Num = OnDuty(Role);
+	for (const FAsk& A : Asks) if (A.Role == Role && A.Need <= Num) Free -= A.Need;
+	if (Free < 1) return false;
+	Out = FTaken(); Out.Duty = Duty; Out.Id = FindFree(Duty, Near);
+	if (!Out.Id.IsEmpty()) Out.A = Claim(Out.Id, FString::Printf(TEXT("%s (%s)"), *What, DutyName(Duty)));
+	return Out.A.IsValid();
+}
+
+FString UStaffPeople::WaitsFor(const FString& Key) const { const FAsk* A = Asks.FindByPredicate([&](const FAsk& X) { return X.Key == Key; }); return A ? A->Why : FString(); }
+
+FString UStaffPeople::Waiting() const
+{
+	TArray<FString> L; const double Now = GetWorld()->GetTimeSeconds();
+	for (const FAsk& A : Asks) if (Now - A.Last <= 10.0 && !A.Why.IsEmpty()) L.Add(FString::Printf(TEXT("%s waits - %s"), *A.What, *A.Why));
+	return FString::Join(L, TEXT("; "));
+}
+
+void UStaffPeople::Faces(TSet<FString>& Out)
+{
+	UADPSim* Sim = UADPSim::Get(GetWorld());
+	if (!Sim || !Sim->IsRunning()) return;
+	const FString Here = ADPBoards::HereIcao();
+	TArray<FString> Ids;
+	for (const FADPPerson& P : Sim->World.People) if (P.AirlineId == UADPSim::Me() && SpIsRole(P.Role) && P.Base == Here) Ids.Add(P.Id);
+	for (const FString& Id : Ids)
+	{
+		GiveShift(Sim->World, Id); GiveFace(Sim->World, Id);
+		if (const FADPPerson* P = SpRec(Sim->World, Id)) if (!P->Face.IsEmpty()) Out.Add(P->Face);
+	}
 }
 
 FString UStaffPeople::Missing(EStaffTask Task) const
@@ -228,6 +336,12 @@ void UStaffPeople::Dump() const
 		const FString M = Missing(T);
 		ADP_LOG(TEXT("CrewList: %s - %s"), TaskName(T), M.IsEmpty() ? TEXT("enough people free") : *(TEXT("missing ") + M));
 	}
+	// the jobs that wait, in their order
+	int32 K = 0; const double Ts = GetWorld()->GetTimeSeconds();
+	for (const FAsk& A : Asks)
+		if (Ts - A.Last <= 10.0)
+			ADP_LOG(TEXT("CrewList: waiting job %d: %s (%s, %d needed) - departure %s, waited %.0f min, %s"), ++K, *A.What, TaskName(A.Task), A.Need, *ADPBoards::Local(A.When).ToString(TEXT("%H:%M")), (Now - A.Since).GetTotalMinutes(), A.Why.IsEmpty() ? TEXT("being given out") : *A.Why);
+	if (!K) ADP_LOG(TEXT("CrewList: no job waits for people"));
 }
 
 // ------------------------------------------------------------------ who should be here
@@ -275,13 +389,15 @@ void UStaffPeople::GiveFace(FADPWorld& W, const FString& Id)
 			const FSpFace* F = L[(First + k) % L.Num()];
 			int32 Used = 0, Same = 0;
 			for (const FADPPerson& X : W.People) if (X.Id != Id && X.AirlineId == P->AirlineId && X.Face == F->Name) { ++Used; if (X.Shift == P->Shift) ++Same; }
-			const int32 Sc = Used * 10 + Same * 100;
+			// (a stand-in of another airline's handling team wears it: one nobody wears first)
+			bool bStandIn = false; if (Tugs.IsValid()) for (const ATugs::FCrew& C : Tugs->Crew) if (!C.bHired && C.Name == F->Name) bStandIn = true;
+			const int32 Sc = Used * 10 + Same * 100 + (bStandIn ? 5 : 0);
 			if (Sc < Bs) { Bs = Sc; Best = F; }
 		}
 	}
 	if (!Best) return;
 	P->Face = Best->Name;
-	if (Bs > 0 && !bSaidReuse) { bSaidReuse = true; ADP_LOG(TEXT("StaffPeople: more hired people than built faces - some share a face (first: %s, %s)"), *P->Name, *P->Face); }
+	if (Bs >= 10 && !bSaidReuse) { bSaidReuse = true; ADP_LOG(TEXT("StaffPeople: more hired people than built faces - some share a face (first: %s, %s)"), *P->Name, *P->Face); }
 }
 
 void UStaffPeople::Roster(FADPWorld& W, const FDateTime& Now)
@@ -342,6 +458,7 @@ void UStaffPeople::Tick(float Dt)
 	{
 		Poll = 2.f;
 		if (!bRooms) FindRooms();
+		if (!ADPSchedule::Waiting3D) { TWeakObjectPtr<UStaffPeople> Tw(this); ADPSchedule::Waiting3D = [Tw] { return Tw.IsValid() ? Tw->Waiting() : FString(); }; }
 		// (the apron's crew and vehicles are in: the airport has loaded)
 		if (!Tugs.IsValid()) for (TActorIterator<ATugs> It(GetWorld()); It; ++It) { Tugs = *It; break; }
 		UADPSim* Sim = UADPSim::Get(GetWorld());
@@ -463,7 +580,12 @@ void UStaffPeople::WayIn(FStaff& S) const
 	const float X = Rooms[S.Room].X0;
 	auto Add = [&S](float Px, float Pz, bool bDoor = false) { FLeg L; L.At = SpPlan(Px, Pz); L.bDoor = bDoor; S.Way.Add(L); };
 	S.Way.Reset();
-	if (const AActor* A = S.A.Get()) { const FVector Me = A->GetActorLocation(); Add(Me.X / 100.f, FMath::Max(87.2f, SpPlanZ(Me))); }   // (out of the row, along in front of it)
+	if (const AActor* A = S.A.Get())
+	{
+		const FVector Me = A->GetActorLocation();
+		if (FMath::Abs(Me.X / 100.f - (X + 8.4f)) > 30.f) AlongWall(S, SpPlan(X + 8.4f, 87.2f));   // (from a far stand)
+		else Add(Me.X / 100.f, FMath::Max(87.2f, SpPlanZ(Me)));   // (out of the row, along in front of it)
+	}
 	Add(X + 8.4f, 87.2f);                  // (waits here while others come out)
 	Add(X + 5.2f, 86.f, true);
 	Add(X + 5.2f, 78.7f, true);
