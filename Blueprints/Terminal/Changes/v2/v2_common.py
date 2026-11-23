@@ -133,7 +133,7 @@ G = {'link': (107, -4, 156, 0), 'east_hall': (156, 0, 228, 40), 'promenade': (22
      'customs_office': (228, 40, 236, 52), 'claim': (236, 6, 312, 52), 'pc_line': (312, 20, 324, 52), 'pc_office': (312, 6, 324, 20),
      'pc_hall': (324, 6, 372, 52), 'transfer_up': (326, 40, 338, 51), 'second_line': (358, 40, 371, 51),
      'df_east': (279, 8, 303, 19), 'wc_claim': (263, 8, 274, 19), 'lf_east': (249.5, 8, 260, 16), 'os_east': (300, 42, 311, 51),
-     'corridor': (291, 63.4, 521, 67.9), 'cross': (340, 52, 346, 63.4), 'inputs': (286, 52.6, 314, 55.4),
+     'corridor': (294, 63.4, 526, 67.9), 'cross': (340, 52, 346, 63.4), 'inputs': (286, 52.6, 314, 55.4),
      'staff_lane': (156, 40, 160, 52), 'wc_hall': (160, 40, 178, 52), 'family': (178, 40, 190, 52), 'trolley': (190, 40, 210, 52),
      'bagserv': (210, 40, 228, 52), 'crew': (372, 6, 404, 26), 'canteen': (404, 6, 436, 26), 'ground_off': (436, 6, 470, 26),
      'lockers': (372, 26, 404, 52), 'staffsec': (404, 26, 436, 52), 'police': (436, 26, 470, 52), 'coach': (470, 0, 551.2, 52)}
@@ -143,7 +143,9 @@ F = {'queue': (231, 24, 248, 52), 'line': (248, 24, 256, 52), 'dutyfree': (258, 
      'wc2': (400, 39, 424, 52), 'lounge': (426, 24, 470, 52), 'seating': (472, 24, 520, 52), 'shops2': (522, 24, 551.2, 38),
      'wc3': (522, 40, 551.2, 52), 'strip': (228, 20, 307, 24), 'exit_lane': (228, 24, 231, 52), 'gallery': (307, 20, 551.2, 24),
      'lobby': (237.05, 68, 255.4, 82), 'slab': (228, 20, 551.2, 52)}
-AISLE4 = (189, 79.4, 275.4, 82)                                 # gate 4's closed arrivals aisle to gate 13's way down
+AISLE4 = (194.5, 82.2, 303, 84.8)                               # gate 4's closed arrivals gallery, glass, outside the windows
+VEST4 = (188, 78, 196.8, 82)                                    # gate 4's jetway vestibule (its jetway: x 191.05)
+JETWAYS = {4: (191.05,), 13: (309.4, 314.4, 321.4), 14: (389.2, 399.2), 15: (461.5, 471.5), 16: (533.8, 543.8)}   # Data/babylon-jetways.json
 OPEN_F2 = ((231.5, 239.3), (262, 286), (344, 396), (474, 518))  # the walkway's south wall opened (z 52)
 ENTR_E = ((186, 198), (290, 300), (396, 406), (504, 516))       # new entrance vestibules, 4 m deep
 WEST = {'df': (-58, 43, -20, 51.5), 'lf': (-78.5, 17, -70, 24), 'wc': (-78.5, 25, -70, 33), 'os': (-6, 42, -0.8, 51),
@@ -161,14 +163,14 @@ def area(b): return abs((b[2] - b[0]) * (b[3] - b[1]))
 
 
 def core_f2(g):      # the arrivals core in a wide-body gate: the jetway vestibule and the way down
-    a = GATE_X0[g]; return (a + 20, 77, a + 25, 82), (a + 25, 69, a + 38.4, 82)
+    a = GATE_X0[g]; return (a + 49, 77, a + 67.5, 82), (a + 34.2, 74.5, a + 49, 82)
 
 
 def core_f1(g):      # the arrivals lobby on the ground and its door into the corridor
-    a = GATE_X0[g]; return (a + 28.2, 68.1, a + 48, 81.9), (a + 36, 67.6, a + 41, 68.4)
+    a = GATE_X0[g]; return (a + 34.5, 68.1, a + 52, 81.9), (a + 40, 67.6, a + 45, 68.4)
 
 
-AREA_CORE = 5 * 5 + 13.4 * 13
+AREA_CORE = 18.5 * 5 + 14.8 * 7.5
 
 
 def fills(ax, floor):
@@ -249,6 +251,13 @@ def after_f1(ax, lw=1.6):
     for d0, d1 in ENTR_E: box(ax, d0, -4, d1, 0, '', fc='#1b3a4a', ec=GLASS, lw=1.2, z=6)
 
 
+def gate_stairs(ax):
+    """the gates' own stairs down, existing (the game's layout: 2.8 x 11 m at the gate room's x0 + 28.3)"""
+    for a in (-72.6, 7.95, 88.5, 169.05) + tuple(GATE_X0.values()):
+        box(ax, a + 28.3, 69.5, a + 31.1, 80.5, '', fc='#26303a', ec='#8fa0ae', lw=1, z=8)
+        for k in range(1, 8): ax.plot([a + 28.3, a + 31.1], [69.5 + k * 1.375] * 2, color='#8fa0ae', lw=0.6, zorder=9)
+
+
 def after_f2(ax, lw=1.6):
     """the new floor 2, unlabelled"""
     box(ax, *F['slab'], '', fc='#15130a', ec=NEW, lw=lw + 0.6)
@@ -270,6 +279,9 @@ def after_f2(ax, lw=1.6):
     new(ax, F['lobby'], fc='#3a3410', lw=lw + 0.6, z=5)
     for g in GATE_X0:
         v, c = core_f2(g); ns(ax, v, fc='#55203a', z=7, lw=lw); ns(ax, c, fc='#45152c', z=7, lw=lw)
-    ns(ax, AISLE4, fc='#45152c', z=8, lw=lw, ls='--')
+    ns(ax, AISLE4, fc='#45152c', z=8, lw=lw, ls='--'); ns(ax, VEST4, fc='#55203a', z=8, lw=lw)
+    for g in GATE_X0: a = GATE_X0[g]; ax.plot([a + 34, a + 34], [69.5, 73.5], color='#24101a', lw=5, zorder=9); ax.plot([a + 34, a + 34], [69.5, 73.5], color=OK, lw=2.5, ls=':', zorder=10)
+    ax.plot([203.05, 203.05], [69.5, 73.5], color='#0e2216', lw=5, zorder=9); ax.plot([203.05, 203.05], [69.5, 73.5], color=OK, lw=2.5, ls=':', zorder=10)
+    gate_stairs(ax)
     for a, b in OPEN_F2 + ((228.3, 230.7),):
         ax.plot([a, b], [52, 52], color='#05080c', lw=7, zorder=9); ax.plot([a, b], [52, 52], color=OK, lw=3, ls=':', zorder=10)

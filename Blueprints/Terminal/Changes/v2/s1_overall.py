@@ -38,7 +38,7 @@ txt(D, -180, 30, 'TAX FREE', FG, 14); txt(D, -99, 25, 'esc. hall', DIM, 12); txt
 txt(D, 10, -6, 'toilets', BELT, 12); txt(D, 192, 25, 'open: the East Hall\nseen from above', DIM, 13); txt(D, 274, 38, 'DUTY\nFREE', DF, 13, weight='bold')
 txt(D, 323, 38, 'TRANSFER\nCENTRE', TRF, 12, weight='bold'); txt(D, 370, 38, 'FOOD', NEW, 14, weight='bold'); txt(D, 412, 45, 'WC', BELT, 12)
 txt(D, 448, 38, 'LOUNGE', NEW, 14, weight='bold'); txt(D, 496, 38, 'SEATING', NEW, 14, weight='bold'); txt(D, 536, 31, 'SHOPS', NEW, 11)
-txt(D, 420, 60, 'non-Schengen walkway (the same walkway)', NS, 13); txt(D, 205, 8, 'passport\ncontrol out', NS, 12); txt(D, 246, 87, 'swing lobby', NEW, 12)
+txt(D, 420, 60, 'non-Schengen walkway (the same walkway)', NS, 13); txt(D, 205, 8, 'passport\ncontrol out', NS, 12); txt(D, 225, 88, 'swing lobby', NEW, 12)
 txt(D, 430, 8, 'NON-SCHENGEN CONCOURSE (new floor, 323 x 32 m)', NEW, 15, weight='bold')
 save(fig, 'TCv2-1a-Overall-Before-After.png')
 
@@ -56,7 +56,7 @@ rows = [('GRAND HALL', 2160, 2160, 'exactly the same; kiosks, bag drop and desk 
         ('Airside food, bar, lounge, seating: east', 0, f('food', 'lounge', 'seating', 'prayer'), 'food court + bar 1 568, lounge 1 232, seating 1 344, prayer / quiet 312'),
         ('Transfer centre', 0, f('transfer'), 'transfer desks, 2 security lanes, transfer passport booths'),
         ('Toilet blocks (public)', 3, 10, 'new: west claim, East Hall, east claim, coach station, 3 on the concourse'),
-        ('Gate + view bays 13-16, each', 952, 952 - 199, '199 m² becomes the closed way down for arrivals; still 1.4 - 2.0 x the need'),
+        ('Gate + view bays 13-16, each', 952, 952 - 204, '204 m² becomes the jetway vestibule and the closed way down; still 1.4 - 2.0 x the need'),
         ('Staff, crew, operations, police', 240, 240 + g('crew', 'canteen', 'ground_off', 'lockers', 'staffsec', 'police'), 'six new rooms in the east wing, with their own staff security'),
         ('East wing: ground floor in use', 0, 20540, 'all of it; today grass under the roof'),
         ('East wing: Floor 2', 0, f('slab'), 'a new floor at +6.0, x 228-551, z 20-52')]
