@@ -108,12 +108,16 @@ bool APaxProps::MakeKit(int32 Kind)
 	return K.bOk;
 }
 
+// a slot nobody holds: half a millimetre big, under the floor - never size nothing: the renderer turns every copy's place
+// round (distance fields), and a size of nothing can't be (the Matrix.h check in the log at loading, 2026-11-23)
+static const FTransform PaxPropsNone(FQuat::Identity, FVector(0.0, 0.0, -300.0), FVector(0.0005));
+
 int32 APaxProps::TakeSlot(int32 Kind)
 {
 	FKit& K = Kits[Kind];
 	if (!MakeKit(Kind)) return INDEX_NONE;
 	if (K.Free.Num()) return K.Free.Pop();
-	const FTransform None(FQuat::Identity, FVector::ZeroVector, FVector::ZeroVector);
+	const FTransform None = PaxPropsNone;
 	for (FPart& P : K.Parts) P.List->AddInstance(None, false);
 	return K.Slots++;
 }
@@ -192,7 +196,7 @@ void APaxProps::Forget(AActor* Passenger)
 	APaxProps* M = Passenger ? Find(Passenger->GetWorld()) : nullptr; if (!M) return;
 	int32 Ix; if (!M->ByActor.RemoveAndCopyValue(Passenger, Ix)) return;
 	FWho& W = M->Who[Ix];
-	const FTransform None(FQuat::Identity, FVector::ZeroVector, FVector::ZeroVector);
+	const FTransform None = PaxPropsNone;
 	for (int32 k = 0; k < 2; ++k) if (W.Slot[k] != INDEX_NONE) { M->PutSlot(k, W.Slot[k], None); M->Kits[k].Free.Add(W.Slot[k]); }
 	W = FWho(); M->FreeWho.Add(Ix);
 }
@@ -254,7 +258,7 @@ bool APaxProps::DeviceAt(const FWho& W, int32 Kind, float K, FTransform& Out) co
 void APaxProps::Tick(float Dt)
 {
 	Super::Tick(Dt);
-	const FTransform None(FQuat::Identity, FVector::ZeroVector, FVector::ZeroVector);
+	const FTransform None = PaxPropsNone;
 	if (!PeopleW.IsValid()) PeopleW = AADPPeople::Get(GetWorld());
 	AADPPeople* People = PeopleW.Get();
 	for (int32 i = 0; i < Who.Num(); ++i)
