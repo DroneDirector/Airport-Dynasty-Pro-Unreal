@@ -91,6 +91,24 @@ def plate(h, off, m, name, z0=ZE, slot=None, up=True, col=ARC):
     return mesh(name, V, F, m, col)
 
 
+# ---------------------------------------------------------------- the smooth wave roof (Tools/wave_roof.py) instead of the old copies set end to end
+sys.path.insert(0, os.path.join(ROOT, 'Tools'))
+import wave_roof as WR
+for o in list(EX.objects):
+    if o.type == 'MESH' and str(o.get('grp') or '').startswith('ROOF'): EX.objects.unlink(o)
+TIMB, WGL = get('timber', mat('timber', (0.45, 0.2, 0.07), 0.5)), get('whiteGloss', WHITE)
+NXR, NZR = int((WR.X1 - WR.X0) / 0.75), 34; VB, VT, FR = [], [], []
+for i in range(NXR + 1):
+    x = WR.X0 + (WR.X1 - WR.X0) * i / NXR; x = min(max(x, WR.X0 + 0.01), WR.X1 - 0.01); s0 = WR.south(x)
+    for k in range(NZR + 1): z = s0 + (WR.Z1 - s0) * k / NZR; h = WR.height(x, z); VB.append((x, z, h)); VT.append((x, z, h + WR.THICK))
+w_ = NZR + 1
+for i in range(NXR):
+    for k in range(NZR): a = i * w_ + k; FR.append((a, a + w_, a + w_ + 1, a + 1))
+mesh('WaveTop', VT, FR, WGL, EX, True); mesh('WaveSoffit', VB, [f[::-1] for f in FR], TIMB, EX, True)
+for k in (0, NZR): mesh('WaveEdge', [v for i in range(NXR + 1) for v in (VB[i * w_ + k], VT[i * w_ + k])], [(2 * i, 2 * i + 2, 2 * i + 3, 2 * i + 1) for i in range(NXR)], WGL, EX, True)
+for i in (0, NXR): mesh('WaveEnd', [v for k in range(w_) for v in (VB[i * w_ + k], VT[i * w_ + k])], [(2 * k, 2 * k + 2, 2 * k + 3, 2 * k + 1) for k in range(NZR)], WGL, EX, True)
+for x, h, z in WR.downlights():
+    if x < 80 and z > 6: mesh('DL', [(x + 0.18 * math.cos(q * math.pi / 5), z + 0.18 * math.sin(q * math.pi / 5), h) for q in range(10)], [tuple(range(10))], GLOW, EX)
 # ---------------------------------------------------------------- what the bay replaces: the flat window of gate 9
 gone = []
 for o in list(EX.objects):
