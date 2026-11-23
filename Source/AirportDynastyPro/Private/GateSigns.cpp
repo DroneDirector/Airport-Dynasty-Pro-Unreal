@@ -91,7 +91,7 @@ void ADPGateSigns::Place(UWorld* W, const FTerminalPlan& Plan)
 	{
 		TArray<UInstancedStaticMeshComponent*> Ks; It->GetComponents(Ks);
 		for (UInstancedStaticMeshComponent* K : Ks)
-			if (K && K->GetStaticMesh() && K->GetStaticMesh()->GetName() == TEXT("tf_neon_sign")) Neons.Add(K);
+			if (K && K->GetStaticMesh() && K->GetStaticMesh()->GetName() == TEXT("tf_neon_sign")) { Neons.Add(K); K->SetAffectDynamicIndirectLighting(false); }   // (its glow is the material and its bloom; in Lumen it lay as a pink patch 10 m wide in gate 9's window glass, 2026-11-23)
 	}
 	if (Neons.Num() && Lv[0] && Lv[1] && Lv[2])
 	{
