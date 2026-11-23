@@ -28,7 +28,7 @@
 #include "Misc/Paths.h"
 #include "Serialization/JsonSerializer.h"
 
-static TAutoConsoleVariable<int32> CVarHiredCrew(TEXT("adp.HiredCrew"), 0, TEXT("To-do 206: 1 = your hired ground staff are the people in the 3D airport; 0 = the fixed stand-in team, as before"));
+static TAutoConsoleVariable<int32> CVarHiredCrew(TEXT("adp.HiredCrew"), 1, TEXT("To-do 206: 1 = your hired ground staff are the people in the 3D airport; 0 = the fixed stand-in team, as before"));
 static FAutoConsoleCommandWithWorld CmdCrewList(TEXT("adp.CrewList"), TEXT("Your hired ground staff: shift, face, place and job, into the log"),
 	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld* W) { if (const UStaffPeople* S = UStaffPeople::Get(W)) S->Dump(); }));
 
@@ -114,6 +114,8 @@ void UStaffPeople::Needs(EStaffTask T, TArray<FNeed>& Out)
 	case EStaffTask::Gpu: Add(EStaffDuty::GpuHandler, 1, 1); break;
 	case EStaffTask::BagsOut: case EStaffTask::BagsIn: Add(EStaffDuty::TractorDriver, 1, 1); Add(EStaffDuty::BaggageHandler, 0, 1); break;
 	case EStaffTask::Loader: Add(EStaffDuty::LoaderOperator, 1, 1); Add(EStaffDuty::BaggageHandler, 0, 1); break;
+	case EStaffTask::Bags: Add(EStaffDuty::TractorDriver, 1, 1); Add(EStaffDuty::LoaderOperator, 1, 1); Add(EStaffDuty::BaggageHandler, 0, 2); break;
+	case EStaffTask::Relief: Add(EStaffDuty::BaggageHandler, 1, 1); break;
 	case EStaffTask::Pushback: Add(EStaffDuty::TugDriver, 1, 1); Add(EStaffDuty::PushbackHandler, 1, 1); Add(EStaffDuty::WingWalker, 0, 3); break;
 	}
 }
@@ -188,6 +190,35 @@ void UStaffPeople::AlongWall(FStaff& S, const FVector& To) const
 // ------------------------------------------------------------------ the queue (part 2)
 
 int32 UStaffPeople::OnDuty(const FString& Role) const { int32 N = 0; for (const FStaff& S : Staff) if (S.bWanted && S.Role == Role) ++N; return N; }
+
+bool UStaffPeople::Hires() const
+{
+	const UADPSim* Sim = UADPSim::Get(GetWorld());
+	if (!On() || !Sim || !Sim->IsRunning()) return false;
+	const FString Here = ADPBoards::HereIcao(); int32 N = 0;
+	for (const FADPPerson& P : Sim->World.People) if (P.AirlineId == UADPSim::Me() && SpIsRole(P.Role) && P.Base == Here) ++N;
+	const bool bOk = N >= 2;
+	if (SaidHires != int32(bOk))
+	{
+		SaidHires = int32(bOk);
+		if (bOk) ADP_LOG(TEXT("StaffPeople: you employ %d ground crew here - they work your own flights"), N);
+		else ADP_LOG(TEXT("StaffPeople: you employ %d ground crew here, 2 are the smallest team - the handling agent's people work your flights until you hire"), N);
+	}
+	return bOk;
+}
+
+void UStaffPeople::CheckClaims()
+{
+	// (a claim always ends: somebody who is claimed but whom no vehicle's crew list has is free again)
+	for (FStaff& S : Staff)
+	{
+		if (S.State != EState::Busy) { S.Idle = 0; continue; }
+		if (Tugs.IsValid() && Tugs->Crew.ContainsByPredicate([&](const ATugs::FCrew& C) { return C.bHired && !C.bSlotFree && C.StaffId == S.Id; })) { S.Idle = 0; continue; }
+		if (++S.Idle < 4) continue;
+		ADP_WARN(TEXT("StaffPeople: %s was claimed for %s but is at no job - free again"), *S.Name, *S.Job);
+		S.Idle = 0; Release(S.Id);
+	}
+}
 
 void UStaffPeople::DropOldAsks()
 {
@@ -331,7 +362,7 @@ void UStaffPeople::Dump() const
 		ADP_LOG(TEXT("CrewList: %s %s (%s, %s, %s at %s) - shift %s, face %s, %s, %s"), *P.Id, *P.Name, *P.Role, P.bWoman ? TEXT("woman") : TEXT("man"), *P.Status, *P.Base, *Shift, P.Face.IsEmpty() ? TEXT("-") : *P.Face, *Doing, *At);
 	}
 	ADP_LOG(TEXT("CrewList: %d hired ground staff, %d in 3D or on their way, the simulation counts %d on shift, local time %02d:%02d, adp.HiredCrew %d"), N, Staff.Num(), ADPSchedule::OnShift(Sim->World, SpRoles[0], Now), Here.GetHour(), Here.GetMinute(), On() ? 1 : 0);
-	for (const EStaffTask T : {EStaffTask::Gpu, EStaffTask::BagsOut, EStaffTask::BagsIn, EStaffTask::Loader, EStaffTask::Pushback})
+	for (const EStaffTask T : {EStaffTask::Gpu, EStaffTask::BagsOut, EStaffTask::BagsIn, EStaffTask::Loader, EStaffTask::Bags, EStaffTask::Pushback})
 	{
 		const FString M = Missing(T);
 		ADP_LOG(TEXT("CrewList: %s - %s"), TaskName(T), M.IsEmpty() ? TEXT("enough people free") : *(TEXT("missing ") + M));
@@ -423,7 +454,9 @@ void UStaffPeople::Roster(FADPWorld& W, const FDateTime& Now)
 		}
 		// (the simulation counts 40% of a team on duty at any hour, at least one - the people due next are called in up to that)
 		Others.Sort([](const TPair<float, FString>& A, const TPair<float, FString>& B) { return A.Key != B.Key ? A.Key < B.Key : A.Value < B.Value; });
-		const int32 Count = ADPSchedule::OnShift(W, Role, Now);
+		// (a job that waits for more people than are on duty at all: the next ones are called in for it - a small team still flies)
+		int32 Count = ADPSchedule::OnShift(W, Role, Now);
+		for (const FAsk& A : Asks) if (A.Role == Role) Count = FMath::Max(Count, A.Need);
 		for (int32 k = 0; k < Others.Num() && N < Count; ++k, ++N) Want.Add(Others[k].Value, true);
 	}
 	for (FStaff& S : Staff)
@@ -462,7 +495,7 @@ void UStaffPeople::Tick(float Dt)
 		// (the apron's crew and vehicles are in: the airport has loaded)
 		if (!Tugs.IsValid()) for (TActorIterator<ATugs> It(GetWorld()); It; ++It) { Tugs = *It; break; }
 		UADPSim* Sim = UADPSim::Get(GetWorld());
-		if (Sim && Sim->IsRunning() && Tugs.IsValid()) Roster(Sim->World, Sim->Now());
+		if (Sim && Sim->IsRunning() && Tugs.IsValid()) { DropOldAsks(); Roster(Sim->World, Sim->Now()); CheckClaims(); }
 	}
 	if (!Tugs.IsValid()) return;
 	for (FStaff& S : Staff) StepOne(S, Dt);
@@ -475,7 +508,7 @@ void UStaffPeople::StepOne(FStaff& S, float Dt)
 	const float T = GetWorld()->GetTimeSeconds();
 	if (S.State != EState::Load && S.State != EState::Wait && !S.A.IsValid())
 	{
-		ADP_WARN(TEXT("StaffPeople: %s's body is gone - comes again"), *S.Name);
+		ADP_WARN(TEXT("StaffPeople: %s's body is gone%s - comes again"), *S.Name, S.Job.IsEmpty() ? TEXT("") : *FString::Printf(TEXT(" at work (%s)"), *S.Job));
 		LeaveDoor(S); S.Role.Reset(); return;
 	}
 	switch (S.State)

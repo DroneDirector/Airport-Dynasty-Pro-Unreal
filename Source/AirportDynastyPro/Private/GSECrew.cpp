@@ -70,17 +70,20 @@ void AGSE::WalkTo(int32 Ci, TFunction<FVector()> To, float Stop)
 	if (Za != Zb)
 	{
 		if (Za == 0) { Via.Add(Plan(272.5f, 88.f)); Via.Add(Plan(272.5f, 70.f)); Via.Add(Plan(272.5f, 59.5f)); }
-		if (Za == 2) { Via.Add(Plan(130.f, 50.f)); Via.Add(Plan(130.f, 54.f)); Via.Add(Plan(138.f, 59.5f)); }
-		if (Zb == 2) { Via.Add(Plan(138.f, 59.5f)); Via.Add(Plan(130.f, 54.f)); Via.Add(Plan(130.f, 50.f)); }
-		if (Zb == 0) { Via.Add(Plan(272.5f, 59.5f)); Via.Add(Plan(272.5f, 70.f)); Via.Add(Plan(272.5f, 88.f)); }
+		if (Za == 2) { Via.Add(Plan(129.5f, 50.f)); Via.Add(Plan(129.5f, 54.f)); Via.Add(Plan(138.f, 58.6f)); }
+		if (Zb == 2) { Via.Add(Plan(138.f, 59.5f)); Via.Add(Plan(130.5f, 54.f)); Via.Add(Plan(130.5f, 50.f)); }
+		if (Zb == 0) { Via.Add(Plan(271.6f, 58.6f)); Via.Add(Plan(271.6f, 70.f)); Via.Add(Plan(271.6f, 88.f)); }   // (out a metre beside the way in: nobody head-on)
 	}
 	for (const FVector& V : Via) { ATugs::FCrewAct A = GscAct(ATugs::FCrewAct::Walk); A.To = [V] { return V; }; A.Stop = 70.f; A.Max = 150.f; C.Q.Add(A); }
 	ATugs::FCrewAct A = GscAct(ATugs::FCrewAct::Walk); A.To = MoveTemp(To); A.Stop = Stop; A.Max = 150.f; C.Q.Add(A);
 }
 
-int32 AGSE::Borrow(const FVector& Near)
+int32 AGSE::Borrow(const FVector& Near, int32* Pre, int32 Boss, EStaffDuty Duty)
 {
 	ATugs* G = Tg(); if (!G) return INDEX_NONE;
+	// (to-do 206: your own flights' bags - the people you hired, never a mix: GSEStaff.cpp)
+	if (Pre && *Pre != INDEX_NONE) { const int32 Ci = *Pre; *Pre = INDEX_NONE; HiredWay(Ci, Near, 0.f); return Ci; }
+	if (Tractors.IsValidIndex(Boss) && IsHired(Tractors[Boss].Driver)) return BorrowHired(Near, Boss, Duty);
 	// (owner 2026-11-21: a real ramp team, the same people switching jobs) - a wing / tail walker no push needs (three are
 	// kept free for a push), else a tug driver or handler whose gate is quiet
 	auto Idle = [](const ATugs::FCrew& C) { return C.A.IsValid() && !C.bGse && !C.Q.Num() && !C.Hold && !C.Follow; };
@@ -104,9 +107,10 @@ int32 AGSE::Borrow(const FVector& Near)
 	return Best;
 }
 
-void AGSE::GiveBack(int32 Ci)
+void AGSE::GiveBack(int32 Ci, float StandX)
 {
 	ATugs* G = Tg(); if (!G || !G->Crew.IsValidIndex(Ci)) return;
+	if (G->Crew[Ci].bHired) { GiveBackHired(Ci, StandX); return; }
 	const FVector Home = G->Crew[Ci].Spot;
 	WalkTo(Ci, [Home] { return Home; }, 30.f);
 	Do(Ci, [this, Ci] { if (ATugs* G2 = Tg()) { G2->Crew[Ci].bGse = false; G2->Crew[Ci].AnchorYaw = G2->Crew[Ci].SpotYaw; ADP_LOG(TEXT("GSE: %s back at the gate, free again"), *G2->Crew[Ci].Name); } });
@@ -339,7 +343,7 @@ void AGSE::StartTrain(int32 Ti, const TArray<int32>& Pair)
 {
 	if (!Tractors.IsValidIndex(Ti) || Pair.Num() < 1) return;
 	FTractor& T = Tractors[Ti];
-	const int32 Ci = Borrow(T.At);
+	const int32 Ci = Borrow(T.At, &PreDriver);
 	if (Ci == INDEX_NONE) return;
 	bWorked = true;
 	T.Driver = Ci; T.Job = EJob::Boarding; T.JobT = 0.f;
@@ -387,6 +391,10 @@ void AGSE::TrainToStand(int32 Ti)
 		if (const ADPTurnaround::FTurn* Tn = ADPTurnaround::AtStand(T.StandX))
 			if (Tn->bArrival && Tn->ArrPax > 0 && !ArrAway.Contains(Tn->ArrFlight) && (ADPTurnaround::LastNow() - Tn->OnBlocks).GetTotalMinutes() < 30.0 && (Tn->OffBlocks - ADPTurnaround::LastNow()).GetTotalMinutes() > 22.0)
 			{ RetryIn(Ti, 15.f, [this, Ti] { TrainToStand(Ti); }); return; }
+	// (to-do 206: no belt loader at its stand yet - one of your people takes it first; the train waits in the lane until then,
+	// while its flight is still here)
+	if (IsHired(T.Driver) && LoaderAt(T.StandX) == INDEX_NONE && (T.bArrival || ADPTurnaround::ForFlight(T.Key)) && HiredFlight(T.bArrival ? FString() : T.Key, T.StandX))
+	{ AddWant(EWant::Loader, T.Key, T.StandX); RetryIn(Ti, 5.f, [this, Ti] { TrainToStand(Ti); }); return; }
 	T.Job = EJob::Out; T.JobT = 0.f;   // (on its way: the departure waits for it from now - BusyAt)
 	RouteOut(T, [this, Ti] { TrainApron(Ti); });
 }

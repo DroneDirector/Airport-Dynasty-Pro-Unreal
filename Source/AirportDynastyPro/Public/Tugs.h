@@ -109,7 +109,7 @@ private:
 		// walk took them), a small step off it, a look round, and now and then a little movement of their own
 		FVector Anchor = FVector::ZeroVector; float AnchorYaw = 0.f; FVector IdleOff = FVector::ZeroVector; float IdleYawOff = 0.f, IdleT = 4.f;
 		FPoseFn Fidget; float FidgetT = 0.f, FidgetDur = 0.f; int32 LastFidget = -1;
-		bool bHired = false, bLeave = false, bSlotFree = false; FString StaffId; float BlockT = 0.f;   // (to-do 206: one of your hired people for this job; done with it; an empty slot to use again)
+		bool bHired = false, bLeave = false, bSlotFree = false; FString StaffId; float BlockT = 0.f; bool bLost = false, bRelief = false; float LostAsk = 0.f, LostT = 0.f; FVector LastAt = FVector::ZeroVector; FPoseFn LostHold;   // (to-do 206: one of your hired people for this job; done with it; an empty slot to use again)
 		bool bGse = false;               // on a baggage tractor / cart job just now (GSE.h): not free for a push
 	};
 	TArray<FCrew> Crew;
@@ -205,6 +205,7 @@ private:
 	void SafeWay(FCrew& C, float StandX);
 	bool HiredFree(const FTug& T) const { return T.Driver == INDEX_NONE && T.Handler == INDEX_NONE && T.GpuCi == INDEX_NONE && !T.Walkers.Num(); }
 	void HiredEnd(FTug& T);
+	void LostTick(int32 Ci, float Dt);
 	void HiredTick(int32 Tug, float Dt);
 	bool PersonAhead(const FVector& Here, const FVector& Dir, float Reach) const;
 	void CrewBoard(int32 Tug, bool bArrival = false);

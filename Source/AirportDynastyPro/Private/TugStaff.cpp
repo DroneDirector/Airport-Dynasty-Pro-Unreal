@@ -6,6 +6,7 @@
 // flight's own readiness). The other airlines' flights keep the stand-ins.
 #include "Tugs.h"
 #include "StaffPeople.h"
+#include "GSE.h"
 #include "People.h"
 #include "TruckDriverRig.h"
 #include "BabylonModel.h"
@@ -30,7 +31,8 @@ bool ATugs::HiredLive(const FString& Key, FDateTime* When, FString* Flight) cons
 bool ATugs::HiredJob(const FString& Key) const
 {
 	const UADPSim* Sim = UADPSim::Get(GetWorld());
-	if (!UStaffPeople::On() || !Sim || !UStaffPeople::Get(GetWorld())) return false;
+	const UStaffPeople* Sp = UStaffPeople::Get(GetWorld());
+	if (!Sim || !Sp || !Sp->Hires()) return false;   // (too few hired for any job: the stand-ins)
 	for (const FADPPlanned& P : Sim->World.Planned) if (P.Id == Key) return P.AirlineId == UADPSim::Me();
 	for (const FADPFlight& F : Sim->World.Flights) if (F.Id == Key) return F.AirlineId == UADPSim::Me();
 	return false;
@@ -118,7 +120,7 @@ void ATugs::HiredTick(int32 Tug, float Dt)
 	const bool bLive = HiredLive(T.Key, &When, &Flight);
 	if (T.State == EState::Parked)
 	{
-		if (!bLive || !UStaffPeople::On())
+		if (!bLive || !Sp->Hires())
 		{
 			ADP_LOG(TEXT("Tugs: the pushback of %s at x %.0f is off before its crew came"), *T.Key, T.StandX);
 			T.Key.Reset(); return;
@@ -160,6 +162,64 @@ void ATugs::HiredTick(int32 Tug, float Dt)
 		static TSet<FString> Said;
 		if (!Said.Contains(T.Key)) { Said.Add(T.Key); ADP_LOG(TEXT("Tugs: %s is pushed back with %d of 3 wing / tail walkers - no more of your ground crew free"), *Flight, T.Walkers.Num()); }
 	}
+}
+
+void ATugs::LostTick(int32 Ci, float Dt)
+{
+	// one of your people vanished at work (their body was taken away; StaffPeople brings them back on duty by the door): the
+	// job's acts stay in this slot, the next free person walks over and goes on with them - first in the queue
+	FCrew& C = Crew[Ci];
+	AGSE* G = AGSE::Find(GetWorld());
+	const TCHAR* Job = C.bGse ? TEXT("the bags") : TEXT("the tug and the ground power");
+	if (!C.bLost)
+	{
+		C.bLost = true; C.LostAsk = C.LostT = 0.f; C.bRelief = false;
+		if (C.Hold) C.LostHold = C.Hold;
+		if (C.Rig) delete C.Rig;
+		C.Rig = nullptr; C.Rider = nullptr; C.Anim = nullptr; C.bPosed = false; C.FidgetDur = 0.f; C.Hold = nullptr; C.Speed = 0.f;
+		ADP_WARN(TEXT("Tugs: %s's body is gone at work (%s)"), *C.Name, Job);
+	}
+	bool bDrop = false;
+	const bool bGse = G && G->Relieve(Ci, bDrop);
+	// (done anyway, or a second pair of hands: the job goes on without them)
+	if (bDrop || C.bLeave || (!C.Q.Num() && !C.LostHold && !C.Follow))
+	{
+		ADP_LOG(TEXT("Tugs: %s's part of the job (%s) is let go - it goes on without"), *C.Name, Job);
+		C.Q.Reset(); Discharge(Ci); return;
+	}
+	if ((C.LostT += Dt) > 600.f) { C.LostT = 0.f; ADP_WARN(TEXT("Tugs: nobody free to take over from %s (%s) for ten minutes"), *C.Name, Job); }
+	if ((C.LostAsk -= Dt) > 0.f) return;
+	C.LostAsk = 2.f;
+	UStaffPeople* Sp = UStaffPeople::Get(GetWorld()); if (!Sp) return;
+	TArray<UStaffPeople::FTaken> Team;
+	if (!Sp->AskTeam(FString::Printf(TEXT("relief:%d"), Ci), EStaffTask::Relief, FDateTime(2000, 1, 1), C.LastAt, FString::Printf(TEXT("taking over from %s"), *C.Name), Team) || !Team.Num() || !Team[0].A.IsValid()) return;
+	const FString Was = C.Name;
+	C.A = Team[0].A; C.StaffId = Team[0].Id; C.Name = Sp->NameOf(C.StaffId); C.bLost = false; C.bRelief = true; C.T = 0.f; C.BlockT = C.StuckT = C.SideT = 0.f;
+	C.Spot = C.Anchor = C.A->GetActorLocation();
+	ADP_LOG(TEXT("Tugs: %s takes over from %s (%s)"), *C.Name, *Was, Job);
+	TArray<FCrewAct> Old = MoveTemp(C.Q); C.Q.Reset();
+	const FPoseFn Held = C.LostHold; C.LostHold = nullptr;
+	const FVector At = C.LastAt;
+	int32 Ti = INDEX_NONE, Tu = INDEX_NONE;
+	if (bGse && G) { for (int32 i = 0; i < G->Tractors.Num(); ++i) if (G->Tractors[i].Driver == Ci) Ti = i; }
+	else for (int32 i = 0; i < Tugs.Num(); ++i) if (Tugs[i].Driver == Ci) Tu = i;
+	if (Ti != INDEX_NONE) G->HiredWay(Ci, G->Tractors[Ti].At, G->Tractors[Ti].StandX);
+	else for (const FTug& T : Tugs) if (T.Driver == Ci || T.Handler == Ci || T.GpuCi == Ci || T.Walkers.Contains(Ci)) { SafeWay(C, T.StandX); break; }
+	if (Held && Ti != INDEX_NONE) G->ClimbIn(Ci, Ti, nullptr);
+	else if (Held && Tu != INDEX_NONE)
+	{
+		// (into the tug only where it stands: never into a moving one)
+		FCrewAct W; W.Kind = FCrewAct::WaitFor; W.Until = [this, Tu](float) { return Tugs[Tu].Path.Num() == 0; }; C.Q.Add(W);
+		ClimbIn(C, Tu, nullptr);
+	}
+	else
+	{
+		if (Ti != INDEX_NONE) G->WalkTo(Ci, [At] { return At; }, 40.f);
+		else { FCrewAct W; W.Kind = FCrewAct::Walk; W.To = [At] { return At; }; W.Stop = 40.f; C.Q.Add(W); }
+		if (Held) { FCrewAct H; H.Kind = FCrewAct::Do; H.Fn = [&C, Held] { C.Hold = Held; }; C.Q.Add(H); }
+	}
+	FCrewAct E; E.Kind = FCrewAct::Do; E.Fn = [&C] { C.bRelief = false; }; C.Q.Add(E);
+	C.Q.Append(MoveTemp(Old));
 }
 
 bool ATugs::ArrivedHired(float StandX, const FString& Reg, const FDateTime& When)

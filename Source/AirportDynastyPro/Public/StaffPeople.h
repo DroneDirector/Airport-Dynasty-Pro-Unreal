@@ -1,8 +1,8 @@
 // Your hired staff are the people in the 3D airport (to-do 206, docs/Hired-Crew-Plan.md): everyone you employ in a ground
 // role whose shift is on is their own MetaHuman - their name, always the same face, their role and shift - coming out of
 // a ramp room's staff door at the start of it, standing by at the gates between jobs, and back in through the door when
-// it ends. Part 1: the people and the pool the vehicles' crew code asks (FindFree / Claim / Release / Missing). Off
-// (adp.HiredCrew 0, the default): nothing here does anything, the fixed ground team works as before. Part 2 turns it on.
+// it ends. Part 1: the people and the pool the vehicles' crew code asks (FindFree / Claim / Release / Missing). On
+// by default since part 2b (adp.HiredCrew 1); 0: nothing here does anything, the fixed ground team works as before.
 // Who is hired, their shift and their face live in the simulation's person records (FADPPerson: Id, Shift, Face), so a
 // saved career brings the same people back; what they are doing this moment is not kept.
 #pragma once
@@ -18,7 +18,7 @@ class ATugs;
 /** What a ground crew member can do. The simulation has one ramp role, "ground", for all of it. */
 enum class EStaffDuty : uint8 { TugDriver, PushbackHandler, WingWalker, GpuHandler, TractorDriver, BaggageHandler, LoaderOperator };
 /** The jobs of a turn-round that need ground crew. */
-enum class EStaffTask : uint8 { Gpu, BagsOut, BagsIn, Loader, Pushback };
+enum class EStaffTask : uint8 { Gpu, BagsOut, BagsIn, Loader, Pushback, Bags, Relief };   // (Bags: a train and its belt loader together; Relief: one for somebody who vanished at work)
 
 UCLASS()
 class AIRPORTDYNASTYPRO_API UStaffPeople : public UTickableWorldSubsystem
@@ -28,6 +28,9 @@ public:
 	static UStaffPeople* Get(const UWorld* W);
 	/** adp.HiredCrew: your hired people do the ground work (off: the fixed stand-in team, as before). */
 	static bool On();
+	/** On, and you employ enough ground crew here for the smallest job (2): your own flights are theirs. Fewer (a new game): the
+	 *  handling agent's stand-ins work them, said in the log. */
+	bool Hires() const;
 
 	// ---- the pool
 	struct FNeed { EStaffDuty Duty; int32 Min = 1, Full = 1; };   // (Min: without them the job can't start; Full: the real team)
@@ -83,7 +86,7 @@ private:
 		TSharedPtr<FStreamableHandle> Handle;
 		TWeakObjectPtr<AActor> A;
 		TArray<FLeg> Way;
-		int32 Room = INDEX_NONE, Slot = INDEX_NONE;
+		int32 Room = INDEX_NONE, Slot = INDEX_NONE; int32 Idle = 0;   // (Idle: claimed but at no job, looked at every 2 s)
 		float Speed = 0.f, BlockedT = 0.f, SideT = 0.f; FVector SideDir = FVector::ZeroVector;
 	};
 	struct FRoom { int32 Gate = 0; float X0 = 0.f; int8 Dir = 0; int32 Inside = 0; float NextSpawn = 0.f; bool bNoDoor = false; };   // Dir: people going out (1) / in (2) through its one door now
@@ -91,6 +94,8 @@ private:
 	struct FAsk { FString Key, What, Role, Why; EStaffTask Task = EStaffTask::Gpu; int32 Need = 0; FDateTime When, Since; double Last = 0.0; };
 	TArray<FAsk> Asks;                       // the jobs that wait, the earliest departure first
 	void DropOldAsks();
+	void CheckClaims();
+	mutable int32 SaidHires = -1;
 	int32 OnDuty(const FString& Role) const;
 	/** Free to be given a job: standing by, or on the way back from the last one. */
 	bool IsFree(const FStaff& S, const FString& Role) const;

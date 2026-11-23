@@ -443,6 +443,7 @@ void AGSE::Drive(FTractor& T, float Dt)
 	// as the tug drives (Tugs.cpp Drive): eased speed, steering for a point ahead on its way, never tighter than its turning
 	// circle, slower in bends, a creep into an exact place; with a train: gentle (the carts are loaded), never backing
 	if (!T.Path.Num()) { T.Speed = 0.f; return; }
+	if (DriverLost(T)) { T.Speed = 0.f; return; }   // (to-do 206: nobody at the wheel - it stands until somebody takes over)
 	const FVector End = T.Path.Last();
 	while (T.Path.Num() > 1 && FVector::Dist2D(T.At, T.Path[0]) < 110.f) T.Path.RemoveAt(0);
 	// (a waypoint gone past - beside it, not through it - counts as reached; and never round and round one: after a full turn on
@@ -858,6 +859,7 @@ bool AGSE::PlaneNear(const FVector& At, float R) const
 
 bool AGSE::BusyAt(float StandX) const
 {
+	if (WaitingAt(StandX)) return true;   // (to-do 206: its bags wait for your people)
 	for (const FTractor& T : Tractors)
 		if (FMath::Abs(T.StandX - StandX) < 1.f && (T.Job == EJob::Out || T.Job == EJob::AtStand || T.Job == EJob::Loading))
 		{
@@ -881,6 +883,7 @@ void AGSE::Tick(float Dt)
 	Super::Tick(Dt);
 	if (!bReady) Setup();
 	Flash += Dt; Clock += Dt;
+	WantTick(Dt);
 	// the test's first jobs, once the crew stand at their gates
 	if (bTest && !bTestStarted && Clock > 6.f && Tg())
 	{
@@ -1090,6 +1093,7 @@ void AGSE::Departure(const FString& Key, float StandX)
 	for (FTractor& T : Tractors) if (!T.bLoader && !T.bArrival && (T.Job == EJob::Boarding || T.Job == EJob::ToCarts || T.Job == EJob::Coupling || T.Job == EJob::Loading || T.Job == EJob::Out) && T.Key.IsEmpty() && T.TowGpu == INDEX_NONE && T.StandX == 0.f)
 	{ T.Key = Key; T.StandX = StandX; for (const int32 c : T.Train) if (Carts.IsValidIndex(c)) Carts[c].Flight = Key; ADP_LOG(TEXT("GSE: %s's train goes to %s (stand at x %.0f)"), *T.Name, *Key, StandX); return; }
 	if (bTest) { if (!bTestStand) { bTestStand = true; TestKey = Key; TestStand = StandX; } return; }
+	if (HiredFlight(Key, StandX)) { if (!BagKey.FindKey(Key)) AddWant(EWant::Dep, Key, StandX); return; }   // (to-do 206: your people)
 	StartFor(Key, StandX);
 }
 

@@ -121,11 +121,12 @@ int32 AGSE::LoaderAt(float StandX) const
 void AGSE::EnsureLoader(float StandX, const FString& Key)
 {
 	if (LoaderAt(StandX) != INDEX_NONE) return;
+	if (PreLoader == INDEX_NONE && HiredFlight(Key, StandX)) { AddWant(EWant::Loader, Key, StandX); return; }   // (to-do 206: your people - asked for in the queue, GSEStaff.cpp)
 	float S = 0.f, N = 0.f, Sp = 36.f; if (!StandGeo(StandX, S, N, Sp) || Sp > 40.f) return;   // (the A320 stands: its bulk door)
 	int32 Li = INDEX_NONE; for (int32 i = 0; i < Tractors.Num() && Li == INDEX_NONE; ++i) if (Tractors[i].bLoader && Tractors[i].Job == EJob::None && Tractors[i].M.IsValid()) Li = i;
 	if (Li == INDEX_NONE) { ADP_LOG(TEXT("GSE: no belt loader free for the stand x %.0f"), S); return; }
 	FTractor& L = Tractors[Li];
-	const int32 Ci = Borrow(L.At);
+	const int32 Ci = Borrow(L.At, &PreLoader);
 	if (Ci == INDEX_NONE) return;
 	bWorked = true;
 	L.Driver = Ci; L.Job = EJob::Boarding; L.JobT = 0.f; L.StandX = S; L.Key = Key;
@@ -185,7 +186,7 @@ void AGSE::LoaderIn(int32 Li)
 	PoseAct(Ci, [this, Li](float K, float PH, FDriverPose& P) { const FTractor& T = Tractors[Li]; P = ADPPose::Reach(TW(T, GslStandControls), FRotator(0.f, T.Yaw + 90.f, 0.f).Vector(), 1, BoomW(T, GslControlsBottom + FVector(0, 0, 4.f)), 0.3f, PH, FMath::Sin(PI * K)); }, 1.2f);
 	Do(Ci, [this, Li] { Tractors[Li].bBelt = true; ADP_LOG(TEXT("GSE: %s's belt running"), *Tractors[Li].Name); });
 	// the hold loader: up the belt into the hold (a second crew member)
-	const int32 Top = Borrow(L.At);
+	const int32 Top = Borrow(L.At, nullptr, Li);
 	L.TopCrew = Top;
 	if (Top != INDEX_NONE)
 	{
@@ -244,6 +245,13 @@ void AGSE::LoaderIn(int32 Li)
 		bool bTrain = false;
 		for (const FTractor& T : Tractors) if (!T.bLoader && !T.bArrival && FMath::Abs(T.StandX - Tractors[Li].StandX) < 1.f && (T.Job == EJob::Out || T.Job == EJob::AtStand || T.Job == EJob::Loading)) bTrain = true;
 		if (bTrain) *bSeen = true;
+		if (IsHired(Tractors[Li].Driver))
+		{
+			// (to-do 206: your operator stays while one of your trains is on its way to this stand or at it - never left without)
+			bool bOwn = WaitingAt(Tractors[Li].StandX);
+			for (const FTractor& T : Tractors) if (!T.bLoader && IsHired(T.Driver) && T.JobT < 1500.f && FMath::Abs(T.StandX - Tractors[Li].StandX) < 1.f && (T.Job == EJob::Boarding || T.Job == EJob::ToCarts || T.Job == EJob::Coupling || T.Job == EJob::Loading || T.Job == EJob::Out || T.Job == EJob::AtStand)) { bOwn = true; if (!T.bArrival) *bSeen = true; }
+			if (bOwn) return false;
+		}
 		return (*bSeen && !bTrain) || Elapsed > Wait2;
 	});
 	Do(Ci, [bOver] { *bOver = true; });
@@ -262,7 +270,7 @@ void AGSE::LoaderIn(int32 Li)
 		}, 8.f);
 		WalkTo(Top, [this, Li] { return TW(Tractors[Li], GslStandLoad + FVector(-90.f, -60.f, 0.f)); }, 20.f);
 		Do(Top, [this, Li] { Tractors[Li].TopCrew = INDEX_NONE; ADP_LOG(TEXT("GSE: the hold loader is down from the hold")); });
-		GiveBack(Top);
+		GiveBack(Top, Tractors[Li].StandX);
 	}
 	// the belt off, back into the cab, the boom down
 	WaitFor(Ci, [this, Li](float E) { return Tractors[Li].TopCrew == INDEX_NONE || E > 60.f; });

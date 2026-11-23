@@ -99,7 +99,7 @@ void AGSE::MakeUpBy(int32 Ci, int32 Ti, float Started, int32 H)
 		ADP_LOG(TEXT("GSE: %s's driver at make-up carousel %d for %s's bags"), *T.Name, D ? D->CarouselOf(Fl) + 1 : 0, *Fl);
 		const FVector Toward = D ? D->CarouselCentre(FMath::Max(0, D->CarouselOf(Fl))) : Plan(124.f, 33.5f);
 		Curtains(Ci, Ti, true, nullptr, &Toward);
-		const int32 Hp = Borrow(T.At);
+		const int32 Hp = Borrow(T.At, nullptr, Ti);
 		if (Hp != INDEX_NONE)
 		{
 			Helper.Add(Ti, Hp); HelperDone.Remove(Ti);
@@ -113,6 +113,8 @@ void AGSE::MakeUpBy(int32 Ci, int32 Ti, float Started, int32 H)
 		int32 Loaded = 0, Free = 0;
 		for (const int32 c : Tractors[Ti].Train) for (int32 s = 0; s < Carts[c].Bags.Num(); ++s) { if (Carts[c].Bags[s] != INDEX_NONE) ++Loaded; else if (!SlotTaken.Contains(c * 100 + s)) ++Free; }
 		const ADepartureBelts* D2 = ADepartureBelts::Get(GetWorld()); const FString F = BagKey.FindRef(Ti);
+		// (to-do 206: your people came late to the carousel - the flight waits for its bags, so do they: ten minutes at most)
+		if (!bTest && IsHired(Tractors[Ti].Driver) && Free > 0 && D2 && D2->BagsOf(F).Num() > Loaded && GetWorld()->GetTimeSeconds() - Started < 600.f) return false;
 		if (!bTest && ADPTurnaround::ForFlight(F)) return Free == 0 || ADPTurnaround::BagCutOff(F, Tractors[Ti].StandX);   // (the game: until the cut-off, or the carts full - more trips after)
 		const int32 Left = D2 ? D2->BagsOf(F).Num() - Loaded : 0;
 		return Free == 0 || (bTest && Loaded >= 24) || (Loaded > 0 && Left <= 0 && E > 20.f) || GetWorld()->GetTimeSeconds() - Started > Limit || (!D2 && E > 5.f);
@@ -252,7 +254,7 @@ void AGSE::Unload(int32 Ci, int32 Ti, int32 Li)
 	FTractor& T = Tractors[Ti];
 	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(T.StandX, S, N, Sp);
 	const FVector Craft = Plan(S, N + 8.f);
-	const int32 Hp = Li != INDEX_NONE ? Borrow(T.At) : INDEX_NONE;
+	const int32 Hp = Li != INDEX_NONE ? Borrow(T.At, nullptr, Ti) : INDEX_NONE;
 	if (Hp != INDEX_NONE) { Helper.Add(Ti, Hp); HelperDone.Remove(Ti); ADP_LOG(TEXT("GSE: %s helps load the hold"), Tg() ? *Tg()->Crew[Hp].Name : TEXT("-")); }
 	const int32 Who[2] = {Ci, Hp};
 	int32 Count = 0;
@@ -299,10 +301,11 @@ void AGSE::Unload(int32 Ci, int32 Ti, int32 Li)
 		}
 	}
 	ADP_LOG(TEXT("GSE: %d bags from %s's train to the bulk hold"), Count, *T.Name);
-	if (Hp != INDEX_NONE) { Do(Hp, [this, Ti] { HelperDone.Add(Ti); }); GiveBack(Hp); }
+	if (Hp != INDEX_NONE) { Do(Hp, [this, Ti] { HelperDone.Add(Ti); }); GiveBack(Hp, T.StandX); }
 	// the bags all up: the curtains down, back in, home (the belt loader leaves once the train has gone)
 	WaitFor(Ci, [this, Ti](float E) { return !Helper.Contains(Ti) || HelperDone.Contains(Ti) || E > 120.f; });
 	Do(Ci, [this, Ti] { Helper.Remove(Ti); });
+	Do(Ci, [this, Ci, Ti] { if (IsHired(Ci)) LeftBehind(Ti); });
 	if (Li != INDEX_NONE) WaitFor(Ci, [this, Li](float E) { return Tractors[Li].BeltBags.Num() == 0 || E > 120.f; });
 	Curtains(Ci, Ti, false, nullptr);
 	ClimbIn(Ci, Ti, [this, Ti] { Motor(Tractors[Ti], true); TrainHome(Ti); });
@@ -330,6 +333,15 @@ void AGSE::PollBags(float Dt)
 		bool bHas = false; for (const auto& K : BagKey) if (K.Value == F && Tractors.IsValidIndex(K.Key) && Tractors[K.Key].Job != EJob::None) bHas = true;
 		{ int32 OnCarts = 0; for (const FCart& C : Carts) for (const int32 b : C.Bags) if (b != INDEX_NONE) { const FDepBagTag* T = D->Tag(b); if (T && T->Flight == F) ++OnCarts; } if (D->BagsOf(F).Num() <= OnCarts) bHas = true; }
 		if (bHas) continue;
+		// (to-do 206: your own flight - asked for in your people's queue, its stand known)
+		if (HiredFlight(F, 0.f))
+		{
+			const ADPTurnaround::FTurn* Th = ADPTurnaround::ForFlight(F);
+			if (!Th) { D->NoAutoClear.Add(F); continue; }   // (its aircraft is not here yet: the bags wait on the carousel)
+			if (MadeUp.Contains(F) && ADPTurnaround::LastNow() > Th->OffBlocks - FTimespan::FromMinutes(28.0)) continue;   // (too late for another trip; the first one the flight waits for)
+			if (float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(Th->StandX, S, N, Sp) && Sp <= 40.f) AddWant(EWant::Dep, F, Th->StandX);
+			continue;
+		}
 		// (too late for another trip: what comes now would miss the hold - left for the next flight, never holding this one up)
 		if (const ADPTurnaround::FTurn* Tn = ADPTurnaround::ForFlight(F)) if (ADPTurnaround::LastNow() > Tn->OffBlocks - FTimespan::FromMinutes(28.0)) continue;
 		if (UADPSim* Sim = UADPSim::Get(this)) if (Sim->IsRunning())

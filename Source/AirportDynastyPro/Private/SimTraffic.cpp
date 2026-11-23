@@ -135,6 +135,7 @@ bool ASimTraffic::Ready(const FADPPlanned& P, const FDateTime& Now, FString& Why
 	if (T->PlanId != P.Id) { Why = TEXT("being got ready"); return false; }
 	if (!ADPTurnaround::Done(*T, TEXT("deplane"))) { Why = TEXT("the last flight's passengers are still getting off"); return false; }
 	if (!ADPTurnaround::Done(*T, TEXT("board"))) { Why = TEXT("boarding"); return false; }
+	if (P.AirlineId == UADPSim::Me()) if (const AGSE* G = AGSE::Find(W)) if (G->HiredWaits(P.FlightNo, T->StandX, Why)) return false;   // (to-do 206: your people at the bags)
 	if (const AGSE* G = AGSE::Find(W)) if (G->BusyAt(T->StandX)) { Why = TEXT("the bags are still being loaded"); return false; }
 	if (!ADPTurnaround::Done(*T, TEXT("doors"))) { Why = TEXT("the doors are being closed, the jetway pulled back"); return false; }
 	// (to-do 206: your own pushback crew, the people you hired - nobody free: the flight waits)

@@ -70,7 +70,7 @@ void AGSE::ArrivalLoad(int32 Ti)
 		if (Li != INDEX_NONE) { Tractors[Li].ArrivalsLeft = N; Tractors[Li].ArrKey = Tractors[Ti].Key; Tractors[Li].ArrivalIn = 0.f; }
 		ADP_LOG(TEXT("GSE: unloading %d arriving bags from the bulk hold onto %s's train"), Li != INDEX_NONE ? N : 0, *Tractors[Ti].Name);
 	});
-	const int32 Hp = Borrow(T.At);
+	const int32 Hp = Borrow(T.At, nullptr, Ti);
 	if (Hp != INDEX_NONE) { Helper.Add(Ti, Hp); HelperDone.Remove(Ti); }
 	const int32 Who[2] = {Ci, Hp};
 	{
@@ -132,7 +132,7 @@ void AGSE::ArrivalLoad(int32 Ti)
 				});
 			}
 	}
-	if (Hp != INDEX_NONE) { Do(Hp, [this, Ti] { HelperDone.Add(Ti); }); GiveBack(Hp); }
+	if (Hp != INDEX_NONE) { Do(Hp, [this, Ti] { HelperDone.Add(Ti); }); GiveBack(Hp, StandX); }
 	WaitFor(Ci, [this, Ti](float E) { return !Helper.Contains(Ti) || HelperDone.Contains(Ti) || E > 120.f; });
 	Do(Ci, [this, Ti] { Helper.Remove(Ti); });
 	Curtains(Ci, Ti, false, nullptr);

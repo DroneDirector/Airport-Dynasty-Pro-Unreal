@@ -638,6 +638,8 @@ void ATugs::Tick(float Dt)
 	for (FCrew& C : Crew) StepCrew(C, Dt);
 	// (to-do 206: your people done with their job - after their last act, never inside it)
 	for (int32 i = 0; i < Crew.Num(); ++i) if (Crew[i].bLeave && !Crew[i].Q.Num()) Discharge(i);
+	// (and one of them whose body is gone: the job never stays stuck)
+	for (int32 i = 0; i < Crew.Num(); ++i) if (Crew[i].bHired && !Crew[i].bSlotFree) { if (Crew[i].A.IsValid()) Crew[i].LastAt = Crew[i].A->GetActorLocation(); else LostTick(i, Dt); }
 }
 
 void ATugs::StartBacking(FTug& T)

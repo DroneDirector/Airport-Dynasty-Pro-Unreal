@@ -1,7 +1,8 @@
 # Hired crew - your staff are the people in the 3D airport (to-do 206)
 
-Part 1 (built 2026-11-23, not run): the people and the pool - `StaffPeople.h/.cpp`, switch `adp.HiredCrew` (default 0 = as
-before), `adp.CrewList` dumps everyone. Part 2a (built, not run): tug, pushback and ground power. Part 2b: bags, loader. Part 3: the hiring UI.
+Part 1 (2026-11-23): the people and the pool - `StaffPeople.h/.cpp`; `adp.CrewList` dumps everyone. Part 2a: tug, pushback,
+ground power. Part 2b: bags, loader, claim safety; the switch `adp.HiredCrew` is now 1 by default (0 = the stand-ins for
+everything). All compiled, NOTHING run yet. Part 3: the hiring UI.
 
 ## Part 1 as built
 - **Who:** the simulation's people (`FADPPerson`) of your airline, role `ground`, base = this airport, status `on`, no days
@@ -36,7 +37,7 @@ One A320 turn-round at once: 4 at the bags and loader, 1 at the GPU, then 5 for 
 after another (the rule today in `ADPSchedule::MissingStaff`: 2 for the ground power, the bags and the pushback).
 
 ## Part 2a as built (2026-11-23, compiled, not run): the pushback and the ground power
-Switch `adp.HiredCrew` still 0; `TugStaff.cpp` (new), the queue in `StaffPeople.cpp`, one-line hooks in `Tugs.cpp`, `TugCrew.cpp`,
+`TugStaff.cpp` (new), the queue in `StaffPeople.cpp`, one-line hooks in `Tugs.cpp`, `TugCrew.cpp`,
 `Turnaround.cpp`, `SimTraffic.cpp`.
 - **Whose flight:** only the player's airline's (`ATugs::HiredJob`, by the planned leg / flight id). Other airlines keep the
   stand-ins; with the switch on at start these take faces none of your staff wear (then the fire people's), same number; your
@@ -57,10 +58,31 @@ Switch `adp.HiredCrew` still 0; `TugStaff.cpp` (new), the queue in `StaffPeople.
   whole turn-round) but comes 8 min before off-blocks.
 - Not checked: the wall lane against real columns and the curved gates, people crossing the train's way at Ramp services 13.
 
-## Part 2b replaces
-The GSE rows below (Borrow / GiveBack, trains, loader, GPU towed: same `AskTeam` / `Enlist` / `Discharge`), Turnaround's `bulk`
-and the `Crew >= 2` before `Gs->Departure`; `GSEBags.cpp:338`'s count. Then the switch default 1. (Until then, with the switch
-on, your own bags are still worked by the stand-ins.) E-talk with people who already work for you.
+## Part 2b as built (2026-11-23, compiled, not run): the bags, the belt loader, claim safety, on by default
+`GSEStaff.cpp` (new), hooks in `GSE*.cpp`, `Turnaround.cpp`, `SimTraffic.cpp`, `TugStaff.cpp`, `StaffPeople.cpp`.
+- **Whose:** your own flights (`AGSE::HiredFlight`, the turnaround's `bMine`); other airlines keep the stand-ins. A helper is
+  hired when their vehicle's driver is, never a mix.
+- **Queue:** `Wants` (arriving bags, departing bags, a loader alone) asked every 2 s through `AskTeam`, a minute ahead of the
+  same flight's pushback; `EStaffTask::Bags` = driver + operator together when no loader is at the stand (no driver ever waits
+  for an operator another driver waits for). Helpers and the hold loader by `AskExtra`: nobody = goes on without. A job with no
+  tractor, carts or loader free claims nobody and waits. The train waits in the lane for its loader; the operator stays while
+  one of your trains is for his stand.
+- **Late for real:** `SimTraffic::Ready` asks `AGSE::HiredWaits` ("its bags wait: 1 belt loader operator (...)"); `BusyAt` holds
+  the bulk task and the push; the Overview's line comes from `AskTeam`. A late crew still loads the first train (10 min at most).
+- **Ways:** the wall lane to x 272.5, in by Ramp services 13 at x 272.5 / z 59.5, out at x 271.6 / z 58.6 (nobody head-on), or in to
+  the aircraft outside its wingtip; `Release` only outdoors.
+- **Claim safety:** a claimed person at no job for 8 s is released (`CheckClaims`). A body gone at work (`ATugs::LostTick`, 2a's
+  jobs too): the vehicle stands, the next free person takes over the same acts (first in the queue, climbs in by the door);
+  a helper or the hold loader is let go instead. All in the log by name.
+- **New game:** fewer than 2 ground crew employed at this base = the handling agent's stand-ins work your flights, all of
+  them, logged (`UStaffPeople::Hires`); this also replaces "no ground crew, no bags" for a fresh career until you hire.
+- **Small team:** a waiting job that needs more than are on duty calls the next ones in (2 employed = both come).
+- **Moving a gate GPU by tractor** (`StartGpu`) is only done by `-GseTest`: no real job to give to anybody.
+- **To confirm with the owner:** the threshold of 2 and the agent for free; calling in off-shift people without extra pay; your
+  trains start when their aircraft is at its stand (bags before that wait on the carousel).
+- **Not checked:** everything in the game; the ways on foot past real wing, loader and train places; a tug pushing when its
+  driver vanishes finishes that movement; a sidestep inside the hall is the crew's old one (no wall test).
+- **Left:** E-talk with people who already work for you.
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
@@ -105,8 +127,13 @@ airport's own handler), or does a small agent team stay for them?
 - **Sim:** ADPStaff.cpp `BaseWage` (wages per role), `FillPool` (who can be hired), ADPGround `TeamNeeds`.
 - **The newest example:** `checkin` "Passenger service": its own tab and advert, wage, pool entry, `ADPSchedule::OnShift` used
   by PaxFlow (lines 407, 508, 1609), "Hire them under Crew" in the notices.
-- **Missing, per area:** ground - shift shown and changed (it is sent, no action sets it), which duties and how many a
-  turn-round needs, "in 3D now: standing by / at work on ..." from `UStaffPeople`, a face picture, a warning for hours with
-  too few; fuel / catering / cleaning - hireable, no 3D job; check-in and security - hireable, their 3D people are 210 / 211;
-  `gate`, `bus`, `ops`, `tower` - no pool entry, no advert; People's "do you want to work for me" (People.cpp:310) makes no
-  real `FADPPerson` yet (it should, with that face).
+- **Hiring today (checked in code 2026-11-23), Crew > Hire staff / its tabs:** captain, first officer, cabin crew, mechanics,
+  passenger service (check-in and boarding), security, baggage handlers (= all ground crew), fuel drivers, catering, cleaners.
+- **Gaps:**
+  - ground crew: hireable, but called "Baggage handlers" - no tug driver / pushback / wing walker / GPU / tractor / loader
+    duties shown, no shift set (bridge has no action), no "in 3D now / at work on", no needs per turn-round, no face.
+  - fire: people are made for it, but no tab, no advert in Crew.
+  - gate (boarding), bus drivers, tower, ops: a wage only - nobody made in the pool, no tab, no advert.
+  - cargo / marshaller, de-icing, water / toilet service, lounge, shops, baggage claim, car park, medics, police: no role at all.
+  - fuel, catering, cleaning: hireable, no 3D people or job; check-in and security: hireable, 3D people are 210 / 211.
+  - People's "do you want to work for me" (People.cpp) makes no real `FADPPerson`.

@@ -119,7 +119,12 @@ namespace ADPTurnaround
 			}
 			else if (!Dep && !Tr->PlanId.IsEmpty()) { Tr->PlanId.Empty(); Tr->Flight.Empty(); ADP_LOG(TEXT("Turnaround: %s - no departure planned any more"), *Tr->Reg); }
 			// (how many of your ground crew are on shift: without them the crew's steps wait - the other airlines bring a handling agent)
-			const int32 Crew = Tr->bMine ? ADPSchedule::OnShift(Sim->World, TEXT("ground"), Now) : 99;
+			// (to-do 206: your own flights' ground power, bags and pushback are done by the people you have hired - the job asks for
+			//  them itself and waits in their queue; you employ too few for any job - a new game - and the handling agent's stand-ins
+			//  do them, as the other airlines'; what has no crew of theirs yet, the jetway and the doors, still goes by the count)
+			const UStaffPeople* Sp = UStaffPeople::Get(W);
+			const bool bHired = Tr->bMine && Sp && Sp->Hires(), bAgent = Tr->bMine && Sp && UStaffPeople::On() && !bHired;
+			const int32 Crew = Tr->bMine && !bAgent ? ADPSchedule::OnShift(Sim->World, TEXT("ground"), Now) : 99;
 			const float Tm = float((Now - Tr->OnBlocks).GetTotalMinutes());
 			for (FTask& K : Tr->Tasks)
 			{
@@ -130,16 +135,13 @@ namespace ADPTurnaround
 				if (K.Id == TEXT("push")) continue;   // (the pushback itself: the tug and SimTraffic, once the flight may leave)
 				// (the doors: everyone aboard first - APaxFlow; without passengers in 3D at once)
 				if (K.Id == TEXT("doors") && bReady && !K.bStarted && Tm >= K.Start && !APaxFlow::BoardingDone(W, Tr->Reg)) bReady = false;
-				// (to-do 206: your own flights' ground power and pushback are done by the people you have hired - the job asks for them
-				//  itself and waits in their queue; what has no vehicle crew of theirs yet still goes by the count)
-				const bool bHired = Tr->bMine && UStaffPeople::On();
 				if (bHired && K.Id == TEXT("gpu") && bReady && !K.bStarted && Tm >= K.Start)
 				{
 					if (!Tr->PlanId.IsEmpty() && (Tr->OffBlocks - Now).GetTotalMinutes() < 12.0) { K.bStarted = K.bDone = true; ADP_LOG(TEXT("Turnaround: %s - no ground power, its pushback crew come now"), *Tr->Reg); continue; }
 					ATugs* Tg = ATugs::Get(W);
 					if (Tg && !Tg->ArrivedHired(Tr->StandX, Tr->Reg, Tr->OffBlocks)) bReady = false;
 				}
-				const int32 Need = bHired && (K.Id == TEXT("gpu") || K.Id == TEXT("tug")) ? 0 : K.Id == TEXT("gpu") || K.Id == TEXT("bridge") || K.Id == TEXT("doors") ? 1 : K.Id == TEXT("bulk") || K.Id == TEXT("tug") ? 2 : 0;
+				const int32 Need = bHired && (K.Id == TEXT("gpu") || K.Id == TEXT("tug") || K.Id == TEXT("bulk")) ? 0 : K.Id == TEXT("gpu") || K.Id == TEXT("bridge") || K.Id == TEXT("doors") ? 1 : K.Id == TEXT("bulk") || K.Id == TEXT("tug") ? 2 : 0;
 				if (!K.bStarted && bReady && Tm >= K.Start && Crew < Need)
 				{
 					ADPSchedule::Tell(Sim->World, Now, TEXT("ground:") + Tr->Reg + K.Id, TEXT("No ground crew"), FString::Printf(TEXT("%s at %s: %s waits - %d of your ground crew on shift, %d needed. Hire baggage handlers under Crew."), *Tr->Reg, *Tr->Stand, *K.Name, Crew, Need));
@@ -172,7 +174,7 @@ namespace ADPTurnaround
 				if (K.bStarted && !K.bDone && Tm >= K.Start + K.Dur && !bBagsBusy && !bBoarding && !bOff && !bBridge && !bBack) { K.bDone = true; ADP_LOG(TEXT("Turnaround: %s %s done"), *Tr->Reg, *K.Name); }
 			}
 			// (its bags go out on the tractor train to it as soon as the stand is its own: 50 min before)
-			if (!Tr->PlanId.IsEmpty() && (Tr->OffBlocks - Now).GetTotalMinutes() < 50.0 && Crew >= 2) if (AGSE* Gs = AGSE::Get(W)) Gs->Departure(Tr->Flight, Tr->StandX);
+			if (!Tr->PlanId.IsEmpty() && (Tr->OffBlocks - Now).GetTotalMinutes() < 50.0 && (bHired || Crew >= 2)) if (AGSE* Gs = AGSE::Get(W)) Gs->Departure(Tr->Flight, Tr->StandX);
 		}
 		// gone (pushed back and away): its plan with it
 		Turns.RemoveAll([&](const FTurn& X)

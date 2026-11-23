@@ -24,6 +24,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "VehicleDirt.h"
+#include "StaffPeople.h"
 #include "GSE.generated.h"
 
 class ABabylonModel;
@@ -218,14 +219,41 @@ private:
 	TArray<TPair<double, int32>> PendingRemove;   // (bags handed over to the arrivals conveyor: gone when its own bag appears)
 public:
 	/** Arrival at a stand (the turnaround's bulk task): the belt loader and an arrivals train for its hold's bags. */
-	void ArrivalAt(float StandX, const FString& Key) { EnsureLoader(StandX, Key); ArrivalFor(StandX, Key); }
+	void ArrivalAt(float StandX, const FString& Key)
+	{
+		if (HiredFlight(FString(), StandX)) { float S = 0.f, N = 0.f, Sp = 36.f; if (StandGeo(StandX, S, N, Sp) && Sp <= 40.f) AddWant(EWant::Arr, Key, StandX); return; }
+		EnsureLoader(StandX, Key); ArrivalFor(StandX, Key);
+	}
+	/** To-do 206: your own flight's bags wait for your people (Why: who is missing), or its train is being got ready. */
+	bool HiredWaits(const FString& Flight, float StandX, FString& Why) const;
 private:
 public:
 	/** The turnaround planner's bulk hold task (Turnaround.cpp): the belt loader to that stand. */
 	void BulkHold(float StandX, const FString& Key) { EnsureLoader(StandX, Key); }
 private:
-	int32 Borrow(const FVector& Near);
-	void GiveBack(int32 Ci);
+	/** A crew member for a vehicle's job: Pre - the hired person claimed for it; Boss - the vehicle they help at (hired when its driver is). */
+	int32 Borrow(const FVector& Near, int32* Pre = nullptr, int32 Boss = INDEX_NONE, EStaffDuty Duty = EStaffDuty::BaggageHandler);
+	void GiveBack(int32 Ci, float StandX = 0.f);
+	// your hired people at your own flights' bags (to-do 206, Private/GSEStaff.cpp): the jobs that wait for them
+	enum class EWant : uint8 { Arr, Dep, Loader };
+	struct FWant { EWant Kind = EWant::Dep; FString Key, Why; float StandX = 0.f; };
+	TArray<FWant> Wants; float WantClock = 0.f;
+	int32 PreDriver = INDEX_NONE, PreLoader = INDEX_NONE;   // (claimed just now for the vehicle that starts next)
+	bool HiredFlight(const FString& Key, float StandX, FDateTime* When = nullptr, float* Stand = nullptr) const;
+	bool IsHired(int32 Ci) const;
+	bool DriverLost(const FTractor& T) const;
+	bool FindTrain(int32& Ti, int32& A, int32& B) const;
+	void AddWant(EWant Kind, const FString& Key, float StandX);
+	FString WantKey(const FWant& W) const;
+	bool TakeTeam(const TArray<UStaffPeople::FTaken>& Team);
+	void DropPre();
+	void WantTick(float Dt);
+	bool WaitingAt(float StandX) const;
+	void HiredWay(int32 Ci, const FVector& Near, float StandX);
+	int32 BorrowHired(const FVector& Near, int32 Boss, EStaffDuty Duty);
+	void GiveBackHired(int32 Ci, float StandX);
+	bool Relieve(int32 Ci, bool& bDrop);
+	void LeftBehind(int32 Ti);
 	void WalkTo(int32 Ci, TFunction<FVector()> To, float Stop = 20.f);
 	void ClimbIn(int32 Ci, int32 Ti, TFunction<void()> Then);
 	void ClimbOut(int32 Ci, int32 Ti, TFunction<void()> Then);
