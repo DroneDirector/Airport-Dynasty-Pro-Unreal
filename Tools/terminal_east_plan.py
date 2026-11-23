@@ -17,8 +17,18 @@ R = [('F1-LINK', 'Link gallery (Grand Hall to East Hall)', 107, -4, 162, 0, 'cor
 R = [dict(id=i, f=1, name=n, x0=a, z0=b, x1=c, z1=d, kind=k, **({'glass': g} if g else {})) for i, n, a, b, c, d, k, g in R]
 for k, (a, b) in enumerate(((188, 200), (290, 300), (396, 406), (514, 526))):
     R.append(dict(id='F1-ENTR-EAST%d' % (k + 1), f=1, name='East entrance %d (vestibule)' % (k + 1), x0=a, z0=-4, x1=b, z1=0, kind='vestibule', glass='nswe'))
-R.append(dict(id='F2-CONCOURSE', f=2, name='Non-Schengen concourse (being built)', x0=228, z0=20, x1=551.2, z1=52, kind='empty'))
-ids = {r['id'] for r in R} | {'F1-EAST-WING'}
+# Floor 2 (part 2a, 2026-11-23, sheet 3b): the concourse's rooms. No plan doors: passengers are not sent in before part 5 (the closed rooms
+# are 'empty'; passport control's way through is shut by its glass leaves)
+R += [dict(id='F2-' + i, f=2, name=n, x0=a, z0=b, x1=c, z1=d, kind=k) for i, n, a, b, c, d, k in (
+    ('PC-QUEUE', 'Passport control out: queue', 231, 24, 248, 52, 'customs'), ('PC-LINE', 'Passport control out', 248, 24, 256, 52, 'customs'), ('TR-EXIT', 'Transfers to Schengen', 228, 24, 231, 52, 'empty'),
+    ('TR-LANE', 'Transfer lane', 228, 20, 310.5, 24, 'empty'), ('DUTYFREE', 'Tax Free (non-Schengen)', 258, 24, 290, 52, 'empty'), ('SHOP-1', 'Books and news', 292, 24, 305, 38, 'empty'), ('WC-1', 'Toilets', 292, 40, 305, 52, 'wc'),
+    ('TRANSFER', 'Transfer centre', 307, 24, 340, 52, 'empty'), ('FOODCOURT', 'Food court', 342, 24, 398, 52, 'corridor'), ('PRAYER', 'Prayer and quiet room', 400, 24, 424, 37, 'empty'), ('WC-2', 'Toilets, family, baby', 400, 39, 424, 52, 'wc'),
+    ('LOUNGE-P', 'Premium lounge', 426, 24, 470, 52, 'empty'), ('SEATING', 'Seating, kids, work desks', 472, 24, 520, 52, 'corridor'), ('SHOPS-2', 'Shops', 522, 24, 551.2, 38, 'empty'), ('WC-3', 'Toilets', 522, 40, 551.2, 52, 'wc'),
+    ('GALLERY', 'Window gallery', 310.5, 20, 551.2, 24, 'corridor'))]
+# (the 2 m lanes between the rooms)
+R += [dict(id='F2-LANE-%d' % k, f=2, name='Lane', x0=a, z0=b, x1=c, z1=d, kind='corridor') for k, (a, b, c, d) in enumerate(((256, 24, 258, 52), (290, 24, 292, 52), (292, 38, 305, 40), (305, 24, 307, 52), (340, 24, 342, 52),
+    (398, 24, 400, 52), (400, 37, 424, 39), (424, 24, 426, 52), (470, 24, 472, 52), (520, 24, 522, 52), (522, 38, 551.2, 40)))]
+ids = {r['id'] for r in R} | {'F1-EAST-WING', 'F2-CONCOURSE'}
 P['rooms'] = [r for r in P['rooms'] if r['id'] not in ids] + R
 nl = '\r\n' if '\r\n' in raw else '\n'
 open(F, 'w', encoding='utf-8', newline='').write(json.dumps(P, indent=1 if '\n ' in raw else None, ensure_ascii=raw.isascii()).replace('\n', nl))

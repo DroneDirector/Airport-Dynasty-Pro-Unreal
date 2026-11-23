@@ -86,13 +86,13 @@ for a, b, _, h in holes_w:                             # (the jambs, behind the 
 # ======================================================================================================== the openings onto the walkway (z 52)
 def zf(x): return 52.15 if x < 242 else 52.1           # the wall's face on the walkway
 def portal(a, b, h, w=0.08):
-    z0, z1 = 51.85, zf((a + b) / 2) + 0.03
+    z0, z1 = 51.85, zf((a + b) / 2) + 0.03; a, b, h = a + 0.003, b - 0.003, h - 0.003      # (3 mm inside the wall's own reveals)
     S.box(a, a + w, F2, h, z0, z1, OAK); S.box(b - w, b, F2, h, z0, z1, OAK); S.box(a + w, b - w, h - w, h, z0, z1, OAK, sides=('-y', '-z', '+z'))
     S.box(a + w, b - w, h - w - 0.012, h - w, 51.99, 52.03, LED, sides=('-y', '-z', '+z'))
     S.box(a + w, b - w, 5.99, F2 + 0.006, 51.88, 52.14, STEEL, sides=('+y', '-z', '+z'))
 for a, b in BIG: portal(a, b, HB)
 for a, b in LANES: portal(a, b, HL)
-for x in ESC_N: S.box(x - DW, x + DW, 5.99, F2 + 0.006, 51.9, 52.1, STEEL, sides=('+y', '-z', '+z'))
+for x in ESC_N: S.box(x - DW, x + DW, 5.99, F2 + 0.006, 51.897, 52.103, STEEL, sides=('+y', '-z', '+z'))
 for (a, b), s in zip(BIG, ('PASSPORT CONTROL  ·  GATES 13-16', 'TAX FREE', 'FOOD COURT  ·  CAFÉ  ·  BAR', 'SEATING  ·  KIDS  ·  WORK DESKS')):
     c = (a + b) / 2; w = min(b - a, 14.0); band('+z', zf(c), c - w / 2, c + w / 2, 10.3, 11.05, s, 0.46, AMBER if s[0] in 'PT' else LED)
 for (a, b), s in zip(LANES, ('NO ENTRY', 'TOILETS', 'TOILETS', 'LOUNGE', 'TOILETS')):
@@ -138,8 +138,9 @@ def gwall(ax, at, u0, u1, hl=(), top=TOP, step=2.0):
             q = round(min(max(u + (v - u) * i / n, u0 + 0.04), u1 - 0.04), 3)
             if q not in done: done.add(q); mul(ax, at, q, F2, top)
         for a, b in [(top - 0.08, top - 0.004)] + ([(HD, HD + 0.06)] if op else [(F2, F2 + 0.06), (F2 + 3.16, F2 + 3.24)]):
-            if ax == 'z': S.box(u, v, a, b, at - 0.066, at + 0.066, MU)
-            else: S.box(at - 0.066, at + 0.066, a, b, u, v, MU)
+            e0, e1 = u + (0.006 if u == u0 else 0.0), v - (0.006 if v == u1 else 0.0)
+            if ax == 'z': S.box(e0, e1, a, b, at - 0.066, at + 0.066, MU)
+            else: S.box(at - 0.066, at + 0.066, a, b, e0, e1, MU)
         P = G(u if ax == 'z' else at); y0 = HD + 0.06 if op else F2 + 0.06
         if ax == 'z': P.box(u, v, y0, top - 0.08, at - 0.015, at + 0.015, GL, sides=('-z', '+z'))
         else: P.box(at - 0.015, at + 0.015, y0, top - 0.08, u, v, GL, sides=('-x', '+x'))
@@ -244,9 +245,9 @@ def door1():
     for s in (-1, 1): P.box(0.40, 0.43, 0.95, 1.25, *sorted((s * 0.025, s * 0.07)), STEEL); P.box(-0.5, 0.5, 0.02, 0.22, *sorted((s * 0.025, s * 0.029)), STEEL)
     return P
 def door2():
-    P = Piece('east_c_escdoor'); h = HD - F2
-    for x in (-1.0, 0.92): P.box(x, x + 0.08, 0, h, -0.17, 0.17, W)
-    P.box(-0.92, 0.92, h - 0.08, h, -0.17, 0.17, W, sides=('-y', '-z', '+z'))
+    P = Piece('east_c_escdoor'); h = HD - F2 - 0.012
+    for x in (-0.997, 0.917): P.box(x, x + 0.08, 0, h, -0.17, 0.17, W)
+    P.box(-0.917, 0.917, h - 0.08, h, -0.17, 0.17, W, sides=('-y', '-z', '+z'))
     for a, b in ((-0.92, -0.004), (0.004, 0.92)):
         P.box(a, b, 0.012, h - 0.08, -0.03, 0.03, OFF)
         for s in (-1, 1):

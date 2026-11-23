@@ -48,7 +48,7 @@ def mat(n):
     M = np.eye(4); M[:3, :3] = R * np.array(s); M[:3, 3] = t; return M
 REG = (90.0, 600.0, -32.0, 54.0)                      # the region looked at (plan x, z)
 NEW = ('F1-EAST/', 'F1-ENTR-EAST', 'D-F1-ENTR-EAST', 'KERB/CANOPY-EAST', 'F1-LINK', 'F1-EAST-', 'F1-CUSTOMS-E', 'F1-CLAIM-E', 'F1-PC-', 'F1-CREW-CENTRE', 'F1-CANTEEN', 'F1-GROUND-OFF',
-       'F1-LOCKERS', 'F1-STAFFSEC', 'F1-POLICE', 'F1-COACH-STATION', 'F2-CONCOURSE')
+       'F1-LOCKERS', 'F1-STAFFSEC', 'F1-POLICE', 'F1-COACH-STATION', 'F2-CONC', 'D-F2-ENTR', 'F2-WALK/CEILING/GABLE-240')
 SKIP = ('SITE/GRASS', 'SITE/ROAD', 'SITE/KERB', 'SITE/CARPARK', 'SITE/PARKING', 'SITE/CAR-', 'SITE/TREE', 'SITE/APRON', 'STAND-', 'RENTAL')
 OBJ = []                                              # (name, new?, V plan, T)
 def walk(i, M, name, new):

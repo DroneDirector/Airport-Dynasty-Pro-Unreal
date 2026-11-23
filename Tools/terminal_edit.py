@@ -398,6 +398,8 @@ exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_wav
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_east_edit.py'), encoding='utf-8').read())
 # the gates' curved windows (owner approved, 2026-11-23): Tools/terminal_gatearc_edit.py, after the east side
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_gatearc_edit.py'), encoding='utf-8').read())
+# the Floor 2 concourse's rooms and the passport wall (owner, 2026-11-23): Tools/terminal_concourse_edit.py, after the curved windows
+exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_concourse_edit.py'), encoding='utf-8').read())
 json.dump(L, open(OUT, 'w'))
 print('\n'.join(log))
 print('layout written:', OUT)

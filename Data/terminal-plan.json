@@ -1221,14 +1221,274 @@
    "glass": "nswe"
   },
   {
-   "id": "F2-CONCOURSE",
+   "id": "F2-PC-QUEUE",
    "f": 2,
-   "name": "Non-Schengen concourse (being built)",
+   "name": "Passport control out: queue",
+   "x0": 231,
+   "z0": 24,
+   "x1": 248,
+   "z1": 52,
+   "kind": "customs"
+  },
+  {
+   "id": "F2-PC-LINE",
+   "f": 2,
+   "name": "Passport control out",
+   "x0": 248,
+   "z0": 24,
+   "x1": 256,
+   "z1": 52,
+   "kind": "customs"
+  },
+  {
+   "id": "F2-TR-EXIT",
+   "f": 2,
+   "name": "Transfers to Schengen",
    "x0": 228,
-   "z0": 20,
-   "x1": 551.2,
+   "z0": 24,
+   "x1": 231,
    "z1": 52,
    "kind": "empty"
+  },
+  {
+   "id": "F2-TR-LANE",
+   "f": 2,
+   "name": "Transfer lane",
+   "x0": 228,
+   "z0": 20,
+   "x1": 310.5,
+   "z1": 24,
+   "kind": "empty"
+  },
+  {
+   "id": "F2-DUTYFREE",
+   "f": 2,
+   "name": "Tax Free (non-Schengen)",
+   "x0": 258,
+   "z0": 24,
+   "x1": 290,
+   "z1": 52,
+   "kind": "empty"
+  },
+  {
+   "id": "F2-SHOP-1",
+   "f": 2,
+   "name": "Books and news",
+   "x0": 292,
+   "z0": 24,
+   "x1": 305,
+   "z1": 38,
+   "kind": "empty"
+  },
+  {
+   "id": "F2-WC-1",
+   "f": 2,
+   "name": "Toilets",
+   "x0": 292,
+   "z0": 40,
+   "x1": 305,
+   "z1": 52,
+   "kind": "wc"
+  },
+  {
+   "id": "F2-TRANSFER",
+   "f": 2,
+   "name": "Transfer centre",
+   "x0": 307,
+   "z0": 24,
+   "x1": 340,
+   "z1": 52,
+   "kind": "empty"
+  },
+  {
+   "id": "F2-FOODCOURT",
+   "f": 2,
+   "name": "Food court",
+   "x0": 342,
+   "z0": 24,
+   "x1": 398,
+   "z1": 52,
+   "kind": "corridor"
+  },
+  {
+   "id": "F2-PRAYER",
+   "f": 2,
+   "name": "Prayer and quiet room",
+   "x0": 400,
+   "z0": 24,
+   "x1": 424,
+   "z1": 37,
+   "kind": "empty"
+  },
+  {
+   "id": "F2-WC-2",
+   "f": 2,
+   "name": "Toilets, family, baby",
+   "x0": 400,
+   "z0": 39,
+   "x1": 424,
+   "z1": 52,
+   "kind": "wc"
+  },
+  {
+   "id": "F2-LOUNGE-P",
+   "f": 2,
+   "name": "Premium lounge",
+   "x0": 426,
+   "z0": 24,
+   "x1": 470,
+   "z1": 52,
+   "kind": "empty"
+  },
+  {
+   "id": "F2-SEATING",
+   "f": 2,
+   "name": "Seating, kids, work desks",
+   "x0": 472,
+   "z0": 24,
+   "x1": 520,
+   "z1": 52,
+   "kind": "corridor"
+  },
+  {
+   "id": "F2-SHOPS-2",
+   "f": 2,
+   "name": "Shops",
+   "x0": 522,
+   "z0": 24,
+   "x1": 551.2,
+   "z1": 38,
+   "kind": "empty"
+  },
+  {
+   "id": "F2-WC-3",
+   "f": 2,
+   "name": "Toilets",
+   "x0": 522,
+   "z0": 40,
+   "x1": 551.2,
+   "z1": 52,
+   "kind": "wc"
+  },
+  {
+   "id": "F2-GALLERY",
+   "f": 2,
+   "name": "Window gallery",
+   "x0": 310.5,
+   "z0": 20,
+   "x1": 551.2,
+   "z1": 24,
+   "kind": "corridor"
+  },
+  {
+   "id": "F2-LANE-0",
+   "f": 2,
+   "name": "Lane",
+   "x0": 256,
+   "z0": 24,
+   "x1": 258,
+   "z1": 52,
+   "kind": "corridor"
+  },
+  {
+   "id": "F2-LANE-1",
+   "f": 2,
+   "name": "Lane",
+   "x0": 290,
+   "z0": 24,
+   "x1": 292,
+   "z1": 52,
+   "kind": "corridor"
+  },
+  {
+   "id": "F2-LANE-2",
+   "f": 2,
+   "name": "Lane",
+   "x0": 292,
+   "z0": 38,
+   "x1": 305,
+   "z1": 40,
+   "kind": "corridor"
+  },
+  {
+   "id": "F2-LANE-3",
+   "f": 2,
+   "name": "Lane",
+   "x0": 305,
+   "z0": 24,
+   "x1": 307,
+   "z1": 52,
+   "kind": "corridor"
+  },
+  {
+   "id": "F2-LANE-4",
+   "f": 2,
+   "name": "Lane",
+   "x0": 340,
+   "z0": 24,
+   "x1": 342,
+   "z1": 52,
+   "kind": "corridor"
+  },
+  {
+   "id": "F2-LANE-5",
+   "f": 2,
+   "name": "Lane",
+   "x0": 398,
+   "z0": 24,
+   "x1": 400,
+   "z1": 52,
+   "kind": "corridor"
+  },
+  {
+   "id": "F2-LANE-6",
+   "f": 2,
+   "name": "Lane",
+   "x0": 400,
+   "z0": 37,
+   "x1": 424,
+   "z1": 39,
+   "kind": "corridor"
+  },
+  {
+   "id": "F2-LANE-7",
+   "f": 2,
+   "name": "Lane",
+   "x0": 424,
+   "z0": 24,
+   "x1": 426,
+   "z1": 52,
+   "kind": "corridor"
+  },
+  {
+   "id": "F2-LANE-8",
+   "f": 2,
+   "name": "Lane",
+   "x0": 470,
+   "z0": 24,
+   "x1": 472,
+   "z1": 52,
+   "kind": "corridor"
+  },
+  {
+   "id": "F2-LANE-9",
+   "f": 2,
+   "name": "Lane",
+   "x0": 520,
+   "z0": 24,
+   "x1": 522,
+   "z1": 52,
+   "kind": "corridor"
+  },
+  {
+   "id": "F2-LANE-10",
+   "f": 2,
+   "name": "Lane",
+   "x0": 522,
+   "z0": 38,
+   "x1": 551.2,
+   "z1": 40,
+   "kind": "corridor"
   }
  ],
  "doors": [
