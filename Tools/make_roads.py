@@ -112,15 +112,18 @@ FC = [moved(*p) for p in FC_PTS]
 A = Along(FC)
 z = 0.05                      # (a lane narrowed away: MetaRoad keeps a sliver, laid flat)
 s_ne0, s_ne1, s_sw1, s_sw0 = A.x(938), A.x(820), A.x(-560), A.x(-683)   # the band: starts widening, full, narrowing, gone
-s_t0a, s_t0, s_t1, s_t1a = A.x(282), A.x(242), A.x(-80), A.x(-120)      # the terminal's stretch (40 m tapers)
+# (owner, 2026-11-23, the east hall and coach station: the terminal's pavement and kerb lanes run on to its new east end,
+#  x 242 -> 552; the lamps, gratings and covers keep their places, new ones carry on in the same steps)
+s_t0a, s_t0, s_t1, s_t1a = A.x(592), A.x(552), A.x(-80), A.x(-120)      # the terminal's stretch (40 m tapers)
+s_t0w = A.x(242)                                                         # where it used to start: the lamps' and gratings' first place
 s_c0a, s_c0, s_c1, s_c1a = A.x(402), A.x(372), A.x(-93), A.x(-123)      # the car park's stretch (30 m tapers)
 band = lambda w: keys((0, z), (s_ne0, z), (s_ne1, w), (s_sw1, w), (s_sw0, z), (A.len, z))
 term = lambda w: keys((0, z), (s_t0a, z), (s_t0, w), (s_t1, w), (s_t1a, z), (A.len, z))
 park = lambda w: keys((0, z), (s_c0a, z), (s_c0, w), (s_c1, w), (s_c1a, z), (A.len, z))
-# the terminal's pavement runs on past the stands to x 300 at the east end (the terminal model's rental area: its cars
+# the terminal's pavement runs on past the stands at the east end (x 300 until 2026-11-23: the terminal model's rental area: its cars
 # 7 m out and its row of birches 18.5 m out, x 164-286, Data/babylon-terminal.json RENTAL/) and 40 m past the west end;
 # where the stands narrow away it widens by as much, so its outer edge stays on the building's line (y 0)
-s_w0a, s_w0, s_w1, s_w1a = A.x(340), A.x(300), A.x(-120), A.x(-160)
+s_w0a, s_w0, s_w1, s_w1a = A.x(636), A.x(596), A.x(-120), A.x(-160)
 STANDS = 3.1 + 3.5
 walk = lambda w: keys((0, z), (s_w0a, z), (s_w0, w + STANDS), (s_t0a, w + STANDS), (s_t0, w), (s_t1, w), (s_t1a, w + STANDS), (s_w1, w + STANDS), (s_w1a, z), (A.len, z))
 FC_RIGHT = [lane('Driving', 3.5), lane('Shoulder', 1.0), lane('Island', band(3.5), kerb=15), lane('Driving', band(3.6)),
@@ -165,7 +168,7 @@ for x in x_ent:
     fc_cross.append(dict(at=s, w=3.0, o0=3.5 + 1.0 + 3.5, o1=30.5 - 5.25))   # (the lanes' side of the pavement: unchanged)   # the terminal's pavement to the island
     fc_cross.append(dict(at=s, w=3.0, o0=-4.5, o1=3.5 + 1.0))                  # the island to the car park's pavement
 fc_lights = [
-    dict(side='right', edge=8, off=0.6, spacing=30.5, **{'from': s_t0, 'to': s_t1}),               # the terminal's pavement, by its kerb (clear of the canopies and benches)
+    dict(side='right', edge=8, off=0.6, spacing=30.5, **{'from': round(s_t0w - 10 * 30.5, 2), 'to': s_t1}),               # the terminal's pavement, by its kerb (clear of the canopies and benches)
     dict(side='right', edge=7, off=0.9, spacing=30.5, **{'from': s_ne1, 'to': s_t0a}),             # the band's edge beyond it
     dict(side='right', edge=7, off=0.9, spacing=30.5, **{'from': s_t1a, 'to': s_sw1}),
     dict(side='right', edge=2, off=1.75, spacing=30.5, toward='out', **{'from': s_ne1, 'to': s_sw1}),   # the island
@@ -179,11 +182,11 @@ fc_lights = [
 # both sides of the island, by the car park's pavement; round manhole covers far apart on the pavements (every 90-110 m).
 # The country stretches have no kerbs: they drain to the verge, as real ones do.
 fc_props = [
-    dict(mesh='drain', side='right', edge=8, off=-0.31, spacing=22, out=1, **{'from': s_t0, 'to': s_t1}),
+    dict(mesh='drain', side='right', edge=8, off=-0.31, spacing=22, out=1, **{'from': round(s_t0w - 14 * 22, 2), 'to': s_t1}),
     dict(mesh='drain', side='right', edge=3, off=0.31, spacing=22, out=-1, **{'from': s_ne1, 'to': s_sw1}),
     dict(mesh='drain', side='right', edge=2, off=-0.31, spacing=22, out=1, **{'from': s_ne1 + 11, 'to': s_sw1}),
     dict(mesh='drain', side='left', edge=2, off=-0.31, spacing=22, out=1, **{'from': s_c0, 'to': s_c1}),
-    dict(mesh='manhole', side='right', edge=8, off=7.5, spacing=95, **{'from': s_t0 + 20, 'to': s_t1}),
+    dict(mesh='manhole', side='right', edge=8, off=7.5, spacing=95, **{'from': round(s_t0w + 20 - 3 * 95, 2), 'to': s_t1}),
     dict(mesh='manhole', side='left', edge=2, off=1.5, spacing=110, **{'from': s_c0 + 35, 'to': s_c1}),
 ]
 road('AIRPORT-FORECOURT', FC, FC_LEFT, FC_RIGHT, paint=fc_paint, crossings=fc_cross, lights=fc_lights, props=fc_props, step=6.0)   # (a point every 6 m: MetaRoad's spline curves smoothly between; 2 m took 25 s to build)
@@ -333,6 +336,12 @@ for g0, n in ((174, 2), (190, 3), (210, 3), (230, 3), (250, 3), (270, 3)):
 # its two shuttle buses (RENTAL/SHUTTLE-1, -2: side-on, 14 m out): a yellow bay each
 rental['boxes'] = [dict(x0=x - 6.5, y0=-15.6, x1=x + 6.5, y1=-12.4, color='yellow') for x in (202.0, 242.0)]
 rental['y0'] = -16.0
+# (the car rental moved whole beside the main car park, owner 2026-11-17, Tools/apply_16gates_site.py: its bays with it -
+#  and its two shuttle bays, which were left behind in front of the terminal's east end; 2026-11-23)
+for k, d in (('x0', 242.0), ('x1', 242.0), ('y0', -231.3), ('y1', -231.3)):
+    rental[k] = round(rental[k] + d, 2)
+    for b in rental['boxes']: b[k] = round(b[k] + d, 2)
+for r_ in rental['rows']: r_['x0'] += 242.0; r_['x1'] += 242.0; r_['y'] = round(r_['y'] - 231.3, 2)
 lots.append(rental)
 
 # ---------------------------------------------------------------------------------------------------------------------
