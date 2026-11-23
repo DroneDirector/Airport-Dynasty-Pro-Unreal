@@ -975,7 +975,12 @@ void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, c
 			{
 				const float T = (k + 0.5f) / Count - 0.5f;
 				const FVector At = C + (bAlongX ? FVector(T * Len, 0, 0) : FVector(0, T * Len, 0)) - FVector(0, 0, Ext.Z + 20.f);
-				UPointLightComponent* P = NewObject<UPointLightComponent>(this);
+				// (in the gates' curved bays, 2026-11-23: the corridor's first metres stand inside the gate room - their light down
+				//  only; it threw a bright patch through the corridor's roof onto the bay's ceiling)
+				const double PlanZ = -Root->GetComponentTransform().TransformPosition(At).Y / 100.0;
+				UPointLightComponent* P;
+				if (PlanZ > 82.0 && PlanZ < 85.5) { USpotLightComponent* Sp = NewObject<USpotLightComponent>(this); Sp->SetRelativeRotation(FRotator(-90.f, 0.f, 0.f)); Sp->SetOuterConeAngle(80.f); Sp->SetInnerConeAngle(55.f); P = Sp; }
+				else P = NewObject<UPointLightComponent>(this);
 				P->SetSourceRadius(20.f);
 				Add(P, At, 180.f, 600.f, FLinearColor(0.95f, 0.97f, 1.f));
 				++Strip;

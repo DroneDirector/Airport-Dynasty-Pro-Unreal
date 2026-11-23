@@ -640,6 +640,7 @@ bool ADPMapTrace::Run(UWorld* W, float F2Y)
 			for (int32 f = 1; f <= 2; ++f) if (WB.Min.Z < Cut[f] && WB.Max.Z > Cut[f]) bAny = true;
 			if (!bAny) continue;
 			++Kept;
+			TArray<FVector4f> Curve[3];   // (curved glass - the gates' windows - is cut into pieces of a few cm: joined into lines of about 1 m below)
 			for (const FTriangleID Tri : MD->Triangles().GetElementIDs())
 			{
 				const TArrayView<const FVertexID> V = MD->GetTriangleVertices(Tri);
@@ -658,7 +659,7 @@ bool ADPMapTrace::Run(UWorld* W, float F2Y)
 					}
 					if (X.Num() < 2) continue;
 					const FVector2f A2(X[0].X / 100.f, -X[0].Y / 100.f), B2(X[1].X / 100.f, -X[1].Y / 100.f);   // (plan metres: x, z)
-					if (FVector2f::Distance(A2, B2) < 0.12f) continue;
+					if (FVector2f::Distance(A2, B2) < 0.12f) { if (bGlassMat && FVector2f::Distance(A2, B2) > 0.004f) Curve[f].Add(FVector4f(A2.X, A2.Y, B2.X, B2.Y)); continue; }
 					// (the same line once: its ends on a 5 cm grid, either way round)
 					FIntPoint QA(FMath::RoundToInt(A2.X * 20), FMath::RoundToInt(A2.Y * 20)), QB(FMath::RoundToInt(B2.X * 20), FMath::RoundToInt(B2.Y * 20));
 					if (QB.X < QA.X || (QB.X == QA.X && QB.Y < QA.Y)) Swap(QA, QB);
@@ -667,6 +668,32 @@ bool ADPMapTrace::Run(UWorld* W, float F2Y)
 					Seen[f].Add(Key);
 					Segs[f].Add(FVector4f(A2.X, A2.Y, B2.X, B2.Y));
 					if (bGlassMat) Glass[f].Add(Segs[f].Num() - 1);
+				}
+			}
+			for (int32 f = 1; f <= 2; ++f)
+			{
+				TArray<FVector4f>& C = Curve[f]; TBitArray<> Used(false, C.Num());
+				for (int32 a = 0; a < C.Num(); ++a)
+				{
+					if (Used[a]) continue;
+					Used[a] = true;
+					FVector2f Start(C[a].X, C[a].Y), End(C[a].Z, C[a].W);
+					for (bool bMore = true; bMore && FVector2f::Distance(Start, End) < 1.f;)
+					{
+						bMore = false;
+						for (int32 b = 0; b < C.Num() && !bMore; ++b)
+						{
+							if (Used[b]) continue;
+							const FVector2f P(C[b].X, C[b].Y), Q(C[b].Z, C[b].W); constexpr float Nr = 0.002f;
+							if (FVector2f::Distance(P, End) < Nr) { End = Q; bMore = true; }
+							else if (FVector2f::Distance(Q, End) < Nr) { End = P; bMore = true; }
+							else if (FVector2f::Distance(P, Start) < Nr) { Start = Q; bMore = true; }
+							else if (FVector2f::Distance(Q, Start) < Nr) { Start = P; bMore = true; }
+							if (bMore) Used[b] = true;
+						}
+					}
+					if (FVector2f::Distance(Start, End) < 0.12f) continue;
+					Segs[f].Add(FVector4f(Start.X, Start.Y, End.X, End.Y)); Glass[f].Add(Segs[f].Num() - 1);
 				}
 			}
 		}

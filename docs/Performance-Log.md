@@ -53,3 +53,13 @@
   Grand Hall: frame 17.4 -> 20.2, draw thread 17.3 -> 20.2, GPU 14.0 -> 14.2, draw calls 1753 -> 1819; kerb by the Grand
   Hall: frame 20.2 -> 21.7, GPU 14.7 -> 15.1, draw calls 1429 -> 1515. The draw thread pays, most likely for the lights.
   Not a stress walk: to be measured in a packaged build before the release.
+
+## 2026-11-23: the gates' curved windows (10 gates)
+
+- Added: 7 models (Nanite but the glass; each drawn 4, 6 or 10 times as one list), 240 seats in the seats' own lists, 60 lamps
+  (30 real lights, the terminal's lamp system), no flares. Gone: 20 flat panes, 200 mullions, 4 dead doors. Each jetway
+  corridor's first LED light now shines down only (a spot: it lit the bay's ceiling through the corridor's roof).
+- Editor game, 1920x1080, Chablais, 13:00, 4 s averages (FPS chart) at fixed views, before -> after: inside gate 9 GPU
+  14.8 -> 14.9 ms, render thread 10.3 -> 10.0 (the game thread 49 -> 45, the world still loading); gate 9 from the apron GPU
+  11.7 -> 11.7, render thread 18.7 -> 19.5; inside gate 13 GPU 10.5 -> 10.8, render thread 16.4 -> 15.6; gates 2-4 from the
+  apron GPU 14.1 -> 14.1, render thread 21.5 -> 21.6. No difference beyond the noise. Not a stress walk, not packaged.

@@ -4038,6 +4038,7 @@ void AADPHUD::Tick(float Dt)
 						if (APlayerController* PC = GetOwningPlayerController()) if (APawn* Me = PC->GetPawn())
 						{
 							const FVector From(F(0) * 100.f, -F(2) * 100.f, F(1) * 100.f), To(F(3) * 100.f, -F(5) * 100.f, F(4) * 100.f);
+							if (AADPWalker* Wk = Cast<AADPWalker>(Me)) Wk->SetThirdPerson(false);   // (from the eyes: no walker in the picture)
 							Me->SetActorEnableCollision(false); Me->SetActorLocation(From - FVector(0, 0, 60.f));
 							if (ACharacter* Ch = Cast<ACharacter>(Me)) Ch->GetCharacterMovement()->SetMovementMode(MOVE_Flying);
 							PC->SetControlRotation((To - From).Rotation());
@@ -4793,10 +4794,19 @@ void AADPHUD::Tick(float Dt)
 			auto Go = [this](int32 I) { FVector At; float Yaw; if (ASeats::StandSpot(I, At, Yaw)) if (APawn* Me = GetOwningPawn()) { Me->TeleportTo(At, FRotator(0.f, Yaw, 0.f)); if (APlayerController* P = GetOwningPlayerController()) P->SetControlRotation(FRotator(-25.f, Yaw, 0.f)); } };
 			auto Third = [this](bool bOn) { if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) Wk->SetThirdPerson(bOn); };
 			static int32 Pick = INDEX_NONE;
+			// (-SitNear=x,z,x2,z2: the two Floor 2 seats nearest these plan points instead, e.g. in a gate's curved row)
+			auto Near = [this](int32 K, int32 Else) -> int32
+			{
+				FString T; TArray<FString> C; if (!FParse::Value(FCommandLine::Get(), TEXT("SitNear="), T, false)) return Else;
+				T.ParseIntoArray(C, TEXT(",")); if (C.Num() < 2 * K + 2) return Else;
+				const FVector2D Want(FCString::Atof(*C[2 * K]) * 100.f, -FCString::Atof(*C[2 * K + 1]) * 100.f); int32 B = Else; double Bd = 1e12;
+				for (int32 i = 0; i < ASeats::Count(); ++i) { FVector A, F; float H; if (!ASeats::SeatOf(i, A, F, H) || A.Z < 500.f || A.Z > 800.f) continue; const double D = FVector2D::DistSquared(FVector2D(A), Want); if (D < Bd) { Bd = D; B = i; } }
+				return B;
+			};
 			struct FStep { float At; TFunction<void()> Do; };
 			const FStep SSteps[] = {
 				{40.f, [&]() { if (bGame) ToggleGame(); ASunClock::HourOverride = 13.f; ASunClock::Refresh(); ShowTerminal(); Third(false); }},
-				{44.f, [&]() { ADP_LOG(TEXT("UISit: %d seats"), ASeats::Count()); Pick = ASeats::Count() / 2; Go(Pick); }},
+				{44.f, [&]() { ADP_LOG(TEXT("UISit: %d seats"), ASeats::Count()); Pick = Near(0, ASeats::Count() / 2); Go(Pick); }},
 				{45.5f, [&]() { Shot(TEXT("Sit_Before")); ADP_LOG(TEXT("UISit: near a seat %d"), bNearSeat ? 1 : 0); }},
 				{46.f, [&]() { Interact(); }},
 				{46.45f, [&]() { Shot(TEXT("Sit_Going_Down")); }},
@@ -4805,7 +4815,7 @@ void AADPHUD::Tick(float Dt)
 				{50.f, [&]() { Shot(TEXT("Sit_Seated_Behind")); }},
 				{50.5f, [&]() { Interact(); }},
 				{51.0f, [&]() { Shot(TEXT("Sit_Getting_Up")); }},
-				{52.5f, [&]() { Shot(TEXT("Sit_Stood_Up")); ADP_LOG(TEXT("UISit: sitting %d"), ASeats::IsSitting() ? 1 : 0); Third(false); Pick = ASeats::Count() / 5; Go(Pick); }},
+				{52.5f, [&]() { Shot(TEXT("Sit_Stood_Up")); ADP_LOG(TEXT("UISit: sitting %d"), ASeats::IsSitting() ? 1 : 0); Third(false); Pick = Near(1, ASeats::Count() / 5); Go(Pick); }},
 				{54.f, [&]() { Interact(); }},
 				{55.5f, [&]() { Third(true); if (APlayerController* P = GetOwningPlayerController()) { FRotator R = P->GetControlRotation(); R.Pitch = -15.f; R.Yaw += 160.f; P->SetControlRotation(R); } }},
 				{57.f, [&]() { Shot(TEXT("Sit_Second_Seat")); Interact(); }},
