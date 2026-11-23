@@ -19,8 +19,9 @@ stands, so this is new work, nothing clashes. FINISH WHAT YOU ARE ON FIRST, then
    the demo (`Tools/make_apron_bus_sound_demo.py` holds the exact gains and speed curves; SOURCES.md there), its 112 IK
    points / pivots (`apronbus-parts.json`). Drivable by the owner's avatar AND by NPC drivers through TruckDriverRig, like
    the fire trucks. The new staff job "Apron bus driver" (ground crew).
-3. **The remote stands - APPROVED by the owner ("draw these")**: 7 remote stands R1-R7 (owner said 8: ASK him where the 8th
-   goes - the plan had an optional R0 west of P1 if the bus depot moves), behind the gates across taxilane T, Billund-style:
+3. **The remote stands - APPROVED by the owner ("draw these")**: 8 remote stands R0-R7 (14:05 the owner said yes to R0:
+   R0 x -191.5, code C, tail 272, nose 318, west of P1 - the bus depot moves west of taxilane T's end to x -298..-258,
+   y 244..304, the apron paved about 45 m further west there; picture Blueprints/Airfield/RemoteStands-Full.png), behind the gates across taxilane T, Billund-style:
    plans `Tools/plan_remote_stands.py`, `Tools/plan_remote_stands_fit.py` (all numbers), look `Tools/render_remote_stands.py`.
    R1 x -68.5, R2 -28 (code C, tail y 272, nose 318); R3 35.75 (flexible: 2 x A321 or 1 x A350 / B777, tail 258);
    R4 231.75 (flexible), R5 292.5 (C); R6 445.5, R7 518 (code E, tail 258); all nose north, taxi in from T, pushed back onto
@@ -29,7 +30,7 @@ stands, so this is new work, nothing clashes. FINISH WHAT YOU ARE ON FIRST, then
    pavement edges: curved fillets where pads / throats / links meet the taxiways, rounded corners, paved shoulders along
    the edges, blue taxiway edge lights**. Markings: lead-in lines from T's centre line, stop bars with the type, red
    restraint lines, stand number boxes, GSE boxes. The bus road y 335..342 behind the noses with zebra crossings + STOP at
-   P1-P3, the bus depot (6 charging bays, 3 buses) at x -240..-160 by the marked crossing of T at x -245, the bus gate
+   P1-P3, the bus depot (6 charging bays, 3 buses) at x -298..-258 (moved for R0), reached by the marked crossing of T at x -245, the bus gate
    (new ground-floor bus lounge door) at the terminal's west end with 2 bus bays (apron ~25 m wider there). All
    clearances ICAO Annex 14 / EASA CS ADR-DSN (43.5 m to links for code E, 51 m by P3 for the A380, 40 m to T). Into
    Data/airfield.json (and the shared layout, so Android's 2D map shows them) + the 3D apron + the sim (ADPGround::AssignStand:
