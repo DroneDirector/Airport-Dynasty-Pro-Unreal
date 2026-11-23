@@ -19,11 +19,11 @@ SCH, ARRS, ARRN = '#4da3ff', '#8de04a', '#ff6b9a'
 W, H, DPI = 32, 18, 120
 
 
-def sheet(no, title, sub=''):
+def sheet(no, title, sub='', foot='approved by the owner 2026-11-23, being built'):
     fig = plt.figure(figsize=(W, H), dpi=DPI); fig.patch.set_facecolor(BG)
-    fig.text(0.012, 0.978, 'TERMINAL CHANGES v2  ·  ' + no + '  ·  ' + title, color=FG, fontsize=26, weight='bold', va='top')
+    fig.text(0.012, 0.978, 'TERMINAL CHANGES v2.1 approved  ·  ' + no + '  ·  ' + title, color=FG, fontsize=26, weight='bold', va='top')
     if sub: fig.text(0.012, 0.942, sub, color=DIM, fontsize=16, va='top')
-    fig.text(0.988, 0.008, 'Airport Dynasty Pro · to-dos 212-214, 216 · blueprint for the owner\'s OK, nothing built · metres',
+    fig.text(0.988, 0.008, 'Airport Dynasty Pro · to-dos 212-214, 216 · %s · metres' % foot,
              color=DIM, fontsize=12, ha='right')
     return fig
 
@@ -64,6 +64,9 @@ def ax_plan(fig, rect, x0, x1, z0, z1):
 def walls(ax, floor, col='#aab8c4', lw=1.1, skip=None):
     """the building as it stands (the game's traced walls); glass light blue"""
     s = [w for w in WALLS[str(floor)] if not (skip and skip(w))]
+    if getattr(ax, 'v21', False) and floor == 1:                  # the old lanes' arches and the old stairs' rails: replaced
+        old = lambda w: (52 < w[0] < 88 and 34.9 < w[1] < 36.5) or (197.1 < w[0] < 200.4 and 77 < w[1] < 81) or (283.5 < w[0] < 286.8 and 77 < w[1] < 81)
+        s = [w for w in s if not old(w)]
     for g, c in ((0, col), (1, '#4aa8c8')):
         ax.add_collection(LineCollection([((w[0], w[1]), (w[2], w[3])) for w in s if w[4] == g], colors=c, linewidths=lw, zorder=4))
 
@@ -171,6 +174,17 @@ def core_f1(g):      # the arrivals lobby on the ground and its door into the co
 
 
 AREA_CORE = 18.5 * 5 + 14.8 * 7.5
+# v2.1 (owner's decisions, 2026-11-23) - new numbers only here:
+# the stairs of gates 4 and 13 turned along the walkway wall (2.8 x 11 m as today, foot WEST, top EAST): (x0, z0, x1, z1)
+STAIR_T = {4: (198.4, 68.3, 209.4, 71.1), 13: (284.7, 68.3, 295.7, 71.1)}
+# the openings in the inner walls gate room / view bay: gate -> (x, z0, z1); 14-16 as v2
+PARTY = {4: (203.05, 71.4, 79.2), 13: (289.4, 71.3, 74.4), 14: (369.2, 69.5, 73.5), 15: (441.5, 69.5, 73.5), 16: (513.8, 69.5, 73.5)}
+DOOR_G13_STAIR = (284.5, 286.3, 82.0)                           # ground floor: the gate 13 stair hall's own door onto the apron
+JW_DOOR_W = 1.9                                                 # the jetway doors cut into the view bays' glass, at JETWAYS' x, z 82
+DEAD_DOORS = {13: 277.4, 14: 357.2, 15: 429.5, 16: 501.8}       # the doors without a jetway: closed with glass
+# security, 7 lanes in the same room (x 50-90, z 30-42): the lanes' belt middles (today PXLANES 53, 59.2, 65.3, 71.5, 77.7, 83.8)
+LANE_BELT_X = [round(52.5 + 5.78333 * k, 2) for k in range(7)]
+LANE_Z = (32.0, 40.0)
 
 
 def fills(ax, floor):
@@ -211,9 +225,17 @@ def ns(ax, b, **k):
     k.setdefault('fc', '#2a0f1c'); k.setdefault('ec', NS); box(ax, *b, **k)
 
 
+def sec_lanes(ax, n, lw=1.0, fc='#3a3410', ec=NEW):
+    """the security lanes: the belt 0.8 x 8 m, the x-ray, the arch (as the game's model LANE-k, 3.0 m wide + its officer's desk)"""
+    X = LANE_BELT_X if n == 7 else [53.0, 59.2, 65.3, 71.5, 77.7, 83.8]
+    for x in X:
+        box(ax, x - 0.4, 32, x + 0.4, 40, '', fc=fc, ec=ec, lw=lw, z=6); box(ax, x - 0.7, 34.6, x + 0.7, 36.4, '', fc='#2b3a48', ec=ec, lw=lw, z=7)
+        box(ax, x + 1.1, 35.3, x + 2.3, 35.9, '', fc='#2b3a48', ec=ec, lw=lw, z=7); box(ax, x - 1.5, 34.7, x - 0.95, 35.3, '', fc='#55606c', ec=ec, lw=lw * 0.6, z=7)
+
+
 def after_f1(ax, lw=1.6):
     """the new ground floor, unlabelled"""
-    L = dict(lw=lw)
+    L = dict(lw=lw); ax.v21 = True
     for b in WEST.values(): new(ax, b, **L)                                                         # the west claim wing
     for cx in (-60.8, -48.15, -35.5, -22.85, -10.2): box(ax, cx - 2.45, 21, cx + 2.45, 41, '', fc='#233140', ec=BELT, lw=1)
     box(ax, -44, 8.2, -36, 15.8, '', fc='#10301a', ec=OK, lw=1); box(ax, -54, 8.2, -48, 15.8, '', fc='#301010', ec='#ff5050', lw=1)
@@ -238,6 +260,9 @@ def after_f1(ax, lw=1.6):
     for k in ('crew', 'canteen', 'ground_off', 'lockers', 'staffsec', 'police'): box(ax, *G[k], '', fc='#1c1c2e', ec=STAFF, lw=lw)
     new(ax, G['coach'], fc='#23200d', **L)
     for x in STAIRS: box(ax, x - 1.3, 7, x + 1.3, 20, '', fc='#0f3a1c', ec=OK, lw=1.2, z=6)
+    sec_lanes(ax, 7)
+    for x0, z0, x1, z1 in STAIR_T.values(): box(ax, x0, z0, x1, z1, '', fc='#3a3410', ec=NEW, lw=1.2, z=8)
+    ax.plot([DOOR_G13_STAIR[0], DOOR_G13_STAIR[1]], [82, 82], color=OK, lw=5, zorder=14)
     ns(ax, G['corridor'], fc='#45152c', z=6, **L); ns(ax, G['cross'], fc='#45152c', z=6, **L)         # arrivals kept apart
     for g in GATE_X0:
         a, d = core_f1(g); ns(ax, a, fc='#45152c', z=6, **L); box(ax, *d, '', fc=NS, ec=NS, z=7)
@@ -251,9 +276,14 @@ def after_f1(ax, lw=1.6):
     for d0, d1 in ENTR_E: box(ax, d0, -4, d1, 0, '', fc='#1b3a4a', ec=GLASS, lw=1.2, z=6)
 
 
-def gate_stairs(ax):
-    """the gates' own stairs down, existing (the game's layout: 2.8 x 11 m at the gate room's x0 + 28.3)"""
+def gate_stairs(ax, turned=False):
+    """the gates' own stairs down (the game's layout: 2.8 x 11 m at the gate room's x0 + 28.3); turned: gates 4 and 13 as built"""
+    if turned:
+        for x0, z0, x1, z1 in STAIR_T.values():
+            box(ax, x0, z0, x1, z1, '', fc='#3a3410', ec=NEW, lw=1.4, z=8)
+            for k in range(1, 9): ax.plot([x0 + k * 1.222] * 2, [z0, z1], color=NEW, lw=0.6, zorder=9)
     for a in (-72.6, 7.95, 88.5, 169.05) + tuple(GATE_X0.values()):
+        if turned and a in (169.05, 255.4): continue
         box(ax, a + 28.3, 69.5, a + 31.1, 80.5, '', fc='#26303a', ec='#8fa0ae', lw=1, z=8)
         for k in range(1, 8): ax.plot([a + 28.3, a + 31.1], [69.5 + k * 1.375] * 2, color='#8fa0ae', lw=0.6, zorder=9)
 
@@ -280,8 +310,10 @@ def after_f2(ax, lw=1.6):
     for g in GATE_X0:
         v, c = core_f2(g); ns(ax, v, fc='#55203a', z=7, lw=lw); ns(ax, c, fc='#45152c', z=7, lw=lw)
     ns(ax, AISLE4, fc='#45152c', z=8, lw=lw, ls='--'); ns(ax, VEST4, fc='#55203a', z=8, lw=lw)
-    for g in GATE_X0: a = GATE_X0[g]; ax.plot([a + 34, a + 34], [69.5, 73.5], color='#24101a', lw=5, zorder=9); ax.plot([a + 34, a + 34], [69.5, 73.5], color=OK, lw=2.5, ls=':', zorder=10)
-    ax.plot([203.05, 203.05], [69.5, 73.5], color='#0e2216', lw=5, zorder=9); ax.plot([203.05, 203.05], [69.5, 73.5], color=OK, lw=2.5, ls=':', zorder=10)
-    gate_stairs(ax)
+    for x, z0, z1 in PARTY.values(): ax.plot([x, x], [z0, z1], color='#1a0c14', lw=6, zorder=9); ax.plot([x, x], [z0, z1], color=OK, lw=2.5, ls=':', zorder=10)
+    gate_stairs(ax, True)
+    for g in (13, 14, 15, 16):                                    # the jetway doors in the view bays' glass; the dead doors glazed
+        for x in JETWAYS[g]: ax.plot([x - JW_DOOR_W / 2, x + JW_DOOR_W / 2], [82, 82], color=OK, lw=6, zorder=14)
+        ax.plot([DEAD_DOORS[g] - 1, DEAD_DOORS[g] + 1], [82, 82], color=GLASS, lw=3, zorder=14)
     for a, b in OPEN_F2 + ((228.3, 230.7),):
         ax.plot([a, b], [52, 52], color='#05080c', lw=7, zorder=9); ax.plot([a, b], [52, 52], color=OK, lw=3, ls=':', zorder=10)
