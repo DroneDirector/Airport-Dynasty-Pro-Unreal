@@ -63,3 +63,16 @@
   14.8 -> 14.9 ms, render thread 10.3 -> 10.0 (the game thread 49 -> 45, the world still loading); gate 9 from the apron GPU
   11.7 -> 11.7, render thread 18.7 -> 19.5; inside gate 13 GPU 10.5 -> 10.8, render thread 16.4 -> 15.6; gates 2-4 from the
   apron GPU 14.1 -> 14.1, render thread 21.5 -> 21.6. No difference beyond the noise. Not a stress walk, not packaged.
+
+## 2026-11-23: the Grand Hall's frame, measured (no change made)
+
+- Editor game, 1920x1080, Chablais, midsummer 13:00, standing in the Grand Hall (plan 75, 12) looking north, 75 s:
+  64 fps on average (15.6 ms), slowest 1 % 52 fps; frame generation off. (-UIPerfStand needs -UIShot with it since the
+  title film: without it the game waits at the title and measures nothing.)
+- One frame's average over 60: game thread's work 6.6 ms (then it waits for the draw thread), draw thread 15.6 ms. In the
+  draw thread: the scene 12.6 ms, of it the 305 lamps one by one 2.3 ms, finding what is visible 2.5 ms (2.1 of them
+  waiting for the workers), updating moved things 1.3 ms. So lamps are the largest single named part, not the meshes.
+- Tried: each revolving door's turning wings in lists of their own (they share lists as long as the terminal): 64 fps before
+  and after, every part the same to 0.1 ms - taken out again.
+- Not measured: the same view without the east side's 163 lights, so how much of the 17.4 -> 20.2 ms (one frame each, another
+  camera) is theirs is still open. Not stress-walked.
