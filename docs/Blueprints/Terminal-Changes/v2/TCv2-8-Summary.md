@@ -1,6 +1,6 @@
-# Terminal changes v2: summary
+# Terminal changes v2.1: summary (approved)
 
-*23 November 2026. The sheets are TCv2-1 to TCv2-7. Drawings only: nothing is built, and everything waits for your OK.*
+*Approved by the owner on 23 November 2026, being built. Only sheet 2f (car park exit) still waits for your OK.*
 
 ## What is new
 
@@ -12,7 +12,7 @@
 
 ## What moves (and what changed from the accepted sheets)
 
-- No gate, stand, jetway, room or wall is removed. Existing walls get new doorways: at z 52 and z 68, and in the inner walls of gates 4 and 13-16.
+- No gate, stand, jetway or room is removed. Existing walls get new doorways: at z 52 and z 68, and in the inner walls of gates 4 and 13-16.
 - **Arrivals corridor and mezzanine of TC-3: replaced.** They would have closed the concourse off from the walkway and stopped departures at each arrival.
 - **Passport booths: from inside the walkway to beside it.** The gap between two moving walkways is only 10 m.
 - **East claim belts are fed from x 286-314.** The accepted feed at x 256 crossed the departure bag trains' line.
@@ -37,15 +37,20 @@
 - **Arrivals duty free** is allowed at Swiss airports since June 2011 (Zurich, Geneva, Basel, Bern, Lugano named: swissinfo.ch; gva.ch). The airport needs a federal permit and a permanently staffed customs office (Customs Act, art. 17, read in its 2007 text).
 - **Customs:** red / green for EVERY flight, CHF 150 limit (bazg.admin.ch).
 - **PRM:** marked points inside and outside, help to connections (1107/2006, art. 5 and 7, Annex I; in force in Switzerland, FOCA).
-- **Fire:** 35 m to an exit stair (50 m in tall rooms if the fire authority agrees), two stairs above 900 m², 0.6 m of stair per 60 people (VKF 16-15, 2.4). Hence 11 stairs.
+- **Fire:** 35 m to an exit stair (50 m in tall rooms if the fire authority agrees), two stairs above 900 m², 0.6 m of stair per 60 people (VKF 16-15, 2.4). Correction to v2: the 11 stairs leave up to 35.3 m in a straight line, more round walls; sheet 9 settles it.
 - **You did not ask for, but the rules need:** EES kiosks, second-line rooms, border police and customs offices, staff security, transfer security, escape stairs, PRM points.
 
-## Questions for you
+## Your decisions, drawn in v2.1
 
-1. Arrivals going down at the gate instead of the Floor 2 corridor: OK?
-2. Gate 4's glass arrivals gallery outside the windows (x 195-303): OK, or only gate 13 swings?
-3. Doors in the view-bay glass for the gate 13-16 jetways, and the dead doors removed?
-4. Security has no reserve (1 680 of 1 686 an hour): a 7th lane?
-5. Past the stairs of gates 4 and 13 the way is 1.4 m wide: fine, or turn the stairs?
-6. Car park exit with barriers: where? Two taxi ranks or only the west one?
-7. Roof kinks: smooth them, or leave them?
+1. **Arrivals go down at the gate.** Yes.
+2. **Gate 4's glass arrivals gallery** is kept: gates 4 and 13 both swing. (Open: your curved gate windows would touch it.)
+3. **Gates 13-16:** 1.9 m doors cut into the view-bay glass at the real jetways; the four dead doors are glazed.
+4. **Seven security lanes** in the same room (sheet 2g): 5.78 m apart. 116 % of the need at 280 an hour each, 100 % at 240.
+5. **Stairs of gates 4 and 13 turned** along the walkway wall (2.8 x 11 m, foot west). The way past is 7.8 m (gate 4) and 3.1 m (gate 13), instead of 1.4 m.
+6. **Two taxi ranks.** 7. **The wave roof is one smooth wave** (x -246 to 576, crests every 30 m, one more tree pillar at x 556).
+
+## For your OK
+
+- **Sheet 2f, the car park exit:** at the back, onto the road to the town, at x 120; 2 entry and 2 exit lanes. Option 1: give-way junction (my pick). Option 2: roundabout. It costs 224 of 3 982 spaces.
+- **Found:** gate 4's stair and lift lead down to gate 8 (Schengen). They lock while gate 4 is swung.
+- **Found:** at Chablais the forecourt road starts at a dead end (x 1856), so no car can reach the one-way lanes. A link is needed for the traffic job.
