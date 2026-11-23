@@ -19,9 +19,9 @@ SCH, ARRS, ARRN = '#4da3ff', '#8de04a', '#ff6b9a'
 W, H, DPI = 32, 18, 120
 
 
-def sheet(no, title, sub='', foot='approved by the owner 2026-11-23, being built'):
+def sheet(no, title, sub='', foot='approved by the owner 2026-11-23, being built', ver='v2.1 approved'):
     fig = plt.figure(figsize=(W, H), dpi=DPI); fig.patch.set_facecolor(BG)
-    fig.text(0.012, 0.978, 'TERMINAL CHANGES v2.1 approved  ·  ' + no + '  ·  ' + title, color=FG, fontsize=26, weight='bold', va='top')
+    fig.text(0.012, 0.978, 'TERMINAL CHANGES ' + ver + '  ·  ' + no + '  ·  ' + title, color=FG, fontsize=26, weight='bold', va='top')
     if sub: fig.text(0.012, 0.942, sub, color=DIM, fontsize=16, va='top')
     fig.text(0.988, 0.008, 'Airport Dynasty Pro · to-dos 212-214, 216 · %s · metres' % foot,
              color=DIM, fontsize=12, ha='right')
