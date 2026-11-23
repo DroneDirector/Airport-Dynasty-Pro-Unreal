@@ -140,7 +140,7 @@ bool APaxFlow::Prepare()
 		FGate G; G.N = FCString::Atoi(*Rm.Id.Mid(8)); G.Room = Rm.Id; G.bF2 = bF2; G.Place = Map.Find(Rm.Id);
 		const FVector A = PW(Rm.X0, 0, Rm.Z0), B = PW(Rm.X1, 0, Rm.Z1);
 		G.Box = FBox2D(ForceInit); G.Box += FVector2D(A.X, A.Y); G.Box += FVector2D(B.X, B.Y);
-		G.Jw = FVector2f((Rm.X0 + Rm.X1) / 2, Rm.Z1);
+		G.Jw = FVector2f((Rm.X0 + Rm.X1) / 2, FMath::Min(Rm.Z1, 82.f));   // (the room reaches to z 85 in the curved window's bay; the old wall's line)
 		for (const FPlanDoor& D : Plan.Doors) if (D.A == Rm.Id && (D.B.StartsWith(TEXT("J-")) || D.B == TEXT("APRON"))) { G.Jw = FVector2f(D.X, D.Z); break; }
 		Gates.Add(G);
 	}

@@ -582,7 +582,14 @@ void ABabylonModel::ReplaceSeats(const TArray<TSharedPtr<FJsonValue>>& Nodes, co
 		// along the row (Babylon x, the glTF's -x): seats at the 0.62 m pitch, legs at both ends and every third seat
 		const float L = N * 0.62f;
 		const FTransform& Row = NodeWorld[R];
-		auto Put = [&](UInstancedStaticMeshComponent* K, float BabylonX) { K->AddInstance(FTransform(FVector(-BabylonX * 100.f, 0, 0)) * Row, false); };
+		// (a curved row - the gates' curved windows, 2026-11-23 - stands on a circle of this radius, each seat facing straight out)
+		double Arc = 0.0; Nodes[R]->AsObject()->TryGetNumberField(TEXT("arc"), Arc);
+		auto Put = [&](UInstancedStaticMeshComponent* K, float BabylonX)
+		{
+			FTransform At(FVector(-BabylonX * 100.f, 0, 0));
+			if (Arc > 1.0) { const double A = BabylonX / Arc; At = FTransform(FRotator(0, FMath::RadiansToDegrees(A), 0), FVector(-Arc * FMath::Sin(A), Arc * (FMath::Cos(A) - 1.0), 0) * 100.0); }
+			K->AddInstance(At * Row, false);
+		};
 		for (int32 i = 0; i < N; ++i) Put(Seats, -L / 2 + 0.62f * (i + 0.5f));
 		for (int32 k = 0; k <= N; ++k) Put(k == 0 || k == N || k % 3 == 0 ? Legs : Arms, -L / 2 + 0.62f * k);
 		++Rows; Places += N;
@@ -832,6 +839,14 @@ void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, c
 		PanelLists.Add(K);
 		return K;
 	};
+	// a lamp turned by anything but quarter turns, its long side along its own x: its own size (cm)
+	auto LampTurned = [&](int32 C, FVector& Own) -> bool
+	{
+		const float Yaw = FRotator::NormalizeAxis(NodeWorld[C].Rotator().Yaw);
+		if (FMath::Abs(Yaw - 90.f * FMath::RoundToFloat(Yaw / 90.f)) < 0.2f) return false;
+		Own = NodeInst[C].Key->GetStaticMesh()->GetBoundingBox().GetSize() * NodeWorld[C].GetScale3D().GetAbs();
+		return Own.X > Own.Y;
+	};
 	// a fitting's box (node C) hidden and a panel put just under it, the panel's U along the fitting's long side; the box's
 	// bounds back (in the model's space)
 	auto PanelUnder = [&](UInstancedStaticMeshComponent* K, int32 C) -> FBox
@@ -847,6 +862,14 @@ void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, c
 		}
 		const FVector Ext = B.GetExtent();
 		const bool bAlongX = Ext.X >= Ext.Y;
+		// (a lamp turned with the gates' curved windows: its own length, width and turn)
+		if (FVector Own; LampTurned(C, Own))
+		{
+			FTransform At(FQuat(FRotator(0.f, NodeWorld[C].Rotator().Yaw, 0.f)) * FQuat(FRotator(0.f, 0.f, 180.f)), FVector(B.GetCenter().X, B.GetCenter().Y, B.Min.Z - 0.3f), FVector(Own.X / 100.f, Own.Y / 100.f, 1.f));
+			if (K->Mobility == EComponentMobility::Static) At = At * Root->GetRelativeTransform();
+			K->AddInstance(At, false);
+			return B;
+		}
 		// the plane faces up: turned over (roll 180) to face down, and a quarter turn when the fitting runs along Y
 		const FRotator Rot(0.f, bAlongX ? 0.f : 90.f, 180.f);
 		const FVector Scale(2.f * FMath::Max(Ext.X, Ext.Y) / 100.f, 2.f * FMath::Min(Ext.X, Ext.Y) / 100.f, 1.f);
@@ -886,7 +909,8 @@ void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, c
 					const int32 C = int32(KV->AsNumber());
 					if (!NodeInst.IsValidIndex(C) || !NodeInst[C].Key) continue;
 					const FBox B = NodeInst[C].Key->GetStaticMesh()->GetBoundingBox().TransformBy(NodeWorld[C]);
-					const float Len = 2.f * FMath::Max(B.GetExtent().X, B.GetExtent().Y), Wid = 2.f * FMath::Min(B.GetExtent().X, B.GetExtent().Y);
+					float Len = 2.f * FMath::Max(B.GetExtent().X, B.GetExtent().Y), Wid = 2.f * FMath::Min(B.GetExtent().X, B.GetExtent().Y);
+					if (FVector Own; LampTurned(C, Own)) { Len = Own.X; Wid = Own.Y; }
 					// one list of panels per lamp size (the pattern repeats along the lamp every two thirds of its width)
 					const FIntPoint Key(FMath::RoundToInt(Len), FMath::RoundToInt(Wid));
 					UInstancedStaticMeshComponent*& K = LampPanels.FindOrAdd(Key);

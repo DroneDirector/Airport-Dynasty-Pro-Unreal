@@ -296,5 +296,37 @@
     43.85
    ]
   ]
+ },
+ {
+  "node": 10895,
+  "why": "gates with a Floor 2 window (2026-11-23, the curved windows): the wall panel over the jetway door at the old glass line; the copies (gates 9, 11, 13-16) share gates 1's and 4's pieces",
+  "boxes": [
+   [
+    -51.6,
+    8.2,
+    81.8,
+    -49.6,
+    11.45,
+    81.99
+   ]
+  ]
+ },
+ {
+  "node": 11477,
+  "why": "as gate 1 (the same piece)",
+  "same_as": 10895,
+  "boxes": []
+ },
+ {
+  "node": 12059,
+  "why": "as gate 1 (the same piece)",
+  "same_as": 10895,
+  "boxes": []
+ },
+ {
+  "node": 12641,
+  "why": "as gate 1 (the same piece)",
+  "same_as": 10895,
+  "boxes": []
  }
 ]

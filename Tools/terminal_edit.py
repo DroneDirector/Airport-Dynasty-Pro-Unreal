@@ -396,6 +396,8 @@ log.append('new: F1-AIRSIDE/LAMP-017..020 (over the closed stairwell)')
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_wave.py'), encoding='utf-8').read())
 # the east side's shell (owner, 2026-11-23, v2 approved): Tools/terminal_east_edit.py, after the wave roof
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_east_edit.py'), encoding='utf-8').read())
+# the gates' curved windows (owner approved, 2026-11-23): Tools/terminal_gatearc_edit.py, after the east side
+exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_gatearc_edit.py'), encoding='utf-8').read())
 json.dump(L, open(OUT, 'w'))
 print('\n'.join(log))
 print('layout written:', OUT)

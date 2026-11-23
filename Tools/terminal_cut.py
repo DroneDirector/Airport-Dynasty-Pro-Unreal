@@ -21,7 +21,10 @@ A = TW.piece_to_plan(idx)
 for c in cuts:
     piece, M = A[c['node']]
     job.append({'node': c['node'], 'piece': piece, 'new': piece + '_cut', 'm': M, 'boxes': c['boxes'], 'touch': c.get('touch', [])})
-jf = os.path.join(ROOT, 'Saved', 'terminal-cut-job.json'); json.dump(job, open(jf, 'w'))
+# ("same_as": another copy of a piece already cut - only its name changes; node numbers given on the command line: only
+#  those pieces are cut again, the others keep the copies they have)
+SAME = {c['node'] for c in cuts if 'same_as' in c}; ONLY = {int(a) for a in sys.argv[1:]}
+jf = os.path.join(ROOT, 'Saved', 'terminal-cut-job.json'); json.dump([j for j in job if j['node'] not in SAME and (not ONLY or j['node'] in ONLY)], open(jf, 'w'))
 ED = r'C:/Program Files/Epic Games/UE_5.7/Engine/Binaries/Win64/UnrealEditor-Cmd.exe'
 SCRIPT = os.path.join(ROOT, 'Tools', 'terminal_cut_ue.py').replace(os.sep, '/'); JOBF = jf.replace(os.sep, '/')
 subprocess.run([ED, os.path.join(ROOT, 'AirportDynastyPro.uproject'), '-ExecutePythonScript=%s %s' % (SCRIPT, JOBF), '-unattended', '-nullrhi', '-nosplash'], capture_output=True)
