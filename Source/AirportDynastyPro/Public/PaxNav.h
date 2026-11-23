@@ -39,8 +39,11 @@ namespace PaxNav
 	/** A walk from one point to another on the navmesh: the corner points (from and to included). OffMesh when either
 	 *  end is off the navmesh (a jetway, an escalator), NoWay when both are on it but nothing joins them. */
 	EPath Path(UWorld* W, const FVector& From, const FVector& To, TArray<FVector>& Out);
-	/** A check of the map: from the middle of the Grand Hall (Floor 2: its landing) to the middle of every other room on
-	 *  that floor where passengers walk, and to the forecourt - how many can be reached, how far in all (to compare a
-	 *  made map with the ready-made one). */
+	/** The check of the map: every leg a passenger walks - the car park, the forecourt, every entrance, check-in, each
+	 *  security lane, the airside, Floor 2 and every gate, the arrivals' way out - each in the log ("PaxNav leg OK/FAILED"),
+	 *  and the ways that must stay shut for them. How many failed (0: all reached). The escalators and the revolving doors
+	 *  are rides of their own (PaxFlow), off the map: the legs end at their feet. */
+	int32 Legs(UWorld* W, FString* Summary = nullptr);
+	/** The same, as one line: how many legs are reached, how far in all. */
 	FString Check(UWorld* W);
 }

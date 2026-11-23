@@ -10,6 +10,8 @@
 #include "ADPLog.h"
 #include "CharacterCreate.h"
 #include "PaxNav.h"
+#include "UObject/UObjectIterator.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Site.h"
 #include "Sim/ADPSim.h"
 #include "SWebBrowser.h"
@@ -135,7 +137,21 @@ void AADPHUD::TestNewGame(float Dt)
 			const UADPSim* Sim = UADPSim::Get(this);
 			if (Sim && !Sim->IsRunning()) Wrong(TEXT("the career isn't running"));
 			if (!PaxNav::Ready(GetWorld())) Wrong(TEXT("the walking map isn't ready"));
-			else ADP_LOG(TEXT("NEWGAME TEST: the walking map: %s"), *PaxNav::Check(GetWorld()));
+			else
+			{
+				FString S; const int32 Bad = PaxNav::Legs(GetWorld(), &S);
+				ADP_LOG(TEXT("NEWGAME TEST: the walking map: %s"), *S);
+				if (Bad > 0) Wrong(*FString::Printf(TEXT("%d legs of the passengers' ways fail (the log's PaxNav leg FAILED lines)"), Bad));
+			}
+			// (what has no size at all: the renderer can't turn its place round - the Matrix.h check in the log at loading)
+			for (TObjectIterator<UPrimitiveComponent> It; It; ++It)
+			{
+				if (It->GetWorld() != GetWorld() || !It->IsRegistered()) continue;
+				int32 N = It->GetComponentScale().IsNearlyZero(1e-7) ? 1 : 0;
+				if (const UInstancedStaticMeshComponent* K = Cast<UInstancedStaticMeshComponent>(*It))
+					for (int32 k = 0; k < K->GetInstanceCount(); ++k) { FTransform X; if (K->GetInstanceTransform(k, X, true) && X.GetScale3D().IsNearlyZero(1e-7)) ++N; }
+				if (N) ADP_LOG(TEXT("NEWGAME TEST: no size: %s / %s, %d copies"), It->GetOwner() ? *It->GetOwner()->GetName() : TEXT("-"), *It->GetName(), N);
+			}
 			const APawn* Me = GetOwningPawn();
 			ADP_LOG(TEXT("NEWGAME TEST: %s - %d problems; loading %.1f s, from the title to the airport %.1f s, standing at %s"), Problems ? TEXT("FINISHED WITH PROBLEMS") : TEXT("PASSED"),
 				Problems, ReachedAirport - StartedLoad, ReachedAirport - T0, Me ? *Me->GetActorLocation().ToString() : TEXT("-"));

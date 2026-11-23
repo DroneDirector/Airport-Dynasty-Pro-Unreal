@@ -9,6 +9,7 @@ SITES="$*"; [ -z "$SITES" ] && SITES="$(ls Data/Sites)"
 for d in Saved/Config/WindowsEditor Saved/Config/Windows; do [ -f $d/GameUserSettings.ini ] && cp $d/GameUserSettings.ini $d/GameUserSettings.ini.bak-bake; done
 back() { for d in Saved/Config/WindowsEditor Saved/Config/Windows; do [ -f $d/GameUserSettings.ini.bak-bake ] && mv -f $d/GameUserSettings.ini.bak-bake $d/GameUserSettings.ini; done; }
 trap back EXIT
+BAD=0
 for ID in $SITES; do
   F=Data/Sites/$ID/paxnav.bin; ARG="-Site=$ID"
   touch Saved/paxnav-stamp
@@ -17,5 +18,10 @@ for ID in $SITES; do
   # (the game reads Content/Data where it is there: the same map in both)
   [ -d Content/Data ] && cp -f $F Content/${F}
   grep -a "PaxNav bake:" Saved/Logs/PaxNavBake.log | tail -1 | sed "s/.*PaxNav bake: /   /"
+  # (every leg a passenger walks, car park to gate and back out, and the ways that must stay shut: a failed one stops the release)
+  grep -a "PaxNav leg" Saved/Logs/PaxNavBake.log | sed "s/.*PaxNav leg /   /"
+  grep -a "PaxNav legs:" Saved/Logs/PaxNavBake.log | tail -1 | sed "s/.*PaxNav legs: /   /"
+  grep -qa "PaxNav legs: ALL REACHED" Saved/Logs/PaxNavBake.log || { echo "FAILED: the $ID walking map has legs passengers can't walk (the FAILED lines above)"; BAD=1; }
 done
 rm -f Saved/paxnav-stamp
+exit $BAD
