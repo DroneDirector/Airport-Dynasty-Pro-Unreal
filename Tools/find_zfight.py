@@ -94,7 +94,11 @@ def main(glb, out_json):
             lo, hi = boxes[j]
             inb = np.all((pts >= lo) & (pts <= hi), axis=1)
             if not inb.any(): continue
-            d, nB = point_tri_dist(pts[inb], tb)
+            # (only the triangles that come within 1 mm of the samples' box: the same result, a big body skin 20 x faster)
+            lo2, hi2 = pts[inb].min(0) - 0.001, pts[inb].max(0) + 0.001
+            near = np.all(tb.min(1) <= hi2, axis=1) & np.all(tb.max(1) >= lo2, axis=1)
+            if not near.any(): continue
+            d, nB = point_tri_dist(pts[inb], tb[near])
             close = d < 0.0008
             par = np.abs(nA[inb] @ nB.T) > 0.98
             fight = (close & par).any(axis=1)

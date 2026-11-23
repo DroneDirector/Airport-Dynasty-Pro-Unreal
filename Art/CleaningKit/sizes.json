@@ -1,0 +1,137 @@
+{
+ "items": {
+  "BagFull": {
+   "min": [
+    -0.218,
+    -0.222,
+    -0.553
+   ],
+   "max": [
+    0.229,
+    0.223,
+    0.128
+   ],
+   "tris": 7612,
+   "mats": [
+    "CK_BagPlastic"
+   ]
+  },
+  "BagEmpty": {
+   "min": [
+    -0.212,
+    -0.07,
+    -0.65
+   ],
+   "max": [
+    0.222,
+    0.072,
+    0.05
+   ],
+   "tris": 3196,
+   "mats": [
+    "CK_BagPlastic"
+   ]
+  },
+  "BagRoll": {
+   "min": [
+    -0.062,
+    -0.062,
+    -0.002
+   ],
+   "max": [
+    0.063,
+    0.062,
+    0.302
+   ],
+   "tris": 708,
+   "mats": [
+    "CK_BagPlastic",
+    "CK_ClothYellow",
+    "CK_Label"
+   ]
+  },
+  "Caddy": {
+   "min": [
+    -0.205,
+    -0.145,
+    -0.278
+   ],
+   "max": [
+    0.205,
+    0.145,
+    0.013
+   ],
+   "tris": 6056,
+   "mats": [
+    "CK_BluePlastic",
+    "CK_GreenLiquid",
+    "CK_Label",
+    "CK_WhitePlastic",
+    "CK_RedPlastic",
+    "CK_PinkLiquid",
+    "CK_ClothYellow",
+    "CK_ClothBlue",
+    "CK_GreyPlastic"
+   ]
+  },
+  "Vacuum": {
+   "min": [
+    -0.064,
+    -0.125,
+    -0.94
+   ],
+   "max": [
+    0.876,
+    0.125,
+    0.112
+   ],
+   "tris": 3692,
+   "mats": [
+    "CK_BlackPlastic",
+    "CK_RedPlastic",
+    "CK_GreyPlastic",
+    "CK_BluePlastic",
+    "CK_WhitePlastic",
+    "CK_Steel",
+    "CK_Rubber"
+   ]
+  },
+  "CleanCart": {
+   "min": [
+    -0.477,
+    -0.25,
+    0.0
+   ],
+   "max": [
+    0.4,
+    0.25,
+    1.016
+   ],
+   "tris": 6352,
+   "mats": [
+    "CK_GreyPlastic",
+    "CK_Rubber",
+    "CK_Steel",
+    "CK_BagPlastic"
+   ]
+  }
+ },
+ "hands": {
+  "CartGripL": [
+   -0.46,
+   0.17,
+   1.0
+  ],
+  "CartGripR": [
+   -0.46,
+   -0.17,
+   1.0
+  ],
+  "VacuumWand2ndHand": [
+   0.2,
+   0.0,
+   -0.17
+  ]
+ },
+ "flicker": "0 pairs fight"
+}

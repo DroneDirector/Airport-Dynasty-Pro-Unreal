@@ -96,6 +96,29 @@ blueprint `docs/Blueprints/Apron/ApronSafety.png`.
 - **Not checked:** everything in the game - the hands on the rope, cones in the hands while walking (no carry animation: the items hang
   from the hand bones), the way under the fuselage behind the nose gear and beside the jetway's drive column, how late the push gets.
 
+## Cabin cleaning van, part A as built (to-do 212, 2026-11-23): model, kit, blueprint, parking place - no code yet
+Models `Art/CleaningVan` (make_cleaningvan.py) and `Art/CleaningKit` (make_cleaningkit.py), blueprint `docs/Blueprints/Apron/CleaningVan.png/.pdf`
+(Tools/make_cleaningvan_blueprint.py). Own L3H2 electric crew van 5.998 x 2.050 x 2.522 m, wheelbase 4.035, tyre radius 37.2 cm, axles x +205.1 / -198.4 cm.
+**What part B (driving, crew, IK) must know** - every point below is in `Art/CleaningVan/cleaningvan-parts.json` (`points_cm`, model root, Unreal cm, y = right):
+- **Place:** `ABabylonModel::Place("CleaningVan")`, kit `Place("CleaningKit")` (meshes BagFull, BagEmpty, BagRoll, Caddy, Vacuum, CleanCart; in the kit file they
+  stand 2 m apart along x, each with its own origin: where the hand holds it; `Art/CleaningKit/sizes.json` has sizes and second-hand points).
+- **Parts as GSE.cpp names them:** `Tyre_/Rim_/WheelDisc_/Hub_/HubCap_/Nut_` + FL FR RL RR (prefix), `Spindle_/SteerArm_` FL FR (kingpins `PIV_Steer_F*`), the wheels
+  turn about `PIV_Wheel_*`; `SteeringWheel` (prefix; `PIV_SteeringWheel`, axis (-0.7071, 0, 0.7071) as the belt loader); lenses end `_Lens`: LowBeam_ HighBeam_ IndicatorF_ IndicatorR_
+  TailBrake_ Reverse_ SideMarker_ with `_L_`/`_R_`, TailBrake_C_Lens, `WorkLamp_Lens`, `BeaconLens`; SideMarker_* have no side in the middle of the name but L0../R0...
+- **Doors (bind by prefix):** `DoorDriver` (left; hinge `PIV_DoorDriver`, opens 68 deg, checked against the body), `DoorPassenger` (68, mirrored), `SlideDoor` (right:
+  first 12.5 cm out, 4 cm back with it, then straight back to 130 cm - checked at 4 / 60 / 130; arm and roller run in the rail at z 123.5), `RearDoorL/R` (right leaf first, 100 deg).
+  Handles `IK_Handle_*`, steps `IK_Step_*`, where to stand `IK_Stand_*`, grab handles `IK_Grab_L/R`.
+- **Seats:** `IK_Seat_SeatDriver`, `IK_Seat_SeatPassenger`, `IK_Seat_SeatRow0..2` (left, middle, right), buckles `IK_Buckle_*`, belt tongues `IK_BeltTongue_*`,
+  wheel hands `IK_Hand_Wheel_L/R`, `IK_Foot_Accel/Brake/Rest`, selector `IK_GearSelect`, aisle in front of the row `IK_Aisle_Row*`.
+- **Kit in the van:** `Stock_Caddy_0..2`, `Stock_BagRoll_0..5`, `Stock_BagFull_0..1` (cage; show them only after work), `Stock_CleanCart_0`, `Stock_Vacuum_0..1` (dock on the bulkhead): hide the one
+  somebody takes and hold the kit's mesh; places in `stock` of the json. The cart has no ramp: two people lift it out over the rear step (`IK_Cart_Out`).
+- **Name:** white panels `NamePanel_L`, `NamePanel_R` (156 x 40 cm, middles `IK_Name_L/R`) and the rear left leaf's panel (`IK_Name_Rear`, 64 x 15, moves with RearDoorL): write the
+  airport's name there at run time (airfield.json), facing out. **Livery:** materials `CV_Livery_Body_Paint`, `CV_Livery_Main_Paint` as on the apron bus.
+- **Parking place (chosen, not drawn yet):** airfield plan middle (-253.0, 91.0), facing north (hx 0, hy 1), box x -254.75..-251.25, y 87..95, west of stand 9 (its boundary is x -245.4,
+  the apron ends at x -265): checked against the stands, the tug / GPU / chock boxes, the jetway zones, the light masts (none west of x -43) and the staff's row (z 84.2). Way out: straight
+  north to the service road (y 167..175). B draws the white box in Airfield.cpp and checks the boxes other 212 pieces have taken by then.
+- **Not there:** no van / electric drive, sliding-door or vacuum sound in the project (a CC0 one is needed); not run in the game; wipers have pivots (`PIV_Wiper_*`) but only move if B binds them.
+
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
 | Where | Today | Replace with | Nobody free |
