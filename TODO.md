@@ -235,6 +235,22 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       red line (starts at the windscreen foot 1.43 m up, almost flat, one smooth curve down to a vertical front over the
       bumper) and the front made modern (slim LED headlamps with twin projectors swept round rounded corners, a full-width
       light bar over a gloss-black band, a large slatted grille). The owner checks it; any further changes from him
+- [ ] **Drive every airport vehicle yourself, as your own avatar, with IK** (owner, 2026-11-23): today only the fire
+      trucks can be driven by you (your own MetaHuman from the creator, else the mannequin: FireTruck::Enter and
+      TruckDriverRig, two-bone IK for arms and legs, walk to the door, open it by its handle, climb in, sit, hands on
+      the wheel, feet on the pedals). Give the same to EVERY airport vehicle: the apron buses, pushback tugs, baggage
+      tractors, belt loaders, GPUs, fuel and catering trucks and the rest as they are added - E / X by the driver's door,
+      the vehicle's own IK points (the `*-parts.json` / rig files from each builder: seat, back, hands on the wheel or
+      controls, pedals, steps, handles) driving TruckDriverRig, each vehicle's own handling (the apron bus: electric,
+      kneeling, doors from the cab's switches). IK for ALL driving vehicles, for you and for the NPC drivers alike (the
+      airport's hired drivers and operators use the same rig and points), and the taxi bus's and coach's private
+      drivers too (you can't drive those: not the airport's).
+- [ ] **The airport's livery on every airport vehicle** (owner, 2026-11-23): like the aircraft livery designer
+      (Airline-Manager-Pro-Babylon/game/src/screens/livery.ts), an airport livery: body colour, main colour, style, the
+      airport's name on the sides; applied at run time to every airport vehicle through the same material slots on each
+      model (`*_Livery_Body`, `*_Livery_Main`, the name panels `*_Livery_Name_*`). Default: YELLOW body (the apron bus
+      first, owner 2026-11-23) with a dark navy band. The airport's name is written at run time from Data/airfield.json
+      (never baked), as on the coach. Private vehicles (taxi bus, coach, cars) keep their own colours.
 - [ ] **The buses' rules, fleets and money** (owner, 2026-11-23) - for the apron bus and the taxi bus (and the rules for
       the landside coach where they apply):
       - [ ] **Who rides the apron bus:** only passengers of a flight parked on a REMOTE stand (no jetway), both ways:

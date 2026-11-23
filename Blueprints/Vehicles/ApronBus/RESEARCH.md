@@ -26,7 +26,7 @@ registered for the road.
 | Doors | 3 extra-wide doors on each side, plus a front right door (Vega) | 3 + 3 double doors, 1,900 clear, plus a front right door |
 | Passengers | up to 110, of which 8 to 14 seated | 9 seats on three wheel housings (the front left one is under the cab), about 100 standing, a wheelchair or pram space |
 | Gross weight | 20,400 kg | (game: 20.4 t) |
-| Body | aluminium | (material: white paint) |
+| Body | aluminium | (material: the airport's livery, yellow by default, changeable) |
 | Tyres | 275/70 R22.5 (city bus size) | 275/70 R22.5, single front, twin rear |
 | Overhangs | eCitaro for comparison: 2,805 front, 3,430 rear | 3,200 front, 3,620 rear |
 

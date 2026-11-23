@@ -68,8 +68,11 @@ CAB_X0 = 5.35                              # driver's cab: x 5.35 .. front, y 0.
 # #endregion
 
 # #region ── Materials (plain; CC0 photo set later, as the other vehicles) ──
-M_PAINT = pmat('AB_BodyPaint', (0.92, 0.93, 0.95), 0.1, 0.35)      # white body
-M_STRIPE = pmat('AB_Stripe', (0.05, 0.35, 0.75), 0.1, 0.35)         # airline-neutral blue band
+# the airport's livery (owner 2026-11-23: yellow by default, changeable like the aircraft's livery, on every airport
+# vehicle): the paint is split into livery slots the game recolours at run time - Livery_Body (the body colour),
+# Livery_Main (the band / main colour); the slot names are the same on every airport vehicle
+M_PAINT = pmat('AB_Livery_Body', (0.96, 0.74, 0.04), 0.1, 0.35)    # default: airport yellow
+M_STRIPE = pmat('AB_Livery_Main', (0.04, 0.10, 0.30), 0.1, 0.35)   # default: dark navy band
 M_DARK = pmat('AB_DarkTrim', (0.06, 0.06, 0.07), 0.2, 0.5)
 M_GLASS = pmat('AB_Glass', (0.20, 0.30, 0.35), 0.0, 0.05, 0, 0.35)
 M_STEEL = pmat('AB_Steel', (0.45, 0.46, 0.48), 1.0, 0.4)
