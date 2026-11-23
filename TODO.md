@@ -235,6 +235,39 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       red line (starts at the windscreen foot 1.43 m up, almost flat, one smooth curve down to a vertical front over the
       bumper) and the front made modern (slim LED headlamps with twin projectors swept round rounded corners, a full-width
       light bar over a gloss-black band, a large slatted grille). The owner checks it; any further changes from him
+- [ ] **The buses' rules, fleets and money** (owner, 2026-11-23) - for the apron bus and the taxi bus (and the rules for
+      the landside coach where they apply):
+      - [ ] **Who rides the apron bus:** only passengers of a flight parked on a REMOTE stand (no jetway), both ways:
+            departures from the bus gate in the terminal out to the aircraft's stairs, arrivals from the stairs back to
+            the arrivals door. Passengers of a jetway (contact) stand never use it. (The sim already decides contact or
+            remote per flight: ADPGround::AssignStand, to-do 183.)
+      - [ ] **It waits for every registered passenger:** each bus trip has a list of the passengers assigned to it
+            (booked on that flight and given that bus); the doors stay open and the bus does not drive off until all of
+            them have boarded. Passengers who never come (missed / no-show) stop the wait when the flight's boarding
+            closes (the gate closes about 20 minutes before departure), so a bus can never wait for ever.
+      - [ ] **Nobody registered:** the bus still opens its doors at its stop, waits a fixed, realistic dwell of
+            2 minutes (game time; a tunable setting), then gives the door chime, closes and drives off.
+      - [ ] **The taxi bus the same way:** it waits at the landside taxi rank until all the passengers booked for that
+            ride (a group of up to 8 with their bags in the back) have got in; with no one booked it waits the same
+            fixed time (taxis wait their turn in the rank and move up; a realistic rank dwell before a car leaves empty:
+            5 minutes, tunable), then drives off.
+      - [ ] **Fleets at the start of a new game:** 3 apron buses (owned by the airport) and 5 taxi buses (not owned).
+      - [ ] **Ownership and the economy:**
+            - The APRON BUS is an airport vehicle, owned by the airport, and in the airport's economy like the other
+              apron vehicles (ADPGround::BuyVehicle, FuelTrucks / CateringTrucks / Tractors): bought by the player when more
+              are needed (the buy list only offers vehicles that have a 3D model in the game; more models follow),
+              charged at the depot charger (120 kWh battery, about 70 km per charge, as the e.COBUS 3000; the energy at
+              the local electricity price is a running cost), serviced (a yearly service and repairs as running costs),
+              and each bus needs a bus driver from the staff (hired, on shifts, paid wages; a bus without a driver on
+              shift stays parked, so remote-stand boarding gets slower). Price: no maker publishes one; use about
+              USD 650,000 new (our estimate for a 14 m electric apron bus), tunable.
+            - The TAXI BUS and the landside coach are NOT the airport's: private operators run them; they cost the
+              airport nothing and earn it nothing (later at most a taxi-rank or bus-bay fee, only if the owner asks).
+      - [ ] **More remote stands than buses** makes boarding wait for a free bus (as real airports): the bus count, its
+            drivers on shift and the round-trip times set how fast remote-stand flights board and deboard, and late
+            buses make departures late, like the other ground teams in ADPGround::Turnaround.
+      - [ ] **The sound reference** (owner: the demo "is perfect, use that one"): `Tools/make_apron_bus_sound_demo.py`
+            and `Art/Sounds/ApronBus/ApronBus-SoundDemo.wav` - the MetaSounds must match its layers, gains and speed curves.
 - [ ] **The taxi bus into the game: IK and photoreal textures** (owner, 2026-11-23), as the apron bus above:
       - [ ] **IK:** wire up its 70 IK points and pivots (`taxibus-parts.json`): the driver seated with hands on the wheel,
             feet on the pedals, reaching the taximeter, gear selector and card terminal; passengers getting in through the

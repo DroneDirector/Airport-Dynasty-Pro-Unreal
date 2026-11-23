@@ -74,6 +74,11 @@ fills it.
 
 ## #region ── How the game plays them (MetaSounds; to wire up in Unreal) ──
 
+**The reference.** The owner chose the 40-second demo (2026-11-23: "perfect, use that one"). It is
+`ApronBus-SoundDemo.wav`, made by `Tools/make_apron_bus_sound_demo.py`, and its mix code holds the exact gains and
+curves listed below. The game must sound like it.
+
+
 **Placement.** Every sound sits at its source on the bus:
 - Drive and whine: at the rear axle's motor.
 - Compressor and dryer: under the rear right floor (the motor compartment).
