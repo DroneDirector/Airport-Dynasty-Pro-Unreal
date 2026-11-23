@@ -23,7 +23,7 @@ txt(A, -160, 30, 'empty', DIM, 13); txt(A, -40, 30, 'CLAIM WEST', FG, 13); txt(A
 txt(A, 70, 36, 'SECURITY', FG, 12); txt(A, 135, 30, 'BAGS', FG, 13); txt(A, -60, 60, 'baggage hall', DIM, 12); train_route(A, 1.8)
 txt(A, 200, 62.5, 'departure bag trains', '#ff8080', 12)
 B = plan(fig, 0.480, 'GROUND FLOOR, AFTER', NEW, 1, True); train_route(B, 1.8)
-txt(B, -160, 30, 'empty', DIM, 13); txt(B, 21, 15, 'ESCALATORS', FG, 12); txt(B, 78, 9, 'GRAND HALL', FG, 14, weight='bold'); txt(B, 70, 36, 'SECURITY', FG, 12)
+txt(B, -160, 30, 'empty', DIM, 13); txt(B, 21, 15, 'ESCALATORS', FG, 12); txt(B, 78, 9, 'GRAND HALL', FG, 14, weight='bold'); txt(B, 70, 47, 'SECURITY 7', FG, 11)
 txt(B, 135, 30, 'BAGS', FG, 13); txt(B, -40, 47, 'duty free', NEW, 12); txt(B, 192, 15, 'EAST HALL', NEW, 15, weight='bold')
 txt(B, 270, 35.5, 'CLAIM\nEAST', NS, 12, weight='bold'); txt(B, 349, 24, 'PASSPORT\nCONTROL IN', NS, 12, weight='bold'); txt(B, 421, 35, 'STAFF + OPERATIONS', STAFF, 14, weight='bold')
 txt(B, 510, 30, 'COACH + BUS\nSTATION', NEW, 14, weight='bold'); txt(B, 420, 58, 'closed arrivals corridor above this line', NS, 12)
