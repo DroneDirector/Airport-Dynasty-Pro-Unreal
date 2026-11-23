@@ -17,7 +17,7 @@ GF = [(N, 'East Hall: check-in, cafe, car rental, meeting point', 192, 26, 4.5),
       (N, 'Passport control IN: 6 booths, 8 e-gates', 318, 34, 5.5), (N, 'Queue hall', 335, 26, 2), (N, 'Crew centre', 388, 16, 5.5), (N, 'Canteen', 420, 16, 5.5), (N, 'Handling + airlines', 453, 16, 5.5), (N, 'Lockers', 388, 39, 5.5), (N, 'Staff security', 420, 39, 5.5), (N, 'Police + border guard', 453, 39, 5.5),
       (N, 'Coach + bus station', 510, 28, 3), (N, 'Promenade with shops', 310, 3, 3)]
 F2 = [(N, 'Glass passport wall x 240', 240, 60, 11.4), (N, 'Passport control OUT: queue, 4 booths, 8 e-gates', 250, 36, 9.8), (N, 'Duty free', 274, 38, 9.9), (N, 'Transfer centre', 323, 38, 9.9), (N, 'Food court, cafe, bar', 370, 38, 9.9), (N, 'Prayer room, toilets', 412, 38, 9.9), (N, 'Premium lounge', 448, 38, 9.9), (N, 'Seating', 496, 38, 8), (N, 'Shops, toilets', 536, 38, 9.9),
-      (N, 'Swing lobby, gates 4 / 13', 246, 75, 10.9), (N, 'Arrivals way down (each gate)', 372, 76, 9.6), (E, 'Gate walkway', 430, 62, 8)]
+      (N, 'Swing lobby, gate 13', 246, 75, 10.9), (N, 'Arrivals way down (each gate)', 372, 76, 9.6), (E, 'Gate walkway', 430, 62, 8)]
 # id: (file name, camera, look at, lens, options, labels)
 SHOTS = {
     'D1': ('D1-Aerial-Forecourt', P(515, -135, 74), P(305, 12, 2), 24, '', EXL + OUTL + [(N, 'Flat roof z 34-52 over the new halls', 330, 43, 12.6), (E, 'Gates 13-16 + jetways', 390, 82, 10), (E, 'Gates 1-8 + jetways', 60, 84, 10)]),
@@ -50,6 +50,12 @@ sc.cycles.samples = int(os.environ.get('TC_SAMPLES', '160')); sc.cycles.use_adap
 sc.render.use_persistent_data = False
 sc.render.resolution_x, sc.render.resolution_y = int(os.environ.get('TC_W', '3840')), int(os.environ.get('TC_H', '2160'))
 COL = bpy.data.collections
+if 'door_e_closed' not in bpy.data.objects:                       # (gate 4 does not swing: the wall to the lobby at x 237 stays shut)
+    me = bpy.data.meshes.new('door_e_closed'); x_, w_ = 237.05, 0.1
+    me.from_pydata([P(x, z, h) for h in (6.0, 9.2) for x, z in ((x_ - w_, 70), (x_ + w_, 70), (x_ + w_, 77), (x_ - w_, 77))], [], [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)])
+    me.materials.append(bpy.data.materials.get('N2_plaster')); COL['NEW_f2'].objects.link(bpy.data.objects.new('door_e_closed', me))
+for o in bpy.data.objects:
+    if o.type == 'FONT' and o.data.body == 'SWING GATES': o.data.body = 'SWING GATE 13'     # (owner 2026-11-23: only gate 13 swings)
 for l in bpy.data.lights:                                      # (the saved file's sun read 260 for 2.6: set and checked here)
     if l.type == 'SUN': l.energy = float(os.environ.get('TC_SUN', '3.0')); print('SUN', l.name, l.energy)
 def blo(o): b = [o.matrix_world @ Vector(c) for c in o.bound_box]; return min(v.x for v in b) + 200, max(v.x for v in b) + 200, min(v.y for v in b), max(v.y for v in b), min(v.z for v in b), max(v.z for v in b)

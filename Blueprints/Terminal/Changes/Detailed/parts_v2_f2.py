@@ -19,7 +19,7 @@ def cut(x0, x1, z0, z1, h0, h1):
         c = bpy.data.objects.new(o.name + '_cut', me); NEWC.objects.link(c); c['cutcopy'] = 1; o['before_only'] = 1; c['grp'] = o.get('grp'); n += 1
     bpy.context.view_layer.update(); print('CUT', (x0, x1, z0, z1), n, flush=True)
 for a, b in V2['OPEN_F2'] + ((228.3, 230.7),): cut(a, b, 51.2, 52.8, 6.02, 10.2); gold(a, 51.9, b, 52.1, 6.1, 10.2, 'f2', 0.07)
-cut(237.4, 239.7, 67.2, 68.8, 6.02, 9.2); cut(241.5, 247.5, 67.2, 68.8, 6.02, 9.2); cut(236.6, 237.5, 70, 77, 6.02, 9.2); cut(255.0, 255.8, 70, 77, 6.02, 9.2)
+cut(237.4, 239.7, 67.2, 68.8, 6.02, 9.2); cut(241.5, 247.5, 67.2, 68.8, 6.02, 9.2); cut(255.0, 255.8, 70, 77, 6.02, 9.2)
 WX = V2['WALLX']
 # the glass passport wall across the walkway at x 240, floor to ceiling
 quad([P(WX, 52.2, H), P(WX, 67.8, H), P(WX, 67.8, 11.4), P(WX, 52.2, 11.4)], 'GLASS', F)
@@ -69,11 +69,11 @@ lamps(232, 550, (30, 38, 46), 11.55, RF, 7)
 box(228, 34, 551.2, 52, 11.7, 11.8, 'OAK', RF)                   # the wood ceiling under the flat roof
 for x in range(229, 551, 3):                                   # the band of glass between the flat roof and the wave (z 34)
     quad([P(x, 34, 12.4), P(x + 3, 34, 12.4), P(x + 3, 34, max(12.4, soffit(x + 3, 33.6))), P(x, 34, max(12.4, soffit(x, 33.6)))], 'GLASS', RF)
-# the swing lobby in the gap between gates 4 and 13, on columns
-a = Fp['lobby']; box(*a, 5.45, 6.03, 'PLAST', F); box(*a, 6.03, 6.05, 'DWOOD', F); box(a[0], 81.85, a[2], 82, 6, 10.6, 'GLASS', F); box(a[0], a[1], a[2], a[3], 10.6, 10.9, 'ZINC', RF); gold(*a, 6.05, 10.9, 'f2'); sign('SWING GATES', 246, 68.6, 9.8, 6, 0.6, 'n', F)
+# gate 13's swing lobby, in the gap beside gate 4, on columns
+a = Fp['lobby']; box(*a, 5.45, 6.03, 'PLAST', F); box(*a, 6.03, 6.05, 'DWOOD', F); box(a[0], 81.85, a[2], 82, 6, 10.6, 'GLASS', F); box(a[0], a[1], a[2], a[3], 10.6, 10.9, 'ZINC', RF); gold(*a, 6.05, 10.9, 'f2'); sign('SWING GATE 13', 246, 68.6, 9.8, 6, 0.6, 'n', F)
 for x in (239, 246, 253):
     cyl(P(x, 80, 0), P(x, 80, 5.45), 0.3, 'WHITE', F); box(x - 0.05, 81.8, x + 0.05, 82.05, 6, 10.6, 'MUL', F)
-# (gate 4's outside arrivals gallery is held by the owner: not drawn)
+# (gate 4 does not swing: no gallery, no door to its view bay - owner 2026-11-23)
 for g in GX:                                                    # the arrivals cores: the jetway vestibule and the way down
     x = GX[g]
     for (a, b, c, d) in ((x + 20, 77, x + 25, 82), (x + 25, 69, x + 38.4, 82)):
