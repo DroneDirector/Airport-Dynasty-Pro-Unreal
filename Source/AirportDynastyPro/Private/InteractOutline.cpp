@@ -1,5 +1,6 @@
 // The interaction outline (InteractOutline.h).
 #include "InteractOutline.h"
+#include "GSE.h"
 #include "ADPLog.h"
 #include "BabylonModel.h"
 #include "Hangar.h"
@@ -69,6 +70,8 @@ void AInteractOutline::Gather()
 		}
 		// the office wardrobe (its body, not its doors)
 		else if (AWardrobe* Wd = Cast<AWardrobe>(A)) { if (UPrimitiveComponent* B = Wd->BodyPart()) Found.Add(FThing{B, INDEX_NONE, uint64(UPTRINT(B))}); }
+		// a service vehicle of yours standing free (GSEService.cpp; owner, 2026-11-23: the one in the middle of your view)
+		else if (AGSE* Gs = Cast<AGSE>(A)) { TArray<TTuple<UInstancedStaticMeshComponent*, int32, uint64>> V; Gs->SvcGlow(V); for (const auto& X : V) Found.Add(FThing{X.Get<0>(), X.Get<1>(), X.Get<2>()}); }
 		// the hangar doors' buttons (the buttons, not the doors)
 		else if (AHangar* Hg = Cast<AHangar>(A)) { for (UStaticMeshComponent* B : Hg->ButtonList()) Found.Add(FThing{B, INDEX_NONE, uint64(UPTRINT(B))}); }
 	}

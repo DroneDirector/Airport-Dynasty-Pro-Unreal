@@ -36,6 +36,7 @@
 #include "Engine/GameViewportClient.h"
 #include "CollisionQueryParams.h"
 #include "FireTruck.h"
+#include "ServiceDrive.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/Texture2D.h"
@@ -466,7 +467,7 @@ void AADPHUD::ToggleTablet()
 {
 	if (bGame || bHidden || bSettings || bWardrobe || bWhoAreYou || HmiJ != INDEX_NONE || PhoneDir != 0) return;
 	if (bDevice && DeviceKind != TEXT("tablet")) return;   // (the phone or a computer is up)
-	if (Cast<AFireTruck>(GetOwningPawn())) return;        // (not while driving)
+	if (Cast<AFireTruck>(GetOwningPawn()) || Cast<AServiceDrive>(GetOwningPawn())) return;        // (not while driving)
 	if (TabWant < 0.5f)
 	{
 		if (!Tablet.IsValid())
@@ -637,7 +638,7 @@ void AADPHUD::GoNewGameStart()
 void AADPHUD::SavePose()
 {
 	APlayerController* PC = GetOwningPlayerController(); APawn* P = PC ? PC->GetPawn() : nullptr;
-	if (!P || bGame || bInLounge || Cast<AFireTruck>(P) || !bPoseLive) return;
+	if (!P || bGame || bInLounge || Cast<AFireTruck>(P) || Cast<AServiceDrive>(P) || !bPoseLive) return;
 	const FVector L = P->GetActorLocation(); const FRotator R = PC->GetControlRotation();
 	FFileHelper::SaveStringToFile(FString::Printf(TEXT("%.1f %.1f %.1f %.2f %.2f"), L.X, L.Y, L.Z, R.Pitch, R.Yaw), *ADPPoseK::PoseFile());
 }
@@ -647,6 +648,7 @@ bool AADPHUD::RestorePose()
 	FString S; if (!FFileHelper::LoadFileToString(S, *ADPPoseK::PoseFile())) return false;
 	TArray<FString> V; S.TrimStartAndEnd().ParseIntoArrayWS(V); if (V.Num() < 5) return false;
 	APlayerController* PC = GetOwningPlayerController(); APawn* P = PC ? PC->GetPawn() : nullptr; if (!P) return false;
+	if (AServiceDrive* Sd = Cast<AServiceDrive>(P)) { Sd->ExitNow(); P = PC->GetPawn(); if (!P) return false; }
 	if (AFireTruck* T = Cast<AFireTruck>(P)) { T->ExitNow(); P = PC->GetPawn(); if (!P) return false; }
 	if (bGame) ToggleGame();
 	bInLounge = false;

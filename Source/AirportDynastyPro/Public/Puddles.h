@@ -31,6 +31,8 @@ public:
 	/** Wet or dry at once (the panel's wetness slider). */
 	void SetWetness(float W) { Wetness = FMath::Clamp(W, 0.f, 1.f); }
 	float GetWetness() const { return Wetness; }
+	/** How hard it rains now (0 none .. 1). */
+	float GetRain() const { return Rain; }
 
 	/** The ground's weather (to-do 44): snow builds up while it snows and it is cold enough (heavier snow faster) and
 	 *  melts above 0 C (faster in rain and sun); the grass keeps collecting while the paving is ploughed and stays nearly

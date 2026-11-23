@@ -8,6 +8,8 @@
 enum class EStaffTask : uint8;
 
 struct FServiceDoor { const TCHAR *Prefix, *Pivot, *Handle, *Stand; float Deg; bool bSlide; };   // (Deg: to open, the root's yaw)
+struct FServiceCab { const TCHAR* Seat; FServiceDoor Door; };   // (a seat with its own door that its crew never use: yours, also to ride along)
+struct FServiceWiper { const TCHAR *Prefix, *Pivot; FVector Rest, Up; };   // (its blade's end lying down and wiped up, root cm)
 struct FServiceItem { const TCHAR* Part; bool bAtHome, bDeep; FVector Stand; };                   // (its mesh name is also its point; bAtHome: there at the start; bDeep: taken from inside, up over the rear step)
 struct FServiceSpec
 {
@@ -22,6 +24,10 @@ struct FServiceSpec
 	TArray<FServiceItem> Items;
 	TArray<int32> Take, Bring;                              // what person 0 (the driver), 1, 2 .. takes, and carries back instead (-1 the same)
 	TArray<const TCHAR*> Seats;                             // person 1, 2, 3's seat (IK_Seat_*), through door 0
+	TArray<FServiceCab> Cab;
+	TArray<FServiceWiper> Wipers;                           // (pedals: parts Pedal_Accel / Pedal_Brake about PIV_Pedal_*)
+	const TCHAR *LiveryBody = nullptr, *LiveryMain = nullptr;   // its paint slots (material names) that take your airline's colours
+	float PlayerSpeed = 830.f;                              // cm/s at most when you drive it
 	const TCHAR *NameL = nullptr, *NameR = nullptr, *NameRear = nullptr; float NameSize = 17.f, NameRearSize = 6.f;   // where the airport's name goes
 };
 

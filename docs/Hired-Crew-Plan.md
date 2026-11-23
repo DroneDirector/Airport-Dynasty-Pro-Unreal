@@ -128,9 +128,23 @@ Models `Art/CleaningVan` (make_cleaningvan.py) and `Art/CleaningKit` (make_clean
   two full bags down; loaded; home; nose out. `clean` ends when all are off the aircraft, so boarding waits; the flight waits while the van is at the stand (45 min at most).
 - **Parking place moved** to (-259.6, 91): from (-253, 91) the van could only get back in through stand 9. Way in: down x -247.2, round, straight back in.
 - **Stand-ins:** other airlines, and yours with fewer than 2 cleaners: data with its time, as before.
-- **Not there:** no cabin exists (to-do 209), so at the aircraft's door they are hidden and no wiping / vacuuming is seen; no E to sit or drive, no glow outline (the tugs and
-  tractors have none either), no holomap mark (no vehicle has one); passenger door, wipers, pedals not moved; livery colours not set; rolls used and full bags change at the next start.
+- **Not there:** no cabin exists (to-do 209), so at the aircraft's door they are hidden and no wiping / vacuuming is seen.
 - **Not checked:** everything in the game - the hand on the stair rail, the walk past the jetway's drive column, knees at the sliding door, legs along the wing, the 40 s row.
+
+## Part C (2026-11-23, compiled, NOT run): you in every service vehicle (`ServiceDrive.h/.cpp`, hooks in `GSEService.cpp`)
+- **E at a door** (`SvcUse`): you step to the door, hand on the handle, door, climb and seat - the crew's own pose functions on your own body. Driver's door: you drive
+  (30 km/h, throttle / brake keys, V = from behind); the crew's door: the seat nearest it; the `Cab` seat (own door): also to ride along with the crew. E again: braked, out.
+- **Free or taken** (`SvcSeatFree`): idle = all free; on a job the driver's seat only while the whole crew is up in the aircraft, the crew's seats not; `Cab` always while it stands.
+- **The job is never lost:** a waiting job says "you have the cleaning van"; taken at the stand, the crew wait there, and once you have got out its driver fetches it back
+  (`SvcFetch`) and they go on (`SvcReturn`); the flight waits only for the cabin when the van is more than 60 m off. Left where it cannot be driven from: the reason says so.
+- **Solid:** a box against you on foot; while you drive: walls, vehicles, tugs, GPUs stop it, people ahead stop it in time, only the airfield's own surface. It does not pull
+  away with a door open. E at the load doors opens / shuts them (one leaf after the other; no hand pose of yours for that yet).
+- **Stock:** full bags and used rolls stay in the vehicle (`bUsed`) and change only after 30 s shut in its box with nobody in it; left elsewhere, the next crew drives it to its box first.
+- **Wipers** (rain, drive on), **pedals**, the right foot on the pressed one, hands going round with the wheel: shared, for the crew and for you.
+- **Livery:** `SvcLivery` puts `FADPAirline::LiveryBody / LiveryMain` ("#rrggbb") on the model's livery paint. NOTHING sets those two yet: no vehicle in the game takes the
+  airline's colours so far and the airline has no colours; empty = the model's own.
+- **Holomap:** every vehicle and cart of AGSE with its nose (`AGSE::MapShapes`). **Glow:** the body's shell (parts `Body*`) of the one in the middle of your view.
+- **Not checked:** all of it in the game; the mirrored climb on the passenger's side, the wipers on the curved glass (they lift about 1 cm), the glow's thin line round a van.
 
 ### How to add the next vehicle (fuel, catering, water, toilet, stairs, de-icing, ambulift)
 1. Model: the part and point names of `cleaningvan-parts.json` (`Tyre_FL` .., `PIV_Wheel_*`, `PIV_Steer_F*`, `PIV_DoorDriver`, `IK_Stand/Handle/Step_*`, `IK_Seat_*`, `IK_Grab_L`,
@@ -141,7 +155,10 @@ Models `Art/CleaningVan` (make_cleaningvan.py) and `Art/CleaningKit` (make_clean
    (`Lat`, `Aft`, `Far`; right of the aircraft = negative), size, turning circle, doors, things carried, seats, name panels; `bJetway` false for work at the vehicle.
 5. `Turnaround.cpp`: the three `clean` lines (`SvcFor` / `SvcAsk`, `SvcGo`, `SvcBusy`) for its task id.
 6. Work of its own (hoses, a lifting body): a branch in `SvcCabin` (what `bIn` / `RowsDone` mean for it) and its moving parts in `SvcParts`.
-7. Free places: check `Lat` / `Aft` against the van's and the belt loader's (right, 19.6 m aft), the train's (right, ahead of the wing), the GPU, tug and rack boxes.
+7. Yours too, without code: parts `Body*` (glow), `Pedal_Accel` / `Pedal_Brake` with `PIV_Pedal_*`, `IK_Foot_Brake`; in the table `Cab` (a seat with its own door), `Wipers` (part prefix,
+   pivot, the blade end's place lying down and wiped up), `LiveryBody` / `LiveryMain` (material names), `PlayerSpeed`; `Doors[1..]` are the load doors, a vehicle with none leaves only `Doors[0]`.
+   Nothing of its own may hide or show in view: put what changes behind `bUsed` / `SvcRestock`. Hoses and tanks have no hook yet: step 6.
+8. Free places: check `Lat` / `Aft` against the van's and the belt loader's (right, 19.6 m aft), the train's (right, ahead of the wing), the GPU, tug and rack boxes.
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 

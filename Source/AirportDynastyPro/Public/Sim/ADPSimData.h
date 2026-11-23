@@ -25,6 +25,7 @@ USTRUCT() struct FADPAirline
 	UPROPERTY() FString Id;
 	UPROPERTY() FString Name;
 	UPROPERTY() FString Icao;
+	UPROPERTY() FString LiveryMain; UPROPERTY() FString LiveryBody;   // its colours, "#rrggbb" (empty: each vehicle's own; GSEService.cpp SvcLivery)
 	UPROPERTY() FString Hub;
 	UPROPERTY() bool bPlayer = false;
 	UPROPERTY() double Balance = 0.0;

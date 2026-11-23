@@ -308,7 +308,7 @@ void AGSE::Lamps(FTractor& T)
 	// switched on: low beams, tail lamps, the side markers, the amber beacon flashing (airside: always while it moves);
 	// brake lamps bright while slowing and at a standstill with the motor on; the indicators on the side it turns to;
 	// reversing lamps and the beeper backing
-	const bool bRun = T.bOn, bBack = bRun && T.bReverse && T.Path.Num() > 0;
+	const bool bRun = T.bOn, bBack = bRun && T.bReverse && (T.Path.Num() > 0 || T.Player.IsValid());
 	const float F = FMath::Frac(Flash + FMath::Abs(T.Home.X) * 0.0013f);
 	const bool bFlash = bRun && (F < 0.08f || (F > 0.18f && F < 0.26f));
 	const bool bBrake = bRun && (T.BrakeHold > 0.f || T.MeasSpeed < 0.05f);
@@ -924,6 +924,7 @@ void AGSE::Tick(float Dt)
 		if (T.Until) { if (T.Until()) { T.Until = nullptr; TFunction<void()> F = MoveTemp(T.AfterUntil); T.AfterUntil = nullptr; if (F) F(); } }
 		// (in short steps however long the frame is: the steering is worked out from where it is - long steps overshoot a bend)
 		if (T.Path.Num()) { const int32 Ns = FMath::Clamp(FMath::CeilToInt(Dt / 0.03f), 1, 8); for (int32 n = 0; n < Ns && T.Path.Num(); ++n) { Drive(T, Dt / Ns); Train(T, Dt / Ns); } }
+		if (T.Svc != INDEX_NONE && SvcYours(T) && T.PlayerSeat == 0) { const int32 Ns = FMath::Clamp(FMath::CeilToInt(Dt / 0.03f), 1, 5); for (int32 n = 0; n < Ns; ++n) SvcPlayerDrive(T, FMath::Min(Dt, 0.15f) / Ns); }   // (you drive it: ServiceDrive.cpp)
 		T.JobT += Dt;
 		Lamps(T); TractorParts(T, Dt);
 		if (bCheck && (T.Path.Num() || T.Speed > 1.f)) Check(T, i);   // (moving only: a belt loader's bumper on the door sill touches the aircraft on purpose)

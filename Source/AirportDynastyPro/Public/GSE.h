@@ -93,6 +93,9 @@ public:
 		int32 Svc = INDEX_NONE;           // a service vehicle (GSEService.cpp): its line in the table
 		bool IsTrain() const { return !bLoader && Svc == INDEX_NONE; }   // (a baggage tractor)
 		float KDoorDeg = 80.f;
+		TWeakObjectPtr<class AServiceDrive> Player; int32 PlayerSeat = INDEX_NONE;   // (you in it: ServiceDrive.h; 0 the driver's seat, then the crew's, then the Cab seats)
+		float SteerWant = 0.f, BackT = 0.f, PedalA = 0.f, PedalB = 0.f, WipeT = 0.f, WipeNow = 0.f, RainIn = 0.f, BoxT = 0.f; bool bRain = false, bUsed = false;   // (bUsed: full bags or used rolls in it - exchanged shut in its box)
+		int32 GPedal[2] = {INDEX_NONE, INDEX_NONE}, LoadWant = INDEX_NONE; TArray<int32> GWiper; FString Livery;
 		TMap<FString, FVector> Pt;        // (a service vehicle's named points, root cm: Data/<vehicle>-riders.json)
 		struct FSvcDoor { int32 G = INDEX_NONE; FVector Piv = FVector::ZeroVector; float Now = 0.f, Want = 0.f; };
 		TArray<FSvcDoor> SvcDoors;        // (as the table's doors: 0 shut .. 1 open)
@@ -135,6 +138,7 @@ public:
 
 private:
 	friend class ATugs;
+	friend class AServiceDrive;
 	TArray<FTractor> Tractors;
 	TArray<FCart> Carts;
 	TMap<int32, FGpuRig> GpuRigs;
@@ -237,6 +241,12 @@ public:
 	bool HiredWaits(const FString& Flight, float StandX, FString& Why) const;
 private:
 public:
+	/** E at a service vehicle's door (ServiceDrive.h): true when it was that; Say: why not, when it can't be. */
+	bool SvcUse(APawn* Me, FString& Say);
+	/** The vehicles and carts on the holomap (plan metres). */
+	void MapShapes(TArray<FVector4f>& Out) const;
+	/** The interaction outline's pieces of the service vehicles standing free. */
+	void SvcGlow(TArray<TTuple<class UInstancedStaticMeshComponent*, int32, uint64>>& Out) const;
 	/** The turnaround planner's bulk hold task (Turnaround.cpp): the belt loader to that stand. */
 	void BulkHold(float StandX, const FString& Key) { EnsureLoader(StandX, Key); }
 	/** The service vehicles (cabin cleaning first; docs/Hired-Crew-Plan.md): your own flight's turnaround task. Ask: from 8 min
@@ -255,7 +265,7 @@ private:
 	{
 		int32 Svc = 0, Ti = INDEX_NONE, Jet = INDEX_NONE; float StandX = 0.f, RowT = 0.f; FString Reg, Flight, Why; FDateTime When;
 		uint8 Phase = 0;                  // 0 waits for its people, 1 on the way, 2 at the stand, 3 going back
-		bool bGo = false; int32 Rows = 30, RowsDone = 0; float T = 0.f; TArray<FSvcMan> Men;
+		bool bGo = false, bFetch = false; FVector Place = FVector::ZeroVector; float PlaceYaw = 0.f; int32 Rows = 30, RowsDone = 0; float T = 0.f; TArray<FSvcMan> Men;
 	};
 	TMap<int32, FSvcJob> SvcJobs; int32 SvcNext = 1; float SvcClock = 0.f;
 	TMap<int32, TPair<int8, int32>> SvcStairUse;   // (a jetway's service stair: which way it is walked now, and by how many)
@@ -285,6 +295,26 @@ private:
 	void SvcTake(int32 Job, int32 m, bool bTake);
 	void SvcLeave(int32 Job);
 	void SvcHome(int32 Job);
+	void SvcDriveHome(int32 Job, TFunction<void()> Then);
+	void SvcRestock(FTractor& T);
+	void SvcLivery(FTractor& T);
+	/** The vehicle standing at its place for its crew (not with you). */
+	bool SvcHere(int32 Job) const;
+	void SvcReturn(int32 Job, int32 m);
+	void SvcFetch(int32 Job);
+	// ---- you in it (ServiceDrive.cpp)
+	bool SvcYours(const FTractor& T) const;
+	bool SvcSeatFree(int32 Ti, int32 Seat, FString& Why) const;
+	FVector SvcStandL(int32 Ti, int32 Seat) const;
+	FVector SvcStandW(int32 Ti, int32 Seat) const;
+	float SvcFaceYaw(int32 Ti, int32 Seat) const;
+	float SvcClimbTime(int32 Ti, int32 Seat, bool bIn) const;
+	void SvcSeatDoor(int32 Ti, int32 Seat, bool bOpen);
+	bool SvcSeatDoorOpen(int32 Ti, int32 Seat) const;
+	bool SvcRoomAt(int32 Ti, int32 Seat, const AActor* A, const AActor* B) const;
+	TFunction<void(float, float, FDriverPose&)> SvcHandFn(int32 Ti, int32 Seat) const;
+	TFunction<void(float, float, FDriverPose&)> SvcClimbAny(int32 Ti, int32 Seat, bool bIn) const;
+	void SvcPlayerDrive(FTractor& T, float Dt);
 	/** A crew member for a vehicle's job: Pre - the hired person claimed for it; Boss - the vehicle they help at (hired when its driver is). */
 	int32 Borrow(const FVector& Near, int32* Pre = nullptr, int32 Boss = INDEX_NONE, EStaffDuty Duty = EStaffDuty::BaggageHandler);
 	void GiveBack(int32 Ci, float StandX = 0.f);

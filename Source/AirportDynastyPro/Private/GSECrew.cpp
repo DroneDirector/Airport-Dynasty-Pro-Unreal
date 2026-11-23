@@ -128,6 +128,14 @@ TFunction<void(float, float, FDriverPose&)> AGSE::SeatFn(int32 Ti) const
 		P.Pelvis = TW(T, T.KSeat + FVector(0, 0, 10.f)); P.Lean = -4.f;
 		P.Foot[0] = TW(T, T.KBrake); P.Foot[1] = TW(T, T.KAccel); P.FootPitch[0] = P.FootPitch[1] = 20.f;
 		P.bHand[0] = P.bHand[1] = true; P.Hand[0] = TW(T, T.KHandL); P.Hand[1] = TW(T, T.KHandR); P.Grip[0] = P.Grip[1] = 1.f;
+		if (T.Svc == INDEX_NONE) return;
+		// (a service vehicle: the hands go round with the wheel and slide back on its rim; the right foot on the pedal that is
+		//  pressed - yours, or as it speeds up and slows - the pedal going down with it)
+		const FQuat Q(FVector(-0.7071f, 0.f, 0.7071f), FMath::DegreesToRadians(50.f * FMath::Sin(FMath::DegreesToRadians(-T.Steer * 4.f))));
+		P.Hand[0] = TW(T, T.KWheelC + Q.RotateVector(T.KHandL - T.KWheelC)); P.Hand[1] = TW(T, T.KWheelC + Q.RotateVector(T.KHandR - T.KWheelC));
+		const FVector* Bk = T.Pt.Find(TEXT("IK_Foot_Brake")); const float B = FMath::SmoothStep(0.05f, 0.35f, T.PedalB);
+		if (Bk) P.Foot[1] = TW(T, FMath::Lerp(T.KAccel, *Bk, B) + FVector(3.f * FMath::Max(T.PedalA, T.PedalB), 0.f, 2.f * FMath::Sin(PI * B)));
+		P.FootPitch[0] = 8.f;
 	};
 }
 

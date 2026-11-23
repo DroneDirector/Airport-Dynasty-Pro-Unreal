@@ -35,6 +35,8 @@ static bool GTourTracking = false;   // (the tug tour's tracking camera has a su
 #include "PerfLog.h"
 #include "Components/CapsuleComponent.h"
 #include "FireTruck.h"
+#include "GSE.h"
+#include "ServiceDrive.h"
 #include "WashHose.h"
 #include "InteractOutline.h"
 #include "Seats.h"
@@ -384,7 +386,7 @@ void AADPHUD::BeginPlay()
 	HoloMap = SNew(SHoloMap);
 	HoloMap->SetPlan(Plan);
 	HoloMap->SetHeading(AAirfield::Shared().Heading);
-	HoloMap->LiveJetways = [this](TArray<FVector4f>& Out) { if (UWorld* Wd = GetWorld()) for (TActorIterator<AJetwayRigs> It(Wd); It; ++It) { It->MapShapes(Out); break; } };   // (the jetways on the map, live)
+	HoloMap->LiveJetways = [this](TArray<FVector4f>& Out) { if (UWorld* Wd = GetWorld()) for (TActorIterator<AJetwayRigs> It(Wd); It; ++It) { It->MapShapes(Out); break; } if (const AGSE* Gs = AGSE::Find(GetWorld())) Gs->MapShapes(Out); };   // (the jetways on the map, live)
 	// (the compass strip reads the map's bearing: set up below, once the strip is made)   // (the compass: true directions on the real globe)
 	HoloMap->OnOpen = [this]() { ToggleMap(); };
 	Settings = MakeSettings();
@@ -1967,6 +1969,7 @@ void AADPHUD::Interact()
 	if (!PC || bGame || bDevice || PhoneDir != 0 || bSettings || bPointer || (HoloMap.IsValid() && HoloMap->IsFull())) return;
 	// in a fire truck: E / X gets you out (FireTruck.h)
 	if (AFireTruck* T = Cast<AFireTruck>(GetOwningPawn())) { T->Exit(); return; }
+	if (AServiceDrive* T = Cast<AServiceDrive>(GetOwningPawn())) { T->Exit(); return; }   // (in a service vehicle: ServiceDrive.h)
 	if (Drone.IsValid()) return;   // (a drone presses nothing)
 	// the jetway's control panel menu open: E closes it (JetwayRigs.h)
 	if (bJetMenu) { CloseJetMenu(); return; }
@@ -2034,6 +2037,8 @@ void AADPHUD::Interact()
 	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton)) if (ABaggageBelts* Bb = ABaggageBelts::Get(GetWorld())) if (APawn* Me = GetOwningPawn()) if (Bb->Interact(nullptr, Me->GetActorLocation() + Me->GetActorForwardVector() * 60.f)) return;
 	// a coach's door or luggage bay you stand by (Coaches.h)
 	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton)) if (ACoaches* Co = ACoaches::Find()) if (Co->Use(GetOwningPawn())) return;
+	// a service vehicle's door you stand by (ServiceDrive.h): in, or why not
+	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton)) if (AGSE* Gs = const_cast<AGSE*>(AGSE::Find(GetWorld()))) { FString Say; if (Gs->SvcUse(GetOwningPawn(), Say)) { if (!Say.IsEmpty()) Hint(Say); return; } }
 	// a chair, stool, bench or gate seat right by you: sit down (Seats.h)
 	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton) && ASeats::Interact(GetOwningPawn())) return;
 	// a fire truck right beside you that you face: in, even when the aim missed it
@@ -2113,6 +2118,7 @@ void AADPHUD::OpenTownPlace(const FString& Id)
 
 void AADPHUD::GoTo(const FVector& PlanAt, const FVector& PlanLook)
 {
+	if (AServiceDrive* Sd = Cast<AServiceDrive>(GetOwningPawn())) Sd->ExitNow();
 	if (AFireTruck* T = Cast<AFireTruck>(GetOwningPawn())) T->ExitNow();   // out of a truck first: the quick-starts move you, not it
 	APawn* P = GetOwningPawn();
 	if (!P) return;
