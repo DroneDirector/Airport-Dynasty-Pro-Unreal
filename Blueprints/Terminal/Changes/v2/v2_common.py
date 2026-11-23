@@ -146,8 +146,7 @@ F = {'queue': (231, 24, 248, 52), 'line': (248, 24, 256, 52), 'dutyfree': (258, 
      'wc2': (400, 39, 424, 52), 'lounge': (426, 24, 470, 52), 'seating': (472, 24, 520, 52), 'shops2': (522, 24, 551.2, 38),
      'wc3': (522, 40, 551.2, 52), 'strip': (228, 20, 307, 24), 'exit_lane': (228, 24, 231, 52), 'gallery': (307, 20, 551.2, 24),
      'lobby': (237.05, 68, 255.4, 82), 'slab': (228, 20, 551.2, 52)}
-AISLE4 = (194.5, 82.2, 303, 84.8)                               # gate 4's closed arrivals gallery, glass, outside the windows
-VEST4 = (188, 78, 196.8, 82)                                    # gate 4's jetway vestibule (its jetway: x 191.05)
+# (gate 4's outside arrivals gallery and its vestibule: dropped, owner 2026-11-23 - gate 4 stays Schengen, only gate 13 swings)
 JETWAYS = {4: (191.05,), 13: (309.4, 314.4, 321.4), 14: (389.2, 399.2), 15: (461.5, 471.5), 16: (533.8, 543.8)}   # Data/babylon-jetways.json
 OPEN_F2 = ((231.5, 239.3), (262, 286), (344, 396), (474, 518))  # the walkway's south wall opened (z 52)
 ENTR_E = ((188, 200), (290, 300), (396, 406), (514, 526))       # new entrance vestibules, 4 m deep (as built, 2026-11-23: the first 2 m, the last 10 m east - clear of the kerb pillars x 184, 506 and of stair 516)
@@ -309,7 +308,6 @@ def after_f2(ax, lw=1.6):
     new(ax, F['lobby'], fc='#3a3410', lw=lw + 0.6, z=5)
     for g in GATE_X0:
         v, c = core_f2(g); ns(ax, v, fc='#55203a', z=7, lw=lw); ns(ax, c, fc='#45152c', z=7, lw=lw)
-    ns(ax, AISLE4, fc='#45152c', z=8, lw=lw, ls='--'); ns(ax, VEST4, fc='#55203a', z=8, lw=lw)
     for x, z0, z1 in PARTY.values(): ax.plot([x, x], [z0, z1], color='#1a0c14', lw=6, zorder=9); ax.plot([x, x], [z0, z1], color=OK, lw=2.5, ls=':', zorder=10)
     gate_stairs(ax, True)
     for g in (13, 14, 15, 16):                                    # the jetway doors in the view bays' glass; the dead doors glazed

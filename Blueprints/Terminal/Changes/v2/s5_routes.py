@@ -30,7 +30,7 @@ for x in (385, 458, 530): route(U, [(x - 60, 56.5), (x, 56.5), (x, 72)], NS, 3.5
 txt(D, 78, 7, 'check-in', FG, 13, bbox=dict(fc=BG, ec='none', pad=1)); txt(D, 96, 36, 'security', FG, 13); txt(D, 33, 20, 'escalators up', FG, 13); txt(D, 206, 14, 'long-haul check-in', NEW, 13); txt(D, 131, -8, 'link gallery', NEW, 13)
 txt(U, 36, 24, 'up from the\nescalator room', FG, 13); txt(U, 205, 30, 'passport\ncontrol out', SCH, 14); txt(U, 274, 33, 'duty free', DF, 13); txt(U, 370, 38, 'concourse', NEW, 15); txt(U, 246, 89, 'glass wall at x 240', GLASS, 13)
 words(fig, [(SCH, 'SCHENGEN: entrance, check-in / kiosk / bag drop, boarding-pass gate, security, escalators, walkway, gates 1-12 (tax free, food and bar on the way). They can never pass the wall.'),
-            (NS, 'NON-SCHENGEN: the same, then passport control OUT beside the walkway, duty free, concourse or walkway, gates 13-16 (and gate 4 when it is swung).'),
+            (NS, 'NON-SCHENGEN: the same, then passport control OUT beside the walkway, duty free, concourse or walkway, gates 13-16.'),
             (NEW, 'LONG-HAUL CHECK-IN is in the East Hall; from there the link gallery leads back to the one security point (about 115 m indoors).'),
             (OK, 'FORBIDDEN MIXING, checked: a Schengen boarding pass opens nothing beyond x 240; after the passport check there is no way back except through staff or transfer control.'),
             (GLASS, 'REAL RULE, security: one central screening for both sides (Regulation 300/2008). REAL RULE, border: exit check in Switzerland before boarding (Schengen Borders Code, Annex VI 2.1).')])
@@ -41,12 +41,11 @@ fig, U, D = two('SHEET 5b', 'ARRIVALS', 'Green: from a Schengen country. Pink: f
 for x, z in ((181, 72), (100, 72), (20, 72)): route(U, [(x, z), (x, 62), (-40, 62), (-74, 62), (-74, 51)], ARRS, 4.5)
 route(U, [(-143, 62), (-120, 62), (-84, 62)], ARRS, 4.5)
 for g in GATE_X0: a = GATE_X0[g]; route(U, [(JETWAYS[g][0], 88), (JETWAYS[g][0], 79.5), (a + 46, 79.5), (a + 38, 78)], ARRN, 4)
-route(U, [(191, 88), (191, 80), (195.5, 80), (195.5, 83.6), (301, 83.6), (301, 79)], ARRN, 3, ls=(0, (3, 1.5)))
 route(D, [(-72, 48), (-72, 36), (-55, 18.8), (-40, 18.8), (-40, 2), (-40, -20)], ARRS, 5)
 for g in (16, 15, 14): a = GATE_X0[g]; route(D, [(a + 42, 74), (a + 42, 65.6), (349, 65.6)], ARRN, 4)
 route(D, [(297.8, 74), (297.8, 65.6), (337, 65.6)], ARRN, 4); route(D, [(343, 65.6), (343, 40), (326, 34)], ARRN, 5); route(D, [(326, 34), (306, 34), (296, 34)], ARRN, 5); route(D, [(296, 30), (284, 20.6), (270, 20.6), (238, 28)], ARRN, 5); route(D, [(238, 28), (224, 28), (192, 10), (192, -22)], ARRN, 5)
 txt(D, -40, 49, 'duty free', NEW, 12, bbox=dict(fc=BG, ec='none', pad=1)); txt(D, -18, 12, 'customs', FG, 12); txt(D, -75, -22, 'taxi', NEW, 13); txt(D, 276, 43, 'claim', NS, 13); txt(D, 232, 44, 'customs', NS, 11, rotation=90); txt(D, 352, 24, 'passport\ncontrol in', NS, 14); txt(D, 440, 58, 'closed corridor', NS, 14); txt(D, 176, 14, 'East Hall', NEW, 13); txt(D, 222, -22, 'taxi', NEW, 13)
-txt(U, 350, 60, 'no arriving passenger ever walks here', NS, 15); txt(U, -40, 57, 'walkway', DIM, 13); txt(U, 245, 89.5, 'gate 4 when swung (dashed)', NS, 12)
+txt(U, 350, 60, 'no arriving passenger ever walks here', NS, 15); txt(U, -40, 57, 'walkway', DIM, 13)
 words(fig, [(ARRS, 'SCHENGEN: gate, walkway, escalators down, claim hall west (duty free, toilets, trolley, belt, lost and found), customs green or red, one-way doors, arrivals hall, taxi / coach / car park.'),
             (ARRN, 'NON-SCHENGEN: jetway, down at the gate, closed corridor under the walkway, passport control in (EES kiosks, booths, e-gates), claim hall east, customs, East Hall, taxi / coach station.'),
             (OK, 'Schengen arrivals MAY meet departing Schengen passengers on the walkway: they were screened in a Schengen / EU airport (300/2008, 4.2 a).'),
