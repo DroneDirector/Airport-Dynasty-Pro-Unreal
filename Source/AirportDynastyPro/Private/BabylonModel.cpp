@@ -1262,6 +1262,19 @@ int32 ABabylonModel::OpenPassengerDoors()
 	return N;
 }
 
+float ABabylonModel::StaffDoor(const FVector& World, bool bOpen)
+{
+	for (const TWeakObjectPtr<ABabylonModel>& W : AllModels)
+		if (ABabylonModel* M = W.Get())
+			for (FDoor& D : M->Doors)
+			{
+				if (D.bSlide || D.bSpin || FMath::Abs(D.AtW.Z - World.Z) > 150.f || FVector::DistSquared2D(D.AtW, World) > FMath::Square(200.f)) continue;
+				if (bOpen) { D.bOpen = true; D.Away = 0.f; }
+				return D.K;
+			}
+	return -1.f;
+}
+
 bool ABabylonModel::UseDoor(const APawn* Me)
 {
 	if (!Me) return false;

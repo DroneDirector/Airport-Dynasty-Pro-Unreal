@@ -173,6 +173,7 @@ USTRUCT() struct FADPPerson
 	UPROPERTY() TArray<FString> Types;     // type ratings
 	UPROPERTY() FString Home;              // where they live (the town)
 	UPROPERTY() FString Shift;             // early | day | late | night
+	UPROPERTY() FString Face;              // their body in the 3D airport (a built MetaHuman; ground staff, to-do 206 - StaffPeople.h)
 	UPROPERTY() double DutyMin = 0.0;      // minutes on duty since the last rest (pilots)
 	UPROPERTY() FDateTime RestUntil;       // resting until (also: sick until, notice until)
 	UPROPERTY() FString Training;          // the type rating being trained for (empty: none)

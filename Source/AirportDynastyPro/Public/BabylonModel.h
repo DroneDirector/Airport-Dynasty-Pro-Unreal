@@ -125,6 +125,9 @@ public:
 	static bool DoorNear(const FVector& Feet, const FVector& Facing, bool& bIsOpen);
 	/** E / X at a hinged door you face: opens or closes it. True when there was one. */
 	static bool UseDoor(const APawn* Me);
+	/** A hinged staff door whose middle is within 2 m of a point, for staff (their badge): bOpen keeps it open this frame (it
+	 *  shuts by itself 4 s after the last one). How far it is open (0..1); -1: no such door here. */
+	static float StaffDoor(const FVector& World, bool bOpen);
 	/** For the -UIDoorRule test: a hinged door's place (world) and how many doors slide / swing. */
 	static bool TestHingedDoor(FVector& At, int32& NSlide, int32& NHinged);
 	/** The passengers' sliding doors (entrances, arrivals, security, into the airside lobby) opened now: the walkers' map

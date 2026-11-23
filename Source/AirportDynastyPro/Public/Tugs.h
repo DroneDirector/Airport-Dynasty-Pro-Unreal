@@ -69,6 +69,7 @@ public:
 	bool AllDone() const;
 
 private:
+	friend class UStaffPeople;   // (your hired people, to-do 206: the way round the vehicles)
 	friend class AGSE;   // (the baggage tractors and carts: GSE.h - the same ground crew, the same apron)
 	enum class EState : uint8 { Parked, ToStand, Waiting, ToNose, Hooked, Unhook, Backing, Home, Boarding, Coupling, ShowPin, Manned };   // (Manned: the driver in it, engine off, ready for the aircraft coming in)
 	// ---- the crew (owner 2026-11-21: "the person driving the pushback truck ... exit the truck and connect"): MetaHumans of
