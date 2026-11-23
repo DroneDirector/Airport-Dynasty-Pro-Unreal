@@ -15,7 +15,7 @@ public class AirportDynastyPro : ModuleRules
 		ExternalDependencies.Add(VersionFile);   // a new number rebuilds
 		PublicDefinitions.Add("ADP_PC_VERSION=\"" + Version + "\"");
 		PublicSystemLibraries.AddRange(new string[] { "sapi.lib", "ole32.lib", "shlwapi.lib", "shell32.lib" });   // Windows' voices (announcer fallback)
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "AssetRegistry", "GeometryFramework", "GeometryCore", "MeshConversion", "MeshDescription", "StaticMeshDescription", "InputCore", "Json", "JsonUtilities", "MassEntity", "Slate", "SlateCore", "ApplicationCore", "RHI", "RenderCore", "WebBrowser", "UMG", "CesiumRuntime", "ImageWrapper", "HTTP", "NNE", "ProceduralMeshComponent", "CableComponent", "MetaRoad", "MetaRoadMeshBuild", "AnimationCore", "ADPFrameGen", "BinkMediaPlayer", "HairStrandsCore", "NavigationSystem",
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "AssetRegistry", "GeometryFramework", "GeometryCore", "MeshConversion", "MeshDescription", "StaticMeshDescription", "InputCore", "Json", "JsonUtilities", "MassEntity", "Slate", "SlateCore", "ApplicationCore", "RHI", "RenderCore", "WebBrowser", "UMG", "CesiumRuntime", "ImageWrapper", "HTTP", "NNE", "ProceduralMeshComponent", "CableComponent", "MetaRoad", "MetaRoadMeshBuild", "AnimationCore", "ADPFrameGen", "BinkMediaPlayer", "HairStrandsCore", "NavigationSystem", "Navmesh",
 			// the built MetaHumans' blueprints use LiveLink's types: without these linked the packaged game crashed reading them (0.17.7)
 			"LiveLinkInterface", "LiveLinkAnimationCore" });
 	}

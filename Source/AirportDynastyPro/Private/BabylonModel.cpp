@@ -9,6 +9,7 @@
 static FString GRoadsProbe;   // (the road network's data is there: the model's own landside steps aside)
 #include "Misc/PackageName.h"
 #include "ADPLog.h"
+#include "PaxNav.h"
 #include "TerminalBuilder.h"
 #include "Components/StaticMeshComponent.h"
 #include "Sound/SoundBase.h"
@@ -1016,6 +1017,7 @@ void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, c
 
 void ABabylonModel::MovePart(FPart& P, float E, float Spin)
 {
+	if (P.bSpin && PaxNav::Making()) return;   // (a revolving door stands still while the walkers' map is made)
 	FTransform L = P.Base;
 	if (P.Slide != 0) L.AddToTranslation(L.GetRotation().RotateVector(FVector(P.Slide * E, 0, 0)));
 	if (P.Swing != 0) L.SetRotation(L.GetRotation() * FQuat(FVector::UpVector, P.Swing * E));

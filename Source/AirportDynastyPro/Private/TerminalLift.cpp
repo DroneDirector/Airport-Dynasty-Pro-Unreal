@@ -1,5 +1,6 @@
 #include "TerminalLift.h"
 #include "ADPLog.h"
+#include "PaxNav.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
@@ -61,6 +62,7 @@ void ATerminalLift::Build(float X0, float X1, float Z0, float Z1, float D0, floa
 		LandDoors[f].Add(Box(GetRootComponent(), FVector(X0 - 0.16f, Y0, D0), FVector(X0 - 0.12f, Y0 + 2.3f, Mid), TEXT("MI_T_liftBrushed")));
 		LandDoors[f].Add(Box(GetRootComponent(), FVector(X0 - 0.16f, Y0, Mid), FVector(X0 - 0.12f, Y0 + 2.3f, D1), TEXT("MI_T_liftBrushed")));
 	}
+	PaxNav::NoNav(this);   // (it moves every frame: in the walkers' map while that is made it was changed under its threads - an engine check in the log, 2026-11-23)
 	ADP_LOG(TEXT("Lift: the staff lift to the offices, its car %.1f x %.1f m between Floor 1 and Floor 2"), X1 - X0, Z1 - Z0);
 }
 

@@ -3,6 +3,9 @@
 // floors and walls, both floors, and the landside car park and forecourt; never the whole world. The terminal plan's
 // unfinished rooms (kind "empty") are cut out. Moving things (people, bags, belts, vehicles, doors, jetways) never
 // affect it, so it is never rebuilt while the game runs; the walls do. PaxFlow walks every leg of its ways along it.
+// Since 2026-11-23 it comes ready-made: baked for the release (-PaxNavBake, Tools/bake_paxnav.sh -> the site's paxnav.bin)
+// and loaded in a moment; only when the terminal, the roads or the walker changed since (its key) is it generated, and
+// then kept in Saved/PaxNav for the next start (-NoPaxNavFile: always generated, to compare).
 #pragma once
 
 #include "CoreMinimal.h"
@@ -19,6 +22,9 @@ namespace PaxNav
 	/** As early as possible (the loading screen, the passenger flow): starts the navmesh once the terminal is in. */
 	void Kick(UWorld* W);
 	bool Started(UWorld* W);
+	/** The map is being made in this run (no ready-made one): the revolving doors stand still meanwhile - every turn of them
+	 *  made it start over (1500 changed places a second, 2026-11-23), and it was never finished. */
+	bool Making();
 	/** Not ready 2 minutes after it started (warned): carry on without it. */
 	bool Failed(UWorld* W);
 	/** Tile jobs still to do (for the loading screen). */
@@ -33,4 +39,8 @@ namespace PaxNav
 	/** A walk from one point to another on the navmesh: the corner points (from and to included). OffMesh when either
 	 *  end is off the navmesh (a jetway, an escalator), NoWay when both are on it but nothing joins them. */
 	EPath Path(UWorld* W, const FVector& From, const FVector& To, TArray<FVector>& Out);
+	/** A check of the map: from the middle of the Grand Hall (Floor 2: its landing) to the middle of every other room on
+	 *  that floor where passengers walk, and to the forecourt - how many can be reached, how far in all (to compare a
+	 *  made map with the ready-made one). */
+	FString Check(UWorld* W);
 }
