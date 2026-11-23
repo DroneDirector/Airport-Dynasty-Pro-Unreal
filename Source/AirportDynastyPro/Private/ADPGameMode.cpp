@@ -48,6 +48,7 @@ class UWorld; namespace ADPBilingual { void Apply(UWorld* W); }
 #include "TimerManager.h"
 #include "EngineUtils.h"
 #include "RoadSigns.h"
+#include "SoffitLights.h"
 #include "StreetLights.h"
 #include "TowerADC.h"
 #include "Hangar.h"
@@ -136,6 +137,8 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 		if (ATowerADC* Tower = W->SpawnActor<ATowerADC>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Tower->Build();
 		// the apron light masts, one in front of each gate and two in front of each hangar
 		if (ALightMasts* MastsA = W->SpawnActor<ALightMasts>(FVector::ZeroVector, FRotator::ZeroRotator, P)) MastsA->Build();
+		// the light under the terminal's wave roof: the sky's by day, its downlights' by night
+		if (ASoffitLights* Soffit = W->SpawnActor<ASoffitLights>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Soffit->Build();
 		// a windsock near each runway end, turning into the wind
 		if (AWindSocks* Socks = W->SpawnActor<AWindSocks>(FVector::ZeroVector, FRotator::ZeroRotator, P)) Socks->Build();
 		// the airfield round the terminal, and its traffic

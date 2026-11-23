@@ -2,7 +2,7 @@
 # docs/Blueprints/Terminal-Changes/v2, geometry Blueprints/Terminal/Changes/v2/v2_common.py) - x 156..551.2, z 0..52 under
 # the existing wave roof (open grass until now), and the double-skin front x 114..156 with the link gallery x 107..162.
 # In the terminal plan's metres and the terminal's own materials; every new part in Art/TerminalEast/:
-#   east_solid, east_glass_*     floor (M_Marble, laid by world position: lines up with the Grand Hall's), the front at z 0 up
+#   east_solid_*, east_glass_*   floor (M_Marble, laid by world position: lines up with the Grand Hall's), the front at z 0 up
 #                                to the wave roof (the Grand Hall's own mullions 8 x 14 cm and glass, MI_T_glassOuter), the
 #                                second skin and the link gallery, the east end wall, the flat roof z 34..52 with the glass
 #                                band under the wave's back edge, the partitions of sheets 2c/2d with their doorways, the
@@ -12,7 +12,8 @@
 #   east_f2_plug                 the lid on that opening until the transfer stair is built (drop its node then)
 #   east_f2_rail(_glass)         the Floor 2 edge's balustrade (z 20), in a piece of its own: part 4 opens it at the escape stairs
 #                                (sheet 9: their places may still move)
-#   east_pave                    the paving from the pavement's edge (z -8.2, 18 cm up) down to the doors (z -4.2)
+#   east_pave                    the paving from the pavement's edge (z -8.2, 18 cm up) down to the doors (z -4.2), along the whole
+#                                terminal: the arrivals wing, the escalator room, the Grand Hall and the east side (x -120..557)
 #   east_prom_wall               the promenade's wall (z 6, x 228..470), in a piece of its own for the same reason: no stair
 #                                doorways in it yet (STAIR_DOORS below)
 #   east_col_g / _f2 / _hall     the round stone columns (instanced)
@@ -126,34 +127,43 @@ def front_z(G, z, x0, x1, holes=()):
 TAG[0] = 'floor'
 S.box(X0, X1 + 0.1, -0.02, 0.01, -0.1, ZN + 0.05, MARBLE, sides=('+y',))
 S.box(X0, X1 + 0.1, -0.35, 0.01, -0.1, ZN + 0.05, 'MI_T_concrete', sides=('-z', '+x'))         # its edge, down into the ground
-# ---- the paving between the road network's pavement (it ends 8.2 m out here, 18 cm up: Tools/make_roads.py) and the doors:
-#      the pavement's own material, sloping down 4 % to the floor's level at the vestibules (z -4.2), level from there; at both
-#      ends (x 109.5..113.9, 551.4..555) the slope runs out so it meets the full pavement with no step
+# ---- the paving between the road network's pavement (it ends 8.2 m out along the terminal, 18 cm up: Tools/make_roads.py) and
+#      the doors: the pavement's own material, sloping down 4 % to the floors' level at the vestibules and the arrivals wing's
+#      front (z -4.2), level from there; at both ends (x -85.0..-80.6, 551.4..555) the slope runs out so it meets the full
+#      pavement with no step. (2026-11-23: along the Grand Hall and the arrivals wing too - the pavement used to stand 18 cm over
+#      their floors and lay over the vestibules', the mats and the arrivals hall's first 4 m; west of the wing, x -120.4..-85,
+#      it only carries the pavement on at its own height, where the stands narrow away)
 PV = Piece('east_pave'); GW = 'MI_gwalk'; TOPP, LOW = 0.185, 0.005
 def sm1(t): return min(1.0, max(0.0, t))
-def xf(x): return min(sm1((x - 109.5) / 4.4), sm1((555.0 - x) / 3.6))
-def pave(x, z): return TOPP - (TOPP - LOW) * sm1((z + 8.2) / 4.0) * xf(x)
+def xf(x): return min(sm1((x + 85.0) / 4.4), sm1((555.0 - x) / 3.6))
+# (in front of Entrance West's and East's revolving doors, x 50 and 101: their drums stand out to z -5.6, so the paving is level
+#  from z -5.7 there and its slope, the same 4.4 %, starts at z -9.8 - the pavement ends 9.8 m out between x 42 and 109)
+DRUMS = (50.0, 101.0)
+def dip(x):
+    t = max(sm1((4.9 - abs(x - c)) / 3.0) for c in DRUMS); return t * t * (3 - 2 * t)
+def pave(x, z):
+    d = dip(x); return TOPP - (TOPP - LOW) * xf(x) * (sm1((z + 8.2) / 4.0) * (1 - d) + sm1((z + 9.8) / 4.1) * d)
 def pq(xa, xb, za, zb):
     q = [(xa, pave(xa, za), za), (xb, pave(xb, za), za), (xb, pave(xb, zb), zb), (xa, pave(xa, zb), zb)]
     f = PV.face(q, GW); PV.want.append((f, (0, 0, 1)))
     for l, (x, y, z) in zip(f.loops, q): l[PV.uv].uv = (x / 10.0, z / 10.0)
     rec(PV, xa, xb, min(v[1] for v in q), max(v[1] for v in q), za, zb, GW)
-_xs = [106.9, 109.5] + [109.5 + 0.55 * i for i in range(1, 9)] + [113.9 + 10.0 * i for i in range(1, 44)] + [551.3, 551.4] + [551.4 + 0.45 * i for i in range(1, 9)] + [557.0]
-_xs = sorted({round(v, 3) for v in _xs}); _zs = [-8.25, -8.2, -7.2, -6.2, -5.2, -4.2, -0.1]
+WEST_END = -120.4
+_xs = [WEST_END, -110.0, -100.0, -92.0] + [-85.0 + 0.55 * i for i in range(9)] + [-80.2] + [-70.0 + 10.0 * i for i in range(7)] + [0.0] + [10.0 * i for i in range(1, 12)] + [113.9 + 10.0 * i for i in range(44)] + [41.7, 109.7] + [c + 0.5 * i for c in DRUMS for i in range(-10, 11)] + [551.3, 551.4] + [551.4 + 0.45 * i for i in range(1, 9)] + [557.0]
+_xs = sorted({round(v, 3) for v in _xs}); _zs = [-8.25, -8.2, -7.2, -6.2, -5.2, -4.2]
+def z_back(xa, xb):                                    # how far in: past the building's ends 10 cm past its line; to the arrivals wing's floor (z -4); to the front's floors
+    return 0.1 if xb <= -80.19 or xb > 551.31 else -3.96 if xb <= 0.0 else 0.04 if xb <= 110.0 else -0.1
 for xa, xb in zip(_xs, _xs[1:]):
-    for za, zb in zip(_zs, _zs[1:] if xb <= 551.31 else _zs[1:-1] + [0.1]): pq(xa, xb, za, zb)
-for xa, xb in zip(_xs, _xs[1:]):                       # (its free edge beside the building's east end, down into the ground)
-    if xa >= 551.29: put(PV, [(xa, -0.35, 0.1), (xb, -0.35, 0.1), (xb, pave(xb, 0.1), 0.1), (xa, pave(xa, 0.1), 0.1)], GW, (0, 0, 1))
-# the link gallery's floor: level with the East Hall's, up a 4 % ramp to Entrance East's at its west end
-_lx = [107.0, 109.5] + [round(109.5 + 0.55 * i, 3) for i in range(1, 9)] + [LINK_X1]
-def ly(x): return 0.011 + 0.185 * (1.0 - sm1((x - 109.5) / 4.4))
-_lx = sorted(set(_lx) | {114.0})
-for xa, xb in zip(_lx, _lx[1:]):
-    ze = 0.0 if xb <= 114.0 else -0.1 if xa >= X0 else -0.08          # (to the Grand Hall's floor, the bag block's wall, the East Hall's floor)
-    if xa < X0 < xb: xs2 = [(xa, X0, -0.08), (X0, xb, -0.1)]
-    else: xs2 = [(xa, xb, ze)]
-    for a_, b_, z_ in xs2: put(S, [(a_, ly(a_), -4.0), (b_, ly(b_), -4.0), (b_, ly(b_), z_), (a_, ly(a_), z_)], MARBLE, (0, 1, 0)); rec(S, a_, b_, -0.02, ly(a_), -4.0, z_, MARBLE)
-    if xb <= 114.0: put(S, [(xa, -0.02, 0.0), (xb, -0.02, 0.0), (xb, ly(xb), 0.0), (xa, ly(xa), 0.0)], 'MI_T_steel', (0, 0, 1))   # (the ramp's side, seen through the hall's glass)
+    zz = _zs + [z_back(xa, xb)]
+    if 41.69 <= xa and xb <= 109.71: zz = [-9.85, -9.8, -9.3, -8.8] + _zs[1:4] + [-5.7] + _zs[4:] + [z_back(xa, xb)]
+    for za, zb in zip(zz, zz[1:]): pq(xa, xb, za, zb)
+for xa, xb in zip(_xs, _xs[1:]):                       # (its free edges beside the building's two ends, down into the ground)
+    if z_back(xa, xb) == 0.1: put(PV, [(xa, -0.35, 0.1), (xb, -0.35, 0.1), (xb, pave(xb, 0.1), 0.1), (xa, pave(xa, 0.1), 0.1)], GW, (0, 0, 1))
+# the link gallery's floor: level with the East Hall's and Entrance East's (its 4 % ramp up to the pavement's old height there
+# is gone with the step, 2026-11-23)
+LY = 0.011
+for xa, xb, ze in ((107.0, 114.0, 0.0), (114.0, X0, -0.08), (X0, LINK_X1, -0.1)):          # (to the Grand Hall's floor, the bag block's wall, the East Hall's floor)
+    put(S, [(xa, LY, -4.0), (xb, LY, -4.0), (xb, LY, ze), (xa, LY, ze)], MARBLE, (0, 1, 0)); rec(S, xa, xb, -0.02, LY, -4.0, ze, MARBLE)
 S.box(LINK_X0, LINK_X1, -0.35, 0.01, -4.0, -0.1, 'MI_T_concrete', sides=('-z', '+x'))
 # ======================================================================================================== the front (z 0)
 TAG[0] = 'front'
@@ -323,12 +333,21 @@ def z6_spans(x0, x1, y0):
     return sp
 for k in range(17):
     for a, b in z6_spans(242.0 + 14 * k, min(244.0 + 14 * k, 470.0), 0.01): S.box(a, b, 0.01, 4.0, 5.84, 5.9, CEDAR, sides=('-z', '-x', '+x'))
+for k in range(17):                                    # (2026-11-23: a slim light on each pier - a black plate, a glowing slot: no real light of its own)
+    c = 243.0 + 14 * k
+    if c < 470.0: S.box(c - 0.09, c + 0.09, 1.5, 3.5, 5.815, 5.84, 'MI_T_black', sides=('-z', '-x', '+x', '-y', '+y')); S.box(c - 0.035, c + 0.035, 1.56, 3.44, 5.775, 5.815, LED, sides=('-z', '-x', '+x', '-y', '+y'))
 S.box(227.9, 470.1, 4.0, CEIL, 5.82, 5.9, OAK, sides=('-z', '-y', '-x', '+x')); S.box(228.0, 470.1, 4.0, 4.03, 5.80, 5.82, LED, sides=('-z', '-y', '+y'))
 for a, b in z6_spans(227.9, 470.1, 0.01): S.box(a, b, 0.01, 0.12, 5.885, 5.9, 'MI_T_steel', sides=('-z', '+y', '-x', '+x'))
 S.box(227.9, 470.16, CEIL, CEIL + 0.04, 5.8, 6.1, W)                                        # its cap
 S = _S; TAG[0] = 'linings'
 for x in (228.0, 236.0, 312.0, 324.0, 372.0): S.box(x - 0.1, x + 0.1, CEIL, CEIL + 0.04, 6.1, F2Z0 - 0.06, W, sides=('+y', '-x', '+x'))
 S.box(469.9, 470.16, CEIL, CEIL + 0.04, 6.1, F2Z0 - 0.06, W, sides=('+y', '-x', '+x'))
+# the gate walkway's south wall (its glossy white outside, z 51.9) lined with the halls' own plaster where it is inside now (its
+# gloss mirrored the lamps and dark rooms in blotches - 2026-11-23): 15 mm, a steel skirting
+def north(x0, x1, y0, y1):
+    S.box(x0, x1, y0, y1, 51.885, 51.9, PL, sides=('-z',)); S.box(x0, x1, y0, y0 + 0.1, 51.87, 51.885, 'MI_T_steel', sides=('-z', '+y'))
+for a, b in ((236.1, 311.9), (312.1, 323.9), (324.1, 371.9), (470.16, X1 - 0.08)): north(a, b, 0.01, CEIL)
+north(F2X0 + 0.1, X1 - 0.08, F2, RC)
 # the East Hall's back wall: oak battens to 5.4 between the doorways over a dark backing, as the link gallery's
 Z40 = [(156.1, 159.8, 3.1), (162.3, 163.7, 2.35), (168.3, 169.7, 2.35), (174.3, 175.7, 2.35), (183.1, 184.9, 2.35), (195.9, 204.1, 3.1), (215.9, 222.1, 3.1)]
 def z40_bottom(x): return next((h for a, b, h in Z40 if a < x + 0.06 and x < b), 0.11)
@@ -393,6 +412,9 @@ for w in (12, 10):                                     # the vestibules, round t
         Q.box(s * (h - 0.09) - 0.015, s * (h - 0.09) + 0.015, 0.0, 3.4, -3.9, -0.07, GL, sides=('-x', '+x'))
         for z in (-4.0, -2.0): P.box(s * (h - 0.0925) - 0.0675, s * (h - 0.0925) + 0.0675, 0.0, 3.4, z - 0.04, z + 0.04, MU)
 # ======================================================================================================== where things go
+def lamprows(x0, x1, zs, dx, m=2.7):                   # (row by row: every other one lights, so each row lights evenly)
+    n = max(1, round((x1 - x0 - 2 * m) / dx) + 1)
+    return [[round(x0 + m + (x1 - x0 - 2 * m) * i / (n - 1), 2), z] for z in zs for i in range(n)]
 def lampgrid(x0, x1, z0, z1, dx, dz, m=2.5):
     nx = max(1, round((x1 - x0 - 2 * m) / dx) + 1); nz = max(1, round((z1 - z0 - 2 * m) / dz) + 1)
     xs = [(x0 + x1) / 2] if nx == 1 else [x0 + m + (x1 - x0 - 2 * m) * i / (nx - 1) for i in range(nx)]
@@ -408,7 +430,7 @@ LAMPS = {                                              # name: (floor node, y, p
     'F1-CREW-CENTRE': ('F1', 5.33, lampgrid(372, 404, 6, 26, 8, 7, 4)), 'F1-CANTEEN': ('F1', 5.33, lampgrid(404, 436, 6, 26, 8, 7, 4)), 'F1-GROUND-OFF': ('F1', 5.33, lampgrid(436, 470, 6, 26, 8, 7, 4)),
     'F1-LOCKERS': ('F1', 5.33, lampgrid(372, 404, 26, 52, 8, 8, 4)), 'F1-STAFFSEC': ('F1', 5.33, lampgrid(404, 436, 26, 52, 8, 8, 4)), 'F1-POLICE': ('F1', 5.33, lampgrid(436, 470, 26, 52, 8, 8, 4)),
     'F1-COACH-STATION': ('F1', 5.22, lampgrid(470, 551, 20, 52, 9, 7, 4)),
-    'F1-EAST-HALL': ('F1', 11.22, lampgrid(156, 228, 34, 40, 8, 9, 3)), 'F2-CONCOURSE': ('F2', 11.22, lampgrid(228, 551, 35, 52, 11, 6, 4)),
+    'F1-EAST-HALL': ('F1', 11.22, lamprows(156, 228, (37.0,), 5.5)), 'F2-CONCOURSE': ('F2', 11.22, lamprows(228, 551, (39.5, 47.5), 5.4)),   # (2026-11-23: every 11 m one of three rows lit a wall spot every 22 m)
 }
 PLACE = {'cols': [['east_col_g', x, 0, z] for x, z in COLS_G] + [['east_col_f2', x, 0, ZC] for x in COLS_F2] + [['east_col_hall', x, 0, ZC] for x in COLS_HALL],
          'entrances': [[(a + b) / 2.0, b - a] for a, b in GH_ENTR], 'lamps': LAMPS}
@@ -422,13 +444,48 @@ for P_ in [S] + GF + [GS, GI]:
             xs_ = [-v.co.x for v in f.verts]; zs_ = [-v.co.y for v in f.verts]
             FLAT.append([P_.name, round(min(xs_), 3), round(max(xs_), 3), round(ys_[0], 3), round(min(zs_), 3), round(max(zs_), 3), P_.mats[f.material_index]])
 json.dump(FLAT, open(os.path.join(ROOT, 'Saved', 'annex-flat-east.json'), 'w'))
+# the shell's one big solid in pieces (2026-11-23): 395 x 52 m in one model, Lumen's cards and distance field of it were so
+# coarse that its light was patchy; by what it is (floor, Floor 2's slab, ground ceilings, the roof, the front's frames, walls)
+# and 66 m along the building
+BINX = [X0 + (X1 - X0) / 6.0 * i for i in range(1, 6)]
+def kind(f, m):
+    ys = [v.co.z for v in f.verts]; lo, hi = min(ys), max(ys)
+    if m == MU: return 'frame'
+    if hi < 0.3 and m in (MARBLE, 'MI_T_concrete'): return 'floor'
+    if lo > 10.9: return 'roof'
+    if lo > 5.7 and hi < 6.1: return 'f2'
+    if lo > 5.0 and hi < 5.75: return 'ceil'
+    return 'wall'
+def split(o):
+    bm = bmesh.new(); bm.from_mesh(o.data)
+    for x in BINX: bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=(-x, 0, 0), plane_no=(1, 0, 0), dist=1e-5)
+    grp = {}; bm.faces.ensure_lookup_table(); bm.faces.index_update()
+    for f in bm.faces:
+        x = -f.calc_center_median().x; grp.setdefault((kind(f, o.data.materials[f.material_index].name), sum(x > b_ for b_ in BINX) + 1), []).append(f.index)
+    out = []
+    for (kd, n), idx in sorted(grp.items()):
+        c = bm.copy(); c.faces.ensure_lookup_table(); c.faces.index_update(); keep = set(idx)
+        bmesh.ops.delete(c, geom=[f for f in c.faces if f.index not in keep], context='FACES')
+        used = sorted({f.material_index for f in c.faces}); mp = {u: k for k, u in enumerate(used)}
+        for f in c.faces: f.material_index = mp[f.material_index]
+        me = bpy.data.meshes.new('%s_%s%d' % (o.name, kd, n)); c.to_mesh(me); c.free()
+        for u in used: me.materials.append(o.data.materials[u])
+        q = bpy.data.objects.new(me.name, me); bpy.context.scene.collection.objects.link(q); out.append(q)
+    bm.free(); bpy.data.objects.remove(o); return out
+import glob
+for f_ in glob.glob(os.path.join(HERE, 'east_solid*.fbx')): os.remove(f_)
+SOLIDS = []
 for P_ in PIECES:
-    o = P_.finish()
-    assert o.data.materials and all(m for m in o.data.materials), 'empty material slot ' + o.name
-    print('EAST', o.name, len(o.data.polygons), 'faces', [m.name for m in o.data.materials])
-    for x in bpy.context.selected_objects: x.select_set(False)
-    o.select_set(True); bpy.context.view_layer.objects.active = o
-    bpy.ops.export_scene.fbx(filepath=os.path.join(HERE, o.name + '.fbx'), use_selection=True, object_types={'MESH'},
-                             apply_scale_options='FBX_SCALE_UNITS', mesh_smooth_type='FACE', path_mode='STRIP')
+    o = P_.finish(); objs = split(o) if o.name == 'east_solid' else [o]
+    if len(objs) > 1: SOLIDS = [q.name for q in objs]
+    for o in objs:
+        assert o.data.materials and all(m for m in o.data.materials), 'empty material slot ' + o.name
+        print('EAST', o.name, len(o.data.polygons), 'faces', [m.name for m in o.data.materials])
+        for x in bpy.context.selected_objects: x.select_set(False)
+        o.select_set(True); bpy.context.view_layer.objects.active = o
+        bpy.ops.export_scene.fbx(filepath=os.path.join(HERE, o.name + '.fbx'), use_selection=True, object_types={'MESH'},
+                                 apply_scale_options='FBX_SCALE_UNITS', mesh_smooth_type='FACE', path_mode='STRIP')
+PLACE['solid'] = SOLIDS
+json.dump(PLACE, open(os.path.join(HERE, 'place.json'), 'w'), indent=0)
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, 'TerminalEast.blend'))
 print('EAST saved; lamps', sum(len(v[2]) for v in LAMPS.values()))

@@ -37,6 +37,10 @@ for name in names:
     sm.set_editor_property('nanite_settings', ns)
     bs = sm.get_editor_property('body_setup')
     if bs: bs.set_editor_property('collision_trace_flag', unreal.CollisionTraceFlag.CTF_USE_COMPLEX_AS_SIMPLE)
+    # (thin open sheets: their distance field as two-sided - one-sided the space behind a sheet counts as solid, Tools/import_annex.py)
+    if name.startswith('east_solid'):
+        _sub = unreal.get_editor_subsystem(unreal.StaticMeshEditorSubsystem); _bs = _sub.get_lod_build_settings(sm, 0)
+        _bs.set_editor_property('generate_distance_field_as_if_two_sided', True); _sub.set_lod_build_settings(sm, 0, _bs)
     EAL.save_loaded_asset(sm)
     # the material slot check (memory: material-slot-check): every slot filled, after the save; the file really new
     empty = [str(m.get_editor_property('material_slot_name')) for m in sm.get_editor_property('static_materials') if not m.get_editor_property('material_interface')]

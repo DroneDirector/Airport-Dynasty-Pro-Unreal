@@ -2296,6 +2296,21 @@ static void ADPPaxPropsLook(APlayerController* PC)
 	ADP_LOG(TEXT("UIPaxProps: %d passengers with their devices out"), Pp.Num());
 }
 
+// -UIPlanExec=3:r.Some~1|showflag.Other~0;7:... (with -UIPlanView): console commands given with a view, ~ for a space - settings compared in one run
+static void PlanExec(APlayerController* PC, int32 View)
+{
+	FString Ex; TArray<FString> Es;
+	if (!PC || !FParse::Value(FCommandLine::Get(), TEXT("UIPlanExec="), Ex, false)) return;
+	Ex.ParseIntoArray(Es, TEXT(";"));
+	for (const FString& E : Es)
+	{
+		FString At, Cmds; TArray<FString> Cs;
+		if (!E.Split(TEXT(":"), &At, &Cmds) || FCString::Atoi(*At) != View) continue;
+		Cmds.ReplaceInline(TEXT("~"), TEXT(" ")); Cmds.ParseIntoArray(Cs, TEXT("|"));
+		for (const FString& C : Cs) { PC->ConsoleCommand(C); ADP_LOG(TEXT("PlanExec %d: %s"), View, *C); }
+	}
+}
+
 void AADPHUD::Tick(float Dt)
 {
 	ADP_PERF_SCOPE("the interface and its checks (each frame)", 6.f);
@@ -4007,6 +4022,7 @@ void AADPHUD::Tick(float Dt)
 				for (int32 i = 0; i < V.Num(); ++i)
 				{
 					const float T0 = 42.f + i * 4.f;
+					if (Before < T0 && ShotClock >= T0) PlanExec(GetOwningPlayerController(), i);
 					TArray<FString> C; V[i].ParseIntoArray(C, TEXT(","));
 					if (C.Num() < 6) continue;
 					auto F = [&C](int32 k) { return FCString::Atof(*C[k]); };

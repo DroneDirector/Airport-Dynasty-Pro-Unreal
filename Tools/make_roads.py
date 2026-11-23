@@ -131,12 +131,12 @@ park = lambda w: keys((0, z), (s_c0a, z), (s_c0, w), (s_c1, w), (s_c1a, z), (A.l
 # where the stands narrow away it widens by as much, so its outer edge stays on the building's line (y 0)
 s_w0a, s_w0, s_w1, s_w1a = A.x(644), A.x(604), A.x(-120), A.x(-160)
 STANDS = 3.1 + 3.5
-# (2026-11-23: the pavement stands 18 cm over the terminal's floor and lay over the vestibules' floors; along the new east
-#  side, x 107..557, it ends 8.2 m out instead: the rest is the terminal's own paving, sloping down to the doors - Art/
+# (2026-11-23: the pavement stands 18 cm over the terminal's floor and lay over the vestibules' floors; along the whole
+#  terminal, x -120..557 (until that evening only its new east side, x 107..557), it ends 8.2 m out instead: the rest is the terminal's own paving, sloping down to the doors - Art/
 #  TerminalEast east_pave; the pillars' feet, z -9.6, stay on the pavement)
-EASTW = 8.2 - 0.1
-s_e0, s_e1 = A.ex(556.6), A.ex(107.6)
-walk = lambda w: keys((0, z), (s_w0a, z), (s_w0, w + STANDS), (s_t0a, w + STANDS), (s_t0, w), (round(s_e0 - 0.6, 2), w), (s_e0, w - EASTW), (s_e1, w - EASTW), (round(s_e1 + 0.6, 2), w), (s_t1, w), (s_t1a, w + STANDS), (s_w1, w + STANDS), (s_w1a, z), (A.len, z))
+EASTW, DRUMW = 8.2 - 0.1, 9.8 - 0.1   # (9.8 m out by the Grand Hall's revolving doors, x 42..109: make_terminal_east.py DRUMS)
+s_e0 = A.ex(556.6)
+walk = lambda w: keys((0, z), (s_w0a, z), (s_w0, w + STANDS), (s_t0a, w + STANDS), (s_t0, w), (round(s_e0 - 0.6, 2), w), (s_e0, w - EASTW), (A.ex(109.6), w - EASTW), (round(A.ex(109.6) + 0.6, 2), w - DRUMW), (A.ex(42.4), w - DRUMW), (round(A.ex(42.4) + 0.6, 2), w - EASTW), (s_t1, w - EASTW), (s_t1a, w + STANDS - EASTW), (round(s_t1a + 0.6, 2), w + STANDS), (s_w1a, z), (A.len, z))
 FC_RIGHT = [lane('Driving', 3.5), lane('Shoulder', 1.0), lane('Island', band(3.5), kerb=15), lane('Driving', band(3.6)),
             lane('Driving', band(3.55)), lane('Parking', term(3.1)), lane('Bus', band(3.5)), lane('Parking', term(3.5)),
             lane('Sidewalk', walk(TP), kerb=15)]
