@@ -6,6 +6,7 @@
 import os, sys
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.abspath(os.path.join(HERE, '..', '..', '..', '..'))
 exec(open(os.path.join(HERE, 'new_lib.py'), encoding='utf-8').read())
+exec(open(os.path.join(HERE, 'roof_swap.py'), encoding='utf-8').read())
 
 
 BBC = {}
@@ -30,6 +31,27 @@ for m in bpy.data.materials:                                   # the terminal's 
     if m.name.lower().startswith(('glass', 'x_glass')) and m.use_nodes:
         pass
 
+# the game's own cuts (Data/terminal-cuts.json: [x0, h0, z0, x1, h1, z1] in plan metres, per layout node) taken out of the real pieces
+import re as _re
+LN = json.load(open(os.path.join(ROOT, 'Data', 'terminal-layout.json')))['nodes']
+BYN = {}
+for o in EX.objects:
+    if o.type == 'MESH': BYN.setdefault(_re.sub(r'\.\d{3,}$', '', o.name), []).append(o)
+for e in json.load(open(os.path.join(ROOT, 'Data', 'terminal-cuts.json'))):
+    for o in BYN.get(LN[e['node']]['name'], []):
+        hit = 0
+        for x0, h0, z0, x1, h1, z1 in e['boxes']:
+            lo, hi = P(min(x0, x1), min(z0, z1), min(h0, h1)), P(max(x0, x1), max(z0, z1), max(h0, h1)); a, b = bb(o)
+            if any(b[i] <= lo[i] or a[i] >= hi[i] for i in range(3)): continue
+            me = o.data.copy(); bm = bmesh.new(); bm.from_mesh(me); bm.transform(o.matrix_world)
+            for i in range(3):
+                for v in (lo[i], hi[i]):
+                    n_ = Vector((0, 0, 0)); n_[i] = 1; c_ = Vector((0, 0, 0)); c_[i] = v
+                    bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=c_, plane_no=n_, dist=1e-5)
+            dead = [f for f in bm.faces if all(lo[i] - 1e-4 < f.calc_center_median()[i] < hi[i] + 1e-4 for i in range(3))]
+            if dead: bmesh.ops.delete(bm, geom=dead, context='FACES'); bm.to_mesh(me); o.data = me; o.matrix_world = Matrix(); bpy.context.view_layer.update(); BBC.pop(o.name, None); hit += len(dead)
+            bm.free()
+        if hit: print('GAMECUT', e['node'], o.name, hit, flush=True)
 # ---------------------------------------------------------------- the landside from Data/roads.json's own lane widths
 box(-1500, -900, 1900, 900, -0.5, -0.06, 'GRASS', LAND)
 box(-265, 82, 570, 238, -0.06, -0.02, 'CONC', LAND)
@@ -81,7 +103,7 @@ def glass_front(xa, xb, z, tag='ground', top=None, gaps=(), foot=0.0):
     box(xa, z - 0.45, xb, z - 0.2, 0.0, 0.2, 'GOLD', GOLDS[tag])
 
 
-VEST = ((186, 198), (290, 300), (396, 406), (504, 516))
+VEST = ((188, 200), (290, 300), (396, 406), (514, 526))
 glass_front(156, 551.2, 0.0, gaps=((156, 161),) + VEST)
 for z in range(0, 34, 3):                                      # the east end wall, glass to the roof
     quad([P(551.2, z, 0), P(551.2, min(z + 3, 34), 0), P(551.2, min(z + 3, 34), soffit(550.8, min(z + 3, 33.5))), P(551.2, z, soffit(550.8, z))], 'GLASS'); box(551.1, z - 0.06, 551.35, z + 0.06, 0, soffit(550.8, z), 'MUL')
@@ -90,7 +112,7 @@ for v0, v1 in VEST:                                            # the new entranc
     for (a, b, c, d) in ((v0, -4, v1, -3.96), (v0, -4, v0 + 0.04, 0), (v1 - 0.04, -4, v1, 0)): box(a, b, c, d, 0, 3.7, 'GLASS')
     box(v0 - 0.2, -4.4, v1 + 0.2, 0, 3.7, 3.95, 'ZINC'); gold(v0 - 0.2, -4.4, v1 + 0.2, 0, 0, 3.95)
     for x in (v0 + 0.1, (v0 + v1) / 2 - 1.4, (v0 + v1) / 2 + 1.4, v1 - 0.1): box(x - 0.06, -4.06, x + 0.06, -3.9, 0, 3.7, 'MUL')
-for x, s in ((192, 'EAST HALL'), (295, 'PROMENADE'), (401, 'PROMENADE'), (510, 'COACH + BUS STATION')): sign(s, x, -4.5, 4.35, 8.5 if len(s) < 12 else 11, 0.75)
+for x, s in ((194, 'EAST HALL'), (295, 'PROMENADE'), (401, 'PROMENADE'), (520, 'COACH + BUS STATION')): sign(s, x, -4.5, 4.35, 8.5 if len(s) < 12 else 11, 0.75)
 box(156, 34, 551.2, 52, 12.0, 12.4, 'ZINC', RF); gold(156, 34, 551.2, 52, 12.0, 12.45, 'roof')   # the flat roof behind the wave (z 34-52)
 # ---- the double skin x 107-156: a glass skin at z -4 up to the wave, the block's own wall and the office windows stay behind it
 glass_front(107, 160, -4.0)

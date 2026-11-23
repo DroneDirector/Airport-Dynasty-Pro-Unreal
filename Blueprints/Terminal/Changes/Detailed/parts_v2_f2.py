@@ -73,7 +73,7 @@ for x in range(229, 551, 3):                                   # the band of gla
 a = Fp['lobby']; box(*a, 5.45, 6.03, 'PLAST', F); box(*a, 6.03, 6.05, 'DWOOD', F); box(a[0], 81.85, a[2], 82, 6, 10.6, 'GLASS', F); box(a[0], a[1], a[2], a[3], 10.6, 10.9, 'ZINC', RF); gold(*a, 6.05, 10.9, 'f2'); sign('SWING GATES', 246, 68.6, 9.8, 6, 0.6, 'n', F)
 for x in (239, 246, 253):
     cyl(P(x, 80, 0), P(x, 80, 5.45), 0.3, 'WHITE', F); box(x - 0.05, 81.8, x + 0.05, 82.05, 6, 10.6, 'MUL', F)
-x0, z0, x1, z1 = V2['AISLE4']; quad([P(x0, z0, H), P(x1, z0, H), P(x1, z0, 9.0), P(x0, z0, 9.0)], 'GLASS', F); gold(x0, z0, x1, z1, 6.1, 9.0, 'f2', 0.05)
+# (gate 4's outside arrivals gallery is held by the owner: not drawn)
 for g in GX:                                                    # the arrivals cores: the jetway vestibule and the way down
     x = GX[g]
     for (a, b, c, d) in ((x + 20, 77, x + 25, 82), (x + 25, 69, x + 38.4, 82)):

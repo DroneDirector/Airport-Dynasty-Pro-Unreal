@@ -5,7 +5,7 @@ for o in list(EX.objects) + [q for q in NEWC.objects if q.get('cutcopy')]:
     if o.type != 'MESH' or not o.data.polygons: continue
     a, b = bb(o); g = str(o.get('grp') or '')
     k = 'before' if o.get('before_only') else 'after' if o.get('cutcopy') else 'real'
-    top = 'roof' if (g.startswith('ROOF') and b[0] + 200 > 112) or (o.name.startswith('arm#') and b[0] + 200 > 120) or (b[0] + 200 > 160 and a[2] > 10.6 and g in ('F1', 'F2')) else 'body'
+    top = 'roof' if (g.startswith('ROOF') and (b[0] + 200 > 112 or g == 'ROOF' and o.get('cutcopy'))) or ((o.name.startswith('arm#') or g == 'PILLAR') and b[0] + 200 > 120 and b[2] > 9) or (b[0] + 200 > 160 and a[2] > 10.6 and g in ('F1', 'F2')) else 'body'
     CL.setdefault(k + '_' + top, []).append(o)
 CACHE = {}
 def arr(m):

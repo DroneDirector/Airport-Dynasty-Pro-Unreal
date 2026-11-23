@@ -1,0 +1,21 @@
+D1|D1-Aerial-Forecourt|THE TERMINAL FROM THE FORECOURT, AFTER (seen from the east end)|
+D1b|D1b-Aerial-Forecourt-BEFORE|THE TERMINAL FROM THE FORECOURT, BEFORE (same camera): open grass under the old roof|The terminal, jetways and A320 from the game, rendered, with the roof as it was before 23 November. Road, car park, cars, coaches, people and grass are simple stand-ins.
+D2|D2-East-End-Forecourt|THE EAST END FROM THE FORECOURT, AFTER: East Hall, glass front, taxi rank|
+D2b|D2b-East-End-Forecourt-BEFORE|THE EAST END FROM THE FORECOURT, BEFORE (same camera)|The terminal from the game, rendered, with the roof as it was before 23 November. Road, cars, coaches, people and grass are simple stand-ins.
+D3a|D3a-Cutaway-East-Floor2|THE EAST END CUT OPEN: FLOOR 2, the non-Schengen concourse beside the walkway and gates 13-16 (roofs taken off)|
+D3b|D3b-Cutaway-East-Ground-Floor|THE EAST END CUT OPEN: GROUND FLOOR (roofs and the new Floor 2 taken off)|
+D3c|D3c-Cutaway-Concourse-Close|THE EAST END CUT OPEN, close: the passport wall, passport control and the start of the concourse|
+D4|D4-Floor2-Passport-Wall|FLOOR 2, ALONG THE WALKWAY: the glass passport wall at x 240, passport control to the right|
+D4b|D4b-Floor2-Passport-Wall-BEFORE|FLOOR 2, ALONG THE WALKWAY, BEFORE (same camera)|The terminal from the game, rendered from the same camera as the AFTER picture.
+D4c|D4c-Floor2-Passport-Control|FLOOR 2: the passport control queue hall, kiosks, booths and e-gates|
+D5|D5-Concourse-Walking-In|THE NON-SCHENGEN CONCOURSE, walking in from the walkway: the duty free|
+D5c|D5c-Concourse-Inside|THE NON-SCHENGEN CONCOURSE: the food court beside the walkway|
+D5d|D5d-Concourse-Window-Gallery|THE NON-SCHENGEN CONCOURSE: the window gallery over the promenade|
+D6|D6-Claim-Hall-Arrivals-Duty-Free|THE EAST CLAIM HALL with the arrivals duty free|
+D7|D7-Grand-Hall|THE GRAND HALL, AFTER: kiosks, bag drop, service desk, e-gates|
+D7b|D7b-Grand-Hall-BEFORE|THE GRAND HALL, BEFORE (same camera)|The terminal from the game, rendered from the same camera as the AFTER picture. People are simple stand-ins.
+D8|D8-Taxi-Rank|THE TAXI RANK EAST|
+D9|D9-Double-Skin-Forecourt|THE DOUBLE-SKIN FRONT, x 114-156, FROM THE FORECOURT, AFTER|
+D9b|D9b-Double-Skin-Forecourt-BEFORE|THE FRONT AT x 114-156, BEFORE (same camera)|The terminal from the game, rendered, with the roof as it was before 23 November.
+D10|D10-Double-Skin-From-Office|THE DOUBLE-SKIN FRONT FROM INSIDE AN OFFICE, looking out|
+D11|D11-East-Hall|THE EAST HALL: check-in, cafe, car rental, meeting point|
