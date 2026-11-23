@@ -66,6 +66,8 @@ public:
 	FString NameOf(const FString& StaffId) const;
 	AActor* ActorOf(const FString& StaffId) const;
 	FString IdOf(const AActor* A) const;
+	/** What they are doing and where, for the Crew screen; false: not in 3D now (off shift). */
+	bool Status(const FString& StaffId, FString& Doing, FString& Where) const;
 	/** Everyone hired: shift, face, place, job - into the log (adp.CrewList). */
 	void Dump() const;
 

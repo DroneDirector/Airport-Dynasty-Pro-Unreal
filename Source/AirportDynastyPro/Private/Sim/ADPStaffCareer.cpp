@@ -7,6 +7,7 @@
 //  - 180: full or part time (part time: 55% of the pay, at most 3 duty days in a row), the notice period by contract,
 //    severance by years served, holidays asked for and approved or refused (unanswered after 7 days: approved).
 #include "Sim/ADPStaff.h"
+#include "Sim/ADPCrew.h"
 #include "Sim/ADPEconomy.h"
 #include "Sim/ADPWorldData.h"
 #include "Site.h"
@@ -61,12 +62,14 @@ bool ADPStaff::Interview(FADPWorld& W, const FString& PersonId)
 	return true;
 }
 
+double ADPStaff::AdvertCost(const FString& Role) { return Role == TEXT("captain") ? 6000.0 : Role == TEXT("fo") ? 4000.0 : Role == TEXT("mech") ? 2500.0 : 1500.0; }
+
 bool ADPStaff::Advert(FADPWorld& W, const FString& AirlineId, const FString& Role, const FDateTime& At, FRandomStream& Rng)
 {
-	const double Cost = Role == TEXT("captain") ? 6000.0 : Role == TEXT("fo") ? 4000.0 : Role == TEXT("mech") ? 2500.0 : 1500.0;
+	const double Cost = AdvertCost(Role);
 	const FADPAirline* A = W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == AirlineId; });
 	if (!A || A->Balance < Cost) return false;
-	ADPEconomy::Pay(W, AirlineId, At, TEXT("marketing"), -Cost, FString::Printf(TEXT("Job advert: %s"), *Role), FString());
+	ADPEconomy::Pay(W, AirlineId, At, TEXT("marketing"), -Cost, FString::Printf(TEXT("Job advert: %s"), *ADPCrew::RoleName(Role)), FString());
 	const FString Country = CountryOf(W, AirlineId);
 	for (int32 i = 0; i < 3; ++i)
 	{
@@ -76,7 +79,7 @@ bool ADPStaff::Advert(FADPWorld& W, const FString& AirlineId, const FString& Rol
 		Describe(P, Country, Rng);   // (asks a little more, as better people do)
 		W.People.Add(P);
 	}
-	SCSay(W, At, TEXT("Job advert"), FString::Printf(TEXT("Your advert for %s brought three strong candidates - see Hire staff."), *Role), 0);
+	SCSay(W, At, TEXT("Job advert"), FString::Printf(TEXT("Your advert for %s brought three strong candidates - see Crew."), *ADPCrew::RoleName(Role)), 0);
 	return true;
 }
 

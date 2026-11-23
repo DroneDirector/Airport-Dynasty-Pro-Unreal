@@ -23,6 +23,7 @@
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/Crc.h"
+#include "Sim/ADPCrew.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
@@ -34,14 +35,12 @@ static FAutoConsoleCommandWithWorld CmdCrewList(TEXT("adp.CrewList"), TEXT("Your
 
 namespace
 {
-	// the roles that are people in 3D (the simulation's ramp role; fuel, catering and cleaning when their jobs exist in 3D)
-	const TCHAR* SpRoles[] = {TEXT("ground")};
-	bool SpIsRole(const FString& R) { for (const TCHAR* X : SpRoles) if (R == X) return true; return false; }
-	// the shifts (local time); the simulation's share: 40% of a team on duty by day, 20% at night
-	struct FSpShift { const TCHAR* Name; int32 From, To; float Weight; };
-	const FSpShift SpShifts[] = {{TEXT("early"), 6, 14, 2.f}, {TEXT("late"), 14, 22, 2.f}, {TEXT("night"), 22, 6, 1.f}, {TEXT("day"), 9, 17, 0.f}};
-	const FSpShift* SpShift(const FString& N) { for (const FSpShift& S : SpShifts) if (N == S.Name) return &S; return nullptr; }
-	bool SpInShift(const FSpShift& S, float H) { return S.From < S.To ? H >= S.From && H < S.To : H >= S.From || H < S.To; }
+	// the roles that are people in 3D (ADPCrew.cpp: b3D - the ramp role; the others when their jobs exist in 3D)
+	const TArray<const TCHAR*>& SpRoles() { static TArray<const TCHAR*> L; if (!L.Num()) for (const ADPCrew::FRole& R : ADPCrew::Roles()) if (R.b3D) L.Add(R.Id); return L; }
+	bool SpIsRole(const FString& R) { for (const TCHAR* X : SpRoles()) if (R == X) return true; return false; }
+	using FSpShift = ADPCrew::FShift;
+	const FSpShift* SpShift(const FString& N) { return ADPCrew::Shift(N); }
+	bool SpInShift(const FSpShift& S, float H) { return ADPCrew::InShift(S, H); }
 	float SpHoursToStart(const FSpShift& S, float H) { return FMath::Fmod(S.From - H + 24.f, 24.f); }
 	FVector SpPlan(float X, float Z) { return FTerminalPlan::ToWorld(X, Z < 82.6f ? 0.f : AAirfield::GroundAt(X, Z), Z); }   // (the ramp rooms' floor; outside the apron's surface - as ATugs::Plan)
 	float SpPlanZ(const FVector& W) { return -W.Y / 100.f; }
@@ -67,6 +66,13 @@ namespace
 		F.Sort([](const FSpFace& A, const FSpFace& B) { return A.Group != B.Group ? A.Group < B.Group : A.Name < B.Name; });
 		ADP_LOG(TEXT("StaffPeople: %d built faces for the ground staff"), F.Num());
 		return F;
+	}
+	// (hired in a talk: their own face, a passenger's perhaps - looked up once)
+	bool SpBuilt(const FString& Face)
+	{
+		static TMap<FString, bool> Known;
+		if (const bool* b = Known.Find(Face)) return *b;
+		return Known.Add(Face, FPackageName::DoesPackageExist(FString::Printf(TEXT("/Game/People/Built/%s/BP_%s"), *Face, *Face)));
 	}
 	USkeletalMeshComponent* SpBodyOf(UWorld* W, AActor* A) { AADPPeople* P = AADPPeople::Get(W); AADPPeople::FWho* Who = P && A ? P->Find(A) : nullptr; return Who ? Who->Body : nullptr; }
 	FADPPerson* SpRec(FADPWorld& W, const FString& Id) { return W.People.FindByPredicate([&](const FADPPerson& X) { return X.Id == Id; }); }
@@ -344,6 +350,23 @@ const TCHAR* UStaffPeople::StateName(EState S)
 	}
 }
 
+bool UStaffPeople::Status(const FString& Id, FString& Doing, FString& Where) const
+{
+	const FStaff* S = Find(Id);
+	if (!S) return false;
+	Doing = S->Job.IsEmpty() ? FString(StateName(S->State)) : S->Job;
+	if (S->bCalledIn) Doing += TEXT(" (called in)");
+	Where.Reset();
+	const AActor* A = S->A.Get();
+	if (!A) return true;
+	const FVector L = A->GetActorLocation();
+	const FRoom* Near = nullptr; double Bd = 1e18;
+	for (const FRoom& R : Rooms) { const double D = FMath::Abs(L.X / 100.0 - R.X0); if (D < Bd) { Bd = D; Near = &R; } }
+	if (SpPlanZ(L) < 83.f) Where = Near ? FString::Printf(TEXT("in Ramp services %d"), Near->Gate) : FString(TEXT("in the terminal"));
+	else Where = Near && Bd < 60.0 ? FString::Printf(TEXT("on the apron by Ramp services %d"), Near->Gate) : FString(TEXT("on the apron"));
+	return true;
+}
+
 void UStaffPeople::Dump() const
 {
 	const UADPSim* Sim = UADPSim::Get(GetWorld());
@@ -361,7 +384,7 @@ void UStaffPeople::Dump() const
 		const FString Shift = P.Shift.IsEmpty() ? FString(TEXT("-")) : P.Shift + (S && S->bCalledIn ? TEXT(" (called in)") : TEXT(""));
 		ADP_LOG(TEXT("CrewList: %s %s (%s, %s, %s at %s) - shift %s, face %s, %s, %s"), *P.Id, *P.Name, *P.Role, P.bWoman ? TEXT("woman") : TEXT("man"), *P.Status, *P.Base, *Shift, P.Face.IsEmpty() ? TEXT("-") : *P.Face, *Doing, *At);
 	}
-	ADP_LOG(TEXT("CrewList: %d hired ground staff, %d in 3D or on their way, the simulation counts %d on shift, local time %02d:%02d, adp.HiredCrew %d"), N, Staff.Num(), ADPSchedule::OnShift(Sim->World, SpRoles[0], Now), Here.GetHour(), Here.GetMinute(), On() ? 1 : 0);
+	ADP_LOG(TEXT("CrewList: %d hired ground staff, %d in 3D or on their way, the simulation counts %d on shift, local time %02d:%02d, adp.HiredCrew %d"), N, Staff.Num(), ADPSchedule::OnShift(Sim->World, TEXT("ground"), Now), Here.GetHour(), Here.GetMinute(), On() ? 1 : 0);
 	for (const EStaffTask T : {EStaffTask::Gpu, EStaffTask::BagsOut, EStaffTask::BagsIn, EStaffTask::Loader, EStaffTask::Bags, EStaffTask::Pushback})
 	{
 		const FString M = Missing(T);
@@ -391,16 +414,7 @@ void UStaffPeople::FindRooms()
 void UStaffPeople::GiveShift(FADPWorld& W, const FString& Id) const
 {
 	// the shift with the fewest people for its share (two early and two late for one night), kept in their record
-	FADPPerson* P = SpRec(W, Id);
-	if (!P || SpShift(P->Shift)) return;
-	const FSpShift* Best = nullptr; float Bs = 1e9f;
-	for (const FSpShift& S : SpShifts)
-	{
-		if (S.Weight <= 0.f) continue;
-		int32 N = 0; for (const FADPPerson& X : W.People) if (X.AirlineId == P->AirlineId && X.Role == P->Role && X.Base == P->Base && X.Shift == S.Name) ++N;
-		const float Sc = (N + 1) / S.Weight; if (Sc < Bs - 0.001f) { Bs = Sc; Best = &S; }
-	}
-	if (Best) P->Shift = Best->Name;
+	if (FADPPerson* P = SpRec(W, Id)) ADPCrew::GiveShift(W, *P);
 }
 
 void UStaffPeople::GiveFace(FADPWorld& W, const FString& Id)
@@ -409,7 +423,7 @@ void UStaffPeople::GiveFace(FADPWorld& W, const FString& Id)
 	// same person always; kept in their record). More people than faces: shared with someone of another shift if possible
 	FADPPerson* P = SpRec(W, Id);
 	const TArray<FSpFace>& All = SpFaces();
-	if (!P || (!P->Face.IsEmpty() && All.ContainsByPredicate([&](const FSpFace& F) { return F.Name == P->Face; }))) return;
+	if (!P || (!P->Face.IsEmpty() && (All.ContainsByPredicate([&](const FSpFace& F) { return F.Name == P->Face; }) || SpBuilt(P->Face)))) return;
 	const FSpFace* Best = nullptr; int32 Bs = MAX_int32;
 	for (int32 Group = 0; Group < 2 && Bs > 0; ++Group)
 	{
@@ -436,7 +450,7 @@ void UStaffPeople::Roster(FADPWorld& W, const FDateTime& Now)
 	const FString Here = ADPBoards::HereIcao();
 	const FDateTime Lt = ADPBoards::Local(Now); const float H = Lt.GetHour() + Lt.GetMinute() / 60.f;
 	TMap<FString, bool> Want;   // (id -> called in)
-	if (On()) for (const TCHAR* Role : SpRoles)   // (switched off again: everyone goes home)
+	if (On()) for (const TCHAR* Role : SpRoles())   // (switched off again: everyone goes home)
 	{
 		struct FRow { FString Id; FDateTime Hired; };
 		TArray<FRow> Ids;

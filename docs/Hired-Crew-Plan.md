@@ -2,7 +2,7 @@
 
 Part 1 (2026-11-23): the people and the pool - `StaffPeople.h/.cpp`; `adp.CrewList` dumps everyone. Part 2a: tug, pushback,
 ground power. Part 2b: bags, loader, claim safety; the switch `adp.HiredCrew` is now 1 by default (0 = the stand-ins for
-everything). All compiled, NOTHING run yet. Part 3: the hiring UI.
+everything). All compiled, NOTHING run yet. Part 3: the hiring UI, built 2026-11-23 (compiled, type-checked, not run).
 
 ## Part 1 as built
 - **Who:** the simulation's people (`FADPPerson`) of your airline, role `ground`, base = this airport, status `on`, no days
@@ -82,7 +82,6 @@ after another (the rule today in `ADPSchedule::MissingStaff`: 2 for the ground p
   trains start when their aircraft is at its stand (bags before that wait on the carousel).
 - **Not checked:** everything in the game; the ways on foot past real wing, loader and train places; a tug pushing when its
   driver vanishes finishes that movement; a sidestep inside the hall is the crew's old one (no wall test).
-- **Left:** E-talk with people who already work for you.
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
@@ -118,7 +117,29 @@ aircraft - the same as `GiveBack` today).
 Turnaround `Crew = 99`). When the stand-ins go: does your crew work those flights too (for the handling fee, as the
 airport's own handler), or does a small agent team stay for them?
 
-## Part 3: hiring in the Overview - what is there, what is missing
+## Part 3 as built (2026-11-23, compiled and type-checked, not run): hiring for every area
+- **One table:** `Sim/ADPCrew.h/.cpp` - 21 areas, 23 jobs (3D job or not, counted by the simulation or not, shifts, can be offered
+  in a talk) and the 4 shifts. Read by the hiring pool (`FillPool`, the hourly change), `StaffPeople` (`b3D` = which jobs are people in
+  3D, the shifts) and the Crew screen (in the bridge's `crew` answer: `areas`, `jobs`, `shifts`). A new job is one line there.
+- **New jobs:** water, deice, marshaller, cargo, lounge, shop, claim, parking; gate, bus, tower, ops and fire can now be hired. Wages:
+  the existing list; jobs not in it get the existing general wage. No new balancing. Old saves get the new candidates on load.
+- **Crew screen** (`screens/sim-crew.ts`): one button per area (people, how many missing), its need, staff (shift, wage, where and what
+  now from `UStaffPeople::Status`, else on / off shift and "3D job coming"), manage (pay, shift, base, days off, contract, let go), the
+  people looking for that work, adverts. Live every 5 s. Not flight crews, mechanics, firefighters: no 8 hour shift to set.
+- **Needs:** the game's own rules (`ADPCrew::Need`: fleet, `TeamNeeds`, the fire category of your biggest aircraft); a job no rule
+  needs shows "1 advised", which nothing depends on.
+- **Reached from:** the Overview (Crew card with who is missing, the airport card's links), Timetable (its missing-staff line), every
+  "hire" link (`go-hire`), the Staff app of the tablet and the computers (`simStaffApp`; `apt-staff.ts` only without a career).
+- **Talk:** "would you like to work for you" - on yes the job is chosen (staff their own, a passenger any without a licence), hired by the
+  existing `ADPStaff::Hire` with the first week's pay, their own face kept (`FADPPerson.Face`, any built person), starts after the next local
+  midnight. Who works for you already says so (also the open point of 2b).
+- Airport jobs are hired at this airport, not the hub (the same place today).
+- **To confirm with the owner:** the tower cannot be offered in a talk (licence); the start the next day; gate agents do nothing yet
+  (passenger service boards the flights).
+- **Known limits:** a stand-in or passenger hired in a talk is still seen as before until the next load, so the same face can be
+  there twice; clothes are theirs until the clothes work; a candidate has no picture on the Crew screen.
+
+## Part 3: how it was before (kept for reference)
 - **Screens** (Airline-Manager-Pro-Babylon/game/src/screens): `sim-crew.ts` - tabs (line 30-32; the `ground` tab = ground,
   fuel, catering, cleaning), hire tab with an advert per role (line 78), hire / dismiss / pay / interview (`sim-hire` line 84);
   built into www/game by `npm run build`. `apt-staff.ts` is the old web rota (its own staff, not the sim's).

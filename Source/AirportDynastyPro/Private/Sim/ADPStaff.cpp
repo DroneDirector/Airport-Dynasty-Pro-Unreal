@@ -1,5 +1,6 @@
 // Staff - see Sim/ADPStaff.h.
 #include "Sim/ADPStaff.h"
+#include "Sim/ADPCrew.h"
 #include "Sim/ADPEconomy.h"
 #include "Sim/ADPWorldData.h"
 
@@ -75,7 +76,8 @@ bool ADPStaff::Hire(FADPWorld& W, const FString& PersonId, const FString& Airlin
 	if (!P) return false;
 	P->AirlineId = AirlineId; P->Base = Base; P->Status = TEXT("on"); P->HiredAt = At; P->Location = Base;
 	if (P->Asks > 0.0) P->Salary = P->Asks;
-	ADPEconomy::Pay(W, AirlineId, At, TEXT("training"), -P->Salary * (P->Role == TEXT("captain") ? 1.5 : 1.0), FString::Printf(TEXT("Hiring %s (%s)"), *P->Name, *P->Role), P->Id);
+	if (const ADPCrew::FRole* R = ADPCrew::Role(P->Role); R && R->bShift) ADPCrew::GiveShift(W, *P);
+	ADPEconomy::Pay(W, AirlineId, At, TEXT("training"), -P->Salary * (P->Role == TEXT("captain") ? 1.5 : 1.0), FString::Printf(TEXT("Hiring %s (%s)"), *P->Name, *ADPCrew::RoleName(P->Role)), P->Id);
 	return true;
 }
 
@@ -86,10 +88,10 @@ bool ADPStaff::Dismiss(FADPWorld& W, const FString& PersonId, const FDateTime& A
 	// severance: a week's pay for every year with you, at least two; their notice period from their contract (to-do 180)
 	const double Years = P->HiredAt != FDateTime() ? (At - P->HiredAt).GetTotalDays() / 365.0 : 0.0;
 	const double Weeks = FMath::Max(2.0, FMath::FloorToDouble(Years));
-	ADPEconomy::Pay(W, P->AirlineId, At, TEXT("salary"), -P->Salary * Weeks, FString::Printf(TEXT("Severance: %s (%s)"), *P->Name, *P->Role), P->Id);
+	ADPEconomy::Pay(W, P->AirlineId, At, TEXT("salary"), -P->Salary * Weeks, FString::Printf(TEXT("Severance: %s (%s)"), *P->Name, *ADPCrew::RoleName(P->Role)), P->Id);
 	P->Status = TEXT("dismissed"); P->RestUntil = At + FTimespan::FromDays(FMath::Max(7, P->NoticeDays)); P->Mood = FMath::Min(P->Mood, 25.0);
 	FADPNotice N; N.At = At; N.Kind = TEXT("staff"); N.Title = TEXT("Notice given");
-	N.Text = FString::Printf(TEXT("%s (%s) has been given notice: off the roster now, leaves in %d days (their contract), %.0f weeks' pay as severance."), *P->Name, *P->Role, FMath::Max(7, P->NoticeDays), Weeks); W.Notices.Add(N);
+	N.Text = FString::Printf(TEXT("%s (%s) has been given notice: off the roster now, leaves in %d days (their contract), %.0f weeks' pay as severance."), *P->Name, *ADPCrew::RoleName(P->Role), FMath::Max(7, P->NoticeDays), Weeks); W.Notices.Add(N);
 	return true;
 }
 
@@ -111,12 +113,12 @@ bool ADPStaff::SetBase(FADPWorld& W, const FString& PersonId, const FString& Bas
 
 void ADPStaff::FillPool(FADPWorld& W, FRandomStream& Rng)
 {
-	static const TCHAR* Roles[] = {TEXT("captain"), TEXT("fo"), TEXT("fa"), TEXT("mech"), TEXT("ground"), TEXT("security"), TEXT("checkin"), TEXT("fuel"), TEXT("catering"), TEXT("cleaning"), TEXT("fire")};
 	const FString Country = CountryOf(W, FString());
-	for (const TCHAR* R : Roles)
+	for (const ADPCrew::FRole& Job : ADPCrew::Roles())   // (every job there is: ADPCrew.cpp)
 	{
+		const FString R = Job.Id;
 		int32 InPool = 0; for (const FADPPerson& P : W.People) if (P.AirlineId.IsEmpty() && P.Role == R) ++InPool;
-		int32 Want = FString(R) == TEXT("fa") || FString(R) == TEXT("ground") ? 12 : 8;
+		int32 Want = R == TEXT("fa") || R == TEXT("ground") ? 12 : 8;
 		if (W.Difficulty == TEXT("test")) Want *= 5;   // (the test: plenty of people to hire for everything)
 		for (int32 k = InPool; k < Want; ++k) W.People.Add(MakePerson(R, Country, Rng));
 	}
@@ -144,12 +146,12 @@ void FADPStaffModule::Advance(UADPSim& Sim, const FDateTime& From, const FDateTi
 	// the hiring pool: every few hours some leave it and new people come (12 cabin crew and ground staff, 8 of the rest)
 	if (Rng.FRand() < 0.2)
 	{
-		static const TCHAR* Roles[] = {TEXT("captain"), TEXT("fo"), TEXT("fa"), TEXT("mech"), TEXT("ground"), TEXT("security"), TEXT("checkin"), TEXT("fuel"), TEXT("catering"), TEXT("cleaning"), TEXT("fire")};
 		const FString Country = ADPStaff::CountryOf(W, FString());   // (the player's airline's hub country)
-		for (const TCHAR* R : Roles)
+		for (const ADPCrew::FRole& Job : ADPCrew::Roles())   // (every job there is: ADPCrew.cpp)
 		{
+			const FString R = Job.Id;
 			int32 InPool = 0; for (const FADPPerson& P : W.People) if (P.AirlineId.IsEmpty() && P.Role == R) ++InPool;
-			const int32 Want = FString(R) == TEXT("fa") || FString(R) == TEXT("ground") ? 12 : 8;
+			const int32 Want = R == TEXT("fa") || R == TEXT("ground") ? 12 : 8;
 			if (InPool > 3 && Rng.FRand() < 0.3) { const int32 I = W.People.IndexOfByPredicate([&](const FADPPerson& P) { return P.AirlineId.IsEmpty() && P.Role == R; }); if (I != INDEX_NONE) W.People.RemoveAt(I); }
 			for (int32 k = InPool; k < Want; ++k) W.People.Add(ADPStaff::MakePerson(R, Country, Rng));
 		}
@@ -173,16 +175,16 @@ void FADPStaffModule::Advance(UADPSim& Sim, const FDateTime& From, const FDateTi
 		if (P.Status == TEXT("on") && P.Mood < 20.0 && Rng.FRand() < 0.04)
 		{
 			P.Status = TEXT("notice"); P.RestUntil = To + FTimespan::FromDays(14.0);
-			FADPNotice N; N.At = To; N.Kind = TEXT("staff"); N.Text = FString::Printf(TEXT("%s (%s) has handed in their notice - 14 days"), *P.Name, *P.Role); W.Notices.Add(N);
+			FADPNotice N; N.At = To; N.Kind = TEXT("staff"); N.Text = FString::Printf(TEXT("%s (%s) has handed in their notice - 14 days"), *P.Name, *ADPCrew::RoleName(P.Role)); W.Notices.Add(N);
 		}
 		else if (P.Status == TEXT("dismissed"))
 		{
-			if (P.RestUntil <= To) { FADPNotice N; N.At = To; N.Kind = TEXT("staff"); N.Text = FString::Printf(TEXT("%s (%s) has left after their notice"), *P.Name, *P.Role); W.Notices.Add(N); W.People.RemoveAt(i); }
+			if (P.RestUntil <= To) { FADPNotice N; N.At = To; N.Kind = TEXT("staff"); N.Text = FString::Printf(TEXT("%s (%s) has left after their notice"), *P.Name, *ADPCrew::RoleName(P.Role)); W.Notices.Add(N); W.People.RemoveAt(i); }
 		}
 		else if (P.Status == TEXT("notice"))
 		{
 			if (P.Mood >= 30.0) P.Status = TEXT("on");
-			else if (P.RestUntil <= To) { ++Quits; FADPNotice N; N.At = To; N.Kind = TEXT("staff"); N.Text = FString::Printf(TEXT("%s (%s) has left"), *P.Name, *P.Role); W.Notices.Add(N); W.People.RemoveAt(i); }
+			else if (P.RestUntil <= To) { ++Quits; FADPNotice N; N.At = To; N.Kind = TEXT("staff"); N.Text = FString::Printf(TEXT("%s (%s) has left"), *P.Name, *ADPCrew::RoleName(P.Role)); W.Notices.Add(N); W.People.RemoveAt(i); }
 		}
 	}
 }

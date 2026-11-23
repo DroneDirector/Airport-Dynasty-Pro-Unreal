@@ -4,6 +4,8 @@
 #include "UI/ADPHUD.h"
 #include "Sim/ADPSim.h"
 #include "Sim/ADPStaff.h"
+#include "Sim/ADPCrew.h"
+#include "StaffPeople.h"
 #include "Sim/ADPEconomy.h"
 #include "Sim/ADPSchedule.h"
 #include "Sim/ADPWorldData.h"
@@ -87,16 +89,52 @@ FString UADPBridge::Sim(const FString& Action, const FString& Arg)
 	if (Action == TEXT("load")) return Ok(S->LoadNamed(Arg), TEXT("that save is from another airport - choose it at the title screen"));
 	if (Action == TEXT("crew"))
 	{
+		const FDateTime At = S->Now();
 		TSharedRef<FJsonObject> O = MakeShared<FJsonObject>(); O->SetBoolField(TEXT("ok"), true);
 		const FADPAirline* My = W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == Me; });
 		if (My) { O->SetStringField(TEXT("airline"), My->Name); O->SetStringField(TEXT("hub"), My->Hub); O->SetNumberField(TEXT("balance"), FMath::RoundToDouble(My->Balance)); }
 		TArray<TSharedPtr<FJsonValue>> Mine, Pool;
-		for (const FADPPerson& P : W.People)
+		for (FADPPerson& P : W.People)
 		{
-			if (P.AirlineId == Me) Mine.Add(MakeShared<FJsonValueObject>(PersonJson(W, P)));
+			if (P.AirlineId == Me)
+			{
+				// (their shift; where they are and what they do: from the 3D airport where their job is there, else by the shift)
+				const ADPCrew::FRole* Job = ADPCrew::Role(P.Role);
+				if (Job && Job->bShift) ADPCrew::GiveShift(W, P);
+				TSharedRef<FJsonObject> J = PersonJson(W, P);
+				if (Job && ADPCrew::AtAirport(P.Role))
+				{
+					FString Doing, Where;
+					if (P.Status != TEXT("on")) Doing = P.Status == TEXT("sick") ? TEXT("off sick") : P.Status == TEXT("leave") ? TEXT("on holiday") : P.Status == TEXT("dismissed") ? TEXT("leaving") : TEXT("off duty");
+					else if (P.OffUntil > At) Doing = P.HiredAt != FDateTime() && (At - P.HiredAt).GetTotalHours() < 24.0 ? TEXT("starts tomorrow") : TEXT("days off");
+					else if (P.Base != ADPBoards::HereIcao()) Doing = TEXT("at another airport");
+					else if (const UStaffPeople* Sp = Job->b3D && UStaffPeople::On() ? UStaffPeople::Get(H->GetWorld()) : nullptr) { if (!Sp->Status(P.Id, Doing, Where)) Doing = TEXT("off shift"); }
+					else if (const ADPCrew::FShift* Sh = Job->bShift ? ADPCrew::Shift(P.Shift) : nullptr) { const FDateTime Lt = ADPBoards::Local(At); Doing = ADPCrew::InShift(*Sh, Lt.GetHour() + Lt.GetMinute() / 60.f) ? TEXT("on shift") : TEXT("off shift"); }
+					else Doing = TEXT("in the 24 hour watches");
+					J->SetStringField(TEXT("doing"), Doing); J->SetStringField(TEXT("where"), Where);
+				}
+				Mine.Add(MakeShared<FJsonValueObject>(J));
+			}
 			else if (P.AirlineId.IsEmpty()) Pool.Add(MakeShared<FJsonValueObject>(PersonJson(W, P)));
 		}
 		O->SetArrayField(TEXT("people"), Mine); O->SetArrayField(TEXT("pool"), Pool);
+		// every area and job you can hire for (to-do 206 part 3: the one table, ADPCrew.cpp), the shifts
+		const FString Here = ADPBoards::HereIcao();
+		O->SetStringField(TEXT("here"), Here);
+		TArray<TSharedPtr<FJsonValue>> Ar, Jb, Sf;
+		for (const ADPCrew::FArea& X : ADPCrew::Areas()) { TSharedRef<FJsonObject> J = MakeShared<FJsonObject>(); J->SetStringField(TEXT("id"), X.Id); J->SetStringField(TEXT("label"), X.Label); J->SetStringField(TEXT("duties"), X.Duties); Ar.Add(MakeShared<FJsonValueObject>(J)); }
+		for (const ADPCrew::FRole& X : ADPCrew::Roles())
+		{
+			TSharedRef<FJsonObject> J = MakeShared<FJsonObject>();
+			J->SetStringField(TEXT("id"), X.Id); J->SetStringField(TEXT("name"), X.Name); J->SetStringField(TEXT("area"), X.Area);
+			J->SetBoolField(TEXT("d3"), X.b3D && UStaffPeople::On()); J->SetBoolField(TEXT("sim"), X.bSim); J->SetBoolField(TEXT("shift"), X.bShift); J->SetBoolField(TEXT("local"), ADPCrew::AtAirport(X.Id));
+			J->SetNumberField(TEXT("have"), ADPCrew::Have(W, X.Id, Here)); J->SetNumberField(TEXT("need"), ADPCrew::Need(W, X.Id));
+			J->SetNumberField(TEXT("onShift"), X.bSim && X.bShift ? ADPSchedule::OnShift(W, X.Id, At) : -1);
+			J->SetNumberField(TEXT("advert"), ADPStaff::AdvertCost(X.Id));
+			Jb.Add(MakeShared<FJsonValueObject>(J));
+		}
+		for (const ADPCrew::FShift& X : ADPCrew::Shifts()) { TSharedRef<FJsonObject> J = MakeShared<FJsonObject>(); J->SetStringField(TEXT("id"), X.Name); J->SetStringField(TEXT("label"), X.Label); Sf.Add(MakeShared<FJsonValueObject>(J)); }
+		O->SetArrayField(TEXT("areas"), Ar); O->SetArrayField(TEXT("jobs"), Jb); O->SetArrayField(TEXT("shifts"), Sf);
 		// what the fleet needs to fly: per aircraft a captain and a first officer, its cabin crew; a mechanic per base
 		int32 NCap = 0, NFo = 0, NFa = 0; TSet<FString> Bases;
 		for (const FADPAircraft& C : W.Aircraft) if (C.AirlineId == Me)
@@ -239,6 +277,11 @@ FString UADPBridge::Sim(const FString& Action, const FString& Arg)
 		int32 Staff = 0, OnDuty = 0, Resting = 0, Off = 0, Sick = 0, Leave = 0;
 		for (const FADPPerson& P : W.People) if (P.AirlineId == Me)
 		{ ++Staff; OnDuty += !P.WithReg.IsEmpty(); Resting += P.RestUntil > NowU && P.Status == TEXT("on") && P.WithReg.IsEmpty(); Off += P.OffUntil > NowU; Sick += P.Status == TEXT("sick"); Leave += P.Status == TEXT("leave"); }
+		TArray<TSharedPtr<FJsonValue>> Sh;
+		for (const ADPCrew::FRole& X : ADPCrew::Roles())
+			if (const int32 Miss = ADPCrew::Need(W, X.Id) - ADPCrew::Have(W, X.Id, ADPBoards::HereIcao()); Miss > 0)
+			{ TSharedRef<FJsonObject> J = MakeShared<FJsonObject>(); J->SetStringField(TEXT("area"), X.Area); J->SetStringField(TEXT("name"), X.Name); J->SetNumberField(TEXT("n"), Miss); Sh.Add(MakeShared<FJsonValueObject>(J)); }
+		O->SetArrayField(TEXT("short"), Sh);
 		Num(TEXT("staff"), Staff); Num(TEXT("onDuty"), OnDuty); Num(TEXT("resting"), Resting); Num(TEXT("daysOff"), Off); Num(TEXT("sick"), Sick); Num(TEXT("leave"), Leave);
 		// the newest messages and news
 		TArray<TSharedPtr<FJsonValue>> Nt;
@@ -448,13 +491,17 @@ FString UADPBridge::Sim(const FString& Action, const FString& Arg)
 	if (Action == TEXT("hire"))
 	{
 		const FADPAirline* My = W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == Me; });
-		return Ok(ADPStaff::Hire(W, A, Me, B.IsEmpty() && My ? My->Hub : B, At), TEXT("no longer looking for work"));
+		// (a job at the airport is at this airport)
+		const FADPPerson* Who = W.People.FindByPredicate([&](const FADPPerson& X) { return X.Id == A; });
+		const bool bLocal = Who && ADPCrew::AtAirport(Who->Role) && !ADPBoards::HereIcao().IsEmpty();
+		return Ok(ADPStaff::Hire(W, A, Me, !B.IsEmpty() ? B : bLocal ? ADPBoards::HereIcao() : My ? My->Hub : B, At), TEXT("no longer looking for work"));
 	}
 	if (Action == TEXT("dismiss")) return Ok(ADPStaff::Dismiss(W, A, At), TEXT("not on your staff"));
+	if (Action == TEXT("shift")) { FString Why; return Ok(ADPCrew::SetShift(W, A, B, Why), Why); }
 	if (Action == TEXT("pay")) return Ok(ADPStaff::SetPay(W, A, FCString::Atod(*B)), TEXT("not on your staff"));
 	if (Action == TEXT("base")) return Ok(ADPStaff::SetBase(W, A, B), TEXT("unknown airport"));
 	if (Action == TEXT("interview")) return Ok(ADPStaff::Interview(W, A), TEXT("no longer looking for work"));
-	if (Action == TEXT("advert")) { static FRandomStream Rs(int32(FDateTime::UtcNow().GetTicks() & 0x7fffffff)); return Ok(ADPStaff::Advert(W, Me, A, At, Rs), TEXT("not enough money for the advert")); }
+	if (Action == TEXT("advert")) { if (!ADPCrew::Role(A)) return Ok(false, TEXT("no such job")); static FRandomStream Rs(int32(FDateTime::UtcNow().GetTicks() & 0x7fffffff)); return Ok(ADPStaff::Advert(W, Me, A, At, Rs), TEXT("not enough money for the advert")); }
 	if (Action == TEXT("contract")) return Ok(ADPStaff::SetContract(W, A, B), TEXT("no change"));
 	if (Action == TEXT("leave")) return Ok(ADPStaff::AnswerLeave(W, FCString::Atoi(*A), B == TEXT("yes"), At), TEXT("already answered"));
 	if (Action == TEXT("check"))

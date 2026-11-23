@@ -87,7 +87,7 @@ function simTimetableHtml(): string {
     <span class="cr-now">${f.state === 'planned' ? `<small class="chip ${f.late >= 15 ? 'amber' : 'ok'}">${f.late >= 15 ? f.late + ' min late' : 'on time'}</small>` : `<small class="chip ${f.state === 'cancelled' ? 'bad' : 'ok'}">${f.state === 'gone' ? 'left' : esc(f.state)}</small>`}</span>
     <span class="cr-rules"><i>${f.booked} of ${f.seats} seats booked</i></span><span class="cr-btns">${f.why ? `<small>${esc(f.why)}</small>` : ''}</span></div>`).join('');
   return `<div class="pilot-hero"><div class="ph-main"><h1>Timetable</h1><p class="sub">${(d.slots || []).length} lines · the airport's time ${esc(d.now || '')}</p></div></div>
-    ${d.missing ? `<p class="fine-print warn">${icon('alert')}Nobody to do the work right now: ${esc(d.missing)}. Your flights wait until someone is on shift - hire them under Crew.</p>` : ''}
+    ${d.missing ? `<p class="fine-print warn">${icon('alert')}Nobody to do the work right now: ${esc(d.missing)}. Your flights wait until someone is on shift - hire them under Crew.</p><div class="filter-row">${[['ground', 'Ground crew'], ['checkin', 'Check-in and boarding'], ['security', 'Security']].map(x => `<button class="btn sm" data-act="crew-area" data-area="${x[0]}">Hire: ${x[1]}</button>`).join('')}</div>` : ''}
     <h4 class="grp-h">A new line</h4>
     ${fl.length ? `<div class="sim-manage">
       <label>Aircraft <select class="sim-tt-reg">${fl.map((a: any) => `<option value="${esc(a.reg)}" ${a.reg === SimTt.reg ? 'selected' : ''}>${esc(a.reg)} (${esc(a.type)})</option>`).join('')}</select></label>

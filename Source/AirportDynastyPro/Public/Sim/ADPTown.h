@@ -18,6 +18,8 @@ namespace ADPTown
 {
 	/** The rescue and fire-fighting category a type needs (ICAO). */
 	int32 FireCategoryOf(const FString& TypeId);
+	/** Firefighters to employ for your biggest aircraft (0: no fleet). */
+	int32 FireCrewNeeded(const FADPWorld& W);
 	/** The category your station covers now (crew on duty and trucks); 10 everywhere else. */
 	int32 FireCategoryAt(const FADPWorld& W, const FString& Icao, const FDateTime& At);
 	/** Our airport's curfew now (local hours closed from .. to; From == To: none) - read by the flights module. */

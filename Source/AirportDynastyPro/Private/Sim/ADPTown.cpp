@@ -43,6 +43,14 @@ int32 ADPTown::FireCategoryAt(const FADPWorld& W, const FString& Icao, const FDa
 	return Cat;
 }
 
+int32 ADPTown::FireCrewNeeded(const FADPWorld& W)
+{
+	// the firefighters to employ for your biggest aircraft's category (the same count as TwOnWatch's)
+	int32 Cat = 0; for (const FADPAircraft& C : W.Aircraft) if (C.AirlineId == UADPSim::Me()) Cat = FMath::Max(Cat, FireCategoryOf(C.TypeId));
+	int32 N = 0; while (Cat > 0 && N < 200 && (N ? FMath::Max(1, FMath::RoundToInt(N * 0.25 + 0.3)) : 0) < Crew[FMath::Min(Cat, 10)]) ++N;
+	return N;
+}
+
 void ADPTown::HereCurfew(double& From, double& To) { From = GCurfewFrom; To = GCurfewTo; }
 
 void ADPTown::UseWorld(const FADPWorld& W) { if (W.Town.bStarted) { GCurfewFrom = W.Town.CurfewFrom; GCurfewTo = W.Town.CurfewTo; GCurfewSet = true; } }

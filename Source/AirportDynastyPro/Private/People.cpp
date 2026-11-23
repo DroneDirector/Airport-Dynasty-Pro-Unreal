@@ -23,6 +23,10 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "PaxNav.h"
+#include "StaffPeople.h"
+#include "Sim/ADPCrew.h"
+#include "Sim/ADPSim.h"
+#include "Sim/ADPStaff.h"
 
 namespace ADPPeopleInternal
 {
@@ -311,12 +315,63 @@ void AADPPeople::AskWork()
 {
 	FWho* W = Find(MenuWho.Get()); if (!W) { Close(); return; }
 	Mode = EMenu::Answer;
+	// somebody on your staff already (to-do 206 part 3)
+	UADPSim* Sim = UADPSim::Get(GetWorld()); const bool bCareer = Sim && Sim->IsRunning();
+	const UStaffPeople* Sp = UStaffPeople::Get(GetWorld());
+	if ((Sp && !Sp->IdOf(W->A.Get()).IsEmpty()) || (bCareer && ADPCrew::FaceWorks(Sim->World, W->Name)))
+	{
+		MenuText = TEXT("\"I already work for you!\"");
+		Say(W->A.Get(), TEXT("I already work for you!"), ETone::Calm);
+		MenuOptions = {TEXT("Ask something else"), TEXT("Goodbye")};
+		return;
+	}
 	// asked once: the answer stays (13% yes)
 	if (!W->bAskedWork) { W->bAskedWork = true; W->bWorks = Rng.FRand() < 0.13f; }
 	const FString A = W->bWorks ? PickT(HireYes, Rng) : PickT(HireNo, Rng);
-	MenuText = FString::Printf(TEXT("\"%s\"%s"), *A, W->bWorks ? TEXT("\n\n(They will join your staff when hiring opens - the staff screens come later.)") : TEXT(""));
+	MenuText = FString::Printf(TEXT("\"%s\""), *A);
 	Say(W->A.Get(), A, W->bWorks ? ETone::Mild : ETone::Calm);
 	ADP_LOG(TEXT("People: %s asked to work for you - %s"), *W->First, W->bWorks ? TEXT("YES") : TEXT("no"));
+	MenuOptions = {TEXT("Ask something else"), TEXT("Goodbye")};
+	if (!W->bWorks) return;
+	if (!bCareer) { MenuText += TEXT("\n\n(There is no airline of yours yet to hire them for.)"); return; }
+	// the job: crew and staff their own; a passenger any that needs no licence
+	Jobs.Reset(); JobPage = 0;
+	const TCHAR* Own = W->Role == TEXT("pilot") ? TEXT("fo") : W->Role == TEXT("cabin") ? TEXT("fa") : nullptr;
+	if (Own) Jobs.Add(Own);
+	else if (ADPCrew::Role(W->Role)) Jobs.Add(W->Role);
+	else for (const ADPCrew::FRole& R : ADPCrew::Roles()) if (R.bTalk) Jobs.Add(R.Id);
+	if (Jobs.Num()) ShowJobs();
+}
+
+void AADPPeople::ShowJobs()
+{
+	UADPSim* Sim = UADPSim::Get(GetWorld());
+	if (!Find(MenuWho.Get()) || !Sim || !Sim->IsRunning()) { Close(); return; }
+	Mode = EMenu::Job;
+	const FString C = ADPStaff::CountryOf(Sim->World, UADPSim::Me());
+	MenuOptions.Reset();
+	for (int32 k = JobPage * 6; k < FMath::Min(Jobs.Num(), JobPage * 6 + 6); ++k)
+		MenuOptions.Add(FString::Printf(TEXT("Hire: %s, $%.0f a week"), *ADPCrew::RoleName(Jobs[k]), ADPStaff::GoingRate(Jobs[k], C)));
+	if (Jobs.Num() > 6) MenuOptions.Add(TEXT("Other jobs"));
+	MenuOptions.Add(TEXT("Not now"));
+}
+
+void AADPPeople::TakeJob(int32 I)
+{
+	FWho* W = Find(MenuWho.Get()); UADPSim* Sim = UADPSim::Get(GetWorld());
+	if (!W || !Sim || !Sim->IsRunning()) { Close(); return; }
+	const int32 On = FMath::Clamp(Jobs.Num() - JobPage * 6, 0, 6);
+	if (I >= On)
+	{
+		if (Jobs.Num() > 6 && I == On) { JobPage = (JobPage + 1) % FMath::DivideAndRoundUp(Jobs.Num(), 6); ShowJobs(); }
+		else ShowStart();
+		return;
+	}
+	const FString Job = Jobs[JobPage * 6 + I]; FString Name;
+	Mode = EMenu::Answer;
+	const bool bOk = ADPCrew::HireTalk(Sim->World, Job, W->First, W->bFemale, W->Age, W->Name, Sim->Now(), Name);
+	MenuText = bOk ? FString::Printf(TEXT("\"Thank you! See you tomorrow.\"\n\n(%s is on your staff: %s, the first week's pay taken. Their shift and wage are under Crew in the Overview.)"), *Name, *ADPCrew::RoleName(Job)) : FString(TEXT("(Not hired.)"));
+	if (bOk) Say(W->A.Get(), TEXT("Thank you! See you tomorrow."), ETone::Mild);
 	MenuOptions = {TEXT("Ask something else"), TEXT("Goodbye")};
 }
 
@@ -361,6 +416,7 @@ void AADPPeople::Choose(int32 I)
 	case EMenu::Questions: if (AskOrder.IsValidIndex(I)) Answer(AskOrder[I]); else ShowStart(); break;
 	case EMenu::Answer: if (I == 0 && MenuOptions.Num() > 1) ShowStart(); else Close(); break;
 	case EMenu::Conduct: if (I <= 1) TryCalm(I == 0); else Close(); break;
+	case EMenu::Job: TakeJob(I); break;
 	case EMenu::Refused: if (I == 0) CallSecurity(); Close(); break;
 	}
 }

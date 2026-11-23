@@ -144,7 +144,7 @@ namespace ADPTurnaround
 				const int32 Need = bHired && (K.Id == TEXT("gpu") || K.Id == TEXT("tug") || K.Id == TEXT("bulk")) ? 0 : K.Id == TEXT("gpu") || K.Id == TEXT("bridge") || K.Id == TEXT("doors") ? 1 : K.Id == TEXT("bulk") || K.Id == TEXT("tug") ? 2 : 0;
 				if (!K.bStarted && bReady && Tm >= K.Start && Crew < Need)
 				{
-					ADPSchedule::Tell(Sim->World, Now, TEXT("ground:") + Tr->Reg + K.Id, TEXT("No ground crew"), FString::Printf(TEXT("%s at %s: %s waits - %d of your ground crew on shift, %d needed. Hire baggage handlers under Crew."), *Tr->Reg, *Tr->Stand, *K.Name, Crew, Need));
+					ADPSchedule::Tell(Sim->World, Now, TEXT("ground:") + Tr->Reg + K.Id, TEXT("No ground crew"), FString::Printf(TEXT("%s at %s: %s waits - %d of your ground crew on shift, %d needed. Hire ground crew under Crew."), *Tr->Reg, *Tr->Stand, *K.Name, Crew, Need));
 					bReady = false;
 				}
 				if (!K.bStarted && bReady && Tm >= K.Start)

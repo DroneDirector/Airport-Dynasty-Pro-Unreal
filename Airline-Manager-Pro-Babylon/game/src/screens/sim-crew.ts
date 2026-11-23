@@ -1,7 +1,7 @@
 // The Crew screen on the simulation (to-do 176; owner, 2026-11-20 night): in the PC game, while a career runs in Unreal's
 // simulation, the Crew screen shows and changes the REAL crew there (ue.adp.sim) - one set of people, not this web game's
-// own. Pilots, cabin crew, mechanics, ground staff and security, what the fleet needs, the hiring pool, and per person:
-// pay, base, training and letting them go. Outside Unreal (Android, the web) the old screen stays.
+// own. Every area of the airport (to-do 206 part 3) with what it needs and who is missing, its people - shift, wage, where
+// they are now - and who looks for that work; per person: pay, shift, base, training and letting them go. Outside Unreal (Android, the web) the old screen stays.
 
 const SimCrew: any = { data: null as any, at: 0, busy: false, tab: 'pilots', open: '' };
 
@@ -27,28 +27,51 @@ function simCrewDo(action: string, arg: string, okMsg: string) {
   });
 }
 
-const SIM_ROLES: [string, string, string[]][] = [
-  ['pilots', 'Pilots', ['captain', 'fo']], ['cabin', 'Cabin crew', ['fa']], ['mech', 'Mechanics', ['mech']],
-  ['checkin', 'Passenger service', ['checkin']], ['ground', 'Ground staff', ['ground', 'fuel', 'catering', 'cleaning']], ['security', 'Security', ['security']], ['hire', 'Hire staff', []],
-];
-const SIM_ROLE_NAME: Record<string, string> = { captain: 'Captain', fo: 'First officer', fa: 'Flight attendant', mech: 'Mechanic', ground: 'Baggage handler', security: 'Security officer', checkin: 'Passenger service agent', fuel: 'Fuel truck driver', catering: 'Catering loader', cleaning: 'Aircraft cleaner' };
+// (the areas and jobs come from the simulation's one table - ADPCrew.cpp: areas, jobs, shifts in the 'crew' answer)
+function simJob(role: string): any { return ((SimCrew.data && SimCrew.data.jobs) || []).filter((j: any) => j.id === role)[0] || { id: role, name: role, area: '' }; }
+function simRoleName(role: string): string { return simJob(role).name; }
+function simCrewStyle() {
+  if (document.getElementById('simcrew-style')) return;
+  const st = document.createElement('style'); st.id = 'simcrew-style';
+  st.textContent = `
+  .sc-areas { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 8px; margin-bottom: 14px; }
+  .sc-area { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 44px; padding: 7px 11px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--ink-2); font-size: 13px; font-weight: 600; text-align: left; }
+  .sc-area:hover, .sc-area:focus-visible { border-color: var(--cyan); }
+  .sc-area.on { border-color: var(--cyan); color: var(--ink); background: var(--panel-2); box-shadow: 0 0 0 1px var(--cyan) inset; }
+  .sc-area i { font-style: normal; font-size: 11.5px; padding: 2px 8px; border-radius: 9px; background: var(--panel-3); white-space: nowrap; }
+  .sc-area.short i { color: var(--amber); }
+  .sc-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 4px 0 10px; } .sc-head h2 { margin: 0; font-size: 18px; } .sc-head small { color: var(--ink-2); }
+  .sc-adv { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; }
+  .sim-crew .sim-manage { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+  .sim-crew .sc-shifts { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .sim-crew .cr-name small, .sim-crew .cr-now small { white-space: normal; }
+  .sim-crew .cr-btns { flex-wrap: wrap; justify-content: flex-end; }
+  @media (max-width: 900px) { .sim-crew .sim-row .cr-now, .sim-crew .sim-row .cr-rules { display: flex; flex-wrap: wrap; gap: 4px; grid-column: 1 / -1; } }
+  `;
+  document.head.appendChild(st);
+}
 
 function simPersonRow(p: any, i: number, hire: boolean): string {
   const moodC = p.mood >= 60 ? 'ok' : p.mood >= 35 ? 'amber' : 'bad';
   const payVs = p.going ? Math.round((p.salary / p.going - 1) * 100) : 0;
-  const open = SimCrew.open === p.id;
+  const open = SimCrew.open === p.id, job = simJob(p.role);
+  const sh = (SimCrew.data.shifts || []).filter((x: any) => x.id === p.shift)[0];
+  const turn = job.shift ? (sh ? sh.label : '') : p.role === 'fire' ? '24 hour watches' : '';
+  // (airport people: what they do and where now, from the 3D airport where their job is there)
+  const now = job.local && p.doing ? `<small><b>${esc(p.doing)}</b>${p.where ? ', ' + esc(p.where) : ''}</small>${job.d3 ? '' : '<small>3D job coming</small>'}` : statusChip(p.status);
   return `<div class="crew-row sim-row" style="--i:${i}">
     <span class="avatar"><b>${esc(String(p.name).split(/\s+/).map((w: string) => w.charAt(0)).join('').slice(0, 2))}</b></span>
-    <span class="cr-name"><b>${esc(p.name)}</b><small>${esc(p.rank || SIM_ROLE_NAME[p.role] || p.role)}, ${p.woman ? 'she' : 'he'}, ${p.age}${p.base ? ', based ' + esc(p.base) : ''}${p.home ? ', lives in ' + esc(p.home) : ''}</small>
+    <span class="cr-name"><b>${esc(p.name)}</b><small>${esc(p.rank || simRoleName(p.role))}, ${p.woman ? 'she' : 'he'}, ${p.age}${p.base ? ', based ' + esc(p.base) : ''}${p.home ? ', lives in ' + esc(p.home) : ''}${!hire && turn ? ' · ' + esc(turn) : ''}</small>
       <small>${p.hours ? num(p.hours) + ' flight hours · ' : ''}${(p.languages || []).map((l: string) => esc(l)).join(', ')}${p.contract === 'part' ? ' · part time' : ''} · notice ${p.noticeDays} days</small>
       ${p.interviewed ? `<small class="sim-iv">${icon('check')}Strong: ${esc(p.strengths || '')} · Weak: ${esc(p.weaknesses || '')}</small>` : ''}</span>
-    <span class="cr-now">${hire ? `<small>Rating ${Number(p.rating).toFixed(1)} · level ${p.level}</small>` : `${statusChip(p.status)}<small class="chip ${moodC}">mood ${p.mood}</small>`}</span>
-    <span class="cr-rules">${(p.types || []).map((t: string) => `<i class="rating">${esc(t)}</i>`).join('')}${p.training ? `<i class="rating training">${esc(p.training)} course</i>` : ''}${hire ? '' : `<i>${p.fly28 || 0} h / 28 days${p.with ? ' · on ' + esc(p.with) : ''}${p.offUntil ? ' · days off' : p.restUntil ? ' · resting' : ''}</i>`}<i>${money(p.salary)}/wk${payVs ? ` (${payVs > 0 ? '+' : ''}${payVs}% vs going rate)` : ''}</i></span>
+    <span class="cr-now">${hire ? `<small>Rating ${Number(p.rating).toFixed(1)} · level ${p.level}</small>` : `${now}<small class="chip ${moodC}">mood ${p.mood}</small>`}</span>
+    <span class="cr-rules">${(p.types || []).map((t: string) => `<i class="rating">${esc(t)}</i>`).join('')}${p.training ? `<i class="rating training">${esc(p.training)} course</i>` : ''}${hire || job.local ? '' : `<i>${p.fly28 || 0} h / 28 days${p.with ? ' · on ' + esc(p.with) : ''}${p.offUntil ? ' · days off' : p.restUntil ? ' · resting' : ''}</i>`}<i>${money(p.salary)}/wk${payVs ? ` (${payVs > 0 ? '+' : ''}${payVs}% vs going rate)` : ''}</i></span>
     <span class="cr-btns">${hire ? `${p.interviewed ? '' : `<button class="btn sm ghost" data-act="sim-interview" data-id="${esc(p.id)}">Interview</button>`}<button class="btn sm primary" data-act="sim-hire" data-id="${esc(p.id)}">${icon('plus')}Hire at ${money(p.asks || p.salary)}/wk</button>` : `<button class="btn sm ghost" data-act="sim-open" data-id="${esc(p.id)}">${open ? 'Close' : 'Manage'}</button>`}</span>
     ${open ? `<div class="sim-manage">
       <label>Weekly pay <input class="sim-pay" type="number" min="1" step="50" value="${Math.round(p.salary)}" data-id="${esc(p.id)}"></label><button class="btn sm" data-act="sim-pay" data-id="${esc(p.id)}">Set pay</button>
       <label>Base <input class="sim-base" type="text" maxlength="4" value="${esc(p.base)}" data-id="${esc(p.id)}"></label><button class="btn sm" data-act="sim-base" data-id="${esc(p.id)}">Move</button>
       ${p.role === 'captain' || p.role === 'fo' ? `<label>Type rating <select class="sim-type" data-id="${esc(p.id)}">${(SimCrew.data.types || []).map((t: any) => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('')}</select></label><button class="btn sm" data-act="sim-train" data-id="${esc(p.id)}">Start course</button>` : ''}
+      ${job.shift ? `<span class="sc-shifts">Shift ${(SimCrew.data.shifts || []).map((x: any) => `<button class="fchip ${x.id === p.shift ? 'on' : ''}" data-act="sim-shift" data-id="${esc(p.id)}" data-s="${esc(x.id)}">${esc(x.label)}</button>`).join('')}</span>` : ''}
       <button class="btn sm ghost" data-act="sim-dayoff" data-id="${esc(p.id)}">Give 2 days off</button>
       <button class="btn sm ghost" data-act="sim-contract" data-id="${esc(p.id)}" data-c="${p.contract === 'part' ? 'full' : 'part'}">Make ${p.contract === 'part' ? 'full time' : 'part time (55% pay)'}</button>
       ${p.status === 'dismissed' ? '<small>Leaving after their notice.</small>' : `<button class="btn sm danger" data-act="sim-dismiss" data-id="${esc(p.id)}">Let go (notice ${p.noticeDays} days, severance)</button>`}
@@ -60,31 +83,55 @@ function simCrewHtml(): string {
   simCrewLoad(false);
   const d = SimCrew.data;
   if (!d) return `<div class="pilot-hero"><div class="ph-main"><h1>Crew</h1><p class="sub">Reading your airline's people...</p></div></div>`;
-  const ppl: any[] = d.people || [], pool: any[] = d.pool || [], need = d.need || {};
-  const have = (r: string) => ppl.filter(p => p.role === r && p.status !== 'dismissed').length;
-  const chip = (label: string, r: string) => { const h = have(r), n = need[r] || 0; return `<span class="need ${h < n ? 'short' : 'ok'}">${icon(h < n ? 'alert' : 'check')}<span><b>${label}</b><small>${h} of ${n} needed${h < n ? `, hire ${n - h} more` : ''}</small></span></span>`; };
-  const tab = SIM_ROLES.filter(t => t[0] === SimCrew.tab)[0] || SIM_ROLES[0];
-  const list = tab[0] === 'hire' ? pool : ppl.filter(p => tab[2].indexOf(p.role) >= 0);
-  const tabs = SIM_ROLES.map(t => `<button class="tab ${SimCrew.tab === t[0] ? 'on' : ''}" data-act="sim-tab" data-t="${t[0]}">${t[1]}<i>${t[0] === 'hire' ? pool.length : ppl.filter(p => t[2].indexOf(p.role) >= 0).length}</i></button>`).join('');
-  return `<div class="pilot-hero"><div class="ph-main"><small>${esc(d.airline || '')} · based at ${esc(d.hub || '')}</small><h1>Crew</h1>
+  simCrewStyle();
+  const ppl: any[] = d.people || [], pool: any[] = d.pool || [], jobs: any[] = d.jobs || [], areas: any[] = d.areas || [];
+  const jobsOf = (area: string) => jobs.filter(j => j.area === area);
+  const inArea = (L: any[], area: string) => { const r = jobsOf(area).map(j => j.id); return L.filter(p => r.indexOf(p.role) >= 0); };
+  const missing = (area: string) => jobsOf(area).reduce((n, j) => n + Math.max(0, (j.need || 0) - (j.have || 0)), 0);
+  if (SimCrew.tab !== 'hire' && !areas.some(a => a.id === SimCrew.tab)) SimCrew.tab = 'pilots';
+  const all = SimCrew.tab === 'hire', area = areas.filter(a => a.id === SimCrew.tab)[0];
+  const chips = areas.map(a => { const m = missing(a.id), n = inArea(ppl, a.id).length; return `<button class="sc-area ${SimCrew.tab === a.id ? 'on' : ''} ${m ? 'short' : ''}" data-act="sim-tab" data-t="${esc(a.id)}"><span>${esc(a.label)}</span><i>${n}${m ? `, ${m} missing` : ''}</i></button>`; }).join('')
+    + `<button class="sc-area ${all ? 'on' : ''}" data-act="sim-tab" data-t="hire"><span>Everyone looking for work</span><i>${pool.length}</i></button>`;
+  // what an area needs: the game's own rules; a job nothing depends on yet says so
+  const needChip = (j: any) => {
+    const ruled = j.need > 0, n = ruled ? j.need : j.local && !j.sim ? 1 : 0, short = j.have < n, hard = ruled && short;
+    return `<span class="need ${hard ? 'short' : 'ok'}">${icon(hard ? 'alert' : 'check')}<span><b>${esc(j.name)}</b><small>${j.have}${n ? ` of ${n} ${ruled ? 'needed' : 'advised'}${short ? `, hire ${n - j.have} more` : ''}` : ' hired, none needed until you have aircraft'}${j.onShift >= 0 ? ` · ${j.onShift} on shift now` : ''}</small></span></span>`;
+  };
+  const note = (L: any[]) => {
+    const l = L.filter(j => j.local); if (!l.length) return '';
+    const t = l.map(j => j.d3 ? 'These are the people you see at work in the 3D airport.' : j.sim ? 'The game counts them today; their 3D job is coming.' : 'You can hire them now; nothing in the game depends on them yet, their 3D job is coming.');
+    return `<p class="fine-print">${icon('info')}${t.filter((x, i) => t.indexOf(x) === i).join(' ')}${l.some(j => j.sim && j.shift) ? ' About 40% of each team is on duty at any hour (20% at night).' : ''}</p>`;
+  };
+  const adverts = (L: any[]) => `<div class="sc-adv">${L.map(j => `<button class="fchip" data-act="sim-advert" data-r="${esc(j.id)}">Advertise: ${esc(j.name)} (${money(j.advert)})</button>`).join('')}</div>`;
+  const veh = { ground: [['tractor', 'Baggage tractor', 65000, d.tractors]], fuel: [['fuel', 'Fuel truck', 260000, d.fuelTrucks]], catering: [['catering', 'Catering truck', 185000, d.cateringTrucks]] } as any;
+  const leave = (d.leave || []).filter((l: any) => l.state === 'asked');
+  const staff = area ? inArea(ppl, area.id) : [], cand = all ? pool : area ? inArea(pool, area.id) : [], aj = all ? jobs : area ? jobsOf(area.id) : [];
+  return `<div class="sim-crew"><div class="pilot-hero"><div class="ph-main"><small>${esc(d.airline || '')} · based at ${esc(d.hub || '')}</small><h1>Crew</h1>
       <p class="sub">${ppl.length} people on your staff · ${money(d.balance || 0)} in the bank</p></div></div>
-    <div class="need-row">${chip('Captains', 'captain')}${chip('First officers', 'fo')}${chip('Flight attendants', 'fa')}${chip('Mechanics', 'mech')}${chip('Passenger service agents', 'checkin')}${chip('Security officers', 'security')}${chip('Baggage handlers', 'ground')}
-      <p class="fine-print">${icon('info')}Real-world rules: two pilots per airliner, one flight attendant per 50 seats from 20 seats, a licensed mechanic at every base. First hire the crew one aircraft needs, then buy or lease it.</p></div>
-    ${(d.leave || []).filter((l: any) => l.state === 'asked').length ? `<div class="sim-leave"><h4 class="grp-h">Holiday requests</h4>${(d.leave || []).filter((l: any) => l.state === 'asked').map((l: any) => `<div class="crew-row"><span class="cr-name"><b>${esc(l.name)}</b><small>${esc(SIM_ROLE_NAME[l.role] || l.role)} · ${l.days} days from ${esc(l.from)}</small></span><span class="cr-btns"><button class="btn sm primary" data-act="sim-leave" data-i="${l.i}" data-a="yes">Approve</button><button class="btn sm ghost" data-act="sim-leave" data-i="${l.i}" data-a="no">Refuse</button></span></div>`).join('')}</div>` : ''}
-    ${SimCrew.tab === 'ground' ? `<div class="need-row">${chip('Baggage handlers', 'ground')}${chip('Fuel drivers', 'fuel')}${chip('Catering', 'catering')}${chip('Cleaners', 'cleaning')}
-      <p class="fine-print">${icon('info')}Your ground teams work every turnaround here: about 40% of each team is on shift at any hour (half at night). Too few people or no vehicle: a slower turnaround and a late departure. Vehicles: ${d.fuelTrucks || 0} fuel, ${d.cateringTrucks || 0} catering, ${d.tractors || 0} baggage tractors.</p>
-      <span class="btn-row">${[['fuel', 'Fuel truck', 260000], ['catering', 'Catering truck', 185000], ['tractor', 'Baggage tractor', 65000]].map((v: any) => `<button class="btn sm" data-act="sim-vehicle" data-k="${v[0]}">Buy a ${v[1]} (${money(v[2])})</button>`).join('')}</span></div>` : ''}
-    <div class="tabs big">${tabs}</div>
-    ${tab[0] === 'hire' ? `<div class="filter-row">${[['captain', 'Captains', 6000], ['fo', 'First officers', 4000], ['fa', 'Cabin crew', 1500], ['mech', 'Mechanics', 2500], ['checkin', 'Passenger service', 1500], ['security', 'Security', 1500], ['ground', 'Baggage handlers', 1500], ['fuel', 'Fuel drivers', 1500], ['catering', 'Catering', 1500], ['cleaning', 'Cleaners', 1500]].map((r: any) => `<button class="fchip" data-act="sim-advert" data-r="${r[0]}">Advertise: ${r[1]} (${money(r[2])})</button>`).join('')}<p class="fine-print">${icon('info')}A paid advert brings three better candidates. Interview before you hire to see their strong and weak points.</p></div>` : ''}
-    <div class="crew-list">${list.map((p, i) => simPersonRow(p, i, tab[0] === 'hire')).join('') || emptyState(tab[0] === 'hire' ? 'Nobody looking for work right now' : 'Nobody here yet', tab[0] === 'hire' ? 'New people come every few hours.' : 'Hire them under Hire staff.')}</div>`;
+    ${leave.length ? `<div class="sim-leave"><h4 class="grp-h">Holiday requests</h4>${leave.map((l: any) => `<div class="crew-row"><span class="cr-name"><b>${esc(l.name)}</b><small>${esc(simRoleName(l.role))} · ${l.days} days from ${esc(l.from)}</small></span><span class="cr-btns"><button class="btn sm primary" data-act="sim-leave" data-i="${l.i}" data-a="yes">Approve</button><button class="btn sm ghost" data-act="sim-leave" data-i="${l.i}" data-a="no">Refuse</button></span></div>`).join('')}</div>` : ''}
+    <div class="sc-areas">${chips}</div>
+    ${area ? `<div class="sc-head"><h2>${esc(area.label)}</h2><small>${esc(area.duties)}</small></div>
+    <div class="need-row">${aj.map(needChip).join('')}${note(aj)}</div>
+    ${(veh[area.id] || []).map((v: any) => `<div class="sc-adv"><button class="btn sm" data-act="sim-vehicle" data-k="${v[0]}">Buy a ${v[1].toLowerCase()} (${money(v[2])})</button><small class="muted">You have ${v[3] || 0}.</small></div>`).join('')}
+    <div class="crew-list">${staff.map((p, i) => simPersonRow(p, i, false)).join('') || emptyState('Nobody here yet', 'Hire from the people below, or place an advert.')}</div>` : ''}
+    <h4 class="grp-h">Looking for work</h4>
+    ${adverts(aj)}<p class="fine-print">${icon('info')}A paid advert brings three better candidates. Interview before you hire to see their strong and weak points.</p>
+    <div class="crew-list">${cand.map((p, i) => simPersonRow(p, i, true)).join('') || emptyState('Nobody looking for work right now', 'New people come every few hours, or place an advert.')}</div></div>`;
 }
 
 ACTIONS['sim-tab'] = el => { SimCrew.tab = el.getAttribute('data-t') || 'pilots'; SimCrew.open = ''; Sound.tick(); refresh(); };
 ACTIONS['sim-open'] = el => { const id = el.getAttribute('data-id') || ''; SimCrew.open = SimCrew.open === id ? '' : id; Sound.tick(); refresh(); };
 ACTIONS['sim-hire'] = el => simCrewDo('hire', (el.getAttribute('data-id') || '') + '|', 'Hired');
+ACTIONS['sim-shift'] = el => simCrewDo('shift', (el.getAttribute('data-id') || '') + '|' + (el.getAttribute('data-s') || ''), 'Shift changed');
+/** A direct link from another page to one area of the Crew screen. */
+ACTIONS['crew-area'] = el => { SimCrew.tab = el.getAttribute('data-area') || 'pilots'; SimCrew.open = ''; Sound.tick(); try { closeAll(); } catch (e) { /* nothing open */ } go('pilots'); };
+/** The Staff app of the tablet and the computers: the same crew while a career runs in Unreal. */
+function simStaffApp(): string { if (!simLink()) return ''; simCrewLoad(false); return SimCrew.data ? simCrewHtml() : ''; }
+// (live: where everyone is, every 5 seconds while the page is open and nothing is being typed)
+setInterval(() => { try { const f: any = document.activeElement; if ((State as any).screen === 'pilots' && simLink() && document.querySelector('#view .sim-crew') && !(f && /INPUT|SELECT|TEXTAREA/.test(f.tagName))) simCrewLoad(false); } catch (e) { /* not on screen */ } }, 5000);
 ACTIONS['sim-dayoff'] = el => simCrewDo('dayoff', (el.getAttribute('data-id') || '') + '|2', 'Two days off rostered');
 ACTIONS['sim-interview'] = el => simCrewDo('interview', el.getAttribute('data-id') || '', 'Interviewed');
-ACTIONS['sim-advert'] = el => simCrewDo('advert', el.getAttribute('data-r') || 'fa', 'Advert placed');
+ACTIONS['sim-advert'] = el => simCrewDo('advert', el.getAttribute('data-r') || 'ground', 'Advert placed');
 ACTIONS['sim-contract'] = el => simCrewDo('contract', (el.getAttribute('data-id') || '') + '|' + (el.getAttribute('data-c') || 'full'), 'Contract changed');
 ACTIONS['sim-leave'] = el => simCrewDo('leave', (el.getAttribute('data-i') || '') + '|' + (el.getAttribute('data-a') || 'no'), 'Answered');
 ACTIONS['sim-vehicle'] = el => simCrewDo('vehicle', el.getAttribute('data-k') || 'fuel', 'Vehicle bought');

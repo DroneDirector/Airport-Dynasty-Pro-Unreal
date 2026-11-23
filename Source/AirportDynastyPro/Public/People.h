@@ -127,9 +127,10 @@ private:
 
 	// the menu's state
 	bool bMenu = false; TWeakObjectPtr<AActor> MenuWho;
-	enum class EMenu : uint8 { Start, Questions, Answer, Conduct, Refused } Mode = EMenu::Start;
+	enum class EMenu : uint8 { Start, Questions, Answer, Conduct, Refused, Job } Mode = EMenu::Start;
 	TArray<int32> AskOrder;   // which questions this time
-	void ShowStart(); void ShowQuestions(); void Answer(int32 Topic); void AskWork();
+	void ShowStart(); void ShowQuestions(); void Answer(int32 Topic); void AskWork(); void ShowJobs(); void TakeJob(int32 I);
+	TArray<FString> Jobs; int32 JobPage = 0;   // (the jobs you can offer them, six at a time)
 	void ShowConduct(); void TryCalm(bool bFirm); void CallSecurity();
 
 	// the conduct scene (the director)

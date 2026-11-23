@@ -30,6 +30,7 @@ namespace ADPStaff
 	bool Interview(FADPWorld& W, const FString& PersonId);
 	/** A paid job advert (to-do 179): three better candidates for the job come into the pool. Cost by job. */
 	bool Advert(FADPWorld& W, const FString& AirlineId, const FString& Role, const FDateTime& At, FRandomStream& Rng);
+	double AdvertCost(const FString& Role);
 	/** Full or part time (to-do 180). */
 	bool SetContract(FADPWorld& W, const FString& PersonId, const FString& Contract);
 	/** A holiday request answered (to-do 180). */

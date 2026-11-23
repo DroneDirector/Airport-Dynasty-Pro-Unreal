@@ -260,7 +260,7 @@ function lapDeskHtml(): string {
 
 function lapAppHtml(k: string): string {
   if (k === 'weather') return wxAppHtml();
-  if (k === 'staff') return aptStaffAppHtml();   // (your airport's staff: screens/apt-staff.ts)   // (the Weather app: screens/wx-app.ts)
+  if (k === 'staff') return simStaffApp() || aptStaffAppHtml();   // (your airport's staff: screens/apt-staff.ts)   // (the Weather app: screens/wx-app.ts)
   if (k === 'msgs' || k === 'call' || k === 'store') return phAppHtml(k);
   if (k === 'mail') return lapMailHtml();
   if (k === 'calendar') return lapCalHtml();

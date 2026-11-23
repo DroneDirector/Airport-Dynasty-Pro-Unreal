@@ -104,6 +104,7 @@ function dismissStaff(id: string, incId?: string) {
 }
 ACTIONS['go-hire'] = el => {
   const t = el.closest('.toast'); if (t) t.remove(); _pilotTab = 'hire'; _hireRole = el.getAttribute('data-id') || 'all';
+  try { if (simLink()) { SimCrew.tab = simJob(_hireRole).area || 'hire'; SimCrew.open = ''; } } catch (e) { /* the old screen */ }
   // already in Crew: just the hiring list (no page change, no flash); then straight down to it
   if (State.screen === 'pilots' && !document.querySelector('.layer')) { Sound.tick(); refresh(); } else { closeAll(); go('pilots'); }
   // (after the page has drawn the list: a second look in case it was drawn again)
