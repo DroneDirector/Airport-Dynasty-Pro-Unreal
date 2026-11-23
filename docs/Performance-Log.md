@@ -76,3 +76,16 @@
   and after, every part the same to 0.1 ms - taken out again.
 - Not measured: the same view without the east side's 163 lights, so how much of the 17.4 -> 20.2 ms (one frame each, another
   camera) is theirs is still open. Not stress-walked.
+
+## 2026-11-23: the light under the wave roof, the paving to the doors (SoffitLights.cpp, east_pave)
+
+- 34 long soft panels (no shadows, no flares, no haze, nothing on the glass, 400 m limit; the 16 inside off by day), one per
+  40 m instead of a light per downlight; the east shell's solid in 36 Nanite pieces; 24 more lamp panels, 12 more lamp lights.
+- Editor game, 1920x1080, 100 %, Chablais, one settled frame each (stat unit), the panels off -> on (same run, same place):
+  13:00: forecourt x 350 frame 15.7 -> 15.7 ms, GPU 11.3 -> 11.4, draws 1413 -> 1419; Grand Hall 15.6 -> 15.6, GPU 13.4 -> 13.7,
+  1774 -> 1777; kerb 17.0 -> 16.4, GPU 14.4 -> 14.5, 1479 -> 1501. 23:00: forecourt 14.4 -> 14.7, GPU 10.3 -> 10.8; Grand Hall
+  15.0 -> 15.2, GPU 12.4 -> 13.1; kerb 15.5 -> 16.2, GPU 13.1 -> 13.3. Against the morning's numbers of the same three places
+  (20.3 / 20.2 / 21.7 ms) the frame is shorter: the day's lamp and walking-map work is in it. Not a stress walk, not packaged.
+- Found: the sky light gives NOTHING in the whole game - its real-time capture stays black from the start (x5 or off: no change;
+  r.SkyLight.RealTimeReflectionCapture 0, or 0 then 1, and it lights). Not switched on: it changes every shade, interior and
+  pane of glass in the game (blue shade, milky blue glass) - the owner's decision.
