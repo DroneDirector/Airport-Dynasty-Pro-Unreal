@@ -25,19 +25,22 @@ public:
 		/** Everything is in: the finished look. */
 		SLATE_ATTRIBUTE(bool, Done)
 		/** A small line at the very bottom (e.g. "Esc: back to the menus"); empty: none. */
-		SLATE_ARGUMENT(FString, Hint)
+		SLATE_ATTRIBUTE(FString, Hint)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& Args);
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const FSlateRect& Cull, FSlateWindowElementList& Out, int32 Layer, const FWidgetStyle& Style, bool bParentEnabled) const override;
 	virtual FVector2D ComputeDesiredSize(float) const override { return FVector2D(640.f, 360.f); }
 
+	/** A new loading: the bar from its beginning (it was kept at its end from the last one). */
+	void Restart();
+
 	/** The game tips (the same as the web loading screen's). */
 	static const TArray<FString>& Tips();
 
 private:
-	FString Kicker, Hint;
-	TAttribute<FString> Title, Step;
+	FString Kicker;
+	TAttribute<FString> Title, Step, Hint;
 	TAttribute<float> Fraction;
 	TAttribute<bool> Done;
 	double T0 = 0;

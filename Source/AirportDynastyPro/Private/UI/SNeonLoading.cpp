@@ -53,6 +53,8 @@ void SNeonLoading::Construct(const FArguments& Args)
 	ForceVolatile(true);   // (it moves every frame: the sheen, the tips, the bar)
 }
 
+void SNeonLoading::Restart() { Shown = 0.f; LastPaint = 0; T0 = FPlatformTime::Seconds(); }
+
 int32 SNeonLoading::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const FSlateRect& Cull, FSlateWindowElementList& Out, int32 Layer, const FWidgetStyle& Style, bool bParentEnabled) const
 {
 	using namespace ADPNeonLoad;   // (inside: a unity build puts other files next to this one)
@@ -155,11 +157,12 @@ int32 SNeonLoading::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const 
 	Text(Layer + 3, TEXT("TIP"), TipKF, FVector2D((S.X - TK.X) * 0.5f, TipY - TK.Y - 8 * Scale), Pink, Pink, Pink, 1.2f * Scale);
 	Text(Layer + 3, Tp[Idx], TipF, FVector2D((S.X - TipS.X) * 0.5f, TipY + (1.f - Ease) * 8.f * Scale), A(Paper, 0.9f * Ease), Paper, Paper, 0.f);
 	// the hint, small, under everything
-	if (!Hint.IsEmpty())
+	const FString HintS = Hint.Get(FString());
+	if (!HintS.IsEmpty())
 	{
 		const FSlateFontInfo HF = Face(FMath::RoundToInt(9 * Scale), 200);
-		const FVector2D HS = Measure(Hint.ToUpper(), HF);
-		Text(Layer + 3, Hint.ToUpper(), HF, FVector2D((S.X - HS.X) * 0.5f, S.Y - HS.Y - 10 * Scale), A(Paper, 0.45f), Paper, Paper, 0.f);
+		const FVector2D HS = Measure(HintS.ToUpper(), HF);
+		Text(Layer + 3, HintS.ToUpper(), HF, FVector2D((S.X - HS.X) * 0.5f, S.Y - HS.Y - 10 * Scale), A(Paper, 0.45f), Paper, Paper, 0.f);
 	}
 	return Layer + 10;
 }

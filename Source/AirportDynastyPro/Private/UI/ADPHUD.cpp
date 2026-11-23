@@ -426,8 +426,10 @@ void AADPHUD::BeginPlay()
 		HangarList->AddSlot().AutoHeight().Padding(0, 0, 0, 10)[Button(TEXT("TOWN: YOUR VILLA"), [this]() { OpenTownPlace(TEXT("villa")); })];
 	}
 
-	Root = SNew(SOverlay).Visibility(EVisibility::SelfHitTestInvisible)
-		+ SOverlay::Slot()[GameBox.ToSharedRef()]
+	// the airport's own interface, all of it in one layer: gone as one while a screen of its own is up (the new career's
+	// steps, the site question, the loading) - the compass, the sprint meter and the Buttons tab lay over the creator
+	// (owner, 2026-11-23)
+	TSharedRef<SWidget> HudLayer = SNew(SOverlay).Visibility_Lambda([this]() { return OwnScreen() ? EVisibility::Collapsed : EVisibility::SelfHitTestInvisible; })
 		// drone mode's line, bottom centre (only while flying, the map closed; clear of the time and weather bar above,
 		// the small map at the left and the Buttons panel at the right): speed, the wheel's step, height
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(16, 16, 16, 44)
@@ -603,11 +605,8 @@ void AADPHUD::BeginPlay()
 				]
 			]
 		]
-		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[Settings.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Center).Padding(48, 0, 0, 0)[WardrobeBox.ToSharedRef()]
-		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[CrashPanel.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[UnstuckPanel.ToSharedRef()]
-		+ SOverlay::Slot().HAlign(HAlign_Fill).VAlign(VAlign_Fill)[LoadingBox.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(FMargin(24, 0, 0, 84))[DeviceLegend.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(FMargin(0, 0, 0, 36))[PanelHint.ToSharedRef()]   // (above a computer's taskbar)
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(FMargin(0, 0, 0, 120))
@@ -776,6 +775,13 @@ void AADPHUD::BeginPlay()
 			.Visibility_Lambda([this]() { return CaptionTime > 0 && CallGain() > 0.05f ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
 			[SNew(STextBlock).Font(Font(12)).ColorAndOpacity(Ink).Text_Lambda([this]() { return FText::FromString(TEXT("ANNOUNCEMENT  ·  ") + CallText); })]
 		];
+	Root = SNew(SOverlay).Visibility(EVisibility::SelfHitTestInvisible)
+		+ SOverlay::Slot()[GameBox.ToSharedRef()]
+		+ SOverlay::Slot()[HudLayer]
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[Settings.ToSharedRef()]
+		+ SOverlay::Slot().HAlign(HAlign_Fill).VAlign(VAlign_Fill)[LoadingBox.ToSharedRef()]
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
+		[SNew(SBox).Visibility_Lambda([this]() { return OwnScreen() || bLoading ? EVisibility::Collapsed : EVisibility::SelfHitTestInvisible; })[CrashPanel.ToSharedRef()]];
 
 	BuildPeopleChoices();
 	if (GEngine && GEngine->GameViewport) GEngine->GameViewport->AddViewportWidgetContent(Root.ToSharedRef(), 10);
@@ -790,7 +796,7 @@ void AADPHUD::BeginPlay()
 	if (GEngine && GEngine->GameViewport)
 		GEngine->GameViewport->AddViewportWidgetContent(
 			SNew(SBox).HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(0, 70, 0, 0))
-			.Visibility_Lambda([this]() { return !bGame && ADPLateWorld::Started() && !ADPLateWorld::Done() ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+			.Visibility_Lambda([this]() { return !bGame && !OwnScreen() && !bLoading && ADPLateWorld::Started() && !ADPLateWorld::Done() ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
 			[
 				SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(FLinearColor(0.02f, 0.03f, 0.09f, 0.82f)).Padding(FMargin(18, 8))
 				[
@@ -1696,7 +1702,7 @@ void AADPHUD::CloseWhoAreYou(bool bGoOn, const FString& Difficulty)
 		// on: the game's own new-game flow (the pilot, the airline, the Overview); back: the title screen
 		const FString D = Difficulty.IsEmpty() ? TEXT("normal") : Difficulty.Left(12).Replace(TEXT("'"), TEXT(""));
 		Browser->ExecuteJavascript(bGoOn ? FString::Printf(TEXT("window.__ueNewGameDone && window.__ueNewGameDone('%s', '%s')"), *D, ADPCharacterCreate::UiOnRight() ? TEXT("f") : TEXT("m")) : TEXT("window.__ueNewGameCancel && window.__ueNewGameCancel()"));
-		if (bGoOn) { bNewCareer = true; SimDifficulty = D; StartUnrealLoad(); }   // (you, your hair and the terminal loading for real, shown on the loading screen)
+		if (bGoOn) { bNewCareer = true; SimDifficulty = D; StartUnrealLoad(); }   // (the loading screen, the game's own, from now on: NewGameLoad.cpp)
 	}
 	// the menus in front again (they were, before the stage)
 	if (!bGame) ToggleGame();
@@ -1840,6 +1846,7 @@ void AADPHUD::OnEscape()
 	if (ADoorPanelUse::Leave()) return;
 	if (bWhoAreYou) { CloseWhoAreYou(false); return; }
 	// on the loading screen: straight back to the menus
+	if (bStartLoad) return;   // (a career is being loaded: it goes on)
 	if (bLoading) { StopLoading(); if (!bGame) ToggleGame(); return; }
 	// the phone or a computer up: put away (the page handles its own Esc while it has the keys)
 	if (bDevice || PhoneDir != 0) { PutDeviceAway(); return; }
@@ -2393,8 +2400,12 @@ void AADPHUD::Tick(float Dt)
 	// from the menus into the 3D airport: the loading screen until everything is in (test runs skip it)
 	{
 		static const bool bTest = FParse::Param(FCommandLine::Get(), TEXT("UIShot")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading"));
-		if (bWasGame && !bGame && !bTest) StartLoading();
-		if (bGame && bLoading) StopLoading();
+		// (not for the new career's stage: the menus' page is still up over it - the airport's loading screen stood over "who
+		//  are you" for 17 s, owner's log 2026-11-22 13:26)
+		if (bWasGame && !bGame && !bWhoAreYou && !bTest) StartLoading();
+		if (bGame && bLoading && !bStartLoad) StopLoading();
+		// the title's film only behind the title: not over the stage, the loading or the airport, and not playing on unseen
+		ADPTitleBg::Hold(!bGame || bWhoAreYou || bStartLoad);
 		bWasGame = bGame;
 		TickLoading(Dt);
 		TickDevice(Dt);
@@ -2479,6 +2490,8 @@ void AADPHUD::Tick(float Dt)
 	}
 	// -UIPack: the announcement preview pack, then the game closes
 	if (FParse::Param(FCommandLine::Get(), TEXT("UIPack"))) { static bool bDone = false; if (!bDone) { bDone = true; WritePreviewPack(); ADP_SHOT_EXIT(); } }
+	// -UINewGame: the new career's whole path, walked by itself
+	{ static const bool bNg = FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) || FParse::Param(FCommandLine::Get(), TEXT("UIContinueGame")); if (bNg) TestNewGame(Dt); }
 	// -UIShot: one picture with the interface showing (the title screen), then the game closes (a check of the interface)
 	static float ShotClock = 0;
 	if (FParse::Param(FCommandLine::Get(), TEXT("UIShot")))

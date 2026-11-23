@@ -129,25 +129,32 @@ function pickPlace(id: string) {
   // new-game flow follows once that is done (window.__ueNewGameDone), or the title screen comes back (…Cancel)
   if (id === 'game:new' && !newStageDone) { const u = ue(); if (u && u.newgame) { u.newgame(); return; } }
   if (id.indexOf('game:') === 0) {
+    lastAct = id.slice(5);
     gameOpen(id.slice(5) as any, { title: () => splashOpen(pickPlace), exit: () => exitGame(), viewer: (fid: string) => enter('viewer3d', /^crash:/.test(fid) ? '3D viewer Â· the crash site' : /^apt:/.test(fid) ? '3D viewer Â· your airport' : fid ? '3D viewer Â· following the flight' : TITLES.viewer3d, /^crash:/.test(fid) ? { crash: fid.slice(6) } : /^apt:/.test(fid) ? { apt: fid.slice(4) } : fid ? { live: fid } : undefined) });
+    if (id === 'game:continue' && unrealLoads() && !forOverview) ue().startload();
+    forOverview = false;
     return;
   }
   enter(id, TITLES[id] || id);
 }
+let lastAct = '', forOverview = false;   // (forOverview: your airline opened for the Overview from the 3D world - you are in the airport already)
+// in Unreal the loading screen is Unreal's own (owner, 2026-11-23: this page's one stayed at 92 % when the game's page had
+// an error): Continue starts it at once, Load once the save is chosen and in; New game's is started by Unreal itself
+const unrealLoads = () => !!(UE_PC && ue() && ue().startload);
 let newStageDone = false;
 // the stage done (Start game): the neon loading screen, and the game opened with the choices made there; the game's
 // own loader and anything it shows stay behind the loading screen until it says it is in and showing
 (window as any).__ueNewGameDone = (diff?: string, sex?: string) => {
   const ch: any = (window as any).__ngChoices || {};
   gameNewExtra(diff || '', sex || '', ch.pet || 'none', ch.coat || 0, !!ch.married, ch.airline || null);
-  loadingNeonShow();
+  if (!unrealLoads()) loadingNeonShow();
   newStageDone = true; try { pickPlace('game:new'); } finally { newStageDone = false; }
 };
 // (a device picked up in the 3D world opens the game quietly behind it - none of these screens then: owner, 2026-11-19)
 let devQuiet = false;
-onGameReady(() => { if (!devQuiet) loadingNeonDone(); });
+onGameReady(() => { if (devQuiet) return; if (unrealLoads()) { if (lastAct === 'load') { lastAct = ''; ue().startload(); } return; } loadingNeonDone(); });
 onGameFounding(() => { if (!devQuiet) loadingNeonHide(); });
-onGameLoading(() => { if (!devQuiet) loadingNeonShow(); });
+onGameLoading(() => { if (!devQuiet && !unrealLoads()) loadingNeonShow(); });
 onNoGame(() => { if (!devQuiet) toast('No career on this PC yet: start a New game'); });
 (window as any).__ueStressReport = (text: string) => { if (!splashIsOpen()) splashOpen(pickPlace); setTimeout(() => splashStressReport(text), 700); };
 (window as any).__ueNewGameCancel = () => { if (!splashIsOpen()) splashOpen(pickPlace); };
@@ -257,6 +264,7 @@ if (UE_PC) {
 (window as any).__ueOverview = (from?: string) => {
   if (gameExists()) { if (gameHidden()) gameShow(); gameEval(`window.__ovFrom = ${JSON.stringify(String(from || ''))}`); gameSend({ ampb: 'go', screen: 'ops' }); return; }
   if (inPlace) backToTitle();   // a 3D place of this page (the lounge, the viewer): closed first
+  forOverview = true;
   if (splashIsOpen()) splashGo('game:continue'); else pickPlace('game:continue');
 };
 // The Overview opened from your tablet or a computer (the game's screens/laptop.ts), and its logo back to it; the tablet's

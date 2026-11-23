@@ -83,6 +83,16 @@ public:
 	void StartLoading();
 	void StopLoading();
 	void TickLoading(float Dt);
+	/** New game, Continue, Load: the loading screen from the first moment (the world and your career, NewGameLoad.cpp), then
+	 *  straight into the airport, the bar carrying on (Loading.cpp). */
+	void ShowStartLoad();
+	void EndStartLoad();
+	bool bStartLoad = false, bLoadCarryOn = false;
+	float StartLoadT = 0.f;
+	/** Nothing of the airport's own interface: the new career's steps, the site question, the loading (owner, 2026-11-23). */
+	bool OwnScreen() const { return bWhoAreYou || bStartLoad || SiteChoice.IsValid(); }
+	/** -UINewGame: the title -> new game -> steps -> loading -> airport path walked by itself (NewGameTest.cpp). */
+	void TestNewGame(float Dt);
 	TSharedPtr<SWidget> LoadingBox;
 	/** Your phone and the computers in the rooms (Devices.cpp, owner 2026-11-11): the game's own phone (its apps) and
 	 *  desktop (the taskbar, the operations screens as apps) over the 3D room. Opened from the room (E, the controller's

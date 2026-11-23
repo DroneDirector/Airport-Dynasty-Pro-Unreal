@@ -1,7 +1,8 @@
-// The new career's loading screen also shows what Unreal itself loads (owner, to-do 32h): while the neon loading screen
-// is up after Start game, Unreal really loads what the game needs from it - you (your built character), your hair (its
-// grooms) and the terminal (its pieces and materials) - and tells the screen each one's true percentage
-// (window.__ueLoad), so the bar only finishes when they are in too.
+// New game, Continue and Load (owner, to-do 32h): what the game needs is really loaded - you (your built character), your
+// hair (its grooms), the terminal (its pieces and materials), the roads and the town, and your career - behind the neon
+// loading screen, each one's true percentage in its bar; when they are in, straight into the airport (Loading.cpp).
+// Since 2026-11-23 it is the game's own screen (SNeonLoading): the menus' page showed it before and had the last word on
+// when loading was over - an error in the page, and it stayed at 92 % for ever. The page is no longer asked.
 #include "UI/ADPHUD.h"
 #include "ADPLog.h"
 #include "Wardrobe.h"
@@ -9,12 +10,12 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
-#include "SWebBrowser.h"
 #include "Sim/ADPSim.h"
 
 void AADPHUD::StartUnrealLoad()
 {
-	if (bPreLoading) return;   // (already loading: New game asks twice - from the page's screen and at Start game)
+	if (bPreLoading || bStartLoad) return;   // (already loading)
+	ShowStartLoad();
 	PreLoad.Reset(); PreNames.Reset(); PreSent = 0.f; bPreDone = false;
 	IAssetRegistry& AR = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 	TArray<FSoftObjectPath> You, Hair, Terminal;
@@ -52,6 +53,7 @@ void AADPHUD::StartUnrealLoad()
 	{
 		if (bNewCareer) Sim->NewCareer(SimDifficulty);
 		else if (!Sim->PendingLoad.IsEmpty() && Sim->LoadNamed(Sim->PendingLoad)) Sim->PendingLoad.Empty();   // (a named save: to-do 192)
+		else if (Sim->IsRunning() && Sim->PendingLoad.IsEmpty()) {}   // (back from the title screen: it kept running)
 		else if (!Sim->ResumeCareer()) Sim->NewCareer(TEXT("normal"));
 	}
 	// the roads, the town and the land along the roads, built behind this screen (ADPLateWorld)
@@ -62,20 +64,32 @@ void AADPHUD::StartUnrealLoad()
 
 void AADPHUD::TickUnrealLoad(float Dt)
 {
-	if (!bPreLoading) return;
-	PreSent += Dt;
-	if (PreSent < 0.25f && !bPreDone) return;
-	PreSent = 0.f;
-	FString J = TEXT("["); bool bAll = true;
+	if (!bPreLoading) { if (bStartLoad) EndStartLoad(); return; }
+	StartLoadT += Dt;
+	FString Doing, All; float Sum = 0.f; bool bAll = true;
 	for (int32 i = 0; i < PreNames.Num(); ++i)
 	{
 		const TSharedPtr<FStreamableHandle>& H = PreLoad[i];
-		const float P = PreNames[i] == TEXT("The roads and the town") ? ADPLateWorld::Progress() : !H.IsValid() ? 1.f : (H->HasLoadCompleted() ? 1.f : H->GetProgress());
-		bAll &= P >= 1.f;
-		J += FString::Printf(TEXT("%s{\"n\":\"%s\",\"p\":%.3f}"), i ? TEXT(",") : TEXT(""), *PreNames[i], P);
+		const bool bRoads = PreNames[i] == TEXT("The roads and the town");
+		const float P = bRoads ? (ADPLateWorld::Done() ? 1.f : FMath::Min(0.999f, ADPLateWorld::Progress())) : !H.IsValid() || H->HasLoadCompleted() || H->WasCanceled() ? 1.f : FMath::Min(0.999f, H->GetProgress());
+		bAll &= P >= 1.f; Sum += P;
+		if (P < 1.f && Doing.IsEmpty()) Doing = FString::Printf(TEXT("Loading %s… %d %%"), *(PreNames[i].Left(1).ToLower() + PreNames[i].Mid(1)), FMath::FloorToInt(P * 100.f));
+		All += FString::Printf(TEXT("%s%s %.0f%%"), i ? TEXT(", ") : TEXT(""), *PreNames[i], P * 100.f);
 	}
-	J += TEXT("]");
-	static float LogT = 0.f; LogT += 0.25f; if (LogT >= 2.f || bAll) { LogT = 0.f; ADP_LOG(TEXT("New game loading: %s"), *J); }
-	if (Browser.IsValid()) Browser->ExecuteJavascript(FString::Printf(TEXT("window.__ueLoad && window.__ueLoad(%s, %s)"), *J, bAll ? TEXT("true") : TEXT("false")));
-	if (bAll) { bPreLoading = false; ADP_LOG(TEXT("New game loading: everything Unreal needs is in")); }
+	// (your career: its world data and the catch-up - never waited for long, it goes on behind the airport)
+	const UADPSim* Sim = UADPSim::Get(this);
+	const bool bSim = !Sim || Sim->IsRunning();
+	if (!bSim) { if (StartLoadT < 45.f) bAll = false; if (Doing.IsEmpty()) Doing = TEXT("Loading your career…"); }
+	Sum += bSim ? 1.f : 0.f;
+	const float K = Sum / float(FMath::Max(1, PreNames.Num() + 1));
+	LoadFrac = FMath::Max(LoadFrac, FMath::Min(0.5f * K, LoadFrac + Dt * 0.5f));
+	LoadStep = Doing.IsEmpty() ? FString(TEXT("Loading game assets")) : Doing;
+	static float LogT = 0.f; LogT += Dt; if (LogT >= 2.f || bAll) { LogT = 0.f; ADP_LOG(TEXT("New game loading: %s, your career %s (%.1f s)"), *All, bSim ? TEXT("in") : TEXT("coming"), StartLoadT); }
+	// (the longest it may take: after 3 minutes in with what there is, and the log says what was missing)
+	const bool bLate = StartLoadT > 180.f;
+	if (!bAll && !bLate) return;
+	if (bLate && !bAll) ADP_WARN(TEXT("New game loading: 180 s - going on without the rest (%s)"), *All);
+	bPreLoading = false;
+	ADP_LOG(TEXT("New game loading: everything Unreal needs is in (%.1f s)"), StartLoadT);
+	EndStartLoad();
 }

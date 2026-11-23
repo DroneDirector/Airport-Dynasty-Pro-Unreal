@@ -39,10 +39,13 @@ if (EMBED) {
     // the same opening only once (a reload of this page, after a load, goes into the game)
     let nonce = ''; try { nonce = new URLSearchParams(location.search).get('n') || ''; } catch (e) { /* none */ }
     let done = ''; try { done = sessionStorage.getItem('ampb-embed-done') || ''; sessionStorage.setItem('ampb-embed-done', nonce); } catch (e) { /* none */ }
-    if (next || (nonce && done === nonce)) { go('ops', true); embedTell('ready'); return; }
+    // (whatever the first screen does, the edition is told the game is in: an error in it left the loading screen waiting
+    //  for ever at 92 % - the new Overview had no map and its setup failed, owner 2026-11-22)
+    const opsReady = () => { try { go('ops', true); } catch (e) { console.error(e); } embedTell('ready'); };
+    if (next || (nonce && done === nonce)) { opsReady(); return; }
     // no career saved on this PC: nothing to continue (no demo airlines any more: the edition says to start a new game)
     if (EMBED === 'continue' && Store.wasEmpty) { embedTell('nogame'); return; }
-    if (EMBED === 'continue') { try { enterSplash(); } catch (e) { /* straight in */ } go('ops', true); embedTell('ready'); return; }
+    if (EMBED === 'continue') { try { enterSplash(); } catch (e) { /* straight in */ } opsReady(); return; }
     if (EMBED === 'new' && (EMBED_DIFF || EMBED_SEX)) { embedNewGame(); return; }
     if (EMBED === 'new' || EMBED === 'load' || EMBED === 'save') { panelOnly(EMBED); return; }
     go('ops', true);
@@ -72,11 +75,12 @@ if (EMBED) {
         if (x) x.setAttribute('data-act', 'ts-panel-close');
         if (bk) bk.setAttribute('data-act', 'ts-panel-close');
         if (EMBED_AIR) {
-          // everything was chosen on the stage: the form is filled in and sent unseen, the loading screen stays up
-          const m = $('.fs-modal') as HTMLElement; if (m) { const lay = (m.closest('.layer') as HTMLElement) || m; lay.style.visibility = 'hidden'; }
-          const put = (q: string, v: string) => { const e = $(q) as HTMLInputElement; if (e && v) e.value = String(v); };
-          put('.fs-modal .fs-name', EMBED_AIR.name); put('.fs-modal .fs-icao', EMBED_AIR.icao); put('.fs-modal .fs-call', EMBED_AIR.call); put('.fs-modal .fs-pilot', EMBED_AIR.pilot);
-          ACTIONS['fs-wipe'](null as any, null as any);
+          // everything was chosen on the stage: founded straight from it. (The unseen form was filled in and sent before - in
+          //  Unreal it wasn't there to fill in, and every airline became "Northern Lights Air", 2026-11-23.)
+          const a = EMBED_AIR, name = String(a.name || '').trim() || (_fsKind === 'bush' ? 'Tundra Wings' : _fsKind === 'regional' ? 'Fjord Regional' : 'Northern Lights Air');
+          const icao = (String(a.icao || '').trim() || name.replace(/[^A-Za-z]/g, '').slice(0, 3)).toUpperCase().padEnd(3, 'X').slice(0, 3);
+          closeAll();
+          wipeToScratch({ kind: _fsKind, name, icao, callsign: (String(a.call || '').trim() || name.split(' ')[0]).toUpperCase(), hub: _fsHub, pilot: String(a.pilot || '').trim() } as any);
           return;
         }
         embedTell('founding');   // the form is up: the edition's loading screen steps aside for it

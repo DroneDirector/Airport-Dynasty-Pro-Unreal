@@ -184,6 +184,7 @@ SCREENS.ops = {
   },
   mount(root) {
     const host = $('#ops-map', root);
+    if (!host) { _opsMap = null as any; return; }   // (the new Overview on the simulation has no map: nothing to set up)
     // tapping a flight (yours, a hired pilot's or a co-op pilot's) follows it
     // tapping a flight (yours, a hired pilot's or a co-op pilot's) opens its bubble: follow, favourite, details
     _opsMap = new WorldMap(host, { interactive: true, memoKey: 'ops', onSelect: id => { if (!id) showSel(null); } });
