@@ -260,6 +260,37 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
             ground crew (ground handling, ramp services) next to fuel, catering, cleaning and ground (ADPStaff wages
             table and ADPGround::TeamNeeds); needs an airside driving permit (part of hiring); one driver per bus on shift,
             the usual three shifts; their wage is an airport cost. Without a driver on shift a bus stays parked.
+- [ ] **The apron buses run on the real flight schedule** (owner, 2026-11-23: "follow the actual airplane schedules, so it
+      is ready to serve the airplanes and its passengers", from real-world practice, working with the game's sync):
+      - [ ] **In the world simulation, not in Unreal:** a new module `FADPApronBusModule` (next to FADPStandsModule in
+            ADPGround: every 30 s, MaxCatchUp 2 days) plans and runs the buses from the flights' times (STD / STA, the
+            estimated times when late) and their stands. Its state lives in the shared world data (each bus: id, battery,
+            state, the flight and trip it serves, where it is and until when; each passenger's stage gets "waiting at
+            the bus gate", "on bus N", "at the stand"), so it is saved in the cloud save with the format's version
+            number, synced, caught up after time away, and part of the daily two-setup comparison like everything else.
+            Unreal only animates what the module says (buses along the bus road at the times it gives, adjusting speed to
+            match - the world stays in charge of timing); Android shows the buses as dots on the 2D map / holomap.
+      - [ ] **Departures from a remote stand** (times before STD, tunable; real-world sources below):
+            - 50 min: a free bus with a driver on shift and enough charge leaves the depot for the bus gate.
+            - 45 min: the bus is at the bus gate; 40 min: boarding opens (boarding commonly starts 30-45 min before).
+            - each bus leaves for the stand when its registered passengers are aboard (or it is full: 80 passengers a
+              bus with hand luggage, tunable, though it holds up to 110); with nobody registered it waits the fixed 2 min.
+            - 30 min: the gate closes (easyJet / Ryanair today; others 20 min - an airline setting); the last bus leaves
+              then at the latest; no-shows are left behind and offloaded.
+            - buses per flight = passengers booked / 80, rounded up (A320 180 seats: 3; A321 220: 3; A350 / B777: 4-5);
+              each bus shuttles back for the next load when the flight needs more trips than there are buses.
+      - [ ] **Arrivals on a remote stand:** the bus is at the stand 5 min before the aircraft's estimated on-block time,
+            waiting outside the red restraint line; it moves in beside the forward left door when the aircraft has
+            stopped, its beacon is off and the stairs are on; it leaves when its passengers are aboard (or full) for the
+            arrivals bus door; more buses as for departures.
+      - [ ] **Planning:** buses are reserved for each flight's time windows in order of time; a missing bus (all busy,
+            no driver on shift, battery low) makes boarding late and is logged as the cause of the delay (as the other
+            ground teams in ADPGround::Turnaround). Idle buses go back to the depot and charge below 40 % (120 kWh,
+            about 1.7 kWh/km: 70 km a charge).
+      - [ ] Sources (2026-11-23): easyJet's turnaround (key.aero): gate agents 50 min before STD, the gate closes 30 min
+            before; Ryanair's gate closes 30 min before (raised from 20); boarding typically 30-45 min before and gate
+            closing 10-20 min (airline-dependent); remote stands use bus lounges / bus gates that may serve more than two
+            remote stands (Auckland Airport's stand allocation principles); e.COBUS 3000: 120 kWh, about 70 km per charge.
 - [ ] **The buses' rules, fleets and money** (owner, 2026-11-23) - for the apron bus and the taxi bus (and the rules for
       the landside coach where they apply):
       - [ ] **Who rides the apron bus:** only passengers of a flight parked on a REMOTE stand (no jetway), both ways:
