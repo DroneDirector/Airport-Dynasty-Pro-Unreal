@@ -43,4 +43,6 @@ for k, os_ in CL.items():
         me.polygons.foreach_set('material_index', mi[sel]); me.polygons.foreach_set('use_smooth', sm[sel]); me.uv_layers.new(name='UVMap').data.foreach_set('uv', uv2.ravel()); me.update(calc_edges=True); me.validate()
         me.use_auto_smooth = True; me.auto_smooth_angle = math.radians(40)
         q = bpy.data.objects.new('J_' + kk, me); coll('J_' + kk).objects.link(q); print('MERGED', kk, len(os_), 'pieces', len(ls2), 'faces', round(time.time() - t0), 's', flush=True)
-bpy.data.batch_remove([o for L in CL.values() for o in L])
+for L in CL.values():                                          # (unlinked, so not saved: deleting 25 000 objects took minutes)
+    for o in L:
+        for c_ in list(o.users_collection): c_.objects.unlink(o)

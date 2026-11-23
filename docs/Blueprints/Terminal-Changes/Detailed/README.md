@@ -31,6 +31,6 @@
 - Arrivals go down at each gate into a closed ground-floor corridor. TC-3's Floor 2 corridor and mezzanine are gone (v2).
 - The passport control stands beside the walkway; only the glass wall crosses it, at x 240 (v2).
 - Only gate 13 swings. Gate 4's outside gallery is dropped and not shown.
-- The link gallery's glass is drawn to x 160, 4 m past the v2 sheet's x 156, so that it has a way into the East Hall.
+- The link gallery runs to x 162, as the shell in the game does, so that it turns into the East Hall (v2 sheets: x 156).
 
 Scripts: `Blueprints/Terminal/Changes/Detailed/` (build_scene.py, then build_new.py, then queue.sh).

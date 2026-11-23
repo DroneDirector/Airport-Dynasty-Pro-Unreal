@@ -104,7 +104,7 @@ def glass_front(xa, xb, z, tag='ground', top=None, gaps=(), foot=0.0):
 
 
 VEST = ((188, 200), (290, 300), (396, 406), (514, 526))
-glass_front(156, 551.2, 0.0, gaps=((156, 161),) + VEST)
+glass_front(156, 551.2, 0.0, gaps=((157, 162),) + VEST)
 for z in range(0, 34, 3):                                      # the east end wall, glass to the roof
     quad([P(551.2, z, 0), P(551.2, min(z + 3, 34), 0), P(551.2, min(z + 3, 34), soffit(550.8, min(z + 3, 33.5))), P(551.2, z, soffit(550.8, z))], 'GLASS'); box(551.1, z - 0.06, 551.35, z + 0.06, 0, soffit(550.8, z), 'MUL')
 box(551.1, 34, 551.4, 52, 0, 12, 'PLAST')
@@ -115,11 +115,16 @@ for v0, v1 in VEST:                                            # the new entranc
 for x, s in ((194, 'EAST HALL'), (295, 'PROMENADE'), (401, 'PROMENADE'), (520, 'COACH + BUS STATION')): sign(s, x, -4.5, 4.35, 8.5 if len(s) < 12 else 11, 0.75)
 box(156, 34, 551.2, 52, 12.0, 12.4, 'ZINC', RF); gold(156, 34, 551.2, 52, 12.0, 12.45, 'roof')   # the flat roof behind the wave (z 34-52)
 # ---- the double skin x 107-156: a glass skin at z -4 up to the wave, the block's own wall and the office windows stay behind it
-glass_front(107, 160, -4.0)
-for x in (107, 160):
-    for z0, z1 in ((-4, -2), (-2, 0)): quad([P(x, z0, 0 if x == 107 else 0), P(x, z1, 0), P(x, z1, soffit(x, z1)), P(x, z0, soffit(x, z0))], 'GLASS')
-    box(x - 0.06, -2.06, x + 0.06, -1.94, 0, soffit(x, -2), 'MUL')
-box(107, -4, 160, 0, 0.14, 0.17, 'MARBLE')
+# (as built in Art/TerminalEast: the tall skin x 114-156; the one-storey link gallery runs x 107-162 and turns in through the front)
+glass_front(114, 156, -4.0)
+for x in (114, 156):
+    for z0, z1 in ((-4, -2), (-2, 0)): quad([P(x, z0, 3.8), P(x, z1, 3.8), P(x, z1, soffit(x, z1)), P(x, z0, soffit(x, z0))], 'GLASS')
+    box(x - 0.06, -2.06, x + 0.06, -1.94, 3.8, soffit(x, -2), 'MUL')
+for a, b in ((107, 114), (156, 162)):
+    box(a, -4.02, b, -3.98, 0, 3.4, 'GLASS'); gold(a, -4.1, b, 0, 0.2, 3.8, w=0.06)
+    for x in (a, (a + b) / 2, b): box(x - 0.05, -4.06, x + 0.05, -3.94, 0, 3.4, 'MUL')
+box(162 - 0.02, -4, 162 + 0.02, 0, 0, 3.4, 'GLASS'); box(107, -4.2, 162.2, 0, 3.4, 3.8, 'WHITE')
+box(107, -4, 162, 0, 0.14, 0.17, 'MARBLE')
 for x in range(114, 157, 6):                                   # steel brackets tying the two skins (at the floor lines)
     for h in (5.42, 10.46): box(x - 0.06, -4, x + 0.06, 0, h, h + 0.12, 'MUL')
 for x in (117, 129, 141, 153): plant(x, -0.8, 0.17, None, 1.1)
