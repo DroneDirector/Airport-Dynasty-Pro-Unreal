@@ -12,6 +12,7 @@
 # Blender axes for the game's import: (x, y, z) = (-plan x, -plan z, plan y).
 #   F:/Tools/Blender-4.2/blender.exe -b --python Art/TerminalAnnex/make_annex_west.py -- Data/wave-roof-points.json
 #   (the wave roof's points: python Tools/dump_piece_points.py Data/wave-roof-points.json 12892 - kept in Data, never run without them)
+#   (2026-11-23: the old Grand Hall roof piece, node 12892; the one wave roof of Tools/wave_roof.py is the same there, x 36..114, to the millimetre)
 import bpy, bmesh, json, math, os, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 a = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
