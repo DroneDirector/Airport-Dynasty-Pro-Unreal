@@ -126,9 +126,9 @@ def gate9(ax, seats=True, lw=2.0, arc=None):
 
 
 def new_seats(ax, A):
-    t = A.t(-230.4); end = A.mull()[12] - 2.2; n = 0
-    while t < end:
-        x, z = A.pt(t, -1.75); a = t / A.R; c, s = math.cos(a), math.sin(a)
-        P = [(x + u * c + v * s, z - u * s + v * c) for u, v in ((-.28, -.24), (.28, -.24), (.28, .24), (-.28, .24))]
-        ax.add_patch(Polygon(P, fc='#7a5cff', ec='#b7a6ff', lw=0.6, zorder=6)); t += 0.62 * A.R / (A.R - 1.75); n += 1
-    return n
+    """the 24 seats along the curve: two sections of 12 with the way to the glass between them"""
+    for t in SEC_W + SEC_E:
+        x, z = A.pt(t, SOFF); a = t / A.R; c, s = math.cos(a), math.sin(a)
+        P = [(x + u * c + v * s, z - u * s + v * c) for u, v in ((-.28, -.41), (.28, -.41), (.28, .27), (-.28, .27))]
+        ax.add_patch(Polygon(P, fc='#7a5cff', ec='#b7a6ff', lw=0.6, zorder=6))
+    return len(SEC_W + SEC_E)

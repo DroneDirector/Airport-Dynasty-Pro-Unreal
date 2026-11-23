@@ -44,6 +44,18 @@ A = Arc()
 TJL = A.mull()[12]                                  # the portal's left jamb IS the 13th mullion
 TJR = A.t(JX + (JX - A.pt(TJL)[0]))                 # the right jamb: as far the other side of the corridor
 PORT_HEAD = (9.10, 9.25)
+# ---- the seats along the curve (owner, 2026-11-23: room to walk in front, 4 out of the middle, a way to the glass)
+PITCH, SOFF = 0.62, -2.05                           # the seat's middle 2.05 m in from the glass (the first drawing: 1.75)
+KNEE, BACK, FOOT = 0.43, 0.41, 0.453                # from the seat's middle: a seated person's knees (0.65 from the backrest), the backrest, the rear feet
+SP = PITCH * A.R / (A.R + SOFF)                     # the pitch measured on the glass's arc
+SEC_E = [2.75 - SP * k for k in range(12)][::-1]    # the east section's 12 seats (t of their middles)
+SEC_W = [SEC_E[0] - 5 * SP - SP * k for k in range(12)][::-1]   # 4 seats left out, then the west section's 12
+GAP_T = (SEC_E[0] + SEC_W[-1]) / 2
+ROWZ = (71.4, 74.4, 77.4); ROW0 = -230.61           # today's three rows: 37 seats each
+ROWS_NOW = [[ROW0 + PITCH * k for k in range(37)]]
+ROWS_OPT = [[ROW0 + PITCH * k for k in range(-2, 10)], [ROW0 + PITCH * k for k in range(14, 39)]]   # the option: the same 37, 4 moved to the ends
+
+
 if __name__ == '__main__':
     for d in (2, 3, 4):
         q = Arc(d); print(d, 'R %.3f  half angle %.2f deg  arc %.3f  pane %.4f  area %.2f  z at corridor L/axis/R %.2f %.2f %.2f  to columns %.2f' % (

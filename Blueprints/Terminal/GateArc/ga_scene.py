@@ -145,9 +145,9 @@ box(X1 + 0.07, ZG - 0.015, XR - 0.04, ZG + 0.015, F2, GTOP, GLASS); box(XR - 0.0
 for t in (TJL, TJR): ring(t - 0.075, t + 0.075, -0.16, 0.16, 5.40, PORT_HEAD[0], STEEL, 'Jamb', step=1)
 ring(TJL - 0.075, TJR + 0.075, -0.16, 0.16, PORT_HEAD[0], PORT_HEAD[1], STEEL, 'PortalHead')
 for xa, xb in ((-213.45, JCL), (JCR, -209.95)):
-    zc = A.z((xa + xb) / 2); box(xa, zc - 0.10, xb, zc + 0.10, 5.2, 9.10, DARK)
-ring(A.t(JCL) - 0.02, A.t(JCR) + 0.02, -0.08, 0.08, 8.95, 9.11, DARK, 'JointTop'); ring(A.t(JCL), A.t(JCR), -0.06, 0.06, 5.36, 5.50, DARK, 'JointBot')
-mesh('SlotSoffit', [(SLOT[0], 82.08, 5.42), (SLOT[1], 82.08, 5.42), (SLOT[1], A.z(SLOT[1]), 5.42), (SLOT[0], A.z(SLOT[0]), 5.42)], [(0, 1, 2, 3)], DARK)
+    zc = A.z((xa + xb) / 2); box(xa, zc - 0.10, xb, zc + 0.10, 5.53, 9.10, DARK)
+ring(A.t(JCL) - 0.02, A.t(JCR) + 0.02, -0.08, 0.08, 8.95, 9.11, DARK, 'JointTop'); ring(TS0, TS1, 0.0, E1, 5.40, 5.53, WHITE, 'JointBot')
+mesh('SlotSoffit', [(SLOT[0], 82.07, 5.402), (SLOT[1], 82.07, 5.402), (SLOT[1], A.z(SLOT[1]), 5.402), (SLOT[0], A.z(SLOT[0]), 5.402)], [(0, 3, 2, 1)], WHITE)      # (white like the soffit beside it: owner, 2026-11-23)
 # the door wall at z 82: the end of the corridor, now standing free in the bay (the door untouched)
 for x in (-212.6, -210.8): box(x - 0.04, 81.84, x + 0.04, 81.98, F2, 9.10, MUL)
 for a, b in ((JCL, -212.64), (-210.76, JCR)): box(a, ZG - 0.015, b, ZG + 0.015, F2, 9.10, GLASS)
@@ -169,26 +169,32 @@ for me in SEAT.values():
     for i, s in enumerate(me.materials): me.materials[i] = NAVY if 'shell' in s.name.lower() else DARK if 'black' in s.name.lower() else MCH
 
 
-def seat(x, z, yaw, col, leg=False):
-    for k in ('SeatModule', 'ArmModule') + (('LegModule',) if leg else ()):
-        if k in SEAT: o = bpy.data.objects.new(k, SEAT[k]); col.objects.link(o); o.location = P(x, z, F2); o.rotation_euler = (0, 0, yaw)
+def put(k, x, z, yaw, col):
+    o = bpy.data.objects.new(k, SEAT[k]); col.objects.link(o); o.location = P(x, z, F2); o.rotation_euler = (0, 0, yaw)
+
+
+YAW0 = math.pi                                                      # (the rows: backs towards the walkway, facing the apron)
+
+
+def row(xs, z, col):
+    """one straight bench as the game builds it (BabylonModel.cpp ReplaceSeats): legs at both ends and every third joint, armrests at the others"""
+    for x in xs: put('SeatModule', x, z, YAW0, col)
+    for k in range(len(xs) + 1): put('LegModule' if k in (0, len(xs)) or k % 3 == 0 else 'ArmModule', xs[0] + PITCH * (k - 0.5), z, YAW0, col)
 
 
 for o in [o for o in EX.objects if o.type == 'MESH' and o.data.materials and o.data.materials[0] and o.data.materials[0].name.split('.')[0] in ('navy', 'steel')]:
     x0, x1, z0, z1, h0, h1 = bnd(o)
     if -235 < x0 and x1 < -165 and 70 < z0 and z1 < 79 and h0 > 5.9 and h1 < 7.2: EX.objects.unlink(o)
-YAW0 = math.pi                                                      # (today's rows: backs towards the walkway, facing the apron)
-for z in (71.4, 74.4, 77.4):
-    for k in range(37):
-        for x00 in (-230.61, -196.61):
-            x = x00 + 0.62 * k
-            if x00 > -200 and x > -168: continue
-            seat(x, z, YAW0, EX, k % 3 == 0)
-TSEAT = []; t = A.t(-230.4); end = TJL - 2.2                          # the new row along the curve, facing out
-while t < end: TSEAT.append(t); t += 0.62 * A.R / (A.R - 1.75)
-for k, t in enumerate(TSEAT):
-    x, z = A.pt(t, -1.75); seat(x, z, YAW0 - t / A.R, ARC, k % 3 == 0)
-print('NEW SEATS', len(TSEAT), A.pt(TSEAT[0], -1.75), A.pt(TSEAT[-1], -1.75))
+RNOW, ROPT = coll('ROWS_NOW'), coll('ROWS_OPT')
+for z in ROWZ:
+    for b in ROWS_NOW: row(b, z, RNOW)
+    for b in ROWS_OPT: row(b, z, ROPT)
+    row([-196.61 + PITCH * k for k in range(46)], z, EX)            # (the view bay's)
+for sec in (SEC_W, SEC_E):                                          # the two sections along the curve, facing out
+    for t in sec: x, z = A.pt(t, SOFF); put('SeatModule', x, z, YAW0 - t / A.R, ARC)
+    for k in range(len(sec) + 1):
+        t = sec[0] + SP * (k - 0.5); x, z = A.pt(t, SOFF); put('LegModule' if k in (0, len(sec)) or k % 3 == 0 else 'ArmModule', x, z, YAW0 - t / A.R, ARC)
+print('SEATS', len(SEC_W) + len(SEC_E), 'gap middle', A.pt(GAP_T, SOFF))
 
 
 # ---------------------------------------------------------------- the apron as Airfield.cpp paints it

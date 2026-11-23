@@ -18,14 +18,14 @@ box(ax, 82.0, JBOT, 94.0, JTOP, fc='none', ec='none'); ax.add_patch(Polygon([(82
 for z in (86.0, 92.0): box(ax, z - 0.15, 0, z + 0.15, 5.4 - (z - 82) * JSL, fc='#3a2e22', ec=JET, z=2)
 box(ax, ROT[1] - ROTR, 5.08, ROT[1] + ROTR, 8.40, fc='#0c1c2c', ec=JET, lw=1.6, z=3); box(ax, ROT[1] + 0.1, 0, ROT[1] + 0.9, 5.08, fc='#3a2e22', ec=JET, z=2)
 for z in (71.4, 74.4, 77.4): box(ax, z - 0.4, 6.0, z + 0.4, 6.95, fc='#1d3a66', ec='#33558a')
-box(ax, 82.85, 6.0, 83.6, 6.95, fc='#7a5cff', ec='#b7a6ff'); box(ax, 80.05, 6, 80.75, 7.05, fc='#c8ccd0', ec='#fff')
+box(ax, 82.45, 6.0, 83.13, 6.95, fc='#7a5cff', ec='#b7a6ff'); box(ax, 80.05, 6, 80.75, 7.05, fc='#c8ccd0', ec='#fff')
 for z, h in ((79.2, 6.0), (90.0, 0.0)):                             # a person 1.75 m, for scale
     ax.add_patch(Circle((z, h + 1.62), 0.13, fc=FG, zorder=20)); box(ax, z - 0.2, h + 0.75, z + 0.2, h + 1.47, fc=FG, ec='none', z=20); box(ax, z - 0.14, h, z + 0.14, h + 0.75, fc=FG, ec='none', z=20)
 dim(ax, 82.0, 85.0, 12.75, '3.00'); dim(ax, 0, 5.40, 83.6, '5.40 clear', vertical=True); dim(ax, 6.0, 11.36, 69.6, '5.36', vertical=True); txt(ax, 85.25, 5.72, '0.60', NEW, 13, ha='left'); txt(ax, 85.25, 11.72, '0.60', NEW, 13, ha='left')
 lead(ax, 85.4, 4.6, 88.3, 4.1, '0.85 slab to columns', NEW, 13); ax.plot([85.0, 85.85], [4.6, 4.6], color=NEW, lw=2); dim(ax, 85.0, 93.92, 9.9, '8.9 to the rotunda'); dim(ax, 85.0, 98.9, 0.75, 'A320 nose 35.4 from the glass (z 120) →', fs=13.5)
 txt(ax, 75, 9.3, 'GATE 9', FG, 18, weight='bold'); txt(ax, 75, 2.8, 'RAMP SERVICES 9 (unchanged, flat wall)', DIM, 14); txt(ax, 95.84, 6.8, 'rotunda', FG, 13); txt(ax, 90.2, 7.2, 'corridor (beyond, x -211.7)', JET, 13)
 lead(ax, 84.9, 10.4, 90.6, 10.9, 'curved glass + mullion', NEW, 14); lead(ax, 84.2, 11.75, 77.6, 12.95, 'roof edge on the same arc', NEW, 14); lead(ax, 83.2, 5.6, 78.2, 4.4, 'floor slab cantilever 3.0', NEW, 14); lead(ax, ZG, 9.0, 78.6, 10.4, "today's flat glass (gone)", GLASS, 13.5)
-lead(ax, 83.2, 6.9, 80.2, 8.3, 'new seats', '#b7a6ff', 13.5)
+lead(ax, 82.9, 6.9, 80.2, 8.3, 'new seats', '#b7a6ff', 13.5)
 txt(ax, 97.6, 12.6, 'roof 12.00 · ceiling 11.36\nfloor 6.00 · soffit 5.40', FG, 13.5, ha='right')
 # ---------------------------------------------------------------- 2: section along the corridor's axis
 fig.text(0.012, 0.445, "2   Section along the corridor's axis, x -211.70", color=FG, fontsize=18, weight='bold')

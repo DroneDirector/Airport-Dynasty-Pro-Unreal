@@ -20,10 +20,12 @@ for k in (0, 1):
         dim(ax, X0, XR, 67.2, '34.00'); dim(ax, X0, JX, 83.0, "22.00 to the corridor's axis"); dim(ax, 68, 82, -235.4, '14.00', vertical=True)
     else:
         fig.text(0.509, 0.905, 'AFTER: depth 3.0 m (recommended)', color=NEW, fontsize=21, weight='bold', va='top')
-        n = new_seats(ax, A3); dim(ax, X0, X1, 78.95, 'chord 31.84 (outer corner to the lift)'); ax.plot([A3.mid] * 2, [ZG, ZG + 3], color=NEW, lw=1.2, ls=':', zorder=20)
+        n = new_seats(ax, A3); dim(ax, X0, X1, 67.2, 'chord 31.84 (outer corner to the lift)'); ax.plot([A3.mid] * 2, [ZG, ZG + 3], color=NEW, lw=1.2, ls=':', zorder=20)
         dim(ax, ZG, ZG + 3, -219.4, '3.00', vertical=True); ax.plot([-219.8, A3.mid], [ZG + 3] * 2, color=NEW, lw=1, ls=':')
         lead(ax, *A3.pt(-11.5), -229.2, 89.4, 'the true arc:\nradius 43.74, length 32.59\n20 radial mullions,\n19 curved panes of 1.715', NEW, 14.5)
-        lead(ax, *A3.pt(8.0), -206.9, 87.6, 'portal', '#dfe6ee', 13.5); lead(ax, *A3.pt(-5.0, -1.75), -226.7, 80.3, '24 new seats', '#b7a6ff', 13.5)
+        lead(ax, *A3.pt(8.0), -206.9, 87.6, 'portal', '#dfe6ee', 13.5); lead(ax, *A3.pt(SEC_W[3], SOFF - 0.4), -230.6, 79.4, '24 new seats:\n12 + 12', '#b7a6ff', 13)
+        gx = A3.pt(GAP_T, SOFF)[0]; ax.annotate('', xy=(gx, 84.3), xytext=(gx, 78.1), arrowprops=dict(arrowstyle='-|>', color=OK, lw=4), zorder=25); txt(ax, gx + 0.5, 79.6, 'way to the\nglass, 2.42', OK, 13, ha='left')
+        a_, b_ = A3.pt(SEC_E[9], SOFF + KNEE), A3.pt(SEC_E[9], -0.05); dim(ax, a_[1], b_[1], a_[0] + 0.25, '1.55', vertical=True, fs=12)
         dim(ax, 82, A3.z(-208.6), -208.4, '2.0', vertical=True, fs=12.5); dim(ax, 80.5, A3.z(-204.0), -203.6, '%.1f' % (A3.z(-204.0) - 80.57), vertical=True, fs=12.5)
         lead(ax, X0, ZG, -236.3, 84.6, 'corner\npost', FG, 13); lead(ax, X1, ZG, -199.4, 85.6, "post, then\ntoday's flat\nglass 2.16", FG, 13)
 # the three depths
@@ -48,5 +50,5 @@ for i, r in enumerate(rows):
     for j, v in enumerate(r[1:]): fig.text(0.772 + 0.040 * j, y, v, color=('#8fd0ff', NEW, WARN)[j], fontsize=15, va='center', ha='center', weight='bold' if j == 1 or i == 0 else 'normal')
 fig.text(0.622, 0.082, '3 m: it reads as a curve from the apron, and the glass meets the corridor\nwhere its first solid wall bay ends (z 84.3), so the corridor outside stays all\nglass. 2 m hardly shows. 4 m is 0.15 m from the columns: too tight.', color=FG, fontsize=14, va='top', linespacing=1.3)
 fig.text(0.878, 0.300, 'WHAT MOVES', color=NEW, fontsize=16, weight='bold', va='center')
-fig.text(0.878, 0.286, "Nothing inside has to move: the\nseats, desk, stair, lift and door\nstay. New: 24 seats along the\ncurve (111 become 135).\n\nThe corridor's first 2.2 - 2.7 m\nstands inside the bay as a glass\nentrance, its door in its place.\n\nBetween the stair and the glass:\n2.1 m, today 1.3.", color=FG, fontsize=13.5, va='top', linespacing=1.28)
+fig.text(0.878, 0.286, "Nothing inside has to move: the\nseats, desk, stair, lift and door\nstay. New: 24 seats along the\ncurve (111 become 135): two\nsections of 12, 1.55 m clear in\nfront of the knees, a 2.42 m way\nto the glass between them.\n\nThe corridor's first 2.2 - 2.7 m\nstands inside the bay as a glass\nentrance, its door in its place.\n\nBetween the stair and the glass:\n2.1 m, today 1.3.", color=FG, fontsize=13.5, va='top', linespacing=1.28)
 save(fig, 'GA-1-Plan.png')
