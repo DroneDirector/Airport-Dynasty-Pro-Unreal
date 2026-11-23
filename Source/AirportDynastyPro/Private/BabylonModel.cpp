@@ -11,6 +11,10 @@ static FString GRoadsProbe;   // (the road network's data is there: the model's 
 #include "ADPLog.h"
 #include "PaxNav.h"
 #include "TerminalDoors.h"
+#include "SiteNames.h"
+#include "TimerManager.h"
+#include "EngineUtils.h"
+#include "People.h"
 #include "TerminalBuilder.h"
 #include "Components/StaticMeshComponent.h"
 #include "Sound/SoundBase.h"
@@ -340,6 +344,12 @@ bool ABabylonModel::Place(const FString& Name)
 	}
 	ToneDown();
 	MatchSurfaces();
+	// (the airport's name on its pictures, the active site's - a few seconds in: drawn at once, the pictures were still white)
+	if (Name == TEXT("Jetways") || Name == TEXT("Firestation") || Name.StartsWith(TEXT("Office")))
+	{
+		FTimerHandle Th; TWeakObjectPtr<ABabylonModel> Wk(this); const FString Mn = Name;
+		GetWorldTimerManager().SetTimer(Th, FTimerDelegate::CreateLambda([Wk, Mn]() { if (ABabylonModel* B = Wk.Get()) ADPSiteNames::Apply(B, Mn); }), 8.f, false);
+	}
 	return Placed > 0;
 }
 
@@ -1162,9 +1172,15 @@ void ABabylonModel::Tick(float Dt)
 		// sliding doors open by themselves as you come; any other door only when you open it (UseDoor), and its closer
 		// pulls it shut 4 s after you've gone from it
 		if (!D.bSlide && D.bOpen) { D.Away = bNear ? 0.f : D.Away + Dt; if (D.Away > 4.f) D.bOpen = false; }
+		// (never shut on anyone in the doorway, passenger or staff)
+		if (D.bSlide && !bNear && D.K > 0.02f) {
+			static TWeakObjectPtr<AADPPeople> Pp;
+			if (!Pp.IsValid() || Pp->GetWorld() != GetWorld()) { Pp.Reset(); for (TActorIterator<AADPPeople> It(GetWorld()); It; ++It) { Pp = *It; break; } }
+			if (Pp.IsValid()) bNear = Pp->AnyoneNear(D.AtW, D.Reach * 75.f);
+		}
 		const float Want = (D.bSlide ? bNear : D.bOpen) ? 1.f : 0.f;
 		if (FMath::Abs(D.K - Want) < 0.001f) continue;
-		D.K += FMath::Sign(Want - D.K) * FMath::Min(FMath::Abs(Want - D.K), Dt * 1.6f);
+		D.K += FMath::Sign(Want - D.K) * FMath::Min(FMath::Abs(Want - D.K), Dt * (D.bSlide && Want < D.K ? 0.8f : 1.6f));   // (sliding doors shut gently)
 		const float E = D.K * D.K * (3 - 2 * D.K);   // eased, as doors.ts
 		for (FPart& Part : D.Parts) MovePart(Part, E, 0);
 	}

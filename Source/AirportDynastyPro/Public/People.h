@@ -67,6 +67,8 @@ public:
 	FWho* Find(AActor* A);
 	/** A person by you that you face (within 2.5 m), for E when the aim missed. */
 	AActor* Beside(APawn* Me);
+	/** Anyone (passengers and staff) standing within Radius of a place, on its floor: a sliding door never shuts on them. */
+	bool AnyoneNear(const FVector& At, float Radius) const;
 
 	// ---- the menu (the HUD draws it: a title, a few lines of text, up to 8 choices) ----
 	bool MenuOpen() const { return bMenu; }

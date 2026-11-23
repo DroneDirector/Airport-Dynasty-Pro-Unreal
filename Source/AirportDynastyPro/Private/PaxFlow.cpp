@@ -1416,16 +1416,25 @@ void APaxFlow::Tick(float Dt)
 	const FVector Eye = PC && PC->PlayerCameraManager ? PC->PlayerCameraManager->GetCameraLocation() : FVector::ZeroVector;
 	ATerminalDoors::Openers.Reset();
 	{
-		// (anyone departing who is not yet through security - in the car park, the hall, the queues or a lane: the security doors stay open)
-		bool bHold = false;
-		for (const FPx& Q : Pax)
+		// (owner 2026-11-23: the doors from the Grand Hall to security stand open from the first passenger on the hall's ground
+		//  floor to the last - at check-in, in the queues, on their way, in the doorway or coming to it from the lanes - and
+		//  shut by themselves 4 s after the last has gone; counted four times a second, passengers only)
+		if ((HallIn -= Dt) <= 0.f)
 		{
-			if (Q.bArr || Q.St == EPx::Gone) continue;
-			const bool bPast = Q.Do == EDo::Upstairs || Q.Do == EDo::AtSeat || Q.Do == EDo::AtWall || Q.Do == EDo::AtGateSpot || Q.Do == EDo::Aboard
-				|| Q.St == EPx::Wait || Q.St == EPx::Seated || Q.St == EPx::Lean || Q.St == EPx::Call || Q.St == EPx::Jetway;
-			if (!bPast) { bHold = true; break; }
+			HallIn = 0.25f; int32 N = 0;
+			for (const FPx& Q : Pax)
+			{
+				if (Q.St == EPx::Gone) continue;
+				const AActor* QA = Q.A.Get(); if (!QA) continue;
+				const FVector L = QA->GetActorLocation(); const float X = L.X / 100.f, Z = -L.Y / 100.f;
+				if (L.Z > 350.f || L.Z < -150.f) continue;
+				if ((X > 42.f && X < 114.f && Z > -0.5f && Z < 30.f) || (X > 57.f && X < 83.f && Z >= 30.f && Z < 33.f)) ++N;
+			}
+			const bool bWas = ATerminalDoors::bHoldSecurity;
+			if (N) HallQuiet = 0.f; else HallQuiet += 0.25f;
+			ATerminalDoors::bHoldSecurity = N > 0 || (bWas && HallQuiet < 4.f);
+			if (bWas != ATerminalDoors::bHoldSecurity) ADP_LOG(TEXT("PaxFlow: the security doors %s (%d passengers on the Grand Hall's floor)"), bWas ? TEXT("shut - the hall is empty") : TEXT("open and stay open"), N);
 		}
-		ATerminalDoors::bHoldSecurity = bHold;
 		bool bAny = false; for (const FPx& Q : Pax) if (Q.St != EPx::Gone) { bAny = true; break; }
 		ATerminalDoors::bHoldEntrances = bAny;
 	}

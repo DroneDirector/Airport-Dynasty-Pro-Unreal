@@ -116,6 +116,7 @@ private:
 	float F2Z = 600.f, F2Y = 6.f;
 	int32 Frame = 0, Watched = INDEX_NONE, TotalAboard = 0, TotalOut = 0;
 	int32 PhoneWho = INDEX_NONE, PhoneReturn = INDEX_NONE; float PhoneShowIn = -1.f; bool bPhoneShown = false;   // (tests: the camera on someone using a phone at the gate, a while)
+	float HallIn = 0.f, HallQuiet = 99.f;   // (passengers on the Grand Hall's ground floor: next count, how long there were none - the security doors)
 	bool bRevShown = false; int32 RevReturn = INDEX_NONE; float RevReturnIn = -1.f;   // (tests: the camera shows one revolving door ride, then goes back)
 	FRandomStream Rng;
 

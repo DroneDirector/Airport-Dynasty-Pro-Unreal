@@ -205,6 +205,13 @@ AADPPeople::FWho* AADPPeople::Find(AActor* A)
 	return nullptr;
 }
 
+bool AADPPeople::AnyoneNear(const FVector& At, float Radius) const
+{
+	for (const FWho& W : People)
+		if (const AActor* A = W.A.Get()) { const FVector L = A->GetActorLocation(); if (FMath::Abs(L.Z - At.Z) < 150.f && FVector::DistSquared2D(L, At) < Radius * Radius) return true; }
+	return false;
+}
+
 AActor* AADPPeople::Beside(APawn* Me)
 {
 	if (!Me) return nullptr;
