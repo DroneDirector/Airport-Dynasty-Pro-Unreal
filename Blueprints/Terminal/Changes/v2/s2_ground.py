@@ -17,7 +17,8 @@ def forecourt(ax, x0, x1):
 
 COACH = [(148.5 - 16 * k - 13, 148.5 - 16 * k) for k in range(3)] + [(81.4, 94.4), (55.2, 68.2), (33.1, 46.1), (17.1, 30.1)]
 SETDOWN = [(235.2 - 6.8 * k - 6, 235.2 - 6.8 * k) for k in range(12)]
-PIL = [56, 94, -46, -8, 159.7, 199.6, 266.96, 306.9, 374.3, 414.2, 481.6, 521.5, -135.3, -104.2, -218.9, -187.8]
+sys.path.insert(0, os.path.join(ROOT, 'Tools')); import wave_roof as _WR      # the one wave roof's own pillars, two under every bow
+PIL = [x for _, x in _WR.PILLARS]
 
 
 def pillars(ax):
@@ -32,7 +33,7 @@ def sec(no, title, sub, x0, x1, z0, z1, rect):
 
 if 'a' in which:
     fig, ax = sec('SHEET 2a', 'GROUND FLOOR AFTER: THE WEST CLAIM WING (SCHENGEN ARRIVALS)',
-                  'All rooms and walls stay. New pieces in yellow. White dots: the existing tree pillars.', -84, 44, -33, 56, [0.012, 0.03, 0.64, 0.88])
+                  'All rooms and walls stay. New pieces in yellow. White dots: the tree pillars.', -84, 44, -33, 56, [0.012, 0.03, 0.64, 0.88])
     W_ = WEST
     for k, n in (('df', 1), ('lf', 2), ('wc', 3), ('os', 4), ('cafe', 8), ('info', 7), ('kiosk', 9), ('atm', 10)):
         b = W_[k]; num(ax, (b[0] + b[2]) / 2, (b[1] + b[3]) / 2, n, fs=17)
@@ -130,7 +131,7 @@ if 'd' in which:
     dim(ax, 372, 470, -14, '98.0', fs=15); dim(ax, 470, 551.2, -14, '81.2', fs=15); dim(ax, 0, 52, 554, '52.0', vertical=True, fs=14); dim(ax, 291, 521, 70, '', fs=12) if False else None
     fig.text(0.014, 0.125, 'ESCAPE STAIRS (green): 11 of 1.8 m, 30 m apart, as v2 (0.6 m of stair per 60 people: 19.8 m serve 1 980). Their final form and the 35 m walking distance (VKF 16-15) are settled on sheet 9.', color=FG, fontsize=15.5)
     fig.text(0.014, 0.095, 'STAFF CROSSINGS (violet squares in the corridor): the ramp rooms\' doors at x 349, 421 and 493 keep their way into the baggage hall through double doors that lock while passengers walk past.', color=FG, fontsize=15.5)
-    fig.text(0.014, 0.065, 'THE PILLARS (white dots): the wave roof\'s eight east pillars already stand at x 159.7, 199.6, 267.0, 306.9, 374.3, 414.2, 481.6, 521.5 (z -9). They stay; one more comes at x 556 with the smooth roof.', color=FG, fontsize=15.5)
+    fig.text(0.014, 0.065, 'THE PILLARS (white dots): under the one smooth roof two under every bow, as at the Grand Hall (z -9): here x 326, 364, 416, 454, 506, 544. The old outer pillars moved 3 to 18 m.', color=FG, fontsize=15.5)
     fig.text(0.014, 0.035, 'TODAY the forecourt pavement and kerb lane end at about x 241-340 (Data/roads.json): both must be lengthened to reach the coach station, at Chablais and in Iceland.', color=WARN, fontsize=15.5)
     save(fig, 'TCv2-2d-Ground-Coach-Station.png')
 
