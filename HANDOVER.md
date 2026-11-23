@@ -2,6 +2,14 @@
 
 Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md (where everything is) first.
 
+## The passenger and crew chain in a real career (PC chat, 2026-11-23)
+`docs/Passenger-Crew-Chain.md` is the table of every step. The player buys / leases A320s and makes the timetable in the Overview
+(Fleet, Market, Routes, Schedule: `sim-schedule.ts` -> `UADPBridge::Sim`); `Sim/ADPSchedule` makes the planned legs, sells them and
+gives the stand; PaxFlow spawns who booked; `Turnaround` runs on the planned leg (its one timeline); a flight leaves only when
+`ASimTraffic::Ready` says the 3D work is done (`ADPSchedule::Ready3D`). Staff on shift: checkin, security, ground - none: the step
+waits and a notice says why. Nobody strolls in the terminal without a flight (-Strollers for tests). Test:
+`Tools/new_game_test.sh --career [--from N]` (ChainTest.cpp, save points per stage in Saved/NewGameTest/chain).
+
 ## FOR THE PC CHAT - from the phone chat (2026-11-23 13:00-14:00): the buses and the remote stands, handed over to build
 The owner (14:00): "hand all these details over to the other chat and let it build what needs building, change what needs
 changing; if the other chat has started on the same thing, let it finish first and then hand over; keep all projects in

@@ -44,6 +44,8 @@ public:
 	// their id, and they take exactly that bag off when it comes round ----
 	/** The belt a flight's bags go to (0..4), INDEX_NONE if none yet. */
 	static int32 BeltOf(UWorld* W, const FString& Flight);
+	/** How many bags still to come for that flight carry a passenger's id. */
+	static int32 TagsOf(UWorld* W, const FString& Flight);
 	/** These passengers' bags are among the next bags of that flight to come off the hold (each new bag on its belt
 	 *  takes the next id; bags without a tag are the passengers not shown). */
 	static void TagBags(UWorld* W, const FString& Flight, const TArray<FString>& PaxIds);

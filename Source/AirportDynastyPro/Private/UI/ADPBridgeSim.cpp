@@ -4,6 +4,8 @@
 #include "UI/ADPHUD.h"
 #include "Sim/ADPSim.h"
 #include "Sim/ADPStaff.h"
+#include "Sim/ADPEconomy.h"
+#include "Sim/ADPSchedule.h"
 #include "Sim/ADPWorldData.h"
 #include "Sim/ADPRoster.h"
 #include "Sim/ADPMaint.h"
@@ -13,6 +15,7 @@
 #include "Sim/ADPWeather.h"
 #include "Site.h"
 #include "Sim/ADPBoards.h"
+#include "Sim/ADPDemand.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
@@ -308,6 +311,135 @@ FString UADPBridge::Sim(const FString& Action, const FString& Arg)
 		return Out(O);
 	}
 	const FDateTime At = S->Now();
+	// ---- your aircraft and your timetable (owner 2026-11-23): what is for sale, bought, leased, sold; the lines of the
+	//      timetable and the flights they become, with who has booked
+	if (Action == TEXT("aircraft"))
+	{
+		TSharedRef<FJsonObject> O = MakeShared<FJsonObject>(); O->SetBoolField(TEXT("ok"), true);
+		const FADPAirline* My = W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == Me; });
+		O->SetNumberField(TEXT("balance"), My ? FMath::RoundToDouble(My->Balance) : 0.0); O->SetStringField(TEXT("hub"), My ? My->Hub : FString());
+		TArray<TSharedPtr<FJsonValue>> Ty, Us, Fl;
+		for (const FADPTypeInfo& T : ADPWorldData::Types()) if (ADPWorldData::HasModel(T.Id))
+		{
+			TSharedRef<FJsonObject> X = MakeShared<FJsonObject>(); X->SetStringField(TEXT("id"), T.Id); X->SetStringField(TEXT("name"), T.Name); X->SetNumberField(TEXT("seats"), T.Seats); X->SetNumberField(TEXT("range"), T.RangeNm);
+			X->SetNumberField(TEXT("price"), FMath::RoundToDouble(T.ValueM * 1e6)); X->SetNumberField(TEXT("lease"), FMath::RoundToDouble(ADPEconomy::LeaseRate(T.Id))); X->SetNumberField(TEXT("deposit"), FMath::RoundToDouble(ADPEconomy::LeaseRate(T.Id) * 2.0));
+			X->SetNumberField(TEXT("fa"), ADPStaff::CabinCrewFor(T.Seats)); Ty.Add(MakeShared<FJsonValueObject>(X));
+		}
+		for (int32 i = 0; i < W.UsedMarket.Num(); ++i)
+		{
+			const FADPUsedOffer& U = W.UsedMarket[i]; if (!ADPWorldData::HasModel(U.TypeId)) continue;
+			const FADPTypeInfo* T = ADPWorldData::Type(U.TypeId);
+			TSharedRef<FJsonObject> X = MakeShared<FJsonObject>(); X->SetNumberField(TEXT("i"), i); X->SetStringField(TEXT("type"), U.TypeId); X->SetStringField(TEXT("name"), T ? T->Name : U.TypeId); X->SetNumberField(TEXT("age"), U.AgeYears);
+			X->SetNumberField(TEXT("condition"), FMath::RoundToDouble(U.Condition)); X->SetNumberField(TEXT("price"), FMath::RoundToDouble(U.Price)); Us.Add(MakeShared<FJsonValueObject>(X));
+		}
+		for (const FADPAircraft& C : W.Aircraft) if (C.AirlineId == Me)
+		{
+			TSharedRef<FJsonObject> X = MakeShared<FJsonObject>(); X->SetStringField(TEXT("reg"), C.Reg); X->SetStringField(TEXT("type"), C.TypeId); X->SetStringField(TEXT("status"), C.Status); X->SetStringField(TEXT("at"), C.Location); X->SetStringField(TEXT("base"), C.Base);
+			X->SetStringField(TEXT("stand"), C.Stand); X->SetNumberField(TEXT("condition"), FMath::RoundToDouble(C.Condition)); X->SetStringField(TEXT("own"), C.Ownership); X->SetNumberField(TEXT("lease"), FMath::RoundToDouble(C.LeaseMonthly));
+			X->SetNumberField(TEXT("value"), FMath::RoundToDouble(C.Value * (0.55 + 0.45 * C.Condition / 100.0) * 0.94)); X->SetNumberField(TEXT("hours"), FMath::RoundToDouble(C.HoursMin / 60.0)); X->SetNumberField(TEXT("cycles"), C.Cycles);
+			int32 Ln = 0; for (const FADPSlot& Sl : W.Slots) Ln += Sl.Reg == C.Reg; X->SetNumberField(TEXT("lines"), Ln);
+			const FADPPlanned* Nx = ADPSchedule::Next(W, C.Reg, C.Location);
+			if (Nx) X->SetStringField(TEXT("next"), FString::Printf(TEXT("%s to %s %s"), *Nx->FlightNo, *Nx->To, *ADPBoards::Local(Nx->Est).ToString(TEXT("%d.%m %H:%M"))));
+			Fl.Add(MakeShared<FJsonValueObject>(X));
+		}
+		O->SetArrayField(TEXT("types"), Ty); O->SetArrayField(TEXT("used"), Us); O->SetArrayField(TEXT("fleet"), Fl);
+		return Out(O);
+	}
+	if (Action == TEXT("buy"))
+	{
+		const FADPAirline* My = W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == Me; });
+		const FString Reg = My ? ADPEconomy::BuyAircraft(W, Me, A, B == TEXT("lease"), My->Hub, At) : FString();
+		if (Reg.IsEmpty()) return Ok(false, TEXT("not enough money"));
+		for (FADPAircraft& C : W.Aircraft) if (C.Reg == Reg) ADPGround::AssignStand(W, C, At, At + FTimespan::FromDays(1.0));   // (delivered: on its stand at once)
+		TSharedRef<FJsonObject> O = MakeShared<FJsonObject>(); O->SetBoolField(TEXT("ok"), true); O->SetStringField(TEXT("reg"), Reg); return Out(O);
+	}
+	if (Action == TEXT("buyused"))
+	{
+		const FADPAirline* My = W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == Me; });
+		const FString Reg = My ? ADPEconomy::BuyUsed(W, Me, FCString::Atoi(*A), My->Hub, At) : FString();
+		if (Reg.IsEmpty()) return Ok(false, TEXT("not enough money"));
+		for (FADPAircraft& C : W.Aircraft) if (C.Reg == Reg) ADPGround::AssignStand(W, C, At, At + FTimespan::FromDays(1.0));   // (delivered: on its stand at once)
+		TSharedRef<FJsonObject> O = MakeShared<FJsonObject>(); O->SetBoolField(TEXT("ok"), true); O->SetStringField(TEXT("reg"), Reg); return Out(O);
+	}
+	if (Action == TEXT("sell"))
+	{
+		const FADPAircraft* C = W.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == A && X.AirlineId == Me; });
+		if (!C) return Ok(false, TEXT("not your aircraft"));
+		if (C->Status == TEXT("flying") || C->Location != C->Base) return Ok(false, TEXT("it has to stand at its base"));
+		return Ok(ADPEconomy::SellAircraft(W, A, At), TEXT("it is in the air"));
+	}
+	if (Action == TEXT("places"))
+	{
+		// where this aircraft may fly from its base, the best markets first (Schengen first); a search by name or code
+		const FADPAircraft* C = W.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == A && X.AirlineId == Me; });
+		const FADPAirportInfo* Hub = C ? ADPWorldData::Airport(C->Base) : nullptr;
+		if (!Hub) return Ok(false, TEXT("not your aircraft"));
+		struct FP { const FADPAirportInfo* Ap; double Score, Nm; };
+		TArray<FP> L; const FString Q = B.ToUpper().TrimStartAndEnd();
+		ADPWorldData::ForEachAirport([&](const FADPAirportInfo& Ap)
+		{
+			if (Ap.Icao.IsEmpty() || !Ap.bScheduled || (Ap.Kind != 'L' && Ap.Kind != 'M')) return;
+			if (!Q.IsEmpty() && !Ap.Icao.ToUpper().StartsWith(Q) && !Ap.Iata.ToUpper().StartsWith(Q) && !Ap.Name.ToUpper().Contains(Q) && !Ap.Town.ToUpper().Contains(Q)) return;
+			const double Nm = ADPWorldData::DistanceNm(Hub->Lat, Hub->Lon, Ap.Lat, Ap.Lon);
+			if (Nm < 60.0 || Nm > 2700.0) return;
+			L.Add({&Ap, ADPDemand::MarketPax(*Hub, Ap, At) * (ADPSchedule::Schengen(Ap.Country) ? 1.0 : 0.5), Nm});
+		});
+		L.Sort([](const FP& X, const FP& Y) { return X.Score > Y.Score; });
+		TArray<TSharedPtr<FJsonValue>> Ps; int32 Tried = 0;
+		for (const FP& P : L)
+		{
+			if (Ps.Num() >= 40 || ++Tried > 120) break;
+			FString Why; if (!ADPSchedule::CanReach(C->TypeId, C->Base, P.Ap->Icao, Why)) continue;
+			TSharedRef<FJsonObject> X = MakeShared<FJsonObject>(); X->SetStringField(TEXT("icao"), P.Ap->Icao); X->SetStringField(TEXT("iata"), P.Ap->Iata); X->SetStringField(TEXT("name"), P.Ap->Name); X->SetStringField(TEXT("town"), P.Ap->Town); X->SetStringField(TEXT("country"), P.Ap->Country);
+			X->SetNumberField(TEXT("nm"), FMath::RoundToDouble(P.Nm)); X->SetNumberField(TEXT("pax"), FMath::RoundToDouble(ADPDemand::MarketPax(*Hub, *P.Ap, At))); X->SetNumberField(TEXT("block"), FMath::RoundToDouble(ADPSchedule::Block(C->TypeId, C->Base, P.Ap->Icao)));
+			X->SetBoolField(TEXT("schengen"), ADPSchedule::Schengen(P.Ap->Country) && ADPSchedule::Schengen(Hub->Country)); Ps.Add(MakeShared<FJsonValueObject>(X));
+		}
+		TSharedRef<FJsonObject> O = MakeShared<FJsonObject>(); O->SetBoolField(TEXT("ok"), true); O->SetArrayField(TEXT("places"), Ps); return Out(O);
+	}
+	if (Action == TEXT("timetable"))
+	{
+		TSharedRef<FJsonObject> O = MakeShared<FJsonObject>(); O->SetBoolField(TEXT("ok"), true);
+		O->SetStringField(TEXT("now"), ADPBoards::Local(At).ToString(TEXT("%H:%M"))); O->SetStringField(TEXT("missing"), ADPSchedule::MissingStaff(W, At));
+		auto Town = [](const FString& I) { const FADPAirportInfo* Ap = ADPWorldData::Airport(I); return !Ap ? I : Ap->Town.IsEmpty() ? Ap->Name : Ap->Town; };
+		TArray<TSharedPtr<FJsonValue>> Sl, Pl, Fl;
+		for (const FADPSlot& X0 : W.Slots)
+		{
+			const FADPAircraft* C = W.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == X0.Reg; });
+			TSharedRef<FJsonObject> X = MakeShared<FJsonObject>(); X->SetStringField(TEXT("id"), X0.Id); X->SetStringField(TEXT("reg"), X0.Reg); X->SetStringField(TEXT("to"), X0.To); X->SetStringField(TEXT("town"), Town(X0.To));
+			X->SetNumberField(TEXT("dep"), X0.DepMin); X->SetNumberField(TEXT("days"), X0.Days); X->SetNumberField(TEXT("number"), X0.Number);
+			if (C) { X->SetNumberField(TEXT("out"), FMath::RoundToDouble(ADPSchedule::Block(C->TypeId, C->Base, X0.To))); X->SetNumberField(TEXT("back"), FMath::RoundToDouble(ADPSchedule::Block(C->TypeId, X0.To, C->Base))); }
+			const FADPRoute* R = W.Routes.FindByPredicate([&](const FADPRoute& Z) { return Z.Id == X0.RouteId; });
+			if (R) { X->SetNumberField(TEXT("fare"), R->FareIndex); X->SetNumberField(TEXT("load"), FMath::RoundToDouble(R->LoadEma * 100.0)); X->SetNumberField(TEXT("profit"), FMath::RoundToDouble(R->ProfitEma)); X->SetStringField(TEXT("route"), R->Id); }
+			Sl.Add(MakeShared<FJsonValueObject>(X));
+		}
+		for (const FADPPlanned& P : W.Planned) if (P.AirlineId == Me && P.Why != TEXT("taken out of the timetable"))
+		{
+			const FADPTypeInfo* T = nullptr; for (const FADPAircraft& C : W.Aircraft) if (C.Reg == P.Reg) T = ADPWorldData::Type(C.TypeId);
+			TSharedRef<FJsonObject> X = MakeShared<FJsonObject>(); X->SetStringField(TEXT("flight"), P.FlightNo); X->SetStringField(TEXT("reg"), P.Reg); X->SetStringField(TEXT("from"), P.From); X->SetStringField(TEXT("to"), P.To); X->SetStringField(TEXT("town"), Town(P.To));
+			X->SetNumberField(TEXT("at"), double((P.Sched - FDateTime(1970, 1, 1)).GetTotalMinutes())); X->SetStringField(TEXT("time"), ADPBoards::Local(P.Sched).ToString(TEXT("%d.%m %H:%M"))); X->SetNumberField(TEXT("late"), FMath::RoundToDouble((P.Est - P.Sched).GetTotalMinutes()));
+			X->SetNumberField(TEXT("booked"), P.Booked); X->SetNumberField(TEXT("seats"), T ? T->Seats : 0); X->SetStringField(TEXT("state"), P.State); X->SetStringField(TEXT("why"), P.Why); X->SetNumberField(TEXT("gate"), ADPGround::GateOfStand(P.Stand));
+			Pl.Add(MakeShared<FJsonValueObject>(X));
+		}
+		for (const FADPAircraft& C : W.Aircraft) if (C.AirlineId == Me) { TSharedRef<FJsonObject> X = MakeShared<FJsonObject>(); X->SetStringField(TEXT("reg"), C.Reg); X->SetStringField(TEXT("type"), C.TypeId); X->SetStringField(TEXT("base"), C.Base); Fl.Add(MakeShared<FJsonValueObject>(X)); }
+		O->SetArrayField(TEXT("slots"), Sl); O->SetArrayField(TEXT("flights"), Pl); O->SetArrayField(TEXT("fleet"), Fl);
+		return Out(O);
+	}
+	if (Action == TEXT("slot"))
+	{
+		// reg|to|HH:MM|days (bit 0 Monday)
+		TArray<FString> P; Arg.ParseIntoArray(P, TEXT("|"), false);
+		if (P.Num() < 4) return Ok(false, TEXT("incomplete"));
+		FString Hh, Mm; if (!P[2].Split(TEXT(":"), &Hh, &Mm)) return Ok(false, TEXT("no time"));
+		const FADPAirportInfo* To = ADPWorldData::Airport(P[1].ToUpper());
+		FString Why; return Ok(ADPSchedule::AddSlot(W, P[0], To && !To->Icao.IsEmpty() ? To->Icao : P[1].ToUpper(), FCString::Atoi(*Hh) * 60 + FCString::Atoi(*Mm), FCString::Atoi(*P[3]), At, Why), Why);
+	}
+	if (Action == TEXT("slotdel")) return Ok(ADPSchedule::RemoveSlot(W, A, At), TEXT("not in the timetable"));
+	if (Action == TEXT("fare"))
+	{
+		FADPRoute* R = W.Routes.FindByPredicate([&](const FADPRoute& X) { return X.Id == A && X.AirlineId == Me; });
+		if (!R) return Ok(false, TEXT("not your route"));
+		R->FareIndex = FMath::Clamp(FCString::Atod(*B), 0.5, 2.0); return Ok(true);
+	}
 	if (Action == TEXT("hire"))
 	{
 		const FADPAirline* My = W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == Me; });

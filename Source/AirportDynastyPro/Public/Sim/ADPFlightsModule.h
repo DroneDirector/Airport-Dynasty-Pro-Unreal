@@ -31,7 +31,8 @@ public:
 private:
 	TMap<FString, FADPProfile> Profiles;
 	FRandomStream Rng = FRandomStream(4711);
-	void TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime& Now);
+	void TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime& Now, bool bCatchUp);
+	FDateTime LastPlan = FDateTime(0);
 	void Land(FADPWorld& W, int32 FlightIdx, const FDateTime& Now);
 	void OnTheWayDown(FADPWorld& W, FADPFlight& F, const FDateTime& Now);
 	bool Divert(FADPWorld& W, FADPFlight& F, const FDateTime& Now, const TCHAR* Why);

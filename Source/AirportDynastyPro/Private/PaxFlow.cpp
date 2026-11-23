@@ -17,6 +17,7 @@
 #include "Sim/ADPSim.h"
 #include "Sim/ADPSimData.h"
 #include "Sim/ADPBoards.h"
+#include "Sim/ADPSchedule.h"
 #include "Sim/ADPGround.h"
 #include "Sim/ADPWorldData.h"
 #include "UI/ADPHUD.h"
@@ -72,14 +73,17 @@ bool APaxFlow::BoardingDone(const UWorld* W, const FString& Reg)
 	for (FRun& R : P->Runs)
 	{
 		if (R.bArr || R.Reg != Reg || R.bNoShowGo) continue;
-		const bool bDone = R.bCalled && R.Spawned >= R.Visible && R.Aboard >= R.Spawned;
+		if (R.bOff || R.bGone) continue;
+		const bool bDone = R.bCalled && R.Spawned >= R.Visible && R.Aboard + R.Home >= R.Spawned;
 		if (bDone) continue;
 		// (not yet: the first time the aircraft is ready to go, the clock starts - 15 min for the missing ones)
-		if (R.HoldSince < 0.0) { R.HoldSince = P->RealT; ADP_LOG(TEXT("PaxFlow: %s at gate %d is ready to close but %d of %d passengers are not aboard yet - holding the doors (up to 15 min)"), *R.Label, R.Gate, FMath::Max(0, R.Visible - R.Aboard), R.Visible); }
+		if (R.HoldSince < 0.0) { R.HoldSince = P->RealT; ADP_LOG(TEXT("PaxFlow: %s at gate %d is ready to close but %d of %d passengers are not aboard yet - holding the doors (up to 15 min)"), *R.Label, R.Gate, FMath::Max(0, R.Visible - R.Aboard - R.Home), R.Visible); }
 		if (P->RealT - R.HoldSince >= 15.0 * 60.0)
 		{
 			R.bNoShowGo = true;
-			ADP_LOG(TEXT("PaxFlow: %s - %d passenger(s) did not show up after 15 min: doors closed without them (their bags come off the aircraft)"), *R.Label, FMath::Max(0, R.Visible - R.Aboard));
+			ADP_LOG(TEXT("PaxFlow: %s - %d passenger(s) did not show up after 15 min: doors closed without them (their bags come off the aircraft)"), *R.Label, FMath::Max(0, R.Visible - R.Aboard - R.Home));
+			for (const FPx& X : P->Pax) if (X.St != EPx::Gone && X.A.IsValid() && P->Runs.IsValidIndex(X.Run) && &P->Runs[X.Run] == &R && !X.bArr && !X.bHome) { const FVector L = P->PlanOf(X.A->GetActorLocation()); ADP_LOG(TEXT("PaxFlow: left behind - %s at plan (%.1f, %.1f, floor %d): %s"), *X.Id, L.X, L.Z, L.Y > 3.f ? 2 : 1, *X.Stage); }
+			if (UADPSim* Sim = UADPSim::Get(W)) if (FADPPlanned* Pl = ADPSchedule::ById(Sim->World, R.PlanId)) Pl->NoShow = FMath::RoundToInt(float(FMath::Max(0, R.Visible - R.Aboard)) / FMath::Max(1, R.Visible) * R.Pax);
 			continue;
 		}
 		bAll = false;
@@ -280,49 +284,55 @@ void APaxFlow::Poll()
 	if (!Sim || !Sim->IsRunning()) return;
 	const FString Here = ADPBoards::HereIcao();
 	const FDateTime Now = Sim->Now();
-	// ---- departures: every aircraft standing here with its next leg (the boards' own list, so gate and flight agree) ----
-	for (const FADPBoardRow& Row : ADPBoards::Rows(this, false, 40))
+	StaffDesk = ADPSchedule::OnShift(Sim->World, TEXT("checkin"), Now); StaffLane = ADPSchedule::OnShift(Sim->World, TEXT("security"), Now);
+	// ---- departures: the planned legs from here (your timetable's and the other airlines' - Sim/ADPSchedule.h); who comes is
+	//      who booked. No planned leg, nobody comes
+	for (const FADPPlanned& P : Sim->World.Planned)
 	{
-		if (Row.Reg.IsEmpty() || Row.Gate <= 0 || Row.Status.StartsWith(TEXT("Departed"))) continue;
-		const FADPAircraft* A = Sim->World.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == Row.Reg; });
-		if (!A) continue;
-		const double Dep = PxSec(A->ReadyAt > Now ? A->ReadyAt : Now + FTimespan::FromMinutes(30.0));
-		const FString Key = TEXT("D:") + Row.Reg + TEXT(":") + Row.Flight;
-		if (FRun* Ex = Runs.FindByPredicate([&](const FRun& R) { return R.Key == Key; })) { Ex->DepT = Dep; Ex->Gate = Row.Gate; continue; }
-		const double MinTo = (Dep - SimT) / 60.0;
-		if (MinTo > 122.0 || MinTo < 25.0) continue;   // (too early yet, or too late to walk the whole way now)
-		FRun R; R.Key = Key; R.Label = Row.Flight; R.Reg = Row.Reg; R.AirlineId = Row.AirlineId; R.Gate = Row.Gate; R.DepT = Dep;
-		for (const FADPAirline& Al : Sim->World.Airlines) if (Al.Id == Row.AirlineId) R.bPlayer = Al.bPlayer;
-		const FADPTypeInfo* T = ADPWorldData::Type(A->TypeId);
-		R.Pax = T && T->Seats > 0 ? FMath::RoundToInt(T->Seats * 0.8f) : 120;   // (booked at the gate by the simulation; until then about 80 % full)
-		if (R.Pax <= 0) continue;
+		if (P.From != Here) continue;
+		const FString Key = TEXT("D:") + P.Id;
+		FRun* Ex = Runs.FindByPredicate([&](const FRun& R) { return R.Key == Key; });
+		if (Ex)
+		{
+			Ex->DepT = PxSec(P.Est);
+			if (P.State == TEXT("cancelled") && !Ex->bOff) { Ex->bOff = true; ADP_LOG(TEXT("PaxFlow: %s is cancelled - its passengers go home"), *Ex->Label); AADPHUD::Announce(FString::Printf(TEXT("Passengers of flight %s: your flight has been cancelled. Please leave by the arrivals hall; your money will be paid back."), *Ex->Label), 1); }
+			if (P.State == TEXT("gone")) Ex->bGone = true;
+			const int32 G = ADPGround::GateOfStand(P.Stand);
+			if (P.State == TEXT("planned") && G && G != Ex->Gate) { ADP_LOG(TEXT("PaxFlow: %s leaves from gate %d (was %d)"), *Ex->Label, G, Ex->Gate); Ex->Gate = G; Ex->Jet = JetwayFor(GateRoom(G)); }
+			continue;
+		}
+		if (P.State != TEXT("planned") || P.Pax() <= 0) continue;
+		const double Dep = PxSec(P.Sched), MinTo = (PxSec(P.Est) - SimT) / 60.0;
+		if ((Dep - SimT) / 60.0 > 122.0 || MinTo < 25.0) continue;   // (too early yet, or too late to walk the whole way now)
+		FRun R; R.Key = Key; R.PlanId = P.Id; R.Label = P.FlightNo; R.Reg = P.Reg; R.AirlineId = P.AirlineId; R.Gate = ADPGround::GateOfStand(P.Stand); R.DepT = PxSec(P.Est);
+		R.bPlayer = P.AirlineId == UADPSim::Me();
+		if (R.Gate == 0) R.Gate = ADPBoards::GateFor(P.Reg);   // (a remote stand: a bus gate)
+		R.Pax = P.Pax();
 		R.Visible = FMath::Min(R.Pax, int32(VisibleDep));
 		int32 Missed = 0;
 		for (int32 i = 0; i < R.Visible; ++i)
 		{
-			const double At = Dep - Rng.FRandRange(85.f, 120.f) * 60.0;
+			const double At = Dep - Rng.FRandRange(75.f, 120.f) * 60.0;   // (each at their own time before the flight)
 			if (At < SimT - 8.0 * 60.0) { ++Missed; continue; }   // (they would be inside already - never popped in there)
 			R.SpawnAt.Add(At);
 		}
 		R.SpawnAt.Sort();
 		R.Visible = R.SpawnAt.Num();
+		if (!R.Visible) continue;
 		ChooseDesks(R); R.Jet = JetwayFor(GateRoom(R.Gate));
-		ADP_LOG(TEXT("PaxFlow: departure %s (%s) to %s, gate %d, in %.0f min - %d passengers, %d of them walk (the rest simulated)%s"), *R.Label, *R.Reg, *Row.Place, R.Gate, MinTo, R.Pax, R.Visible, Missed ? *FString::Printf(TEXT(", %d already past the car park when the game came to them"), Missed) : TEXT(""));
+		ADP_LOG(TEXT("PaxFlow: departure %s (%s) to %s, gate %d, in %.0f min - %d passengers booked, %d of them walk (the rest simulated)%s"), *R.Label, *R.Reg, *P.To, R.Gate, MinTo, R.Pax, R.Visible, Missed ? *FString::Printf(TEXT(", %d already past the car park when the game came to them"), Missed) : TEXT(""));
 		Runs.Add(R);
 	}
-	// ---- arrivals: an aircraft's turnaround with deplaning started ----
+	// ---- arrivals: an aircraft just in, its deplaning started (the jetway docked, the door open)
 	for (const ADPTurnaround::FTurn& T : ADPTurnaround::All())
 	{
+		if (!T.bArrival || T.ArrPax <= 0) continue;
 		const ADPTurnaround::FTask* Dp = T.Tasks.FindByPredicate([](const ADPTurnaround::FTask& K) { return K.Id == TEXT("deplane"); });
 		if (!Dp || !Dp->bStarted) continue;
 		const FString Key = TEXT("A:") + T.Reg + TEXT(":") + FString::Printf(TEXT("%lld"), T.OnBlocks.GetTicks() / ETimespan::TicksPerMinute);
 		if (Runs.ContainsByPredicate([&](const FRun& R) { return R.Key == Key; })) continue;
-		const FADPFlight* In = nullptr;
-		for (const FADPFlight& F : Sim->World.Flights) if (F.Reg == T.Reg && (F.To == Here || F.Diverted == Here) && (!In || F.DepAt > In->DepAt)) In = &F;
-		FRun R; R.Key = Key; R.bArr = true; R.Reg = T.Reg; R.Gate = ADPGround::GateOfStand(T.Stand);
-		R.Pax = In ? In->Pax + In->PaxJ + In->PaxF : T.Pax;
-		R.Label = T.Reg;
-		for (const FADPBoardRow& Row : ADPBoards::Rows(this, true, 40)) if (Row.Reg == T.Reg) { R.Label = Row.Flight; break; }
+		FRun R; R.Key = Key; R.bArr = true; R.Reg = T.Reg; R.Gate = ADPGround::GateOfStand(T.Stand); R.bPlayer = T.bMine;
+		R.Pax = T.ArrPax; R.Label = T.ArrFlight.IsEmpty() ? T.Reg : T.ArrFlight;
 		R.Visible = FMath::Min(R.Pax, int32(VisibleArr));
 		R.ArrStart = SimT; R.Jet = JetwayFor(GateRoom(R.Gate));
 		if (R.Visible <= 0 || GateRoom(R.Gate) == INDEX_NONE) continue;
@@ -334,7 +344,7 @@ void APaxFlow::Poll()
 void APaxFlow::CallBoarding(int32 Ri)
 {
 	FRun& R = Runs[Ri];
-	R.bCalled = true; R.CallT = Clock(R);
+	R.bCalled = true; R.CallT = Clock(R); R.CallBefore = float((R.DepT - R.CallT) / 60.0);
 	// (Airbus AC 5-2: about 12 a minute at one door, plus 2 min for the last ones to sit - the plan's Board = Pax/12 + 2;
 	// the visible ones spread over that whole time: priority first, then by group)
 	const double BoardMin = FMath::Max(2.0, R.Pax / 12.0);
@@ -359,6 +369,7 @@ void APaxFlow::StepRun(int32 Ri, float Dt)
 	const double Now = Clock(R);
 	if (!R.bArr)
 	{
+		if (R.bOff || R.bGone) return;
 		// getting out of their cars, a few seconds apart at the most
 		if (R.Spawned < R.SpawnAt.Num() && Now >= R.SpawnAt[R.Spawned] && SpawnGap <= 0.f) { SpawnDep(Ri); SpawnGap = 0.8f; }
 		// the boarding call: the turnaround's "board" task starting (the test: 7.5 min in)
@@ -372,6 +383,14 @@ void APaxFlow::StepRun(int32 Ri, float Dt)
 				const ADPTurnaround::FTask* B = T ? T->Tasks.FindByPredicate([](const ADPTurnaround::FTask& K) { return K.Id == TEXT("board"); }) : nullptr;
 				bGo = B ? B->bStarted : (R.DepT - Now) / 60.0 <= 30.0;   // (no turnaround for it - a remote stand: 30 min before)
 			}
+			// (your flight: an agent at the gate desk and the crew aboard, else the call waits - and the game says why)
+			if (bGo && R.bPlayer && !R.bTest)
+				if (UADPSim* Sim = UADPSim::Get(this))
+				{
+					const FADPAircraft* Ac = Sim->World.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == R.Reg; });
+					if (StaffDesk < 1) { bGo = false; ADPSchedule::Tell(Sim->World, Sim->Now(), TEXT("gate:") + R.Label, TEXT("Nobody at the gate"), FString::Printf(TEXT("%s can't board: no passenger service agent on shift. Hire them under Crew."), *R.Label)); }
+					else if (Ac && !Ac->Crew.Num()) { bGo = false; ADPSchedule::Tell(Sim->World, Sim->Now(), TEXT("crew:") + R.Label, TEXT("No crew aboard"), FString::Printf(TEXT("%s can't board: its crew isn't aboard yet."), *R.Label)); }
+				}
 			if (bGo) CallBoarding(Ri);
 		}
 		else
@@ -382,7 +401,7 @@ void APaxFlow::StepRun(int32 Ri, float Dt)
 				AADPHUD::Announce(FString::Printf(TEXT("This is the final call for flight %s. Would all remaining passengers please proceed immediately to gate %d, where the flight is now closing."), *R.Label, R.Gate), 1);
 				ADP_LOG(TEXT("PaxFlow: final call - %s at gate %d (%d of %d walkers aboard)"), *R.Label, R.Gate, R.Aboard, R.Spawned);
 			}
-			if (!R.bAllLogged && R.Spawned >= R.Visible && R.Aboard >= R.Spawned && R.Spawned > 0)
+			if (!R.bAllLogged && R.Spawned >= R.Visible && R.Aboard + R.Home >= R.Spawned && R.Spawned > 0)
 			{
 				R.bAllLogged = true;
 				ADP_LOG(TEXT("PaxFlow: LAST PASSENGER ABOARD - %s at gate %d, %.1f min after the call (%d walked, %d in all counted aboard)"), *R.Label, R.Gate, (Now - R.CallT) / 60.0, R.Aboard, R.Pax);
@@ -487,6 +506,7 @@ int32 APaxFlow::SpawnDep(int32 Ri)
 			P.Handle = Dep->BagTransform(P.Bag).InverseTransformPosition(G.Handle);
 		}
 	}
+	if (P.bHasBag) ++R.NBags;
 	P.Stage = TEXT("out of the car, in the car park");
 	// (owner 2026-11-21: the entrance. A checked bag (a suitcase carried - and later carts, strollers, wheelchairs) always the
 	//  wide sliding doors. Most people take the sliding doors anyway: hand luggage only, about one in six takes the nearest
@@ -1166,6 +1186,39 @@ void APaxFlow::WayArrivals(FPx& P)
 	P.Do = EDo::AtClaim; P.Stage = FString::Printf(TEXT("down the arrivals escalators to belt %d"), B + 1);
 }
 
+void APaxFlow::GoHome(int32 i, const TCHAR* Why)
+{
+	// (too late, or their flight is off) back out the way there is: from Floor 2 down the arrivals escalators and out of the
+	// arrivals hall; from the hall or outside, the main entrance and the crossing - to a car in the car park
+	FPx& P = Pax[i];
+	AActor* A = P.A.Get(); if (!A) return;
+	for (FLine& L : DeskLines) L.Who.Remove(i);
+	for (FLine& L : LaneLines) L.Who.Remove(i);
+	ASeats::Release(A); P.Seat = INDEX_NONE;
+	LeanSpots.RemoveAll([&](const FVector& L) { return FVector::Dist2D(L, A->GetActorLocation()) < 60.f; });
+	if (P.bBagDown && P.Bag != INDEX_NONE) { if (ADepartureBelts* D = ADepartureBelts::Get(GetWorld())) D->RemoveBag(P.Bag); P.Bag = INDEX_NONE; P.bBagDown = false; P.bHasBag = false; }   // (its bag doesn't fly without them)
+	P.bHome = true; P.Way.Reset(); P.Wi = 0; P.PauseT = 0.f;
+	const FVector Here = PlanOf(A->GetActorLocation());
+	auto Add = [&](float X, float H, float Z, uint8 Mode = 0, bool bG = false) { FWp W; W.P = PW(X, H, Z); W.Mode = Mode; W.bGround = bG; if (bG) W.P.Z = GroundZ(X, Z); P.Way.Add(W); };
+	if (Here.Y > 3.f)
+	{
+		const float L = AEscalatorPair::LengthAlong();
+		AddPlanWay(P, INDEX_NONE, FVector(Here.X, F2Y, Here.Z), Map.Find(TEXT("F2-WALK")), FVector(PXARRESC + float(P.Jit.X) / 100.f, F2Y, 54.f));
+		Add(PXARRESC, F2Y, PXARRFOOT + L + 1.2f); Add(PXARRESC, F2Y, PXARRFOOT + L - 0.2f, 1);
+		Add(PXARRESC, 0.f, PXARRFOOT + 0.25f, 2); Add(PXARRESC, 0.f, PXARRFOOT - 1.6f);
+		WayFromHall(P, A->GetActorLocation());
+	}
+	else
+	{
+		const float J = float(P.Jit.X) / 100.f;
+		if (Here.Z > -3.f) { Add(PXDOORX + J * 3.f, 0.f, 2.5f); Add(PXDOORX + J, 0.f, 0.f); Add(PXDOORX + J, 0.f, -4.f); Add(PXDOORX + J * 2.f, 0.f, -8.f, 0, true); }
+		if (Here.Z > -45.f) Crossing(P, false, PXDOORX);
+		FWp W; W.P = CarParkSpot(); W.bGround = true; P.Way.Add(W);
+	}
+	P.Do = EDo::OutCarPark; P.St = EPx::Walk; P.Stage = FString::Printf(TEXT("going home (%s)"), Why);
+	ADP_LOG(TEXT("PaxFlow: %s goes home - %s"), *P.Id, Why);
+}
+
 #pragma endregion
 
 #pragma region Each step
@@ -1178,6 +1231,7 @@ void APaxFlow::Arrive(int32 i)
 	switch (P.Do)
 	{
 	case EDo::JoinDesk:
+		if (!R.bTest && Clock(R) > R.DepT - 45.0 * 60.0) { ++R.Late; GoHome(i, TEXT("too late - check-in closed 45 min before")); break; }
 		DeskLines[FMath::Clamp(P.Desk, 1, 20) - 1].Who.Add(i);
 		P.St = EPx::DeskQ; P.Stage = FString::Printf(TEXT("in the queue at desk %d"), P.Desk);
 		break;
@@ -1192,9 +1246,11 @@ void APaxFlow::Arrive(int32 i)
 		break;
 	}
 	case EDo::Screened:
-		WayUpstairs(P); P.Do = EDo::Upstairs; P.St = EPx::Walk;
+		++R.NLane; WayUpstairs(P); P.Do = EDo::Upstairs; P.St = EPx::Walk;
 		break;
 	case EDo::Upstairs:
+		++R.NF2;
+		if (R.bOff || R.bGone) { GoHome(i, R.bOff ? TEXT("the flight is off") : TEXT("missed the flight")); break; }
 		if (!WayToWait(P)) { P.St = EPx::Wait; break; }
 		P.St = EPx::Walk;
 		break;
@@ -1220,7 +1276,7 @@ void APaxFlow::Arrive(int32 i)
 		P.St = EPx::ClaimWait; P.T = 0.f; P.Stage = TEXT("waiting at the claim belt for their bag");
 		if (!P.bArrBag) { P.Way.Reset(); P.Wi = 0; WayFromHall(P, A->GetActorLocation()); P.Do = EDo::OutCarPark; P.St = EPx::Walk; P.Stage = TEXT("hand luggage only - out to the car park"); }
 		break;
-	case EDo::OutCarPark: ++R.Out; ++TotalOut; Finish(i, TEXT("picked up in the car park")); break;
+	case EDo::OutCarPark: if (P.bHome) { ++R.Home; Finish(i, TEXT("gone home from the car park")); break; } ++R.Out; ++TotalOut; Finish(i, TEXT("picked up in the car park")); break;
 	default: P.St = EPx::Wait; break;
 	}
 }
@@ -1233,6 +1289,14 @@ void APaxFlow::StepPx(int32 i, float Dt)
 	FRun& R = Runs[P.Run];
 	AADPPeople* People = AADPPeople::Get(GetWorld());
 	P.T += Dt;
+	if ((R.bOff || R.bGone) && !P.bArr && P.St == EPx::Seated && People) { People->StandFrom(A); P.St = EPx::Wait; return; }
+	if ((R.bOff || R.bGone) && !P.bHome && !P.bArr && P.St != EPx::Revolve && P.St != EPx::Jetway && !(People && People->IsHeld(A)))
+	{
+		// (in the lanes, the corridor and on the escalators they go on to Floor 2 first: the way out is down the arrivals escalators)
+		const FVector L = PlanOf(A->GetActorLocation());
+		const bool bLanes = L.Y < 3.f ? L.Z > 27.f : P.bRideNow || P.Do == EDo::Upstairs;
+		if (!bLanes || P.St == EPx::LaneQ) { GoHome(i, R.bOff ? TEXT("the flight is off") : TEXT("missed the flight")); return; }
+	}
 	// the boarding call heard: their turn comes (a free walker gets up and goes when it is due)
 	if (!P.bArr && R.bCalled && P.BoardAt < 0.0) P.BoardAt = Clock(R) + 20.0;   // (came after the call)
 	const bool bDue = !P.bArr && R.bCalled && Clock(R) >= P.BoardAt;
@@ -1253,7 +1317,12 @@ void APaxFlow::StepPx(int32 i, float Dt)
 		else
 		{
 			const FVector North(0, -1, 0); Idle(P, A, Dt, &North);
-			if (K == 0) { P.St = EPx::Desk; P.T = 0.f; P.Stage = FString::Printf(TEXT("at desk %d - the bag on the weigh belt"), P.Desk); }
+			if (K == 0 && R.bPlayer && !R.bTest && StaffDesk < 1)
+			{
+				P.Stage = FString::Printf(TEXT("at the head of the queue at desk %d - nobody at the desk"), P.Desk);
+				if (UADPSim* Sim = UADPSim::Get(this)) ADPSchedule::Tell(Sim->World, Sim->Now(), TEXT("desk:") + R.Label, TEXT("Check-in is closed"), FString::Printf(TEXT("%s's passengers stand at the desks: no passenger service agent on shift. Hire them under Crew."), *R.Label));
+			}
+			else if (K == 0) { P.St = EPx::Desk; P.T = 0.f; P.Stage = FString::Printf(TEXT("at desk %d - the bag on the weigh belt"), P.Desk); }
 		}
 		break;
 	}
@@ -1265,7 +1334,7 @@ void APaxFlow::StepPx(int32 i, float Dt)
 		if (!P.bBagDown && P.T > 1.2f && D && P.Bag != INDEX_NONE) { D->SetDownOnDesk(P.Bag, P.Desk); P.bBagDown = true; P.bHasBag = false; if (P.Holder) P.Holder->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform); if (R.bTest || R.Spawned <= 3) ADP_LOG(TEXT("PaxFlow: %s sets bag #%d on desk %d's weigh belt"), *P.Id, P.Bag, P.Desk); }
 		if (P.T > (R.bTest ? 12.f : 30.f) + float(P.Jit.Y) / 10.f)
 		{
-			DeskLines[P.Desk - 1].Who.Remove(i);
+			DeskLines[P.Desk - 1].Who.Remove(i); ++R.NDesk;
 			WayToSecurity(P); P.Do = EDo::JoinLane; P.St = EPx::Walk; P.Stage = TEXT("checked in - to security through the walk-through");
 		}
 		break;
@@ -1280,7 +1349,11 @@ void APaxFlow::StepPx(int32 i, float Dt)
 			const FVector North(0, -1, 0); Idle(P, A, Dt, &North);
 			// (one at a time through the lane: the next steps up when the one ahead is through the arch)
 			bool bClear = true; for (const FPx& O : Pax) if (&O != &P && O.St == EPx::Walk && O.Do == EDo::Screened && O.Lane == P.Lane && O.Wi < 3) { bClear = false; break; }
-			if (K == 0 && bClear) { LaneLines[P.Lane].Who.Remove(i); WayScreening(P); P.Do = EDo::Screened; P.St = EPx::Walk; P.Stage = FString::Printf(TEXT("security lane %d - X-ray belt, the arch"), P.Lane + 1); }
+			if (K == 0 && R.bPlayer && !R.bTest && StaffLane < 1)
+			{
+				if (UADPSim* Sim = UADPSim::Get(this)) ADPSchedule::Tell(Sim->World, Sim->Now(), TEXT("lane"), TEXT("Security is closed"), FString::Printf(TEXT("%s's passengers wait at security: no security officer on shift. Hire them under Crew."), *R.Label));
+			}
+			else if (K == 0 && bClear) { LaneLines[P.Lane].Who.Remove(i); WayScreening(P); P.Do = EDo::Screened; P.St = EPx::Walk; P.Stage = FString::Printf(TEXT("security lane %d - X-ray belt, the arch"), P.Lane + 1); }
 		}
 		break;
 	}
@@ -1329,7 +1402,7 @@ void APaxFlow::StepPx(int32 i, float Dt)
 		const FVector Toward = bOn ? (At - A->GetActorLocation()).GetSafeNormal2D() : FVector::ZeroVector;
 		Idle(P, A, Dt, bOn ? &Toward : nullptr);
 		if (bOn && FVector::Dist2D(At, A->GetActorLocation()) < 900.f) { P.St = EPx::ToBag; P.Stage = TEXT("their bag is coming - to take it off"); break; }
-		if (!bKnown || P.T > (R.bTest ? 300.f : 900.f))
+		if (!bKnown || P.T > (R.bTest ? 300.f : 2700.f))   // (real: the last bag 30-40 min after on-blocks)
 		{
 			ADP_WARN(TEXT("PaxFlow: %s - %s, going on without it"), *P.Id, bKnown ? TEXT("no bag on the belt after the wait") : TEXT("their bag isn't in the claim system"));
 			P.Way.Reset(); P.Wi = 0; WayFromHall(P, A->GetActorLocation()); P.Do = EDo::OutCarPark; P.St = EPx::Walk; P.Stage = TEXT("out to the car park (no bag)");
@@ -1351,7 +1424,7 @@ void APaxFlow::StepPx(int32 i, float Dt)
 		{
 			if (B->TakePaxBag(P.Id, P.Holder, &P.Handle))
 			{
-				P.bHasBag = true; CarryBag(P, A);
+				P.bHasBag = true; ++R.NBag; CarryBag(P, A);
 				if (R.bTest || R.Out < 3) ADP_LOG(TEXT("PaxFlow: %s takes their own bag off the belt"), *P.Id);
 				P.Way.Reset(); P.Wi = 0; WayFromHall(P, A->GetActorLocation()); P.Do = EDo::OutCarPark; P.St = EPx::Walk; P.Stage = TEXT("bag in hand - out to the car park");
 			}
@@ -1505,6 +1578,19 @@ void APaxFlow::Tick(float Dt)
 			Live, N[(int32)EPx::Walk], N[(int32)EPx::DeskQ], N[(int32)EPx::Desk], N[(int32)EPx::LaneQ], N[(int32)EPx::Wait], N[(int32)EPx::Seated], N[(int32)EPx::Lean], N[(int32)EPx::Call] + N[(int32)EPx::Jetway], N[(int32)EPx::ClaimWait] + N[(int32)EPx::ToBag], TotalAboard, TotalOut, Runs.Num());
 	}
 	// (the runs stay listed - indices are held by the walkers; a finished one costs nothing each frame but its check)
+}
+
+void APaxFlow::Counts(TArray<FCount>& Out) const
+{
+	for (int32 r = 0; r < Runs.Num(); ++r)
+	{
+		const FRun& R = Runs[r]; FCount C;
+		C.Label = R.Label; C.bArr = R.bArr; C.Pax = R.Pax; C.Walkers = R.Visible; C.Spawned = R.Spawned; C.Bags = R.NBags; C.Desk = R.NDesk; C.Lane = R.NLane; C.F2 = R.NF2; C.Aboard = R.Aboard; C.Bag = R.NBag; C.Out = R.Out; C.Late = R.Late; C.Home = R.Home; C.bCalled = R.bCalled; C.bOff = R.bOff; C.CallBefore = R.CallBefore;
+		TMap<FString, int32> St;
+		for (const FPx& P : Pax) if (P.St != EPx::Gone && P.Run == r) { ++C.About; ++St.FindOrAdd(P.Stage); }
+		for (const auto& K : St) C.Stages += FString::Printf(TEXT("%s%d %s"), C.Stages.IsEmpty() ? TEXT("") : TEXT("; "), K.Value, *K.Key);
+		Out.Add(C);
+	}
 }
 
 int32 APaxFlow::Walking() const { int32 N = 0; for (const FPx& P : Pax) if (P.St != EPx::Gone) ++N; return N; }

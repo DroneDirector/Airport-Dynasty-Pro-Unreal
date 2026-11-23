@@ -386,6 +386,9 @@ Other folders: `www/` (pictures, sounds and the built game), `release-notes/` (o
 - `AirportDynastyPro/{Public,Private}/Airfield`: reads Data/airfield.json and lays out the grass, aprons, landside, runway with its markings, taxiways with centre lines, holding positions and the cargo building. The hangar apron's hangars get their lead-in lines from taxilane K here.
 - `AirportDynastyPro/{Public,Private}/Globe`: the globe (Cesium for Unreal): the georeference at the terminal's origin turned to the runway's heading, the Earth with the Sentinel-2 cloudless 2016 imagery.
 - `AirportDynastyPro/{Public,Private}/AirTraffic`: the aircraft at stands 1–8 and their ground vehicles: turnaround, pushback, taxi, take-off and landing on 08, one runway user at a time.
+- `AirportDynastyPro/{Public,Private}/Sim/ADPSchedule`: your timetable and every planned leg (bookings, expected time, stand, cancelled); what the boards, PaxFlow, Turnaround, tugs and bags read. `docs/Passenger-Crew-Chain.md`: every step, works / missing.
+- `AirportDynastyPro/{Public,Private}/ChainTest`: the functional test of the whole passenger and crew chain in a real career (`Tools/new_game_test.sh --career [--from N]`).
+- `Airline-Manager-Pro-Babylon/game/src/screens/sim-schedule.ts`: Fleet, Market, Routes and Schedule on the simulation (buy, lease, sell, the timetable).
 - `AirportDynastyPro/Public/PassengerFragments.h`: a passenger's data as a Mass Entity fragment (position, stage of the trip, gate, walking).
 - `AirportDynastyPro/{Public,Private}/WalkMap`: the walking map from the plan (rooms and outside areas joined by doors and stairs) and the shortest way between two points.
 - `AirportDynastyPro/{Public,Private}/TerminalCrowd`: the passengers as Mass Entities on their trip (kerb, check-in, security, a stop upstairs, gate, aboard), walking the walking map, drawn as simple figures; people far away redrawn less often.

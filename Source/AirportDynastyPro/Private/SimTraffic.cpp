@@ -3,6 +3,8 @@
 #include "PaxFlow.h"
 #include "Tugs.h"
 #include "Turnaround.h"
+#include "GSE.h"
+#include "ParkedAircraft.h"
 #include "JetwayRigs.h"
 #include "ADPLog.h"
 #include "PerfLog.h"
@@ -12,6 +14,7 @@
 #include "Site.h"
 #include "Sim/ADPSim.h"
 #include "Sim/ADPBoards.h"
+#include "Sim/ADPSchedule.h"
 #include "Dom/JsonObject.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -39,7 +42,18 @@ void ASimTraffic::Start(UWorld* W, const FAirfieldData& Field)
 {
 	if (!W || !FPackageName::DoesPackageExist(TEXT("/Game/Babylon/A320/a320/StaticMeshes/A320"))) return;
 	FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	if (ASimTraffic* T = W->SpawnActor<ASimTraffic>(FVector::ZeroVector, FRotator::ZeroRotator, P)) T->F = Field;
+	if (ASimTraffic* T = W->SpawnActor<ASimTraffic>(FVector::ZeroVector, FRotator::ZeroRotator, P))
+	{
+		T->F = Field; ADPParked::Coming.Reset();
+		TWeakObjectPtr<ASimTraffic> Tw(T);
+		ADPSchedule::Ready3D = [Tw](const FADPPlanned& Pl, const FDateTime& Now, FString& Why) { return !Tw.IsValid() || Tw->Ready(Pl, Now, Why); };
+	}
+}
+
+void ASimTraffic::EndPlay(const EEndPlayReason::Type Why)
+{
+	ADPSchedule::Ready3D = nullptr; ADPParked::Coming.Reset();
+	Super::EndPlay(Why);
 }
 
 namespace
@@ -57,6 +71,62 @@ namespace
 	}
 }
 
+namespace
+{
+	int32 JetwayOf(UWorld* W, const FString& Stand)
+	{
+		for (const FAirfieldData::FStand& S : AAirfield::Shared().Stands) if (S.Id == Stand) return JetwayAt(W, S);
+		return INDEX_NONE;
+	}
+}
+
+void ASimTraffic::DockAt(UWorld* W, const FString& Stand)
+{
+	const int32 J = JetwayOf(W, Stand); AJetwayRigs* R = AJetwayRigs::Get(W);
+	if (J != INDEX_NONE && R && R->State(J) == AJetwayRigs::EState::Parked && R->AircraftAt(J) && R->Dock(J)) ADP_LOG(TEXT("Traffic: jetway %s docking at %s"), *R->Name(J), *Stand);
+}
+
+void ASimTraffic::UndockAt(UWorld* W, const FString& Stand)
+{
+	const int32 J = JetwayOf(W, Stand); AJetwayRigs* R = AJetwayRigs::Get(W);
+	if (J != INDEX_NONE && R && (R->State(J) == AJetwayRigs::EState::Docked || R->State(J) == AJetwayRigs::EState::Manual)) { R->Undock(J); ADP_LOG(TEXT("Traffic: doors closed at %s - jetway %s pulling back"), *Stand, *R->Name(J)); }
+}
+
+bool ASimTraffic::JetwayReady(UWorld* W, const FString& Stand, bool bDocked)
+{
+	const int32 J = JetwayOf(W, Stand); AJetwayRigs* R = AJetwayRigs::Get(W);
+	if (J == INDEX_NONE || !R) return true;
+	const AJetwayRigs::EState S = R->State(J);
+	if (bDocked) { if (S == AJetwayRigs::EState::Parked) DockAt(W, Stand); return S == AJetwayRigs::EState::Docked; }
+	if (S == AJetwayRigs::EState::Docked || S == AJetwayRigs::EState::Manual) UndockAt(W, Stand);
+	return S == AJetwayRigs::EState::Parked;
+}
+
+bool ASimTraffic::Airborne(UWorld* W, const FString& Reg)
+{
+	const UADPSim* Sim = UADPSim::Get(W);
+	if (!Sim || !Sim->World.Flights.ContainsByPredicate([&](const FADPFlight& X) { return X.Reg == Reg; })) return false;
+	for (TActorIterator<ASimTraffic> It(W); It; ++It) for (const FMove& M : It->Moves) if (M.Reg == Reg && M.bDeparture && M.Phase != EPhase::Climb) return false;
+	return true;
+}
+
+bool ASimTraffic::Moving(const UWorld* W, const FString& Reg) { return ADPParked::Coming.Contains(Reg); }
+
+bool ASimTraffic::Ready(const FADPPlanned& P, const FDateTime& Now, FString& Why) const
+{
+	UWorld* W = GetWorld();
+	if (!APaxFlow::BoardingDone(W, P.Reg)) { Why = TEXT("not everyone is aboard yet"); return false; }
+	const ADPTurnaround::FTurn* T = ADPTurnaround::All().FindByPredicate([&](const ADPTurnaround::FTurn& X) { return X.Reg == P.Reg; });
+	if (!T) return true;   // (a remote stand: its work is data)
+	if (T->PlanId != P.Id) { Why = TEXT("being got ready"); return false; }
+	if (!ADPTurnaround::Done(*T, TEXT("deplane"))) { Why = TEXT("the last flight's passengers are still getting off"); return false; }
+	if (!ADPTurnaround::Done(*T, TEXT("board"))) { Why = TEXT("boarding"); return false; }
+	if (const AGSE* G = AGSE::Find(W)) if (G->BusyAt(T->StandX)) { Why = TEXT("the bags are still being loaded"); return false; }
+	if (!ADPTurnaround::Done(*T, TEXT("doors"))) { Why = TEXT("the doors are being closed, the jetway pulled back"); return false; }
+	(void)Now;
+	return true;
+}
+
 bool ASimTraffic::RunwayToX1() const
 {
 	// the runway's x0 -> x1 direction has the plan's x axis, true heading = the site's runway heading; into the wind
@@ -69,6 +139,7 @@ void ASimTraffic::Sync()
 {
 	UADPSim* Sim = UADPSim::Get(this);
 	if (!Sim || !Sim->IsRunning()) return;
+	ATugs::Get(GetWorld());   // (the ground crew, the tugs, the tractors and the ground power at their places from the start, not only once a flight calls for them)
 	const FString Here = ADPBoards::HereIcao();
 	const FDateTime Now = Sim->Now();
 	const bool bToX1 = RunwayToX1();
@@ -78,7 +149,7 @@ void ASimTraffic::Sync()
 	{
 		const FDateTime OnBlocks3 = Fl.DepAt + FTimespan::FromMinutes(Fl.DurMin + Fl.HoldMin);
 		// 3 minutes before on-blocks: the gate's tug driver sits in his tug, ready (owner 2026-11-21)
-		if (Fl.To == Here && Fl.Diverted.IsEmpty() && !TugCalled.Contains(Fl.Id) && (OnBlocks3 - Now).GetTotalMinutes() <= 3.0 && (OnBlocks3 - Now).GetTotalMinutes() > -1.0)
+		if (Fl.To == Here && Fl.Diverted.IsEmpty() && !TugCalled.Contains(Fl.Id) && (OnBlocks3 - Now).GetTotalMinutes() <= 3.0 && (OnBlocks3 - Now).GetTotalMinutes() > -1.0 && (Fl.AirlineId != UADPSim::Me() || ADPSchedule::OnShift(Sim->World, TEXT("ground"), Now) >= 2))
 		{
 			TugCalled.Add(Fl.Id);
 			const FADPAircraft* A3 = Sim->World.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == Fl.Reg; });
@@ -86,27 +157,7 @@ void ASimTraffic::Sync()
 		}
 		if (Seen.Contains(Fl.Id)) continue;
 		const FADPAircraft* A = Sim->World.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == Fl.Reg; });
-		// a departure from here within 8 minutes: its tug drives out and waits beside the stand (Tugs.h)
-		if (Fl.From == Here && (Fl.DepAt - Now).GetTotalMinutes() > 0.0 && (Fl.DepAt - Now).GetTotalMinutes() <= 8.0)
-		{
-			const FADPAircraft* A0 = Sim->World.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == Fl.Reg; });
-			for (const FAirfieldData::FStand& S : F.Stands)
-				if (S.Id == Fl.FromStand || (Fl.FromStand.IsEmpty() && A0 && S.Id == A0->Stand)) { if (ATugs* T = ATugs::Get(GetWorld())) T->Prepare(Fl.Id, S.X); break; }
-		}
-		// boarding done about 4 minutes before off-blocks: the doors closed and the jetway pulled back to rest (its own
-		// drive: the canopy in, back to half way - Jetway rules); the pushback waits for it (Advance)
-		if (Fl.From == Here && (Fl.DepAt - Now).GetTotalMinutes() > 0.0 && (Fl.DepAt - Now).GetTotalMinutes() <= 3.0)   /* (Airbus AC 5-2: the door closed and the bridge off in the last minutes before off-blocks) */
-		{
-			const FADPAircraft* A1 = Sim->World.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == Fl.Reg; });
-			for (const FAirfieldData::FStand& S : F.Stands)
-				if (S.Id == Fl.FromStand || (Fl.FromStand.IsEmpty() && A1 && S.Id == A1->Stand))
-				{
-					const int32 J = JetwayAt(GetWorld(), S);
-					if (J != INDEX_NONE && !Undocked.Contains(Fl.Id) && AJetwayRigs::Get(GetWorld())->State(J) == AJetwayRigs::EState::Docked && APaxFlow::BoardingDone(GetWorld(), Fl.Reg))   // (owner 2026-11-21: never before everyone is aboard - a no-show holds it 15 min at most)
-					{ Undocked.Add(Fl.Id); AJetwayRigs::Get(GetWorld())->Undock(J); ADP_LOG(TEXT("Traffic: %s boarding complete, doors closed - jetway %s pulling back"), *Fl.Id, *AJetwayRigs::Get(GetWorld())->Name(J)); }
-					break;
-				}
-		}
+		// (the tug, the jetway and the bags of a departure: its turnaround - Turnaround.cpp - before it is off blocks)
 		// departures from here: from off-blocks, while it can still be on the ground or climbing (12 minutes)
 		if (Fl.From == Here && (Now - Fl.DepAt).GetTotalMinutes() >= 0.0 && (Now - Fl.DepAt).GetTotalMinutes() < 12.0)
 		{
@@ -145,6 +196,7 @@ void ASimTraffic::Sync()
 				}
 			}
 			Moves.Add(M);
+			ADPParked::Release(Fl.Reg);   // (the parked model gives way to the moving one, in the same frame)
 		}
 		// arrivals here: from about 9 minutes before on-blocks (the approach, the landing, the taxi in)
 		const FDateTime OnBlocks = Fl.DepAt + FTimespan::FromMinutes(Fl.DurMin + Fl.HoldMin);
@@ -158,7 +210,7 @@ void ASimTraffic::Sync()
 			M.Nose = FVector2f(TD - Dir * From, RY); M.Main = M.Nose - FVector2f(Dir * Wheelbase, 0.f);
 			M.Height = From * FMath::Tan(FMath::DegreesToRadians(Glide)); M.Speed = Vapp;
 			M.Path = {FVector2f(TD, RY)};
-			Moves.Add(M);
+			Moves.Add(M); ADPParked::Coming.Add(Fl.Reg);
 		}
 	}
 	// models for new movements
@@ -477,32 +529,27 @@ void ASimTraffic::Tick(float Dt)
 		bool bWaiting = false; for (const FMove& W2 : Moves) bWaiting |= !W2.bDeparture;
 		if (bWaiting) for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It) for (const FName& Tg : It->Tags) { const FString S = Tg.ToString(); if (S.StartsWith(TEXT("SIM/"))) ParkedRegs.Add(S.Mid(4)); }
 	}
+	SlipPoll = SlipPoll <= 0.f ? 5.f : SlipPoll - Dt;
 	for (int32 i = Moves.Num() - 1; i >= 0; --i)
 	{
 		FMove& M = Moves[i];
 		if (!M.Model.IsValid()) continue;
 		Blink(M);
 		Gear(M, FMath::Min(Dt, 0.1f));
+		if (M.bDeparture && M.Phase == EPhase::Push && M.Step == 0 && M.Speed <= 0.f && SlipPoll <= 0.f)
+			if (UADPSim* Sl = UADPSim::Get(this)) if (FADPFlight* Fs = Sl->World.Flights.FindByPredicate([&](const FADPFlight& X) { return X.Id == M.FlightId; }))
+				if (Sl->Now() > Fs->DepAt) { Fs->DelayMin += (Sl->Now() - Fs->DepAt).GetTotalMinutes(); Fs->DepAt = Sl->Now(); }   // (waiting for its tug: off blocks when it is pushed)
 		if (Advance(M, FMath::Min(Dt, 0.1f)))
 		{
 			// an arrival waits at its stand until the parked aircraft (the simulation's, ParkedAircraft.cpp) takes over
 			if (!M.bDeparture && M.Clock < 600.f)
 			{
 				const bool bParked = ParkedRegs.Contains(M.Reg);
+				ADPParked::Coming.Remove(M.Reg);   // (on blocks: the parked one takes over as soon as the simulation has it here)
 				if (!bParked) { M.Clock += Dt; M.Phase = EPhase::Done; continue; }
 			}
-			// an arrival on its stand (the parked aircraft has taken over): engines off, beacon off - the jetway drives out to
-			// its door (Jetway rules: from rest)
-			if (!M.bDeparture)
-				for (const FAirfieldData::FStand& S : F.Stands)
-					if (S.Id == M.Stand)
-					{
-						const int32 J = JetwayAt(GetWorld(), S);
-						if (ATugs* Tg = ATugs::Get(GetWorld())) Tg->Arrived(S.X);   // (the ground power plugged in)
-						if (J != INDEX_NONE && AJetwayRigs::Get(GetWorld())->State(J) == AJetwayRigs::EState::Parked && AJetwayRigs::Get(GetWorld())->Dock(J))
-							ADP_LOG(TEXT("Traffic: %s on blocks at %s - jetway %s docking"), *M.FlightId, *M.Stand, *AJetwayRigs::Get(GetWorld())->Name(J));
-						break;
-					}
+			// (an arrival on its stand: the jetway, the ground power and the bags come with its turnaround - Turnaround.cpp)
+			ADPParked::Coming.Remove(M.Reg);
 			if (ABabylonModel* B = M.Model.Get()) B->Destroy();
 			Moves.RemoveAt(i);
 		}

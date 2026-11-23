@@ -28,6 +28,10 @@ namespace ADPParked
 	 *  way and each of the simulation's aircraft standing at our airport is shown at the stand it was given (A320 model
 	 *  for every type until more models come), arriving and leaving with it. Checked every few seconds. */
 	void StartLive(UWorld* W, const FAirfieldData& Field);
+	/** The registrations still taxiing in (SimTraffic): their parked model waits. */
+	extern TSet<FString> Coming;
+	/** Its moving model has taken over (SimTraffic). */
+	void Release(const FString& Reg);
 	/** The A320's nose tyre behind its nose line (m): the stop bar's distance (Airfield.cpp FStopType). */
 	constexpr float NoseGearBehindNose = 5.1f;
 }

@@ -137,6 +137,11 @@ USTRUCT() struct FADPAircraft
 	UPROPERTY() FDateTime CheckUntil;
 	UPROPERTY() FString Stand;             // its stand at our airport (to-do 183; empty: none / a remote stand)
 	UPROPERTY() FDateTime StandUntil;
+	// its last arrival at our airport (the claim belts, the passengers coming off, the turnaround)
+	UPROPERTY() FString ArrFlight;         // the flight number it came in as
+	UPROPERTY() FString ArrFrom;
+	UPROPERTY() int32 ArrPax = 0;
+	UPROPERTY() FDateTime ArrAt;           // on blocks here
 };
 
 /** A ground team busy until (to-do 182): one per job and team at an airport. */
@@ -260,6 +265,58 @@ USTRUCT() struct FADPFlight
 	UPROPERTY() TArray<FString> Crew;       // who flies it (to-do 177)
 	UPROPERTY() int32 PaxConnect = 0;       // of its passengers, changing to/from another of the airline's flights (to-do 184)
 	UPROPERTY() FString FromStand;          // the stand it pushed back from at our airport (the 3D traffic: to-do 191)
+	UPROPERTY() FString FlightNo;           // its number on the boards ("CHB 101")
+};
+
+/** A line of your timetable (Sim/ADPSchedule.h): an aircraft flies from your base to a place and back, at this time on these days. */
+USTRUCT() struct FADPSlot
+{
+	GENERATED_BODY()
+	UPROPERTY() FString Id;
+	UPROPERTY() FString AirlineId;
+	UPROPERTY() FString Reg;
+	UPROPERTY() FString RouteId;
+	UPROPERTY() FString To;
+	UPROPERTY() int32 DepMin = 480;        // off-blocks at the base, minutes of the local day
+	UPROPERTY() int32 Days = 127;          // bit 0 Monday .. bit 6 Sunday
+	UPROPERTY() int32 Number = 101;        // the flight number out (the way back: the next one)
+	UPROPERTY() FDateTime OnSale;          // sold since
+};
+
+/** One planned leg: on sale, booked, checked in, boarded - until it leaves (then it is an FADPFlight with the same id). */
+USTRUCT() struct FADPPlanned
+{
+	GENERATED_BODY()
+	UPROPERTY() FString Id;
+	UPROPERTY() FString SlotId;            // of which timetable line (empty: an airline flying its route round and round)
+	UPROPERTY() bool bReturn = false;      // the way back to the base
+	UPROPERTY() FString Reg;
+	UPROPERTY() FString AirlineId;
+	UPROPERTY() FString RouteId;
+	UPROPERTY() FString FlightNo;
+	UPROPERTY() FString From;
+	UPROPERTY() FString To;
+	UPROPERTY() FDateTime Sched;           // scheduled off-blocks
+	UPROPERTY() FDateTime Est;             // expected off-blocks (Sched, or later)
+	UPROPERTY() FDateTime Hold;            // not before (a delay)
+	UPROPERTY() FDateTime OnSale;
+	UPROPERTY() double BlockMin = 60.0;
+	UPROPERTY() bool bTarget = false;      // how many will have booked is worked out
+	UPROPERTY() int32 PaxT = 0;            // ... all classes, when the booking closes
+	UPROPERTY() int32 PaxJT = 0;
+	UPROPERTY() int32 PaxFT = 0;
+	UPROPERTY() int32 PaxConnectT = 0;
+	UPROPERTY() double CargoT = 0.0;
+	UPROPERTY() double RevenueT = 0.0;
+	UPROPERTY() double LoadT = 0.0;
+	UPROPERTY() int32 Booked = 0;          // booked so far
+	UPROPERTY() int32 NoShow = 0;          // booked, but not aboard when the doors closed
+	UPROPERTY() bool bRolled = false;      // its odd minutes of delay are drawn
+	UPROPERTY() FString Stand;             // its stand at our airport, set aside from 2.5 h before
+	UPROPERTY() FString State = TEXT("planned");   // planned | gone | cancelled
+	UPROPERTY() FString Why;               // what it waits for
+	UPROPERTY() FDateTime Ended;           // gone / cancelled at
+	int32 Pax() const { return PaxT + PaxJT + PaxFT; }
 };
 
 /** One passenger of a flight at your airport, for the 3D world and the tracking map (to-do 155). */
@@ -440,6 +497,9 @@ USTRUCT() struct FADPWorld
 	UPROPERTY() TArray<FADPPerson> People;
 	UPROPERTY() TArray<FADPRoute> Routes;
 	UPROPERTY() TArray<FADPFlight> Flights;
+	UPROPERTY() TArray<FADPSlot> Slots;        // your timetable
+	UPROPERTY() TArray<FADPPlanned> Planned;   // the legs to come
+	UPROPERTY() int32 NextFlightNo = 101;
 	UPROPERTY() TArray<FADPPassenger> Passengers;
 	UPROPERTY() TArray<FADPCoach> Coaches;
 	UPROPERTY() TArray<FADPTxn> Ledger;

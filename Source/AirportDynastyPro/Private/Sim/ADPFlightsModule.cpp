@@ -12,6 +12,13 @@
 #include "Sim/ADPEconomy.h"
 #include "Sim/ADPStaff.h"
 #include "Sim/ADPEvents.h"
+#include "Sim/ADPSchedule.h"
+
+static FString AirlineCode(const FADPWorld& W, const FString& AirlineId)
+{
+	for (const FADPAirline& A : W.Airlines) if (A.Id == AirlineId) return A.Icao.IsEmpty() ? A.Name.Left(3).ToUpper() : A.Icao;
+	return TEXT("XX");
+}
 
 const FADPProfile* FADPFlightsModule::ProfileOf(const FADPFlight& F)
 {
@@ -25,6 +32,8 @@ void FADPFlightsModule::Advance(UADPSim& Sim, const FDateTime& From, const FDate
 {
 	if (!ADPWorldData::IsReady()) return;
 	FADPWorld& W = Sim.World;
+	// the planned legs (Sim/ADPSchedule.h): made, sold, their expected times
+	if (LastPlan > To || (To - LastPlan).GetTotalSeconds() >= 30.0) { LastPlan = To; ADPTown::UseWorld(W); ADPSchedule::Step(W, To); }
 	// the flights in the air: their phase and position now; landed ones come in
 	for (int32 i = W.Flights.Num() - 1; i >= 0; --i)
 	{
@@ -46,17 +55,34 @@ void FADPFlightsModule::Advance(UADPSim& Sim, const FDateTime& From, const FDate
 	}
 	// the aircraft on the ground with a route: off when they're ready
 	for (FADPAircraft& A : W.Aircraft)
-		if (A.Status == TEXT("parked") && !A.RouteId.IsEmpty() && A.ReadyAt <= To) TryDepart(W, A, To);
+		if (A.Status == TEXT("parked") && !A.RouteId.IsEmpty() && A.ReadyAt <= To) TryDepart(W, A, To, bCatchUp);
 }
 
-void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime& Now)
+void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime& Now, bool bCatchUp)
 {
+	// its planned leg: your timetable's (an aircraft in it flies nothing else), or the round of the airline's route
+	FADPPlanned* Pl = ADPSchedule::Next(W, A.Reg, A.Location);
+	if (ADPSchedule::HasSlots(W, A.Reg))
+	{
+		if (!Pl) return;
+		A.RouteId = Pl->RouteId; A.LegIdx = Pl->bReturn ? 1 : 0;
+	}
+	const bool bMineHere = A.AirlineId == UADPSim::Me() && A.Location == ADPBoards::HereIcao();
+	if (Pl && Now < Pl->Est - FTimespan::FromMinutes(bMineHere ? 60.0 : 0.0)) return;
 	const FADPRoute* R = W.Routes.FindByPredicate([&](const FADPRoute& X) { return X.Id == A.RouteId; });
 	if (!R || R->Stops.Num() < 2) return;
 	FADPPerson* Pilot = W.People.FindByPredicate([&](const FADPPerson& X) { return X.Id == R->PilotId; });
 	auto Wait = [&](const TCHAR* Why, double Min)
 	{
 		if (A.WaitingSince == FDateTime()) A.WaitingSince = Now;
+		if (Pl)
+		{
+			Pl->Why = Why; Pl->Hold = FMath::Max(Pl->Hold, FMath::Max(Now, Pl->Sched) + FTimespan::FromMinutes(Now >= Pl->Sched ? Min : 0.0)); Pl->Est = FMath::Max(Pl->Est, Pl->Hold);
+			A.ReadyAt = Now + FTimespan::FromMinutes(Min);
+			// (five hours late: off - the way home is flown however late it gets)
+			if (!Pl->bReturn && (Now - Pl->Sched).GetTotalHours() >= CancelAfterH) { ADPSchedule::Cancel(W, *Pl, Now, Why); A.WaitingSince = FDateTime(); A.ReadyAt = Pl->SlotId.IsEmpty() ? Now + FTimespan::FromHours(19.0) : Now; }
+			return;
+		}
 		if ((Now - A.WaitingSince).GetTotalHours() >= CancelAfterH)
 		{
 			// (waited 5 hours: the leg is cancelled and tried again at the same time tomorrow)
@@ -82,7 +108,7 @@ void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime
 	if (!bRoster)
 		if (const FADPTypeInfo* Tc = ADPWorldData::Type(A.TypeId))
 			if (ADPStaff::CabinCrewAt(W, A.AirlineId, A.Base) < ADPStaff::CabinCrewFor(Tc->Seats)) { ++CrewWaits; Wait(TEXT("not enough cabin crew"), 60); return; }
-	const FString& Next = R->Stops[(A.LegIdx + 1) % R->Stops.Num()];
+	const FString Next = Pl ? Pl->To : R->Stops[(A.LegIdx + 1) % R->Stops.Num()];
 	FADPProfile P;
 	if (!ADPWorldData::MakeProfile(A.TypeId, A.Location, Next, P)) { Wait(TEXT("no flight plan"), 240); return; }
 	if (bRoster)
@@ -97,7 +123,20 @@ void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime
 		}
 		Pilot = W.People.FindByPredicate([&](const FADPPerson& X) { return X.Id == A.Crew[0]; });
 		if (!Pilot) { Wait(TEXT("no captain"), 30); return; }
+		if (Pl && !Pl->Why.IsEmpty() && Pl->Why.Contains(TEXT(" free"))) { Pl->Why.Empty(); A.WaitingSince = FDateTime(); }   // (a crew came free in time)
 	}
+	// your people on the ground here: without them the steps they do don't happen (owner 2026-11-23: the step waits, and
+	// the game says why) - told an hour ahead, held at its time
+	if (bMineHere)
+	{
+		const FString Miss = ADPSchedule::MissingStaff(W, Now);
+		if (!Miss.IsEmpty())
+		{
+			ADPSchedule::Tell(W, Now, TEXT("staff"), TEXT("Nobody to do the work"), FString::Printf(TEXT("%s to %s waits: %s. Hire them under Crew."), Pl ? *Pl->FlightNo : *A.Reg, *Next, *Miss));
+			if (!Pl || Now >= Pl->Est) { ++CrewWaits; Wait(*Miss, 5); return; }
+		}
+	}
+	if (Pl && Now < Pl->Est) return;   // (reported, rostered: on time now)
 	// the weather at both ends (the real world's now, or the built-in climate): crosswind on the best runway, visibility,
 	// storms; snow or freezing rain means de-icing first
 	double WxDelay = 0.0;
@@ -157,12 +196,27 @@ void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime
 		return;
 	}
 	// delays at random: at the gate mostly short, now and then long (weather-driven delays come with the weather)
-	const double Delay = (Rng.FRand() < 0.88 ? Rng.FRandRange(0.0, 8.0) : Rng.FRandRange(15.0, 74.0)) + WxDelay;
+	// (your own flights out of your own airport, its 3D world running: nothing at random - they leave when the real work is
+	// done; every planned leg: the delay is drawn once and waited out on the stand, the flight made as it leaves)
+	const bool bReal = bMineHere && Pl && ADPSchedule::Ready3D && !bCatchUp;
+	double Delay = bReal ? 0.0 : (Rng.FRand() < 0.88 ? Rng.FRandRange(0.0, 8.0) : Rng.FRandRange(15.0, 74.0)) + WxDelay;
+	if (Pl)
+	{
+		if (!Pl->bRolled) { Pl->bRolled = true; if (Delay >= 1.0) { Pl->Hold = FMath::Max(Pl->Hold, Now + FTimespan::FromMinutes(Delay)); Pl->Est = FMath::Max(Pl->Est, Pl->Hold); return; } }
+		// (from our airport, live: everyone aboard, the bags in the hold, the jetway at rest - the 3D world says so)
+		if (A.Location == ADPBoards::HereIcao() && ADPSchedule::Ready3D && !bCatchUp)
+		{
+			FString Why;
+			if (!ADPSchedule::Ready3D(*Pl, Now, Why)) { Wait(*Why, 0.25); return; }
+		}
+		Delay = FMath::Max(0.0, (Now - Pl->Sched).GetTotalMinutes());
+	}
 	if (Delay >= 15.0) ++Delayed;
 	FADPFlight F;
-	F.Id = FString::Printf(TEXT("%s-%lld"), *A.Reg, Now.GetTicks() / ETimespan::TicksPerSecond);
+	F.Id = Pl ? Pl->Id : FString::Printf(TEXT("%s-%lld"), *A.Reg, Now.GetTicks() / ETimespan::TicksPerSecond);
+	F.FlightNo = Pl ? Pl->FlightNo : ADPBoards::FlightNumber(AirlineCode(W, A.AirlineId), A.RouteId, A.LegIdx);
 	F.RouteId = A.RouteId; F.Reg = A.Reg; F.AirlineId = A.AirlineId; F.PilotId = Pilot->Id; F.TypeId = A.TypeId; F.From = A.Location; F.To = Next;
-	F.DepAt = Now + FTimespan::FromMinutes(Delay); F.DelayMin = Delay; F.DurMin = P.BlockMin();
+	F.DepAt = Pl ? Now : Now + FTimespan::FromMinutes(Delay); F.DelayMin = Delay; F.DurMin = P.BlockMin();
 	F.Lat = P.FromLat; F.Lon = P.FromLon;
 	F.Crew = A.Crew;
 	F.FromStand = A.Stand;
@@ -170,6 +224,13 @@ void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime
 	{
 		const FADPAirportInfo* Ap = ADPWorldData::Airport(A.Location); const FADPAirportInfo* Bp = ADPWorldData::Airport(Next); const FADPTypeInfo* T = ADPWorldData::Type(A.TypeId);
 		if (ADPEvents::JobLoad(W, A.RouteId, Next, F)) {}
+		else if (Pl && Pl->bTarget)
+		{
+			// (who booked: worked out as it was sold - less those who didn't show up at the gate)
+			F.Pax = Pl->PaxT; F.PaxJ = Pl->PaxJT; F.PaxF = Pl->PaxFT; F.PaxConnect = Pl->PaxConnectT; F.CargoKg = Pl->CargoT; F.Revenue = Pl->RevenueT; F.LoadFactor = Pl->LoadT;
+			F.Pax = FMath::Max(0, F.Pax - Pl->NoShow);
+			PaxCarried += F.Pax + F.PaxJ + F.PaxF; RevenueSum += F.Revenue; LoadSum += F.LoadFactor;
+		}
 		else if (Ap && Bp && T)
 		{
 			const FADPBooking K = ADPDemand::Book(W, A.AirlineId, A.RouteId, *T, *Ap, *Bp, Now, Rng);
@@ -193,6 +254,8 @@ void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime
 	// wear from every flight
 	A.Condition = FMath::Max(0.0, A.Condition - (P.BlockMin() / 60.0 * 0.12 + 0.35));
 	W.Flights.Add(F);
+	if (Pl) { Pl->State = TEXT("gone"); Pl->Ended = Now; Pl->Why.Empty(); }
+	if (A.AirlineId == UADPSim::Me()) ADP_LOG(TEXT("Schedule: %s %s %s-%s off blocks%s - %d passengers, %d no-shows"), *F.FlightNo, *F.Reg, *F.From, *F.To, F.DelayMin >= 1.0 ? *FString::Printf(TEXT(", %.0f min late"), F.DelayMin) : TEXT(" on time"), F.Pax + F.PaxJ + F.PaxF, Pl ? Pl->NoShow : 0);
 	A.Status = TEXT("flying"); A.WaitingSince = FDateTime();
 	ADPGround::FreeStand(A);   // (pushed back: the stand is free - to-do 183)
 	++Departures;
@@ -211,6 +274,8 @@ void FADPFlightsModule::Land(FADPWorld& W, int32 Idx, const FDateTime& At)
 		if (const FADPRoute* R = W.Routes.FindByPredicate([&](const FADPRoute& X) { return X.Id == A->RouteId; }))
 			A->LegIdx = (A->LegIdx + 1) % FMath::Max(1, R->Stops.Num());
 		A->ReadyAt = At + FTimespan::FromMinutes(ADPGround::Turnaround(W, *A, At));   // (the ground teams' work: to-do 182)
+		if (F.To == ADPBoards::HereIcao()) { A->ArrFlight = F.FlightNo; A->ArrFrom = F.From; A->ArrPax = F.Pax + F.PaxJ + F.PaxF; A->ArrAt = At; }
+		if (A->AirlineId == UADPSim::Me()) ADP_LOG(TEXT("Schedule: %s %s landed at %s - %d passengers"), *F.FlightNo, *F.Reg, *F.To, F.Pax + F.PaxJ + F.PaxF);
 	}
 	if (F.Crew.Num()) ADPRoster::Landed(W, F, At);   // (your crews' flight time and duty: to-do 177)
 	else if (FADPPerson* P = W.People.FindByPredicate([&](const FADPPerson& X) { return X.Id == F.PilotId; }))

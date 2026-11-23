@@ -111,7 +111,7 @@ bool ADPStaff::SetBase(FADPWorld& W, const FString& PersonId, const FString& Bas
 
 void ADPStaff::FillPool(FADPWorld& W, FRandomStream& Rng)
 {
-	static const TCHAR* Roles[] = {TEXT("captain"), TEXT("fo"), TEXT("fa"), TEXT("mech"), TEXT("ground"), TEXT("security"), TEXT("fuel"), TEXT("catering"), TEXT("cleaning"), TEXT("fire")};
+	static const TCHAR* Roles[] = {TEXT("captain"), TEXT("fo"), TEXT("fa"), TEXT("mech"), TEXT("ground"), TEXT("security"), TEXT("checkin"), TEXT("fuel"), TEXT("catering"), TEXT("cleaning"), TEXT("fire")};
 	const FString Country = CountryOf(W, FString());
 	for (const TCHAR* R : Roles)
 	{
@@ -144,7 +144,7 @@ void FADPStaffModule::Advance(UADPSim& Sim, const FDateTime& From, const FDateTi
 	// the hiring pool: every few hours some leave it and new people come (12 cabin crew and ground staff, 8 of the rest)
 	if (Rng.FRand() < 0.2)
 	{
-		static const TCHAR* Roles[] = {TEXT("captain"), TEXT("fo"), TEXT("fa"), TEXT("mech"), TEXT("ground"), TEXT("security"), TEXT("fuel"), TEXT("catering"), TEXT("cleaning"), TEXT("fire")};
+		static const TCHAR* Roles[] = {TEXT("captain"), TEXT("fo"), TEXT("fa"), TEXT("mech"), TEXT("ground"), TEXT("security"), TEXT("checkin"), TEXT("fuel"), TEXT("catering"), TEXT("cleaning"), TEXT("fire")};
 		const FString Country = ADPStaff::CountryOf(W, FString());   // (the player's airline's hub country)
 		for (const TCHAR* R : Roles)
 		{

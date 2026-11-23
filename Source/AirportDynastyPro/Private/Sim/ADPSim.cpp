@@ -244,6 +244,13 @@ void UADPSim::SetSpeed(double S)
 	ADP_LOG(TEXT("Sim: speed %.1f"), SpeedFactor);
 }
 
+void UADPSim::SetClock(const FDateTime& To)
+{
+	ClockBaseSim = To; ClockBaseReal = FDateTime::UtcNow();
+	for (FSlot& S : Slots) S.At = To;
+	ADP_LOG(TEXT("Sim: clock set to %s UTC"), *To.ToString());
+}
+
 void UADPSim::Register(TSharedRef<IADPSimModule> Module)
 {
 	for (const FSlot& S : Slots) if (S.M->Name() == Module->Name()) { ADP_WARN(TEXT("Sim: module %s registered twice"), *Module->Name().ToString()); return; }

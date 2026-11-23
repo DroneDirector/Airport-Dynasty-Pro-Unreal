@@ -27,6 +27,18 @@ public:
 	ASimTraffic();
 	virtual void Tick(float Dt) override;
 	static void Start(UWorld* W, const FAirfieldData& Field);
+	virtual void EndPlay(const EEndPlayReason::Type Why) override;
+	/** The jetway of a stand out to the aircraft's door / back to rest (nothing at a stand without one). */
+	static void DockAt(UWorld* W, const FString& Stand);
+	static void UndockAt(UWorld* W, const FString& Stand);
+	/** It is docked / at rest (a stand without a jetway: always); not yet: asked for again. */
+	static bool JetwayReady(UWorld* W, const FString& Stand, bool bDocked);
+	/** Tests: it has left the ground (its departure is in the climb or away). */
+	static bool Airborne(UWorld* W, const FString& Reg);
+	/** True while that aircraft moves in 3D (not on blocks). */
+	static bool Moving(const UWorld* W, const FString& Reg);
+	/** May this planned leg leave (ADPSchedule::Ready3D): everyone aboard, the jetway at rest, the bags in. */
+	bool Ready(const struct FADPPlanned& P, const FDateTime& Now, FString& Why) const;
 
 private:
 	enum class EPhase : uint8 { Push, Taxi, Roll, Climb, Approach, Rollout, TaxiIn, Done };
@@ -48,7 +60,8 @@ private:
 		bool bGear = false, bGearPrev = false; float Steer = 0.f, RollN = 0.f, RollM = 0.f, Ext = 0.f, ExtV = 0.f;
 		FVector2f PrevNose = FVector2f::ZeroVector, PrevMain = FVector2f::ZeroVector;   // nav L, nav R, tail, beacon top, beacon belly, strobe L, strobe R
 	};
-	TSet<FString> Undocked, TugCalled;   // (departures whose jetway was sent back to rest)
+	TSet<FString> TugCalled;   // (arrivals whose tug driver was called)
+	float SlipPoll = 0.f;
 	TArray<FMove> Moves;
 	FAirfieldData F;
 	float Poll = 0.f;

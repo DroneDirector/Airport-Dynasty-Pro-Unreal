@@ -19,7 +19,7 @@ struct FADPBoardRow
 	FString Status;
 	FColor Col = FColor(127, 196, 245);
 	int32 Gate = 0;       // 1..16 (0: none yet)
-	FString Reg, AirlineId;
+	FString Reg, AirlineId, PlanId;   // (PlanId: its planned leg, or the flight made from it - Sim/ADPSchedule.h)
 	bool bBoarding = false, bFinalCall = false;
 	FString Time() const { return FString::Printf(TEXT("%02d:%02d"), Sched.GetHour(), Sched.GetMinute()); }
 };

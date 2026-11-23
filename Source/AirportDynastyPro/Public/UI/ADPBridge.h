@@ -80,6 +80,8 @@ public:
 	/** The stage's overlay (ue.adp.whoAreYou): 'hover' she|he, 'choose' she|he, 'cancel', 'done'. */
 	UFUNCTION() void WhoAreYou(const FString& Action, const FString& Arg);
 	/** The simulation for the menus (ue.adp.sim(action, arg) - to-do 176; the native Overview uses the same calls later):
+	 *  'aircraft' (for sale, used, your fleet), 'buy' type|buy or lease, 'buyused' offer, 'sell' reg, 'timetable' (its lines, the
+	 *  flights and their bookings), 'places' reg|search, 'slot' reg|to|HH:MM|days, 'slotdel' id, 'fare' route|index,
 	 *  'crew' (your people, the hiring pool, what your fleet needs, JSON), 'hire' id|base, 'dismiss' id, 'pay' id|weekly,
 	 *  'base' id|icao, 'train' id|type, 'dayoff' id|days, 'interview' id, 'advert' role, 'contract' id|full/part,
 	 *  'leave' index|yes/no, 'fleet' (your aircraft and their checks), 'check' reg|A/C/D, 'parts' usd. Returns JSON ({ok, ...}). */

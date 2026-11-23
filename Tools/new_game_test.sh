@@ -6,6 +6,9 @@
 # settings are put back exactly as they were. Exit code 0: both passed, no problems.
 # Usage: bash Tools/new_game_test.sh                       (the editor's game)
 #        bash Tools/new_game_test.sh --packaged <folder>   (a packaged game, e.g. F:/ADP-Packaged/0.18.2/Full)
+#        bash Tools/new_game_test.sh --career [--from N]   (a new career, then the whole passenger and crew chain in it:
+#          buy, hire, the timetable, two departures, the arrival back, the second departure - Private/ChainTest.cpp; about an
+#          hour; a save point at the start of each stage in Saved/NewGameTest/chain, --from N goes on from there)
 #        NG_SIZE="1920 1080" bash Tools/new_game_test.sh   (another size; NG_ONLY=new|continue: one of the two)
 R="$(cd "$(dirname "$0")/.." && pwd)"; cd "$R"
 read SW SH < <(powershell -NoProfile -ExecutionPolicy Bypass -File "$(cygpath -w "$R/Tools/screen_size.ps1")" | tr -d '\r')
@@ -13,6 +16,8 @@ read SW SH < <(powershell -NoProfile -ExecutionPolicy Bypass -File "$(cygpath -w
 [ -n "$NG_SIZE" ] && read SW SH <<< "$NG_SIZE"
 PACK=""; [ "$1" = "--packaged" ] && { PACK="$(cygpath -u "$2")"; shift 2; }
 OUT="$R/Saved/NewGameTest"; mkdir -p "$OUT"
+CAREER=0; FROM=1
+[ "$1" = "--career" ] && { CAREER=1; shift; [ "$1" = "--from" ] && { FROM="$2"; shift 2; }; }
 if [ -n "$PACK" ]; then S="$(cygpath -u "$LOCALAPPDATA")/AirportDynastyPro/Saved"; CFG=Windows
   tasklist | grep -qiE "AirportDynastyPro" && { echo "STOP: a packaged game is running"; exit 1; }
 else S="$R/Saved"; CFG=WindowsEditor
@@ -24,6 +29,22 @@ PARTS="Careers Saves Autosaves ADP webcache_6613 Config/Windows/GameUserSettings
 for p in $PARTS; do [ -e "$S/$p" ] && { mkdir -p "$KEEP/$(dirname $p)"; cp -rp "$S/$p" "$KEEP/$p" || { echo "STOP: $p couldn't be put aside"; rm -rf "$KEEP"; exit 1; }; }; done
 putback() { for p in $PARTS; do rm -rf "$S/$p"; [ -e "$KEEP/$p" ] && { mkdir -p "$S/$(dirname $p)"; cp -rp "$KEEP/$p" "$S/$p"; }; done; rm -rf "$KEEP"; }
 trap putback EXIT
+if [ $CAREER = 1 ]; then
+  CH="$OUT/chain"; mkdir -p "$CH"; SW1=-UINewGame
+  if [ "$FROM" -gt 1 ]; then
+    [ -f "$CH/chaintest-$FROM.json" ] || { echo "STOP: no save point of stage $FROM"; exit 1; }
+    SW1=-UIContinueGame; mkdir -p "$S/Careers"; cp "$CH/chaintest-$FROM.json" "$S/Careers/career-chablais.json"
+  else rm -f "$S/Careers/career-chablais.json"; fi
+  read SW SH <<< "${NG_SIZE:-1600 900}"
+  EX="/c/Program Files/Epic Games/UE_5.7/Engine/Binaries/Win64/UnrealEditor.exe"
+  # (an own time limit and a kill of this copy only: the game ends by itself when the chain is through or stuck)
+  ADP_LOG=1 timeout ${NG_LIMIT:-10800} "$EX" "$(cygpath -w $PWD/AirportDynastyPro.uproject)" -game $SW1 -ChainTest=$FROM -windowed -ResX=$SW -ResY=$SH -ForceRes -Site=chablais -LocalTerrain -nosplash -log=ChainTest.log "$@" > /dev/null 2>&1
+  cp "$S/Logs/ChainTest.log" "$CH/log-from-$FROM.txt" 2>/dev/null
+  for f in "$S"/Careers/chaintest-*.json; do [ -f "$f" ] && cp "$f" "$CH/"; done
+  echo "== career chain from stage $FROM:"
+  grep -aE "CHAIN TEST: (started|stage|STAGE|RESULT|PROBLEM|save point|FAILED|ALL PASSED|buy|slot|hire|before|flying)|NEWGAME TEST: FAILED|left behind|no way from A" "$CH/log-from-$FROM.txt" | sed 's/^\[[^]]*\]\[[^]]*\]//; s/LogTemp: //; s/Display: //' | cut -c1-260
+  grep -qa "CHAIN TEST: ALL PASSED" "$CH/log-from-$FROM.txt" && { echo "career chain: PASSED"; exit 0; } || { echo "career chain: FAILED - Saved/NewGameTest/chain/log-from-$FROM.txt"; exit 1; }
+fi
 BAD=0
 for WHICH in new continue; do
   [ -n "$NG_ONLY" ] && [ "$NG_ONLY" != "$WHICH" ] && continue

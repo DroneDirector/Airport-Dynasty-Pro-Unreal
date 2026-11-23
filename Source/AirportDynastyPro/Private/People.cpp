@@ -584,6 +584,8 @@ void AADPPeople::StartWanderers()
 	if (bStrollersStarted) return;
 	bStrollersStarted = true;
 	APaxFlow::Get(GetWorld());   // (the departing and arriving passengers' trips - PaxFlow.h - start with the airport)
+	// (owner 2026-11-23: no flight, no passengers - nobody strolls about the terminal who isn't flying; -Strollers: tests)
+	if (!FParse::Param(FCommandLine::Get(), TEXT("Strollers"))) return;
 	FTerminalPlan Plan; if (!Plan.Load()) { ADP_WARN(TEXT("People: no terminal plan - no strolling passengers")); return; }
 	auto Boxes = [&](TFunctionRef<bool(const FPlanRoom&)> Pick, TArray<FBox2D>& Out, TArray<FString>& Ids)
 	{

@@ -10,6 +10,7 @@
 // Tests: -GseTest with -DepBagTest (the bags fed in at check-in).
 #include "GSE.h"
 #include "Sim/ADPBoards.h"
+#include "Sim/ADPSchedule.h"
 #include "Tugs.h"
 #include "People.h"
 #include "CrewPose.h"
@@ -327,6 +328,10 @@ void AGSE::PollBags(float Dt)
 		bool bHas = false; for (const auto& K : BagKey) if (K.Value == F && Tractors.IsValidIndex(K.Key) && Tractors[K.Key].Job != EJob::None) bHas = true;
 		{ int32 OnCarts = 0; for (const FCart& C : Carts) for (const int32 b : C.Bags) if (b != INDEX_NONE) { const FDepBagTag* T = D->Tag(b); if (T && T->Flight == F) ++OnCarts; } if (D->BagsOf(F).Num() <= OnCarts) bHas = true; }
 		if (bHas) continue;
+		if (UADPSim* Sim = UADPSim::Get(this)) if (Sim->IsRunning())
+			if (const FADPPlanned* Pl = Sim->World.Planned.FindByPredicate([&](const FADPPlanned& X) { return X.FlightNo == F && X.State == TEXT("planned"); }))
+				if (Pl->AirlineId == UADPSim::Me() && ADPSchedule::OnShift(Sim->World, TEXT("ground"), Sim->Now()) < 2)
+				{ ADPSchedule::Tell(Sim->World, Sim->Now(), TEXT("bags:") + F, TEXT("No ground crew"), FString::Printf(TEXT("%s's bags wait in the make-up: too few of your ground crew on shift."), *F)); continue; }
 		// a free tractor and a pair of free carts, the driver to the carousel now (its stand comes with its departure)
 		StartFor(F, 0.f);
 		break;

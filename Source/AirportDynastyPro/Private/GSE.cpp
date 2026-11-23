@@ -445,6 +445,12 @@ void AGSE::Drive(FTractor& T, float Dt)
 	if (!T.Path.Num()) { T.Speed = 0.f; return; }
 	const FVector End = T.Path.Last();
 	while (T.Path.Num() > 1 && FVector::Dist2D(T.At, T.Path[0]) < 110.f) T.Path.RemoveAt(0);
+	// (a waypoint gone past - beside it, not through it - counts as reached; and never round and round one: after a full turn on
+	//  the spot it goes for the next)
+	while (T.Path.Num() > 1 && FVector::Dist2D(T.At, T.Path[0]) < 400.f && FVector::DotProduct((T.Path[1] - T.Path[0]).GetSafeNormal2D(), (T.At - T.Path[0]).GetSafeNormal2D()) > 0.2f) T.Path.RemoveAt(0);
+	if (T.OrbitN != T.Path.Num()) { T.OrbitN = T.Path.Num(); T.Orbit = 0.f; T.OrbitYaw = T.Yaw; }
+	T.Orbit += FMath::FindDeltaAngleDegrees(T.OrbitYaw, T.Yaw); T.OrbitYaw = T.Yaw;
+	if (FMath::Abs(T.Orbit) > 330.f && T.Path.Num() > 1) { ADP_LOG(TEXT("GSE: %s missed a bend - on to the next point of its way"), *T.Name); T.Path.RemoveAt(0); T.OrbitN = T.Path.Num(); T.Orbit = 0.f; }
 	const bool bLast = T.Path.Num() == 1;
 	FVector Aim = T.Path[0];
 	{
@@ -471,9 +477,23 @@ void AGSE::Drive(FTractor& T, float Dt)
 	const FVector Move = (T.bReverse ? -1.f : 1.f) * FRotator(0.f, T.Yaw, 0.f).Vector();
 	bool bBlocked = false; FString Why;
 	auto Ahead = [&](const FVector& P, float R) { const FVector D = P - T.At; return D.Size2D() < R && FVector::DotProduct(D.GetSafeNormal2D(), Move) > 0.45f; };
+	// (one that stands still - loading at the carousel, parked - only where the way really goes through it: two trains are
+	//  made up side by side in the lane, the second never waits for the first to leave)
+	auto OnWay = [&](const FVector& P)
+	{
+		FVector From = T.At; float Len = 0.f;
+		for (int32 i = 0; i < T.Path.Num() && Len < 700.f; ++i) { if (FMath::PointDistToSegment(FVector(P.X, P.Y, 0.f), FVector(From.X, From.Y, 0.f), FVector(T.Path[i].X, T.Path[i].Y, 0.f)) < 215.f) return true; Len += FVector::Dist2D(From, T.Path[i]); From = T.Path[i]; }
+		return false;
+	};
 	for (const FTractor& O : Tractors)
 	{
 		if (&O == &T || !O.M.IsValid()) continue;
+		if (!O.Path.Num() && O.Speed < 5.f)
+		{
+			bool bIn = O.Job != EJob::None && Ahead(O.At, 650.f) && OnWay(O.At); for (const int32 c : O.Train) if (Carts.IsValidIndex(c) && Ahead(Carts[c].At, 450.f) && OnWay(Carts[c].At)) bIn = true;
+			if (bIn) { bBlocked = true; Why = O.Name + TEXT(" (standing in its way)"); }
+			continue;
+		}
 		if (Ahead(O.At, 650.f) && (O.Path.Num() > 0 || O.Job != EJob::None) && &O < &T) { bBlocked = true; Why = O.Name; }
 		for (const int32 c : O.Train) if (Carts.IsValidIndex(c) && Ahead(Carts[c].At, 450.f)) { bBlocked = true; Why = O.Name + TEXT("'s train"); }
 	}
@@ -509,7 +529,7 @@ void AGSE::Drive(FTractor& T, float Dt)
 	if (bBlocked) Want = 0.f;
 	const float Acc = Want > T.Speed ? 80.f : 130.f;                       // (cm/s^2: gently away, gently stopping)
 	T.Speed = FMath::FInterpConstantTo(T.Speed, Want, Dt, Acc);
-	if (bLast && DistEnd < 200.f && FMath::Abs(dYaw) > 45.f) T.At += (End - T.At).GetSafeNormal2D() * FMath::Min(T.Speed, 40.f) * Dt;
+	if (bLast && (DistEnd < 200.f || FMath::Abs(T.Orbit) > 330.f) && FMath::Abs(dYaw) > 45.f) T.At += (End - T.At).GetSafeNormal2D() * FMath::Min(T.Speed, 40.f) * Dt;
 	else T.At += Move * T.Speed * Dt;
 	Pose(T);
 }
@@ -873,7 +893,8 @@ void AGSE::Tick(float Dt)
 		FTractor& T = Tractors[i];
 		if (!T.M.IsValid()) continue;
 		if (T.Until) { if (T.Until()) { T.Until = nullptr; TFunction<void()> F = MoveTemp(T.AfterUntil); T.AfterUntil = nullptr; if (F) F(); } }
-		if (T.Path.Num()) { Drive(T, Dt); Train(T, Dt); }
+		// (in short steps however long the frame is: the steering is worked out from where it is - long steps overshoot a bend)
+		if (T.Path.Num()) { const int32 Ns = FMath::Clamp(FMath::CeilToInt(Dt / 0.03f), 1, 8); for (int32 n = 0; n < Ns && T.Path.Num(); ++n) { Drive(T, Dt / Ns); Train(T, Dt / Ns); } }
 		T.JobT += Dt;
 		Lamps(T); TractorParts(T, Dt);
 		if (bCheck && (T.Path.Num() || T.Speed > 1.f)) Check(T, i);   // (moving only: a belt loader's bumper on the door sill touches the aircraft on purpose)

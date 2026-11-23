@@ -9,6 +9,7 @@
 #include "UI/TitleBg.h"
 #include "ADPLog.h"
 #include "CharacterCreate.h"
+#include "ChainTest.h"
 #include "PaxNav.h"
 #include "UObject/UObjectIterator.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -35,6 +36,7 @@ void AADPHUD::TestNewGame(float Dt)
 	using namespace ADPNewGameTest;
 	static const bool bContinue = FParse::Param(FCommandLine::Get(), TEXT("UIContinueGame"));
 	const double Now = FPlatformTime::Seconds();
+	ADPChainTest::BlockInput();
 	if (T0 == 0.0) { T0 = StepT0 = Now; ADP_LOG(TEXT("NEWGAME TEST: started (%s)"), bContinue ? TEXT("Continue") : TEXT("New game")); }
 	if (EndAt > 0.0) { if (Now > EndAt) { EndAt = 1e18; FGenericPlatformMisc::RequestExit(false); } return; }
 	const float T = float(Now - StepT0);
@@ -155,7 +157,8 @@ void AADPHUD::TestNewGame(float Dt)
 			const APawn* Me = GetOwningPawn();
 			ADP_LOG(TEXT("NEWGAME TEST: %s - %d problems; loading %.1f s, from the title to the airport %.1f s, standing at %s"), Problems ? TEXT("FINISHED WITH PROBLEMS") : TEXT("PASSED"),
 				Problems, ReachedAirport - StartedLoad, ReachedAirport - T0, Me ? *Me->GetActorLocation().ToString() : TEXT("-"));
-			EndAt = Now + 3.0;
+			if (ADPChainTest::StartStage()) { EndAt = 1e17; ADPChainTest::Begin(GetWorld()); }   // (the career step after it: ChainTest.cpp ends the game)
+			else EndAt = Now + 3.0;
 		}
 		return;
 	}

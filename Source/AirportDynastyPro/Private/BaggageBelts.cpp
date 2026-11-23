@@ -441,6 +441,12 @@ int32 ABaggageBelts::BeltOf(UWorld* Wo, const FString& Flight)
 	return INDEX_NONE;
 }
 
+int32 ABaggageBelts::TagsOf(UWorld* Wo, const FString& Flight)
+{
+	const ABaggageBelts* Me = Get(Wo); const TArray<FString>* T = Me ? Me->PaxTags.Find(Flight) : nullptr;
+	return T ? T->Num() : 0;
+}
+
 void ABaggageBelts::TagBags(UWorld* Wo, const FString& Flight, const TArray<FString>& PaxIds)
 {
 	ABaggageBelts* Me = Get(Wo); if (!Me) return;

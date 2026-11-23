@@ -46,6 +46,8 @@ public:
 	FDateTime Now() const;
 	double Speed() const { return SpeedFactor; }
 	void SetSpeed(double S);
+	/** Tests: the clock set to a time (the modules go on from it). */
+	void SetClock(const FDateTime& To);
 	/** True on the device that runs the world (the other only shows it). */
 	bool RunsWorld() const { return bRunsWorld; }
 	void SetRunsWorld(bool bOn) { bRunsWorld = bOn; }

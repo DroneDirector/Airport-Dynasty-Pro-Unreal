@@ -63,7 +63,7 @@ void AGSE::ArrivalLoad(int32 Ti)
 	Curtains(Ci, Ti, true, nullptr);
 	WaitFor(Ci, [this, StandX](float E) { const int32 Li = LoaderAt(StandX); return Li == INDEX_NONE || Tractors[Li].bBelt || E > 150.f; });
 	// (the bulk hold of an A320: 15-30 bags; the test a handful)
-	const int32 N = FMath::Min(bTest ? 12 : FMath::RandRange(20, 40), 24 * T.Train.Num());
+	const int32 N = FMath::Min(bTest ? 12 : FMath::Max(FMath::RandRange(16, 28), ABaggageBelts::TagsOf(GetWorld(), T.ArrKey) + FMath::RandRange(2, 6)), 24 * T.Train.Num());
 	Do(Ci, [this, Ti, StandX, N]
 	{
 		const int32 Li = LoaderAt(StandX);

@@ -195,6 +195,13 @@ namespace ADPParked
 		FTSTicker::FDelegateHandle GLiveTick;
 		bool GStaticGone = false;
 	}
+	TSet<FString> Coming;
+
+	void Release(const FString& Reg)
+	{
+		for (auto It = GLive.CreateIterator(); It; ++It)
+			if (It->Value.Key == Reg) { if (ABabylonModel* M = It->Value.Value.Get()) M->Destroy(); It.RemoveCurrent(); }
+	}
 
 	void StartLive(UWorld* W, const FAirfieldData& Field)
 	{
@@ -224,12 +231,14 @@ namespace ADPParked
 			for (auto It = GLive.CreateIterator(); It; ++It)
 			{
 				const FString* R = Want.Find(It->Key);
+				// (just off blocks: it stands here until its moving model takes its place - SimTraffic releases it)
+				if (!R && Sim->World.Flights.ContainsByPredicate([&](const FADPFlight& X) { return X.Reg == It->Value.Key && X.From == Here && (Sim->Now() - X.DepAt).GetTotalMinutes() < 2.0; })) continue;
 				if (!R || *R != It->Value.Key) { if (ABabylonModel* M = It->Value.Value.Get()) M->Destroy(); It.RemoveCurrent(); }
 			}
 			// new ones: on their stands, nose tyres on the stop bars
 			for (const auto& Wn : Want)
 			{
-				if (GLive.Contains(Wn.Key)) continue;
+				if (GLive.Contains(Wn.Key) || Coming.Contains(Wn.Value)) continue;
 				const FAirfieldData::FStand* St = Stands.FindByPredicate([&](const FAirfieldData::FStand& X) { return X.Id == Wn.Key; });
 				if (!St) continue;
 				if (ABabylonModel* M = ParkOne(Wd, *St)) { M->Tags.Add(FName(*(TEXT("SIM/") + Wn.Value))); GLive.Add(Wn.Key, TPair<FString, TWeakObjectPtr<ABabylonModel>>(Wn.Value, M)); ADP_LOG(TEXT("Parked aircraft: %s at %s (the simulation's)"), *Wn.Value, *Wn.Key); }

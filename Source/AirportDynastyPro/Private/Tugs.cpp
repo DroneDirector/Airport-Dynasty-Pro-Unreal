@@ -283,7 +283,7 @@ void ATugs::Prepare(const FString& Key, float StandX)
 {
 	Assign(Key, StandX);
 	// (its baggage goes out to it on a tractor train - GSE.h)
-	if (AGSE* G = AGSE::Get(GetWorld())) G->Departure(Key, StandX);
+	if (AGSE* G = AGSE::Get(GetWorld())) if (G->IsTest()) G->Departure(Key, StandX);   // (in the game the turnaround sends it, under the flight's number: Turnaround.cpp)
 }
 
 bool ATugs::Push(const FString& Key, float StandX, const FVector& Fitting, const FVector& Fwd)

@@ -26,7 +26,11 @@ namespace ADPTurnaround
 		int32 Pax = 150; float FuelL = 20000.f;
 		TArray<FTask> Tasks;
 		float LateMin = 0.f;            // how late the plan runs against the departure (0 on time)
-		FString Flight;                 // its departure (the flight id the bags carry)
+		FString Flight;                 // its departure (the flight number the bags carry; "" none planned)
+		FString PlanId;                 // ... its planned leg (Sim/ADPSchedule.h)
+		bool bArrival = false;          // it has just come in (passengers off, bags out); false: standing here already
+		bool bMine = false;             // your airline's
+		FString ArrFlight; int32 ArrPax = 0;
 		float BagDelayMin = 0.f;        // how far its bags have delayed it
 	};
 	/** The A320's plan for a ground time (minutes): forward from on-blocks, boarding and the door backward from off-blocks. */
@@ -37,7 +41,9 @@ namespace ADPTurnaround
 	const TArray<FTurn>& All();
 	/** The simulation's time at the last Tick. */
 	FDateTime LastNow();
-	/** The turn for a departing flight (its id), or at a stand (plan x); null if none. */
+	/** True once a task of the aircraft at that stand is done (or it has no such task). */
+	bool Done(const FTurn& T, const TCHAR* Task);
+	/** The turn for a departing flight (its number), or at a stand (plan x); null if none. */
 	const FTurn* ForFlight(const FString& Flight);
 	const FTurn* AtStand(float StandX);
 	/** The bags' make-up cut-off for that flight (40 min before off-blocks) has passed. False when its turn isn't known. */

@@ -29,9 +29,9 @@ function simCrewDo(action: string, arg: string, okMsg: string) {
 
 const SIM_ROLES: [string, string, string[]][] = [
   ['pilots', 'Pilots', ['captain', 'fo']], ['cabin', 'Cabin crew', ['fa']], ['mech', 'Mechanics', ['mech']],
-  ['ground', 'Ground staff', ['ground', 'fuel', 'catering', 'cleaning']], ['security', 'Security', ['security']], ['hire', 'Hire staff', []],
+  ['checkin', 'Passenger service', ['checkin']], ['ground', 'Ground staff', ['ground', 'fuel', 'catering', 'cleaning']], ['security', 'Security', ['security']], ['hire', 'Hire staff', []],
 ];
-const SIM_ROLE_NAME: Record<string, string> = { captain: 'Captain', fo: 'First officer', fa: 'Flight attendant', mech: 'Mechanic', ground: 'Baggage handler', security: 'Security officer', fuel: 'Fuel truck driver', catering: 'Catering loader', cleaning: 'Aircraft cleaner' };
+const SIM_ROLE_NAME: Record<string, string> = { captain: 'Captain', fo: 'First officer', fa: 'Flight attendant', mech: 'Mechanic', ground: 'Baggage handler', security: 'Security officer', checkin: 'Passenger service agent', fuel: 'Fuel truck driver', catering: 'Catering loader', cleaning: 'Aircraft cleaner' };
 
 function simPersonRow(p: any, i: number, hire: boolean): string {
   const moodC = p.mood >= 60 ? 'ok' : p.mood >= 35 ? 'amber' : 'bad';
@@ -68,14 +68,14 @@ function simCrewHtml(): string {
   const tabs = SIM_ROLES.map(t => `<button class="tab ${SimCrew.tab === t[0] ? 'on' : ''}" data-act="sim-tab" data-t="${t[0]}">${t[1]}<i>${t[0] === 'hire' ? pool.length : ppl.filter(p => t[2].indexOf(p.role) >= 0).length}</i></button>`).join('');
   return `<div class="pilot-hero"><div class="ph-main"><small>${esc(d.airline || '')} · based at ${esc(d.hub || '')}</small><h1>Crew</h1>
       <p class="sub">${ppl.length} people on your staff · ${money(d.balance || 0)} in the bank</p></div></div>
-    <div class="need-row">${chip('Captains', 'captain')}${chip('First officers', 'fo')}${chip('Flight attendants', 'fa')}${chip('Mechanics', 'mech')}
+    <div class="need-row">${chip('Captains', 'captain')}${chip('First officers', 'fo')}${chip('Flight attendants', 'fa')}${chip('Mechanics', 'mech')}${chip('Passenger service agents', 'checkin')}${chip('Security officers', 'security')}${chip('Baggage handlers', 'ground')}
       <p class="fine-print">${icon('info')}Real-world rules: two pilots per airliner, one flight attendant per 50 seats from 20 seats, a licensed mechanic at every base. First hire the crew one aircraft needs, then buy or lease it.</p></div>
     ${(d.leave || []).filter((l: any) => l.state === 'asked').length ? `<div class="sim-leave"><h4 class="grp-h">Holiday requests</h4>${(d.leave || []).filter((l: any) => l.state === 'asked').map((l: any) => `<div class="crew-row"><span class="cr-name"><b>${esc(l.name)}</b><small>${esc(SIM_ROLE_NAME[l.role] || l.role)} · ${l.days} days from ${esc(l.from)}</small></span><span class="cr-btns"><button class="btn sm primary" data-act="sim-leave" data-i="${l.i}" data-a="yes">Approve</button><button class="btn sm ghost" data-act="sim-leave" data-i="${l.i}" data-a="no">Refuse</button></span></div>`).join('')}</div>` : ''}
     ${SimCrew.tab === 'ground' ? `<div class="need-row">${chip('Baggage handlers', 'ground')}${chip('Fuel drivers', 'fuel')}${chip('Catering', 'catering')}${chip('Cleaners', 'cleaning')}
       <p class="fine-print">${icon('info')}Your ground teams work every turnaround here: about 40% of each team is on shift at any hour (half at night). Too few people or no vehicle: a slower turnaround and a late departure. Vehicles: ${d.fuelTrucks || 0} fuel, ${d.cateringTrucks || 0} catering, ${d.tractors || 0} baggage tractors.</p>
       <span class="btn-row">${[['fuel', 'Fuel truck', 260000], ['catering', 'Catering truck', 185000], ['tractor', 'Baggage tractor', 65000]].map((v: any) => `<button class="btn sm" data-act="sim-vehicle" data-k="${v[0]}">Buy a ${v[1]} (${money(v[2])})</button>`).join('')}</span></div>` : ''}
     <div class="tabs big">${tabs}</div>
-    ${tab[0] === 'hire' ? `<div class="filter-row">${[['captain', 'Captains', 6000], ['fo', 'First officers', 4000], ['fa', 'Cabin crew', 1500], ['mech', 'Mechanics', 2500], ['ground', 'Baggage handlers', 1500], ['fuel', 'Fuel drivers', 1500], ['catering', 'Catering', 1500], ['cleaning', 'Cleaners', 1500]].map((r: any) => `<button class="fchip" data-act="sim-advert" data-r="${r[0]}">Advertise: ${r[1]} (${money(r[2])})</button>`).join('')}<p class="fine-print">${icon('info')}A paid advert brings three better candidates. Interview before you hire to see their strong and weak points.</p></div>` : ''}
+    ${tab[0] === 'hire' ? `<div class="filter-row">${[['captain', 'Captains', 6000], ['fo', 'First officers', 4000], ['fa', 'Cabin crew', 1500], ['mech', 'Mechanics', 2500], ['checkin', 'Passenger service', 1500], ['security', 'Security', 1500], ['ground', 'Baggage handlers', 1500], ['fuel', 'Fuel drivers', 1500], ['catering', 'Catering', 1500], ['cleaning', 'Cleaners', 1500]].map((r: any) => `<button class="fchip" data-act="sim-advert" data-r="${r[0]}">Advertise: ${r[1]} (${money(r[2])})</button>`).join('')}<p class="fine-print">${icon('info')}A paid advert brings three better candidates. Interview before you hire to see their strong and weak points.</p></div>` : ''}
     <div class="crew-list">${list.map((p, i) => simPersonRow(p, i, tab[0] === 'hire')).join('') || emptyState(tab[0] === 'hire' ? 'Nobody looking for work right now' : 'Nobody here yet', tab[0] === 'hire' ? 'New people come every few hours.' : 'Hire them under Hire staff.')}</div>`;
 }
 

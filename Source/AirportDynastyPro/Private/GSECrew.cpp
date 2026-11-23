@@ -11,6 +11,7 @@
 //  - a GPU: the tractor's pin out, the GPU's drawbar eye lifted into the jaw, the pin in
 // Bodies posed by the fire truck's IK rig at the models' IK points (CrewPose.h).
 #include "GSE.h"
+#include "Turnaround.h"
 #include "Tugs.h"
 #include "CrewPose.h"
 #include "ADPLog.h"
@@ -375,10 +376,11 @@ void AGSE::TrainToStand(int32 Ti)
 	// (made up before its departure was called: waits in the lane until its stand is known)
 	if (!bTest && !T.Key.IsEmpty() && T.StandX == 0.f)
 	{
+		if (const ADPTurnaround::FTurn* Tn = ADPTurnaround::ForFlight(T.Key)) T.StandX = Tn->StandX;   // (its aircraft's stand)
 		if (const ATugs* G = Tg()) for (const ATugs::FTug& U : G->Tugs) if (U.Key == T.Key) T.StandX = U.StandX;
 		if (T.StandX == 0.f) { RetryIn(Ti, 15.f, [this, Ti] { TrainToStand(Ti); }); return; }
 	}
-	T.Job = EJob::Out;
+	T.Job = EJob::Out; T.JobT = 0.f;   // (on its way: the departure waits for it from now - BusyAt)
 	RouteOut(T, [this, Ti] { TrainApron(Ti); });
 }
 
@@ -390,6 +392,7 @@ void AGSE::TrainApron(int32 Ti)
 	// (a train made up for its flight's bags before its departure was called: the stand from its tug, else wait for it)
 	if (!bTest && !T.Key.IsEmpty() && T.StandX == 0.f)
 	{
+		if (const ADPTurnaround::FTurn* Tn = ADPTurnaround::ForFlight(T.Key)) T.StandX = Tn->StandX;   // (its aircraft's stand)
 		if (const ATugs* G = Tg()) for (const ATugs::FTug& U : G->Tugs) if (U.Key == T.Key) T.StandX = U.StandX;
 		if (T.StandX == 0.f) { RetryIn(Ti, 15.f, [this, Ti] { TrainApron(Ti); }); return; }
 	}

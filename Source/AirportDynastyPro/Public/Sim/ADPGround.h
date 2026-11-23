@@ -23,6 +23,10 @@ namespace ADPGround
 	TCHAR CodeOf(const FString& TypeId);
 	/** Gives the aircraft a stand at our airport (when parked there, or arriving within 30 minutes); "" if none (remote). */
 	FString AssignStand(FADPWorld& W, FADPAircraft& A, const FDateTime& Now, const FDateTime& Until);
+	/** The stand it would get now (none taken, none set aside for another planned flight), not yet given. */
+	FString PickStand(const FADPWorld& W, const FADPAircraft& A, const FDateTime& Now);
+	/** People of a job on shift now at an airport (about 40% of those employed there: three shifts and days off; 20% at night). */
+	int32 OnShift(const FADPWorld& W, const FString& AirlineId, const FString& Role, const FString& Icao, const FDateTime& Utc);
 	/** Lets go of the aircraft's stand (it pushed back). */
 	void FreeStand(FADPAircraft& A);
 	/** The gate number of a stand (STAND-n -> n; remote or cargo: 0). */

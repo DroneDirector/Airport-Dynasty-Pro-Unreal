@@ -612,7 +612,9 @@ void ADepartureBelts::PollDepartures()
 		Now = Sim->Now();
 		const FString Here = ADPBoards::HereIcao();
 		for (const FADPFlight& F : Sim->World.Flights)
-			if (F.From == Here && F.DepAt > Now - FTimespan::FromMinutes(5.0) && F.DepAt < Now + FTimespan::FromHours(4.0)) Deps.Add({F.Id, F.DepAt});
+			if (F.From == Here && F.DepAt > Now - FTimespan::FromMinutes(5.0) && F.DepAt < Now + FTimespan::FromHours(4.0)) Deps.Add({F.FlightNo.IsEmpty() ? F.Id : F.FlightNo, F.DepAt});
+		for (const FADPPlanned& P : Sim->World.Planned)   // (the planned legs: the bags carry the flight's number)
+			if (P.From == Here && P.State == TEXT("planned") && P.Est < Now + FTimespan::FromHours(4.0)) Deps.Add({P.FlightNo, P.Est});
 		Deps.Sort([](const FDep& A, const FDep& B) { return A.DepAt < B.DepAt; });
 	}
 	// a carousel's flight is let go once it has left and none of its bags are on the plates any more

@@ -57,6 +57,9 @@ public:
 	bool TestDone() const;
 	/** How many are walking now, and how many have gone aboard / out so far. */
 	int32 Walking() const;
+	/** One flight's passengers in numbers (the functional test, the tracking map): its label; false when nobody walks for it. */
+	struct FCount { FString Label; bool bArr = false; int32 Pax = 0, Walkers = 0, Spawned = 0, Bags = 0, Desk = 0, Lane = 0, F2 = 0, Aboard = 0, Bag = 0, Out = 0, Late = 0, Home = 0, About = 0; bool bCalled = false, bOff = false; float CallBefore = -1.f; FString Stages; };   // (CallBefore: the boarding call, minutes before its departure as expected then)
+	void Counts(TArray<FCount>& Out) const;
 
 	enum : int32 { VisibleDep = 36, VisibleArr = 30 };
 
@@ -79,18 +82,22 @@ private:
 		FString Stage;   // (in words, for the tests' caption)
 		float DevIn = -1.f, DevFor = 0.f; uint8 Dev = 0;   // (waiting at the gate: the phone / tablet out - APaxProps; in how long, for how long, which)
 		int32 Rev = INDEX_NONE, RevComp = INDEX_NONE, RevPhase = 0, RevSide = 0; float RevT = 0.f; FVector RevFrom = FVector::ZeroVector; TArray<FWp> RevAfter;   // (a revolving door: which, the compartment, 0 waiting 1 stepping in 2 riding 3 stepping out; the way on after it)
+		bool bHome = false;          // (on the way home: too late, or their flight is off)
 		float FadeT = -1.f; int32 FadeFrom = INDEX_NONE; bool bFadeSwap = false; TWeakObjectPtr<class UMaterialInstanceDynamic> FadeMid;   // (boarding: faded away halfway along the jetway)
 	};
 	struct FRun
 	{
-		FString Key, Label, AirlineId, Reg;
+		FString Key, Label, AirlineId, Reg, PlanId;   // (PlanId: its planned leg - Sim/ADPSchedule.h)
 		bool bArr = false, bTest = false, bPlayer = false, bDockNoted = false;
 		int32 Gate = 2, Jet = INDEX_NONE;
 		double DepT = 0.0;          // departure (seconds on the run's clock: the simulation's, the test's own)
-		int32 Pax = 0, Visible = 0, Spawned = 0, Aboard = 0, Out = 0;
+		int32 Pax = 0, Visible = 0, Spawned = 0, Aboard = 0, Out = 0, Late = 0, Home = 0;   // (Late: too late to check in; Home: gone home - late, or the flight is off)
+		bool bOff = false, bGone = false;   // (cancelled; left)
+		int32 NBags = 0, NDesk = 0, NLane = 0, NF2 = 0, NBag = 0;   // (how many have a bag to check in, have checked it in, been screened, come up to Floor 2; taken their bag)
 		TArray<double> SpawnAt;     // (departures: when each walker gets out of their car; arrivals: off the aircraft)
 		TArray<int32> Desks;
 		bool bCalled = false, bFinal = false, bClosed = false, bAllLogged = false, bDeplaning = false, bBagsTagged = false;
+		float CallBefore = -1.f;
 		double CallT = 0.0, BoardSpanS = 0.0, ArrStart = -1.0, NextArr = 0.0, HoldSince = -1.0; bool bNoShowGo = false;
 		float DockWait = 0.f;
 	};
@@ -114,6 +121,7 @@ private:
 	float ReadyIn = 2.f, PollIn = 0.f, SayIn = 20.f, SpawnGap = 0.f, StuckLog = 0.f;
 	double RealT = 0.0, SimT = 0.0;
 	float F2Z = 600.f, F2Y = 6.f;
+	int32 StaffDesk = 99, StaffLane = 99;   // (your passenger service agents / security officers on shift)
 	int32 Frame = 0, Watched = INDEX_NONE, TotalAboard = 0, TotalOut = 0;
 	int32 PhoneWho = INDEX_NONE, PhoneReturn = INDEX_NONE; float PhoneShowIn = -1.f; bool bPhoneShown = false;   // (tests: the camera on someone using a phone at the gate, a while)
 	float HallIn = 0.f, HallQuiet = 99.f;   // (passengers on the Grand Hall's ground floor: next count, how long there were none - the security doors)
@@ -162,6 +170,7 @@ private:
 	bool WayToWait(FPx& P);
 	void WayToJetway(FPx& P);
 	void WayArrivals(FPx& P);
+	void GoHome(int32 i, const TCHAR* Why);
 	void AddPlanWay(FPx& P, int32 FromPlace, const FVector& FromPlan, int32 ToPlace, const FVector& ToPlan, bool bJit = true);
 	void Crossing(FPx& P, bool bToTerminal, float NearX);
 	FVector DeskSpot(int32 Desk, int32 K) const;

@@ -4,6 +4,7 @@
 #include "Sim/ADPWorldData.h"
 #include "Sim/ADPBoards.h"
 #include "Sim/ADPStaff.h"
+#include "Sim/ADPSchedule.h"
 #include "Site.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -68,7 +69,9 @@ TCHAR ADPGround::CodeOf(const FString& TypeId)
 	return 'C';
 }
 
-void ADPGround::TeamNeeds(TMap<FString, int32>& Out) { Out = {{TEXT("fuel"), 2}, {TEXT("catering"), 2}, {TEXT("cleaning"), 3}, {TEXT("ground"), 4}}; }
+int32 ADPGround::OnShift(const FADPWorld& W, const FString& AirlineId, const FString& Role, const FString& Icao, const FDateTime& Utc) { return GrOnShift(W, AirlineId, Role, Icao, Utc); }
+
+void ADPGround::TeamNeeds(TMap<FString, int32>& Out) { Out = {{TEXT("fuel"), 2}, {TEXT("catering"), 2}, {TEXT("cleaning"), 3}, {TEXT("ground"), 5}, {TEXT("checkin"), 3}, {TEXT("security"), 3}}; }
 
 bool ADPGround::BuyVehicle(FADPWorld& W, const FString& AirlineId, const FString& Kind, const FDateTime& At)
 {
@@ -136,10 +139,22 @@ int32 ADPGround::GateOfStand(const FString& Stand)
 FString ADPGround::AssignStand(FADPWorld& W, FADPAircraft& A, const FDateTime& Now, const FDateTime& Until)
 {
 	if (!A.Stand.IsEmpty()) return A.Stand;
+	// (its next flight from here has a stand set aside - the passengers' gate: that one while it is free)
+	if (const FADPPlanned* P = ADPSchedule::Next(W, A.Reg, ADPBoards::HereIcao()))
+		if (!P->Stand.IsEmpty() && !W.Aircraft.ContainsByPredicate([&](const FADPAircraft& X) { return X.Stand == P->Stand; })) { A.Stand = P->Stand; A.StandUntil = Until; return A.Stand; }
+	const FString S = PickStand(W, A, Now);
+	if (S.IsEmpty()) return FString();   // (all taken: a remote stand on the apron, a bus to the terminal)
+	A.Stand = S; A.StandUntil = Until;
+	return A.Stand;
+}
+
+FString ADPGround::PickStand(const FADPWorld& W, const FADPAircraft& A, const FDateTime& Now)
+{
 	const TCHAR Need = CodeOf(A.TypeId);
 	const FADPTypeInfo* T = ADPWorldData::Type(A.TypeId);
 	const bool bCargo = T && T->Seats == 0;
-	TSet<FString> Taken; for (const FADPAircraft& X : W.Aircraft) if (!X.Stand.IsEmpty()) Taken.Add(X.Stand);
+	TSet<FString> Taken; for (const FADPAircraft& X : W.Aircraft) if (!X.Stand.IsEmpty() && X.Reg != A.Reg) Taken.Add(X.Stand);
+	for (const FADPPlanned& P : W.Planned) if (P.State == TEXT("planned") && P.Reg != A.Reg && !P.Stand.IsEmpty() && (P.Est - Now).GetTotalMinutes() < 150.0) Taken.Add(P.Stand);
 	// the best free stand: the right size (as small as fits), a jetway for passengers, the cargo apron for freighters
 	const FStandInfo* Best = nullptr; int32 BestScore = MAX_int32;
 	for (const FStandInfo& S : GrStands())
@@ -148,9 +163,7 @@ FString ADPGround::AssignStand(FADPWorld& W, FADPAircraft& A, const FDateTime& N
 		const int32 Score = (S.Code - Need) * 10 + (S.bJetway ? 0 : 5);
 		if (Score < BestScore) { BestScore = Score; Best = &S; }
 	}
-	if (!Best) return FString();   // (all taken: a remote stand on the apron, a bus to the terminal)
-	A.Stand = Best->Id; A.StandUntil = Until;
-	return A.Stand;
+	return Best ? Best->Id : FString();
 }
 
 void ADPGround::FreeStand(FADPAircraft& A) { A.Stand.Empty(); A.StandUntil = FDateTime(); }

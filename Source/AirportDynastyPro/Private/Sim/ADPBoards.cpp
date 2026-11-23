@@ -68,24 +68,22 @@ TArray<FADPBoardRow> ADPBoards::Rows(const UObject* Ctx, bool bArr, int32 N)
 	auto Mins = [&](const FDateTime& T) { return (T - NowU).GetTotalMinutes(); };
 	if (!bArr)
 	{
-		// the next leg of every aircraft standing here with a route
-		for (const FADPAircraft& A : W.Aircraft)
+		// the planned legs from here, the next 24 hours (Sim/ADPSchedule.h: your timetable's and the other airlines')
+		for (const FADPPlanned& P : W.Planned)
 		{
-			if (A.Location != Here || A.Status != TEXT("parked") || A.RouteId.IsEmpty()) continue;
-			const FADPRoute* R = W.Routes.FindByPredicate([&](const FADPRoute& X) { return X.Id == A.RouteId; });
-			if (!R || !R->Stops.Num()) continue;
-			const FString To = R->Stops[(A.LegIdx + 1) % R->Stops.Num()];   // (LegIdx is the stop it is at; the next one is where it goes)
-			if (To == Here) continue;
-			FADPBoardRow Row; Row.Reg = A.Reg; Row.AirlineId = A.AirlineId; Row.Gate = ADPGround::GateOfStand(A.Stand);   // (its stand: to-do 183)
-			if (Row.Gate == 0) Row.Gate = GateFor(A.Reg);   // (a remote stand: a bus gate)
-			Row.Flight = FlightNumber(BdCodeOf(W, A.AirlineId), R->Id, A.LegIdx);
-			Row.Place = BdTown(To, Row.PlaceCode);
-			const bool bWaiting = A.WaitingSince != FDateTime() || A.ReadyAt < NowU - FTimespan::FromMinutes(1);
-			Row.Sched = Local(bWaiting && A.WaitingSince != FDateTime() ? A.WaitingSince : A.ReadyAt);
-			Row.Expected = Local(A.ReadyAt > NowU ? A.ReadyAt : NowU + FTimespan::FromMinutes(30));
-			const double M = Mins(A.ReadyAt);
-			if (bWaiting) { Row.Status = TEXT("Delayed"); Row.Col = CAmber; }
-			else if (M > 120) { Row.Status = TEXT("Scheduled"); }
+			if (P.From != Here || P.State == TEXT("gone") || Mins(P.Est) > 24 * 60) continue;
+			const bool bOff = P.State == TEXT("cancelled");
+			if (bOff && (P.Why == TEXT("taken out of the timetable") || Mins(P.Sched) > 180 || Mins(P.Sched) < -120)) continue;
+			FADPBoardRow Row; Row.Reg = P.Reg; Row.AirlineId = P.AirlineId; Row.PlanId = P.Id; Row.Gate = ADPGround::GateOfStand(P.Stand);   // (its stand: to-do 183)
+			if (Row.Gate == 0 && Mins(P.Est) < 150) Row.Gate = GateFor(P.Reg);   // (a remote stand: a bus gate)
+			Row.Flight = P.FlightNo;
+			Row.Place = BdTown(P.To, Row.PlaceCode);
+			Row.Sched = Local(P.Sched); Row.Expected = Local(FMath::Max(P.Est, NowU));
+			const double M = Mins(P.Est);
+			const bool bLate = (P.Est - P.Sched).GetTotalMinutes() >= 15.0 || Mins(P.Est) < -5.0;
+			if (bOff) { Row.Status = TEXT("Cancelled"); Row.Col = CRed; }
+			else if (bLate && (M > 35 || (!P.Why.IsEmpty() && Mins(P.Sched) < -15))) { Row.Status = TEXT("Delayed"); Row.Col = CAmber; }
+			else if (M > 150) { Row.Status = TEXT("Scheduled"); }
 			else if (M > 45) { Row.Status = TEXT("Check-in"); }
 			else if (M > 35) { Row.Status = TEXT("Gate open"); Row.Col = CGreen; }
 			else if (M > 15) { Row.Status = TEXT("Boarding"); Row.Col = CGreen; Row.bBoarding = true; }
@@ -99,7 +97,8 @@ TArray<FADPBoardRow> ADPBoards::Rows(const UObject* Ctx, bool bArr, int32 N)
 			if (F.From != Here || Mins(F.DepAt) < -20) continue;
 			FADPBoardRow Row; Row.Reg = F.Reg; Row.AirlineId = F.AirlineId; Row.Gate = 0;
 			const FADPAircraft* A = W.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == F.Reg; });
-			Row.Flight = FlightNumber(BdCodeOf(W, F.AirlineId), F.RouteId, A ? FMath::Max(0, A->LegIdx - 1) : 0);
+			Row.Flight = !F.FlightNo.IsEmpty() ? F.FlightNo : FlightNumber(BdCodeOf(W, F.AirlineId), F.RouteId, A ? FMath::Max(0, A->LegIdx - 1) : 0);
+			Row.PlanId = F.Id;
 			Row.Place = BdTown(F.To, Row.PlaceCode);
 			Row.Sched = Local(F.DepAt - FTimespan::FromMinutes(F.DelayMin)); Row.Expected = Local(F.DepAt);
 			Row.Status = FString::Printf(TEXT("Departed %02d:%02d"), Row.Expected.GetHour(), Row.Expected.GetMinute()); Row.Col = CGrey;
@@ -116,7 +115,8 @@ TArray<FADPBoardRow> ADPBoards::Rows(const UObject* Ctx, bool bArr, int32 N)
 			FADPBoardRow Row; Row.Reg = F.Reg; Row.AirlineId = F.AirlineId;
 			const FADPAircraft* A = W.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == F.Reg; });
 			Row.Gate = A ? ADPGround::GateOfStand(A->Stand) : 0;
-			Row.Flight = FlightNumber(BdCodeOf(W, F.AirlineId), F.RouteId, A ? FMath::Max(0, A->LegIdx - 1) : 0);
+			Row.Flight = !F.FlightNo.IsEmpty() ? F.FlightNo : FlightNumber(BdCodeOf(W, F.AirlineId), F.RouteId, A ? FMath::Max(0, A->LegIdx - 1) : 0);
+			Row.PlanId = F.Id;
 			Row.Place = BdTown(F.From, Row.PlaceCode);
 			const FDateTime Eta = F.DepAt + FTimespan::FromMinutes(F.DurMin + F.HoldMin);
 			Row.Sched = Local(F.DepAt - FTimespan::FromMinutes(F.DelayMin) + FTimespan::FromMinutes(F.DurMin)); Row.Expected = Local(Eta);
@@ -146,6 +146,6 @@ TArray<FADPBoardRow> ADPBoards::Rows(const UObject* Ctx, bool bArr, int32 N)
 bool ADPBoards::AtGate(const UObject* Ctx, int32 Gate, FADPBoardRow& Out)
 {
 	for (const FADPBoardRow& R : Rows(Ctx, false, 64))
-		if (R.Gate == Gate && !R.Status.StartsWith(TEXT("Departed"))) { Out = R; return true; }
+		if (R.Gate == Gate && !R.Status.StartsWith(TEXT("Departed")) && R.Status != TEXT("Cancelled")) { Out = R; return true; }
 	return false;
 }
