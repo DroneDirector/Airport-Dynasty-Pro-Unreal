@@ -141,8 +141,12 @@ class Mesh:
 def unit(v): return np.array(v, float) / np.linalg.norm(v)
 
 
-def tube(M, path, radius, tess, mat, cap0=False, cap1=False, per=1.0):
+def tube(M, path, radius, tess, mat, cap0=False, cap1=False, per=1.0, flat=(False, False)):
     P = np.array(path, float); n = len(P); T = np.gradient(P, axis=0); T /= np.linalg.norm(T, axis=1)[:, None]
+    # (a joint with the next bow, in the valley: the path is level and straight along the building there - a one-sided slope
+    #  tilted the last ring and left a 2 cm slit in the white edge)
+    if flat[0]: T[0] = (1.0, 0.0, 0.0)
+    if flat[1]: T[-1] = (1.0, 0.0, 0.0)
     # the cross sections square to the path, one side always up, so two pieces' ends are the same circle
     R = []; s = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(P, axis=0), axis=1))])
     for i in range(n):
@@ -181,14 +185,14 @@ def roof(name, w, e):
         B.quad([a, b, a + up, b + up], [(0, 0, 1)] * 4, [(a[0] / 4, 0), (b[0] / 4, 0), (a[0] / 4, .2), (b[0] / 4, .2)], 'MI_T_whiteGloss')
     k = 2                                                                                    # (the edge finer than the grid)
     fine = [u0 + (u1 - u0) * i / (n * k) for i in range(n * k + 1)]
-    tube(B, [(u, W.h_u(u, W.bow(u, ends(u)), ends(u)) + 0.35, W.bow(u, ends(u))) for u in fine], 0.42, 20, 'MI_T_whiteGloss', per=0.25)
+    tube(B, [(u, W.h_u(u, W.bow(u, ends(u)), ends(u)) + 0.35, W.bow(u, ends(u))) for u in fine], 0.42, 20, 'MI_T_whiteGloss', per=0.25, flat=(not w, not e))
     for on, i in ((w, 0), (e, n)):
         if not on: continue                                                                  # the free end: the same round, its corner a ball
         tube(B, [P[i][j] + (0, 0.35, 0) for j in range(NZ + 1)], 0.42, 20, 'MI_T_whiteGloss', cap1=True, per=0.25)
         ball(B, P[i][0] + (0, 0.35, 0), 0.42, 'MI_T_whiteGloss')
     o = [M.make(), T.make(), B.make()]
     G = Mesh('wave_edge_' + name)
-    tube(G, [(u, W.h_u(u, W.bow(u, ends(u)), ends(u)) - 0.05, W.bow(u, ends(u)) + 0.15) for u in fine], 0.06, 8, 'MI_T_glow_24', cap0=w, cap1=e)
+    tube(G, [(u, W.h_u(u, W.bow(u, ends(u)), ends(u)) - 0.05, W.bow(u, ends(u)) + 0.15) for u in fine], 0.06, 8, 'MI_T_glow_24', cap0=w, cap1=e, flat=(not w, not e))
     return o + [G.make()]
 
 
