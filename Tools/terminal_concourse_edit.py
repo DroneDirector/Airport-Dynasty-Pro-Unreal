@@ -22,8 +22,8 @@ _n = 0
 for _k, _nd in enumerate(N):
     if _nd['name'].startswith('F2-CONCOURSE/LAMP-') and any(a < -_nd['translation'][0] < b and c < _nd['translation'][2] < d for a, b, c, d in _CP['lids']):
         N[byname['F2']]['children'].remove(_k); _n += 1
-for _nm, _pl in _CP['lamps'].items():
+for _nm, _pl in list(_CP['lamps'].items()) + list(_CP['halls'].items()):
     for _k, (_x, _z) in enumerate(_pl):
-        N.append({'name': '%s/LAMP-%03d' % (_nm, _k + 1), 'translation': [-_x, 9.57, _z], 'children': [len(N) + 1]})
+        N.append({'name': '%s/LAMP-%03d' % (_nm, _k + 1), 'translation': [-_x, 11.22 if _nm in _CP['halls'] else 9.57, _z], 'children': [len(N) + 1]})
         N.append({'name': 'box#lamp', 'scale': [1.2, 0.04, 0.6], 'mesh': 186}); N[byname['F2']]['children'].append(len(N) - 2)
 log.append('new: the concourse: %d models, %d lamps in its rooms, %d lamps over them out' % (len(_CP['big']) + len(_CP['place']), sum(len(v) for v in _CP['lamps'].values()), _n))

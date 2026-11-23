@@ -290,6 +290,8 @@ for j, z in enumerate((27.55, 30.45, 33.35, 36.75, 41.2, 46.0, 50.8)):
 LAMPS = {'F2-CONC-WC1': [[x, z] for x in (295.5, 301.5) for z in (43.0, 49.0)], 'F2-CONC-WC2': [[x, z] for x in (404, 412, 420) for z in (42.5, 48.5)],
          'F2-CONC-WC3': [[x, z] for x in (527, 536.5, 546) for z in (43, 49)], 'F2-CONC-SHOP1': [[298.5, 28], [298.5, 34]], 'F2-CONC-SHOPS2': [[x, 31] for x in (526, 533, 539, 546.5)],
          'F2-CONC-PRAYER': [[x, 30.5] for x in (404, 412, 420)], 'F2-CONC-LOUNGE': [[x, z] for x in (431, 441.5, 454.5, 465) for z in (29, 38, 47)]}
+# the open halls' further rows (under the oak slats, y 11.22; the shell's two rows alone left them dark from the daylit walkway)
+HALLS = {'F2-CONC-QUEUE': [[x, z] for z in (36.0, 43.5) for x in (234, 240, 246)], 'F2-CONC-FOOD': [[x, z] for z in (36.0, 43.5) for x in range(346, 395, 8)], 'F2-CONC-SEATING': [[x, z] for z in (36.0, 43.5) for x in range(476, 517, 8)]}
 LIDS = [(292, 305, 24, 52), (400, 424, 24, 52), (426, 470, 24, 52), (522, 552, 24, 52)]
 # ======================================================================================================== out: the big solid in pieces along the building (Lumen), as the shell
 BINX = [290.0, 341.0, 399.0, 471.0]
@@ -320,6 +322,6 @@ for P_ in PIECES:
         for x in bpy.context.selected_objects: x.select_set(False)
         o.select_set(True); bpy.context.view_layer.objects.active = o
         bpy.ops.export_scene.fbx(filepath=os.path.join(HERE, o.name + '.fbx'), use_selection=True, object_types={'MESH'}, apply_scale_options='FBX_SCALE_UNITS', mesh_smooth_type='FACE', path_mode='STRIP')
-json.dump({'big': BIGP, 'place': PL_, 'lamps': LAMPS, 'lids': LIDS, 'doors': [['D-F2-ENTR-PASSWALL-S', XW, 55.2], ['D-F2-ENTR-PASSWALL-N', XW, 64.8]]}, open(os.path.join(HERE, 'conc_place.json'), 'w'), indent=0)
+json.dump({'big': BIGP, 'place': PL_, 'lamps': LAMPS, 'halls': HALLS, 'lids': LIDS, 'doors': [['D-F2-ENTR-PASSWALL-S', XW, 55.2], ['D-F2-ENTR-PASSWALL-N', XW, 64.8]]}, open(os.path.join(HERE, 'conc_place.json'), 'w'), indent=0)
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, 'Concourse.blend'))
 print('CONC saved', len(PL_), 'places')
