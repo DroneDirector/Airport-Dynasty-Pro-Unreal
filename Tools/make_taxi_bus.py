@@ -63,10 +63,16 @@ WIN0, WIN1 = 1.38, 2.18                    # side window band
 WALL = 0.04
 # side outline (x, z): rear, roof, windscreen, bonnet, nose, front face
 # modern one-box front (owner 2026-11-23): a short sloping bonnet runs into a strongly raked windscreen, rounded nose
-OUT = [(-L2, Z0 + 0.02), (-L2, ROOFZ - 0.06), (-L2 + 0.06, ROOFZ), (0.95, ROOFZ), (1.12, 2.35), (2.10, 1.22),
-       (2.62, 1.02), (2.86, 0.88), (2.95, 0.74), (L2, 0.55), (L2 - 0.03, 0.45), (L2 - 0.10, Z0)]
-INN = [(-L2 + WALL, Z0 + WALL), (-L2 + WALL, ROOFZ - WALL), (0.92, ROOFZ - WALL), (1.07, 2.31), (2.06, 1.20), (2.06, Z0 + WALL)]
-def apx(z): return 2.10 - (z - 1.22) * (0.98 / 1.13)     # the windscreen / A-pillar line
+# the bonnet (owner's red line, 2026-11-23): it starts at the windscreen foot 1.43 m up, runs almost flat, then rounds
+# down in one smooth curve to a vertical front just over the bumper (a cubic curve)
+WB = (1.88, 1.43)                                     # the windscreen foot
+BZ = [WB, (2.45, 1.40), (L2, 1.40), (L2, 0.72)]
+def bez(t): return tuple((1 - t) ** 3 * BZ[0][i] + 3 * (1 - t) ** 2 * t * BZ[1][i] + 3 * (1 - t) * t ** 2 * BZ[2][i] + t ** 3 * BZ[3][i] for i in (0, 1))
+BONNET = [bez(i / 16) for i in range(17)]
+OUT = [(-L2, Z0 + 0.02), (-L2, ROOFZ - 0.06), (-L2 + 0.06, ROOFZ), (0.95, ROOFZ), (1.12, 2.35)] + BONNET + \
+      [(L2, 0.48), (L2 - 0.03, 0.45), (L2 - 0.10, Z0)]
+INN = [(-L2 + WALL, Z0 + WALL), (-L2 + WALL, ROOFZ - WALL), (0.92, ROOFZ - WALL), (1.07, 2.31), (1.84, 1.39), (2.06, 1.25), (2.06, Z0 + WALL)]
+def apx(z): return WB[0] - (z - WB[1]) * ((WB[0] - 1.12) / (2.35 - WB[1]))     # the windscreen / A-pillar line
 # #endregion
 
 # #region ── Materials ──
@@ -144,7 +150,7 @@ for s, wins in SIDEWIN.items():
     for i, (a, b) in enumerate(wins):
         cut(shell, box('WinCut', ((a + b) / 2, s * (W2 - 0.02), (WIN0 + WIN1) / 2), (b - a, 0.2, WIN1 - WIN0), M_DARK))
 # front door openings (both sides) and the sliding door (right)
-ZP = 1.22 + (2.10 - 1.87) * 1.13 / 0.98            # where the door's front edge meets the A-pillar
+ZP = WB[1] + (WB[0] - 1.87) * (2.35 - WB[1]) / (WB[0] - 1.12)           # where the door's front edge meets the A-pillar
 FDOOR = [(0.98, Z0 + 0.06), (1.52, Z0 + 0.06), (1.52, 0.82), (1.84, 0.82), (1.84, ZP), (apx(2.24) - 0.03, 2.24), (0.98, 2.24)]
 SD0, SD1, SDZ1 = -0.38, 0.82, 2.24
 for s in (1, -1):
@@ -152,7 +158,7 @@ for s in (1, -1):
     cut(shell, prism('DoorCut', FDOOR, y0, y1, M_DARK))
 cut(shell, box('SlideCut', ((SD0 + SD1) / 2, -W2, (Z0 + 0.06 + SDZ1) / 2), (SD1 - SD0, 0.2, SDZ1 - Z0 - 0.06), M_DARK))
 # windscreen opening (the A-pillars stay) and the rear doors' opening
-WS = [(apx(1.40) - 0.10, 1.40), (apx(1.40) + 0.06, 1.40), (apx(2.20) + 0.06, 2.20), (apx(2.20) - 0.10, 2.20)]
+WS = [(apx(1.48) - 0.10, 1.48), (apx(1.48) + 0.06, 1.48), (apx(2.20) + 0.06, 2.20), (apx(2.20) - 0.10, 2.20)]
 cut(shell, prism('WSCut', WS, -0.88, 0.88, M_DARK))
 cut(shell, box('RearCut', (-L2, 0, (Z0 + 0.08 + 2.26) / 2), (0.2, 1.80, 2.26 - Z0 - 0.08), M_DARK))
 # arch liners (inside the arches), arch lips
@@ -174,7 +180,7 @@ def shrink(pts, d):
         vx, vz = cx - x, cz - z; n = math.hypot(vx, vz) or 1
         out.append((x + vx / n * d, z + vz / n * d))
     return out
-ZW = 1.22 + (2.10 - 1.86) * 1.13 / 0.98
+ZW = WB[1] + (WB[0] - 1.84) * (2.35 - WB[1]) / (WB[0] - 1.12)
 FDW = [(1.04, WIN0), (1.78, WIN0), (1.78, ZW), (apx(2.18) - 0.06, 2.18), (1.04, 2.18)]
 for s, sd in ((1, 'L'), (-1, 'R')):
     yo = s * W2; yi = s * (W2 - WALL)
@@ -229,7 +235,7 @@ box('RearCamera', (-L2 - 0.012, 0.0, 2.24), (0.024, 0.06, 0.03), M_PLAST, bevel=
 for s, wins in SIDEWIN.items():
     for i, (a, b) in enumerate(wins):
         box(f'SideGlass_{"L" if s > 0 else "R"}{i}', ((a + b) / 2, s * (W2 - 0.02), (WIN0 + WIN1) / 2), (b - a + 0.01, 0.012, WIN1 - WIN0 + 0.01), M_PRIV)
-WSG = [(apx(1.36) - 0.022, 1.36), (apx(1.36) - 0.008, 1.36), (apx(2.24) - 0.008, 2.24), (apx(2.24) - 0.022, 2.24)]
+WSG = [(apx(1.44) - 0.022, 1.44), (apx(1.44) - 0.008, 1.44), (apx(2.24) - 0.008, 2.24), (apx(2.24) - 0.022, 2.24)]
 prism('Windscreen', WSG, -0.90, 0.90, M_GLASS)
 for s, sd in ((1, 'L'), (-1, 'R')):
     rs = box(f'RubbingStrip_{sd}', (-0.70, s * (W2 + 0.006), 0.62), (3.80, 0.014, 0.08), M_PLAST, bevel=0.006)
@@ -242,24 +248,34 @@ box('ChargeFlap', (2.20, 1.0, 1.02), (0.16, 0.024, 0.12), M_PAINT, bevel=0.006) 
 # #endregion
 
 # #region ── Front: swept headlamps with indicator strips, slim upper grille, rounded bumper with plate and lower intake ──
-def nose(z):                                           # x of the nose surface at height z (between 0.74 and 1.02)
-    if z >= 0.88: return 2.62 + (1.02 - z) / 0.14 * 0.24
-    return 2.86 + (0.88 - z) / 0.14 * 0.09
+_NZ = [bez(i / 400) for i in range(401)]
+def nose(z):                                           # x of the bonnet / nose surface at height z (from the curve)
+    if z <= 0.72: return L2
+    for (x0, z0), (x1, z1) in zip(_NZ, _NZ[1:]):
+        if z1 <= z <= z0: return x0 + (x1 - x0) * (z0 - z) / max(1e-9, z0 - z1)
+    return WB[0]
 def on_nose(z0, z1, out, inn=0.03, n=4):              # an outline lying on the nose surface, out m proud of it
     zs = [z1 + (z0 - z1) * i / n for i in range(n + 1)]
     return [(nose(z) + out, z) for z in zs] + [(nose(z) - inn, z) for z in reversed(zs)]
+# modern lighting (owner 2026-11-23 "make it modern"): slim LED headlamps swept round the corners on the bonnet's curve,
+# a full-width LED light bar joining them over a gloss-black band, a large slatted grille below
+def sp(nm, z0, z1, out, inn, y0, y1, m, bevel=0.0):
+    a_, b_ = sorted((y0, y1)); return prism(nm, on_nose(z0, z1, out, inn), a_, b_, m, bevel=bevel)
 for s_, sd in ((1, 'L'), (-1, 'R')):
-    ya, yb = sorted((s_ * 0.46, s_ * 0.95))
-    prism(f'HeadlampHousing_{sd}', on_nose(0.79, 1.00, 0.003), ya, yb, M_DARK, bevel=0.006)
-    ya2, yb2 = sorted((s_ * 0.50, s_ * 0.80))
-    prism(f'Headlamp_{sd}', on_nose(0.83, 0.97, 0.007, 0.02), ya2, yb2, M_WHITE)
-    ya3, yb3 = sorted((s_ * 0.82, s_ * 0.92))
-    prism(f'IndicatorF_{sd}', on_nose(0.81, 0.95, 0.007, 0.02), ya3, yb3, M_AMBER)
-    ya4, yb4 = sorted((s_ * 0.50, s_ * 0.80))
-    prism(f'DRLStrip_{sd}', on_nose(0.805, 0.82, 0.008, 0.02, 1), ya4, yb4, M_LED)
-prism('UpperGrille', on_nose(0.80, 0.90, 0.004), -0.40, 0.40, M_DARK, bevel=0.004)
-for j, z in enumerate((0.83, 0.87)):
-    prism(f'UpperGrilleBar_{j}', on_nose(z - 0.008, z + 0.008, 0.008, 0.01, 1), -0.38, 0.38, M_PLAST)
+    sp(f'HeadlampHousing_{sd}', 1.02, 1.20, 0.006, 0.03, s_ * 0.38, s_ * 0.97, M_DARK, 0.004)
+    sp(f'Headlamp_{sd}', 1.05, 1.165, 0.012, 0.02, s_ * 0.42, s_ * 0.86, M_WHITE)
+    sp(f'IndicatorF_{sd}', 1.05, 1.165, 0.012, 0.02, s_ * 0.865, s_ * 0.95, M_AMBER)
+    sp(f'DRLStrip_{sd}', 1.172, 1.192, 0.016, 0.02, s_ * 0.42, s_ * 0.95, M_LED)
+sp('BlackMask', 1.02, 1.20, 0.006, 0.03, -0.38, 0.38, M_PLAST)
+sp('LightBar', 1.202, 1.224, 0.012, 0.02, -0.42, 0.42, M_LED)
+sp('UpperGrille', 0.76, 0.97, 0.008, 0.03, -0.62, 0.62, M_DARK, 0.004)
+for j, z in enumerate((0.80, 0.845, 0.89, 0.935)):
+    sp(f'UpperGrilleBar_{j}', z - 0.007, z + 0.007, 0.016, 0.01, -0.60, 0.60, M_PLAST)
+for s_, sd in ((1, 'L'), (-1, 'R')):                   # two LED projector lenses in each headlamp
+    for k, yy in enumerate((0.54, 0.70)):
+        zc = 1.105; xc = nose(zc) + 0.012
+        cyl(f'Projector_{sd}{k}', (xc, s_ * yy, zc), 0.036, 0.016, 'x', M_LED, 32, bevel=0.004)
+        torus(f'ProjectorRing_{sd}{k}', (xc + 0.004, s_ * yy, zc), 0.040, 0.005, 'x', M_CHROME, 32, 8)
 BUMP = [(L2 - 0.06, 0.40), (L2 + 0.05, 0.41), (L2 + 0.08, 0.44), (L2 + 0.08, 0.62), (L2 + 0.03, 0.68), (L2 - 0.06, 0.70)]
 bp = prism('FrontBumper', BUMP, -0.985, 0.985, M_PAINT, bevel=0.03, segs=3)
 for s_ in (1, -1):                                     # the bumper's corners swept back round the wheels
@@ -269,7 +285,7 @@ for j in range(5):
     box(f'LowerIntakeBar_{j}', (L2 + 0.089, -0.48 + j * 0.24, 0.475), (0.006, 0.02, 0.046), M_PLAST)
 box('PlateFront', (L2 + 0.085, 0, 0.565), (0.01, 0.52, 0.11), M_PLATE, bevel=0.003)
 for s_, sd in ((1, 'L'), (-1, 'R')):
-    lamp(f'FogLamp_{sd}', (L2 + 0.08, s_ * 0.62, 0.50), 'x+', 0.12, 0.05, M_WHITE, M_DARK, M_PLAST, depth=0.04)
+    lamp(f'FogLamp_{sd}', (L2 + 0.08, s_ * 0.60, 0.53), 'x+', 0.05, 0.13, M_WHITE, M_DARK, M_PLAST, depth=0.04)
 cyl('TowCover_R', (L2 + 0.081, -0.40, 0.60), 0.025, 0.012, 'x', M_PLAST, 20)
 # the front corners rounded in plan (radius 350): the nose, bumper and lamps wrap round to the sides
 def zprism(name, pts_xy, z0, z1, m):
@@ -279,9 +295,9 @@ def zprism(name, pts_xy, z0, z1, m):
     for i in range(len(pts_xy)): bm.faces.new((a[i], a[(i + 1) % len(pts_xy)], b[(i + 1) % len(pts_xy)], b[i]))
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
     return K.finish(K.link(name, bm), m, 30)
-RC = 0.35
+RC = 0.25
 ROUND = ['BodyShell', 'FrontBumper', 'HeadlampHousing_L', 'HeadlampHousing_R', 'Headlamp_L', 'Headlamp_R', 'IndicatorF_L', 'IndicatorF_R',
-         'DRLStrip_L', 'DRLStrip_R']
+         'DRLStrip_L', 'DRLStrip_R', 'UpperGrille']
 for s_ in (1, -1):
     cx, cy = L2 - RC, s_ * (W2 - RC)
     arc = [(cx + RC * math.cos(math.radians(a)), cy + s_ * RC * math.sin(math.radians(a))) for a in range(0, 91, 6)]
@@ -290,9 +306,11 @@ for s_ in (1, -1):
     for nm in ROUND:
         o = bpy.data.objects.get(nm)
         if o and (o.location.y * s_ >= 0 or nm in ('BodyShell', 'FrontBumper')):
-            cut(o, zprism('CornerCut', pts, -0.2, 1.45, M_DARK))
+            cut(o, zprism('CornerCut', pts, -0.2, 1.50, M_DARK))
+for p_ in bpy.data.objects['BodyShell'].data.polygons:      # the flat sides shade flat (no smoothing blotches on the big faces)
+    if abs(p_.normal.y) > 0.995: p_.use_smooth = False
 # cowl and wipers at the windscreen foot
-WZ = 1.215
+WZ = WB[1] - 0.005
 box('CowlPanel', (apx(WZ) + 0.04, 0, WZ), (0.10, 1.80, 0.03), M_PLAST, bevel=0.008)
 for s_, sd in ((1, 'L'), (-1, 'R')):
     px_, pz_ = apx(WZ) + 0.04, WZ + 0.02
@@ -412,7 +430,7 @@ piv('Ramp', (-L2 + WALL + 0.10, 0, FLOOR + 0.03), 'RampHingeBar')
 
 # #region ── Driver's place: dashboard, wheel, pedals, gear selector, handbrake, taximeter, card terminal, mirrors ──
 DX = 1.86
-dash = prism('Dashboard', [(1.44, 1.05), (1.58, 1.22), (2.00, 1.27), (2.05, 1.20), (2.05, 0.88), (1.62, 0.88), (1.50, 0.96)],
+dash = prism('Dashboard', [(1.44, 1.05), (1.58, 1.22), (1.80, 1.36), (2.04, 1.24), (2.04, 0.88), (1.62, 0.88), (1.50, 0.96)],
              -(W2 - WALL), W2 - WALL, M_PANEL, bevel=0.02, segs=2)
 box('ConsoleLower', (1.58, 0, (FLOOR + 0.92) / 2), (0.42, 0.28, 0.92 - FLOOR), M_PANEL, bevel=0.02)
 box('InstrumentCluster', (1.62, DRV[1], 1.215), (0.012, 0.30, 0.10), M_SCREEN) if False else None
@@ -421,8 +439,8 @@ box('ClusterScreen', (1.535, DRV[1], 1.17), (0.008, 0.30, 0.10), M_SCREEN)
 box('CentreScreen', (1.50, 0.0, 1.13), (0.012, 0.24, 0.15), M_SCREEN)
 for j in range(4):
     box(f'DashVent_{j}', (1.47, (-0.80, -0.20, 0.20, 0.80)[j], 1.08), (0.012, 0.14, 0.06), M_PLAST)
-box('Taximeter', (1.66, 0.0, 1.255), (0.10, 0.20, 0.06), M_PLAST, bevel=0.01)
-box('TaximeterDisplay', (1.609, 0.0, 1.26), (0.004, 0.16, 0.035), M_METER)
+box('Taximeter', (1.66, 0.0, 1.30), (0.10, 0.20, 0.06), M_PLAST, bevel=0.01)
+box('TaximeterDisplay', (1.609, 0.0, 1.305), (0.004, 0.16, 0.035), M_METER)
 box('CardTerminalArm', (1.48, -0.20, 0.98), (0.04, 0.04, 0.12), M_DARK)
 box('CardTerminal', (1.44, -0.20, 1.06), (0.04, 0.09, 0.16), M_PLAST, bevel=0.008)
 box('CardTerminalScreen', (1.419, -0.20, 1.09), (0.003, 0.07, 0.06), M_SCREEN)
@@ -459,7 +477,7 @@ box('TaxiSignSwitch', (0.80, 0.12, ROOFZ - WALL - 0.072), (0.03, 0.03, 0.006), M
 box('FireExtinguisher', (1.10, -0.18, FLOOR + 0.18), (0.10, 0.10, 0.34), M_RED, bevel=0.04, segs=2) if False else None
 ik('DriverHandL', (wc.x, DRV[1] + 0.17, wc.z), 'SteeringWheel'); ik('DriverHandR', (wc.x, DRV[1] - 0.17, wc.z), 'SteeringWheel')
 ik('Accelerator', (1.71, DRV[1] - 0.13, FLOOR + 0.15), 'Pedal_Accelerator'); ik('Brake', (1.71, DRV[1] + 0.05, FLOOR + 0.13), 'Pedal_Brake')
-ik('Taximeter', (1.60, 0.0, 1.28), 'Taximeter'); ik('GearSelector', (1.52, 0.18, 1.00), 'GearSelector')
+ik('Taximeter', (1.60, 0.0, 1.33), 'Taximeter'); ik('GearSelector', (1.52, 0.18, 1.00), 'GearSelector')
 for j, (x, y) in enumerate([(-2.40, 0.0), (-2.40, 0.45)]):
     ik(f'Luggage{j}', (x, y, FLOOR), 'FloorBoard')
 ik('WheelchairSpace', (-2.30, 0.0, FLOOR), 'FloorBoard')

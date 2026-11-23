@@ -33,6 +33,13 @@ the owner's Fab library. Licensed under the Fab Standard License (https://www.fa
 airport's, the road's and the town's road network (Tools/build_roads.py); baked roads ship as static meshes, the plugin
 is packed for its run-time road graph only. The plugin itself is not redistributed on its own.
 
+## Apron bus sounds - Freesound (CC0)
+Art/Sounds/ApronBus (made by Tools/make_apron_bus_sounds.py): recordings by felix.blume (electric trolleybus), BabelFishTank
+(bus door), Filmscore (air brakes), derjuli (electric motor), pkri (scooter motor), tt_runscript (contactors), evsecrets
+(EV ready beep), nuckan (pump motor), Disasteradio (reverse beeper), Camilo_Vargas13 (horn), from https://freesound.org,
+CC0 1.0 (public domain); each sound's page and what was taken from it is in Art/Sounds/ApronBus/SOURCES.md. The AVAS
+tone, door chime, indicator relay, A/C fans, motor tones and door thud are our own synthesis.
+
 ## Music
 - The title music (title.mp3): made by the owner with Suno AI on a Pro plan, which gives him full ownership and commercial use; safe to use everywhere, including live streams on YouTube and elsewhere (owner, 2026-11-20). Every future soundtrack is listed here with its source and licence.
 

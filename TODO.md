@@ -225,7 +225,11 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
             painted aluminium body with the blue band, wear and dirt by the dirt system; tinted glass, stainless and yellow
             poles, grey anti-slip vinyl floor with yellow step edges, seat fabric, black rubber and plastics, steel wheels
             and real tyre sidewalls; the lit destination display, door warning lamps, LED strips and flight screens
-      - [ ] Its lights and sounds (listed on sheet 4), and its route: terminal bus gates to the remote stands and back
+      - [ ] **Its electric-bus sounds** (owner, 2026-11-23: real-world sounds, realistic for an EV): the 21 sounds are made
+            (`Art/Sounds/ApronBus/`, `Tools/make_apron_bus_sounds.py`); wire them up in MetaSounds as SOURCES.md there says:
+            no engine idle; motor whine and regeneration pitched with speed; AVAS up to 20 km/h (UN R138); the air tank
+            driving the compressor, dryer purge, brakes, kneeling and doors; placed at their sources, duller inside
+      - [ ] Its lights, and its route: terminal bus gates to the remote stands and back
 - [ ] **The taxi bus's front needs adjusting** (owner, 2026-11-23): the minibus taxi at the landside kerb (`Art/TaxiBus/`,
       `Tools/make_taxi_bus.py`, sheets in `Blueprints/Vehicles/TaxiBus/`). The front was redone once from his reference
       picture (modern rounded one-box front: sloping bonnet into a raked windscreen, swept headlamps, rounded bumper) but
