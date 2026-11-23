@@ -47,7 +47,7 @@ if 'a' in which:
     dim(ax, -80, 0, -14.5, '80.0', fs=16); dim(ax, 16, 52, -82, '36.0', vertical=True, fs=16); dim(ax, -4, 8, -82, '12.0', vertical=True, fs=15)
     legend(fig, 0.668, 0.875, [(1, 'Arrivals duty free, %s (323 m²), by the escalators' % sz(W_['df'])), (2, 'Lost and found, %s' % sz(W_['lf'])),
            (3, 'Toilets in the claim hall, %s (none there today)' % sz(W_['wc'])), (4, 'Oversize belt, %s' % sz(W_['os'])), (5, 'Trolley bays, 3 of 8 x 1.6 m'),
-           (6, 'Meeters\' rail, 25 m, across both customs exits'), (7, 'Information desk, %s' % sz(W_['info'])), (8, 'Café, %s' % sz(W_['cafe'])),
+           (6, 'Meeters\' rail, 25 m, across both customs exits'), (7, 'Information desk, %s' % sz(W_['info'])), (8, 'Coffee bar, %s, its terrace outside under the roof' % sz(W_['cafe'])),
            (9, 'Kiosk + SIM cards, %s' % sz(W_['kiosk'])), (10, 'Cash machines + currency exchange, %s' % sz(W_['atm'])),
            (11, 'TAXI RANK WEST: 10 cabs, 70 m of the kerb lane'), (12, 'Taxi shelter + sign, 12 x 2.5 m')], lh=0.031, fs=16)
     fig.text(0.668, 0.475, 'WHAT STAYS', color=NEW, fontsize=17, weight='bold')
@@ -107,7 +107,7 @@ if 'c' in which:
     txt(ax, 238, -30, '12 set-down bays (existing)', DIM, 13, ha='left'); txt(ax, 320, -23, 'kerb lane + pavement extended east of x 241', NEW, 13)
     dim(ax, 156, 228, -13, '72.0', fs=14); dim(ax, 228, 236, -13, '8', fs=13); dim(ax, 236, 312, -13, '76.0', fs=14); dim(ax, 312, 324, -13, '12', fs=13); dim(ax, 324, 372, -13, '48.0', fs=14)
     legend(fig, 0.012, 0.172, [(1, 'Long-haul check-in: 8 desks + 4 bag drop, 30 x 4'), (2, 'Oversize drop 4 x 4'), (3, 'Café 13 x 9'), (4, 'Shops 11 x 5'), (5, 'Kiosk + SIM 7 x 4'), (6, 'ATM + exchange 7 x 4'),
-           (7, 'Car rental, 5 counters, 27 x 4.5'), (8, 'Info + PRM help point 10 x 6'), (9, 'First aid 10 x 6'), (10, 'Meeters\' rail 19 m'), (11, 'Toilets 18 x 12'), (12, 'Family + quiet 12 x 12'),
+           (7, 'Car rental, 5 counters, 24 x 4.5'), (8, 'Info + PRM help point 10 x 6'), (9, 'First aid 10 x 6'), (10, 'Meeters\' rail 19 m'), (11, 'Toilets 18 x 12'), (12, 'Family + quiet 12 x 12'),
            (13, 'Trolley store 20 x 12'), (14, 'Bag service 18 x 12'), (15, 'Staff door kept: 4 m lane'), (16, 'Customs office 8 x 12', NS), (17, 'Wide-body belts, 2 of 8 x 28', BELT), (18, 'Lost and found 10.5 x 8'),
            (19, 'Toilets 11 x 11'), (20, 'Arrivals duty free 24 x 11'), (21, 'Oversize belt 11 x 9'), (22, 'Border police 12 x 14', NS), (23, '6 booths + 8 e-gates, 12 x 32', NS), (24, 'EES kiosks, 16'),
            (25, 'Up to transfers 12 x 11'), (26, 'Second-line checks 13 x 11', NS), (27, 'Closed arrivals corridor 4.5 m', NS), (28, 'Claim belt inputs (2)', BELT), (29, 'TAXI RANK EAST: 11 cabs, 80 m')],
