@@ -46,7 +46,7 @@ const TArray<ADPCrew::FRole>& ADPCrew::Roles()
 		{TEXT("ground"), TEXT("Ground crew member"), TEXT("ground"), true, true, true, true},
 		{TEXT("fuel"), TEXT("Fuel truck driver"), TEXT("fuel"), false, true, true, true},
 		{TEXT("catering"), TEXT("Catering loader"), TEXT("catering"), false, true, true, true},
-		{TEXT("cleaning"), TEXT("Aircraft cleaner"), TEXT("cleaning"), false, true, true, true},
+		{TEXT("cleaning"), TEXT("Aircraft cleaner"), TEXT("cleaning"), true, true, true, true},
 		{TEXT("water"), TEXT("Water and toilet service driver"), TEXT("water"), false, false, true, true},
 		{TEXT("deice"), TEXT("De-icing operator"), TEXT("deice"), false, false, true, true},
 		{TEXT("marshaller"), TEXT("Marshaller"), TEXT("ramp"), false, false, true, true},

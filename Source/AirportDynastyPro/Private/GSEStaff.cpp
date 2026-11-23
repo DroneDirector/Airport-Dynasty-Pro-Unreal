@@ -37,7 +37,7 @@ bool AGSE::FindTrain(int32& Ti, int32& A, int32& B) const
 	// (as StartFor: a free tractor, two free carts coupled-ready, the front one's eye clear)
 	const FVector Eye(201.f, 0.f, 40.f), Jaw(-127.f, 0.f, 40.f);
 	Ti = INDEX_NONE;
-	for (int32 t = 0; t < Tractors.Num() && Ti == INDEX_NONE; ++t) if (!Tractors[t].bLoader && Tractors[t].Job == EJob::None && Tractors[t].M.IsValid()) Ti = t;
+	for (int32 t = 0; t < Tractors.Num() && Ti == INDEX_NONE; ++t) if (Tractors[t].IsTrain() && Tractors[t].Job == EJob::None && Tractors[t].M.IsValid()) Ti = t;
 	if (Ti == INDEX_NONE) return false;
 	for (A = 0; A < Carts.Num(); ++A)
 	{
@@ -93,7 +93,7 @@ void AGSE::WantTick(float Dt)
 		if (Stand != 0.f) W.StandX = Stand;
 		bool bOff = !bMine || (W.Kind == EWant::Dep && !ADPTurnaround::ForFlight(W.Key));
 		// (a loader alone: only while one of your trains is for that stand)
-		if (W.Kind == EWant::Loader) bOff = bOff || LoaderAt(W.StandX) != INDEX_NONE || !Tractors.ContainsByPredicate([&](const FTractor& T) { return !T.bLoader && T.Job != EJob::None && IsHired(T.Driver) && FMath::Abs(T.StandX - W.StandX) < 1.f; });
+		if (W.Kind == EWant::Loader) bOff = bOff || LoaderAt(W.StandX) != INDEX_NONE || !Tractors.ContainsByPredicate([&](const FTractor& T) { return T.IsTrain() && T.Job != EJob::None && IsHired(T.Driver) && FMath::Abs(T.StandX - W.StandX) < 1.f; });
 		if (bOff)
 		{
 			if (W.Kind != EWant::Loader)
@@ -131,9 +131,10 @@ bool AGSE::HiredWaits(const FString& Flight, float StandX, FString& Why) const
 	for (const FWant& W : Wants)
 		if (W.Key == Flight || (W.StandX != 0.f && FMath::Abs(W.StandX - StandX) < 1.f))
 		{ Why = (W.Kind == EWant::Arr ? TEXT("the arriving bags wait: ") : TEXT("its bags wait: ")) + (W.Why.IsEmpty() ? FString(TEXT("your people are being called")) : W.Why); return true; }
+	if (SvcWaits(Flight, StandX, Why)) return true;
 	// (your people are getting its train ready: the flight's bags are not left behind - 25 minutes at most)
 	for (const FTractor& T : Tractors)
-		if (!T.bLoader && IsHired(T.Driver) && T.JobT < 1500.f && FMath::Abs(T.StandX - StandX) < 1.f && (T.Job == EJob::Boarding || T.Job == EJob::ToCarts || T.Job == EJob::Coupling))
+		if (T.IsTrain() && IsHired(T.Driver) && T.JobT < 1500.f && FMath::Abs(T.StandX - StandX) < 1.f && (T.Job == EJob::Boarding || T.Job == EJob::ToCarts || T.Job == EJob::Coupling))
 		{ Why = TEXT("its bag train is being got ready"); return true; }
 	return false;
 }
@@ -201,6 +202,7 @@ bool AGSE::Relieve(int32 Ci, bool& bDrop)
 	// somebody of a bag job's people has vanished (their body is gone). True: one of these vehicles' people (bDrop: the job
 	// goes on without them - the second pairs of hands)
 	bDrop = false;
+	if (SvcLost(Ci, bDrop)) return true;
 	for (int32 Ti = 0; Ti < Tractors.Num(); ++Ti)
 	{
 		FTractor& T = Tractors[Ti];

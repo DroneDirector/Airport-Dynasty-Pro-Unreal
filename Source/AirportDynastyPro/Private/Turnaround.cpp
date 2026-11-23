@@ -144,6 +144,9 @@ namespace ADPTurnaround
 				if (K.Id == TEXT("push")) continue;   // (the pushback itself: the tug and SimTraffic, once the flight may leave)
 				// (the doors: everyone aboard first - APaxFlow; without passengers in 3D at once)
 				if (K.Id == TEXT("doors") && bReady && !K.bStarted && Tm >= K.Start && !APaxFlow::BoardingDone(W, Tr->Reg)) bReady = false;
+				// (to-do 212: the cabin cleaned by your cleaners and their van - asked for 8 min ahead; nobody free = it and the boarding wait)
+				if (K.Id == TEXT("clean") && Tr->bMine && !Tr->PlanId.IsEmpty() && !K.bStarted && Tm >= K.Start - 8.f)
+					if (AGSE* Gs = AGSE::Get(W)) if (Gs->SvcFor(TEXT("clean"), Tr->StandX) && !Gs->SvcAsk(TEXT("clean"), Tr->StandX, Tr->Reg, Tr->Flight, Tr->OffBlocks)) bReady = false;
 				if (bHired && K.Id == TEXT("gpu") && bReady && !K.bStarted && Tm >= K.Start)
 				{
 					if (!Tr->PlanId.IsEmpty() && (Tr->OffBlocks - Now).GetTotalMinutes() < 12.0) { K.bStarted = K.bDone = true; ADP_LOG(TEXT("Turnaround: %s - no ground power, its pushback crew come now"), *Tr->Reg); continue; }
@@ -162,6 +165,7 @@ namespace ADPTurnaround
 					const bool bVisual = K.Vehicle == TEXT("gpu") || K.Vehicle == TEXT("jetway") || K.Vehicle == TEXT("tug") || K.Vehicle == TEXT("beltloader");
 					ADP_LOG(TEXT("Turnaround: %s %s starts (%.1f min, %s)"), *Tr->Reg, *K.Name, K.Dur, bVisual ? TEXT("in 3D") : K.Vehicle.IsEmpty() ? TEXT("the crew") : *FString::Printf(TEXT("%s - simulated until the vehicle is built"), *K.Vehicle));
 					if (K.Id == TEXT("gpu") && !bHired) if (ATugs* Tg = ATugs::Get(W)) Tg->Arrived(Tr->StandX);   // (the ground power plugged in)
+					if (K.Id == TEXT("clean") && Tr->bMine) if (AGSE* Gs = AGSE::Get(W)) Gs->SvcGo(TEXT("clean"), Tr->StandX);
 					if (K.Id == TEXT("bridge")) ASimTraffic::DockAt(W, Tr->Stand);                      // (the jetway out to the door)
 					if (K.Id == TEXT("doors")) ASimTraffic::UndockAt(W, Tr->Stand);                     // (everyone aboard, the door closed: the jetway back to rest)
 					// (the bulk hold: out first, then in - the belt loader and an empty train for the arriving bags; the departure
@@ -181,7 +185,8 @@ namespace ADPTurnaround
 				const bool bBridge = K.Id == TEXT("bridge") && K.bStarted && !K.bDone && !ASimTraffic::JetwayReady(W, Tr->Stand, true);
 				const bool bBack = K.Id == TEXT("doors") && K.bStarted && !K.bDone && !ASimTraffic::JetwayReady(W, Tr->Stand, false);
 				const bool bChocks = K.Id == TEXT("chocks") && K.bStarted && !K.bDone && ATugs::Get(W) && !ATugs::Get(W)->ChocksIn(Tr->StandX);
-			if (K.bStarted && !K.bDone && Tm >= K.Start + K.Dur && !bChocks && !bBagsBusy && !bBoarding && !bOff && !bBridge && !bBack) { K.bDone = true; ADP_LOG(TEXT("Turnaround: %s %s done"), *Tr->Reg, *K.Name); }
+			const bool bClean = K.Id == TEXT("clean") && K.bStarted && !K.bDone && Tr->bMine && AGSE::Find(W) && AGSE::Find(W)->SvcBusy(TEXT("clean"), Tr->StandX);
+			if (K.bStarted && !K.bDone && Tm >= K.Start + K.Dur && !bClean && !bChocks && !bBagsBusy && !bBoarding && !bOff && !bBridge && !bBack) { K.bDone = true; ADP_LOG(TEXT("Turnaround: %s %s done"), *Tr->Reg, *K.Name); }
 			}
 			// (its bags go out on the tractor train to it as soon as the stand is its own: 50 min before)
 			if (!Tr->PlanId.IsEmpty() && (Tr->OffBlocks - Now).GetTotalMinutes() < 50.0 && (bHired || Crew >= 2)) if (AGSE* Gs = AGSE::Get(W)) Gs->Departure(Tr->Flight, Tr->StandX);
@@ -192,6 +197,7 @@ namespace ADPTurnaround
 			if (Seen.Contains(X.Reg)) return false;
 			if (!X.Flight.IsEmpty()) if (AGSE* Gs = AGSE::Find(W)) Gs->Gone(X.Flight);
 		if (ATugs* Tg = ATugs::Get(W)) Tg->ChocksGone(X.StandX);
+		if (AGSE* Gs = AGSE::Find(W)) Gs->SvcGone(X.StandX);
 			return true;
 		});
 	}

@@ -217,6 +217,13 @@ void ATugs::ApplyPose(FCrew& C, const FPoseFn& Fn, float K)
 	A->SetActorTransform(C.BodyInActor.Inverse() * Frame);
 }
 
+float ATugs::CrewZ(const FCrew& C, const FVector& P) const
+{
+	if (!C.bUp) return Plan(P.X / 100.f, -P.Y / 100.f).Z;
+	FHitResult H; FCollisionQueryParams Q(SCENE_QUERY_STAT(AdpCrewZ), false, C.A.Get());
+	return GetWorld()->LineTraceSingleByChannel(H, P + FVector(0, 0, 55.f), P - FVector(0, 0, 70.f), ECC_Visibility, Q) && H.Normal.Z > 0.6f ? float(H.ImpactPoint.Z) : float(P.Z);
+}
+
 bool ATugs::CrewWalk(FCrew& C, const FVector& To, float Dt, float Stop, float Max)
 {
 	AActor* A = C.A.Get(); if (!A) return true;
@@ -224,7 +231,7 @@ bool ATugs::CrewWalk(FCrew& C, const FVector& To, float Dt, float Stop, float Ma
 	const float Dist = D.Size();
 	const bool bThere = Dist < Stop;
 	// (the way round what stands in it - the GPU, a tug: the next corner to make for, the walk's end stays To)
-	if (!bThere) { FVector Via = Around(A->GetActorLocation(), To) - A->GetActorLocation(); Via.Z = 0.f; if (Via.SizeSquared() > 1.f && !Via.Equals(D, 1.f)) { const float Vd = Via.Size(); D = Via / Vd * FMath::Max(Vd, FMath::Min(Dist, 60.f)); } }
+	if (!bThere && !C.bUp) { FVector Via = Around(A->GetActorLocation(), To) - A->GetActorLocation(); Via.Z = 0.f; if (Via.SizeSquared() > 1.f && !Via.Equals(D, 1.f)) { const float Vd = Via.Size(); D = Via / Vd * FMath::Max(Vd, FMath::Min(Dist, 60.f)); } }
 	// (aware of being stuck: no real progress for 2.5 s - a step to the side, away from the nearest thing, then on)
 	if (!bThere)
 	{
@@ -262,11 +269,11 @@ bool ATugs::CrewWalk(FCrew& C, const FVector& To, float Dt, float Stop, float Ma
 		FVector P = A->GetActorLocation() + D.GetSafeNormal() * FMath::Min(Dist, C.Speed * Dt);
 		// (on the apron's own surface - the one the tugs' wheels follow: a trace went through the paving to the ground under it
 		//  and their feet sank in, owner 2026-11-21)
-		P.Z = Plan(P.X / 100.f, -P.Y / 100.f).Z;
+		P.Z = CrewZ(C, P);
 		A->SetActorLocation(P);
 		A->SetActorRotation(FMath::RInterpTo(A->GetActorRotation(), FRotator(0.f, D.Rotation().Yaw - 90.f, 0.f), Dt, 6.f));
 	}
-	else if (!C.bPosed) { FVector P = A->GetActorLocation(); const float Gz = Plan(P.X / 100.f, -P.Y / 100.f).Z; if (FMath::Abs(P.Z - Gz) > 0.5f) { P.Z = Gz; A->SetActorLocation(P); } }   // (standing: on the surface too)
+	else if (!C.bPosed) { FVector P = A->GetActorLocation(); const float Gz = CrewZ(C, P); if (FMath::Abs(P.Z - Gz) > 0.5f) { P.Z = Gz; A->SetActorLocation(P); } }   // (standing: on the surface too)
 	if (USkeletalMeshComponent* B = BodyOf(GetWorld(), A))
 		if (UAnimSingleNodeInstance* One = B->GetSingleNodeInstance())
 		{

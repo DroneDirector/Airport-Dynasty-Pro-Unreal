@@ -119,6 +119,30 @@ Models `Art/CleaningVan` (make_cleaningvan.py) and `Art/CleaningKit` (make_clean
   north to the service road (y 167..175). B draws the white box in Airfield.cpp and checks the boxes other 212 pieces have taken by then.
 - **Not there:** no van / electric drive, sliding-door or vacuum sound in the project (a CC0 one is needed); not run in the game; wipers have pivots (`PIV_Wiper_*`) but only move if B binds them.
 
+## Cabin cleaning van, part B as built (2026-11-23, compiled, NOT run): the shared service vehicles
+`Public/ServiceVehicles.h` (the table's fields), `Private/GSEService.cpp` (the table and all the work), hooks in `GSE*`, `Turnaround`, `StaffPeople`, `Tugs/TugCrew`,
+`JetwayRigs` (`ServiceSteps`), `Airfield` (the box). The van is one of AGSE's vehicles (`FTractor.Svc`): the same driving, lamps, beacon, wheels, dirt and wash.
+- **Flow:** the `clean` task asks 8 min ahead (`SvcAsk`); driver + 1 at least, up to 4 (`AskTeam`, then `AskExtra`); sliding door, seats; out, to x stand + 11.4 / 25.5 m
+  behind the nose wheel; rear doors; bag roll, caddy, vacuum, bag roll; they wait at the van until the last passenger is off (`SvcGo`) and the jetway is docked; outside the
+  left wingtip to the jetway's service stair, step by step on its real steps, the service door, the cab, the aircraft's door; 30 rows at 40 s each, shared;
+  two full bags down; loaded; home; nose out. `clean` ends when all are off the aircraft, so boarding waits; the flight waits while the van is at the stand (45 min at most).
+- **Parking place moved** to (-259.6, 91): from (-253, 91) the van could only get back in through stand 9. Way in: down x -247.2, round, straight back in.
+- **Stand-ins:** other airlines, and yours with fewer than 2 cleaners: data with its time, as before.
+- **Not there:** no cabin exists (to-do 209), so at the aircraft's door they are hidden and no wiping / vacuuming is seen; no E to sit or drive, no glow outline (the tugs and
+  tractors have none either), no holomap mark (no vehicle has one); passenger door, wipers, pedals not moved; livery colours not set; rolls used and full bags change at the next start.
+- **Not checked:** everything in the game - the hand on the stair rail, the walk past the jetway's drive column, knees at the sliding door, legs along the wing, the 40 s row.
+
+### How to add the next vehicle (fuel, catering, water, toilet, stairs, de-icing, ambulift)
+1. Model: the part and point names of `cleaningvan-parts.json` (`Tyre_FL` .., `PIV_Wheel_*`, `PIV_Steer_F*`, `PIV_DoorDriver`, `IK_Stand/Handle/Step_*`, `IK_Seat_*`, `IK_Grab_L`,
+   `IK_Hand_Wheel_*`, `IK_Foot_*`, `IK_Aisle_Row0` = the cab floor; lenses `*_Lens`, `BeaconLens`).
+2. Points: `Data/<name>-riders.json` = `{"points": {name: [x, y, z]}}` in Blender metres (y left).
+3. Jobs: a duty and a task in `EStaffDuty` / `EStaffTask`; its role, name and team in `StaffPeople.cpp` (`RoleOf`, `DutyName`, `TaskName`, `Needs`); `b3D` true in `Sim/ADPCrew.cpp`.
+4. One entry in `ADPService::All()`: task id of `Turnaround.cpp`, model, points, role, team, people, parking box (Airfield draws it), place at the stand
+   (`Lat`, `Aft`, `Far`; right of the aircraft = negative), size, turning circle, doors, things carried, seats, name panels; `bJetway` false for work at the vehicle.
+5. `Turnaround.cpp`: the three `clean` lines (`SvcFor` / `SvcAsk`, `SvcGo`, `SvcBusy`) for its task id.
+6. Work of its own (hoses, a lifting body): a branch in `SvcCabin` (what `bIn` / `RowsDone` mean for it) and its moving parts in `SvcParts`.
+7. Free places: check `Lat` / `Aft` against the van's and the belt loader's (right, 19.6 m aft), the train's (right, ahead of the wing), the GPU, tug and rack boxes.
+
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
 | Where | Today | Replace with | Nobody free |

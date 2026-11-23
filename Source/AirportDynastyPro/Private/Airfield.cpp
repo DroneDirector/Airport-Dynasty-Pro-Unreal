@@ -2,6 +2,7 @@
 // millimetres over the one under it so they never flicker through each other: grass, then aprons, taxiways, runway,
 // then the markings. Only what stands up (the cargo building) is still a slab.
 #include "Airfield.h"
+#include "ServiceVehicles.h"
 #include "Site.h"
 #include "Algo/Reverse.h"
 #include "ADPLog.h"
@@ -801,6 +802,15 @@ void AAirfield::Aprons(bool bModelSite)
 				Line("paintwhite", FVector2f(X0, Ya), FVector2f(X1, Ya), 0.1f, 0.0075f); Line("paintwhite", FVector2f(X0, Yb), FVector2f(X1, Yb), 0.1f, 0.0075f);
 				Line("paintwhite", FVector2f(X0, Ya), FVector2f(X0, Yb), 0.1f, 0.0075f); Line("paintwhite", FVector2f(X1, Ya), FVector2f(X1, Yb), 0.1f, 0.0075f);
 			}
+			// the service vehicles' parking boxes (to-do 212, ServiceVehicles.h): white-lined, drawn once
+			if (k == 0)
+				for (const FServiceSpec& Sv : ADPService::All())
+				{
+					const bool bNS = FMath::Abs(Sv.HomeHy) > 0.5f; const float Hl = Sv.HalfL / 100.f + 1.f, Hw = Sv.HalfW / 100.f + 0.72f, Hx = bNS ? Hw : Hl, Hy = bNS ? Hl : Hw;
+					const float X0 = Sv.HomeX - Hx, X1 = Sv.HomeX + Hx, Ya = Sv.HomeY - Hy, Yb = Sv.HomeY + Hy;
+					Line("paintwhite", FVector2f(X0, Ya), FVector2f(X1, Ya), 0.12f, 0.0075f); Line("paintwhite", FVector2f(X0, Yb), FVector2f(X1, Yb), 0.12f, 0.0075f);
+					Line("paintwhite", FVector2f(X0, Ya), FVector2f(X0, Yb), 0.12f, 0.0075f); Line("paintwhite", FVector2f(X1, Ya), FVector2f(X1, Yb), 0.12f, 0.0075f);
+				}
 			// the jetway's red zone on the left of the nose (the aircraft's left door side): outlined and hatched, nothing
 			// parks where the bridge swings
 			if (St.bJetway)

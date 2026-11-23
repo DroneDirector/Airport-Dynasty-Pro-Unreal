@@ -79,6 +79,8 @@ public:
 	 *  owner model; for the -UISvcDoor test. Open/close it with SetServiceDoor. */
 	bool ServiceDoorFrame(int32 I, FVector& Mid, FVector& Out) const;
 	void SetServiceDoor(int32 I, bool bOpen);
+	/** The service stair as it stands now: the middles of its steps' tops, foot first (world), and half their width. */
+	bool ServiceSteps(int32 I, TArray<FVector>& Steps, float& HalfW) const;
 	class ABabylonModel* RigModel(int32 I) const;
 	/** Every jetway's beacons flashing (tests and pictures), as if they were all moving. */
 	static bool bBeaconTest;
@@ -116,7 +118,7 @@ private:
 		class UAudioComponent *SBeep = nullptr, *SMotor = nullptr, *STyres = nullptr, *SLift = nullptr;
 		// the gate-number sign on the cab's roof, softly lit on both faces (owner: far weaker than the beacons)
 		TArray<USceneComponent*> SignLight; TArray<FVector> SignAt;
-		TArray<FPart> Stair; TArray<bool> StairLevel; FVector StairTop, StairU; float StairSl = 0.f, Ground = 0.f;
+		TArray<FPart> Stair; TArray<bool> StairLevel; TArray<int32> StepIx; FVector StairTop, StairU; float StairSl = 0.f, Ground = 0.f;
 		struct FCam { int32 G = 0; FVector Lens = FVector::ZeroVector, View = FVector::ForwardVector; FString Name; };
 		TArray<FCam> Cams; UInstancedStaticMeshComponent* CamHost = nullptr;   // (its CCTV cameras, model space docked)
 		// the drive unit's wheels (owner, 2026-11-18): each rolls about its own axle as far as the unit travels

@@ -25,6 +25,7 @@
 #include "GameFramework/Actor.h"
 #include "VehicleDirt.h"
 #include "StaffPeople.h"
+#include "ServiceVehicles.h"
 #include "GSE.generated.h"
 
 class ABabylonModel;
@@ -89,6 +90,14 @@ public:
 		FString Name;
 		// its own measures (root cm; the tractor's or the belt loader's - Art/<model>/<model>-parts.json)
 		bool bLoader = false;
+		int32 Svc = INDEX_NONE;           // a service vehicle (GSEService.cpp): its line in the table
+		bool IsTrain() const { return !bLoader && Svc == INDEX_NONE; }   // (a baggage tractor)
+		float KDoorDeg = 80.f;
+		TMap<FString, FVector> Pt;        // (a service vehicle's named points, root cm: Data/<vehicle>-riders.json)
+		struct FSvcDoor { int32 G = INDEX_NONE; FVector Piv = FVector::ZeroVector; float Now = 0.f, Want = 0.f; };
+		TArray<FSvcDoor> SvcDoors;        // (as the table's doors: 0 shut .. 1 open)
+		struct FSvcItem { int32 G = INDEX_NONE; FVector Piv = FVector::ZeroVector; int32 Ci = INDEX_NONE; bool bShow = true, bMoved = true; };
+		TArray<FSvcItem> SvcItems;        // (as the table's items: in their place, or in somebody's right hand)
 		FVector KWheel[4], KKing[2], KHinge, KWheelC, KStand, KHandle, KStep, KGrabOut, KGrabIn, KSeat, KBrake, KAccel, KHandL, KHandR;
 		float KRadF = 26.f, KRadR = 31.f, KWB = 158.f, KTrack = 112.f, KFloor = 62.f, KHalfL = 171.f, KHalfW = 72.f, KCentreX = 3.f, KTurnR = 300.f, KMaxSteer = 32.f;
 		FString SndStart, SndLoop, SndStop, SndDoorOpen, SndDoorClose, SndBeep;
@@ -230,7 +239,52 @@ private:
 public:
 	/** The turnaround planner's bulk hold task (Turnaround.cpp): the belt loader to that stand. */
 	void BulkHold(float StandX, const FString& Key) { EnsureLoader(StandX, Key); }
+	/** The service vehicles (cabin cleaning first; docs/Hired-Crew-Plan.md): your own flight's turnaround task. Ask: from 8 min
+	 *  before it is due and then every tick - true once its people are on the way (false: it waits for them). Go: the work
+	 *  itself may start. Busy: not finished. SvcFor: this task is worked in 3D by people of yours. */
+	bool SvcFor(const TCHAR* Task, float StandX) const;
+	bool SvcAsk(const TCHAR* Task, float StandX, const FString& Reg, const FString& Flight, const FDateTime& When);
+	void SvcGo(const TCHAR* Task, float StandX);
+	bool SvcBusy(const TCHAR* Task, float StandX) const;
+	/** The aircraft is gone: what had not started is dropped. */
+	void SvcGone(float StandX);
 private:
+	// Seat 0: the driver; bOut: on their feet by the vehicle; bIn: in the cabin; bDown: off the aircraft again; bGone: lost
+	struct FSvcMan { int32 Ci = INDEX_NONE, Seat = 0, Item = INDEX_NONE; bool bSeated = false, bOut = false, bIn = false, bDown = false, bStowed = false, bGone = false; };
+	struct FSvcJob
+	{
+		int32 Svc = 0, Ti = INDEX_NONE, Jet = INDEX_NONE; float StandX = 0.f, RowT = 0.f; FString Reg, Flight, Why; FDateTime When;
+		uint8 Phase = 0;                  // 0 waits for its people, 1 on the way, 2 at the stand, 3 going back
+		bool bGo = false; int32 Rows = 30, RowsDone = 0; float T = 0.f; TArray<FSvcMan> Men;
+	};
+	TMap<int32, FSvcJob> SvcJobs; int32 SvcNext = 1; float SvcClock = 0.f;
+	TMap<int32, TPair<int8, int32>> SvcStairUse;   // (a jetway's service stair: which way it is walked now, and by how many)
+	static const TCHAR* SvcModel(int32 Svc);
+	void SvcSetup();
+	void SvcDress(FTractor& T);
+	void SvcParts(FTractor& T, float Dt);
+	void SvcTick(float Dt);
+	bool SvcWaits(const FString& Flight, float StandX, FString& Why) const;
+	bool SvcLost(int32 Ci, bool& bDrop);
+	bool SvcPersonAhead(const FTractor& T, const FVector& Move) const;
+	FSvcJob* SvcJ(int32 Job) { return SvcJobs.Find(Job); }
+	FSvcMan* SvcM(int32 Job, int32 m) { FSvcJob* J = SvcJ(Job); return J && J->Men.IsValidIndex(m) ? &J->Men[m] : nullptr; }
+	bool SvcAll(int32 Job, TFunctionRef<bool(const FSvcMan&)> Is);
+	void SvcStart(int32 Job);
+	void SvcBoard(int32 Job, int32 m);
+	void SvcAlight(int32 Job, int32 m);
+	FVector SvcP(const FTractor& T, const TCHAR* Name) const;
+	TFunction<void(float, float, FDriverPose&)> SvcSeatFn(int32 Ti, int32 Seat) const;
+	TFunction<void(float, float, FDriverPose&)> SvcClimbFn(int32 Ti, int32 Seat, bool bIn) const;
+	void SvcDoor(int32 Ci, int32 Ti, int32 Door, bool bOpen);
+	void SvcApron(int32 Job);
+	void SvcWork(int32 Job);
+	void SvcManAt(int32 Job, int32 m);
+	void SvcCabin(int32 Job, int32 m);
+	void SvcUp(int32 Job, int32 m, bool bUp);
+	void SvcTake(int32 Job, int32 m, bool bTake);
+	void SvcLeave(int32 Job);
+	void SvcHome(int32 Job);
 	/** A crew member for a vehicle's job: Pre - the hired person claimed for it; Boss - the vehicle they help at (hired when its driver is). */
 	int32 Borrow(const FVector& Near, int32* Pre = nullptr, int32 Boss = INDEX_NONE, EStaffDuty Duty = EStaffDuty::BaggageHandler);
 	void GiveBack(int32 Ci, float StandX = 0.f);

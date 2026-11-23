@@ -243,13 +243,13 @@ void AGSE::LoaderIn(int32 Li)
 	WaitFor(Ci, [this, Li, bSeen, Wait2](float Elapsed)
 	{
 		bool bTrain = false;
-		for (const FTractor& T : Tractors) if (!T.bLoader && !T.bArrival && FMath::Abs(T.StandX - Tractors[Li].StandX) < 1.f && (T.Job == EJob::Out || T.Job == EJob::AtStand || T.Job == EJob::Loading)) bTrain = true;
+		for (const FTractor& T : Tractors) if (T.IsTrain() && !T.bArrival && FMath::Abs(T.StandX - Tractors[Li].StandX) < 1.f && (T.Job == EJob::Out || T.Job == EJob::AtStand || T.Job == EJob::Loading)) bTrain = true;
 		if (bTrain) *bSeen = true;
 		if (IsHired(Tractors[Li].Driver))
 		{
 			// (to-do 206: your operator stays while one of your trains is on its way to this stand or at it - never left without)
 			bool bOwn = WaitingAt(Tractors[Li].StandX);
-			for (const FTractor& T : Tractors) if (!T.bLoader && IsHired(T.Driver) && T.JobT < 1500.f && FMath::Abs(T.StandX - Tractors[Li].StandX) < 1.f && (T.Job == EJob::Boarding || T.Job == EJob::ToCarts || T.Job == EJob::Coupling || T.Job == EJob::Loading || T.Job == EJob::Out || T.Job == EJob::AtStand)) { bOwn = true; if (!T.bArrival) *bSeen = true; }
+			for (const FTractor& T : Tractors) if (T.IsTrain() && IsHired(T.Driver) && T.JobT < 1500.f && FMath::Abs(T.StandX - Tractors[Li].StandX) < 1.f && (T.Job == EJob::Boarding || T.Job == EJob::ToCarts || T.Job == EJob::Coupling || T.Job == EJob::Loading || T.Job == EJob::Out || T.Job == EJob::AtStand)) { bOwn = true; if (!T.bArrival) *bSeen = true; }
 			if (bOwn) return false;
 		}
 		return (*bSeen && !bTrain) || Elapsed > Wait2;

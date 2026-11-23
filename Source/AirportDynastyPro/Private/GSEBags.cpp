@@ -324,7 +324,7 @@ void AGSE::PollBags(float Dt)
 	if (bTest)
 	{
 		// (the test train's flight: the one with most bags - kept for the crew as soon as it shows)
-		for (int32 t = 0; t < Tractors.Num(); ++t) if (!Tractors[t].bLoader && !Tractors[t].bArrival && Tractors[t].Job != EJob::None && BagKey.FindRef(t).IsEmpty()) { const FString F = BagFlight(t); if (!F.IsEmpty()) { BagKey.Add(t, F); if (ADepartureBelts* Dm = ADepartureBelts::Get(GetWorld())) Dm->NoAutoClear.Add(F); } }
+		for (int32 t = 0; t < Tractors.Num(); ++t) if (Tractors[t].IsTrain() && !Tractors[t].bArrival && Tractors[t].Job != EJob::None && BagKey.FindRef(t).IsEmpty()) { const FString F = BagFlight(t); if (!F.IsEmpty()) { BagKey.Add(t, F); if (ADepartureBelts* Dm = ADepartureBelts::Get(GetWorld())) Dm->NoAutoClear.Add(F); } }
 		return;
 	}
 	for (const FString& F : BagFlights)

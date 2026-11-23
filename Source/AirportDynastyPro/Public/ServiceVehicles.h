@@ -1,0 +1,28 @@
+// The service vehicles of a turnaround (to-do 212): one table line per vehicle, everything else shared. A vehicle is one of
+// AGSE's (the same driving, lamps, wheels, dirt and ground crew as the baggage tractors and the belt loader); GSEService.cpp
+// gives it its people, its doors, its carried things and its work. How to add the next one: docs/Hired-Crew-Plan.md.
+#pragma once
+
+#include "CoreMinimal.h"
+
+enum class EStaffTask : uint8;
+
+struct FServiceDoor { const TCHAR *Prefix, *Pivot, *Handle, *Stand; float Deg; bool bSlide; };   // (Deg: to open, the root's yaw)
+struct FServiceItem { const TCHAR* Part; bool bAtHome, bDeep; FVector Stand; };                   // (its mesh name is also its point; bAtHome: there at the start; bDeep: taken from inside, up over the rear step)
+struct FServiceSpec
+{
+	const TCHAR *Task = nullptr, *Model = nullptr, *Points = nullptr, *Label = nullptr, *Role = nullptr;   // the turnaround task, the model, Data/<Points>-riders.json, the name in the log, the sim's role
+	EStaffTask Team = EStaffTask(0);                        // its smallest team (StaffPeople::Needs)
+	int32 MaxPeople = 2;                                    // with the driver (seats)
+	float HomeX = 0.f, HomeY = 0.f, HomeHx = 0.f, HomeHy = 1.f;   // its parking box (plan m; Airfield.cpp draws it)
+	float Lat = 0.f, Aft = 0.f, Far = 40.f;                 // its place at the stand: m left (+) of the centre line, m behind the nose wheel; driven up straight from Far
+	float HalfL = 300.f, HalfW = 103.f, TurnR = 600.f, MaxSteer = 35.f, DoorDeg = 70.f;
+	bool bJetway = false;                                   // the work is in the cabin: up the jetway's service stair
+	TArray<FServiceDoor> Doors;                             // 0 the crew's, 1.. the load space's (opened in this order)
+	TArray<FServiceItem> Items;
+	TArray<int32> Take, Bring;                              // what person 0 (the driver), 1, 2 .. takes, and carries back instead (-1 the same)
+	TArray<const TCHAR*> Seats;                             // person 1, 2, 3's seat (IK_Seat_*), through door 0
+	const TCHAR *NameL = nullptr, *NameR = nullptr, *NameRear = nullptr; float NameSize = 17.f, NameRearSize = 6.f;   // where the airport's name goes
+};
+
+namespace ADPService { const TArray<FServiceSpec>& All(); }

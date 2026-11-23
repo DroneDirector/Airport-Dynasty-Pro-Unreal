@@ -302,6 +302,7 @@ void AJetwayRigs::Build()
 				if (!In.Key || In.Value == INDEX_NONE) continue;
 				FPart P; P.K = In.Key; P.Ix = In.Value; In.Key->GetInstanceTransform(In.Value, P.Docked, false);
 				const FString& Nm = M->NodeName(I);
+				if (Nm.Contains(TEXT("/STEP"))) R.StepIx.Add(R.Stair.Num());
 				R.Stair.Add(P); R.StairLevel.Add(Nm.Contains(TEXT("/STEP")) || Nm.Contains(TEXT("STAIR-POST")) || Nm.Contains(TEXT("STAIR-FORK")) || Nm.Contains(TEXT("STAIR-WHEEL"))); ++Parts;
 			}
 		}
@@ -1360,6 +1361,24 @@ bool AJetwayRigs::ServiceDoorFrame(int32 I, FVector& Mid, FVector& Out) const
 	FVector Along = (M - H).GetSafeNormal2D(); Out = FVector::CrossProduct(FVector::UpVector, Along).GetSafeNormal2D();
 	if (FVector::DotProduct(Out, M - W.GetLocation()) < 0.f) Out = -Out;
 	Mid = M; return true;
+}
+
+bool AJetwayRigs::ServiceSteps(int32 I, TArray<FVector>& Steps, float& HalfW) const
+{
+	Steps.Reset(); HalfW = 40.f;
+	if (!Rigs.IsValidIndex(I)) return false;
+	const FRig& R = Rigs[I];
+	for (const int32 k : R.StepIx)
+	{
+		const FPart& P = R.Stair[k]; if (!P.K || !P.K->GetStaticMesh()) continue;
+		FTransform T; P.K->GetInstanceTransform(P.Ix, T, true);
+		const FBox L = P.K->GetStaticMesh()->GetBoundingBox(), B = L.TransformBy(T);
+		Steps.Add(FVector(B.GetCenter().X, B.GetCenter().Y, B.Max.Z));
+		HalfW = float((L.GetExtent() * T.GetScale3D().GetAbs()).GetMax());
+	}
+	Steps.Sort([](const FVector& A, const FVector& B) { return A.Z < B.Z; });
+	for (int32 i = Steps.Num() - 1; i > 0; --i) if (Steps[i].Z - Steps[i - 1].Z < 4.f) Steps.RemoveAt(i);   // (a tread of several pieces)
+	return Steps.Num() >= 6;
 }
 
 void AJetwayRigs::SetServiceDoor(int32 I, bool bOpen) { if (Rigs.IsValidIndex(I)) Rigs[I].SvcWant = bOpen ? 1.f : 0.f; }

@@ -85,11 +85,13 @@ void UStaffPeople::Deinitialize() { ADPSchedule::Waiting3D = nullptr; Asks.Reset
 
 // ------------------------------------------------------------------ the pool
 
-const TCHAR* UStaffPeople::RoleOf(EStaffDuty) { return TEXT("ground"); }   // (one ramp role does it all)
+const TCHAR* UStaffPeople::RoleOf(EStaffDuty D) { return D == EStaffDuty::CleanDriver || D == EStaffDuty::Cleaner ? TEXT("cleaning") : TEXT("ground"); }   // (one ramp role does all but the cleaning)
 const TCHAR* UStaffPeople::DutyName(EStaffDuty D)
 {
 	switch (D)
 	{
+	case EStaffDuty::CleanDriver: return TEXT("cleaning van driver");
+	case EStaffDuty::Cleaner: return TEXT("aircraft cleaner");
 	case EStaffDuty::TugDriver: return TEXT("tug driver");
 	case EStaffDuty::PushbackHandler: return TEXT("pushback handler");
 	case EStaffDuty::WingWalker: return TEXT("wing walker");
@@ -103,6 +105,7 @@ const TCHAR* UStaffPeople::TaskName(EStaffTask T)
 {
 	switch (T)
 	{
+	case EStaffTask::Cleaning: case EStaffTask::CleanRelief: return TEXT("cabin cleaning");
 	case EStaffTask::Gpu: return TEXT("ground power");
 	case EStaffTask::BagsOut: return TEXT("bags out to the aircraft");
 	case EStaffTask::BagsIn: return TEXT("bags in from the aircraft");
@@ -122,6 +125,8 @@ void UStaffPeople::Needs(EStaffTask T, TArray<FNeed>& Out)
 	case EStaffTask::BagsOut: case EStaffTask::BagsIn: Add(EStaffDuty::TractorDriver, 1, 1); Add(EStaffDuty::BaggageHandler, 0, 1); break;
 	case EStaffTask::Loader: Add(EStaffDuty::LoaderOperator, 1, 1); Add(EStaffDuty::BaggageHandler, 0, 1); break;
 	case EStaffTask::Bags: Add(EStaffDuty::TractorDriver, 1, 1); Add(EStaffDuty::LoaderOperator, 1, 1); Add(EStaffDuty::BaggageHandler, 0, 2); break;
+	case EStaffTask::Cleaning: Add(EStaffDuty::CleanDriver, 1, 1); Add(EStaffDuty::Cleaner, 1, 3); break;
+	case EStaffTask::CleanRelief: Add(EStaffDuty::Cleaner, 1, 1); break;
 	case EStaffTask::Relief: Add(EStaffDuty::BaggageHandler, 1, 1); break;
 	case EStaffTask::Pushback: Add(EStaffDuty::TugDriver, 1, 1); Add(EStaffDuty::PushbackHandler, 1, 1); Add(EStaffDuty::WingWalker, 0, 3); break;
 	}
@@ -198,18 +203,19 @@ void UStaffPeople::AlongWall(FStaff& S, const FVector& To) const
 
 int32 UStaffPeople::OnDuty(const FString& Role) const { int32 N = 0; for (const FStaff& S : Staff) if (S.bWanted && S.Role == Role) ++N; return N; }
 
-bool UStaffPeople::Hires() const
+bool UStaffPeople::HiresRole(const TCHAR* Role) const
 {
 	const UADPSim* Sim = UADPSim::Get(GetWorld());
 	if (!On() || !Sim || !Sim->IsRunning()) return false;
 	const FString Here = ADPBoards::HereIcao(); int32 N = 0;
-	for (const FADPPerson& P : Sim->World.People) if (P.AirlineId == UADPSim::Me() && SpIsRole(P.Role) && P.Base == Here) ++N;
+	for (const FADPPerson& P : Sim->World.People) if (P.AirlineId == UADPSim::Me() && P.Role == Role && P.Base == Here) ++N;
 	const bool bOk = N >= 2;
-	if (SaidHires != int32(bOk))
+	const bool* Was = SaidHires.Find(Role);
+	if (!Was || *Was != bOk)
 	{
-		SaidHires = int32(bOk);
-		if (bOk) ADP_LOG(TEXT("StaffPeople: you employ %d ground crew here - they work your own flights"), N);
-		else ADP_LOG(TEXT("StaffPeople: you employ %d ground crew here, 2 are the smallest team - the handling agent's people work your flights until you hire"), N);
+		SaidHires.Add(Role, bOk);
+		if (bOk) ADP_LOG(TEXT("StaffPeople: you employ %d people of the role %s here - they work your own flights"), N, Role);
+		else ADP_LOG(TEXT("StaffPeople: you employ %d people of the role %s here, 2 are the smallest team - the handling agent's people work your flights until you hire"), N, Role);
 	}
 	return bOk;
 }

@@ -29,7 +29,7 @@ namespace
 bool AGSE::ArrivalFor(float StandX, const FString& Key)
 {
 	for (const FTractor& T : Tractors) if (T.bArrival && T.Job != EJob::None && FMath::Abs(T.StandX - StandX) < 1.f) return true;
-	int32 Ti = INDEX_NONE; for (int32 t = 0; t < Tractors.Num() && Ti == INDEX_NONE; ++t) if (!Tractors[t].bLoader && Tractors[t].Job == EJob::None && Tractors[t].M.IsValid()) Ti = t;
+	int32 Ti = INDEX_NONE; for (int32 t = 0; t < Tractors.Num() && Ti == INDEX_NONE; ++t) if (Tractors[t].IsTrain() && Tractors[t].Job == EJob::None && Tractors[t].M.IsValid()) Ti = t;
 	if (Ti == INDEX_NONE) { ADP_LOG(TEXT("GSE: no tractor free for %s's arriving bags"), *Key); return false; }
 	for (int32 a = 0; a < Carts.Num(); ++a)
 	{

@@ -171,7 +171,7 @@ void AGSE::ClimbIn(int32 Ci, int32 Ti, TFunction<void()> Then)
 	WalkTo(Ci, [this, Ti] { return TW(Tractors[Ti], Tractors[Ti].KStand); }, 15.f);
 	// the hand to the handle, the door swung open (its sound), up and in, sat, the door pulled shut
 	PoseAct(Ci, [this, Ti](float K, float PH, FDriverPose& P) { const FTractor& T = Tractors[Ti]; P = ADPPose::Reach(TW(T, T.KStand), FRotator(0.f, T.Yaw + 90.f, 0.f).Vector(), 1, TW(T, T.KHandle), 0.7f, PH, FMath::Sin(PI * K)); }, 1.0f);
-	Do(Ci, [this, Ti] { FTractor& T = Tractors[Ti]; T.DoorWant = 80.f; Sound(*T.SndDoorOpen, TW(T, T.KHandle + FVector(0.f, 0.f, 20.f))); });
+	Do(Ci, [this, Ti] { FTractor& T = Tractors[Ti]; T.DoorWant = Tractors[Ti].KDoorDeg; Sound(*T.SndDoorOpen, TW(T, T.KHandle + FVector(0.f, 0.f, 20.f))); });
 	Wait(Ci, 0.6f);
 	PoseAct(Ci, ClimbFn(Ti, true), 3.2f);
 	Do(Ci, [this, Ci, Ti] { if (ATugs* G = Tg()) G->Crew[Ci].Hold = SeatFn(Ti); Tractors[Ti].DoorWant = 0.f; });
@@ -181,7 +181,7 @@ void AGSE::ClimbIn(int32 Ci, int32 Ti, TFunction<void()> Then)
 
 void AGSE::ClimbOut(int32 Ci, int32 Ti, TFunction<void()> Then)
 {
-	Do(Ci, [this, Ti] { FTractor& T = Tractors[Ti]; T.DoorWant = 80.f; Sound(*T.SndDoorOpen, TW(T, T.KHandle + FVector(0.f, 0.f, 20.f))); });
+	Do(Ci, [this, Ti] { FTractor& T = Tractors[Ti]; T.DoorWant = Tractors[Ti].KDoorDeg; Sound(*T.SndDoorOpen, TW(T, T.KHandle + FVector(0.f, 0.f, 20.f))); });
 	Wait(Ci, 0.7f);
 	Do(Ci, [this, Ci] { if (ATugs* G = Tg()) G->Crew[Ci].Hold = nullptr; });
 	PoseAct(Ci, ClimbFn(Ti, false), 2.8f);
@@ -457,7 +457,7 @@ void AGSE::TrainHoldIn(int32 Ti)
 	T.Until = [this, Nose, S, Ti]
 	{
 		const int32 Li = LoaderAt(S); bool bOther = false;
-		for (int32 o = 0; o < Tractors.Num(); ++o) if (o != Ti && !Tractors[o].bLoader && Tractors[o].bArrival && FMath::Abs(Tractors[o].StandX - S) < 1.f && (Tractors[o].Job == EJob::Out || Tractors[o].Job == EJob::AtStand || Tractors[o].Job == EJob::Loading)) bOther = true;
+		for (int32 o = 0; o < Tractors.Num(); ++o) if (o != Ti && Tractors[o].IsTrain() && Tractors[o].bArrival && FMath::Abs(Tractors[o].StandX - S) < 1.f && (Tractors[o].Job == EJob::Out || Tractors[o].Job == EJob::AtStand || Tractors[o].Job == EJob::Loading)) bOther = true;
 		// (arrivals first: a departure train waits for the arrivals train to leave the stand)
 		return !PlaneNear(Nose, 6000.f) && (Li == INDEX_NONE || Tractors[Li].Job == EJob::AtStand) && (Tractors[Ti].bArrival || !bOther);
 	};
