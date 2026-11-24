@@ -74,6 +74,8 @@ FTransform AGSE::LoaderBagAt(const FTractor& L) const
 	else if (L.LYouTo == 2 && Carts.IsValidIndex(L.LYouCart)) To = (CartSlot(L.LYouCart, L.LYouSlot) * FTransform(FRotator(0.f, Carts[L.LYouCart].Yaw, 0.f), Carts[L.LYouCart].At)).GetRelativeTransform(Root);
 	else if (L.LYouTo == 3) To = FTransform(FVector(95.f, 0.f, 0.f)) * BeltOffset(L, LbLen);
 	else if (L.LYouTo == 4) To = BeltOffset(L, LbLen);
+	else if (L.LYouTo == 5) To = FTransform(Fw.Rotation() + FRotator(0.f, 90.f, 0.f), Feet + Fw * 108.f + FVector(0.f, 0.f, 45.f)).GetRelativeTransform(Root);   // (a train's: towards the carousel, onto the conveyor)
+	else if (L.LYouTo == 6) To = FTransform(FRotator(0.f, -90.f, 0.f), Plan(183.05f, 63.f) + FVector(0.f, 0.f, 75.f)).GetRelativeTransform(Root);
 	const float K = FMath::SmoothStep(0.f, 1.f, L.LYouMov); FTransform R; R.Blend(L.LYouA, To, K); R.SetScale3D(FVector::OneVector);
 	R.AddToTranslation(FVector(0.f, 0.f, 14.f * FMath::Sin(PI * K)));
 	return R;
@@ -96,6 +98,7 @@ void AGSE::LoaderLay(FTractor& L, uint8 To)
 
 void AGSE::LoaderDrop(FTractor& L)
 {
+	if (L.IsTrain()) { TrainBagDrop(L); return; }
 	// down where it is to go, or back where it came from (its counts as they were)
 	ADepartureBelts* D = ADepartureBelts::Get(GetWorld()); if (!D || L.LYouBag == INDEX_NONE) return;
 	const int32 Id = L.LYouBag; const uint8 To = L.LYouTo, From = L.LYouFrom; L.LYouBag = INDEX_NONE; L.LYouTo = 0;
@@ -136,6 +139,13 @@ void AGSE::LoaderBags(int32 Li, float Dt)
 
 bool AGSE::LoaderWaits(float StandX, FString& Why) const
 {
+	for (const FTractor& T : Tractors)
+		if (T.IsTrain() && (T.Job == EJob::None || T.Job == EJob::Boarding) && FMath::Abs(T.YStandX - StandX) < 1.f)
+		{
+			Why = T.Job == EJob::Boarding ? TEXT("its bags wait: a crew take over the train you left") : T.Player.IsValid() ? TEXT("its bags are on the train you drive")
+				: TEXT("its bags are on the train you left: bring it to its place beside the belt loader");
+			return true;
+		}
 	const int32 Li = LoaderAt(StandX); if (Li == INDEX_NONE) return false;
 	const FTractor& L = Tractors[Li]; bool bArr = false; if (LoaderTrain(L, &bArr) == INDEX_NONE && (L.bLOver || !(L.LYouBag != INDEX_NONE || L.BeltBags.ContainsByPredicate([](const FTractor::FBeltBag& B) { return B.Stage <= 2; })))) return false;
 	const TCHAR* W = bArr ? TEXT("the arriving bags wait") : TEXT("its bags wait");

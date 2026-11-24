@@ -464,9 +464,13 @@ riders `Data/ambulift-riders.json`, `Data/wheelchair-riders.json`, all points an
   crew has it; crews take another or wait with the reason (`TractorFree`, `CartFree`). Carts follow (`TrainDrag` stops the train when
   a cart would touch something); never backwards with carts, the GPU straight back only. Not off with a pin up, a bar unpinned, a curtain open.
 - E at pin, drawbar, GPU bar, straps, hem: the crew's own movements (`HitchPinPose`, `CartBarPose`, `GpuBarPose`, `StrapPose`, `CurtainPose`).
-  A cart is uncoupled only back at its place, the GPU only in its place at the stand. Two minutes left, 40 m away: a crew pin it up and
-  fetch it home (`TractorTake`: apron, hall lane westward, beside the boxes; not from elsewhere in the building, not with bags aboard).
-- Next: bags by hand at the carousel and conveyor (hook: `TrainFlight`, the carts' Flight with the bag).
+  A cart is uncoupled only back at its place, the GPU only in its place at the stand. Two minutes left, 40 m away: a crew take over.
+- Its bags (GSETractorBags.cpp), compiled, not run: E takes/lays a bag at the make-up carousel, cart, arrivals conveyor (`TrainBagDo`, switches
+  60-64, also beside a crew's train; wrong flight said). Your train with one flight's bags is that flight's (`YouTrainFor`, `YStandX`): no second
+  train, the flight waits with the reason (25 min at most); parked in its place and left 5 s, a crew unload it (`YouTrain`, `TrainJoin`).
+- Left: with bags on to the stand or conveyor, empty home, from anywhere a way exists (`WayIn`, `WayTo`), else every minute again. Towed GPU
+  and drawn carts stop too (`TowHit`). A loose cart is pushed back straight (`CartFetches`; within 2 m only).
+- Next: a run; arriving bags from the belt loader's foot by hand onto your own train.
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 

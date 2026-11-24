@@ -136,6 +136,7 @@ void AGSE::MakeUpBy(int32 Ci, int32 Ti, float Started, int32 H)
 			ADP_LOG(TEXT("GSE: %s's train made up - %d bags of %s on %d carts"), *U.Name, Loaded, *BagKey.FindRef(Ti), U.Train.Num());
 			WaitFor(Ci, [this, Ti](float E) { return !Helper.Contains(Ti) || HelperDone.Contains(Ti) || E > 60.f; });
 			Do(Ci, [this, Ti] { Helper.Remove(Ti); });
+			WaitFor(Ci, [this, Ti](float E) { const int32 y = TrainYouBag(); return y == INDEX_NONE || E > 240.f || BagOf(Tractors[y].LYouBag) != BagKey.FindRef(Ti); });   // (one of its bags in your hands)
 			const FVector Toward = D2 ? D2->CarouselCentre(FMath::Max(0, D2->CarouselOf(BagKey.FindRef(Ti)))) : Plan(124.f, 33.5f);
 			Curtains(Ci, Ti, false, nullptr, &Toward);
 			ClimbIn(Ci, Ti, [this, Ti] { TrainToStand(Ti); });
@@ -356,6 +357,7 @@ void AGSE::PollBags(float Dt)
 		if (F.StartsWith(TEXT("ARR ")) || D->BagsOf(F).Num() == 0) continue;   // (several trips: a new train when none is on it)
 		bool bHas = false; for (const auto& K : BagKey) if (K.Value == F && Tractors.IsValidIndex(K.Key) && Tractors[K.Key].Job != EJob::None) bHas = true;
 		{ int32 OnCarts = 0; for (const FCart& C : Carts) for (const int32 b : C.Bags) if (b != INDEX_NONE) { const FDepBagTag* T = D->Tag(b); if (T && T->Flight == F) ++OnCarts; } if (D->BagsOf(F).Num() <= OnCarts) bHas = true; }
+		if (YouAtCarousel(F)) bHas = true;   // (your train loads them)
 		if (bHas) continue;
 		// (to-do 206: your own flight - asked for in your people's queue, its stand known)
 		if (HiredFlight(F, 0.f))

@@ -4,6 +4,7 @@
 #include "VehicleControls.h"
 #include "ADPLog.h"
 #include "Tugs.h"
+#include "Turnaround.h"
 #include "BabylonModel.h"
 #include "CrewPose.h"
 #include "Engine/World.h"
@@ -15,7 +16,7 @@ namespace
 {
 	const FVector TrTPin(-162.f, 0.f, 40.f), TrTPinTop(-162.f, 0.f, 62.5f), TrCJaw(-127.f, 0.f, 40.f), TrCPinTop(-127.f, 0.f, 59.55f), TrCAxle(80.f, 0.f, 38.9f), TrGHandle(170.f, 0.f, 48.f), TrGEye(205.f, 0.f, 40.f);
 	const float TrEyeToAxle = 121.f, TrLeave = 4000.f, TrWait = 120.f;
-	enum : int32 { TrPin = 1, TrPinF, TrBarOn, TrBarOff, TrGpuOn, TrGpuOff, TrStrapA, TrStrapB, TrHem };
+	enum : int32 { TrPin = 1, TrPinF, TrBarOn, TrBarOff, TrGpuOn, TrGpuOff, TrStrapA, TrStrapB, TrHem, TrBag = 60, TrBagEnd = 64 };   // (TrBag..: GSETractorBags.cpp)
 	FVector TrYawV(float Yaw) { return FRotator(0.f, Yaw, 0.f).Vector(); }
 	const APawn* TrMe(const UWorld* W) { const APlayerController* PC = W ? W->GetFirstPlayerController() : nullptr; return PC ? PC->GetPawn() : nullptr; }
 	float TrTurn(float A, float B) { return FMath::Abs(FMath::FindDeltaAngleDegrees(A, B)); }
@@ -116,28 +117,30 @@ bool AGSE::TrainDrag(FTractor& T, const FCollisionQueryParams& Q, float Dt)
 	if (T.Train.Num() == 0 && T.TowGpu == INDEX_NONE) return true;
 	struct FWas { FVector At = FVector::ZeroVector; float Yaw = 0.f, Axle = 0.f; }; TArray<FWas> Was;
 	for (const int32 c : T.Train) { FWas W; if (Carts.IsValidIndex(c)) { W.At = Carts[c].At; W.Yaw = Carts[c].Yaw; W.Axle = Carts[c].AxleYaw; } Was.Add(W); }
+	ATugs* Gt = Tg(); ABabylonModel* Gm = Gt && Gt->Tugs.IsValidIndex(T.TowGpu) ? Gt->Tugs[T.TowGpu].Gpu.M.Get() : nullptr;
+	const FTransform GWas = Gm ? Gm->GetActorTransform() : FTransform::Identity; FGpuRig RWas; bool bRig = false; if (Gm) if (const FGpuRig* Rg = GpuRigs.Find(T.TowGpu)) { RWas = *Rg; bRig = true; }
 	Train(T, Dt);
-	TArray<FOutline> Ol; Outlines(Ol);
-	auto Hit = [&](const FCart& C) -> bool
-	{
-		const FVector F = TrYawV(C.Yaw), R = TrYawV(C.Yaw + 90.f), Cc = C.At - F * 2.f;
-		for (const FOutline& O : Ol)
-		{
-			if (FVector::Dist2D(O.C, Cc) < 30.f || TrainOwn(T, O.C) || FVector::Dist2D(O.C, T.At + TrYawV(T.Yaw) * T.KCentreX) < 60.f) continue;
-			const FVector D = O.C - Cc; if (D.Size2D() > 140.f + 83.f + O.Hx + O.Hy) continue;
-			const FVector Ax[4] = {F, R, O.X, O.Y}; bool bApart = false;
-			for (const FVector& A : Ax) if (FMath::Abs(D | A) > 140.f * FMath::Abs(F | A) + 80.f * FMath::Abs(R | A) + O.Hx * FMath::Abs(O.X | A) + O.Hy * FMath::Abs(O.Y | A)) { bApart = true; break; }
-			if (!bApart) return true;
-		}
-		return GetWorld()->OverlapBlockingTestByChannel(FVector(Cc.X, Cc.Y, C.At.Z + 130.f), FQuat(FRotator(0.f, C.Yaw, 0.f)), ECC_Pawn, FCollisionShape::MakeBox(FVector(136.f, 78.f, 70.f)), Q);
-	};
+	auto Say = [&](const FString& W) { const float Now = GetWorld()->GetTimeSeconds(); if (Now > T.YNoteT) { T.YNoteT = Now + 4.f; AVehicleControls::Note(GetWorld(), W); } };
+	auto Hit = [&](const FVector& At, float Yaw) { return TowHit(&T, At - TrYawV(Yaw) * 2.f, Yaw, 140.f, 80.f, INDEX_NONE, Q); };
 	for (int32 k = 0; k < T.Train.Num(); ++k)
 	{
-		if (!Carts.IsValidIndex(T.Train[k]) || FVector::Dist2D(Carts[T.Train[k]].At, Was[k].At) < 0.01f || !Hit(Carts[T.Train[k]])) continue;
+		if (!Carts.IsValidIndex(T.Train[k])) continue;
+		const FCart& K = Carts[T.Train[k]];
+		if (FVector::Dist2D(K.At, Was[k].At) < 0.01f || !Hit(K.At, K.Yaw) || Hit(Was[k].At, Was[k].Yaw)) continue;   // (already touching: it may come free)
 		// (a cart against something: the whole train stands as it was)
 		for (int32 j = 0; j < T.Train.Num(); ++j) if (Carts.IsValidIndex(T.Train[j])) { FCart& C = Carts[T.Train[j]]; C.At = Was[j].At; C.Yaw = Was[j].Yaw; C.AxleYaw = Was[j].Axle; PoseCart(C); }
-		const float Now = GetWorld()->GetTimeSeconds(); if (Now > T.YNoteT) { T.YNoteT = Now + 4.f; AVehicleControls::Note(GetWorld(), FString::Printf(TEXT("Cart %d of the train is against something"), k + 1)); }
+		Say(FString::Printf(TEXT("Cart %d of the train is against something"), k + 1));
 		return false;
+	}
+	if (Gm)
+	{
+		auto GHit = [&](const FTransform& X) { const FVector P = X.TransformPosition(FVector(40.f, 0.f, 0.f)); return TowHit(&T, P, X.Rotator().Yaw, 170.f, 90.f, T.TowGpu, Q); };
+		if (FVector::Dist2D(Gm->GetActorLocation(), GWas.GetLocation()) > 0.01f && GHit(Gm->GetActorTransform()) && !GHit(GWas))
+		{
+			Gm->SetActorTransform(GWas); if (FGpuRig* Rg = GpuRigs.Find(T.TowGpu)) if (bRig) *Rg = RWas;
+			Say(TEXT("The GPU behind you is against something"));
+			return false;
+		}
 	}
 	return true;
 }
@@ -180,6 +183,7 @@ bool AGSE::TractorMay(int32 Ti, int32 S, FString& Why) const
 	case TrBarOn: return PinR > 0.95f ? true : No(TEXT("pull the hitch pin up first"));
 	case TrBarOff:
 	{
+		if (const int32 o = T.YBar != INDEX_NONE ? T.YBar : l; Carts.IsValidIndex(o)) for (const int32 b : Carts[o].Bags) if (b != INDEX_NONE) return No(TEXT("bags in it: take them off first"));
 		if (T.YBar != INDEX_NONE) return PinR > 0.95f ? true : No(TEXT("pull the hitch pin up first"));
 		if (l == INDEX_NONE || PinF < 0.95f) return No(TEXT("pull its hitch pin up first"));
 		for (int32 k = 0; k < 2; ++k) if (Carts[l].Curtain[k] > 0.01f || Carts[l].StrapOff[k] || !Carts[l].bStraps[k]) return No(TEXT("close its curtains first"));
@@ -273,12 +277,13 @@ void AGSE::TractorDo(int32 Ti, int32 S, int32 c, int32 s, float Want, bool bEnd)
 		if (bEnd) { Sound(TEXT("BCDrawbarClank"), TrainHitch(T)); return; }
 		if (Carts[c].Tractor != INDEX_NONE) return;   // (a crew took it meanwhile)
 		if (!Carts[c].bOut) { Carts[c].bOut = true; Carts[c].Place = Carts[c].At; Carts[c].PlaceYaw = Carts[c].Yaw; }
-		Carts[c].Tractor = Ti; Carts[c].LiftWant = 0.f; Carts[c].bMoved = true; T.YBar = c;
+		Carts[c].bLoose = false; Carts[c].Tractor = Ti; Carts[c].LiftWant = 0.f; Carts[c].bMoved = true; T.YBar = c;
 		return;
 	case TrBarOff:
 		if (bEnd) return;
 		T.Train.Remove(c); if (T.YBar == c) T.YBar = INDEX_NONE;
-		Carts[c].Tractor = INDEX_NONE; Carts[c].LiftWant = -80.f; Carts[c].Flight.Reset(); Carts[c].bOut = false; Carts[c].bMoved = true;
+		Carts[c].Tractor = INDEX_NONE; Carts[c].LiftWant = -80.f; Carts[c].Flight.Reset(); Carts[c].bMoved = true; Carts[c].YLeftT = 0.f;
+		Carts[c].bLoose = Carts[c].bOut = FVector::Dist2D(Carts[c].At, Carts[c].Place) > 25.f || TrTurn(Carts[c].Yaw, Carts[c].PlaceYaw) > 4.f;   // (put back by a crew: CartFetches)
 		Sound(TEXT("BCDrawbarClank"), CW(Carts[c], FVector(201.f, 0.f, 40.f)));
 		ADP_LOG(TEXT("GSE: a cart taken off %s by you (train of %d)"), *T.Name, T.Train.Num());
 		return;
@@ -302,9 +307,10 @@ TSharedPtr<FVehTable> AGSE::TractorControls()
 {
 	using K = FVehControl;
 	TSharedPtr<FVehTable> Tb = MakeShared<FVehTable>();
-	auto Add = [&Tb](const TCHAR* Lb, int32 S) { K X; X.Part = TEXT(""); X.Point = TEXT("TR_Hitch"); X.Kind = K::Push; X.Label = Lb; X.Out = FVector::ZeroVector; X.Switch = S; Tb->Controls.Add(X); };
+	auto Add = [&Tb](const TCHAR* Lb, int32 S) { K X; X.Part = TEXT(""); X.Point = TEXT("TR_Hitch"); X.Kind = K::Push; X.Label = Lb; X.Out = FVector::ZeroVector; X.Switch = S; X.bHelp = S >= TrBag; Tb->Controls.Add(X); };
 	Add(TEXT("Hitch pin"), TrPin); Add(TEXT("Last cart's hitch pin"), TrPinF); Add(TEXT("Cart's drawbar"), TrBarOn); Add(TEXT("Cart's drawbar"), TrBarOff);
 	Add(TEXT("GPU's drawbar"), TrGpuOn); Add(TEXT("GPU's drawbar"), TrGpuOff); Add(TEXT("Curtain straps"), TrStrapA); Add(TEXT("Curtain straps"), TrStrapB); Add(TEXT("Curtain"), TrHem);
+	for (int32 b = TrBag; b <= TrBagEnd; ++b) Add(TEXT("Bag"), b);   // (beside its crew too)
 	Tb->Range = 2600.f;
 	Tb->Frame = [](const AGSE&, const FTractor&, int32) { return FTransform::Identity; };
 	Tb->Now = [](const FTractor&, int32) { return 0.f; };
@@ -314,10 +320,23 @@ TSharedPtr<FVehTable> AGSE::TractorControls()
 	Tb->Stow = [](AGSE&, FTractor&) {};
 	Tb->Aboard = [](const FTractor&, const FVector&) -> uint8 { return 0; };
 	auto Idx = [](const AGSE& G, const FTractor& T) { return static_cast<int32>(&T - G.Tractors.GetData()); };
-	Tb->Spot = [Idx](const AGSE& G, const FTractor& T, const K& X, FVector& W) { if (X.bSeat || X.Switch < TrPin || X.Switch > TrHem) return false; W = G.TractorSpot(Idx(G, T), X.Switch); return true; };
-	Tb->Say = [Idx](const AGSE& G, const FTractor& T, const K& X) -> FString { return X.bSeat || X.Switch < TrPin || X.Switch > TrHem ? FString(X.Label) : G.TractorSay(Idx(G, T), X.Switch); };
-	Tb->MaySwitch = [](AGSE& G, int32 Ti, int32 S, FString& Why) { return G.TractorMay(Ti, S, Why); };
-	Tb->Switch = [](AGSE&, int32, int32) { return false; };
+	Tb->Spot = [Idx](const AGSE& G, const FTractor& T, const K& X, FVector& W) { if (!X.bSeat && X.Switch >= TrBag && X.Switch <= TrBagEnd) { W = G.TrainBagSpot(Idx(G, T), X.Switch); return true; } if (X.bSeat || X.Switch < TrPin || X.Switch > TrHem) return false; W = G.TractorSpot(Idx(G, T), X.Switch); return true; };
+	Tb->Say = [Idx](const AGSE& G, const FTractor& T, const K& X) -> FString { if (!X.bSeat && X.Switch >= TrBag && X.Switch <= TrBagEnd) return G.TrainBagSay(Idx(G, T), X.Switch); return X.bSeat || X.Switch < TrPin || X.Switch > TrHem ? FString(X.Label) : G.TractorSay(Idx(G, T), X.Switch); };
+	Tb->MaySwitch = [](AGSE& G, int32 Ti, int32 S, FString& Why) { return S >= TrBag ? G.TrainBagMay(Ti, S, Why) : G.TractorMay(Ti, S, Why); };
+	Tb->Switch = [](AGSE& G, int32 Ti, int32 S) { return S >= TrBag && G.TrainBagDo(Ti, S); };
+	Tb->Held = [](const FTractor& T) -> const TCHAR* { return T.LYouBag != INDEX_NONE ? TEXT("a bag") : nullptr; };
+	static auto Hand = [](const AGSE& G, const FTractor& T, FVector& P, float Side) -> bool
+	{
+		const APawn* Me = TrMe(G.GetWorld()); if (T.LYouBag == INDEX_NONE || !Me) return false;
+		// (on its two ends, as the belt loader's: GSELoaderYou.cpp)
+		const FTransform B = G.LoaderBagAt(T); const FVector R = FTransform(FRotator(0.f, T.Yaw, 0.f), T.At).InverseTransformVectorNoScale(Me->GetActorRightVector());
+		const FVector X = B.GetUnitAxis(EAxis::X) * 30.f, Y = B.GetUnitAxis(EAxis::Y) * 20.f, V = FMath::Abs(X | R) > FMath::Abs(Y | R) ? X * FMath::Sign(X | R) : Y * FMath::Sign(Y | R);
+		P = B.GetLocation() + V * Side + FVector(0.f, 0.f, 12.f); return true;
+	};
+	Tb->Grip = [](const AGSE& G, const FTractor& T, FVector& P) { return Hand(G, T, P, 1.f); };
+	Tb->GripL = [](const AGSE& G, const FTractor& T, FVector& P) { return Hand(G, T, P, -1.f); };
+	Tb->Leash = [](const AGSE&, const FTractor&, FVector& From) { From = FVector::ZeroVector; return 2500.f; };
+	Tb->Drop = [](FTractor& T) { if (AGSE* G = T.M.IsValid() ? AGSE::Get(T.M->GetWorld()) : nullptr) G->TrainBagDrop(T); };
 	Tb->Climb = [](const AGSE& G, int32 Ti, int32 S, float& Secs) -> TFunction<void(float, float, FDriverPose&)> { if (S < TrPin || S > TrHem) return nullptr; return G.TractorAct(Ti, S, Secs); };
 	return Tb;
 }
@@ -327,7 +346,7 @@ TSharedPtr<FVehTable> AGSE::TractorControls()
 FString AGSE::TrainFlight(const FTractor& T) const
 {
 	// the flight whose bags are truly in its carts (none: it is nobody's train); what you load by hand sets Flight with the bag
-	for (const int32 c : T.Train) if (Carts.IsValidIndex(c)) for (const int32 B : Carts[c].Bags) if (B != INDEX_NONE) return Carts[c].Flight.IsEmpty() ? FString(TEXT("?")) : Carts[c].Flight;
+	for (const int32 c : T.Train) if (Carts.IsValidIndex(c)) for (const int32 B : Carts[c].Bags) if (B != INDEX_NONE) { const FString F = BagOf(B); return F.IsEmpty() ? FString(TEXT("?")) : F; }
 	return FString();
 }
 
@@ -335,12 +354,23 @@ void AGSE::YouTractors(float Dt)
 {
 	for (int32 i = 0; i < Tractors.Num(); ++i)
 	{
-		FTractor& T = Tractors[i]; if (!T.IsTrain() || T.Job != EJob::None || !T.M.IsValid()) continue;
+		FTractor& T = Tractors[i]; if (!T.IsTrain() || !T.M.IsValid()) continue;
+		TrainBags(i, Dt); YouTrain(i, Dt);
+		if (T.Job != EJob::None) continue;
 		if (Carts.IsValidIndex(T.YBar))
 		{
 			// its drawbar laid in: the cart drawn to the hitch as the eye comes down, never at once
 			FCart& C = Carts[T.YBar]; const FVector E = CW(C, TrCAxle) + TrYawV(C.AxleYaw) * TrEyeToAxle, H = TrainHitch(T);
-			const FVector D(H.X - E.X, H.Y - E.Y, 0.f); if (D.Size() > 0.3f) CartFollow(C, E + D.GetClampedToMaxSize(20.f * Dt));
+			const FVector D(H.X - E.X, H.Y - E.Y, 0.f); if (D.Size() > 0.3f)
+			{
+				const FVector WasAt = C.At; const float WasY = C.Yaw, WasA = C.AxleYaw; const bool bWas = CartHit(C, &T);
+				CartFollow(C, E + D.GetClampedToMaxSize(20.f * Dt));
+				if (!bWas && CartHit(C, &T))
+				{
+					C.At = WasAt; C.Yaw = WasY; C.AxleYaw = WasA; PoseCart(C);
+					if (const float Now = GetWorld()->GetTimeSeconds(); Now > T.YNoteT) { T.YNoteT = Now + 4.f; AVehicleControls::Note(GetWorld(), TEXT("Something is in the cart's way")); }
+				}
+			}
 		}
 		const APawn* Me = TrMe(GetWorld());
 		if (T.Player.IsValid() || TractorFree(T) || !Me || FVector::Dist2D(Me->GetActorLocation(), T.At) < TrLeave) { T.YLeftT = 0.f; continue; }
@@ -348,6 +378,7 @@ void AGSE::YouTractors(float Dt)
 		T.YLeftT = TrWait - 10.f;   // (asked again in ten seconds)
 		TractorTake(i);
 	}
+	CartFetches(Dt);
 }
 
 /** Where a crew can drive it home from: 0 nowhere, 1 the apron, 2 the hall's lane westward, 3 beside the tractors' boxes. */
@@ -363,17 +394,32 @@ int32 AGSE::TractorWhere(const FTractor& T) const
 void AGSE::TractorTake(int32 Ti)
 {
 	const FString Fl = TrainFlight(Tractors[Ti]);
-	const int32 Where = TractorWhere(Tractors[Ti]);
-	if (!Fl.IsEmpty() || Where == 0 || (Tractors[Ti].TowGpu != INDEX_NONE && Where != 1))
+	if (Tractors[Ti].LYouBag != INDEX_NONE) return;   // (one of its bags in your hands)
+	if (Fl == TEXT("?"))
 	{
-		if (Tractors[Ti].YTryT == 0.f) ADP_WARN(TEXT("GSE: %s stays where you left it (%s)"), *Tractors[Ti].Name, Fl.IsEmpty() ? TEXT("no way home from there for its crew") : TEXT("bags in its carts"));
+		if (Tractors[Ti].YTryT == 0.f) ADP_WARN(TEXT("GSE: %s stays where you left it: a bag without a flight's tag in its carts"), *Tractors[Ti].Name);
 		Tractors[Ti].YTryT = 1.f; return;
+	}
+	if (Fl.StartsWith(TEXT("ARR "))) { TrainJoin(Ti, Fl, 0.f, [this, Ti] { TrainAway(Ti, 2); }); return; }
+	if (!Fl.IsEmpty())
+	{
+		// (a flight's bags: out to its stand, or back if it has gone - TrainApron)
+		const ADPTurnaround::FTurn* Tn = ADPTurnaround::ForFlight(Fl); const float Sx = Tn ? Tn->StandX : 0.f;
+		if (Tn) EnsureLoader(Sx, Fl);
+		TrainJoin(Ti, Fl, Sx, [this, Ti] { TrainAway(Ti, 1); }); return;
 	}
 	Tractors[Ti].YTryT = 0.f;
 	const int32 Ci = Borrow(Tractors[Ti].At, nullptr, Ti); if (Ci == INDEX_NONE) return;   // (nobody free: asked again)
 	FTractor& T = Tractors[Ti];
-	T.Driver = Ci; T.Job = EJob::Boarding; T.JobT = 0.f; T.Key.Reset(); T.StandX = 0.f; T.YLeftT = 0.f; bWorked = true;
+	T.Driver = Ci; T.Job = EJob::Boarding; T.JobT = 0.f; T.Key.Reset(); T.StandX = 0.f; T.bArrival = false; T.YLeftT = 0.f; bWorked = true;
 	ADP_LOG(TEXT("GSE: a crew fetch %s home from where you left it (%d carts%s)"), *T.Name, T.Train.Num(), T.TowGpu != INDEX_NONE ? TEXT(", the GPU") : TEXT(""));
+	TrainTidy(Ci, Ti);
+	ClimbIn(Ci, Ti, [this, Ti] { TrainAway(Ti, 0); });
+}
+
+void AGSE::TrainTidy(int32 Ci, int32 Ti)
+{
+	FTractor& T = Tractors[Ti];
 	// what you left half done: the pins in (the cart whose drawbar lies in is on the train then), the curtains closed
 	auto PinIn = [this, Ci, Ti](int32 Front)
 	{
@@ -396,7 +442,6 @@ void AGSE::TractorTake(int32 Ti)
 	}
 	for (int32 k = T.Train.Num() - 1; k >= 0; --k) if (const int32 c = T.Train[k]; Carts.IsValidIndex(c) && (Carts[c].PinWant > 0.5f || (T.YBar != INDEX_NONE && k == T.Train.Num() - 1))) PinIn(c);
 	if (T.PinWant > 0.5f || (T.YBar != INDEX_NONE && T.Train.Num() == 0)) PinIn(INDEX_NONE);
-	ClimbIn(Ci, Ti, [this, Ti] { FTractor& U = Tractors[Ti]; U.Job = EJob::Back; U.bPark = false; U.bReverse = false; Motor(U, true); TractorHome(Ti); });
 }
 
 void AGSE::TractorHome(int32 Ti)

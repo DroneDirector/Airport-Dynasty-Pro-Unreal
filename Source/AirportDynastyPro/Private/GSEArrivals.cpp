@@ -29,6 +29,7 @@ namespace
 bool AGSE::ArrivalFor(float StandX, const FString& Key)
 {
 	for (const FTractor& T : Tractors) if (T.bArrival && T.Job != EJob::None && FMath::Abs(T.StandX - StandX) < 1.f) return true;
+	if (YouArrTrain(StandX, Key)) return true;   // (yours, empty, parked there)
 	int32 Ti = INDEX_NONE; for (int32 t = 0; t < Tractors.Num() && Ti == INDEX_NONE; ++t) if (TractorFree(Tractors[t])) Ti = t;
 	if (Ti == INDEX_NONE) { ADP_LOG(TEXT("GSE: no tractor free for %s's arriving bags"), *Key); return false; }
 	for (int32 a = 0; a < Carts.Num(); ++a)
@@ -167,19 +168,38 @@ void AGSE::ArrivalToStation(int32 Ti)
 	Dubins(W, T.At, T.Yaw, A, Yw, 400.f);
 	Leg(W, Xc, N + 30.f, 0.f, 1.f, Xc, N + 46.f, 0.f, 1.f, 400.f);
 	ADP_LOG(TEXT("GSE: %s's train with the arriving bags leaves the stand x %.0f"), *T.Name, S);
-	Go(T, MoveTemp(W), false, [this, Ti]
-	{
-		FTractor& U = Tractors[Ti];
-		TArray<FVector> R;
-		if (!Apron(R, U.At, Plan(275.f, 114.f), &U)) R.Add(Plan(275.f, 114.f));
-		Leg(R, 275.f, 114.f, 0.f, -1.f, 275.f, 108.f, 0.f, -1.f, 400.f);
-		Leg(R, 275.f, 108.f, 0.f, -1.f, 269.f, 93.f, 0.f, -1.f, 400.f);
-		Leg(R, 269.f, 93.f, 0.f, -1.f, 269.f, 61.f, 0.f, -1.f, 400.f);
-		Leg(R, 269.f, 61.f, 0.f, -1.f, 265.f, 57.f, -1.f, 0.f, 400.f);
-		Leg(R, 265.f, 57.f, -1.f, 0.f, 192.f, 57.f, -1.f, 0.f, 400.f);
-		Leg(R, 192.f, 57.f, -1.f, 0.f, 178.f, 60.f, -1.f, 0.f, 400.f);
-		Go(U, MoveTemp(R), false, [this, Ti] { ArrivalUnload(Ti); });
-	});
+	Go(T, MoveTemp(W), false, [this, Ti] { ArrivalIn(Ti); });
+}
+
+void AGSE::ArrivalIn(int32 Ti)
+{
+	FTractor& U = Tractors[Ti]; U.Job = EJob::Back;
+	TArray<FVector> R;
+	if (!Apron(R, U.At, Plan(275.f, 114.f), &U)) R.Add(Plan(275.f, 114.f));
+	Leg(R, 275.f, 114.f, 0.f, -1.f, 275.f, 108.f, 0.f, -1.f, 400.f);
+	Leg(R, 275.f, 108.f, 0.f, -1.f, 269.f, 93.f, 0.f, -1.f, 400.f);
+	Leg(R, 269.f, 93.f, 0.f, -1.f, 269.f, 61.f, 0.f, -1.f, 400.f);
+	Leg(R, 269.f, 61.f, 0.f, -1.f, 265.f, 57.f, -1.f, 0.f, 400.f);
+	Leg(R, 265.f, 57.f, -1.f, 0.f, 192.f, 57.f, -1.f, 0.f, 400.f);
+	Leg(R, 192.f, 57.f, -1.f, 0.f, 178.f, 60.f, -1.f, 0.f, 400.f);
+	Go(U, MoveTemp(R), false, [this, Ti] { ArrivalUnload(Ti); });
+}
+
+/** The claim belt the arriving passengers wait at: the boards' flight number for the aircraft at this stand - PaxFlow names
+ *  the belt with it; none yet: named now, with no random bags (the train brings them). */
+FString AGSE::ArrLabel(const FString& Key, float StandX)
+{
+	if (StandX == 0.f) StandX = ArrStand.FindRef(Key);
+	if (const ADPTurnaround::FTurn* Tn = ADPTurnaround::AtStand(StandX)) for (const FADPBoardRow& Row : ADPBoards::Rows(this, true, 40)) if (Row.Reg == Tn->Reg) return Row.Flight;
+	return Key;
+}
+
+int32 AGSE::ArrBelt(const FString& Key, float StandX)
+{
+	const FString Label = ArrLabel(Key, StandX);
+	int32 Belt = ABaggageBelts::BeltOf(GetWorld(), Label);
+	if (Belt == INDEX_NONE) { ABaggageBelts::OnArrived(GetWorld(), StandX == 0.f ? ArrStand.FindRef(Key) : StandX, Label, 0); Belt = ABaggageBelts::BeltOf(GetWorld(), Label); }
+	return Belt == INDEX_NONE ? FMath::Abs(int32(GetTypeHash(Key))) % 5 : Belt;
 }
 
 void AGSE::ArrivalUnload(int32 Ti)
@@ -192,21 +212,26 @@ void AGSE::ArrivalUnload(int32 Ti)
 	ClimbOut(Ci, Ti, nullptr);
 	const FVector Trunk = Plan(GsaStationX, GsaTrunkZ);
 	Curtains(Ci, Ti, true, nullptr, &Trunk);
-	// (the claim belt the arriving passengers wait at: the boards' flight number for the aircraft at this stand - PaxFlow
-	//  names the belt with it; none yet: name one now, with no random bags - this train brings them)
-	FString Label = T.Key;
-	if (const ADPTurnaround::FTurn* Tn = ADPTurnaround::AtStand(T.StandX)) for (const FADPBoardRow& Row : ADPBoards::Rows(this, true, 40)) if (Row.Reg == Tn->Reg) { Label = Row.Flight; break; }
-	int32 Belt = ABaggageBelts::BeltOf(GetWorld(), Label);
-	if (Belt == INDEX_NONE) { ABaggageBelts::OnArrived(GetWorld(), T.StandX, Label, 0); Belt = ABaggageBelts::BeltOf(GetWorld(), Label); }
-	if (Belt == INDEX_NONE) Belt = FMath::Abs(int32(GetTypeHash(T.Key))) % 5;
-	int32 Count = 0;
-	for (const int32 c : T.Train)
+	const int32 Belt = ArrBelt(T.Key, T.StandX);
+	Do(Ci, [this, Ci, Ti, Belt] { Later([this, Ci, Ti, Belt] { ArrUnloadBy(Ci, Ti, 0, Belt); }); });
+}
+
+/** The next bag of its carts onto the conveyor (bag by bag: you may take some of them too), then home. */
+void AGSE::ArrUnloadBy(int32 Ci, int32 Ti, int32 Count, int32 Belt)
+{
+	const FVector Trunk = Plan(GsaStationX, GsaTrunkZ);
+	auto Next = [this, Ti](int32& c, int32& s)
+	{
+		for (const int32 k : Tractors[Ti].Train) if (Carts.IsValidIndex(k)) for (s = Carts[k].Bags.Num() - 1; s >= 0; --s) if (Carts[k].Bags[s] != INDEX_NONE && !SlotTaken.Contains(k * 100 + s)) { c = k; return true; }
+		return false;
+	};
+	int32 c = INDEX_NONE, s = INDEX_NONE;
+	if (Next(c, s))
 	{
 		const float Ys = FVector::DotProduct(Trunk - Carts[c].At, FRotator(0.f, Carts[c].Yaw + 90.f, 0.f).Vector()) > 0.f ? 1.f : -1.f;
-		for (int32 s = Carts[c].Bags.Num() - 1; s >= 0; --s)
 		{
-			const int32 Id = Carts[c].Bags[s]; if (Id == INDEX_NONE) continue;
-			const float Sx = CartSlot(c, s).GetLocation().X; const float At = GsaStationX + 0.6f * (Count % 3 - 1); ++Count;
+			const int32 Id = Carts[c].Bags[s]; SlotTaken.Add(c * 100 + s);
+			const float Sx = CartSlot(c, s).GetLocation().X; const float At = GsaStationX + 0.6f * (Count % 3 - 1);
 			WalkTo(Ci, [this, c, Sx, Ys] { return CW(Carts[c], FVector(Sx, Ys * 118.f, 0.f)); }, 15.f);
 			PoseAct(Ci, [this, c, Id, Sx, Ys](float K, float PH, FDriverPose& P)
 			{
@@ -216,7 +241,7 @@ void AGSE::ArrivalUnload(int32 Ti)
 				const float E = FMath::Min(1.f, K * 1.5f);
 				P = G.bTwoHands ? ADPPose::Both(St, Face, G.Left, G.Right, 1.f, PH, E, 14.f) : ADPPose::Reach(St, Face, 1, G.Handle, 1.f, PH, E);
 			}, 0.9f);
-			Do(Ci, [this, Ci, c, s, Id] { if (ADepartureBelts* D = ADepartureBelts::Get(GetWorld())) D->TakeBagById(Id, Body(Ci), GsaHand); Carts[c].Bags[s] = INDEX_NONE; });
+			Do(Ci, [this, Ci, c, s, Id] { if (ADepartureBelts* D = ADepartureBelts::Get(GetWorld())) D->TakeBagById(Id, Body(Ci), GsaHand); Carts[c].Bags[s] = INDEX_NONE; SlotTaken.Remove(c * 100 + s); });
 			// onto the conveyor at its loading point (lying across it, as its own bags ride)
 			WalkTo(Ci, [this, At] { return Plan(At, GsaTrunkZ - 1.15f); }, 15.f);
 			auto Lay = [this, At] { return FTransform(FRotator(0.f, -90.f, 0.f), Plan(At, GsaTrunkZ) + FVector(0, 0, 75.f)); };
@@ -238,7 +263,24 @@ void AGSE::ArrivalUnload(int32 Ti)
 				PendingRemove.Add(TPair<double, int32>(GetWorld()->GetTimeSeconds() + 2.6, Id));
 			});
 		}
+		Do(Ci, [this, Ci, Ti, Count, Belt] { Later([this, Ci, Ti, Count, Belt] { ArrUnloadBy(Ci, Ti, Count + 1, Belt); }); });
+		return;
 	}
+	// (one of its bags in your hands: waited for; put back on a cart it is taken too)
+	const FString Mine = TEXT("ARR ") + Tractors[Ti].Key;
+	auto Held = [this, Mine] { const int32 y = TrainYouBag(); return y != INDEX_NONE && BagOf(Tractors[y].LYouBag) == Mine; };
+	if (Held())
+	{
+		WaitFor(Ci, [Held](float E) { return !Held() || E > 240.f; });
+		Do(Ci, [this, Ci, Ti, Count, Belt, Held] { Later([this, Ci, Ti, Count, Belt, Held] { if (Held()) { ADP_WARN(TEXT("GSE: %s leaves the arrivals conveyor, one of its bags still in your hands"), *Tractors[Ti].Name); ArrUnloadEnd(Ci, Ti, Count); } else ArrUnloadBy(Ci, Ti, Count, Belt); }); });
+		return;
+	}
+	ArrUnloadEnd(Ci, Ti, Count);
+}
+
+void AGSE::ArrUnloadEnd(int32 Ci, int32 Ti, int32 Count)
+{
+	const FVector Trunk = Plan(GsaStationX, GsaTrunkZ);
 	Do(Ci, [this, Ti, Count] { ADP_LOG(TEXT("GSE: %d arriving bags onto the arrivals conveyor from %s's train - to the claim"), Count, *Tractors[Ti].Name); });
 	Curtains(Ci, Ti, false, nullptr, &Trunk);
 	// back to the lane: the carts uncoupled there, the tractor in its box

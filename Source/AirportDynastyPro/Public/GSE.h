@@ -125,7 +125,7 @@ public:
 		float Boom = 0.f, BoomWant = 0.f; bool bBelt = false;
 		// (worked by you, GSELoaderYou.cpp: the belt back, a stop pressed; the stand whose bulk door it is at, how far that is)
 		bool bBeltBack = false, bLStop = false, bLNear = false; int32 GJoy = INDEX_NONE; float JoyNow = 0.f;
-		int32 YBar = INDEX_NONE; float YLeftT = 0.f, YNoteT = 0.f, YTryT = 0.f;   // a cart whose drawbar you laid in, not pinned yet; left alone
+		int32 YBar = INDEX_NONE; float YLeftT = 0.f, YNoteT = 0.f, YTryT = 0.f; float YStandX = -1e6f, YJobT = 0.f, YAskT = 0.f, YAtT = 0.f;   // a cart whose drawbar you laid in, not pinned yet; left alone
 		float LYouX = -1e6f, LLeftT = 0.f, LDockT = 0.f, LWaitT = 0.f, LAhead = 0.f, LAside = 0.f, LTurn = 0.f;
 		int32 CtlKey() const { return bLoader ? -2 : Svc == INDEX_NONE ? -3 : Svc; }   // (its line of controls)
 		int32 GBoom = INDEX_NONE, GBumper = INDEX_NONE, GRam[4] = {INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE};
@@ -153,6 +153,7 @@ public:
 		int32 GSheet[2] = {INDEX_NONE, INDEX_NONE}, GHem[2] = {INDEX_NONE, INDEX_NONE}, GStrap[2] = {INDEX_NONE, INDEX_NONE}, GRoll[2] = {INDEX_NONE, INDEX_NONE};
 		bool bStraps[2] = {true, true};                 // the curtain's straps hooked
 		uint8 StrapOff[2] = {0, 0};                     // (unhooked by you: 1 the rear two, 2 the front two)
+		bool bLoose = false; float YLeftT = 0.f;       // (set down by you beside its place, not in it)
 		bool bOut = false; FVector Place = FVector::ZeroVector; float PlaceYaw = 0.f;   // taken by you from there: no crew's cart till it is back
 		int32 Tractor = INDEX_NONE;                     // hitched in that tractor's train
 		FString Flight;                                 // (the train carries its flight's tag: never the wrong aircraft)
@@ -219,6 +220,37 @@ private:
 	void TractorGpu(int32 Ti);
 	FString TrainFlight(const FTractor& T) const;
 	void TractorTake(int32 Ti);
+	void TrainTidy(int32 Ci, int32 Ti);
+	// (its bags by your hands, your train as a flight's own, ways from anywhere indoors: GSETractorBags.cpp)
+	FString BagOf(int32 Id) const;
+	FString TrainTakes(int32 Ti) const;
+	bool TrainHands(int32 Ti) const;
+	int32 TrainYouBag() const;
+	int32 TrainYours() const;
+	bool TrainPlace(bool bBag, int32& Ti, int32& Cart, int32& Slot) const;
+	int32 CarouselBag() const;
+	bool AtConveyor() const;
+	FString TrainBagSay(int32 Ti, int32 S) const;
+	bool TrainBagMay(int32 Ti, int32 S, FString& Why) const;
+	FVector TrainBagSpot(int32 Ti, int32 S) const;
+	bool TrainBagDo(int32 Ti, int32 S);
+	void TrainBagDrop(FTractor& T);
+	void TrainBags(int32 Ti, float Dt);
+	int32 YouTrainFor(const FString& F) const;
+	bool YouAtCarousel(const FString& F) const;
+	bool TrainInPlace(const FTractor& T, float StandX) const;
+	void YouTrain(int32 Ti, float Dt);
+	bool TrainByConveyor(const FTractor& T) const;
+	bool TrainJoin(int32 Ti, const FString& F, float StandX, TFunction<void()> Then);
+	bool YouArrTrain(float StandX, const FString& Key);
+	bool WayClear(const FTractor& T, const FVector& At, float Yaw, const TArray<FOutline>& Ol, const struct FCollisionQueryParams& Q) const;
+	bool WayTo(const FTractor& T, float x, float y, float hx, float hy, TArray<FVector>& Out) const;
+	bool WayIn(const FTractor& T, int32 Kind, TArray<FVector>& W) const;
+	void TrainAway(int32 Ti, int32 Kind);
+	bool TowHit(const FTractor* T, const FVector& Cc, float Yaw, float Hl, float Hw, int32 OwnGpu, const struct FCollisionQueryParams& Q) const;
+	bool CartHit(const FCart& C, const FTractor* T) const;
+	void CartFetches(float Dt);
+	mutable float YCarT = 0.f; mutable int32 YCarId = INDEX_NONE; int32 YFetch = INDEX_NONE; bool bYFetchOn = false; float YFetchT = 0.f;
 	void TractorHome(int32 Ti);
 	void TractorIn(int32 Ti);
 	void TractorDrop(int32 Ti);
@@ -351,12 +383,19 @@ private:
 	void ArrivalLoad(int32 Ti);
 	void ArrivalToStation(int32 Ti);
 	void ArrivalUnload(int32 Ti);
+	void ArrivalIn(int32 Ti);
+	void ArrUnloadBy(int32 Ci, int32 Ti, int32 Count, int32 Belt);
+	void ArrUnloadEnd(int32 Ci, int32 Ti, int32 Count);
+	FString ArrLabel(const FString& Key, float StandX);
+	int32 ArrBelt(const FString& Key, float StandX);
+	TMap<FString, float> ArrStand;   // (where each arriving flight's bags came from)
 	bool ArrivalFor(float StandX, const FString& Key);
 	TArray<TPair<double, int32>> PendingRemove;   // (bags handed over to the arrivals conveyor: gone when its own bag appears)
 public:
 	/** Arrival at a stand (the turnaround's bulk task): the belt loader and an arrivals train for its hold's bags. */
 	void ArrivalAt(float StandX, const FString& Key)
 	{
+		ArrStand.Add(Key, StandX);
 		if (HiredFlight(FString(), StandX)) { float S = 0.f, N = 0.f, Sp = 36.f; if (StandGeo(StandX, S, N, Sp) && Sp <= 40.f) AddWant(EWant::Arr, Key, StandX); return; }
 		EnsureLoader(StandX, Key); ArrivalFor(StandX, Key);
 	}

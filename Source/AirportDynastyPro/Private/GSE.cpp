@@ -900,6 +900,13 @@ bool AGSE::PlaneNear(const FVector& At, float R) const
 bool AGSE::BusyAt(float StandX) const
 {
 	if (WaitingAt(StandX)) return true;   // (to-do 206: its bags wait for your people)
+	// (to-do 238: its bags on the train you drive or left; not for ever either)
+	for (const FTractor& T : Tractors)
+		if (T.IsTrain() && (T.Job == EJob::None || T.Job == EJob::Boarding) && FMath::Abs(T.YStandX - StandX) < 1.f)
+		{
+			if (T.YJobT <= 1500.f) return true;
+			static TSet<FString> ToldY; const FString F = TrainFlight(T); if (!ToldY.Contains(F)) { ToldY.Add(F); ADP_WARN(TEXT("GSE: the train you have with %s's bags is late - the departure goes without waiting for it"), *F); }
+		}
 	for (const FTractor& T : Tractors)
 		if (T.Svc == INDEX_NONE && FMath::Abs(T.StandX - StandX) < 1.f && (T.LYouX > -1e5f || T.Job == EJob::Out || T.Job == EJob::AtStand || T.Job == EJob::Loading))
 		{
@@ -1136,6 +1143,7 @@ void AGSE::Departure(const FString& Key, float StandX)
 	for (FTractor& T : Tractors) if (T.IsTrain() && !T.bArrival && (T.Job == EJob::Boarding || T.Job == EJob::ToCarts || T.Job == EJob::Coupling || T.Job == EJob::Loading || T.Job == EJob::Out) && T.Key.IsEmpty() && T.TowGpu == INDEX_NONE && T.StandX == 0.f)
 	{ T.Key = Key; T.StandX = StandX; for (const int32 c : T.Train) if (Carts.IsValidIndex(c)) Carts[c].Flight = Key; ADP_LOG(TEXT("GSE: %s's train goes to %s (stand at x %.0f)"), *T.Name, *Key, StandX); return; }
 	if (bTest) { if (!bTestStand) { bTestStand = true; TestKey = Key; TestStand = StandX; } return; }
+	if (YouTrainFor(Key) != INDEX_NONE) return;   // (its bags on your train; what is left over: PollBags)
 	if (HiredFlight(Key, StandX)) { if (!BagKey.FindKey(Key)) AddWant(EWant::Dep, Key, StandX); return; }   // (to-do 206: your people)
 	StartFor(Key, StandX);
 }
