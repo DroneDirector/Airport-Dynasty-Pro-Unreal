@@ -38,6 +38,7 @@ struct FSvcCater;
 struct FSvcWet;
 struct FSvcStairs;
 struct FSvcDeicer;
+struct FSvcAmbu;
 
 UCLASS()
 class AIRPORTDYNASTYPRO_API AGSE : public AActor
@@ -102,6 +103,7 @@ public:
 		float SteerWant = 0.f, BackT = 0.f, PedalA = 0.f, PedalB = 0.f, WipeT = 0.f, WipeNow = 0.f, RainIn = 0.f, BoxT = 0.f; bool bRain = false, bUsed = false;   // (bUsed: full bags or used rolls in it - exchanged shut in its box)
 		int32 GPedal[2] = {INDEX_NONE, INDEX_NONE}, LoadWant = INDEX_NONE; TArray<int32> GWiper; FString Livery;
 		TSharedPtr<FSvcRefuel> Fu;        // (the refueller's own parts: GSEFuel.cpp)
+		TSharedPtr<FSvcAmbu> Am;          // (the ambulift's: GSEAmbulift.cpp)
 		TSharedPtr<FSvcDeicer> Di;        // (the de-icing truck's: GSEDeicer.cpp)
 		TSharedPtr<FSvcStairs> Ps;        // (the passenger stairs': GSEStairs.cpp)
 		TSharedPtr<FSvcWet> Wa;           // (the water and the toilet truck's: GSEWater.cpp)
@@ -279,6 +281,11 @@ public:
 	/** De-icing (GSEDeicer.cpp), every tick of your own departure's turnaround: bSoon - its doors are shut in ten minutes, bDoors -
 	 *  they are shut and the jetway is back. The weather decides; it is asked for, sent and asked for again by itself. */
 	void DeiceTick(float StandX, const FString& Reg, const FString& Flight, const FDateTime& Now, const FDateTime& OffBlocks, bool bSoon, bool bDoors);
+	/** The ambulift (GSEAmbuliftWork.cpp): how many passengers of that flight come in a wheelchair (always the same for a flight of a
+	 *  day), its call - every tick while the flight wants it; bGo: the passengers get on or off now -, and the flight waiting for it. */
+	static int32 AmbuPax(const FString& Flight, const FDateTime& Day, int32 Pax);
+	bool AmbuCall(float StandX, const FString& Reg, const FString& Flight, const FDateTime& When, int32 N, bool bArr, bool bGo);
+	bool AmbuBusy(float StandX, bool bArr, FString& Why) const;
 	/** The aircraft is gone: what had not started is dropped. */
 	void SvcGone(float StandX);
 private:
@@ -365,6 +372,39 @@ private:
 	/** You at its ground panel. */
 	void StairsToggle(int32 Ti, FString& Say);
 	void StairsSteps(const FTractor& T, TArray<FVector>& Out) const;
+	// ---- the ambulift (GSEAmbulift.cpp, GSEAmbuliftWork.cpp)
+	TSet<FString> AmbuDone; TMap<int32, FString> AmbuFlown;   // (flights done; a job's flight)
+	void AmbuDress(FTractor& T);
+	void AmbuParts(FTractor& T, float Dt);
+	void AmbuChairs(FTractor& T, float Dt);
+	void AmbuRolls(FTractor& T, float Dt);
+	void AmbuRestock(FTractor& T);
+	bool AmbuStowed(const FTractor& T) const;
+	bool AmbuMay(const FTractor& T, int32 Part, float To) const;
+	static FVector AmbuTip(const FSvcAmbu& C);
+	static FVector AmbuL(const FSvcAmbu& C, const FVector& P);
+	FVector AmbuOn(int32 Ti, const TArray<FVector>& P, bool bLocal, float S) const;
+	FTransform AmbuChairX(int32 Ti, int32 i) const;
+	float AmbuBlue(const FTractor& T, int8 Side) const;
+	void AmbuPress(int32 Ti, const TCHAR* Key);
+	void AmbuGo(int32 Ci, int32 Ti, int32 Chair, TFunction<TArray<FVector>()> Line, bool bLocal);
+	void AmbuHold(int32 Ci, int32 Ti, FVector At, FVector Face);
+	void AmbuHand(int32 Ci, int32 Ti, FVector At, TFunction<FVector()> To, TFunction<void()> Fn, TFunction<bool()> Is, bool bBoth, float MaxT);
+	bool AmbuSeat(int32 Ti, int32 i);
+	void AmbuUnseat(int32 Ti, int32 i);
+	bool AmbuRoute(const FVector& From, const FVector& To, TArray<FVector>& Out) const;
+	bool AmbuIs(const FSvcJob& J) const;
+	bool AmbuAtFront(float StandX, bool bSoon) const;
+	bool CaterAtFront(float StandX) const;
+	void AmbuArrive(int32 Job);
+	void AmbuStage(int32 Job);
+	void AmbuTail(int32 C0, int32 C1, int32 Ti, float To);
+	void AmbuFrontRails(int32 Job, bool bOut);
+	void AmbuDoor(int32 Job, int32 i, bool bFetch);
+	void AmbuTerminal(int32 Job, int32 i, bool bFetch);
+	void AmbuSpin(int32 Ci, int32 Ti, int32 i);
+	void AmbuEnd(int32 Job);
+	void AmbuLost(int32 Job, int32 m);
 	// ---- the de-icing truck (GSEDeicer.cpp)
 	struct FDeiced { FDateTime Until = FDateTime(0); int32 Rounds = 0; };   // (until when the fluid holds; how often it was done)
 	TMap<FString, FDeiced> Deiced; FDateTime DeiceNow = FDateTime(0);

@@ -16,9 +16,9 @@ struct FADPWorld;
 class ATugs;
 
 /** What a ground crew member can do. The simulation has one ramp role, "ground", for all of it. */
-enum class EStaffDuty : uint8 { TugDriver, PushbackHandler, WingWalker, GpuHandler, TractorDriver, BaggageHandler, LoaderOperator, CleanDriver, Cleaner, FuelDriver, CaterDriver, CaterLoader, WaterDriver, StairsDriver, StairsHelper, DeicerDriver, DeicerOperator };
+enum class EStaffDuty : uint8 { TugDriver, PushbackHandler, WingWalker, GpuHandler, TractorDriver, BaggageHandler, LoaderOperator, CleanDriver, Cleaner, FuelDriver, CaterDriver, CaterLoader, WaterDriver, StairsDriver, StairsHelper, DeicerDriver, DeicerOperator, AmbuDriver, AmbuHelper };
 /** The jobs of a turn-round that need ground crew. */
-enum class EStaffTask : uint8 { Gpu, BagsOut, BagsIn, Loader, Pushback, Bags, Relief, Chocks, Cleaning, CleanRelief, Fuel, Catering, CaterRelief, Water, Toilet, Stairs, Deice };   // (Bags: a train and its belt loader together; Relief: one for somebody who vanished at work)
+enum class EStaffTask : uint8 { Gpu, BagsOut, BagsIn, Loader, Pushback, Bags, Relief, Chocks, Cleaning, CleanRelief, Fuel, Catering, CaterRelief, Water, Toilet, Stairs, Deice, Ambulift };   // (Bags: a train and its belt loader together; Relief: one for somebody who vanished at work)
 
 UCLASS()
 class AIRPORTDYNASTYPRO_API UStaffPeople : public UTickableWorldSubsystem
@@ -75,6 +75,11 @@ public:
 	virtual void Tick(float Dt) override;
 	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(UStaffPeople, STATGROUP_Tickables); }
 	virtual void Deinitialize() override;
+	/** The ramp-level door nearest a stand (its room, X0 its west end; INDEX_NONE: none), taken whole while a wheelchair goes through it. */
+	int32 RampNear(float StandX, float& X0) const;
+	bool RampTake(int32 R);
+	void RampFree(int32 R);
+	bool RampSeen(int32 R) const;
 protected:
 	virtual bool DoesSupportWorldType(const EWorldType::Type T) const override { return T == EWorldType::Game || T == EWorldType::PIE; }
 

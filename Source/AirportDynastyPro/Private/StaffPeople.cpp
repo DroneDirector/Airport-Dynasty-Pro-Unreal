@@ -98,6 +98,8 @@ const TCHAR* UStaffPeople::DutyName(EStaffDuty D)
 	case EStaffDuty::WaterDriver: return TEXT("water and toilet truck driver");
 	case EStaffDuty::StairsDriver: return TEXT("passenger stairs driver");
 	case EStaffDuty::StairsHelper: return TEXT("passenger stairs helper");
+	case EStaffDuty::AmbuDriver: return TEXT("ambulift driver");
+	case EStaffDuty::AmbuHelper: return TEXT("ambulift helper");
 	case EStaffDuty::DeicerDriver: return TEXT("de-icing truck driver");
 	case EStaffDuty::DeicerOperator: return TEXT("de-icing operator");
 	case EStaffDuty::TugDriver: return TEXT("tug driver");
@@ -118,6 +120,7 @@ const TCHAR* UStaffPeople::TaskName(EStaffTask T)
 	case EStaffTask::Water: return TEXT("fresh water");
 	case EStaffTask::Toilet: return TEXT("toilet service");
 	case EStaffTask::Stairs: return TEXT("passenger stairs");
+	case EStaffTask::Ambulift: return TEXT("ambulift");
 	case EStaffTask::Deice: return TEXT("de-icing");
 	case EStaffTask::Catering: case EStaffTask::CaterRelief: return TEXT("catering");
 	case EStaffTask::Gpu: return TEXT("ground power");
@@ -142,6 +145,7 @@ void UStaffPeople::Needs(EStaffTask T, TArray<FNeed>& Out)
 	case EStaffTask::Cleaning: Add(EStaffDuty::CleanDriver, 1, 1); Add(EStaffDuty::Cleaner, 1, 3); break;
 	case EStaffTask::Fuel: Add(EStaffDuty::FuelDriver, 1, 1); break;
 	case EStaffTask::Stairs: Add(EStaffDuty::StairsDriver, 1, 1); Add(EStaffDuty::StairsHelper, 1, 1); break;
+	case EStaffTask::Ambulift: Add(EStaffDuty::AmbuDriver, 1, 1); Add(EStaffDuty::AmbuHelper, 1, 1); break;
 	case EStaffTask::Deice: Add(EStaffDuty::DeicerDriver, 1, 1); Add(EStaffDuty::DeicerOperator, 1, 1); break;
 	case EStaffTask::Water: case EStaffTask::Toilet: Add(EStaffDuty::WaterDriver, 1, 1); break;
 	case EStaffTask::Catering: Add(EStaffDuty::CaterDriver, 1, 1); Add(EStaffDuty::CaterLoader, 1, 1); break;
@@ -568,7 +572,7 @@ void UStaffPeople::StepOne(FStaff& S, float Dt)
 	{
 		if (!S.bWanted) { S.Role.Reset(); return; }
 		// made in the ramp room behind its shut door, unseen, one at a time, never two in one frame
-		if (T < NextBody || T < R.NextSpawn || R.Dir == 2 || PlayerInRoom(R)) return;
+		if (T < NextBody || T < R.NextSpawn || R.Dir >= 2 || PlayerInRoom(R)) return;
 		const float K = ABabylonModel::StaffDoor(DoorOf(R), false);
 		if (K < 0.f)
 		{
@@ -683,6 +687,17 @@ void UStaffPeople::LeaveDoor(FStaff& S)
 	FRoom& R = Rooms[S.Room];
 	S.bInRoom = false; R.Inside = FMath::Max(0, R.Inside - 1); if (!R.Inside) R.Dir = 0;
 }
+
+// the ramp rooms' door for somebody else (the ambulift's wheelchairs): the whole room while they have it
+int32 UStaffPeople::RampNear(float StandX, float& X0) const
+{
+	int32 B = INDEX_NONE; float Bd = 1e9f;
+	for (int32 r = 0; r < Rooms.Num(); ++r) { const float Ds = FMath::Abs(Rooms[r].X0 + 5.f - StandX); if (!Rooms[r].bNoDoor && Ds < Bd && ABabylonModel::StaffDoor(DoorOf(Rooms[r]), false) >= 0.f) { Bd = Ds; B = r; X0 = Rooms[r].X0; } }
+	return B;
+}
+bool UStaffPeople::RampTake(int32 R) { if (!Rooms.IsValidIndex(R)) return true; if (Rooms[R].Dir) return false; Rooms[R].Dir = 3; ++Rooms[R].Inside; return true; }
+void UStaffPeople::RampFree(int32 R) { if (Rooms.IsValidIndex(R) && Rooms[R].Dir == 3) { Rooms[R].Inside = FMath::Max(0, Rooms[R].Inside - 1); Rooms[R].Dir = 0; } }
+bool UStaffPeople::RampSeen(int32 R) const { return Rooms.IsValidIndex(R) && PlayerInRoom(Rooms[R]); }
 
 bool UStaffPeople::PlayerInRoom(const FRoom& R) const
 {

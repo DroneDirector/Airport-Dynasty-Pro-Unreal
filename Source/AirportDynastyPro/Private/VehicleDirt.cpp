@@ -71,7 +71,7 @@ void FVehicleDirt::Dress(ABabylonModel* Model, UObject* Outer, const FString& Na
 			else if (N.Contains(TEXT("Glass")) && !N.Contains(TEXT("Mirror")) && GlassM)
 			{
 				UMaterialInstanceDynamic* G = UMaterialInstanceDynamic::Create(GlassM, Outer);
-				G->SetVectorParameterValue(TEXT("BC"), FLinearColor(0.015f, 0.022f, 0.026f, 0.38f));
+				G->SetVectorParameterValue(TEXT("BC"), N.Contains(TEXT("BlueCover")) ? FLinearColor(0.01f, 0.05f, 0.35f, 0.45f) : FLinearColor(0.015f, 0.022f, 0.026f, 0.38f));   // (a blue lamp bar's cover)
 				S->Glass.Add(G); Put = G; ++NG;
 			}
 			else if (!VdSkip(N) && !N.StartsWith(TEXT("M_Truck")) && PaintM)

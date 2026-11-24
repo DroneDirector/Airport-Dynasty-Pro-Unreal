@@ -24,6 +24,7 @@ struct FServiceSpec
 	uint8 Wet = 0;                                          // 1 the potable water truck, 2 the toilet truck (GSEWater.cpp): backed under the tail from behind
 	bool bRoof = false;                                     // (the stairs with a roof over them: first in rain and snow)
 	bool bDeicer = false;                                   // the de-icing truck (GSEDeicer.cpp): its own lanes round the aircraft, stop by stop
+	bool bAmbu = false;                                     // the ambulift (GSEAmbulift.cpp)
 	bool bStairs = false;                                   // the passenger stairs (GSEStairs.cpp): one table line a vehicle, each with its own box
 	float Lat = 0.f, Aft = 0.f, Far = 40.f;                 // its place at the stand: m left (+) of the centre line, m behind the nose wheel; driven up straight from Far
 	float HalfL = 300.f, HalfW = 103.f, TurnR = 600.f, MaxSteer = 35.f, DoorDeg = 70.f;

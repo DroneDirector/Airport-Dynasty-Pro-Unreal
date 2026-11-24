@@ -1,4 +1,5 @@
 #include "GSE.h"
+#include "GSEAmbulift.h"
 #include "GSEDeicer.h"
 #include "RollerDoor.h"
 #include "Tugs.h"
@@ -54,7 +55,7 @@ namespace
 	constexpr float GseGEyeToAxle = 143.f;
 	// driving (cm/s): on the apron 15 km/h, in the baggage block 9 km/h, reversing 4 km/h
 	constexpr float GseApronSpeed = 420.f, GseHallSpeed = 250.f, GseBackSpeed = 110.f, GseTurnR = 300.f;
-	enum GseELensKind : uint8 { GLow, GHigh, GTail, GMarker, GReverse, GBeacon, GIndicator, GWork };
+	enum GseELensKind : uint8 { GLow, GHigh, GTail, GMarker, GReverse, GBeacon, GIndicator, GWork, GBlue };
 
 	USoundAttenuation* GseAtt()
 	{
@@ -187,9 +188,9 @@ bool AGSE::SpawnTractor(FTractor& T)
 			if (LensM && N.Contains(TEXT("Lens")))
 			{
 				D = UMaterialInstanceDynamic::Create(LensM, this);
-				const bool bRed = N.Contains(TEXT("Red")), bAmber = N.Contains(TEXT("Amber")), bGreen = N.Contains(TEXT("Green"));
-				D->SetVectorParameterValue(TEXT("BC"), bRed ? FLinearColor(1.f, 0.04f, 0.02f) : bAmber ? FLinearColor(1.f, 0.45f, 0.03f) : bGreen ? FLinearColor(0.05f, 1.f, 0.15f) : FLinearColor(1.f, 0.97f, 0.9f));
-				D->SetScalarParameterValue(TEXT("Glow"), bAmber ? 55.f : bRed ? 30.f : 28.f); D->SetScalarParameterValue(TEXT("Dots"), 4.f);
+				const bool bRed = N.Contains(TEXT("Red")), bAmber = N.Contains(TEXT("Amber")), bGreen = N.Contains(TEXT("Green")), bBlueL = N.Contains(TEXT("Blue"));
+				D->SetVectorParameterValue(TEXT("BC"), bRed ? FLinearColor(1.f, 0.04f, 0.02f) : bAmber ? FLinearColor(1.f, 0.45f, 0.03f) : bBlueL ? FLinearColor(0.03f, 0.12f, 1.f) : bGreen ? FLinearColor(0.05f, 1.f, 0.15f) : FLinearColor(1.f, 0.97f, 0.9f));
+				D->SetScalarParameterValue(TEXT("Glow"), bBlueL ? 75.f : bAmber ? 55.f : bRed ? 30.f : 28.f); D->SetScalarParameterValue(TEXT("Dots"), 4.f);
 				K->SetNumCustomDataFloats(1);
 			}
 			Swap.Add(Mi, D); if (D) K->SetMaterial(Si, D);
@@ -197,13 +198,17 @@ bool AGSE::SpawnTractor(FTractor& T)
 	struct FW { const TCHAR* Name; GseELensKind Kind; };
 	static const FW Which[] = {{TEXT("LowBeam_"), GLow}, {TEXT("HighBeam_"), GHigh}, {TEXT("TailBrake_"), GTail}, {TEXT("SideMarker_"), GMarker}, {TEXT("Reverse_"), GReverse},
 		{TEXT("BeaconLens"), GBeacon}, {TEXT("IndicatorF_"), GIndicator}, {TEXT("IndicatorR_"), GIndicator}, {TEXT("WorkLamp_Lens"), GWork},
-		{TEXT("BeaconR_Lens"), GBeacon}, {TEXT("Cabin_Beacon_Lens"), GBeacon}, {TEXT("CabinLamp"), GWork}, {TEXT("RearWorkLamp_Lens"), GWork}, {TEXT("PanelLamp_Lens"), GWork}};
+		{TEXT("BeaconR_Lens"), GBeacon}, {TEXT("Cabin_Beacon_Lens"), GBeacon}, {TEXT("CabinLamp"), GWork}, {TEXT("RearWorkLamp_Lens"), GWork}, {TEXT("PanelLamp_Lens"), GWork},
+		{TEXT("BlueFront_"), GBlue}, {TEXT("BlueRear_"), GBlue}, {TEXT("BlueGrille_"), GBlue}, {TEXT("BoxLight"), GWork}, {TEXT("BoxWork"), GWork}, {TEXT("BoxSideMark"), GMarker}, {TEXT("BoxCorner"), GMarker}};
 	for (const FW& Wh : Which)
 	{
 		TArray<TTuple<UInstancedStaticMeshComponent*, int32, FString>> Found; M->InstancesNamed(Wh.Name, true, Found);
 		for (const auto& F : Found)
 			if (F.Get<2>().EndsWith(TEXT("_Lens")) || F.Get<2>() == TEXT("BeaconLens") || F.Get<2>() == TEXT("WorkLamp_Lens"))
-			{ FLens L; L.K = F.Get<0>(); L.Ix = F.Get<1>(); L.Kind = Wh.Kind; if (Wh.Kind == GIndicator) L.Side = F.Get<2>().Contains(TEXT("_L_")) ? 1 : -1; T.Lenses.Add(L); }
+			{ FLens L; L.K = F.Get<0>(); L.Ix = F.Get<1>(); L.Kind = Wh.Kind; if (Wh.Kind == GIndicator) L.Side = F.Get<2>().Contains(TEXT("_L_")) ? 1 : -1;
+				// (the blue bars: units 0-3 the one half, 4-7 the other; the grille's left and right pair)
+				if (Wh.Kind == GBlue) { const FString& Bn = F.Get<2>(); const int32 Dg = Bn.Len() > 6 && FChar::IsDigit(Bn[Bn.Len() - 6]) ? int32(Bn[Bn.Len() - 6] - TEXT('0')) : 0; L.Side = Bn.StartsWith(TEXT("BlueGrille_")) ? (Bn.Contains(TEXT("_L")) ? 1 : -1) : Dg < 4 ? 1 : -1; }
+				T.Lenses.Add(L); }
 	}
 	// the moving parts
 	for (int32 w = 0; w < 4; ++w)
@@ -327,7 +332,8 @@ void AGSE::Lamps(FTractor& T)
 		case GMarker: V = bRun ? 0.5f : 0.f; break;
 		case GReverse: V = bBack ? 1.f : 0.f; break;
 		case GBeacon: V = bFlash ? 1.f : 0.f; break;
-		case GWork: V = (bRun && T.Boom < -0.5f) || (T.Di && (T.Di->bYours || (T.Di->Ph >= FSvcDeicer::OpIn && T.Di->Ph <= FSvcDeicer::OpOut))) ? 1.f : 0.f; break;
+		case GBlue: V = AmbuBlue(T, L.Side); break;
+		case GWork: V = (T.Am && T.Am->bLive && T.Job == EJob::AtStand) || (bRun && T.Boom < -0.5f) || (T.Di && (T.Di->bYours || (T.Di->Ph >= FSvcDeicer::OpIn && T.Di->Ph <= FSvcDeicer::OpOut))) ? 1.f : 0.f; break;
 		default: V = 0.f;
 		}
 		if (V != L.Now && L.K) { L.Now = V; L.K->SetCustomDataValue(L.Ix, 0, V, true); }

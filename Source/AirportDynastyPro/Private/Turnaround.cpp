@@ -207,6 +207,16 @@ namespace ADPTurnaround
 				FString Inside;
 				const bool bOff = K.Id == TEXT("deplane") && K.bStarted && !K.bDone && Tr->bArrival && Tm >= K.Start + K.Dur && !APaxFlow::DeplaneDone(W, Tr->Reg, Tr->OnBlocks, Tr->ArrPax, Inside);
 				if (bOff && Tr->bMine && Tm >= K.Start + K.Dur + 3.f) ADPSchedule::Tell(Sim->World, Now, TEXT("deplane:") + Tr->Reg, TEXT("Still getting off"), FString::Printf(TEXT("%s at %s: cleaning and boarding wait - %s."), *Tr->Reg, *Tr->Stand, *Inside));
+				// (to-do 212: the passengers in wheelchairs off and on by the ambulift, at the front right door; the flight waits for them)
+				FString AmWhy; bool bAmbu = false;
+				if (Tr->bMine && bHired && !K.bDone && (K.Id == TEXT("deplane") ? Tr->bArrival : K.Id == TEXT("board") && !Tr->PlanId.IsEmpty()))
+				{
+					const bool bIn = K.Id == TEXT("deplane"); const int32 Nw = bIn ? AGSE::AmbuPax(Tr->ArrFlight, Tr->OnBlocks, Tr->ArrPax) : AGSE::AmbuPax(Tr->Flight, Tr->OffBlocks, Tr->Pax);
+					AGSE* Gs = Nw > 0 ? AGSE::Get(W) : nullptr; const bool bAsk = Gs && (bIn ? Done(*Tr, TEXT("chocks")) : Tm >= K.Start - 15.f && Done(*Tr, TEXT("cat2")));
+					if (bAsk) Gs->AmbuCall(Tr->StandX, Tr->Reg, bIn ? Tr->ArrFlight : Tr->Flight, Tr->OffBlocks, Nw, bIn, K.bStarted);
+					bAmbu = bAsk && K.bStarted && Tm < K.Start + K.Dur + 60.f && Gs->AmbuBusy(Tr->StandX, bIn, AmWhy);
+					if (bAmbu && Tm >= K.Start + K.Dur + 3.f) ADPSchedule::Tell(Sim->World, Now, TEXT("ambulift:") + Tr->Reg + K.Id, TEXT("Wheelchair passengers"), FString::Printf(TEXT("%s at %s: %s."), *Tr->Reg, *Tr->Stand, *AmWhy));
+				}
 				FString StWhy; const bool bStairs = Tr->bMine && K.bStarted && !K.bDone && (K.Id == TEXT("bridge") ? Tm < K.Start + 30.f : K.Id == TEXT("doors")) && AGSE::Find(W) && AGSE::Find(W)->StairsBusy(Tr->StandX, K.Id == TEXT("doors"), StWhy);
 				if (bStairs && Tm >= K.Start + K.Dur + 3.f) ADPSchedule::Tell(Sim->World, Now, TEXT("stairs:") + Tr->Reg + K.Id, TEXT("Passenger stairs"), FString::Printf(TEXT("%s at %s: %s."), *Tr->Reg, *Tr->Stand, *StWhy));
 				if (K.Id == TEXT("deplane") && K.bDone && Tr->bArrival && Tr->PlanId.IsEmpty() && Tm >= K.Start + K.Dur && Tm < K.Start + K.Dur + 60.f) if (AGSE* Gs = AGSE::Find(W)) Gs->SvcGo(TEXT("stairs"), Tr->StandX);   // (no departure planned: they go home)
@@ -214,7 +224,7 @@ namespace ADPTurnaround
 				const bool bBack = K.Id == TEXT("doors") && K.bStarted && !K.bDone && !ASimTraffic::JetwayReady(W, Tr->Stand, false);
 				const bool bChocks = K.Id == TEXT("chocks") && K.bStarted && !K.bDone && ATugs::Get(W) && !ATugs::Get(W)->ChocksIn(Tr->StandX);
 			const bool bClean = (K.Id == TEXT("clean") || K.Id == TEXT("fuel") || K.Id == TEXT("cat1") || K.Id == TEXT("cat2") || K.Id == TEXT("water") || K.Id == TEXT("toilet")) && K.bStarted && !K.bDone && Tr->bMine && AGSE::Find(W) && AGSE::Find(W)->SvcBusy(*K.Id, Tr->StandX);
-			if (K.bStarted && !K.bDone && Tm >= K.Start + K.Dur && !bClean && !bChocks && !bBagsBusy && !bBoarding && !bOff && !bBridge && !bBack && !bStairs) { K.bDone = true; ADP_LOG(TEXT("Turnaround: %s %s done"), *Tr->Reg, *K.Name); }
+			if (K.bStarted && !K.bDone && Tm >= K.Start + K.Dur && !bClean && !bChocks && !bBagsBusy && !bBoarding && !bOff && !bBridge && !bBack && !bStairs && !bAmbu) { K.bDone = true; ADP_LOG(TEXT("Turnaround: %s %s done"), *Tr->Reg, *K.Name); }
 			}
 			// (to-do 212: de-iced when the weather asks for it, once its doors are shut and the jetway is back; the flight waits)
 			if (Tr->bMine && bHired && !Tr->PlanId.IsEmpty())

@@ -205,7 +205,7 @@ void AGSE::CaterDock(const FSvcJob& J, int32 Door, FVector2f& At, FVector2f& Hd,
 			const double D = FVector::Dist2D(It->GetActorLocation(), Nose); if (D < Bd) { Bd = D; Pl = *It; }
 		}
 	// (the aircraft's root at its nose wheel: x its right, y aft - where it really stands)
-	const float A = FMath::DegreesToRadians(CtTurn[Door]); const FVector2D O(FMath::Cos(A), FMath::Sin(A)), K = CtSkin[Door] + O * CtReach;
+	const float A = FMath::DegreesToRadians(CtTurn[Door]); const FVector2D O(FMath::Cos(A), FMath::Sin(A)), K = CtSkin[Door] + O * (Tractors.IsValidIndex(J.Ti) && Tractors[J.Ti].Am ? 499.0 : double(CtReach));   // (the ambulift's platform ends 4.96 m ahead of its middle)
 	auto World = [&](const FVector2D& L, float Z) { return Pl ? Pl->GetActorTransform().TransformPosition(FVector(L.X, L.Y, Z)) : FVector(Plan(S - float(L.X) / 100.f, N + float(L.Y) / 100.f) + CtUp * Z); };
 	const FVector Wo = World(K, 0.f), Ws = World(CtSkin[Door], CtSill[Door]);
 	At = FVector2f(float(Wo.X) / 100.f, float(-Wo.Y) / 100.f); const FVector D = Ws - Wo; Hd = FVector2f(float(D.X), float(-D.Y)).GetSafeNormal(); SillZ = float(Ws.Z);

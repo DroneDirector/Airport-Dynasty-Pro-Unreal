@@ -91,6 +91,7 @@ public:
 	bool SceneOn() const { return Scene.Stage != EStage::None; }
 
 private:
+	friend class AGSE;   // (the ambulift's passengers)
 	TArray<FWho> People;
 	/** A strolling passenger (owner, 2026-11-19): its area (boxes of the plan's rooms, world cm, on its floor's height),
 	 *  its habit (on Floor 2: up and down the gate corridor, into the tax free, to the gates and their seats, a bench),

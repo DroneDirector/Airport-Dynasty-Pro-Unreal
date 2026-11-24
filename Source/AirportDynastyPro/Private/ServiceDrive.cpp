@@ -292,7 +292,7 @@ TFunction<void(float, float, FDriverPose&)> AGSE::SvcClimbAny(int32 Ti, int32 Se
 	const FServiceSpec& S = SdSpec(Tractors[Ti].Svc);
 	if (Seat == 0) return ClimbFn(Ti, bIn);
 	if (S.bDeicer && SdCab(S, Seat) >= 0) return DeicerClimbFn(Ti, bIn);   // (up to the spray cabin)
-	if (SdCab(S, Seat) < 0 && !IsTall(Tractors[Ti]) && !S.bStairs) return SvcClimbFn(Ti, Seat, bIn);
+	if (SdCab(S, Seat) < 0 && !IsTall(Tractors[Ti]) && !S.bStairs && !S.bAmbu) return SvcClimbFn(Ti, Seat, bIn);
 	// the seat beside the driver: the driver's way in, mirrored, the end of it onto its own seat
 	return [this, Ti, Seat, bIn](float K0, float PH, FDriverPose& P)
 	{
@@ -324,7 +324,7 @@ bool AGSE::SvcSeatFree(int32 Ti, int32 Seat, FString& Why) const
 	if (T.Speed > 2.f || T.Path.Num()) { Why = TEXT("it is driving"); return false; }
 	if (SdCab(S, Seat) >= 0 || T.Job == EJob::None) return true;   // (the seat beside the driver: nobody of its crew sits there)
 	// its crew have it: the driver's seat only while every one of them is up in the aircraft
-	if (Seat == 0 && T.Job == EJob::AtStand && !S.bFuel && !S.bCater && !S.Wet && !S.bStairs && !S.bDeicer)   // (the water and the toilet truck: chocked, the hoses on; the catering truck: on its legs, its body up; the refueller: chocked, bonded, its hose on - never while its driver is at work)
+	if (Seat == 0 && T.Job == EJob::AtStand && !S.bFuel && !S.bCater && !S.Wet && !S.bStairs && !S.bDeicer && !S.bAmbu)   // (the water and the toilet truck: chocked, the hoses on; the catering truck: on its legs, its body up; the refueller: chocked, bonded, its hose on - never while its driver is at work)
 		for (const TPair<int32, FSvcJob>& P : SvcJobs)
 			if (P.Value.Ti == Ti && P.Value.Phase == 2)
 			{
@@ -381,6 +381,7 @@ void AGSE::SvcPlayerDrive(FTractor& T, float Dt)
 	const FServiceSpec& S = SdSpec(T.Svc);
 	bool bShut = true; for (int32 d = 0; d < T.SvcDoors.Num(); ++d) if (T.SvcDoors[d].Now > 0.01f) bShut = false;
 	if (T.DoorAng > 1.f) bShut = false;
+	if (!AmbuStowed(T)) bShut = false;   // (never with its legs down, its body up or its tail lift out)
 	if (!DeicerStowed(T)) bShut = false;   // (never with its boom up)
 	if (T.Ps && !StairsStowed(T)) bShut = false;   // (never with its legs down or its stairs up)
 	float Go = bShut ? D->Throttle() : 0.f, Br = D->Brake();
