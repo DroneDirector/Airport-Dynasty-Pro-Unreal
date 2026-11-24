@@ -8,6 +8,7 @@
 #include "BabylonModel.h"
 #include "TerminalPlan.h"
 #include "ADPLog.h"
+#include "PerfLog.h"
 #include "Sim/ADPSim.h"
 #include "Sim/ADPBoards.h"
 #include "Sim/ADPSchedule.h"
@@ -554,6 +555,7 @@ void UStaffPeople::Roster(FADPWorld& W, const FDateTime& Now)
 
 void UStaffPeople::Tick(float Dt)
 {
+	ADP_PERF_SCOPE("staff people (each 2 s)", 2.f);
 	Super::Tick(Dt);
 	if (!On() && !Staff.Num()) return;
 	if ((Poll -= Dt) <= 0.f)

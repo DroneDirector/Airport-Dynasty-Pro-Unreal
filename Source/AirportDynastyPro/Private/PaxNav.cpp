@@ -431,7 +431,16 @@ bool PaxNav::Ready(UWorld* W)
 {
 	if (!W || GNavWorld.Get() != W) return false;
 	UNavigationSystemV1* NS = Nav(W); if (!NS) return false;
-	if (GReady) { if (!GLoaded && !GSaved) KeepWhenDone(NS, Cast<ARecastNavMesh>(NavData(W, NS))); return true; }
+	if (GReady)
+	{
+		// the sheets-in toggle (KeepWhenDone, above) marks the road sheets' tiles dirty for a fresh rebuild: not ready
+		// again until that settles, or a leg check run right after would still see the sheets out and the car park
+		// fall through to the airfield's own ground underneath it (2026-11-24, the car park's legs failing both at
+		// bake and in the packaged game's own new-game test)
+		if (!GLoaded && !GSaved) KeepWhenDone(NS, Cast<ARecastNavMesh>(NavData(W, NS)));
+		if (NS->IsNavigationBuildInProgress() || NS->HasDirtyAreasQueued()) return false;
+		return true;
+	}
 	const double T = FPlatformTime::Seconds() - GStart;
 	ANavigationData* ND = NavData(W, NS);
 	if (!ND)

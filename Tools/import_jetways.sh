@@ -18,6 +18,7 @@ before=$(stat -c %Y "$R/Content/Babylon/Jetways/jetways/StaticMeshes/jetways_mes
 run() { "$ED/UnrealEditor-Cmd.exe" "$UP" -ExecutePythonScript="$1" -unattended -nullrhi -nosplash -NoLoadingScreen 2>&1 | grep -E "ADP_|Error|error:" | grep -v "LogPython: Error: Traceback" | tail -8; }
 echo "== import"; run "$(cygpath -m "$R/Tools/import_babylon_model.py") $GLB Jetways --shared"
 echo "== materials"; run "$(cygpath -m "$R/Tools/fix_babylon_materials.py") Jetways"
+echo "== pictures"; run "$(cygpath -m "$R/Tools/fix_babylon_textures.py") $GLB Jetways"   # (the welcome poster stays a colour picture)
 echo "== collision"; run "$(cygpath -m "$R/Tools/set_babylon_collision.py")"
 after=$(stat -c %Y "$R/Content/Babylon/Jetways/jetways/StaticMeshes/jetways_mesh_0.uasset" 2>/dev/null || echo 0)
 [ "$after" -gt "$before" ] || { echo "the import did not replace the meshes (still the old files)"; exit 1; }

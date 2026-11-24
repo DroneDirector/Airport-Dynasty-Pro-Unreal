@@ -323,7 +323,9 @@ bool ABabylonModel::Place(const FString& Name)
 			for (const FPart& Pt : Door.Parts) if (Pt.Slide != 0) Door.bSlide = true;
 			// (a door passengers go through by themselves - sliding leaves only, never the staff's, the apron's or the jetways')
 			Door.bPax = Name == TEXT("Terminal") && Door.bSlide && !Door.Parts.ContainsByPredicate([](const FPart& Pt) { return Pt.Swing != 0; }) && !Door.Id.Contains(TEXT("STAFF"))
-				&& (Door.Id.Contains(TEXT("-ENTR-")) || Door.Id.Contains(TEXT("-ARRIVALS-")) || Door.Id.Contains(TEXT("-SECURITY-")) || Door.Id.StartsWith(TEXT("D-F1-AIRSIDE-")));
+				&& (Door.Id.Contains(TEXT("-ENTR-")) || Door.Id.Contains(TEXT("-ARRIVALS-")) || Door.Id.Contains(TEXT("-SECURITY-")) || Door.Id.StartsWith(TEXT("D-F1-AIRSIDE-"))
+				// gate 13's swing lobby, on everyone's way down to gates 13-16 (2026-11-24): a passenger door, not a staff one
+				|| Door.Id.Contains(TEXT("-SWING-")));
 			Door.AtW = Root->GetComponentTransform().TransformPosition(Door.At);
 			// (a gate's jetway door: for passengers only while its jetway is docked and a flight boards or gets off there)
 			if (Door.bSlide && Door.Id.StartsWith(TEXT("D-F2-GATE-")) && Door.Id.EndsWith(TEXT("-JW")))
@@ -1140,6 +1142,7 @@ void ABabylonModel::LampsByDaylight()
 
 void ABabylonModel::Tick(float Dt)
 {
+	ADP_PERF_SCOPE("a Babylon model (each frame)", 2.f);
 	FlickerFire();
 	Super::Tick(Dt);
 	if (LampCheckIn > 0.f && (LampCheckIn -= Dt) <= 0.f) CheckLamps();

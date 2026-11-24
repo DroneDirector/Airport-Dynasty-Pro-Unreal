@@ -2,6 +2,7 @@
 #include "SunClock.h"
 #include "TerminalPlan.h"
 #include "ADPLog.h"
+#include "PerfLog.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/RectLightComponent.h"
@@ -108,6 +109,7 @@ void ASoffitLights::SolidRoof()
 
 void ASoffitLights::Tick(float Dt)
 {
+	ADP_PERF_SCOPE("the soffit lights (each 0.5 s)", 2.f);
 	Super::Tick(Dt);
 	if ((Check -= Dt) > 0.f) return;
 	Check = 0.5f;

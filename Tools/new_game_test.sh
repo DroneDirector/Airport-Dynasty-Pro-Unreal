@@ -58,7 +58,7 @@ for WHICH in new continue; do
   SW1=-UINewGame; [ $WHICH = continue ] && SW1=-UIContinueGame
   touch "$OUT/stamp"
   if [ -n "$PACK" ]; then
-    ADP_LOG=1 timeout 660 "$PACK/AirportDynastyPro.exe" $SW1 -windowed -ResX=$SW -ResY=$SH -ForceRes "$@" > /dev/null 2>&1
+    ADP_LOG=1 timeout 660 "$PACK/AirportDynastyPro.exe" $SW1 -windowed -ResX=$SW -ResY=$SH -ForceRes -Site=chablais -LocalTerrain "$@" > /dev/null 2>&1
     taskkill //IM AirportDynastyPro-Win64-Shipping.exe //F > /dev/null 2>&1
     L="$S/Logs/ADP.log"
   else

@@ -64,6 +64,9 @@ def main(blend_script, glb, name):
     # 4. its materials usable on instanced parts
     log = editor_py('%s %s' % ((ROOT / 'Tools/fix_babylon_materials.py').as_posix(), name), 'material fix-up')
     print([l for l in log.splitlines() if 'ADP_MATFIX' in l][-1:])
+    # 4b. its colour pictures as colour pictures, never taken for normal maps (the jetway's poster, 2026-11-23)
+    log = editor_py('%s %s %s' % ((ROOT / 'Tools/fix_babylon_textures.py').as_posix(), (ROOT / glb).as_posix(), name), 'pictures')
+    print([l for l in log.splitlines() if 'ADP_TEXFIX' in l][-1:])
     # 4c. Nanite off for its see-through glass (Nanite draws no translucent material: the fuel truck's windows were logged
     #     every frame as an invalid material on a Nanite mesh, 2026-11-24); every other part stays Nanite
     log = editor_py('%s %s' % ((ROOT / 'Tools/fix_glass_nanite.py').as_posix(), name), 'glass not Nanite')
