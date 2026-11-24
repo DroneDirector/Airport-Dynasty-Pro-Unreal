@@ -431,11 +431,17 @@ public:
 	bool HiredWaits(const FString& Flight, float StandX, FString& Why) const;
 	bool LoaderWaits(float StandX, FString& Why) const;
 	/** The taxi bus's fare (to-do 239b piece 3, GSEService.cpp): on - the roof sign goes dark and the taximeter runs; off -
-	 *  the fare is settled, the sign lit again while it is on duty. Who: for the log. Nothing calls it with a passenger yet
-	 *  (piece 4, the hand-over to the taxi bus, is not built): today only the meter's own button sets it. */
+	 *  the fare is settled, the sign lit again while it is on duty. Who: for the log. Called by the meter's own button and by
+	 *  the passenger hand-over (piece 4, TaxiBoard / TaxiTripTick). */
 	void TaxiFare(bool bOn, const TCHAR* Who);
 	bool TaxiFareOn() const { return bTaxiFare; }
 	FString TaxiMeterSay() const;
+	/** (to-do 239b piece 4) an arriving passenger at the hall's doors asks for the taxi bus: true = it is at its kerb with its
+	 *  driver at the wheel, free, and now kept for Who (Stand: its sliding door's stand point, world - where they walk to). */
+	bool TaxiClaim(const FString& Who, FVector& Stand);
+	/** Who stands at the sliding door: true = taken over (A is the crew's now: in, to a rear seat, the fare runs, driven off and
+	 *  gone unseen); false = gone or kept for someone else, they walk on themselves. */
+	bool TaxiBoard(AActor* A, const FString& Who, const FString& Name);
 private:
 public:
 	/** E at a service vehicle's door (ServiceDrive.h): true when it was that; Say: why not, when it can't be. */
@@ -500,6 +506,13 @@ private:
 	bool IsTaxi(const FTractor& T) const { return Tractors.IsValidIndex(TaxiTi) && &Tractors[TaxiTi] == &T; }
 	bool TaxiOnDuty(const FTractor& T) const;
 	float TaxiFareChf() const;
+	// its passenger (piece 4): kept for (TaxiFor, since), their crew place, the trip: 0 none, 1 getting in, 2 seated - pulling out,
+	// 3 along the forecourt's bus lane, 4 out of sight (hidden, the fare runs for TaxiTripT s), 5 back to its kerb when unseen
+	FString TaxiFor, TaxiWho; double TaxiForT = 0.0; int32 TaxiPaxCi = INDEX_NONE, TaxiLegs = 0; uint8 TaxiTrip = 0; float TaxiTripT = 0.f; bool bTaxiHidden = false;
+	void TaxiTripTick(float Dt);
+	void TaxiShow(bool bOn);
+	void TaxiPaxGone(const TCHAR* Why);
+	bool TaxiUnseen(const FVector& At) const;
 	bool SvcWaits(const FString& Flight, float StandX, FString& Why) const;
 	bool SvcLost(int32 Ci, bool& bDrop);
 	bool SvcPersonAhead(const FTractor& T, const FVector& Move) const;

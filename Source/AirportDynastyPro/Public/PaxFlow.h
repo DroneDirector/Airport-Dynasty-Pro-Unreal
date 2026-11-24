@@ -79,7 +79,7 @@ public:
 
 private:
 	enum class EPx : uint8 { Walk, DeskQ, Desk, LaneQ, Wait, Seated, Lean, Call, Jetway, ClaimWait, ToBag, Revolve, Gone };   // (Revolve: at / in a revolving door - waiting, stepping in, riding round, stepping out)
-	enum class EDo : uint8 { None, JoinDesk, JoinLane, Screened, Upstairs, AtSeat, AtWall, AtGateSpot, Aboard, AtClaim, OutCarPark, ArrIn };
+	enum class EDo : uint8 { None, JoinDesk, JoinLane, Screened, Upstairs, AtSeat, AtWall, AtGateSpot, Aboard, AtClaim, OutCarPark, ArrIn, ToTaxi };
 	struct FWp { FVector P = FVector::ZeroVector; float Pause = 0.f; FVector Face = FVector::ZeroVector; uint8 Mode = 0; bool bGround = false; bool bNav = false; int8 Rev = -1, RevSide = 0; };   // Mode 0 walk, 1 slow, 2 ride, 3 a revolving door (Rev: ATerminalDoors' revolving door, RevSide: the side they come from, +-1 along its axis; P: the queue's head spot); bNav: the leg to it already walked out on the navmesh
 	struct FPx
 	{
@@ -172,7 +172,7 @@ private:
 	void Idle(FPx& P, AActor* A, float Dt, const FVector* Face = nullptr);
 	void Anim(FPx& P);
 	void Arrive(int32 i);
-	void Finish(int32 i, const TCHAR* Why);
+	void Finish(int32 i, const TCHAR* Why, bool bKeepBody = false);   // (bKeepBody: handed over alive - the taxi bus, AGSE::TaxiBoard)
 	void CarryBag(FPx& P, AActor* A);
 	void StartFade(FPx& P, AActor* A);
 	// the revolving doors (ATerminalDoors): waiting for an empty compartment, the ride round, out at the far side
@@ -186,6 +186,7 @@ private:
 	// ways (world points)
 	void WayToHall(FPx& P, const FVector& From, int32 RevDoor = INDEX_NONE);
 	void WayFromHall(FPx& P, const FVector& From);
+	bool OutToTaxi(FPx& P);   // (to-do 239b piece 4: instead of WayFromHall, now and then - the taxi bus at the kerb)
 	void WayToDesk(FPx& P, int32 Spot);
 	void WayToSecurity(FPx& P);
 	void WayScreening(FPx& P);

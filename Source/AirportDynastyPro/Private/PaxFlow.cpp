@@ -11,6 +11,7 @@
 #include "Escalators.h"
 #include "RoadNetwork.h"
 #include "TerminalDoors.h"
+#include "GSE.h"
 #include "TerminalPlan.h"
 #include "Turnaround.h"
 #include "BabylonModel.h"
@@ -730,7 +731,7 @@ int32 APaxFlow::SpawnArr(int32 Ri)
 	return i;
 }
 
-void APaxFlow::Finish(int32 i, const TCHAR* Why)
+void APaxFlow::Finish(int32 i, const TCHAR* Why, bool bKeepBody)
 {
 	FPx& P = Pax[i];
 	for (FLine& L : DeskLines) L.Who.Remove(i);
@@ -745,7 +746,7 @@ void APaxFlow::Finish(int32 i, const TCHAR* Why)
 		if (P.bHasBag && P.bArr) if (ABaggageBelts* B = ABaggageBelts::Get(GetWorld())) B->DropPaxBag(P.Id);
 		if (P.bHasBag && !P.bArr && P.Bag != INDEX_NONE) if (ADepartureBelts* D = ADepartureBelts::Get(GetWorld())) D->RemoveBag(P.Bag);
 		APaxProps::Forget(A);
-		A->Destroy();
+		if (!bKeepBody) A->Destroy();
 	}
 	if (P.Holder) { Holders.Remove(P.Holder); P.Holder->DestroyComponent(); P.Holder = nullptr; }
 	if (Runs.IsValidIndex(P.Run) && (Runs[P.Run].bTest || Runs[P.Run].Aboard + Runs[P.Run].Out < 3)) ADP_LOG(TEXT("PaxFlow: %s %s"), *P.Id, Why);
@@ -1167,6 +1168,26 @@ void APaxFlow::WayToHall(FPx& P, const FVector& From, int32 RevDoor)
 	Add(PXDOORX + J * 2.f, -8.f, true); Add(PXDOORX + J, -4.f, false); Add(PXDOORX + J, -2.f, false); Add(PXDOORX + J, 0.f, false); Add(PXDOORX + J * 3.f, 2.5f, false);
 }
 
+bool APaxFlow::OutToTaxi(FPx& P)
+{
+	// (to-do 239b piece 4) an arrival with nothing to carry takes the taxi bus at the kerb now and then, as a car-park pick-up is
+	// the rest: when it is free (its driver at the wheel, no fare, nobody else on the way to it - AGSE::TaxiClaim), one in seven.
+	// Out of the hall's east doors as WayFromHall, the pavement south-west, clear of the landside staff's places behind the bus
+	// (x -42.5 and east, z -19.8), to its sliding door's stand point; there AGSE::TaxiBoard takes them over (EDo::ToTaxi)
+	if (P.bHasBag || P.bHome || Rng.FRand() >= 0.15f) return false;
+	AGSE* G = AGSE::Find(GetWorld()); FVector Stand;
+	if (!G || !G->TaxiClaim(P.Id, Stand)) return false;
+	P.Way.Reset(); P.Wi = 0;
+	const float J = float(P.Jit.X) / 100.f;
+	auto Add = [&](float X, float Z, bool bG) { FWp W; W.P = PW(X, 0, Z); W.bGround = bG; if (bG) W.P.Z = GroundZ(X, Z); P.Way.Add(W); };
+	Add(PXARRX + J * 2.f, 8.f, false); Add(PXARRX + J, -1.5f, false); Add(PXARRX + J, -4.f, false); Add(PXARRX + J, -7.f, true);
+	Add(-46.5f + J * 0.3f, -17.5f, true);
+	const FVector Pl = PlanOf(Stand);
+	FWp W; W.P = Stand; W.bGround = true; W.P.Z = GroundZ(Pl.X, Pl.Z); P.Way.Add(W);
+	P.Do = EDo::ToTaxi; P.St = EPx::Walk;
+	return true;
+}
+
 void APaxFlow::WayFromHall(FPx& P, const FVector& From)
 {
 	// the arrivals' way out: the arrivals hall's east doors (kerb front z -4), the pavement, the crossing, a car
@@ -1500,8 +1521,20 @@ void APaxFlow::Arrive(int32 i)
 	case EDo::ArrIn: P.TunA = P.TunB = 0; WayArrivals(P); P.St = EPx::Walk; break;
 	case EDo::AtClaim:
 		P.St = EPx::ClaimWait; P.T = 0.f; P.Stage = TEXT("waiting at the claim belt for their bag");
-		if (!P.bArrBag) { P.Way.Reset(); P.Wi = 0; WayFromHall(P, A->GetActorLocation()); P.Do = EDo::OutCarPark; P.St = EPx::Walk; P.Stage = TEXT("hand luggage only - out to the car park"); }
+		if (!P.bArrBag && OutToTaxi(P)) P.Stage = TEXT("hand luggage only - to the taxi bus at the kerb");
+		else if (!P.bArrBag) { P.Way.Reset(); P.Wi = 0; WayFromHall(P, A->GetActorLocation()); P.Do = EDo::OutCarPark; P.St = EPx::Walk; P.Stage = TEXT("hand luggage only - out to the car park"); }
 		break;
+	case EDo::ToTaxi:
+	{
+		// (at the taxi bus's sliding door: the crew's now - in, a rear seat, the fare; or it is gone: on to the car park)
+		AGSE* G = AGSE::Find(GetWorld());
+		if (G && G->TaxiBoard(A, P.Id, P.Name)) { ++R.Out; ++TotalOut; Finish(i, TEXT("handed to the taxi bus at the kerb"), true); break; }
+		ADP_WARN(TEXT("PaxFlow: %s - the taxi bus is gone or taken, out to the car park instead"), *P.Id);
+		P.Way.Reset(); P.Wi = 0; Crossing(P, false, PXCROSS[0]);
+		{ FWp W; W.P = CarParkSpot(); W.bGround = true; P.Way.Add(W); }
+		P.Do = EDo::OutCarPark; P.St = EPx::Walk; P.Stage = TEXT("the taxi bus is gone - out to the car park");
+		break;
+	}
 	case EDo::OutCarPark: if (P.bHome) { ++R.Home; Finish(i, TEXT("gone home from the car park")); break; } ++R.Out; ++TotalOut; Finish(i, TEXT("picked up in the car park")); break;
 	default: P.St = EPx::Wait; break;
 	}
@@ -1741,7 +1774,8 @@ void APaxFlow::StepPx(int32 i, float Dt)
 		if (!bKnown || P.T > (R.bTest ? 300.f : 2700.f))   // (real: the last bag 30-40 min after on-blocks)
 		{
 			ADP_WARN(TEXT("PaxFlow: %s - %s, going on without it"), *P.Id, bKnown ? TEXT("no bag on the belt after the wait") : TEXT("their bag isn't in the claim system"));
-			P.Way.Reset(); P.Wi = 0; WayFromHall(P, A->GetActorLocation()); P.Do = EDo::OutCarPark; P.St = EPx::Walk; P.Stage = TEXT("out to the car park (no bag)");
+			if (OutToTaxi(P)) P.Stage = TEXT("no bag - to the taxi bus at the kerb");
+			else { P.Way.Reset(); P.Wi = 0; WayFromHall(P, A->GetActorLocation()); P.Do = EDo::OutCarPark; P.St = EPx::Walk; P.Stage = TEXT("out to the car park (no bag)"); }
 		}
 		break;
 	}

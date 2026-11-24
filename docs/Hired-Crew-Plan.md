@@ -547,6 +547,17 @@ Taxi bus (239, part B, 2026-11-24, compiled, NOT run): a line of `ADPService::Al
   would just wait on the meter. Needs first: where a taxi fare goes (off site by the forecourt road and back?), then piece 4 =
   arrivals' choice at the kerb (x -36.5 z -7) to walk to IK_Stand of the sliding door, climb to IK_Seat_SeatR*, TaxiFare(true),
   and at the drop TaxiFare(false), out, gone unseen.
+  Piece 4 (2026-11-24, compiled, NOT run; owner's choice: as the car-park pick-up, no drop-off scene): APaxFlow::OutToTaxi -
+  an arrival with no bag (hand luggage only, or no bag after the wait) takes the taxi 1 in 7 when AGSE::TaxiClaim says free
+  (driver at the wheel, no fare, not yours, at its kerb; kept 4 min for them). Hall east doors, (x -46.5, z -17.5) clear of
+  the staff places, to IK_Stand_SlideDoor; EDo::ToTaxi -> AGSE::TaxiBoard: ATugs::Enlist (as the ambulift's passengers),
+  door opens alone, SvcClimbFn to IK_Seat_SeatR1B, door shut, TaxiFare(true). Gone or taken -> crossing x 48, car park.
+  AGSE::TaxiTripTick: pulls out into the forecourt's bus lane (roads.json AIRPORT-FORECOURT right lane 6, PullOut 14 m, 120 m
+  west; still seen: 60 m more, max 4 times), hidden when unseen (driver, passenger, lamps), 4-10 min away (meter as 40 km/h),
+  TaxiFare(false), passenger destroyed unseen, bus back at its kerb when the kerb is unseen. Shift over waits for the trip.
+  Not checked: the lane's points west of x -48 (fallback straight on), street furniture on the pavement, other traffic in
+  the bus lane, the phone prop vanishing at hand-over (PaxProps::Forget). Bag carriers never take it (bag hand-over not built).
+  Deferred by the owner: fade by distance, reappear only when needed / occupied, extra taxis.
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 

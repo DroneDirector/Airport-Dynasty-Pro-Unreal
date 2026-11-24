@@ -34,6 +34,8 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Components/TextRenderComponent.h"
 #include "Engine/World.h"
+#include "GameFramework/PlayerController.h"
+#include "Camera/PlayerCameraManager.h"
 
 namespace
 {
@@ -532,8 +534,12 @@ bool AGSE::SvcLost(int32 Ci, bool& bDrop)
 // is lit; with a fare aboard it goes dark and the taximeter's digits run (AGSE::Lamps: GTaxiSign, GTaxiMeter). The meter
 // counts as a real one does: by the distance while it drives, by the time while it stands or crawls (under 15 km/h).
 // A plain tariff, not any one town's: CHF 6.50 on the flag, 3.50 a kilometre, 1.00 a minute waiting.
-// What starts a fare: the meter's button (TaxiBus.cpp - you at the wheel). No passenger is handed to the taxi bus yet
-// (piece 4): that code is to call TaxiFare(true / false) when they get in and out.
+// What starts a fare: the meter's button (TaxiBus.cpp - you at the wheel), or a passenger (piece 4): an arrival with no bag
+// (APaxFlow::OutToTaxi) is kept the bus (TaxiClaim), walks to its sliding door and is handed over there (TaxiBoard): the crew's
+// climb to a rear seat (SvcClimbFn / SvcSeatFn, as the service vans' crews), the fare starts, the bus pulls out into the
+// forecourt's bus lane (roads.json AIRPORT-FORECOURT, right lane 6 - the coaches' lane) and drives west along it; out of
+// sight it is hidden like a car leaving the car park; a few minutes later the fare ends, the passenger is gone, and once its
+// kerb is out of sight the bus stands there again, free. No drop-off scene, no way back on the roads (the owner's choice).
 bool AGSE::TaxiOnDuty(const FTractor& T) const { return (TaxiStage == 2 && T.Driver == TaxiCi && TaxiCi != INDEX_NONE) || (SvcYours(T) && T.PlayerSeat == 0); }
 
 float AGSE::TaxiFareChf() const { return bTaxiFare ? 6.5f + 3.5f * TaxiFareM / 1000.f + 1.f * TaxiFareWaitS / 60.f : 0.f; }
@@ -565,8 +571,10 @@ void AGSE::TaxiTick(float Dt)
 	{
 		const FVector At = Tractors[TaxiTi].At; const float D = FVector::Dist2D(At, TaxiFareAt); TaxiFareAt = At;
 		TaxiFareS += Dt;
-		if (D / Dt >= 417.f) TaxiFareM += D / 100.f; else TaxiFareWaitS += Dt;   // (15 km/h: by the distance above, by the time below)
+		if (bTaxiHidden) TaxiFareM += 11.1f * Dt;   // (out of sight: as a drive at 40 km/h)
+		else if (D / Dt >= 417.f) TaxiFareM += D / 100.f; else TaxiFareWaitS += Dt;   // (15 km/h: by the distance above, by the time below)
 	}
+	TaxiTripTick(Dt);
 	if ((TaxiPoll -= Dt) > 0.f) return;
 	TaxiPoll = 2.f;
 	ATugs* G = Tg(); UStaffPeople* Sp = UStaffPeople::Get(GetWorld());
@@ -587,6 +595,8 @@ void AGSE::TaxiTick(float Dt)
 	if (TaxiStage)
 	{
 		// (their body gone, or the crew place taken by somebody else: the bus is free again)
+		// (on a trip the trip goes on: it ends at its kerb - TaxiTripTick)
+		if (TaxiTrip >= 2) return;
 		if (!G->Crew.IsValidIndex(TaxiCi) || !G->Crew[TaxiCi].A.IsValid() || G->Crew[TaxiCi].bSlotFree || T.Driver != TaxiCi)
 		{
 			ADP_WARN(TEXT("GSE: the taxi bus's driver is lost (stage %d) - the bus is free again"), int32(TaxiStage));
@@ -595,7 +605,7 @@ void AGSE::TaxiTick(float Dt)
 			TaxiCi = INDEX_NONE; TaxiStage = 0;
 			return;
 		}
-		if (TaxiStage != 2 || Sp->OnShift(G->Crew[TaxiCi].StaffId)) return;
+		if (TaxiStage != 2 || TaxiTrip || Sp->OnShift(G->Crew[TaxiCi].StaffId)) return;   // (a passenger getting in: after them)
 		// shift over: out on the road side, round the front onto the pavement, given back
 		const int32 Ci = TaxiCi; TaxiStage = 3;
 		ADP_LOG(TEXT("GSE: %s's shift is over - gets out of the taxi bus"), *G->Crew[Ci].Name);
@@ -620,6 +630,161 @@ void AGSE::TaxiTick(float Dt)
 	WalkTo(Ci, [Pave] { return Pave; }, 30.f);   // (along the pavement, past its front)
 	WalkTo(Ci, [Road] { return Road; }, 30.f);   // (round the bumper to the road side)
 	ClimbIn(Ci, Ti, [this] { if (TaxiStage == 1) { TaxiStage = 2; ADP_LOG(TEXT("GSE: the taxi bus's driver is at the wheel")); } });
+}
+
+// ------------------------------------------------------------------ the taxi bus's passenger (to-do 239b piece 4)
+
+bool AGSE::TaxiUnseen(const FVector& At) const
+{
+	// (as the landside staff's cars are made and taken: never within 30 m of you, nor within 150 m in front of your camera)
+	const APlayerController* PC = GetWorld()->GetFirstPlayerController();
+	if (!PC) return true;
+	if (const APawn* P = PC->GetPawn()) if (FVector::Dist2D(P->GetActorLocation(), At) < 3000.f) return false;
+	if (!PC->PlayerCameraManager) return true;
+	const FVector C = PC->PlayerCameraManager->GetCameraLocation(); const float D = FVector::Dist(C, At);
+	if (D > 15000.f) return true;
+	if (D < 3000.f) return false;
+	return FVector::DotProduct(PC->PlayerCameraManager->GetCameraRotation().Vector(), (At - C) / D) < 0.35f;
+}
+
+bool AGSE::TaxiClaim(const FString& Who, FVector& Stand)
+{
+	if (!Tractors.IsValidIndex(TaxiTi)) return false;
+	const FTractor& T = Tractors[TaxiTi];
+	const double Now = GetWorld()->GetTimeSeconds();
+	if (!TaxiFor.IsEmpty() && Now - TaxiForT < 240.0) return false;   // (kept for someone on their way; lapses after 4 min)
+	if (TaxiStage != 2 || T.Driver != TaxiCi || TaxiCi == INDEX_NONE || bTaxiFare || TaxiTrip || T.Player.IsValid() || T.Path.Num() || FVector::Dist2D(T.At, T.Home) > 150.f) return false;
+	const FServiceSpec& S = SvSpec(T.Svc); if (!S.Doors.Num() || !S.Seats.Num()) return false;
+	TaxiFor = Who; TaxiForT = Now;
+	Stand = TW(T, SvcP(T, S.Doors[0].Stand));
+	ADP_LOG(TEXT("GSE: the taxi bus is kept for %s (walking to its sliding door)"), *Who);
+	return true;
+}
+
+bool AGSE::TaxiBoard(AActor* A, const FString& Who, const FString& Name)
+{
+	ATugs* G = Tg();
+	const bool bMine = TaxiFor == Who; if (bMine) TaxiFor.Reset();
+	if (!A || !G || !bMine || !Tractors.IsValidIndex(TaxiTi)) { ADP_WARN(TEXT("GSE: %s at the taxi bus, but it is %s"), *Who, bMine ? TEXT("not there") : TEXT("kept for someone else")); return false; }
+	const int32 Ti = TaxiTi; const FTractor& T = Tractors[Ti];
+	if (TaxiStage != 2 || T.Driver != TaxiCi || bTaxiFare || TaxiTrip || T.Player.IsValid() || T.Path.Num() || FVector::Dist2D(T.At, T.Home) > 150.f)
+	{ ADP_WARN(TEXT("GSE: %s at the taxi bus, but it is no longer free (driver %d, fare %d, trip %d)"), *Who, int32(TaxiStage), int32(bTaxiFare), int32(TaxiTrip)); return false; }
+	const FServiceSpec& S = SvSpec(T.Svc);
+	// (the first row's inner seat: beside the sliding door's aisle, nobody climbed over; else the farthest)
+	int32 Seat = S.Seats.IndexOfByPredicate([](const TCHAR* N) { return FCString::Strcmp(N, TEXT("IK_Seat_SeatR1B")) == 0; }) + 1;
+	if (Seat <= 0) Seat = 1;
+	const int32 Ci = G->Enlist(A, FString(), TEXT("taxi passenger"));
+	if (Ci == INDEX_NONE) { ADP_WARN(TEXT("GSE: no crew place for %s, the taxi passenger"), *Who); return false; }
+	G->Crew[Ci].bGse = true; G->Crew[Ci].Name = Name;
+	TaxiPaxCi = Ci; TaxiTrip = 1; TaxiTripT = 0.f; TaxiWho = Who; TaxiLegs = 0;
+	ADP_LOG(TEXT("GSE: %s (%s) gets into the taxi bus by its sliding door"), *Name, *Who);
+	const FVector Stand = SvcP(T, S.Doors[0].Stand);
+	WalkTo(Ci, [this, Ti, Stand] { return TW(Tractors[Ti], Stand); }, 15.f);
+	// (a sliding door: it opens by itself)
+	Do(Ci, [this, Ti] { FTractor& V = Tractors[Ti]; if (V.SvcDoors[0].Want < 0.5f && !V.SndDoorOpen.IsEmpty()) Sound(*V.SndDoorOpen, TW(V, V.SvcDoors[0].Piv)); V.SvcDoors[0].Want = 1.f; });
+	WaitFor(Ci, [this, Ti](float E) { return E > 5.f || Tractors[Ti].SvcDoors[0].Now > 0.99f; });
+	PoseAct(Ci, SvcClimbFn(Ti, Seat, true), 5.f);
+	Do(Ci, [this, Ci, Ti, Seat]
+	{
+		if (ATugs* H = Tg()) H->Crew[Ci].Hold = SvcSeatFn(Ti, Seat);
+		FTractor& V = Tractors[Ti]; V.SvcDoors[0].Want = 0.f;
+		if (TaxiStage == 2 && V.Driver == TaxiCi && TaxiCi != INDEX_NONE) { TaxiFare(true, *TaxiWho); TaxiTrip = 2; TaxiTripT = 0.f; return; }
+		// (its driver was lost meanwhile: they sit and give up, gone once nobody sees the bus)
+		ADP_WARN(TEXT("GSE: %s sits in the taxi bus, but its driver is gone - no ride"), *TaxiWho);
+		TaxiTrip = 4; TaxiTripT = 60.f;
+	});
+	return true;
+}
+
+void AGSE::TaxiShow(bool bOn)
+{
+	if (!Tractors.IsValidIndex(TaxiTi)) return;
+	bTaxiHidden = !bOn;
+	if (ABabylonModel* M = Tractors[TaxiTi].M.Get()) M->SetActorHiddenInGame(!bOn);   // (its lamps are its own: hidden with it)
+	if (ATugs* G = Tg()) for (const int32 Ci : {TaxiCi, TaxiPaxCi}) if (G->Crew.IsValidIndex(Ci)) if (AActor* A = G->Crew[Ci].A.Get()) A->SetActorHiddenInGame(!bOn);
+}
+
+void AGSE::TaxiPaxGone(const TCHAR* Why)
+{
+	ATugs* G = Tg();
+	if (G && G->Crew.IsValidIndex(TaxiPaxCi) && !G->Crew[TaxiPaxCi].bSlotFree)
+	{
+		AActor* A = G->Crew[TaxiPaxCi].A.Get();
+		G->Discharge(TaxiPaxCi);
+		if (A) A->Destroy();
+	}
+	ADP_LOG(TEXT("GSE: the taxi bus's passenger %s is gone (%s)"), *TaxiWho, Why);
+	TaxiPaxCi = INDEX_NONE; TaxiWho.Reset();
+}
+
+void AGSE::TaxiTripTick(float Dt)
+{
+	if (!TaxiTrip) return;
+	if (!Tractors.IsValidIndex(TaxiTi)) { TaxiTrip = 0; TaxiPaxCi = INDEX_NONE; return; }
+	FTractor& T = Tractors[TaxiTi];
+	ATugs* G = Tg();
+	TaxiTripT += Dt;
+	switch (TaxiTrip)
+	{
+	case 1:
+		// (getting in: their body taken away meanwhile - the bus is free again)
+		if (!G || !G->Crew.IsValidIndex(TaxiPaxCi) || !G->Crew[TaxiPaxCi].A.IsValid() || G->Crew[TaxiPaxCi].bSlotFree)
+		{ ADP_WARN(TEXT("GSE: the taxi bus's passenger %s is lost getting in"), *TaxiWho); TaxiPaxCi = INDEX_NONE; TaxiTrip = 0; T.SvcDoors[0].Want = 0.f; }
+		return;
+	case 2:
+	{
+		// (door shut, nobody of yours aboard: out of its kerb place into the bus lane, west along the forecourt)
+		if (TaxiTripT < 2.f || T.SvcDoors[0].Now > 0.01f || T.Player.IsValid()) return;
+		const FVector Fwd = FRotator(0.f, T.Yaw, 0.f).Vector();
+		FVehicleLane Lane; TArray<FVector> Path;
+		if (FVehicleLane::FromRoad(TEXT("AIRPORT-FORECOURT"), true, 6, Lane)) Path = Lane.PullOut(T.At, Fwd, 1400.f, 12000.f);
+		if (Path.Num() < 10)
+		{
+			ADP_WARN(TEXT("GSE: the taxi bus finds no forecourt bus lane (%d points) - straight on along its kerb lane"), Path.Num());
+			Path.Reset(); for (int32 i = 1; i <= 60; ++i) Path.Add(T.At + Fwd * (200.f * i));
+		}
+		Motor(T, true);
+		ADP_LOG(TEXT("GSE: the taxi bus pulls out with %s (%d points along the forecourt)"), *TaxiWho, Path.Num());
+		TaxiTrip = 3; TaxiTripT = 0.f;
+		Go(T, MoveTemp(Path), false, [this] { if (TaxiTrip == 3) TaxiTripT = -1.f; });   // (-1: at the end of the stretch)
+		return;
+	}
+	case 3:
+	{
+		if (T.Path.Num() || (TaxiTripT >= 0.f && TaxiTripT < 3.f)) return;
+		if (!T.Player.IsValid() && TaxiUnseen(T.At))
+		{
+			TaxiShow(false); TaxiTrip = 4; TaxiTripT = -FMath::FRandRange(240.f, 600.f);   // (the trip itself: 4 to 10 minutes out of sight)
+			ADP_LOG(TEXT("GSE: the taxi bus is out of sight with %s - away for %.0f s"), *TaxiWho, -TaxiTripT);
+			return;
+		}
+		// (still seen: on along the lane, a further 60 m, at most four times; then it waits there till nobody looks)
+		TaxiTripT = 0.f;   // (asked again in 3 s)
+		if (TaxiLegs < 4)
+		{
+			++TaxiLegs; FVehicleLane Lane; TArray<FVector> Path;
+			if (FVehicleLane::FromRoad(TEXT("AIRPORT-FORECOURT"), true, 6, Lane)) Path = Lane.PullOut(T.At, FRotator(0.f, T.Yaw, 0.f).Vector(), 300.f, 6000.f);
+			if (Path.Num() >= 4) Go(T, MoveTemp(Path), false, [this] { if (TaxiTrip == 3) TaxiTripT = -1.f; });
+		}
+		return;
+	}
+	case 4:
+		// (away: the fare runs - by distance, TaxiTick; with no ride, the passenger gives up)
+		if (TaxiTripT < 0.f) return;
+		if (!bTaxiHidden && !TaxiUnseen(T.At)) return;
+		if (bTaxiFare) TaxiFare(false, *TaxiWho);
+		TaxiPaxGone(bTaxiHidden ? TEXT("dropped off, out of sight") : TEXT("no ride - left unseen"));
+		TaxiTrip = bTaxiHidden ? 5 : 0;
+		return;
+	case 5:
+		// (back at its kerb, free, once nobody sees that kerb)
+		if (!TaxiUnseen(T.Home)) return;
+		T.Path.Reset(); T.OnArrive = nullptr; T.Speed = 0.f; T.At = T.Home; T.Yaw = T.HomeYaw; Pose(T); Motor(T, false);
+		TaxiShow(true); TaxiTrip = 0; TaxiLegs = 0;
+		ADP_LOG(TEXT("GSE: the taxi bus is back at its kerb, free"));
+		return;
+	default: TaxiTrip = 0; return;
+	}
 }
 
 void AGSE::SvcTick(float Dt)
