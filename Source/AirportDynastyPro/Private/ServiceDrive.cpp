@@ -107,6 +107,14 @@ void AServiceDrive::Pose(float K)
 	if (Seq == ESeq::Handle) G->SvcHandFn(Ti, Seat)(K, PH, P);
 	else if (Seq == ESeq::In || Seq == ESeq::Out) G->SvcClimbAny(Ti, Seat, Seq == ESeq::In)(K, PH, P);
 	else G->SvcSeatFn(Ti, Seat)(1.f, PH, P);
+	if (Seq == ESeq::Sat && ReachW > 0.f)
+	{
+		// (the hand on that side of you: the wrist a hand short of it, leaning over to what is far)
+		const FVector Fc = P.Facing.GetSafeNormal2D(), Lt = ADPPose::LeftOf(Fc), Sh = P.Pelvis + FVector(0., 0., 45.); const int32 s = FVector::DotProduct(ReachAt - P.Pelvis, Lt) > 12. ? 0 : 1;
+		const FVector To = ReachAt - (ReachAt - Sh).GetSafeNormal() * 16.f, Of = P.bHand[s] ? P.Hand[s] : P.Pelvis + Lt * (s == 0 ? 22.f : -22.f) - FVector(0., 0., 15.);
+		P.bHand[s] = true; P.Hand[s] = FMath::Lerp(Of, To, ReachW); P.Grip[s] = FMath::Lerp(P.Grip[s], 0.35f, ReachW);
+		P.Lean += FMath::Clamp((float(FVector::Dist(Sh, To)) - 52.f) * 0.8f, 0.f, 28.f) * ReachW;
+	}
 	// (the frame under the hips, as the crew's - TugCrew.cpp ApplyPose)
 	const FVector Fw = P.Facing.GetSafeNormal2D().IsNearlyZero() ? FVector(1, 0, 0) : P.Facing.GetSafeNormal2D();
 	const FTransform Frame(FRotator(0.f, Fw.Rotation().Yaw - 90.f, 0.f), FVector(P.Pelvis.X, P.Pelvis.Y, FMath::Min(P.Foot[0].Z, P.Foot[1].Z)));

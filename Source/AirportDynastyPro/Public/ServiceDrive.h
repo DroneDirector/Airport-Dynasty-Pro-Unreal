@@ -30,6 +30,9 @@ public:
 	float Throttle() const { return AtWheel() && !bOutWanted ? FMath::Clamp(FMath::Max(KeyFwd, PadT), 0.f, 1.f) : 0.f; }
 	float Brake() const { return AtWheel() ? (bOutWanted ? 1.f : FMath::Clamp(FMath::Max(-KeyFwd, PadB), 0.f, 1.f)) : 1.f; }
 	float SteerIn() const { return AtWheel() && !bOutWanted ? FMath::Clamp(KeySteer, -1.f, 1.f) : 0.f; }
+	bool IsBehind() const { return bBehind; }
+	/** A hand of yours on a control (VehicleControls.h): how far there, where (world). */
+	void SetReach(float Weight, const FVector& At) { ReachW = Weight; ReachAt = At; }
 	bool Leaving() const { return bOutWanted; }
 	// in the de-icing truck's cabin (GSEDeicer.cpp): the boom by the move keys / left stick, out and in by Shift / Ctrl or the
 	// triggers, type I / type IV by the left / right mouse button or the right / left shoulder button, Home (pad Y): stowed
@@ -52,6 +55,7 @@ private:
 	int32 Ti = INDEX_NONE, Seat = 0; ESeq Seq = ESeq::Walk; float T = 0.f, CamT = 0.f;
 	FTruckDriverRig Rig; FTransform CamFrom;
 	bool bOutWanted = false, bBehind = false, bHead = false, bDoor = false;
+	float ReachW = 0.f; FVector ReachAt = FVector::ZeroVector;
 	float KeyFwd = 0.f, KeySteer = 0.f, PadT = 0.f, PadB = 0.f, LookYaw = 0.f, LookPitch = 0.f;
 	void Climb();
 	void Pose(float K);

@@ -83,12 +83,12 @@ void ATugs::SafeWay(FCrew& C, float StandX)
 	// goes along the terminal's front, under the jetways' fixed corridors (UStaffPeople::AlongWall)
 	if (!C.A.IsValid()) return;
 	const FVector Me = C.A->GetActorLocation();
-	auto Walk = [&](float X, float Z, float Stop) { FCrewAct A; A.Kind = FCrewAct::Walk; const FVector P = Plan(X, Z); A.To = [P] { return P; }; A.Stop = Stop; A.Max = 160.f; C.Q.Add(A); };
+	auto WalkOn = [&](float X, float Z, float Stop) { FCrewAct A; A.Kind = FCrewAct::Walk; const FVector P = Plan(X, Z); A.To = [P] { return P; }; A.Stop = Stop; A.Max = 160.f; C.Q.Add(A); };
 	const float X = float(Me.X / 100.0), To = StandX - 22.f;
 	if (FMath::Abs(X - To) < 12.f) return;   // (there already: the job's own walks)
-	Walk(X, 85.45f, 35.f);
-	Walk(To, 85.45f, 35.f);
-	Walk(To, 90.f, 60.f);
+	WalkOn(X, 85.45f, 35.f);
+	WalkOn(To, 85.45f, 35.f);
+	WalkOn(To, 90.f, 60.f);
 }
 
 bool ATugs::PersonAhead(const FVector& Here, const FVector& Dir, float Reach) const

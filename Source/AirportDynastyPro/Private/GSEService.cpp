@@ -498,7 +498,8 @@ void AGSE::SvcTick(float Dt)
 	// (the cabin, row by row, by everyone who is in it)
 	for (TPair<int32, FSvcJob>& P : SvcJobs)
 	{
-		FSvcJob& J = P.Value; const float Was = J.T; if (J.Phase > 0) J.T += Dt;
+		FSvcJob& J = P.Value; const float Was = J.T; if (J.Phase > 0 && !(SvSpec(J.Svc).bAmbu && J.Phase == 1 && CaterAtFront(J.StandX))) J.T += Dt;   // (the ambulift waiting for the caterers at the same door: not its time)
+	
 		if (Was <= SvPatience && J.T > SvPatience) ADP_WARN(TEXT("GSE: the %s at stand x %.0f has been at %s for 45 min - the flight no longer waits for it"), SvSpec(J.Svc).Label, J.StandX, *J.Reg);
 		FuelTick(J, Dt); WetTick(J, Dt); if (SvSpec(J.Svc).bStairs) StairsTick(J, Dt);
 		if (SvSpec(J.Svc).bDeicer) DeicerTick(P.Key, Dt);

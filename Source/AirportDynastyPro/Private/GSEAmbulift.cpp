@@ -3,6 +3,7 @@
 // so nobody can do what the vehicle does not allow. And its two wheelchairs.
 #include "GSEAmbulift.h"
 #include "GSE.h"
+#include "VehicleControls.h"
 #include "ServiceVehicles.h"
 #include "Tugs.h"
 #include "VehicleRiders.h"
@@ -74,6 +75,7 @@ void AGSE::AmbuDress(FTractor& T)
 
 bool AGSE::AmbuStowed(const FTractor& T) const
 {
+	if (T.Am && T.Am->bStop) return false;
 	if (T.Am) for (int32 p = 0; p < FA::Parts; ++p) if (FMath::Abs(T.Am->Now[p]) > 0.05f || FMath::Abs(T.Am->Want[p]) > 0.05f) return false;
 	return true;
 }
@@ -82,6 +84,10 @@ bool AGSE::AmbuMay(const FTractor& T, int32 Part, float To) const
 {
 	const FSvcAmbu& C = *T.Am; const float* N = C.Now; const bool bOut = FMath::Abs(To) > FMath::Abs(N[Part]);
 	if (C.bStop) return false;   // (an emergency stop)
+	// you on it: no floor folds away under you, no door shuts on you; nothing comes down on you
+	if (T.YouOn) { if (Part == FA::Legs && !bOut) return false; if (T.YouOn == 2 && Part == FA::Tail) return false; if (T.YouOn == 3 && Part == FA::Plat) return false; }
+	if (FMath::Abs(T.YouAt.Y) < 62.f && !bOut && ((Part == FA::DoorF && FMath::Abs(T.YouAt.X - 254.f) < 48.f) || (Part == FA::DoorR && FMath::Abs(T.YouAt.X + 395.f) < 48.f))) return false;
+	if (!T.YouOn && FMath::Abs(T.YouAt.Y) < 120.f && T.YouAt.X < -400.f && T.YouAt.X > -600.f && ((Part == FA::Arms && bOut) || Part == FA::Tail)) return false;
 	switch (Part)
 	{
 	case FA::Legs: return T.MeasSpeed < 0.02f && !T.Path.Num() && (bOut || (N[FA::Lift] <= 0.f && N[FA::Tail] <= 0.f));
@@ -161,7 +167,7 @@ void AGSE::AmbuParts(FTractor& T, float Dt)
 			if (K->ComponentHasTag(TEXT("SvcBody"))) { FVector L = S->GetRelativeLocation(); L.Z = SvcP(T, TEXT("IK_Name_L")).Z + q; S->SetRelativeLocation(L); }
 			if (K->ComponentHasTag(TEXT("SvcRear"))) { const FTransform X = FTransform(FRotator(0.f, 180.f, 0.f), SvcP(T, TEXT("IK_Name_Rear")) - AmX * 1.2f) * Mt * U; S->SetRelativeLocationAndRotation(X.GetLocation(), X.GetRotation()); }
 		}
-	if (T.Job != EJob::AtStand && AmbuStowed(T)) C.bLive = false;
+	if (T.Job != EJob::AtStand && AmbuStowed(T)) { C.bLive = false; for (int32 k = 0; k < C.Keys.Num(); ++k) if (C.Press[k] > 0.f) C.bLive = true; for (float V : C.Lev) if (V != 0.f) C.bLive = true; }
 }
 
 FVector AGSE::AmbuTip(const FSvcAmbu& C) { return AmRot(AmTailA, AmY, C.Now[FA::Arms]).TransformPosition(AmTailH) - AmTailH; }
@@ -197,4 +203,143 @@ void AGSE::AmbuChairs(FTractor& T, float Dt)
 			if (K.GCast[r] != INDEX_NONE) M->MoveGroup(K.GCast[r], FTransform(FQuat(AmY, K.Spin / 9.5f), SvcP(T, r ? TEXT("WC_PIV_Castor_R") : TEXT("WC_PIV_Castor_L"))));
 		}
 	}
+}
+
+// ------------------------------------------------------------------ your hands on its controls (to-do 238, VehicleControls.h)
+
+FString AGSE::AmbuWhy(const FTractor& T, int32 Part, float To) const
+{
+	// (AmbuMay said no: the first thing in its way)
+	const FSvcAmbu& C = *T.Am; const float* N = C.Now; const bool bOut = FMath::Abs(To) > FMath::Abs(N[Part]);
+	if (C.bStop) return TEXT("an emergency stop is pressed");
+	const bool bLegs = N[FA::Legs] > 29.9f;
+	switch (Part)
+	{
+	case FA::Legs: return T.MeasSpeed > 0.02f || T.Path.Num() ? TEXT("it is moving") : N[FA::Lift] > 0.f ? TEXT("the body is up") : N[FA::Tail] > 0.f ? TEXT("the tail lift is open") : TEXT("you are standing on it");
+	case FA::Lift: return !bLegs ? TEXT("the legs are not down") : N[FA::Tail] > 0.f ? TEXT("the tail lift is open") : N[FA::DoorR] > 0.f ? TEXT("the rear doors are open") : N[FA::Bridge] > 0.f ? TEXT("the bridge is out") : TEXT("the front platform is out");
+	case FA::Plat: return N[FA::Lift] < 102.f ? TEXT("the body is too low, the cab is in the way") : N[FA::Rails] > 0.f ? TEXT("its rails are up") : N[FA::Bridge] > 0.f ? TEXT("the bridge is out") : N[FA::DoorF] > 0.f ? TEXT("the front doors are open") : TEXT("you are standing on it");
+	case FA::Rails: return N[FA::Plat] < 89.9f ? TEXT("the platform is not out") : N[FA::Gates] > 0.f ? TEXT("the gates are out") : TEXT("the bridge is out");
+	case FA::Gates: case FA::Bridge: return TEXT("the rails are not up");
+	case FA::DoorF: return bOut ? TEXT("the platform is not out") : TEXT("you are in the doorway");
+	case FA::Tail: return N[FA::Lift] > 0.f ? TEXT("the body is up") : !bLegs ? TEXT("the legs are not down") : N[FA::DoorR] > 0.f ? TEXT("the rear doors are open") : N[FA::TRails] > 0.f ? TEXT("its rails are up") : N[FA::Arms] < -0.05f ? TEXT("the deck is not at floor height") : TEXT("you are standing too near");
+	case FA::Arms: return N[FA::Tail] < 89.9f ? TEXT("the deck is folded") : TEXT("you are standing under it");
+	case FA::TRails: case FA::Flap: return TEXT("the deck is folded");
+	case FA::DoorR: return !bOut ? TEXT("you are in the doorway") : N[FA::Tail] < 89.9f ? TEXT("the tail lift is folded") : TEXT("the deck is not at floor height");
+	}
+	return TEXT("not now");
+}
+
+TSharedPtr<FVehTable> AGSE::AmbuControls()
+{
+	using K = FVehControl;
+	// what a point rides on; points are as the model names them: the platforms' deployed, the tail deck's level
+	enum { Chassis, Body, Plat, RailL, RailR, GateL, GateR, Deck, DRailL, DRailR, Folded };
+	enum { SwHaz, SwBlue, SwBeacon, SwWork, SwLight, SwHorn, SwStop };
+	const FVector L(0, -1, 0), R(0, 1, 0), F(1, 0, 0), B(-1, 0, 0), Dash(-0.8f, 0.f, 0.6f), No(0, 0, 0);
+	TSharedPtr<FVehTable> Tb = MakeShared<FVehTable>(); TArray<K>& C = Tb->Controls;
+	auto Mo = [&C](const TCHAR* Part, const TCHAR* Pt, K::EKind Kind, const TCHAR* Lb, int32 Fr, const FVector& Out, int32 M, float A, float Bv, bool bTurns = true) { K X; X.Part = Part; X.Point = Pt; X.Kind = Kind; X.Label = Lb; X.Frame = Fr; X.Out = Out; X.Motion = M; X.A = A; X.B = Bv; X.bTurns = bTurns; C.Add(X); };
+	auto Sw = [&C](const TCHAR* Part, const TCHAR* Pt, const TCHAR* Lb, int32 Fr, const FVector& Out, int32 S, bool bSeat = false) { K X; X.Part = Part; X.Point = Pt; X.Kind = K::Push; X.Label = Lb; X.Frame = Fr; X.Out = Out; X.Switch = S; X.bSeat = bSeat; C.Add(X); };
+	// the legs, outside on the left
+	Mo(TEXT("Lever_Stab"), TEXT("IK_Lever_Stab"), K::Lever, TEXT("Legs down / up"), Chassis, L, FA::Legs, 0.f, 30.f);
+	Sw(TEXT("Button_StabEStop"), TEXT("IK_Button_StabEStop"), TEXT("Emergency stop"), Chassis, L, SwStop);
+	// the panel inside at the front left
+	Mo(TEXT("Lever_Lift"), TEXT("IK_Lever_Lift"), K::Lever, TEXT("Body up / down"), Body, R, FA::Lift, 0.f, 290.f);
+	Mo(TEXT("Lever_Plat"), TEXT("IK_Lever_Plat"), K::Lever, TEXT("Front platform out / in"), Body, R, FA::Plat, 0.f, 90.f);
+	Mo(TEXT("Lever_Bridge"), TEXT("IK_Lever_Bridge"), K::Lever, TEXT("Bridge out / in"), Body, R, FA::Bridge, 0.f, 50.f);
+	Mo(TEXT("Button_DoorFront"), TEXT("IK_Button_DoorFront"), K::Push, TEXT("Front doors"), Body, R, FA::DoorF, 0.f, 1.f);
+	Sw(TEXT("Button_EStop"), TEXT("IK_Button_EStop"), TEXT("Emergency stop"), Body, R, SwStop);
+	Sw(TEXT("Button_Light"), TEXT("IK_Button_Light"), TEXT("Cabin lights"), Body, R, SwLight);
+	Sw(TEXT("Button_Blue"), TEXT("IK_Button_Blue"), TEXT("Blue lights"), Body, R, SwBlue);
+	Sw(TEXT("Button_Work"), TEXT("IK_Button_Work"), TEXT("Work lights"), Body, R, SwWork);
+	Mo(TEXT("Button_DoorFrontOut"), TEXT("IK_Button_DoorFrontOut"), K::Push, TEXT("Front doors"), Body, F, FA::DoorF, 0.f, 1.f);
+	// the front platform's rails and gates, by hand
+	Mo(TEXT("RailPlat_L"), TEXT("IK_Rail_Hand_L"), K::Hand, TEXT("Platform rails up / down"), RailL, No, FA::Rails, 0.f, 1.f);
+	Mo(TEXT("RailPlat_R"), TEXT("IK_Rail_Hand_R"), K::Hand, TEXT("Platform rails up / down"), RailR, No, FA::Rails, 0.f, 1.f);
+	Mo(TEXT("GateSlide_L"), TEXT("IK_Handle_Gate_L"), K::Hand, TEXT("Gates out / in"), GateL, No, FA::Gates, 0.f, 40.f);
+	Mo(TEXT("GateSlide_R"), TEXT("IK_Handle_Gate_R"), K::Hand, TEXT("Gates out / in"), GateR, No, FA::Gates, 0.f, 40.f);
+	// the tail lift: outside at the rear right, inside at the rear, its rails by hand
+	Mo(TEXT("Button_TailUp"), TEXT("IK_Button_TailUp"), K::Hold, TEXT("Tail lift up"), Body, R, FA::Arms, AmLow, 0.f, false);
+	Mo(TEXT("Button_TailDown"), TEXT("IK_Button_TailDown"), K::Hold, TEXT("Tail lift down"), Body, R, FA::Arms, 0.f, AmLow, false);
+	Mo(TEXT("Button_TailFold"), TEXT("IK_Button_TailFold"), K::Hold, TEXT("Tail lift unfold / fold"), Body, R, FA::Tail, 0.f, 90.f);
+	Sw(TEXT("Button_TailStop"), TEXT("IK_Button_TailStop"), TEXT("Emergency stop"), Body, R, SwStop);
+	Mo(TEXT("Button_InTailUp"), TEXT("IK_Button_InTailUp"), K::Hold, TEXT("Tail lift up"), Body, F, FA::Arms, AmLow, 0.f, false);
+	Mo(TEXT("Button_InTailDown"), TEXT("IK_Button_InTailDown"), K::Hold, TEXT("Tail lift down"), Body, F, FA::Arms, 0.f, AmLow, false);
+	Mo(TEXT("Button_InTailFold"), TEXT("IK_Button_InTailFold"), K::Hold, TEXT("Tail lift unfold / fold"), Body, F, FA::Tail, 0.f, 90.f);
+	Sw(TEXT("Button_InTailStop"), TEXT("IK_Button_InTailStop"), TEXT("Emergency stop"), Body, F, SwStop);
+	Mo(TEXT("TailRail_L"), TEXT("IK_Tail_Rail_L_Hand"), K::Hand, TEXT("Tail lift rails up / down"), DRailL, No, FA::TRails, 0.f, 1.f);
+	Mo(TEXT("TailRail_R"), TEXT("IK_Tail_Rail_R_Hand"), K::Hand, TEXT("Tail lift rails up / down"), DRailR, No, FA::TRails, 0.f, 1.f);
+	Mo(TEXT("Button_DoorRearIn"), TEXT("IK_Button_DoorRearIn"), K::Push, TEXT("Rear doors"), Body, F, FA::DoorR, 0.f, 1.f);
+	Mo(TEXT("Button_DoorRearOut"), TEXT("IK_Button_DoorRearOut"), K::Push, TEXT("Rear doors"), Body, B, FA::DoorR, 0.f, 1.f);
+	// the cab
+	Sw(TEXT("Button_CabHazard"), TEXT("IK_Button_CabHazard"), TEXT("Hazard lights"), Chassis, Dash, SwHaz, true);
+	Sw(TEXT("Button_CabBlue"), TEXT("IK_Button_CabBlue"), TEXT("Blue lights"), Chassis, Dash, SwBlue, true);
+	Sw(TEXT("Button_CabStop"), TEXT("IK_Button_CabStop"), TEXT("Emergency stop"), Chassis, Dash, SwStop, true);
+	Sw(TEXT("Button_CabBeacon"), TEXT("IK_Button_CabBeacon"), TEXT("Beacon"), Chassis, Dash, SwBeacon, true);
+	Sw(TEXT("Button_CabWork"), TEXT("IK_Button_CabWork"), TEXT("Work lights"), Chassis, Dash, SwWork, true);
+	Sw(TEXT("Button_Horn"), TEXT("IK_Horn"), TEXT("Horn"), Chassis, Dash, SwHorn, true);
+
+	Tb->Frame = [](const AGSE& G, const FTractor& T, int32 Fr) -> FTransform
+	{
+		const FSvcAmbu& A = *T.Am; const float* N = A.Now; const FTransform U = AmT(AmUp * N[FA::Lift]);
+		if (Fr == Chassis) return FTransform::Identity;
+		if (Fr == Body) return U;
+		// (as AmbuParts places the parts themselves)
+		const FTransform Pl = AmRot(AmHinge, AmY, N[FA::Plat] - 90.f) * U, Dk = AmRot(AmTailH, AmY, 90.f - N[FA::Tail]) * AmT(AmbuTip(A)) * U;
+		if (Fr == Plat) return Pl;
+		if (Fr == Deck) return Dk;
+		if (Fr == Folded) return AmRot(AmTailH, AmY, -N[FA::Tail]) * AmT(AmbuTip(A)) * U;
+		const int32 r = Fr == RailR || Fr == GateR || Fr == DRailR ? 1 : 0; const float Sg = r ? 1.f : -1.f; auto Ang = [r](float E) { return 90.f - 90.f * FMath::Clamp(2.f * E - float(r), 0.f, 1.f); };
+		if (Fr == DRailL || Fr == DRailR) return AmRot(G.SvcP(T, r ? TEXT("PIV_TailRail_R") : TEXT("PIV_TailRail_L")), AmX, Ang(N[FA::TRails]) * Sg) * Dk;
+		return AmT(AmX * (Fr == GateL || Fr == GateR ? N[FA::Gates] : 0.f)) * AmRot(G.SvcP(T, r ? TEXT("PIV_RailPlat_R") : TEXT("PIV_RailPlat_L")), AmX, Ang(N[FA::Rails]) * Sg) * Pl;
+	};
+	Tb->Now = [](const FTractor& T, int32 M) { return T.Am->Now[M]; };
+	Tb->Want = [](FTractor& T, int32 M, float To) { T.Am->Want[M] = To; T.Am->bLive = true; };
+	Tb->May = [](const AGSE& G, const FTractor& T, int32 M, float To, FString& Why) { if (G.AmbuMay(T, M, To)) return true; Why = G.AmbuWhy(T, M, To); return false; };
+	Tb->End = [](const FTractor& T, int32 M, float E) { return M == FA::Lift && T.Am->Now[FA::Plat] > 0.f ? FMath::Max(E, 102.f) : E; };   // (with the platform out not down onto the cab)
+	Tb->Press = [](AGSE& G, int32 Ti, const FVehControl& X) { if (FCString::Strncmp(X.Part, TEXT("Button_"), 7) == 0) { G.AmbuPress(Ti, X.Part + 7); if (G.Tractors[Ti].Am) G.Tractors[Ti].Am->bLive = true; } };
+	Tb->Switch = [](AGSE& G, int32 Ti, int32 S)
+	{
+		FTractor& T = G.Tractors[Ti]; FSvcAmbu& A = *T.Am;
+		switch (S)
+		{
+		case SwHaz: T.bSwHaz = !T.bSwHaz; break;
+		case SwBlue: A.bBlue = !A.bBlue; break;
+		case SwBeacon: T.bSwNoBeacon = !T.bSwNoBeacon; break;
+		case SwWork: T.bSwWork = !T.bSwWork; break;
+		case SwLight: T.bSwLight = !T.bSwLight; break;
+		case SwHorn: G.Sound(TEXT("BTHorn"), G.TW(T, FVector(480.f, 0.f, 80.f))); break;   // (the electric tractor's)
+		case SwStop: A.bStop = !A.bStop; if (A.bStop) for (int32 p = 0; p < FA::Parts; ++p) A.Want[p] = A.Now[p]; break;
+		default: return false;
+		}
+		return true;
+	};
+	Tb->Aboard = [](const FTractor& T, const FVector& P) -> uint8
+	{
+		const FSvcAmbu& A = *T.Am; const float Up = 128.5f + A.Now[FA::Lift]; const FVector Tip = AmbuTip(A);
+		if (P.X > -428.f && P.X < 258.f && FMath::Abs(P.Y) < 115.f && FMath::Abs(P.Z - Up) < 60.f) return 1;
+		if (A.Now[FA::Tail] > 1.f && P.X > -575.f + Tip.X && P.X < -428.f + Tip.X && FMath::Abs(P.Y) < 80.f && P.Z > Up + Tip.Z - 12.f && P.Z < Up + Tip.Z + 60.f) return 2;
+		if (P.X >= 258.f && P.X < 497.f && FMath::Abs(P.Y) < 80.f && P.Z > Up - 15.f && P.Z < Up + 60.f) return 3;
+		return 0;
+	};
+	Tb->Stowed = [](const AGSE& G, const FTractor& T) { return G.AmbuStowed(T); };
+	Tb->Stow = [](AGSE&, FTractor& T) { FSvcAmbu& A = *T.Am; A.bStop = A.bBlue = false; T.bSwHaz = T.bSwNoBeacon = T.bSwWork = T.bSwLight = false; for (float& V : A.Want) V = 0.f; A.bLive = true; };   // (the order by AmbuMay)
+	// (no Worked: what counts for the turn-round is the passengers moved, its crew's job)
+
+	auto Box = [&Tb](const FVector& Mn, const FVector& Mx, int32 Fr, TFunction<bool(const FTractor&)> On = nullptr) { FVehSolid S; S.Min = Mn; S.Max = Mx; S.Frame = Fr; S.On = MoveTemp(On); Tb->Solids.Add(S); };
+	// chassis and cab; the body's floor, sides, ends beside the doors and roof edge; the doors shut
+	Box(FVector(-400, -117, 4), FVector(500, 117, 95), Chassis); Box(FVector(259, -117, 95), FVector(500, 117, 214), Chassis);
+	Box(FVector(-426, -117, 108), FVector(257, 117, 128.5), Body);
+	for (const float S : {-1.f, 1.f})
+	{
+		Box(FVector(-398, S > 0 ? 113 : -120, 128.5), FVector(257, S > 0 ? 120 : -113, 345), Body);
+		Box(FVector(250, S > 0 ? 56 : -120, 128.5), FVector(257, S > 0 ? 120 : -56, 345), Body); Box(FVector(-398, S > 0 ? 56 : -120, 128.5), FVector(-391, S > 0 ? 120 : -56, 345), Body);
+		Box(FVector(259, S > 0 ? 64 : -72, 128.5), FVector(493, S > 0 ? 72 : -64, 240), Plat, [](const FTractor& T) { return T.Am->Now[FA::Plat] > 89.9f; });   // (the platform's sides: never off them, up there)
+		Box(FVector(-566, S > 0 ? 70 : -76, 128.5), FVector(-430, S > 0 ? 76 : -70, 228), Deck, [](const FTractor& T) { return T.Am->Now[FA::TRails] > 0.99f; });
+	}
+	Box(FVector(250, -56, 128.5), FVector(257, 56, 340), Body, [](const FTractor& T) { return T.Am->Now[FA::DoorF] < 0.9f; });
+	Box(FVector(-398, -56, 128.5), FVector(-391, 56, 340), Body, [](const FTractor& T) { return T.Am->Now[FA::DoorR] < 0.9f; });
+	// the front platform (its nose shut to you too), folded or out; the tail deck, and the flap while it stands up
+	Box(FVector(259, -72, 116), FVector(493, 72, 128.5), Plat); Box(FVector(487, -72, 128.5), FVector(493, 72, 240), Plat, [](const FTractor& T) { return T.Am->Now[FA::Plat] > 89.9f; });
+	Box(FVector(-571, -76, 119), FVector(-428, 76, 128.5), Deck); Box(FVector(-575, -76, 128.5), FVector(-571, 76, 168), Deck, [](const FTractor& T) { return T.Am->Now[FA::Flap] > 45.f; });
+	return Tb;
 }

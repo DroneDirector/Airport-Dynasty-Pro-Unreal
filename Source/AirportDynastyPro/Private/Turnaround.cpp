@@ -212,9 +212,10 @@ namespace ADPTurnaround
 				if (Tr->bMine && bHired && !K.bDone && (K.Id == TEXT("deplane") ? Tr->bArrival : K.Id == TEXT("board") && !Tr->PlanId.IsEmpty()))
 				{
 					const bool bIn = K.Id == TEXT("deplane"); const int32 Nw = bIn ? AGSE::AmbuPax(Tr->ArrFlight, Tr->OnBlocks, Tr->ArrPax) : AGSE::AmbuPax(Tr->Flight, Tr->OffBlocks, Tr->Pax);
-					AGSE* Gs = Nw > 0 ? AGSE::Get(W) : nullptr; const bool bAsk = Gs && (bIn ? Done(*Tr, TEXT("chocks")) : Tm >= K.Start - 15.f && Done(*Tr, TEXT("cat2")));
-					if (bAsk) Gs->AmbuCall(Tr->StandX, Tr->Reg, bIn ? Tr->ArrFlight : Tr->Flight, Tr->OffBlocks, Nw, bIn, K.bStarted);
-					bAmbu = bAsk && K.bStarted && Tm < K.Start + K.Dur + 60.f && Gs->AmbuBusy(Tr->StandX, bIn, AmWhy);
+					const bool bStill = !bIn && Tr->bArrival && AGSE::AmbuPax(Tr->ArrFlight, Tr->OnBlocks, Tr->ArrPax) > 0;   // (the arriving ones may still sit in their seats: the caterers were at the door first)
+					AGSE* Gs = Nw > 0 || bStill ? AGSE::Get(W) : nullptr; const bool bAsk = Gs && (bIn ? Done(*Tr, TEXT("chocks")) : Tm >= K.Start - 15.f && Done(*Tr, TEXT("cat2")));
+					if (bAsk && Nw > 0) Gs->AmbuCall(Tr->StandX, Tr->Reg, bIn ? Tr->ArrFlight : Tr->Flight, Tr->OffBlocks, Nw, bIn, K.bStarted);
+					bAmbu = bAsk && K.bStarted && Tm < K.Start + K.Dur + 60.f && (Gs->AmbuBusy(Tr->StandX, bIn, AmWhy, bIn) || (bStill && Gs->AmbuBusy(Tr->StandX, true, AmWhy)));
 					if (bAmbu && Tm >= K.Start + K.Dur + 3.f) ADPSchedule::Tell(Sim->World, Now, TEXT("ambulift:") + Tr->Reg + K.Id, TEXT("Wheelchair passengers"), FString::Printf(TEXT("%s at %s: %s."), *Tr->Reg, *Tr->Stand, *AmWhy));
 				}
 				FString StWhy; const bool bStairs = Tr->bMine && K.bStarted && !K.bDone && (K.Id == TEXT("bridge") ? Tm < K.Start + 30.f : K.Id == TEXT("doors")) && AGSE::Find(W) && AGSE::Find(W)->StairsBusy(Tr->StandX, K.Id == TEXT("doors"), StWhy);

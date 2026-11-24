@@ -208,6 +208,7 @@ bool AGSE::SpawnTractor(FTractor& T)
 			{ FLens L; L.K = F.Get<0>(); L.Ix = F.Get<1>(); L.Kind = Wh.Kind; if (Wh.Kind == GIndicator) L.Side = F.Get<2>().Contains(TEXT("_L_")) ? 1 : -1;
 				// (the blue bars: units 0-3 the one half, 4-7 the other; the grille's left and right pair)
 				if (Wh.Kind == GBlue) { const FString& Bn = F.Get<2>(); const int32 Dg = Bn.Len() > 6 && FChar::IsDigit(Bn[Bn.Len() - 6]) ? int32(Bn[Bn.Len() - 6] - TEXT('0')) : 0; L.Side = Bn.StartsWith(TEXT("BlueGrille_")) ? (Bn.Contains(TEXT("_L")) ? 1 : -1) : Dg < 4 ? 1 : -1; }
+				if (FCString::Strcmp(Wh.Name, TEXT("BoxLight")) == 0) L.Side = 2;   // (inside: its own switch)
 				T.Lenses.Add(L); }
 	}
 	// the moving parts
@@ -328,12 +329,12 @@ void AGSE::Lamps(FTractor& T)
 		{
 		case GLow: V = bRun ? 0.8f : 0.f; break;
 		case GTail: V = bBrake ? 1.f : bRun ? 0.3f : 0.f; break;
-		case GIndicator: V = (Turn != 0 && L.Side == Turn && bBlink) ? 1.f : 0.f; break;
+		case GIndicator: V = ((T.bSwHaz || (Turn != 0 && L.Side == Turn)) && bBlink) ? 1.f : 0.f; break;
 		case GMarker: V = bRun ? 0.5f : 0.f; break;
 		case GReverse: V = bBack ? 1.f : 0.f; break;
-		case GBeacon: V = bFlash ? 1.f : 0.f; break;
+		case GBeacon: V = bFlash && !T.bSwNoBeacon ? 1.f : 0.f; break;
 		case GBlue: V = AmbuBlue(T, L.Side); break;
-		case GWork: V = (T.Am && T.Am->bLive && T.Job == EJob::AtStand) || (bRun && T.Boom < -0.5f) || (T.Di && (T.Di->bYours || (T.Di->Ph >= FSvcDeicer::OpIn && T.Di->Ph <= FSvcDeicer::OpOut))) ? 1.f : 0.f; break;
+		case GWork: V = (L.Side == 2 ? T.bSwLight : T.bSwWork) || (T.Am && T.Am->bLive && T.Job == EJob::AtStand) || (bRun && T.Boom < -0.5f) || (T.Di && (T.Di->bYours || (T.Di->Ph >= FSvcDeicer::OpIn && T.Di->Ph <= FSvcDeicer::OpOut))) ? 1.f : 0.f; break;
 		default: V = 0.f;
 		}
 		if (V != L.Now && L.K) { L.Now = V; L.K->SetCustomDataValue(L.Ix, 0, V, true); }
@@ -531,6 +532,7 @@ void AGSE::Drive(FTractor& T, float Dt)
 		if (GseP2(T.At).Y > 82.6f) for (const FVector& Pl : G->Planes) if (Ahead(Pl, 4500.f)) { bBlocked = true; Why = TEXT("an aircraft"); }
 	}
 	if (T.Svc != INDEX_NONE && !bBlocked && SvcPersonAhead(T, Move)) { bBlocked = true; Why = TEXT("somebody on foot"); }
+	if (T.YouOn) { bBlocked = true; Why = TEXT("you, standing on it"); }
 	if (bBlocked) { T.Hold += Dt; if (FMath::Fmod(T.Hold, 15.f) < Dt) ADP_LOG(TEXT("GSE: %s gives way to %s"), *T.Name, *Why); }
 	// steering: the heading wanted (the back leads reversing), limited by the turning circle at this speed
 	const float WantYaw = T.bReverse ? (-To).Rotation().Yaw : To.Rotation().Yaw;

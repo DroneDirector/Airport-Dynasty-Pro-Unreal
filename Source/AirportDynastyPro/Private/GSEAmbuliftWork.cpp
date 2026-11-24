@@ -241,12 +241,12 @@ bool AGSE::AmbuCall(float StandX, const FString& Reg, const FString& Flight, con
 	return false;
 }
 
-bool AGSE::AmbuBusy(float StandX, bool bArr, FString& Why) const
+bool AGSE::AmbuBusy(float StandX, bool bArr, FString& Why, bool bMayWait) const
 {
 	for (const TPair<int32, FSvcJob>& P : SvcJobs)
 	{
 		const FSvcJob& J = P.Value; if (!AmbuIs(J) || FMath::Abs(J.StandX - StandX) > 1.f || (J.CtDoor == 1) != bArr || J.Phase >= 3 || J.CtDone || J.T > 2700.f) continue;
-		if (bArr && J.Phase < 2 && CaterAtFront(StandX)) continue;   // (the caterers were first: they stay seated until the truck is gone)
+		if (bMayWait && J.Phase < 2 && CaterAtFront(StandX)) continue;   // (the caterers were first: they stay seated until the truck is gone)
 		Why = J.Phase == 0 ? FString::Printf(TEXT("the ambulift waits: %s"), J.Why.IsEmpty() ? TEXT("its people are being called") : *J.Why) : J.Phase == 1 ? FString(CaterAtFront(StandX) ? TEXT("the ambulift waits for the catering truck") : TEXT("the ambulift is on its way")) : FString::Printf(TEXT("the passengers in wheelchairs %s by the ambulift (%d of %d)"), bArr ? TEXT("get off") : TEXT("board"), J.RowsDone, J.Rows);
 		return true;
 	}

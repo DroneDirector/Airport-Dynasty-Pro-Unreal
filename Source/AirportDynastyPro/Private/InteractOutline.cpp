@@ -7,6 +7,7 @@
 #include "WashHose.h"
 #include "Seats.h"
 #include "DoorPanelUse.h"
+#include "VehicleControls.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/PostProcessVolume.h"
@@ -94,6 +95,11 @@ void AInteractOutline::Tick(float Dt)
 	if (ADoorPanelUse::IsActive() && bOn)
 	{
 		TArray<TPair<UInstancedStaticMeshComponent*, int32>> Ch; ADoorPanelUse::ChosenParts(Ch);
+		for (const auto& C : Ch) Near.Add(FNear{C.Key, C.Value, 0.f, 1, 1.f});
+	}
+	if (bOn)
+	{
+		TArray<TPair<UInstancedStaticMeshComponent*, int32>> Ch; AVehicleControls::ChosenParts(Ch);   // (a vehicle's lever or button: only that)
 		for (const auto& C : Ch) Near.Add(FNear{C.Key, C.Value, 0.f, 1, 1.f});
 	}
 	if (bWalking)

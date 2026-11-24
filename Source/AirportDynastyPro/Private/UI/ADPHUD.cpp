@@ -41,6 +41,7 @@ static bool GTourTracking = false;   // (the tug tour's tracking camera has a su
 #include "InteractOutline.h"
 #include "Seats.h"
 #include "DoorPanelUse.h"
+#include "VehicleControls.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/DirectionalLight.h"
@@ -1969,6 +1970,8 @@ void AADPHUD::Interact()
 	if (!PC || bGame || bDevice || PhoneDir != 0 || bSettings || bPointer || (HoloMap.IsValid() && HoloMap->IsFull())) return;
 	// in a fire truck: E / X gets you out (FireTruck.h)
 	if (AFireTruck* T = Cast<AFireTruck>(GetOwningPawn())) { T->Exit(); return; }
+	// a vehicle's own control you look at (VehicleControls.h)
+	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton) && !Drone.IsValid() && !AWashHose::Held() && !ASeats::IsSitting() && !ADoorPanelUse::IsActive() && AVehicleControls::Interact(GetOwningPawn())) return;
 	if (AServiceDrive* T = Cast<AServiceDrive>(GetOwningPawn())) { T->Exit(); return; }   // (in a service vehicle: ServiceDrive.h)
 	if (Drone.IsValid()) return;   // (a drone presses nothing)
 	// the jetway's control panel menu open: E closes it (JetwayRigs.h)
@@ -2452,6 +2455,7 @@ void AADPHUD::Tick(float Dt)
 		TickTablet(Dt);
 		if (bPoseLive && (PoseLeft -= Dt) <= 0.f) { PoseLeft = 5.f; SavePose(); }
 		if (HintLeft > 0.f) HintLeft -= Dt;
+		AVehicleControls::Get(GetWorld()); if (const FString Vc = AVehicleControls::Prompt(); !Vc.IsEmpty() && !Drone.IsValid()) { HintText = Vc; HintLeft = 0.25f; }   // (a vehicle's control you look at)
 		// our frame generation makes no in-between pictures while a menu is up (owner, 2026-11-17: scrolling flickered)
 		ADPFrameGen::Hold(bGame || bLoading || bDevice || bSettings || bWardrobe || bWhoAreYou || bJetMenu || (HoloMap.IsValid() && HoloMap->IsFull()));
 		// the fire station on the holographic map

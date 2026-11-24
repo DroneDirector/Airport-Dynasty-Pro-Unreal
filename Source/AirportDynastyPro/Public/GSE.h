@@ -39,6 +39,7 @@ struct FSvcWet;
 struct FSvcStairs;
 struct FSvcDeicer;
 struct FSvcAmbu;
+struct FVehTable;
 
 UCLASS()
 class AIRPORTDYNASTYPRO_API AGSE : public AActor
@@ -103,6 +104,7 @@ public:
 		float SteerWant = 0.f, BackT = 0.f, PedalA = 0.f, PedalB = 0.f, WipeT = 0.f, WipeNow = 0.f, RainIn = 0.f, BoxT = 0.f; bool bRain = false, bUsed = false;   // (bUsed: full bags or used rolls in it - exchanged shut in its box)
 		int32 GPedal[2] = {INDEX_NONE, INDEX_NONE}, LoadWant = INDEX_NONE; TArray<int32> GWiper; FString Livery;
 		TSharedPtr<FSvcRefuel> Fu;        // (the refueller's own parts: GSEFuel.cpp)
+		uint8 YouOn = 0; FVector YouAt = FVector(1e6); float LeftOpen = 0.f; bool bSwHaz = false, bSwNoBeacon = false, bSwWork = false, bSwLight = false;   // (VehicleControls.h: you on one of its floors, your feet in its frame; the switches)
 		TSharedPtr<FSvcAmbu> Am;          // (the ambulift's: GSEAmbulift.cpp)
 		TSharedPtr<FSvcDeicer> Di;        // (the de-icing truck's: GSEDeicer.cpp)
 		TSharedPtr<FSvcStairs> Ps;        // (the passenger stairs': GSEStairs.cpp)
@@ -151,6 +153,11 @@ public:
 private:
 	friend class ATugs;
 	friend class AServiceDrive;
+	friend class AVehicleControls;
+	// your hands on a vehicle's own controls (VehicleControls.h): its table (none: no controls yet)
+	static const FVehTable* CtlTable(int32 Svc);
+	static TSharedPtr<FVehTable> AmbuControls();
+	FString AmbuWhy(const FTractor& T, int32 Part, float To) const;
 	TArray<FTractor> Tractors;
 	TArray<FCart> Carts;
 	TMap<int32, FGpuRig> GpuRigs;
@@ -285,7 +292,7 @@ public:
 	 *  day), its call - every tick while the flight wants it; bGo: the passengers get on or off now -, and the flight waiting for it. */
 	static int32 AmbuPax(const FString& Flight, const FDateTime& Day, int32 Pax);
 	bool AmbuCall(float StandX, const FString& Reg, const FString& Flight, const FDateTime& When, int32 N, bool bArr, bool bGo);
-	bool AmbuBusy(float StandX, bool bArr, FString& Why) const;
+	bool AmbuBusy(float StandX, bool bArr, FString& Why, bool bMayWait = false) const;   // (bMayWait: the caterers first - they stay in their seats)
 	/** The aircraft is gone: what had not started is dropped. */
 	void SvcGone(float StandX);
 private:
