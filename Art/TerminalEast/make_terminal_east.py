@@ -353,9 +353,18 @@ for x in (228.0, 236.0, 312.0, 324.0, 372.0): S.box(x - 0.1, x + 0.1, CEIL, CEIL
 S.box(469.9, 470.16, CEIL, CEIL + 0.04, 6.1, F2Z0 - 0.06, W, sides=('+y', '-x', '+x'))
 # the gate walkway's south wall (its glossy white outside, z 51.9) lined with the halls' own plaster where it is inside now (its
 # gloss mirrored the lamps and dark rooms in blotches - 2026-11-23): 15 mm, a steel skirting
-def north(x0, x1, y0, y1):
-    S.box(x0, x1, y0, y1, 51.885, 51.9, PL, sides=('-z',)); S.box(x0, x1, y0, y0 + 0.1, 51.87, 51.885, 'MI_T_steel', sides=('-z', '+y'))
-for a, b in ((236.1, 311.9), (312.1, 323.9), (324.1, 371.9), (470.16, X1 - 0.08)): north(a, b, 0.01, CEIL)
+# holes (x0, x1, y0, y1) at the floor, as wall_z's: the lining stops at the jambs and goes on over the head, no skirting under it
+def north(x0, x1, y0, y1, holes=()):
+    ed = sorted({x0, x1} | {v for h in holes for v in h[:2] if x0 < v < x1})
+    for a, b in zip(ed, ed[1:]):
+        h = next((h for h in holes if h[0] <= a and b <= h[1]), None)
+        if h is None: S.box(a, b, y0, y1, 51.885, 51.9, PL, sides=('-z',)); S.box(a, b, y0, y0 + 0.1, 51.87, 51.885, 'MI_T_steel', sides=('-z', '+y'))
+        elif h[3] < y1: S.box(a, b, h[3], y1, 51.885, 51.9, PL, sides=('-z', '-y'))
+# (terminal part 2b: the arrivals corridor's one-way doors into the passport hall, AR.f1_z52(); the lining stops at their oak portal,
+# Art/TerminalEast/make_arrivals.py 'the passport hall's side': 44 cm jambs, its head at 3.6, standing on the wall face)
+sys.path.insert(0, HERE); import arr_geom as AR
+PORTAL = [(a - 0.44, b + 0.44, y0, 3.6) for a, b, y0, y1 in AR.f1_z52()]
+for a, b in ((236.1, 311.9), (312.1, 323.9), (324.1, 371.9), (470.16, X1 - 0.08)): north(a, b, 0.01, CEIL, PORTAL if a == 324.1 else ())
 # (Floor 2: opened onto the walkway, terminal part 2a - Art/TerminalEast/conc_geom.py)
 sys.path.insert(0, HERE); import conc_geom as CG2
 _ed = sorted({F2X0 + 0.1, X1 - 0.08} | {v for a, b, h in CG2.holes() for v in (a, b)})

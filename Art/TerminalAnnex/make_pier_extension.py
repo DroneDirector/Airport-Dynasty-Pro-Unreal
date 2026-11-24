@@ -20,6 +20,7 @@ MOD = 80.55
 W_END, E_END = -80.0 - 2 * MOD, 551.2
 WB_X = [289.4, 369.2, 441.5, 513.8]
 F2, F2C, F1C = 6.0, 11.4, 5.4
+import sys; sys.path.insert(0, os.path.join(os.path.dirname(HERE), 'TerminalEast')); import arr_geom as AR_
 
 def zwall(z, x0, x1, y0, y1, inside, m_in, m_out, holes=()):
     """A wall in the plane z (20 cm), inside face toward +z or -z; holes (x0, x1, y0, y1)."""
@@ -76,8 +77,9 @@ for side, (x0, x1) in (('W', (W_END, -80.0)), ('E', (242.0, E_END))):
         import sys; sys.path.insert(0, os.path.join(os.path.dirname(HERE), 'TerminalEast')); import conc_geom as CG_
         zwall(52.0, x0, x1, F2, F2C, +1, 'MI_T_plaster', 'MI_T_white', [(a_, b_, F2, h_) for a_, b_, h_ in CG_.holes() if a_ > x0])
     # ---- Floor 1: the baggage hall ----
-    zwall(68.0, x0, x1, 0.0, F2, -1, 'MI_T_concrete', 'MI_T_white', F1N[side])
-    zwall(52.0, x0, x1, 0.0, F2, +1, 'MI_T_concrete', 'MI_T_white')
+    # (part 2b, 2026-11-23: the closed arrivals corridor's doors - to the lobbies under gates 13-16, to the passport hall)
+    zwall(68.0, x0, x1, 0.0, F2, -1, 'MI_T_concrete', 'MI_T_white', F1N[side] + (AR_.f1_z68() if side == 'E' else []))
+    zwall(52.0, x0, x1, 0.0, F2, +1, 'MI_T_concrete', 'MI_T_white', AR_.f1_z52() if side == 'E' else ())
     S.box(x0, x1, -0.3, 0.0, 52.1, 67.9, 'MI_T_concrete')                                # the floor
     S.box(x0, x1, F1C, F1C + 0.02, 52.1, 67.9, 'MI_T_concrete', sides=('-y',))           # its ceiling
 # the new ends
