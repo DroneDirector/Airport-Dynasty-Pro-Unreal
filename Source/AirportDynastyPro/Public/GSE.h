@@ -173,6 +173,13 @@ private:
 	static TSharedPtr<FVehTable> FuelControls();
 	static TSharedPtr<FVehTable> WaterControls();
 	static TSharedPtr<FVehTable> ToiletControls();
+	static TSharedPtr<FVehTable> CaterControls();
+	void YouCater(FTractor& T, float Dt);
+	bool CaterStowed(const FTractor& T) const;
+	bool CaterHeld(const FTractor& T, int32 Part, float To) const;   // (that part can't move that way: somebody under it, the aircraft, the stop)
+	bool CaterUnder(const FTractor& T, const FVector& Mn, const FVector& Mx) const;   // (you, off it, or one of the ground crew in that box, root cm)
+	bool CaterFree(const FTractor& T, int32 Tr, const FVector2D& From, const FVector2D& To) const;   // (a trolley's way: walls, rails, the others, you)
+	bool CaterTake(const FTractor& T, int32 Tr, float Dir, FString& Why) const;
 	void YouFuel(FTractor& T, float Dt);
 	void YouWater(FTractor& T, float Dt);
 	void YouToilet(FTractor& T, float Dt);
@@ -332,7 +339,7 @@ private:
 		int32 Svc = 0, Ti = INDEX_NONE, Jet = INDEX_NONE; float StandX = 0.f, RowT = 0.f; FString Reg, Flight, Why; FDateTime When;
 		uint8 Phase = 0;                  // 0 waits for its people, 1 on the way, 2 at the stand, 3 going back
 		bool bGo = false, bFetch = false; FVector Place = FVector::ZeroVector; float PlaceYaw = 0.f; int32 Rows = 30, RowsDone = 0; float T = 0.f; TArray<FSvcMan> Men;
-		int32 Stage = 0; float Litres = 0.f, Pumped = 0.f; TArray<FVector> InWay; int32 CtDoor = 0, CtTrip = 0, CtDone = 0;   // (Ct*: the catering: at which door, its next trip, the doors done as bits) (the refueller's work; the way in, backed out again)
+		int32 Stage = 0; float Litres = 0.f, Pumped = 0.f; TArray<FVector> InWay; int32 CtDoor = 0, CtTrip = 0, CtDone = 0, CtYou[2] = {0, 0};   // (Ct*: the catering: at which door, its next trip, the doors done as bits) (the refueller's work; the way in, backed out again)
 	};
 	TMap<int32, FSvcJob> SvcJobs; int32 SvcNext = 1; float SvcClock = 0.f;
 	TMap<int32, TPair<int8, int32>> SvcStairUse;   // (a jetway's service stair: which way it is walked now, and by how many)

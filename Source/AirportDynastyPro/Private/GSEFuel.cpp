@@ -7,6 +7,7 @@
 // The coupling: under the right wing's leading edge, 9.9 m out, 11.75 m behind the nose wheel, 3.80 m up - measured on the
 // game's A320 (Art/A320/A320.glb: the wing's underside there), where the real one has its refuelling panel.
 #include "GSEFuel.h"
+#include "GSECater.h"
 #include "GSEWater.h"
 #include "GSE.h"
 #include "ServiceVehicles.h"
@@ -561,8 +562,8 @@ int32 AGSE::YouJob(const FTractor& T, const FVector& Pt, const FVector& Want, fl
 
 bool AGSE::YouServe(int32 Svc, float StandX) const
 {
-	const FServiceSpec& S = ADPService::All()[Svc]; if (!S.bFuel && !S.Wet) return false;
-	for (const FTractor& T : Tractors) if (T.Job == EJob::None && ((S.bFuel && T.Fu && T.Fu->YouStandX == StandX && !FuelStowed(T)) || (S.Wet && T.Wa && T.Wa->bToilet == (S.Wet == 2) && T.Wa->YouStandX == StandX && !WaterStowed(T)))) return true;
+	const FServiceSpec& S = ADPService::All()[Svc]; if (!S.bFuel && !S.Wet && !S.bCater) return false;
+	for (const FTractor& T : Tractors) if (T.Job == EJob::None && ((S.bFuel && T.Fu && T.Fu->YouStandX == StandX && !FuelStowed(T)) || (S.Wet && T.Wa && T.Wa->bToilet == (S.Wet == 2) && T.Wa->YouStandX == StandX && !WaterStowed(T)) || (S.bCater && T.Ct && T.Ct->YouStandX == StandX && !CaterStowed(T)))) return true;
 	return false;
 }
 

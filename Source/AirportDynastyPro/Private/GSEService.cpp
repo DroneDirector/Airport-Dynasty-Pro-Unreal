@@ -535,6 +535,7 @@ void AGSE::SvcTick(float Dt)
 		if (S.bStairs && !StairsStowed(Tv)) { J.Why = TEXT("the stairs are up"); continue; }
 		if (S.bAmbu && (!AmbuStowed(Tv) || Tv.Player.IsValid())) { J.Why = TEXT("you have the ambulift"); continue; }
 		if (YouServe(Tv.Svc, J.StandX)) { J.Why = FString::Printf(TEXT("you work with the %s"), S.Label); continue; }
+		if (S.bCater && (!CaterStowed(Tv) || Tv.Player.IsValid())) { J.Why = TEXT("you have the catering truck"); continue; }
 		if ((S.bFuel && !FuelStowed(Tv)) || (S.Wet && !WaterStowed(Tv))) { J.Why = FString::Printf(TEXT("you have the %s"), S.Label); continue; }
 		if (SvcYours(Tv) || (S.bDeicer && (Tv.Player.IsValid() || !DeicerStowed(Tv)))) { J.Why = FString::Printf(TEXT("you have the %s"), S.Label); continue; }
 		const bool bHome = FVector::Dist2D(Tv.At, Tv.Home) < 200.f && FMath::Abs(FMath::FindDeltaAngleDegrees(Tv.Yaw, Tv.HomeYaw)) < 20.f;

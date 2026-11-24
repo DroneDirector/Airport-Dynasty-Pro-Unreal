@@ -8,6 +8,8 @@
 // cabin (to-do 209) - a knock on it, and with their trolley they are out of sight at the sill, as the cleaners at theirs.
 #include "GSECater.h"
 #include "GSE.h"
+#include "VehicleControls.h"
+#include "GameFramework/PlayerController.h"
 #include "ServiceVehicles.h"
 #include "Tugs.h"
 #include "CrewPose.h"
@@ -38,6 +40,18 @@ namespace
 		static const TArray<FCtTrip> B = {{16, -1}, {12, 12}, {-1, 16}, {8, -1}, {3, 3}, {-1, 8}, {15, -1}, {11, 11}, {-1, 15}, {7, 7}};
 		return Door ? B : A;
 	}
+	// what is left of a door's trips when you brought Done of its trolleys (two at a time, the inner one first)
+	TArray<FCtTrip> CtTripsLeft(int32 Door, int32 Done)
+	{
+		if (Done <= 0) return CtTrips(Door);
+		static const int32 In[2][7] = {{17, 13, 9, 4, 0, 0, 0}, {16, 12, 8, 3, 15, 11, 7}};
+		const int32 n = FMath::Max(0, (Door ? 7 : 4) - Done); TArray<FCtTrip> R;
+		for (int32 k = 0; k + 1 < n; k += 2) { R.Add({In[Door][k], -1}); R.Add({In[Door][k + 1], In[Door][k + 1]}); R.Add({-1, In[Door][k]}); }
+		if (n % 2) R.Add({In[Door][n - 1], In[Door][n - 1]});
+		return R;
+	}
+	enum : int32 { CtMLegs, CtMLift, CtMPlat, CtMFlap, CtMRail0, CtMRail1, CtMGate, CtMRollF, CtMRollR, CtMFold, CtMTail, CtMDoor };   // (the motions)
+	FVector CtTailTip(float Tail) { const float A = FMath::DegreesToRadians(47.17f - 100.83f * Tail); return FVector(-369.7f - 90.f * FMath::Cos(A), 0.f, 80.f + 90.f * FMath::Sin(A)); }
 	float CtFloorZ(float X) { return X < 239.f ? CtFloor : FMath::Lerp(CtFloor, CtDeck, FMath::Clamp((X - 239.f) / 46.f, 0.f, 1.f)); }
 	float CtLen(const TArray<FVector2D>& P) { double L = 0.0; for (int32 i = 1; i < P.Num(); ++i) L += FVector2D::Distance(P[i - 1], P[i]); return float(L); }
 	FVector2D CtAt(const TArray<FVector2D>& P, float S)
@@ -82,14 +96,16 @@ void AGSE::CaterDress(FTractor& T)
 	auto Pre = [&](const TCHAR* N, const FVector& P) { return M->BindGroup({FString(N)}, true, FTransform(P)); };
 	C.GBody = M->BindGroupWhere([](const FString& N, int32, const FVector&)
 	{
-		for (const TCHAR* X : {TEXT("BoxStep"), TEXT("BoxDoorL"), TEXT("TailBrake"), TEXT("RollF_")}) if (N.StartsWith(X)) return false;
+		for (const TCHAR* X : {TEXT("BoxStep"), TEXT("BoxDoorL"), TEXT("TailBrake"), TEXT("RollF_"), TEXT("RollR_"), TEXT("TailArms"), TEXT("TailPlatform")}) if (N.StartsWith(X)) return false;
 		for (const TCHAR* X : {TEXT("Box"), TEXT("Roll"), TEXT("Tail"), TEXT("NamePanel_L"), TEXT("NamePanel_R"), TEXT("WorkLamp")}) if (N.StartsWith(X) && !N.StartsWith(TEXT("NamePanel_Rear"))) return true;
 		return false;
 	}, FTransform::Identity);
 	for (int32 i = 0; i < 12; ++i) C.GRoll.Add(Pre(*FString::Printf(TEXT("RollF_%02d"), i), FVector::ZeroVector));
+	for (int32 i = 0; i < 12; ++i) C.GRollR.Add(Pre(*FString::Printf(TEXT("RollR_%02d"), i), FVector::ZeroVector));
+	C.GTailArm = Pre(TEXT("TailArms"), SvcP(T, TEXT("PIV_TailArms"))); C.GTailPl = Pre(TEXT("TailPlatform"), SvcP(T, TEXT("PIV_TailPlatform")));
 	C.GPlat = Pre(TEXT("Platform"), FVector::ZeroVector); C.GFlap = Pre(TEXT("RampFlap"), SvcP(T, TEXT("PIV_RampFlap")));
 	C.GRail[0] = Pre(TEXT("RailPlatform_L"), SvcP(T, TEXT("PIV_RailPlatform_L"))); C.GRail[1] = Pre(TEXT("RailPlatform_R"), SvcP(T, TEXT("PIV_RailPlatform_R")));
-	C.GGate = Pre(TEXT("GatePlatform"), SvcP(T, TEXT("PIV_RailPlatform_R")));   // (it lies in the right rail and goes with it; open all the time - the fuselage closes the end)
+	C.GGate = Pre(TEXT("GatePlatform"), SvcP(T, TEXT("PIV_RailPlatform_R")));   // (it lies in the right rail and goes with it; across the end only when you shut it)
 	C.GSc[0] = Pre(TEXT("ScissorA"), SvcP(T, TEXT("PIV_ScissorMid"))); C.GSc[1] = Pre(TEXT("ScissorB"), SvcP(T, TEXT("PIV_ScissorMid")));
 	for (int32 r = 0; r < 2; ++r)
 	{
@@ -115,7 +131,7 @@ void AGSE::CaterDress(FTractor& T)
 	const FRotator Half(0.f, 180.f, 0.f);
 	for (const FCtPlace& Pl : CtStock)
 	{
-		FSvcCater::FTrolley& X = C.Trolleys.AddDefaulted_GetRef(); X.Home = FVector(Pl.X, Pl.Y, CtFloor);
+		FSvcCater::FTrolley& X = C.Trolleys.AddDefaulted_GetRef(); X.Home = X.At = FVector(Pl.X, Pl.Y, CtFloor);
 		const FTransform At(FRotator(0.f, 90.f, 0.f), X.Home);
 		auto Add = [&](UInstancedStaticMeshComponent* K, const FTransform& Rel, uint8 Pedal = 0) { if (K) { FSvcCater::FBit B; B.K = K; B.Rel = Rel; B.Pedal = Pedal; B.Ix = K->AddInstance(Rel * At, false); X.Bits.Add(B); } };
 		Add(Tr, FTransform::Identity);
@@ -132,13 +148,18 @@ void AGSE::CaterDress(FTractor& T)
 void AGSE::CaterParts(FTractor& T, float Dt)
 {
 	ABabylonModel* M = T.M.Get(); if (!M || !T.Ct || !T.Ct->bLive) return;
-	FSvcCater& C = *T.Ct;
+	FSvcCater& C = *T.Ct; if (T.Job == EJob::None) YouCater(T, Dt);
 	auto Put = [M](int32 G, const FTransform& X) { if (G != INDEX_NONE) M->MoveGroup(G, X); };
 	auto Run = [Dt](float& V, float Want, float Rate) { const float Was = V; V = FMath::FInterpConstantTo(V, Want, Dt, Rate); return V - Was; };
 	// (never the platform out below 180 cm, never down with it out)
 	const float Lw = C.Out > 1.f ? FMath::Max(C.LiftWant, 180.f) : C.LiftWant;
-	const float Dq = Run(C.Lift, Lw, 11.f), Dp = Run(C.Out, C.Lift >= 180.f || C.OutWant < C.Out ? C.OutWant : C.Out, 20.f), Dl = Run(C.Legs, C.LegsWant, 6.f);
-	Run(C.Roll, C.RollWant, 80.f); Run(C.Flap, C.FlapWant, 0.5f); Run(C.Rail[0], C.RailWant[0], 0.6f); Run(C.Rail[1], C.RailWant[1], 0.6f);
+	const bool bNoLift = C.Lift != Lw && CaterHeld(T, CtMLift, Lw), bNoOut = C.Out != C.OutWant && CaterHeld(T, CtMPlat, C.OutWant), bNoLegs = C.Legs != C.LegsWant && CaterHeld(T, CtMLegs, C.LegsWant);
+	const float Dq = bNoLift ? 0.f : Run(C.Lift, Lw, 11.f), Dp = bNoOut ? 0.f : Run(C.Out, C.Lift >= 180.f || C.OutWant < C.Out ? C.OutWant : C.Out, 20.f), Dl = bNoLegs ? 0.f : Run(C.Legs, C.LegsWant, 6.f);
+	if (C.RollRWant > C.RollR || (C.RollR != C.RollRWant && !CaterHeld(T, CtMRollR, C.RollRWant))) Run(C.RollR, C.RollRWant, 80.f);
+	if (C.Gate != C.GateWant) Run(C.Gate, C.GateWant, 0.6f);
+	if (C.Fold != C.FoldWant && !CaterHeld(T, CtMFold, C.FoldWant)) Run(C.Fold, C.FoldWant, 0.35f);
+	if (C.Tail != C.TailWant && !CaterHeld(T, CtMTail, C.TailWant)) Run(C.Tail, C.TailWant, 1.f / 14.f);
+	if (C.RollWant > C.Roll || (C.Roll != C.RollWant && !CaterHeld(T, CtMRollF, C.RollWant))) Run(C.Roll, C.RollWant, 80.f); Run(C.Flap, C.FlapWant, 0.5f); Run(C.Rail[0], C.RailWant[0], 0.6f); Run(C.Rail[1], C.RailWant[1], 0.6f);
 	const float Dv[3] = {Dl, Dq, Dp};
 	for (int32 i = 0; i < 3; ++i)
 	{
@@ -154,8 +175,13 @@ void AGSE::CaterParts(FTractor& T, float Dt)
 	for (int32 r = 0; r < 2; ++r)
 	{
 		const FTransform X(FQuat(FVector::ForwardVector, FMath::DegreesToRadians((r ? -90.f : 90.f) * FMath::SmoothStep(0.f, 1.f, C.Rail[r]))), SvcP(T, r ? TEXT("PIV_RailPlatform_R") : TEXT("PIV_RailPlatform_L")) + Sl);
-		Put(C.GRail[r], X); if (r) Put(C.GGate, X);
+		Put(C.GRail[r], X); if (!r) continue;
+		const FVector Pr = SvcP(T, TEXT("PIV_RailPlatform_R")), Pg = SvcP(T, TEXT("PIV_GatePlatform"));   // (lying it goes with its rail; standing it turns about its own hinge, given where that stands)
+		Put(C.GGate, C.Gate > 0.f ? FTransform(FQuat(FVector::ForwardVector, FMath::DegreesToRadians(-90.f)), Pr - Pg) * FTransform(FQuat(CtUp, FMath::DegreesToRadians(90.f * FMath::SmoothStep(0.f, 1.f, C.Gate))), Pg + Sl) : X);
 	}
+	for (int32 i = 0; i < C.GRollR.Num(); ++i) { const bool bIn = CtFloor + 15.8f * (i + 0.5f) + C.RollR > 347.f; Put(C.GRollR[i], FTransform(FQuat::Identity, bIn ? FVector(-413.7f, 0.f, 350.f) + Q : Q + CtUp * C.RollR, bIn ? FVector(0.001f) : FVector::OneVector)); }
+	Put(C.GTailArm, FTransform(FQuat(FVector::RightVector, FMath::DegreesToRadians(-100.83f * C.Tail)), SvcP(T, TEXT("PIV_TailArms")) + Q));
+	Put(C.GTailPl, FTransform(FQuat(FVector::RightVector, FMath::DegreesToRadians(-90.f * FMath::SmoothStep(0.f, 1.f, C.Fold))), SvcP(T, TEXT("PIV_TailPlatform")) + CtTailTip(C.Tail) - CtTailTip(0.f) + Q));
 	const float An = FMath::Asin((12.f + C.Lift) / 440.f), Tn = An - FMath::DegreesToRadians(1.563f); const FVector Mid(136.3f - 220.f * FMath::Cos(An), 0.f, 110.f + (12.f + C.Lift) * 0.5f);
 	Put(C.GSc[0], FTransform(FQuat(FVector::RightVector, Tn), Mid)); Put(C.GSc[1], FTransform(FQuat(FVector::RightVector, -Tn), Mid));
 	for (int32 r = 0; r < 2; ++r)
@@ -182,13 +208,14 @@ void AGSE::CaterParts(FTractor& T, float Dt)
 	}
 	// (all in its place: nothing more to do until the next job)
 	const int32 Me = int32(&T - Tractors.GetData()); bool bJob = false; for (const TPair<int32, FSvcJob>& P : SvcJobs) if (P.Value.Phase > 0 && P.Value.Phase < 9 && P.Value.Ti == Me) bJob = true;
-	if (!bJob && C.Lift == 0.f && C.Out == 0.f && C.Legs == 0.f && C.Roll == 0.f && C.Flap == 0.f && C.Rail[0] == 0.f && C.Rail[1] == 0.f && C.Lev[0] == 0.f && C.Lev[1] == 0.f && C.Lev[2] == 0.f && T.bPrev) C.bLive = false;
+	if (!bJob && C.Lift == 0.f && C.Out == 0.f && C.Legs == 0.f && C.Roll == 0.f && C.Flap == 0.f && C.Rail[0] == 0.f && C.Rail[1] == 0.f && CaterStowed(T) && !T.YouOn && C.PedalT <= 0.f && C.Lev[0] == 0.f && C.Lev[1] == 0.f && C.Lev[2] == 0.f && T.bPrev) C.bLive = false;
 }
 
 void AGSE::CaterRestock(FTractor& T)
 {
 	if (!T.Ct) return;
-	T.Ct->bLive = true; T.Ct->Mov = INDEX_NONE;
+	T.Ct->bLive = true; T.Ct->Mov = T.Ct->YouMov = INDEX_NONE;
+	for (FSvcCater::FTrolley& X : T.Ct->Trolleys) { X.State = FSvcCater::AtHome; X.At = X.Home; X.bEmpty = X.bOwed = false; }
 	for (const FSvcCater::FTrolley& X : T.Ct->Trolleys) for (const FSvcCater::FBit& B : X.Bits) B.K->UpdateInstanceTransform(B.Ix, B.Rel * FTransform(FRotator(0.f, 90.f, 0.f), X.Home), false, true, true);
 }
 
@@ -417,7 +444,7 @@ void AGSE::CaterArrive(int32 Job)
 {
 	FSvcJob* J = SvcJ(Job); if (!J || !Tractors[J->Ti].Ct) return;
 	FTractor& T = Tractors[J->Ti]; FVector2f At, Hd; float Sz = 0.f; CaterDock(*J, J->CtDoor, At, Hd, Sz);
-	T.Ct->bLive = true; T.Ct->Sill = FMath::Clamp(Sz - float(T.At.Z), 330.f, 405.f); J->Stage = 0; J->CtTrip = 0;
+	T.Ct->bStop = T.Ct->bStabStop = T.Ct->bStow = false; T.Ct->bLive = true; T.Ct->Sill = FMath::Clamp(Sz - float(T.At.Z), 330.f, 405.f); J->Stage = 0; J->CtTrip = 0;
 	const float Off = float(FVector::Dist2D(T.At, Plan(At.X, At.Y))); if (Off > 20.f) ADP_WARN(TEXT("GSE: the %s stands %.0f cm off the door of %s"), *T.Name, Off, *J->Reg);
 	ADP_LOG(TEXT("GSE: the %s at %s's %s right door, sill %.0f cm over its ground"), *T.Name, *J->Reg, J->CtDoor ? TEXT("rear") : TEXT("front"), T.Ct->Sill);
 }
@@ -427,8 +454,15 @@ void AGSE::CaterStage(int32 Job)
 	FSvcJob* J = SvcJ(Job); if (!J || J->Phase != 2 || !J->Men.Num() || !Tractors.IsValidIndex(J->Ti) || !Tractors[J->Ti].Ct) return;
 	const int32 Ti = J->Ti, St = J->Stage, Door = J->CtDoor; Tractors[Ti].Ct->bLive = true;
 	const bool bTwo = J->Men.Num() > 1 && !J->Men[1].bGone; const int32 H = bTwo ? 1 : 0, C0 = J->Men[0].Ci, C1 = J->Men[H].Ci;
+	const TArray<FCtTrip> Trips = CtTripsLeft(Door, J->CtYou[Door]);
+	if (St == 0 && (J->CtDone & (Door ? 2 : 1)))   // (you did this door: on to the other one, or home)
+	{
+		ADP_LOG(TEXT("GSE: the %s right door has its catering from you"), Door ? TEXT("rear") : TEXT("front"));
+		if (Door) SvcLeave(Job); else { Later([this, Job] { if (SvcJ(Job)) CaterMove(Job); }); }
+		return;
+	}
 	if (!bTwo && (St == 2 || St == 14)) { J->Stage = St + 1; if (St == 14) SvcDoor(C0, Ti, 1, false); CaterStage(Job); return; }
-	if (St == 8 && !CtTrips(Door).IsValidIndex(J->CtTrip)) { J->Stage = 9; CaterStage(Job); return; }
+	if (St == 8 && !Trips.IsValidIndex(J->CtTrip)) { J->Stage = 9; CaterStage(Job); return; }
 	auto Ct = [this, Ti]() -> FSvcCater& { return *Tractors[Ti].Ct; };
 	auto Pt = [this, Ti](const TCHAR* N) { return SvcP(Tractors[Ti], N); };
 	auto Level = [this](int32 Ci, bool b) { Do(Ci, [this, Ci, b] { if (ATugs* G = Tg()) { G->Crew[Ci].bUp = b; G->Crew[Ci].Hold = nullptr; } }); };
@@ -448,7 +482,7 @@ void AGSE::CaterStage(int32 Job)
 		{
 			Fn(); if (ATugs* G = Tg()) G->Crew[Ci].Hold = [this, Ti, At, Grip](float, float PH, FDriverPose& P) { const FVector A = CtOn(Tractors[Ti], At), Hd = Grip(); P = ADPPose::Reach(A, (Hd - A).GetSafeNormal2D(), 0, Hd, 0.9f, PH, 1.f); };
 		});
-		WaitFor(Ci, [Is](float E) { return E > 60.f || Is(); });
+		WaitFor(Ci, [Is](float E) { return E > 600.f || Is(); });   // (somebody under it or on it holds it)
 		PoseAct(Ci, [this, Ti, At, Grip](float K, float PH, FDriverPose& P) { const FVector A = CtOn(Tractors[Ti], At), Hd = Grip(); P = ADPPose::Reach(A, (Hd - A).GetSafeNormal2D(), 0, Hd, 0.9f, PH, 1.f - FMath::SmoothStep(0.f, 1.f, K)); }, 0.6f);
 		Do(Ci, [this, Ci, Ti, At] { CaterHold(Ci, Ti, At, FVector2D(1.0, 0.0)); });
 	};
@@ -506,7 +540,7 @@ void AGSE::CaterStage(int32 Job)
 		End(Ci, St + 1); break;
 	}
 	case 4:   // (when the plan has it: the passengers off) up to the sill, the crew with it
-		WaitFor(C0, [this, Job](float) { const FSvcJob* X = SvcJ(Job); return !X || X->bGo; });
+		WaitFor(C0, [this, Job, Ti](float) { const FSvcJob* X = SvcJ(Job); FTractor& V = Tractors[Ti]; if (X && X->bGo && V.YouOn) V.YouStopAt = GetWorld()->GetTimeSeconds(); return !X || (X->bGo && !V.YouOn); });
 		Lever(C0, TEXT("IK_Lever_Lift"), [Ct] { Ct().LiftWant = FMath::Clamp(Ct().Sill - CtDeck, 180.f, 275.f); }, [Ct] { return Ct().Lift == Ct().LiftWant; });
 		End(C0, 5); break;
 	case 5: CaterWalk(C1, Ti, {Wh, Mid}, Fore); RollDoor(true); CaterWalk(C1, Ti, {Mid, Wh}, Fore); End(C1, 6); break;
@@ -521,7 +555,7 @@ void AGSE::CaterStage(int32 Job)
 		CaterWalk(C1, Ti, {FVector2D(480.0, 0.0), Mid, Wh}, Fore); End(C1, 8); break;
 	case 8:
 	{
-		const FCtTrip X = CtTrips(Door)[J->CtTrip]; const int32 N = J->CtTrip, m = bTwo ? N % 2 : 0, Ci = m ? C1 : C0;
+		const FCtTrip X = Trips[J->CtTrip]; const int32 N = J->CtTrip, m = bTwo ? N % 2 : 0, Ci = m ? C1 : C0;
 		CaterTrip(Job, Ci, Ti, m, X.In, X.Out);
 		// (the same stage again: the other one waits for the trip, not for the stage)
 		Do(Ci, [this, Job] { Later([this, Job] { CaterStage(Job); }); }); Wait(Ci, 0.4f);
@@ -623,4 +657,432 @@ bool AGSE::CaterLost(int32 Job, int32 m)
 	ADP_LOG(TEXT("GSE: the %s is gone from the catering at %s - the other one goes on alone"), m ? TEXT("loader") : TEXT("driver"), *J->Reg);
 	Do(Ci, [this, Job] { Later([this, Job] { CaterStage(Job); }); }); Wait(Ci, 0.4f);
 	return false;
+}
+
+// ------------------------------------------------------------------ yours (to-do 238): every part of it as its crew works it
+
+namespace
+{
+	enum : int32 { CtFChassis, CtFBody, CtFPlat, CtFRail0, CtFRail1, CtFGate, CtFFlap, CtFRollF, CtFRollR, CtFDoor, CtFTail, CtFFold, CtFStep, CtFCabin, CtFTrolley = 100, CtFGrip = 200 };
+	enum : int32 { CtSStop, CtSStab, CtSClimb, CtSCabin, CtSTake = 100 };
+	const int32 CtNeed[2] = {4, 7};
+	int32 CtHeldTr(const FSvcCater& C) { return C.Trolleys.IsValidIndex(C.YouMov) && C.Trolleys[C.YouMov].State == FSvcCater::YourHands ? C.YouMov : INDEX_NONE; }
+	bool CtIn(const FVector& P, const FVector& Mn, const FVector& Mx) { return P.X > Mn.X && P.X < Mx.X && P.Y > Mn.Y && P.Y < Mx.Y && P.Z > Mn.Z && P.Z < Mx.Z; }
+	bool CtOut(const FSvcCater::FTrolley& X) { return X.State == FSvcCater::YourHands || X.State == FSvcCater::Parked; }
+	// a trolley out of its place that stands in X0 .. X1
+	bool CtTrolleyIn(const FSvcCater& C, float X0, float X1) { for (const FSvcCater::FTrolley& X : C.Trolleys) if (CtOut(X) && X.At.X + 44.0 > X0 && X.At.X - 44.0 < X1) return true; return false; }
+	bool CtFolded(const FSvcCater& C) { return C.Fold == 0.f && C.FoldWant == 0.f && C.Tail == 0.f; }
+	bool CtRailsDown(const FSvcCater& C) { return C.Rail[0] == 0.f && C.Rail[1] == 0.f && C.RailWant[0] == 0.f && C.RailWant[1] == 0.f && C.Gate == 0.f && C.Flap == 0.f && C.FlapWant == 0.f; }
+	FVector CtHandle(const FSvcCater& C, int32 i) { const FVector& A = C.Trolleys[i].At; return FVector(A.X - C.Dir * 43.3, A.Y, A.Z + 99.0 + C.Lift); }
+	float CtNow(const AGSE::FTractor& T, int32 M)
+	{
+		if (!T.Ct) return 0.f; const FSvcCater& C = *T.Ct;
+		switch (M)
+		{
+		case CtMLegs: return C.Legs; case CtMLift: return C.Lift; case CtMPlat: return C.Out; case CtMFlap: return C.Flap; case CtMRail0: return C.Rail[0]; case CtMRail1: return C.Rail[1];
+		case CtMGate: return C.Gate; case CtMRollF: return C.Roll; case CtMRollR: return C.RollR; case CtMFold: return C.Fold; case CtMTail: return C.Tail; default: return T.SvcDoors.Num() > 1 ? T.SvcDoors[1].Now : 0.f;
+		}
+	}
+	void CtShow(const FSvcCater& C, int32 i)
+	{
+		const FSvcCater::FTrolley& X = C.Trolleys[i];
+		const FTransform At(FQuat(CtUp, FMath::DegreesToRadians(90.f)), X.At, X.State == FSvcCater::InCabin ? FVector(0.001f) : FVector::OneVector);
+		for (const FSvcCater::FBit& B : X.Bits)
+		{
+			FTransform R = B.Rel; if (B.Pedal && B.Pedal == C.Pedal && i == C.PedalTr && C.PedalT > 0.f) R = FTransform(FQuat(FVector::ForwardVector, FMath::DegreesToRadians(14.f))) * R;
+			B.K->UpdateInstanceTransform(B.Ix, R * At, false, true, true);
+		}
+	}
+	void CtPark(FSvcCater& C, int32 i) { C.Trolleys[i].State = FSvcCater::Parked; C.YouMov = INDEX_NONE; C.Pedal = 1; C.PedalTr = i; C.PedalT = 0.6f; CtShow(C, i); }
+}
+
+bool AGSE::CaterStowed(const FTractor& T) const
+{
+	if (!T.Ct) return true; const FSvcCater& C = *T.Ct;
+	for (const FSvcCater::FTrolley& X : C.Trolleys) if (X.State != FSvcCater::AtHome) return false;
+	for (const float V : {C.Lift, C.LiftWant, C.Out, C.OutWant, C.Legs, C.LegsWant, C.Roll, C.RollWant, C.RollR, C.RollRWant, C.Flap, C.FlapWant, C.Rail[0], C.RailWant[0], C.Rail[1], C.RailWant[1], C.Gate, C.GateWant, C.Fold, C.FoldWant, C.Tail, C.TailWant}) if (V != 0.f) return false;
+	return !C.bStop && !C.bStabStop;
+}
+
+bool AGSE::CaterUnder(const FTractor& T, const FVector& Mn, const FVector& Mx) const
+{
+	if (!T.YouOn && CtIn(T.YouAt, Mn, Mx)) return true;
+	const ATugs* Gt = Tg(); if (!Gt) return false; const FTransform Root(FRotator(0.f, T.Yaw, 0.f), T.At);
+	for (const auto& M : Gt->Crew) if (M.A.IsValid() && !M.A->IsHidden() && CtIn(Root.InverseTransformPosition(M.A->GetActorLocation()), Mn, Mx)) return true;
+	return false;
+}
+
+bool AGSE::CaterHeld(const FTractor& T, int32 M, float To) const
+{
+	if (!T.Ct) return false; const FSvcCater& C = *T.Ct; const UWorld* W = GetWorld(); const bool bYours = T.Job == EJob::None;
+	auto Person = [&](bool b) { if (b && W) T.YouStopAt = W->GetTimeSeconds(); return b; };
+	auto In = [&](const FVector& Mn, const FVector& Mx) { return Person((T.YouOn && CtIn(T.YouAt, Mn, Mx)) || CaterUnder(T, Mn, Mx)); };
+	auto Clear = [&](const FVector& A, const FVector& B)
+	{
+		const APlayerController* PC = W ? W->GetFirstPlayerController() : nullptr; if (!W) return true;
+		FCollisionQueryParams Q; Q.AddIgnoredActor(T.M.Get()); if (PC && PC->GetPawn()) Q.AddIgnoredActor(PC->GetPawn()); FHitResult Hit;
+		return !W->LineTraceSingleByChannel(Hit, TW(T, A), TW(T, B), ECC_Pawn, Q) || Hit.bStartPenetrating;
+	};
+	const float Dk = CtDeck + C.Lift;
+	switch (M)
+	{
+	case CtMLegs:
+		if (C.bStabStop) return true;
+		if (To < C.Legs) return C.Lift > 0.f || C.Out > 0.f || (bYours && Person(T.YouOn != 0));
+		for (const float x : {113.f, -286.f}) for (const float y : {-119.f, 97.f}) if (In(FVector(x - 8.f, y - 4.f, -60.f), FVector(x + 31.f, y + 26.f, 60.f))) return true;
+		return false;
+	case CtMLift:
+		if (C.bStop || C.bStabStop) return true;
+		if (To < C.Lift) return In(FVector(-424.f, -112.f, -60.f), FVector(236.f, 112.f, 100.f + C.Lift)) || (C.Out > 0.f && In(FVector(236.f, -84.f, -60.f), FVector(240.f + C.Out, 84.f, Dk - 40.f)));
+		if (!bYours) return false;
+		for (const float y : {-100.f, 0.f, 100.f}) if (!Clear(FVector(232.f, y, 374.f + C.Lift), FVector(232.f, y, 388.f + C.Lift))) return true;
+		if (C.Out > 1.f) for (const float y : {-71.5f, 71.5f}) if (!Clear(FVector(230.f + C.Out, y, Dk), FVector(230.f + C.Out, y, Dk + 12.f + 108.f * C.Rail[0]))) return true;
+		return T.YouOn == 2 && !Clear(T.YouAt + CtUp * 150.0, T.YouAt + CtUp * 188.0);
+	case CtMPlat:
+		if (C.bStop || C.bStabStop) return true;
+		if (To < C.Out) return CtTrolleyIn(C, 236.f, 900.f) || (bYours && (Person(T.YouOn == 2) || !CtRailsDown(C)));
+		if (!bYours) return false;
+		for (const float y : {-78.f, 0.f, 78.f}) if (!Clear(FVector(230.f + C.Out, y, Dk - 3.f), FVector(240.f + C.Out, y, Dk - 3.f))) return true;
+		return false;
+	case CtMRollF: return CtTrolleyIn(C, 215.f, 232.f) || (bYours && In(FVector(200.f, -80.f, 100.f + C.Lift), FVector(250.f, 80.f, 330.f + C.Lift)));
+	case CtMRollR: return CtTrolleyIn(C, -425.f, -408.f) || In(FVector(-440.f, -120.f, 100.f), FVector(-390.f, 120.f, 330.f));
+	case CtMFold: return C.bStop || In(FVector(-640.f, -125.f, -60.f), FVector(-422.f, 125.f, 330.f));
+	case CtMTail:
+	{
+		if (C.bStop) return true; const FVector P = CtTailTip(C.Tail);
+		return To > C.Tail && In(FVector(P.X - 180.f, -125.f, -60.f), FVector(-372.f, 125.f, P.Z - 25.f));   // (never down on anybody; who stands on it goes along)
+	}
+	default: return false;
+	}
+}
+
+bool AGSE::CaterFree(const FTractor& T, int32 Tr, const FVector2D& From, const FVector2D& To) const
+{
+	const FSvcCater& C = *T.Ct; const double X0 = To.X - 44.0, X1 = To.X + 44.0, Y = FMath::Abs(To.Y) + 16.0, Yw = FMath::Abs(From.Y) + 16.0;
+	// (past a limit already: it may go back out of it, never further in)
+	auto Wall = [](double Now, double Was, double Max) { return Now > Max && Now > Was; };
+	if (Wall(Y, Yw, 118.0) || Wall(-X0, 44.0 - From.X, 405.0)) return false;
+	if (X1 > 130.0 && Y > 60.0 && (Y > Yw || To.X > From.X)) return false;
+	const bool bOpen = C.Roll >= 185.f, bBridge = C.Out >= 294.9f && C.Flap > 0.98f && C.Rail[0] > 0.98f && C.Rail[1] > 0.98f;
+	if (To.X > From.X && ((X1 > 222.0 && !bOpen) || (X1 > 236.0 && !bBridge) || X1 > (C.Gate > 0.f || C.GateWant > 0.f ? 490.0 : 528.0))) return false;
+	if (X0 < -250.0 && To.Y > 0.0 && Y > 70.0 && (Y > Yw || To.X < From.X)) return false;   // (the galley boxes)
+	for (int32 i = 0; i < C.Trolleys.Num(); ++i)
+	{
+		const FSvcCater::FTrolley& O = C.Trolleys[i]; if (i == Tr || O.State == FSvcCater::InCabin) continue;
+		const double Dx = FMath::Abs(O.At.X - To.X), Dy = FMath::Abs(O.At.Y - To.Y); if (Dx >= 87.8 || Dy >= 31.2) continue;
+		const double Wx = FMath::Abs(O.At.X - From.X), Wy = FMath::Abs(O.At.Y - From.Y); if (!(Wx < 87.8 && Wy < 31.2) || Dx < Wx || Dy < Wy) return false;
+	}
+	auto You = [&T](const FVector2D& A) { const FVector& P = T.YouAt; return FVector2D::Distance(FVector2D(P.X, P.Y), FVector2D(FMath::Clamp(P.X, A.X - 44.0, A.X + 44.0), FMath::Clamp(P.Y, A.Y - 16.0, A.Y + 16.0))); };
+	const double D = You(To); return D >= 36.0 || D >= You(From);
+}
+
+bool AGSE::CaterTake(const FTractor& T, int32 Tr, float Dir, FString& Why) const
+{
+	const FSvcCater& C = *T.Ct; if (!C.Trolleys.IsValidIndex(Tr)) return false; const FSvcCater::FTrolley& X = C.Trolleys[Tr];
+	if (T.Job != EJob::None || (T.YouOn != 1 && T.YouOn != 2) || CtHeldTr(C) != INDEX_NONE || !T.M.IsValid()) return false;
+	if ((X.State != FSvcCater::AtHome && X.State != FSvcCater::Parked) || Dir * (X.At.X - T.YouAt.X) < 30.0 || FMath::Abs(X.At.Y - T.YouAt.Y) > 90.0) return false;
+	if (X.State == FSvcCater::AtHome) for (int32 i = 0; i < C.Trolleys.Num(); ++i)
+	{
+		const FSvcCater::FTrolley& O = C.Trolleys[i];
+		if (i != Tr && O.State != FSvcCater::InCabin && FMath::Abs(O.At.X - X.At.X) < 80.0 && O.At.Y * X.At.Y > 0.0 && FMath::Abs(O.At.Y) < FMath::Abs(X.At.Y) - 10.0) return false;   // (behind another one)
+	}
+	if (C.Lift != C.LiftWant || C.Out != C.OutWant) { Why = TEXT("it is moving"); return false; }
+	return true;
+}
+
+void AGSE::YouCater(FTractor& T, float Dt)
+{
+	FSvcCater& C = *T.Ct; const UWorld* W = GetWorld(); if (!W) return;
+	// (left open, and nobody near it: one part after the other, as its crew puts it back)
+	if (C.bStow)
+	{
+		if (CaterStowed(T)) C.bStow = false;
+		else
+		{
+			C.bStop = C.bStabStop = false; C.YouMov = INDEX_NONE;
+			for (int32 i = 0; i < C.Trolleys.Num(); ++i) if (C.Trolleys[i].State != FSvcCater::AtHome) { C.Trolleys[i].State = FSvcCater::AtHome; C.Trolleys[i].At = C.Trolleys[i].Home; CtShow(C, i); }
+			struct FS { float* V; float* Want; };
+			for (const FS& S : {FS{&C.Gate, &C.GateWant}, FS{&C.Rail[0], &C.RailWant[0]}, FS{&C.Rail[1], &C.RailWant[1]}, FS{&C.Flap, &C.FlapWant}, FS{&C.Out, &C.OutWant}, FS{&C.Roll, &C.RollWant}, FS{&C.Lift, &C.LiftWant}, FS{&C.Tail, &C.TailWant}, FS{&C.Fold, &C.FoldWant}, FS{&C.RollR, &C.RollRWant}, FS{&C.Legs, &C.LegsWant}})
+				if (*S.V != 0.f || *S.Want != 0.f) { *S.Want = 0.f; break; }
+		}
+	}
+	// which aircraft's door it stands at: one that waits for its catering
+	if ((C.SeeT -= Dt) <= 0.f && T.YouOn)
+	{
+		C.SeeT = 0.5f; C.YouSill = 0.f; const FTransform Root(FRotator(0.f, T.Yaw, 0.f), T.At);
+		for (const TPair<int32, FSvcJob>& P : SvcJobs)
+		{
+			const FSvcJob& J = P.Value; if (J.Phase != 0 || !ADPService::All()[J.Svc].bCater) continue;
+			const AActor* Pl = WetPlane(J.StandX); if (!Pl) continue;
+			for (int32 d = 0; d < 2; ++d)
+			{
+				const FVector L = Root.InverseTransformPosition(Pl->GetActorTransform().TransformPosition(FVector(CtSkin[d].X, CtSkin[d].Y, CtSill[d])));
+				if (L.X < 500.0 || L.X > 590.0 || FMath::Abs(L.Y) > 45.0) continue;
+				if (FMath::Abs(C.YouStandX - J.StandX) > 1.f || C.YouDoor != d) ADP_LOG(TEXT("GSE: your %s stands at %s's %s right door"), *T.Name, *J.Reg, d ? TEXT("rear") : TEXT("front"));
+				C.YouStandX = J.StandX; C.YouDoor = d; C.YouSill = float(L.Z);
+			}
+		}
+	}
+	if (C.PedalT > 0.f) { C.PedalT -= Dt; if (C.PedalT <= 0.f && C.Trolleys.IsValidIndex(C.PedalTr)) CtShow(C, C.PedalTr); }
+	// the one you push: its handle in your hand, on its own wheels, only where it has room
+	if (const int32 i = CtHeldTr(C); i != INDEX_NONE)
+	{
+		FSvcCater::FTrolley& X = C.Trolleys[i]; const APlayerController* PC = W->GetFirstPlayerController();
+		if (T.YouOn != 1 && T.YouOn != 2) CtPark(C, i);
+		else if (PC)
+		{
+			const FVector Lk = FRotator(0.f, T.Yaw, 0.f).UnrotateVector(FRotator(0.f, PC->GetControlRotation().Yaw, 0.f).Vector());
+			const FVector2D Aim(T.YouAt.X + C.Dir * 88.0, T.YouAt.Y + (Lk.X * C.Dir > 0.1 ? FMath::Clamp(Lk.Y * 110.0, -70.0, 70.0) : FMath::Clamp(X.At.Y - T.YouAt.Y, -70.0, 70.0)));
+			FVector2D P(X.At.X, X.At.Y); double Go = FMath::Min(90.0 * Dt, FVector2D::Distance(P, Aim));
+			while (Go > 0.05)
+			{
+				const double St = FMath::Min(Go, 3.0); Go -= St; const FVector2D D = (Aim - P).GetSafeNormal() * St, Was = P;
+				if (CaterFree(T, i, P, P + FVector2D(D.X, 0.0))) P.X += D.X;
+				if (CaterFree(T, i, P, P + FVector2D(0.0, D.Y))) P.Y += D.Y;
+				if (P.Equals(Was, 0.001)) break;
+			}
+			X.At = FVector(P.X, P.Y, 0.5 * (CtFloorZ(float(P.X) - 30.f) + CtFloorZ(float(P.X) + 30.f))); CtShow(C, i);
+		}
+	}
+	// the brake on near its place: into it, locked there; in the cabin: what comes out is ready after a while
+	for (int32 i = 0; i < C.Trolleys.Num(); ++i)
+	{
+		FSvcCater::FTrolley& X = C.Trolleys[i];
+		if (X.State == FSvcCater::InCabin) X.CabinT = FMath::Max(0.f, X.CabinT - Dt);
+		if (X.State != FSvcCater::Parked || FVector::Dist2D(X.At, X.Home) > 24.0) continue;
+		const FVector N = FMath::VInterpConstantTo(X.At, X.Home, Dt, 30.f); if (!CaterFree(T, i, FVector2D(X.At.X, X.At.Y), FVector2D(N.X, N.Y))) continue;
+		X.At = N; if (X.At.Equals(X.Home, 0.1)) { X.At = X.Home; X.State = FSvcCater::AtHome; }
+		CtShow(C, i); if (X.State != FSvcCater::AtHome || !X.bEmpty || !X.bOwed) continue;
+		// (an empty one back in its place: one exchange of that door's)
+		X.bOwed = false; T.bUsed = true;
+		for (TPair<int32, FSvcJob>& P : SvcJobs)
+		{
+			FSvcJob& J = P.Value; if (J.Phase != 0 || !ADPService::All()[J.Svc].bCater || FMath::Abs(J.StandX - C.YouStandX) > 1.f) continue;
+			const int32 d = X.Door; if (J.CtYou[d] < CtNeed[d]) { ++J.CtYou[d]; ++J.RowsDone; }
+			ADP_LOG(TEXT("GSE: %s's %s right door: %d of %d trolleys exchanged by you"), *J.Reg, d ? TEXT("rear") : TEXT("front"), J.CtYou[d], CtNeed[d]);
+			if (J.CtYou[d] >= CtNeed[d]) J.CtDone |= d ? 2 : 1;
+			break;
+		}
+	}
+	if (C.YouStandX > -1e5f && !T.YouOn && CaterStowed(T))
+	{
+		// (all back in its place: what you did is done; else a crew does the rest)
+		for (auto It = SvcJobs.CreateIterator(); It; ++It)
+		{
+			FSvcJob& J = It.Value(); if (J.Phase != 0 || !ADPService::All()[J.Svc].bCater || FMath::Abs(J.StandX - C.YouStandX) > 1.f) continue;
+			if (J.CtDone == 3) { ADP_LOG(TEXT("GSE: %s served by you"), *J.Reg); It.RemoveCurrent(); }
+			break;
+		}
+		C.YouStandX = -1e6f; C.YouSill = 0.f;
+	}
+}
+
+TSharedPtr<FVehTable> AGSE::CaterControls()
+{
+	using K = FVehControl;
+	const FVector No(0, 0, 0), L(0, -1, 0), R(0, 1, 0); const int32 NTr = int32(UE_ARRAY_COUNT(CtStock));
+	TSharedPtr<FVehTable> Tb = MakeShared<FVehTable>(); TArray<K>& Cs = Tb->Controls;
+	auto Mo = [&Cs](const TCHAR* Part, const TCHAR* Pt, K::EKind Kind, const TCHAR* Lb, int32 Fr, const FVector& Out, int32 M, float A, float B, bool bTurns = true) { K X; X.Part = Part; X.Point = Pt; X.Kind = Kind; X.Label = Lb; X.Frame = Fr; X.Out = Out; X.Motion = M; X.A = A; X.B = B; X.bTurns = bTurns; Cs.Add(X); };
+	auto Sw = [&Cs](const TCHAR* Part, const TCHAR* Pt, const TCHAR* Lb, int32 Fr, const FVector& Out, int32 S) { K X; X.Part = Part; X.Point = Pt; X.Kind = K::Push; X.Label = Lb; X.Frame = Fr; X.Out = Out; X.Switch = S; Cs.Add(X); };
+	auto Box = [&Tb](const FVector& Mn, const FVector& Mx, int32 Fr, TFunction<bool(const FTractor&)> On = nullptr) { FVehSolid S; S.Min = Mn; S.Max = Mx; S.Frame = Fr; S.On = MoveTemp(On); Tb->Solids.Add(S); };
+
+	Mo(TEXT("Lever_Stab"), TEXT("IK_Lever_Stab"), K::Lever, TEXT("Stabilisers down / up"), CtFChassis, L, CtMLegs, 0.f, 30.f);
+	Sw(TEXT("IK_Button_StabEStop"), TEXT("IK_Button_StabEStop"), TEXT("Emergency stop, stabilisers"), CtFChassis, L, CtSStab);
+	Mo(TEXT("Lever_Lift"), TEXT("IK_Lever_Lift"), K::Lever, TEXT("Body up / down"), CtFBody, No, CtMLift, 0.f, 275.f);
+	Mo(TEXT("Lever_Plat"), TEXT("IK_Lever_Plat"), K::Lever, TEXT("Platform out / in"), CtFBody, No, CtMPlat, 0.f, CtSlide);
+	Sw(TEXT("IK_Button_EStop"), TEXT("IK_Button_EStop"), TEXT("Emergency stop"), CtFBody, No, CtSStop);
+	Mo(TEXT("BoxDoorL"), TEXT("IK_Handle_BoxDoorL_Out"), K::Push, TEXT("Side door"), CtFDoor, No, CtMDoor, 0.f, 1.f, false);
+	Mo(TEXT("BoxDoorL"), TEXT("IK_Handle_BoxDoorL_In"), K::Push, TEXT("Side door"), CtFDoor, No, CtMDoor, 0.f, 1.f, false);
+	Sw(TEXT("IK_Step_BoxDoorL_2"), TEXT("IK_Step_BoxDoorL_2"), TEXT("Steps"), CtFStep, No, CtSClimb);
+	Mo(TEXT("RollF_00"), TEXT("IK_Handle_RollF_In"), K::Hand, TEXT("Front roll-up door"), CtFRollF, No, CtMRollF, 0.f, 190.f);
+	Mo(TEXT("RollF_00"), TEXT("IK_Handle_RollF_Out"), K::Hand, TEXT("Front roll-up door"), CtFRollF, No, CtMRollF, 0.f, 190.f);
+	Mo(TEXT("RollR_00"), TEXT("IK_Handle_RollR_In"), K::Hand, TEXT("Rear roll-up door"), CtFRollR, No, CtMRollR, 0.f, 190.f);
+	Mo(TEXT("RollR_00"), TEXT("IK_Handle_RollR_Out"), K::Hand, TEXT("Rear roll-up door"), CtFRollR, No, CtMRollR, 0.f, 190.f);
+	Mo(TEXT("RampFlap"), TEXT("IK_Handle_RampFlap"), K::Hand, TEXT("Bridge flap"), CtFFlap, No, CtMFlap, 0.f, 1.f);
+	Mo(TEXT("RailPlatform_L"), TEXT("IK_Rail_L_Hand"), K::Hand, TEXT("Left rail"), CtFRail0, No, CtMRail0, 0.f, 1.f);
+	Mo(TEXT("RailPlatform_R"), TEXT("IK_Rail_R_Hand"), K::Hand, TEXT("Right rail"), CtFRail1, No, CtMRail1, 0.f, 1.f);
+	Mo(TEXT("GatePlatform"), TEXT("IK_Handle_GatePlatform"), K::Hand, TEXT("Platform gate"), CtFGate, No, CtMGate, 0.f, 1.f);
+	Mo(TEXT("TailPlatform"), TEXT("IK_Handle_TailPlatform"), K::Hand, TEXT("Tail lift: fold out / up"), CtFFold, No, CtMFold, 0.f, 1.f);
+	Mo(TEXT("IK_Button_TailUp"), TEXT("IK_Button_TailUp"), K::Hold, TEXT("Tail lift up"), CtFBody, R, CtMTail, 1.f, 0.f, false);
+	Mo(TEXT("IK_Button_TailDown"), TEXT("IK_Button_TailDown"), K::Hold, TEXT("Tail lift down"), CtFBody, R, CtMTail, 0.f, 1.f, false);
+	Sw(TEXT("IK_Box_In"), TEXT("IK_Box_In"), TEXT("Take the empty trolley out of the aircraft"), CtFCabin, No, CtSCabin);
+	for (int32 i = 0; i < NTr; ++i) for (int32 e = 0; e < 2; ++e) Sw(TEXT("IK_Box_In"), TEXT("IK_Box_In"), TEXT("Take the full trolley (brake off)"), CtFGrip + i * 2 + e, No, CtSTake + i * 2 + e);
+
+	// what stops you: the chassis, the body with its openings, the platform with its rails, the trolleys
+	Box(FVector(251, -123, 40), FVector(453, 123, 292), CtFChassis); Box(FVector(-416, -125, 19), FVector(411, 125, 125), CtFChassis); Box(FVector(165, -122, 35), FVector(218, -60, 105), CtFChassis);
+	Box(FVector(-424, -125, 130), FVector(236, 125, 150), CtFBody); Box(FVector(-424, -125, 372), FVector(236, 125, 381), CtFBody);
+	Box(FVector(-424, 119, 150), FVector(236, 125, 372), CtFBody); Box(FVector(-424, -125, 150), FVector(152, -119, 372), CtFBody); Box(FVector(222, -125, 150), FVector(236, -119, 372), CtFBody); Box(FVector(152, -125, 343), FVector(222, -119, 372), CtFBody);
+	Box(FVector(222, -125, 150), FVector(236, -67, 372), CtFBody); Box(FVector(222, 67, 150), FVector(236, 125, 372), CtFBody); Box(FVector(-424, -125, 150), FVector(-411, -105, 372), CtFBody); Box(FVector(-424, 105, 150), FVector(-411, 125, 372), CtFBody);
+	Box(FVector(222, -67, 347), FVector(236, 67, 372), CtFBody); Box(FVector(-424, -105, 347), FVector(-411, 105, 372), CtFBody);
+	Box(FVector(222, -67, 150), FVector(230, 67, 340), CtFRollF, [](const FTractor& T) { return T.Ct && T.Ct->Roll < 185.f; }); Box(FVector(-418, -105, 150), FVector(-411, 105, 340), CtFRollR, [](const FTractor& T) { return T.Ct && T.Ct->RollR < 185.f; });
+	Box(FVector(152, -126, 150), FVector(222, -120, 343), CtFBody, [](const FTractor& T) { return T.SvcDoors.Num() > 1 && T.SvcDoors[1].Now < 0.6f; });
+	Box(FVector(-385, 72, 150), FVector(-250, 120, 320), CtFBody); Box(FVector(236, -62, 150), FVector(242, 62, 193), CtFBody, [](const FTractor& T) { return T.Ct && T.Ct->Flap < 0.9f; });
+	Box(FVector(-96, -82, 131), FVector(236, 82, 136.5), CtFPlat);
+	for (int32 r = 0; r < 2; ++r) { const float y = r ? 71.5f : -71.5f; Box(FVector(-35, y - 4, 137), FVector(206, y + 4, 245), CtFPlat, [r](const FTractor& T) { return T.Ct && T.Ct->Rail[r] > 0.5f; }); }
+	Box(FVector(200, -69, 137), FVector(208, 69, 245), CtFPlat, [](const FTractor& T) { return T.Ct && T.Ct->Gate > 0.5f; });
+	Box(FVector(-438, -118, 142), FVector(-428, 118, 306), CtFBody, [](const FTractor& T) { return T.Ct && T.Ct->Fold < 0.5f && T.Ct->Tail == 0.f; }); Box(FVector(-595, -118, 139), FVector(-431, 118, 149), CtFTail, [](const FTractor& T) { return T.Ct && T.Ct->Fold > 0.5f; });
+	for (int32 i = 0; i < NTr; ++i) Box(FVector(-43.9, -15.65, 2), FVector(43.9, 15.65, 94.6), CtFTrolley + i, [i](const FTractor& T) { return T.Ct && T.Ct->Trolleys.IsValidIndex(i) && T.Ct->Trolleys[i].State != FSvcCater::InCabin && T.Ct->Trolleys[i].State != FSvcCater::YourHands && T.Ct->Mov != i; });
+
+	Tb->Frame = [](const AGSE& G, const FTractor& T, int32 Fr) -> FTransform
+	{
+		if (!T.Ct) return FTransform::Identity; const FSvcCater& C = *T.Ct; const FVector Q = CtUp * C.Lift, Sl = Q + FVector(C.Out, 0, 0);
+		auto About = [](const FVector& P, const FQuat& Rt, const FVector& Mv) { return FTransform(-P) * FTransform(Rt) * FTransform(P + Mv); };
+		auto Turn = [](float K) { return FMath::SmoothStep(0.f, 1.f, K); };
+		if (Fr >= CtFGrip) { const int32 i = (Fr - CtFGrip) / 2; return C.Trolleys.IsValidIndex(i) ? FTransform(C.Trolleys[i].At + FVector((Fr - CtFGrip) % 2 ? 43.3 : -43.3, 0, 99) + Q - G.SvcP(T, TEXT("IK_Box_In"))) : FTransform::Identity; }
+		if (Fr >= CtFTrolley) return C.Trolleys.IsValidIndex(Fr - CtFTrolley) ? FTransform(C.Trolleys[Fr - CtFTrolley].At + Q) : FTransform::Identity;
+		switch (Fr)
+		{
+		case CtFBody: return FTransform(Q);
+		case CtFPlat: return FTransform(Sl);
+		// (the rails' and the gate's points are given with the rails up)
+		case CtFRail0: case CtFRail1: { const int32 r = Fr - CtFRail0; return About(G.SvcP(T, r ? TEXT("PIV_RailPlatform_R") : TEXT("PIV_RailPlatform_L")), FQuat(FVector::ForwardVector, FMath::DegreesToRadians((r ? 90.f : -90.f) * (1.f - Turn(C.Rail[r])))), Sl); }
+		case CtFGate:
+			if (C.Gate > 0.f) return About(G.SvcP(T, TEXT("PIV_GatePlatform")), FQuat(CtUp, FMath::DegreesToRadians(90.f * Turn(C.Gate))), Sl);
+			return About(G.SvcP(T, TEXT("PIV_RailPlatform_R")), FQuat(FVector::ForwardVector, FMath::DegreesToRadians(90.f * (1.f - Turn(C.Rail[1])))), Sl);
+		case CtFFlap: return About(G.SvcP(T, TEXT("PIV_RampFlap")), FQuat(FVector::RightVector, FMath::DegreesToRadians(106.f * Turn(C.Flap))), Q);
+		case CtFRollF: return FTransform(Q + CtUp * C.Roll);
+		case CtFRollR: return FTransform(Q + CtUp * C.RollR);
+		case CtFDoor: return T.SvcDoors.Num() > 1 ? About(T.SvcDoors[1].Piv, FQuat(CtUp, FMath::DegreesToRadians(100.f * T.SvcDoors[1].Now)), Q) : FTransform(Q);
+		case CtFTail: return FTransform(CtTailTip(C.Tail) - CtTailTip(0.f));
+		case CtFFold: return About(G.SvcP(T, TEXT("PIV_TailPlatform")), FQuat(FVector::RightVector, FMath::DegreesToRadians(-90.f * Turn(C.Fold))), CtTailTip(C.Tail) - CtTailTip(0.f));
+		case CtFStep: return FTransform(CtUp * (T.YouOn == 1 ? 60.f : 0.f));
+		case CtFCabin: return FTransform(FVector(500, 0, CtDeck + 99) + Q - G.SvcP(T, TEXT("IK_Box_In")));
+		default: return FTransform::Identity;
+		}
+	};
+	Tb->Now = CtNow;
+	Tb->Want = [](FTractor& T, int32 M, float To)
+	{
+		if (!T.Ct) return; FSvcCater& C = *T.Ct; C.bLive = true; C.bStow = false;
+		switch (M)
+		{
+		case CtMLegs: C.LegsWant = To; break; case CtMLift: C.LiftWant = To; break; case CtMPlat: C.OutWant = To; break; case CtMFlap: C.FlapWant = To; break; case CtMRail0: C.RailWant[0] = To; break; case CtMRail1: C.RailWant[1] = To; break;
+		case CtMGate: C.GateWant = To; break; case CtMRollF: C.RollWant = To; break; case CtMRollR: C.RollRWant = To; break; case CtMFold: C.FoldWant = To; break; case CtMTail: C.TailWant = To; break; default: T.LoadWant = To > 0.5f ? 1 : 0;
+		}
+	};
+	// (at an aircraft's door the body stops level with its sill)
+	Tb->End = [](const FTractor& T, int32 M, float To) { return M == CtMLift && To > 1.f && T.Ct && T.Ct->YouSill > 0.f ? FMath::Clamp(T.Ct->YouSill - CtDeck, 180.f, 275.f) : To; };
+	Tb->May = [](const AGSE& G, const FTractor& T, int32 M, float To, FString& Why)
+	{
+		if (!T.Ct) return false; const FSvcCater& C = *T.Ct; const bool bOpen = To > CtNow(T, M); const FVector& P = T.YouAt; Why.Reset();
+		const bool bDoor = T.SvcDoors.Num() > 1 && (T.SvcDoors[1].Now > 0.01f || T.SvcDoors[1].Want > 0.5f);
+		if (T.Job != EJob::None) Why = TEXT("its crew works with it");
+		else if (T.Player.IsValid() || T.Speed > 1.f || T.Path.Num()) Why = TEXT("it is not parked");
+		else if (CtHeldTr(C) != INDEX_NONE) Why = TEXT("you have a trolley in your hand");
+		else if ((C.bStop || C.bStabStop) && (M == CtMLift || M == CtMPlat || M == CtMFold || M == CtMTail || (M == CtMLegs && C.bStabStop))) Why = TEXT("its emergency stop is pressed");
+		else switch (M)
+		{
+		case CtMLegs: if (!bOpen && (C.Lift > 0.f || C.Out > 0.f)) Why = TEXT("the body is up"); else if (!bOpen && T.YouOn) Why = TEXT("you stand on it"); break;
+		case CtMLift:
+			if (C.Legs < 29.9f) Why = TEXT("the stabilisers are not down"); else if (bDoor) Why = TEXT("the side door is open"); else if (!CtFolded(C)) Why = TEXT("the tail lift is not folded up");
+			else if (!bOpen && C.Out > 0.f) Why = TEXT("the platform is out");
+			break;
+		case CtMPlat:
+			if (C.Lift < 180.f) Why = TEXT("the body is too low"); else if (C.Roll < 185.f) Why = TEXT("the front roll-up door is shut"); else if (!CtRailsDown(C)) Why = TEXT("its rails and flap come down first");
+			else if (T.YouOn == 2) Why = TEXT("you stand on it"); else if (CtTrolleyIn(C, 236.f, 900.f)) Why = TEXT("a trolley stands on it");
+			break;
+		case CtMFlap:
+			if (C.Out < CtSlide - 0.1f) Why = TEXT("the platform is not out"); else if (C.Roll < 185.f) Why = TEXT("the front roll-up door is shut"); else if (CtTrolleyIn(C, 215.f, 300.f)) Why = TEXT("a trolley stands in its way");
+			else if (!bOpen && (C.Rail[0] > 0.f || C.Rail[1] > 0.f)) Why = TEXT("the rails go down first"); else if (CtIn(P, FVector(234, -85, C.Lift), FVector(300, 85, C.Lift + 300))) Why = TEXT("you stand in its way");
+			break;
+		case CtMRail0: case CtMRail1:
+			if (C.Out < CtSlide - 0.1f) Why = TEXT("the platform is not out"); else if (C.Flap < 0.98f) Why = TEXT("the bridge flap comes first"); else if (bOpen && M == CtMRail0 && C.Rail[1] < 0.98f) Why = TEXT("the right one comes up first");
+			else if (!bOpen && M == CtMRail1 && C.Rail[0] > 0.f) Why = TEXT("the left one goes down first"); else if (!bOpen && C.Gate > 0.f) Why = TEXT("the gate goes back first"); else if (!bOpen && CtTrolleyIn(C, 239.f, 900.f)) Why = TEXT("a trolley stands on the platform");
+			break;
+		case CtMGate:
+			if (C.Rail[1] < 0.98f || C.Rail[0] < 0.98f) Why = TEXT("the rails are not up"); else if (CtTrolleyIn(C, 360.f, 900.f)) Why = TEXT("a trolley stands in its way");
+			else if (CtIn(P, FVector(440, -85, C.Lift), FVector(560, 85, C.Lift + 300))) Why = TEXT("you stand in its way");
+			break;
+		case CtMRollF: if (!bOpen && C.Out > 0.f) Why = TEXT("the platform is out"); else if (!bOpen && C.Flap > 0.f) Why = TEXT("the bridge flap is down"); else if (!bOpen && G.CaterHeld(T, M, 0.f)) Why = TEXT("something stands in it"); break;
+		case CtMRollR: if (!bOpen && G.CaterHeld(T, M, 0.f)) Why = TEXT("something stands in it"); break;
+		case CtMFold: if (C.Lift > 0.f || C.LiftWant > 0.f) Why = TEXT("the body is up"); else if (!bOpen && C.Tail > 0.f) Why = TEXT("the tail lift is not up"); else if (G.CaterHeld(T, M, To)) Why = TEXT("somebody stands in its way"); break;
+		case CtMTail: if (C.Lift > 0.f) Why = TEXT("the body is up"); else if (C.Fold < 0.999f) Why = TEXT("it is folded up"); break;
+		default: if (C.Lift > 0.f || C.LiftWant > 0.f) Why = TEXT("the body is up"); break;
+		}
+		return Why.IsEmpty();
+	};
+	Tb->MaySwitch = [](AGSE& G, int32 Ti, int32 S, FString& Why)
+	{
+		const FTractor& T = G.Tractors[Ti]; if (!T.Ct) return false; const FSvcCater& C = *T.Ct;
+		if (S == CtSStop || S == CtSStab) return true;
+		if (T.Player.IsValid() || T.Speed > 1.f || T.Path.Num()) { Why = TEXT("it is not parked"); return false; }
+		if (S == CtSClimb)
+		{
+			if (T.SvcDoors.Num() < 2 || T.SvcDoors[1].Now < 0.98f) Why = TEXT("the side door is shut"); else if (C.Lift > 0.f || C.LiftWant > 0.f) Why = TEXT("the body is up"); else if (CtHeldTr(C) != INDEX_NONE) Why = TEXT("you have a trolley in your hand");
+			else if (CtTrolleyIn(C, 100.f, 236.f)) Why = TEXT("a trolley stands at the steps"); else if (T.Job != EJob::None) Why = TEXT("its crew works with it");
+			return Why.IsEmpty();
+		}
+		if (S == CtSCabin) { if (CtTrolleyIn(C, 438.f, 900.f)) { Why = TEXT("a trolley stands in front of the door"); return false; } return true; }
+		return G.CaterTake(T, (S - CtSTake) / 2, (S - CtSTake) % 2 ? -1.f : 1.f, Why);
+	};
+	Tb->Switch = [](AGSE& G, int32 Ti, int32 S)
+	{
+		FTractor& T = G.Tractors[Ti]; if (!T.Ct) return false; FSvcCater& C = *T.Ct; C.bLive = true; C.bStow = false;
+		if (S == CtSStop) return C.bStop = !C.bStop;
+		if (S == CtSStab) return C.bStabStop = !C.bStabStop;
+		if (S == CtSClimb) return true;
+		int32 Tr = INDEX_NONE; FString Why;
+		if (S == CtSCabin)
+		{
+			for (int32 i = 0; i < C.Trolleys.Num(); ++i) if (C.Trolleys[i].State == FSvcCater::InCabin && C.Trolleys[i].CabinT <= 0.f) Tr = i;
+			if (Tr == INDEX_NONE || T.YouAt.X > 404.0) return false;
+			C.Trolleys[Tr].At = FVector(484, 0, CtDeck); C.Dir = 1.f;
+		}
+		else
+		{
+			if (S < CtSTake || !G.CaterTake(T, (S - CtSTake) / 2, (S - CtSTake) % 2 ? -1.f : 1.f, Why)) return false;
+			Tr = (S - CtSTake) / 2; C.Dir = (S - CtSTake) % 2 ? -1.f : 1.f;
+		}
+		C.Trolleys[Tr].State = FSvcCater::YourHands; C.YouMov = Tr; C.Pedal = 2; C.PedalTr = Tr; C.PedalT = 0.6f; C.bSqueeze = true; return true;
+	};
+	Tb->Say = [](const AGSE& G, const FTractor& T, const FVehControl& X) -> FString
+	{
+		if (!T.Ct) return FString(); const FSvcCater& C = *T.Ct;
+		if (X.Switch >= CtSTake)
+		{
+			FString Why; const int32 i = (X.Switch - CtSTake) / 2; if (!G.CaterTake(T, i, (X.Switch - CtSTake) % 2 ? -1.f : 1.f, Why) && Why.IsEmpty()) return FString();
+			return C.Trolleys[i].bEmpty ? TEXT("Take the empty trolley (brake off)") : X.Label;
+		}
+		if (X.Switch == CtSCabin)
+		{
+			if (T.YouOn != 2 || CtHeldTr(C) != INDEX_NONE || T.YouAt.X > 404.0) return FString();
+			for (const FSvcCater::FTrolley& Y : C.Trolleys) if (Y.State == FSvcCater::InCabin && Y.CabinT <= 0.f) return X.Label;
+			return FString();
+		}
+		if (X.Switch == CtSStop) return C.bStop ? TEXT("Emergency stop: pull it out") : X.Label;
+		if (X.Switch == CtSStab) return C.bStabStop ? TEXT("Emergency stop, stabilisers: pull it out") : X.Label;
+		return X.Label;
+	};
+	Tb->Held = [](const FTractor& T) -> const TCHAR* { return T.Ct && T.Job == EJob::None && CtHeldTr(*T.Ct) != INDEX_NONE ? TEXT("a trolley") : nullptr; };
+	Tb->Grip = [](const AGSE& G, const FTractor& T, FVector& P) { const int32 i = T.Ct ? CtHeldTr(*T.Ct) : INDEX_NONE; if (i == INDEX_NONE) return false; P = CtHandle(*T.Ct, i); return true; };
+	Tb->Leash = [](const AGSE& G, const FTractor& T, FVector& From) { const int32 i = T.Ct ? CtHeldTr(*T.Ct) : INDEX_NONE; if (i == INDEX_NONE) return 0.f; From = CtHandle(*T.Ct, i); return 112.f; };
+	Tb->Drop = [](FTractor& T) { const int32 i = T.Ct ? CtHeldTr(*T.Ct) : INDEX_NONE; if (i != INDEX_NONE) CtPark(*T.Ct, i); };
+	// the full one over the sill into the aircraft, or the brake on where it stands
+	static auto MayIn = [](const AGSE& G, const FTractor& T) -> bool
+	{
+		const FSvcCater& C = *T.Ct; const int32 i = CtHeldTr(C); if (i == INDEX_NONE || C.Trolleys[i].bEmpty || C.Trolleys[i].At.X < 478.0 || C.YouSill <= 0.f || FMath::Abs(CtDeck + C.Lift - C.YouSill) > 15.f) return false;
+		int32 In = 0, Owed = 0; for (const FSvcCater::FTrolley& X : C.Trolleys) { In += X.State == FSvcCater::InCabin ? 1 : 0; Owed += X.bOwed && X.Door == C.YouDoor ? 1 : 0; }
+		for (const TPair<int32, FSvcJob>& P : G.SvcJobs) if (P.Value.Phase == 0 && ADPService::All()[P.Value.Svc].bCater && FMath::Abs(P.Value.StandX - C.YouStandX) < 1.f) return In < 2 && P.Value.CtYou[C.YouDoor] + Owed < CtNeed[C.YouDoor];
+		return false;
+	};
+	Tb->HandSay = [](const AGSE& G, const FTractor& T, FString& Why) -> FString { return MayIn(G, T) ? TEXT("Hand the full trolley into the aircraft") : TEXT("Let go of the trolley (brake on)"); };
+	Tb->HandDo = [](AGSE& G, FTractor& T, bool bSqueeze)
+	{
+		FSvcCater& C = *T.Ct; const bool bNew = bSqueeze && !C.bSqueeze; C.bSqueeze = bSqueeze; const int32 i = CtHeldTr(C); if (!bNew || i == INDEX_NONE) return;
+		C.bLive = true; if (!MayIn(G, T)) { CtPark(C, i); return; }
+		// (out of sight as its crew's: the aircraft has no cabin)
+		FSvcCater::FTrolley& X = C.Trolleys[i]; X.State = FSvcCater::InCabin; X.bEmpty = X.bOwed = true; X.Door = uint8(C.YouDoor); X.CabinT = CtCabinSeconds; C.YouMov = INDEX_NONE; T.bUsed = true; CtShow(C, i);
+	};
+	Tb->Climb = [](const AGSE& G, int32 Ti, int32 S, float& Secs) -> TFunction<void(float, float, FDriverPose&)> { if (S != CtSClimb) return nullptr; Secs = 5.2f; return G.CaterClimbFn(Ti, !G.Tractors[Ti].YouOn); };
+	Tb->Aboard = [](const FTractor& T, const FVector& P) -> uint8
+	{
+		if (!T.Ct) return 0; const FSvcCater& C = *T.Ct; const FVector Tp = CtTailTip(C.Tail);
+		if (P.X > -424.0 && P.X < 239.0 && FMath::Abs(P.Y) < 122.0 && FMath::Abs(P.Z - CtFloor - C.Lift) < 40.0) return 1;
+		if (C.Out > 1.f && P.X >= 239.0 && P.X < 244.0 + C.Out && FMath::Abs(P.Y) < 84.0 && FMath::Abs(P.Z - CtFloorZ(float(P.X)) - C.Lift) < 40.0) return 2;
+		if (C.Fold > 0.5f && P.X < Tp.X + 5.0 && P.X > Tp.X - 172.0 && FMath::Abs(P.Y) < 120.0 && FMath::Abs(P.Z - Tp.Z - 3.0) < 22.0 && P.Z > 4.0) return 3;
+		return C.Lift == 0.f && P.X > 160.0 && P.X < 225.0 && P.Y > -126.0 && P.Y < -60.0 && P.Z > 25.0 && P.Z < 130.0 ? 4 : 0;
+	};
+	Tb->Stowed = [](const AGSE& G, const FTractor& T) { return G.CaterStowed(T); };
+	Tb->Stow = [](AGSE& G, FTractor& T) { if (T.Ct) T.Ct->bStow = T.Ct->bLive = true; };
+	return Tb;
 }

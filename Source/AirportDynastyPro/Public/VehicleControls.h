@@ -49,6 +49,7 @@ struct FVehTable
 	TFunction<FString(const AGSE&, const AGSE::FTractor&, const FVehControl&)> Say;
 	TFunction<bool(AGSE&, int32, int32, FString&)> MaySwitch;
 	TFunction<const TCHAR*(const AGSE::FTractor&)> Held;
+	TFunction<bool(const AGSE&, const AGSE::FTractor&, FVector&)> Grip;   // (its handle, root: what you push stands on its own wheels)
 	TFunction<float(const AGSE&, const AGSE::FTractor&, FVector&)> Leash;
 	TFunction<void(AGSE::FTractor&)> Drop;
 	TFunction<TFunction<void(float, float, FDriverPose&)>(const AGSE&, int32, int32, float&)> Climb;

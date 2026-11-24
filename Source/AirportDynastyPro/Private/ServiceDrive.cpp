@@ -3,6 +3,7 @@
 #include "CabControls.h"
 #include "VehicleControls.h"
 #include "GSE.h"
+#include "GSECater.h"
 #include "Tugs.h"
 #include "ADPWalker.h"
 #include "ADPFov.h"
@@ -372,7 +373,7 @@ bool AGSE::SvcSeatFree(int32 Ti, int32 Seat, FString& Why) const
 	const FTractor& T = Tractors[Ti]; const FServiceSpec& S = SdSpec(T.Svc); const ATugs* G = Tg();
 	if (T.Player.IsValid()) { Why = TEXT("you are in it already"); return false; }
 	if (S.bDeicer && (T.Job != EJob::None || !DeicerStowed(T))) { Why = T.Job != EJob::None ? TEXT("its crew are at work") : TEXT("its boom is not stowed"); return false; }
-	if (T.Job == EJob::None && ((S.bFuel && !FuelStowed(T)) || (S.Wet && !WaterStowed(T)))) { Why = TEXT("not everything is back in its place"); return false; }   // (never off with a hose out)
+	if (T.Job == EJob::None && ((S.bFuel && !FuelStowed(T)) || (S.Wet && !WaterStowed(T)) || (S.bCater && !CaterStowed(T)))) { Why = TEXT("not everything is back in its place"); return false; }   // (never off with a hose out)
 	if (T.Speed > 2.f || T.Path.Num()) { Why = TEXT("it is driving"); return false; }
 	if (SdCab(S, Seat) >= 0 || T.Job == EJob::None) return true;   // (the seat beside the driver: nobody of its crew sits there)
 	// its crew have it: the driver's seat only while every one of them is up in the aircraft
@@ -417,6 +418,7 @@ bool AGSE::SvcUse(APawn* Me, FString& Say)
 		bool bCrew = false; for (const TPair<int32, FSvcJob>& P : SvcJobs) if (P.Value.Ti == Bt && P.Value.Phase < 9) { FString Y; bCrew = !SvcSeatFree(Bt, 0, Y) && !SvcYours(T); }
 		if (bCrew) { Say = TEXT("Its crew are at work"); return true; }
 		if (SdSpec(T.Svc).bStairs) { StairsToggle(Bt, Say); return true; }
+		if (T.Ct && (T.Ct->Lift > 0.f || T.Ct->LiftWant > 0.f)) { Say = TEXT("Its body is up"); return true; }   // (a catering truck's side door)
 		T.LoadWant = T.SvcDoors[1].Want < 0.5f ? 1 : 0; return true;
 	}
 	FString Why; if (!SvcSeatFree(Bt, Bs, Why)) { Say = FString::Printf(TEXT("The %s: %s"), SdSpec(T.Svc).Label, *Why); return true; }
@@ -434,6 +436,7 @@ void AGSE::SvcPlayerDrive(FTractor& T, float Dt)
 	bool bShut = true; for (int32 d = 0; d < T.SvcDoors.Num(); ++d) if (T.SvcDoors[d].Now > 0.01f) bShut = false;
 	if (T.DoorAng > 1.f) bShut = false;
 	if (!AmbuStowed(T)) bShut = false;   // (never with its legs down, its body up or its tail lift out)
+	if (T.Ct && !CaterStowed(T)) bShut = false;   // (never with its legs down, its body up or anything out)
 	if (!DeicerStowed(T)) bShut = false;   // (never with its boom up)
 	if (T.Ps && !StairsStowed(T)) bShut = false;   // (never with its legs down or its stairs up)
 	float Go = bShut ? D->Throttle() : 0.f, Br = D->Brake();

@@ -431,6 +431,11 @@ riders `Data/ambulift-riders.json`, `Data/wheelchair-riders.json`, all points an
 - Tanks: rinse 550 l, waste 1500 l (168 + 40 l per aircraft). Emptying lever behind the mast, from the lowered platform, in its box only: 30 s, refills rinse too.
 - A crew taking over drains and rinses only what you left (`J.Litres` 360 s); a lever worked with something in your hand: it goes to the left hand.
 - Toilet truck, merged or not in the model, so not built: rinse fill cap, gauges, sinking buttons, coupling cam levers, charge flap, manhole; no work-light button, no lockers.
+- Catering truck (compiled, NOT run): `AGSE::CaterControls()` + `YouCater` (end of GSECater.cpp). Order: stabilisers, body, front roll-up door, platform, flap, right then left rail, gate; back the other way round; side door, steps, rear door, tail lift, both stops.
+- At an aircraft that waits for catering the body stops level with its sill (line traces stop body and platform at the fuselage). Nothing moves under a person (`CaterHeld`, `CaterUnder`).
+- Trolleys: take by either end (brake off), push at up to 90 cm/s only where `CaterFree` has room; trigger at the sill hands the full one in (4 front / 7 rear, two in the cabin at once), the empty one comes out after 14 s, back to its place = one exchange (`J.CtYou`). The crew do only the rest (`CtTripsLeft`).
+- `CaterStowed` keeps the seat shut; left alone open it puts itself back in the crew's order, loose trolleys straight to their places.
+- Catering truck, merged or not in the model, so not built: chocks, cones, inside light, straps and nets, sinking tail-lift buttons; galley boxes and trolley doors have no function; trolleys not onto the tail lift; one arm on the handle.
 - Cab controls, all eight service vehicles (compiled, NOT run): `CabControls.h/.cpp`; `CabAdd` adds the same seat lines to every table, shown where the model has the point. Codes above `ADPCab::First` go to `CabSay/CabMay/CabSwitch`.
 - Keys: Space / A park brake, Page Up / Down or B + A gear, L / D-pad down beam, comma / full stop or B + D-pad indicators, F or B + D-pad down hazards, N / R3 beacon, H / L3 horn, J or B + R3 work lights, K or B + L3 wipers, U PTO.
 - Park brake or neutral or PTO on: no drive. PTO (ambulift, de-icer) needs brake and neutral; legs, body, platform, tail, boom and spray need it from you. Getting out puts the brake on.
