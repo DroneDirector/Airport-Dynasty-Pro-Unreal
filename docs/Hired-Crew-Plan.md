@@ -431,6 +431,12 @@ riders `Data/ambulift-riders.json`, `Data/wheelchair-riders.json`, all points an
 - Tanks: rinse 550 l, waste 1500 l (168 + 40 l per aircraft). Emptying lever behind the mast, from the lowered platform, in its box only: 30 s, refills rinse too.
 - A crew taking over drains and rinses only what you left (`J.Litres` 360 s); a lever worked with something in your hand: it goes to the left hand.
 - Toilet truck, merged or not in the model, so not built: rinse fill cap, gauges, sinking buttons, coupling cam levers, charge flap, manhole; no work-light button, no lockers.
+- Cab controls, all eight service vehicles (NOT compiled yet: the PC was busy; NOT run): `CabControls.h/.cpp`; `CabAdd` adds the same seat lines to every table, shown where the model has the point. Codes above `ADPCab::First` go to `CabSay/CabMay/CabSwitch`.
+- Keys: Space / A park brake, Page Up / Down or B + A gear, L / D-pad down beam, comma / full stop or B + D-pad indicators, F or B + D-pad down hazards, N / R3 beacon, H / L3 horn, J or B + R3 work lights, K or B + L3 wipers, U PTO.
+- Park brake or neutral or PTO on: no drive. PTO (ambulift, de-icer) needs brake and neutral; legs, body, platform, tail, boom and spray need it from you. Getting out puts the brake on.
+- Hired drivers: `CabTick` (brake, gear, beacon, lights back to normal); indicators as they steer (`Lamps`).
+- Merged (hand goes there, nothing moves): gear and park brake of catering, fuel, water, toilet; van gear; stairs and de-icer park brake; stalks; horn hub. Levers that move: ambulift three, de-icer gear + PTO, stairs gear.
+- No part (key only): van park brake; hazard, beacon, work-light, headlight switches (ambulift has three buttons). Merged, not built: sun visors, glove boxes, heater knobs, window switches. Only lens glow: service vehicles have no light beams.
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 

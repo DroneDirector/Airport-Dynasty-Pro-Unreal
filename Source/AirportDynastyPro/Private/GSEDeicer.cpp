@@ -11,6 +11,7 @@
 #include "GSE.h"
 #include "ServiceVehicles.h"
 #include "ServiceDrive.h"
+#include "VehicleControls.h"
 #include "Tugs.h"
 #include "CrewPose.h"
 #include "Puddles.h"
@@ -693,12 +694,14 @@ void AGSE::DeicerYours(FTractor& T, float Dt)
 	}
 	// lift and slew by the move keys / left stick, the boom out and in by Shift / Ctrl or the triggers; never into anything, never round below 15 degrees
 	FSvcDeicer::FPose N = F.Now; auto Vel = [Dt](float& V, float In, float Max, float Acc) { V = FMath::FInterpConstantTo(V, In * Max, Dt, Acc); return V * Dt; };
+	const float Pw = T.bPto ? 1.f : 0.f;   // (the boom and the pumps need the power take-off; home it always goes)
+	if (!T.bPto && (FMath::Abs(D->BoomLift()) > 0.2f || FMath::Abs(D->BoomSlew()) > 0.2f || FMath::Abs(D->BoomOut()) > 0.2f || D->SprayKey() >= 0)) AVehicleControls::Note(GetWorld(), TEXT("The power take-off is off: its lever is in the driver's cab"));
 	if (D->StowKey() && !F.Route.Num() && !DiStowed(F)) DiHome(F, F.Route);
 	else if (!F.Route.Num())
 	{
-		N.Lift = FMath::Clamp(N.Lift + Vel(F.LiftV, D->BoomLift(), 6.f, 8.f), N.Slew == 0.f && N.Ext <= 0.f ? 0.f : 15.f, 60.f);
-		N.Slew = FMath::Clamp(N.Slew + Vel(F.SlewV, N.Lift >= 15.f ? D->BoomSlew() : 0.f, 11.f, 12.f), -150.f, 150.f);
-		N.Ext = FMath::Clamp(N.Ext + Vel(F.ExtV, N.Lift >= 15.f ? D->BoomOut() : 0.f, 55.f, 60.f), 0.f, 600.f);
+		N.Lift = FMath::Clamp(N.Lift + Vel(F.LiftV, Pw * D->BoomLift(), 6.f, 8.f), N.Slew == 0.f && N.Ext <= 0.f ? 0.f : 15.f, 60.f);
+		N.Slew = FMath::Clamp(N.Slew + Vel(F.SlewV, N.Lift >= 15.f ? Pw * D->BoomSlew() : 0.f, 11.f, 12.f), -150.f, 150.f);
+		N.Ext = FMath::Clamp(N.Ext + Vel(F.ExtV, N.Lift >= 15.f ? Pw * D->BoomOut() : 0.f, 55.f, 60.f), 0.f, 600.f);
 		if (FMath::Abs(N.Slew) < 0.4f && D->BoomSlew() == 0.f) N.Slew = 0.f;
 		if (N.Slew != F.Now.Slew || N.Lift != F.Now.Lift || N.Ext != F.Now.Ext)
 		{
@@ -710,6 +713,6 @@ void AGSE::DeicerYours(FTractor& T, float Dt)
 		}
 	}
 	// the nozzle where you look, type I / type IV while held
-	F.PanWant = D->LookY(); F.TiltWant = D->LookP(); const int32 Jt = D->SprayKey(); F.Jet = F.Now.Lift >= 15.f && !F.Route.Num() ? Jt : -1; if (Jt < 0) F.bBroken = false;
+	F.PanWant = D->LookY(); F.TiltWant = D->LookP(); const int32 Jt = T.bPto ? D->SprayKey() : -1; F.Jet = F.Now.Lift >= 15.f && !F.Route.Num() ? Jt : -1; if (Jt < 0) F.bBroken = false;
 	if (F.Water < 1100.f || F.TankI < 900.f || F.TankIV < 700.f) T.bUsed = true;
 }

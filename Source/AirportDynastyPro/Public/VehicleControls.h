@@ -69,6 +69,10 @@ public:
 	virtual void Tick(float Dt) override;
 	/** E / X: the control you look at; true when there is one. */
 	static bool Interact(APawn* Who);
+	/** A shared cab control by its key (CabControls.h): your hand goes to its part, where it has one. */
+	static void CabKey(class AServiceDrive* Sd, int32 Code);
+	/** Why something doesn't go (shown a moment). */
+	static void Note(UWorld* W, const FString& Why);
 	/** What to show while you look at one or hold one (empty: nothing). */
 	static FString Prompt();
 	/** The lever or button you look at or hold: it may glow (never the vehicle). */
@@ -83,7 +87,9 @@ private:
 	FString Text; double TextAt = -1.0;
 	TMap<TPair<int32, int32>, float> Last;   // (the way a motion went last: the other way next)
 	TArray<TPair<UInstancedStaticMeshComponent*, int32>> Glow;
-	TWeakObjectPtr<APawn> User;
+	TWeakObjectPtr<APawn> User; int32 KeyCode = INDEX_NONE;
+	static FString SayOf(const AGSE& G, const AGSE::FTractor& V, const FVehControl& C);
+	static bool MayOf(AGSE& G, int32 V, int32 Code, FString& Why);
 	int32 HoldTi = INDEX_NONE; FVector HoldAt = FVector::ZeroVector, HoldF = FVector::ForwardVector;   // (what you carry: whose, where)
 	TFunction<void(float, float, FDriverPose&)> ClimbFn; float ClimbS = 0.f; bool bClimbing = false; FTruckDriverRig Rig;
 	UPROPERTY() TObjectPtr<UPoseableMeshComponent> Rider; UPROPERTY() TObjectPtr<UDriverPoseAnim> Human;

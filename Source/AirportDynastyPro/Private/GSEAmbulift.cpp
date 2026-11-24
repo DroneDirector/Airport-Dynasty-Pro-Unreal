@@ -4,6 +4,7 @@
 #include "GSEAmbulift.h"
 #include "GSE.h"
 #include "VehicleControls.h"
+#include "CabControls.h"
 #include "ServiceVehicles.h"
 #include "Tugs.h"
 #include "VehicleRiders.h"
@@ -271,12 +272,12 @@ TSharedPtr<FVehTable> AGSE::AmbuControls()
 	Mo(TEXT("Button_DoorRearIn"), TEXT("IK_Button_DoorRearIn"), K::Push, TEXT("Rear doors"), Body, F, FA::DoorR, 0.f, 1.f);
 	Mo(TEXT("Button_DoorRearOut"), TEXT("IK_Button_DoorRearOut"), K::Push, TEXT("Rear doors"), Body, B, FA::DoorR, 0.f, 1.f);
 	// the cab
-	Sw(TEXT("Button_CabHazard"), TEXT("IK_Button_CabHazard"), TEXT("Hazard lights"), Chassis, Dash, SwHaz, true);
+	Sw(TEXT("Button_CabHazard"), TEXT("IK_Button_CabHazard"), TEXT("Hazard lights"), Chassis, Dash, ADPCab::Hazard, true);
 	Sw(TEXT("Button_CabBlue"), TEXT("IK_Button_CabBlue"), TEXT("Blue lights"), Chassis, Dash, SwBlue, true);
 	Sw(TEXT("Button_CabStop"), TEXT("IK_Button_CabStop"), TEXT("Emergency stop"), Chassis, Dash, SwStop, true);
-	Sw(TEXT("Button_CabBeacon"), TEXT("IK_Button_CabBeacon"), TEXT("Beacon"), Chassis, Dash, SwBeacon, true);
-	Sw(TEXT("Button_CabWork"), TEXT("IK_Button_CabWork"), TEXT("Work lights"), Chassis, Dash, SwWork, true);
-	Sw(TEXT("Button_Horn"), TEXT("IK_Horn"), TEXT("Horn"), Chassis, Dash, SwHorn, true);
+	Sw(TEXT("Button_CabBeacon"), TEXT("IK_Button_CabBeacon"), TEXT("Beacon"), Chassis, Dash, ADPCab::Beacon, true);
+	Sw(TEXT("Button_CabWork"), TEXT("IK_Button_CabWork"), TEXT("Work lights"), Chassis, Dash, ADPCab::Work, true);
+	Sw(TEXT("Button_Horn"), TEXT("IK_Horn"), TEXT("Horn"), Chassis, Dash, ADPCab::Horn, true);
 
 	Tb->Frame = [](const AGSE& G, const FTractor& T, int32 Fr) -> FTransform
 	{
@@ -294,7 +295,10 @@ TSharedPtr<FVehTable> AGSE::AmbuControls()
 	};
 	Tb->Now = [](const FTractor& T, int32 M) { return T.Am->Now[M]; };
 	Tb->Want = [](FTractor& T, int32 M, float To) { T.Am->Want[M] = To; T.Am->bLive = true; };
-	Tb->May = [](const AGSE& G, const FTractor& T, int32 M, float To, FString& Why) { if (G.AmbuMay(T, M, To)) return true; Why = G.AmbuWhy(T, M, To); return false; };
+	Tb->May = [](const AGSE& G, const FTractor& T, int32 M, float To, FString& Why) {
+		// (what its drive powers needs the power take-off; rails, gates, doors, bridge are yours by hand)
+		if (!T.bPto && (M == FA::Legs || M == FA::Lift || M == FA::Plat || M == FA::Arms || M == FA::Tail)) { Why = TEXT("the power take-off is off (its lever in the cab)"); return false; }
+		if (G.AmbuMay(T, M, To)) return true; Why = G.AmbuWhy(T, M, To); return false; };
 	Tb->End = [](const FTractor& T, int32 M, float E) { return M == FA::Lift && T.Am->Now[FA::Plat] > 0.f ? FMath::Max(E, 102.f) : E; };   // (with the platform out not down onto the cab)
 	Tb->Press = [](AGSE& G, int32 Ti, const FVehControl& X) { if (FCString::Strncmp(X.Part, TEXT("Button_"), 7) == 0) { G.AmbuPress(Ti, X.Part + 7); if (G.Tractors[Ti].Am) G.Tractors[Ti].Am->bLive = true; } };
 	Tb->Switch = [](AGSE& G, int32 Ti, int32 S)
@@ -302,9 +306,7 @@ TSharedPtr<FVehTable> AGSE::AmbuControls()
 		FTractor& T = G.Tractors[Ti]; FSvcAmbu& A = *T.Am;
 		switch (S)
 		{
-		case SwHaz: T.bSwHaz = !T.bSwHaz; break;
 		case SwBlue: A.bBlue = !A.bBlue; break;
-		case SwBeacon: T.bSwNoBeacon = !T.bSwNoBeacon; break;
 		case SwWork: T.bSwWork = !T.bSwWork; break;
 		case SwLight: T.bSwLight = !T.bSwLight; break;
 		case SwHorn: G.Sound(TEXT("BTHorn"), G.TW(T, FVector(480.f, 0.f, 80.f))); break;   // (the electric tractor's)

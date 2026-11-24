@@ -31,6 +31,9 @@ public:
 	float Brake() const { return AtWheel() ? (bOutWanted ? 1.f : FMath::Clamp(FMath::Max(-KeyFwd, PadB), 0.f, 1.f)) : 1.f; }
 	float SteerIn() const { return AtWheel() && !bOutWanted ? FMath::Clamp(KeySteer, -1.f, 1.f) : 0.f; }
 	bool IsBehind() const { return bBehind; }
+	/** The horn (H: the HUD hands it over while you are at the wheel). */
+	void Honk();
+	int32 Vehicle() const { return Ti; }
 	/** A hand of yours on a control (VehicleControls.h): how far there, where (world). */
 	void SetReach(float Weight, const FVector& At) { ReachW = Weight; ReachAt = At; }
 	bool Leaving() const { return bOutWanted; }
@@ -62,6 +65,15 @@ private:
 	void View(float Dt);
 	void Finish();
 	void Fwd(float V) { KeyFwd = V; }
+	// the cab's controls by key (CabControls.h): only at the wheel
+	bool bPadMod = false; float ParkT = 0.f;
+	void Cab(int32 Code);
+	void KeyPark(); void KeyBeam(); void KeyBeacon(); void KeyIndL(); void KeyIndR(); void KeyHazard(); void KeyGearUp(); void KeyGearDown(); void KeyPto(); void KeyWiper(); void KeyWork(); void PadHorn();
+	void PadModOn() { bPadMod = true; }
+	void PadModOff() { bPadMod = false; }
+	void PadLeft() { if (bPadMod) KeyIndL(); }
+	void PadRight() { if (bPadMod) KeyIndR(); }
+	void PadDown() { if (bPadMod) KeyHazard(); }
 	void Right(float V) { KeySteer = V; }
 	void Turn(float V) { LookYaw = FMath::Clamp(LookYaw + V * 2.f, -150.f, 150.f); }
 	void LookUp(float V) { LookPitch = FMath::Clamp(LookPitch + V * 2.f, -60.f, 50.f); }

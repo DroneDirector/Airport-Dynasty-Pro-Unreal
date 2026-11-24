@@ -1,5 +1,7 @@
 // You in a service vehicle (ServiceDrive.h), and the vehicle's side of it (AGSE::Svc*: which seat is free, the drive itself).
 #include "ServiceDrive.h"
+#include "CabControls.h"
+#include "VehicleControls.h"
 #include "GSE.h"
 #include "Tugs.h"
 #include "ADPWalker.h"
@@ -44,6 +46,25 @@ void AServiceDrive::SetupPlayerInputComponent(UInputComponent* In)
 	In->BindAxis(TEXT("TruckThrottle"), this, &AServiceDrive::PadThrottle);
 	In->BindAxis(TEXT("TruckBrake"), this, &AServiceDrive::PadBrake);
 	In->BindAction(TEXT("ChangeView"), IE_Pressed, this, &AServiceDrive::ToggleView);
+	// the cab's controls by the fire truck's keys (CabControls.h): Space / A the park brake, L, comma, full stop, F, N, H; Page Up / Down the gears, U, K, J
+	In->BindAction(TEXT("Jump"), IE_Pressed, this, &AServiceDrive::KeyPark);
+	In->BindAction(TEXT("HighBeam"), IE_Pressed, this, &AServiceDrive::KeyBeam);
+	In->BindAction(TEXT("BlueLights"), IE_Pressed, this, &AServiceDrive::KeyBeacon);
+	In->BindAction(TEXT("IndicatorLeft"), IE_Pressed, this, &AServiceDrive::KeyIndL);
+	In->BindAction(TEXT("IndicatorRight"), IE_Pressed, this, &AServiceDrive::KeyIndR);
+	In->BindAction(TEXT("Hazards"), IE_Pressed, this, &AServiceDrive::KeyHazard);
+	In->BindKey(EKeys::PageUp, IE_Pressed, this, &AServiceDrive::KeyGearUp);
+	In->BindKey(EKeys::PageDown, IE_Pressed, this, &AServiceDrive::KeyGearDown);
+	In->BindKey(EKeys::U, IE_Pressed, this, &AServiceDrive::KeyPto);
+	In->BindKey(EKeys::K, IE_Pressed, this, &AServiceDrive::KeyWiper);
+	In->BindKey(EKeys::J, IE_Pressed, this, &AServiceDrive::KeyWork);
+	// (the pad: B held and the D-pad for the indicators and hazards, with A the gears, with the right stick's press the work lights, with the left one's the wipers)
+	In->BindKey(EKeys::Gamepad_FaceButton_Right, IE_Pressed, this, &AServiceDrive::PadModOn);
+	In->BindKey(EKeys::Gamepad_FaceButton_Right, IE_Released, this, &AServiceDrive::PadModOff);
+	In->BindKey(EKeys::Gamepad_DPad_Left, IE_Pressed, this, &AServiceDrive::PadLeft);
+	In->BindKey(EKeys::Gamepad_DPad_Right, IE_Pressed, this, &AServiceDrive::PadRight).bConsumeInput = false;   // (also the bay doors' button)
+	In->BindKey(EKeys::Gamepad_DPad_Down, IE_Pressed, this, &AServiceDrive::PadDown);
+	In->BindKey(EKeys::Gamepad_LeftThumbstick, IE_Pressed, this, &AServiceDrive::PadHorn);
 }
 
 bool AServiceDrive::Begin(AGSE* G, int32 Vehicle, int32 InSeat, APawn* Walker)
@@ -196,12 +217,19 @@ void AServiceDrive::Tick(float Dt)
 	}
 	else if (Seq == ESeq::Sat)
 	{
-		if (bOutWanted && V.Speed < 2.f && V.Path.Num() == 0)
+		if (bOutWanted && Seat == 0 && V.Speed < 2.f && !V.bPark && !bDoor)
 		{
+			// the park brake first, by hand
+			if (ParkT <= 0.f) AVehicleControls::CabKey(this, ADPCab::Park);
+			if ((ParkT += Dt) > 1.5f) G->CabSwitch(Ti, ADPCab::Park);
+		}
+		else if (bOutWanted && V.Speed < 2.f && V.Path.Num() == 0)
+		{
+			ParkT = 0.f;
 			if (!bDoor) { bDoor = true; G->SvcSeatDoor(Ti, Seat, true); T = 0.f; }
 			if (G->SvcSeatDoorOpen(Ti, Seat) || T > 5.f) { Seq = ESeq::Out; T = 0.f; K = 0.f; if (AADPWalker* Wk = Cast<AADPWalker>(W)) Wk->SetThirdPerson(bBehind); }
 		}
-		else bDoor = false;
+		else { bDoor = false; ParkT = 0.f; }
 	}
 	else if (Seq == ESeq::Out)
 	{
@@ -210,6 +238,21 @@ void AServiceDrive::Tick(float Dt)
 	}
 	Pose(FMath::Clamp(K, 0.f, 1.f)); View(Dt);
 }
+
+void AServiceDrive::Cab(int32 Code) { if (AtWheel() && Gse.IsValid() && Gse->Tractors.IsValidIndex(Ti)) AVehicleControls::CabKey(this, Code); }
+void AServiceDrive::KeyPark() { Cab(bPadMod ? ADPCab::Gear : ADPCab::Park); }
+void AServiceDrive::KeyBeam() { if (!bPadMod) Cab(ADPCab::Beam); }
+void AServiceDrive::KeyBeacon() { Cab(bPadMod ? ADPCab::Work : ADPCab::Beacon); }
+void AServiceDrive::KeyIndL() { Cab(ADPCab::IndL); }
+void AServiceDrive::KeyIndR() { Cab(ADPCab::IndR); }
+void AServiceDrive::KeyHazard() { Cab(ADPCab::Hazard); }
+void AServiceDrive::KeyGearUp() { Cab(ADPCab::GearUp); }
+void AServiceDrive::KeyGearDown() { Cab(ADPCab::GearDown); }
+void AServiceDrive::KeyPto() { Cab(ADPCab::Pto); }
+void AServiceDrive::KeyWiper() { Cab(ADPCab::Wiper); }
+void AServiceDrive::KeyWork() { Cab(ADPCab::Work); }
+void AServiceDrive::PadHorn() { Cab(bPadMod ? ADPCab::Wiper : ADPCab::Horn); }
+void AServiceDrive::Honk() { Cab(ADPCab::Horn); }
 
 void AServiceDrive::Exit()
 {
@@ -230,7 +273,7 @@ void AServiceDrive::Finish()
 		AGSE::FTractor& V = G->Tractors[Ti];
 		if (V.Player.Get() == this) { V.Player = nullptr; V.PlayerSeat = INDEX_NONE; }
 		if (Was != ESeq::Walk) G->SvcSeatDoor(Ti, Seat, false);
-		if (Seat == 0 && Was != ESeq::Walk) { V.Speed = 0.f; G->Motor(V, false); }
+		if (Seat == 0 && Was != ESeq::Walk) { V.Speed = 0.f; G->CabLeave(V); if (!V.bPto) G->Motor(V, false); }
 		ADP_LOG(TEXT("Service vehicle: you are out of the %s"), *V.Name);
 	}
 	if (AADPWalker* Wk = Cast<AADPWalker>(W)) { Wk->SetLed(false); if (Human) { Wk->ShowHead(true); Wk->TakeBodyBack(); } Human = nullptr; }
@@ -395,8 +438,9 @@ void AGSE::SvcPlayerDrive(FTractor& T, float Dt)
 	if (T.Ps && !StairsStowed(T)) bShut = false;   // (never with its legs down or its stairs up)
 	float Go = bShut ? D->Throttle() : 0.f, Br = D->Brake();
 	// (backwards: the brake held at a standstill)
-	if (T.Speed < 3.f) { if (Go > 0.1f) T.bReverse = false; else if (Br > 0.1f && bShut && !D->Leaving()) { T.BackT += Dt; if (T.BackT > 0.35f) T.bReverse = true; } else T.BackT = 0.f; }
-	if (T.bReverse && !D->Leaving()) { Swap(Go, Br); if (!bShut) Go = 0.f; }
+	if (T.Speed < 3.f) { if (T.bGearHand) T.bReverse = T.Gear < 0; else if (Go > 0.1f) T.bReverse = false; else if (Br > 0.1f && bShut && !D->Leaving() && !T.bPark && !T.bPto) { T.BackT += Dt; if (T.BackT > 0.35f) T.bReverse = true; } else T.BackT = 0.f; }
+	if (T.bReverse && !T.bGearHand && !D->Leaving()) { Swap(Go, Br); if (!bShut) Go = 0.f; }
+	CabDrive(T, Go, Br);
 	const float Max = T.bReverse ? 250.f : S.PlayerSpeed;
 	const FVector Fw = FRotator(0.f, T.Yaw, 0.f).Vector(), Move = Fw * (T.bReverse ? -1.f : 1.f);
 	float Acc = Go * 160.f - Br * 520.f - (Go < 0.05f ? 45.f : 0.f);

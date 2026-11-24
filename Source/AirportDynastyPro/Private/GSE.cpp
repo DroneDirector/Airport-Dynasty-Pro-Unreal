@@ -319,18 +319,20 @@ void AGSE::Lamps(FTractor& T)
 	const bool bRun = T.bOn, bBack = bRun && T.bReverse && (T.Path.Num() > 0 || T.Player.IsValid());
 	const float F = FMath::Frac(Flash + FMath::Abs(T.Home.X) * 0.0013f);
 	const bool bFlash = bRun && (F < 0.08f || (F > 0.18f && F < 0.26f));
-	const bool bBrake = bRun && (T.BrakeHold > 0.f || T.MeasSpeed < 0.05f);
-	const int8 Turn = !bRun ? 0 : T.Steer > 8.f ? -1 : T.Steer < -8.f ? 1 : 0;
+	const bool bMine = CabMine(T), bLit = bRun && T.Beam < 2;   // (a service vehicle with you at its wheel: its lights as you switch them)
+	const bool bBrake = bRun && (T.BrakeHold > 0.f || (T.MeasSpeed < 0.05f && !(bMine && T.bPark)));
+	const int8 Turn = !bRun ? 0 : bMine ? T.Sig : T.Steer > 8.f ? -1 : T.Steer < -8.f ? 1 : 0;
 	const bool bBlink = FMath::Fmod(Flash * 1.5f, 1.f) < 0.5f;
 	for (FLens& L : T.Lenses)
 	{
 		float V = 0.f;
 		switch (L.Kind)
 		{
-		case GLow: V = bRun ? 0.8f : 0.f; break;
-		case GTail: V = bBrake ? 1.f : bRun ? 0.3f : 0.f; break;
+		case GLow: V = bLit ? 0.8f : 0.f; break;
+		case GHigh: V = bLit && T.Beam == 1 ? 1.f : 0.f; break;
+		case GTail: V = bBrake ? 1.f : bLit ? 0.3f : 0.f; break;
 		case GIndicator: V = ((T.bSwHaz || (Turn != 0 && L.Side == Turn)) && bBlink) ? 1.f : 0.f; break;
-		case GMarker: V = bRun ? 0.5f : 0.f; break;
+		case GMarker: V = bLit ? 0.5f : 0.f; break;
 		case GReverse: V = bBack ? 1.f : 0.f; break;
 		case GBeacon: V = bFlash && !T.bSwNoBeacon ? 1.f : 0.f; break;
 		case GBlue: V = AmbuBlue(T, L.Side); break;
@@ -936,7 +938,7 @@ void AGSE::Tick(float Dt)
 		if (T.Path.Num()) { const int32 Ns = FMath::Clamp(FMath::CeilToInt(Dt / 0.03f), 1, 8); for (int32 n = 0; n < Ns && T.Path.Num(); ++n) { Drive(T, Dt / Ns); Train(T, Dt / Ns); } }
 		if (T.Svc != INDEX_NONE && SvcYours(T) && T.PlayerSeat == 0) { const int32 Ns = FMath::Clamp(FMath::CeilToInt(Dt / 0.03f), 1, 5); for (int32 n = 0; n < Ns; ++n) SvcPlayerDrive(T, FMath::Min(Dt, 0.15f) / Ns); }   // (you drive it: ServiceDrive.cpp)
 		T.JobT += Dt;
-		Lamps(T); TractorParts(T, Dt);
+		CabTick(T, i, Dt); Lamps(T); TractorParts(T, Dt);
 		if (bCheck && (T.Path.Num() || T.Speed > 1.f)) Check(T, i);   // (moving only: a belt loader's bumper on the door sill touches the aircraft on purpose)
 		if (bSay && T.Job != EJob::None)
 		{

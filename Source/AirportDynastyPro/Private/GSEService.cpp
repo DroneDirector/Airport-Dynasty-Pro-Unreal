@@ -205,6 +205,7 @@ void AGSE::SvcDress(FTractor& T)
 	T.GPedal[0] = M->BindGroup({TEXT("Pedal_Accel")}, true, FTransform(SvcP(T, TEXT("PIV_Pedal_Accel")))); T.GPedal[1] = M->BindGroup({TEXT("Pedal_Brake")}, true, FTransform(SvcP(T, TEXT("PIV_Pedal_Brake"))));
 	for (const FServiceWiper& W : S.Wipers) T.GWiper.Add(M->BindGroup({FString(W.Prefix)}, true, FTransform(SvcP(T, W.Pivot))));
 	for (const FServiceItem& I : S.Items) { FTractor::FSvcItem X; X.Piv = SvcP(T, I.Part); X.bShow = I.bAtHome; X.G = M->BindGroup({FString(I.Part)}, true, FTransform(X.Piv)); T.SvcItems.Add(X); }
+	CabDress(T);
 	if (S.bFuel) FuelDress(T);
 	if (S.bCater) CaterDress(T);
 	if (S.Wet) WetDress(T);
@@ -286,9 +287,10 @@ void AGSE::SvcParts(FTractor& T, float Dt)
 	for (int32 p = 0; p < 2; ++p) if (T.GPedal[p] != INDEX_NONE && T.bOn) M->MoveGroup(T.GPedal[p], FTransform(FQuat(FVector::RightVector, FMath::DegreesToRadians(-13.f * (p ? T.PedalB : T.PedalA))), SvcP(T, p ? TEXT("PIV_Pedal_Brake") : TEXT("PIV_Pedal_Accel"))));
 	// the wipers: in rain with the drive on (a second and a half there and back, a pause in light rain); parked lying down
 	if ((T.RainIn -= Dt) < 0.f) { T.RainIn = 1.f; const APuddles* P = APuddles::Get(); T.bRain = P && P->GetRain() > 0.03f; T.WipeNow = P ? P->GetRain() : 0.f; SvcLivery(T); }
-	if (T.GWiper.Num() && ((T.bOn && T.bRain) || T.WipeT > 0.f))
+	const bool bWipe = T.bOn && (T.WipMode == 0 ? T.bRain : T.WipMode < 3);
+	if (T.GWiper.Num() && (bWipe || T.WipeT > 0.f))
 	{
-		T.WipeT += Dt; const float Cyc = T.WipeNow > 0.4f ? 1.5f : 3.5f; if (T.WipeT > Cyc) T.WipeT = T.bOn && T.bRain ? T.WipeT - Cyc : 0.f;
+		T.WipeT += Dt; const float Cyc = T.WipMode == 2 || (T.WipMode == 0 && T.WipeNow > 0.4f) ? 1.5f : 3.5f; if (T.WipeT > Cyc) T.WipeT = bWipe ? T.WipeT - Cyc : 0.f;
 		const float E = T.WipeT < 1.5f ? 0.5f - 0.5f * FMath::Cos(2.f * PI * T.WipeT / 1.5f) : 0.f;
 		for (int32 w = 0; w < T.GWiper.Num(); ++w)
 			if (T.GWiper[w] != INDEX_NONE)

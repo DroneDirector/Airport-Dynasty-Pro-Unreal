@@ -106,6 +106,8 @@ public:
 		TSharedPtr<FSvcRefuel> Fu;        // (the refueller's own parts: GSEFuel.cpp)
 		uint8 YouOn = 0; FVector YouAt = FVector(1e6); float LeftOpen = 0.f; mutable double YouStopAt = -10.; FVector YouHand = FVector::ZeroVector;   // (when it last waited because of you; what you carry of it, root cm)
 		bool bSwHaz = false, bSwNoBeacon = false, bSwWork = false, bSwLight = false;   // (VehicleControls.h: you on one of its floors, your feet in its frame; the switches)
+		// the shared cab controls (CabControls.h): gear 1 D / 0 N / -1 R (by hand: it doesn't change by itself), beam 0 dipped / 1 main / 2 off, signal +1 left / -1 right, wipers 0 by the rain / 1 slow / 2 fast / 3 off
+		bool bPark = true, bPto = false, bGearHand = false, bSigArmed = false; int8 Gear = 1, Sig = 0; uint8 Beam = 0, WipMode = 0; float PtoT = 0.f, CabStand = 0.f, CabNow[3] = {0.f, 0.f, 0.f}; int32 GCab[3] = {INDEX_NONE, INDEX_NONE, INDEX_NONE};
 		TSharedPtr<FSvcAmbu> Am;          // (the ambulift's: GSEAmbulift.cpp)
 		TSharedPtr<FSvcDeicer> Di;        // (the de-icing truck's: GSEDeicer.cpp)
 		TSharedPtr<FSvcStairs> Ps;        // (the passenger stairs': GSEStairs.cpp)
@@ -157,6 +159,16 @@ private:
 	friend class AVehicleControls;
 	// your hands on a vehicle's own controls (VehicleControls.h): its table (none: no controls yet)
 	static const FVehTable* CtlTable(int32 Svc);
+	// the shared cab controls (CabControls.h)
+	static void CabAdd(struct FVehTable& Tb, int32 Svc);
+	void CabDress(FTractor& T);
+	FString CabSay(const FTractor& T, const struct FVehControl& C) const;
+	bool CabMay(int32 Ti, int32 Code, FString& Why) const;
+	void CabSwitch(int32 Ti, int32 Code);
+	void CabDrive(FTractor& T, float& Go, float& Br);
+	void CabLeave(FTractor& T);
+	void CabTick(FTractor& T, int32 Ti, float Dt);
+	bool CabMine(const FTractor& T) const;   // (you at its wheel)
 	static TSharedPtr<FVehTable> AmbuControls();
 	static TSharedPtr<FVehTable> FuelControls();
 	static TSharedPtr<FVehTable> WaterControls();
