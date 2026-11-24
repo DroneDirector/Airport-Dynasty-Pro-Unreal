@@ -1,0 +1,1534 @@
+{
+ "note": "points in the model root, Unreal cm (Blender (x,y,z) m = (x,-y,z) * 100)",
+ "size_m": [
+  9.95,
+  2.92,
+  3.398
+ ],
+ "x_m": [
+  -4.947,
+  5.003
+ ],
+ "wheelbase": 5.05,
+ "tyre_radius_cm": 48.0,
+ "boom": {
+  "slew_axis": [
+   2.15,
+   0
+  ],
+  "lift_pivot": [
+   2.45,
+   0,
+   2.86
+  ],
+  "tip_stowed": [
+   -2.9,
+   0,
+   2.86
+  ],
+  "length_retracted": 5.35,
+  "stroke_each": 3.0,
+  "length_out": 11.35,
+  "lift_deg": [
+   0,
+   60
+  ],
+  "lift_min_when_slewed": 15,
+  "stowed_heading": "over the tanks, pointing back; slew about z",
+  "lift_foot": [
+   1.82,
+   0,
+   2.54
+  ],
+  "lift_eye": [
+   0.75,
+   0,
+   2.55
+  ]
+ },
+ "chain": {
+  "pitch": 0.095,
+  "radius": 0.105,
+  "fixed_x": -2.45,
+  "moving_x": -2.75,
+  "z_low": 3.15,
+  "z_high": 3.36,
+  "loop_x": 0.55,
+  "links": 70
+ },
+ "hand_hose_m": 18.75,
+ "cabin": {
+  "floor_z_stowed": 1.07,
+  "door_slide_x": 0.56,
+  "nozzle_from_tip": [
+   -2.048,
+   0,
+   -1.69
+  ],
+  "nozzle_pan": [
+   -60,
+   60
+  ],
+  "nozzle_tilt": [
+   -45,
+   45
+  ]
+ },
+ "tanks_l": {
+  "water": 2600,
+  "type_I": 2400,
+  "type_IV": 2400
+ },
+ "points_cm": {
+  "IK_Step_DoorDriver": [
+   436.0,
+   -106.0,
+   80.0
+  ],
+  "IK_Step_DoorDriver_Low": [
+   436.0,
+   -108.0,
+   47.0
+  ],
+  "IK_Step_DoorPassenger": [
+   436.0,
+   106.0,
+   80.0
+  ],
+  "IK_Step_DoorPassenger_Low": [
+   436.0,
+   108.0,
+   47.0
+  ],
+  "PIV_DoorDriver": [
+   470.0,
+   -118.0,
+   150.0
+  ],
+  "IK_Handle_DoorDriver_Out": [
+   350.5,
+   -121.6,
+   150.2
+  ],
+  "IK_Handle_DoorDriver_In": [
+   441.0,
+   -110.7,
+   155.0
+  ],
+  "IK_Stand_DoorDriver": [
+   410.0,
+   -185.0,
+   0.0
+  ],
+  "IK_Grab_L": [
+   330.0,
+   -123.7,
+   170.0
+  ],
+  "IK_GrabIn_L": [
+   454.0,
+   -102.0,
+   200.0
+  ],
+  "PIV_DoorPassenger": [
+   470.0,
+   118.0,
+   150.0
+  ],
+  "IK_Handle_DoorPassenger_Out": [
+   350.5,
+   121.6,
+   150.2
+  ],
+  "IK_Handle_DoorPassenger_In": [
+   441.0,
+   110.7,
+   155.0
+  ],
+  "IK_Stand_DoorPassenger": [
+   410.0,
+   185.0,
+   0.0
+  ],
+  "IK_Grab_R": [
+   330.0,
+   123.7,
+   170.0
+  ],
+  "IK_GrabIn_R": [
+   454.0,
+   102.0,
+   200.0
+  ],
+  "PIV_Needle_Speed": [
+   444.5,
+   -69.8,
+   171.3
+  ],
+  "PIV_Needle_Fuel": [
+   444.5,
+   -50.2,
+   171.3
+  ],
+  "IK_Cluster": [
+   444.0,
+   -60.0,
+   171.3
+  ],
+  "IK_Screen_Dash": [
+   441.2,
+   -2.0,
+   160.0
+  ],
+  "PIV_SteeringWheel": [
+   427.5,
+   -60.0,
+   169.5
+  ],
+  "IK_Hand_Wheel_L": [
+   427.5,
+   -80.5,
+   169.5
+  ],
+  "IK_Hand_Wheel_R": [
+   427.5,
+   -39.5,
+   169.5
+  ],
+  "IK_Foot_Accel": [
+   465.2,
+   -48.0,
+   122.5
+  ],
+  "PIV_Pedal_Accel": [
+   479.0,
+   -48.0,
+   145.5
+  ],
+  "IK_Foot_Brake": [
+   465.2,
+   -61.0,
+   123.5
+  ],
+  "PIV_Pedal_Brake": [
+   479.0,
+   -61.0,
+   145.5
+  ],
+  "IK_Foot_Rest": [
+   467.5,
+   -75.0,
+   118.5
+  ],
+  "IK_Seat_SeatDriver": [
+   385.0,
+   -60.0,
+   154.5
+  ],
+  "IK_Buckle_SeatDriver": [
+   375.0,
+   -33.8,
+   163.5
+  ],
+  "IK_Seat_SeatPassenger": [
+   385.0,
+   60.0,
+   154.5
+  ],
+  "IK_Buckle_SeatPassenger": [
+   375.0,
+   33.8,
+   163.5
+  ],
+  "IK_GearSelect": [
+   416.0,
+   -7.0,
+   153.0
+  ],
+  "PIV_GearSelect": [
+   416.0,
+   -7.0,
+   143.0
+  ],
+  "IK_PtoLever": [
+   402.0,
+   -7.0,
+   153.0
+  ],
+  "PIV_PtoLever": [
+   402.0,
+   -7.0,
+   143.0
+  ],
+  "IK_ParkBrake": [
+   416.0,
+   7.0,
+   145.5
+  ],
+  "IK_BeltTongue_D": [
+   326.0,
+   -108.0,
+   174.0
+  ],
+  "IK_BeltTongue_P": [
+   326.0,
+   108.0,
+   174.0
+  ],
+  "PIV_Wiper_L": [
+   490.4,
+   -94.0,
+   168.5
+  ],
+  "IK_WiperTip_L": [
+   491.1,
+   -9.0,
+   177.7
+  ],
+  "PIV_Wiper_R": [
+   492.5,
+   5.0,
+   168.5
+  ],
+  "IK_WiperTip_R": [
+   489.4,
+   90.0,
+   177.7
+  ],
+  "IK_Beacon": [
+   340.0,
+   -48.0,
+   282.0
+  ],
+  "PIV_Wheel_FL": [
+   350.0,
+   -100.0,
+   48.0
+  ],
+  "PIV_Wheel_RL": [
+   -155.0,
+   -85.8,
+   48.0
+  ],
+  "PIV_Steer_FL": [
+   350.0,
+   -80.0,
+   48.0
+  ],
+  "PIV_Wheel_FR": [
+   350.0,
+   100.0,
+   48.0
+  ],
+  "PIV_Wheel_RR": [
+   -155.0,
+   85.8,
+   48.0
+  ],
+  "PIV_Steer_FR": [
+   350.0,
+   80.0,
+   48.0
+  ],
+  "IK_ReverseHorn": [
+   -463.0,
+   15.0,
+   64.0
+  ],
+  "PIV_HeaterDoor": [
+   160.0,
+   -117.5,
+   160.0
+  ],
+  "IK_Handle_HeaterDoor": [
+   259.0,
+   -119.1,
+   162.0
+  ],
+  "IK_Stand_HeaterDoor": [
+   249.0,
+   -185.0,
+   0.0
+  ],
+  "IK_Stand_HeaterDoor_Open": [
+   214.0,
+   -178.0,
+   0.0
+  ],
+  "PIV_PanelDoorL": [
+   62.0,
+   -117.5,
+   160.0
+  ],
+  "IK_Handle_PanelDoorL": [
+   128.0,
+   -119.1,
+   162.0
+  ],
+  "IK_Stand_PanelDoorL": [
+   118.0,
+   -185.0,
+   0.0
+  ],
+  "IK_Stand_PanelDoorL_Open": [
+   99.5,
+   -178.0,
+   0.0
+  ],
+  "PIV_PanelDoorR": [
+   62.0,
+   117.5,
+   160.0
+  ],
+  "IK_Handle_PanelDoorR": [
+   128.0,
+   119.1,
+   162.0
+  ],
+  "IK_Stand_PanelDoorR": [
+   118.0,
+   185.0,
+   0.0
+  ],
+  "IK_Stand_PanelDoorR_Open": [
+   99.5,
+   178.0,
+   0.0
+  ],
+  "PIV_GaugeNeedle_TempI": [
+   117.0,
+   -93.6,
+   200.0
+  ],
+  "PIV_GaugeNeedle_PressI": [
+   99.5,
+   -93.6,
+   200.0
+  ],
+  "PIV_GaugeNeedle_PressIV": [
+   82.0,
+   -93.6,
+   200.0
+  ],
+  "PIV_GaugeNeedle_Heater": [
+   117.0,
+   -93.6,
+   184.0
+  ],
+  "IK_Panel_Screen": [
+   86.5,
+   -91.7,
+   184.0
+  ],
+  "IK_PanelStand": [
+   100.0,
+   -175.0,
+   0.0
+  ],
+  "PIV_Valve_W": [
+   122.0,
+   -95.7,
+   166.0
+  ],
+  "IK_Valve_W": [
+   122.0,
+   -97.0,
+   174.0
+  ],
+  "PIV_Valve_I": [
+   107.0,
+   -95.7,
+   166.0
+  ],
+  "IK_Valve_I": [
+   107.0,
+   -97.0,
+   174.0
+  ],
+  "PIV_Valve_IV": [
+   92.0,
+   -95.7,
+   166.0
+  ],
+  "IK_Valve_IV": [
+   92.0,
+   -97.0,
+   174.0
+  ],
+  "PIV_Valve_Hand": [
+   77.0,
+   -95.7,
+   166.0
+  ],
+  "IK_Valve_Hand": [
+   77.0,
+   -97.0,
+   174.0
+  ],
+  "IK_Button_PumpOn": [
+   120.0,
+   -92.7,
+   152.0
+  ],
+  "IK_Button_PumpOff": [
+   111.5,
+   -92.7,
+   152.0
+  ],
+  "IK_Button_HeatOn": [
+   103.0,
+   -92.7,
+   152.0
+  ],
+  "IK_Button_HeatOff": [
+   94.5,
+   -92.7,
+   152.0
+  ],
+  "IK_Button_Light": [
+   86.0,
+   -92.7,
+   152.0
+  ],
+  "IK_Button_EStop": [
+   75.0,
+   -95.0,
+   152.0
+  ],
+  "PIV_CoupCap_W": [
+   119.0,
+   -99.5,
+   123.0
+  ],
+  "IK_FillCoupling_W": [
+   119.0,
+   -99.5,
+   123.0
+  ],
+  "PIV_CoupCap_I": [
+   99.5,
+   -99.5,
+   123.0
+  ],
+  "IK_FillCoupling_I": [
+   99.5,
+   -99.5,
+   123.0
+  ],
+  "PIV_CoupCap_IV": [
+   80.0,
+   -99.5,
+   123.0
+  ],
+  "IK_FillCoupling_IV": [
+   80.0,
+   -99.5,
+   123.0
+  ],
+  "PIV_HoseReel": [
+   98.5,
+   88.5,
+   150.0
+  ],
+  "IK_HoseOut": [
+   86.5,
+   88.5,
+   170.0
+  ],
+  "PIV_HandNozzle": [
+   112.0,
+   90.0,
+   199.0
+  ],
+  "IK_HandNozzle_Hand": [
+   111.5,
+   90.0,
+   196.5
+  ],
+  "IK_HandNozzle_Hose": [
+   113.0,
+   90.0,
+   193.0
+  ],
+  "IK_HandNozzle_Mouth": [
+   82.5,
+   90.0,
+   198.8
+  ],
+  "IK_Stand_HoseReel": [
+   100.0,
+   175.0,
+   0.0
+  ],
+  "PIV_FillCap_W": [
+   13.0,
+   -62.0,
+   242.4
+  ],
+  "IK_FillCap_W": [
+   -19.5,
+   -62.0,
+   242.4
+  ],
+  "PIV_FillCap_I": [
+   -91.0,
+   -62.0,
+   242.4
+  ],
+  "IK_FillCap_I": [
+   -123.5,
+   -62.0,
+   242.4
+  ],
+  "PIV_FillCap_IV": [
+   -201.5,
+   -62.0,
+   242.4
+  ],
+  "IK_FillCap_IV": [
+   -234.0,
+   -62.0,
+   242.4
+  ],
+  "IK_Name_L": [
+   -3.0,
+   -115.8,
+   195.0
+  ],
+  "IK_Name_R": [
+   -3.0,
+   115.8,
+   195.0
+  ],
+  "IK_BoomRest": [
+   -162.0,
+   -0.0,
+   261.8
+  ],
+  "IK_Step_Deck_0": [
+   -395.0,
+   -110.0,
+   34.0
+  ],
+  "IK_Step_Deck_1": [
+   -395.0,
+   -110.0,
+   64.0
+  ],
+  "IK_Step_Deck_2": [
+   -395.0,
+   -92.0,
+   94.5
+  ],
+  "IK_Deck_Door": [
+   -395.0,
+   -90.0,
+   94.5
+  ],
+  "IK_Stand_DeckSteps": [
+   -395.0,
+   -175.0,
+   0.0
+  ],
+  "IK_Grab_DeckSteps_F": [
+   -362.0,
+   -114.0,
+   150.0
+  ],
+  "IK_Grab_DeckSteps_R": [
+   -428.0,
+   -114.0,
+   150.0
+  ],
+  "PIV_Slew": [
+   215.0,
+   -0.0,
+   240.0
+  ],
+  "PIV_BoomLift": [
+   245.0,
+   -0.0,
+   286.0
+  ],
+  "PIV_Lift": [
+   182.0,
+   -0.0,
+   254.0
+  ],
+  "PIV_LiftEye": [
+   75.0,
+   -0.0,
+   255.0
+  ],
+  "PIV_LevelTip": [
+   -290.0,
+   -0.0,
+   286.0
+  ],
+  "IK_Chain_Fixed": [
+   -245.0,
+   -0.0,
+   315.0
+  ],
+  "IK_Chain_Moving": [
+   -275.0,
+   -0.0,
+   336.0
+  ],
+  "IK_HoseLift_A": [
+   218.0,
+   -0.0,
+   254.5
+  ],
+  "IK_HoseLift_B": [
+   242.0,
+   -6.0,
+   313.5
+  ],
+  "IK_HoseTip_A": [
+   -282.5,
+   -5.0,
+   334.5
+  ],
+  "IK_HoseTip_B": [
+   -313.0,
+   -5.0,
+   302.0
+  ],
+  "IK_Cabin_Floor": [
+   -380.0,
+   -0.0,
+   107.0
+  ],
+  "IK_Cabin_In": [
+   -395.0,
+   -30.0,
+   107.0
+  ],
+  "PIV_CabinDoor": [
+   -397.0,
+   -62.6,
+   190.0
+  ],
+  "IK_Handle_CabinDoor_Out": [
+   -423.5,
+   -67.6,
+   195.0
+  ],
+  "IK_Handle_CabinDoor_In": [
+   -423.5,
+   -59.0,
+   195.0
+  ],
+  "IK_Grab_Cabin": [
+   -434.5,
+   -65.0,
+   195.0
+  ],
+  "IK_Seat_CabinSeat": [
+   -365.0,
+   0.0,
+   155.0
+  ],
+  "IK_Buckle_CabinSeat": [
+   -355.0,
+   24.2,
+   164.0
+  ],
+  "PIV_Joy_L": [
+   -400.0,
+   -37.0,
+   168.5
+  ],
+  "IK_Joy_L": [
+   -400.0,
+   -37.0,
+   181.0
+  ],
+  "IK_Foot_Cabin_L": [
+   -424.0,
+   -12.0,
+   108.0
+  ],
+  "IK_GrabIn_Cabin_L": [
+   -400.0,
+   -50.0,
+   220.0
+  ],
+  "PIV_Joy_R": [
+   -400.0,
+   37.0,
+   168.5
+  ],
+  "IK_Joy_R": [
+   -400.0,
+   37.0,
+   181.0
+  ],
+  "IK_Foot_Cabin_R": [
+   -424.0,
+   12.0,
+   108.0
+  ],
+  "IK_GrabIn_Cabin_R": [
+   -400.0,
+   50.0,
+   220.0
+  ],
+  "IK_Cabin_Btn0": [
+   -380.0,
+   37.0,
+   168.5
+  ],
+  "IK_Cabin_Btn1": [
+   -375.0,
+   37.0,
+   168.5
+  ],
+  "IK_Cabin_Btn2": [
+   -370.0,
+   37.0,
+   168.5
+  ],
+  "IK_Cabin_EStop": [
+   -380.0,
+   -37.0,
+   170.5
+  ],
+  "IK_Cabin_Screen": [
+   -419.0,
+   42.0,
+   188.0
+  ],
+  "PIV_SprayPedal": [
+   -420.0,
+   14.0,
+   110.5
+  ],
+  "PIV_CabinWiper": [
+   -446.2,
+   -0.0,
+   276.5
+  ],
+  "IK_CabinWiperTip": [
+   -454.0,
+   34.0,
+   222.0
+  ],
+  "IK_Horn": [
+   -345.0,
+   -34.0,
+   298.5
+  ],
+  "IK_Nozzle_I": [
+   -494.8,
+   -6.0,
+   117.0
+  ],
+  "IK_Nozzle_IV": [
+   -494.8,
+   6.0,
+   117.0
+  ],
+  "PIV_NozPan": [
+   -466.0,
+   -0.0,
+   106.0
+  ],
+  "PIV_NozTilt": [
+   -466.0,
+   -0.0,
+   117.0
+  ],
+  "IK_HoseNozzle_A": [
+   -442.0,
+   -10.0,
+   99.0
+  ],
+  "IK_HoseNozzle_B": [
+   -462.0,
+   -6.0,
+   117.0
+  ],
+  "IK_Aisle_Row0": [
+   396.0,
+   -0.0,
+   110.0
+  ],
+  "IK_CabinStep": [
+   -395.0,
+   -62.0,
+   110.0
+  ]
+ },
+ "parts": [
+  "BeaconLens",
+  "BeaconR_Lens",
+  "Body",
+  "BoomBase",
+  "BoomSec2",
+  "BoomSec3",
+  "CabFittings",
+  "Cabin",
+  "CabinDoor",
+  "CabinDoor_Glass",
+  "CabinLampLow_0_Lens",
+  "CabinLampLow_1_Lens",
+  "CabinLamp_0_Lens",
+  "CabinLamp_1_Lens",
+  "CabinWiper",
+  "Cabin_Beacon_Lens",
+  "Cabin_Glass",
+  "ChainLink_00",
+  "ChainLink_01",
+  "ChainLink_02",
+  "ChainLink_03",
+  "ChainLink_04",
+  "ChainLink_05",
+  "ChainLink_06",
+  "ChainLink_07",
+  "ChainLink_08",
+  "ChainLink_09",
+  "ChainLink_10",
+  "ChainLink_11",
+  "ChainLink_12",
+  "ChainLink_13",
+  "ChainLink_14",
+  "ChainLink_15",
+  "ChainLink_16",
+  "ChainLink_17",
+  "ChainLink_18",
+  "ChainLink_19",
+  "ChainLink_20",
+  "ChainLink_21",
+  "ChainLink_22",
+  "ChainLink_23",
+  "ChainLink_24",
+  "ChainLink_25",
+  "ChainLink_26",
+  "ChainLink_27",
+  "ChainLink_28",
+  "ChainLink_29",
+  "ChainLink_30",
+  "ChainLink_31",
+  "ChainLink_32",
+  "ChainLink_33",
+  "ChainLink_34",
+  "ChainLink_35",
+  "ChainLink_36",
+  "ChainLink_37",
+  "ChainLink_38",
+  "ChainLink_39",
+  "ChainLink_40",
+  "ChainLink_41",
+  "ChainLink_42",
+  "ChainLink_43",
+  "ChainLink_44",
+  "ChainLink_45",
+  "ChainLink_46",
+  "ChainLink_47",
+  "ChainLink_48",
+  "ChainLink_49",
+  "ChainLink_50",
+  "ChainLink_51",
+  "ChainLink_52",
+  "ChainLink_53",
+  "ChainLink_54",
+  "ChainLink_55",
+  "ChainLink_56",
+  "ChainLink_57",
+  "ChainLink_58",
+  "ChainLink_59",
+  "ChainLink_60",
+  "ChainLink_61",
+  "ChainLink_62",
+  "ChainLink_63",
+  "ChainLink_64",
+  "ChainLink_65",
+  "ChainLink_66",
+  "ChainLink_67",
+  "ChainLink_68",
+  "ChainLink_69",
+  "ClusterGlass",
+  "CoupCap_I",
+  "CoupCap_IV",
+  "CoupCap_W",
+  "DoorDriver",
+  "DoorDriver_Glass",
+  "DoorDriver_Parts",
+  "DoorPassenger",
+  "DoorPassenger_Glass",
+  "DoorPassenger_Parts",
+  "FillCap_I",
+  "FillCap_IV",
+  "FillCap_W",
+  "GaugeNeedle_Heater",
+  "GaugeNeedle_PressI",
+  "GaugeNeedle_PressIV",
+  "GaugeNeedle_TempI",
+  "GlassFixed",
+  "HandNozzle",
+  "HeaterDoor",
+  "HighBeam_L_Lens",
+  "HighBeam_R_Lens",
+  "HoseLift",
+  "HoseNozzle",
+  "HoseReel",
+  "HoseTail",
+  "HoseTip",
+  "HoseTurn_HoseReel_00",
+  "HoseTurn_HoseReel_01",
+  "HoseTurn_HoseReel_02",
+  "HoseTurn_HoseReel_03",
+  "HoseTurn_HoseReel_04",
+  "HoseTurn_HoseReel_05",
+  "HoseTurn_HoseReel_06",
+  "HoseTurn_HoseReel_07",
+  "HoseTurn_HoseReel_08",
+  "HoseTurn_HoseReel_09",
+  "HoseTurn_HoseReel_10",
+  "HoseTurn_HoseReel_11",
+  "HoseTurn_HoseReel_12",
+  "HoseTurn_HoseReel_13",
+  "HoseTurn_HoseReel_14",
+  "HoseTurn_HoseReel_15",
+  "IndicatorF_L_Lens",
+  "IndicatorF_R_Lens",
+  "IndicatorR_L_Lens",
+  "IndicatorR_R_Lens",
+  "Joy_L",
+  "Joy_R",
+  "Lever_GearSelect",
+  "Lever_PtoLever",
+  "LiftBarrel",
+  "LiftRod",
+  "LowBeam_L_Lens",
+  "LowBeam_R_Lens",
+  "Modules",
+  "NamePanel_Front",
+  "NamePanel_L",
+  "NamePanel_R",
+  "Needle_Fuel",
+  "Needle_Speed",
+  "NozPan",
+  "NozTilt",
+  "OuterFittings",
+  "PanelDoorL",
+  "PanelDoorR",
+  "PanelLamp_Lens",
+  "Pedal_Accel",
+  "Pedal_Brake",
+  "PumpPanel",
+  "RearDeck",
+  "RearWorkLamp_Lens",
+  "Reverse_L_Lens",
+  "Reverse_R_Lens",
+  "Rim_FL",
+  "Rim_FR",
+  "Rim_RL",
+  "Rim_RR",
+  "Seats",
+  "SideMarker_L0_Lens",
+  "SideMarker_L1_Lens",
+  "SideMarker_L2_Lens",
+  "SideMarker_R0_Lens",
+  "SideMarker_R1_Lens",
+  "SideMarker_R2_Lens",
+  "Spindle_FL",
+  "Spindle_FR",
+  "SprayPedal",
+  "SteeringWheel",
+  "TailBrake_L_Lens",
+  "TailBrake_R_Lens",
+  "Tanks",
+  "Tur",
+  "Tyre_FL",
+  "Tyre_FR",
+  "Tyre_RL",
+  "Tyre_RL_In",
+  "Tyre_RR",
+  "Tyre_RR_In",
+  "Underside",
+  "Valve_Hand",
+  "Valve_I",
+  "Valve_IV",
+  "Valve_W",
+  "WiperL",
+  "WiperR"
+ ],
+ "materials": [
+  "DI_Aluminium",
+  "DI_AmberLens",
+  "DI_BeltWebbing",
+  "DI_BlackPlastic",
+  "DI_Boom_Paint",
+  "DI_Brass",
+  "DI_BumperPlastic",
+  "DI_Chassis_Paint",
+  "DI_Chevrons",
+  "DI_DarkSteel",
+  "DI_DashPlastic",
+  "DI_Dials",
+  "DI_FloorMat",
+  "DI_FluidI",
+  "DI_FluidIV",
+  "DI_FluidW",
+  "DI_Glass",
+  "DI_GreenPlastic",
+  "DI_GreyTrimPlastic",
+  "DI_HeadLining",
+  "DI_HiVisRedReflector",
+  "DI_HiVisWhiteReflector",
+  "DI_HoseRubber",
+  "DI_Livery_Body_Paint",
+  "DI_Livery_Main_Paint",
+  "DI_MirrorGlass",
+  "DI_NamePanel_Paint",
+  "DI_NosingYellow",
+  "DI_Platform_Paint",
+  "DI_RedLens",
+  "DI_RedPaint",
+  "DI_Reflector",
+  "DI_RimSteel",
+  "DI_SafetyYellow_Paint",
+  "DI_Screens",
+  "DI_SealRubber",
+  "DI_SeatBolster",
+  "DI_SeatFabric",
+  "DI_SignBlack",
+  "DI_SignBlue",
+  "DI_SignOrange",
+  "DI_SignRed",
+  "DI_SignWhite",
+  "DI_Steel",
+  "DI_TankSteel",
+  "DI_TreadAlu",
+  "DI_Tyre",
+  "DI_WhiteLens"
+ ],
+ "tris": 310912,
+ "flicker": "0 pairs fight",
+ "a320_reach": {
+  "result": {
+   "wing": {
+    "samples": 68,
+    "not_reached": 0,
+    "worst_nearest_m": 2.49
+   },
+   "tailplane": {
+    "samples": 24,
+    "not_reached": 0,
+    "worst_nearest_m": 2.16
+   },
+   "fin": {
+    "samples": 32,
+    "not_reached": 0,
+    "worst_nearest_m": 2.25
+   },
+   "fuselage top": {
+    "samples": 13,
+    "not_reached": 0,
+    "worst_nearest_m": 2.34
+   }
+  },
+  "right_side_path": [
+   {
+    "stop": 0,
+    "x_aft_of_nose": 3.2,
+    "y_right": 6.8,
+    "heading_deg": 0,
+    "does": {
+     "wing": {
+      "slew": [
+       -180,
+       -165,
+       135,
+       150,
+       165
+      ],
+      "lift": [
+       25,
+       45
+      ],
+      "out_m": [
+       0,
+       6
+      ]
+     },
+     "fuselage top": {
+      "slew": [
+       120,
+       135,
+       165
+      ],
+      "lift": [
+       25,
+       55
+      ],
+      "out_m": [
+       1.5,
+       6
+      ]
+     }
+    }
+   },
+   {
+    "stop": 1,
+    "x_aft_of_nose": 9.0,
+    "y_right": 11.0,
+    "heading_deg": 45,
+    "does": {
+     "wing": {
+      "slew": [
+       45,
+       60,
+       75,
+       90,
+       120,
+       135,
+       150,
+       165
+      ],
+      "lift": [
+       30,
+       55
+      ],
+      "out_m": [
+       0,
+       6
+      ]
+     },
+     "fuselage top": {
+      "slew": [
+       15,
+       75
+      ],
+      "lift": [
+       35,
+       40
+      ],
+      "out_m": [
+       3,
+       6
+      ]
+     }
+    }
+   },
+   {
+    "stop": 2,
+    "x_aft_of_nose": 13.2,
+    "y_right": 17.2,
+    "heading_deg": 62,
+    "does": {
+     "wing": {
+      "slew": [
+       15,
+       30,
+       45,
+       60,
+       75,
+       90,
+       135
+      ],
+      "lift": [
+       15,
+       60
+      ],
+      "out_m": [
+       1.5,
+       6
+      ]
+     }
+    }
+   },
+   {
+    "stop": 3,
+    "x_aft_of_nose": 19.5,
+    "y_right": 21.6,
+    "heading_deg": 20,
+    "does": {
+     "wing": {
+      "slew": [
+       30,
+       45,
+       75
+      ],
+      "lift": [
+       30,
+       55
+      ],
+      "out_m": [
+       0,
+       6
+      ]
+     }
+    }
+   },
+   {
+    "stop": 4,
+    "x_aft_of_nose": 25.0,
+    "y_right": 17.0,
+    "heading_deg": -62,
+    "does": {
+     "wing": {
+      "slew": [
+       15,
+       30,
+       60,
+       90,
+       105,
+       120
+      ],
+      "lift": [
+       30,
+       60
+      ],
+      "out_m": [
+       0,
+       4.5
+      ]
+     },
+     "tailplane": {
+      "slew": [
+       -180,
+       -165
+      ],
+      "lift": [
+       25,
+       30
+      ],
+      "out_m": [
+       6,
+       6
+      ]
+     }
+    }
+   },
+   {
+    "stop": 5,
+    "x_aft_of_nose": 24.3,
+    "y_right": 10.5,
+    "heading_deg": -60,
+    "does": {
+     "wing": {
+      "slew": [
+       -15,
+       0,
+       15,
+       45,
+       60,
+       75,
+       105
+      ],
+      "lift": [
+       25,
+       60
+      ],
+      "out_m": [
+       0,
+       6
+      ]
+     },
+     "tailplane": {
+      "slew": [
+       -165,
+       -150,
+       -135,
+       -120
+      ],
+      "lift": [
+       35,
+       50
+      ],
+      "out_m": [
+       1.5,
+       6
+      ]
+     },
+     "fin": {
+      "slew": [
+       -165,
+       -150,
+       150
+      ],
+      "lift": [
+       45,
+       50
+      ],
+      "out_m": [
+       0,
+       6
+      ]
+     },
+     "fuselage top": {
+      "slew": [
+       -165,
+       90,
+       120,
+       150,
+       165
+      ],
+      "lift": [
+       30,
+       60
+      ],
+      "out_m": [
+       1.5,
+       6
+      ]
+     }
+    }
+   },
+   {
+    "stop": 6,
+    "x_aft_of_nose": 29.0,
+    "y_right": 9.6,
+    "heading_deg": -30,
+    "does": {
+     "wing": {
+      "slew": [
+       15,
+       30
+      ],
+      "lift": [
+       25,
+       30
+      ],
+      "out_m": [
+       3,
+       3
+      ]
+     },
+     "tailplane": {
+      "slew": [
+       -180,
+       -135
+      ],
+      "lift": [
+       50,
+       55
+      ],
+      "out_m": [
+       1.5,
+       4.5
+      ]
+     },
+     "fin": {
+      "slew": [
+       105,
+       120,
+       135,
+       150,
+       165
+      ],
+      "lift": [
+       45,
+       60
+      ],
+      "out_m": [
+       0,
+       6
+      ]
+     },
+     "fuselage top": {
+      "slew": [
+       90
+      ],
+      "lift": [
+       60,
+       60
+      ],
+      "out_m": [
+       1.5,
+       1.5
+      ]
+     }
+    }
+   },
+   {
+    "stop": 7,
+    "x_aft_of_nose": 33.5,
+    "y_right": 10.0,
+    "heading_deg": 0,
+    "does": {
+     "tailplane": {
+      "slew": [
+       45,
+       60,
+       90,
+       105
+      ],
+      "lift": [
+       45,
+       60
+      ],
+      "out_m": [
+       1.5,
+       4.5
+      ]
+     },
+     "fin": {
+      "slew": [
+       45,
+       60,
+       75,
+       105
+      ],
+      "lift": [
+       45,
+       60
+      ],
+      "out_m": [
+       3,
+       6
+      ]
+     }
+    }
+   },
+   {
+    "stop": 8,
+    "x_aft_of_nose": 38.5,
+    "y_right": 8.2,
+    "heading_deg": -40,
+    "does": {
+     "tailplane": {
+      "slew": [
+       15,
+       30,
+       45,
+       60,
+       75,
+       90,
+       105
+      ],
+      "lift": [
+       45,
+       60
+      ],
+      "out_m": [
+       1.5,
+       4.5
+      ]
+     },
+     "fin": {
+      "slew": [
+       60,
+       75,
+       105,
+       120
+      ],
+      "lift": [
+       40,
+       60
+      ],
+      "out_m": [
+       0,
+       4.5
+      ]
+     }
+    }
+   }
+  ],
+  "note": "mirror y and slew for the left side; heading 0 = nose to tail of the aircraft, positive turns away to the right; cabin >= 1.9 m, boom >= 1.0 m, nozzle 2-6 m"
+ }
+}
