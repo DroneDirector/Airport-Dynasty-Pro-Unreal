@@ -27,6 +27,7 @@ public:
 	/** Out at once (a quick-start that moves you elsewhere). */
 	void ExitNow();
 	bool AtWheel() const { return Seat == 0 && Seq == ESeq::Sat; }
+	bool InCabin() const { return Seat == 2 && Seq == ESeq::Sat; }   // (the de-icing truck's operator cabin)
 	float Throttle() const { return AtWheel() && !bOutWanted ? FMath::Clamp(FMath::Max(KeyFwd, PadT), 0.f, 1.f) : 0.f; }
 	float Brake() const { return AtWheel() ? (bOutWanted ? 1.f : FMath::Clamp(FMath::Max(-KeyFwd, PadB), 0.f, 1.f)) : 1.f; }
 	float SteerIn() const { return AtWheel() && !bOutWanted ? FMath::Clamp(KeySteer, -1.f, 1.f) : 0.f; }

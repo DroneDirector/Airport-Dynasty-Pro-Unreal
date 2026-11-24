@@ -25,7 +25,7 @@ struct FVehControl
 	const TCHAR* Part; const TCHAR* Point; EKind Kind; const TCHAR* Label;
 	int32 Frame = 0; FVector Out = FVector::ZeroVector;   // the piece it rides on; the way it faces (only worked from that side)
 	int32 Motion = INDEX_NONE; float A = 0.f, B = 1.f;
-	int32 Switch = INDEX_NONE; bool bSeat = false, bTurns = true, bGrip = false;   // (bGrip: held in the hand, not pressed with a finger)
+	int32 Switch = INDEX_NONE; bool bSeat = false, bTurns = true, bGrip = false, bCabin = false;   // (bGrip: held in the hand, not pressed with a finger)
 };
 
 /** A solid piece: a box (root cm, in its frame) and when it is there (none: always). */

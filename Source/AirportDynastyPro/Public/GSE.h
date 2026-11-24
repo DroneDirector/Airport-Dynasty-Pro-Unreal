@@ -175,6 +175,7 @@ private:
 	static TSharedPtr<FVehTable> ToiletControls();
 	static TSharedPtr<FVehTable> CaterControls();
 	static TSharedPtr<FVehTable> StairsControls();
+	static TSharedPtr<FVehTable> DeicerControls();
 	void YouCater(FTractor& T, float Dt);
 	bool CaterStowed(const FTractor& T) const;
 	bool CaterHeld(const FTractor& T, int32 Part, float To) const;   // (that part can't move that way: somebody under it, the aircraft, the stop)
@@ -324,7 +325,7 @@ public:
 	void StairsEnter(int32 Ti, int32 By);
 	/** De-icing (GSEDeicer.cpp), every tick of your own departure's turnaround: bSoon - its doors are shut in ten minutes, bDoors -
 	 *  they are shut and the jetway is back. The weather decides; it is asked for, sent and asked for again by itself. */
-	void DeiceTick(float StandX, const FString& Reg, const FString& Flight, const FDateTime& Now, const FDateTime& OffBlocks, bool bSoon, bool bDoors);
+	void DeiceTick(float StandX, const FString& Reg, const FString& Flight, const FDateTime& Now, const FDateTime& OffBlocks, bool bSoon, bool bDoors, const FDateTime& OnBlocks = FDateTime(0));
 	/** The ambulift (GSEAmbuliftWork.cpp): how many passengers of that flight come in a wheelchair (always the same for a flight of a
 	 *  day), its call - every tick while the flight wants it; bGo: the passengers get on or off now -, and the flight waiting for it. */
 	static int32 AmbuPax(const FString& Flight, const FDateTime& Day, int32 Pax);
@@ -478,6 +479,11 @@ private:
 	void DeicerOpOut(int32 Job);
 	void DeicerLost(int32 Job, int32 m);
 	void DeicerYours(FTractor& T, float Dt);
+	bool DeicerShut(const FTractor& T) const;
+	bool DeicerYou(float StandX) const;
+	void DeicerNear(FTractor& T, float Dt);
+	void DeicerPanel(FTractor& T, float Dt);
+	void DeicerNote(FTractor& T, const FString& Reg, const FString& Flight, bool bOk, const FString& How);
 	// ---- the potable water truck and the toilet truck (GSEWater.cpp)
 	void WetDress(FTractor& T);
 	void WetParts(FTractor& T, float Dt);

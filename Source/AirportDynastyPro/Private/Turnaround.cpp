@@ -230,7 +230,7 @@ namespace ADPTurnaround
 			// (to-do 212: de-iced when the weather asks for it, once its doors are shut and the jetway is back; the flight waits)
 			if (Tr->bMine && bHired && !Tr->PlanId.IsEmpty())
 				if (const FTask* Dk = Tr->Tasks.FindByPredicate([](const FTask& K) { return K.Id == TEXT("doors"); })) if (Dk->bDone || Dk->bStarted || Tm >= Dk->Start - 10.f)
-					if (AGSE* Gs = AGSE::Get(W)) Gs->DeiceTick(Tr->StandX, Tr->Reg, Tr->Flight, Now, Tr->OffBlocks, true, Dk->bDone);
+					if (AGSE* Gs = AGSE::Get(W)) Gs->DeiceTick(Tr->StandX, Tr->Reg, Tr->Flight, Now, Tr->OffBlocks, true, Dk->bDone, Tr->bArrival ? Tr->OnBlocks : FDateTime(0));
 			// (its bags go out on the tractor train to it as soon as the stand is its own: 50 min before)
 			if (!Tr->PlanId.IsEmpty() && (Tr->OffBlocks - Now).GetTotalMinutes() < 50.0 && (bHired || Crew >= 2)) if (AGSE* Gs = AGSE::Get(W)) Gs->Departure(Tr->Flight, Tr->StandX);
 		}

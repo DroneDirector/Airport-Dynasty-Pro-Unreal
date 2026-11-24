@@ -259,6 +259,7 @@ void AServiceDrive::Exit()
 {
 	AGSE* G = Gse.Get(); if (!G || Seq != ESeq::Sat) return;
 	if (bOutWanted) { bOutWanted = false; return; }   // (E again while it still rolls: you stay)
+	if (InCabin() && !G->DeicerStowed(G->Tractors[Ti])) { AVehicleControls::Note(GetWorld(), TEXT("The boom is not in its rest: bring it in, round to 0 and down")); return; }
 	if (!G->SvcRoomAt(Ti, Seat, Me.Get(), this)) { ADP_LOG(TEXT("Service vehicle: no room to get out at that door")); return; }
 	bOutWanted = true; bDoor = false;
 }
@@ -435,7 +436,7 @@ void AGSE::SvcPlayerDrive(FTractor& T, float Dt)
 	if (T.DoorAng > 1.f) bShut = false;
 	if (!AmbuStowed(T)) bShut = false;   // (never with its legs down, its body up or its tail lift out)
 	if (T.Ct && !CaterStowed(T)) bShut = false;   // (never with its legs down, its body up or anything out)
-	if (!DeicerStowed(T)) bShut = false;   // (never with its boom up)
+	if (!DeicerShut(T)) bShut = false;   // (never with its boom up, a panel open, a valve off or a stop pressed)
 	if (T.Ps && !StairsStowed(T)) bShut = false;   // (never with its legs down or its stairs up)
 	float Go = bShut ? D->Throttle() : 0.f, Br = D->Brake();
 	// (backwards: the brake held at a standstill)

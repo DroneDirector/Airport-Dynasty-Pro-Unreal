@@ -50,7 +50,7 @@ const FVehTable* AGSE::CtlTable(int32 Svc)
 	if (Svc == INDEX_NONE) return nullptr;
 	if (const TSharedPtr<FVehTable>* F = All.Find(Svc)) return F->Get();
 	const FServiceSpec& S = ADPService::All()[Svc];
-	TSharedPtr<FVehTable> Tb = S.bAmbu ? AmbuControls() : S.bFuel ? FuelControls() : S.Wet == 1 ? WaterControls() : S.Wet == 2 ? ToiletControls() : S.bCater ? CaterControls() : S.bStairs ? StairsControls() : TSharedPtr<FVehTable>();
+	TSharedPtr<FVehTable> Tb = S.bAmbu ? AmbuControls() : S.bFuel ? FuelControls() : S.Wet == 1 ? WaterControls() : S.Wet == 2 ? ToiletControls() : S.bCater ? CaterControls() : S.bStairs ? StairsControls() : S.bDeicer ? DeicerControls() : TSharedPtr<FVehTable>();
 	if (!Tb) Tb = MakeShared<FVehTable>();
 	CabAdd(*Tb, Svc);   // (the cab controls all of them share)
 	return All.Add(Svc, Tb).Get();
@@ -144,7 +144,7 @@ void AVehicleControls::Find(AGSE& G, APawn& Me)
 		const FVehTable* Tb = AGSE::CtlTable(V.Svc); if (!Tb || (Sd ? V.Player.Get() != Sd : V.Player.IsValid())) continue;
 		for (int32 c = 0; c < Tb->Controls.Num(); ++c)
 		{
-			const FVehControl& C = Tb->Controls[c]; if (C.bSeat != (Sd != nullptr) || (Sd && !Sd->AtWheel()) || SayOf(G, V, C).IsEmpty()) continue;
+			const FVehControl& C = Tb->Controls[c]; if (C.bSeat != (Sd != nullptr) || (Sd && (C.bCabin ? i != Sd->Vehicle() || !Sd->InCabin() : !Sd->AtWheel())) || SayOf(G, V, C).IsEmpty()) continue;
 			FVector Out; const FVector P = At(G, i, C, &Out), D = P - Eye;
 			// in reach of your arm (bending down to a low one), from its own side, nearest to where you look
 			const float Flat = FVector::Dist2D(P, From), Dz = float(From.Z - P.Z); if (Flat > (Sd ? 150.f : 125.f) || Dz > 150.f || Dz < -75.f) continue;
