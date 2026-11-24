@@ -730,13 +730,102 @@
    178.0,
    -0.0,
    48.0
+  ],
+  "IK_Chock_0": [
+   -80.0,
+   -85.3,
+   87.3
+  ],
+  "PIV_Chock_0": [
+   -80.0,
+   -85.3,
+   65.3
+  ],
+  "IK_Chock_1": [
+   -56.0,
+   -85.3,
+   87.3
+  ],
+  "PIV_Chock_1": [
+   -56.0,
+   -85.3,
+   65.3
+  ],
+  "IK_ChockPlace_0": [
+   128.0,
+   -85.5,
+   0.0
+  ],
+  "IK_ChockPlace_1": [
+   52.0,
+   -85.5,
+   0.0
+  ],
+  "IK_Stand_Chocks": [
+   -68.0,
+   -135.0,
+   0.0
+  ],
+  "IK_Stand_ChockPlace": [
+   90.0,
+   -150.0,
+   0.0
+  ],
+  "IK_Cone_0": [
+   117.0,
+   27.0,
+   118.8
+  ],
+  "PIV_Cone_0": [
+   117.0,
+   27.0,
+   46.8
+  ],
+  "IK_Cone_1": [
+   117.0,
+   27.0,
+   125.8
+  ],
+  "PIV_Cone_1": [
+   117.0,
+   27.0,
+   53.8
+  ],
+  "IK_ConePlace_0": [
+   400.0,
+   -130.0,
+   0.0
+  ],
+  "IK_ConePlace_1": [
+   -400.0,
+   -130.0,
+   0.0
+  ],
+  "IK_Stand_Cones": [
+   117.0,
+   115.0,
+   0.0
+  ],
+  "IK_Stand_ConePlace_0": [
+   400.0,
+   -185.0,
+   0.0
+  ],
+  "IK_Stand_ConePlace_1": [
+   -400.0,
+   -185.0,
+   0.0
   ]
  },
  "parts": [
   "BeaconLens",
   "Body",
   "CabFittings",
+  "Chock_0",
+  "Chock_1",
   "ClusterGlass",
+  "Cone_0",
+  "Cone_1",
   "DoorDriver",
   "DoorDriver_Glass",
   "DoorDriver_Parts",
@@ -853,7 +942,9 @@
   "PS_SealRubber",
   "PS_SeatBolster",
   "PS_SeatFabric",
+  "PS_SignBlack",
   "PS_SignBlue",
+  "PS_SignOrange",
   "PS_SignRed",
   "PS_SignWhite",
   "PS_SmokedRoof_Glass",
@@ -863,6 +954,6 @@
   "PS_Tyre",
   "PS_WhiteLens"
  ],
- "tris": 321277,
+ "tris": 327901,
  "flicker": "0 pairs fight"
 }

@@ -311,6 +311,42 @@ for i in range(2): cyl('UpBtn%d' % i, (XP + .395 + .05 * i, .897, PZ + .40), .01
 for n, l in (('Plat_Nose', (XP, 0, PZ)), ('Plat_Mid', (XP + .75, 0, PZ)), ('Plat_Front', (PX1 + .12, 0, PZ)), ('Plat_Agent', (XP + .60, -.60, PZ)), ('Foot', (X0 - .55, 0, 0)), ('StairTop', (XP + 10 * G, 0, PZ + 10 * R)), ('Aisle_Row0', (1.78, 0, FLOOR))): ik(n, l)
 # #endregion
 
+# #region ---- own wheel chocks and warning cones (to-do 238): carried by the driver, set when parked; the hand code comes later
+# chocks: the small trucks' size (0.22 x 0.15 x 0.165 m), in a tray on the left side box's top, outboard of the lower flight, behind the lift's foot;
+# set before and behind the left FRONT wheel (behind the drive wheel the mud flap is in the way)
+CZB = .653; box('ChockTray', (-.68, .85, .642), (.524, .186, .018), M_DARK, .004)
+for e in (-.253, .253): box('ChockTray_End%d' % (e > 0), (-.68 + e, .851, .70), (.016, .180, .10), M_DARK, .003, 1)
+box('ChockTray_Back', (-.68, .766, .717), (.516, .014, .166), M_DARK, .003, 1)
+for k, y in enumerate((.785, .905)): box('ChockTray_Foot%d' % k, (-.68, y, .6265), (.48, .03, .011), M_CHAS, .003, 1)
+for i, x in enumerate((-.80, -.56)):
+    prism('Chock_%d' % i, [(x - .11, CZB), (x + .11, CZB), (x + .11, CZB + .034), (x + .05, CZB + .149), (x + .015, CZB + .164), (x - .02, CZB + .144), (x - .11, CZB + .034)], .776, .930, M_YEL, .011, 2)
+    tube('Chock_%d_Grip' % i, [(x, .903, CZB + .150), (x, .898, CZB + .205), (x, .853, CZB + .220), (x, .808, CZB + .205), (x, .803, CZB + .150)], .009, M_SBLK)
+    for k in range(3): box('Chock_%d_Rib%d' % (i, k), (x - .06 + .05 * k, .853, CZB + .0015), (.02, .135, .006), M_SBLK, .001, 1)
+    ik('Chock_%d' % i, (x, .853, CZB + .220)); piv('Chock_%d' % i, (x, .853, CZB))
+ik('ChockPlace_0', (FX + RW + .06, FYW, 0)); ik('ChockPlace_1', (FX - RW - .06, FYW, 0)); ik('Stand_Chocks', (-.68, 1.35, 0)); ik('Stand_ChockPlace', (FX, 1.50, 0))
+# cones: 0.75 m on a 0.40 m rubber base (Art/ApronSafety), hollow so the pair nests (7 cm a cone) over the post of a tray on the front deck plate,
+# in the well between the lower flight's end and the cab's back, right; reached over the right front fender
+def revz(name, prof, c, m, segs=48):
+    """A closed outline (r, z) turned round z through c, no caps (a hollow shell, a band)."""
+    bm = bmesh.new(); R_ = [[bm.verts.new((c[0] + r * math.cos(2 * math.pi * k / segs), c[1] + r * math.sin(2 * math.pi * k / segs), c[2] + z)) for k in range(segs)] for r, z in prof]
+    for j in range(len(R_)):
+        A_, B_ = R_[j], R_[(j + 1) % len(R_)]
+        for k in range(segs): bm.faces.new((A_[k], A_[(k + 1) % segs], B_[(k + 1) % segs], B_[k]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:]); return K.finish(K.link(name, bm), m, 50)
+CR0, CR1, CZ0, CZ1, CT, CXC, CYC, CTZ, NEST = .150, .029, .034, .75, .0035, 1.17, -.27, .4655, .07
+crad = lambda z: CR0 + (CR1 - CR0) * (z - CZ0) / (CZ1 - CZ0)
+paint(M_SORG, (.95, .30, .02), .4, .3)                                          # the cones' orange PVC
+box('ConeTray', (CXC, CYC, CTZ - .01), (.42, .42, .02), M_DARK, .004); cyl('ConeTray_Post', (CXC, CYC, CTZ + .27), .025, .56, 'z', M_STEEL, 28, .006)
+for k, x in enumerate((CXC - .15, CXC + .15)): box('ConeTray_Foot%d' % k, (x, CYC, .439), (.04, .38, .011), M_CHAS, .003, 1)
+for i in range(2):
+    c = (CXC, CYC, CTZ + .002 + NEST * i)
+    revz('Cone_%d' % i, [(CR0 + .004, CZ0 - .003), (crad(CZ0 + .02), CZ0 + .02), (crad(CZ1 - .012), CZ1 - .012), (CR1 - .001, CZ1 - .004), (CR1 - .004, CZ1), (CR1 - .009, CZ1 - .003), (crad(CZ1 - .012) - CT, CZ1 - .02), (crad(CZ0 + .02) - CT, CZ0 + .02), (CR0 - CT - .0015, CZ0 - .0015)], c, M_SORG)
+    for k, (z0, z1) in enumerate(((.285, .415), (.505, .605))): revz('Cone_%d_Band%d' % (i, k), [(crad(z0) - .001, z0), (crad(z0) + .0016, z0 + .001), (crad(z1) + .0016, z1 - .001), (crad(z1) - .001, z1)], c, M_HVW)
+    b = box('Cone_%d_Base' % i, (CXC, CYC, c[2] + .017), (.40, .40, .034), M_SEAL, .012, 2); cut(b, cyl('c', (CXC, CYC, c[2] + .017), .148, .10, 'z', M_SEAL, 48))
+    ik('Cone_%d' % i, (CXC, CYC, c[2] + CZ1 - .03)); piv('Cone_%d' % i, c)
+ik('ConePlace_0', (4.00, 1.30, 0)); ik('ConePlace_1', (-4.00, 1.30, 0)); ik('Stand_Cones', (CXC, -1.15, 0)); ik('Stand_ConePlace_0', (4.00, 1.85, 0)); ik('Stand_ConePlace_1', (-4.00, 1.85, 0))
+# #endregion
+
 if ROOF: exec(compile(open(os.path.join(ROOT, 'Art', NAME, 'roof_parts.py'), encoding='utf-8').read(), 'roof_parts', 'exec'))
 
 # #region ---- checks, joining, saving (the small trucks' own routine)
@@ -360,7 +396,7 @@ def gx(n):
     if n.startswith('Low') and not n.startswith('LowBeam'): return 'StairLow'
     if n.startswith(('Post', 'LiftF', 'LiftE', 'LiftP', 'DeckPlate', 'Stab', 'Hyd')): return 'Underside'
     return None
-finish_truck([], lambda n: gx(n), [('DoorPassenger', (2.485, -.992, 1), 'z', (15, 40, 68), ())], [(('GateSlide_L', 'GateSlide_R'), (1, 0, 0), (.0, .2, .4), ('UpGateRail',))], {
+finish_truck(['Cone_0', 'Cone_1'], lambda n: gx(n), [('DoorPassenger', (2.485, -.992, 1), 'z', (15, 40, 68), ())], [(('GateSlide_L', 'GateSlide_R'), (1, 0, 0), (.0, .2, .4), ('UpGateRail',))], {
     'stairs': {'rise': R, 'going': G, 'angle_deg': round(ANG, 3), 'platform_min': round(PZ, 3), 'platform_max': round(PZ + 10 * R, 3), 'slide_dir': [round(c, 5) for c in DIR.normalized()], 'slide_len': round(10 * DIR.length, 4), 'lower_nosing_x0': X0, 'lower_tread0_z': .198, 'upper_first_nosing': [round(xu, 3), round(NU(xu), 3)],
                'platform_x': [round(PX0, 3), round(PX1 + .12, 3)], 'platform_half_width': .95, 'clear_width': 1.277, 'handrail_above_nosing': .985, 'gate_slide': .40, 'jack_stroke': .141, 'tread_fold_deg': round(ANG, 3)}})
 if ROOF:                                                                        # the game reads the open one's points for both: they must be the same
