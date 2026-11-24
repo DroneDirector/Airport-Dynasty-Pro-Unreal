@@ -438,6 +438,27 @@ def back_deform(co, u, v, w):
 def shell_deform(co, u, v, w): co.y += .012 * (1 - u * u) * K.ss(1.0, -.2, v) * (1 - w * w); return co
 def head_deform(co, u, v, w):
     wing = K.ss(.42, 1.0, abs(u)); co.y -= wing * .04; co.x -= math.copysign(wing * .012, u); co.y -= .008 * (1 - u * u) * K.ss(.5, -1.0, v); return co
+def strap(name, pts, nrm, w=.046, t=.0025, m=None):
+    """seat-belt webbing: a flat band (w wide, t thick) along pts; nrm = the band's face normal (one, or one per point)."""
+    pts = [Vector(p) for p in pts]; nr = [Vector(v) for v in (nrm if isinstance(nrm[0], (tuple, list)) else [nrm] * len(pts))]
+    bm = bmesh.new(); rings = []
+    for i, p in enumerate(pts):
+        tg = (pts[min(i + 1, len(pts) - 1)] - pts[max(i - 1, 0)]).normalized()
+        nv = (nr[i] - tg * nr[i].dot(tg)).normalized(); sv = tg.cross(nv).normalized()
+        rings.append([bm.verts.new(p + sv * a * w / 2 + nv * b * t / 2) for a, b in ((1, 1), (-1, 1), (-1, -1), (1, -1))])
+    for r0, r1 in zip(rings, rings[1:]):
+        for k in range(4): bm.faces.new((r0[k], r0[(k + 1) % 4], r1[(k + 1) % 4], r1[k]))
+    bm.faces.new(rings[0][::-1]); bm.faces.new(rings[-1]); bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    return K.finish(K.link(name, bm), m or M_BELT, 30)
+def tongue(name, c, nrm):
+    """the belt's tongue, one part: a steel latch plate (the end that clicks into the buckle) under a black moulded grip the web runs through."""
+    c, nv = Vector(c), Vector(nrm); sz = lambda t, w, h: (t, w, h) if abs(nv.x) > .5 else (w, t, h)
+    pl = box(name + 'Plate', tuple(c), sz(.003, .024, .055), M_CSTEEL, .0012, 2)
+    gr = box(name + 'Grip', tuple(c + Vector((0, 0, .035))), sz(.012, .044, .028), M_CBLACK, .003, 2)
+    for x in bpy.context.selected_objects: x.select_set(False)
+    for o in (pl, gr): o.select_set(True); ALL.remove(o)
+    bpy.context.view_layer.objects.active = pl; bpy.ops.object.join(); o = bpy.context.view_layer.objects.active
+    o.name = name; o.data.name = name; o.select_set(False); ALL.append(o); return o
 def taxi_seat(n, X, Y, fz, inner, belt3=True):
     """one seat; (X, Y) the cushion's back centre in the van, fz the floor top under it, inner = +1/-1 the side (van y) of the buckle."""
     S, B = [], []
@@ -455,9 +476,8 @@ def taxi_seat(n, X, Y, fz, inner, belt3=True):
     S.append(box(n + '_BuckleStem', (ix * .175, CB - .005, .44), (.024, .004, .05), M_BELT, .001, 1))
     S.append(box(n + '_Buckle', (ix * .175, CB - .02, .463), (.028, .012, .05), M_CBLACK, .004, 2))
     S.append(box(n + '_BuckleRed', (ix * .175, CB - .02, .4895), (.016, .008, .004), M_ORG, .001, 1))
-    if belt3:
-        S.append(box(n + '_BeltAnchor', (-ix * .175, CB - .02, .463), (.028, .012, .05), M_CSTEEL, .004, 2))
-        S.append(box(n + '_BeltStrap', (-ix * .175, CB - .005, .44), (.024, .004, .05), M_BELT, .001, 1))
+    XL = -ix * .2150                                                             # the lap web's plane: outside the cushion pan (.21) and the backrest (.20)
+    S.append(box(n + '_BeltAnchor', (-ix * .2155, -.10, .341), (.024, .056, .032), M_CSTEEL, .004, 2))         # the lap belt's outer anchor, bolted to the side member (all 9 seats)
     br = box(n + '_Backrest', (0, .045, .41), (.40, .09, .78), M_MOQ, .03, 4, 14, 1, back_deform, 60); br.data.materials.append(M_MOQC)
     for p in br.data.polygons:
         if p.normal.y < -.5 and abs(p.center.x) < .118 and .115 < p.center.z < .69: p.material_index = 1
@@ -471,15 +491,21 @@ def taxi_seat(n, X, Y, fz, inner, belt3=True):
     if belt3:                                                                    # the shoulder belt: a guide on the outer top corner, the web down the side
         ox = -ix
         B.append(box(n + '_BeltGuide', (ox * .185, .045, .815), (.06, .05, .03), M_CBLACK, .006, 2))
-        B.append(box(n + '_BeltWeb', (ox * .2070, .045, .45), (.003, .040, .73), M_BELT, .001, 1))
-        B.append(box(n + '_BeltTongue', (ox * .2105, .045, .30), (.004, .030, .050), M_CSTEEL, .001, 1))
+        X0 = ox * .2085                                                          # the web's middle plane, clear of the backrest's side
+        B.append(strap(n + '_BeltWeb', [(X0, .045, .812), (X0, .045, .60), (X0, .045, .328)], (ox, 0, 0)))          # diagonal (shoulder) web, stowed
+        B.append(tongue(n + '_BeltTongue', (ox * .2115, .045, .29), (ox, 0, 0)))                                    # own part: clicks into the buckle later
     BF = Matrix.Translation((0, CB + .01, .46)) @ Matrix.Rotation(-RECLINE, 4, 'X')
     for o in B: o.data.transform(BF)
+    if belt3:                                                                    # the lap web: from the tongue down the backrest's side to the outer anchor
+        q = [BF @ Vector(v) for v in ((XL, .045, .315), (XL, .045, .20), (XL, .045, .11))]
+        S.append(strap(n + '_BeltLap', [tuple(v) for v in q] + [(XL, -.06, .45), (XL, -.10, .355)], (ox, 0, 0)))
     T = Matrix.Translation((X, Y, fz)) @ Matrix.Rotation(math.radians(90), 4, 'Z')
     for o in S + B: o.data.transform(T); o.data.update()
     P_ = lambda v: tuple(T @ Vector(v))
+    SEAT_T[n] = T
     ik('Seat_' + n, P_((0, -.25, .47))); ik('Buckle_' + n, P_((ix * .175, CB - .02, .50)))
-    if belt3: ik('BeltTongue_' + n, tuple(T @ BF @ Vector((-ix * .2105, .045, .30))))
+    if belt3: ik('BeltTongue_' + n, tuple(T @ BF @ Vector((-ix * .2115, .045, .29))))
+SEAT_T = {}
 FZC, FZR = FLOOR, FLOOR + .010                                                  # cab floor / room floor tops
 taxi_seat('SeatDriver', .49, .42, FZC, -1, False); taxi_seat('SeatPassenger', .49, -.46, FZC, 1, False)
 box('SeatDriver_Lever', (.80, .645, FZC + .352), (.20, .07, .03), M_PLAST, .01)
@@ -488,7 +514,10 @@ SEATS = [('SeatR1A', -.30, .64, FZC, -1), ('SeatR1B', -.30, .20, FZC, 1), ('Seat
 for n, X, Y, fz, inn in SEATS: taxi_seat(n, X, Y, fz, inn)
 for n, x, y, z0 in (('D', .50, .865, 1.93), ('P', .50, -.865, 1.93)):   # belts on the pillars
     s = 1 if y > 0 else -1; xx = .42 if n in 'DP' else -.895
-    box('Belt%s_Top' % n, (xx, s * .895, z0), (.05, .05, .07), M_PLAST, .01); box('Belt%s_Web' % n, (xx, s * .885, (z0 + .75) / 2), (.046, .006, z0 - .75), M_BELT, .001, 1); box('Belt%s_Reel' % n, (xx, s * .905, .74), (.10, .09, .14), M_PLAST, .015); box('Belt%s_Tongue' % n, (xx, s * .878, 1.15), (.05, .014, .06), M_PLAST, .004)
+    box('Belt%s_Top' % n, (xx, s * .895, z0), (.05, .05, .07), M_PLAST, .01); box('Belt%s_Web' % n, (xx, s * .885, (z0 + .75) / 2), (.046, .006, z0 - .75), M_BELT, .001, 1); box('Belt%s_Reel' % n, (xx, s * .905, .74), (.10, .09, .14), M_PLAST, .015); tongue('Belt%s_Tongue' % n, (xx, s * .88025, 1.13), (0, -s, 0))   # (plate 1.5 mm, web inside the grip, lap 3.5 mm out: no faces within 1 mm)
+    TS = SEAT_T['SeatDriver' if s > 0 else 'SeatPassenger']               # the lap web: from the tongue to the seat's own outer anchor (taxi_seat)
+    strap('Belt%s_Lap' % n, [(xx, s * .877, 1.165), (xx, s * .877, 1.10), (xx + .02, s * .86, 1.075), (.48, s * .78, 1.06)] + [tuple(TS @ Vector((s * .2150, -.06, .45))), tuple(TS @ Vector((s * .2150, -.10, .355)))],
+          [(0, s, 0), (0, s, 0), (0, s, 0), (1, 0, 0), (0, s, 0), (0, s, 0)])
     ik('BeltTongue_' + n, (xx, s * .87, 1.15))
 for s, n in ((1, 'L'), (-1, 'R')): patch('BPillarTrim_' + n, [(.385, .62), (.455, .62), (.455, 2.15), (.385, 2.15)], 'y', s * .5, s * 1.2, M_TRIM, .037, .050)
 patch('CrewTrimL', [(-.915, .62), (.375, .62), (.375, 1.22), (-.915, 1.22)], 'y', .5, 1.2, M_TRIM, .037, .058)
@@ -508,9 +537,10 @@ box('RoofVent', (-1.75, 0, 2.538), (.42, .42, .05), M_PLAST, .02, 3); tube('Aeri
 # the taximeter on the dashboard top, facing the driver and the passengers
 box('Taximeter_Foot', (1.52, .05, 1.305), (.06, .10, .05), M_PLAST, .008)
 box('Taximeter_Body', (1.50, .05, 1.37), (.10, .19, .075), M_DARK, .012, 3)
-box('Taximeter_Screen', (1.4485, .05, 1.385), (.005, .15, .03), M_METER, .001, 1)
-for i, y in enumerate((-.01, .05, .11)): box('Taximeter_Btn%d' % i, (1.447, y, 1.345), (.008, .03, .012), M_ORG if i == 1 else M_PLAST, .002)
-ik('Taximeter_Button', (1.44, .05, 1.345))
+box('Taximeter_Screen', (1.4470, .05, 1.378), (.005, .15, .026), M_METER, .001, 1)
+box('Taximeter_Bezel', (1.4495, .05, 1.378), (.004, .164, .032), M_PLAST, .0012, 2)   # the digit window's frame; the digits stand 3 mm proud of it
+for i, y in enumerate((-.01, .05, .11)): box('Taximeter_Btn%d' % i, (1.447, y, 1.350), (.008, .03, .012), M_ORG if i == 1 else M_PLAST, .002)
+ik('Taximeter_Button', (1.44, .05, 1.350))
 # #endregion
 
 # #region ---- door grab bar and the luggage space at the back doors
@@ -545,6 +575,11 @@ if '--nochk' not in sys.argv:
                 for n, b in bv:
                     if t.overlap(b): hits.add((o.name, n, sh[0]))
     print('TAXI SLIDE', len(hits), sorted(hits)[:12])
+    NEW = [o for o in ALL if o.name.endswith(('_BeltWeb', '_BeltLap', '_Lap', 'Tongue', '_BeltAnchor')) or o.name.startswith('Taximeter')]
+    bh = {o.name: K.bvh(o) for o in ALL}; bb = {o.name: K.bbox(o) for o in ALL}; seen = set()
+    for o in NEW:                                                          # the belts' and the meter's own overlap list (read by eye: web through its grip/guide/anchor is real)
+        for n2, t2 in bh.items():
+            if n2 != o.name and (n2, o.name) not in seen and K.touch(bb[o.name], bb[n2], -0.0005) and bh[o.name].overlap(t2): seen.add((o.name, n2)); print('TAXI BELTHIT', o.name, n2)
 if '--pic' in sys.argv:
     OUT = sys.argv[sys.argv.index('--pic') + 1]; sc = bpy.context.scene; sc.render.engine = 'BLENDER_EEVEE'; sc.eevee.use_gtao = True; sc.eevee.taa_render_samples = 12
     w = bpy.data.worlds.new('W'); w.use_nodes = True; w.node_tree.nodes['Background'].inputs['Color'].default_value = (.6, .68, .8, 1); w.node_tree.nodes['Background'].inputs['Strength'].default_value = .9; sc.world = w
@@ -572,6 +607,8 @@ KEEP = ('Tyre_', 'Rim_', 'WheelDisc_', 'Hub_', 'HubCap_', 'Nut_', 'Spindle_', 'S
 def groupof(o):
     n = o.name
     if n.startswith(KEEP) or n.endswith('_Lens'): return None
+    if n.endswith(('_BeltTongue', '_Tongue')) or n.startswith('Taximeter_Btn'): return None    # parts that move / are pressed stay their own
+    if n.startswith('Taximeter'): return 'Taximeter'                            # the meter's housing: its own named part
     g = next((g for g in GROUPS if n.startswith(g)), None)
     if g: return g + ('_Glass' if n.endswith('_Glass') else '_Parts' if n != g else None or '')
     if n.endswith('_Glass') : return 'GlassFixed'

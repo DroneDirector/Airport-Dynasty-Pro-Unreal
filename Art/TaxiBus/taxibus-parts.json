@@ -234,9 +234,9 @@
    107.5
   ],
   "IK_BeltTongue_SeatR1A": [
-   -39.1,
-   -85.0,
-   131.3
+   -38.9,
+   -85.1,
+   130.3
   ],
   "IK_Seat_SeatR1B": [
    -5.0,
@@ -249,9 +249,9 @@
    107.5
   ],
   "IK_BeltTongue_SeatR1B": [
-   -39.1,
-   1.0,
-   131.3
+   -38.9,
+   1.1,
+   130.3
   ],
   "IK_Seat_SeatR2A": [
    -84.0,
@@ -264,9 +264,9 @@
    108.5
   ],
   "IK_BeltTongue_SeatR2A": [
-   -118.1,
-   -85.0,
-   132.3
+   -117.9,
+   -85.1,
+   131.3
   ],
   "IK_Seat_SeatR2B": [
    -84.0,
@@ -279,9 +279,9 @@
    108.5
   ],
   "IK_BeltTongue_SeatR2B": [
-   -118.1,
-   1.0,
-   132.3
+   -117.9,
+   1.1,
+   131.3
   ],
   "IK_Seat_SeatR3A": [
    -163.0,
@@ -294,9 +294,9 @@
    108.5
   ],
   "IK_BeltTongue_SeatR3A": [
-   -197.1,
-   -65.0,
-   132.3
+   -196.9,
+   -65.1,
+   131.3
   ],
   "IK_Seat_SeatR3B": [
    -163.0,
@@ -309,9 +309,9 @@
    108.5
   ],
   "IK_BeltTongue_SeatR3B": [
-   -197.1,
-   21.1,
-   132.3
+   -196.9,
+   21.2,
+   131.3
   ],
   "IK_Seat_SeatR3C": [
    -163.0,
@@ -324,9 +324,9 @@
    108.5
   ],
   "IK_BeltTongue_SeatR3C": [
-   -197.1,
-   65.0,
-   132.3
+   -196.9,
+   65.1,
+   131.3
   ],
   "IK_BeltTongue_D": [
    42.0,
@@ -356,7 +356,7 @@
   "IK_Taximeter_Button": [
    144.0,
    -5.0,
-   134.5
+   135.0
   ],
   "IK_Grab_SlideDoor": [
    -98.5,
@@ -410,6 +410,8 @@
   ]
  },
  "parts": [
+  "BeltD_Tongue",
+  "BeltP_Tongue",
   "Body",
   "CabFittings",
   "CeilingLamp0_Lens",
@@ -479,6 +481,13 @@
   "Rim_FR",
   "Rim_RL",
   "Rim_RR",
+  "SeatR1A_BeltTongue",
+  "SeatR1B_BeltTongue",
+  "SeatR2A_BeltTongue",
+  "SeatR2B_BeltTongue",
+  "SeatR3A_BeltTongue",
+  "SeatR3B_BeltTongue",
+  "SeatR3C_BeltTongue",
   "Seats",
   "SideMarker_L1_Lens",
   "SideMarker_L2_Lens",
@@ -499,6 +508,10 @@
   "TailBrake_R_Lens",
   "TaxiSign_B_Lens",
   "TaxiSign_F_Lens",
+  "Taximeter",
+  "Taximeter_Btn0",
+  "Taximeter_Btn1",
+  "Taximeter_Btn2",
   "Tyre_FL",
   "Tyre_FR",
   "Tyre_RL",
@@ -551,6 +564,6 @@
   "TB_Tyre",
   "TB_WhiteLens"
  ],
- "tris": 529576,
+ "tris": 531184,
  "flicker": "0 pairs fight"
 }

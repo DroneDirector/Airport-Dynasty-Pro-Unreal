@@ -511,6 +511,11 @@ Taxi bus (239, part B, 2026-11-24, compiled, NOT run): a line of `ADPService::Al
   buckle meshes, only `IK_Buckle_*` / `IK_BeltTongue_*` points (needs a model step); (4/5) taximeter / roof sign - no fare state, no taxi tick hook in
   GSE.h/GSE.cpp (`TaxiControls` is private, no tick), the meter has no mesh part (sign: `TaxiSign_F/B_Lens`). Next builder needs: StaffPeople + ADPCrew
   role, a `TaxiTick` hook in GSE.h/GSE.cpp, a PaxFlow kerb hand-over, a belt model step. Also: name on the airport's vehicle lists.
+  Belts + meter (239b piece 1, 2026-11-24, model only, NOT imported): Art/TaxiBus/make_taxibus.py gives all 9 seats a 3-point belt - flat
+  webbing (`<Seat>_BeltWeb` shoulder, `<Seat>_BeltLap`, cab `BeltD/P_Lap`), the buckle housing `<Seat>_Buckle` + red button, a lap anchor
+  `<Seat>_BeltAnchor` on the seat frame, and the tongue as its OWN part (`<Seat>_BeltTongue`, cab `BeltD/P_Tongue`: steel plate + grip) at the
+  unchanged `IK_BeltTongue_*` points. The taximeter is its own part `Taximeter` (housing, foot, digit window + bezel); `Taximeter_Btn0-2` own
+  parts, `IK_Taximeter_Button` moved 5 mm up (z 135.0). Belts sit in `Seats`, the meter left `CabFittings`. Next: re-import (import_model.py).
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
