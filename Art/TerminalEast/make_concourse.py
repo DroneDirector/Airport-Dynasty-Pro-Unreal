@@ -5,9 +5,13 @@
 #   east_c_solid_*            partitions (4.2 m), room ceilings, floors, portals, fronts, the passport wall's frame, markings
 #   east_c_glass_w / _e       the passport wall across the walkway (x 240), the closed transfer lane's glass
 #   east_c_signs_*            every sign: dark bands, letters as glowing shapes (no pictures, sharp at any distance)
-#   east_c_door, _escdoor, _shutter, _tape, _post, _booth, _egate, _leaf_glass    instanced pieces. The booths and e-gates are plain
-#                             counters that only hold the places (TO-DO 212 brings the real ones); their closed glass leaves keep
-#                             passport control shut until part 5; the doors stay closed until the rooms are fitted out (part 3 / 212)
+#   east_c_door, _escdoor, _shutter, _tape, _post, _booth, _egate, _leaf_glass, _tleaf_glass    instanced pieces. The booths and
+#                             e-gates are plain counters that only hold the places (TO-DO 212 brings the real ones); the doors stay
+#                             closed until the rooms are fitted out (part 3 / 212)
+# Part 5: the ways through passport control and the transfer lane's way out are real hinged glass doors (conc_place.json
+#   "hinged", wired by Tools/terminal_passport_edit.py): the 13 low leaves between the booths / e-gates (east_c_leaf_glass)
+#   and the lane's pair of full-height leaves under a fixed glass transom (east_c_tleaf_glass). All shut: which way and for
+#   whom they open (boarding pass, passport check, the swing gate) is to-do 212 / 214's.
 # Left free: the escape-stair boxes x 246 + 30 k, z 7..21.5 (sheet 9c) and stair 21 at x 551 (z 38..40 is a passage).
 #   F:/Tools/Blender-4.2/blender.exe -b --python Art/TerminalEast/make_concourse.py
 #   then Tools/import_east.py east_c_..., Tools/terminal_edit.py (Tools/terminal_concourse_edit.py), Tools/terminal_cut.py 10381 10382
@@ -148,9 +152,13 @@ def gwall(ax, at, u0, u1, hl=(), top=TOP, step=2.0):
 gwall('x', 231.0, 24.08, 51.86)
 gwall('z', 24.0, 230.93, 255.9, [esc(234.5), esc(244.0), esc(252.0)])
 gwall('x', 310.5, 20.2, 23.8)
-GW.box(228.46, 230.54, F2 + 0.02, HL - 0.1, 51.985, 52.015, GL, sides=('-z', '+z'))                    # its way out onto the walkway: closed glass until part 5
-for x in (228.42, 229.5, 230.58): S.box(x - 0.04, x + 0.04, F2 + 0.006, HL - 0.092, 51.95, 52.05, MU)
-S.box(228.46, 230.54, F2 + 1.0, F2 + 1.06, 51.94, 52.06, STEEL)
+# its way out onto the walkway (part 5): a pair of hinged glass leaves (D-F2-TRANSFER-OUT, 2.08 m clear between the jambs) under
+# a steel transom and a fixed glass fanlight up to the portal's head
+TRH = F2 + 2.22                                        # the transom's foot (the leaves reach F2 + 2.206)
+for x in (228.42, 230.58): S.box(x - 0.04, x + 0.04, F2 + 0.006, HL - 0.092, 51.95, 52.05, MU)
+S.box(229.46, 229.54, TRH + 0.06, HL - 0.092, 51.95, 52.05, MU)
+S.box(228.46, 230.54, TRH, TRH + 0.06, 51.95, 52.05, STEEL)
+GW.box(228.46, 229.46, TRH + 0.06, HL - 0.1, 51.985, 52.015, GL, sides=('-z', '+z')); GW.box(229.54, 230.54, TRH + 0.06, HL - 0.1, 51.985, 52.015, GL, sides=('-z', '+z'))
 band('-z', 51.85, 228.3, 230.7, 9.0, 9.5, 'TO ALL GATES 1-12', 0.22)
 band('+x', 228.07, 34.5, 39.5, 8.6, 9.1, 'TRANSFERS  ·  GATES 1-12', 0.26)
 # ======================================================================================================== passport control OUT
@@ -267,11 +275,11 @@ def booth():                                           # TO-DO 212: only holds t
 def egate():                                           # TO-DO 212: only holds the e-gate's place (4.8 x 0.7 m)
     P = Piece('east_c_egate'); P.box(-2.4, 2.4, 0, 1.0, -0.35, 0.35, STEEL); P.box(-2.42, 2.42, 1.0, 1.04, -0.37, 0.37, BLK); P.box(-2.3, 2.3, 1.04, 1.055, -0.03, 0.03, GREEN)
     return P
-def leaf():                                            # a closed glass leaf between two e-gates / booths (the way stays shut until part 5); 1 m, scaled
-    P = Piece('east_c_leaf_glass'); P.box(-0.012, 0.012, 0.12, 1.5, -0.5, 0.5, GL, sides=('-x', '+x')); return P
+def leaf(nm, y0, y1):                                  # a hinged door's glass leaf, 1 m wide along x (scaled to the leaf), 24 mm thick;
+    P = Piece(nm); P.box(-0.5, 0.5, y0, y1, -0.012, 0.012, GL, sides=('-z', '+z')); return P    # its steel rails and handles: the wiring's
 TP = Piece('east_c_tape'); post(TP); TP.box(0.035, 1.665, 0.88, 0.94, -0.004, 0.004, 'MI_T_navy', sides=('-y', '+y', '-z', '+z'))
 PO = Piece('east_c_post'); post(PO)
-PIECES = [S, GW, GE, SG, WP, shutter(), door1(), door2(), TP, PO, booth(), egate(), leaf()]
+PIECES = [S, GW, GE, SG, WP, shutter(), door1(), door2(), TP, PO, booth(), egate(), leaf('east_c_leaf_glass', 0.12, 1.5), leaf('east_c_tleaf_glass', 0.06, 2.16)]
 # ======================================================================================================== where they go
 PL_ = []                                               # [name, asset, x, y, z, turn (degrees about the height), scale]
 def put(nm, a, x, y, z, r=0, s=None): PL_.append([nm, a, round(x, 4), round(y, 4), round(z, 4), r, s])
@@ -283,7 +291,10 @@ for k, (x, z, r) in enumerate([(308.9, 24.0, 0), (295.5, 40.0, 0), (301.5, 40.0,
 for k in range(4): put('BOOTH-212-%d' % (k + 1), 'east_c_booth', 252.0, F2 + 0.006, 26.1 + 2.9 * k)
 for k in range(8): put('EGATE-212-%d' % (k + 1), 'east_c_egate', 252.0, F2 + 0.006, 37.95 + 1.6 * k)
 LF = [(24.07, 25.0)] + [(27.2 + 2.9 * k, 27.9 + 2.9 * k) for k in range(3)] + [(35.9, 37.6)] + [(38.3 + 1.6 * k, 39.2 + 1.6 * k) for k in range(7)] + [(49.5, 51.87)]
-for k, (a, b) in enumerate(LF): put('LEAF-GLASS-%02d' % (k + 1), 'east_c_leaf_glass', 252.0, F2 + 0.006, (a + b) / 2, 0, [1, 1, round(b - a - 0.02, 3)])
+# the hinged doors (part 5): [id, plan x, y, z, the wall's axis, clear width, leaf, gap at each jamb]; the booths' and e-gates' tops
+# reach 2-3 cm over their sides, so those leaves keep 4 cm off them
+HINGED = [['D-F2-PASSPORT-OUT-%02d' % (k + 1), 252.0, F2 + 0.006, round((a + b) / 2, 3), 'x', round(b - a, 3), 'low', 0.04] for k, (a, b) in enumerate(LF)]
+HINGED.append(['D-F2-TRANSFER-OUT', 229.5, F2 + 0.006, 52.0, 'z', 2.08, 'tall', 0.01])
 for j, z in enumerate((27.55, 30.45, 33.35, 36.75, 41.2, 46.0, 50.8)):
     for i in range(2): put('TAPE-%02d' % (2 * j + i + 1), 'east_c_tape', 243.3 + 1.7 * i, F2, z)
     put('POST-%02d' % (j + 1), 'east_c_post', 246.7, F2, z)
@@ -311,7 +322,9 @@ def split(o):
         for u in used: me.materials.append(o.data.materials[u])
         q = bpy.data.objects.new(me.name, me); bpy.context.scene.collection.objects.link(q); out.append(q)
     bm.free(); bpy.data.objects.remove(o); return out
-for f_ in glob.glob(os.path.join(HERE, 'east_c_*.fbx')): os.remove(f_)
+ONLY = os.environ.get('CONC_ONLY', '').split()        # (only these pieces written again: the others' files stay as they are)
+for f_ in glob.glob(os.path.join(HERE, 'east_c_*.fbx')):
+    if not ONLY or os.path.basename(f_)[:-4] in ONLY: os.remove(f_)
 BIGP = []
 for P_ in PIECES:
     o = P_.finish(); objs = split(o) if o.name in ('east_c_solid', 'east_c_signs') else [o]
@@ -319,9 +332,10 @@ for P_ in PIECES:
     for o in objs:
         assert o.data.materials and all(m for m in o.data.materials), 'empty material slot ' + o.name
         print('CONC', o.name, len(o.data.polygons), 'faces', [m.name for m in o.data.materials])
+        if ONLY and o.name not in ONLY: continue
         for x in bpy.context.selected_objects: x.select_set(False)
         o.select_set(True); bpy.context.view_layer.objects.active = o
         bpy.ops.export_scene.fbx(filepath=os.path.join(HERE, o.name + '.fbx'), use_selection=True, object_types={'MESH'}, apply_scale_options='FBX_SCALE_UNITS', mesh_smooth_type='FACE', path_mode='STRIP')
-json.dump({'big': BIGP, 'place': PL_, 'lamps': LAMPS, 'halls': HALLS, 'lids': LIDS, 'doors': [['D-F2-ENTR-PASSWALL-S', XW, 55.2], ['D-F2-ENTR-PASSWALL-N', XW, 64.8]]}, open(os.path.join(HERE, 'conc_place.json'), 'w'), indent=0)
+json.dump({'big': BIGP, 'place': PL_, 'lamps': LAMPS, 'halls': HALLS, 'lids': LIDS, 'hinged': HINGED, 'doors': [['D-F2-ENTR-PASSWALL-S', XW, 55.2], ['D-F2-ENTR-PASSWALL-N', XW, 64.8]]}, open(os.path.join(HERE, 'conc_place.json'), 'w'), indent=0)
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, 'Concourse.blend'))
 print('CONC saved', len(PL_), 'places')
