@@ -269,6 +269,22 @@ wheelbase 300, tyre radius 38.3. Every point: `Art/WaterTruck/watertruck-parts.j
   18 m north of the van's box. B checks the van's way out (straight north on x -259.6 would pass 0.2 m beside this box) and moves the box 1 m east if it needs it. Worked out on paper, not driven.
 - **Not there:** no electric small truck, pump or reel sound checked for; no free photo of a small water truck found (the body follows lavatory trucks' photos and makers' figures); nothing run in the game.
 
+## Toilet truck, part A as built (to-do 212, 2026-11-24): model, blueprint, parking place - no code yet
+Model `Art/ToiletTruck` (make_toilettruck.py) on the same `Tools/small_truck.py`; blueprint `docs/Blueprints/Apron/ToiletTruck.*`, riders `Data/toilettruck-riders.json`. Size, wheels, cab, step, doors, chocks, TurnR as the water truck (see there); orange band. Points: `Art/ToiletTruck/toilettruck-parts.json` (`waste_hose`, `rinse_hose`, `lift`, `a320`).
+**What part B must know**
+- **Place:** `ABabylonModel::Place("ToiletTruck")`.
+- **Lift:** everything whose name starts with a prefix of `lift.moves` (`PlatformLift`, `LiftRod`, `GatePlatform`, `Lever_Platform`, `NamePanel_Rear`) goes straight up 0 .. 95 cm (floor 62 .. 157); the points IK_Platform_*, IK_Rail_*, IK_Grab_Platform_*, IK_Lever_Platform, IK_Button_PlatEStop, IK_Handle_GatePlatform, IK_Name_Rear ride too.
+  `MastParts` stay. Checked by mesh overlap at 0 / 30 / 60 / 95. At our A320 raise it 73 cm (floor 135), at the real height 40. Down before the truck drives.
+- **On to it:** step `IK_Step_Platform_0` (35), gate on the left `GatePlatform` (about z through its PIV, 80 deg inwards = Blender -80), `IK_Platform_In`, `IK_Platform_Hose` (beside the waste coupling), `IK_Platform_RinseStand`, `IK_Platform_Work`. Lever `Lever_Platform` (about y), `IK_Button_PlatEStop`; second lever at the mast `Lever_Lower` (about x, `IK_Stand_Lower`).
+- **Waste hose** 4 in (11 cm outside, 4.6 m; 2.7 m straight from its inlet to the panel): `WasteHose` lies in its rack, path and length in `waste_hose`; fixed end `IK_WasteHose_In`. Coupling `WasteCoupling` (PIV, hands `IK_WasteCoupling_Hand_L/R`, cam lever joined to it, `IK_WasteCoupling_Mouth` / `_Hose`), cap `WasteCap` (off first, `IK_WasteCap`). Hide `WasteHose` and draw the hose when it is out.
+  `SplashTray` (about y through its PIV, Blender -85 = hangs down) is under the mouth: down before the coupling leaves, up again after. Valve lever `Lever_Vent` on the tank panel (left, `IK_Stand_TankPanel`), emptying valve behind `Lever_Dump` (depot only).
+- **Rinse hose** 32 mm, 11.3 m: `RinseReel` (about y, `PIV_RinseReel`, turns `HoseTurn_RinseReel_00..14`), out at `IK_RinseOut`, `RinseTail` stowed, coupling `RinseCoupling` (hand, ring, lever, mouth, hose as on the water truck). Buttons `IK_Button_RinsePump / RinseStop / ReelIn`.
+- **Name:** `NamePanel_L/R` (160 x 28), `NamePanel_Front`, `NamePanel_Rear` (96 x 20, rides with the lift). Livery `TT_Livery_Body_Paint`, `TT_Livery_Main_Paint`.
+- **At the A320:** waste door 172AR, 31.3 m behind the nose, 0.8 m RIGHT, 2.8 m up, drain 4 in + rinse 1 in (Airbus AC 5-4-10); on our model 26.2 m behind the nose wheel, belly 3.13 m. Suggested: behind it, nose to the tail, the truck's middle 1.5 m right, rear bar 26.4 m behind the nose wheel, from behind-right.
+  The panel is then 0.7 m to the RIGHT of the truck's own middle; with the water truck at 1.2 left 0.2 m stays between the mirrors, so better one after the other. The catering truck at R2 stands 23.4 .. 26.1 m behind (mirrors to about 26.3): wait for `cat2` to leave. `Turnaround.cpp` task `toilet`, vehicle `toilettruck`. Gloves, visor, apron for the worker are not modelled.
+- **Parking place (chosen, not drawn yet):** the EAST end, middle (554.6, 110.0), facing north, box x 553.2..556.0, y 106.5..113.5: about 5 m off stand 16's line (about x 548.3), loop in at x 564.2 (apron edge 570). Nothing is drawn or parked there (looked through airfield.json and the GSE sources). Worked out on paper.
+- **Not there:** no lift, pump or vacuum sound checked for; nothing run in the game.
+
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
 | Where | Today | Replace with | Nobody free |
