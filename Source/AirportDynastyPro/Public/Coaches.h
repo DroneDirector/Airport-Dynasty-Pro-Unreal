@@ -39,7 +39,9 @@ public:
 	/** A coach the road network parked (its model placed as AirportCoach). */
 	void Add(ABabylonModel* Coach);
 	virtual void Tick(float Dt) override;
-	/** E / X: a coach door or luggage bay you stand by and face - opened or closed. True when it did. */
+	/** E / X: a coach door or luggage bay you stand by and face - opened or closed. True when it did. Your hand reaches it
+	 *  first (to-do 238): the fingertip to the door's button (inside: the door's inner jamb), the palm round the bay's catch;
+	 *  it moves only once the hand is there. Walk off before that and nothing happens (the arm comes back). */
 	bool Use(const APawn* Who);
 	/** Something to use within reach (the outline and the button hint). */
 	bool NearUse(const FVector& Feet, const FVector& Facing) const;
@@ -111,5 +113,12 @@ private:
 	void ApplyBody(FCoach& C);
 	void Mirror(float Dt, const FVector& Me);
 	bool Pick(const FVector& Feet, const FVector& Facing, int32& Ci, int32& Kind, int32& Index) const;
+	/** Where your hand goes for a door (Kind 0) or bay (1) from Feet (world), and the part's outward side there. */
+	bool HandSpot(int32 Ci, int32 Kind, int32 Index, const FVector& Feet, FVector& Hand, FVector& Out) const;
+	// your hand on its way to a door's button or a bay's catch (to-do 238)
+	struct FReach { TWeakObjectPtr<APawn> Who; int32 Ci = INDEX_NONE, Kind = 0, Index = 0; bool bOpen = false, bDone = false, bPoint = false; float T = 0.f; FVector From = FVector::ZeroVector; };
+	FReach Reach;
+	void ReachTick(float Dt);
+	void ReachEnd();
 	FTransform RootW(const FCoach& C) const;
 };

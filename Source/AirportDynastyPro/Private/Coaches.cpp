@@ -4,6 +4,7 @@
 #include "BabylonModel.h"
 #include "VehicleRiders.h"
 #include "Seats.h"
+#include "ADPWalker.h"
 #include "ADPLog.h"
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
@@ -246,6 +247,8 @@ bool ACoaches::Pick(const FVector& Feet, const FVector& Facing, int32& Ci, int32
 		if (D >= Best || FMath::Abs(Feet.Z - At.Z) > 220.f) return;
 		const FVector To = (At - Feet).GetSafeNormal2D();
 		if (D > 60.f && FVector::DotProduct(To, F2) < 0.35f) return;   // (facing it, roughly)
+		// (within an arm's reach of where the hand goes: the shoulder about 1.45 m over the feet, the arm with its hand 0.88 m)
+		FVector Hd, Od; if (!HandSpot(c, k, i, Feet, Hd, Od) || FVector::Dist(Feet + FVector(0, 0, 145.f), Hd) > 88.f) return;
 		Best = D; Ci = c; Kind = k; Index = i;
 	};
 	for (int32 c = 0; c < Coaches.Num(); ++c)
@@ -263,10 +266,80 @@ bool ACoaches::Use(const APawn* Who)
 {
 	if (!Who) return false;
 	const FVector Feet = Who->GetActorLocation() - FVector(0, 0, Who->GetSimpleCollisionHalfHeight());
+	if (Reach.Ci != INDEX_NONE) return true;   // (your hand is already on its way to one)
 	int32 C, K, I;
 	if (!Pick(Feet, Who->GetControlRotation().Vector(), C, K, I)) return false;
-	if (K == 0) SetDoor(C, I, !Coaches[C].bDoorOpen[I]); else SetBay(C, I, !Coaches[C].bBayOpen[I]);
+	const bool bOpen = K == 0 ? !Coaches[C].bDoorOpen[I] : !Coaches[C].bBayOpen[I];
+	AADPWalker* Wk = Cast<AADPWalker>(const_cast<APawn*>(Who));
+	if (!Wk) { if (K == 0) SetDoor(C, I, bOpen); else SetBay(C, I, bOpen); return true; }   // (no arm to reach with)
+	// the hand to its button or catch first; the door or bay moves once it is there (ReachTick)
+	Reach = FReach(); Reach.Who = Wk; Reach.Ci = C; Reach.Kind = K; Reach.Index = I; Reach.bOpen = bOpen; Reach.From = Feet;
+	FVector Hd, Od; Reach.bPoint = K == 0 && HandSpot(C, K, I, Feet, Hd, Od) && FVector::DotProduct(Feet - Hd, Od) > 0.f;   // (outside: a button, the finger)
+	Wk->SetPoint(Reach.bPoint);
 	return true;
+}
+
+bool ACoaches::HandSpot(int32 Ci, int32 Kind, int32 Index, const FVector& Feet, FVector& Hand, FVector& Out) const
+{
+	using namespace CoachDim;
+	if (!Coaches.IsValidIndex(Ci)) return false;
+	const FCoach& C = Coaches[Ci];
+	const FTransform R = RootW(C);
+	if (Kind == 0)
+	{
+		if (Index < 0 || Index > 1) return false;
+		// outside: the door's button behind its rear edge (Tools/make_coach.py DoorButton_i, its lit face); from inside, on its
+		// steps: the inner jamb on the same side (the model has no inside button - the hand on the frame's edge)
+		const bool bOutside = R.InverseTransformPosition(Feet).Y > W * 50.f - 5.f;
+		Hand = R.TransformPosition(bOutside ? Root(D2X(Doors[Index][1] + 0.06f), -(W / 2 + 0.011f), 1.15f) : Root(D2X(Doors[Index][1] - 0.03f), -(W / 2 - 0.06f), 1.60f));
+		Out = R.TransformVectorNoScale(FVector(0, bOutside ? 1.f : -1.f, 0));
+		return true;
+	}
+	if (Index < 0 || Index > 5 || C.Bay[Index].Group == INDEX_NONE) return false;
+	// the bay's catch (BayHandle_nnn: 0.10 m under the hinge, on its outer face), carried round with the door as it lifts
+	const FMover& B = C.Bay[Index];
+	const FVector P = B.Pivot.GetLocation();
+	const float S = FMath::Sign(P.Y);
+	const FQuat Q = FQuat::Slerp(FQuat::Identity, B.OpenTurn, FMath::SmoothStep(0.f, 1.f, C.BayK[Index]));
+	Hand = R.TransformPosition(P + Q.RotateVector(FVector(0, S * 1.3f, -10.f)));
+	Out = R.TransformVectorNoScale(Q.RotateVector(FVector(0, S, 0)));
+	return true;
+}
+
+void ACoaches::ReachTick(float Dt)
+{
+	if (Reach.Ci == INDEX_NONE) return;
+	constexpr float Touch = 0.4f, Hold = 0.15f, Back = 0.35f;   // (to it, on it, back: the other vehicles' controls' pace)
+	AADPWalker* Wk = Cast<AADPWalker>(Reach.Who.Get());
+	if (!Wk || !Coaches.IsValidIndex(Reach.Ci)) { ReachEnd(); return; }
+	const FVector Feet = Wk->GetActorLocation() - FVector(0, 0, Wk->GetSimpleCollisionHalfHeight());
+	FVector Hand, Out;
+	if (FVector::Dist2D(Feet, Reach.From) > 60.f || !HandSpot(Reach.Ci, Reach.Kind, Reach.Index, Reach.From, Hand, Out))
+	{
+		// walked off: the arm back at once, and nothing moved if the hand never got there
+		ADP_LOG(TEXT("Coaches: you walked off %s - the hand back%s"), Reach.Kind == 0 ? TEXT("the door") : TEXT("the bay"), Reach.bDone ? TEXT("") : TEXT(", nothing moved"));
+		ReachEnd(); return;
+	}
+	Reach.T += Dt;
+	if (!Reach.bDone && Reach.T >= Touch)
+	{
+		Reach.bDone = true;
+		if (Reach.Kind == 0) SetDoor(Reach.Ci, Reach.Index, Reach.bOpen); else SetBay(Reach.Ci, Reach.Index, Reach.bOpen);
+	}
+	if (Reach.T >= Touch + Hold + Back) { ReachEnd(); return; }
+	const float W = Reach.T < Touch ? FMath::SmoothStep(0.f, 1.f, Reach.T / Touch) : 1.f - FMath::SmoothStep(0.f, 1.f, (Reach.T - Touch - Hold) / Back);
+	// as the other vehicles' controls (VehicleControls.cpp Arm): a button, the fingertip on it pressing in; a catch, the palm round it
+	const FVector Sh = Wk->ShoulderNow();
+	FVector F = (Hand - Sh).GetSafeNormal(); if (!Out.IsNearlyZero()) F = FMath::Lerp(F, -Out, 0.5f).GetSafeNormal();
+	const FVector Thumb = FVector::VectorPlaneProject(FVector::UpVector, F).GetSafeNormal();
+	const float In = Reach.bPoint && Reach.T >= Touch && Reach.T < Touch + Hold ? 0.5f : 0.f;
+	Wk->SetArm(W, Hand - F * ((Reach.bPoint ? 18.f : 8.5f) - In), F, Thumb);
+}
+
+void ACoaches::ReachEnd()
+{
+	if (AADPWalker* Wk = Cast<AADPWalker>(Reach.Who.Get())) { Wk->SetArm(0.f, FVector::ZeroVector, FVector::ForwardVector, FVector::UpVector); Wk->SetPoint(false); }
+	Reach = FReach();
 }
 
 void ACoaches::SetDoor(int32 Ci, int32 Door, bool bOpen)
@@ -478,6 +551,7 @@ void ACoaches::Tick(float Dt)
 	APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
 	APawn* Me = PC ? PC->GetPawn() : nullptr;
 	const FVector MeAt = Me ? Me->GetActorLocation() : FVector::ZeroVector;
+	ReachTick(Dt);
 	// your capsule hip-wide inside a coach (the aisle 0.45 m), your own width again outside
 	if (ACharacter* Ch = Cast<ACharacter>(Me))
 	{

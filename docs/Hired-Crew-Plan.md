@@ -495,6 +495,9 @@ riders `Data/ambulift-riders.json`, `Data/wheelchair-riders.json`, all points an
 Fire truck worked by hand (238, 2026-11-24, compiled, NOT run): Private/FireTruckYou.cpp. From the driver's seat you look at a cab switch, stalk or the joystick, and E / X moves the nearer hand there by the rider's IK; the part moves and sets the same state as the keys (the keys stay). Light switch, hazard, blue lights, siren, work lights (4 spot lights on the light columns, ELamp::Work), pump, foam, indicator stalk, wiper stalk (off / slow / fast, Wiper_L/R sweep).
 Joystick: roof turret (6,000 L/min, 85 m) or bumper turret (1,500 L/min, 50 m); yaw +/-90, pitch -20..+45, 20 deg/s; mouse / right stick aims, left button / RB sprays, right button / LB switches. The wash-hose jet: traced, stops at walls, washes vehicles, wets the ground. Tanks 11,400 L water and 1,400 L foam (3 %) run down at the flow and refill at the station (2,000 / 200 L/min). Refusals say why (pump off, tank empty, engine off).
 Missing in the model: work-light lamp heads and lenses (light only, no lens). Turret figures and fill rates are the class's usual values, not checked against one data sheet. Not done: wipers clearing rain, crew using the turrets.
+Coach doors and bays by hand (238, 2026-11-24, compiled, NOT run): Coaches.cpp `HandSpot/ReachTick`. E reaches first (0.4 s): fingertip on the outside DoorButton_i,
+  inside the inner jamb; palm on BayHandle_nnn (follows the lifting door); only then it moves; within 0.88 m of the shoulder; walk off 60 cm = arm back, nothing moved.
+  No driver seat, lights or horn for you (not driven). Model lacks: inside door button, wheelchair ramp or lift (none in Tools/make_coach.py).
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
