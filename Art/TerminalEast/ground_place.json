@@ -1,0 +1,22 @@
+{
+"big": [
+"east_g_solid_1",
+"east_g_solid_2",
+"east_g_solid_3"
+],
+"rooms": [
+"F1-EAST-WC",
+"F1-EAST-FAMILY",
+"F1-EAST-TROLLEY",
+"F1-EAST-BAGSERV",
+"F1-CUSTOMS-E-OFFICE",
+"F1-PC-OFFICE",
+"F1-PC-SECOND",
+"F1-CREW-CENTRE",
+"F1-CANTEEN",
+"F1-GROUND-OFF",
+"F1-LOCKERS",
+"F1-STAFFSEC",
+"F1-POLICE"
+]
+}
