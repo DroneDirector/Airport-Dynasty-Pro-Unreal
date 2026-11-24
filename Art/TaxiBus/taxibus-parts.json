@@ -1,151 +1,556 @@
 {
- "parts": 441,
- "ik": [
-  "IK_Wheel_FL",
-  "IK_Wheel_RL",
-  "PIV_Steer_FL",
-  "IK_Wheel_FR",
-  "IK_Wheel_RR",
-  "PIV_Steer_FR",
-  "PIV_FrontDoor_L",
-  "IK_FrontDoorHandleOut_L",
-  "PIV_FrontDoor_R",
-  "IK_FrontDoorHandleOut_R",
-  "PIV_SlidingDoor",
-  "IK_SlidingDoorHandleOut",
-  "IK_EntryStep",
-  "PIV_RearDoor_L",
-  "PIV_RearDoor_R",
-  "PIV_Wiper_L",
-  "PIV_Wiper_R",
-  "IK_GrabHandle_L-2.0",
-  "IK_GrabHandle_L-0.9",
-  "IK_GrabHandle_L+0.3",
-  "IK_GrabHandle_R-2.0",
-  "IK_GrabHandle_R-0.9",
-  "IK_GrabPole_Entry",
-  "IK_Seat_Driver",
-  "IK_Back_Driver",
-  "IK_Head_Driver",
-  "IK_Buckle_Driver",
-  "IK_Seat_FrontPassenger",
-  "IK_Back_FrontPassenger",
-  "IK_Head_FrontPassenger",
-  "IK_Buckle_FrontPassenger",
-  "IK_Seat_R2Window",
-  "IK_Back_R2Window",
-  "IK_Head_R2Window",
-  "IK_Buckle_R2Window",
-  "IK_Seat_R2Middle",
-  "IK_Back_R2Middle",
-  "IK_Head_R2Middle",
-  "IK_Buckle_R2Middle",
-  "IK_Seat_R3Window",
-  "IK_Back_R3Window",
-  "IK_Head_R3Window",
-  "IK_Buckle_R3Window",
-  "IK_Seat_R3Middle",
-  "IK_Back_R3Middle",
-  "IK_Head_R3Middle",
-  "IK_Buckle_R3Middle",
-  "IK_Seat_R4_0",
-  "IK_Back_R4_0",
-  "IK_Head_R4_0",
-  "IK_Buckle_R4_0",
-  "IK_Seat_R4_1",
-  "IK_Back_R4_1",
-  "IK_Head_R4_1",
-  "IK_Buckle_R4_1",
-  "IK_Seat_R4_2",
-  "IK_Back_R4_2",
-  "IK_Head_R4_2",
-  "IK_Buckle_R4_2",
-  "PIV_Ramp",
-  "IK_CardTerminal",
-  "IK_DriverHandL",
-  "IK_DriverHandR",
-  "IK_Accelerator",
-  "IK_Brake",
-  "IK_Taximeter",
-  "IK_GearSelector",
-  "IK_Luggage0",
-  "IK_Luggage1",
-  "IK_WheelchairSpace"
+ "note": "points in the model root, Unreal cm (Blender (x,y,z) m = (x,-y,z) * 100)",
+ "size_m": [
+  5.998,
+  2.05,
+  2.522
  ],
- "ik_parts": {
-  "IK_Wheel_FL": "Tyre_FL",
-  "IK_Wheel_RL": "Tyre_RL",
-  "PIV_Steer_FL": "Knuckle_L",
-  "IK_Wheel_FR": "Tyre_FR",
-  "IK_Wheel_RR": "Tyre_RR",
-  "PIV_Steer_FR": "Knuckle_R",
-  "PIV_FrontDoor_L": "FrontDoor_L",
-  "IK_FrontDoorHandleOut_L": "FrontDoorHandle_L",
-  "PIV_FrontDoor_R": "FrontDoor_R",
-  "IK_FrontDoorHandleOut_R": "FrontDoorHandle_R",
-  "PIV_SlidingDoor": "SlidingDoor",
-  "IK_SlidingDoorHandleOut": "SlidingDoorHandle",
-  "IK_EntryStep": "EntryStep",
-  "PIV_RearDoor_L": "RearDoor_L",
-  "PIV_RearDoor_R": "RearDoor_R",
-  "PIV_Wiper_L": "WiperPivot_L",
-  "PIV_Wiper_R": "WiperPivot_R",
-  "IK_GrabHandle_L-2.0": "GrabHandle_L-2.0",
-  "IK_GrabHandle_L-0.9": "GrabHandle_L-0.9",
-  "IK_GrabHandle_L+0.3": "GrabHandle_L+0.3",
-  "IK_GrabHandle_R-2.0": "GrabHandle_R-2.0",
-  "IK_GrabHandle_R-0.9": "GrabHandle_R-0.9",
-  "IK_GrabPole_Entry": "GrabPole_Entry",
-  "IK_Seat_Driver": "SeatCushion_Driver",
-  "IK_Back_Driver": "SeatBack_Driver",
-  "IK_Head_Driver": "Headrest_Driver",
-  "IK_Buckle_Driver": "Buckle_Driver",
-  "IK_Seat_FrontPassenger": "SeatCushion_FrontPassenger",
-  "IK_Back_FrontPassenger": "SeatBack_FrontPassenger",
-  "IK_Head_FrontPassenger": "Headrest_FrontPassenger",
-  "IK_Buckle_FrontPassenger": "Buckle_FrontPassenger",
-  "IK_Seat_R2Window": "SeatCushion_R2Window",
-  "IK_Back_R2Window": "SeatBack_R2Window",
-  "IK_Head_R2Window": "Headrest_R2Window",
-  "IK_Buckle_R2Window": "Buckle_R2Window",
-  "IK_Seat_R2Middle": "SeatCushion_R2Middle",
-  "IK_Back_R2Middle": "SeatBack_R2Middle",
-  "IK_Head_R2Middle": "Headrest_R2Middle",
-  "IK_Buckle_R2Middle": "Buckle_R2Middle",
-  "IK_Seat_R3Window": "SeatCushion_R3Window",
-  "IK_Back_R3Window": "SeatBack_R3Window",
-  "IK_Head_R3Window": "Headrest_R3Window",
-  "IK_Buckle_R3Window": "Buckle_R3Window",
-  "IK_Seat_R3Middle": "SeatCushion_R3Middle",
-  "IK_Back_R3Middle": "SeatBack_R3Middle",
-  "IK_Head_R3Middle": "Headrest_R3Middle",
-  "IK_Buckle_R3Middle": "Buckle_R3Middle",
-  "IK_Seat_R4_0": "SeatCushion_R4_0",
-  "IK_Back_R4_0": "SeatBack_R4_0",
-  "IK_Head_R4_0": "Headrest_R4_0",
-  "IK_Buckle_R4_0": "Buckle_R4_0",
-  "IK_Seat_R4_1": "SeatCushion_R4_1",
-  "IK_Back_R4_1": "SeatBack_R4_1",
-  "IK_Head_R4_1": "Headrest_R4_1",
-  "IK_Buckle_R4_1": "Buckle_R4_1",
-  "IK_Seat_R4_2": "SeatCushion_R4_2",
-  "IK_Back_R4_2": "SeatBack_R4_2",
-  "IK_Head_R4_2": "Headrest_R4_2",
-  "IK_Buckle_R4_2": "Buckle_R4_2",
-  "PIV_Ramp": "RampHingeBar",
-  "IK_CardTerminal": "CardTerminal",
-  "IK_DriverHandL": "SteeringWheel",
-  "IK_DriverHandR": "SteeringWheel",
-  "IK_Accelerator": "Pedal_Accelerator",
-  "IK_Brake": "Pedal_Brake",
-  "IK_Taximeter": "Taximeter",
-  "IK_GearSelector": "GearSelector",
-  "IK_Luggage0": "FloorBoard",
-  "IK_Luggage1": "FloorBoard",
-  "IK_WheelchairSpace": "FloorBoard"
+ "wheelbase": 4.035,
+ "tyre_radius_cm": 37.2,
+ "points_cm": {
+  "PIV_Wheel_FL": [
+   205.1,
+   -90.5,
+   37.2
+  ],
+  "PIV_Wheel_RL": [
+   -198.4,
+   -89.5,
+   37.2
+  ],
+  "PIV_Steer_FL": [
+   205.1,
+   -77.5,
+   37.2
+  ],
+  "PIV_Wheel_FR": [
+   205.1,
+   90.5,
+   37.2
+  ],
+  "PIV_Wheel_RR": [
+   -198.4,
+   89.5,
+   37.2
+  ],
+  "PIV_Steer_FR": [
+   205.1,
+   77.5,
+   37.2
+  ],
+  "PIV_DoorDriver": [
+   170.5,
+   -101.5,
+   100.0
+  ],
+  "IK_Handle_DoorDriver_Out": [
+   60.5,
+   -105.3,
+   108.2
+  ],
+  "IK_Handle_DoorDriver_In": [
+   127.0,
+   -91.5,
+   110.5
+  ],
+  "IK_Step_DoorDriver": [
+   100.0,
+   -86.0,
+   41.5
+  ],
+  "IK_Stand_DoorDriver": [
+   80.0,
+   -165.0,
+   0.0
+  ],
+  "IK_Grab_L": [
+   112.5,
+   -75.0,
+   191.0
+  ],
+  "PIV_DoorPassenger": [
+   170.5,
+   101.5,
+   100.0
+  ],
+  "IK_Handle_DoorPassenger_Out": [
+   60.5,
+   105.3,
+   108.2
+  ],
+  "IK_Handle_DoorPassenger_In": [
+   127.0,
+   91.5,
+   110.5
+  ],
+  "IK_Step_DoorPassenger": [
+   100.0,
+   86.0,
+   41.5
+  ],
+  "IK_Stand_DoorPassenger": [
+   80.0,
+   165.0,
+   0.0
+  ],
+  "IK_Grab_R": [
+   112.5,
+   75.0,
+   191.0
+  ],
+  "PIV_SlideDoor": [
+   -25.5,
+   98.5,
+   123.5
+  ],
+  "IK_Handle_SlideDoor_Out": [
+   25.5,
+   105.3,
+   108.2
+  ],
+  "IK_Handle_SlideDoor_In": [
+   20.0,
+   90.5,
+   112.0
+  ],
+  "IK_Step_SlideDoor": [
+   -10.0,
+   84.0,
+   41.5
+  ],
+  "IK_Stand_SlideDoor": [
+   5.0,
+   170.0,
+   0.0
+  ],
+  "PIV_RearDoorL": [
+   -299.2,
+   -82.6,
+   140.0
+  ],
+  "IK_Stand_RearDoorL": [
+   -375.0,
+   -55.0,
+   0.0
+  ],
+  "PIV_RearDoorR": [
+   -299.2,
+   82.6,
+   140.0
+  ],
+  "IK_Stand_RearDoorR": [
+   -375.0,
+   55.0,
+   0.0
+  ],
+  "IK_Handle_RearDoorR_Out": [
+   -301.6,
+   8.5,
+   122.5
+  ],
+  "IK_Handle_RearDoorL_Edge": [
+   -297.0,
+   -2.0,
+   122.0
+  ],
+  "IK_Cluster": [
+   123.0,
+   -42.0,
+   129.5
+  ],
+  "IK_GearSelect": [
+   109.0,
+   -7.0,
+   89.0
+  ],
+  "PIV_SteeringWheel": [
+   108.5,
+   -42.0,
+   117.5
+  ],
+  "IK_Hand_Wheel_L": [
+   108.5,
+   -61.5,
+   117.5
+  ],
+  "IK_Hand_Wheel_R": [
+   108.5,
+   -22.5,
+   117.5
+  ],
+  "IK_Foot_Accel": [
+   146.2,
+   -30.0,
+   70.0
+  ],
+  "PIV_Pedal_Accel": [
+   160.0,
+   -30.0,
+   93.0
+  ],
+  "IK_Foot_Brake": [
+   146.2,
+   -43.0,
+   71.0
+  ],
+  "PIV_Pedal_Brake": [
+   160.0,
+   -43.0,
+   93.0
+  ],
+  "IK_Foot_Rest": [
+   148.5,
+   -57.5,
+   66.0
+  ],
+  "IK_Seat_SeatDriver": [
+   74.0,
+   -42.0,
+   104.5
+  ],
+  "IK_Buckle_SeatDriver": [
+   55.0,
+   -24.5,
+   107.5
+  ],
+  "IK_Seat_SeatPassenger": [
+   74.0,
+   46.0,
+   104.5
+  ],
+  "IK_Buckle_SeatPassenger": [
+   55.0,
+   28.5,
+   107.5
+  ],
+  "IK_Seat_SeatR1A": [
+   -5.0,
+   -64.0,
+   104.5
+  ],
+  "IK_Buckle_SeatR1A": [
+   -24.0,
+   -46.5,
+   107.5
+  ],
+  "IK_BeltTongue_SeatR1A": [
+   -39.1,
+   -85.0,
+   131.3
+  ],
+  "IK_Seat_SeatR1B": [
+   -5.0,
+   -20.0,
+   104.5
+  ],
+  "IK_Buckle_SeatR1B": [
+   -24.0,
+   -37.5,
+   107.5
+  ],
+  "IK_BeltTongue_SeatR1B": [
+   -39.1,
+   1.0,
+   131.3
+  ],
+  "IK_Seat_SeatR2A": [
+   -84.0,
+   -64.0,
+   105.5
+  ],
+  "IK_Buckle_SeatR2A": [
+   -103.0,
+   -46.5,
+   108.5
+  ],
+  "IK_BeltTongue_SeatR2A": [
+   -118.1,
+   -85.0,
+   132.3
+  ],
+  "IK_Seat_SeatR2B": [
+   -84.0,
+   -20.0,
+   105.5
+  ],
+  "IK_Buckle_SeatR2B": [
+   -103.0,
+   -37.5,
+   108.5
+  ],
+  "IK_BeltTongue_SeatR2B": [
+   -118.1,
+   1.0,
+   132.3
+  ],
+  "IK_Seat_SeatR3A": [
+   -163.0,
+   -44.0,
+   105.5
+  ],
+  "IK_Buckle_SeatR3A": [
+   -182.0,
+   -26.5,
+   108.5
+  ],
+  "IK_BeltTongue_SeatR3A": [
+   -197.1,
+   -65.0,
+   132.3
+  ],
+  "IK_Seat_SeatR3B": [
+   -163.0,
+   0.0,
+   105.5
+  ],
+  "IK_Buckle_SeatR3B": [
+   -182.0,
+   -17.5,
+   108.5
+  ],
+  "IK_BeltTongue_SeatR3B": [
+   -197.1,
+   21.1,
+   132.3
+  ],
+  "IK_Seat_SeatR3C": [
+   -163.0,
+   44.0,
+   105.5
+  ],
+  "IK_Buckle_SeatR3C": [
+   -182.0,
+   26.5,
+   108.5
+  ],
+  "IK_BeltTongue_SeatR3C": [
+   -197.1,
+   65.0,
+   132.3
+  ],
+  "IK_BeltTongue_D": [
+   42.0,
+   -87.0,
+   115.0
+  ],
+  "IK_BeltTongue_P": [
+   42.0,
+   87.0,
+   115.0
+  ],
+  "PIV_Wiper_L": [
+   213.2,
+   -62.0,
+   136.2
+  ],
+  "PIV_Wiper_R": [
+   217.9,
+   10.0,
+   136.2
+  ],
+  "IK_TaxiSign": [
+   -40.0,
+   -0.0,
+   263.0
+  ],
+  "IK_Taximeter_Button": [
+   144.0,
+   -5.0,
+   134.5
+  ],
+  "IK_Grab_SlideDoor": [
+   -98.5,
+   90.5,
+   130.0
+  ],
+  "IK_Luggage_0": [
+   -240.0,
+   -45.0,
+   58.7
+  ],
+  "IK_Luggage_1": [
+   -240.0,
+   45.0,
+   58.7
+  ],
+  "IK_Luggage_2": [
+   -278.0,
+   -45.0,
+   58.7
+  ],
+  "IK_Luggage_3": [
+   -278.0,
+   45.0,
+   58.7
+  ],
+  "IK_Driver_Eye": [
+   60.0,
+   -42.0,
+   172.0
+  ],
+  "IK_Tow": [
+   -305.0,
+   -0.0,
+   46.0
+  ],
+  "IK_Aisle_Row1": [
+   25.0,
+   45.0,
+   58.5
+  ],
+  "IK_Aisle_Row2": [
+   -55.0,
+   45.0,
+   58.5
+  ],
+  "IK_Aisle_Row3": [
+   -134.0,
+   45.0,
+   58.5
+  ]
  },
- "floating": [],
- "overhang": [],
- "loose": [],
+ "parts": [
+  "Body",
+  "CabFittings",
+  "CeilingLamp0_Lens",
+  "CeilingLamp1_Lens",
+  "CeilingLamp2_Lens",
+  "Disc_FL",
+  "Disc_FR",
+  "DoorDriver",
+  "DoorDriver_Glass",
+  "DoorDriver_Parts",
+  "DoorPassenger",
+  "DoorPassenger_Glass",
+  "DoorPassenger_Parts",
+  "GlassFixed",
+  "HighBeam_L_Lens",
+  "HighBeam_R_Lens",
+  "Hood",
+  "HubCap_FL",
+  "HubCap_FR",
+  "HubCap_RL",
+  "HubCap_RR",
+  "Hub_FL",
+  "Hub_FR",
+  "Hub_RL",
+  "Hub_RR",
+  "IndicatorF_L_Lens",
+  "IndicatorF_R_Lens",
+  "IndicatorR_L_Lens",
+  "IndicatorR_R_Lens",
+  "InnerFittings",
+  "LowBeam_L_Lens",
+  "LowBeam_R_Lens",
+  "Nut_FL_0",
+  "Nut_FL_1",
+  "Nut_FL_2",
+  "Nut_FL_3",
+  "Nut_FL_4",
+  "Nut_FR_0",
+  "Nut_FR_1",
+  "Nut_FR_2",
+  "Nut_FR_3",
+  "Nut_FR_4",
+  "Nut_RL_0",
+  "Nut_RL_1",
+  "Nut_RL_2",
+  "Nut_RL_3",
+  "Nut_RL_4",
+  "Nut_RR_0",
+  "Nut_RR_1",
+  "Nut_RR_2",
+  "Nut_RR_3",
+  "Nut_RR_4",
+  "OuterFittings",
+  "Pedal_Accel_Arm",
+  "Pedal_Accel_Pad",
+  "Pedal_Brake_Arm",
+  "Pedal_Brake_Pad",
+  "RearDoorL",
+  "RearDoorL_Glass",
+  "RearDoorL_Parts",
+  "RearDoorR",
+  "RearDoorR_Glass",
+  "RearDoorR_Parts",
+  "Reverse_L_Lens",
+  "Reverse_R_Lens",
+  "Rim_FL",
+  "Rim_FR",
+  "Rim_RL",
+  "Rim_RR",
+  "Seats",
+  "SideMarker_L1_Lens",
+  "SideMarker_L2_Lens",
+  "SideMarker_R1_Lens",
+  "SideMarker_R2_Lens",
+  "SlideDoor",
+  "SlideDoor_Glass",
+  "SlideDoor_Parts",
+  "Spindle_FL",
+  "Spindle_FL_Axle",
+  "Spindle_FR",
+  "Spindle_FR_Axle",
+  "SteerArm_FL",
+  "SteerArm_FR",
+  "SteeringWheel_Parts",
+  "TailBrake_C_Lens",
+  "TailBrake_L_Lens",
+  "TailBrake_R_Lens",
+  "TaxiSign_B_Lens",
+  "TaxiSign_F_Lens",
+  "Tyre_FL",
+  "Tyre_FR",
+  "Tyre_RL",
+  "Tyre_RR",
+  "Underside",
+  "WheelDisc_FL",
+  "WheelDisc_FR",
+  "WheelDisc_RL",
+  "WheelDisc_RR",
+  "WiperL_Arm",
+  "WiperL_Blade",
+  "WiperL_Hub",
+  "WiperR_Arm",
+  "WiperR_Blade",
+  "WiperR_Hub",
+  "WorkLamp_Lens"
+ ],
+ "materials": [
+  "TB_AmberLens",
+  "TB_BeltWebbing",
+  "TB_BlackPlastic",
+  "TB_BuckleRed",
+  "TB_BumperPlastic",
+  "TB_DarkSteel",
+  "TB_DashPlastic",
+  "TB_FloorMat",
+  "TB_FloorVinyl",
+  "TB_Glass",
+  "TB_GreyTrimPlastic",
+  "TB_HeadLining",
+  "TB_Livery_Band_Paint",
+  "TB_Livery_Body_Paint",
+  "TB_LoadFloorPlate",
+  "TB_MirrorGlass",
+  "TB_RedLens",
+  "TB_Reflector",
+  "TB_RimSteel",
+  "TB_RoomLining_Paint",
+  "TB_Screen",
+  "TB_SealRubber",
+  "TB_SeatBlackPlastic",
+  "TB_SeatCastAlu",
+  "TB_SeatMoquette",
+  "TB_SeatMoquetteCentre",
+  "TB_SeatShell",
+  "TB_SeatSteel",
+  "TB_Steel",
+  "TB_TaxiSign_Lens",
+  "TB_Taximeter_Digits",
+  "TB_Tyre",
+  "TB_WhiteLens"
+ ],
+ "tris": 529576,
  "flicker": "0 pairs fight"
 }
