@@ -537,6 +537,16 @@ Taxi bus (239, part B, 2026-11-24, compiled, NOT run): a line of `ADPService::Al
   `Taximeter_Digits`). Meter button (IK_Taximeter_Button, from the driver's seat) starts/ends a fare; its line shows CHF, km, min.
   Tariff is plain, not one town's: 6.50 flag, 3.50/km, 1.00/min under 15 km/h. Ends on shift over / driver lost. The meter mesh was
   already built in piece 1. Left: piece 4 (no passenger hand-over, so no real fare trigger yet).
+  Piece 3 compile + piece 4 check (2026-11-24, compiled, NOT run): piece 3 had no code fault - build.sh stops at once while any
+  UnrealEditor* process runs (its tasklist check), and an UnrealEditor-Cmd import was running then. Built now: clean, no change.
+  Piece 4 NOT built (held, needs the owner's choice): (1) PaxFlow has no kerb pickup demand to follow - coaches take nobody from
+  PaxFlow (Coaches.cpp only uses the off UVehicleRiders), arrivals all walk WayFromHall -> crossing -> CarParkSpot and go unseen;
+  TerminalCrowd's kerb people are Mass. (2) A seen boarding means handing a PaxFlow actor (APaxFlow::FPx, its own walk/anim) to
+  the tug crew system (ATugs::Enlist + AGSE ClimbIn, driver-door only) or a new rear-seat climb through the sliding door for
+  passengers - a second people path. (3) Nothing drives a fare: the hired driver only sits at the kerb, so a passenger aboard
+  would just wait on the meter. Needs first: where a taxi fare goes (off site by the forecourt road and back?), then piece 4 =
+  arrivals' choice at the kerb (x -36.5 z -7) to walk to IK_Stand of the sliding door, climb to IK_Seat_SeatR*, TaxiFare(true),
+  and at the drop TaxiFare(false), out, gone unseen.
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
