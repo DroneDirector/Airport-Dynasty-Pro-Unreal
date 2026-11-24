@@ -241,16 +241,16 @@ desk_set(R, 364.0, 46.0, 0, guest=True); at_wall(R, '+x', 48.0, 'filing')
 R = 'F1-CREW-CENTRE'
 for u in range(9, 24, 1): pass
 for k in range(10): at_wall(R, '-x', 8.0 + 1.25 * k, 'lockers')
-for x in (378.5, 383.0, 393.5, 398.0):
+for x in (378.5, 383.0, 392.5, 399.0):                 # (part 4: clear of the escape stair box at x 394.7..397.3 and its door)
     group(R, [('sofa18', x, 17.6, 0), ('sofa18', x, 21.4, 180), ('table', x, 19.5, 0)])
-at_wall(R, '-z', 381.0, 'notice'); at_wall(R, '-z', 395.0, 'notice')
-for x in (378.5, 383.0, 393.5, 398.0): desk_set(R, x, 9.5, 0)
+at_wall(R, '-z', 381.0, 'notice'); at_wall(R, '-z', 391.0, 'notice')
+for x in (378.5, 383.0, 392.5, 399.0): desk_set(R, x, 9.5, 0)
 R = 'F1-CANTEEN'
 at_wall(R, '+z', 410.5, 'servery'); at_wall(R, '+z', 429.5, 'servery')
-for x in (408.5, 411.5, 414.5, 425.5, 428.5, 431.5):
+for x in (408.5, 411.5, 414.5, 422.5, 429.5, 432.5):  # (part 4: the stair box x 424.7..427.3, its door 1.2 m clear)
     for z in (8.5, 11.5, 18.0, 21.0): dining(R, x, z)
 R = 'F1-GROUND-OFF'
-for x in (440.0, 443.5, 457.0, 460.5, 464.0):
+for x in (440.0, 443.5, 452.3, 460.5, 464.0):         # (part 4: the stair box x 454.7..457.3)
     for z in (7.5, 12.0, 17.5, 22.0): desk_set(R, x, z, 0)
 for u in (8.0, 9.0, 21.0, 22.0): at_wall(R, '+x', u, 'filing')
 R = 'F1-LOCKERS'
@@ -279,10 +279,12 @@ for room in RB:
 
 # ======================================================================================================== the signs and the doors
 DOORS, SEEN = [], set()
+sys.path.insert(0, HERE); import esc_geom as _ESC
 for name, x0, x1, z0, z1, m, doors in ROOMS:
     for side, hs in doors.items():
         at = {'-z': z0, '+z': z1, '-x': x0, '+x': x1}[side]; sg = 1 if side[0] == '+' else -1; face = at + sg * T; c = at + sg * T / 2
         for h0, h1 in hs:
+            if side == '-z' and any(abs((h0 + h1) / 2 - x) < 0.01 for x in _ESC.STAIRS): continue   # (part 4: a stair box's gap, no doorway)
             wide = h1 - h0 > 2.0; y0 = 3.25 if wide else 2.36
             u0, u1 = ((h0 + h1) / 2 - 2.0, (h0 + h1) / 2 + 2.0) if wide else (h0 - 0.25, h1 + 0.25)
             band(side, face, u0, u1, y0, y0 + 0.26, LABEL[name], 0.15, WHITE, d=0.03)

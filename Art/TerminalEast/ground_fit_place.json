@@ -542,7 +542,7 @@
 [
 "F1-CREW-CENTRE/FIT-017",
 "east_g_fit_sofa18",
-393.5,
+392.5,
 0.019,
 17.6,
 0
@@ -550,7 +550,7 @@
 [
 "F1-CREW-CENTRE/FIT-018",
 "east_g_fit_sofa18",
-393.5,
+392.5,
 0.019,
 21.4,
 180
@@ -558,7 +558,7 @@
 [
 "F1-CREW-CENTRE/FIT-019",
 "east_g_fit_table",
-393.5,
+392.5,
 0.019,
 19.5,
 0
@@ -566,7 +566,7 @@
 [
 "F1-CREW-CENTRE/FIT-020",
 "east_g_fit_sofa18",
-398.0,
+399.0,
 0.019,
 17.6,
 0
@@ -574,7 +574,7 @@
 [
 "F1-CREW-CENTRE/FIT-021",
 "east_g_fit_sofa18",
-398.0,
+399.0,
 0.019,
 21.4,
 180
@@ -582,7 +582,7 @@
 [
 "F1-CREW-CENTRE/FIT-022",
 "east_g_fit_table",
-398.0,
+399.0,
 0.019,
 19.5,
 0
@@ -598,7 +598,7 @@
 [
 "F1-CREW-CENTRE/FIT-024",
 "east_g_fit_notice",
-395.0,
+391.0,
 0.019,
 6.13,
 0
@@ -638,7 +638,7 @@
 [
 "F1-CREW-CENTRE/FIT-029",
 "east_g_fit_desk",
-393.5,
+392.5,
 0.019,
 9.5,
 0
@@ -646,7 +646,7 @@
 [
 "F1-CREW-CENTRE/FIT-030",
 "east_g_fit_ochair",
-393.5,
+392.5,
 0.019,
 10.65,
 180
@@ -654,7 +654,7 @@
 [
 "F1-CREW-CENTRE/FIT-031",
 "east_g_fit_desk",
-398.0,
+399.0,
 0.019,
 9.5,
 0
@@ -662,7 +662,7 @@
 [
 "F1-CREW-CENTRE/FIT-032",
 "east_g_fit_ochair",
-398.0,
+399.0,
 0.019,
 10.65,
 180
@@ -1166,7 +1166,7 @@
 [
 "F1-CANTEEN/FIT-063",
 "east_g_fit_table",
-425.5,
+422.5,
 0.019,
 8.5,
 0
@@ -1174,7 +1174,7 @@
 [
 "F1-CANTEEN/FIT-064",
 "east_g_fit_chair",
-425.2,
+422.2,
 0.019,
 7.78,
 0
@@ -1182,7 +1182,7 @@
 [
 "F1-CANTEEN/FIT-065",
 "east_g_fit_chair",
-425.8,
+422.8,
 0.019,
 7.78,
 0
@@ -1190,7 +1190,7 @@
 [
 "F1-CANTEEN/FIT-066",
 "east_g_fit_chair",
-425.2,
+422.2,
 0.019,
 9.22,
 180
@@ -1198,7 +1198,7 @@
 [
 "F1-CANTEEN/FIT-067",
 "east_g_fit_chair",
-425.8,
+422.8,
 0.019,
 9.22,
 180
@@ -1206,7 +1206,7 @@
 [
 "F1-CANTEEN/FIT-068",
 "east_g_fit_table",
-425.5,
+422.5,
 0.019,
 11.5,
 0
@@ -1214,7 +1214,7 @@
 [
 "F1-CANTEEN/FIT-069",
 "east_g_fit_chair",
-425.2,
+422.2,
 0.019,
 10.78,
 0
@@ -1222,7 +1222,7 @@
 [
 "F1-CANTEEN/FIT-070",
 "east_g_fit_chair",
-425.8,
+422.8,
 0.019,
 10.78,
 0
@@ -1230,7 +1230,7 @@
 [
 "F1-CANTEEN/FIT-071",
 "east_g_fit_chair",
-425.2,
+422.2,
 0.019,
 12.22,
 180
@@ -1238,7 +1238,7 @@
 [
 "F1-CANTEEN/FIT-072",
 "east_g_fit_chair",
-425.8,
+422.8,
 0.019,
 12.22,
 180
@@ -1246,7 +1246,7 @@
 [
 "F1-CANTEEN/FIT-073",
 "east_g_fit_table",
-425.5,
+422.5,
 0.019,
 18.0,
 0
@@ -1254,7 +1254,7 @@
 [
 "F1-CANTEEN/FIT-074",
 "east_g_fit_chair",
-425.2,
+422.2,
 0.019,
 17.28,
 0
@@ -1262,7 +1262,7 @@
 [
 "F1-CANTEEN/FIT-075",
 "east_g_fit_chair",
-425.8,
+422.8,
 0.019,
 17.28,
 0
@@ -1270,7 +1270,7 @@
 [
 "F1-CANTEEN/FIT-076",
 "east_g_fit_chair",
-425.2,
+422.2,
 0.019,
 18.72,
 180
@@ -1278,7 +1278,7 @@
 [
 "F1-CANTEEN/FIT-077",
 "east_g_fit_chair",
-425.8,
+422.8,
 0.019,
 18.72,
 180
@@ -1286,7 +1286,7 @@
 [
 "F1-CANTEEN/FIT-078",
 "east_g_fit_table",
-425.5,
+422.5,
 0.019,
 21.0,
 0
@@ -1294,7 +1294,7 @@
 [
 "F1-CANTEEN/FIT-079",
 "east_g_fit_chair",
-425.2,
+422.2,
 0.019,
 20.28,
 0
@@ -1302,7 +1302,7 @@
 [
 "F1-CANTEEN/FIT-080",
 "east_g_fit_chair",
-425.8,
+422.8,
 0.019,
 20.28,
 0
@@ -1310,7 +1310,7 @@
 [
 "F1-CANTEEN/FIT-081",
 "east_g_fit_chair",
-425.2,
+422.2,
 0.019,
 21.72,
 180
@@ -1318,7 +1318,7 @@
 [
 "F1-CANTEEN/FIT-082",
 "east_g_fit_chair",
-425.8,
+422.8,
 0.019,
 21.72,
 180
@@ -1326,7 +1326,7 @@
 [
 "F1-CANTEEN/FIT-083",
 "east_g_fit_table",
-428.5,
+429.5,
 0.019,
 8.5,
 0
@@ -1334,7 +1334,7 @@
 [
 "F1-CANTEEN/FIT-084",
 "east_g_fit_chair",
-428.2,
+429.2,
 0.019,
 7.78,
 0
@@ -1342,7 +1342,7 @@
 [
 "F1-CANTEEN/FIT-085",
 "east_g_fit_chair",
-428.8,
+429.8,
 0.019,
 7.78,
 0
@@ -1350,7 +1350,7 @@
 [
 "F1-CANTEEN/FIT-086",
 "east_g_fit_chair",
-428.2,
+429.2,
 0.019,
 9.22,
 180
@@ -1358,7 +1358,7 @@
 [
 "F1-CANTEEN/FIT-087",
 "east_g_fit_chair",
-428.8,
+429.8,
 0.019,
 9.22,
 180
@@ -1366,7 +1366,7 @@
 [
 "F1-CANTEEN/FIT-088",
 "east_g_fit_table",
-428.5,
+429.5,
 0.019,
 11.5,
 0
@@ -1374,7 +1374,7 @@
 [
 "F1-CANTEEN/FIT-089",
 "east_g_fit_chair",
-428.2,
+429.2,
 0.019,
 10.78,
 0
@@ -1382,7 +1382,7 @@
 [
 "F1-CANTEEN/FIT-090",
 "east_g_fit_chair",
-428.8,
+429.8,
 0.019,
 10.78,
 0
@@ -1390,7 +1390,7 @@
 [
 "F1-CANTEEN/FIT-091",
 "east_g_fit_chair",
-428.2,
+429.2,
 0.019,
 12.22,
 180
@@ -1398,7 +1398,7 @@
 [
 "F1-CANTEEN/FIT-092",
 "east_g_fit_chair",
-428.8,
+429.8,
 0.019,
 12.22,
 180
@@ -1406,7 +1406,7 @@
 [
 "F1-CANTEEN/FIT-093",
 "east_g_fit_table",
-428.5,
+429.5,
 0.019,
 18.0,
 0
@@ -1414,7 +1414,7 @@
 [
 "F1-CANTEEN/FIT-094",
 "east_g_fit_chair",
-428.2,
+429.2,
 0.019,
 17.28,
 0
@@ -1422,7 +1422,7 @@
 [
 "F1-CANTEEN/FIT-095",
 "east_g_fit_chair",
-428.8,
+429.8,
 0.019,
 17.28,
 0
@@ -1430,7 +1430,7 @@
 [
 "F1-CANTEEN/FIT-096",
 "east_g_fit_chair",
-428.2,
+429.2,
 0.019,
 18.72,
 180
@@ -1438,7 +1438,7 @@
 [
 "F1-CANTEEN/FIT-097",
 "east_g_fit_chair",
-428.8,
+429.8,
 0.019,
 18.72,
 180
@@ -1446,7 +1446,7 @@
 [
 "F1-CANTEEN/FIT-098",
 "east_g_fit_table",
-428.5,
+429.5,
 0.019,
 21.0,
 0
@@ -1454,7 +1454,7 @@
 [
 "F1-CANTEEN/FIT-099",
 "east_g_fit_chair",
-428.2,
+429.2,
 0.019,
 20.28,
 0
@@ -1462,7 +1462,7 @@
 [
 "F1-CANTEEN/FIT-100",
 "east_g_fit_chair",
-428.8,
+429.8,
 0.019,
 20.28,
 0
@@ -1470,7 +1470,7 @@
 [
 "F1-CANTEEN/FIT-101",
 "east_g_fit_chair",
-428.2,
+429.2,
 0.019,
 21.72,
 180
@@ -1478,7 +1478,7 @@
 [
 "F1-CANTEEN/FIT-102",
 "east_g_fit_chair",
-428.8,
+429.8,
 0.019,
 21.72,
 180
@@ -1486,7 +1486,7 @@
 [
 "F1-CANTEEN/FIT-103",
 "east_g_fit_table",
-431.5,
+432.5,
 0.019,
 8.5,
 0
@@ -1494,7 +1494,7 @@
 [
 "F1-CANTEEN/FIT-104",
 "east_g_fit_chair",
-431.2,
+432.2,
 0.019,
 7.78,
 0
@@ -1502,7 +1502,7 @@
 [
 "F1-CANTEEN/FIT-105",
 "east_g_fit_chair",
-431.8,
+432.8,
 0.019,
 7.78,
 0
@@ -1510,7 +1510,7 @@
 [
 "F1-CANTEEN/FIT-106",
 "east_g_fit_chair",
-431.2,
+432.2,
 0.019,
 9.22,
 180
@@ -1518,7 +1518,7 @@
 [
 "F1-CANTEEN/FIT-107",
 "east_g_fit_chair",
-431.8,
+432.8,
 0.019,
 9.22,
 180
@@ -1526,7 +1526,7 @@
 [
 "F1-CANTEEN/FIT-108",
 "east_g_fit_table",
-431.5,
+432.5,
 0.019,
 11.5,
 0
@@ -1534,7 +1534,7 @@
 [
 "F1-CANTEEN/FIT-109",
 "east_g_fit_chair",
-431.2,
+432.2,
 0.019,
 10.78,
 0
@@ -1542,7 +1542,7 @@
 [
 "F1-CANTEEN/FIT-110",
 "east_g_fit_chair",
-431.8,
+432.8,
 0.019,
 10.78,
 0
@@ -1550,7 +1550,7 @@
 [
 "F1-CANTEEN/FIT-111",
 "east_g_fit_chair",
-431.2,
+432.2,
 0.019,
 12.22,
 180
@@ -1558,7 +1558,7 @@
 [
 "F1-CANTEEN/FIT-112",
 "east_g_fit_chair",
-431.8,
+432.8,
 0.019,
 12.22,
 180
@@ -1566,7 +1566,7 @@
 [
 "F1-CANTEEN/FIT-113",
 "east_g_fit_table",
-431.5,
+432.5,
 0.019,
 18.0,
 0
@@ -1574,7 +1574,7 @@
 [
 "F1-CANTEEN/FIT-114",
 "east_g_fit_chair",
-431.2,
+432.2,
 0.019,
 17.28,
 0
@@ -1582,7 +1582,7 @@
 [
 "F1-CANTEEN/FIT-115",
 "east_g_fit_chair",
-431.8,
+432.8,
 0.019,
 17.28,
 0
@@ -1590,7 +1590,7 @@
 [
 "F1-CANTEEN/FIT-116",
 "east_g_fit_chair",
-431.2,
+432.2,
 0.019,
 18.72,
 180
@@ -1598,7 +1598,7 @@
 [
 "F1-CANTEEN/FIT-117",
 "east_g_fit_chair",
-431.8,
+432.8,
 0.019,
 18.72,
 180
@@ -1606,7 +1606,7 @@
 [
 "F1-CANTEEN/FIT-118",
 "east_g_fit_table",
-431.5,
+432.5,
 0.019,
 21.0,
 0
@@ -1614,7 +1614,7 @@
 [
 "F1-CANTEEN/FIT-119",
 "east_g_fit_chair",
-431.2,
+432.2,
 0.019,
 20.28,
 0
@@ -1622,7 +1622,7 @@
 [
 "F1-CANTEEN/FIT-120",
 "east_g_fit_chair",
-431.8,
+432.8,
 0.019,
 20.28,
 0
@@ -1630,7 +1630,7 @@
 [
 "F1-CANTEEN/FIT-121",
 "east_g_fit_chair",
-431.2,
+432.2,
 0.019,
 21.72,
 180
@@ -1638,7 +1638,7 @@
 [
 "F1-CANTEEN/FIT-122",
 "east_g_fit_chair",
-431.8,
+432.8,
 0.019,
 21.72,
 180
@@ -1774,7 +1774,7 @@
 [
 "F1-GROUND-OFF/FIT-017",
 "east_g_fit_desk",
-457.0,
+452.3,
 0.019,
 7.5,
 0
@@ -1782,7 +1782,7 @@
 [
 "F1-GROUND-OFF/FIT-018",
 "east_g_fit_ochair",
-457.0,
+452.3,
 0.019,
 8.65,
 180
@@ -1790,7 +1790,7 @@
 [
 "F1-GROUND-OFF/FIT-019",
 "east_g_fit_desk",
-457.0,
+452.3,
 0.019,
 12.0,
 0
@@ -1798,7 +1798,7 @@
 [
 "F1-GROUND-OFF/FIT-020",
 "east_g_fit_ochair",
-457.0,
+452.3,
 0.019,
 13.15,
 180
@@ -1806,7 +1806,7 @@
 [
 "F1-GROUND-OFF/FIT-021",
 "east_g_fit_desk",
-457.0,
+452.3,
 0.019,
 17.5,
 0
@@ -1814,7 +1814,7 @@
 [
 "F1-GROUND-OFF/FIT-022",
 "east_g_fit_ochair",
-457.0,
+452.3,
 0.019,
 18.65,
 180
@@ -1822,7 +1822,7 @@
 [
 "F1-GROUND-OFF/FIT-023",
 "east_g_fit_desk",
-457.0,
+452.3,
 0.019,
 22.0,
 0
@@ -1830,7 +1830,7 @@
 [
 "F1-GROUND-OFF/FIT-024",
 "east_g_fit_ochair",
-457.0,
+452.3,
 0.019,
 23.15,
 180
@@ -3550,7 +3550,7 @@
 [
 "F1-CANTEEN/LAMP-HOUSING-007",
 "east_g_fit_lamptrim",
-424.0,
+432.0,
 5.33,
 10.0,
 0
@@ -3558,37 +3558,13 @@
 [
 "F1-CANTEEN/LAMP-HOUSING-008",
 "east_g_fit_lamptrim",
-424.0,
+432.0,
 5.33,
 16.0,
 0
 ],
 [
 "F1-CANTEEN/LAMP-HOUSING-009",
-"east_g_fit_lamptrim",
-424.0,
-5.33,
-22.0,
-0
-],
-[
-"F1-CANTEEN/LAMP-HOUSING-010",
-"east_g_fit_lamptrim",
-432.0,
-5.33,
-10.0,
-0
-],
-[
-"F1-CANTEEN/LAMP-HOUSING-011",
-"east_g_fit_lamptrim",
-432.0,
-5.33,
-16.0,
-0
-],
-[
-"F1-CANTEEN/LAMP-HOUSING-012",
 "east_g_fit_lamptrim",
 432.0,
 5.33,
@@ -3646,7 +3622,7 @@
 [
 "F1-GROUND-OFF/LAMP-HOUSING-007",
 "east_g_fit_lamptrim",
-457.33,
+466.0,
 5.33,
 10.0,
 0
@@ -3654,37 +3630,13 @@
 [
 "F1-GROUND-OFF/LAMP-HOUSING-008",
 "east_g_fit_lamptrim",
-457.33,
+466.0,
 5.33,
 16.0,
 0
 ],
 [
 "F1-GROUND-OFF/LAMP-HOUSING-009",
-"east_g_fit_lamptrim",
-457.33,
-5.33,
-22.0,
-0
-],
-[
-"F1-GROUND-OFF/LAMP-HOUSING-010",
-"east_g_fit_lamptrim",
-466.0,
-5.33,
-10.0,
-0
-],
-[
-"F1-GROUND-OFF/LAMP-HOUSING-011",
-"east_g_fit_lamptrim",
-466.0,
-5.33,
-16.0,
-0
-],
-[
-"F1-GROUND-OFF/LAMP-HOUSING-012",
 "east_g_fit_lamptrim",
 466.0,
 5.33,

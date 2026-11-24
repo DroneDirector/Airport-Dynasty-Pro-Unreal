@@ -42,12 +42,19 @@ ROOMS = [
     ('F1-POLICE',           436.1, 469.9, 26.1, 51.9, CARPET,   {'-z': [d(450.0, 1.6)], '-x': [d(38.0, 1.6)]}),
 ]
 
+# (part 4: the escape stair boxes, Art/TerminalEast/esc_geom.py: the finishes are cut round them, the skirting stops at them)
+sys.path.insert(0, HERE); import esc_geom as ESC
+for _r in ROOMS:
+    _g = [(x - ESC.HW - 0.02, x + ESC.HW + 0.02) for x in ESC.STAIRS if _r[1] < x < _r[2] and _r[3] < ESC.Z0]
+    if _g: _r[6]['-z'] = sorted(_r[6].get('-z', []) + _g)
+
 def minus(sp, a, b): return [s for p, q in sp for s in ((p, min(q, a)), (max(p, b), q)) if s[1] - s[0] > 1e-4]
 
 def floor(x0, x1, z0, z1, m):
     """The finish x0..x1, z0..z1 (already held off the walls), a square cut round every column standing in it; side faces only on
     its outer edge and round the cuts (nothing between its own cells)."""
     holes = [(x - CR, x + CR, z - CR, z + CR) for x, z in COLS if x0 < x < x1 and z0 < z < z1]
+    holes += [(max(x0, a), min(x1, b), max(z0, c), min(z1, e)) for a, b, c, e in (ESC.rect(x, 0.01) for x in ESC.STAIRS) if a < x1 and x0 < b and c < z1 and z0 < e]
     xs = sorted({x0, x1} | {v for h in holes for v in h[:2]}); zs = sorted({z0, z1} | {v for h in holes for v in h[2:]})
     def inh(a, b, c, e): return any(h[0] <= a and b <= h[1] and h[2] <= c and e <= h[3] for h in holes)
     for a, b in zip(xs, xs[1:]):
@@ -118,7 +125,7 @@ def split(o):
         for u in used: me.materials.append(o.data.materials[u])
         q = bpy.data.objects.new(me.name, me); bpy.context.scene.collection.objects.link(q); out.append(q)
     bm.free(); bpy.data.objects.remove(o); return out
-for f_ in glob.glob(os.path.join(HERE, 'east_g_*.fbx')): os.remove(f_)
+for f_ in glob.glob(os.path.join(HERE, 'east_g_solid*.fbx')): os.remove(f_)
 BIGP = []
 for o in split(S.finish()):
     assert o.data.materials and all(m for m in o.data.materials), 'empty material slot ' + o.name

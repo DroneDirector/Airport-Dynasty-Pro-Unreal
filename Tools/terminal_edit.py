@@ -406,6 +406,8 @@ exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_che
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_arrivals_edit.py'), encoding='utf-8').read())
 # the East Wing's ground-floor rooms: floor finishes, skirtings, door linings (part 3, step 1): Tools/terminal_groundfloor_edit.py, last
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_groundfloor_edit.py'), encoding='utf-8').read())
+# the East Wing's closed escape stairs (part 4, sheet 9c): Tools/terminal_escape_edit.py, last
+exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_escape_edit.py'), encoding='utf-8').read())
 json.dump(L, open(OUT, 'w'))
 print('\n'.join(log))
 print('layout written:', OUT)

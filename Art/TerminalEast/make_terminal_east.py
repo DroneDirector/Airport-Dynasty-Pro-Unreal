@@ -14,8 +14,8 @@
 #                                (sheet 9: their places may still move)
 #   east_pave                    the paving from the pavement's edge (z -8.2, 18 cm up) down to the doors (z -4.2), along the whole
 #                                terminal: the arrivals wing, the escalator room, the Grand Hall and the east side (x -120..557)
-#   east_prom_wall               the promenade's wall (z 6, x 228..470), in a piece of its own for the same reason: no stair
-#                                doorways in it yet (STAIR_DOORS below)
+#   east_prom_wall               the promenade's wall (z 6, x 228..470), in a piece of its own for the same reason: the escape
+#                                stairs' doorways in it (STAIR_DOORS below, part 4: Art/TerminalEast/esc_geom.py)
 #   east_col_g / _f2 / _hall     the round stone columns (instanced)
 #   east_vest12_* / east_vest10_* the entrance vestibules (12 and 10 m; instanced), the main entrance's 5 m sliding doors
 # The wave roof's underside: Tools/wave_roof.py (the roof's own numbers - run this again if the roof changes): the glass and
@@ -53,7 +53,8 @@ TRANSOM = 5.4
 GH_ENTR = ((188, 200), (290, 300), (396, 406), (514, 526))       # the four new entrances (v2.1: the first 2 m, the last 10 m east of v2, clear of the kerb pillars x 184 and 506; the last also clear of the escape stair x 516)
 LINK_X0, LINK_X1 = 107.0, 162.0                       # the link gallery; it runs 6 m past the corner so it can turn in through the front
 SK = -3.91                                            # the second skin's plane: the vestibules' own front (z -3.98..-3.84)
-STAIR_DOORS = []                                      # the escape stairs' doorways in the promenade's wall (x), when sheet 9 is settled
+sys.path.insert(0, HERE); import esc_geom as ESC        # (part 4, the escape stairs: their numbers)
+STAIR_DOORS = ESC.promenade_doors()                   # the escape stairs' doorways in the promenade wall (x 246 + 30 k up to 456: 1.8 m)
 TRANSFER = (326.0, 338.0, 40.0, 51.0)
 
 # ---- the wave roof's underside: the roof's own numbers (Tools/wave_roof.py, the one smooth wave of 2026-11-23) ----
@@ -279,17 +280,20 @@ def plate(x0, x1, z0, z1, holes):
         for za, zb in zip(zs, zs[1:]):
             if any(h[0] <= xa and xb <= h[1] and h[2] <= za and zb <= h[3] for h in holes): continue
             S.box(xa, xb, 5.99, F2, za, zb, MARBLE, sides=('+y',)); S.box(xa, xb, 5.75, 5.99, za, zb, 'MI_T_concrete', sides=('-y',))
-plate(F2X0 + 0.1, X1 - 0.07, F2Z0, ZN + 0.05, [TRANSFER])
+plate(F2X0 + 0.1, X1 - 0.07, F2Z0, ZN + 0.05, [TRANSFER] + [(x - ESC.HW, x + ESC.HW, F2Z0, ESC.Z1) for x in ESC.STAIRS])   # (part 4: the stair boxes stand in it)
 a, b, c, d = TRANSFER                                                                       # the opening's edges, white
 for (xa, xb, za, zb, sd) in ((a - 0.02, a, c, d, '+x'), (b, b + 0.02, c, d, '-x'), (a, b, c - 0.02, c, '+z'), (a, b, d, d + 0.02, '-z')):
     S.box(xa, xb, 5.26, F2, za, zb, W, sides=(sd,))
-S.box(F2X0 - 0.1, X1 - 0.08, 5.24, F2 + 0.02, F2Z0 - 0.06, F2Z0, W, sides=('-z', '-y', '+y', '-x'))   # its south edge over the halls (z 20)
-S.box(F2X0, X1 - 0.08, 5.5, 5.54, F2Z0 - 0.08, F2Z0 - 0.06, LED, sides=('-z', '-y', '+y'))
+for a, b in ESC.gaps(F2X0 - 0.1, X1 - 0.08):           # its south edge over the halls (z 20), stopping 2 cm off the stair boxes
+    e = ('-x',) if a < F2X0 else ('-x', '+x') if b < X1 - 0.1 else ('-x',)
+    S.box(a, b, 5.24, F2 + 0.02, F2Z0 - 0.06, F2Z0, W, sides=('-z', '-y', '+y') + e + (('+x',) if a < F2X0 else ()))
+    S.box(max(a, F2X0), b, 5.5, 5.54, F2Z0 - 0.08, F2Z0 - 0.06, LED, sides=('-z', '-y', '+y') + (('-x', '+x') if a > F2X0 else ('+x',) if b < X1 - 0.1 else ()))
 TAG[0] = 'balustrade'                                                                       # steel shoe, glass, black trim (the Grand Hall landing's)
 def rail(P_, Q_, x0, x1, z=F2Z0 + 0.1):
     P_.box(x0, x1, F2, F2 + 0.12, z - 0.08, z + 0.08, 'MI_T_steel'); Q_.box(x0, x1, F2 + 0.1, F2 + 1.07, z - 0.006, z + 0.006, 'MI_T_glass', sides=('-z', '+z'))
     P_.box(x0, x1, F2 + 1.07, F2 + 1.115, z - 0.03, z + 0.03, 'MI_T_black'); P_.box(x0, x1, F2 + 1.115, F2 + 1.13, z - 0.02, z + 0.02, 'MI_T_black')
-R = Piece('east_f2_rail'); RG = Piece('east_f2_rail_glass'); rail(R, RG, F2X0 + 0.15, X1 - 0.1)
+R = Piece('east_f2_rail'); RG = Piece('east_f2_rail_glass')
+for a, b in ESC.gaps(F2X0 + 0.15, X1 - 0.1): rail(R, RG, a, b)                              # (part 4: open at the stair boxes, 2.64 m)
 TAG[0] = 'x 228 glass'                                                                      # the East Hall's side: glass from the slab to the roof
 XG = F2X0
 tg = lambda z: soffit(XG, z) + IN
@@ -335,16 +339,16 @@ S.box(470.1, 470.16, 0.01, CEIL, 5.9, F2Z0 - 0.06, BASALT, sides=('+x', '-z', '+
 TAG[0] = 'promenade wall'
 S = PW
 # the promenade's wall: cedar piers every 14 m, an oak band along its top, a steel skirting, an LED line under the band
-def z6_spans(x0, x1, y0):
+def z6_spans(x0, x1, y0, e=0.08):
     sp = [(x0, x1)]
     for h in Z6:
-        if h[3] > y0: sp = minus(sp, h[0] - 0.08, h[1] + 0.08)
+        if h[3] > y0: sp = minus(sp, h[0] - e, h[1] + e)
     return sp
 for k in range(17):
-    for a, b in z6_spans(242.0 + 14 * k, min(244.0 + 14 * k, 470.0), 0.01): S.box(a, b, 0.01, 4.0, 5.84, 5.9, CEDAR, sides=('-z', '-x', '+x'))
+    for a, b in z6_spans(242.0 + 14 * k, min(244.0 + 14 * k, 470.0), 0.01, 0.1): S.box(a, b, 0.01, 4.0, 5.84, 5.9, CEDAR, sides=('-z', '-x', '+x'))
 for k in range(17):                                    # (2026-11-23: a slim light on each pier - a black plate, a glowing slot: no real light of its own)
     c = 243.0 + 14 * k
-    if c < 470.0: S.box(c - 0.09, c + 0.09, 1.5, 3.5, 5.815, 5.84, 'MI_T_black', sides=('-z', '-x', '+x', '-y', '+y')); S.box(c - 0.035, c + 0.035, 1.56, 3.44, 5.775, 5.815, LED, sides=('-z', '-x', '+x', '-y', '+y'))
+    if c < 470.0 and not any(h[0] - 0.2 < c < h[1] + 0.2 for h in Z6): S.box(c - 0.09, c + 0.09, 1.5, 3.5, 5.815, 5.84, 'MI_T_black', sides=('-z', '-x', '+x', '-y', '+y')); S.box(c - 0.035, c + 0.035, 1.56, 3.44, 5.775, 5.815, LED, sides=('-z', '-x', '+x', '-y', '+y'))
 S.box(227.9, 470.1, 4.0, CEIL, 5.82, 5.9, OAK, sides=('-z', '-y', '-x', '+x')); S.box(228.0, 470.1, 4.0, 4.03, 5.80, 5.82, LED, sides=('-z', '-y', '+y'))
 for a, b in z6_spans(227.9, 470.1, 0.01): S.box(a, b, 0.01, 0.12, 5.885, 5.9, 'MI_T_steel', sides=('-z', '+y', '-x', '+x'))
 S.box(227.9, 470.16, CEIL, CEIL + 0.04, 5.8, 6.1, W)                                        # its cap
@@ -388,18 +392,21 @@ TAG[0] = 'ceilings'
 COLS_G = ([(x, 20.6) for x in (249.0, 259.5, 270.0, 282.0, 290.0, 302.0, 331.0, 343.0, 355.0, 388.0, 420.0, 453.0, 483.0, 496.5, 510.0, 523.5, 537.0)]
           + [(x, ZC) for x in (247.6, 255.6, 266.2, 275.5, 284.8, 295.4, 303.8, 338.6, 359.5, 388.0, 420.0, 453.0, 483.0, 496.5, 510.0, 523.5, 537.0)])
 CG = [(x, z, 0.38) for x, z in COLS_G]
-slats(236.1, 311.9, F2Z0, ZN, CEIL, CG)                                                    # the claim hall
+SH = [(x - ESC.HW - 0.01, x + ESC.HW + 0.01, F2Z0, ESC.Z1 + 0.01) for x in ESC.STAIRS]      # (part 4: round the stair boxes)
+slats(236.1, 311.9, F2Z0, ZN, CEIL, CG, holes=SH)                                                  # the claim hall
 slats(312.1, 323.9, F2Z0, ZN, CEIL)                                                        # the booths
-slats(324.1, 371.9, F2Z0, 40.9, CEIL, CG, holes=[(TRANSFER[0] - 0.02, TRANSFER[1] + 0.02, TRANSFER[2] - 0.02, 40.9)])   # the passport hall
+slats(324.1, 371.9, F2Z0, 40.9, CEIL, CG, holes=SH + [(TRANSFER[0] - 0.02, TRANSFER[1] + 0.02, TRANSFER[2] - 0.02, 40.9)])   # the passport hall
 slats(324.1, 357.9, 40.9, ZN, CEIL, CG, holes=[(TRANSFER[0] - 0.02, TRANSFER[1] + 0.02, 40.9, TRANSFER[3] + 0.02)])
-slats(470.16, X1 - 0.08, F2Z0, ZN, CEIL, CG)                                               # the coach station
+slats(470.16, X1 - 0.08, F2Z0, ZN, CEIL, CG, holes=SH)                                             # the coach station
 def ceil(x0, x1, z0, z1):                              # (a second face at 5.40, as the terminal's own rooms: the lamps' check looks up from 5.38)
     S.box(x0, x1, 5.36, 5.4, z0, z1, OFF, sides=('-y',)); S.box(x0, x1, 5.4, 5.41, z0, z1, OFF, sides=('-y',))
 for a, b in ((156.1, 159.9), (160.1, 177.9), (178.1, 189.9), (190.1, 209.9), (210.1, 227.9)): ceil(a, b, 40.1, ZN)
 for r in ((228.1, 235.9, 6.1, 39.9), (228.1, 235.9, 40.1, ZN), (312.1, 323.9, 6.1, 19.7), (358.1, 371.9, 41.1, 50.9), (357.9, 371.9, 51.1, ZN),
-          (372.1, 403.9, 6.1, 25.9), (404.1, 435.9, 6.1, 25.9), (436.1, 469.9, 6.1, 25.9), (372.1, 403.9, 26.1, ZN), (404.1, 435.9, 26.1, ZN), (436.1, 469.9, 26.1, ZN)): ceil(*r)
+          (372.1, 403.9, 6.1, 25.9), (404.1, 435.9, 6.1, 25.9), (436.1, 469.9, 6.1, 25.9), (372.1, 403.9, 26.1, ZN), (404.1, 435.9, 26.1, ZN), (436.1, 469.9, 26.1, ZN)):
+    for q in ESC.cut(*r): ceil(*q)
 # the lids of the rooms in front of the slab (z 6..20), seen from Floor 2's edge: white, level
-for a, b in ((228.1, 235.9), (312.1, 323.9), (372.1, 469.9)): S.box(a, b, 5.4, 5.44, 6.1, F2Z0 - 0.06, W, sides=('+y',))
+for a, b in ((228.1, 235.9), (312.1, 323.9), (372.1, 469.9)):
+    for q in ESC.cut(a, b, 6.1, F2Z0 - 0.06): S.box(q[0], q[1], 5.4, 5.44, q[2], q[3], W, sides=('+y',))
 # ======================================================================================================== the separate pieces
 def column(name, y0, y1, r=0.3):
     P = Piece(name); n = 32
@@ -456,6 +463,8 @@ LAMPS = {                                              # name: (floor node, y, p
     'F1-COACH-STATION': ('F1', 5.22, lampgrid(470, 551, 20, 52, 9, 7, 4)),
     'F1-EAST-HALL': ('F1', 11.22, lamprows(156, 228, (37.0,), 5.5)), 'F2-CONCOURSE': ('F2', 11.22, lamprows(228, 551, (39.5, 47.5), 5.4)),   # (2026-11-23: every 11 m one of three rows lit a wall spot every 22 m)
 }
+for _v in LAMPS.values():                              # (part 4: no lamp where a stair box stands)
+    if _v[0] == 'F1': _v[2][:] = [p for p in _v[2] if not any(a < p[0] < b and c < p[1] < d for a, b, c, d in (ESC.rect(x, 0.75) for x in ESC.STAIRS))]
 PLACE = {'cols': [['east_col_g', x, 0, z] for x, z in COLS_G] + [['east_col_f2', x, 0, ZC] for x in COLS_F2] + [['east_col_hall', x, 0, ZC] for x in COLS_HALL],
          'entrances': [[(a + b) / 2.0, b - a] for a, b in GH_ENTR], 'lamps': LAMPS}
 json.dump(PLACE, open(os.path.join(HERE, 'place.json'), 'w'), indent=0)
