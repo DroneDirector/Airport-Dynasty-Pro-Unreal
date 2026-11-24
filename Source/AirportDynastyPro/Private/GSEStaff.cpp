@@ -37,14 +37,14 @@ bool AGSE::FindTrain(int32& Ti, int32& A, int32& B) const
 	// (as StartFor: a free tractor, two free carts coupled-ready, the front one's eye clear)
 	const FVector Eye(201.f, 0.f, 40.f), Jaw(-127.f, 0.f, 40.f);
 	Ti = INDEX_NONE;
-	for (int32 t = 0; t < Tractors.Num() && Ti == INDEX_NONE; ++t) if (Tractors[t].IsTrain() && Tractors[t].Job == EJob::None && Tractors[t].M.IsValid()) Ti = t;
+	for (int32 t = 0; t < Tractors.Num() && Ti == INDEX_NONE; ++t) if (TractorFree(Tractors[t])) Ti = t;
 	if (Ti == INDEX_NONE) return false;
 	for (A = 0; A < Carts.Num(); ++A)
 	{
-		if (Carts[A].Tractor != INDEX_NONE) continue;
+		if (!CartFree(A)) continue;
 		bool bFronted = false; for (int32 o = 0; o < Carts.Num(); ++o) if (o != A && FVector::Dist2D(CW(Carts[A], Eye), CW(Carts[o], Jaw)) < 30.f) bFronted = true;
 		if (bFronted) continue;
-		for (B = 0; B < Carts.Num(); ++B) if (A != B && Carts[B].Tractor == INDEX_NONE && FVector::Dist2D(CW(Carts[B], Eye), CW(Carts[A], Jaw)) < 30.f) return true;
+		for (B = 0; B < Carts.Num(); ++B) if (A != B && CartFree(B) && FVector::Dist2D(CW(Carts[B], Eye), CW(Carts[A], Jaw)) < 30.f) return true;
 	}
 	return false;
 }
@@ -104,7 +104,7 @@ void AGSE::WantTick(float Dt)
 			Wants.RemoveAt(k--); continue;
 		}
 		int32 Ti = INDEX_NONE, A = INDEX_NONE, B = INDEX_NONE;
-		if (W.Kind != EWant::Loader && !FindTrain(Ti, A, B)) { W.Why = TEXT("no baggage tractor and carts free"); continue; }
+		if (W.Kind != EWant::Loader && !FindTrain(Ti, A, B)) { W.Why = Tractors.ContainsByPredicate([](const FTractor& T) { return T.IsTrain() && (T.Player.IsValid() || (T.Job == EJob::None && T.Train.Num())); }) ? TEXT("you have the baggage tractor or its carts, no other is free") : TEXT("no baggage tractor and carts free"); continue; }
 		int32 Li = LoaderAt(W.StandX); const bool bNeedLoader = Li == INDEX_NONE;
 		if (bNeedLoader) for (int32 i = 0; i < Tractors.Num() && Li == INDEX_NONE; ++i) if (LoaderFree(Tractors[i])) Li = i;
 		if (Li == INDEX_NONE) { W.Why = TEXT("no belt loader free"); continue; }

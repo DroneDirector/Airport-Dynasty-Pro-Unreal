@@ -21,7 +21,7 @@ namespace
 	const FVector CabAxis(-0.7071, 0., 0.7071);
 }
 
-bool AGSE::CabMine(const FTractor& T) const { return (T.Svc != INDEX_NONE || T.bLoader) && T.Player.IsValid() && T.PlayerSeat == 0; }
+bool AGSE::CabMine(const FTractor& T) const { return T.Player.IsValid() && T.PlayerSeat == 0; }
 
 void AGSE::CabDress(FTractor& T)
 {
@@ -132,7 +132,7 @@ void AGSE::CabLeave(FTractor& T)
 
 void AGSE::CabTick(FTractor& T, int32 Ti, float Dt)
 {
-	if (T.Svc == INDEX_NONE && !T.bLoader) return;
+	if (T.IsTrain() && !CabMine(T)) return;   // (a baggage tractor: only with you in it)
 	if (CabMine(T)) { if (!T.bGearHand) T.Gear = T.bReverse ? -1 : 1; }
 	else if (T.Job != EJob::None || T.Path.Num())
 	{

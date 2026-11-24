@@ -29,15 +29,15 @@ namespace
 bool AGSE::ArrivalFor(float StandX, const FString& Key)
 {
 	for (const FTractor& T : Tractors) if (T.bArrival && T.Job != EJob::None && FMath::Abs(T.StandX - StandX) < 1.f) return true;
-	int32 Ti = INDEX_NONE; for (int32 t = 0; t < Tractors.Num() && Ti == INDEX_NONE; ++t) if (Tractors[t].IsTrain() && Tractors[t].Job == EJob::None && Tractors[t].M.IsValid()) Ti = t;
+	int32 Ti = INDEX_NONE; for (int32 t = 0; t < Tractors.Num() && Ti == INDEX_NONE; ++t) if (TractorFree(Tractors[t])) Ti = t;
 	if (Ti == INDEX_NONE) { ADP_LOG(TEXT("GSE: no tractor free for %s's arriving bags"), *Key); return false; }
 	for (int32 a = 0; a < Carts.Num(); ++a)
 	{
-		if (Carts[a].Tractor != INDEX_NONE) continue;
+		if (!CartFree(a)) continue;
 		bool bFronted = false; for (int32 o = 0; o < Carts.Num(); ++o) if (o != a && FVector::Dist2D(CW(Carts[a], FVector(201.f, 0.f, 40.f)), CW(Carts[o], FVector(-127.f, 0.f, 40.f))) < 30.f) bFronted = true;
 		if (bFronted) continue;
 		for (int32 b = 0; b < Carts.Num(); ++b)
-			if (a != b && Carts[b].Tractor == INDEX_NONE && FVector::Dist2D(CW(Carts[b], FVector(201.f, 0.f, 40.f)), CW(Carts[a], FVector(-127.f, 0.f, 40.f))) < 30.f)
+			if (a != b && CartFree(b) && FVector::Dist2D(CW(Carts[b], FVector(201.f, 0.f, 40.f)), CW(Carts[a], FVector(-127.f, 0.f, 40.f))) < 30.f)
 			{ StartArrival(Ti, {a, b}, StandX, Key); return Tractors[Ti].Job != EJob::None; }
 	}
 	return false;

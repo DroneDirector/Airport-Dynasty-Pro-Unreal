@@ -221,6 +221,12 @@ bool AGSE::SpawnTractor(FTractor& T)
 	T.GDoor = M->BindGroup({TEXT("DoorDriver")}, true, FTransform(T.KHinge));
 	T.GDoor2 = M->BindGroup({TEXT("HingeDoor_0"), TEXT("HingeDoor_1")}, false, FTransform(T.KHinge));
 	T.GWheelS = M->BindGroup({TEXT("SteeringWheel")}, true, FTransform(T.KWheelC));
+	if (T.IsTrain())
+	{
+		// (round its wheel: the model has no levers for them yet)
+		T.Pt.Add(TEXT("CAB_Horn"), T.KWheelC); T.Pt.Add(TEXT("CAB_StalkL"), T.KWheelC + FVector(6.f, -17.f, -3.f)); T.Pt.Add(TEXT("CAB_StalkR"), T.KWheelC + FVector(6.f, 17.f, -3.f));
+		T.Pt.Add(TEXT("IK_ParkBrake"), T.KWheelC + FVector(8.f, 30.f, -12.f)); T.Pt.Add(TEXT("IK_GearSelect"), T.KWheelC + FVector(8.f, 24.f, -6.f)); T.Pt.Add(TEXT("TR_Hitch"), GseTPinTop);
+	}
 	if (T.IsTrain()) T.GPin = M->BindGroup({TEXT("HitchPinRear")}, true, FTransform(GseTPinTop));
 	else if (T.bLoader)
 	{
@@ -581,6 +587,22 @@ void AGSE::Drive(FTractor& T, float Dt)
 	Pose(T);
 }
 
+void AGSE::CartFollow(FCart& C, const FVector& Hitch)
+{
+	const FVector Fw = FRotator(0.f, C.Yaw, 0.f).Vector();
+	const FVector Fax = C.At + Fw * GseCAxle.X, Rax = C.At - Fw * 80.f;
+	FVector D = Hitch - Fax; D.Z = 0.f;
+	if (D.SizeSquared() > 4.f) C.AxleYaw = D.Rotation().Yaw;
+	const FVector FaxN = FVector(Hitch.X, Hitch.Y, C.At.Z) - FRotator(0.f, C.AxleYaw, 0.f).Vector() * GseCEyeToAxle;
+	FVector B = FaxN - Rax; B.Z = 0.f;
+	float Yaw = B.SizeSquared() > 1.f ? B.Rotation().Yaw : C.Yaw;
+	// (the turntable stops at 75 degrees: the body pulled round)
+	const float Rel = FMath::FindDeltaAngleDegrees(Yaw, C.AxleYaw);
+	if (FMath::Abs(Rel) > 75.f) Yaw = C.AxleYaw - FMath::Sign(Rel) * 75.f;
+	C.Yaw = Yaw; C.At = FaxN - FRotator(0.f, Yaw, 0.f).Vector() * GseCAxle.X;
+	PoseCart(C);
+}
+
 void AGSE::Train(FTractor& T, float Dt)
 {
 	// the carts follow as a real trailer train: each cart's eye on the hitch in front of it, its turntable axle turned to
@@ -589,20 +611,8 @@ void AGSE::Train(FTractor& T, float Dt)
 	for (const int32 c : T.Train)
 	{
 		if (!Carts.IsValidIndex(c)) continue;
-		FCart& C = Carts[c];
-		const FVector Fw = FRotator(0.f, C.Yaw, 0.f).Vector();
-		const FVector Fax = C.At + Fw * GseCAxle.X, Rax = C.At - Fw * 80.f;
-		FVector D = Hitch - Fax; D.Z = 0.f;
-		if (D.SizeSquared() > 4.f) C.AxleYaw = D.Rotation().Yaw;
-		const FVector FaxN = FVector(Hitch.X, Hitch.Y, C.At.Z) - FRotator(0.f, C.AxleYaw, 0.f).Vector() * GseCEyeToAxle;
-		FVector B = FaxN - Rax; B.Z = 0.f;
-		float Yaw = B.SizeSquared() > 1.f ? B.Rotation().Yaw : C.Yaw;
-		// (the turntable stops at 75 degrees: the body pulled round)
-		const float Rel = FMath::FindDeltaAngleDegrees(Yaw, C.AxleYaw);
-		if (FMath::Abs(Rel) > 75.f) Yaw = C.AxleYaw - FMath::Sign(Rel) * 75.f;
-		C.Yaw = Yaw; C.At = FaxN - FRotator(0.f, Yaw, 0.f).Vector() * GseCAxle.X;
-		PoseCart(C);
-		Hitch = CW(C, GseCJaw);
+		CartFollow(Carts[c], Hitch);
+		Hitch = CW(Carts[c], GseCJaw);
 	}
 	if (T.TowGpu != INDEX_NONE) GpuFollow(T.TowGpu, Hitch, T.bReverse, Dt);
 }
@@ -930,7 +940,7 @@ void AGSE::Tick(float Dt)
 				if (!U.Gpu.M.IsValid() || U.Gpu.bConnected || U.Gpu.bInHand || AircraftAt(U.StandX) || !U.Key.IsEmpty()) continue;
 				const float D = FMath::Abs(U.StandX - 269.f); if (D < BestD) { BestD = D; Best = i; }
 			}
-		if (Best != INDEX_NONE && Tractors.Num() >= 4) StartGpu(3, Best);
+		if (Best != INDEX_NONE && Tractors.Num() >= 4 && TractorFree(Tractors[3])) StartGpu(3, Best);
 		else ADP_LOG(TEXT("GSE: no free GPU to move for the test (every gate has an aircraft or its GPU plugged in)"));
 	}
 	// (the roller doors open for the vehicles: anything driving within 22 m holds the nearest doors open - the first test
@@ -963,6 +973,7 @@ void AGSE::Tick(float Dt)
 	}
 	for (FCart& C : Carts) CartParts(C, Dt);
 	for (int32 i = 0; i < Tractors.Num(); ++i) if (Tractors[i].bLoader) { if (Tractors[i].Job == EJob::None && Tractors[i].M.IsValid()) YouLoader(i, Dt); LoaderBags(i, Dt); BeltTick(Tractors[i], Dt); }
+	YouTractors(Dt);
 	PollBags(Dt);
 	// (crew plans asked for from inside a crew act)
 	// (bags handed to the arrivals conveyor: gone as its own bag rides off)
@@ -1133,16 +1144,16 @@ bool AGSE::StartFor(const FString& Key, float StandX)
 {
 	// a free tractor and two free carts standing coupled-ready (a pair in a row, front to back: b's eye at a's rear jaw),
 	// the front one's eye clear to back up to
-	int32 Ti = INDEX_NONE; for (int32 t = 0; t < Tractors.Num() && Ti == INDEX_NONE; ++t) if (Tractors[t].IsTrain() && Tractors[t].Job == EJob::None && Tractors[t].M.IsValid()) Ti = t;
+	int32 Ti = INDEX_NONE; for (int32 t = 0; t < Tractors.Num() && Ti == INDEX_NONE; ++t) if (TractorFree(Tractors[t])) Ti = t;
 	if (Ti == INDEX_NONE) { ADP_LOG(TEXT("GSE: no tractor free for %s's baggage"), *Key); return false; }
 	for (int32 a = 0; a < Carts.Num(); ++a)
 	{
-		if (Carts[a].Tractor != INDEX_NONE) continue;
+		if (!CartFree(a)) continue;
 		bool bFronted = false; for (int32 o = 0; o < Carts.Num(); ++o) if (o != a && FVector::Dist2D(CW(Carts[a], GseCEye), CW(Carts[o], GseCJaw)) < 30.f) bFronted = true;
 		if (bFronted) continue;   // (another cart in front of it)
 		for (int32 b = 0; b < Carts.Num(); ++b)
 		{
-			if (a == b || Carts[b].Tractor != INDEX_NONE || FVector::Dist2D(CW(Carts[b], GseCEye), CW(Carts[a], GseCJaw)) > 30.f) continue;
+			if (a == b || !CartFree(b) || FVector::Dist2D(CW(Carts[b], GseCEye), CW(Carts[a], GseCJaw)) > 30.f) continue;
 			Tractors[Ti].Key = Key; Tractors[Ti].StandX = StandX;
 			BagKey.Add(Ti, Key);
 			StartTrain(Ti, {a, b});

@@ -460,6 +460,13 @@ riders `Data/ambulift-riders.json`, `Data/wheelchair-riders.json`, all points an
   its crew work (claims: SlotTaken, Stage, bBottomHeld); up the stopped belt on foot (BeltClimb); both hands (SetArmL).
   Bags wait at the top until somebody is up (HoldUp asked again every 5 s); LoaderWaits gives the flight its reason.
   Left: a second loader while you sit in the first, a hold to walk into, moving buttons (parts not bound).
+- Baggage tractor by hand (to-do 238, GSETractorYou.cpp): compiled, not run. E at its door, 25 km/h (15 with a train), only when no
+  crew has it; crews take another or wait with the reason (`TractorFree`, `CartFree`). Carts follow (`TrainDrag` stops the train when
+  a cart would touch something); never backwards with carts, the GPU straight back only. Not off with a pin up, a bar unpinned, a curtain open.
+- E at pin, drawbar, GPU bar, straps, hem: the crew's own movements (`HitchPinPose`, `CartBarPose`, `GpuBarPose`, `StrapPose`, `CurtainPose`).
+  A cart is uncoupled only back at its place, the GPU only in its place at the stand. Two minutes left, 40 m away: a crew pin it up and
+  fetch it home (`TractorTake`: apron, hall lane westward, beside the boxes; not from elsewhere in the building, not with bags aboard).
+- Next: bags by hand at the carousel and conveyor (hook: `TrainFlight`, the carts' Flight with the bag).
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 

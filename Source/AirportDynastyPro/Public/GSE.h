@@ -125,8 +125,9 @@ public:
 		float Boom = 0.f, BoomWant = 0.f; bool bBelt = false;
 		// (worked by you, GSELoaderYou.cpp: the belt back, a stop pressed; the stand whose bulk door it is at, how far that is)
 		bool bBeltBack = false, bLStop = false, bLNear = false; int32 GJoy = INDEX_NONE; float JoyNow = 0.f;
+		int32 YBar = INDEX_NONE; float YLeftT = 0.f, YNoteT = 0.f, YTryT = 0.f;   // a cart whose drawbar you laid in, not pinned yet; left alone
 		float LYouX = -1e6f, LLeftT = 0.f, LDockT = 0.f, LWaitT = 0.f, LAhead = 0.f, LAside = 0.f, LTurn = 0.f;
-		int32 CtlKey() const { return bLoader ? -2 : Svc; }   // (its line of controls)
+		int32 CtlKey() const { return bLoader ? -2 : Svc == INDEX_NONE ? -3 : Svc; }   // (its line of controls)
 		int32 GBoom = INDEX_NONE, GBumper = INDEX_NONE, GRam[4] = {INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE};
 		UAudioComponent* BeltSnd = nullptr; UAudioComponent* BoomSnd = nullptr;
 		int32 TopCrew = INDEX_NONE;       // the loader up at the hold door
@@ -151,6 +152,8 @@ public:
 		int32 GWheel[4] = {INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE}, GAxle = INDEX_NONE, GBar = INDEX_NONE, GPin = INDEX_NONE;
 		int32 GSheet[2] = {INDEX_NONE, INDEX_NONE}, GHem[2] = {INDEX_NONE, INDEX_NONE}, GStrap[2] = {INDEX_NONE, INDEX_NONE}, GRoll[2] = {INDEX_NONE, INDEX_NONE};
 		bool bStraps[2] = {true, true};                 // the curtain's straps hooked
+		uint8 StrapOff[2] = {0, 0};                     // (unhooked by you: 1 the rear two, 2 the front two)
+		bool bOut = false; FVector Place = FVector::ZeroVector; float PlaceYaw = 0.f;   // taken by you from there: no crew's cart till it is back
 		int32 Tractor = INDEX_NONE;                     // hitched in that tractor's train
 		FString Flight;                                 // (the train carries its flight's tag: never the wrong aircraft)
 		UAudioComponent* Roll = nullptr;
@@ -185,6 +188,40 @@ private:
 	static TSharedPtr<FVehTable> StairsControls();
 	/** The belt loader worked by you (GSELoaderYou.cpp). Held: the boom stands (somebody on it or under it). Free: a crew may have it. */
 	static TSharedPtr<FVehTable> LoaderControls();
+	/** The baggage tractor and its carts worked by you (GSETractorYou.cpp). */
+	static TSharedPtr<FVehTable> TractorControls();
+	TFunction<void(float, float, FDriverPose&)> HitchPinPose(int32 Ti, int32 Front, float Grip) const;
+	TFunction<void(float, float, FDriverPose&)> CartBarPose(int32 Cart) const;
+	TFunction<void(float, float, FDriverPose&)> GpuBarPose(int32 Gate) const;
+	TFunction<void(float, float, FDriverPose&)> StrapPose(int32 c, int32 s, float X, float Sx) const;
+	TFunction<void(float, float, FDriverPose&)> CurtainPose(int32 c, int32 s) const;
+	FVector CartBarHandle(int32 Cart) const;
+	FVector GpuPoint(int32 Gate, const FVector& L) const;
+	void CartFollow(FCart& C, const FVector& Hitch);
+	bool TractorFree(const FTractor& T) const;   // a crew may have it: at home, nothing behind it, not yours
+	bool CartFree(int32 c) const;
+	bool TractorShut(FTractor& T, bool bSay);
+	bool TractorBack(FTractor& T, bool bSay);
+	bool TrainOwn(const FTractor& T, const FVector& At) const;
+	bool TrainDrag(FTractor& T, const struct FCollisionQueryParams& Q, float Dt);
+	FVector TrainHitch(const FTractor& T) const;
+	int32 TrainLast(const FTractor& T) const { return T.Train.Num() ? T.Train.Last() : INDEX_NONE; }
+	int32 HitchCart(const FTractor& T) const;
+	int32 HitchGpu(const FTractor& T) const;
+	bool CurtainNear(const FTractor& T, int32& c, int32& s) const;
+	FString TractorSay(int32 Ti, int32 S) const;
+	bool TractorMay(int32 Ti, int32 S, FString& Why) const;
+	FVector TractorSpot(int32 Ti, int32 S) const;
+	TFunction<void(float, float, FDriverPose&)> TractorAct(int32 Ti, int32 S, float& Secs) const;
+	void TractorDo(int32 Ti, int32 S, int32 c, int32 s, float Want, bool bEnd);
+	void YouTractors(float Dt);
+	int32 TractorWhere(const FTractor& T) const;
+	void TractorGpu(int32 Ti);
+	FString TrainFlight(const FTractor& T) const;
+	void TractorTake(int32 Ti);
+	void TractorHome(int32 Ti);
+	void TractorIn(int32 Ti);
+	void TractorDrop(int32 Ti);
 	bool LoaderHeld(const FTractor& T, float To) const;
 	bool LoaderFree(const FTractor& T) const;
 	void YouLoader(int32 Li, float Dt);

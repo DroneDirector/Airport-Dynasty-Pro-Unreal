@@ -128,7 +128,7 @@ TFunction<void(float, float, FDriverPose&)> AGSE::SeatFn(int32 Ti) const
 		P.Pelvis = TW(T, T.KSeat + FVector(0, 0, 10.f)); P.Lean = -4.f;
 		P.Foot[0] = TW(T, T.KBrake); P.Foot[1] = TW(T, T.KAccel); P.FootPitch[0] = P.FootPitch[1] = 20.f;
 		P.bHand[0] = P.bHand[1] = true; P.Hand[0] = TW(T, T.KHandL); P.Hand[1] = TW(T, T.KHandR); P.Grip[0] = P.Grip[1] = 1.f;
-		if (T.Svc == INDEX_NONE) return;
+		if (T.Svc == INDEX_NONE && !(T.IsTrain() && SvcYours(T))) return;
 		// (a service vehicle: the hands go round with the wheel and slide back on its rim; the right foot on the pedal that is
 		//  pressed - yours, or as it speeds up and slows - the pedal going down with it)
 		const FQuat Q(FVector(-0.7071f, 0.f, 0.7071f), FMath::DegreesToRadians(50.f * FMath::Sin(FMath::DegreesToRadians(-T.Steer * 4.f))));
@@ -201,38 +201,81 @@ void AGSE::ClimbOut(int32 Ci, int32 Ti, TFunction<void()> Then)
 
 // ------------------------------------------------------------------ coupling by hand
 
+// (the same movements for its crew and for you: GSETractorYou.cpp)
+TFunction<void(float, float, FDriverPose&)> AGSE::HitchPinPose(int32 Ti, int32 Front, float Grip) const
+{
+	return [this, Ti, Front, Grip](float K, float PH, FDriverPose& P)
+	{
+		const bool bT = Front == INDEX_NONE;
+		const FVector S = bT ? TW(Tractors[Ti], GscTPinStand) : CW(Carts[Front], GscCPinStand), T = bT ? TW(Tractors[Ti], GscTPinTop) : CW(Carts[Front], GscCPinTop);
+		P = ADPPose::Stoop(S, (T - S).GetSafeNormal2D(), 1, T + FVector(0, 0, (bT ? 40.f : 10.f) * (bT ? Tractors[Ti].Pin : Carts[Front].Pin) + 6.f), Grip, PH, ADPPose::Ramp(K));
+	};
+}
+
+FVector AGSE::CartBarHandle(int32 Cart) const
+{
+	// the cart's drawbar handle where it is now (on the turntable axle, raised by Lift)
+	const FCart& C = Carts[Cart];
+	const FQuat Qa(FVector::UpVector, FMath::DegreesToRadians(FMath::FindDeltaAngleDegrees(C.Yaw, C.AxleYaw))), Ql(FVector::RightVector, FMath::DegreesToRadians(C.Lift));
+	return CW(C, GscCAxleP + Qa.RotateVector(GscCBarP - GscCAxleP + Ql.RotateVector(GscCHandle - GscCBarP)));
+}
+
+TFunction<void(float, float, FDriverPose&)> AGSE::CartBarPose(int32 Cart) const
+{
+	return [this, Cart](float K, float PH, FDriverPose& P)
+	{
+		const FCart& C = Carts[Cart]; const FVector S = CW(C, GscCBarStand), H = CartBarHandle(Cart), Rt = FRotator(0.f, C.Yaw + 90.f, 0.f).Vector(), Fw = FRotator(0.f, C.Yaw, 0.f).Vector();
+		P = ADPPose::Both(S, Rt, H + Fw * 9.f, H - Fw * 9.f, 1.f, PH, ADPPose::Ramp(K), 10.f);
+	};
+}
+
+FVector AGSE::GpuPoint(int32 Gate, const FVector& L) const { const ATugs* G = Tg(); return G && G->Tugs.IsValidIndex(Gate) && G->Tugs[Gate].Gpu.M.IsValid() ? G->Tugs[Gate].Gpu.M->GetActorTransform().TransformPosition(L) : FVector::ZeroVector; }
+
+TFunction<void(float, float, FDriverPose&)> AGSE::GpuBarPose(int32 Gate) const
+{
+	return [this, Gate](float K, float PH, FDriverPose& P) { const FVector S = GpuPoint(Gate, GscGStand), H = GpuPoint(Gate, GscGHandle) + FVector(0, 0, 6.f * FMath::Sin(PI * K)); P = ADPPose::Squat(S, (H - S).GetSafeNormal2D(), H, PH, ADPPose::Ramp(K)); };
+}
+
+TFunction<void(float, float, FDriverPose&)> AGSE::StrapPose(int32 c, int32 s, float X, float Sx) const
+{
+	return [this, c, s, X, Sx](float K, float PH, FDriverPose& P)
+	{
+		const FCart& C = Carts[c]; const float Ys = s == 0 ? -1.f : 1.f;
+		P = ADPPose::Stoop(CW(C, FVector(Sx, Ys * 115.f, 0.f)), FRotator(0.f, C.Yaw + 90.f, 0.f).Vector() * -Ys, 1, CW(C, FVector(X, Ys * 82.f, 58.5f)), 0.9f, PH, ADPPose::Ramp(K));
+	};
+}
+
+TFunction<void(float, float, FDriverPose&)> AGSE::CurtainPose(int32 c, int32 s) const
+{
+	return [this, c, s](float K, float PH, FDriverPose& P)
+	{
+		const FCart& C = Carts[c]; const float Ys = s == 0 ? -1.f : 1.f, Z = FMath::Lerp(55.5f, 180.1f, C.Curtain[s]);
+		// (IK_Curtain_<side>_HandL / _HandR: riding with the hem)
+		const FVector Hl = CW(C, FVector(s == 0 ? 12.5f : -12.5f, Ys * 79.1f, Z)), Hr = CW(C, FVector(s == 0 ? -12.5f : 12.5f, Ys * 79.1f, Z));
+		P = ADPPose::Both(CW(C, FVector(0.f, Ys * 115.f, 0.f)), FRotator(0.f, C.Yaw + 90.f, 0.f).Vector() * -Ys, Hl, Hr, 1.f, PH, ADPPose::Ramp(K), 4.f);
+	};
+}
+
 void AGSE::CoupleCart(int32 Ci, int32 Ti, int32 Cart, int32 Front, TFunction<void()> Then)
 {
 	// the hitch it goes on: the tractor's rear pin hitch, or the rear coupler jaw of the cart in front
 	auto PinTop = [this, Ti, Front] { return Front == INDEX_NONE ? TW(Tractors[Ti], GscTPinTop) : CW(Carts[Front], GscCPinTop); };
 	auto PinStand = [this, Ti, Front] { return Front == INDEX_NONE ? TW(Tractors[Ti], GscTPinStand) : CW(Carts[Front], GscCPinStand); };
 	auto SetPin = [this, Ti, Front](float V) { if (Front == INDEX_NONE) Tractors[Ti].PinWant = V; else Carts[Front].PinWant = V; };
-	auto PinOf = [this, Ti, Front] { return Front == INDEX_NONE ? Tractors[Ti].Pin : Carts[Front].Pin; };
-	// the cart's drawbar handle where it is now (on the turntable axle, raised by Lift)
-	auto Handle = [this, Cart]
-	{
-		const FCart& C = Carts[Cart];
-		const FQuat Qa(FVector::UpVector, FMath::DegreesToRadians(FMath::FindDeltaAngleDegrees(C.Yaw, C.AxleYaw))), Ql(FVector::RightVector, FMath::DegreesToRadians(C.Lift));
-		return CW(C, GscCAxleP + Qa.RotateVector(GscCBarP - GscCAxleP + Ql.RotateVector(GscCHandle - GscCBarP)));
-	};
 	const bool bTractor = Front == INDEX_NONE;
 	// 1. the pin up
 	WalkTo(Ci, PinStand, 15.f);
 	Do(Ci, [this, bTractor, PinTop, SetPin] { SetPin(1.f); Sound(bTractor ? TEXT("BTPinOut") : TEXT("BCPinOut"), PinTop()); });
-	PoseAct(Ci, [PinTop, PinStand, PinOf, bTractor](float K, float PH, FDriverPose& P) { const FVector S = PinStand(), T = PinTop(); P = ADPPose::Stoop(S, (T - S).GetSafeNormal2D(), 1, T + FVector(0, 0, (bTractor ? 40.f : 10.f) * PinOf() + 6.f), 1.f, PH, ADPPose::Ramp(K)); }, 1.5f);
+	PoseAct(Ci, HitchPinPose(Ti, Front, 1.f), 1.5f);
 	// 2. the drawbar lowered: both hands on its handle, the eye down into the jaw
 	WalkTo(Ci, [this, Cart] { return CW(Carts[Cart], GscCBarStand); }, 15.f);
 	Do(Ci, [this, Cart] { Carts[Cart].AxleYaw = Carts[Cart].Yaw; Carts[Cart].LiftWant = 0.f; });
-	PoseAct(Ci, [this, Cart, Handle](float K, float PH, FDriverPose& P)
-	{
-		const FCart& C = Carts[Cart]; const FVector S = CW(C, GscCBarStand), H = Handle(), Rt = FRotator(0.f, C.Yaw + 90.f, 0.f).Vector(), Fw = FRotator(0.f, C.Yaw, 0.f).Vector();
-		P = ADPPose::Both(S, Rt, H + Fw * 9.f, H - Fw * 9.f, 1.f, PH, ADPPose::Ramp(K), 10.f);
-	}, 3.0f);
+	PoseAct(Ci, CartBarPose(Cart), 3.0f);
 	Do(Ci, [this, Cart, PinTop] { Carts[Cart].Lift = Carts[Cart].LiftWant = 0.f; Carts[Cart].bMoved = true; Sound(TEXT("BCDrawbarClank"), PinTop() - FVector(0, 0, 20.f)); });
 	// 3. the pin down through the eye
 	WalkTo(Ci, PinStand, 15.f);
 	Do(Ci, [SetPin] { SetPin(0.f); });
-	PoseAct(Ci, [PinTop, PinStand, PinOf, bTractor](float K, float PH, FDriverPose& P) { const FVector S = PinStand(), T = PinTop(); P = ADPPose::Stoop(S, (T - S).GetSafeNormal2D(), 1, T + FVector(0, 0, (bTractor ? 40.f : 10.f) * PinOf() + 6.f), 0.9f, PH, ADPPose::Ramp(K)); }, 1.3f);
+	PoseAct(Ci, HitchPinPose(Ti, Front, 0.9f), 1.3f);
 	Do(Ci, [this, Ti, Cart, bTractor, PinTop]
 	{
 		Sound(bTractor ? TEXT("BTHitchPin") : TEXT("BCPinIn"), PinTop());
@@ -247,29 +290,18 @@ void AGSE::UncoupleCart(int32 Ci, int32 Ti, int32 Cart, int32 Front, TFunction<v
 	auto PinTop = [this, Ti, Front] { return Front == INDEX_NONE ? TW(Tractors[Ti], GscTPinTop) : CW(Carts[Front], GscCPinTop); };
 	auto PinStand = [this, Ti, Front] { return Front == INDEX_NONE ? TW(Tractors[Ti], GscTPinStand) : CW(Carts[Front], GscCPinStand); };
 	auto SetPin = [this, Ti, Front](float V) { if (Front == INDEX_NONE) Tractors[Ti].PinWant = V; else Carts[Front].PinWant = V; };
-	auto PinOf = [this, Ti, Front] { return Front == INDEX_NONE ? Tractors[Ti].Pin : Carts[Front].Pin; };
-	auto Handle = [this, Cart]
-	{
-		const FCart& C = Carts[Cart];
-		const FQuat Qa(FVector::UpVector, FMath::DegreesToRadians(FMath::FindDeltaAngleDegrees(C.Yaw, C.AxleYaw))), Ql(FVector::RightVector, FMath::DegreesToRadians(C.Lift));
-		return CW(C, GscCAxleP + Qa.RotateVector(GscCBarP - GscCAxleP + Ql.RotateVector(GscCHandle - GscCBarP)));
-	};
 	const bool bTractor = Front == INDEX_NONE;
 	WalkTo(Ci, PinStand, 15.f);
 	Do(Ci, [this, bTractor, PinTop, SetPin] { SetPin(1.f); Sound(bTractor ? TEXT("BTPinOut") : TEXT("BCPinOut"), PinTop()); });
-	PoseAct(Ci, [PinTop, PinStand, PinOf, bTractor](float K, float PH, FDriverPose& P) { const FVector S = PinStand(), T = PinTop(); P = ADPPose::Stoop(S, (T - S).GetSafeNormal2D(), 1, T + FVector(0, 0, (bTractor ? 40.f : 10.f) * PinOf() + 6.f), 1.f, PH, ADPPose::Ramp(K)); }, 1.5f);
+	PoseAct(Ci, HitchPinPose(Ti, Front, 1.f), 1.5f);
 	// the drawbar up out of the jaw and left standing (its brake on): the cart is off the train
 	WalkTo(Ci, [this, Cart] { return CW(Carts[Cart], GscCBarStand); }, 15.f);
 	Do(Ci, [this, Ti, Cart] { FTractor& T = Tractors[Ti]; T.Train.Remove(Cart); Carts[Cart].Tractor = INDEX_NONE; Carts[Cart].LiftWant = -80.f; Sound(TEXT("BCDrawbarClank"), CW(Carts[Cart], GscCEyeAt)); });
-	PoseAct(Ci, [this, Cart, Handle](float K, float PH, FDriverPose& P)
-	{
-		const FCart& C = Carts[Cart]; const FVector S = CW(C, GscCBarStand), H = Handle(), Rt = FRotator(0.f, C.Yaw + 90.f, 0.f).Vector(), Fw = FRotator(0.f, C.Yaw, 0.f).Vector();
-		P = ADPPose::Both(S, Rt, H + Fw * 9.f, H - Fw * 9.f, 1.f, PH, ADPPose::Ramp(K), 10.f);
-	}, 3.0f);
+	PoseAct(Ci, CartBarPose(Cart), 3.0f);
 	WalkTo(Ci, PinStand, 15.f);
 	Do(Ci, [SetPin] { SetPin(0.f); });
-	PoseAct(Ci, [PinTop, PinStand, PinOf, bTractor](float K, float PH, FDriverPose& P) { const FVector S = PinStand(), T = PinTop(); P = ADPPose::Stoop(S, (T - S).GetSafeNormal2D(), 1, T + FVector(0, 0, (bTractor ? 40.f : 10.f) * PinOf() + 6.f), 0.9f, PH, ADPPose::Ramp(K)); }, 1.3f);
-	Do(Ci, [this, Ti, Cart, bTractor, PinTop] { Sound(bTractor ? TEXT("BTHitchPin") : TEXT("BCPinIn"), PinTop()); Carts[Cart].Flight.Reset(); ADP_LOG(TEXT("GSE: cart %d uncoupled, its drawbar up (brake on)"), Cart + 1); });
+	PoseAct(Ci, HitchPinPose(Ti, Front, 0.9f), 1.3f);
+	Do(Ci, [this, Ti, Cart, bTractor, PinTop] { Sound(bTractor ? TEXT("BTHitchPin") : TEXT("BCPinIn"), PinTop()); Carts[Cart].Flight.Reset(); Carts[Cart].bOut = false; ADP_LOG(TEXT("GSE: cart %d uncoupled, its drawbar up (brake on)"), Cart + 1); });
 	if (Then) Do(Ci, MoveTemp(Then));
 }
 
@@ -278,17 +310,16 @@ void AGSE::CoupleGpu(int32 Ci, int32 Ti, int32 Gate, bool bOn, TFunction<void()>
 	auto GpuAt = [this, Gate](const FVector& L) { const ATugs* G = Tg(); return G && G->Tugs.IsValidIndex(Gate) && G->Tugs[Gate].Gpu.M.IsValid() ? G->Tugs[Gate].Gpu.M->GetActorTransform().TransformPosition(L) : FVector::ZeroVector; };
 	auto PinTop = [this, Ti] { return TW(Tractors[Ti], GscTPinTop); };
 	auto PinStand = [this, Ti] { return TW(Tractors[Ti], GscTPinStand); };
-	auto PinPose = [this, Ti, PinTop, PinStand](float Grip) { return [this, Ti, PinTop, PinStand, Grip](float K, float PH, FDriverPose& P) { const FVector S = PinStand(), T = PinTop(); P = ADPPose::Stoop(S, (T - S).GetSafeNormal2D(), 1, T + FVector(0, 0, 40.f * Tractors[Ti].Pin + 6.f), Grip, PH, ADPPose::Ramp(K)); }; };
 	WalkTo(Ci, PinStand, 15.f);
 	Do(Ci, [this, Ti, PinTop] { Tractors[Ti].PinWant = 1.f; Sound(TEXT("BTPinOut"), PinTop()); });
-	PoseAct(Ci, PinPose(1.f), 1.5f);
+	PoseAct(Ci, HitchPinPose(Ti, INDEX_NONE, 1.f), 1.5f);
 	// the GPU's drawbar: its eye lifted into the jaw (on), lifted out and set down on its park leg (off)
 	WalkTo(Ci, [GpuAt] { return GpuAt(GscGStand); }, 15.f);
-	PoseAct(Ci, [GpuAt](float K, float PH, FDriverPose& P) { const FVector S = GpuAt(GscGStand), H = GpuAt(GscGHandle) + FVector(0, 0, 6.f * FMath::Sin(PI * K)); P = ADPPose::Squat(S, (H - S).GetSafeNormal2D(), H, PH, ADPPose::Ramp(K)); }, 2.4f);
+	PoseAct(Ci, GpuBarPose(Gate), 2.4f);
 	Do(Ci, [this, Ti, Gate, bOn, GpuAt] { Tractors[Ti].TowGpu = bOn ? Gate : INDEX_NONE; Sound(TEXT("BCDrawbarClank"), GpuAt(GscGEyeAt)); });
 	WalkTo(Ci, PinStand, 15.f);
 	Do(Ci, [this, Ti] { Tractors[Ti].PinWant = 0.f; });
-	PoseAct(Ci, PinPose(0.9f), 1.3f);
+	PoseAct(Ci, HitchPinPose(Ti, INDEX_NONE, 0.9f), 1.3f);
 	Do(Ci, [this, Ti, bOn, PinTop] { Sound(TEXT("BTHitchPin"), PinTop()); ADP_LOG(TEXT("GSE: %s %s the GPU"), *Tractors[Ti].Name, bOn ? TEXT("coupled to") : TEXT("uncoupled from")); });
 	if (Then) Do(Ci, MoveTemp(Then));
 }
@@ -307,27 +338,20 @@ void AGSE::Curtains(int32 Ci, int32 Ti, bool bOpen, TFunction<void()> Then, cons
 		const int32 s = FVector::DotProduct(Craft - C.At, FRotator(0.f, C.Yaw + 90.f, 0.f).Vector()) > 0.f ? 1 : 0;   // (1: the cart's right, the root's +y)
 		const float Ys = s == 0 ? -1.f : 1.f;
 		auto Stand = [this, c, Ys](float X) { return [this, c, Ys, X] { return CW(Carts[c], FVector(X, Ys * 115.f, 0.f)); }; };
-		auto Face = [this, c, Ys] { return FRotator(0.f, Carts[c].Yaw + 90.f, 0.f).Vector() * -Ys; };
-		auto Strap = [this, c, Ci, Ys, Face, Stand](float X, float Sx)
+		auto Strap = [this, c, Ci, Ys](float X, float Sx)
 		{
-			PoseAct(Ci, [this, c, Ys, X, Sx, Face, Stand](float K, float PH, FDriverPose& P) { P = ADPPose::Stoop(Stand(Sx)(), Face(), 1, CW(Carts[c], FVector(X, Ys * 82.f, 58.5f)), 0.9f, PH, ADPPose::Ramp(K)); }, 1.0f);
+			PoseAct(Ci, StrapPose(c, Ys > 0.f ? 1 : 0, X, Sx), 1.0f);
 			Do(Ci, [this, c, X, Ys] { Sound(TEXT("BCCurtainStrap"), CW(Carts[c], FVector(X, Ys * 82.f, 58.5f))); });
 		};
-		auto Roll = [this, c, s, Ci, Ys, Face, Stand]
+		auto Roll = [this, c, s, Ci]
 		{
-			PoseAct(Ci, [this, c, s, Ys, Face, Stand](float K, float PH, FDriverPose& P)
-			{
-				const FCart& C2 = Carts[c]; const float Z = FMath::Lerp(55.5f, 180.1f, C2.Curtain[s]);
-				// (IK_Curtain_<side>_HandL / _HandR: riding with the hem)
-				const FVector Hl = CW(C2, FVector(s == 0 ? 12.5f : -12.5f, Ys * 79.1f, Z)), Hr = CW(C2, FVector(s == 0 ? -12.5f : 12.5f, Ys * 79.1f, Z));
-				P = ADPPose::Both(Stand(0.f)(), Face(), Hl, Hr, 1.f, PH, ADPPose::Ramp(K), 4.f);
-			}, 2.8f);
+			PoseAct(Ci, CurtainPose(c, s), 2.8f);
 		};
 		if (bOpen)
 		{
 			WalkTo(Ci, Stand(-58.f), 15.f); Strap(-85.f, -58.f); Strap(-30.f, -58.f);
 			WalkTo(Ci, Stand(58.f), 15.f); Strap(30.f, 58.f); Strap(85.f, 58.f);
-			Do(Ci, [this, c, s] { Carts[c].bStraps[s] = false; });
+			Do(Ci, [this, c, s] { Carts[c].bStraps[s] = false; Carts[c].StrapOff[s] = 3; });
 			WalkTo(Ci, Stand(0.f), 15.f);
 			Do(Ci, [this, c, s] { Carts[c].CurtainWant[s] = 1.f; Sound(TEXT("BCCurtainUp"), CW(Carts[c], FVector(0.f, s == 0 ? -80.f : 80.f, 120.f))); });
 			Roll();
@@ -339,7 +363,7 @@ void AGSE::Curtains(int32 Ci, int32 Ti, bool bOpen, TFunction<void()> Then, cons
 			Roll();
 			WalkTo(Ci, Stand(-58.f), 15.f); Strap(-85.f, -58.f); Strap(-30.f, -58.f);
 			WalkTo(Ci, Stand(58.f), 15.f); Strap(30.f, 58.f); Strap(85.f, 58.f);
-			Do(Ci, [this, c, s] { Carts[c].bStraps[s] = true; });
+			Do(Ci, [this, c, s] { Carts[c].bStraps[s] = true; Carts[c].StrapOff[s] = 0; });
 		}
 		Do(Ci, [c, bOpen, s] { ADP_LOG(TEXT("GSE: cart %d's %s curtain %s"), c + 1, s == 0 ? TEXT("left") : TEXT("right"), bOpen ? TEXT("rolled up for loading") : TEXT("down and strapped")); });
 	}
