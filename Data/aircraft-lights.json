@@ -1,0 +1,24 @@
+{"note": "Each aircraft type's lamps (to-do 243, 2026-11-24), read by one function for every aircraft (AircraftLights.cpp: AI traffic, parked, later the player's own). In the model's own cm like aircraft-doors.json: x its right, y aft (the nose is -y), z up, the root at the nose wheel on the ground. group: beacon, strobe, nav, logo, landing, takeoff, taxi, turnoff, wing-scan, engine-scan, cabin-window - when each group is on comes from the switching (SimTraffic Blink, parked: ADPAircraftLights::Parked). at: the lamp; dir: where it shines (omitted = all round); cone: half angle of the beam (deg); color: linear rgb; glow: the lamp face's brightness, size its size (m); skin: how strongly it lights the aircraft's own skin and what is round it (a light decal, no light source - every aircraft, any distance), reach: how far that goes (m); pool: true = the beam's pool on the ground ahead (landing, taxi, turn-off), the soft decal far away, a real spot light (lumens, range m) on the nearest aircraft, faded between unseen. A320: nav/beacon/strobe/landing/taxi/turn-off places measured on Art/A320/A320.glb (2026-11-21); tail strobe, logo, wing and engine scan estimated from the A320's published dimensions (not measured on the model). No cabin-window lamps until to-do 209's cabin is in the game.",
+ "A320": {"lamps": [
+  {"id": "nav_l", "group": "nav", "at": [-1640, 1372, 485], "color": [1.0, 0.05, 0.03], "glow": 30, "size": 0.18, "skin": 6, "reach": 4},
+  {"id": "nav_r", "group": "nav", "at": [1640, 1372, 485], "color": [0.05, 1.0, 0.2], "glow": 30, "size": 0.18, "skin": 6, "reach": 4},
+  {"id": "nav_tail", "group": "nav", "at": [0, 3221, 496], "color": [1.0, 1.0, 1.0], "glow": 22, "size": 0.16, "skin": 4, "reach": 3},
+  {"id": "beacon_top", "group": "beacon", "at": [0, 1200, 625], "dir": [0, 0, 1], "cone": 110, "color": [1.0, 0.08, 0.04], "glow": 60, "size": 0.22, "skin": 5, "reach": 12},
+  {"id": "beacon_belly", "group": "beacon", "at": [0, 1200, 195], "dir": [0, 0, -1], "cone": 110, "color": [1.0, 0.08, 0.04], "glow": 60, "size": 0.22, "skin": 5, "reach": 12},
+  {"id": "strobe_l", "group": "strobe", "at": [-1641, 1618, 540], "color": [1.0, 1.0, 1.0], "glow": 160, "size": 0.18, "skin": 12, "reach": 7},
+  {"id": "strobe_r", "group": "strobe", "at": [1641, 1618, 540], "color": [1.0, 1.0, 1.0], "glow": 160, "size": 0.18, "skin": 12, "reach": 7},
+  {"id": "strobe_tail", "group": "strobe", "at": [0, 3240, 506], "color": [1.0, 1.0, 1.0], "glow": 120, "size": 0.12, "skin": 8, "reach": 5},
+  {"id": "logo_l", "group": "logo", "at": [-350, 3000, 520], "dir": [0.35, 0.05, 0.94], "cone": 28, "color": [1.0, 0.95, 0.85], "glow": 8, "size": 0.08, "skin": 4, "reach": 9},
+  {"id": "logo_r", "group": "logo", "at": [350, 3000, 520], "dir": [-0.35, 0.05, 0.94], "cone": 28, "color": [1.0, 0.95, 0.85], "glow": 8, "size": 0.08, "skin": 4, "reach": 9},
+  {"id": "wingscan_l", "group": "wing-scan", "at": [-190, 520, 470], "dir": [-1.0, 0.35, -0.05], "cone": 15, "color": [1.0, 0.97, 0.9], "glow": 20, "size": 0.08, "skin": 3, "reach": 16},
+  {"id": "wingscan_r", "group": "wing-scan", "at": [190, 520, 470], "dir": [1.0, 0.35, -0.05], "cone": 15, "color": [1.0, 0.97, 0.9], "glow": 20, "size": 0.08, "skin": 3, "reach": 16},
+  {"id": "enginescan_l", "group": "engine-scan", "at": [-200, 560, 430], "dir": [-0.84, 0.31, -0.47], "cone": 12, "color": [1.0, 0.97, 0.9], "glow": 0, "size": 0.0, "skin": 3, "reach": 9},
+  {"id": "enginescan_r", "group": "engine-scan", "at": [200, 560, 430], "dir": [0.84, 0.31, -0.47], "cone": 12, "color": [1.0, 0.97, 0.9], "glow": 0, "size": 0.0, "skin": 3, "reach": 9},
+  {"id": "landing_l", "group": "landing", "at": [-415, 684, 194], "dir": [0, -1, -0.06], "cone": 12, "color": [1.0, 0.97, 0.9], "glow": 90, "size": 0.22, "skin": 3, "reach": 70, "pool": true, "lumens": 12000, "range": 150},
+  {"id": "landing_r", "group": "landing", "at": [415, 684, 194], "dir": [0, -1, -0.06], "cone": 12, "color": [1.0, 0.97, 0.9], "glow": 90, "size": 0.22, "skin": 3, "reach": 70, "pool": true, "lumens": 12000, "range": 150},
+  {"id": "takeoff", "group": "takeoff", "at": [0, -12, 128], "dir": [0, -1, -0.10], "cone": 14, "color": [1.0, 0.97, 0.9], "glow": 70, "size": 0.14, "skin": 3, "reach": 55, "pool": true, "lumens": 6000, "range": 110},
+  {"id": "taxi", "group": "taxi", "at": [0, -14, 148], "dir": [0, -1, -0.18], "cone": 22, "color": [1.0, 0.97, 0.9], "glow": 55, "size": 0.11, "skin": 3, "reach": 35, "pool": true, "lumens": 3500, "range": 60},
+  {"id": "turnoff_l", "group": "turnoff", "at": [-15, -10, 142], "dir": [-0.5, -0.85, -0.15], "cone": 30, "color": [1.0, 0.97, 0.9], "glow": 55, "size": 0.11, "skin": 2.5, "reach": 28, "pool": true, "lumens": 2500, "range": 45},
+  {"id": "turnoff_r", "group": "turnoff", "at": [15, -10, 142], "dir": [0.5, -0.85, -0.15], "cone": 30, "color": [1.0, 0.97, 0.9], "glow": 55, "size": 0.11, "skin": 2.5, "reach": 28, "pool": true, "lumens": 2500, "range": 45}
+ ]}
+}

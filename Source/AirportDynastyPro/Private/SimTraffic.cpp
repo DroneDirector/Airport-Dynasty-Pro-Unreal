@@ -9,6 +9,7 @@
 #include "ADPLog.h"
 #include "PerfLog.h"
 #include "BabylonModel.h"
+#include "AircraftLights.h"
 #include "TerminalPlan.h"
 #include "WindSocks.h"
 #include "Site.h"
@@ -489,71 +490,64 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 
 void ASimTraffic::AddLights(FMove& M)
 {
-	// the A320's lights, small glows on the model (the actor sits on the nose tyre; the nose is its -Y, its right wing
-	// the +X side): wingtips 17.9 m out, about 12 m behind the nose tyre; the tail light at the tail cone; the beacons on
-	// top of the fuselage and under it, over the wing
-	static UStaticMesh* Ball = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
-	static UMaterialInterface* Glow = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/Lamps/M_LampGlow.M_LampGlow"));
-	ABabylonModel* B = M.Model.Get();
-	if (!B || !Ball || !Glow) return;
-	struct FL { FVector At; FLinearColor Col; float Size; };
-	// (owner 2026-11-21: every light on the geometry where it belongs, clearly visible - measured on Art/A320/A320.glb in
-	//  Blender: the wingtip's lower front corner, its lower rear corner, the tail cone, the fuselage's top and belly over the
-	//  wing box, the wing roots' leading edge underside, the front of the nose gear leg; each glow centred on the surface)
-	const FL List[] = {
-		{FVector(-1640.f, 1372.f, 485.f), FLinearColor(1.f, 0.05f, 0.03f), 0.18f},   // nav left: red, the wingtip's front
-		{FVector(1640.f, 1372.f, 485.f), FLinearColor(0.05f, 1.f, 0.2f), 0.18f},     // nav right: green
-		{FVector(0.f, 3221.f, 496.f), FLinearColor(1.f, 1.f, 1.f), 0.16f},           // tail: white, on the tail cone
-		{FVector(0.f, 1200.f, 625.f), FLinearColor(1.f, 0.08f, 0.04f), 0.22f},       // beacon on top: red
-		{FVector(0.f, 1200.f, 195.f), FLinearColor(1.f, 0.08f, 0.04f), 0.22f},       // beacon under the belly: red
-		{FVector(-1641.f, 1618.f, 540.f), FLinearColor(1.f, 1.f, 1.f), 0.18f},       // strobe left: the wingtip's rear
-		{FVector(1641.f, 1618.f, 540.f), FLinearColor(1.f, 1.f, 1.f), 0.18f},        // strobe right
-		{FVector(-415.f, 684.f, 194.f), FLinearColor(1.f, 0.97f, 0.9f), 0.22f},      // landing light left: under the wing root's leading edge
-		{FVector(415.f, 684.f, 194.f), FLinearColor(1.f, 0.97f, 0.9f), 0.22f},       // landing light right
-		{FVector(0.f, -12.f, 128.f), FLinearColor(1.f, 0.97f, 0.9f), 0.14f},         // taxi / take-off light: the nose gear leg's front
-		{FVector(-15.f, -10.f, 142.f), FLinearColor(1.f, 0.97f, 0.9f), 0.11f},       // runway turn-off light left (nose gear)
-		{FVector(15.f, -10.f, 142.f), FLinearColor(1.f, 0.97f, 0.9f), 0.11f}};       // runway turn-off light right       // strobe right
-	for (const FL& L : List)
-	{
-		UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(B);
-		C->SetStaticMesh(Ball); C->SetCollisionEnabled(ECollisionEnabled::NoCollision); C->SetCastShadow(false);
-		UMaterialInstanceDynamic* D = UMaterialInstanceDynamic::Create(Glow, B);
-		D->SetVectorParameterValue(TEXT("Color"), L.Col); D->SetScalarParameterValue(TEXT("Brightness"), 0.f);
-		C->SetMaterial(0, D);
-		C->SetupAttachment(B->GetRootComponent()); C->SetRelativeLocation(L.At); C->SetRelativeScale3D(FVector(L.Size));
-		C->RegisterComponent();
-		M.Lights.Add(TPair<UStaticMeshComponent*, UMaterialInstanceDynamic*>(C, D));
-	}
+	// its type's lamps (to-do 243: Data/aircraft-lights.json; the same function for every aircraft - AircraftLights.h)
+	M.Lamps = UADPAircraftLights::Fit(M.Model.Get(), TEXT("A320"));
 }
 
 void ASimTraffic::Blink(FMove& M)
 {
-	if (M.Lights.Num() < 12) return;
-	const double T = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	UADPAircraftLights* Lm = M.Lamps.Get();
+	if (!Lm) return;
 	// the lights by the real procedure (Airbus SOP; owner 2026-11-21: "as they do in the real world ... the real timing"):
-	//  - navigation and tail (logo) lights: on whenever it is powered
-	//  - the red beacons: on from just before the pushback (doors closed, ready to push) until the engines are shut down on
-	//    the stand after arriving (a few seconds after it stops)
+	//  - navigation lights: on whenever it is powered; logo lights and the wing / engine scan lights at night
+	//  - the red beacons: on from just before the pushback (doors closed, the jetway away, ready to push) until the engines
+	//    are shut down on the stand after arriving (a few seconds after it stops)
 	//  - taxi and runway turn-off lights: on while it taxis; the taxi light off while it stands still (holding, waiting - not
-	//    to dazzle others) and on the last stretch into the stand (the marshaller and the ground crew)
+	//    to dazzle others) and in the final turn onto its stand (below)
 	//  - lining up and the take-off roll: landing lights, strobes and the take-off (nose) light on; once airborne the nose
 	//    and turn-off lights go off (with the gear); the landing lights stay on below 10 000 ft
 	//  - the approach: landing lights and strobes; the nose light on short final; on the runway after landing they stay on
 	//    until it turns off; taxiing in: landing lights and strobes off, taxi and turn-off lights on
+	//  - on the stand with the engines off: the parked lights (ADPAircraftLights::Parked - beacon off, nav and logo at night
+	//    while powered: the APU runs until the parked aircraft takes over)
 	const bool bAir = M.Phase == EPhase::Climb || M.Phase == EPhase::Approach;
 	const bool bRunway = M.Phase == EPhase::Roll || M.Phase == EPhase::Rollout;
 	const bool bStrobe = bAir || bRunway;
 	const bool bLanding = bAir ? M.Height < 3048.f : bRunway;
 	const bool bTaxiing = (M.Phase == EPhase::Taxi || M.Phase == EPhase::TaxiIn) && M.Speed > 0.3f;
 	const bool bNearStand = M.Phase == EPhase::TaxiIn && M.Step >= M.Path.Num() - 1;
-	const bool bTaxiL = (bTaxiing && !bNearStand) || bRunway || (M.Phase == EPhase::Approach && M.Height < 300.f);
+	// the final turn onto the stand (owner 2026-11-24): the nose's taxi light goes off once it is lined up on the stand's own
+	// heading (airfield.json: its nose towards the stand's Dir), on the lead-in line and closing in on the stop - before it
+	// stops; from where it is and where it heads, not from a timer. Before that the light stays on as it taxis
+	bool bFinalTurn = false;
+	if (M.Phase == EPhase::TaxiIn)
+	{
+		if (const FAirfieldData::FStand* St = F.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return S.Id == M.Stand; }))
+		{
+			const FVector2f Head = (M.Nose - M.Main).GetSafeNormal();
+			const FVector2f Stop(St->X, St->Nose - St->Dir * 5.1f);   // (the nose tyre's stop, as the lead-in path ends: Advance)
+			bFinalTurn = Head.Y * St->Dir > FMath::Cos(FMath::DegreesToRadians(25.f)) && FMath::Abs(M.Nose.X - St->X) < 4.f && FVector2f::Distance(M.Nose, Stop) < 120.f;
+		}
+		else bFinalTurn = bNearStand;   // (no stand known: the last leg of its path is the lead-in)
+	}
+	const bool bTakeoffL = bRunway || (M.Phase == EPhase::Approach && M.Height < 300.f);
 	const bool bTurnoff = ((M.Phase == EPhase::Taxi || M.Phase == EPhase::TaxiIn) && !bNearStand) || bRunway;
-	const bool bBeaconOn = M.Phase != EPhase::Done || M.Clock < 8.f;
-	const float Beacon = bBeaconOn && FMath::Fmod(T + M.Reg.Len() * 0.13, 1.0) < 0.12 ? 60.f : 0.f;
-	const float Ph = FMath::Fmod(T, 1.2);
-	const float Strobe = bStrobe && (Ph < 0.05 || (Ph > 0.12 && Ph < 0.17)) ? 160.f : 0.f;
-	const float Vals[] = {30.f, 30.f, 22.f, Beacon, Beacon, Strobe, Strobe, bLanding ? 90.f : 0.f, bLanding ? 90.f : 0.f, bTaxiL ? 70.f : 0.f, bTurnoff ? 55.f : 0.f, bTurnoff ? 55.f : 0.f};
-	for (int32 i = 0; i < 12; ++i) if (M.Lights[i].Value) M.Lights[i].Value->SetScalarParameterValue(TEXT("Brightness"), Vals[i]);
+	const bool bWaitAtGate = M.Phase == EPhase::Push && (M.Clock == 4.f || M.Clock == 2.f);   // (boarding / the jetway: doors still open)
+	const bool bEngines = M.Phase != EPhase::Done || M.Clock < 8.f;
+	if (!bEngines) { Lm->SetParked(true); return; }
+	const bool bNight = ADPAircraftLights::Night(GetWorld());
+	FADPLightState S;
+	S.bPowered = true;
+	S.bBeacon = !bWaitAtGate;
+	S.bStrobe = bStrobe;
+	S.bNav = true;
+	S.bLogo = bNight;
+	S.bLanding = bLanding;
+	S.bTakeoff = bTakeoffL;
+	S.bTaxi = (bTaxiing && !bFinalTurn) || bTakeoffL;   // (the nose switch's T.O position lights the taxi lamp too)
+	S.bTurnoff = bTurnoff;
+	S.bWingScan = S.bEngineScan = bNight && !bWaitAtGate && (!bAir || M.Height < 3048.f);
+	Lm->Set(S);
 }
 
 void ASimTraffic::Tick(float Dt)

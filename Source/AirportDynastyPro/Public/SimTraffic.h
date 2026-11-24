@@ -56,13 +56,13 @@ private:
 		float Speed = 0.f, Height = 0.f, Clock = 0.f;
 		bool bYou = false, bYouOff = false; int32 YouRe = INDEX_NONE; float YouBar = 0.f; TArray<FVector2f> YouFwd;   // (pushed by you: off blocks, where the crew's path goes on, the bar's angle)
 		TWeakObjectPtr<ABabylonModel> Model;
-		// its lights (glows by material, no real lights - the lights rule): navigation, beacons, strobes
-		TArray<TPair<class UStaticMeshComponent*, class UMaterialInstanceDynamic*>> Lights;
+		// its lights (to-do 243: the type's table, Data/aircraft-lights.json; switched in Blink by the real procedure)
+		TWeakObjectPtr<class UADPAircraftLights> Lamps;
 		// its gear (Art/A320/make_a320_parts.py): the nose wheels and lower nose leg steer; all wheels roll; the struts hang
 		// extended in the air and compress on touchdown with a little settle
 		int32 GNoseW = INDEX_NONE, GNoseLeg = INDEX_NONE, GMainW[2] = {INDEX_NONE, INDEX_NONE}, GMainLeg[2] = {INDEX_NONE, INDEX_NONE};
 		bool bGear = false, bGearPrev = false; float Steer = 0.f, RollN = 0.f, RollM = 0.f, Ext = 0.f, ExtV = 0.f;
-		FVector2f PrevNose = FVector2f::ZeroVector, PrevMain = FVector2f::ZeroVector;   // nav L, nav R, tail, beacon top, beacon belly, strobe L, strobe R
+		FVector2f PrevNose = FVector2f::ZeroVector, PrevMain = FVector2f::ZeroVector;
 	};
 	TSet<FString> TugCalled;   // (arrivals whose tug driver was called)
 	float SlipPoll = 0.f;

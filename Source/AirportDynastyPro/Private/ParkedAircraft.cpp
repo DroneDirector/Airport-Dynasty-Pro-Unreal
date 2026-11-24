@@ -5,6 +5,8 @@
 #include "ADPLog.h"
 #include "Airfield.h"
 #include "BabylonModel.h"
+#include "AircraftLights.h"
+#include "Turnaround.h"
 #include "TerminalPlan.h"
 #include "Engine/World.h"
 #include "Misc/PackageName.h"
@@ -49,6 +51,9 @@ namespace ADPParked
 			ABabylonModel* M = W->SpawnActor<ABabylonModel>(FTerminalPlan::ToWorld(Gx, 0.f, Gy) + FVector(0, 0, Z * 100.0), FRotator(0, Yaw, 0), S);
 			if (!M || !M->Place(TEXT("A320"))) { if (M) M->Destroy(); ADP_ERROR(TEXT("Parked aircraft: the A320 is missing (Tools/import_model.py)")); return nullptr; }
 			M->Tags.Add(FName(*(St.Id + TEXT("/A320"))));
+			// its lamps (to-do 243, AircraftLights.h): parked - beacon off, nav and logo at night while powered (the APU runs:
+			// the haze below); a career's own follow its turnaround (StartLive)
+			if (UADPAircraftLights* Lm = UADPAircraftLights::Fit(M, TEXT("A320"))) Lm->SetParked(true);
 			// heat haze behind the APU's exhaust at the tip of the tail cone (to-do 22b: the APU runs while it stands at the
 			// gate): a shimmer of hot air, rising (M_HeatHaze). The model's nose is the actor's +Y; the A320 is 37.6 m long,
 			// its nose tyre 5.1 m behind the nose, so the exhaust is about 32.5 m behind the nose tyre, 5 m up
@@ -243,6 +248,17 @@ namespace ADPParked
 				if (!St) continue;
 				if (ABabylonModel* M = ParkOne(Wd, *St)) { M->Tags.Add(FName(*(TEXT("SIM/") + Wn.Value))); GLive.Add(Wn.Key, TPair<FString, TWeakObjectPtr<ABabylonModel>>(Wn.Value, M)); ADP_LOG(TEXT("Parked aircraft: %s at %s (the simulation's)"), *Wn.Value, *Wn.Key); }
 			}
+			// powered or shut down (to-do 243): powered while it is being worked on - just in (the first 45 min), its departure's
+			// work (from 75 min before off-blocks) and the whole of a short turnaround (under 2.5 h: the APU stays on); otherwise
+			// (a night stop, a long stay) cold and dark: every lamp off until its departure's work powers it up again
+			const FDateTime TNow = ADPTurnaround::LastNow();
+			for (const auto& G : GLive)
+				if (ABabylonModel* M = G.Value.Value.Get()) if (UADPAircraftLights* Lm = M->FindComponentByClass<UADPAircraftLights>())
+				{
+					const ADPTurnaround::FTurn* Tr = ADPTurnaround::All().FindByPredicate([&](const ADPTurnaround::FTurn& X) { return X.Reg == G.Value.Key; });
+					const bool bPower = !Tr || (Tr->bArrival && ((Tr->OffBlocks - Tr->OnBlocks).GetTotalHours() < 2.5 || (TNow - Tr->OnBlocks).GetTotalMinutes() < 45.0)) || (Tr->OffBlocks - TNow).GetTotalMinutes() < 75.0;   // (a night stop's OnBlocks is its work's start: Turnaround.cpp)
+					Lm->SetParked(bPower);
+				}
 			return true;
 		}), 5.f);
 	}
