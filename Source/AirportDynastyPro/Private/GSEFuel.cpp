@@ -65,6 +65,8 @@ void AGSE::FuelDress(FTractor& T)
 	F.GLever[0] = Pre(TEXT("Lever_Pump"), SvcP(T, TEXT("PIV_Lever_Pump"))); F.GLever[1] = Pre(TEXT("Lever_HoseL"), SvcP(T, TEXT("PIV_Lever_HoseL")));
 	F.GLever[2] = Pre(TEXT("Lever_HoseR"), SvcP(T, TEXT("PIV_Lever_HoseR"))); F.GLever[3] = Pre(TEXT("Lever_Defuel"), SvcP(T, TEXT("PIV_Lever_Defuel")));
 	for (int32 i = 0; i < 3; ++i) { const FString G = FString::Printf(TEXT("GaugeNeedle%d"), i); F.GNeedle[i] = Pre(G, SvcP(T, *(TEXT("PIV_") + G))); }
+	for (int32 i = 0; i < 2; ++i) { const FString G = FString::Printf(TEXT("ManholeLid%d"), i); F.GLid[i] = Pre(G, SvcP(T, *(TEXT("PIV_") + G))); }
+	F.GFlap = Pre(TEXT("FillFlap"), SvcP(T, TEXT("PIV_FillFlap"))); F.GFill = Pre(TEXT("FillLever"), SvcP(T, TEXT("PIV_FillLever"))); F.GTicketBtn = Pre(TEXT("Button_Ticket"), SvcP(T, TEXT("IK_Button_Ticket")));
 	// the hose, the bonding cable, the dead man's lead: flexible, the hose as stiff as the GPU's cable
 	auto Cable = [&](const TCHAR* Name, float Width, int32 Segs, bool bStiff, const TCHAR* Like)
 	{
@@ -181,6 +183,11 @@ void AGSE::FuelParts(FTractor& T, float Dt)
 	// the levers, the gauges, the meter
 	static const TCHAR* const FuLevers[4] = {TEXT("PIV_Lever_Pump"), TEXT("PIV_Lever_HoseL"), TEXT("PIV_Lever_HoseR"), TEXT("PIV_Lever_Defuel")};
 	for (int32 i = 0; i < 4; ++i) { F.LeverNow[i] = FMath::FInterpConstantTo(F.LeverNow[i], F.LeverWant[i], Dt, 2.f); Put(F.GLever[i], FTransform(FQuat(FVector::RightVector, FMath::DegreesToRadians(40.f * F.LeverNow[i])), SvcP(T, FuLevers[i]))); }
+	// (to-do 235: manhole lids up on their hinges, the fill flap up, its valve lever out; the ticket button in while it prints)
+	for (int32 i = 0; i < 2; ++i) { F.LidNow[i] = FMath::FInterpConstantTo(F.LidNow[i], F.LidWant[i], Dt, 1.f); Put(F.GLid[i], FTransform(FQuat(FVector::RightVector, FMath::DegreesToRadians(110.f * FMath::SmoothStep(0.f, 1.f, F.LidNow[i]))), SvcP(T, i ? TEXT("PIV_ManholeLid1") : TEXT("PIV_ManholeLid0")))); }
+	F.FlapNow = FMath::FInterpConstantTo(F.FlapNow, F.FlapWant, Dt, 1.5f); Put(F.GFlap, FTransform(FQuat(FVector::ForwardVector, FMath::DegreesToRadians(100.f * FMath::SmoothStep(0.f, 1.f, F.FlapNow))), SvcP(T, TEXT("PIV_FillFlap"))));
+	F.FillNow = FMath::FInterpConstantTo(F.FillNow, F.FillWant, Dt, 2.f); Put(F.GFill, FTransform(FQuat(FVector::ForwardVector, FMath::DegreesToRadians(-75.f * F.FillNow)), SvcP(T, TEXT("PIV_FillLever"))));
+	F.PrintT = FMath::Max(0.f, F.PrintT - Dt); Put(F.GTicketBtn, FTransform(SvcP(T, TEXT("IK_Button_Ticket")) + FVector(0.f, F.PrintT > 0.f ? 0.4f : 0.f, 0.f)));
 	F.Flow = FMath::FInterpTo(F.Flow, F.bPump && F.DeadT >= 0.f ? 1.f : 0.f, Dt, 0.8f);
 	if (T.Job == EJob::None) YouFuel(T, Dt);
 	static const float Dial[] = {0.55f, 0.62f, 0.4f};
@@ -210,7 +217,7 @@ void AGSE::FuelParts(FTractor& T, float Dt)
 	}
 	// (all in its place and nothing moving: nothing more to do until the next job)
 	const int32 Me = int32(&T - Tractors.GetData()); bool bJob = false; for (const TPair<int32, FSvcJob>& P : SvcJobs) if (P.Value.Phase == 2 && P.Value.Ti == Me) bJob = true;
-	if (!bJob && bHome && !bOut && F.Ext[0] == FSvcRefuel::InPlace && F.Ext[1] == FSvcRefuel::InPlace && F.Ticket == FSvcRefuel::InPlace && F.PresetT <= 0.f && F.Lift == F.LiftWant && F.Gate == F.GateWant && F.Chock[0] == FSvcRefuel::InPlace && F.Chock[1] == FSvcRefuel::InPlace && F.LeverNow[0] == 0.f && F.LeverNow[1] == 0.f && F.LeverNow[2] == F.LeverWant[2] && F.LeverNow[3] == F.LeverWant[3] && F.Flow < 0.005f && T.bPrev) F.bLive = false;
+	if (!bJob && bHome && !bOut && F.Ext[0] == FSvcRefuel::InPlace && F.Ext[1] == FSvcRefuel::InPlace && F.Ticket == FSvcRefuel::InPlace && F.PresetT <= 0.f && F.Lift == F.LiftWant && F.Gate == F.GateWant && F.Chock[0] == FSvcRefuel::InPlace && F.Chock[1] == FSvcRefuel::InPlace && F.LeverNow[0] == 0.f && F.LeverNow[1] == 0.f && F.LeverNow[2] == F.LeverWant[2] && F.LeverNow[3] == F.LeverWant[3] && F.Flow < 0.005f && T.bPrev && F.LidNow[0] == F.LidWant[0] && F.LidNow[1] == F.LidWant[1] && F.FlapNow == F.FlapWant && F.FillNow == F.FillWant && F.PrintT <= 0.f) F.bLive = false;
 }
 
 void AGSE::FuelTick(FSvcJob& J, float Dt)
@@ -496,9 +503,9 @@ void AGSE::FuelLost(int32 Job)
 
 namespace
 {
-	enum : int32 { FuMPump, FuMHoseL, FuMHoseR, FuMDefuel, FuMLift, FuMGate, FuMDoor, FuMWindL, FuMWindR, FuMWindB, FuMPullL, FuMPullR, FuMPullB };
+	enum : int32 { FuMPump, FuMHoseL, FuMHoseR, FuMDefuel, FuMLift, FuMGate, FuMDoor, FuMLid0, FuMLid1, FuMFlap, FuMFill, FuMWindL, FuMWindR, FuMWindB, FuMPullL, FuMPullR, FuMPullB };
 	enum : int32 { FuCChassis, FuCPlat, FuCGate, FuCDoor, FuCCouple, FuCGear, FuCPut0, FuCPut1, FuCStep, FuCCoupleR, FuCReelL, FuCReelR, FuCBond };
-	enum : int32 { FuSNozHome, FuSNozPlane, FuSClampHome, FuSClampGear, FuSChock0, FuSChock1, FuSPut0, FuSPut1, FuSClimb, FuSStop, FuSLamp, FuSNozHomeR, FuSNozPlaneR, FuSDead, FuSStart, FuSEnd, FuSPreset, FuSTicket, FuSExt0, FuSExt1 };
+	enum : int32 { FuSNozHome, FuSNozPlane, FuSClampHome, FuSClampGear, FuSChock0, FuSChock1, FuSPut0, FuSPut1, FuSClimb, FuSStop, FuSLamp, FuSNozHomeR, FuSNozPlaneR, FuSDead, FuSStart, FuSEnd, FuSPreset, FuSTicket, FuSExt0, FuSExt1, FuSPrint };
 	FTransform FuCMove(const FVector& V) { return FTransform(V); }
 	FTransform FuCTurn(const FVector& P, float Deg) { return FTransform(FQuat::Identity, -P) * FTransform(FQuat(FuUp, FMath::DegreesToRadians(Deg)), P); }
 	const TCHAR* FuCHeld(const FSvcRefuel& F)
@@ -647,6 +654,10 @@ TSharedPtr<FVehTable> AGSE::FuelControls()
 	Mo(TEXT("GatePlatform"), TEXT("IK_Handle_GatePlatform"), K::Hand, TEXT("Platform gate"), FuCGate, No, FuMGate, 0.f, 1.f);
 	Mo(TEXT("LeverPlatform"), TEXT("IK_LeverPlatform"), K::Lever, TEXT("Platform up / down"), FuCPlat, No, FuMLift, 0.f, 90.f);
 	Sw(TEXT("IK_Step_Platform_3"), TEXT("IK_Step_Platform_3"), TEXT("Steps"), FuCStep, No, FuSClimb);
+	// (to-do 235) the manhole lids on the tank, the bottom-loading point at the rear right, the printer's own button
+	Mo(TEXT("ManholeLid0"), TEXT("IK_ManholeLid0"), K::Hand, TEXT("Manhole lid"), FuCChassis, No, FuMLid0, 0.f, 1.f); Mo(TEXT("ManholeLid1"), TEXT("IK_ManholeLid1"), K::Hand, TEXT("Manhole lid"), FuCChassis, No, FuMLid1, 0.f, 1.f);
+	Mo(TEXT("FillFlap"), TEXT("IK_FillFlap"), K::Hand, TEXT("Fill flap"), FuCChassis, R, FuMFlap, 0.f, 1.f); Mo(TEXT("FillLever"), TEXT("IK_FillLever"), K::Lever, TEXT("Fill valve open / shut"), FuCChassis, R, FuMFill, 0.f, 1.f);
+	Sw(TEXT("IK_Button_Ticket"), TEXT("IK_Button_Ticket"), TEXT("Print the ticket"), FuCChassis, L, FuSPrint);
 
 	Tb->Frame = [](const AGSE& G, const FTractor& T, int32 Fr) -> FTransform
 	{
@@ -667,17 +678,19 @@ TSharedPtr<FVehTable> AGSE::FuelControls()
 		default: return FTransform::Identity;
 		}
 	};
-	Tb->Now = [](const FTractor& T, int32 M) { const FR& F = *T.Fu; return M <= FuMDefuel ? F.LeverNow[M] : M == FuMLift ? F.Lift : M == FuMGate ? F.Gate : M == FuMDoor ? T.SvcDoors.Num() ? T.SvcDoors[0].Now : 0.f : FuCLine(F, M).Slack(); };
+	Tb->Now = [](const FTractor& T, int32 M) { const FR& F = *T.Fu; return M <= FuMDefuel ? F.LeverNow[M] : M == FuMLift ? F.Lift : M == FuMGate ? F.Gate : M == FuMLid0 || M == FuMLid1 ? F.LidNow[M - FuMLid0] : M == FuMFlap ? F.FlapNow : M == FuMFill ? F.FillNow : M == FuMDoor ? T.SvcDoors.Num() ? T.SvcDoors[0].Now : 0.f : FuCLine(F, M).Slack(); };
 	Tb->Want = [](FTractor& T, int32 M, float To)
 	{
 		FR& F = *T.Fu; F.bLive = true;
-		if (M <= FuMDefuel) F.LeverWant[M] = To; else if (M == FuMLift) F.LiftWant = To; else if (M == FuMGate) F.GateWant = To; else if (M == FuMDoor) { if (T.SvcDoors.Num()) T.SvcDoors[0].Want = To; } else const_cast<FSvcPay&>(FuCLine(F, M)).Pull(To);
+		if (M <= FuMDefuel) F.LeverWant[M] = To; else if (M == FuMLift) F.LiftWant = To; else if (M == FuMGate) F.GateWant = To; else if (M == FuMLid0 || M == FuMLid1) F.LidWant[M - FuMLid0] = To; else if (M == FuMFlap) F.FlapWant = To; else if (M == FuMFill) F.FillWant = To; else if (M == FuMDoor) { if (T.SvcDoors.Num()) T.SvcDoors[0].Want = To; } else const_cast<FSvcPay&>(FuCLine(F, M)).Pull(To);
 	};
 	Tb->May = [](const AGSE& G, const FTractor& T, int32 M, float To, FString& Why)
 	{
 		const FR& F = *T.Fu;
 		if (M >= FuMWindL) { const TCHAR* H = FuCHeld(F); if (H) Why = FString::Printf(TEXT("you have %s in your hand"), H); else if (M >= FuMPullL && (T.Player.IsValid() || T.Speed > 1.f || T.Path.Num())) Why = TEXT("it is not parked"); return Why.IsEmpty(); }
 		if (M == FuMDefuel) { if (F.bPump || F.Flow > 0.05f) Why = TEXT("fuel is flowing"); return Why.IsEmpty(); }
+		if (M == FuMFlap) { if (To < 0.5f && F.FillNow > 0.02f) Why = TEXT("the fill valve is open"); return Why.IsEmpty(); }
+		if (M == FuMFill) { if (F.FlapNow < 0.98f) Why = TEXT("the fill flap is shut"); return Why.IsEmpty(); }
 		if (M == FuMDoor) { if (To < 0.5f && F.Dead != FR::InPlace) Why = TEXT("the dead man's lead hangs out of it"); return Why.IsEmpty(); }
 		if (M == FuMLift) { if (F.bStop) Why = TEXT("the emergency stop is pressed"); else if (F.Gate > 0.02f) Why = TEXT("the gate is open"); else if (!T.YouOn) Why = TEXT("only from on the platform"); else if (F.bConn || F.Rt.bConn) Why = TEXT("the nozzle is on the aircraft"); return Why.IsEmpty(); }
 		if (M == FuMGate) { if (F.Lift > 0.5f) Why = TEXT("the platform is up"); else if (T.YouOn && T.YouAt.X < -455.f) Why = TEXT("you stand in its way"); return Why.IsEmpty(); }
@@ -687,7 +700,7 @@ TSharedPtr<FVehTable> AGSE::FuelControls()
 	Tb->Press = [](AGSE& G, int32 Ti, const K& X) { FTractor& T = G.Tractors[Ti]; if (X.Motion == FuMLift && G.GetWorld()->GetTimeSeconds() - T.Fu->SeenAt > 5.) G.YouSee(T); };
 	Tb->Say = [](const AGSE& G, const FTractor& T, const K& X) -> FString
 	{
-		const FR& F = *T.Fu; const bool bPanel = FCString::Strncmp(X.Point, TEXT("IK_Lever_"), 9) == 0 || FCString::Strncmp(X.Point, TEXT("IK_Button_"), 10) == 0 || X.Switch == FuSDead || X.Switch == FuSTicket;
+		const FR& F = *T.Fu; const bool bPanel = FCString::Strncmp(X.Point, TEXT("IK_Lever_"), 9) == 0 || FCString::Strncmp(X.Point, TEXT("IK_Button_"), 10) == 0 || X.Switch == FuSDead || X.Switch == FuSTicket || X.Switch == FuSPrint;
 		if (bPanel && T.SvcDoors.Num() && T.SvcDoors[0].Now < 0.5f) return FString();   // (behind its door)
 		auto Two = [](uint8 M, bool bHome, const TCHAR* Take, const TCHAR* Back) { return FString(M == (bHome ? FR::InPlace : FR::Put) ? Take : M == FR::YourHand ? Back : TEXT("")); };
 		if (X.Motion >= FuMPullL) return (X.Motion == FuMPullB ? F.Clamp : X.Motion == FuMPullR ? F.Rt.Noz : F.Noz) == FR::InPlace ? FString(X.Label) : FString();
@@ -699,6 +712,7 @@ TSharedPtr<FVehTable> AGSE::FuelControls()
 		case FuSDead: return Two(F.Dead, true, TEXT("Take the dead man handle"), TEXT("Hang the dead man handle back"));
 		case FuSExt0: case FuSExt1: return Two(F.Ext[X.Switch - FuSExt0], true, TEXT("Take the fire extinguisher"), TEXT("Put the fire extinguisher back"));
 		case FuSTicket: return F.Ticket == FR::YourHand ? FString() : F.Ticket == FR::Put ? TEXT("Take the ticket") : TEXT("Print the ticket");
+		case FuSPrint: return F.Ticket == FR::InPlace ? FString(X.Label) : FString();
 		case FuSPreset: return F.Preset > 0.f ? FString::Printf(TEXT("Preset, now %.0f l"), F.Preset) : FString(TEXT("Preset, now off"));
 		case FuSNozHome: return Two(F.Noz, true, TEXT("Take the nozzle, the hose comes with it"), TEXT("Put the nozzle back"));
 		case FuSNozPlane: return F.bSeen || F.bConn ? Two(F.Noz, false, TEXT("Take the nozzle off"), TEXT("Connect the nozzle")) : FString();
@@ -724,7 +738,8 @@ TSharedPtr<FVehTable> AGSE::FuelControls()
 		else if (S == FuSStart && F.bStop) Why = TEXT("the emergency stop is pressed");
 		else if (S == FuSStart && F.bRun) Why = TEXT("the meter runs already");
 		else if (S == FuSPreset && F.bRun) Why = TEXT("the meter runs");
-		else if (S == FuSTicket && F.Ticket == FR::InPlace && F.bRun) Why = TEXT("stop the meter first");
+		else if ((S == FuSTicket || S == FuSPrint) && F.Ticket == FR::InPlace && F.bRun) Why = TEXT("stop the meter first");
+		else if (S == FuSPrint && F.Ticket == FR::InPlace && F.Litres < 1.f) Why = TEXT("there is nothing to print");
 		else if (S == FuSTicket && F.Ticket == FR::InPlace && F.Litres < 1.f) Why = TEXT("there is nothing to print");
 		else if (S == FuSTicket && F.Ticket == FR::Put && F.TicketT < 1.f) Why = TEXT("it is still printing");
 		else if (S == FuSClampGear && F.Clamp != FR::Put && !bChocked) Why = TEXT("the chocks at the wheel first");
@@ -750,6 +765,7 @@ TSharedPtr<FVehTable> AGSE::FuelControls()
 		case FuSDead: Turn(F.Dead, FR::InPlace); F.bPress = false; break;
 		case FuSExt0: case FuSExt1: Turn(F.Ext[S - FuSExt0], FR::InPlace); break;
 		case FuSTicket: if (F.Ticket == FR::InPlace) F.Print(); else Turn(F.Ticket, FR::Put); break;
+		case FuSPrint: if (F.Ticket == FR::InPlace) F.Print(); F.PrintT = 0.3f; break;
 		case FuSStart: F.Start(); break;
 		case FuSEnd: F.Stop(); F.bPump = false; break;
 		case FuSPreset:

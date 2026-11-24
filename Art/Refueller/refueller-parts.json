@@ -3,7 +3,7 @@
  "size_m": [
   10.203,
   3.0,
-  3.182
+  3.633
  ],
  "body_m": [
   10.17,
@@ -290,6 +290,36 @@
    80.0,
    50.7
   ],
+  "PIV_ManholeLid0": [
+   120.5,
+   -0.0,
+   305.0
+  ],
+  "IK_ManholeLid0": [
+   78.0,
+   -0.0,
+   309.8
+  ],
+  "IK_Stand_Manhole0": [
+   50.0,
+   -0.0,
+   297.0
+  ],
+  "PIV_ManholeLid1": [
+   -129.5,
+   -0.0,
+   305.0
+  ],
+  "IK_ManholeLid1": [
+   -172.0,
+   -0.0,
+   309.8
+  ],
+  "IK_Stand_Manhole1": [
+   -200.0,
+   -0.0,
+   297.0
+  ],
   "PIV_PanelDoorL": [
    215.5,
    -121.3,
@@ -354,6 +384,11 @@
    276.0,
    -72.5,
    195.5
+  ],
+  "IK_Button_Ticket": [
+   276.0,
+   -74.0,
+   191.8
   ],
   "IK_Button_Start": [
    230.0,
@@ -734,6 +769,76 @@
    510.0,
    40.0,
    50.0
+  ],
+  "IK_Grab_Ladder_R": [
+   -352.0,
+   22.0,
+   340.0
+  ],
+  "IK_Grab_Ladder_L": [
+   -352.0,
+   -22.0,
+   340.0
+  ],
+  "IK_Step_Ladder_0": [
+   -352.0,
+   -0.0,
+   181.5
+  ],
+  "IK_Step_Ladder_1": [
+   -352.0,
+   -0.0,
+   209.5
+  ],
+  "IK_Step_Ladder_2": [
+   -352.0,
+   -0.0,
+   237.5
+  ],
+  "IK_Step_Ladder_3": [
+   -352.0,
+   -0.0,
+   265.5
+  ],
+  "IK_Step_Ladder_4": [
+   -352.0,
+   -0.0,
+   293.5
+  ],
+  "IK_Stand_Ladder": [
+   -375.0,
+   -0.0,
+   145.0
+  ],
+  "IK_Ladder_Top": [
+   -329.0,
+   -0.0,
+   306.5
+  ],
+  "PIV_FillLever": [
+   -326.0,
+   107.0,
+   90.0
+  ],
+  "IK_FillLever": [
+   -326.0,
+   107.0,
+   101.8
+  ],
+  "PIV_FillFlap": [
+   -336.0,
+   121.8,
+   107.2
+  ],
+  "IK_FillFlap": [
+   -336.0,
+   123.2,
+   80.0
+  ],
+  "IK_Stand_Fill": [
+   -336.0,
+   175.0,
+   0.0
   ]
  },
  "parts": [
@@ -742,6 +847,7 @@
   "BondClamp",
   "BondReel",
   "BondTail",
+  "Button_Ticket",
   "CabFittings",
   "CabinetBody",
   "Chock_0",
@@ -757,6 +863,8 @@
   "DoorPassenger_Parts",
   "Extinguisher_L",
   "Extinguisher_R",
+  "FillFlap",
+  "FillLever",
   "GatePlatform",
   "GaugeNeedle0",
   "GaugeNeedle1",
@@ -809,6 +917,8 @@
   "Lever_Pump",
   "LowBeam_L_Lens",
   "LowBeam_R_Lens",
+  "ManholeLid0",
+  "ManholeLid1",
   "Meter_Face",
   "NamePanel_Front",
   "NamePanel_L",
@@ -892,6 +1002,7 @@
   "RF_MirrorGlass",
   "RF_NamePanel_Paint",
   "RF_Platform_Paint",
+  "RF_PolishedSteel",
   "RF_RedLens",
   "RF_RedPaint",
   "RF_Reflector",
@@ -910,6 +1021,6 @@
   "RF_Tyre",
   "RF_WhiteLens"
  ],
- "tris": 344266,
+ "tris": 360754,
  "flicker": "0 pairs fight"
 }

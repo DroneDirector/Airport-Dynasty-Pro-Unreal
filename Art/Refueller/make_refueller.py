@@ -38,6 +38,19 @@ M_BELT = P('RF_BeltWebbing', (.02, .02, .022), 0, .8); M_SBLK = P('RF_SignBlack'
 for m, t in ((M_STEEL, None), (M_DARK, (.25, .25, .27)), (M_RIM, (1.05, 1.06, 1.08)), (M_ALU, (1.3, 1.3, 1.32))): K.photo(m, TEX, 'Metal027', tile=.6, tint=t)
 K.photo(M_TYRE, TEX, 'Rubber004', tile=.5, tint=(.35, .35, .35), metal=0.0); K.photo(M_MAT, TEX, 'Rubber001', tile=.5, tint=(.4, .4, .4), metal=0.0); K.photo(M_DECK, TEX, 'DiamondPlate008A', tile=.5); K.photo(M_HOSE, TEX, 'Rubber001', tile=.3, tint=(.28, .28, .28), metal=0.0)
 for m, t in ((M_BUMP, (.40, .40, .42)), (M_PLAST, (.32, .32, .34)), (M_DASH, (.75, .77, .8))): K.photo(m, TEX, 'Plastic006', tile=.4, tint=t, metal=0.0)
+# to-do 235: no flat colour left - paint mottle with a fine orange peel, real plastics, leather, rubber; lenses pressed pillow optics, bowls faceted
+OWN = os.path.join(ROOT, 'Art', 'PassengerStairs', 'Textures'); CART = os.path.join(ROOT, 'Art', 'BaggageCart', 'Textures'); RTX = os.path.join(ART, 'Textures')
+def paint(m, col, t=.5, n=.35): K.photo(m, OWN, 'PaintGSE', tile=t, tint=tuple(c * 1.06 for c in col), metal=0.0, normal=n)
+paint(M_BODY, (.90, .91, .92)); paint(M_MAIN, (.03, .20, .36)); paint(M_NAME, (.92, .92, .92)); paint(M_CHAS, (.06, .065, .07)); paint(M_FRM, (.36, .38, .40)); paint(M_YEL, (.95, .72, .02)); paint(M_RED, (.70, .03, .02))
+for m, c in ((M_SBLK, (.012, .012, .014)), (M_SWHT, (.90, .90, .88)), (M_SRED, (.68, .02, .02)), (M_SORG, (1.0, .38, .02)), (M_HVR, (.65, .03, .02)), (M_HVW, (.85, .86, .86)), (M_GRN, (.03, .34, .10)), (M_BLU, (.02, .16, .45))): paint(m, c, .3, .25)
+for m, c in ((M_TRIM, (.62, .63, .65)), (M_LIN, (1.30, 1.30, 1.27))): K.photo(m, OWN, 'Plastic018A', tile=.45, tint=c, metal=0.0, normal=.6)
+K.photo(M_CAB, OWN, 'Plastic012A', tile=.2, tint=(.75, 1.1, .12), metal=0.0, normal=.4); K.photo(M_SEAL, TEX, 'Rubber001', tile=.25, tint=(.25, .25, .25), metal=0.0); K.photo(M_BELT, CART, 'Fabric074', tile=.1, tint=(.05, .05, .055), metal=0.0)
+K.photo(M_SEAT, CART, 'Fabric074', tile=.35, tint=(.16, .18, .20), metal=0.0); K.photo(M_SEAT2, TEX, 'Leather026', tile=.4, metal=0.0); K.photo(M_BRASS, TEX, 'Metal027', tile=.4, tint=(9.0, 6.0, 2.2))
+def lens(m, c, glow):
+    K.photo(m, OWN, 'LensPillow', tile=.10, tint=c, metal=0.0); nt = m.node_tree; b = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
+    nt.links.new(b.inputs['Base Color'].links[0].from_socket, b.inputs['Emission']); b.inputs['Emission Strength'].default_value = glow
+for m, c, g in ((M_AMB, (1, .42, .03), 1.0), (M_RLENS, (.80, .03, .02), .6), (M_WHT, (.97, .97, .95), 1.0)): lens(m, c, g)
+K.photo(M_CHROME, RTX, 'ReflectorFacet', tile=.06, metal=1.0, normal=.6); M_POL = P('RF_PolishedSteel', (.8, .8, .82), 1, .15); K.photo(M_POL, TEX, 'Metal027', tile=.3, tint=(1.6, 1.6, 1.62), rough_mul=.4)
 def ik(n, loc): return K.ik(n, loc)
 def piv(n, loc): return K.ik(n, loc, prefix='PIV_')
 def text(name, s, c, size, face, m, ex=.0016, align='CENTER'):
@@ -153,7 +166,7 @@ for i, y in enumerate((-.95, -.25, .34, .95)):
     box('Dash_Vent%d' % i, (Xo(1.285), y, Zo(1.06)), (.07, .12, .09), M_PLAST, .012)
     for k in range(4): box('Dash_Vent%d_S%d' % (i, k), (Xo(1.2485), y, Zo(1.030 + .02 * k)), (.010, .10, .007), M_DARK, .001, 1)
 box('Dash_Glove', (Xo(1.262), -.62, Zo(1.0)), (.03, .42, .15), M_DASH, .012); box('Dash_GloveCatch', (Xo(1.2455), -.62, Zo(1.06)), (.010, .10, .022), M_PLAST, .004)
-box('GearSelect_Base', (4.15, .22, FLOOR + .275), (.16, .11, .03), M_PLAST, .008); cyl('GearSelect', (4.15, .22, FLOOR + .315), .026, .06, 'z', M_CHROME, 32, .006); ik('GearSelect', (4.15, .22, FLOOR + .345)); box('ParkBrake', (3.98, .22, FLOOR + .30), (.05, .03, .07), M_RED, .008); ik('ParkBrake', (3.98, .22, FLOOR + .335))
+box('GearSelect_Base', (4.15, .22, FLOOR + .275), (.16, .11, .03), M_PLAST, .008); cyl('GearSelect', (4.15, .22, FLOOR + .315), .026, .06, 'z', M_POL, 32, .006); ik('GearSelect', (4.15, .22, FLOOR + .345)); box('ParkBrake', (3.98, .22, FLOOR + .30), (.05, .03, .07), M_RED, .008); ik('ParkBrake', (3.98, .22, FLOOR + .335))
 SC = Vector((Xo(1.085), DY, Zo(1.175))); AXW = Vector((-.7071, 0, .7071))
 def tilt(o): o.data.transform(Matrix.Translation(SC) @ AXW.to_track_quat('Z', 'Y').to_matrix().to_4x4()); o.data.update(); return o
 tilt(torus('SteeringWheel_Rim', (0, 0, 0), .215, .0165, 'z', M_PLAST, 64, 16)); tilt(cyl('SteeringWheel_Boss', (0, 0, -.012), .078, .045, 'z', M_PLAST, 40, .012)); tilt(cyl('SteeringWheel_Cap', (0, 0, .012), .040, .012, 'z', M_DASH, 32, .004))
@@ -277,8 +290,13 @@ for s, sn in ((1, 'L'), (-1, 'R')):                                  # the liver
 for i, x in enumerate((1.72, -3.12)): box('CoamEnd%d' % i, (x + (.03 if i else -.0), 0, 2.965), (.014, 1.17, .15), M_BODY, .003, 1)
 box('TopWalk', (-.70, 0, 2.958), (4.40, .42, .022), M_DECK, .003, 1)
 for i, x in enumerate((.95, -1.55)):
-    cyl('Manhole%d' % i, (x, 0, 2.972), .27, .10, 'z', M_ALU, 56, .012); cyl('Manhole%d_Lid' % i, (x, 0, 3.035), .235, .04, 'z', M_ALU, 56, .012)
-    for j in range(6): cyl('Manhole%d_Clamp%d' % (i, j), (x + .245 * math.cos(j * math.pi / 3), .245 * math.sin(j * math.pi / 3), 3.035), .018, .05, 'z', M_STEEL, 16)
+    cyl('Manhole%d' % i, (x, 0, 2.972), .27, .10, 'z', M_ALU, 56, .012); L = 'ManholeLid%d' % i            # to-do 235: the lid its own hinged part
+    cyl(L, (x, 0, 3.044), .235, .04, 'z', M_ALU, 56, .010); box(L + '_Leaf', (x + .2375, 0, 3.050), (.025, .10, .012), M_STEEL, .002); cyl(L + '_Knuckle', (x + .255, 0, 3.050), .012, .12, 'y', M_STEEL, 20, .002)
+    cyl(L + '_Vent', (x + .02, 0, 3.073), .05, .02, 'z', M_ALU, 32, .004); cyl(L + '_VentCap', (x + .02, 0, 3.088), .035, .012, 'z', M_DARK, 28, .003)
+    tube(L + '_Handle', [(x - .17, -.07, 3.062), (x - .17, -.07, 3.090), (x - .17, -.05, 3.098), (x - .17, .05, 3.098), (x - .17, .07, 3.090), (x - .17, .07, 3.062)], .008, M_STEEL, 12, True, 3)
+    piv(L, (x + .255, 0, 3.050)); ik(L, (x - .17, 0, 3.098)); ik('Stand_Manhole%d' % i, (x - .45, 0, 2.97))
+    box('Manhole%d_HingeBlock' % i, (x + .262, 0, 3.029), (.03, .16, .014), M_STEEL, .002)
+    for j in range(1, 6): a = j * math.pi / 3; cyl('Manhole%d_Clamp%d' % (i, j), (x + .255 * math.cos(a), .255 * math.sin(a), 3.047), .012, .052, 'z', M_STEEL, 16, .002); cyl('Manhole%d_ClampNut%d' % (i, j), (x + .255 * math.cos(a), .255 * math.sin(a), 3.078), .016, .012, 'z', M_STEEL, 6, .001)
 for i, x in enumerate((.25, -2.35)): cyl('Vent%d' % i, (x, .30, 2.985), .045, .14, 'z', M_ALU, 28); cyl('Vent%d_Cap' % i, (x, .30, 3.06), .075, .035, 'z', M_ALU, 36, .012)
 # the product line along the left side, the return line on the right
 tube('Pipe_L', [(2.20, .95, 1.16), (1.90, .95, 1.135), (-3.45, .95, 1.135), (-3.60, .95, 1.10), (-3.66, .90, .98), (-3.72, .86, .93)], .042, M_BODY, bez=False)
@@ -296,7 +314,7 @@ ocx = (CX0 + CX1) / 2
 for s, sn in ((1, 'L'), (-1, 'R')):
     n = 'PanelDoor' + sn; box(n, (ocx, s * (CY - .008), 1.79), (CX1 - CX0 - .085, .030, 1.725), M_BODY, .008, 2); box(n + '_Frame', (ocx, s * (CY - .030), 1.79), (CX1 - CX0 - .15, .020, 1.62), M_TRIM, .004, 1)
     for i, z in enumerate((1.08, 1.79, 2.50)): cyl(n + '_Hinge%d' % i, (CX0 + .035, s * (CY + .008), z), .013, .10, 'z', M_STEEL, 20)
-    box(n + '_HandleCup', (CX1 - .12, s * (CY + .0075), 1.62), (.10, .010, .16), M_PLAST, .004, 1); box(n + '_Handle', (CX1 - .12, s * (CY + .020), 1.62), (.030, .024, .13), M_CHROME, .008, 2)
+    box(n + '_HandleCup', (CX1 - .12, s * (CY + .0075), 1.62), (.10, .010, .16), M_PLAST, .004, 1); box(n + '_Handle', (CX1 - .12, s * (CY + .020), 1.62), (.030, .024, .13), M_POL, .008, 2)
     piv(n, (CX0 + .035, s * (CY + .008), 1.79)); ik('Handle_%s_Out' % n, (CX1 - .12, s * (CY + .032), 1.62)); ik('Stand_' + n, (ocx + .25, s * 1.85, 0)); ik('Stand_%s_Open' % n, (CX1 + .10, s * 1.80, 0))
     for i in range(3): box('CabVent%d_%s' % (i, sn), (CX1 - .20 - .26 * i, s * (CY - .001), 2.742), (.18, .010, .04), M_PLAST, .003, 1)
     box('CabMount_' + sn, (ocx, s * .43, .80), (.70, .16, .05), M_CHAS, .008)
@@ -324,9 +342,10 @@ for i, (x, z, lab, r) in enumerate(((2.78, 2.23, 'PUMP bar', .075), (2.56, 2.23,
     facepoly('GaugeNeedle%d' % i, [(-.003, -.012), (.003, -.012), (.0012, r * .66), (-.0012, r * .66)], (x, PY + .0612, z), 'y+', M_SRED, .0012); cyl('Gauge%d_Pin' % i, (x, PY + .0595, z), .006, .010, 'y', M_SBLK, 16); piv('GaugeNeedle%d' % i, (x, PY + .060, z)); text('Gauge%d_Word' % i, lab, (x, PY + .010, z - .105), .026, 'y+', M_SWHT, .0008)
 box('Meter_Body', (2.46, PY + .035, 1.96), (.34, .07, .19), M_DARK, .012, 3); box('Meter_Face', (2.46, PY + .0710, 1.975), (.28, .006, .085), M_LCD, .001, 1); text('Meter_Word', 'LITRES', (2.46, PY + .070, 1.895), .026, 'y+', M_SWHT, .0008); ik('Meter_Face', (2.46, PY + .075, 1.975))
 box('Printer', (2.76, PY + .035, 1.97), (.16, .07, .17), M_DARK, .012, 3); box('Printer_Slot', (2.76, PY + .0710, 2.005), (.11, .006, .012), M_SBLK, .001, 1); box('Printer_Ticket', (2.76, PY + .0735, 1.975), (.095, .003, .07), M_SWHT, .0005, 1); ik('Ticket', (2.76, PY + .085, 1.955))
-def knob(n, x, z, m, lab, r=.020):
-    cyl('Button_%s_Base' % n, (x, PY + .014, z), r * 1.45, .014, 'y', M_DARK, 32, .003); cyl('Button_' + n, (x, PY + .028, z), r, .024, 'y', m, 32, .006); text('Button_%s_Word' % n, lab, (x, PY + .010, z - r * 1.45 - .020), .018, 'y+', M_SWHT, .0008); ik('Button_' + n, (x, PY + .042, z))
-knob('Start', 2.30, 1.76, M_GRN, 'START'); knob('Stop', 2.40, 1.76, M_RED, 'STOP'); knob('LampOn', 2.50, 1.76, M_WHT, 'FLOW'); knob('Preset', 2.60, 1.76, M_BLU, 'PRESET'); knob('EStop', 2.80, 1.77, M_RED, 'EMERGENCY STOP', .032)
+cyl('Printer_TicketBase', (2.76, PY + .0725, 1.918), .013, .006, 'y', M_DARK, 24, .001); cyl('Button_Ticket', (2.76, PY + .080, 1.918), .009, .010, 'y', M_SWHT, 20, .002); ik('Button_Ticket', (2.76, PY + .10, 1.918))
+def knob(n, x, z, m, lab, r=.020, ts=.018):
+    cyl('Button_%s_Base' % n, (x, PY + .014, z), r * 1.45, .014, 'y', M_DARK, 32, .003); cyl('Button_' + n, (x, PY + .028, z), r, .024, 'y', m, 32, .006); text('Button_%s_Word' % n, lab, (x, PY + .010, z - r * 1.45 - .020), ts, 'y+', M_SWHT, .0008); ik('Button_' + n, (x, PY + .042, z))
+knob('Start', 2.30, 1.76, M_GRN, 'START'); knob('Stop', 2.40, 1.76, M_RED, 'STOP'); knob('LampOn', 2.50, 1.76, M_SWHT, 'WORK LAMP', ts=.013); text('Panel_FlowWord', 'FLOW', (2.86, PY + .010, 1.372), .016, 'y+', M_SWHT, .0008); knob('Preset', 2.60, 1.76, M_BLU, 'PRESET'); knob('EStop', 2.80, 1.77, M_RED, 'EMERGENCY STOP', .032)
 for i, (n, x, lab) in enumerate((('Pump', 2.28, 'PUMP'), ('HoseL', 2.45, 'HOSE 1'), ('HoseR', 2.62, 'HOSE 2'), ('Defuel', 2.79, 'DEFUEL'))):
     box('LeverGuide_' + n, (x, PY + .014, 1.555), (.05, .014, .16), M_DARK, .004); b = [cyl('Lever_%s_Boss' % n, (x, PY + .032, 1.50), .020, .03, 'y', M_STEEL, 28, .003), cyl('Lever_%s_Rod' % n, (x, PY + .050, 1.58), .008, .15, 'z', M_STEEL, 20), cyl('Lever_%s_Pivot' % n, (x, PY + .045, 1.505), .012, .02, 'y', M_STEEL, 20)]
     CK.lathez('Lever_%s_Ball' % n, [(0, -.022), (.014, -.018), (.022, -.004), (.020, .010), (.010, .021), (0, .023)], (x, PY + .050, 1.665), M_RED if n == 'Defuel' else M_SBLK, 24); piv('Lever_' + n, (x, PY + .045, 1.505)); ik('Lever_' + n, (x, PY + .050, 1.668)); text('Lever_%s' % n + 'Word', lab, (x, PY + .010, 1.425), .022, 'y+', M_SWHT, .0008)
@@ -434,7 +453,7 @@ for st in (0, 1):
     cyl('ScissorA%d_Cross' % (st + 1), (SX0 + cxx / 2, 0, (z0 + z1) / 2), .016, .74, 'y', M_STEEL, 24); piv('Scissor%d' % (st + 1), (SX0 + cxx / 2, 0, (z0 + z1) / 2))
 box('ScissorBase', (SX0 + .52, 0, 1.032), (1.20, .78, .026), M_FRM, .004, 1)
 for s in (-1, 1): box('ScissorBase_Rail%d' % (s > 0), (SX0 + .52, s * .384, 1.065), (1.20, .020, .075), M_FRM, .003, 1)
-cyl('RamBarrel', (SX0 + .30, 0, 1.098), .038, .42, 'x', M_DARK, 32, .006); cyl('RamRod', (SX0 + .62, 0, 1.098), .020, .30, 'x', M_CHROME, 28); box('RamFoot', (SX0 + .12, 0, 1.06), (.08, .10, .06), M_FRM, .006); box('RamEye', (SX0 + .78, 0, 1.098), (.05, .64, .03), M_STEEL, .006); piv('Ram', (SX0 + .12, 0, 1.098)); piv('RamEye', (SX0 + .78, 0, 1.098))
+cyl('RamBarrel', (SX0 + .30, 0, 1.098), .038, .42, 'x', M_DARK, 32, .006); cyl('RamRod', (SX0 + .62, 0, 1.098), .020, .30, 'x', M_POL, 28); box('RamFoot', (SX0 + .12, 0, 1.06), (.08, .10, .06), M_FRM, .006); box('RamEye', (SX0 + .78, 0, 1.098), (.05, .64, .03), M_STEEL, .006); piv('Ram', (SX0 + .12, 0, 1.098)); piv('RamEye', (SX0 + .78, 0, 1.098))
 PX0, PX1, PW, PZ = -4.96, -3.55, 1.17, 1.45
 box('Platform_Deck', ((PX0 + PX1) / 2, 0, PZ - .010), (PX1 - PX0, PW * 2, .020), M_DECK, .003, 1)
 for s in (-1, 1):
@@ -443,8 +462,8 @@ for e, x in enumerate((PX0 + .02, PX1 - .02)): box('Platform_EndBeam%d' % e, (x,
 box('Platform_ToeF', (PX1 - .012, 0, PZ + .045), (.010, PW * 2 - .06, .10), M_YEL, .002, 1)
 def rail(n, pts): return tube(n, pts, .020, M_YEL, 6, False)
 for s in (-1, 1):
-    rail('Platform_RailTop%d' % (s > 0), [(PX0 + .03, s * .38, PZ + 1.10), (PX0 + .03, s * (PW - .06), PZ + 1.10), (PX0 + .07, s * (PW - .03), PZ + 1.10), (PX1 - .07, s * (PW - .03), PZ + 1.10), (PX1 - .03, s * (PW - .07), PZ + 1.10), (PX1 - .03, 0, PZ + 1.10)])
-    rail('Platform_RailMid%d' % (s > 0), [(PX0 + .03, s * .38, PZ + .58), (PX0 + .03, s * (PW - .06), PZ + .58), (PX0 + .07, s * (PW - .03), PZ + .58), (PX1 - .07, s * (PW - .03), PZ + .58), (PX1 - .03, s * (PW - .07), PZ + .58), (PX1 - .03, 0, PZ + .58)])
+    rail('Platform_RailTop%d' % (s > 0), [(PX0 + .03, s * .38, PZ + 1.10), (PX0 + .03, s * (PW - .06), PZ + 1.10), (PX0 + .07, s * (PW - .03), PZ + 1.10), (PX1 - .07, s * (PW - .03), PZ + 1.10), (PX1 - .03, s * (PW - .07), PZ + 1.10), (PX1 - .03, s * .42, PZ + 1.10)])
+    rail('Platform_RailMid%d' % (s > 0), [(PX0 + .03, s * .38, PZ + .58), (PX0 + .03, s * (PW - .06), PZ + .58), (PX0 + .07, s * (PW - .03), PZ + .58), (PX1 - .07, s * (PW - .03), PZ + .58), (PX1 - .03, s * (PW - .07), PZ + .58), (PX1 - .03, s * .42, PZ + .58)])
     for i, (x, y) in enumerate(((PX0 + .03, .38), (PX0 + .03, PW - .06), (-4.26, PW - .03), (PX1 - .07, PW - .03), (PX1 - .03, .42))): cyl('Platform_Post%d_%d' % (s > 0, i), (x, s * y, PZ + .545), .019, 1.11, 'z', M_YEL, 24); box('Platform_PostFoot%d_%d' % (s > 0, i), (x, s * y, PZ + .006), (.07, .07, .016), M_YEL, .003, 1)
     box('Platform_ToeB%d' % (s > 0), (PX0 + .012, s * .76, PZ + .045), (.010, .72, .10), M_YEL, .002, 1); ik('Grab_Platform_' + ('L' if s > 0 else 'R'), (PX0 + .03, s * .38, PZ + .70)); ik('Platform_Work_' + ('L' if s > 0 else 'R'), (-4.30, s * .62, PZ + .002))
 # the gate in the back rail: hinged on the left post, opens inwards
@@ -486,6 +505,25 @@ for k in range(2): box('BatHi%d' % k, (.22 + .28 * k, 1.182, .60), (.24, .008, .
 ik('Driver_Eye', (Xo(.60), DY, FLOOR + 1.145)); ik('Aisle_Row0', (4.15, DY, FLOOR + .01)); ik('Fuel_In', (.95, 0, .7)); ik('PanelStand', (ocx + .02, 1.50, 0)); ik('Tow', (5.1, -.40, .50))
 # #endregion
 
+# to-do 235: the way up - the platform's front rails stop at the posts, a fixed ladder on the tank's rear end, a landing at the walkway
+for s in (-1, 1):
+    tube('Ladder_Stile%d' % (s > 0), [(-3.52, s * .22, 1.70), (-3.52, s * .22, 3.50), (-3.46, s * .22, 3.60), (-3.36, s * .22, 3.60), (-3.30, s * .22, 3.54), (-3.30, s * .22, 3.066)], .020, M_YEL, 12, True, 3)
+    for k, z in enumerate((2.0, 2.75)): xe = (-3.38, -3.28)[k]; box('Ladder_Bracket%d%d' % (s > 0, k), ((-3.50 + xe) / 2, s * .22, z), (xe + 3.50, .03, .03), M_YEL, .003)
+    box('Ladder_LandingLeg%d' % (s > 0), (-3.22, s * .25, 3.001), (.04, .03, .09), M_YEL, .003); ik('Grab_Ladder_' + ('L' if s > 0 else 'R'), (-3.52, s * .22, 3.40))
+for k, z in enumerate((1.80, 2.08, 2.36, 2.64, 2.92)): cyl('Ladder_Rung%d' % k, (-3.52, 0, z), .015, .41, 'y', M_DECK, 16, .002); ik('Step_Ladder_%d' % k, (-3.52, 0, z + .015))
+box('Ladder_Landing', (-3.295, 0, 3.055), (.39, .56, .02), M_DECK, .003); ik('Stand_Ladder', (-3.75, 0, PZ)); ik('Ladder_Top', (-3.29, 0, 3.065))
+# the bottom-loading point: a cabinet on the rear right, the fill coupling behind a hinged flap, its own valve lever
+FC = (-3.36, .90); fb = box('FillBox', (FC[0], -1.10, FC[1]), (.30, .20, .36), M_BODY, .010, 2); cut(fb, box('c', (FC[0], -1.13, FC[1]), (.24, .18, .28), M_BODY))
+box('FillBox_Arm', (FC[0], -.7375, .760), (.06, .525, .04), M_CHAS, .004)
+cyl('FillCoupling', (FC[0], -1.069, FC[1]), .060, .060, 'y', M_ALU, 40, .004); cyl('FillCoupling_Collar', (FC[0], -1.109, FC[1]), .075, .020, 'y', M_ALU, 40, .004); cyl('FillCoupling_Cap', (FC[0], -1.133, FC[1]), .065, .030, 'y', M_DARK, 36, .006)
+for j in range(3): a = j * 2 * math.pi / 3 + .5; box('FillCoupling_Lug%d' % j, (FC[0] + .080 * math.cos(a), -1.109, FC[1] + .080 * math.sin(a)), (.02, .016, .02), M_ALU, .003)
+cyl('FillCoupling_Spindle', (-3.28925, -1.07, FC[1]), .008, .0315, 'x', M_STEEL, 16)
+cyl('FillLever', (-3.26, -1.07, FC[1]), .015, .024, 'x', M_RED, 20, .003); cyl('FillLever_Rod', (-3.26, -1.07, FC[1] + .063), .008, .10, 'z', M_RED, 16, .002)
+cyl('FillLever_Knob', (-3.26, -1.07, FC[1] + .118), .014, .014, 'z', M_SBLK, 20, .004); piv('FillLever', (-3.26, -1.07, FC[1])); ik('FillLever', (-3.26, -1.07, FC[1] + .118))
+box('FillFlap', (FC[0], -1.2065, FC[1] + .02), (.27, .012, .31), M_BODY, .004, 2); cyl('FillFlap_Hinge', (FC[0], -1.218, 1.072), .008, .20, 'x', M_STEEL, 16, .001); cyl('FillFlap_Latch', (FC[0], -1.2175, .80), .012, .012, 'y', M_SBLK, 20, .003)
+text('FillFlap_Word0', 'FUEL FILL', (FC[0], -1.2125, .99), .035, 'y-', M_SBLK, .0008); text('FillFlap_Word1', 'JET A-1', (FC[0], -1.2125, .93), .030, 'y-', M_SBLK, .0008)
+piv('FillFlap', (FC[0], -1.218, 1.072)); ik('FillFlap', (FC[0], -1.232, .80)); ik('Stand_Fill', (FC[0], -1.75, 0))
+
 K.uv_cube(); S.drop_lofts()
 for m in tm.values(): bpy.data.objects.remove(m)
 CHECK = '--nochk' not in sys.argv
@@ -493,6 +531,8 @@ if CHECK:
     K.checks('RF', ground_ok=('Tyre',), overhang_skip_prefix=('',))
     for nm, pv, ax, dg, sk in (('DoorDriver', (4.775, 1.215, 1), 'z', (-15, -40, -68), ()), ('DoorPassenger', (4.775, -1.215, 1), 'z', (15, 40, 68), ()), ('PanelDoorL', (CX0 + .035, CY + .008, 1), 'z', (20, 60, 110), ()), ('PanelDoorR', (CX0 + .035, -CY - .008, 1), 'z', (-20, -60, -110), ()), ('GatePlatform', (PX0 + .03, .362, 1), 'z', (20, 60, 90), ())):
         h = K.sweep(nm, pv, ax, dg, sk); print('RF SWEEP', nm, len(h), sorted(h)[:10])
+    for nm, pv, ax, dg in [('ManholeLid%d' % i, (x + .255, 0, 3.050), 'y', (30, 70, 110)) for i, x in enumerate((.95, -1.55))] + [('FillFlap', (-3.36, -1.218, 1.072), 'x', (-35, -70, -100)), ('FillLever', (-3.26, -1.07, .90), 'x', (25, 50, 75))]:
+        h = K.sweep(nm, pv, ax, dg, ()); print('RF SWEEP', nm, len(h), sorted(h)[:10])
     for k, x, sk in (('FL', FX, -1), ('FR', FX, -1)):
         h = set()
         for dg in (-38, -20, 20, 38):
@@ -504,7 +544,7 @@ if CHECK:
         print('RF STEER', k, sorted(h)[:12])
 # what belongs together becomes one mesh per moving group
 GROUPS = ['DoorDriver', 'DoorPassenger', 'PanelDoorL', 'PanelDoorR', 'SteeringWheel', 'Platform', 'GatePlatform', 'LeverPlatform', 'BondReel', 'BondClamp', 'BondTail', 'Nozzle_L', 'Nozzle_R', 'HoseReel_L', 'HoseReel_R', 'Extinguisher_L', 'Extinguisher_R', 'Chock_0', 'Chock_1', 'Deadman_', 'DeadmanLead',
-          'ScissorA1', 'ScissorA2', 'ScissorB1', 'ScissorB2', 'Lever_Pump', 'Lever_HoseL', 'Lever_HoseR', 'Lever_Defuel', 'Pedal_Accel', 'Pedal_Brake', 'WiperL', 'WiperR'] + ['Rim_' + k for k in ()]
+          'ScissorA1', 'ScissorA2', 'ScissorB1', 'ScissorB2', 'Lever_Pump', 'Lever_HoseL', 'Lever_HoseR', 'Lever_Defuel', 'Pedal_Accel', 'Pedal_Brake', 'WiperL', 'WiperR', 'ManholeLid0', 'ManholeLid1', 'FillFlap', 'FillLever', 'Button_Ticket'] + ['Rim_' + k for k in ()]
 WK = ('FL', 'FR', 'RL', 'RR', 'TL', 'TR')
 def groupof(o):
     n = o.name

@@ -39,6 +39,9 @@ struct FSvcRefuel : FSvcHose
 	int32 GBondReel = INDEX_NONE, GClamp = INDEX_NONE, GBondTail = INDEX_NONE, GChock[2] = {INDEX_NONE, INDEX_NONE}, GDead = INDEX_NONE, GDeadLead = INDEX_NONE;
 	int32 GLever[4] = {INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE}, GNeedle[3] = {INDEX_NONE, INDEX_NONE, INDEX_NONE};   // (the pump's and the left hose's lever)
 	int32 GExt[2] = {INDEX_NONE, INDEX_NONE}, GTicket = INDEX_NONE;
+	// (to-do 235: the manhole lids, the fill flap and its valve lever - opened by hand; the ticket button sinks in when pressed)
+	int32 GLid[2] = {INDEX_NONE, INDEX_NONE}, GFlap = INDEX_NONE, GFill = INDEX_NONE, GTicketBtn = INDEX_NONE;
+	float LidNow[2] = {0.f, 0.f}, LidWant[2] = {0.f, 0.f}, FlapNow = 0.f, FlapWant = 0.f, FillNow = 0.f, FillWant = 0.f, PrintT = 0.f;
 	UCableComponent *Bond = nullptr, *Lead = nullptr; UBoxComponent* Floor = nullptr; UTextRenderComponent* Meter = nullptr;
 	// where the carried things are: in their place, in a hand of Ci, or put somewhere (At, Yaw: root frame)
 	uint8 Clamp = InPlace, Chock[2] = {InPlace, InPlace}, Dead = InPlace, Ext[2] = {InPlace, InPlace}, Ticket = InPlace;   // (Ticket: InPlace none, Put hanging from the printer)
