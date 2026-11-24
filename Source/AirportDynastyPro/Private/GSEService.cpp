@@ -159,6 +159,26 @@ const TArray<FServiceSpec>& ADPService::All()
 			D.NameL = TEXT("IK_Name_L"); D.NameR = TEXT("IK_Name_R"); D.NameRear = TEXT("IK_Name_Rear"); D.NameSize = 20.f; D.NameRearSize = 8.f; D.LiveryBody = TEXT("AL_Livery_Body_Paint"); D.LiveryMain = TEXT("AL_Livery_Main_Paint");
 			L.Add(D);
 		}
+		{
+			// the taxi bus (to-do 239; the cleaning van's body, Art/TaxiBus): no turn-round task asks for it, it waits at the
+			// landside kerb - in the kerbside parking lane of the forecourt (lane -25.0 .. -21.5 m, the kerb at -21.5), 12 m
+			// west of the arrivals hall's east doors (x -39 .. -34), clear of the zebra crossings (x 48 .. 101), facing west
+			// with the traffic so its sliding door opens to the pavement. Yours: drive, ride beside the driver or in the back
+			// (the sliding door), its doors, lights, horn (TaxiBus.cpp). Its points: Data/taxibus-riders.json (without it the
+			// line is skipped with a warning).
+			FServiceSpec X;
+			X.Task = TEXT("taxi"); X.Model = TEXT("TaxiBus"); X.Points = TEXT("taxibus"); X.Label = TEXT("taxi bus"); X.Role = TEXT("taxi"); X.MaxPeople = 1;
+			X.HomeX = -48.f; X.HomeY = -23.f; X.HomeHx = -1.f; X.HomeHy = 0.f;
+			X.HalfL = 300.f; X.HalfW = 103.f; X.TurnR = 620.f; X.MaxSteer = 36.f; X.DoorDeg = 68.f; X.PlayerSpeed = 830.f;
+			X.Doors = {{TEXT("SlideDoor"), TEXT("PIV_SlideDoor"), TEXT("IK_Handle_SlideDoor_Out"), TEXT("IK_Stand_SlideDoor"), 0.f, true},
+				{TEXT("RearDoorR"), TEXT("PIV_RearDoorR"), TEXT("IK_Handle_RearDoorR_Out"), TEXT("IK_Stand_RearDoorR"), -100.f, false},
+				{TEXT("RearDoorL"), TEXT("PIV_RearDoorL"), TEXT("IK_Handle_RearDoorL_Edge"), TEXT("IK_Stand_RearDoorL"), 100.f, false}};
+			// (the passengers' seats behind the sliding door, the farthest from it first; through it with the sitting IK)
+			X.Seats = {TEXT("IK_Seat_SeatR3C"), TEXT("IK_Seat_SeatR3B"), TEXT("IK_Seat_SeatR3A"), TEXT("IK_Seat_SeatR2B"), TEXT("IK_Seat_SeatR2A"), TEXT("IK_Seat_SeatR1B"), TEXT("IK_Seat_SeatR1A")};
+			X.Cab = {{TEXT("IK_Seat_SeatPassenger"), {TEXT("DoorPassenger"), TEXT("PIV_DoorPassenger"), TEXT("IK_Handle_DoorPassenger_Out"), TEXT("IK_Stand_DoorPassenger"), -68.f, false}}};
+			X.Wipers = {{TEXT("WiperL"), TEXT("PIV_Wiper_L"), FVector(210.6f, -4.f, 143.3f), FVector(176.3f, -50.f, 178.f)}, {TEXT("WiperR"), TEXT("PIV_Wiper_R"), FVector(204.2f, 68.f, 143.3f), FVector(178.2f, 22.f, 178.f)}};   // (the van's: the same pivots)
+			L.Add(X);
+		}
 	}
 	return L;
 }

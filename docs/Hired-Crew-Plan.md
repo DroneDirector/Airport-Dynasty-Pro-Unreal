@@ -501,6 +501,13 @@ Missing in the model: work-light lamp heads and lenses (light only, no lens). Tu
 Coach doors and bays by hand (238, 2026-11-24, compiled, NOT run): Coaches.cpp `HandSpot/ReachTick`. E reaches first (0.4 s): fingertip on the outside DoorButton_i,
   inside the inner jamb; palm on BayHandle_nnn (follows the lifting door); only then it moves; within 0.88 m of the shoulder; walk off 60 cm = arm back, nothing moved.
   No driver seat, lights or horn for you (not driven). Model lacks: inside door button, wheelchair ramp or lift (none in Tools/make_coach.py).
+Taxi bus (239, part B, 2026-11-24, compiled, NOT run): a line of `ADPService::All()` (GSEService.cpp, task `taxi`, model `TaxiBus`), so the shared service
+  vehicles' driving, wheels, pedals, wipers, lamps, cab switches (lights, hazard, horn) and seats; parked at the landside kerb, plan (-48, -23) facing west,
+  sliding door to the pavement. You: E at the driver's door drives, front passenger door rides, sliding door rides in the back (7 `IK_Seat_SeatR*`).
+  `AGSE::TaxiControls` (TaxiBus.cpp): sliding door and rear doors by their handles, never shut on you. **Needs `Data/taxibus-riders.json`** (points of
+  `Art/TaxiBus/taxibus-parts.json` in Blender m, y left, plus `IK_Aisle_Row0` = `IK_Aisle_Row1`): not written yet, the line is skipped with a warning till then.
+  Left: a hired driver and passengers boarding at the kerb (no landside taxi demand in PaxFlow; UVehicleRiders is coach-shaped), belts (`Buckle_*`, `BeltTongue_*`
+  unused), taximeter button and roof sign light (no function, not faked), name on the airport's vehicle lists.
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 

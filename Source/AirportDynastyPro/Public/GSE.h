@@ -193,6 +193,7 @@ private:
 	static TSharedPtr<FVehTable> ToiletControls();
 	static TSharedPtr<FVehTable> CaterControls();
 	static TSharedPtr<FVehTable> CleanControls();
+	static TSharedPtr<FVehTable> TaxiControls();   // (the taxi bus, TaxiBus.cpp)
 	static TSharedPtr<FVehTable> StairsControls();
 	/** The belt loader worked by you (GSELoaderYou.cpp). Held: the boom stands (somebody on it or under it). Free: a crew may have it. */
 	static TSharedPtr<FVehTable> LoaderControls();
