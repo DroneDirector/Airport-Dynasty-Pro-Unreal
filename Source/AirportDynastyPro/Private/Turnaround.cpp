@@ -228,9 +228,19 @@ namespace ADPTurnaround
 			if (K.bStarted && !K.bDone && Tm >= K.Start + K.Dur && !bClean && !bChocks && !bBagsBusy && !bBoarding && !bOff && !bBridge && !bBack && !bStairs && !bAmbu) { K.bDone = true; ADP_LOG(TEXT("Turnaround: %s %s done"), *Tr->Reg, *K.Name); }
 			}
 			// (to-do 212: de-iced when the weather asks for it, once its doors are shut and the jetway is back; the flight waits)
-			if (Tr->bMine && bHired && !Tr->PlanId.IsEmpty())
-				if (const FTask* Dk = Tr->Tasks.FindByPredicate([](const FTask& K) { return K.Id == TEXT("doors"); })) if (Dk->bDone || Dk->bStarted || Tm >= Dk->Start - 10.f)
-					if (AGSE* Gs = AGSE::Get(W)) Gs->DeiceTick(Tr->StandX, Tr->Reg, Tr->Flight, Now, Tr->OffBlocks, true, Dk->bDone, Tr->bArrival ? Tr->OnBlocks : FDateTime(0));
+			if (Tr->bMine)
+			{
+				bool bSoon = false, bShut = false;   // (what falls on it counts all the time it stands)
+				if (bHired && !Tr->PlanId.IsEmpty()) if (const FTask* Dk = Tr->Tasks.FindByPredicate([](const FTask& K) { return K.Id == TEXT("doors"); })) if (Dk->bDone || Dk->bStarted || Tm >= Dk->Start - 12.f) { bSoon = true; bShut = Dk->bDone; }
+				if (AGSE* Gs = bSoon ? AGSE::Get(W) : AGSE::Find(W))
+				{
+					Gs->DeiceTick(Tr->StandX, Tr->Reg, Tr->Flight, Now, Tr->OffBlocks, bSoon, bShut, Tr->bArrival ? Tr->OnBlocks : FDateTime(0));
+					// (its look-over in icing weather: a line of its tasks, the flight waits for it - GSE's SvcWaits)
+					FTask* Ic = Tr->Tasks.FindByPredicate([](const FTask& K) { return K.Id == TEXT("icecheck"); }); const bool bLk = bSoon && Gs->DeiceLooks(Tr->Flight);
+					if (bLk && !Ic) { FTask& K = Tr->Tasks.AddDefaulted_GetRef(); K.Id = TEXT("icecheck"); K.Name = TEXT("looked over for ice"); K.Start = Tm; K.Dur = 2.f; K.bStarted = true; }
+					else if (bLk && Ic->bDone) { Ic->bDone = false; Ic->Start = Tm; }   // (once more)
+				}
+			}
 			// (its bags go out on the tractor train to it as soon as the stand is its own: 50 min before)
 			if (!Tr->PlanId.IsEmpty() && (Tr->OffBlocks - Now).GetTotalMinutes() < 50.0 && (bHired || Crew >= 2)) if (AGSE* Gs = AGSE::Get(W)) Gs->Departure(Tr->Flight, Tr->StandX);
 		}

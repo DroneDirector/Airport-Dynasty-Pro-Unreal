@@ -325,6 +325,7 @@ public:
 	void StairsEnter(int32 Ti, int32 By);
 	/** De-icing (GSEDeicer.cpp), every tick of your own departure's turnaround: bSoon - its doors are shut in ten minutes, bDoors -
 	 *  they are shut and the jetway is back. The weather decides; it is asked for, sent and asked for again by itself. */
+	bool DeiceLooks(const FString& Flight) const;
 	void DeiceTick(float StandX, const FString& Reg, const FString& Flight, const FDateTime& Now, const FDateTime& OffBlocks, bool bSoon, bool bDoors, const FDateTime& OnBlocks = FDateTime(0));
 	/** The ambulift (GSEAmbuliftWork.cpp): how many passengers of that flight come in a wheelchair (always the same for a flight of a
 	 *  day), its call - every tick while the flight wants it; bGo: the passengers get on or off now -, and the flight waiting for it. */
@@ -457,7 +458,9 @@ private:
 	void AmbuEnd(int32 Job);
 	void AmbuLost(int32 Job, int32 m);
 	// ---- the de-icing truck (GSEDeicer.cpp)
-	struct FDeiced { FDateTime Until = FDateTime(0); int32 Rounds = 0; };   // (until when the fluid holds; how often it was done)
+	struct FDeiced { FDateTime Until = FDateTime(0); int32 Rounds = 0; bool bFrost = false; };   // (until when the fluid holds; how often it was done; bFrost: no holdover, looked over when it goes)
+	struct FOnIt { float Mm = 0.f; bool bSnow = false; FDateTime On = FDateTime(0), Last = FDateTime(0); };   // (what lies on an aircraft: mm of water, snow among it; its on-blocks, when last counted)
+	TMap<FString, FOnIt> OnIt; TMap<FString, FDateTime> DeiceLook;   // (by registration; by registration/flight#round: until when it is looked over)
 	TMap<FString, FDeiced> Deiced; FDateTime DeiceNow = FDateTime(0);
 	void DeicerDress(FTractor& T);
 	void DeicerParts(FTractor& T, float Dt);
@@ -467,6 +470,10 @@ private:
 	FTransform DeicerCab(const FTractor& T) const;
 	bool DeicerLane(int32 Ti, float StandX, int32 Stop, FString& Why) const;
 	void DeicerApron(int32 Job);
+	bool DeiceSnow(const FString& Reg) const;
+	bool DeicerFree(int32 Ti, TArray<FVector>& Out, bool& bRev) const;
+	bool DeicerGets(int32 Ti);
+	bool DeicerBack(int32 Ti, TFunction<void()> Then);
 	void DeicerIn(int32 Job, float Y1);
 	void DeicerOut(int32 Job, bool bEnd);
 	void DeicerEnd(int32 Job);

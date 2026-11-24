@@ -419,6 +419,7 @@ void AGSE::SvcGone(float StandX) { for (auto It = SvcJobs.CreateIterator(); It; 
 
 bool AGSE::SvcWaits(const FString& Flight, float StandX, FString& Why) const
 {
+	if (DeiceLooks(Flight)) { Why = TEXT("it is being looked over for ice"); return true; }
 	for (const TPair<int32, FSvcJob>& P : SvcJobs)
 	{
 		const FSvcJob& J = P.Value; const FServiceSpec& S = SvSpec(J.Svc);
@@ -557,7 +558,7 @@ void AGSE::SvcTick(float Dt)
 		const bool bHome = FVector::Dist2D(Tv.At, Tv.Home) < 200.f && FMath::Abs(FMath::FindDeltaAngleDegrees(Tv.Yaw, Tv.HomeYaw)) < 20.f;
 		if (bHome && Tv.bUsed) { J.Why = FString::Printf(TEXT("the %s is being %s"), S.Label, S.bFuel || S.bDeicer || S.Wet == 1 ? TEXT("filled up") : S.Wet == 2 ? TEXT("emptied") : TEXT("emptied and restocked")); continue; }
 		{ bool bOpen = false; for (const FTractor::FSvcDoor& D : Tv.SvcDoors) if (D.Now > 0.01f) bOpen = true; if (bOpen && Tv.Player.IsValid()) { J.Why = FString::Printf(TEXT("you are getting into the %s"), S.Label); continue; } }
-		if (!bHome && !bTake) { TArray<FVector> W; if (!Apron(W, Tv.At, Plan(S.HomeX + S.HomeHx * 34.f, S.HomeY + S.HomeHy * 34.f), &Tv)) { J.Why = FString::Printf(TEXT("the %s stands where it cannot be driven from - bring it back to the apron"), S.Label); continue; } }
+		if (!bHome && !bTake) { TArray<FVector> W; if (!Apron(W, Tv.At, Plan(S.HomeX + S.HomeHx * 34.f, S.HomeY + S.HomeHy * 34.f), &Tv) && !(S.bDeicer && DeicerGets(Ti))) { J.Why = FString::Printf(TEXT("the %s stands where it cannot be driven from - bring it back to the apron"), S.Label); continue; } }
 		const FString Key = FString::Printf(TEXT("%s:%s%s"), S.Task, *J.Reg, (S.bStairs || S.bAmbu) && J.CtDoor ? TEXT(":2") : TEXT("")), What = FString::Printf(TEXT("%s %s"), J.Flight.IsEmpty() ? *J.Reg : *J.Flight, UStaffPeople::TaskName(S.Team));
 		TArray<UStaffPeople::FTaken> Team;
 		if (!Sp->AskTeam(Key, S.Team, J.When - FTimespan::FromMinutes(20.0), Tractors[Ti].At, What, Team)) { J.Why = Sp->WaitsFor(Key); continue; }
@@ -1058,7 +1059,7 @@ void AGSE::SvcDriveHome(int32 Job, TFunction<void()> Then)
 	{
 		// (the apron's east edge: no room for a loop - from the west between the toilet truck's box and the stairs', round to face north, straight back in)
 		const float Yl = Ho.Y + 21.f, R = T.KTurnR / 100.f;
-		if (!Apron(H, T.At, Plan(Ho.X - R - 14.f, Yl), &T)) { RetryIn(Ti, 8.f, [this, Job, Then] { SvcDriveHome(Job, Then); }); return; }
+		if (!Apron(H, T.At, Plan(Ho.X - R - 14.f, Yl), &T)) { if (Sv.bDeicer && DeicerBack(Ti, [this, Job, Then] { SvcDriveHome(Job, Then); })) return; RetryIn(Ti, 8.f, [this, Job, Then] { SvcDriveHome(Job, Then); }); return; }
 		Leg(H, Ho.X - R - 14.f, Yl, 1.f, 0.f, Ho.X - R - 0.4f, Yl, 1.f, 0.f, T.KTurnR); Leg(H, Ho.X - R - 0.4f, Yl, 1.f, 0.f, Ho.X, Yl + R + 0.4f, 0.f, 1.f, T.KTurnR); Leg(H, Ho.X, Yl + R + 0.4f, 0.f, 1.f, Ho.X, Yl + R + 4.f, 0.f, 1.f, T.KTurnR);
 		Go(T, MoveTemp(H), false, [this, Then, Ti]
 		{

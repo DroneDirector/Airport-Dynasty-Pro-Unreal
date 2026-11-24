@@ -11,20 +11,20 @@ struct FSvcDeicer
 {
 	struct FPose { float Slew = 0.f, Lift = 0.f, Ext = 0.f; };          // degrees (its yaw, 0 over the tanks), degrees, cm
 	struct FStop { float Lat = 0.f, Aft = 0.f; int8 Side = 1; bool bWing = true, bOut = false; uint8 Part = 0; };   // Part: 0 the rear / 1 the front half of the wing or tail, 2 the wing's root and the fuselage's top from behind; m left of the centre line, m behind the nose wheel; Side: 1 the aircraft's right; bOut: the last in its lane
-	struct FAim { FVector At = FVector::ZeroVector; FPose Q; };          // (the place on the aircraft, world; the boom for it)
+	struct FAim { FVector At = FVector::ZeroVector; FPose Q; uint8 By = 0; };          // (the place on the aircraft, world; the boom for it; the fluids already on it from you, a bit each)
 	struct FDrop { FVector P = FVector::ZeroVector, V = FVector::ZeroVector; float Life = 0.f, Seed = 0.f, Q = 0.f; uint8 Kind = 0; };   // 0 type I, 1 type IV, 2 spray
 	enum EPh : uint8 { Idle, Wait, Drive, OpIn, Work, Stow, OpOut, Leave };
 	int32 GTur = INDEX_NONE, GBase = INDEX_NONE, GSec[2] = {INDEX_NONE, INDEX_NONE}, GCab = INDEX_NONE, GDoor = INDEX_NONE, GWip = INDEX_NONE, GJoy[2] = {INDEX_NONE, INDEX_NONE}, GSpray = INDEX_NONE, GPan = INDEX_NONE, GTilt = INDEX_NONE, GBarrel = INDEX_NONE, GRod = INDEX_NONE, GHose[3] = {INDEX_NONE, INDEX_NONE, INDEX_NONE};
 	TArray<int32> GChain;
 	UCableComponent* Hose[3] = {nullptr, nullptr, nullptr};
 	FPose Now, Was; TArray<FPose> Route;
-	float Pan = 0.f, Tilt = 0.f, PanWant = 0.f, TiltWant = 0.f, Joy[2] = {0.f, 0.f}, WipT = 0.f, SlewV = 0.f, LiftV = 0.f, ExtV = 0.f, LaneT = 0.f;
+	float Pan = 0.f, Tilt = 0.f, PanWant = 0.f, TiltWant = 0.f, Joy[3] = {0.f, 0.f, 0.f}, Stick[3] = {0.f, 0.f, 0.f}, WipT = 0.f, SlewV = 0.f, LiftV = 0.f, ExtV = 0.f, LaneT = 0.f;
 	float Water = 2600.f, TankI = 2400.f, TankIV = 2400.f;              // litres
 	float UsedI = 0.f, UsedIV = 0.f;                                     // at this aircraft
 	bool bLive = true, bOpIn = false, bOpBusy = false, bBroken = false, bYours = false, bLaneFree = false;
 	FString LaneWhy;
-	EPh Ph = Idle; float PhT = 0.f;
-	TArray<FStop> Stops; int32 Stop = 0, Done = 0, Missed = 0, Skipped = 0;
+	EPh Ph = Idle; float PhT = 0.f; double FreeT = -1e6, FreeNo = -1e6;   // (when it last got itself out of where you left it, and when it last could not)
+	TArray<FStop> Stops; int32 Stop = 0, Done = 0, Missed = 0, Skipped = 0, ByYou = 0;   // ByYou: stops you had done
 	TArray<FAim> Aims; int32 Aim = 0, Pass = 0; float Dwell = 0.f; bool bAiming = false; FVector AimAt = FVector::ZeroVector;
 	int32 Jet = -1;                                                      // the fluid now on: 0 type I, 1 type IV, -1 none
 	float Emit = 0.f; TArray<FDrop> Drops;

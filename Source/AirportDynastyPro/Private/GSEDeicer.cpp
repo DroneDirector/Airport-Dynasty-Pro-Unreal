@@ -13,6 +13,7 @@
 #include "ServiceVehicles.h"
 #include "ServiceDrive.h"
 #include "VehicleControls.h"
+#include "Turnaround.h"
 #include "Tugs.h"
 #include "CrewPose.h"
 #include "Puddles.h"
@@ -140,6 +141,7 @@ namespace
 		}
 		return bAny;
 	}
+	FQuat DiJoy(const FDi& F, int32 j) { return j ? DiQ(FVector::RightVector, F.Joy[1]) : DiQ(FVector::ForwardVector, F.Joy[0]) * DiQ(FVector::RightVector, F.Joy[2]); }
 	bool DiStowed(const FDi& F) { return F.Now.Slew == 0.f && F.Now.Lift == 0.f && F.Now.Ext == 0.f; }
 	void DiHome(const FDi& F, TArray<FDi::FPose>& R)
 	{
@@ -148,6 +150,9 @@ namespace
 	}
 
 	struct FDiWant { FVector R; bool bTop; };
+	const float DsHot = 60.f, DsLI = 2.5f, DsLIV = 1.f, DsPart = 0.85f;                           // type I counts from 60 C; litres a place needs; the share of the places that counts as done (ours)
+	// the fluids you already put on that place (bit 0 type I, bit 1 type IV over it)
+	uint8 DiBy(const FDi& F, const FVector& R) { for (const FDi::FSpot& S : F.Spots) if (FVector::DistSquared(S.R, R) < 1e-4) return (S.L[0] >= DsLI ? 1 : 0) | (S.L[0] >= DsLI && S.L[1] >= DsLIV ? 2 : 0); return 0; }
 	// the places of the aircraft a stop has to reach
 	void DiWants(TArray<FDiWant>& Want, int32 Part, bool bWing, double Sg, bool bSnow)
 	{
@@ -171,7 +176,7 @@ namespace
 	}
 	}
 	// ---- the weather: does it ask for it, and how long the fluid then holds
-	struct FDiWx { bool bNeed = false, bFalls = false, bSnow = false; float bColdWet = false, bIcing = false, bNone = false; float HoldMin = 45.f; FString Why; double At = -1e9; };
+	struct FDiWx { bool bFalls = false, bSnow = false, bSnowing = false, bColdWet = false, bIcing = false, bNone = false; float Rate = 0.f, Melt = 0.f, Lying = 0.f, HoldMin = 45.f; FString Why; double At = -1e9; };
 	const FDiWx& DiWeather(const UWorld* W)
 	{
 		static FDiWx X; const double T = W->GetTimeSeconds(); if (T - X.At < 20.0 && T >= X.At) return X;
@@ -193,32 +198,67 @@ namespace
 		}
 		const bool bMoist = Dew > -90.f && Tc - Dew <= 2.5f, bFrost = Tc <= 0.f && (bMoist || R.bFog), bFzFog = R.bFog && (Tc <= 0.f || R.Raw.Contains(TEXT("FZFG")));
 		X.bColdWet = Tc > 0.f && Tc <= 10.f && Rain > 0.03f && bMoist; X.bIcing = Tc <= 3.f && (bMoist || R.bFog);
-		X.bNeed = X.bFalls || X.bSnow || bFrost || bFzFog;
-		X.Why = bFzRain ? TEXT("freezing rain") : bPellets && X.bFalls ? TEXT("ice pellets") : X.bFalls ? TEXT("snow") : X.bSnow ? TEXT("snow or slush lying") : bFzFog ? TEXT("freezing fog") : TEXT("frost");
+		// what it puts on a standing aircraft and takes off it again, mm of water an hour (simple numbers, ours): heavy snow 3, snow 1.5, light snow 0.5,
+		// ice pellets 1.5, freezing rain 1, freezing fog 0.2, active frost 0.1; away above +3 C 0.6 for each degree, by rain above 0 C 2 more
+		X.bSnowing = Tc <= 3.f && bSnowing;
+		X.Rate = X.bSnowing ? (R.Raw.Contains(TEXT("+SN")) ? 3.f : R.Raw.Contains(TEXT("-SN")) ? 0.5f : 1.5f) : bFzRain ? 1.f : bFzFog ? 0.2f : bFrost ? 0.1f : 0.f;
+		X.Melt = 0.6f * FMath::Max(0.f, Tc - 3.f) + (Rain > 0.03f && Tc > 0.f && !X.bFalls ? 2.f : 0.f);
+		X.Lying = Tc <= 3.f ? FMath::Max(0.f, Pu->GetSnowOnPavingCm()) : 0.f;   // (cm of it, about mm of water)
+		X.Why = bFzRain ? TEXT("freezing rain") : bPellets && X.bFalls ? TEXT("ice pellets") : X.bFalls ? TEXT("snow") : bFzFog ? TEXT("freezing fog") : TEXT("frost");
 		// (holdover times, in short: type IV over type I while something falls, type I alone for frost. NOT checked against the FAA 2026-27
 		// tables: their site refuses automatic reading. The minutes are kept as they were until somebody reads them off by hand.)
 		X.HoldMin = !X.bFalls ? (bFzFog ? 60.f : X.bColdWet ? 35.f : 45.f) : bFzRain ? 25.f : R.Raw.Contains(TEXT("+SN")) ? 20.f : R.Raw.Contains(TEXT("-SN")) ? 45.f : 30.f;
-		X.bNone = bFrost && !X.bFalls && !X.bSnow && !bFzFog && Tc < -10.f;   // (active frost below -10 C: no holdover)
+		X.bNone = bFrost && !X.bFalls && !bFzFog && Tc < -10.f;   // (active frost below -10 C: no holdover)
 		if (Tc < -14.f) X.HoldMin *= 0.6f;
 		return X;
 	}
 }
 
+namespace { const float DiClean = 0.05f, DiLook = 2.f; }   // mm of water up to which it counts as clean, minutes its look-over takes (ours)
+
+/** Being looked over now (its task's line and the flight's wait). */
+bool AGSE::DeiceLooks(const FString& Flight) const
+{
+	if (!Flight.IsEmpty()) for (const TPair<FString, FDateTime>& P : DeiceLook) if (P.Key.Contains(TEXT("/") + Flight + TEXT("#")) && DeiceNow < P.Value) return true;
+	return false;
+}
+
+bool AGSE::DeiceSnow(const FString& Reg) const { const FOnIt* On = OnIt.Find(Reg); const FDiWx& X = DiWeather(GetWorld()); return X.bSnowing || (On ? On->bSnow : X.bSnow); }
+
 // ------------------------------------------------------------------ when
 
 void AGSE::DeiceTick(float StandX, const FString& Reg, const FString& Flight, const FDateTime& Now, const FDateTime& OffBlocks, bool bSoon, bool bDoors, const FDateTime& OnBlocks)
 {
+	DeiceNow = Now; if (OnBlocks > Now) return;   // (not in yet: nothing lies on it)
+	const FString Key = Reg + TEXT("/") + Flight; const FDiWx& X = DiWeather(GetWorld()); const FDeiced* D = Deiced.Find(Key);
+	// what fell or froze on it while it stood here: clean when it comes in, nothing stays while its fluid holds
+	FOnIt& On = OnIt.FindOrAdd(Reg);
+	const bool bFirst = On.Last.GetTicks() == 0, bIn = OnBlocks.GetTicks() > 0 && FMath::Abs((OnBlocks - On.On).GetTotalMinutes()) > 30.0;
+	if (bFirst || bIn)
+	{
+		// (seen only long after it came to the stand, as after loading: what can have fallen on it since, and no more than lies on the ground)
+		const double H = OnBlocks.GetTicks() > 0 ? FMath::Max(0.0, (Now - OnBlocks).GetTotalHours()) : 1e3;
+		if (bIn && !bFirst) { for (int32 i = 0; i < 4; ++i) DeiceLook.Remove(Key + FString::Printf(TEXT("#%d"), i)); Deiced.Remove(Key); D = nullptr; }   // (the same flight, another day)
+		On = FOnIt(); On.On = OnBlocks; On.Last = Now; if (bFirst && H > 1.0 / 6.0) { On.Mm = float(FMath::Min(double(X.Lying), H * 1.5)); On.bSnow = On.Mm > DiClean; }
+	}
+	const float Hr = float(FMath::Clamp((Now - On.Last).GetTotalHours(), 0.0, 0.25)); On.Last = Now;
+	if (!(D && !D->bFrost && Now < D->Until)) { On.Mm = FMath::Min(40.f, On.Mm + X.Rate * Hr); if (X.bSnowing && On.Mm > DiClean) On.bSnow = true; }
+	On.Mm = FMath::Max(0.f, On.Mm - X.Melt * Hr); if (On.Mm <= DiClean) On.bSnow = false;
 	if (!bSoon && !bDoors) return;
-	DeiceNow = Now; const FString Key = Reg + TEXT("/") + Flight;
 	for (const TPair<int32, FSvcJob>& P : SvcJobs) if (ADPService::All()[P.Value.Svc].bDeicer && FMath::Abs(P.Value.StandX - StandX) < 1.f) { if (bDoors) SvcGo(TEXT("deice"), StandX); return; }
-	const FDeiced* D = Deiced.Find(Key); if (D && (Now < D->Until || D->Rounds >= 3)) return;
+	// (active frost below -10 C: no holdover - looked over once more when it goes, not some minutes later)
+	if (D && (D->Rounds >= 3 || (D->bFrost ? !bDoors || Now < OffBlocks - FTimespan::FromMinutes(3.0) : Now < D->Until))) return;
 	// looked over before it goes: the truck only when something falls or lies on it
-	// TODO(DeiceLying): lying snow is taken to lie on the aircraft too - when it last fell is not known against the aircraft's arrival
-	FDiWx X = DiWeather(GetWorld());
-	if (!X.bNeed && X.bColdWet && OnBlocks.GetTicks() > 0 && Now >= OnBlocks && (Now - OnBlocks).GetTotalMinutes() <= 60.0) { X.bNeed = true; X.Why = TEXT("rain on wings cold from the flight"); }
-	if (!X.bNeed && X.bIcing) { static TSet<FString> Looked; bool bWas = false; Looked.Add(Key, &bWas); if (!bWas) ADP_LOG(TEXT("GSE: %s looked over in icing weather: clean, no de-icing"), *Flight); }
-	if (!X.bNeed || !SvcFor(TEXT("deice"), StandX)) return;
-	if (D && D->Rounds) ADP_LOG(TEXT("GSE: %s is de-iced again: its holdover time is over"), *Flight); else ADP_LOG(TEXT("GSE: %s needs de-icing: %s"), *Flight, *X.Why);
+	bool bNeed = X.bFalls || On.Mm > DiClean; FString Wy = On.Mm > DiClean && !X.bFalls ? (On.bSnow ? TEXT("snow on it") : X.Rate > 0.f ? *X.Why : TEXT("ice on it")) : *X.Why;
+	if (!bNeed && X.bColdWet && OnBlocks.GetTicks() > 0 && Now >= OnBlocks && (Now - OnBlocks).GetTotalMinutes() <= 60.0) { bNeed = true; Wy = TEXT("rain on wings cold from the flight"); }
+	if (!bNeed && !X.bIcing) return;
+	// the look-over: two minutes of somebody's time at the aircraft (the turn-round's own clock, a line of its tasks; the flight waits for it - nobody is seen at it yet)
+	const FString Lk = Key + FString::Printf(TEXT("#%d"), D ? D->Rounds : 0); FDateTime* Le = DeiceLook.Find(Lk);
+	if (!Le || *Le - Now > FTimespan::FromMinutes(DiLook)) { DeiceLook.Add(Lk, Now + FTimespan::FromMinutes(DiLook)); ADP_LOG(TEXT("GSE: %s is looked over for ice (%.2f mm on it by our count)"), *Flight, On.Mm); return; }
+	if (Now < *Le) return;
+	if (!bNeed) { if (Le->GetTicks() > 0) { ADP_LOG(TEXT("GSE: %s looked over in icing weather: clean, no de-icing"), *Flight); *Le = FDateTime(0); } return; }
+	if (!SvcFor(TEXT("deice"), StandX)) return;
+	if (D && D->Rounds) ADP_LOG(TEXT("GSE: %s is de-iced again: %s"), *Flight, D->bFrost ? TEXT("frost on it when it goes") : TEXT("its holdover time is over")); else ADP_LOG(TEXT("GSE: %s needs de-icing: %s"), *Flight, *Wy);
 	SvcAsk(TEXT("deice"), StandX, Reg, Flight, OffBlocks);
 	if (bDoors) SvcGo(TEXT("deice"), StandX);
 }
@@ -304,7 +344,9 @@ void AGSE::DeicerParts(FTractor& T, float Dt)
 	if (F.bAiming) { if (DiAim(Cab * Root, F.AimAt, F.PanWant, F.TiltWant) > 900.f) F.PanWant = F.TiltWant = 0.f; }
 	else if (F.Jet < 0 && !F.bYours) F.PanWant = F.TiltWant = 0.f;
 	F.Pan = FMath::FInterpConstantTo(F.Pan, FMath::Clamp(F.PanWant, -58.f, 58.f), Dt, 30.f); F.Tilt = FMath::FInterpConstantTo(F.Tilt, FMath::Clamp(F.TiltWant, -35.f, 44.f), Dt, 24.f);
-	F.Joy[0] = FMath::FInterpTo(F.Joy[0], FMath::Clamp((F.Now.Slew - Old.Slew) * Inv * 1.6f, -16.f, 16.f), Dt, 8.f); F.Joy[1] = FMath::FInterpTo(F.Joy[1], FMath::Clamp((F.Now.Lift - Old.Lift) * Inv * 2.6f, -16.f, 16.f), Dt, 8.f);
+	// the joysticks: as far as your keys push them, else as the boom moves (left: slewing across, the boom out forward; right: lifting back)
+	const float JW[] = {F.bYours ? F.Stick[0] * 16.f : (F.Now.Slew - Old.Slew) * Inv * 1.6f, F.bYours ? F.Stick[1] * 16.f : (F.Now.Lift - Old.Lift) * Inv * 2.6f, F.bYours ? F.Stick[2] * -16.f : (F.Now.Ext - Old.Ext) * Inv * -0.3f};
+	for (int32 j = 0; j < 3; ++j) F.Joy[j] = FMath::FInterpTo(F.Joy[j], FMath::Clamp(JW[j], -16.f, 16.f), Dt, 8.f);
 	auto Put = [M](int32 G, const FTransform& X) { if (G != INDEX_NONE) M->MoveGroup(G, X); };
 	Put(F.GTur, Tur); Put(F.GBase, Base); Put(F.GSec[0], FTransform(FVector(-F.Now.Ext * 0.5f, 0.f, 0.f)) * Base); Put(F.GSec[1], Out3 * Base); Put(F.GCab, Cab);
 	const FVector Foot = SvcP(T, TEXT("PIV_Lift")), Eye0 = SvcP(T, TEXT("PIV_LiftEye")), Eye = DiPivot + DiQ(FVector::RightVector, F.Now.Lift).RotateVector(Eye0 - DiPivot);
@@ -314,7 +356,7 @@ void AGSE::DeicerParts(FTractor& T, float Dt)
 	// (its wiper: in rain and while it sprays)
 	if ((T.bRain && F.bOpIn) || F.bWipe || F.Jet >= 0 || F.WipT > 0.f) { F.WipT += Dt; if (F.WipT > 2.2f) F.WipT = 0.f; }
 	Put(F.GWip, FTransform(DiQ(FVector::ForwardVector, F.WipT < 1.6f ? 50.f * (0.5f - 0.5f * FMath::Cos(2.f * PI * F.WipT / 1.6f)) : 0.f), SvcP(T, TEXT("PIV_CabinWiper"))) * Cab);
-	for (int32 j = 0; j < 2; ++j) Put(F.GJoy[j], FTransform(DiQ(j ? FVector::RightVector : FVector::ForwardVector, F.Joy[j]), SvcP(T, j ? TEXT("PIV_Joy_R") : TEXT("PIV_Joy_L"))) * Cab);
+	for (int32 j = 0; j < 2; ++j) Put(F.GJoy[j], FTransform(DiJoy(F, j), SvcP(T, j ? TEXT("PIV_Joy_R") : TEXT("PIV_Joy_L"))) * Cab);
 	Put(F.GSpray, FTransform(DiQ(FVector::RightVector, F.Jet >= 0 ? 10.f : 0.f), SvcP(T, TEXT("PIV_SprayPedal"))) * Cab);
 	const FVector PP = SvcP(T, TEXT("PIV_NozPan")), PT = SvcP(T, TEXT("PIV_NozTilt")); const FTransform PanX = DiAbout(DiQ(DiUp, F.Pan), PP) * Cab, TiltX = DiAbout(DiQ(FVector::RightVector, F.Tilt), PT) * PanX;
 	Put(F.GPan, FTransform(PP) * PanX); Put(F.GTilt, FTransform(PT) * TiltX);
@@ -429,6 +471,60 @@ bool AGSE::DeicerLane(int32 Ti, float StandX, int32 Stop, FString& Why) const
 	return true;
 }
 
+bool AGSE::DeicerFree(int32 Ti, TArray<FVector>& Out, bool& bRev) const
+{
+	// left between an aircraft's parts by you, where the apron's map has no way from: straight back (or on) until there is one, clear of everything
+	const FTractor& T = Tractors[Ti]; const FSvcDeicer& F = *T.Di; const FServiceSpec& Sv = ADPService::All()[T.Svc]; const FVector Fw = FRotator(0.f, T.Yaw, 0.f).Vector(), Rt(-Fw.Y, Fw.X, 0.f);
+	TArray<FOutline> Os; Outlines(Os);
+	auto Plane = [&](const FVector& C) { double M = 1e6; if (F.Plane.IsValid()) for (const float a : {-1.f, 0.f, 1.f}) for (const float b : {-1.f, 1.f}) for (const float Z : {150.f, 300.f}) M = FMath::Min(M, DiDist(DiReal(F, C + Fw * (a * T.KHalfL) + Rt * (b * T.KHalfW) + DiUp * Z))); return M; };
+	const FVector At = T.At + Fw * T.KCentreX; const FTransform Rt0 = T.M->GetActorTransform(); const double M0 = Plane(At);
+	auto Boom = [&](const FVector& By) { FTransform R = Rt0; R.AddToTranslation(By); return F.Plane.IsValid() ? DiClear(F, R, F.Now) : 1e6; }; const double B0 = Boom(FVector::ZeroVector);
+	FCollisionQueryParams Q(SCENE_QUERY_STAT(ADPDeicerFree), false, T.M.Get()); if (F.Plane.IsValid()) Q.AddIgnoredActor(F.Plane.Get());
+	FCollisionObjectQueryParams Ob; Ob.AddObjectTypesToQuery(ECC_WorldStatic); Ob.AddObjectTypesToQuery(ECC_WorldDynamic);
+	for (const bool bR : {true, false})
+	{
+		const FVector D = bR ? -Fw : Fw; double Free = 0.0;
+		for (double d = 200.0; d <= 3600.0; d += 200.0)
+		{
+			const FVector C = At + D * d; bool bHit = Plane(C) < FMath::Min(0.6, M0 - 0.02) || Boom(D * d) < FMath::Min(0.0, B0 - 0.02);
+			for (const FOutline& O : Os)
+			{
+				if (bHit || FVector::Dist2D(O.C, At) < 60.f) continue;
+				const double Al = FMath::Abs(FVector::DotProduct(O.C - C, Fw)), Sd = FMath::Abs(FVector::DotProduct(O.C - C, Rt)), Hl = FMath::Abs(FVector::DotProduct(O.X, Fw)) * O.Hx + FMath::Abs(FVector::DotProduct(O.Y, Fw)) * O.Hy, Hw = FMath::Abs(FVector::DotProduct(O.X, Rt)) * O.Hx + FMath::Abs(FVector::DotProduct(O.Y, Rt)) * O.Hy;
+				bHit = Al < Hl + T.KHalfL + 40.0 && Sd < Hw + T.KHalfW + 40.0;
+			}
+			TArray<FOverlapResult> Hits; if (!bHit) GetWorld()->OverlapMultiByObjectType(Hits, C + DiUp * 210.f, FRotationMatrix::MakeFromX(Fw).ToQuat(), Ob, FCollisionShape::MakeBox(FVector(T.KHalfL + 40.f, T.KHalfW + 20.f, 110.f)), Q);
+			for (const FOverlapResult& H : Hits) if (H.Component.IsValid() && FVector::Dist2D(H.Component->Bounds.Origin, T.At) > 620.f && !Cast<USkeletalMeshComponent>(H.Component.Get()) && H.Component->GetCollisionEnabled() != ECollisionEnabled::NoCollision && H.Component->GetCollisionResponseToChannel(ECC_Pawn) == ECR_Block) bHit = true;
+			if (bHit) break;
+			Free = d;
+		}
+		for (const double d : {1200.0, 2400.0, 3600.0})
+		{
+			TArray<FVector> W; if (d > Free || !Apron(W, T.At + D * d, Plan(Sv.HomeX + Sv.HomeHx * 34.f, Sv.HomeY + Sv.HomeHy * 34.f), &T)) continue;
+			Out.Reset(); for (int32 i = 1; i <= 30; ++i) Out.Add(FMath::Lerp(T.At, T.At + D * d, i / 30.0)); bRev = bR; return true;
+		}
+	}
+	return false;
+}
+
+/** Can it get out of there? (asked again after twenty seconds) */
+bool AGSE::DeicerGets(int32 Ti)
+{
+	FTractor& T = Tractors[Ti]; const double Tn = GetWorld()->GetTimeSeconds(); TArray<FVector> W; bool bRev = true;
+	if (!T.Di || Tn - T.Di->FreeNo < 20.0) return false;
+	if (DeicerFree(Ti, W, bRev)) { T.Di->FreeT = -1e6; return true; }
+	T.Di->FreeNo = Tn; return false;
+}
+
+/** There first, then on as before (once in two minutes). */
+bool AGSE::DeicerBack(int32 Ti, TFunction<void()> Then)
+{
+	FTractor& T = Tractors[Ti]; TArray<FVector> W; bool bRev = true; const double Tn = GetWorld()->GetTimeSeconds();
+	if (!T.Di || !DiStowed(*T.Di) || Tn - T.Di->FreeT < 120.0 || !DeicerFree(Ti, W, bRev)) return false;
+	T.Di->FreeT = Tn; ADP_LOG(TEXT("GSE: the %s %s out of where you left it"), *T.Name, bRev ? TEXT("backs") : TEXT("drives straight"));
+	Go(T, MoveTemp(W), bRev, MoveTemp(Then)); return true;
+}
+
 void AGSE::DeicerApron(int32 Job)
 {
 	// to the next stop's lane (the first of a lane), and in
@@ -439,6 +535,7 @@ void AGSE::DeicerApron(int32 Job)
 	{
 		const AActor* Pl = WetPlane(J->StandX);
 		if (!Pl || !DiBounds(Pl, F.Box)) { ADP_WARN(TEXT("GSE: the %s does not go to %s: %s"), *T.Name, *J->Reg, Pl ? TEXT("not an A320's size") : TEXT("the aircraft is gone")); FDeiced& Dn = Deiced.FindOrAdd(J->Reg + TEXT("/") + J->Flight); Dn.Rounds = 3; J->Phase = 3; T.Job = EJob::Back; SvcHome(Job); return; }
+		if (F.Plane.Get() != Pl || F.SpotEnd < DeiceNow) F.Spots.Reset();   // (else they go on from where you stopped)
 		F.Plane = Pl; F.bLive = true; F.bBroken = false; F.Stops.Reset(); F.Stop = F.Done = F.Missed = F.Skipped = 0; F.UsedI = F.UsedIV = 0.f; F.Ph = FSvcDeicer::Wait; F.PhT = 0.f; J->Stage = 0;
 		const FVector Sc = DiScale(F.Box); const float Ny = float(F.Box.Min.Y) / 100.f, Wing = FMath::Max(DiLane, float(F.Box.GetSize().X) / 200.f + 2.3f), Tl = DiTail * float(Sc.X);
 		// (a stop: the truck's middle for its turret so far behind the nose)
@@ -447,13 +544,25 @@ void AGSE::DeicerApron(int32 Job)
 		Add(Tl, 34.f, -1, false, false, 0); Add(Tl, 28.5f, -1, false, false, 1); Add(Tl, 25.8f, -1, false, true, 2);
 		Add(-Tl, 34.f, 1, false, false, 0); Add(-Tl, 28.5f, 1, false, false, 1); Add(-Tl, 25.8f, 1, false, true, 2);
 		Add(-Wing, 25.5f, 1, true, false, 0); Add(-Wing, 13.5f, 1, true, true, 1);
+		F.ByYou = 0; if (F.Spots.Num())
+		{
+			// (a stop you did all of is left out; the last one left of a lane backs out of it)
+			const uint8 All = DiWeather(GetWorld()).bFalls ? 3 : 1; const bool bSn = DeiceSnow(J->Reg);
+			F.ByYou = F.Stops.RemoveAll([&](const FSvcDeicer::FStop& P) { TArray<FDiWant> Wn; DiWants(Wn, P.Part, P.bWing, P.Side, bSn); for (const FDiWant& Q : Wn) if ((DiBy(F, Q.R) & All) != All) return false; return Wn.Num() > 0; });
+			for (int32 i = 0; i < F.Stops.Num(); ++i) F.Stops[i].bOut = i + 1 >= F.Stops.Num() || F.Stops[i + 1].Lat != F.Stops[i].Lat;
+			if (!F.Stops.Num() && !J->bGo) { F.Ph = FSvcDeicer::Idle; J->Why = TEXT("the doors are not shut yet"); RetryIn(Ti, 8.f, [this, Job] { DeicerApron(Job); }); return; }
+			J->Why.Reset(); F.Done = F.ByYou;
+			ADP_LOG(TEXT("GSE: the %s goes on at %s from where you stopped: %d stops left out"), *T.Name, *J->Reg, F.ByYou);
+		}
 	}
 	if (!F.Stops.IsValidIndex(F.Stop)) { DeicerEnd(Job); return; }
 	T.Job = EJob::Out;
 	const FSvcDeicer::FStop P = F.Stops[F.Stop]; TArray<FVector> W; const float Y1 = N + Sv.Far + 6.f;
 	if (FVector::Dist2D(T.At, T.Home) < 200.f && FMath::Abs(FMath::FindDeltaAngleDegrees(T.Yaw, T.HomeYaw)) < 20.f) Leg(W, Sv.HomeX, Sv.HomeY, Sv.HomeHx, Sv.HomeHy, Sv.HomeX + Sv.HomeHx * 9.f, Sv.HomeY + Sv.HomeHy * 9.f, Sv.HomeHx, Sv.HomeHy, T.KTurnR);
 	const FVector From = W.Num() ? W.Last() : T.At;
-	if (!Apron(W, From, Plan(S + P.Lat, Y1), &T)) { RetryIn(Ti, 8.f, [this, Job] { DeicerApron(Job); }); return; }
+	const bool bWay = Apron(W, From, Plan(S + P.Lat, Y1), &T), bBehind = bWay && W.Num() > 6 && FVector::DotProduct(W[5] - T.At, FRotator(0.f, T.Yaw, 0.f).Vector()) < 0.0 && F.Stop == 0 && F.Plane.IsValid();
+	if ((!bWay || bBehind) && DeicerBack(Ti, [this, Job] { DeicerApron(Job); })) return;
+	if (!bWay) { RetryIn(Ti, 8.f, [this, Job] { DeicerApron(Job); }); return; }
 	F.Ph = FSvcDeicer::Drive;
 	Go(T, MoveTemp(W), false, [this, Job, Ti, P, Nose = Plan(S, N), Y1]
 	{
@@ -519,10 +628,11 @@ void AGSE::DeicerOut(int32 Job, bool bEnd)
 
 void AGSE::DeicerNote(FTractor& T, const FString& Reg, const FString& Flight, bool bOk, const FString& How)
 {
-	// what was done to it, by its crew or by you: how long it holds. (No holdover in active frost below -10 C: looked at again 20 min later, our number)
-	FSvcDeicer& F = *T.Di; const FDiWx& X = DiWeather(GetWorld()); const float Min = X.bNone ? 20.f : X.HoldMin;
-	FDeiced& D = Deiced.FindOrAdd(Reg + TEXT("/") + Flight); ++D.Rounds; D.Until = DeiceNow + FTimespan::FromMinutes(bOk ? Min : 30.f);
-	if (bOk) ADP_LOG(TEXT("GSE: %s de-iced %s (%s): %.0f l type I, %.0f l type IV, %s %.0f min; tanks %.0f / %.0f / %.0f l"), *Reg, *How, *X.Why, F.UsedI, F.UsedIV, X.bNone ? TEXT("no holdover, looked at again in") : TEXT("holds"), Min, F.Water, F.TankI, F.TankIV);
+	// what was done to it, by its crew or by you: how long it holds. (No holdover in active frost below -10 C: looked over again when it goes)
+	FSvcDeicer& F = *T.Di; const FDiWx& X = DiWeather(GetWorld()); const float Min = X.bNone ? 0.f : X.HoldMin;
+	FDeiced& D = Deiced.FindOrAdd(Reg + TEXT("/") + Flight); ++D.Rounds; D.bFrost = bOk && X.bNone; D.Until = DeiceNow + FTimespan::FromMinutes(bOk ? Min : 30.f); F.Spots.Reset();
+	if (bOk) if (FOnIt* On = OnIt.Find(Reg)) { On->Mm = 0.f; On->bSnow = false; }
+	if (bOk) ADP_LOG(TEXT("GSE: %s de-iced %s (%s): %.0f l type I, %.0f l type IV, %s %.0f min; tanks %.0f / %.0f / %.0f l"), *Reg, *How, *X.Why, F.UsedI, F.UsedIV, X.bNone ? TEXT("no holdover, looked over when it goes -") : TEXT("holds"), Min, F.Water, F.TankI, F.TankIV);
 	else ADP_WARN(TEXT("GSE: %s is not de-iced: the truck could not get to it"), *Reg);
 	if (F.Water < 1100.f || F.TankI < 900.f || F.TankIV < 700.f) T.bUsed = true;   // (filled up in its box)
 }
@@ -533,7 +643,7 @@ void AGSE::DeicerEnd(int32 Job)
 	FSvcJob* J = SvcJ(Job); if (!J) return; const int32 Ti = J->Ti; FTractor& T = Tractors[Ti]; FSvcDeicer& F = *T.Di;
 	if (J->Stage == 0)
 	{
-		J->Stage = 1; DeicerNote(T, J->Reg, J->Flight, F.Done > 0, FString::Printf(TEXT("from %d of %d stops, %d places not reached"), F.Done, F.Stops.Num(), F.Missed));
+		J->Stage = 1; DeicerNote(T, J->Reg, J->Flight, F.Done > 0, FString::Printf(TEXT("from %d of %d stops (%d by you), %d places not reached"), F.Done, F.Stops.Num() + F.ByYou, F.ByYou, F.Missed));
 	}
 	F.bAiming = false; F.Jet = -1; F.Ph = FSvcDeicer::OpOut; F.PhT = 0.f;
 }
@@ -550,16 +660,16 @@ void AGSE::DeicerGone(int32 Job)
 void AGSE::DeicerPlan(FSvcJob& J)
 {
 	FTractor& T = Tractors[J.Ti]; FSvcDeicer& F = *T.Di; const FSvcDeicer::FStop P = F.Stops[F.Stop]; const FTransform Root(FRotator(0.f, T.Yaw, 0.f), T.At);
-	const bool bSnow = DiWeather(GetWorld()).bSnow; const double Sg = P.Side; F.Aims.Reset(); F.Aim = 0; F.Pass = 0; F.Dwell = 0.f;
+	const bool bSnow = DeiceSnow(J.Reg), bFalls = DiWeather(GetWorld()).bFalls; const double Sg = P.Side; int32 You = 0; F.Aims.Reset(); F.Aim = 0; F.Pass = 0; F.Dwell = 0.f;
 	TArray<FDiWant> Want; DiWants(Want, P.Part, P.bWing, Sg, bSnow);
 	FSvcDeicer::FPose Last; Last.Slew = P.Side * 70.f; Last.Lift = 45.f; Last.Ext = 200.f;
 	for (const FDiWant& Q : Want)
 	{
-		FSvcDeicer::FAim A; A.At = DiWorld(F, Q.R);
+		FSvcDeicer::FAim A; A.At = DiWorld(F, Q.R); A.By = DiBy(F, Q.R); if ((A.By & (bFalls ? 3 : 1)) == (bFalls ? 3 : 1)) { ++You; continue; }   // (yours)
 		if (!DiSolve(F, Root, P.Side, Q.R, Q.bTop, Last, A.Q, GetWorld(), T.M.Get())) { ++F.Missed; continue; }
 		Last = A.Q; F.Aims.Add(A);
 	}
-	ADP_LOG(TEXT("GSE: de-icing stop %d: %d of %d places reached"), F.Stop + 1, F.Aims.Num(), Want.Num());
+	ADP_LOG(TEXT("GSE: de-icing stop %d: %d of %d places reached, %d done by you"), F.Stop + 1, F.Aims.Num(), Want.Num(), You);
 }
 
 void AGSE::DeicerTick(int32 Job, float Dt)
@@ -586,6 +696,7 @@ void AGSE::DeicerTick(int32 Job, float Dt)
 			if (F.Aims.Num()) ++F.Done;
 			Stow(); return;
 		}
+		if (F.Aims[F.Aim].By & (1 << F.Pass)) { ++F.Aim; F.Dwell = 0.f; return; }   // (you did that one)
 		const FSvcDeicer::FAim& A = F.Aims[F.Aim];
 		if (F.Dwell <= 0.f)
 		{
@@ -665,7 +776,7 @@ TFunction<void(float, float, FDriverPose&)> AGSE::DeicerSeatFn(int32 Ti) const
 		{
 			const int32 j = s == 0 ? 1 : 0; P.Foot[s] = X.TransformPosition(SvcP(T, j ? TEXT("IK_Foot_Cabin_R") : TEXT("IK_Foot_Cabin_L")));
 			const FVector Pv = SvcP(T, j ? TEXT("PIV_Joy_R") : TEXT("PIV_Joy_L")), Tp = SvcP(T, j ? TEXT("IK_Joy_R") : TEXT("IK_Joy_L"));
-			P.bHand[s] = true; P.Grip[s] = 0.75f; P.Hand[s] = X.TransformPosition(Pv + DiQ(j ? FVector::RightVector : FVector::ForwardVector, F->Joy[j]).RotateVector(Tp - Pv) + FVector(5.f, 0.f, 2.f));
+			P.bHand[s] = true; P.Grip[s] = 0.75f; P.Hand[s] = X.TransformPosition(Pv + DiJoy(*F, j).RotateVector(Tp - Pv) + FVector(5.f, 0.f, 2.f));
 		}
 	};
 }
@@ -729,7 +840,6 @@ namespace
 	const TCHAR* const DsDoor[] = {TEXT("PanelDoorL"), TEXT("PanelDoorR"), TEXT("HeaterDoor")};
 	const TCHAR* const DsValve[] = {TEXT("Valve_W"), TEXT("Valve_I"), TEXT("Valve_IV"), TEXT("Valve_Hand")};
 	const TCHAR* const DsCap[] = {TEXT("FillCap_W"), TEXT("FillCap_I"), TEXT("FillCap_IV")};
-	const float DsHot = 60.f, DsLI = 2.5f, DsLIV = 1.f, DsPart = 0.85f;                           // type I counts from 60 C; litres a place needs; the share of the places that counts as done (ours)
 	FTransform DsHinge(const AGSE::FTractor& T, int32 i, const FVector& P) { return FTransform(DiQ(FVector::UpVector, (i == 1 ? 110.f : -110.f) * T.Di->DN[i]), P); }
 	bool DsOpen(const FDi& F, int32 i) { return F.VN[i] < 45.f; }
 	// what keeps a fluid from coming (null: nothing); 0 type I, 1 type IV, 2 the hand hose
@@ -766,10 +876,10 @@ void AGSE::DeicerNear(FTractor& T, float Dt)
 	F.LeftT = !T.Player.IsValid() && !F.Hand && (!Me || FVector::Dist2D(Me->GetActorLocation(), T.At) > 4000.0) ? F.LeftT + Dt : 0.f;
 	if ((F.NearT += Dt) < 1.f) return;
 	F.NearT = 0.f;
-	if (!T.Player.IsValid() && FVector::Dist2D(T.At, T.Home) < 200.f) { F.YouStandX = -1e9f; F.Spots.Reset(); F.Plane.Reset(); return; }
+	if (!T.Player.IsValid() && FVector::Dist2D(T.At, T.Home) < 200.f) { F.YouStandX = -1e9f; if (!F.Plane.IsValid() || F.SpotEnd < DeiceNow) { F.Spots.Reset(); F.Plane.Reset(); } return; }   // (what you sprayed stays yours: its crew go on from there)
 	double Bd = 4500.0; const AActor* Best = nullptr; FBox Bb(ForceInit);
 	for (TActorIterator<AActor> It(GetWorld()); It; ++It) for (const FName& N : It->Tags) { const FString Ts = N.ToString(); if (!Ts.StartsWith(TEXT("SIM/")) && !Ts.StartsWith(TEXT("MOVE/"))) continue; FBox B; const double Ds = FVector::Dist2D(It->GetActorLocation(), T.At); if (Ds < Bd && DiBounds(*It, B)) { Bd = Ds; Best = *It; Bb = B; } }
-	if (!Best) { F.Plane.Reset(); F.Spots.Reset(); F.YouStandX = -1e9f; return; }
+	if (!Best) { F.YouStandX = -1e9f; if (!F.Plane.IsValid() || F.SpotEnd < DeiceNow) { F.Plane.Reset(); F.Spots.Reset(); } return; }
 	if (F.Plane.Get() != Best) { F.Plane = Best; F.Box = Bb; F.Spots.Reset(); }
 	F.YouStandX = -1e9f; const FVector Nose = DiWorld(F, FVector::ZeroVector);
 	for (const auto& St : AAirfield::Shared().Stands) if (FVector::Dist2D(Plan(St.X, St.Nose), Nose) < 900.0) F.YouStandX = St.X;
@@ -777,8 +887,8 @@ void AGSE::DeicerNear(FTractor& T, float Dt)
 	if (F.Spots.Num() && F.SpotEnd < DeiceNow) { AVehicleControls::Note(GetWorld(), TEXT("What you sprayed no longer holds: from the start again")); F.Spots.Reset(); }
 	if (!F.Spots.Num())
 	{
-		F.Told = 0; F.SpotEnd = FDateTime::MaxValue();
-		for (const double Sg : {1.0, -1.0}) for (int32 P = 0; P < 5; ++P) { TArray<FDiWant> W; DiWants(W, P < 2 ? P : P == 2 ? 2 : P - 3, P < 2, Sg, X.bSnow); for (const FDiWant& Q : W) { FSvcDeicer::FSpot& S = F.Spots.AddDefaulted_GetRef(); S.R = Q.R; } }
+		F.Told = 0; F.SpotEnd = FDateTime::MaxValue(); const ADPTurnaround::FTurn* Tu = F.YouStandX > -1e5f ? ADPTurnaround::AtStand(F.YouStandX) : nullptr; const bool bSn = Tu ? DeiceSnow(Tu->Reg) : X.bSnow;
+		for (const double Sg : {1.0, -1.0}) for (int32 P = 0; P < 5; ++P) { TArray<FDiWant> W; DiWants(W, P < 2 ? P : P == 2 ? 2 : P - 3, P < 2, Sg, bSn); for (const FDiWant& Q : W) { FSvcDeicer::FSpot& S = F.Spots.AddDefaulted_GetRef(); S.R = Q.R; } }
 		return;
 	}
 	int32 Ok = 0; for (const FSvcDeicer::FSpot& S : F.Spots) Ok += DsDone(S, X.bFalls) ? 1 : 0;
@@ -800,7 +910,7 @@ void AGSE::DeicerNear(FTractor& T, float Dt)
 void AGSE::DeicerPanel(FTractor& T, float Dt)
 {
 	ABabylonModel* M = T.M.Get(); FSvcDeicer& F = *T.Di; if (!M) return;
-	if (T.Job == EJob::None) DeicerNear(T, Dt); else { F.Spots.Reset(); F.YouStandX = -1e9f; F.bHandJet = false; }
+	if (T.Job == EJob::None) DeicerNear(T, Dt); else { F.YouStandX = -1e9f; F.bHandJet = false; }
 	const float Tc = APuddles::Get() ? APuddles::Get()->GetAirTemp() : 0.f;
 	F.TempI = F.bHeat && !F.Halt ? FMath::Min(82.f, F.TempI + Dt * 3.f / 60.f) : FMath::Max(Tc, F.TempI - Dt * 0.1f / 60.f);
 	auto Put = [M](int32 G, const FTransform& X) { if (G != INDEX_NONE) M->MoveGroup(G, X); };
@@ -933,12 +1043,13 @@ void AGSE::DeicerYours(FTractor& T, float Dt)
 	FSvcDeicer& F = *T.Di; const AServiceDrive* D = T.PlayerSeat == 2 ? T.Player.Get() : nullptr;
 	if (!D || !D->Seated())
 	{
-		if (F.bYours) { F.bYours = false; F.Jet = -1; F.SlewV = F.LiftV = F.ExtV = 0.f; }
+		if (F.bYours) { F.bYours = false; F.Jet = -1; F.SlewV = F.LiftV = F.ExtV = 0.f; F.Stick[0] = F.Stick[1] = F.Stick[2] = 0.f; }
 		// (left standing up: after two minutes without you it stows itself - DeicerControls)
 		return;
 	}
 	F.bLive = true; const FTransform Root(FRotator(0.f, T.Yaw, 0.f), T.At);
 	F.bYours = true;   // (the aircraft it stands at: DeicerNear)
+	F.Stick[0] = FMath::Clamp(D->BoomSlew(), -1.f, 1.f); F.Stick[1] = FMath::Clamp(D->BoomLift(), -1.f, 1.f); F.Stick[2] = FMath::Clamp(D->BoomOut(), -1.f, 1.f);
 	// lift and slew by the move keys / left stick, the boom out and in by Shift / Ctrl or the triggers; never into anything, never round below 15 degrees
 	FSvcDeicer::FPose N = F.Now; auto Vel = [Dt](float& V, float In, float Max, float Acc) { V = FMath::FInterpConstantTo(V, In * Max, Dt, Acc); return V * Dt; };
 	const float Pw = T.bPto && !F.Halt && T.Speed < 1.f && !T.Path.Num() ? 1.f : 0.f;   // (the boom and the pumps need the power take-off; home it always goes)
