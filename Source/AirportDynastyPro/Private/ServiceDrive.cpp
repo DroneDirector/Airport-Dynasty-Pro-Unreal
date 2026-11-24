@@ -274,7 +274,7 @@ TFunction<void(float, float, FDriverPose&)> AGSE::SvcClimbAny(int32 Ti, int32 Se
 {
 	const FServiceSpec& S = SdSpec(Tractors[Ti].Svc);
 	if (Seat == 0) return ClimbFn(Ti, bIn);
-	if (SdCab(S, Seat) < 0 && !IsTall(Tractors[Ti])) return SvcClimbFn(Ti, Seat, bIn);
+	if (SdCab(S, Seat) < 0 && !IsTall(Tractors[Ti]) && !S.bStairs) return SvcClimbFn(Ti, Seat, bIn);
 	// the seat beside the driver: the driver's way in, mirrored, the end of it onto its own seat
 	return [this, Ti, Seat, bIn](float K0, float PH, FDriverPose& P)
 	{
@@ -304,7 +304,7 @@ bool AGSE::SvcSeatFree(int32 Ti, int32 Seat, FString& Why) const
 	if (T.Speed > 2.f || T.Path.Num()) { Why = TEXT("it is driving"); return false; }
 	if (SdCab(S, Seat) >= 0 || T.Job == EJob::None) return true;   // (the seat beside the driver: nobody of its crew sits there)
 	// its crew have it: the driver's seat only while every one of them is up in the aircraft
-	if (Seat == 0 && T.Job == EJob::AtStand && !S.bFuel && !S.bCater && !S.Wet)   // (the water and the toilet truck: chocked, the hoses on; the catering truck: on its legs, its body up; the refueller: chocked, bonded, its hose on - never while its driver is at work)
+	if (Seat == 0 && T.Job == EJob::AtStand && !S.bFuel && !S.bCater && !S.Wet && !S.bStairs)   // (the water and the toilet truck: chocked, the hoses on; the catering truck: on its legs, its body up; the refueller: chocked, bonded, its hose on - never while its driver is at work)
 		for (const TPair<int32, FSvcJob>& P : SvcJobs)
 			if (P.Value.Ti == Ti && P.Value.Phase == 2)
 			{
@@ -335,6 +335,7 @@ bool AGSE::SvcUse(APawn* Me, FString& Say)
 		for (int32 c = 0; c < S.Cab.Num(); ++c) Try(SvcP(T, S.Cab[c].Door.Stand), 1 + S.Seats.Num() + c, false);
 		if (S.Seats.Num() && S.Doors.Num()) Try(SvcP(T, S.Doors[0].Stand), S.Seats.Num(), false);
 		for (int32 d = 1; d < S.Doors.Num(); ++d) Try(SvcP(T, S.Doors[d].Stand), 0, true);
+		if (S.bStairs) Try(SvcP(T, TEXT("IK_Stand_GroundEStop")), 0, true);   // (its ground panel: the stairs up and down)
 	}
 	if (Bt == INDEX_NONE) return false;
 	FTractor& T = Tractors[Bt];
@@ -343,6 +344,7 @@ bool AGSE::SvcUse(APawn* Me, FString& Say)
 		// the load space's doors: open or shut (one leaf after the other, SvcParts) - never while its crew are at it
 		bool bCrew = false; for (const TPair<int32, FSvcJob>& P : SvcJobs) if (P.Value.Ti == Bt && P.Value.Phase < 9) { FString Y; bCrew = !SvcSeatFree(Bt, 0, Y) && !SvcYours(T); }
 		if (bCrew) { Say = TEXT("Its crew are at work"); return true; }
+		if (SdSpec(T.Svc).bStairs) { StairsToggle(Bt, Say); return true; }
 		T.LoadWant = T.SvcDoors[1].Want < 0.5f ? 1 : 0; return true;
 	}
 	FString Why; if (!SvcSeatFree(Bt, Bs, Why)) { Say = FString::Printf(TEXT("The %s: %s"), SdSpec(T.Svc).Label, *Why); return true; }
@@ -359,6 +361,7 @@ void AGSE::SvcPlayerDrive(FTractor& T, float Dt)
 	const FServiceSpec& S = SdSpec(T.Svc);
 	bool bShut = true; for (int32 d = 0; d < T.SvcDoors.Num(); ++d) if (T.SvcDoors[d].Now > 0.01f) bShut = false;
 	if (T.DoorAng > 1.f) bShut = false;
+	if (T.Ps && !StairsStowed(T)) bShut = false;   // (never with its legs down or its stairs up)
 	float Go = bShut ? D->Throttle() : 0.f, Br = D->Brake();
 	// (backwards: the brake held at a standstill)
 	if (T.Speed < 3.f) { if (Go > 0.1f) T.bReverse = false; else if (Br > 0.1f && bShut && !D->Leaving()) { T.BackT += Dt; if (T.BackT > 0.35f) T.bReverse = true; } else T.BackT = 0.f; }

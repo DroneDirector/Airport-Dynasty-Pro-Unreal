@@ -36,6 +36,7 @@ struct FDriverPose;
 struct FSvcRefuel;
 struct FSvcCater;
 struct FSvcWet;
+struct FSvcStairs;
 
 UCLASS()
 class AIRPORTDYNASTYPRO_API AGSE : public AActor
@@ -100,6 +101,7 @@ public:
 		float SteerWant = 0.f, BackT = 0.f, PedalA = 0.f, PedalB = 0.f, WipeT = 0.f, WipeNow = 0.f, RainIn = 0.f, BoxT = 0.f; bool bRain = false, bUsed = false;   // (bUsed: full bags or used rolls in it - exchanged shut in its box)
 		int32 GPedal[2] = {INDEX_NONE, INDEX_NONE}, LoadWant = INDEX_NONE; TArray<int32> GWiper; FString Livery;
 		TSharedPtr<FSvcRefuel> Fu;        // (the refueller's own parts: GSEFuel.cpp)
+		TSharedPtr<FSvcStairs> Ps;        // (the passenger stairs': GSEStairs.cpp)
 		TSharedPtr<FSvcWet> Wa;           // (the water and the toilet truck's: GSEWater.cpp)
 		TSharedPtr<FSvcCater> Ct;         // (the catering high-loader's: GSECater.cpp)
 		TMap<FString, FVector> Pt;        // (a service vehicle's named points, root cm: Data/<vehicle>-riders.json)
@@ -260,6 +262,18 @@ public:
 	bool SvcAsk(const TCHAR* Task, float StandX, const FString& Reg, const FString& Flight, const FDateTime& When, float Litres = 0.f);
 	void SvcGo(const TCHAR* Task, float StandX);
 	bool SvcBusy(const TCHAR* Task, float StandX) const;
+	/** The passenger stairs (GSEStairs.cpp): at a stand without a jetway. Has: they are asked for, on their way or there. Busy:
+	 *  the flight waits for them - bLeaving false: not yet ready for people; true: not yet away from the aircraft. */
+	bool StairsHas(float StandX) const;
+	bool StairsBusy(float StandX, bool bLeaving, FString& Why) const;
+	/** Ready at that stand's door (0 front left, 1 rear left): where to queue, the treads and the platform (feet), the door. */
+	struct FStairsWay { int32 Ti = INDEX_NONE; FVector Foot = FVector::ZeroVector, Platform = FVector::ZeroVector, Door = FVector::ZeroVector, Up = FVector::ForwardVector; TArray<FVector> Steps; };
+	bool StairsReady(float StandX, int32 Door, FStairsWay& Out) const;
+	/** Anybody on them, step by step with a hand on the rail, keeping to the right (K 0..1, from the ground to the platform or
+	 *  back, over StairsSeconds); Enter +1 before the first step, -1 after the last: they never move under people. */
+	void StairsPose(int32 Ti, bool bUp, float K, float PH, FDriverPose& P) const;
+	float StairsSeconds(int32 Ti) const;
+	void StairsEnter(int32 Ti, int32 By);
 	/** The aircraft is gone: what had not started is dropped. */
 	void SvcGone(float StandX);
 private:
@@ -331,6 +345,21 @@ private:
 	void CaterMove(int32 Job);
 	bool CaterLost(int32 Job, int32 m);
 	void FuelUpDown(int32 Ci, int32 Ti, bool bUp);
+	// ---- the passenger stairs (GSEStairs.cpp)
+	void StairsDress(FTractor& T);
+	void StairsParts(FTractor& T, float Dt);
+	void StairsTick(FSvcJob& J, float Dt);
+	bool StairsDock(float StandX, int32 Door, float GroundZ, FVector2f& At, FVector2f& Hd, float& N) const;
+	bool StairsIn(FSvcJob& J, float FromY, TArray<FVector>& W);
+	bool StairsLane(int32 Ti, float StandX) const;
+	bool StairsStowed(const FTractor& T) const;
+	void StairsWork(int32 Job);
+	void StairsHelper(int32 Job);
+	void StairsLost(int32 Job, int32 m);
+	void StairsLever(int32 Ci, int32 Ti, int32 Lever, float Tip, TFunction<void()> Fn, TFunction<bool()> Done);
+	/** You at its ground panel. */
+	void StairsToggle(int32 Ti, FString& Say);
+	void StairsSteps(const FTractor& T, TArray<FVector>& Out) const;
 	// ---- the potable water truck and the toilet truck (GSEWater.cpp)
 	void WetDress(FTractor& T);
 	void WetParts(FTractor& T, float Dt);
