@@ -460,6 +460,9 @@ void ATugs::CrewCouple(int32 Tug)
 	if (T.Handler != INDEX_NONE)
 	{
 		FCrew& H = Crew[T.Handler];
+		const int32 Yd = T.YouStep;   // (what you have done already, TugYou.cpp: he goes on from there)
+		if (Yd == 0)
+		{
 		H.Q.Add(WalkAct(HeadSpot, 15.f));
 		H.Q.Add(WaitAct(Pause()));
 		// he waves the tug in (both hands up, beckoning), it creeps the last 1.5 m
@@ -476,9 +479,10 @@ void ATugs::CrewCouple(int32 Tug)
 		H.Q.Add(PoseAct(PinHead, 3.0f));
 		H.Q.Add(DoAct([Clunk] { Clunk(); }));
 		H.Q.Add(WaitAct(Pause()));
+		}
 		// the steering bypass pin into the nose gear
 		H.Q.Add(WalkAct(GearSpot, 15.f));
-		H.Q.Add(PoseAct(PinGear, 2.8f));
+		if (Yd < 2) H.Q.Add(PoseAct(PinGear, 2.8f));
 		// the headset plugged into the interphone socket on the nose gear leg
 		H.Q.Add(PoseAct([Geo](float K, float PH, FDriverPose& P) { FVector Fit, F, L, G; Geo(Fit, F, L, G); P = Reach(G + L * 85.f, -L, 0, G + L * 25.f + TugUp * 135.f, 0.6f, PH, Ramp(K)); }, 2.0f));
 		H.Q.Add(DoAct([this, Tug, Geo] { FTug& U = Tugs[Tug]; U.State = EState::Hooked; ADP_LOG(TEXT("Tugs: towbar on, bypass pin in, headset plugged - hooked on %s"), *U.Key); CrewWalkers(Tug);
@@ -488,11 +492,16 @@ void ATugs::CrewCouple(int32 Tug)
 	}
 	// the driver alone: out, the towbar's head on, the bypass pin in, back in
 	FCrew& D = Crew[T.Driver];
+	if (T.YouStep >= 2) { T.State = EState::Hooked; ADP_LOG(TEXT("Tugs: coupled by you, the driver aboard - %s"), *T.Key); CrewWalkers(Tug); return; }
+	const bool bHeadOn = T.YouStep == 1;
 	D.Q.Add(WaitAct(Pause()));
 	ClimbOut(D, Tug);
-	D.Q.Add(WalkAct(HeadSpot, 15.f));
-	D.Q.Add(PoseAct(PinHead, 3.0f));
-	D.Q.Add(DoAct([Clunk] { Clunk(); }));
+	if (!bHeadOn)
+	{
+		D.Q.Add(WalkAct(HeadSpot, 15.f));
+		D.Q.Add(PoseAct(PinHead, 3.0f));
+		D.Q.Add(DoAct([Clunk] { Clunk(); }));
+	}
 	D.Q.Add(WalkAct(GearSpot, 15.f));
 	D.Q.Add(PoseAct(PinGear, 2.8f));
 	ClimbIn(D, Tug, [this, Tug] { FTug& U = Tugs[Tug]; U.State = EState::Hooked; ADP_LOG(TEXT("Tugs: the driver hooked on alone - %s"), *U.Key); CrewWalkers(Tug); });

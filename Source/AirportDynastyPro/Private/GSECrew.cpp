@@ -120,6 +120,20 @@ void AGSE::GiveBack(int32 Ci, float StandX)
 
 TFunction<void(float, float, FDriverPose&)> AGSE::SeatFn(int32 Ti) const
 {
+	if (Tractors[Ti].TugIx != INDEX_NONE)
+	{
+		// the pushback tug: its own driver's seat, the hands round with the wheel, the right foot on the pedal that is pressed
+		ATugs* G = Tg(); const int32 Ix = Tractors[Ti].TugIx; TFunction<void(float, float, FDriverPose&)> Own = G ? G->SeatFn(Ix) : nullptr;
+		return [this, Ti, Own](float K, float PH, FDriverPose& P)
+		{
+			P = FDriverPose(); if (Own) Own(K, PH, P);
+			const FTractor& T = Tractors[Ti]; if (!T.Player.IsValid()) return;
+			const FQuat Q(FVector(-0.84f, 0.f, 0.54f).GetSafeNormal(), FMath::DegreesToRadians(FMath::Clamp(-T.Steer * 4.f, -50.f, 50.f)));
+			P.Hand[0] = TW(T, T.KWheelC + Q.RotateVector(T.KHandL - T.KWheelC)); P.Hand[1] = TW(T, T.KWheelC + Q.RotateVector(T.KHandR - T.KWheelC));
+			const float B = FMath::SmoothStep(0.05f, 0.35f, T.PedalB);
+			P.Foot[1] = TW(T, FMath::Lerp(T.KAccel, T.KBrake, B) + FVector(2.f * FMath::Max(T.PedalA, T.PedalB), 0.f, 2.f * FMath::Sin(PI * B)));
+		};
+	}
 	// sat at the wheel: the hips on the seat, the left foot on the brake, the right on the accelerator, both hands on the wheel
 	return [this, Ti](float, float PH, FDriverPose& P)
 	{
@@ -141,6 +155,7 @@ TFunction<void(float, float, FDriverPose&)> AGSE::SeatFn(int32 Ti) const
 
 TFunction<void(float, float, FDriverPose&)> AGSE::ClimbFn(int32 Ti, bool bIn) const
 {
+	if (Tractors[Ti].TugIx != INDEX_NONE) if (ATugs* G = Tg()) return G->ClimbFn(Tractors[Ti].TugIx, bIn);   // (its own crew's)
 	if (IsTall(Tractors[Ti])) return TallClimbFn(Ti, bIn);   // (two steps)
 	// up the step through the door and round onto the seat (IK_Stand_Door, IK_Step, IK_Grab_Outside / _Inside, the cab floor)
 	return [this, Ti, bIn](float K0, float PH, FDriverPose& P)

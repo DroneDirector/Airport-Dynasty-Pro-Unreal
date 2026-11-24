@@ -161,6 +161,7 @@ void AGSE::Setup()
 		if (SpawnTractor(L)) Tractors.Add(L);
 	}
 	SvcSetup();   // (the service vehicles: GSEService.cpp)
+	Tractors.Reserve(Tractors.Num() + 64);   // (the pushback tugs' seat lines come later, TugSeats)
 	for (FTractor& T : Tractors) Pose(T);
 	for (FCart& C : Carts) PoseCart(C);
 	ADP_LOG(TEXT("GSE: %d baggage tractors / belt loaders in their places and %d baggage carts (unhitched, drawbars up) in the departure cart lane%s"), Tractors.Num(), Carts.Num(), bTest ? TEXT(" - test (-GseTest): a train to the next departure and a GPU move") : TEXT(""));
@@ -291,6 +292,7 @@ bool AGSE::SpawnCart(FCart& C)
 
 void AGSE::Pose(FTractor& T)
 {
+	if (T.TugIx != INDEX_NONE) { if (ATugs* G = Tg(); G && G->Tugs.IsValidIndex(T.TugIx)) { T.At.Z = G->Plan(T.At.X / 100.f, -T.At.Y / 100.f).Z; G->Tugs[T.TugIx].At = T.At; G->Tugs[T.TugIx].Yaw = T.Yaw; G->Pose(G->Tugs[T.TugIx]); } return; }
 	ABabylonModel* M = T.M.Get(); if (!M) return;
 	// every wheel on the surface (owner 2026-11-20): the ground under each, the body leaning with it - a degree or so
 	const FRotator R0(0.f, T.Yaw, 0.f);
@@ -323,6 +325,7 @@ void AGSE::Motor(FTractor& T, bool bOn)
 {
 	if (bOn == T.bOn || !T.M.IsValid()) return;
 	T.bOn = bOn;
+	if (T.TugIx != INDEX_NONE) { if (ATugs* G = Tg(); G && G->Tugs.IsValidIndex(T.TugIx)) G->Engine(G->Tugs[T.TugIx], bOn); return; }
 	if (bOn)
 	{
 		if (!T.SndStart.IsEmpty()) Sound(*T.SndStart, T.At);
@@ -781,7 +784,7 @@ bool AGSE::Apron(TArray<FVector>& Out, const FVector& FromW, const FVector& ToW,
 			if (U.M.IsValid()) { const FVector Fw = FRotator(0.f, U.Yaw, 0.f).Vector(); Mp.Boxes.Add({GseP2(U.At), FVector2f(Fw.X, -Fw.Y), 2.55f, 1.26f}); }
 			if (U.Gpu.M.IsValid() && !(Self && Self->TowGpu == i)) { const FVector Fw = U.Gpu.M->GetActorForwardVector(); Mp.Boxes.Add({GseP2(U.Gpu.M->GetActorTransform().TransformPosition(FVector(40.f, 0.f, 0.f))), FVector2f(Fw.X, -Fw.Y), 1.7f, 0.9f}); }
 		}
-	for (const FTractor& O : Tractors) if (&O != Self && O.M.IsValid()) { const FVector Fw = FRotator(0.f, O.Yaw, 0.f).Vector(); Mp.Boxes.Add({GseP2(O.At), FVector2f(Fw.X, -Fw.Y), O.Svc != INDEX_NONE ? O.KHalfL / 100.f : 1.72f, O.Svc != INDEX_NONE ? O.KHalfW / 100.f : 1.f}); }
+	for (const FTractor& O : Tractors) if (&O != Self && O.M.IsValid() && O.TugIx == INDEX_NONE) { const FVector Fw = FRotator(0.f, O.Yaw, 0.f).Vector(); Mp.Boxes.Add({GseP2(O.At), FVector2f(Fw.X, -Fw.Y), O.Svc != INDEX_NONE ? O.KHalfL / 100.f : 1.72f, O.Svc != INDEX_NONE ? O.KHalfW / 100.f : 1.f}); }
 	for (const FCart& C : Carts) if (C.M.IsValid() && !(Self && Self->Train.Contains(int32(&C - Carts.GetData())))) { const FVector Fw = FRotator(0.f, C.Yaw, 0.f).Vector(); Mp.Boxes.Add({GseP2(C.At), FVector2f(Fw.X, -Fw.Y), 1.72f, 0.83f}); }
 	// the grid (1.5 m) and the search: lines cost a lot to cross (so only where it must, and straight across)
 	const FVector2f A = GseP2(FromW), Z = GseP2(ToW); const float Cl = 1.5f, Rv = 1.3f, RLine = 1.3f;
@@ -919,7 +922,7 @@ bool AGSE::BusyAt(float StandX) const
 
 void AGSE::Outlines(TArray<FOutline>& Out) const
 {
-	for (const FTractor& T : Tractors) if (T.M.IsValid()) { const FVector F = FRotator(0.f, T.Yaw, 0.f).Vector(); Out.Add({T.At + F * T.KCentreX, F, FVector(-F.Y, F.X, 0.f), T.KHalfL, T.KHalfW}); }
+	for (const FTractor& T : Tractors) if (T.M.IsValid() && T.TugIx == INDEX_NONE) { const FVector F = FRotator(0.f, T.Yaw, 0.f).Vector(); Out.Add({T.At + F * T.KCentreX, F, FVector(-F.Y, F.X, 0.f), T.KHalfL, T.KHalfW}); }
 	for (const FCart& C : Carts) if (C.M.IsValid()) { const FVector F = FRotator(0.f, C.Yaw, 0.f).Vector(); Out.Add({C.At - F * 2.f, F, FVector(-F.Y, F.X, 0.f), 140.f, GseCHalfW}); }
 }
 
@@ -957,6 +960,7 @@ void AGSE::Tick(float Dt)
 		DoorClock = 0.f;
 		for (const FTractor& T : Tractors) if (T.Path.Num() || FMath::Abs(T.Speed) > 10.f) ARollerDoor::OpenFor(GetWorld(), T.At, 2200.f, 10.f);
 	}
+	TugSeats();
 	static const bool bChecks = bTest || FParse::Param(FCommandLine::Get(), TEXT("UITugShot")) || FParse::Param(FCommandLine::Get(), TEXT("TugCheck"));
 	const bool bCheck = bChecks && (CheckClock += Dt) > 0.5f; if (bCheck) CheckClock = 0.f;
 	const bool bSay = (SayClock += Dt) > 6.f; if (bSay) SayClock = 0.f;
@@ -964,6 +968,7 @@ void AGSE::Tick(float Dt)
 	{
 		FTractor& T = Tractors[i];
 		if (!T.M.IsValid()) continue;
+		if (T.TugIx != INDEX_NONE) { YouTug(i, Dt); continue; }
 		if (T.Until) { if (T.Until()) { T.Until = nullptr; TFunction<void()> F = MoveTemp(T.AfterUntil); T.AfterUntil = nullptr; if (F) F(); } }
 		// (in short steps however long the frame is: the steering is worked out from where it is - long steps overshoot a bend)
 		if (T.Path.Num()) { const int32 Ns = FMath::Clamp(FMath::CeilToInt(Dt / 0.03f), 1, 8); for (int32 n = 0; n < Ns && T.Path.Num(); ++n) { Drive(T, Dt / Ns); Train(T, Dt / Ns); } }
@@ -1058,7 +1063,7 @@ void AGSE::Check(const FTractor& T, int32 Index)
 			for (const FVector2f& Q : Pts) { const FVector2f D = Q - C; if (FMath::Abs(FVector2f::DotProduct(D, X2)) < Hl2 / 100.f && FMath::Abs(FVector2f::DotProduct(D, Y2)) < Hw2 / 100.f) return true; }
 			return false;
 		};
-		for (const FTractor& O : Tractors) if (&O != &T && O.M.IsValid() && Overlap(O.At + FRotator(0.f, O.Yaw, 0.f).Vector() * O.KCentreX, O.Yaw, O.KHalfL, O.KHalfW)) Hit += FString::Printf(TEXT(" %s into %s;"), *Ft.What, *O.Name);
+		for (const FTractor& O : Tractors) if (&O != &T && O.M.IsValid() && O.TugIx == INDEX_NONE && Overlap(O.At + FRotator(0.f, O.Yaw, 0.f).Vector() * O.KCentreX, O.Yaw, O.KHalfL, O.KHalfW)) Hit += FString::Printf(TEXT(" %s into %s;"), *Ft.What, *O.Name);
 		for (int32 c = 0; c < Carts.Num(); ++c) if (!T.Train.Contains(c) && Carts[c].M.IsValid() && Overlap(Carts[c].At, Carts[c].Yaw, 140.f, GseCHalfW)) Hit += FString::Printf(TEXT(" %s into baggage cart %d;"), *Ft.What, c + 1);
 		if (const ATugs* G = Tg())
 			for (int32 g = 0; g < G->Tugs.Num(); ++g)

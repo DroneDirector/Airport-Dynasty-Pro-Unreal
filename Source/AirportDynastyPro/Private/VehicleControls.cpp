@@ -49,7 +49,7 @@ const FVehTable* AGSE::CtlTable(int32 Svc)
 	static TMap<int32, TSharedPtr<FVehTable>> All;
 	if (Svc == INDEX_NONE) return nullptr;
 	if (const TSharedPtr<FVehTable>* F = All.Find(Svc)) return F->Get();
-	if (Svc < 0) { TSharedPtr<FVehTable> Ld = Svc == -2 ? LoaderControls() : TractorControls(); CabAdd(*Ld, Svc); return All.Add(Svc, Ld).Get(); }
+	if (Svc < 0) { TSharedPtr<FVehTable> Ld = Svc == -4 ? TugControls() : Svc == -2 ? LoaderControls() : TractorControls(); CabAdd(*Ld, Svc); return All.Add(Svc, Ld).Get(); }
 	const FServiceSpec& S = ADPService::All()[Svc];
 	TSharedPtr<FVehTable> Tb = S.bAmbu ? AmbuControls() : S.bFuel ? FuelControls() : S.Wet == 1 ? WaterControls() : S.Wet == 2 ? ToiletControls() : S.bCater ? CaterControls() : S.bStairs ? StairsControls() : S.bDeicer ? DeicerControls() : TSharedPtr<FVehTable>();
 	if (!Tb) Tb = MakeShared<FVehTable>();

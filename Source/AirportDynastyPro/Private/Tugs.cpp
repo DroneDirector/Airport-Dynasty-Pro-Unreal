@@ -219,26 +219,27 @@ void ATugs::Pose(FTug& T)
 void ATugs::Lamps(FTug& T)
 {
 	// running: low beams, tail lamps and markers; backing: the reversing lamps; the beacons flash as the jetway beacons do
-	const bool bRun = T.Engine != nullptr, bBack = bRun && T.bReverse && T.Path.Num() > 0;
+	const bool bRun = T.Engine != nullptr, bBack = bRun && (T.State == EState::You ? T.bYouBack : T.bReverse && T.Path.Num() > 0);
 	const float F = FMath::Fmod(Flash, 1.f);
 	const bool bFlash = bRun && (F < 0.08f || (F > 0.18f && F < 0.26f));
 	// (owner 2026-11-21: the lights animated as on a real tug) brake lamps: bright while it slows down and at a standstill with
 	// the engine running (the driver's foot on the brake), dim tail lamps when it rolls on; the indicators blink (1.5 Hz,
 	// the legal 60-120 a minute) on the side it turns to - the front wheels' steer, ~6 deg and more
 	const bool bBrake = bRun && (T.BrakeHold > 0.f || T.MeasSpeed < 0.05f);
-	const int8 Turn = !bRun ? 0 : T.Steer > 6.f ? -1 : T.Steer < -6.f ? 1 : 0;   // (yaw + is a right turn: the right side, -1)
+	const bool bYou = T.State == EState::You, bHaz = bYou && T.bYouHaz;   // (with you: your own switches)
+	const int8 Turn = bYou ? T.YouSig : !bRun ? 0 : T.Steer > 6.f ? -1 : T.Steer < -6.f ? 1 : 0;   // (yaw + is a right turn: the right side, -1)
 	const bool bBlink = FMath::Fmod(Flash * 1.5f, 1.f) < 0.5f;
 	for (FLens& L : T.Lenses)
 	{
 		float V = 0.f;
 		switch (L.Kind)
 		{
-		case Low: V = bRun ? 0.8f : 0.f; break;
+		case Low: V = bRun && !(bYou && T.YouBeam == 2) ? (bYou && T.YouBeam == 1 ? 1.f : 0.8f) : 0.f; break;
 		case Tail: V = bBrake ? 1.f : bRun ? 0.3f : 0.f; break;
-		case Indicator: V = (Turn != 0 && L.Side == Turn && bBlink) ? 1.f : 0.f; break;
+		case Indicator: V = ((bHaz || (Turn != 0 && L.Side == Turn)) && bBlink) ? 1.f : 0.f; break;
 		case Marker: V = bRun ? 0.5f : 0.f; break;
 		case Reverse: V = bBack ? 1.f : 0.f; break;
-		case Beacon: V = bFlash ? 1.f : 0.f; break;
+		case Beacon: V = bFlash && !(bYou && T.bYouNoBeacon) ? 1.f : 0.f; break;
 		default: V = 0.f;
 		}
 		if (V != L.Now && L.K) { L.Now = V; L.K->SetCustomDataValue(L.Ix, 0, V, true); }
@@ -252,6 +253,7 @@ void ATugs::Lamps(FTug& T)
 int32 ATugs::Assign(const FString& Key, float StandX)
 {
 	for (int32 i = 0; i < Tugs.Num(); ++i) if (Tugs[i].Key == Key) return i;
+	for (FTug& Y : Tugs) if (Y.State == EState::You && Y.YouStep > 0 && !Y.bYouIn && !Y.bYouCrew && Y.Key.IsEmpty() && FMath::Abs(Y.StandX - StandX) < 1.f) Y.State = EState::Parked;   // (coupled by you: its crew go on from there, TugYou.cpp)
 	// the gate's own tug (ready in front of the terminal): its engine on, waiting for off-blocks
 	int32 Best = INDEX_NONE;
 	for (int32 i = 0; i < Tugs.Num(); ++i) if ((Tugs[i].State == EState::Parked || Tugs[i].State == EState::Manned) && Tugs[i].Key.IsEmpty() && FMath::Abs(Tugs[i].StandX - StandX) < 1.f) Best = i;
@@ -344,6 +346,7 @@ bool ATugs::Push(const FString& Key, float StandX, const FVector& Fitting, const
 		T.State = EState::ToNose; T.bReverse = false; ADP_LOG(TEXT("Tugs: in to the nose of %s"), *Key);
 		const FVector In = T.HookAt + F * 800.f;          // 8 m short of the hook place, in line with the nose
 		T.Path = {Plan(StandX + BoxX, BoxY + 6.f), Plan(StandX + BoxX * 0.5f, BoxY + 12.5f), Plan(StandX, BoxY + 18.f), T.Handler != INDEX_NONE ? T.HookAt + F * 150.f : T.HookAt};
+		if (T.YouStep > 0) { T.Path.Reset(); if (FVector::Dist2D(T.At, T.HookAt) > 30.f) { T.Path = {T.HookAt}; T.YouStep = 0; } }   // (you coupled it: already there)
 		// (with a handler it stops 1.5 m short: he waves it in the last bit)   // (out of its box in a smooth S-curve onto the centre line, then straight in)
 	}
 	if (T.State == EState::Hooked)
@@ -546,7 +549,7 @@ void ATugs::Tick(float Dt)
 	if ((Say += Dt) > 5.f)
 	{
 		Say = 0.f;
-		static const TCHAR* SN[] = {TEXT("parked"), TEXT("to the stand"), TEXT("waiting"), TEXT("to the nose"), TEXT("hooked"), TEXT("unhooking"), TEXT("backing"), TEXT("home"), TEXT("the driver getting in"), TEXT("coupling"), TEXT("showing the pin"), TEXT("manned, engine off")};
+		static const TCHAR* SN[] = {TEXT("parked"), TEXT("to the stand"), TEXT("waiting"), TEXT("to the nose"), TEXT("hooked"), TEXT("unhooking"), TEXT("backing"), TEXT("home"), TEXT("the driver getting in"), TEXT("coupling"), TEXT("showing the pin"), TEXT("manned, engine off"), TEXT("with you")};
 		for (int32 i = 0; i < Tugs.Num(); ++i) if (Tugs[i].State != EState::Parked)
 			ADP_LOG(TEXT("Tugs: tug %d %s at plan (%.1f, %.1f) facing %.0f deg%s"), i, SN[uint8(Tugs[i].State)], Tugs[i].At.X / 100.f, -Tugs[i].At.Y / 100.f, Tugs[i].Yaw, Tugs[i].bReverse ? TEXT(" (reversing)") : TEXT(""));
 	}

@@ -61,6 +61,9 @@ public:
 	 *  the job is taken up (or there is nothing to do). */
 	bool ChocksOn(float StandX, const FString& Reg, const FDateTime& When, bool bHired, bool bLong, bool bAtOnce);
 	bool ChocksIn(float StandX) const;
+	/** The stand's own tug is with you (TugYou.cpp); the push with you at its wheel (the next job's way in). */
+	bool YouHave(float StandX, FString& Why) const;
+	bool YouAtWheel(const FString& Key) const;
 	/** The aircraft is gone: whatever is still out is cleared. */
 	void ChocksGone(float StandX);
 	/** An aircraft has parked on the stand (on blocks): its ground power is plugged in (GpuUnit in TugCrew.cpp). */
@@ -83,7 +86,7 @@ public:
 private:
 	friend class UStaffPeople;   // (your hired people, to-do 206: the way round the vehicles)
 	friend class AGSE;   // (the baggage tractors and carts: GSE.h - the same ground crew, the same apron)
-	enum class EState : uint8 { Parked, ToStand, Waiting, ToNose, Hooked, Unhook, Backing, Home, Boarding, Coupling, ShowPin, Manned };   // (Manned: the driver in it, engine off, ready for the aircraft coming in)
+	enum class EState : uint8 { Parked, ToStand, Waiting, ToNose, Hooked, Unhook, Backing, Home, Boarding, Coupling, ShowPin, Manned, You };   // (Manned: the driver in it, engine off, ready for the aircraft coming in)
 	// ---- the crew (owner 2026-11-21: "the person driving the pushback truck ... exit the truck and connect"): MetaHumans of
 	// the ground staff (Content/Data/people-roster.json, role ground) - per tug a driver and the pushback handler (the headset
 	// man); with no handler the driver does it alone. Each works through a queue of acts: walk somewhere, a posed movement
@@ -177,6 +180,10 @@ private:
 			int32 Ci = INDEX_NONE; bool bOwn = false, bHired = false, bLong = false, bLoose = false; float Clock = 0.f, WaitT = 0.f;
 			FString Reg; FDateTime When;
 		} Ck;
+		// with you (State You, TugYou.cpp): the steps of your coupling done (1 the bar's head, 2 the bypass pin, 3 the headset), how long
+		// you are away, its driver coming for it, you in it; your lamps; its wheel and pedals
+		int32 YouStep = 0; float YouLeft = 0.f, YouNote = 0.f; bool bYouCrew = false, bYouIn = false, bYouHaz = false, bYouNoBeacon = false, bYouBack = false; int8 YouSig = 0; uint8 YouBeam = 0;
+		int32 YouWheelG = INDEX_NONE; float YouWheelNow = 0.f, YouPedal[2] = {0.f, 0.f};
 		FVehicleDirt Dirt;
 		TArray<int32> Walkers; int32 WalkersReady = 0; bool bWalkersOut = false; float WalkerLook = 0.f;              // the wing walkers and tail walker on this push (Crew[])
 	};
@@ -250,6 +257,9 @@ private:
 	int32 ChkWorker(int32 Tug);
 	void ChkTick(int32 Tug, float Dt);
 	bool ChkOut(const FTug& T) const { return T.Ck.Stage == 0; }
+	bool YouHook(FTug& T) const;
+	bool YouFree(int32 Tug, FString& Why) const;
+	void YouHome(int32 Tug);
 	void StartBacking(FTug& T);
 	void StartHome(FTug& T);
 	void SeqTick(FTug& T, float Dt);

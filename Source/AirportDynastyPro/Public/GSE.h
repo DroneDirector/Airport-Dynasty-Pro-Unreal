@@ -98,7 +98,8 @@ public:
 		// its own measures (root cm; the tractor's or the belt loader's - Art/<model>/<model>-parts.json)
 		bool bLoader = false;
 		int32 Svc = INDEX_NONE;           // a service vehicle (GSEService.cpp): its line in the table
-		bool IsTrain() const { return !bLoader && Svc == INDEX_NONE; }   // (a baggage tractor)
+		int32 TugIx = INDEX_NONE;         // not a vehicle of its own: the seat line of that pushback tug (TugYou.cpp)
+		bool IsTrain() const { return !bLoader && Svc == INDEX_NONE && TugIx == INDEX_NONE; }   // (a baggage tractor)
 		float KDoorDeg = 80.f;
 		TWeakObjectPtr<class AServiceDrive> Player; int32 PlayerSeat = INDEX_NONE;   // (you in it: ServiceDrive.h; 0 the driver's seat, then the crew's, then the Cab seats)
 		float SteerWant = 0.f, BackT = 0.f, PedalA = 0.f, PedalB = 0.f, WipeT = 0.f, WipeNow = 0.f, RainIn = 0.f, BoxT = 0.f; bool bRain = false, bUsed = false;   // (bUsed: full bags or used rolls in it - exchanged shut in its box)
@@ -127,7 +128,7 @@ public:
 		bool bBeltBack = false, bLStop = false, bLNear = false; int32 GJoy = INDEX_NONE; float JoyNow = 0.f;
 		int32 YBar = INDEX_NONE; float YLeftT = 0.f, YNoteT = 0.f, YTryT = 0.f; float YStandX = -1e6f, YJobT = 0.f, YAskT = 0.f, YAtT = 0.f;   // a cart whose drawbar you laid in, not pinned yet; left alone
 		float LYouX = -1e6f, LLeftT = 0.f, LDockT = 0.f, LWaitT = 0.f, LAhead = 0.f, LAside = 0.f, LTurn = 0.f;
-		int32 CtlKey() const { return bLoader ? -2 : Svc == INDEX_NONE ? -3 : Svc; }   // (its line of controls)
+		int32 CtlKey() const { return TugIx != INDEX_NONE ? -4 : bLoader ? -2 : Svc == INDEX_NONE ? -3 : Svc; }   // (its line of controls)
 		int32 GBoom = INDEX_NONE, GBumper = INDEX_NONE, GRam[4] = {INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE};
 		UAudioComponent* BeltSnd = nullptr; UAudioComponent* BoomSnd = nullptr;
 		int32 TopCrew = INDEX_NONE;       // the loader up at the hold door
@@ -191,6 +192,15 @@ private:
 	static TSharedPtr<FVehTable> LoaderControls();
 	/** The baggage tractor and its carts worked by you (GSETractorYou.cpp). */
 	static TSharedPtr<FVehTable> TractorControls();
+	/** The pushback tugs with you at the wheel, and at the nose gear (TugYou.cpp). */
+	static TSharedPtr<FVehTable> TugControls();
+	bool bTugSeats = false;
+	void TugSeats();
+	void YouTug(int32 Ti, float Dt);
+	FVector TugSpot(const FTractor& T, int32 S) const;
+	FString TugSay(const FTractor& T, int32 S) const;
+	bool TugMay(int32 Ti, int32 S, FString& Why) const;
+	TFunction<void(float, float, FDriverPose&)> TugAct(int32 Ti, int32 S, float& Secs) const;
 	TFunction<void(float, float, FDriverPose&)> HitchPinPose(int32 Ti, int32 Front, float Grip) const;
 	TFunction<void(float, float, FDriverPose&)> CartBarPose(int32 Cart) const;
 	TFunction<void(float, float, FDriverPose&)> GpuBarPose(int32 Gate) const;

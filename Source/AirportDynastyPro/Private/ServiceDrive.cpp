@@ -325,6 +325,7 @@ float AGSE::SvcClimbTime(int32 Ti, int32 Seat, bool bIn) const { const FServiceS
 void AGSE::SvcSeatDoor(int32 Ti, int32 Seat, bool bOpen)
 {
 	FTractor& T = Tractors[Ti]; const FServiceSpec& S = SdSpec(T.Svc);
+	if (T.TugIx != INDEX_NONE) if (ATugs* G = Tg()) { ATugs::FTug& U = G->Tugs[T.TugIx]; if (bOpen && U.DoorWant == 0.f) Sound(*T.SndDoorOpen, TW(T, T.KHandle)); U.DoorWant = T.DoorWant = bOpen ? T.KDoorDeg : 0.f; return; }
 	if (Seat == 0) { if (bOpen && T.DoorWant == 0.f) Sound(*T.SndDoorOpen, TW(T, T.KHandle)); T.DoorWant = bOpen ? T.KDoorDeg : 0.f; return; }
 	const int32 c = SdCab(S, Seat), d = c >= 0 ? S.Doors.Num() + c : 0; if (!T.SvcDoors.IsValidIndex(d)) return;
 	if (bOpen && T.SvcDoors[d].Want < 0.5f) Sound(*T.SndDoorOpen, TW(T, T.SvcDoors[d].Piv));
@@ -333,6 +334,7 @@ void AGSE::SvcSeatDoor(int32 Ti, int32 Seat, bool bOpen)
 bool AGSE::SvcSeatDoorOpen(int32 Ti, int32 Seat) const
 {
 	const FTractor& T = Tractors[Ti]; const FServiceSpec& S = SdSpec(T.Svc);
+	if (T.TugIx != INDEX_NONE) if (const ATugs* G = Tg()) return G->Tugs[T.TugIx].DoorAng > T.KDoorDeg * 0.9f;
 	if (Seat == 0) return T.DoorAng > T.KDoorDeg * 0.9f;
 	const int32 c = SdCab(S, Seat), d = c >= 0 ? S.Doors.Num() + c : 0; return !T.SvcDoors.IsValidIndex(d) || T.SvcDoors[d].Now > 0.99f;
 }
@@ -378,6 +380,7 @@ bool AGSE::SvcSeatFree(int32 Ti, int32 Seat, FString& Why) const
 {
 	const FTractor& T = Tractors[Ti]; const FServiceSpec& S = SdSpec(T.Svc); const ATugs* G = Tg();
 	if (T.Player.IsValid()) { Why = TEXT("you are in it already"); return false; }
+	if (T.TugIx != INDEX_NONE) return G && G->YouFree(T.TugIx, Why);
 	if (S.bDeicer && (T.Job != EJob::None || !DeicerStowed(T))) { Why = T.Job != EJob::None ? TEXT("its crew are at work") : TEXT("its boom is not stowed"); return false; }
 	if (T.Job == EJob::None && ((S.bFuel && !FuelStowed(T)) || (S.Wet && !WaterStowed(T)) || (S.bCater && !CaterStowed(T)))) { Why = TEXT("not everything is back in its place"); return false; }   // (never off with a hose out)
 	if (T.Speed > 2.f || T.Path.Num()) { Why = TEXT("it is driving"); return false; }
@@ -425,7 +428,7 @@ bool AGSE::SvcUse(APawn* Me, FString& Say)
 		if (T.Ct && (T.Ct->Lift > 0.f || T.Ct->LiftWant > 0.f)) { Say = TEXT("Its body is up"); return true; }   // (a catering truck's side door)
 		T.LoadWant = T.SvcDoors[1].Want < 0.5f ? 1 : 0; return true;
 	}
-	FString Why; if (!SvcSeatFree(Bt, Bs, Why)) { Say = FString::Printf(TEXT("The %s: %s"), T.IsTrain() ? TEXT("baggage tractor") : SdSpec(T.Svc).Label, *Why); return true; }
+	FString Why; if (!SvcSeatFree(Bt, Bs, Why)) { Say = FString::Printf(TEXT("The %s: %s"), T.TugIx != INDEX_NONE ? TEXT("pushback tug") : T.IsTrain() ? TEXT("baggage tractor") : SdSpec(T.Svc).Label, *Why); return true; }
 	AServiceDrive* D = GetWorld()->SpawnActor<AServiceDrive>(T.At, FRotator::ZeroRotator);
 	if (!D || !D->Begin(this, Bt, Bs, Me)) { if (D) D->Destroy(); return false; }
 	return true;
@@ -443,6 +446,7 @@ void AGSE::SvcPlayerDrive(FTractor& T, float Dt)
 	if (T.Ct && !CaterStowed(T)) bShut = false;   // (never with its legs down, its body up or anything out)
 	if (!DeicerShut(T)) bShut = false;   // (never with its boom up, a panel open, a valve off or a stop pressed)
 	if (T.bLoader && (T.Boom != 0.f || T.BoomWant != 0.f || T.bBelt || T.bLStop || T.BeltBags.Num())) bShut = false;   // (never with its boom up, its belt on, a bag on it or a stop pressed)
+	if (T.TugIx != INDEX_NONE && Tg() && Tg()->Tugs[T.TugIx].YouStep > 0) bShut = false;   // (never with its bar on an aircraft: the push is not yours yet)
 	if (T.Ps && !StairsStowed(T)) bShut = false;   // (never with its legs down or its stairs up)
 	if (T.IsTrain() && !TractorShut(T, D->Throttle() > 0.1f || D->Brake() > 0.1f)) bShut = false;   // (a pin up, a drawbar not pinned, a curtain open: never off with it)
 	float Go = bShut ? D->Throttle() : 0.f, Br = D->Brake();
@@ -451,14 +455,22 @@ void AGSE::SvcPlayerDrive(FTractor& T, float Dt)
 	if (T.bReverse && !T.bGearHand && !D->Leaving()) { Swap(Go, Br); if (!bShut) Go = 0.f; }
 	if (T.IsTrain() && T.bReverse && !TractorBack(T, Go > 0.1f)) Go = 0.f;   // (backwards with carts: not possible)
 	CabDrive(T, Go, Br);
-	const float Max = T.bReverse ? 250.f : T.IsTrain() ? (T.Train.Num() || T.TowGpu != INDEX_NONE ? 417.f : 694.f) : S.PlayerSpeed;   // (the baggage tractor: 25 km/h, 15 with a train)
+	float TugMax = 694.f;   // (the pushback tug: 25 km/h, 7 near an aircraft)
+	if (const ATugs* G = T.TugIx != INDEX_NONE ? Tg() : nullptr)
+	{
+		for (const FVector& A : G->Planes) if (FVector::DistSquared2D(A, T.At) < FMath::Square(4000.f)) TugMax = 200.f;
+		for (const ATugs::FTug& U : G->Tugs) if (U.Ck.Stage > 0 && FVector::DistSquared2D(G->Plan(U.StandX, U.StandNose), T.At) < FMath::Square(2500.f)) TugMax = 200.f;
+		if (T.Speed > TugMax) { Go = 0.f; Br = FMath::Max(Br, 0.5f); TugMax = T.Speed; }   // (it slows, it doesn't jump)
+	}
+	const float Max = T.TugIx != INDEX_NONE && !T.bReverse ? TugMax : T.bReverse ? 250.f : T.IsTrain() ? (T.Train.Num() || T.TowGpu != INDEX_NONE ? 417.f : 694.f) : S.PlayerSpeed;   // (the baggage tractor: 25 km/h, 15 with a train)
 	const FVector Fw = FRotator(0.f, T.Yaw, 0.f).Vector(), Move = Fw * (T.bReverse ? -1.f : 1.f);
+	const float BarL = T.TugIx != INDEX_NONE && !T.bReverse ? 525.f : 0.f;   // (its tow bar sticks out ahead)
 	float Acc = Go * 160.f - Br * 520.f - (Go < 0.05f ? 45.f : 0.f);
 	// people: the stopping way ahead kept free
 	if (T.Speed > 1.f || Go > 0.f)
 	{
 		const ATugs* G = Tg(); const FVector Sd(-Move.Y, Move.X, 0.f); const float Stop = FMath::Square(T.Speed) / 1400.f;
-		for (float r = 60.f; G && r < 130.f + Stop; r += 65.f) for (const float y : {-95.f, 0.f, 95.f}) if (G->PersonAhead(T.At + Move * T.KHalfL + Sd * y, Move, r)) { Acc = -900.f; r = 1e9f; break; }
+		for (float r = 60.f; G && r < 130.f + Stop + BarL; r += 65.f) for (const float y : {-95.f, 0.f, 95.f}) if (G->PersonAhead(T.At + Move * T.KHalfL + Sd * y, Move, r)) { Acc = -900.f; r = 1e9f; break; }
 	}
 	T.Speed = FMath::Clamp(T.Speed + Acc * Dt, 0.f, Max);
 	T.SteerWant = FMath::FInterpTo(T.SteerWant, T.bReverse && T.TowGpu != INDEX_NONE ? 0.f : D->SteerIn(), Dt, 3.f);
@@ -471,6 +483,16 @@ void AGSE::SvcPlayerDrive(FTractor& T, float Dt)
 	if (T.TowGpu != INDEX_NONE) if (const ATugs* G = Tg()) if (G->Tugs.IsValidIndex(T.TowGpu) && G->Tugs[T.TowGpu].Gpu.M.IsValid()) Q.AddIgnoredActor(G->Tugs[T.TowGpu].Gpu.M.Get());
 	if (D->GetOwner()) Q.AddIgnoredActor(D->GetOwner());
 	for (TActorIterator<AADPWalker> It(GetWorld()); It; ++It) { Q.AddIgnoredActor(*It); if (It->HumanActor()) Q.AddIgnoredActor(It->HumanActor()); }
+	auto BarHit = [&](const FVector& At, float Yaw) -> bool
+	{
+		// (the pushback tug's bar, 2.5 to 7.8 m ahead of its middle)
+		if (T.TugIx == INDEX_NONE) return false;
+		const FRotator R(0.f, Yaw, 0.f); const FVector F = R.Vector(), C = At + F * 517.f;
+		TArray<FOutline> Ol; Outlines(Ol);
+		for (const FOutline& O : Ol) if (SdCross(C, F, 262.f, 22.f, O.C, O.X, O.Hx, O.Hy)) return true;
+		if (const ATugs* G = Tg()) for (int32 u = 0; u < G->Tugs.Num(); ++u) if (u != T.TugIx && G->Tugs[u].M.IsValid() && SdCross(C, F, 262.f, 22.f, G->Tugs[u].At, FRotator(0.f, G->Tugs[u].Yaw, 0.f).Vector(), 255.f, 126.f)) return true;
+		return GetWorld()->OverlapBlockingTestByChannel(FVector(C.X, C.Y, At.Z + 60.f), R.Quaternion(), ECC_Pawn, FCollisionShape::MakeBox(FVector(262.f, 22.f, 25.f)), Q);
+	};
 	auto Blocked = [&](const FVector& At, float Yaw) -> bool
 	{
 		const FRotator R(0.f, Yaw, 0.f); const FVector F = R.Vector(), C = At + F * T.KCentreX;
@@ -479,7 +501,7 @@ void AGSE::SvcPlayerDrive(FTractor& T, float Dt)
 		if (const ATugs* G = Tg())
 			for (const ATugs::FTug& U : G->Tugs)
 			{
-				if (U.M.IsValid() && SdCross(C, F, T.KHalfL, T.KHalfW, U.At, FRotator(0.f, U.Yaw, 0.f).Vector(), 255.f, 126.f)) return true;
+				if (U.M.IsValid() && (T.TugIx == INDEX_NONE || &U != &G->Tugs[T.TugIx]) && SdCross(C, F, T.KHalfL, T.KHalfW, U.At, FRotator(0.f, U.Yaw, 0.f).Vector(), 255.f, 126.f)) return true;
 				if (U.Gpu.M.IsValid() && (T.TowGpu == INDEX_NONE || &U != &G->Tugs[T.TowGpu]) && SdCross(C, F, T.KHalfL, T.KHalfW, U.Gpu.M->GetActorTransform().TransformPosition(FVector(40.f, 0.f, 0.f)), U.Gpu.M->GetActorForwardVector(), 170.f, 90.f)) return true;
 			}
 		return GetWorld()->OverlapBlockingTestByChannel(FVector(C.X, C.Y, At.Z + 145.f), R.Quaternion(), ECC_Pawn, FCollisionShape::MakeBox(FVector(T.KHalfL, T.KHalfW, 85.f)), Q);
@@ -491,7 +513,7 @@ void AGSE::SvcPlayerDrive(FTractor& T, float Dt)
 		return !GetWorld()->LineTraceSingleByChannel(H, P + FVector(0, 0, 60.f), P - FVector(0, 0, 90.f), ECC_Visibility, Q);
 	};
 	// (already touching something where it stands: only out of it, never stuck for good)
-	if (NoGround(NewAt) || (Blocked(NewAt, NewYaw) && !Blocked(T.At, T.Yaw))) { T.Speed = 0.f; return; }
+	if (NoGround(NewAt) || (Blocked(NewAt, NewYaw) && !Blocked(T.At, T.Yaw)) || (BarHit(NewAt, NewYaw) && !BarHit(T.At, T.Yaw))) { T.Speed = 0.f; return; }
 	const FVector WasAt = T.At; const float WasYaw = T.Yaw;
 	T.At = NewAt; T.Yaw = NewYaw; Pose(T);
 	if (T.IsTrain() && !TrainDrag(T, Q, Dt)) { T.At = WasAt; T.Yaw = WasYaw; T.Speed = 0.f; Pose(T); }

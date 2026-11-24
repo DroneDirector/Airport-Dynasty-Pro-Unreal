@@ -471,6 +471,12 @@ riders `Data/ambulift-riders.json`, `Data/wheelchair-riders.json`, all points an
 - Left: with bags on to the stand or conveyor, empty home, from anywhere a way exists (`WayIn`, `WayTo`), else every minute again. Towed GPU
   and drawn carts stop too (`TowHit`). A loose cart is pushed back straight (`CartFetches`; within 2 m only).
 - Next: a run; arriving bags from the belt loader's foot by hand onto your own train.
+- Pushback tug by hand (to-do 238, TugYou.cpp): compiled, not run. A seat line in `AGSE::Tractors` (`TugIx`) per tug, same drive and cab.
+  E at its door, crew's `ClimbFn`/`SeatFn`; 25 km/h, 7 near an aircraft, its tow bar stops at things too (`BarHit`). Only when no crew or
+  flight has it (`YouFree`); the stand's flight waits with the reason (`YouHave`). Two minutes left, 40 m away: its driver drives it home.
+- At the nose gear (distance, aside, turn shown) on foot: bar head, bypass pin, headset (`YouStep` 1-3, backwards to uncouple), only with the
+  chocks in and the park brake on; the crew go on from the step you left (`CrewCouple`). Never driven with the bar on.
+- Next: a run; the push itself (`YouAtWheel`, `YouHook`). Model lacks: wiper, horn button, indicator stalks, pin and headset parts, wheel/pedal pivots.
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
