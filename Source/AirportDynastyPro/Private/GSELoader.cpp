@@ -191,17 +191,65 @@ void AGSE::LoaderIn(int32 Li)
 	PoseAct(Ci, [this, Li](float K, float PH, FDriverPose& P) { const FTractor& T = Tractors[Li]; P = ADPPose::Reach(TW(T, GslStandControls), FRotator(0.f, T.Yaw + 90.f, 0.f).Vector(), 1, BoomW(T, GslControlsBottom + FVector(0, 0, 4.f)), 0.3f, PH, FMath::Sin(PI * K)); }, 1.2f);
 	Do(Ci, [this, Li] { Tractors[Li].bBelt = true; ADP_LOG(TEXT("GSE: %s's belt running"), *Tractors[Li].Name); });
 	// the hold loader: up the belt into the hold (a second crew member)
+	L.bLOver = false; HoldUp(Li);
+	// wait for the train's loading to be over (or no train after a long wait), then everything back
+	TSharedPtr<bool> bSeen = MakeShared<bool>(false);
+	const float Wait2 = bTest ? 420.f : 1500.f;
+	WaitFor(Ci, [this, Li, bSeen, Wait2](float Elapsed)
+	{
+		bool bTrain = false;
+		for (const FTractor& T : Tractors) if (T.IsTrain() && !T.bArrival && FMath::Abs(T.StandX - Tractors[Li].StandX) < 1.f && (T.Job == EJob::Out || T.Job == EJob::AtStand || T.Job == EJob::Loading)) bTrain = true;
+		if (bTrain) *bSeen = true;
+		if (IsHired(Tractors[Li].Driver))
+		{
+			// (to-do 206: your operator stays while one of your trains is on its way to this stand or at it - never left without)
+			bool bOwn = WaitingAt(Tractors[Li].StandX);
+			for (const FTractor& T : Tractors) if (T.IsTrain() && IsHired(T.Driver) && T.JobT < 1500.f && FMath::Abs(T.StandX - Tractors[Li].StandX) < 1.f && (T.Job == EJob::Boarding || T.Job == EJob::ToCarts || T.Job == EJob::Coupling || T.Job == EJob::Loading || T.Job == EJob::Out || T.Job == EJob::AtStand)) { bOwn = true; if (!T.bArrival) *bSeen = true; }
+			if (bOwn) return false;
+		}
+		return (*bSeen && !bTrain) || Elapsed > Wait2;
+	});
+	// (the belt empty first, your hands too: ten minutes at most; what is left then stays behind, logged)
+	WaitFor(Ci, [this, Li](float E) { const FTractor& T = Tractors[Li]; return (T.BeltBags.Num() == 0 && T.LYouBag == INDEX_NONE) || E > 600.f; });
+	Do(Ci, [this, Li]
+	{
+		FTractor& T = Tractors[Li]; T.bLOver = true; T.ArrivalsLeft = 0; T.bBottomHeld = false;
+		ADepartureBelts* D = ADepartureBelts::Get(GetWorld());
+		if (T.LYouBag != INDEX_NONE) { if (D) D->RemoveBag(T.LYouBag); T.LYouBag = INDEX_NONE; ADP_WARN(TEXT("GSE: the bag in your hands stays behind - %s's crew could wait no longer"), *T.Name); }
+		if (T.BeltBags.Num()) ADP_WARN(TEXT("GSE: %d bags on %s's belt stay behind - nobody took them off its top"), T.BeltBags.Num(), *T.Name);
+		for (const FTractor::FBeltBag& B : T.BeltBags) if (D) D->RemoveBag(B.Id);
+		T.BeltBags.Reset();
+	});
+	// the belt off, back into the cab, the boom down
+	WaitFor(Ci, [this, Li](float) { return Tractors[Li].TopCrew == INDEX_NONE; });
+	PoseAct(Ci, [this, Li](float K, float PH, FDriverPose& P) { const FTractor& T = Tractors[Li]; P = ADPPose::Reach(TW(T, GslStandControls), FRotator(0.f, T.Yaw + 90.f, 0.f).Vector(), 1, BoomW(T, GslControlsBottom + FVector(0, 0, 4.f)), 0.3f, PH, FMath::Sin(PI * K)); }, 1.2f);
+	Do(Ci, [this, Li] { Tractors[Li].bBelt = false; });
+	ClimbIn(Ci, Li, [this, Ci, Li]
+	{
+		if (ATugs* G2 = Tg()) G2->Crew[Ci].Hold = [this, Li](float K, float PH, FDriverPose& P) { SeatFn(Li)(K, PH, P); P.Hand[1] = TW(Tractors[Li], GslLever); P.Grip[1] = 0.9f; };
+		Tractors[Li].BoomWant = 0.f;
+	});
+	WaitFor(Ci, [this, Li](float) { return FMath::IsNearlyEqual(Tractors[Li].Boom, 0.f, 0.05f); });
+	Do(Ci, [this, Ci, Li] { if (ATugs* G2 = Tg()) G2->Crew[Ci].Hold = SeatFn(Li); LoaderLeave(Li); });
+}
+
+void AGSE::HoldUp(int32 Li)
+{
+	// (asked again by BeltTick while bags wait for him and nobody was free)
+	FTractor& L = Tractors[Li];
 	const int32 Top = Borrow(L.At, nullptr, Li);
 	L.TopCrew = Top;
 	if (Top != INDEX_NONE)
 	{
-		WalkTo(Top, [this, Li] { return TW(Tractors[Li], GslStandLoad); }, 15.f);
-		WaitFor(Top, [this, Li](float) { return Tractors[Li].bBelt; });
+		WalkTo(Top, [this, Li] { return TW(Tractors[Li], FVector(-425.f, 0.f, 0.f)); }, 15.f);
+		// (never past you on the belt)
+		WaitFor(Top, [this, Li](float) { const FTractor& T = Tractors[Li]; return T.bLOver || (T.bBelt && !T.YouOn); });
+		PoseAct(Top, BeltClimb(Li, true), 3.f);
 		PoseAct(Top, [this, Li](float K, float PH, FDriverPose& P)
 		{
 			// (walked up the moving belt, a hand on the rail, step by step - the belt line from its bottom to its top)
 			const FTractor& T = Tractors[Li]; const FVector Fw = FRotator(0.f, T.Yaw, 0.f).Vector(), L2 = ADPPose::LeftOf(Fw);
-			const FVector A = BoomW(T, GslBeltBottom), B = BoomW(T, GslStandTop), At = FMath::Lerp(A, B, FMath::SmoothStep(0.f, 1.f, K));
+			const FVector A = BoomW(T, GslBeltBottom + FVector(60.f, 0.f, 0.f)), B = BoomW(T, GslStandTop), At = FMath::Lerp(A, B, FMath::SmoothStep(0.f, 1.f, K));
 			const float Step = FMath::Sin(K * PI * 16.f) * 12.f;
 			P = ADPPose::Standing(At, Fw, PH); P.Lean = 8.f;
 			P.Foot[0] = At + L2 * 12.f + Fw * Step; P.Foot[1] = At - L2 * 12.f - Fw * Step;
@@ -210,6 +258,7 @@ void AGSE::LoaderIn(int32 Li)
 		// at the top, in the door: taking each bag off the belt and stowing it (the bag models come next)
 		Do(Top, [this, Top, Li]
 		{
+			Tractors[Li].bTopUp = true;
 			if (ATugs* G2 = Tg()) G2->Crew[Top].Hold = [this, Li](float, float PH, FDriverPose& P)
 			{
 				// facing down the belt: a bag at the top taken by its grips, lifted round into the hold behind him
@@ -241,53 +290,39 @@ void AGSE::LoaderIn(int32 Li)
 			};
 			ADP_LOG(TEXT("GSE: the hold loader is up in the bulk hold"));
 		});
-	}
-	// wait for the train's loading to be over (or no train after a long wait), then everything back
-	TSharedPtr<bool> bSeen = MakeShared<bool>(false), bOver = MakeShared<bool>(false);
-	const float Wait2 = bTest ? 420.f : 1500.f;
-	WaitFor(Ci, [this, Li, bSeen, Wait2](float Elapsed)
-	{
-		bool bTrain = false;
-		for (const FTractor& T : Tractors) if (T.IsTrain() && !T.bArrival && FMath::Abs(T.StandX - Tractors[Li].StandX) < 1.f && (T.Job == EJob::Out || T.Job == EJob::AtStand || T.Job == EJob::Loading)) bTrain = true;
-		if (bTrain) *bSeen = true;
-		if (IsHired(Tractors[Li].Driver))
-		{
-			// (to-do 206: your operator stays while one of your trains is on its way to this stand or at it - never left without)
-			bool bOwn = WaitingAt(Tractors[Li].StandX);
-			for (const FTractor& T : Tractors) if (T.IsTrain() && IsHired(T.Driver) && T.JobT < 1500.f && FMath::Abs(T.StandX - Tractors[Li].StandX) < 1.f && (T.Job == EJob::Boarding || T.Job == EJob::ToCarts || T.Job == EJob::Coupling || T.Job == EJob::Loading || T.Job == EJob::Out || T.Job == EJob::AtStand)) { bOwn = true; if (!T.bArrival) *bSeen = true; }
-			if (bOwn) return false;
-		}
-		return (*bSeen && !bTrain) || Elapsed > Wait2;
-	});
-	Do(Ci, [bOver] { *bOver = true; });
-	if (Top != INDEX_NONE)
-	{
-		WaitFor(Top, [bOver](float) { return *bOver; });
-		Do(Top, [this, Top] { if (ATugs* G2 = Tg()) G2->Crew[Top].Hold = nullptr; });
+		WaitFor(Top, [this, Li](float) { const FTractor& T = Tractors[Li]; return T.bLOver && !T.YouOn; });
+		Do(Top, [this, Top, Li] { Tractors[Li].bTopUp = false; if (ATugs* G2 = Tg()) G2->Crew[Top].Hold = nullptr; });
 		PoseAct(Top, [this, Li](float K, float PH, FDriverPose& P)
 		{
 			const FTractor& T = Tractors[Li]; const FVector Fw = FRotator(0.f, T.Yaw, 0.f).Vector(), L2 = ADPPose::LeftOf(-Fw);
-			const FVector A = BoomW(T, GslStandTop), B = BoomW(T, GslBeltBottom), At = FMath::Lerp(A, B, FMath::SmoothStep(0.f, 1.f, K));
+			const FVector A = BoomW(T, GslStandTop), B = BoomW(T, GslBeltBottom + FVector(60.f, 0.f, 0.f)), At = FMath::Lerp(A, B, FMath::SmoothStep(0.f, 1.f, K));
 			const float Step = FMath::Sin(K * PI * 16.f) * 12.f;
 			P = ADPPose::Standing(At, -Fw, PH); P.Lean = -4.f;
 			P.Foot[0] = At + L2 * 12.f - Fw * Step; P.Foot[1] = At - L2 * 12.f + Fw * Step;
 			P.bHand[0] = true; P.Hand[0] = At + L2 * 36.f + FVector(0, 0, 95.f); P.Grip[0] = 1.f;
 		}, 8.f);
+		PoseAct(Top, BeltClimb(Li, false), 3.f);
 		WalkTo(Top, [this, Li] { return TW(Tractors[Li], GslStandLoad + FVector(-90.f, -60.f, 0.f)); }, 20.f);
 		Do(Top, [this, Li] { Tractors[Li].TopCrew = INDEX_NONE; ADP_LOG(TEXT("GSE: the hold loader is down from the hold")); });
 		GiveBack(Top, Tractors[Li].StandX);
 	}
-	// the belt off, back into the cab, the boom down
-	WaitFor(Ci, [this, Li](float E) { return Tractors[Li].TopCrew == INDEX_NONE || E > 60.f; });
-	PoseAct(Ci, [this, Li](float K, float PH, FDriverPose& P) { const FTractor& T = Tractors[Li]; P = ADPPose::Reach(TW(T, GslStandControls), FRotator(0.f, T.Yaw + 90.f, 0.f).Vector(), 1, BoomW(T, GslControlsBottom + FVector(0, 0, 4.f)), 0.3f, PH, FMath::Sin(PI * K)); }, 1.2f);
-	Do(Ci, [this, Li] { Tractors[Li].bBelt = false; });
-	ClimbIn(Ci, Li, [this, Ci, Li]
+}
+
+TFunction<void(float, float, FDriverPose&)> AGSE::BeltClimb(int32 Li, bool bUp) const
+{
+	// from the ground onto the belt's foot: the hands on its two side frames, one foot up, then the other (and back down)
+	return [this, Li, bUp](float K, float PH, FDriverPose& P)
 	{
-		if (ATugs* G2 = Tg()) G2->Crew[Ci].Hold = [this, Li](float K, float PH, FDriverPose& P) { SeatFn(Li)(K, PH, P); P.Hand[1] = TW(Tractors[Li], GslLever); P.Grip[1] = 0.9f; };
-		Tractors[Li].BoomWant = 0.f;
-	});
-	WaitFor(Ci, [this, Li](float) { return FMath::IsNearlyEqual(Tractors[Li].Boom, 0.f, 0.05f); });
-	Do(Ci, [this, Ci, Li] { if (ATugs* G2 = Tg()) G2->Crew[Ci].Hold = SeatFn(Li); LoaderLeave(Li); });
+		const FTractor& T = Tractors[Li]; const FVector Fw = FRotator(0.f, T.Yaw, 0.f).Vector(), Lf = ADPPose::LeftOf(Fw);
+		const float U = bUp ? K : 1.f - K;
+		const FVector A = TW(T, FVector(-425.f, 0.f, 0.f)), B = BoomW(T, GslBeltBottom + FVector(60.f, 0.f, 0.f));
+		auto Foot = [&](float From, const FVector& Sd) { const float E = FMath::SmoothStep(From, From + 0.32f, U); FVector F = FMath::Lerp(A, B, E) + Sd; F.Z = FMath::Lerp(A.Z, B.Z, FMath::Min(1.f, E * 1.6f)) + 8.f * FMath::Sin(PI * E); return F; };
+		const float Bd = FMath::SmoothStep(0.25f, 0.8f, U); const FVector At(FMath::Lerp(A.X, B.X, Bd), FMath::Lerp(A.Y, B.Y, Bd), FMath::Lerp(A.Z, B.Z, FMath::SmoothStep(0.3f, 0.8f, U)));
+		P = ADPPose::Standing(At, Fw, PH); P.Lean = 26.f * FMath::Sin(PI * U);
+		P.Foot[0] = Foot(0.1f, Lf * 12.f); P.Foot[1] = Foot(0.55f, Lf * -12.f);
+		const FVector H = BoomW(T, GslBeltBottom + FVector(35.f, 0.f, 4.f));
+		if (U > 0.06f && U < 0.8f) for (int32 s = 0; s < 2; ++s) { P.bHand[s] = true; P.Hand[s] = H + Lf * (s == 0 ? 36.f : -36.f); P.Grip[s] = 0.8f; }
+	};
 }
 
 void AGSE::LoaderLeave(int32 Li)

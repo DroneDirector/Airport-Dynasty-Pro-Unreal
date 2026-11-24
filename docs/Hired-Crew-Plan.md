@@ -456,7 +456,10 @@ riders `Data/ambulift-riders.json`, `Data/wheelchair-riders.json`, all points an
   sill, says how far the bulk door is), belt forward / stop / back on both panels, cab belt switch, four stops (one circuit),
   work lamp. Boom only parked, nobody on or under it, no bag on the belt; no driving unless stowed and the belt off.
   Yours at the bulk door counts in LoaderAt and BusyAt; a crew go on after 2 min and 40 m, or when its train waits for it.
-  Left: walking up the belt, bags by your own hands, belt and panel buttons that move (parts not bound).
+  Your hands (GSELoaderBags.cpp), compiled, not run: cart to belt foot, belt top to hold, and back for an arrival, also while
+  its crew work (claims: SlotTaken, Stage, bBottomHeld); up the stopped belt on foot (BeltClimb); both hands (SetArmL).
+  Bags wait at the top until somebody is up (HoldUp asked again every 5 s); LoaderWaits gives the flight its reason.
+  Left: a second loader while you sit in the first, a hold to walk into, moving buttons (parts not bound).
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 

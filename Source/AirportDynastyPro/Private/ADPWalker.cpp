@@ -375,6 +375,20 @@ void AADPWalker::SetThirdPerson(bool bOn)
 
 void AADPWalker::ArmIK()
 {
+	if (ArmLW > 0.f && EyeBody)
+	{
+		static const FName Ul(TEXT("upperarm_l")), Ll(TEXT("lowerarm_l")), Hl(TEXT("hand_l"));
+		if (EyeBody->GetBoneIndex(Ul) != INDEX_NONE && EyeBody->GetBoneIndex(Ll) != INDEX_NONE && EyeBody->GetBoneIndex(Hl) != INDEX_NONE)
+		{
+			auto Wl = [this](FName N) { return EyeBody->GetBoneTransformByName(N, EBoneSpaces::WorldSpace); };
+			const FTransform A = Wl(Ul), B = Wl(Ll); const FVector H = Wl(Hl).GetLocation();
+			const FVector Pl = B.GetLocation() - (GetActorRightVector() * 0.6f + GetActorForwardVector() * 0.3f + FVector::UpVector * 0.6f).GetSafeNormal() * 40.f;
+			FVector J, E; AnimationCore::SolveTwoBoneIK(A.GetLocation(), B.GetLocation(), H, Pl, FMath::Lerp(H, ArmLAt, ArmLW), J, E, false, 1.0, 1.0);
+			EyeBody->SetBoneRotationByName(Ul, (FQuat::FindBetweenNormals((B.GetLocation() - A.GetLocation()).GetSafeNormal(), (J - A.GetLocation()).GetSafeNormal()) * A.GetRotation()).Rotator(), EBoneSpaces::WorldSpace);
+			const FTransform B2 = Wl(Ll); const FVector H2 = Wl(Hl).GetLocation();
+			EyeBody->SetBoneRotationByName(Ll, (FQuat::FindBetweenNormals((H2 - B2.GetLocation()).GetSafeNormal(), (E - B2.GetLocation()).GetSafeNormal()) * B2.GetRotation()).Rotator(), EBoneSpaces::WorldSpace);
+		}
+	}
 	if (ArmW <= 0.f || !EyeBody) return;
 	static const FName Up(TEXT("upperarm_r")), Lo(TEXT("lowerarm_r")), Ha(TEXT("hand_r")), Mid(TEXT("middle_01_r")), Th(TEXT("thumb_01_r"));
 	if (EyeBody->GetBoneIndex(Ha) == INDEX_NONE || EyeBody->GetBoneIndex(Up) == INDEX_NONE) return;

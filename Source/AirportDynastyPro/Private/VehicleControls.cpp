@@ -95,6 +95,7 @@ FVector AVehicleControls::At(const AGSE& G, int32 V, const FVehControl& C, FVect
 {
 	const AGSE::FTractor& Tv = G.Tractors[V]; const FVehTable* Tb = AGSE::CtlTable(Tv.CtlKey()); const FTransform X = ADPCab::Is(C.Switch) ? FTransform::Identity : Tb->Frame(G, Tv, C.Frame);
 	if (Out) *Out = FRotator(0.f, Tv.Yaw, 0.f).RotateVector(X.TransformVectorNoScale(C.Out)).GetSafeNormal();
+	if (FVector Sp; Tb->Spot && Tb->Spot(G, Tv, C, Sp)) return Sp;
 	return G.TW(Tv, X.TransformPosition(G.SvcP(Tv, C.Point)));
 }
 
@@ -118,7 +119,7 @@ FString AVehicleControls::Label(AGSE& G, FString& No) const
 	const AGSE::FTractor& Tv = G.Tractors[Ti]; const FVehTable* Tb = AGSE::CtlTable(Tv.CtlKey()); if (!Tb || !Tb->Controls.IsValidIndex(Ci)) return FString();
 	const FVehControl& C = Tb->Controls[Ci]; const TCHAR* Key = ADPInput::UsingPad() ? TEXT("X") : TEXT("E");
 	const FString Lb = SayOf(G, Tv, C);
-	if (Crew(G, Ti) && !(C.bSeat && G.CabMine(Tv))) No = TEXT("its crew are working with it");
+	if (Crew(G, Ti) && !C.bHelp && !(C.bSeat && G.CabMine(Tv))) No = TEXT("its crew are working with it");
 	else if (C.Motion != INDEX_NONE) { const float E = Target(G, C, Way); if (!FMath::IsNearlyEqual(Tb->Now(Tv, C.Motion), E, 0.01f)) Tb->May(G, Tv, C.Motion, E, No); }
 	else MayOf(G, Ti, C.Switch, No);
 	if (!No.IsEmpty()) return FString::Printf(TEXT("%s: %s"), *Lb, *No);
@@ -141,8 +142,8 @@ void AVehicleControls::Find(AGSE& G, APawn& Me)
 	for (int32 i = 0; i < G.Tractors.Num(); ++i)
 	{
 		if (HoldTi != INDEX_NONE && i != HoldTi) continue;   // (its thing in your hand: first back in its place)
-		const AGSE::FTractor& V = G.Tractors[i]; if (!V.M.IsValid() || FVector::DistSquared2D(V.At, From) > FMath::Square(V.KHalfL + 400.f)) continue;
-		const FVehTable* Tb = AGSE::CtlTable(V.CtlKey()); if (!Tb || (Sd ? V.Player.Get() != Sd : V.Player.IsValid())) continue;
+		const AGSE::FTractor& V = G.Tractors[i]; if (!V.M.IsValid() || FVector::DistSquared2D(V.At, From) > FMath::Square(V.KHalfL + 2600.f)) continue;
+		const FVehTable* Tb = AGSE::CtlTable(V.CtlKey()); if (!Tb || FVector::DistSquared2D(V.At, From) > FMath::Square(V.KHalfL + Tb->Range) || (Sd ? V.Player.Get() != Sd : V.Player.IsValid())) continue;
 		for (int32 c = 0; c < Tb->Controls.Num(); ++c)
 		{
 			const FVehControl& C = Tb->Controls[c]; if (C.bSeat != (Sd != nullptr) || (Sd && (C.bCabin ? i != Sd->Vehicle() || !Sd->InCabin() : !Sd->AtWheel())) || SayOf(G, V, C).IsEmpty()) continue;
@@ -198,6 +199,7 @@ void AVehicleControls::Arm(AGSE& G, APawn* Me)
 	const FVector Sh = Wk->ShoulderNow(); FVector F = (P - Sh).GetSafeNormal(); if (!Out.IsNearlyZero()) F = FMath::Lerp(F, -Out, 0.5f).GetSafeNormal();
 	const bool bBtn = C.Kind <= FVehControl::Hold && !C.bGrip; const float In = bBtn && Do == EDo::Work ? 0.5f : 0.f;
 	const FVector Thumb = FVector::VectorPlaneProject(FVector::UpVector, F).GetSafeNormal();
+	if (HoldTi != INDEX_NONE && Tb->GripL) { Wk->SetArm(1.f, HoldAt - HoldF * 8.5f, HoldF, FVector::UpVector); return; }   // (both hands are on it: it goes there with them)
 	if (HoldTi != INDEX_NONE) { Wk->SetArm(1.f, FMath::Lerp(HoldAt - HoldF * 8.5f, P - F * 8.5f, W), HoldF, FVector::UpVector); return; }   // (with what you carry)
 	Wk->SetArm(W, P - F * ((bBtn ? 18.f : 8.5f) - In), F, Thumb);
 }
@@ -230,7 +232,7 @@ void AVehicleControls::Tick(float Dt)
 	{
 		const FVehTable* Tb = AGSE::CtlTable(G->Tractors[Ti].CtlKey()); const FVehControl& C = Tb->Controls[Ci]; AGSE::FTractor& V = G->Tractors[Ti];
 		T += Dt;
-		const bool bCrew = Crew(*G, Ti) && !(C.bSeat && G->CabMine(V)), bHeld = VcKey(PC), bFar = !Cast<AServiceDrive>(Me) && FVector::Dist2D(At(*G, Ti, C), Me->GetPawnViewLocation()) > 190.f;   // (seated: in its cab; the pawn's own place is the vehicle's middle)
+		const bool bCrew = Crew(*G, Ti) && !C.bHelp && !(C.bSeat && G->CabMine(V)), bHeld = VcKey(PC), bFar = !Cast<AServiceDrive>(Me) && FVector::Dist2D(At(*G, Ti, C), Me->GetPawnViewLocation()) > 190.f;   // (seated: in its cab; the pawn's own place is the vehicle's middle)
 		if (Do == EDo::Reach)
 		{
 			W = FMath::SmoothStep(0.f, 0.3f, T);
@@ -308,7 +310,7 @@ void AVehicleControls::Hull(AGSE& G, APawn* Me, float Dt)
 		else V.LeftOpen = 0.f;
 		if (!Tb->Solids.Num()) continue;
 		FHull& H = Hulls.FindOrAdd(i);
-		const bool bOn = V.YouOn || (bFoot && Away < V.KHalfL + 900.f && V.Speed < 1.f && !V.Path.Num() && !V.Player.IsValid() && (H.bOn || !Tb->Stowed(G, V)));
+		const bool bOn = V.YouOn || (bFoot && Away < V.KHalfL + 900.f && V.Speed < 1.f && !V.Path.Num() && !V.Player.IsValid() && (H.bOn || Tb->bAlways || !Tb->Stowed(G, V)));
 		if (bOn != H.bOn)
 		{
 			H.bOn = bOn;
@@ -356,6 +358,7 @@ void AVehicleControls::Carry(AGSE& G, APawn* Me)
 		FVector P = HoldAt; if (!bGrip && Ti == i && Do != EDo::None && Do != EDo::Climb && Tb->Controls.IsValidIndex(Ci)) P = FMath::Lerp(HoldAt, Tb->Controls[Ci].Motion == INDEX_NONE ? At(G, i, Tb->Controls[Ci]) : HoldAt - Sd * 37.f, W);   // (a lever worked with the thing kept in your left hand)
 		V.YouHand = FTransform(FRotator(0.f, V.Yaw, 0.f), V.At).InverseTransformPosition(P);
 		if (Do == EDo::None) Wk->SetArm(1.f, HoldAt - HoldF * 8.5f, HoldF, FVector::UpVector);
+		if (FVector Lh; Tb->GripL && Tb->GripL(G, V, Lh)) Wk->SetArmL(1.f, G.TW(V, Lh) - HoldF * 8.5f);
 		bSqueeze = bSqueeze && Do == EDo::None && VcKey(Cast<APlayerController>(Wk->GetController())); if (Tb->HandDo) Tb->HandDo(G, V, bSqueeze);
 		// its hose or cable is at its end: you get no further with it
 		FVector From; const float Max = Tb->Leash && !bClimbing ? Tb->Leash(G, V, From) : 0.f;
@@ -367,7 +370,7 @@ void AVehicleControls::Carry(AGSE& G, APawn* Me)
 		}
 		break;
 	}
-	if (HoldTi == INDEX_NONE) bSqueeze = false;
+	if (HoldTi == INDEX_NONE) { bSqueeze = false; if (Was != INDEX_NONE && Wk) Wk->SetArmL(0.f, FVector::ZeroVector); }
 	if (Was != INDEX_NONE && HoldTi == INDEX_NONE && Do == EDo::None && Wk) Wk->SetArm(0.f, FVector::ZeroVector, FVector::ForwardVector, FVector::UpVector);
 }
 

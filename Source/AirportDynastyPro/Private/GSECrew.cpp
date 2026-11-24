@@ -469,7 +469,7 @@ void AGSE::TrainHoldIn(int32 Ti)
 		const int32 Li = LoaderAt(S); bool bOther = false;
 		for (int32 o = 0; o < Tractors.Num(); ++o) if (o != Ti && Tractors[o].IsTrain() && Tractors[o].bArrival && FMath::Abs(Tractors[o].StandX - S) < 1.f && (Tractors[o].Job == EJob::Out || Tractors[o].Job == EJob::AtStand || Tractors[o].Job == EJob::Loading)) bOther = true;
 		// (arrivals first: a departure train waits for the arrivals train to leave the stand)
-		return !PlaneNear(Nose, 6000.f) && (Li == INDEX_NONE || Tractors[Li].Job == EJob::AtStand) && (Tractors[Ti].bArrival || !bOther);
+		return !PlaneNear(Nose, 6000.f) && (Li == INDEX_NONE || Tractors[Li].Job == EJob::AtStand || (Tractors[Li].Job == EJob::None && Tractors[Li].LYouX > -1e5f)) && (Tractors[Ti].bArrival || !bOther);
 	};
 	T.AfterUntil = [this, Ti, S, N]
 	{

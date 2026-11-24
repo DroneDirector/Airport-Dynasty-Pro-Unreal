@@ -135,6 +135,10 @@ public:
 		bool bArrival = false;            // a train for an arriving aircraft's bags (hold -> carts -> the arrivals conveyor)
 		int32 ArrivalsLeft = 0;           // (the belt loader: arriving bags still in the hold)
 		float ArrivalIn = 0.f; FString ArrKey;
+		// (the belt loader: its hold person really up; the job over; the bag in your hands: from 1 a cart, 2 the belt's foot, 3 its top, 4 the hold;
+		// to 0 carried, 1 the foot, 2 a cart, 3 the hold, 4 the top; on its way there 0..1, from where)
+		bool bTopUp = false, bLOver = false; float LHoldAsk = 0.f, LAskT = 0.f;
+		int32 LYouBag = INDEX_NONE, LYouCart = INDEX_NONE, LYouSlot = INDEX_NONE; uint8 LYouFrom = 0, LYouTo = 0; float LYouMov = 1.f; FTransform LYouA = FTransform::Identity;
 		TArray<FBeltBag> BeltBags;        // the bags pinned on its belt (DepartureBelts' bags)
 	};
 	struct FCart
@@ -186,6 +190,20 @@ private:
 	void YouLoader(int32 Li, float Dt);
 	void LoaderTake(int32 Li, const FString& Key, bool bTrain);
 	void LoaderBelt(FTractor& T, int32 Way);
+	// (your hands on its bags, its hold person, what its flight waits for: GSELoaderYou.cpp, GSELoader.cpp)
+	void HoldUp(int32 Li);
+	TFunction<void(float, float, FDriverPose&)> BeltClimb(int32 Li, bool bUp) const;
+	int32 LoaderTrain(const FTractor& L, bool* bArr = nullptr) const;
+	bool LoaderCartBag(const FTractor& L, int32& Cart, int32& Slot) const;
+	bool LoaderCartFree(const FTractor& L, int32& Cart, int32& Slot, bool bMine = false) const;
+	FTransform LoaderBagAt(const FTractor& L) const;
+	void LoaderHand(FTractor& L, int32 Id, uint8 From);
+	void LoaderLay(FTractor& L, uint8 To);
+	void LoaderDrop(FTractor& L);
+	void LoaderBags(int32 Li, float Dt);
+	void LoadBy(int32 Ci, int32 Ti, int32 Li, int32 Who);
+	void LoadEnd(int32 Ci, int32 Ti, int32 Li);
+	void ArrBy(int32 Ci, int32 Ti, int32 Who);
 	static TSharedPtr<FVehTable> DeicerControls();
 	void YouCater(FTractor& T, float Dt);
 	bool CaterStowed(const FTractor& T) const;
@@ -307,6 +325,7 @@ public:
 	}
 	/** To-do 206: your own flight's bags wait for your people (Why: who is missing), or its train is being got ready. */
 	bool HiredWaits(const FString& Flight, float StandX, FString& Why) const;
+	bool LoaderWaits(float StandX, FString& Why) const;
 private:
 public:
 	/** E at a service vehicle's door (ServiceDrive.h): true when it was that; Say: why not, when it can't be. */

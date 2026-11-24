@@ -194,7 +194,12 @@ void AGSE::BeltTick(FTractor& L, float Dt)
 	ADepartureBelts* D = ADepartureBelts::Get(GetWorld()); if (!D || !L.M.IsValid()) return;
 	// arriving bags: the hold loader lifts the next one out of the hold and onto the belt's top (one every few seconds,
 	// once the arrivals train stands below and the top is clear)
-	if (L.ArrivalsLeft > 0 && L.bBelt && L.TopCrew != INDEX_NONE && Body(L.TopCrew))
+	// (with you on it the belt stands; nobody up: the last bag stops at its sensor and the others behind it, until somebody is)
+	const bool bRun = L.bBelt && !L.YouOn && !(L.YouAt.Z > 15.f && L.YouAt.Z < 260.f && FMath::Abs(L.YouAt.Y) < 45.f && L.YouAt.X > -430.f && L.YouAt.X < 390.f), bTopMine = L.LYouBag != INDEX_NONE && L.LYouFrom >= 3;
+	if (L.TopCrew == INDEX_NONE) L.bTopUp = false;
+	if (L.Job == EJob::AtStand && L.bBelt && !L.bLOver && L.TopCrew == INDEX_NONE && !L.YouOn && (L.LHoldAsk -= Dt) <= 0.f && (L.ArrivalsLeft > 0 || L.BeltBags.ContainsByPredicate([](const FTractor::FBeltBag& B) { return B.Stage == 1; })))
+	{ L.LHoldAsk = 5.f; HoldUp(int32(&L - Tractors.GetData())); }
+	if (L.ArrivalsLeft > 0 && bRun && !bTopMine && L.bTopUp && Body(L.TopCrew))
 	{
 		bool bTopFree = true; for (const FTractor::FBeltBag& B : L.BeltBags) if (B.Stage == 5 || (B.Stage == 3 && B.S > GsbBeltLen - 90.f)) bTopFree = false;
 		bool bTrain = false; for (const FTractor& T : Tractors) if (T.bArrival && FMath::Abs(T.StandX - L.StandX) < 1.f && T.Job == EJob::Loading) bTrain = true;
@@ -215,7 +220,7 @@ void AGSE::BeltTick(FTractor& L, float Dt)
 		{
 			// riding down (a bag stops behind the one waiting at the bottom)
 			float Lim = 0.f; for (const FTractor::FBeltBag& O : L.BeltBags) if (&O != &B && (O.Stage == 3 || O.Stage == 4) && O.S < B.S) Lim = FMath::Max(Lim, O.S + 80.f);
-			const float Was = B.S; if (L.bBelt) B.S = FMath::Max(B.S - GsbBeltSpeed * Dt, Lim);
+			const float Was = B.S; if (bRun) B.S = FMath::Max(B.S - GsbBeltSpeed * Dt, Lim);
 			if (B.S != Was) D->PutOnSlot(B.Id, L.M->GetRootComponent(), NAME_None, BeltOffset(L, B.S));
 			if (B.S <= 0.5f) B.Stage = 4;
 			continue;
@@ -224,8 +229,8 @@ void AGSE::BeltTick(FTractor& L, float Dt)
 		if (B.Stage == 0)
 		{
 			// riding up, pinned (a bag stops behind the one waiting at the top)
-			const float Was = B.S, Lim = i == 0 ? GsbBeltLen : L.BeltBags[i - 1].S - 80.f;
-			if (L.bBelt) B.S = FMath::Min(FMath::Min(B.S + GsbBeltSpeed * Dt, Lim), GsbBeltLen);
+			const float Was = B.S, Lim = i == 0 ? GsbBeltLen - (bTopMine ? 80.f : 0.f) : L.BeltBags[i - 1].S - 80.f;
+			if (bRun) B.S = FMath::Min(FMath::Min(B.S + GsbBeltSpeed * Dt, Lim), GsbBeltLen);
 			if (B.S != Was || B.T == 0.f) { D->PutOnSlot(B.Id, L.M->GetRootComponent(), NAME_None, BeltOffset(L, B.S)); B.T = 0.001f; }
 			if (B.S >= GsbBeltLen - 0.5f) { B.Stage = 1; B.T = 0.f; }
 		}
@@ -234,8 +239,7 @@ void AGSE::BeltTick(FTractor& L, float Dt)
 			// at the top: the hold loader takes it in both hands / by its handle
 			if ((B.T += Dt) > 0.9f)
 			{
-				if (L.TopCrew != INDEX_NONE && Body(L.TopCrew)) { D->TakeBagById(B.Id, Body(L.TopCrew), GsbHand); B.Stage = 2; B.T = 0.f; }
-				else if (B.T > 2.f) { D->RemoveBag(B.Id); L.BeltBags.RemoveAt(i--); }
+				if (L.bTopUp && Body(L.TopCrew)) { D->TakeBagById(B.Id, Body(L.TopCrew), GsbHand); B.Stage = 2; B.T = 0.f; }
 			}
 		}
 		else if ((B.T += Dt) > 1.6f)
@@ -250,65 +254,85 @@ void AGSE::Unload(int32 Ci, int32 Ti, int32 Li)
 {
 	// every bag on the train, cart by cart, top layer first, by two handlers side by side (the driver and a second one): off
 	// the slot by its grips, to his own place at the belt's bottom end, laid on it - the belt never waiting long
-	ADepartureBelts* D = ADepartureBelts::Get(GetWorld());
-	FTractor& T = Tractors[Ti];
-	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(T.StandX, S, N, Sp);
-	const FVector Craft = Plan(S, N + 8.f);
+	FTractor& T = Tractors[Ti]; 
 	const int32 Hp = Li != INDEX_NONE ? Borrow(T.At, nullptr, Ti) : INDEX_NONE;
 	if (Hp != INDEX_NONE) { Helper.Add(Ti, Hp); HelperDone.Remove(Ti); ADP_LOG(TEXT("GSE: %s helps load the hold"), Tg() ? *Tg()->Crew[Hp].Name : TEXT("-")); }
-	const int32 Who[2] = {Ci, Hp};
-	int32 Count = 0;
-	for (const int32 c : T.Train)
+	LoadBy(Ci, Ti, Li, 0);
+	if (Hp != INDEX_NONE) LoadBy(Hp, Ti, Li, 1);
+}
+
+void AGSE::LoadBy(int32 P, int32 Ti, int32 Li, int32 h)
+{
+	// the next bag nobody has (you may have taken some): chosen as he is free for it
+	ADepartureBelts* D = ADepartureBelts::Get(GetWorld());
+	FTractor& T = Tractors[Ti]; const float StandX = T.StandX;
+	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(StandX, S, N, Sp);
+	const FVector Craft = Plan(S, N + 8.f);
+	int32 c = INDEX_NONE, s = INDEX_NONE;
+	if (D) for (const int32 k : T.Train) { for (int32 i = Carts[k].Bags.Num() - 1; i >= 0 && s == INDEX_NONE; --i) if (Carts[k].Bags[i] != INDEX_NONE && !SlotTaken.Contains(k * 100 + i)) { c = k; s = i; } if (s != INDEX_NONE) break; }
+	if (s == INDEX_NONE)
 	{
-		const float Ys = FVector::DotProduct(Craft - Carts[c].At, FRotator(0.f, Carts[c].Yaw + 90.f, 0.f).Vector()) > 0.f ? 1.f : -1.f;
-		for (int32 s = Carts[c].Bags.Num() - 1; s >= 0; --s)
-		{
-			const int32 Id = Carts[c].Bags[s]; if (Id == INDEX_NONE || !D) continue;
-			const int32 h = (Hp != INDEX_NONE && (Count % 2) == 1) ? 1 : 0; const int32 P = Who[h];
-			++Count;
-			const float Sx = CartSlot(c, s).GetLocation().X;
-			const FVector BeltStand = h == 0 ? FVector(-425.f, -25.f, 0.f) : FVector(-425.f, 55.f, 0.f);
-			WalkTo(P, [this, c, Sx, Ys] { return CW(Carts[c], FVector(Sx, Ys * 118.f, 0.f)); }, 15.f);
-			PoseAct(P, [this, c, Id, Sx, Ys](float K, float PH, FDriverPose& Pz)
-			{
-				const ADepartureBelts* D3 = ADepartureBelts::Get(GetWorld()); if (!D3) return;
-				const FDepBagGrips G = D3->Grips(Id); const FCart& C = Carts[c];
-				const FVector St = CW(C, FVector(Sx, Ys * 118.f, 0.f)), Face = FRotator(0.f, C.Yaw + 90.f, 0.f).Vector() * -Ys;
-				const float E = FMath::Min(1.f, K * 1.5f);
-				Pz = G.bTwoHands ? ADPPose::Both(St, Face, G.Left, G.Right, 1.f, PH, E, 14.f) : ADPPose::Reach(St, Face, 1, G.Handle, 1.f, PH, E);
-			}, 0.9f);
-			Do(P, [this, P, c, s, Id] { if (ADepartureBelts* D3 = ADepartureBelts::Get(GetWorld())) D3->TakeBagById(Id, Body(P), GsbHand); Carts[c].Bags[s] = INDEX_NONE; });
-			if (Li == INDEX_NONE) { Do(P, [this, Id] { if (ADepartureBelts* D3 = ADepartureBelts::Get(GetWorld())) D3->RemoveBag(Id); }); continue; }
-			WalkTo(P, [this, Li, BeltStand] { return TW(Tractors[Li], BeltStand); }, 20.f);
-			WaitFor(P, [this, Li](float E) { FTractor& L = Tractors[Li]; if (!L.bBottomHeld && BeltBottomFree(L) && L.bBelt) { L.bBottomHeld = true; return true; } return E > 60.f; });
-			PoseAct(P, [this, Li, Id, BeltStand](float K, float PH, FDriverPose& Pz)
-			{
-				const ADepartureBelts* D3 = ADepartureBelts::Get(GetWorld()); if (!D3) return;
-				const FTractor& L = Tractors[Li];
-				const FTransform SlotW = BeltOffset(L, 0.f) * L.M->GetActorTransform(), Bw = D3->BagTransform(Id); const FDepBagGrips G = D3->Grips(Id);
-				const FVector St = TW(L, BeltStand), Face = (SlotW.GetLocation() - St).GetSafeNormal2D();
-				FDriverPose Q = ADPPose::Reach(St, Face, 1, SlotW.TransformPosition(Bw.InverseTransformPosition(G.Handle)), 1.f, PH, FMath::SmoothStep(0.f, 1.f, K));
-				if (G.bTwoHands) { Q.bHand[0] = true; Q.Hand[0] = FMath::Lerp(G.Left, SlotW.TransformPosition(Bw.InverseTransformPosition(G.Left)), K); Q.Grip[0] = 1.f; }
-				Pz = Q;
-			}, 1.0f);
-			Do(P, [this, Li, Id]
-			{
-				FTractor& L = Tractors[Li];
-				L.bBottomHeld = false;
-				FTractor::FBeltBag B; B.Id = Id; B.S = 0.f; L.BeltBags.Add(B);
-				if (ADepartureBelts* D3 = ADepartureBelts::Get(GetWorld())) D3->PutOnSlot(Id, L.M->GetRootComponent(), NAME_None, BeltOffset(L, 0.f));
-			});
-		}
+		if (h == 1) { Do(P, [this, Ti] { HelperDone.Add(Ti); }); GiveBack(P, StandX); } else LoadEnd(P, Ti, Li);
+		return;
 	}
-	ADP_LOG(TEXT("GSE: %d bags from %s's train to the bulk hold"), Count, *T.Name);
-	if (Hp != INDEX_NONE) { Do(Hp, [this, Ti] { HelperDone.Add(Ti); }); GiveBack(Hp, T.StandX); }
-	// the bags all up: the curtains down, back in, home (the belt loader leaves once the train has gone)
+	SlotTaken.Add(c * 100 + s);
+	const int32 Id = Carts[c].Bags[s];
+	const float Ys = FVector::DotProduct(Craft - Carts[c].At, FRotator(0.f, Carts[c].Yaw + 90.f, 0.f).Vector()) > 0.f ? 1.f : -1.f;
+	const float Sx = CartSlot(c, s).GetLocation().X;
+	const FVector BeltStand = h == 0 ? FVector(-425.f, -25.f, 0.f) : FVector(-425.f, 55.f, 0.f);
+	const TFunction<void()> Next = [this, P, Ti, Li, h] { LoadBy(P, Ti, Li, h); };
+	WalkTo(P, [this, c, Sx, Ys] { return CW(Carts[c], FVector(Sx, Ys * 118.f, 0.f)); }, 15.f);
+	PoseAct(P, [this, c, Id, Sx, Ys](float K, float PH, FDriverPose& Pz)
+	{
+		const ADepartureBelts* D3 = ADepartureBelts::Get(GetWorld()); if (!D3) return;
+		const FDepBagGrips G = D3->Grips(Id); const FCart& C = Carts[c];
+		const FVector St = CW(C, FVector(Sx, Ys * 118.f, 0.f)), Face = FRotator(0.f, C.Yaw + 90.f, 0.f).Vector() * -Ys;
+		const float E = FMath::Min(1.f, K * 1.5f);
+		Pz = G.bTwoHands ? ADPPose::Both(St, Face, G.Left, G.Right, 1.f, PH, E, 14.f) : ADPPose::Reach(St, Face, 1, G.Handle, 1.f, PH, E);
+	}, 0.9f);
+	Do(P, [this, P, c, s, Id] { if (ADepartureBelts* D3 = ADepartureBelts::Get(GetWorld())) D3->TakeBagById(Id, Body(P), GsbHand); Carts[c].Bags[s] = INDEX_NONE; SlotTaken.Remove(c * 100 + s); });
+	if (Li == INDEX_NONE) { Do(P, [this, Id] { if (ADepartureBelts* D3 = ADepartureBelts::Get(GetWorld())) D3->RemoveBag(Id); }); Do(P, [this, Next] { Later(Next); }); return; }
+	WalkTo(P, [this, Li, BeltStand] { return TW(Tractors[Li], BeltStand); }, 20.f);
+	WaitFor(P, [this, Li, StandX](float) { FTractor& L = Tractors[Li]; if (LoaderAt(StandX) != Li) return true; if (!L.bBottomHeld && BeltBottomFree(L) && L.bBelt) { L.bBottomHeld = true; return true; } return false; });
+	PoseAct(P, [this, Li, Id, BeltStand](float K, float PH, FDriverPose& Pz)
+	{
+		const ADepartureBelts* D3 = ADepartureBelts::Get(GetWorld()); if (!D3) return;
+		const FTractor& L = Tractors[Li];
+		const FTransform SlotW = BeltOffset(L, 0.f) * L.M->GetActorTransform(), Bw = D3->BagTransform(Id); const FDepBagGrips G = D3->Grips(Id);
+		const FVector St = TW(L, BeltStand), Face = (SlotW.GetLocation() - St).GetSafeNormal2D();
+		FDriverPose Q = ADPPose::Reach(St, Face, 1, SlotW.TransformPosition(Bw.InverseTransformPosition(G.Handle)), 1.f, PH, FMath::SmoothStep(0.f, 1.f, K));
+		if (G.bTwoHands) { Q.bHand[0] = true; Q.Hand[0] = FMath::Lerp(G.Left, SlotW.TransformPosition(Bw.InverseTransformPosition(G.Left)), K); Q.Grip[0] = 1.f; }
+		Pz = Q;
+	}, 1.0f);
+	Do(P, [this, Li, Id, StandX]
+	{
+		FTractor& L = Tractors[Li];
+		if (LoaderAt(StandX) != Li) { ADP_WARN(TEXT("GSE: the belt loader has gone from the stand x %.0f - a bag stays behind"), StandX); if (ADepartureBelts* D3 = ADepartureBelts::Get(GetWorld())) D3->RemoveBag(Id); return; }
+		L.bBottomHeld = false;
+		FTractor::FBeltBag B; B.Id = Id; B.S = 0.f; L.BeltBags.Add(B);
+		if (ADepartureBelts* D3 = ADepartureBelts::Get(GetWorld())) D3->PutOnSlot(Id, L.M->GetRootComponent(), NAME_None, BeltOffset(L, 0.f));
+	});
+	Do(P, [this, Next] { Later(Next); });
+}
+
+void AGSE::LoadEnd(int32 Ci, int32 Ti, int32 Li)
+{
 	WaitFor(Ci, [this, Ti](float E) { return !Helper.Contains(Ti) || HelperDone.Contains(Ti) || E > 120.f; });
-	Do(Ci, [this, Ti] { Helper.Remove(Ti); });
-	Do(Ci, [this, Ci, Ti] { if (IsHired(Ci)) LeftBehind(Ti); });
-	if (Li != INDEX_NONE) WaitFor(Ci, [this, Li](float E) { return Tractors[Li].BeltBags.Num() == 0 || E > 120.f; });
-	Curtains(Ci, Ti, false, nullptr);
-	ClimbIn(Ci, Ti, [this, Ti] { Motor(Tractors[Ti], true); TrainHome(Ti); });
+	// (a bag in your hands: waited for, four minutes at most; put back on its cart: theirs again)
+	if (Li != INDEX_NONE) WaitFor(Ci, [this, Li](float E) { return Tractors[Li].LYouBag == INDEX_NONE || E > 240.f; });
+	Do(Ci, [this, Ci, Ti, Li] { Later([this, Ci, Ti, Li]
+	{
+		FTractor& T = Tractors[Ti];
+		Helper.Remove(Ti);
+		for (const int32 c : T.Train) for (int32 s = 0; s < Carts[c].Bags.Num(); ++s) SlotTaken.Remove(c * 100 + s);   // (a claim of somebody taken away: free again)
+		for (const int32 c : T.Train) for (int32 s = 0; s < Carts[c].Bags.Num(); ++s) if (Carts[c].Bags[s] != INDEX_NONE && !SlotTaken.Contains(c * 100 + s)) { LoadBy(Ci, Ti, Li, 0); return; }
+		ADP_LOG(TEXT("GSE: the bags of %s's train are off to the bulk hold"), *T.Name);
+		if (IsHired(Ci)) LeftBehind(Ti);
+		// the bags all up: the curtains down, back in, home (the belt loader leaves once the train has gone)
+		if (Li != INDEX_NONE) WaitFor(Ci, [this, Li](float E) { return Tractors[Li].BeltBags.Num() == 0 || E > 120.f; });
+		Curtains(Ci, Ti, false, nullptr);
+		ClimbIn(Ci, Ti, [this, Ti] { Motor(Tractors[Ti], true); TrainHome(Ti); });
+	}); });
 }
 
 void AGSE::PollBags(float Dt)

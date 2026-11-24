@@ -207,7 +207,7 @@ bool AGSE::Relieve(int32 Ci, bool& bDrop)
 	{
 		FTractor& T = Tractors[Ti];
 		if (T.Driver == Ci) return true;   // (the vehicle stands until somebody takes over: Drive)
-		if (T.bLoader && T.TopCrew == Ci) { T.TopCrew = INDEX_NONE; bDrop = true; return true; }
+		if (T.bLoader && T.TopCrew == Ci) { T.TopCrew = INDEX_NONE; T.bTopUp = false; bDrop = true; return true; }
 	}
 	for (const TPair<int32, int32>& H : Helper)
 		if (H.Value == Ci)
@@ -215,7 +215,7 @@ bool AGSE::Relieve(int32 Ci, bool& bDrop)
 			HelperDone.Add(H.Key); bDrop = true;
 			const float Sx = Tractors[H.Key].StandX;
 			const int32 Li = Sx != 0.f ? LoaderAt(Sx) : INDEX_NONE;
-			if (Li != INDEX_NONE) { Tractors[Li].bBottomHeld = false; Tractors[Li].ArrivalsLeft /= 2; for (FTractor::FBeltBag& B : Tractors[Li].BeltBags) if (B.Stage == 6) B.Stage = 4; }
+			if (Li != INDEX_NONE) { Tractors[Li].bBottomHeld = false; for (FTractor::FBeltBag& B : Tractors[Li].BeltBags) if (B.Stage == 6) B.Stage = 4; }
 			return true;
 		}
 	return false;

@@ -51,6 +51,8 @@ public:
 	 *  hose's gun, carry it, and hang it back): the hand (its wrist) to At, the fingers pointing along Fingers, the thumb
 	 *  toward Thumb, blended over the walk's own arm by Weight (0 = the walk's arm, 1 = all the way there). First person
 	 *  and from behind alike; the legs keep walking. */
+	/** Your left hand too (a thing carried in both). */
+	void SetArmL(float Weight, const FVector& At) { ArmLW = FMath::Clamp(Weight, 0.f, 1.f); ArmLAt = At; }
 	void SetArm(float Weight, const FVector& At, const FVector& Fingers, const FVector& Thumb) { ArmW = FMath::Clamp(Weight, 0.f, 1.f); ArmAt = At; ArmF = Fingers; ArmT = Thumb; }
 	/** Your right palm now (world: its middle, the hand's rotation), and your right shoulder. False without a body. */
 	bool PalmNow(FTransform& Out) const;
@@ -107,6 +109,7 @@ private:
 	bool bEyeBody = false;
 	void UseEyeBody(bool bOn);
 	void PoseEyeBody();
+	float ArmLW = 0.f; FVector ArmLAt = FVector::ZeroVector;
 	float ArmW = 0.f; FVector ArmAt = FVector::ZeroVector, ArmF = FVector::ForwardVector, ArmT = FVector::UpVector;
 	bool bEyeThird = false, bPoint = false, bGrip = false; FVector GripThumb = FVector::ZeroVector;
 	void ArmIK();

@@ -962,7 +962,7 @@ void AGSE::Tick(float Dt)
 		}
 	}
 	for (FCart& C : Carts) CartParts(C, Dt);
-	for (int32 i = 0; i < Tractors.Num(); ++i) if (Tractors[i].bLoader) { if (Tractors[i].Job == EJob::None && Tractors[i].M.IsValid()) YouLoader(i, Dt); BeltTick(Tractors[i], Dt); }
+	for (int32 i = 0; i < Tractors.Num(); ++i) if (Tractors[i].bLoader) { if (Tractors[i].Job == EJob::None && Tractors[i].M.IsValid()) YouLoader(i, Dt); LoaderBags(i, Dt); BeltTick(Tractors[i], Dt); }
 	PollBags(Dt);
 	// (crew plans asked for from inside a crew act)
 	// (bags handed to the arrivals conveyor: gone as its own bag rides off)
