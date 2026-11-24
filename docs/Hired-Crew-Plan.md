@@ -203,6 +203,36 @@ Model `Art/Refueller` (make_refueller.py; cab skin by the new `Tools/vehicle_ski
 - **Not there:** truck, pump, reel, scissor sounds; a second bought fuel truck is not a second vehicle in 3D; no fuel farm (filled up by 30 s shut in its box).
 - **Not checked:** everything in the game - the way under the wing, the steps of the platform, the hose on the rail, the clamp reach over the wheel, the wipers' upper place (worked out), the turn signs of the levers.
 
+## Catering high-loader, part A as built (to-do 212, 2026-11-24): model, kit, blueprint, parking place - no code yet
+Models `Art/CateringTruck` (make_cateringtruck.py; cab, seats, doors, wheels by the new `Tools/truck_cab.py` = the refueller's cab as a text for every next truck) and `Art/CateringKit` (make_cateringkit.py),
+blueprint `docs/Blueprints/Apron/CateringTruck.png/.pdf`, riders `Data/cateringtruck-riders.json`. Own 2-axle truck 8.93 x 2.50 (3.00 over the mirrors) x 3.76 m (3.92 with the body's beacon); x -437.8 .. 455.3,
+axles +316.3 / -173.7, wheelbase 490, tyre radius 50.7. All points and numbers: `Art/CateringTruck/cateringtruck-parts.json` (`scissor`, `box`, `tail`, `stock`, `points_cm`; root, Unreal cm, y right).
+**What part B (driving, crew, IK) must know**
+- **Place:** `ABabylonModel::Place("CateringTruck")`, kit `Place("CateringKit")` (instanced). Wheels FL FR RL RR, twin `Tyre_RL` + `Tyre_RL_In` (`Rim_RL` likewise), steering wheel, pedals, wipers, doors, two-step climb, seats (2) exactly as the refueller.
+  HalfL 456, HalfW 123, TurnR 660 (38 deg is clear), DoorDeg 68. **Never under a wing: 3.76 m body.**
+- **Goes up with the body** (straight up, lift q 0 .. 275 cm, floor 150 .. 425): every part whose name starts with a prefix of `box.moves_with_box` except `box.not` (`BoxStep*`, `TailBrake*` stay): BoxInside / BoxOutside / BoxUnder, Box_WallL/R, BoxDoorL, Roll*, RampFlap,
+  Platform, RailPlatform_*, GatePlatform, Tail*, NamePanel_L/R, WorkLamp_Lens, Lever_Lift / Lever_Plat, BoxLight*_Lens (inside lamps), BoxMark*_Lens, BoxRearWork_Lens, BoxBeaconLens (2nd beacon; `BeaconLens` on the cab). Points IK_Box*, IK_Roll*, IK_Platform*, IK_Tail* too.
+- **Scissor:** `t = asin((12 + q) / 440)`; centre x = 136.3 - 220 cos t, z = 110 + (12 + q) / 2; `ScissorA` (low in front) turns nose DOWN / tail up by t - 1.563 deg about that centre, `ScissorB` the other way. Rams: base `PIV_Ram_L/R`, eye on A:
+  x = 136.3 - 260 cos t, z = 110 + 260 sin t - 1.2, same y; `RamBarrel_*` turns about the base to look at the eye, `RamRod_*` keeps its eye end on the eye. Checked by mesh overlap at q 0 / 60 / 150 / 175 / 205 / 275.
+- **Legs:** `StabLeg_FL/FR/RL/RR` straight down 30 cm (then on the ground). Lever `Lever_Stab` (about x through its PIV), hand `IK_Lever_Stab`, stand `IK_Stand_Stab`; stop `IK_Button_StabEStop`. Legs down BEFORE the lift, up after.
+- **Into the body:** left side door `BoxDoorL` (hinge in front `PIV_BoxDoorL`, 100 deg), three steps `IK_Step_BoxDoorL_0..2` (41 / 71 / 101 cm, floor 150), rails `IK_Grab_BoxDoor_F/R`, `IK_Stand_BoxDoorL`, `IK_Box_In`. Only with q = 0. Crew ride up inside.
+- **Lift panel** inside left of the front door: `Lever_Lift`, `Lever_Plat` (about y through their PIV), `IK_Lever_*`, `IK_Button_EStop`, stand `IK_BoxPanel_Stand`.
+- **Platform:** `Platform` + `RailPlatform_L/R` + `GatePlatform` slide +x 0 .. 295 cm; **only at q >= 180** (6 cm over the cab's beacon). Deck `IK_Platform_Work` = 13.5 cm under the floor, so deck at the sill: q = sill - 136.5 (R1 3.87 m: 250.5; R2 3.49: 212.5).
+  The rails are modelled lying in the cassette: up = about x through `PIV_RailPlatform_L` / `_R`, left one -90, right one +90 in Blender (right first, it lies on top). The gate lies inside the right rail: it goes with that rail, then opens about z
+  through `PIV_GatePlatform` (about 90 across the end; it is 134 long). Hands `IK_Rail_L/R_Hand`, `IK_Handle_GatePlatform` are given standing. Touching: `IK_Platform_Bumper`. `RampFlap` about y through its PIV, forward-down 106 deg, after the front door's lower slats are up.
+- **Roll-up doors:** `RollF_00..11` / `RollR_00..11` (00 = lowest, with the grips `IK_Handle_RollF_In/Out`, `RollR`): move all up together by d, hide a slat when its middle passes z 347 (`PIV_RollF/R`, inside the hood); fully open d = 190.
+- **Tail lift:** arms `TailArms` about y through `PIV_TailArms` (length 90, modelled at +47.17 deg = floor; ground -53.66); `TailPlatform` stands up, its hinge `PIV_TailPlatform` travels with the arms' tip and it swings back 90 to lie level. Opening edge `IK_Handle_TailPlatform`, buttons `IK_Button_TailUp/Down`
+  (right rear, `IK_Tail_Control_Stand`), `IK_Tail_Floor`, `IK_Tail_Stand`. It goes up with the body: fold it up before the lift.
+- **Trolleys and boxes** are NOT in the truck: `stock` = 18 `Trolley` + 12 `GalleyBox` places (floor points with Blender yaw; they ride with the body). The trolley is open at both ends: two `TrolleyDoor`s, red + green pedal at each end, four `TrolleyCastor`s, places / hands / angles in `Art/CateringKit/sizes.json`
+  (door 175 deg, pedal 14 deg, castor trail 18 mm). Lengthwise in the body, two abreast each side, aisle about 1.05 m. Rack of three shelves right rear. Straps `IK_Strap_*`. They may glow; the truck never.
+- **Name:** `NamePanel_L/R` (360 x 62, `IK_Name_L/R`, ride with the body), `NamePanel_Front` (124 x 8.5), `TailPlatform_NamePanel_Rear` (110 x 26, `IK_Name_Rear`). Livery paints `CT_Livery_Body_Paint`, `CT_Livery_Main_Paint`.
+- **At the A320** (measured on Art/A320/A320.glb, door drawings on its skin): R1 middle 0.30 m AHEAD of the nose wheel, 1.02 wide, sill 3.87, skin 2.0 m out; R2 middle 24.77 m behind, sill 3.49, skin 1.57 m out and turned about 11 deg (the aircraft's tail narrows).
+  The bumper is 531.3 cm ahead of the origin with the platform out: origin 7.34 m right at R1, 6.88 m at R2 (turn it by the 11 deg), nose to the aircraft; the cab stays 0.7 m off. R2: tailplane root starts 27.8 m behind (1.2 m clear). The model's nose stands high (real sills 3.4): measure again in the game.
+  `Turnaround.cpp` has `cat1` (R1, 4 trolleys) then `cat2` (R2, 7): one truck drives from one to the other.
+- **Parking place (chosen, not drawn yet):** middle (-253.5, 146.0), facing north, box x -255.45..-251.55, y 140.5..151.5, beside the refueller (3.2 m between, with mirrors), 6.4 m off stand 9's line, 3 m off the van's way (x -247.2). Same `HomeRoad` 25: past it on the service road, backed
+  round (the arc lies 6.7 m further from the tower road than the refueller's), 18 m straight back. Worked out on paper, not driven; nobody else has that place by 11-24.
+- **Not there:** no truck, hydraulic, roller door or trolley sound checked for; nothing run in the game. The cab's aerial is left off (platform).
+
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
 | Where | Today | Replace with | Nobody free |

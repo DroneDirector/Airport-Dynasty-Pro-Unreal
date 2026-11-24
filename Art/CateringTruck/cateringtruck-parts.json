@@ -1,0 +1,1068 @@
+{
+ "note": "points in the model root, Unreal cm (Blender (x,y,z) m = (x,-y,z) * 100)",
+ "size_m": [
+  8.931,
+  3.0,
+  3.92
+ ],
+ "x_m": [
+  -4.378,
+  4.553
+ ],
+ "wheelbase": 4.9,
+ "tyre_radius_cm": 50.7,
+ "shift_m": -0.537,
+ "scissor": {
+  "arm_cm": 440.00000000000006,
+  "front_x_cm": 136.3,
+  "z0_cm": 110.00000000000001,
+  "h0_cm": 12.0,
+  "lift_cm": 275.0,
+  "deg0": 1.563,
+  "deg1": 40.713,
+  "ram_eye_on_A_cm": 260
+ },
+ "box": {
+  "floor_cm": 150.0,
+  "deck_below_floor_cm": 13.5,
+  "slide_cm": 295.0,
+  "moves_with_box": [
+   "Box",
+   "Roll",
+   "Ramp",
+   "Platform",
+   "Gate",
+   "RailPlatform",
+   "Tail",
+   "NamePanel_L",
+   "NamePanel_R",
+   "WorkLamp",
+   "Lever_Lift",
+   "Lever_Plat"
+  ],
+  "not": [
+   "BoxStep",
+   "TailBrake"
+  ]
+ },
+ "tail": {
+  "arm_cm": 90.0,
+  "deg_up": 47.17,
+  "deg_down": -53.66
+ },
+ "stock": [
+  {
+   "mesh": "Trolley",
+   "at_cm": [
+    -358.7,
+    -99.5,
+    150.0
+   ],
+   "yaw_blender_deg": -90
+  },
+  {
+   "mesh": "Trolley",
+   "at_cm": [
+    -269.7,
+    -99.5,
+    150.0
+   ],
+   "yaw_blender_deg": -90
+  },
+  {
+   "mesh": "Trolley",
+   "at_cm": [
+    -180.7,
+    -99.5,
+    150.0
+   ],
+   "yaw_blender_deg": -90
+  },
+  {
+   "mesh": "Trolley",
+   "at_cm": [
+    -91.7,
+    -99.5,
+    150.0
+   ],
+   "yaw_blender_deg": -90
+  },
+  {
+   "mesh": "Trolley",
+   "at_cm": [
+    -2.7,
+    -99.5,
+    150.0
+   ],
+   "yaw_blender_deg": -90
+  },
+  {
+   "mesh": "Trolley",
+   "at_cm": [
+    -358.7,
+    -68.0,
+    150.0
+   ],
+   "yaw_blender_deg": -90
+  },
+  {
+   "mesh": "Trolley",
+   "at_cm": [
+    -269.7,
+    -68.0,
+    150.0
+   ],
+   "yaw_blender_deg": -90
+  },
+  {
+   "mesh": "Trolley",
+   "at_cm": [
+    -180.7,
+    -68.0,
+    150.0
+   ],
+   "yaw_blender_deg": -90
+  },
+  {
+   "mesh": "Trolley",
+   "at_cm": [
+    -91.7,
+    -68.0,
+    150.0
+   ],
+   "yaw_blender_deg": -90
+  },
+  {
+   "mesh": "Trolley",
+   "at_cm": [
+    -2.7,
+    -68.0,
+    150.0
+   ],
+   "yaw_blender_deg": -90
+  },
+  {
+   "mesh": "Trolley",
+   "at_cm": [
+    -205.7,
+    99.5,
+    150.0
+   ],
+   "yaw_blender_deg": -90
+  },
+  {
+   "mesh": "Trolley",
+   "at_cm": [
+    -116.7,
+    99.5,
+    150.0
+   ],
+   "yaw_blender_deg": -90
+  },
+  {
+   "mesh": "Trolley",
+   "at_cm": [
+    -27.7,
+    99.5,
+    150.0
+   ],
+   "yaw_blender_deg": -90
+  },
+  {
+   "mesh": "Trolley",
+   "at_cm": [
+    61.3,
+    99.5,
+    150.0
+   ],
+   "yaw_blender_deg": -90
+  },
+  {
+   "mesh": "Trolley",
+   "at_cm": [
+    -205.7,
+    68.0,
+    150.0
+   ],
+   "yaw_blender_deg": -90
+  },
+  {
+   "mesh": "Trolley",
+   "at_cm": [
+    -116.7,
+    68.0,
+    150.0
+   ],
+   "yaw_blender_deg": -90
+  },
+  {
+   "mesh": "Trolley",
+   "at_cm": [
+    -27.7,
+    68.0,
+    150.0
+   ],
+   "yaw_blender_deg": -90
+  },
+  {
+   "mesh": "Trolley",
+   "at_cm": [
+    61.3,
+    68.0,
+    150.0
+   ],
+   "yaw_blender_deg": -90
+  },
+  {
+   "mesh": "GalleyBox",
+   "at_cm": [
+    -368.7,
+    94.5,
+    163.2
+   ],
+   "yaw_blender_deg": 0
+  },
+  {
+   "mesh": "GalleyBox",
+   "at_cm": [
+    -340.2,
+    94.5,
+    163.2
+   ],
+   "yaw_blender_deg": 0
+  },
+  {
+   "mesh": "GalleyBox",
+   "at_cm": [
+    -311.7,
+    94.5,
+    163.2
+   ],
+   "yaw_blender_deg": 0
+  },
+  {
+   "mesh": "GalleyBox",
+   "at_cm": [
+    -283.2,
+    94.5,
+    163.2
+   ],
+   "yaw_blender_deg": 0
+  },
+  {
+   "mesh": "GalleyBox",
+   "at_cm": [
+    -368.7,
+    94.5,
+    215.2
+   ],
+   "yaw_blender_deg": 0
+  },
+  {
+   "mesh": "GalleyBox",
+   "at_cm": [
+    -340.2,
+    94.5,
+    215.2
+   ],
+   "yaw_blender_deg": 0
+  },
+  {
+   "mesh": "GalleyBox",
+   "at_cm": [
+    -311.7,
+    94.5,
+    215.2
+   ],
+   "yaw_blender_deg": 0
+  },
+  {
+   "mesh": "GalleyBox",
+   "at_cm": [
+    -283.2,
+    94.5,
+    215.2
+   ],
+   "yaw_blender_deg": 0
+  },
+  {
+   "mesh": "GalleyBox",
+   "at_cm": [
+    -368.7,
+    94.5,
+    267.2
+   ],
+   "yaw_blender_deg": 0
+  },
+  {
+   "mesh": "GalleyBox",
+   "at_cm": [
+    -340.2,
+    94.5,
+    267.2
+   ],
+   "yaw_blender_deg": 0
+  },
+  {
+   "mesh": "GalleyBox",
+   "at_cm": [
+    -311.7,
+    94.5,
+    267.2
+   ],
+   "yaw_blender_deg": 0
+  },
+  {
+   "mesh": "GalleyBox",
+   "at_cm": [
+    -283.2,
+    94.5,
+    267.2
+   ],
+   "yaw_blender_deg": 0
+  }
+ ],
+ "points_cm": {
+  "IK_Step_DoorDriver": [
+   400.3,
+   -108.0,
+   83.0
+  ],
+  "IK_Step_DoorDriver_Low": [
+   400.3,
+   -110.0,
+   49.0
+  ],
+  "IK_Step_DoorPassenger": [
+   400.3,
+   108.0,
+   83.0
+  ],
+  "IK_Step_DoorPassenger_Low": [
+   400.3,
+   110.0,
+   49.0
+  ],
+  "PIV_DoorDriver": [
+   423.8,
+   -121.5,
+   150.0
+  ],
+  "IK_Handle_DoorDriver_Out": [
+   319.8,
+   -125.6,
+   152.2
+  ],
+  "IK_Handle_DoorDriver_In": [
+   391.3,
+   -113.0,
+   170.5
+  ],
+  "IK_Stand_DoorDriver": [
+   366.3,
+   -190.0,
+   0.0
+  ],
+  "IK_Grab_L": [
+   300.8,
+   -127.5,
+   170.0
+  ],
+  "IK_GrabIn_L": [
+   399.3,
+   -106.0,
+   216.0
+  ],
+  "PIV_DoorPassenger": [
+   423.8,
+   121.5,
+   150.0
+  ],
+  "IK_Handle_DoorPassenger_Out": [
+   319.8,
+   125.6,
+   152.2
+  ],
+  "IK_Handle_DoorPassenger_In": [
+   391.3,
+   113.0,
+   170.5
+  ],
+  "IK_Stand_DoorPassenger": [
+   366.3,
+   190.0,
+   0.0
+  ],
+  "IK_Grab_R": [
+   300.8,
+   127.5,
+   170.0
+  ],
+  "IK_GrabIn_R": [
+   399.3,
+   106.0,
+   216.0
+  ],
+  "IK_Cluster": [
+   390.3,
+   -62.0,
+   179.0
+  ],
+  "IK_GearSelect": [
+   361.3,
+   -22.0,
+   152.5
+  ],
+  "IK_ParkBrake": [
+   344.3,
+   -22.0,
+   151.5
+  ],
+  "PIV_SteeringWheel": [
+   375.8,
+   -62.0,
+   178.0
+  ],
+  "IK_Hand_Wheel_L": [
+   375.8,
+   -83.5,
+   178.0
+  ],
+  "IK_Hand_Wheel_R": [
+   375.8,
+   -40.5,
+   178.0
+  ],
+  "IK_Foot_Accel": [
+   413.5,
+   -50.0,
+   130.5
+  ],
+  "PIV_Pedal_Accel": [
+   427.3,
+   -50.0,
+   153.5
+  ],
+  "IK_Foot_Brake": [
+   413.5,
+   -63.0,
+   131.5
+  ],
+  "PIV_Pedal_Brake": [
+   427.3,
+   -63.0,
+   153.5
+  ],
+  "IK_Foot_Rest": [
+   415.8,
+   -77.5,
+   126.5
+  ],
+  "IK_Seat_SeatDriver": [
+   330.3,
+   -62.0,
+   162.5
+  ],
+  "IK_Buckle_SeatDriver": [
+   320.3,
+   -35.8,
+   171.5
+  ],
+  "IK_Seat_SeatPassenger": [
+   330.3,
+   62.0,
+   162.5
+  ],
+  "IK_Buckle_SeatPassenger": [
+   320.3,
+   35.8,
+   171.5
+  ],
+  "IK_BeltTongue_D": [
+   292.3,
+   -112.0,
+   180.0
+  ],
+  "IK_BeltTongue_P": [
+   292.3,
+   112.0,
+   180.0
+  ],
+  "IK_Clipboard": [
+   278.3,
+   -0.0,
+   175.0
+  ],
+  "PIV_Wiper_L": [
+   444.2,
+   -98.0,
+   178.5
+  ],
+  "IK_WiperTip_L": [
+   446.8,
+   -9.0,
+   186.4
+  ],
+  "PIV_Wiper_R": [
+   448.6,
+   5.0,
+   178.5
+  ],
+  "IK_WiperTip_R": [
+   443.1,
+   94.0,
+   186.4
+  ],
+  "IK_Beacon": [
+   321.3,
+   -0.0,
+   300.0
+  ],
+  "PIV_Wheel_FL": [
+   316.3,
+   -102.5,
+   50.7
+  ],
+  "PIV_Wheel_RL": [
+   -173.7,
+   -88.0,
+   50.7
+  ],
+  "PIV_Steer_FL": [
+   316.3,
+   -80.0,
+   50.7
+  ],
+  "PIV_StabLeg_FL": [
+   124.3,
+   -108.0,
+   30.0
+  ],
+  "PIV_StabLeg_RL": [
+   -285.7,
+   -108.0,
+   30.0
+  ],
+  "PIV_Wheel_FR": [
+   316.3,
+   102.5,
+   50.7
+  ],
+  "PIV_Wheel_RR": [
+   -173.7,
+   88.0,
+   50.7
+  ],
+  "PIV_Steer_FR": [
+   316.3,
+   80.0,
+   50.7
+  ],
+  "PIV_StabLeg_FR": [
+   124.3,
+   108.0,
+   30.0
+  ],
+  "PIV_StabLeg_RR": [
+   -285.7,
+   108.0,
+   30.0
+  ],
+  "IK_Step_BoxDoorL_0": [
+   191.3,
+   -111.0,
+   41.8
+  ],
+  "IK_Step_BoxDoorL_1": [
+   191.3,
+   -111.0,
+   71.8
+  ],
+  "IK_Step_BoxDoorL_2": [
+   191.3,
+   -111.0,
+   101.8
+  ],
+  "PIV_Lever_Stab": [
+   121.3,
+   -122.5,
+   97.0
+  ],
+  "IK_Lever_Stab": [
+   121.3,
+   -130.5,
+   97.0
+  ],
+  "IK_Stand_Stab": [
+   118.3,
+   -180.0,
+   0.0
+  ],
+  "IK_Button_StabEStop": [
+   130.3,
+   -125.6,
+   104.0
+  ],
+  "PIV_Ram_L": [
+   6.3,
+   -22.0,
+   83.0
+  ],
+  "PIV_RamEye_L": [
+   -123.6,
+   -22.0,
+   115.9
+  ],
+  "PIV_Ram_R": [
+   6.3,
+   22.0,
+   83.0
+  ],
+  "PIV_RamEye_R": [
+   -123.6,
+   22.0,
+   115.9
+  ],
+  "PIV_ScissorA": [
+   136.3,
+   -0.0,
+   110.0
+  ],
+  "PIV_ScissorB": [
+   136.3,
+   -0.0,
+   122.0
+  ],
+  "PIV_ScissorMid": [
+   -83.6,
+   -0.0,
+   116.0
+  ],
+  "IK_Name_L": [
+   -148.7,
+   -126.5,
+   286.0
+  ],
+  "IK_Strap_L0": [
+   -288.7,
+   -113.0,
+   258.0
+  ],
+  "IK_Strap_L1": [
+   -168.7,
+   -113.0,
+   258.0
+  ],
+  "IK_Strap_L2": [
+   -48.7,
+   -113.0,
+   258.0
+  ],
+  "IK_Name_R": [
+   -93.7,
+   126.5,
+   286.0
+  ],
+  "IK_Strap_R0": [
+   -288.7,
+   113.0,
+   258.0
+  ],
+  "IK_Strap_R1": [
+   -168.7,
+   113.0,
+   258.0
+  ],
+  "IK_Strap_R2": [
+   -48.7,
+   113.0,
+   258.0
+  ],
+  "IK_Grab_BoxDoor_F": [
+   226.3,
+   -129.5,
+   220.0
+  ],
+  "IK_Grab_BoxDoor_R": [
+   144.8,
+   -129.5,
+   220.0
+  ],
+  "IK_Handle_RollF_Out": [
+   229.1,
+   -0.0,
+   160.0
+  ],
+  "IK_Handle_RollF_In": [
+   223.5,
+   -0.0,
+   160.0
+  ],
+  "PIV_RollF": [
+   226.3,
+   -0.0,
+   347.0
+  ],
+  "IK_Handle_RollR_Out": [
+   -416.5,
+   -0.0,
+   160.0
+  ],
+  "IK_Handle_RollR_In": [
+   -410.9,
+   -0.0,
+   160.0
+  ],
+  "PIV_RollR": [
+   -413.7,
+   -0.0,
+   347.0
+  ],
+  "PIV_BoxDoorL": [
+   221.1,
+   -125.4,
+   240.0
+  ],
+  "IK_Handle_BoxDoorL_Out": [
+   157.3,
+   -128.5,
+   236.0
+  ],
+  "IK_Handle_BoxDoorL_In": [
+   157.3,
+   -115.8,
+   236.0
+  ],
+  "IK_Stand_BoxDoorL": [
+   176.3,
+   -175.0,
+   0.0
+  ],
+  "IK_Box_In": [
+   181.3,
+   -65.0,
+   150.2
+  ],
+  "IK_BoxBeacon": [
+   -383.7,
+   -0.0,
+   385.0
+  ],
+  "PIV_Lever_Lift": [
+   226.3,
+   -109.0,
+   260.0
+  ],
+  "IK_Lever_Lift": [
+   216.3,
+   -109.0,
+   260.0
+  ],
+  "PIV_Lever_Plat": [
+   226.3,
+   -96.0,
+   260.0
+  ],
+  "IK_Lever_Plat": [
+   216.3,
+   -96.0,
+   260.0
+  ],
+  "IK_Button_EStop": [
+   223.8,
+   -102.0,
+   276.5
+  ],
+  "IK_BoxPanel_Stand": [
+   171.3,
+   -80.0,
+   150.2
+  ],
+  "PIV_RailPlatform_L": [
+   85.3,
+   -71.5,
+   138.4
+  ],
+  "PIV_RailPlatform_R": [
+   85.3,
+   71.5,
+   144.0
+  ],
+  "PIV_GatePlatform": [
+   204.3,
+   68.6,
+   190.0
+  ],
+  "IK_Handle_GatePlatform": [
+   74.3,
+   68.6,
+   241.0
+  ],
+  "IK_Rail_L_Hand": [
+   66.3,
+   -71.5,
+   243.4
+  ],
+  "IK_Rail_R_Hand": [
+   66.3,
+   71.5,
+   244.0
+  ],
+  "IK_Platform_Work": [
+   136.3,
+   -0.0,
+   136.7
+  ],
+  "IK_Platform_Bumper": [
+   236.3,
+   -0.0,
+   136.5
+  ],
+  "IK_Platform_Sill": [
+   226.3,
+   -0.0,
+   136.5
+  ],
+  "PIV_RampFlap": [
+   239.3,
+   -0.0,
+   150.0
+  ],
+  "IK_Handle_RampFlap": [
+   239.7,
+   -0.0,
+   191.0
+  ],
+  "IK_Name_Rear": [
+   -434.6,
+   -0.0,
+   231.0
+  ],
+  "IK_Handle_TailPlatform": [
+   -437.9,
+   60.0,
+   286.0
+  ],
+  "PIV_TailArms": [
+   -369.7,
+   -0.0,
+   80.0
+  ],
+  "PIV_TailPlatform": [
+   -430.9,
+   -0.0,
+   146.0
+  ],
+  "IK_Tail_Stand": [
+   -628.7,
+   90.0,
+   0.0
+  ],
+  "IK_Tail_Control": [
+   -398.7,
+   127.5,
+   136.0
+  ],
+  "IK_Tail_Control_Stand": [
+   -398.7,
+   185.0,
+   0.0
+  ],
+  "IK_Tail_Floor": [
+   -513.7,
+   -0.0,
+   150.0
+  ],
+  "IK_Box_RearFloor": [
+   -373.7,
+   -0.0,
+   150.2
+  ],
+  "IK_Box_FrontFloor": [
+   186.3,
+   -0.0,
+   150.2
+  ],
+  "IK_Button_TailUp": [
+   -403.7,
+   129.8,
+   136.0
+  ],
+  "IK_Button_TailDown": [
+   -393.7,
+   129.8,
+   136.0
+  ],
+  "IK_Driver_Eye": [
+   327.3,
+   -62.0,
+   232.5
+  ],
+  "IK_Aisle_Row0": [
+   361.3,
+   -62.0,
+   119.0
+  ],
+  "IK_Tow": [
+   456.3,
+   40.0,
+   50.0
+  ]
+ },
+ "parts": [
+  "BeaconLens",
+  "Body",
+  "BoxBeaconLens",
+  "BoxDoorL",
+  "BoxInside",
+  "BoxLight0L_Lens",
+  "BoxLight0R_Lens",
+  "BoxLight1L_Lens",
+  "BoxLight1R_Lens",
+  "BoxLight2L_Lens",
+  "BoxLight2R_Lens",
+  "BoxMarkF_L_Lens",
+  "BoxMarkF_R_Lens",
+  "BoxMark_L_Lens",
+  "BoxMark_R_Lens",
+  "BoxOutside",
+  "BoxRearWork_Lens",
+  "BoxStep",
+  "BoxUnder",
+  "Box_WallL",
+  "Box_WallR",
+  "CabFittings",
+  "DoorDriver",
+  "DoorDriver_Glass",
+  "DoorDriver_Parts",
+  "DoorPassenger",
+  "DoorPassenger_Glass",
+  "DoorPassenger_Parts",
+  "GatePlatform",
+  "GlassFixed",
+  "HighBeam_L_Lens",
+  "HighBeam_R_Lens",
+  "IndicatorF_L_Lens",
+  "IndicatorF_R_Lens",
+  "IndicatorR_L_Lens",
+  "IndicatorR_R_Lens",
+  "Lever_Lift",
+  "Lever_Plat",
+  "Lever_Stab",
+  "LowBeam_L_Lens",
+  "LowBeam_R_Lens",
+  "NamePanel_Front",
+  "NamePanel_L",
+  "NamePanel_R",
+  "OuterFittings",
+  "Pedal_Accel",
+  "Pedal_Brake",
+  "Platform",
+  "RailPlatform_L",
+  "RailPlatform_R",
+  "RamBarrel_L",
+  "RamBarrel_R",
+  "RamRod_L",
+  "RamRod_R",
+  "RampFlap",
+  "Reverse_L_Lens",
+  "Reverse_R_Lens",
+  "Rim_FL",
+  "Rim_FR",
+  "Rim_RL",
+  "Rim_RR",
+  "RollF_00",
+  "RollF_01",
+  "RollF_02",
+  "RollF_03",
+  "RollF_04",
+  "RollF_05",
+  "RollF_06",
+  "RollF_07",
+  "RollF_08",
+  "RollF_09",
+  "RollF_10",
+  "RollF_11",
+  "RollR_00",
+  "RollR_01",
+  "RollR_02",
+  "RollR_03",
+  "RollR_04",
+  "RollR_05",
+  "RollR_06",
+  "RollR_07",
+  "RollR_08",
+  "RollR_09",
+  "RollR_10",
+  "RollR_11",
+  "ScissorA",
+  "ScissorB",
+  "Seats",
+  "SideMarker_L1_Lens",
+  "SideMarker_R1_Lens",
+  "Spindle_FL",
+  "Spindle_FR",
+  "StabLeg_FL",
+  "StabLeg_FR",
+  "StabLeg_RL",
+  "StabLeg_RR",
+  "SteeringWheel",
+  "TailArms",
+  "TailBrake_L_Lens",
+  "TailBrake_R_Lens",
+  "TailPlatform",
+  "TailPlatform_NamePanel_Rear",
+  "Tyre_FL",
+  "Tyre_FR",
+  "Tyre_RL",
+  "Tyre_RL_In",
+  "Tyre_RR",
+  "Tyre_RR_In",
+  "Underside",
+  "WiperL",
+  "WiperR",
+  "WorkLamp_Lens"
+ ],
+ "materials": [
+  "CT_Aluminium",
+  "CT_AmberLens",
+  "CT_BeltWebbing",
+  "CT_BlackPlastic",
+  "CT_BumperPlastic",
+  "CT_Chassis_Paint",
+  "CT_DarkSteel",
+  "CT_DashPlastic",
+  "CT_DiamondPlate",
+  "CT_FloorMat",
+  "CT_Glass",
+  "CT_GreenPlastic",
+  "CT_GreyTrimPlastic",
+  "CT_HeadLining",
+  "CT_HiVisRedReflector",
+  "CT_HiVisWhiteReflector",
+  "CT_HoseRubber",
+  "CT_Livery_Body_Paint",
+  "CT_Livery_Main_Paint",
+  "CT_MirrorGlass",
+  "CT_NamePanel_Paint",
+  "CT_Platform_Paint",
+  "CT_RedLens",
+  "CT_RedPaint",
+  "CT_Reflector",
+  "CT_RimSteel",
+  "CT_SafetyYellow_Paint",
+  "CT_Screen",
+  "CT_SealRubber",
+  "CT_SeatBolster",
+  "CT_SeatFabric",
+  "CT_SignRed",
+  "CT_SignWhite",
+  "CT_Steel",
+  "CT_StrapWebbing",
+  "CT_Tyre",
+  "CT_WallPanel",
+  "CT_WhiteLens"
+ ],
+ "tris": 177606,
+ "flicker": "0 pairs fight"
+}

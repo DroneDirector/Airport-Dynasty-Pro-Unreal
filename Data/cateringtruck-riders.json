@@ -1,0 +1,589 @@
+{
+ "points": {
+  "IK_Step_DoorDriver": [
+   4.003,
+   1.08,
+   0.83
+  ],
+  "IK_Step_DoorDriver_Low": [
+   4.003,
+   1.1,
+   0.49
+  ],
+  "IK_Step_DoorPassenger": [
+   4.003,
+   -1.08,
+   0.83
+  ],
+  "IK_Step_DoorPassenger_Low": [
+   4.003,
+   -1.1,
+   0.49
+  ],
+  "PIV_DoorDriver": [
+   4.238,
+   1.215,
+   1.5
+  ],
+  "IK_Handle_DoorDriver_Out": [
+   3.198,
+   1.256,
+   1.522
+  ],
+  "IK_Handle_DoorDriver_In": [
+   3.913,
+   1.13,
+   1.705
+  ],
+  "IK_Stand_DoorDriver": [
+   3.663,
+   1.9,
+   0.0
+  ],
+  "IK_Grab_L": [
+   3.008,
+   1.275,
+   1.7
+  ],
+  "IK_GrabIn_L": [
+   3.993,
+   1.06,
+   2.16
+  ],
+  "PIV_DoorPassenger": [
+   4.238,
+   -1.215,
+   1.5
+  ],
+  "IK_Handle_DoorPassenger_Out": [
+   3.198,
+   -1.256,
+   1.522
+  ],
+  "IK_Handle_DoorPassenger_In": [
+   3.913,
+   -1.13,
+   1.705
+  ],
+  "IK_Stand_DoorPassenger": [
+   3.663,
+   -1.9,
+   0.0
+  ],
+  "IK_Grab_R": [
+   3.008,
+   -1.275,
+   1.7
+  ],
+  "IK_GrabIn_R": [
+   3.993,
+   -1.06,
+   2.16
+  ],
+  "IK_Cluster": [
+   3.903,
+   0.62,
+   1.79
+  ],
+  "IK_GearSelect": [
+   3.613,
+   0.22,
+   1.525
+  ],
+  "IK_ParkBrake": [
+   3.443,
+   0.22,
+   1.515
+  ],
+  "PIV_SteeringWheel": [
+   3.758,
+   0.62,
+   1.78
+  ],
+  "IK_Hand_Wheel_L": [
+   3.758,
+   0.835,
+   1.78
+  ],
+  "IK_Hand_Wheel_R": [
+   3.758,
+   0.405,
+   1.78
+  ],
+  "IK_Foot_Accel": [
+   4.135,
+   0.5,
+   1.305
+  ],
+  "PIV_Pedal_Accel": [
+   4.273,
+   0.5,
+   1.535
+  ],
+  "IK_Foot_Brake": [
+   4.135,
+   0.63,
+   1.315
+  ],
+  "PIV_Pedal_Brake": [
+   4.273,
+   0.63,
+   1.535
+  ],
+  "IK_Foot_Rest": [
+   4.158,
+   0.775,
+   1.265
+  ],
+  "IK_Seat_SeatDriver": [
+   3.303,
+   0.62,
+   1.625
+  ],
+  "IK_Buckle_SeatDriver": [
+   3.203,
+   0.358,
+   1.715
+  ],
+  "IK_Seat_SeatPassenger": [
+   3.303,
+   -0.62,
+   1.625
+  ],
+  "IK_Buckle_SeatPassenger": [
+   3.203,
+   -0.358,
+   1.715
+  ],
+  "IK_BeltTongue_D": [
+   2.923,
+   1.12,
+   1.8
+  ],
+  "IK_BeltTongue_P": [
+   2.923,
+   -1.12,
+   1.8
+  ],
+  "IK_Clipboard": [
+   2.783,
+   0.0,
+   1.75
+  ],
+  "PIV_Wiper_L": [
+   4.4421,
+   0.98,
+   1.785
+  ],
+  "IK_WiperTip_L": [
+   4.4681,
+   0.09,
+   1.864
+  ],
+  "PIV_Wiper_R": [
+   4.4862,
+   -0.05,
+   1.785
+  ],
+  "IK_WiperTip_R": [
+   4.4311,
+   -0.94,
+   1.864
+  ],
+  "IK_Beacon": [
+   3.213,
+   0.0,
+   3.0
+  ],
+  "PIV_Wheel_FL": [
+   3.163,
+   1.025,
+   0.507
+  ],
+  "PIV_Wheel_RL": [
+   -1.737,
+   0.88,
+   0.507
+  ],
+  "PIV_Steer_FL": [
+   3.163,
+   0.8,
+   0.507
+  ],
+  "PIV_StabLeg_FL": [
+   1.243,
+   1.08,
+   0.3
+  ],
+  "PIV_StabLeg_RL": [
+   -2.857,
+   1.08,
+   0.3
+  ],
+  "PIV_Wheel_FR": [
+   3.163,
+   -1.025,
+   0.507
+  ],
+  "PIV_Wheel_RR": [
+   -1.737,
+   -0.88,
+   0.507
+  ],
+  "PIV_Steer_FR": [
+   3.163,
+   -0.8,
+   0.507
+  ],
+  "PIV_StabLeg_FR": [
+   1.243,
+   -1.08,
+   0.3
+  ],
+  "PIV_StabLeg_RR": [
+   -2.857,
+   -1.08,
+   0.3
+  ],
+  "IK_Step_BoxDoorL_0": [
+   1.913,
+   1.11,
+   0.418
+  ],
+  "IK_Step_BoxDoorL_1": [
+   1.913,
+   1.11,
+   0.718
+  ],
+  "IK_Step_BoxDoorL_2": [
+   1.913,
+   1.11,
+   1.018
+  ],
+  "PIV_Lever_Stab": [
+   1.213,
+   1.225,
+   0.97
+  ],
+  "IK_Lever_Stab": [
+   1.213,
+   1.305,
+   0.97
+  ],
+  "IK_Stand_Stab": [
+   1.183,
+   1.8,
+   0.0
+  ],
+  "IK_Button_StabEStop": [
+   1.303,
+   1.256,
+   1.04
+  ],
+  "PIV_Ram_L": [
+   0.063,
+   0.22,
+   0.83
+  ],
+  "PIV_RamEye_L": [
+   -1.236,
+   0.22,
+   1.1589
+  ],
+  "PIV_Ram_R": [
+   0.063,
+   -0.22,
+   0.83
+  ],
+  "PIV_RamEye_R": [
+   -1.236,
+   -0.22,
+   1.1589
+  ],
+  "PIV_ScissorA": [
+   1.363,
+   0.0,
+   1.1
+  ],
+  "PIV_ScissorB": [
+   1.363,
+   0.0,
+   1.22
+  ],
+  "PIV_ScissorMid": [
+   -0.8362,
+   0.0,
+   1.16
+  ],
+  "IK_Name_L": [
+   -1.487,
+   1.2652,
+   2.86
+  ],
+  "IK_Strap_L0": [
+   -2.887,
+   1.13,
+   2.58
+  ],
+  "IK_Strap_L1": [
+   -1.687,
+   1.13,
+   2.58
+  ],
+  "IK_Strap_L2": [
+   -0.487,
+   1.13,
+   2.58
+  ],
+  "IK_Name_R": [
+   -0.937,
+   -1.2652,
+   2.86
+  ],
+  "IK_Strap_R0": [
+   -2.887,
+   -1.13,
+   2.58
+  ],
+  "IK_Strap_R1": [
+   -1.687,
+   -1.13,
+   2.58
+  ],
+  "IK_Strap_R2": [
+   -0.487,
+   -1.13,
+   2.58
+  ],
+  "IK_Grab_BoxDoor_F": [
+   2.263,
+   1.295,
+   2.2
+  ],
+  "IK_Grab_BoxDoor_R": [
+   1.448,
+   1.295,
+   2.2
+  ],
+  "IK_Handle_RollF_Out": [
+   2.291,
+   0.0,
+   1.6
+  ],
+  "IK_Handle_RollF_In": [
+   2.235,
+   0.0,
+   1.6
+  ],
+  "PIV_RollF": [
+   2.263,
+   0.0,
+   3.47
+  ],
+  "IK_Handle_RollR_Out": [
+   -4.165,
+   0.0,
+   1.6
+  ],
+  "IK_Handle_RollR_In": [
+   -4.109,
+   0.0,
+   1.6
+  ],
+  "PIV_RollR": [
+   -4.137,
+   0.0,
+   3.47
+  ],
+  "PIV_BoxDoorL": [
+   2.211,
+   1.254,
+   2.4
+  ],
+  "IK_Handle_BoxDoorL_Out": [
+   1.573,
+   1.285,
+   2.36
+  ],
+  "IK_Handle_BoxDoorL_In": [
+   1.573,
+   1.158,
+   2.36
+  ],
+  "IK_Stand_BoxDoorL": [
+   1.763,
+   1.75,
+   0.0
+  ],
+  "IK_Box_In": [
+   1.813,
+   0.65,
+   1.502
+  ],
+  "IK_BoxBeacon": [
+   -3.837,
+   0.0,
+   3.85
+  ],
+  "PIV_Lever_Lift": [
+   2.263,
+   1.09,
+   2.6
+  ],
+  "IK_Lever_Lift": [
+   2.163,
+   1.09,
+   2.6
+  ],
+  "PIV_Lever_Plat": [
+   2.263,
+   0.96,
+   2.6
+  ],
+  "IK_Lever_Plat": [
+   2.163,
+   0.96,
+   2.6
+  ],
+  "IK_Button_EStop": [
+   2.238,
+   1.02,
+   2.765
+  ],
+  "IK_BoxPanel_Stand": [
+   1.713,
+   0.8,
+   1.502
+  ],
+  "PIV_RailPlatform_L": [
+   0.853,
+   0.715,
+   1.384
+  ],
+  "PIV_RailPlatform_R": [
+   0.853,
+   -0.715,
+   1.44
+  ],
+  "PIV_GatePlatform": [
+   2.043,
+   -0.686,
+   1.9
+  ],
+  "IK_Handle_GatePlatform": [
+   0.743,
+   -0.686,
+   2.41
+  ],
+  "IK_Rail_L_Hand": [
+   0.663,
+   0.715,
+   2.434
+  ],
+  "IK_Rail_R_Hand": [
+   0.663,
+   -0.715,
+   2.44
+  ],
+  "IK_Platform_Work": [
+   1.363,
+   0.0,
+   1.367
+  ],
+  "IK_Platform_Bumper": [
+   2.363,
+   0.0,
+   1.365
+  ],
+  "IK_Platform_Sill": [
+   2.263,
+   0.0,
+   1.365
+  ],
+  "PIV_RampFlap": [
+   2.393,
+   0.0,
+   1.5
+  ],
+  "IK_Handle_RampFlap": [
+   2.397,
+   0.0,
+   1.91
+  ],
+  "IK_Name_Rear": [
+   -4.3461,
+   0.0,
+   2.31
+  ],
+  "IK_Handle_TailPlatform": [
+   -4.3789,
+   -0.6,
+   2.86
+  ],
+  "PIV_TailArms": [
+   -3.697,
+   0.0,
+   0.8
+  ],
+  "PIV_TailPlatform": [
+   -4.3089,
+   0.0,
+   1.46
+  ],
+  "IK_Tail_Stand": [
+   -6.287,
+   -0.9,
+   0.0
+  ],
+  "IK_Tail_Control": [
+   -3.987,
+   -1.275,
+   1.36
+  ],
+  "IK_Tail_Control_Stand": [
+   -3.987,
+   -1.85,
+   0.0
+  ],
+  "IK_Tail_Floor": [
+   -5.137,
+   0.0,
+   1.5
+  ],
+  "IK_Box_RearFloor": [
+   -3.737,
+   0.0,
+   1.502
+  ],
+  "IK_Box_FrontFloor": [
+   1.863,
+   0.0,
+   1.502
+  ],
+  "IK_Button_TailUp": [
+   -4.037,
+   -1.298,
+   1.36
+  ],
+  "IK_Button_TailDown": [
+   -3.937,
+   -1.298,
+   1.36
+  ],
+  "IK_Driver_Eye": [
+   3.273,
+   0.62,
+   2.325
+  ],
+  "IK_Aisle_Row0": [
+   3.613,
+   0.62,
+   1.19
+  ],
+  "IK_Tow": [
+   4.563,
+   -0.4,
+   0.5
+  ]
+ }
+}
