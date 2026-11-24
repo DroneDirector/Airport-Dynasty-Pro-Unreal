@@ -1,0 +1,623 @@
+{
+ "note": "points in the model root, Unreal cm (Blender (x,y,z) m = (x,-y,z) * 100)",
+ "size_m": [
+  5.785,
+  2.51,
+  2.52
+ ],
+ "x_m": [
+  -2.876,
+  2.909
+ ],
+ "wheelbase": 3.0,
+ "tyre_radius_cm": 38.3,
+ "hose": {
+  "metres": 13.77,
+  "radius_cm": 1.4000000000000001,
+  "drum_layers": [
+   14.4,
+   17.1
+  ],
+  "turns": 14
+ },
+ "tank_litres": 2500,
+ "platform_floor_cm": 100.0,
+ "a320": {
+  "door": "171AL",
+  "behind_nose_wheel_m": 26.2,
+  "left_m": 0.3,
+  "height_real_m": 2.6,
+  "height_model_m": 2.93
+ },
+ "points_cm": {
+  "IK_Step_DoorDriver": [
+   237.0,
+   -83.0,
+   44.0
+  ],
+  "IK_Step_DoorDriver_Low": [
+   237.0,
+   -83.0,
+   44.0
+  ],
+  "IK_Step_DoorPassenger": [
+   237.0,
+   83.0,
+   44.0
+  ],
+  "IK_Step_DoorPassenger_Low": [
+   237.0,
+   83.0,
+   44.0
+  ],
+  "PIV_DoorDriver": [
+   259.0,
+   -98.5,
+   115.0
+  ],
+  "IK_Handle_DoorDriver_Out": [
+   152.0,
+   -103.1,
+   117.2
+  ],
+  "IK_Handle_DoorDriver_In": [
+   225.0,
+   -91.5,
+   134.5
+  ],
+  "IK_Stand_DoorDriver": [
+   202.0,
+   -166.0,
+   0.0
+  ],
+  "IK_Grab_L": [
+   131.5,
+   -104.4,
+   145.0
+  ],
+  "IK_GrabIn_L": [
+   233.0,
+   -83.0,
+   175.0
+  ],
+  "PIV_DoorPassenger": [
+   259.0,
+   98.5,
+   115.0
+  ],
+  "IK_Handle_DoorPassenger_Out": [
+   152.0,
+   103.1,
+   117.2
+  ],
+  "IK_Handle_DoorPassenger_In": [
+   225.0,
+   91.5,
+   134.5
+  ],
+  "IK_Stand_DoorPassenger": [
+   202.0,
+   166.0,
+   0.0
+  ],
+  "IK_Grab_R": [
+   131.5,
+   104.4,
+   145.0
+  ],
+  "IK_GrabIn_R": [
+   233.0,
+   83.0,
+   175.0
+  ],
+  "IK_Cluster": [
+   222.5,
+   -50.0,
+   142.0
+  ],
+  "IK_GearSelect": [
+   188.0,
+   -0.0,
+   113.5
+  ],
+  "IK_ParkBrake": [
+   174.0,
+   -0.0,
+   112.5
+  ],
+  "PIV_SteeringWheel": [
+   207.0,
+   -50.0,
+   141.5
+  ],
+  "IK_Hand_Wheel_L": [
+   207.0,
+   -70.5,
+   141.5
+  ],
+  "IK_Hand_Wheel_R": [
+   207.0,
+   -29.5,
+   141.5
+  ],
+  "IK_Foot_Accel": [
+   244.7,
+   -38.0,
+   94.5
+  ],
+  "PIV_Pedal_Accel": [
+   258.5,
+   -38.0,
+   117.5
+  ],
+  "IK_Foot_Brake": [
+   244.7,
+   -51.0,
+   95.5
+  ],
+  "PIV_Pedal_Brake": [
+   258.5,
+   -51.0,
+   117.5
+  ],
+  "IK_Foot_Rest": [
+   247.0,
+   -65.0,
+   90.5
+  ],
+  "IK_Seat_SeatDriver": [
+   165.0,
+   -50.0,
+   126.5
+  ],
+  "IK_Buckle_SeatDriver": [
+   155.0,
+   -24.8,
+   135.5
+  ],
+  "IK_Seat_SeatPassenger": [
+   165.0,
+   50.0,
+   126.5
+  ],
+  "IK_Buckle_SeatPassenger": [
+   155.0,
+   24.8,
+   135.5
+  ],
+  "IK_BeltTongue_D": [
+   133.5,
+   -88.0,
+   140.0
+  ],
+  "IK_BeltTongue_P": [
+   133.5,
+   88.0,
+   140.0
+  ],
+  "IK_Clipboard": [
+   134.4,
+   -0.0,
+   155.0
+  ],
+  "PIV_Wiper_L": [
+   276.9,
+   -76.0,
+   144.0
+  ],
+  "IK_WiperTip_L": [
+   279.6,
+   -4.0,
+   152.4
+  ],
+  "PIV_Wiper_R": [
+   282.6,
+   4.0,
+   144.0
+  ],
+  "IK_WiperTip_R": [
+   273.8,
+   76.0,
+   152.4
+  ],
+  "IK_Beacon": [
+   165.0,
+   -0.0,
+   244.0
+  ],
+  "PIV_Wheel_FL": [
+   172.0,
+   -85.5,
+   38.3
+  ],
+  "PIV_Wheel_RL": [
+   -128.0,
+   -74.5,
+   38.3
+  ],
+  "PIV_Steer_FL": [
+   172.0,
+   -68.0,
+   38.3
+  ],
+  "PIV_Wheel_FR": [
+   172.0,
+   85.5,
+   38.3
+  ],
+  "PIV_Wheel_RR": [
+   -128.0,
+   74.5,
+   38.3
+  ],
+  "PIV_Steer_FR": [
+   172.0,
+   68.0,
+   38.3
+  ],
+  "IK_ChargeFlap": [
+   78.0,
+   -93.0,
+   58.0
+  ],
+  "IK_Chock_0": [
+   -13.0,
+   81.0,
+   60.0
+  ],
+  "IK_Chock_1": [
+   -43.0,
+   81.0,
+   60.0
+  ],
+  "IK_ChockPlace_0": [
+   -83.7,
+   -86.8,
+   0.0
+  ],
+  "IK_ChockPlace_1": [
+   -172.3,
+   -86.8,
+   0.0
+  ],
+  "IK_Stand_Chocks": [
+   -28.0,
+   150.0,
+   0.0
+  ],
+  "IK_Stand_ChockPlace": [
+   -128.0,
+   -165.0,
+   0.0
+  ],
+  "IK_Manhole_0": [
+   -70.0,
+   -17.0,
+   202.0
+  ],
+  "IK_Manhole_1": [
+   30.0,
+   -17.0,
+   202.0
+  ],
+  "IK_Name_L": [
+   -6.0,
+   -92.6,
+   142.0
+  ],
+  "IK_Name_R": [
+   -6.0,
+   92.6,
+   142.0
+  ],
+  "PIV_PanelDoorL": [
+   -149.7,
+   -93.8,
+   139.0
+  ],
+  "IK_Handle_PanelDoorL": [
+   -184.0,
+   -95.5,
+   142.0
+  ],
+  "IK_Stand_PanelDoorL": [
+   -195.0,
+   -150.0,
+   0.0
+  ],
+  "IK_FillCoupling": [
+   -162.0,
+   -80.0,
+   141.0
+  ],
+  "PIV_Lever_Fill": [
+   -162.0,
+   -80.0,
+   126.0
+  ],
+  "IK_Lever_Fill": [
+   -177.0,
+   -80.0,
+   126.0
+  ],
+  "PIV_HoseReel": [
+   -167.0,
+   -27.5,
+   142.0
+  ],
+  "IK_HoseOut": [
+   -197.5,
+   -27.5,
+   132.0
+  ],
+  "IK_Button_Rewind": [
+   -199.0,
+   -50.0,
+   112.0
+  ],
+  "PIV_Coupling": [
+   -201.5,
+   -6.0,
+   130.0
+  ],
+  "IK_Coupling_Hand": [
+   -201.5,
+   -6.0,
+   122.5
+  ],
+  "IK_Coupling_Ring": [
+   -201.5,
+   -6.0,
+   132.2
+  ],
+  "IK_Coupling_Mouth": [
+   -201.5,
+   -6.0,
+   137.5
+  ],
+  "IK_Coupling_Hose": [
+   -201.5,
+   -6.0,
+   115.5
+  ],
+  "IK_Coupling_Lever": [
+   -201.5,
+   -0.2,
+   120.0
+  ],
+  "IK_Panel_Screen": [
+   -182.5,
+   65.0,
+   162.0
+  ],
+  "IK_Button_PumpOn": [
+   -183.5,
+   77.0,
+   144.0
+  ],
+  "IK_Button_PumpOff": [
+   -183.5,
+   65.0,
+   144.0
+  ],
+  "IK_Button_Light": [
+   -183.5,
+   53.0,
+   144.0
+  ],
+  "IK_Button_EStop": [
+   -184.8,
+   25.0,
+   140.0
+  ],
+  "PIV_Lever_Valve": [
+   -187.0,
+   47.0,
+   118.0
+  ],
+  "IK_Lever_Valve": [
+   -192.5,
+   47.0,
+   134.5
+  ],
+  "IK_GloveBox": [
+   -194.0,
+   81.0,
+   133.0
+  ],
+  "IK_Rail_Back": [
+   -271.8,
+   -0.0,
+   200.0
+  ],
+  "IK_Rail_Right": [
+   -235.0,
+   92.8,
+   200.0
+  ],
+  "PIV_GatePlatform": [
+   -271.8,
+   -43.8,
+   169.0
+  ],
+  "IK_Handle_GatePlatform": [
+   -206.0,
+   -43.8,
+   192.0
+  ],
+  "IK_Step_Platform_0": [
+   -231.0,
+   -85.3,
+   37.3
+  ],
+  "IK_Step_Platform_1": [
+   -231.0,
+   -63.0,
+   69.8
+  ],
+  "IK_Grab_Platform_F": [
+   -203.0,
+   -93.0,
+   110.0
+  ],
+  "IK_Grab_Platform_R": [
+   -259.0,
+   -93.0,
+   110.0
+  ],
+  "IK_Stand_Steps": [
+   -231.0,
+   -155.0,
+   0.0
+  ],
+  "IK_Platform_In": [
+   -231.0,
+   -30.0,
+   100.0
+  ],
+  "IK_Platform_Work": [
+   -245.0,
+   25.0,
+   100.0
+  ],
+  "IK_PanelStand": [
+   -232.0,
+   47.0,
+   100.0
+  ],
+  "IK_ReelStand": [
+   -232.0,
+   -20.0,
+   100.0
+  ],
+  "IK_NamePanel_Rear": [
+   -276.5,
+   35.0,
+   125.0
+  ]
+ },
+ "parts": [
+  "BeaconLens",
+  "Body",
+  "CabFittings",
+  "Cabinet",
+  "Chock_0",
+  "Chock_1",
+  "Coupling",
+  "CouplingHolder",
+  "DoorDriver",
+  "DoorDriver_Glass",
+  "DoorDriver_Parts",
+  "DoorPassenger",
+  "DoorPassenger_Glass",
+  "DoorPassenger_Parts",
+  "GatePlatform",
+  "GlassFixed",
+  "HighBeam_L_Lens",
+  "HighBeam_R_Lens",
+  "HoseReel",
+  "HoseTail",
+  "HoseTurn_HoseReel_00",
+  "HoseTurn_HoseReel_01",
+  "HoseTurn_HoseReel_02",
+  "HoseTurn_HoseReel_03",
+  "HoseTurn_HoseReel_04",
+  "HoseTurn_HoseReel_05",
+  "HoseTurn_HoseReel_06",
+  "HoseTurn_HoseReel_07",
+  "HoseTurn_HoseReel_08",
+  "HoseTurn_HoseReel_09",
+  "HoseTurn_HoseReel_10",
+  "HoseTurn_HoseReel_11",
+  "HoseTurn_HoseReel_12",
+  "HoseTurn_HoseReel_13",
+  "IndicatorF_L_Lens",
+  "IndicatorF_R_Lens",
+  "IndicatorR_L_Lens",
+  "IndicatorR_R_Lens",
+  "Lever_Fill",
+  "Lever_Valve",
+  "LowBeam_L_Lens",
+  "LowBeam_R_Lens",
+  "NamePanel_Front",
+  "NamePanel_L",
+  "NamePanel_R",
+  "NamePanel_Rear",
+  "OuterFittings",
+  "PanelDoorL",
+  "Pedal_Accel",
+  "Pedal_Brake",
+  "PlatformParts",
+  "RearFog_Lens",
+  "Reverse_L_Lens",
+  "Reverse_R_Lens",
+  "Rim_FL",
+  "Rim_FR",
+  "Rim_RL",
+  "Rim_RR",
+  "Seats",
+  "SideMarker_L1_Lens",
+  "SideMarker_R1_Lens",
+  "Spindle_FL",
+  "Spindle_FR",
+  "SteeringWheel",
+  "TailBrake_L_Lens",
+  "TailBrake_R_Lens",
+  "TankParts",
+  "Tyre_FL",
+  "Tyre_FR",
+  "Tyre_RL",
+  "Tyre_RL_In",
+  "Tyre_RR",
+  "Tyre_RR_In",
+  "Underside",
+  "WiperL",
+  "WiperR",
+  "WorkLamp_Lens"
+ ],
+ "materials": [
+  "WT_Aluminium",
+  "WT_AmberLens",
+  "WT_BeltWebbing",
+  "WT_BlackPlastic",
+  "WT_Brass",
+  "WT_BumperPlastic",
+  "WT_Chassis_Paint",
+  "WT_DarkSteel",
+  "WT_DashPlastic",
+  "WT_DiamondPlate",
+  "WT_FloorMat",
+  "WT_Glass",
+  "WT_GreyTrimPlastic",
+  "WT_HeadLining",
+  "WT_HiVisRedReflector",
+  "WT_HiVisWhiteReflector",
+  "WT_HoseBlue",
+  "WT_Livery_Body_Paint",
+  "WT_Livery_Main_Paint",
+  "WT_MeterLcd",
+  "WT_MirrorGlass",
+  "WT_NamePanel_Paint",
+  "WT_PanelPaint",
+  "WT_Platform_Paint",
+  "WT_RedLens",
+  "WT_RedPaint",
+  "WT_Reflector",
+  "WT_RimSteel",
+  "WT_SafetyYellow_Paint",
+  "WT_Screen",
+  "WT_SealRubber",
+  "WT_SeatBolster",
+  "WT_SeatFabric",
+  "WT_SignBlack",
+  "WT_SignBlue.001",
+  "WT_SignRed",
+  "WT_SignWhite",
+  "WT_StainlessSteel",
+  "WT_Steel",
+  "WT_Tyre",
+  "WT_WhiteLens"
+ ],
+ "tris": 202298,
+ "flicker": "0 pairs fight"
+}

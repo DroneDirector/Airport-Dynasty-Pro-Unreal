@@ -249,6 +249,26 @@ axles +316.3 / -173.7, wheelbase 490, tyre radius 50.7. All points and numbers: 
 - **Not there:** truck, hydraulic, roller door, trolley sounds; castors do not swivel; the gate stays folded in the right rail (the fuselage closes the end); tail lift, rear roll-up door and galley boxes are not worked; the player cannot work the lift.
 - **Not checked:** everything in the game - hand reach to the outer rows and the rails, the signs of the levers, flap and rams, the drive between the wingtips.
 
+## Potable water truck, part A as built (to-do 212, 2026-11-24): model, blueprint, parking place - no code yet
+Model `Art/WaterTruck` (make_watertruck.py) on `Tools/small_truck.py` = the small chassis and cab it shares with the toilet truck (own cab skin; materials, seat, mudguard from `truck_cab.py`), blueprint
+`docs/Blueprints/Apron/WaterTruck.*` (`Tools/make_smalltrucks_blueprint.py`), riders `Data/watertruck-riders.json`. 5.785 x 2.00 (2.51 over the mirrors) x 2.52 m with the beacon; x -287.6 .. 290.9, axles +172 / -128,
+wheelbase 300, tyre radius 38.3. Every point: `Art/WaterTruck/watertruck-parts.json` (`points_cm`: root, Unreal cm, y right; `hose`, `a320`).
+**What part B (driving, crew, IK) must know**
+- **Place:** `ABabylonModel::Place("WaterTruck")`. Wheels FL FR RL RR, twin `Tyre_RL` + `Tyre_RL_In` (`Rim_RL` likewise); steering wheel, pedals, wipers, doors (hinge in front, 68), seats (2), names as the refueller.
+  **One** step: `IK_Step_DoorDriver` = `_Low` (44 cm), then the floor (82). HalfL 291, HalfW 101 (126 with mirrors), TurnR about 480 (38 deg is clear). Beacon 252 cm: it fits under the tail (belly 2.85 m and more there), never under the engines.
+- **Work platform** (fixed, floor 100): steps left `IK_Step_Platform_0/1` (37 / 70), hands `IK_Grab_Platform_F/R`, gate `GatePlatform` (about z through its PIV, 80 deg inwards = Blender -80), `IK_Handle_GatePlatform`, `IK_Platform_In`, `IK_PanelStand`, `IK_ReelStand`, `IK_Platform_Work`; rails `IK_Rail_Back/Right`.
+- **Coupling** = one part `Coupling` (PIV at its middle, held mouth up in the blue cup of `CouplingHolder`; grip `IK_Coupling_Hand`, twist ring `IK_Coupling_Ring`, lever `IK_Coupling_Lever`, hose at `IK_Coupling_Hose`, mouth `IK_Coupling_Mouth`). Hose 28 mm, 13.8 m on `HoseReel` (about y through `PIV_HoseReel`;
+  turns `HoseTurn_HoseReel_00..13`, the outer layer is 07..13: hide from 13 down); it leaves at `IK_HoseOut`; `HoseTail` is the stowed piece (hide it, draw the hose out). Reel-in button `IK_Button_Rewind`.
+- **Panel:** `IK_Button_PumpOn / PumpOff / Light / EStop`, `Lever_Valve` (about y), `IK_Panel_Screen`, gloves `IK_GloveBox`. **Fill point** (left side, hinge in front): `PanelDoorL` 110 deg, `IK_FillCoupling`, `Lever_Fill` (about x).
+- **Own chocks** `Chock_0/1` in the right tray (`IK_Chock_*`, `IK_Stand_Chocks`, down at `IK_ChockPlace_0/1`).
+- **Name:** `NamePanel_L/R` (156 x 30, `IK_Name_L/R`), `NamePanel_Front` (110 x 8.5), `NamePanel_Rear` (106 x 20, `IK_NamePanel_Rear`). Livery paints `WT_Livery_Body_Paint`, `WT_Livery_Main_Paint` (blue).
+- **At the A320:** water door 171AL, 31.3 m behind the nose, 0.3 m LEFT of the middle, 2.6 m up (Airbus AC 5-4-9); on our model 26.2 m behind the nose wheel, belly 2.93 m (it stands 0.33 high). Suggested stand: behind it, nose to the tail, the truck's middle 1.2 m left, rear bar 26.4 m behind the nose wheel
+  (truck 26.4 .. 32.2 behind; the tail is 3.1 m and more above it there), come and go from behind-left. The worker stands at the platform's left side and reaches 1.9 m above its floor, 0.6 m out. `Turnaround.cpp` has the task `water`.
+- **Hygiene (owner):** water works on the LEFT and parks on the WEST side, toilet works on the RIGHT and parks on the EAST side; hoses, couplings and crews never mix.
+- **Parking place (chosen, not drawn yet):** middle (-256.8, 117.0), facing north, box x -258.2..-255.4, y 113.5..120.5. The shared `SvcDriveHome` loop (TurnR 480) comes down x -247.2 (the van's own way in), round at y 132..127, straight back; 1.6 m to the catering box's end (y 140.5),
+  18 m north of the van's box. B checks the van's way out (straight north on x -259.6 would pass 0.2 m beside this box) and moves the box 1 m east if it needs it. Worked out on paper, not driven.
+- **Not there:** no electric small truck, pump or reel sound checked for; no free photo of a small water truck found (the body follows lavatory trucks' photos and makers' figures); nothing run in the game.
+
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
 | Where | Today | Replace with | Nobody free |
