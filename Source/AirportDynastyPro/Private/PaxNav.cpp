@@ -123,7 +123,7 @@ namespace
 		Add(FString::Printf(TEXT("%.1f %.2f %.2f"), D->TileSizeUU, D->GetCellSize(ENavigationDataResolution::Default), D->GetCellHeight(ENavigationDataResolution::Default)));
 		for (const FBox& B : Areas) Add(FString::Printf(TEXT("%.0f %.0f %.0f %.0f %.0f %.0f"), B.Min.X, B.Min.Y, B.Min.Z, B.Max.X, B.Max.Y, B.Max.Z));
 		auto AddFile = [&C](const FString& F) { TArray<uint8> B; if (FFileHelper::LoadFileToArray(B, *F, FILEREAD_Silent)) C = FCrc::MemCrc32(B.GetData(), B.Num(), C); };
-		for (const TCHAR* N : {TEXT("terminal-plan.json"), TEXT("terminal-layout.json"), TEXT("babylon-terminal.json"), TEXT("babylon-jetways.json"), TEXT("escalator.json"), TEXT("airfield.json")})
+		for (const TCHAR* N : {TEXT("terminal-plan.json"), TEXT("terminal-layout.json"), TEXT("babylon-terminal.json"), TEXT("babylon-jetways.json"), TEXT("escalator.json"), TEXT("airfield.json"), TEXT("terminal-props.json")})
 		{
 			const FString F = FPaths::ProjectContentDir() / TEXT("Data") / N;
 			AddFile(FPaths::FileExists(F) ? F : FPaths::ProjectDir() / TEXT("Data") / N);

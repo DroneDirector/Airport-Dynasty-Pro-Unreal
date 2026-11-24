@@ -1207,7 +1207,13 @@ void APaxFlow::WayToSecurity(FPx& P)
 	if (P.Desk > 0) Dx = DeskSpot(P.Desk, 0).X / 100.f;
 	const float Wt = Dx < 73.f ? 62.35f : 78.95f, DoorX = Wt < 70.f ? 62.f : 78.f, J = float(P.Jit.X) / 100.f;
 	if (P.Desk > 0) { const float S = Wt > Dx ? 1.f : -1.f; P.Way.Reset(); P.Wi = 0; Add(Dx + S * 1.04f, 14.4f); Add(Dx + S * 1.04f, 9.8f); }
-	Add(Wt + J * 1.2f, 9.8f); Add(Wt + J * 1.2f, 21.8f); Add(DoorX + J * 2.f, 28.8f); Add(DoorX + J * 2.f, 30.9f);
+	Add(Wt + J * 1.2f, 9.8f); Add(Wt + J * 1.2f, 21.8f);
+	// (the door's boarding-pass e-gates, sheet 2b: five cabinets at DoorX -2.8 .. +2.8, z 26.35..27.45, four 1.0 m lanes between
+	//  them at DoorX -2.1 / -0.7 / +0.7 / +2.1 - Tools/terminal_hallfit_edit.py; into one lane, the pass on its reader facing
+	//  the door, a moment, through)
+	const float Lx = DoorX + (float(FMath::Clamp(int32((J + 0.45f) / 0.9f * 4.f), 0, 3)) - 1.5f) * 1.4f;
+	Add(Lx, 25.6f); { FWp W; W.P = PW(Lx, 0, 26.45f); W.Pause = 1.f; W.Face = FVector(0, -1, 0); P.Way.Add(W); } Add(Lx, 28.3f);
+	Add(DoorX + J * 2.f, 28.8f); Add(DoorX + J * 2.f, 30.9f);
 }
 
 void APaxFlow::WayScreening(FPx& P)

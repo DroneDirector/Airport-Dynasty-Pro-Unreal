@@ -3,12 +3,364 @@
  "props": [
   {
    "id": "KIOSK-1",
-   "what": "self check-in kiosk (Art/Kiosk, Tools/set_kiosk.py)",
+   "what": "self check-in kiosk (Art/Kiosk, Tools/set_kiosk.py), Grand Hall row 1 of 6 (sheet 2b; West Wing part 3), facing the check-in islands",
    "mesh": "/Game/Terminal/Props/Kiosk/SM_CheckinKiosk/StaticMeshes/SM_CheckinKiosk.SM_CheckinKiosk",
-   "x": 70.0,
-   "z": 9.0,
+   "x": 58.075,
+   "z": 5.6,
    "floor": 1,
-   "heading": 0,
+   "heading": 180,
+   "modelFrontYaw": 90,
+   "clear": {
+    "front": 1.5,
+    "sides": 0.6,
+    "back": 0.6
+   },
+   "lights": [
+    {
+     "what": "the green status lamp on top of the handle (owner: a faint glow, the floor only faintly lit)",
+     "at": [
+      0,
+      0,
+      169
+     ],
+     "color": [
+      0.15,
+      1.0,
+      0.45
+     ],
+     "lumens": 3,
+     "radius": 90
+    }
+   ]
+  },
+  {
+   "id": "KIOSK-2",
+   "what": "self check-in kiosk (Art/Kiosk, Tools/set_kiosk.py), Grand Hall row 1 of 6 (sheet 2b; West Wing part 3), facing the check-in islands",
+   "mesh": "/Game/Terminal/Props/Kiosk/SM_CheckinKiosk/StaticMeshes/SM_CheckinKiosk.SM_CheckinKiosk",
+   "x": 59.325,
+   "z": 5.6,
+   "floor": 1,
+   "heading": 180,
+   "modelFrontYaw": 90,
+   "clear": {
+    "front": 1.5,
+    "sides": 0.6,
+    "back": 0.6
+   },
+   "lights": [
+    {
+     "what": "the green status lamp on top of the handle (owner: a faint glow, the floor only faintly lit)",
+     "at": [
+      0,
+      0,
+      169
+     ],
+     "color": [
+      0.15,
+      1.0,
+      0.45
+     ],
+     "lumens": 3,
+     "radius": 90
+    }
+   ]
+  },
+  {
+   "id": "KIOSK-3",
+   "what": "self check-in kiosk (Art/Kiosk, Tools/set_kiosk.py), Grand Hall row 1 of 6 (sheet 2b; West Wing part 3), facing the check-in islands",
+   "mesh": "/Game/Terminal/Props/Kiosk/SM_CheckinKiosk/StaticMeshes/SM_CheckinKiosk.SM_CheckinKiosk",
+   "x": 60.575,
+   "z": 5.6,
+   "floor": 1,
+   "heading": 180,
+   "modelFrontYaw": 90,
+   "clear": {
+    "front": 1.5,
+    "sides": 0.6,
+    "back": 0.6
+   },
+   "lights": [
+    {
+     "what": "the green status lamp on top of the handle (owner: a faint glow, the floor only faintly lit)",
+     "at": [
+      0,
+      0,
+      169
+     ],
+     "color": [
+      0.15,
+      1.0,
+      0.45
+     ],
+     "lumens": 3,
+     "radius": 90
+    }
+   ]
+  },
+  {
+   "id": "KIOSK-4",
+   "what": "self check-in kiosk (Art/Kiosk, Tools/set_kiosk.py), Grand Hall row 1 of 6 (sheet 2b; West Wing part 3), facing the check-in islands",
+   "mesh": "/Game/Terminal/Props/Kiosk/SM_CheckinKiosk/StaticMeshes/SM_CheckinKiosk.SM_CheckinKiosk",
+   "x": 61.825,
+   "z": 5.6,
+   "floor": 1,
+   "heading": 180,
+   "modelFrontYaw": 90,
+   "clear": {
+    "front": 1.5,
+    "sides": 0.6,
+    "back": 0.6
+   },
+   "lights": [
+    {
+     "what": "the green status lamp on top of the handle (owner: a faint glow, the floor only faintly lit)",
+     "at": [
+      0,
+      0,
+      169
+     ],
+     "color": [
+      0.15,
+      1.0,
+      0.45
+     ],
+     "lumens": 3,
+     "radius": 90
+    }
+   ]
+  },
+  {
+   "id": "KIOSK-5",
+   "what": "self check-in kiosk (Art/Kiosk, Tools/set_kiosk.py), Grand Hall row 1 of 6 (sheet 2b; West Wing part 3), facing the check-in islands",
+   "mesh": "/Game/Terminal/Props/Kiosk/SM_CheckinKiosk/StaticMeshes/SM_CheckinKiosk.SM_CheckinKiosk",
+   "x": 63.075,
+   "z": 5.6,
+   "floor": 1,
+   "heading": 180,
+   "modelFrontYaw": 90,
+   "clear": {
+    "front": 1.5,
+    "sides": 0.6,
+    "back": 0.6
+   },
+   "lights": [
+    {
+     "what": "the green status lamp on top of the handle (owner: a faint glow, the floor only faintly lit)",
+     "at": [
+      0,
+      0,
+      169
+     ],
+     "color": [
+      0.15,
+      1.0,
+      0.45
+     ],
+     "lumens": 3,
+     "radius": 90
+    }
+   ]
+  },
+  {
+   "id": "KIOSK-6",
+   "what": "self check-in kiosk (Art/Kiosk, Tools/set_kiosk.py), Grand Hall row 1 of 6 (sheet 2b; West Wing part 3), facing the check-in islands",
+   "mesh": "/Game/Terminal/Props/Kiosk/SM_CheckinKiosk/StaticMeshes/SM_CheckinKiosk.SM_CheckinKiosk",
+   "x": 64.325,
+   "z": 5.6,
+   "floor": 1,
+   "heading": 180,
+   "modelFrontYaw": 90,
+   "clear": {
+    "front": 1.5,
+    "sides": 0.6,
+    "back": 0.6
+   },
+   "lights": [
+    {
+     "what": "the green status lamp on top of the handle (owner: a faint glow, the floor only faintly lit)",
+     "at": [
+      0,
+      0,
+      169
+     ],
+     "color": [
+      0.15,
+      1.0,
+      0.45
+     ],
+     "lumens": 3,
+     "radius": 90
+    }
+   ]
+  },
+  {
+   "id": "KIOSK-7",
+   "what": "self check-in kiosk (Art/Kiosk, Tools/set_kiosk.py), Grand Hall row 2 of 6 (sheet 2b; West Wing part 3), facing the check-in islands",
+   "mesh": "/Game/Terminal/Props/Kiosk/SM_CheckinKiosk/StaticMeshes/SM_CheckinKiosk.SM_CheckinKiosk",
+   "x": 85.075,
+   "z": 5.6,
+   "floor": 1,
+   "heading": 180,
+   "modelFrontYaw": 90,
+   "clear": {
+    "front": 1.5,
+    "sides": 0.6,
+    "back": 0.6
+   },
+   "lights": [
+    {
+     "what": "the green status lamp on top of the handle (owner: a faint glow, the floor only faintly lit)",
+     "at": [
+      0,
+      0,
+      169
+     ],
+     "color": [
+      0.15,
+      1.0,
+      0.45
+     ],
+     "lumens": 3,
+     "radius": 90
+    }
+   ]
+  },
+  {
+   "id": "KIOSK-8",
+   "what": "self check-in kiosk (Art/Kiosk, Tools/set_kiosk.py), Grand Hall row 2 of 6 (sheet 2b; West Wing part 3), facing the check-in islands",
+   "mesh": "/Game/Terminal/Props/Kiosk/SM_CheckinKiosk/StaticMeshes/SM_CheckinKiosk.SM_CheckinKiosk",
+   "x": 86.325,
+   "z": 5.6,
+   "floor": 1,
+   "heading": 180,
+   "modelFrontYaw": 90,
+   "clear": {
+    "front": 1.5,
+    "sides": 0.6,
+    "back": 0.6
+   },
+   "lights": [
+    {
+     "what": "the green status lamp on top of the handle (owner: a faint glow, the floor only faintly lit)",
+     "at": [
+      0,
+      0,
+      169
+     ],
+     "color": [
+      0.15,
+      1.0,
+      0.45
+     ],
+     "lumens": 3,
+     "radius": 90
+    }
+   ]
+  },
+  {
+   "id": "KIOSK-9",
+   "what": "self check-in kiosk (Art/Kiosk, Tools/set_kiosk.py), Grand Hall row 2 of 6 (sheet 2b; West Wing part 3), facing the check-in islands",
+   "mesh": "/Game/Terminal/Props/Kiosk/SM_CheckinKiosk/StaticMeshes/SM_CheckinKiosk.SM_CheckinKiosk",
+   "x": 87.575,
+   "z": 5.6,
+   "floor": 1,
+   "heading": 180,
+   "modelFrontYaw": 90,
+   "clear": {
+    "front": 1.5,
+    "sides": 0.6,
+    "back": 0.6
+   },
+   "lights": [
+    {
+     "what": "the green status lamp on top of the handle (owner: a faint glow, the floor only faintly lit)",
+     "at": [
+      0,
+      0,
+      169
+     ],
+     "color": [
+      0.15,
+      1.0,
+      0.45
+     ],
+     "lumens": 3,
+     "radius": 90
+    }
+   ]
+  },
+  {
+   "id": "KIOSK-10",
+   "what": "self check-in kiosk (Art/Kiosk, Tools/set_kiosk.py), Grand Hall row 2 of 6 (sheet 2b; West Wing part 3), facing the check-in islands",
+   "mesh": "/Game/Terminal/Props/Kiosk/SM_CheckinKiosk/StaticMeshes/SM_CheckinKiosk.SM_CheckinKiosk",
+   "x": 88.825,
+   "z": 5.6,
+   "floor": 1,
+   "heading": 180,
+   "modelFrontYaw": 90,
+   "clear": {
+    "front": 1.5,
+    "sides": 0.6,
+    "back": 0.6
+   },
+   "lights": [
+    {
+     "what": "the green status lamp on top of the handle (owner: a faint glow, the floor only faintly lit)",
+     "at": [
+      0,
+      0,
+      169
+     ],
+     "color": [
+      0.15,
+      1.0,
+      0.45
+     ],
+     "lumens": 3,
+     "radius": 90
+    }
+   ]
+  },
+  {
+   "id": "KIOSK-11",
+   "what": "self check-in kiosk (Art/Kiosk, Tools/set_kiosk.py), Grand Hall row 2 of 6 (sheet 2b; West Wing part 3), facing the check-in islands",
+   "mesh": "/Game/Terminal/Props/Kiosk/SM_CheckinKiosk/StaticMeshes/SM_CheckinKiosk.SM_CheckinKiosk",
+   "x": 90.075,
+   "z": 5.6,
+   "floor": 1,
+   "heading": 180,
+   "modelFrontYaw": 90,
+   "clear": {
+    "front": 1.5,
+    "sides": 0.6,
+    "back": 0.6
+   },
+   "lights": [
+    {
+     "what": "the green status lamp on top of the handle (owner: a faint glow, the floor only faintly lit)",
+     "at": [
+      0,
+      0,
+      169
+     ],
+     "color": [
+      0.15,
+      1.0,
+      0.45
+     ],
+     "lumens": 3,
+     "radius": 90
+    }
+   ]
+  },
+  {
+   "id": "KIOSK-12",
+   "what": "self check-in kiosk (Art/Kiosk, Tools/set_kiosk.py), Grand Hall row 2 of 6 (sheet 2b; West Wing part 3), facing the check-in islands",
+   "mesh": "/Game/Terminal/Props/Kiosk/SM_CheckinKiosk/StaticMeshes/SM_CheckinKiosk.SM_CheckinKiosk",
+   "x": 91.325,
+   "z": 5.6,
+   "floor": 1,
+   "heading": 180,
    "modelFrontYaw": 90,
    "clear": {
     "front": 1.5,
