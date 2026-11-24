@@ -143,7 +143,7 @@ Models `Art/CleaningVan` (make_cleaningvan.py) and `Art/CleaningKit` (make_clean
 - **Wipers** (rain, drive on), **pedals**, the right foot on the pressed one, hands going round with the wheel: shared, for the crew and for you.
 - **Livery:** `SvcLivery` puts `FADPAirline::LiveryBody / LiveryMain` ("#rrggbb") on the model's livery paint. NOTHING sets those two yet: no vehicle in the game takes the
   airline's colours so far and the airline has no colours; empty = the model's own.
-- **Holomap:** every vehicle and cart of AGSE with its nose (`AGSE::MapShapes`). **Glow:** the body's shell (parts `Body*`) of the one in the middle of your view.
+- **Holomap:** every vehicle and cart of AGSE with its nose (`AGSE::MapShapes`). (The glow was taken out again: the owner wants none on vehicles.)
 - **Not checked:** all of it in the game; the mirrored climb on the passenger's side, the wipers on the curved glass (they lift about 1 cm), the glow's thin line round a van.
 
 ### How to add the next vehicle (fuel, catering, water, toilet, stairs, de-icing, ambulift)
@@ -155,7 +155,7 @@ Models `Art/CleaningVan` (make_cleaningvan.py) and `Art/CleaningKit` (make_clean
    (`Lat`, `Aft`, `Far`; right of the aircraft = negative), size, turning circle, doors, things carried, seats, name panels; `bJetway` false for work at the vehicle.
 5. `Turnaround.cpp`: the three `clean` lines (`SvcFor` / `SvcAsk`, `SvcGo`, `SvcBusy`) for its task id.
 6. Work of its own (hoses, a lifting body): a branch in `SvcCabin` (what `bIn` / `RowsDone` mean for it) and its moving parts in `SvcParts`.
-7. Yours too, without code: parts `Body*` (glow), `Pedal_Accel` / `Pedal_Brake` with `PIV_Pedal_*`, `IK_Foot_Brake`; in the table `Cab` (a seat with its own door), `Wipers` (part prefix,
+7. Yours too, without code: parts `Pedal_Accel` / `Pedal_Brake` with `PIV_Pedal_*`, `IK_Foot_Brake`; in the table `Cab` (a seat with its own door), `Wipers` (part prefix,
    pivot, the blade end's place lying down and wiped up), `LiveryBody` / `LiveryMain` (material names), `PlayerSpeed`; `Doors[1..]` are the load doors, a vehicle with none leaves only `Doors[0]`.
    Nothing of its own may hide or show in view: put what changes behind `bUsed` / `SvcRestock`. Hoses and tanks have no hook yet: step 6.
 8. Free places: check `Lat` / `Aft` against the van's and the belt loader's (right, 19.6 m aft), the train's (right, ahead of the wing), the GPU, tug and rack boxes.
@@ -181,10 +181,27 @@ Model `Art/Refueller` (make_refueller.py; cab skin by the new `Tools/vehicle_ski
 - **Bonding first:** `BondReel` (spin about `PIV_BondReel`, crank `IK_BondReel_Crank`), `BondClamp` (in the hand, `IK_BondClamp`), `BondTail` (hide), thin cable from `IK_BondOut`. **Chocks:** `Chock_0/1` (`IK_Chock_*`) to `IK_ChockPlace_0/1` (before / behind the left drive wheel).
   **Extinguishers** `Extinguisher_L/R`, shut-offs `IK_EmergencyL/R`.
 - **Name:** `NamePanel_L/R` (240 x 42 cm, `IK_Name_L/R`), `NamePanel_Front` (124 x 8.5), `NamePanel_Rear` (60 x 13, `IK_Name_Rear`). Livery paints `RF_Livery_Body_Paint`, `RF_Livery_Main_Paint` (a fuel company's truck: leave them unless the owner wants the airline's).
-- **Parking place (no fuel farm, depot or fuel stand exists in any plan, to-do or airfield.json):** middle (-261.8, 128.0), facing north, box x -263.75..-259.85, y 121.9..134.1: 14 m west of stand 9's line (x -245.4), 1.25 m inside
+- **Parking place (MOVED in part B to (-260.2, 146))** - part A had chosen **(no fuel farm, depot or fuel stand exists in any plan, to-do or airfield.json):** middle (-261.8, 128.0), facing north, box x -263.75..-259.85, y 121.9..134.1: 14 m west of stand 9's line (x -245.4), 1.25 m inside
   the apron edge (x -265), 27 m north of the cleaning van's box and 9 m north of where the van turns, 39 m from the terminal, no mast near. With x -261.8 the shared `SvcDriveHome` loop (2 x 6.6 m beside the box) just fits between the apron edge and stand 9's line
   (worst outer corner about x -265.2 / -245.2, y 133..143): B checks it in `Apron()`. It crosses the mouth of ROAD-TOWER (x -250, y 171).
 - **Not there:** no diesel truck, pump, reel or scissor sound checked for; nothing run in the game; the tank top has no ladder of its own (nobody goes up there).
+
+## Aircraft refueller, part B as built (to-do 212, 2026-11-24, compiled, NOT run)
+`Private/GSEFuel.cpp`, `Public/GSEFuel.h` (its own parts and work), one table line in `GSEService.cpp`, hooks in `GSE*`, `ServiceDrive`, `StaffPeople`, `TugStaff`, `Turnaround`, `ADPEconomy`.
+- **Parking box moved** to (-260.2, 146), facing north: beside stand 9 the shared loop only fitted by centimetres (a 10 m truck sweeps 18.7 m). New shared way home, `HomeRoad`: along the
+  service road past the corner onto the tower road's mouth, backed round it and 18 m straight back; 0.6 - 2 m of paving outside its swept path (worked out, not driven).
+- **At the stand:** 11.08 m right, 7.45 m behind the nose wheel, facing the terminal, the platform under the coupling. In: down a lane 19.5 m out, two 9 m bends behind the wing, straight under the
+  outer wing (3.18 m under 3.75 m); out: backed the same way (new table fields `InLat/InAft/InR`). Swept with its mirrors: 1.1 m and more from cones, engine, belt loader, train.
+- **Coupling (measured on Art/A320/A320.glb):** 9.9 m out, 11.75 m behind the nose wheel, wing underside 3.80 m. The wing has NO modelled coupling or panel. Platform 38 cm up: rails 2.93 m.
+- **Work, in stages** (a relief goes on from the last finished one): two chocks, bonding clamp on the main gear leg, panel door and hose valve, (last passenger off), nozzle + hose, platform, on,
+  down, pump lever, dead man held, off, hose wound in, valve, door, clamp, chocks, home. Hose, bonding cable, dead man lead: `UCableComponent`; reels, hose turns, needles, litres move.
+- **Fuel:** `ADPEconomy::LegFuelKg` is the one number: what `BookLeg` charges is what is pumped (0.8 kg a litre, 1000 l a minute, at most 19500 l); Turnaround's `fuel` task lasts as long.
+- **Waits:** the flight waits with the reason (called / connecting / litres / disconnecting / leaving). Boarding does not wait, as before. `fuel` waits for the chocks like the other vehicles.
+- **People:** one hired fuel driver (`EStaffDuty::FuelDriver`, role fuel, `b3D` true); fewer than two hired, other airlines, stands over 36 m: data with its time, as before.
+- **Yours:** E at both cab doors (two-step climb, shared with the crew), right locker door by E; the driver's seat never while its driver has the hose out. The panel (pump) is not worked by you.
+- **No glow on any vehicle** (owner): `SvcGlow` and its hook removed.
+- **Not there:** truck, pump, reel, scissor sounds; a second bought fuel truck is not a second vehicle in 3D; no fuel farm (filled up by 30 s shut in its box).
+- **Not checked:** everything in the game - the way under the wing, the steps of the platform, the hose on the rail, the clamp reach over the wheel, the wipers' upper place (worked out), the turn signs of the levers.
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 

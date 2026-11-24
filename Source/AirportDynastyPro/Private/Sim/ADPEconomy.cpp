@@ -38,6 +38,8 @@ void ADPEconomy::Pay(FADPWorld& W, const FString& AirlineId, const FDateTime& At
 	if (FADPAirline* A = W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == AirlineId; })) A->Balance += Amount;
 }
 
+double ADPEconomy::LegFuelKg(const FString& TypeId, double BlockMin) { const FADPTypeInfo* T = ADPWorldData::Type(TypeId); return T ? T->BurnKgH * (BlockMin / 60.0) * 0.92 : 0.0; }
+
 void ADPEconomy::BookLeg(FADPWorld& W, const FADPFlight& F, const FDateTime& At)
 {
 	const FADPTypeInfo* T = ADPWorldData::Type(F.TypeId);
@@ -53,7 +55,7 @@ void ADPEconomy::BookLeg(FADPWorld& W, const FADPFlight& F, const FDateTime& At)
 	// income
 	Pay(W, F.AirlineId, At, TEXT("revenue"), F.Revenue * KI, Leg + TEXT(": tickets and cargo"), F.Id);
 	// fuel: the type's burn for the time flown (taxiing burns little), at the departure airport's price
-	const double FuelKg = T->BurnKgH * BlockH * 0.92;
+	const double FuelKg = LegFuelKg(F.TypeId, F.DurMin + F.HoldMin);
 	// (hedged fuel first, already paid for - to-do 185)
 	Pay(W, F.AirlineId, At, TEXT("fuel"), -ADPNetwork::FuelCost(W, F.AirlineId, FuelKg, FuelPrice(F.From, At) * W.FuelIndex) * KC, FString::Printf(TEXT("%s: fuel %.0f kg"), *Leg, FuelKg), F.Id);
 	// fees: landing by weight and airport size, parking, handling per passenger and per turnaround, air navigation by

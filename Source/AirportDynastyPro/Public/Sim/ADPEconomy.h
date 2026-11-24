@@ -15,6 +15,8 @@ namespace ADPEconomy
 	void Pay(FADPWorld& W, const FString& AirlineId, const FDateTime& At, const TCHAR* Kind, double Amount, const FString& What, const FString& Link = FString());
 	/** Fuel price (USD per kg) at an airport. */
 	double FuelPrice(const FString& Icao, const FDateTime& When);
+	/** The fuel of a leg (kg), what BookLeg charges and what the refueller pumps. */
+	double LegFuelKg(const FString& TypeId, double BlockMin);
 	/** A new loan: the money in now, a fixed instalment every month (annuity). */
 	void TakeLoan(FADPWorld& W, const FString& AirlineId, double Amount, double RateYear, int32 Months, const FDateTime& At);
 	/** A new aircraft: bought outright (the price now) or leased (two months' rent as deposit, then the rent monthly).

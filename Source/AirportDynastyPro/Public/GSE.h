@@ -33,6 +33,7 @@ class ATugs;
 class UAudioComponent;
 class UInstancedStaticMeshComponent;
 struct FDriverPose;
+struct FSvcRefuel;
 
 UCLASS()
 class AIRPORTDYNASTYPRO_API AGSE : public AActor
@@ -96,6 +97,7 @@ public:
 		TWeakObjectPtr<class AServiceDrive> Player; int32 PlayerSeat = INDEX_NONE;   // (you in it: ServiceDrive.h; 0 the driver's seat, then the crew's, then the Cab seats)
 		float SteerWant = 0.f, BackT = 0.f, PedalA = 0.f, PedalB = 0.f, WipeT = 0.f, WipeNow = 0.f, RainIn = 0.f, BoxT = 0.f; bool bRain = false, bUsed = false;   // (bUsed: full bags or used rolls in it - exchanged shut in its box)
 		int32 GPedal[2] = {INDEX_NONE, INDEX_NONE}, LoadWant = INDEX_NONE; TArray<int32> GWiper; FString Livery;
+		TSharedPtr<FSvcRefuel> Fu;        // (the refueller's own parts: GSEFuel.cpp)
 		TMap<FString, FVector> Pt;        // (a service vehicle's named points, root cm: Data/<vehicle>-riders.json)
 		struct FSvcDoor { int32 G = INDEX_NONE; FVector Piv = FVector::ZeroVector; float Now = 0.f, Want = 0.f; };
 		TArray<FSvcDoor> SvcDoors;        // (as the table's doors: 0 shut .. 1 open)
@@ -245,15 +247,13 @@ public:
 	bool SvcUse(APawn* Me, FString& Say);
 	/** The vehicles and carts on the holomap (plan metres). */
 	void MapShapes(TArray<FVector4f>& Out) const;
-	/** The interaction outline's pieces of the service vehicles standing free. */
-	void SvcGlow(TArray<TTuple<class UInstancedStaticMeshComponent*, int32, uint64>>& Out) const;
 	/** The turnaround planner's bulk hold task (Turnaround.cpp): the belt loader to that stand. */
 	void BulkHold(float StandX, const FString& Key) { EnsureLoader(StandX, Key); }
 	/** The service vehicles (cabin cleaning first; docs/Hired-Crew-Plan.md): your own flight's turnaround task. Ask: from 8 min
 	 *  before it is due and then every tick - true once its people are on the way (false: it waits for them). Go: the work
 	 *  itself may start. Busy: not finished. SvcFor: this task is worked in 3D by people of yours. */
 	bool SvcFor(const TCHAR* Task, float StandX) const;
-	bool SvcAsk(const TCHAR* Task, float StandX, const FString& Reg, const FString& Flight, const FDateTime& When);
+	bool SvcAsk(const TCHAR* Task, float StandX, const FString& Reg, const FString& Flight, const FDateTime& When, float Litres = 0.f);
 	void SvcGo(const TCHAR* Task, float StandX);
 	bool SvcBusy(const TCHAR* Task, float StandX) const;
 	/** The aircraft is gone: what had not started is dropped. */
@@ -266,6 +266,7 @@ private:
 		int32 Svc = 0, Ti = INDEX_NONE, Jet = INDEX_NONE; float StandX = 0.f, RowT = 0.f; FString Reg, Flight, Why; FDateTime When;
 		uint8 Phase = 0;                  // 0 waits for its people, 1 on the way, 2 at the stand, 3 going back
 		bool bGo = false, bFetch = false; FVector Place = FVector::ZeroVector; float PlaceYaw = 0.f; int32 Rows = 30, RowsDone = 0; float T = 0.f; TArray<FSvcMan> Men;
+		int32 Stage = 0; float Litres = 0.f, Pumped = 0.f; TArray<FVector> InWay;   // (the refueller's work; the way in, backed out again)
 	};
 	TMap<int32, FSvcJob> SvcJobs; int32 SvcNext = 1; float SvcClock = 0.f;
 	TMap<int32, TPair<int8, int32>> SvcStairUse;   // (a jetway's service stair: which way it is walked now, and by how many)
@@ -297,6 +298,18 @@ private:
 	void SvcHome(int32 Job);
 	void SvcDriveHome(int32 Job, TFunction<void()> Then);
 	void SvcRestock(FTractor& T);
+	// ---- the refueller (GSEFuel.cpp)
+	void FuelDress(FTractor& T);
+	void FuelParts(FTractor& T, float Dt);
+	void FuelTick(FSvcJob& J, float Dt);
+	void FuelArrive(int32 Job);
+	void SvcFuelWork(int32 Job);
+	void FuelLost(int32 Job);
+	void FuelUpDown(int32 Ci, int32 Ti, bool bUp);
+	TFunction<void(float, float, FDriverPose&)> FuelPlatFn(int32 Ti, bool bUp) const;
+	/** The driver's way into a tall cab (two steps: a point IK_Step_DoorDriver_Low). */
+	TFunction<void(float, float, FDriverPose&)> TallClimbFn(int32 Ti, bool bIn) const;
+	bool IsTall(const FTractor& T) const { return T.Pt.Contains(TEXT("IK_Step_DoorDriver_Low")); }
 	void SvcLivery(FTractor& T);
 	/** The vehicle standing at its place for its crew (not with you). */
 	bool SvcHere(int32 Job) const;

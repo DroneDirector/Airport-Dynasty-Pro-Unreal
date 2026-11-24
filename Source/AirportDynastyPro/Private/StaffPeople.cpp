@@ -85,13 +85,14 @@ void UStaffPeople::Deinitialize() { ADPSchedule::Waiting3D = nullptr; Asks.Reset
 
 // ------------------------------------------------------------------ the pool
 
-const TCHAR* UStaffPeople::RoleOf(EStaffDuty D) { return D == EStaffDuty::CleanDriver || D == EStaffDuty::Cleaner ? TEXT("cleaning") : TEXT("ground"); }   // (one ramp role does all but the cleaning)
+const TCHAR* UStaffPeople::RoleOf(EStaffDuty D) { return D == EStaffDuty::CleanDriver || D == EStaffDuty::Cleaner ? TEXT("cleaning") : D == EStaffDuty::FuelDriver ? TEXT("fuel") : TEXT("ground"); }   // (one ramp role does all but the cleaning and the fuel)
 const TCHAR* UStaffPeople::DutyName(EStaffDuty D)
 {
 	switch (D)
 	{
 	case EStaffDuty::CleanDriver: return TEXT("cleaning van driver");
 	case EStaffDuty::Cleaner: return TEXT("aircraft cleaner");
+	case EStaffDuty::FuelDriver: return TEXT("fuel truck driver");
 	case EStaffDuty::TugDriver: return TEXT("tug driver");
 	case EStaffDuty::PushbackHandler: return TEXT("pushback handler");
 	case EStaffDuty::WingWalker: return TEXT("wing walker");
@@ -106,6 +107,7 @@ const TCHAR* UStaffPeople::TaskName(EStaffTask T)
 	switch (T)
 	{
 	case EStaffTask::Cleaning: case EStaffTask::CleanRelief: return TEXT("cabin cleaning");
+	case EStaffTask::Fuel: return TEXT("refuelling");
 	case EStaffTask::Gpu: return TEXT("ground power");
 	case EStaffTask::BagsOut: return TEXT("bags out to the aircraft");
 	case EStaffTask::BagsIn: return TEXT("bags in from the aircraft");
@@ -126,6 +128,7 @@ void UStaffPeople::Needs(EStaffTask T, TArray<FNeed>& Out)
 	case EStaffTask::Loader: Add(EStaffDuty::LoaderOperator, 1, 1); Add(EStaffDuty::BaggageHandler, 0, 1); break;
 	case EStaffTask::Bags: Add(EStaffDuty::TractorDriver, 1, 1); Add(EStaffDuty::LoaderOperator, 1, 1); Add(EStaffDuty::BaggageHandler, 0, 2); break;
 	case EStaffTask::Cleaning: Add(EStaffDuty::CleanDriver, 1, 1); Add(EStaffDuty::Cleaner, 1, 3); break;
+	case EStaffTask::Fuel: Add(EStaffDuty::FuelDriver, 1, 1); break;
 	case EStaffTask::CleanRelief: Add(EStaffDuty::Cleaner, 1, 1); break;
 	case EStaffTask::Relief: Add(EStaffDuty::BaggageHandler, 1, 1); break;
 	case EStaffTask::Pushback: Add(EStaffDuty::TugDriver, 1, 1); Add(EStaffDuty::PushbackHandler, 1, 1); Add(EStaffDuty::WingWalker, 0, 3); break;

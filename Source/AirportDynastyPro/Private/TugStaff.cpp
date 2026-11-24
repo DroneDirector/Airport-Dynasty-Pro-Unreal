@@ -193,7 +193,7 @@ void ATugs::LostTick(int32 Ci, float Dt)
 	C.LostAsk = 2.f;
 	UStaffPeople* Sp = UStaffPeople::Get(GetWorld()); if (!Sp) return;
 	TArray<UStaffPeople::FTaken> Team;
-	if (!Sp->AskTeam(FString::Printf(TEXT("relief:%d"), Ci), C.bRelClean ? EStaffTask::CleanRelief : EStaffTask::Relief, FDateTime(2000, 1, 1), C.LastAt, FString::Printf(TEXT("taking over from %s"), *C.Name), Team) || !Team.Num() || !Team[0].A.IsValid()) return;
+	if (!Sp->AskTeam(FString::Printf(TEXT("relief:%d"), Ci), C.bRelFuel ? EStaffTask::Fuel : C.bRelClean ? EStaffTask::CleanRelief : EStaffTask::Relief, FDateTime(2000, 1, 1), C.LastAt, FString::Printf(TEXT("taking over from %s"), *C.Name), Team) || !Team.Num() || !Team[0].A.IsValid()) return;
 	const FString Was = C.Name;
 	C.A = Team[0].A; C.StaffId = Team[0].Id; C.Name = Sp->NameOf(C.StaffId); C.bLost = false; C.bRelief = true; C.T = 0.f; C.BlockT = C.StuckT = C.SideT = 0.f;
 	C.Spot = C.Anchor = C.A->GetActorLocation();

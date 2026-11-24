@@ -17,6 +17,9 @@ struct FServiceSpec
 	EStaffTask Team = EStaffTask(0);                        // its smallest team (StaffPeople::Needs)
 	int32 MaxPeople = 2;                                    // with the driver (seats)
 	float HomeX = 0.f, HomeY = 0.f, HomeHx = 0.f, HomeHy = 1.f;   // its parking box (plan m; Airfield.cpp draws it)
+	float HomeRoad = 0.f;                                   // m along its way to a road it comes along: it backs round that corner into its box (0: the loop beside the box)
+	float InLat = 0.f, InAft = 0.f, InR = 0.f;              // not straight in: down this line from Far, then (from InAft on) over to Lat in two bends of InR cm, backed out the same way (0: straight)
+	bool bFuel = false;                                     // the refueller (GSEFuel.cpp)
 	float Lat = 0.f, Aft = 0.f, Far = 40.f;                 // its place at the stand: m left (+) of the centre line, m behind the nose wheel; driven up straight from Far
 	float HalfL = 300.f, HalfW = 103.f, TurnR = 600.f, MaxSteer = 35.f, DoorDeg = 70.f;
 	bool bJetway = false;                                   // the work is in the cabin: up the jetway's service stair

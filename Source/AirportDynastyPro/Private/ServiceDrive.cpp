@@ -245,7 +245,7 @@ FVector AGSE::SvcStandL(int32 Ti, int32 Seat) const
 }
 FVector AGSE::SvcStandW(int32 Ti, int32 Seat) const { const FVector W = TW(Tractors[Ti], SvcStandL(Ti, Seat)); return Plan(W.X / 100.f, -W.Y / 100.f); }
 float AGSE::SvcFaceYaw(int32 Ti, int32 Seat) const { return Tractors[Ti].Yaw + (SvcStandL(Ti, Seat).Y >= 0.f ? -90.f : 90.f); }
-float AGSE::SvcClimbTime(int32 Ti, int32 Seat, bool bIn) const { const FServiceSpec& S = SdSpec(Tractors[Ti].Svc); return Seat > 0 && SdCab(S, Seat) < 0 ? (bIn ? 5.f : 4.4f) : (bIn ? 3.2f : 2.8f); }
+float AGSE::SvcClimbTime(int32 Ti, int32 Seat, bool bIn) const { const FServiceSpec& S = SdSpec(Tractors[Ti].Svc); return Seat > 0 && SdCab(S, Seat) < 0 ? (bIn ? 5.f : 4.4f) : IsTall(Tractors[Ti]) ? (bIn ? 4.6f : 4.2f) : (bIn ? 3.2f : 2.8f); }
 
 void AGSE::SvcSeatDoor(int32 Ti, int32 Seat, bool bOpen)
 {
@@ -304,7 +304,7 @@ bool AGSE::SvcSeatFree(int32 Ti, int32 Seat, FString& Why) const
 	if (T.Speed > 2.f || T.Path.Num()) { Why = TEXT("it is driving"); return false; }
 	if (SdCab(S, Seat) >= 0 || T.Job == EJob::None) return true;   // (the seat beside the driver: nobody of its crew sits there)
 	// its crew have it: the driver's seat only while every one of them is up in the aircraft
-	if (Seat == 0 && T.Job == EJob::AtStand)
+	if (Seat == 0 && T.Job == EJob::AtStand && !S.bFuel)   // (the refueller: chocked, bonded, its hose on - never while its driver is at work)
 		for (const TPair<int32, FSvcJob>& P : SvcJobs)
 			if (P.Value.Ti == Ti && P.Value.Phase == 2)
 			{
@@ -417,14 +417,4 @@ void AGSE::MapShapes(TArray<FVector4f>& Out) const
 		Ln(O.C + F + S, O.C + F - S); Ln(O.C + F - S, O.C - F - S); Ln(O.C - F - S, O.C - F + S); Ln(O.C - F + S, O.C + F + S);
 		Ln(O.C + F * 0.4f + S, O.C + F); Ln(O.C + F, O.C + F * 0.4f - S);
 	}
-}
-
-void AGSE::SvcGlow(TArray<TTuple<UInstancedStaticMeshComponent*, int32, uint64>>& Out) const
-{
-	for (const FTractor& T : Tractors)
-		if (T.Svc != INDEX_NONE && T.M.IsValid() && !T.Player.IsValid() && T.Speed < 2.f)
-		{
-			TArray<TTuple<UInstancedStaticMeshComponent*, int32, FString>> F; T.M->InstancesNamed(TEXT("Body"), true, F);   // (the body's own shell: its outline is the vehicle's)
-			for (const auto& X : F) Out.Add(MakeTuple(X.Get<0>(), X.Get<1>(), uint64(UPTRINT(T.M.Get()))));
-		}
 }

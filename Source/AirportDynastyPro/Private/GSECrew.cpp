@@ -141,6 +141,7 @@ TFunction<void(float, float, FDriverPose&)> AGSE::SeatFn(int32 Ti) const
 
 TFunction<void(float, float, FDriverPose&)> AGSE::ClimbFn(int32 Ti, bool bIn) const
 {
+	if (IsTall(Tractors[Ti])) return TallClimbFn(Ti, bIn);   // (two steps)
 	// up the step through the door and round onto the seat (IK_Stand_Door, IK_Step, IK_Grab_Outside / _Inside, the cab floor)
 	return [this, Ti, bIn](float K0, float PH, FDriverPose& P)
 	{
@@ -181,7 +182,7 @@ void AGSE::ClimbIn(int32 Ci, int32 Ti, TFunction<void()> Then)
 	PoseAct(Ci, [this, Ti](float K, float PH, FDriverPose& P) { const FTractor& T = Tractors[Ti]; P = ADPPose::Reach(TW(T, T.KStand), FRotator(0.f, T.Yaw + 90.f, 0.f).Vector(), 1, TW(T, T.KHandle), 0.7f, PH, FMath::Sin(PI * K)); }, 1.0f);
 	Do(Ci, [this, Ti] { FTractor& T = Tractors[Ti]; T.DoorWant = Tractors[Ti].KDoorDeg; Sound(*T.SndDoorOpen, TW(T, T.KHandle + FVector(0.f, 0.f, 20.f))); });
 	Wait(Ci, 0.6f);
-	PoseAct(Ci, ClimbFn(Ti, true), 3.2f);
+	PoseAct(Ci, ClimbFn(Ti, true), IsTall(Tractors[Ti]) ? 4.6f : 3.2f);
 	Do(Ci, [this, Ci, Ti] { if (ATugs* G = Tg()) G->Crew[Ci].Hold = SeatFn(Ti); Tractors[Ti].DoorWant = 0.f; });
 	Wait(Ci, 1.0f);
 	if (Then) Do(Ci, MoveTemp(Then));
@@ -192,7 +193,7 @@ void AGSE::ClimbOut(int32 Ci, int32 Ti, TFunction<void()> Then)
 	Do(Ci, [this, Ti] { FTractor& T = Tractors[Ti]; T.DoorWant = Tractors[Ti].KDoorDeg; Sound(*T.SndDoorOpen, TW(T, T.KHandle + FVector(0.f, 0.f, 20.f))); });
 	Wait(Ci, 0.7f);
 	Do(Ci, [this, Ci] { if (ATugs* G = Tg()) G->Crew[Ci].Hold = nullptr; });
-	PoseAct(Ci, ClimbFn(Ti, false), 2.8f);
+	PoseAct(Ci, ClimbFn(Ti, false), IsTall(Tractors[Ti]) ? 4.2f : 2.8f);
 	// down: the door pushed shut behind
 	PoseAct(Ci, [this, Ti](float K, float PH, FDriverPose& P) { FTractor& T = Tractors[Ti]; P = ADPPose::Reach(TW(T, T.KStand), FRotator(0.f, T.Yaw + 90.f, 0.f).Vector(), 1, TW(T, T.KHandle + FVector(-5.f, -4.5f, 18.f)), 0.3f, PH, FMath::Sin(PI * K)); if (K > 0.4f) T.DoorWant = 0.f; }, 0.9f);
 	if (Then) Do(Ci, MoveTemp(Then));
