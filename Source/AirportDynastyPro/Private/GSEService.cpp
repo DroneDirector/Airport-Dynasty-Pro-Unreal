@@ -443,6 +443,7 @@ bool AGSE::SvcWaits(const FString& Flight, float StandX, FString& Why) const
 			if (bDown && FVector::Dist2D(Tv->At, J.Place) > 6000.f) continue;
 			Why = SvcYours(*Tv) ? FString::Printf(TEXT("you have the %s - its crew wait for it"), S.Label) : FString::Printf(TEXT("the %s's crew fetch it back"), S.Label); return true;
 		}
+		if (S.bStairs && J.Phase == 0 && StairsYou(J.StandX, J.CtDoor) != INDEX_NONE) { Why = TEXT("your passenger stairs stand at its door"); return true; }
 		if (S.bStairs) { if (J.Phase < 3 ? J.Phase > 0 || J.CtDoor == 0 : Tv && Tv->Job == EJob::AtStand) { Why = J.Phase == 0 ? FString::Printf(TEXT("the passenger stairs wait: %s"), J.Why.IsEmpty() ? TEXT("their people are being called") : *J.Why) : FString(J.Phase < 3 && J.Stage < 3 ? TEXT("the passenger stairs are coming") : TEXT("the passenger stairs are being taken away")); return true; } continue; }
 		if (J.Phase == 0) { Why = FString::Printf(TEXT("the %s waits: %s"), S.Label, J.Why.IsEmpty() ? TEXT("its people are being called") : *J.Why); return true; }
 		if (S.bFuel && J.Phase < 3) { Why = J.Phase < 2 ? FString(TEXT("the refueller is on its way")) : J.Stage < 4 ? FString(TEXT("the refueller is being connected")) : J.Stage > 4 ? FString(TEXT("the refueller is being disconnected")) : FString::Printf(TEXT("it is being fuelled (%.0f of %.0f l)"), J.Pumped, J.Litres); return true; }
@@ -513,7 +514,7 @@ void AGSE::SvcTick(float Dt)
 	}
 	if ((SvcClock += Dt) < 2.f) return;
 	SvcClock = 0.f;
-	TArray<int32> Start;
+	TArray<int32> Start, Take;
 	for (TPair<int32, FSvcJob>& P : SvcJobs)
 	{
 		FSvcJob& J = P.Value; if (J.Phase != 0) continue;
@@ -527,12 +528,26 @@ void AGSE::SvcTick(float Dt)
 			for (int32 i = 0; i < Tractors.Num() && !bFront; ++i)
 			{
 				const FTractor& V = Tractors[i]; if (V.Svc == INDEX_NONE || !SvSpec(V.Svc).bStairs || V.Job != EJob::None || !V.M.IsValid()) continue;
+				if (V.Ps && V.Ps->YouStandX > -1e5f) continue;   // (yours, at a door: below)
 				const int32 Sc = (SvcYours(V) || !StairsStowed(V) ? 0 : 2) + (SvSpec(V.Svc).bRoof == bWeather ? 1 : 0); if (Sc > Best) { Best = Sc; Ti = i; }
+			}
+		}
+		// (yours stand at its door: yours as long as you are there, and while the door is open; left there, its crew go on with them)
+		bool bTake = false;
+		if (S.bStairs)
+		{
+			const int32 Yi = StairsYou(J.StandX, J.CtDoor);
+			if (Yi != INDEX_NONE)
+			{
+				const FTractor& V = Tractors[Yi]; const FSvcStairs& F = *V.Ps;
+				if (F.bServed && !J.bGo) { J.Why = TEXT("your passenger stairs stand at its door"); continue; }
+				if (V.Player.IsValid() || F.LeftT < 120.f || F.Users > 0 || F.YouStandX < -1e5f) { J.Why = TEXT("you work with the passenger stairs"); continue; }
+				Ti = Yi; bTake = true;
 			}
 		}
 		if (Ti == INDEX_NONE) { J.Why = FString::Printf(TEXT("no %s free"), S.Label); continue; }
 		const FTractor& Tv = Tractors[Ti]; J.Svc = Tv.Svc;   // (any of the stairs)
-		if (S.bStairs && !StairsStowed(Tv)) { J.Why = TEXT("the stairs are up"); continue; }
+		if (S.bStairs && !bTake && !StairsStowed(Tv)) { J.Why = TEXT("the stairs are up"); continue; }
 		if (S.bAmbu && (!AmbuStowed(Tv) || Tv.Player.IsValid())) { J.Why = TEXT("you have the ambulift"); continue; }
 		if (YouServe(Tv.Svc, J.StandX)) { J.Why = FString::Printf(TEXT("you work with the %s"), S.Label); continue; }
 		if (S.bCater && (!CaterStowed(Tv) || Tv.Player.IsValid())) { J.Why = TEXT("you have the catering truck"); continue; }
@@ -541,7 +556,7 @@ void AGSE::SvcTick(float Dt)
 		const bool bHome = FVector::Dist2D(Tv.At, Tv.Home) < 200.f && FMath::Abs(FMath::FindDeltaAngleDegrees(Tv.Yaw, Tv.HomeYaw)) < 20.f;
 		if (bHome && Tv.bUsed) { J.Why = FString::Printf(TEXT("the %s is being %s"), S.Label, S.bFuel || S.bDeicer || S.Wet == 1 ? TEXT("filled up") : S.Wet == 2 ? TEXT("emptied") : TEXT("emptied and restocked")); continue; }
 		{ bool bOpen = false; for (const FTractor::FSvcDoor& D : Tv.SvcDoors) if (D.Now > 0.01f) bOpen = true; if (bOpen && Tv.Player.IsValid()) { J.Why = FString::Printf(TEXT("you are getting into the %s"), S.Label); continue; } }
-		if (!bHome) { TArray<FVector> W; if (!Apron(W, Tv.At, Plan(S.HomeX + S.HomeHx * 34.f, S.HomeY + S.HomeHy * 34.f), &Tv)) { J.Why = FString::Printf(TEXT("the %s stands where it cannot be driven from - bring it back to the apron"), S.Label); continue; } }
+		if (!bHome && !bTake) { TArray<FVector> W; if (!Apron(W, Tv.At, Plan(S.HomeX + S.HomeHx * 34.f, S.HomeY + S.HomeHy * 34.f), &Tv)) { J.Why = FString::Printf(TEXT("the %s stands where it cannot be driven from - bring it back to the apron"), S.Label); continue; } }
 		const FString Key = FString::Printf(TEXT("%s:%s%s"), S.Task, *J.Reg, (S.bStairs || S.bAmbu) && J.CtDoor ? TEXT(":2") : TEXT("")), What = FString::Printf(TEXT("%s %s"), J.Flight.IsEmpty() ? *J.Reg : *J.Flight, UStaffPeople::TaskName(S.Team));
 		TArray<UStaffPeople::FTaken> Team;
 		if (!Sp->AskTeam(Key, S.Team, J.When - FTimespan::FromMinutes(20.0), Tractors[Ti].At, What, Team)) { J.Why = Sp->WaitsFor(Key); continue; }
@@ -554,9 +569,10 @@ void AGSE::SvcTick(float Dt)
 			G->Crew[M.Ci].bGse = true; M.Seat = Men.Num(); Men.Add(M);
 		}
 		if (Men.Num() < FMath::Min(2, S.MaxPeople)) { for (const FSvcMan& M : Men) G->Discharge(M.Ci); J.Why = TEXT("no place for more people"); continue; }
-		J.Men = Men; J.Ti = Ti; J.Phase = 1; J.Why.Reset(); Tractors[Ti].Job = EJob::Boarding; Start.Add(P.Key);
+		J.Men = Men; J.Ti = Ti; J.Phase = 1; J.Why.Reset(); Tractors[Ti].Job = EJob::Boarding; (bTake ? Take : Start).Add(P.Key);
 	}
 	for (const int32 Job : Start) SvcStart(Job);
+	for (const int32 Job : Take) StairsTake(Job);
 	for (auto It = SvcJobs.CreateIterator(); It; ++It) if (It.Value().Phase == 9) It.RemoveCurrent();
 }
 

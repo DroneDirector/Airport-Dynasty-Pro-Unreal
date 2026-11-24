@@ -442,6 +442,9 @@ riders `Data/ambulift-riders.json`, `Data/wheelchair-riders.json`, all points an
 - Hired drivers: `CabTick` (brake, gear, beacon, lights back to normal); indicators as they steer (`Lamps`).
 - Merged (hand goes there, nothing moves): gear and park brake of catering, fuel, water, toilet; van gear; stairs and de-icer park brake; stalks; horn hub. Levers that move: ambulift three, de-icer gear + PTO, stairs gear.
 - No part (key only): van park brake; hazard, beacon, work-light, headlight switches (ambulift has three buttons). Merged, not built: sun visors, glove boxes, heater knobs, window switches. Only lens glow: service vehicles have no light beams.
+- Passenger stairs, open and roofed (compiled, NOT run): `AGSE::StairsControls()`, `YouStairs`, `StairsHeld`, `StairsTake` (end of GSEStairs.cpp). Legs and stairs by the two cab levers (the stair lever's line tells how far the nearest door is and stops 3 cm under its sill), gates by their handles from the platform, three emergency stops (cab, ground, platform). Nothing moves with anybody on it, up stops before an obstacle, legs stop over a foot; the platform's front opens only at a door. E at the ground panel (old part B) is gone: the model has only a stop there.
+- At a door (5 cm too far in to 40 cm short, 35 cm aside, 5 degrees) yours counts with the gates out level with the sill; it stays until the flight sends stairs away, off blocks waits for it, gone over 8 m = done. Left over 2 min and 40 m: its crew take over where it stands; no flight there: it stows itself.
+- Not in the model, so not built: chocks, cones, hand pump, lockers, side flaps, lower gate, canopy flaps, light switch, ground controls. Merged: the stop buttons (do not sink), platform buttons `IK_Plat_Btn0/1` (green, unlabelled: not used, levelling with you on it is forbidden).
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 

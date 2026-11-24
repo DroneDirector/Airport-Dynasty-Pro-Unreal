@@ -408,7 +408,6 @@ bool AGSE::SvcUse(APawn* Me, FString& Say)
 		for (int32 c = 0; c < S.Cab.Num(); ++c) Try(SvcP(T, S.Cab[c].Door.Stand), 1 + S.Seats.Num() + c, false);
 		if (S.Seats.Num() && S.Doors.Num()) Try(SvcP(T, S.Doors[0].Stand), S.Seats.Num(), false);
 		for (int32 d = 1; d < S.Doors.Num(); ++d) Try(SvcP(T, S.Doors[d].Stand), 0, true);
-		if (S.bStairs) Try(SvcP(T, TEXT("IK_Stand_GroundEStop")), 0, true);   // (its ground panel: the stairs up and down)
 	}
 	if (Bt == INDEX_NONE) return false;
 	FTractor& T = Tractors[Bt];
@@ -417,7 +416,6 @@ bool AGSE::SvcUse(APawn* Me, FString& Say)
 		// the load space's doors: open or shut (one leaf after the other, SvcParts) - never while its crew are at it
 		bool bCrew = false; for (const TPair<int32, FSvcJob>& P : SvcJobs) if (P.Value.Ti == Bt && P.Value.Phase < 9) { FString Y; bCrew = !SvcSeatFree(Bt, 0, Y) && !SvcYours(T); }
 		if (bCrew) { Say = TEXT("Its crew are at work"); return true; }
-		if (SdSpec(T.Svc).bStairs) { StairsToggle(Bt, Say); return true; }
 		if (T.Ct && (T.Ct->Lift > 0.f || T.Ct->LiftWant > 0.f)) { Say = TEXT("Its body is up"); return true; }   // (a catering truck's side door)
 		T.LoadWant = T.SvcDoors[1].Want < 0.5f ? 1 : 0; return true;
 	}

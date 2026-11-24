@@ -174,6 +174,7 @@ private:
 	static TSharedPtr<FVehTable> WaterControls();
 	static TSharedPtr<FVehTable> ToiletControls();
 	static TSharedPtr<FVehTable> CaterControls();
+	static TSharedPtr<FVehTable> StairsControls();
 	void YouCater(FTractor& T, float Dt);
 	bool CaterStowed(const FTractor& T) const;
 	bool CaterHeld(const FTractor& T, int32 Part, float To) const;   // (that part can't move that way: somebody under it, the aircraft, the stop)
@@ -413,7 +414,13 @@ private:
 	void StairsLost(int32 Job, int32 m);
 	void StairsLever(int32 Ci, int32 Ti, int32 Lever, float Tip, TFunction<void()> Fn, TFunction<bool()> Done);
 	/** You at its ground panel. */
-	void StairsToggle(int32 Ti, FString& Say);
+	// yours (to-do 238): not that way now (0 legs, 1 stairs: somebody on it, somebody under a leg, the aircraft); its state at a door;
+	// the vehicle of yours at that door (-1: either door), the job waiting there, its crew go on with what you left there
+	bool StairsHeld(const FTractor& T, int32 M, float To) const;
+	void YouStairs(FTractor& T, float Dt);
+	int32 StairsYou(float StandX, int32 Door) const;
+	const struct FSvcJob* StairsJob(float StandX, int32 Door) const;
+	void StairsTake(int32 Job);
 	void StairsSteps(const FTractor& T, TArray<FVector>& Out) const;
 	// ---- the ambulift (GSEAmbulift.cpp, GSEAmbuliftWork.cpp)
 	TSet<FString> AmbuDone; TMap<int32, FString> AmbuFlown;   // (flights done; a job's flight)

@@ -9,6 +9,7 @@
 #include "ServiceVehicles.h"
 #include "Tugs.h"
 #include "CrewPose.h"
+#include "VehicleControls.h"
 #include "ADPLog.h"
 #include "BabylonModel.h"
 #include "Components/BoxComponent.h"
@@ -103,16 +104,14 @@ void AGSE::StairsParts(FTractor& T, float Dt)
 	// the cab's dial: 270 degrees for 30 km/h
 	const float Kmh = FMath::Clamp(T.Speed * 0.036f, 0.f, 32.f);
 	if (FMath::Abs(Kmh - F.WasSpeed) > 0.1f) { F.WasSpeed = Kmh; Put(F.GNeedle, FTransform(PsRot(FVector::ForwardVector, -9.f * Kmh), SvcP(T, TEXT("PIV_Needle_Speed")))); }
-	// yours at its panel: the same order by itself (legs, stairs, gates - and back)
-	if (F.bYours)
-	{
-		if (F.YourN > 0.f) { F.JackWant = PsStroke; if (F.Jack >= PsStroke) F.NWant = F.YourN; F.GateWant = F.N >= F.YourN && F.bGatesWant ? PsGate : 0.f; }
-		else { F.GateWant = 0.f; if (F.Gate <= 0.f) F.NWant = 0.f; if (F.N <= 0.f) F.JackWant = 0.f; if (StairsStowed(T)) F.bYours = false; }
-	}
+	if (T.Job == EJob::None) YouStairs(T, Dt);
+	// left open by you: it stows itself, in its crew's order
+	if (F.bYours) { F.GateWant = 0.f; if (F.Gate <= 0.f) F.NWant = 0.f; if (F.N <= 0.f) F.JackWant = 0.f; if (StairsStowed(T)) F.bYours = false; }
 	const float WasN = F.N, WasJ = F.Jack, WasG = F.Gate;
-	F.Jack = FMath::FInterpConstantTo(F.Jack, F.JackWant > 0.f || F.N > 0.f ? PsStroke : 0.f, Dt, 3.f);
+	const float Jw = F.N > 0.f ? PsStroke : F.JackWant;
+	if (F.Jack != Jw && !F.bStop && !StairsHeld(T, 0, Jw)) F.Jack = FMath::FInterpConstantTo(F.Jack, Jw, Dt, 3.f);
 	// (never without its legs on the ground, never with its gates out, never under people)
-	if (F.Jack >= PsStroke && F.Gate <= 0.f && F.Users <= 0 && !F.bHelperUp) F.N = FMath::FInterpConstantTo(F.N, F.NWant, Dt, 0.4f);
+	if (F.N != F.NWant && F.Jack >= PsStroke && F.Gate <= 0.f && !F.bStop && !StairsHeld(T, 1, F.NWant)) F.N = FMath::FInterpConstantTo(F.N, F.NWant, Dt, 0.4f);
 	F.Gate = FMath::FInterpConstantTo(F.Gate, F.N > 0.f && F.N == F.NWant ? F.GateWant : 0.f, Dt, 12.f);
 	const float Lw[2] = {F.N > WasN ? 20.f : F.N < WasN ? -20.f : 0.f, F.Jack > WasJ ? -20.f : F.Jack < WasJ ? 20.f : 0.f};
 	for (int32 l = 0; l < 2; ++l) if (F.Lev[l] != Lw[l]) { F.Lev[l] = FMath::FInterpConstantTo(F.Lev[l], Lw[l], Dt, 80.f); Put(F.GLever[l], FTransform(PsRot(FVector::RightVector, F.Lev[l]), SvcP(T, l ? TEXT("PIV_LegLever") : TEXT("PIV_StairLever")))); }
@@ -121,7 +120,7 @@ void AGSE::StairsParts(FTractor& T, float Dt)
 	{
 		Put(F.GGate, FTransform(PsStep * F.N + FVector(F.Gate, 0.f, 0.f)));
 		// (the front is open only with the gates out at an aircraft)
-		if (UBoxComponent* B = F.Front.Get()) B->SetCollisionEnabled(F.Gate > 8.f ? ECollisionEnabled::NoCollision : ECollisionEnabled::QueryOnly);
+		if (UBoxComponent* B = F.Front.Get()) B->SetCollisionEnabled(F.Gate > 8.f && (T.Job != EJob::None || F.YouStandX > -1e5f) ? ECollisionEnabled::NoCollision : ECollisionEnabled::QueryOnly);
 	}
 	if (F.N != WasN || F.bLive)
 	{
@@ -206,6 +205,10 @@ bool AGSE::StairsBusy(float StandX, bool bLeaving, FString& Why) const
 	for (const TPair<int32, FSvcJob>& P : SvcJobs)
 	{
 		const FSvcJob& J = P.Value; if (!PsSpec(J.Svc).bStairs || FMath::Abs(J.StandX - StandX) > 1.f || J.T > 2700.f) continue;
+		// (yours: ready with the gates out at its door; before off blocks they have to be gone)
+		const int32 Yi = J.Phase == 0 ? StairsYou(J.StandX, J.CtDoor) : INDEX_NONE;
+		if (Yi != INDEX_NONE && bLeaving) { Why = TEXT("your passenger stairs still stand at its door"); return true; }
+		if (Yi != INDEX_NONE && J.CtDoor == 0) { if (Tractors[Yi].Ps->bServed) continue; Why = TEXT("you bring the passenger stairs to its door"); return true; }
 		if (!bLeaving)
 		{
 			if (J.CtDoor != 0 || J.Phase >= 3 || J.Stage >= 3) continue;
@@ -295,6 +298,7 @@ void AGSE::StairsWork(int32 Job)
 	switch (J->Stage)
 	{
 	case 0:
+		F().bStop = false;   // (left pressed: pulled out)
 		// chocked, engines off, nothing moving, its helper out beside it (at most four minutes)
 		WaitFor(Ci, [this, Job, Sx](float E)
 		{
@@ -322,7 +326,7 @@ void AGSE::StairsWork(int32 Job)
 		StairsLever(Ci, Ti, 1, -20.f, [F] { F().JackWant = PsStroke; }, [F] { return F().Jack >= PsStroke; });
 		Wait(Ci, 0.6f);
 		StairsLever(Ci, Ti, 0, 20.f, [F] { F().NWant = F().Target; }, [F] { return F().N == F().NWant; });
-		Do(Ci, [Stage] { Stage(2); }); break;
+		Do(Ci, [F, Stage] { Stage(F().N == F().NWant ? 2 : 1); }); break;   // (you stand on it still: again)
 	case 2:   // (its helper goes up and opens the gates)
 		WaitFor(Ci, [F](float E) { return F().bReady || E > 300.f; });
 		Do(Ci, [this, Job, F, Stage] { FSvcStairs& X = F(); if (!X.bReady) { X.GateWant = PsGate; X.bReady = true; } if (const FSvcJob* Y = SvcJ(Job)) ADP_LOG(TEXT("GSE: the passenger stairs are ready at %s"), *Y->Reg); Stage(3); }); break;
@@ -339,7 +343,7 @@ void AGSE::StairsWork(int32 Job)
 		Do(Ci, [F, Stage] { Stage(F().N <= 0.f ? 6 : 5); }); break;
 	default:
 		StairsLever(Ci, Ti, 1, 20.f, [F] { F().JackWant = 0.f; }, [F] { return F().Jack <= 0.f; });
-		Do(Ci, [this, Job] { Later([this, Job] { SvcLeave(Job); }); }); break;
+		Do(Ci, [this, Job, F, Stage] { if (F().Jack > 0.f) { Stage(6); return; } Later([this, Job] { SvcLeave(Job); }); }); break;
 	}
 	Wait(Ci, 0.4f);
 }
@@ -404,6 +408,17 @@ void AGSE::StairsHelper(int32 Job)
 		WaitFor(Ci, [this, Job](float) { const FSvcJob* X = SvcJ(Job); return !X || X->Stage >= 4 || X->Phase != 2; });
 		Again(); return;
 	}
+	else if (J->Stage == 4 && J->Phase == 2 && F().Gate > 0.f)
+	{
+		// (you left them open: up, the gates shut, down)
+		Do(Ci, [this, Job] { if (FSvcMan* X = SvcM(Job, 1)) X->bOut = true; });
+		At(FVector(-380.f, 180.f, 0.f), 40.f); At(SvcP(Tractors[Ti], TEXT("IK_Foot")) + FVector(-20.f, 26.f, 0.f), 12.f);
+		Walk(true);
+		Gates(false);
+		On(TEXT("IK_Plat_Nose"), -26.f);
+		Walk(false);
+		At(FVector(-420.f, 60.f, 0.f), 25.f); At(FVector(-380.f, 180.f, 0.f), 40.f);
+	}
 	if (M->bSeated) return;
 	At(FVector(60.f, 260.f, 0.f), 30.f);
 	WaitFor(Ci, [this, Job](float) { const FSvcJob* X = SvcJ(Job); return !X || X->Phase == 3; });
@@ -424,25 +439,212 @@ void AGSE::StairsLost(int32 Job, int32 m)
 
 // ------------------------------------------------------------------ yours
 
-void AGSE::StairsToggle(int32 Ti, FString& Say)
+namespace
 {
-	// E at its ground panel: legs down and up to the aircraft in front of it (none near: 3.5 m), or all the way down again
-	if (!Tractors.IsValidIndex(Ti) || !Tractors[Ti].Ps) return;
-	FTractor& T = Tractors[Ti]; FSvcStairs& F = *T.Ps;
-	if (T.Job != EJob::None) { Say = TEXT("Its crew are at work"); return; }
-	if (T.Player.IsValid() || T.Speed > 1.f) { Say = TEXT("Somebody is driving it"); return; }
-	if (F.bYours && F.YourN > 0.f) { F.YourN = 0.f; F.bGatesWant = false; return; }
-	if (FVector::Dist2D(T.At, T.Home) < 200.f) { Say = TEXT("Drive it out of its box first"); return; }
-	F.YourN = (350.f - PsPlat) / 19.f; F.bGatesWant = false;
-	for (const FAirfieldData::FStand& St : AAirfield::Shared().Stands)
+	enum : int32 { PsMLegs, PsMStairs, PsMGates };                                                     // (motions)
+	enum : int32 { PsSPlat = 1, PsSGround, PsSCab };                                                   // (the three stops: one circuit)
+	enum : int32 { PsFChassis, PsFUp, PsFGate, PsFStair, PsFLeg };                                     // (pieces)
+	bool PsStands(const FSvcStairs& F) { return F.YouStandX > -1e5f; }
+}
+
+bool AGSE::StairsHeld(const FTractor& T, int32 M, float To) const
+{
+	if (!T.Ps) return false; const FSvcStairs& F = *T.Ps; const UWorld* W = GetWorld();
+	// never with anybody on it
+	if (T.YouOn && W) T.YouStopAt = W->GetTimeSeconds();
+	if (T.YouOn || F.Users > 0 || F.bHelperUp) return true;
+	if (M == PsMLegs)
 	{
-		if (FVector::Dist2D(Plan(St.X, St.Nose), T.At) > 6000.f) continue;
-		for (int32 d = 0; d < 2; ++d)
-		{
-			FVector2f At, Hd; float N = 0.f; if (!StairsDock(St.X, d, float(T.At.Z), At, Hd, N)) continue;
-			const FVector2f Me(float(T.At.X) / 100.f, float(-T.At.Y) / 100.f); if (FVector2f::Distance(Me, At) > 1.2f) continue;
-			F.YourN = FMath::Max(0.01f, N); F.bGatesWant = FVector2f::Distance(Me, At) < 0.5f;
-		}
+		// (a foot under a pad; the pads' places: passengerstairs-riders.json)
+		if (To <= F.Jack) return false;
+		for (const TCHAR* P : {TEXT("IK_Stab_FL"), TEXT("IK_Stab_FR"), TEXT("IK_Stab_RL"), TEXT("IK_Stab_RR")}) { const FVector C = SvcP(T, P); if (CaterUnder(T, C - FVector(24.f, 24.f, 60.f), C + FVector(24.f, 24.f, 170.f))) return true; }
+		return false;
 	}
-	F.bYours = true;
+	// up, by you: not into the aircraft or anything else before its bumper and its rails (its crew stand where StairsDock says)
+	if (M != PsMStairs || T.Job != EJob::None || To <= F.N || !W) return false;
+	FCollisionQueryParams Q; Q.AddIgnoredActor(T.M.Get()); if (const APlayerController* PC = W->GetFirstPlayerController()) if (PC->GetPawn()) Q.AddIgnoredActor(PC->GetPawn());
+	const FVector U = PsStep * F.N;
+	for (const float Y : {-90.f, 0.f, 90.f}) for (const float Z : {-8.f, 55.f, 105.f, 200.f})
+	{
+		if (Z > 150.f && !PsSpec(T.Svc).bRoof) continue;
+		const float X = Z < 0.f ? PsFront + 4.f : Z > 150.f ? 187.f : 178.f;   // (the bumper's, the rails' and the visor's front)
+		FHitResult Hit; if (W->LineTraceSingleByChannel(Hit, TW(T, U + FVector(90.f, Y, PsPlat + Z)), TW(T, U + FVector(X, Y, PsPlat + Z + 3.f)), ECC_Pawn, Q) && !Hit.bStartPenetrating) return true;
+	}
+	return false;
+}
+
+int32 AGSE::StairsYou(float StandX, int32 Door) const
+{
+	for (int32 i = 0; i < Tractors.Num(); ++i)
+	{
+		const FTractor& T = Tractors[i]; if (!T.Ps || T.Job != EJob::None) continue; const FSvcStairs& F = *T.Ps;
+		if ((PsStands(F) && FMath::Abs(F.YouStandX - StandX) < 1.f && (Door < 0 || F.YouDoor == Door)) || (F.bServed && FMath::Abs(F.ServedX - StandX) < 1.f && (Door < 0 || F.ServedDoor == Door))) return i;
+	}
+	return INDEX_NONE;
+}
+
+const AGSE::FSvcJob* AGSE::StairsJob(float StandX, int32 Door) const
+{
+	for (const TPair<int32, FSvcJob>& P : SvcJobs) if (P.Value.Phase == 0 && PsSpec(P.Value.Svc).bStairs && P.Value.CtDoor == Door && FMath::Abs(P.Value.StandX - StandX) < 1.f) return &P.Value;
+	return nullptr;
+}
+
+void AGSE::YouStairs(FTractor& T, float Dt)
+{
+	FSvcStairs& F = *T.Ps; const APlayerController* PC = GetWorld()->GetFirstPlayerController(); const APawn* Me = PC ? PC->GetPawn() : nullptr;
+	const bool bAway = !T.Player.IsValid() && !T.YouOn && (!Me || FVector::Dist2D(Me->GetActorLocation(), T.At) > 4000.f);
+	F.LeftT = bAway ? F.LeftT + Dt : 0.f;
+	if (F.Users > 0 && (F.UserT += Dt) > 180.f) { ADP_WARN(TEXT("GSE: %d people were counted on your passenger stairs for 3 min with nobody new - counted off"), F.Users); F.Users = 0; F.UserT = 0.f; }
+	const bool bHome = FVector::Dist2D(T.At, T.Home) < 200.f;
+	if ((F.DockT += Dt) < 1.f || (!T.Player.IsValid() && bHome && !F.bServed)) return;
+	F.DockT = 0.f;
+	// which aircraft's door it stands at, or how far the nearest one is (once a second, parked; only the stands round it)
+	const float Was = F.YouStandX; F.YouStandX = -1e6f; F.bNear = false; double Best = 800.0, ServedD = 1e6;
+	if (T.Speed < 5.f)
+		for (const FAirfieldData::FStand& St : AAirfield::Shared().Stands)
+		{
+			if (FVector::Dist2D(Plan(St.X, St.Nose), T.At) > 4500.f) continue;
+			for (int32 d = 0; d < 2; ++d)
+			{
+				FVector2f At, Hd; float N = 0.f; if (!StairsDock(St.X, d, float(T.At.Z), At, Hd, N)) break;   // (no aircraft there)
+				const FVector Fw = FRotator(0.f, T.Yaw, 0.f).Vector(), D = Plan(At.X, At.Y) - T.At; const double Dist = D.Size2D();
+				if (F.bServed && FMath::Abs(F.ServedX - St.X) < 1.f && F.ServedDoor == d) ServedD = Dist;
+				if (Dist > Best) continue;
+				Best = Dist; F.bNear = true; F.Ahead = float(D | Fw); F.Aside = float(D.X * -Fw.Y + D.Y * Fw.X);
+				F.Turn = FMath::FindDeltaAngleDegrees(T.Yaw, FMath::RadiansToDegrees(FMath::Atan2(-Hd.Y, Hd.X)));
+				// (as near as the gates reach: 5 cm too far in, 40 cm short; square to it)
+				if (F.Ahead > -5.f && F.Ahead < 40.f && FMath::Abs(F.Aside) < 35.f && FMath::Abs(F.Turn) < 5.f) { F.YouStandX = St.X; F.YouDoor = d; F.YouN = N; }
+				else F.YouStandX = -1e6f;
+			}
+		}
+	else ServedD = F.bServed ? 400.0 : 1e6;
+	if (PsStands(F) != (Was > -1e5f)) F.bLive = true;   // (the platform's front: open or shut)
+	if (PsStands(F) && !F.bServed && F.Gate >= PsGate * 0.99f && FMath::Abs(F.N - F.YouN) <= 0.5f)
+	{
+		F.bServed = true; F.ServedX = F.YouStandX; F.ServedDoor = F.YouDoor; T.bUsed = true;
+		ADP_LOG(TEXT("GSE: your %s is ready at the %s left door of the aircraft at stand x %.0f"), *T.Name, F.YouDoor ? TEXT("rear") : TEXT("front"), F.YouStandX);
+	}
+	if (F.bServed && ServedD > 800.0)
+	{
+		// taken away by you: done, when they were sent away (the aircraft gone without a word: its crew's job is gone with it)
+		for (auto It = SvcJobs.CreateIterator(); It; ++It)
+		{
+			const FSvcJob& J = It.Value(); if (J.Phase != 0 || !PsSpec(J.Svc).bStairs || J.CtDoor != F.ServedDoor || FMath::Abs(J.StandX - F.ServedX) > 1.f) continue;
+			if (J.bGo || !WetPlane(J.StandX)) { ADP_LOG(TEXT("GSE: %s had its passenger stairs from you"), *J.Reg); It.RemoveCurrent(); }
+			break;
+		}
+		F.bServed = false; F.ServedX = -1e6f;
+	}
+}
+
+void AGSE::StairsTake(int32 Job)
+{
+	// what you left at an aircraft's door: its driver and helper walk there and go on from how it stands
+	FSvcJob* J = SvcJ(Job); if (!J || !Tractors.IsValidIndex(J->Ti) || !Tractors[J->Ti].Ps) return;
+	FTractor& T = Tractors[J->Ti]; FSvcStairs& F = *T.Ps; float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(J->StandX, S, N, Sp);
+	TArray<FVector> W;
+	// (the way out again, as if they had come in)
+	if (StairsIn(*J, N + PsSpec(J->Svc).Far, W) && W.Num()) { const FVector A = W.Last(); for (int32 i = 1; i <= 12; ++i) J->InWay.Add(FMath::Lerp(A, T.At, i / 12.f)); }
+	else { J->InWay.Reset(); J->bGo = true; }
+	T.Driver = J->Men[0].Ci; T.JobT = 0.f; T.StandX = J->StandX; T.Key = J->Flight.IsEmpty() ? J->Reg : J->Flight; bWorked = true;
+	T.Job = EJob::AtStand; J->Phase = 2; J->Place = T.At; J->PlaceYaw = T.Yaw; J->Stage = !J->bGo ? 1 : F.N > 0.f || F.Gate > 0.f ? 4 : 6;
+	F.bYours = F.bServed = F.bStop = F.bReady = false; F.YouStandX = F.ServedX = -1e6f; F.LeftT = 0.f; F.bLive = true;
+	ADP_LOG(TEXT("GSE: a crew go on with the %s you left at %s"), *T.Name, *J->Reg);
+	for (int32 m = 0; m < J->Men.Num(); ++m) HiredWay(J->Men[m].Ci, T.At, 0.f);
+	StairsWork(Job); StairsHelper(Job);
+}
+
+TSharedPtr<FVehTable> AGSE::StairsControls()
+{
+	using K = FVehControl;
+	TSharedPtr<FVehTable> Tb = MakeShared<FVehTable>(); TArray<K>& Cs = Tb->Controls;
+	auto Mo = [&Cs](const TCHAR* Part, const TCHAR* Pt, K::EKind Kind, const TCHAR* Lb, int32 Fr, const FVector& Out, int32 M, float B, bool bSeat) { K X; X.Part = Part; X.Point = Pt; X.Kind = Kind; X.Label = Lb; X.Frame = Fr; X.Out = Out; X.Motion = M; X.A = 0.f; X.B = B; X.bSeat = bSeat; X.bGrip = true; Cs.Add(X); };
+	auto Sw = [&Cs](const TCHAR* Pt, int32 Fr, const FVector& Out, int32 S, bool bSeat) { K X; X.Part = TEXT(""); X.Point = Pt; X.Kind = K::Push; X.Label = TEXT("Emergency stop"); X.Frame = Fr; X.Out = Out; X.Switch = S; X.bSeat = bSeat; Cs.Add(X); };
+	const FVector No = FVector::ZeroVector, R(0, 1, 0), L(0, -1, 0);
+	Mo(TEXT("Lever_LegLever"), TEXT("IK_LegLever"), K::Lever, TEXT("Stabilisers down / up"), PsFLeg, No, PsMLegs, PsStroke, true);
+	Mo(TEXT("Lever_StairLever"), TEXT("IK_StairLever"), K::Lever, TEXT("Stairs up / down"), PsFStair, No, PsMStairs, 10.f, true);
+	Mo(TEXT("GateSlide_L"), TEXT("IK_Handle_Gate_L"), K::Hand, TEXT("Gates out / in"), PsFGate, R, PsMGates, PsGate, false);
+	Mo(TEXT("GateSlide_R"), TEXT("IK_Handle_Gate_R"), K::Hand, TEXT("Gates out / in"), PsFGate, L, PsMGates, PsGate, false);
+	Sw(TEXT("IK_CabEStop"), PsFChassis, No, PsSCab, true); Sw(TEXT("IK_GroundEStop"), PsFChassis, R, PsSGround, false); Sw(TEXT("IK_PlatEStop"), PsFUp, R, PsSPlat, false);
+
+	Tb->Frame = [](const AGSE& G, const FTractor& T, int32 Fr) -> FTransform
+	{
+		const FSvcStairs& F = *T.Ps;
+		auto Round = [&G, &T](const TCHAR* Pv, float Deg) { const FVector P = G.SvcP(T, Pv); return FTransform(FQuat::Identity, -P) * FTransform(PsRot(FVector::RightVector, Deg), P); };
+		switch (Fr)
+		{
+		case PsFUp: return FTransform(PsStep * F.N);
+		case PsFGate: return FTransform(PsStep * F.N + FVector(F.Gate, 0.f, 0.f));
+		case PsFStair: return Round(TEXT("PIV_StairLever"), F.Lev[0]);
+		case PsFLeg: return Round(TEXT("PIV_LegLever"), F.Lev[1]);
+		default: return FTransform::Identity;
+		}
+	};
+	Tb->Now = [](const FTractor& T, int32 M) { const FSvcStairs& F = *T.Ps; return M == PsMLegs ? F.Jack : M == PsMStairs ? F.N : F.Gate; };
+	Tb->Want = [](FTractor& T, int32 M, float To) { FSvcStairs& F = *T.Ps; F.bYours = false; (M == PsMLegs ? F.JackWant : M == PsMStairs ? F.NWant : F.GateWant) = To; };
+	Tb->End = [](const FTractor& T, int32 M, float E) { return M == PsMStairs && E > 1.f && PsStands(*T.Ps) ? FMath::Max(T.Ps->YouN, 0.01f) : E; };   // (at a door: 3 cm under its sill, as its crew)
+	Tb->May = [](const AGSE& G, const FTractor& T, int32 M, float To, FString& Why)
+	{
+		const FSvcStairs& F = *T.Ps; const bool bOn = T.YouOn || F.Users > 0 || F.bHelperUp;
+		if (T.Speed > 1.f || T.Path.Num()) Why = TEXT("it is not parked");
+		else if (M != PsMGates && F.bStop) Why = TEXT("the emergency stop is pressed");
+		else if (M == PsMLegs)
+		{
+			if (To > F.Jack && FVector::Dist2D(T.At, T.Home) < 200.f) Why = TEXT("drive it out of its box first");
+			else if (To < F.Jack && (F.N > 0.f || F.NWant > 0.f)) Why = TEXT("the stairs are up");
+			else if (G.StairsHeld(T, M, To)) Why = bOn ? TEXT("somebody is on the stairs") : TEXT("somebody stands at a stabiliser");
+		}
+		else if (M == PsMStairs)
+		{
+			if (F.Jack < PsStroke) Why = TEXT("the stabilisers are not down");
+			else if (F.Gate > 0.f || F.GateWant > 0.f) Why = TEXT("its gates are out");
+			else if (G.StairsHeld(T, M, To)) Why = bOn ? TEXT("somebody is on the stairs") : TEXT("there is something in front of the platform");
+		}
+		else if (T.YouOn != 3) Why = TEXT("it is done from the platform");
+		else if (To > F.Gate)
+		{
+			if (F.N <= 0.f) Why = TEXT("the stairs are down");
+			else if (!PsStands(F)) Why = TEXT("it does not stand at an aircraft's door");
+			else if (FMath::Abs(F.N - F.YouN) > 0.5f) Why = TEXT("the platform is not level with the sill");
+		}
+		else if (F.bServed) { const FSvcJob* J = G.StairsJob(F.ServedX, F.ServedDoor); if (J && !J->bGo && G.WetPlane(F.ServedX)) Why = TEXT("the aircraft's door is open, they stay until it is shut"); }
+		return Why.IsEmpty();
+	};
+	Tb->Say = [](const AGSE&, const FTractor& T, const K& X) -> FString
+	{
+		const FSvcStairs& F = *T.Ps;
+		if (X.Motion == PsMGates) return F.N > 0.f ? FString(X.Label) : FString();
+		if (X.Motion == PsMStairs)
+		{
+			const float Cm = PsPlat + 19.f * F.N; const TCHAR* Dn = F.YouDoor ? TEXT("rear") : TEXT("front");
+			if (PsStands(F)) return FString::Printf(TEXT("%s (platform %.2f m, at the %s left door: %.2f m)"), X.Label, Cm / 100.f, Dn, (PsPlat + 19.f * F.YouN) / 100.f);
+			if (F.bNear) return FString::Printf(TEXT("%s (platform %.2f m; the door: %.1f m %s, %.1f m to the %s, turn %.0f degrees %s)"), X.Label, Cm / 100.f, FMath::Abs(F.Ahead) / 100.f, F.Ahead < 0.f ? TEXT("back") : TEXT("ahead"), FMath::Abs(F.Aside) / 100.f, F.Aside < 0.f ? TEXT("left") : TEXT("right"), FMath::Abs(F.Turn), F.Turn < 0.f ? TEXT("left") : TEXT("right"));
+			return FString::Printf(TEXT("%s (platform %.2f m)"), X.Label, Cm / 100.f);
+		}
+		if (X.Motion == INDEX_NONE && F.bStop) return TEXT("Pull the emergency stop out");
+		return X.Label;
+	};
+	Tb->Switch = [](AGSE& G, int32 Ti, int32 S)
+	{
+		if (S < PsSPlat || S > PsSCab) return false;
+		FSvcStairs& F = *G.Tractors[Ti].Ps; F.bStop = !F.bStop; F.bYours = false;
+		if (F.bStop) { F.NWant = F.N; F.JackWant = F.Jack; }
+		return true;
+	};
+	// your feet: 1 the lower flight, 2 the upper one, 3 the platform (solid already, where they are: StairsDress, StairsParts)
+	Tb->Aboard = [](const FTractor& T, const FVector& P) -> uint8
+	{
+		if (!T.Ps) return 0; const float N = T.Ps->N, X = float(P.X), Zn = 19.8f + (X + 275.f) * 0.67857f;   // (both flights' nosing line)
+		if (X >= 33.f + 28.f * N && X < 215.f + 28.f * N && FMath::Abs(P.Y) < 95.f && FMath::Abs(P.Z - PsPlat - 19.f * N) < 40.f) return 3;
+		if (X < -300.f || X > 40.f + 28.f * N || FMath::Abs(P.Y) > 72.f || P.Z < Zn - 25.f || P.Z > Zn + 60.f) return 0;
+		return X < -247.f + 28.f * N ? 1 : 2;
+	};
+	Tb->Stowed = [](const AGSE& G, const FTractor& T) { return G.StairsStowed(T) && !T.Ps->bStop; };
+	// left alone: at an aircraft that has asked for stairs its crew go on with it (StairsTake), and at an open door it stays
+	Tb->Stow = [](AGSE& G, FTractor& T)
+	{
+		FSvcStairs& F = *T.Ps; if ((PsStands(F) && G.StairsJob(F.YouStandX, F.YouDoor)) || F.Users > 0) return;
+		F.bStop = false; F.bYours = !G.StairsStowed(T);
+	};
+	return Tb;
 }
