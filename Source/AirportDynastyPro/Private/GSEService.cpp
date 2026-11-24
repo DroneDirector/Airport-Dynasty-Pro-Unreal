@@ -528,8 +528,45 @@ bool AGSE::SvcLost(int32 Ci, bool& bDrop)
 // (never between it and the kerb, never through it) to the driver's door on the road side and take the wheel (ClimbIn: the
 // riders' IK_Stand_DoorDriver, IK_Seat_SeatDriver, IK_Hand_Wheel_L/R - as every service vehicle's driver). Shift over: out,
 // round the front back onto the pavement, and given back (UStaffPeople walks them home to the car park).
+// Its fare (to-do 239b piece 3), owned by the same tick: free and on duty (its driver at the wheel, or you) the roof sign
+// is lit; with a fare aboard it goes dark and the taximeter's digits run (AGSE::Lamps: GTaxiSign, GTaxiMeter). The meter
+// counts as a real one does: by the distance while it drives, by the time while it stands or crawls (under 15 km/h).
+// A plain tariff, not any one town's: CHF 6.50 on the flag, 3.50 a kilometre, 1.00 a minute waiting.
+// What starts a fare: the meter's button (TaxiBus.cpp - you at the wheel). No passenger is handed to the taxi bus yet
+// (piece 4): that code is to call TaxiFare(true / false) when they get in and out.
+bool AGSE::TaxiOnDuty(const FTractor& T) const { return (TaxiStage == 2 && T.Driver == TaxiCi && TaxiCi != INDEX_NONE) || (SvcYours(T) && T.PlayerSeat == 0); }
+
+float AGSE::TaxiFareChf() const { return bTaxiFare ? 6.5f + 3.5f * TaxiFareM / 1000.f + 1.f * TaxiFareWaitS / 60.f : 0.f; }
+
+void AGSE::TaxiFare(bool bOn, const TCHAR* Who)
+{
+	if (bOn == bTaxiFare) return;
+	if (!Tractors.IsValidIndex(TaxiTi)) { ADP_WARN(TEXT("GSE: a taxi fare (%s) but no taxi bus"), Who); return; }
+	if (bOn)
+	{
+		bTaxiFare = true; TaxiFareM = TaxiFareS = TaxiFareWaitS = 0.f; TaxiFareAt = Tractors[TaxiTi].At;
+		ADP_LOG(TEXT("GSE: the taxi bus is hired (%s) - the sign goes dark, the meter runs"), Who);
+	}
+	else
+	{
+		ADP_LOG(TEXT("GSE: the taxi bus's fare is over (%s): CHF %.2f for %.1f km, %.0f min (%.0f min waiting)"), Who, TaxiFareChf(), TaxiFareM / 1000.f, TaxiFareS / 60.f, TaxiFareWaitS / 60.f);
+		bTaxiFare = false;
+	}
+}
+
+FString AGSE::TaxiMeterSay() const
+{
+	return bTaxiFare ? FString::Printf(TEXT("Taximeter: CHF %.2f, %.1f km, %d min - stop"), TaxiFareChf(), TaxiFareM / 1000.f, FMath::FloorToInt(TaxiFareS / 60.f)) : FString(TEXT("Taximeter: free - start a fare"));
+}
+
 void AGSE::TaxiTick(float Dt)
 {
+	if (bTaxiFare && Tractors.IsValidIndex(TaxiTi) && Dt > 0.f)
+	{
+		const FVector At = Tractors[TaxiTi].At; const float D = FVector::Dist2D(At, TaxiFareAt); TaxiFareAt = At;
+		TaxiFareS += Dt;
+		if (D / Dt >= 417.f) TaxiFareM += D / 100.f; else TaxiFareWaitS += Dt;   // (15 km/h: by the distance above, by the time below)
+	}
 	if ((TaxiPoll -= Dt) > 0.f) return;
 	TaxiPoll = 2.f;
 	ATugs* G = Tg(); UStaffPeople* Sp = UStaffPeople::Get(GetWorld());
@@ -553,6 +590,7 @@ void AGSE::TaxiTick(float Dt)
 		if (!G->Crew.IsValidIndex(TaxiCi) || !G->Crew[TaxiCi].A.IsValid() || G->Crew[TaxiCi].bSlotFree || T.Driver != TaxiCi)
 		{
 			ADP_WARN(TEXT("GSE: the taxi bus's driver is lost (stage %d) - the bus is free again"), int32(TaxiStage));
+			TaxiFare(false, TEXT("its driver lost"));
 			if (T.Key == TEXT("taxi")) { T.Job = EJob::None; T.Key.Reset(); T.Driver = INDEX_NONE; }
 			TaxiCi = INDEX_NONE; TaxiStage = 0;
 			return;
@@ -561,6 +599,7 @@ void AGSE::TaxiTick(float Dt)
 		// shift over: out on the road side, round the front onto the pavement, given back
 		const int32 Ci = TaxiCi; TaxiStage = 3;
 		ADP_LOG(TEXT("GSE: %s's shift is over - gets out of the taxi bus"), *G->Crew[Ci].Name);
+		TaxiFare(false, TEXT("the driver's shift over"));
 		ClimbOut(Ci, Ti, nullptr);
 		WalkTo(Ci, [Road] { return Road; }, 30.f);
 		WalkTo(Ci, [Pave] { return Pave; }, 30.f);

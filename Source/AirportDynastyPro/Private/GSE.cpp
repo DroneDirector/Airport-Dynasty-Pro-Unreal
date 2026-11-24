@@ -57,7 +57,7 @@ namespace
 	constexpr float GseGEyeToAxle = 143.f;
 	// driving (cm/s): on the apron 15 km/h, in the baggage block 9 km/h, reversing 4 km/h
 	constexpr float GseApronSpeed = 420.f, GseHallSpeed = 250.f, GseBackSpeed = 110.f, GseTurnR = 300.f;
-	enum GseELensKind : uint8 { GLow, GHigh, GTail, GMarker, GReverse, GBeacon, GIndicator, GWork, GBlue };
+	enum GseELensKind : uint8 { GLow, GHigh, GTail, GMarker, GReverse, GBeacon, GIndicator, GWork, GBlue, GTaxiSign, GTaxiMeter };
 
 	USoundAttenuation* GseAtt()
 	{
@@ -188,7 +188,21 @@ bool AGSE::SpawnTractor(FTractor& T)
 			const UMaterialInstanceDynamic* Md = Cast<UMaterialInstanceDynamic>(Mi);
 			const FString N = Md && Md->Parent ? Md->Parent->GetName() : Mi->GetName();
 			UMaterialInstanceDynamic* D = nullptr;
-			if (LensM && N.Contains(TEXT("Lens")))
+			// (the taxi bus's roof sign and its taximeter's digit window: lit by its fare, AGSE::TaxiFare)
+			const bool bSign = N.Contains(TEXT("TaxiSign_Lens")), bMeter = N.Contains(TEXT("Taximeter_Digits"));
+			if (LensM && bMeter)
+			{
+				D = UMaterialInstanceDynamic::Create(LensM, this);
+				D->SetVectorParameterValue(TEXT("BC"), FLinearColor(1.f, 0.10f, 0.04f)); D->SetScalarParameterValue(TEXT("Glow"), 6.f); D->SetScalarParameterValue(TEXT("Dots"), 4.f);
+				K->SetNumCustomDataFloats(1);
+			}
+			else if (LensM && bSign)
+			{
+				D = UMaterialInstanceDynamic::Create(LensM, this);
+				D->SetVectorParameterValue(TEXT("BC"), FLinearColor(1.f, 0.78f, 0.2f)); D->SetScalarParameterValue(TEXT("Glow"), 20.f); D->SetScalarParameterValue(TEXT("Dots"), 4.f);
+				K->SetNumCustomDataFloats(1);
+			}
+			else if (LensM && N.Contains(TEXT("Lens")))
 			{
 				D = UMaterialInstanceDynamic::Create(LensM, this);
 				const bool bRed = N.Contains(TEXT("Red")), bAmber = N.Contains(TEXT("Amber")), bGreen = N.Contains(TEXT("Green")), bBlueL = N.Contains(TEXT("Blue"));
@@ -213,6 +227,12 @@ bool AGSE::SpawnTractor(FTractor& T)
 				if (Wh.Kind == GBlue) { const FString& Bn = F.Get<2>(); const int32 Dg = Bn.Len() > 6 && FChar::IsDigit(Bn[Bn.Len() - 6]) ? int32(Bn[Bn.Len() - 6] - TEXT('0')) : 0; L.Side = Bn.StartsWith(TEXT("BlueGrille_")) ? (Bn.Contains(TEXT("_L")) ? 1 : -1) : Dg < 4 ? 1 : -1; }
 				if (FCString::Strcmp(Wh.Name, TEXT("BoxLight")) == 0) L.Side = 2;   // (inside: its own switch)
 				T.Lenses.Add(L); }
+	}
+	// the taxi bus: its roof sign's two lenses and its taximeter (the housing carries the digit window's material)
+	for (const TCHAR* Nm : {TEXT("TaxiSign_F_Lens"), TEXT("TaxiSign_B_Lens"), TEXT("Taximeter")})
+	{
+		TArray<TTuple<UInstancedStaticMeshComponent*, int32, FString>> Found; M->InstancesNamed(Nm, false, Found);
+		for (const auto& F : Found) { FLens L; L.K = F.Get<0>(); L.Ix = F.Get<1>(); L.Kind = Nm[4] == TEXT('S') ? GTaxiSign : GTaxiMeter; T.Lenses.Add(L); }
 	}
 	BuildBeams(T);
 	// the moving parts
@@ -362,6 +382,8 @@ void AGSE::Lamps(FTractor& T)
 		case GReverse: V = bBack ? 1.f : 0.f; break;
 		case GBeacon: V = bFlash && !T.bSwNoBeacon ? 1.f : 0.f; break;
 		case GBlue: V = AmbuBlue(T, L.Side); break;
+		case GTaxiSign: V = IsTaxi(T) && TaxiOnDuty(T) && !bTaxiFare ? 1.f : 0.f; break;   // (lit: free for hire; dark with a fare aboard)
+		case GTaxiMeter: V = IsTaxi(T) && bTaxiFare ? 1.f : 0.f; break;
 		case GWork: V = (L.Side == 2 ? T.bSwLight : T.bSwWork) || (T.Am && T.Am->bLive && T.Job == EJob::AtStand) || (bRun && T.Boom < -0.5f) || (T.Di && (T.Di->bYours || (T.Di->Ph >= FSvcDeicer::OpIn && T.Di->Ph <= FSvcDeicer::OpOut))) ? 1.f : 0.f; break;
 		default: V = 0.f;
 		}

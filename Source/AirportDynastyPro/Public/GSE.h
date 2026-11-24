@@ -430,6 +430,12 @@ public:
 	/** To-do 206: your own flight's bags wait for your people (Why: who is missing), or its train is being got ready. */
 	bool HiredWaits(const FString& Flight, float StandX, FString& Why) const;
 	bool LoaderWaits(float StandX, FString& Why) const;
+	/** The taxi bus's fare (to-do 239b piece 3, GSEService.cpp): on - the roof sign goes dark and the taximeter runs; off -
+	 *  the fare is settled, the sign lit again while it is on duty. Who: for the log. Nothing calls it with a passenger yet
+	 *  (piece 4, the hand-over to the taxi bus, is not built): today only the meter's own button sets it. */
+	void TaxiFare(bool bOn, const TCHAR* Who);
+	bool TaxiFareOn() const { return bTaxiFare; }
+	FString TaxiMeterSay() const;
 private:
 public:
 	/** E at a service vehicle's door (ServiceDrive.h): true when it was that; Say: why not, when it can't be. */
@@ -489,6 +495,11 @@ private:
 	// and back to the pavement when their shift is over. Stage: 0 none, 1 on the way in, 2 at the wheel, 3 getting out
 	void TaxiTick(float Dt);
 	float TaxiPoll = 0.f; int32 TaxiCi = INDEX_NONE, TaxiTi = INDEX_NONE; uint8 TaxiStage = 0;
+	// its fare (the same tick owns it): on board or not, the distance (m), the time and the time standing or crawling (s)
+	bool bTaxiFare = false; float TaxiFareM = 0.f, TaxiFareS = 0.f, TaxiFareWaitS = 0.f; FVector TaxiFareAt = FVector::ZeroVector;
+	bool IsTaxi(const FTractor& T) const { return Tractors.IsValidIndex(TaxiTi) && &Tractors[TaxiTi] == &T; }
+	bool TaxiOnDuty(const FTractor& T) const;
+	float TaxiFareChf() const;
 	bool SvcWaits(const FString& Flight, float StandX, FString& Why) const;
 	bool SvcLost(int32 Ci, bool& bDrop);
 	bool SvcPersonAhead(const FTractor& T, const FVector& Move) const;

@@ -530,6 +530,13 @@ Taxi bus (239, part B, 2026-11-24, compiled, NOT run): a line of `ADPService::Al
   yours -> AskTeam `taxi:kerb`, along the pavement past its front, round the bumper to the road side, `ClimbIn` (driver seat, wheel);
   shift over -> ClimbOut, round the front to the pavement, given back. Wage `taxi` 600 = `bus` (ADPStaff.cpp). While seated the bus's
   Job is Boarding, so you can't take its wheel then (ServiceDrive SvcSeatFree). Not checked: street furniture on the pavement x -53..48.
+  Fare state (239b piece 3, 2026-11-24, NOT compiled - a stray UnrealEditor-Cmd import blocked build.sh, NOT run): AGSE::TaxiTick
+  owns it (bTaxiFare, distance, time, waiting; GSE.h). TaxiFare(bool, Who) public = the call piece 4 makes when a passenger gets in/out.
+  Roof sign lenses (GTaxiSign, amber) lit while on duty (driver at the wheel or you) and free, dark with a fare; the meter's digit window
+  (GTaxiMeter, red LED dots, on the `Taximeter` part) lit while a fare runs (AGSE::Lamps, lens material by `TaxiSign_Lens` /
+  `Taximeter_Digits`). Meter button (IK_Taximeter_Button, from the driver's seat) starts/ends a fare; its line shows CHF, km, min.
+  Tariff is plain, not one town's: 6.50 flag, 3.50/km, 1.00/min under 15 km/h. Ends on shift over / driver lost. The meter mesh was
+  already built in piece 1. Left: piece 4 (no passenger hand-over, so no real fare trigger yet).
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
