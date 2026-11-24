@@ -35,6 +35,7 @@ class UInstancedStaticMeshComponent;
 struct FDriverPose;
 struct FSvcRefuel;
 struct FSvcCater;
+struct FSvcWet;
 
 UCLASS()
 class AIRPORTDYNASTYPRO_API AGSE : public AActor
@@ -99,6 +100,7 @@ public:
 		float SteerWant = 0.f, BackT = 0.f, PedalA = 0.f, PedalB = 0.f, WipeT = 0.f, WipeNow = 0.f, RainIn = 0.f, BoxT = 0.f; bool bRain = false, bUsed = false;   // (bUsed: full bags or used rolls in it - exchanged shut in its box)
 		int32 GPedal[2] = {INDEX_NONE, INDEX_NONE}, LoadWant = INDEX_NONE; TArray<int32> GWiper; FString Livery;
 		TSharedPtr<FSvcRefuel> Fu;        // (the refueller's own parts: GSEFuel.cpp)
+		TSharedPtr<FSvcWet> Wa;           // (the water and the toilet truck's: GSEWater.cpp)
 		TSharedPtr<FSvcCater> Ct;         // (the catering high-loader's: GSECater.cpp)
 		TMap<FString, FVector> Pt;        // (a service vehicle's named points, root cm: Data/<vehicle>-riders.json)
 		struct FSvcDoor { int32 G = INDEX_NONE; FVector Piv = FVector::ZeroVector; float Now = 0.f, Want = 0.f; };
@@ -329,6 +331,20 @@ private:
 	void CaterMove(int32 Job);
 	bool CaterLost(int32 Job, int32 m);
 	void FuelUpDown(int32 Ci, int32 Ti, bool bUp);
+	// ---- the potable water truck and the toilet truck (GSEWater.cpp)
+	void WetDress(FTractor& T);
+	void WetParts(FTractor& T, float Dt);
+	void WetTick(FSvcJob& J, float Dt);
+	const AActor* WetPlane(float StandX) const;
+	/** One of the two (or only the toilet truck) has the place under the tail, or is on its way to it. */
+	bool WetAt(float StandX, bool bToiletOnly, int32 NotTi) const;
+	bool WetBusy(int32 Ti, float StandX, FString& Why) const;
+	bool WetMay(int32 Job);
+	void WetIn(int32 Job);
+	TFunction<void(float, float, FDriverPose&)> WetClimbFn(int32 Ti, bool bUp) const;
+	void WetArrive(int32 Job);
+	void WetWork(int32 Job);
+	void WetLost(int32 Job);
 	TFunction<void(float, float, FDriverPose&)> FuelPlatFn(int32 Ti, bool bUp) const;
 	/** The driver's way into a tall cab (two steps: a point IK_Step_DoorDriver_Low). */
 	TFunction<void(float, float, FDriverPose&)> TallClimbFn(int32 Ti, bool bIn) const;

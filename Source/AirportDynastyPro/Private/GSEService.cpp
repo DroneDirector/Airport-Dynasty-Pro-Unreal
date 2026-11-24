@@ -8,6 +8,7 @@
 #include "ServiceVehicles.h"
 #include "GSEFuel.h"
 #include "GSECater.h"
+#include "GSEWater.h"
 #include "Tugs.h"
 #include "StaffPeople.h"
 #include "Turnaround.h"
@@ -94,6 +95,23 @@ const TArray<FServiceSpec>& ADPService::All()
 			C.LiveryBody = TEXT("CT_Livery_Body_Paint"); C.LiveryMain = TEXT("CT_Livery_Main_Paint");
 			L.Add(C);
 		}
+		for (int32 k = 1; k <= 2; ++k)
+		{
+			// the potable water truck and the toilet truck: backed under the tail to the two panels (GSEWater.cpp), one at a time;
+			// the water truck's box on the west side, the toilet truck's at the east end
+			FServiceSpec W; const bool bT = k == 2;
+			W.Wet = uint8(k); W.Task = bT ? TEXT("toilet") : TEXT("water"); W.Model = bT ? TEXT("ToiletTruck") : TEXT("WaterTruck"); W.Points = bT ? TEXT("toilettruck") : TEXT("watertruck"); W.Label = bT ? TEXT("toilet truck") : TEXT("water truck"); W.Role = TEXT("water"); W.Team = bT ? EStaffTask::Toilet : EStaffTask::Water; W.MaxPeople = 1;
+			W.HomeX = bT ? 554.6f : -256.4f; W.HomeY = bT ? 110.f : 117.f;
+			W.Lat = bT ? -0.85f : 0.6f; W.Aft = bT ? 28.32f : 28.6f;
+			W.HalfL = 291.f; W.HalfW = 101.f; W.TurnR = 480.f; W.MaxSteer = 38.f; W.DoorDeg = 68.f;
+			W.Doors = {{TEXT("DoorPassenger"), TEXT("PIV_DoorPassenger"), TEXT("IK_Handle_DoorPassenger_Out"), TEXT("IK_Stand_DoorPassenger"), -68.f, false}};
+			if (!bT) W.Doors.Add({TEXT("PanelDoorL"), TEXT("PIV_PanelDoorL"), TEXT("IK_Handle_PanelDoorL"), TEXT("IK_Stand_PanelDoorL"), 110.f, false});   // (its fill point)
+			W.Seats = {TEXT("IK_Seat_SeatPassenger")};
+			W.Wipers = {{TEXT("WiperL"), TEXT("PIV_Wiper_L"), FVector(279.6f, -4.f, 152.4f), FVector(255.5f, -41.f, 203.f)}, {TEXT("WiperR"), TEXT("PIV_Wiper_R"), FVector(273.8f, 76.f, 152.4f), FVector(261.f, 39.f, 203.f)}};
+			W.NameL = TEXT("IK_Name_L"); W.NameR = TEXT("IK_Name_R"); W.NameRear = bT ? TEXT("IK_Name_Rear") : TEXT("IK_NamePanel_Rear"); W.NameSize = 13.f; W.NameRearSize = 8.f;
+			W.LiveryBody = bT ? TEXT("TT_Livery_Body_Paint") : TEXT("WT_Livery_Body_Paint"); W.LiveryMain = bT ? TEXT("TT_Livery_Main_Paint") : TEXT("WT_Livery_Main_Paint");
+			L.Add(W);
+		}
 	}
 	return L;
 }
@@ -117,7 +135,7 @@ void AGSE::SvcSetup()
 		T.KHinge = V.At(TEXT("PIV_DoorDriver")); T.KWheelC = V.At(TEXT("PIV_SteeringWheel")); T.KStand = V.At(TEXT("IK_Stand_DoorDriver")); T.KHandle = V.At(TEXT("IK_Handle_DoorDriver_Out"));
 		T.KStep = V.At(TEXT("IK_Step_DoorDriver")); T.KGrabOut = V.At(TEXT("IK_Grab_L")); T.KGrabIn = T.KGrabOut + FVector(8.f, 4.f, -12.f); T.KSeat = V.At(TEXT("IK_Seat_SeatDriver"));
 		T.KBrake = V.At(TEXT("IK_Foot_Rest")); T.KAccel = V.At(TEXT("IK_Foot_Accel")); T.KHandL = V.At(TEXT("IK_Hand_Wheel_L")); T.KHandR = V.At(TEXT("IK_Hand_Wheel_R"));
-		T.KRadF = float(T.KWheel[0].Z); T.KRadR = float(T.KWheel[2].Z); T.KWB = float(T.KWheel[0].X - T.KWheel[2].X); T.KTrack = float(FMath::Abs(T.KWheel[0].Y) * 2.0); T.KFloor = float(V.At(TEXT("IK_Aisle_Row0")).Z);
+		T.KRadF = float(T.KWheel[0].Z); T.KRadR = float(T.KWheel[2].Z); T.KWB = float(T.KWheel[0].X - T.KWheel[2].X); T.KTrack = float(FMath::Abs(T.KWheel[0].Y) * 2.0); T.KFloor = S.Wet ? 82.f : float(V.At(TEXT("IK_Aisle_Row0")).Z);
 		T.KHalfL = S.HalfL; T.KHalfW = S.HalfW; T.KCentreX = 0.f; T.KTurnR = S.TurnR; T.KMaxSteer = S.MaxSteer; T.KDoorDeg = S.DoorDeg;
 		T.SndStart = TEXT(""); T.SndLoop = TEXT("BLDriveLoop"); T.SndStop = TEXT(""); T.SndDoorOpen = TEXT("BLDoorOpen"); T.SndDoorClose = TEXT("BLDoorClose"); T.SndBeep = TEXT("BLReverseBeep");
 		if (SpawnTractor(T))
@@ -141,6 +159,7 @@ void AGSE::SvcDress(FTractor& T)
 	for (const FServiceItem& I : S.Items) { FTractor::FSvcItem X; X.Piv = SvcP(T, I.Part); X.bShow = I.bAtHome; X.G = M->BindGroup({FString(I.Part)}, true, FTransform(X.Piv)); T.SvcItems.Add(X); }
 	if (S.bFuel) FuelDress(T);
 	if (S.bCater) CaterDress(T);
+	if (S.Wet) WetDress(T);
 	// the airport's name, at run time
 	FString Name; if (!ADPSite::AirportBlock()->TryGetStringField(TEXT("name"), Name) || Name.IsEmpty()) return;
 	auto Text = [&](const TCHAR* At, float Yaw, float Size)
@@ -183,7 +202,7 @@ void AGSE::SvcRestock(FTractor& T)
 	const FServiceSpec& S = SvSpec(T.Svc); T.bUsed = false; T.BoxT = 0.f;
 	for (int32 i = 0; i < T.SvcItems.Num(); ++i) { T.SvcItems[i].bShow = S.Items[i].bAtHome; T.SvcItems[i].Ci = INDEX_NONE; T.SvcItems[i].bMoved = true; }
 	if (S.bCater) CaterRestock(T);
-	ADP_LOG(TEXT("GSE: the %s %s, shut in its box"), *T.Name, S.bFuel ? TEXT("filled up") : TEXT("restocked"));
+	ADP_LOG(TEXT("GSE: the %s %s, shut in its box"), *T.Name, S.bFuel || S.Wet == 1 ? TEXT("filled up") : S.Wet == 2 ? TEXT("emptied and refilled") : TEXT("restocked"));
 }
 
 void AGSE::SvcParts(FTractor& T, float Dt)
@@ -247,6 +266,7 @@ void AGSE::SvcParts(FTractor& T, float Dt)
 	}
 	if (S.bFuel) FuelParts(T, Dt);
 	if (S.bCater) CaterParts(T, Dt);
+	if (S.Wet) WetParts(T, Dt);
 	for (FTractor::FSvcItem& I : T.SvcItems)
 	{
 		if (I.G == INDEX_NONE || (I.Ci == INDEX_NONE && !I.bMoved)) continue;
@@ -294,6 +314,7 @@ bool AGSE::SvcAsk(const TCHAR* Task, float StandX, const FString& Reg, const FSt
 		if (SvIs(i, Task))
 		{
 			FSvcJob J; J.Svc = i; J.Litres = FMath::Clamp(Litres, 500.f, 19500.f); J.StandX = StandX; J.Reg = Reg; J.Flight = Flight; J.When = When; if (SvSpec(i).bCater) J.Rows = 11;
+			if (SvSpec(i).Wet) J.Litres = SvSpec(i).Wet == 2 ? 360.f : 240.f;   // (seconds: draining and rinsing; filling)
 			float S = 0.f, N = 0.f, Sn = 36.f; const AJetwayRigs* R = AJetwayRigs::Get(GetWorld());
 			if (R && StandGeo(StandX, S, N, Sn)) J.Jet = R->Nearest(Plan(StandX + 5.f, N + 2.f));
 			SvcJobs.Add(SvcNext++, J); break;
@@ -337,6 +358,7 @@ bool AGSE::SvcWaits(const FString& Flight, float StandX, FString& Why) const
 		if (J.Phase == 0) { Why = FString::Printf(TEXT("the %s waits: %s"), S.Label, J.Why.IsEmpty() ? TEXT("its people are being called") : *J.Why); return true; }
 		if (S.bFuel && J.Phase < 3) { Why = J.Phase < 2 ? FString(TEXT("the refueller is on its way")) : J.Stage < 4 ? FString(TEXT("the refueller is being connected")) : J.Stage > 4 ? FString(TEXT("the refueller is being disconnected")) : FString::Printf(TEXT("it is being fuelled (%.0f of %.0f l)"), J.Pumped, J.Litres); return true; }
 		if (S.bCater && J.Phase < 3) { Why = J.Phase < 2 ? FString(TEXT("the catering truck is on its way")) : !J.Why.IsEmpty() ? FString::Printf(TEXT("the catering truck waits: %s"), *J.Why) : FString::Printf(TEXT("the catering truck is at the %s right door (%d of %d trolleys in)"), J.CtDoor ? TEXT("rear") : TEXT("front"), J.RowsDone, J.Rows); return true; }
+		if (S.Wet && J.Phase < 3) { Why = !J.Why.IsEmpty() ? FString::Printf(TEXT("the %s waits: %s"), S.Label, *J.Why) : J.Phase < 2 ? FString::Printf(TEXT("the %s is on its way"), S.Label) : S.Wet == 2 ? FString::Printf(TEXT("its toilets are being emptied (%.0f %%)"), 100.f * J.Pumped / J.Litres) : FString::Printf(TEXT("it is being filled with water (%.0f of 200 l)"), 200.f * J.Pumped / J.Litres); return true; }
 		if (J.Phase < 3) { Why = FString::Printf(TEXT("the %s is still at work (%d of %d rows)"), S.Label, J.RowsDone, J.Rows); return true; }
 		if (Tractors.IsValidIndex(J.Ti) && Tractors[J.Ti].Job == EJob::AtStand) { Why = FString::Printf(TEXT("the %s is leaving the stand"), S.Label); return true; }
 	}
@@ -356,6 +378,12 @@ bool AGSE::SvcLost(int32 Ci, bool& bDrop)
 			if (Tractors.IsValidIndex(P.Value.Ti)) for (FTractor::FSvcItem& I : Tractors[P.Value.Ti].SvcItems) if (I.Ci == Ci) { I.Ci = INDEX_NONE; I.bMoved = true; }
 			ATugs::FCrew& C = G->Crew[Ci];
 			if (SvSpec(P.Value.Svc).bCater) { if (!CaterLost(Job, m)) bDrop = true; return true; }
+			if (SvSpec(P.Value.Svc).Wet)
+			{
+				WetLost(Job); C.bUp = false; C.bRelWet = true;
+				if (P.Value.Phase == 2) { C.Q.Reset(); C.Hold = nullptr; Do(Ci, [this, Job] { Later([this, Job] { WetWork(Job); }); }); }
+				return true;
+			}
 			if (SvSpec(P.Value.Svc).bFuel)
 			{
 				FuelLost(Job); C.bUp = false; C.bRelFuel = true;
@@ -382,8 +410,8 @@ void AGSE::SvcTick(float Dt)
 	{
 		FSvcJob& J = P.Value; const float Was = J.T; if (J.Phase > 0) J.T += Dt;
 		if (Was <= SvPatience && J.T > SvPatience) ADP_WARN(TEXT("GSE: the %s at stand x %.0f has been at %s for 45 min - the flight no longer waits for it"), SvSpec(J.Svc).Label, J.StandX, *J.Reg);
-		FuelTick(J, Dt);
-		if (SvSpec(J.Svc).bCater) continue;
+		FuelTick(J, Dt); WetTick(J, Dt);
+		if (SvSpec(J.Svc).bCater || SvSpec(J.Svc).Wet) continue;
 		int32 In = 0; for (const FSvcMan& M : J.Men) if (M.bIn && !M.bGone) ++In;
 		if (!In || J.RowsDone >= J.Rows) continue;
 		for (J.RowT += Dt * In; J.RowT >= SvRowSeconds && J.RowsDone < J.Rows; J.RowT -= SvRowSeconds)
@@ -401,7 +429,7 @@ void AGSE::SvcTick(float Dt)
 		const FTractor& Tv = Tractors[Ti];
 		if (SvcYours(Tv)) { J.Why = FString::Printf(TEXT("you have the %s"), S.Label); continue; }
 		const bool bHome = FVector::Dist2D(Tv.At, Tv.Home) < 200.f && FMath::Abs(FMath::FindDeltaAngleDegrees(Tv.Yaw, Tv.HomeYaw)) < 20.f;
-		if (bHome && Tv.bUsed) { J.Why = FString::Printf(TEXT("the %s is being %s"), S.Label, S.bFuel ? TEXT("filled up") : TEXT("emptied and restocked")); continue; }
+		if (bHome && Tv.bUsed) { J.Why = FString::Printf(TEXT("the %s is being %s"), S.Label, S.bFuel || S.Wet == 1 ? TEXT("filled up") : S.Wet == 2 ? TEXT("emptied") : TEXT("emptied and restocked")); continue; }
 		{ bool bOpen = false; for (const FTractor::FSvcDoor& D : Tv.SvcDoors) if (D.Now > 0.01f) bOpen = true; if (bOpen && Tv.Player.IsValid()) { J.Why = FString::Printf(TEXT("you are getting into the %s"), S.Label); continue; } }
 		if (!bHome) { TArray<FVector> W; if (!Apron(W, Tv.At, Plan(S.HomeX + S.HomeHx * 34.f, S.HomeY + S.HomeHy * 34.f), &Tv)) { J.Why = FString::Printf(TEXT("the %s stands where it cannot be driven from - bring it back to the apron"), S.Label); continue; } }
 		const FString Key = FString::Printf(TEXT("%s:%s"), S.Task, *J.Reg), What = FString::Printf(TEXT("%s %s"), J.Flight.IsEmpty() ? *J.Reg : *J.Flight, UStaffPeople::TaskName(S.Team));
@@ -563,17 +591,30 @@ void AGSE::SvcApron(int32 Job)
 	const int32 Ti = J->Ti; FTractor& T = Tractors[Ti];
 	const FServiceSpec& Sv = SvSpec(J->Svc);
 	// (one at a time on the aircraft's right, between its wing and the next one's)
-	if (Sv.Lat < 0.f && T.Job != EJob::Out && SvcSideBusy(Ti, J->StandX)) { RetryIn(Ti, 6.f, [this, Job] { SvcApron(Job); }); return; }
+	if (Sv.Wet && T.Job != EJob::Out && !WetMay(Job)) return;   // (its turn under the tail; asked again)
+	if (Sv.Lat < 0.f && !Sv.Wet && T.Job != EJob::Out && SvcSideBusy(Ti, J->StandX)) { RetryIn(Ti, 6.f, [this, Job] { SvcApron(Job); }); return; }
 	T.Job = EJob::Out;
 	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(J->StandX, S, N, Sp);
 	TArray<FVector> W;
 	if (FVector::Dist2D(T.At, T.Home) < 200.f && FMath::Abs(FMath::FindDeltaAngleDegrees(T.Yaw, T.HomeYaw)) < 20.f) Leg(W, Sv.HomeX, Sv.HomeY, Sv.HomeHx, Sv.HomeHy, Sv.HomeX + Sv.HomeHx * 9.f, Sv.HomeY + Sv.HomeHy * 9.f, Sv.HomeHx, Sv.HomeHy, T.KTurnR);
-	const float X = S + (Sv.InR > 0.f ? Sv.InLat : Sv.Lat), Xp = S + Sv.Lat, Y1 = N + Sv.Far + 6.f, Y2 = N + Sv.Aft;
+	const float X = S + (Sv.InR > 0.f ? Sv.InLat : Sv.Wet ? Sv.Lat + 2.f * T.KTurnR / 100.f : Sv.Lat), Xp = S + Sv.Lat, Y1 = N + Sv.Far + 6.f, Y2 = N + Sv.Aft;
 	const FVector From = W.Num() ? W.Last() : T.At;
 	if (!Apron(W, From, Plan(X, Y1), &T)) { RetryIn(Ti, 8.f, [this, Job] { SvcApron(Job); }); return; }
 	Go(T, MoveTemp(W), false, [this, Job, Ti, S, N, X, Xp, Y1, Y2]
 	{
 		const FVector Nose = Plan(S, N);
+		if (SvSpec(Tractors[Ti].Svc).Wet)
+		{
+			// (nothing moving where it turns round; not longer than a minute for that)
+			Tractors[Ti].Until = [this, Nose, Ti, Mid = Plan(S + 6.f, N + 42.f), T0 = GetWorld()->GetTimeSeconds()]
+			{
+				if (PlaneNear(Nose, 6000.f)) return false;
+				if (GetWorld()->GetTimeSeconds() - T0 < 60.0) for (int32 o = 0; o < Tractors.Num(); ++o) if (o != Ti && Tractors[o].M.IsValid() && Tractors[o].Speed > 1.f && FVector::Dist2D(Tractors[o].At, Mid) < 1500.f) return false;
+				return true;
+			};
+			Tractors[Ti].AfterUntil = [this, Job] { WetIn(Job); };
+			return;
+		}
 		Tractors[Ti].Until = [this, Nose, Ti, Sx = Tractors[Ti].StandX] { return !PlaneNear(Nose, 6000.f) && !(SvSpec(Tractors[Ti].Svc).bCater && SvcSideBusy(Ti, Sx)); };
 		Tractors[Ti].AfterUntil = [this, Job, Ti, S, N, X, Xp, Y1, Y2]
 		{
@@ -607,6 +648,7 @@ void AGSE::SvcWork(int32 Job)
 	ADP_LOG(TEXT("GSE: the %s parked beside %s"), *T.Name, *T.Key);
 	if (SvSpec(J->Svc).bFuel) { FuelArrive(Job); SvcFuelWork(Job); return; }
 	if (SvSpec(J->Svc).bCater) { CaterArrive(Job); CaterStage(Job); return; }
+	if (SvSpec(J->Svc).Wet) { WetArrive(Job); WetWork(Job); return; }
 	for (int32 m = 0; m < J->Men.Num(); ++m) if (!J->Men[m].bGone) SvcManAt(Job, m);
 }
 
@@ -836,10 +878,10 @@ void AGSE::SvcLeave(int32 Job)
 {
 	FSvcJob* J = SvcJ(Job); if (!J || J->Phase == 3) return;
 	J->Phase = 3; const int32 Ti = J->Ti, Ci = J->Men[0].Ci;
-	if (!SvSpec(J->Svc).bFuel && !SvSpec(J->Svc).bCater) WalkTo(Ci, [this, Ti] { return TW(Tractors[Ti], FVector(-345.f, -175.f, 0.f)); }, 30.f);
-	ClimbIn(Ci, Ti, [this, Job] { if (FSvcMan* X = SvcM(Job, 0)) X->bSeated = true; });
+	if (!SvSpec(J->Svc).bFuel && !SvSpec(J->Svc).bCater && !SvSpec(J->Svc).Wet) WalkTo(Ci, [this, Ti] { return TW(Tractors[Ti], FVector(-345.f, -175.f, 0.f)); }, 30.f);
+	if (!J->Men[0].bSeated) ClimbIn(Ci, Ti, [this, Job] { if (FSvcMan* X = SvcM(Job, 0)) X->bSeated = true; });   // (seated: the catering truck that gave up the rear door)
 	WaitFor(Ci, [this, Job, Ti](float) { return SvcAll(Job, [](const FSvcMan& X) { return X.bSeated; }) && Tractors[Ti].SvcDoors[0].Now < 0.01f; });
-	if (SvSpec(J->Svc).Lat < 0.f) WaitFor(Ci, [this, Ti, Sx = J->StandX](float E) { return E > 300.f || !SvcSideBusy(Ti, Sx); });   // (its turn on the aircraft's right)
+	if (SvSpec(J->Svc).Lat < 0.f && !SvSpec(J->Svc).Wet) WaitFor(Ci, [this, Ti, Sx = J->StandX](float E) { return E > 300.f || !SvcSideBusy(Ti, Sx); });   // (its turn on the aircraft's right)
 	Do(Ci, [this, Job, Ti]
 	{
 		FSvcJob* X = SvcJ(Job); if (!X) return;
@@ -851,6 +893,13 @@ void AGSE::SvcLeave(int32 Job)
 		// (you left it a little off its place: straight on from there)
 		if (FVector::Dist2D(T.At, Sv.bCater ? X->Place : Plan(S + Sv.Lat, N + Sv.Aft)) > 120.f || FMath::Abs(FMath::FindDeltaAngleDegrees(T.Yaw, X->PlaceYaw)) > 8.f) { T.Job = EJob::Back; SvcHome(Job); return; }
 		TArray<FVector> R;
+		if (Sv.Wet)
+		{
+			// (it stands with its nose away from the aircraft: straight out)
+			const FVector F = T.At, E = Plan(S + Sv.Lat, N + Sv.Far + 4.f); for (int32 i = 1; i <= 30; ++i) R.Add(FMath::Lerp(F, E, i / 30.f));
+			Go(T, MoveTemp(R), false, [this, Job, Ti] { Tractors[Ti].Job = EJob::Back; SvcHome(Job); });
+			return;
+		}
 		if (Sv.InR > 0.f)
 		{
 			// (back out the way it came: under the wing and round to the lane beside the wingtip)
@@ -903,7 +952,7 @@ void AGSE::SvcHome(int32 Job)
 {
 	FSvcJob* J = SvcJ(Job); if (!J) return;
 	const int32 Ti = J->Ti;
-	SvcDriveHome(Job, [this, Job, Ti]
+	auto End = [this, Job, Ti]
 		{
 			FTractor& X = Tractors[Ti]; X.Job = EJob::Home; Motor(X, false); ADP_LOG(TEXT("GSE: the %s parked, switched off"), *X.Name);
 			FSvcJob* J2 = SvcJ(Job); if (!J2) return;
@@ -917,5 +966,7 @@ void AGSE::SvcHome(int32 Job)
 				Do(Ci, [this, Job, Ti] { FTractor& Y = Tractors[Ti]; Y.Job = EJob::None; Y.Key.Reset(); Y.StandX = 0.f; Y.Driver = INDEX_NONE; if (FSvcJob* Z = SvcJ(Job)) Z->Phase = 9; });
 				GiveBack(Ci);
 			}
-		});
+		};
+	// (it never left its box: nothing to drive)
+	if (FVector::Dist2D(Tractors[Ti].At, Tractors[Ti].Home) < 200.f && FMath::Abs(FMath::FindDeltaAngleDegrees(Tractors[Ti].Yaw, Tractors[Ti].HomeYaw)) < 20.f) End(); else SvcDriveHome(Job, End);
 }

@@ -285,6 +285,21 @@ Model `Art/ToiletTruck` (make_toilettruck.py) on the same `Tools/small_truck.py`
 - **Parking place (chosen, not drawn yet):** the EAST end, middle (554.6, 110.0), facing north, box x 553.2..556.0, y 106.5..113.5: about 5 m off stand 16's line (about x 548.3), loop in at x 564.2 (apron edge 570). Nothing is drawn or parked there (looked through airfield.json and the GSE sources). Worked out on paper.
 - **Not there:** no lift, pump or vacuum sound checked for; nothing run in the game.
 
+## Water truck and toilet truck, part B as built (to-do 212, 2026-11-24, compiled, NOT run)
+`Private/GSEWater.cpp`, `Public/GSEWater.h` (both trucks), two table lines in `GSEService.cpp` (tasks `water`, `toilet`, field `Wet` 1 / 2), hooks in `GSE*`, `ServiceDrive`, `StaffPeople`, `TugStaff`, `Turnaround`.
+- **Boxes** (drawn by Airfield, on paper only): water (-256.4, 117), 0.4 m east of part A's place: 0.7 m mirror to mirror off the van's straight way out, 0.4 m inside stand 9's line on its loop, 1.6 m to the catering box. Toilet (554.6, 110) as chosen.
+- **At the stand:** they BACK in: behind the tail, a U-turn of two 4.8 m circles beside the line (y 37 - 46 behind the nose wheel), straight back; out straight forward. Water 0.60 m left, middle 28.60 m behind; toilet 0.85 m right, 28.32 m
+  (changed from part A's 1.2 / 1.5: the panel is now over the platform where he can reach it). The panel points come from the aircraft as it stands (at most 22 cm off the place, else logged). The A320 has no modelled panels.
+- **Work, in stages** (a relief goes on from the last finished): own chocks; water: steps and gate, coupling off its cup, on the panel with both hands, valve, pump, 240 s (200 l), back, reel button; toilet: tray down, cap off, rinse coupling hung on the rail, waste coupling out, lift by the held lever
+  (73 cm), both on, down, drain lever 240 s, rinse 120 s, up again, all back. Hoses: `UCableComponent` without collision; reels and their turns follow.
+- **Who waits for whom** (claimed when leaving the box, so no two wait at the stand): water or toilet, one at a time (`WetAt`); the toilet truck waits once the catering truck has its first trolley in at R1 until it has left R2, before that the catering truck waits at R1 for it. Given up: in its box after 40 min
+  or when the aircraft is gone (logged, home). **Catering against trains at R2:** a train or belt loader already on its way (from any distance, new) goes first, later ones wait in `TrainApron` / `LoaderApron` while the truck is at R2; none of them waits for a truck at R1, so there is no ring; new: after 20 min at R1 the truck gives up R2 and
+  goes home (`cat2` ends, logged); a train too late for its flight now turns back even while the truck is at R2. The flight itself waits 45 min at most, as before.
+- **Plan tasks** `water` and `toilet` ask once the aircraft is chocked; they end when the hoses are stowed; the flight waits with the reason. People: role `water` (`b3D` true), one driver each (`EStaffDuty::WaterDriver`); fewer than two hired, other airlines, stands over 36 m: data with its time. Costs unchanged.
+- **Yours:** E at both cab doors; the driver's seat not while the driver is at work; the fill point's door by E on the water truck. No glow.
+- **Not there:** gloves, visor, apron (no garment); pump, lift, reel, vacuum sounds; the fill and dump work at a depot (30 s shut in its box instead); the mast's lower lever is not used; the cables may touch the truck.
+- **Not checked:** everything in the game - reaches (coupling 20 cm over the floor, rinse coupling from the platform), lever turn signs, the walk under the tail, the U-turn beside a leaving cleaning van, the wipers' upper place (worked out), the single step of the cab (the rear handle is out of reach: left out).
+
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
 | Where | Today | Replace with | Nobody free |

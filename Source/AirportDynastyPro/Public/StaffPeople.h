@@ -16,9 +16,9 @@ struct FADPWorld;
 class ATugs;
 
 /** What a ground crew member can do. The simulation has one ramp role, "ground", for all of it. */
-enum class EStaffDuty : uint8 { TugDriver, PushbackHandler, WingWalker, GpuHandler, TractorDriver, BaggageHandler, LoaderOperator, CleanDriver, Cleaner, FuelDriver, CaterDriver, CaterLoader };
+enum class EStaffDuty : uint8 { TugDriver, PushbackHandler, WingWalker, GpuHandler, TractorDriver, BaggageHandler, LoaderOperator, CleanDriver, Cleaner, FuelDriver, CaterDriver, CaterLoader, WaterDriver };
 /** The jobs of a turn-round that need ground crew. */
-enum class EStaffTask : uint8 { Gpu, BagsOut, BagsIn, Loader, Pushback, Bags, Relief, Chocks, Cleaning, CleanRelief, Fuel, Catering, CaterRelief };   // (Bags: a train and its belt loader together; Relief: one for somebody who vanished at work)
+enum class EStaffTask : uint8 { Gpu, BagsOut, BagsIn, Loader, Pushback, Bags, Relief, Chocks, Cleaning, CleanRelief, Fuel, Catering, CaterRelief, Water, Toilet };   // (Bags: a train and its belt loader together; Relief: one for somebody who vanished at work)
 
 UCLASS()
 class AIRPORTDYNASTYPRO_API UStaffPeople : public UTickableWorldSubsystem

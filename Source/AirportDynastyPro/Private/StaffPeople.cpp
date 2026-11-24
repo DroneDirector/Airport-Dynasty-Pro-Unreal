@@ -85,7 +85,7 @@ void UStaffPeople::Deinitialize() { ADPSchedule::Waiting3D = nullptr; Asks.Reset
 
 // ------------------------------------------------------------------ the pool
 
-const TCHAR* UStaffPeople::RoleOf(EStaffDuty D) { return D == EStaffDuty::CleanDriver || D == EStaffDuty::Cleaner ? TEXT("cleaning") : D == EStaffDuty::FuelDriver ? TEXT("fuel") : D == EStaffDuty::CaterDriver || D == EStaffDuty::CaterLoader ? TEXT("catering") : TEXT("ground"); }   // (one ramp role does all but the cleaning and the fuel)
+const TCHAR* UStaffPeople::RoleOf(EStaffDuty D) { return D == EStaffDuty::CleanDriver || D == EStaffDuty::Cleaner ? TEXT("cleaning") : D == EStaffDuty::FuelDriver ? TEXT("fuel") : D == EStaffDuty::CaterDriver || D == EStaffDuty::CaterLoader ? TEXT("catering") : D == EStaffDuty::WaterDriver ? TEXT("water") : TEXT("ground"); }   // (one ramp role does all but the cleaning and the fuel)
 const TCHAR* UStaffPeople::DutyName(EStaffDuty D)
 {
 	switch (D)
@@ -95,6 +95,7 @@ const TCHAR* UStaffPeople::DutyName(EStaffDuty D)
 	case EStaffDuty::FuelDriver: return TEXT("fuel truck driver");
 	case EStaffDuty::CaterDriver: return TEXT("catering truck driver");
 	case EStaffDuty::CaterLoader: return TEXT("catering loader");
+	case EStaffDuty::WaterDriver: return TEXT("water and toilet truck driver");
 	case EStaffDuty::TugDriver: return TEXT("tug driver");
 	case EStaffDuty::PushbackHandler: return TEXT("pushback handler");
 	case EStaffDuty::WingWalker: return TEXT("wing walker");
@@ -110,6 +111,8 @@ const TCHAR* UStaffPeople::TaskName(EStaffTask T)
 	{
 	case EStaffTask::Cleaning: case EStaffTask::CleanRelief: return TEXT("cabin cleaning");
 	case EStaffTask::Fuel: return TEXT("refuelling");
+	case EStaffTask::Water: return TEXT("fresh water");
+	case EStaffTask::Toilet: return TEXT("toilet service");
 	case EStaffTask::Catering: case EStaffTask::CaterRelief: return TEXT("catering");
 	case EStaffTask::Gpu: return TEXT("ground power");
 	case EStaffTask::BagsOut: return TEXT("bags out to the aircraft");
@@ -132,6 +135,7 @@ void UStaffPeople::Needs(EStaffTask T, TArray<FNeed>& Out)
 	case EStaffTask::Bags: Add(EStaffDuty::TractorDriver, 1, 1); Add(EStaffDuty::LoaderOperator, 1, 1); Add(EStaffDuty::BaggageHandler, 0, 2); break;
 	case EStaffTask::Cleaning: Add(EStaffDuty::CleanDriver, 1, 1); Add(EStaffDuty::Cleaner, 1, 3); break;
 	case EStaffTask::Fuel: Add(EStaffDuty::FuelDriver, 1, 1); break;
+	case EStaffTask::Water: case EStaffTask::Toilet: Add(EStaffDuty::WaterDriver, 1, 1); break;
 	case EStaffTask::Catering: Add(EStaffDuty::CaterDriver, 1, 1); Add(EStaffDuty::CaterLoader, 1, 1); break;
 	case EStaffTask::CaterRelief: Add(EStaffDuty::CaterLoader, 1, 1); break;
 	case EStaffTask::CleanRelief: Add(EStaffDuty::Cleaner, 1, 1); break;

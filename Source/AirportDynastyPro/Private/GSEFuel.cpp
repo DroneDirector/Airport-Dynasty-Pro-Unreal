@@ -207,9 +207,10 @@ TFunction<void(float, float, FDriverPose&)> AGSE::TallClimbFn(int32 Ti, bool bIn
 		auto Key = [&](int32 i)
 		{
 			FDriverPose Q; Q.Facing = In; Q.bHand[0] = Q.bHand[1] = true; Q.Hand[0] = TW(T, GIn); Q.Hand[1] = TW(T, T.KGrabOut + FVector(0.f, 0.f, i > 2 ? 22.f : 0.f)); Q.Grip[0] = Q.Grip[1] = 1.f;
+			const bool bFar = T.KGrabOut.X < Xb - 60.f; if (bFar) { Q.Hand[1] = Q.Hand[0]; Q.bHand[1] = false; }   // (the small truck's rear handle is out of reach from its front step)
 			switch (i)
 			{
-			case 0: Q = ADPPose::Standing(TW(T, T.KStand), In, PH); Q.bHand[1] = true; Q.Hand[1] = TW(T, T.KGrabOut); Q.Grip[1] = 1.f; break;
+			case 0: Q = ADPPose::Standing(TW(T, T.KStand), In, PH); if (!bFar) { Q.bHand[1] = true; Q.Hand[1] = TW(T, T.KGrabOut); Q.Grip[1] = 1.f; } break;
 			case 1: Q.Pelvis = TW(T, FVector(Xb - 10.f, Lo.Y - 44.f, PH + 4.f)); Q.Lean = 12.f; Q.Hand[0] = TW(T, GIn - FuUp * 42.f);      // the left foot on the low step
 				Q.Foot[0] = TW(T, Lo + FVector(5.f, 0.f, 0.f)); Q.Foot[1] = TW(T, FVector(Xb - 22.f, Lo.Y - 55.f, 0.f)); break;
 			case 2: Q.Pelvis = TW(T, FVector(Xb, Lo.Y - 24.f, Lo.Z + PH - 4.f)); Q.Lean = 13.f; Q.Hand[0] = TW(T, GIn - FuUp * 20.f);      // up on it, the right one on the next

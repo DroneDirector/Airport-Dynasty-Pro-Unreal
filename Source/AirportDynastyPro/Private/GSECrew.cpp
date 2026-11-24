@@ -411,7 +411,6 @@ void AGSE::TrainToStand(int32 Ti)
 void AGSE::TrainApron(int32 Ti)
 {
 	FTractor& T = Tractors[Ti];
-	if (CaterRear(T.StandX)) { RetryIn(Ti, 8.f, [this, Ti] { TrainApron(Ti); }); return; }   // (the catering truck at the rear door, across its place)
 	// (its flight has gone without it: back in, the bags to the search room's shelf - never out to an empty stand)
 	if (!bTest && !T.bArrival && !T.Key.IsEmpty() && !ADPTurnaround::ForFlight(T.Key))
 	{
@@ -420,6 +419,7 @@ void AGSE::TrainApron(int32 Ti)
 		T.Job = EJob::Back; RouteIn(T, T.At, T.Yaw, [this, Ti] { TrainDrop(Ti); });
 		return;
 	}
+	if (CaterRear(T.StandX)) { RetryIn(Ti, 8.f, [this, Ti] { TrainApron(Ti); }); return; }   // (the catering truck at the rear door, across its place)
 	// its flight's stand (the test: the next departure; with none yet, the stand nearest the apron exit with an aircraft)
 	if (T.Key.IsEmpty() && bTestStand) { T.Key = TestKey; T.StandX = TestStand; }
 	// (a train made up for its flight's bags before its departure was called: the stand from its tug, else wait for it)

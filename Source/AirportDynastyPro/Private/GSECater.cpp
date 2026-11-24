@@ -20,6 +20,7 @@
 
 namespace
 {
+	const float CtRearPatience = 1200.f;   // (20 min at the front door for the rear one to come free)
 	const FVector CtUp(0, 0, 1);
 	const float CtFloor = 150.f, CtDeck = 136.5f, CtSlide = 295.f, CtReach = 531.3f + 3.f, CtCabinSeconds = 14.f, CtLane = -20.43f;
 	const FVector2D CtSkin[2] = {FVector2D(200.0, -30.0), FVector2D(157.0, 2477.0)};   // (right of the centre line, behind the nose wheel)
@@ -229,7 +230,7 @@ bool AGSE::SvcSideBusy(int32 Ti, float StandX) const
 		const FTractor& O = Tractors[i]; if (i == Ti || !O.M.IsValid() || FMath::Abs(O.StandX - StandX) > 1.f) continue;
 		if (O.Svc != INDEX_NONE)
 		{
-			if (ADPService::All()[O.Svc].Lat >= 0.f) continue;
+			if (ADPService::All()[O.Svc].Lat >= 0.f || ADPService::All()[O.Svc].Wet) continue;   // (the water and the toilet truck come from behind)
 			if (O.Job == EJob::Out) return true;
 			for (const TPair<int32, FSvcJob>& P : SvcJobs) if (P.Value.Ti == i && P.Value.Phase == 3 && O.Job == EJob::AtStand && O.Path.Num()) return true;
 		}
@@ -265,7 +266,7 @@ bool AGSE::CaterRearFree(float StandX) const
 		if (O.Svc != INDEX_NONE || !O.M.IsValid() || O.Job == EJob::None) continue;
 		if (In(O.At)) return false;
 		for (const int32 c : O.Train) if (Carts.IsValidIndex(c) && In(Carts[c].At)) return false;
-		if (FMath::Abs(O.StandX - StandX) < 1.f && O.Path.Num() && FVector::Dist2D(O.At, Mid) < 6000.f) return false;
+		if (FMath::Abs(O.StandX - StandX) < 1.f && O.Path.Num() && (O.Job == EJob::Out || FVector::Dist2D(O.At, Mid) < 6000.f)) return false;   // (on its way out: from however far - it goes first, or it would stand in the truck's way out)
 	}
 	return true;
 }
@@ -562,11 +563,20 @@ void AGSE::CaterStage(int32 Job)
 void AGSE::CaterMove(int32 Job)
 {
 	FSvcJob* J = SvcJ(Job); if (!J) return;
-	const int32 Ti = J->Ti; J->Why = TEXT("the baggage train or the belt loader is at the rear door");
-	Tractors[Ti].Until = [this, Ti, X = J->StandX] { return CaterRearFree(X) && !SvcSideBusy(Ti, X); };
-	Tractors[Ti].AfterUntil = [this, Job, Ti]
+	const int32 Ti = J->Ti; J->Why = WetAt(J->StandX, true, Ti) ? TEXT("the toilet truck is at the tail") : TEXT("the baggage train or the belt loader is at the rear door");
+	const double Until = GetWorld()->GetTimeSeconds() + CtRearPatience;
+	auto Free = [this, Ti, X = J->StandX] { return CaterRearFree(X) && !WetAt(X, true, Ti) && !SvcSideBusy(Ti, X); };
+	Tractors[Ti].Until = [this, Free, Until] { return GetWorld()->GetTimeSeconds() > Until || Free(); };
+	Tractors[Ti].AfterUntil = [this, Job, Ti, Free]
 	{
 		FSvcJob* X = SvcJ(Job); if (!X) return;
+		if (!Free())
+		{
+			// (it never came free: nobody waits for good - home without the rear door's trolleys)
+			ADP_WARN(TEXT("GSE: the catering truck gives up the rear door of %s after %.0f min: %s"), *X->Reg, CtRearPatience / 60.f, *X->Why);
+			X->Why.Reset(); X->CtDone |= 2; for (FSvcMan& M : X->Men) M.bDown = true;
+			SvcLeave(Job); return;
+		}
 		X->Why.Reset(); X->CtDoor = 1; FTractor& T = Tractors[Ti]; T.Job = EJob::Out; Motor(T, true);
 		float S = 0.f, N = 0.f, Sp = 36.f, Sz = 0.f; StandGeo(X->StandX, S, N, Sp); FVector2f At, Hd; CaterDock(*X, 1, At, Hd, Sz);
 		// straight back out to the lane and up it past the rear door, then in again

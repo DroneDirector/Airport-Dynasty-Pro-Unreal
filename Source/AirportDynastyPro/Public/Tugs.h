@@ -116,7 +116,7 @@ private:
 		// walk took them), a small step off it, a look round, and now and then a little movement of their own
 		FVector Anchor = FVector::ZeroVector; float AnchorYaw = 0.f; FVector IdleOff = FVector::ZeroVector; float IdleYawOff = 0.f, IdleT = 4.f;
 		FPoseFn Fidget; float FidgetT = 0.f, FidgetDur = 0.f; int32 LastFidget = -1;
-		bool bHired = false, bLeave = false, bSlotFree = false; FString StaffId; float BlockT = 0.f; bool bLost = false, bRelief = false, bRelClean = false, bRelFuel = false, bRelCater = false; float LostAsk = 0.f, LostT = 0.f; FVector LastAt = FVector::ZeroVector; FPoseFn LostHold;   // (to-do 206: one of your hired people for this job; done with it; an empty slot to use again)
+		bool bHired = false, bLeave = false, bSlotFree = false; FString StaffId; float BlockT = 0.f; bool bLost = false, bRelief = false, bRelClean = false, bRelFuel = false, bRelCater = false, bRelWet = false; float LostAsk = 0.f, LostT = 0.f; FVector LastAt = FVector::ZeroVector; FPoseFn LostHold;   // (to-do 206: one of your hired people for this job; done with it; an empty slot to use again)
 		bool bUp = false;                // (up on a jetway's service stair or in its tunnel: on the surface under them, not the apron's)
 		bool bGse = false;               // on a baggage tractor / cart job just now (GSE.h): not free for a push
 	};

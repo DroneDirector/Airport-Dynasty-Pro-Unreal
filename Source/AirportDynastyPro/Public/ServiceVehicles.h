@@ -21,6 +21,7 @@ struct FServiceSpec
 	float InLat = 0.f, InAft = 0.f, InR = 0.f;              // not straight in: down this line from Far, then (from InAft on) over to Lat in two bends of InR cm, backed out the same way (0: straight)
 	bool bFuel = false;                                     // the refueller (GSEFuel.cpp)
 	bool bCater = false;                                    // the catering high-loader (GSECater.cpp)
+	uint8 Wet = 0;                                          // 1 the potable water truck, 2 the toilet truck (GSEWater.cpp): backed under the tail from behind
 	float Lat = 0.f, Aft = 0.f, Far = 40.f;                 // its place at the stand: m left (+) of the centre line, m behind the nose wheel; driven up straight from Far
 	float HalfL = 300.f, HalfW = 103.f, TurnR = 600.f, MaxSteer = 35.f, DoorDeg = 70.f;
 	bool bJetway = false;                                   // the work is in the cabin: up the jetway's service stair

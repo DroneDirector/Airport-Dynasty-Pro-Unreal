@@ -158,6 +158,9 @@ namespace ADPTurnaround
 				if (K.Id == TEXT("fuel") && Tr->bMine && !Tr->PlanId.IsEmpty() && !K.bStarted && Tm >= K.Start - 8.f)
 					if (AGSE* Gs = AGSE::Get(W)) if (Gs->SvcFor(TEXT("fuel"), Tr->StandX) && !Gs->SvcAsk(TEXT("fuel"), Tr->StandX, Tr->Reg, Tr->Flight, Tr->OffBlocks, Tr->FuelL)) bReady = false;
 				// (to-do 212: catered by your catering crew and their truck, the front right door then the rear one - asked for 8 min ahead; boarding waits for it, as it did)
+				// (water and toilets: asked for as soon as it is chocked; the two trucks see to it themselves that one waits for the other)
+				if ((K.Id == TEXT("water") || K.Id == TEXT("toilet")) && Tr->bMine && !Tr->PlanId.IsEmpty() && !K.bStarted && (Done(*Tr, TEXT("chocks")) || Tm >= K.Start + 4.f))
+					if (AGSE* Gs = AGSE::Get(W)) if (Gs->SvcFor(*K.Id, Tr->StandX) && !Gs->SvcAsk(*K.Id, Tr->StandX, Tr->Reg, Tr->Flight, Tr->OffBlocks)) bReady = false;
 				if (K.Id == TEXT("cat1") && Tr->bMine && !Tr->PlanId.IsEmpty() && !K.bStarted && Tm >= K.Start - 8.f)
 					if (AGSE* Gs = AGSE::Get(W)) if (Gs->SvcFor(TEXT("cat1"), Tr->StandX) && !Gs->SvcAsk(TEXT("cat1"), Tr->StandX, Tr->Reg, Tr->Flight, Tr->OffBlocks)) bReady = false;
 				if (bHired && K.Id == TEXT("gpu") && bReady && !K.bStarted && Tm >= K.Start)
@@ -175,7 +178,7 @@ namespace ADPTurnaround
 				if (!K.bStarted && bReady && Tm >= K.Start)
 				{
 					K.bStarted = true; K.Start = FMath::Max(K.Start, Tm);
-					const bool bVisual = K.Vehicle == TEXT("gpu") || K.Vehicle == TEXT("jetway") || K.Vehicle == TEXT("tug") || K.Vehicle == TEXT("beltloader");
+					const bool bVisual = K.Vehicle == TEXT("gpu") || K.Vehicle == TEXT("jetway") || K.Vehicle == TEXT("tug") || K.Vehicle == TEXT("beltloader") || (Tr->bMine && AGSE::Find(W) && AGSE::Find(W)->SvcFor(*K.Id, Tr->StandX));
 					ADP_LOG(TEXT("Turnaround: %s %s starts (%.1f min, %s)"), *Tr->Reg, *K.Name, K.Dur, bVisual ? TEXT("in 3D") : K.Vehicle.IsEmpty() ? TEXT("the crew") : *FString::Printf(TEXT("%s - simulated until the vehicle is built"), *K.Vehicle));
 					if (K.Id == TEXT("gpu") && !bHired) if (ATugs* Tg = ATugs::Get(W)) Tg->Arrived(Tr->StandX);   // (the ground power plugged in)
 					if ((K.Id == TEXT("clean") || K.Id == TEXT("fuel") || K.Id == TEXT("cat1")) && Tr->bMine) if (AGSE* Gs = AGSE::Get(W)) Gs->SvcGo(*K.Id, Tr->StandX);
@@ -198,7 +201,7 @@ namespace ADPTurnaround
 				const bool bBridge = K.Id == TEXT("bridge") && K.bStarted && !K.bDone && !ASimTraffic::JetwayReady(W, Tr->Stand, true);
 				const bool bBack = K.Id == TEXT("doors") && K.bStarted && !K.bDone && !ASimTraffic::JetwayReady(W, Tr->Stand, false);
 				const bool bChocks = K.Id == TEXT("chocks") && K.bStarted && !K.bDone && ATugs::Get(W) && !ATugs::Get(W)->ChocksIn(Tr->StandX);
-			const bool bClean = (K.Id == TEXT("clean") || K.Id == TEXT("fuel") || K.Id == TEXT("cat1") || K.Id == TEXT("cat2")) && K.bStarted && !K.bDone && Tr->bMine && AGSE::Find(W) && AGSE::Find(W)->SvcBusy(*K.Id, Tr->StandX);
+			const bool bClean = (K.Id == TEXT("clean") || K.Id == TEXT("fuel") || K.Id == TEXT("cat1") || K.Id == TEXT("cat2") || K.Id == TEXT("water") || K.Id == TEXT("toilet")) && K.bStarted && !K.bDone && Tr->bMine && AGSE::Find(W) && AGSE::Find(W)->SvcBusy(*K.Id, Tr->StandX);
 			if (K.bStarted && !K.bDone && Tm >= K.Start + K.Dur && !bClean && !bChocks && !bBagsBusy && !bBoarding && !bOff && !bBridge && !bBack) { K.bDone = true; ADP_LOG(TEXT("Turnaround: %s %s done"), *Tr->Reg, *K.Name); }
 			}
 			// (its bags go out on the tractor train to it as soon as the stand is its own: 50 min before)

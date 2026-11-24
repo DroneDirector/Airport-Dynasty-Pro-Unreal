@@ -47,7 +47,7 @@ const TArray<ADPCrew::FRole>& ADPCrew::Roles()
 		{TEXT("fuel"), TEXT("Fuel truck driver"), TEXT("fuel"), true, true, true, true},
 		{TEXT("catering"), TEXT("Catering loader"), TEXT("catering"), true, true, true, true},
 		{TEXT("cleaning"), TEXT("Aircraft cleaner"), TEXT("cleaning"), true, true, true, true},
-		{TEXT("water"), TEXT("Water and toilet service driver"), TEXT("water"), false, false, true, true},
+		{TEXT("water"), TEXT("Water and toilet service driver"), TEXT("water"), true, false, true, true},
 		{TEXT("deice"), TEXT("De-icing operator"), TEXT("deice"), false, false, true, true},
 		{TEXT("marshaller"), TEXT("Marshaller"), TEXT("ramp"), false, false, true, true},
 		{TEXT("cargo"), TEXT("Cargo loader"), TEXT("ramp"), false, false, true, true},
