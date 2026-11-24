@@ -182,6 +182,18 @@ bool APaxFlow::DeplaneDone(const UWorld* W, const FString& Reg, const FDateTime&
 	return true;
 }
 
+bool APaxFlow::PlaneAtJetway(const AJetwayRigs* J, int32 Jet, const FString& Reg) const
+{
+	// (the flight's own aircraft - tagged SIM/<reg> when parked, MOVE/<reg> while it moves - within 40 m of this jetway's
+	//  docked door point: a jetway docked at another aircraft never opens the door for a later flight's passengers)
+	FVector Ro, Dr; if (!J || Reg.IsEmpty() || !J->Frame(Jet, Ro, Dr)) return false;
+	ADP_PERF_SCOPE("pax flow: gate door - is the flight's aircraft at its jetway", 1.f);
+	const FName A(*(TEXT("SIM/") + Reg)), B(*(TEXT("MOVE/") + Reg));
+	for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It)
+		if ((It->Tags.Contains(A) || It->Tags.Contains(B)) && FVector::Dist2D(It->GetActorLocation(), Dr) < 4000.f) return true;
+	return false;
+}
+
 void APaxFlow::GateDoors(float Dt)
 {
 	if ((GateDoorsIn -= Dt) > 0.f) return;
@@ -201,8 +213,13 @@ void APaxFlow::GateDoors(float Dt)
 		const int32 Gi = bDocked ? GateRoom(R.Gate) : INDEX_NONE;
 		if (Gates.IsValidIndex(Gi) && Gates[Gi].bF2 && Gates[Gi].N > 0 && Gates[Gi].N <= 32)
 		{
-			const bool bUse = R.bArr ? R.bDeplaning && (R.Spawned < R.Visible || R.InTunnel > 0)
-				: R.InTunnel > 0 || (R.bCalled && !R.bOff && !R.bGone && !R.bNoShowGo && (R.Spawned < R.Visible || R.Aboard + R.Home < R.Spawned));
+			// (owner, to-do 234: the jetway corridor door opens EARLY - departures as soon as the jetway is docked at their
+			//  aircraft, before the call and before the first one reaches it; arrivals as soon as it is docked, before the first
+			//  one off comes down the tunnel - and STAYS open until every walker who has to pass, late ones too, has passed.
+			//  ABabylonModel holds it open on this bit, only while that jetway is docked, and never shuts it on anyone)
+			const bool bDepDue = !R.bOff && !R.bGone && !R.bNoShowGo && (R.Spawned < R.Visible || R.Aboard + R.Home < R.Spawned);
+			const bool bUse = R.bArr ? (R.Spawned < R.Visible || R.InTunnel > 0)
+				: R.InTunnel > 0 || (bDepDue && (R.bCalled || PlaneAtJetway(J, R.Jet, R.Reg)));
 			if (bUse) On |= uint32(1) << (Gates[Gi].N - 1);
 		}
 		// (someone at a shut door for long: said, with why)

@@ -198,7 +198,8 @@ private:
 	int32 SliceAt(const FRun& R, const FVector& At) const;
 	bool PastDoor(const FPx& P) const;            // (beyond the gate's jetway door)
 	int32 Inside(int32 Ri) const;                 // (an arrival's walkers not yet through the gate's door, the ones still aboard with them)
-	void GateDoors(float Dt);                     // (which gates' jetway doors may open for passengers now)
+	void GateDoors(float Dt);                     // (which gates' jetway doors stand open for passengers now - to-do 234)
+	bool PlaneAtJetway(const class AJetwayRigs* J, int32 Jet, const FString& Reg) const;   // (the flight's aircraft at that jetway's stand)
 	float GateDoorsIn = 0.f;
 	void GoHome(int32 i, const TCHAR* Why);
 	void Held(int32 i, float Dt);

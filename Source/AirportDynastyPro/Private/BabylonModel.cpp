@@ -11,6 +11,7 @@ static FString GRoadsProbe;   // (the road network's data is there: the model's 
 #include "ADPLog.h"
 #include "PaxNav.h"
 #include "TerminalDoors.h"
+#include "JetwayRigs.h"
 #include "SiteNames.h"
 #include "TimerManager.h"
 #include "EngineUtils.h"
@@ -1172,11 +1173,19 @@ void ABabylonModel::Tick(float Dt)
 			for (int32 k = 0; k < ATerminalDoors::Openers.Num() && !bNear; ++k)
 				bNear = FMath::Abs(ATerminalDoors::Openers[k].Z - D.AtW.Z) < 150.f && FVector::DistSquared2D(ATerminalDoors::Openers[k], D.AtW) < Rr;
 		}
-		// (a gate's jetway door, shut for passengers until now: 30 arrivals queued behind the closed glass - 2026-11-23. Not for
-		//  the walking map (PaxNav::Making): the jetways are off it)
-		if (D.JwGate && !bNear && (GateDoorsOn & (uint32(1) << (D.JwGate - 1))))
-			for (int32 k = 0; k < ATerminalDoors::Openers.Num() && !bNear; ++k)
+		// a gate's jetway corridor door (owner, to-do 234): never opens onto an undocked jetway - not for you, not for anyone;
+		// docked and a flight boarding or getting off there (APaxFlow::GateDoors), it stands open from before the first one
+		// reaches it until the last one, late ones too, is through; docked with nobody due, it opens as you come, like any
+		// sliding door. Once open it only shuts with nobody in the doorway (below). Not for the walking map: the jetways are off it.
+		if (D.JwGate)
+		{
+			const bool bDocked = JetwayDocked(D);
+			if (!bDocked) { if (D.K <= 0.02f) bNear = false; }
+			else if (GateDoorsOn & (uint32(1) << (D.JwGate - 1))) bNear = true;
+			// (open: a passenger still in its doorway keeps it open, whatever the jetway does)
+			for (int32 k = 0; k < ATerminalDoors::Openers.Num() && !bNear && D.K > 0.02f; ++k)
 				bNear = FMath::Abs(ATerminalDoors::Openers[k].Z - D.AtW.Z) < 150.f && FVector::DistSquared2D(ATerminalDoors::Openers[k], D.AtW) < FMath::Square(double(D.Reach) * 100.0);
+		}
 		// sliding doors open by themselves as you come; any other door only when you open it (UseDoor), and its closer
 		// pulls it shut 4 s after you've gone from it
 		if (!D.bSlide && D.bOpen) { D.Away = bNear ? 0.f : D.Away + Dt; if (D.Away > 4.f) D.bOpen = false; }
@@ -1200,6 +1209,23 @@ void ABabylonModel::Tick(float Dt)
 #pragma endregion
 
 TArray<TWeakObjectPtr<ABabylonModel>> ABabylonModel::AllModels;
+bool ABabylonModel::JetwayDocked(FDoor& D)
+{
+	// (found, never spawned, here: the jetways are rigged by whoever needs them first - PaxFlow, the HMI)
+	static TWeakObjectPtr<AJetwayRigs> Jr;
+	if (!Jr.IsValid() || Jr->GetWorld() != GetWorld()) { Jr.Reset(); for (TActorIterator<AJetwayRigs> It(GetWorld()); It; ++It) { Jr = *It; break; } }
+	if (!Jr.IsValid() || Jr->Num() == 0) return false;   // (not rigged yet: shut)
+	if (D.JwIx == -2)
+	{
+		// the jetway whose rotunda is right outside this door (as APaxFlow::JetwayFor finds it)
+		float Bd = 2500.f; D.JwIx = INDEX_NONE;
+		for (int32 j = 0; j < Jr->Num(); ++j) { FVector Ro, Dr; if (Jr->Frame(j, Ro, Dr) && FVector::Dist2D(Ro, D.AtW) < Bd) { Bd = FVector::Dist2D(Ro, D.AtW); D.JwIx = j; } }
+		if (D.JwIx == INDEX_NONE) ADP_WARN(TEXT("Babylon model %s: gate %d's jetway door %s has no jetway within 25 m - it stays shut"), *GetName(), D.JwGate, *D.Id);
+		else ADP_LOG(TEXT("Babylon model %s: gate %d's jetway door opens only while %s is docked"), *GetName(), D.JwGate, *Jr->Name(D.JwIx));
+	}
+	return D.JwIx != INDEX_NONE && Jr->State(D.JwIx) == AJetwayRigs::EState::Docked;
+}
+
 float ABabylonModel::GateDoorK[33] = {-1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f};
 uint32 ABabylonModel::GateDoorsOn = 0;
 
