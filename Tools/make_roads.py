@@ -200,6 +200,9 @@ fc_props = [
     dict(mesh='manhole', side='right', edge=8, off=7.5, spacing=95, **{'from': round(s_t0w + 20 - 3 * 95, 2), 'to': s_t1}),
     dict(mesh='manhole', side='left', edge=2, off=1.5, spacing=110, **{'from': s_c0 + 35, 'to': s_c1}),
 ]
+# the taxi ranks (west and east, their shelters) and the coach station's five bays (to-do 234: Tools/forecourt_stands.py)
+import sys as _sys0; _sys0.path.insert(0, str(Path(__file__).resolve().parent)); import forecourt_stands as _FS
+_fp, _fo = _FS.extras(A.ex); fc_paint += _fp; fc_props += _fo
 road('AIRPORT-FORECOURT', FC, FC_LEFT, FC_RIGHT, paint=fc_paint, crossings=fc_cross, lights=fc_lights, props=fc_props, step=6.0)   # (a point every 6 m: MetaRoad's spline curves smoothly between; 2 m took 25 s to build)
 
 # The roundabout at the west end ("turn back to town", drawing centre (-801, -150)): 21 m to its outer edge, a 7 m ring

@@ -598,6 +598,55 @@
      "dir": 1,
      "o0": 0.15,
      "o1": 3.4
+    },
+    {
+     "kind": "boxes",
+     "side": "right",
+     "lane": 7,
+     "n": 10,
+     "len": 6.2,
+     "gap": 0.8,
+     "w": 0.15,
+     "color": "yellow",
+     "text": [
+      "TAXI"
+     ],
+     "park": false,
+     "from": 1864.92,
+     "src": "forecourt_stands"
+    },
+    {
+     "kind": "boxes",
+     "side": "right",
+     "lane": 7,
+     "n": 11,
+     "len": 6.2,
+     "gap": 0.8,
+     "w": 0.15,
+     "color": "yellow",
+     "text": [
+      "TAXI"
+     ],
+     "park": false,
+     "from": 1623.82,
+     "src": "forecourt_stands"
+    },
+    {
+     "kind": "boxes",
+     "side": "right",
+     "lane": 7,
+     "n": 5,
+     "len": 13.0,
+     "gap": 3.0,
+     "w": 0.2,
+     "color": "yellow",
+     "text": [
+      "BUSES",
+      "ONLY"
+     ],
+     "park": false,
+     "from": 1310.92,
+     "src": "forecourt_stands"
     }
    ],
    "crossings": [
@@ -763,6 +812,30 @@
      "spacing": 110,
      "from": 1523.91,
      "to": 1952.39
+    },
+    {
+     "mesh": "taxishelter",
+     "side": "right",
+     "edge": 8,
+     "off": 2.25,
+     "spacing": 1000,
+     "out": 1,
+     "block": true,
+     "from": 1899.92,
+     "to": 1900.92,
+     "src": "forecourt_stands"
+    },
+    {
+     "mesh": "taxishelter",
+     "side": "right",
+     "edge": 8,
+     "off": 2.25,
+     "spacing": 1000,
+     "out": 1,
+     "block": true,
+     "from": 1661.92,
+     "to": 1662.92,
+     "src": "forecourt_stands"
     }
    ],
    "step": 6.0

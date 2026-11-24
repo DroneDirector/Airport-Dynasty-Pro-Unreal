@@ -24,11 +24,16 @@ def mi(name, col, metal, rough):
     eal.save_loaded_asset(a, only_if_is_dirty=False); return a
 SLOTS = {'CastIron': mi('MI_RP_CastIron', (0.115, 0.098, 0.082), 0.55, 0.62),   # (worn cast iron: a rusty brown in the dark grey)
          'Sump': mi('MI_RP_Sump', (0.012, 0.011, 0.010), 0.0, 0.95),
-         'Concrete': unreal.load_asset(LM + 'MI_LM_Concrete')}
+         'Concrete': unreal.load_asset(LM + 'MI_LM_Concrete'),
+         # the taxi shelter (Art/TaxiShelter/make_taxi_shelter.py, to-do 234)
+         'Steel': mi('MI_RP_Steel', (0.20, 0.21, 0.22), 0.7, 0.45),
+         'Roof': mi('MI_RP_Roof', (0.52, 0.53, 0.54), 0.3, 0.55),
+         'SignYellow': mi('MI_RP_SignYellow', (0.86, 0.60, 0.04), 0.0, 0.5),
+         'SignDark': mi('MI_RP_SignDark', (0.025, 0.025, 0.03), 0.0, 0.6)}
 manager = unreal.InterchangeManager.get_interchange_manager_scripted()
 params = unreal.ImportAssetParameters(); params.is_automated = True
 bad = []
-for name, glb in (('Drain', 'Art/Drain/drain.glb'), ('Manhole', 'Art/Manhole/manhole.glb')):
+for name, glb in (('Drain', 'Art/Drain/drain.glb'), ('Manhole', 'Art/Manhole/manhole.glb'), ('Taxishelter', 'Art/TaxiShelter/taxishelter.glb')):
     d = DIR + '/' + name
     manager.import_asset(d, unreal.InterchangeManager.create_source_data(os.path.join(ROOT, glb)), params)
     manager.wait_until_all_tasks_done(False)

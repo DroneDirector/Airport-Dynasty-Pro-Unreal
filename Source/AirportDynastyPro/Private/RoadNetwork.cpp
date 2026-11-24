@@ -642,7 +642,8 @@ bool ARoadNetwork::BuildSome(double Budget)
 						{
 							const double Dc = (S0 + S1) / 2, Oc = (E0(Dc) + E1(Dc)) / 2;
 							FVector Pc, Fc, Rc; OnRoad(Dc, Pc, Fc, Rc);
-							BusStands.Add(FTransform(FRotator(0.0, Fc.Rotation().Yaw, 0.0), Surface(Pc + Rc * (Oc * 100.0))));
+							bool bPark = true; O->TryGetBoolField(TEXT("park"), bPark);   // "park": false = painted only (the taxi ranks, the coach station's bays)
+							if (bPark) BusStands.Add(FTransform(FRotator(0.0, Fc.Rotation().Yaw, 0.0), Surface(Pc + Rc * (Oc * 100.0))));
 							const double WStep = 2.4, D0w = Dc - WStep * (TJ->Num() - 1) / 2;
 							for (int32 w = 0; w < TJ->Num(); ++w)
 							{
@@ -812,7 +813,9 @@ bool ARoadNetwork::BuildSome(double Budget)
 					if (!M) { ADP_WARN(TEXT("Roads: the %s model is missing (Tools/set_road_props.py)"), *MeshName); continue; }
 					C = NewObject<UInstancedStaticMeshComponent>(this, *(TEXT("Road_") + Cap));
 					C->SetupAttachment(RootComponent); C->SetStaticMesh(M); C->SetMobility(EComponentMobility::Movable);
-					C->SetCollisionEnabled(ECollisionEnabled::QueryOnly); C->RegisterComponent(); AddInstanceComponent(C);
+					bool bBlock = false; O->TryGetBoolField(TEXT("block"), bBlock);   // "block": solid to people and cars (the taxi shelters)
+					if (bBlock) C->SetCollisionProfileName(TEXT("BlockAll")); else C->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+					C->RegisterComponent(); AddInstanceComponent(C);
 				}
 				double Spacing = 22.0, From = -1, To = RoadLen, OutF = 1.0;
 				O->TryGetNumberField(TEXT("spacing"), Spacing); O->TryGetNumberField(TEXT("from"), From); O->TryGetNumberField(TEXT("to"), To); O->TryGetNumberField(TEXT("out"), OutF);
