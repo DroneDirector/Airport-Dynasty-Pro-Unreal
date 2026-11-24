@@ -85,7 +85,7 @@ void UStaffPeople::Deinitialize() { ADPSchedule::Waiting3D = nullptr; Asks.Reset
 
 // ------------------------------------------------------------------ the pool
 
-const TCHAR* UStaffPeople::RoleOf(EStaffDuty D) { return D == EStaffDuty::CleanDriver || D == EStaffDuty::Cleaner ? TEXT("cleaning") : D == EStaffDuty::FuelDriver ? TEXT("fuel") : D == EStaffDuty::CaterDriver || D == EStaffDuty::CaterLoader ? TEXT("catering") : D == EStaffDuty::WaterDriver ? TEXT("water") : TEXT("ground"); }   // (one ramp role does all but the cleaning and the fuel)
+const TCHAR* UStaffPeople::RoleOf(EStaffDuty D) { return D == EStaffDuty::CleanDriver || D == EStaffDuty::Cleaner ? TEXT("cleaning") : D == EStaffDuty::FuelDriver ? TEXT("fuel") : D == EStaffDuty::CaterDriver || D == EStaffDuty::CaterLoader ? TEXT("catering") : D == EStaffDuty::WaterDriver ? TEXT("water") : D == EStaffDuty::TaxiDriver ? TEXT("taxi") : TEXT("ground"); }   // (one ramp role does all but the cleaning and the fuel)
 const TCHAR* UStaffPeople::DutyName(EStaffDuty D)
 {
 	switch (D)
@@ -100,6 +100,7 @@ const TCHAR* UStaffPeople::DutyName(EStaffDuty D)
 	case EStaffDuty::StairsHelper: return TEXT("passenger stairs helper");
 	case EStaffDuty::AmbuDriver: return TEXT("ambulift driver");
 	case EStaffDuty::AmbuHelper: return TEXT("ambulift helper");
+	case EStaffDuty::TaxiDriver: return TEXT("taxi bus driver");
 	case EStaffDuty::DeicerDriver: return TEXT("de-icing truck driver");
 	case EStaffDuty::DeicerOperator: return TEXT("de-icing operator");
 	case EStaffDuty::TugDriver: return TEXT("tug driver");
@@ -121,6 +122,7 @@ const TCHAR* UStaffPeople::TaskName(EStaffTask T)
 	case EStaffTask::Toilet: return TEXT("toilet service");
 	case EStaffTask::Stairs: return TEXT("passenger stairs");
 	case EStaffTask::Ambulift: return TEXT("ambulift");
+	case EStaffTask::Taxi: return TEXT("the taxi bus");
 	case EStaffTask::PushHelp: case EStaffTask::PushDriver: return TEXT("the pushback");
 	case EStaffTask::Deice: return TEXT("de-icing");
 	case EStaffTask::Catering: case EStaffTask::CaterRelief: return TEXT("catering");
@@ -147,6 +149,7 @@ void UStaffPeople::Needs(EStaffTask T, TArray<FNeed>& Out)
 	case EStaffTask::Fuel: Add(EStaffDuty::FuelDriver, 1, 1); break;
 	case EStaffTask::Stairs: Add(EStaffDuty::StairsDriver, 1, 1); Add(EStaffDuty::StairsHelper, 1, 1); break;
 	case EStaffTask::Ambulift: Add(EStaffDuty::AmbuDriver, 1, 1); Add(EStaffDuty::AmbuHelper, 1, 1); break;
+	case EStaffTask::Taxi: Add(EStaffDuty::TaxiDriver, 1, 1); break;   // (its driver at the wheel; the passengers are no crew)
 	case EStaffTask::Deice: Add(EStaffDuty::DeicerDriver, 1, 1); Add(EStaffDuty::DeicerOperator, 1, 1); break;
 	case EStaffTask::Water: case EStaffTask::Toilet: Add(EStaffDuty::WaterDriver, 1, 1); break;
 	case EStaffTask::Catering: Add(EStaffDuty::CaterDriver, 1, 1); Add(EStaffDuty::CaterLoader, 1, 1); break;
@@ -236,13 +239,14 @@ bool UStaffPeople::HiresRole(const TCHAR* Role) const
 	if (!On() || !Sim || !Sim->IsRunning()) return false;
 	const FString Here = ADPBoards::HereIcao(); int32 N = 0;
 	for (const FADPPerson& P : Sim->World.People) if (P.AirlineId == UADPSim::Me() && P.Role == Role && P.Base == Here) ++N;
-	const bool bOk = N >= 2;
+	const int32 Least = FCString::Strcmp(Role, TEXT("taxi")) == 0 ? 1 : 2;   // (the taxi bus: one driver is its whole team)
+	const bool bOk = N >= Least;
 	const bool* Was = SaidHires.Find(Role);
 	if (!Was || *Was != bOk)
 	{
 		SaidHires.Add(Role, bOk);
 		if (bOk) ADP_LOG(TEXT("StaffPeople: you employ %d people of the role %s here - they work your own flights"), N, Role);
-		else ADP_LOG(TEXT("StaffPeople: you employ %d people of the role %s here, 2 are the smallest team - the handling agent's people work your flights until you hire"), N, Role);
+		else ADP_LOG(TEXT("StaffPeople: you employ %d people of the role %s here, %d %s the smallest team - the handling agent's people work your flights until you hire"), N, Role, Least, Least == 1 ? TEXT("is") : TEXT("are"));
 	}
 	return bOk;
 }

@@ -16,9 +16,9 @@ struct FADPWorld;
 class ATugs;
 
 /** What a ground crew member can do. The simulation has one ramp role, "ground", for all of it. */
-enum class EStaffDuty : uint8 { TugDriver, PushbackHandler, WingWalker, GpuHandler, TractorDriver, BaggageHandler, LoaderOperator, CleanDriver, Cleaner, FuelDriver, CaterDriver, CaterLoader, WaterDriver, StairsDriver, StairsHelper, DeicerDriver, DeicerOperator, AmbuDriver, AmbuHelper };
+enum class EStaffDuty : uint8 { TugDriver, PushbackHandler, WingWalker, GpuHandler, TractorDriver, BaggageHandler, LoaderOperator, CleanDriver, Cleaner, FuelDriver, CaterDriver, CaterLoader, WaterDriver, StairsDriver, StairsHelper, DeicerDriver, DeicerOperator, AmbuDriver, AmbuHelper, TaxiDriver };
 /** The jobs of a turn-round that need ground crew. */
-enum class EStaffTask : uint8 { Gpu, BagsOut, BagsIn, Loader, Pushback, Bags, Relief, Chocks, Cleaning, CleanRelief, Fuel, Catering, CaterRelief, Water, Toilet, Stairs, Deice, Ambulift, PushHelp, PushDriver };   // (Bags: a train and its belt loader together; Relief: one for somebody who vanished at work)
+enum class EStaffTask : uint8 { Gpu, BagsOut, BagsIn, Loader, Pushback, Bags, Relief, Chocks, Cleaning, CleanRelief, Fuel, Catering, CaterRelief, Water, Toilet, Stairs, Deice, Ambulift, PushHelp, PushDriver, Taxi };   // (Bags: a train and its belt loader together; Relief: one for somebody who vanished at work)
 
 UCLASS()
 class AIRPORTDYNASTYPRO_API UStaffPeople : public UTickableWorldSubsystem
@@ -31,6 +31,7 @@ public:
 	/** On, and you employ enough ground crew here for the smallest job (2): your own flights are theirs. Fewer (a new game): the
 	 *  handling agent's stand-ins work them, said in the log. */
 	bool Hires() const { return HiresRole(TEXT("ground")); }
+	/** You employ the smallest team of a role here (2; the taxi bus: its 1 driver). */
 	bool HiresRole(const TCHAR* Role) const;
 
 	// ---- the pool

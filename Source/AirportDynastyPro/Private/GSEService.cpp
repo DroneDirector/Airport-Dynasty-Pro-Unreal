@@ -167,7 +167,7 @@ const TArray<FServiceSpec>& ADPService::All()
 			// (the sliding door), its doors, lights, horn (TaxiBus.cpp). Its points: Data/taxibus-riders.json (without it the
 			// line is skipped with a warning).
 			FServiceSpec X;
-			X.Task = TEXT("taxi"); X.Model = TEXT("TaxiBus"); X.Points = TEXT("taxibus"); X.Label = TEXT("taxi bus"); X.Role = TEXT("taxi"); X.MaxPeople = 1;
+			X.Task = TEXT("taxi"); X.Model = TEXT("TaxiBus"); X.Points = TEXT("taxibus"); X.Label = TEXT("taxi bus"); X.Role = TEXT("taxi"); X.Team = EStaffTask::Taxi; X.MaxPeople = 1;   // (its hired driver: role taxi, duty TaxiDriver)
 			X.HomeX = -48.f; X.HomeY = -23.f; X.HomeHx = -1.f; X.HomeHy = 0.f;
 			X.HalfL = 300.f; X.HalfW = 103.f; X.TurnR = 620.f; X.MaxSteer = 36.f; X.DoorDeg = 68.f; X.PlayerSpeed = 830.f;
 			X.Doors = {{TEXT("SlideDoor"), TEXT("PIV_SlideDoor"), TEXT("IK_Handle_SlideDoor_Out"), TEXT("IK_Stand_SlideDoor"), 0.f, true},

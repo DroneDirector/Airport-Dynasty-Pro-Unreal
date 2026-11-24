@@ -24,7 +24,7 @@ const TArray<ADPCrew::FArea>& ADPCrew::Areas()
 		{TEXT("checkin"), TEXT("Check-in"), TEXT("The check-in desks, and boarding at the gates")},
 		{TEXT("gate"), TEXT("Gates"), TEXT("The gate desks. Boarding is done by the check-in team today")},
 		{TEXT("security"), TEXT("Security"), TEXT("The security lanes")},
-		{TEXT("bus"), TEXT("Bus drivers"), TEXT("Coaches and apron buses")},
+		{TEXT("bus"), TEXT("Bus drivers"), TEXT("Coaches, apron buses and the taxi bus")},
 		{TEXT("tower"), TEXT("Tower"), TEXT("Air traffic control")},
 		{TEXT("ops"), TEXT("Operations"), TEXT("The operations room")},
 		{TEXT("lounge"), TEXT("Lounge"), TEXT("The lounge desk and bar")},
@@ -56,6 +56,9 @@ const TArray<ADPCrew::FRole>& ADPCrew::Roles()
 		{TEXT("gate"), TEXT("Gate agent"), TEXT("gate"), false, false, true, true},
 		{TEXT("security"), TEXT("Security officer"), TEXT("security"), false, true, true, true},
 		{TEXT("bus"), TEXT("Bus driver"), TEXT("bus"), false, false, true, true},
+		// (to-do 239b: the landside taxi bus's driver - not a 3D job yet: the hired people come out of the ramp rooms airside and
+		// there is no staff way out to the forecourt kerb; the general wage, no ADPStaff line)
+		{TEXT("taxi"), TEXT("Taxi bus driver"), TEXT("bus"), false, false, true, true},
 		{TEXT("tower"), TEXT("Air traffic controller"), TEXT("tower"), false, false, true, false},
 		{TEXT("ops"), TEXT("Operations controller"), TEXT("ops"), false, false, true, true},
 		{TEXT("lounge"), TEXT("Lounge host"), TEXT("lounge"), false, false, true, true},

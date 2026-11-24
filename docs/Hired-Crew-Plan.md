@@ -516,6 +516,12 @@ Taxi bus (239, part B, 2026-11-24, compiled, NOT run): a line of `ADPService::Al
   `<Seat>_BeltAnchor` on the seat frame, and the tongue as its OWN part (`<Seat>_BeltTongue`, cab `BeltD/P_Tongue`: steel plate + grip) at the
   unchanged `IK_BeltTongue_*` points. The taximeter is its own part `Taximeter` (housing, foot, digit window + bezel); `Taximeter_Btn0-2` own
   parts, `IK_Taximeter_Button` moved 5 mm up (z 135.0). Belts sit in `Seats`, the meter left `CabFittings`. Next: re-import (import_model.py).
+  Driver hire (239b piece 2, 2026-11-24, compiled, NOT run): role `taxi` "Taxi bus driver" (Sim/ADPCrew.cpp, area bus, shifts, offered in
+  talks, general wage), duty `TaxiDriver` + task `Taxi` (StaffPeople.h/.cpp, team 1), `HiresRole("taxi")` true from 1 hired here, the
+  taxi bus line `X.Team = EStaffTask::Taxi`. NOT done: the driver at the wheel - role is b3D false, because every 3D hired person comes
+  out of an airside ramp room and there is no staff way to the landside kerb (through the terminal = through walls). Needs: a landside
+  staff origin (D-F1-STAFF-ENTR-2 to OUTSIDE at x 156 z 46, its outside way to the forecourt unchecked) in StaffPeople, then a taxi
+  crewing hook (GSE.h: claim, walk round the bus front to IK_Stand_DoorDriver, `ClimbIn` = hands on IK_Hand_Wheel_L/R, shift end out).
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
