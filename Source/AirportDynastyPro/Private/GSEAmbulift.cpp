@@ -85,7 +85,7 @@ bool AGSE::AmbuMay(const FTractor& T, int32 Part, float To) const
 	const FSvcAmbu& C = *T.Am; const float* N = C.Now; const bool bOut = FMath::Abs(To) > FMath::Abs(N[Part]);
 	if (C.bStop) return false;   // (an emergency stop)
 	// you on it: no floor folds away under you, no door shuts on you; nothing comes down on you
-	if (T.YouOn) { if (Part == FA::Legs && !bOut) return false; if (T.YouOn == 2 && Part == FA::Tail) return false; if (T.YouOn == 3 && Part == FA::Plat) return false; }
+	if (T.YouOn) { const bool bStop = (Part == FA::Legs && !bOut) || (T.YouOn == 2 && Part == FA::Tail) || (T.YouOn == 3 && Part == FA::Plat); if (bStop && T.Job != EJob::None) T.YouStopAt = GetWorld()->GetTimeSeconds(); if (Part == FA::Legs && !bOut) return false; if (T.YouOn == 2 && Part == FA::Tail) return false; if (T.YouOn == 3 && Part == FA::Plat) return false; }
 	if (FMath::Abs(T.YouAt.Y) < 62.f && !bOut && ((Part == FA::DoorF && FMath::Abs(T.YouAt.X - 254.f) < 48.f) || (Part == FA::DoorR && FMath::Abs(T.YouAt.X + 395.f) < 48.f))) return false;
 	if (!T.YouOn && FMath::Abs(T.YouAt.Y) < 120.f && T.YouAt.X < -400.f && T.YouAt.X > -600.f && ((Part == FA::Arms && bOut) || Part == FA::Tail)) return false;
 	switch (Part)

@@ -532,7 +532,7 @@ void AGSE::Drive(FTractor& T, float Dt)
 		if (GseP2(T.At).Y > 82.6f) for (const FVector& Pl : G->Planes) if (Ahead(Pl, 4500.f)) { bBlocked = true; Why = TEXT("an aircraft"); }
 	}
 	if (T.Svc != INDEX_NONE && !bBlocked && SvcPersonAhead(T, Move)) { bBlocked = true; Why = TEXT("somebody on foot"); }
-	if (T.YouOn) { bBlocked = true; Why = TEXT("you, standing on it"); }
+	if (T.YouOn) { bBlocked = true; Why = TEXT("you, standing on it"); T.YouStopAt = GetWorld()->GetTimeSeconds(); }
 	if (bBlocked) { T.Hold += Dt; if (FMath::Fmod(T.Hold, 15.f) < Dt) ADP_LOG(TEXT("GSE: %s gives way to %s"), *T.Name, *Why); }
 	// steering: the heading wanted (the back leads reversing), limited by the turning circle at this speed
 	const float WantYaw = T.bReverse ? (-To).Rotation().Yaw : To.Rotation().Yaw;

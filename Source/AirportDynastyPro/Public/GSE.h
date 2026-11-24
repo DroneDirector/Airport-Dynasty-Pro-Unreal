@@ -104,7 +104,8 @@ public:
 		float SteerWant = 0.f, BackT = 0.f, PedalA = 0.f, PedalB = 0.f, WipeT = 0.f, WipeNow = 0.f, RainIn = 0.f, BoxT = 0.f; bool bRain = false, bUsed = false;   // (bUsed: full bags or used rolls in it - exchanged shut in its box)
 		int32 GPedal[2] = {INDEX_NONE, INDEX_NONE}, LoadWant = INDEX_NONE; TArray<int32> GWiper; FString Livery;
 		TSharedPtr<FSvcRefuel> Fu;        // (the refueller's own parts: GSEFuel.cpp)
-		uint8 YouOn = 0; FVector YouAt = FVector(1e6); float LeftOpen = 0.f; bool bSwHaz = false, bSwNoBeacon = false, bSwWork = false, bSwLight = false;   // (VehicleControls.h: you on one of its floors, your feet in its frame; the switches)
+		uint8 YouOn = 0; FVector YouAt = FVector(1e6); float LeftOpen = 0.f; mutable double YouStopAt = -10.; FVector YouHand = FVector::ZeroVector;   // (when it last waited because of you; what you carry of it, root cm)
+		bool bSwHaz = false, bSwNoBeacon = false, bSwWork = false, bSwLight = false;   // (VehicleControls.h: you on one of its floors, your feet in its frame; the switches)
 		TSharedPtr<FSvcAmbu> Am;          // (the ambulift's: GSEAmbulift.cpp)
 		TSharedPtr<FSvcDeicer> Di;        // (the de-icing truck's: GSEDeicer.cpp)
 		TSharedPtr<FSvcStairs> Ps;        // (the passenger stairs': GSEStairs.cpp)
@@ -157,6 +158,18 @@ private:
 	// your hands on a vehicle's own controls (VehicleControls.h): its table (none: no controls yet)
 	static const FVehTable* CtlTable(int32 Svc);
 	static TSharedPtr<FVehTable> AmbuControls();
+	static TSharedPtr<FVehTable> FuelControls();
+	static TSharedPtr<FVehTable> WaterControls();
+	void YouFuel(FTractor& T, float Dt);
+	void YouWater(FTractor& T, float Dt);
+	bool FuelStowed(const FTractor& T) const;
+	bool WaterStowed(const FTractor& T) const;
+	/** The waiting turn-round job (fuel / water) whose aircraft has Pt (its root) within Max of Want (truck root): its place in C. */
+	int32 YouJob(const FTractor& T, const FVector& Pt, const FVector& Want, float Max, FVector& C, const AActor** Pl = nullptr) const;   // (its key; none: INDEX_NONE)
+	/** What you fuelled or filled by hand, taken off what that aircraft still needs; nothing left: the job is done. */
+	bool YouDone(FTractor& T, float StandX, float Amount);   // (false: it needs no more)
+	bool YouServe(int32 Svc, float StandX) const;
+	void YouSee(FTractor& T);
 	FString AmbuWhy(const FTractor& T, int32 Part, float To) const;
 	TArray<FTractor> Tractors;
 	TArray<FCart> Carts;

@@ -9,9 +9,12 @@
 #pragma once
 
 #include "GSE.h"
+#include "TruckDriverRig.h"
 #include "VehicleControls.generated.h"
 
 class UBoxComponent;
+class UPoseableMeshComponent;
+class UDriverPoseAnim;
 class UInstancedStaticMeshComponent;
 
 /** One control. Push: a press (a motion toggles between A and B, or Switch is told); Hold: runs to B while held (A to B and back in turn
@@ -41,6 +44,14 @@ struct FVehTable
 	TFunction<uint8(const AGSE::FTractor&, const FVector&)> Aboard;                             // your feet (root) on it: which floor, 0 none
 	TFunction<bool(const AGSE&, const AGSE::FTractor&)> Stowed;
 	TFunction<void(AGSE&, AGSE::FTractor&)> Stow;
+	// things you carry, steps you climb (all may be none): what a control says now (empty: not there now); may its switch, or why not;
+	// what you carry of it; how far its hose lets you go (from a root point); let it go home (you are gone); the climb its crew do
+	TFunction<FString(const AGSE&, const AGSE::FTractor&, const FVehControl&)> Say;
+	TFunction<bool(AGSE&, int32, int32, FString&)> MaySwitch;
+	TFunction<const TCHAR*(const AGSE::FTractor&)> Held;
+	TFunction<float(const AGSE&, const AGSE::FTractor&, FVector&)> Leash;
+	TFunction<void(AGSE::FTractor&)> Drop;
+	TFunction<TFunction<void(float, float, FDriverPose&)>(const AGSE&, int32, int32, float&)> Climb;
 	TFunction<void(AGSE&, int32, int32)> Worked;                                                // a motion you brought to its end (work that counts for the turn-round)
 };
 
@@ -63,12 +74,18 @@ private:
 	struct FHull { TArray<TWeakObjectPtr<UBoxComponent>> Box; TArray<bool> On; TWeakObjectPtr<UBoxComponent> Whole; bool bOn = false; };
 	TMap<int32, FHull> Hulls;
 	int32 Ti = INDEX_NONE, Ci = INDEX_NONE, GlowTi = INDEX_NONE, GlowCi = INDEX_NONE;
-	enum class EDo : uint8 { None, Reach, Work, Back } Do = EDo::None;
+	enum class EDo : uint8 { None, Reach, Work, Back, Climb } Do = EDo::None;
 	float T = 0.f, To = 0.f, W = 0.f; bool bPushed = false, bLedByMe = false, bEnd = false; int32 Way = 0;
 	FString Text; double TextAt = -1.0;
 	TMap<TPair<int32, int32>, float> Last;   // (the way a motion went last: the other way next)
 	TArray<TPair<UInstancedStaticMeshComponent*, int32>> Glow;
 	TWeakObjectPtr<APawn> User;
+	int32 HoldTi = INDEX_NONE; FVector HoldAt = FVector::ZeroVector, HoldF = FVector::ForwardVector;   // (what you carry: whose, where)
+	TFunction<void(float, float, FDriverPose&)> ClimbFn; float ClimbS = 0.f; bool bClimbing = false; FTruckDriverRig Rig;
+	UPROPERTY() TObjectPtr<UPoseableMeshComponent> Rider; UPROPERTY() TObjectPtr<UDriverPoseAnim> Human;
+	void Carry(AGSE& G, APawn* Me);
+	bool Climb(AGSE& G, class AADPWalker& Wk, float Dt);
+	void ClimbEnd(class AADPWalker& Wk);
 	void Find(AGSE& G, APawn& Me);
 	FString Label(AGSE& G, FString& No) const;
 	float Target(AGSE& G, const FVehControl& C, int32 Dir) const;

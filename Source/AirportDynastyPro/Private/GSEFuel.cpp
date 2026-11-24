@@ -7,10 +7,12 @@
 // The coupling: under the right wing's leading edge, 9.9 m out, 11.75 m behind the nose wheel, 3.80 m up - measured on the
 // game's A320 (Art/A320/A320.glb: the wing's underside there), where the real one has its refuelling panel.
 #include "GSEFuel.h"
+#include "GSEWater.h"
 #include "GSE.h"
 #include "ServiceVehicles.h"
 #include "Tugs.h"
 #include "CrewPose.h"
+#include "VehicleControls.h"
 #include "VehicleRiders.h"
 #include "ADPLog.h"
 #include "BabylonModel.h"
@@ -55,6 +57,7 @@ void AGSE::FuelDress(FTractor& T)
 	F.GDead = M->BindGroupWhere([](const FString& N, int32, const FVector&) { return N.StartsWith(TEXT("Deadman")) && !N.StartsWith(TEXT("DeadmanLead")); }, FTransform(SvcP(T, TEXT("IK_Deadman"))));
 	F.GDeadLead = Pre(TEXT("DeadmanLead"), SvcP(T, TEXT("IK_DeadmanLead")));
 	F.GLever[0] = Pre(TEXT("Lever_Pump"), SvcP(T, TEXT("PIV_Lever_Pump"))); F.GLever[1] = Pre(TEXT("Lever_HoseL"), SvcP(T, TEXT("PIV_Lever_HoseL")));
+	F.GLever[2] = Pre(TEXT("Lever_HoseR"), SvcP(T, TEXT("PIV_Lever_HoseR"))); F.GLever[3] = Pre(TEXT("Lever_Defuel"), SvcP(T, TEXT("PIV_Lever_Defuel")));
 	for (int32 i = 0; i < 3; ++i) { const FString G = FString::Printf(TEXT("GaugeNeedle%d"), i); F.GNeedle[i] = Pre(G, SvcP(T, *(TEXT("PIV_") + G))); }
 	// the hose, the bonding cable, the dead man's lead: flexible, the hose as stiff as the GPU's cable
 	auto Cable = [&](const TCHAR* Name, float Width, int32 Segs, bool bStiff, const TCHAR* Like)
@@ -113,6 +116,7 @@ void AGSE::FuelParts(FTractor& T, float Dt)
 	// the nozzle
 	const FVector NozP = SvcP(T, TEXT("PIV_Nozzle_L")); FVector Want = NozP; float WantYaw = 0.f;
 	if (Held(F.Noz)) { WantYaw = Face; Want = HandL(F.Noz) + FRotator(0.f, Face, 0.f).RotateVector(FVector(0.f, F.Noz == FSvcRefuel::RightHand ? -15.f : 15.f, 0.f)) + FuUp * 6.f; }
+	else if (F.Noz == FSvcRefuel::YourHand) { Want = T.YouHand; WantYaw = F.NozYaw; }
 	else if (F.Noz == FSvcRefuel::Put) { Want = F.NozAt; WantYaw = F.NozYaw; }
 	else F.Noz = FSvcRefuel::InPlace;
 	if (F.NozNow.IsZero()) F.NozNow = NozP;
@@ -141,21 +145,23 @@ void AGSE::FuelParts(FTractor& T, float Dt)
 		for (int32 i = 14; i >= 0; --i) { const float L = i < 5 ? 145.8f : i < 10 ? 184.7f : 223.7f; FTransform X = Rl; if (Left >= L * 0.5f) X.SetScale3D(FVector(0.001f)); Left -= L; Put(F.GTurn[i], X); }
 	}
 	// the bonding cable and its clamp, the chocks, the dead man
-	const FVector ClampAt = Held(F.Clamp) ? HandL(F.Clamp) : F.Clamp == FSvcRefuel::Put ? F.ClampAt : SvcP(T, TEXT("IK_BondClamp"));
+	const FVector ClampAt = Held(F.Clamp) ? HandL(F.Clamp) : F.Clamp == FSvcRefuel::YourHand ? T.YouHand : F.Clamp == FSvcRefuel::Put ? F.ClampAt : SvcP(T, TEXT("IK_BondClamp"));
 	Put(F.GClamp, FTransform(ClampAt)); Put(F.GBondTail, Show(SvcP(T, TEXT("IK_BondOut")), F.Clamp == FSvcRefuel::InPlace));
 	const float Bo = Run(F.Bond, SvcP(T, TEXT("IK_BondOut")), ClampAt + FVector(0.f, 0.f, -2.f), 50.f, F.Clamp != FSvcRefuel::InPlace);
 	F.BondSpin += (Bo - F.BondOut) / 12.f; F.BondOut = Bo; Put(F.GBondReel, FTransform(FQuat(FVector::RightVector, -F.BondSpin), SvcP(T, TEXT("PIV_BondReel"))));
 	for (int32 c = 0; c < 2; ++c)
 	{
 		const FVector P = SvcP(T, c ? TEXT("IK_Chock_1") : TEXT("IK_Chock_0"));
-		Put(F.GChock[c], Held(F.Chock[c]) ? FTransform(FRotator(0.f, Face, 0.f), HandL(F.Chock[c])) : F.Chock[c] == FSvcRefuel::Put ? FTransform(SvcP(T, c ? TEXT("IK_ChockPlace_1") : TEXT("IK_ChockPlace_0")) + FuUp * 23.2f) : FTransform(P));
+		Put(F.GChock[c], Held(F.Chock[c]) ? FTransform(FRotator(0.f, Face, 0.f), HandL(F.Chock[c])) : F.Chock[c] == FSvcRefuel::YourHand ? FTransform(T.YouHand) : F.Chock[c] == FSvcRefuel::Put ? FTransform(SvcP(T, c ? TEXT("IK_ChockPlace_1") : TEXT("IK_ChockPlace_0")) + FuUp * 23.2f) : FTransform(P));
 	}
 	const FVector DeadAt = Held(F.Dead) ? HandL(F.Dead) : SvcP(T, TEXT("IK_Deadman"));
 	Put(F.GDead, FTransform(DeadAt)); Put(F.GDeadLead, Show(SvcP(T, TEXT("IK_DeadmanLead")), F.Dead == FSvcRefuel::InPlace));
 	Run(F.Lead, SvcP(T, TEXT("IK_DeadmanLead")), DeadAt, 30.f, F.Dead != FSvcRefuel::InPlace);
 	// the levers, the gauges, the meter
-	for (int32 i = 0; i < 2; ++i) { F.LeverNow[i] = FMath::FInterpConstantTo(F.LeverNow[i], F.LeverWant[i], Dt, 2.f); Put(F.GLever[i], FTransform(FQuat(FVector::RightVector, FMath::DegreesToRadians(40.f * F.LeverNow[i])), SvcP(T, i ? TEXT("PIV_Lever_HoseL") : TEXT("PIV_Lever_Pump")))); }
+	static const TCHAR* const FuLevers[4] = {TEXT("PIV_Lever_Pump"), TEXT("PIV_Lever_HoseL"), TEXT("PIV_Lever_HoseR"), TEXT("PIV_Lever_Defuel")};
+	for (int32 i = 0; i < 4; ++i) { F.LeverNow[i] = FMath::FInterpConstantTo(F.LeverNow[i], F.LeverWant[i], Dt, 2.f); Put(F.GLever[i], FTransform(FQuat(FVector::RightVector, FMath::DegreesToRadians(40.f * F.LeverNow[i])), SvcP(T, FuLevers[i]))); }
 	F.Flow = FMath::FInterpTo(F.Flow, F.bPump ? 1.f : 0.f, Dt, 0.8f);
+	if (T.Job == EJob::None) YouFuel(T, Dt);
 	static const float Dial[] = {0.55f, 0.62f, 0.4f};
 	for (int32 i = 0; i < 3; ++i) Put(F.GNeedle[i], FTransform(FQuat(FVector::RightVector, FMath::DegreesToRadians(-135.f + 270.f * Dial[i] * F.Flow)), SvcP(T, *FString::Printf(TEXT("PIV_GaugeNeedle%d"), i))));
 	if (F.Meter && FMath::Abs(F.Litres - F.Shown) >= 1.f) { F.Shown = FMath::FloorToFloat(F.Litres); F.Meter->SetText(FText::FromString(FString::Printf(TEXT("%.0f L"), F.Shown))); }
@@ -182,7 +188,7 @@ void AGSE::FuelParts(FTractor& T, float Dt)
 	}
 	// (all in its place and nothing moving: nothing more to do until the next job)
 	const int32 Me = int32(&T - Tractors.GetData()); bool bJob = false; for (const TPair<int32, FSvcJob>& P : SvcJobs) if (P.Value.Phase == 2 && P.Value.Ti == Me) bJob = true;
-	if (!bJob && bHome && !bOut && F.Lift == F.LiftWant && F.Gate == F.GateWant && F.Chock[0] == FSvcRefuel::InPlace && F.Chock[1] == FSvcRefuel::InPlace && F.LeverNow[0] == 0.f && F.LeverNow[1] == 0.f && F.Flow < 0.005f && T.bPrev) F.bLive = false;
+	if (!bJob && bHome && !bOut && F.Lift == F.LiftWant && F.Gate == F.GateWant && F.Chock[0] == FSvcRefuel::InPlace && F.Chock[1] == FSvcRefuel::InPlace && F.LeverNow[0] == 0.f && F.LeverNow[1] == 0.f && F.LeverNow[2] == F.LeverWant[2] && F.LeverNow[3] == F.LeverWant[3] && F.Flow < 0.005f && T.bPrev) F.bLive = false;
 }
 
 void AGSE::FuelTick(FSvcJob& J, float Dt)
@@ -457,4 +463,216 @@ void AGSE::FuelLost(int32 Job)
 	if (J->Stage == 3 && F.bConn) J->Stage = 4;
 	if (J->Stage == 5 && !F.bConn) { J->Stage = 6; if (J->Men.Num()) J->Men[0].bDown = true; }
 	ADP_LOG(TEXT("GSE: the refueller stands at %s until somebody takes over (stage %d)"), *J->Reg, J->Stage);
+}
+
+// ------------------------------------------------------------------ in your hands (to-do 238, VehicleControls.h)
+
+namespace
+{
+	enum : int32 { FuMPump, FuMHoseL, FuMHoseR, FuMDefuel, FuMLift, FuMGate, FuMDoor, FuMDead };
+	enum : int32 { FuCChassis, FuCPlat, FuCGate, FuCDoor, FuCCouple, FuCGear, FuCPut0, FuCPut1, FuCStep };
+	enum : int32 { FuSNozHome, FuSNozPlane, FuSClampHome, FuSClampGear, FuSChock0, FuSChock1, FuSPut0, FuSPut1, FuSClimb, FuSStop, FuSLamp };
+	FTransform FuCMove(const FVector& V) { return FTransform(V); }
+	FTransform FuCTurn(const FVector& P, float Deg) { return FTransform(FQuat::Identity, -P) * FTransform(FQuat(FuUp, FMath::DegreesToRadians(Deg)), P); }
+	const TCHAR* FuCHeld(const FSvcRefuel& F)
+	{
+		return F.Noz == FSvcRefuel::YourHand ? TEXT("the fuel nozzle") : F.Clamp == FSvcRefuel::YourHand ? TEXT("the bonding clamp") : F.Chock[0] == FSvcRefuel::YourHand || F.Chock[1] == FSvcRefuel::YourHand ? TEXT("a wheel chock") : nullptr;
+	}
+	float FuCTop(const FSvcRefuel& F) { return FMath::Clamp(float(F.Couple.Z) - 13.f - FuFloor - 184.f, 0.f, FMath::Clamp(float(F.Couple.Z) - 35.f - 255.f, 0.f, 90.f)); }   // (as its crew raise it)
+	bool FuCFlow(const FSvcRefuel& F, FString& Why)
+	{
+		if (F.bStop) Why = TEXT("the emergency stop is pressed"); else if (F.Clamp != FSvcRefuel::Put) Why = TEXT("the bonding clamp is not on the aircraft");
+		else if (!F.bConn) Why = TEXT("the nozzle is not on the aircraft"); else if (F.LeverNow[1] < 0.95f) Why = TEXT("the left hose's lever is shut"); else if (F.LeverNow[0] < 0.95f) Why = TEXT("the pump's lever is off");
+		else if (F.LeverNow[3] > 0.05f) Why = TEXT("the defuel lever is open"); else return true;
+		return false;
+	}
+}
+
+bool AGSE::FuelStowed(const FTractor& T) const
+{
+	if (!T.Fu || T.Job != EJob::None) return true; const FSvcRefuel& F = *T.Fu;
+	for (int32 i = 0; i < 4; ++i) if (F.LeverNow[i] > 0.01f || F.LeverWant[i] > 0.01f) return false;
+	return F.Noz == FSvcRefuel::InPlace && F.Clamp == FSvcRefuel::InPlace && F.Chock[0] == FSvcRefuel::InPlace && F.Chock[1] == FSvcRefuel::InPlace && F.Out == 0.f && F.Lift < 0.5f && F.LiftWant < 0.5f && F.Gate < 0.02f && F.GateWant < 0.02f && !F.bPump && !F.bConn && !F.bStop;
+}
+
+int32 AGSE::YouJob(const FTractor& T, const FVector& Pt, const FVector& Want, float Max, FVector& C, const AActor** Pl) const
+{
+	const FTransform Root(FRotator(0.f, T.Yaw, 0.f), T.At); const FServiceSpec& S = ADPService::All()[T.Svc]; int32 Key = INDEX_NONE; double Bd = Max;
+	for (const TPair<int32, FSvcJob>& J : SvcJobs)
+	{
+		const FServiceSpec& X = ADPService::All()[J.Value.Svc]; if (J.Value.Phase != 0 || X.bFuel != S.bFuel || X.Wet != S.Wet || (!S.bFuel && S.Wet != 1)) continue;
+		const AActor* A = WetPlane(J.Value.StandX); if (!A) continue;
+		const FVector P = Root.InverseTransformPosition(A->GetActorTransform().TransformPosition(Pt)); const double D = FVector::Dist(P, Want);
+		if (D < Bd) { Bd = D; Key = J.Key; C = P; if (Pl) *Pl = A; }
+	}
+	return Key;
+}
+
+bool AGSE::YouServe(int32 Svc, float StandX) const
+{
+	const FServiceSpec& S = ADPService::All()[Svc]; if (!S.bFuel && S.Wet != 1) return false;
+	for (const FTractor& T : Tractors) if (T.Job == EJob::None && ((S.bFuel && T.Fu && T.Fu->YouStandX == StandX && !FuelStowed(T)) || (S.Wet == 1 && T.Wa && !T.Wa->bToilet && T.Wa->YouStandX == StandX && !WaterStowed(T)))) return true;
+	return false;
+}
+
+bool AGSE::YouDone(FTractor& T, float StandX, float Amount)
+{
+	const FServiceSpec& S = ADPService::All()[T.Svc];
+	for (auto It = SvcJobs.CreateIterator(); It; ++It)
+	{
+		FSvcJob& J = It.Value(); const FServiceSpec& X = ADPService::All()[J.Svc]; if (J.Phase != 0 || X.bFuel != S.bFuel || X.Wet != S.Wet || J.StandX != StandX) continue;
+		if (Amount > 0.f) { J.Litres = FMath::Max(0.f, J.Litres - Amount); if (J.Litres <= 0.f) ADP_LOG(TEXT("GSE: %s has from you all it asked for"), *J.Reg); return J.Litres > 0.f; }
+		// (everything back in its place: what it needed is done; else a crew does the rest)
+		if (J.Litres <= 1.f) { ADP_LOG(TEXT("GSE: %s served by you"), *J.Reg); It.RemoveCurrent(); }
+		return false;
+	}
+	return false;
+}
+
+void AGSE::YouSee(FTractor& T)
+{
+	// (on a press only: the aircraft you stand under)
+	FVector C; const AActor* Pl = nullptr; const FTransform Root(FRotator(0.f, T.Yaw, 0.f), T.At);
+	if (T.Fu && !T.Fu->bConn)
+	{
+		FSvcRefuel& F = *T.Fu; const FVector Want(FuWork.X, -118.f, 380.f); const int32 J = YouJob(T, FuCouplePlane, Want, 45.f, C, &Pl); F.bSeen = J != INDEX_NONE; F.SeenAt = GetWorld()->GetTimeSeconds();
+		if (F.bSeen) { F.Couple = C; F.ClampAt = Root.InverseTransformPosition(Pl->GetActorTransform().TransformPosition(FuGear)); F.YouStandX = SvcJobs[J].StandX; }
+	}
+}
+
+void AGSE::YouFuel(FTractor& T, float Dt)
+{
+	FSvcRefuel& F = *T.Fu; FString Why; if (F.YouStandX < -1e5f) { F.bPump = false; return; }
+	if (F.bPump && !FuCFlow(*T.Fu, Why)) F.bPump = false;
+	if (F.bPump) { const float L = Dt * (1000.f / 60.f) * F.Flow; T.bUsed = true; F.Litres += L; if (!YouDone(T, F.YouStandX, FMath::Max(L, 0.001f))) F.bPump = false; }
+	else if (FuelStowed(T)) { YouDone(T, F.YouStandX, 0.f); F.YouStandX = -1e6f; F.bSeen = false; }
+}
+
+TSharedPtr<FVehTable> AGSE::FuelControls()
+{
+	using K = FVehControl; using FR = FSvcRefuel;
+	const FVector L(0, -1, 0), R(0, 1, 0), No(0, 0, 0);
+	TSharedPtr<FVehTable> Tb = MakeShared<FVehTable>(); TArray<K>& C = Tb->Controls;
+	auto Mo = [&C](const TCHAR* Part, const TCHAR* Pt, K::EKind Kind, const TCHAR* Lb, int32 Fr, const FVector& Out, int32 M, float A, float Bv, bool bTurns = true) { K X; X.Part = Part; X.Point = Pt; X.Kind = Kind; X.Label = Lb; X.Frame = Fr; X.Out = Out; X.Motion = M; X.A = A; X.B = Bv; X.bTurns = bTurns; C.Add(X); };
+	auto Sw = [&C](const TCHAR* Part, const TCHAR* Pt, const TCHAR* Lb, int32 Fr, const FVector& Out, int32 S) { K X; X.Part = Part; X.Point = Pt; X.Kind = K::Push; X.Label = Lb; X.Frame = Fr; X.Out = Out; X.Switch = S; C.Add(X); };
+	auto Box = [&Tb](const FVector& Mn, const FVector& Mx, int32 Fr, TFunction<bool(const FTractor&)> On = nullptr) { FVehSolid S; S.Min = Mn; S.Max = Mx; S.Frame = Fr; S.On = MoveTemp(On); Tb->Solids.Add(S); };
+
+	// the panel behind the left door
+	Mo(TEXT("PanelDoorL"), TEXT("IK_Handle_PanelDoorL_Out"), K::Hand, TEXT("Panel door"), FuCDoor, No, FuMDoor, 0.f, 1.f);
+	Mo(TEXT("Lever_Pump"), TEXT("IK_Lever_Pump"), K::Lever, TEXT("Pump on / off"), FuCChassis, L, FuMPump, 0.f, 1.f);
+	Mo(TEXT("Lever_HoseL"), TEXT("IK_Lever_HoseL"), K::Lever, TEXT("Left hose open / shut"), FuCChassis, L, FuMHoseL, 0.f, 1.f);
+	Mo(TEXT("Lever_HoseR"), TEXT("IK_Lever_HoseR"), K::Lever, TEXT("Right hose open / shut"), FuCChassis, L, FuMHoseR, 0.f, 1.f);
+	Mo(TEXT("Lever_Defuel"), TEXT("IK_Lever_Defuel"), K::Lever, TEXT("Defuel open / shut"), FuCChassis, L, FuMDefuel, 0.f, 1.f);
+	Mo(TEXT("Deadman_Button"), TEXT("IK_Deadman"), K::Hold, TEXT("Dead man: fuel flows while you hold it"), FuCChassis, L, FuMDead, 0.f, 1.f, false);
+	Sw(TEXT("IK_Button_EStop"), TEXT("IK_Button_EStop"), TEXT("Emergency stop"), FuCChassis, L, FuSStop); Sw(TEXT("IK_Button_LampOn"), TEXT("IK_Button_LampOn"), TEXT("Work lights"), FuCChassis, L, FuSLamp);
+	Sw(TEXT("ShutL_Button"), TEXT("IK_EmergencyL"), TEXT("Emergency shut-off"), FuCChassis, L, FuSStop); Sw(TEXT("ShutR_Button"), TEXT("IK_EmergencyR"), TEXT("Emergency shut-off"), FuCChassis, R, FuSStop);
+	// what is carried: from its place, to where it goes
+	Sw(TEXT("Chock_0"), TEXT("IK_Chock_0"), TEXT("Chock"), FuCChassis, No, FuSChock0); Sw(TEXT("Chock_1"), TEXT("IK_Chock_1"), TEXT("Chock"), FuCChassis, No, FuSChock1);
+	Sw(TEXT("Chock_0"), TEXT("IK_Chock_0"), TEXT("Chock"), FuCPut0, No, FuSPut0); Sw(TEXT("Chock_1"), TEXT("IK_Chock_1"), TEXT("Chock"), FuCPut1, No, FuSPut1);
+	Sw(TEXT("BondClamp"), TEXT("IK_BondClamp"), TEXT("Bonding clamp"), FuCChassis, No, FuSClampHome); Sw(TEXT("BondClamp"), TEXT("IK_BondClamp"), TEXT("Bonding clamp"), FuCGear, No, FuSClampGear);
+	Sw(TEXT("Nozzle_L"), TEXT("PIV_Nozzle_L"), TEXT("Nozzle"), FuCChassis, No, FuSNozHome); Sw(TEXT("Nozzle_L"), TEXT("PIV_Nozzle_L"), TEXT("Nozzle"), FuCCouple, No, FuSNozPlane);
+	// the platform
+	Mo(TEXT("GatePlatform"), TEXT("IK_Handle_GatePlatform"), K::Hand, TEXT("Platform gate"), FuCGate, No, FuMGate, 0.f, 1.f);
+	Mo(TEXT("LeverPlatform"), TEXT("IK_LeverPlatform"), K::Lever, TEXT("Platform up / down"), FuCPlat, No, FuMLift, 0.f, 90.f);
+	Sw(TEXT("IK_Step_Platform_3"), TEXT("IK_Step_Platform_3"), TEXT("Steps"), FuCStep, No, FuSClimb);
+
+	Tb->Frame = [](const AGSE& G, const FTractor& T, int32 Fr) -> FTransform
+	{
+		const FR& F = *T.Fu;
+		switch (Fr)
+		{
+		case FuCPlat: return FuCMove(FuUp * F.Lift);
+		case FuCGate: return FuCTurn(G.SvcP(T, TEXT("PIV_GatePlatform")), -90.f * FMath::SmoothStep(0.f, 1.f, F.Gate)) * FuCMove(FuUp * F.Lift);
+		case FuCDoor: return T.SvcDoors.Num() ? FuCTurn(T.SvcDoors[0].Piv, ADPService::All()[T.Svc].Doors[0].Deg * T.SvcDoors[0].Now) : FTransform::Identity;
+		case FuCCouple: return FuCMove((F.Noz == FR::Put ? F.NozNow : F.Couple - FuUp * 7.f) - G.SvcP(T, TEXT("PIV_Nozzle_L")));
+		case FuCGear: return FuCMove(F.ClampAt - G.SvcP(T, TEXT("IK_BondClamp")));
+		case FuCPut0: case FuCPut1: return FuCMove(G.SvcP(T, Fr == FuCPut1 ? TEXT("IK_ChockPlace_1") : TEXT("IK_ChockPlace_0")) + FuUp * 23.2f - G.SvcP(T, Fr == FuCPut1 ? TEXT("IK_Chock_1") : TEXT("IK_Chock_0")));
+		case FuCStep: return FuCMove(FuUp * (T.YouOn ? 80.f : 0.f));   // (from up there you take hold above it)
+		default: return FTransform::Identity;
+		}
+	};
+	Tb->Now = [](const FTractor& T, int32 M) { const FR& F = *T.Fu; return M <= FuMDefuel ? F.LeverNow[M] : M == FuMLift ? F.Lift : M == FuMGate ? F.Gate : M == FuMDoor && T.SvcDoors.Num() ? T.SvcDoors[0].Now : 0.f; };
+	Tb->Want = [](FTractor& T, int32 M, float To)
+	{
+		FR& F = *T.Fu; F.bLive = true;
+		if (M <= FuMDefuel) F.LeverWant[M] = To; else if (M == FuMLift) F.LiftWant = To; else if (M == FuMGate) F.GateWant = To; else if (M == FuMDoor) { if (T.SvcDoors.Num()) T.SvcDoors[0].Want = To; } else F.bPump = To > 0.5f;
+	};
+	Tb->May = [](const AGSE& G, const FTractor& T, int32 M, float To, FString& Why)
+	{
+		const FR& F = *T.Fu;
+		if (M == FuMDead) return FuCFlow(*T.Fu, Why);
+		if (M == FuMLift) { if (F.bStop) Why = TEXT("the emergency stop is pressed"); else if (F.Gate > 0.02f) Why = TEXT("the gate is open"); else if (!T.YouOn) Why = TEXT("only from on the platform"); else if (F.bConn) Why = TEXT("the nozzle is on the aircraft"); return Why.IsEmpty(); }
+		if (M == FuMGate) { if (F.Lift > 0.5f) Why = TEXT("the platform is up"); else if (T.YouOn && T.YouAt.X < -455.f) Why = TEXT("you stand in its way"); return Why.IsEmpty(); }
+		return true;
+	};
+	Tb->End = [](const FTractor& T, int32 M, float E) { return M == FuMLift && T.Fu->bSeen ? FMath::Min(E, FuCTop(*T.Fu)) : E; };   // (never up into the wing)
+	Tb->Press = [](AGSE& G, int32 Ti, const K& X) { FTractor& T = G.Tractors[Ti]; if (X.Motion == FuMLift && G.GetWorld()->GetTimeSeconds() - T.Fu->SeenAt > 5.) G.YouSee(T); };
+	Tb->Say = [](const AGSE& G, const FTractor& T, const K& X) -> FString
+	{
+		const FR& F = *T.Fu; const bool bPanel = FCString::Strncmp(X.Point, TEXT("IK_Lever_"), 9) == 0 || FCString::Strncmp(X.Point, TEXT("IK_Button_"), 10) == 0 || X.Motion == FuMDead;
+		if (bPanel && T.SvcDoors.Num() && T.SvcDoors[0].Now < 0.5f) return FString();   // (behind its door)
+		auto Two = [](uint8 M, bool bHome, const TCHAR* Take, const TCHAR* Back) { return FString(M == (bHome ? FR::InPlace : FR::Put) ? Take : M == FR::YourHand ? Back : TEXT("")); };
+		switch (X.Switch)
+		{
+		case FuSNozHome: return Two(F.Noz, true, TEXT("Take the nozzle, the hose comes with it"), TEXT("Put the nozzle back"));
+		case FuSNozPlane: return F.bSeen || F.bConn ? Two(F.Noz, false, TEXT("Take the nozzle off"), TEXT("Connect the nozzle")) : FString();
+		case FuSClampHome: return Two(F.Clamp, true, TEXT("Take the bonding clamp"), TEXT("Put the bonding clamp back"));
+		case FuSClampGear: return F.bSeen || F.Clamp == FR::Put ? Two(F.Clamp, false, TEXT("Take the bonding clamp off"), TEXT("Clamp it on the gear leg")) : FString();
+		case FuSChock0: case FuSChock1: return Two(F.Chock[X.Switch - FuSChock0], true, TEXT("Take the chock"), TEXT("Put the chock back"));
+		case FuSPut0: case FuSPut1: return Two(F.Chock[X.Switch - FuSPut0], false, TEXT("Take the chock away"), TEXT("Put the chock at the wheel"));
+		case FuSClimb: return T.YouOn ? TEXT("Climb down") : TEXT("Climb onto the platform");
+		case FuSStop: return F.bStop ? TEXT("Pull the emergency stop out") : FString(X.Label);
+		default: return X.Label;
+		}
+	};
+	Tb->MaySwitch = [](AGSE& G, int32 Ti, int32 S, FString& Why)
+	{
+		const FTractor& T = G.Tractors[Ti]; const FR& F = *T.Fu; const TCHAR* H = FuCHeld(F); const bool bChocked = F.Chock[0] == FR::Put && F.Chock[1] == FR::Put;
+		const bool bTake = (S == FuSNozHome && F.Noz == FR::InPlace) || (S == FuSNozPlane && F.Noz == FR::Put) || (S == FuSClampHome && F.Clamp == FR::InPlace) || (S == FuSClampGear && F.Clamp == FR::Put) || ((S == FuSChock0 || S == FuSChock1) && F.Chock[S - FuSChock0] == FR::InPlace) || ((S == FuSPut0 || S == FuSPut1) && F.Chock[S - FuSPut0] == FR::Put);
+		if (bTake && H) Why = FString::Printf(TEXT("you have %s in your hand"), H);
+		else if (bTake && (T.Player.IsValid() || T.Speed > 1.f || T.Path.Num())) Why = TEXT("it is not parked");
+		else if (S == FuSNozPlane && F.Noz == FR::Put && (F.bPump || F.Flow > 0.05f)) Why = TEXT("fuel is flowing");
+		else if (S == FuSNozPlane && F.Noz != FR::Put && F.Clamp != FR::Put) Why = TEXT("the bonding clamp first");
+		else if (S == FuSClampGear && F.Clamp == FR::Put && (F.bConn || F.Noz != FR::InPlace)) Why = TEXT("the nozzle back in its place first");
+		else if (S == FuSClampGear && F.Clamp != FR::Put && !bChocked) Why = TEXT("the chocks at the wheel first");
+		else if ((S == FuSPut0 || S == FuSPut1) && F.Chock[S - FuSPut0] == FR::Put && (F.Clamp != FR::InPlace || F.Noz != FR::InPlace)) Why = TEXT("nozzle and bonding clamp back in their places first");
+		else if (S == FuSClimb && F.Gate < 0.9f) Why = TEXT("the gate is shut");
+		else if (S == FuSClimb && F.Lift > 0.5f) Why = TEXT("the platform is up");
+		return Why.IsEmpty();
+	};
+	Tb->Switch = [](AGSE& G, int32 Ti, int32 S)
+	{
+		FTractor& T = G.Tractors[Ti]; FR& F = *T.Fu; F.bLive = true;
+		auto Turn = [](uint8& M, uint8 Place) { const bool bGet = M == Place; M = bGet ? FR::YourHand : Place; return bGet; };
+		switch (S)
+		{
+		case FuSNozHome: if (Turn(F.Noz, FR::InPlace)) { F.NozYaw = 0.f; G.YouSee(T); } break;
+		case FuSNozPlane: F.bConn = !Turn(F.Noz, FR::Put); F.NozYaw = -90.f; if (F.bConn) { F.NozAt = F.Couple - FuUp * 7.f; F.Litres = 0.f; } ADP_LOG(TEXT("GSE: you %s the nozzle of the %s"), F.bConn ? TEXT("connect") : TEXT("take off"), *T.Name); break;
+		case FuSClampHome: if (Turn(F.Clamp, FR::InPlace)) G.YouSee(T); break;
+		case FuSClampGear: Turn(F.Clamp, FR::Put); break;
+		case FuSChock0: case FuSChock1: if (Turn(F.Chock[S - FuSChock0], FR::InPlace)) G.YouSee(T); break;
+		case FuSPut0: case FuSPut1: Turn(F.Chock[S - FuSPut0], FR::Put); break;
+		case FuSStop: F.bStop = !F.bStop; if (F.bStop) { F.bPump = false; F.LiftWant = F.Lift; } break;
+		case FuSLamp: T.bSwWork = !T.bSwWork; break;
+		default: return false;
+		}
+		return true;
+	};
+	Tb->Held = [](const FTractor& T) { return T.Fu ? FuCHeld(*T.Fu) : nullptr; };
+	Tb->Leash = [](const AGSE& G, const FTractor& T, FVector& From) { const bool bNoz = T.Fu->Noz == FR::YourHand; From = G.SvcP(T, bNoz ? TEXT("IK_HoseOut_L") : TEXT("IK_BondOut")); return bNoz ? 2600.f : 2500.f; };
+	Tb->Drop = [](FTractor& T) { FR& F = *T.Fu; for (uint8* M : {&F.Noz, &F.Clamp, &F.Chock[0], &F.Chock[1]}) if (*M == FR::YourHand) *M = FR::InPlace; };
+	Tb->Climb = [](const AGSE& G, int32 Ti, int32 S, float& Secs) -> TFunction<void(float, float, FDriverPose&)> { if (S != FuSClimb) return nullptr; const bool bUp = !G.Tractors[Ti].YouOn; Secs = bUp ? 6.5f : 6.f; return G.FuelPlatFn(Ti, bUp); };
+	Tb->Aboard = [](const FTractor& T, const FVector& P) -> uint8 { return P.X > -500.f && P.X < -385.f && FMath::Abs(P.Y) < 104.f && FMath::Abs(P.Z - FuFloor - T.Fu->Lift) < 40.f ? 1 : 0; };
+	Tb->Stowed = [](const AGSE& G, const FTractor& T) { return G.FuelStowed(T); };
+	Tb->Stow = [](AGSE&, FTractor& T)
+	{
+		FR& F = *T.Fu; F.bPump = F.bConn = F.bStop = false; F.Noz = F.Clamp = F.Chock[0] = F.Chock[1] = FR::InPlace; for (float& V : F.LeverWant) V = 0.f; F.LiftWant = F.GateWant = 0.f; F.bLive = true;
+		T.bSwWork = false; for (FTractor::FSvcDoor& D : T.SvcDoors) D.Want = 0.f;
+	};
+	// chassis, cab and tank in one; the platform: its floor, rails, gate
+	Box(FVector(-394, -107, 10), FVector(500, 107, 330), FuCChassis); Box(FVector(-480, -100, 10), FVector(-394, 100, 60), FuCChassis);
+	Box(FVector(-498, -106, 139), FVector(-394, 106, 145), FuCPlat);
+	for (const float S : {-1.f, 1.f}) { Box(FVector(-498, S > 0 ? 100 : -106, 145), FVector(-394, S > 0 ? 106 : -100, 255), FuCPlat); Box(FVector(-498, S > 0 ? 36 : -106, 145), FVector(-492, S > 0 ? 106 : -36, 255), FuCPlat); }
+	Box(FVector(-498, -36, 145), FVector(-492, 36, 255), FuCPlat, [](const FTractor& T) { return T.Fu->Gate < 0.9f; });
+	return Tb;
 }

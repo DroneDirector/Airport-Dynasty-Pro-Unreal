@@ -6,7 +6,13 @@
 #include "ADPLog.h"
 #include "BabylonModel.h"
 #include "UI/InputGlyphs.h"
+#include "CrewPose.h"
+#include "DriverPoseAnim.h"
 #include "Components/BoxComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "Components/PoseableMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
@@ -43,7 +49,7 @@ const FVehTable* AGSE::CtlTable(int32 Svc)
 	if (Svc == INDEX_NONE) return nullptr;
 	if (const TSharedPtr<FVehTable>* F = All.Find(Svc)) return F->Get();
 	const FServiceSpec& S = ADPService::All()[Svc];
-	return All.Add(Svc, S.bAmbu ? AmbuControls() : TSharedPtr<FVehTable>()).Get();
+	return All.Add(Svc, S.bAmbu ? AmbuControls() : S.bFuel ? FuelControls() : S.Wet == 1 ? WaterControls() : TSharedPtr<FVehTable>()).Get();
 }
 
 bool AVehicleControls::Crew(const AGSE& G, int32 V) const { return G.Tractors[V].Job != AGSE::EJob::None; }
@@ -74,11 +80,13 @@ FString AVehicleControls::Label(AGSE& G, FString& No) const
 	No.Reset(); if (!G.Tractors.IsValidIndex(Ti)) return FString();
 	const AGSE::FTractor& Tv = G.Tractors[Ti]; const FVehTable* Tb = AGSE::CtlTable(Tv.Svc); if (!Tb || !Tb->Controls.IsValidIndex(Ci)) return FString();
 	const FVehControl& C = Tb->Controls[Ci]; const TCHAR* Key = ADPInput::UsingPad() ? TEXT("X") : TEXT("E");
+	const FString Lb = Tb->Say ? Tb->Say(G, Tv, C) : FString(C.Label);
 	if (Crew(G, Ti)) No = TEXT("its crew are working with it");
 	else if (C.Motion != INDEX_NONE) { const float E = Target(G, C, Way); if (!FMath::IsNearlyEqual(Tb->Now(Tv, C.Motion), E, 0.01f)) Tb->May(G, Tv, C.Motion, E, No); }
-	if (!No.IsEmpty()) return FString::Printf(TEXT("%s: %s"), C.Label, *No);
-	return C.Kind == FVehControl::Push ? FString::Printf(TEXT("%s   %s"), Key, C.Label) : C.Kind == FVehControl::Hold && !C.bTurns ? FString::Printf(TEXT("Hold %s   %s"), Key, C.Label)
-		: FString::Printf(TEXT("Hold %s   %s   (%s the way)"), Key, C.Label, ADPInput::UsingPad() ? TEXT("left stick up / down:") : TEXT("W / S:"));
+	else if (Tb->MaySwitch && C.Switch != INDEX_NONE) Tb->MaySwitch(G, Ti, C.Switch, No);
+	if (!No.IsEmpty()) return FString::Printf(TEXT("%s: %s"), *Lb, *No);
+	return C.Kind == FVehControl::Push ? FString::Printf(TEXT("%s   %s"), Key, *Lb) : C.Kind == FVehControl::Hold && !C.bTurns ? FString::Printf(TEXT("Hold %s   %s"), Key, *Lb)
+		: FString::Printf(TEXT("Hold %s   %s   (%s the way)"), Key, *Lb, ADPInput::UsingPad() ? TEXT("left stick up / down:") : TEXT("W / S:"));
 }
 
 FString AVehicleControls::Prompt() { return VcOne.IsValid() ? VcOne->Text : FString(); }
@@ -95,11 +103,12 @@ void AVehicleControls::Find(AGSE& G, APawn& Me)
 	const float Slack = Wk && Wk->IsThirdPerson() ? 24.f : 13.f; float Best = Slack;
 	for (int32 i = 0; i < G.Tractors.Num(); ++i)
 	{
+		if (HoldTi != INDEX_NONE && i != HoldTi) continue;   // (its thing in your hand: first back in its place)
 		const AGSE::FTractor& V = G.Tractors[i]; if (!V.M.IsValid() || FVector::DistSquared2D(V.At, From) > FMath::Square(V.KHalfL + 400.f)) continue;
 		const FVehTable* Tb = AGSE::CtlTable(V.Svc); if (!Tb || (Sd ? V.Player.Get() != Sd : V.Player.IsValid())) continue;
 		for (int32 c = 0; c < Tb->Controls.Num(); ++c)
 		{
-			const FVehControl& C = Tb->Controls[c]; if (C.bSeat != (Sd != nullptr)) continue;
+			const FVehControl& C = Tb->Controls[c]; if (C.bSeat != (Sd != nullptr) || (Tb->Say && Tb->Say(G, V, C).IsEmpty())) continue;
 			FVector Out; const FVector P = At(G, i, C, &Out), D = P - Eye;
 			// in reach of your arm (bending down to a low one), from its own side, nearest to where you look
 			const float Flat = FVector::Dist2D(P, From), Dz = float(From.Z - P.Z); if (Flat > (Sd ? 150.f : 125.f) || Dz > 150.f || Dz < -75.f) continue;
@@ -114,7 +123,13 @@ bool AVehicleControls::Interact(APawn* Who)
 {
 	AVehicleControls* S = Who ? Get(Who->GetWorld()) : nullptr; AGSE* G = S ? const_cast<AGSE*>(AGSE::Find(Who->GetWorld())) : nullptr; if (!G) return false;
 	if (S->Do != EDo::None) return true;
-	S->Find(*G, *Who); if (S->Ci == INDEX_NONE) return false;
+	S->Find(*G, *Who);
+	if (S->Ci == INDEX_NONE)
+	{
+		if (S->HoldTi == INDEX_NONE || !G->Tractors.IsValidIndex(S->HoldTi)) return false;
+		const FVehTable* Th = AGSE::CtlTable(G->Tractors[S->HoldTi].Svc); const TCHAR* Nm = Th && Th->Held ? Th->Held(G->Tractors[S->HoldTi]) : nullptr; if (!Nm) return false;
+		S->Text = FString::Printf(TEXT("You have %s in your hand - put it back first"), Nm); S->TextAt = Who->GetWorld()->GetTimeSeconds(); return true;
+	}
 	S->Way = 0; FString No; const FString L = S->Label(*G, No);
 	const bool bSeat = Who->IsA<AServiceDrive>();
 	if (!No.IsEmpty() && (S->Crew(*G, S->Ti) || AGSE::CtlTable(G->Tractors[S->Ti].Svc)->Controls[S->Ci].Kind == FVehControl::Push)) { S->Text = L; S->TextAt = Who->GetWorld()->GetTimeSeconds(); return !bSeat; }
@@ -145,6 +160,7 @@ void AVehicleControls::Arm(AGSE& G, APawn* Me)
 	const FVector Sh = Wk->ShoulderNow(); FVector F = (P - Sh).GetSafeNormal(); if (!Out.IsNearlyZero()) F = FMath::Lerp(F, -Out, 0.5f).GetSafeNormal();
 	const bool bBtn = C.Kind <= FVehControl::Hold; const float In = bBtn && Do == EDo::Work ? 0.5f : 0.f;
 	const FVector Thumb = FVector::VectorPlaneProject(FVector::UpVector, F).GetSafeNormal();
+	if (HoldTi != INDEX_NONE) { Wk->SetArm(1.f, FMath::Lerp(HoldAt - HoldF * 8.5f, P - F * 8.5f, W), HoldF, FVector::UpVector); return; }   // (with what you carry)
 	Wk->SetArm(W, P - F * ((bBtn ? 18.f : 8.5f) - In), F, Thumb);
 }
 
@@ -152,11 +168,11 @@ void AVehicleControls::Tick(float Dt)
 {
 	Super::Tick(Dt);
 	AGSE* G = const_cast<AGSE*>(AGSE::Find(GetWorld())); APlayerController* PC = GetWorld()->GetFirstPlayerController(); APawn* Me = PC ? PC->GetPawn() : nullptr; if (!G) return;
-	Hull(*G, Me, Dt);
+	Hull(*G, Me, Dt); Carry(*G, Me);
 	if (Do != EDo::None && (!User.IsValid() || User.Get() != Me || !G->Tractors.IsValidIndex(Ti)))
 	{
 		Stop(*G); Do = EDo::None; W = 0.f;
-		if (AADPWalker* Wk = Cast<AADPWalker>(User.Get())) { Wk->SetArm(0.f, FVector::ZeroVector, FVector::ForwardVector, FVector::UpVector); Wk->SetPoint(false); if (bLedByMe) Wk->SetLed(false); }
+		if (AADPWalker* Wk = Cast<AADPWalker>(User.Get())) { if (bClimbing) ClimbEnd(*Wk); Wk->SetArm(0.f, FVector::ZeroVector, FVector::ForwardVector, FVector::UpVector); Wk->SetPoint(false); if (bLedByMe) Wk->SetLed(false); }
 		bLedByMe = false;
 	}
 	if (!Me) { Text.Reset(); return; }
@@ -164,7 +180,9 @@ void AVehicleControls::Tick(float Dt)
 	{
 		if (GetWorld()->GetTimeSeconds() - TextAt < 1.5 && TextAt >= 0.) return;   // (a refusal stays to be read)
 		Way = 0; Find(*G, *Me); FString No; Text = Ci == INDEX_NONE ? FString() : Label(*G, No);
+		if (Text.IsEmpty()) for (const AGSE::FTractor& V : G->Tractors) if (V.YouOn && GetWorld()->GetTimeSeconds() - V.YouStopAt < 0.5) { Text = FString::Printf(TEXT("The %s waits: you are standing on it"), *V.Name); break; }
 	}
+	else if (Do == EDo::Climb) { Text.Reset(); AADPWalker* Wk = Cast<AADPWalker>(Me); if (!Wk || !Climb(*G, *Wk, Dt)) { Do = EDo::Back; T = 1.f; W = 0.f; } }
 	else
 	{
 		const FVehTable* Tb = AGSE::CtlTable(G->Tractors[Ti].Svc); const FVehControl& C = Tb->Controls[Ci]; AGSE::FTractor& V = G->Tractors[Ti];
@@ -185,10 +203,12 @@ void AVehicleControls::Tick(float Dt)
 				{
 					bPushed = true; if (Tb->Press) Tb->Press(*G, Ti, C);
 					if (C.Motion != INDEX_NONE) { const float E = Target(*G, C, 0); if (Tb->May(*G, V, C.Motion, E, No)) { Tb->Want(V, C.Motion, E); Last.Add(TPair<int32, int32>(Ti, C.Motion), E); } }
+					else if (Tb->MaySwitch && !Tb->MaySwitch(*G, Ti, C.Switch, No)) {}
+					else if (TFunction<void(float, float, FDriverPose&)> Fn = Tb->Climb && Me->IsA<AADPWalker>() ? Tb->Climb(*G, Ti, C.Switch, ClimbS) : nullptr) { ClimbFn = MoveTemp(Fn); Do = EDo::Climb; T = 0.f; W = 0.f; Cast<AADPWalker>(Me)->SetPoint(false); Cast<AADPWalker>(Me)->SetArm(0.f, FVector::ZeroVector, FVector::ForwardVector, FVector::UpVector); }
 					else if (Tb->Switch) Tb->Switch(*G, Ti, C.Switch);
 					ADP_LOG(TEXT("Vehicle: you press '%s' of the %s%s"), C.Label, *V.Name, No.IsEmpty() ? TEXT("") : *(TEXT(" - ") + No));
 				}
-				if (T > 0.3f) Stop(*G);
+				if (T > 0.3f && Do == EDo::Work) Stop(*G);
 			}
 			else if (!bHeld) Stop(*G);
 			else
@@ -213,7 +233,7 @@ void AVehicleControls::Tick(float Dt)
 				bLedByMe = false;
 			}
 		}
-		if (Ci != INDEX_NONE) Arm(*G, Me);
+		if (Ci != INDEX_NONE && Do != EDo::Climb) Arm(*G, Me);
 	}
 	if (GlowTi != Ti || GlowCi != Ci)
 	{
@@ -272,4 +292,77 @@ void AVehicleControls::Hull(AGSE& G, APawn* Me, float Dt)
 			if (bIs != H.On[k]) { H.On[k] = bIs; B->SetCollisionEnabled(bIs ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision); }
 		}
 	}
+}
+
+void AVehicleControls::Carry(AGSE& G, APawn* Me)
+{
+	const int32 Was = HoldTi; HoldTi = INDEX_NONE; AADPWalker* Wk = Cast<AADPWalker>(Me); const bool bFoot = Wk && !Wk->IsHidden() && Wk->GetController();
+	for (int32 i = 0; i < G.Tractors.Num(); ++i)
+	{
+		AGSE::FTractor& V = G.Tractors[i]; const FVehTable* Tb = AGSE::CtlTable(V.Svc); if (!Tb || !Tb->Held || !V.M.IsValid() || !Tb->Held(V)) continue;
+		if (!bFoot) { Tb->Drop(V); continue; }
+		HoldTi = i;
+		const FRotator Look = Wk->GetControlRotation(); const FVector Flat = FRotator(0.f, Look.Yaw, 0.f).Vector(), Sd = FRotator(0.f, Look.Yaw, 0.f).RotateVector(FVector::RightVector), Eye = Wk->GetPawnViewLocation();
+		// (in front of you in your right hand, on the climb nearer to you)
+		HoldAt = bClimbing ? Wk->GetActorLocation() + Wk->GetActorForwardVector() * 30.f + Wk->GetActorRightVector() * 24.f : Wk->IsThirdPerson() ? Wk->GetActorLocation() + Flat * 36.f + Sd * 20.f + FVector(0., 0., 28.) : Eye + Look.Vector() * 40.f + Sd * 17.f - FVector(0., 0., 22.);
+		HoldF = (Flat * 0.8f + FVector(0., 0., 0.2)).GetSafeNormal();
+		FVector P = HoldAt; if (Ti == i && Do != EDo::None && Do != EDo::Climb && Tb->Controls.IsValidIndex(Ci)) P = FMath::Lerp(HoldAt, At(G, i, Tb->Controls[Ci]), W);
+		V.YouHand = FTransform(FRotator(0.f, V.Yaw, 0.f), V.At).InverseTransformPosition(P);
+		if (Do == EDo::None) Wk->SetArm(1.f, HoldAt - HoldF * 8.5f, HoldF, FVector::UpVector);
+		// its hose or cable is at its end: you get no further with it
+		FVector From; const float Max = Tb->Leash && !bClimbing ? Tb->Leash(G, V, From) : 0.f;
+		if (Max > 0.f)
+		{
+			const FVector D = P - G.TW(V, From); UCharacterMovementComponent* Mv = Wk->GetCharacterMovement();
+			if (D.Size() > Max && Mv) { const FVector N = D.GetSafeNormal2D(); const double Off = FVector::DotProduct(Mv->Velocity, N); Mv->Velocity -= N * (FMath::Max(Off, 0.) + 30.); if (Do == EDo::None) { Text = TEXT("It reaches no further"); TextAt = GetWorld()->GetTimeSeconds() - 1.; } }
+		}
+		break;
+	}
+	if (Was != INDEX_NONE && HoldTi == INDEX_NONE && Do == EDo::None && Wk) Wk->SetArm(0.f, FVector::ZeroVector, FVector::ForwardVector, FVector::UpVector);
+}
+
+bool AVehicleControls::Climb(AGSE& G, AADPWalker& Wk, float Dt)
+{
+	// up or down its steps as its crew climb them: first to where the climb begins, then your body by the same poses
+	float Ph = 95.f; if (Rig.IsReady()) Ph = Rig.PelvisHeight();
+	const float Hh = Wk.GetSimpleCollisionHalfHeight(); T += Dt;
+	if (!bClimbing)
+	{
+		FDriverPose P; ClimbFn(0.f, Ph, P); FVector To2 = P.Pelvis - Wk.GetActorLocation(); To2.Z = 0.;
+		if (To2.Size() > 6.f)
+		{
+			if (T > 2.5f) { Text = TEXT("You can't get to the steps from here"); TextAt = GetWorld()->GetTimeSeconds(); return false; }
+			Wk.AddActorWorldOffset(To2.GetClampedToMaxSize(130.f * Dt), true); return true;
+		}
+		USkeletalMesh* Own = Wk.BodyMesh();
+		if (!Rider && Own)
+		{
+			Rider = NewObject<UPoseableMeshComponent>(this); if (!RootComponent) { SetRootComponent(NewObject<USceneComponent>(this)); RootComponent->RegisterComponent(); }
+			Rider->SetupAttachment(RootComponent); Rider->SetUsingAbsoluteLocation(true); Rider->SetUsingAbsoluteRotation(true); Rider->SetCollisionEnabled(ECollisionEnabled::NoCollision); Rider->RegisterComponent();
+			Rider->SetSkinnedAssetAndUpdate(Own); Rider->SetVisibility(false); if (!Rig.Init(Rider)) ADP_ERROR(TEXT("Vehicle: your body couldn't be rigged for the steps"));
+		}
+		Wk.GetCharacterMovement()->DisableMovement(); bClimbing = true; T = 0.f; Human = nullptr;
+		ADP_LOG(TEXT("Vehicle: you climb the steps of the %s"), G.Tractors.IsValidIndex(Ti) ? *G.Tractors[Ti].Name : TEXT("?"));
+	}
+	const float K = FMath::Clamp(T / FMath::Max(ClimbS, 1.f), 0.f, 1.f); FDriverPose P; ClimbFn(K, Ph, P);
+	const FVector Fw = P.Facing.GetSafeNormal2D().IsNearlyZero() ? FVector(1, 0, 0) : P.Facing.GetSafeNormal2D();
+	const float Z = float(FMath::Min(P.Foot[0].Z, P.Foot[1].Z));
+	const FTransform Frame(FRotator(0.f, Fw.Rotation().Yaw - 90.f, 0.f), FVector(P.Pelvis.X, P.Pelvis.Y, Z));
+	Wk.SetActorLocation(FVector(P.Pelvis.X, P.Pelvis.Y, P.Pelvis.Z - Ph + Hh + 2.f));
+	if (Rider && Rig.IsReady())
+	{
+		P.Facing = FVector(0, 1, 0); P.Pelvis = Frame.InverseTransformPosition(P.Pelvis);
+		for (int32 s = 0; s < 2; ++s) { P.Foot[s] = Frame.InverseTransformPosition(P.Foot[s]); P.Hand[s] = Frame.InverseTransformPosition(P.Hand[s]); }
+		Rider->SetWorldLocationAndRotation(Frame.GetLocation(), Frame.GetRotation()); Rig.Pose(P);
+		if (!Human) { Human = Wk.LendBody(Rider); if (Human) Wk.ShowHead(Wk.IsThirdPerson()); }
+		if (Human) Human->Local = Rig.LocalPose();
+	}
+	if (K < 1.f) return true;
+	ClimbEnd(Wk); return false;
+}
+
+void AVehicleControls::ClimbEnd(AADPWalker& Wk)
+{
+	bClimbing = false; if (Human) Wk.TakeBodyBack(); Human = nullptr;
+	if (Wk.GetCharacterMovement()->MovementMode == MOVE_None) Wk.GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 }

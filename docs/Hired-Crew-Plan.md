@@ -406,6 +406,16 @@ riders `Data/ambulift-riders.json`, `Data/wheelchair-riders.json`, all points an
 - Ambulift, worked: legs, body, front platform, bridge, its rails and gates, tail lift (both panels), tail rails, front and rear doors (in / out), stops, cabin / work / blue lights, hazard, beacon, horn (the electric tractor's `BTHorn`). Flap: by itself.
 - No function yet, not faked: `Button_Heater`, `Button_InFlap`, `Lever_PtoLever`, `Lever_GearSelect`, `Lever_ParkBrake`, wipers and headlights (no control part), seat belts, straps, bridge handle, stretcher, box seats, the wheelchairs (so nothing of yours counts for the turn-round yet).
 
+## Vehicle controls (238): fuel truck and water truck, built 2026-11-24 (compiled, NOT run)
+- `AGSE::FuelControls()` (end of GSEFuel.cpp), `AGSE::WaterControls()` (end of GSEWater.cpp): they set only the wants, modes and flags the crew's jobs set, so limits and speeds are the crew's.
+- New hooks in `FVehTable`: `Say` (empty: hidden), `MaySwitch` (why not, before the press), `Held / Leash / Drop` (a thing in your hand, its hose's length), `Climb` (the crew's own steps animation).
+- Carried: nozzle, bonding clamp, chocks, coupling: E at its place takes it, E at the aircraft (or its place) puts it. One at a time; order: chocks, clamp, nozzle; back the other way.
+- Fuel flows only with clamp, nozzle, left hose and pump levers, no stop pressed, dead man held. Water: coupling, valve, pump.
+- Your litres come off the aircraft's own job; all back in place = job done if it got all, else a crew does the rest.
+- Nobody drives while not everything is back (`FuelStowed / WaterStowed`, seats refuse); crews do not take your truck, nor an aircraft you work on (`YouServe`). Left alone it stows as the ambulift does.
+- Standing on a crew's vehicle that waits for you: "waits: you are standing on it" (every vehicle with a table).
+- Not for you yet: right hose/nozzle (its lever moves only), hose and bonding reels (follow by themselves), dead man on its lead, preset/start/stop/ticket buttons, fill lever and coupling, manholes, extinguishers, cab switches.
+
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
 | Where | Today | Replace with | Nobody free |
