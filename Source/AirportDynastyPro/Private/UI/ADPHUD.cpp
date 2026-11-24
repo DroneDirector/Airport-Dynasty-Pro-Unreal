@@ -1970,7 +1970,7 @@ void AADPHUD::Interact()
 	if (bWardrobe) { CloseWardrobe(); return; }
 	if (!PC || bGame || bDevice || PhoneDir != 0 || bSettings || bPointer || (HoloMap.IsValid() && HoloMap->IsFull())) return;
 	// in a fire truck: E / X gets you out (FireTruck.h)
-	if (AFireTruck* T = Cast<AFireTruck>(GetOwningPawn())) { T->Exit(); return; }
+	if (AFireTruck* T = Cast<AFireTruck>(GetOwningPawn())) { if (!T->CabPress()) T->Exit(); return; }   // (E on a cab switch you look at presses it: FireTruckYou.cpp)
 	// a vehicle's own control you look at (VehicleControls.h)
 	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton) && !Drone.IsValid() && !AWashHose::Held() && !ASeats::IsSitting() && !ADoorPanelUse::IsActive() && AVehicleControls::Interact(GetOwningPawn())) return;
 	if (AServiceDrive* T = Cast<AServiceDrive>(GetOwningPawn())) { T->Exit(); return; }   // (in a service vehicle: ServiceDrive.h)
@@ -2456,6 +2456,7 @@ void AADPHUD::Tick(float Dt)
 		TickTablet(Dt);
 		if (bPoseLive && (PoseLeft -= Dt) <= 0.f) { PoseLeft = 5.f; SavePose(); }
 		if (HintLeft > 0.f) HintLeft -= Dt;
+		if (AFireTruck* Ft = Cast<AFireTruck>(GetOwningPawn())) if (const FString Cp = Ft->CabPrompt(); !Cp.IsEmpty()) { HintText = Cp; HintLeft = 0.25f; }   // (the fire truck's cab switch you look at)
 		AVehicleControls::Get(GetWorld()); if (const FString Vc = AVehicleControls::Prompt(); !Vc.IsEmpty() && !Drone.IsValid()) { HintText = Vc; HintLeft = 0.25f; }   // (a vehicle's control you look at)
 		// our frame generation makes no in-between pictures while a menu is up (owner, 2026-11-17: scrolling flickered)
 		ADPFrameGen::Hold(bGame || bLoading || bDevice || bSettings || bWardrobe || bWhoAreYou || bJetMenu || (HoloMap.IsValid() && HoloMap->IsFull()));

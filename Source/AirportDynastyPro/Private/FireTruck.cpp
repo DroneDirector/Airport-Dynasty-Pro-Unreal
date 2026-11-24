@@ -482,6 +482,7 @@ bool AFireTruck::Setup(const FString& ModelName)
 	// the driver's eyes: in the middle seat, looking out through the windscreen
 	DriverCam->SetWorldLocation(RX.TransformPosition(BlenderToRoot(0.f, 3.95f, 2.33f)));
 	DriverCam->SetRelativeRotation(FRotator::ZeroRotator);
+	SetupYou();   // the cab worked by hand (FireTruckYou.cpp)
 	All.Add(this);
 	ADP_LOG(TEXT("Fire truck %s ready: %d moving parts bound, doors %d/%d, steering wheel %d, pedals %d/%d"), *ModelName, Bound, GDoor[0], GDoor[1], GSteeringWheel, GAccel, GBrake);
 	return true;
@@ -882,7 +883,8 @@ void AFireTruck::UpdateLamps(float Dt)
 		bool bOn = false;
 		switch (LampKind[I])
 		{
-		case ELamp::Low: case ELamp::Tail: case ELamp::Marker: bOn = bRunning; break;
+		case ELamp::Low: case ELamp::Tail: case ELamp::Marker: bOn = bRunning && bHeadOn; break;
+		case ELamp::Work: bOn = bWork; break;
 		case ELamp::High: bOn = bRunning && bHighBeam; break;
 		case ELamp::Brake: bOn = bBraking; break;
 		case ELamp::Blue: case ELamp::BlueWide: bOn = bBlue && Flash(LampSide[I]); break;
@@ -1182,11 +1184,11 @@ void AFireTruck::UpdateLenses(bool bRunning, bool bBraking, bool bTurnOn)
 		{
 		case ELens::Blue: V = bBlue && Double(L.Side) ? 1.f : 0.f; break;
 		case ELens::BlueBar: V = bBlue && Bar(L.Bar) ? 1.f : 0.f; break;
-		case ELens::Low: V = bRunning ? 0.8f : 0.f; break;
+		case ELens::Low: V = bRunning && bHeadOn ? 0.8f : 0.f; break;
 		case ELens::High: V = bRunning && bHighBeam ? 1.f : 0.f; break;
-		case ELens::Rear: V = bBraking ? 1.f : bRunning ? 0.3f : 0.f; break;
+		case ELens::Rear: V = bBraking ? 1.f : bRunning && bHeadOn ? 0.3f : 0.f; break;
 		case ELens::Turn: V = bTurnOn && (Signal == ETurn::Hazard || (Signal == ETurn::Left) == (L.Side == 0)) ? 1.f : 0.f; break;
-		case ELens::Marker: V = bRunning ? 0.5f : 0.f; break;
+		case ELens::Marker: V = bRunning && bHeadOn ? 0.5f : 0.f; break;
 		case ELens::Reverse: V = bReverseLit ? 1.f : 0.f; break;
 		}
 		if (V != L.Now && L.K) { L.Now = V; L.K->SetCustomDataValue(L.Ix, 0, V, true); }
@@ -1433,6 +1435,7 @@ void AFireTruck::Sequence(float Dt)
 		P.Foot[1] = FMath::Lerp(P.Foot[1], Sole, K);
 		P.FootPitch[1] = Pitch * K;
 	}
+	CabHand(P);   // a hand on a cab switch or the turret joystick (FireTruckYou.cpp)
 	Rig.Pose(P);
 	if (HumanPose) HumanPose->Local = Rig.LocalPose();
 	// in the driver's seat your own head stays out of the way of your eyes
@@ -1493,6 +1496,7 @@ void AFireTruck::Tick(float Dt)
 	ReverseGear(Driver && bSim && bReverse && Seq == ESeq::None);
 	if (Engine.IsValid()) { Engine->Kmh.store(SpeedKmh()); Engine->Load.store(FMath::Clamp(InThrottle, 0.f, 1.f)); }
 	UpdateLamps(Dt);
+	TickYou(Dt);   // the cab worked by hand, the wipers, the turrets (FireTruckYou.cpp)
 	// once you've got out and it stands still a while, it rests (no physics running; it stays exactly where it stopped)
 	if (bSim && !Driver) { Still = SpeedKmh() < 0.5f ? Still + Dt : 0.f; if (Still > 3.f) SetPhysics(false); }
 }

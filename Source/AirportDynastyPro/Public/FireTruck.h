@@ -126,7 +126,7 @@ private:
 	void ReverseGear(bool bOn);
 	// the lamps (owner, 2026-11-11): low beams while driven, high beams (L / D-pad down), red tail lights, brake lights
 	// far brighter as you brake, amber side markers, the blue warning lights flashing (N / right stick press)
-	enum class ELamp : uint8 { Low, High, Tail, Brake, Blue, BlueWide, Marker, Turn };
+	enum class ELamp : uint8 { Low, High, Tail, Brake, Blue, BlueWide, Marker, Turn, Work };
 	UPROPERTY() TArray<TObjectPtr<USceneComponent>> Lamps;   // lights and the lenses' glows
 	TArray<ELamp> LampKind; TArray<uint8> LampSide; TArray<float> LampFull;
 	bool bHighBeam = false, bBlue = false;
@@ -225,8 +225,8 @@ private:
 	void SetPhysics(bool bOn);
 	void Fwd(float V) { KeyFwd = V; }
 	void Right(float V) { KeySteer = V; }
-	void Turn(float V) { LookYaw = FMath::Clamp(LookYaw + V * 2.f, -150.f, 150.f); }
-	void LookUp(float V) { LookPitch = FMath::Clamp(LookPitch + V * 2.f, -60.f, 50.f); }
+	void Turn(float V) { if (AimS.bOn) return; LookYaw = FMath::Clamp(LookYaw + V * 2.f, -150.f, 150.f); }   // (aiming a turret: the mouse aims it, FireTruckYou.cpp)
+	void LookUp(float V) { if (AimS.bOn) return; LookPitch = FMath::Clamp(LookPitch + V * 2.f, -60.f, 50.f); }
 	void PadT(float V) { PadThrottle = V; }
 	void PadB(float V) { PadBrake = V; }
 	void HandOn() { bHandbrake = bHandHeld = true; }
@@ -236,6 +236,49 @@ private:
 	bool bFarView = false;
 	float ArmWant() const { return bFarView ? 3200.f : 1700.f; }
 	void ToggleView() { if (!bChase) { bFarView = false; SetView(true); } else if (!bFarView) { bFarView = true; LookYaw = LookPitch = 0.f; } else SetView(false); }
+
+	// ---- the cab worked by hand (to-do 238, FireTruckYou.cpp): look at a switch, stalk or the joystick from the driver's
+	// seat, E / X presses it, the hand nearest it goes there and back; the same state as the keys
+public:
+	/** What the cab part you look at does now (empty: none, or not in the driver's seat). */
+	FString CabPrompt() const;
+	/** E / X in the truck: the part you look at pressed (true), else false (then E gets you out, as before). */
+	bool CabPress();
+	/** The tanks (litres) and what is on (tests). */
+	float WaterL() const { return Water; }
+	float FoamL() const { return Foam; }
+	bool PumpOn() const { return bPump; }
+private:
+	enum class ECab : uint8 { Lights, Hazard, Beacons, Siren, Work, Pump, Foam, Indicator, Wiper, Joystick, Num };
+	struct FCabPart { ECab Kind; int32 Group = -1; FTransform Base; FVector At = FVector::ZeroVector; bool bPart = false; float Move = 0.f; };
+	TArray<FCabPart> Cab;
+	int32 CabLook = -1, CabDo = -1; float CabT = 0.f; bool CabDone = false;
+	FString CabNote; float CabNoteT = 0.f;
+	bool bHeadOn = true, bWork = false, bPump = false, bFoam = false;
+	uint8 WiperMode = 0; float WiperPhase = 0.f;
+	int32 GWiper[2] = {-1, -1}, GWiperStalk = -1; FTransform BWiper[2]; FVector WiperAxis = FVector::ZeroVector; float WiperSign = 1.f;
+	float Water = 11400.f, Foam = 1400.f;
+	struct FTurret { int32 GBody = -1, GNozzle = -1; FVector BodyAt = FVector::ZeroVector, NozzleBase = FVector::ZeroVector; FTransform BBody, BNozzle; float Len = 50.f;
+		float Yaw = 0.f, Pitch = 0.f, YawMax = 90.f, PitchMin = -20.f, PitchMax = 45.f, Slew = 20.f, Lpm = 0.f, Throw = 0.f, Speed = 0.f; bool bTurns = false; };
+	FTurret Tur[2];   // 0 the roof turret, 1 the bumper turret
+	struct FAimState { bool bOn = false; int32 Which = 0; bool bSpray = false; } AimS;
+	struct FJetDrop { FVector P, V; float Life; bool bSplash; bool bMist; float Seed; };
+	TArray<FJetDrop> Jet; float JetEmit = 0.f, PitchSign = 1.f, RefillLog = 0.f;
+	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> JetDrops;
+	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> JetMist;
+	UPROPERTY() TArray<TObjectPtr<class UDecalComponent>> JetWet;
+	UPROPERTY() TArray<TObjectPtr<class UMaterialInstanceDynamic>> JetWetMids;
+	TArray<float> JetWetAge;
+	void SetupYou();
+	void TickYou(float Dt);
+	void CabHand(FDriverPose& P) const;
+	bool CabMay(ECab K, FString& Why) const;
+	void CabApply(ECab K);
+	FString CabSay(ECab K) const;
+	void AimTurret(float Dt);
+	void SprayJet(float Dt);
+	void JetWetAt(const FVector& At, const FVector& N);
+	FTransform NozzleNow(int32 I) const;
 };
 
 /** The fire station's bay doors (owner: shut in the game): sectional doors whose foot rises in the opening while their top
