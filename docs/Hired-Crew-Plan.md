@@ -477,6 +477,10 @@ riders `Data/ambulift-riders.json`, `Data/wheelchair-riders.json`, all points an
 - At the nose gear (distance, aside, turn shown) on foot: bar head, bypass pin, headset (`YouStep` 1-3, backwards to uncouple), only with the
   chocks in and the park brake on; the crew go on from the step you left (`CrewCouple`). Never driven with the bar on.
 - Next: a run; the push itself (`YouAtWheel`, `YouHook`). Model lacks: wiper, horn button, indicator stalks, pin and headset parts, wheel/pedal pivots.
+- The push by hand (TugYou.cpp `PushYou`, `YouDrive`, `YouTow`; `AGSE::TowHit`): compiled, not run. Coupled and there, the departure
+  is yours (`Assign`): same waits, the reason at the wheel; dashes along the crew's path; done at 3 m, 10 degrees, park brake on; uncouple
+  by hand (`YouUn` 1-4), clear to the side, then it taxies. Left 2 min: `YouTake` (the crew go on), off: `YouDrop`.
+- Left: half-done uncoupling and hired flights wait for you; own hired handler not called; parts boxes of the A320 only.
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 

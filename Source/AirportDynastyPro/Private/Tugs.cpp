@@ -253,6 +253,18 @@ void ATugs::Lamps(FTug& T)
 int32 ATugs::Assign(const FString& Key, float StandX)
 {
 	for (int32 i = 0; i < Tugs.Num(); ++i) if (Tugs[i].Key == Key) return i;
+	// (coupled by you and you still there: your push, its driver stays where he is - TugYou.cpp)
+	for (int32 y = 0; y < Tugs.Num(); ++y)
+		if (FTug& Y = Tugs[y]; Y.State == EState::You && Y.YouStep == 3 && !Y.bYouCrew && Y.Key.IsEmpty() && FMath::Abs(Y.StandX - StandX) < 1.f && Y.YouLeft < 120.f)
+		{
+			Y.Key = Key; Y.Path.Reset(); Y.Seq = 0; Y.SeqT = 0.f; Y.EngT = -1.f; Y.bDeiced = Y.bPushReq = Y.bCleared = Y.bEngines = false; Y.PreSeq = 0; Y.PreAt = 0.0; Y.Talk.Reset(); Y.TalkT = 0.f;
+			Y.bYouPush = true; Y.bYouDone = Y.bYouGo = Y.bYouCrewIn = false; Y.bYouRejoin = true; Y.YouUn = 0; Y.YouBend = 0.f; Y.YouBeat = GetWorld()->GetTimeSeconds(); Y.YouLeft = 0.f; Y.YouWhy.Reset();
+			Y.bHired = HiredJob(Key); if (Y.bHired) { Y.Driver = Y.Handler = INDEX_NONE; Y.CrewAsk = 0.f; }
+			Engine(Y, true); ADP_LOG(TEXT("Tugs: tug %d - you push %s (your own hired crew %d)"), y, *Key, Y.bHired);
+			if (!Y.bHired && Y.Driver != INDEX_NONE) CrewWalkers(y);
+			if (!Y.bHired && Y.Handler != INDEX_NONE) { if (Y.Gpu.bConnected) GpuDisconnect(y, Crew[Y.Handler]); }
+			return y;
+		}
 	for (FTug& Y : Tugs) if (Y.State == EState::You && Y.YouStep > 0 && !Y.bYouIn && !Y.bYouCrew && Y.Key.IsEmpty() && FMath::Abs(Y.StandX - StandX) < 1.f) Y.State = EState::Parked;   // (coupled by you: its crew go on from there, TugYou.cpp)
 	// the gate's own tug (ready in front of the terminal): its engine on, waiting for off-blocks
 	int32 Best = INDEX_NONE;
@@ -307,20 +319,30 @@ bool ATugs::Push(const FString& Key, float StandX, const FVector& Fitting, const
 	FTug& T = Tugs[I];
 	const FVector F = Fwd.GetSafeNormal2D();
 	T.HookAt = Fitting + F * HeadAhead * 100.f; T.HookYaw = (-F).Rotation().Yaw;
+	if (T.YouBend != 0.f)
+	{
+		// (taken over from you with the bar at an angle: straightened as it is pushed)
+		if (T.State == EState::Hooked) T.YouBend *= FMath::Exp(-FVector::Dist2D(Fitting, T.Fit) / (HeadAhead * 100.f));
+		if (FMath::Abs(T.YouBend) < 0.02f) T.YouBend = 0.f;
+		T.HookYaw += T.YouBend; T.HookAt = Fitting - FRotator(0.f, T.HookYaw, 0.f).Vector() * HeadAhead * 100.f; T.HookAt.Z = Plan(T.HookAt.X / 100.f, -T.HookAt.Y / 100.f).Z;
+	}
 	T.Fit = Fitting; T.Fwd = F;
+	if (T.State == EState::You) { T.YouBeat = GetWorld()->GetTimeSeconds(); if (!T.bYouPush) return false; if (T.Seq > 0 || T.bYouDone) return PushYou(I); }
 	if (T.State == EState::Boarding || T.State == EState::Coupling) return false;
 	// (a baggage train still beside the aircraft: the stand cleared of every vehicle but the tug before the push)
-	if (T.State == EState::Waiting) if (const AGSE* G = AGSE::Find(GetWorld())) if (G->BusyAt(StandX))
-	{ static TSet<FString> Told; if (!Told.Contains(Key)) { Told.Add(Key); ADP_LOG(TEXT("Tugs: %s waits - its baggage train is still at the stand"), *Key); } return false; }
-	if (T.State == EState::Waiting)
+	const bool bYou = T.State == EState::You;
+	if (T.State == EState::Waiting || bYou) if (const AGSE* G = AGSE::Find(GetWorld())) if (G->BusyAt(StandX))
+	{ T.YouWhy = TEXT("a vehicle is still beside the aircraft"); static TSet<FString> Told; if (!Told.Contains(Key)) { Told.Add(Key); ADP_LOG(TEXT("Tugs: %s waits - its baggage train is still at the stand"), *Key); } return false; }
+	if (T.State == EState::Waiting || bYou)
 	{
 		// (owner 2026-11-21: the tug stays in its place until the aircraft asks to be pushed back - doors closed, the jetway
 		//  at rest: the cockpit calls the pushback crew on the ramp frequency, they answer, and only then does it come out)
 		// (owner 2026-11-21: the tug stays in its place until the aircraft has its PUSHBACK CLEARANCE from ATC: doors closed,
 		//  everyone aboard, the jetway at rest - the cockpit asks ground control, ATC answers in 10-60 s, the pilot reads it
 		//  back, and only then does the tug come out to the nose; after coupling the interphone check, then brakes released)
-		if (T.Driver != INDEX_NONE && T.PreSeq < 2)
+		if ((T.Driver != INDEX_NONE || bYou) && T.PreSeq < 2)
 		{
+			T.YouWhy = TEXT("waiting for ATC's pushback clearance");
 			const double Now = GetWorld()->GetTimeSeconds();
 			const FString Cs = T.Callsign.IsEmpty() ? Key : T.Callsign;
 			const FString Gnd = ADPSite::Name(ADPSite::Id()).Replace(TEXT(" Airport"), TEXT("")) + TEXT(" Ground");
@@ -342,6 +364,7 @@ bool ATugs::Push(const FString& Key, float StandX, const FVector& Fitting, const
 			return false;
 		}
 		if (T.Talk.Num()) return false;   // (still talking: the tug stays put)
+		if (bYou) return PushYou(I);
 		// in to the nose: off the road towards the stand, then straight at the aircraft, slowly
 		T.State = EState::ToNose; T.bReverse = false; ADP_LOG(TEXT("Tugs: in to the nose of %s"), *Key);
 		const FVector In = T.HookAt + F * 800.f;          // 8 m short of the hook place, in line with the nose
@@ -369,7 +392,16 @@ bool ATugs::Push(const FString& Key, float StandX, const FVector& Fitting, const
 void ATugs::Release(const FString& Key)
 {
 	for (FTug& T : Tugs)
-		if (T.Key == Key && T.State == EState::Hooked)
+		if (T.Key == Key && T.State == EState::You && T.bYouPush && !T.bYouDone)
+		{
+			T.bYouDone = true; T.YouUn = 0; T.bPinShown = false; T.PinKey = T.Key; YouMarks(nullptr, {});
+			ADP_LOG(TEXT("Tugs: %s pushed back by you - brakes set, now uncoupled by hand"), *Key);
+			WalkersDone(int32(&T - Tugs.GetData()));
+			if (T.Seq < 9) { T.Seq = 9; T.SeqT = 0.f; T.SeqWait = FMath::FRandRange(2.f, 5.f); }
+			if (T.EngT < 0.f && !T.bEngines) T.EngT = 0.f;
+			if (T.Handler != INDEX_NONE) CrewUncouple(int32(&T - Tugs.GetData()));
+		}
+		else if (T.Key == Key && T.State == EState::Hooked)
 		{
 			T.State = EState::Unhook; T.Clock = 0.f; ADP_LOG(TEXT("Tugs: unhooking from %s"), *Key);
 			WalkersDone(int32(&T - Tugs.GetData()));
@@ -385,6 +417,7 @@ bool ATugs::IsClear(const FString& Key) const
 	{
 		if (T.Key == Key && (T.State == EState::ToNose || T.State == EState::Hooked || T.State == EState::Unhook || T.State == EState::Backing
 			|| T.State == EState::Boarding || T.State == EState::Coupling || T.State == EState::ShowPin)) return false;
+		if (T.Key == Key && T.State == EState::You && T.bYouPush) { T.YouBeat = GetWorld()->GetTimeSeconds(); return false; }   // (your push: clear when you are, TugYou.cpp)
 		// (the pilot never taxis before the bypass pin has been shown and everyone is clear - owner 2026-11-21)
 		if (T.PinKey == Key && !T.bPinShown) return false;
 		if (T.PinKey == Key && (T.Driver != INDEX_NONE || T.bHired) && T.Seq < 14) return false;   // (engines stable, ready to taxi, ATC's taxi clearance)
@@ -634,11 +667,12 @@ void ATugs::Tick(float Dt)
 			T.Gpu.DirtAt = G; T.Gpu.Dirt.Tick(Dt, FMath::Min(Gs, 10.f));
 		}
 		SeqTick(T, Dt);
+		if (T.bYouPush) YouAfter(int32(&T - Tugs.GetData()), Dt);
 		GpuTick(T, Dt);
 		ChkTick(int32(&T - Tugs.GetData()), Dt);
 		// (short of walkers for a departure: look for free ones every 3 s)
 		if (T.bHired) HiredTick(int32(&T - Tugs.GetData()), Dt);
-		if (T.Driver != INDEX_NONE && !T.Key.IsEmpty() && T.Walkers.Num() < 3 && !(T.bHired && T.Seq > 0) && T.State != EState::Unhook && T.State != EState::Backing && T.State != EState::Home && (T.WalkerLook += Dt) > 3.f) { T.WalkerLook = 0.f; CrewWalkers(int32(&T - Tugs.GetData())); }
+		if (T.Driver != INDEX_NONE && !T.Key.IsEmpty() && T.Walkers.Num() < 3 && !T.bYouDone && !(T.bHired && T.Seq > 0) && T.State != EState::Unhook && T.State != EState::Backing && T.State != EState::Home && (T.WalkerLook += Dt) > 3.f) { T.WalkerLook = 0.f; CrewWalkers(int32(&T - Tugs.GetData())); }
 	}
 	for (FCrew& C : Crew) StepCrew(C, Dt);
 	// (to-do 206: your people done with their job - after their last act, never inside it)

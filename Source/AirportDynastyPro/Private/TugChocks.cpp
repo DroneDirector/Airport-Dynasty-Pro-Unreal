@@ -296,7 +296,7 @@ void ATugs::ChkWork(int32 Tug, int32 Ci)
 		{
 			FTug& U = Tugs[Tug]; U.Ck.Stage = 0; U.Ck.bLoose = false; U.Ck.Ci = INDEX_NONE;
 			ADP_LOG(TEXT("Chocks: off and back on the rack at x %.0f"), U.StandX);
-			if (U.State == EState::Hooked) CrewWalkers(Tug);   // (now the walkers go out to their places)
+			if (AtNose(U)) CrewWalkers(Tug);   // (now the walkers go out to their places)
 		}));
 	}
 	// and what they go on to
@@ -373,7 +373,7 @@ void ATugs::ChkTick(int32 Tug, float Dt)
 		Ck.Ci = INDEX_NONE;
 	}
 	if (Ck.Ci != INDEX_NONE) return;
-	const bool bCrew = !T.Key.IsEmpty() && (T.State == EState::Waiting || T.State == EState::Hooked);
+	const bool bCrew = !T.Key.IsEmpty() && (T.State == EState::Waiting || AtNose(T));
 	// (never set in time: the departure's crew is here already - nothing more is put out)
 	if (Ck.Stage == 1 && bCrew)
 	{
@@ -385,7 +385,7 @@ void ATugs::ChkTick(int32 Tug, float Dt)
 		const AGSE* G = AGSE::Find(GetWorld());
 		if (Ck.bLoose || (bCrew && !(G && G->BusyAt(T.StandX)))) Ck.Stage = 3;   // (the vehicles gone first)
 	}
-	if (Ck.Stage == 4 && (Ck.bLoose || (bCrew && T.State == EState::Hooked))) Ck.Stage = 5;   // (the tug connected)
+	if (Ck.Stage == 4 && (Ck.bLoose || (bCrew && AtNose(T)))) Ck.Stage = 5;   // (the tug connected)
 	if (Ck.Stage != 1 && Ck.Stage != 3 && Ck.Stage != 5) { Ck.WaitT = 0.f; return; }
 	const int32 Ci = ChkWorker(Tug);
 	if (Ci == INDEX_NONE)

@@ -511,6 +511,7 @@ void ATugs::CrewUncouple(int32 Tug)
 {
 	FTug& T = Tugs[Tug];
 	T.bPinShown = false; T.PinKey = T.Key;
+	const bool bYou = T.bYouPush; const int32 Yu = T.YouUn;   // (pushed by you: you uncouple it; what you have done already when its crew come)
 	auto Geo = [this, Tug](FVector& Fit, FVector& F, FVector& L, FVector& Gear) { const FTug& U = Tugs[Tug]; Fit = U.Fit; F = U.Fwd; L = -LeftOf(F); Gear = Fit - F * 60.f; };   // (L: the side the handler works on - the aircraft's RIGHT, away from the jetway and its red zone at the gate; test of 2026-11-21)
 	auto HeadSpot = [Geo] { FVector Fit, F, L, G; Geo(Fit, F, L, G); return Fit + F * 40.f + L * 90.f; };
 	auto GearSpot = [Geo] { FVector Fit, F, L, G; Geo(Fit, F, L, G); return G + L * 85.f; };
@@ -545,19 +546,26 @@ void ATugs::CrewUncouple(int32 Tug)
 	if (T.Handler != INDEX_NONE)
 	{
 		FCrew& H = Crew[T.Handler]; H.Follow = nullptr;
-		H.Q.Add(UntilAct([this, Tug](float) { return Tugs[Tug].Seq >= 10; }));   // ("set brakes" - "brakes set": never unhooked before - step 8)
+		if (bYou) H.Q.Add(UntilAct([this, Tug](float) { const FTug& U = Tugs[Tug]; return U.YouUn >= 3 && U.Seq >= 12; }));   // (you uncouple it; he gives the all clear)
+		else
+		{
+		H.Q.Add(UntilAct([this, Tug](float) { return Tugs[Tug].Seq >= 10; }));
+		if (Yu < 1)
+		{   // ("set brakes" - "brakes set": never unhooked before - step 8)
 		H.Q.Add(WalkAct(HeadSpot, 15.f));
 		H.Q.Add(PoseAct(PinHead, 2.8f));
 		H.Q.Add(DoAct([Clunk] { Clunk(); }));
 		H.Q.Add(WalkAct([Geo] { FVector Fit, F, L, G; Geo(Fit, F, L, G); return Fit + F * 60.f + L * 420.f; }, 25.f));   // (aside, clear of the bar)
 		H.Q.Add(WaitAct(Pause()));
+		}
 		H.Q.Add(DoAct([this, Tug] { StartBacking(Tugs[Tug]); }));
 		H.Q.Add(UntilAct([this, Tug](float) { return Tugs[Tug].State != EState::Unhook && Tugs[Tug].State != EState::Backing; }));
 		H.Q.Add(WalkAct(GearSpot, 15.f));
-		H.Q.Add(PoseAct(PinGear, 2.8f));                                // the bypass pin out
+		if (Yu < 2) H.Q.Add(PoseAct(PinGear, 2.8f));                                // the bypass pin out
 		H.Q.Add(DoAct([this, Tug] { FTug& U = Tugs[Tug]; if (U.Seq == 10) { U.Seq = 11; U.SeqT = 0.f; U.SeqWait = FMath::FRandRange(2.f, 5.f); } }));   // (step 9: "disconnecting headset ...")
 		H.Q.Add(UntilAct([this, Tug](float) { return Tugs[Tug].Seq >= 12; }));
 		H.Q.Add(PoseAct([Geo](float K, float PH, FDriverPose& P) { FVector Fit, F, L, G; Geo(Fit, F, L, G); P = Reach(G + L * 85.f, -L, 0, G + L * 25.f + TugUp * 135.f, 0.6f, PH, Ramp(K)); }, 1.6f));   // unplugged
+		}
 		H.Q.Add(WalkAct(ShowSpot, 25.f));
 		H.Q.Add(WaitAct(Pause() * 0.5f));
 		H.Q.Add(PoseAct(Show, 5.f));
@@ -574,11 +582,9 @@ void ATugs::CrewUncouple(int32 Tug)
 	D.Q.Add(DoAct([this, Tug] { FTug& U = Tugs[Tug]; if (U.Seq == 10) { U.Seq = 11; U.SeqT = 0.f; U.SeqWait = FMath::FRandRange(2.f, 5.f); } }));
 	D.Q.Add(UntilAct([this, Tug](float) { return Tugs[Tug].Seq >= 12; }));
 	ClimbOut(D, Tug);
-	D.Q.Add(WalkAct(HeadSpot, 15.f));
-	D.Q.Add(PoseAct(PinHead, 2.8f));
-	D.Q.Add(DoAct([Clunk] { Clunk(); }));
+	if (Yu < 1) { D.Q.Add(WalkAct(HeadSpot, 15.f)); D.Q.Add(PoseAct(PinHead, 2.8f)); D.Q.Add(DoAct([Clunk] { Clunk(); })); }
 	D.Q.Add(WalkAct(GearSpot, 15.f));
-	D.Q.Add(PoseAct(PinGear, 2.8f));
+	if (Yu < 2) D.Q.Add(PoseAct(PinGear, 2.8f));
 	ClimbIn(D, Tug, [this, Tug] { StartBacking(Tugs[Tug]); });
 	D.Q.Add(UntilAct([this, Tug](float) { return Tugs[Tug].State == EState::ShowPin; }));
 	ClimbOut(D, Tug);
@@ -627,7 +633,7 @@ void ATugs::CrewWalkers(int32 Tug)
 		C.Q.Add(WalkAct([Place, Rr] { return Place(Rr); }, 60.f, 200.f));
 		C.Q.Add(DoAct([this, Tug, i, Place, Rr] { ++Tugs[Tug].WalkersReady; Crew[i].Follow = [Place, Rr] { return Place(Rr); }; }));
 	};
-	const bool bHooked = T.State == EState::Hooked;
+	const bool bHooked = AtNose(T);
 	// out to their places now that it is hooked on (the ones already standing by)
 	// (the chocks off first: one of them does it - ChkWork calls this again)
 	if (bHooked && !T.bWalkersOut && ChkOut(T)) { T.bWalkersOut = true; for (int32 r = 0; r < T.Walkers.Num(); ++r) GoOut(T.Walkers[r], r); }
@@ -852,7 +858,7 @@ void ATugs::Say(FTug& T, uint8 Who, const FString& Text, bool bRadio)
 
 void ATugs::SeqTick(FTug& T, float Dt)
 {
-	if (T.Driver == INDEX_NONE && !T.bHired) return;
+	if (T.Driver == INDEX_NONE && !T.bHired && !T.bYouPush) return;
 	// the talk: one line after the other, each as long as it takes to say (about 0.36 s a word), a short gap between
 	if (T.Talk.Num())
 	{

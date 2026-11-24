@@ -9,15 +9,19 @@
 #include "CrewPose.h"
 #include "BabylonModel.h"
 #include "ADPLog.h"
+#include "Turnaround.h"
+#include "Components/InstancedStaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
 
 namespace
 {
-	enum : int32 { TgHead = 301, TgPin, TgPhone };
+	enum : int32 { TgHead = 301, TgPin, TgPhone, TgShow };
 	constexpr float TgLeave = 4000.f, TgWait = 120.f;       // (its crew come: you 40 m away for 2 min, as the baggage tractor)
 	constexpr float TgHeadAhead = 792.25f;                  // (the bar's head ahead of the tug's middle: HeadAhead, Tugs.cpp)
+	constexpr float TgWheelbase = 12.64f;                   // (the A320's, m: SimTraffic.cpp)
 	const FVector TgWheelC(28.f, -70.75f, 138.3f), TgWheelAxis(-0.84f, 0.f, 0.54f);
 	const FVector TgPedal[2] = {FVector(42.f, -58.8f, 65.f), FVector(42.f, -70.8f, 65.f)};   // (accelerator, brake)
 	float TgTurn(float A, float B) { return FMath::FindDeltaAngleDegrees(A, B); }
@@ -29,6 +33,7 @@ namespace
 /** Where its bar meets the aircraft standing at its gate; false: none there, or its chocks are not in. */
 bool ATugs::YouHook(FTug& T) const
 {
+	if (T.bYouPush) return false;   // (its push has it)
 	if (T.Ck.Stage < 1 || T.Ck.Stage > 4 || !ChocksIn(T.StandX)) return false;
 	const FVector A = Plan(T.StandX, T.StandNose), F = (Plan(T.StandX, T.StandNose + T.StandDir) - A).GetSafeNormal2D();
 	// (the fitting: 60 cm ahead of the nose tyre, the tyre 5.1 m behind the stop line - Receptacle, SimTraffic)
@@ -52,7 +57,7 @@ bool ATugs::YouFree(int32 Tug, FString& Why) const
 bool ATugs::YouHave(float StandX, FString& Why) const
 {
 	for (const FTug& T : Tugs)
-		if (T.State == EState::You && FMath::Abs(T.StandX - StandX) < 1.f && (T.bYouIn || T.YouStep == 0))
+		if (T.State == EState::You && FMath::Abs(T.StandX - StandX) < 1.f && (T.bYouIn ? T.YouStep != 3 : T.YouStep == 0))
 		{
 			Why = T.bYouCrew ? TEXT("its pushback tug is being fetched by its driver") : T.bYouIn ? TEXT("you are in its pushback tug") : TEXT("you have its pushback tug - bring it back, or leave it and its driver fetches it");
 			return true;
@@ -83,6 +88,189 @@ void ATugs::YouHome(int32 Tug)
 	if (!Crew.IsValidIndex(T.Driver)) { Go(); return; }   // (a gate without a driver: as its own jobs)
 	ADP_LOG(TEXT("Tugs: you left tug %d - its driver walks out to it"), Tug);
 	ClimbIn(Crew[T.Driver], Tug, Go);
+}
+
+/** It may move this moment: its departure said so in the last half second (YouDrive). */
+bool ATugs::YouMay(const FTug& T) const
+{
+	return T.State == EState::You && T.bYouPush && T.bYouGo && !T.bYouDone && GetWorld()->GetTimeSeconds() - T.YouGoAt < 0.5;
+}
+
+bool ATugs::YouPushing(const FString& Key) const
+{
+	for (const FTug& T : Tugs) if (T.Key == Key && T.State == EState::You && T.bYouPush && !T.bYouDone) return true;
+	return false;
+}
+
+void ATugs::YouSayWhy(float StandX, const FString& Why)
+{
+	for (FTug& T : Tugs)
+		if (T.State == EState::You && T.bYouPush && FMath::Abs(T.StandX - StandX) < 1.f) { T.YouWhy = Why; T.YouBeat = GetWorld()->GetTimeSeconds(); }
+}
+
+/** The aircraft with the tug at At, Yaw: the bar's head on its fitting, its main gear rolls after it. False: the bar past its limit. */
+bool ATugs::YouTow(const FTug& T, const FVector& At, float Yaw, FVector2f& Nose, FVector2f& Main) const
+{
+	Nose = T.YouNose; Main = T.YouMain;
+	if (!T.bYouGo) return true;
+	const FVector Bar = FRotator(0.f, Yaw, 0.f).Vector(), H = At + Bar * TgHeadAhead;
+	const FVector2f Fit(H.X / 100.f, -H.Y / 100.f), D = (Fit - Main).GetSafeNormal();
+	Main = Fit - D * (TgWheelbase + 0.6f); Nose = Fit - D * 0.6f;
+	const float Was = FMath::Abs(T.YouBar), B = FMath::Abs(TgTurn(FVector(-D.X, D.Y, 0.f).Rotation().Yaw, Yaw));
+	return B <= 75.f || B < Was;
+}
+
+/** Everything before the push, your tug already on the nose: as with the crew (Push). */
+bool ATugs::PushYou(int32 I)
+{
+	FTug& T = Tugs[I];
+	if (T.Seq >= 8 || T.bYouDone) return true;
+	const double Now = GetWorld()->GetTimeSeconds();
+	if (T.Seq == 0)
+	{
+		if (T.bHired && Now - T.YouWhyAt > 3.0) { T.YouWhyAt = Now; CrewWalkers(I); }   // (your own wing walkers, whoever is free: they do the chocks too)
+		if (T.Gpu.bConnected)
+		{
+			T.YouWhy = TEXT("the ground power is still plugged in");
+			if (T.bHired) for (const int32 w : T.Walkers) if (Crew.IsValidIndex(w) && !Crew[w].Q.Num() && !Crew[w].Hold) { GpuDisconnect(I, Crew[w]); break; }
+			return false;
+		}
+		if (!ChkOut(T)) { T.YouWhy = TEXT("the chocks and cones are still being taken away"); return false; }
+		if ((T.bHired || T.Driver != INDEX_NONE) && T.WalkersReady < (T.bHired ? T.Walkers.Num() : 3)) { T.YouWhy = TEXT("the wing walkers are not in their places"); return false; }
+		T.Seq = 1; T.SeqT = 0.f; T.SeqWait = FMath::FRandRange(2.f, 5.f);
+	}
+	T.YouWhy = TEXT("waiting for the cockpit - brakes released");
+	return false;
+}
+
+bool ATugs::YouDrive(const FString& Key, AActor* Plane, FVector2f& Nose, FVector2f& Main, const TArray<FVector2f>& Path, int32& Step, float& Speed, float& Bar, float TaxiY, float TaxiDir)
+{
+	Step = INDEX_NONE; Speed = 0.f;
+	const int32 I = Tugs.IndexOfByPredicate([&](const FTug& X) { return X.Key == Key && X.State == EState::You && X.bYouPush; }); if (I == INDEX_NONE) return false;
+	FTug& T = Tugs[I]; const double Now = GetWorld()->GetTimeSeconds();
+	if (!T.bYouGo)
+	{
+		T.YouNose = Nose; T.YouMain = Main; T.YouStart = Main; T.bYouGo = true; YouMarks(&T, Path);
+		ADP_LOG(TEXT("Tugs: %s - brakes released, yours to push"), *Key);
+		AVehicleControls::Note(GetWorld(), TEXT("Brakes released - push along the marked line"));
+	}
+	T.YouPlane = Plane; T.YouGoAt = T.YouBeat = Now; T.YouWhy.Reset();
+	Nose = T.YouNose; Main = T.YouMain;
+	const FVector2f D = (Nose - Main).GetSafeNormal(); const FVector F(D.X, -D.Y, 0.f);
+	const FVector P = Plan(Nose.X, Nose.Y); T.Fit = P + F * 60.f; T.Fwd = F; T.HookAt = T.At; T.HookYaw = T.Yaw;
+	T.YouBar = -TgTurn((-F).Rotation().Yaw, T.Yaw); Bar = FMath::Clamp(T.YouBar, -75.f, 75.f);
+	Speed = FMath::Abs(T.Speed) / 100.f;
+	T.YouSide = FMath::Abs(Main.Y - TaxiY); T.YouTurn = FMath::RadiansToDegrees(FMath::Atan2(-D.Y * TaxiDir, D.X * TaxiDir));   // (+: its nose still to its left)
+	// where its crew would go on from here: the nearest place of their path, on to the next point that lies behind it
+	float Best = 1e9f; int32 Ni = INDEX_NONE;
+	for (int32 i = 0; i < Path.Num(); ++i)
+	{
+		const FVector2f A = i ? Path[i - 1] : T.YouStart, B = Path[i], Ab = B - A; const float L2 = Ab.SizeSquared();
+		const float K = L2 > 1e-4f ? FMath::Clamp(FVector2f::DotProduct(Main - A, Ab) / L2, 0.f, 1.f) : 0.f, Dd = (A + Ab * K - Main).Size();
+		if (Dd < Best) { Best = Dd; Ni = i; }
+	}
+	for (int32 i = Ni; Best < 6.f && Path.IsValidIndex(i); ++i)
+		if (const FVector2f To = Path[i] - Main; To.Size() > 1.f && FVector2f::DotProduct(To.GetSafeNormal(), -D) > 0.5f) { Step = i; break; }
+	T.bYouRejoin = Step != INDEX_NONE || (Main - T.YouStart).Size() < 0.5f;
+	if (Step == INDEX_NONE && T.bYouRejoin) Step = 0;
+	T.YouToGo = T.YouSide <= 3.f && FMath::Abs(T.YouTurn) <= 10.f ? 0.f : 1.f;
+	return T.YouToGo == 0.f && FMath::Abs(T.Speed) < 2.f && T.bYouPark;
+}
+
+/** The crew's path as dashes on the ground (none: taken away). */
+void ATugs::YouMarks(const FTug* T, const TArray<FVector2f>& Path)
+{
+	if (YouLine) YouLine->ClearInstances();
+	if (!T || !Path.Num()) return;
+	if (!YouLine)
+	{
+		UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+		UMaterialInterface* Mat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/Hangar/M_HangarLiner.M_HangarLiner"));
+		if (!Cube || !Mat) { ADP_WARN(TEXT("Tugs: the push line's mesh or material is missing")); return; }
+		YouLine = NewObject<UInstancedStaticMeshComponent>(this); YouLine->SetStaticMesh(Cube); YouLine->SetMaterial(0, Mat);
+		YouLine->SetCollisionEnabled(ECollisionEnabled::NoCollision); YouLine->SetCastShadow(false); YouLine->SetMobility(EComponentMobility::Movable);
+		YouLine->SetupAttachment(GetRootComponent()); YouLine->RegisterComponent();
+	}
+	FVector2f A = T->YouStart; float Left = 1.f;
+	for (const FVector2f& B : Path)
+	{
+		const FVector2f Ab = B - A; const float L = Ab.Size(); if (L < 0.01f) continue;
+		const FVector2f D = Ab / L;
+		for (; Left < L; Left += 2.f)
+		{
+			const FVector2f C = A + D * Left;
+			YouLine->AddInstance(FTransform(FVector(D.X, -D.Y, 0.f).Rotation(), Plan(C.X, C.Y) + FVector(0, 0, 2.f), FVector(1.f, 0.12f, 0.004f)), true);
+		}
+		Left -= L; A = B;
+	}
+}
+
+/** Clear of the aircraft it pushed: to the side of it past its wing, or far off. */
+bool ATugs::YouClear(const FTug& T, FString* Why) const
+{
+	auto Off = [&T](const FVector& P, float Side) { const FVector R = P - T.Fit; const float A = FVector::DotProduct(R, T.Fwd); return FMath::Abs(FVector::DotProduct(R, TgL(T.Fwd))) > Side || A < -4500.f || A > 20000.f; };
+	if (!Off(T.At, 2300.f)) { if (Why) *Why = TEXT("drive the tug clear to the side - past the wing tip"); return false; }
+	const APlayerController* PC = GetWorld()->GetFirstPlayerController(); const APawn* Me = PC ? PC->GetPawn() : nullptr;
+	if (Me && !T.bYouIn && !Off(Me->GetActorLocation(), 1900.f)) { if (Why) *Why = TEXT("step clear to the side - past the wing"); return false; }
+	return true;
+}
+
+/** Its flight called off, skipped or gone: everything free again. */
+void ATugs::YouDrop(int32 Tug, const TCHAR* Why)
+{
+	FTug& T = Tugs[Tug]; ADP_LOG(TEXT("Tugs: your push of %s is over - %s"), *T.Key, Why);
+	WalkersDone(Tug); YouMarks(nullptr, {});
+	T.bYouPush = T.bYouDone = T.bYouGo = T.bYouCrewIn = false; T.YouUn = 0; T.Key.Reset(); T.Seq = 0; T.Talk.Reset(); T.YouWhy.Reset(); T.YouPlane.Reset(); T.YouBend = 0.f; T.bPinShown = true;
+	if (T.Handler != INDEX_NONE && !Crew[T.Handler].Hold) { FCrew& H = Crew[T.Handler]; H.Follow = nullptr; H.Q.Reset(); FCrewAct A; A.Kind = FCrewAct::Walk; A.To = [this, Sx = T.StandX] { return Plan(Sx - 18.5f, 104.f); }; A.Stop = 80.f; A.Max = 150.f; H.Q.Add(A); }
+	if (T.bHired) HiredEnd(T);
+	if (!YouHook(T)) T.YouStep = 0;
+}
+
+/** Each frame of it: called off; after the push, you clear - only then may the aircraft taxi. */
+void ATugs::YouAfter(int32 Tug, float Dt)
+{
+	FTug& T = Tugs[Tug]; if (T.State != EState::You) return;
+	if (GetWorld()->GetTimeSeconds() - T.YouBeat > 30.0)
+	{
+		const ADPTurnaround::FTurn* Tn = ADPTurnaround::AtStand(T.StandX);
+		if (!Tn || T.bYouGo || Tn->PlanId != T.Key) { YouDrop(Tug, TEXT("the flight is off or skipped")); return; }
+	}
+	if (!T.bYouDone || T.YouUn < 3 || !T.bPinShown || !YouClear(T)) return;
+	ADP_LOG(TEXT("Tugs: you are clear of %s"), *T.Key);
+	T.bYouPush = T.bYouDone = T.bYouGo = T.bYouCrewIn = false; T.YouUn = 0; T.Key.Reset(); T.YouPlane.Reset(); T.YouWhy.Reset();
+	if (T.bHired) HiredEnd(T);
+}
+
+/** You left it (40 m, 2 min): its crew finish from where it stands; it waits where they can't. */
+void ATugs::YouTake(int32 Tug)
+{
+	FTug& T = Tugs[Tug];
+	auto Stay = [&](const TCHAR* Why) { T.YouWhy = Why; if (!T.bYouCrewIn) { T.bYouCrewIn = true; ADP_LOG(TEXT("Tugs: %s waits for you - %s"), *T.Key, Why); } };
+	const bool bDriver = !T.bHired && Crew.IsValidIndex(T.Driver);
+	if (!T.bYouDone)
+	{
+		if (T.bYouGo && !T.bYouRejoin) { Stay(TEXT("too far off the marked line for the crew")); return; }
+		ADP_LOG(TEXT("Tugs: you left %s - its crew go on with the push"), *T.Key);
+		T.YouBend = T.bYouGo ? TgTurn((-T.Fwd).Rotation().Yaw, T.Yaw) : 0.f; T.HookAt = T.At; T.HookYaw = T.Yaw; T.Speed = 0.f;
+		if (T.bYouGo) T.PreSeq = FMath::Max(T.PreSeq, 2);
+		YouMarks(nullptr, {}); T.bYouPush = T.bYouGo = false;
+		if (T.bHired) T.State = EState::Parked;                       // (HiredTick calls a team; their driver climbs in)
+		else if (bDriver) { T.State = EState::Boarding; CrewBoard(Tug); }
+		else T.State = EState::Hooked;
+		return;
+	}
+	if (!bDriver) { Stay(TEXT("no driver here to finish the uncoupling")); return; }
+	if (T.YouUn >= 1 && T.YouUn < 3) { Stay(TEXT("the uncoupling is half done")); return; }
+	T.bYouCrew = true; ADP_LOG(TEXT("Tugs: you left %s - its driver goes on (uncoupled %d of 3)"), *T.Key, T.YouUn);
+	ClimbIn(Crew[T.Driver], Tug, [this, Tug]
+	{
+		FTug& U = Tugs[Tug]; if (U.State != EState::You || !U.bYouPush) return;
+		const bool bOff = U.YouUn >= 3; Engine(U, true); U.bYouPush = U.bYouDone = U.bYouGo = false; U.bYouCrew = false; U.YouUn = 0; U.YouStep = 0;
+		U.HookAt = U.At; U.HookYaw = U.Yaw; U.State = EState::Unhook; U.Clock = 0.f;
+		if (bOff) { if (U.Handler == INDEX_NONE) U.bPinShown = true; StartBacking(U); return; }
+		if (U.Handler != INDEX_NONE) { FCrew& H = Crew[U.Handler]; H.Q.Reset(); H.Follow = nullptr; }
+		CrewUncouple(Tug);
+	});
 }
 
 // ------------------------------------------------------------------ the seat line (AGSE's)
@@ -131,7 +319,7 @@ void AGSE::YouTug(int32 Ti, float Dt)
 	if (U.State == ES::Parked && U.YouStep > 0 && U.Key.IsEmpty()) U.State = ES::You;   // (its flight called off: still on the nose)
 	if (U.State != ES::You)
 	{
-		U.bYouCrew = false; U.YouLeft = 0.f; U.YouSig = 0; U.bYouHaz = false; U.bYouNoBeacon = false; U.YouBeam = 0; U.bYouBack = false;
+		U.bYouCrew = false; U.YouLeft = 0.f; U.YouSig = 0; U.bYouHaz = false; U.bYouNoBeacon = false; U.YouBeam = 0; U.bYouBack = false; U.bYouPush = U.bYouGo = U.bYouDone = false;
 		if (U.State == ES::Hooked || U.State == ES::Home || U.State == ES::Backing) U.YouStep = 0;
 		T.At = U.At; T.Yaw = U.Yaw; T.Speed = 0.f; T.Steer = U.Steer; return;
 	}
@@ -143,12 +331,12 @@ void AGSE::YouTug(int32 Ti, float Dt)
 	}
 	else { T.Speed = 0.f; T.PedalA = T.PedalB = 0.f; T.SteerWant = 0.f; }
 	// on the fitting: the bar's head drawn home the last centimetres
-	if (U.YouStep > 0 && U.YouStep < 4 && !bIn)
+	if (U.YouStep > 0 && U.YouStep < 4 && !bIn && !U.bYouGo && !U.bYouDone)
 	{
 		T.At = FMath::VInterpConstantTo(T.At, U.HookAt, Dt, 12.f); T.Yaw = FMath::FixedTurn(T.Yaw, U.HookYaw, 2.f * Dt);
 		if (!T.At.Equals(U.At, 0.01f) || T.Yaw != U.Yaw) Pose(T);
 	}
-	U.At = T.At; U.Yaw = T.Yaw; U.Speed = T.Speed;
+	U.At = T.At; U.Yaw = T.Yaw; U.Speed = T.Speed; U.bYouPark = T.bPark;
 	U.YouSig = T.Sig; U.bYouHaz = T.bSwHaz; U.bYouNoBeacon = T.bSwNoBeacon; U.YouBeam = T.Beam; U.bYouBack = bIn && T.bReverse;
 	CabTick(T, Ti, Dt);
 	if (ABabylonModel* M = U.M.Get())
@@ -169,6 +357,15 @@ void AGSE::YouTug(int32 Ti, float Dt)
 		if (AServiceDrive* D = T.Player.Get(); D && T.PlayerSeat == 0 && U.YouNote <= 0.f)
 		{
 			U.YouNote = 1.5f;
+			if (U.bYouPush)
+			{
+				const bool bGas = D->Throttle() > 0.1f || D->Brake() > 0.1f; FString Wy;
+				if (U.bYouDone) { if (U.YouUn < 1) { if (bGas) AVehicleControls::Note(GetWorld(), TEXT("Brakes set - get out and take the tow bar off")); } else if (U.YouUn < 3) AVehicleControls::Note(GetWorld(), TEXT("The bypass pin and the headset are still on the aircraft")); else if (!G->YouClear(U, &Wy)) AVehicleControls::Note(GetWorld(), FString(TEXT("The aircraft waits - ")) + Wy); }
+				else if (!G->YouMay(U)) { if (bGas) AVehicleControls::Note(GetWorld(), FString(TEXT("The push waits - ")) + (U.YouWhy.IsEmpty() ? TEXT("the flight isn't ready yet") : *U.YouWhy)); }
+				else if (U.YouToGo == 0.f) AVehicleControls::Note(GetWorld(), TEXT("In place - stop and set the park brake"));
+				else AVehicleControls::Note(GetWorld(), FString::Printf(TEXT("Push: main wheels %.0f m from the taxilane line, the nose %.0f deg to its %s, bar %.0f deg"), U.YouSide, FMath::Abs(U.YouTurn), U.YouTurn > 0.f ? TEXT("left") : TEXT("right"), FMath::Abs(U.YouBar)));
+				return;
+			}
 			if (U.YouStep > 0) { if (D->Throttle() > 0.1f || D->Brake() > 0.1f) AVehicleControls::Note(GetWorld(), TEXT("The tow bar is on the aircraft - take it off first")); return; }
 			if (!G->YouHook(U)) return;
 			// up to the nose gear: how far, how far aside, how much to turn (as the belt loader's)
@@ -180,10 +377,16 @@ void AGSE::YouTug(int32 Ti, float Dt)
 		}
 		return;
 	}
-	if (U.YouStep == 0 && !U.bYouCrew && FVector::Dist2D(U.At, U.Home) < 60.f && FMath::Abs(TgTurn(U.Yaw, U.HomeYaw)) < 5.f && U.DoorAng < 1.f)
+	if (U.YouStep == 0 && !U.bYouPush && !U.bYouCrew && FVector::Dist2D(U.At, U.Home) < 60.f && FMath::Abs(TgTurn(U.Yaw, U.HomeYaw)) < 5.f && U.DoorAng < 1.f)
 	{ U.State = ES::Parked; G->Engine(U, false); ADP_LOG(TEXT("Tugs: you brought tug %d back to its box"), T.TugIx); return; }
 	if (U.bYouCrew) return;
 	const APlayerController* PC = GetWorld()->GetFirstPlayerController(); const APawn* Me = PC ? PC->GetPawn() : nullptr;
+	if (U.bYouPush || U.YouStep == 3)
+	{
+		U.YouLeft = !Me || FVector::DistSquared2D(Me->GetActorLocation(), U.At) > FMath::Square(TgLeave) ? U.YouLeft + Dt : 0.f;
+		if (U.bYouPush) { if (U.YouLeft > TgWait) { G->YouTake(T.TugIx); U.YouLeft = FMath::Min(U.YouLeft, TgWait - 5.f); } return; }
+		if (G->YouHook(U)) return;   // (coupled, no flight called yet: it stays on)
+	}
 	const bool bGone = U.YouStep > 0 && !G->YouHook(U);   // (its aircraft's chocks off or the aircraft gone: nothing to stay on for)
 	U.YouLeft = (U.YouStep == 0 || bGone) && (!Me || FVector::DistSquared2D(Me->GetActorLocation(), U.At) > FMath::Square(TgLeave)) ? U.YouLeft + Dt : 0.f;
 	if (U.YouLeft > TgWait) { U.YouLeft = 0.f; G->YouHome(T.TugIx); }
@@ -195,6 +398,7 @@ FVector AGSE::TugSpot(const FTractor& T, int32 S) const
 {
 	const ATugs* G = Tg(); if (!G || !G->Tugs.IsValidIndex(T.TugIx)) return T.At;
 	const ATugs::FTug& U = G->Tugs[T.TugIx]; const FVector F = U.Fwd, L = TgL(F), Gr = U.Fit - F * 60.f;
+	if (S == TgShow) return U.Fit + F * 300.f + L * 450.f + FVector(0, 0, 150.f);
 	return S == TgHead ? U.Fit + F * 8.f + FVector(0, 0, 48.f) : S == TgPin ? Gr + L * 22.f + FVector(0, 0, 62.f) : Gr + L * 25.f + FVector(0, 0, 135.f);
 }
 
@@ -202,6 +406,16 @@ FString AGSE::TugSay(const FTractor& T, int32 S) const
 {
 	ATugs* G = Tg(); if (!G || !G->Tugs.IsValidIndex(T.TugIx) || T.Player.IsValid()) return FString();
 	ATugs::FTug& U = G->Tugs[T.TugIx]; if (U.State != ATugs::EState::You || U.bYouCrew) return FString();
+	if (U.bYouPush)
+	{
+		// (pushed: the bar, the pin, the headset, the pin shown - in that order)
+		if (!U.bYouDone || U.Seq < 10) return FString();
+		if (S == TgHead) return U.YouUn == 0 ? TEXT("Take the tow bar's head off") : TEXT("");
+		if (S == TgPin) return U.YouUn == 1 ? TEXT("Take the steering bypass pin out") : TEXT("");
+		if (S == TgPhone) return U.YouUn == 2 && U.Seq >= 12 ? TEXT("Unplug the headset") : TEXT("");
+		return U.YouUn == 3 && !U.bPinShown && U.Handler == INDEX_NONE ? TEXT("Show the bypass pin to the cockpit") : TEXT("");
+	}
+	if (S == TgShow) return FString();
 	if (!G->YouHook(U) || FVector::Dist2D(U.At, U.HookAt) > 25.f || FMath::Abs(TgTurn(U.Yaw, U.HookYaw)) > 4.f) return FString();
 	switch (S)
 	{
@@ -226,22 +440,33 @@ bool AGSE::TugMay(int32 Ti, int32 S, FString& Why) const
 TFunction<void(float, float, FDriverPose&)> AGSE::TugAct(int32 Ti, int32 S, float& Secs) const
 {
 	// the crew's own movement (CrewCouple), from where you stand
-	const APlayerController* PC = GetWorld()->GetFirstPlayerController(); const APawn* Me = PC ? PC->GetPawn() : nullptr; if (!Me || S < TgHead || S > TgPhone) return nullptr;
+	const APlayerController* PC = GetWorld()->GetFirstPlayerController(); const APawn* Me = PC ? PC->GetPawn() : nullptr; if (!Me || S < TgHead || S > TgShow) return nullptr;
 	const FVector Hands = TugSpot(Tractors[Ti], S); FVector At = Me->GetActorLocation(); At.Z = Tg()->Plan(At.X / 100.f, -At.Y / 100.f).Z;
-	const FVector Face = (Hands - At).GetSafeNormal2D(); Secs = S == TgHead ? 3.f : S == TgPin ? 2.8f : 2.f;
+	const ATugs::FTug& Ut = Tg()->Tugs[Tractors[Ti].TugIx];
+	const FVector Face = ((S == TgShow ? Ut.Fit - Ut.Fwd * 300.f : Hands) - At).GetSafeNormal2D(); Secs = S == TgHead ? 3.f : S == TgPin ? 2.8f : S == TgShow ? 5.f : 2.f;
 	TWeakObjectPtr<AGSE> Self(const_cast<AGSE*>(this)); TSharedRef<bool> Done = MakeShared<bool>(false);
 	return [Self, Ti, S, At, Face, Hands, Done](float K, float PH, FDriverPose& P)
 	{
 		const float E = FMath::SmoothStep(0.f, 0.25f, K) * (1.f - FMath::SmoothStep(0.75f, 1.f, K));
-		P = S == TgPhone ? ADPPose::Reach(At, Face, 0, Hands, 0.6f, PH, E) : ADPPose::Squat(At, Face, Hands, PH, E);
+		P = S == TgShow ? ADPPose::Reach(At, Face, 1, At + Face * 35.f + TgL(Face) * 25.f + FVector(0, 0, 195.f), 0.8f, PH, E) : S == TgPhone ? ADPPose::Reach(At, Face, 0, Hands, 0.6f, PH, E) : ADPPose::Squat(At, Face, Hands, PH, E);
 		AGSE* G = Self.Get(); if (!G || *Done || K < 0.75f) return;
 		*Done = true; ATugs* Tu = G->Tg(); const int32 Ix = G->Tractors.IsValidIndex(Ti) ? G->Tractors[Ti].TugIx : INDEX_NONE; if (!Tu || !Tu->Tugs.IsValidIndex(Ix)) return;
 		if (G->TugSay(G->Tractors[Ti], S).IsEmpty()) return;   // (a crew or the aircraft was quicker)
 		ATugs::FTug& U = Tu->Tugs[Ix]; const int32 Was = U.YouStep;
+		if (U.bYouPush)
+		{
+			U.YouUn = S - TgHead + 1;
+			if (S == TgHead) { U.YouStep = 0; G->Sound(TEXT("TugHitchClunk"), Hands); }
+			else if (S == TgPin && U.Seq == 10) { U.Seq = 11; U.SeqT = 0.f; U.SeqWait = FMath::FRandRange(2.f, 5.f); }
+			else if (S == TgShow) { U.bPinShown = true; if (U.Seq == 12) { U.Seq = 13; U.SeqT = 0.f; U.SeqWait = FMath::FRandRange(2.f, 5.f); } }
+			ADP_LOG(TEXT("Tugs: tug %d - you uncouple %s (%d of 4)"), Ix, *U.Key, U.YouUn);
+			if (S == TgShow || (S == TgPhone && U.Handler != INDEX_NONE)) AVehicleControls::Note(G->GetWorld(), TEXT("Uncoupled - drive the tug clear to the side"));
+			return;
+		}
 		U.YouStep = S == TgHead ? (Was == 0 ? 1 : 0) : S == TgPin ? (Was == 1 ? 2 : 1) : (Was == 2 ? 3 : 2);
 		if (S == TgHead) G->Sound(TEXT("TugHitchClunk"), Hands);
 		ADP_LOG(TEXT("Tugs: tug %d - you %s (step %d of 3)"), Ix, S == TgHead ? (Was == 0 ? TEXT("put the bar's head on") : TEXT("took the bar's head off")) : S == TgPin ? (Was == 1 ? TEXT("put the bypass pin in") : TEXT("took the bypass pin out")) : Was == 2 ? TEXT("plugged the headset in") : TEXT("unplugged the headset"), U.YouStep);
-		if (U.YouStep == 3) AVehicleControls::Note(G->GetWorld(), TEXT("Coupled - its crew come for the push when the flight is ready"));
+		if (U.YouStep == 3) AVehicleControls::Note(G->GetWorld(), TEXT("Coupled - stay for the push when the flight is ready, or leave it to its crew"));
 	};
 }
 
@@ -250,7 +475,7 @@ TSharedPtr<FVehTable> AGSE::TugControls()
 	using K = FVehControl;
 	TSharedPtr<FVehTable> Tb = MakeShared<FVehTable>();
 	auto Add = [&Tb](const TCHAR* Lb, int32 S) { K X; X.Part = TEXT(""); X.Point = TEXT("TR_Hitch"); X.Kind = K::Push; X.Label = Lb; X.Switch = S; Tb->Controls.Add(X); };
-	Add(TEXT("Tow bar"), TgHead); Add(TEXT("Bypass pin"), TgPin); Add(TEXT("Headset"), TgPhone);
+	Add(TEXT("Tow bar"), TgHead); Add(TEXT("Bypass pin"), TgPin); Add(TEXT("Headset"), TgPhone); Add(TEXT("Bypass pin shown"), TgShow);
 	Tb->Range = 1000.f;
 	Tb->Frame = [](const AGSE&, const FTractor&, int32) { return FTransform::Identity; };
 	Tb->Now = [](const FTractor&, int32) { return 0.f; };

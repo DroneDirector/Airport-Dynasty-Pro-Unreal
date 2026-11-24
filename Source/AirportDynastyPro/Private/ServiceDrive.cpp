@@ -10,6 +10,7 @@
 #include "ADPLog.h"
 #include "ADPKeep.h"
 #include "BabylonModel.h"
+#include "PerfLog.h"
 #include "CrewPose.h"
 #include "DriverPoseAnim.h"
 #include "Camera/CameraComponent.h"
@@ -313,6 +314,56 @@ namespace
 	}
 }
 
+const TCHAR* AGSE::TowHit(const FTractor& T, const FVector2f& N1, const FVector2f& M1, const FCollisionQueryParams& Q) const
+{
+	// the aircraft on your bar (an A320: its body, wings, tail, engines, main wheels) at its next place: what would it touch? What it
+	// touches already where it stands doesn't hold it
+	const ATugs* G = Tg(); const ATugs::FTug& U = G->Tugs[T.TugIx];
+	struct FBx { float Aft, Side, Hl, Hw, Z, Hz; };   // (cm: behind the nose tyre, to the right)
+	static const FBx Bx[] = {{1365.f, 0.f, 1885.f, 200.f, 380.f, 170.f}, {1250.f, 0.f, 380.f, 1800.f, 410.f, 70.f}, {3100.f, 0.f, 200.f, 640.f, 560.f, 60.f},
+		{1050.f, -575.f, 215.f, 125.f, 170.f, 100.f}, {1050.f, 575.f, 215.f, 125.f, 170.f, 100.f}, {1264.f, -380.f, 70.f, 60.f, 110.f, 60.f}, {1264.f, 380.f, 70.f, 60.f, 110.f, 60.f}};
+	auto Way = [](const FVector2f& N, const FVector2f& M) { const FVector2f D = (N - M).GetSafeNormal(); return FVector(D.X, -D.Y, 0.f); };
+	const FVector F1 = Way(N1, M1), F0 = Way(U.YouNose, U.YouMain), P1 = Plan(N1.X, N1.Y), P0 = Plan(U.YouNose.X, U.YouNose.Y);
+	auto C = [](const FVector& P, const FVector& F, const FBx& B) { return P - F * B.Aft + FVector(-F.Y, F.X, 0.f) * B.Side; };
+	// the other aircraft, looked up once a second
+	static TArray<TWeakObjectPtr<AActor>> Others; static double At = -10.0; static TWeakObjectPtr<UWorld> Wo; const double Now = GetWorld()->GetTimeSeconds();
+	if (Wo.Get() != GetWorld() || Now - At > 1.0 || Now < At)
+	{
+		ADP_PERF_SCOPE("the push by hand: where the other aircraft are (once a second)", 1.f);
+		At = Now; Wo = GetWorld(); Others.Reset();
+		for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It) for (const FName& Tn : It->Tags) { const FString S = Tn.ToString(); if (S.StartsWith(TEXT("SIM/")) || S.StartsWith(TEXT("MOVE/"))) { Others.Add(*It); break; } }
+	}
+	TArray<FOutline> Ol; Outlines(Ol);
+	auto Hit = [&](const FVector& P, const FVector& F, int32 b) -> const TCHAR*
+	{
+		const FBx& B = Bx[b]; const FVector A = C(P, F, B);
+		if (b < 3)
+			for (const TWeakObjectPtr<AActor>& W : Others)
+				if (const AActor* O = W.Get(); O && O != U.YouPlane.Get())
+				{
+					const FVector Of = (-O->GetActorRightVector()).GetSafeNormal2D(), Op = O->GetActorLocation();
+					for (int32 o = 0; o < 3; ++o) if (SdCross(A, F, B.Hl, B.Hw, C(Op, Of, Bx[o]), Of, Bx[o].Hl, Bx[o].Hw)) return TEXT("another aircraft is in the way");
+				}
+		for (const FOutline& O : Ol) if (SdCross(A, F, B.Hl, B.Hw, O.C, O.X, O.Hx, O.Hy)) return TEXT("a vehicle is in the aircraft's way");
+		for (int32 u = 0; u < G->Tugs.Num(); ++u)
+		{
+			const ATugs::FTug& O = G->Tugs[u];
+			if (u != T.TugIx && O.M.IsValid() && SdCross(A, F, B.Hl, B.Hw, O.At, FRotator(0.f, O.Yaw, 0.f).Vector(), 255.f, 126.f)) return TEXT("another tug is in the aircraft's way");
+			if (b != 1 && O.Gpu.M.IsValid() && SdCross(A, F, B.Hl, B.Hw, O.Gpu.M->GetActorTransform().TransformPosition(FVector(40.f, 0.f, 0.f)), O.Gpu.M->GetActorForwardVector(), 170.f, 90.f)) return TEXT("a ground power unit is in the aircraft's way");
+		}
+		if (GetWorld()->OverlapBlockingTestByChannel(FVector(A.X, A.Y, A.Z + B.Z), F.Rotation().Quaternion(), ECC_Pawn, FCollisionShape::MakeBox(FVector(B.Hl, B.Hw, B.Hz)), Q)) return TEXT("something is in the aircraft's way");
+		// (its own tug: the body above it, the engines and wheels never)
+		if (b >= 3 && SdCross(A, F, B.Hl, B.Hw, T.At, FRotator(0.f, T.Yaw, 0.f).Vector(), T.KHalfL, T.KHalfW)) return TEXT("the tug is too close to the aircraft");
+		return nullptr;
+	};
+	for (int32 b = 0; b < int32(UE_ARRAY_COUNT(Bx)); ++b) if (const TCHAR* H = Hit(P1, F1, b); H && !Hit(P0, F0, b)) return H;
+	// people in the way of its wheels and engines
+	const FVector Mv = F1 * (FVector::DotProduct(P1 - P0, F1) < 0.f ? -1.f : 1.f);
+	for (int32 b = 3; b < int32(UE_ARRAY_COUNT(Bx)); ++b) for (const float y : {-80.f, 0.f, 80.f}) for (const float r : {40.f, 120.f, 200.f})
+		if (G->PersonAhead(C(P1, F1, Bx[b]) + FVector(-F1.Y, F1.X, 0.f) * y + Mv * Bx[b].Hl, Mv, r)) return TEXT("somebody is in the aircraft's way");
+	return nullptr;
+}
+
 FVector AGSE::SvcStandL(int32 Ti, int32 Seat) const
 {
 	const FTractor& T = Tractors[Ti]; const FServiceSpec& S = SdSpec(T.Svc); const int32 c = SdCab(S, Seat);
@@ -446,7 +497,9 @@ void AGSE::SvcPlayerDrive(FTractor& T, float Dt)
 	if (T.Ct && !CaterStowed(T)) bShut = false;   // (never with its legs down, its body up or anything out)
 	if (!DeicerShut(T)) bShut = false;   // (never with its boom up, a panel open, a valve off or a stop pressed)
 	if (T.bLoader && (T.Boom != 0.f || T.BoomWant != 0.f || T.bBelt || T.bLStop || T.BeltBags.Num())) bShut = false;   // (never with its boom up, its belt on, a bag on it or a stop pressed)
-	if (T.TugIx != INDEX_NONE && Tg() && Tg()->Tugs[T.TugIx].YouStep > 0) bShut = false;   // (never with its bar on an aircraft: the push is not yours yet)
+	const bool bTow = T.TugIx != INDEX_NONE && Tg() && Tg()->Tugs[T.TugIx].YouStep > 0;
+	const bool bMay = bTow && Tg()->YouMay(Tg()->Tugs[T.TugIx]);   // (the push by hand, TugYou.cpp)
+	if (bTow && !bMay) bShut = false;   // (never with its bar on an aircraft: the push is not yours yet)
 	if (T.Ps && !StairsStowed(T)) bShut = false;   // (never with its legs down or its stairs up)
 	if (T.IsTrain() && !TractorShut(T, D->Throttle() > 0.1f || D->Brake() > 0.1f)) bShut = false;   // (a pin up, a drawbar not pinned, a curtain open: never off with it)
 	float Go = bShut ? D->Throttle() : 0.f, Br = D->Brake();
@@ -460,9 +513,10 @@ void AGSE::SvcPlayerDrive(FTractor& T, float Dt)
 	{
 		for (const FVector& A : G->Planes) if (FVector::DistSquared2D(A, T.At) < FMath::Square(4000.f)) TugMax = 200.f;
 		for (const ATugs::FTug& U : G->Tugs) if (U.Ck.Stage > 0 && FVector::DistSquared2D(G->Plan(U.StandX, U.StandNose), T.At) < FMath::Square(2500.f)) TugMax = 200.f;
+		if (bTow) { TugMax = 154.f; if (!bMay) { Go = 0.f; Br = 1.f; } }   // (3 kt, as the crew's push)
 		if (T.Speed > TugMax) { Go = 0.f; Br = FMath::Max(Br, 0.5f); TugMax = T.Speed; }   // (it slows, it doesn't jump)
 	}
-	const float Max = T.TugIx != INDEX_NONE && !T.bReverse ? TugMax : T.bReverse ? 250.f : T.IsTrain() ? (T.Train.Num() || T.TowGpu != INDEX_NONE ? 417.f : 694.f) : S.PlayerSpeed;   // (the baggage tractor: 25 km/h, 15 with a train)
+	const float Max = T.TugIx != INDEX_NONE && (bTow || !T.bReverse) ? TugMax : T.bReverse ? 250.f : T.IsTrain() ? (T.Train.Num() || T.TowGpu != INDEX_NONE ? 417.f : 694.f) : S.PlayerSpeed;   // (the baggage tractor: 25 km/h, 15 with a train)
 	const FVector Fw = FRotator(0.f, T.Yaw, 0.f).Vector(), Move = Fw * (T.bReverse ? -1.f : 1.f);
 	const float BarL = T.TugIx != INDEX_NONE && !T.bReverse ? 525.f : 0.f;   // (its tow bar sticks out ahead)
 	float Acc = Go * 160.f - Br * 520.f - (Go < 0.05f ? 45.f : 0.f);
@@ -483,6 +537,7 @@ void AGSE::SvcPlayerDrive(FTractor& T, float Dt)
 	if (T.TowGpu != INDEX_NONE) if (const ATugs* G = Tg()) if (G->Tugs.IsValidIndex(T.TowGpu) && G->Tugs[T.TowGpu].Gpu.M.IsValid()) Q.AddIgnoredActor(G->Tugs[T.TowGpu].Gpu.M.Get());
 	if (D->GetOwner()) Q.AddIgnoredActor(D->GetOwner());
 	for (TActorIterator<AADPWalker> It(GetWorld()); It; ++It) { Q.AddIgnoredActor(*It); if (It->HumanActor()) Q.AddIgnoredActor(It->HumanActor()); }
+	if (bTow) if (AActor* Pl = Tg()->Tugs[T.TugIx].YouPlane.Get()) { Q.AddIgnoredActor(Pl); TArray<AActor*> At; Pl->GetAttachedActors(At, true, true); Q.AddIgnoredActors(At); }
 	auto BarHit = [&](const FVector& At, float Yaw) -> bool
 	{
 		// (the pushback tug's bar, 2.5 to 7.8 m ahead of its middle)
@@ -514,6 +569,13 @@ void AGSE::SvcPlayerDrive(FTractor& T, float Dt)
 	};
 	// (already touching something where it stands: only out of it, never stuck for good)
 	if (NoGround(NewAt) || (Blocked(NewAt, NewYaw) && !Blocked(T.At, T.Yaw)) || (BarHit(NewAt, NewYaw) && !BarHit(T.At, T.Yaw))) { T.Speed = 0.f; return; }
+	if (bTow && !(NewAt.Equals(T.At, 0.001f) && NewYaw == T.Yaw))
+	{
+		ATugs::FTug& U = Tg()->Tugs[T.TugIx]; FVector2f N, Mn;
+		if (!Tg()->YouTow(U, NewAt, NewYaw, N, Mn)) { T.Speed = 0.f; AVehicleControls::Note(GetWorld(), TEXT("The tow bar is at its limit - 75 degrees. Back off and straighten")); return; }
+		if (const TCHAR* Hit = TowHit(T, N, Mn, Q)) { T.Speed = 0.f; AVehicleControls::Note(GetWorld(), FString::Printf(TEXT("Stop - %s"), Hit)); return; }
+		U.YouNose = N; U.YouMain = Mn;
+	}
 	const FVector WasAt = T.At; const float WasYaw = T.Yaw;
 	T.At = NewAt; T.Yaw = NewYaw; Pose(T);
 	if (T.IsTrain() && !TrainDrag(T, Q, Dt)) { T.At = WasAt; T.Yaw = WasYaw; T.Speed = 0.f; Pose(T); }

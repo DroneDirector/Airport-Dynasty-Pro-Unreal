@@ -132,6 +132,7 @@ bool ASimTraffic::Ready(const FADPPlanned& P, const FDateTime& Now, FString& Why
 	if (!APaxFlow::BoardingDone(W, P.Reg)) { Why = TEXT("not everyone is aboard yet"); return false; }
 	const ADPTurnaround::FTurn* T = ADPTurnaround::All().FindByPredicate([&](const ADPTurnaround::FTurn& X) { return X.Reg == P.Reg; });
 	if (!T) return true;   // (a remote stand: its work is data)
+	ON_SCOPE_EXIT { if (!Why.IsEmpty()) if (ATugs* Tw = ATugs::Get(W)) Tw->YouSayWhy(T->StandX, Why); };   // (shown to you at the wheel of the stand's tug)
 	if (T->PlanId != P.Id) { Why = TEXT("being got ready"); return false; }
 	if (!ADPTurnaround::Done(*T, TEXT("deplane"))) { Why = TEXT("the last flight's passengers are still getting off"); return false; }
 	if (!ADPTurnaround::Done(*T, TEXT("board"))) { Why = TEXT("boarding"); return false; }
@@ -290,7 +291,7 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 				break;
 			}
 		}
-		if (!APaxFlow::BoardingDone(GetWorld(), M.Reg)) { if (M.Clock != 4.f) ADP_LOG(TEXT("Traffic: %s waits - boarding not complete"), *M.FlightId); M.Clock = 4.f; M.Speed = 0.f; Pose(M); return false; }
+		if (!APaxFlow::BoardingDone(GetWorld(), M.Reg)) { if (M.Clock != 4.f) ADP_LOG(TEXT("Traffic: %s waits - boarding not complete"), *M.FlightId); M.Clock = 4.f; M.Speed = 0.f; if (ATugs* Ty = ATugs::Get(GetWorld())) Ty->YouSayWhy(StandX, TEXT("not everyone is aboard yet")); Pose(M); return false; }
 		// the jetway first: never a pushback with it at the door - it pulls back and must be at rest before anything moves
 		for (const FAirfieldData::FStand& S : F.Stands)
 			if (S.Id == M.Stand)
@@ -307,6 +308,7 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 						{ if (M.Clock != 4.f) ADP_LOG(TEXT("Traffic: %s waits - boarding not complete"), *M.FlightId); M.Clock = 4.f; M.Speed = 0.f; Pose(M); return false; }
 						if (Js == AJetwayRigs::EState::Docked || Js == AJetwayRigs::EState::Manual) JR->Undock(J);
 						if (M.Clock != 2.f) ADP_LOG(TEXT("Traffic: %s waits for jetway %s to reach its rest position"), *M.FlightId, *JR->Name(J));
+						if (ATugs* Ty = ATugs::Get(GetWorld())) Ty->YouSayWhy(StandX, TEXT("the jetway is still moving back"));
 						M.Clock = 2.f; M.Speed = 0.f; Pose(M); return false;
 					}
 				}
@@ -333,7 +335,23 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 		M.Clock = 0.f;
 		// ground control: no pushback while another aircraft taxis by on the taxilane within 120 m (it waits, hooked on)
 		for (const FMove& O : Moves)
-			if (&O != &M && O.Phase == EPhase::Taxi && FMath::Abs(O.Nose.X - M.Nose.X) < 120.f && FMath::Abs(O.Nose.Y - F.TY) < 40.f) { M.Speed = 0.f; Pose(M); return false; }
+			if (&O != &M && O.Phase == EPhase::Taxi && FMath::Abs(O.Nose.X - M.Nose.X) < 120.f && FMath::Abs(O.Nose.Y - F.TY) < 40.f) { M.Speed = 0.f; if (T) T->YouSayWhy(StandX, TEXT("another aircraft taxis by on the taxilane")); Pose(M); return false; }
+		// pushed by you (TugYou.cpp): the aircraft follows your bar; on the line and braked it goes on as after a crew's push
+		if (T && T->YouPushing(M.FlightId))
+		{
+			int32 Re = INDEX_NONE; const bool bDone = T->YouDrive(M.FlightId, M.Model.Get(), M.Nose, M.Main, M.Path, Re, M.Speed, M.YouBar, F.TY, Dir);
+			if (AGSE* G = AGSE::Find(GetWorld()); G && !M.bYou) AddTickPrerequisiteActor(G);   // (after the tug: never a frame behind its bar)
+			M.bYou = true; M.YouRe = Re; if (M.Speed > 0.f) M.bYouOff = true;
+			Pose(M);
+			if (!bDone) return false;
+			M.bYou = false; M.Step = M.Path.Num(); M.Speed = 0.f;
+		}
+		else if (M.bYou)
+		{
+			// (its crew take over: the rest of their path, from where it stands)
+			M.bYou = false; M.Speed = 0.f;
+			if (M.Path.IsValidIndex(M.YouRe)) M.Step = M.YouRe; else ADP_WARN(TEXT("Traffic: %s - its crew take over the push off their path at (%.1f, %.1f)"), *M.FlightId, M.Main.X, M.Main.Y);
+		}
 	}
 	// ground control: taxiing, an aircraft holds short of a pushback going on within 80 m ahead of it
 	if (M.Phase == EPhase::Taxi && M.Path.IsValidIndex(M.Step))
@@ -554,7 +572,7 @@ void ASimTraffic::Tick(float Dt)
 		if (!M.Model.IsValid()) continue;
 		Blink(M);
 		Gear(M, FMath::Min(Dt, 0.1f));
-		if (M.bDeparture && M.Phase == EPhase::Push && M.Step == 0 && M.Speed <= 0.f && SlipPoll <= 0.f)
+		if (M.bDeparture && M.Phase == EPhase::Push && M.Step == 0 && M.Speed <= 0.f && !M.bYouOff && SlipPoll <= 0.f)
 			if (UADPSim* Sl = UADPSim::Get(this)) if (FADPFlight* Fs = Sl->World.Flights.FindByPredicate([&](const FADPFlight& X) { return X.Id == M.FlightId; }))
 				if (Sl->Now() > Fs->DepAt) { Fs->DelayMin += (Sl->Now() - Fs->DepAt).GetTotalMinutes(); Fs->DepAt = Sl->Now(); }   // (waiting for its tug: off blocks when it is pushed)
 		if (Advance(M, FMath::Min(Dt, 0.1f)))
@@ -605,7 +623,8 @@ void ASimTraffic::Gear(FMove& M, float Dt)
 	const FVector2f DN = M.Nose - M.PrevNose, Body = (M.Nose - M.Main).GetSafeNormal();
 	const float DistN = DN.Size(), DistM = (M.Main - M.PrevMain).Size();
 	float Want = 0.f;
-	if (bGround && DistN > 0.002f)
+	if (bGround && M.bYou && M.Phase == EPhase::Push) Want = M.YouBar;   // (your push: as the bar stands)
+	else if (bGround && DistN > 0.002f)
 	{
 		FVector2f Trav = DN / DistN; if (FVector2f::DotProduct(Trav, Body) < 0.f) Trav = -Trav;   // (backwards in the push)
 		const float A = FMath::RadiansToDegrees(FMath::Atan2(Body.X * Trav.Y - Body.Y * Trav.X, FVector2f::DotProduct(Body, Trav)));

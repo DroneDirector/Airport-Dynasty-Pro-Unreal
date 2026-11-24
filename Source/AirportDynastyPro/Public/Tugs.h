@@ -64,6 +64,12 @@ public:
 	/** The stand's own tug is with you (TugYou.cpp); the push with you at its wheel (the next job's way in). */
 	bool YouHave(float StandX, FString& Why) const;
 	bool YouAtWheel(const FString& Key) const;
+	/** The push by hand (TugYou.cpp): is that departure pushed by you; why it can't go yet (shown at its wheel); one frame of it -
+	 *  the aircraft follows the bar's head (nose, main gear: plan m), Step: where the crew's path goes on from here (none: too far
+	 *  off it). True: on the taxilane, facing the taxi way, stopped, the park brake on. */
+	bool YouPushing(const FString& Key) const;
+	void YouSayWhy(float StandX, const FString& Why);
+	bool YouDrive(const FString& Key, AActor* Plane, FVector2f& Nose, FVector2f& Main, const TArray<FVector2f>& Path, int32& Step, float& Speed, float& Bar, float TaxiY, float TaxiDir);
 	/** The aircraft is gone: whatever is still out is cleared. */
 	void ChocksGone(float StandX);
 	/** An aircraft has parked on the stand (on blocks): its ground power is plugged in (GpuUnit in TugCrew.cpp). */
@@ -183,6 +189,12 @@ private:
 		// with you (State You, TugYou.cpp): the steps of your coupling done (1 the bar's head, 2 the bypass pin, 3 the headset), how long
 		// you are away, its driver coming for it, you in it; your lamps; its wheel and pedals
 		int32 YouStep = 0; float YouLeft = 0.f, YouNote = 0.f; bool bYouCrew = false, bYouIn = false, bYouHaz = false, bYouNoBeacon = false, bYouBack = false; int8 YouSig = 0; uint8 YouBeam = 0;
+		// the push by hand: yours from the departure's call to your tug clear of the taxiing aircraft (bYouDone: pushed, uncoupling -
+		// YouUn 1 the bar off, 2 the pin out, 3 the headset off, 4 the pin shown); the aircraft on the bar (plan m); YouBend: the bar's
+		// angle the crew take over with, straightened as they push
+		bool bYouPush = false, bYouDone = false, bYouGo = false, bYouRejoin = true, bYouPark = false, bYouCrewIn = false; int32 YouUn = 0;
+		float YouBend = 0.f, YouBar = 0.f, YouSide = 0.f, YouTurn = 0.f, YouToGo = 0.f; mutable double YouGoAt = -10.0, YouBeat = 0.0; double YouWhyAt = -100.0;
+		FString YouWhy; FVector2f YouNose, YouMain, YouStart; TWeakObjectPtr<AActor> YouPlane;
 		int32 YouWheelG = INDEX_NONE; float YouWheelNow = 0.f, YouPedal[2] = {0.f, 0.f};
 		FVehicleDirt Dirt;
 		TArray<int32> Walkers; int32 WalkersReady = 0; bool bWalkersOut = false; float WalkerLook = 0.f;              // the wing walkers and tail walker on this push (Crew[])
@@ -260,6 +272,17 @@ private:
 	bool YouHook(FTug& T) const;
 	bool YouFree(int32 Tug, FString& Why) const;
 	void YouHome(int32 Tug);
+	bool YouMay(const FTug& T) const;   // (it may move now: the departure's own conditions, this moment)
+	bool YouTow(const FTug& T, const FVector& At, float Yaw, FVector2f& Nose, FVector2f& Main) const;
+	bool PushYou(int32 Tug);
+	void YouTake(int32 Tug);
+	void YouDrop(int32 Tug, const TCHAR* Why);
+	void YouAfter(int32 Tug, float Dt);
+	bool YouClear(const FTug& T, FString* Why = nullptr) const;
+	void YouMarks(const FTug* T, const TArray<FVector2f>& Path);
+	bool AtNose(const FTug& T) const { return T.State == EState::Hooked || (T.State == EState::You && T.bYouPush && !T.bYouDone); }
+	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> YouLine;
+	FString YouLineKey;
 	void StartBacking(FTug& T);
 	void StartHome(FTug& T);
 	void SeqTick(FTug& T, float Dt);

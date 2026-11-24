@@ -54,6 +54,7 @@ private:
 		int32 Step = 0;
 		FVector2f Nose, Main;               // the nose wheel and the main gear's middle (plan m)
 		float Speed = 0.f, Height = 0.f, Clock = 0.f;
+		bool bYou = false, bYouOff = false; int32 YouRe = INDEX_NONE; float YouBar = 0.f;   // (pushed by you: off blocks, where the crew's path goes on, the bar's angle)
 		TWeakObjectPtr<ABabylonModel> Model;
 		// its lights (glows by material, no real lights - the lights rule): navigation, beacons, strobes
 		TArray<TPair<class UStaticMeshComponent*, class UMaterialInstanceDynamic*>> Lights;
