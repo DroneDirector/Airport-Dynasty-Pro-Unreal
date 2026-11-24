@@ -222,22 +222,22 @@
    56.5
   ],
   "IK_Seat_SeatDriver": [
-   168.0,
+   172.0,
    -48.0,
    87.0
   ],
   "IK_Buckle_SeatDriver": [
-   158.0,
+   164.0,
    -23.8,
    96.0
   ],
   "IK_Seat_SeatPassenger": [
-   168.0,
+   172.0,
    48.0,
    87.0
   ],
   "IK_Buckle_SeatPassenger": [
-   158.0,
+   164.0,
    23.8,
    96.0
   ],

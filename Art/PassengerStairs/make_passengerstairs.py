@@ -24,7 +24,10 @@ FX, DX, RW, TW, FLOOR, CABB = .90, -1.45, .32, .20, .48, 1.42                  #
 _t = open(os.path.join(ROOT, 'Tools', 'truck_cab.py'), encoding='utf-8').read().split('# #region ----')
 exec(compile('# ' + _t[1], 'truck_cab materials', 'exec'))
 SIDES = ((1, 'L', 'y+'), (-1, 'R', 'y-'))
-_s = _t[3]; exec(compile(_s[_s.index('def seat('):_s.index("seat('SeatDriver'")], 'truck_cab seat', 'exec'))
+_s = _t[3]; _s = _s[_s.index('def seat('):_s.index("seat('SeatDriver'")]
+for _a, _b in (('(.13, w, back)', '(.09, w, back)'), ('bx + .055', 'bx + .035'), ("(bx - .055, y, zc + .04 + back / 2), (.05,", "(bx - .045, y, zc + .04 + back / 2), (.03,"), ('(.11, .27, .18)', '(.08, .27, .18)'), ("'y', -12)", "'y', -3)"), ('x - depth / 2 + .14', 'x - depth / 2 + .12')):
+    assert _s.count(_a) == 1, _a; _s = _s.replace(_a, _b)                      # a slim, upright back: the truck seat's leaning one came through this short cab's back wall (to-do 240)
+exec(compile(_s, 'truck_cab seat', 'exec'))
 _s = _t[4]; exec(compile(_s[_s.index('def fender('):], 'truck_cab fender', 'exec'))
 _st = open(os.path.join(ROOT, 'Tools', 'small_truck.py'), encoding='utf-8').read()
 exec(compile(_st[_st.index('kr, kw = RW'):_st.index('FE = globals()')], 'small_truck wheel', 'exec'))
@@ -173,7 +176,7 @@ box('ParkBrake', (2.10, -.055, FLOOR + .352), (.06, .035, .03), M_RED, .008); ik
 SC = Vector((Xo(1.085), DY, Zo(1.170))); AXW = Vector((-.7071, 0, .7071))
 def tilt(o): o.data.transform(Matrix.Translation(SC) @ AXW.to_track_quat('Z', 'Y').to_matrix().to_4x4()); o.data.update(); return o
 _a = _st.index("tilt(torus('SteeringWheel_Rim'"); exec(compile(_st[_a:_st.index("seat('SeatDriver'", _a)], 'small_truck steering wheel and pedals', 'exec'))
-seat('SeatDriver', 1.78, DY, .46, depth=.48, back=.58, zc=FLOOR + .31); seat('SeatPassenger', 1.78, -DY, .46, depth=.48, back=.58, zc=FLOOR + .31)
+seat('SeatDriver', 1.84, DY, .46, depth=.48, back=.58, zc=FLOOR + .31); seat('SeatPassenger', 1.84, -DY, .46, depth=.48, back=.58, zc=FLOOR + .31)
 for s, n in ((1, 'D'), (-1, 'P')):
     box('Belt%s_Top' % n, (1.492, s * .905, 1.60), (.05, .06, .07), M_PLAST, .01); box('Belt%s_Web' % n, (1.492, s * .895, 1.12), (.046, .006, .92), M_BELT, .001, 1); box('Belt%s_Reel' % n, (1.492, s * .910, .64), (.09, .09, .16), M_PLAST, .015); box('Belt%s_Tongue' % n, (1.492, s * .888, 1.10), (.05, .012, .07), M_STEEL, .004); ik('BeltTongue_' + n, (1.492, s * .88, 1.10))
     box('SunVisor_' + n, (2.42, s * .42, 1.865), (.15, .46, .020), M_LIN, .008, 3)
