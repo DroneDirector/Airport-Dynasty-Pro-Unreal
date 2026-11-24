@@ -24,4 +24,13 @@ struct FSvcStairs
 	TArray<FSolid> Up;      // your solid boxes of the upper flight and the platform
 	TWeakObjectPtr<UBoxComponent> Front;   // the platform's open front, shut until the gates are out at an aircraft
 	bool bHelperUp = false; // its helper is on the treads or the platform
+	// its own wheel chocks (left front wheel) and two nesting cones (Cone_1 sits on Cone_0): in the tray, in a hand, set out (to-do 238)
+	enum : uint8 { InTray, InRight, InLeft, AtPlace, InYours };
+	int32 GChock[2] = {INDEX_NONE, INDEX_NONE}, GCone[2] = {INDEX_NONE, INDEX_NONE}, GearCi = INDEX_NONE;   // (GearCi: the crew who carries them)
+	uint8 Chock[2] = {InTray, InTray}, Cone[2] = {InTray, InTray};
+	TWeakObjectPtr<UBoxComponent> ConeBox[2];   // (a cone set out: solid for you)
+	bool GearIn() const { return Chock[0] == InTray && Chock[1] == InTray && Cone[0] == InTray && Cone[1] == InTray; }
+	bool Chocked() const { return Chock[0] == AtPlace && Chock[1] == AtPlace; }
+	bool GearMoving() const { for (const uint8 S : {Chock[0], Chock[1], Cone[0], Cone[1]}) if (S == InRight || S == InLeft || S == InYours) return true; return false; }
+	const TCHAR* GearHeld() const { return Chock[0] == InYours || Chock[1] == InYours ? TEXT("a wheel chock") : Cone[0] == InYours || Cone[1] == InYours ? TEXT("a warning cone") : nullptr; }
 };

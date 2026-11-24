@@ -14,6 +14,7 @@
 #include "BabylonModel.h"
 #include "Components/BoxComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Dom/JsonObject.h"
 #include "Engine/World.h"
 #include "Misc/FileHelper.h"
@@ -70,6 +71,10 @@ void AGSE::StairsDress(FTractor& T)
 	F.GNeedle = Pre(TEXT("Needle_Speed"), SvcP(T, TEXT("PIV_Needle_Speed")));
 	for (int32 s = 0; s < 2; ++s) for (int32 i = 0; i < 4; ++i) F.GLift[s][i] = Pre(FString::Printf(TEXT("Lift_%s_%d"), s ? TEXT("R") : TEXT("L"), i), SvcP(T, s ? TEXT("PIV_Lift_R") : TEXT("PIV_Lift_L")));
 	for (int32 k = 2; k <= 10; ++k) F.GTread.Add(Pre(FString::Printf(TEXT("TreadLow_%02d"), k), SvcP(T, *FString::Printf(TEXT("PIV_TreadLow_%02d"), k))));
+	// its own chocks and cones, each about its base
+	F.GChock[0] = Pre(TEXT("Chock_0"), SvcP(T, TEXT("PIV_Chock_0"))); F.GChock[1] = Pre(TEXT("Chock_1"), SvcP(T, TEXT("PIV_Chock_1")));
+	F.GCone[0] = Pre(TEXT("Cone_0"), SvcP(T, TEXT("PIV_Cone_0"))); F.GCone[1] = Pre(TEXT("Cone_1"), SvcP(T, TEXT("PIV_Cone_1")));
+	if (F.GChock[0] == INDEX_NONE || F.GCone[0] == INDEX_NONE) ADP_WARN(TEXT("GSE: the %s model has no own chocks or cones (Chock_0 %d, Cone_0 %d)"), *T.Name, F.GChock[0], F.GCone[0]);
 	// solid for you on foot: a ramp along each flight's nosings, the platform, its rails, the cab and the body
 	auto Add = [&](bool bUp, const FVector& At, const FVector& Ext, float Pitch = 0.f)
 	{
@@ -91,6 +96,8 @@ void AGSE::StairsDress(FTractor& T)
 	Add(true, FVector(114.f, 0.f, PsPlat - 6.f), FVector(81.f, 95.f, 6.f));
 	for (const float s : {-1.f, 1.f}) { Add(true, FVector(114.f, s * 94.f, PsPlat + 54.f), FVector(81.f, 3.f, 54.f)); Add(true, FVector(38.f, s * 82.f, PsPlat + 54.f), FVector(4.f, 12.f, 54.f)); }
 	F.Front = Add(true, FVector(193.f, 0.f, PsPlat + 60.f), FVector(3.f, 92.f, 60.f));
+	// (its own cones, set out: solid for you where they stand, off until then)
+	for (int32 i = 0; i < 2; ++i) { UBoxComponent* B = Add(false, SvcP(T, i ? TEXT("IK_ConePlace_1") : TEXT("IK_ConePlace_0")) + FVector(0.f, 0.f, 38.f), FVector(22.f, 22.f, 38.f)); B->SetCollisionEnabled(ECollisionEnabled::NoCollision); F.ConeBox[i] = B; }
 	Add(false, FVector(212.f, 0.f, 112.f), FVector(84.f, 99.f, 92.f)); Add(false, FVector(52.f, 0.f, 75.f), FVector(76.f, 99.f, 60.f)); Add(false, FVector(-130.f, 0.f, 37.f), FVector(106.f, 99.f, 22.f));
 }
 
@@ -135,6 +142,25 @@ void AGSE::StairsParts(FTractor& T, float Dt)
 			const FVector Pv = SvcP(T, s ? TEXT("PIV_Lift_R") : TEXT("PIV_Lift_L")), D0 = SvcP(T, s ? TEXT("IK_LiftTop_R") : TEXT("IK_LiftTop_L")) - Pv, D = D0 + U; const float Ex = float(D.Size() - D0.Size());
 			for (int32 i = 0; i < 4; ++i) Put(F.GLift[s][i], FTransform(FQuat::FindBetweenVectors(D0, D), Pv + D.GetSafeNormal() * (Ex * i / 3.f)));
 		}
+	}
+	// its own chocks and cones: in their trays, in a crew's hand (by their grip), in yours, or set out on the ground
+	if (F.bLive || F.GearMoving())
+	{
+		const ATugs* GearG = Tg(); const USkeletalMeshComponent* GearB = F.GearCi != INDEX_NONE ? Body(F.GearCi) : nullptr;
+		const bool bGearBody = GearB && GearG && GearG->Crew.IsValidIndex(F.GearCi) && GearG->Crew[F.GearCi].A.IsValid() && !GearG->Crew[F.GearCi].A->IsHidden();
+		const FTransform GearRoot(FRotator(0.f, T.Yaw, 0.f), T.At);
+		const float GearFace = bGearBody ? float(GearG->Crew[F.GearCi].A->GetActorRotation().Yaw) + 90.f - T.Yaw : 0.f;
+		auto GearAt = [&](uint8 S, const TCHAR* Ik, const TCHAR* Pv, const TCHAR* Place) -> FTransform
+		{
+			const FVector Base = SvcP(T, Pv), Grip = SvcP(T, Ik) - Base;   // (the grip stands straight over the base)
+			if (bGearBody && (S == FSvcStairs::InRight || S == FSvcStairs::InLeft))
+				return FTransform(FRotator(0.f, GearFace, 0.f), GearRoot.InverseTransformPosition(GearB->GetBoneLocation(S == FSvcStairs::InRight ? TEXT("hand_r") : TEXT("hand_l"))) - Grip);
+			if (S == FSvcStairs::InYours) return FTransform(T.YouHand - Grip);
+			return FTransform(S == FSvcStairs::AtPlace ? SvcP(T, Place) : Base);
+		};
+		Put(F.GChock[0], GearAt(F.Chock[0], TEXT("IK_Chock_0"), TEXT("PIV_Chock_0"), TEXT("IK_ChockPlace_0"))); Put(F.GChock[1], GearAt(F.Chock[1], TEXT("IK_Chock_1"), TEXT("PIV_Chock_1"), TEXT("IK_ChockPlace_1")));
+		Put(F.GCone[0], GearAt(F.Cone[0], TEXT("IK_Cone_0"), TEXT("PIV_Cone_0"), TEXT("IK_ConePlace_0"))); Put(F.GCone[1], GearAt(F.Cone[1], TEXT("IK_Cone_1"), TEXT("PIV_Cone_1"), TEXT("IK_ConePlace_1")));
+		for (int32 i = 0; i < 2; ++i) if (UBoxComponent* B = F.ConeBox[i].Get()) B->SetCollisionEnabled(F.Cone[i] == FSvcStairs::AtPlace ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
 	}
 	F.bLive = false;
 }
@@ -323,6 +349,12 @@ void AGSE::StairsWork(int32 Job)
 		});
 		break;
 	case 1:
+		// (both its own chocks at the wheel before the legs go down: its helper sets them, StairsHelper - the same limit as yours)
+		if (!F().Chocked() && F().Jack < PsStroke)
+		{
+			WaitFor(Ci, [F](float E) { return E > 240.f || F().Chocked(); });
+			Do(Ci, [F, Stage] { if (!F().Chocked()) ADP_WARN(TEXT("GSE: the passenger stairs wait 4 min for their own wheel chocks - waiting on")); Stage(1); }); break;
+		}
 		StairsLever(Ci, Ti, 1, -20.f, [F] { F().JackWant = PsStroke; }, [F] { return F().Jack >= PsStroke; });
 		Wait(Ci, 0.6f);
 		StairsLever(Ci, Ti, 0, 20.f, [F] { F().NWant = F().Target; }, [F] { return F().N == F().NWant; });
@@ -343,7 +375,15 @@ void AGSE::StairsWork(int32 Job)
 		Do(Ci, [F, Stage] { Stage(F().N <= 0.f ? 6 : 5); }); break;
 	default:
 		StairsLever(Ci, Ti, 1, 20.f, [F] { F().JackWant = 0.f; }, [F] { return F().Jack <= 0.f; });
-		Do(Ci, [this, Job, F, Stage] { if (F().Jack > 0.f) { Stage(6); return; } Later([this, Job] { SvcLeave(Job); }); }); break;
+		// (its helper puts its own chocks and cones back first: StairsHelper; at most four minutes, then said so and put back)
+		WaitFor(Ci, [F](float E) { return E > 240.f || F().Jack > 0.f || F().GearIn(); });
+		Do(Ci, [this, Job, F, Stage]
+		{
+			if (F().Jack > 0.f) { Stage(6); return; }
+			FSvcStairs& X = F();
+			if (!X.GearIn()) { for (uint8* Gs : {&X.Chock[0], &X.Chock[1], &X.Cone[0], &X.Cone[1]}) *Gs = FSvcStairs::InTray; X.GearCi = INDEX_NONE; X.bLive = true; ADP_WARN(TEXT("GSE: the passenger stairs left with their chocks or cones still out: put back in their trays")); }
+			Later([this, Job] { SvcLeave(Job); });
+		}); break;
 	}
 	Wait(Ci, 0.4f);
 }
@@ -356,6 +396,87 @@ void AGSE::StairsHelper(int32 Job)
 	auto At = [this, Ci, Ti](const FVector& L, float Stop) { WalkTo(Ci, [this, Ti, L] { return TW(Tractors[Ti], L); }, Stop); };
 	auto On = [this, Ci, Ti, F](const TCHAR* Name, float Dy) { const FVector L = SvcP(Tractors[Ti], Name) + FVector(0.f, Dy, 0.f); WalkTo(Ci, [this, Ti, F, L] { return TW(Tractors[Ti], L + PsStep * F().N); }, 12.f); };
 	auto Again = [this, Ci, Job] { Do(Ci, [this, Ci, Job] { if (ATugs* G = Tg()) G->Crew[Ci].Hold = nullptr; Later([this, Job] { StairsHelper(Job); }); }); Wait(Ci, 0.4f); };
+	// its own chocks and cones, carried by hand like the refueller's and the catering truck's: out once it stands at the door
+	// (before the legs go down), back once they are up; round the back of the stairs, the aircraft stands before it; what is
+	// done already is left; the same limits as yours (StairsControls)
+	auto Gear = [this, Ci, Ti, F, At](bool bOut)
+	{
+		auto Pt = [this, Ti](const TCHAR* N) { return SvcP(Tractors[Ti], N); };
+		auto GHand = [this, Ci, Ti](const FVector& GSt, int32 Side, const FVector& GTo, float Dur, TFunction<void()> Fn, bool bLow)
+		{
+			auto GPs = [this, Ti, GSt, Side, GTo, bLow](float E, float PH, FDriverPose& P)
+			{
+				const FTractor& T = Tractors[Ti]; const FVector A = TW(T, GSt), Hd = TW(T, GTo), Fc = (Hd - A).GetSafeNormal2D();
+				P = bLow ? ADPPose::Stoop(A, Fc, Side, Hd, 0.9f, PH, E) : ADPPose::Reach(A, Fc, Side, Hd, 0.9f, PH, E);
+			};
+			PoseAct(Ci, [GPs](float K, float PH, FDriverPose& P) { GPs(FMath::SmoothStep(0.f, 1.f, K), PH, P); }, Dur * 0.5f);
+			Do(Ci, MoveTemp(Fn));
+			PoseAct(Ci, [GPs](float K, float PH, FDriverPose& P) { GPs(1.f - FMath::SmoothStep(0.f, 1.f, K), PH, P); }, Dur * 0.5f);
+		};
+		auto GGo = [At](const FVector& L) { At(L, 12.f); };
+		auto GSet = [F](bool bCone, int32 i, uint8 S) { return [F, bCone, i, S] { FSvcStairs& X = F(); (bCone ? X.Cone[i] : X.Chock[i]) = S; X.bLive = true; }; };
+		const FSvcStairs& C = F(); const uint8 Is = bOut ? FSvcStairs::AtPlace : FSvcStairs::InTray;
+		const bool bCh = C.Chock[0] != Is || C.Chock[1] != Is, bCo = C.Cone[0] != Is || C.Cone[1] != Is; if (!bCh && !bCo) return;
+		const FVector GrCh[2] = {Pt(TEXT("IK_Chock_0")) - Pt(TEXT("PIV_Chock_0")), Pt(TEXT("IK_Chock_1")) - Pt(TEXT("PIV_Chock_1"))}, GrCo[2] = {Pt(TEXT("IK_Cone_0")) - Pt(TEXT("PIV_Cone_0")), Pt(TEXT("IK_Cone_1")) - Pt(TEXT("PIV_Cone_1"))};
+		const FVector TrCh[2] = {Pt(TEXT("IK_Chock_0")), Pt(TEXT("IK_Chock_1"))}, TrCo[2] = {Pt(TEXT("IK_Cone_0")), Pt(TEXT("IK_Cone_1"))};
+		const FVector PlCh[2] = {Pt(TEXT("IK_ChockPlace_0")) + GrCh[0], Pt(TEXT("IK_ChockPlace_1")) + GrCh[1]}, PlCo[2] = {Pt(TEXT("IK_ConePlace_0")) + GrCo[0], Pt(TEXT("IK_ConePlace_1")) + GrCo[1]};
+		const FVector StCh = Pt(TEXT("IK_Stand_Chocks")), StPl = Pt(TEXT("IK_Stand_ChockPlace")), StCo = Pt(TEXT("IK_Stand_Cones"));
+		const FVector StP0 = Pt(TEXT("IK_Stand_ConePlace_0")), StP1 = Pt(TEXT("IK_Stand_ConePlace_1")), BackL(-470.f, -200.f, 0.f), BackR(-470.f, 200.f, 0.f);   // (behind the stairs' foot, clear of the rear cone)
+		Do(Ci, [F, Ci] { F().GearCi = Ci; });
+		if (bOut)
+		{
+			// (the chocks first, from the left side box to the left front wheel; then the cones, over the right front fender, set out fore and aft on the left)
+			if (bCh)
+			{
+				GGo(BackR); GGo(BackL); GGo(StCh);
+				if (C.Chock[0] == FSvcStairs::InTray) GHand(StCh, 1, TrCh[0], 1.4f, GSet(false, 0, FSvcStairs::InRight), false);
+				if (C.Chock[1] == FSvcStairs::InTray) GHand(StCh, 0, TrCh[1], 1.4f, GSet(false, 1, FSvcStairs::InLeft), false);
+				GGo(StPl);
+				if (C.Chock[0] != FSvcStairs::AtPlace) GHand(StPl, 1, PlCh[0], 1.8f, GSet(false, 0, FSvcStairs::AtPlace), true);
+				if (C.Chock[1] != FSvcStairs::AtPlace) GHand(StPl, 0, PlCh[1], 1.8f, GSet(false, 1, FSvcStairs::AtPlace), true);
+				if (bCo) { GGo(BackL); GGo(BackR); }
+			}
+			if (bCo)
+			{
+				GGo(StCo);
+				if (C.Cone[1] == FSvcStairs::InTray) GHand(StCo, 1, TrCo[1], 1.4f, GSet(true, 1, FSvcStairs::InRight), false);
+				if (C.Cone[0] == FSvcStairs::InTray) GHand(StCo, 0, TrCo[0], 1.4f, GSet(true, 0, FSvcStairs::InLeft), false);
+				GGo(BackR); GGo(BackL); GGo(StP1);
+				if (C.Cone[1] != FSvcStairs::AtPlace) GHand(StP1, 1, PlCo[1], 1.6f, GSet(true, 1, FSvcStairs::AtPlace), true);
+				GGo(StP0);
+				if (C.Cone[0] != FSvcStairs::AtPlace) GHand(StP0, 0, PlCo[0], 1.6f, GSet(true, 0, FSvcStairs::AtPlace), true);
+			}
+			GGo(BackL); GGo(BackR);   // (back to the right side, where the driver sees him)
+		}
+		else
+		{
+			GGo(BackR); GGo(BackL);
+			if (bCh)
+			{
+				GGo(StPl);
+				if (C.Chock[0] == FSvcStairs::AtPlace) GHand(StPl, 1, PlCh[0], 1.8f, GSet(false, 0, FSvcStairs::InRight), true);
+				if (C.Chock[1] == FSvcStairs::AtPlace) GHand(StPl, 0, PlCh[1], 1.8f, GSet(false, 1, FSvcStairs::InLeft), true);
+				GGo(StCh);
+				if (C.Chock[0] != FSvcStairs::InTray) GHand(StCh, 1, TrCh[0], 1.4f, GSet(false, 0, FSvcStairs::InTray), false);
+				if (C.Chock[1] != FSvcStairs::InTray) GHand(StCh, 0, TrCh[1], 1.4f, GSet(false, 1, FSvcStairs::InTray), false);
+			}
+			if (bCo)
+			{
+				GGo(StP0);
+				if (C.Cone[0] == FSvcStairs::AtPlace) GHand(StP0, 1, PlCo[0], 1.6f, GSet(true, 0, FSvcStairs::InRight), true);
+				GGo(StP1);
+				if (C.Cone[1] == FSvcStairs::AtPlace) GHand(StP1, 0, PlCo[1], 1.6f, GSet(true, 1, FSvcStairs::InLeft), true);
+			}
+			GGo(BackL); GGo(BackR);
+			if (bCo)
+			{
+				GGo(StCo);   // (the lower one goes on its post first, the other on top of it)
+				if (C.Cone[0] != FSvcStairs::InTray) GHand(StCo, 1, TrCo[0], 1.4f, GSet(true, 0, FSvcStairs::InTray), false);
+				if (C.Cone[1] != FSvcStairs::InTray) GHand(StCo, 0, TrCo[1], 1.4f, GSet(true, 1, FSvcStairs::InTray), false);
+			}
+		}
+		Do(Ci, [F, bOut] { F().GearCi = INDEX_NONE; ADP_LOG(TEXT("GSE: the passenger stairs' chocks and cones are %s"), bOut ? TEXT("set out") : TEXT("back in their trays")); });
+	};
 	// the gates by hand: the left one, then the right one (one shaft)
 	auto Gates = [this, Ci, Ti, F, On](bool bOpen)
 	{
@@ -393,6 +514,10 @@ void AGSE::StairsHelper(int32 Job)
 		// out, aside on the right where the driver sees him
 		if (M->bSeated) SvcAlight(Job, 1); else Do(Ci, [this, Job] { if (FSvcMan* X = SvcM(Job, 1)) X->bOut = true; });
 		At(FVector(60.f, 260.f, 0.f), 30.f);
+		// (once it stands at the door: its own chocks and cones out, before the legs go down)
+		if (J->Stage == 0) { WaitFor(Ci, [this, Job](float) { const FSvcJob* X = SvcJ(Job); return !X || X->Stage >= 1 || X->Phase != 2; }); Again(); return; }
+		Gear(true);
+		At(FVector(60.f, 260.f, 0.f), 30.f);
 		WaitFor(Ci, [this, Job](float) { const FSvcJob* X = SvcJ(Job); return !X || X->Stage >= 2 || X->Phase != 2; });
 		Again(); return;
 	}
@@ -420,7 +545,14 @@ void AGSE::StairsHelper(int32 Job)
 		At(FVector(-420.f, 60.f, 0.f), 25.f); At(FVector(-380.f, 180.f, 0.f), 40.f);
 	}
 	if (M->bSeated) return;
+	// (its legs up: its own chocks and cones back in their trays, then aboard)
+	if (J->Phase == 2 && J->Stage >= 6 && F().Jack <= 0.f && F().JackWant <= 0.f && !F().GearIn()) Gear(false);
 	At(FVector(60.f, 260.f, 0.f), 30.f);
+	if (J->Phase == 2 && !F().GearIn() && !(J->Stage >= 6 && F().Jack <= 0.f && F().JackWant <= 0.f))
+	{
+		WaitFor(Ci, [this, Job, F](float) { const FSvcJob* X = SvcJ(Job); return !X || X->Phase != 2 || (X->Stage >= 6 && F().Jack <= 0.f && F().JackWant <= 0.f); });
+		Again(); return;
+	}
 	WaitFor(Ci, [this, Job](float) { const FSvcJob* X = SvcJ(Job); return !X || X->Phase == 3; });
 	SvcBoard(Job, 1);
 }
@@ -432,6 +564,12 @@ void AGSE::StairsLost(int32 Job, int32 m)
 	const int32 Ci = J->Men[m].Ci; ATugs::FCrew& C = G->Crew[Ci];
 	if (m == 1 && Tractors.IsValidIndex(J->Ti) && Tractors[J->Ti].Ps) Tractors[J->Ti].Ps->bHelperUp = false;   // (counted as on the treads: StairsTick counts it off)
 	C.bUp = false; J->Men[m].bSeated = false; C.Q.Reset(); C.Hold = nullptr;
+	if (Tractors.IsValidIndex(J->Ti) && Tractors[J->Ti].Ps)
+	{
+		FSvcStairs& F = *Tractors[J->Ti].Ps;   // (what was in his hands: back in its tray)
+		for (uint8* Gs : {&F.Chock[0], &F.Chock[1], &F.Cone[0], &F.Cone[1]}) if (*Gs == FSvcStairs::InRight || *Gs == FSvcStairs::InLeft) { *Gs = FSvcStairs::InTray; F.bLive = true; }
+		if (F.GearCi == Ci) F.GearCi = INDEX_NONE;
+	}
 	if (J->Phase == 2) { Do(Ci, [this, Job, m] { Later([this, Job, m] { if (m == 0) StairsWork(Job); else StairsHelper(Job); }); }); Wait(Ci, 0.4f); }
 	else if (m == 1 && J->Phase != 2) SvcBoard(Job, 1);
 	else if (J->Phase == 3) { J->Phase = 2; J->Stage = 6; Do(Ci, [this, Job] { Later([this, Job] { StairsWork(Job); }); }); Wait(Ci, 0.4f); }
@@ -442,9 +580,12 @@ void AGSE::StairsLost(int32 Job, int32 m)
 namespace
 {
 	enum : int32 { PsMLegs, PsMStairs, PsMGates };                                                     // (motions)
-	enum : int32 { PsSPlat = 1, PsSGround, PsSCab };                                                   // (the three stops: one circuit)
-	enum : int32 { PsFChassis, PsFUp, PsFGate, PsFStair, PsFLeg };                                     // (pieces)
+	enum : int32 { PsSPlat = 1, PsSGround, PsSCab, PsSChock0 = 10, PsSChock1, PsSChockSet0, PsSChockSet1, PsSCone0, PsSCone1, PsSConeSet0, PsSConeSet1 };   // (the three stops: one circuit; its chocks and cones)
+	enum : int32 { PsFChassis, PsFUp, PsFGate, PsFStair, PsFLeg, PsFChockAt0, PsFChockAt1, PsFConeAt0, PsFConeAt1 };                                        // (pieces)
 	bool PsStands(const FSvcStairs& F) { return F.YouStandX > -1e5f; }
+	// (a chock or cone switch: which one, a cone or not, at its place or in its tray)
+	int32 PsGearIx(int32 S, bool& bCone, bool& bSet) { const int32 k = S - PsSChock0; bCone = k >= 4; bSet = k % 4 >= 2; return k % 2; }
+	bool PsIsGear(int32 S) { return S >= PsSChock0 && S <= PsSConeSet1; }
 }
 
 bool AGSE::StairsHeld(const FTractor& T, int32 M, float To) const
@@ -549,6 +690,7 @@ void AGSE::StairsTake(int32 Job)
 	T.Driver = J->Men[0].Ci; T.JobT = 0.f; T.StandX = J->StandX; T.Key = J->Flight.IsEmpty() ? J->Reg : J->Flight; bWorked = true;
 	T.Job = EJob::AtStand; J->Phase = 2; J->Place = T.At; J->PlaceYaw = T.Yaw; J->Stage = !J->bGo ? 1 : F.N > 0.f || F.Gate > 0.f ? 4 : 6;
 	F.bYours = F.bServed = F.bStop = F.bReady = false; F.YouStandX = F.ServedX = -1e6f; F.LeftT = 0.f; F.bLive = true;
+	for (uint8* Gs : {&F.Chock[0], &F.Chock[1], &F.Cone[0], &F.Cone[1]}) if (*Gs == FSvcStairs::InYours) *Gs = FSvcStairs::InTray;   // (what you had in your hand: in its tray; what you set out, they take on from)
 	ADP_LOG(TEXT("GSE: a crew go on with the %s you left at %s"), *T.Name, *J->Reg);
 	for (int32 m = 0; m < J->Men.Num(); ++m) HiredWay(J->Men[m].Ci, T.At, 0.f);
 	StairsWork(Job); StairsHelper(Job);
@@ -566,6 +708,15 @@ TSharedPtr<FVehTable> AGSE::StairsControls()
 	Mo(TEXT("GateSlide_L"), TEXT("IK_Handle_Gate_L"), K::Hand, TEXT("Gates out / in"), PsFGate, R, PsMGates, PsGate, false);
 	Mo(TEXT("GateSlide_R"), TEXT("IK_Handle_Gate_R"), K::Hand, TEXT("Gates out / in"), PsFGate, L, PsMGates, PsGate, false);
 	Sw(TEXT("IK_CabEStop"), PsFChassis, No, PsSCab, true); Sw(TEXT("IK_GroundEStop"), PsFChassis, R, PsSGround, false); Sw(TEXT("IK_PlatEStop"), PsFUp, R, PsSPlat, false);
+	// its own chocks and cones (to-do 238): taken from the tray or from where they stand, set out at the left front wheel and fore and aft
+	auto GSw = [&Cs](const TCHAR* Part, const TCHAR* Pt, const TCHAR* Lb, int32 Fr, const FVector& Out, int32 S) { K X; X.Part = Part; X.Point = Pt; X.Kind = K::Push; X.Label = Lb; X.Frame = Fr; X.Out = Out; X.Switch = S; Cs.Add(X); };
+	for (int32 i = 0; i < 2; ++i)
+	{
+		const TCHAR* Ch = i ? TEXT("Chock_1") : TEXT("Chock_0"); const TCHAR* ChIk = i ? TEXT("IK_Chock_1") : TEXT("IK_Chock_0"); const TCHAR* Co = i ? TEXT("Cone_1") : TEXT("Cone_0"); const TCHAR* CoIk = i ? TEXT("IK_Cone_1") : TEXT("IK_Cone_0");
+		GSw(Ch, ChIk, TEXT("Wheel chock"), PsFChassis, L, PsSChock0 + i); GSw(Ch, ChIk, TEXT("Wheel chock"), PsFChockAt0 + i, L, PsSChockSet0 + i);
+		GSw(Co, CoIk, TEXT("Warning cone"), PsFChassis, R, PsSCone0 + i); GSw(Co, CoIk, TEXT("Warning cone"), PsFConeAt0 + i, L, PsSConeSet0 + i);
+	}
+	// (the cones set out stand in your way: their own solid boxes, StairsDress / StairsParts - no table solids, its flights are solid already)
 
 	Tb->Frame = [](const AGSE& G, const FTractor& T, int32 Fr) -> FTransform
 	{
@@ -577,6 +728,10 @@ TSharedPtr<FVehTable> AGSE::StairsControls()
 		case PsFGate: return FTransform(PsStep * F.N + FVector(F.Gate, 0.f, 0.f));
 		case PsFStair: return Round(TEXT("PIV_StairLever"), F.Lev[0]);
 		case PsFLeg: return Round(TEXT("PIV_LegLever"), F.Lev[1]);
+		case PsFChockAt0: return FTransform(G.SvcP(T, TEXT("IK_ChockPlace_0")) - G.SvcP(T, TEXT("PIV_Chock_0")));
+		case PsFChockAt1: return FTransform(G.SvcP(T, TEXT("IK_ChockPlace_1")) - G.SvcP(T, TEXT("PIV_Chock_1")));
+		case PsFConeAt0: return FTransform(G.SvcP(T, TEXT("IK_ConePlace_0")) - G.SvcP(T, TEXT("PIV_Cone_0")));
+		case PsFConeAt1: return FTransform(G.SvcP(T, TEXT("IK_ConePlace_1")) - G.SvcP(T, TEXT("PIV_Cone_1")));
 		default: return FTransform::Identity;
 		}
 	};
@@ -591,6 +746,7 @@ TSharedPtr<FVehTable> AGSE::StairsControls()
 		else if (M == PsMLegs)
 		{
 			if (To > F.Jack && FVector::Dist2D(T.At, T.Home) < 200.f) Why = TEXT("drive it out of its box first");
+			else if (To > F.Jack && !F.Chocked()) Why = TEXT("the wheel chocks first");
 			else if (To < F.Jack && (F.N > 0.f || F.NWant > 0.f)) Why = TEXT("the stairs are up");
 			else if (G.StairsHeld(T, M, To)) Why = bOn ? TEXT("somebody is on the stairs") : TEXT("somebody stands at a stabiliser");
 		}
@@ -621,11 +777,40 @@ TSharedPtr<FVehTable> AGSE::StairsControls()
 			if (F.bNear) return FString::Printf(TEXT("%s (platform %.2f m; the door: %.1f m %s, %.1f m to the %s, turn %.0f degrees %s)"), X.Label, Cm / 100.f, FMath::Abs(F.Ahead) / 100.f, F.Ahead < 0.f ? TEXT("back") : TEXT("ahead"), FMath::Abs(F.Aside) / 100.f, F.Aside < 0.f ? TEXT("left") : TEXT("right"), FMath::Abs(F.Turn), F.Turn < 0.f ? TEXT("left") : TEXT("right"));
 			return FString::Printf(TEXT("%s (platform %.2f m)"), X.Label, Cm / 100.f);
 		}
+		if (PsIsGear(X.Switch))
+		{
+			bool bCone = false, bSet = false; const int32 i = PsGearIx(X.Switch, bCone, bSet); const uint8 Gs = bCone ? F.Cone[i] : F.Chock[i];
+			if (Gs == FSvcStairs::InYours) return bCone ? (bSet ? TEXT("Set the cone here") : TEXT("Put the cone back on its post")) : (bSet ? TEXT("Put the chock at the wheel") : TEXT("Put the chock back in its tray"));
+			if (Gs == (bSet ? FSvcStairs::AtPlace : FSvcStairs::InTray) && !F.GearHeld() && (!bCone || bSet || i == 1 || F.Cone[1] != FSvcStairs::InTray)) return bCone ? (bSet ? TEXT("Take the cone") : TEXT("Take the warning cone")) : (bSet ? TEXT("Take the chock") : TEXT("Take the wheel chock"));
+			return FString();
+		}
 		if (X.Motion == INDEX_NONE && F.bStop) return TEXT("Pull the emergency stop out");
 		return X.Label;
 	};
+	Tb->MaySwitch = [](AGSE& G, int32 Ti, int32 S, FString& Why)
+	{
+		if (!PsIsGear(S) || !G.Tractors.IsValidIndex(Ti) || !G.Tractors[Ti].Ps) return true;
+		const FTractor& T = G.Tractors[Ti]; const FSvcStairs& F = *T.Ps;
+		bool bCone = false, bSet = false; const int32 i = PsGearIx(S, bCone, bSet); const uint8 Gs = bCone ? F.Cone[i] : F.Chock[i], Place = bSet ? FSvcStairs::AtPlace : FSvcStairs::InTray;
+		const TCHAR* Have = F.GearHeld();
+		if (T.Job != EJob::None) Why = TEXT("its crew works with it");
+		else if (Gs != FSvcStairs::InYours && Have) Why = FString::Printf(TEXT("you have %s in your hand"), Have);
+		else if (Gs != Place && Gs != FSvcStairs::InYours) Why = TEXT("it is not there");
+		else if (!bCone && (F.Jack > 0.f || F.JackWant > 0.f) && (Gs == FSvcStairs::AtPlace || !bSet)) Why = TEXT("the stabilisers up first");
+		else if (bCone && i == 0 && !bSet && Gs == FSvcStairs::InTray && F.Cone[1] == FSvcStairs::InTray) Why = TEXT("the top cone first");
+		else if (bCone && i == 1 && !bSet && Gs == FSvcStairs::InYours && F.Cone[0] != FSvcStairs::InTray) Why = TEXT("the lower cone back first");
+		else if (bCone && i == 0 && !bSet && Gs == FSvcStairs::InYours && F.Cone[1] == FSvcStairs::InTray) Why = TEXT("the top cone is on its post");
+		return Why.IsEmpty();
+	};
 	Tb->Switch = [](AGSE& G, int32 Ti, int32 S)
 	{
+		if (PsIsGear(S))
+		{
+			FSvcStairs& F = *G.Tractors[Ti].Ps; bool bCone = false, bSet = false; const int32 i = PsGearIx(S, bCone, bSet); uint8& Gs = bCone ? F.Cone[i] : F.Chock[i]; const uint8 Place = bSet ? FSvcStairs::AtPlace : FSvcStairs::InTray;
+			Gs = Gs == FSvcStairs::InYours ? Place : FSvcStairs::InYours; F.GearCi = INDEX_NONE; F.bLive = true;
+			ADP_LOG(TEXT("GSE: passenger stairs: you %s %s %d"), Gs == FSvcStairs::InYours ? TEXT("take") : bSet ? TEXT("set out") : TEXT("put back"), bCone ? TEXT("cone") : TEXT("chock"), i);
+			return true;
+		}
 		if (S < PsSPlat || S > PsSCab) return false;
 		FSvcStairs& F = *G.Tractors[Ti].Ps; F.bStop = !F.bStop; F.bYours = false;
 		if (F.bStop) { F.NWant = F.N; F.JackWant = F.Jack; }
@@ -639,12 +824,17 @@ TSharedPtr<FVehTable> AGSE::StairsControls()
 		if (X < -300.f || X > 40.f + 28.f * N || FMath::Abs(P.Y) > 72.f || P.Z < Zn - 25.f || P.Z > Zn + 60.f) return 0;
 		return X < -247.f + 28.f * N ? 1 : 2;
 	};
-	Tb->Stowed = [](const AGSE& G, const FTractor& T) { return G.StairsStowed(T) && !T.Ps->bStop; };
+	Tb->Stowed = [](const AGSE& G, const FTractor& T) { return G.StairsStowed(T) && !T.Ps->bStop && T.Ps->GearIn(); };
+	// what you carry of its own: a chock or a cone, 30 m from it at most; let go, it goes back in its tray
+	Tb->Held = [](const FTractor& T) -> const TCHAR* { return T.Ps && T.Job == EJob::None ? T.Ps->GearHeld() : nullptr; };
+	Tb->Leash = [](const AGSE& G, const FTractor& T, FVector& From) { if (!T.Ps || !T.Ps->GearHeld()) return 0.f; From = G.SvcP(T, TEXT("IK_Stand_Chocks")); return 3000.f; };
+	Tb->Drop = [](FTractor& T) { if (T.Ps) for (uint8* Gs : {&T.Ps->Chock[0], &T.Ps->Chock[1], &T.Ps->Cone[0], &T.Ps->Cone[1]}) if (*Gs == FSvcStairs::InYours) { *Gs = FSvcStairs::InTray; T.Ps->bLive = true; } };
 	// left alone: at an aircraft that has asked for stairs its crew go on with it (StairsTake), and at an open door it stays
 	Tb->Stow = [](AGSE& G, FTractor& T)
 	{
 		FSvcStairs& F = *T.Ps; if ((PsStands(F) && G.StairsJob(F.YouStandX, F.YouDoor)) || F.Users > 0) return;
 		F.bStop = false; F.bYours = !G.StairsStowed(T);
+		if (!F.GearIn()) { for (uint8* Gs : {&F.Chock[0], &F.Chock[1], &F.Cone[0], &F.Cone[1]}) *Gs = FSvcStairs::InTray; F.bLive = true; ADP_LOG(TEXT("GSE: your %s's chocks and cones back in their trays"), *T.Name); }
 	};
 	return Tb;
 }
