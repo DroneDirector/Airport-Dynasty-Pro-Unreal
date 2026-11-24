@@ -1,0 +1,174 @@
+{
+ "size_m": [
+  0.995,
+  0.652,
+  0.932
+ ],
+ "points_cm": {
+  "PIV_Wheel_L": [
+   -14.0,
+   -28.5,
+   30.5
+  ],
+  "IK_Arm_L": [
+   3.0,
+   -23.5,
+   75.0
+  ],
+  "IK_Push_L": [
+   -30.5,
+   -23.5,
+   91.5
+  ],
+  "PIV_Castor_L": [
+   24.5,
+   -23.5,
+   9.5
+  ],
+  "PIV_CastorFork_L": [
+   27.5,
+   -23.5,
+   22.0
+  ],
+  "PIV_Footrest_L": [
+   29.2,
+   -23.5,
+   44.0
+  ],
+  "IK_Footrest_L": [
+   31.0,
+   -25.5,
+   46.0
+  ],
+  "PIV_FootPlate_L": [
+   47.0,
+   -17.5,
+   13.5
+  ],
+  "IK_Foot_L": [
+   45.5,
+   -9.5,
+   13.8
+  ],
+  "PIV_Brake_L": [
+   15.0,
+   -26.5,
+   47.5
+  ],
+  "IK_Brake_L": [
+   19.5,
+   -26.9,
+   62.0
+  ],
+  "IK_Strap_FL": [
+   27.5,
+   -23.5,
+   30.0
+  ],
+  "IK_Strap_RL": [
+   -16.0,
+   -23.5,
+   26.0
+  ],
+  "PIV_Wheel_R": [
+   -14.0,
+   28.5,
+   30.5
+  ],
+  "IK_Arm_R": [
+   3.0,
+   23.5,
+   75.0
+  ],
+  "IK_Push_R": [
+   -30.5,
+   23.5,
+   91.5
+  ],
+  "PIV_Castor_R": [
+   24.5,
+   23.5,
+   9.5
+  ],
+  "PIV_CastorFork_R": [
+   27.5,
+   23.5,
+   22.0
+  ],
+  "PIV_Footrest_R": [
+   29.2,
+   23.5,
+   44.0
+  ],
+  "IK_Footrest_R": [
+   31.0,
+   25.5,
+   46.0
+  ],
+  "PIV_FootPlate_R": [
+   47.0,
+   17.5,
+   13.5
+  ],
+  "IK_Foot_R": [
+   45.5,
+   9.5,
+   13.8
+  ],
+  "PIV_Brake_R": [
+   15.0,
+   26.5,
+   47.5
+  ],
+  "IK_Brake_R": [
+   19.5,
+   26.9,
+   62.0
+  ],
+  "IK_Strap_FR": [
+   27.5,
+   23.5,
+   30.0
+  ],
+  "IK_Strap_RR": [
+   -16.0,
+   23.5,
+   26.0
+  ],
+  "IK_Seat": [
+   -2.0,
+   -0.0,
+   50.0
+  ],
+  "IK_Belt": [
+   2.5,
+   -0.0,
+   52.0
+  ],
+  "IK_Pusher": [
+   -80.0,
+   -0.0,
+   0.0
+  ]
+ },
+ "parts": [
+  "Belt_L",
+  "Belt_R",
+  "Brake_L",
+  "Brake_R",
+  "CastorFork_L",
+  "CastorFork_R",
+  "Castor_L",
+  "Castor_R",
+  "FootPlate_L",
+  "FootPlate_R",
+  "Footrest_L",
+  "Footrest_R",
+  "Frame",
+  "Seat",
+  "Wheel_L",
+  "Wheel_R"
+ ],
+ "tris": 33772,
+ "flicker": "0 pairs fight"
+}
