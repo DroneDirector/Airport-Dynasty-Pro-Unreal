@@ -89,6 +89,8 @@ void AGSE::ArrBy(int32 Pc, int32 Ti, int32 h)
 		const int32 Li = LoaderAt(StandX); if (Li == INDEX_NONE) return true;
 		FTractor& L = Tractors[Li];
 		for (FTractor::FBeltBag& B : L.BeltBags) if (B.Stage == 4) if (LoaderCartFree(L, Slot->X, Slot->Y)) { B.Stage = 6; *Cur = B.Id; SlotTaken.Add(Slot->X * 100 + Slot->Y); return true; }
+		// (the carts full: home with what they hold)
+		if (E > 45.f) if (L.BeltBags.ContainsByPredicate([](const FTractor::FBeltBag& B) { return B.Stage == 4; }) && !LoaderCartFree(L, Slot->X, Slot->Y)) return true;
 		return L.ArrivalsLeft <= 0 && L.BeltBags.Num() == 0 && (L.LYouBag == INDEX_NONE || E > 300.f);
 	});
 	Do(Pc, [this, Pc, Ti, h, StandX, Stand, Cur, Slot] { Later([this, Pc, Ti, h, StandX, Stand, Cur, Slot]

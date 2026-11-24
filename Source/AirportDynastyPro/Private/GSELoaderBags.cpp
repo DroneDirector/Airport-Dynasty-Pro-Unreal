@@ -137,7 +137,7 @@ void AGSE::LoaderBags(int32 Li, float Dt)
 bool AGSE::LoaderWaits(float StandX, FString& Why) const
 {
 	const int32 Li = LoaderAt(StandX); if (Li == INDEX_NONE) return false;
-	const FTractor& L = Tractors[Li]; bool bArr = false; if (LoaderTrain(L, &bArr) == INDEX_NONE) return false;
+	const FTractor& L = Tractors[Li]; bool bArr = false; if (LoaderTrain(L, &bArr) == INDEX_NONE && (L.bLOver || !(L.LYouBag != INDEX_NONE || L.BeltBags.ContainsByPredicate([](const FTractor::FBeltBag& B) { return B.Stage <= 2; })))) return false;
 	const TCHAR* W = bArr ? TEXT("the arriving bags wait") : TEXT("its bags wait");
 	const bool bTop = L.ArrivalsLeft > 0 || L.BeltBags.ContainsByPredicate([](const FTractor::FBeltBag& B) { return B.Stage == 1; });
 	const bool bBoom = FMath::IsNearlyEqual(L.Boom, L.BoomWant, 0.3f);

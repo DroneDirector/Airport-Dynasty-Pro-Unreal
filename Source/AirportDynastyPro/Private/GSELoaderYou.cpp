@@ -143,7 +143,7 @@ TSharedPtr<FVehTable> AGSE::LoaderControls()
 		switch (X.Switch)
 		{
 		case LbTakeCart: if (!G.LoaderCartBag(T, c, s)) return false; W = G.CW(G.Carts[c], G.CartSlot(c, s).GetLocation() + FVector(0.f, 0.f, 15.f)); return true;
-		case LbPutCart: if (!G.LoaderCartFree(T, c, s, true)) return false; W = G.CW(G.Carts[c], G.CartSlot(c, s).GetLocation() + FVector(0.f, 0.f, 15.f)); return true;
+		case LbPutCart: if (T.LYouBag != INDEX_NONE && T.LYouFrom == 1) { c = T.LYouCart; s = T.LYouSlot; if (!G.Carts.IsValidIndex(c)) return false; } else if (!G.LoaderCartFree(T, c, s, true)) return false; W = G.CW(G.Carts[c], G.CartSlot(c, s).GetLocation() + FVector(0.f, 0.f, 15.f)); return true;
 		case LbTakeTop: case LbPutTop: W = G.TW(T, G.BeltOffset(T, 675.f).GetLocation() + FVector(0.f, 0.f, 15.f)); return true;
 		case LbTakeHold: case LbPutHold: W = G.TW(T, (FTransform(FVector(70.f, 0.f, 20.f)) * G.BeltOffset(T, 675.f)).GetLocation()); return true;
 		case LbClimb: W = G.TW(T, G.BeltOffset(T, T.YouOn ? 20.f : 60.f).GetLocation()); return true;
@@ -165,7 +165,10 @@ TSharedPtr<FVehTable> AGSE::LoaderControls()
 		case LbTakeTop: return !bHands && bTopAt && bSill && !T.bTopUp && Has(1);
 		case LbTakeHold: return !bHands && bTopAt && bSill && !T.bTopUp && Tr != INDEX_NONE && bArr && T.ArrivalsLeft > 0 && !T.BeltBags.ContainsByPredicate([](const FTractor::FBeltBag& B) { return B.S > 675.f - 90.f; });
 		case LbPutFoot: return bHands && !T.YouOn && (T.LYouFrom == 1);
-		case LbPutCart: return bHands && T.LYouFrom == 2 && G.LoaderCartFree(T, c, s, true);
+		case LbPutCart:
+			// (a departing bag: back to the place you took it from)
+			if (bHands && T.LYouFrom == 1) return !T.YouOn && G.Carts.IsValidIndex(T.LYouCart) && G.Carts[T.LYouCart].Bags.IsValidIndex(T.LYouSlot) && G.Carts[T.LYouCart].Bags[T.LYouSlot] == INDEX_NONE && !G.SlotTaken.Contains(T.LYouCart * 100 + T.LYouSlot) && FVector::DistSquared2D(G.Carts[T.LYouCart].At, G.TW(T, T.YouAt)) < FMath::Square(260.f);
+			return bHands && T.LYouFrom == 2 && G.LoaderCartFree(T, c, s, true);
 		case LbPutHold: return bHands && bTopAt && T.LYouFrom == 3;
 		case LbPutTop: return bHands && bTopAt && (T.LYouFrom == 3 || T.LYouFrom == 4);
 		}
@@ -264,7 +267,7 @@ TSharedPtr<FVehTable> AGSE::LoaderControls()
 				--T.ArrivalsLeft; G.LoaderHand(T, Id, 4); break;
 			}
 			case LbPutFoot: G.LoaderLay(T, 1); break;
-			case LbPutCart: { int32 c, s; if (!G.LoaderCartFree(T, c, s, true)) return false; T.LYouCart = c; T.LYouSlot = s; G.LoaderLay(T, 2); break; }
+			case LbPutCart: { if (T.LYouFrom == 1) { G.LoaderLay(T, 2); break; } int32 c, s; if (!G.LoaderCartFree(T, c, s, true)) return false; T.LYouCart = c; T.LYouSlot = s; G.LoaderLay(T, 2); break; }
 			case LbPutHold: G.LoaderLay(T, 3); break;
 			default: G.LoaderLay(T, T.LYouFrom == 3 ? 0 : 4); if (T.LYouFrom == 3) G.LoaderDrop(T); break;
 			}

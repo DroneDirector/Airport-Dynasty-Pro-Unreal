@@ -209,8 +209,8 @@ void AGSE::LoaderIn(int32 Li)
 		}
 		return (*bSeen && !bTrain) || Elapsed > Wait2;
 	});
-	// (the belt empty first, your hands too: ten minutes at most; what is left then stays behind, logged)
-	WaitFor(Ci, [this, Li](float E) { const FTractor& T = Tractors[Li]; return (T.BeltBags.Num() == 0 && T.LYouBag == INDEX_NONE) || E > 600.f; });
+	// (the belt empty first, your hands too: departing bags for as long as it takes - the flight says why; arriving ones ten minutes after their train)
+	WaitFor(Ci, [this, Li](float E) { const FTractor& T = Tractors[Li]; if (T.BeltBags.Num() == 0 && T.LYouBag == INDEX_NONE) return true; const bool bDep = T.BeltBags.ContainsByPredicate([](const FTractor::FBeltBag& B) { return B.Stage <= 2; }) || (T.LYouBag != INDEX_NONE && (T.LYouFrom == 1 || T.LYouFrom == 3)); return !bDep && E > 600.f; });
 	Do(Ci, [this, Li]
 	{
 		FTractor& T = Tractors[Li]; T.bLOver = true; T.ArrivalsLeft = 0; T.bBottomHeld = false;
