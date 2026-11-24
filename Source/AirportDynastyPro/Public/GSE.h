@@ -34,6 +34,7 @@ class UAudioComponent;
 class UInstancedStaticMeshComponent;
 struct FDriverPose;
 struct FSvcRefuel;
+struct FSvcCater;
 
 UCLASS()
 class AIRPORTDYNASTYPRO_API AGSE : public AActor
@@ -98,6 +99,7 @@ public:
 		float SteerWant = 0.f, BackT = 0.f, PedalA = 0.f, PedalB = 0.f, WipeT = 0.f, WipeNow = 0.f, RainIn = 0.f, BoxT = 0.f; bool bRain = false, bUsed = false;   // (bUsed: full bags or used rolls in it - exchanged shut in its box)
 		int32 GPedal[2] = {INDEX_NONE, INDEX_NONE}, LoadWant = INDEX_NONE; TArray<int32> GWiper; FString Livery;
 		TSharedPtr<FSvcRefuel> Fu;        // (the refueller's own parts: GSEFuel.cpp)
+		TSharedPtr<FSvcCater> Ct;         // (the catering high-loader's: GSECater.cpp)
 		TMap<FString, FVector> Pt;        // (a service vehicle's named points, root cm: Data/<vehicle>-riders.json)
 		struct FSvcDoor { int32 G = INDEX_NONE; FVector Piv = FVector::ZeroVector; float Now = 0.f, Want = 0.f; };
 		TArray<FSvcDoor> SvcDoors;        // (as the table's doors: 0 shut .. 1 open)
@@ -266,7 +268,7 @@ private:
 		int32 Svc = 0, Ti = INDEX_NONE, Jet = INDEX_NONE; float StandX = 0.f, RowT = 0.f; FString Reg, Flight, Why; FDateTime When;
 		uint8 Phase = 0;                  // 0 waits for its people, 1 on the way, 2 at the stand, 3 going back
 		bool bGo = false, bFetch = false; FVector Place = FVector::ZeroVector; float PlaceYaw = 0.f; int32 Rows = 30, RowsDone = 0; float T = 0.f; TArray<FSvcMan> Men;
-		int32 Stage = 0; float Litres = 0.f, Pumped = 0.f; TArray<FVector> InWay;   // (the refueller's work; the way in, backed out again)
+		int32 Stage = 0; float Litres = 0.f, Pumped = 0.f; TArray<FVector> InWay; int32 CtDoor = 0, CtTrip = 0, CtDone = 0;   // (Ct*: the catering: at which door, its next trip, the doors done as bits) (the refueller's work; the way in, backed out again)
 	};
 	TMap<int32, FSvcJob> SvcJobs; int32 SvcNext = 1; float SvcClock = 0.f;
 	TMap<int32, TPair<int8, int32>> SvcStairUse;   // (a jetway's service stair: which way it is walked now, and by how many)
@@ -305,6 +307,27 @@ private:
 	void FuelArrive(int32 Job);
 	void SvcFuelWork(int32 Job);
 	void FuelLost(int32 Job);
+	// ---- the catering high-loader (GSECater.cpp)
+	void CaterDress(FTractor& T);
+	void CaterParts(FTractor& T, float Dt);
+	void CaterRestock(FTractor& T);
+	void CaterDock(const FSvcJob& J, int32 Door, FVector2f& At, FVector2f& Hd, float& SillZ) const;
+	void CaterIn(const FSvcJob& J, int32 Door, float FromY, TArray<FVector>& W) const;
+	/** The lane on the aircraft's right is used by another vehicle; the catering truck moves at that stand, is at its rear door, or may go there. */
+	bool SvcSideBusy(int32 Ti, float StandX) const;
+	bool CaterMoving(float StandX) const;
+	bool CaterRear(float StandX) const;
+	bool CaterRearFree(float StandX) const;
+	void CaterHold(int32 Ci, int32 Ti, FVector2D At, FVector2D Face);
+	void CaterWalk(int32 Ci, int32 Ti, TArray<FVector2D> Pts, FVector2D EndFace);
+	void CaterHand(int32 Ci, int32 Ti, FVector2D At, int32 Side, TFunction<FVector()> To, float Dur, TFunction<void()> Fn, bool bBothHands);
+	TFunction<void(float, float, FDriverPose&)> CaterClimbFn(int32 Ti, bool bUp) const;
+	void CaterBoxDoor(int32 Ci, int32 Ti, bool bOpen);
+	void CaterTrip(int32 Job, int32 Ci, int32 Ti, int32 W, int32 In, int32 Out);
+	void CaterArrive(int32 Job);
+	void CaterStage(int32 Job);
+	void CaterMove(int32 Job);
+	bool CaterLost(int32 Job, int32 m);
 	void FuelUpDown(int32 Ci, int32 Ti, bool bUp);
 	TFunction<void(float, float, FDriverPose&)> FuelPlatFn(int32 Ti, bool bUp) const;
 	/** The driver's way into a tall cab (two steps: a point IK_Step_DoorDriver_Low). */

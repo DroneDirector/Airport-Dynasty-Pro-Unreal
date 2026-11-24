@@ -233,6 +233,22 @@ axles +316.3 / -173.7, wheelbase 490, tyre radius 50.7. All points and numbers: 
   round (the arc lies 6.7 m further from the tower road than the refueller's), 18 m straight back. Worked out on paper, not driven; nobody else has that place by 11-24.
 - **Not there:** no truck, hydraulic, roller door or trolley sound checked for; nothing run in the game. The cab's aerial is left off (platform).
 
+## Catering high-loader, part B as built (to-do 212, 2026-11-24, compiled, NOT run)
+`Private/GSECater.cpp`, `Public/GSECater.h` (its parts, trolleys and work), one table line in `GSEService.cpp` (task `cat1`, `bCater`), hooks in `GSE*`, `ServiceDrive`, `StaffPeople`, `TugStaff`, `Turnaround`.
+- **Parking box** (-253.5, 146) facing north, drawn by Airfield; the backed arc by `HomeRoad` swept on paper: inside the apron edge (0.35 m at its front), 2.8 m off the refueller's box, 2.0 m off stand 9's line.
+- **At the stand:** down the lane 20.43 m right (the middle between two wingtips: 2.2 / 1.7 m off them, never under a wing), one bend, square on to R1; then back up the lane and on to R2 (turned 11 deg). Dock and sill are taken from the
+  aircraft as it stands (R1 7.34 m, R2 6.81 m right; bumper 3 cm off the skin; sill clamped 3.30 - 4.05 m over the truck's ground). Swept: refueller 1.15 m, engine 2.3, tailplane 1.15 - 2.0, parked belt loader 2.85.
+- **One on the right-hand lane at a time** (`SvcSideBusy`): the refueller, the catering truck; trains and belt loader leaving wait for it (`CaterMoving`). **A train stands where the truck stands at R2:** the truck waits at R1 until the train is gone,
+  trains and the belt loader wait while it is at R2 (`CaterRear`, `CaterRearFree`); the flight says so.
+- **Work, in stages** (one of the two works, the other waits): legs down, side door, three steps, up inside, (last passenger off), lift lever held, roll-up door, platform lever held (only from 180 cm), flap, right then left rail, a knock, 4 (R1) / 7 (R2)
+  trolleys one trip at a time - pedal, both hands on the handle, out of their row, over the flap to the sill; an empty one back into the row - and all back; legs up; R2; home. The used truck is restocked after 30 s shut in its box.
+- **Aircraft doors:** one mesh, no moving door, no cabin (to-do 209): at the sill person and trolley are hidden 14 s (logged), as the cleaners.
+- **Plan tasks:** `cat1` asks 8 min ahead and is done when R1 is, `cat2` when R2 is; boarding waits for `cat2` as before. No cost changed (the catering already booked stays the one cost).
+- **People:** hired `catering` (driver + loader, `b3D` true); fewer than two hired, other airlines, stands over 36 m: data with its time. One vanished: the other goes on alone and may drive; the last one: a relief.
+- **Yours:** E at both cab doors and the side door; the driver's seat not while its crew are at work. No glow.
+- **Not there:** truck, hydraulic, roller door, trolley sounds; castors do not swivel; the gate stays folded in the right rail (the fuselage closes the end); tail lift, rear roll-up door and galley boxes are not worked; the player cannot work the lift.
+- **Not checked:** everything in the game - hand reach to the outer rows and the rails, the signs of the levers, flap and rams, the drive between the wingtips.
+
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
 | Where | Today | Replace with | Nobody free |

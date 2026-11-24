@@ -141,6 +141,7 @@ void AGSE::ArrivalLoad(int32 Ti)
 
 void AGSE::ArrivalToStation(int32 Ti)
 {
+	if (CaterMoving(Tractors[Ti].StandX)) { RetryIn(Ti, 6.f, [this, Ti] { ArrivalToStation(Ti); }); return; }
 	FTractor& T = Tractors[Ti]; T.Job = EJob::Back;
 	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(T.StandX, S, N, Sp);
 	const float Xc = S - (Sp * 0.5f + 2.4f);

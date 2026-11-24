@@ -411,6 +411,7 @@ void AGSE::TrainToStand(int32 Ti)
 void AGSE::TrainApron(int32 Ti)
 {
 	FTractor& T = Tractors[Ti];
+	if (CaterRear(T.StandX)) { RetryIn(Ti, 8.f, [this, Ti] { TrainApron(Ti); }); return; }   // (the catering truck at the rear door, across its place)
 	// (its flight has gone without it: back in, the bags to the search room's shelf - never out to an empty stand)
 	if (!bTest && !T.bArrival && !T.Key.IsEmpty() && !ADPTurnaround::ForFlight(T.Key))
 	{
@@ -499,6 +500,7 @@ void AGSE::TrainLoad(int32 Ti)
 
 void AGSE::TrainHome(int32 Ti)
 {
+	if (CaterMoving(Tractors[Ti].StandX)) { RetryIn(Ti, 6.f, [this, Ti] { TrainHome(Ti); }); return; }
 	FTractor& T = Tractors[Ti]; T.Job = EJob::Back;
 	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(T.StandX, S, N, Sp);
 	const float Xc = S - (Sp * 0.5f + 2.4f);

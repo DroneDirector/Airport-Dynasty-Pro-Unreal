@@ -147,12 +147,12 @@ void AGSE::LoaderApron(int32 Li)
 	const bool bHome = FVector2f::Distance(P, FVector2f(256.f, 88.f)) < 2.f;
 	if (bHome) Leg(W, P.X, P.Y, Hx, Hy, 261.5f, 93.5f, 0.f, 1.f, L.KTurnR);
 	const FVector From = W.Num() ? W.Last() : L.At;
-	if (!Apron(W, From, Plan(S - 11.4f, N + 40.f), &L)) { W.Reset(); RetryIn(Li, 8.f, [this, Li] { LoaderApron(Li); }); return; }
+	if (CaterRear(L.StandX) || !Apron(W, From, Plan(S - 11.4f, N + 40.f), &L)) { W.Reset(); RetryIn(Li, 8.f, [this, Li] { LoaderApron(Li); }); return; }
 	Go(L, MoveTemp(W), false, [this, Li, S, N]
 	{
 		FTractor& U = Tractors[Li];
 		const FVector Nose = Plan(S, N);
-		U.Until = [this, Nose] { return !PlaneNear(Nose, 6000.f); };
+		U.Until = [this, Nose, S] { return !PlaneNear(Nose, 6000.f) && !CaterRear(S); };
 		U.AfterUntil = [this, Li, S, N]
 		{
 			// up beside the fuselage and square in to the bulk door: the bumper's face 1.75 m from the centre line (the skin
@@ -287,6 +287,7 @@ void AGSE::LoaderIn(int32 Li)
 
 void AGSE::LoaderLeave(int32 Li)
 {
+	if (CaterRear(Tractors[Li].StandX) || CaterMoving(Tractors[Li].StandX)) { RetryIn(Li, 8.f, [this, Li] { LoaderLeave(Li); }); return; }   // (the catering truck beside it)
 	FTractor& L = Tractors[Li]; L.Job = EJob::Back;
 	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(L.StandX, S, N, Sp);
 	ADP_LOG(TEXT("GSE: %s leaves the bulk hold door"), *L.Name);
