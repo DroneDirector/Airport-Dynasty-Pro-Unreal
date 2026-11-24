@@ -89,7 +89,7 @@ for g in G.GATES:
 # ---- 4 one floor, one ceiling, one roof, one soffit at every point of every gate room and its bay (a 25 cm grid; nothing missing, nothing twice)
 FL = []                                              # every level face: (y, up?, three corners x z), structure parts only
 for nm, new, V, T in OBJ:
-    if not re.search(r'STRUCTURE|ARC-(FLOOR|ROOF)|BAGBLOCK|RAMP', nm) or 'JET' in nm: continue
+    if not re.search(r'STRUCTURE|ARC-(FLOOR|ROOF)|BAGBLOCK|RAMP|F2-ARR13/(SLAB13|WHITE13)', nm) or 'JET' in nm: continue
     c = V[T]; n = np.cross(c[:, 1] - c[:, 0], c[:, 2] - c[:, 0]); ln = np.linalg.norm(n, axis=1); ok = (ln > 1e-7) & (np.abs(n[:, 1]) > 0.999 * ln)
     for t, s in zip(c[ok], np.sign(n[ok, 1])): FL.append((t[0, 1], t[:, [0, 2]], s))
 FY = np.array([f[0] for f in FL]); FT = np.array([f[1] for f in FL]); FS = np.array([f[2] for f in FL])
@@ -104,7 +104,12 @@ def count(px, pz, y0, y1):
     return out
 for g in G.GATES:
     x0 = P['F2-GATE-%d' % g]['x0']; jw = G.has_corridor(JL, x0); X, Z = np.meshgrid(np.arange(0.31, 31.7, 0.25), np.arange(68.13, 85.0, 0.25)); X, Z = X.ravel() + 0.0031, Z.ravel() + 0.0017
-    edge = np.array([G.zat(x) for x in X]); ins = Z < edge - 0.12; st = (X > 28.2) & (X < 31.2) & (Z > 69.4) & (Z < 80.6)          # (the stair's opening)
+    edge = np.array([G.zat(x) for x in X]); ins = Z < edge - 0.12
+    if g == 13:
+        import sys as _sys; _sys.path.insert(0, os.path.join(ROOT, 'Art', 'TerminalEast'))
+        import arr_geom as _AG; u0, u1, z0, z1 = _AG.TURN; st = (X > u0) & (X < u1) & (Z > z0) & (Z < z1)          # (gate 13's turned stair opening)
+    else:
+        st = (X > 28.2) & (X < 31.2) & (Z > 69.4) & (Z < 80.6)          # (the stair's opening)
     cor = (np.abs(X - G.JX) < 1.75) & (Z > 81.95) if jw else np.zeros(len(X), bool); bay = Z > 82.1
     bad = {}
     for what, y0, y1, w, also in (('floor', 6.0, 6.02, ins & ~st & ~cor, None), ('ceiling', 11.35, 11.365, ins, None), ('roof', 11.99, 12.003, ins, None), ('soffit', 5.39, 5.41, ins & bay, None)):
