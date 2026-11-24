@@ -170,11 +170,68 @@
 0.012,
 26.9,
 0
+],
+[
+"BAGDROP-001",
+"annex_hallfit_bagdrop",
+107.0,
+0.012,
+12.3,
+-90
+],
+[
+"BAGDROP-002",
+"annex_hallfit_bagdrop",
+107.0,
+0.012,
+14.3,
+-90
+],
+[
+"BAGDROP-003",
+"annex_hallfit_bagdrop",
+107.0,
+0.012,
+16.3,
+-90
+],
+[
+"BAGDROP-004",
+"annex_hallfit_bagdrop",
+107.0,
+0.012,
+18.3,
+-90
+],
+[
+"BAGDROP-005",
+"annex_hallfit_bagdrop",
+107.0,
+0.012,
+20.3,
+-90
+],
+[
+"BAGDROP-006",
+"annex_hallfit_bagdrop",
+107.0,
+0.012,
+22.3,
+-90
 ]
 ],
+"points": {
+"BAGDROP-001": "F1-BAGDROP/POINT-5",
+"BAGDROP-002": "F1-BAGDROP/POINT-2",
+"BAGDROP-003": "F1-BAGDROP/POINT-6",
+"BAGDROP-004": "F1-BAGDROP/POINT-3",
+"BAGDROP-005": "F1-BAGDROP/POINT-7",
+"BAGDROP-006": "F1-BAGDROP/POINT-8"
+},
 "models": [
 "annex_hallfit_solid",
 "annex_hallfit_egate",
-"annex_hallfit_trolley"
+"annex_hallfit_trolley",
+"annex_hallfit_bagdrop"
 ]
 }

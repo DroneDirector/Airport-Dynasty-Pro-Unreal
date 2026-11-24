@@ -2,7 +2,7 @@
 # cuts, routes) run on the Grand Hall (plan x 35..115, z -1..31). The new parts are the hall's self-service fittings
 # (F1-HALLFIT...: service desk, trolley bays, e-gates and their fences); the routes are what sheet 2b keeps clear: the three
 # entrance doors' ways in, 4 m in front of (and behind) the check-in islands, the six columns, the four lanes through each
-# security door's e-gates, the service desk's front, the trolley bays' fronts and the kiosk rows' fronts.
+# security door's e-gates, the service desk's front, the trolley bays' fronts, the kiosk rows' fronts, the bag drop's front and the 4 m before it.
 #   F:/Tools/Blender-4.2/blender.exe -b --python Tools/check_hall.py        -> Saved/hall-check.json and the summary
 #   (HALL_NEW='F1-HALL' checks the hall's own contents too, for a before/after; HALL_OUT names the json)
 import os, re
@@ -23,6 +23,7 @@ for dx in (62.0, 78.0):
 leg('service desk front', 107.6, 24.8, 107.6, 29.6, 0.4)
 for bx in (45.5, 111.3): leg('trolley bay %.0f front' % bx, bx - 2.5, 2.2, bx + 2.5, 2.2, 0.4)
 for kx in (61.2, 88.2): leg('kiosk row %.1f front' % kx, kx - 3.75, 6.6, kx + 3.75, 6.6, 0.5)
+leg('bag drop front', 105.0, 11.4, 105.0, 23.2, 0.3); leg('4 m in front of the bag drop', 101.35, 11.3, 105.35, 23.3, 0.0)
 '''
 _s = _s[:_a] + _z + _s[_b:]
 _s = _s.replace("'east-check.json'", "os.environ.get('HALL_OUT', 'hall-check.json')")

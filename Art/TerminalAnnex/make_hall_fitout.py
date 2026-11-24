@@ -8,11 +8,12 @@
 #   annex_hallfit_egate    a boarding-pass e-gate cabinet (instanced: five per security door, 1.0 m lanes between them, at
 #                          z 26.35..27.45; the reader at the hall's end, the flaps retracted: not modelled, the lanes stay open)
 #   annex_hallfit_trolley  a luggage trolley (instanced: four in each bay, side by side, not nested)
+#   annex_hallfit_bagdrop  a self bag drop machine (instanced: six at island 2's east end, on six old placeholder points)
 #   reused, instanced      east_g_fit_ochair (the desk's staff chairs); the self check-in kiosks are the owner's own
 #                          SM_CheckinKiosk, placed by Data/terminal-props.json (not here)
 #   hallfit_place.json     the instanced pieces' places
 #   F:/Tools/Blender-4.2/blender.exe -b --python Art/TerminalAnnex/make_hall_fitout.py
-#   then Tools/import_annex.py annex_hallfit_solid annex_hallfit_egate annex_hallfit_trolley,
+#   then Tools/import_annex.py annex_hallfit_solid annex_hallfit_egate annex_hallfit_trolley annex_hallfit_bagdrop,
 #   Tools/terminal_edit.py (Tools/terminal_hallfit_edit.py)
 import bpy, bmesh, json, math, os
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(os.path.dirname(HERE))
@@ -120,9 +121,32 @@ T.box(-0.30, 0.30, 1.0, 1.04, -0.48, -0.43, RUB)                                
 T.box(-0.25, 0.25, 0.40, 0.43, 0.42, 0.45, STEEL, sides=no('-x', '+x'))                  # the bag stop
 T.box(-0.25, 0.25, 0.19, 0.7, -0.465, -0.445, STEEL, sides=no('-x', '+x', '-y'))         # the back rest
 
+# ======================================================================================================== bag drop machine
+# sheet 2b item 2: six machines, 12.0 x 3.5 m, at island 2's east end (x 105.25..108.75, z 11.3..23.3, facing the hall's -x).
+# One 2.0 m module (1.98 wide: 2 cm between machines), its middle at 0, its customer side at +z: the weigh belt where the bag
+# is laid, its side guards, the tunnel hood (black opening, green go light), the kiosk tower (screen, printer slot, BAG DROP),
+# the closed back cabinet over the take-away belt (the bags go on under the floor: sheet 2b's bag tunnel). Each one is put on
+# one of the old placeholder points F1-BAGDROP/POINT-2,3,5,6,7,8 (POINT-1 and -4 stay, spare) - Tools/terminal_hallfit_edit.py
+D = Piece('annex_hallfit_bagdrop')
+B(D, -0.85, 0.35, 0.0, 0.40, 0.15, 1.65, STEEL, sides=('-x', '+x', '+z'))                  # the weigh belt's body
+D.box(-0.82, 0.32, 0.40, 0.43, 0.15, 1.62, RUB, sides=no('-y', '-z'))                      # its belt
+for x0, x1 in ((-0.88, -0.85), (0.35, 0.38)): D.box(x0, x1, 0.43, 1.05, 0.15, 1.65, GLOSS, sides=no('-z'))   # the side guards
+D.box(-0.95, 0.45, 0.0, 1.6, -0.75, 0.15, GLOSS, sides=('+y', '-x', '+x', '+z'))           # the tunnel hood
+D.box(-0.8, 0.3, 0.43, 1.2, 0.155, 0.16, BLK, sides=no('-z'))                              # its opening (the rubber curtain)
+D.box(-0.8, 0.3, 1.35, 1.42, 0.155, 0.16, LG, sides=no('-z'))                              # the go light
+B(D, 0.45, 0.95, 0.0, 1.45, 0.9, 1.4, GLOSS)                                                # the kiosk tower
+D.box(0.5, 0.9, 1.0, 1.35, 1.40, 1.405, SCR, sides=no('-z'))                               # its screen
+D.box(0.55, 0.85, 0.8, 0.84, 1.40, 1.405, BLK, sides=no('-z'))                             # the bag tag printer's slot
+D.box(0.45, 0.95, 1.45, 1.75, 1.1, 1.2, NAVY, sides=no('-y'))                              # the header plate
+text(D, 'BAG DROP', 0.7, 1.6, 1.2015, '+z', 0.09, WHITE, maxw=0.44)
+B(D, -0.99, 0.99, 0.0, 1.6, -1.75, -0.75, GLOSS)                                            # the back cabinet
+BAGDROP_POINTS = {}
+for k, pt in enumerate((5, 2, 6, 3, 7, 8)):
+    place('BAGDROP', 'annex_hallfit_bagdrop', 107.0, 12.3 + 2.0 * k, -90); BAGDROP_POINTS[PL_[-1][0]] = 'F1-BAGDROP/POINT-%d' % pt
+
 # ======================================================================================================== out
 OUT = []
-for P_ in (S, E, T):
+for P_ in (S, E, T, D):
     o = P_.finish()
     assert o.data.materials and all(m for m in o.data.materials), 'empty material slot ' + o.name
     print('HFIT', o.name, len(o.data.polygons), 'faces', [m.name for m in o.data.materials])
@@ -130,6 +154,6 @@ for P_ in (S, E, T):
     o.select_set(True); bpy.context.view_layer.objects.active = o
     bpy.ops.export_scene.fbx(filepath=os.path.join(HERE, o.name + '.fbx'), use_selection=True, object_types={'MESH'}, apply_scale_options='FBX_SCALE_UNITS', mesh_smooth_type='FACE', path_mode='STRIP')
     OUT.append(o.name)
-json.dump({'big': ['annex_hallfit_solid'], 'place': PL_, 'models': OUT}, open(os.path.join(HERE, 'hallfit_place.json'), 'w'), indent=0)
+json.dump({'big': ['annex_hallfit_solid'], 'place': PL_, 'points': BAGDROP_POINTS, 'models': OUT}, open(os.path.join(HERE, 'hallfit_place.json'), 'w'), indent=0)
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, 'HallFitout.blend'))
 print('HFIT saved', len(OUT), 'models,', len(PL_), 'places')
