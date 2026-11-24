@@ -49,6 +49,7 @@ const FVehTable* AGSE::CtlTable(int32 Svc)
 	static TMap<int32, TSharedPtr<FVehTable>> All;
 	if (Svc == INDEX_NONE) return nullptr;
 	if (const TSharedPtr<FVehTable>* F = All.Find(Svc)) return F->Get();
+	if (Svc < 0) { TSharedPtr<FVehTable> Ld = LoaderControls(); CabAdd(*Ld, Svc); return All.Add(Svc, Ld).Get(); }
 	const FServiceSpec& S = ADPService::All()[Svc];
 	TSharedPtr<FVehTable> Tb = S.bAmbu ? AmbuControls() : S.bFuel ? FuelControls() : S.Wet == 1 ? WaterControls() : S.Wet == 2 ? ToiletControls() : S.bCater ? CaterControls() : S.bStairs ? StairsControls() : S.bDeicer ? DeicerControls() : TSharedPtr<FVehTable>();
 	if (!Tb) Tb = MakeShared<FVehTable>();
@@ -58,14 +59,14 @@ const FVehTable* AGSE::CtlTable(int32 Svc)
 
 FString AVehicleControls::SayOf(const AGSE& G, const AGSE::FTractor& V, const FVehControl& C)
 {
-	const FVehTable* Tb = AGSE::CtlTable(V.Svc);
+	const FVehTable* Tb = AGSE::CtlTable(V.CtlKey());
 	return ADPCab::Is(C.Switch) ? G.CabSay(V, C) : Tb->Say ? Tb->Say(G, V, C) : FString(C.Label);
 }
 
 bool AVehicleControls::MayOf(AGSE& G, int32 V, int32 Code, FString& Why)
 {
 	if (ADPCab::Is(Code)) return G.CabMay(V, Code, Why);
-	const FVehTable* Tb = AGSE::CtlTable(G.Tractors[V].Svc);
+	const FVehTable* Tb = AGSE::CtlTable(G.Tractors[V].CtlKey());
 	return !Tb->MaySwitch || Code == INDEX_NONE || Tb->MaySwitch(G, V, Code, Why);
 }
 
@@ -78,7 +79,7 @@ void AVehicleControls::Note(UWorld* W, const FString& Why)
 void AVehicleControls::CabKey(AServiceDrive* Sd, int32 Code)
 {
 	AVehicleControls* S = Sd ? Get(Sd->GetWorld()) : nullptr; AGSE* G = S ? const_cast<AGSE*>(AGSE::Find(Sd->GetWorld())) : nullptr; if (!G || !G->Tractors.IsValidIndex(Sd->Vehicle())) return;
-	const int32 V = Sd->Vehicle(); const FVehTable* Tb = AGSE::CtlTable(G->Tractors[V].Svc); if (!Tb) return;
+	const int32 V = Sd->Vehicle(); const FVehTable* Tb = AGSE::CtlTable(G->Tractors[V].CtlKey()); if (!Tb) return;
 	const int32 On = Code == ADPCab::IndL || Code == ADPCab::IndR || Code == ADPCab::Beam ? ADPCab::Ind : Code == ADPCab::GearUp || Code == ADPCab::GearDown ? ADPCab::Gear : Code;
 	const int32 c = Tb->Controls.IndexOfByPredicate([On](const FVehControl& C) { return C.bSeat && C.Switch == On; });
 	if (c == INDEX_NONE && Code == ADPCab::Pto) return;   // (it has none)
@@ -92,14 +93,14 @@ bool AVehicleControls::Crew(const AGSE& G, int32 V) const { return G.Tractors[V]
 
 FVector AVehicleControls::At(const AGSE& G, int32 V, const FVehControl& C, FVector* Out) const
 {
-	const AGSE::FTractor& Tv = G.Tractors[V]; const FVehTable* Tb = AGSE::CtlTable(Tv.Svc); const FTransform X = ADPCab::Is(C.Switch) ? FTransform::Identity : Tb->Frame(G, Tv, C.Frame);
+	const AGSE::FTractor& Tv = G.Tractors[V]; const FVehTable* Tb = AGSE::CtlTable(Tv.CtlKey()); const FTransform X = ADPCab::Is(C.Switch) ? FTransform::Identity : Tb->Frame(G, Tv, C.Frame);
 	if (Out) *Out = FRotator(0.f, Tv.Yaw, 0.f).RotateVector(X.TransformVectorNoScale(C.Out)).GetSafeNormal();
 	return G.TW(Tv, X.TransformPosition(G.SvcP(Tv, C.Point)));
 }
 
 float AVehicleControls::Target(AGSE& G, const FVehControl& C, int32 Dir) const
 {
-	const AGSE::FTractor& Tv = G.Tractors[Ti]; const FVehTable* Tb = AGSE::CtlTable(Tv.Svc); const float N = Tb->Now(Tv, C.Motion);
+	const AGSE::FTractor& Tv = G.Tractors[Ti]; const FVehTable* Tb = AGSE::CtlTable(Tv.CtlKey()); const float N = Tb->Now(Tv, C.Motion);
 	float E = C.B;
 	if (C.Kind == FVehControl::Push) E = FMath::Abs(Tb->Now(Tv, C.Motion) - C.A) < FMath::Abs(C.B - C.A) * 0.5f ? C.B : C.A;
 	else if (C.Kind != FVehControl::Hold || C.bTurns)
@@ -114,7 +115,7 @@ float AVehicleControls::Target(AGSE& G, const FVehControl& C, int32 Dir) const
 FString AVehicleControls::Label(AGSE& G, FString& No) const
 {
 	No.Reset(); if (!G.Tractors.IsValidIndex(Ti)) return FString();
-	const AGSE::FTractor& Tv = G.Tractors[Ti]; const FVehTable* Tb = AGSE::CtlTable(Tv.Svc); if (!Tb || !Tb->Controls.IsValidIndex(Ci)) return FString();
+	const AGSE::FTractor& Tv = G.Tractors[Ti]; const FVehTable* Tb = AGSE::CtlTable(Tv.CtlKey()); if (!Tb || !Tb->Controls.IsValidIndex(Ci)) return FString();
 	const FVehControl& C = Tb->Controls[Ci]; const TCHAR* Key = ADPInput::UsingPad() ? TEXT("X") : TEXT("E");
 	const FString Lb = SayOf(G, Tv, C);
 	if (Crew(G, Ti) && !(C.bSeat && G.CabMine(Tv))) No = TEXT("its crew are working with it");
@@ -141,7 +142,7 @@ void AVehicleControls::Find(AGSE& G, APawn& Me)
 	{
 		if (HoldTi != INDEX_NONE && i != HoldTi) continue;   // (its thing in your hand: first back in its place)
 		const AGSE::FTractor& V = G.Tractors[i]; if (!V.M.IsValid() || FVector::DistSquared2D(V.At, From) > FMath::Square(V.KHalfL + 400.f)) continue;
-		const FVehTable* Tb = AGSE::CtlTable(V.Svc); if (!Tb || (Sd ? V.Player.Get() != Sd : V.Player.IsValid())) continue;
+		const FVehTable* Tb = AGSE::CtlTable(V.CtlKey()); if (!Tb || (Sd ? V.Player.Get() != Sd : V.Player.IsValid())) continue;
 		for (int32 c = 0; c < Tb->Controls.Num(); ++c)
 		{
 			const FVehControl& C = Tb->Controls[c]; if (C.bSeat != (Sd != nullptr) || (Sd && (C.bCabin ? i != Sd->Vehicle() || !Sd->InCabin() : !Sd->AtWheel())) || SayOf(G, V, C).IsEmpty()) continue;
@@ -163,22 +164,22 @@ bool AVehicleControls::Interact(APawn* Who)
 	if (S->Ci == INDEX_NONE)
 	{
 		if (S->HoldTi == INDEX_NONE || !G->Tractors.IsValidIndex(S->HoldTi)) return false;
-		const FVehTable* Th = AGSE::CtlTable(G->Tractors[S->HoldTi].Svc); const TCHAR* Nm = Th && Th->Held ? Th->Held(G->Tractors[S->HoldTi]) : nullptr; if (!Nm) return false;
+		const FVehTable* Th = AGSE::CtlTable(G->Tractors[S->HoldTi].CtlKey()); const TCHAR* Nm = Th && Th->Held ? Th->Held(G->Tractors[S->HoldTi]) : nullptr; if (!Nm) return false;
 		FString Not; if (Th->HandSay && !Th->HandSay(*G, G->Tractors[S->HoldTi], Not).IsEmpty()) { S->bSqueeze = true; return true; }
 		S->Text = FString::Printf(TEXT("You have %s in your hand - put it back first"), Nm); S->TextAt = Who->GetWorld()->GetTimeSeconds(); return true;
 	}
 	S->Way = 0; FString No; const FString L = S->Label(*G, No);
 	const bool bSeat = Who->IsA<AServiceDrive>();
-	if (!No.IsEmpty() && (S->Crew(*G, S->Ti) || AGSE::CtlTable(G->Tractors[S->Ti].Svc)->Controls[S->Ci].Kind == FVehControl::Push)) { S->Text = L; S->TextAt = Who->GetWorld()->GetTimeSeconds(); return !bSeat || ADPCab::Is(AGSE::CtlTable(G->Tractors[S->Ti].Svc)->Controls[S->Ci].Switch); }
+	if (!No.IsEmpty() && (S->Crew(*G, S->Ti) || AGSE::CtlTable(G->Tractors[S->Ti].CtlKey())->Controls[S->Ci].Kind == FVehControl::Push)) { S->Text = L; S->TextAt = Who->GetWorld()->GetTimeSeconds(); return !bSeat || ADPCab::Is(AGSE::CtlTable(G->Tractors[S->Ti].CtlKey())->Controls[S->Ci].Switch); }
 	S->User = Who; S->KeyCode = INDEX_NONE; S->Do = EDo::Reach; S->T = 0.f; S->bPushed = S->bEnd = false;
-	if (AADPWalker* Wk = Cast<AADPWalker>(Who)) { Wk->SetLed(true); S->bLedByMe = true; const FVehControl& Cc = AGSE::CtlTable(G->Tractors[S->Ti].Svc)->Controls[S->Ci]; Wk->SetPoint(Cc.Kind <= FVehControl::Hold && !Cc.bGrip); }
+	if (AADPWalker* Wk = Cast<AADPWalker>(Who)) { Wk->SetLed(true); S->bLedByMe = true; const FVehControl& Cc = AGSE::CtlTable(G->Tractors[S->Ti].CtlKey())->Controls[S->Ci]; Wk->SetPoint(Cc.Kind <= FVehControl::Hold && !Cc.bGrip); }
 	return true;
 }
 
 void AVehicleControls::Stop(AGSE& G)
 {
 	// let go: what it moved stops where it is (a push's own motion runs on)
-	const FVehTable* Tb = G.Tractors.IsValidIndex(Ti) ? AGSE::CtlTable(G.Tractors[Ti].Svc) : nullptr;
+	const FVehTable* Tb = G.Tractors.IsValidIndex(Ti) ? AGSE::CtlTable(G.Tractors[Ti].CtlKey()) : nullptr;
 	if (Tb && Tb->Controls.IsValidIndex(Ci) && Do == EDo::Work)
 	{
 		const FVehControl& C = Tb->Controls[Ci]; AGSE::FTractor& V = G.Tractors[Ti];
@@ -189,7 +190,7 @@ void AVehicleControls::Stop(AGSE& G)
 
 void AVehicleControls::Arm(AGSE& G, APawn* Me)
 {
-	const FVehTable* Tb = G.Tractors.IsValidIndex(Ti) ? AGSE::CtlTable(G.Tractors[Ti].Svc) : nullptr; if (!Tb || !Tb->Controls.IsValidIndex(Ci)) return;
+	const FVehTable* Tb = G.Tractors.IsValidIndex(Ti) ? AGSE::CtlTable(G.Tractors[Ti].CtlKey()) : nullptr; if (!Tb || !Tb->Controls.IsValidIndex(Ci)) return;
 	const FVehControl& C = Tb->Controls[Ci]; FVector Out; FVector P = At(G, Ti, C, &Out);
 	if (AServiceDrive* Sd = Cast<AServiceDrive>(Me)) { Sd->SetReach(W, P); return; }
 	AADPWalker* Wk = Cast<AADPWalker>(Me); if (!Wk) return;
@@ -219,7 +220,7 @@ void AVehicleControls::Tick(float Dt)
 		Way = 0; Find(*G, *Me); FString No; Text = Ci == INDEX_NONE ? FString() : Label(*G, No);
 		if ((Ci == INDEX_NONE || bSqueeze) && HoldTi != INDEX_NONE)
 		{
-			const FVehTable* Th = AGSE::CtlTable(G->Tractors[HoldTi].Svc); const FString S = Th && Th->HandSay ? Th->HandSay(*G, G->Tractors[HoldTi], No = FString()) : FString();
+			const FVehTable* Th = AGSE::CtlTable(G->Tractors[HoldTi].CtlKey()); const FString S = Th && Th->HandSay ? Th->HandSay(*G, G->Tractors[HoldTi], No = FString()) : FString();
 			if (!S.IsEmpty()) Text = !No.IsEmpty() ? FString::Printf(TEXT("%s: %s"), *S, *No) : bSqueeze ? S : FString::Printf(TEXT("%s   %s"), ADPInput::UsingPad() ? TEXT("X") : TEXT("E"), *S);
 		}
 		if (Text.IsEmpty()) for (const AGSE::FTractor& V : G->Tractors) if (V.YouOn && GetWorld()->GetTimeSeconds() - V.YouStopAt < 0.5) { Text = FString::Printf(TEXT("The %s waits: you are standing on it"), *V.Name); break; }
@@ -227,7 +228,7 @@ void AVehicleControls::Tick(float Dt)
 	else if (Do == EDo::Climb) { Text.Reset(); AADPWalker* Wk = Cast<AADPWalker>(Me); if (!Wk || !Climb(*G, *Wk, Dt)) { Do = EDo::Back; T = 1.f; W = 0.f; } }
 	else
 	{
-		const FVehTable* Tb = AGSE::CtlTable(G->Tractors[Ti].Svc); const FVehControl& C = Tb->Controls[Ci]; AGSE::FTractor& V = G->Tractors[Ti];
+		const FVehTable* Tb = AGSE::CtlTable(G->Tractors[Ti].CtlKey()); const FVehControl& C = Tb->Controls[Ci]; AGSE::FTractor& V = G->Tractors[Ti];
 		T += Dt;
 		const bool bCrew = Crew(*G, Ti) && !(C.bSeat && G->CabMine(V)), bHeld = VcKey(PC), bFar = !Cast<AServiceDrive>(Me) && FVector::Dist2D(At(*G, Ti, C), Me->GetPawnViewLocation()) > 190.f;   // (seated: in its cab; the pawn's own place is the vehicle's middle)
 		if (Do == EDo::Reach)
@@ -284,7 +285,7 @@ void AVehicleControls::Tick(float Dt)
 		GlowTi = Ti; GlowCi = Ci; Glow.Reset();
 		if (Ci != INDEX_NONE)
 		{
-			const FVehControl& C = AGSE::CtlTable(G->Tractors[Ti].Svc)->Controls[Ci];
+			const FVehControl& C = AGSE::CtlTable(G->Tractors[Ti].CtlKey())->Controls[Ci];
 			TArray<TTuple<UInstancedStaticMeshComponent*, int32, FString>> Fd; if (C.Kind != FVehControl::Hand && *C.Part) G->Tractors[Ti].M->InstancesNamed(C.Part, true, Fd);
 			const FString Pn(C.Part); for (const auto& F : Fd) { const FString& N = F.Get<2>(); if (N.Len() == Pn.Len() || !FChar::IsAlpha(N[Pn.Len()])) Glow.Emplace(F.Get<0>(), F.Get<1>()); }
 		}
@@ -297,7 +298,7 @@ void AVehicleControls::Hull(AGSE& G, APawn* Me, float Dt)
 	// your movement follows its base); it never drives with you on it
 	for (int32 i = 0; i < G.Tractors.Num(); ++i)
 	{
-		AGSE::FTractor& V = G.Tractors[i]; const FVehTable* Tb = AGSE::CtlTable(V.Svc); ABabylonModel* M = V.M.Get(); if (!Tb || !M) continue;
+		AGSE::FTractor& V = G.Tractors[i]; const FVehTable* Tb = AGSE::CtlTable(V.CtlKey()); ABabylonModel* M = V.M.Get(); if (!Tb || !M) continue;
 		AADPWalker* Wk = Cast<AADPWalker>(Me); const bool bFoot = Wk && !Wk->IsHidden();
 		const FVector L = bFoot ? FRotator(0.f, V.Yaw, 0.f).UnrotateVector(VcFeet(*Wk) - V.At) : FVector(1e6);
 		V.YouOn = bFoot && Tb->Aboard && FMath::Abs(L.X) < V.KHalfL + 300.f && FMath::Abs(L.Y) < V.KHalfW + 50.f ? Tb->Aboard(V, L) : 0; V.YouAt = L;
@@ -343,7 +344,7 @@ void AVehicleControls::Carry(AGSE& G, APawn* Me)
 	const int32 Was = HoldTi; HoldTi = INDEX_NONE; AADPWalker* Wk = Cast<AADPWalker>(Me); const bool bFoot = Wk && !Wk->IsHidden() && Wk->GetController();
 	for (int32 i = 0; i < G.Tractors.Num(); ++i)
 	{
-		AGSE::FTractor& V = G.Tractors[i]; const FVehTable* Tb = AGSE::CtlTable(V.Svc); if (!Tb || !Tb->Held || !V.M.IsValid() || !Tb->Held(V)) continue;
+		AGSE::FTractor& V = G.Tractors[i]; const FVehTable* Tb = AGSE::CtlTable(V.CtlKey()); if (!Tb || !Tb->Held || !V.M.IsValid() || !Tb->Held(V)) continue;
 		if (!bFoot) { Tb->Drop(V); continue; }
 		HoldTi = i;
 		const FRotator Look = Wk->GetControlRotation(); const FVector Flat = FRotator(0.f, Look.Yaw, 0.f).Vector(), Sd = FRotator(0.f, Look.Yaw, 0.f).RotateVector(FVector::RightVector), Eye = Wk->GetPawnViewLocation();

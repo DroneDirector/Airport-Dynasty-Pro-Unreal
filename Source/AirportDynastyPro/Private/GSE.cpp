@@ -227,6 +227,20 @@ bool AGSE::SpawnTractor(FTractor& T)
 		// the boom (its belt, its rails, its work lamp) about its lower hinge; the bumper pad on its pin; the two rams
 		T.GBoom = M->BindGroup({TEXT("Boom_"), TEXT("BeltSurface"), TEXT("WorkLamp_")}, true, FTransform(FVector(-320.f, 0.f, 76.f)));
 		T.GBumper = M->BindGroup({TEXT("BumperPad")}, true, FTransform(FVector(386.f, 0.f, 75.5f)));
+		// its controls (make_belt_loader.py; those on the boom as it lies down)
+		T.Pt.Add(TEXT("IK_Hand_BoomLever"), FVector(-34.f, -53.5f, 98.f));
+		T.Pt.Add(TEXT("LD_CabBelt"), FVector(-47.f, -53.5f, 89.4f));
+		T.Pt.Add(TEXT("LD_CabStop"), FVector(34.f, -93.8f, 82.f));
+		T.Pt.Add(TEXT("LD_RearStop"), FVector(-337.f, 0.f, 42.f));
+		T.Pt.Add(TEXT("IK_GearSelect"), FVector(9.4f, -94.5f, 102.6f));
+		T.Pt.Add(TEXT("CAB_Horn"), FVector(2.f, -80.f, 110.f));
+		for (int32 p = 0; p < 2; ++p)
+		{
+			const float X = p ? 320.f : -350.f; const FString Nm = p ? TEXT("LD_T") : TEXT("LD_B");
+			for (int32 k = 0; k < 3; ++k) T.Pt.Add(Nm + FString::FromInt(k), FVector(X - 3.5f, -47.f, 91.f - 4.5f * k));
+			T.Pt.Add(Nm + TEXT("Stop"), FVector(X + 3.f, -47.9f, 83.f)); T.Pt.Add(Nm + TEXT("Lamp"), FVector(X + 3.f, -47.1f, 89.f));
+		}
+		T.GJoy = M->BindGroup({TEXT("CabBoomJoystick")}, true, FTransform(FVector(-34.f, -53.5f, 88.f)));
 		T.GRam[0] = M->BindGroup({TEXT("RamFront_Barrel")}, true, FTransform(FVector(-40.f, 0.f, 42.f)));
 		T.GRam[1] = M->BindGroup({TEXT("RamFront_Rod")}, true, FTransform(FVector(170.f, 0.f, 64.f)));
 		T.GRam[2] = M->BindGroup({TEXT("RamRear_Barrel")}, true, FTransform(FVector(-270.f, 0.f, 42.f)));
@@ -877,7 +891,7 @@ bool AGSE::BusyAt(float StandX) const
 {
 	if (WaitingAt(StandX)) return true;   // (to-do 206: its bags wait for your people)
 	for (const FTractor& T : Tractors)
-		if (T.Svc == INDEX_NONE && FMath::Abs(T.StandX - StandX) < 1.f && (T.Job == EJob::Out || T.Job == EJob::AtStand || T.Job == EJob::Loading))
+		if (T.Svc == INDEX_NONE && FMath::Abs(T.StandX - StandX) < 1.f && (T.LYouX > -1e5f || T.Job == EJob::Out || T.Job == EJob::AtStand || T.Job == EJob::Loading))
 		{
 			// (never holding a departure for ever: a train stuck for 25 minutes lets it go - logged)
 			if (T.JobT > 1500.f) { static TSet<FString> Told; if (!Told.Contains(T.Key)) { Told.Add(T.Key); ADP_WARN(TEXT("GSE: %s's train for %s is late - the departure goes without waiting for it"), *T.Name, *T.Key); } return false; }
@@ -936,7 +950,7 @@ void AGSE::Tick(float Dt)
 		if (T.Until) { if (T.Until()) { T.Until = nullptr; TFunction<void()> F = MoveTemp(T.AfterUntil); T.AfterUntil = nullptr; if (F) F(); } }
 		// (in short steps however long the frame is: the steering is worked out from where it is - long steps overshoot a bend)
 		if (T.Path.Num()) { const int32 Ns = FMath::Clamp(FMath::CeilToInt(Dt / 0.03f), 1, 8); for (int32 n = 0; n < Ns && T.Path.Num(); ++n) { Drive(T, Dt / Ns); Train(T, Dt / Ns); } }
-		if (T.Svc != INDEX_NONE && SvcYours(T) && T.PlayerSeat == 0) { const int32 Ns = FMath::Clamp(FMath::CeilToInt(Dt / 0.03f), 1, 5); for (int32 n = 0; n < Ns; ++n) SvcPlayerDrive(T, FMath::Min(Dt, 0.15f) / Ns); }   // (you drive it: ServiceDrive.cpp)
+		if (SvcYours(T) && T.PlayerSeat == 0) { const int32 Ns = FMath::Clamp(FMath::CeilToInt(Dt / 0.03f), 1, 5); for (int32 n = 0; n < Ns; ++n) SvcPlayerDrive(T, FMath::Min(Dt, 0.15f) / Ns); }   // (you drive it: ServiceDrive.cpp)
 		T.JobT += Dt;
 		CabTick(T, i, Dt); Lamps(T); TractorParts(T, Dt);
 		if (bCheck && (T.Path.Num() || T.Speed > 1.f)) Check(T, i);   // (moving only: a belt loader's bumper on the door sill touches the aircraft on purpose)
@@ -948,7 +962,7 @@ void AGSE::Tick(float Dt)
 		}
 	}
 	for (FCart& C : Carts) CartParts(C, Dt);
-	for (FTractor& T : Tractors) if (T.bLoader) BeltTick(T, Dt);
+	for (int32 i = 0; i < Tractors.Num(); ++i) if (Tractors[i].bLoader) { if (Tractors[i].Job == EJob::None && Tractors[i].M.IsValid()) YouLoader(i, Dt); BeltTick(Tractors[i], Dt); }
 	PollBags(Dt);
 	// (crew plans asked for from inside a crew act)
 	// (bags handed to the arrivals conveyor: gone as its own bag rides off)

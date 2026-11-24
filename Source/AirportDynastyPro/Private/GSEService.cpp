@@ -582,6 +582,7 @@ void AGSE::SvcTick(float Dt)
 
 TFunction<void(float, float, FDriverPose&)> AGSE::SvcSeatFn(int32 Ti, int32 Seat) const
 {
+	if (Tractors[Ti].Svc == INDEX_NONE) return SeatFn(Ti);   // (the belt loader: one seat)
 	const FServiceSpec& S = SvSpec(Tractors[Ti].Svc); const int32 c = Seat - 1 - S.Seats.Num();
 	if (!S.Seats.IsValidIndex(Seat - 1) && !S.Cab.IsValidIndex(c)) return SeatFn(Ti);
 	if (S.bDeicer && S.Cab.IsValidIndex(c)) return DeicerSeatFn(Ti);

@@ -296,7 +296,12 @@ void AServiceDrive::Finish()
 
 namespace
 {
-	const FServiceSpec& SdSpec(int32 i) { return ADPService::All()[i]; }
+	const FServiceSpec& SdSpec(int32 i)
+	{
+		if (i >= 0) return ADPService::All()[i];
+		static const FServiceSpec Ld = [] { FServiceSpec S; S.Label = TEXT("belt loader"); S.PlayerSpeed = 700.f; return S; }();   // (the belt loader: no line of its own in the table)
+		return Ld;
+	}
 	int32 SdCab(const FServiceSpec& S, int32 Seat) { return Seat - 1 - S.Seats.Num(); }   // (the seat's own door: its line in Cab; below 0: the driver's, the crew's)
 	// two boxes on the ground (middle, forward, half sizes), overlapping?
 	bool SdCross(const FVector& A, const FVector& Af, float Al, float Aw, const FVector& B, const FVector& Bf, float Bl, float Bw)
@@ -367,7 +372,7 @@ bool AGSE::SvcRoomAt(int32 Ti, int32 Seat, const AActor* A, const AActor* B) con
 	return !GetWorld()->OverlapBlockingTestByChannel(SvcStandW(Ti, Seat) + FVector(0.f, 0.f, 100.f), FQuat::Identity, ECC_Pawn, FCollisionShape::MakeCapsule(30.f, 70.f), Q);
 }
 
-bool AGSE::SvcYours(const FTractor& T) const { return T.Player.IsValid() && T.Svc != INDEX_NONE && SdCab(SdSpec(T.Svc), T.PlayerSeat) < 0; }
+bool AGSE::SvcYours(const FTractor& T) const { return T.Player.IsValid() && (T.Svc != INDEX_NONE || T.bLoader) && SdCab(SdSpec(T.Svc), T.PlayerSeat) < 0; }
 
 bool AGSE::SvcSeatFree(int32 Ti, int32 Seat, FString& Why) const
 {
@@ -396,7 +401,7 @@ bool AGSE::SvcUse(APawn* Me, FString& Say)
 	int32 Bt = INDEX_NONE, Bs = INDEX_NONE; float Bd = 190.f; bool bLoad = false;
 	for (int32 i = 0; i < Tractors.Num(); ++i)
 	{
-		const FTractor& T = Tractors[i]; if (T.Svc == INDEX_NONE || !T.M.IsValid() || FVector::Dist2D(T.At, At) > T.KHalfL + 300.f || FMath::Abs(T.At.Z - At.Z) > 250.f) continue;
+		const FTractor& T = Tractors[i]; if ((T.Svc == INDEX_NONE && !T.bLoader) || !T.M.IsValid() || FVector::Dist2D(T.At, At) > T.KHalfL + 300.f || FMath::Abs(T.At.Z - At.Z) > 250.f) continue;
 		const FServiceSpec& S = SdSpec(T.Svc); const FVector L = FRotator(0.f, T.Yaw, 0.f).UnrotateVector(At - T.At);
 		if (FVector::DotProduct((T.At + FRotator(0.f, T.Yaw, 0.f).RotateVector(FVector(FMath::Clamp(L.X, -T.KHalfL, T.KHalfL), 0.f, 0.f)) - At).GetSafeNormal2D(), Fw) < 0.2f) continue;   // (facing it)
 		// each door from its own side of the body; the crew's door: its free seat nearest the door
@@ -437,6 +442,7 @@ void AGSE::SvcPlayerDrive(FTractor& T, float Dt)
 	if (!AmbuStowed(T)) bShut = false;   // (never with its legs down, its body up or its tail lift out)
 	if (T.Ct && !CaterStowed(T)) bShut = false;   // (never with its legs down, its body up or anything out)
 	if (!DeicerShut(T)) bShut = false;   // (never with its boom up, a panel open, a valve off or a stop pressed)
+	if (T.bLoader && (T.Boom != 0.f || T.BoomWant != 0.f || T.bBelt || T.bLStop || T.BeltBags.Num())) bShut = false;   // (never with its boom up, its belt on, a bag on it or a stop pressed)
 	if (T.Ps && !StairsStowed(T)) bShut = false;   // (never with its legs down or its stairs up)
 	float Go = bShut ? D->Throttle() : 0.f, Br = D->Brake();
 	// (backwards: the brake held at a standstill)

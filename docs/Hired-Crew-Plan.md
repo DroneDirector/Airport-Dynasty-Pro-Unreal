@@ -452,6 +452,11 @@ riders `Data/ambulift-riders.json`, `Data/wheelchair-riders.json`, all points an
 - Merged (hand goes there, nothing moves): panel and cabin buttons, both stops. Missing: cab stop, outriggers, tank levels, cabin horn button. Coupling caps left shut (their turning axis not checked); the reel does not turn.
 - Weather: no call in plain rain above 0 C, except rain on an aircraft on blocks for under 60 min (up to +10 C, dew point within 2.5). Frost below -10 C: no holdover, looked over again at departure. What lies on each aircraft is counted from its arrival (`OnIt`, rates ours, not saved: after loading taken from the snow on the ground). Holdover minutes NOT checked against FAA 2026-27.
 - Icing weather: two-minute look-over as a task line before the doors (`icecheck`), the flight waits; nobody is seen doing it (no walk-round exists). Open: TugCrew.cpp:910 still also de-ices by timer.
+- Belt loader by hand (to-do 238, GSELoaderYou.cpp): compiled, not run. You drive it; boom by the cab joystick (stops at the
+  sill, says how far the bulk door is), belt forward / stop / back on both panels, cab belt switch, four stops (one circuit),
+  work lamp. Boom only parked, nobody on or under it, no bag on the belt; no driving unless stowed and the belt off.
+  Yours at the bulk door counts in LoaderAt and BusyAt; a crew go on after 2 min and 40 m, or when its train waits for it.
+  Left: walking up the belt, bags by your own hands, belt and panel buttons that move (parts not bound).
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 

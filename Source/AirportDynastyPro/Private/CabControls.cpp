@@ -21,7 +21,7 @@ namespace
 	const FVector CabAxis(-0.7071, 0., 0.7071);
 }
 
-bool AGSE::CabMine(const FTractor& T) const { return T.Svc != INDEX_NONE && T.Player.IsValid() && T.PlayerSeat == 0; }
+bool AGSE::CabMine(const FTractor& T) const { return (T.Svc != INDEX_NONE || T.bLoader) && T.Player.IsValid() && T.PlayerSeat == 0; }
 
 void AGSE::CabDress(FTractor& T)
 {
@@ -45,7 +45,7 @@ void AGSE::CabAdd(FVehTable& Tb, int32 Svc)
 	bool bHorn = false; for (const K& C : Tb.Controls) if (C.Switch == ADPCab::Horn) bHorn = true;
 	Add(CabPart[0], TEXT("IK_ParkBrake"), TEXT("Park brake"), ADPCab::Park, true);
 	Add(CabPart[1], TEXT("IK_GearSelect"), TEXT("Gear selector"), ADPCab::Gear, true);
-	if (ADPService::All()[Svc].bAmbu || ADPService::All()[Svc].bDeicer) Add(CabPart[2], TEXT("IK_PtoLever"), TEXT("Power take-off"), ADPCab::Pto, true);
+	if (Svc >= 0 && (ADPService::All()[Svc].bAmbu || ADPService::All()[Svc].bDeicer)) Add(CabPart[2], TEXT("IK_PtoLever"), TEXT("Power take-off"), ADPCab::Pto, true);
 	if (!bHorn) Add(TEXT(""), TEXT("CAB_Horn"), TEXT("Horn"), ADPCab::Horn, false);
 	Add(TEXT(""), TEXT("CAB_StalkL"), TEXT("Indicators"), ADPCab::Ind, false);
 	Add(TEXT(""), TEXT("CAB_StalkR"), TEXT("Wipers"), ADPCab::Wiper, false);
@@ -132,7 +132,7 @@ void AGSE::CabLeave(FTractor& T)
 
 void AGSE::CabTick(FTractor& T, int32 Ti, float Dt)
 {
-	if (T.Svc == INDEX_NONE) return;
+	if (T.Svc == INDEX_NONE && !T.bLoader) return;
 	if (CabMine(T)) { if (!T.bGearHand) T.Gear = T.bReverse ? -1 : 1; }
 	else if (T.Job != EJob::None || T.Path.Num())
 	{

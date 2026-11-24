@@ -123,6 +123,10 @@ public:
 		FString SndStart, SndLoop, SndStop, SndDoorOpen, SndDoorClose, SndBeep;
 		// the belt loader: its boom (0 down .. -20.5 deg up), the rams, the bumper, the belt running
 		float Boom = 0.f, BoomWant = 0.f; bool bBelt = false;
+		// (worked by you, GSELoaderYou.cpp: the belt back, a stop pressed; the stand whose bulk door it is at, how far that is)
+		bool bBeltBack = false, bLStop = false, bLNear = false; int32 GJoy = INDEX_NONE; float JoyNow = 0.f;
+		float LYouX = -1e6f, LLeftT = 0.f, LDockT = 0.f, LWaitT = 0.f, LAhead = 0.f, LAside = 0.f, LTurn = 0.f;
+		int32 CtlKey() const { return bLoader ? -2 : Svc; }   // (its line of controls)
 		int32 GBoom = INDEX_NONE, GBumper = INDEX_NONE, GRam[4] = {INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE};
 		UAudioComponent* BeltSnd = nullptr; UAudioComponent* BoomSnd = nullptr;
 		int32 TopCrew = INDEX_NONE;       // the loader up at the hold door
@@ -175,6 +179,13 @@ private:
 	static TSharedPtr<FVehTable> ToiletControls();
 	static TSharedPtr<FVehTable> CaterControls();
 	static TSharedPtr<FVehTable> StairsControls();
+	/** The belt loader worked by you (GSELoaderYou.cpp). Held: the boom stands (somebody on it or under it). Free: a crew may have it. */
+	static TSharedPtr<FVehTable> LoaderControls();
+	bool LoaderHeld(const FTractor& T, float To) const;
+	bool LoaderFree(const FTractor& T) const;
+	void YouLoader(int32 Li, float Dt);
+	void LoaderTake(int32 Li, const FString& Key, bool bTrain);
+	void LoaderBelt(FTractor& T, int32 Way);
 	static TSharedPtr<FVehTable> DeicerControls();
 	void YouCater(FTractor& T, float Dt);
 	bool CaterStowed(const FTractor& T) const;

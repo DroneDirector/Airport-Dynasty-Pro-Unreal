@@ -106,7 +106,7 @@ void AGSE::WantTick(float Dt)
 		int32 Ti = INDEX_NONE, A = INDEX_NONE, B = INDEX_NONE;
 		if (W.Kind != EWant::Loader && !FindTrain(Ti, A, B)) { W.Why = TEXT("no baggage tractor and carts free"); continue; }
 		int32 Li = LoaderAt(W.StandX); const bool bNeedLoader = Li == INDEX_NONE;
-		if (bNeedLoader) for (int32 i = 0; i < Tractors.Num() && Li == INDEX_NONE; ++i) if (Tractors[i].bLoader && Tractors[i].Job == EJob::None && Tractors[i].M.IsValid()) Li = i;
+		if (bNeedLoader) for (int32 i = 0; i < Tractors.Num() && Li == INDEX_NONE; ++i) if (LoaderFree(Tractors[i])) Li = i;
 		if (Li == INDEX_NONE) { W.Why = TEXT("no belt loader free"); continue; }
 		const EStaffTask Task = W.Kind == EWant::Loader ? EStaffTask::Loader : bNeedLoader ? EStaffTask::Bags : W.Kind == EWant::Arr ? EStaffTask::BagsIn : EStaffTask::BagsOut;
 		// (ahead of the same flight's pushback in the queue: the bags come first, a loader its train waits for before all)

@@ -77,7 +77,12 @@ void AGSE::LoaderParts(FTractor& T, float Dt)
 	ABabylonModel* M = T.M.Get(); if (!M) return;
 	// the boom: raised or lowered by its two rams (~2.2 deg/s: the sill in about 4 s), its sounds; the bumper pad hanging
 	// upright on its pin; each ram's barrel turned about its base, its rod's eye kept on the boom
-	if (!FMath::IsNearlyEqual(T.Boom, T.BoomWant, 0.01f))
+	const bool bMove = !FMath::IsNearlyEqual(T.Boom, T.BoomWant, 0.01f), bHeld = bMove && LoaderHeld(T, T.BoomWant);
+	if (bHeld) { if (T.Job == EJob::None) T.BoomWant = T.Boom; if (T.BoomSnd) { T.BoomSnd->Stop(); T.BoomSnd = nullptr; } }
+	// (its joystick goes with it)
+	const float Joy = !bMove || bHeld ? 0.f : T.BoomWant < T.Boom ? 18.f : -18.f;
+	if (T.GJoy != INDEX_NONE && T.JoyNow != Joy) { T.JoyNow = FMath::FInterpConstantTo(T.JoyNow, Joy, Dt, 120.f); M->MoveGroup(T.GJoy, FTransform(FQuat(FVector::RightVector, FMath::DegreesToRadians(T.JoyNow)), FVector(-34.f, -53.5f, 88.f))); }
+	if (bMove && !bHeld)
 	{
 		if (!T.BoomSnd)
 		{
@@ -114,7 +119,7 @@ void AGSE::LoaderParts(FTractor& T, float Dt)
 
 int32 AGSE::LoaderAt(float StandX) const
 {
-	for (int32 i = 0; i < Tractors.Num(); ++i) if (Tractors[i].bLoader && Tractors[i].Job != EJob::None && FMath::Abs(Tractors[i].StandX - StandX) < 1.f) return i;
+	for (int32 i = 0; i < Tractors.Num(); ++i) if (Tractors[i].bLoader && (Tractors[i].Job != EJob::None || Tractors[i].LYouX > -1e5f) && FMath::Abs(Tractors[i].StandX - StandX) < 1.f) return i;
 	return INDEX_NONE;
 }
 
@@ -123,7 +128,7 @@ void AGSE::EnsureLoader(float StandX, const FString& Key)
 	if (LoaderAt(StandX) != INDEX_NONE) return;
 	if (PreLoader == INDEX_NONE && HiredFlight(Key, StandX)) { AddWant(EWant::Loader, Key, StandX); return; }   // (to-do 206: your people - asked for in the queue, GSEStaff.cpp)
 	float S = 0.f, N = 0.f, Sp = 36.f; if (!StandGeo(StandX, S, N, Sp) || Sp > 40.f) return;   // (the A320 stands: its bulk door)
-	int32 Li = INDEX_NONE; for (int32 i = 0; i < Tractors.Num() && Li == INDEX_NONE; ++i) if (Tractors[i].bLoader && Tractors[i].Job == EJob::None && Tractors[i].M.IsValid()) Li = i;
+	int32 Li = INDEX_NONE; for (int32 i = 0; i < Tractors.Num() && Li == INDEX_NONE; ++i) if (LoaderFree(Tractors[i])) Li = i;
 	if (Li == INDEX_NONE) { ADP_LOG(TEXT("GSE: no belt loader free for the stand x %.0f"), S); return; }
 	FTractor& L = Tractors[Li];
 	const int32 Ci = Borrow(L.At, &PreLoader);
