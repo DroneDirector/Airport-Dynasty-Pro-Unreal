@@ -94,7 +94,7 @@ void AGSE::CabSwitch(int32 Ti, int32 Code)
 	case ADPCab::GearUp: Shift(T.Gear + 1); break;
 	case ADPCab::GearDown: Shift(T.Gear - 1); break;
 	case ADPCab::Pto: T.bPto = !T.bPto; T.PtoT = 0.f; break;
-	case ADPCab::Horn: Sound(TEXT("BTHorn"), TW(T, FVector(T.KCentreX + T.KHalfL, 0.f, 80.f))); break;   // (the electric tractor's: no other one yet)
+	case ADPCab::Horn: Sound(*T.SndHorn, TW(T, FVector(T.KCentreX + T.KHalfL, 0.f, 80.f))); break;   // (its own: the electric tractor's, or the diesel belt loader's for the diesel ones - GSELoader/GSEService)
 	case ADPCab::Ind: T.Sig = T.Sig == 0 ? 1 : T.Sig > 0 ? -1 : 0; T.bSigArmed = false; break;
 	case ADPCab::IndL: T.Sig = T.Sig > 0 ? 0 : 1; T.bSigArmed = false; break;
 	case ADPCab::IndR: T.Sig = T.Sig < 0 ? 0 : -1; T.bSigArmed = false; break;

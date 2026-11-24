@@ -123,7 +123,10 @@ public:
 		TArray<FSvcItem> SvcItems;        // (as the table's items: in their place, or in somebody's right hand)
 		FVector KWheel[4], KKing[2], KHinge, KWheelC, KStand, KHandle, KStep, KGrabOut, KGrabIn, KSeat, KBrake, KAccel, KHandL, KHandR;
 		float KRadF = 26.f, KRadR = 31.f, KWB = 158.f, KTrack = 112.f, KFloor = 62.f, KHalfL = 171.f, KHalfW = 72.f, KCentreX = 3.f, KTurnR = 300.f, KMaxSteer = 32.f;
-		FString SndStart, SndLoop, SndStop, SndDoorOpen, SndDoorClose, SndBeep;
+		FString SndStart, SndLoop, SndStop, SndDoorOpen, SndDoorClose, SndBeep, SndHorn = TEXT("BTHorn");
+		// the real lights its lenses throw (AGSE::BuildBeams): one per lamp group (kind, side, front/back), on with the group's lens
+		struct FBeam { TWeakObjectPtr<class ULocalLightComponent> L; int32 Lens = INDEX_NONE; float Full = 0.f; float Now = -1.f; };
+		TArray<FBeam> Beams;
 		// the belt loader: its boom (0 down .. -20.5 deg up), the rams, the bumper, the belt running
 		float Boom = 0.f, BoomWant = 0.f; bool bBelt = false;
 		// (worked by you, GSELoaderYou.cpp: the belt back, a stop pressed; the stand whose bulk door it is at, how far that is)
@@ -332,6 +335,7 @@ private:
 	FVector Plan(float X, float Y) const;
 	FVector PlanPose(float X, float Y, float Hx, float Hy, float& Yaw) const;
 	bool SpawnTractor(FTractor& T);
+	void BuildBeams(FTractor& T);
 	bool SpawnCart(FCart& C);
 	FVector TW(const FTractor& T, const FVector& Local) const;
 	FVector CW(const FCart& C, const FVector& Local) const;

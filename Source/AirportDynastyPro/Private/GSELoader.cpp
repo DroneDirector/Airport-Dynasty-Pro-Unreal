@@ -63,7 +63,7 @@ void AGSE::SetKind(FTractor& T, bool bLoader) const
 	T.KGrabOut = FVector(-88.f, -113.5f, 141.f); T.KGrabIn = FVector(50.f, -98.5f, 150.f); T.KSeat = FVector(-48.f, -80.f, 75.f);
 	T.KBrake = FVector(24.f, -97.f, 60.f); T.KAccel = FVector(24.f, -63.f, 60.f); T.KHandL = FVector(7.66f, -93.86f, 115.66f); T.KHandR = FVector(7.66f, -66.14f, 115.66f);
 	T.KRadF = 34.f; T.KRadR = 34.f; T.KWB = 330.f; T.KTrack = 160.f; T.KFloor = 45.f; T.KHalfL = 392.f; T.KHalfW = 108.f; T.KCentreX = 9.f; T.KTurnR = 550.f; T.KMaxSteer = 30.f;
-	T.SndStart = TEXT(""); T.SndLoop = TEXT("BLDriveLoop"); T.SndStop = TEXT(""); T.SndDoorOpen = TEXT("BLDoorOpen"); T.SndDoorClose = TEXT("BLDoorClose"); T.SndBeep = TEXT("BLReverseBeep");
+	T.SndStart = TEXT(""); T.SndLoop = TEXT("BLDriveLoop"); T.SndStop = TEXT(""); T.SndDoorOpen = TEXT("BLDoorOpen"); T.SndDoorClose = TEXT("BLDoorClose"); T.SndBeep = TEXT("BLReverseBeep"); T.SndHorn = TEXT("BLHorn");
 }
 
 FVector AGSE::BoomW(const FTractor& T, const FVector& BoomLocal) const

@@ -13,6 +13,8 @@
 #include "Engine/World.h"
 #include "Components/AudioComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Components/SpotLightComponent.h"
+#include "Components/PointLightComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/CommandLine.h"
@@ -212,6 +214,7 @@ bool AGSE::SpawnTractor(FTractor& T)
 				if (FCString::Strcmp(Wh.Name, TEXT("BoxLight")) == 0) L.Side = 2;   // (inside: its own switch)
 				T.Lenses.Add(L); }
 	}
+	BuildBeams(T);
 	// the moving parts
 	for (int32 w = 0; w < 4; ++w)
 	{
@@ -364,10 +367,88 @@ void AGSE::Lamps(FTractor& T)
 		}
 		if (V != L.Now && L.K) { L.Now = V; L.K->SetCustomDataValue(L.Ix, 0, V, true); }
 	}
+	// the real lights: on with their group's lens (the dipped beams whole while lit; the rest as bright as their lens)
+	for (FTractor::FBeam& B : T.Beams)
+	{
+		ULocalLightComponent* Lc = B.L.Get(); if (!Lc || !T.Lenses.IsValidIndex(B.Lens)) continue;
+		const FLens& Ln = T.Lenses[B.Lens]; const float V = FMath::Max(Ln.Now, 0.f);
+		const float S = Ln.Kind == GLow ? (V > 0.01f ? 1.f : 0.f) : FMath::Clamp(V, 0.f, 1.f);
+		if (S == B.Now) continue;
+		B.Now = S;
+		if (S > 0.f) Lc->SetIntensity(B.Full * S);
+		Lc->SetVisibility(S > 0.f);
+	}
 	if (bBack && !T.Beep && T.M.IsValid())
 		T.Beep = UGameplayStatics::SpawnSoundAttached(GseSnd(*T.SndBeep), T.M->GetRootComponent(), NAME_None, FVector(-150.f, 0, 80.f), EAttachLocation::KeepRelativeOffset, false, 0.6f, 1.f, 0.f, GseAtt(), nullptr, false);
 	if (!bBack && T.Beep) { T.Beep->Stop(); T.Beep = nullptr; }
 	if (T.Motor) { T.Motor->SetPitchMultiplier(0.85f + FMath::Clamp(T.MeasSpeed / 4.2f, 0.f, 1.f) * 0.45f); T.Motor->SetVolumeMultiplier(0.45f + FMath::Clamp(T.MeasSpeed / 4.2f, 0.f, 1.f) * 0.5f); }
+}
+
+void AGSE::BuildBeams(FTractor& T)
+{
+	// the real light the lamps throw, beside their lenses' glow (the fire truck's way, FireTruck.cpp BuildLamps): the
+	// headlamps' beams on the ground ahead, the reversing lamps' behind, the work lamps' flood beside it, the beacons'
+	// and blue lights' flashes round about. One light per lamp group (kind, side, front/back), set clear of the bodywork,
+	// no shadows, gone beyond its draw distance. Tail, brake, marker and indicator lamps: the lens only (they barely
+	// light the ground). Actor space: +x forward.
+	ABabylonModel* M = T.M.Get(); if (!M || T.Lenses.Num() == 0) return;
+	USceneComponent* Root = M->GetRootComponent(); if (!Root) return;
+	const FTransform A = M->GetActorTransform();
+	struct FG { uint8 Kind = 0; int8 Side = 0, Sy = 0, Sx = 0; FVector Sum = FVector::ZeroVector; int32 N = 0, First = INDEX_NONE; };
+	TArray<FG> Gs;
+	for (int32 i = 0; i < T.Lenses.Num(); ++i)
+	{
+		const FLens& L = T.Lenses[i];
+		if (L.Kind != GLow && L.Kind != GHigh && L.Kind != GReverse && L.Kind != GBeacon && L.Kind != GBlue && L.Kind != GWork) continue;
+		FTransform X; if (!L.K || !L.K->GetInstanceTransform(L.Ix, X, true)) continue;
+		const FVector P = A.InverseTransformPosition(X.GetLocation());
+		const int8 Sy = L.Kind == GBeacon ? 0 : P.Y < 0.f ? -1 : 1, Sx = P.X < 0.f ? -1 : 1;
+		FG* G = Gs.FindByPredicate([&](const FG& g) { return g.Kind == L.Kind && g.Side == L.Side && g.Sy == Sy && g.Sx == Sx; });
+		if (!G) { G = &Gs.AddDefaulted_GetRef(); G->Kind = L.Kind; G->Side = L.Side; G->Sy = Sy; G->Sx = Sx; G->First = i; }
+		G->Sum += P; ++G->N;
+	}
+	const FLinearColor White(1.f, 0.96f, 0.9f), Amber(1.f, 0.45f, 0.03f), Blue(0.03f, 0.12f, 1.f), Warm(1.f, 0.9f, 0.75f);
+	int32 Spots = 0, Points = 0;
+	for (const FG& G : Gs)
+	{
+		const FVector P = G.Sum / float(G.N);
+		ULocalLightComponent* L = nullptr; FVector At = P; FLinearColor Col = White; float Lm = 0.f, Rad = 0.f, Draw = 0.f;
+		auto Spot = [&](const FRotator& R, float Outer, float Inner) { USpotLightComponent* S = NewObject<USpotLightComponent>(M); S->SetRelativeRotation(R); S->SetOuterConeAngle(Outer); S->SetInnerConeAngle(Inner); ++Spots; return S; };
+		switch (G.Kind)
+		{
+		case GLow:   // (dipped: a wide beam a few degrees down, onto the apron ahead)
+			L = Spot(FRotator(-6.f, G.Sx < 0 ? 180.f : 0.f, 0.f), 36.f, 20.f); At = P + FVector(G.Sx * 45.f, 0.f, 0.f); Lm = 3200.f; Rad = 5500.f; Draw = 15000.f;
+			L->SetVolumetricScatteringIntensity(0.25f); break;
+		case GHigh:  // (main: narrower, brighter, further)
+			L = Spot(FRotator(-1.5f, G.Sx < 0 ? 180.f : 0.f, 0.f), 15.f, 6.f); At = P + FVector(G.Sx * 45.f, 0.f, 0.f); Lm = 9000.f; Rad = 16000.f; Draw = 25000.f;
+			L->SetVolumetricScatteringIntensity(0.25f); break;
+		case GReverse:   // (backing: a short wide pool on the ground behind)
+			L = Spot(FRotator(-14.f, G.Sx < 0 ? 180.f : 0.f, 0.f), 50.f, 30.f); At = P + FVector(G.Sx * 30.f, 0.f, 0.f); Lm = 700.f; Rad = 1200.f; Draw = 8000.f; break;
+		case GBeacon:    // (the amber flash on the ground and the things round it)
+			L = NewObject<UPointLightComponent>(M); ++Points; Col = Amber; At = P + FVector(0.f, 0.f, 10.f); Lm = 500.f; Rad = 750.f; Draw = 10000.f; break;
+		case GBlue:
+			L = NewObject<UPointLightComponent>(M); ++Points; Col = Blue; At = P + FVector(G.Sx * 20.f, 0.f, 0.f); Lm = 600.f; Rad = 850.f; Draw = 12000.f; break;
+		case GWork:
+			if (G.Side == 2) { L = NewObject<UPointLightComponent>(M); ++Points; Col = Warm; Lm = 250.f; Rad = 300.f; Draw = 4000.f; break; }   // (inside the box)
+			{	// (a flood out from the body, down onto the ground beside it)
+				FVector D(P.X - T.KCentreX, P.Y, 0.f); if (!D.Normalize()) D = FVector(-1.f, 0.f, 0.f);
+				L = Spot(FRotator(-35.f, D.Rotation().Yaw, 0.f), 60.f, 35.f); Col = Warm; At = P + D * 30.f; Lm = 2000.f; Rad = 1200.f; Draw = 8000.f;
+			}
+			break;
+		default: break;
+		}
+		if (!L) continue;
+		L->SetupAttachment(Root);
+		L->SetRelativeLocation(At);
+		L->SetIntensityUnits(ELightUnits::Lumens); L->SetIntensity(Lm);
+		L->SetLightColor(Col); L->SetAttenuationRadius(Rad);
+		L->SetCastShadows(false);
+		L->MaxDrawDistance = Draw; L->MaxDistanceFadeRange = Draw * 0.25f;
+		L->SetVisibility(false);
+		L->RegisterComponent(); M->AddInstanceComponent(L);
+		FTractor::FBeam B; B.L = L; B.Lens = G.First; B.Full = Lm; T.Beams.Add(B);
+	}
+	if (Gs.Num()) ADP_LOG(TEXT("GSE: %s - %d lamp lights (%d beams, %d round) beside its lenses' glow"), *T.Name, Spots + Points, Spots, Points);
 }
 
 void AGSE::TractorParts(FTractor& T, float Dt)
