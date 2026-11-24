@@ -21,6 +21,7 @@
 #include "Tugs.h"
 #include "Components/BoxComponent.h"
 #include "GSE.h"
+#include "Turnaround.h"
 #include "StaffPeople.h"
 #include "Misc/PackageName.h"
 #include "People.h"
@@ -911,6 +912,8 @@ void ATugs::SeqTick(FTug& T, float Dt)
 	const bool bTraffic = Planes.Num() > 1;
 	const FString Gnd = ADPSite::Name(ADPSite::Id()).Replace(TEXT(" Airport"), TEXT("")) + TEXT(" Ground");
 	auto Next = [&T](int32 S, float Wait = -1.f) { T.Seq = S; T.SeqT = 0.f; T.SeqWait = Wait >= 0.f ? Wait : FMath::FRandRange(2.f, 5.f); };
+	const ADPTurnaround::FTurn* Own = ADPTurnaround::AtStand(T.StandX); const AGSE* Ice = AGSE::Find(GetWorld());
+	const bool bTruck = Own && Own->bMine && Ice && Ice->SvcFor(TEXT("deice"), T.StandX);
 	switch (T.Seq)
 	{
 	case 1: // step 2: the headset plugged in - the interphone check
@@ -923,7 +926,8 @@ void ATugs::SeqTick(FTug& T, float Dt)
 		Next(T.bCleared ? 5 : 3); break;   // (cleared before the tug came out: straight to brakes released)
 	case 3: // step 4: the pilot asks ATC - ATC answers in 10-60 s (longer with traffic)
 		// (icing: de-iced on the stand first - simulated with its real time, 10-15 min, until the de-icing truck exists)
-		if (bIcing && !T.bDeiced && !FParse::Param(FCommandLine::Get(), TEXT("TugQuick")))
+		// (your own flight with your hired de-icing crew: the truck does it, and the flight only comes here after it)
+		if (bIcing && !T.bDeiced && !bTruck && !FParse::Param(FCommandLine::Get(), TEXT("TugQuick")))
 		{
 			T.bDeiced = true;
 			Say(T, 1, FString::Printf(TEXT("%s, %s, information %s, request de-icing on stand before pushback."), *Gnd, *Cs, *Info), true);
