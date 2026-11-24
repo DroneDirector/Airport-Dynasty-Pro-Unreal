@@ -7,6 +7,7 @@
 #include "ParkedAircraft.h"
 #include "JetwayRigs.h"
 #include "ADPLog.h"
+#include "ADPGameMode.h"
 #include "PerfLog.h"
 #include "BabylonModel.h"
 #include "AircraftLights.h"
@@ -159,7 +160,19 @@ void ASimTraffic::Sync()
 {
 	UADPSim* Sim = UADPSim::Get(this);
 	if (!Sim || !Sim->IsRunning()) return;
-	ATugs::Get(GetWorld());   // (the ground crew, the tugs, the tractors and the ground power at their places from the start, not only once a flight calls for them)
+	// the whole ground fleet is placed in one frame (seconds, a minute with a cold editor cache): not while the roads and the land
+	// are still being built under the loading screen - that long frame timed out the web game page that was still connecting
+	// (no career saved, Continue had nothing to load; 2026-11-24) - only 5 s after the late world is in
+	if (!ADPLateWorld::Started() || ADPLateWorld::Done())
+	{
+		const double TNow = FPlatformTime::Seconds();
+		if (FleetAt <= 0.0) FleetAt = TNow + (ADPLateWorld::Started() ? 5.0 : 0.0);
+		if (TNow >= FleetAt && !AGSE::Find(GetWorld()))
+		{
+			ADP_LOG(TEXT("Traffic: the ground fleet goes to its places now (the late world is in)"));
+		}
+		if (TNow >= FleetAt) ATugs::Get(GetWorld());   // (the ground crew, the tugs, the tractors and the ground power at their places from the start, not only once a flight calls for them)
+	}
 	const FString Here = ADPBoards::HereIcao();
 	const FDateTime Now = Sim->Now();
 	const bool bToX1 = RunwayToX1();

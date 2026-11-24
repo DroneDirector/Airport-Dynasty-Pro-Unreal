@@ -73,6 +73,7 @@ private:
 	TSet<FString> ParkedRegs;   // the parked aircraft standing now (their SIM/<reg> tags), looked up once a second
 	float ParkPoll = 1.f;
 	void Sync();
+	double FleetAt = 0.0;   // (when the late world was in: the ground fleet is placed 5 s later, 2026-11-24)
 	bool Advance(FMove& M, float Dt);
 	void Pose(FMove& M);
 	void AddLights(FMove& M);
