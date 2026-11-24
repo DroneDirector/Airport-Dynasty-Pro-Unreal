@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GSEFuel.h"   // FSvcPay
 
 class UCableComponent;
 
@@ -18,6 +19,7 @@ struct FSvcWet
 	TArray<int32> GTurn;
 	UCableComponent *Hose = nullptr, *RinseHose = nullptr;
 	float Lift = 0.f, LiftWant = 0.f, Gate = 0.f, GateWant = 0.f, Valve = 0.f, ValveWant = 0.f, Tray = 0.f, TrayWant = 0.f, Reel = 0.f, OutWas = 0.f;
+	int32 GFill = INDEX_NONE; float Fill = 0.f, FillWant = 0.f, Tank = 2500.f, Litres = 0.f; FSvcPay Line;   // (water: the fill valve, its tank, what you gave, the hose you pulled)
 	FVector Couple = FVector::ZeroVector;   // (the aircraft's coupling, root cm)
 	int32 Ci = INDEX_NONE;
 };

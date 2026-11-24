@@ -421,7 +421,11 @@ riders `Data/ambulift-riders.json`, `Data/wheelchair-riders.json`, all points an
 - Defuel lever + start: takes back only what you pumped into that aircraft (aircraft have no fuel quantity). Tank 20,000 l, refilled as before by the box.
 - Extinguishers: take, carry, put back. `FuelStowed`, `Drop`, `Stow`, `Leash` cover all of it.
 - Not in the model, so not built: fill coupling and lever, charge flap, ticket button; manhole lids are merged with the tank fittings and there is no way up; no fuel depot exists. Button FLOW works the work lights.
-- Still open: gear selector, park brake, cab switches, glove box; water truck's own rest.
+- Still open: gear selector, park brake, cab switches, glove box.
+- Water truck, the rest (compiled, NOT run): hose pulled off by hand at its guide, wound in by the rewind button (hold E, `FSvcPay`); fill lever behind its door (turns about z, 70 deg outwards), tank 2500 l, filled in its box only, 30 s as its crew's.
+- Pump buttons' prompts show litres given and tank (50 l/min, stops when empty); fill valve, coupling, pump and emergency stop lock each other; `WaterStowed` / `Stow` cover hose, valve, door.
+- Body boxes measured on the GLB; the steps are solid treads and count as standing on it.
+- Water truck, merged in the model, so not built: gauges, LCD, sinking buttons, fill cap, glove box, manholes, charge flap. FLOW on the fuel truck: wrong word on the work-light button (make_refueller.py 329), model job.
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 

@@ -32,7 +32,7 @@ namespace
 	const FVector WaWant[2] = {FVector(-240.f, -30.f, 293.f), FVector(-212.f, 5.f, 313.f)};     // (where they are from the truck in its place)
 	const FVector WaWork[2] = {FVector(-240.f, 6.f, 0.f), FVector(-246.f, 4.f, 0.f)};           // (where the driver stands on the platform for them)
 	const float WaRinseY = 22.f, WaGiveUp = 2400.f;   // (the rinse nipple beside the drain; 40 min of waiting for the place)
-	const float WaFill = 240.f, WaDrain = 240.f, WaRinseS = 120.f;   // (200 l at 50 l a minute)
+	const float WaRate = 50.f / 60.f, WaFill = 240.f, WaDrain = 240.f, WaRinseS = 120.f;   // (200 l at 50 l a minute)
 	float WaFloor(const FSvcWet& F) { return F.bToilet ? 62.f + F.Lift : 100.f; }
 	FQuat WaRot(const FVector& Ax, float Deg) { return FQuat(Ax, FMath::DegreesToRadians(Deg)); }
 }
@@ -58,6 +58,7 @@ void AGSE::WetDress(FTractor& T)
 	else
 	{
 		Thing(FSvcWet::Main, TEXT("Coupling"), TEXT("PIV_Coupling"), TEXT("IK_Coupling_Hand"));
+		F.GFill = Pre(TEXT("Lever_Fill"), SvcP(T, TEXT("PIV_Lever_Fill")));
 		F.GValve = Pre(TEXT("Lever_Valve"), SvcP(T, TEXT("PIV_Lever_Valve"))); F.GReel = Pre(TEXT("HoseReel"), ReelP); F.GTail = Pre(TEXT("HoseTail"), SvcP(T, TEXT("IK_HoseOut")));
 	}
 	for (int32 i = 0; i < (bT ? 15 : 14); ++i) F.GTurn.Add(Pre(FString::Printf(TEXT("%s%02d"), *Turns, i), ReelP));
@@ -76,8 +77,9 @@ void AGSE::WetDress(FTractor& T)
 
 void AGSE::WetParts(FTractor& T, float Dt)
 {
-	ABabylonModel* M = T.M.Get(); if (!M || !T.Wa || !T.Wa->bLive) return;
-	FSvcWet& F = *T.Wa; const bool bT = F.bToilet;
+	ABabylonModel* M = T.M.Get(); if (!M || !T.Wa) return;
+	FSvcWet& F = *T.Wa; const bool bT = F.bToilet; if (!T.bUsed) F.Tank = 2500.f;   // (filled up in its box)
+	if (!F.bLive) return;
 	auto Put = [M](int32 G, const FTransform& X) { if (G != INDEX_NONE) M->MoveGroup(G, X); };
 	auto Show = [](const FVector& P, bool b) { return FTransform(FQuat::Identity, P, b ? FVector::OneVector : FVector(0.001f)); };
 	const FTransform Root(FRotator(0.f, T.Yaw, 0.f), T.At); const FVector Side = FVector::RightVector;
@@ -92,6 +94,12 @@ void AGSE::WetParts(FTractor& T, float Dt)
 	}
 	Put(F.GGate, FTransform(WaRot(WaUp, 80.f * FMath::SmoothStep(0.f, 1.f, F.Gate)), SvcP(T, TEXT("PIV_GatePlatform")) + WaUp * F.Lift));
 	Put(F.GValve, FTransform(WaRot(Side, 60.f * F.Valve), SvcP(T, bT ? TEXT("PIV_Lever_Vent") : TEXT("PIV_Lever_Valve"))));
+	if (!bT)
+	{
+		// (the fill valve swings out through its door: that stays open as long as it does)
+		F.Fill = FMath::FInterpConstantTo(F.Fill, F.FillWant, Dt, 1.8f); Put(F.GFill, FTransform(WaRot(WaUp, 70.f * F.Fill), SvcP(T, TEXT("PIV_Lever_Fill"))));
+		if (F.FillWant > 0.5f && T.SvcDoors.IsValidIndex(1)) T.SvcDoors[1].Want = 1.f;
+	}
 	// the carried things: in their place, in a hand, or put somewhere
 	const ATugs* G = Tg(); const USkeletalMeshComponent* B = F.Ci != INDEX_NONE ? Body(F.Ci) : nullptr;
 	const bool bBody = B && G && G->Crew[F.Ci].A.IsValid() && !G->Crew[F.Ci].A->IsHidden();
@@ -130,8 +138,11 @@ void AGSE::WetParts(FTractor& T, float Dt)
 		Run(F.Hose, In, Mn.Now + WaRot(Side, Mn.TipNow).RotateVector(SvcP(T, TEXT("IK_WasteCoupling_Hose")) - Mn.Piv), 270.f, Out(Mn)); Put(F.GHose, Show(In, !Out(Mn)));
 	}
 	const FVector From = SvcP(T, bT ? TEXT("IK_RinseOut") : TEXT("IK_HoseOut"));
-	const float L = Run(bT ? F.RinseHose : F.Hose, From, Rl.Now + SvcP(T, bT ? TEXT("IK_RinseCoupling_Hose") : TEXT("IK_Coupling_Hose")) - Rl.Piv, 30.f, Out(Rl));
-	Put(F.GTail, Show(From, !Out(Rl)));
+	// (the water hose you pulled off stays out until it is wound in)
+	const FVector HoseEnd = Rl.Now + SvcP(T, bT ? TEXT("IK_RinseCoupling_Hose") : TEXT("IK_Coupling_Hose")) - Rl.Piv; F.Line.Need = FMath::Max(30.f, float(FVector::Dist(From, HoseEnd)) * 1.04f);
+	const float Least = bT ? 0.f : F.Line.Tick(Dt, Rl.Mode == FSvcWet::YourHand, !Out(Rl)); const bool bOut = Out(Rl) || F.Line.bHand;
+	const float L = Run(bT ? F.RinseHose : F.Hose, From, HoseEnd, FMath::Max(30.f, Least), bOut);
+	Put(F.GTail, Show(From, !bOut));
 	if (!FMath::IsNearlyEqual(L, F.OutWas, 0.05f))
 	{
 		F.Reel += (L - F.OutWas) / 17.f; F.OutWas = L;
@@ -140,13 +151,14 @@ void AGSE::WetParts(FTractor& T, float Dt)
 		for (int32 i = F.GTurn.Num() - 1; i >= 0; --i) { FTransform X = X0; if (Left >= Per * 0.5f) X.SetScale3D(FVector(0.001f)); Left -= Per; Put(F.GTurn[i], X); }
 	}
 	const int32 Me = int32(&T - Tractors.GetData()); bool bJob = false; for (const TPair<int32, FSvcJob>& P : SvcJobs) if (P.Value.Phase == 2 && P.Value.Ti == Me) bJob = true;
-	if (!bJob && bAll && F.Lift == F.LiftWant && F.Gate == F.GateWant && F.Valve == F.ValveWant && F.Tray == F.TrayWant && L == 0.f) F.bLive = false;
+	if (!bJob && bAll && F.Lift == F.LiftWant && F.Gate == F.GateWant && F.Valve == F.ValveWant && F.Tray == F.TrayWant && F.Fill == 0.f && F.FillWant == 0.f && L == 0.f) F.bLive = false;
 }
 
 void AGSE::WetTick(FSvcJob& J, float Dt)
 {
 	if (J.Phase != 2 || !Tractors.IsValidIndex(J.Ti) || !Tractors[J.Ti].Wa || !Tractors[J.Ti].Wa->bRun) return;
 	J.Pumped = FMath::Min(J.Litres, J.Pumped + Dt);   // (seconds)
+	if (!Tractors[J.Ti].Wa->bToilet) { Tractors[J.Ti].bUsed = true; Tractors[J.Ti].Wa->Tank = FMath::Max(0.f, Tractors[J.Ti].Wa->Tank - Dt * WaRate); }
 }
 
 // ------------------------------------------------------------------ its place under the tail: one at a time
@@ -476,10 +488,11 @@ void AGSE::WetLost(int32 Job)
 
 namespace
 {
-	enum : int32 { WaMValve, WaMGate, WaMDoor };
-	enum : int32 { WaCChassis, WaCGate, WaCDoor, WaCCouple, WaCPut0, WaCPut1, WaCStep };
+	enum : int32 { WaMValve, WaMGate, WaMDoor, WaMFill, WaMWind, WaMPull };
+	enum : int32 { WaCChassis, WaCGate, WaCDoor, WaCCouple, WaCPut0, WaCPut1, WaCStep, WaCFill };
 	enum : int32 { WaSCoupHome, WaSCoupPlane, WaSChock0, WaSChock1, WaSPut0, WaSPut1, WaSClimb, WaSOn, WaSOff, WaSStop, WaSLamp };
 	FTransform WaCTurn(const FVector& P, float Deg) { return FTransform(FQuat::Identity, -P) * FTransform(WaRot(FVector(0, 0, 1), Deg), P); }
+	bool WaInBox(const AGSE::FTractor& T) { return T.Job == AGSE::EJob::None && !T.Player.IsValid() && FVector::Dist2D(T.At, T.Home) < 200.f; }
 	const TCHAR* WaCHeld(const FSvcWet& F) { return F.Th[FSvcWet::Main].Mode == FSvcWet::YourHand ? TEXT("the water coupling") : F.Th[FSvcWet::Chock0].Mode == FSvcWet::YourHand || F.Th[FSvcWet::Chock1].Mode == FSvcWet::YourHand ? TEXT("a wheel chock") : nullptr; }
 }
 
@@ -487,15 +500,19 @@ bool AGSE::WaterStowed(const FTractor& T) const
 {
 	if (!T.Wa || T.Job != EJob::None) return true; const FSvcWet& F = *T.Wa;
 	for (const int32 i : {FSvcWet::Chock0, FSvcWet::Chock1, FSvcWet::Main}) if (F.Th[i].Mode != FSvcWet::InPlace || FVector::Dist(F.Th[i].Now, F.Th[i].Piv) > 2.f) return false;
+	if (F.Line.bHand || F.Fill > 0.02f || F.FillWant > 0.02f || (T.SvcDoors.IsValidIndex(1) && T.SvcDoors[1].Now > 0.02f)) return false;
 	return F.Gate < 0.02f && F.GateWant < 0.02f && F.Valve < 0.02f && F.ValveWant < 0.02f && !F.bRun && !F.bConn && !F.bStop;
 }
 
 void AGSE::YouWater(FTractor& T, float Dt)
 {
 	// (50 l a minute, counted in seconds as its crew's)
-	FSvcWet& F = *T.Wa; if (F.YouStandX < -1e5f) { F.bRun = false; return; }
-	if (F.bRun && (!F.bConn || F.Valve < 0.95f || F.bStop)) F.bRun = false;
-	if (F.bRun) { T.bUsed = true; if (!YouDone(T, F.YouStandX, Dt)) F.bRun = false; }
+	FSvcWet& F = *T.Wa;
+	// (in its box, its fill valve open: full in the half minute its crew's filling takes there)
+	if (T.bUsed && F.Fill > 0.95f && WaInBox(T) && !F.bRun) { F.Tank += Dt * 2500.f / 30.f; if (F.Tank >= 2500.f) { F.Tank = 2500.f; SvcRestock(T); } }
+	if (F.YouStandX < -1e5f) { F.bRun = false; return; }
+	if (F.bRun && (!F.bConn || F.Valve < 0.95f || F.bStop || F.Fill > 0.02f || F.Tank <= 0.f)) F.bRun = false;
+	if (F.bRun) { T.bUsed = true; F.Tank = FMath::Max(0.f, F.Tank - Dt * WaRate); F.Litres += Dt * WaRate; if (!YouDone(T, F.YouStandX, Dt)) F.bRun = false; }
 	else if (WaterStowed(T)) { YouDone(T, F.YouStandX, 0.f); F.YouStandX = -1e6f; }
 }
 
@@ -512,7 +529,11 @@ TSharedPtr<FVehTable> AGSE::WaterControls()
 	Mo(TEXT("Lever_Valve"), TEXT("IK_Lever_Valve"), K::Lever, TEXT("Water valve open / shut"), WaCChassis, B, WaMValve, 0.f, 1.f);
 	Sw(TEXT("IK_Button_PumpOn"), TEXT("IK_Button_PumpOn"), TEXT("Pump on"), WaCChassis, B, WaSOn); Sw(TEXT("IK_Button_PumpOff"), TEXT("IK_Button_PumpOff"), TEXT("Pump off"), WaCChassis, B, WaSOff);
 	Sw(TEXT("IK_Button_Light"), TEXT("IK_Button_Light"), TEXT("Work light"), WaCChassis, B, WaSLamp); Sw(TEXT("IK_Button_EStop"), TEXT("IK_Button_EStop"), TEXT("Emergency stop"), WaCChassis, B, WaSStop);
-	// the filling point's door; what is carried; the platform
+	// its reel: the hose pulled off by hand at its guide, wound in by the motor's button
+	Mo(TEXT("IK_Button_Rewind"), TEXT("IK_Button_Rewind"), K::Hold, TEXT("Reel the hose in"), WaCChassis, B, WaMWind, 1.f, 0.f, false);
+	Mo(TEXT("IK_HoseOut"), TEXT("IK_HoseOut"), K::Hold, TEXT("Pull hose off the reel"), WaCChassis, No, WaMPull, 0.f, 1300.f, false); C.Last().bGrip = true;
+	// the filling point behind its door; what is carried; the platform
+	Mo(TEXT("Lever_Fill"), TEXT("IK_Lever_Fill"), K::Lever, TEXT("Fill valve open / shut"), WaCFill, No, WaMFill, 0.f, 1.f);
 	Mo(TEXT("PanelDoorL"), TEXT("IK_Handle_PanelDoorL"), K::Hand, TEXT("Filling door"), WaCDoor, No, WaMDoor, 0.f, 1.f);
 	Sw(TEXT("Chock_0"), TEXT("IK_Chock_0"), TEXT("Chock"), WaCChassis, No, WaSChock0); Sw(TEXT("Chock_1"), TEXT("IK_Chock_1"), TEXT("Chock"), WaCChassis, No, WaSChock1);
 	Sw(TEXT("Chock_0"), TEXT("IK_Chock_0"), TEXT("Chock"), WaCPut0, No, WaSPut0); Sw(TEXT("Chock_1"), TEXT("IK_Chock_1"), TEXT("Chock"), WaCPut1, No, WaSPut1);
@@ -529,18 +550,34 @@ TSharedPtr<FVehTable> AGSE::WaterControls()
 		case WaCDoor: return T.SvcDoors.Num() > 1 ? WaCTurn(T.SvcDoors[1].Piv, ADPService::All()[T.Svc].Doors[1].Deg * T.SvcDoors[1].Now) : FTransform::Identity;
 		case WaCCouple: return FTransform(F.Couple - WaUp * 7.5f - G.SvcP(T, TEXT("PIV_Coupling")));
 		case WaCPut0: case WaCPut1: return FTransform(G.SvcP(T, Fr == WaCPut1 ? TEXT("IK_ChockPlace_1") : TEXT("IK_ChockPlace_0")) + WaUp * 21.7f - G.SvcP(T, Fr == WaCPut1 ? TEXT("IK_Chock_1") : TEXT("IK_Chock_0")));
+		case WaCFill: return WaCTurn(G.SvcP(T, TEXT("PIV_Lever_Fill")), 70.f * F.Fill);
 		case WaCStep: return FTransform(WaUp * (T.YouOn ? 70.f : 0.f));
 		default: return FTransform::Identity;
 		}
 	};
-	Tb->Now = [](const FTractor& T, int32 M) { return M == WaMValve ? T.Wa->Valve : M == WaMGate ? T.Wa->Gate : T.SvcDoors.Num() > 1 ? T.SvcDoors[1].Now : 0.f; };
-	Tb->Want = [](FTractor& T, int32 M, float To) { T.Wa->bLive = true; if (M == WaMValve) T.Wa->ValveWant = To; else if (M == WaMGate) T.Wa->GateWant = To; else if (T.SvcDoors.Num() > 1) T.SvcDoors[1].Want = To; };
-	Tb->May = [](const AGSE& G, const FTractor& T, int32 M, float To, FString& Why) { if (M == WaMGate && T.YouOn && T.YouAt.Y < -6.f) Why = TEXT("you stand in its way"); return Why.IsEmpty(); };
+	Tb->Now = [](const FTractor& T, int32 M) { return M == WaMValve ? T.Wa->Valve : M == WaMGate ? T.Wa->Gate : M == WaMFill ? T.Wa->Fill : M >= WaMWind ? T.Wa->Line.Slack() : T.SvcDoors.Num() > 1 ? T.SvcDoors[1].Now : 0.f; };
+	Tb->Want = [](FTractor& T, int32 M, float To) { T.Wa->bLive = true; if (M == WaMValve) T.Wa->ValveWant = To; else if (M == WaMGate) T.Wa->GateWant = To; else if (M == WaMFill) T.Wa->FillWant = To; else if (M >= WaMWind) T.Wa->Line.Pull(To); else if (T.SvcDoors.Num() > 1) T.SvcDoors[1].Want = To; };
+	Tb->May = [](const AGSE& G, const FTractor& T, int32 M, float To, FString& Why) 
+	{
+		const FW& F = *T.Wa; const bool bMoves = T.Player.IsValid() || T.Speed > 1.f || T.Path.Num(); const TCHAR* H = M >= WaMWind ? WaCHeld(F) : nullptr;
+		if (M == WaMGate && T.YouOn && T.YouAt.Y < -6.f) Why = TEXT("you stand in its way");
+		else if (M == WaMDoor && To < 0.5f && F.Fill > 0.02f) Why = TEXT("the fill valve is open");
+		else if (M == WaMFill && To > 0.5f && F.bConn) Why = TEXT("the coupling is on the aircraft");
+		else if (((M == WaMFill && To > 0.5f) || M == WaMPull) && bMoves) Why = TEXT("it is not parked");
+		else if (H) Why = FString::Printf(TEXT("you have %s in your hand"), H);
+		else if (M == WaMWind && F.bStop) Why = TEXT("the emergency stop is pressed");
+		return Why.IsEmpty();
+	};
+	Tb->End = [](const FTractor& T, int32 M, float E) { return M == WaMPull ? FMath::Max(0.f, E - T.Wa->Line.Need) : E; };
 	Tb->Say = [](const AGSE& G, const FTractor& T, const K& X) -> FString
 	{
 		const FW& F = *T.Wa; auto Two = [](uint8 M, bool bHome, const TCHAR* Take, const TCHAR* Back) { return FString(M == (bHome ? FW::InPlace : FW::Put) ? Take : M == FW::YourHand ? Back : TEXT("")); };
+		if (X.Motion == WaMPull) return F.Th[FW::Main].Mode == FW::InPlace ? FString(X.Label) : FString();
+		if (X.Motion == WaMWind) return F.Line.Slack() > 0.5f ? FString(X.Label) : FString();
+		if (X.Motion == WaMFill) return T.SvcDoors.IsValidIndex(1) && T.SvcDoors[1].Now > 0.5f ? FString::Printf(TEXT("%s (tank %.0f of 2500 l%s)"), X.Label, F.Tank, F.Tank > 2499.5f ? TEXT(", full") : WaInBox(T) ? TEXT("") : TEXT(", filled only in its box")) : FString();
 		switch (X.Switch)
 		{
+		case WaSOn: case WaSOff: return FString::Printf(TEXT("%s (%.0f l given, tank %.0f l)"), X.Label, F.Litres, F.Tank);
 		case WaSCoupHome: return Two(F.Th[FW::Main].Mode, true, TEXT("Take the water coupling, the hose comes with it"), TEXT("Put the coupling back"));
 		case WaSCoupPlane: return F.YouStandX > -1e5f ? Two(F.Th[FW::Main].Mode, false, TEXT("Take the coupling off"), TEXT("Connect the coupling")) : FString();
 		case WaSChock0: case WaSChock1: return Two(F.Th[FW::Chock0 + X.Switch - WaSChock0].Mode, true, TEXT("Take the chock"), TEXT("Put the chock back"));
@@ -562,6 +599,9 @@ TSharedPtr<FVehTable> AGSE::WaterControls()
 		else if ((S == WaSPut0 || S == WaSPut1) && Hk == FW::Put && Cp != FW::InPlace) Why = TEXT("the coupling back in its place first");
 		else if (S == WaSOn && F.bStop) Why = TEXT("the emergency stop is pressed");
 		else if (S == WaSOn && !F.bConn) Why = TEXT("the coupling is not on the aircraft");
+		else if ((S == WaSOn || (S == WaSCoupPlane && Cp != FW::Put)) && F.Fill > 0.02f) Why = TEXT("the fill valve is open");
+		else if (S == WaSOn && F.Tank <= 0.f) Why = TEXT("the tank is empty, it is filled up in its box");
+		else if (S == WaSClimb && T.YouOn && T.YouAt.Z < 85.f) Why = TEXT("you stand on the steps");
 		else if (S == WaSOn && F.Valve < 0.95f) Why = TEXT("the valve is shut");
 		else if (S == WaSClimb && F.Gate < 0.9f) Why = TEXT("the gate is shut");
 		return Why.IsEmpty();
@@ -573,7 +613,7 @@ TSharedPtr<FVehTable> AGSE::WaterControls()
 		{
 		case WaSCoupHome:
 			if (M.Mode == FW::YourHand) { M.Mode = FW::InPlace; break; }
-			M.Mode = FW::YourHand; if (!F.bConn) { FVector P; const int32 J = G.YouJob(T, WaPanel[0], WaWant[0], 22.f, P); if (J != INDEX_NONE) { F.Couple = P; F.YouStandX = G.SvcJobs[J].StandX; } else ADP_LOG(TEXT("GSE: the %s stands under no aircraft waiting for water"), *T.Name); }
+			M.Mode = FW::YourHand; F.Line.Pull(0.f); if (!F.bConn) { FVector P; const int32 J = G.YouJob(T, WaPanel[0], WaWant[0], 22.f, P); if (J != INDEX_NONE) { F.Couple = P; if (F.YouStandX != G.SvcJobs[J].StandX) F.Litres = 0.f; F.YouStandX = G.SvcJobs[J].StandX; } else ADP_LOG(TEXT("GSE: the %s stands under no aircraft waiting for water"), *T.Name); }
 			break;
 		case WaSCoupPlane: F.bConn = M.Mode == FW::YourHand; M.Mode = F.bConn ? FW::Put : FW::YourHand; M.bRide = false; M.Tip = 0.f; M.At = F.Couple - WaUp * 7.5f; M.Turn = F.bConn ? 35.f : 0.f; ADP_LOG(TEXT("GSE: you %s the water coupling of the %s"), F.bConn ? TEXT("connect") : TEXT("take off"), *T.Name); break;
 		case WaSChock0: case WaSChock1: { uint8& X = F.Th[FW::Chock0 + S - WaSChock0].Mode; X = X == FW::InPlace ? FW::YourHand : FW::InPlace; break; }
@@ -590,16 +630,22 @@ TSharedPtr<FVehTable> AGSE::WaterControls()
 	Tb->Leash = [](const AGSE& G, const FTractor& T, FVector& From) { From = G.SvcP(T, TEXT("IK_HoseOut")); return 1300.f; };
 	Tb->Drop = [](FTractor& T) { for (FW::FThing& X : T.Wa->Th) if (X.Mode == FW::YourHand) X.Mode = FW::InPlace; };
 	Tb->Climb = [](const AGSE& G, int32 Ti, int32 S, float& Secs) -> TFunction<void(float, float, FDriverPose&)> { if (S != WaSClimb) return nullptr; const bool bUp = !G.Tractors[Ti].YouOn; Secs = bUp ? 4.8f : 4.6f; return G.WetClimbFn(Ti, bUp); };
-	Tb->Aboard = [](const FTractor& T, const FVector& P) -> uint8 { return P.X > -285.f && P.X < -190.f && P.Y > -50.f && P.Y < 104.f && FMath::Abs(P.Z - 100.f) < 40.f ? 1 : 0; };
+	Tb->Aboard = [](const FTractor& T, const FVector& P) -> uint8 { return P.X > -285.f && P.X < -190.f && P.Y > -50.f && P.Y < 104.f && FMath::Abs(P.Z - 100.f) < 40.f ? 1 : P.X > -266.f && P.X < -196.f && P.Y > -102.f && P.Y <= -50.f && P.Z > 25.f && P.Z < 110.f ? 2 : 0; };
 	Tb->Stowed = [](const AGSE& G, const FTractor& T) { return G.WaterStowed(T); };
 	Tb->Stow = [](AGSE&, FTractor& T)
 	{
-		FW& F = *T.Wa; F.bRun = F.bConn = F.bStop = false; for (const int32 i : {FW::Chock0, FW::Chock1, FW::Main}) F.Th[i].Mode = FW::InPlace; F.ValveWant = F.GateWant = 0.f; F.bLive = true;
+		FW& F = *T.Wa; F.bRun = F.bConn = F.bStop = false; for (const int32 i : {FW::Chock0, FW::Chock1, FW::Main}) F.Th[i].Mode = FW::InPlace; F.ValveWant = F.GateWant = F.FillWant = 0.f; F.Line.bHand = false; F.bLive = true;
 		T.bSwWork = false; for (FTractor::FSvcDoor& D : T.SvcDoors) D.Want = 0.f;
 	};
-	// body and cab in one, the platform's floor, rails and gate
-	Box(FVector(-196, -96, 10), FVector(291, 96, 250), WaCChassis); Box(FVector(-281, -44, 60), FVector(-196, 103, 100), WaCChassis);
-	Box(FVector(-281, -44, 100), FVector(-275, 103, 205), WaCChassis); Box(FVector(-281, 97, 100), FVector(-196, 103, 205), WaCChassis);
-	Box(FVector(-275, -47, 100), FVector(-196, -41, 200), WaCChassis, [](const FTractor& T) { return T.Wa->Gate < 0.9f; });
+	// measured on the model (Art/WaterTruck/watertruck.glb): cab and its nose, frame with the wheels, tank with its boards, cabinet, its open door
+	Box(FVector(118, -100, 34), FVector(258, 100, 236), WaCChassis); Box(FVector(258, -90, 34), FVector(291, 90, 182), WaCChassis);
+	Box(FVector(-205, -98, 16), FVector(118, 98, 88), WaCChassis); Box(FVector(-136, -93, 88), FVector(118, 93, 167), WaCChassis); Box(FVector(-136, -58, 167), FVector(107, 58, 198), WaCChassis);
+	Box(FVector(-198, -93.5, 87), FVector(-141.5, 93.5, 197), WaCChassis); Box(FVector(-189.6, -95.1, 100.4), FVector(-148.7, -91.6, 177.6), WaCDoor, [](const FTractor& T) { return T.SvcDoors.Num() > 1 && T.SvcDoors[1].Now > 0.98f; });
+	// the platform: floor, underrun bar, both treads and their grab rails, rails, gate (shut, wide open)
+	Box(FVector(-274, -46, 86), FVector(-198, 95, 100), WaCChassis); Box(FVector(-287, -97, 41), FVector(-266, 97, 70), WaCChassis);
+	Box(FVector(-261, -97, 33), FVector(-201, -72, 37.3), WaCChassis); Box(FVector(-261, -72, 66), FVector(-201, -46, 69.8), WaCChassis);
+	for (const float X : {-261.f, -205.f}) Box(FVector(X, -97, 86), FVector(X + 4.f, -60, 150), WaCChassis);
+	Box(FVector(-274, -46, 100), FVector(-270, 95, 201), WaCChassis); Box(FVector(-274, 91, 100), FVector(-201, 95, 201), WaCChassis);
+	Box(FVector(-272.2, -46.4, 143), FVector(-202, -41.2, 195), WaCGate, [](const FTractor& T) { return T.Wa->Gate < 0.1f || T.Wa->Gate > 0.98f; });
 	return Tb;
 }
