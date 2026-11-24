@@ -202,6 +202,15 @@ private:
 	FString TugSay(const FTractor& T, int32 S) const;
 	bool TugMay(int32 Ti, int32 S, FString& Why) const;
 	TFunction<void(float, float, FDriverPose&)> TugAct(int32 Ti, int32 S, float& Secs) const;
+	// the gate's ground power unit by hand (to-do 238, GpuYou.cpp): lines of its tug's table
+	static void GpuAdd(FVehTable& Tb);
+	static bool GpuIs(int32 S) { return S >= 311 && S <= 324; }
+	FVector GpuSpot(const FTractor& T, int32 S) const;
+	FString GpuSay(const FTractor& T, int32 S) const;
+	bool GpuMay(int32 Ti, int32 S, FString& Why) const;
+	bool GpuSwitch(int32 Ti, int32 S);
+	TFunction<void(float, float, FDriverPose&)> GpuAct(int32 Ti, int32 S, float& Secs) const;
+	bool GpuHand(int32 TugIx, FVector& At) const;
 	TFunction<void(float, float, FDriverPose&)> HitchPinPose(int32 Ti, int32 Front, float Grip) const;
 	TFunction<void(float, float, FDriverPose&)> CartBarPose(int32 Cart) const;
 	TFunction<void(float, float, FDriverPose&)> GpuBarPose(int32 Gate) const;

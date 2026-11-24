@@ -142,7 +142,7 @@ void AVehicleControls::Find(AGSE& G, APawn& Me)
 	for (int32 i = 0; i < G.Tractors.Num(); ++i)
 	{
 		if (HoldTi != INDEX_NONE && i != HoldTi) continue;   // (its thing in your hand: first back in its place)
-		const AGSE::FTractor& V = G.Tractors[i]; if (!V.M.IsValid() || FVector::DistSquared2D(V.At, From) > FMath::Square(V.KHalfL + 2600.f)) continue;
+		const AGSE::FTractor& V = G.Tractors[i]; if (!V.M.IsValid() || (V.TugIx == INDEX_NONE && FVector::DistSquared2D(V.At, From) > FMath::Square(V.KHalfL + 2600.f))) continue;   // (a tug's lines: also its gate's GPU)
 		const FVehTable* Tb = AGSE::CtlTable(V.CtlKey()); if (!Tb || FVector::DistSquared2D(V.At, From) > FMath::Square(V.KHalfL + Tb->Range) || (Sd ? V.Player.Get() != Sd : V.Player.IsValid())) continue;
 		for (int32 c = 0; c < Tb->Controls.Num(); ++c)
 		{

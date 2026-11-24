@@ -180,6 +180,11 @@ private:
 			bool bConnected = false, bPower = false, bInHand = false; int32 Holder = INDEX_NONE;
 			TArray<TTuple<UInstancedStaticMeshComponent*, int32, FTransform>> Coils, RunPlug;   // (the stowed cable: hidden as it pays out)
 			FVehicleDirt Dirt; FVector DirtAt = FVector::ZeroVector;   // (dirt and washing as the fire truck - VehicleDirt.h)
+			// worked by you (to-do 238, GpuYou.cpp): the plug in your hand / lying where you left it, you at it, plugged in by you, left half done
+			bool bYou = false, bLying = false, bYouOwn = false, bYouConn = false, bYouOff = false, bLeftOpen = false, bYouPlane = false, bEStop = false, bKey = true, bParts = false, bWorkGo = false;
+			FVector YouPos = FVector::ZeroVector, YouPose = FVector::ZeroVector, LieAt = FVector::ZeroVector, LieDir = FVector(1, 0, 0); double YouPoseAt = -10.;
+			float YouLeft = 0.f, YouClock = 0.f, HelpT = 0.f, BtnT[6] = {}, BtnNow[6] = {}, SideAng[2] = {}, SideWant[2] = {};
+			int32 Worker = INDEX_NONE, YouGone = 0, BtnG[6] = {-1, -1, -1, -1, -1, -1}, SideG[2] = {-1, -1};
 		} Gpu;
 		// the chocks and cones of this gate (to-do 212, TugChocks.cpp): pairs 0-2 (nose, right main, left main), cones 3-7
 		struct FChkItem { uint8 Where = 0; float Bl = 1.f; bool bDirty = true; FTransform From[2], Now[2], Lie[2]; };   // Where: 0 rack, 1 right hand, 2 left hand, 3 out, 4 lying
@@ -259,6 +264,18 @@ private:
 	FVector Receptacle(const FTug& T) const;
 	void GpuConnect(int32 Tug, FCrew& C);
 	void GpuDisconnect(int32 Tug, FCrew& C);
+	void GpuConnectNow(int32 Tug, FCrew& C);
+	void GpuDisconnectNow(int32 Tug, FCrew& C);
+	// (with you at it: GpuYou.cpp)
+	void GpuQueue(int32 Tug, FCrew& C, bool bOn);
+	void GpuPlan(int32 Tug, int32 Ci, bool bOn);
+	void GpuPickUp(int32 Tug, FCrew& C);
+	bool GpuCrewAt(const FTug& T, FString* Who = nullptr) const;
+	bool GpuDone(const FTug& T) const;
+	void GpuEngine(FTug& T, bool bOn);
+	void GpuLay(FTug& T);
+	void GpuYouTick(FTug& T, float Dt);
+	void GpuHelp(FTug& T);
 	// the chocks and cones (TugChocks.cpp)
 	using FChk = FTug::FChk; using FChkItem = FTug::FChkItem;
 	TArray<UInstancedStaticMeshComponent*> ChkMesh; bool bChkReady = false; float ChkYaw = 0.f;

@@ -45,6 +45,7 @@
 #include "Camera/PlayerCameraManager.h"
 #include "TerminalPlan.h"
 #include "Engine/World.h"
+#include "GameFramework/Pawn.h"
 #include "Components/PoseableMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/BlendSpace.h"
@@ -289,7 +290,7 @@ void ATugs::StepCrew(FCrew& C, float Dt)
 	AActor* A = C.A.Get(); if (!A) return;
 	if (C.Q.Num())
 	{
-		FCrewAct& Ac = C.Q[0];
+		FCrewAct& Ac = C.Q[0]; const FCrewAct::EKind Kd = Ac.Kind;
 		bool bDone = false;
 		C.T += Dt;
 		switch (Ac.Kind)
@@ -301,9 +302,9 @@ void ATugs::StepCrew(FCrew& C, float Dt)
 		case FCrewAct::Pose: C.FidgetDur = 0.f; ApplyPose(C, Ac.PoseFn, Ac.Dur > 0.f ? C.T / Ac.Dur : 1.f); bDone = C.T >= Ac.Dur; break;
 		case FCrewAct::Wait: if (C.Hold) ApplyPose(C, C.Hold, 1.f); else IdleTick(C, Dt, false, Ac.Dur - C.T); bDone = C.T >= Ac.Dur; break;
 		case FCrewAct::WaitFor: if (C.Hold) ApplyPose(C, C.Hold, 1.f); else IdleTick(C, Dt, true); bDone = Ac.Until(C.T); break;
-		case FCrewAct::Do: if (Ac.Fn) Ac.Fn(); bDone = true; break;
+		case FCrewAct::Do: { const TFunction<void()> Fn = MoveTemp(Ac.Fn); if (Fn) Fn(); bDone = true; break; }   // (what it does may put acts in behind it: the queue moves)
 		}
-		if (bDone) { C.T = 0.f; if (C.Q.Num()) C.Q.RemoveAt(0); if (Ac.Kind == FCrewAct::Wait || Ac.Kind == FCrewAct::WaitFor) { C.FidgetDur = 0.f; } }
+		if (bDone) { C.T = 0.f; if (C.Q.Num()) C.Q.RemoveAt(0); if (Kd == FCrewAct::Wait || Kd == FCrewAct::WaitFor) { C.FidgetDur = 0.f; } }
 		return;
 	}
 	if (C.Hold) { ApplyPose(C, C.Hold, 1.f); return; }
@@ -1099,6 +1100,15 @@ void ATugs::GpuTick(FTug& T, float Dt)
 		PlugDir = (Crew[G.Holder].A->GetActorRightVector() * -1.f + FVector(0, 0, -0.6f)).GetSafeNormal();   // (carried nose down in front)
 		PlugDir = Crew[G.Holder].A->GetActorRotation().RotateVector(FVector(0, 1, 0)).GetSafeNormal() * 0.5f + FVector(0, 0, -0.85f);
 	}
+	else if (G.bYou)
+	{
+		// (in your hand, to-do 238: nose down in front of you as the crew's, turned up at the receptacle)
+		const FVector R = Receptacle(T); const APlayerController* PC = GetWorld()->GetFirstPlayerController(); const APawn* Me = PC ? PC->GetPawn() : nullptr;
+		PlugAt = G.YouPos;
+		const FVector Fwd = Me ? Me->GetActorForwardVector() : FVector(1, 0, 0);
+		PlugDir = FMath::Lerp(FVector(0, 0, 1), FVector(Fwd.X * 0.5f, Fwd.Y * 0.5f, -0.85f), FMath::Clamp((FVector::Dist(PlugAt, R) - 20.f) / 50.f, 0.f, 1.f)).GetSafeNormal();
+	}
+	else if (G.bLying) { PlugAt = G.LieAt; PlugDir = G.LieDir; }
 	else if (G.bConnected) { PlugAt = Receptacle(T); PlugDir = FVector(0, 0, 1); }   // (nose up into the receptacle)
 	else bOut = false;
 	if (G.PlugG != INDEX_NONE)
@@ -1137,7 +1147,7 @@ void ATugs::GpuTick(FTug& T, float Dt)
 	M->FlushMoves();
 }
 
-void ATugs::GpuConnect(int32 Tug, FCrew& C)
+void ATugs::GpuConnectNow(int32 Tug, FCrew& C)
 {
 	// on blocks: the panel door open, the diesel started and warmed up, the plug off its socket and walked to the receptacle
 	// (the cable paying out), plugged in, then the contactor on at the panel and the door shut
@@ -1145,30 +1155,51 @@ void ATugs::GpuConnect(int32 Tug, FCrew& C)
 	auto Face = [this, Tug] { return Tugs[Tug].Gpu.M.IsValid() ? Tugs[Tug].Gpu.M->GetActorForwardVector() : FVector(1, 0, 0); };
 	auto Press = [this, Tug, Face](float X, float Y, float Z, float Grip) { return [this, Tug, Face, X, Y, Z, Grip](float K, float PH, FDriverPose& P) { P = Reach(GpuW(Tugs[Tug], -1.65f, 0.f, 0.f), Face(), 1, GpuW(Tugs[Tug], X, Y, Z), Grip, PH, Ramp(K)); }; };
 	const int32 Ci = int32(&C - Crew.GetData());
+	// (what you did of it already, to-do 238, is not done again)
+	const FTug::FGpu& G0 = Tugs[Tug].Gpu; const bool bRun0 = G0.RunT >= 0.f && !G0.bEStop, bPlug0 = G0.bConnected, bOpen0 = G0.PanelWant > 0.f;
+	if (bPlug0 && G0.bPower && !bOpen0) return;
 	C.Q.Add(WaitAct(Pause()));
 	C.Q.Add(WalkAct(At(-1.65f, 0.f, 0.f), 15.f));
+	if (!bOpen0)
+	{
 	C.Q.Add(PoseAct(Press(-1.13f, -0.30f, 1.12f, 0.8f), 1.0f));
 	C.Q.Add(DoAct([this, Tug] { Tugs[Tug].Gpu.PanelWant = 100.f; Sound(TEXT("GPUDoorOpen"), GpuW(Tugs[Tug], -1.1f, 0.f, 1.1f)); }));
 	C.Q.Add(WaitAct(0.6f));
+	}
+	if (G0.bEStop) { C.Q.Add(PoseAct(Press(-1.156f, -0.47f, 1.20f, 0.8f), 1.0f)); C.Q.Add(DoAct([this, Tug] { Tugs[Tug].Gpu.bEStop = false; })); }
+	if (!G0.bKey) { C.Q.Add(PoseAct(Press(-0.98f, 0.f, 1.10f, 0.8f), 1.0f)); C.Q.Add(DoAct([this, Tug] { Tugs[Tug].Gpu.bKey = true; })); }
+	if (!bRun0)
+	{
 	C.Q.Add(PoseAct(Press(-0.98f, 0.24f, 1.10f, 0.3f), 1.0f));   // (START)
-	C.Q.Add(DoAct([this, Tug] { FTug& U = Tugs[Tug]; U.Gpu.RunT = 0.f; Sound(TEXT("GPUStart"), GpuW(U, 0.f, 0.f, 0.8f)); ADP_LOG(TEXT("Tugs: GPU started at x %.0f"), U.StandX); }));
+	C.Q.Add(DoAct([this, Tug] { FTug& U = Tugs[Tug]; if (U.Gpu.bEStop) return; U.Gpu.BtnT[0] = 0.4f; U.Gpu.RunT = 0.f; Sound(TEXT("GPUStart"), GpuW(U, 0.f, 0.f, 0.8f)); ADP_LOG(TEXT("Tugs: GPU started at x %.0f"), U.StandX); }));
 	C.Q.Add(WaitAct(12.f + Pause()));                              // (warming up: the frequency and voltage steady)
+	}
+	if (!bPlug0)
+	{
+	if (G0.bLying) GpuPickUp(Tug, C);
+	else
+	{
 	C.Q.Add(WalkAct(At(1.70f, -0.55f, 0.f), 15.f));
 	C.Q.Add(PoseAct([this, Tug, Face](float K, float PH, FDriverPose& P) { P = Reach(GpuW(Tugs[Tug], 1.70f, -0.55f, 0.f), -Face(), 1, GpuW(Tugs[Tug], 1.18f, -0.24f, 1.165f), 1.f, PH, FMath::Min(1.f, K * 2.f)); }, 1.0f));
 	C.Q.Add(DoAct([this, Tug, Ci] { FTug& U = Tugs[Tug]; U.Gpu.bInHand = true; U.Gpu.Holder = Ci; }));
+	}
 	// (under the nose, the receptacle above him, a step to the GPU's side of it)
 	auto Under = [this, Tug] { const FTug& U = Tugs[Tug]; const FVector R = Receptacle(U); const FVector G = U.Gpu.M.IsValid() ? U.Gpu.M->GetActorLocation() : R; return FVector(R.X, R.Y, G.Z) + (G - R).GetSafeNormal2D() * 45.f; };
 	C.Q.Add(WalkAct(Under, 12.f, 110.f));
 	C.Q.Add(PoseAct([this, Tug, Under](float K, float PH, FDriverPose& P) { const FVector R = Receptacle(Tugs[Tug]); const FVector At2 = Under(); P = Reach(At2, (R - At2).GetSafeNormal2D(), 1, R - FVector(0, 0, 12.f), 1.f, PH, FMath::Min(1.f, K * 1.6f)); }, 2.2f));
 	C.Q.Add(DoAct([this, Tug] { FTug& U = Tugs[Tug]; U.Gpu.bInHand = false; U.Gpu.bConnected = true; Sound(TEXT("GPUPlugConnect"), Receptacle(U)); }));
+	}
 	C.Q.Add(WalkAct(At(-1.65f, 0.f, 0.f), 15.f));
+	if (!bPlug0 || !G0.bPower)
+	{
 	C.Q.Add(PoseAct(Press(-0.98f, -0.14f, 1.10f, 0.3f), 1.0f));  // (CONTACTOR ON)
-	C.Q.Add(DoAct([this, Tug] { FTug& U = Tugs[Tug]; U.Gpu.bPower = true; ADP_LOG(TEXT("Tugs: ground power on the aircraft at x %.0f (400 Hz) - its APU can go off"), U.StandX); }));
+	C.Q.Add(DoAct([this, Tug] { FTug& U = Tugs[Tug]; if (U.Gpu.RunT < 0.f) { U.Gpu.bLeftOpen = true; return; } U.Gpu.BtnT[2] = 0.4f; U.Gpu.bPower = true; ADP_LOG(TEXT("Tugs: ground power on the aircraft at x %.0f (400 Hz) - its APU can go off"), U.StandX); }));
+	}
 	C.Q.Add(PoseAct(Press(-1.13f, -0.30f, 1.12f, 0.8f), 0.9f));
 	C.Q.Add(DoAct([this, Tug] { Tugs[Tug].Gpu.PanelWant = 0.f; }));
 }
 
-void ATugs::GpuDisconnect(int32 Tug, FCrew& C)
+void ATugs::GpuDisconnectNow(int32 Tug, FCrew& C)
 {
 	// before departure, the APU running: the contactor off, unplugged, walked back winding the cable onto its tray, the plug
 	// in its socket, the diesel stopped, the door shut - only then can the push begin (Push)
@@ -1176,25 +1207,56 @@ void ATugs::GpuDisconnect(int32 Tug, FCrew& C)
 	auto Face = [this, Tug] { return Tugs[Tug].Gpu.M.IsValid() ? Tugs[Tug].Gpu.M->GetActorForwardVector() : FVector(1, 0, 0); };
 	auto Press = [this, Tug, Face](float X, float Y, float Z, float Grip) { return [this, Tug, Face, X, Y, Z, Grip](float K, float PH, FDriverPose& P) { P = Reach(GpuW(Tugs[Tug], -1.65f, 0.f, 0.f), Face(), 1, GpuW(Tugs[Tug], X, Y, Z), Grip, PH, Ramp(K)); }; };
 	const int32 Ci = int32(&C - Crew.GetData());
+	// (what you did of it already, to-do 238, is not done again)
+	const FTug::FGpu& G0 = Tugs[Tug].Gpu; const bool bPlug0 = G0.bConnected, bRun0 = G0.RunT >= 0.f || bPlug0, bOpen0 = G0.PanelWant > 0.f;
+	if (!bPlug0 && !G0.bLying && !bRun0 && !bOpen0) return;
+	if (bPlug0)
+	{
 	// (the aircraft must be there: its APU started - the pilot's call comes with the radio app)
 	C.Q.Add(UntilAct([this, Tug](float E) { const FVector R = Receptacle(Tugs[Tug]); for (const FVector& Pl : Planes) if (FVector::Dist2D(Pl, R) < 800.f) return true; return E > 90.f; }));
 	C.Q.Add(DoAct([this, Tug] { ADP_LOG(TEXT("Tugs: APU running at x %.0f - ground power coming off"), Tugs[Tug].StandX); }));
+	}
+	if (bPlug0 || (bRun0 && !G0.bLying))
+	{
 	C.Q.Add(WalkAct(At(-1.65f, 0.f, 0.f), 15.f));
+	if (!bOpen0)
+	{
 	C.Q.Add(PoseAct(Press(-1.13f, -0.30f, 1.12f, 0.8f), 1.0f));
 	C.Q.Add(DoAct([this, Tug] { Tugs[Tug].Gpu.PanelWant = 100.f; Sound(TEXT("GPUDoorOpen"), GpuW(Tugs[Tug], -1.1f, 0.f, 1.1f)); }));
 	C.Q.Add(WaitAct(0.6f));
+	}
+	}
+	if (G0.bPower)
+	{
 	C.Q.Add(PoseAct(Press(-0.98f, -0.24f, 1.10f, 0.3f), 1.0f));  // (CONTACTOR OFF)
-	C.Q.Add(DoAct([this, Tug] { Tugs[Tug].Gpu.bPower = false; }));
+	C.Q.Add(DoAct([this, Tug] { Tugs[Tug].Gpu.BtnT[3] = 0.4f; Tugs[Tug].Gpu.bPower = false; }));
+	}
 	auto Under = [this, Tug] { const FTug& U = Tugs[Tug]; const FVector R = Receptacle(U); const FVector G = U.Gpu.M.IsValid() ? U.Gpu.M->GetActorLocation() : R; return FVector(R.X, R.Y, G.Z) + (G - R).GetSafeNormal2D() * 45.f; };
+	if (G0.bLying) GpuPickUp(Tug, C);
+	else if (bPlug0)
+	{
 	C.Q.Add(WalkAct(Under, 12.f));
 	C.Q.Add(PoseAct([this, Tug, Under](float K, float PH, FDriverPose& P) { const FVector R = Receptacle(Tugs[Tug]); const FVector At2 = Under(); P = Reach(At2, (R - At2).GetSafeNormal2D(), 1, R - FVector(0, 0, 12.f), 1.f, PH, FMath::Min(1.f, K * 1.6f)); }, 2.0f));
 	C.Q.Add(DoAct([this, Tug, Ci] { FTug& U = Tugs[Tug]; U.Gpu.bConnected = false; U.Gpu.bInHand = true; U.Gpu.Holder = Ci; Sound(TEXT("GPUPlugDisconnect"), Receptacle(U)); }));
+	}
+	if (G0.bLying || bPlug0)
+	{
 	C.Q.Add(WalkAct(At(1.70f, -0.55f, 0.f), 15.f, 110.f));          // (the cable winding back onto its tray as he comes)
 	C.Q.Add(PoseAct([this, Tug, Face](float K, float PH, FDriverPose& P) { P = Reach(GpuW(Tugs[Tug], 1.70f, -0.55f, 0.f), -Face(), 1, GpuW(Tugs[Tug], 1.18f, -0.24f, 1.165f), 1.f, PH, 1.f - FMath::Max(0.f, K * 2.f - 1.f)); }, 1.2f));
 	C.Q.Add(DoAct([this, Tug] { FTug& U = Tugs[Tug]; U.Gpu.bInHand = false; U.Gpu.Holder = INDEX_NONE; }));
+	}
 	C.Q.Add(WalkAct(At(-1.65f, 0.f, 0.f), 15.f));
+	if (G0.bLying && !bOpen0)
+	{
+		C.Q.Add(PoseAct(Press(-1.13f, -0.30f, 1.12f, 0.8f), 1.0f));
+		C.Q.Add(DoAct([this, Tug] { Tugs[Tug].Gpu.PanelWant = 100.f; Sound(TEXT("GPUDoorOpen"), GpuW(Tugs[Tug], -1.1f, 0.f, 1.1f)); }));
+		C.Q.Add(WaitAct(0.6f));
+	}
+	if (bRun0)
+	{
 	C.Q.Add(PoseAct(Press(-0.98f, 0.14f, 1.10f, 0.3f), 1.0f));   // (STOP)
-	C.Q.Add(DoAct([this, Tug] { FTug& U = Tugs[Tug]; U.Gpu.RunT = -1.f; if (U.Gpu.Idle) { U.Gpu.Idle->Stop(); U.Gpu.Idle = nullptr; } Sound(TEXT("GPUStop"), GpuW(U, 0.f, 0.f, 0.8f)); ADP_LOG(TEXT("Tugs: ground power off and stowed at x %.0f"), U.StandX); }));
+	C.Q.Add(DoAct([this, Tug] { FTug& U = Tugs[Tug]; U.Gpu.BtnT[1] = 0.4f; U.Gpu.RunT = -1.f; if (U.Gpu.Idle) { U.Gpu.Idle->Stop(); U.Gpu.Idle = nullptr; } Sound(TEXT("GPUStop"), GpuW(U, 0.f, 0.f, 0.8f)); ADP_LOG(TEXT("Tugs: ground power off and stowed at x %.0f"), U.StandX); }));
+	}
 	C.Q.Add(PoseAct(Press(-1.13f, -0.30f, 1.12f, 0.8f), 0.9f));
 	C.Q.Add(DoAct([this, Tug] { Tugs[Tug].Gpu.PanelWant = 0.f; }));
 }

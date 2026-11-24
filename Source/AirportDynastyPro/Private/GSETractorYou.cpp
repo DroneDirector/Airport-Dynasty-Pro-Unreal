@@ -191,7 +191,7 @@ bool AGSE::TractorMay(int32 Ti, int32 S, FString& Why) const
 		if (!Carts[l].bOut || FVector::Dist2D(Carts[l].At, Carts[l].Place) > 200.f || TrTurn(Carts[l].Yaw, Carts[l].PlaceYaw) > 20.f) return No(TEXT("it cannot be left here: bring it back to its place beside the tractors"));
 		return true;
 	}
-	case TrGpuOn: return T.Pin < 0.95f ? No(TEXT("pull the hitch pin up first")) : GpuBusy(HitchGpu(T)) ? No(TEXT("the GPU is in use: its stand must be empty")) : true;
+	case TrGpuOn: return T.Pin < 0.95f ? No(TEXT("pull the hitch pin up first")) : G && G->Tugs.IsValidIndex(HitchGpu(T)) && (G->Tugs[HitchGpu(T)].Gpu.bConnected || G->Tugs[HitchGpu(T)].Gpu.bInHand) ? No(TEXT("its cable is out: unplug and stow it first")) : GpuBusy(HitchGpu(T)) ? No(TEXT("the GPU is in use: its stand must be empty")) : true;
 	case TrGpuOff:
 		if (T.Pin < 0.95f) return No(TEXT("pull the hitch pin up first"));
 		if (const FGpuRig* R = GpuRigs.Find(T.TowGpu)) if (G && G->Tugs.IsValidIndex(T.TowGpu) && G->Tugs[T.TowGpu].Gpu.M.IsValid())

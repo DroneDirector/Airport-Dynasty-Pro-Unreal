@@ -133,12 +133,12 @@ bool ATugs::PushYou(int32 I)
 	if (T.Seq == 0)
 	{
 		if (T.bHired && Now - T.YouWhyAt > 3.0) { T.YouWhyAt = Now; CrewWalkers(I); }   // (your own wing walkers, whoever is free: they do the chocks too)
-		if (T.Gpu.bConnected)
+		if (T.Gpu.bConnected || T.Gpu.bYou || T.Gpu.bLying)   // (off by your own hand counts: GpuYou.cpp)
 		{
-			T.YouWhy = YouShort(T, TEXT("the ground power is still plugged in"));
+			T.YouWhy = YouShort(T, T.Gpu.bConnected ? TEXT("the ground power is still plugged in: take it off, or wait for the handler") : TEXT("the ground power cable is still out"));
 			// (the handler, else a walker of yours: one of them, once)
 			auto Free = [this](int32 c) { return Crew.IsValidIndex(c) && !Crew[c].bSlotFree && !Crew[c].bLeave && !Crew[c].bLost && !Crew[c].Q.Num() && !Crew[c].Hold; };
-			const bool bAt = T.Gpu.bInHand || T.GpuCi != INDEX_NONE || (Crew.IsValidIndex(T.YouGpuCi) && !Crew[T.YouGpuCi].bSlotFree && (Crew[T.YouGpuCi].Q.Num() || Crew[T.YouGpuCi].Hold) && (T.YouGpuCi == T.Handler || T.Walkers.Contains(T.YouGpuCi)));
+			const bool bAt = T.Gpu.bInHand || T.Gpu.bYouOwn || T.GpuCi != INDEX_NONE || (Crew.IsValidIndex(T.YouGpuCi) && !Crew[T.YouGpuCi].bSlotFree && (Crew[T.YouGpuCi].Q.Num() || Crew[T.YouGpuCi].Hold) && (T.YouGpuCi == T.Handler || T.Walkers.Contains(T.YouGpuCi)));
 			if (!bAt)
 			{
 				T.YouGpuCi = INDEX_NONE;
@@ -617,7 +617,7 @@ TSharedPtr<FVehTable> AGSE::TugControls()
 	TSharedPtr<FVehTable> Tb = MakeShared<FVehTable>();
 	auto Add = [&Tb](const TCHAR* Lb, int32 S) { K X; X.Part = TEXT(""); X.Point = TEXT("TR_Hitch"); X.Kind = K::Push; X.Label = Lb; X.Switch = S; Tb->Controls.Add(X); };
 	Add(TEXT("Tow bar"), TgHead); Add(TEXT("Bypass pin"), TgPin); Add(TEXT("Headset"), TgPhone); Add(TEXT("Bypass pin shown"), TgShow);
-	Tb->Range = 1000.f;
+	GpuAdd(*Tb);
 	Tb->Frame = [](const AGSE&, const FTractor&, int32) { return FTransform::Identity; };
 	Tb->Now = [](const FTractor&, int32) { return 0.f; };
 	Tb->Want = [](FTractor&, int32, float) {};
@@ -625,10 +625,10 @@ TSharedPtr<FVehTable> AGSE::TugControls()
 	Tb->Stowed = [](const AGSE&, const FTractor&) { return true; };
 	Tb->Stow = [](AGSE&, FTractor&) {};
 	Tb->Aboard = [](const FTractor&, const FVector&) -> uint8 { return 0; };
-	Tb->Spot = [](const AGSE& G, const FTractor& T, const K& X, FVector& W) { if (X.bSeat) return false; W = G.TugSpot(T, X.Switch); return true; };
-	Tb->Say = [](const AGSE& G, const FTractor& T, const K& X) -> FString { return X.bSeat ? FString(X.Label) : G.TugSay(T, X.Switch); };
-	Tb->MaySwitch = [](AGSE& G, int32 Ti, int32 S, FString& Why) { return ADPCab::Is(S) || G.TugMay(Ti, S, Why); };
-	Tb->Switch = [](AGSE&, int32, int32) { return false; };
-	Tb->Climb = [](const AGSE& G, int32 Ti, int32 S, float& Secs) { return G.TugAct(Ti, S, Secs); };
+	Tb->Spot = [](const AGSE& G, const FTractor& T, const K& X, FVector& W) { if (X.bSeat) return false; W = GpuIs(X.Switch) ? G.GpuSpot(T, X.Switch) : G.TugSpot(T, X.Switch); return true; };
+	Tb->Say = [](const AGSE& G, const FTractor& T, const K& X) -> FString { return X.bSeat ? FString(X.Label) : GpuIs(X.Switch) ? G.GpuSay(T, X.Switch) : G.TugSay(T, X.Switch); };
+	Tb->MaySwitch = [](AGSE& G, int32 Ti, int32 S, FString& Why) { return ADPCab::Is(S) || (GpuIs(S) ? G.GpuMay(Ti, S, Why) : G.TugMay(Ti, S, Why)); };
+	Tb->Switch = [](AGSE& G, int32 Ti, int32 S) { return GpuIs(S) && G.GpuSwitch(Ti, S); };
+	Tb->Climb = [](const AGSE& G, int32 Ti, int32 S, float& Secs) { return GpuIs(S) ? G.GpuAct(Ti, S, Secs) : G.TugAct(Ti, S, Secs); };
 	return Tb;
 }

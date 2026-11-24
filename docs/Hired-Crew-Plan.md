@@ -483,7 +483,11 @@ riders `Data/ambulift-riders.json`, `Data/wheelchair-riders.json`, all points an
 - Never waits for you for ever (compiled, not run): a hired handler is called for your push (`YouCrew`: power, chocks, headset; nobody free: the
   reason at the wheel, asked again); left half-uncoupled the crew go on from your step, a driver is asked again (`YouTake`); left off the line
   it is pulled forward onto it, else back to its nearest clear point, else straightened along it (`YouRejoin`, logged).
-- Left: parts boxes of the A320 only; chocks and ground power cannot be taken off by hand.
+- Left: parts boxes of the A320 only; chocks cannot be taken off by hand.
+- The ground power by hand (to-do 238, GpuYou.cpp; compiled, not run): doors, panel buttons, key, emergency stop, plug and cable; lines of the
+  gate's tug (`TugControls`), the crew's states. The crew wait for you (`GpuQueue`), then do only what is left (`GpuPlan`, `Gpu*Now`); left 2 min
+  or 40 m, or the plug laid down: a free one finishes (`GpuHelp`). Plug in only on blocks with the chocks in, pull only with the power off.
+- Model lacks: working selector and lamp test, contactor lamps, light switches, a cable reel.
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
