@@ -5,13 +5,14 @@
 import os, sys, math
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path[:0] = [os.path.join(ROOT, 'Tools'), os.path.join(ROOT, 'Art', 'CleaningKit')]
-PFX, DASHWORD, MAIN, NAME, KEY, TAG = 'PS_', '', (.02, .26, .24), 'PassengerStairs', 'passengerstairs', 'PS'
+ROOF = globals().get('ROOF', False) or '--roof' in sys.argv                        # the roofed version (Art/PassengerStairsRoof): everything below and its roof_parts.py
+NAME, KEY, TAG = ('PassengerStairsRoof', 'passengerstairsroof', 'PSR') if ROOF else ('PassengerStairs', 'passengerstairs', 'PS'); PFX, DASHWORD, MAIN = 'PS_', '', (.02, .26, .24)
 import bpy, bmesh, json
 from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
 import vehicle_kit as K
 from vehicle_kit import box, cyl, lathe, torus, tube, prism, cut, turn, ALL, IKS
-ART = os.path.join(ROOT, 'Art', NAME); TEX = os.path.join(ROOT, 'Art', 'PushbackTug', 'Textures'); OWN = os.path.join(ART, 'Textures'); CART = os.path.join(ROOT, 'Art', 'BaggageCart', 'Textures')
+ART = os.path.join(ROOT, 'Art', NAME); TEX = os.path.join(ROOT, 'Art', 'PushbackTug', 'Textures'); OWN = os.path.join(ROOT, 'Art', 'PassengerStairs', 'Textures'); CART = os.path.join(ROOT, 'Art', 'BaggageCart', 'Textures')
 K.reset()
 import make_cleaningkit as CK
 import vehicle_skin as S
@@ -45,6 +46,12 @@ def AFTER_UV():
         uv = o.data.uv_layers.active.data
         for p in o.data.polygons:
             for li in p.loop_indices: d = o.data.vertices[o.data.loops[li].vertex_index].co - ctr; uv[li].uv = (a0 + (a1 - a0) * (-d.y / w + .5), d.z / h + .5)
+def decal(o, ax, m):
+    """A picture plate's thin sides in the colour of what it is on (no shreds of the picture along its edges)."""
+    o.data.materials.append(m)
+    for p in o.data.polygons:
+        if abs(p.normal['xyz'.index(ax)]) < .9: p.material_index = 1
+    return o
 def revx(name, prof, c, m, segs=48, smooth=40):
     """Turned about x through c; prof = (radius, x forwards), open or closed at radius 0."""
     bm = bmesh.new(); rings = [[bm.verts.new((c[0] + x, c[1] + r * math.cos(2 * math.pi * k / segs), c[2] + r * math.sin(2 * math.pi * k / segs))) for k in range(segs)] if r > 1e-6 else [bm.verts.new((c[0] + x, c[1], c[2]))] for r, x in prof]
@@ -120,7 +127,7 @@ for s, n in ((1, 'Driver'), (-1, 'Passenger')):
     for e, x in ((0, 1.673), (1, 2.247)): box('Step%s_End%d' % (n, e), (x, s * .820, .325), (.014, .254, .225), M_BUMP, .002, 1)
     box('Step%s_Tread' % n, (1.96, s * .830, .255), (.575, .275, .030), M_TREAD, .006, 2); box('Step%s_Edge' % n, (1.96, s * .945, .2715), (.56, .035, .006), M_NOSE, .002, 1); ik('Step_Door%s' % n, (1.96, s * .87, .2745)); ik('Step_Door%s_Low' % n, (1.96, s * .87, .2745))
     cyl('StabHouse_F%s' % n[0], (2.875, s * .80, .375), .060, .29, 'z', M_FRM, 36, .006); [box('StabClamp_F%s%d' % (n[0], k), (2.69, s * .80, z), (.27, .10, .05), M_CHAS, .006) for k, z in enumerate((.30, .45))]; [torus('StabBand_F%s%d' % (n[0], k), (2.875, s * .80, z), .060, .006, 'z', M_CHAS) for k, z in enumerate((.30, .45))]
-box('FrontBumper', (2.80, 0, .305), (.24, 1.36, .13), M_BUMP, .03, 3); box('FrontBumper_Chev', (2.9215, 0, .305), (.010, 1.22, .058), M_CHEV, .003, 1); box('FrontTowEye', (2.95, 0, .305), (.08, .05, .07), M_YEL, .012)
+box('FrontBumper', (2.80, 0, .305), (.24, 1.36, .13), M_BUMP, .03, 3); decal(box('FrontBumper_Chev', (2.9205, 0, .305), (.003, 1.22, .058), M_CHEV), 'x', M_BUMP); box('FrontTowEye', (2.95, 0, .305), (.08, .05, .07), M_YEL, .012)
 # #endregion
 
 # #region ---- cab doors, dashboard with real dials, stair console, seats
@@ -288,7 +295,7 @@ for s, sn, f in SIDES:
     box('GateSlide_%s' % sn, (XP + 1.03, s * .894, PZ + .46), (.90, .020, .84), M_BODY, .006, 2)                                              # the sliding gate: forward 0.40
     for i, z in enumerate((PZ + .16, PZ + .74)): box('GateSlide_%s_Shoe%d' % (sn, i), (XP + .72, s * .906, z), (.12, .016, .040), M_DARK, .004)
     tube('GateSlide_%s_Frame' % sn, [(XP + .60, s * .894, PZ + .86), (XP + .60, s * .894, PZ + 1.00), (XP + 1.46, s * .894, PZ + 1.00), (XP + 1.46, s * .894, PZ + .06)], .016, M_YEL, bez=False); box('GateSlide_%s_Rubber' % sn, (XP + 1.492, s * .894, PZ + .50), (.040, .040, .86), M_SEAL, .014, 3)
-    tube('GateSlide_%s_Handle' % sn, [(XP + 1.24, s * .886, PZ + .62), (XP + 1.24, s * .845, PZ + .64), (XP + 1.24, s * .845, PZ + .80), (XP + 1.24, s * .886, PZ + .82)], .012, M_STEEL); ik('Handle_Gate_' + sn, (XP + 1.24, s * .845, PZ + .72)); ik('Stand_Gate_' + sn, (XP + .96, s * .50, PZ)); box('GateSlide_%s_Chev' % sn, (XP + 1.37, s * .8830, PZ + .46), (.12, .006, .78), M_CHEV, .001, 1)
+    tube('GateSlide_%s_Handle' % sn, [(XP + 1.24, s * .886, PZ + .62), (XP + 1.24, s * .845, PZ + .64), (XP + 1.24, s * .845, PZ + .80), (XP + 1.24, s * .886, PZ + .82)], .012, M_STEEL); ik('Handle_Gate_' + sn, (XP + 1.24, s * .845, PZ + .72)); ik('Stand_Gate_' + sn, (XP + .96, s * .50, PZ)); decal(box('GateSlide_%s_Chev' % sn, (XP + 1.37, s * .8830, PZ + .46), (.12, .006, .78), M_CHEV), 'y', M_BODY)
     box('UpLiftBlock_' + sn, (XP + .45, s * .815, PZ - .152), (.16, .15, .04), M_CHAS, .004)
     for e in (-.055, .055): box('UpLiftEar%d_%s' % (e > 0, sn), (XP + .45, s * .815 + e, PZ - .195), (.08, .014, .09), M_CHAS, .004)
     cyl('UpLiftPin_' + sn, (XP + .45, s * .815, PZ - .20), .014, .15, 'y', M_STEEL, 28)
@@ -301,9 +308,13 @@ for i in range(2): cyl('UpBtn%d' % i, (XP + .395 + .05 * i, .897, PZ + .40), .01
 for n, l in (('Plat_Nose', (XP, 0, PZ)), ('Plat_Mid', (XP + .75, 0, PZ)), ('Plat_Front', (PX1 + .12, 0, PZ)), ('Plat_Agent', (XP + .60, -.60, PZ)), ('Foot', (X0 - .55, 0, 0)), ('StairTop', (XP + 10 * G, 0, PZ + 10 * R)), ('Aisle_Row0', (1.78, 0, FLOOR))): ik(n, l)
 # #endregion
 
+if ROOF: exec(compile(open(os.path.join(ROOT, 'Art', NAME, 'roof_parts.py'), encoding='utf-8').read(), 'roof_parts', 'exec'))
+
 # #region ---- checks, joining, saving (the small trucks' own routine)
 _f = _st[_st.index('def finish_truck('):].replace('K.uv_cube();', 'K.uv_cube(); AFTER_UV();').replace('(2.590, .985, 1)', '(2.485, .992, 1)').replace('-38, 38)', '-35, 35)').replace("n.startswith(('Tyre_', 'HoseTurn'))", "n.startswith(('Tyre_', 'TreadLow'))")
 _f = _f.replace('((6.2, 5.2, 2.4), (.1, 0, 1.1), 42), ((-6.4, 4.6, 3.0), (-.3, 0, 1.1), 42), ((-4.6, -.6, 2.9), (-1.7, -.1, 1.3), 30), ((-5.0, -5.0, 2.6), (-.4, 0, 1.1), 40)', '((6.8, 4.6, 2.6), (.1, 0, 1.5), 38), ((-6.6, 4.6, 3.2), (-.3, 0, 1.5), 38), ((1.62, .46, 1.56), (2.45, .12, 1.10), 15), ((4.6, 1.9, 1.1), (2.7, .45, .75), 50)')
+_f = _f.replace('K.glass(M_GLASS, .25)', 'K.glass(M_GLASS, .25); ROOF and K.glass(M_POLY, .5)')
+if ROOF: _f = _f.replace('((6.8, 4.6, 2.6), (.1, 0, 1.5), 38), ((-6.6, 4.6, 3.2), (-.3, 0, 1.5), 38), ((1.62, .46, 1.56), (2.45, .12, 1.10), 15), ((4.6, 1.9, 1.1), (2.7, .45, .75), 50)', '((8.4, 5.6, 3.9), (-.4, 0, 2.2), 38), ((-8.0, 5.2, 4.4), (-.5, 0, 2.2), 38), ((-2.55, 0, 2.2), (1.0, .05, 3.9), 18), ((3.9, 1.7, 4.2), (.9, 0, 3.6), 30)')
 exec(compile(_f, 'small_truck finish', 'exec'))
 UPS = ('Up', 'StepLight_Up', 'GateSlide', 'NamePanel_Plat', 'Word_Rail')
 def stairs_check():
@@ -327,7 +338,9 @@ def stairs_check():
         h = [(a, b) for a in W if a.startswith('TreadLow') for b in W if b != a and b.startswith('TreadLow') and W[a].overlap(W[b])]
         if h: print(TAG, 'TREADS', f, h[:4])
 if '--nochk' not in sys.argv: stairs_check()
+if ROOF: roof_check()
 def gx(n):
+    if n.startswith(('UpRoof', 'LowRoof')) and n.endswith('_Glass'): return 'StairUp_Glass' if n[0] == 'U' else 'StairLow_Glass'      # see-through: its own part, or the whole flight loses Nanite
     for k in ('FL', 'FR', 'RL', 'RR'):
         if n.startswith('Stab_' + k): return 'Stab_' + k
     for k in ('L', 'R'):
@@ -347,4 +360,7 @@ def gx(n):
 finish_truck([], lambda n: gx(n), [('DoorPassenger', (2.485, -.992, 1), 'z', (15, 40, 68), ())], [(('GateSlide_L', 'GateSlide_R'), (1, 0, 0), (.0, .2, .4), ('UpGateRail',))], {
     'stairs': {'rise': R, 'going': G, 'angle_deg': round(ANG, 3), 'platform_min': round(PZ, 3), 'platform_max': round(PZ + 10 * R, 3), 'slide_dir': [round(c, 5) for c in DIR.normalized()], 'slide_len': round(10 * DIR.length, 4), 'lower_nosing_x0': X0, 'lower_tread0_z': .198, 'upper_first_nosing': [round(xu, 3), round(NU(xu), 3)],
                'platform_x': [round(PX0, 3), round(PX1 + .12, 3)], 'platform_half_width': .95, 'clear_width': 1.277, 'handrail_above_nosing': .985, 'gate_slide': .40, 'jack_stroke': .141, 'tread_fold_deg': round(ANG, 3)}})
+if ROOF:                                                                        # the game reads the open one's points for both: they must be the same
+    _a, _b = (json.load(open(os.path.join(ROOT, 'Data', k + '-riders.json'))) for k in ('passengerstairs', KEY)); assert _a == _b, 'points differ from the open stairs'
+    os.remove(os.path.join(ROOT, 'Data', KEY + '-riders.json'))
 # #endregion

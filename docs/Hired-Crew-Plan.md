@@ -331,6 +331,14 @@ tyre radius 32, HalfW 101 (124 mirrors), HalfL 299, TurnR about 450 (35 deg is c
 - **You:** doors, seats, drive as the others; E at the ground panel (right side, `IK_Stand_GroundEStop`): legs + up to the aircraft in front / down again. On foot: solid ramps (34.16 deg) that follow the flights, rails, platform; its front shut until the gates are out.
 - **Missing:** passengers and cabin crew walking them, levers worked by you from the seat, the run-time screen text, battery needle, hydraulic / jack sounds, tread lights on a switch.
 
+## Passenger stairs, roofed version as built (to-do 212, 2026-11-24): model, blueprint, imported - not run
+- **Model** `Art/PassengerStairsRoof` (`make_passengerstairsroof.py` runs the open one's script with `ROOF`; the roof alone is `roof_parts.py`), blueprint `docs/Blueprints/Apron/PassengerStairsRoof.*` (`Tools/make_passengerstairs_blueprint.py roof`). Same part names and the same points (the script stops if they differ: the game reads `passengerstairs-riders.json` for both), no code touched.
+- **Roof:** 8 hoops (30 mm, on 12 x 40 straps bolted to the side plates outside the hand rails) a flight, smoked polycarbonate 4 mm (`PS_SmokedRoof_Glass`: the game's vehicle glass), screwed aluminium strips, gutters, rubber lips. The upper roof runs inside the lower one. Hood over the platform on its side walls + visor, open to the aircraft; LED strips are in `StepLights_Up / _Low`.
+- **Parts:** frame in `StairUp` / `StairLow`, panes `StairUp_Glass` / `StairLow_Glass` (own parts, so the flights keep Nanite; the name moves them with the flight).
+- **Numbers:** clear 2.05 m or more over every nosing and the platform across 1.2 m (2.24 in the middle); roofs 22 mm apart at the nearest over the whole range, overlap 0.48 m at 4.22. Hood's side walls end 48 cm behind the bumper, the visor 12 cm (underside 2.12 over the platform, over the door's top). 5.97 x 2.00 (2.47 mirrors) x **4.60 m when low**: not checked against what it drives under (jetways, pier). Highest 6.5 m.
+- **After every import:** `Tools/share_model_materials.py PassengerStairsRoof PassengerStairs` (its meshes use the open one's materials, its 370 MB of copies go; the open one first).
+- **Both:** the front bumper's and the gates' stripes are thin plates with plain sides (no yellow shreds on the edge).
+
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
 | Where | Today | Replace with | Nobody free |
