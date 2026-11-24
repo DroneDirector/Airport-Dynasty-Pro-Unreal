@@ -75,7 +75,7 @@ for p in shell.data.polygons:
         if .50 < c.z < .83: p.material_index = 1
         if c.z < .50: p.material_index = 2
 for s in (-1, 1): boole(shell, rawprism('c', [(1.68, .20), (2.24, .20), (2.24, .425), (1.68, .425)], 'y', s * .70, s * 1.5), 'DIFFERENCE', False)      # recessed steps under the doors
-DOORF = rnd([(1.52, .52), (2.46, .52), (2.46, 1.10), (2.33, 1.86), (1.52, 1.86)], [.05, .05, .10, .10, .07]); GAP = .004
+DOORF = rnd([(1.60, .52), (2.46, .52), (2.46, 1.10), (2.33, 1.86), (1.60, 1.86)], [.05, .05, .10, .10, .07]); GAP = .004
 shell0 = S.copy(shell, 'shell0')
 def opening(name, pts, axis, a, b):
     pan = S.copy(shell0, name); boole(pan, rawprism('c', grow(pts, -GAP), axis, a, b), 'INTERSECT', False); boole(shell, rawprism('c', pts, axis, a, b), 'DIFFERENCE', False); return pan
@@ -83,7 +83,7 @@ doorD = opening('DoorDriver', DOORF, 'y', *OY); doorP = opening('DoorPassenger',
 WSC = rnd([(-.86, 1.09), (.86, 1.09), (.82, 1.83), (-.82, 1.83)], [.06, .06, .09, .09]); boole(shell, rawprism('c', WSC, *XB), 'DIFFERENCE', False)
 WRE = rnd([(-.60, 1.12), (.60, 1.12), (.60, 1.80), (-.60, 1.80)], .06); boole(shell, rawprism('c', WRE, 'x', 1.3, 1.7), 'DIFFERENCE', False)
 WRO = rnd([(1.66, -.60), (2.18, -.60), (2.18, .60), (1.66, .60)], .06); boole(shell, rawprism('c', WRO, 'z', 1.85, 2.3), 'DIFFERENCE', False)
-WD = rnd([(1.60, .98), (2.385, .94), (2.265, 1.79), (1.60, 1.79)], .06)
+WD = rnd([(1.68, .98), (2.385, .94), (2.265, 1.79), (1.68, 1.79)], .06)
 for o, s in ((doorD, 1), (doorP, -1)): boole(o, rawprism('c', WD, 'y', s * OY[0], s * OY[1]), 'DIFFERENCE', False)
 HLY, HLZ = (.60, .735, .86), .665                                               # three round units a side: low beam, high beam, indicator
 HF = rnd([(.50, .575), (.935, .575), (.935, .755), (.50, .755)], .06)
@@ -103,7 +103,7 @@ for s, sn, f in SIDES:
         revx('%s_%s_Reflector' % (nm, sn), [(.012, -.004)] + [(r * k / 8, .052 * (k / 8) ** 2 + (.0015 if k % 2 else 0)) for k in range(2, 9)] + [(r + .004, .054), (r + .004, -.004), (.012, -.004)], c, M_CHROME)
         revx('%s_%s_Lens' % (nm, sn), [(0, .030), (r * .16, .0285), (r * .30, .023), (r * .36, .015), (r * .36, -.0065), (0, -.0065)], c, mt); revx('%s_%s_Collar' % (nm, sn), [(r * .30, -.001), (r * .46, -.001), (r * .46, .010), (r * .30, .010), (r * .30, -.001)], c, M_PLAST)
         for k in range(8): a = math.pi / 4 * k; box('%s_%s_Fin%d' % (nm, sn, k), (x0 + .030, s * y + r * .75 * math.cos(a), HLZ + r * .75 * math.sin(a)), (.012, .006, .006), M_CHROME, .001, 1)
-    for i, (x0, x1) in enumerate(((1.56, 1.86), (1.87, 2.16), (2.17, 2.43))): patch(('DoorDriver' if s > 0 else 'DoorPassenger') + '_HiVis%d' % i, [(x0, .70), (x1, .70), (x1, .76), (x0, .76)], 'y', s * OY[0], s * OY[1], M_HVR if i % 2 else M_HVW, -.0025, .006)
+    for i, (x0, x1) in enumerate(((1.64, 1.90), (1.91, 2.16), (2.17, 2.43))): patch(('DoorDriver' if s > 0 else 'DoorPassenger') + '_HiVis%d' % i, [(x0, .70), (x1, .70), (x1, .76), (x0, .76)], 'y', s * OY[0], s * OY[1], M_HVR if i % 2 else M_HVW, -.0025, .006)
     patch('CabSideMarker_' + sn, rnd([(1.44, .86), (1.50, .86), (1.50, .95), (1.44, .95)], .012, 3), 'y', s * OY[0], s * OY[1], M_AMB, -.009, .004)
 patch('Grille_Field', rnd([(-.40, .60), (.40, .60), (.40, .74), (-.40, .74)], .04), *XB, M_PLAST, -.004, .02)
 for i in range(4): patch('Grille_Slat%d' % i, [(-.36, .622 + .030 * i), (.36, .622 + .030 * i), (.36, .632 + .030 * i), (-.36, .632 + .030 * i)], *XB, M_DARK, -.012, .002)
@@ -119,8 +119,8 @@ for s, n in ((1, 'Driver'), (-1, 'Passenger')):
     box('Step%s_Riser' % n, (1.96, s * .700, .325), (.59, .014, .225), M_BUMP, .002, 1); box('Step%s_Top' % n, (1.96, s * .815, .431), (.59, .245, .014), M_BUMP, .002, 1)
     for e, x in ((0, 1.673), (1, 2.247)): box('Step%s_End%d' % (n, e), (x, s * .820, .325), (.014, .254, .225), M_BUMP, .002, 1)
     box('Step%s_Tread' % n, (1.96, s * .830, .255), (.575, .275, .030), M_TREAD, .006, 2); box('Step%s_Edge' % n, (1.96, s * .945, .2715), (.56, .035, .006), M_NOSE, .002, 1); ik('Step_Door%s' % n, (1.96, s * .87, .2745)); ik('Step_Door%s_Low' % n, (1.96, s * .87, .2745))
-    cyl('StabHouse_F%s' % n[0], (2.875, s * .80, .375), .060, .29, 'z', M_FRM, 36, .006); box('StabClamp_F%s' % n[0], (2.79, s * .80, .44), (.12, .10, .06), M_CHAS, .006)
-box('FrontBumper', (2.80, 0, .305), (.24, 1.90, .13), M_BUMP, .03, 3); box('FrontBumper_Chev', (2.9215, 0, .305), (.010, 1.30, .09), M_CHEV, .003, 1); box('FrontTowEye', (2.95, 0, .305), (.08, .05, .07), M_YEL, .012)
+    cyl('StabHouse_F%s' % n[0], (2.875, s * .80, .375), .060, .29, 'z', M_FRM, 36, .006); [box('StabClamp_F%s%d' % (n[0], k), (2.69, s * .80, z), (.27, .10, .05), M_CHAS, .006) for k, z in enumerate((.30, .45))]; [torus('StabBand_F%s%d' % (n[0], k), (2.875, s * .80, z), .060, .006, 'z', M_CHAS) for k, z in enumerate((.30, .45))]
+box('FrontBumper', (2.80, 0, .305), (.24, 1.36, .13), M_BUMP, .03, 3); box('FrontBumper_Chev', (2.9215, 0, .305), (.010, 1.22, .058), M_CHEV, .003, 1); box('FrontTowEye', (2.95, 0, .305), (.08, .05, .07), M_YEL, .012)
 # #endregion
 
 # #region ---- cab doors, dashboard with real dials, stair console, seats
@@ -131,15 +131,16 @@ for s, n in ((1, 'DoorDriver'), (-1, 'DoorPassenger')):
     box(n + '_Armrest', (1.96, s * .918, .90), (.46, .055, .055), M_DASH, .02, 3); box(n + '_Pocket', (1.98, s * .930, .62), (.64, .040, .13), M_DASH, .015)
     box(n + '_HandleIn_Cup', (2.28, s * .940, .905), (.12, .018, .055), M_PLAST, .008); box(n + '_HandleIn', (2.27, s * .930, .908), (.08, .012, .020), M_CHROME, .004); box(n + '_Switches', (2.10, s * .920, .931), (.12, .045, .012), M_PLAST, .004)
     for k in range(2): box(n + '_Switch%d' % k, (2.075 + .05 * k, s * .920, .939), (.034, .022, .010), M_DARK, .003)
-    patch(n + '_HandleCup', rnd([(1.56, .875), (1.70, .875), (1.70, .945), (1.56, .945)], .025, 4), 'y', a, b, M_PLAST, -.002, .008)
-    box(n + '_Handle', (1.632, s * 1.020, .912), (.14, .018, .028), M_PLAST, .008, 3)
-    for e, x in enumerate((1.572, 1.692)): box(n + '_Handle_P%d' % e, (x, s * 1.008, .912), (.018, .028, .020), M_PLAST, .004)
+    patch(n + '_HandleCup', rnd([(1.64, .875), (1.78, .875), (1.78, .945), (1.64, .945)], .025, 4), 'y', a, b, M_PLAST, -.002, .008)
+    box(n + '_Handle', (1.712, s * 1.020, .912), (.14, .018, .028), M_PLAST, .008, 3)
+    for e, x in enumerate((1.652, 1.772)): box(n + '_Handle_P%d' % e, (x, s * 1.008, .912), (.018, .028, .020), M_PLAST, .004)
     for i, z in enumerate((.66, .98)): box(n + '_Hinge%d' % i, (2.400, s * .945, z), (.07, .035, .08), M_DARK, .004)
     box(n + '_MirrorFoot', (2.345, s * .985, 1.16), (.06, .07, .09), M_PLAST, .018, 3); box(n + '_MirrorArm', (2.36, s * 1.05, 1.20), (.045, .14, .05), M_PLAST, .018, 3); box(n + '_MirrorShell', (2.375, s * 1.15, 1.28), (.09, .17, .40), M_PLAST, .04, 4)
     box(n + '_MirrorGlass', (2.3290, s * 1.15, 1.33), (.012, .135, .22), M_MIR, .001, 1); box(n + '_MirrorGlass2', (2.3290, s * 1.15, 1.155), (.012, .135, .09), M_MIR, .001, 1)
-    piv(n, (2.485, s * .992, 1.0)); ik('Handle_%s_Out' % n, (1.632, s * 1.030, .912)); ik('Handle_%s_In' % n, (2.27, s * .922, .908)); ik('Stand_%s' % n, (1.96, s * 1.62, 0))
-    tube('GrabHandle_' + sd, [(1.455, s * 1.000, .98), (1.455, s * 1.040, 1.03), (1.455, s * 1.032, 1.42), (1.455, s * .975, 1.48)], .012, M_PLAST); ik('Grab_' + sd, (1.455, s * 1.038, 1.22))
-    for e, (y, z) in enumerate(((.992, .98), (.968, 1.48))): box('GrabHandle_%s_F%d' % (sd, e), (1.455, s * y, z), (.04, .045, .05), M_PLAST, .012)
+    piv(n, (2.485, s * .992, 1.0)); ik('Handle_%s_Out' % n, (1.712, s * 1.030, .912)); ik('Handle_%s_In' % n, (2.27, s * .922, .908)); ik('Stand_%s' % n, (1.96, s * 1.62, 0))
+    gs = [ip(WHt, z) for z in (.99, 1.06, 1.40, 1.47)]                        # on the side, on the pillar behind the door (owner: not over the corner)
+    tube('GrabHandle_' + sd, [(1.550, s * (gs[0] + .004), .99), (1.550, s * (gs[1] + .062), 1.03), (1.550, s * (gs[2] + .062), 1.43), (1.550, s * (gs[3] + .004), 1.47)], .012, M_PLAST); ik('Grab_' + sd, (1.550, s * (ip(WHt, 1.23) + .052), 1.23))
+    for e, z in enumerate((.99, 1.47)): box('GrabHandle_%s_F%d' % (sd, e), (1.550, s * (ip(WHt, z) + .004), z), (.044, .020, .056), M_PLAST, .008, 3)
     tube('GrabIn_' + sd, [(2.43, s * .850, 1.14), (2.40, s * .835, 1.20), (2.33, s * .825, 1.52), (2.32, s * .84, 1.58)], .011, M_PLAST); box('GrabIn_%s_F0' % sd, (2.45, s * .885, 1.13), (.06, .10, .05), M_PLAST, .012); box('GrabIn_%s_F1' % sd, (2.335, s * .875, 1.59), (.06, .10, .05), M_PLAST, .012); ik('GrabIn_' + sd, (2.365, s * .830, 1.36))
 inside('Dashboard', [(Xo(x), Zo(z)) for x, z in rnd([(1.740, .80), (1.46, .86), (1.31, .97), (1.27, 1.08), (1.30, 1.135), (1.42, 1.152), (1.740, 1.152)], [.02, .08, .06, .05, .03, .04, .02], 5)], 'y', -1.3, 1.3, .034, M_DASH)
 for s in (-1, 1): boole(bpy.data.objects['Dashboard'], rawprism('c', [(2.0, .5), (2.51, .5), (2.51, 1.3), (2.0, 1.3)], 'y', s * .895, s * 1.4), 'DIFFERENCE', False)
