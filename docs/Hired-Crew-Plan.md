@@ -488,6 +488,9 @@ riders `Data/ambulift-riders.json`, `Data/wheelchair-riders.json`, all points an
   gate's tug (`TugControls`), the crew's states. The crew wait for you (`GpuQueue`), then do only what is left (`GpuPlan`, `Gpu*Now`); left 2 min
   or 40 m, or the plug laid down: a free one finishes (`GpuHelp`). Plug in only on blocks with the chocks in, pull only with the power off.
 - Model lacks: working selector and lamp test, contactor lamps, light switches, a cable reel.
+- 238 the cabin cleaning van by hand (`GSECleanYou.cpp`): doors by their handles, kit out of / into its places (vacuum and full bags by the crew's climb), put down on the apron, handed in at the aircraft's door, full bags carried down from it; left kit is fetched by a cleaner or by the crew before they drive. Compiled, not played.
+- Not built: the cart by two (the prompt says it needs two). Rows stay the cleaners' (no cabin, 209).
+- Model lacks: gear and park brake levers, light / hazard / beacon / work lamp / horn buttons, stalks, cart ramp, grab handle at the rear.
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 

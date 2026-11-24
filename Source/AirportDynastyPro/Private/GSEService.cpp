@@ -8,6 +8,7 @@
 #include "ServiceVehicles.h"
 #include "GSEFuel.h"
 #include "GSECater.h"
+#include "GSEClean.h"
 #include "GSEWater.h"
 #include "GSEStairs.h"
 #include "GSEDeicer.h"
@@ -206,6 +207,7 @@ void AGSE::SvcDress(FTractor& T)
 	for (const FServiceWiper& W : S.Wipers) T.GWiper.Add(M->BindGroup({FString(W.Prefix)}, true, FTransform(SvcP(T, W.Pivot))));
 	for (const FServiceItem& I : S.Items) { FTractor::FSvcItem X; X.Piv = SvcP(T, I.Part); X.bShow = I.bAtHome; X.G = M->BindGroup({FString(I.Part)}, true, FTransform(X.Piv)); T.SvcItems.Add(X); }
 	CabDress(T);
+	if (SvIs(T.Svc, TEXT("clean"))) CleanDress(T);
 	if (S.bFuel) FuelDress(T);
 	if (S.bCater) CaterDress(T);
 	if (S.Wet) WetDress(T);
@@ -267,7 +269,7 @@ void AGSE::SvcParts(FTractor& T, float Dt)
 	// (full bags and used rolls go, new ones come, only while it stands shut in its box and nobody is in it)
 	if (T.bUsed)
 	{
-		bool bShut = T.Job == EJob::None && !T.Player.IsValid() && FVector::Dist2D(T.At, T.Home) < 200.f; for (const FTractor::FSvcDoor& D : T.SvcDoors) if (D.Now > 0.f) bShut = false;
+		bool bShut = T.Job == EJob::None && !T.Player.IsValid() && FVector::Dist2D(T.At, T.Home) < 200.f && !(T.Cl && T.Cl->Out()); for (const FTractor::FSvcDoor& D : T.SvcDoors) if (D.Now > 0.f) bShut = false;
 		if ((T.BoxT = bShut ? T.BoxT + Dt : 0.f) > 30.f) SvcRestock(T);
 	}
 	// the load doors you sent open or shut: one leaf after the other, the last to open the first to shut
@@ -304,7 +306,7 @@ void AGSE::SvcParts(FTractor& T, float Dt)
 	for (int32 d = 0; d < T.SvcDoors.Num(); ++d)
 	{
 		FTractor::FSvcDoor& D = T.SvcDoors[d]; const FServiceDoor& K = SvDoor(S, d);
-		if (D.Now == D.Want) continue;
+		if (D.Now == D.Want || (T.Cl && CleanInWay(T, d))) continue;   // (you in a leaf's way: it waits)
 		D.Now = FMath::FInterpConstantTo(D.Now, D.Want, Dt, 0.75f);
 		FTransform X(D.Piv);
 		if (K.bSlide)
@@ -321,6 +323,7 @@ void AGSE::SvcParts(FTractor& T, float Dt)
 				{ const FTransform Rel = FTransform(FRotator(0.f, 180.f, 0.f), SvcP(T, S.NameRear) - FVector(1.2f, 0.f, 0.f)) * FTransform(D.Piv).Inverse() * X; Cast<USceneComponent>(C)->SetRelativeLocationAndRotation(Rel.GetLocation(), Rel.GetRotation()); }
 		if (D.Now == D.Want && D.Want == 0.f) Sound(*T.SndDoorClose, TW(T, D.Piv));
 	}
+	if (T.Cl) CleanParts(T, Dt);
 	if (S.bFuel) FuelParts(T, Dt);
 	if (S.bCater) CaterParts(T, Dt);
 	if (S.Wet) WetParts(T, Dt);
@@ -329,6 +332,7 @@ void AGSE::SvcParts(FTractor& T, float Dt)
 	if (S.bAmbu) AmbuParts(T, Dt);
 	for (FTractor::FSvcItem& I : T.SvcItems)
 	{
+		if (FTransform Yx; I.G != INDEX_NONE && T.Cl && CleanItem(T, int32(&I - T.SvcItems.GetData()), Yx)) { M->MoveGroup(I.G, Yx); continue; }   // (yours)
 		if (I.G == INDEX_NONE || (I.Ci == INDEX_NONE && !I.bMoved)) continue;
 		FTransform X(FQuat::Identity, I.Piv, I.bShow ? FVector::OneVector : FVector(0.001f));
 		if (I.Ci != INDEX_NONE)
@@ -461,6 +465,7 @@ bool AGSE::SvcAll(int32 Job, TFunctionRef<bool(const FSvcMan&)> Is) { FSvcJob* J
 bool AGSE::SvcLost(int32 Ci, bool& bDrop)
 {
 	ATugs* G = Tg(); if (!G) return false;
+	if (CleanLost(Ci)) { bDrop = true; return true; }
 	for (TPair<int32, FSvcJob>& P : SvcJobs)
 		for (int32 m = 0; m < P.Value.Men.Num(); ++m)
 		{
@@ -508,7 +513,14 @@ void AGSE::SvcTick(float Dt)
 		FuelTick(J, Dt); WetTick(J, Dt); if (SvSpec(J.Svc).bStairs) StairsTick(J, Dt);
 		if (SvSpec(J.Svc).bDeicer) DeicerTick(P.Key, Dt);
 		if (SvSpec(J.Svc).bCater || SvSpec(J.Svc).Wet || SvSpec(J.Svc).bStairs || SvSpec(J.Svc).bDeicer || SvSpec(J.Svc).bAmbu) continue;
-		int32 In = 0; for (const FSvcMan& M : J.Men) if (M.bIn && !M.bGone) ++In;
+		const FSvcClean* Cl = Tractors.IsValidIndex(J.Ti) ? Tractors[J.Ti].Cl.Get() : nullptr; int32 In = 0;
+		for (int32 m = 0; m < J.Men.Num(); ++m)
+		{
+			// (you have this one's kit in your hand or stood it down: its rows wait for it, two minutes after you last did something no longer)
+			const int32 Kt = SvSpec(J.Svc).Take.IsValidIndex(m) ? SvSpec(J.Svc).Take[m] : INDEX_NONE;
+			const bool bMiss = Cl && J.Men[m].bNoKit && Cl->IdleT < 120.f && Cl->Things.IsValidIndex(Kt) && (Cl->Things[Kt].State == FSvcClean::Hand || Cl->Things[Kt].State == FSvcClean::Laid);
+			if (J.Men[m].bIn && !J.Men[m].bGone && !bMiss) ++In;
+		}
 		if (!In || J.RowsDone >= J.Rows) continue;
 		for (J.RowT += Dt * In; J.RowT >= SvRowSeconds && J.RowsDone < J.Rows; J.RowT -= SvRowSeconds)
 			if (++J.RowsDone % 10 == 0 || J.RowsDone == J.Rows) ADP_LOG(TEXT("GSE: %s cleaned to row %d of %d, %d people"), *J.Reg, J.RowsDone, J.Rows, In);
@@ -550,6 +562,7 @@ void AGSE::SvcTick(float Dt)
 		const FTractor& Tv = Tractors[Ti]; J.Svc = Tv.Svc;   // (any of the stairs)
 		if (S.bStairs && !bTake && !StairsStowed(Tv)) { J.Why = TEXT("the stairs are up"); continue; }
 		if (S.bAmbu && (!AmbuStowed(Tv) || Tv.Player.IsValid())) { J.Why = TEXT("you have the ambulift"); continue; }
+		if (FString Cw; CleanHeld(Tv, Cw)) { J.Why = Cw; continue; }
 		if (YouServe(Tv.Svc, J.StandX)) { J.Why = FString::Printf(TEXT("you work with the %s"), S.Label); continue; }
 		if (S.bCater && (!CaterStowed(Tv) || Tv.Player.IsValid())) { J.Why = TEXT("you have the catering truck"); continue; }
 		if ((S.bFuel && !FuelStowed(Tv)) || (S.Wet && !WaterStowed(Tv))) { J.Why = FString::Printf(TEXT("you have the %s"), S.Label); continue; }
@@ -789,6 +802,41 @@ void AGSE::SvcWork(int32 Job)
 	for (int32 m = 0; m < J->Men.Num(); ++m) if (!J->Men[m].bGone) SvcManAt(Job, m);
 }
 
+TFunction<void(float, float, FDriverPose&)> AGSE::SvcDeepFn(int32 Ti, const FVector& At, bool bIn)
+{
+	const FVector Rear(-375.f, 0.f, 0.f); const float Fl = Tractors[Ti].KFloor;
+	return [this, Ti, At, Rear, Fl, bIn](float K0, float PH, FDriverPose& P)
+	{
+		// ground, the rear step, the load floor (bent under the door's head), along it
+		const FTractor& T = Tractors[Ti]; const float X = (bIn ? K0 : 1.f - K0) * 4.f;
+		const FVector Fw = FRotator(0.f, T.Yaw, 0.f).Vector();
+		auto Key = [&](int32 i)
+		{
+			FDriverPose Q = ADPPose::Standing(TW(T, i == 0 ? Rear : i == 1 ? FVector(-345.f, 0.f, 0.f) : i == 2 ? FVector(-285.f, 0.f, Fl) : i == 3 ? FVector((At.X - 285.f) * 0.5f, At.Y * 0.5f, Fl) : At), Fw, PH);
+			if (i == 1) { Q.Foot[0] = TW(T, FVector(-305.f, -10.f, 46.f)); Q.Pelvis = TW(T, FVector(-325.f, 0.f, PH + 14.f)); Q.Lean = 16.f; }
+			if (i == 2) { Q.Pelvis.Z -= 14.f; Q.Lean = 22.f; Q.Foot[1] = TW(T, FVector(-305.f, 10.f, 46.f)); }
+			return Q;
+		};
+		const int32 i = FMath::Clamp(FMath::FloorToInt(X), 0, 3);
+		P = ADPPose::Lerp(Key(i), Key(i + 1), FMath::SmoothStep(0.f, 1.f, X - i));
+	};
+}
+
+TFunction<void(float, float, FDriverPose&)> AGSE::SvcHandFn(int32 Ti, const FVector& At, const FVector& Place)
+{
+	return [this, Ti, At, Place](float K2, float PH, FDriverPose& P) { const FTractor& T = Tractors[Ti]; P = ADPPose::Reach(TW(T, At), SvFace(TW(T, At), TW(T, Place)), 1, TW(T, Place), 0.8f, PH, 1.f); P.Lean = 16.f; P = ADPPose::Lerp(ADPPose::Standing(TW(T, At), SvFace(TW(T, At), TW(T, Place)), PH), P, ADPPose::Ramp(K2)); };
+}
+
+void AGSE::SvcReach(int32 Ci, int32 Ti, int32 It, TFunction<void()> Pass)
+{
+	const FServiceItem K = SvSpec(Tractors[Ti].Svc).Items[It]; const FVector At = K.Stand, Rear(-375.f, 0.f, 0.f);
+	const TFunction<void(float, float, FDriverPose&)> Hand = SvcHandFn(Ti, At, Tractors[Ti].SvcItems[It].Piv);
+	WalkTo(Ci, [this, Ti, At, Rear, bDeep = K.bDeep] { return TW(Tractors[Ti], bDeep ? Rear : At); }, 12.f);
+	if (K.bDeep) { WaitFor(Ci, [this, Ti](float E) { return E > 30.f || !CleanYouIn(Tractors[Ti]); }); PoseAct(Ci, SvcDeepFn(Ti, At, true), 4.f); }
+	PoseAct(Ci, [Hand](float K2, float PH, FDriverPose& P) { Hand(K2 * 0.5f, PH, P); }, 0.9f); Do(Ci, MoveTemp(Pass)); PoseAct(Ci, [Hand](float K2, float PH, FDriverPose& P) { Hand(0.5f + K2 * 0.5f, PH, P); }, 0.8f);
+	if (K.bDeep) PoseAct(Ci, SvcDeepFn(Ti, At, false), 4.f);
+}
+
 void AGSE::SvcTake(int32 Job, int32 m, bool bTake)
 {
 	// out of its place, or back into it: from the rear, or from inside (up over the rear step)
@@ -796,47 +844,19 @@ void AGSE::SvcTake(int32 Job, int32 m, bool bTake)
 	const int32 Ci = M->Ci, Ti = J->Ti; const FServiceSpec& Sv = SvSpec(J->Svc);
 	const FVector Off(-420.f - 70.f * m, m % 2 ? 130.f : -130.f, 0.f);   // (clear of the back for the next one)
 	if (!Sv.Take.IsValidIndex(m)) return;
-	const int32 It = !bTake && Sv.Bring.IsValidIndex(m) && Sv.Bring[m] >= 0 ? Sv.Bring[m] : Sv.Take[m];
-	const FServiceItem K = Sv.Items[It]; const FVector Place = Tractors[Ti].SvcItems[It].Piv, At = K.Stand, Rear(-375.f, 0.f, 0.f);
-	WaitFor(Ci, [this, Job, m, bTake](float) { return SvcAll(Job, [m, bTake](const FSvcMan& X) { return X.Seat >= m || (bTake ? X.Item != INDEX_NONE : X.bStowed); }); });   // (one at a time at the back)
+	int32 It = !bTake && Sv.Bring.IsValidIndex(m) && Sv.Bring[m] >= 0 ? Sv.Bring[m] : Sv.Take[m];
+	// (kit you have, or carried for this one: nothing to take, nothing to put back)
+	if (!bTake && Tractors[Ti].Cl && M->Item != INDEX_NONE && M->Item != It) It = M->Item;
+	const bool bNone = bTake ? CleanYours(Tractors[Ti], It) : M->bNoKit && M->Item == INDEX_NONE;
+	WaitFor(Ci, [this, Job, m, bTake](float) { return SvcAll(Job, [m, bTake](const FSvcMan& X) { return X.Seat >= m || (bTake ? X.Item != INDEX_NONE || X.bNoKit : X.bStowed); }); });   // (one at a time at the back)
 	auto Pass = [this, Job, m, Ci, Ti, It, bTake]
 	{
+		if (CleanYours(Tractors[Ti], It)) { if (FSvcMan* X = SvcM(Job, m)) if (bTake) X->bNoKit = true; return; }
 		FTractor::FSvcItem& I = Tractors[Ti].SvcItems[It];
 		I.Ci = bTake ? Ci : INDEX_NONE; I.bShow = true; I.bMoved = true;
 		if (FSvcMan* X = SvcM(Job, m)) if (!bTake || !X->bStowed) X->Item = bTake ? It : INDEX_NONE;
 	};
-	auto Hand = [this, Ti, At, Place](float K2, float PH, FDriverPose& P) { const FTractor& T = Tractors[Ti]; P = ADPPose::Reach(TW(T, At), SvFace(TW(T, At), TW(T, Place)), 1, TW(T, Place), 0.8f, PH, 1.f); P.Lean = 16.f; P = ADPPose::Lerp(ADPPose::Standing(TW(T, At), SvFace(TW(T, At), TW(T, Place)), PH), P, ADPPose::Ramp(K2)); };
-	if (!K.bDeep)
-	{
-		WalkTo(Ci, [this, Ti, At] { return TW(Tractors[Ti], At); }, 12.f);
-		PoseAct(Ci, [Hand](float K2, float PH, FDriverPose& P) { Hand(K2 * 0.5f, PH, P); }, 0.9f); Do(Ci, Pass); PoseAct(Ci, [Hand](float K2, float PH, FDriverPose& P) { Hand(0.5f + K2 * 0.5f, PH, P); }, 0.8f);
-	}
-	else
-	{
-		const float Fl = Tractors[Ti].KFloor;
-		auto Climb = [this, Ti, At, Rear, Fl](bool bIn)
-		{
-			return [this, Ti, At, Rear, Fl, bIn](float K0, float PH, FDriverPose& P)
-			{
-				// ground, the rear step, the load floor (bent under the door's head), along it
-				const FTractor& T = Tractors[Ti]; const float X = (bIn ? K0 : 1.f - K0) * 4.f;
-				const FVector Fw = FRotator(0.f, T.Yaw, 0.f).Vector();
-				auto Key = [&](int32 i)
-				{
-					FDriverPose Q = ADPPose::Standing(TW(T, i == 0 ? Rear : i == 1 ? FVector(-345.f, 0.f, 0.f) : i == 2 ? FVector(-285.f, 0.f, Fl) : i == 3 ? FVector((At.X - 285.f) * 0.5f, At.Y * 0.5f, Fl) : At), Fw, PH);
-					if (i == 1) { Q.Foot[0] = TW(T, FVector(-305.f, -10.f, 46.f)); Q.Pelvis = TW(T, FVector(-325.f, 0.f, PH + 14.f)); Q.Lean = 16.f; }
-					if (i == 2) { Q.Pelvis.Z -= 14.f; Q.Lean = 22.f; Q.Foot[1] = TW(T, FVector(-305.f, 10.f, 46.f)); }
-					return Q;
-				};
-				const int32 i = FMath::Clamp(FMath::FloorToInt(X), 0, 3);
-				P = ADPPose::Lerp(Key(i), Key(i + 1), FMath::SmoothStep(0.f, 1.f, X - i));
-			};
-		};
-		WalkTo(Ci, [this, Ti, Rear] { return TW(Tractors[Ti], Rear); }, 12.f);
-		PoseAct(Ci, Climb(true), 4.f);
-		PoseAct(Ci, [Hand](float K2, float PH, FDriverPose& P) { Hand(K2 * 0.5f, PH, P); }, 0.9f); Do(Ci, Pass); PoseAct(Ci, [Hand](float K2, float PH, FDriverPose& P) { Hand(0.5f + K2 * 0.5f, PH, P); }, 0.8f);
-		PoseAct(Ci, Climb(false), 4.f);
-	}
+	if (!bNone) SvcReach(Ci, Ti, It, Pass); else if (bTake) Do(Ci, [this, Job, m] { if (FSvcMan* X = SvcM(Job, m)) X->bNoKit = true; });
 	if (!bTake) Do(Ci, [this, Job, m] { if (FSvcMan* X = SvcM(Job, m)) X->bStowed = true; });
 	WalkTo(Ci, [this, Ti, Off] { return TW(Tractors[Ti], Off); }, 25.f);
 }
@@ -946,7 +966,9 @@ void AGSE::SvcCabin(int32 Job, int32 m)
 	Do(Ci, [this, Job, m, Ci, Ti]
 	{
 		const FServiceSpec& K = SvSpec(Tractors[Ti].Svc); FSvcMan* X = SvcM(Job, m);
-		if (!X || !K.Bring.IsValidIndex(m) || K.Bring[m] < 0) return;
+		if (FSvcClean* Cl = Tractors[Ti].Cl.Get(); X && Cl && X->Item == INDEX_NONE && K.Take.IsValidIndex(m) && Cl->Things[K.Take[m]].State == FSvcClean::Cabin)
+		{ X->Item = K.Take[m]; Cl->Things[X->Item].State = FSvcClean::Van; FTractor::FSvcItem& Y = Tractors[Ti].SvcItems[X->Item]; Y.Ci = Ci; Y.bShow = Y.bMoved = true; }   // (the kit you carried up)
+		if (!X || !K.Bring.IsValidIndex(m) || K.Bring[m] < 0 || CleanYours(Tractors[Ti], K.Bring[m])) return;   // (you carry the full bag)
 		if (X->Item != INDEX_NONE) { FTractor::FSvcItem& O = Tractors[Ti].SvcItems[X->Item]; O.Ci = INDEX_NONE; O.bShow = false; O.bMoved = true; }
 		X->Item = K.Bring[m]; FTractor::FSvcItem& F = Tractors[Ti].SvcItems[X->Item]; F.Ci = Ci; F.bShow = true; F.bMoved = true; Tractors[Ti].bUsed = true;
 	});
@@ -1002,6 +1024,13 @@ void AGSE::SvcReturn(int32 Job, int32 m)
 	if (m == 0)
 	{
 		WaitFor(Ci, [this, Job](float) { return SvcAll(Job, [](const FSvcMan& X) { return X.bStowed; }); });
+		if (Tractors[Ti].Cl)
+		{
+			// (what you still carry: two minutes for you to bring it)
+			WaitFor(Ci, [this, Ti](float E) { const FTractor& T = Tractors[Ti]; return !CleanYouIn(T) && (E > 120.f || T.Cl->Held() == INDEX_NONE); });
+			Do(Ci, [this, Job] { Later([this, Job] { CleanLast(Job); }); }); Wait(Ci, 0.5f);
+			return;
+		}
 		for (int32 d = Sv.Doors.Num() - 1; d >= 1; --d) SvcDoor(Ci, Ti, d, false);
 		Do(Ci, [this, Job] { Later([this, Job] { SvcLeave(Job); }); });
 		Wait(Ci, 0.5f);

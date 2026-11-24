@@ -1,6 +1,7 @@
 // You in a service vehicle (ServiceDrive.h), and the vehicle's side of it (AGSE::Svc*: which seat is free, the drive itself).
 #include "ServiceDrive.h"
 #include "CabControls.h"
+#include "GSEClean.h"
 #include "VehicleControls.h"
 #include "GSE.h"
 #include "GSECater.h"
@@ -435,6 +436,7 @@ bool AGSE::SvcSeatFree(int32 Ti, int32 Seat, FString& Why) const
 	if (T.TugIx != INDEX_NONE) return G && G->YouFree(T.TugIx, Why);
 	if (S.bDeicer && (T.Job != EJob::None || !DeicerStowed(T))) { Why = T.Job != EJob::None ? TEXT("its crew are at work") : TEXT("its boom is not stowed"); return false; }
 	if (T.Job == EJob::None && ((S.bFuel && !FuelStowed(T)) || (S.Wet && !WaterStowed(T)) || (S.bCater && !CaterStowed(T)))) { Why = TEXT("not everything is back in its place"); return false; }   // (never off with a hose out)
+	if (T.Cl && T.Cl->Out()) { Why = TEXT("not everything is back in its place"); return false; }
 	if (T.Speed > 2.f || T.Path.Num()) { Why = TEXT("it is driving"); return false; }
 	if (SdCab(S, Seat) >= 0 || T.Job == EJob::None) return true;   // (the seat beside the driver: nobody of its crew sits there)
 	// its crew have it: the driver's seat only while every one of them is up in the aircraft
@@ -468,7 +470,7 @@ bool AGSE::SvcUse(APawn* Me, FString& Say)
 		Try(T.KStand, 0, false);
 		for (int32 c = 0; c < S.Cab.Num(); ++c) Try(SvcP(T, S.Cab[c].Door.Stand), 1 + S.Seats.Num() + c, false);
 		if (S.Seats.Num() && S.Doors.Num()) Try(SvcP(T, S.Doors[0].Stand), S.Seats.Num(), false);
-		for (int32 d = 1; d < S.Doors.Num(); ++d) Try(SvcP(T, S.Doors[d].Stand), 0, true);
+		for (int32 d = 1; d < S.Doors.Num() && !T.Cl; ++d) Try(SvcP(T, S.Doors[d].Stand), 0, true);   // (the cleaning van's by their handles)
 	}
 	if (Bt == INDEX_NONE) return false;
 	FTractor& T = Tractors[Bt];

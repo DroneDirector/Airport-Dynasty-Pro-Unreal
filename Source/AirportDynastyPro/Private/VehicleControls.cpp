@@ -51,7 +51,7 @@ const FVehTable* AGSE::CtlTable(int32 Svc)
 	if (const TSharedPtr<FVehTable>* F = All.Find(Svc)) return F->Get();
 	if (Svc < 0) { TSharedPtr<FVehTable> Ld = Svc == -4 ? TugControls() : Svc == -2 ? LoaderControls() : TractorControls(); CabAdd(*Ld, Svc); return All.Add(Svc, Ld).Get(); }
 	const FServiceSpec& S = ADPService::All()[Svc];
-	TSharedPtr<FVehTable> Tb = S.bAmbu ? AmbuControls() : S.bFuel ? FuelControls() : S.Wet == 1 ? WaterControls() : S.Wet == 2 ? ToiletControls() : S.bCater ? CaterControls() : S.bStairs ? StairsControls() : S.bDeicer ? DeicerControls() : TSharedPtr<FVehTable>();
+	TSharedPtr<FVehTable> Tb = S.bAmbu ? AmbuControls() : S.bFuel ? FuelControls() : S.Wet == 1 ? WaterControls() : S.Wet == 2 ? ToiletControls() : S.bCater ? CaterControls() : S.bStairs ? StairsControls() : S.bDeicer ? DeicerControls() : FCString::Strcmp(S.Task, TEXT("clean")) == 0 ? CleanControls() : TSharedPtr<FVehTable>();
 	if (!Tb) Tb = MakeShared<FVehTable>();
 	CabAdd(*Tb, Svc);   // (the cab controls all of them share)
 	return All.Add(Svc, Tb).Get();
@@ -142,7 +142,7 @@ void AVehicleControls::Find(AGSE& G, APawn& Me)
 	for (int32 i = 0; i < G.Tractors.Num(); ++i)
 	{
 		if (HoldTi != INDEX_NONE && i != HoldTi) continue;   // (its thing in your hand: first back in its place)
-		const AGSE::FTractor& V = G.Tractors[i]; if (!V.M.IsValid() || (V.TugIx == INDEX_NONE && FVector::DistSquared2D(V.At, From) > FMath::Square(V.KHalfL + 2600.f))) continue;   // (a tug's lines: also its gate's GPU)
+		const AGSE::FTractor& V = G.Tractors[i]; if (!V.M.IsValid() || (V.TugIx == INDEX_NONE && !V.Cl && FVector::DistSquared2D(V.At, From) > FMath::Square(V.KHalfL + 2600.f))) continue;   // (a tug's lines: also its gate's GPU)
 		const FVehTable* Tb = AGSE::CtlTable(V.CtlKey()); if (!Tb || FVector::DistSquared2D(V.At, From) > FMath::Square(V.KHalfL + Tb->Range) || (Sd ? V.Player.Get() != Sd : V.Player.IsValid())) continue;
 		for (int32 c = 0; c < Tb->Controls.Num(); ++c)
 		{

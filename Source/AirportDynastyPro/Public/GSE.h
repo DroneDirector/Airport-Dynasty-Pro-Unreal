@@ -35,6 +35,7 @@ class UInstancedStaticMeshComponent;
 struct FDriverPose;
 struct FSvcRefuel;
 struct FSvcCater;
+struct FSvcClean;
 struct FSvcWet;
 struct FSvcStairs;
 struct FSvcDeicer;
@@ -113,6 +114,7 @@ public:
 		TSharedPtr<FSvcDeicer> Di;        // (the de-icing truck's: GSEDeicer.cpp)
 		TSharedPtr<FSvcStairs> Ps;        // (the passenger stairs': GSEStairs.cpp)
 		TSharedPtr<FSvcWet> Wa;           // (the water and the toilet truck's: GSEWater.cpp)
+		TSharedPtr<FSvcClean> Cl;         // (the cleaning van's kit in your hands: GSECleanYou.cpp)
 		TSharedPtr<FSvcCater> Ct;         // (the catering high-loader's: GSECater.cpp)
 		TMap<FString, FVector> Pt;        // (a service vehicle's named points, root cm: Data/<vehicle>-riders.json)
 		struct FSvcDoor { int32 G = INDEX_NONE; FVector Piv = FVector::ZeroVector; float Now = 0.f, Want = 0.f; };
@@ -187,6 +189,7 @@ private:
 	static TSharedPtr<FVehTable> WaterControls();
 	static TSharedPtr<FVehTable> ToiletControls();
 	static TSharedPtr<FVehTable> CaterControls();
+	static TSharedPtr<FVehTable> CleanControls();
 	static TSharedPtr<FVehTable> StairsControls();
 	/** The belt loader worked by you (GSELoaderYou.cpp). Held: the boom stands (somebody on it or under it). Free: a crew may have it. */
 	static TSharedPtr<FVehTable> LoaderControls();
@@ -462,7 +465,7 @@ public:
 	void SvcGone(float StandX);
 private:
 	// Seat 0: the driver; bOut: on their feet by the vehicle; bIn: in the cabin; bDown: off the aircraft again; bGone: lost
-	struct FSvcMan { int32 Ci = INDEX_NONE, Seat = 0, Item = INDEX_NONE; bool bSeated = false, bOut = false, bIn = false, bDown = false, bStowed = false, bGone = false; };
+	struct FSvcMan { int32 Ci = INDEX_NONE, Seat = 0, Item = INDEX_NONE; bool bSeated = false, bOut = false, bIn = false, bDown = false, bStowed = false, bGone = false, bNoKit = false; };
 	struct FSvcJob
 	{
 		int32 Svc = 0, Ti = INDEX_NONE, Jet = INDEX_NONE; float StandX = 0.f, RowT = 0.f; FString Reg, Flight, Why; FDateTime When;
@@ -496,6 +499,27 @@ private:
 	void SvcCabin(int32 Job, int32 m);
 	void SvcUp(int32 Job, int32 m, bool bUp);
 	void SvcTake(int32 Job, int32 m, bool bTake);
+	TFunction<void(float, float, FDriverPose&)> SvcDeepFn(int32 Ti, const FVector& At, bool bIn);
+	TFunction<void(float, float, FDriverPose&)> SvcHandFn(int32 Ti, const FVector& At, const FVector& Place);
+	void SvcReach(int32 Ci, int32 Ti, int32 It, TFunction<void()> Pass);
+	// ---- the cleaning van by hand (GSECleanYou.cpp)
+	void CleanDress(FTractor& T);
+	void CleanParts(FTractor& T, float Dt);
+	bool CleanYours(const FTractor& T, int32 It) const;
+	bool CleanYouIn(const FTractor& T) const;
+	bool CleanStowed(const FTractor& T) const;
+	bool CleanHeld(const FTractor& T, FString& Why) const;
+	bool CleanInWay(const FTractor& T, int32 Door) const;
+	bool CleanItem(const FTractor& T, int32 It, FTransform& X) const;
+	bool CleanMay(const FTractor& T, int32 It, FString& Why) const;
+	bool CleanDoorAt(const FTractor& T, FVector& At) const;
+	int32 CleanDoorAct(const FTractor& T, FString& Say, FString& Why) const;
+	void CleanLay(FTractor& T, int32 It, const FVector& Feet, float Yaw);
+	void CleanPass(FTractor& T, int32 It);
+	void CleanGet(int32 Ci, int32 Ti, int32 It);
+	void CleanStow(FTractor& T);
+	bool CleanLost(int32 Ci);
+	void CleanLast(int32 Job);
 	void SvcLeave(int32 Job);
 	void SvcHome(int32 Job);
 	void SvcDriveHome(int32 Job, TFunction<void()> Then);
