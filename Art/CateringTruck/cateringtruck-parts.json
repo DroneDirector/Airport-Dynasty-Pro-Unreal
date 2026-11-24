@@ -907,6 +907,91 @@
    456.3,
    40.0,
    50.0
+  ],
+  "IK_Chock_0": [
+   -100.7,
+   -104.0,
+   71.5
+  ],
+  "PIV_Chock_0": [
+   -100.7,
+   -104.0,
+   48.6
+  ],
+  "IK_Chock_1": [
+   -72.7,
+   -104.0,
+   71.5
+  ],
+  "PIV_Chock_1": [
+   -72.7,
+   -104.0,
+   48.6
+  ],
+  "IK_ChockPlace_0": [
+   -117.0,
+   -104.5,
+   0.0
+  ],
+  "IK_ChockPlace_1": [
+   -230.4,
+   -104.5,
+   0.0
+  ],
+  "IK_Stand_Chocks": [
+   -86.7,
+   -180.0,
+   0.0
+  ],
+  "IK_Stand_ChockPlace": [
+   -173.7,
+   -185.0,
+   0.0
+  ],
+  "IK_Cone_0": [
+   -86.7,
+   105.0,
+   113.2
+  ],
+  "PIV_Cone_0": [
+   -86.7,
+   105.0,
+   41.2
+  ],
+  "IK_Cone_1": [
+   -86.7,
+   105.0,
+   120.2
+  ],
+  "PIV_Cone_1": [
+   -86.7,
+   105.0,
+   48.2
+  ],
+  "IK_ConePlace_0": [
+   481.3,
+   -155.0,
+   0.0
+  ],
+  "IK_ConePlace_1": [
+   -513.7,
+   -175.0,
+   0.0
+  ],
+  "IK_Stand_Cones": [
+   -86.7,
+   180.0,
+   0.0
+  ],
+  "IK_Stand_ConePlace_0": [
+   481.3,
+   -210.0,
+   0.0
+  ],
+  "IK_Stand_ConePlace_1": [
+   -513.7,
+   -230.0,
+   0.0
   ]
  },
  "parts": [
@@ -932,6 +1017,10 @@
   "Box_WallL",
   "Box_WallR",
   "CabFittings",
+  "Chock_0",
+  "Chock_1",
+  "Cone_0",
+  "Cone_1",
   "DoorDriver",
   "DoorDriver_Glass",
   "DoorDriver_Parts",
@@ -1055,6 +1144,8 @@
   "CT_SealRubber",
   "CT_SeatBolster",
   "CT_SeatFabric",
+  "CT_SignBlack",
+  "CT_SignOrange",
   "CT_SignRed",
   "CT_SignWhite",
   "CT_Steel",
@@ -1063,6 +1154,6 @@
   "CT_WallPanel",
   "CT_WhiteLens"
  ],
- "tris": 177606,
+ "tris": 184422,
  "flicker": "0 pairs fight"
 }

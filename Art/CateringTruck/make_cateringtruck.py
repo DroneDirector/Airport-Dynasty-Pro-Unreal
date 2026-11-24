@@ -201,6 +201,37 @@ for k, (x, m) in enumerate(((-3.50, M_GRN), (-3.40, M_RED))): cyl('BoxTailPanel_
 # #endregion
 ik('Driver_Eye', (.60 + ox, DY, FLOOR + 1.145)); ik('Aisle_Row0', (4.15, DY, FLOOR + .01)); ik('Tow', (5.1, -.40, .50))
 
+# #region ---- own wheel chocks and warning cones (to-do 238): carried by the driver, set when parked; the hand code comes later
+# chocks: refueller's size (0.25 x 0.18 x 0.17 m), in a tray left between the drive wheel's fender and the side box; set before and behind the left outer drive wheel
+CY0 = 1.03; box('ChockTray', (-.33, CY0, .475), (.56, .30, .02), M_DARK, .004)
+for e in (-.28, .28): box('ChockTray_End%d' % (e > 0), (-.33 + e, CY0, .535), (.016, .30, .12), M_DARK, .003, 1)
+box('ChockTray_Back', (-.33, .885, .62), (.56, .016, .30), M_DARK, .003, 1); box('ChockTray_Arm', (-.33, .68, .74), (.12, .40, .06), M_CHAS, .006); box('ChockTray_Arm2', (-.33, .50, .80), (.12, .10, .10), M_CHAS, .006)
+for i, x in enumerate((-.47, -.19)):
+    prism('Chock_%d' % i, [(x - .125, .486), (x + .125, .486), (x + .125, .52), (x + .06, .645), (x + .02, .66), (x - .02, .64), (x - .125, .52)], .95, 1.13, M_YEL, .012, 2); tube('Chock_%d_Grip' % i, [(x, 1.09, .645), (x, 1.085, .70), (x, 1.04, .715), (x, .995, .70), (x, .99, .645)], .009, M_SBLK)
+    for k in range(3): box('Chock_%d_Rib%d' % (i, k), (x - .06 + .05 * k, 1.04, .4885), (.02, .165, .006), M_SBLK, .001, 1)
+    ik('Chock_%d' % i, (x, 1.04, .715)); piv('Chock_%d' % i, (x, 1.04, .486))
+ik('ChockPlace_0', (DX + RW + .06, DYO, 0)); ik('ChockPlace_1', (DX - RW - .06, DYO, 0)); ik('Stand_Chocks', (-.33, 1.80, 0)); ik('Stand_ChockPlace', (DX, 1.85, 0))
+# cones: 0.75 m on a 0.40 m rubber base (Art/ApronSafety), hollow so the pair nests (7 cm a cone) over the post of a tray right, between drive wheel and side box
+def revz(name, prof, c, m, segs=48):
+    """A closed outline (r, z) turned round z through c, no caps (a hollow shell, a band)."""
+    bm = bmesh.new(); R = [[bm.verts.new((c[0] + r * math.cos(2 * math.pi * k / segs), c[1] + r * math.sin(2 * math.pi * k / segs), c[2] + z)) for k in range(segs)] for r, z in prof]
+    for j in range(len(R)):
+        A, B = R[j], R[(j + 1) % len(R)]
+        for k in range(segs): bm.faces.new((A[k], A[(k + 1) % segs], B[(k + 1) % segs], B[k]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:]); return K.finish(K.link(name, bm), m, 50)
+CR0, CR1, CZ0, CZ1, CT, CXC, CYC, CTZ, NEST = .150, .029, .034, .75, .0035, -.33, -1.05, .41, .07
+crad = lambda z: CR0 + (CR1 - CR0) * (z - CZ0) / (CZ1 - CZ0)
+box('ConeTray', (CXC, CYC, CTZ - .01), (.42, .42, .02), M_DARK, .004); cyl('ConeTray_Post', (CXC, CYC, CTZ + .275), .025, .55, 'z', M_STEEL, 28, .006)
+box('ConeTray_Hanger', (CXC, -.80, .605), (.10, .02, .39), M_CHAS, .003, 1); box('ConeTray_Arm', (CXC, -.625, .77), (.10, .37, .06), M_CHAS, .006)
+for i in range(2):
+    c = (CXC, CYC, CTZ + .002 + NEST * i)
+    revz('Cone_%d' % i, [(CR0 + .004, CZ0 - .003), (crad(CZ0 + .02), CZ0 + .02), (crad(CZ1 - .012), CZ1 - .012), (CR1 - .001, CZ1 - .004), (CR1 - .004, CZ1), (CR1 - .009, CZ1 - .003), (crad(CZ1 - .012) - CT, CZ1 - .02), (crad(CZ0 + .02) - CT, CZ0 + .02), (CR0 - CT - .0015, CZ0 - .0015)], c, M_SORG)
+    for k, (z0, z1) in enumerate(((.285, .415), (.505, .605))): revz('Cone_%d_Band%d' % (i, k), [(crad(z0) - .001, z0), (crad(z0) + .0016, z0 + .001), (crad(z1) + .0016, z1 - .001), (crad(z1) - .001, z1)], c, M_HVW)
+    b = box('Cone_%d_Base' % i, (CXC, CYC, c[2] + .017), (.40, .40, .034), M_SEAL, .012, 2); cut(b, cyl('c', (CXC, CYC, c[2] + .017), .148, .10, 'z', M_SEAL, 48))
+    ik('Cone_%d' % i, (CXC, CYC, c[2] + CZ1 - .03)); piv('Cone_%d' % i, c)
+ik('ConePlace_0', (5.35, 1.55, 0)); ik('ConePlace_1', (-4.60, 1.75, 0)); ik('Stand_Cones', (CXC, -1.80, 0)); ik('Stand_ConePlace_0', (5.35, 2.10, 0)); ik('Stand_ConePlace_1', (-4.60, 2.30, 0))
+# #endregion
+
 # #region ---- folded as it drives: rails and gate lie in the cassette; then the whole truck moves so that the origin is its middle
 def rot(pre, pv, ax, deg):
     M = Matrix.Translation(Vector(pv)) @ Matrix.Rotation(math.radians(deg), 4, ax) @ Matrix.Translation(-Vector(pv))
@@ -247,7 +278,7 @@ if '--nochk' not in sys.argv:
         TB = {o.name: BVHTree.FromPolygons([v.co + Vector((sl if o.name.startswith(PLT) else 0, 0, 0)) for v in o.data.vertices], [tuple(p.vertices) for p in o.data.polygons]) for o in ALL if isbox(o.name)}
         h = [(a, b) for a in TB if a.startswith(PLT) for b in TB if not b.startswith(PLT) and TB[a].overlap(TB[b])]; print('CT SLIDE %.1f: %d' % (sl, len(h)), [x for x in h if 'Roller' not in x[0]][:8])
     h = [(a, b) for a in TB if a.startswith('RailPlatform_L') for b in TB if b.startswith(('RailPlatform_R', 'Gate')) and TB[a].overlap(TB[b])]; print('CT FOLD L-R', h[:5])
-GROUPS = ['DoorDriver', 'DoorPassenger', 'BoxDoorL', 'SteeringWheel', 'Platform', 'GatePlatform', 'RailPlatform_L', 'RailPlatform_R', 'RampFlap', 'TailArms', 'TailPlatform', 'ScissorA', 'ScissorB', 'Lever_Stab', 'Lever_Lift', 'Lever_Plat', 'Pedal_Accel', 'Pedal_Brake', 'WiperL', 'WiperR', 'StabLeg_FL', 'StabLeg_FR', 'StabLeg_RL', 'StabLeg_RR', 'RollF_00', 'RollR_00']
+GROUPS = ['DoorDriver', 'DoorPassenger', 'BoxDoorL', 'SteeringWheel', 'Platform', 'GatePlatform', 'RailPlatform_L', 'RailPlatform_R', 'RampFlap', 'TailArms', 'TailPlatform', 'ScissorA', 'ScissorB', 'Lever_Stab', 'Lever_Lift', 'Lever_Plat', 'Pedal_Accel', 'Pedal_Brake', 'WiperL', 'WiperR', 'StabLeg_FL', 'StabLeg_FR', 'StabLeg_RL', 'StabLeg_RR', 'RollF_00', 'RollR_00', 'Chock_0', 'Chock_1', 'Cone_0', 'Cone_1']
 WK = ('FL', 'FR', 'RL', 'RR')
 def groupof(o):
     n = o.name
