@@ -521,6 +521,68 @@ bool AGSE::SvcLost(int32 Ci, bool& bDrop)
 	return false;
 }
 
+// ------------------------------------------------------------------ the taxi bus's driver (to-do 239b piece 2b)
+
+// The hired taxi bus driver comes on duty landside (UStaffPeople: the car park, the crossing at x 48, the pavement to their
+// place behind the bus). While the bus stands at its kerb, free and not yours, they walk along the pavement round its front
+// (never between it and the kerb, never through it) to the driver's door on the road side and take the wheel (ClimbIn: the
+// riders' IK_Stand_DoorDriver, IK_Seat_SeatDriver, IK_Hand_Wheel_L/R - as every service vehicle's driver). Shift over: out,
+// round the front back onto the pavement, and given back (UStaffPeople walks them home to the car park).
+void AGSE::TaxiTick(float Dt)
+{
+	if ((TaxiPoll -= Dt) > 0.f) return;
+	TaxiPoll = 2.f;
+	ATugs* G = Tg(); UStaffPeople* Sp = UStaffPeople::Get(GetWorld());
+	if (!G || !Sp) return;
+	if (!Tractors.IsValidIndex(TaxiTi))
+	{
+		TaxiTi = INDEX_NONE;
+		const TArray<FServiceSpec>& All = ADPService::All();
+		for (int32 t = 0; t < Tractors.Num() && TaxiTi == INDEX_NONE; ++t) if (All.IsValidIndex(Tractors[t].Svc) && All[Tractors[t].Svc].Task && FCString::Strcmp(All[Tractors[t].Svc].Task, TEXT("taxi")) == 0) TaxiTi = t;
+		if (TaxiTi == INDEX_NONE) return;
+	}
+	const int32 Ti = TaxiTi; FTractor& T = Tractors[Ti];
+	const FServiceSpec& X = ADPService::All()[T.Svc];
+	// (round its front: along the heading past the bumper, then out to the pavement side (right) or the road side (left))
+	const float L = X.HalfL / 100.f + 2.2f;
+	const FVector Pave = Plan(X.HomeX + X.HomeHx * L + X.HomeHy * 3.5f, X.HomeY + X.HomeHy * L - X.HomeHx * 3.5f);
+	const FVector Road = Plan(X.HomeX + X.HomeHx * L - X.HomeHy * 1.9f, X.HomeY + X.HomeHy * L + X.HomeHx * 1.9f);
+	if (TaxiStage)
+	{
+		// (their body gone, or the crew place taken by somebody else: the bus is free again)
+		if (!G->Crew.IsValidIndex(TaxiCi) || !G->Crew[TaxiCi].A.IsValid() || G->Crew[TaxiCi].bSlotFree || T.Driver != TaxiCi)
+		{
+			ADP_WARN(TEXT("GSE: the taxi bus's driver is lost (stage %d) - the bus is free again"), int32(TaxiStage));
+			if (T.Key == TEXT("taxi")) { T.Job = EJob::None; T.Key.Reset(); T.Driver = INDEX_NONE; }
+			TaxiCi = INDEX_NONE; TaxiStage = 0;
+			return;
+		}
+		if (TaxiStage != 2 || Sp->OnShift(G->Crew[TaxiCi].StaffId)) return;
+		// shift over: out on the road side, round the front onto the pavement, given back
+		const int32 Ci = TaxiCi; TaxiStage = 3;
+		ADP_LOG(TEXT("GSE: %s's shift is over - gets out of the taxi bus"), *G->Crew[Ci].Name);
+		ClimbOut(Ci, Ti, nullptr);
+		WalkTo(Ci, [Road] { return Road; }, 30.f);
+		WalkTo(Ci, [Pave] { return Pave; }, 30.f);
+		Do(Ci, [this, Ti] { FTractor& V = Tractors[Ti]; V.Job = EJob::None; V.Key.Reset(); V.Driver = INDEX_NONE; TaxiCi = INDEX_NONE; TaxiStage = 0; });
+		G->LeaveAct(G->Crew[Ci]);
+		return;
+	}
+	// (at its kerb, nobody at it, not yours)
+	if (T.Job != EJob::None || T.Driver != INDEX_NONE || T.Player.IsValid() || !T.M.IsValid() || FVector::Dist2D(T.At, T.Home) > 150.f || !Sp->HiresRole(TEXT("taxi"))) return;
+	TArray<UStaffPeople::FTaken> Team;
+	if (!Sp->AskTeam(TEXT("taxi:kerb"), EStaffTask::Taxi, FDateTime(2000, 1, 1), T.At, TEXT("taxi bus at the kerb"), Team) || !Team.Num()) return;   // (asked again)
+	const int32 Ci = G->Enlist(Team[0].A.Get(), Team[0].Id, UStaffPeople::DutyName(Team[0].Duty));
+	if (Ci == INDEX_NONE) { ADP_WARN(TEXT("GSE: no crew place for the taxi bus's driver")); return; }
+	G->Crew[Ci].bGse = true;
+	T.Driver = Ci; T.Job = EJob::Boarding; T.Key = TEXT("taxi"); T.JobT = 0.f;
+	TaxiCi = Ci; TaxiStage = 1;
+	ADP_LOG(TEXT("GSE: %s goes to the taxi bus's wheel"), *G->Crew[Ci].Name);
+	WalkTo(Ci, [Pave] { return Pave; }, 30.f);   // (along the pavement, past its front)
+	WalkTo(Ci, [Road] { return Road; }, 30.f);   // (round the bumper to the road side)
+	ClimbIn(Ci, Ti, [this] { if (TaxiStage == 1) { TaxiStage = 2; ADP_LOG(TEXT("GSE: the taxi bus's driver is at the wheel")); } });
+}
+
 void AGSE::SvcTick(float Dt)
 {
 	ATugs* G = Tg(); UStaffPeople* Sp = UStaffPeople::Get(GetWorld()); if (!G || !Sp || !SvcJobs.Num()) return;

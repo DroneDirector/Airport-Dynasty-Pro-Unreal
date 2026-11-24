@@ -4,6 +4,7 @@
 #include "PaxNav.h"
 #include "Tugs.h"
 #include "Airfield.h"
+#include "RoadNetwork.h"
 #include "BabylonModel.h"
 #include "TerminalPlan.h"
 #include "ADPLog.h"
@@ -36,7 +37,7 @@ static FAutoConsoleCommandWithWorld CmdCrewList(TEXT("adp.CrewList"), TEXT("Your
 namespace
 {
 	// the roles that are people in 3D (ADPCrew.cpp: b3D - the ramp role; the others when their jobs exist in 3D)
-	const TArray<const TCHAR*>& SpRoles() { static TArray<const TCHAR*> L; if (!L.Num()) for (const ADPCrew::FRole& R : ADPCrew::Roles()) if (R.b3D) L.Add(R.Id); return L; }
+	const TArray<const TCHAR*>& SpRoles() { static TArray<const TCHAR*> L; if (!L.Num()) for (const ADPCrew::FRole& R : ADPCrew::Roles()) if (R.b3D || FCString::Strcmp(R.Id, TEXT("taxi")) == 0) L.Add(R.Id); return L; }   // (taxi: the landside driver, to-do 239b)
 	bool SpIsRole(const FString& R) { for (const TCHAR* X : SpRoles()) if (R == X) return true; return false; }
 	using FSpShift = ADPCrew::FShift;
 	const FSpShift* SpShift(const FString& N) { return ADPCrew::Shift(N); }
@@ -44,6 +45,11 @@ namespace
 	float SpHoursToStart(const FSpShift& S, float H) { return FMath::Fmod(S.From - H + 24.f, 24.f); }
 	FVector SpPlan(float X, float Z) { return FTerminalPlan::ToWorld(X, Z < 82.6f ? 0.f : AAirfield::GroundAt(X, Z), Z); }   // (the ramp rooms' floor; outside the apron's surface - as ATugs::Plan)
 	float SpPlanZ(const FVector& W) { return -W.Y / 100.f; }
+	// landside (the car park, the crossing, the pavement): the roads' ground, as the passengers (PaxFlow GroundZ)
+	FVector SpLand(float X, float Z) { return FTerminalPlan::ToWorld(X, float(ARoadNetwork::GroundAt(X, Z)) + 0.03f, Z); }
+	constexpr float SpLandCrossX = 48.f;                       // (the west zebra crossing, PaxFlow PXCROSS[0])
+	constexpr float SpLandCarX = 46.25f, SpLandCarZ = -58.5f;  // (the car park's front row, its last space of x -87.5 .. 47.5, 2.5 m in front of it)
+	constexpr float SpLandX = -42.5f, SpLandZ = -19.5f;        // (their place: the pavement behind the taxi bus - its rear x -45, the kerb z -21.5)
 	FString SpBody(const FString& Face) { return FString::Printf(TEXT("/Game/People/Built/%s/BP_%s.BP_%s_C"), *Face, *Face, *Face); }
 	const TCHAR* SpMove = TEXT("/Game/People/Anims/BS_Idle_Walk_Run_MH.BS_Idle_Walk_Run_MH");
 
@@ -166,7 +172,7 @@ const UStaffPeople::FStaff* UStaffPeople::Find(const FString& Id) const { return
 
 bool UStaffPeople::IsFree(const FStaff& S, const FString& Role) const
 {
-	return (S.State == EState::Ready || (S.State == EState::Back && S.A.IsValid() && SpPlanZ(S.A->GetActorLocation()) > 83.f)) && S.bWanted && S.Role == Role && S.A.IsValid();
+	return (S.State == EState::Ready || (S.State == EState::Back && S.A.IsValid() && (S.bLand || SpPlanZ(S.A->GetActorLocation()) > 83.f))) && S.bWanted && S.Role == Role && S.A.IsValid();
 }
 
 FString UStaffPeople::FindFree(EStaffDuty Duty, const FVector& Near) const
@@ -197,6 +203,8 @@ AActor* UStaffPeople::Claim(const FString& StaffId, const FString& Job)
 	return S->A.Get();
 }
 
+bool UStaffPeople::OnShift(const FString& StaffId) const { const FStaff* S = Find(StaffId); return S && S->bWanted; }
+
 void UStaffPeople::Release(const FString& StaffId)
 {
 	FStaff* S = Find(StaffId);
@@ -209,6 +217,8 @@ void UStaffPeople::Release(const FString& StaffId)
 		if (!B->GetSingleNodeInstance())
 			if (UBlendSpace* Mv = Cast<UBlendSpace>(FSoftObjectPath(SpMove).ResolveObject())) { B->SetAnimationMode(EAnimationMode::AnimationSingleNode); B->SetAnimation(Mv); B->Play(true); }
 	A->SetActorRotation(FRotator(0.f, A->GetActorRotation().Yaw, 0.f));
+	// (landside: released on the pavement by the taxi bus - along it to their place)
+	if (S->bLand) { FLeg L; L.At = LandSpot(*S); S->Way.Add(L); return; }
 	if (SpPlanZ(A->GetActorLocation()) < 83.f)
 	{
 		// (never through a wall: only from the apron)
@@ -524,6 +534,13 @@ void UStaffPeople::Roster(FADPWorld& W, const FDateTime& Now)
 		const FADPPerson* P = SpRec(W, X.Key);
 		if (!P || P->Face.IsEmpty()) continue;
 		FStaff S; S.Id = P->Id; S.Name = P->Name; S.Role = P->Role; S.Face = P->Face; S.Shift = P->Shift; S.bCalledIn = X.Value;
+		if (S.Role == TEXT("taxi"))
+		{
+			// (landside: no ramp room - from the car park; the first free place on the pavement)
+			S.bLand = true;
+			for (S.Slot = 0; Staff.ContainsByPredicate([&](const FStaff& O) { return O.bLand && O.Slot == S.Slot; }); ++S.Slot) {}
+			Staff.Add(MoveTemp(S)); continue;
+		}
 		// (the ramp room with the fewest of them, the first free place beside its door)
 		int32 Bn = MAX_int32;
 		for (int32 r = 0; r < Rooms.Num(); ++r) { if (Rooms[r].bNoDoor) continue; int32 N = 0; for (const FStaff& O : Staff) if (O.Room == r) ++N; if (N < Bn) { Bn = N; S.Room = r; } }
@@ -556,12 +573,43 @@ void UStaffPeople::Tick(float Dt)
 
 void UStaffPeople::StepOne(FStaff& S, float Dt)
 {
-	FRoom& R = Rooms[S.Room];
+	static FRoom NoRoom;
+	FRoom& R = Rooms.IsValidIndex(S.Room) ? Rooms[S.Room] : NoRoom;   // (the landside crew have none)
 	const float T = GetWorld()->GetTimeSeconds();
 	if (S.State != EState::Load && S.State != EState::Wait && !S.A.IsValid())
 	{
 		ADP_WARN(TEXT("StaffPeople: %s's body is gone%s - comes again"), *S.Name, S.Job.IsEmpty() ? TEXT("") : *FString::Printf(TEXT(" at work (%s)"), *S.Job));
 		LeaveDoor(S); S.Role.Reset(); return;
+	}
+	if (S.bLand && S.State != EState::Load)
+	{
+		switch (S.State)
+		{
+		case EState::Wait:
+		{
+			if (!S.bWanted) { S.Role.Reset(); return; }
+			// out of their car in the car park, unseen (you far, or looking elsewhere), nobody there
+			const FVector At = SpLand(SpLandCarX, SpLandCarZ);
+			if (T < NextBody || !LandUnseen(At)) return;
+			if (AADPPeople* P = AADPPeople::Get(GetWorld())) if (P->AnyoneNear(At, 120.f)) return;
+			Body(S);
+			return;
+		}
+		case EState::Out: case EState::Back:
+			if (S.State == EState::Back && !S.bWanted) { S.State = EState::Leave; LandWayIn(S); return; }
+			if (Walk(S, Dt)) { S.State = EState::Ready; S.Speed = 0.f; }
+			return;
+		case EState::Ready:
+			if (!S.bWanted) { S.State = EState::Leave; LandWayIn(S); ADP_LOG(TEXT("StaffPeople: %s goes off shift (to the car park)"), *S.Name); return; }
+			Turn(S, 90.f, Dt);   // (looking out at the kerb)
+			return;
+		case EState::Leave:
+			// (back at the car park: into their car, gone - unseen)
+			if (!Walk(S, Dt) || !LandUnseen(S.A->GetActorLocation())) return;
+			Gone(S);
+			return;
+		default: return;   // (Busy: whoever claimed them moves them)
+		}
 	}
 	switch (S.State)
 	{
@@ -612,10 +660,11 @@ void UStaffPeople::StepOne(FStaff& S, float Dt)
 
 void UStaffPeople::Body(FStaff& S)
 {
-	FRoom& R = Rooms[S.Room];
+	static FRoom NoRoom;
+	FRoom& R = Rooms.IsValidIndex(S.Room) ? Rooms[S.Room] : NoRoom;
 	AADPPeople* P = AADPPeople::Get(GetWorld()); if (!P) return;
 	NextBody = GetWorld()->GetTimeSeconds() + 0.75f; R.NextSpawn = GetWorld()->GetTimeSeconds() + 4.f;
-	const FVector At = SpPlan(R.X0 + 2.2f, 71.f);
+	const FVector At = S.bLand ? SpLand(SpLandCarX, SpLandCarZ) : SpPlan(R.X0 + 2.2f, 71.f);
 	AActor* A = P->Spawn(S.Face, At, FVector(0.f, -1.f, 0.f).Rotation().Yaw);   // (its class is in memory already: the load above)
 	if (!A) { S.Role.Reset(); return; }
 	A->SetActorLocation(At);
@@ -625,6 +674,7 @@ void UStaffPeople::Body(FStaff& S)
 	for (USkeletalMeshComponent* M : Sk) { M->bEnableUpdateRateOptimizations = true; M->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered; }
 	PaxNav::NoNav(A);
 	S.A = A; S.State = EState::Out; S.Speed = 0.f;
+	if (S.bLand) { LandWayOut(S); ADP_LOG(TEXT("StaffPeople: %s (%s, %s shift%s) comes on duty at the car park - %s"), *S.Name, *S.Role, *S.Shift, S.bCalledIn ? TEXT(", called in") : TEXT(""), *S.Face); return; }
 	EnterDoor(S, 1);
 	WayOut(S);
 	ADP_LOG(TEXT("StaffPeople: %s (%s, %s shift%s) comes on duty at gate %d - %s"), *S.Name, *S.Role, *S.Shift, S.bCalledIn ? TEXT(", called in") : TEXT(""), R.Gate, *S.Face);
@@ -644,7 +694,63 @@ void UStaffPeople::Gone(FStaff& S)
 FVector UStaffPeople::DoorOf(const FRoom& R) const { return SpPlan(R.X0 + 5.f, 82.f); }
 
 // where they stand by: a row along the terminal west of the stand line, behind the tug's box and off the red lines
-FVector UStaffPeople::SpotOf(const FStaff& S) const { return SpPlan(Rooms[S.Room].X0 - 3.4f - 1.3f * S.Slot, 84.2f); }
+FVector UStaffPeople::SpotOf(const FStaff& S) const { return S.bLand ? LandSpot(S) : SpPlan(Rooms[S.Room].X0 - 3.4f - 1.3f * S.Slot, 84.2f); }
+
+// ---- landside (to-do 239b): the taxi bus driver. All outdoors: the car park, the zebra crossing at x 48 (its parts' ends
+// from the roads, as the passengers'), the forecourt pavement at z -19.5 (the kerb -21.5, the halls' doors -4), their place
+// east of the taxi bus's rear, a row eastwards, facing the kerb.
+FVector UStaffPeople::LandSpot(const FStaff& S) const { return SpLand(SpLandX + 1.3f * FMath::Max(0, S.Slot), SpLandZ); }
+
+namespace
+{
+	// the crossing's ends from the car park's side to the terminal's (world Y is minus plan z: the car park has the larger Y)
+	TArray<FVector> SpCrossing()
+	{
+		TArray<FVector> E;
+		for (const TPair<FVector, FVector>& Z : ARoadNetwork::ZebraCrossings)
+			if (FMath::Abs((Z.Key.X + Z.Value.X) / 200.f - SpLandCrossX) < 4.f && FMath::Abs(-Z.Key.Y / 100.f + 46.75f) < 40.f) { E.Add(Z.Key); E.Add(Z.Value); }
+		if (!E.Num()) for (const float Z : {-51.25f, -42.25f, -38.75f, -21.5f}) E.Add(SpLand(SpLandCrossX, Z));
+		for (FVector& P : E) P = SpLand(P.X / 100.f, -P.Y / 100.f);
+		E.Sort([](const FVector& A, const FVector& B) { return A.Y > B.Y; });
+		return E;
+	}
+}
+
+void UStaffPeople::LandWayOut(FStaff& S) const
+{
+	S.Way.Reset();
+	auto Add = [&S](const FVector& P) { FLeg L; L.At = P; S.Way.Add(L); };
+	const TArray<FVector> E = SpCrossing();
+	Add(E[0] + FVector(0.f, 150.f, 0.f));          // (square onto the crossing from the car park's pavement)
+	for (const FVector& P : E) Add(P);
+	Add(SpLand(E.Last().X / 100.f, -19.8f));       // (up onto the forecourt pavement)
+	Add(LandSpot(S));                              // (west along it, clear of the kerb and the halls' doors)
+}
+
+void UStaffPeople::LandWayIn(FStaff& S) const
+{
+	S.Way.Reset();
+	auto Add = [&S](const FVector& P) { FLeg L; L.At = P; S.Way.Add(L); };
+	const TArray<FVector> E = SpCrossing();
+	Add(SpLand(E.Last().X / 100.f, -19.8f));
+	for (int32 i = E.Num() - 1; i >= 0; --i) Add(E[i]);
+	Add(E[0] + FVector(0.f, 150.f, 0.f));
+	Add(SpLand(SpLandCarX, SpLandCarZ));
+}
+
+// (made, or gone, at the car park only where you can't see it: you far away, or looking elsewhere)
+bool UStaffPeople::LandUnseen(const FVector& At) const
+{
+	const APlayerController* PC = GetWorld()->GetFirstPlayerController();
+	if (!PC) return true;
+	if (const APawn* P = PC->GetPawn()) if (FVector::Dist2D(P->GetActorLocation(), At) < 3000.f) return false;
+	if (!PC->PlayerCameraManager) return true;
+	const FVector C = PC->PlayerCameraManager->GetCameraLocation();
+	const float D = FVector::Dist(C, At);
+	if (D > 15000.f) return true;
+	if (D < 3000.f) return false;
+	return FVector::DotProduct(PC->PlayerCameraManager->GetCameraRotation().Vector(), (At - C) / D) < 0.35f;
+}
 
 void UStaffPeople::WayOut(FStaff& S) const
 {
@@ -731,7 +837,8 @@ void UStaffPeople::Turn(FStaff& S, float Yaw, float Dt) const
 bool UStaffPeople::Walk(FStaff& S, float Dt)
 {
 	AActor* A = S.A.Get(); if (!A) return true;
-	FRoom& R = Rooms[S.Room];
+	static FRoom NoRoom;
+	FRoom& R = Rooms.IsValidIndex(S.Room) ? Rooms[S.Room] : NoRoom;
 	const FVector Here = A->GetActorLocation();
 	FVector Dir = FVector::ZeroVector; float Dist = 0.f, Want = 0.f;
 	while (S.Way.Num())
@@ -744,7 +851,10 @@ bool UStaffPeople::Walk(FStaff& S, float Dt)
 	}
 	if (S.Way.Num())
 	{
-		const bool bDoor = S.Way[0].bDoor, bOpenApron = !bDoor && SpPlanZ(Here) > 85.3f;
+		const bool bDoor = S.Way[0].bDoor, bOpenApron = !bDoor && !S.bLand && SpPlanZ(Here) > 85.3f;
+		// (landside a step round somebody only on the pavement or the crossing - never into the kerbside lane's or the car park's cars)
+		auto LandOk = [](float Z) { return Z < -4.5f && Z > -51.f && (Z > -21.3f || Z < -25.3f); };
+		const bool bSide = bOpenApron || (S.bLand && LandOk(SpPlanZ(Here)));
 		bool bGo = true;
 		if (bDoor)
 		{
@@ -762,16 +872,16 @@ bool UStaffPeople::Walk(FStaff& S, float Dt)
 		if (!Dir.Normalize()) Dir = (S.Way[0].At - Here).GetSafeNormal2D();
 		if (bGo)
 		{
-			if (S.SideT > 0.f && bOpenApron) { S.SideT -= Dt; Dir = S.SideDir; Dist = 1e6f; } else S.SideT = 0.f;
+			if (S.SideT > 0.f && bSide) { S.SideT -= Dt; Dir = S.SideDir; Dist = 1e6f; } else S.SideT = 0.f;
 			if (Blocked(Here + Dir * 75.f))
 			{
 				// someone in the way: wait, then on the open apron a step round them - never through
 				bGo = false; S.SideT = 0.f;
-				if ((S.BlockedT += Dt) > 1.5f && bOpenApron)
+				if ((S.BlockedT += Dt) > 1.5f && bSide)
 					for (const float Sg : {1.f, -1.f})
 					{
 						const FVector Sd = FVector(-Dir.Y, Dir.X, 0.f) * Sg;
-						if (SpPlanZ(Here + Sd * 110.f) < 85.3f || Blocked(Here + Sd * 75.f)) continue;
+						if ((S.bLand ? !LandOk(SpPlanZ(Here + Sd * 110.f)) : SpPlanZ(Here + Sd * 110.f) < 85.3f) || Blocked(Here + Sd * 75.f)) continue;
 						S.SideDir = Sd; S.SideT = 0.8f; S.BlockedT = 0.f; break;
 					}
 			}
@@ -783,7 +893,7 @@ bool UStaffPeople::Walk(FStaff& S, float Dt)
 	if (Want > 0.f)
 	{
 		FVector P = Here + Dir * FMath::Min(Dist, S.Speed * Dt);
-		P.Z = SpPlan(P.X / 100.f, SpPlanZ(P)).Z;
+		P.Z = S.bLand ? SpLand(P.X / 100.f, SpPlanZ(P)).Z : SpPlan(P.X / 100.f, SpPlanZ(P)).Z;
 		A->SetActorLocation(P);
 		A->SetActorRotation(FMath::RInterpTo(A->GetActorRotation(), FRotator(0.f, Dir.Rotation().Yaw - 90.f, 0.f), Dt, 6.f));
 	}

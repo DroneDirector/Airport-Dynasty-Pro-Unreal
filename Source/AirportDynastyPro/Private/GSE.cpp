@@ -1016,6 +1016,7 @@ void AGSE::Tick(float Dt)
 	Flash += Dt; Clock += Dt;
 	WantTick(Dt);
 	SvcTick(Dt);
+	TaxiTick(Dt);
 	// the test's first jobs, once the crew stand at their gates
 	if (bTest && !bTestStarted && Clock > 6.f && Tg())
 	{

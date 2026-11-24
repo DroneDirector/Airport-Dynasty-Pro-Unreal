@@ -522,6 +522,14 @@ Taxi bus (239, part B, 2026-11-24, compiled, NOT run): a line of `ADPService::Al
   out of an airside ramp room and there is no staff way to the landside kerb (through the terminal = through walls). Needs: a landside
   staff origin (D-F1-STAFF-ENTR-2 to OUTSIDE at x 156 z 46, its outside way to the forecourt unchecked) in StaffPeople, then a taxi
   crewing hook (GSE.h: claim, walk round the bus front to IK_Stand_DoorDriver, `ClimbIn` = hands on IK_Hand_Wheel_L/R, shift end out).
+  Driver at the wheel (239b piece 2b, 2026-11-24, compiled, NOT run): D-F1-STAFF-ENTR-2 (x 156 z 46) checked in terminal-plan.json - it
+  opens into F1-EAST-LANE inside the East Hall block, so NOT outside; not used. Landside origin instead (StaffPeople.cpp `bLand`, the
+  `taxi` role is 3D there by name, ADPCrew b3D still false): out of a car at the car park (46.25, -58.5, made/gone only unseen), over
+  the zebra crossing at x 48 (roads' ends, as the passengers), the pavement z -19.8/-19.5, their place behind the bus (-42.5 + 1.3 m
+  a slot) facing the kerb; home the same way. AGSE::TaxiTick (GSEService.cpp, hook in GSE.h/GSE.cpp Tick): bus at its kerb, free, not
+  yours -> AskTeam `taxi:kerb`, along the pavement past its front, round the bumper to the road side, `ClimbIn` (driver seat, wheel);
+  shift over -> ClimbOut, round the front to the pavement, given back. Wage `taxi` 600 = `bus` (ADPStaff.cpp). While seated the bus's
+  Job is Boarding, so you can't take its wheel then (ServiceDrive SvcSeatFree). Not checked: street furniture on the pavement x -53..48.
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 

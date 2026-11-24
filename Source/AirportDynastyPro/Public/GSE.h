@@ -485,6 +485,10 @@ private:
 	void SvcDress(FTractor& T);
 	void SvcParts(FTractor& T, float Dt);
 	void SvcTick(float Dt);
+	// the taxi bus's hired driver (to-do 239b, GSEService.cpp): from their place on the pavement round its front to the wheel, out
+	// and back to the pavement when their shift is over. Stage: 0 none, 1 on the way in, 2 at the wheel, 3 getting out
+	void TaxiTick(float Dt);
+	float TaxiPoll = 0.f; int32 TaxiCi = INDEX_NONE, TaxiTi = INDEX_NONE; uint8 TaxiStage = 0;
 	bool SvcWaits(const FString& Flight, float StandX, FString& Why) const;
 	bool SvcLost(int32 Ci, bool& bDrop);
 	bool SvcPersonAhead(const FTractor& T, const FVector& Move) const;

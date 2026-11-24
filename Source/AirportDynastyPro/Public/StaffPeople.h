@@ -61,6 +61,8 @@ public:
 	/** Done (or given up): back to their place by the gates, or home if their shift is over. Called with the person outdoors
 	 *  on the apron, on their feet, out of any vehicle. */
 	void Release(const FString& StaffId);
+	/** Still on shift (false: their shift is over - finish and go home; unknown people too). */
+	bool OnShift(const FString& StaffId) const;
 	int32 NumFree(EStaffDuty Duty) const;
 	/** Who is missing to start a task now ("1 pushback handler (none on shift)"); empty: enough people are free. */
 	FString Missing(EStaffTask Task) const;
@@ -91,6 +93,7 @@ private:
 	{
 		FString Id, Name, Role, Face, Shift, Job;
 		bool bCalledIn = false, bWanted = true, bInRoom = false, bOvertime = false;
+		bool bLand = false;   // (the landside crew - the taxi bus driver: from the car park over the crossing to the kerb, no ramp room)
 		EState State = EState::Load;
 		TSharedPtr<FStreamableHandle> Handle;
 		TWeakObjectPtr<AActor> A;
@@ -132,6 +135,12 @@ private:
 	void LeaveDoor(FStaff& S);
 	void Gone(FStaff& S);
 	FVector SpotOf(const FStaff& S) const;
+	// the landside crew (to-do 239b): arrive at the car park like the passengers, over the zebra crossing at x 48, along the
+	// pavement to their place behind the taxi bus; home the same way
+	FVector LandSpot(const FStaff& S) const;
+	void LandWayOut(FStaff& S) const;
+	void LandWayIn(FStaff& S) const;
+	bool LandUnseen(const FVector& At) const;
 	FVector DoorOf(const FRoom& R) const;
 	const FStaff* Find(const FString& Id) const;
 	FStaff* Find(const FString& Id) { return const_cast<FStaff*>(const_cast<const UStaffPeople*>(this)->Find(Id)); }
