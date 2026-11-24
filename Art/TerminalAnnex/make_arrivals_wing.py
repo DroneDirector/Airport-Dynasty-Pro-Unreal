@@ -233,7 +233,7 @@ for (a0, a1) in ((-62.0, -46.0), (-34.0, -18.0)):
 for xc in (-76.0, -70.0, -64.0):
     S.box(xc - 2.4, xc + 2.4, 0.01, 1.05, 4.2, 5.0, 'MI_T_oak'); S.box(xc - 2.5, xc + 2.5, 1.05, 1.1, 4.15, 5.05, 'MI_T_marbleDark')
     S.box(xc - 2.5, xc + 2.5, 0.01, 3.2, 7.4, 7.7, 'MI_T_basalt')
-S.box(-14.0, -2.0, 0.01, 1.05, 4.0, 5.0, 'MI_T_oak'); S.box(-14.1, -1.9, 1.05, 1.1, 3.95, 5.05, 'MI_T_marbleDark')
+# (the cafe's plain placeholder counter, x -14..-2 z 4..5, gave way to the cafe of make_west_fitout.py, to-do 234)
 # ---- seats: along the west glass clear of the escalators, along the basalt wall, and in the arrivals hall ----
 for (xa, xb, zc) in [(-79.2, -78.6, 18.0 + k * 3.2) for k in range(3)] + [(-0.9, -0.3, 20.0 + k * 4.0) for k in range(3)]:
     S.box(xa, xb, 0.42, 0.48, zc, zc + 2.2, 'MI_T_oak'); S.box(xa + 0.2, xb - 0.2, 0.01, 0.42, zc + 0.5, zc + 1.7, 'MI_T_black')

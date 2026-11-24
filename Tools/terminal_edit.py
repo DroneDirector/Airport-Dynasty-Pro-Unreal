@@ -410,6 +410,9 @@ exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_gro
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_escape_edit.py'), encoding='utf-8').read())
 # the ways through passport control and the transfer lane's way out, hinged glass doors (part 5): Tools/terminal_passport_edit.py, last
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_passport_edit.py'), encoding='utf-8').read())
+# the West Wing fitted out (to-do 234: claim hall toilets, lost and found, oversize belt, duty free; the arrivals hall's cafe,
+# information, ATMs, SIM kiosks): Tools/terminal_westfit_edit.py, last
+exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_westfit_edit.py'), encoding='utf-8').read())
 json.dump(L, open(OUT, 'w'))
 print('\n'.join(log))
 print('layout written:', OUT)
