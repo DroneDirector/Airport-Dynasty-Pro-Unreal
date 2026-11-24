@@ -160,6 +160,32 @@ Models `Art/CleaningVan` (make_cleaningvan.py) and `Art/CleaningKit` (make_clean
    Nothing of its own may hide or show in view: put what changes behind `bUsed` / `SvcRestock`. Hoses and tanks have no hook yet: step 6.
 8. Free places: check `Lat` / `Aft` against the van's and the belt loader's (right, 19.6 m aft), the train's (right, ahead of the wing), the GPU, tug and rack boxes.
 
+## Aircraft refueller, part A as built (to-do 212, 2026-11-24): model, blueprint, parking place - no code yet
+Model `Art/Refueller` (make_refueller.py; cab skin by the new `Tools/vehicle_skin.py`, for the next vehicles too), blueprint `docs/Blueprints/Apron/Refueller.png/.pdf`, riders `Data/refueller-riders.json`
+(written by the build). Own rigid 6x2, 20 m3: 10.198 x 2.45 (3.00 over the mirrors) x 3.08 m; axles x +370 / -120 / -255 cm, wheelbase 490, tyre radius 50.7. All points: `Art/Refueller/refueller-parts.json`.
+**What part B must know**
+- **Place:** `ABabylonModel::Place("Refueller")`. Wheels FL FR RL RR as everywhere (`Tyre_` + `Rim_`; all of a wheel's metal is in `Rim_`); the drive axle is twin (`Tyre_RL` + `Tyre_RL_In`, one pivot).
+  **Third axle:** `Tyre_TL/TR`, `Rim_TL/TR`, `Spindle_TL/TR`, `PIV_Wheel_T*`, `PIV_Steer_T*`: new for AGSE - spin with the rear, steer OPPOSITE to the front (tan t = 1.35 / 4.90 x tan front; front 38 = tag 12).
+- **Drive:** KCentreX 0, HalfL 510, HalfW 123, TurnR 660, MaxSteer 38 (steer sweep to 38 clear), DoorDeg 68, KFloor 119. Steering wheel axis as the belt loader's. Pedals, wipers (`WiperL/R`, tips `IK_WiperTip_*`),
+  `BeaconLens`, lenses as the van's. Cab floor 1.18 m: two steps per side (`IK_Step_Door*_Low` 0.49, `IK_Step_Door*` 0.83), grab handles `IK_Grab_*` outside, `IK_GrabIn_*` inside: the shared climb knows ONE step.
+- **Doors:** `DoorDriver` / `DoorPassenger` (hinge in front, 68), `PanelDoorL` (pump panel) / `PanelDoorR` (locker): hinge at the BACK, Unreal yaw -110 left / +110 right; stand `IK_Stand_PanelDoor*`, afterwards `IK_Stand_*_Open`, work at `IK_PanelStand`.
+- **Panel** (left): `Lever_Pump/HoseL/HoseR/Defuel` (about y through `PIV_Lever_*`, hand `IK_Lever_*`), `GaugeNeedle0..2` (about y, 0 straight up; the dial runs -135 .. +135), `Meter_Face` (write the litres at `IK_Meter_Face`, 28 x 8.5 cm),
+  `Printer_Ticket` + `IK_Ticket`, buttons `IK_Button_*`, dead man: `Deadman` (taken in the hand), `Deadman_Button` (its button, a part of its own: move it with it), `DeadmanLead` (the stowed lead: hide it, a thin cable from `IK_DeadmanLead`). `WorkLamp_Lens` = the cabinet's lamp.
+- **Hoses:** `HoseReel_L/R` (spin about `PIV_HoseReel_*`), 15 turns each `HoseTurn_L/R_00..14` (00-04 inside, 10-14 outside; the only parts with an origin of their own, the reel centre; hide from 14 down as it pays out: 2.23 / 1.85 / 1.46 m a turn, 27.7 m in all), `HoseTail_L/R` (the stowed run reel - guide - nozzle:
+  hide it when the nozzle is taken), then a `UCableComponent` (as the wash hose and the GPU cable: width 6.4, 36 segments, stiff, colliding) from `IK_HoseOut_*` to `IK_Nozzle_*_Hose`. `Nozzle_L/R`: `PIV_Nozzle_*`, two hands `IK_Nozzle_*_Hand_L/R`,
+  mating face `IK_Nozzle_*_Mouth` (mouth UP on its holder: it goes on to the wing's coupling the same way up). May glow.
+- **Platform:** parts `Platform` + `LeverPlatform` + `GatePlatform` (about `PIV_GatePlatform`, inwards 90) go straight up 0 .. 90 cm (floor 145 .. 235). Scissor: `ScissorA1/B1/A2/B2` (one mesh each, left and right arm): with lift q (cm) `t = asin((31 + q) / 210)`;
+  stage s = 1, 2: centre x = -472 + 52.5 cos t, z = 107.5 + (s - 0.5) x 105 sin t (pivots `PIV_Scissor1/2`), A turned nose up and B nose down by t - 8.49 deg. `RamBarrel` / `RamRod` lie from `PIV_Ram` to `PIV_RamEye`: aim both, or leave them.
+  Up the back by `IK_Step_Platform_0..3` (hands `IK_Grab_RearSteps_*`, then `IK_Grab_Platform_*`), stand `IK_Platform_Work_L/R` (floor `IK_Platform_Floor`), lever `IK_LeverPlatform` (dead-man style).
+  At the wing: the coupling is said to be 3.2 - 3.5 m up; from the lowest floor (1.45 m) a 1.75 m person's head is at 3.20, the hands reach 3.6, and the rails are at 2.55 (3.45 raised): **lift little or nothing on the A320**, measure the coupling on the aircraft first.
+- **Bonding first:** `BondReel` (spin about `PIV_BondReel`, crank `IK_BondReel_Crank`), `BondClamp` (in the hand, `IK_BondClamp`), `BondTail` (hide), thin cable from `IK_BondOut`. **Chocks:** `Chock_0/1` (`IK_Chock_*`) to `IK_ChockPlace_0/1` (before / behind the left drive wheel).
+  **Extinguishers** `Extinguisher_L/R`, shut-offs `IK_EmergencyL/R`.
+- **Name:** `NamePanel_L/R` (240 x 42 cm, `IK_Name_L/R`), `NamePanel_Front` (124 x 8.5), `NamePanel_Rear` (60 x 13, `IK_Name_Rear`). Livery paints `RF_Livery_Body_Paint`, `RF_Livery_Main_Paint` (a fuel company's truck: leave them unless the owner wants the airline's).
+- **Parking place (no fuel farm, depot or fuel stand exists in any plan, to-do or airfield.json):** middle (-261.8, 128.0), facing north, box x -263.75..-259.85, y 121.9..134.1: 14 m west of stand 9's line (x -245.4), 1.25 m inside
+  the apron edge (x -265), 27 m north of the cleaning van's box and 9 m north of where the van turns, 39 m from the terminal, no mast near. With x -261.8 the shared `SvcDriveHome` loop (2 x 6.6 m beside the box) just fits between the apron edge and stand 9's line
+  (worst outer corner about x -265.2 / -245.2, y 133..143): B checks it in `Apron()`. It crosses the mouth of ROAD-TOWER (x -250, y 171).
+- **Not there:** no diesel truck, pump, reel or scissor sound checked for; nothing run in the game; the tank top has no ladder of its own (nobody goes up there).
+
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
 | Where | Today | Replace with | Nobody free |

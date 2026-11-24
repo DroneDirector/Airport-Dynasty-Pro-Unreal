@@ -1,0 +1,694 @@
+{
+ "points": {
+  "IK_Step_DoorDriver": [
+   4.54,
+   1.08,
+   0.83
+  ],
+  "IK_Step_DoorDriver_Low": [
+   4.54,
+   1.1,
+   0.49
+  ],
+  "IK_Step_DoorPassenger": [
+   4.54,
+   -1.08,
+   0.83
+  ],
+  "IK_Step_DoorPassenger_Low": [
+   4.54,
+   -1.1,
+   0.49
+  ],
+  "PIV_DoorDriver": [
+   4.775,
+   1.215,
+   1.5
+  ],
+  "IK_Handle_DoorDriver_Out": [
+   3.735,
+   1.256,
+   1.522
+  ],
+  "IK_Handle_DoorDriver_In": [
+   4.45,
+   1.13,
+   1.705
+  ],
+  "IK_Stand_DoorDriver": [
+   4.2,
+   1.9,
+   0.0
+  ],
+  "IK_Grab_L": [
+   3.545,
+   1.275,
+   1.7
+  ],
+  "IK_GrabIn_L": [
+   4.53,
+   1.06,
+   2.16
+  ],
+  "PIV_DoorPassenger": [
+   4.775,
+   -1.215,
+   1.5
+  ],
+  "IK_Handle_DoorPassenger_Out": [
+   3.735,
+   -1.256,
+   1.522
+  ],
+  "IK_Handle_DoorPassenger_In": [
+   4.45,
+   -1.13,
+   1.705
+  ],
+  "IK_Stand_DoorPassenger": [
+   4.2,
+   -1.9,
+   0.0
+  ],
+  "IK_Grab_R": [
+   3.545,
+   -1.275,
+   1.7
+  ],
+  "IK_GrabIn_R": [
+   4.53,
+   -1.06,
+   2.16
+  ],
+  "IK_Cluster": [
+   4.44,
+   0.62,
+   1.79
+  ],
+  "IK_GearSelect": [
+   4.15,
+   0.22,
+   1.525
+  ],
+  "IK_ParkBrake": [
+   3.98,
+   0.22,
+   1.515
+  ],
+  "PIV_SteeringWheel": [
+   4.295,
+   0.62,
+   1.78
+  ],
+  "IK_Hand_Wheel_L": [
+   4.295,
+   0.835,
+   1.78
+  ],
+  "IK_Hand_Wheel_R": [
+   4.295,
+   0.405,
+   1.78
+  ],
+  "IK_Foot_Accel": [
+   4.672,
+   0.5,
+   1.305
+  ],
+  "PIV_Pedal_Accel": [
+   4.81,
+   0.5,
+   1.535
+  ],
+  "IK_Foot_Brake": [
+   4.672,
+   0.63,
+   1.315
+  ],
+  "PIV_Pedal_Brake": [
+   4.81,
+   0.63,
+   1.535
+  ],
+  "IK_Foot_Rest": [
+   4.695,
+   0.775,
+   1.265
+  ],
+  "IK_Seat_SeatDriver": [
+   3.84,
+   0.62,
+   1.625
+  ],
+  "IK_Buckle_SeatDriver": [
+   3.74,
+   0.358,
+   1.715
+  ],
+  "IK_Seat_SeatPassenger": [
+   3.84,
+   -0.62,
+   1.625
+  ],
+  "IK_Buckle_SeatPassenger": [
+   3.74,
+   -0.358,
+   1.715
+  ],
+  "IK_BeltTongue_D": [
+   3.46,
+   1.12,
+   1.8
+  ],
+  "IK_BeltTongue_P": [
+   3.46,
+   -1.12,
+   1.8
+  ],
+  "IK_Clipboard": [
+   3.32,
+   0.0,
+   1.75
+  ],
+  "PIV_Wiper_L": [
+   4.9791,
+   0.98,
+   1.785
+  ],
+  "IK_WiperTip_L": [
+   5.0051,
+   0.09,
+   1.864
+  ],
+  "PIV_Wiper_R": [
+   5.0232,
+   -0.05,
+   1.785
+  ],
+  "IK_WiperTip_R": [
+   4.9681,
+   -0.94,
+   1.864
+  ],
+  "IK_Beacon": [
+   3.75,
+   0.0,
+   3.0
+  ],
+  "PIV_Wheel_FL": [
+   3.7,
+   1.025,
+   0.507
+  ],
+  "PIV_Wheel_RL": [
+   -1.2,
+   0.88,
+   0.507
+  ],
+  "PIV_Wheel_TL": [
+   -2.55,
+   1.025,
+   0.507
+  ],
+  "PIV_Steer_FL": [
+   3.7,
+   0.8,
+   0.507
+  ],
+  "PIV_Steer_TL": [
+   -2.55,
+   0.8,
+   0.507
+  ],
+  "PIV_Wheel_FR": [
+   3.7,
+   -1.025,
+   0.507
+  ],
+  "PIV_Wheel_RR": [
+   -1.2,
+   -0.88,
+   0.507
+  ],
+  "PIV_Wheel_TR": [
+   -2.55,
+   -1.025,
+   0.507
+  ],
+  "PIV_Steer_FR": [
+   3.7,
+   -0.8,
+   0.507
+  ],
+  "PIV_Steer_TR": [
+   -2.55,
+   -0.8,
+   0.507
+  ],
+  "PIV_PanelDoorL": [
+   2.155,
+   1.213,
+   1.79
+  ],
+  "IK_Handle_PanelDoorL_Out": [
+   2.85,
+   1.237,
+   1.62
+  ],
+  "IK_Stand_PanelDoorL": [
+   2.795,
+   1.85,
+   0.0
+  ],
+  "IK_Stand_PanelDoorL_Open": [
+   3.07,
+   1.8,
+   0.0
+  ],
+  "PIV_PanelDoorR": [
+   2.155,
+   -1.213,
+   1.79
+  ],
+  "IK_Handle_PanelDoorR_Out": [
+   2.85,
+   -1.237,
+   1.62
+  ],
+  "IK_Stand_PanelDoorR": [
+   2.795,
+   -1.85,
+   0.0
+  ],
+  "IK_Stand_PanelDoorR_Open": [
+   3.07,
+   -1.8,
+   0.0
+  ],
+  "PIV_GaugeNeedle0": [
+   2.78,
+   0.7,
+   2.23
+  ],
+  "PIV_GaugeNeedle1": [
+   2.56,
+   0.7,
+   2.23
+  ],
+  "PIV_GaugeNeedle2": [
+   2.34,
+   0.7,
+   2.23
+  ],
+  "IK_Meter_Face": [
+   2.46,
+   0.715,
+   1.975
+  ],
+  "IK_Ticket": [
+   2.76,
+   0.725,
+   1.955
+  ],
+  "IK_Button_Start": [
+   2.3,
+   0.682,
+   1.76
+  ],
+  "IK_Button_Stop": [
+   2.4,
+   0.682,
+   1.76
+  ],
+  "IK_Button_LampOn": [
+   2.5,
+   0.682,
+   1.76
+  ],
+  "IK_Button_Preset": [
+   2.6,
+   0.682,
+   1.76
+  ],
+  "IK_Button_EStop": [
+   2.8,
+   0.682,
+   1.77
+  ],
+  "PIV_Lever_Pump": [
+   2.28,
+   0.685,
+   1.505
+  ],
+  "IK_Lever_Pump": [
+   2.28,
+   0.69,
+   1.668
+  ],
+  "PIV_Lever_HoseL": [
+   2.45,
+   0.685,
+   1.505
+  ],
+  "IK_Lever_HoseL": [
+   2.45,
+   0.69,
+   1.668
+  ],
+  "PIV_Lever_HoseR": [
+   2.62,
+   0.685,
+   1.505
+  ],
+  "IK_Lever_HoseR": [
+   2.62,
+   0.69,
+   1.668
+  ],
+  "PIV_Lever_Defuel": [
+   2.79,
+   0.685,
+   1.505
+  ],
+  "IK_Lever_Defuel": [
+   2.79,
+   0.69,
+   1.668
+  ],
+  "IK_Deadman": [
+   2.86,
+   0.9,
+   1.265
+  ],
+  "IK_DeadmanLead": [
+   2.86,
+   0.7,
+   1.02
+  ],
+  "IK_Extinguisher_L": [
+   -0.345,
+   1.08,
+   1.005
+  ],
+  "IK_Stand_Extinguisher_L": [
+   -0.3,
+   1.75,
+   0.0
+  ],
+  "IK_Extinguisher_R": [
+   -0.345,
+   -1.08,
+   1.005
+  ],
+  "IK_Stand_Extinguisher_R": [
+   -0.3,
+   -1.75,
+   0.0
+  ],
+  "IK_EmergencyL": [
+   2.03,
+   1.066,
+   1.42
+  ],
+  "IK_EmergencyR": [
+   2.03,
+   -1.066,
+   1.42
+  ],
+  "IK_BondReel_Crank": [
+   2.62,
+   1.155,
+   0.585
+  ],
+  "PIV_BondReel": [
+   2.55,
+   1.06,
+   0.585
+  ],
+  "IK_BondClamp": [
+   2.15,
+   1.06,
+   0.71
+  ],
+  "IK_BondOut": [
+   2.305,
+   1.04,
+   0.645
+  ],
+  "IK_Stand_Bond": [
+   2.35,
+   1.75,
+   0.0
+  ],
+  "IK_Chock_0": [
+   2.4,
+   -1.04,
+   0.715
+  ],
+  "IK_Chock_1": [
+   2.7,
+   -1.04,
+   0.715
+  ],
+  "IK_ChockPlace_0": [
+   -0.633,
+   1.045,
+   0.0
+  ],
+  "IK_ChockPlace_1": [
+   -1.767,
+   1.045,
+   0.0
+  ],
+  "IK_Stand_Chocks": [
+   2.55,
+   -1.8,
+   0.0
+  ],
+  "IK_Stand_ChockPlace": [
+   -1.2,
+   1.85,
+   0.0
+  ],
+  "PIV_HoseReel_L": [
+   -4.06,
+   0.82,
+   0.925
+  ],
+  "IK_HoseOut_L": [
+   -4.77,
+   0.82,
+   0.8
+  ],
+  "IK_Nozzle_L_Hand_R": [
+   -4.8,
+   0.91,
+   1.175
+  ],
+  "IK_Nozzle_L_Hand_L": [
+   -4.8,
+   1.21,
+   1.175
+  ],
+  "PIV_Nozzle_L": [
+   -4.8,
+   1.06,
+   1.235
+  ],
+  "IK_Nozzle_L_Mouth": [
+   -4.8,
+   1.06,
+   1.305
+  ],
+  "IK_Nozzle_L_Hose": [
+   -4.8,
+   1.06,
+   1.03
+  ],
+  "IK_Stand_Nozzle_L": [
+   -4.9,
+   1.7,
+   0.0
+  ],
+  "PIV_HoseReel_R": [
+   -4.06,
+   -0.82,
+   0.925
+  ],
+  "IK_HoseOut_R": [
+   -4.77,
+   -0.82,
+   0.8
+  ],
+  "IK_Nozzle_R_Hand_L": [
+   -4.8,
+   -1.21,
+   1.175
+  ],
+  "IK_Nozzle_R_Hand_R": [
+   -4.8,
+   -0.91,
+   1.175
+  ],
+  "PIV_Nozzle_R": [
+   -4.8,
+   -1.06,
+   1.235
+  ],
+  "IK_Nozzle_R_Mouth": [
+   -4.8,
+   -1.06,
+   1.305
+  ],
+  "IK_Nozzle_R_Hose": [
+   -4.8,
+   -1.06,
+   1.03
+  ],
+  "IK_Stand_Nozzle_R": [
+   -4.9,
+   -1.7,
+   0.0
+  ],
+  "PIV_Scissor1": [
+   -4.2008,
+   0.0,
+   1.1525
+  ],
+  "PIV_Scissor2": [
+   -4.2008,
+   0.0,
+   1.3075
+  ],
+  "PIV_Ram": [
+   -4.6,
+   0.0,
+   1.098
+  ],
+  "PIV_RamEye": [
+   -3.94,
+   0.0,
+   1.098
+  ],
+  "IK_Grab_Platform_R": [
+   -4.93,
+   -0.38,
+   2.15
+  ],
+  "IK_Platform_Work_R": [
+   -4.3,
+   -0.62,
+   1.452
+  ],
+  "IK_Grab_Platform_L": [
+   -4.93,
+   0.38,
+   2.15
+  ],
+  "IK_Platform_Work_L": [
+   -4.3,
+   0.62,
+   1.452
+  ],
+  "PIV_GatePlatform": [
+   -4.93,
+   0.362,
+   2.12
+  ],
+  "IK_Handle_GatePlatform": [
+   -4.93,
+   -0.31,
+   2.49
+  ],
+  "IK_Platform_Floor": [
+   -4.26,
+   0.0,
+   1.45
+  ],
+  "PIV_LeverPlatform": [
+   -4.2,
+   1.005,
+   2.38
+  ],
+  "IK_LeverPlatform": [
+   -4.2,
+   1.0,
+   2.48
+  ],
+  "IK_Step_Platform_0": [
+   -5.0,
+   0.0,
+   0.615
+  ],
+  "IK_Step_Platform_1": [
+   -4.98,
+   0.0,
+   0.82
+  ],
+  "IK_Step_Platform_2": [
+   -4.98,
+   0.0,
+   1.14
+  ],
+  "IK_Step_Platform_3": [
+   -4.8,
+   0.0,
+   1.452
+  ],
+  "IK_Stand_Platform": [
+   -5.45,
+   0.0,
+   0.0
+  ],
+  "IK_Grab_RearSteps_L": [
+   -5.08,
+   0.318,
+   1.05
+  ],
+  "IK_Grab_RearSteps_R": [
+   -5.08,
+   -0.318,
+   1.05
+  ],
+  "IK_Name_Rear": [
+   -5.001,
+   0.8,
+   0.715
+  ],
+  "IK_Name_L": [
+   -0.72,
+   1.2262,
+   1.98
+  ],
+  "IK_Name_R": [
+   -0.72,
+   -1.2262,
+   1.98
+  ],
+  "IK_Driver_Eye": [
+   3.81,
+   0.62,
+   2.325
+  ],
+  "IK_Aisle_Row0": [
+   4.15,
+   0.62,
+   1.19
+  ],
+  "IK_Fuel_In": [
+   0.95,
+   0.0,
+   0.7
+  ],
+  "IK_PanelStand": [
+   2.565,
+   1.5,
+   0.0
+  ],
+  "IK_Tow": [
+   5.1,
+   -0.4,
+   0.5
+  ]
+ }
+}
