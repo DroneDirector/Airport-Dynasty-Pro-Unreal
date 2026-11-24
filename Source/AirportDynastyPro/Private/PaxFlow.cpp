@@ -218,12 +218,23 @@ void APaxFlow::GateDoors(float Dt)
 			//  one off comes down the tunnel - and STAYS open until every walker who has to pass, late ones too, has passed.
 			//  ABabylonModel holds it open on this bit, only while that jetway is docked, and never shuts it on anyone)
 			const bool bDepDue = !R.bOff && !R.bGone && !R.bNoShowGo && (R.Spawned < R.Visible || R.Aboard + R.Home < R.Spawned);
-			const bool bUse = R.bArr ? (R.Spawned < R.Visible || R.InTunnel > 0)
-				: R.InTunnel > 0 || (bDepDue && (R.bCalled || PlaneAtJetway(J, R.Jet, R.Reg)));
+			// (no gate agent of yours on shift: nobody opens the corridor door, for departures and arrivals alike)
+			const bool bUse = StaffGate >= 1 && (R.bArr ? (R.Spawned < R.Visible || R.InTunnel > 0)
+				: R.InTunnel > 0 || (bDepDue && (R.bCalled || PlaneAtJetway(J, R.Jet, R.Reg))));
 			if (bUse) On |= uint32(1) << (Gates[Gi].N - 1);
 		}
 		// (someone at a shut door for long: said, with why)
-		if (R.DoorT > R.DoorSaid) { R.DoorSaid += 60.f; ADP_WARN(TEXT("PaxFlow: %s - %d passengers wait at the shut door of gate %d for %.0f s (%s)"), *R.Label, R.AtDoor, R.Gate, R.DoorT, bDocked ? TEXT("the jetway docked") : TEXT("the jetway not docked")); }
+		if (R.DoorT > R.DoorSaid)
+		{
+			R.DoorSaid += 60.f;
+			const bool bNoAgent = StaffGate < 1;
+			ADP_WARN(TEXT("PaxFlow: %s - %d passengers wait at the shut door of gate %d for %.0f s (%s%s)"), *R.Label, R.AtDoor, R.Gate, R.DoorT,
+				bDocked ? TEXT("the jetway docked") : TEXT("the jetway not docked"), bNoAgent ? TEXT(", no gate agent on shift") : TEXT(""));
+			if (bNoAgent)
+				if (UADPSim* Sim = UADPSim::Get(this))
+					ADPSchedule::Tell(Sim->World, Sim->Now(), TEXT("gateagent:") + R.Label, TEXT("No gate agent"),
+						FString::Printf(TEXT("%s's jetway door won't open: no gate agent on shift. Hire one under Crew."), *R.Label));
+		}
 	}
 	ABabylonModel::GateDoorsOn = On;
 }
@@ -422,6 +433,7 @@ void APaxFlow::Poll()
 	const FString Here = ADPBoards::HereIcao();
 	const FDateTime Now = Sim->Now();
 	StaffDesk = ADPSchedule::OnShift(Sim->World, TEXT("checkin"), Now); StaffLane = ADPSchedule::OnShift(Sim->World, TEXT("security"), Now);
+	StaffGate = ADPSchedule::OnShift(Sim->World, TEXT("gate"), Now);   // (the gate agent opens the jetway corridor door - GateDoors)
 	// ---- departures: the planned legs from here (your timetable's and the other airlines' - Sim/ADPSchedule.h); who comes is
 	//      who booked. No planned leg, nobody comes
 	for (const FADPPlanned& P : Sim->World.Planned)

@@ -144,7 +144,7 @@ private:
 	double RealT = 0.0, SimT = 0.0;
 	float F2Z = 600.f, F2Y = 6.f;
 	int32 StuckJet = 0, StuckElse = 0;   // (how often someone was truly held, in a jetway / elsewhere: each a fault to be found)
-	int32 StaffDesk = 99, StaffLane = 99;   // (your passenger service agents / security officers on shift)
+	int32 StaffDesk = 99, StaffLane = 99, StaffGate = 99;   // (your passenger service agents / security officers / gate agents on shift)
 	int32 Frame = 0, Watched = INDEX_NONE, TotalAboard = 0, TotalOut = 0;
 	int32 PhoneWho = INDEX_NONE, PhoneReturn = INDEX_NONE; float PhoneShowIn = -1.f; bool bPhoneShown = false;   // (tests: the camera on someone using a phone at the gate, a while)
 	float HallIn = 0.f, HallQuiet = 99.f;   // (passengers on the Grand Hall's ground floor: next count, how long there were none - the security doors)
