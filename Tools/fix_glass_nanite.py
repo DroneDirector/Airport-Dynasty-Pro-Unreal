@@ -15,8 +15,9 @@ for name in [a for a in sys.argv[1:] if not a.startswith('-')]:
             if mi is None: continue
             # (the see-through setting may sit on the instance, over an opaque master: the glass is known by its name)
             if 'glass' in mi.get_name().lower(): see_through = True
-            base = mi.get_base_material() if hasattr(mi, 'get_base_material') else mi
-            if base and base.get_editor_property('blend_mode') == unreal.BlendMode.BLEND_TRANSLUCENT: see_through = True
+            # get_blend_mode() resolves the instance's own override, not just the base material's (an instance can
+            # override blend mode by itself, as some fan-blade and vent materials here do, with an opaque base)
+            if hasattr(mi, 'get_blend_mode') and mi.get_blend_mode() == unreal.BlendMode.BLEND_TRANSLUCENT: see_through = True
         if see_through:
             ns = a.get_editor_property('nanite_settings')
             if ns.enabled:
