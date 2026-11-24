@@ -25,7 +25,7 @@ struct FVehControl
 	const TCHAR* Part; const TCHAR* Point; EKind Kind; const TCHAR* Label;
 	int32 Frame = 0; FVector Out = FVector::ZeroVector;   // the piece it rides on; the way it faces (only worked from that side)
 	int32 Motion = INDEX_NONE; float A = 0.f, B = 1.f;
-	int32 Switch = INDEX_NONE; bool bSeat = false, bTurns = true;
+	int32 Switch = INDEX_NONE; bool bSeat = false, bTurns = true, bGrip = false;   // (bGrip: held in the hand, not pressed with a finger)
 };
 
 /** A solid piece: a box (root cm, in its frame) and when it is there (none: always). */
@@ -52,6 +52,10 @@ struct FVehTable
 	TFunction<float(const AGSE&, const AGSE::FTractor&, FVector&)> Leash;
 	TFunction<void(AGSE::FTractor&)> Drop;
 	TFunction<TFunction<void(float, float, FDriverPose&)>(const AGSE&, int32, int32, float&)> Climb;
+	// E with the thing in your hand itself (a dead man, a ticket): what it does now or why not; E is held or not; how far it is pocketed
+	TFunction<FString(const AGSE&, const AGSE::FTractor&, FString&)> HandSay;
+	TFunction<void(AGSE&, AGSE::FTractor&, bool)> HandDo;
+	TFunction<float(const AGSE::FTractor&)> Pocket;
 	TFunction<void(AGSE&, int32, int32)> Worked;                                                // a motion you brought to its end (work that counts for the turn-round)
 };
 
@@ -75,7 +79,7 @@ private:
 	TMap<int32, FHull> Hulls;
 	int32 Ti = INDEX_NONE, Ci = INDEX_NONE, GlowTi = INDEX_NONE, GlowCi = INDEX_NONE;
 	enum class EDo : uint8 { None, Reach, Work, Back, Climb } Do = EDo::None;
-	float T = 0.f, To = 0.f, W = 0.f; bool bPushed = false, bLedByMe = false, bEnd = false; int32 Way = 0;
+	float T = 0.f, To = 0.f, W = 0.f; bool bPushed = false, bLedByMe = false, bEnd = false, bSqueeze = false; int32 Way = 0;
 	FString Text; double TextAt = -1.0;
 	TMap<TPair<int32, int32>, float> Last;   // (the way a motion went last: the other way next)
 	TArray<TPair<UInstancedStaticMeshComponent*, int32>> Glow;

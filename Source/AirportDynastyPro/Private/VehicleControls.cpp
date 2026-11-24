@@ -128,13 +128,14 @@ bool AVehicleControls::Interact(APawn* Who)
 	{
 		if (S->HoldTi == INDEX_NONE || !G->Tractors.IsValidIndex(S->HoldTi)) return false;
 		const FVehTable* Th = AGSE::CtlTable(G->Tractors[S->HoldTi].Svc); const TCHAR* Nm = Th && Th->Held ? Th->Held(G->Tractors[S->HoldTi]) : nullptr; if (!Nm) return false;
+		FString Not; if (Th->HandSay && !Th->HandSay(*G, G->Tractors[S->HoldTi], Not).IsEmpty()) { S->bSqueeze = true; return true; }
 		S->Text = FString::Printf(TEXT("You have %s in your hand - put it back first"), Nm); S->TextAt = Who->GetWorld()->GetTimeSeconds(); return true;
 	}
 	S->Way = 0; FString No; const FString L = S->Label(*G, No);
 	const bool bSeat = Who->IsA<AServiceDrive>();
 	if (!No.IsEmpty() && (S->Crew(*G, S->Ti) || AGSE::CtlTable(G->Tractors[S->Ti].Svc)->Controls[S->Ci].Kind == FVehControl::Push)) { S->Text = L; S->TextAt = Who->GetWorld()->GetTimeSeconds(); return !bSeat; }
 	S->User = Who; S->Do = EDo::Reach; S->T = 0.f; S->bPushed = S->bEnd = false;
-	if (AADPWalker* Wk = Cast<AADPWalker>(Who)) { Wk->SetLed(true); S->bLedByMe = true; Wk->SetPoint(AGSE::CtlTable(G->Tractors[S->Ti].Svc)->Controls[S->Ci].Kind <= FVehControl::Hold); }
+	if (AADPWalker* Wk = Cast<AADPWalker>(Who)) { Wk->SetLed(true); S->bLedByMe = true; const FVehControl& Cc = AGSE::CtlTable(G->Tractors[S->Ti].Svc)->Controls[S->Ci]; Wk->SetPoint(Cc.Kind <= FVehControl::Hold && !Cc.bGrip); }
 	return true;
 }
 
@@ -158,7 +159,7 @@ void AVehicleControls::Arm(AGSE& G, APawn* Me)
 	AADPWalker* Wk = Cast<AADPWalker>(Me); if (!Wk) return;
 	// a button: the fingertip on it, pushing in; a lever or a handle: the palm round it
 	const FVector Sh = Wk->ShoulderNow(); FVector F = (P - Sh).GetSafeNormal(); if (!Out.IsNearlyZero()) F = FMath::Lerp(F, -Out, 0.5f).GetSafeNormal();
-	const bool bBtn = C.Kind <= FVehControl::Hold; const float In = bBtn && Do == EDo::Work ? 0.5f : 0.f;
+	const bool bBtn = C.Kind <= FVehControl::Hold && !C.bGrip; const float In = bBtn && Do == EDo::Work ? 0.5f : 0.f;
 	const FVector Thumb = FVector::VectorPlaneProject(FVector::UpVector, F).GetSafeNormal();
 	if (HoldTi != INDEX_NONE) { Wk->SetArm(1.f, FMath::Lerp(HoldAt - HoldF * 8.5f, P - F * 8.5f, W), HoldF, FVector::UpVector); return; }   // (with what you carry)
 	Wk->SetArm(W, P - F * ((bBtn ? 18.f : 8.5f) - In), F, Thumb);
@@ -180,6 +181,11 @@ void AVehicleControls::Tick(float Dt)
 	{
 		if (GetWorld()->GetTimeSeconds() - TextAt < 1.5 && TextAt >= 0.) return;   // (a refusal stays to be read)
 		Way = 0; Find(*G, *Me); FString No; Text = Ci == INDEX_NONE ? FString() : Label(*G, No);
+		if ((Ci == INDEX_NONE || bSqueeze) && HoldTi != INDEX_NONE)
+		{
+			const FVehTable* Th = AGSE::CtlTable(G->Tractors[HoldTi].Svc); const FString S = Th && Th->HandSay ? Th->HandSay(*G, G->Tractors[HoldTi], No = FString()) : FString();
+			if (!S.IsEmpty()) Text = !No.IsEmpty() ? FString::Printf(TEXT("%s: %s"), *S, *No) : bSqueeze ? S : FString::Printf(TEXT("%s   %s"), ADPInput::UsingPad() ? TEXT("X") : TEXT("E"), *S);
+		}
 		if (Text.IsEmpty()) for (const AGSE::FTractor& V : G->Tractors) if (V.YouOn && GetWorld()->GetTimeSeconds() - V.YouStopAt < 0.5) { Text = FString::Printf(TEXT("The %s waits: you are standing on it"), *V.Name); break; }
 	}
 	else if (Do == EDo::Climb) { Text.Reset(); AADPWalker* Wk = Cast<AADPWalker>(Me); if (!Wk || !Climb(*G, *Wk, Dt)) { Do = EDo::Back; T = 1.f; W = 0.f; } }
@@ -305,10 +311,12 @@ void AVehicleControls::Carry(AGSE& G, APawn* Me)
 		const FRotator Look = Wk->GetControlRotation(); const FVector Flat = FRotator(0.f, Look.Yaw, 0.f).Vector(), Sd = FRotator(0.f, Look.Yaw, 0.f).RotateVector(FVector::RightVector), Eye = Wk->GetPawnViewLocation();
 		// (in front of you in your right hand, on the climb nearer to you)
 		HoldAt = bClimbing ? Wk->GetActorLocation() + Wk->GetActorForwardVector() * 30.f + Wk->GetActorRightVector() * 24.f : Wk->IsThirdPerson() ? Wk->GetActorLocation() + Flat * 36.f + Sd * 20.f + FVector(0., 0., 28.) : Eye + Look.Vector() * 40.f + Sd * 17.f - FVector(0., 0., 22.);
+		if (const float Pk = Tb->Pocket ? Tb->Pocket(V) : 0.f; Pk > 0.f) HoldAt = FMath::Lerp(HoldAt, Wk->GetActorLocation() + Flat * 12.f + Sd * 24.f - FVector(0., 0., 6.), double(FMath::SmoothStep(0.f, 1.f, Pk)));   // (into your pocket)
 		HoldF = (Flat * 0.8f + FVector(0., 0., 0.2)).GetSafeNormal();
 		FVector P = HoldAt; if (Ti == i && Do != EDo::None && Do != EDo::Climb && Tb->Controls.IsValidIndex(Ci)) P = FMath::Lerp(HoldAt, At(G, i, Tb->Controls[Ci]), W);
 		V.YouHand = FTransform(FRotator(0.f, V.Yaw, 0.f), V.At).InverseTransformPosition(P);
 		if (Do == EDo::None) Wk->SetArm(1.f, HoldAt - HoldF * 8.5f, HoldF, FVector::UpVector);
+		bSqueeze = bSqueeze && Do == EDo::None && VcKey(Cast<APlayerController>(Wk->GetController())); if (Tb->HandDo) Tb->HandDo(G, V, bSqueeze);
 		// its hose or cable is at its end: you get no further with it
 		FVector From; const float Max = Tb->Leash && !bClimbing ? Tb->Leash(G, V, From) : 0.f;
 		if (Max > 0.f)
@@ -318,6 +326,7 @@ void AVehicleControls::Carry(AGSE& G, APawn* Me)
 		}
 		break;
 	}
+	if (HoldTi == INDEX_NONE) bSqueeze = false;
 	if (Was != INDEX_NONE && HoldTi == INDEX_NONE && Do == EDo::None && Wk) Wk->SetArm(0.f, FVector::ZeroVector, FVector::ForwardVector, FVector::UpVector);
 }
 

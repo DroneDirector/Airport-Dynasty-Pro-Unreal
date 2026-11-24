@@ -414,7 +414,14 @@ riders `Data/ambulift-riders.json`, `Data/wheelchair-riders.json`, all points an
 - Your litres come off the aircraft's own job; all back in place = job done if it got all, else a crew does the rest.
 - Nobody drives while not everything is back (`FuelStowed / WaterStowed`, seats refuse); crews do not take your truck, nor an aircraft you work on (`YouServe`). Left alone it stows as the ambulift does.
 - Standing on a crew's vehicle that waits for you: "waits: you are standing on it" (every vehicle with a table).
-- Not for you yet: right hose/nozzle (its lever moves only), hose and bonding reels (follow by themselves), dead man on its lead, preset/start/stop/ticket buttons, fill lever and coupling, manholes, extinguishers, cab switches.
+- Fuel truck, the rest (compiled, NOT run): both hoses are an `FSvcHose` (`F` the left, `F.Rt` the right); one nozzle on the aircraft at a time, each needs its own lever.
+- Hose and cable you took or pulled stay out (`FSvcPay`) until wound in by hand at the reel (hold E); then nozzle/clamp in place = stowed.
+- Dead man: take it off its hook, 10 m lead; squeeze = hold E looking at nothing (`HandSay/HandDo`); times out at 120 s until let go; crew re-squeeze at 110 s.
+- Meter: start, stop, preset (asked amount, 500 to 10000, off), counter; ticket prints at stop or at the printer, take it, pocket it. Crew press preset, start, stop too.
+- Defuel lever + start: takes back only what you pumped into that aircraft (aircraft have no fuel quantity). Tank 20,000 l, refilled as before by the box.
+- Extinguishers: take, carry, put back. `FuelStowed`, `Drop`, `Stow`, `Leash` cover all of it.
+- Not in the model, so not built: fill coupling and lever, charge flap, ticket button; manhole lids are merged with the tank fittings and there is no way up; no fuel depot exists. Button FLOW works the work lights.
+- Still open: gear selector, park brake, cab switches, glove box; water truck's own rest.
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
