@@ -27,4 +27,8 @@ struct FSvcCater
 	int32 YouDoor = 0, YouMov = INDEX_NONE, PedalTr = INDEX_NONE;
 	float Dir = 1.f; bool bStop = false, bStabStop = false, bStow = false, bSqueeze = false;   // (Dir +1: you stand behind the trolley, -1: in front of it)
 	float Sill = 387.f;   // (the aircraft's sill over the truck's own ground)
+	// its own wheel chocks (left drive wheel) and two nesting cones (Cone_1 sits on Cone_0): in the tray, in a hand, set out
+	enum : uint8 { InTray, InRight, InLeft, AtPlace, InYours };
+	int32 GChock[2] = {INDEX_NONE, INDEX_NONE}, GCone[2] = {INDEX_NONE, INDEX_NONE}, GearCi = INDEX_NONE;   // (GearCi: the crew who carries them)
+	uint8 Chock[2] = {InTray, InTray}, Cone[2] = {InTray, InTray};
 };

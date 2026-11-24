@@ -85,6 +85,12 @@ namespace
 		Q.bHand[0] = Q.bHand[1] = true; Q.Grip[0] = Q.Grip[1] = 0.95f;
 		Q.Hand[0] = CtPt(T, X, float(C.Y) - Dir * 7.f, Z); Q.Hand[1] = CtPt(T, X, float(C.Y) + Dir * 7.f, Z); Q.Lean = 8.f;
 	}
+	// its own chocks and cones all in their trays
+	bool CtGearIn(const FSvcCater& C) { return C.Chock[0] == FSvcCater::InTray && C.Chock[1] == FSvcCater::InTray && C.Cone[0] == FSvcCater::InTray && C.Cone[1] == FSvcCater::InTray; }
+	const TCHAR* CtGearHeld(const FSvcCater& C)
+	{
+		return C.Chock[0] == FSvcCater::InYours || C.Chock[1] == FSvcCater::InYours ? TEXT("a wheel chock") : C.Cone[0] == FSvcCater::InYours || C.Cone[1] == FSvcCater::InYours ? TEXT("a warning cone") : nullptr;
+	}
 }
 
 // ------------------------------------------------------------------ the parts
@@ -115,6 +121,10 @@ void AGSE::CaterDress(FTractor& T)
 	static const TCHAR* W[] = {TEXT("FL"), TEXT("FR"), TEXT("RL"), TEXT("RR")};
 	for (int32 i = 0; i < 4; ++i) C.GLeg[i] = Pre(*(FString(TEXT("StabLeg_")) + W[i]), FVector::ZeroVector);
 	C.GLev[0] = Pre(TEXT("Lever_Stab"), SvcP(T, TEXT("PIV_Lever_Stab"))); C.GLev[1] = Pre(TEXT("Lever_Lift"), SvcP(T, TEXT("PIV_Lever_Lift"))); C.GLev[2] = Pre(TEXT("Lever_Plat"), SvcP(T, TEXT("PIV_Lever_Plat")));
+	// its own chocks and cones, each about its base
+	C.GChock[0] = Pre(TEXT("Chock_0"), SvcP(T, TEXT("PIV_Chock_0"))); C.GChock[1] = Pre(TEXT("Chock_1"), SvcP(T, TEXT("PIV_Chock_1")));
+	C.GCone[0] = Pre(TEXT("Cone_0"), SvcP(T, TEXT("PIV_Cone_0"))); C.GCone[1] = Pre(TEXT("Cone_1"), SvcP(T, TEXT("PIV_Cone_1")));
+	if (C.GChock[0] == INDEX_NONE || C.GCone[0] == INDEX_NONE) ADP_WARN(TEXT("GSE: the %s model has no own chocks or cones (Chock_0 %d, Cone_0 %d)"), *T.Name, C.GChock[0], C.GCone[0]);
 	// the trolleys and boxes: the kit's own meshes, one instance list each, on the truck
 	ABabylonModel* Kit = GetWorld()->SpawnActor<ABabylonModel>(T.At - CtUp * 400.f, FRotator::ZeroRotator);
 	if (!Kit || !Kit->Place(TEXT("CateringKit"))) { ADP_WARN(TEXT("GSE: no CateringKit model - the catering truck has no trolleys")); if (Kit) Kit->Destroy(); return; }
@@ -206,9 +216,26 @@ void AGSE::CaterParts(FTractor& T, float Dt)
 			B.K->UpdateInstanceTransform(B.Ix, R * At, false, true, true);
 		}
 	}
+	// its own chocks and cones: in their trays, in a crew's hand (by their grip), in yours, or set out on the ground
+	{
+		const ATugs* GearG = Tg(); const USkeletalMeshComponent* GearB = C.GearCi != INDEX_NONE ? Body(C.GearCi) : nullptr;
+		const bool bGearBody = GearB && GearG && GearG->Crew.IsValidIndex(C.GearCi) && GearG->Crew[C.GearCi].A.IsValid() && !GearG->Crew[C.GearCi].A->IsHidden();
+		const FTransform GearRoot(FRotator(0.f, T.Yaw, 0.f), T.At);
+		const float GearFace = bGearBody ? float(GearG->Crew[C.GearCi].A->GetActorRotation().Yaw) + 90.f - T.Yaw : 0.f;
+		auto GearAt = [&](uint8 S, const TCHAR* Ik, const TCHAR* Pv, const TCHAR* Place) -> FTransform
+		{
+			const FVector Base = SvcP(T, Pv), Grip = SvcP(T, Ik) - Base;   // (the grip stands straight over the base)
+			if (bGearBody && (S == FSvcCater::InRight || S == FSvcCater::InLeft))
+				return FTransform(FRotator(0.f, GearFace, 0.f), GearRoot.InverseTransformPosition(GearB->GetBoneLocation(S == FSvcCater::InRight ? TEXT("hand_r") : TEXT("hand_l"))) - Grip);
+			if (S == FSvcCater::InYours) return FTransform(T.YouHand - Grip);
+			return FTransform(S == FSvcCater::AtPlace ? SvcP(T, Place) : Base);
+		};
+		Put(C.GChock[0], GearAt(C.Chock[0], TEXT("IK_Chock_0"), TEXT("PIV_Chock_0"), TEXT("IK_ChockPlace_0"))); Put(C.GChock[1], GearAt(C.Chock[1], TEXT("IK_Chock_1"), TEXT("PIV_Chock_1"), TEXT("IK_ChockPlace_1")));
+		Put(C.GCone[0], GearAt(C.Cone[0], TEXT("IK_Cone_0"), TEXT("PIV_Cone_0"), TEXT("IK_ConePlace_0"))); Put(C.GCone[1], GearAt(C.Cone[1], TEXT("IK_Cone_1"), TEXT("PIV_Cone_1"), TEXT("IK_ConePlace_1")));
+	}
 	// (all in its place: nothing more to do until the next job)
 	const int32 Me = int32(&T - Tractors.GetData()); bool bJob = false; for (const TPair<int32, FSvcJob>& P : SvcJobs) if (P.Value.Phase > 0 && P.Value.Phase < 9 && P.Value.Ti == Me) bJob = true;
-	if (!bJob && C.Lift == 0.f && C.Out == 0.f && C.Legs == 0.f && C.Roll == 0.f && C.Flap == 0.f && C.Rail[0] == 0.f && C.Rail[1] == 0.f && CaterStowed(T) && !T.YouOn && C.PedalT <= 0.f && C.Lev[0] == 0.f && C.Lev[1] == 0.f && C.Lev[2] == 0.f && T.bPrev) C.bLive = false;
+	if (!bJob && C.Lift == 0.f && C.Out == 0.f && C.Legs == 0.f && C.Roll == 0.f && C.Flap == 0.f && C.Rail[0] == 0.f && C.Rail[1] == 0.f && CaterStowed(T) && !T.YouOn && C.PedalT <= 0.f && C.Lev[0] == 0.f && C.Lev[1] == 0.f && C.Lev[2] == 0.f && CtGearIn(C) && T.bPrev) C.bLive = false;
 }
 
 void AGSE::CaterRestock(FTractor& T)
@@ -510,6 +537,78 @@ void AGSE::CaterStage(int32 Job)
 		CaterHand(C1, Ti, FVector2D(185.0, 0.0), 1, [this, Ti] { const FTractor& T = Tractors[Ti]; return FVector(TW(T, SvcP(T, TEXT("IK_Handle_RollF_In")) + CtUp * (T.Ct->Lift + FMath::Min(T.Ct->Roll, 178.f)))); }, 2.6f,
 			[Ct, bUp] { Ct().RollWant = bUp ? 190.f : 0.f; }, true);
 	};
+	// its own chocks and cones, carried by hand like the refueller's: out before the legs go down, back once they are up
+	// (round the back, the aircraft stands before it; what is done already is left; the same limits as yours)
+	auto Gear = [this, Ti, Ct, Pt](int32 Ci, bool bOut)
+	{
+		auto GHand = [this, Ci, Ti](const FVector& GSt, int32 Side, const FVector& GTo, float Dur, TFunction<void()> Fn, bool bLow)
+		{
+			auto GPs = [this, Ti, GSt, Side, GTo, bLow](float E, float PH, FDriverPose& P)
+			{
+				const FTractor& T = Tractors[Ti]; const FVector A = TW(T, GSt), Hd = TW(T, GTo), Fc = (Hd - A).GetSafeNormal2D();
+				P = bLow ? ADPPose::Stoop(A, Fc, Side, Hd, 0.9f, PH, E) : ADPPose::Reach(A, Fc, Side, Hd, 0.9f, PH, E);
+			};
+			PoseAct(Ci, [GPs](float K, float PH, FDriverPose& P) { GPs(FMath::SmoothStep(0.f, 1.f, K), PH, P); }, Dur * 0.5f);
+			Do(Ci, MoveTemp(Fn));
+			PoseAct(Ci, [GPs](float K, float PH, FDriverPose& P) { GPs(1.f - FMath::SmoothStep(0.f, 1.f, K), PH, P); }, Dur * 0.5f);
+		};
+		auto GGo = [this, Ci, Ti](const FVector& L) { WalkTo(Ci, [this, Ti, L] { return FVector(TW(Tractors[Ti], L)); }, 12.f); };
+		auto GSet = [Ct](bool bCone, int32 i, uint8 S) { return [Ct, bCone, i, S] { FSvcCater& X = Ct(); (bCone ? X.Cone[i] : X.Chock[i]) = S; X.bLive = true; }; };
+		const FSvcCater& C = Ct(); const uint8 Is = bOut ? FSvcCater::AtPlace : FSvcCater::InTray;
+		const bool bCh = C.Chock[0] != Is || C.Chock[1] != Is, bCo = C.Cone[0] != Is || C.Cone[1] != Is; if (!bCh && !bCo) return;
+		const FVector GrCh[2] = {Pt(TEXT("IK_Chock_0")) - Pt(TEXT("PIV_Chock_0")), Pt(TEXT("IK_Chock_1")) - Pt(TEXT("PIV_Chock_1"))}, GrCo[2] = {Pt(TEXT("IK_Cone_0")) - Pt(TEXT("PIV_Cone_0")), Pt(TEXT("IK_Cone_1")) - Pt(TEXT("PIV_Cone_1"))};
+		const FVector TrCh[2] = {Pt(TEXT("IK_Chock_0")), Pt(TEXT("IK_Chock_1"))}, TrCo[2] = {Pt(TEXT("IK_Cone_0")), Pt(TEXT("IK_Cone_1"))};
+		const FVector PlCh[2] = {Pt(TEXT("IK_ChockPlace_0")) + GrCh[0], Pt(TEXT("IK_ChockPlace_1")) + GrCh[1]}, PlCo[2] = {Pt(TEXT("IK_ConePlace_0")) + GrCo[0], Pt(TEXT("IK_ConePlace_1")) + GrCo[1]};
+		const FVector StCh = Pt(TEXT("IK_Stand_Chocks")) + FVector(0.f, -10.f, 0.f), StPl = Pt(TEXT("IK_Stand_ChockPlace")), StCo = Pt(TEXT("IK_Stand_Cones")) + FVector(0.f, 10.f, 0.f);
+		const FVector StP0 = Pt(TEXT("IK_Stand_ConePlace_0")), StP1 = Pt(TEXT("IK_Stand_ConePlace_1")), BackL(-520.f, -240.f, 0.f), BackR(-520.f, 240.f, 0.f);
+		Do(Ci, [Ct, Ci] { Ct().GearCi = Ci; });
+		if (bOut)
+		{
+			if (bCh)
+			{
+				GGo(StCh);
+				if (C.Chock[0] == FSvcCater::InTray) GHand(StCh, 1, TrCh[0], 1.4f, GSet(false, 0, FSvcCater::InRight), false);
+				if (C.Chock[1] == FSvcCater::InTray) GHand(StCh, 0, TrCh[1], 1.4f, GSet(false, 1, FSvcCater::InLeft), false);
+				GGo(StPl);
+				if (C.Chock[0] != FSvcCater::AtPlace) GHand(StPl, 1, PlCh[0], 1.8f, GSet(false, 0, FSvcCater::AtPlace), true);
+				if (C.Chock[1] != FSvcCater::AtPlace) GHand(StPl, 0, PlCh[1], 1.8f, GSet(false, 1, FSvcCater::AtPlace), true);
+			}
+			if (bCo)
+			{
+				GGo(BackL); GGo(BackR); GGo(StCo);
+				if (C.Cone[1] == FSvcCater::InTray) GHand(StCo, 1, TrCo[1], 1.4f, GSet(true, 1, FSvcCater::InRight), false);
+				if (C.Cone[0] == FSvcCater::InTray) GHand(StCo, 0, TrCo[0], 1.4f, GSet(true, 0, FSvcCater::InLeft), false);
+				GGo(BackR); GGo(BackL); GGo(StP1);
+				if (C.Cone[1] != FSvcCater::AtPlace) GHand(StP1, 1, PlCo[1], 1.6f, GSet(true, 1, FSvcCater::AtPlace), true);
+				GGo(StP0);
+				if (C.Cone[0] != FSvcCater::AtPlace) GHand(StP0, 0, PlCo[0], 1.6f, GSet(true, 0, FSvcCater::AtPlace), true);
+			}
+		}
+		else
+		{
+			if (bCo)
+			{
+				GGo(StP0);
+				if (C.Cone[0] == FSvcCater::AtPlace) GHand(StP0, 1, PlCo[0], 1.6f, GSet(true, 0, FSvcCater::InRight), true);
+				GGo(StP1);
+				if (C.Cone[1] == FSvcCater::AtPlace) GHand(StP1, 0, PlCo[1], 1.6f, GSet(true, 1, FSvcCater::InLeft), true);
+				GGo(BackL); GGo(BackR); GGo(StCo);   // (the lower one goes on its post first, the other on top of it)
+				if (C.Cone[0] != FSvcCater::InTray) GHand(StCo, 1, TrCo[0], 1.4f, GSet(true, 0, FSvcCater::InTray), false);
+				if (C.Cone[1] != FSvcCater::InTray) GHand(StCo, 0, TrCo[1], 1.4f, GSet(true, 1, FSvcCater::InTray), false);
+				GGo(BackR); GGo(BackL);
+			}
+			if (bCh)
+			{
+				GGo(StPl);
+				if (C.Chock[0] == FSvcCater::AtPlace) GHand(StPl, 1, PlCh[0], 1.8f, GSet(false, 0, FSvcCater::InRight), true);
+				if (C.Chock[1] == FSvcCater::AtPlace) GHand(StPl, 0, PlCh[1], 1.8f, GSet(false, 1, FSvcCater::InLeft), true);
+				GGo(StCh);
+				if (C.Chock[0] != FSvcCater::InTray) GHand(StCh, 1, TrCh[0], 1.4f, GSet(false, 0, FSvcCater::InTray), false);
+				if (C.Chock[1] != FSvcCater::InTray) GHand(StCh, 0, TrCh[1], 1.4f, GSet(false, 1, FSvcCater::InTray), false);
+			}
+		}
+		Do(Ci, [bOut] { ADP_LOG(TEXT("GSE: the catering truck's chocks and cones are %s"), bOut ? TEXT("set out") : TEXT("back in their trays")); });
+	};
 	switch (St)
 	{
 	case 0:   // out of the cab, both
@@ -520,12 +619,14 @@ void AGSE::CaterStage(int32 Job)
 	case 1: case 15:   // the four legs, down or up
 	{
 		const FVector Sp = Pt(TEXT("IK_Stand_Stab")) + FVector(0.f, 8.f, 0.f), Lv = Pt(TEXT("IK_Lever_Stab")); const bool bDown = St == 1;
+		if (bDown) Gear(C0, true);   // (the chocks before the legs go down, the cones out too)
 		WalkTo(C0, [this, Ti, Sp] { return TW(Tractors[Ti], Sp); }, 12.f);
 		auto Ps = [this, Ti, Sp, Lv](float E, float PH, FDriverPose& P) { const FTractor& T = Tractors[Ti]; P = ADPPose::Reach(TW(T, Sp), FRotator(0.f, T.Yaw + 90.f, 0.f).Vector(), 1, TW(T, Lv), 0.9f, PH, E); };
 		PoseAct(C0, [Ps](float K, float PH, FDriverPose& P) { Ps(FMath::SmoothStep(0.f, 1.f, K), PH, P); }, 0.8f);
 		Do(C0, [Ct, bDown] { Ct().LegsWant = bDown ? 30.f : 0.f; });
 		PoseAct(C0, [Ps](float, float PH, FDriverPose& P) { Ps(1.f, PH, P); }, 5.3f);
 		PoseAct(C0, [Ps](float K, float PH, FDriverPose& P) { Ps(1.f - FMath::SmoothStep(0.f, 1.f, K), PH, P); }, 0.6f);
+		if (!bDown) Gear(C0, false);
 		End(C0, St + 1); break;
 	}
 	case 2: case 3:   // up the three steps, the loader first; the driver shuts the side door
@@ -584,6 +685,11 @@ void AGSE::CaterStage(int32 Job)
 		End(Ci, St + 1); break;
 	}
 	default:
+		{   // (it drives off now: anything of its own still out goes back, said so)
+			FSvcCater& GC = Ct(); bool bOff = false;
+			for (int32 i = 0; i < 2; ++i) { if (GC.Chock[i] != FSvcCater::InTray) { GC.Chock[i] = FSvcCater::InTray; bOff = true; } if (GC.Cone[i] != FSvcCater::InTray) { GC.Cone[i] = FSvcCater::InTray; bOff = true; } }
+			if (bOff) ADP_WARN(TEXT("GSE: the catering truck left with its chocks or cones still out: put back in their trays"));
+		}
 		if (Door) { SvcLeave(Job); if (bTwo) SvcBoard(Job, 1); break; }
 		// on to the rear door, when no train or belt loader is there
 		if (bTwo) SvcBoard(Job, 1);
@@ -635,6 +741,8 @@ bool AGSE::CaterLost(int32 Job, int32 m)
 	// way: whoever takes over, the body let down meanwhile
 	FSvcJob* J = SvcJ(Job); ATugs* G = Tg(); if (!J || !G || !Tractors.IsValidIndex(J->Ti) || !Tractors[J->Ti].Ct) return true;
 	FTractor& T = Tractors[J->Ti]; FSvcCater& C = *T.Ct; const int32 Lost = J->Men[m].Ci, Ti = J->Ti; G->Crew[Lost].bUp = false;
+	for (uint8* S : {&C.Chock[0], &C.Chock[1], &C.Cone[0], &C.Cone[1]}) if (*S == FSvcCater::InRight || *S == FSvcCater::InLeft) *S = FSvcCater::InTray;   // (what was in his hands: back in its tray)
+	if (C.GearCi == Lost) C.GearCi = INDEX_NONE;
 	if (C.Trolleys.IsValidIndex(C.Mov)) { const int32 i = C.Mov; C.Mov = INDEX_NONE; for (const FSvcCater::FBit& B : C.Trolleys[i].Bits) B.K->UpdateInstanceTransform(B.Ix, B.Rel * FTransform(FRotator(0.f, 90.f, 0.f), C.Trolleys[i].Home), false, true, true); }
 	const bool bOther = J->Men.Num() > 1 && !J->Men[1 - m].bGone;
 	if (J->Phase != 2 && bOther && m == 1) { J->Men[1].bGone = true; return false; }
@@ -663,8 +771,11 @@ bool AGSE::CaterLost(int32 Job, int32 m)
 
 namespace
 {
-	enum : int32 { CtFChassis, CtFBody, CtFPlat, CtFRail0, CtFRail1, CtFGate, CtFFlap, CtFRollF, CtFRollR, CtFDoor, CtFTail, CtFFold, CtFStep, CtFCabin, CtFTrolley = 100, CtFGrip = 200 };
-	enum : int32 { CtSStop, CtSStab, CtSClimb, CtSCabin, CtSTake = 100 };
+	enum : int32 { CtFChassis, CtFBody, CtFPlat, CtFRail0, CtFRail1, CtFGate, CtFFlap, CtFRollF, CtFRollR, CtFDoor, CtFTail, CtFFold, CtFStep, CtFCabin, CtFChockAt0, CtFChockAt1, CtFConeAt0, CtFConeAt1, CtFTrolley = 100, CtFGrip = 200 };
+	enum : int32 { CtSStop, CtSStab, CtSClimb, CtSCabin, CtSChock0, CtSChock1, CtSChockSet0, CtSChockSet1, CtSCone0, CtSCone1, CtSConeSet0, CtSConeSet1, CtSTake = 100 };
+	// (a chock or cone switch: which one, a cone or not, at its place or in its tray)
+	int32 CtGearIx(int32 S, bool& bCone, bool& bSet) { const int32 k = S - CtSChock0; bCone = k >= 4; bSet = k % 4 >= 2; return k % 2; }
+	bool CtIsGear(int32 S) { return S >= CtSChock0 && S <= CtSConeSet1; }
 	const int32 CtNeed[2] = {4, 7};
 	int32 CtHeldTr(const FSvcCater& C) { return C.Trolleys.IsValidIndex(C.YouMov) && C.Trolleys[C.YouMov].State == FSvcCater::YourHands ? C.YouMov : INDEX_NONE; }
 	bool CtIn(const FVector& P, const FVector& Mn, const FVector& Mx) { return P.X > Mn.X && P.X < Mx.X && P.Y > Mn.Y && P.Y < Mx.Y && P.Z > Mn.Z && P.Z < Mx.Z; }
@@ -701,7 +812,7 @@ bool AGSE::CaterStowed(const FTractor& T) const
 	if (!T.Ct) return true; const FSvcCater& C = *T.Ct;
 	for (const FSvcCater::FTrolley& X : C.Trolleys) if (X.State != FSvcCater::AtHome) return false;
 	for (const float V : {C.Lift, C.LiftWant, C.Out, C.OutWant, C.Legs, C.LegsWant, C.Roll, C.RollWant, C.RollR, C.RollRWant, C.Flap, C.FlapWant, C.Rail[0], C.RailWant[0], C.Rail[1], C.RailWant[1], C.Gate, C.GateWant, C.Fold, C.FoldWant, C.Tail, C.TailWant}) if (V != 0.f) return false;
-	return !C.bStop && !C.bStabStop;
+	return !C.bStop && !C.bStabStop && CtGearIn(C);
 }
 
 bool AGSE::CaterUnder(const FTractor& T, const FVector& Mn, const FVector& Mx) const
@@ -801,6 +912,7 @@ void AGSE::YouCater(FTractor& T, float Dt)
 		{
 			C.bStop = C.bStabStop = false; C.YouMov = INDEX_NONE;
 			for (int32 i = 0; i < C.Trolleys.Num(); ++i) if (C.Trolleys[i].State != FSvcCater::AtHome) { C.Trolleys[i].State = FSvcCater::AtHome; C.Trolleys[i].At = C.Trolleys[i].Home; CtShow(C, i); }
+			for (uint8* S : {&C.Chock[0], &C.Chock[1], &C.Cone[0], &C.Cone[1]}) *S = FSvcCater::InTray;   // (its chocks and cones back in their trays)
 			struct FS { float* V; float* Want; };
 			for (const FS& S : {FS{&C.Gate, &C.GateWant}, FS{&C.Rail[0], &C.RailWant[0]}, FS{&C.Rail[1], &C.RailWant[1]}, FS{&C.Flap, &C.FlapWant}, FS{&C.Out, &C.OutWant}, FS{&C.Roll, &C.RollWant}, FS{&C.Lift, &C.LiftWant}, FS{&C.Tail, &C.TailWant}, FS{&C.Fold, &C.FoldWant}, FS{&C.RollR, &C.RollRWant}, FS{&C.Legs, &C.LegsWant}})
 				if (*S.V != 0.f || *S.Want != 0.f) { *S.Want = 0.f; break; }
@@ -923,6 +1035,16 @@ TSharedPtr<FVehTable> AGSE::CaterControls()
 	Box(FVector(-438, -118, 142), FVector(-428, 118, 306), CtFBody, [](const FTractor& T) { return T.Ct && T.Ct->Fold < 0.5f && T.Ct->Tail == 0.f; }); Box(FVector(-595, -118, 139), FVector(-431, 118, 149), CtFTail, [](const FTractor& T) { return T.Ct && T.Ct->Fold > 0.5f; });
 	for (int32 i = 0; i < NTr; ++i) Box(FVector(-43.9, -15.65, 2), FVector(43.9, 15.65, 94.6), CtFTrolley + i, [i](const FTractor& T) { return T.Ct && T.Ct->Trolleys.IsValidIndex(i) && T.Ct->Trolleys[i].State != FSvcCater::InCabin && T.Ct->Trolleys[i].State != FSvcCater::YourHands && T.Ct->Mov != i; });
 
+	// its own chocks and cones: taken from the tray or from where they stand, set out at the drive wheel and fore and aft
+	for (int32 i = 0; i < 2; ++i)
+	{
+		const TCHAR* Ch = i ? TEXT("Chock_1") : TEXT("Chock_0"); const TCHAR* ChIk = i ? TEXT("IK_Chock_1") : TEXT("IK_Chock_0"); const TCHAR* Co = i ? TEXT("Cone_1") : TEXT("Cone_0"); const TCHAR* CoIk = i ? TEXT("IK_Cone_1") : TEXT("IK_Cone_0");
+		Sw(Ch, ChIk, TEXT("Wheel chock"), CtFChassis, L, CtSChock0 + i); Sw(Ch, ChIk, TEXT("Wheel chock"), CtFChockAt0 + i, L, CtSChockSet0 + i);
+		Sw(Co, CoIk, TEXT("Warning cone"), CtFChassis, R, CtSCone0 + i); Sw(Co, CoIk, TEXT("Warning cone"), CtFConeAt0 + i, L, CtSConeSet0 + i);
+	}
+	// (the cones set out stand in your way; the chocks are under the truck)
+	Box(FVector(513, -177, 0), FVector(557, -133, 75), CtFChassis, [](const FTractor& T) { return T.Ct && T.Ct->Cone[0] == FSvcCater::AtPlace; });
+	Box(FVector(-482, -197, 0), FVector(-438, -153, 75), CtFChassis, [](const FTractor& T) { return T.Ct && T.Ct->Cone[1] == FSvcCater::AtPlace; });
 	Tb->Frame = [](const AGSE& G, const FTractor& T, int32 Fr) -> FTransform
 	{
 		if (!T.Ct) return FTransform::Identity; const FSvcCater& C = *T.Ct; const FVector Q = CtUp * C.Lift, Sl = Q + FVector(C.Out, 0, 0);
@@ -947,6 +1069,10 @@ TSharedPtr<FVehTable> AGSE::CaterControls()
 		case CtFFold: return About(G.SvcP(T, TEXT("PIV_TailPlatform")), FQuat(FVector::RightVector, FMath::DegreesToRadians(-90.f * Turn(C.Fold))), CtTailTip(C.Tail) - CtTailTip(0.f));
 		case CtFStep: return FTransform(CtUp * (T.YouOn == 1 ? 60.f : 0.f));
 		case CtFCabin: return FTransform(FVector(500, 0, CtDeck + 99) + Q - G.SvcP(T, TEXT("IK_Box_In")));
+		case CtFChockAt0: return FTransform(G.SvcP(T, TEXT("IK_ChockPlace_0")) - G.SvcP(T, TEXT("PIV_Chock_0")));
+		case CtFChockAt1: return FTransform(G.SvcP(T, TEXT("IK_ChockPlace_1")) - G.SvcP(T, TEXT("PIV_Chock_1")));
+		case CtFConeAt0: return FTransform(G.SvcP(T, TEXT("IK_ConePlace_0")) - G.SvcP(T, TEXT("PIV_Cone_0")));
+		case CtFConeAt1: return FTransform(G.SvcP(T, TEXT("IK_ConePlace_1")) - G.SvcP(T, TEXT("PIV_Cone_1")));
 		default: return FTransform::Identity;
 		}
 	};
@@ -972,7 +1098,8 @@ TSharedPtr<FVehTable> AGSE::CaterControls()
 		else if ((C.bStop || C.bStabStop) && (M == CtMLift || M == CtMPlat || M == CtMFold || M == CtMTail || (M == CtMLegs && C.bStabStop))) Why = TEXT("its emergency stop is pressed");
 		else switch (M)
 		{
-		case CtMLegs: if (!bOpen && (C.Lift > 0.f || C.Out > 0.f)) Why = TEXT("the body is up"); else if (!bOpen && T.YouOn) Why = TEXT("you stand on it"); break;
+		case CtMLegs: if (!bOpen && (C.Lift > 0.f || C.Out > 0.f)) Why = TEXT("the body is up"); else if (!bOpen && T.YouOn) Why = TEXT("you stand on it");
+			else if (bOpen && (C.Chock[0] != FSvcCater::AtPlace || C.Chock[1] != FSvcCater::AtPlace)) Why = TEXT("the wheel chocks first"); break;
 		case CtMLift:
 			if (C.Legs < 29.9f) Why = TEXT("the stabilisers are not down"); else if (bDoor) Why = TEXT("the side door is open"); else if (!CtFolded(C)) Why = TEXT("the tail lift is not folded up");
 			else if (!bOpen && C.Out > 0.f) Why = TEXT("the platform is out");
@@ -1013,6 +1140,20 @@ TSharedPtr<FVehTable> AGSE::CaterControls()
 			return Why.IsEmpty();
 		}
 		if (S == CtSCabin) { if (CtTrolleyIn(C, 438.f, 900.f)) { Why = TEXT("a trolley stands in front of the door"); return false; } return true; }
+		if (CtIsGear(S))
+		{
+			bool bCone = false, bSet = false; const int32 i = CtGearIx(S, bCone, bSet); const uint8 Gs = bCone ? C.Cone[i] : C.Chock[i], Place = bSet ? FSvcCater::AtPlace : FSvcCater::InTray;
+			const TCHAR* Have = CtGearHeld(C);
+			if (T.Job != EJob::None) Why = TEXT("its crew works with it");
+			else if (Gs != FSvcCater::InYours && CtHeldTr(C) != INDEX_NONE) Why = TEXT("you have a trolley in your hand");
+			else if (Gs != FSvcCater::InYours && Have) Why = FString::Printf(TEXT("you have %s in your hand"), Have);
+			else if (Gs != Place && Gs != FSvcCater::InYours) Why = TEXT("it is not there");
+			else if (!bCone && (C.Legs > 0.f || C.LegsWant > 0.f) && (Gs == FSvcCater::AtPlace || !bSet)) Why = TEXT("the stabilisers up first");
+			else if (bCone && i == 0 && !bSet && Gs == FSvcCater::InTray && C.Cone[1] == FSvcCater::InTray) Why = TEXT("the top cone first");
+			else if (bCone && i == 1 && !bSet && Gs == FSvcCater::InYours && C.Cone[0] != FSvcCater::InTray) Why = TEXT("the lower cone back first");
+			else if (bCone && i == 0 && !bSet && Gs == FSvcCater::InYours && C.Cone[1] == FSvcCater::InTray) Why = TEXT("the top cone is on its post");
+			return Why.IsEmpty();
+		}
 		return G.CaterTake(T, (S - CtSTake) / 2, (S - CtSTake) % 2 ? -1.f : 1.f, Why);
 	};
 	Tb->Switch = [](AGSE& G, int32 Ti, int32 S)
@@ -1021,6 +1162,13 @@ TSharedPtr<FVehTable> AGSE::CaterControls()
 		if (S == CtSStop) return C.bStop = !C.bStop;
 		if (S == CtSStab) return C.bStabStop = !C.bStabStop;
 		if (S == CtSClimb) return true;
+		if (CtIsGear(S))
+		{
+			bool bCone = false, bSet = false; const int32 i = CtGearIx(S, bCone, bSet); uint8& Gs = bCone ? C.Cone[i] : C.Chock[i]; const uint8 Place = bSet ? FSvcCater::AtPlace : FSvcCater::InTray;
+			Gs = Gs == FSvcCater::InYours ? Place : FSvcCater::InYours; C.GearCi = INDEX_NONE;
+			ADP_LOG(TEXT("GSE: catering truck: you %s %s %d"), Gs == FSvcCater::InYours ? TEXT("take") : bSet ? TEXT("set out") : TEXT("put back"), bCone ? TEXT("cone") : TEXT("chock"), i);
+			return true;
+		}
 		int32 Tr = INDEX_NONE; FString Why;
 		if (S == CtSCabin)
 		{
@@ -1049,14 +1197,25 @@ TSharedPtr<FVehTable> AGSE::CaterControls()
 			for (const FSvcCater::FTrolley& Y : C.Trolleys) if (Y.State == FSvcCater::InCabin && Y.CabinT <= 0.f) return X.Label;
 			return FString();
 		}
+		if (CtIsGear(X.Switch))
+		{
+			bool bCone = false, bSet = false; const int32 i = CtGearIx(X.Switch, bCone, bSet); const uint8 Gs = bCone ? C.Cone[i] : C.Chock[i];
+			if (Gs == FSvcCater::InYours) return bCone ? (bSet ? TEXT("Set the cone here") : TEXT("Put the cone back on its post")) : (bSet ? TEXT("Put the chock at the wheel") : TEXT("Put the chock back in its tray"));
+			if (Gs == (bSet ? FSvcCater::AtPlace : FSvcCater::InTray) && !CtGearHeld(C) && (!bCone || bSet || i == 1 || C.Cone[1] != FSvcCater::InTray)) return bCone ? (bSet ? TEXT("Take the cone") : TEXT("Take the warning cone")) : (bSet ? TEXT("Take the chock away") : TEXT("Take the wheel chock"));
+			return FString();
+		}
 		if (X.Switch == CtSStop) return C.bStop ? TEXT("Emergency stop: pull it out") : X.Label;
 		if (X.Switch == CtSStab) return C.bStabStop ? TEXT("Emergency stop, stabilisers: pull it out") : X.Label;
 		return X.Label;
 	};
-	Tb->Held = [](const FTractor& T) -> const TCHAR* { return T.Ct && T.Job == EJob::None && CtHeldTr(*T.Ct) != INDEX_NONE ? TEXT("a trolley") : nullptr; };
+	Tb->Held = [](const FTractor& T) -> const TCHAR* { return !T.Ct || T.Job != EJob::None ? nullptr : CtHeldTr(*T.Ct) != INDEX_NONE ? TEXT("a trolley") : CtGearHeld(*T.Ct); };
 	Tb->Grip = [](const AGSE& G, const FTractor& T, FVector& P) { const int32 i = T.Ct ? CtHeldTr(*T.Ct) : INDEX_NONE; if (i == INDEX_NONE) return false; P = CtHandle(*T.Ct, i); return true; };
-	Tb->Leash = [](const AGSE& G, const FTractor& T, FVector& From) { const int32 i = T.Ct ? CtHeldTr(*T.Ct) : INDEX_NONE; if (i == INDEX_NONE) return 0.f; From = CtHandle(*T.Ct, i); return 112.f; };
-	Tb->Drop = [](FTractor& T) { const int32 i = T.Ct ? CtHeldTr(*T.Ct) : INDEX_NONE; if (i != INDEX_NONE) CtPark(*T.Ct, i); };
+	Tb->Leash = [](const AGSE& G, const FTractor& T, FVector& From) { if (T.Ct && CtGearHeld(*T.Ct)) { From = G.SvcP(T, TEXT("IK_Stand_Chocks")); return 3000.f; } const int32 i = T.Ct ? CtHeldTr(*T.Ct) : INDEX_NONE; if (i == INDEX_NONE) return 0.f; From = CtHandle(*T.Ct, i); return 112.f; };
+	Tb->Drop = [](FTractor& T)
+	{
+		const int32 i = T.Ct ? CtHeldTr(*T.Ct) : INDEX_NONE; if (i != INDEX_NONE) CtPark(*T.Ct, i);
+		if (T.Ct) for (uint8* S : {&T.Ct->Chock[0], &T.Ct->Chock[1], &T.Ct->Cone[0], &T.Ct->Cone[1]}) if (*S == FSvcCater::InYours) { *S = FSvcCater::InTray; T.Ct->bLive = true; }   // (back in its tray)
+	};
 	// the full one over the sill into the aircraft, or the brake on where it stands
 	static auto MayIn = [](const AGSE& G, const FTractor& T) -> bool
 	{
@@ -1065,7 +1224,7 @@ TSharedPtr<FVehTable> AGSE::CaterControls()
 		for (const TPair<int32, FSvcJob>& P : G.SvcJobs) if (P.Value.Phase == 0 && ADPService::All()[P.Value.Svc].bCater && FMath::Abs(P.Value.StandX - C.YouStandX) < 1.f) return In < 2 && P.Value.CtYou[C.YouDoor] + Owed < CtNeed[C.YouDoor];
 		return false;
 	};
-	Tb->HandSay = [](const AGSE& G, const FTractor& T, FString& Why) -> FString { return MayIn(G, T) ? TEXT("Hand the full trolley into the aircraft") : TEXT("Let go of the trolley (brake on)"); };
+	Tb->HandSay = [](const AGSE& G, const FTractor& T, FString& Why) -> FString { if (CtHeldTr(*T.Ct) == INDEX_NONE) return FString(); return MayIn(G, T) ? TEXT("Hand the full trolley into the aircraft") : TEXT("Let go of the trolley (brake on)"); };
 	Tb->HandDo = [](AGSE& G, FTractor& T, bool bSqueeze)
 	{
 		FSvcCater& C = *T.Ct; const bool bNew = bSqueeze && !C.bSqueeze; C.bSqueeze = bSqueeze; const int32 i = CtHeldTr(C); if (!bNew || i == INDEX_NONE) return;
