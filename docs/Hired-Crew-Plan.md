@@ -426,6 +426,11 @@ riders `Data/ambulift-riders.json`, `Data/wheelchair-riders.json`, all points an
 - Pump buttons' prompts show litres given and tank (50 l/min, stops when empty); fill valve, coupling, pump and emergency stop lock each other; `WaterStowed` / `Stow` cover hose, valve, door.
 - Body boxes measured on the GLB; the steps are solid treads and count as standing on it.
 - Water truck, merged in the model, so not built: gauges, LCD, sinking buttons, fill cap, glove box, manholes, charge flap. FLOW on the fuel truck: wrong word on the work-light button (make_refueller.py 329), model job.
+- Toilet truck (compiled, NOT run): `AGSE::ToiletControls()` + `YouToilet` (end of GSEWater.cpp). Order: chocks; rinse coupling on the rail; up, tray down, cap off (laid on the floor), waste coupling, gate shut, raise, waste on, rinse on; drain lever (240 s), rinse pump (120 s); back in reverse.
+- Platform lever on the platform and at the mast (8 cm/s, the crew's height limit at the aircraft); not with the gate open, the stop pressed, you under it (crew too) or your head at the aircraft (`WetLiftHeld`).
+- Tanks: rinse 550 l, waste 1500 l (168 + 40 l per aircraft). Emptying lever behind the mast, from the lowered platform, in its box only: 30 s, refills rinse too.
+- A crew taking over drains and rinses only what you left (`J.Litres` 360 s); a lever worked with something in your hand: it goes to the left hand.
+- Toilet truck, merged or not in the model, so not built: rinse fill cap, gauges, sinking buttons, coupling cam levers, charge flap, manhole; no work-light button, no lockers.
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 

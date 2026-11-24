@@ -551,7 +551,7 @@ int32 AGSE::YouJob(const FTractor& T, const FVector& Pt, const FVector& Want, fl
 	const FTransform Root(FRotator(0.f, T.Yaw, 0.f), T.At); const FServiceSpec& S = ADPService::All()[T.Svc]; int32 Key = INDEX_NONE; double Bd = Max;
 	for (const TPair<int32, FSvcJob>& J : SvcJobs)
 	{
-		const FServiceSpec& X = ADPService::All()[J.Value.Svc]; if (J.Value.Phase != 0 || X.bFuel != S.bFuel || X.Wet != S.Wet || (!S.bFuel && S.Wet != 1)) continue;
+		const FServiceSpec& X = ADPService::All()[J.Value.Svc]; if (J.Value.Phase != 0 || X.bFuel != S.bFuel || X.Wet != S.Wet || (!S.bFuel && !S.Wet)) continue;
 		const AActor* A = WetPlane(J.Value.StandX); if (!A) continue;
 		const FVector P = Root.InverseTransformPosition(A->GetActorTransform().TransformPosition(Pt)); const double D = FVector::Dist(P, Want);
 		if (D < Bd) { Bd = D; Key = J.Key; C = P; if (Pl) *Pl = A; }
@@ -561,8 +561,8 @@ int32 AGSE::YouJob(const FTractor& T, const FVector& Pt, const FVector& Want, fl
 
 bool AGSE::YouServe(int32 Svc, float StandX) const
 {
-	const FServiceSpec& S = ADPService::All()[Svc]; if (!S.bFuel && S.Wet != 1) return false;
-	for (const FTractor& T : Tractors) if (T.Job == EJob::None && ((S.bFuel && T.Fu && T.Fu->YouStandX == StandX && !FuelStowed(T)) || (S.Wet == 1 && T.Wa && !T.Wa->bToilet && T.Wa->YouStandX == StandX && !WaterStowed(T)))) return true;
+	const FServiceSpec& S = ADPService::All()[Svc]; if (!S.bFuel && !S.Wet) return false;
+	for (const FTractor& T : Tractors) if (T.Job == EJob::None && ((S.bFuel && T.Fu && T.Fu->YouStandX == StandX && !FuelStowed(T)) || (S.Wet && T.Wa && T.Wa->bToilet == (S.Wet == 2) && T.Wa->YouStandX == StandX && !WaterStowed(T)))) return true;
 	return false;
 }
 

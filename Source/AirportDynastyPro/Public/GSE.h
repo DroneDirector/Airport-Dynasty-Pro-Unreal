@@ -160,11 +160,15 @@ private:
 	static TSharedPtr<FVehTable> AmbuControls();
 	static TSharedPtr<FVehTable> FuelControls();
 	static TSharedPtr<FVehTable> WaterControls();
+	static TSharedPtr<FVehTable> ToiletControls();
 	void YouFuel(FTractor& T, float Dt);
 	void YouWater(FTractor& T, float Dt);
+	void YouToilet(FTractor& T, float Dt);
+	float YouLeft(const FTractor& T, float StandX) const;   // (what that aircraft still needs of it, 0 none)
+	bool WetLiftHeld(const FTractor& T, float To) const;   // (the platform can't move that way: you under it, your head at the aircraft, the stop)
 	bool FuelStowed(const FTractor& T) const;
 	bool WaterStowed(const FTractor& T) const;
-	/** The waiting turn-round job (fuel / water) whose aircraft has Pt (its root) within Max of Want (truck root): its place in C. */
+	/** The waiting turn-round job (fuel / water / toilets) whose aircraft has Pt (its root) within Max of Want (truck root): its place in C. */
 	int32 YouJob(const FTractor& T, const FVector& Pt, const FVector& Want, float Max, FVector& C, const AActor** Pl = nullptr) const;   // (its key; none: INDEX_NONE)
 	/** What you fuelled or filled by hand, taken off what that aircraft still needs; nothing left: the job is done. */
 	bool YouDone(FTractor& T, float StandX, float Amount);   // (false: it needs no more)

@@ -49,7 +49,7 @@ const FVehTable* AGSE::CtlTable(int32 Svc)
 	if (Svc == INDEX_NONE) return nullptr;
 	if (const TSharedPtr<FVehTable>* F = All.Find(Svc)) return F->Get();
 	const FServiceSpec& S = ADPService::All()[Svc];
-	return All.Add(Svc, S.bAmbu ? AmbuControls() : S.bFuel ? FuelControls() : S.Wet == 1 ? WaterControls() : TSharedPtr<FVehTable>()).Get();
+	return All.Add(Svc, S.bAmbu ? AmbuControls() : S.bFuel ? FuelControls() : S.Wet == 1 ? WaterControls() : S.Wet == 2 ? ToiletControls() : TSharedPtr<FVehTable>()).Get();
 }
 
 bool AVehicleControls::Crew(const AGSE& G, int32 V) const { return G.Tractors[V].Job != AGSE::EJob::None; }
@@ -313,7 +313,7 @@ void AVehicleControls::Carry(AGSE& G, APawn* Me)
 		HoldAt = bClimbing ? Wk->GetActorLocation() + Wk->GetActorForwardVector() * 30.f + Wk->GetActorRightVector() * 24.f : Wk->IsThirdPerson() ? Wk->GetActorLocation() + Flat * 36.f + Sd * 20.f + FVector(0., 0., 28.) : Eye + Look.Vector() * 40.f + Sd * 17.f - FVector(0., 0., 22.);
 		if (const float Pk = Tb->Pocket ? Tb->Pocket(V) : 0.f; Pk > 0.f) HoldAt = FMath::Lerp(HoldAt, Wk->GetActorLocation() + Flat * 12.f + Sd * 24.f - FVector(0., 0., 6.), double(FMath::SmoothStep(0.f, 1.f, Pk)));   // (into your pocket)
 		HoldF = (Flat * 0.8f + FVector(0., 0., 0.2)).GetSafeNormal();
-		FVector P = HoldAt; if (Ti == i && Do != EDo::None && Do != EDo::Climb && Tb->Controls.IsValidIndex(Ci)) P = FMath::Lerp(HoldAt, At(G, i, Tb->Controls[Ci]), W);
+		FVector P = HoldAt; if (Ti == i && Do != EDo::None && Do != EDo::Climb && Tb->Controls.IsValidIndex(Ci)) P = FMath::Lerp(HoldAt, Tb->Controls[Ci].Motion == INDEX_NONE ? At(G, i, Tb->Controls[Ci]) : HoldAt - Sd * 37.f, W);   // (a lever worked with the thing kept in your left hand)
 		V.YouHand = FTransform(FRotator(0.f, V.Yaw, 0.f), V.At).InverseTransformPosition(P);
 		if (Do == EDo::None) Wk->SetArm(1.f, HoldAt - HoldF * 8.5f, HoldF, FVector::UpVector);
 		bSqueeze = bSqueeze && Do == EDo::None && VcKey(Cast<APlayerController>(Wk->GetController())); if (Tb->HandDo) Tb->HandDo(G, V, bSqueeze);

@@ -533,7 +533,7 @@ void AGSE::SvcTick(float Dt)
 		if (S.bStairs && !StairsStowed(Tv)) { J.Why = TEXT("the stairs are up"); continue; }
 		if (S.bAmbu && (!AmbuStowed(Tv) || Tv.Player.IsValid())) { J.Why = TEXT("you have the ambulift"); continue; }
 		if (YouServe(Tv.Svc, J.StandX)) { J.Why = FString::Printf(TEXT("you work with the %s"), S.Label); continue; }
-		if ((S.bFuel && !FuelStowed(Tv)) || (S.Wet == 1 && !WaterStowed(Tv))) { J.Why = FString::Printf(TEXT("you have the %s"), S.Label); continue; }
+		if ((S.bFuel && !FuelStowed(Tv)) || (S.Wet && !WaterStowed(Tv))) { J.Why = FString::Printf(TEXT("you have the %s"), S.Label); continue; }
 		if (SvcYours(Tv) || (S.bDeicer && (Tv.Player.IsValid() || !DeicerStowed(Tv)))) { J.Why = FString::Printf(TEXT("you have the %s"), S.Label); continue; }
 		const bool bHome = FVector::Dist2D(Tv.At, Tv.Home) < 200.f && FMath::Abs(FMath::FindDeltaAngleDegrees(Tv.Yaw, Tv.HomeYaw)) < 20.f;
 		if (bHome && Tv.bUsed) { J.Why = FString::Printf(TEXT("the %s is being %s"), S.Label, S.bFuel || S.bDeicer || S.Wet == 1 ? TEXT("filled up") : S.Wet == 2 ? TEXT("emptied") : TEXT("emptied and restocked")); continue; }
