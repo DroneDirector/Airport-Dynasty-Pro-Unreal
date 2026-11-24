@@ -216,6 +216,10 @@ namespace ADPTurnaround
 			const bool bClean = (K.Id == TEXT("clean") || K.Id == TEXT("fuel") || K.Id == TEXT("cat1") || K.Id == TEXT("cat2") || K.Id == TEXT("water") || K.Id == TEXT("toilet")) && K.bStarted && !K.bDone && Tr->bMine && AGSE::Find(W) && AGSE::Find(W)->SvcBusy(*K.Id, Tr->StandX);
 			if (K.bStarted && !K.bDone && Tm >= K.Start + K.Dur && !bClean && !bChocks && !bBagsBusy && !bBoarding && !bOff && !bBridge && !bBack && !bStairs) { K.bDone = true; ADP_LOG(TEXT("Turnaround: %s %s done"), *Tr->Reg, *K.Name); }
 			}
+			// (to-do 212: de-iced when the weather asks for it, once its doors are shut and the jetway is back; the flight waits)
+			if (Tr->bMine && bHired && !Tr->PlanId.IsEmpty())
+				if (const FTask* Dk = Tr->Tasks.FindByPredicate([](const FTask& K) { return K.Id == TEXT("doors"); })) if (Dk->bDone || Dk->bStarted || Tm >= Dk->Start - 10.f)
+					if (AGSE* Gs = AGSE::Get(W)) Gs->DeiceTick(Tr->StandX, Tr->Reg, Tr->Flight, Now, Tr->OffBlocks, true, Dk->bDone);
 			// (its bags go out on the tractor train to it as soon as the stand is its own: 50 min before)
 			if (!Tr->PlanId.IsEmpty() && (Tr->OffBlocks - Now).GetTotalMinutes() < 50.0 && (bHired || Crew >= 2)) if (AGSE* Gs = AGSE::Get(W)) Gs->Departure(Tr->Flight, Tr->StandX);
 		}

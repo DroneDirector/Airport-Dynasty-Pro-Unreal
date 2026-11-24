@@ -10,6 +10,7 @@
 #include "GSECater.h"
 #include "GSEWater.h"
 #include "GSEStairs.h"
+#include "GSEDeicer.h"
 #include "Airfield.h"
 #include "Misc/PackageName.h"
 #include "Tugs.h"
@@ -132,6 +133,19 @@ const TArray<FServiceSpec>& ADPService::All()
 			P.NameL = TEXT("IK_Name_L"); P.NameR = TEXT("IK_Name_R"); P.NameSize = 13.f; P.LiveryBody = TEXT("PS_Livery_Body_Paint"); P.LiveryMain = TEXT("PS_Livery_Main_Paint");
 			L.Add(P);
 		}
+		{
+			// the de-icing truck: its own lanes round the aircraft (GSEDeicer.cpp); backed into its box at the east end from the north
+			FServiceSpec D;
+			D.bDeicer = true; D.Task = TEXT("deice"); D.Model = TEXT("Deicer"); D.Points = TEXT("deicer"); D.Label = TEXT("de-icing truck"); D.Role = TEXT("ground"); D.Team = EStaffTask::Deice; D.MaxPeople = 2;
+			D.HomeX = 561.5f; D.HomeY = 101.5f; D.Lat = 20.43f; D.Aft = 20.f; D.Far = 42.f;
+			D.HalfL = 503.f; D.HalfW = 121.f; D.TurnR = 680.f; D.MaxSteer = 38.f; D.DoorDeg = 68.f; D.PlayerSpeed = 830.f;
+			D.Doors = {{TEXT("DoorPassenger"), TEXT("PIV_DoorPassenger"), TEXT("IK_Handle_DoorPassenger_Out"), TEXT("IK_Stand_DoorPassenger"), -68.f, false}};
+			D.Seats = {TEXT("IK_Seat_SeatPassenger")};
+			D.Cab = {{TEXT("IK_Seat_CabinSeat"), {TEXT("CabinDoor"), TEXT("PIV_CabinDoor"), TEXT("IK_Handle_CabinDoor_Out"), TEXT("IK_Stand_DeckSteps"), 0.f, true}}};   // (the spray cabin: its door moves with it)
+			D.Wipers = {{TEXT("WiperL"), TEXT("PIV_Wiper_L"), FVector(491.1f, -9.f, 177.7f), FVector(477.6f, -60.f, 249.3f)}, {TEXT("WiperR"), TEXT("PIV_Wiper_R"), FVector(489.4f, 90.f, 177.7f), FVector(481.6f, 39.f, 249.3f)}};
+			D.NameL = TEXT("IK_Name_L"); D.NameR = TEXT("IK_Name_R"); D.NameSize = 22.f; D.LiveryBody = TEXT("DI_Livery_Body_Paint"); D.LiveryMain = TEXT("DI_Livery_Main_Paint");
+			L.Add(D);
+		}
 	}
 	return L;
 }
@@ -183,6 +197,7 @@ void AGSE::SvcDress(FTractor& T)
 	if (S.bCater) CaterDress(T);
 	if (S.Wet) WetDress(T);
 	if (S.bStairs) StairsDress(T);
+	if (S.bDeicer) DeicerDress(T);
 	// the airport's name, at run time
 	FString Name; if (!ADPSite::AirportBlock()->TryGetStringField(TEXT("name"), Name) || Name.IsEmpty()) return;
 	auto Text = [&](const TCHAR* At, float Yaw, float Size)
@@ -227,7 +242,8 @@ void AGSE::SvcRestock(FTractor& T)
 	const FServiceSpec& S = SvSpec(T.Svc); T.bUsed = false; T.BoxT = 0.f;
 	for (int32 i = 0; i < T.SvcItems.Num(); ++i) { T.SvcItems[i].bShow = S.Items[i].bAtHome; T.SvcItems[i].Ci = INDEX_NONE; T.SvcItems[i].bMoved = true; }
 	if (S.bCater) CaterRestock(T);
-	ADP_LOG(TEXT("GSE: the %s %s, shut in its box"), *T.Name, S.bFuel || S.Wet == 1 ? TEXT("filled up") : S.Wet == 2 ? TEXT("emptied and refilled") : TEXT("restocked"));
+	if (S.bDeicer) DeicerRestock(T);
+	ADP_LOG(TEXT("GSE: the %s %s, shut in its box"), *T.Name, S.bFuel || S.bDeicer || S.Wet == 1 ? TEXT("filled up") : S.Wet == 2 ? TEXT("emptied and refilled") : TEXT("restocked"));
 }
 
 void AGSE::SvcParts(FTractor& T, float Dt)
@@ -293,6 +309,7 @@ void AGSE::SvcParts(FTractor& T, float Dt)
 	if (S.bCater) CaterParts(T, Dt);
 	if (S.Wet) WetParts(T, Dt);
 	if (S.bStairs) StairsParts(T, Dt);
+	if (S.bDeicer) DeicerParts(T, Dt);
 	for (FTractor::FSvcItem& I : T.SvcItems)
 	{
 		if (I.G == INDEX_NONE || (I.Ci == INDEX_NONE && !I.bMoved)) continue;
@@ -325,6 +342,7 @@ bool AGSE::SvcFor(const TCHAR* Task, float StandX) const
 	for (const FTractor& T : Tractors)
 		if (T.Svc != INDEX_NONE && SvIs(T.Svc, Task) && Sp->HiresRole(SvSpec(T.Svc).Role))
 		{
+			if (SvSpec(T.Svc).bDeicer) { for (const FAirfieldData::FStand& St : AAirfield::Shared().Stands) if (FMath::Abs(St.X - StandX) < 1.f) return !St.bCargo; return false; }
 			if (SvSpec(T.Svc).bStairs)
 			{
 				// (only where no jetway is: never at a gate that has one)
@@ -386,7 +404,13 @@ bool AGSE::SvcWaits(const FString& Flight, float StandX, FString& Why) const
 	for (const TPair<int32, FSvcJob>& P : SvcJobs)
 	{
 		const FSvcJob& J = P.Value; const FServiceSpec& S = SvSpec(J.Svc);
-		if ((J.Flight != Flight && FMath::Abs(J.StandX - StandX) > 1.f) || J.T > SvPatience) continue;
+		if ((J.Flight != Flight && FMath::Abs(J.StandX - StandX) > 1.f) || J.T > (S.bDeicer ? 3.f : 1.f) * SvPatience) continue;
+		if (S.bDeicer)
+		{
+			const FTractor* Dv = Tractors.IsValidIndex(J.Ti) ? &Tractors[J.Ti] : nullptr; if (J.Phase > 3 || (J.Phase == 3 && !(Dv && Dv->Job == EJob::AtStand))) continue;
+			Why = J.Phase == 0 ? FString::Printf(TEXT("de-icing waits: %s"), J.Why.IsEmpty() ? TEXT("its people are being called") : *J.Why) : !J.Why.IsEmpty() ? FString::Printf(TEXT("the de-icing truck waits: %s"), *J.Why) : J.Phase == 1 ? FString(TEXT("the de-icing truck is on its way")) : J.Phase == 3 ? FString(TEXT("the de-icing truck is driving off")) : Dv && Dv->Di ? FString::Printf(TEXT("it is being de-iced (stop %d of %d)"), Dv->Di->Stop + 1, Dv->Di->Stops.Num()) : FString(TEXT("it is being de-iced"));
+			return true;
+		}
 		const FTractor* Tv = Tractors.IsValidIndex(J.Ti) ? &Tractors[J.Ti] : nullptr; bool bDown = J.Phase == 2; for (const FSvcMan& M : J.Men) if (!M.bGone && !M.bDown) bDown = false;
 		if (Tv && J.Phase == 2 && !SvcHere(P.Key) && !(S.bCater && Tv->Job == EJob::Out))
 		{
@@ -419,6 +443,7 @@ bool AGSE::SvcLost(int32 Ci, bool& bDrop)
 			ATugs::FCrew& C = G->Crew[Ci];
 			if (SvSpec(P.Value.Svc).bCater) { if (!CaterLost(Job, m)) bDrop = true; return true; }
 			if (SvSpec(P.Value.Svc).bStairs) { StairsLost(Job, m); return true; }
+			if (SvSpec(P.Value.Svc).bDeicer) { DeicerLost(Job, m); return true; }
 			if (SvSpec(P.Value.Svc).Wet)
 			{
 				WetLost(Job); C.bUp = false; C.bRelWet = true;
@@ -452,7 +477,8 @@ void AGSE::SvcTick(float Dt)
 		FSvcJob& J = P.Value; const float Was = J.T; if (J.Phase > 0) J.T += Dt;
 		if (Was <= SvPatience && J.T > SvPatience) ADP_WARN(TEXT("GSE: the %s at stand x %.0f has been at %s for 45 min - the flight no longer waits for it"), SvSpec(J.Svc).Label, J.StandX, *J.Reg);
 		FuelTick(J, Dt); WetTick(J, Dt); if (SvSpec(J.Svc).bStairs) StairsTick(J, Dt);
-		if (SvSpec(J.Svc).bCater || SvSpec(J.Svc).Wet || SvSpec(J.Svc).bStairs) continue;
+		if (SvSpec(J.Svc).bDeicer) DeicerTick(P.Key, Dt);
+		if (SvSpec(J.Svc).bCater || SvSpec(J.Svc).Wet || SvSpec(J.Svc).bStairs || SvSpec(J.Svc).bDeicer) continue;
 		int32 In = 0; for (const FSvcMan& M : J.Men) if (M.bIn && !M.bGone) ++In;
 		if (!In || J.RowsDone >= J.Rows) continue;
 		for (J.RowT += Dt * In; J.RowT >= SvRowSeconds && J.RowsDone < J.Rows; J.RowT -= SvRowSeconds)
@@ -480,9 +506,9 @@ void AGSE::SvcTick(float Dt)
 		if (Ti == INDEX_NONE) { J.Why = FString::Printf(TEXT("no %s free"), S.Label); continue; }
 		const FTractor& Tv = Tractors[Ti]; J.Svc = Tv.Svc;   // (any of the stairs)
 		if (S.bStairs && !StairsStowed(Tv)) { J.Why = TEXT("the stairs are up"); continue; }
-		if (SvcYours(Tv)) { J.Why = FString::Printf(TEXT("you have the %s"), S.Label); continue; }
+		if (SvcYours(Tv) || (S.bDeicer && (Tv.Player.IsValid() || !DeicerStowed(Tv)))) { J.Why = FString::Printf(TEXT("you have the %s"), S.Label); continue; }
 		const bool bHome = FVector::Dist2D(Tv.At, Tv.Home) < 200.f && FMath::Abs(FMath::FindDeltaAngleDegrees(Tv.Yaw, Tv.HomeYaw)) < 20.f;
-		if (bHome && Tv.bUsed) { J.Why = FString::Printf(TEXT("the %s is being %s"), S.Label, S.bFuel || S.Wet == 1 ? TEXT("filled up") : S.Wet == 2 ? TEXT("emptied") : TEXT("emptied and restocked")); continue; }
+		if (bHome && Tv.bUsed) { J.Why = FString::Printf(TEXT("the %s is being %s"), S.Label, S.bFuel || S.bDeicer || S.Wet == 1 ? TEXT("filled up") : S.Wet == 2 ? TEXT("emptied") : TEXT("emptied and restocked")); continue; }
 		{ bool bOpen = false; for (const FTractor::FSvcDoor& D : Tv.SvcDoors) if (D.Now > 0.01f) bOpen = true; if (bOpen && Tv.Player.IsValid()) { J.Why = FString::Printf(TEXT("you are getting into the %s"), S.Label); continue; } }
 		if (!bHome) { TArray<FVector> W; if (!Apron(W, Tv.At, Plan(S.HomeX + S.HomeHx * 34.f, S.HomeY + S.HomeHy * 34.f), &Tv)) { J.Why = FString::Printf(TEXT("the %s stands where it cannot be driven from - bring it back to the apron"), S.Label); continue; } }
 		const FString Key = FString::Printf(TEXT("%s:%s%s"), S.Task, *J.Reg, S.bStairs && J.CtDoor ? TEXT(":2") : TEXT("")), What = FString::Printf(TEXT("%s %s"), J.Flight.IsEmpty() ? *J.Reg : *J.Flight, UStaffPeople::TaskName(S.Team));
@@ -509,6 +535,7 @@ TFunction<void(float, float, FDriverPose&)> AGSE::SvcSeatFn(int32 Ti, int32 Seat
 {
 	const FServiceSpec& S = SvSpec(Tractors[Ti].Svc); const int32 c = Seat - 1 - S.Seats.Num();
 	if (!S.Seats.IsValidIndex(Seat - 1) && !S.Cab.IsValidIndex(c)) return SeatFn(Ti);
+	if (S.bDeicer && S.Cab.IsValidIndex(c)) return DeicerSeatFn(Ti);
 	const FVector H = SvcP(Tractors[Ti], S.Cab.IsValidIndex(c) ? S.Cab[c].Seat : S.Seats[Seat - 1]) + SvUp * 10.f;
 	return [this, Ti, H](float, float PH, FDriverPose& P)
 	{
@@ -643,6 +670,7 @@ void AGSE::SvcApron(int32 Job)
 	FSvcJob* J = SvcJ(Job); if (!J) return;
 	const int32 Ti = J->Ti; FTractor& T = Tractors[Ti];
 	const FServiceSpec& Sv = SvSpec(J->Svc);
+	if (Sv.bDeicer) { DeicerApron(Job); return; }
 	// (one at a time on the aircraft's right, between its wing and the next one's)
 	if (Sv.Wet && T.Job != EJob::Out && !WetMay(Job)) return;   // (its turn under the tail; asked again)
 	if (Sv.Lat < 0.f && !Sv.Wet && T.Job != EJob::Out && SvcSideBusy(Ti, J->StandX)) { RetryIn(Ti, 6.f, [this, Job] { SvcApron(Job); }); return; }
@@ -974,6 +1002,19 @@ void AGSE::SvcDriveHome(int32 Job, TFunction<void()> Then)
 	const int32 Ti = J->Ti; FTractor& T = Tractors[Ti]; const FServiceSpec& Sv = SvSpec(J->Svc);
 	// down beside its box's way (two turning circles off it, clear of the next stand's line), round to point away, straight back in: nose out
 	TArray<FVector> H; const FVector2f Ho(Sv.HomeX, Sv.HomeY), Hd(Sv.HomeHx, Sv.HomeHy), Sd(Sv.HomeHy, -Sv.HomeHx);
+	if (Sv.bDeicer)
+	{
+		// (the apron's east edge: no room for a loop - from the west between the toilet truck's box and the stairs', round to face north, straight back in)
+		const float Yl = Ho.Y + 21.f, R = T.KTurnR / 100.f;
+		if (!Apron(H, T.At, Plan(Ho.X - R - 14.f, Yl), &T)) { RetryIn(Ti, 8.f, [this, Job, Then] { SvcDriveHome(Job, Then); }); return; }
+		Leg(H, Ho.X - R - 14.f, Yl, 1.f, 0.f, Ho.X - R - 0.4f, Yl, 1.f, 0.f, T.KTurnR); Leg(H, Ho.X - R - 0.4f, Yl, 1.f, 0.f, Ho.X, Yl + R + 0.4f, 0.f, 1.f, T.KTurnR); Leg(H, Ho.X, Yl + R + 0.4f, 0.f, 1.f, Ho.X, Yl + R + 4.f, 0.f, 1.f, T.KTurnR);
+		Go(T, MoveTemp(H), false, [this, Then, Ti]
+		{
+			FTractor& U = Tractors[Ti]; TArray<FVector> Rv; for (int32 i = 1; i <= 50; ++i) Rv.Add(FMath::Lerp(U.At, U.Home, i / 50.f));
+			Go(U, MoveTemp(Rv), true, Then);
+		});
+		return;
+	}
 	if (Sv.HomeRoad > 0.f)
 	{
 		// along the road past the corner, then backed round it and straight back into the box

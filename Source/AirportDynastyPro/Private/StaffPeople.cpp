@@ -98,6 +98,8 @@ const TCHAR* UStaffPeople::DutyName(EStaffDuty D)
 	case EStaffDuty::WaterDriver: return TEXT("water and toilet truck driver");
 	case EStaffDuty::StairsDriver: return TEXT("passenger stairs driver");
 	case EStaffDuty::StairsHelper: return TEXT("passenger stairs helper");
+	case EStaffDuty::DeicerDriver: return TEXT("de-icing truck driver");
+	case EStaffDuty::DeicerOperator: return TEXT("de-icing operator");
 	case EStaffDuty::TugDriver: return TEXT("tug driver");
 	case EStaffDuty::PushbackHandler: return TEXT("pushback handler");
 	case EStaffDuty::WingWalker: return TEXT("wing walker");
@@ -116,6 +118,7 @@ const TCHAR* UStaffPeople::TaskName(EStaffTask T)
 	case EStaffTask::Water: return TEXT("fresh water");
 	case EStaffTask::Toilet: return TEXT("toilet service");
 	case EStaffTask::Stairs: return TEXT("passenger stairs");
+	case EStaffTask::Deice: return TEXT("de-icing");
 	case EStaffTask::Catering: case EStaffTask::CaterRelief: return TEXT("catering");
 	case EStaffTask::Gpu: return TEXT("ground power");
 	case EStaffTask::BagsOut: return TEXT("bags out to the aircraft");
@@ -139,6 +142,7 @@ void UStaffPeople::Needs(EStaffTask T, TArray<FNeed>& Out)
 	case EStaffTask::Cleaning: Add(EStaffDuty::CleanDriver, 1, 1); Add(EStaffDuty::Cleaner, 1, 3); break;
 	case EStaffTask::Fuel: Add(EStaffDuty::FuelDriver, 1, 1); break;
 	case EStaffTask::Stairs: Add(EStaffDuty::StairsDriver, 1, 1); Add(EStaffDuty::StairsHelper, 1, 1); break;
+	case EStaffTask::Deice: Add(EStaffDuty::DeicerDriver, 1, 1); Add(EStaffDuty::DeicerOperator, 1, 1); break;
 	case EStaffTask::Water: case EStaffTask::Toilet: Add(EStaffDuty::WaterDriver, 1, 1); break;
 	case EStaffTask::Catering: Add(EStaffDuty::CaterDriver, 1, 1); Add(EStaffDuty::CaterLoader, 1, 1); break;
 	case EStaffTask::CaterRelief: Add(EStaffDuty::CaterLoader, 1, 1); break;

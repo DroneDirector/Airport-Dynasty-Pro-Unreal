@@ -356,6 +356,15 @@ riders `Data/deicer-riders.json`, every point `Art/Deicer/deicer-parts.json` (`p
 - **Parking place (chosen on paper, not drawn):** EAST end, middle **(561.5, 101.5)**, facing north, box x 559.8..563.2, y 96..107: east of the toilet truck's box, south of its loop; way out north on x 561.5 (0.9 m past the stairs' mirrors). No loop fits (apron edge 570): it backs in from the north. B checks it in `Apron()`.
 - **Not there:** outriggers (the type has none), moving tank levels, sounds not checked for, spray / heater smoke; nothing run in the game.
 
+## De-icing truck, part B as built (to-do 212, 2026-11-24, compiled, NOT run)
+- **Code:** `GSEDeicer.cpp/.h`, table line in `GSEService.cpp` (`bDeicer`); box (561.5, 101.5), home: from the west on y 122.5 between the toilet truck's box and the stairs', round to north, straight back in. Role "ground", duties `DeicerDriver` + `DeicerOperator`, task `Deice`.
+- **When:** `DeiceTick` from `Turnaround.cpp` for your own departures at the A320 stands with people hired, from 10 min before the doors: `DiWeather` (the report + APuddles): falling and +3 C or less, snow on the paving, freezing fog, frost (0 C or less and the dew point within 2.5). It goes in when "doors" is done (shut, jetway back); the flight waits (`SvcWaits`, at most 135 min in all). Holdover 20-60 min by what falls (x 0.6 under -14 C); over while it still stands: again, three rounds at most.
+- **Way:** NOT the stops of `a320_reach` (no truck of 6.8 m turning circle drives between them): straight lanes, in forwards, out backwards: 20.43 m beside each wing (turret 25.5 and 13.5 m behind the nose), 12.6 m beside the tail (34, 28.5, 25.8). Left wing, tail left, tail right, right wing. Boom stowed before every move. Places and poses are solved at the stop (published A320 scaled by the bounds of the aircraft standing there; cabin 1.0 m, boom 0.75 m clear, spheres against jetway and buildings). Checked on paper with the same formulas: every place of wing, tailplane and fin reached, routes clear.
+- **A lane not free:** another vehicle 15 min, the neighbour's wingtip 5 min, something fixed 30 s - then that lane is left out with the reason in the log.
+- **Two-step:** type I at every place of a stop, then type IV while something falls. 110 / 45 l a minute, water mixed by the cold; tanks 2600 / 2400 / 2400 l, filled up in its box (`bUsed`) when low; no money (no service has a price yet).
+- **You:** the driver's seat as the others; E at the rear steps: the spray cabin (parked, nobody at work): move keys lift / slew, Shift / Ctrl (triggers) out / in, left / right mouse (RB / LB) type I / IV where you look, Home (pad Y) or E: stowed; out only when stowed.
+- **Missing:** the fuselage's top ahead of the wing (snow: not reached from these lanes), wing wetness, spray and pump sounds (only the belt loader's hydraulics), pump panel, valves, gauge needles, hand hose, heater door, dash needles, levers; the truck seen refilling.
+
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
 | Where | Today | Replace with | Nobody free |

@@ -1,4 +1,5 @@
 #include "GSE.h"
+#include "GSEDeicer.h"
 #include "RollerDoor.h"
 #include "Tugs.h"
 #include "ADPLog.h"
@@ -195,7 +196,8 @@ bool AGSE::SpawnTractor(FTractor& T)
 		}
 	struct FW { const TCHAR* Name; GseELensKind Kind; };
 	static const FW Which[] = {{TEXT("LowBeam_"), GLow}, {TEXT("HighBeam_"), GHigh}, {TEXT("TailBrake_"), GTail}, {TEXT("SideMarker_"), GMarker}, {TEXT("Reverse_"), GReverse},
-		{TEXT("BeaconLens"), GBeacon}, {TEXT("IndicatorF_"), GIndicator}, {TEXT("IndicatorR_"), GIndicator}, {TEXT("WorkLamp_Lens"), GWork}};
+		{TEXT("BeaconLens"), GBeacon}, {TEXT("IndicatorF_"), GIndicator}, {TEXT("IndicatorR_"), GIndicator}, {TEXT("WorkLamp_Lens"), GWork},
+		{TEXT("BeaconR_Lens"), GBeacon}, {TEXT("Cabin_Beacon_Lens"), GBeacon}, {TEXT("CabinLamp"), GWork}, {TEXT("RearWorkLamp_Lens"), GWork}, {TEXT("PanelLamp_Lens"), GWork}};
 	for (const FW& Wh : Which)
 	{
 		TArray<TTuple<UInstancedStaticMeshComponent*, int32, FString>> Found; M->InstancesNamed(Wh.Name, true, Found);
@@ -325,7 +327,7 @@ void AGSE::Lamps(FTractor& T)
 		case GMarker: V = bRun ? 0.5f : 0.f; break;
 		case GReverse: V = bBack ? 1.f : 0.f; break;
 		case GBeacon: V = bFlash ? 1.f : 0.f; break;
-		case GWork: V = (bRun && T.Boom < -0.5f) ? 1.f : 0.f; break;
+		case GWork: V = (bRun && T.Boom < -0.5f) || (T.Di && (T.Di->bYours || (T.Di->Ph >= FSvcDeicer::OpIn && T.Di->Ph <= FSvcDeicer::OpOut))) ? 1.f : 0.f; break;
 		default: V = 0.f;
 		}
 		if (V != L.Now && L.K) { L.Now = V; L.K->SetCustomDataValue(L.Ix, 0, V, true); }

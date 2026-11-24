@@ -83,6 +83,23 @@ void AServiceDrive::Climb()
 	Pose(0.f); View(0.f);
 }
 
+float AServiceDrive::BoomOut() const
+{
+	const APlayerController* PC = Cast<APlayerController>(GetController()); if (!PC || !Seated() || bOutWanted) return 0.f;
+	return FMath::Clamp((PC->IsInputKeyDown(EKeys::LeftShift) ? 1.f : 0.f) - (PC->IsInputKeyDown(EKeys::LeftControl) ? 1.f : 0.f) + FMath::Max(0.f, PadT) - FMath::Max(0.f, PadB), -1.f, 1.f);
+}
+
+int32 AServiceDrive::SprayKey() const
+{
+	const APlayerController* PC = Cast<APlayerController>(GetController()); if (!PC || !Seated() || bOutWanted || CamT < 1.f) return -1;
+	return PC->IsInputKeyDown(EKeys::LeftMouseButton) || PC->IsInputKeyDown(EKeys::Gamepad_RightShoulder) ? 0 : PC->IsInputKeyDown(EKeys::RightMouseButton) || PC->IsInputKeyDown(EKeys::Gamepad_LeftShoulder) ? 1 : -1;
+}
+
+bool AServiceDrive::StowKey() const
+{
+	const APlayerController* PC = Cast<APlayerController>(GetController()); return PC && Seated() && (bOutWanted || PC->IsInputKeyDown(EKeys::Home) || PC->IsInputKeyDown(EKeys::Gamepad_FaceButton_Top));
+}
+
 void AServiceDrive::Pose(float K)
 {
 	AGSE* G = Gse.Get(); if (!G || !Rider || !Rig.IsReady()) return;
@@ -245,7 +262,7 @@ FVector AGSE::SvcStandL(int32 Ti, int32 Seat) const
 }
 FVector AGSE::SvcStandW(int32 Ti, int32 Seat) const { const FVector W = TW(Tractors[Ti], SvcStandL(Ti, Seat)); return Plan(W.X / 100.f, -W.Y / 100.f); }
 float AGSE::SvcFaceYaw(int32 Ti, int32 Seat) const { return Tractors[Ti].Yaw + (SvcStandL(Ti, Seat).Y >= 0.f ? -90.f : 90.f); }
-float AGSE::SvcClimbTime(int32 Ti, int32 Seat, bool bIn) const { const FServiceSpec& S = SdSpec(Tractors[Ti].Svc); return Seat > 0 && SdCab(S, Seat) < 0 ? (bIn ? 5.f : 4.4f) : IsTall(Tractors[Ti]) ? (bIn ? 4.6f : 4.2f) : (bIn ? 3.2f : 2.8f); }
+float AGSE::SvcClimbTime(int32 Ti, int32 Seat, bool bIn) const { const FServiceSpec& S = SdSpec(Tractors[Ti].Svc); return S.bDeicer && SdCab(S, Seat) >= 0 ? (bIn ? 9.f : 8.f) : Seat > 0 && SdCab(S, Seat) < 0 ? (bIn ? 5.f : 4.4f) : IsTall(Tractors[Ti]) ? (bIn ? 4.6f : 4.2f) : (bIn ? 3.2f : 2.8f); }
 
 void AGSE::SvcSeatDoor(int32 Ti, int32 Seat, bool bOpen)
 {
@@ -265,7 +282,7 @@ bool AGSE::SvcSeatDoorOpen(int32 Ti, int32 Seat) const
 TFunction<void(float, float, FDriverPose&)> AGSE::SvcHandFn(int32 Ti, int32 Seat) const
 {
 	const FTractor& T0 = Tractors[Ti]; const FServiceSpec& S = SdSpec(T0.Svc); const int32 c = SdCab(S, Seat);
-	const FVector At = SvcStandL(Ti, Seat), H = Seat == 0 ? T0.KHandle : S.Cab.IsValidIndex(c) ? SvcP(T0, S.Cab[c].Door.Handle) : SvcP(T0, S.Doors[0].Handle);
+	const FVector At = SvcStandL(Ti, Seat), H = Seat == 0 ? T0.KHandle : S.bDeicer && S.Cab.IsValidIndex(c) ? SvcP(T0, TEXT("IK_Grab_DeckSteps_F")) : S.Cab.IsValidIndex(c) ? SvcP(T0, S.Cab[c].Door.Handle) : SvcP(T0, S.Doors[0].Handle);
 	const float Dy = At.Y >= 0.f ? -90.f : 90.f; const int32 Side = At.Y >= 0.f ? 0 : 1;   // (the hand nearer the door's handle)
 	return [this, Ti, At, H, Dy, Side](float K, float PH, FDriverPose& P) { const FTractor& T = Tractors[Ti]; P = ADPPose::Reach(TW(T, At), FRotator(0.f, T.Yaw + Dy, 0.f).Vector(), Side, TW(T, H), 0.7f, PH, FMath::Sin(PI * FMath::Clamp(K, 0.f, 1.f))); };
 }
@@ -274,6 +291,7 @@ TFunction<void(float, float, FDriverPose&)> AGSE::SvcClimbAny(int32 Ti, int32 Se
 {
 	const FServiceSpec& S = SdSpec(Tractors[Ti].Svc);
 	if (Seat == 0) return ClimbFn(Ti, bIn);
+	if (S.bDeicer && SdCab(S, Seat) >= 0) return DeicerClimbFn(Ti, bIn);   // (up to the spray cabin)
 	if (SdCab(S, Seat) < 0 && !IsTall(Tractors[Ti]) && !S.bStairs) return SvcClimbFn(Ti, Seat, bIn);
 	// the seat beside the driver: the driver's way in, mirrored, the end of it onto its own seat
 	return [this, Ti, Seat, bIn](float K0, float PH, FDriverPose& P)
@@ -290,6 +308,7 @@ TFunction<void(float, float, FDriverPose&)> AGSE::SvcClimbAny(int32 Ti, int32 Se
 
 bool AGSE::SvcRoomAt(int32 Ti, int32 Seat, const AActor* A, const AActor* B) const
 {
+	if (SdSpec(Tractors[Ti].Svc).bDeicer && SdCab(SdSpec(Tractors[Ti].Svc), Seat) >= 0 && !DeicerStowed(Tractors[Ti])) return false;   // (out of the cabin only when it is stowed)
 	FCollisionQueryParams Q(SCENE_QUERY_STAT(ADPSvcRoom), false, A); Q.AddIgnoredActor(B); Q.AddIgnoredActor(Tractors[Ti].M.Get());
 	if (const AADPWalker* Wk = Cast<AADPWalker>(A)) if (Wk->HumanActor()) Q.AddIgnoredActor(Wk->HumanActor());
 	return !GetWorld()->OverlapBlockingTestByChannel(SvcStandW(Ti, Seat) + FVector(0.f, 0.f, 100.f), FQuat::Identity, ECC_Pawn, FCollisionShape::MakeCapsule(30.f, 70.f), Q);
@@ -301,10 +320,11 @@ bool AGSE::SvcSeatFree(int32 Ti, int32 Seat, FString& Why) const
 {
 	const FTractor& T = Tractors[Ti]; const FServiceSpec& S = SdSpec(T.Svc); const ATugs* G = Tg();
 	if (T.Player.IsValid()) { Why = TEXT("you are in it already"); return false; }
+	if (S.bDeicer && (T.Job != EJob::None || !DeicerStowed(T))) { Why = T.Job != EJob::None ? TEXT("its crew are at work") : TEXT("its boom is not stowed"); return false; }
 	if (T.Speed > 2.f || T.Path.Num()) { Why = TEXT("it is driving"); return false; }
 	if (SdCab(S, Seat) >= 0 || T.Job == EJob::None) return true;   // (the seat beside the driver: nobody of its crew sits there)
 	// its crew have it: the driver's seat only while every one of them is up in the aircraft
-	if (Seat == 0 && T.Job == EJob::AtStand && !S.bFuel && !S.bCater && !S.Wet && !S.bStairs)   // (the water and the toilet truck: chocked, the hoses on; the catering truck: on its legs, its body up; the refueller: chocked, bonded, its hose on - never while its driver is at work)
+	if (Seat == 0 && T.Job == EJob::AtStand && !S.bFuel && !S.bCater && !S.Wet && !S.bStairs && !S.bDeicer)   // (the water and the toilet truck: chocked, the hoses on; the catering truck: on its legs, its body up; the refueller: chocked, bonded, its hose on - never while its driver is at work)
 		for (const TPair<int32, FSvcJob>& P : SvcJobs)
 			if (P.Value.Ti == Ti && P.Value.Phase == 2)
 			{
@@ -361,6 +381,7 @@ void AGSE::SvcPlayerDrive(FTractor& T, float Dt)
 	const FServiceSpec& S = SdSpec(T.Svc);
 	bool bShut = true; for (int32 d = 0; d < T.SvcDoors.Num(); ++d) if (T.SvcDoors[d].Now > 0.01f) bShut = false;
 	if (T.DoorAng > 1.f) bShut = false;
+	if (!DeicerStowed(T)) bShut = false;   // (never with its boom up)
 	if (T.Ps && !StairsStowed(T)) bShut = false;   // (never with its legs down or its stairs up)
 	float Go = bShut ? D->Throttle() : 0.f, Br = D->Brake();
 	// (backwards: the brake held at a standstill)

@@ -37,6 +37,7 @@ struct FSvcRefuel;
 struct FSvcCater;
 struct FSvcWet;
 struct FSvcStairs;
+struct FSvcDeicer;
 
 UCLASS()
 class AIRPORTDYNASTYPRO_API AGSE : public AActor
@@ -101,6 +102,7 @@ public:
 		float SteerWant = 0.f, BackT = 0.f, PedalA = 0.f, PedalB = 0.f, WipeT = 0.f, WipeNow = 0.f, RainIn = 0.f, BoxT = 0.f; bool bRain = false, bUsed = false;   // (bUsed: full bags or used rolls in it - exchanged shut in its box)
 		int32 GPedal[2] = {INDEX_NONE, INDEX_NONE}, LoadWant = INDEX_NONE; TArray<int32> GWiper; FString Livery;
 		TSharedPtr<FSvcRefuel> Fu;        // (the refueller's own parts: GSEFuel.cpp)
+		TSharedPtr<FSvcDeicer> Di;        // (the de-icing truck's: GSEDeicer.cpp)
 		TSharedPtr<FSvcStairs> Ps;        // (the passenger stairs': GSEStairs.cpp)
 		TSharedPtr<FSvcWet> Wa;           // (the water and the toilet truck's: GSEWater.cpp)
 		TSharedPtr<FSvcCater> Ct;         // (the catering high-loader's: GSECater.cpp)
@@ -274,6 +276,9 @@ public:
 	void StairsPose(int32 Ti, bool bUp, float K, float PH, FDriverPose& P) const;
 	float StairsSeconds(int32 Ti) const;
 	void StairsEnter(int32 Ti, int32 By);
+	/** De-icing (GSEDeicer.cpp), every tick of your own departure's turnaround: bSoon - its doors are shut in ten minutes, bDoors -
+	 *  they are shut and the jetway is back. The weather decides; it is asked for, sent and asked for again by itself. */
+	void DeiceTick(float StandX, const FString& Reg, const FString& Flight, const FDateTime& Now, const FDateTime& OffBlocks, bool bSoon, bool bDoors);
 	/** The aircraft is gone: what had not started is dropped. */
 	void SvcGone(float StandX);
 private:
@@ -360,6 +365,29 @@ private:
 	/** You at its ground panel. */
 	void StairsToggle(int32 Ti, FString& Say);
 	void StairsSteps(const FTractor& T, TArray<FVector>& Out) const;
+	// ---- the de-icing truck (GSEDeicer.cpp)
+	struct FDeiced { FDateTime Until = FDateTime(0); int32 Rounds = 0; };   // (until when the fluid holds; how often it was done)
+	TMap<FString, FDeiced> Deiced; FDateTime DeiceNow = FDateTime(0);
+	void DeicerDress(FTractor& T);
+	void DeicerParts(FTractor& T, float Dt);
+	void DeicerSpray(FTractor& T, float Dt, const FTransform& Noz);
+	void DeicerRestock(FTractor& T);
+	bool DeicerStowed(const FTractor& T) const;
+	FTransform DeicerCab(const FTractor& T) const;
+	bool DeicerLane(int32 Ti, float StandX, int32 Stop, FString& Why) const;
+	void DeicerApron(int32 Job);
+	void DeicerIn(int32 Job, float Y1);
+	void DeicerOut(int32 Job, bool bEnd);
+	void DeicerEnd(int32 Job);
+	void DeicerGone(int32 Job);
+	void DeicerPlan(FSvcJob& J);
+	void DeicerTick(int32 Job, float Dt);
+	TFunction<void(float, float, FDriverPose&)> DeicerClimbFn(int32 Ti, bool bUp) const;
+	TFunction<void(float, float, FDriverPose&)> DeicerSeatFn(int32 Ti) const;
+	void DeicerOpIn(int32 Job);
+	void DeicerOpOut(int32 Job);
+	void DeicerLost(int32 Job, int32 m);
+	void DeicerYours(FTractor& T, float Dt);
 	// ---- the potable water truck and the toilet truck (GSEWater.cpp)
 	void WetDress(FTractor& T);
 	void WetParts(FTractor& T, float Dt);

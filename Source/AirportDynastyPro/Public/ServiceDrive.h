@@ -31,6 +31,16 @@ public:
 	float Brake() const { return AtWheel() ? (bOutWanted ? 1.f : FMath::Clamp(FMath::Max(-KeyFwd, PadB), 0.f, 1.f)) : 1.f; }
 	float SteerIn() const { return AtWheel() && !bOutWanted ? FMath::Clamp(KeySteer, -1.f, 1.f) : 0.f; }
 	bool Leaving() const { return bOutWanted; }
+	// in the de-icing truck's cabin (GSEDeicer.cpp): the boom by the move keys / left stick, out and in by Shift / Ctrl or the
+	// triggers, type I / type IV by the left / right mouse button or the right / left shoulder button, Home (pad Y): stowed
+	bool Seated() const { return Seq == ESeq::Sat; }
+	float BoomLift() const { return Seated() && !bOutWanted ? FMath::Clamp(KeyFwd, -1.f, 1.f) : 0.f; }
+	float BoomSlew() const { return Seated() && !bOutWanted ? FMath::Clamp(KeySteer, -1.f, 1.f) : 0.f; }
+	float BoomOut() const;
+	int32 SprayKey() const;
+	bool StowKey() const;
+	float LookY() const { return LookYaw; }
+	float LookP() const { return LookPitch; }
 
 private:
 	enum class ESeq : uint8 { Walk, Handle, In, Sat, Out };
