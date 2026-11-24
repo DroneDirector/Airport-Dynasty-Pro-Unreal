@@ -114,21 +114,32 @@ void ATugs::HiredTick(int32 Tug, float Dt)
 	if (T.Key.IsEmpty())
 	{
 		// (the job is over - the tug in its box, its people gone, the aircraft cleared to taxi: the gate's own again)
-		if (T.State == EState::Parked && HiredFree(T) && (T.Seq == 0 || T.Seq >= 14)) HiredEnd(T);
+		if (HiredFree(T) && ((T.State == EState::Parked && (T.Seq == 0 || T.Seq >= 14)) || (T.State == EState::You && !T.bYouPush && !T.bYouCrew))) HiredEnd(T);
 		return;
 	}
 	FDateTime When; FString Flight;
 	const bool bLive = HiredLive(T.Key, &When, &Flight);
+	if (T.State == EState::You) { YouCrew(Tug, bLive, When, Flight); return; }
 	if (T.State == EState::Parked)
 	{
+		const bool bHas = Crew.IsValidIndex(T.Handler) && Crew[T.Handler].bHired;   // (your own push, left: its handler is here already)
+		if (bLive && !Sp->Hires() && T.YouStep == 3)
+		{
+			// (your push, left on the nose, and no hired crew any more: the gate's own go on)
+			if (bHas) { Crew[T.Handler].Follow = nullptr; LeaveAct(Crew[T.Handler]); }
+			HiredEnd(T); ADP_LOG(TEXT("Tugs: %s - no hired crew any more, the gate's own go on"), *T.Key);
+			if (T.Driver != INDEX_NONE) { T.State = EState::Boarding; CrewBoard(Tug); } else T.State = EState::Hooked;
+			return;
+		}
 		if (!bLive || !Sp->Hires())
 		{
 			ADP_LOG(TEXT("Tugs: the pushback of %s at x %.0f is off before its crew came"), *T.Key, T.StandX);
+			if (bHas) { Crew[T.Handler].Follow = nullptr; LeaveAct(Crew[T.Handler]); }
 			T.Key.Reset(); return;
 		}
 		if (T.GpuCi != INDEX_NONE) return;   // (one of your people is still at its ground power)
 		TArray<UStaffPeople::FTaken> Team;
-		if (!Sp->AskTeam(TEXT("push:") + T.Key, EStaffTask::Pushback, When, T.At, FString::Printf(TEXT("%s pushback"), *Flight), Team)) return;
+		if (!Sp->AskTeam(TEXT("push:") + T.Key, bHas ? EStaffTask::PushDriver : EStaffTask::Pushback, When, T.At, FString::Printf(TEXT("%s pushback"), *Flight), Team)) return;
 		for (const UStaffPeople::FTaken& K : Team)
 		{
 			const int32 Ci = Enlist(K.A.Get(), K.Id, UStaffPeople::DutyName(K.Duty));
@@ -137,12 +148,12 @@ void ATugs::HiredTick(int32 Tug, float Dt)
 		if (T.Driver == INDEX_NONE || T.Handler == INDEX_NONE)
 		{
 			// (no room in the list - never half a crew)
-			for (const int32 Ci : {T.Driver, T.Handler}) if (Ci != INDEX_NONE) Discharge(Ci);
+			for (const int32 Ci : {T.Driver, bHas ? INDEX_NONE : T.Handler}) if (Ci != INDEX_NONE) Discharge(Ci);
 			return;
 		}
 		ADP_LOG(TEXT("Tugs: %s at x %.0f - %s drives the tug, %s is the pushback handler"), *Flight, T.StandX, *Crew[T.Driver].Name, *Crew[T.Handler].Name);
 		Crew[T.Driver].bDriver = true;
-		SafeWay(Crew[T.Driver], T.StandX); SafeWay(Crew[T.Handler], T.StandX);
+		SafeWay(Crew[T.Driver], T.StandX); if (!bHas) SafeWay(Crew[T.Handler], T.StandX);
 		T.State = EState::Boarding; CrewBoard(Tug);
 		return;
 	}

@@ -314,7 +314,7 @@ namespace
 	}
 }
 
-const TCHAR* AGSE::TowHit(const FTractor& T, const FVector2f& N1, const FVector2f& M1, const FCollisionQueryParams& Q) const
+const TCHAR* AGSE::TowHit(const FTractor& T, const FVector2f& N1, const FVector2f& M1, const FCollisionQueryParams& Q, bool bPlan) const
 {
 	// the aircraft on your bar (an A320: its body, wings, tail, engines, main wheels) at its next place: what would it touch? What it
 	// touches already where it stands doesn't hold it
@@ -353,10 +353,11 @@ const TCHAR* AGSE::TowHit(const FTractor& T, const FVector2f& N1, const FVector2
 		}
 		if (GetWorld()->OverlapBlockingTestByChannel(FVector(A.X, A.Y, A.Z + B.Z), F.Rotation().Quaternion(), ECC_Pawn, FCollisionShape::MakeBox(FVector(B.Hl, B.Hw, B.Hz)), Q)) return TEXT("something is in the aircraft's way");
 		// (its own tug: the body above it, the engines and wheels never)
-		if (b >= 3 && SdCross(A, F, B.Hl, B.Hw, T.At, FRotator(0.f, T.Yaw, 0.f).Vector(), T.KHalfL, T.KHalfW)) return TEXT("the tug is too close to the aircraft");
+		if (!bPlan && b >= 3 && SdCross(A, F, B.Hl, B.Hw, T.At, FRotator(0.f, T.Yaw, 0.f).Vector(), T.KHalfL, T.KHalfW)) return TEXT("the tug is too close to the aircraft");
 		return nullptr;
 	};
 	for (int32 b = 0; b < int32(UE_ARRAY_COUNT(Bx)); ++b) if (const TCHAR* H = Hit(P1, F1, b); H && !Hit(P0, F0, b)) return H;
+	if (bPlan) return nullptr;   // (a way looked ahead: the tug and the people go along with it)
 	// people in the way of its wheels and engines
 	const FVector Mv = F1 * (FVector::DotProduct(P1 - P0, F1) < 0.f ? -1.f : 1.f);
 	for (int32 b = 3; b < int32(UE_ARRAY_COUNT(Bx)); ++b) for (const float y : {-80.f, 0.f, 80.f}) for (const float r : {40.f, 120.f, 200.f})

@@ -687,6 +687,7 @@ void ATugs::StartBacking(FTug& T)
 	T.State = EState::Backing; T.bReverse = true;
 	const FVector Back = -FRotator(0.f, T.Yaw, 0.f).Vector();
 	T.Path = {T.At + Back * 1200.f};
+	if (FVector::Dist2D(T.At, T.Fit) > HeadAhead * 100.f + 150.f) T.Path.Reset();   // (you had driven it off the nose already: straight home)
 }
 
 namespace

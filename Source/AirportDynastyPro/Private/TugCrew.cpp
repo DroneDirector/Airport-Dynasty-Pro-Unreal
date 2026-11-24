@@ -537,7 +537,8 @@ void ATugs::CrewUncouple(int32 Tug)
 	auto Gone = [this, Tug](float Elapsed)
 	{
 		// (once the aircraft has taxied away: no moving aircraft within 50 m of him, or 90 s)
-		const FCrew* C = Tugs[Tug].Handler != INDEX_NONE ? &Crew[Tugs[Tug].Handler] : &Crew[Tugs[Tug].Driver];
+		const int32 Ci = Tugs[Tug].Handler != INDEX_NONE ? Tugs[Tug].Handler : Tugs[Tug].Driver; if (!Crew.IsValidIndex(Ci)) return true;
+		const FCrew* C = &Crew[Ci];
 		const FVector At = C->A.IsValid() ? C->A->GetActorLocation() : FVector::ZeroVector;
 		for (const FVector& Pl : Planes) if (FVector::Dist2D(Pl, At) < 5000.f) return Elapsed > 90.f;
 		return Elapsed > 6.f;
@@ -546,7 +547,7 @@ void ATugs::CrewUncouple(int32 Tug)
 	if (T.Handler != INDEX_NONE)
 	{
 		FCrew& H = Crew[T.Handler]; H.Follow = nullptr;
-		if (bYou) H.Q.Add(UntilAct([this, Tug](float) { const FTug& U = Tugs[Tug]; return U.YouUn >= 3 && U.Seq >= 12; }));   // (you uncouple it; he gives the all clear)
+		if (bYou) H.Q.Add(UntilAct([this, Tug](float) { const FTug& U = Tugs[Tug]; return (U.YouUn >= 3 || !U.bYouPush) && U.Seq >= 12; }));   // (you uncouple it; he gives the all clear)
 		else
 		{
 		H.Q.Add(UntilAct([this, Tug](float) { return Tugs[Tug].Seq >= 10; }));

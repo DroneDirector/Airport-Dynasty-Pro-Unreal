@@ -121,6 +121,7 @@ const TCHAR* UStaffPeople::TaskName(EStaffTask T)
 	case EStaffTask::Toilet: return TEXT("toilet service");
 	case EStaffTask::Stairs: return TEXT("passenger stairs");
 	case EStaffTask::Ambulift: return TEXT("ambulift");
+	case EStaffTask::PushHelp: case EStaffTask::PushDriver: return TEXT("the pushback");
 	case EStaffTask::Deice: return TEXT("de-icing");
 	case EStaffTask::Catering: case EStaffTask::CaterRelief: return TEXT("catering");
 	case EStaffTask::Gpu: return TEXT("ground power");
@@ -152,6 +153,8 @@ void UStaffPeople::Needs(EStaffTask T, TArray<FNeed>& Out)
 	case EStaffTask::CaterRelief: Add(EStaffDuty::CaterLoader, 1, 1); break;
 	case EStaffTask::CleanRelief: Add(EStaffDuty::Cleaner, 1, 1); break;
 	case EStaffTask::Relief: Add(EStaffDuty::BaggageHandler, 1, 1); break;
+	case EStaffTask::PushHelp: Add(EStaffDuty::PushbackHandler, 1, 1); break;   // (a push of your own: its handler; its driver when you leave it)
+	case EStaffTask::PushDriver: Add(EStaffDuty::TugDriver, 1, 1); break;
 	case EStaffTask::Pushback: Add(EStaffDuty::TugDriver, 1, 1); Add(EStaffDuty::PushbackHandler, 1, 1); Add(EStaffDuty::WingWalker, 0, 3); break;
 	}
 }

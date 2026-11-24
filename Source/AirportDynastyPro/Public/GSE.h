@@ -196,7 +196,7 @@ private:
 	static TSharedPtr<FVehTable> TugControls();
 	bool bTugSeats = false;
 	void TugSeats();
-	const TCHAR* TowHit(const FTractor& T, const FVector2f& N1, const FVector2f& M1, const FCollisionQueryParams& Q) const;   // (the aircraft on your tow bar)
+	const TCHAR* TowHit(const FTractor& T, const FVector2f& N1, const FVector2f& M1, const FCollisionQueryParams& Q, bool bPlan = false) const;   // (the aircraft on your tow bar)
 	void YouTug(int32 Ti, float Dt);
 	FVector TugSpot(const FTractor& T, int32 S) const;
 	FString TugSay(const FTractor& T, int32 S) const;

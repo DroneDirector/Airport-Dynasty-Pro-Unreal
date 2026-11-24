@@ -350,7 +350,12 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 		{
 			// (its crew take over: the rest of their path, from where it stands)
 			M.bYou = false; M.Speed = 0.f;
-			if (M.Path.IsValidIndex(M.YouRe)) M.Step = M.YouRe; else ADP_WARN(TEXT("Traffic: %s - its crew take over the push off their path at (%.1f, %.1f)"), *M.FlightId, M.Main.X, M.Main.Y);
+			if (M.Path.IsValidIndex(M.YouRe)) M.Step = M.YouRe;
+			else if (T)
+			{
+				int32 To = INDEX_NONE; T->YouRejoin(M.FlightId, M.Nose, M.Main, M.Path, M.YouFwd, To);
+				if (M.Path.IsValidIndex(To)) M.Step = To; else M.YouFwd.Reset();
+			}
 		}
 	}
 	// ground control: taxiing, an aircraft holds short of a pushback going on within 80 m ahead of it
@@ -392,6 +397,18 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 	else M.Speed = FMath::FInterpConstantTo(M.Speed, Want, Dt, FMath::Abs(Acc) + 0.4f);
 	// the nose wheel along the waypoints; the main gear trails it at the wheelbase (backwards when pushed)
 	float Left = M.Speed * Dt;
+	if (M.Phase == EPhase::Push && M.YouFwd.Num())
+	{
+		// (taken over from you off the path: pulled forward onto it first)
+		while (Left > 0.f && M.YouFwd.Num())
+		{
+			const FVector2f To = M.YouFwd[0] - M.Nose; const float D = To.Size(), Go = FMath::Min(D, Left);
+			if (D > 1e-3f) { M.Nose += To / D * Go; M.Main = M.Nose - (M.Nose - M.Main).GetSafeNormal() * Wheelbase; }
+			Left -= Go; if (D <= Go + 1e-3f) M.YouFwd.RemoveAt(0);
+		}
+		if (!M.YouFwd.Num()) { M.Speed = 0.f; ADP_LOG(TEXT("Traffic: %s is back on its push line at (%.1f, %.1f)"), *M.FlightId, M.Main.X, M.Main.Y); }
+		Left = 0.f;
+	}
 	while (Left > 0.f && M.Step < M.Path.Num())
 	{
 		const FVector2f To = M.Path[M.Step] - (M.Phase == EPhase::Push ? M.Main : M.Nose);

@@ -69,6 +69,9 @@ public:
 	 *  off it). True: on the taxilane, facing the taxi way, stopped, the park brake on. */
 	bool YouPushing(const FString& Key) const;
 	void YouSayWhy(float StandX, const FString& Why);
+	/** The crew take the push over off their path: the nose's way forward back onto it (none: not needed or not safe) and the
+	 *  point of the path they go on to from there. */
+	void YouRejoin(const FString& Key, const FVector2f& Nose, const FVector2f& Main, const TArray<FVector2f>& Path, TArray<FVector2f>& Fwd, int32& Step) const;
 	bool YouDrive(const FString& Key, AActor* Plane, FVector2f& Nose, FVector2f& Main, const TArray<FVector2f>& Path, int32& Step, float& Speed, float& Bar, float TaxiY, float TaxiDir);
 	/** The aircraft is gone: whatever is still out is cleared. */
 	void ChocksGone(float StandX);
@@ -192,7 +195,7 @@ private:
 		// the push by hand: yours from the departure's call to your tug clear of the taxiing aircraft (bYouDone: pushed, uncoupling -
 		// YouUn 1 the bar off, 2 the pin out, 3 the headset off, 4 the pin shown); the aircraft on the bar (plan m); YouBend: the bar's
 		// angle the crew take over with, straightened as they push
-		bool bYouPush = false, bYouDone = false, bYouGo = false, bYouRejoin = true, bYouPark = false, bYouCrewIn = false; int32 YouUn = 0;
+		bool bYouPush = false, bYouDone = false, bYouGo = false, bYouRejoin = true, bYouPark = false, bYouCrewIn = false; int32 YouUn = 0, YouGpuCi = INDEX_NONE;
 		float YouBend = 0.f, YouBar = 0.f, YouSide = 0.f, YouTurn = 0.f, YouToGo = 0.f; mutable double YouGoAt = -10.0, YouBeat = 0.0; double YouWhyAt = -100.0;
 		FString YouWhy; FVector2f YouNose, YouMain, YouStart; TWeakObjectPtr<AActor> YouPlane;
 		int32 YouWheelG = INDEX_NONE; float YouWheelNow = 0.f, YouPedal[2] = {0.f, 0.f};
@@ -275,6 +278,9 @@ private:
 	bool YouMay(const FTug& T) const;   // (it may move now: the departure's own conditions, this moment)
 	bool YouTow(const FTug& T, const FVector& At, float Yaw, FVector2f& Nose, FVector2f& Main) const;
 	bool PushYou(int32 Tug);
+	void YouCrew(int32 Tug, bool bLive, const FDateTime& When, const FString& Flight);   // (your hired handler for your push)
+	FString YouShort(const FTug& T, const TCHAR* What) const;
+	int32 YouOn(const FTug& T, const FVector2f& Main, const FVector2f& D, const TArray<FVector2f>& Path, float Within, float Dot) const;
 	void YouTake(int32 Tug);
 	void YouDrop(int32 Tug, const TCHAR* Why);
 	void YouAfter(int32 Tug, float Dt);

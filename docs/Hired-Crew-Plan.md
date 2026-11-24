@@ -480,7 +480,10 @@ riders `Data/ambulift-riders.json`, `Data/wheelchair-riders.json`, all points an
 - The push by hand (TugYou.cpp `PushYou`, `YouDrive`, `YouTow`; `AGSE::TowHit`): compiled, not run. Coupled and there, the departure
   is yours (`Assign`): same waits, the reason at the wheel; dashes along the crew's path; done at 3 m, 10 degrees, park brake on; uncouple
   by hand (`YouUn` 1-4), clear to the side, then it taxies. Left 2 min: `YouTake` (the crew go on), off: `YouDrop`.
-- Left: half-done uncoupling and hired flights wait for you; own hired handler not called; parts boxes of the A320 only.
+- Never waits for you for ever (compiled, not run): a hired handler is called for your push (`YouCrew`: power, chocks, headset; nobody free: the
+  reason at the wheel, asked again); left half-uncoupled the crew go on from your step, a driver is asked again (`YouTake`); left off the line
+  it is pulled forward onto it, else back to its nearest clear point, else straightened along it (`YouRejoin`, logged).
+- Left: parts boxes of the A320 only; chocks and ground power cannot be taken off by hand.
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
