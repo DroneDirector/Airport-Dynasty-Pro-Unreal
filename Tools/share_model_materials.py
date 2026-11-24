@@ -1,7 +1,7 @@
 # A model made as a variant of another (the roofed passenger stairs): its meshes use the first one's materials of the same name, and its own
 # copies of them and of their textures are deleted (they doubled 370 MB). Run after every Tools/import_model.py of the variant; the first one
 # must be imported already. Editor closed:
-#   UnrealEditor-Cmd.exe AirportDynastyPro.uproject -ExecutePythonScript="Tools/share_model_materials.py PassengerStairsRoof PassengerStairs" -unattended -nullrhi
+#   UnrealEditor-Cmd.exe AirportDynastyPro.uproject -ExecutePythonScript="<FULL repo path>/Tools/share_model_materials.py PassengerStairsRoof PassengerStairs" -unattended -nullrhi
 import sys
 import unreal
 eal = unreal.EditorAssetLibrary
