@@ -39,7 +39,7 @@ struct AIRPORTDYNASTYPRO_API FAirfieldData
 	};
 	struct FStand
 	{
-		FString Id; float X = 0, Nose = 0, Dir = -1, Span = 36, Len = 44.5f; bool bJetway = false, bCargo = false, bRemote = false;
+		FString Id; float X = 0, Nose = 0, Dir = -1, Span = 36, Len = 44.5f; bool bJetway = false, bCargo = false, bRemote = false; TCHAR Code = 'C';   // (Code: the largest ICAO code letter it takes)
 		FStandFrame Frame() const { FStandFrame Fr; Fr.X = X; Fr.K = Dir < 0 ? 1.f : -1.f; Fr.Y = Nose + Fr.K * 5.1f; return Fr; }   // (the nose wheel stops 5.1 m behind the stop line)
 	};
 	/** The stand the simulation's StandX means (no two stands share an x), nullptr when none. */

@@ -52,6 +52,8 @@ bool FAirfieldData::Load()
 		}
 		Taxiways.Add(T);
 	}
+	bool bRemoteOn = RemoteOn();   // (the remote stands in use: -RemoteStands, or remote.built)
+	if (const TSharedPtr<FJsonObject>* Rm = nullptr; !bRemoteOn && R->TryGetObjectField(TEXT("remote"), Rm)) (*Rm)->TryGetBoolField(TEXT("built"), bRemoteOn);
 	for (const TSharedPtr<FJsonValue>& V : R->GetArrayField(TEXT("stands")))
 	{
 		const TSharedPtr<FJsonObject> O = V->AsObject();
@@ -59,9 +61,10 @@ bool FAirfieldData::Load()
 		S.Id = O->GetStringField(TEXT("id")); S.X = N(O, TEXT("x")); S.Nose = N(O, TEXT("nose")); S.Dir = N(O, TEXT("dir"), -1);
 		S.Span = N(O, TEXT("span"), 36); S.Len = N(O, TEXT("len"), 44.5f);
 		O->TryGetBoolField(TEXT("jetway"), S.bJetway); O->TryGetBoolField(TEXT("cargo"), S.bCargo); O->TryGetBoolField(TEXT("remote"), S.bRemote);
+		FString Code; if (O->TryGetStringField(TEXT("code"), Code) && Code.Len()) S.Code = Code[0];
 		bool bBuilt = true;
 		O->TryGetBoolField(TEXT("built"), bBuilt);
-		if (bBuilt || (S.bRemote && RemoteOn())) Stands.Add(S);   // (one not in use yet is only drawn: the remote block)
+		if (bBuilt || (S.bRemote && bRemoteOn)) Stands.Add(S);   // (one not in use yet is only drawn: the remote block)
 	}
 	for (const TSharedPtr<FJsonValue>& V : R->GetArrayField(TEXT("holds")))
 		Holds.Add(FVector2f(N(V->AsObject(), TEXT("x")), N(V->AsObject(), TEXT("y"))));

@@ -7,35 +7,28 @@
 #include "Sim/ADPSchedule.h"
 #include "Site.h"
 #include "Airfield.h"
-#include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
-#include "Dom/JsonObject.h"
-#include "Serialization/JsonSerializer.h"
+#include "TerminalPlan.h"
+#include "ADPLog.h"
 
 namespace
 {
-	struct FStandInfo { FString Id; TCHAR Code = 'C'; bool bJetway = false, bCargo = false; };
-	const TArray<FStandInfo>& GrStands()
+	const FAirfieldData::FStand* GrStand(const FString& Id) { return Id.IsEmpty() ? nullptr : AAirfield::Shared().Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return S.Id == Id; }); }
+	/** It uses a jetway: the jets. A turboprop's, a small plane's or a helicopter's door is too low for one. */
+	bool GrJetwayType(const FADPTypeInfo* T) { return !T || T->Class == TEXT("airliner") || T->Class == TEXT("widebody") || T->Class == TEXT("regional"); }
+	/** A320-class and similar and larger: may be sent to a remote stand when no gate is free. */
+	bool GrRemoteType(const FADPTypeInfo* T) { return !T || T->Class == TEXT("airliner") || T->Class == TEXT("widebody"); }
+	/** The stands that aircraft may not have: another's (on it, or on its way to it), or set aside for another's planned flight. */
+	TSet<FString> GrTaken(const FADPWorld& W, const FADPAircraft& A, const FDateTime& Now)
 	{
-		static TArray<FStandInfo> S; static bool bRead = false;
-		if (bRead) return S;
-		bRead = true;
-		FString T; TSharedPtr<FJsonObject> J;
-		if ((FFileHelper::LoadFileToString(T, *ADPSite::File(TEXT("airfield.json"))) || FFileHelper::LoadFileToString(T, *(FPaths::ProjectContentDir() / TEXT("Data/airfield.json"))) || FFileHelper::LoadFileToString(T, *(FPaths::ProjectDir() / TEXT("Data/airfield.json")))) && FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(T), J) && J)
-		{
-			const TArray<TSharedPtr<FJsonValue>>* L;
-			if (J->TryGetArrayField(TEXT("stands"), L))
-				for (const TSharedPtr<FJsonValue>& V : *L)
-				{
-					const TSharedPtr<FJsonObject> O = V->AsObject(); FStandInfo I;
-					bool bBuilt = true; O->TryGetBoolField(TEXT("built"), bBuilt); if (!bBuilt && !FAirfieldData::RemoteOn()) continue;   // (a remote stand not in use yet)
-					I.Id = O->GetStringField(TEXT("id")); FString C = TEXT("C"); O->TryGetStringField(TEXT("code"), C); I.Code = C.Len() ? C[0] : 'C';
-					O->TryGetBoolField(TEXT("jetway"), I.bJetway); O->TryGetBoolField(TEXT("cargo"), I.bCargo);
-					S.Add(I);
-				}
-		}
-		return S;
+		TSet<FString> Taken; for (const FADPAircraft& X : W.Aircraft) if (!X.Stand.IsEmpty() && X.Reg != A.Reg) Taken.Add(X.Stand);
+		for (const FADPPlanned& P : W.Planned) if (P.State == TEXT("planned") && P.Reg != A.Reg && !P.Stand.IsEmpty() && (P.Est - Now).GetTotalMinutes() < 150.0) Taken.Add(P.Stand);
+		// (placed at once, not arriving: nor one that another is only just being pushed back from)
+		if (A.Status != TEXT("flying")) for (const FADPFlight& F : W.Flights) if (F.Reg != A.Reg && F.From == ADPBoards::HereIcao() && !F.FromStand.IsEmpty() && (Now - F.DepAt).GetTotalMinutes() < 6.0) Taken.Add(F.FromStand);
+		return Taken;
 	}
+	/** Walked to the aircraft at most this far (m), from the ground gate's door along the way out to it: 120 m is about a
+	 *  minute and a half, what airports let passengers walk on an apron; further, or over a taxilane: the bus. */
+	constexpr float WalkMaxM = 120.f;
 	/** People of a job on duty at an airport now (about 40% of them: three shifts and days off; half that at night). */
 	int32 GrOnShift(const FADPWorld& W, const FString& AirlineId, const FString& Role, const FString& Icao, const FDateTime& Utc)
 	{
@@ -143,29 +136,115 @@ FString ADPGround::AssignStand(FADPWorld& W, FADPAircraft& A, const FDateTime& N
 	if (!A.Stand.IsEmpty()) return A.Stand;
 	// (its next flight from here has a stand set aside - the passengers' gate: that one while it is free)
 	if (const FADPPlanned* P = ADPSchedule::Next(W, A.Reg, ADPBoards::HereIcao()))
-		if (!P->Stand.IsEmpty() && !W.Aircraft.ContainsByPredicate([&](const FADPAircraft& X) { return X.Stand == P->Stand; })) { A.Stand = P->Stand; A.StandUntil = Until; return A.Stand; }
-	const FString S = PickStand(W, A, Now);
-	if (S.IsEmpty()) return FString();   // (all taken: a remote stand on the apron, a bus to the terminal)
+		if (GrStand(P->Stand) && !GrTaken(W, A, Now).Contains(P->Stand)) { A.Stand = P->Stand; A.StandUntil = Until; return A.Stand; }
+	FString Why;
+	const FString S = PickStand(W, A, Now, true, &Why);
+	if (S.IsEmpty())
+	{
+		// (said once, and again every half hour it still waits)
+		static TMap<FString, FDateTime> Said; FDateTime& At = Said.FindOrAdd(A.Reg);
+		if (At > Now || (Now - At).GetTotalMinutes() >= 30.0) { At = Now; ADP_LOG(TEXT("Stands: %s (%s) waits - no free stand: %s"), *A.Reg, *A.TypeId, *Why); }
+		return FString();
+	}
 	A.Stand = S; A.StandUntil = Until;
+	if (const FAirfieldData::FStand* St = GrStand(S); St && St->bRemote) ADP_LOG(TEXT("Stands: %s (%s) gets the remote %s - %s"), *A.Reg, *A.TypeId, *S, *Why);
 	return A.Stand;
 }
 
-FString ADPGround::PickStand(const FADPWorld& W, const FADPAircraft& A, const FDateTime& Now)
+FString ADPGround::PickStand(const FADPWorld& W, const FADPAircraft& A, const FDateTime& Now, bool bRemoteToo, FString* Why, const TSet<FString>* AlsoTaken)
 {
 	const TCHAR Need = CodeOf(A.TypeId);
 	const FADPTypeInfo* T = ADPWorldData::Type(A.TypeId);
 	const bool bCargo = T && T->Seats == 0;
-	TSet<FString> Taken; for (const FADPAircraft& X : W.Aircraft) if (!X.Stand.IsEmpty() && X.Reg != A.Reg) Taken.Add(X.Stand);
-	for (const FADPPlanned& P : W.Planned) if (P.State == TEXT("planned") && P.Reg != A.Reg && !P.Stand.IsEmpty() && (P.Est - Now).GetTotalMinutes() < 150.0) Taken.Add(P.Stand);
-	// the best free stand: the right size (as small as fits), a jetway for passengers, the cargo apron for freighters
-	const FStandInfo* Best = nullptr; int32 BestScore = MAX_int32;
-	for (const FStandInfo& S : GrStands())
+	TSet<FString> Taken = GrTaken(W, A, Now); if (AlsoTaken) Taken.Append(*AlsoTaken);
+	// the owner's order (to-do 277): jetway gates its own size, walk-out gates, larger jetway gates, remote stands - of the
+	// first kind with a free one the smallest, as the layout lists them; a freighter: the cargo apron
+	enum { Jet, WalkOut, JetBig, Far, Kinds }; int32 Fit[Kinds] = {0}; const FAirfieldData::FStand* Free[Kinds] = {nullptr};
+	bool bAnyRemote = false;
+	for (const FAirfieldData::FStand& S : AAirfield::Shared().Stands)
 	{
-		if (Taken.Contains(S.Id) || S.Code < Need || S.bCargo != bCargo) continue;
-		const int32 Score = (S.Code - Need) * 10 + (S.bJetway ? 0 : 5);
-		if (Score < BestScore) { BestScore = Score; Best = &S; }
+		bAnyRemote |= S.bRemote;
+		if (S.bCargo != bCargo || S.Code < Need) continue;
+		const int32 K = S.bRemote ? Far : !S.bJetway ? WalkOut : S.Code == Need ? Jet : JetBig;
+		if ((S.bJetway && !GrJetwayType(T)) || (K == Far && (!bRemoteToo || !GrRemoteType(T)))) continue;
+		++Fit[K];
+		if (!Taken.Contains(S.Id) && (!Free[K] || S.Code < Free[K]->Code)) Free[K] = &S;
 	}
-	return Best ? Best->Id : FString();
+	if (Why)
+	{
+		*Why = bCargo ? FString::Printf(TEXT("%d cargo stands its size, all taken"), Fit[WalkOut])
+			: (GrJetwayType(T) ? FString::Printf(TEXT("%d jetway gates it fits, all taken"), Fit[Jet] + Fit[JetBig]) : FString(TEXT("not a type for the jetways"))) + FString::Printf(TEXT("; %d walk-out gates it fits, all taken"), Fit[WalkOut]);
+		if (!bCargo && !Free[Far]) *Why += !bAnyRemote ? FString(TEXT("; the remote stands aren't in use")) : !GrRemoteType(T) ? FString(TEXT("; too small for a remote stand unless told")) : FString::Printf(TEXT("; %d remote stands it fits, all taken"), Fit[Far]);
+	}
+	for (const FAirfieldData::FStand* S : Free) if (S) return S->Id;
+	return FString();
+}
+
+bool ADPGround::TellStand(FADPWorld& W, FADPAircraft& A, const FString& StandId, const FDateTime& Now, FString& Why)
+{
+	const FAirfieldData::FStand* S = GrStand(StandId);
+	const FADPTypeInfo* T = ADPWorldData::Type(A.TypeId);
+	const FString Here = ADPBoards::HereIcao();
+	Why.Reset();
+	if (!S) Why = TEXT("there is no such stand in use");
+	else if (S->bCargo != (T && T->Seats == 0)) Why = S->bCargo ? TEXT("that is a cargo stand") : TEXT("a freighter goes to the cargo stands");
+	else if (S->Code < CodeOf(A.TypeId)) Why = TEXT("that stand is too small for it");
+	else if (S->bJetway && !GrJetwayType(T)) Why = TEXT("the jetway doesn't fit it");
+	else if (A.Stand == StandId) return true;
+	else if (GrTaken(W, A, Now).Contains(StandId)) Why = TEXT("another aircraft has that stand");
+	else if (A.Status == TEXT("flying"))
+	{
+		const FADPFlight* F = W.Flights.FindByPredicate([&](const FADPFlight& X) { return X.Reg == A.Reg && X.To == Here; });
+		if (!F) Why = TEXT("it isn't on its way here");
+		else if (!A.Stand.IsEmpty() && (F->DepAt + FTimespan::FromMinutes(F->DurMin + F->HoldMin) - Now).GetTotalMinutes() < 9.5) Why = TEXT("it is on the approach already");   // (SimTraffic.cpp: in 3D from 9 minutes)
+	}
+	else if (A.Location != Here) Why = TEXT("it isn't here");
+	else if (!A.Stand.IsEmpty()) Why = TEXT("it stands on another stand already");   // (a tow from stand to stand isn't built)
+	if (!Why.IsEmpty()) { ADP_LOG(TEXT("Stands: %s not to %s - %s"), *A.Reg, *StandId, *Why); return false; }
+	A.Stand = StandId; A.StandUntil = Now + FTimespan::FromHours(2.0);
+	if (FADPPlanned* P = ADPSchedule::Next(W, A.Reg, Here)) P->Stand = StandId;   // (its passengers' gate follows)
+	ADP_LOG(TEXT("Stands: %s told to %s"), *A.Reg, *StandId);
+	return true;
+}
+
+EADPPaxWay ADPGround::PaxWay(const FString& StandId)
+{
+	const FAirfieldData& Fd = AAirfield::Shared();
+	const FAirfieldData::FStand* S = GrStand(StandId);
+	if (!S || S->bRemote || S->bCargo) return EADPPaxWay::Bus;   // (none known: as a remote one)
+	if (S->bJetway) return EADPPaxWay::Jetway;
+	// a ground gate: its own room's door to the apron nearest the aircraft (nothing moves: worked out once a stand)
+	static TMap<FString, EADPPaxWay> Known; if (const EADPPaxWay* K = Known.Find(StandId)) return *K;
+	static FTerminalPlan Plan; static const bool bPlan = Plan.Load();
+	const FString Room = FString::Printf(TEXT("F1-GATE-%d"), GateOfStand(StandId));
+	const FVector2f Ac = S->Frame().P(2.f, -0.3f);   // (the front left door, on the ground: Data/aircraft-doors.json's L1 - the A320 stands for every type)
+	float Best = -1.f; bool bOver = false;
+	if (bPlan) for (const FPlanDoor& D : Plan.Doors)
+	{
+		if (D.A != Room || D.B != TEXT("APRON")) continue;
+		// the walkway: straight out from the door, then square across to the aircraft's door (none is painted yet)
+		const FVector2f Pts[3] = {FVector2f(D.X, D.Z), FVector2f(D.X, Ac.Y), Ac};
+		const float Len = (Pts[1] - Pts[0]).Size() + (Pts[2] - Pts[1]).Size();
+		if (Best >= 0.f && Len >= Best) continue;
+		Best = Len; bOver = false;
+		for (int32 k = 0; k < 2; ++k)
+			for (float Al = 0.f, L = (Pts[k + 1] - Pts[k]).Size(); Al <= L; Al += 1.f)
+			{
+				const FVector2f P = Pts[k] + (Pts[k + 1] - Pts[k]) * (L > 0.f ? Al / L : 0.f);
+				for (const FAirfieldData::FTwy& Tw : Fd.Taxiways)
+					for (int32 i = 0; i + 1 < Tw.Pts.Num(); ++i)
+					{
+						const FVector2f Ab = Tw.Pts[i + 1] - Tw.Pts[i];
+						const float t = FMath::Clamp(FVector2f::DotProduct(P - Tw.Pts[i], Ab) / FMath::Max(Ab.SizeSquared(), 1e-6f), 0.f, 1.f);
+						bOver |= (P - (Tw.Pts[i] + Ab * t)).Size() < Tw.W / 2.f;
+					}
+			}
+	}
+	const EADPPaxWay Way = Best >= 0.f && Best <= WalkMaxM && !bOver ? EADPPaxWay::Walk : EADPPaxWay::Bus;
+	if (Best < 0.f) ADP_WARN(TEXT("Stands: %s has no walk-out door in the terminal plan (%s) - its passengers by bus"), *StandId, *Room);
+	else ADP_LOG(TEXT("Stands: %s - %.0f m from its gate's door%s: %s"), *StandId, Best, bOver ? TEXT(", over a taxilane") : TEXT(""), Way == EADPPaxWay::Walk ? TEXT("they walk") : TEXT("by bus"));
+	if (bPlan) Known.Add(StandId, Way);
+	return Way;
 }
 
 void ADPGround::FreeStand(FADPAircraft& A) { A.Stand.Empty(); A.StandUntil = FDateTime(); }
@@ -177,6 +256,10 @@ void FADPStandsModule::Advance(UADPSim& Sim, const FDateTime& From, const FDateT
 	// parked here: keep a stand; arriving here within 30 minutes: give one now
 	for (FADPAircraft& A : W.Aircraft)
 	{
+		// (no longer coming here, a stand not in use any more, or - an old career - one that another stands on: let go)
+		if (!A.Stand.IsEmpty() && (!GrStand(A.Stand) || (A.Status == TEXT("flying") && (!W.Flights.ContainsByPredicate([&](const FADPFlight& F) { return F.Reg == A.Reg && F.To == Here; })
+			|| W.Aircraft.ContainsByPredicate([&](const FADPAircraft& X) { return X.Reg != A.Reg && X.Stand == A.Stand && X.Status != TEXT("flying"); })))))
+		{ ADP_LOG(TEXT("Stands: %s lets go of %s"), *A.Reg, *A.Stand); ADPGround::FreeStand(A); }
 		if (A.Location != Here || A.Status == TEXT("flying")) { if (A.Status != TEXT("flying")) ADPGround::FreeStand(A); continue; }
 		if (A.Stand.IsEmpty()) { if (!ADPGround::AssignStand(W, A, To, A.ReadyAt).IsEmpty()) ++Assigned; else ++Remote; }
 	}

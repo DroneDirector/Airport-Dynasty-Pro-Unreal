@@ -17,6 +17,7 @@
 #include "Sim/ADPSim.h"
 #include "Sim/ADPBoards.h"
 #include "Sim/ADPSchedule.h"
+#include "Sim/ADPGround.h"
 #include "Dom/JsonObject.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -182,7 +183,7 @@ void ASimTraffic::Sync()
 	{
 		const FDateTime OnBlocks3 = Fl.DepAt + FTimespan::FromMinutes(Fl.DurMin + Fl.HoldMin);
 		// 3 minutes before on-blocks: the gate's tug driver sits in his tug, ready (owner 2026-11-21)
-		if (Fl.To == Here && Fl.Diverted.IsEmpty() && !TugCalled.Contains(Fl.Id) && (OnBlocks3 - Now).GetTotalMinutes() <= 3.0 && (OnBlocks3 - Now).GetTotalMinutes() > -1.0 && (Fl.AirlineId != UADPSim::Me() || ADPSchedule::OnShift(Sim->World, TEXT("ground"), Now) >= 2))
+		if (Fl.To == Here && Fl.Diverted.IsEmpty() && !TugCalled.Contains(Fl.Id) && Sim->World.Aircraft.ContainsByPredicate([&](const FADPAircraft& X) { return X.Reg == Fl.Reg && !X.Stand.IsEmpty(); }) && (OnBlocks3 - Now).GetTotalMinutes() <= 3.0 && (OnBlocks3 - Now).GetTotalMinutes() > -1.0 && (Fl.AirlineId != UADPSim::Me() || ADPSchedule::OnShift(Sim->World, TEXT("ground"), Now) >= 2))
 		{
 			TugCalled.Add(Fl.Id);
 			const FADPAircraft* A3 = Sim->World.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == Fl.Reg; });
@@ -195,22 +196,20 @@ void ASimTraffic::Sync()
 		if (Fl.From == Here && (Now - Fl.DepAt).GetTotalMinutes() >= 0.0 && (Now - Fl.DepAt).GetTotalMinutes() < 12.0)
 		{
 			Seen.Add(Fl.Id);
-			const FAirfieldData::FStand* St = F.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return !S.bCargo && !S.bRemote && S.Span <= 40.f; });
+			const FAirfieldData::FStand* St = nullptr;
 			// (it was parked at a stand: the one ParkedAircraft showed it at - the simulation's own record)
 			{
 				bool bKnown = false;
 				for (const FAirfieldData::FStand& S : F.Stands) if (S.Id == Fl.FromStand || (Fl.FromStand.IsEmpty() && A && S.Id == A->Stand)) { St = &S; bKnown = true; }
-				// (no stand on record: a free contact stand - never one another aircraft is on; two on stand 9 in the test of 2026-11-21)
-				if (!bKnown)
-					for (const FAirfieldData::FStand& S : F.Stands)
-					{
-						if (S.bCargo || S.Span > 40.f || !S.bJetway) continue;
-						bool bTaken = false; for (const FMove& O : Moves) if (O.Stand == S.Id && (O.Phase == EPhase::Push || O.Phase == EPhase::Done)) bTaken = true;
-						for (const FADPAircraft& Oa : Sim->World.Aircraft) if (Oa.Stand == S.Id && Oa.Reg != Fl.Reg && Oa.Location == Here) bTaken = true;
-						if (!bTaken) { St = &S; break; }
-					}
+				// (no stand on record: the free one it would be given - never one another aircraft is on; two on stand 9 in the test of 2026-11-21)
+				if (!bKnown && A)
+				{
+					TSet<FString> Busy; for (const FMove& O : Moves) if (!O.Stand.IsEmpty() && (O.Phase == EPhase::Push || O.Phase == EPhase::Done)) Busy.Add(O.Stand);
+					const FString Id = ADPGround::PickStand(Sim->World, *A, Now, true, nullptr, &Busy);
+					St = F.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return S.Id == Id; });
+				}
 			}
-			if (!St) continue;
+			if (!St) { ADP_WARN(TEXT("Traffic: %s leaves unseen - no stand on record and none free"), *Fl.Reg); continue; }
 			FMove M; M.FlightId = Fl.Id; M.Reg = Fl.Reg; M.bDeparture = true; M.Stand = St->Id; M.Phase = EPhase::Push;
 			// at the stand: nose tyre on the stop bar, the body behind it, pushed straight back onto the taxilane
 			M.Nose = St->Frame().P(0.f, 0.f); M.Main = St->Frame().P(0.f, Wheelbase);
@@ -488,12 +487,28 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 		M.Phase = EPhase::Rollout; M.Height = 0.f; M.Path = {FVector2f(81.f, RY)};
 		return false;
 	case EPhase::Rollout:
+	case EPhase::TaxiIn:
 	{
 		// off at the exit to A, along A, down to T, along T and nose in to the stand (its stop bar)
+		const bool bWaited = M.Phase == EPhase::TaxiIn;
+		if (bWaited && M.Nose.Y < F.AY) return true;   // (on its stand: all of them lie this side of A)
 		M.Phase = EPhase::TaxiIn;
+		if (const UADPSim* Sim = UADPSim::Get(GetWorld()); Sim)   // (the one it has now: given or changed since it came into view)
+			if (const FADPAircraft* A = Sim->World.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == M.Reg; })) M.Stand = A->Stand;
 		const FAirfieldData::FStand* St = F.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return S.Id == M.Stand; });
-		if (!St) St = F.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return !S.bCargo && !S.bRemote && S.Span <= 40.f; });
-		if (!St) return true;
+		// those on the exit before it: waiting there, or only just on their way from it
+		int32 Before = 0;
+		for (const FMove& O : Moves)
+			if (&O != &M && O.Phase == EPhase::TaxiIn && (bWaited ? O.Nose.Y < M.Nose.Y && FVector2f::Distance(O.Nose, M.Nose) < 150.f : O.Path.Num() <= 1)) ++Before;
+		if (!St || Before)
+		{
+			// no stand (to-do 277), or one without a stand before it: clear of the runway on the exit, short of A - never onto another's
+			if (!St) M.Stand.Reset();
+			if (bWaited) { M.Speed = 0.f; return false; }
+			M.Path = {FVector2f(81.f, F.AY + 45.f + 50.f * Before)};
+			ADP_LOG(TEXT("Traffic: %s waits on the exit - %s"), *M.FlightId, St ? TEXT("another waits before it") : TEXT("no free stand"));
+			return false;
+		}
 		M.Path = {FVector2f(81.f, F.AY), FVector2f(362.f, F.AY), FVector2f(362.f, F.TY), FVector2f(St->X, F.TY), St->Frame().P(0.f, 0.f)};   // (off T into the stand, whichever side of T it is on)
 		return false;
 	}

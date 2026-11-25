@@ -276,7 +276,7 @@ void ADPSchedule::Step(FADPWorld& W, const FDateTime& Now)
 		if (P.From == Here)
 		{
 			if (A->Location == Here && A->Status != TEXT("flying") && !A->Stand.IsEmpty()) P.Stand = A->Stand;
-			else if (P.Stand.IsEmpty() && (P.Est - Now).GetTotalMinutes() < 150.0) P.Stand = A->Stand.IsEmpty() ? ADPGround::PickStand(W, *A, Now) : A->Stand;
+			else if (P.Stand.IsEmpty() && (P.Est - Now).GetTotalMinutes() < 150.0) P.Stand = A->Stand.IsEmpty() ? ADPGround::PickStand(W, *A, Now, false) : A->Stand;   // (a gate only: a remote stand is given when it comes and no gate is free)
 		}
 	}
 	W.Planned.RemoveAll([&](const FADPPlanned& P) { return !ScLive(P) && (Now - P.Ended).GetTotalHours() > 6.0; });

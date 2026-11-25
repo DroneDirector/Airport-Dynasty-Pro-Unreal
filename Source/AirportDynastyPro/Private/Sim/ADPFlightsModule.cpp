@@ -47,6 +47,13 @@ void FADPFlightsModule::Advance(UADPSim& Sim, const FDateTime& From, const FDate
 		if (!F.bWxChecked && Min >= DescentAt) { F.bWxChecked = true; OnTheWayDown(W, F, To); P = ProfileOf(F); if (!P) { W.Flights.RemoveAt(i); continue; } }
 		const double DescentAt2 = P->PhaseStart[FADPProfile::Descent];
 		Min = (To - F.DepAt).GetTotalMinutes();
+		// no stand free for it here (to-do 277): it holds before the descent until there is one; after an hour on to its alternate
+		if (!bCatchUp && F.To == ADPBoards::HereIcao() && F.Diverted.IsEmpty() && Min >= DescentAt2 + F.HoldMin - 0.5 && Min < DescentAt2 + F.HoldMin + 2.0)
+			if (FADPAircraft* A = W.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == F.Reg; }); A && ADPGround::AssignStand(W, *A, To, F.DepAt + FTimespan::FromMinutes(F.DurMin + F.HoldMin + 120.0)).IsEmpty())
+			{
+				if (F.HoldMin < 60.0) { if (F.HoldMin <= 0.0) ++Holds; F.HoldMin += 3.0; }
+				else { Divert(W, F, To, TEXT("no free stand at the destination")); P = ProfileOf(F); if (!P) W.Flights.RemoveAt(i); continue; }
+			}
 		const bool bHolding = Min >= DescentAt2 && Min < DescentAt2 + F.HoldMin;
 		if (Min >= DescentAt2) Min = FMath::Max(DescentAt2, Min - F.HoldMin);
 		if (Min >= P->BlockMin()) { Land(W, i, F.DepAt + FTimespan::FromMinutes(P->BlockMin() + F.HoldMin)); continue; }
@@ -93,6 +100,8 @@ void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime
 		}
 		A.ReadyAt = Now + FTimespan::FromMinutes(Min);
 	};
+	// no stand, no departure: nobody could get to it (to-do 277; why none is free is in the log)
+	if (!bCatchUp && A.Location == ADPBoards::HereIcao() && ADPGround::AssignStand(W, A, Now, Now + FTimespan::FromHours(2.0)).IsEmpty()) { Wait(TEXT("no free stand"), 5); return; }
 	// your airline: the whole crew rostered on the EASA flight time limitations (to-do 177, Sim/ADPRoster.h);
 	// the AI airlines: one pilot per route and enough cabin crew at the base (their simpler rule)
 	const bool bRoster = A.AirlineId == UADPSim::Me();

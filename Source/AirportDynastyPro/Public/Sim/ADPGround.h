@@ -14,6 +14,9 @@
 #include "CoreMinimal.h"
 #include "Sim/ADPSim.h"
 
+/** Jetway; Walk: out of the ground gate's door to the aircraft; Bus: from a bus gate. */
+enum class EADPPaxWay : uint8 { Jetway, Walk, Bus };
+
 namespace ADPGround
 {
 	/** The turnaround (minutes) for an aircraft just landed at At - from the teams free at that airport (your airport:
@@ -21,10 +24,19 @@ namespace ADPGround
 	double Turnaround(FADPWorld& W, FADPAircraft& A, const FDateTime& At);
 	/** ICAO aerodrome reference code letter for a type (C, D, E, F). */
 	TCHAR CodeOf(const FString& TypeId);
-	/** Gives the aircraft a stand at our airport (when parked there, or arriving within 30 minutes); "" if none (remote). */
+	/** Gives the aircraft a stand at our airport (when parked there, or arriving within 30 minutes); "" if none is free: it waits (logged). */
 	FString AssignStand(FADPWorld& W, FADPAircraft& A, const FDateTime& Now, const FDateTime& Until);
-	/** The stand it would get now (none taken, none set aside for another planned flight), not yet given. */
-	FString PickStand(const FADPWorld& W, const FADPAircraft& A, const FDateTime& Now);
+	/** The stand it would get now (none taken, none set aside for another planned flight), not yet given - the owner's rules
+	 *  (to-do 277): 1 a free gate with a jetway its size, if it uses jetways; 2 a free walk-out gate (then a jetway gate of a
+	 *  larger size); 3 no gate free and it is A320-class or larger: a free remote stand its size; else "" (it waits; Why says
+	 *  what was full). bRemoteToo false: gates only. AlsoTaken: stands to leave alone besides. */
+	FString PickStand(const FADPWorld& W, const FADPAircraft& A, const FDateTime& Now, bool bRemoteToo = true, FString* Why = nullptr, const TSet<FString>* AlsoTaken = nullptr);
+	/** The tower or the player tells it its stand - any that its size fits and nobody has, a remote one too (smaller aircraft
+	 *  as well). Only before it is on a stand, and until 9 minutes before on-blocks (then it is on the approach to the one it
+	 *  has). False: Why says why not. */
+	bool TellStand(FADPWorld& W, FADPAircraft& A, const FString& StandId, const FDateTime& Now, FString& Why);
+	/** How a stand's passengers get to the aircraft (to-do 277): the one answer, for everything that moves them. */
+	EADPPaxWay PaxWay(const FString& StandId);
 	/** People of a job on shift now at an airport (about 40% of those employed there: three shifts and days off; 20% at night). */
 	int32 OnShift(const FADPWorld& W, const FString& AirlineId, const FString& Role, const FString& Icao, const FDateTime& Utc);
 	/** Lets go of the aircraft's stand (it pushed back). */
