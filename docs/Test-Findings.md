@@ -118,3 +118,4 @@ walk follows below when it has run.
 - Cargo stands: -TrafficTest and normal traffic put only cargo aircraft there.
 - Push towards X1 ends facing the taxi way; STAND-9 turns tighter, its gear stops 3 m before the taxilane end (Tools/check_push.py: 0 findings).
 - Passengers stuck on the way to a gate chair (plan -217.8, 61.3): they turned in 30 cm before the end of a moving walkway rail, on its wrong side. They now go on to the corner first while the way from where they are is shut (PaxFlow.cpp). Compiled; not yet seen in a game run.
+- 282, the menus' weather requests blocked: the menus' questions to the weather service are now answered inside the game from its own reports (ADPWeather, fetched natively every 15 minutes, forecasts too). Compiled; not yet seen in a game run. The storm warning areas (isigmet, airsigmet) have no answer yet; the pages go on without them.

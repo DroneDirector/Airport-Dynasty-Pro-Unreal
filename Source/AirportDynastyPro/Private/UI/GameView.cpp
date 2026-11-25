@@ -4,6 +4,8 @@
 #include "UI/TitleBg.h"
 #include "Widgets/SOverlay.h"
 #include "ADPLog.h"
+#include "Sim/ADPWeather.h"
+#include <atomic>
 #include "IWebBrowserSchemeHandler.h"
 #include "IWebBrowserSingleton.h"
 #include "WebBrowserModule.h"
@@ -108,6 +110,44 @@ namespace
 		bool bFound = false;
 	};
 
+	/** The menus' weather (to-do 282): the browser blocks their questions to the weather service (another site), so they never
+	 *  leave the game - they are answered from its own reports (ADPWeather, fetched natively). */
+	class FPageWeather : public IWebBrowserSchemeHandler
+	{
+	public:
+		virtual bool ProcessRequest(const FString& Verb, const FString& InUrl, const FSimpleDelegate& OnHeadersReady) override
+		{
+			FString J; bOk = ADPWeather::PageJson(InUrl, J);
+			if (bOk) { const FTCHARToUTF8 U(*J); Data.Append(reinterpret_cast<const uint8*>(U.Get()), U.Length()); }
+			static std::atomic<bool> bSaid[2];
+			if (!bSaid[bOk ? 1 : 0].exchange(true)) ADP_LOG(TEXT("Menus page: weather %s"), bOk ? TEXT("from the game's own reports") : TEXT("- nothing to give yet (the page asks again)"));
+			OnHeadersReady.Execute();
+			return true;
+		}
+		virtual void GetResponseHeaders(IHeaders& H) override
+		{
+			H.SetStatusCode(bOk ? 200 : 503); H.SetMimeType(TEXT("application/json")); H.SetContentLength(Data.Num());
+			H.SetHeader(TEXT("Access-Control-Allow-Origin"), TEXT("*")); H.SetHeader(TEXT("Cache-Control"), TEXT("no-store"));
+		}
+		virtual bool ReadResponse(uint8* Out, int32 ToRead, int32& Read, const FSimpleDelegate& OnMore) override
+		{
+			Read = FMath::Min(ToRead, Data.Num() - Offset);
+			if (Read <= 0) return false;
+			FMemory::Memcpy(Out, Data.GetData() + Offset, Read); Offset += Read;
+			return true;
+		}
+		virtual void Cancel() override {}
+
+	private:
+		TArray<uint8> Data; int32 Offset = 0; bool bOk = false;
+	};
+
+	class FPageWeatherFactory : public IWebBrowserSchemeHandlerFactory
+	{
+	public:
+		virtual TUniquePtr<IWebBrowserSchemeHandler> Create(FString Verb, FString InUrl) override { return MakeUnique<FPageWeather>(); }
+	};
+
 	class FGameFiles : public IWebBrowserSchemeHandlerFactory
 	{
 	public:
@@ -117,10 +157,14 @@ namespace
 	void Register()
 	{
 		static bool bDone = false;
-		static FGameFiles Factory;
+		static FGameFiles Factory; static FPageWeatherFactory Weather;
 		if (bDone || !IWebBrowserModule::IsAvailable()) return;
 		if (IWebBrowserSingleton* B = IWebBrowserModule::Get().GetSingleton())
+		{
 			bDone = B->RegisterSchemeHandlerFactory(TEXT("https"), Host, &Factory);
+			if (B->RegisterSchemeHandlerFactory(TEXT("https"), TEXT("aviationweather.gov"), &Weather)) ADPWeather::Start();
+			else ADP_WARN(TEXT("Menus page: no weather for the menus (not registered)"));
+		}
 		ADP_LOG(TEXT("Menus page: the game's files at https://%s/ %s"), Host, bDone ? TEXT("registered") : TEXT("NOT registered"));
 	}
 }
