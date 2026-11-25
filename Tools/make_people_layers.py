@@ -273,9 +273,11 @@ def simplify(dm, want):
 # ---- hair, beard: the groom's own solid meshes (fitted to this person's head when it was built)
 def helmets(name, g):
     """The groom's solid meshes, finest first (3 levels: the last is used again if there are fewer)."""
-    found = {}
-    for path in eal.list_assets('%s/%s/Grooms' % (BUILT, name), recursive=False, include_folder=False):
-        m = re.match(re.escape(g.get_name()) + r'_(?:Mesh|Helmet)(?:_Group\d+)?_LOD(\d+)$', path.split('/')[-1].split('.')[0])
+    found, paths = {}, [p for p in eal.list_assets('%s/%s/Grooms' % (BUILT, name), recursive=False, include_folder=False)]
+    end = r'(?:_(?:Mesh|Helmet)(?:_Group\d+)?)?_LOD(\d+)$'       # (some have no word before the level: Hair_S_PulledBack_LOD5)
+    own = 'Hair_S_BrushCut' if g.get_name() == 'GroomAsset_0' else re.escape(g.get_name())   # (checked: the only one named so)
+    for path in paths:
+        m = re.match(own + end, path.split('/')[-1].split('.')[0])
         if m:
             found.setdefault(int(m.group(1)), []).append(unreal.load_asset(path))
     l = [found[k] for k in sorted(found)]
@@ -498,7 +500,7 @@ def bake(name):
         m, why = hair_material(name, part, mi)
         notes.append('%s %s' % (part, why))
         hair.append((hs, pal.add(m, 'hair')))
-    if len(pal.mats) > 8:
+    if len(pal.mats) > 10:     # (cabin, ground and fire dress has up to 10; the whole person has over 20)
         raise Fail('%d sections' % len(pal.mats))
 
     lods, tris, sections = [], [], []
@@ -572,7 +574,8 @@ def bake(name):
     if sk.get_editor_property('skeleton') != bsk.get_editor_property('skeleton'):
         raise Fail('another skeleton')
     a, b = sk.get_bounds(), bsk.get_bounds()
-    if abs(a.box_extent.z - b.box_extent.z) > 25 or abs(a.origin.z - b.origin.z) > 25:
+    # (what the clothes hide is cut off some bodies, so a body can end at the knees: its top is what has to fit)
+    if abs(a.origin.z + a.box_extent.z - b.origin.z - b.box_extent.z) > 25 or not -10 < a.origin.z - a.box_extent.z < b.origin.z - b.box_extent.z + 5:
         raise Fail('size %s is not the body\'s %s' % (a.box_extent, b.box_extent))
     if not eal.save_asset(path, False):
         raise Fail('cannot be saved')
