@@ -88,3 +88,10 @@ On blocks, the jetway docks, the cabin crew open the door, passengers deplane, t
 4. **The trucks:** catering, fuel, de-icing (pushback tug quality standard), plus cleaning crew in the cabin.
 5. **The cabin and crew** (to-dos 209 and 202), then the cabin checks and the load sheet.
 6. **Border control** for non-Schengen flights.
+
+## 294 as built: people appear and vanish only unseen
+
+- One look for all (`Unseen.h/.cpp`, `ADPUnseen::Look`): on screen (with a margin) and any clear line to head, middle, feet or sides = seen; people, glass, translucent and masked things never hide; under 2 px nobody sees; within 25 m only something solid counts. All local cameras and running scene captures.
+- Places: the car park and the pavement along the terminal, scanned once per world on the navmesh (a point a frame), with a way to the doors off the forecourt road; refreshed all the time. At most two looks a frame.
+- Departures wait for a place (2 s), as data from 50 min before departure on; leavers walk on until unseen. The log counts it all every 30 s.
+- Also the taxi bus, the landside staff and the kerb crowd. Not: the terminal's west end (off the navmesh), leaves as cover.

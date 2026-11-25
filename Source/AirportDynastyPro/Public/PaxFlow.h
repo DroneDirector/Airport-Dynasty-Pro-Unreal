@@ -104,6 +104,7 @@ private:
 		int32 TunA = 0, TunB = 0;    // (the way points inside the jetway: [TunA, TunB) - held within its walls, APaxFlow::FSlice)
 		FVector StuckAt = FVector::ZeroVector; float StuckT = 0.f, ReplanT = 0.f; bool bQueued = false, bDoorWait = false; FString HeldBy;   // (not getting on: where, how long; behind someone - a queue, not stuck; what held them)
 		FVector LooseFrom = FVector::ZeroVector, LooseTo = FVector::ZeroVector; float LooseT = -1.f;       // (truly held by geometry: eased back to the nearest free point)
+		int32 Hide = INDEX_NONE, HideTries = 0; float HideIn = 0.f;   // (leaving, to-do 294: the unseen place they walk to - ADPUnseen; how many were seen when they got there)
 		bool bHome = false;          // (on the way home: too late, or their flight is off)
 		float FadeT = -1.f; int32 FadeFrom = INDEX_NONE; bool bFadeSwap = false; TWeakObjectPtr<class UMaterialInstanceDynamic> FadeMid;   // (boarding: faded away halfway along the jetway)
 	};
@@ -119,7 +120,7 @@ private:
 		double DepT = 0.0;          // departure (seconds on the run's clock: the simulation's, the test's own)
 		int32 Pax = 0, Visible = 0, Spawned = 0, Aboard = 0, Out = 0, Late = 0, Home = 0;   // (Late: too late to check in; Home: gone home - late, or the flight is off)
 		FString Stand; uint8 Way = 0;   // (its stand; EADPPaxWay: jetway, by foot, by bus)
-		bool bOff = false, bGone = false;   // (cancelled; left)
+		bool bOff = false, bGone = false, bHideWait = false;   // (cancelled; left; its next one waits for a place nobody sees)
 		int32 NBags = 0, NDesk = 0, NLane = 0, NF2 = 0, NBag = 0;   // (how many have a bag to check in, have checked it in, been screened, come up to Floor 2; taken their bag)
 		TArray<double> SpawnAt;     // (departures: when each walker gets out of their car; arrivals: off the aircraft)
 		TArray<int32> Desks;
@@ -148,6 +149,7 @@ private:
 	bool bReady = false, bTest = false, bTestMade = false;
 	TWeakObjectPtr<AActor> DoorsActor, SeatsActor;   // (ignored by the walkers' wall look: doors open for them, chairs are sat on)
 	int32 NavBudget = 0; float NavSweepIn = 0.f; TSet<uint64> NoWayLogged;   // (the navmesh ways: a few new legs a frame; moving things kept off it; each missing way logged once)
+	int32 NAppear = 0, NWaited = 0, NVanish = 0, NWalkOn = 0, NDropped = 0; float HideRetry = 0.f;   // (to-do 294)
 	float ReadyIn = 2.f, PollIn = 0.f, SayIn = 20.f, SpawnGap = 0.f, StuckLog = 0.f;
 	double RealT = 0.0, SimT = 0.0;
 	float F2Z = 600.f, F2Y = 6.f;
@@ -199,7 +201,8 @@ private:
 	void CallBoarding(int32 Ri);
 
 	// people
-	int32 SpawnDep(int32 Ri);
+	int32 SpawnDep(int32 Ri, const FVector& At, bool bTerminalSide);
+	void StepAppear(int32 Ri, double Now);   // (to-do 294: the next departing passenger, at a landside place no camera sees)
 	int32 SpawnArr(int32 Ri);
 	int32 NewPx();
 	AActor* Body(const FVector& At, float Yaw, FPx& P);
@@ -220,7 +223,9 @@ private:
 	bool StepFade(FPx& P, AActor* A, float Dt);
 
 	// ways (world points)
-	void WayToHall(FPx& P, const FVector& From, int32 RevDoor = INDEX_NONE);
+	void WayToHall(FPx& P, bool bTerminalSide, int32 RevDoor = INDEX_NONE);
+	void LeaveWay(FPx& P, const FVector& From, bool bTerminalSide, float NearX);   // (to-do 294: on to a landside place no camera sees)
+	bool LeftUnseen(int32 i);   // (they vanish here: nobody can see it)
 	void WayFromHall(FPx& P, const FVector& From);
 	bool OutToTaxi(FPx& P);   // (to-do 239b piece 4: instead of WayFromHall, now and then - the taxi bus at the kerb)
 	void WayToDesk(FPx& P, int32 Spot);

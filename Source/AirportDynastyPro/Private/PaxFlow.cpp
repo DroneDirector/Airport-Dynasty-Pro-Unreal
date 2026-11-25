@@ -47,6 +47,7 @@
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "Unseen.h"
 
 namespace PaxFlowInternal
 {
@@ -564,8 +565,8 @@ void APaxFlow::StepRun(int32 Ri, float Dt)
 	if (!R.bArr)
 	{
 		if (R.bOff || R.bGone) return;
-		// getting out of their cars, a few seconds apart at the most
-		if (R.Spawned < R.SpawnAt.Num() && Now >= R.SpawnAt[R.Spawned] && SpawnGap <= 0.f && FaceReady()) { SpawnDep(Ri); SpawnGap = 0.8f; }
+		// come landside, about a second apart at the least, each from a place no camera sees (to-do 294)
+		StepAppear(Ri, Now);
 		// the boarding call: the turnaround's "board" task starting (the test: 7.5 min in)
 		if (!R.bCalled)
 		{
@@ -714,13 +715,49 @@ FVector APaxFlow::CarParkSpot()
 	return P;
 }
 
-int32 APaxFlow::SpawnDep(int32 Ri)
+void APaxFlow::StepAppear(int32 Ri, double Now)
+{
+	FRun& R = Runs[Ri];
+	if (R.Spawned >= R.SpawnAt.Num() || Now < R.SpawnAt[R.Spawned]) return;
+	// (too late for the desks and security: they stay data - the flight never waits for them)
+	if (Now > R.DepT - (R.bTest ? 3.0 : 50.0) * 60.0)
+	{
+		R.SpawnAt.RemoveAt(R.Spawned); R.Visible = FMath::Max(R.Spawned, R.Visible - 1); R.bHideWait = false; ++NDropped;
+		if (!R.Visible) R.bNoShowGo = true;
+		ADP_LOG(TEXT("PaxFlow: a passenger of %s stays data - no unseen place in time (%d of them so far)"), *R.Label, NDropped);
+		return;
+	}
+	if (SpawnGap > 0.f || HideRetry > 0.f || !FaceReady()) return;
+	ADPUnseen::FPlace Pl; bool bNone = false;
+	bool bGot = ADPUnseen::Appear(GetWorld(), Pl, bNone) != INDEX_NONE;
+	if (!bGot && bNone && ADPUnseen::NoPlaces(GetWorld()))   // (no navmesh: the car park, where nobody sees it)
+	{
+		Pl.P = CarParkSpot(); Pl.bTerminalSide = false;
+		const AADPPeople* Pe = AADPPeople::Get(GetWorld());
+		bGot = ADPUnseen::May(GetWorld(), Pl.P) && !(Pe && Pe->AnyoneNear(Pl.P, 140.f));
+	}
+	if (!bGot)
+	{
+		if (!bNone) return;   // (the next place the next frame)
+		HideRetry = 2.f;
+		if (R.bHideWait) return;
+		R.bHideWait = true; ++NWaited;
+		if (R.bTest || NWaited <= 10) ADP_LOG(TEXT("PaxFlow: the next passenger of %s waits - no unseen place just now (%s)"), *R.Label, *ADPUnseen::Line(GetWorld()));
+		return;
+	}
+	R.bHideWait = false; SpawnGap = 0.8f;
+	if (SpawnDep(Ri, Pl.P, Pl.bTerminalSide) == INDEX_NONE) return;
+	++NAppear;
+	const FVector At = PlanOf(Pl.P);
+	if (Runs[Ri].bTest || NAppear <= 20) ADP_LOG(TEXT("PaxFlow: appeared unseen at plan (%.1f, %.1f), %s%s"), At.X, At.Z, Pl.bTerminalSide ? TEXT("the terminal's side") : TEXT("the car park"), Pl.bCover ? TEXT(", behind something") : TEXT(""));
+}
+
+int32 APaxFlow::SpawnDep(int32 Ri, const FVector& At, bool bTerminalSide)
 {
 	FRun& R = Runs[Ri];
 	++R.Spawned;
 	const int32 i = NewPx(); FPx& P = Pax[i];
 	P.Run = Ri; P.Id = FString::Printf(TEXT("%s-%02d"), *R.Label, R.Spawned);
-	const FVector At = CarParkSpot();
 	AActor* A = Body(At, -90.f, P);
 	if (!A) { P.St = EPx::Gone; FreePx.Add(i); return INDEX_NONE; }
 	// their bag (three in four check one; in the test all): carried by its handle until it is set on the desk's belt
@@ -742,7 +779,7 @@ int32 APaxFlow::SpawnDep(int32 Ri)
 		}
 	}
 	if (P.bHasBag) ++R.NBags;
-	P.Stage = TEXT("out of the car, in the car park");
+	P.Stage = bTerminalSide ? TEXT("along the pavement to the entrance") : TEXT("from the car park to the entrance");
 	// (owner 2026-11-21: the entrance. A checked bag (a suitcase carried - and later carts, strollers, wheelchairs) always the
 	//  wide sliding doors. Most people take the sliding doors anyway: hand luggage only, about one in six takes the nearest
 	//  revolving door, and only when it is clearly (8 m+) nearer on their way than the main entrance - owner 2026-11-21)
@@ -757,10 +794,10 @@ int32 APaxFlow::SpawnDep(int32 Ri)
 			if (Near != INDEX_NONE && Dr->RevolvingFrame(Near, C, Ax, Rc) && FMath::Abs(PlanOf(C).X - PlanOf(At).X) + 8.f < FMath::Abs(PXDOORX - PlanOf(At).X) && Rng.FRand() < 0.18f) Rev = Near;
 		}
 	}
-	WayToHall(P, At, Rev);
+	WayToHall(P, bTerminalSide, Rev);
 	P.Do = P.bHasBag ? EDo::JoinDesk : EDo::JoinLane;
 	if (!P.bHasBag) WayToSecurity(P);   // (no bag to check in: checked in on the phone, straight to security)
-	if (R.Spawned <= 3 || R.bTest) ADP_LOG(TEXT("PaxFlow: %s (%s) out of a car in the car park for %s%s"), *P.Id, *P.Name, *R.Label, P.bHasBag ? *FString::Printf(TEXT(", bag #%d for desk %d"), P.Bag, P.Desk) : TEXT(", no bag"));
+	if (R.Spawned <= 3 || R.bTest) ADP_LOG(TEXT("PaxFlow: %s (%s) arrives landside for %s%s"), *P.Id, *P.Name, *R.Label, P.bHasBag ? *FString::Printf(TEXT(", bag #%d for desk %d"), P.Bag, P.Desk) : TEXT(", no bag"));
 	return i;
 }
 
@@ -816,6 +853,7 @@ void APaxFlow::Finish(int32 i, const TCHAR* Why, bool bKeepBody)
 	for (FLine& L : DeskLines) L.Who.Remove(i);
 	for (FLine& L : LaneLines) L.Who.Remove(i);
 	for (FLine& L : RevLines) L.Who.Remove(i);
+	if (P.Hide != INDEX_NONE) { ADPUnseen::Release(GetWorld(), P.Hide); P.Hide = INDEX_NONE; }
 	if (P.Rev != INDEX_NONE && P.RevComp != INDEX_NONE) if (ATerminalDoors* Dr = Doors()) Dr->RevolvingLeave(P.Rev, P.RevComp);
 	P.Rev = INDEX_NONE; P.RevComp = INDEX_NONE;
 	if (AActor* A = P.A.Get())
@@ -1224,11 +1262,10 @@ void APaxFlow::Crossing(FPx& P, bool bToTerminal, float NearX)
 	FWp W1; W1.P = Last; W1.bGround = true; W1.P.Z = GroundZ(Last.X / 100.f, -Last.Y / 100.f); P.Way.Add(W1);
 }
 
-void APaxFlow::WayToHall(FPx& P, const FVector& From, int32 RevDoor)
+void APaxFlow::WayToHall(FPx& P, bool bTerminalSide, int32 RevDoor)
 {
 	// through the car park to the pavement, over the forecourt at the crossing nearest, the pavement to the main entrance,
-	// its two sliding doors, into the Grand Hall
-	(void)From;
+	// its two sliding doors, into the Grand Hall (from the terminal's side: the pavement only)
 	P.Way.Reset(); P.Wi = 0;
 	auto Add = [&](float X, float Z, bool bG) { FWp W; W.P = PW(X, 0, Z); W.bGround = bG; if (bG) W.P.Z = GroundZ(X, Z); P.Way.Add(W); };
 	const float J = float(P.Jit.X) / 100.f;
@@ -1239,7 +1276,7 @@ void APaxFlow::WayToHall(FPx& P, const FVector& From, int32 RevDoor)
 		// a side entrance's revolving door: the crossing nearest it, up to its kerb opening (the queue's head spot), the
 		// ride round (StepRevolve - off the navmesh, like the escalators), out into the lobby, its sliding door, the hall
 		const FVector Cp = PlanOf(C);
-		Crossing(P, true, Cp.X + float(P.Jit.X) * 0.6f);
+		if (!bTerminalSide) Crossing(P, true, Cp.X + float(P.Jit.X) * 0.6f);
 		const int32 Side = FVector::DotProduct(PW(Cp.X, 0, Cp.Z - 4.f) - C, Ax) >= 0.f ? 1 : -1;   // (the kerb's side)
 		Add(Cp.X + J * 2.f, Cp.Z - 4.f, true);
 		FWp Q; Q.P = C + Ax * Side * (Rc + 80.f); Q.bGround = true; Q.P.Z = GroundZ(PlanOf(Q.P).X, PlanOf(Q.P).Z); Q.Mode = 3; Q.bNav = true; Q.Rev = int8(RevDoor); Q.RevSide = int8(Side);
@@ -1248,7 +1285,7 @@ void APaxFlow::WayToHall(FPx& P, const FVector& From, int32 RevDoor)
 		Add(Cp.X + J * 0.5f, -1.f, false); Add(Cp.X + J * 0.5f, 0.f, false); Add(Cp.X + J * 3.f, 2.5f, false);
 		return;
 	}
-	Crossing(P, true, PXDOORX + float(P.Jit.X) * 0.6f);
+	if (!bTerminalSide) Crossing(P, true, PXDOORX + float(P.Jit.X) * 0.6f);
 	Add(PXDOORX + J * 2.f, -8.f, true); Add(PXDOORX + J, -4.f, false); Add(PXDOORX + J, -2.f, false); Add(PXDOORX + J, 0.f, false); Add(PXDOORX + J * 3.f, 2.5f, false);
 }
 
@@ -1272,6 +1309,29 @@ bool APaxFlow::OutToTaxi(FPx& P)
 	return true;
 }
 
+void APaxFlow::LeaveWay(FPx& P, const FVector& From, bool bTerminalSide, float NearX)
+{
+	// (to-do 294) the way on to a place nobody sees now and nobody else goes to; none free: somewhere in the car park, and on
+	ADPUnseen::FPlace Pl;
+	if (P.Hide != INDEX_NONE) ADPUnseen::Release(GetWorld(), P.Hide);
+	P.Hide = ADPUnseen::Leave(GetWorld(), From, bTerminalSide, P.Hide, Pl);
+	if (P.Hide == INDEX_NONE) { Pl.P = CarParkSpot(); Pl.bTerminalSide = false; }
+	if (Pl.bTerminalSide != bTerminalSide) Crossing(P, Pl.bTerminalSide, NearX);
+	FWp W; W.P = Pl.P; W.bGround = true; P.Way.Add(W);
+}
+
+bool APaxFlow::LeftUnseen(int32 i)
+{
+	FPx& P = Pax[i]; FRun& R = Runs[P.Run]; AActor* A = P.A.Get();
+	if (!A) return false;
+	const FVector At = PlanOf(A->GetActorLocation());
+	++NVanish;
+	if (R.bTest || NVanish <= 20) ADP_LOG(TEXT("PaxFlow: %s gone unseen at plan (%.1f, %.1f), %d places walked on from"), *P.Id, At.X, At.Z, P.HideTries);
+	if (P.bHome) { ++R.Home; Finish(i, TEXT("gone home, unseen")); return true; }
+	++R.Out; ++TotalOut; Finish(i, TEXT("gone landside, unseen"));
+	return true;
+}
+
 void APaxFlow::WayFromHall(FPx& P, const FVector& From)
 {
 	// the arrivals' way out: the arrivals hall's east doors (kerb front z -4), the pavement, the crossing, a car
@@ -1279,8 +1339,7 @@ void APaxFlow::WayFromHall(FPx& P, const FVector& From)
 	const float J = float(P.Jit.X) / 100.f;
 	auto Add = [&](float X, float Z, bool bG) { FWp W; W.P = PW(X, 0, Z); W.bGround = bG; if (bG) W.P.Z = GroundZ(X, Z); P.Way.Add(W); };
 	Add(PXARRX + J * 2.f, 8.f, false); Add(PXARRX + J, -1.5f, false); Add(PXARRX + J, -4.f, false); Add(PXARRX + J, -7.f, true);
-	Crossing(P, false, PXCROSS[0]);
-	FWp W; W.P = CarParkSpot(); W.bGround = true; P.Way.Add(W);
+	LeaveWay(P, PW(PXARRX, 0, -7.f), true, PXCROSS[0]);
 }
 
 FVector APaxFlow::DeskSpot(int32 Desk, int32 K) const
@@ -1552,8 +1611,8 @@ void APaxFlow::GoHome(int32 i, const TCHAR* Why)
 	{
 		const float J = float(P.Jit.X) / 100.f;
 		if (Here.Z > -3.f) { Add(PXDOORX + J * 3.f, 0.f, 2.5f); Add(PXDOORX + J, 0.f, 0.f); Add(PXDOORX + J, 0.f, -4.f); Add(PXDOORX + J * 2.f, 0.f, -8.f, 0, true); }
-		if (Here.Z > -45.f) Crossing(P, false, PXDOORX);
-		FWp W; W.P = CarParkSpot(); W.bGround = true; P.Way.Add(W);
+		const bool bTe = Here.Z > -45.f;   // (beyond: the car park's side)
+		LeaveWay(P, bTe && Here.Z > -3.f ? PW(PXDOORX, 0, -8.f) : A->GetActorLocation(), bTe, PXDOORX);
 	}
 	P.Do = EDo::OutCarPark; P.St = EPx::Walk; P.Stage = FString::Printf(TEXT("going home (%s)"), Why);
 	ADP_LOG(TEXT("PaxFlow: %s goes home - %s"), *P.Id, Why);
@@ -1626,12 +1685,22 @@ void APaxFlow::Arrive(int32 i)
 		AGSE* G = AGSE::Find(GetWorld());
 		if (G && G->TaxiBoard(A, P.Id, P.Name)) { ++R.Out; ++TotalOut; Finish(i, TEXT("handed to the taxi bus at the kerb"), true); break; }
 		ADP_WARN(TEXT("PaxFlow: %s - the taxi bus is gone or taken, out to the car park instead"), *P.Id);
-		P.Way.Reset(); P.Wi = 0; Crossing(P, false, PXCROSS[0]);
-		{ FWp W; W.P = CarParkSpot(); W.bGround = true; P.Way.Add(W); }
+		P.Way.Reset(); P.Wi = 0; LeaveWay(P, A->GetActorLocation(), true, PXCROSS[0]);
 		P.Do = EDo::OutCarPark; P.St = EPx::Walk; P.Stage = TEXT("the taxi bus is gone - out to the car park");
 		break;
 	}
-	case EDo::OutCarPark: if (P.bHome) { ++R.Home; Finish(i, TEXT("gone home from the car park")); break; } ++R.Out; ++TotalOut; Finish(i, TEXT("picked up in the car park")); break;
+	case EDo::OutCarPark:
+	{
+		// (to-do 294: gone only where no camera sees it - else on to the next such place)
+		if (!ADPUnseen::Budget()) break;   // (asked again the next frame)
+		const FVector At = A->GetActorLocation();
+		if (ADPUnseen::Look(GetWorld(), At) != ADPUnseen::ESee::Seen) { LeftUnseen(i); break; }
+		++P.HideTries; ++NWalkOn;
+		P.Way.Reset(); P.Wi = 0; P.St = EPx::Walk; P.Stage = TEXT("walks on - not gone while you can see it");
+		LeaveWay(P, At, PlanOf(At).Z > -36.f, float(PlanOf(At).X));
+		P.HideIn = 2.f;
+		break;
+	}
 	default: P.St = EPx::Wait; break;
 	}
 }
@@ -1755,6 +1824,13 @@ void APaxFlow::StepPx(int32 i, float Dt)
 	case EPx::Walk:
 		CarryBag(P, A);
 		if (P.Do == EDo::AtSeat && P.Seat != INDEX_NONE && !ASeats::Holds(A, P.Seat) && !ReSeat(P)) { P.Way.Reset(); P.Wi = 0; P.St = EPx::Wait; break; }   // (you took it meanwhile, to-do 293)
+		// (walked on from several places already: gone anywhere on their way outdoors, the moment nobody can see it)
+		if (P.Do == EDo::OutCarPark && P.HideTries >= 4 && (P.HideIn -= Dt) <= 0.f)
+		{
+			P.HideIn = 2.f;
+			const FVector At = PlanOf(A->GetActorLocation());
+			if (((At.Z < -5.f && At.Z > -21.f) || At.Z < -53.f) && ADPUnseen::May(GetWorld(), A->GetActorLocation())) { LeftUnseen(i); break; }
+		}
 		if (Follow(P, A, Dt)) { Arrive(i); break; }
 		Held(i, Dt);
 		break;
@@ -1938,7 +2014,8 @@ void APaxFlow::Tick(float Dt)
 		return;
 	}
 	if ((NavSweepIn -= Dt) <= 0.f) { NavSweepIn = 5.f; PaxNav::Sweep(GetWorld()); if (!DoorsActor.IsValid()) for (TActorIterator<ATerminalDoors> It(GetWorld()); It; ++It) { DoorsActor = *It; break; } if (!SeatsActor.IsValid()) for (TActorIterator<ASeats> It(GetWorld()); It; ++It) { SeatsActor = *It; break; } }   // (things spawned since: off the navmesh)
-	SpawnGap -= Dt;
+	SpawnGap -= Dt; HideRetry -= Dt;
+	ADPUnseen::Tick(GetWorld());
 	if (bTest && !bTestMade) MakeTestRuns();
 	// (tests: after the revolving door ride, a few seconds more on the rider, then back to who was followed before)
 	if (RevReturnIn > 0.f && (RevReturnIn -= Dt) <= 0.f)
@@ -2051,6 +2128,7 @@ void APaxFlow::Tick(float Dt)
 		const int32 Live = Walking();
 		if (Live || Runs.Num()) ADP_LOG(TEXT("PaxFlow: %d about - %d walking, %d in desk queues, %d at desks, %d at security, %d waiting standing, %d sitting, %d leaning, %d boarding, %d at the claim; %d aboard, %d out so far; %d flights"),
 			Live, N[(int32)EPx::Walk], N[(int32)EPx::DeskQ], N[(int32)EPx::Desk], N[(int32)EPx::LaneQ], N[(int32)EPx::Wait], N[(int32)EPx::Seated], N[(int32)EPx::Lean], N[(int32)EPx::Call] + N[(int32)EPx::Jetway], N[(int32)EPx::ClaimWait] + N[(int32)EPx::ToBag], TotalAboard, TotalOut, Runs.Num());
+		if (Live || Runs.Num()) ADP_LOG(TEXT("PaxFlow: unseen - %d appeared, %d had to wait, %d gone, %d times walked on, %d stayed data; %s"), NAppear, NWaited, NVanish, NWalkOn, NDropped, *ADPUnseen::Line(GetWorld()));
 	}
 	// (the runs stay listed - indices are held by the walkers; a finished one costs nothing each frame but its check)
 }

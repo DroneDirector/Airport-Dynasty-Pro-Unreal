@@ -38,6 +38,7 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Camera/PlayerCameraManager.h"
+#include "Unseen.h"
 
 namespace
 {
@@ -785,7 +786,8 @@ void AGSE::TaxiTripTick(float Dt)
 	case 3:
 	{
 		if (T.Path.Num() || (TaxiTripT >= 0.f && TaxiTripT < 3.f)) return;
-		if (!T.Player.IsValid() && TaxiUnseen(T.At))
+		// (the bus with its fare, gone only where no camera sees it: to-do 294)
+		if (!T.Player.IsValid() && ADPUnseen::May(GetWorld(), T.At, 230.f, 270.f, Tractors[TaxiTi].M.Get()))
 		{
 			TaxiShow(false); TaxiTrip = 4; TaxiTripT = -FMath::FRandRange(240.f, 600.f);   // (the trip itself: 4 to 10 minutes out of sight)
 			ADP_LOG(TEXT("GSE: the taxi bus is out of sight with %s - away for %.0f s"), *TaxiWho, -TaxiTripT);
@@ -804,14 +806,14 @@ void AGSE::TaxiTripTick(float Dt)
 	case 4:
 		// (away: the fare runs - by distance, TaxiTick; with no ride, the passenger gives up)
 		if (TaxiTripT < 0.f) return;
-		if (!bTaxiHidden && !TaxiUnseen(T.At)) return;
+		if (!bTaxiHidden && !ADPUnseen::May(GetWorld(), T.At, 230.f, 270.f, Tractors[TaxiTi].M.Get())) return;
 		if (bTaxiFare) TaxiFare(false, *TaxiWho);
 		TaxiPaxGone(bTaxiHidden ? TEXT("dropped off, out of sight") : TEXT("no ride - left unseen"));
 		TaxiTrip = bTaxiHidden ? 5 : 0;
 		return;
 	case 5:
 		// (back at its kerb, free, once nobody sees that kerb)
-		if (!TaxiUnseen(T.Home)) return;
+		if (!ADPUnseen::May(GetWorld(), T.Home, 230.f, 270.f, Tractors[TaxiTi].M.Get())) return;
 		T.Path.Reset(); T.OnArrive = nullptr; T.Speed = 0.f; T.At = T.Home; T.Yaw = T.HomeYaw; Pose(T); Motor(T, false);
 		TaxiShow(true); TaxiTrip = 0; TaxiLegs = 0;
 		ADP_LOG(TEXT("GSE: the taxi bus is back at its kerb, free"));

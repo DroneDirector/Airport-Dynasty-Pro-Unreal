@@ -33,6 +33,7 @@
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "Serialization/JsonSerializer.h"
+#include "Unseen.h"
 
 static TAutoConsoleVariable<int32> CVarHiredCrew(TEXT("adp.HiredCrew"), 1, TEXT("To-do 206: 1 = your hired ground staff are the people in the 3D airport; 0 = the fixed stand-in team, as before"));
 static FAutoConsoleCommandWithWorld CmdCrewList(TEXT("adp.CrewList"), TEXT("Your hired ground staff: shift, face, place and job, into the log"),
@@ -819,18 +820,13 @@ void UStaffPeople::LandWayIn(FStaff& S) const
 	Add(SpLand(SpLandCarX, SpLandCarZ));
 }
 
-// (made, or gone, at the car park only where you can't see it: you far away, or looking elsewhere)
+// (made, or gone, at the car park only where no camera of yours can see it: to-do 294; asked a few times a second)
 bool UStaffPeople::LandUnseen(const FVector& At) const
 {
-	const APlayerController* PC = GetWorld()->GetFirstPlayerController();
-	if (!PC) return true;
-	if (const APawn* P = PC->GetPawn()) if (FVector::Dist2D(P->GetActorLocation(), At) < 3000.f) return false;
-	if (!PC->PlayerCameraManager) return true;
-	const FVector C = PC->PlayerCameraManager->GetCameraLocation();
-	const float D = FVector::Dist(C, At);
-	if (D > 15000.f) return true;
-	if (D < 3000.f) return false;
-	return FVector::DotProduct(PC->PlayerCameraManager->GetCameraRotation().Vector(), (At - C) / D) < 0.35f;
+	const double Now = GetWorld()->GetTimeSeconds();
+	if (Now < NextLook) return false;
+	NextLook = Now + 0.3 + FMath::FRand() * 0.1;
+	return ADPUnseen::May(GetWorld(), At);
 }
 
 void UStaffPeople::WayOut(FStaff& S) const

@@ -125,6 +125,7 @@ private:
 	void CheckRoles() const; void NeverCame(const FADPPerson& P, const TCHAR* Why);
 	bool bRooms = false, bSaidReuse = false, bSaidNoDoor = false;
 	float Poll = 0.f, NextBody = 0.f;
+	mutable double NextLook = 0.0;
 	TWeakObjectPtr<ATugs> Tugs;
 
 	void FindRooms();

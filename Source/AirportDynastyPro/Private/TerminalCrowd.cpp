@@ -12,6 +12,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
+#include "Unseen.h"
 
 #pragma region Setup
 
@@ -202,7 +203,8 @@ void ATerminalCrowd::Next(FPaxFragment& P)
 		break;
 	}
 	case EPaxStage::Board:
-		// aboard: a new passenger arrives at the kerb in their place
+		// aboard: a new passenger arrives at the kerb in their place - once nobody sees them go, nor the kerb (to-do 294)
+		if (!ADPUnseen::May(GetWorld(), P.Pos) || !ADPUnseen::May(GetWorld(), Map.RandomIn(Kerb, Rng), 185.f, 300.f)) { P.Wait = 2.f; P.bWalking = false; break; }
 		Begin(P, false);
 		break;
 	}
