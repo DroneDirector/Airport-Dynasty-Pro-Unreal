@@ -228,6 +228,7 @@ private:
 	void WayScreening(FPx& P);
 	void WayUpstairs(FPx& P);
 	bool WayToWait(FPx& P);
+	bool ReSeat(FPx& P);
 	void WayToJetway(FPx& P);
 	void WayArrivals(FPx& P);
 	/** Measures the jetway's inside (once docked; traces across it against the real parts); false: no jetway there. */

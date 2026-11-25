@@ -118,7 +118,7 @@ void AInteractOutline::Tick(float Dt)
 			const float D = FVector::Dist(P, At);
 			if (D < Reach) Near.Add(FNear{C, Item, D, Key, float(FVector::DotProduct(Look, (P - Cam).GetSafeNormal()))});
 		};
-		for (const FThing& T : Found) if (!(T.Key >= (uint64(1) << 62) && T.Key < (uint64(1) << 62) + 1000000 && ASeats::IsTaken(int32(T.Key - (uint64(1) << 62))))) Consider(T.C.Get(), T.Item, T.Key);
+		for (const FThing& T : Found) if (!(T.Key >= (uint64(1) << 62) && T.Key < (uint64(1) << 62) + 1000000 && ASeats::IsSatOn(int32(T.Key - (uint64(1) << 62))))) Consider(T.C.Get(), T.Item, T.Key);
 		if (AWashHose* H = AWashHose::First()) if (!AWashHose::Held()) { UInstancedStaticMeshComponent* K = nullptr; int32 I = INDEX_NONE; if (H->GunOnHook(K, I)) { Consider(K, I, uint64(UPTRINT(H))); for (const auto& L : H->CoilPieces()) Consider(L.Key, L.Value, uint64(UPTRINT(H))); } }
 		// the one you look at: its piece nearest the middle of the view (within about 20 degrees), then all its pieces
 		float BestAim = FMath::Cos(FMath::DegreesToRadians(20.f)); uint64 BestKey = 0; bool bAny = false;

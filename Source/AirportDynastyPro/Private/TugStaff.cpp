@@ -5,6 +5,7 @@
 // its box (never by itself, never half a crew) and the flight is late by the time it waited (CrewReady, asked by the
 // flight's own readiness). The other airlines' flights keep the stand-ins.
 #include "Tugs.h"
+#include "Seats.h"
 #include "StaffPeople.h"
 #include "GSE.h"
 #include "People.h"
@@ -61,6 +62,7 @@ void ATugs::Discharge(int32 Ci)
 	FCrew& C = Crew[Ci];
 	if (!C.bHired) { C.bLeave = false; return; }
 	C.FidgetDur = 0.f; C.Hold = nullptr; C.Follow = nullptr; Unpose(C);
+	ASeats::ReleaseCab(C.A.Get());
 	for (FTug& T : Tugs)
 	{
 		if (T.Driver == Ci) T.Driver = INDEX_NONE;

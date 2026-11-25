@@ -11,6 +11,7 @@
 //  - a GPU: the tractor's pin out, the GPU's drawbar eye lifted into the jaw, the pin in
 // Bodies posed by the fire truck's IK rig at the models' IK points (CrewPose.h).
 #include "GSE.h"
+#include "Seats.h"
 #include "Turnaround.h"
 #include "DepartureBelts.h"
 #include "Tugs.h"
@@ -192,12 +193,35 @@ TFunction<void(float, float, FDriverPose&)> AGSE::ClimbFn(int32 Ti, bool bIn) co
 	};
 }
 
+AActor* AGSE::CabOf(int32 Ti) const
+{
+	if (!Tractors.IsValidIndex(Ti)) return nullptr;
+	const FTractor& T = Tractors[Ti];
+	if (const ATugs* G = T.TugIx != INDEX_NONE ? Tg() : nullptr) return G->Tugs.IsValidIndex(T.TugIx) ? G->Tugs[T.TugIx].M.Get() : nullptr;
+	return T.M.Get();
+}
+
+void AGSE::ClaimSeat(int32 Ci, int32 Ti, int32 Seat)
+{
+	WaitFor(Ci, [this, Ci, Ti, Seat](float E)
+	{
+		ATugs* G = Tg(); AActor* A = G && G->Crew.IsValidIndex(Ci) ? G->Crew[Ci].A.Get() : nullptr, *V = CabOf(Ti);
+		if (!A || !V || ASeats::ClaimCab(V, Seat, A, E > 30.f)) return true;   // (a claim somebody left behind: 30 s, never yours nor one sat on)
+		return false;
+	});
+}
+
+void AGSE::SeatTaken(int32 Ci) { if (ATugs* G = Tg()) if (G->Crew.IsValidIndex(Ci)) ASeats::CabSat(G->Crew[Ci].A.Get()); }
+void AGSE::SeatLeft(int32 Ci) { if (ATugs* G = Tg()) if (G->Crew.IsValidIndex(Ci)) ASeats::ReleaseCab(G->Crew[Ci].A.Get()); }
+
 void AGSE::ClimbIn(int32 Ci, int32 Ti, TFunction<void()> Then)
 {
+	ClaimSeat(Ci, Ti, 0);
 	if (Tractors[Ti].Bu)
 	{
 		// (an apron bus: the button outside, the front door, up the step, the cab door inside - which he shuts behind him)
 		WalkTo(Ci, [this, Ti] { return TW(Tractors[Ti], Tractors[Ti].KStand); }, 15.f);
+		ClaimSeat(Ci, Ti, 0); Do(Ci, [this, Ci] { SeatTaken(Ci); });
 		PoseAct(Ci, SvcHandFn(Ti, 0), 1.0f);
 		Do(Ci, [this, Ti] { SvcSeatDoor(Ti, 0, true); });
 		Wait(Ci, 4.2f);
@@ -208,6 +232,7 @@ void AGSE::ClimbIn(int32 Ci, int32 Ti, TFunction<void()> Then)
 		return;
 	}
 	WalkTo(Ci, [this, Ti] { return TW(Tractors[Ti], Tractors[Ti].KStand); }, 15.f);
+	ClaimSeat(Ci, Ti, 0); Do(Ci, [this, Ci] { SeatTaken(Ci); });
 	// the hand to the handle, the door swung open (its sound), up and in, sat, the door pulled shut
 	PoseAct(Ci, [this, Ti](float K, float PH, FDriverPose& P) { const FTractor& T = Tractors[Ti]; P = ADPPose::Reach(TW(T, T.KStand), FRotator(0.f, T.Yaw + 90.f, 0.f).Vector(), 1, TW(T, T.KHandle), 0.7f, PH, FMath::Sin(PI * K)); }, 1.0f);
 	Do(Ci, [this, Ti] { FTractor& T = Tractors[Ti]; T.DoorWant = Tractors[Ti].KDoorDeg; Sound(*T.SndDoorOpen, TW(T, T.KHandle + FVector(0.f, 0.f, 20.f))); });
@@ -226,6 +251,7 @@ void AGSE::ClimbOut(int32 Ci, int32 Ti, TFunction<void()> Then)
 		Wait(Ci, 4.2f);
 		Do(Ci, [this, Ci] { if (ATugs* G = Tg()) G->Crew[Ci].Hold = nullptr; });
 		PoseAct(Ci, BusClimbFn(Ti, false), SvcClimbTime(Ti, 0, false));
+		Do(Ci, [this, Ci] { SeatLeft(Ci); });
 		PoseAct(Ci, SvcHandFn(Ti, 0), 1.0f);
 		Do(Ci, [this, Ti] { Tractors[Ti].DoorWant = 0.f; SvcSeatDoor(Ti, 0, false); });
 		if (Then) Do(Ci, MoveTemp(Then));
@@ -235,6 +261,7 @@ void AGSE::ClimbOut(int32 Ci, int32 Ti, TFunction<void()> Then)
 	Wait(Ci, 0.7f);
 	Do(Ci, [this, Ci] { if (ATugs* G = Tg()) G->Crew[Ci].Hold = nullptr; });
 	PoseAct(Ci, ClimbFn(Ti, false), IsTall(Tractors[Ti]) ? 4.2f : 2.8f);
+	Do(Ci, [this, Ci] { SeatLeft(Ci); });
 	// down: the door pushed shut behind
 	PoseAct(Ci, [this, Ti](float K, float PH, FDriverPose& P) { FTractor& T = Tractors[Ti]; P = ADPPose::Reach(TW(T, T.KStand), FRotator(0.f, T.Yaw + 90.f, 0.f).Vector(), 1, TW(T, T.KHandle + FVector(-5.f, -4.5f, 18.f)), 0.3f, PH, FMath::Sin(PI * K)); if (K > 0.4f) T.DoorWant = 0.f; }, 0.9f);
 	if (Then) Do(Ci, MoveTemp(Then));

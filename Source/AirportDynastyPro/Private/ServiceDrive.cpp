@@ -1,5 +1,6 @@
 // You in a service vehicle (ServiceDrive.h), and the vehicle's side of it (AGSE::Svc*: which seat is free, the drive itself).
 #include "ServiceDrive.h"
+#include "Seats.h"
 #include "CabControls.h"
 #include "GSEClean.h"
 #include "VehicleControls.h"
@@ -73,7 +74,7 @@ void AServiceDrive::SetupPlayerInputComponent(UInputComponent* In)
 bool AServiceDrive::Begin(AGSE* G, int32 Vehicle, int32 InSeat, APawn* Walker)
 {
 	APlayerController* PC = Walker ? Cast<APlayerController>(Walker->GetController()) : nullptr;
-	if (!G || !PC || !G->Tractors.IsValidIndex(Vehicle)) return false;
+	if (!G || !PC || !G->Tractors.IsValidIndex(Vehicle) || !ASeats::ClaimCab(G->CabOf(Vehicle), InSeat, Walker)) return false;   // (never one somebody sits on, to-do 293)
 	Gse = G; Ti = Vehicle; Seat = InSeat; Me = Walker; Seq = ESeq::Walk; T = 0.f;
 	AGSE::FTractor& V = G->Tractors[Ti]; V.Player = this; V.PlayerSeat = Seat;
 	AddTickPrerequisiteActor(G);
@@ -272,6 +273,7 @@ void AServiceDrive::Finish()
 {
 	AGSE* G = Gse.Get(); APawn* W = Me.Get(); const ESeq Was = Seq;
 	APlayerController* PC = Cast<APlayerController>(GetController());
+	ASeats::ReleaseCab(W);
 	if (G && G->Tractors.IsValidIndex(Ti))
 	{
 		AGSE::FTractor& V = G->Tractors[Ti];
@@ -435,6 +437,7 @@ bool AGSE::SvcSeatFree(int32 Ti, int32 Seat, FString& Why) const
 {
 	const FTractor& T = Tractors[Ti]; const FServiceSpec& S = SdSpec(T.Svc); const ATugs* G = Tg();
 	if (T.Player.IsValid()) { Why = TEXT("you are in it already"); return false; }
+	if (ASeats::CabBy(CabOf(Ti), Seat, true)) { Why = TEXT("the seat is taken"); return false; }   // (the one record, to-do 293)
 	if (T.TugIx != INDEX_NONE) return G && G->YouFree(T.TugIx, Why);
 	if (S.bDeicer && (T.Job != EJob::None || !DeicerStowed(T))) { Why = T.Job != EJob::None ? TEXT("its crew are at work") : TEXT("its boom is not stowed"); return false; }
 	if (T.Job == EJob::None && ((S.bFuel && !FuelStowed(T)) || (S.Wet && !WaterStowed(T)) || (S.bCater && !CaterStowed(T)))) { Why = TEXT("not everything is back in its place"); return false; }   // (never off with a hose out)
@@ -471,7 +474,7 @@ bool AGSE::SvcUse(APawn* Me, FString& Say)
 		};
 		Try(T.KStand, 0, false);
 		for (int32 c = 0; c < S.Cab.Num(); ++c) Try(SvcP(T, S.Cab[c].Door.Stand), 1 + S.Seats.Num() + c, false);
-		if (S.Seats.Num() && S.Doors.Num()) Try(SvcP(T, S.Doors[0].Stand), S.Seats.Num(), false);
+		if (S.Seats.Num() && S.Doors.Num()) { int32 Rs = S.Seats.Num(); while (Rs > 1 && ASeats::CabBy(CabOf(i), Rs)) --Rs; Try(SvcP(T, S.Doors[0].Stand), Rs, false); }
 		for (int32 d = 1; d < S.Doors.Num() && !T.Cl; ++d) Try(SvcP(T, S.Doors[d].Stand), 0, true);   // (the cleaning van's by their handles)
 	}
 	if (Bt == INDEX_NONE) return false;

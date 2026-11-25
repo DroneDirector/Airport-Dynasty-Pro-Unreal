@@ -1394,6 +1394,15 @@ bool APaxFlow::WallSpot(const FPx& P, const FBox2D& Region, FVector& Out, float&
 	return false;
 }
 
+/** Their seat is another's or yours now (to-do 293): another place to wait, from where they stand. */
+bool APaxFlow::ReSeat(FPx& P)
+{
+	ASeats::Release(P.A.Get()); ADP_LOG(TEXT("PaxFlow: %s's seat %d is taken now - another place"), *P.Id, P.Seat);
+	P.Seat = INDEX_NONE;
+	if (!WayToWait(P)) return false;
+	P.St = EPx::Walk; return true;
+}
+
 bool APaxFlow::WayToWait(FPx& P)
 {
 	// the wait for the boarding call, a mix (owner 2026-11-21): a chair at their own gate, a free chair out on the gate
@@ -1430,9 +1439,10 @@ bool APaxFlow::WayToWait(FPx& P)
 		}
 		for (int32 Try = 0; Try < 6 && Free.Num(); ++Try)
 		{
-			const int32 I = Free[Rng.RandRange(0, Free.Num() - 1)];
+			int32 I = Free[Rng.RandRange(0, Free.Num() - 1)];
+			if (const int32 In = ASeats::Innermost(I); Free.Contains(In)) I = In;   // (a row against a wall: its inner end first)
 			FVector SAt, SF; float SH; ASeats::SeatOf(I, SAt, SF, SH);
-			if (ASeats::Claim(A, SAt) != I) { ASeats::Release(A); Free.Remove(I); continue; }
+			if (!ASeats::ClaimSeat(A, I)) { Free.Remove(I); continue; }
 			P.Seat = I;
 			const FVector Front = PlanOf(FVector(SAt.X, SAt.Y, F2Z) + SF * 60.f);
 			AddPlanWay(P, INDEX_NONE, HerePlan, INDEX_NONE, FVector(Front.X, F2Y, Front.Z));
@@ -1593,7 +1603,7 @@ void APaxFlow::Arrive(int32 i)
 		// (still the seat walked to: the list of seats is gathered again as models come and go)
 		{ FVector Sa, Sf; float Sh; if (P.Seat != INDEX_NONE && (!ASeats::SeatOf(P.Seat, Sa, Sf, Sh) || FVector::Dist2D(Sa, L) > 160.f)) { ADP_LOG(TEXT("PaxFlow: %s - seat %d is another one now, they stay standing"), *P.Id, P.Seat); P.Seat = INDEX_NONE; } }
 		if (People && P.Seat != INDEX_NONE && People->SitOn(A, P.Seat, Area, F2Z)) { P.St = EPx::Seated; P.Stage = TEXT("sitting, waiting for the boarding call"); P.Speed = 0.f; }
-		else { ASeats::Release(A); P.Seat = INDEX_NONE; P.St = EPx::Wait; P.Stage = TEXT("standing, waiting for the boarding call"); }
+		else if (!ReSeat(P)) { P.St = EPx::Wait; P.Stage = TEXT("standing, waiting for the boarding call"); }
 		break;
 	}
 	case EDo::AtWall: P.St = EPx::Lean; P.T = 0.f; P.Fidget = Rng.FRandRange(6.f, 14.f); P.Stage = TEXT("leaning on a wall, waiting for the boarding call"); break;
@@ -1744,6 +1754,7 @@ void APaxFlow::StepPx(int32 i, float Dt)
 	{
 	case EPx::Walk:
 		CarryBag(P, A);
+		if (P.Do == EDo::AtSeat && P.Seat != INDEX_NONE && !ASeats::Holds(A, P.Seat) && !ReSeat(P)) { P.Way.Reset(); P.Wi = 0; P.St = EPx::Wait; break; }   // (you took it meanwhile, to-do 293)
 		if (Follow(P, A, Dt)) { Arrive(i); break; }
 		Held(i, Dt);
 		break;
@@ -1813,6 +1824,7 @@ void APaxFlow::StepPx(int32 i, float Dt)
 	}
 	case EPx::Seated:
 		if (bDue && People) { People->StandFrom(A); P.St = EPx::Call; P.Stage = TEXT("getting up - their turn to board"); }
+		else if (People && P.Seat != INDEX_NONE && !People->IsHeld(A) && !ReSeat(P)) P.St = EPx::Wait;   // (their seat became yours before they sat)
 		break;
 	case EPx::Call:
 	{

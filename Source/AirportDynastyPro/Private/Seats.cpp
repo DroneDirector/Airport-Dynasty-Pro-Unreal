@@ -44,7 +44,7 @@ int32 ASeats::NearestTo(const FVector& At)
 	return Best;
 }
 
-bool ASeats::NearSeat(const FVector& At) { const int32 I = NearestTo(At); return I != INDEX_NONE && (!IsTaken(I) || One->Spots[I].bYours); }
+bool ASeats::NearSeat(const FVector& At) { const int32 I = NearestTo(At); return I != INDEX_NONE && (!IsSatOn(I) || One->Spots[I].bYours); }
 
 bool ASeats::IsTaken(int32 Seat)
 {
@@ -53,18 +53,112 @@ bool ASeats::IsTaken(int32 Seat)
 	return T && T->Who.IsValid();
 }
 
-int32 ASeats::Claim(AActor* Who, const FVector& At, TFunction<void()> AskToLeave)
+bool ASeats::IsSatOn(int32 Seat)
 {
-	if (!One.IsValid() || !Who) return INDEX_NONE;
+	if (!One.IsValid() || !One->Spots.IsValidIndex(Seat)) return false;
+	const FTaken* T = One->Taken.Find(SpotKey(One->Spots[Seat].At));
+	return T && T->Who.IsValid() && T->bSat;
+}
+
+bool ASeats::ClaimSeat(AActor* Who, int32 I, TFunction<void()> AskToLeave)
+{
+	if (!One.IsValid() || !Who || !One->Spots.IsValidIndex(I)) return false;
 	ASeats* S = One.Get();
-	int32 Best = INDEX_NONE; float BD = 150.f;
-	for (int32 i = 0; i < S->Spots.Num(); ++i)
+	if (S->State != EState::None && S->Seat == I) return false;   // (you are on it, or on the way down or up)
+	const FIntVector Key = SpotKey(S->Spots[I].At);
+	const FTaken* T = S->Taken.Find(Key);
+	if (T && T->Who.IsValid()) { if (T->Who.Get() != Who) return false; if (!AskToLeave) return true; }
+	Release(Who);
+	S->Taken.Add(Key, FTaken{Who, MoveTemp(AskToLeave)});
+	return true;
+}
+
+void ASeats::Sat(AActor* Who)
+{
+	if (One.IsValid() && Who) for (auto& P : One->Taken) if (P.Value.Who.Get() == Who) P.Value.bSat = true;
+}
+
+bool ASeats::HoldsAt(const AActor* Who, const FVector& SeatAt)
+{
+	const FTaken* T = One.IsValid() ? One->Taken.Find(SpotKey(SeatAt)) : nullptr;
+	return T && Who && T->Who.Get() == Who;
+}
+
+bool ASeats::Holds(const AActor* Who, int32 I) { return One.IsValid() && One->Spots.IsValidIndex(I) && HoldsAt(Who, One->Spots[I].At); }
+
+void ASeats::SeatsOf(const ABabylonModel* Model, TArray<int32>& Out)
+{
+	Out.Reset(); if (!One.IsValid() || !Model) return;
+	if (const FGot* G = One->Got.FindByPredicate([Model](const FGot& X) { return X.Model.Get() == Model; })) Out = G->Slots;
+}
+
+int32 ASeats::Innermost(int32 I)
+{
+	if (!One.IsValid() || !One->Spots.IsValidIndex(I)) return I;
+	const ABabylonModel::FSeatSpot& S = One->Spots[I];
+	const ABabylonModel* M = S.Parts.Num() && S.Parts[0].Key ? Cast<ABabylonModel>(S.Parts[0].Key->GetOwner()) : nullptr;
+	const FGot* G = M ? One->Got.FindByPredicate([M](const FGot& X) { return X.Model.Get() == M; }) : nullptr; if (!G) return I;
+	// its row: the seats beside it, facing the same way, each within 95 cm of the next
+	const FVector F = S.Facing.GetSafeNormal2D(), Side(-F.Y, F.X, 0.f);
+	TArray<TPair<float, int32>, TInlineAllocator<24>> Row;
+	for (const int32 k : G->Slots)
 	{
-		const float D = FVector::Dist(S->Spots[i].At, At);
-		if (D < BD && !IsTaken(i) && !(S->State != EState::None && S->Seat == i)) { BD = D; Best = i; }
+		const ABabylonModel::FSeatSpot& X = One->Spots[k]; const FVector D = X.At - S.At;
+		if (FMath::Abs(D.Z) > 30.f || FMath::Abs(FVector::DotProduct(D, F)) > 30.f || FVector::DotProduct(X.Facing, F) < 0.9f) continue;
+		Row.Emplace(float(FVector::DotProduct(D, Side)), k);
 	}
-	if (Best != INDEX_NONE) S->Taken.Add(SpotKey(S->Spots[Best].At), FTaken{Who, MoveTemp(AskToLeave)});
-	return Best;
+	Row.Sort([](const TPair<float, int32>& A, const TPair<float, int32>& B) { return A.Key < B.Key; });
+	const int32 At = Row.IndexOfByPredicate([I](const TPair<float, int32>& X) { return X.Value == I; }); if (At == INDEX_NONE) return I;
+	int32 A = At, B = At;
+	while (A > 0 && Row[A].Key - Row[A - 1].Key < 95.f) --A;
+	while (B < Row.Num() - 1 && Row[B + 1].Key - Row[B].Key < 95.f) ++B;
+	if (A == B) return I;
+	// a wall at one end only (a short look sideways past the end seat, at the shoulders' height)
+	auto Wall = [&](int32 k, float Dir)
+	{
+		const FVector P = One->Spots[Row[k].Value].At - F * 10.f + FVector(0, 0, 45.f); FHitResult R; FCollisionQueryParams Q(SCENE_QUERY_STAT(SeatRowEnd), false);
+		if (!One->GetWorld()->LineTraceSingleByChannel(R, P, P + Side * (Dir * 85.f), ECC_Visibility, Q)) return false;
+		return !Cast<APawn>(R.GetActor()) && FMath::Abs(R.ImpactNormal.Z) < 0.4f;
+	};
+	const bool bWa = Wall(A, -1.f), bWb = Wall(B, 1.f); if (bWa == bWb) return I;
+	// from the open end in, up to the first one taken
+	int32 In = I; bool bAny = false;
+	for (int32 k = bWa ? B : A; k >= A && k <= B; k += bWa ? -1 : 1) { if (IsTaken(Row[k].Value)) break; In = Row[k].Value; bAny = true; }
+	return bAny ? In : I;
+}
+
+bool ASeats::ClaimCab(const AActor* Vehicle, int32 CabSeat, AActor* Who, bool bForce)
+{
+	if (!One.IsValid() || !Vehicle || !Who) return true;
+	TArray<FCab>& C = One->Cabs;
+	const bool bYou = Cast<APawn>(Who) != nullptr;
+	for (int32 k = C.Num() - 1; k >= 0; --k)
+	{
+		if (!C[k].Vehicle.IsValid() || !C[k].Who.IsValid()) { C.RemoveAtSwap(k); continue; }
+		if (C[k].Vehicle.Get() != Vehicle || C[k].Seat != CabSeat || C[k].Who.Get() == Who) continue;
+		const bool bYours = Cast<APawn>(C[k].Who.Get()) != nullptr;
+		const bool bAway = !bYours && C[k].bSat && FVector::Dist2D(C[k].Who->GetActorLocation(), Vehicle->GetActorLocation()) > 1500.f;   // (he sat there once and is long somewhere else)
+		if (!bAway && (bYours || C[k].bSat || !(bYou || bForce))) return false;
+		C.RemoveAtSwap(k);
+	}
+	if (C.ContainsByPredicate([&](const FCab& X) { return X.Who.Get() == Who && X.Vehicle.Get() == Vehicle && X.Seat == CabSeat; })) return true;
+	ReleaseCab(Who);
+	FCab N; N.Vehicle = Vehicle; N.Seat = CabSeat; N.Who = Who; N.bSat = bYou;   // (you: blocked from the moment you choose it)
+	C.Add(N);
+	return true;
+}
+
+void ASeats::CabSat(AActor* Who) { if (One.IsValid() && Who) for (FCab& X : One->Cabs) if (X.Who.Get() == Who) X.bSat = true; }
+
+AActor* ASeats::CabBy(const AActor* Vehicle, int32 CabSeat, bool bOnlySat)
+{
+	if (One.IsValid() && Vehicle) for (const FCab& X : One->Cabs) if (X.Vehicle.Get() == Vehicle && X.Seat == CabSeat && (X.bSat || !bOnlySat)) return X.Who.Get();
+	return nullptr;
+}
+
+void ASeats::ReleaseCab(AActor* Who)
+{
+	if (One.IsValid()) One->Cabs.RemoveAllSwap([Who](const FCab& X) { return !X.Who.IsValid() || X.Who.Get() == Who; });
 }
 
 void ASeats::Carry(const ABabylonModel* Vehicle, const FTransform& Was, const FTransform& Now, AActor* By)
@@ -207,8 +301,8 @@ bool ASeats::Interact(APawn* Who)
 	if (!Me) return false;
 	const int32 I = NearestTo(Me->GetActorLocation());
 	if (I == INDEX_NONE) return false;
-	if (IsTaken(I) && !S->Spots[I].bYours) { ADP_LOG(TEXT("Seats: someone's sitting there")); return false; }
-	if (IsTaken(I))
+	if (IsSatOn(I) && !S->Spots[I].bYours) { ADP_LOG(TEXT("Seats: someone's sitting there")); return false; }
+	if (IsSatOn(I))
 	{
 		// your own chair with someone on it: they're asked to get up and move aside; you sit as soon as it's free
 		if (FTaken* T = S->Taken.Find(SpotKey(S->Spots[I].At))) if (T->AskToLeave) T->AskToLeave();
@@ -216,6 +310,7 @@ bool ASeats::Interact(APawn* Who)
 		ADP_LOG(TEXT("Seats: your chair is taken - asking them to get up"));
 		return true;
 	}
+	if (IsTaken(I)) ADP_LOG(TEXT("Seats: seat %d is yours - the one only walking to it finds another"), I);   // (to-do 293)
 	S->Sit(Me, I);
 	return true;
 }
@@ -254,7 +349,7 @@ void ASeats::Sit(AADPWalker* Me, int32 I)
 	if (!Pose) { ADP_WARN(TEXT("Seats: your body couldn't be lent to the seat")); return; }
 	Sitter = Me; Seat = I; State = EState::Down; T = 0.f; bKeysFree = false; Before = Me->GetActorLocation();
 	Fwd = 0.f; Lift = 0.f; bCushionOk = false; CushionTries = 0;
-	Taken.Add(SpotKey(Sp.At), FTaken{Me, nullptr});
+	Taken.Add(SpotKey(Sp.At), FTaken{Me, nullptr, true});
 	Me->GetCharacterMovement()->DisableMovement();
 	Me->SetActorEnableCollision(false);
 	if (APlayerController* PC = Cast<APlayerController>(Me->GetController())) { FRotator R = PC->GetControlRotation(); R.Yaw = Sp.Facing.Rotation().Yaw; PC->SetControlRotation(R); }

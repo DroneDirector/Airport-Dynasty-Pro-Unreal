@@ -37,12 +37,27 @@ public:
 	/** One line in the log per kind of seat and per sitter (AI / you): the seat's facing, the way the sitter's thighs really
 	 *  point (BodyDir), and the side its back is on - measured by the geometry that rises above the pan - with OK / FLIPPED. */
 	static void LogFacing(const TCHAR* Who, int32 Seat, const FVector& At, const FVector& Facing, float SeatH, const FVector& BodyDir, const AActor* Sitting);
-	/** Someone else sitting (owner, 2026-11-14: nobody sits where someone already is): Who takes the seat nearest At
-	 *  (within 1.5 m; INDEX_NONE when none is free), and is asked to get up by AskToLeave when you want your own chair
-	 *  (your office's, the ops room's) - you sit once they've released it. */
-	static int32 Claim(AActor* Who, const FVector& At, TFunction<void()> AskToLeave = nullptr);
+	/** Someone else sitting (owner, 2026-11-14: nobody sits where someone already is; to-do 293: the one record of every seat):
+	 *  Who takes seat I before walking to it - false when it is another's or yours; a seat taken before is let go. AskToLeave:
+	 *  asked to get up when you want your own chair (your office's, the ops room's) - you sit once they've released it. */
+	static bool ClaimSeat(AActor* Who, int32 I, TFunction<void()> AskToLeave = nullptr);
+	/** Who really sits (down) on the seat taken: until then you may take it from under them, and they find another. */
+	static void Sat(AActor* Who);
+	static bool Holds(const AActor* Who, int32 I);
+	static bool HoldsAt(const AActor* Who, const FVector& SeatAt);
 	static void Release(AActor* Who);
 	static bool IsTaken(int32 Seat);
+	static bool IsSatOn(int32 Seat);
+	/** The seats of one model (a vehicle's); a seat's whole row when it ends at a wall on one side: its innermost free seat that
+	 *  nobody is passed to reach (else I itself). Asked once when a seat is chosen, never per frame. */
+	static void SeatsOf(const ABabylonModel* Model, TArray<int32>& Out);
+	static int32 Innermost(int32 I);
+	/** The same record for a vehicle's cab (0 the driver's, 1.. as FServiceSpec numbers them): the crew, a passenger and you.
+	 *  You never get one somebody sits on; bForce: from a crew man who claimed it but never came (never from you). */
+	static bool ClaimCab(const AActor* Vehicle, int32 CabSeat, AActor* Who, bool bForce = false);
+	static void CabSat(AActor* Who);
+	static AActor* CabBy(const AActor* Vehicle, int32 CabSeat, bool bOnlySat = false);
+	static void ReleaseCab(AActor* Who);
 	/** A vehicle's seats (VehicleRiders.h): out of everyone's reach while it is on its way, at its new place once it stands;
 	 *  who sits where stays. */
 	static void Follow(const ABabylonModel* Vehicle, bool bAway);
@@ -74,7 +89,9 @@ private:
 	TWeakObjectPtr<AActor> Mover;   // (what moves them: we tick after it)
 	FVector Before = FVector::ZeroVector;   // where you stood before sitting
 	// who sits where (kept by the seat's place, so finding the seats again keeps them)
-	struct FTaken { TWeakObjectPtr<AActor> Who; TFunction<void()> AskToLeave; };
+	struct FTaken { TWeakObjectPtr<AActor> Who; TFunction<void()> AskToLeave; bool bSat = false; };
+	struct FCab { TWeakObjectPtr<const AActor> Vehicle; int32 Seat = 0; TWeakObjectPtr<AActor> Who; bool bSat = false; };
+	TArray<FCab> Cabs;
 	TMap<FIntVector, FTaken> Taken;
 	static FIntVector SpotKey(const FVector& At) { return FIntVector(FMath::RoundToInt(At.X / 10.f), FMath::RoundToInt(At.Y / 10.f), FMath::RoundToInt(At.Z / 10.f)); }
 	TWeakObjectPtr<AADPWalker> Waiting; int32 WaitSeat = INDEX_NONE; float WaitT = 0.f;   // waiting for your own chair to be free

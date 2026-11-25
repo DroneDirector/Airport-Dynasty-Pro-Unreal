@@ -378,8 +378,7 @@ void APaxFlow::StepApron(int32 i, float Dt)
 		{
 			const AGSE::FBusSlot& S = O.Slots[n]; if (O.DoorOf(S.At.X) != X.Door) continue;
 			if (S.Seat == INDEX_NONE) { Got = n; break; }
-			if (ASeats::IsTaken(S.Seat)) continue;
-			if (ASeats::Claim(A, G->BusW(O.Ti, S.At)) == S.Seat) Got = n; else ASeats::Release(A);
+			if (ASeats::ClaimSeat(A, S.Seat)) Got = n;
 		}
 		if (Got == INDEX_NONE)
 		{
@@ -403,6 +402,30 @@ void APaxFlow::StepApron(int32 i, float Dt)
 	case 2: case 3: case 4:
 	{
 		if (!X.Rig) { ApronPose(i, ADPPose::Standing(L, FRotator(0.f, A->GetActorRotation().Yaw + 90.f, 0.f).Vector(), 92.f)); if (!X.Rig) break; }
+		// (to-do 293: their seat became yours while they were still in the aisle: another place in this part; off the aisle it is theirs)
+		if (X.Ph == 2 && X.Slot.Seat != INDEX_NONE)
+		{
+			const FVector2f Dr = AGSE::BusDoorAt(X.Door); const FVector2D C = X.W.At(X.S);
+			if (ASeats::Holds(A, X.Slot.Seat)) { if (FMath::Abs(C.Y) > 20. && FMath::Abs(C.X - Dr.X) > 30.) ASeats::Sat(A); }
+			else
+			{
+				int32 Got = INDEX_NONE;
+				for (int32 n = 0; n < O.Slots.Num() && Got == INDEX_NONE; ++n) if (const AGSE::FBusSlot& S = O.Slots[n]; O.DoorOf(S.At.X) == X.Door && (S.Seat == INDEX_NONE || ASeats::ClaimSeat(A, S.Seat))) Got = n;
+				if (Got == INDEX_NONE) X.S = FMath::Min(X.S, X.W.Len - 60.f);   // (full: they wait where they are)
+				else
+				{
+					ADP_LOG(TEXT("PaxApron: %s's seat %d in the bus is taken now - another place"), *P.Id, X.Slot.Seat);
+					const AGSE::FBusSlot Was = X.Slot; X.Slot = O.Slots[Got]; O.Slots.RemoveAt(Got); O.Slots.Insert(Was, 0);
+					if (X.Slot.Seat == INDEX_NONE) ASeats::Release(A);
+					const FVector In = X.Slot.Seat != INDEX_NONE ? X.Slot.At + X.Slot.Face * 42.f : X.Slot.At; const double Ys = FMath::Sign(X.Slot.At.Y), Cx = PaCross(In.X), Sg = FMath::Sign(Dr.Y);
+					TArray<FVector2D> W; W.Add(C);
+					if (FMath::Abs(C.X - Dr.X) <= 30. && FMath::Abs(C.Y) > 20.) { if (FMath::Abs(C.Y) > 115.) W.Add(FVector2D(Dr.X, Sg * 112.)); W.Add(FVector2D(Dr.X, 0.)); }
+					else if (FMath::Abs(C.Y) > 1.) W.Add(FVector2D(C.X, 0.));
+					if (FMath::Abs(In.Y) > 20.) { W.Add(FVector2D(Cx, 0.)); if (FMath::Abs(Cx - In.X) > 1. && FMath::Abs(In.Y) > 62.) W.Add(FVector2D(Cx, Ys * 84.)); }
+					W.Add(FVector2D(In.X, In.Y)); X.W.Set(MoveTemp(W)); X.S = 0.f;
+				}
+			}
+		}
 		const float PH = X.Rig->PelvisHeight(); const FVector Lt = ADPPose::LeftOf(X.Slot.Face); const bool bSeat = X.Slot.Seat != INDEX_NONE;
 		// in their place: sitting, or standing with a hand on the pole or the strap
 		FDriverPose Rest = ADPPose::Standing(X.Slot.At, X.Slot.Face, PH);
@@ -420,7 +443,7 @@ void APaxFlow::StepApron(int32 i, float Dt)
 		if (X.Ph == 2)
 		{
 			const FVector2D Nx = X.W.At(X.S + 55.f);
-			if (X.S < X.W.Len) { if (!YouIn(G->BusW(X.Bus, FVector(Nx, 33.)))) X.S += Dt * 75.f; X.T = 0.f; }
+			if (X.S < X.W.Len) { if (!(X.Slot.Seat != INDEX_NONE && !ASeats::Holds(A, X.Slot.Seat)) && !YouIn(G->BusW(X.Bus, FVector(Nx, 33.)))) X.S += Dt * 75.f; X.T = 0.f; }
 			if (X.S < X.W.Len) X.W.Pose(X.S, PH, Q);
 			else
 			{

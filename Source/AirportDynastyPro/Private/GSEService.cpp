@@ -5,6 +5,7 @@
 // flight with it. The other airlines' flights, and yours while you employ fewer than two: the agent, as data, as before.
 // There is no cabin inside the aircraft yet (to-do 209): at its door they are out of sight and the rows are worked by time.
 #include "GSE.h"
+#include "Seats.h"
 #include "ServiceVehicles.h"
 #include "ApronBus.h"
 #include "GSEFuel.h"
@@ -702,7 +703,9 @@ bool AGSE::TaxiBoard(AActor* A, const FString& Who, const FString& Name)
 	TaxiPaxCi = Ci; TaxiTrip = 1; TaxiTripT = 0.f; TaxiWho = Who; TaxiLegs = 0;
 	ADP_LOG(TEXT("GSE: %s (%s) gets into the taxi bus by its sliding door"), *Name, *Who);
 	const FVector Stand = SvcP(T, S.Doors[0].Stand);
+	ClaimSeat(Ci, Ti, Seat);
 	WalkTo(Ci, [this, Ti, Stand] { return TW(Tractors[Ti], Stand); }, 15.f);
+	ClaimSeat(Ci, Ti, Seat); Do(Ci, [this, Ci] { SeatTaken(Ci); });
 	// (a sliding door: it opens by itself)
 	Do(Ci, [this, Ti] { FTractor& V = Tractors[Ti]; if (V.SvcDoors[0].Want < 0.5f && !V.SndDoorOpen.IsEmpty()) Sound(*V.SndDoorOpen, TW(V, V.SvcDoors[0].Piv)); V.SvcDoors[0].Want = 1.f; });
 	WaitFor(Ci, [this, Ti](float E) { return E > 5.f || Tractors[Ti].SvcDoors[0].Now > 0.99f; });
@@ -1005,9 +1008,11 @@ void AGSE::SvcBoard(int32 Job, int32 m)
 	const int32 Ci = M->Ci, Ti = SvcJ(Job)->Ti;
 	const FVector Stand = SvcP(Tractors[Ti], SvSpec(Tractors[Ti].Svc).Doors[0].Stand);
 	// one after the other, the farthest seat first; the last one shuts the door from his seat
+	ClaimSeat(Ci, Ti, m);
 	WaitFor(Ci, [this, Job, m](float) { return SvcAll(Job, [m](const FSvcMan& X) { return X.Seat == 0 || X.Seat >= m || X.bSeated; }); });
 	if (m == 1) SvcDoor(Ci, Ti, 0, true);
 	WalkTo(Ci, [this, Ti, Stand] { return TW(Tractors[Ti], Stand); }, 15.f);
+	ClaimSeat(Ci, Ti, m); Do(Ci, [this, Ci] { SeatTaken(Ci); });
 	Do(Ci, [this, Ti] { Tractors[Ti].SvcDoors[0].Want = 1.f; });
 	WaitFor(Ci, [this, Ti](float E) { return E > 5.f || Tractors[Ti].SvcDoors[0].Now > 0.99f; });
 	PoseAct(Ci, SvcClimbFn(Ti, m, true), 5.f);
@@ -1030,6 +1035,7 @@ void AGSE::SvcAlight(int32 Job, int32 m)
 	WaitFor(Ci, [this, Ti](float E) { return E > 4.f || Tractors[Ti].SvcDoors[0].Now > 0.99f; });
 	Do(Ci, [this, Ci] { if (ATugs* G = Tg()) G->Crew[Ci].Hold = nullptr; });
 	PoseAct(Ci, SvcClimbFn(Ti, m, false), 4.4f);
+	Do(Ci, [this, Ci] { SeatLeft(Ci); });
 	WalkTo(Ci, [this, Ti, Off, m] { return TW(Tractors[Ti], Off + FVector(70.f * m, Off.Y >= 0.f ? 70.f : -70.f, 0.f)); }, 30.f);
 	Do(Ci, [this, Job, m] { if (FSvcMan* X = SvcM(Job, m)) { X->bSeated = false; X->bOut = true; } });
 	// (the last one out shuts it)

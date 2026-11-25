@@ -625,6 +625,12 @@ Taxi bus (239, part B, 2026-11-24, compiled, NOT run): a line of `ADPService::Al
 - No give-up while stairs (and bus) and their roles exist (DeplaneDone, BoardingDone); otherwise after 15 min, with a notice of what is missing.
 - No bus for 3 min: those on the treads go back up, after 5 min those on the apron too; they come out again with the next bus.
 
+## One seat record, to-do 293 as built (2026-11-25, compiled, not run)
+- ASeats holds every seat: ClaimSeat before walking, Sat when really sitting, Release when up; a vehicle's cab by ClaimCab / CabSat / ReleaseCab.
+- You block a seat from the moment you choose it; from one only walking to it you take it, and they pick another (People, PaxFlow, PaxApron, coach).
+- Cabs: every driver (GSECrew, TugCrew), rear crew (SvcBoard), taxi passenger and you (ServiceDrive); your seat makes crew wait at the door.
+- Order: coach window first and from the back, off from the front and aisle first; hall rows at a wall inner end first (Innermost).
+
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
 | Where | Today | Replace with | Nobody free |

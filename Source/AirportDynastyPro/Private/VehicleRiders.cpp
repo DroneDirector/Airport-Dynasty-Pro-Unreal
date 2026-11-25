@@ -648,12 +648,13 @@ bool UVehicleRiders::WaitAtStop(AActor* Who, int32 Place, bool bBag)
 	return true;
 }
 
-bool UVehicleRiders::PickSeat(FRider& R)
+void UVehicleRiders::FreeSeats(TArray<TPair<int32, FVector>>& Free, TArray<TPair<int32, FVector>>& All) const
 {
 	// a free seat - nobody on it or on its way to it, you included (ASeats), its row's aisle seat free to pass
-	TArray<int32> Free; const FTransform B = Body->Body();
-	TArray<TPair<int32, FVector>> All;
-	for (int32 i = 0; i < ASeats::Count(); ++i)
+	const FTransform B = Body->Body(); TArray<int32> Mine;
+	ASeats::SeatsOf(Cast<ABabylonModel>(GetOwner()), Mine);   // (the vehicle's own: the record keeps them by model)
+	if (!Mine.Num()) for (int32 i = 0; i < ASeats::Count(); ++i) Mine.Add(i);
+	for (const int32 i : Mine)
 	{
 		FVector At, F; float H; if (!ASeats::SeatOf(i, At, F, H)) continue;
 		const FVector L = B.InverseTransformPosition(At);
@@ -666,14 +667,23 @@ bool UVehicleRiders::PickSeat(FRider& R)
 		if (ASeats::IsTaken(S.Key)) continue;
 		bool bPass = true;
 		for (const auto& O : All) if (O.Key != S.Key && FMath::Abs(O.Value.X - S.Value.X) < 25.f && O.Value.Y * S.Value.Y > 0.f && FMath::Abs(O.Value.Y) < FMath::Abs(S.Value.Y) && ASeats::IsTaken(O.Key)) bPass = false;
-		if (bPass) Free.Add(S.Key);
+		if (bPass) Free.Add(S);
 	}
-	if (!Free.Num()) return false;
-	const int32 Pick = Free[int32(GetTypeHash(R.A->GetName()) % uint32(Free.Num()))];
-	FVector At, F; float H; ASeats::SeatOf(Pick, At, F, H);
-	R.Seat = ASeats::Claim(R.A.Get(), At);   // (the nearest free one to it: itself)
-	if (R.Seat == INDEX_NONE || !ASeats::SeatOf(R.Seat, At, F, H)) return false;
-	R.SeatL = B.InverseTransformPosition(At); R.SurfZ = -1.f; R.Fwd = R.Lift = R.CrossLift = R.Tip = 0.f; R.bCushionOk = false; R.Tries = 0;
+	// the windows first, the row farthest from the front door first (to-do 293)
+	Free.Sort([](const TPair<int32, FVector>& P, const TPair<int32, FVector>& Q)
+	{
+		const int32 Wp = FMath::RoundToInt(FMath::Abs(P.Value.Y) / 25.f), Wq = FMath::RoundToInt(FMath::Abs(Q.Value.Y) / 25.f);
+		return Wp != Wq ? Wp > Wq : P.Value.X != Q.Value.X ? P.Value.X < Q.Value.X : P.Value.Y < Q.Value.Y;
+	});
+}
+
+bool UVehicleRiders::PickSeat(FRider& R)
+{
+	TArray<TPair<int32, FVector>> Free, All; FreeSeats(Free, All);
+	R.Seat = INDEX_NONE; ASeats::Release(R.A.Get());
+	for (const auto& S : Free) if (ASeats::ClaimSeat(R.A.Get(), S.Key)) { R.Seat = S.Key; R.SeatL = S.Value; break; }
+	if (R.Seat == INDEX_NONE) return false;
+	R.SurfZ = -1.f; R.Fwd = R.Lift = R.CrossLift = R.Tip = 0.f; R.bCushionOk = false; R.Tries = 0;
 	ADP_LOG(TEXT("Riders: %s takes seat %d of %d free (x %.0f y %.0f z %.0f)"), *R.A->GetName(), R.Seat, Free.Num(), R.SeatL.X, R.SeatL.Y, R.SeatL.Z);
 	return true;
 }
@@ -730,24 +740,51 @@ bool UVehicleRiders::Board(AActor* Who)
 {
 	FRider* R = Join(Who); if (!R || R->bAboard || R->bDriver || IsDriving() || R->BagState == 1) return false;
 	AddDo(*R, [this] { if (Body->DoorK(0) < 0.5f && bAtWheel && GestT >= GestDur) { Gest = GButton; GestT = 0.f; GestDur = 1.5f; GestSide = 1; } });
+	// (a place for them and for those getting on before them - nobody left standing in the aisle; those getting off first)
+	{
+		TArray<TPair<int32, FVector>> Free, All; FreeSeats(Free, All); int32 Wait = 0;
+		for (const TSharedPtr<FRider>& O : Riders) if (O.Get() != R && O->Way == 1 && O->Seat == INDEX_NONE && O->A.IsValid()) ++Wait;
+		if (Free.Num() <= Wait) { R->Q.Reset(); ADP_LOG(TEXT("Riders: no seat left for %s"), *Who->GetName()); return false; }
+	}
+	R->Way = 1;
+	auto NoneOff = [this] { for (const TSharedPtr<FRider>& O : Riders) if (O->Way == 2 && O->bAboard && O->A.IsValid()) return false; return true; };
+	AddUntil(*R, [NoneOff](float) { return NoneOff(); });
 	AddWalk(*R, [this] { return Wo(Outside(TEXT("door_back"), 0.f, 20.f)); });
-	AddUntil(*R, [this](float) { return Body->DoorK(0) >= 0.99f; });
+	AddUntil(*R, [this, NoneOff](float) { return Body->DoorK(0) >= 0.99f && NoneOff(); });
 	AddSteps(*R);
 	AddWalk(*R, [this] { return Wo(Spec.At(TEXT("door_stand"))); });
 	AddClimb(*R, true);
 	AddAisle(*R, {Spec.At(TEXT("aisle_front")), Spec.At(TEXT("aisle_turn"))});
+	// (the one before sits down first: nobody passes anybody in the aisle)
+	AddUntil(*R, [this, R](float) { for (const TSharedPtr<FRider>& O : Riders) if (O.Get() != R && O->Way == 1 && O->bAboard && O->Seat != INDEX_NONE && O->A.IsValid()) return false; return true; });
 	AddDo(*R, [this, R]
 	{
 		if (OnSteps == R) OnSteps = nullptr;
+		GoSeat(*R, false);
+	});
+	return true;
+}
+
+void UVehicleRiders::GoSeat(FRider& Rr, bool bAgain)
+{
+	FRider* R = &Rr;
+	{
 		if (!PickSeat(*R))
 		{
 			// (no seat left: standing by a pole)
-			R->bSeated = true;
+			R->bSeated = true; R->Way = 0;
 			return;
 		}
 		const float Row = Spec.Num(TEXT("row_stand"), 0.33f) * 100.f, Ay = -Spec.Num(TEXT("aisle_y"), 0.f) * 100.f;
 		const FVector In(R->SeatL.X + Row, Ay, FloorZ());
-		AddAisle(*R, {Spec.At(TEXT("aisle_start")), In});
+		if (bAgain) AddAisle(*R, {In}); else AddAisle(*R, {Spec.At(TEXT("aisle_start")), In});
+		// (you took it meanwhile, to-do 293: another one - the row's, from the aisle; into the row it is theirs)
+		AddDo(*R, [this, R]
+		{
+			if (ASeats::Holds(R->A.Get(), R->Seat)) { ASeats::Sat(R->A.Get()); return; }
+			ADP_LOG(TEXT("Riders: %s's seat %d is taken now - another one"), *R->A->GetName(), R->Seat);
+			R->Q.Reset(); R->Seat = INDEX_NONE; GoSeat(*R, true);
+		});
 		AddPose(*R, 1.0f, [this, In](float K, float PH) { return VrTurnOn(In, 180.f, 0.f, K, PH); });
 		AddPose(*R, 1.4f, [this, R, In](float K, float PH)
 		{
@@ -758,15 +795,38 @@ bool UVehicleRiders::Board(AActor* Who)
 			return P;
 		});
 		AddPose(*R, 1.3f, [this, R](float K, float PH) { return Passenger(*R, K, PH); });
-		AddDo(*R, [this, R] { R->bSeated = true; R->Hold = [this, R](float, float PH) { return Passenger(*R, 1.f, PH); }; ADP_LOG(TEXT("Riders: %s sits"), *R->A->GetName()); });
-	});
+		AddDo(*R, [this, R] { R->bSeated = true; R->Way = 0; R->Hold = [this, R](float, float PH) { return Passenger(*R, 1.f, PH); }; ADP_LOG(TEXT("Riders: %s sits"), *R->A->GetName()); });
+	}
+}
+
+/** Off in the order they sit: nearest the front door first, in a row the aisle seat before the window; nobody up past anybody. */
+bool UVehicleRiders::MayLeave(const FRider& R) const
+{
+	if (OnSteps && OnSteps->A.IsValid() && OnSteps->Way != 2) return false;
+	for (const TSharedPtr<FRider>& Op : Riders)
+	{
+		const FRider& O = *Op; if (&O == &R || O.bDriver || !O.bAboard || !O.A.IsValid()) continue;
+		if (O.Way == 1) return false;   // (still getting on: they sit first)
+		if (O.Way == 2 && !O.bSeated && OnSteps != &O) return false;   // (in the aisle)
+		if (R.Seat == INDEX_NONE || (O.Seat == INDEX_NONE && O.Way != 2)) continue;
+		if (O.Seat == INDEX_NONE) { if (OnSteps != &O) return false; continue; }
+		if (OnSteps == &O) continue;
+		const float Dx = float(O.SeatL.X - R.SeatL.X), Dy = float(FMath::Abs(O.SeatL.Y) - FMath::Abs(R.SeatL.Y));
+		if (O.Way == 2 && (Dx > 25.f || (FMath::Abs(Dx) <= 25.f && (Dy < -5.f || (Dy < 5.f && O.SeatL.Y < R.SeatL.Y - 5.f))))) return false;
+	}
+	if (R.Seat == INDEX_NONE) return true;
+	// (somebody - you too - still on the seat between them and the aisle)
+	TArray<TPair<int32, FVector>> Free, All; FreeSeats(Free, All);
+	for (const auto& S : All) if (S.Key != R.Seat && FMath::Abs(S.Value.X - R.SeatL.X) < 25.f && S.Value.Y * R.SeatL.Y > 0.f && FMath::Abs(S.Value.Y) < FMath::Abs(R.SeatL.Y) - 5.f && ASeats::IsSatOn(S.Key)) return false;
 	return true;
 }
 
 bool UVehicleRiders::Alight(AActor* Who)
 {
 	FRider* R = Find(Who); if (!LineOn() || !R || !R->bAboard || R->bDriver || R->Q.Num()) return false;
-	R->bSeated = false; R->Hold = nullptr;
+	R->Way = 2;   // (they stay sat until it is their turn)
+	AddUntil(*R, [this, R](float) { return MayLeave(*R); });
+	AddDo(*R, [R] { R->bSeated = false; R->Hold = nullptr; });
 	const float Row = Spec.Num(TEXT("row_stand"), 0.33f) * 100.f, Ay = -Spec.Num(TEXT("aisle_y"), 0.f) * 100.f;
 	if (R->Seat != INDEX_NONE)
 	{
@@ -783,7 +843,7 @@ bool UVehicleRiders::Alight(AActor* Who)
 	AddClimb(*R, false);
 	AddDo(*R, [this, R] { if (OnSteps == R) OnSteps = nullptr; });
 	AddWalk(*R, [this, R] { return Wo(Outside(TEXT("stop_wait"), -80.f - 60.f * (R->SitKind % 3), -60.f)); });
-	AddDo(*R, [R] { ADP_LOG(TEXT("Riders: %s is off"), *R->A->GetName()); });
+	AddDo(*R, [R] { R->Way = 0; ADP_LOG(TEXT("Riders: %s is off"), *R->A->GetName()); });
 	return true;
 }
 
@@ -951,7 +1011,7 @@ bool UVehicleRiders::YouAboard() const
 bool UVehicleRiders::Drive(const TArray<FVector>& Path, float LimitMs)
 {
 	if (!LineOn() || !bAtWheel || IsDriving() || Path.Num() < 2) return false;
-	for (const TSharedPtr<FRider>& R : Riders) if (!R->bDriver && R->bAboard && !R->bSeated) return false;   // (everyone sits first)
+	for (const TSharedPtr<FRider>& R : Riders) if (!R->bDriver && R->bAboard && (!R->bSeated || R->Way == 2)) return false;   // (everyone sits first, nobody still to get off)
 	if (YouAboard()) { ADP_LOG(TEXT("Riders: you're aboard - it stays")); return false; }
 	Go = FGo(); Go.Pts = Path; Go.Len.SetNum(Path.Num()); Go.Len[0] = 0.f;
 	for (int32 i = 1; i < Path.Num(); ++i) Go.Len[i] = Go.Len[i - 1] + float(FVector::Dist2D(Path[i], Path[i - 1]));

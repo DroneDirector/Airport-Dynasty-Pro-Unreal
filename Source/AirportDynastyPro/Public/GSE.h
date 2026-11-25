@@ -814,6 +814,11 @@ private:
 	void LeftBehind(int32 Ti);
 	void WalkTo(int32 Ci, TFunction<FVector()> To, float Stop = 20.f);
 	void ClimbIn(int32 Ci, int32 Ti, TFunction<void()> Then);
+	/** The cab's seat in the one record (ASeats, to-do 293): claimed before they walk, again at the door; never while you are on it. */
+	AActor* CabOf(int32 Ti) const;
+	void ClaimSeat(int32 Ci, int32 Ti, int32 Seat);
+	void SeatTaken(int32 Ci);
+	void SeatLeft(int32 Ci);
 	void ClimbOut(int32 Ci, int32 Ti, TFunction<void()> Then);
 	TFunction<void(float, float, FDriverPose&)> SeatFn(int32 Ti) const;
 	TFunction<void(float, float, FDriverPose&)> ClimbFn(int32 Ti, bool bIn) const;

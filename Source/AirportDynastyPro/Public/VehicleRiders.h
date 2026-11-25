@@ -135,7 +135,7 @@ private:
 	struct FRider
 	{
 		~FRider() { delete Rig; }
-		TWeakObjectPtr<AActor> A; USkeletalMeshComponent* Skel = nullptr; bool bDriver = false, bAboard = false, bSeated = false;
+		TWeakObjectPtr<AActor> A; USkeletalMeshComponent* Skel = nullptr; bool bDriver = false, bAboard = false, bSeated = false; uint8 Way = 0;   // (Way: 1 getting on, 2 getting off)
 		FTruckDriverRig* Rig = nullptr; UPoseableMeshComponent* Mesh = nullptr; class UDriverPoseAnim* Anim = nullptr; FTransform BodyInActor; bool bPosed = false;
 		FVector At = FVector::ZeroVector; float Yaw = 0.f;   // (aboard: in the root space)
 		TArray<FAct> Q; float T = 0.f; FPoseFn Hold; FDriverPose Last, From; bool bLast = false, bFrom = false; float BlendT = 1.f;
@@ -199,6 +199,9 @@ private:
 	FDriverPose HoldPole(const FRider& R, float PH) const;
 	void RailHands(FDriverPose& P, const TArray<FVector>& Rails) const;
 	bool PickSeat(FRider& R);
+	void FreeSeats(TArray<TPair<int32, FVector>>& Free, TArray<TPair<int32, FVector>>& All) const;
+	void GoSeat(FRider& R, bool bAgain);
+	bool MayLeave(const FRider& R) const;
 	void TickDriver(float Dt);
 	void TickDrive(float Dt);
 	bool YouAboard() const;

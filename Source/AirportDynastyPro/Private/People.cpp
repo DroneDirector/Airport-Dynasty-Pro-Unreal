@@ -762,7 +762,7 @@ void AADPPeople::StartWanderers()
 bool AADPPeople::SitOn(AActor* Who, int32 Seat, const TArray<FBox2D>& Area, float FloorZ)
 {
 	FVector SAt, SF; float SH;
-	if (!Who || !Find(Who) || !ASeats::SeatOf(Seat, SAt, SF, SH)) return false;
+	if (!Who || !Find(Who) || !ASeats::SeatOf(Seat, SAt, SF, SH) || !ASeats::ClaimSeat(Who, Seat)) return false;   // (never on another's, nor yours)
 	FStroll S; S.A = Who; S.Area = Area; S.FloorZ = FloorZ; S.Habit = EHabit::Bench; S.bHeld = true;
 	for (int32 i = 0; i < Area.Num(); ++i) S.AreaIds.Add(TEXT("PAXFLOW"));
 	S.Seat = Seat; SeatFor(S, SAt, SF, SH); S.To = FVector(SAt.X, SAt.Y, FloorZ) + SF * 60.f; S.Doing = EDoing::ToSeat; S.T = 0.f; S.SitPose = Rng.RandRange(0, 7);
@@ -889,14 +889,15 @@ void AADPPeople::NextThing(FStroll& S)
 		}
 		for (int32 Try = 0; Try < 6 && Free.Num(); ++Try)
 		{
-			const int32 I = Free[Rng.RandRange(0, Free.Num() - 1)];
+			int32 I = Free[Rng.RandRange(0, Free.Num() - 1)];
+			if (Try < 3) if (const int32 In = ASeats::Innermost(I); Free.Contains(In)) I = In;   // (a row against a wall: its inner end first)
 			FVector SAt, SF; float SH; ASeats::SeatOf(I, SAt, SF, SH);
 			const FVector Front = FVector(SAt.X, SAt.Y, S.FloorZ) + SF * 60.f;
 			FCollisionQueryParams Q(SCENE_QUERY_STAT(PeopleSeat), false, A);
 			bool bIn = true; const float L = FVector::Dist2D(From, Front);
 			for (float d = 0.f; d < L && bIn; d += 100.f) bIn = InArea(S, FMath::Lerp(From, Front, d / FMath::Max(L, 1.f)));
 			if (!bIn || GetWorld()->SweepTestByChannel(From + FVector(0, 0, 100.f), Front + FVector(0, 0, 100.f), FQuat::Identity, ECC_Pawn, FCollisionShape::MakeCapsule(28.f, 55.f), Q)) continue;
-			if (ASeats::Claim(A, SAt) == I) { S.Seat = I; S.KeptSeat = INDEX_NONE; SeatFor(S, SAt, SF, SH); S.To = Front; S.Doing = EDoing::ToSeat; S.T = 0.f; S.SitPose = Rng.RandRange(0, 7); S.CrossLift = 0.f; static bool bCrossTest = FParse::Param(FCommandLine::Get(), TEXT("UICrossLegs")); if (bCrossTest) S.SitPose = 8; return; }
+			if (ASeats::ClaimSeat(A, I)) { S.Seat = I; S.KeptSeat = INDEX_NONE; SeatFor(S, SAt, SF, SH); S.To = Front; S.Doing = EDoing::ToSeat; S.T = 0.f; S.SitPose = Rng.RandRange(0, 7); S.CrossLift = 0.f; static bool bCrossTest = FParse::Param(FCommandLine::Get(), TEXT("UICrossLegs")); if (bCrossTest) S.SitPose = 8; return; }
 		}
 	}
 	if (R > 0.82f) { FVector Spot; float Yaw; if (WallSpot(S, From, Spot, Yaw)) { S.To = Spot; S.LeanYaw = Yaw; S.Doing = EDoing::Lean; S.T = -1.f; S.For = Rng.FRandRange(15.f, 45.f); return; } }
@@ -1163,13 +1164,25 @@ void AADPPeople::StepStrollers(float Dt)
 				if (S.T >= S.For) { A->SetActorRotation(FRotator(0.f, S.LeanYaw - 90.f, 0.f)); S.Doing = EDoing::Stand; S.T = 0.f; S.For = Rng.FRandRange(1.f, 4.f); }
 				break;
 			}
+			// the seat it walks to became yours (to-do 293): another one, or handed back to PaxFlow on its feet
+			if (S.Doing == EDoing::ToSeat)
+			{
+				FVector SAt, SF; float SH;
+				if (!SeatFor(S, SAt, SF, SH) || !ASeats::HoldsAt(A, SAt))
+				{
+					ASeats::Release(A); ADP_LOG(TEXT("People: %s was walking to seat %d - it is taken now, another one"), *W->Name, S.Seat);
+					S.Seat = S.KeptSeat = INDEX_NONE;
+					if (S.bHeld) S.bRelease = true; else { S.Doing = EDoing::Stand; S.T = 0.f; S.For = Rng.FRandRange(0.4f, 1.2f); }
+					break;
+				}
+			}
 			// you in its way, close ahead: it stops and waits for you
 			const FVector Ahead = (S.To - A->GetActorLocation()).GetSafeNormal2D(), ToMe = Me - A->GetActorLocation();
 			if (ToMe.Size2D() < 110.f && FVector::DotProduct(ToMe.GetSafeNormal2D(), Ahead) > 0.5f) { WalkTo(W, A->GetActorLocation(), Dt, 50.f); break; }
 			if (WalkTo(W, S.To, Dt, 40.f))
 			{
 				if (S.Doing == EDoing::Lean) S.T = 0.f;
-				else if (S.Doing == EDoing::ToSeat) { S.Doing = EDoing::SitDown; S.T = 0.f; }
+				else if (S.Doing == EDoing::ToSeat) { S.Doing = EDoing::SitDown; S.T = 0.f; ASeats::Sat(A); }
 				else { S.Doing = EDoing::Stand; S.T = 0.f; S.For = Rng.FRandRange(2.f, 8.f); }
 			}
 			// (never out of its rooms, whatever happens)

@@ -19,6 +19,7 @@
 // fingers closing round what they hold), at the tug's IK points (Tools/make_pushback_tug.py: IK_Step, IK_Grab_Outside,
 // IK_Seat_Driver, IK_Hand_L/R, IK_Foot_Brake ...). Next: the radio and interphone talk and the timed 11 steps.
 #include "Tugs.h"
+#include "Seats.h"
 #include "PaxAnimInstance.h"
 #include "Components/BoxComponent.h"
 #include "GSE.h"
@@ -387,7 +388,11 @@ ATugs::FPoseFn ATugs::ClimbFn(int32 Tug, bool bIn) const
 
 void ATugs::ClimbIn(FCrew& C, int32 Tug, TFunction<void()> Then)
 {
+	// (the driver's seat in the one record, to-do 293: claimed before they walk, again at the door; never while you are on it)
+	FCrewAct Cs; Cs.Kind = FCrewAct::WaitFor; Cs.Until = [this, &C, Tug](float E) { AActor* A = C.A.Get(); return !A || ASeats::ClaimCab(Tugs[Tug].M.Get(), 0, A, E > 30.f); }; C.Q.Add(Cs);
 	FCrewAct W; W.Kind = FCrewAct::Walk; W.To = [this, Tug] { return TugW(Tugs[Tug], DoorStand); }; W.Stop = 15.f; C.Q.Add(W);
+	C.Q.Add(Cs);
+	FCrewAct Sa; Sa.Kind = FCrewAct::Do; Sa.Fn = [&C] { ASeats::CabSat(C.A.Get()); }; C.Q.Add(Sa);
 	// the hand to the door handle, the door swung open (its sound), up and in, sat, the door pulled shut
 	FCrewAct R; R.Kind = FCrewAct::Pose; R.Dur = 1.0f;
 	R.PoseFn = [this, Tug](float K, float PH, FDriverPose& P) { const FTug& T = Tugs[Tug]; P = Reach(TugW(T, DoorStand), FRotator(0.f, T.Yaw + 90.f, 0.f).Vector(), 1, TugW(T, FVector(-5.f, -124.f, 118.f)), 0.7f, PH, FMath::Sin(PI * K)); };
@@ -406,6 +411,7 @@ void ATugs::ClimbOut(FCrew& C, int32 Tug)
 	FCrewAct Wt; Wt.Kind = FCrewAct::Wait; Wt.Dur = 0.8f; C.Q.Add(Wt);
 	FCrewAct H; H.Kind = FCrewAct::Do; H.Fn = [&C] { C.Hold = nullptr; }; C.Q.Add(H);
 	FCrewAct Cl; Cl.Kind = FCrewAct::Pose; Cl.Dur = 3.0f; Cl.PoseFn = ClimbFn(Tug, false); C.Q.Add(Cl);
+	FCrewAct L; L.Kind = FCrewAct::Do; L.Fn = [&C] { ASeats::ReleaseCab(C.A.Get()); }; C.Q.Add(L);
 	// down on the ground: the door pushed shut behind
 	FCrewAct R; R.Kind = FCrewAct::Pose; R.Dur = 0.9f;
 	R.PoseFn = [this, Tug](float K, float PH, FDriverPose& P) { const FTug& T = Tugs[Tug]; P = Reach(TugW(T, DoorStand), FRotator(0.f, T.Yaw + 90.f, 0.f).Vector(), 1, TugW(T, FVector(-5.f, -128.f, 118.f)), 0.3f, PH, FMath::Sin(PI * K)); if (K > 0.4f) const_cast<FTug&>(T).DoorWant = 0.f; };
