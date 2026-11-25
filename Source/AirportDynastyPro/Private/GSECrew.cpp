@@ -93,6 +93,7 @@ int32 AGSE::Borrow(const FVector& Near, int32* Pre, int32 Boss, EStaffDuty Duty)
 		for (int32 i = 0; i < G->Crew.Num(); ++i)
 		{
 			const ATugs::FCrew& C = G->Crew[i]; if (!Idle(C)) continue;
+			if ((C.A->GetActorLocation().Y < -24000.0) != (Near.Y < -24000.0)) continue;   // (the remote stands: the other side of taxilane T)
 			bool bOk = false;
 			if (pass == 0) bOk = C.bWalker && C.Tug == INDEX_NONE && FreeW > 3;
 			if (pass == 1) bOk = !C.bWalker && G->Tugs.IsValidIndex(C.Tug) && G->Tugs[C.Tug].State == ATugs::EState::Parked && G->Tugs[C.Tug].Key.IsEmpty();
@@ -345,7 +346,7 @@ void AGSE::Curtains(int32 Ci, int32 Ti, bool bOpen, TFunction<void()> Then, cons
 	// both hands and rolled up over the head - or down and strapped again
 	const FTractor& T = Tractors[Ti];
 	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(T.StandX, S, N, Sp);
-	const FVector Craft = Toward ? *Toward : Plan(S, N + 8.f);   // (the side towards the aircraft - or the make-up carousel)
+	const FVector Craft = Toward ? *Toward : PlanT(S, S, N + 8.f);   // (the side towards the aircraft - or the make-up carousel)
 	for (const int32 c : T.Train)
 	{
 		if (!Carts.IsValidIndex(c)) continue;
@@ -490,7 +491,7 @@ void AGSE::TrainApron(int32 Ti)
 	// aircraft's right side (away from its jetway), 11 m out from its centre line: from there straight up beside it to
 	// the belt loader's bottom end, behind the wing, clear of the tailplane
 	TArray<FVector> W;
-	if (!Apron(W, T.At, Plan(S - 11.f, N + 48.f), &T)) { RetryIn(Ti, 8.f, [this, Ti] { TrainApron(Ti); }); return; }
+	if (!Apron(W, T.At, PlanT(S, S - 11.f, N + 48.f), &T)) { RetryIn(Ti, 8.f, [this, Ti] { TrainApron(Ti); }); return; }
 	ADP_LOG(TEXT("GSE: %s's train to %s at the stand x %.0f"), *T.Name, *T.Key, S);
 	Go(T, MoveTemp(W), false, [this, Ti] { TrainHoldIn(Ti); });
 }
@@ -501,7 +502,7 @@ void AGSE::TrainHoldIn(int32 Ti)
 	// then in ahead of the wing to its place beside the forward hold, facing the terminal (its way out ahead of it)
 	FTractor& T = Tractors[Ti];
 	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(T.StandX, S, N, Sp);
-	const FVector Nose = Plan(S, N);
+	const FVector Nose = PlanT(S, S, N);
 	// (and the belt loader in its place first - it turns in across this side)
 	T.Until = [this, Nose, S, Ti]
 	{
@@ -514,7 +515,7 @@ void AGSE::TrainHoldIn(int32 Ti)
 	{
 		FTractor& U = Tractors[Ti];
 		TArray<FVector> W;
-		Leg(W, S - 11.f, N + 48.f, 0.f, -1.f, S - 11.f, N + 25.74f, 0.f, -1.f, 400.f);   // (the tractor's front 24 m behind the nose wheel)
+		LegT(S, W, S - 11.f, N + 48.f, 0.f, -1.f, S - 11.f, N + 25.74f, 0.f, -1.f, 400.f);   // (the tractor's front 24 m behind the nose wheel)
 		Go(U, MoveTemp(W), false, [this, Ti] { TrainLoad(Ti); });
 	};
 }
@@ -548,7 +549,7 @@ void AGSE::TrainHome(int32 Ti)
 	TArray<FVector> W;
 	float Yw = 0.f; const FVector A = PlanPose(Xc, N + 30.f, 0.f, 1.f, Yw);
 	Dubins(W, T.At, T.Yaw, A, Yw, 400.f);
-	Leg(W, Xc, N + 30.f, 0.f, 1.f, Xc, N + 46.f, 0.f, 1.f, 400.f);
+	LegT(S, W, Xc, N + 30.f, 0.f, 1.f, Xc, N + 46.f, 0.f, 1.f, 400.f);
 	ADP_LOG(TEXT("GSE: %s's train leaves the stand x %.0f"), *T.Name, S);
 	Go(T, MoveTemp(W), false, [this, Ti]
 	{
@@ -636,8 +637,8 @@ void AGSE::GpuApron(int32 Ti, int32 Gate)
 	FVector Hook = Eye + Gf * 162.f; Hook = Plan(Hook.X / 100.f, -Hook.Y / 100.f);
 	FVector Pre = Hook + Gf * 263.f; Pre = Plan(Pre.X / 100.f, -Pre.Y / 100.f);
 	TArray<FVector> W;
-	if (!Apron(W, T.At, Plan(S - 5.f, N + 16.f), &T)) { RetryIn(Ti, 8.f, [this, Ti, Gate] { GpuApron(Ti, Gate); }); return; }
-	float Yd = 0.f; const FVector D0 = PlanPose(S - 5.f, N + 16.f, 0.f, -1.f, Yd);
+	if (!Apron(W, T.At, PlanT(S, S - 5.f, N + 16.f), &T)) { RetryIn(Ti, 8.f, [this, Ti, Gate] { GpuApron(Ti, Gate); }); return; }
+	float Yd = 0.f; const FVector D0 = PoseT(S, S - 5.f, N + 16.f, 0.f, -1.f, Yd);
 	Dubins(W, D0, Yd, Pre, Gy, 350.f);
 	Go(T, MoveTemp(W), false, [this, Ti, Gate, Hook, Gy]
 	{
@@ -686,9 +687,9 @@ void AGSE::GpuLeave(int32 Ti, int32 Gate)
 	if (const ATugs* G = Tg()) if (G->Tugs.IsValidIndex(Gate)) StandGeo(G->Tugs[Gate].StandX, S, N, Sp);
 	// round to the stand and down it, back across the apron and into the building, nose-in into its box
 	TArray<FVector> W;
-	float Yw = 0.f; const FVector A = PlanPose(S - 1.f, N + 2.f, 0.f, 1.f, Yw);
+	float Yw = 0.f; const FVector A = PoseT(S, S - 1.f, N + 2.f, 0.f, 1.f, Yw);
 	Dubins(W, T.At, T.Yaw, A, Yw, 350.f);
-	Leg(W, S - 1.f, N + 2.f, 0.f, 1.f, S - 1.f, N + 16.f, 0.f, 1.f, 350.f);
+	LegT(S, W, S - 1.f, N + 2.f, 0.f, 1.f, S - 1.f, N + 16.f, 0.f, 1.f, 350.f);
 	Go(T, MoveTemp(W), false, [this, Ti]
 	{
 		FTractor& U = Tractors[Ti];

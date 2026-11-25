@@ -315,5 +315,15 @@ private:
 	 *  zones, the stand boundary lines and the terminal; first backing off (or pulling forward) when the obstacle is right
 	 *  in front of (behind) it. False if there is no way. */
 	bool RouteHome(FTug& T);
+public:
+	/** A place at the gate worked out terminal-way (y 85 the terminal's front .. 110 ahead of the nose), where it is at the stand at StandX: at a
+	 *  remote stand turned, and drawn in to the 22 m of apron before its bus road. StandT: turned only. */
+	FVector GateT(float StandX, float X, float Y) const;
+	FVector StandT(float StandX, float X, float Y) const;
+	/** Its tug's box and loop, terminal-way: a remote stand's straight ahead of the nose, 8 m clear, the way in on the side away from the GPU's front. */
+	static bool RemoteStand(float StandX);
+	static void BoxT(float StandX, float& Side, float& Run, float& Y);
+	/** On the same side of taxilane T as that stand. */
+	bool SameSide(const FCrew& C, float StandX) const;
 	bool PathBlocked(const FTug& T, const TArray<FVector>& Path, const FVector& From) const;
 };

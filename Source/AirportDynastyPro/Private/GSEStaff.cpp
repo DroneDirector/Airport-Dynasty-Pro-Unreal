@@ -155,7 +155,7 @@ void AGSE::HiredWay(int32 Ci, const FVector& Near, float StandX)
 		float S = 0.f, N = 0.f, Sp = 36.f;
 		if (FVector::Dist2D(Me, Near) < 1500.f || !StandGeo(StandX, S, N, Sp)) return;
 		G->SafeWay(C, S);
-		Walk(Plan(S - Sp * 0.5f - 4.f, N + 21.f), 60.f);
+		Walk(PlanT(S, S - Sp * 0.5f - 4.f, N + 21.f), 60.f);
 		return;
 	}
 	if (-Me.Y / 100.f < 83.f) return;   // (inside already)
@@ -190,8 +190,8 @@ void AGSE::GiveBackHired(int32 Ci, float StandX)
 	{
 		// out past the wingtip, then up the stand's crew side (the same way they came)
 		const float X = S - Sp * 0.5f - 4.f;
-		WalkTo(Ci, [this, X, N] { return Plan(X, N + 21.f); }, 60.f);
-		WalkTo(Ci, [this, X] { return Plan(X, 104.f); }, 100.f);
+		WalkTo(Ci, [this, S, X, N] { return PlanT(S, X, N + 21.f); }, 60.f);
+		WalkTo(Ci, [this, G, S, X] { return G->GateT(S, X, 104.f); }, 100.f);
 	}
 	else if (C.A.IsValid() && -C.A->GetActorLocation().Y / 100.f < 83.f) WalkTo(Ci, [this] { return Plan(271.6f, 88.f); }, 40.f);   // (never left in the building: out by Ramp services 13)
 	G->LeaveAct(C);

@@ -268,7 +268,7 @@ void AGSE::LoadBy(int32 P, int32 Ti, int32 Li, int32 h)
 	ADepartureBelts* D = ADepartureBelts::Get(GetWorld());
 	FTractor& T = Tractors[Ti]; const float StandX = T.StandX;
 	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(StandX, S, N, Sp);
-	const FVector Craft = Plan(S, N + 8.f);
+	const FVector Craft = PlanT(S, S, N + 8.f);
 	int32 c = INDEX_NONE, s = INDEX_NONE;
 	if (D) for (const int32 k : T.Train) { for (int32 i = Carts[k].Bags.Num() - 1; i >= 0 && s == INDEX_NONE; --i) if (Carts[k].Bags[i] != INDEX_NONE && !SlotTaken.Contains(k * 100 + i)) { c = k; s = i; } if (s != INDEX_NONE) break; }
 	if (s == INDEX_NONE)

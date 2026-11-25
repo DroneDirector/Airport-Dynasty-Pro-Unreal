@@ -282,7 +282,7 @@ void ATugs::YouCrew(int32 Tug, bool bLive, const FDateTime& When, const FString&
 	SafeWay(H, Sx);
 	const bool bAt = Crew.IsValidIndex(T.YouGpuCi) && !Crew[T.YouGpuCi].bSlotFree && Crew[T.YouGpuCi].Q.Num() && T.Walkers.Contains(T.YouGpuCi);
 	if (T.Gpu.bConnected && !bAt) { T.YouGpuCi = Ci; GpuDisconnect(Tug, H); }
-	if (!T.bYouGo) { FCrewAct A; A.Kind = FCrewAct::Walk; A.To = [this, Sx] { return Plan(Sx - 18.5f, 104.f); }; A.Stop = 60.f; H.Q.Add(A); }
+	if (!T.bYouGo) { FCrewAct A; A.Kind = FCrewAct::Walk; A.To = [this, Sx] { return GateT(Sx, Sx - 18.5f, 104.f); }; A.Stop = 60.f; H.Q.Add(A); }
 	else H.Follow = [this, Tug] { const FTug& U = Tugs[Tug]; return U.Fit - U.Fwd * 60.f - TgL(U.Fwd) * 230.f; };
 }
 
@@ -330,7 +330,7 @@ void ATugs::YouDrop(int32 Tug, const TCHAR* Why)
 	FTug& T = Tugs[Tug]; ADP_LOG(TEXT("Tugs: your push of %s is over - %s"), *T.Key, Why);
 	WalkersDone(Tug); YouMarks(nullptr, {});
 	T.bYouPush = T.bYouDone = T.bYouGo = T.bYouCrewIn = false; T.YouUn = 0; T.Key.Reset(); T.Seq = 0; T.Talk.Reset(); T.YouWhy.Reset(); T.YouPlane.Reset(); T.YouBend = 0.f; T.bPinShown = true;
-	if (T.Handler != INDEX_NONE && !Crew[T.Handler].Hold) { FCrew& H = Crew[T.Handler]; H.Follow = nullptr; if (T.Gpu.Holder != T.Handler) H.Q.Reset(); FCrewAct A; A.Kind = FCrewAct::Walk; A.To = [this, Sx = T.StandX] { return Plan(Sx - 18.5f, 104.f); }; A.Stop = 80.f; A.Max = 150.f; H.Q.Add(A); }
+	if (T.Handler != INDEX_NONE && !Crew[T.Handler].Hold) { FCrew& H = Crew[T.Handler]; H.Follow = nullptr; if (T.Gpu.Holder != T.Handler) H.Q.Reset(); FCrewAct A; A.Kind = FCrewAct::Walk; A.To = [this, Sx = T.StandX] { return GateT(Sx, Sx - 18.5f, 104.f); }; A.Stop = 80.f; A.Max = 150.f; H.Q.Add(A); }
 	if (T.bHired && T.Handler != INDEX_NONE) LeaveAct(Crew[T.Handler]);   // (the tug its gate's own again once they are off: HiredTick)
 	if (!YouHook(T)) T.YouStep = 0;
 }

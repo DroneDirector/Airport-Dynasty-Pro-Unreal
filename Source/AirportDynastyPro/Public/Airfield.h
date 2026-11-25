@@ -31,6 +31,8 @@ struct AIRPORTDYNASTYPRO_API FAirfieldData
 	{
 		float X = 0, Y = 0, K = 1;   // (plan m: the nose wheel; K 1 nose to -y, -1 nose to +y)
 		FVector2f P(float Side, float Aft) const { return FVector2f(X + K * Side, Y + K * Aft); }
+		/** Terminal-way plan metres (as if the stand were a terminal one standing here) to the real ones, and back: a half turn round the nose wheel. */
+		FVector2f Turn(const FVector2f& At) const { return K > 0.f ? At : FVector2f(2.f * X - At.X, 2.f * Y - At.Y); }
 		FVector2f Way(float Hx, float Hy) const { return FVector2f(K * Hx, K * Hy); }                       // (a direction, as on a terminal stand)
 		FVector2f Local(const FVector2f& At) const { return FVector2f(K * (At.X - X), K * (At.Y - Y)); }   // (a plan point's Side and Aft)
 		FVector2f Face() const { return FVector2f(0.f, -K); }                                               // (the way the nose points)

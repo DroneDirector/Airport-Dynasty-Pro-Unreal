@@ -362,6 +362,12 @@ private:
 	void RouteOut(FTractor& T, TFunction<void()> Then);       // the lane -> the hall -> Ramp services 13 -> the apron
 	void RouteIn(FTractor& T, const FVector& ApronFrom, float FromYaw, TFunction<void()> Then);  // the apron -> the lane
 	bool StandGeo(float StandX, float& S, float& N, float& Span) const;
+	/** Worked out terminal-way round StandGeo's S and N (nose to -y), placed as the stand at StandX really faces (FStandFrame::Turn):
+	 *  a terminal stand's come out exactly as Plan, PlanPose and Leg. AftY: a world point's terminal-way plan y. */
+	FVector PlanT(float StandX, float X, float Y) const;
+	FVector PoseT(float StandX, float X, float Y, float Hx, float Hy, float& Yaw) const;
+	void LegT(float StandX, TArray<FVector>& Out, float X0, float Y0, float Hx0, float Hy0, float X1, float Y1, float Hx1, float Hy1, float R) const;
+	double AftY(float StandX, const FVector& W) const;
 	FAirfieldData::FStandFrame StandFrame(float StandX) const;
 	bool AircraftAt(float StandX) const;
 	bool PlaneNear(const FVector& At, float R) const;
@@ -388,6 +394,7 @@ private:
 	void LoaderApron(int32 Li);
 	void LoaderIn(int32 Li);
 	void LoaderLeave(int32 Li);
+	void LoaderHome(int32 Li);
 	FVector BoomW(const FTractor& T, const FVector& BoomLocal) const;
 	void LoadingCycles(int32 Ci, int32 Ti, int32 Li, float Seconds);
 	// the bags (DepartureBelts.h): the crew at the flight's make-up carousel ahead of its bags, each bag lifted off by its

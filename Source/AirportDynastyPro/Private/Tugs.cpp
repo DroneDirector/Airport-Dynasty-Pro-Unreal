@@ -74,6 +74,36 @@ ATugs* ATugs::Get(UWorld* W)
 	return T;
 }
 
+bool ATugs::RemoteStand(float StandX)
+{
+	const FAirfieldData::FStand* St = AAirfield::Shared().StandAt(StandX);
+	return St && St->bRemote;
+}
+
+void ATugs::BoxT(float StandX, float& Side, float& Run, float& Y)
+{
+	Side = BoxX; Run = -1.f; Y = BoxY;
+	if (RemoteStand(StandX)) { Side = 0.f; Run = -12.f; Y = AAirfield::Shared().StandAt(StandX)->Frame().Y - 17.f; }
+}
+
+FVector ATugs::StandT(float StandX, float X, float Y) const
+{
+	const FAirfieldData::FStand* St = AAirfield::Shared().StandAt(StandX);
+	const FVector2f P = St ? St->Frame().Turn(FVector2f(X, Y)) : FVector2f(X, Y);
+	return Plan(P.X, P.Y);
+}
+
+FVector ATugs::GateT(float StandX, float X, float Y) const
+{
+	if (!RemoteStand(StandX)) return Plan(X, Y);
+	return StandT(StandX, X, AAirfield::Shared().StandAt(StandX)->Frame().Y - 20.f + (Y - 86.f) * 11.f / 24.f);
+}
+
+bool ATugs::SameSide(const FCrew& C, float StandX) const
+{
+	return C.A.IsValid() && (C.A->GetActorLocation().Y < -24000.0) == RemoteStand(StandX);
+}
+
 FVector ATugs::Plan(float X, float Y) const
 {
 	// (inside the terminal - the baggage hall, the departure cart lane, where the crew walk to the baggage tractors - its
@@ -91,8 +121,9 @@ void ATugs::Setup()
 	// an arriving aircraft stops ~7 m short of its towbar; nothing on a red marking or under a wing
 	for (const FAirfieldData::FStand& St : AAirfield::Shared().Stands)
 	{
-		if (!St.bJetway || St.bCargo || St.Span > 40.f) continue;
-		FTug T; T.StandX = St.X; T.StandNose = St.Nose; T.StandDir = St.Dir; T.Home = T.At = Plan(St.X + BoxX, BoxY);
+		if ((!St.bJetway && !St.bRemote) || St.bCargo || St.Span > 40.f) continue;
+		float Bs = 0.f, Br = 0.f, By = 0.f; BoxT(St.X, Bs, Br, By);
+		FTug T; T.StandX = St.X; T.StandNose = St.Nose; T.StandDir = St.Dir; T.Home = T.At = StandT(St.X, St.X + Bs, By);
 		T.HomeYaw = T.Yaw = FVector(0.f, St.Frame().Face().Y, 0.f).Rotation().Yaw;   // (facing along the stand, away from the terminal: plan +y is world -y)
 		if (SpawnAt(T)) { Pose(T); GpuSetup(T); Tugs.Add(T); }
 	}
@@ -369,6 +400,7 @@ bool ATugs::Push(const FString& Key, float StandX, const FVector& Fitting, const
 		T.State = EState::ToNose; T.bReverse = false; ADP_LOG(TEXT("Tugs: in to the nose of %s"), *Key);
 		const FVector In = T.HookAt + F * 800.f;          // 8 m short of the hook place, in line with the nose
 		T.Path = {Plan(StandX + BoxX, BoxY + 6.f), Plan(StandX + BoxX * 0.5f, BoxY + 12.5f), Plan(StandX, BoxY + 18.f), T.Handler != INDEX_NONE ? T.HookAt + F * 150.f : T.HookAt};
+		if (RemoteStand(StandX)) T.Path = {T.Handler != INDEX_NONE ? T.HookAt + F * 150.f : T.HookAt};   // (its box is on the centre line)
 		if (T.YouStep > 0) { T.Path.Reset(); if (FVector::Dist2D(T.At, T.HookAt) > 30.f) { T.Path = {T.HookAt}; T.YouStep = 0; } }   // (you coupled it: already there)
 		// (with a handler it stops 1.5 m short: he waves it in the last bit)   // (out of its box in a smooth S-curve onto the centre line, then straight in)
 	}
@@ -747,8 +779,9 @@ bool ATugs::RouteHome(FTug& T)
 {
 	TArray<FVector2f> Others; for (const FTug& O : Tugs) if (&O != &T) Others.Add(ToPlan(O.At));
 	FApronObs Ob; Ob.Build(GetWorld(), Others);
-	const float Sx = T.StandX, Ly = BoxY + 3.4f;
-	const FVector2f Start = ToPlan(T.At), Goal(Sx - 1.f, Ly + 8.f);
+	float Bs = 0.f, Run = -1.f, By = BoxY; BoxT(T.StandX, Bs, Run, By); const bool bRem = RemoteStand(T.StandX);
+	const float Sx = T.StandX, Ly = By + 3.4f;
+	const FVector2f Start = ToPlan(T.At), Goal = ToPlan(StandT(Sx, Sx + Run, Ly + 8.f));
 	// boxed in? back off (or pull forward) first, 6 m, whichever way is free (owner 2026-11-21)
 	const FVector Fw3 = FRotator(0.f, T.Yaw, 0.f).Vector(); const FVector2f Fw(Fw3.X, -Fw3.Y);
 	T.Pending.Reset();
@@ -766,7 +799,7 @@ bool ATugs::RouteHome(FTug& T)
 	auto Cell = [&](const FVector2f& P) { return FIntPoint(FMath::Clamp(FMath::RoundToInt((P.X - Lo.X) / C), 0, Nx - 1), FMath::Clamp(FMath::RoundToInt((P.Y - Lo.Y) / C), 0, Ny - 1)); };
 	auto At = [&](int32 x, int32 y) { return FVector2f(Lo.X + x * C, Lo.Y + y * C); };
 	TArray<uint8> Bl; Bl.SetNumZeroed(Nx * Ny);
-	for (int32 y = 0; y < Ny; ++y) for (int32 x = 0; x < Nx; ++x) Bl[y * Nx + x] = Ob.Blocked(At(x, y)) ? 1 : 0;
+	for (int32 y = 0; y < Ny; ++y) for (int32 x = 0; x < Nx; ++x) Bl[y * Nx + x] = Ob.Blocked(At(x, y)) || (bRem && At(x, y).Y > 245.f && !AAirfield::Shared().OnRemote(At(x, y))) ? 1 : 0;
 	const FIntPoint S = Cell(Escape), G = Cell(Goal);
 	Bl[S.Y * Nx + S.X] = 0; Bl[G.Y * Nx + G.X] = 0;
 	TArray<float> Cost; Cost.Init(1e9f, Nx * Ny); TArray<int32> From; From.Init(-1, Nx * Ny);
@@ -792,8 +825,8 @@ bool ATugs::RouteHome(FTug& T)
 	while (k < Cells.Num() - 1) { int32 Far = k + 1; for (int32 j = Cells.Num() - 1; j > k + 1; --j) if (Ob.LineClear(Cells[k], Cells[j])) { Far = j; break; } Way.Add(Cells[Far]); k = Far; }
 	TArray<FVector> Route; for (int32 i = 1; i < Way.Num(); ++i) Route.Add(Plan(Way[i].X, Way[i].Y));
 	// then the loop in front of the terminal and back into the box, as always
-	Route.Add(Plan(Sx - 1.f, Ly)); const float Rl = 6.f;
-	for (int32 j = 1; j <= 8; ++j) { const float A = PI * j / 8.f; Route.Add(Plan(Sx - 1.f - Rl + Rl * FMath::Cos(A), Ly - Rl * FMath::Sin(A))); }
+	const float Rl = 6.f, Rt = bRem ? -Rl : Rl; Route.Add(StandT(Sx, Sx + Run, Ly));
+	for (int32 j = 1; j <= 8; ++j) { const float A = PI * j / 8.f; Route.Add(StandT(Sx, Sx + Run - Rt + Rt * FMath::Cos(A), Ly - Rl * FMath::Sin(A))); }
 	if (Escape != Start) { T.Pending = Route; T.bPendingReverse = false; T.Path = {Plan(Escape.X, Escape.Y)}; T.bReverse = bEscRev; }
 	else { T.Path = Route; T.bReverse = false; }
 	ADP_LOG(TEXT("Tugs: round the obstacle - a way home of %d legs"), Route.Num());
@@ -806,9 +839,10 @@ void ATugs::StartHome(FTug& T)
 	// terminal ending in line with its box facing the gate, then reversed straight into the box - as real drivers park;
 	// only if something is in the way that shouldn't be there (owner 2026-11-21): round it (RouteHome)
 	ADP_LOG(TEXT("Tugs: clear of %s, home to the park"), *T.Key); T.State = EState::Home; T.Key.Reset(); T.bReverse = false; T.RouteCheck = 0.f;
-	const float Sx = T.StandX, Rl = 6.f, Ly = BoxY + 3.4f;
-	T.Path = {Plan(Sx - 1.f, Ly + 40.f), Plan(Sx - 1.f, Ly)};
-	for (int32 k = 1; k <= 8; ++k) { const float A = PI * k / 8.f; T.Path.Add(Plan(Sx - 1.f - Rl + Rl * FMath::Cos(A), Ly - Rl * FMath::Sin(A))); }
+	float Bs = 0.f, Run = -1.f, By = BoxY; BoxT(T.StandX, Bs, Run, By);
+	const float Sx = T.StandX, Rl = 6.f, Rt = RemoteStand(Sx) ? -Rl : Rl, Ly = By + 3.4f;
+	T.Path = {StandT(Sx, Sx + Run, Ly + 40.f), StandT(Sx, Sx + Run, Ly)};
+	for (int32 k = 1; k <= 8; ++k) { const float A = PI * k / 8.f; T.Path.Add(StandT(Sx, Sx + Run - Rt + Rt * FMath::Cos(A), Ly - Rl * FMath::Sin(A))); }
 	if (PathBlocked(T, T.Path, T.At)) RouteHome(T);
 }
 

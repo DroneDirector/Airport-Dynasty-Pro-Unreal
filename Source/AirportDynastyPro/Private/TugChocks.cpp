@@ -302,10 +302,10 @@ void ATugs::ChkWork(int32 Tug, int32 Ci)
 	// and what they go on to
 	if (Ck.bOwn)
 	{
-		if (C.bHired) { C.Q.Add(CkWalk(Plan(T.StandX - 18.5f, 104.f), 80.f)); LeaveAct(C); }
+		if (C.bHired) { C.Q.Add(CkWalk(GateT(T.StandX, T.StandX - 18.5f, 104.f), 80.f)); LeaveAct(C); }
 		else { C.Q.Add(CkWalk(C.Spot, 30.f)); C.Q.Add(CkDo([this, Ci] { Crew[Ci].bGse = false; Crew[Ci].AnchorYaw = Crew[Ci].SpotYaw; })); }
 	}
-	else if (Stage == 3) C.Q.Add(CkWalk(T.Handler == Ci ? Plan(T.StandX - 6.f, 110.f) : Plan(T.StandX - 19.5f, 100.f), 40.f));
+	else if (Stage == 3) C.Q.Add(CkWalk(T.Handler == Ci ? GateT(T.StandX, T.StandX - 6.f, 110.f) : GateT(T.StandX, T.StandX - 19.5f, 100.f), 40.f));
 }
 
 int32 ATugs::ChkWorker(int32 Tug)
@@ -335,7 +335,7 @@ int32 ATugs::ChkWorker(int32 Tug)
 		return Ci;
 	}
 	for (int32 i = 0; i < Crew.Num(); ++i)
-		if (Crew[i].bWalker && Crew[i].Tug == INDEX_NONE && !Crew[i].bGse && !Crew[i].bHired && Idle(i))
+		if (Crew[i].bWalker && Crew[i].Tug == INDEX_NONE && !Crew[i].bGse && !Crew[i].bHired && Idle(i) && SameSide(Crew[i], T.StandX))
 		{
 			Crew[i].bGse = true; SafeWay(Crew[i], T.StandX); return i;   // (bGse: at another job)
 		}

@@ -256,7 +256,7 @@ bool AGSE::YouAtCarousel(const FString& F) const
 bool AGSE::TrainInPlace(const FTractor& T, float StandX) const
 {
 	float S = 0.f, N = 0.f, Sp = 36.f; if (T.Player.IsValid() || FMath::Abs(T.Speed) > 0.5f || !StandGeo(StandX, S, N, Sp)) return false;
-	const FVector D = T.At - Plan(S - 11.f, N + 25.74f); float Yw = 0.f; PlanPose(S, N, 0.f, -1.f, Yw);
+	const FVector D = T.At - PlanT(S, S - 11.f, N + 25.74f); float Yw = 0.f; PoseT(S, S, N, 0.f, -1.f, Yw);
 	return FMath::Abs(D.X) < 300.f && FMath::Abs(D.Y) < 700.f && TbTurn(T.Yaw, Yw) < 25.f;
 }
 

@@ -155,7 +155,7 @@ void ATugs::SetupCrew()
 			if (!Names.IsValidIndex(Next)) break;
 			// (the crew spot: on the terminal side of the tug's box, to the west of it - away from the jetway, off the red lines)
 			FCrew C; C.Name = Names[Next++]; C.Tug = i; C.bDriver = Rl == 0; C.IdleT = FMath::FRandRange(2.f, 9.f);
-			C.Spot = Plan(T.StandX - 17.5f - Rl * 1.2f, 86.f + Rl * 1.4f); C.SpotYaw = FVector(0.3f, -1.f, 0.f).Rotation().Yaw;   // (looking out at the stand)
+			C.Spot = GateT(T.StandX, T.StandX - 17.5f - Rl * 1.2f, 86.f + Rl * 1.4f); C.SpotYaw = (RemoteStand(T.StandX) ? FVector(-0.3f, 1.f, 0.f) : FVector(0.3f, -1.f, 0.f)).Rotation().Yaw;   // (looking out at the stand)
 			AActor* A = P->Spawn(C.Name, C.Spot, C.SpotYaw);
 			if (!A) continue;
 			C.A = A; C.Anchor = C.Spot; C.AnchorYaw = C.SpotYaw;
@@ -169,7 +169,7 @@ void ATugs::SetupCrew()
 	{
 		const FTug& T = Tugs[NumW % Tugs.Num()];
 		FCrew C; C.Name = WalkerNames[Wn]; C.bWalker = true; C.FollowMax = 330.f;
-		C.Spot = Plan(T.StandX - 20.5f, 86.f + (NumW / Tugs.Num()) * 1.4f); C.SpotYaw = FVector(0.3f, -1.f, 0.f).Rotation().Yaw;
+		C.Spot = GateT(T.StandX, T.StandX - 20.5f, 86.f + (NumW / Tugs.Num()) * 1.4f); C.SpotYaw = (RemoteStand(T.StandX) ? FVector(-0.3f, 1.f, 0.f) : FVector(0.3f, -1.f, 0.f)).Rotation().Yaw;
 		AActor* A = P->Spawn(C.Name, C.Spot, C.SpotYaw); if (!A) continue;
 		C.A = A; C.Anchor = C.Spot; C.AnchorYaw = C.SpotYaw; C.IdleT = FMath::FRandRange(2.f, 9.f); Crew.Add(C); ++NumW;
 	}
@@ -445,8 +445,8 @@ void ATugs::CrewBoard(int32 Tug, bool bArrival)
 		FCrew& H = Crew[T.Handler]; const float Sx = T.StandX;
 		H.Q.Add(WaitAct(Pause()));
 		if (T.Gpu.bConnected) GpuDisconnect(Tug, H);   // (the APU is running: the ground power off, unplugged, the cable stowed)
-		H.Q.Add(WalkAct([this, Sx] { return Plan(Sx - 18.5f, 104.f); }, 60.f));
-		H.Q.Add(WalkAct([this, Sx] { return Plan(Sx - 6.f, 110.f); }));
+		H.Q.Add(WalkAct([this, Sx] { return GateT(Sx, Sx - 18.5f, 104.f); }, 60.f));
+		H.Q.Add(WalkAct([this, Sx] { return GateT(Sx, Sx - 6.f, 110.f); }));
 	}
 }
 
@@ -524,7 +524,7 @@ void ATugs::CrewUncouple(int32 Tug)
 	// then a thumbs up
 	// (the side towards the gates: 20 m out on the other side put him on taxiway A - the test of 2026-11-21; the pilots see
 	//  him ahead at an angle through the side and front windows)
-	const FVector Gate = Plan(T.StandX, 104.f);
+	const FVector Gate = GateT(T.StandX, T.StandX, 104.f);
 	auto ShowAt = [Geo, Gate]() { FVector Fit, F, L, G; Geo(Fit, F, L, G); const FVector A = Fit + F * 1360.f + L * 2000.f, B = Fit + F * 1360.f - L * 2000.f; return FVector::Dist2D(A, Gate) < FVector::Dist2D(B, Gate) ? A : B; };
 	auto ShowSpot = ShowAt;
 	const FPoseFn Show = [Geo, ShowAt](float K, float PH, FDriverPose& P)
@@ -574,7 +574,7 @@ void ATugs::CrewUncouple(int32 Tug)
 		H.Q.Add(PoseAct(Show, 5.f));
 		H.Q.Add(DoAct([this, Tug] { FTug& U = Tugs[Tug]; U.bPinShown = true; ADP_LOG(TEXT("Tugs: bypass pin shown to the cockpit of %s - all clear"), *U.PinKey); if (U.Seq == 12) { U.Seq = 13; U.SeqT = 0.f; U.SeqWait = FMath::FRandRange(2.f, 5.f); } }));
 		H.Q.Add(UntilAct(Gone));
-		H.Q.Add(WalkAct([this, Sx] { return Plan(Sx - 18.5f, 104.f); }, 80.f));
+		H.Q.Add(WalkAct([this, Sx] { return GateT(Sx, Sx - 18.5f, 104.f); }, 80.f));
 		if (H.bHired) LeaveAct(H);   // (your own: on to their next job, or back to the gates)
 		else { const FVector Home = H.Spot; H.Q.Add(WalkAct([Home] { return Home; }, 30.f)); H.Q.Add(DoAct([&H] { H.AnchorYaw = H.SpotYaw; })); }
 		return;
@@ -652,19 +652,19 @@ void ATugs::CrewWalkers(int32 Tug)
 			const int32 Rk = T.Walkers.Num(); FCrew& C = Crew[i]; C.FollowMax = 330.f;
 			T.Walkers.Add(i); SafeWay(C, Sx);
 			if (T.bWalkersOut) GoOut(i, Rk);
-			else C.Q.Add(WalkAct([this, Sx, Rk] { return Plan(Sx - 19.5f - Rk * 1.1f, 100.f + Rk * 0.8f); }, 30.f));
+			else C.Q.Add(WalkAct([this, Sx, Rk] { return GateT(Sx, Sx - 19.5f - Rk * 1.1f, 100.f + Rk * 0.8f); }, 30.f));
 		}
 		return;
 	}
 	for (int32 i = 0; i < Crew.Num() && T.Walkers.Num() < 3; ++i)
 	{
 		FCrew& C = Crew[i];
-		if (!C.bWalker || C.Tug != INDEX_NONE || C.bGse || !C.A.IsValid()) continue;   // (bGse: on a baggage tractor job just now)
+		if (!C.bWalker || C.Tug != INDEX_NONE || C.bGse || !C.A.IsValid() || !SameSide(C, Sx)) continue;   // (bGse: on a baggage tractor job just now)
 		const int32 Rk = T.Walkers.Num();
 		C.Tug = Tug; T.Walkers.Add(i);
 		ADP_LOG(TEXT("Tugs: walker %d to gate at x %.0f (%s)"), Rk, Sx, Rk == 2 ? TEXT("tail") : TEXT("wingtip"));
 		if (T.bWalkersOut) GoOut(i, Rk);
-		else C.Q.Add(WalkAct([this, Sx, Rk] { return Plan(Sx - 19.5f - Rk * 1.1f, 100.f + Rk * 0.8f); }, 30.f));   // (standing by at the gate, off the red lines)
+		else C.Q.Add(WalkAct([this, Sx, Rk] { return GateT(Sx, Sx - 19.5f - Rk * 1.1f, 100.f + Rk * 0.8f); }, 30.f));   // (standing by at the gate, off the red lines)
 	}
 	if (T.Walkers.Num() < 3) { static float Said = -100.f; if (GetWorld()->GetTimeSeconds() - Said > 20.f) { Said = GetWorld()->GetTimeSeconds(); ADP_LOG(TEXT("Tugs: short of wing / tail walkers for %s (%d of 3) - looking for free crew"), *T.Key, T.Walkers.Num()); } }
 }
@@ -687,7 +687,7 @@ void ATugs::WalkersDone(int32 Tug)
 		if (C.bHired)
 		{
 			const float Sx = T.StandX;
-			C.Q.Add(WalkAct([this, Sx] { return Plan(Sx - 20.5f, 104.f); }, 120.f));
+			C.Q.Add(WalkAct([this, Sx] { return GateT(Sx, Sx - 20.5f, 104.f); }, 120.f));
 			LeaveAct(C); continue;
 		}
 		C.Q.Add(WalkAct([this, i] { return Crew[i].Spot; }, 40.f));
@@ -1015,11 +1015,11 @@ void ATugs::GpuSetup(FTug& T)
 	// parked in its box at the head of the stand on the side away from the jetway (Airfield.cpp draws it), its front (the plug,
 	// the cable gland) towards the stand's centre line: ~7 m of cable to the receptacle
 	const float B = -T.StandDir;
-	const FVector At = Plan(T.StandX - 7.8f, T.StandNose - B * 2.f);
+	const FVector At = Plan(T.StandX - B * 7.8f, T.StandNose - B * 2.f);
 	ABabylonModel* M = GetWorld()->SpawnActor<ABabylonModel>(At, FRotator::ZeroRotator);
 	if (!M || !M->Place(TEXT("GPU"))) { if (M) M->Destroy(); ADP_WARN(TEXT("Tugs: the GPU model is missing (Tools/import_model.py - Art/GPU/gpu.glb GPU)")); return; }
 	M->SetPartsCollision(false);
-	M->SetActorLocationAndRotation(At, FRotator(0.f, 0.f, 0.f));
+	M->SetActorLocationAndRotation(At, FRotator(0.f, B > 0.f ? 0.f : 180.f, 0.f));
 	T.Gpu.M = M;
 	// its glass: the fire truck's
 	if (UMaterialInterface* Glass = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Truck/M_TruckGlass.M_TruckGlass")))

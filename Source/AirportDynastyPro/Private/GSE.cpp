@@ -46,6 +46,7 @@ namespace
 	const FVector GseTKing[2] = {FVector(72.f, -42.f, 26.f), FVector(72.f, 42.f, 26.f)};
 	const FVector GseTHinge(34.7f, -71.2f, 125.f), GseTWheelC(46.f, 0.f, 125.f), GseTPinTop(-162.f, 0.f, 62.5f);
 	const TCHAR* GseWKey[4] = {TEXT("FL"), TEXT("FR"), TEXT("RL"), TEXT("RR")};
+	constexpr float GseLegLo = -248.5f, GseLegHi = -241.5f;   // (plan x: the bus road's leg across taxilane T)
 	constexpr float GseTHalfL = 171.f, GseTHalfW = 102.f;     // (its outline with the mirrors)
 	// the cart
 	const FVector GseCEye(201.f, 0.f, 40.f), GseCJaw(-127.f, 0.f, 40.f), GseCAxle(80.f, 0.f, 38.9f), GseCBarPivot(130.f, 0.f, 30.f);
@@ -659,6 +660,22 @@ void AGSE::Drive(FTractor& T, float Dt)
 		for (const ATugs::FTug& U : G->Tugs) if (U.M.IsValid() && U.State != ATugs::EState::Parked && Ahead(U.At, 800.f)) { bBlocked = true; Why = TEXT("a tug"); }
 		if (GseP2(T.At).Y > 82.6f) for (const FVector& Pl : G->Planes) if (Ahead(Pl, 4500.f)) { bBlocked = true; Why = TEXT("an aircraft"); }
 	}
+	// the bus road's crossings of the taxilane and the links (to-do 277 C): held before one while an aircraft moves near it; once on it, on across
+	if (!bBlocked && GseP2(T.At).Y > 160.f && AAirfield::Shared().Remote.LinkX.Num())
+	{
+		const FAirfieldData& Fd = AAirfield::Shared();
+		auto Zone = [&](const FVector2f& P, FBox2f& B)
+		{
+			B = FBox2f(FVector2f(GseLegLo, 190.f), FVector2f(GseLegHi, 244.f)); if (B.IsInside(P)) return true;
+			for (const float Lx : Fd.Remote.LinkX) { B = FBox2f(FVector2f(Lx - Fd.Remote.LinkHalf, 330.f), FVector2f(Lx + Fd.Remote.LinkHalf, 347.f)); if (B.IsInside(P)) return true; }
+			return false;
+		};
+		FBox2f B; bool bOn = Zone(GseP2(T.At), B), bSoon = false;
+		for (const int32 c : T.Train) if (Carts.IsValidIndex(c) && Zone(GseP2(Carts[c].At), B)) bOn = true;
+		FVector From = T.At; float Len = 0.f;
+		for (int32 i = 0; i < T.Path.Num() && !bOn && !bSoon && Len < 900.f; ++i) { Len += FVector::Dist2D(From, T.Path[i]); From = T.Path[i]; bSoon = Zone(GseP2(From), B); }
+		if (bSoon) if (const ATugs* G = Tg()) for (const FVector& Pl : G->Planes) if (FMath::Sqrt(B.ComputeSquaredDistanceToPoint(GseP2(Pl))) < 110.f) { bBlocked = true; Why = TEXT("an aircraft (at the crossing)"); }
+	}
 	if (T.Svc != INDEX_NONE && !bBlocked && SvcPersonAhead(T, Move)) { bBlocked = true; Why = TEXT("somebody on foot"); }
 	if (T.YouOn) { bBlocked = true; Why = TEXT("you, standing on it"); T.YouStopAt = GetWorld()->GetTimeSeconds(); }
 	if (bBlocked) { T.Hold += Dt; if (FMath::Fmod(T.Hold, 15.f) < Dt) ADP_LOG(TEXT("GSE: %s gives way to %s"), *T.Name, *Why); }
@@ -820,9 +837,19 @@ namespace
 	struct GseFApronMap
 	{
 		TArray<GseFObs> Boxes; TArray<TPair<FVector2f, FVector2f>> Lines; TArray<FBox2f> Zones;
+		const FAirfieldData* Far = nullptr;   // (a way to or from a remote stand: to-do 277 C)
+		/** The way to the remote stands for a vehicle R round: the bus road's leg across taxilane T, the bus road (across the links only on it),
+		 *  the stands' own aprons - never along the taxilane or the links. */
+		bool RemoteWay(const FVector2f& P, float R) const
+		{
+			if (P.Y < 245.f) return P.X > GseLegLo + R && P.X < GseLegHi - R;
+			for (const float Lx : Far->Remote.LinkX) if (FMath::Abs(P.X - Lx) < Far->Remote.LinkHalf + 12.f) return P.Y > 335.f + R && P.Y < 342.5f - R;
+			for (const FVector2f& D : {FVector2f(0.f, 0.f), FVector2f(R, 0.f), FVector2f(-R, 0.f), FVector2f(0.f, R), FVector2f(0.f, -R)}) if (!Far->OnRemote(P + D)) return false;
+			return true;
+		}
 		bool Hard(const FVector2f& P, float R) const
 		{
-			if (P.Y < 84.f || P.Y > 188.f) return true;
+			if (P.Y < 84.f || (P.Y > 188.f && !(Far && RemoteWay(P, R)))) return true;
 			for (const FBox2f& Z : Zones) if (P.X > Z.Min.X - R && P.X < Z.Max.X + R && P.Y > Z.Min.Y - R && P.Y < Z.Max.Y + R) return true;
 			for (const GseFObs& B : Boxes)
 			{
@@ -883,13 +910,20 @@ bool AGSE::Apron(TArray<FVector>& Out, const FVector& FromW, const FVector& ToW,
 	for (const FCart& C : Carts) if (C.M.IsValid() && !(Self && Self->Train.Contains(int32(&C - Carts.GetData())))) { const FVector Fw = FRotator(0.f, C.Yaw, 0.f).Vector(); Mp.Boxes.Add({GseP2(C.At), FVector2f(Fw.X, -Fw.Y), 1.72f, 0.83f}); }
 	// the grid (1.5 m) and the search: lines cost a lot to cross (so only where it must, and straight across)
 	const FVector2f A = GseP2(FromW), Z = GseP2(ToW); const float Cl = 1.5f, Rv = 1.3f, RLine = 1.3f;
-	const FVector2f Lo(FMath::Min(A.X, Z.X) - 60.f, 84.f), Hi(FMath::Max(A.X, Z.X) + 60.f, 188.f);
+	FVector2f Lo(FMath::Min(A.X, Z.X) - 60.f, 84.f), Hi(FMath::Max(A.X, Z.X) + 60.f, 188.f);
+	const bool bFar = FMath::Max(A.Y, Z.Y) > 240.f;   // (a remote stand: to-do 277 C)
+	if (bFar)
+	{
+		Mp.Far = &F; Hi.Y = 344.f;
+		if (FMath::Min(A.Y, Z.Y) > 240.f) Lo.Y = 244.f; else Lo.X = FMath::Min(Lo.X, GseLegLo - 12.f);
+		for (const FVector2f& M : F.Remote.Masts) Mp.Boxes.Add({M, FVector2f(1.f, 0.f), 0.6f, 0.6f});
+	}
 	const int32 Nx = FMath::CeilToInt((Hi.X - Lo.X) / Cl), Ny = FMath::CeilToInt((Hi.Y - Lo.Y) / Cl);
-	if (Nx <= 0 || Ny <= 0 || Nx * Ny > 200000) return false;
+	if (Nx <= 0 || Ny <= 0 || Nx * Ny > 200000) { if (bFar) ADP_WARN(TEXT("GSE: the way from plan (%.0f, %.0f) to the remote stands (%.0f, %.0f) is too long to search - it waits"), A.X, A.Y, Z.X, Z.Y); return false; }
 	auto At = [&](int32 x, int32 y) { return FVector2f(Lo.X + x * Cl, Lo.Y + y * Cl); };
 	auto CellOf = [&](const FVector2f& P) { return FIntPoint(FMath::Clamp(FMath::RoundToInt((P.X - Lo.X) / Cl), 0, Nx - 1), FMath::Clamp(FMath::RoundToInt((P.Y - Lo.Y) / Cl), 0, Ny - 1)); };
 	TArray<uint8> Bl; Bl.SetNumZeroed(Nx * Ny); TArray<uint8> Ln; Ln.SetNumZeroed(Nx * Ny);
-	for (int32 y = 0; y < Ny; ++y) for (int32 x = 0; x < Nx; ++x) { const FVector2f P = At(x, y); Bl[y * Nx + x] = Mp.Hard(P, Rv) ? 1 : 0; Ln[y * Nx + x] = Mp.OnLine(P, RLine) ? 1 : 0; }
+	for (int32 y = 0; y < Ny; ++y) for (int32 x = 0; x < Nx; ++x) { const FVector2f P = At(x, y); Bl[y * Nx + x] = Mp.Hard(P, Rv) ? 1 : 0; Ln[y * Nx + x] = !(bFar && Bl[y * Nx + x]) && Mp.OnLine(P, RLine) ? 1 : 0; }
 	const FIntPoint S = CellOf(A), G2 = CellOf(Z);
 	Bl[S.Y * Nx + S.X] = 0; Bl[G2.Y * Nx + G2.X] = 0;
 	TArray<float> Cost; Cost.Init(1e9f, Nx * Ny); TArray<int32> From; From.Init(-1, Nx * Ny);
@@ -908,6 +942,12 @@ bool AGSE::Apron(TArray<FVector>& Out, const FVector& FromW, const FVector& ToW,
 			if (Nc < Cost[J]) { Cost[J] = Nc; From[J] = I; Open.HeapPush(TPair<float, int32>(Nc + FVector2f::Distance(At(X2, Y2), Z) / Cl, J), GseFHeapLess()); }
 		}
 	}
+	if (!bFound && bFar)
+	{
+		const bool bEnd = Mp.Hard(Z, 0.f), bFrom = Mp.Hard(A, 0.f);
+		ADP_WARN(TEXT("GSE: no way by the bus road from plan (%.0f, %.0f) to (%.0f, %.0f): %s - it waits"), A.X, A.Y, Z.X, Z.Y, bEnd ? TEXT("something stands at its end, or the end is off the paving") : bFrom ? TEXT("it stands off the paving or against something") : TEXT("something stands across the only way"));
+		return false;
+	}
 	if (!bFound) { ADP_WARN(TEXT("GSE: no way across the apron from plan (%.0f, %.0f) to (%.0f, %.0f) - waiting"), A.X, A.Y, Z.X, Z.Y); return false; }
 	TArray<FVector2f> Cells; for (int32 I = G2.Y * Nx + G2.X; I >= 0; I = From[I]) Cells.Insert(At(I % Nx, I / Nx), 0);
 	Cells[0] = A; Cells.Last() = Z;
@@ -920,7 +960,7 @@ bool AGSE::Apron(TArray<FVector>& Out, const FVector& FromW, const FVector& ToW,
 	while (k < Cells.Num() - 1)
 	{
 		int32 Far = k + 1;
-		for (int32 j = Cells.Num() - 1; j > k + 1; --j) { bool bH = false; const int32 Nl = LineCells(Cells[k], Cells[j], bH); if (!bH && Nl <= Crossed[j] - Crossed[k]) { Far = j; break; } }
+		for (int32 j = bFar ? FMath::Min(Cells.Num() - 1, k + 90) : Cells.Num() - 1; j > k + 1; --j) { bool bH = false; const int32 Nl = LineCells(Cells[k], Cells[j], bH); if (!bH && Nl <= Crossed[j] - Crossed[k]) { Far = j; break; } }
 		Way.Add(Cells[Far]); k = Far;
 	}
 	// every metre, for the driving
@@ -960,7 +1000,16 @@ void AGSE::RouteIn(FTractor& T, const FVector& ApronFrom, float FromYaw, TFuncti
 	// back across the apron to Ramp services 13, south through it, west along the hall and in through the lane's door
 	TArray<FVector> W;
 	// (down to the passage east of the way out, x 275: one waiting there leaves the way out free)
-	if (!Apron(W, ApronFrom, Plan(275.f, 114.f), &T)) { W.Add(Plan(275.f, 114.f)); }
+	if (!Apron(W, ApronFrom, Plan(275.f, 114.f), &T))
+	{
+		if (-ApronFrom.Y > 24000.0)   // (a remote stand: never straight there)
+		{
+			const int32 Ti = int32(&T - Tractors.GetData());
+			RetryIn(Ti, 8.f, [this, Ti, Then] { FTractor& U = Tractors[Ti]; RouteIn(U, U.At, U.Yaw, Then); });
+			return;
+		}
+		W.Add(Plan(275.f, 114.f));
+	}
 	Leg(W, 275.f, 114.f, 0.f, -1.f, 275.f, 108.f, 0.f, -1.f, 400.f);
 	Leg(W, 275.f, 108.f, 0.f, -1.f, 269.f, 93.f, 0.f, -1.f, 400.f);
 	Leg(W, 269.f, 93.f, 0.f, -1.f, 269.f, 61.f, 0.f, -1.f, 400.f);
@@ -995,6 +1044,31 @@ FVector AGSE::PlanAt(const FAirfieldData::FStandFrame& Fr, float Side, float Aft
 {
 	const FVector2f At = Fr.P(Side, Aft);
 	return Plan(At.X, At.Y);
+}
+
+FVector AGSE::PlanT(float StandX, float X, float Y) const
+{
+	const FVector2f P = StandFrame(StandX).Turn(FVector2f(X, Y));
+	return Plan(P.X, P.Y);
+}
+
+FVector AGSE::PoseT(float StandX, float X, float Y, float Hx, float Hy, float& Yaw) const
+{
+	const FAirfieldData::FStandFrame Fr = StandFrame(StandX); const FVector2f P = Fr.Turn(FVector2f(X, Y)), H = Fr.Way(Hx, Hy);
+	return PlanPose(P.X, P.Y, H.X, H.Y, Yaw);
+}
+
+void AGSE::LegT(float StandX, TArray<FVector>& Out, float X0, float Y0, float Hx0, float Hy0, float X1, float Y1, float Hx1, float Hy1, float R) const
+{
+	const FAirfieldData::FStandFrame Fr = StandFrame(StandX);
+	const FVector2f A = Fr.Turn(FVector2f(X0, Y0)), Ha = Fr.Way(Hx0, Hy0), B = Fr.Turn(FVector2f(X1, Y1)), Hb = Fr.Way(Hx1, Hy1);
+	Leg(Out, A.X, A.Y, Ha.X, Ha.Y, B.X, B.Y, Hb.X, Hb.Y, R);
+}
+
+double AGSE::AftY(float StandX, const FVector& W) const
+{
+	const FAirfieldData::FStandFrame Fr = StandFrame(StandX);
+	return Fr.K > 0.f ? -W.Y / 100.f : 2.f * Fr.Y + W.Y / 100.f;
 }
 
 bool AGSE::AircraftAt(float StandX) const

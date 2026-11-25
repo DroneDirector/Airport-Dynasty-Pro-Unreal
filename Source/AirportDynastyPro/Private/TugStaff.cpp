@@ -85,6 +85,28 @@ void ATugs::SafeWay(FCrew& C, float StandX)
 	const FVector Me = C.A->GetActorLocation();
 	auto WalkOn = [&](float X, float Z, float Stop) { FCrewAct A; A.Kind = FCrewAct::Walk; const FVector P = Plan(X, Z); A.To = [P] { return P; }; A.Stop = Stop; A.Max = 160.f; C.Q.Add(A); };
 	const float X = float(Me.X / 100.0), To = StandX - 22.f;
+	if (RemoteStand(StandX))
+	{
+		// (a remote stand: on foot the way the vehicles go - the bus road's leg across taxilane T and the bus road, waiting at each
+		//  crossing for aircraft - until the crew bus takes them, to-do 277 D)
+		const FVector Gt = GateT(StandX, StandX - 22.f, 88.f); const float Tx = float(Gt.X / 100.0);
+		if (FVector::Dist2D(Me, Gt) < 1500.f) return;
+		auto Far = [&](float Wx, float Wy) { WalkOn(Wx, Wy, 60.f); C.Q.Last().Max = 900.f; };
+		auto Clear = [&](float Wx, float Wy) { FCrewAct A; A.Kind = FCrewAct::WaitFor; const FVector P = Plan(Wx, Wy); A.Until = [this, P](float) { for (const FVector& Pl : Planes) if (FVector::Dist2D(Pl, P) < 12000.f) return false; return true; }; C.Q.Add(A); };
+		const float Road = 338.75f; float Fx = X;
+		if (-Me.Y < 24000.0)
+		{
+			ADP_LOG(TEXT("Tugs: %s walks to the remote stand at x %.0f by the bus road: no crew bus yet"), *C.Name, StandX);
+			Far(X, 85.45f); Far(-245.f, 85.45f); Far(-245.f, 187.f); Clear(-245.f, 218.f); Far(-245.f, 247.f); Far(-245.f, 331.f); Far(-237.f, Road); Fx = -237.f;
+		}
+		else Far(X, Road);
+		TArray<float> Lk = AAirfield::Shared().Remote.LinkX; Lk.Sort(); if (Tx < Fx) Algo::Reverse(Lk);
+		const float H = AAirfield::Shared().Remote.LinkHalf + 4.f, Dr = Tx > Fx ? 1.f : -1.f;
+		for (const float Lx : Lk) if ((Lx - Fx) * Dr > 0.f && (Tx - Lx) * Dr > 0.f) { Far(Lx - Dr * H, Road); Clear(Lx, Road); Far(Lx + Dr * H, Road); }
+		Far(Tx, Road);
+		FCrewAct A; A.Kind = FCrewAct::Walk; A.To = [Gt] { return Gt; }; A.Stop = 60.f; A.Max = 160.f; C.Q.Add(A);
+		return;
+	}
 	if (FMath::Abs(X - To) < 12.f) return;   // (there already: the job's own walks)
 	WalkOn(X, 85.45f, 35.f);
 	WalkOn(To, 85.45f, 35.f);
@@ -250,7 +272,7 @@ bool ATugs::ArrivedHired(float StandX, const FString& Reg, const FDateTime& When
 		FCrew& C = Crew[Ci];
 		ADP_LOG(TEXT("Tugs: %s on blocks at x %.0f - %s puts it on ground power"), *Reg, StandX, *C.Name);
 		SafeWay(C, StandX);
-		const FVector Side = Plan(StandX - 18.5f, 104.f);
+		const FVector Side = GateT(StandX, StandX - 18.5f, 104.f);
 		FCrewAct W; W.Kind = FCrewAct::Walk; W.To = [Side] { return Side; }; W.Stop = 60.f; C.Q.Add(W);
 		GpuConnect(i, C);
 		C.Q.Add(W);

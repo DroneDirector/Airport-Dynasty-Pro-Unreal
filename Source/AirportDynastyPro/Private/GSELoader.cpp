@@ -152,11 +152,11 @@ void AGSE::LoaderApron(int32 Li)
 	const bool bHome = FVector2f::Distance(P, FVector2f(256.f, 88.f)) < 2.f;
 	if (bHome) Leg(W, P.X, P.Y, Hx, Hy, 261.5f, 93.5f, 0.f, 1.f, L.KTurnR);
 	const FVector From = W.Num() ? W.Last() : L.At;
-	if (CaterRear(L.StandX) || !Apron(W, From, Plan(S - 11.4f, N + 40.f), &L)) { W.Reset(); RetryIn(Li, 8.f, [this, Li] { LoaderApron(Li); }); return; }
+	if (CaterRear(L.StandX) || !Apron(W, From, PlanT(S, S - 11.4f, N + 40.f), &L)) { W.Reset(); RetryIn(Li, 8.f, [this, Li] { LoaderApron(Li); }); return; }
 	Go(L, MoveTemp(W), false, [this, Li, S, N]
 	{
 		FTractor& U = Tractors[Li];
-		const FVector Nose = Plan(S, N);
+		const FVector Nose = PlanT(S, S, N);
 		U.Until = [this, Nose, S] { return !PlaneNear(Nose, 6000.f) && !CaterRear(S); };
 		U.AfterUntil = [this, Li, S, N]
 		{
@@ -164,8 +164,8 @@ void AGSE::LoaderApron(int32 Li)
 			// at sill height), the door's middle 19.6 m behind the nose wheel
 			FTractor& V = Tractors[Li];
 			TArray<FVector> W2;
-			Leg(W2, S - 11.4f, N + 40.f, 0.f, -1.f, S - 11.4f, N + 25.1f, 0.f, -1.f, V.KTurnR);
-			Leg(W2, S - 11.4f, N + 25.1f, 0.f, -1.f, S - 5.69f, N + 19.6f, 1.f, 0.f, V.KTurnR);
+			LegT(S, W2, S - 11.4f, N + 40.f, 0.f, -1.f, S - 11.4f, N + 25.1f, 0.f, -1.f, V.KTurnR);
+			LegT(S, W2, S - 11.4f, N + 25.1f, 0.f, -1.f, S - 5.69f, N + 19.6f, 1.f, 0.f, V.KTurnR);
 			Go(V, MoveTemp(W2), false, [this, Li] { LoaderIn(Li); });
 		};
 	});
@@ -333,31 +333,37 @@ void AGSE::LoaderLeave(int32 Li)
 	ADP_LOG(TEXT("GSE: %s leaves the bulk hold door"), *L.Name);
 	// straight back from the door (the beeper), then round towards the tail and down the side, clear of the tailplane
 	TArray<FVector> R;
-	float Yw = 0.f; const FVector Back = PlanPose(S - 16.f, N + 19.6f, 1.f, 0.f, Yw);
+	float Yw = 0.f; const FVector Back = PoseT(S, S - 16.f, N + 19.6f, 1.f, 0.f, Yw);
 	Dubins(R, L.At, L.Yaw + 180.f, Back, Yw + 180.f, 600.f);
 	Go(L, MoveTemp(R), true, [this, Li, S, N]
 	{
 		FTractor& U = Tractors[Li];
 		TArray<FVector> W;
-		Leg(W, S - 16.f, N + 19.6f, 1.f, 0.f, S - 10.5f, N + 25.1f, 0.f, 1.f, U.KTurnR);
-		Leg(W, S - 10.5f, N + 25.1f, 0.f, 1.f, S - 10.5f, N + 40.f, 0.f, 1.f, U.KTurnR);
-		Go(U, MoveTemp(W), false, [this, Li]
-		{
-			FTractor& V = Tractors[Li];
-			TArray<FVector> H;
-			if (!Apron(H, V.At, Plan(250.5f, 100.f), &V)) H.Add(Plan(250.5f, 100.f));
-			Leg(H, 250.5f, 100.f, 0.f, -1.f, 250.5f, 93.5f, 0.f, -1.f, V.KTurnR);
-			Leg(H, 250.5f, 93.5f, 0.f, -1.f, 256.f, 88.f, 1.f, 0.f, V.KTurnR);
-			Go(V, MoveTemp(H), false, [this, Li]
-			{
-				FTractor& X = Tractors[Li]; X.Job = EJob::Home; X.At = X.Home; X.Yaw = X.HomeYaw; Pose(X); Motor(X, false);
-				const int32 Ci = X.Driver;
-				ADP_LOG(TEXT("GSE: %s parked, switched off"), *X.Name);
-				Wait(Ci, GslPause());
-				ClimbOut(Ci, Li, [this, Li] { FTractor& Y = Tractors[Li]; Y.Job = EJob::None; Y.Key.Reset(); Y.StandX = 0.f; Y.Driver = INDEX_NONE; });
-				GiveBack(Ci);
-			});
-		});
+		LegT(S, W, S - 16.f, N + 19.6f, 1.f, 0.f, S - 10.5f, N + 25.1f, 0.f, 1.f, U.KTurnR);
+		LegT(S, W, S - 10.5f, N + 25.1f, 0.f, 1.f, S - 10.5f, N + 40.f, 0.f, 1.f, U.KTurnR);
+		Go(U, MoveTemp(W), false, [this, Li] { LoaderHome(Li); });
+	});
+}
+
+void AGSE::LoaderHome(int32 Li)
+{
+	FTractor& V = Tractors[Li];
+	TArray<FVector> H;
+	if (!Apron(H, V.At, Plan(250.5f, 100.f), &V))
+	{
+		if (-V.At.Y > 24000.0) { RetryIn(Li, 8.f, [this, Li] { LoaderHome(Li); }); return; }   // (a remote stand: never straight there)
+		H.Add(Plan(250.5f, 100.f));
+	}
+	Leg(H, 250.5f, 100.f, 0.f, -1.f, 250.5f, 93.5f, 0.f, -1.f, V.KTurnR);
+	Leg(H, 250.5f, 93.5f, 0.f, -1.f, 256.f, 88.f, 1.f, 0.f, V.KTurnR);
+	Go(V, MoveTemp(H), false, [this, Li]
+	{
+		FTractor& X = Tractors[Li]; X.Job = EJob::Home; X.At = X.Home; X.Yaw = X.HomeYaw; Pose(X); Motor(X, false);
+		const int32 Ci = X.Driver;
+		ADP_LOG(TEXT("GSE: %s parked, switched off"), *X.Name);
+		Wait(Ci, GslPause());
+		ClimbOut(Ci, Li, [this, Li] { FTractor& Y = Tractors[Li]; Y.Job = EJob::None; Y.Key.Reset(); Y.StandX = 0.f; Y.Driver = INDEX_NONE; });
+		GiveBack(Ci);
 	});
 }
 
@@ -368,7 +374,7 @@ void AGSE::LoadingCycles(int32 Ci, int32 Ti, int32 Li, float Seconds)
 	const int32 N = FMath::Max(1, FMath::RoundToInt(Seconds / 16.f));
 	const TArray<int32> Tr = Tractors[Ti].Train;
 	float S = 0.f, Nn = 0.f, Sp = 36.f; StandGeo(Tractors[Ti].StandX, S, Nn, Sp);
-	const FVector Craft = Plan(S, Nn + 8.f);
+	const FVector Craft = PlanT(S, S, Nn + 8.f);
 	for (int32 k = 0; k < N && Tr.Num(); ++k)
 	{
 		const int32 c = Tr[k % Tr.Num()];

@@ -1032,14 +1032,14 @@ void AGSE::SvcApron(int32 Job)
 	if (FVector::Dist2D(T.At, T.Home) < 200.f && FMath::Abs(FMath::FindDeltaAngleDegrees(T.Yaw, T.HomeYaw)) < 20.f) Leg(W, Sv.HomeX, Sv.HomeY, Sv.HomeHx, Sv.HomeHy, Sv.HomeX + Sv.HomeHx * 9.f, Sv.HomeY + Sv.HomeHy * 9.f, Sv.HomeHx, Sv.HomeHy, T.KTurnR);
 	const float X = S + (Sv.InR > 0.f ? Sv.InLat : Sv.Wet ? Sv.Lat + 2.f * T.KTurnR / 100.f : Sv.Lat), Xp = S + Sv.Lat, Y1 = N + Sv.Far + 6.f, Y2 = N + Sv.Aft;
 	const FVector From = W.Num() ? W.Last() : T.At;
-	if (!Apron(W, From, Plan(X, Y1), &T)) { RetryIn(Ti, 8.f, [this, Job] { SvcApron(Job); }); return; }
+	if (!Apron(W, From, PlanT(S, X, Y1), &T)) { RetryIn(Ti, 8.f, [this, Job] { SvcApron(Job); }); return; }
 	Go(T, MoveTemp(W), false, [this, Job, Ti, S, N, X, Xp, Y1, Y2]
 	{
-		const FVector Nose = Plan(S, N);
+		const FVector Nose = PlanT(S, S, N);
 		if (SvSpec(Tractors[Ti].Svc).Wet)
 		{
 			// (nothing moving where it turns round; not longer than a minute for that)
-			Tractors[Ti].Until = [this, Nose, Ti, Mid = Plan(S + 6.f, N + 42.f), T0 = GetWorld()->GetTimeSeconds()]
+			Tractors[Ti].Until = [this, Nose, Ti, Mid = PlanT(S, S + 6.f, N + 42.f), T0 = GetWorld()->GetTimeSeconds()]
 			{
 				if (PlaneNear(Nose, 6000.f)) return false;
 				if (GetWorld()->GetTimeSeconds() - T0 < 60.0) for (int32 o = 0; o < Tractors.Num(); ++o) if (o != Ti && Tractors[o].M.IsValid() && Tractors[o].Speed > 1.f && FVector::Dist2D(Tractors[o].At, Mid) < 1500.f) return false;
@@ -1057,10 +1057,10 @@ void AGSE::SvcApron(int32 Job)
 			else if (Sq.InR > 0.f)
 			{
 				const float Dl = FMath::Abs(Sq.Lat - Sq.InLat) * 100.f, La = 2.f * Sq.InR / 100.f * FMath::Sin(FMath::Acos(1.f - Dl / (2.f * Sq.InR))), Ye = N + Sq.InAft - La - 0.1f;
-				Leg(W2, X, Y1, 0.f, -1.f, X, N + Sq.InAft, 0.f, -1.f, Sq.InR); Leg(W2, X, N + Sq.InAft, 0.f, -1.f, Xp, Ye, 0.f, -1.f, Sq.InR); Leg(W2, Xp, Ye, 0.f, -1.f, Xp, Y2, 0.f, -1.f, Sq.InR);
+				LegT(S, W2, X, Y1, 0.f, -1.f, X, N + Sq.InAft, 0.f, -1.f, Sq.InR); LegT(S, W2, X, N + Sq.InAft, 0.f, -1.f, Xp, Ye, 0.f, -1.f, Sq.InR); LegT(S, W2, Xp, Ye, 0.f, -1.f, Xp, Y2, 0.f, -1.f, Sq.InR);
 				if (FSvcJob* Jw = SvcJ(Job)) Jw->InWay = W2;
 			}
-			else Leg(W2, X, Y1, 0.f, -1.f, X, Y2, 0.f, -1.f, Tractors[Ti].KTurnR);
+			else LegT(S, W2, X, Y1, 0.f, -1.f, X, Y2, 0.f, -1.f, Tractors[Ti].KTurnR);
 			Go(Tractors[Ti], MoveTemp(W2), false, [this, Job] { SvcWork(Job); });
 		};
 	});
@@ -1235,7 +1235,7 @@ void AGSE::SvcManAt(int32 Job, int32 m)
 	// (everyone off the aircraft, the jetway at it)
 	WaitFor(Ci, [this, Job, Jet](float) { const FSvcJob* X = SvcJ(Job); AJetwayRigs* R = AJetwayRigs::Get(GetWorld()); return X && X->bGo && (!R || Jet == INDEX_NONE || R->State(Jet) == AJetwayRigs::EState::Docked); });
 	const float Xw = S + Sp * 0.5f + 1.4f;   // (outside the wingtip, inside the stand's line)
-	WalkTo(Ci, [this, Xw, N] { return Plan(Xw, N + 23.f); }, 50.f); WalkTo(Ci, [this, Xw, N] { return Plan(Xw, N + 6.f); }, 50.f);
+	WalkTo(Ci, [this, Xw, N, S] { return PlanT(S, Xw, N + 23.f); }, 50.f); WalkTo(Ci, [this, Xw, N, S] { return PlanT(S, Xw, N + 6.f); }, 50.f);
 	Do(Ci, [this, Job, m, Ci] { Later([this, Job, m] { SvcCabin(Job, m); }); });
 	Wait(Ci, 0.5f);
 }
@@ -1260,7 +1260,7 @@ void AGSE::SvcCabin(int32 Job, int32 m)
 	});
 	Wait(Ci, 0.1f + 3.f * m);
 	if (Sv.bJetway) SvcUp(Job, m, false); else Do(Ci, [this, Job, m] { if (FSvcMan* X = SvcM(Job, m)) { X->bIn = false; X->bDown = true; } });
-	WalkTo(Ci, [this, Xw, N] { return Plan(Xw, N + 6.f); }, 50.f); WalkTo(Ci, [this, Xw, N] { return Plan(Xw, N + 23.f); }, 50.f);
+	WalkTo(Ci, [this, Xw, N, S] { return PlanT(S, Xw, N + 6.f); }, 50.f); WalkTo(Ci, [this, Xw, N, S] { return PlanT(S, Xw, N + 23.f); }, 50.f);
 	Do(Ci, [this, Job, m] { Later([this, Job, m] { SvcReturn(Job, m); }); });
 	Wait(Ci, 0.5f);
 }
@@ -1278,7 +1278,7 @@ void AGSE::SvcFetch(int32 Job)
 	FSvcJob* J = SvcJ(Job); if (!J || !J->Men.Num()) return;
 	FTractor& T = Tractors[J->Ti]; const int32 Ci = J->Men[0].Ci, Ti = J->Ti;
 	TArray<FVector> W;
-	if (SvcHere(Job) || SvcYours(T) || T.Player.IsValid() || !Apron(W, T.At, SvSpec(J->Svc).InR > 0.f ? Plan(J->StandX + SvSpec(J->Svc).InLat, 171.f) : J->Place, &T))
+	if (SvcHere(Job) || SvcYours(T) || T.Player.IsValid() || !Apron(W, T.At, SvSpec(J->Svc).InR > 0.f ? (StandFrame(J->StandX).K > 0.f ? Plan(J->StandX + SvSpec(J->Svc).InLat, 171.f) : PlanAt(StandFrame(J->StandX), SvSpec(J->Svc).InLat, 45.9f)) : J->Place, &T))
 	{
 		// (with you again, or where it cannot be driven from: asked again)
 		Wait(Ci, 8.f); Do(Ci, [this, Job] { Later([this, Job] { SvcReturn(Job, 0); }); }); Wait(Ci, 0.5f); return;
@@ -1341,25 +1341,25 @@ void AGSE::SvcLeave(int32 Job)
 		for (FTractor::FSvcDoor& D : T.SvcDoors) D.Want = 0.f;   // (a load door left open by somebody who is gone)
 		// straight back behind the tail (the beeper), its back round to the side, then forward
 		float S = 0.f, N = 0.f, Sp = 36.f, Yw = 0.f; StandGeo(X->StandX, S, N, Sp);
-		const FServiceSpec& Sv = SvSpec(X->Svc); const float Ln = Sv.InR > 0.f ? Sv.InLat : Sv.Lat; const FVector A = Plan(S + Ln, N + Sv.Far), B = PlanPose(S + Ln + 8.f, N + Sv.Far + 8.f, -1.f, 0.f, Yw);
+		const FServiceSpec& Sv = SvSpec(X->Svc); const float Ln = Sv.InR > 0.f ? Sv.InLat : Sv.Lat; const FVector A = PlanT(S, S + Ln, N + Sv.Far), B = PoseT(S, S + Ln + 8.f, N + Sv.Far + 8.f, -1.f, 0.f, Yw);
 		// (you left it a little off its place: straight on from there)
-		if (FVector::Dist2D(T.At, Sv.bCater || Sv.bAmbu || Sv.bStairs ? X->Place : Plan(S + Sv.Lat, N + Sv.Aft)) > 120.f || FMath::Abs(FMath::FindDeltaAngleDegrees(T.Yaw, X->PlaceYaw)) > 8.f) { T.Job = EJob::Back; SvcHome(Job); return; }
+		if (FVector::Dist2D(T.At, Sv.bCater || Sv.bAmbu || Sv.bStairs ? X->Place : PlanT(S, S + Sv.Lat, N + Sv.Aft)) > 120.f || FMath::Abs(FMath::FindDeltaAngleDegrees(T.Yaw, X->PlaceYaw)) > 8.f) { T.Job = EJob::Back; SvcHome(Job); return; }
 		TArray<FVector> R;
 		if (Sv.Wet)
 		{
 			// (it stands with its nose away from the aircraft: straight out)
-			const FVector F = T.At, E = Plan(S + Sv.Lat, N + Sv.Far + 4.f); for (int32 i = 1; i <= 30; ++i) R.Add(FMath::Lerp(F, E, i / 30.f));
+			const FVector F = T.At, E = PlanT(S, S + Sv.Lat, N + Sv.Far + 4.f); for (int32 i = 1; i <= 30; ++i) R.Add(FMath::Lerp(F, E, i / 30.f));
 			Go(T, MoveTemp(R), false, [this, Job, Ti] { Tractors[Ti].Job = EJob::Back; SvcHome(Job); });
 			return;
 		}
 		if (Sv.InR > 0.f)
 		{
 			// (back out the way it came: under the wing and round to the lane beside the wingtip)
-			for (int32 i = X->InWay.Num() - 1; i >= 0; --i) if (-X->InWay[i].Y / 100.f < N + Sv.Far - 0.5f) R.Add(X->InWay[i]);
+			for (int32 i = X->InWay.Num() - 1; i >= 0; --i) if (AftY(S, X->InWay[i]) < N + Sv.Far - 0.5f) R.Add(X->InWay[i]);
 			R.Add(A);
 		}
 		else for (int32 i = 1; i <= 30; ++i) R.Add(FMath::Lerp(T.At, A, i / 30.f));
-		float Ya = T.Yaw; if (Sv.bCater || Sv.bAmbu || Sv.bStairs) PlanPose(S + Ln, N + Sv.Far, 0.f, -1.f, Ya);   // (its lane's way, not the door's)
+		float Ya = T.Yaw; if (Sv.bCater || Sv.bAmbu || Sv.bStairs) PoseT(S, S + Ln, N + Sv.Far, 0.f, -1.f, Ya);   // (its lane's way, not the door's)
 		Dubins(R, A, Ya + 180.f, B, Yw + 180.f, T.KTurnR);
 		Go(T, MoveTemp(R), true, [this, Job, Ti] { Tractors[Ti].Job = EJob::Back; SvcHome(Job); });
 	});

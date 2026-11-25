@@ -496,8 +496,8 @@ void AGSE::TractorGpu(int32 Ti)
 	if (FVector::Dist2D(T.At, Ahead) < 600.f && TrTurn(T.Yaw, Gy) < 25.f && ((Ahead - T.At) | Gf) >= 0.f) Dubins(W, T.At, T.Yaw, Ahead, Gy, 400.f);
 	else
 	{
-		if (!Apron(W, T.At, Plan(S - 5.f, N + 16.f), &T)) { RetryIn(Ti, 8.f, [this, Ti] { TractorGpu(Ti); }); return; }
-		float Yd = 0.f; const FVector D0 = PlanPose(S - 5.f, N + 16.f, 0.f, -1.f, Yd); Dubins(W, D0, Yd, Ahead, Gy, 400.f);
+		if (!Apron(W, T.At, PlanT(S, S - 5.f, N + 16.f), &T)) { RetryIn(Ti, 8.f, [this, Ti] { TractorGpu(Ti); }); return; }
+		float Yd = 0.f; const FVector D0 = PoseT(S, S - 5.f, N + 16.f, 0.f, -1.f, Yd); Dubins(W, D0, Yd, Ahead, Gy, 400.f);
 	}
 	Go(T, MoveTemp(W), false, [this, Ti, Gate, Hook, Gy]
 	{

@@ -251,7 +251,7 @@ void AGSE::CaterRestock(FTractor& T)
 void AGSE::CaterDock(const FSvcJob& J, int32 Door, FVector2f& At, FVector2f& Hd, float& SillZ) const
 {
 	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(J.StandX, S, N, Sp);
-	const FVector Nose = Plan(S, N); const AActor* Pl = nullptr; double Bd = 900.0;
+	const FVector Nose = PlanT(S, S, N); const AActor* Pl = nullptr; double Bd = 900.0;
 	for (TActorIterator<AActor> It(GetWorld()); It; ++It)
 		for (const FName& Tg2 : It->Tags)
 		{
@@ -260,7 +260,7 @@ void AGSE::CaterDock(const FSvcJob& J, int32 Door, FVector2f& At, FVector2f& Hd,
 		}
 	// (the aircraft's root at its nose wheel: x its right, y aft - where it really stands)
 	const float A = FMath::DegreesToRadians(CtTurn[Door]); const FVector2D O(FMath::Cos(A), FMath::Sin(A)), K = CtSkin[Door] + O * (Tractors.IsValidIndex(J.Ti) && Tractors[J.Ti].Am ? 499.0 : double(CtReach));   // (the ambulift's platform ends 4.96 m ahead of its middle)
-	auto World = [&](const FVector2D& L, float Z) { return Pl ? Pl->GetActorTransform().TransformPosition(FVector(L.X, L.Y, Z)) : FVector(Plan(S - float(L.X) / 100.f, N + float(L.Y) / 100.f) + CtUp * Z); };
+	auto World = [&](const FVector2D& L, float Z) { return Pl ? Pl->GetActorTransform().TransformPosition(FVector(L.X, L.Y, Z)) : FVector(PlanT(S, S - float(L.X) / 100.f, N + float(L.Y) / 100.f) + CtUp * Z); };
 	const FVector Wo = World(K, 0.f), Ws = World(CtSkin[Door], CtSill[Door]);
 	At = FVector2f(float(Wo.X) / 100.f, float(-Wo.Y) / 100.f); const FVector D = Ws - Wo; Hd = FVector2f(float(D.X), float(-D.Y)).GetSafeNormal(); SillZ = float(Ws.Z);
 }
@@ -269,16 +269,17 @@ void AGSE::CaterIn(const FSvcJob& J, int32 Door, float FromY, TArray<FVector>& W
 {
 	// down the middle between the two wingtips, one bend in front of the wing (R1) or behind it (R2), straight up to the door
 	float S = 0.f, N = 0.f, Sp = 36.f, Sz = 0.f; StandGeo(J.StandX, S, N, Sp); FVector2f At, Hd; CaterDock(J, Door, At, Hd, Sz);
+	{ const FAirfieldData::FStandFrame Fr = StandFrame(S); At = Fr.Turn(At); Hd = Fr.Way(Hd.X, Hd.Y); }   // (terminal-way, as FromY)
 	const float R = Tractors[J.Ti].KTurnR, X = S + CtLane; const FVector2f Pre = At - Hd * (Door ? 7.f : FMath::Max(1.f, (At.X - X) - R / 100.f - 0.02f));
 	const float Ys = Pre.Y + R / 100.f + (Door ? 2.9f : 0.f);
-	if (FromY > Ys + 0.5f) Leg(W, X, FromY, 0.f, -1.f, X, Ys, 0.f, -1.f, R);
-	Leg(W, X, FMath::Min(Ys, FromY), 0.f, -1.f, Pre.X, Pre.Y, Hd.X, Hd.Y, R * 0.98f); Leg(W, Pre.X, Pre.Y, Hd.X, Hd.Y, At.X, At.Y, Hd.X, Hd.Y, R);
+	if (FromY > Ys + 0.5f) LegT(S, W, X, FromY, 0.f, -1.f, X, Ys, 0.f, -1.f, R);
+	LegT(S, W, X, FMath::Min(Ys, FromY), 0.f, -1.f, Pre.X, Pre.Y, Hd.X, Hd.Y, R * 0.98f); LegT(S, W, Pre.X, Pre.Y, Hd.X, Hd.Y, At.X, At.Y, Hd.X, Hd.Y, R);
 }
 
 bool AGSE::SvcSideBusy(int32 Ti, float StandX) const
 {
 	// the lane on the aircraft's right has room for one: another service vehicle on its way in or out, a train or the belt loader moving there
-	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(StandX, S, N, Sp); const FVector Mid = Plan(S - 15.f, N + 25.f);
+	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(StandX, S, N, Sp); const FVector Mid = PlanT(S, S - 15.f, N + 25.f);
 	for (int32 i = 0; i < Tractors.Num(); ++i)
 	{
 		const FTractor& O = Tractors[i]; if (i == Ti || !O.M.IsValid() || FMath::Abs(O.StandX - StandX) > 1.f) continue;
@@ -295,7 +296,7 @@ bool AGSE::SvcSideBusy(int32 Ti, float StandX) const
 
 bool AGSE::CaterMoving(float StandX) const
 {
-	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(StandX, S, N, Sp); const FVector Mid = Plan(S - 15.f, N + 22.f);
+	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(StandX, S, N, Sp); const FVector Mid = PlanT(S, S - 15.f, N + 22.f);
 	for (const FTractor& O : Tractors) if (O.Svc != INDEX_NONE && O.Ct && FMath::Abs(O.StandX - StandX) < 1.f && O.Path.Num() && FVector::Dist2D(O.At, Mid) < 4200.f) return true;
 	return false;
 }
@@ -313,8 +314,8 @@ bool AGSE::CaterRear(float StandX) const
 
 bool AGSE::CaterRearFree(float StandX) const
 {
-	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(StandX, S, N, Sp); const FVector Mid = Plan(S - 10.f, N + 30.f);
-	auto In = [&](const FVector& W) { const float X = float(W.X) / 100.f, Y = float(-W.Y) / 100.f; return X > S - 22.f && X < S - 2.f && Y > N + 21.f && Y < N + 50.f; };
+	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(StandX, S, N, Sp); const FVector Mid = PlanT(S, S - 10.f, N + 30.f);
+	auto In = [&](const FVector& W) { const FVector2f Q = StandFrame(S).Turn(FVector2f(float(W.X) / 100.f, float(-W.Y) / 100.f)); const float X = Q.X, Y = Q.Y; return X > S - 22.f && X < S - 2.f && Y > N + 21.f && Y < N + 50.f; };
 	for (const FTractor& O : Tractors)
 	{
 		if (O.Svc != INDEX_NONE || !O.M.IsValid() || O.Job == EJob::None) continue;
@@ -718,17 +719,17 @@ void AGSE::CaterMove(int32 Job)
 			SvcLeave(Job); return;
 		}
 		X->Why.Reset(); X->CtDoor = 1; FTractor& T = Tractors[Ti]; T.Job = EJob::Out; Motor(T, true);
-		float S = 0.f, N = 0.f, Sp = 36.f, Sz = 0.f; StandGeo(X->StandX, S, N, Sp); FVector2f At, Hd; CaterDock(*X, 1, At, Hd, Sz);
+		float S = 0.f, N = 0.f, Sp = 36.f, Sz = 0.f; StandGeo(X->StandX, S, N, Sp); FVector2f At, Hd; CaterDock(*X, 1, At, Hd, Sz); At = StandFrame(S).Turn(At);
 		// straight back out to the lane and up it past the rear door, then in again
-		const float Yb = At.Y + 20.f; TArray<FVector> R; for (int32 i = X->InWay.Num() - 1; i >= 0; --i) if (-X->InWay[i].Y / 100.f < Yb - 0.5f) R.Add(X->InWay[i]);
-		R.Add(Plan(S + CtLane, Yb));
+		const float Yb = At.Y + 20.f; TArray<FVector> R; for (int32 i = X->InWay.Num() - 1; i >= 0; --i) if (AftY(S, X->InWay[i]) < Yb - 0.5f) R.Add(X->InWay[i]);
+		R.Add(PlanT(S, S + CtLane, Yb));
 		ADP_LOG(TEXT("GSE: the %s on to %s's rear right door"), *T.Name, *X->Reg);
 		Go(T, MoveTemp(R), true, [this, Job, Ti, Yb]
 		{
 			FSvcJob* Y = SvcJ(Job); if (!Y) return;
 			TArray<FVector> W, Full; CaterIn(*Y, 1, Yb, W);
 			// (the way out again: up the lane)
-			float S2 = 0.f, N2 = 0.f, Sp2 = 36.f; StandGeo(Y->StandX, S2, N2, Sp2); for (float Ly = N2 + 46.f; Ly > Yb; Ly -= 1.f) Full.Add(Plan(S2 + CtLane, Ly));
+			float S2 = 0.f, N2 = 0.f, Sp2 = 36.f; StandGeo(Y->StandX, S2, N2, Sp2); for (float Ly = N2 + 46.f; Ly > Yb; Ly -= 1.f) Full.Add(PlanT(S2, S2 + CtLane, Ly));
 			Full.Append(W); Y->InWay = MoveTemp(Full);
 			Go(Tractors[Ti], MoveTemp(W), false, [this, Job] { SvcWork(Job); });
 		});

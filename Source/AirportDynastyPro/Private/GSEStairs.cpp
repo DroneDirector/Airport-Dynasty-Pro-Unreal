@@ -263,10 +263,11 @@ bool AGSE::StairsIn(FSvcJob& J, float FromY, TArray<FVector>& W)
 	// down the lane beside the left wingtip, round in front of the wing (the rear door: behind it) square to the door, stopped short of it
 	float S = 0.f, N = 0.f, Sp = 36.f, Tr = 0.f; StandGeo(J.StandX, S, N, Sp); FVector2f At, Hd;
 	const FTractor& T = Tractors[J.Ti]; if (!T.Ps || !StairsDock(J.StandX, J.CtDoor, float(T.At.Z), At, Hd, Tr)) return false;
+	{ const FAirfieldData::FStandFrame Fr = StandFrame(S); At = Fr.Turn(At); Hd = Fr.Way(Hd.X, Hd.Y); }   // (terminal-way, as FromY)
 	const float R = T.KTurnR, X = S + PsSpec(J.Svc).InLat; const FVector2f Pre = At - Hd * (J.CtDoor ? 5.f : FMath::Max(PsShort / 100.f + 1.f, (X - At.X) - R / 100.f - 0.02f)), Sh = At - Hd * (PsShort / 100.f);
 	const float Ys = Pre.Y + R / 100.f + (J.CtDoor ? 2.9f : 0.f);
-	if (FromY > Ys + 0.5f) Leg(W, X, FromY, 0.f, -1.f, X, Ys, 0.f, -1.f, R);
-	Leg(W, X, Ys, 0.f, -1.f, Pre.X, Pre.Y, Hd.X, Hd.Y, R * 0.98f); Leg(W, Pre.X, Pre.Y, Hd.X, Hd.Y, Sh.X, Sh.Y, Hd.X, Hd.Y, R);
+	if (FromY > Ys + 0.5f) LegT(S, W, X, FromY, 0.f, -1.f, X, Ys, 0.f, -1.f, R);
+	LegT(S, W, X, Ys, 0.f, -1.f, Pre.X, Pre.Y, Hd.X, Hd.Y, R * 0.98f); LegT(S, W, Pre.X, Pre.Y, Hd.X, Hd.Y, Sh.X, Sh.Y, Hd.X, Hd.Y, R);
 	J.InWay = W; T.Ps->Target = Tr;
 	return true;
 }
@@ -274,7 +275,7 @@ bool AGSE::StairsIn(FSvcJob& J, float FromY, TArray<FVector>& W)
 bool AGSE::StairsLane(int32 Ti, float StandX) const
 {
 	// (nothing else moving in the lane between its wingtip and the next stand's: asked for two minutes, then the ordinary right of way)
-	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(StandX, S, N, Sp); const FVector Mid = Plan(S + PsSpec(Tractors[Ti].Svc).InLat, N + 25.f);
+	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(StandX, S, N, Sp); const FVector Mid = PlanT(S, S + PsSpec(Tractors[Ti].Svc).InLat, N + 25.f);
 	for (int32 i = 0; i < Tractors.Num(); ++i)
 	{
 		const FTractor& O = Tractors[i]; if (i == Ti || !O.M.IsValid()) continue;
@@ -330,13 +331,13 @@ void AGSE::StairsWork(int32 Job)
 		{
 			if (E > 240.f) return true;
 			float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(Sx, S, N, Sp); const ATugs* G = ATugs::Get(GetWorld());
-			return E > 2.f && !PlaneNear(Plan(S, N), 1500.f) && (!G || G->ChocksIn(Sx)) && SvcAll(Job, [](const FSvcMan& X) { return X.Seat == 0 || X.bOut; });
+			return E > 2.f && !PlaneNear(PlanT(S, S, N), 1500.f) && (!G || G->ChocksIn(Sx)) && SvcAll(Job, [](const FSvcMan& X) { return X.Seat == 0 || X.bOut; });
 		});
 		Do(Ci, [this, Job, Ti, Stage]
 		{
 			FSvcJob* X = SvcJ(Job); if (!X) return;
 			FTractor& T = Tractors[Ti]; FVector2f At, Hd; float Tr = 0.f, S = 0.f, N = 0.f, Sp = 36.f; StandGeo(X->StandX, S, N, Sp);
-			if (X->bGo || PlaneNear(Plan(S, N), 1500.f) || !StairsDock(X->StandX, X->CtDoor, float(T.At.Z), At, Hd, Tr)) { ADP_WARN(TEXT("GSE: the passenger stairs go home: %s is not standing at its door"), *X->Reg); Stage(6); return; }
+			if (X->bGo || PlaneNear(PlanT(S, S, N), 1500.f) || !StairsDock(X->StandX, X->CtDoor, float(T.At.Z), At, Hd, Tr)) { ADP_WARN(TEXT("GSE: the passenger stairs go home: %s is not standing at its door"), *X->Reg); Stage(6); return; }
 			T.Ps->Target = Tr; Motor(T, true);
 			TArray<FVector> W; const FVector E = Plan(At.X, At.Y); const int32 n = FMath::Max(4, FMath::CeilToInt32(FVector::Dist2D(T.At, E) / 12.f)); for (int32 i = 1; i <= n; ++i) W.Add(FMath::Lerp(T.At, E, float(i) / n));
 			X->InWay.Append(W);

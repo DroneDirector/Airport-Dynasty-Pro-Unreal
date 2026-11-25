@@ -443,7 +443,7 @@ bool AGSE::DeicerLane(int32 Ti, float StandX, int32 Stop, FString& Why) const
 	// its lane from the apron to that stop: nobody else's vehicle, no jetway, building or neighbour's wing in it
 	float S = 0.f, N = 0.f, Sp = 36.f; if (!StandGeo(StandX, S, N, Sp)) return false;
 	const FTractor& T = Tractors[Ti]; const FServiceSpec& Sv = ADPService::All()[T.Svc]; const FSvcDeicer::FStop& P = T.Di->Stops[Stop];
-	const FVector A = Plan(S + P.Lat, N + Sv.Far), E = Plan(S + P.Lat, N + P.Aft - T.KHalfL / 100.f); const FVector D = (E - A).GetSafeNormal2D(), X(-D.Y, D.X, 0.f); const float L = float(FVector::Dist2D(A, E));
+	const FVector A = PlanT(S, S + P.Lat, N + Sv.Far), E = PlanT(S, S + P.Lat, N + P.Aft - T.KHalfL / 100.f); const FVector D = (E - A).GetSafeNormal2D(), X(-D.Y, D.X, 0.f); const float L = float(FVector::Dist2D(A, E));
 	TArray<FOutline> Os; Outlines(Os);
 	for (const FOutline& O : Os)
 	{
@@ -451,7 +451,7 @@ bool AGSE::DeicerLane(int32 Ti, float StandX, int32 Stop, FString& Why) const
 		const float Al = float(FVector::DotProduct(O.C - A, D)), Sd = FMath::Abs(float(FVector::DotProduct(O.C - A, X))), Hx = FMath::Abs(float(FVector::DotProduct(O.X, X))) * O.Hx + FMath::Abs(float(FVector::DotProduct(O.Y, X))) * O.Hy;
 		if (Al > -700.f && Al < L + O.Hx + 60.f && Sd < Hx + T.KHalfW + 40.f) { Why = TEXT("another vehicle is in its way"); return false; }
 	}
-	if (PlaneNear(Plan(S, N), 5000.f)) { Why = TEXT("an aircraft is moving there"); return false; }
+	if (PlaneNear(PlanT(S, S, N), 5000.f)) { Why = TEXT("an aircraft is moving there"); return false; }
 	// (the neighbour: its wingtip)
 	const FVector Mid = (A + E) * 0.5f;
 	if (P.bWing)
@@ -560,11 +560,11 @@ void AGSE::DeicerApron(int32 Job)
 	const FSvcDeicer::FStop P = F.Stops[F.Stop]; TArray<FVector> W; const float Y1 = N + Sv.Far + 6.f;
 	if (FVector::Dist2D(T.At, T.Home) < 200.f && FMath::Abs(FMath::FindDeltaAngleDegrees(T.Yaw, T.HomeYaw)) < 20.f) Leg(W, Sv.HomeX, Sv.HomeY, Sv.HomeHx, Sv.HomeHy, Sv.HomeX + Sv.HomeHx * 9.f, Sv.HomeY + Sv.HomeHy * 9.f, Sv.HomeHx, Sv.HomeHy, T.KTurnR);
 	const FVector From = W.Num() ? W.Last() : T.At;
-	const bool bWay = Apron(W, From, Plan(S + P.Lat, Y1), &T), bBehind = bWay && W.Num() > 6 && FVector::DotProduct(W[5] - T.At, FRotator(0.f, T.Yaw, 0.f).Vector()) < 0.0 && F.Stop == 0 && F.Plane.IsValid();
+	const bool bWay = Apron(W, From, PlanT(S, S + P.Lat, Y1), &T), bBehind = bWay && W.Num() > 6 && FVector::DotProduct(W[5] - T.At, FRotator(0.f, T.Yaw, 0.f).Vector()) < 0.0 && F.Stop == 0 && F.Plane.IsValid();
 	if ((!bWay || bBehind) && DeicerBack(Ti, [this, Job] { DeicerApron(Job); })) return;
 	if (!bWay) { RetryIn(Ti, 8.f, [this, Job] { DeicerApron(Job); }); return; }
 	F.Ph = FSvcDeicer::Drive;
-	Go(T, MoveTemp(W), false, [this, Job, Ti, P, Nose = Plan(S, N), Y1]
+	Go(T, MoveTemp(W), false, [this, Job, Ti, P, Nose = PlanT(S, S, N), Y1]
 	{
 		FSvcDeicer& F1 = *Tractors[Ti].Di; F1.Ph = FSvcDeicer::Wait; F1.PhT = 0.f; F1.LaneT = -10.f; F1.bLaneFree = false;
 		// its turn: the doors shut, the jetway back, its lane free (waited for, then left out)
@@ -598,7 +598,7 @@ void AGSE::DeicerIn(int32 Job, float Y1)
 	// down its lane to the stop, straight
 	FSvcJob* J = SvcJ(Job); if (!J) return; const int32 Ti = J->Ti; FTractor& T = Tractors[Ti]; FSvcDeicer& F = *T.Di; const FSvcDeicer::FStop P = F.Stops[F.Stop];
 	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(J->StandX, S, N, Sp); J->Phase = 2; F.Ph = FSvcDeicer::Drive; T.Job = EJob::Out;
-	TArray<FVector> W; if (Y1 > 0.f) Leg(W, S + P.Lat, Y1, 0.f, -1.f, S + P.Lat, N + P.Aft, 0.f, -1.f, T.KTurnR); else { const FVector E = Plan(S + P.Lat, N + P.Aft); for (int32 i = 1; i <= 24; ++i) W.Add(FMath::Lerp(T.At, E, i / 24.f)); }
+	TArray<FVector> W; if (Y1 > 0.f) LegT(S, W, S + P.Lat, Y1, 0.f, -1.f, S + P.Lat, N + P.Aft, 0.f, -1.f, T.KTurnR); else { const FVector E = PlanT(S, S + P.Lat, N + P.Aft); for (int32 i = 1; i <= 24; ++i) W.Add(FMath::Lerp(T.At, E, i / 24.f)); }
 	Go(T, MoveTemp(W), false, [this, Job, Ti]
 	{
 		FSvcJob* X = SvcJ(Job); if (!X) return; FTractor& V = Tractors[Ti]; V.Job = EJob::AtStand; X->Place = V.At; X->PlaceYaw = V.Yaw; V.Di->Ph = FSvcDeicer::OpIn; V.Di->PhT = 0.f;
@@ -612,8 +612,8 @@ void AGSE::DeicerOut(int32 Job, bool bEnd)
 	// backwards out of the lane, round beyond the tail
 	FSvcJob* J = SvcJ(Job); if (!J) return; const int32 Ti = J->Ti; FTractor& T = Tractors[Ti]; const FServiceSpec& Sv = ADPService::All()[J->Svc];
 	float S = 0.f, N = 0.f, Sp = 36.f, Yw = 0.f, Ya = T.Yaw; StandGeo(J->StandX, S, N, Sp); const float Lat = T.Di->Stops[FMath::Min(T.Di->Stop, T.Di->Stops.Num() - 1)].Lat;
-	T.Di->Ph = FSvcDeicer::Drive; PlanPose(S + Lat, N + Sv.Far, 0.f, -1.f, Ya);
-	const FVector A = Plan(S + Lat, N + Sv.Far), B = PlanPose(S + Lat + 8.f, N + Sv.Far + 8.f, -1.f, 0.f, Yw); TArray<FVector> R;
+	T.Di->Ph = FSvcDeicer::Drive; PoseT(S, S + Lat, N + Sv.Far, 0.f, -1.f, Ya);
+	const FVector A = PlanT(S, S + Lat, N + Sv.Far), B = PoseT(S, S + Lat + 8.f, N + Sv.Far + 8.f, -1.f, 0.f, Yw); TArray<FVector> R;
 	for (int32 i = 1; i <= 40; ++i) R.Add(FMath::Lerp(T.At, A, i / 40.f));
 	Dubins(R, A, Ya + 180.f, B, Yw + 180.f, T.KTurnR);
 	if (!bEnd) T.Job = EJob::Out;

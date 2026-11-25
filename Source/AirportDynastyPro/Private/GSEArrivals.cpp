@@ -130,7 +130,7 @@ void AGSE::ArrBy(int32 Pc, int32 Ti, int32 h)
 		{
 			const int32 c = Slot->X;
 			float S2 = 0.f, N2 = 0.f, Sp = 36.f; StandGeo(StandX, S2, N2, Sp);
-			return FVector::DotProduct(Plan(S2, N2 + 8.f) - Carts[c].At, FRotator(0.f, Carts[c].Yaw + 90.f, 0.f).Vector()) > 0.f ? 1.f : -1.f;
+			return FVector::DotProduct(PlanT(S2, S2, N2 + 8.f) - Carts[c].At, FRotator(0.f, Carts[c].Yaw + 90.f, 0.f).Vector()) > 0.f ? 1.f : -1.f;
 		};
 		WalkTo(Pc, [this, Slot, SideY] { return CW(Carts[Slot->X], FVector(CartSlot(Slot->X, Slot->Y).GetLocation().X, SideY() * 118.f, 0.f)); }, 15.f);
 		PoseAct(Pc, [this, Slot, Cur, SideY](float K, float PH, FDriverPose& P)
@@ -166,7 +166,7 @@ void AGSE::ArrivalToStation(int32 Ti)
 	TArray<FVector> W;
 	float Yw = 0.f; const FVector A = PlanPose(Xc, N + 30.f, 0.f, 1.f, Yw);
 	Dubins(W, T.At, T.Yaw, A, Yw, 400.f);
-	Leg(W, Xc, N + 30.f, 0.f, 1.f, Xc, N + 46.f, 0.f, 1.f, 400.f);
+	LegT(S, W, Xc, N + 30.f, 0.f, 1.f, Xc, N + 46.f, 0.f, 1.f, 400.f);
 	ADP_LOG(TEXT("GSE: %s's train with the arriving bags leaves the stand x %.0f"), *T.Name, S);
 	Go(T, MoveTemp(W), false, [this, Ti] { ArrivalIn(Ti); });
 }
@@ -175,7 +175,11 @@ void AGSE::ArrivalIn(int32 Ti)
 {
 	FTractor& U = Tractors[Ti]; U.Job = EJob::Back;
 	TArray<FVector> R;
-	if (!Apron(R, U.At, Plan(275.f, 114.f), &U)) R.Add(Plan(275.f, 114.f));
+	if (!Apron(R, U.At, Plan(275.f, 114.f), &U))
+	{
+		if (-U.At.Y > 24000.0) { RetryIn(Ti, 8.f, [this, Ti] { ArrivalIn(Ti); }); return; }   // (a remote stand: never straight there)
+		R.Add(Plan(275.f, 114.f));
+	}
 	Leg(R, 275.f, 114.f, 0.f, -1.f, 275.f, 108.f, 0.f, -1.f, 400.f);
 	Leg(R, 275.f, 108.f, 0.f, -1.f, 269.f, 93.f, 0.f, -1.f, 400.f);
 	Leg(R, 269.f, 93.f, 0.f, -1.f, 269.f, 61.f, 0.f, -1.f, 400.f);

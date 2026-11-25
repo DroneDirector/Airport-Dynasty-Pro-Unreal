@@ -348,7 +348,7 @@ void AGSE::FuelArrive(int32 Job)
 	FTractor& T = Tractors[J->Ti]; if (!T.Fu) return;
 	FSvcRefuel& F = *T.Fu; F.bLive = true; F.Litres = J->Pumped;
 	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(J->StandX, S, N, Sp);
-	const AActor* Pl = nullptr; double Bd = 900.0; const FVector Nose = Plan(S, N);
+	const AActor* Pl = nullptr; double Bd = 900.0; const FVector Nose = PlanT(S, S, N);
 	for (TActorIterator<AActor> It(GetWorld()); It; ++It)
 		for (const FName& Tg2 : It->Tags)
 		{
@@ -356,7 +356,7 @@ void AGSE::FuelArrive(int32 Job)
 			const double D = FVector::Dist2D(It->GetActorLocation(), Nose); if (D < Bd) { Bd = D; Pl = *It; }
 		}
 	const FTransform Root(FRotator(0.f, T.Yaw, 0.f), T.At);
-	auto Loc = [&](const FVector& L) { return Root.InverseTransformPosition(Pl ? Pl->GetActorTransform().TransformPosition(L) : FVector(Plan(S - L.X / 100.f, N + L.Y / 100.f) + FuUp * L.Z)); };
+	auto Loc = [&](const FVector& L) { return Root.InverseTransformPosition(Pl ? Pl->GetActorTransform().TransformPosition(L) : FVector(PlanT(S, S - L.X / 100.f, N + L.Y / 100.f) + FuUp * L.Z)); };
 	const FVector C = Loc(FuCouplePlane), Want(FuWork.X, -118.f, 380.f);
 	F.Couple = Want + (C - Want).GetClampedToMaxSize(45.f); F.ClampAt = Loc(FuGear);
 	if (FVector::Dist(C, Want) > 45.f) ADP_WARN(TEXT("GSE: the %s stands %.0f cm off the coupling of %s"), *T.Name, FVector::Dist(C, Want), *J->Reg);

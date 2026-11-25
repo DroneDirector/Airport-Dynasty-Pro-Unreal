@@ -173,7 +173,7 @@ void AGSE::WetTick(FSvcJob& J, float Dt)
 
 const AActor* AGSE::WetPlane(float StandX) const
 {
-	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(StandX, S, N, Sp); const AActor* Pl = nullptr; double Bd = 900.0; const FVector Nose = Plan(S, N);
+	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(StandX, S, N, Sp); const AActor* Pl = nullptr; double Bd = 900.0; const FVector Nose = PlanT(S, S, N);
 	for (TActorIterator<AActor> It(GetWorld()); It; ++It)
 		for (const FName& Tg2 : It->Tags)
 		{
@@ -230,11 +230,11 @@ void AGSE::WetIn(int32 Job)
 	const int32 Ti = J->Ti; FTractor& T = Tractors[Ti]; const FServiceSpec& Sv = ADPService::All()[J->Svc];
 	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(J->StandX, S, N, Sp);
 	const float X = S + Sv.Lat, Yn = N + Sv.Far + 2.f, X0 = X + 2.f * T.KTurnR / 100.f;
-	TArray<FVector> W; Leg(W, X0, Yn + 4.f, 0.f, -1.f, X0, Yn, 0.f, -1.f, T.KTurnR); Leg(W, X0, Yn, 0.f, -1.f, X, Yn, 0.f, 1.f, T.KTurnR * 0.98f); Leg(W, X, Yn, 0.f, 1.f, X, Yn + 2.f, 0.f, 1.f, T.KTurnR);
+	TArray<FVector> W; LegT(S, W, X0, Yn + 4.f, 0.f, -1.f, X0, Yn, 0.f, -1.f, T.KTurnR); LegT(S, W, X0, Yn, 0.f, -1.f, X, Yn, 0.f, 1.f, T.KTurnR * 0.98f); LegT(S, W, X, Yn, 0.f, 1.f, X, Yn + 2.f, 0.f, 1.f, T.KTurnR);
 	const float Y = N + Sv.Aft;
-	Go(T, MoveTemp(W), false, [this, Job, Ti, X, Y]
+	Go(T, MoveTemp(W), false, [this, Job, Ti, S, X, Y]
 	{
-		TArray<FVector> R; const FVector A = Tractors[Ti].At, E = Plan(X, Y); for (int32 i = 1; i <= 40; ++i) R.Add(FMath::Lerp(A, E, i / 40.f));
+		TArray<FVector> R; const FVector A = Tractors[Ti].At, E = PlanT(S, X, Y); for (int32 i = 1; i <= 40; ++i) R.Add(FMath::Lerp(A, E, i / 40.f));
 		Go(Tractors[Ti], MoveTemp(R), true, [this, Job] { SvcWork(Job); });
 	});
 }
@@ -272,7 +272,7 @@ void AGSE::WetArrive(int32 Job)
 	FTractor& T = Tractors[J->Ti]; if (!T.Wa) return;
 	FSvcWet& F = *T.Wa; F.bLive = true; const int32 k = F.bToilet ? 1 : 0;
 	const FTransform Root(FRotator(0.f, T.Yaw, 0.f), T.At); const AActor* Pl = WetPlane(J->StandX); float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(J->StandX, S, N, Sp);
-	const FVector C = Root.InverseTransformPosition(Pl ? Pl->GetActorTransform().TransformPosition(WaPanel[k]) : FVector(Plan(S - float(WaPanel[k].X) / 100.f, N + float(WaPanel[k].Y) / 100.f) + WaUp * WaPanel[k].Z));
+	const FVector C = Root.InverseTransformPosition(Pl ? Pl->GetActorTransform().TransformPosition(WaPanel[k]) : FVector(PlanT(S, S - float(WaPanel[k].X) / 100.f, N + float(WaPanel[k].Y) / 100.f) + WaUp * WaPanel[k].Z));
 	F.Couple = WaWant[k] + (C - WaWant[k]).GetClampedToMaxSize(22.f);   // (so far he reaches from his place)
 	if (FVector::Dist(C, WaWant[k]) > 22.f) ADP_WARN(TEXT("GSE: the %s stands %.0f cm off the panel of %s"), *T.Name, FVector::Dist(C, WaWant[k]), *J->Reg);
 	ADP_LOG(TEXT("GSE: the %s at %s - the panel at (%.0f, %.0f, %.0f) of it"), *T.Name, *J->Reg, C.X, C.Y, C.Z);
