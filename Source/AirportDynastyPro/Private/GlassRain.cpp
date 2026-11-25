@@ -254,10 +254,33 @@ void FGlassRainVehicle::Dress(ABabylonModel* M, TArray<UMaterialInstanceDynamic*
 		for (int32 a = 0; a < Cl.Num(); ++a) for (int32 b = a + 1; b < Cl.Num(); ++b)
 			if (Cl[a].IsValid && Cl[b].IsValid && Cl[a].Intersect(Cl[b])) { Cl[a] += Cl[b]; Cl[b] = FBox(ForceInit); for (int32& o : Of) if (o == b) o = a; bMore = true; }
 	}
+	// a pane with another one standing before it and another behind it is inside (a cab's partition): no rain gets to it
+	auto Inside = [&Ps, &Of](int32 i)
+	{
+		const FVector S = Ps[i].Box.GetSize(), C = Ps[i].Box.GetCenter();
+		const int32 A = S.X < S.Y ? (S.X < S.Z ? 0 : 2) : (S.Y < S.Z ? 1 : 2);
+		if (A == 2 || S[A] > 8.f || S[1 - A] < 30.f || S.Z < 30.f) return false;
+		bool bSide[2] = {false, false};
+		for (int32 j = 0; j < Ps.Num(); ++j)
+		{
+			const FBox& O = Ps[j].Box; const float D = O.GetCenter()[A] - C[A];
+			if (j == i || Of[j] != Of[i] || FMath::Abs(D) < 15.f + O.GetExtent()[A] || O.GetSize()[A] > 40.f) continue;
+			if (C[1 - A] > O.Min[1 - A] && C[1 - A] < O.Max[1 - A] && C.Z > O.Min.Z && C.Z < O.Max.Z) bSide[D > 0.f] = true;
+		}
+		return bSide[0] && bSide[1];
+	};
 	TMap<UMaterialInstanceDynamic*, int32> Used; const float Seed = FMath::FRand() * 50.f; int32 NOwn = 0;
 	for (int32 i = 0; i < Ps.Num(); ++i)
 	{
 		UMaterialInstanceDynamic* D = Cast<UMaterialInstanceDynamic>(Ps[i].K->GetMaterial(Ps[i].Slot));
+		if (Inside(i))
+		{
+			D = OwnGlass(Ps[i], NewGlass); ++NOwn;
+			D->SetVectorParameterValue(TEXT("RainC"), V4(Ps[i].Root.InverseTransformPosition(Cl[Of[i]].GetCenter()), 1.f));
+			D->SetScalarParameterValue(TEXT("RainOwn"), 0.f);   // (and it stays dry: not one of Panes)
+			ADP_LOG(TEXT("Glass rain: %s: %s stands inside and stays dry"), *M->GetName(), *Ps[i].K->GetStaticMesh()->GetName());
+			continue;
+		}
 		const bool bSame = Ps[i].Root.Equals(FTransform::Identity, 0.01f);
 		const int32* U = Used.Find(D);
 		if (U && bSame && *U == Of[i]) continue;           // (already told, the same numbers)

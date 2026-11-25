@@ -70,6 +70,7 @@ static bool GTourTracking = false;   // (the tug tour's tracking camera has a su
 #include "UI/ADPBridge.h"
 #include "UI/InputGlyphs.h"
 #include "UI/SDragBox.h"
+#include "UI/TalkCard.h"
 #include "SunClock.h"
 #include "Wardrobe.h"
 #include "Engine/PostProcessVolume.h"
@@ -162,6 +163,21 @@ public:
 		return INDEX_NONE;
 	}
 	bool Menus() const { const AADPHUD* H = Hud.Get(); return H && H->MenusOpen(); }
+	// talking to someone: the d-pad and A choose, B closes; the arrows, Enter and the numbers do the same on the keyboard
+	TSet<FKey> TalkDown; bool bStick = false;
+	STalkCard* Talk() const { const AADPHUD* H = Hud.Get(); return H ? H->TalkNow() : nullptr; }
+	static bool TalkKey(STalkCard& T, const FKeyEvent& E)
+	{
+		const FKey K = E.GetKey(); const bool bOnce = !E.IsRepeat();
+		if (K == EKeys::Gamepad_DPad_Up || K == EKeys::Up) { T.Step(-1, K.IsGamepadKey()); return true; }
+		if (K == EKeys::Gamepad_DPad_Down || K == EKeys::Down) { T.Step(1, K.IsGamepadKey()); return true; }
+		if (K == EKeys::Gamepad_FaceButton_Bottom || K == EKeys::Enter) { if (bOnce) T.Take(K.IsGamepadKey()); return true; }
+		if (K == EKeys::Gamepad_FaceButton_Right) { if (bOnce) T.Shut(true); return true; }
+		static const FKey Num[] = {EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five, EKeys::Six, EKeys::Seven, EKeys::Eight};
+		for (int32 i = 0; i < UE_ARRAY_COUNT(Num); ++i) if (K == Num[i]) { if (bOnce) T.TakeNumber(i); return true; }
+		// (the controller's other buttons do nothing meanwhile; X ends the talk as E does, and the menu buttons are the game's)
+		return K == EKeys::Gamepad_FaceButton_Top || K == EKeys::Gamepad_DPad_Left || K == EKeys::Gamepad_DPad_Right || K == EKeys::Gamepad_LeftShoulder || K == EKeys::Gamepad_RightShoulder;
+	}
 	void Clear() { for (float& B : Buttons) B = 0; for (float& A : Axes) A = 0; bDirty = true; }
 
 	virtual void Tick(const float, FSlateApplication&, TSharedRef<ICursor>) override {}
@@ -171,6 +187,7 @@ public:
 		// before the device's page (which would take Esc as its own Back)
 		if ((E.GetKey() == EKeys::Escape || E.GetKey() == EKeys::Gamepad_FaceButton_Right) && !E.IsRepeat())
 			if (AADPHUD* H = Hud.Get()) if (!H->MenusOpen() && H->HoldingDevice()) { H->DevicesDown(); return true; }
+		if (STalkCard* T = Talk()) if (TalkKey(*T, E)) { TalkDown.Add(E.GetKey()); return true; }
 		if (!E.GetKey().IsGamepadKey() || !Menus()) return false;
 		if (E.GetKey() == EKeys::Gamepad_FaceButton_Top)
 		{
@@ -183,6 +200,7 @@ public:
 	}
 	virtual bool HandleKeyUpEvent(FSlateApplication&, const FKeyEvent& E) override
 	{
+		if (TalkDown.Remove(E.GetKey()) > 0) return true;   // (its press was the talk card's)
 		if (!E.GetKey().IsGamepadKey()) return false;
 		const int32 I = IndexOf(E.GetKey());
 		if (I != INDEX_NONE && Buttons[I] != 0) { Buttons[I] = 0; bDirty = true; }
@@ -191,6 +209,18 @@ public:
 	virtual bool HandleAnalogInputEvent(FSlateApplication&, const FAnalogInputEvent& E) override
 	{
 		const FKey K = E.GetKey();
+		// talking: the left stick goes up and down the choices
+		if (K == EKeys::Gamepad_LeftX || K == EKeys::Gamepad_LeftY)
+			if (STalkCard* T = Talk())
+			{
+				const float Y = E.GetAnalogValue();
+				if (K == EKeys::Gamepad_LeftY)
+				{
+					if (FMath::Abs(Y) < 0.3f) bStick = false;
+					else if (FMath::Abs(Y) > 0.6f && !bStick) { bStick = true; T->Step(Y > 0.f ? -1 : 1, true); }
+				}
+				return true;
+			}
 		float* To = nullptr; float V = E.GetAnalogValue();
 		if (K == EKeys::Gamepad_LeftX) To = &Axes[0];
 		else if (K == EKeys::Gamepad_LeftY) { To = &Axes[1]; V = -V; }   // the web's sticks: down is +1
@@ -664,26 +694,11 @@ void AADPHUD::BeginPlay()
 				]
 			]
 		]
-		// talking to someone (People.h): their name and what they do, what they say, up to 8 choices
+		// talking to someone (People.h): the frosted card beside their face (UI/TalkCard.h)
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
 		[
-			SAssignNew(TalkPanel, SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(Panel).Padding(FMargin(22, 16))
-			// (beside the face of the one you talk to: TalkCamera.h)
-			.RenderTransform_Lambda([this]() { const FGeometry G = TalkPanel.IsValid() ? TalkPanel->GetCachedGeometry() : FGeometry(); return TOptional<FSlateRenderTransform>(FSlateRenderTransform(FVector2f(ADPTalkCam::PanelShift(G.Scale, FVector2D(G.GetLocalSize())), 0.f))); })
+			SAssignNew(TalkCard, STalkCard).World(GetWorld())
 			.Visibility_Lambda([this]() { AADPPeople* Pp = AADPPeople::Get(GetWorld()); return Pp && Pp->MenuOpen() && !bGame ? EVisibility::Visible : EVisibility::Collapsed; })
-			[
-				SNew(SBox).WidthOverride(560.f)
-				[
-					SNew(SVerticalBox)
-					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 0, 0, 6)
-					[SNew(STextBlock).Font(Font(13)).ColorAndOpacity(Ink).Text_Lambda([this]() { AADPPeople* Pp = AADPPeople::Get(GetWorld()); return FText::FromString(Pp ? Pp->MenuTitle : FString()); })]
-					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 12)
-					[SNew(STextBlock).Font(Font(10, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true).Justification(ETextJustify::Center).Text_Lambda([this]() { AADPPeople* Pp = AADPPeople::Get(GetWorld()); return FText::FromString(Pp ? Pp->MenuText : FString()); })]
-					+ SVerticalBox::Slot().AutoHeight()[SAssignNew(PeopleChoices, SVerticalBox)]
-					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 10, 0, 0)
-					[SNew(STextBlock).Font(Font(8, "Regular")).ColorAndOpacity(FLinearColor(0.6f, 0.68f, 0.78f)).Text(FText::FromString(TEXT("E or Esc: close")))]
-				]
-			]
 		]
 		// what's said within your hearing (People.h): who, the line, and how it is said (for the voices later)
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(FMargin(0, 0, 0, 120))
@@ -811,7 +826,6 @@ void AADPHUD::BeginPlay()
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
 		[SNew(SBox).Visibility_Lambda([this]() { return InAirport() ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed; })[CrashPanel.ToSharedRef()]];
 
-	BuildPeopleChoices();
 	if (GEngine && GEngine->GameViewport) GEngine->GameViewport->AddViewportWidgetContent(Root.ToSharedRef(), 10);
 	// from launch until the menus' page is up: black, nothing of the airport (the page then shows the loading screen)
 	if (GEngine && GEngine->GameViewport && !FParse::Param(FCommandLine::Get(), TEXT("PhotoTour")))
@@ -2038,7 +2052,7 @@ void AADPHUD::Interact()
 	// the jetway's control panel menu open: E closes it (JetwayRigs.h)
 	if (bJetMenu) { CloseJetMenu(); return; }
 	// talking to someone: E closes it (People.h)
-	if (AADPPeople* Pp = AADPPeople::Get(GetWorld())) if (Pp->MenuOpen()) { Pp->Close(); return; }
+	if (AADPPeople* Pp = AADPPeople::Get(GetWorld())) if (Pp->MenuOpen()) { if (!PC->IsInputKeyDown(EKeys::LeftMouseButton)) Pp->Close(); return; }   // (not by a click beside the card)
 	// at a door panel: E / the left mouse button presses the button your finger is on (DoorPanelUse.h)
 	if (ADoorPanelUse::IsActive()) { ADoorPanelUse::Interact(GetOwningPawn(), nullptr); return; }
 	// sitting: E / X stands you up (Seats.h)
@@ -2557,7 +2571,7 @@ void AADPHUD::Tick(float Dt)
 	// using something (a device, the wardrobe, a jetway's panel, the game screen, talking to someone): no outlines meanwhile
 	{ AADPPeople* Pq = AADPPeople::Get(GetWorld()); AInteractOutline::bBusy = bGame || bDevice || PhoneDir != 0 || bWardrobe || bJetMenu || (Pq && Pq->MenuOpen()); }
 	// the people menu opened or closed (by E, by walking away): the mouse pointer with it
-	if (AADPPeople* Pp = AADPPeople::Get(GetWorld())) if (Pp->MenuOpen() != bPeopleMenuWas) { bPeopleMenuWas = Pp->MenuOpen(); UpdateMouse(); }
+	if (AADPPeople* Pp = AADPPeople::Get(GetWorld())) if (Pp->MenuOpen() != bPeopleMenuWas) { bPeopleMenuWas = Pp->MenuOpen(); UpdateMouse(); if (bPeopleMenuWas) if (APlayerController* TalkPC = GetOwningPlayerController()) TalkPC->FlushPressedKeys(); }
 	// (the menus opened once the airport has loaded: a couple of frames after the loading frame, see BeginPlay)
 	if (bMenusPending && ++MenusWaitFrames >= 3) { bMenusPending = false; if (!bGame) ToggleGame(); }
 	// the controller to the menus' page whenever it changes (and once more, all released, when they close)
@@ -5911,18 +5925,10 @@ int32 AADPHUD::NearJetway(float MaxCm) const
 	return JR ? JR->Nearest(Me->GetActorLocation(), MaxCm) : INDEX_NONE;
 }
 
-void AADPHUD::BuildPeopleChoices()
+STalkCard* AADPHUD::TalkNow() const
 {
-	if (!PeopleChoices.IsValid()) return;
-	PeopleChoices->ClearChildren();
-	for (int32 i = 0; i < 8; ++i)
-		PeopleChoices->AddSlot().AutoHeight().Padding(0, 3)
-		[
-			SNew(SButton).ButtonColorAndOpacity(FLinearColor(0.05f, 0.2f, 0.36f, 0.9f)).ContentPadding(FMargin(12, 6))
-			.Visibility_Lambda([this, i]() { AADPPeople* Pp = AADPPeople::Get(GetWorld()); return Pp && Pp->MenuOptions.IsValidIndex(i) ? EVisibility::Visible : EVisibility::Collapsed; })
-			.OnClicked_Lambda([this, i]() { if (AADPPeople* Pp = AADPPeople::Get(GetWorld())) Pp->Choose(i); return FReply::Handled(); })
-			[SNew(STextBlock).Font(Font(10)).ColorAndOpacity(Ink).Text_Lambda([this, i]() { AADPPeople* Pp = AADPPeople::Get(GetWorld()); return FText::FromString(Pp && Pp->MenuOptions.IsValidIndex(i) ? FString::Printf(TEXT("%d.  %s"), i + 1, *Pp->MenuOptions[i]) : FString()); })]
-		];
+	const AADPPeople* Pp = TalkCard.IsValid() ? AADPPeople::Get(GetWorld()) : nullptr;
+	return Pp && Pp->MenuOpen() && !bGame && !HoldingDevice() && !bDevice && !bSettings && !bWardrobe && !bWhoAreYou && PhoneDir == 0 ? TalkCard.Get() : nullptr;
 }
 
 // -UIStrollers (owner, 2026-11-19): the passengers about the Grand Hall and Floor 2 - started, then pictures (its own

@@ -29,8 +29,9 @@ namespace ADPTalkCam
 	void Drop(const TCHAR* Why);
 	/** How far the talk camera is in, 0 your own view .. 1 (what they look at: TalkLook.h). */
 	float Amount();
-	/** The talk menu's panel: how far to the side it stands now (Slate units), given its scale and size there. */
-	float PanelShift(float Scale, const FVector2D& LocalSize);
+	/** The talk card: beside the face, which is always in the screen's middle. Given its scale and size, and how far it was dragged
+	 *  (a share of the window; held so that the card stays in it): its way from the middle (Slate units) and its size there. */
+	void PanelPlace(float Scale, const FVector2D& LocalSize, FVector2D& Drag, FVector2D& Move, float& Size);
 	/** The player's switch, on or off, kept in their settings. */
 	bool IsOn();
 	void SetOn(bool bOn);

@@ -7,6 +7,7 @@
 #include "Tugs.h"
 #include "Airfield.h"
 #include "RoadNetwork.h"
+#include "MetaRoadActor.h"
 #include "BabylonModel.h"
 #include "TerminalPlan.h"
 #include "ADPLog.h"
@@ -53,6 +54,19 @@ namespace
 	float SpPlanZ(const FVector& W) { return -W.Y / 100.f; }
 	// landside (the car park, the crossing, the pavement): the roads' ground, as the passengers (PaxFlow GroundZ)
 	FVector SpLand(float X, float Z) { return FTerminalPlan::ToWorld(X, float(ARoadNetwork::GroundAt(X, Z)) + 0.03f, Z); }
+	// what their feet stand on there: the raised pavement or the crossing over that ground (a few cm higher), the road itself where there is no other
+	FVector SpFeet(UWorld* W, const AActor* Me, const FVector& P)
+	{
+		FVector G = SpLand(P.X / 100.f, SpPlanZ(P)); if (!W) return G;
+		FHitResult H; FCollisionQueryParams Q(SCENE_QUERY_STAT(StaffRoad), true, Me);
+		for (int32 k = 0; k < 4; ++k)
+		{
+			if (!W->LineTraceSingleByChannel(H, G + FVector(0, 0, 120.f), G - FVector(0, 0, 20.f), ECC_Visibility, Q) || !H.GetActor()) break;
+			if (H.ImpactNormal.Z > 0.6f && (H.GetActor()->IsA<AMetaRoad>() || H.GetActor()->IsA<ARoadNetwork>())) { G.Z = H.ImpactPoint.Z; break; }
+			Q.AddIgnoredActor(H.GetActor());
+		}
+		return G;
+	}
 	constexpr float SpLandCrossX = 48.f;                       // (the west zebra crossing, PaxFlow PXCROSS[0])
 	constexpr float SpLandCarX = 46.25f, SpLandCarZ = -58.5f;  // (the car park's front row, its last space of x -87.5 .. 47.5, 2.5 m in front of it)
 	constexpr float SpLandX = -42.5f, SpLandZ = -19.5f;        // (their place: the pavement behind the taxi bus - its rear x -45, the kerb z -21.5)
@@ -770,7 +784,7 @@ void UStaffPeople::Body(FStaff& S)
 	FRoom& R = Rooms.IsValidIndex(S.Room) ? Rooms[S.Room] : NoRoom;
 	AADPPeople* P = AADPPeople::Get(GetWorld()); if (!P) return;
 	NextBody = GetWorld()->GetTimeSeconds() + 0.75f; R.NextSpawn = GetWorld()->GetTimeSeconds() + 4.f;
-	const FVector At = S.bLand ? SpLand(SpLandCarX, SpLandCarZ) : SpPlan(R.X0 + 2.2f, 71.f);
+	const FVector At = S.bLand ? SpFeet(GetWorld(), nullptr, SpLand(SpLandCarX, SpLandCarZ)) : SpPlan(R.X0 + 2.2f, 71.f);
 	AActor* A = P->Spawn(S.Face, At, FVector(0.f, -1.f, 0.f).Rotation().Yaw);   // (its class is in memory already: the load above)
 	if (!A) { S.Role.Reset(); return; }
 	A->SetActorLocation(At);
@@ -994,7 +1008,7 @@ bool UStaffPeople::Walk(FStaff& S, float Dt)
 	if (Want > 0.f)
 	{
 		FVector P = Here + Dir * FMath::Min(Dist, S.Speed * Dt);
-		P.Z = S.bLand ? SpLand(P.X / 100.f, SpPlanZ(P)).Z : SpPlan(P.X / 100.f, SpPlanZ(P)).Z;
+		P.Z = S.bLand ? FMath::FInterpTo(Here.Z, SpFeet(GetWorld(), A, P).Z, Dt, 12.f) : SpPlan(P.X / 100.f, SpPlanZ(P)).Z;   // (a kerb in a step, not a jump)
 		A->SetActorLocation(P);
 		A->SetActorRotation(FMath::RInterpTo(A->GetActorRotation(), FRotator(0.f, Dir.Rotation().Yaw - 90.f, 0.f), Dt, 6.f));
 	}

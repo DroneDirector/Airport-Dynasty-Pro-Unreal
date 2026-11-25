@@ -1,7 +1,8 @@
 # The charging inlet's parts (Art/ApronBus/apronbus-inlet.glb, from Art/ApronBus/add_inlet.py) put into Art/ApronBus/apronbus.glb,
 # Data/babylon-apronbus.json and Data/apronbus-riders.json, so that a later full import keeps them. Nothing else of the bus changes:
 # the skirt and stripe get a new shape in their own places, the flap too, the inlet and two points come at the end. (277 E3a)
-import json, os, shutil, struct
+# Other parts made again (the wheel housings: Art/ApronBus/fix_housings.py): python Tools/patch_apronbus.py apronbus-housings.glb
+import json, os, shutil, struct, sys
 R = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 
 
@@ -10,7 +11,7 @@ def load(p):
     return json.loads(b[20:20 + n]), b[28 + n:28 + n + struct.unpack('<I', b[20 + n:24 + n])[0]]
 
 
-P = os.path.join(R, 'Art', 'ApronBus', 'apronbus.glb'); g, raw = load(P); h, add = load(os.path.join(R, 'Art', 'ApronBus', 'apronbus-inlet.glb'))
+P = os.path.join(R, 'Art', 'ApronBus', 'apronbus.glb'); g, raw = load(P); h, add = load(os.path.join(R, 'Art', 'ApronBus', sys.argv[1] if len(sys.argv) > 1 else 'apronbus-inlet.glb'))
 mats = {m['name']: i for i, m in enumerate(g['materials'])}; raw = bytearray(raw[:g['buffers'][0]['byteLength']])
 while len(raw) % 4: raw.append(0)
 done = {}
@@ -46,4 +47,4 @@ open(P, 'wb').write(struct.pack('<4sII', b'glTF', 2, 28 + len(js) + len(raw)) + 
 open(J, 'w', encoding='utf-8', newline='\n').write(json.dumps(lay, separators=(',', ':')))
 open(RP, 'w', encoding='utf-8', newline='\n').write(json.dumps(rid, indent=1))
 for f in (J, RP): shutil.copy(f, os.path.join(R, 'Content', 'Data', os.path.basename(f)))
-print(len(g['nodes']), 'nodes', {k: rid['points'][k] for k in ('PIV_ChargeFlap', 'SOCK_Inlet')})
+print(len(g['nodes']), 'nodes')

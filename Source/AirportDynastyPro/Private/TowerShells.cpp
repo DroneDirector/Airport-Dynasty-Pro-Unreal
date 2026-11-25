@@ -43,7 +43,7 @@ namespace
 		if (bRead) return M;
 		bRead = true;
 		FString T; TSharedPtr<FJsonObject> J;
-		if (!FFileHelper::LoadFileToString(T, *(FPaths::ProjectDir() / TEXT("Data/tower-baked.json"))) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(T), J) || !J.IsValid())
+		if ((!FFileHelper::LoadFileToString(T, *(FPaths::ProjectContentDir() / TEXT("Data/tower-baked.json"))) && !FFileHelper::LoadFileToString(T, *(FPaths::ProjectDir() / TEXT("Data/tower-baked.json")))) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(T), J) || !J.IsValid())
 		{
 			ADP_WARN(TEXT("Tower: Data/tower-baked.json missing or unreadable"));
 			return M;

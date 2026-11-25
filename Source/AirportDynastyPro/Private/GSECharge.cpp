@@ -429,7 +429,7 @@ bool AGSE::ChargeCrew(int32 Ti, bool bPlug, FString& Why)
 	if (!Sp->AskTeam(Key, EStaffTask::BusCharge, FDateTime(2000, 1, 1), T.At, T.Name, Team) || !Team.Num()) { Why = TEXT("nobody of the ground crew is free"); return false; }
 	const int32 Ci = G->Enlist(Team[0].A.Get(), Team[0].Id, UStaffPeople::DutyName(Team[0].Duty));
 	if (Ci == INDEX_NONE) { Why = TEXT("no crew place"); return false; }
-	G->Crew[Ci].bGse = true; C.Ci = Ci; C.Stage = bPlug ? FBusCharge::Plugging : FBusCharge::Unplugging; C.Cable = Cab;
+	G->Crew[Ci].bGse = true; C.Ci = Ci; C.Stage = bPlug ? FBusCharge::Plugging : FBusCharge::Unplugging; C.Cable = Cab; C.Why.Reset();
 	ADP_LOG(TEXT("Apron bus %s: %s goes to %s"), *T.Name, *G->Crew[Ci].Name, bPlug ? TEXT("plug it in") : TEXT("unplug it"));
 	HiredWay(Ci, T.At, 0.f);
 	// round its nose to its right side, up the middle of the gap to its flap

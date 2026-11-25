@@ -1,9 +1,11 @@
 # Editor script (277 E3a): the charging inlet's four parts into the imported apron bus, with the bus's own materials; no other asset of
 # the bus is touched. UnrealEditor-Cmd <project> -ExecutePythonScript=Tools/import_apronbus_inlet.py -unattended -nullrhi
+# (other parts made again: ADP_BUS_PARTS=apronbus-housings.glb)
+import os
 import unreal
 eal = unreal.EditorAssetLibrary
 TMP, BUS = '/Game/Babylon/ApronBusInletTmp', '/Game/Babylon/ApronBus/apronbus'
-SRC = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir()) + 'Art/ApronBus/apronbus-inlet.glb'
+SRC = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir()) + 'Art/ApronBus/' + (os.environ.get('ADP_BUS_PARTS') or 'apronbus-inlet.glb')
 try:
     # as Tools/import_babylon_model.py does it (a scene import into a scratch level), so that the parts come out in the same axes
     unreal.get_editor_subsystem(unreal.LevelEditorSubsystem).new_level('/Game/ADPScratch/ImportScratch')

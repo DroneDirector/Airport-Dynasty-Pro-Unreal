@@ -45,7 +45,9 @@
 // 2026-11-21): a screen with something right in front of it on BOTH sides is moved to 1.5 cm in front of the nearer one
 // (the housing's face), with a copy turned round, so whichever way the flat screen faces, one of them faces the hall.
 // A screen that is seen from one side already (in front of a wall) is left as it is.
-static void BdBringOut(UWorld* W, UInstancedStaticMeshComponent* K)
+// bTotem: the hall's standing screens have a face on either side, a centimetre in front of their housing - nothing to bring out,
+// but they are seen from the housing's side only (the housing stayed black): each gets the turned copy too, a little further out
+static void BdBringOut(UWorld* W, UInstancedStaticMeshComponent* K, bool bTotem)
 {
 	if (!W || !K || !K->GetStaticMesh() || K->ComponentTags.Contains(TEXT("BoardOut"))) return;
 	K->ComponentTags.Add(TEXT("BoardOut"));
@@ -65,9 +67,11 @@ static void BdBringOut(UWorld* W, UInstancedStaticMeshComponent* K)
 			const FVector Dir = sd ? -Nrm : Nrm; FHitResult H;
 			if (W->LineTraceSingleByChannel(H, C + Dir * 40.f, C, ECC_Visibility, Q)) Near[sd] = (H.ImpactPoint - C).Size();
 		}
-		if (Near[0] < 0.f || Near[1] < 0.f) continue;   // (seen from one side: fine)
-		const int32 sd = Near[0] <= Near[1] ? 0 : 1; const FVector Dir = sd ? -Nrm : Nrm;
-		const FVector Shift = Dir * (Near[sd] + 1.5f);
+		const bool bIn = Near[0] >= 0.f && Near[1] >= 0.f;
+		if (!bIn && !bTotem) continue;   // (seen from one side: fine)
+		const int32 sd = Near[0] <= Near[1] ? 0 : 1; const FVector Dir = sd ? -Nrm : Nrm;   // (nothing before it, -1, counts as nearest)
+		// (a totem's screen in front of its housing: half a centimetre more; with neither side known, where it is)
+		const FVector Shift = bIn ? Dir * (Near[sd] + 1.5f) : (Near[0] < 0.f) != (Near[1] < 0.f) ? Dir * 0.5f : FVector::ZeroVector;
 		X.AddToTranslation(Shift);
 		// (the mirrored copy also turned the picture upside down: the screen's height axis flipped back, round its middle)
 		{
@@ -447,7 +451,7 @@ void AADPHUD::SeekBoards(const TArray<FString>& Keys)
 					UMaterialInstanceDynamic* D = Cast<UMaterialInstanceDynamic>(Mat);
 					if (!D) { D = UMaterialInstanceDynamic::Create(Mat, this); K->SetMaterial(S, D); }
 					L.Add(D);
-					BdBringOut(GetWorld(), K);
+					BdBringOut(GetWorld(), K, Key.EndsWith(TEXT("totem")));
 #if WITH_EDITOR
 					// (-BoardDump: the screen part's texture coordinates - all at one point shows one pixel of the picture)
 					if (FParse::Param(FCommandLine::Get(), TEXT("BoardDump")) && K->GetStaticMesh())

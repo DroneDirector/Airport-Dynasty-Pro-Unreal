@@ -31,6 +31,8 @@
 #include "MetaRoadTypes.h"
 #include "Components/RoadSplineComponent.h"
 #include "MetaRoadMeshBuild/MetaRoadRuntimeBuildHost.h"
+#include "MetaRoadMeshBuild/RoadLayerMeshResult.h"
+#include "MetaRoadMeshBuild/RoadLayerMeshWriters.h"
 #include "MetaRoadMeshBuild/MetaRoadBuildSettings.h"
 #include "MetaRoadMeshBuild/MetaRoadBuildSettingsBase.h"
 #include "UObject/UnrealType.h"
@@ -214,6 +216,36 @@ namespace
 		if (M) for (const TCHAR* P : {TEXT("UseScan"), TEXT("ScanSize"), TEXT("RoadWear"), TEXT("FarLook"), TEXT("PaintRelief")}) M->GetScalarParameterValue(FHashedMaterialParameterInfo(FName(P)), V[k++]);
 		ADP_LOG(TEXT("Roads: %s: %s, scan %.0f size %.2f wear %.0f far %.2f paint %.2f%s"), *What, M ? *M->GetName() : TEXT("none"), V[0], V[1], V[2], V[3], V[4], Said.Contains(Tx) ? TEXT(", textures as above") : *Tx);
 		Said.Add(Tx);
+	}
+
+	/** One finished part of a road as a static mesh, each section on the material it was built with (to-do 248, 304: in a
+	 *  packaged game Unreal finds a section's material by its slot's name, which these meshes don't carry - every section
+	 *  came out without one and was drawn as Unreal's grey squares, whatever the slots held). */
+	bool WritePart(MetaRoad::FRoadLayerMeshResult&& Result, AActor* Target)
+	{
+		TSet<int32> Seen;
+		if (Result.Mesh.HasAttributes() && Result.Mesh.Attributes()->HasMaterialID())
+		{
+			const auto* Ids = Result.Mesh.Attributes()->GetMaterialID();
+			for (const int32 T : Result.Mesh.TriangleIndicesItr()) Seen.Add(Ids->GetValue(T));
+		}
+		else Seen.Add(0);
+		TArray<int32> Used = Seen.Array(); Used.Sort();   // (the sections come in this order, the unused ones left out)
+		const FString Name = Result.BaseAssetName;
+		UStaticMeshComponent* C = MetaRoad::CreateLayerTransientStaticMesh(MoveTemp(Result), Target);
+		UStaticMesh* M = C ? C->GetStaticMesh() : nullptr;
+		if (!M || !M->GetRenderData() || !M->GetRenderData()->LODResources.Num()) return C != nullptr;
+		FStaticMeshSectionArray& Secs = M->GetRenderData()->LODResources[0].Sections;
+		int32 Fixed = 0;
+		for (int32 i = 0; i < Secs.Num(); ++i)
+		{
+			if (M->GetStaticMaterials().IsValidIndex(Secs[i].MaterialIndex)) continue;
+			const int32 Want = Used.IsValidIndex(i) ? Used[i] : 0;
+			Secs[i].MaterialIndex = M->GetStaticMaterials().IsValidIndex(Want) ? Want : 0; ++Fixed;
+		}
+		if (Fixed) C->MarkRenderStateDirty();
+		ADP_LOG(TEXT("Roads: %s - %d sections, %d given their material"), *Name, Secs.Num(), Fixed);
+		return true;
 	}
 
 	/** The built road made solid (to-do 287): in a packaged game Unreal makes no collision for a mesh made while it runs unless
@@ -453,6 +485,7 @@ int32 ARoadNetwork::Build()
 	if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Root) || !Root.IsValid()) { ADP_ERROR(TEXT("Roads: Data/roads.json can't be read")); return 0; }
 	Host = NewObject<UMetaRoadRuntimeBuildHost>(this);
 	Host->MeshOutput = GBaking ? ERoadRuntimeMeshOutput::DynamicMeshComponent : ERoadRuntimeMeshOutput::TransientStaticMesh;   // (built once, never changing: the cheaper draw path; editable meshes when saving them)
+	if (!GBaking) Host->LayerMeshWriter = [](MetaRoad::FRoadLayerMeshResult&& R, AActor* T) { return WritePart(MoveTemp(R), T); };
 	FRoadJob& St = Jobs().Add(this);
 	St = FRoadJob(); St.Root = Root; St.bTest = FParse::Param(FCommandLine::Get(), TEXT("RoadTest")); St.T0 = FPlatformTime::Seconds();
 	St.Total = Root->GetArrayField(TEXT("roads")).Num();

@@ -75,6 +75,7 @@ public:
 
 	// ---- the menu (the HUD draws it: a title, a few lines of text, up to 8 choices) ----
 	bool MenuOpen() const { return bMenu; }
+	AActor* MenuActor() const { return MenuWho.Get(); }
 	void Open(AActor* Who);
 	void Close();
 	void Choose(int32 I);

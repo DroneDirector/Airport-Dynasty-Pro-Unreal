@@ -1518,6 +1518,7 @@ bool APaxFlow::WayToWait(FPx& P)
 		{
 			FVector SAt, SF; float SH;
 			if (!ASeats::SeatOf(s, SAt, SF, SH) || ASeats::IsTaken(s) || SH > 55.f || FMath::Abs(SAt.Z - SH - F2Z) > 60.f) continue;
+			if (P.NoSeat.Contains(s)) continue;   // (couldn't get to it)
 			const FVector2D S2(SAt.X, SAt.Y);
 			if (bOwnGate ? !G.Box.IsInside(S2) : !WalkBox.IsInside(S2)) continue;
 			bool bOther = false; for (const FGate& O : Gates) if (&O != &G && O.Box.IsInside(S2)) { bOther = true; break; }
@@ -1747,7 +1748,34 @@ void APaxFlow::Held(int32 i, float Dt)
 	const bool bTunnel = P.TunB > P.TunA && P.Wi >= P.TunA && P.Wi < P.TunB && R.Walk.Num();
 	FVector Free = L; bool bOk = false;
 	if (bTunnel) { const FSlice& Sl = R.Walk[SliceAt(R, L)]; const float Off = FVector::DotProduct(FVector(L.X - Sl.C.X, L.Y - Sl.C.Y, 0.f), Sl.Rt); Free = Sl.C + Sl.Rt * FMath::Clamp(Off, -Sl.Lim * 0.5f, Sl.Lim * 0.5f); bOk = FVector::Dist2D(Free, L) < 60.f; }
-	else bOk = PaxNav::Nearest(GetWorld(), L, 60.f, Free);
+	else
+	{
+		FVector Aside = FVector::ZeroVector;
+		bOk = PaxNav::Nearest(GetWorld(), L, 60.f, Free);
+		// (held again about here: the way they came by is no way. A point of the walking map a little further that nothing stands
+		//  before, the way looked up anew from there; on the way to a chair, another chair; none reached: they stand and wait)
+		P.HeldN = FVector::Dist2D(P.HeldAt, L) < 200.f ? P.HeldN + 1 : 1; P.HeldAt = L;
+		if (!bOk || (P.HeldN >= 2 && FVector::Dist2D(Free, L) < 15.f))
+		{
+			const FVector Kn(0, 0, 45.f); FCollisionQueryParams Qh(SCENE_QUERY_STAT(PaxHeld), false, A);
+			FVector B; bool bFar = false;
+			for (int32 k = 0; k < 12 && !bFar; ++k)
+			{
+				const FVector Dk = FRotator(0.f, 30.f * k, 0.f).Vector();
+				for (const float Rd : {110.f, 170.f}) if (PaxNav::Nearest(GetWorld(), L + Dk * Rd, 40.f, B) && FVector::Dist2D(B, L) > 70.f && !GetWorld()->LineTraceTestByObjectType(L + Kn, B + Kn, FCollisionObjectQueryParams(ECC_WorldStatic), Qh)) { bFar = true; break; }
+			}
+			if (bFar) { Aside = B; bOk = false; }
+		}
+		if (P.Way.IsValidIndex(P.Wi)) P.Way[P.Wi].bNav = false;
+		if (P.HeldN >= 2 && P.St == EPx::Walk && P.Do == EDo::AtSeat && P.Seat != INDEX_NONE)
+		{
+			P.NoSeat.AddUnique(P.Seat);
+			ADP_WARN(TEXT("PaxFlow: %s can't get to seat %d (held %d times here) - %s"), *P.Id, P.Seat, P.HeldN, P.HeldN < 5 ? TEXT("another place") : TEXT("stays standing"));
+			if (P.HeldN >= 5 || !ReSeat(P)) { ASeats::Release(A); P.Seat = INDEX_NONE; P.Way.Reset(); P.Wi = 0; P.St = EPx::Wait; P.Stage = TEXT("standing, waiting for the boarding call"); }
+		}
+		if (P.St != EPx::Walk) bOk = false;
+		else if (!Aside.IsZero()) { FWp Q; Q.P = Aside; if (P.Way.IsValidIndex(P.Wi)) { Q.Mode = P.Way[P.Wi].Mode; Q.bGround = P.Way[P.Wi].bGround; } Q.bNav = true; P.Way.Insert(Q, FMath::Min(P.Wi, P.Way.Num())); if (P.TunB > P.TunA && P.Wi <= P.TunA) { ++P.TunA; ++P.TunB; if (P.FadeFrom != INDEX_NONE) ++P.FadeFrom; } P.StuckAt = L; }   // (walked there)
+	}
 	++(bTunnel ? StuckJet : StuckElse);
 	const FVector Pl = PlanOf(L), Wt = P.Way.IsValidIndex(P.Wi) ? PlanOf(P.Way[P.Wi].P) : Pl;
 	ADP_WARN(TEXT("PaxFlow: STUCK %s at plan (%.1f, %.1f, height %.1f)%s, next point (%.1f, %.1f, height %.1f), held by %s: %s - %s"), *P.Id, Pl.X, Pl.Z, Pl.Y, bTunnel ? TEXT(" in the jetway") : TEXT(""), Wt.X, Wt.Z, Wt.Y,

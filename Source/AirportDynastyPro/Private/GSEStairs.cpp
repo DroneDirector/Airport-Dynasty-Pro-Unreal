@@ -35,7 +35,7 @@ namespace
 	bool PsDoorOf(const AActor* Pl, const TCHAR* Type, int32 Door, FPsDoor& Out)
 	{
 		static TSharedPtr<FJsonObject> J; static bool bRead = false;
-		if (!bRead) { bRead = true; FString Text; if (FFileHelper::LoadFileToString(Text, *(FPaths::ProjectDir() / TEXT("Data/aircraft-doors.json")))) FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), J); if (!J) ADP_WARN(TEXT("GSE: Data/aircraft-doors.json cannot be read - no passenger stairs")); }
+		if (!bRead) { bRead = true; FString Text; if ((FFileHelper::LoadFileToString(Text, *(FPaths::ProjectContentDir() / TEXT("Data/aircraft-doors.json"))) || FFileHelper::LoadFileToString(Text, *(FPaths::ProjectDir() / TEXT("Data/aircraft-doors.json"))))) FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), J); if (!J) ADP_WARN(TEXT("GSE: Data/aircraft-doors.json cannot be read - no passenger stairs")); }
 		const TSharedPtr<FJsonObject>* T = nullptr; const TArray<TSharedPtr<FJsonValue>>* Ds = nullptr;
 		if (!J || !J->TryGetObjectField(Type, T) || !(*T)->TryGetArrayField(TEXT("doors"), Ds) || !Ds->IsValidIndex(Door)) return false;
 		const TSharedPtr<FJsonObject> D = (*Ds)[Door]->AsObject(); const TArray<TSharedPtr<FJsonValue>>* Sk = nullptr; if (!D || !D->TryGetArrayField(TEXT("skin"), Sk) || Sk->Num() < 2) return false;

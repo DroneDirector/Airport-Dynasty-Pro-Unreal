@@ -28,8 +28,10 @@ namespace
 
 	constexpr float GlideIn = 0.9f, GlideOut = 0.7f;
 	constexpr float FaceSide = 20.f;            // (degrees off the face, towards you)
-	constexpr float FaceFill = 0.75f;           // (of the free height: the head's top to the collarbones)
-	constexpr float MinVert = 24.f, MaxVert = 44.f;   // (the view's angle up and down)
+	// the picture the owner chose (2026-11-25): the hair's top a tenth down, chin a little under the middle, the shoulders and chest under
+	constexpr float FaceFill = 0.68f;           // (of the screen's height: the head's top to the collarbones)
+	constexpr float FaceMid = 0.17f;            // (the middle of that, over the screen's middle: 0 the middle, 1 the edge)
+	constexpr float MinVert = 22.f, MaxVert = 50.f;   // (the view's angle up and down)
 	constexpr float LensBall = 9.f;             // (the camera as a ball, cm)
 
 	enum class EPhase : uint8 { None, Wait, On, Out };
@@ -63,18 +65,19 @@ namespace
 		return Px;
 	}
 
-	struct FLayout { float Nx = 0.f, Ny = 0.f, FreeH = 0.8f, FreeW = 1.f, Shift = 0.f; };
+	struct FLayout { float Ny = FaceMid, FreeW = 1.f, Shift = 0.f, Size = 1.f; };
 
-	/** The face to the left, the panel beside it, both about the screen's middle however wide it is; the subtitle's room under. */
+	/** The face always in the screen's middle (owner), the card to its right. On a narrow screen the card is made smaller, down to
+	 *  a little over half, and then stands partly over the shoulder: the face is never moved or made smaller for it. */
 	FLayout MakeLayout()
 	{
 		FLayout L; const FVector2f Px = ScreenPx(); const float S = FMath::Max(GPanelScale, 0.1f), Vw = Px.X, Vh = Px.Y;
-		const float Top = 0.02f * Vh, Bottom = FMath::Max(Vh - 185.f * S, Vh * 0.6f), Zone = Bottom - Top;   // (the subtitle: 120 up, two lines)
-		const float Pw = FMath::Min(float(GPanelSize.X) * S, Vw * 0.6f), Gap = 28.f * S, Edge = 24.f * S, Fw = Zone * 0.9f, All = Fw + Gap + Pw;
-		float Fc, Pc;
-		if (All + 2.f * Edge <= Vw) { const float L0 = (Vw - All) * 0.5f; Fc = L0 + Fw * 0.5f; Pc = L0 + Fw + Gap + Pw * 0.5f; L.FreeW = Fw / Vh; }
-		else { const float Room = FMath::Max(Vw - Edge - Pw - Gap, 0.2f * Vw); Fc = Room * 0.5f; Pc = Vw - Edge - Pw * 0.5f; L.FreeW = Room / Vh; }
-		L.Nx = 2.f * Fc / Vw - 1.f; L.Ny = 1.f - (Top + Bottom) / Vh; L.FreeH = Zone / Vh; L.Shift = (Pc - Vw * 0.5f) / S;
+		const float Pw = FMath::Max(float(GPanelSize.X) * S, 1.f), Ph = FMath::Max(float(GPanelSize.Y) * S, 1.f), Edge = 24.f * S;
+		const float Left = Vw * 0.5f + 0.25f * Vh + 28.f * S;
+		L.Size = FMath::Clamp(FMath::Min3((Vw - Edge - Left) / Pw, 0.92f * Vh / Ph, 1.f), 0.6f, 1.f);
+		const float Half = Pw * L.Size * 0.5f;
+		L.Shift = (FMath::Min(Left + Half, Vw - Edge - Half) - Vw * 0.5f) / S;
+		L.FreeW = FMath::Min(1.f, Vw / Vh * 0.9f);
 		return L;
 	}
 
@@ -100,6 +103,10 @@ namespace
 		if (AActor* H = Me->HumanActor()) { TArray<AActor*> More; H->GetAttachedActors(More, true, true); All.AddUnique(H); for (AActor* M : More) All.AddUnique(M); }
 		for (AActor* A : All) if (A && !PC->HiddenActors.Contains(A)) { PC->HiddenActors.Add(A); GT.Hid.Add(A); }
 	}
+
+	/** What the engine makes of a view's angle: it is the width's on the camera's own shape (16:9), and the height it gives there is
+	 *  kept on every screen (a wider one only sees more to the sides). */
+	float ShapeOf(const FMinimalViewInfo& V) { return V.AspectRatio > 0.1f ? V.AspectRatio : 16.f / 9.f; }
 
 	/** What the portrait lens needs whatever the player's quality is: lent while you talk, given back after, never saved. */
 	struct FLent { const TCHAR* Name; float Least; FString Was, Is; bool bHeld = false; };
@@ -140,7 +147,7 @@ namespace
 		const FVector Mid = GT.F.Eye - FRotator(0.f, GT.F.Yaw, 0.f).Vector() * 4.0;
 		const float D = FMath::Max(float(FVector::Dist(At, Mid)), 30.f), Open = 0.0028f * 2.f * D * FMath::Tan(FMath::DegreesToRadians(VertDeg * 0.5f)) * (D + 10.f) / 10.f;   // (the lens opening, cm)
 		// a full-frame picture, 24 mm high whatever the screen's shape
-		const float Tv = FMath::Tan(FMath::DegreesToRadians(V.FOV * 0.5f)) / Aspect, Focal = 1.2f / FMath::Max(Tv, 0.01f);
+		const float Tv = FMath::Tan(FMath::DegreesToRadians(V.FOV * 0.5f)) / ShapeOf(V), Focal = 1.2f / FMath::Max(Tv, 0.01f);
 		const float Stop = FMath::Clamp(Focal / FMath::Max(Open * GT.A, 0.01f), 1.f, 32.f);
 		P.bOverride_DepthOfFieldSensorWidth = true; P.DepthOfFieldSensorWidth = FMath::Clamp(24.f * Aspect, 10.f, 200.f);
 		P.bOverride_DepthOfFieldFstop = true; P.DepthOfFieldFstop = Stop;
@@ -241,16 +248,16 @@ namespace
 	/** The whole view from a spot: where, which way, and the angle up and down. */
 	void SpotView(const FFace& F, const FSpot& S, FVector& Pos, FRotator& Rot, float& Vdeg)
 	{
-		const FLayout L = MakeLayout(); const FVector2f Px = ScreenPx(); const float Aspect = Px.X / Px.Y;
+		const FLayout L = MakeLayout();
 		Pos = SpotPos(F, S);
 		// the middle of the picture: half-way from the head's top to the collarbones, a little behind the eyes
 		const FVector Mid = FVector(F.Eye.X, F.Eye.Y, (F.Top + F.Low) * 0.5) - FRotator(0.f, F.Yaw, 0.f).Vector() * 4.0;
 		const float D = FMath::Max(float(FVector::Dist(Pos, Mid)), 20.f);
-		const float H = FMath::Max((F.Top - F.Low) / (FaceFill * L.FreeH), 34.f / FMath::Max(L.FreeW, 0.1f));
+		const float H = FMath::Max((F.Top - F.Low) / FaceFill, 34.f / FMath::Max(L.FreeW, 0.1f));
 		Vdeg = FMath::Clamp(FMath::RadiansToDegrees(2.f * FMath::Atan(H * 0.5f / D)), MinVert, MaxVert);
-		const float Tv = FMath::Tan(FMath::DegreesToRadians(Vdeg * 0.5f)), Th = Tv * Aspect;
+		const float Tv = FMath::Tan(FMath::DegreesToRadians(Vdeg * 0.5f));
 		Rot = (Mid - Pos).Rotation();
-		Rot.Yaw -= FMath::RadiansToDegrees(FMath::Atan(L.Nx * Th)); Rot.Pitch -= FMath::RadiansToDegrees(FMath::Atan(L.Ny * Tv)); Rot.Roll = 0.f;
+		Rot.Pitch -= FMath::RadiansToDegrees(FMath::Atan(L.Ny * Tv)); Rot.Roll = 0.f;
 	}
 
 	FCollisionQueryParams MakeQuery(AADPWalker& Me)
@@ -358,12 +365,16 @@ void Tick()
 
 float Amount() { return GT.Phase == EPhase::None ? 0.f : GT.A; }
 
-float PanelShift(float Scale, const FVector2D& LocalSize)
+void PanelPlace(float Scale, const FVector2D& LocalSize, FVector2D& Drag, FVector2D& Move, float& Size)
 {
-	if (GT.Phase == EPhase::None) return 0.f;
 	if (Scale > 0.05f) GPanelScale = Scale;
 	if (LocalSize.X > 50.0) GPanelSize = LocalSize;
-	return MakeLayout().Shift * GT.A;
+	const FLayout L = MakeLayout(); const FVector2f Px = ScreenPx(); const float S = FMath::Max(GPanelScale, 0.1f);
+	Size = L.Size;
+	// (the whole card stays in the window wherever it is dragged)
+	const FVector2D Window(FMath::Max(Px.X, 1.f) / S, FMath::Max(Px.Y, 1.f) / S), Room(FMath::Max(0.0, (Window.X - GPanelSize.X * Size) * 0.5 - 8.0), FMath::Max(0.0, (Window.Y - GPanelSize.Y * Size) * 0.5 - 8.0));
+	Move = FVector2D(FMath::Clamp(double(L.Shift) + Drag.X * Window.X, -Room.X, Room.X), FMath::Clamp(Drag.Y * Window.Y, -Room.Y, Room.Y));
+	Drag = FVector2D((Move.X - double(L.Shift)) / Window.X, Move.Y / Window.Y);
 }
 
 void Apply(AADPWalker& Me, float Dt, FMinimalViewInfo& V)
@@ -439,7 +450,7 @@ void Apply(AADPWalker& Me, float Dt, FMinimalViewInfo& V)
 
 	const FRotator To = (Rot - V.Rotation).GetNormalized();
 	const FVector2f Px = ScreenPx(); const float Aspect = Px.X / Px.Y;
-	const float T0 = FMath::Tan(FMath::DegreesToRadians(V.FOV * 0.5f)), T1 = FMath::Tan(FMath::DegreesToRadians(Vd * 0.5f)) * Aspect;
+	const float T0 = FMath::Tan(FMath::DegreesToRadians(V.FOV * 0.5f)), T1 = FMath::Tan(FMath::DegreesToRadians(Vd * 0.5f)) * ShapeOf(V);
 	V.Location = Cam;
 	V.Rotation = FRotator(V.Rotation.Pitch + To.Pitch * GT.A, V.Rotation.Yaw + To.Yaw * GT.A, V.Rotation.Roll + To.Roll * GT.A);
 	// (in logarithm: an even zoom, as a lens makes it)

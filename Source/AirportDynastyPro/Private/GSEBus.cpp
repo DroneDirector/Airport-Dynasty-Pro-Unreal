@@ -521,9 +521,9 @@ TSharedPtr<FVehTable> AGSE::BusControls()
 	{
 		auto Side = [&](float Y0, float Y1, float Z0, float Z1, float X0, float X1) { Box(X0, X1, h[2] > 0.f ? Y0 : -Y1, h[2] > 0.f ? Y1 : -Y0, Z0, Z1); };
 		const bool bFront = h[0] > 0.f, bSeats = !(bFront && h[2] < 0.f);
-		Side(bFront ? 88.f : 78.f, 146.f, 33.f, 108.f, h[0], h[1]);
+		Side(bFront ? 75.f : 71.5f, 146.f, 33.f, 108.f, h[0], h[1]);
 		if (!bSeats) continue;
-		Side(bFront ? 76.f : 66.f, bFront ? 88.f : 78.f, 33.f, 57.f, h[0], h[1]); Side(96.f, 136.f, 108.f, 120.f, h[0], h[1]); Side(135.f, 146.f, 120.f, 178.f, h[0], h[1]); Side(93.f, 95.f, 138.f, 141.f, h[0], h[1]);
+		Side(66.5f, bFront ? 75.f : 71.5f, 33.f, 57.f, h[0], h[1]); Side(96.f, 136.f, 108.f, 120.f, h[0], h[1]); Side(135.f, 146.f, 120.f, 178.f, h[0], h[1]); Side(93.f, 95.f, 138.f, 141.f, h[0], h[1]);
 	}
 	for (const float s : {-1.f, 1.f}) Box(-37, 57, s > 0 ? 118 : -146, s > 0 ? 146 : -118, 33, 150);
 	for (const FVector2D& P : BusPoles) Box(P.X - 2.5, P.X + 2.5, P.Y - 2.5, P.Y + 2.5, 33, 273);
@@ -669,6 +669,7 @@ void AGSE::BusSlots(int32 Ti, TArray<FBusSlot>& Out) const
 	{
 		const FVector At(-600. + 48. * BusStraps[k], 88. * Sg, BusFloor); bool bOk = At.X < 500.;
 		for (int32 d = 0; d < 7 && bOk; ++d) bOk = FMath::Abs(BusDoors[d].X - At.X) > 70.;
+		bOk &= !(At.X > 275. && At.X < 477.) && !(At.X > -441. && At.X < -227.);                            // (not on a wheel house)
 		for (const FVector& V : All) if (FVector::Dist2D(V, At) < 72.) bOk = false;                         // (no seat, no knees of a sitting one)
 		for (const FVector& V : Stood) if (FVector::Dist2D(V, At) < 47.) bOk = false;
 		for (const FVector2D& Po : BusPoles) if (FVector2D::Distance(Po, FVector2D(At)) < 26.) bOk = false;

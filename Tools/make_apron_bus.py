@@ -37,6 +37,7 @@ K.subprocess.run = _local_run
 # #endregion
 
 from vehicle_kit import box, cyl, lathe, torus, tube, prism, cut, turn, lamp, ALL, IKS
+import apronbus_housings as BH
 ART = os.path.join(ROOT, 'Art', 'ApronBus'); os.makedirs(ART, exist_ok=True)
 BP = os.path.join(ROOT, 'Blueprints', 'Vehicles', 'ApronBus')
 WIRE = os.path.join(BP, 'wire'); os.makedirs(WIRE, exist_ok=True)
@@ -141,12 +142,12 @@ cyl('DriveShaftRear', (RX - 1.40, -0.30, 0.12), 0.035, 2.6, 'x', M_STEEL, 20) if
 # #region ── Floor, wheel housings, skirts with the arches and door openings ──
 box('FloorSlab', (0, 0, (SLAB0 + FLOOR) / 2), (2 * L2 - 0.12, 2 * W2 - 0.06, FLOOR - SLAB0), M_DARK, bevel=0.01)
 box('FloorVinyl', (0, 0, FLOOR + 0.002), (2 * L2 - 0.30, 2 * W2 - 0.20, 0.004), M_FLOOR)
+BH.wells(*ALL[-2:])          # (Tools/apronbus_housings.py: the housings, the wells under them, the steps)
 HOUSE = []
 for ax, r, nm in ((FX, ARCH_R, 'F'), (RX, ARCH_R + 0.06, 'R')):
     for s, sd in ((1, 'L'), (-1, 'R')):
         yi = s * (0.78 if nm == 'R' else 0.88)
-        h = box(f'WheelHousing_{nm}{sd}', (ax, s * (W2 + abs(yi)) / 2 - s * 0.03, (FLOOR + 1.08) / 2), (2 * r + 0.30, W2 - abs(yi) - 0.06, 1.08 - FLOOR), M_SHELL, bevel=0.03)
-        cut(h, cyl('HousingCut', (ax, s * W2, TZ), TZ + 0.06, 2 * (W2 - abs(yi)) + 0.2, 'y', M_DARK, 64))   # hollow over the wheel
+        BH.housing(nm, s, M_SHELL)
         HOUSE.append((ax, yi, r, s))
 def openings(s):
     ds = DOORS_L if s > 0 else DOORS_R
@@ -173,7 +174,8 @@ for s, sd in ((1, 'L'), (-1, 'R')):
     for ax, r in ((FX, ARCH_R), (RX, ARCH_R + 0.12)):         # arch trim rings (rubber lip)
         tr = torus(f'ArchLip_{sd}{"F" if ax > 0 else "R"}', (ax, y + s * 0.02, TZ), r + 0.01, 0.02, 'y', M_DARK, 64, 10)
         cut(tr, box('LipCut', (ax, y, TZ - 0.6), (2 * r + 0.2, 0.3, 1.2 - 2 * (TZ - SK0) + 0.0), M_DARK))
-        box(f'MudFlap_{sd}{"F" if ax > 0 else "R"}', (ax - r - 0.10, s * (W2 - 0.20), 0.40), (0.012, 0.30, 0.34), M_PLAST, bevel=0.004)
+        if ax > 0: box(f'MudFlap_{sd}{"F" if ax > 0 else "R"}', (ax - r - 0.10, s * (W2 - 0.20), 0.40), (0.012, 0.30, 0.34), M_PLAST, bevel=0.004)
+        else: BH.flap(sd, M_PLAST)
 # #endregion
 
 # #region ── Window band: pillars, glass, door headers, cant rail, roof ──
@@ -343,7 +345,7 @@ for (ax, yi, r, s) in HOUSE:
     box(f'SeatGrabRail_{ax:+.0f}{s:+d}', (ax, s * (W2 - 0.56), 1.40), (1.50, 0.03, 0.03), M_STAIN, bevel=0.01)
     for k in (-1, 1):
         box(f'SeatGrabPost_{ax:+.0f}{s:+d}{k}', (ax + k * 0.74, s * (W2 - 0.56), 1.26), (0.03, 0.03, 0.30), M_STAIN, bevel=0.01)
-    box(f'HousingStep_{ax:+.0f}{s:+d}', (ax, s * (abs(yi) - 0.06), FLOOR + 0.12), (2 * r + 0.30, 0.12, 0.24), M_SHELL, bevel=0.02)
+    BH.step('F' if ax > 0 else 'R', s, M_SHELL)
 # luggage racks by the middle doors (both sides): two shelves in a frame
 for i, (x, s) in enumerate(((0.10, 1), (0.10, -1))):
     for k in (-1, 1):

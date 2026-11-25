@@ -169,7 +169,7 @@ const TArray<FServiceSpec>& ADPService::All()
 			// yet. 14 m long, wheelbase 7.10 m: the rear axle's turning circle 10.8 m at 33 degrees; 30 km/h
 			FServiceSpec B;
 			B.bBus = true; B.Task = TEXT("apronbus"); B.Model = TEXT("ApronBus"); B.Points = TEXT("apronbus"); B.Label = TEXT("apron bus"); B.Role = TEXT("bus"); B.Team = EStaffTask::ApronBus; B.MaxPeople = 1;
-			B.HalfL = 699.f; B.HalfW = 151.f; B.TurnR = 1080.f; B.MaxSteer = 35.f; B.DoorDeg = 85.f; B.PlayerSpeed = 833.f;
+			B.HalfL = 699.f; B.HalfW = 151.f; B.TurnR = 1080.f; B.MaxSteer = 30.f; B.DoorDeg = 85.f; B.PlayerSpeed = 833.f;
 			B.Wipers = {{TEXT("WiperArm_L"), TEXT("PIV_Wiper_L"), FVector(695.f, 10.f, 118.5f), FVector(691.f, -55.f, 181.f)}, {TEXT("WiperArm_R"), TEXT("PIV_Wiper_R"), FVector(695.f, -10.f, 123.5f), FVector(691.f, 55.f, 186.f)}};
 			L.Add(B);
 		}

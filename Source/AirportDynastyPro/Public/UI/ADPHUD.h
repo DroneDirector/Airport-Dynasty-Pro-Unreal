@@ -149,6 +149,8 @@ public:
 	/** The phone or the tablet in your hands (held, on its way, or up close): the game's own UI steps aside, only the
 	 *  Buttons legend stays (owner, 2026-11-18, to-do 120). */
 	bool HoldingDevice() const;
+	/** The talk card while it has the keys (talking to someone, nothing else in front); null otherwise. */
+	class STalkCard* TalkNow() const;
 	/** Esc / the pad's Circle while you hold or use your phone or tablet: always put it all the way down (owner, 2026-11-19). */
 	void DevicesDown();
 	bool TabletUse();
@@ -370,9 +372,8 @@ private:
 	bool bPointer = false, bFpsBox = false, bFrameGen = false;
 	// the jetway's control panel menu (E at its console): which jetway, open or not (JetwayRigs.h)
 	bool bJetMenu = false; int32 JetMenuJ = -1; bool bJetPointerWas = false;
-	bool bPeopleMenuWas = false;
-	TSharedPtr<class SBorder> TalkPanel;
-	TSharedPtr<class SVerticalBox> PeopleChoices; void BuildPeopleChoices();   // (the people menu was open last frame: the mouse follows it)
+	bool bPeopleMenuWas = false;   // (the people menu was open last frame: the mouse follows it)
+	TSharedPtr<class STalkCard> TalkCard;
 	void OpenJetMenu(int32 J); void CloseJetMenu();
 	int32 NearJetway(float MaxCm) const;
 	/** AMD's frame generation (FSR, any graphics card) on or off; kept in the settings file, off unless chosen. */
