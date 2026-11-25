@@ -2648,6 +2648,69 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 94.f && ShotClock >= 94.f) if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(FRotator(50.f, PC->GetControlRotation().Yaw, 0));
 			if (Before < 100.f && ShotClock >= 100.f) FScreenshotRequest::RequestScreenshot(TEXT("Gate4Ceiling"), false, false);
 		}
+		// (each subject of -UIShot its own function, in this order: one Tick of 3,300 lines had grown too big for the compiler to optimise)
+		TickShotsBuildings(Dt, Before, ShotClock);
+		TickShotsGround(Dt, Before, ShotClock);
+		TickShotsJetways(Dt, Before, ShotClock);
+		TickShotsRides(Dt, Before, ShotClock);
+		TickShotsScreens(Dt, Before, ShotClock);
+		TickShotsLooks(Dt, Before, ShotClock);
+		if (TickShotsDrives(Dt, Before, ShotClock)) return;
+		TickShotsHalls(Dt, Before, ShotClock);
+		// -UISite: outside at the kerb (the light, the sky, the credits), and a picture
+		const bool bSite = FParse::Param(FCommandLine::Get(), TEXT("UISite"));
+		if (bSite && Before < 48.f && ShotClock >= 48.f) { OpenSite(); if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(FRotator(5.f, 90.f, 0)); }
+		if (bSite && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("Site"), true, false);
+		// -UIDoor: walk up to a sliding entrance door (it should open), and a picture of it
+		const bool bDoor = FParse::Param(FCommandLine::Get(), TEXT("UIDoor"));
+				if (bDoor && ((Before < 48.f && ShotClock >= 48.f) || (Before < 54.f && ShotClock >= 54.f)))
+		{
+			const float Back = ShotClock < 50.f ? 600.f : 200.f;   // first from 6 m (shut), then from 2 m (open)
+			if (bGame) ToggleGame();
+			FVector At;
+			for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It)
+				if (It->SlidingDoorAt(At))
+					if (APawn* Me = GetOwningPawn())
+					{
+						const FVector From = At + FVector(0, Back, Me->GetSimpleCollisionHalfHeight() + 10.f);
+						const FRotator Look = (At + FVector(0, 0, 150.f) - From).Rotation();
+						Me->TeleportTo(From, FRotator(0, Look.Yaw, 0));
+						if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(Look);
+						break;
+					}
+		}
+		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
+		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
+		if (!FParse::Param(FCommandLine::Get(), TEXT("UIPetStep")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJwWalls")) && !FParse::Param(FCommandLine::Get(), TEXT("UIStrollers")) && !FParse::Param(FCommandLine::Get(), TEXT("UICoaches")) && !FParse::Param(FCommandLine::Get(), TEXT("UICoachUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UISvcDoor")) && !FParse::Param(FCommandLine::Get(), TEXT("UIUpdateSim")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBootShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIContinueShots")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UIPlanView=")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIChablais")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayTest")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayBeacons")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayViews")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGateJetways")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayVideo")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFGToggle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHmi")) && !FParse::Param(FCommandLine::Get(), TEXT("UITablet")) && !FParse::Param(FCommandLine::Get(), TEXT("UICctv")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapTrace")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UITitleRender=")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UIBoxProbe=")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHmiVideo")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIConduct")) && !FParse::Param(FCommandLine::Get(), TEXT("UITalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHaze")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDockTypes")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDecals")) && !FParse::Param(FCommandLine::Get(), TEXT("UITwyLights")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGroundQ")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWeatherGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFlares")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAdverts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UICoachWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFullWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfStand")) && !FParse::Param(FCommandLine::Get(), TEXT("UISettingsShot")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanelUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoad")) && !FParse::Param(FCommandLine::Get(), TEXT("UIKiosk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) ADP_SHOT_EXIT();
+	}
+	// the announcements, one at a time: the gong, then the words for ten seconds
+	// the announcements: the chime, then the announcer; how loud they are follows where you are
+	HeardGain = FMath::FInterpTo(HeardGain, ZoneGain(), Dt, 2.f);
+	// the indoor lighting blends in through the doors
+	IndoorWeight = FMath::FInterpTo(IndoorWeight, ZoneKind().IsEmpty() ? 0.f : 1.f, Dt, 1.5f);
+	if (Indoor) Indoor->BlendWeight = IndoorWeight;
+	for (UAudioComponent* A : {VoiceOut.Get(), GongOut.Get()})
+		if (A) { A->SetVolumeMultiplier(FMath::Max(0.001f, CallGain())); A->SetLowPassFilterEnabled(true); A->SetLowPassFilterFrequency(ZoneMuffle()); }
+	if ((CallsClock += Dt) >= 1.f) { CallsClock = 0; RunCalls(); }
+	if (SpeakIn > 0 && (SpeakIn -= Dt) <= 0) Speak(CallText);
+	if (CaptionTime > 0) CaptionTime -= Dt;
+	// only in the 3D view: while the menus are open the calls wait (and old ones are dropped)
+	else if (Calls.Num() && bGame) Calls.RemoveAt(0);   // in the menus: read on the Overview instead, never played later
+	else if (Calls.Num()) { CallText = Calls[0].Key; CallKind = Calls[0].Value; Calls.RemoveAt(0); CaptionTime = 12.f; PlayGong(); SpeakIn = 1.7f; }
+	if (Dt > 0) FpsSmooth = FMath::Lerp(FpsSmooth, 1.f / Dt, 0.05f);
+	const APawn* P = GetOwningPawn();
+	if (P && HoloMap.IsValid())
+	{
+		const FVector L = P->GetActorLocation();
+		const float Feet = (L.Z - P->GetSimpleCollisionHalfHeight()) / 100.f;
+		HoloMap->SetPlayer(FVector(L.X / 100.f, Feet, -L.Y / 100.f), P->GetControlRotation().Yaw);
+		if (Compass.IsValid()) { if (!Compass->Map.IsValid()) Compass->Map = HoloMap; Compass->Invalidate(EInvalidateWidgetReason::Paint); }   // (the compass strip over the map)
+	}
+}
+
+// -UIShot: the terminal, the tower, the hangars, the offices and the fire stations
+void AADPHUD::TickShotsBuildings(float Dt, const float Before, float& ShotClock)
+{
 		// -UIPillar: the tree columns' stone up close, in daylight: a trunk at eye level, a trunk up to its arms, one
 		// outside at the kerb
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIPillar")))
@@ -2966,6 +3029,11 @@ void AADPHUD::Tick(float Dt)
 			for (const FStep& St : FSteps)
 				if (Before < St.At && ShotClock >= St.At) St.Do();
 		}
+}
+
+// -UIShot: the people, the airfield, its ground, lights and weather
+void AADPHUD::TickShotsGround(float Dt, const float Before, float& ShotClock)
+{
 		// -UIPeople[=MH_016_passenger,MH_024_passenger,...] (without a list: the first two): each MetaHuman person named
 		// (Content/People/Built) stands before you in the lit fire station hall, facing you: a full-length picture, then
 		// their face close up (the view narrowed to 30 degrees, 1.2 m off, the camera turned to their own eyes' height);
@@ -3356,6 +3424,11 @@ void AADPHUD::Tick(float Dt)
 			}
 			if (ShotClock > 60.f && Pp && (!Pp->SceneOn() || ShotClock > 280.f) && Before <= ShotClock) { static bool bEnd = false; if (!bEnd) { bEnd = true; ADP_LOG(TEXT("UIConduct: the scene ended at %.0f s"), ShotClock); } if (ShotClock > 64.f) ADP_SHOT_EXIT(); }
 		}
+}
+
+// -UIShot: the strollers, the coaches, the service doors and the jetways
+void AADPHUD::TickShotsJetways(float Dt, const float Before, float& ShotClock)
+{
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIStrollers"))) TestStrollers(Before, ShotClock);
 		if (FParse::Param(FCommandLine::Get(), TEXT("UICoaches"))) TestCoaches(Before, ShotClock);
 		if (FParse::Param(FCommandLine::Get(), TEXT("UICoachUse"))) TestCoachUse(Before, ShotClock);
@@ -3721,6 +3794,11 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 92.f && ShotClock >= 92.f) Shot(TEXT("9-docked-again"));
 			if (Before < 95.f && ShotClock >= 95.f) ADP_SHOT_EXIT();
 		}
+}
+
+// -UIShot: the escalators, the frame-rate walks, the drone, the running and the body
+void AADPHUD::TickShotsRides(float Dt, const float Before, float& ShotClock)
+{
 		// -UIEscShots (owner, 2026-11-16: four escalators, the pair copied beside itself): pictures of them from the Grand
 		// Hall, from the landing, from the side and at the guardrail's gap (plan metres: x = Unreal X, plan z = -Unreal Y)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIEscShots")))
@@ -4069,6 +4147,11 @@ void AADPHUD::Tick(float Dt)
 			if (Before < 125.f && ShotClock >= 125.f) Shot(TEXT("NewGame_OnIntoTheGame"));
 			if (Before < 127.f && ShotClock >= 127.f) ADP_SHOT_EXIT();
 		}
+}
+
+// -UIShot: the jetway panel, the cameras, the maps and the update screens
+void AADPHUD::TickShotsScreens(float Dt, const float Before, float& ShotClock)
+{
 		// -UIPlanView=x,y,z,lx,ly,lz[;x,y,z,lx,ly,lz...]: pictures from points in the terminal plan's metres (x east, y up,
 		// z north), each looking at its l-point - one picture per view (PlanView_0, _1, ...), then out
 		{
@@ -4420,6 +4503,11 @@ void AADPHUD::Tick(float Dt)
 			if (B < 12.f && A >= 12.f) FScreenshotRequest::RequestScreenshot(TEXT("Update_Installing"), true, false);
 			if (B < 13.f && A >= 13.f) ADP_SHOT_EXIT();
 		}
+}
+
+// -UIShot: the loading pictures, the passengers and pets, the gates, clouds and seasons
+void AADPHUD::TickShotsLooks(float Dt, const float Before, float& ShotClock)
+{
 		// -UIContinueShots: the start, then Continue game clicked at 45 s: pictures every 2 s (the title, the loading screen,
 		// its end, the game)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIContinueShots")))
@@ -4744,6 +4832,11 @@ void AADPHUD::Tick(float Dt)
 			if (ShotClock > 47.f && ShotClock < 80.f && FMath::Fmod(ShotClock, 1.f) < FMath::Fmod(Before, 1.f))
 				if (AFireTruck* T = Truck()) ADP_LOG(TEXT("UIDrive: %.0f s, %.1f km/h at %s, turning %.2f deg/s; gauges: speed %.0f deg, revs %.0f deg, temp %.0f deg; beads %.2f, dirt %.2f"), ShotClock, T->SpeedKmh(), *T->GetActorLocation().ToString(), T->TurnRate(), T->NeedleNow(0), T->NeedleNow(1), T->NeedleNow(2), T->Beads[2], T->DirtZone[2]);
 		}
+}
+
+// -UIShot: the hoses, the seats, the speed and the roads (true: nothing more this frame)
+bool AADPHUD::TickShotsDrives(float Dt, const float Before, float& ShotClock)
+{
 		// -UIHose: in daylight, a very dirty fire truck put out on the forecourt (for this test only); the hose's gun taken from
 		// its wall mount (the arm reaching), the truck washed (the dirt running off), seen from your eyes and from behind,
 		// the hose laid out from the coil, E away from the mount doing nothing, and the gun hung back up at the mount.
@@ -5205,7 +5298,7 @@ void AADPHUD::Tick(float Dt)
 					Stop = Stops.Num() + 1;
 					ADP_SHOT_EXIT();
 				}
-				return;
+				return true;
 			}
 			// (the town road: how far below the road the globe's own ground lies, along it - the tiles loaded by now)
 			if (bTownSet && Before < 42.f && ShotClock >= 42.f)
@@ -5255,6 +5348,12 @@ void AADPHUD::Tick(float Dt)
 				if (Before < 220.f && ShotClock >= 220.f) ADP_SHOT_EXIT();
 			}
 		}
+	return false;
+}
+
+// -UIShot: the kiosks, the door rules, the panels and the rooms
+void AADPHUD::TickShotsHalls(float Dt, const float Before, float& ShotClock)
+{
 		// -UIKiosk: the self check-in kiosk in the main hall from all round (owner, 2026-11-14): front, both front corners, the
 		// side, the back, the screen close up, and the hall wide with it - PNG (HighResShot), at midday
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIKiosk")))
@@ -5637,55 +5736,6 @@ void AADPHUD::Tick(float Dt)
 		{
 			if (Before < 30.f && ShotClock >= 30.f) Browser->ExecuteJavascript(TEXT("var __o=window.__ueUpdate;window.__ueUpdate=function(s,c,b,v){ue.adp.log('UPDTEST got: '+s+' can='+c+' busy='+b+' ver='+v);if(__o)__o(s,c,b,v);};ue.adp.log('UPDTEST hooked='+(typeof __o));ue.adp.checkupdates();"));
 		}
-		// -UISite: outside at the kerb (the light, the sky, the credits), and a picture
-		const bool bSite = FParse::Param(FCommandLine::Get(), TEXT("UISite"));
-		if (bSite && Before < 48.f && ShotClock >= 48.f) { OpenSite(); if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(FRotator(5.f, 90.f, 0)); }
-		if (bSite && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("Site"), true, false);
-		// -UIDoor: walk up to a sliding entrance door (it should open), and a picture of it
-		const bool bDoor = FParse::Param(FCommandLine::Get(), TEXT("UIDoor"));
-				if (bDoor && ((Before < 48.f && ShotClock >= 48.f) || (Before < 54.f && ShotClock >= 54.f)))
-		{
-			const float Back = ShotClock < 50.f ? 600.f : 200.f;   // first from 6 m (shut), then from 2 m (open)
-			if (bGame) ToggleGame();
-			FVector At;
-			for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It)
-				if (It->SlidingDoorAt(At))
-					if (APawn* Me = GetOwningPawn())
-					{
-						const FVector From = At + FVector(0, Back, Me->GetSimpleCollisionHalfHeight() + 10.f);
-						const FRotator Look = (At + FVector(0, 0, 150.f) - From).Rotation();
-						Me->TeleportTo(From, FRotator(0, Look.Yaw, 0));
-						if (APlayerController* PC = GetOwningPlayerController()) PC->SetControlRotation(Look);
-						break;
-					}
-		}
-		if (bDoor && Before < 52.f && ShotClock >= 52.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorShut"), true, false);
-		if (bDoor && Before < 58.f && ShotClock >= 58.f) FScreenshotRequest::RequestScreenshot(TEXT("DoorOpen"), true, false);
-		if (!FParse::Param(FCommandLine::Get(), TEXT("UIPetStep")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJwWalls")) && !FParse::Param(FCommandLine::Get(), TEXT("UIStrollers")) && !FParse::Param(FCommandLine::Get(), TEXT("UICoaches")) && !FParse::Param(FCommandLine::Get(), TEXT("UICoachUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UISvcDoor")) && !FParse::Param(FCommandLine::Get(), TEXT("UIUpdateSim")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBootShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIContinueShots")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UIPlanView=")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoof")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPillar")) && !FParse::Param(FCommandLine::Get(), TEXT("UINew")) && !FParse::Param(FCommandLine::Get(), TEXT("UITower")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBright")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFire")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMap")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMasts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWorld")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAnywhere")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart1")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPart2")) && !FParse::Param(FCommandLine::Get(), TEXT("UILoading")) && !FParse::Param(FCommandLine::Get(), TEXT("UIOffices")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDevice")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHangars")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFireStation")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrive")) && !FParse::Param(FCommandLine::Get(), TEXT("UISeason")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWardrobe")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAirfield")) && !FParse::Param(FCommandLine::Get(), TEXT("UIChablais")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPuddles")) && !FParse::Param(FCommandLine::Get(), TEXT("UIBody")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRun")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDrone")) && !FParse::Param(FCommandLine::Get(), TEXT("UITitle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapCheck")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIEscShots")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayTest")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayBeacons")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayViews")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGateJetways")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayVideo")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFGToggle")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHmi")) && !FParse::Param(FCommandLine::Get(), TEXT("UITablet")) && !FParse::Param(FCommandLine::Get(), TEXT("UICctv")) && !FParse::Param(FCommandLine::Get(), TEXT("UIMapTrace")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UITitleRender=")) && !FCString::Stristr(FCommandLine::Get(), TEXT("-UIBoxProbe=")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHmiVideo")) && !FParse::Param(FCommandLine::Get(), TEXT("UIJetwayRide")) && !FParse::Param(FCommandLine::Get(), TEXT("UIConduct")) && !FParse::Param(FCommandLine::Get(), TEXT("UITalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHaze")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDockTypes")) && !FParse::Param(FCommandLine::Get(), TEXT("UIDecals")) && !FParse::Param(FCommandLine::Get(), TEXT("UITwyLights")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGroundQ")) && !FParse::Param(FCommandLine::Get(), TEXT("UIWeatherGround")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFlares")) && !FParse::Param(FCommandLine::Get(), TEXT("UIAdverts")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UICoachWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIFullWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfStand")) && !FParse::Param(FCommandLine::Get(), TEXT("UISettingsShot")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHallWalk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGender")) && !FParse::Param(FCommandLine::Get(), TEXT("UINewGame")) && !FParse::Param(FCommandLine::Get(), TEXT("UIGate")) && !FParse::Param(FCommandLine::Get(), TEXT("UIClouds")) && !FParse::Param(FCommandLine::Get(), TEXT("UIHose")) && !FParse::Param(FCommandLine::Get(), TEXT("UISit")) && !FParse::Param(FCommandLine::Get(), TEXT("UISpeed")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanels")) && !FParse::Param(FCommandLine::Get(), TEXT("UIPanelUse")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoad")) && !FParse::Param(FCommandLine::Get(), TEXT("UIKiosk")) && !FParse::Param(FCommandLine::Get(), TEXT("UIRoadAirport")) && !(FParse::Param(FCommandLine::Get(), TEXT("UIPeople")) || FCString::Stristr(FCommandLine::Get(), TEXT("-UIPeople=")) != nullptr) && ShotClock >= (bOverview ? 92.f : bLounge ? 80.f : bDoor ? 62.f : bSite ? 62.f : bShort ? 78.f : bHall ? 103.f : 52.f)) ADP_SHOT_EXIT();
-	}
-	// the announcements, one at a time: the gong, then the words for ten seconds
-	// the announcements: the chime, then the announcer; how loud they are follows where you are
-	HeardGain = FMath::FInterpTo(HeardGain, ZoneGain(), Dt, 2.f);
-	// the indoor lighting blends in through the doors
-	IndoorWeight = FMath::FInterpTo(IndoorWeight, ZoneKind().IsEmpty() ? 0.f : 1.f, Dt, 1.5f);
-	if (Indoor) Indoor->BlendWeight = IndoorWeight;
-	for (UAudioComponent* A : {VoiceOut.Get(), GongOut.Get()})
-		if (A) { A->SetVolumeMultiplier(FMath::Max(0.001f, CallGain())); A->SetLowPassFilterEnabled(true); A->SetLowPassFilterFrequency(ZoneMuffle()); }
-	if ((CallsClock += Dt) >= 1.f) { CallsClock = 0; RunCalls(); }
-	if (SpeakIn > 0 && (SpeakIn -= Dt) <= 0) Speak(CallText);
-	if (CaptionTime > 0) CaptionTime -= Dt;
-	// only in the 3D view: while the menus are open the calls wait (and old ones are dropped)
-	else if (Calls.Num() && bGame) Calls.RemoveAt(0);   // in the menus: read on the Overview instead, never played later
-	else if (Calls.Num()) { CallText = Calls[0].Key; CallKind = Calls[0].Value; Calls.RemoveAt(0); CaptionTime = 12.f; PlayGong(); SpeakIn = 1.7f; }
-	if (Dt > 0) FpsSmooth = FMath::Lerp(FpsSmooth, 1.f / Dt, 0.05f);
-	const APawn* P = GetOwningPawn();
-	if (P && HoloMap.IsValid())
-	{
-		const FVector L = P->GetActorLocation();
-		const float Feet = (L.Z - P->GetSimpleCollisionHalfHeight()) / 100.f;
-		HoloMap->SetPlayer(FVector(L.X / 100.f, Feet, -L.Y / 100.f), P->GetControlRotation().Yaw);
-		if (Compass.IsValid()) { if (!Compass->Map.IsValid()) Compass->Map = HoloMap; Compass->Invalidate(EInvalidateWidgetReason::Paint); }   // (the compass strip over the map)
-	}
 }
 
 #pragma endregion

@@ -98,6 +98,15 @@ public:
 	bool bMiniAway = false;          // the holographic map away for a test's pictures
 	/** -UINewGame: the title -> new game -> steps -> loading -> airport path walked by itself (NewGameTest.cpp). */
 	void TestNewGame(float Dt);
+	/** -UIShot: the test pictures by subject, called from Tick in this order (Drives: true = nothing more this frame). */
+	void TickShotsBuildings(float Dt, const float Before, float& ShotClock);
+	void TickShotsGround(float Dt, const float Before, float& ShotClock);
+	void TickShotsJetways(float Dt, const float Before, float& ShotClock);
+	void TickShotsRides(float Dt, const float Before, float& ShotClock);
+	void TickShotsScreens(float Dt, const float Before, float& ShotClock);
+	void TickShotsLooks(float Dt, const float Before, float& ShotClock);
+	bool TickShotsDrives(float Dt, const float Before, float& ShotClock);
+	void TickShotsHalls(float Dt, const float Before, float& ShotClock);
 	/** Tests: the interface away (as H). */
 	void TestHide() { if (!bHidden) HideUI(); }
 	TSharedPtr<SWidget> LoadingBox;
