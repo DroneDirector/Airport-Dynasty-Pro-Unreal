@@ -1,13 +1,19 @@
 #include "GlassRain.h"
 #include "ADPLog.h"
+#include "PerfLog.h"
 #include "ADPKeep.h"
 #include "BabylonModel.h"
+#include "Hangar.h"
 #include "Puddles.h"
+#include "TowerADC.h"
 #include "SunClock.h"
 #include "WindSocks.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/Texture2D.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
+#include "GameFramework/Pawn.h"
 #include "HAL/IConsoleManager.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialParameterCollection.h"
@@ -69,7 +75,126 @@ void UGlassRain::Tick(float Dt)
 	static const FName NF(TEXT("GlassFill")), ND(TEXT("GlassDry")), NT(TEXT("GlassTime")), NR(TEXT("GlassRun"));
 	C->SetScalarParameterValue(NF, Fill); C->SetScalarParameterValue(ND, Dry);
 	C->SetScalarParameterValue(NT, Time); C->SetScalarParameterValue(NR, Run);
+	if (Fill > 0.f) TickBuildings(Dt);   // (dry: nothing)
 }
+
+// #region ---- the buildings' panes
+void UGlassRain::FindBuildings()
+{
+	// the jetways' and the fire station's imported glass: the same with the rain
+	static const TCHAR* Swap[][2] = {
+		{TEXT("/Game/Babylon/Jetways/jetways/Materials/glassOuter"), TEXT("/Game/Materials/Glass/MI_Rain_JetwayGlass.MI_Rain_JetwayGlass")},
+		{TEXT("/Game/Babylon/Firestation/firestation/Materials/gl-bayDoor"), TEXT("/Game/Materials/Glass/MI_Rain_BayDoorGlass.MI_Rain_BayDoorGlass")},
+		{TEXT("/Game/Babylon/Firestation/firestation/Materials/m12"), TEXT("/Game/Materials/Glass/MI_Rain_StationGlass.MI_Rain_StationGlass")}};
+	NotRoofs.Reset();
+	TArray<AActor*> Found;
+	for (TActorIterator<APawn> It(GetWorld()); It; ++It) NotRoofs.Add(*It);
+	for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It)
+	{
+		if (It->Model == TEXT("Terminal") || It->Model == TEXT("Firestation") || It->Model == TEXT("Jetways")) Found.Add(*It);
+		else if (!It->Model.StartsWith(TEXT("Office"))) NotRoofs.Add(*It);   // (vehicles, aircraft, ...)
+	}
+	for (TActorIterator<ATowerADC> It(GetWorld()); It; ++It) Found.Add(*It);
+	for (TActorIterator<AHangar> It(GetWorld()); It; ++It) Found.Add(*It);
+	for (AActor* A : Found)
+	{
+		if (Buildings.ContainsByPredicate([A](const FBuilding& B) { return B.A == A; })) continue;
+		FBuilding B; B.A = A; int32 NSwap = 0;
+		TInlineComponentArray<UMeshComponent*> Ks(A);
+		for (UMeshComponent* K : Ks)
+			for (int32 S = 0; S < K->GetNumMaterials(); ++S)
+			{
+				UMaterialInterface* M = K->GetMaterial(S);
+				const UMaterialInstanceDynamic* D = Cast<UMaterialInstanceDynamic>(M);
+				const UMaterialInterface* Src = D && D->Parent ? D->Parent.Get() : M;
+				if (!Src) continue;
+				const FString Path = Src->GetOutermost()->GetName();
+				bool bRain = Path == TEXT("/Game/Materials/Glass/MI_Glass_Rain") || Path == TEXT("/Game/Terminal/Materials/MI_T_glass")
+					|| Path == TEXT("/Game/Terminal/Materials/MI_T_glassOuter") || Path == TEXT("/Game/Terminal/Materials/MI_T_glassVault");
+				if (!bRain && !D)
+					for (const auto& W : Swap)
+						if (Path == W[0])
+							if (UMaterialInterface* R = LoadObject<UMaterialInterface>(nullptr, W[1])) { K->SetMaterial(S, R); ++NSwap; bRain = !Path.Contains(TEXT("Jetways")); }
+				if (!bRain) continue;
+				B.Panes.Emplace(K, S);
+				if (K->IsRegistered()) B.Box += K->Bounds.GetBox();
+			}
+		if (B.Panes.Num() && B.Box.IsValid)
+		{
+			B.Box = B.Box.ExpandBy(200.f);
+			const FVector E = B.Box.GetSize();
+			B.Cell = FMath::Max(75.f, FMath::Max(E.X, E.Y) / 1024.f);
+			B.W = FMath::Max(2, FMath::CeilToInt(E.X / B.Cell)); B.H = FMath::Max(2, FMath::CeilToInt(E.Y / B.Cell));
+		}
+		else { B.Panes.Reset(); B.bReady = true; B.On = 1.f; }   // (nothing to look up: not asked again)
+		ADP_LOG(TEXT("Glass rain: %s: %d panes to shelter, %d x %d places, %d given their rain glass"), *A->GetName(), B.Panes.Num(), B.W, B.H, NSwap);
+		Buildings.Add(MoveTemp(B));
+	}
+}
+
+void UGlassRain::TickBuildings(float Dt)
+{
+	ADP_PERF_SCOPE("the rain on the buildings (each frame)", 1.f);
+	if ((LookIn -= Dt) <= 0.f) { LookIn = 20.f; FindBuildings(); }
+	for (FBuilding& B : Buildings)
+	{
+		if (!B.A.IsValid() || (B.bReady && B.On >= 1.f)) continue;
+		if (B.bReady)
+		{
+			B.On = FMath::Min(1.f, B.On + Dt / 20.f);
+			for (const auto& D : B.Mids) if (D.IsValid()) D->SetScalarParameterValue(TEXT("RainOn"), B.On);
+			continue;
+		}
+		// one building at a time, 0.4 ms a frame: straight down at each place
+		if (!B.Top.Num()) B.Top.Init(-1.e6f, B.W * B.H);
+		FCollisionQueryParams Q(SCENE_QUERY_STAT(GlassRoofs), true);
+		for (const auto& N : NotRoofs) if (N.IsValid()) Q.AddIgnoredActor(N.Get());
+		const double End = FPlatformTime::Seconds() + 0.0004;
+		for (; B.Next < B.Top.Num() && FPlatformTime::Seconds() < End; ++B.Next)
+		{
+			const FVector2D P(B.Box.Min.X + (B.Next % B.W + 0.5f) * B.Cell, B.Box.Min.Y + (B.Next / B.W + 0.5f) * B.Cell);
+			FHitResult Hit;
+			if (GetWorld()->LineTraceSingleByChannel(Hit, FVector(P, B.Box.Max.Z + 3000.f), FVector(P, B.Box.Min.Z - 100.f), ECC_Visibility, Q)) B.Top[B.Next] = Hit.ImpactPoint.Z;
+		}
+		if (B.Next >= B.Top.Num()) Finish(B);
+		return;
+	}
+}
+
+void UGlassRain::Finish(FBuilding& B)
+{
+	B.bReady = true;
+	UTexture2D* T = UTexture2D::CreateTransient(B.W, B.H, PF_R32_FLOAT);
+	if (!T) { ADP_WARN(TEXT("Glass rain: no picture of the roofs, its glass stays dry")); return; }
+	T->SRGB = false; T->Filter = TF_Nearest; T->AddressX = T->AddressY = TA_Clamp; T->NeverStream = true;
+	FTexture2DMipMap& Mip = T->GetPlatformData()->Mips[0];
+	FMemory::Memcpy(Mip.BulkData.Lock(LOCK_READ_WRITE), B.Top.GetData(), B.Top.Num() * sizeof(float));
+	Mip.BulkData.Unlock();
+	T->UpdateResource();
+	const FLinearColor Box(B.Box.Min.X, B.Box.Min.Y, 1.f / (B.W * B.Cell), 1.f / (B.H * B.Cell));
+	TMap<UMaterialInterface*, UMaterialInstanceDynamic*> Own; int32 NHit = 0;
+	for (float Z : B.Top) NHit += Z > -9.e5f;
+	for (const auto& P : B.Panes)
+	{
+		UMeshComponent* K = P.Key.Get();
+		UMaterialInterface* M = K ? K->GetMaterial(P.Value) : nullptr;
+		if (!M) continue;
+		UMaterialInstanceDynamic*& D = Own.FindOrAdd(M);
+		if (!D)
+		{
+			// (a pane with its own numbers keeps them; the others share one instance for each material of the building)
+			D = Cast<UMaterialInstanceDynamic>(M); if (!D) D = UMaterialInstanceDynamic::Create(M, K->GetOwner());
+			D->SetTextureParameterValue(TEXT("RainRoof"), T);
+			D->SetVectorParameterValue(TEXT("RainBox"), Box);
+			D->SetScalarParameterValue(TEXT("RainOn"), 0.f);
+			B.Mids.Add(D);
+		}
+		if (D != M) K->SetMaterial(P.Value, D);
+	}
+	ADP_LOG(TEXT("Glass rain: %s: roofs known (%d of %d places have something), %d panes, %d instances"), *B.A->GetName(), NHit, B.Top.Num(), B.Panes.Num(), B.Mids.Num());
+	B.Top.Empty(); B.Panes.Empty();
+}
+// #endregion
 
 // #region ---- a vehicle's panes
 namespace

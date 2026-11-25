@@ -9,6 +9,7 @@
 
 class ABabylonModel;
 class UMaterialInstanceDynamic;
+class UMeshComponent;
 class UMaterialParameterCollection;
 
 UCLASS()
@@ -28,6 +29,21 @@ private:
 	float F = 0.f, Dry = 0.f, Time = 0.f, Run = 0.f;
 	bool bStarted = false, bZeroSent = false;
 	UPROPERTY() TObjectPtr<UMaterialParameterCollection> Mpc;
+	/** A building with rain glass (Tools/set_building_rain.py): what stands above each place is looked up once, a little each frame,
+	 *  the first time it gets wet; then its panes read it (under a roof and indoors: dry) and the rain fades in. */
+	struct FBuilding
+	{
+		TWeakObjectPtr<AActor> A;
+		TArray<TPair<TWeakObjectPtr<UMeshComponent>, int32>> Panes;
+		TArray<TWeakObjectPtr<UMaterialInstanceDynamic>> Mids;
+		FBox Box = FBox(ForceInit); float Cell = 75.f; int32 W = 0, H = 0, Next = 0; TArray<float> Top; float On = 0.f; bool bReady = false;
+	};
+	TArray<FBuilding> Buildings;
+	TArray<TWeakObjectPtr<AActor>> NotRoofs;
+	float LookIn = 0.f;
+	void FindBuildings();
+	void TickBuildings(float Dt);
+	void Finish(FBuilding& B);
 };
 
 /** One wiper blade, in the model root's frame at rest (cm): it turns from Rest about Axis by Sweep (radians). */

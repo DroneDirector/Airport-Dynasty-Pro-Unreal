@@ -71,7 +71,7 @@ UMaterialInterface* AHangar::Mat(const FName Name)
 		M = LoadObject<UMaterialInterface>(nullptr, *FString::Printf(TEXT("/Game/Materials/Hangar/M_Hangar%s.M_Hangar%s"), *T, *T));
 	}
 	if (!M && (Name == "glass" || Name == "polyc"))
-		if (UMaterialInterface* G = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/M_Glass.M_Glass")))
+		if (UMaterialInterface* G = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/Glass/MI_Glass_Rain.MI_Glass_Rain")))
 		{
 			UMaterialInstanceDynamic* D = UMaterialInstanceDynamic::Create(G, this);
 			if (Name == "polyc") { D->SetScalarParameterValue(TEXT("Opacity"), 0.55f); D->SetScalarParameterValue(TEXT("Roughness"), 0.35f); }

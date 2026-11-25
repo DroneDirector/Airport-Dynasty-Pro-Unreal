@@ -1,3 +1,4 @@
+# After it: Tools/set_building_rain.py (it puts the rain back on the panes, to-do 295)
 # The buildings' window glass (owner, 2026-11-23: clear, reflective "but not overdone", and "slightly easier to look out than to
 # look in"): one master, M_BuildingGlass, for every pane of the terminal (MI_T_glass, glassBlue, glassOuter, glassVault).
 #  - clear, colourless with the faintest green, mirror-smooth; nothing milky: the glass has no light of its own, only what it

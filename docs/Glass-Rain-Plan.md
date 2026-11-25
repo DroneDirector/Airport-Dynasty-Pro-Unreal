@@ -39,3 +39,25 @@ Outputs: Normal (tangent space: needs the material's Tangent Space Normal on), R
 ## Vehicles
 
 `FGlassRainVehicle` (in `FVehicleDirtState` and the fire truck) finds each model's M_TruckGlass panes, tells them where outside is (RainC), one ray up every 3 to 5 s for the roof, and the airflow. `FGlassWipers` takes the blades: cleaning van, refueller, catering truck, water truck, toilet truck, passenger stairs (open and roofed), de-icer cab, de-icer spray cabin, apron bus, taxi bus, fire truck.
+
+## Part B: buildings and aircraft (Tools/set_building_rain.py, GlassRain.cpp "the buildings")
+
+The same drops (MF_BuildingRain takes the code out of make_glass_rain.py) behind the static switch RainGlass; off, a material
+is the one it was (instruction counts equal). Dry, nothing runs. The first time it is wet the game looks straight down at
+each place of a building (75 cm or coarser, 0.4 ms a frame, one building at a time; vehicles, aircraft and people are not
+roofs), gives the panes that picture (RainRoof, RainBox), and fades RainOn in over 20 s. A pane is wet if one side of it,
+90 cm out, has nothing above; that side is the outside. Glass under roofs and indoors stays dry.
+
+| Glass | Rain | Pixel instructions before / with rain |
+|---|---|---|
+| Terminal glass, glassOuter, glassVault (M_BuildingGlass), its door leaves | yes | 1913 / 2637 |
+| Tower cab (both sides), railings; hangar glass and polycarbonate (MI_Glass_Rain) | yes | 1733 / 2458 |
+| Jetway glassOuter (copy, in its own moving frame, no roof picture) | yes | not measured / 2094 |
+| Fire station bay doors and m12 windows (copy) | yes | not measured / 1917 |
+| Terminal glassBlue, counters and rooms | no: indoors | |
+| Aircraft passenger and cockpit windows | no: the A320 is one opaque painted surface, there are no panes | |
+| M_WindowGlass (MI_WindowGlass_Outer, _Inner) | no: no model uses it any more | |
+| Dealership and villa glass, revolving doors | no: not in this step | |
+
+Run set_building_rain.py again after set_building_glass.py. Never seen in the game yet: that the roofs stop the looks down
+(they need collision on the Visibility channel), and the look of the drops on the mirror-like terminal glass.

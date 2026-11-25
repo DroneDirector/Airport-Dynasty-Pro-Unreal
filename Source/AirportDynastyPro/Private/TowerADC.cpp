@@ -70,10 +70,10 @@ UMaterialInterface* ATowerADC::Mat(const FName Name)
 {
 	if (TObjectPtr<UMaterialInterface>* F = Mats.Find(Name)) return *F;
 	UMaterialInterface* M = nullptr;
-	if (Name == "GLASS") M = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/M_Glass.M_Glass"));
+	if (Name == "GLASS") M = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/Glass/MI_Glass_Rain.MI_Glass_Rain"));
 	// the glass seen from inside: very clear, hardly a reflection (no white haze over the view)
 	if (Name == "INGLASS" || Name == "INRAILGLASS")
-		if (UMaterialInterface* G = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/M_Glass.M_Glass")))
+		if (UMaterialInterface* G = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/Glass/MI_Glass_Rain.MI_Glass_Rain")))
 		{
 			UMaterialInstanceDynamic* D = UMaterialInstanceDynamic::Create(G, this);
 			D->SetScalarParameterValue(TEXT("Specular"), 0.04f);
@@ -84,7 +84,7 @@ UMaterialInterface* ATowerADC::Mat(const FName Name)
 	// the balcony's glass railing: clearer and less mirror-like (seen from the cab at a shallow angle the plain glass
 	// mirrored the bright sky as a white band in front of the windows)
 	if (Name == "RAILGLASS")
-		if (UMaterialInterface* G = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/M_Glass.M_Glass")))
+		if (UMaterialInterface* G = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/Glass/MI_Glass_Rain.MI_Glass_Rain")))
 		{
 			UMaterialInstanceDynamic* D = UMaterialInstanceDynamic::Create(G, this);
 			D->SetScalarParameterValue(TEXT("Specular"), 0.1f);
