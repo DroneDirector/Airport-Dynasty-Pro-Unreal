@@ -541,7 +541,7 @@ void AADPHUD::BeginPlay()
 			.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
 			.BorderBackgroundColor(Panel)
 			.Padding(FMargin(10, 4))
-			.Visibility_Lambda([this]() { return bGame || bHidden || bWardrobe || bWhoAreYou || HoldingDevice() ? EVisibility::Collapsed : EVisibility::Visible; })
+			.Visibility_Lambda([this]() { return bGame || bHidden || bWardrobe || bWhoAreYou || HoldingDevice() || AtHmi() ? EVisibility::Collapsed : EVisibility::Visible; })
 			[
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)

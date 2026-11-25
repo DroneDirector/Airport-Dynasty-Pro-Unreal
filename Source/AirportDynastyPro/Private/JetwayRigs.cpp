@@ -628,8 +628,10 @@ void AJetwayRigs::Tick(float Dt)
 			}
 			Apply(R);
 		}
+		if (bMoving || bJog) LogLeftBehind(R, Riders);
 		CarryRiders(Riders);
 	}
+	MoveHeld();   // (the one at the console and their close camera, after everything of the jetway has moved)
 }
 
 int32 AJetwayRigs::Nearest(const FVector& At, float MaxCm) const
@@ -1217,7 +1219,7 @@ void AJetwayRigs::GatherRiders(const FRig& R, TArray<FRider>& Out) const
 	{
 		ACharacter* Ch = *It;
 		const UCharacterMovementComponent* Mv = Ch ? Ch->GetCharacterMovement() : nullptr;
-		if (!Mv || !Mv->CurrentFloor.IsWalkableFloor()) continue;
+		if (!Mv || Ch == HeldAt.Who.Get() || !Mv->CurrentFloor.IsWalkableFloor()) continue;   // (the one at the console: MoveHeld)
 		UInstancedStaticMeshComponent* K = Cast<UInstancedStaticMeshComponent>(Mv->CurrentFloor.HitResult.GetComponent());
 		const int32 Ix = Mv->CurrentFloor.HitResult.Item;
 		if (!K || Ix == INDEX_NONE) continue;
@@ -1227,6 +1229,78 @@ void AJetwayRigs::GatherRiders(const FRig& R, TArray<FRider>& Out) const
 		if (!bOurs) continue;
 		FRider Rd; Rd.Ch = Ch; Rd.K = K; Rd.Ix = Ix; K->GetInstanceTransform(Ix, Rd.Before, true);
 		Out.Add(Rd);
+	}
+}
+
+// ---- at one with the jetway while you use its screen (owner, 2026-11-25, to-do 265) ---------------------------------
+bool AJetwayRigs::ScreenNow(int32 J, FTransform& Out) const
+{
+	if (!Rigs.IsValidIndex(J) || !Rigs[J].Scr.K) return false;
+	FTransform T; if (!Rigs[J].Scr.K->GetInstanceTransform(Rigs[J].Scr.Ix, T, true)) return false;
+	Out = FTransform(T.GetRotation(), T.GetLocation());   // (its place and turn; the copy's scale plays no part)
+	return true;
+}
+
+bool AJetwayRigs::HoldAt(int32 J, AActor* Cam, ACharacter* Who)
+{
+	LetGo();
+	FTransform S; if (!ScreenNow(J, S)) { ADP_WARN(TEXT("Jetways: jetway %d has no screen to hold anyone at"), J); return false; }
+	HeldAt.J = J; HeldAt.Cam = Cam; HeldAt.Who = Who;
+	if (Cam) HeldAt.CamRel = FTransform(Cam->GetActorQuat(), Cam->GetActorLocation()).GetRelativeTransform(S);
+	if (Who)
+	{
+		if (UCharacterMovementComponent* Mv = Who->GetCharacterMovement()) { Mv->StopMovementImmediately(); Mv->DisableMovement(); }
+		HeldAt.WhoRel = FTransform(Who->GetActorQuat(), Who->GetActorLocation()).GetRelativeTransform(S);
+	}
+	return true;
+}
+
+void AJetwayRigs::LetGo()
+{
+	if (ACharacter* Who = HeldAt.Who.Get())
+		if (UCharacterMovementComponent* Mv = Who->GetCharacterMovement())
+			if (Mv->MovementMode == MOVE_None) Mv->SetMovementMode(MOVE_Walking);
+	HeldAt = FHeld();
+}
+
+void AJetwayRigs::MoveHeld()
+{
+	if (HeldAt.J == INDEX_NONE) return;
+	FTransform S; if (!ScreenNow(HeldAt.J, S)) { ADP_WARN(TEXT("Jetways: the screen of jetway %d is gone while in use"), HeldAt.J); LetGo(); return; }
+	if (AActor* Cam = HeldAt.Cam.Get()) { const FTransform C = HeldAt.CamRel * S; Cam->SetActorLocationAndRotation(C.GetLocation(), C.GetRotation()); }
+	if (ACharacter* Who = HeldAt.Who.Get())
+	{
+		const FTransform P = HeldAt.WhoRel * S;
+		const FRotator Was = Who->GetActorRotation();
+		const float Turn = FMath::FindDeltaAngleDegrees((float)Was.Yaw, (float)P.Rotator().Yaw);
+		if (FVector::DistSquared(P.GetLocation(), Who->GetActorLocation()) < 1e-6f && FMath::Abs(Turn) < 1e-4f) return;
+		Who->SetActorLocationAndRotation(P.GetLocation(), FRotator(Was.Pitch, Was.Yaw + Turn, Was.Roll), false, nullptr, ETeleportType::TeleportPhysics);
+		if (AController* C = Who->GetController()) if (C->IsPlayerController()) C->SetControlRotation(C->GetControlRotation() + FRotator(0.f, Turn, 0.f));
+	}
+}
+
+void AJetwayRigs::LogLeftBehind(const FRig& R, const TArray<FRider>& Riders)
+{
+	// looked at once every 2 s for each moving jetway: anyone inside a tunnel section or the cab who isn't in Riders
+	float& Last = LeftLog.FindOrAdd(R.Id, -10.f);
+	const float Now = GetWorld()->GetTimeSeconds();
+	if (Now - Last < 2.f) return;
+	Last = Now;
+	for (TActorIterator<ACharacter> It(GetWorld()); It; ++It)
+	{
+		ACharacter* Ch = *It;
+		if (!Ch || Ch->IsHidden() || Ch == HeldAt.Who.Get() || Riders.ContainsByPredicate([Ch](const FRider& X) { return X.Ch.Get() == Ch; })) continue;
+		for (const int32 g : {int32(Tun1), int32(Tun2), int32(Tun3), int32(Cab)})
+		{
+			if (!R.MapBox[g].IsValid || !R.G[g].Parts.Num() || !R.G[g].Parts[0].K) continue;
+			const FVector L = (NowOf(R, g) * R.G[g].Parts[0].K->GetComponentTransform()).InverseTransformPosition(Ch->GetActorLocation());
+			if (!R.MapBox[g].IsInside(L)) continue;
+			const UCharacterMovementComponent* Mv = Ch->GetCharacterMovement();
+			const UPrimitiveComponent* Fl = Mv ? Mv->CurrentFloor.HitResult.GetComponent() : nullptr;
+			ADP_WARN(TEXT("Jetways: %s moves and does not carry %s (in %s; floor %s item %d, movement mode %d)"), *R.Id, *Ch->GetName(), g == Cab ? TEXT("the cab") : TEXT("the tunnel"),
+				Fl ? *Fl->GetName() : TEXT("none"), Mv ? Mv->CurrentFloor.HitResult.Item : -1, Mv ? (int32)Mv->MovementMode.GetValue() : -1);
+			break;
+		}
 	}
 }
 

@@ -82,6 +82,11 @@ public:
 	/** The service stair as it stands now: the middles of its steps' tops, foot first (world), and half their width. */
 	bool ServiceSteps(int32 I, TArray<FVector>& Steps, float& HalfW) const;
 	class ABabylonModel* RigModel(int32 I) const;
+	/** Someone using the console's screen (to-do 265): the close camera and the person at the console ride with the screen
+	 *  as one with the jetway, set in the jetway's own tick so they are never a frame behind it. Their places are taken as
+	 *  they stand now; the person stands still (no walking, no floor needed) until LetGo. False if it has no screen. */
+	bool HoldAt(int32 J, AActor* Cam, class ACharacter* Who);
+	void LetGo();
 	/** Every jetway's beacons flashing (tests and pictures), as if they were all moving. */
 	static bool bBeaconTest;
 	/** How strongly the gate-number signs glow (their own colours; faint). */
@@ -144,6 +149,14 @@ private:
 	void AddCameras(FRig& R, UInstancedStaticMeshComponent* Host, const FVector& CabL, const FVector& F, const FVector& L, float F0, float F1, float L0, float L1, float Z0, float Z1, float FAll, TFunctionRef<bool(const FVector&, float, float&)> Hit);
 	void Beacons(FRig& R, bool bMoving);
 	void Sounds(FRig& R, bool bMoving, float Dt);
+	/** The one at the console (HoldAt): where the camera and the person are, measured from the screen's copy. */
+	struct FHeld { int32 J = INDEX_NONE; TWeakObjectPtr<AActor> Cam; TWeakObjectPtr<class ACharacter> Who; FTransform CamRel, WhoRel; };
+	FHeld HeldAt;
+	bool ScreenNow(int32 J, FTransform& Out) const;
+	void MoveHeld();
+	/** Anyone standing in a moving jetway who wasn't carried with it: into the log (to-do 265). */
+	void LogLeftBehind(const FRig& R, const TArray<FRider>& Riders);
+	TMap<FString, float> LeftLog;
 	void GatherRiders(const FRig& R, TArray<FRider>& Out) const;
 	void CarryRiders(const TArray<FRider>& Riders) const;
 	void AddSignLights(FRig& R, ABabylonModel* M, const FString& Id);

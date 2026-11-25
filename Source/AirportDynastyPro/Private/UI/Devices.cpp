@@ -363,7 +363,10 @@ void AADPHUD::OpenHmi(int32 J)
 	FVector From; FRotator FromR; PC->GetPlayerViewPoint(From, FromR);
 	const bool bClear = !GetWorld()->SweepSingleByChannel(H, From, Eye, FQuat::Identity, ECC_Camera, FCollisionShape::MakeSphere(4.f), Q);
 	HmiJ = J;
+	HmiBackIn = -1.f;   // (opened again while still gliding back: that glide no longer gives the controls back)
 	Me->DisableInput(PC);
+	JR->HoldAt(J, Cam, Cast<ACharacter>(Me));   // (the camera and you ride with the screen while it drives - to-do 265)
+	if (Credit.IsValid()) Credit->SetVisibility(EVisibility::Collapsed);   // (nothing over the screen - to-do 264)
 	if (AJetwayHmi* L = AJetwayHmi::Get(GetWorld())) L->Hold(J);   // (the live HMI stays on this monitor)
 	if (bClear) PC->SetViewTargetWithBlend(Cam, HmiGlide, VTBlend_EaseInOut, 2.f);
 	else { if (PC->PlayerCameraManager) PC->PlayerCameraManager->StartCameraFade(1.f, 0.f, 0.35f, FLinearColor::Black); PC->SetViewTarget(Cam); }
@@ -407,6 +410,8 @@ void AADPHUD::TickHmi(float Dt)
 	if (HmiBackIn >= 0.f && (HmiBackIn -= Dt) < 0.f)
 	{
 		HmiBackIn = -1.f;
+		if (AJetwayRigs* JR = AJetwayRigs::Get(GetWorld())) JR->LetGo();   // (walking again, where you stand in it now)
+		if (Credit.IsValid() && !bGame && !bDevice) Credit->SetVisibility(EVisibility::HitTestInvisible);
 		if (APawn* Me = PC ? PC->GetPawn() : nullptr) Me->EnableInput(PC);
 	}
 }

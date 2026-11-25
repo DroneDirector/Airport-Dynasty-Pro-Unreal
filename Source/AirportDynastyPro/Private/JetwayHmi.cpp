@@ -384,6 +384,7 @@ void AJetwayHmi::Tick(float Dt)
 	TickCams(Dt);
 	// on the screen's face, wherever the cab has moved to (its front to the operator: the widget faces its +X)
 	FVector Mid, N, Up; FVector2D Sz;
+	if (!bAfterRigs) { bAfterRigs = true; AddTickPrerequisiteActor(JR); }   // (after the jetways have moved, never a frame behind the console - to-do 265)
 	if (!JR->ScreenView(J, Mid, N, Up, Sz)) return;
 	Screen->SetWorldLocationAndRotation(Mid + N * 0.3f, FRotationMatrix::MakeFromXZ(N, Up).Rotator());
 	Screen->SetWorldScale3D(FVector(1.f, Sz.X / ADPHmi::ScrW, Sz.Y / ADPHmi::ScrH));

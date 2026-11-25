@@ -62,7 +62,7 @@ private:
 	TSharedPtr<SJetwayHmiPanel> Panel;
 	int32 J = INDEX_NONE, Held = INDEX_NONE, LastState = -1;
 	float Look = 0.f, Bright = 0.10f, Shown = -1.f;
-	bool bPointer = false, bAim = false;
+	bool bPointer = false, bAim = false, bAfterRigs = false;
 	FVector2D GlideFrom, GlideTo; float GlideT = -1.f, GlideLen = 0.9f;
 	void Make();
 	void TickCams(float Dt);
