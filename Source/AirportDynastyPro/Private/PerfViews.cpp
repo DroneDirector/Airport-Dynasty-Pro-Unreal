@@ -13,6 +13,16 @@
 //   speed <career> <world>                the career's clock and the world's (1 1: as played)
 //   follow <seconds> <name>               beside a walking passenger with most people around, clear of walls and people, measured
 //   people <n> <seconds>                  waits until n people are about; if they don't come, the run ends there, as failed
+//   look <metres, 0: the whole of it> <side, degrees from its front> <camera height over its foot> <name>   the nearest shown one of that
+//                                         name, with a free line of sight, held; if there is none the next pictures are left out
+//      names: a vehicle's ("Apron bus 1", spare, charging, broken, dirty, washed), its model's (PushbackTug), seated, person, person:apron (landside, hall,
+//      upstairs), person@<name> (beside it), aboard@<name> (on or in it), mast, jetway, tower, an actor's, or a mesh's (its nearest instance)
+//   rel <forward> <left> <up> <yaw, + left> <pitch> <name>   the camera in its frame (inside the bus), held
+//   until <seconds> <name>                waits until it is there
+//   shot4k <name>                         3840 x 2160 into Saved/Screenshots/run/<name>.png, left out if the subject was missing
+//   talk / talkend                        a talk with the nearest person, by E as the player's
+//   lives                                 what is true now, into the log
+//   weather live                          the real weather again (hour live: the real time)
 // The camera never stands in or goes through anything: a view in something solid is left out, a flight ends before it.
 //   quit
 #include "PerfViews.h"
@@ -48,6 +58,20 @@
 #include "Engine/StaticMesh.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/StrongObjectPtr.h"
+#include "BabylonModel.h"
+#include "GSE.h"
+#include "BusCharge.h"
+#include "GlassRain.h"
+#include "JetwayRigs.h"
+#include "LightMasts.h"
+#include "StaffPeople.h"
+#include "TerminalPlan.h"
+#include "TowerADC.h"
+#include "HAL/FileManager.h"
+#include "HAL/IConsoleManager.h"
+#include "Misc/Paths.h"
+#include "Sim/ADPBoards.h"
+#include "Sim/ADPSimData.h"
 
 namespace ADPPerfViewsInternal
 {
@@ -198,12 +222,267 @@ namespace ADPPerfViewsInternal
 	}
 	void BeginMeasure(double Sec, const FString& N) { Name = N; Fr.Reset(); Gp.Reset(); Rn.Reset(); Gm.Reset(); MStart = FPlatformTime::Seconds(); Until = MStart + Sec; ADPFrameGen::Counts(Shown0, Made0); }
 
+	// ---- the pictures' subjects (look, rel, until)
+	struct FSub
+	{
+		TWeakObjectPtr<AActor> Who;                // (what it belongs to; none: a place only)
+		FString Nm; FBox Box = FBox(ForceInit);    // (world)
+		FVector Fw = FVector::ForwardVector, Stays = FVector::ZeroVector;
+	};
+	FSub Sub; bool bSub = false, bMissing = false, bRel = false, bFovLook = false;
+	FVector RelAt = FVector::ZeroVector, LookOff = FVector::ZeroVector; FRotator RelRot = FRotator::ZeroRotator;
+	FString Waits, Shot; int32 ShotAt = 0, TalkAt = 0; double NextLook = 0.0;
+
+	FBox PersonBox(const AActor* Pa) { const FVector Foot = Pa->GetActorLocation(); return FBox(Foot - FVector(38, 38, 0), Foot + FVector(38, 38, 182)); }
+	void Bodies(UWorld* W, TArray<AActor*>& Out)
+	{
+		for (const auto& E : Was) if (AActor* Pa = E.Key.Get()) if (!Pa->IsHidden()) Out.AddUnique(Pa);
+		if (AADPPeople* Pp = AADPPeople::Get(W)) for (const AADPPeople::FWho& Q : Pp->Everyone()) if (AActor* Pa = Q.A.Get()) if (!Pa->IsHidden()) Out.AddUnique(Pa);
+		for (TObjectIterator<UPaxAnimInstance> It; It; ++It)   // (the crew too; never the player's own body)
+		{
+			const USkeletalMeshComponent* C = It->GetSkelMeshComponent();
+			AActor* Pa = C && C->GetWorld() == W ? C->GetOwner() : nullptr;
+			if (Pa && !Pa->IsHidden() && !Pa->IsA<APawn>() && !(Pa->GetAttachParentActor() && Pa->GetAttachParentActor()->IsA<APawn>())) Out.AddUnique(Pa);
+		}
+	}
+	bool FindSub(UWorld* W, const FString& N, const FVector& Close, FSub& Out)
+	{
+		double Best = 1e18; bool bFound = false;
+		const auto Offer = [&](AActor* Who, const FString& Nm, const FBox& Box, const FVector& Fw)
+		{
+			if (!Box.IsValid) return;
+			const double D = FVector::DistSquared(Box.GetCenter(), Close); if (D >= Best) return;
+			Best = D; bFound = true; Out = FSub(); Out.Who = Who; Out.Nm = Nm; Out.Box = Box; Out.Fw = Fw.GetSafeNormal2D(UE_SMALL_NUMBER, FVector::ForwardVector);
+			Out.Stays = Who ? Who->GetActorLocation() : Box.GetCenter();
+		};
+		const auto Person = [&](AActor* Pa) { Offer(Pa, Pa->GetName(), PersonBox(Pa), Pa->GetActorRightVector()); };
+		FString Kind, Of;
+		if (N.Split(TEXT("@"), &Kind, &Of))   // (somebody beside it, or on it)
+		{
+			FSub To; if (!FindSub(W, Of, Close, To)) return false;
+			TArray<AActor*> Ps; Bodies(W, Ps);
+			for (AActor* Pa : Ps)
+			{
+				const FVector Foot = Pa->GetActorLocation();
+				const bool bIn = To.Box.IsInsideXY(Foot) && Foot.Z > To.Box.Min.Z + 15.f && Foot.Z < To.Box.Max.Z;
+				if (Kind == TEXT("aboard") ? bIn : (!bIn && To.Box.ExpandBy(FVector(400, 400, 100)).IsInside(Foot))) Person(Pa);
+			}
+			return bFound;
+		}
+		if (N == TEXT("person") || N.StartsWith(TEXT("person:")))
+		{
+			const FString Before = Where; Where = N.Mid(7);
+			TArray<AActor*> Ps; Bodies(W, Ps);
+			for (AActor* Pa : Ps) if (Here(Pa->GetActorLocation())) Person(Pa);
+			Where = Before;
+			return bFound;
+		}
+		if (N == TEXT("seated"))
+		{
+			if (AADPPeople* Pp = AADPPeople::Get(W)) for (const AADPPeople::FWho& Q : Pp->Everyone()) if (AActor* Pa = Q.A.Get()) if (!Pa->IsHidden() && Pp->IsHeld(Pa)) Person(Pa);
+			return bFound;
+		}
+		if (N == TEXT("mast"))
+		{
+			for (const FVector2D& S : ALightMasts::Spots()) { const FVector Foot = FTerminalPlan::ToWorld(S.X, 0.f, S.Y); Offer(nullptr, N, FBox(Foot - FVector(60, 60, 0), Foot + FVector(60, 60, 1500)), FVector(0, 1, 0)); }
+			return bFound;
+		}
+		if (N == TEXT("jetway"))
+		{
+			if (const AJetwayRigs* J = AJetwayRigs::Get(W))
+				for (int32 i = 0; i < J->Num(); ++i)
+				{
+					FVector Ro, Dr; if (!J->Frame(i, Ro, Dr)) continue;
+					FBox Bj(ForceInit); Bj += Ro; Bj += Dr; Offer(nullptr, J->Name(i), Bj.ExpandBy(FVector(200, 200, 180)), Dr - Ro);
+				}
+			return bFound;
+		}
+		if (N == TEXT("tower"))
+		{
+			const FVector Foot = FTerminalPlan::ToWorld(ATowerADC::AtX, 0.f, ATowerADC::AtZ);
+			Offer(nullptr, N, FBox(Foot - FVector(700, 700, 0), Foot + FVector(700, 700, (ATowerADC::CabY + 7.f) * 100.f)), FVector(0, 1, 0));
+			return bFound;
+		}
+		const bool bState = N == TEXT("spare") || N == TEXT("broken") || N == TEXT("charging") || N == TEXT("dirty") || N == TEXT("washed");
+		if (const AGSE* Gse = AGSE::Find(W))
+			for (const AGSE::FTractor& T : Gse->Vehicles())
+			{
+				ABabylonModel* M = T.M.Get(); if (!M || M->IsHidden() || T.bAway) continue;
+				float Dirt = -1.f; if (const FVehicleDirtState* Ds = T.Dirt.S.Get()) { Dirt = 0.f; for (const float Zn : Ds->Zone) Dirt += Zn / 12.f; }
+				const bool bIs = N == TEXT("dirty") ? Dirt > 0.35f : N == TEXT("washed") ? Dirt >= 0.f && Dirt < 0.08f : N == TEXT("spare") ? T.bSpare : N == TEXT("broken") ? T.Brk != 0 : N == TEXT("charging") ? (T.Ch.IsValid() && T.Ch->Plug == FBusCharge::Inlet) : T.Name.Contains(N);
+				if (bIs) Offer(M, T.Name, M->GetComponentsBoundingBox(true), M->GetActorForwardVector());
+			}
+		if (bFound || bState) return bFound;
+		for (TActorIterator<ABabylonModel> It(W); It; ++It) if (!It->IsHidden() && It->ModelName().Contains(N)) Offer(*It, It->ModelName(), It->GetComponentsBoundingBox(true), It->GetActorForwardVector());
+		if (bFound) return true;
+		for (TActorIterator<AActor> It(W); It; ++It) if (!It->IsHidden() && !It->IsA<APawn>() && (It->GetName().Contains(N) || It->GetClass()->GetName().Contains(N))) Offer(*It, It->GetName(), It->GetComponentsBoundingBox(true), It->GetActorForwardVector());
+		if (bFound) return true;
+		for (TObjectIterator<UStaticMeshComponent> It; It; ++It)
+		{
+			UStaticMeshComponent* C = *It; const UStaticMesh* Mesh = C->GetWorld() == W && C->IsRegistered() && C->IsVisible() ? C->GetStaticMesh().Get() : nullptr;
+			if (!Mesh || !Mesh->GetName().Contains(N)) continue;
+			if (const UInstancedStaticMeshComponent* Many = Cast<UInstancedStaticMeshComponent>(C))
+			{
+				const FBox One = Mesh->GetBoundingBox(); FTransform X;
+				for (int32 i = 0; i < Many->GetInstanceCount(); ++i) if (Many->GetInstanceTransform(i, X, true) && X.GetScale3D().GetAbsMax() > 0.01) Offer(C->GetOwner(), Mesh->GetName(), One.TransformBy(X), X.GetUnitAxis(EAxis::X));
+			}
+			else Offer(C->GetOwner(), Mesh->GetName(), C->Bounds.GetBox(), C->GetForwardVector());
+		}
+		return bFound;
+	}
+	void SubLog(const FSub& S) { const FVector Mid = S.Box.GetCenter(); ADP_LOG(TEXT("Views: subject %s at %.1f %.1f %.1f"), *S.Nm, Mid.X / 100.f, S.Box.Min.Z / 100.f, -Mid.Y / 100.f); }
+	/** Nothing but the subject itself between the camera and it (its middle and its four sides as seen from there). */
+	bool ClearTo(UWorld* W, const AActor* Me, const FSub& S, const FVector& C)
+	{
+		FCollisionQueryParams Q(SCENE_QUERY_STAT(ViewsCam), false, Me);
+		if (AActor* Own = S.Who.Get())
+			if (Own->GetComponentsBoundingBox(true).GetSize().Size() < S.Box.GetSize().Size() * 3.0)   // (a mesh of something far bigger: that stays in the way)
+			{
+				TArray<AActor*> Parts; Own->GetAttachedActors(Parts, true, true); Parts.Add(Own); Q.AddIgnoredActors(Parts);
+			}
+		const FVector Mid = S.Box.GetCenter(), E = S.Box.GetExtent(), Rt = FVector::CrossProduct(FVector::UpVector, Mid - C).GetSafeNormal2D();
+		const double Wide = (FMath::Abs(Rt.X) * E.X + FMath::Abs(Rt.Y) * E.Y) * 0.75;
+		const FBox By = S.Box.ExpandBy(12.0);
+		const FVector Ends[5] = { Mid, Mid + Rt * Wide, Mid - Rt * Wide, Mid + FVector(0, 0, E.Z * 0.8), Mid - FVector(0, 0, E.Z * 0.6) };
+		FHitResult H;
+		for (const FVector& T : Ends) if (W->LineTraceSingleByChannel(H, C, T, ECC_Visibility, Q) && !By.IsInside(FVector(H.ImpactPoint))) return false;
+		return !(W->SweepSingleByChannel(H, C, Mid, FQuat::Identity, ECC_Camera, FCollisionShape::MakeSphere(20.f), Q) && !By.IsInside(FVector(H.ImpactPoint)));
+	}
+	/** How far off the whole box fits the 16:9 picture, 60 degrees across. */
+	double FitOff(const FSub& S, const FVector& Dir)
+	{
+		const FRotationMatrix M((-Dir).Rotation()); const FVector Ax = M.GetUnitAxis(EAxis::X), Ay = M.GetUnitAxis(EAxis::Y), Az = M.GetUnitAxis(EAxis::Z), E = S.Box.GetExtent();
+		const double Tw = FMath::Tan(FMath::DegreesToRadians(30.0)), Th = Tw * 9.0 / 16.0; double Off = 60.0;
+		for (int32 i = 0; i < 8; ++i)
+		{
+			const FVector P((i & 1) ? E.X : -E.X, (i & 2) ? E.Y : -E.Y, (i & 4) ? E.Z : -E.Z);
+			Off = FMath::Max(Off, FMath::Max(FMath::Abs(FVector::DotProduct(P, Ay)) / Tw, FMath::Abs(FVector::DotProduct(P, Az)) / Th) * 1.12 - FVector::DotProduct(P, Ax));
+		}
+		return Off;
+	}
+	bool LookFrom(UWorld* W, const AActor* Me, const FSub& S, double Dist, double Deg, double High, FVector& Cam)
+	{
+		const double Turns[] = { 0., 25., -25., 50., -50., 80., -80., 120., -120., 160. }, Further[] = { 1., 1.3, 0.8 }, Ups[] = { 0., 120., 300. };
+		const FVector Mid = S.Box.GetCenter();
+		for (const double Fu : Further)
+		{
+			if (Dist <= 0.0 && Fu < 1.0) continue;   // (the whole of it has to fit)
+			for (const double Up : Ups) for (const double Tu : Turns)
+			{
+				const FVector Flat = S.Fw.RotateAngleAxis(Deg + Tu, FVector::UpVector), Rise(0.0, 0.0, S.Box.Min.Z + High * 100.0 + Up - Mid.Z);
+				double D = Dist * 100.0;
+				if (Dist <= 0.0) { D = 300.0; for (int32 i = 0; i < 4; ++i) D = FitOff(S, (Flat * D + Rise).GetSafeNormal()); }
+				const FVector C = Mid + Flat * D * Fu + Rise;
+				if (Solid(W, C, Me) || !ClearTo(W, Me, S, C)) continue;
+				Cam = C; return true;
+			}
+		}
+		return false;
+	}
+	/** Each frame: the camera stays with a subject that moves. */
+	void KeepSub(UWorld* W, const AActor* Me)
+	{
+		const AActor* Own = Sub.Who.Get(); if (!Own) return;
+		if (bRel)
+		{
+			const FTransform X(Own->GetActorRotation(), Own->GetActorLocation());
+			Want = X.TransformPosition(RelAt); Rot = (X.GetRotation() * RelRot.Quaternion()).Rotator(); Rot.Roll = 0.0; return;
+		}
+		const FVector Mv = Own->GetActorLocation() - Sub.Stays; if (Mv.SizeSquared() < 1.0) return;
+		Sub.Stays = Own->GetActorLocation(); Sub.Box = Sub.Box.ShiftBy(Mv);
+		const FVector C = Sub.Box.GetCenter() + LookOff; FHitResult H; const FCollisionQueryParams Q(SCENE_QUERY_STAT(ViewsCam), false, Me);
+		if (!W->SweepSingleByChannel(H, Want, C, FQuat::Identity, ECC_Camera, FCollisionShape::MakeSphere(20.f), Q) && !Solid(W, C, Me)) Want = C;
+		Rot = (Sub.Box.GetCenter() - Want).Rotation();
+	}
+	void FreeFov(APlayerController* PC) { if (bFovLook) { PC->PlayerCameraManager->UnlockFOV(); bFovLook = false; } }
+	void LockFov(APlayerController* PC, float Deg) { PC->PlayerCameraManager->SetFOV(Deg); bFovLook = true; }
+	/** Where one stands to talk: before them, a step and a half off; false if there is no free place. */
+	bool TalkSpot(UWorld* W, const AActor* Me, const AActor* Pa)
+	{
+		const FVector Head = Pa->GetActorLocation() + FVector(0, 0, 158); FHitResult H;
+		FCollisionQueryParams Q(SCENE_QUERY_STAT(ViewsCam), false, Me); Q.AddIgnoredActor(Pa);
+		for (const double Tu : { 0., 25., -25., 50., -50., 80., -80. })
+		{
+			const FVector C = Head + Pa->GetActorRightVector().GetSafeNormal2D().RotateAngleAxis(Tu, FVector::UpVector) * 160.0;
+			if (W->SweepSingleByChannel(H, Head, C, FQuat::Identity, ECC_Camera, FCollisionShape::MakeSphere(22.f), Q) || Solid(W, C, Me)) continue;
+			Want = C; Rot = (Head - FVector(0, 0, 25) - C).Rotation(); return true;
+		}
+		return false;
+	}
+	void Lives(UWorld* W)
+	{
+		const IConsoleVariable* Rain = IConsoleManager::Get().FindConsoleVariable(TEXT("adp.GlassRain"));
+		ADP_LOG(TEXT("Views: lives: weather %s%s, rain on the glass %d (filled %.2f, %.3f a second), %d people about"), ASunClock::ThemeName(ASunClock::Theme), ASunClock::bTestHold ? TEXT(" (held)") : TEXT(""),
+			Rain ? Rain->GetInt() : -1, UGlassRain::Fill, UGlassRain::FillRate, Was.Num());
+		ADP_LOG(TEXT("Views: lives: people %s"), *ADPLayers::Counts());
+		for (const bool bArr : { false, true })
+		{
+			const TArray<FADPBoardRow>& Rows = ADPBoards::Shown(W, bArr); FString Ln;
+			for (int32 i = 0; i < FMath::Min(4, Rows.Num()); ++i) Ln += FString::Printf(TEXT(" | %s %s %s %s"), *Rows[i].Time(), *Rows[i].Flight, *Rows[i].Place, *Rows[i].Status);
+			ADP_LOG(TEXT("Views: lives: board %s: %d rows, turn %d%s"), bArr ? TEXT("arrivals") : TEXT("departures"), Rows.Num(), ADPBoards::Turn(), *Ln);
+		}
+		FString Rem; int32 NRem = 0, NAir = 0;
+		for (TActorIterator<ABabylonModel> It(W); It; ++It)
+			if (!It->IsHidden() && It->ModelName() == TEXT("A320"))
+			{
+				++NAir; const FVector Foot = It->GetActorLocation();
+				if (-Foot.Y > 27000.0 && -Foot.Y < 37000.0 && Foot.Z < 1000.0) { ++NRem; Rem += FString::Printf(TEXT(" at %.0f %.0f"), Foot.X / 100.0, -Foot.Y / 100.0); }
+			}
+		ADP_LOG(TEXT("Views: lives: aircraft %d, on the remote apron %d%s"), NAir, NRem, *Rem);
+		if (const AGSE* Gse = AGSE::Find(W))
+		{
+			FString Buses, Charge, Spare, Broken; int32 NAll = 0;
+			for (const AGSE::FTractor& T : Gse->Vehicles())
+			{
+				if (!T.M.IsValid()) continue;
+				++NAll; const FString Pl = FString::Printf(TEXT(" | %s (%.0f %.0f%s)"), *T.Name, T.At.X / 100.0, -T.At.Y / 100.0, T.bAway ? TEXT(", away") : TEXT(""));
+				if (T.Bu.IsValid())
+				{
+					Buses += Pl + FString::Printf(TEXT(" %.1f m/s"), T.Speed / 100.f);
+					if (T.Ch.IsValid()) Buses += FString::Printf(TEXT(", battery %.0f %%"), T.Ch->Soc * 100.f);
+				}
+				if (T.Ch.IsValid() && (T.Ch->Plug != FBusCharge::Holster || T.Ch->Stage != FBusCharge::Idle || !T.Ch->Why.IsEmpty())) Charge += Pl + FString::Printf(TEXT(" plug %d stage %d %s"), int32(T.Ch->Plug), int32(T.Ch->Stage), *T.Ch->Why);
+				if (T.bSpare) Spare += Pl;
+				if (T.Brk) Broken += Pl + FString::Printf(TEXT(" stage %d: %s, %s"), int32(T.Brk), *T.BrkFault, T.bBrkFix ? TEXT("can be mended") : TEXT("can not be mended"));
+			}
+			ADP_LOG(TEXT("Views: lives: %d ground vehicles; buses%s"), NAll, Buses.IsEmpty() ? TEXT(" none") : *Buses);
+			ADP_LOG(TEXT("Views: lives: charging%s"), Charge.IsEmpty() ? TEXT(" none") : *Charge);
+			ADP_LOG(TEXT("Views: lives: spares%s"), Spare.IsEmpty() ? TEXT(" none") : *Spare);
+			ADP_LOG(TEXT("Views: lives: broken%s"), Broken.IsEmpty() ? TEXT(" none") : *Broken);
+		}
+		else ADP_WARN(TEXT("Views: lives: no ground vehicles"));
+		const UADPSim* Sim = UADPSim::Get(W); const UStaffPeople* St = UStaffPeople::Get(W);
+		if (Sim && St)
+		{
+			TMap<FString, int32> All, Work; TMap<FString, TMap<FString, int32>> How;
+			for (const FADPPerson& P : Sim->World.People)
+			{
+				if (P.AirlineId != UADPSim::Me()) continue;
+				FString Doing, Spot; if (!St->Status(P.Id, Doing, Spot)) Doing = St->OnShift(P.Id) ? TEXT("on shift, not in 3D") : TEXT("off shift or no job in 3D");
+				++All.FindOrAdd(P.Role); if (St->ActorOf(P.Id)) ++Work.FindOrAdd(P.Role);
+				++How.FindOrAdd(P.Role).FindOrAdd(Doing.Left(50));
+			}
+			for (const auto& E : All)
+			{
+				FString Ln; int32 Nth = 0;
+				for (const auto& D : How[E.Key]) { if (++Nth > 6) break; Ln += FString::Printf(TEXT(" | %d %s"), D.Value, *D.Key); }
+				ADP_LOG(TEXT("Views: lives: hired %s %d, %d there%s"), *E.Key, E.Value, Work.FindRef(E.Key), *Ln);
+			}
+			if (!All.Num()) ADP_LOG(TEXT("Views: lives: hired nobody"));
+			const FString Wt = St->Waiting().Replace(TEXT("\n"), TEXT("; ")).Left(400);
+			ADP_LOG(TEXT("Views: lives: jobs wait: %s"), *Wt);
+		}
+		else ADP_WARN(TEXT("Views: lives: no career, or no staff"));
+		ADP_LOG(TEXT("Views: lives: the feet: see the Feet: lines (-FeetCheck)"));
+	}
+
 	bool Tick(float Dt)
 	{
 		UWorld* W = ViewsWorld(); APlayerController* PC = W ? W->GetFirstPlayerController() : nullptr;
 		if (!PC || !PC->PlayerCameraManager) return true;
 		LookAtPeople(W);
 		if (bFollow) FollowAt(W, PC->GetPawn(), Dt);
+		else if (bSub && bHeld) KeepSub(W, PC->GetPawn());
 		if (bHeld) Place(PC);
 		for (TStrongObjectPtr<UTextureRenderTarget2D>& T : Eaten) UKismetRenderingLibrary::ClearRenderTarget2D(W, T.Get(), FLinearColor::Black);
 		if (!Name.IsEmpty()) { Fr.Add(Dt * 1000.f); Gp.Add(FPlatformTime::ToMilliseconds(RHIGetGPUFrameCycles())); Rn.Add(FPlatformTime::ToMilliseconds(GRenderThreadTime)); Gm.Add(FPlatformTime::ToMilliseconds(GGameThreadTime)); }
@@ -212,7 +491,37 @@ namespace ADPPerfViewsInternal
 			if (Was.Num() >= Need) { ADP_LOG(TEXT("Views: %d people are about"), Was.Num()); Need = 0; Until = 0.0; }
 			else if (FPlatformTime::Seconds() >= Until) { ADP_ERROR(TEXT("Views: FAILED - %d people about instead of %d, the run ends here"), Was.Num(), Need); FPlatformMisc::RequestExit(false); return false; }
 		}
+		if (!Waits.IsEmpty())   // (until)
+		{
+			FSub S; const double Now = FPlatformTime::Seconds();
+			if (Now < NextLook && Now < Until) return true;
+			NextLook = Now + 1.0;
+			if (FindSub(W, Waits, bHeld ? Want : PC->PlayerCameraManager->GetCameraLocation(), S)) SubLog(S);
+			else if (Now < Until) return true;
+			else ADP_WARN(TEXT("Views: %s did not come"), *Waits);
+			Waits.Reset(); Until = 0.0;
+		}
 		if (FPlatformTime::Seconds() < Until) return true;
+		if (ShotAt > 0)   // (shot4k: three seconds for the streaming, then the picture, then two more)
+		{
+			const FString Png = FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir() / TEXT("Screenshots/run") / (Shot + TEXT(".png")));
+			if (ShotAt == 1)
+			{
+				PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 3840x2160 filename=\"%s\""), *Png)); ADP_LOG(TEXT("Views: picture %s"), *Png);
+				ShotAt = 2; Until = FPlatformTime::Seconds() + 2.0; return true;
+			}
+			ShotAt = 0; if (!bSub) FreeFov(PC);
+			if (!IFileManager::Get().FileExists(*Png)) ADP_WARN(TEXT("Views: the picture %s is not written yet"), *Shot);
+		}
+		if (TalkAt > 0)   // (they are before you: E)
+		{
+			TalkAt = 0; AADPPeople* Pp = AADPPeople::Get(W); AADPHUD* Hd = Cast<AADPHUD>(PC->GetHUD());
+			FVector Eye; FRotator Lk; PC->GetPlayerViewPoint(Eye, Lk); FHitResult H; const FCollisionQueryParams Q(SCENE_QUERY_STAT(ViewsCam), false, PC->GetPawn());
+			const bool bHit = W->LineTraceSingleByChannel(H, Eye, Eye + Lk.Vector() * 290.0, ECC_Visibility, Q);
+			if (Pp && Hd && ((bHit && Pp->Find(H.GetActor())) || (!bHit && Pp->Beside(PC->GetPawn())))) Hd->Interact();
+			if (Pp && Pp->MenuOpen()) { bHeld = false; ADP_LOG(TEXT("Views: talk open with %s"), *Pp->MenuTitle); Until = FPlatformTime::Seconds() + 3.0; return true; }
+			bMissing = true; ADP_WARN(TEXT("Views: subject missing: the talk did not open (%s)"), bHit && H.GetActor() ? *H.GetActor()->GetName() : TEXT("nobody before you"));
+		}
 		if (!Name.IsEmpty()) { Report(*Name); Name.Reset(); bFollow = false; }
 		if (At >= Steps.Num()) return false;
 		const FString L = Steps[At++].TrimStartAndEnd();
@@ -221,7 +530,8 @@ namespace ADPPerfViewsInternal
 		if ((K == TEXT("view") && V.Num() >= 5) || (K == TEXT("fly") && V.Num() >= 6))
 		{
 			const FVector To(FCString::Atof(*V[0]) * 100.f, -FCString::Atof(*V[2]) * 100.f, FCString::Atof(*V[1]) * 100.f);
-			if (K == TEXT("view") && Solid(W, To, PC->GetPawn())) { ADP_WARN(TEXT("Views: %s is inside something - left out"), *A); return true; }
+			bSub = bRel = bMissing = false; FreeFov(PC);
+			if (K == TEXT("view") && Solid(W, To, PC->GetPawn())) { ADP_WARN(TEXT("Views: %s is inside something - left out"), *A); bMissing = true; return true; }
 			From = PC->PlayerCameraManager->GetCameraLocation(); RotFrom = Rot;
 			Want = To;
 			Rot = FRotator(FCString::Atof(*V[4]), FCString::Atof(*V[3]), 0.f); bHeld = true; FlyLen = 0.0;
@@ -229,6 +539,67 @@ namespace ADPPerfViewsInternal
 			else ADP_LOG(TEXT("Views: at %s"), *A);
 		}
 		else if (K == TEXT("cmd")) { ADP_LOG(TEXT("Views: %s"), *A); PC->ConsoleCommand(A); }
+		else if (K == TEXT("look") && V.Num() > 3)
+		{
+			const FString Nm = FString::JoinBy(TArrayView<FString>(V).RightChop(3), TEXT(" "), [](const FString& Word) { return Word; });
+			bSub = bRel = false; bMissing = true; FreeFov(PC); FVector C; FSub S;
+			if (!bHeld) Want = PC->PlayerCameraManager->GetCameraLocation();
+			if (!FindSub(W, Nm, Want, S)) ADP_WARN(TEXT("Views: subject missing: %s is not there"), *Nm);
+			else if (!LookFrom(W, PC->GetPawn(), S, FCString::Atof(*V[0]), FCString::Atof(*V[1]), FCString::Atof(*V[2]), C)) { SubLog(S); ADP_WARN(TEXT("Views: subject missing: no clear view of %s"), *Nm); }
+			else
+			{
+				SubLog(S); Sub = S; LookOff = C - S.Box.GetCenter(); Want = C; Rot = (-LookOff).Rotation(); bSub = bHeld = true; bMissing = bFollow = false; FlyLen = 0.0; LockFov(PC, 60.f);
+				ADP_LOG(TEXT("Views: at %.1f %.1f %.1f %.0f %.0f"), C.X / 100.0, C.Z / 100.0, -C.Y / 100.0, Rot.Yaw, Rot.Pitch);
+			}
+		}
+		else if (K == TEXT("rel") && V.Num() > 5)
+		{
+			const FString Nm = FString::JoinBy(TArrayView<FString>(V).RightChop(5), TEXT(" "), [](const FString& Word) { return Word; });
+			bSub = bRel = false; bMissing = true; FreeFov(PC); FSub S;
+			if (!bHeld) Want = PC->PlayerCameraManager->GetCameraLocation();
+			if (!FindSub(W, Nm, Want, S) || !S.Who.IsValid()) ADP_WARN(TEXT("Views: subject missing: %s is not there"), *Nm);
+			else
+			{
+				const FVector RelTo(FCString::Atof(*V[0]) * 100.0, -FCString::Atof(*V[1]) * 100.0, FCString::Atof(*V[2]) * 100.0);
+				const FVector C = FTransform(S.Who->GetActorRotation(), S.Who->GetActorLocation()).TransformPosition(RelTo);
+				if (Around(C - FVector(0, 0, 120), 45.0) > 0) ADP_WARN(TEXT("Views: subject missing: somebody is where the camera goes in %s"), *Nm);
+				else { SubLog(S); Sub = S; RelAt = RelTo; RelRot = FRotator(FCString::Atof(*V[4]), -FCString::Atof(*V[3]), 0.0); bSub = bRel = bHeld = true; bMissing = bFollow = false; FlyLen = 0.0; KeepSub(W, PC->GetPawn()); LockFov(PC, 90.f); }
+			}
+		}
+		else if (K == TEXT("until") && V.Num() > 1) { FString Sec; A.Split(TEXT(" "), &Sec, &Waits); Waits.TrimStartAndEndInline(); NextLook = 0.0; Until = FPlatformTime::Seconds() + FCString::Atof(*V[0]); }
+		else if (K == TEXT("shot4k") && V.Num())
+		{
+			if (bMissing) { ADP_WARN(TEXT("Views: picture %s left out, its subject is missing"), *V[0]); return true; }
+			Shot = V[0]; ShotAt = 1; Until = FPlatformTime::Seconds() + 3.0;
+			const AADPPeople* Pp = AADPPeople::Get(W);
+			if (!bSub && !(Pp && Pp->MenuOpen())) LockFov(PC, 80.f);   // (the window's own is as wide as two screens)
+		}
+		else if (K == TEXT("talk"))
+		{
+			bSub = bRel = bFollow = false; bMissing = true; FreeFov(PC); FlyLen = 0.0;
+			AADPPeople* Pp = AADPPeople::Get(W); const FVector Was1 = Want, You = bHeld ? Want : PC->PlayerCameraManager->GetCameraLocation(); const FRotator Rot1 = Rot;
+			TArray<AActor*> By;
+			if (Pp)
+				for (const AADPPeople::FWho& Q : Pp->Everyone())
+				{
+					AActor* Pa = Q.A.Get(); if (!Pa || Pa->IsHidden() || Q.bUnruly || Pp->IsHeld(Pa)) continue;
+					const FVector* Sp = Going.Find(Pa); if (!Sp || Sp->Size2D() < 10.0) By.Add(Pa);
+				}
+			By.Sort([&You](const AActor& One, const AActor& Two) { return FVector::DistSquared(One.GetActorLocation(), You) < FVector::DistSquared(Two.GetActorLocation(), You); });
+			for (int32 i = 0; i < FMath::Min(8, By.Num()) && !TalkAt; ++i)
+				if (TalkSpot(W, PC->GetPawn(), By[i])) { TalkAt = 1; bHeld = true; bMissing = false; Until = FPlatformTime::Seconds() + 1.5; ADP_LOG(TEXT("Views: talk: before %s"), *By[i]->GetName()); }
+			if (!TalkAt) { Want = Was1; Rot = Rot1; ADP_WARN(TEXT("Views: subject missing: nobody to talk to (%d stand)"), By.Num()); }
+		}
+		else if (K == TEXT("talkend"))
+		{
+			AADPPeople* Pp = AADPPeople::Get(W); AADPHUD* Hd = Cast<AADPHUD>(PC->GetHUD());
+			if (Pp && Hd && Pp->MenuOpen()) Hd->Interact();
+			if (Pp && Pp->MenuOpen()) { ADP_WARN(TEXT("Views: E did not end the talk")); Pp->Close(); }
+			Until = FPlatformTime::Seconds() + 2.5;
+		}
+		else if (K == TEXT("lives")) Lives(W);
+		else if (K == TEXT("weather") && A == TEXT("live")) ASunClock::ReleaseTheme();
+		else if (K == TEXT("hour") && A == TEXT("live")) { ASunClock::HourOverride = -1.f; ASunClock::DayOverride = -1; ASunClock::Refresh(); }
 		else if (K == TEXT("hour")) { if (ASunClock::DayOverride < 0) ASunClock::DayOverride = 172; ASunClock::HourOverride = FCString::Atof(*A); ASunClock::Refresh(); }
 		else if (K == TEXT("day")) { ASunClock::DayOverride = FCString::Atoi(*A); ASunClock::Refresh(); }
 		else if (K == TEXT("weather")) { if (!ASunClock::ManualWeatherAllowed()) ADP_WARN(TEXT("Views: the weather is live here, it can not be set")); ASunClock::HoldTheme(FCString::Atoi(*A)); ADP_LOG(TEXT("Views: weather %s"), ASunClock::ThemeName(ASunClock::Theme)); }
@@ -278,6 +649,7 @@ namespace ADPPerfViewsInternal
 		{
 			Where = K == TEXT("feet") ? FString(*V[1]) : FString();   // (feet <seconds> <landside, hall, apron, upstairs> <name>)
 			FString S2, N2; const bool bN = A.Split(TEXT(" "), &S2, &N2);
+			bSub = bRel = false; FreeFov(PC);
 			if (!NextSubject()) ADP_WARN(TEXT("Views: nobody walks (%d people)"), Was.Num());
 			if (Subject.IsValid() || !Where.IsEmpty()) { Want = PC->PlayerCameraManager->GetCameraLocation(); bHeld = bFollow = true; FlyLen = 0.0; }
 			BeginMeasure(FCString::Atof(*V[0]), bN ? N2 : A);

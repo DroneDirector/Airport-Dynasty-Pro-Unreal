@@ -1,0 +1,212 @@
+# The one performance and picture run (269): the career chaintest-3, real time at every measure, career 10x only in between; under 30 minutes.
+#   bash Tools/final_run.sh
+cmd r.VSync 0
+speed 1 1
+hour 13
+weather 2
+wait 20
+speed 10 1
+people 8 150
+speed 1 1
+lives
+# --- A: frames, dry day
+view 75 1.7 -45 -90 0
+wait 4
+measure 10 A landside doors
+view 79 1.6 2.9 -90 0
+wait 4
+measure 10 A hall
+view 76 1.6 1.8 -132 8
+wait 4
+measure 10 A hall screens
+view -400 1.6 40 0 2
+wait 4
+measure 10 A apron
+view 87.5 7.7 60 0 0
+wait 4
+measure 10 A upstairs
+view -1209 1.6 55.9 90 7
+wait 4
+measure 10 A station
+view -1130 1.6 44.8 -5 -5
+wait 4
+measure 10 A drive
+look 35 0 1.7 tower
+wait 4
+measure 10 A tower close
+view 60 1.7 -38 180 -12
+wait 4
+measure 10 A behind the terminal, road west
+view 110 1.7 -38 0 -12
+wait 4
+measure 10 A behind the terminal, road east
+view -120 1.7 290 -60 2
+wait 4
+measure 10 A remote apron
+view -284 2.2 279 -90 -4
+wait 4
+measure 10 A vehicle area
+follow 20 A in the crowd
+# --- B: the same views dry, in rain, in rain without the drops on the glass
+rel 5.2 0.85 1.9 0 -3 Apron bus 1
+wait 4
+measure 10 B dry: cab windscreen
+view 87.5 7.7 60 0 0
+wait 4
+measure 10 B dry: gate windows
+view 79.5 1.7 -62 -90 5
+wait 4
+measure 10 B dry: facade
+look 0 90 2 jetway
+wait 4
+measure 10 B dry: jetway
+view -400 1.6 40 0 2
+wait 4
+measure 10 B dry: apron
+weather 5
+wait 60
+lives
+rel 5.2 0.85 1.9 0 -3 Apron bus 1
+wait 4
+measure 10 B rain: cab windscreen
+view 87.5 7.7 60 0 0
+wait 4
+measure 10 B rain: gate windows
+view 79.5 1.7 -62 -90 5
+wait 4
+measure 10 B rain: facade
+look 0 90 2 jetway
+wait 4
+measure 10 B rain: jetway
+view -400 1.6 40 0 2
+wait 4
+measure 10 B rain: apron
+cmd adp.GlassRain 0
+wait 5
+rel 5.2 0.85 1.9 0 -3 Apron bus 1
+wait 4
+measure 10 B rain, no drops: cab windscreen
+view 87.5 7.7 60 0 0
+wait 4
+measure 10 B rain, no drops: gate windows
+view 79.5 1.7 -62 -90 5
+wait 4
+measure 10 B rain, no drops: facade
+look 0 90 2 jetway
+wait 4
+measure 10 B rain, no drops: jetway
+view -400 1.6 40 0 2
+wait 4
+measure 10 B rain, no drops: apron
+cmd adp.GlassRain 1
+wait 20
+# the pictures of the rain, while it rains
+rel 5.2 0.85 1.9 0 -3 Apron bus 1
+shot4k rain-bus-windscreen-wipers
+view 87.5 7.7 60 0 0
+shot4k rain-gate-windows-inside
+view 87.5 1.7 105 90 8
+shot4k rain-gate-windows-outside
+view -400 1.6 40 0 -4
+shot4k wet-apron
+view 310 1.6 120 -90 2
+shot4k wet-apron-stand
+view 79.5 1.7 -62 -90 5
+shot4k rain-facade
+weather 2
+# --- C: functions
+cmd adp.BreakVehicle catering
+wait 10
+lives
+view 76 1.6 1.8 -132 8
+measure 40 C hall boards over two page turns and more
+lives
+view 79 1.6 2.9 -90 0
+wait 2
+talk
+measure 10 C talk camera
+shot4k talk-portrait
+talkend
+until 60 broken
+look 0 35 1.7 broken
+shot4k vehicle-broken
+# --- D: pictures by day
+view -284 2.2 279 -90 -4
+shot4k vehicle-area
+look 0 35 1.8 spare
+shot4k vehicle-spare
+speed 10 1
+until 60 charging
+speed 1 1
+look 0 40 1.8 charging
+shot4k bus-charging
+look 0 35 1.7 Apron bus
+shot4k apron-bus-outside
+rel 3 0 1.8 180 -4 Apron bus
+shot4k apron-bus-inside
+rel 4.4 0.1 1.8 28 -8 Apron bus
+shot4k apron-bus-driver-place
+look 1.6 70 0.7 Tyre_FL
+shot4k tyre-tread
+look 0 35 1.7 dirty
+shot4k vehicle-dirty
+look 0 35 1.7 washed
+shot4k vehicle-washed
+view -120 1.7 290 -60 2
+shot4k remote-apron-day
+look 0 40 2 PushbackTug
+shot4k tug
+speed 10 1
+until 150 aboard@PassengerStairs
+speed 1 1
+look 5 -60 1.8 aboard@PassengerStairs
+shot4k passengers-on-stairs
+speed 10 1
+until 120 person@Apron bus
+speed 1 1
+look 5 60 1.7 person@Apron bus
+shot4k passengers-boarding-bus
+speed 10 1
+until 120 aboard@Apron bus
+speed 1 1
+look 2.2 25 1.6 aboard@Apron bus
+shot4k passengers-in-bus
+lives
+view 87.5 7.7 60 0 0
+look 2.5 30 1.4 seated
+shot4k passenger-seated
+view 79 1.6 2.9 -90 0
+look 1.7 20 1.6 person:hall
+shot4k person-near
+look 14 20 1.7 person:hall
+shot4k person-far
+look 1.7 20 1.6 person:landside
+shot4k person-near-landside
+view 60 1.7 -38 180 -12
+shot4k road-behind-west
+view 110 1.7 -38 0 -12
+shot4k road-behind-east
+view 70 1.7 6.5 -90 0
+shot4k totem-departures
+view 82 1.7 6.5 -90 0
+shot4k totem-arrivals
+look 0 30 1.7 tower
+shot4k tower-outside
+view -348 19.3 118 45 -8
+shot4k tower-cab
+# --- night: the remote apron and the road behind the terminal, once
+hour 23
+wait 15
+view -120 1.7 290 -60 2
+shot4k night-remote-apron
+look 0 60 3 mast
+shot4k night-mast
+look 30 120 2 A320
+shot4k night-lit-tail
+view 60 1.7 -38 180 -12
+shot4k night-road-behind
+lives
+hour live
+weather live
+wait 5
+quit

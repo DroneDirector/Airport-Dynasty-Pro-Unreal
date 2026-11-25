@@ -180,6 +180,8 @@ public:
 	};
 	/** A gate GPU being towed: its moving parts (bound when first towed). */
 	struct FGpuRig { int32 GWheel[4] = {INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE}, GAxle = INDEX_NONE; float AxleYaw = 0.f, Spin = 0.f; FVector Home = FVector::ZeroVector; float HomeYaw = 0.f; bool bBound = false; FVector PrevAt = FVector::ZeroVector; };
+	/** Every vehicle there is (the tests' camera). */
+	const TArray<FTractor>& Vehicles() const { return Tractors; }
 
 private:
 	friend class ATugs;
