@@ -1,5 +1,5 @@
 // The control tower, built at run time as in the Android edition's tower.ts (same sizes and places): its curved shells
-// (shaft, lobby, cab glass, floors, desk ring, roof) as procedural meshes with both faces and collision, the straight
+// (shaft, lobby, cab glass, floors, desk ring, roof) as meshes with both faces and collision (saved Nanite ones, TowerShells.cpp), the straight
 // pieces as instanced boxes and cylinders, the lift from TerminalLifts, and the doors and desk flap moving each frame.
 #include "TowerADC.h"
 #include "Shapes.h"
@@ -301,7 +301,7 @@ void ATowerADC::Build()
 	BuildRoof();
 	if (!FParse::Param(FCommandLine::Get(), TEXT("TowerNoNight"))) BuildNightLights();   // (-TowerNoNight: test)
 
-	Shells(Frame, Solid, true, true, TEXT("ADC_SHELLS"));
+	SolidShells(Frame, Solid, true, true, TEXT("ADC_SHELLS"));
 	// the glass split: its outward faces (seen from outside) and its inward faces (seen from inside, a clearer glass);
 	// a face is outward when its normal points away from the tower's middle
 	{
@@ -328,7 +328,9 @@ void ATowerADC::Build()
 		GlassOutside = Shells(Frame, Out, true, false, TEXT("ADC_GLASS_OUT"));
 		Shells(Frame, In, false, false, TEXT("ADC_GLASS_IN"));
 	}
-	Shells(Frame, Trim, false, true, TEXT("ADC_TRIM"));
+	SolidShells(Frame, Trim, false, true, TEXT("ADC_TRIM"));
+	ADP_LOG(TEXT("Tower: %d baked shells"), BakedShells);
+	if (IsShellsOnly()) return;
 
 	// the lift, from the ground floor to the lift lobby, its doors facing west, against the shaft's north wall
 	if (ATerminalLifts* Lifts = GetWorld()->SpawnActor<ATerminalLifts>(FVector::ZeroVector, FRotator::ZeroRotator))
@@ -594,7 +596,7 @@ void ATowerADC::BuildDesk()
 		TArray<FVector> Lip;
 		for (int32 k = 0; k <= 8; ++k) { const float A = FA0 + 0.002f + (FA1 - FA0 - 0.004f) * k / 8; Lip.Add(FVector(FMath::Cos(A) * R0, DY + 0.76f, FMath::Sin(A) * R0)); }
 		Tube(Buf(F, "walnut"), Lip, 0.03f);
-		Shells(In, F, false, true, TEXT("ADC_DESK_FLAP_TOP"));
+		SolidShells(In, F, false, true, TEXT("ADC_DESK_FLAP_TOP"));
 		// it lifts about the desk's back edge, its front rising towards the glass
 		const FVector Axis = U(-FMath::Sin(DoorA), 0, FMath::Cos(DoorA)).GetSafeNormal();
 		const FVector Front = U(-FMath::Cos(DoorA), 0, -FMath::Sin(DoorA)).GetSafeNormal();

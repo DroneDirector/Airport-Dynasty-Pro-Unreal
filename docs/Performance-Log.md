@@ -121,3 +121,10 @@ Packaged Shipping, 3840x1080, the owner's settings, own frame generation on, all
   +1536: 199/104 (no generated frames) -> 21.1/24.5 ms (95/82 shown/s); +2048: 195/115 -> 16.5/22.2 ms (121/90 shown/s);
   +2560 still over (179/119). About 1 GB more room plus the guard.
 - Not proven yet: a long session in the owner's hands, and the same test on the packaged release.
+
+## 2026-11-25: the control tower's shells as Nanite meshes (302; TowerShells.cpp, Tools/bake_tower.sh)
+- Saved to /Game/Tower/Baked with their fingerprint (Data/tower-baked.json): ADC_SHELLS 21,896 triangles in 11 sections,
+  ADC_TRIM 1,920, the desk's flap 280. Every section's triangles and bounds equal to the buffers; Nanite's input and the
+  collision (21,896) too. Not in Lumen's distance fields, as before; the invisible occluders stay; the glass stays procedural.
+- Changed buffers fall back to the procedural shell with a warning (tried both ways). After a change: bash Tools/bake_tower.sh.
+- Not measured yet: the frame time and the look in the game (log line "Tower: 3 baked shells").

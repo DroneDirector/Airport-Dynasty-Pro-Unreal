@@ -28,6 +28,11 @@ public:
 	void Build();
 	virtual void Tick(float DeltaSeconds) override;
 
+	/** Editor only (Tools/bake_tower.sh): saves the solid shells as Nanite meshes in /Game/Tower/Baked and their
+	 *  fingerprints in Data/tower-baked.json; bCheckOnly: builds with the saved ones as the game does. Returns the shells. */
+	UFUNCTION(BlueprintCallable, Category = "ADP")
+	static int32 BakeShells(UObject* WorldContext, bool bCheckOnly);
+
 	/** Where it stands (plan metres) and its levels (metres), as in tower.ts TOWER_AT / TOWER. */
 	static const float AtX;
 	static const float AtZ;
@@ -50,6 +55,11 @@ private:
 	/** A tube along a path (tower metres), for rails, the desk's lip and the mullions. */
 	static void Tube(FBuf& B, const TArray<FVector>& Path, float Radius, int32 Sides = 8);
 	UProceduralMeshComponent* Shells(USceneComponent* Parent, TMap<FName, FBuf>& Set, bool bCollide, bool bShadow, const FName Name);
+	/** The same, as its saved Nanite mesh when that was made from the same buffers (else Shells, with a warning): TowerShells.cpp. */
+	void SolidShells(USceneComponent* Parent, TMap<FName, FBuf>& Set, bool bCollide, bool bShadow, const FName Name);
+	bool SaveShell(const TMap<FName, FBuf>& Set, bool bCollide, const FName ShellName);   // (editor only)
+	static bool IsShellsOnly();   // (the bake and its check: nothing after the shells is built)
+	int32 BakedShells = 0;
 	#pragma endregion
 
 	#pragma region Pieces
