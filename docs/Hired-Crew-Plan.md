@@ -609,7 +609,14 @@ Taxi bus (239, part B, 2026-11-24, compiled, NOT run): a line of `ADPService::Al
 - Walk: down the stairs, across in front of the aircraft to the nearest ground gate door.
 - The turn-round's "passengers off" is done when the last is off the treads; with no stairs or bus for 15 min (45 while one is at work) the rest stay data. Boarding is called only when the aircraft is empty.
 - Waits are logged (no stairs, no bus, no driver, no way). A driver lost on the way is replaced; a bus never goes home at shift end with passengers in it.
-- Another career loaded: those outside go on in (arriving) or back and home (departing). Not run in the game yet. Other airlines at such stands get no passenger stairs, so their passengers stay data.
+- Another career loaded: those outside go on in (arriving) or back and home (departing). Not run in the game yet.
+
+## Stairs and bus for every airline and the big stands, D5 as built
+
+- Every passenger aircraft at a stand without a jetway gets the passenger stairs (Turnaround.cpp, `SvcFor`), code E stands too; the rear-door pair is for your own flights only. Other services keep their limits.
+- One pair wanted twice: earliest on or off blocks first (`FSvcJob::Want`); the next logs why it waits and its flight waits up to 90 min. A rear-door pair comes away for a waiting front door.
+- Reach: sill 235 to 425 cm (platform 232, ten treads of 19). Every flight is drawn as the A320 (L1 sill 387), also on code E stands; a real A330, 787, 777 or A350 (about 4.4 to 5.1 m) is beyond it, then the job logs the numbers and waits. Needs a taller model once wide-body models exist.
+- The apron's obstacle map takes a big stand's aircraft at its drawn size, not the stand's span. Not run in the game yet.
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 

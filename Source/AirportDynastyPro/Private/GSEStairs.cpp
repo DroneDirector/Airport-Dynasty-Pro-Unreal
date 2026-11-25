@@ -236,6 +236,16 @@ bool AGSE::StairsReady(float StandX, int32 Door, FStairsWay& Out) const
 
 bool AGSE::StairsHas(float StandX) const { for (const TPair<int32, FSvcJob>& P : SvcJobs) if (P.Value.Phase < 3 && P.Value.CtDoor == 0 && FMath::Abs(P.Value.StandX - StandX) < 1.f && PsSpec(P.Value.Svc).bStairs) return true; return false; }
 
+bool AGSE::StairsQueued(float StandX) const { for (const TPair<int32, FSvcJob>& P : SvcJobs) if (P.Value.bQueued && P.Value.Phase < 3 && P.Value.CtDoor == 0 && FMath::Abs(P.Value.StandX - StandX) < 1.f && PsSpec(P.Value.Svc).bStairs) return true; return false; }
+
+bool AGSE::StairsReach(float StandX, int32 Door, float& SillCm) const
+{
+	// (as drawn: 10 folding treads of 19 cm over the platform; nobody at the stand yet, or no door known: judged at the door)
+	const AActor* Pl = WetPlane(StandX); FPsDoor D; if (!Pl || !PsDoorOf(Pl, TEXT("A320"), Door, D)) return true;
+	SillCm = float(Pl->GetActorTransform().TransformPosition(D.Skin).Z - Pl->GetActorLocation().Z);
+	const float Rise = SillCm - 3.f - PsPlat; return Rise >= -20.f && Rise <= 210.f;
+}
+
 bool AGSE::StairsBusy(float StandX, bool bLeaving, FString& Why) const
 {
 	for (const TPair<int32, FSvcJob>& P : SvcJobs)

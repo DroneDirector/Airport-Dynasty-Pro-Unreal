@@ -403,10 +403,11 @@ bool AGSE::SvcPersonAhead(const FTractor& T, const FVector& Move) const
 bool AGSE::SvcFor(const TCHAR* Task, float StandX) const
 {
 	const UStaffPeople* Sp = UStaffPeople::Get(GetWorld()); float S = 0.f, N = 0.f, Sn = 36.f;
-	if (bTest || !Sp || !StandGeo(StandX, S, N, Sn) || Sn > 40.f) return false;   // (the A320 stands)
+	if (bTest || !Sp || !StandGeo(StandX, S, N, Sn)) return false;
 	for (const FTractor& T : Tractors)
 		if (T.Svc != INDEX_NONE && SvIs(T.Svc, Task) && Sp->HiresRole(SvSpec(T.Svc).Role))
 		{
+			if (Sn > 40.f && !SvSpec(T.Svc).bStairs) return false;   // (the A320 stands; the stairs serve the big ones too)
 			if (SvSpec(T.Svc).bDeicer) { const FAirfieldData::FStand* St = AAirfield::Shared().StandAt(StandX); return St && !St->bCargo; }
 			if (SvSpec(T.Svc).bAmbu && !T.Am) continue;
 			if (SvSpec(T.Svc).bStairs)
@@ -423,18 +424,18 @@ bool AGSE::SvcFor(const TCHAR* Task, float StandX) const
 	return false;
 }
 
-bool AGSE::SvcAsk(const TCHAR* Task, float StandX, const FString& Reg, const FString& Flight, const FDateTime& When, float Litres)
+bool AGSE::SvcAsk(const TCHAR* Task, float StandX, const FString& Reg, const FString& Flight, const FDateTime& When, float Litres, const FDateTime& Want, bool bRear)
 {
 	for (TPair<int32, FSvcJob>& P : SvcJobs) if (P.Value.Reg == Reg && P.Value.Phase < 3 && SvIs(P.Value.Svc, Task)) { P.Value.When = When; P.Value.Flight = Flight; return P.Value.Phase > 0; }
 	for (int32 i = 0; i < ADPService::All().Num(); ++i)
 		if (SvIs(i, Task))
 		{
-			FSvcJob J; J.Svc = i; J.Litres = FMath::Clamp(Litres, 500.f, 19500.f); J.StandX = StandX; J.Reg = Reg; J.Flight = Flight; J.When = When; if (SvSpec(i).bCater) J.Rows = 11;
+			FSvcJob J; J.Svc = i; J.Litres = FMath::Clamp(Litres, 500.f, 19500.f); J.StandX = StandX; J.Reg = Reg; J.Flight = Flight; J.When = When; J.Want = Want.GetTicks() ? Want : When; if (SvSpec(i).bCater) J.Rows = 11;
 			if (SvSpec(i).Wet) J.Litres = SvSpec(i).Wet == 2 ? 360.f : 240.f;   // (seconds: draining and rinsing; filling)
 			float S = 0.f, N = 0.f, Sn = 36.f; const AJetwayRigs* R = AJetwayRigs::Get(GetWorld());
 			if (const FAirfieldData::FStand* Sd = AAirfield::Shared().StandAt(StandX); R && Sd && !Sd->bRemote) J.Jet = R->Nearest(PlanAt(Sd->Frame(), 5.f, 2.f));
 			SvcJobs.Add(SvcNext++, J);
-			if (SvSpec(i).bStairs)
+			if (SvSpec(i).bStairs && bRear)
 			{
 				// (more than one vehicle: the rear left door too, if one is free for it - the flight waits only for the front one)
 				int32 Nv = 0; for (const FServiceSpec& Q : ADPService::All()) if (Q.bStairs) ++Nv;
@@ -835,10 +836,14 @@ void AGSE::SvcTick(float Dt)
 	}
 	if ((SvcClock += Dt) < 2.f) return;
 	SvcClock = 0.f;
-	TArray<int32> Start, Take;
-	for (TPair<int32, FSvcJob>& P : SvcJobs)
+	TArray<int32> Start, Take, Order, Ordered; TMap<int32, FString> Held;
+	// (the passenger stairs in the order their aircraft come on or go off blocks, whoever's they are: the first keeps the pair it gets)
+	for (const TPair<int32, FSvcJob>& P : SvcJobs) if (P.Value.Phase == 0) (SvSpec(P.Value.Svc).bStairs ? Ordered : Order).Add(P.Key);
+	Ordered.StableSort([this](int32 A, int32 B) { const FSvcJob &X = SvcJobs[A], &Y = SvcJobs[B]; return X.CtDoor != Y.CtDoor ? X.CtDoor < Y.CtDoor : X.Want < Y.Want; });
+	Order.Append(Ordered);
+	for (const int32 Jk : Order)
 	{
-		FSvcJob& J = P.Value; if (J.Phase != 0) continue;
+		FSvcJob& J = SvcJobs[Jk];
 		const FServiceSpec& S = SvSpec(J.Svc);
 		int32 Ti = INDEX_NONE; for (int32 i = 0; i < Tractors.Num() && Ti == INDEX_NONE; ++i) if (Tractors[i].Svc == J.Svc && Tractors[i].Job == EJob::None && Tractors[i].M.IsValid()) Ti = i;
 		if (S.bStairs)
@@ -848,7 +853,7 @@ void AGSE::SvcTick(float Dt)
 			bool bFront = false; if (J.CtDoor) for (const TPair<int32, FSvcJob>& O : SvcJobs) if (O.Value.Phase == 0 && O.Value.CtDoor == 0 && SvSpec(O.Value.Svc).bStairs) bFront = true;
 			for (int32 i = 0; i < Tractors.Num() && !bFront; ++i)
 			{
-				const FTractor& V = Tractors[i]; if (V.Svc == INDEX_NONE || !SvSpec(V.Svc).bStairs || V.Job != EJob::None || !V.M.IsValid()) continue;
+				const FTractor& V = Tractors[i]; if (V.Svc == INDEX_NONE || !SvSpec(V.Svc).bStairs || V.Job != EJob::None || !V.M.IsValid() || Held.Contains(i)) continue;
 				if (V.Ps && V.Ps->YouStandX > -1e5f) continue;   // (yours, at a door: below)
 				const int32 Sc = (SvcYours(V) || !StairsStowed(V) ? 0 : 2) + (SvSpec(V.Svc).bRoof == bWeather ? 1 : 0); if (Sc > Best) { Best = Sc; Ti = i; }
 			}
@@ -866,7 +871,24 @@ void AGSE::SvcTick(float Dt)
 				Ti = Yi; bTake = true;
 			}
 		}
+		if (float Sill = 0.f; S.bStairs && !bTake && !StairsReach(J.StandX, J.CtDoor, Sill)) { J.Why = FString::Printf(TEXT("its door sill is %.0f cm up, the passenger stairs reach 235 to 425 cm"), Sill); continue; }
+		if (Ti == INDEX_NONE && S.bStairs && J.CtDoor == 0)
+		{
+			// (the other aircraft's: the one they go to or stand at; a pair at a rear door, nobody on it, comes away for a front door)
+			const FSvcJob* By = nullptr; FSvcJob* Rear = nullptr; int32 nAway = 0;
+			for (TPair<int32, FSvcJob>& O : SvcJobs)
+			{
+				FSvcJob& X = O.Value; if (!SvSpec(X.Svc).bStairs || X.Phase == 0 || !Tractors.IsValidIndex(X.Ti)) continue;
+				if (X.bGo || X.Phase == 3) ++nAway;
+				if (!By || X.Want < By->Want) By = &X;
+				const FTractor& V = Tractors[X.Ti]; if (X.CtDoor && X.Phase == 2 && X.Stage == 3 && !X.bGo && V.Ps && V.Ps->Users == 0 && V.Ps->YouStandX < -1e5f) Rear = &X;
+			}
+			if (Rear && !nAway) { Rear->bGo = true; ADP_LOG(TEXT("GSE: the passenger stairs leave %s's rear door - %s needs them at its front door"), *Rear->Reg, *J.Reg); }
+			FString First = By ? By->Reg : FString(); if (Held.Num()) for (const TPair<int32, FString>& H : Held) First = H.Value;   // (it waits for its people)
+			if (!First.IsEmpty()) { J.bQueued = true; J.Why = FString::Printf(TEXT("the passenger stairs serve %s first"), *First); continue; }
+		}
 		if (Ti == INDEX_NONE) { J.Why = FString::Printf(TEXT("no %s free"), S.Label); continue; }
+		if (S.bStairs) Held.Add(Ti, J.Reg);
 		const FTractor& Tv = Tractors[Ti]; J.Svc = Tv.Svc;   // (any of the stairs)
 		if (S.bStairs && !bTake && !StairsStowed(Tv)) { J.Why = TEXT("the stairs are up"); continue; }
 		if (S.bAmbu && (!AmbuStowed(Tv) || Tv.Player.IsValid())) { J.Why = TEXT("you have the ambulift"); continue; }
@@ -892,8 +914,11 @@ void AGSE::SvcTick(float Dt)
 			G->Crew[M.Ci].bGse = true; M.Seat = Men.Num(); Men.Add(M);
 		}
 		if (Men.Num() < FMath::Min(2, S.MaxPeople)) { for (const FSvcMan& M : Men) G->Discharge(M.Ci); J.Why = TEXT("no place for more people"); continue; }
-		J.Men = Men; J.Ti = Ti; J.Phase = 1; J.Why.Reset(); Tractors[Ti].Job = EJob::Boarding; (bTake ? Take : Start).Add(P.Key);
+		J.Men = Men; J.Ti = Ti; J.Phase = 1; J.Why.Reset(); Tractors[Ti].Job = EJob::Boarding; (bTake ? Take : Start).Add(Jk);
 	}
+	// (why a pair of stairs waits: once for each reason)
+	for (const int32 Jk : Ordered)
+		if (FSvcJob& J = SvcJobs[Jk]; J.Phase == 0 && J.Why != J.WhyLog) { J.WhyLog = J.Why; if (!J.Why.IsEmpty()) ADP_LOG(TEXT("GSE: the passenger stairs for %s (stand x %.0f, %s door) wait: %s"), *J.Reg, J.StandX, J.CtDoor ? TEXT("rear") : TEXT("front"), *J.Why); }
 	for (const int32 Job : Start) SvcStart(Job);
 	for (const int32 Job : Take) StairsTake(Job);
 	for (auto It = SvcJobs.CreateIterator(); It; ++It) if (It.Value().Phase == 9) It.RemoveCurrent();

@@ -473,12 +473,14 @@ public:
 	 *  before it is due and then every tick - true once its people are on the way (false: it waits for them). Go: the work
 	 *  itself may start. Busy: not finished. SvcFor: this task is worked in 3D by people of yours. */
 	bool SvcFor(const TCHAR* Task, float StandX) const;
-	bool SvcAsk(const TCHAR* Task, float StandX, const FString& Reg, const FString& Flight, const FDateTime& When, float Litres = 0.f);
+	bool SvcAsk(const TCHAR* Task, float StandX, const FString& Reg, const FString& Flight, const FDateTime& When, float Litres = 0.f, const FDateTime& Want = FDateTime(0), bool bRear = true);   // (Want: the stairs' order - on or off blocks)
 	void SvcGo(const TCHAR* Task, float StandX);
 	bool SvcBusy(const TCHAR* Task, float StandX) const;
 	/** The passenger stairs (GSEStairs.cpp): at a stand without a jetway. Has: they are asked for, on their way or there. Busy:
 	 *  the flight waits for them - bLeaving false: not yet ready for people; true: not yet away from the aircraft. */
 	bool StairsHas(float StandX) const;
+	bool StairsQueued(float StandX) const;   // (asked for, and had to wait for another aircraft's)
+	bool StairsReach(float StandX, int32 Door, float& SillCm) const;
 	bool StairsBusy(float StandX, bool bLeaving, FString& Why) const;
 	/** Ready at that stand's door (0 front left, 1 rear left): where to queue, the treads and the platform (feet), the door. */
 	struct FStairsWay { int32 Ti = INDEX_NONE; FVector Foot = FVector::ZeroVector, Platform = FVector::ZeroVector, Door = FVector::ZeroVector, Up = FVector::ForwardVector; TArray<FVector> Steps; };
@@ -504,7 +506,7 @@ private:
 	struct FSvcMan { int32 Ci = INDEX_NONE, Seat = 0, Item = INDEX_NONE; bool bSeated = false, bOut = false, bIn = false, bDown = false, bStowed = false, bGone = false, bNoKit = false; };
 	struct FSvcJob
 	{
-		int32 Svc = 0, Ti = INDEX_NONE, Jet = INDEX_NONE; float StandX = 0.f, RowT = 0.f; FString Reg, Flight, Why; FDateTime When;
+		int32 Svc = 0, Ti = INDEX_NONE, Jet = INDEX_NONE; float StandX = 0.f, RowT = 0.f; FString Reg, Flight, Why, WhyLog; FDateTime When, Want; bool bQueued = false;
 		uint8 Phase = 0;                  // 0 waits for its people, 1 on the way, 2 at the stand, 3 going back
 		bool bGo = false, bFetch = false; FVector Place = FVector::ZeroVector; float PlaceYaw = 0.f; int32 Rows = 30, RowsDone = 0; float T = 0.f; TArray<FSvcMan> Men;
 		int32 Stage = 0; float Litres = 0.f, Pumped = 0.f; TArray<FVector> InWay; int32 CtDoor = 0, CtTrip = 0, CtDone = 0, CtYou[2] = {0, 0};   // (Ct*: the catering: at which door, its next trip, the doors done as bits) (the refueller's work; the way in, backed out again)

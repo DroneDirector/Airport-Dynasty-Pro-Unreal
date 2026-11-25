@@ -921,6 +921,13 @@ bool AGSE::Apron(TArray<FVector>& Out, const FVector& FromW, const FVector& ToW,
 		const FVector Nw = -It->GetActorRightVector(); FVector2f Fa(Nw.X, -Nw.Y); Fa = Fa.GetSafeNormal(); if (Fa.IsNearlyZero()) Fa = FVector2f(0.f, -1.f);
 		const FVector2f Sd(-Fa.Y, Fa.X);
 		float k = 1.f; for (const FAirfieldData::FStand& St : F.Stands) if (const FVector2f Lc = St.Frame().Local(N); FMath::Abs(Lc.X) < 6.f && Lc.Y > -9.1f && Lc.Y < 8.9f) k = FMath::Max(1.f, St.Span / 36.f);
+		if (const ABabylonModel* Bm = k > 1.f ? Cast<ABabylonModel>(*It) : nullptr)
+		{
+			// (the aircraft that stands there, not the stand's biggest: the A320's 37.6 m length is 1)
+			FBox B(ForceInit); TArray<UInstancedStaticMeshComponent*> Ps; Bm->Parts(Ps);
+			for (const UInstancedStaticMeshComponent* P : Ps) if (P && P->GetInstanceCount() > 0) B += P->CalcBounds(P->GetComponentTransform().GetRelativeTransform(It->GetActorTransform())).GetBox();
+			if (B.IsValid) k = FMath::Clamp(float(FMath::Max(B.GetSize().X, B.GetSize().Y)) / 3770.f, 1.f, k);
+		}
 		Mp.Boxes.Add({N - Fa * (13.65f * k), Fa, 18.85f * k + 0.5f, 2.2f * k});            // the fuselage, nose tip to tail
 		Mp.Boxes.Add({N - Fa * (15.5f * k), Fa, 4.5f * k, 18.f * k + 0.5f});               // the wings
 		Mp.Boxes.Add({N - Fa * (31.f * k), Fa, 2.5f * k, 6.5f * k + 0.5f});                // the tailplane
