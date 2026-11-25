@@ -555,9 +555,9 @@ void AFireTruck::SetupPlayerInputComponent(UInputComponent* In)
 	In->BindAxis(TEXT("TruckBrake"), this, &AFireTruck::PadB);
 	In->BindAction(TEXT("Jump"), IE_Pressed, this, &AFireTruck::HandOn);
 	In->BindAction(TEXT("Jump"), IE_Released, this, &AFireTruck::HandOff);
-	In->BindAction(TEXT("ChangeView"), IE_Pressed, this, &AFireTruck::ToggleView);
+	In->BindAction(TEXT("ChangeView"), IE_Pressed, this, &AFireTruck::KeyView);
 	In->BindAction(TEXT("Siren"), IE_Pressed, this, &AFireTruck::ToggleSiren);
-	In->BindAction(TEXT("HighBeam"), IE_Pressed, this, &AFireTruck::ToggleHighBeam);
+	In->BindKey(EKeys::L, IE_Pressed, this, &AFireTruck::ToggleHighBeam);
 	In->BindAction(TEXT("BlueLights"), IE_Pressed, this, &AFireTruck::ToggleBlue);
 	In->BindAction(TEXT("IndicatorLeft"), IE_Pressed, this, &AFireTruck::TurnLeft);
 	In->BindAction(TEXT("IndicatorRight"), IE_Pressed, this, &AFireTruck::TurnRight);
@@ -568,7 +568,9 @@ void AFireTruck::SetupPlayerInputComponent(UInputComponent* In)
 	In->BindKey(EKeys::Gamepad_DPad_Left, IE_Pressed, this, &AFireTruck::PadLeft);
 	In->BindKey(EKeys::Gamepad_DPad_Right, IE_Pressed, this, &AFireTruck::PadRight).bConsumeInput = false;   // (also the bay doors' button)
 	In->BindKey(EKeys::Gamepad_DPad_Down, IE_Pressed, this, &AFireTruck::PadDown);
-	In->BindKey(EKeys::Gamepad_LeftThumbstick, IE_Pressed, this, &AFireTruck::Honk);   // (the horn; H on the keyboard - the HUD hands it over while you drive)
+	// (the horn: T, or B held + D-pad up; the high beams: L, or B held + the left shoulder, ADPHUD::ToggleHide - to-do 283, each its own)
+	In->BindKey(EKeys::Gamepad_DPad_Up, IE_Pressed, this, &AFireTruck::PadUp);
+	In->BindKey(EKeys::T, IE_Pressed, this, &AFireTruck::Honk);
 }
 
 void AFireTruck::Enter(APawn* Walker)

@@ -56,6 +56,7 @@ namespace
 		static TMap<FString, USoundBase*> Cache;
 		if (USoundBase** F = Cache.Find(Name)) return *F;
 		USoundBase* S = ADPKeep(LoadObject<USoundBase>(nullptr, *FString::Printf(TEXT("/Game/%s/Sounds/%s.%s"), FCString::Strncmp(Name, TEXT("GPU"), 3) == 0 ? TEXT("GPU") : TEXT("PushbackTug"), Name, Name)));
+		if (!S) ADP_WARN(TEXT("Tugs: sound %s missing"), Name);
 		Cache.Add(Name, S); return S;
 	}
 }

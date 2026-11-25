@@ -27,6 +27,7 @@ int32 ASunClock::DayOverride = -1;
 int32 ASunClock::Month = 0;
 int32 ASunClock::Day = 0;
 bool ASunClock::bRealWeather = false;
+bool ASunClock::bTestHold = false;
 
 void ASunClock::SetDate(int32 InMonth, int32 InDay)
 {
@@ -155,7 +156,7 @@ namespace ADPSky
 	static void Check(UWorld* W)
 	{
 		const int32 Wx = CVarWeather.GetValueOnGameThread();
-		if (Wx >= 0 && Wx != ASunClock::Theme && ASunClock::ManualWeatherAllowed()) { ASunClock::Theme = FMath::Min(Wx, 7); ASunClock::Refresh(); }
+		if (Wx >= 0 && Wx <= 7 && Wx != ASunClock::Theme && ASunClock::ManualWeatherAllowed()) ASunClock::HoldTheme(Wx);
 		static FVector2f LastCloud(-10.f, 0.f);
 		const FVector2f Cloud(CVarCloudCover.GetValueOnGameThread(), CVarCloudDense.GetValueOnGameThread());
 		if (Cloud != LastCloud) { LastCloud = Cloud; ASunClock::Refresh(); }
@@ -208,9 +209,24 @@ bool ASunClock::ManualWeatherAllowed()
 	return FParse::Param(C, TEXT("ManualWeather")) || FCString::Strifind(C, TEXT("-UI")) != nullptr;
 }
 
+void ASunClock::HoldTheme(int32 InTheme)
+{
+	Theme = FMath::Clamp(InTheme, 0, 7); bTestHold = true;
+	if (APuddles* P = APuddles::Get()) P->ClearLiveWeather();   // (rain and snow on the ground follow the chosen theme)
+	Refresh();
+	ADP_LOG(TEXT("Weather: %s held for the test"), ThemeName(Theme));
+}
+
+void ASunClock::ReleaseTheme()
+{
+	bTestHold = false;
+	if (ASunClock* S = Current.Get()) { S->LiveClock = 0.f; S->ApplyLive(); }
+	ADP_LOG(TEXT("Weather: live again"));
+}
+
 void ASunClock::ApplyLive()
 {
-	if (!bRealWeather) return;
+	if (!bRealWeather || bTestHold) return;
 	TSharedPtr<FJsonObject> A = ADPSite::AirportBlock();
 	FString Icao = TEXT("BIAP"); double SLat = 63.458, SLon = -18.714;
 	if (A) { A->TryGetStringField(TEXT("icao"), Icao); A->TryGetNumberField(TEXT("lat"), SLat); A->TryGetNumberField(TEXT("lon"), SLon); }

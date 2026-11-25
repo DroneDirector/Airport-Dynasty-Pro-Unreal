@@ -38,6 +38,8 @@ public:
 	 *  melts above 0 C (faster in rain and sun); the grass keeps collecting while the paving is ploughed and stays nearly
 	 *  free; puddles fill with how much it has rained. Its inputs come from the weather theme and the month and hour for
 	 *  now (a south-Iceland climate); the live weather feed will give them with SetLiveWeather. */
+	/** The weather is the sky theme's again, not the live report's (a theme chosen by a test). */
+	void ClearLiveWeather() { bLive = false; }
 	void SetLiveWeather(float RainMmPerHour, float SnowCmPerHour, float AirTempC) { bLive = true; LiveRain = RainMmPerHour; LiveSnow = SnowCmPerHour; LiveTemp = AirTempC; }
 	float GetAirTemp() const { return AirTemp; }
 	float GetSnowOnGrassCm() const { return SnowGrassCm; }

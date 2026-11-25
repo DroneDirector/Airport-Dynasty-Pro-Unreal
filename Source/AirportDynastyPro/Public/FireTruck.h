@@ -50,6 +50,8 @@ public:
 	void ToggleSiren();
 	/** The horn (owner, 2026-11-19): one blast of a real air horn. H / the pad's L3 while you drive. */
 	void Honk();
+	/** The pad: B held + the left shoulder (the HUD hands it over); false = B isn't held. */
+	bool PadBeam() { if (bPadMod) ToggleHighBeam(); return bPadMod; }
 	bool IsBusy() const { return Seq != ESeq::None; }
 	/** Where you stand to climb in by the driver's door (world). */
 	FVector DoorSpot() const;
@@ -145,7 +147,7 @@ private:
 	void DressMaterials();
 	void UpdateLenses(bool bRunning, bool bBraking, bool bTurnOn);
 	void UpdateLamps(float Dt);
-	void ToggleHighBeam() { if (!bPadMod) bHighBeam = !bHighBeam; }
+	void ToggleHighBeam() { bHighBeam = !bHighBeam; }
 	void ToggleBlue() { if (!bPadMod) { bBlue = !bBlue; BlueClock = 0.f; } }
 	// the indicators (owner, 2026-11-11): left / right / hazards; they cancel themselves once a turn is done; the stalk
 	// moves; the relay ticks. Keys: , . F; pad: hold B (circle) + D-pad left / right / down
@@ -163,6 +165,8 @@ private:
 	void PadLeft() { if (bPadMod) TurnLeft(); }
 	void PadRight() { if (bPadMod) TurnRight(); }
 	void PadDown() { if (bPadMod) Hazards(); }
+	void PadUp() { if (bPadMod) Honk(); }
+	void KeyView() { if (!bPadMod) ToggleView(); }   // (B + D-pad up is the horn)
 	UPROPERTY() TObjectPtr<USoundAttenuation> NearSound;
 	UPROPERTY() TObjectPtr<USoundAttenuation> FarSound;
 	FTruckDriverRig Rig;

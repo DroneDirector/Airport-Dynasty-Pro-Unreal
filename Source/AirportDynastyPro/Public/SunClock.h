@@ -40,6 +40,11 @@ public:
 	 *  cover) and the ground's temperature. Manual weather only in tests (-ManualWeather or a -UI test switch). */
 	void ApplyLive();
 	static bool ManualWeatherAllowed();
+	/** A weather theme a test chose (the test bar, adp.TestWeather, a -Views run; to-do 281): it stays, the live report
+	 *  changes nothing, until LIVE is pressed on the test bar. Never saved: every start is live weather. */
+	static bool bTestHold;
+	static void HoldTheme(int32 InTheme);
+	static void ReleaseTheme();
 	float LiveClock = 55.f;
 	static void SetRealWeather(bool bOn);
 	#pragma endregion

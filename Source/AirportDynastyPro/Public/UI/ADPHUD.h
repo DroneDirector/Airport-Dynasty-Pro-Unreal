@@ -349,7 +349,7 @@ private:
 	/** F1 (keyboard) or View / Create (gamepad): the Buttons panel open or minimized. */
 	void ToggleButtons();
 	/** LB / L1: hide the interface, or bring it back. */
-	void ToggleHide() { if (bHidden) ShowUI(); else HideUI(); }
+	void ToggleHide();
 	/** Any key or button: keyboard and mouse or the gamepad in use; the symbols shown follow it. */
 	void OnAnyKey(FKey Key);
 	/** The Buttons panel's list, the controls in Settings and the map's legend, for the device in use. */

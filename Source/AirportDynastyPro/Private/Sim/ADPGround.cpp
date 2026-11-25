@@ -144,10 +144,13 @@ int32 ADPGround::GateOfStand(const FString& Stand)
 
 FString ADPGround::AssignStand(FADPWorld& W, FADPAircraft& A, const FDateTime& Now, const FDateTime& Until)
 {
+	// (only cargo aircraft on the cargo stands, and they on no others: a stand kept from before that is given up here)
+	const FADPTypeInfo* Ty = ADPWorldData::Type(A.TypeId);
+	if (const FAirfieldData::FStand* Kept = A.Stand.IsEmpty() || A.Status != TEXT("flying") ? nullptr : GrStand(A.Stand); Kept && Kept->bCargo != (Ty && Ty->Seats == 0)) { ADP_WARN(TEXT("Stands: %s (%s) had %s, of the other kind - given another"), *A.Reg, *A.TypeId, *A.Stand); A.Stand.Reset(); }
 	if (!A.Stand.IsEmpty()) return A.Stand;
 	// (its next flight from here has a stand set aside - the passengers' gate: that one while it is free)
 	if (const FADPPlanned* P = ADPSchedule::Next(W, A.Reg, ADPBoards::HereIcao()))
-		if (GrStand(P->Stand) && !GrTaken(W, A, Now).Contains(P->Stand)) { A.Stand = P->Stand; A.StandUntil = Until; return A.Stand; }
+		if (const FAirfieldData::FStand* Ps = GrStand(P->Stand); Ps && Ps->bCargo == (Ty && Ty->Seats == 0) && !GrTaken(W, A, Now).Contains(P->Stand)) { A.Stand = P->Stand; A.StandUntil = Until; return A.Stand; }
 	FString Why;
 	const FString S = PickStand(W, A, Now, true, &Why);
 	if (S.IsEmpty())

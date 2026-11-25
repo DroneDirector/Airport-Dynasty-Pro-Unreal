@@ -49,10 +49,10 @@ void AServiceDrive::SetupPlayerInputComponent(UInputComponent* In)
 	In->BindAxis(TEXT("LookUp"), this, &AServiceDrive::LookUp);
 	In->BindAxis(TEXT("TruckThrottle"), this, &AServiceDrive::PadThrottle);
 	In->BindAxis(TEXT("TruckBrake"), this, &AServiceDrive::PadBrake);
-	In->BindAction(TEXT("ChangeView"), IE_Pressed, this, &AServiceDrive::ToggleView);
-	// the cab's controls by the fire truck's keys (CabControls.h): Space / A the park brake, L, comma, full stop, F, N, H; Page Up / Down the gears, U, K, J
+	In->BindAction(TEXT("ChangeView"), IE_Pressed, this, &AServiceDrive::KeyView);
+	// the cab's controls by the fire truck's keys (CabControls.h): Space / A the park brake, L, comma, full stop, F, N, T; Page Up / Down the gears, U, K, J
 	In->BindAction(TEXT("Jump"), IE_Pressed, this, &AServiceDrive::KeyPark);
-	In->BindAction(TEXT("HighBeam"), IE_Pressed, this, &AServiceDrive::KeyBeam);
+	In->BindKey(EKeys::L, IE_Pressed, this, &AServiceDrive::KeyBeam);
 	In->BindAction(TEXT("BlueLights"), IE_Pressed, this, &AServiceDrive::KeyBeacon);
 	In->BindAction(TEXT("IndicatorLeft"), IE_Pressed, this, &AServiceDrive::KeyIndL);
 	In->BindAction(TEXT("IndicatorRight"), IE_Pressed, this, &AServiceDrive::KeyIndR);
@@ -68,7 +68,10 @@ void AServiceDrive::SetupPlayerInputComponent(UInputComponent* In)
 	In->BindKey(EKeys::Gamepad_DPad_Left, IE_Pressed, this, &AServiceDrive::PadLeft);
 	In->BindKey(EKeys::Gamepad_DPad_Right, IE_Pressed, this, &AServiceDrive::PadRight).bConsumeInput = false;   // (also the bay doors' button)
 	In->BindKey(EKeys::Gamepad_DPad_Down, IE_Pressed, this, &AServiceDrive::PadDown);
-	In->BindKey(EKeys::Gamepad_LeftThumbstick, IE_Pressed, this, &AServiceDrive::PadHorn);
+	// (the horn: T, or B held + D-pad up; the high beams: L, or B held + the left shoulder, ADPHUD::ToggleHide - to-do 283, each its own)
+	In->BindKey(EKeys::Gamepad_LeftThumbstick, IE_Pressed, this, &AServiceDrive::PadStick);
+	In->BindKey(EKeys::Gamepad_DPad_Up, IE_Pressed, this, &AServiceDrive::PadUp);
+	In->BindKey(EKeys::T, IE_Pressed, this, &AServiceDrive::Honk);
 }
 
 bool AServiceDrive::Begin(AGSE* G, int32 Vehicle, int32 InSeat, APawn* Walker)
@@ -245,7 +248,7 @@ void AServiceDrive::Tick(float Dt)
 
 void AServiceDrive::Cab(int32 Code) { if (AtWheel() && Gse.IsValid() && Gse->Tractors.IsValidIndex(Ti)) AVehicleControls::CabKey(this, Code); }
 void AServiceDrive::KeyPark() { Cab(bPadMod ? ADPCab::Gear : ADPCab::Park); }
-void AServiceDrive::KeyBeam() { if (!bPadMod) Cab(ADPCab::Beam); }
+void AServiceDrive::KeyBeam() { Cab(ADPCab::Beam); }
 void AServiceDrive::KeyBeacon() { Cab(bPadMod ? ADPCab::Work : ADPCab::Beacon); }
 void AServiceDrive::KeyIndL() { Cab(ADPCab::IndL); }
 void AServiceDrive::KeyIndR() { Cab(ADPCab::IndR); }
@@ -255,7 +258,6 @@ void AServiceDrive::KeyGearDown() { Cab(ADPCab::GearDown); }
 void AServiceDrive::KeyPto() { Cab(ADPCab::Pto); }
 void AServiceDrive::KeyWiper() { Cab(ADPCab::Wiper); }
 void AServiceDrive::KeyWork() { Cab(ADPCab::Work); }
-void AServiceDrive::PadHorn() { Cab(bPadMod ? ADPCab::Wiper : ADPCab::Horn); }
 void AServiceDrive::Honk() { Cab(ADPCab::Horn); }
 
 void AServiceDrive::Exit()

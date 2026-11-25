@@ -3,6 +3,8 @@
 #include "TerminalPlan.h"
 #include "Pets.h"
 #include "Engine/World.h"
+#include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "Engine/ExponentialHeightFog.h"
@@ -404,6 +406,10 @@ void ADPCharacterCreate::BuildConcept(UWorld* W, APlayerController* PC, bool bWo
 			//  2026-11-16, 32:9: the figure and the pet were cut off at the bottom; 16:9 looks as before)
 			Cam->GetCameraComponent()->bOverrideAspectRatioAxisConstraint = true;
 			Cam->GetCameraComponent()->AspectRatioAxisConstraint = EAspectRatioAxisConstraint::AspectRatio_MaintainYFOV;
+			// (narrower than 16:9, e.g. 16:10: the width kept instead, so the two at the sides stay whole - to-do 279)
+			FVector2D Vp(16.0, 9.0);
+			if (GEngine && GEngine->GameViewport) GEngine->GameViewport->GetViewportSize(Vp);
+			if (Vp.Y > 0 && Vp.X * 9.0 < Vp.Y * 16.0 - 1.0) Cam->GetCameraComponent()->AspectRatioAxisConstraint = EAspectRatioAxisConstraint::AspectRatio_MaintainXFOV;
 			PC->SetViewTarget(Cam);
 		}
 	}

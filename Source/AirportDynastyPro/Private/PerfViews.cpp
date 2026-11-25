@@ -231,7 +231,7 @@ namespace ADPPerfViewsInternal
 		else if (K == TEXT("cmd")) { ADP_LOG(TEXT("Views: %s"), *A); PC->ConsoleCommand(A); }
 		else if (K == TEXT("hour")) { if (ASunClock::DayOverride < 0) ASunClock::DayOverride = 172; ASunClock::HourOverride = FCString::Atof(*A); ASunClock::Refresh(); }
 		else if (K == TEXT("day")) { ASunClock::DayOverride = FCString::Atoi(*A); ASunClock::Refresh(); }
-		else if (K == TEXT("weather")) { if (!ASunClock::ManualWeatherAllowed()) ADP_WARN(TEXT("Views: the weather is live here, it can not be set")); ASunClock::Theme = FCString::Atoi(*A); ASunClock::Refresh(); ADP_LOG(TEXT("Views: weather %s"), ASunClock::ThemeName(ASunClock::Theme)); }
+		else if (K == TEXT("weather")) { if (!ASunClock::ManualWeatherAllowed()) ADP_WARN(TEXT("Views: the weather is live here, it can not be set")); ASunClock::HoldTheme(FCString::Atoi(*A)); ADP_LOG(TEXT("Views: weather %s"), ASunClock::ThemeName(ASunClock::Theme)); }
 		else if (K == TEXT("wait")) Until = FPlatformTime::Seconds() + FCString::Atof(*A);
 		else if (K == TEXT("measure") && V.Num()) { FString S, N; const bool bN = A.Split(TEXT(" "), &S, &N); BeginMeasure(FCString::Atof(*V[0]), bN ? N : A); }
 		else if (K == TEXT("gpu")) { PC->ConsoleCommand(TEXT("ProfileGPU")); Until = FPlatformTime::Seconds() + 2.0; }

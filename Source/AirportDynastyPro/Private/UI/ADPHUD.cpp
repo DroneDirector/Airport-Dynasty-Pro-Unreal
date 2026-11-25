@@ -765,7 +765,21 @@ void AADPHUD::BeginPlay()
 			[SNew(STextBlock).Font(Font(12)).ColorAndOpacity(Ink).Text_Lambda([this]() { return FText::FromString(TEXT("ANNOUNCEMENT  ·  ") + CallText); })]
 		];
 	Root = SNew(SOverlay).Visibility(EVisibility::SelfHitTestInvisible)
-		+ SOverlay::Slot()[GameBox.ToSharedRef()]
+		+ SOverlay::Slot()
+		[
+			// (the character creator's page lies in the middle 16:9 of the screen, the part its stage's camera always shows
+			//  whole: on 32:9, 21:9 and 16:10 the names, panels and figures stand as on 16:9, nothing off the screen - 279)
+			SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("NoBorder"))
+			.Visibility_Lambda([this]() { return bWhoAreYou ? EVisibility::Visible : EVisibility::SelfHitTestInvisible; })
+			.OnMouseButtonDown_Lambda([this](const FGeometry&, const FPointerEvent&) { return bWhoAreYou ? FReply::Handled() : FReply::Unhandled(); })   // (a click beside it keeps the keyboard on the page)
+			.Padding_Lambda([this]()
+			{
+				if (!bWhoAreYou || !Root.IsValid()) return FMargin(0.f);
+				const FVector2f S = FVector2f(Root->GetCachedGeometry().GetLocalSize());
+				return FMargin(FMath::Max(0.f, (S.X - S.Y * 16.f / 9.f) * 0.5f), FMath::Max(0.f, (S.Y - S.X * 9.f / 16.f) * 0.5f));
+			})
+			[GameBox.ToSharedRef()]
+		]
 		+ SOverlay::Slot()[HudLayer]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
 		[
@@ -958,9 +972,11 @@ TSharedRef<SWidget> AADPHUD::WeatherButtons()
 			SNew(SButton)
 			.ButtonColorAndOpacity_Lambda([T]() { return ASunClock::Theme == T ? FLinearColor(0.15f, 0.45f, 0.75f, 1.f) : FLinearColor(0.05f, 0.2f, 0.36f, 0.9f); })
 			.ContentPadding(FMargin(6, 2))
-			.OnClicked_Lambda([T]() { ASunClock::Theme = T; GConfig->SetInt(TEXT("ADP.Testing"), TEXT("Weather"), T, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); ASunClock::Refresh(); return FReply::Handled(); })
+			.OnClicked_Lambda([T]() { ASunClock::HoldTheme(T); GConfig->SetInt(TEXT("ADP.Testing"), TEXT("Weather"), T, GGameUserSettingsIni); GConfig->Flush(false, GGameUserSettingsIni); return FReply::Handled(); })
 			[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text(FText::FromString(ASunClock::ThemeName(T)))]
 		];
+	// (the chosen theme stays until live weather is asked for again, to-do 281)
+	Row->AddSlot().AutoWidth().Padding(6, 0, 0, 0)[Button(TEXT("LIVE"), []() { ASunClock::ReleaseTheme(); })];
 	return Row;
 }
 
@@ -1917,11 +1933,16 @@ void AADPHUD::TogglePerf()
 	Perf->SetVisibility(bPerf ? EVisibility::HitTestInvisible : EVisibility::Collapsed);
 }
 
+void AADPHUD::ToggleHide()
+{
+	// the pad in a vehicle: B held + the left shoulder is its high beams (to-do 283)
+	if (AFireTruck* Ft = Cast<AFireTruck>(GetOwningPawn()); Ft && Ft->PadBeam()) return;
+	if (AServiceDrive* Sv = Cast<AServiceDrive>(GetOwningPawn()); Sv && Sv->PadBeam()) return;
+	if (bHidden) ShowUI(); else HideUI();
+}
+
 void AADPHUD::HideUI()
 {
-	// driving the fire truck, H is its horn (owner, 2026-11-19: the vehicle's own keys while you drive)
-	if (AFireTruck* Ft = Cast<AFireTruck>(GetOwningPawn())) { Ft->Honk(); return; }
-	if (AServiceDrive* Sv = Cast<AServiceDrive>(GetOwningPawn()); Sv && Sv->AtWheel()) { Sv->Honk(); return; }
 	bHidden = true;
 	if (HoloMap->IsFull()) ToggleMap();
 	if (bSettings) ToggleSettings();

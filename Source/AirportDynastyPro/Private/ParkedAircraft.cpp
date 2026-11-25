@@ -88,7 +88,7 @@ namespace ADPParked
 	}
 
 	// ---- the traffic stress test (to-do 74, owner 2026-11-17) ----------------------------------------------------------
-	// -TrafficTest=N: every stand filled (the narrow-body ones already are, then the wide-body, cargo and hangar stands),
+	// -TrafficTest=N: every stand filled (the narrow-body ones already are, then the wide-body and hangar stands),
 	// and what's left of N slides along the taxiways' centre lines, the runway and a straight 3 degree approach, round and
 	// round. Test movement only: the same static A320 model, no flight logic, no animation; the normal game never does it.
 	int32 TrafficTestCount()
@@ -134,7 +134,8 @@ namespace ADPParked
 		for (const FAirfieldData::FStand& St : Field.Stands)
 		{
 			if (Used >= N) break;
-			if (!St.bCargo && St.Span <= 40.f) { ++Used; continue; }
+			if (St.bCargo) continue;   // (owner: only cargo aircraft park in front of the cargo terminal)
+			if (St.Span <= 40.f) { ++Used; continue; }
 			if (ParkOne(W, St)) ++Used;
 		}
 		for (const FAirfieldData::FHangarSite& H : Field.Hangars)
