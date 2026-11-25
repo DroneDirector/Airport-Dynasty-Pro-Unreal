@@ -4,6 +4,8 @@
 // foot of the stairs, 6 on the treads, 7 back to the gate, 8 out of the gate (by foot).
 // A flight's bus (FRunOut::Stage): 0 none yet, 1 to the gate, 2 boarding, 3 to the aircraft, 4 passengers get out, 5 back at
 // the gate, they get out there (the flight is off), 6 done.
+// Arriving passengers (FPx::bArr) the other way round with the same phases and stages: 6 down the treads, 0 at the bus's door,
+// 2-4 in it, 7 to the ground gate's door and in; the bus 1 to the aircraft, 2 boarding there, 3 to the gate, 4 they get out.
 #include "PaxFlow.h"
 #include "ADPLog.h"
 #include "People.h"
@@ -15,6 +17,7 @@
 #include "DriverPoseAnim.h"
 #include "PaxAnimInstance.h"
 #include "TerminalPlan.h"
+#include "Turnaround.h"
 #include "Sim/ADPBoards.h"
 #include "Sim/ADPGround.h"
 #include "Animation/BlendSpace.h"
@@ -77,10 +80,10 @@ struct FPaxOut
 
 struct FRunOut
 {
-	FString Key, Stand, Why; int32 Gate = 0, Ti = INDEX_NONE, Cand = 0, Trips = 0; float StandX = 0.f; const FAirfieldData::FStand* S = nullptr;
+	bool bArr = false; float TurnT = 0.f; FString Key, Stand, Why; int32 Gate = 0, Ti = INDEX_NONE, Cand = 0, Trips = 0; float StandX = 0.f; const FAirfieldData::FStand* S = nullptr;
 	uint8 Stage = 0; bool bThere = false, bStairs = false, bBack = false, bTold = false, bStuck = false;
 	float T = 0.f, StairT = 0.f, UpT = 99.f, SlotT = 0.f, StageT = 0.f, SaidT = 0.f, DoorX = 0.f, Side = 1.f; TArray<float> Doors;
-	FVector2f Pick = FVector2f::ZeroVector; AGSE::FStairsWay Way;
+	FVector2f Pick = FVector2f::ZeroVector, Aim = FVector2f::ZeroVector; float AimH = 0.f; AGSE::FStairsWay Way;
 	TArray<int32> Q[7], Stair; int32 Lock[7] = {-1, -1, -1, -1, -1, -1, -1}; TArray<AGSE::FBusSlot> Slots;
 	// the door on the bus's open side whose part of the bus that place is in
 	int32 DoorOf(double X) const
@@ -100,7 +103,7 @@ int32 APaxFlow::PaxGate(const FString& Stand, const FString& Reg)
 void APaxFlow::SetStand(FRun& R, const FString& Stand)
 {
 	R.Stand = Stand; R.Way = Stand.IsEmpty() ? 0 : uint8(ADPGround::PaxWay(Stand));
-	if (R.Way) ADP_LOG(TEXT("PaxFlow: %s's passengers go %s to stand %s"), *R.Label, EADPPaxWay(R.Way) == EADPPaxWay::Walk ? TEXT("by foot") : TEXT("by bus"), *Stand);
+	if (R.Way) ADP_LOG(TEXT("PaxFlow: %s's passengers %s stand %s %s"), *R.Label, R.bArr ? TEXT("come from") : TEXT("go to"), *Stand, EADPPaxWay(R.Way) == EADPPaxWay::Walk ? TEXT("by foot") : TEXT("by bus"));
 }
 
 int32 APaxFlow::ApronCount(int32 Ri, int32 From, int32 To, int32 Door) const
@@ -234,11 +237,74 @@ void APaxFlow::ApronBack(int32 i)
 	ADP_LOG(TEXT("PaxFlow: %s goes back to gate %d from the apron (%s)"), *P.Name, O->Gate, Runs[P.Run].bOff ? TEXT("the flight is off") : TEXT("the flight left"));
 }
 
+// ---- arriving: out of the aircraft at the top of the stairs, one by one
+
+// still in the aircraft or on its stairs (the turn-round waits for these; DeplaneDone)
+int32 APaxFlow::ApronInside(int32 Ri) const { return FMath::Max(0, Runs[Ri].Visible - Runs[Ri].Spawned) + ApronCount(Ri, 6, 6); }
+
+// on its way: the stairs stand there, and by foot or with a bus that is called (DeplaneDone waits longer)
+bool APaxFlow::ApronGoes(int32 Ri) const
+{
+	const TSharedPtr<FRunOut> O = RunOuts.FindRef(Runs[Ri].Key);
+	return O && O->bStairs && (EADPPaxWay(Runs[Ri].Way) == EADPPaxWay::Walk || (O->Stage >= 1 && O->Stage <= 4));
+}
+
+// may the next one come out now
+bool APaxFlow::ApronMay(int32 Ri)
+{
+	FRun& R = Runs[Ri]; TSharedPtr<FRunOut> Op = RunOuts.FindRef(R.Key); if (!Op || !ApronG) return false;
+	FRunOut& O = *Op; if (!O.S || !O.Doors.Num()) return false;
+	if (!ApronStairs(O)) { if (!O.bTold) { O.bTold = true; ADP_LOG(TEXT("PaxFlow: %s's passengers wait in the aircraft for the passenger stairs on stand %s"), *R.Label, *O.Stand); } return false; }
+	const int32 Down = ApronCount(Ri, 6, 6);
+	if (O.UpT < 2.2f || Down >= 5) return false;
+	for (const TPair<int32, TSharedPtr<FPaxOut>>& Y : Outs) if (Y.Value->Ph == 6 && Y.Value->K == O.Way.Ti && (!Pax.IsValidIndex(Y.Key) || Pax[Y.Key].Run != Ri || Y.Value->S < 0.16f)) return false;   // (somebody at the top, or coming up)
+	FDriverPose Q; ApronG->StairsPose(O.Way.Ti, false, 0.f, 92.f, Q);
+	const APlayerController* PC = GetWorld()->GetFirstPlayerController();
+	if (const APawn* You = PC ? PC->GetPawn() : nullptr) if (FVector::Dist2D(You->GetActorLocation(), Q.Pelvis) < 75. && FMath::Abs(You->GetActorLocation().Z - Q.Pelvis.Z) < 160.) return false;
+	if (EADPPaxWay(R.Way) == EADPPaxWay::Walk) return true;
+	// (by bus: only as many as it has places for; the others stay in their seats in the aircraft until it is back)
+	const int32 Near = ApronCount(Ri, 0, 1) + Down; AGSE::FBusSee See;
+	if (O.Stage != 2 || Near >= 6 || O.Slots.Num() <= Near || !ApronG->BusSee(O.Ti, See) || !See.bStands || !See.bAtWheel) return false;
+	for (int32 d = 0; d < 7; ++d) if (AGSE::BusDoorAt(d).Y * O.Side > 0.f && ApronG->BusDoorIs(O.Ti, d, true)) return true;
+	return false;
+}
+
+int32 APaxFlow::ApronOff(int32 i)
+{
+	FPx& P = Pax[i]; FRun& R = Runs[P.Run]; TSharedPtr<FRunOut> O = RunOuts.FindRef(R.Key); AActor* A = nullptr; FDriverPose Q;
+	if (O && ApronG) { ApronG->StairsPose(O->Way.Ti, false, 0.f, 92.f, Q); A = Body((Q.Foot[0] + Q.Foot[1]) * 0.5, Q.Facing.Rotation().Yaw, P); }
+	if (!A) { P.St = EPx::Gone; FreePx.Add(i); return INDEX_NONE; }
+	FPaxOut& X = *ApronNew(i); X.Ph = 6; X.K = O->Way.Ti; X.From = Q; O->UpT = 0.f;
+	P.St = EPx::Apron; P.Do = EDo::ArrIn; P.Stage = TEXT("out of the aircraft, down the passenger stairs");
+	ApronG->StairsEnter(X.K, 1); ApronPose(i, Q);
+	if (X.Rig) { ApronG->StairsPose(X.K, false, 0.f, X.Rig->PelvisHeight(), X.From); ApronPose(i, X.From); }
+	if (R.Spawned <= 3) ADP_LOG(TEXT("PaxFlow: %s (%s) off %s at stand %s, down the passenger stairs%s"), *P.Id, *P.Name, *R.Label, *O->Stand, P.bArrBag ? TEXT(", a bag in the hold") : TEXT(", hand luggage only"));
+	return i;
+}
+
+// off the bus at the gate, or down the stairs by foot: in by the ground gate's door
+void APaxFlow::ApronIn(int32 i)
+{
+	FPx& P = Pax[i]; FRun& R = Runs[P.Run]; TSharedPtr<FPaxOut> X = Outs.FindRef(i); TSharedPtr<FRunOut> O = RunOuts.FindRef(R.Key); const AActor* A = P.A.Get(); if (!X || !O || !A) return;
+	const FVector L = PlanOf(A->GetActorLocation()); float Dx = O->Doors[0]; const float J = float(P.Jit.X) / 250.f;
+	X->Ph = 7; P.Way.Reset(); P.Wi = 0;
+	if (EADPPaxWay(R.Way) == EADPPaxWay::Walk)
+	{
+		// (the departures' straight way backwards, on the other side of it)
+		for (float V : O->Doors) if (FMath::Abs(V * 100.f - O->Way.Foot.X) < FMath::Abs(Dx * 100.f - O->Way.Foot.X)) Dx = V;
+		const FVector F = PlanOf(O->Way.Foot); const float Ax = float(F.X - O->Way.Up.X * 6.5), Az = float(F.Z - 5.4);
+		ApronWalk(P, ApronG->ApronAt(Ax, Az)); ApronWalk(P, ApronG->ApronAt(Dx + J, Az));
+	}
+	else { Dx = O->DoorX; ApronWalk(P, ApronG->ApronAt(float(L.X), 85.f)); }
+	for (float Z : {84.6f, 82.9f}) ApronWalk(P, ApronG->ApronAt(Dx, Z));
+	FWp W; W.P = PW(Dx, 0.f, 80.5f); P.Way.Add(W); P.Stage = TEXT("to the ground gate's door");
+}
+
 void APaxFlow::StepApron(int32 i, float Dt)
 {
 	FPx& P = Pax[i]; FRun& R = Runs[P.Run]; AActor* A = P.A.Get(); TSharedPtr<FPaxOut> Xp = Outs.FindRef(i); TSharedPtr<FRunOut> Op = RunOuts.FindRef(R.Key);
 	if (!A || !ApronG) return;
-	if (!Xp || !Op) { if (!P.bHome) { ADP_WARN(TEXT("PaxFlow: %s stands on the apron without a flight - goes home"), *P.Name); GoHome(i, TEXT("missed the flight")); } return; }
+	if (!Xp || !Op) { if (P.bArr) P.Do = EDo::None; if (!P.bHome) { ADP_WARN(TEXT("PaxFlow: %s stands on the apron without a flight - goes home"), *P.Name); GoHome(i, TEXT("missed the flight")); } return; }
 	FPaxOut& X = *Xp; FRunOut& O = *Op; X.T += Dt; const FVector L = A->GetActorLocation(); AGSE* G = ApronG;
 	const APlayerController* PC = GetWorld()->GetFirstPlayerController(); const APawn* You = PC ? PC->GetPawn() : nullptr;
 	const FVector YouAt = You ? You->GetActorLocation() : FVector(1e9);
@@ -259,10 +325,18 @@ void APaxFlow::StepApron(int32 i, float Dt)
 	switch (X.Ph)
 	{
 	case 8: if (bNo) ApronBack(i); else if (ApronStairs(O)) ApronArrived(i); else Idle(P, A, Dt); break;
-	case 7: if (Go()) { ApronGone(i); P.Do = EDo::None; GoHome(i, R.bOff ? TEXT("the flight is off") : TEXT("missed the flight")); } break;
+	case 7:
+		if (P.bArr) { if (Go()) { ApronGone(i); WayArrivals(P); P.St = EPx::Walk; } break; }   // (in: on as everybody off an aircraft)
+		if (Go()) { ApronGone(i); P.Do = EDo::None; GoHome(i, R.bOff ? TEXT("the flight is off") : TEXT("missed the flight")); } break;
 	case 0:
 	{
 		if (bNo) { ApronBack(i); break; }
+		if (O.Stage != 2 && P.bArr)
+		{
+			// (its bus was lost: back behind the stairs' foot, clear of where the next one comes to stand)
+			if (X.K != -2) { X.K = -2; Ground(ApronQueue(O, 1 + FMath::Max(0, O.Q[X.Door].Find(i)) + 3 * (X.Door % 4))); }
+			Go(); P.Stage = TEXT("waiting for the bus"); break;
+		}
 		if (O.Stage != 2)
 		{
 			// (it left without room for them: back to the wall, clear of where it comes to stand again)
@@ -288,6 +362,7 @@ void APaxFlow::StepApron(int32 i, float Dt)
 			int32 To = -1; for (const AGSE::FBusSlot& S : O.Slots) { const int32 d = O.DoorOf(S.At.X); if (d != X.Door && d >= 0 && G->BusDoorIs(O.Ti, d, true) && O.Q[d].Num() < 3) { To = d; break; } }
 			if (To < 0) { P.Stage = TEXT("waiting: the bus is full"); break; }
 			O.Q[X.Door].Remove(i); X.Door = To; O.Q[To].Add(i); X.K = O.Q[To].Num() - 1;
+			if (P.bArr) { Ground(ApronDoorSpot(O, To, 70.f + 75.f * X.K)); break; }
 			const FVector Dp = PlanOf(ApronDoorSpot(O, To, 70.f)); P.Way.Reset(); P.Wi = 0;
 			ApronWalk(P, G->ApronAt(float(PlanOf(L).X) + 0.6f, 85.f)); ApronWalk(P, G->ApronAt(float(Dp.X), 85.f)); ApronWalk(P, ApronDoorSpot(O, To, 70.f + 75.f * X.K));
 			break;
@@ -336,7 +411,7 @@ void APaxFlow::StepApron(int32 i, float Dt)
 			{
 				// off again, row by row: the nearest of the door's part first, the aisle's side before the window's
 				const int32 D = O.DoorOf(X.Slot.At.X);
-				bool bMine = D >= 0 && G->BusDoorIs(O.Ti, D, true) && O.Lock[D] < 0 && (O.Stage == 5 || (!bNo && ApronStairs(O) && O.Stair.Num() < 6));
+				bool bMine = D >= 0 && G->BusDoorIs(O.Ti, D, true) && O.Lock[D] < 0 && (O.Stage == 5 || P.bArr || (!bNo && ApronStairs(O) && O.Stair.Num() < 6));
 				if (bMine)
 				{
 					auto Far = [&](const FPaxOut& Y) { return FMath::Abs(Y.Slot.At.X - AGSE::BusDoorAt(D).X) + FMath::Abs(Y.Slot.At.Y) * 0.3 + (Y.Slot.Seat == INDEX_NONE ? -25. : 0.); };
@@ -370,6 +445,7 @@ void APaxFlow::StepApron(int32 i, float Dt)
 		{
 			ApronUnpose(i); if (O.Lock[X.Door] == i) O.Lock[X.Door] = -1;
 			G->BusRider(X.Bus, A, false); X.bRider = false;
+			if (P.bArr) { ApronIn(i); break; }
 			if (O.Stage == 5 || bNo) { ApronBack(i); break; }
 			X.Ph = 5; X.K = -1; O.Stair.AddUnique(i); P.Way.Reset(); P.Wi = 0; P.Stage = TEXT("to the passenger stairs");
 		}
@@ -397,16 +473,42 @@ void APaxFlow::StepApron(int32 i, float Dt)
 	{
 		// up the treads, the hand on the rail; gone at the top (each waits if you stand in the way, and behind one who waits)
 		if (!X.Rig) { ApronPose(i, X.From); if (!X.Rig) break; const FVector F = X.From.Facing; X.From = ADPPose::Standing((X.From.Foot[0] + X.From.Foot[1]) * 0.5, F, X.Rig->PelvisHeight()); X.T = 0.f; }
-		const float PH = X.Rig->PelvisHeight(); FDriverPose Q; G->StairsPose(X.K, true, FMath::Min(1.f, X.S + 0.06f), PH, Q);
+		const float PH = X.Rig->PelvisHeight(); const bool bUp = !P.bArr; FDriverPose Q; G->StairsPose(X.K, bUp, FMath::Min(1.f, X.S + 0.06f), PH, Q);
 		bool bHold = X.T < 0.5f || YouIn(Q.Pelvis);
 		for (const TPair<int32, TSharedPtr<FPaxOut>>& Y : Outs) if (Y.Key != i && Y.Value->Ph == 6 && Y.Value->K == X.K && Y.Value->S >= X.S && Y.Value->S - X.S < 0.1f && (Y.Value->S > X.S || Y.Key < i)) bHold = true;
+		if (!bUp && X.S > 0.84f)
+		{
+			// down: on only when the foot is clear and (by bus) a door is open with a place behind it
+			const FVector Ft = O.Way.Steps[0] - O.Way.Up * 45.f + FVector(O.Way.Up.Y, -O.Way.Up.X, 0.f) * 26.f;
+			for (const TPair<int32, TSharedPtr<FPaxOut>>& Y : Outs) if (Y.Key != i && Y.Value->Ph != 6 && Pax.IsValidIndex(Y.Key) && Pax[Y.Key].A.IsValid() && FVector::Dist2D(Pax[Y.Key].A->GetActorLocation(), Ft) < 75.) bHold = true;
+			if (G->Moving(Ft)) bHold = true;
+			if (EADPPaxWay(R.Way) == EADPPaxWay::Bus)
+			{
+				int32 Best = 99; X.Door = -1;
+				if (O.Stage == 2) for (int32 d = 0; d < 7; ++d)
+				{
+					if (AGSE::BusDoorAt(d).Y * O.Side < 0.f || !G->BusDoorIs(O.Ti, d, true)) continue;
+					const int32 n = O.Q[d].Num(); int32 Pl = 0; for (const AGSE::FBusSlot& S : O.Slots) if (O.DoorOf(S.At.X) == d) ++Pl;
+					if (n < Best && n < Pl) { Best = n; X.Door = d; }
+				}
+				if (X.Door < 0) { bHold = true; P.Stage = TEXT("on the passenger stairs, waiting for the bus"); }
+			}
+		}
 		if (!bHold) X.S += Dt / FMath::Max(4.f, G->StairsSeconds(X.K));
-		G->StairsPose(X.K, true, FMath::Min(X.S, 1.f), PH, Q);
+		G->StairsPose(X.K, bUp, FMath::Min(X.S, 1.f), PH, Q);
 		if (X.T < 0.5f) Q = ADPPose::Lerp(X.From, Q, FMath::SmoothStep(0.f, 1.f, X.T / 0.5f));
 		ApronPose(i, Q);
 		if (X.S >= 1.f)
 		{
 			ApronUnpose(i);   // (Finish lets go of the stairs: ApronGone)
+			if (!bUp)
+			{
+				G->StairsEnter(X.K, -1); P.Way.Reset(); P.Wi = 0;
+				if (EADPPaxWay(R.Way) == EADPPaxWay::Walk) { ApronIn(i); break; }
+				X.Ph = 0; X.Bus = O.Ti; O.Q[X.Door].AddUnique(i); X.K = O.Q[X.Door].Find(i); P.Stage = TEXT("to the bus");
+				ApronWalk(P, ApronDoorSpot(O, X.Door, 70.f + 75.f * X.K));
+				break;
+			}
 			if (bNo) Finish(i, TEXT("was up the passenger stairs when the flight was taken off"));
 			else { P.Do = EDo::Aboard; Arrive(i); }
 		}
@@ -421,21 +523,35 @@ void APaxFlow::ApronTick(float Dt)
 	if (!ApronG) { ApronG = AGSE::Find(GetWorld()); if (!ApronG) return; AddTickPrerequisiteActor(ApronG); }   // (the bus has moved before its passengers)
 	for (int32 Ri = 0; Ri < Runs.Num(); ++Ri)
 	{
-		FRun& R = Runs[Ri]; if (R.bArr || !R.Way || !R.bCalled) continue;
+		FRun& R = Runs[Ri]; if (!R.Way || !(R.bArr ? R.bDeplaning : R.bCalled)) continue;
 		TSharedPtr<FRunOut> Op = RunOuts.FindRef(R.Key);
 		if (!Op)
 		{
-			if (R.bOff || R.bGone || R.bNoShowGo) continue;
-			Op = MakeShared<FRunOut>(); RunOuts.Add(R.Key, Op); Op->Key = R.Key; Op->Stand = R.Stand; Op->Gate = R.Gate;
+			if (R.bOff || R.bGone || R.bNoShowGo || (R.bArr && Inside(Ri) == 0)) continue;
+			Op = MakeShared<FRunOut>(); RunOuts.Add(R.Key, Op); Op->Key = R.Key; Op->bArr = R.bArr; Op->Stand = R.Stand; Op->Gate = R.Gate;
 			Op->S = AAirfield::Shared().Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return S.Id == R.Stand; });
 			if (Op->S) Op->StandX = Op->S->X;
 			static FTerminalPlan Plan; static const bool bPlan = Plan.Load();
 			const FString Room = FString::Printf(TEXT("F1-GATE-%d"), R.Gate);
 			if (bPlan) for (const FPlanDoor& D : Plan.Doors) if (D.A == Room && D.B == TEXT("APRON")) Op->Doors.Add(D.X);
-			if (!Op->S || !Op->Doors.Num()) ADP_WARN(TEXT("PaxFlow: %s can't board - stand '%s'%s, gate %d has %d doors to the apron"), *R.Label, *R.Stand, Op->S ? TEXT("") : TEXT(" (not built)"), R.Gate, Op->Doors.Num());
+			if (!Op->S || !Op->Doors.Num()) ADP_WARN(TEXT("PaxFlow: %s can't be served on the apron - stand '%s'%s, gate %d has %d doors to the apron"), *R.Label, *R.Stand, Op->S ? TEXT("") : TEXT(" (not built)"), R.Gate, Op->Doors.Num());
 			if (Op->Doors.Num()) Op->DoorX = Op->Doors[0];
 		}
 		FRunOut& O = *Op; O.T -= Dt; O.StairT -= Dt; O.UpT += Dt; O.SlotT -= Dt; O.StageT += Dt; O.SaidT -= Dt;
+		if (R.bArr)
+		{
+			if (!O.S || !O.Doors.Num()) { R.Visible = R.Spawned; continue; }   // (no way off: they stay data)
+			// (its turn-round is no more - another career loaded, or the aircraft is gone: nobody else comes out, the ones outside go on in)
+			if ((O.TurnT -= Dt) <= 0.f)
+			{
+				O.TurnT = 2.f; ApronStairs(O);
+				if (R.Spawned < R.Visible && !ADPTurnaround::All().ContainsByPredicate([&](const ADPTurnaround::FTurn& T) { return TEXT("A:") + T.Reg + TEXT(":") + FString::Printf(TEXT("%lld"), T.OnBlocks.GetTicks() / ETimespan::TicksPerMinute) == R.Key; }))
+				{
+					ADP_LOG(TEXT("PaxFlow: %s's aircraft is gone with %d still in it - they stay data, the others go on in"), *R.Label, R.Visible - R.Spawned);
+					R.Visible = R.Spawned; R.bNoShowGo = true;
+				}
+			}
+		}
 		if (EADPPaxWay(R.Way) == EADPPaxWay::Bus && O.S && O.Doors.Num()) ApronBus(Ri, O, Dt);
 	}
 	for (auto It = RunOuts.CreateIterator(); It; ++It)
@@ -454,7 +570,7 @@ void APaxFlow::ApronBus(int32 Ri, FRunOut& O, float Dt)
 	auto To = [&](uint8 S) { O.Stage = S; O.StageT = 0.f; O.T = 0.f; O.Cand = 0; O.SlotT = 0.f; O.bStuck = false; O.Why.Reset(); };
 	auto Drive = [&](const FVector2f& At, float Hd) -> bool
 	{
-		FString Why; const int32 Trip = ++O.Trips; O.bThere = false; TWeakObjectPtr<APaxFlow> Me = this; const FString Key = O.Key;
+		FString Why; const int32 Trip = ++O.Trips; O.bThere = false; O.Aim = At; O.AimH = Hd; TWeakObjectPtr<APaxFlow> Me = this; const FString Key = O.Key;
 		if (!ApronG->BusDriveTo(O.Ti, At, Hd, [Me, Key, Trip] { if (Me.IsValid()) if (TSharedPtr<FRunOut> X = Me->RunOuts.FindRef(Key)) if (X->Trips == Trip) X->bThere = true; }, Why)) { Say(Why); return false; }
 		return true;
 	};
@@ -478,24 +594,72 @@ void APaxFlow::ApronBus(int32 Ri, FRunOut& O, float Dt)
 	int32 Come = R.bNoShowGo ? 0 : FMath::Max(0, R.Visible - R.Spawned), In = 0, Near = 0;
 	for (int32 i = 0; i < Pax.Num(); ++i)
 	{
-		const FPx& P = Pax[i]; if (P.Run != Ri || P.bArr || P.St == EPx::Gone) continue;
+		const FPx& P = Pax[i]; if (P.Run != Ri || P.St == EPx::Gone) continue;
 		const TSharedPtr<FPaxOut> X = Outs.FindRef(i);
+		if (P.bArr) { if (X && X->Ph >= 2 && X->Ph <= 4) ++In; else if (X && (X->Ph == 0 || X->Ph == 6)) { ++Near; ++Come; } continue; }
 		if (P.bHome && (!X || X->Ph == 0)) continue;
 		if (X && X->Ph >= 2 && X->Ph <= 4) ++In; else if (X && X->Ph == 0) { ++Near; ++Come; } else if (!X && !R.bNoShowGo) ++Come;
+	}
+	// another flight's bus stands there, or comes to
+	auto Taken = [&](const FVector2f& At) { for (const TPair<FString, TSharedPtr<FRunOut>>& X : RunOuts) if (X.Value.Get() != &O && X.Value->Ti != INDEX_NONE && X.Value->Stage < (X.Value->bArr ? 5 : 3) && FVector2f::Distance(X.Value->Pick, At) < 18.f) return true; return false; };
+	// the places at the aircraft: clear of the stairs' foot, the doors to it
+	auto AtPlane = [&](int32 c, FVector2f& At, float& H)
+	{
+		const FAirfieldData::FStandFrame Fr = O.S->Frame(); const FVector2f S(Fr.K, 0.f), F = Fr.Face(); FVector2f Ft = Fr.P(11.5f, -0.3f);
+		if (ApronStairs(O)) { const FVector V = PlanOf(O.Way.Foot); Ft = FVector2f(float(V.X), float(V.Z)); }
+		auto Hd = [](const FVector2f& D) { return FMath::RadiansToDegrees(FMath::Atan2(D.Y, D.X)); };
+		const FVector2f Ats[4] = {Ft + S * 8.5f + F * 3.f, Ft + S * 8.5f + F * 6.f, Ft + S * 8.5f + F * 3.f, Ft + F * 9.f + S * 2.f}; const float Hs[4] = {Hd(F * -1.f), Hd(F * -1.f), Hd(F), Hd(S * -1.f)};
+		At = Ats[c]; H = Hs[c];
+	};
+	auto SideToPlane = [&] { const FVector2f Ft = O.S->Frame().P(11.5f, -0.3f); SideTo(ApronStairs(O) ? O.Way.Foot : ApronG->ApronAt(Ft.X, Ft.Y)); };
+	auto Beside = [&]
+	{
+		AGSE::FBusSee See; if (!ApronG->BusSee(O.Ti, See)) return true;
+		for (const TPair<int32, TSharedPtr<FPaxOut>>& X : Outs) if (Pax.IsValidIndex(X.Key) && X.Value->Ph >= 5 && X.Value->Ph != 6 && Pax[X.Key].A.IsValid()) { const FVector L = See.X.InverseTransformPosition(Pax[X.Key].A->GetActorLocation()); if (FMath::Abs(L.X) < 900. && FMath::Abs(L.Y) < 230.) return true; }
+		return false;
+	};
+	// its driver lost on the way (it stands, nobody at the wheel): driven on by the next one
+	if ((O.Stage == 1 || O.Stage == 3) && !O.bThere && O.StageT > 30.f && O.T <= 0.f)
+	{
+		O.T = 8.f; AGSE::FBusSee See;
+		if (ApronG->BusSee(O.Ti, See) && See.bStands && !See.bAtWheel && !See.bYou && ApronG->BusTry(O.Ti, O.Aim, O.AimH)) Drive(O.Aim, O.AimH);
+	}
+	// (standing shut where they get out, its driver gone: the next one brings it to the same place, so its doors open)
+	if (O.Stage == 4 && In && O.StageT > 30.f && O.T <= 0.f)
+	{
+		AGSE::FBusSee See;
+		if (ApronG->BusSee(O.Ti, See) && See.bStands && See.bShut && !See.bAtWheel && !See.bYou && !Beside()) { if (ApronG->BusTry(O.Ti, O.Aim, O.AimH) && Drive(O.Aim, O.AimH)) { To(3); return; } O.T = 8.f; }
+	}
+	// (empty, taken away from its place or its driver lost: another one; passengers beside it step back first)
+	bool bLost = false;
+	if (O.Stage == 2 && O.StageT > 30.f)
+	{
+		AGSE::FBusSee See; const bool bSee = ApronG->BusSee(O.Ti, See), bAway = !bSee || FVector::Dist2D(See.X.GetLocation(), ApronG->ApronAt(O.Pick.X, O.Pick.Y)) > 1000.;
+		bLost = bSee && See.bStands && !See.bAtWheel && !See.bYou;
+		if (!In && (bAway || bLost)) { ADP_LOG(TEXT("PaxFlow: %s's bus %s - another one is called"), *R.Label, bAway ? TEXT("is gone from its place") : TEXT("has lost its driver")); To(0); O.T = 10.f; O.Ti = INDEX_NONE; return; }
 	}
 	switch (O.Stage)
 	{
 	case 0:
 	{
-		if (bNo || R.bNoShowGo || (Come == 0 && R.Spawned > 0)) { To(6); return; }
+		if (R.bArr ? Come == 0 : bNo || R.bNoShowGo || (Come == 0 && R.Spawned > 0)) { if (R.bArr && R.Visible == 0) return; To(6); return; }
 		if (O.T > 0.f) return;
 		O.T = 1.5f;
 		TArray<int32> Free; ApronG->BusFree(Free);
 		Free.RemoveAll([&](int32 Ti) { for (const TPair<FString, TSharedPtr<FRunOut>>& X : RunOuts) if (X.Value.Get() != &O && X.Value->Ti == Ti) return true; return false; });
-		if (!Free.Num()) { O.T = 10.f; Say(TEXT("no apron bus is free: its passengers wait at the gate")); return; }
+		if (!Free.Num()) { O.T = 10.f; Say(R.bArr ? TEXT("no apron bus is free: its passengers wait in the aircraft") : TEXT("no apron bus is free: its passengers wait at the gate")); return; }
+		if (R.bArr)
+		{
+			const int32 N = Free.Num() * 4, c = O.Cand++ % N, Ti = Free[c / 4]; FVector2f At; float H; AtPlane(c % 4, At, H);
+			if (Taken(At) || !ApronG->BusTry(Ti, At, H)) { if (O.Cand >= N) { O.Cand = 0; O.T = 10.f; Say(TEXT("no bus has a clear way to the aircraft now: its passengers wait in it")); } return; }
+			O.Ti = Ti; O.Pick = At;
+			if (!Drive(At, H)) { O.Ti = INDEX_NONE; O.T = 10.f; return; }
+			To(1); ADP_LOG(TEXT("PaxFlow: %s's bus is called to stand %s"), *R.Label, *O.Stand);
+			return;
+		}
 		// (in front of one of the gate's two doors, its door side to it)
 		const int32 N = Free.Num() * O.Doors.Num(), c = O.Cand++ % N, Ti = Free[c / O.Doors.Num()]; const FVector2f At(O.Doors[c % O.Doors.Num()], 90.5f);
-		for (const TPair<FString, TSharedPtr<FRunOut>>& X : RunOuts) if (X.Value.Get() != &O && X.Value->Ti != INDEX_NONE && X.Value->Stage < 3 && FVector2f::Distance(X.Value->Pick, At) < 18.f) return;   // (another flight's bus stands there)
+		if (Taken(At)) return;
 		if (!ApronG->BusTry(Ti, At, 0.f)) { if (O.Cand >= N) { O.Cand = 0; O.T = 10.f; Say(TEXT("no bus has a clear way to the gate now: its passengers wait")); } return; }
 		O.Ti = Ti; O.DoorX = At.X; O.Pick = At;
 		if (!Drive(At, 0.f)) { O.Ti = INDEX_NONE; O.T = 10.f; return; }   // (nobody free: Why says so)
@@ -504,6 +668,7 @@ void APaxFlow::ApronBus(int32 Ri, FRunOut& O, float Dt)
 	}
 	case 1:
 		Slow(); if (!O.bThere) return;
+		if (R.bArr) { SideToPlane(); To(2); ADP_LOG(TEXT("PaxFlow: %s's bus stands at the aircraft"), *R.Label); return; }
 		SideTo(ApronG->ApronAt(O.DoorX, 84.f)); To(O.bBack ? 5 : 2); ADP_LOG(TEXT("PaxFlow: %s's bus stands at gate %d"), *R.Label, O.Gate);
 		return;
 	case 2:
@@ -520,25 +685,30 @@ void APaxFlow::ApronBus(int32 Ri, FRunOut& O, float Dt)
 	}
 		if (O.SaidT <= 0.f && Come) { O.SaidT = 60.f; ADP_LOG(TEXT("PaxFlow: %s's bus waits for %d passengers (%d in it)"), *R.Label, Come, In); }
 		const int32 Getting = ApronCount(Ri, 2, 2); const bool bFull = !O.Slots.Num() && !Getting;
-		const bool bGo = In > 0 && !Getting && (Come == 0 || (bFull && (Near == 0 || O.StageT > 180.f)));
+		// (arriving: never while somebody is on the stairs or beside it; with no stairs any more those in it at least)
+		const bool bGo = In > 0 && !Getting && (R.bArr ? Near == 0 && (Come == 0 || bFull || bLost || (!ApronStairs(O) && O.StageT > 180.f)) : Come == 0 || (bFull && (Near == 0 || O.StageT > 180.f)));
 		if (!bGo) { OpenUp(); if (In == 0 && Come == 0) Home(); return; }
-		// where at the aircraft: clear of the stairs' foot, the doors to it
 		if (O.T > 0.f) { return; }
 		O.T = 1.5f;
-		const FAirfieldData::FStandFrame Fr = O.S->Frame(); const FVector2f S(Fr.K, 0.f), F = Fr.Face(); FVector2f Ft = Fr.P(11.5f, -0.3f);
-		if (ApronStairs(O)) { const FVector V = PlanOf(O.Way.Foot); Ft = FVector2f(float(V.X), float(V.Z)); }
-		auto Hd = [](const FVector2f& D) { return FMath::RadiansToDegrees(FMath::Atan2(D.Y, D.X)); };
-		const FVector2f At[4] = {Ft + S * 8.5f + F * 3.f, Ft + S * 8.5f + F * 6.f, Ft + S * 8.5f + F * 3.f, Ft + F * 9.f + S * 2.f}; const float Hs[4] = {Hd(F * -1.f), Hd(F * -1.f), Hd(F), Hd(S * -1.f)};
-		const int32 c = O.Cand++ % 4;
-		if (!ApronG->BusTry(O.Ti, At[c], Hs[c])) { if (c == 3) { O.T = 8.f; Say(TEXT("no clear way to the aircraft now: it waits at the gate with its passengers")); } return; }
-		if (!Drive(At[c], Hs[c])) { O.T = 8.f; return; }
+		if (R.bArr)
+		{
+			// (to one of the gate's doors)
+			const int32 N = O.Doors.Num(), c = O.Cand++ % N; const FVector2f At(O.Doors[c], 90.5f);
+			if (Taken(At) || !ApronG->BusTry(O.Ti, At, 0.f)) { if (c == N - 1) { O.T = 8.f; Say(TEXT("no clear place at the gate now: it waits at the aircraft with its passengers")); } return; }
+			if (!Drive(At, 0.f)) { O.T = 8.f; return; }
+			O.DoorX = At.X; O.Pick = At; To(3); ADP_LOG(TEXT("PaxFlow: %s's bus leaves stand %s with %d passengers, %d still to come (%s)"), *R.Label, *O.Stand, In, Come, Come ? TEXT("it comes back for them") : TEXT("everybody in"));
+			return;
+		}
+		FVector2f At; float H; const int32 c = O.Cand++ % 4; AtPlane(c, At, H);
+		if (Taken(At) || !ApronG->BusTry(O.Ti, At, H)) { if (c == 3) { O.T = 8.f; Say(TEXT("no clear way to the aircraft now: it waits at the gate with its passengers")); } return; }
+		if (!Drive(At, H)) { O.T = 8.f; return; }
 		To(3); ADP_LOG(TEXT("PaxFlow: %s's bus leaves gate %d with %d passengers, %d still to come (%s)"), *R.Label, O.Gate, In, Come, Come ? TEXT("full: it comes back for them") : TEXT("everybody in"));
 		return;
 	}
 	case 3:
 		Slow(); if (!O.bThere) return;
-		{ const FVector2f Ft = O.S->Frame().P(11.5f, -0.3f); SideTo(ApronStairs(O) ? O.Way.Foot : ApronG->ApronAt(Ft.X, Ft.Y)); }
-		To(4); ADP_LOG(TEXT("PaxFlow: %s's bus is at the aircraft"), *R.Label);
+		if (R.bArr) { SideTo(ApronG->ApronAt(O.DoorX, 84.f)); To(4); ADP_LOG(TEXT("PaxFlow: %s's bus stands at gate %d"), *R.Label, O.Gate); return; }
+		SideToPlane(); To(4); ADP_LOG(TEXT("PaxFlow: %s's bus is at the aircraft"), *R.Label);
 		return;
 	case 4:
 		if (bNo && In)
@@ -553,16 +723,21 @@ void APaxFlow::ApronBus(int32 Ri, FRunOut& O, float Dt)
 		if (In)
 		{
 			OpenUp();
-			if (!ApronStairs(O)) Say(TEXT("at the aircraft: its passengers wait in it for the passenger stairs"));
+			if (!R.bArr && !ApronStairs(O)) Say(TEXT("at the aircraft: its passengers wait in it for the passenger stairs"));
 			return;
 		}
 		if (O.T > 0.f) return;
 		O.T = 5.f;
-		{
-			AGSE::FBusSee See; if (!ApronG->BusSee(O.Ti, See)) return;   // (nobody beside it any more)
-			for (const TPair<int32, TSharedPtr<FPaxOut>>& X : Outs) if (Pax.IsValidIndex(X.Key) && X.Value->Ph >= 5 && X.Value->Ph != 6 && Pax[X.Key].A.IsValid()) { const FVector L = See.X.InverseTransformPosition(Pax[X.Key].A->GetActorLocation()); if (FMath::Abs(L.X) < 900. && FMath::Abs(L.Y) < 230.) return; }
-		}
+		if (Beside()) return;   // (nobody beside it any more)
 		O.T = 0.f;
+		if (R.bArr && Come)
+		{
+			const int32 c = O.Cand++ % 4; FVector2f At; float H; AtPlane(c, At, H);
+			if (Taken(At) || !ApronG->BusTry(O.Ti, At, H)) { if (c == 3) { O.T = 8.f; Say(TEXT("no way back to the aircraft for the others now")); } return; }
+			if (Drive(At, H)) { O.Pick = At; To(1); ADP_LOG(TEXT("PaxFlow: %s's bus goes back to stand %s for %d more"), *R.Label, *O.Stand, Come); }
+			else O.T = 8.f;
+			return;
+		}
 		if (Come && !bNo && !R.bNoShowGo)
 		{
 			if (!ApronG->BusTry(O.Ti, O.Pick, 0.f)) { O.T = 8.f; Say(TEXT("no way back to the gate for the others now")); return; }

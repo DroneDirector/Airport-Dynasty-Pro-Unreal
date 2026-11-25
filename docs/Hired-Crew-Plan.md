@@ -601,6 +601,16 @@ Taxi bus (239, part B, 2026-11-24, compiled, NOT run): a line of `ADPService::Al
 - **D4c can reuse:** `AGSE::BusFree/BusTry/BusSee/BusSlots/BusW/BusPoseW/BusDoorAt/BusRider`, `FPaWalk`, `ApronPose/ApronUnpose`, `StairsPose(up = false)`, `ApronQueue/ApronDoorSpot`, `FRunOut`.
 - **Open:** one flight's bus only serves that flight and one bus at a time; no painted walkway; the crowd of simulated (not walking) passengers does not ride; save while on the apron not checked.
 
+## Arrivals by foot and by bus, D4c as built
+
+- D4b turned round, in PaxApron.cpp: the same phases, buses, seats, poles and rails (`FPx::bArr`); jetway stands unchanged.
+- Off a Walk/Bus stand each one appears at the top of the docked passenger stairs, about 2.5 s apart, at most five on the treads (`ApronMay`, `ApronOff`); never with a departing passenger on the same stairs.
+- Bus: called to the aircraft when they start to come off, only as many come out as it has places; it leaves with the stairs and its doors clear, to a ground gate door; off row by row, in by that door (`ApronIn`), up to the arrivals walk and on as everybody (`WayArrivals`). The others stay in their seats until it is back.
+- Walk: down the stairs, across in front of the aircraft to the nearest ground gate door.
+- The turn-round's "passengers off" is done when the last is off the treads; with no stairs or bus for 15 min (45 while one is at work) the rest stay data. Boarding is called only when the aircraft is empty.
+- Waits are logged (no stairs, no bus, no driver, no way). A driver lost on the way is replaced; a bus never goes home at shift end with passengers in it.
+- Another career loaded: those outside go on in (arriving) or back and home (departing). Not run in the game yet. Other airlines at such stands get no passenger stairs, so their passengers stay data.
+
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
 | Where | Today | Replace with | Nobody free |

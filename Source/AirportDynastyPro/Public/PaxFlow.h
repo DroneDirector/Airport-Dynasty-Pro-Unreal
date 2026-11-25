@@ -187,6 +187,12 @@ private:
 	class AGSE* ApronG = nullptr;
 	void ApronWalk(FPx& P, const FVector& To);
 	void ApronBack(int32 i);
+	// (arriving)
+	int32 ApronInside(int32 Ri) const;
+	bool ApronGoes(int32 Ri) const;
+	bool ApronMay(int32 Ri);
+	int32 ApronOff(int32 i);
+	void ApronIn(int32 i);
 	int32 JetwayFor(int32 GateIx) const;
 	void ChooseDesks(FRun& R);
 	void StepRun(int32 Ri, float Dt);

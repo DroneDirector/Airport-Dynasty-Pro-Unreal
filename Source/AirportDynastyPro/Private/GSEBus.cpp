@@ -466,6 +466,7 @@ void AGSE::BusTick(float Dt)
 		}
 		// shift over: standing in its bay he gets out (elsewhere he takes it home first)
 		if (T.Bu->Stage != 2 || T.Path.Num() || T.Until || Sp->OnShift(G->Crew[Ci].StaffId)) continue;
+		if (T.Bu->Riders.ContainsByPredicate([](const TWeakObjectPtr<AActor>& W) { return W.IsValid(); })) continue;   // (never home with passengers in it)
 		if (FVector::Dist2D(T.At, T.Home) < 150.f) BusLeave(Ti);
 		else { FString Why; BusHome(Ti, nullptr, Why); }
 	}
