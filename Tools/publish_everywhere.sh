@@ -11,10 +11,18 @@ DRAFT=$(gh release view pc-unreal-v$V --json isDraft -q .isDraft 2>/dev/null)
 [ "$DRAFT" = "true" ] && { echo "== an upload that was cut off: started over"; gh release delete pc-unreal-v$V -y; DRAFT=; }
 if [ "$DRAFT" = "false" ]; then
   echo "== $V is on GitHub already: its files are not sent again"
-  git pull -q --rebase --autostash && git add pc-version.json && { git diff --cached --quiet || git -c user.name=DroneDirector -c user.email=simon@dronedirector.fo commit -qm "PC $V"; } && git push -q
 else
-  bash Tools/release_pc.sh $V $A $B --upload || exit 1
+  # (GitHub takes files under 2 GiB. The update from the release before the last is left out when it is bigger, as for 0.18.2:
+  #  the game's updater goes there in two steps)
+  F="Packaged/AirportDynastyPro-Unreal-PC-Setup-$V.exe $(ls Packaged/AirportDynastyPro-Unreal-PC-Setup-$V-*.bin 2>/dev/null) $P/AirportDynastyPro-Unreal-PC-Update-$A-to-$V.zip"
+  U="$P/AirportDynastyPro-Unreal-PC-Update-$B-to-$V.zip"
+  for X in $F; do [ -s "$X" ] || { echo "STOP: $X is missing"; exit 1; }; [ "$(stat -c %s "$X")" -lt 2147483648 ] || { echo "STOP: $X is over 2 GiB"; exit 1; }; done
+  if [ -s "$U" ] && [ "$(stat -c %s "$U")" -lt 2147483648 ]; then F="$F $U"; else echo "(the update from $B is left out: too big for GitHub)"; fi
+  gh release create pc-unreal-v$V --prerelease --title "Airport Dynasty Pro (Unreal) $V" --notes-file release-notes-pc/$V.md $F || exit 1
+  N=$(echo $F | wc -w); GOT=$(gh release view pc-unreal-v$V --json assets -q '.assets | length')
+  [ "$GOT" = "$N" ] || { echo "STOP: $GOT of $N files on the release - start this again"; exit 1; }
 fi
+git pull -q --rebase --autostash && git add pc-version.json && { git diff --cached --quiet || git -c user.name=DroneDirector -c user.email=simon@dronedirector.fo commit -qm "PC $V"; } && git push -q
 git fetch -q; git show origin/main:pc-version.json | grep -q "\"$V\"" || { echo "STOP: pc-version.json on GitHub is not $V"; exit 1; }
 echo "== this PC: the game behind the icons"
 win() { cygpath -w "$1"; }
