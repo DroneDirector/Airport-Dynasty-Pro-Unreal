@@ -356,7 +356,8 @@ private:
 	void UpdateMouse();
 	void FirstStartScan();
 	/** E: a desk's or a timetable's screen in front of you opens the airline game on it. */
-	void Interact();
+public: void Interact();   // (also the test views: E)
+private:
 	void PlayGong();
 	/** F1 (keyboard) or View / Create (gamepad): the Buttons panel open or minimized. */
 	void ToggleButtons();
