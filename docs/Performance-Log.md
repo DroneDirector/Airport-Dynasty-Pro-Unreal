@@ -1,5 +1,12 @@
 # Performance log
 
+## 2026-11-25 late - last run before the publish (to-do 262, 269, 295)
+Packaged Shipping, 3840x1080, own frame generation, 39-74 people, Blender open; new-game test passed, 0 problems, loading 29.9 s. Milliseconds made / GPU:
+- landside doors 19.2 / 12.8, hall 17.9 / 12.6, hall screens 19.4 / 14.5, apron 18.3 / 14.1, upstairs 18.5 / 14.9, station 17.3 / 15.7, drive 17.8 / 16.0, tower close 16.8 / 10.2, road west 21.8 / 19.1 (1 % 34.2), east 19.8 / 15.6, remote apron 16.7 / 15.7, vehicle area 16.0 / 12.7.
+- dry -> rain -> rain without drops: cab 19.4, 19.1, 19.1; gate windows 17.7, 18.9, 18.6; facade 19.0, 19.5, 19.4; jetway 23.7, 23.5, 23.3; apron 18.8, 19.7, 19.6. The drops cost 0-0.3 ms.
+- hall boards 18.7 / 16.2; talk camera 31.6 / 20.9 (1 % 68.5, the person walked on: 304); in the crowd (74 people, 23 whole) 26.3 / 21.7.
+- Bad frames 57 (first run 289). Graphics memory nearly full, over its limit in the talk (7243 of 6935 MB, pool 2000 -> 1000). Wet apron's 119 ms gone. Jetway not solved (305).
+
 ## 2026-11-25 - packaged run with the passengers in (to-do 269, 285)
 Packaged Shipping, 3840x1080, the owner's settings, own frame generation on, all 144 people in the package; career test save 3;
 91 of 91 walking legs right, 0 problems, loading 22.3 s. Milliseconds made / GPU / shown a second:
