@@ -44,12 +44,12 @@
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 #if WITH_EDITOR
 // (the roads' bake, ARoadNetwork::BakeAll, runs in the editor only: these stay out of the game's own build; Windows'
 //  min/max macros, left defined by another file in the same build chunk, are hidden while the geometry headers are read)
 #include "Components/DynamicMeshComponent.h"
-#include "DynamicMesh/DynamicMesh3.h"
-#include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMeshToMeshDescription.h"
 #include "StaticMeshAttributes.h"
 #include "AssetRegistry/AssetRegistryModule.h"
