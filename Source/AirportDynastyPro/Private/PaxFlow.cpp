@@ -1861,6 +1861,17 @@ void APaxFlow::StepPx(int32 i, float Dt)
 	if (!A) { if (P.St != EPx::Gone) { P.St = EPx::Gone; FreePx.Add(i); } return; }
 	FRun& R = Runs[P.Run];
 	AADPPeople* People = AADPPeople::Get(GetWorld());
+	// (you talk with them: they stop, turned to you, and go on after it - never on an escalator, in a revolving door, the jetway or on the apron)
+	if (People && People->TalksToYou(A) && P.LooseT < 0.f)
+	{
+		const bool bRide = P.bRideNow || (P.Way.IsValidIndex(P.Wi) && (P.Way[P.Wi].Mode == 2 || P.Way[P.Wi].Mode == 3));
+		if ((P.St == EPx::Walk && !bRide) || P.St == EPx::DeskQ || P.St == EPx::LaneQ || P.St == EPx::Wait)
+		{
+			if (P.St == EPx::Walk || P.St == EPx::DeskQ) CarryBag(P, A);
+			const FVector You = People->TalkDir(A); Idle(P, A, Dt, &You);
+			return;
+		}
+	}
 	P.T += Dt;
 	if ((R.bOff || R.bGone) && !P.bArr && P.St == EPx::Seated && People) { People->StandFrom(A); P.St = EPx::Wait; return; }
 	if ((R.bOff || R.bGone) && !P.bHome && !P.bArr && P.St != EPx::Revolve && P.St != EPx::Jetway && P.St != EPx::Apron && !(People && People->IsHeld(A)))

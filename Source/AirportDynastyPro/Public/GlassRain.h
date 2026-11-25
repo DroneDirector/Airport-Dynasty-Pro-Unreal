@@ -40,7 +40,7 @@ private:
 	};
 	TArray<FBuilding> Buildings;
 	TArray<TWeakObjectPtr<AActor>> NotRoofs;
-	float LookIn = 0.f;
+	float LookIn = 0.f, DryFor = 0.f;
 	void FindBuildings();
 	void TickBuildings(float Dt);
 	void Finish(FBuilding& B);

@@ -76,6 +76,10 @@ public:
 	// ---- the menu (the HUD draws it: a title, a few lines of text, up to 8 choices) ----
 	bool MenuOpen() const { return bMenu; }
 	AActor* MenuActor() const { return MenuWho.Get(); }
+	/** The person you talk with: they stop and stay until it ends. */
+	bool TalksToYou(const AActor* Who) const { return bMenu && Who && MenuWho.Get() == Who; }
+	/** Where they look then: at you. */
+	FVector TalkDir(const AActor* Who) const;
 	void Open(AActor* Who);
 	void Close();
 	void Choose(int32 I);

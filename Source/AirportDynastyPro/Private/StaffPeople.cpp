@@ -955,8 +955,9 @@ bool UStaffPeople::Walk(FStaff& S, float Dt)
 	static FRoom NoRoom;
 	FRoom& R = Rooms.IsValidIndex(S.Room) ? Rooms[S.Room] : NoRoom;
 	const FVector Here = A->GetActorLocation();
+	const AADPPeople* Pe = AADPPeople::Get(GetWorld()); const bool bTalk = Pe && Pe->TalksToYou(A);   // (you talk with them: they stop, and go on after it)
 	FVector Dir = FVector::ZeroVector; float Dist = 0.f, Want = 0.f;
-	while (S.Way.Num())
+	while (!bTalk && S.Way.Num())
 	{
 		Dir = S.Way[0].At - Here; Dir.Z = 0.f; Dist = Dir.Size();
 		if (Dist > (S.Way.Num() == 1 ? 12.f : 25.f)) break;
@@ -964,7 +965,8 @@ bool UStaffPeople::Walk(FStaff& S, float Dt)
 		if (S.Way[0].bDoor && S.State == EState::Out && (S.Way.Num() == 1 || !S.Way[1].bDoor)) LeaveDoor(S);
 		S.Way.RemoveAt(0);
 	}
-	if (S.Way.Num())
+	if (bTalk) { const FVector You = Pe->TalkDir(A); if (!You.IsNearlyZero()) Turn(S, You.Rotation().Yaw, Dt); }
+	else if (S.Way.Num())
 	{
 		const bool bDoor = S.Way[0].bDoor, bOpenApron = !bDoor && !S.bLand && SpPlanZ(Here) > 85.3f;
 		// (landside a step round somebody only on the pavement or the crossing - never into the kerbside lane's or the car park's cars)

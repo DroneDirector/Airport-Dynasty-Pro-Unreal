@@ -69,13 +69,14 @@ void UGlassRain::Tick(float Dt)
 	}
 	const bool bOn = CVarGlassRain.GetValueOnGameThread() != 0 && APuddles::bGroundWeatherOn;
 	Fill = bOn ? F : 0.f;
+	// (the roofs are looked up while it is dry too, so the buildings' glass is ready when the rain begins; not while the world still loads)
+	if (Fill > 0.f || (bOn && (DryFor += Dt) > 45.f)) TickBuildings(Dt);
 	if (Fill <= 0.f && bZeroSent) return;
 	bZeroSent = Fill <= 0.f;
 	Time = FMath::Fmod(Time + Dt * FMath::Clamp(APuddles::WeatherSpeed, 0.f, 8.f), 3600.f);
 	static const FName NF(TEXT("GlassFill")), ND(TEXT("GlassDry")), NT(TEXT("GlassTime")), NR(TEXT("GlassRun"));
 	C->SetScalarParameterValue(NF, Fill); C->SetScalarParameterValue(ND, Dry);
 	C->SetScalarParameterValue(NT, Time); C->SetScalarParameterValue(NR, Run);
-	if (Fill > 0.f) TickBuildings(Dt);   // (dry: nothing)
 }
 
 // #region ---- the buildings' panes
@@ -134,8 +135,8 @@ void UGlassRain::FindBuildings()
 
 void UGlassRain::TickBuildings(float Dt)
 {
-	ADP_PERF_SCOPE("the rain on the buildings (each frame)", 1.f);
-	if ((LookIn -= Dt) <= 0.f) { LookIn = 20.f; FindBuildings(); }
+	ADP_PERF_SCOPE("the rain on the buildings (each frame)", 1.5f);
+	if ((LookIn -= Dt) <= 0.f) { FindBuildings(); LookIn = Fill > 0.f || Buildings.ContainsByPredicate([](const FBuilding& B) { return !B.bReady; }) ? 20.f : 120.f; }
 	for (FBuilding& B : Buildings)
 	{
 		if (!B.A.IsValid() || (B.bReady && B.On >= 1.f)) continue;
@@ -145,11 +146,11 @@ void UGlassRain::TickBuildings(float Dt)
 			for (const auto& D : B.Mids) if (D.IsValid()) D->SetScalarParameterValue(TEXT("RainOn"), B.On);
 			continue;
 		}
-		// one building at a time, 0.4 ms a frame: straight down at each place
+		// one building at a time, 0.4 ms a frame (1 ms when it rains already): straight down at each place
 		if (!B.Top.Num()) B.Top.Init(-1.e6f, B.W * B.H);
 		FCollisionQueryParams Q(SCENE_QUERY_STAT(GlassRoofs), true);
 		for (const auto& N : NotRoofs) if (N.IsValid()) Q.AddIgnoredActor(N.Get());
-		const double End = FPlatformTime::Seconds() + 0.0004;
+		const double End = FPlatformTime::Seconds() + (Fill > 0.f ? 0.001 : 0.0004);
 		for (; B.Next < B.Top.Num() && FPlatformTime::Seconds() < End; ++B.Next)
 		{
 			const FVector2D P(B.Box.Min.X + (B.Next % B.W + 0.5f) * B.Cell, B.Box.Min.Y + (B.Next / B.W + 0.5f) * B.Cell);

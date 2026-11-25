@@ -281,6 +281,12 @@ void AADPPeople::Face(AActor* A, const FVector& At)
 	if (!D.IsNearlyZero()) A->SetActorRotation(FRotator(0.f, D.Rotation().Yaw - 90.f, 0.f));
 }
 
+FVector AADPPeople::TalkDir(const AActor* Who) const
+{
+	const APlayerController* PC = GetWorld()->GetFirstPlayerController(); const APawn* Me = PC ? PC->GetPawn() : nullptr;
+	return Me && Who ? (Me->GetActorLocation() - Who->GetActorLocation()).GetSafeNormal2D() : FVector::ZeroVector;
+}
+
 bool AADPPeople::Hearing(const FVector& At) const
 {
 	const APlayerController* PC = GetWorld()->GetFirstPlayerController();
@@ -1161,6 +1167,8 @@ void AADPPeople::StepStrollers(float Dt)
 	{
 		AActor* A = S.A.Get(); if (!A) continue;
 		FWho* W = Find(A); if (!W) continue;
+		// (you talk with them: they stay where they are, and go on after it)
+		if (TalksToYou(A) && (S.Doing == EDoing::Stand || S.Doing == EDoing::Walk || S.Doing == EDoing::ToSeat || (S.Doing == EDoing::Lean && S.T < 0.f))) { WalkTo(W, A->GetActorLocation(), Dt, 50.f); continue; }
 		S.T += Dt;
 		switch (S.Doing)
 		{
