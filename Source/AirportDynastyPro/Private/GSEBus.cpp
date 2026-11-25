@@ -575,3 +575,83 @@ TSharedPtr<FVehTable> AGSE::BusControls()
 	ADP_LOG(TEXT("Apron bus: your controls - seven doors, all doors; the cab's lights, horn and hazard as every vehicle's"));
 	return Tb;
 }
+
+// ---- the passengers' side (PaxApron.cpp)
+
+FVector2f AGSE::BusDoorAt(int32 Door) { return Door >= 0 && Door < 7 ? FVector2f(BusDoors[Door].X, BusDoors[Door].Sg * 148.f) : FVector2f::ZeroVector; }
+
+void AGSE::BusFree(TArray<int32>& Out) const
+{
+	for (int32 i = 0; i < Tractors.Num(); ++i)
+	{
+		const FTractor& T = Tractors[i]; if (!T.Bu || !T.M.IsValid() || T.Player.IsValid() || T.Path.Num() || T.Until) continue;
+		if ((T.Bu->Stage == 0 && T.Job == EJob::None) || T.Bu->Stage == 2) Out.Add(i);
+	}
+}
+
+bool AGSE::BusSee(int32 Ti, FBusSee& Out) const
+{
+	if (!Tractors.IsValidIndex(Ti) || !Tractors[Ti].Bu || !Tractors[Ti].M.IsValid()) return false;
+	const FTractor& T = Tractors[Ti]; Out.X = FTransform(FRotator(0.f, T.Yaw, 0.f), T.At); Out.bStands = FMath::Abs(T.Speed) < 1.f && T.Path.Num() == 0;
+	Out.bAtWheel = T.Bu->Stage == 2; Out.bYou = T.Player.IsValid(); Out.bShut = BusDoorsShut(T); Out.bKnelt = BusKnelt(T);
+	return true;
+}
+
+bool AGSE::BusTry(int32 Ti, const FVector2f& To, float Heading) const
+{
+	if (!Tractors.IsValidIndex(Ti) || !Tractors[Ti].Bu) return false;
+	const FTractor& T = Tractors[Ti]; const float a = FMath::DegreesToRadians(Heading), Ld = BusR + 8.f;
+	const FVector Lead = Plan(To.X - FMath::Cos(a) * Ld, To.Y - FMath::Sin(a) * Ld), End = Plan(To.X, To.Y);
+	FVector From = T.At; if (FVector::Dist2D(T.At, T.Home) < 200.f) From += FRotator(0.f, T.Yaw, 0.f).Vector() * 1200.f;
+	TArray<FVector> W; if (!Apron(W, Lead, End, &T)) return false;
+	float L = 0.f; FVector Was = Lead; for (const FVector& V : W) { L += float(FVector::Dist2D(Was, V)); Was = V; }   // (straight in, nothing to go round)
+	if (L > Ld * 110.f) return false;
+	W.Reset(); return Apron(W, From, Lead, &T);
+}
+
+FVector AGSE::BusW(int32 Ti, const FVector& Local) const
+{
+	if (!Tractors.IsValidIndex(Ti)) return FVector::ZeroVector;
+	const FTractor& T = Tractors[Ti]; return T.At + FRotator(0.f, T.Yaw, 0.f).RotateVector(Local.Z > 10. ? T.KneelX().TransformPosition(Local) : Local);
+}
+
+void AGSE::BusPoseW(int32 Ti, FDriverPose& P) const { if (Tractors.IsValidIndex(Ti)) BusToWorld(Tractors[Ti], P); }
+
+void AGSE::BusSlots(int32 Ti, TArray<FBusSlot>& Out) const
+{
+	Out.Reset(); if (!Tractors.IsValidIndex(Ti) || !Tractors[Ti].Bu) return;
+	const FTractor& T = Tractors[Ti]; const FTransform Kn = T.KneelX(); const FRotator R(0.f, T.Yaw, 0.f);
+	TArray<FVector> All;
+	for (int32 i = 0; i < ASeats::Count(); ++i)
+	{
+		FVector At, Fc; float H; if (!ASeats::SeatOf(i, At, Fc, H) || FVector::Dist2D(At, T.At) > 750.f) continue;
+		const FVector L = Kn.InverseTransformPosition(R.UnrotateVector(At - T.At));
+		if (FMath::Abs(L.X) > 600. || FMath::Abs(L.Y) > 130. || L.Z < BusFloor || L.Z > 160.) continue;   // (not the driver's)
+		All.Add(L); if (ASeats::IsTaken(i)) continue;
+		FBusSlot S; S.Seat = i; S.At = L; S.Face = R.UnrotateVector(Fc).GetSafeNormal2D(); Out.Add(S);
+	}
+	Out.Sort([](const FBusSlot& A, const FBusSlot& B) { return FMath::Abs(A.At.Y) > FMath::Abs(B.At.Y); });   // (the window ones first)
+	TArray<FVector> Stood;
+	for (int32 k = 0; k < 19; ++k) for (float Sg : {1.f, -1.f})
+	{
+		const FVector At(-600. + 48. * BusStraps[k], 88. * Sg, BusFloor); bool bOk = At.X < 500.;
+		for (int32 d = 0; d < 7 && bOk; ++d) bOk = FMath::Abs(BusDoors[d].X - At.X) > 70.;
+		for (const FVector& V : All) if (FVector::Dist2D(V, At) < 72.) bOk = false;                         // (no seat, no knees of a sitting one)
+		for (const FVector& V : Stood) if (FVector::Dist2D(V, At) < 47.) bOk = false;
+		for (const FVector2D& Po : BusPoles) if (FVector2D::Distance(Po, FVector2D(At)) < 26.) bOk = false;
+		if (!bOk) continue;
+		FBusSlot S; S.At = At; S.Face = FVector(0., -Sg, 0.); S.Hold = FVector(At.X, 62. * Sg, 221.); S.bStrap = true; double Best = 60.;
+		for (const FVector2D& Po : BusPoles) if (FMath::Abs(Po.Y - 62. * Sg) < 1.) { const double D = FVector2D::Distance(Po, FVector2D(At)); if (D < Best) { Best = D; S.Hold = FVector(Po.X, Po.Y, BusFloor + 138.); S.bStrap = false; } }
+		Stood.Add(At); Out.Add(S);
+	}
+}
+
+bool AGSE::Moving(const FVector& At) const
+{
+	for (const FTractor& T : Tractors) if (FMath::Abs(T.Speed) > 10.f && FVector::Dist2D(T.At, At) < 900.f)
+	{
+		const FVector L = FRotator(0.f, T.Yaw, 0.f).UnrotateVector(At - T.At); const double Hx = T.Bu ? 660. : 400.;
+		if (FMath::Abs(L.Y) < 230. && L.X * (T.Speed > 0.f ? 1. : -1.) > -Hx && L.X * (T.Speed > 0.f ? 1. : -1.) < Hx + 250.) return true;
+	}
+	return false;
+}

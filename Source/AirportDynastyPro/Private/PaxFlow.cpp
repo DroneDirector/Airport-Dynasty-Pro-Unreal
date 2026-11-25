@@ -86,14 +86,14 @@ bool APaxFlow::BoardingDone(const UWorld* W, const FString& Reg)
 		if (R.bNoShowGo)
 		{
 			// (gone without the missing ones, but never with someone in the jetway: those past the gate's door board first)
-			int32 In = 0; for (const FPx& X : P->Pax) if (X.St == EPx::Jetway && X.Run == Ri && !X.bArr && P->PastDoor(X)) ++In;
+			int32 In = 0; for (const FPx& X : P->Pax) if ((X.St == EPx::Jetway || X.St == EPx::Apron) && X.Run == Ri && !X.bArr && P->PastDoor(X)) ++In;
 			if (In)
 			{
 				bAll = false;
 				if (P->RealT - R.SaidAt > 120.0)   // (held for them, by name)
 				{
 					R.SaidAt = P->RealT; FString L;
-					for (const FPx& X : P->Pax) if (X.St == EPx::Jetway && X.Run == Ri && !X.bArr && P->PastDoor(X)) if (const AActor* Xa = X.A.Get()) { const FVector At = P->PlanOf(Xa->GetActorLocation()); L += FString::Printf(TEXT(" %s (%.1f, %.1f) %s%s%s;"), *X.Id, At.X, At.Z, *X.Stage, X.HeldBy.IsEmpty() ? TEXT("") : TEXT(", held by "), *X.HeldBy); }
+					for (const FPx& X : P->Pax) if ((X.St == EPx::Jetway || X.St == EPx::Apron) && X.Run == Ri && !X.bArr && P->PastDoor(X)) if (const AActor* Xa = X.A.Get()) { const FVector At = P->PlanOf(Xa->GetActorLocation()); L += FString::Printf(TEXT(" %s (%.1f, %.1f) %s%s%s;"), *X.Id, At.X, At.Z, *X.Stage, X.HeldBy.IsEmpty() ? TEXT("") : TEXT(", held by "), *X.HeldBy); }
 					ADP_WARN(TEXT("PaxFlow: PROBLEM - %s (%s) held, %d still in the jetway:%s"), *R.Label, *R.Reg, In, *L);
 				}
 			}
@@ -131,7 +131,7 @@ bool APaxFlow::BoardingDone(const UWorld* W, const FString& Reg)
 		{
 			// (those in the jetway already: ten minutes more, then those not past its halfway point are no-shows like the rest and walk
 			//  back out - nobody is let through from where they are stuck (owner 2026-11-23); the flight goes once the jetway is empty)
-			int32 In = 0; for (FPx& X : P->Pax) if (X.St == EPx::Jetway && X.Run == Ri && !X.bArr && P->PastDoor(X)) ++In;
+			int32 In = 0; for (FPx& X : P->Pax) if ((X.St == EPx::Jetway || X.St == EPx::Apron) && X.Run == Ri && !X.bArr && P->PastDoor(X)) ++In;
 			if (In) bAll = false;
 			if (In && P->RealT - R.HoldSince < 25.0 * 60.0)
 			{
@@ -152,6 +152,7 @@ bool APaxFlow::BoardingDone(const UWorld* W, const FString& Reg)
 bool APaxFlow::PastDoor(const FPx& P) const
 {
 	if (!Runs.IsValidIndex(P.Run)) return false;
+	if (P.St == EPx::Apron) return true;   // (out of the ground gate's door)
 	const int32 Gi = GateRoom(Runs[P.Run].Gate); const AActor* A = P.A.Get();
 	return P.FadeT >= 0.f || (A && Gates.IsValidIndex(Gi) && PlanOf(A->GetActorLocation()).Z > Gates[Gi].Jw.Y);
 }
@@ -480,16 +481,16 @@ void APaxFlow::Poll()
 			Ex->DepT = PxSec(P.Est);
 			if (P.State == TEXT("cancelled") && !Ex->bOff) { Ex->bOff = true; ADP_LOG(TEXT("PaxFlow: %s is cancelled - its passengers go home"), *Ex->Label); AADPHUD::Announce(FString::Printf(TEXT("Passengers of flight %s: your flight has been cancelled. Please leave by the arrivals hall; your money will be paid back."), *Ex->Label), 1); }
 			if (P.State == TEXT("gone")) Ex->bGone = true;
-			const int32 G = ADPGround::GateOfStand(P.Stand);
-			if (P.State == TEXT("planned") && G && G != Ex->Gate) { ADP_LOG(TEXT("PaxFlow: %s leaves from gate %d (was %d)"), *Ex->Label, G, Ex->Gate); Ex->Gate = G; Ex->Jet = JetwayFor(GateRoom(G)); }
+			const int32 G = P.Stand.IsEmpty() ? 0 : PaxGate(P.Stand, P.Reg);
+			if (P.State == TEXT("planned") && !Ex->bCalled && P.Stand != Ex->Stand) SetStand(*Ex, P.Stand);
+			if (P.State == TEXT("planned") && G && G != Ex->Gate) { ADP_LOG(TEXT("PaxFlow: %s leaves from gate %d (was %d)"), *Ex->Label, G, Ex->Gate); Ex->Gate = G; Ex->Jet = Ex->Way ? INDEX_NONE : JetwayFor(GateRoom(G)); }
 			continue;
 		}
 		if (P.State != TEXT("planned") || P.Pax() <= 0) continue;
 		const double Dep = PxSec(P.Sched), MinTo = (PxSec(P.Est) - SimT) / 60.0;
 		if ((Dep - SimT) / 60.0 > 122.0 || MinTo < 25.0) continue;   // (too early yet, or too late to walk the whole way now)
-		FRun R; R.Key = Key; R.PlanId = P.Id; R.Label = P.FlightNo; R.Reg = P.Reg; R.AirlineId = P.AirlineId; R.Gate = ADPGround::GateOfStand(P.Stand); R.DepT = PxSec(P.Est);
+		FRun R; R.Key = Key; R.PlanId = P.Id; R.Label = P.FlightNo; R.Reg = P.Reg; R.AirlineId = P.AirlineId; R.Gate = PaxGate(P.Stand, P.Reg); R.DepT = PxSec(P.Est);
 		R.bPlayer = P.AirlineId == UADPSim::Me();
-		if (R.Gate == 0) R.Gate = ADPBoards::GateFor(P.Reg);   // (a remote stand: a bus gate)
 		R.Pax = P.Pax();
 		R.Visible = FMath::Min(R.Pax, int32(VisibleDep));
 		int32 Missed = 0;
@@ -502,7 +503,7 @@ void APaxFlow::Poll()
 		R.SpawnAt.Sort();
 		R.Visible = R.SpawnAt.Num();
 		if (!R.Visible) continue;
-		ChooseDesks(R); R.Jet = JetwayFor(GateRoom(R.Gate));
+		SetStand(R, P.Stand); ChooseDesks(R); R.Jet = R.Way ? INDEX_NONE : JetwayFor(GateRoom(R.Gate));
 		ADP_LOG(TEXT("PaxFlow: departure %s (%s) to %s, gate %d, in %.0f min - %d passengers booked, %d of them walk (the rest simulated)%s"), *R.Label, *R.Reg, *P.To, R.Gate, MinTo, R.Pax, R.Visible, Missed ? *FString::Printf(TEXT(", %d already past the car park when the game came to them"), Missed) : TEXT(""));
 		Runs.Add(R);
 	}
@@ -812,6 +813,7 @@ void APaxFlow::Finish(int32 i, const TCHAR* Why, bool bKeepBody)
 	if (P.Holder) { Holders.Remove(P.Holder); P.Holder->DestroyComponent(); P.Holder = nullptr; }
 	if (Runs.IsValidIndex(P.Run) && (Runs[P.Run].bTest || Runs[P.Run].Aboard + Runs[P.Run].Out < 3)) ADP_LOG(TEXT("PaxFlow: %s %s"), *P.Id, Why);
 	P.St = EPx::Gone; P.A = nullptr;
+	ApronGone(i);
 	if (Watched == i) Watched = INDEX_NONE;
 	FreePx.Add(i);
 }
@@ -1057,7 +1059,7 @@ bool APaxFlow::Follow(FPx& P, AActor* A, float Dt)
 			if (O.bDoorWait && O.Run == P.Run && P.bArr == O.bArr && (P.St == EPx::Jetway || P.Do == EDo::ArrIn) && Ahead > 0.f && FMath::Abs(Off) < 45.f && R < 85.f) { P.bQueued = true; bHold = bLine = true; }
 			if (Ahead > 0.f && FMath::Abs(Off) < 45.f && R < 60.f + P.Speed * 0.35f) Slow = FMath::Min(Slow, R < 70.f ? 0.3f : 0.6f);   // (someone right in front: slow down behind them until there is room to pass)
 			// (standing in my way: please step aside - the side away from my line)
-			const bool bStanding = O.St != EPx::Walk || O.Speed < 15.f;
+			const bool bStanding = (O.St != EPx::Walk && O.St != EPx::Apron) || O.Speed < 15.f;
 			if (!bTunnel && bStanding && !O.bDoorWait && Ahead > 0.f && R < 110.f && FMath::Abs(Off) < 55.f && O.YieldT <= 0.f)
 			{ O.YieldWant = Side * FMath::Sign(Off == 0.f ? 1.f : Off) * 34.f; O.YieldT = 2.2f; }
 		}
@@ -1381,7 +1383,7 @@ bool APaxFlow::WayToWait(FPx& P)
 	// walkway (never another gate's), or leaning on a wall; standing at their gate when none of those is free
 	FRun& R = Runs[P.Run];
 	AActor* A = P.A.Get(); if (!A) return false;
-	const int32 Gi = GateRoom(R.Gate); if (!Gates.IsValidIndex(Gi)) return false;
+	const int32 Gi = WaitRoom(R.Gate); if (!Gates.IsValidIndex(Gi)) return false;
 	const FGate& G = Gates[Gi];
 	const FVector Here = PlanOf(A->GetActorLocation());
 	const FVector HerePlan(Here.X, F2Y, Here.Z);
@@ -1510,10 +1512,11 @@ void APaxFlow::GoHome(int32 i, const TCHAR* Why)
 	P.bHome = true; P.Way.Reset(); P.Wi = 0; P.PauseT = 0.f; P.TunA = P.TunB = 0;
 	const FVector Here = PlanOf(A->GetActorLocation());
 	auto Add = [&](float X, float H, float Z, uint8 Mode = 0, bool bG = false) { FWp W; W.P = PW(X, H, Z); W.Mode = Mode; W.bGround = bG; if (bG) W.P.Z = GroundZ(X, Z); P.Way.Add(W); };
-	if (Here.Y > 3.f)
+	if (P.Do == EDo::ApronOut) ApronGone(i);
+	if (Here.Y > 3.f || Here.Z > 67.5f)   // (Floor 2, or a ground gate: up its stairs, then the same way)
 	{
 		const float L = AEscalatorPair::LengthAlong();
-		AddPlanWay(P, INDEX_NONE, FVector(Here.X, F2Y, Here.Z), Map.Find(TEXT("F2-WALK")), FVector(PXARRESC + float(P.Jit.X) / 100.f, F2Y, 54.f));
+		AddPlanWay(P, INDEX_NONE, FVector(Here.X, Here.Y > 3.f ? F2Y : 0.f, FMath::Min(Here.Z, Here.Y > 3.f ? Here.Z : 81.5)), Map.Find(TEXT("F2-WALK")), FVector(PXARRESC + float(P.Jit.X) / 100.f, F2Y, 54.f));
 		Add(PXARRESC, F2Y, PXARRFOOT + L + 1.2f); Add(PXARRESC, F2Y, PXARRFOOT + L - 0.2f, 1);
 		Add(PXARRESC, 0.f, PXARRFOOT + 0.25f, 2); Add(PXARRESC, 0.f, PXARRFOOT - 1.6f);
 		WayFromHall(P, A->GetActorLocation());
@@ -1567,7 +1570,7 @@ void APaxFlow::Arrive(int32 i)
 	case EDo::AtSeat:
 	{
 		AADPPeople* People = AADPPeople::Get(GetWorld());
-		const int32 Gi = GateRoom(R.Gate);
+		const int32 Gi = WaitRoom(R.Gate);
 		const FVector L = A->GetActorLocation();
 		TArray<FBox2D> Area; Area.Add(FBox2D(FVector2D(L.X - 400.f, L.Y - 400.f), FVector2D(L.X + 400.f, L.Y + 400.f))); if (Gates.IsValidIndex(Gi)) Area.Add(Gates[Gi].Box);
 		// (still the seat walked to: the list of seats is gathered again as models come and go)
@@ -1581,8 +1584,9 @@ void APaxFlow::Arrive(int32 i)
 	case EDo::Aboard:
 		++R.Aboard; ++TotalAboard;
 		ADP_LOG(TEXT("PaxFlow: %s aboard %s (%d of %d walkers; about %d of %d passengers aboard)"), *P.Id, *R.Label, R.Aboard, R.Visible, FMath::Min(R.Pax, FMath::RoundToInt(float(R.Aboard) / FMath::Max(1, R.Visible) * R.Pax)), R.Pax);
-		Finish(i, TEXT("is aboard (faded away halfway along the jetway)"));
+		Finish(i, R.Way ? TEXT("is aboard (gone at the top of the passenger stairs)") : TEXT("is aboard (faded away halfway along the jetway)"));
 		break;
+	case EDo::ApronOut: ApronArrived(i); break;
 	case EDo::ArrIn: P.TunA = P.TunB = 0; WayArrivals(P); P.St = EPx::Walk; break;
 	case EDo::AtClaim:
 		P.St = EPx::ClaimWait; P.T = 0.f; P.Stage = TEXT("waiting at the claim belt for their bag");
@@ -1708,11 +1712,12 @@ void APaxFlow::StepPx(int32 i, float Dt)
 	AADPPeople* People = AADPPeople::Get(GetWorld());
 	P.T += Dt;
 	if ((R.bOff || R.bGone) && !P.bArr && P.St == EPx::Seated && People) { People->StandFrom(A); P.St = EPx::Wait; return; }
-	if ((R.bOff || R.bGone) && !P.bHome && !P.bArr && P.St != EPx::Revolve && P.St != EPx::Jetway && !(People && People->IsHeld(A)))
+	if ((R.bOff || R.bGone) && !P.bHome && !P.bArr && P.St != EPx::Revolve && P.St != EPx::Jetway && P.St != EPx::Apron && !(People && People->IsHeld(A)))
 	{
 		// (in the lanes, the corridor and on the escalators they go on to Floor 2 first: the way out is down the arrivals escalators)
 		const FVector L = PlanOf(A->GetActorLocation());
-		const bool bLanes = L.Y < 3.f ? L.Z > 27.f : P.bRideNow || P.Do == EDo::Upstairs;
+		const bool bGate1 = L.Y < 3.f && L.Z > 67.5f;   // (a ground gate: up its stairs again; already in its door to the apron: out first, ApronArrived turns them round)
+		const bool bLanes = bGate1 ? L.Z > 79.f && P.Do == EDo::ApronOut : L.Y < 3.f ? L.Z > 27.f : P.bRideNow || P.Do == EDo::Upstairs;
 		if (!bLanes || P.St == EPx::LaneQ) { GoHome(i, R.bOff ? TEXT("the flight is off") : TEXT("missed the flight")); return; }
 	}
 	// the boarding call heard: their turn comes (a free walker gets up and goes when it is due)
@@ -1801,10 +1806,12 @@ void APaxFlow::StepPx(int32 i, float Dt)
 		if (R.bNoShowGo) { GoHome(i, TEXT("missed the flight")); break; }   // (the doors are being closed)
 		if (!bDocked) R.DockWait += Dt / FMath::Max(1, R.Spawned);
 		if (!bDocked) { if (R.DockWait > 60.f && !R.bDockNoted) { R.bDockNoted = true; ADP_LOG(TEXT("PaxFlow: %s's boarding waits at gate %d for the jetway to dock"), *R.Label, R.Gate); } Idle(P, A, Dt); break; }
+		if (R.Way) { if (!ApronCall(i)) Idle(P, A, Dt); break; }   // (a ground gate: by foot or by bus, PaxApron.cpp)
 		P.Seat = INDEX_NONE;
 		WayToJetway(P); P.St = EPx::Jetway;
 		break;
 	}
+	case EPx::Apron: StepApron(i, Dt); break;
 	case EPx::Jetway:
 	{
 		// along the jetway; past its halfway point they fade away over a second (never a pop), and only then are they
@@ -1947,6 +1954,7 @@ void APaxFlow::Tick(float Dt)
 		bool bAny = false; for (const FPx& Q : Pax) if (Q.St != EPx::Gone) { bAny = true; break; }
 		ATerminalDoors::bHoldEntrances = bAny;
 	}
+	ApronTick(Dt);
 	for (int32 i = 0; i < Pax.Num(); ++i)
 	{
 		FPx& P = Pax[i];
@@ -2004,7 +2012,7 @@ void APaxFlow::Tick(float Dt)
 				Q.Dev = 0; Q.DevIn = -1.f;
 			}
 		}
-		if (Pax.IsValidIndex(i)) if (const AActor* A2 = Pax[i].A.Get()) if (Pax[i].St == EPx::Walk || Pax[i].St == EPx::Jetway || Pax[i].St == EPx::Revolve) ATerminalDoors::Openers.Add(A2->GetActorLocation());   // (also the revolving doors' presence sensor)
+		if (Pax.IsValidIndex(i)) if (const AActor* A2 = Pax[i].A.Get()) if (Pax[i].St == EPx::Walk || Pax[i].St == EPx::Jetway || Pax[i].St == EPx::Revolve || (Pax[i].St == EPx::Apron && Pax[i].bHome)) ATerminalDoors::Openers.Add(A2->GetActorLocation());   // (also the revolving doors' presence sensor)
 	}
 	// now and then: how many are where
 	if ((SayIn -= Dt) <= 0.f)
@@ -2053,6 +2061,7 @@ void APaxFlow::Scenes(TArray<FScene>& Out) const
 			else if (P.Do == EDo::OutCarPark) S.Kind = 9;
 			else { S.Kind = 7; if (L.Z > 58.f) continue; }
 		}
+		else if (P.St == EPx::Apron) S.Kind = 5;
 		else if (P.St == EPx::Jetway) { S.Kind = 5; if (P.FadeFrom != INDEX_NONE && P.Wi >= P.FadeFrom - 1) S.Jet = R.Jet; }
 		else if (P.St == EPx::Seated || P.St == EPx::Lean || P.St == EPx::Wait || P.St == EPx::Call) S.Kind = 4;
 		else if (P.St == EPx::Desk || P.St == EPx::DeskQ) S.Kind = 1;

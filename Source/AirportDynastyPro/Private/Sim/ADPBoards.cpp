@@ -47,7 +47,7 @@ bool ADPBoards::Live(const UObject* Ctx)
 int32 ADPBoards::GateFor(const FString& Reg)
 {
 	// (an aircraft on a remote stand boards by bus from one of the bus gates - the gates without a jetway)
-	static const int32 BusGates[] = {5, 6, 7, 8, 10, 12};
+	static const int32 BusGates[] = {5, 6, 7, 8};   // (10 and 12 have no door to the apron)
 	return BusGates[GetTypeHash(Reg) % UE_ARRAY_COUNT(BusGates)];
 }
 
@@ -77,7 +77,7 @@ TArray<FADPBoardRow> ADPBoards::Rows(const UObject* Ctx, bool bArr, int32 N)
 			const bool bOff = P.State == TEXT("cancelled");
 			if (bOff && (P.Why == TEXT("taken out of the timetable") || Mins(P.Sched) > 180 || Mins(P.Sched) < -120)) continue;
 			FADPBoardRow Row; Row.Reg = P.Reg; Row.AirlineId = P.AirlineId; Row.PlanId = P.Id; Row.Gate = ADPGround::GateOfStand(P.Stand);   // (its stand: to-do 183)
-			if (Row.Gate == 0 && Mins(P.Est) < 150) Row.Gate = GateFor(P.Reg);   // (a remote stand: a bus gate)
+			if ((Row.Gate == 0 && Mins(P.Est) < 150) || (Row.Gate > 0 && ADPGround::PaxWay(P.Stand) == EADPPaxWay::Bus)) Row.Gate = GateFor(P.Reg);   // (a stand by bus: a bus gate)
 			Row.Flight = P.FlightNo;
 			Row.Place = BdTown(P.To, Row.PlaceCode);
 			Row.Sched = Local(P.Sched); Row.Expected = Local(FMath::Max(P.Est, NowU));

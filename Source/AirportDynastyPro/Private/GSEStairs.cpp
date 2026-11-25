@@ -219,6 +219,16 @@ bool AGSE::StairsReady(float StandX, int32 Door, FStairsWay& Out) const
 		Out.Platform = TW(T, SvcP(T, TEXT("IK_Plat_Mid")) + U); Out.Door = TW(T, SvcP(T, TEXT("IK_Plat_Front")) + U); Out.Up = FRotator(0.f, T.Yaw, 0.f).Vector();
 		return true;
 	}
+	// (your own, served: to-do 238)
+	const int32 Y = StairsYou(StandX, Door);
+	if (Tractors.IsValidIndex(Y) && Tractors[Y].Ps && Tractors[Y].Ps->bServed)
+	{
+		const FTractor& T = Tractors[Y];
+		TArray<FVector> St; StairsSteps(T, St); Out.Steps.Reset(); for (const FVector& V : St) Out.Steps.Add(TW(T, V));
+		const FVector U = PsStep * T.Ps->N; Out.Ti = Y; Out.Foot = TW(T, SvcP(T, TEXT("IK_Foot"))); Out.Foot.Z = Plan(Out.Foot.X / 100.f, -Out.Foot.Y / 100.f).Z;
+		Out.Platform = TW(T, SvcP(T, TEXT("IK_Plat_Mid")) + U); Out.Door = TW(T, SvcP(T, TEXT("IK_Plat_Front")) + U); Out.Up = FRotator(0.f, T.Yaw, 0.f).Vector();
+		return true;
+	}
 	return false;
 }
 

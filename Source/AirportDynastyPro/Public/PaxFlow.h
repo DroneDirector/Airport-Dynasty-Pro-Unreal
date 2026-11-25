@@ -83,8 +83,8 @@ public:
 	enum : int32 { VisibleDep = 36, VisibleArr = 30 };
 
 private:
-	enum class EPx : uint8 { Walk, DeskQ, Desk, LaneQ, Wait, Seated, Lean, Call, Jetway, ClaimWait, ToBag, Revolve, Gone };   // (Revolve: at / in a revolving door - waiting, stepping in, riding round, stepping out)
-	enum class EDo : uint8 { None, JoinDesk, JoinLane, Screened, Upstairs, AtSeat, AtWall, AtGateSpot, Aboard, AtClaim, OutCarPark, ArrIn, ToTaxi };
+	enum class EPx : uint8 { Walk, DeskQ, Desk, LaneQ, Wait, Seated, Lean, Call, Jetway, Apron, ClaimWait, ToBag, Revolve, Gone };   // (Revolve: at / in a revolving door - waiting, stepping in, riding round, stepping out)
+	enum class EDo : uint8 { None, JoinDesk, JoinLane, Screened, Upstairs, AtSeat, AtWall, AtGateSpot, Aboard, AtClaim, OutCarPark, ArrIn, ToTaxi, ApronOut };
 	struct FWp { FVector P = FVector::ZeroVector; float Pause = 0.f; FVector Face = FVector::ZeroVector; uint8 Mode = 0; bool bGround = false; bool bNav = false; int8 Rev = -1, RevSide = 0; };   // Mode 0 walk, 1 slow, 2 ride, 3 a revolving door (Rev: ATerminalDoors' revolving door, RevSide: the side they come from, +-1 along its axis; P: the queue's head spot); bNav: the leg to it already walked out on the navmesh
 	struct FPx
 	{
@@ -118,6 +118,7 @@ private:
 		int32 Gate = 2, Jet = INDEX_NONE;
 		double DepT = 0.0;          // departure (seconds on the run's clock: the simulation's, the test's own)
 		int32 Pax = 0, Visible = 0, Spawned = 0, Aboard = 0, Out = 0, Late = 0, Home = 0;   // (Late: too late to check in; Home: gone home - late, or the flight is off)
+		FString Stand; uint8 Way = 0;   // (its stand; EADPPaxWay: jetway, by foot, by bus)
 		bool bOff = false, bGone = false;   // (cancelled; left)
 		int32 NBags = 0, NDesk = 0, NLane = 0, NF2 = 0, NBag = 0;   // (how many have a bag to check in, have checked it in, been screened, come up to Floor 2; taken their bag)
 		TArray<double> SpawnAt;     // (departures: when each walker gets out of their car; arrivals: off the aircraft)
@@ -164,6 +165,28 @@ private:
 	void MakeTestRuns();
 	double Clock(const FRun& R) const { return R.bTest ? RealT : SimT; }
 	int32 GateRoom(int32 Gate) const;
+	int32 WaitRoom(int32 Gate) const { return GateRoom(Gate >= 5 && Gate <= 8 ? Gate - 4 : Gate); }   // (a ground gate's: the room over it, down its stairs when called)
+	// ---- by foot or by bus to the aircraft and up the passenger stairs (PaxApron.cpp, to-do 277)
+	TMap<int32, TSharedPtr<struct FPaxOut>> Outs;      // (by passenger)
+	TMap<FString, TSharedPtr<struct FRunOut>> RunOuts; // (by FRun::Key)
+	static int32 PaxGate(const FString& Stand, const FString& Reg);
+	void SetStand(FRun& R, const FString& Stand);
+	bool ApronCall(int32 i);
+	void ApronArrived(int32 i);
+	void StepApron(int32 i, float Dt);
+	void ApronTick(float Dt);
+	struct FPaxOut* ApronNew(int32 i);
+	void ApronPose(int32 i, const struct FDriverPose& W);
+	void ApronUnpose(int32 i);
+	void ApronBus(int32 Ri, struct FRunOut& O, float Dt);
+	void ApronGone(int32 i);
+	int32 ApronCount(int32 Ri, int32 From, int32 To, int32 Door = -1) const;
+	bool ApronStairs(struct FRunOut& O) const;
+	FVector ApronQueue(const struct FRunOut& O, int32 k) const;
+	FVector ApronDoorSpot(const struct FRunOut& O, int32 Door, float Out) const;
+	class AGSE* ApronG = nullptr;
+	void ApronWalk(FPx& P, const FVector& To);
+	void ApronBack(int32 i);
 	int32 JetwayFor(int32 GateIx) const;
 	void ChooseDesks(FRun& R);
 	void StepRun(int32 Ri, float Dt);

@@ -525,6 +525,21 @@ public:
 	/** Its hired driver gets in (if nobody is at its wheel), shuts the doors, drives it to a plan point and stands with that
 	 *  heading (degrees: 0 plan +x, 90 plan +y); Done is told. False: it can't now, Why says so (ask again). */
 	bool BusDriveTo(int32 Ti, const FVector2f& To, float Heading, TFunction<void()> Done, FString& Why);
+	/** The passengers' side of it (PaxApron.cpp). Free: standing in nobody's job, not yours. Try: is there a way to that place and
+	 *  straight onto it (an apron search: not every frame). Slots: its free seats and the standing places with a pole or a strap,
+	 *  bus cm (x its front, y its right). PoseW: a pose in bus cm, standing on the floor or the ground beside it, into the world. */
+	struct FBusSee { FTransform X; bool bStands = false, bAtWheel = false, bYou = false, bShut = false, bKnelt = false; };
+	struct FBusSlot { int32 Seat = INDEX_NONE; FVector At = FVector::ZeroVector, Face = FVector(1, 0, 0), Hold = FVector::ZeroVector; bool bStrap = false; };
+	void BusFree(TArray<int32>& Out) const;
+	bool BusSee(int32 Ti, FBusSee& Out) const;
+	bool BusTry(int32 Ti, const FVector2f& To, float Heading) const;
+	void BusSlots(int32 Ti, TArray<FBusSlot>& Out) const;
+	void BusPoseW(int32 Ti, FDriverPose& P) const;
+	FVector BusW(int32 Ti, const FVector& Local) const;
+	static FVector2f BusDoorAt(int32 Door);      // (x, and y: which side)
+	/** A vehicle on the move over that point (nobody steps in front of it). */
+	bool Moving(const FVector& At) const;
+	FVector ApronAt(float PlanX, float PlanY) const { return Plan(PlanX, PlanY); }
 	/** Back to its own bay, nose out; the driver stays at the wheel (BusLeave). */
 	bool BusHome(int32 Ti, TFunction<void()> Done, FString& Why);
 	/** Standing: its driver shuts it, gets out and is free again. */

@@ -591,6 +591,16 @@ Taxi bus (239, part B, 2026-11-24, compiled, NOT run): a line of `ADPService::Al
 - **For the passengers:** `AGSE::BusRider(Ti, actor, on)`: the doors stay open and the bus waits while one is in a doorway (`BusSomebodyIn`).
 - Open: seats are 63 cm above their step; no modelled kneel switch (no glow); housing, seat and pole boxes are from the model's measures, not walked.
 
+## Departures by foot and by bus, D4b as built (to-do 277, 2026-11-25, compiled, NOT run)
+- **Way:** `APaxFlow::PaxGate/SetStand` from `ADPGround::PaxWay`; jetway flights as before. By bus a ground gate 5-8 (never 10 or 12: no door to the apron); they wait in the Floor 2 room above and come down its stairs when called.
+- **`PaxApron.cpp`:** one state per passenger (`FPaxOut::Ph`) and one per flight (`FRunOut::Stage`), both listed at its top. `EPx::Apron`.
+- **Bus:** driven to z 90.5 in front of one of the gate's two doors; queue of 3 per open door, one at a time per door; seats first (innermost first, `ASeats::Claim`), then standing with a hand on pole or strap. About 19 places (9 seats + 10 standing).
+  Off when nobody is still to come and nobody is getting in; full = it comes back (those outside step back to the wall, plan z 85.3-86.9). At the stand the nearest the door get off first, each one when the one before has stepped away.
+- **Stairs:** queue at the foot, 2.2 s apart, hand on the rail, gone at the top (`EDo::Aboard`). By foot: straight out from the door, then square across. Your own served stairs count too (`StairsReady`).
+- **Waits, each logged once:** no bus, no driver, no way, no stairs, bus full, you in the way. The aircraft holds while anybody is on the apron. Flight off: bus back to the gate, up the gate's stairs and out.
+- **D4c can reuse:** `AGSE::BusFree/BusTry/BusSee/BusSlots/BusW/BusPoseW/BusDoorAt/BusRider`, `FPaWalk`, `ApronPose/ApronUnpose`, `StairsPose(up = false)`, `ApronQueue/ApronDoorSpot`, `FRunOut`.
+- **Open:** one flight's bus only serves that flight and one bus at a time; no painted walkway; the crowd of simulated (not walking) passengers does not ride; save while on the apron not checked.
+
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
 | Where | Today | Replace with | Nobody free |
