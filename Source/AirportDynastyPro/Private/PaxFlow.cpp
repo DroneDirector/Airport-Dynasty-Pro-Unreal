@@ -1086,9 +1086,30 @@ bool APaxFlow::Follow(FPx& P, AActor* A, float Dt)
 	if (Dist < Reach)
 	{
 		if (W.Mode == 3) { StartRevolve(int32(&P - Pax.GetData())); return false; }
+		// (round a corner: not yet, while the way on from here is still shut by what the corner goes round - they came 30 cm short of
+		//  the end of a moving walkway's rail, turned in on its wrong side and stood behind it. On to the corner
+		//  itself first; not there in 3 s - someone stands on it - on, and the way is looked up again)
+		const FWp* Nx = !bRide && W.Mode == 0 && W.Pause <= 0.f && !bTunnel && Dist > 8.f && P.Way.IsValidIndex(P.Wi + 1) ? &P.Way[P.Wi + 1] : nullptr;
+		if (Nx && Nx->Mode == 0 && P.CornerT < 3.f)
+		{
+			FCollisionQueryParams Qc(SCENE_QUERY_STAT(PaxCorner), false, A);
+			for (const AActor* Ig : {static_cast<const AActor*>(ADepartureBelts::Get(GetWorld())), static_cast<const AActor*>(ABaggageBelts::Get(GetWorld())), static_cast<const AActor*>(DoorsActor.Get()), static_cast<const AActor*>(SeatsActor.Get())}) if (Ig) Qc.AddIgnoredActor(Ig);
+			const FCollisionObjectQueryParams Oc(ECC_WorldStatic);
+			auto Shut = [&](const FVector& From)
+			{
+				const FVector K = From + FVector(0.f, 0.f, 45.f), To = (Nx->P - From) * FVector(1.f, 1.f, 0.f);
+				FHitResult Ch; return GetWorld()->LineTraceSingleByObjectType(Ch, K, K + To.GetClampedToMaxSize(300.f), Oc, Qc) && FMath::Abs(Ch.ImpactNormal.Z) < 0.5f;
+			};
+			if (Shut(Loc) && !Shut(FVector(W.P.X, W.P.Y, Loc.Z))) P.CornerT += FMath::Max(Dt, 0.001f);
+			else P.CornerT = 99.f;
+		}
+		if (!Nx || Nx->Mode != 0 || P.CornerT >= 3.f)
+		{
+		P.CornerT = 0.f;
 		if (W.Pause > 0.f) P.PauseT = W.Pause; else ++P.Wi;
 		Anim(P);
 		return P.Wi >= P.Way.Num() && P.PauseT <= 0.f;
+		}
 	}
 	FVector Dn = D / Dist;
 	float TurnWant = 0.f; bool bHold = false, bLine = false;

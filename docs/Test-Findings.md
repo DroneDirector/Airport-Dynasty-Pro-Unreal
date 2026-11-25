@@ -117,4 +117,4 @@ walk follows below when it has run.
 - 284 the tug's door sounds come from PushbackTug and are packed.
 - Cargo stands: -TrafficTest and normal traffic put only cargo aircraft there.
 - Push towards X1 ends facing the taxi way; STAND-9 turns tighter, its gear stops 3 m before the taxilane end (Tools/check_push.py: 0 findings).
-- Open: passengers stuck on the way to a gate chair (plan -217.8, 61.3).
+- Passengers stuck on the way to a gate chair (plan -217.8, 61.3): they turned in 30 cm before the end of a moving walkway rail, on its wrong side. They now go on to the corner first while the way from where they are is shut (PaxFlow.cpp). Compiled; not yet seen in a game run.

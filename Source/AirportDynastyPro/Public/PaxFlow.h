@@ -102,7 +102,7 @@ private:
 		float DevIn = -1.f, DevFor = 0.f; uint8 Dev = 0;   // (waiting at the gate: the phone / tablet out - APaxProps; in how long, for how long, which)
 		int32 Rev = INDEX_NONE, RevComp = INDEX_NONE, RevPhase = 0, RevSide = 0; float RevT = 0.f; FVector RevFrom = FVector::ZeroVector; TArray<FWp> RevAfter;   // (a revolving door: which, the compartment, 0 waiting 1 stepping in 2 riding 3 stepping out; the way on after it)
 		int32 TunA = 0, TunB = 0;    // (the way points inside the jetway: [TunA, TunB) - held within its walls, APaxFlow::FSlice)
-		FVector StuckAt = FVector::ZeroVector; float StuckT = 0.f, ReplanT = 0.f; bool bQueued = false, bDoorWait = false; FString HeldBy;   // (not getting on: where, how long; behind someone - a queue, not stuck; what held them)
+		FVector StuckAt = FVector::ZeroVector; float StuckT = 0.f, ReplanT = 0.f, CornerT = 0.f; bool bQueued = false, bDoorWait = false; FString HeldBy;   // (not getting on: where, how long; behind someone - a queue, not stuck; what held them)
 		FVector LooseFrom = FVector::ZeroVector, LooseTo = FVector::ZeroVector; float LooseT = -1.f;       // (truly held by geometry: eased back to the nearest free point)
 		int32 Hide = INDEX_NONE, HideTries = 0; float HideIn = 0.f;   // (leaving, to-do 294: the unseen place they walk to - ADPUnseen; how many were seen when they got there)
 		bool bHome = false;          // (on the way home: too late, or their flight is off)
