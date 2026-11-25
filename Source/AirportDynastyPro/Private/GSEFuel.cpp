@@ -328,7 +328,7 @@ void AGSE::FuelUpDown(int32 Ci, int32 Ti, bool bUp)
 	{
 		WalkTo(Ci, [this, Ti] { return TW(Tractors[Ti], SvcP(Tractors[Ti], TEXT("IK_Stand_Platform"))); }, 12.f);
 		Do(Ci, [this, Ci, Gate] { Gate(1.f); if (ATugs* G = Tg()) G->Crew[Ci].bUp = true; });
-		PoseAct(Ci, FuelPlatFn(Ti, true), 6.5f);
+		PoseAct(Ci, FuelPlatFn(Ti, true), 6.5f, true);
 		Do(Ci, [Gate, Hold2] { Gate(0.f); Hold2(false); });
 		Drive(true);
 		return;
@@ -337,7 +337,7 @@ void AGSE::FuelUpDown(int32 Ci, int32 Ti, bool bUp)
 	Do(Ci, [Gate] { Gate(1.f); });
 	Wait(Ci, 0.9f);
 	Do(Ci, [this, Ci] { if (ATugs* G = Tg()) G->Crew[Ci].Hold = nullptr; });
-	PoseAct(Ci, FuelPlatFn(Ti, false), 6.f);
+	PoseAct(Ci, FuelPlatFn(Ti, false), 6.f, true);
 	Do(Ci, [this, Ci, Gate] { Gate(0.f); if (ATugs* G = Tg()) G->Crew[Ci].bUp = false; });
 }
 

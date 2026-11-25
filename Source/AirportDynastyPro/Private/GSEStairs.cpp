@@ -250,7 +250,7 @@ bool AGSE::StairsBusy(float StandX, bool bLeaving, FString& Why) const
 {
 	for (const TPair<int32, FSvcJob>& P : SvcJobs)
 	{
-		const FSvcJob& J = P.Value; if (!PsSpec(J.Svc).bStairs || FMath::Abs(J.StandX - StandX) > 1.f || J.T > 2700.f) continue;
+		const FSvcJob& J = P.Value; if (!PsSpec(J.Svc).bStairs || FMath::Abs(J.StandX - StandX) > 1.f || J.T > 2700.f * J.Slow) continue;
 		// (yours: ready with the gates out at its door; before off blocks they have to be gone)
 		const int32 Yi = J.Phase == 0 ? StairsYou(J.StandX, J.CtDoor) : INDEX_NONE;
 		if (Yi != INDEX_NONE && bLeaving) { Why = TEXT("your passenger stairs still stand at its door"); return true; }
@@ -517,7 +517,7 @@ void AGSE::StairsHelper(int32 Job)
 	auto Walk = [this, Ci, Ti, F](bool bUp)
 	{
 		Do(Ci, [this, Ci, Ti, F] { StairsEnter(Ti, 1); if (ATugs* G = Tg()) G->Crew[Ci].bUp = true; F().bHelperUp = true; });
-		PoseAct(Ci, [this, Ti, bUp](float K, float PH, FDriverPose& P) { StairsPose(Ti, bUp, K, PH, P); }, StairsSeconds(Ti));
+		PoseAct(Ci, [this, Ti, bUp](float K, float PH, FDriverPose& P) { StairsPose(Ti, bUp, K, PH, P); }, StairsSeconds(Ti), true);
 		Do(Ci, [this, Ci, Ti, F, bUp] { StairsEnter(Ti, -1); if (!bUp) { if (ATugs* G = Tg()) G->Crew[Ci].bUp = false; F().bHelperUp = false; } });
 	};
 	if (bIsUp)

@@ -99,7 +99,7 @@ void AGSE::ArrBy(int32 Pc, int32 Ti, int32 h)
 		if (*Cur == INDEX_NONE)
 		{
 			if (h == 1) { Do(Pc, [this, Ti] { HelperDone.Add(Ti); }); GiveBack(Pc, StandX); return; }
-			WaitFor(Pc, [this, Ti](float E) { return !Helper.Contains(Ti) || HelperDone.Contains(Ti) || E > 120.f; });
+			WaitFor(Pc, [this, Ti](float E) { return !Helper.Contains(Ti) || HelperDone.Contains(Ti) || E > 120.f * (Tg() ? Tg()->Late() : 1.f); });
 			Do(Pc, [this, Ti] { Helper.Remove(Ti); for (const int32 c : Tractors[Ti].Train) for (int32 s = 0; s < Carts[c].Bags.Num(); ++s) SlotTaken.Remove(c * 100 + s); });
 			Curtains(Pc, Ti, false, nullptr);
 			ClimbIn(Pc, Ti, [this, Ti] { Motor(Tractors[Ti], true); ArrivalToStation(Ti); });

@@ -56,6 +56,7 @@ public:
 	struct FTaken { EStaffDuty Duty = EStaffDuty::TugDriver; FString Id; TWeakObjectPtr<AActor> A; };
 	/** How much longer a team's timed work takes (to-do 301; 1: nobody of it is a beginner). */
 	static float SlowOf(const UWorld* W, const TArray<FTaken>& Team);
+	static float SlowOf(const UWorld* W, const FString& StaffId);
 	/** The queue (part 2): asks for a task's smallest team, all of it or nobody - claimed and given in Out when it is this
 	 *  job's turn (the earliest departure first) and they are free; false: it waits (ask again every couple of seconds; a job
 	 *  not asked for 10 s is out of the queue). Near: where they are needed; What: "LX 123 pushback". */

@@ -246,7 +246,7 @@ bool AGSE::AmbuBusy(float StandX, bool bArr, FString& Why, bool bMayWait) const
 {
 	for (const TPair<int32, FSvcJob>& P : SvcJobs)
 	{
-		const FSvcJob& J = P.Value; if (!AmbuIs(J) || FMath::Abs(J.StandX - StandX) > 1.f || (J.CtDoor == 1) != bArr || J.Phase >= 3 || J.CtDone || J.T > 2700.f) continue;
+		const FSvcJob& J = P.Value; if (!AmbuIs(J) || FMath::Abs(J.StandX - StandX) > 1.f || (J.CtDoor == 1) != bArr || J.Phase >= 3 || J.CtDone || J.T > 2700.f * J.Slow) continue;
 		if (bMayWait && J.Phase < 2 && CaterAtFront(StandX)) continue;   // (the caterers were first: they stay seated until the truck is gone)
 		Why = J.Phase == 0 ? FString::Printf(TEXT("the ambulift waits: %s"), J.Why.IsEmpty() ? TEXT("its people are being called") : *J.Why) : J.Phase == 1 ? FString(CaterAtFront(StandX) ? TEXT("the ambulift waits for the catering truck") : TEXT("the ambulift is on its way")) : FString::Printf(TEXT("the passengers in wheelchairs %s by the ambulift (%d of %d)"), bArr ? TEXT("get off") : TEXT("board"), J.RowsDone, J.Rows);
 		return true;
@@ -323,7 +323,7 @@ void AGSE::AmbuStage(int32 Job)
 	case 0:
 		if (J->Men[1].bSeated) SvcAlight(Job, 1);
 		if (J->Men[0].bSeated) ClimbOut(C0, Ti, [this, Job] { if (FSvcMan* X = SvcM(Job, 0)) { X->bSeated = false; X->bOut = true; } });
-		WaitFor(C0, [this, Job](float E) { return E > 60.f || SvcAll(Job, [](const FSvcMan& X) { return X.bOut; }); });
+		WaitFor(C0, [this, Job](float E) { return E > 60.f * (Tg() ? Tg()->Late() : 1.f) || SvcAll(Job, [](const FSvcMan& X) { return X.bOut; }); });
 		End(C0, 1); break;
 	case 1: case 15:
 	{
@@ -518,7 +518,7 @@ void AGSE::AmbuSpin(int32 Ci, int32 Ti, int32 i)
 		const FVector D = FRotator(0.f, W.Yaw, 0.f).Vector(), Me = W.At - D * AwPush, Lt = ADPPose::LeftOf(D); P = ADPPose::Standing(Me, D, PH); const float Sw = FMath::Sin(K * PI * 10.f);
 		P.Foot[0] = Me + Lt * 10.f + AwUp * FMath::Max(0.f, Sw) * 5.f; P.Foot[1] = Me - Lt * 10.f + AwUp * FMath::Max(0.f, -Sw) * 5.f; const FTransform X = AmbuChairX(Ti, i);
 		P.bHand[0] = P.bHand[1] = true; P.Grip[0] = P.Grip[1] = 0.95f; P.Lean = 8.f; P.Hand[0] = X.TransformPosition(SvcP(T, TEXT("WC_IK_Push_L"))); P.Hand[1] = X.TransformPosition(SvcP(T, TEXT("WC_IK_Push_R")));
-	}, 5.f);
+	}, 5.f, true);
 }
 
 void AGSE::AmbuLost(int32 Job, int32 m)

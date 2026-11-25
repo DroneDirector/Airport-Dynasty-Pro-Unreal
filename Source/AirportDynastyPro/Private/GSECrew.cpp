@@ -45,7 +45,7 @@ namespace
 void AGSE::Do(int32 Ci, TFunction<void()> Fn) { if (ATugs* G = Tg()) { ATugs::FCrewAct A = GscAct(ATugs::FCrewAct::Do); A.Fn = MoveTemp(Fn); G->Crew[Ci].Q.Add(A); } }
 void AGSE::Wait(int32 Ci, float S) { if (ATugs* G = Tg()) { ATugs::FCrewAct A = GscAct(ATugs::FCrewAct::Wait); A.Dur = S; G->Crew[Ci].Q.Add(A); } }
 void AGSE::WaitFor(int32 Ci, TFunction<bool(float)> Until) { if (ATugs* G = Tg()) { ATugs::FCrewAct A = GscAct(ATugs::FCrewAct::WaitFor); A.Until = MoveTemp(Until); G->Crew[Ci].Q.Add(A); } }
-void AGSE::PoseAct(int32 Ci, TFunction<void(float, float, FDriverPose&)> Fn, float Dur) { if (ATugs* G = Tg()) { ATugs::FCrewAct A = GscAct(ATugs::FCrewAct::Pose); A.PoseFn = MoveTemp(Fn); A.Dur = Dur; G->Crew[Ci].Q.Add(A); } }
+void AGSE::PoseAct(int32 Ci, TFunction<void(float, float, FDriverPose&)> Fn, float Dur, bool bMove) { if (ATugs* G = Tg()) { ATugs::FCrewAct A = GscAct(ATugs::FCrewAct::Pose); A.PoseFn = MoveTemp(Fn); A.Dur = Dur; A.bMove = bMove; G->Crew[Ci].Q.Add(A); } }
 void AGSE::Hold(int32 Ci, TFunction<void(float, float, FDriverPose&)> Fn) { Do(Ci, [this, Ci, Fn] { if (ATugs* G = Tg()) G->Crew[Ci].Hold = Fn; }); }
 
 void AGSE::RetryIn(int32 Ti, float Seconds, TFunction<void()> Fn)
@@ -225,7 +225,7 @@ void AGSE::ClimbIn(int32 Ci, int32 Ti, TFunction<void()> Then)
 		PoseAct(Ci, SvcHandFn(Ti, 0), 1.0f);
 		Do(Ci, [this, Ti] { SvcSeatDoor(Ti, 0, true); });
 		Wait(Ci, 4.2f);
-		PoseAct(Ci, BusClimbFn(Ti, true), SvcClimbTime(Ti, 0, true));
+		PoseAct(Ci, BusClimbFn(Ti, true), SvcClimbTime(Ti, 0, true), true);
 		Do(Ci, [this, Ci, Ti] { if (ATugs* G = Tg()) G->Crew[Ci].Hold = SeatFn(Ti); Tractors[Ti].DoorWant = 0.f; SvcSeatDoor(Ti, 0, false); });
 		Wait(Ci, 1.0f);
 		if (Then) Do(Ci, MoveTemp(Then));
@@ -237,7 +237,7 @@ void AGSE::ClimbIn(int32 Ci, int32 Ti, TFunction<void()> Then)
 	PoseAct(Ci, [this, Ti](float K, float PH, FDriverPose& P) { const FTractor& T = Tractors[Ti]; P = ADPPose::Reach(TW(T, T.KStand), FRotator(0.f, T.Yaw + 90.f, 0.f).Vector(), 1, TW(T, T.KHandle), 0.7f, PH, FMath::Sin(PI * K)); }, 1.0f);
 	Do(Ci, [this, Ti] { FTractor& T = Tractors[Ti]; T.DoorWant = Tractors[Ti].KDoorDeg; Sound(*T.SndDoorOpen, TW(T, T.KHandle + FVector(0.f, 0.f, 20.f))); });
 	Wait(Ci, 0.6f);
-	PoseAct(Ci, ClimbFn(Ti, true), IsTall(Tractors[Ti]) ? 4.6f : 3.2f);
+	PoseAct(Ci, ClimbFn(Ti, true), IsTall(Tractors[Ti]) ? 4.6f : 3.2f, true);
 	Do(Ci, [this, Ci, Ti] { if (ATugs* G = Tg()) G->Crew[Ci].Hold = SeatFn(Ti); Tractors[Ti].DoorWant = 0.f; });
 	Wait(Ci, 1.0f);
 	if (Then) Do(Ci, MoveTemp(Then));
@@ -250,7 +250,7 @@ void AGSE::ClimbOut(int32 Ci, int32 Ti, TFunction<void()> Then)
 		Do(Ci, [this, Ti] { SvcSeatDoor(Ti, 0, true); });
 		Wait(Ci, 4.2f);
 		Do(Ci, [this, Ci] { if (ATugs* G = Tg()) G->Crew[Ci].Hold = nullptr; });
-		PoseAct(Ci, BusClimbFn(Ti, false), SvcClimbTime(Ti, 0, false));
+		PoseAct(Ci, BusClimbFn(Ti, false), SvcClimbTime(Ti, 0, false), true);
 		Do(Ci, [this, Ci] { SeatLeft(Ci); });
 		PoseAct(Ci, SvcHandFn(Ti, 0), 1.0f);
 		Do(Ci, [this, Ti] { Tractors[Ti].DoorWant = 0.f; SvcSeatDoor(Ti, 0, false); });
@@ -260,7 +260,7 @@ void AGSE::ClimbOut(int32 Ci, int32 Ti, TFunction<void()> Then)
 	Do(Ci, [this, Ti] { FTractor& T = Tractors[Ti]; T.DoorWant = Tractors[Ti].KDoorDeg; Sound(*T.SndDoorOpen, TW(T, T.KHandle + FVector(0.f, 0.f, 20.f))); });
 	Wait(Ci, 0.7f);
 	Do(Ci, [this, Ci] { if (ATugs* G = Tg()) G->Crew[Ci].Hold = nullptr; });
-	PoseAct(Ci, ClimbFn(Ti, false), IsTall(Tractors[Ti]) ? 4.2f : 2.8f);
+	PoseAct(Ci, ClimbFn(Ti, false), IsTall(Tractors[Ti]) ? 4.2f : 2.8f, true);
 	Do(Ci, [this, Ci] { SeatLeft(Ci); });
 	// down: the door pushed shut behind
 	PoseAct(Ci, [this, Ti](float K, float PH, FDriverPose& P) { FTractor& T = Tractors[Ti]; P = ADPPose::Reach(TW(T, T.KStand), FRotator(0.f, T.Yaw + 90.f, 0.f).Vector(), 1, TW(T, T.KHandle + FVector(-5.f, -4.5f, 18.f)), 0.3f, PH, FMath::Sin(PI * K)); if (K > 0.4f) T.DoorWant = 0.f; }, 0.9f);

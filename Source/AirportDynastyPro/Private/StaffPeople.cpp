@@ -264,6 +264,13 @@ int32 UStaffPeople::NumFaces(bool bWoman)
 	return N;
 }
 
+float UStaffPeople::SlowOf(const UWorld* W, const FString& StaffId)
+{
+	UADPSim* Sim = StaffId.IsEmpty() ? nullptr : UADPSim::Get(W);
+	const FADPPerson* P = Sim && Sim->IsRunning() ? SpRec(Sim->World, StaffId) : nullptr;
+	return P ? float(ADPCrew::SlowOf(*P)) : 1.f;
+}
+
 float UStaffPeople::SlowOf(const UWorld* W, const TArray<FTaken>& Team)
 {
 	UADPSim* Sim = UADPSim::Get(W);

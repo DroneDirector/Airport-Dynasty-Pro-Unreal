@@ -465,8 +465,8 @@ bool AGSE::SvcBusy(const TCHAR* Task, float StandX) const
 	{
 		const FSvcJob& J = P.Value;
 		// (the catering's two tasks are one job: the front door's until that is done, the rear one's after it)
-		if (SvSpec(J.Svc).bCater) { const int32 Bit = FCString::Strcmp(Task, TEXT("cat1")) == 0 ? 1 : FCString::Strcmp(Task, TEXT("cat2")) == 0 ? 2 : 0; if (Bit && FMath::Abs(J.StandX - StandX) < 1.f && J.Phase < 3 && J.T <= SvPatience && !(J.CtDone & Bit)) return true; continue; }
-		if (FMath::Abs(J.StandX - StandX) > 1.f || !SvIs(J.Svc, Task) || J.Phase >= 3 || J.T > SvPatience) continue;
+		if (SvSpec(J.Svc).bCater) { const int32 Bit = FCString::Strcmp(Task, TEXT("cat1")) == 0 ? 1 : FCString::Strcmp(Task, TEXT("cat2")) == 0 ? 2 : 0; if (Bit && FMath::Abs(J.StandX - StandX) < 1.f && J.Phase < 3 && J.T <= SvPatience * J.Slow && !(J.CtDone & Bit)) return true; continue; }
+		if (FMath::Abs(J.StandX - StandX) > 1.f || !SvIs(J.Svc, Task) || J.Phase >= 3 || J.T > SvPatience * J.Slow) continue;
 		for (const FSvcMan& M : J.Men) if (!M.bGone && !M.bDown) return true;
 	}
 	return false;
@@ -480,7 +480,7 @@ bool AGSE::SvcWaits(const FString& Flight, float StandX, FString& Why) const
 	for (const TPair<int32, FSvcJob>& P : SvcJobs)
 	{
 		const FSvcJob& J = P.Value; const FServiceSpec& S = SvSpec(J.Svc);
-		if ((J.Flight != Flight && FMath::Abs(J.StandX - StandX) > 1.f) || J.T > (S.bDeicer ? 3.f : 1.f) * SvPatience) continue;
+		if ((J.Flight != Flight && FMath::Abs(J.StandX - StandX) > 1.f) || J.T > (S.bDeicer ? 3.f : 1.f) * SvPatience * J.Slow) continue;
 		if (S.bAmbu)
 		{
 			if (AmbuBusy(J.StandX, J.CtDoor == 1, Why)) return true;
@@ -717,7 +717,7 @@ bool AGSE::TaxiBoard(AActor* A, const FString& Who, const FString& Name)
 	// (a sliding door: it opens by itself)
 	Do(Ci, [this, Ti] { FTractor& V = Tractors[Ti]; if (V.SvcDoors[0].Want < 0.5f && !V.SndDoorOpen.IsEmpty()) Sound(*V.SndDoorOpen, TW(V, V.SvcDoors[0].Piv)); V.SvcDoors[0].Want = 1.f; });
 	WaitFor(Ci, [this, Ti](float E) { return E > 5.f || Tractors[Ti].SvcDoors[0].Now > 0.99f; });
-	PoseAct(Ci, SvcClimbFn(Ti, Seat, true), 5.f);
+	PoseAct(Ci, SvcClimbFn(Ti, Seat, true), 5.f, true);
 	Do(Ci, [this, Ci, Ti, Seat]
 	{
 		if (ATugs* H = Tg()) H->Crew[Ci].Hold = SvcSeatFn(Ti, Seat);
@@ -837,7 +837,7 @@ void AGSE::SvcTick(float Dt)
 		}
 	 if (J.Phase > 0 && !(SvSpec(J.Svc).bAmbu && J.Phase == 1 && CaterAtFront(J.StandX))) J.T += Dt;   // (the ambulift waiting for the caterers at the same door: not its time)
 	
-		if (Was <= SvPatience && J.T > SvPatience) ADP_WARN(TEXT("GSE: the %s at stand x %.0f has been at %s for 45 min - the flight no longer waits for it"), SvSpec(J.Svc).Label, J.StandX, *J.Reg);
+		if (Was <= SvPatience * J.Slow && J.T > SvPatience * J.Slow) ADP_WARN(TEXT("GSE: the %s at stand x %.0f has been at %s for 45 min - the flight no longer waits for it"), SvSpec(J.Svc).Label, J.StandX, *J.Reg);
 		FuelTick(J, Dt); WetTick(J, Dt); if (SvSpec(J.Svc).bStairs) StairsTick(J, Dt);
 		if (SvSpec(J.Svc).bDeicer) DeicerTick(P.Key, Dt);
 		if (SvSpec(J.Svc).bCater || SvSpec(J.Svc).Wet || SvSpec(J.Svc).bStairs || SvSpec(J.Svc).bDeicer || SvSpec(J.Svc).bAmbu) continue;
@@ -1037,7 +1037,7 @@ void AGSE::SvcBoard(int32 Job, int32 m)
 	ClaimSeat(Ci, Ti, m); Do(Ci, [this, Ci] { SeatTaken(Ci); });
 	Do(Ci, [this, Ti] { Tractors[Ti].SvcDoors[0].Want = 1.f; });
 	WaitFor(Ci, [this, Ti](float E) { return E > 5.f || Tractors[Ti].SvcDoors[0].Now > 0.99f; });
-	PoseAct(Ci, SvcClimbFn(Ti, m, true), 5.f);
+	PoseAct(Ci, SvcClimbFn(Ti, m, true), 5.f, true);
 	Do(Ci, [this, Job, m, Ci, Ti]
 	{
 		if (ATugs* G = Tg()) G->Crew[Ci].Hold = SvcSeatFn(Ti, m);
@@ -1056,7 +1056,7 @@ void AGSE::SvcAlight(int32 Job, int32 m)
 	Do(Ci, [this, Ti] { FTractor& T = Tractors[Ti]; if (T.SvcDoors[0].Want < 0.5f) Sound(*T.SndDoorOpen, TW(T, T.SvcDoors[0].Piv)); T.SvcDoors[0].Want = 1.f; });
 	WaitFor(Ci, [this, Ti](float E) { return E > 4.f || Tractors[Ti].SvcDoors[0].Now > 0.99f; });
 	Do(Ci, [this, Ci] { if (ATugs* G = Tg()) G->Crew[Ci].Hold = nullptr; });
-	PoseAct(Ci, SvcClimbFn(Ti, m, false), 4.4f);
+	PoseAct(Ci, SvcClimbFn(Ti, m, false), 4.4f, true);
 	Do(Ci, [this, Ci] { SeatLeft(Ci); });
 	WalkTo(Ci, [this, Ti, Off, m] { return TW(Tractors[Ti], Off + FVector(70.f * m, Off.Y >= 0.f ? 70.f : -70.f, 0.f)); }, 30.f);
 	Do(Ci, [this, Job, m] { if (FSvcMan* X = SvcM(Job, m)) { X->bSeated = false; X->bOut = true; } });
@@ -1200,9 +1200,9 @@ void AGSE::SvcReach(int32 Ci, int32 Ti, int32 It, TFunction<void()> Pass)
 	const FServiceItem K = SvSpec(Tractors[Ti].Svc).Items[It]; const FVector At = K.Stand, Rear(-375.f, 0.f, 0.f);
 	const TFunction<void(float, float, FDriverPose&)> Hand = SvcHandFn(Ti, At, Tractors[Ti].SvcItems[It].Piv);
 	WalkTo(Ci, [this, Ti, At, Rear, bDeep = K.bDeep] { return TW(Tractors[Ti], bDeep ? Rear : At); }, 12.f);
-	if (K.bDeep) { WaitFor(Ci, [this, Ti](float E) { return E > 30.f || !CleanYouIn(Tractors[Ti]); }); PoseAct(Ci, SvcDeepFn(Ti, At, true), 4.f); }
+	if (K.bDeep) { WaitFor(Ci, [this, Ti](float E) { return E > 30.f || !CleanYouIn(Tractors[Ti]); }); PoseAct(Ci, SvcDeepFn(Ti, At, true), 4.f, true); }
 	PoseAct(Ci, [Hand](float K2, float PH, FDriverPose& P) { Hand(K2 * 0.5f, PH, P); }, 0.9f); Do(Ci, MoveTemp(Pass)); PoseAct(Ci, [Hand](float K2, float PH, FDriverPose& P) { Hand(0.5f + K2 * 0.5f, PH, P); }, 0.8f);
-	if (K.bDeep) PoseAct(Ci, SvcDeepFn(Ti, At, false), 4.f);
+	if (K.bDeep) PoseAct(Ci, SvcDeepFn(Ti, At, false), 4.f, true);
 }
 
 void AGSE::SvcTake(int32 Job, int32 m, bool bTake)
@@ -1258,7 +1258,7 @@ void AGSE::SvcUp(int32 Job, int32 m, bool bUp)
 			P = FDriverPose(); P.Facing = Face; P.Foot[0] = Ft[0]; P.Foot[1] = Ft[1]; P.Lean = bUpward ? 9.f : 2.f;
 			const FVector Mid = FMath::Lerp(At(i), At(i + 1), F); P.Pelvis = FVector(Mid.X, Mid.Y, FMath::Min(Ft[0].Z, Ft[1].Z) + PH + 4.f);
 			P.bHand[0] = true; P.Hand[0] = Mid + Lt * Hw + Face * 18.f + SvUp * 92.f; P.Grip[0] = 0.7f;   // (the right one carries)
-		}, Ns * 0.62f);
+		}, Ns * 0.62f, true);
 	};
 	// (one way at a time on it)
 	auto Enter = [this, Ci, Jet](int8 Dir) { WaitFor(Ci, [this, Jet, Dir](float) { TPair<int8, int32>& U = SvcStairUse.FindOrAdd(Jet, TPair<int8, int32>(0, 0)); if (U.Value > 0 && U.Key != Dir) return false; U.Key = Dir; ++U.Value; return true; }); };

@@ -244,7 +244,7 @@ void AGSE::HoldUp(int32 Li)
 		WalkTo(Top, [this, Li] { return TW(Tractors[Li], FVector(-425.f, 0.f, 0.f)); }, 15.f);
 		// (never past you on the belt)
 		WaitFor(Top, [this, Li](float) { const FTractor& T = Tractors[Li]; return T.bLOver || (T.bBelt && !T.YouOn); });
-		PoseAct(Top, BeltClimb(Li, true), 3.f);
+		PoseAct(Top, BeltClimb(Li, true), 3.f, true);
 		PoseAct(Top, [this, Li](float K, float PH, FDriverPose& P)
 		{
 			// (walked up the moving belt, a hand on the rail, step by step - the belt line from its bottom to its top)
@@ -254,7 +254,7 @@ void AGSE::HoldUp(int32 Li)
 			P = ADPPose::Standing(At, Fw, PH); P.Lean = 8.f;
 			P.Foot[0] = At + L2 * 12.f + Fw * Step; P.Foot[1] = At - L2 * 12.f - Fw * Step;
 			P.bHand[0] = true; P.Hand[0] = At + L2 * 36.f + FVector(0, 0, 95.f); P.Grip[0] = 1.f;
-		}, 9.f);
+		}, 9.f, true);
 		// at the top, in the door: taking each bag off the belt and stowing it (the bag models come next)
 		Do(Top, [this, Top, Li]
 		{
@@ -300,8 +300,8 @@ void AGSE::HoldUp(int32 Li)
 			P = ADPPose::Standing(At, -Fw, PH); P.Lean = -4.f;
 			P.Foot[0] = At + L2 * 12.f - Fw * Step; P.Foot[1] = At - L2 * 12.f + Fw * Step;
 			P.bHand[0] = true; P.Hand[0] = At + L2 * 36.f + FVector(0, 0, 95.f); P.Grip[0] = 1.f;
-		}, 8.f);
-		PoseAct(Top, BeltClimb(Li, false), 3.f);
+		}, 8.f, true);
+		PoseAct(Top, BeltClimb(Li, false), 3.f, true);
 		WalkTo(Top, [this, Li] { return TW(Tractors[Li], GslStandLoad + FVector(-90.f, -60.f, 0.f)); }, 20.f);
 		Do(Top, [this, Li] { Tractors[Li].TopCrew = INDEX_NONE; ADP_LOG(TEXT("GSE: the hold loader is down from the hold")); });
 		GiveBack(Top, Tractors[Li].StandX);

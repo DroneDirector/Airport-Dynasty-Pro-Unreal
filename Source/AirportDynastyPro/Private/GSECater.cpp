@@ -341,7 +341,7 @@ void AGSE::CaterWalk(int32 Ci, int32 Ti, TArray<FVector2D> Pts, FVector2D EndFac
 	{
 		const FTractor& T = Tractors[Ti]; const float S = K * L; const FVector F = FMath::Lerp(CtDirW(T, CtTangent(Pts, S)), CtDirW(T, EndFace), FMath::SmoothStep(0.75f, 1.f, K)).GetSafeNormal2D();
 		P = CtWalk(T, Pts, S, F.IsNearlyZero() ? CtDirW(T, EndFace) : F, PH);
-	}, FMath::Max(0.6f, L / 95.f));
+	}, FMath::Max(0.6f, L / 95.f), true);
 	Do(Ci, [this, Ci, Ti, End, EndFace] { CaterHold(Ci, Ti, End, EndFace); });
 }
 
@@ -429,7 +429,7 @@ void AGSE::CaterTrip(int32 Job, int32 Ci, int32 Ti, int32 W, int32 In, int32 Out
 			T.Ct->MovAt = FVector(C.X, C.Y, 0.5f * (CtFloorZ(float(C.X) - 30.f) + CtFloorZ(float(C.X) + 30.f)) + T.Ct->Lift);
 			const TArray<FVector2D> Pt = {B0, B1}; const FVector2D B = FMath::Lerp(B0, B1, E); FVector2D Fd = C - B; Fd.Normalize();
 			P = CtWalk(T, Pt, E * CtLen(Pt), CtDirW(T, Fd), PH); CtHands(T, P, float(Dir));
-		}, Secs);
+		}, Secs, true);
 	};
 	if (In >= 0)
 	{
@@ -615,7 +615,7 @@ void AGSE::CaterStage(int32 Job)
 	case 0:   // out of the cab, both
 		if (bTwo && J->Men[1].bSeated) SvcAlight(Job, 1);
 		if (J->Men[0].bSeated) ClimbOut(C0, Ti, [this, Job] { if (FSvcMan* X = SvcM(Job, 0)) { X->bSeated = false; X->bOut = true; } });
-		WaitFor(C0, [this, Job](float E) { return E > 60.f || SvcAll(Job, [](const FSvcMan& X) { return X.bOut; }); });
+		WaitFor(C0, [this, Job](float E) { return E > 60.f * (Tg() ? Tg()->Late() : 1.f) || SvcAll(Job, [](const FSvcMan& X) { return X.bOut; }); });
 		End(C0, 1); break;
 	case 1: case 15:   // the four legs, down or up
 	{
@@ -636,7 +636,7 @@ void AGSE::CaterStage(int32 Job)
 		WalkTo(Ci, [this, Ti] { return TW(Tractors[Ti], FVector(160.f, -215.f, 0.f)); }, 25.f);
 		if (Tractors[Ti].SvcDoors.Num() > 1 && Tractors[Ti].SvcDoors[1].Want < 0.5f) SvcDoor(Ci, Ti, 1, true);
 		WalkTo(Ci, [this, Ti] { return TW(Tractors[Ti], FVector(187.f, -166.f, 0.f)); }, 10.f);
-		Level(Ci, true); PoseAct(Ci, CaterClimbFn(Ti, true), 5.2f); Do(Ci, [this, Ci, Ti, Entry] { CaterHold(Ci, Ti, Entry, FVector2D(0.0, 1.0)); });
+		Level(Ci, true); PoseAct(Ci, CaterClimbFn(Ti, true), 5.2f, true); Do(Ci, [this, Ci, Ti, Entry] { CaterHold(Ci, Ti, Entry, FVector2D(0.0, 1.0)); });
 		if (St == 3) CaterBoxDoor(Ci, Ti, false);
 		CaterWalk(Ci, Ti, {Entry, FVector2D(150.0, -30.0), CtW[Wi]}, Fore);
 		End(Ci, St + 1); break;
@@ -680,7 +680,7 @@ void AGSE::CaterStage(int32 Job)
 		const int32 Ci = St == 13 ? C0 : C1, Wi = St == 13 ? 0 : H;
 		CaterWalk(Ci, Ti, {CtW[Wi], FVector2D(150.0, -30.0), Entry}, FVector2D(0.0, 1.0));
 		if (St == 13) CaterBoxDoor(Ci, Ti, true);
-		PoseAct(Ci, CaterClimbFn(Ti, false), 5.2f); Level(Ci, false);
+		PoseAct(Ci, CaterClimbFn(Ti, false), 5.2f, true); Level(Ci, false);
 		WalkTo(Ci, [this, Ti] { return TW(Tractors[Ti], FVector(120.f, -235.f, 0.f)); }, 25.f);
 		if (St == 14) SvcDoor(Ci, Ti, 1, false);
 		End(Ci, St + 1); break;
@@ -705,7 +705,7 @@ void AGSE::CaterMove(int32 Job)
 {
 	FSvcJob* J = SvcJ(Job); if (!J) return;
 	const int32 Ti = J->Ti; J->Why = WetAt(J->StandX, true, Ti) ? TEXT("the toilet truck is at the tail") : TEXT("the baggage train or the belt loader is at the rear door");
-	const double Until = GetWorld()->GetTimeSeconds() + CtRearPatience;
+	const double Until = GetWorld()->GetTimeSeconds() + CtRearPatience * (Tg() ? Tg()->Late() : 1.f);
 	auto Free = [this, Ti, X = J->StandX] { return CaterRearFree(X) && !WetAt(X, true, Ti) && !SvcSideBusy(Ti, X); };
 	Tractors[Ti].Until = [this, Free, Until] { return GetWorld()->GetTimeSeconds() > Until || Free(); };
 	Tractors[Ti].AfterUntil = [this, Job, Ti, Free]

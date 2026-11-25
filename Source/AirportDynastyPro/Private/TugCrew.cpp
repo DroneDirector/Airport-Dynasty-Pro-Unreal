@@ -302,8 +302,8 @@ void ATugs::StepCrew(FCrew& C, float Dt)
 			C.FidgetDur = 0.f; Unpose(C); bDone = CrewWalk(C, Ac.To(), Dt, Ac.Stop, Ac.Max);
 			if (bDone) { C.Anchor = Ac.To(); C.AnchorYaw = A->GetActorRotation().Yaw + 90.f; C.IdleOff = FVector::ZeroVector; C.IdleYawOff = 0.f; }
 			break;
-		case FCrewAct::Pose: C.FidgetDur = 0.f; ApplyPose(C, Ac.PoseFn, Ac.Dur > 0.f ? C.T / Ac.Dur : 1.f); bDone = C.T >= Ac.Dur; break;
-		case FCrewAct::Wait: if (C.Hold) ApplyPose(C, C.Hold, 1.f); else IdleTick(C, Dt, false, Ac.Dur - C.T); bDone = C.T >= Ac.Dur; break;
+		case FCrewAct::Pose: C.FidgetDur = 0.f; ApplyPose(C, Ac.PoseFn, Ac.Dur <= 0.f ? 1.f : C.Slow > 1.f ? FMath::Min(1.f, C.T / Ac.Dur) : C.T / Ac.Dur); bDone = C.T >= Ac.Dur * (Ac.bMove ? 1.f : C.Slow); break;   // (a beginner: the same movement, then held a moment - to-do 301)
+		case FCrewAct::Wait: if (C.Hold) ApplyPose(C, C.Hold, 1.f); else IdleTick(C, Dt, false, Ac.Dur * C.Slow - C.T); bDone = C.T >= Ac.Dur * C.Slow; break;
 		case FCrewAct::WaitFor: if (C.Hold) ApplyPose(C, C.Hold, 1.f); else IdleTick(C, Dt, true); bDone = Ac.Until(C.T); break;
 		case FCrewAct::Do: { const TFunction<void()> Fn = MoveTemp(Ac.Fn); if (Fn) Fn(); bDone = true; break; }   // (what it does may put acts in behind it: the queue moves)
 		}
@@ -400,7 +400,7 @@ void ATugs::ClimbIn(FCrew& C, int32 Tug, TFunction<void()> Then)
 	C.Q.Add(R);
 	FCrewAct O; O.Kind = FCrewAct::Do; O.Fn = [this, Tug] { FTug& T = Tugs[Tug]; T.DoorWant = 72.f; Sound(TEXT("TugDoorOpen"), TugW(T, HingeAt + FVector(-40.f, 0.f, 120.f))); }; C.Q.Add(O);
 	FCrewAct Wt; Wt.Kind = FCrewAct::Wait; Wt.Dur = 0.6f; C.Q.Add(Wt);
-	FCrewAct Cl; Cl.Kind = FCrewAct::Pose; Cl.Dur = 3.4f; Cl.PoseFn = ClimbFn(Tug, true); C.Q.Add(Cl);
+	FCrewAct Cl; Cl.Kind = FCrewAct::Pose; Cl.Dur = 3.4f; Cl.bMove = true; Cl.PoseFn = ClimbFn(Tug, true); C.Q.Add(Cl);
 	FCrewAct S; S.Kind = FCrewAct::Do; S.Fn = [this, &C, Tug] { C.Hold = SeatFn(Tug); Tugs[Tug].DoorWant = 0.f; }; C.Q.Add(S);
 	FCrewAct W2; W2.Kind = FCrewAct::Wait; W2.Dur = 1.2f; C.Q.Add(W2);
 	if (Then) { FCrewAct D; D.Kind = FCrewAct::Do; D.Fn = MoveTemp(Then); C.Q.Add(D); }
@@ -411,7 +411,7 @@ void ATugs::ClimbOut(FCrew& C, int32 Tug)
 	FCrewAct O; O.Kind = FCrewAct::Do; O.Fn = [this, Tug] { FTug& T = Tugs[Tug]; T.DoorWant = 72.f; Sound(TEXT("TugDoorOpen"), TugW(T, HingeAt + FVector(-40.f, 0.f, 120.f))); }; C.Q.Add(O);
 	FCrewAct Wt; Wt.Kind = FCrewAct::Wait; Wt.Dur = 0.8f; C.Q.Add(Wt);
 	FCrewAct H; H.Kind = FCrewAct::Do; H.Fn = [&C] { C.Hold = nullptr; }; C.Q.Add(H);
-	FCrewAct Cl; Cl.Kind = FCrewAct::Pose; Cl.Dur = 3.0f; Cl.PoseFn = ClimbFn(Tug, false); C.Q.Add(Cl);
+	FCrewAct Cl; Cl.Kind = FCrewAct::Pose; Cl.Dur = 3.0f; Cl.bMove = true; Cl.PoseFn = ClimbFn(Tug, false); C.Q.Add(Cl);
 	FCrewAct L; L.Kind = FCrewAct::Do; L.Fn = [&C] { ASeats::ReleaseCab(C.A.Get()); }; C.Q.Add(L);
 	// down on the ground: the door pushed shut behind
 	FCrewAct R; R.Kind = FCrewAct::Pose; R.Dur = 0.9f;

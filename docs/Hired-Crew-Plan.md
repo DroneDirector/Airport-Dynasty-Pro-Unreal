@@ -781,5 +781,8 @@ Own people count first; beginners too many leave at midnight. A beginner let go 
 nobody at all is left. One notice ever; the staff list's rank reads "beginner (hired by the airport)".
 Slower (25-35 %, by rating: `SlowOf`, `SlowTeam`): the simulated turn-round, aircraft checks, vehicle repairs, check-in desks, security
 lanes, and in 3D fuelling, water and toilet service, cabin cleaning. Conduct reports a little more often. `FindFree` takes own people first.
-Not slowed in 3D: catering, bags, chocks, tugs, de-icing, buses (their time is walking and driving).
+Every other ramp job in 3D too: one place, `ATugs::StepCrew` with `FCrew::Slow` (set in `Enlist`): waits last longer and each thing done by hand
+is held a moment at its end; walking, climbing, pushing (`bMove`) and driving keep their pace. The belt loader's hold man and the de-icer's jet alike
+(less fluid a second, so the tanks last). Job time limits grow with it (`FSvcJob::Slow`, `ATugs::Late`). The gate and the bus doors have no timed step.
+Called in up to `OnShift` (40 % of a job) stays as it was: the simulation plans flights by that number, both would have to change.
 The shifts share the 30 built faces; a shift never has more of a sex than there are faces.

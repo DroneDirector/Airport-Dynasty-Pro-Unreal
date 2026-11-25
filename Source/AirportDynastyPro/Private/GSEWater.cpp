@@ -315,7 +315,7 @@ void AGSE::WetWork(int32 Job)
 			const FDriverPose S = ADPPose::Standing(On(A), Dir(YawA), PH), E = ADPPose::Standing(On(B), Dir(YawB), PH);
 			P = ADPPose::Lerp(S, E, FMath::SmoothStep(0.f, 1.f, K));
 			for (int32 f = 0; f < 2; ++f) { const float U = FMath::Clamp(K * 2.f - f, 0.f, 1.f); P.Foot[f] = FMath::Lerp(S.Foot[f], E.Foot[f], FMath::SmoothStep(0.f, 1.f, U)) + WaUp * (7.f * FMath::Sin(PI * U)); }
-		}, FMath::Max(0.8f, float(FVector::Dist2D(A, B)) / 55.f));
+		}, FMath::Max(0.8f, float(FVector::Dist2D(A, B)) / 55.f), true);
 		Stay(B, YawB);
 	};
 	auto Next = [this, Job, Ci](int32 n) { Do(Ci, [this, Job, n] { if (FSvcJob* X = SvcJ(Job)) X->Stage = n; Later([this, Job] { WetWork(Job); }); }); Wait(Ci, 0.4f); };
@@ -328,14 +328,14 @@ void AGSE::WetWork(int32 Job)
 		{
 			At(Pt(TEXT("IK_Stand_Steps")), 12.f);
 			Do(Ci, [this, Ci, Wt] { Wt().GateWant = 1.f; if (ATugs* G = Tg()) G->Crew[Ci].bUp = true; });
-			PoseAct(Ci, WetClimbFn(Ti, true), bT ? 3.8f : 4.8f); Stay(PIn, 90.f);
+			PoseAct(Ci, WetClimbFn(Ti, true), bT ? 3.8f : 4.8f, true); Stay(PIn, 90.f);
 			Hand(PIn, 1, GO, 1.2f, [Wt] { Wt().GateWant = 0.f; }, false, true, true);
 			return;
 		}
 		Step(Wk, WkYaw, PIn, 90.f);
 		Hand(PIn, 1, GH, 1.2f, [Wt] { Wt().GateWant = 1.f; }, false, true, true);
 		Wait(Ci, 0.7f); Free();
-		PoseAct(Ci, WetClimbFn(Ti, false), bT ? 3.6f : 4.6f);
+		PoseAct(Ci, WetClimbFn(Ti, false), bT ? 3.6f : 4.6f, true);
 		Do(Ci, [this, Ci, Wt] { Wt().GateWant = 0.f; if (ATugs* G = Tg()) G->Crew[Ci].bUp = false; });
 	};
 	auto Upon = [&](const FVector& L, float Yaw) { if (bIsUp) return; Up(true); Step(PIn, 90.f, L, Yaw); };   // (a stage on the platform: whoever took over comes up first)

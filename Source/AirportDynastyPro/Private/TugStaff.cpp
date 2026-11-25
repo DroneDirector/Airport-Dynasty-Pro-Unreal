@@ -47,7 +47,7 @@ int32 ATugs::Enlist(AActor* A, const FString& StaffId, const FString& Label)
 	UStaffPeople* Sp = UStaffPeople::Get(GetWorld());
 	if (Ci == INDEX_NONE || !A) { if (Sp) Sp->Release(StaffId); ADP_WARN(TEXT("Tugs: no place for one more %s"), *Label); return INDEX_NONE; }
 	FCrew& C = Crew[Ci]; C = FCrew();
-	C.A = A; C.bHired = true; C.StaffId = StaffId; C.Name = Sp ? Sp->NameOf(StaffId) : StaffId;
+	C.A = A; C.bHired = true; C.StaffId = StaffId; C.Slow = UStaffPeople::SlowOf(GetWorld(), StaffId); C.Name = Sp ? Sp->NameOf(StaffId) : StaffId;
 	C.Spot = C.Anchor = A->GetActorLocation(); C.AnchorYaw = C.SpotYaw = A->GetActorRotation().Yaw + 90.f; C.IdleT = FMath::FRandRange(2.f, 9.f);
 	return Ci;
 }
@@ -260,7 +260,7 @@ void ATugs::LostTick(int32 Ci, float Dt)
 	TArray<UStaffPeople::FTaken> Team;
 	if (!Sp->AskTeam(FString::Printf(TEXT("relief:%d"), Ci), !Lr.IsEmpty() ? UStaffPeople::ReliefOf(Lr) : C.bRelWet ? EStaffTask::Water : C.bRelCater ? EStaffTask::CaterRelief : C.bRelFuel ? EStaffTask::Fuel : C.bRelClean ? EStaffTask::CleanRelief : EStaffTask::Relief, FDateTime(2000, 1, 1), C.LastAt, FString::Printf(TEXT("taking over from %s"), *C.Name), Team) || !Team.Num() || !Team[0].A.IsValid()) return;
 	const FString Was = C.Name;
-	C.A = Team[0].A; C.StaffId = Team[0].Id; C.Name = Sp->NameOf(C.StaffId); C.bLost = false; C.bRelief = true; C.T = 0.f; C.BlockT = C.StuckT = C.SideT = 0.f;
+	C.A = Team[0].A; C.StaffId = Team[0].Id; C.Slow = UStaffPeople::SlowOf(GetWorld(), C.StaffId); C.Name = Sp->NameOf(C.StaffId); C.bLost = false; C.bRelief = true; C.T = 0.f; C.BlockT = C.StuckT = C.SideT = 0.f;
 	C.Spot = C.Anchor = C.A->GetActorLocation();
 	ADP_LOG(TEXT("Tugs: %s takes over from %s (%s)"), *C.Name, *Was, Job);
 	TArray<FCrewAct> Old = MoveTemp(C.Q); C.Q.Reset();

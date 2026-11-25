@@ -108,7 +108,7 @@ public:
 	{
 		enum EKind : uint8 { Walk, Pose, Wait, WaitFor, Do } Kind = Wait;
 		TFunction<FVector()> To; float Stop = 25.f, Max = 150.f;
-		float Dur = 0.f; FPoseFn PoseFn;
+		float Dur = 0.f; FPoseFn PoseFn; bool bMove = false;   // (bMove: walking, climbing, pushing along - never slower for a beginner: to-do 301)
 		TFunction<bool(float Elapsed)> Until;
 		TFunction<void()> Fn;
 	};
@@ -118,7 +118,7 @@ private:
 		TWeakObjectPtr<AActor> A; FString Name; int32 Tug = INDEX_NONE; bool bDriver = false;
 		FVector Spot = FVector::ZeroVector; float SpotYaw = 0.f;
 		FTruckDriverRig* Rig = nullptr; UPoseableMeshComponent* Rider = nullptr; UDriverPoseAnim* Anim = nullptr; FTransform BodyInActor; bool bPosed = false;
-		float Speed = 0.f, T = 0.f; TArray<FCrewAct> Q;
+		float Speed = 0.f, T = 0.f; TArray<FCrewAct> Q; float Slow = 1.f;   // (Slow: a beginner's waits, and the moment after each thing done by hand: to-do 301)
 		float BestDist = 1e9f, StuckT = 0.f, SideT = 0.f; FVector StuckTo = FVector::ZeroVector, SideDir = FVector::ZeroVector;   // (being stuck: CrewWalk)
 		FPoseFn Hold;                    // kept while the queue is empty (sat at the wheel)
 		TFunction<FVector()> Follow;     // walked to while the queue is empty (beside the pushed aircraft's nose)
@@ -246,6 +246,8 @@ private:
 	bool HiredJob(const FString& Key) const;
 	bool HiredLive(const FString& Key, FDateTime* When = nullptr, FString* Flight = nullptr) const;
 	int32 Enlist(AActor* A, const FString& StaffId, const FString& Label);
+	/** How much longer anybody waits for the others before giving up (1 while no beginner is at work: to-do 301). */
+	float Late() const { float S = 1.f; for (const FCrew& C : Crew) if (!C.bSlotFree) S = FMath::Max(S, C.Slow); return S; }
 	void Discharge(int32 Ci);
 	void LeaveAct(FCrew& C);
 	void SafeWay(FCrew& C, float StandX);

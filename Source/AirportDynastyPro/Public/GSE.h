@@ -901,7 +901,7 @@ private:
 	void Do(int32 Ci, TFunction<void()> Fn);
 	void Wait(int32 Ci, float S);
 	void WaitFor(int32 Ci, TFunction<bool(float)> Until);
-	void PoseAct(int32 Ci, TFunction<void(float, float, FDriverPose&)> Fn, float Dur);
+	void PoseAct(int32 Ci, TFunction<void(float, float, FDriverPose&)> Fn, float Dur, bool bMove = false);   // (bMove: on the move - a beginner is no slower)
 	void Hold(int32 Ci, TFunction<void(float, float, FDriverPose&)> Fn);
 	FVector GpuEye(int32 Gate) const;
 	void GpuFollow(int32 Gate, const FVector& Eye, bool bReverse, float Dt);

@@ -25,7 +25,7 @@ struct FSvcDeicer
 	FString LaneWhy;
 	EPh Ph = Idle; float PhT = 0.f; double FreeT = -1e6, FreeNo = -1e6;   // (when it last got itself out of where you left it, and when it last could not)
 	TArray<FStop> Stops; int32 Stop = 0, Done = 0, Missed = 0, Skipped = 0, ByYou = 0;   // ByYou: stops you had done
-	TArray<FAim> Aims; int32 Aim = 0, Pass = 0; float Dwell = 0.f; bool bAiming = false; FVector AimAt = FVector::ZeroVector;
+	TArray<FAim> Aims; int32 Aim = 0, Pass = 0; float Dwell = 0.f, Thin = 1.f; bool bAiming = false; FVector AimAt = FVector::ZeroVector;
 	int32 Jet = -1;                                                      // the fluid now on: 0 type I, 1 type IV, -1 none
 	float Emit = 0.f; TArray<FDrop> Drops;
 	UInstancedStaticMeshComponent *Stream = nullptr, *Tint[2] = {nullptr, nullptr}, *Mist = nullptr;

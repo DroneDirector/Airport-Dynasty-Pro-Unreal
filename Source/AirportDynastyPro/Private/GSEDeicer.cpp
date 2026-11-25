@@ -393,10 +393,11 @@ void AGSE::DeicerSpray(FTractor& T, float Dt, const FTransform& Noz)
 	const int32 Jk = F.bHandJet ? 0 : F.Jet;
 	if (Jk >= 0)
 	{
+		const float Thin = F.bYours || F.bHandJet ? 1.f : F.Thin;   // (a beginner sprays longer with the gun turned down: the tanks last as long)
 		// (water and type I mixed by the cold; an empty tank: nothing comes)
 		const float Tc = APuddles::Get() ? APuddles::Get()->GetAirTemp() : 0.f, Mix = Tc > -3.f ? 0.45f : Tc > -10.f ? 0.55f : 0.75f; bool bDry = false;
-		if (Jk == 0) { const float L = (F.bHandJet ? 0.7f : DiRateI) * Dt; bDry = F.TankI < L || F.Water < L; if (!bDry) { F.TankI -= L * Mix; F.Water -= L * (1.f - Mix); F.UsedI += L; } }
-		else { const float L = DiRateIV * Dt; bDry = F.TankIV < L; if (!bDry) { F.TankIV -= L; F.UsedIV += L; } }
+		if (Jk == 0) { const float L = (F.bHandJet ? 0.7f : DiRateI) * Dt / Thin; bDry = F.TankI < L || F.Water < L; if (!bDry) { F.TankI -= L * Mix; F.Water -= L * (1.f - Mix); F.UsedI += L; } }
+		else { const float L = DiRateIV * Dt / Thin; bDry = F.TankIV < L; if (!bDry) { F.TankIV -= L; F.UsedIV += L; } }
 		if (bDry) { if (!F.bBroken) ADP_WARN(TEXT("GSE: the %s is out of type %s"), *T.Name, Jk ? TEXT("IV") : TEXT("I")); F.bBroken = true; F.Jet = -1; F.bHandJet = false; }
 		else if (FVector::DistSquared(Eye, T.At) < FMath::Square(25000.0))
 		{
@@ -536,7 +537,7 @@ void AGSE::DeicerApron(int32 Job)
 		const AActor* Pl = WetPlane(J->StandX);
 		if (!Pl || !DiBounds(Pl, F.Box)) { ADP_WARN(TEXT("GSE: the %s does not go to %s: %s"), *T.Name, *J->Reg, Pl ? TEXT("not an A320's size") : TEXT("the aircraft is gone")); FDeiced& Dn = Deiced.FindOrAdd(J->Reg + TEXT("/") + J->Flight); Dn.Rounds = 3; J->Phase = 3; T.Job = EJob::Back; SvcHome(Job); return; }
 		if (F.Plane.Get() != Pl || F.SpotEnd < DeiceNow) F.Spots.Reset();   // (else they go on from where you stopped)
-		F.Plane = Pl; F.bLive = true; F.bBroken = false; F.Stops.Reset(); F.Stop = F.Done = F.Missed = F.Skipped = 0; F.UsedI = F.UsedIV = 0.f; F.Ph = FSvcDeicer::Wait; F.PhT = 0.f; J->Stage = 0;
+		F.Plane = Pl; F.bLive = true; F.bBroken = false; F.Stops.Reset(); F.Stop = F.Done = F.Missed = F.Skipped = 0; F.UsedI = F.UsedIV = 0.f; F.Thin = J->Slow; F.Ph = FSvcDeicer::Wait; F.PhT = 0.f; J->Stage = 0;
 		const FVector Sc = DiScale(F.Box); const float Ny = float(F.Box.Min.Y) / 100.f, Wing = FMath::Max(DiLane, float(F.Box.GetSize().X) / 200.f + 2.3f), Tl = DiTail * float(Sc.X);
 		// (a stop: the truck's middle for its turret so far behind the nose)
 		auto Add = [&](float Lat, float Xn, int8 Side, bool bW, bool bOut, uint8 Part) { FSvcDeicer::FStop P; P.Part = Part; P.Lat = Lat; P.Aft = Ny + Xn * float(Sc.Y) + 2.15f; P.Side = Side; P.bWing = bW; P.bOut = bOut; F.Stops.Add(P); };
@@ -571,7 +572,7 @@ void AGSE::DeicerApron(int32 Job)
 		Tractors[Ti].Until = [this, Job, Ti, P, Nose]
 		{
 			FSvcJob* X = SvcJ(Job); FSvcDeicer& F2 = *Tractors[Ti].Di; if (!X) return true;
-			if (!F2.Plane.IsValid() || FVector::Dist2D(F2.Plane->GetActorLocation(), Nose) > 900.f || X->T > 7200.f) return true;
+			if (!F2.Plane.IsValid() || FVector::Dist2D(F2.Plane->GetActorLocation(), Nose) > 900.f || X->T > 7200.f * X->Slow) return true;
 			if (!X->bGo) { F2.PhT = 0.f; F2.LaneT = -10.f; X->Why = TEXT("the doors are not shut yet"); return false; }
 			if (F2.PhT - F2.LaneT < 3.f) return false;
 			F2.LaneT = F2.PhT; FString Why; F2.bLaneFree = DeicerLane(Ti, X->StandX, F2.Stop, Why); X->Why = Why;
@@ -684,11 +685,11 @@ void AGSE::DeicerTick(int32 Job, float Dt)
 	case FSvcDeicer::OpIn:
 		if (T.Job != EJob::AtStand) return;
 		if (F.bOpIn && bDriver && T.SvcDoors[DiCabin].Now < 0.01f && F.PhT > 1.f && F.Plane.IsValid()) { DeicerPlan(J); F.Ph = FSvcDeicer::Work; F.PhT = 0.f; }
-		else if (F.PhT > 420.f || !F.Plane.IsValid()) { ADP_WARN(TEXT("GSE: the %s's operator is not up in his cabin - it goes home"), *T.Name); F.Ph = FSvcDeicer::Leave; Later([this, Job] { DeicerEnd(Job); }); }
+		else if (F.PhT > 420.f * J.Slow || !F.Plane.IsValid()) { ADP_WARN(TEXT("GSE: the %s's operator is not up in his cabin - it goes home"), *T.Name); F.Ph = FSvcDeicer::Leave; Later([this, Job] { DeicerEnd(Job); }); }
 		return;
 	case FSvcDeicer::Work:
 	{
-		if (!F.bOpIn || F.bBroken || F.PhT > 900.f || !F.Plane.IsValid()) { Stow(); return; }
+		if (!F.bOpIn || F.bBroken || F.PhT > 900.f * J.Slow || !F.Plane.IsValid()) { Stow(); return; }
 		if (!F.Aims.IsValidIndex(F.Aim))
 		{
 			F.Jet = -1;
@@ -710,7 +711,7 @@ void AGSE::DeicerTick(int32 Job, float Dt)
 		F.AimAt = F.AimAt.IsZero() || FVector::DistSquared(F.AimAt, A.At) > FMath::Square(900.0) ? A.At : FMath::VInterpConstantTo(F.AimAt, A.At, Dt, 130.f);
 		float Pn, Tl; const float D = DiAim(DiCab(F.Now) * Root, F.AimAt, Pn, Tl); const bool bOn = !bHop && D > 150.f && D < 850.f && FMath::Abs(Pn - F.Pan) < 7.f && FMath::Abs(Tl - F.Tilt) < 7.f;
 		F.Jet = bOn ? F.Pass : -1;
-		if (!F.Route.Num() && bOn && FVector::DistSquared(F.AimAt, A.At) < 400.0) { F.Dwell += Dt; if (F.Dwell > (F.Pass ? 2.f : 3.5f)) { ++F.Aim; F.Dwell = 0.f; } }
+		if (!F.Route.Num() && bOn && FVector::DistSquared(F.AimAt, A.At) < 400.0) { F.Dwell += Dt; F.Thin = J.Slow; if (F.Dwell > (F.Pass ? 2.f : 3.5f) * J.Slow) { ++F.Aim; F.Dwell = 0.f; } }
 		else if (!F.Route.Num()) { F.Dwell += Dt * 0.15f; if (F.Dwell > 3.5f) { ++F.Missed; ++F.Aim; F.Dwell = 0.f; } }   // (it cannot be aimed at: the next one)
 		return;
 	}
@@ -790,7 +791,7 @@ void AGSE::DeicerOpIn(int32 Job)
 	WaitFor(Ci, [this, Ti](float) { return DeicerStowed(Tractors[Ti]); });
 	Do(Ci, [this, Ti] { FTractor& T = Tractors[Ti]; T.Di->bLive = true; T.SvcDoors[DiCabin].Want = 1.f; Sound(*T.SndDoorOpen, TW(T, T.SvcDoors[DiCabin].Piv)); });
 	WaitFor(Ci, [this, Ti](float E) { return E > 5.f || Tractors[Ti].SvcDoors[DiCabin].Now > 0.99f; });
-	PoseAct(Ci, DeicerClimbFn(Ti, true), 9.f);
+	PoseAct(Ci, DeicerClimbFn(Ti, true), 9.f, true);
 	Do(Ci, [this, Job, Ci, Ti]
 	{
 		if (ATugs* G = Tg()) G->Crew[Ci].Hold = DeicerSeatFn(Ti);
@@ -806,7 +807,7 @@ void AGSE::DeicerOpOut(int32 Job)
 	Do(Ci, [this, Ti] { FTractor& T = Tractors[Ti]; T.Di->bLive = true; T.SvcDoors[DiCabin].Want = 1.f; Sound(*T.SndDoorOpen, TW(T, T.SvcDoors[DiCabin].Piv)); });
 	WaitFor(Ci, [this, Ti](float E) { return E > 5.f || Tractors[Ti].SvcDoors[DiCabin].Now > 0.99f; });
 	Do(Ci, [this, Ci] { if (ATugs* G = Tg()) G->Crew[Ci].Hold = nullptr; });
-	PoseAct(Ci, DeicerClimbFn(Ti, false), 8.f);
+	PoseAct(Ci, DeicerClimbFn(Ti, false), 8.f, true);
 	Do(Ci, [this, Job, Ti] { FTractor& T = Tractors[Ti]; T.Di->bOpIn = T.Di->bOpBusy = false; T.SvcDoors[DiCabin].Want = 0.f; if (FSvcMan* X = SvcM(Job, 1)) X->bOut = true; });
 	SvcBoard(Job, 1);
 }
