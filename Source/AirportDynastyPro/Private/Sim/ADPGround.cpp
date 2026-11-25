@@ -173,7 +173,7 @@ FString ADPGround::PickStand(const FADPWorld& W, const FADPAircraft& A, const FD
 	for (const FAirfieldData::FStand& S : AAirfield::Shared().Stands)
 	{
 		bAnyRemote |= S.bRemote;
-		if (S.bCargo != bCargo || S.Code < Need) continue;
+		if (S.bCargo != bCargo || S.Code < Need || (!bCargo && !S.HasTug())) continue;   // (a stand without room for a tug: an aircraft could never leave it)
 		const int32 K = S.bRemote ? Far : !S.bJetway ? WalkOut : S.Code == Need ? Jet : JetBig;
 		if ((S.bJetway && !GrJetwayType(T)) || (K == Far && (!bRemoteToo || !GrRemoteType(T)))) continue;
 		++Fit[K];

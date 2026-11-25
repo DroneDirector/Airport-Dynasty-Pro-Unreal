@@ -787,23 +787,26 @@ void AAirfield::Aprons(bool bModelSite)
 			// the pushback tug's parking box (owner 2026-11-21; real ramps' equipment parking area at the head of the stand):
 			// white-lined, 4 x 12 m, on the side away from the jetway, 11-15 m off the centre line and 4.4-16.4 m out from the
 			// terminal wall - the tug stands in it facing the gate, towbar and all, when it isn't pushing back (Tugs.cpp)
-			if (St.bJetway && !St.bCargo && St.Span <= 40.f)
+			// (a walk-out or a big stand, to-do 277 E1c: on the centre line in front of the nose, clear of the gates' doors, the
+			//  buses in front of them and the jetway)
+			float TugR = 6.f; const float TugY = St.TugHead(TugR);
+			if (St.HasTug())
 			{
-				const float X0 = St.X - 15.f, X1 = St.X - 11.f, Ya = FMath::Min(Wall + B * 4.4f, Wall + B * 16.4f), Yb = FMath::Max(Wall + B * 4.4f, Wall + B * 16.4f);
+				const float X0 = TugY > 0.f ? St.X - 2.f : St.X - 15.f, X1 = X0 + 4.f, Ya = TugY > 0.f ? TugY - 2.9f : FMath::Min(Wall + B * 4.4f, Wall + B * 16.4f), Yb = TugY > 0.f ? TugY + 8.1f : FMath::Max(Wall + B * 4.4f, Wall + B * 16.4f);
 				Line("paintwhite", FVector2f(X0, Ya), FVector2f(X1, Ya), 0.15f, 0.0075f); Line("paintwhite", FVector2f(X0, Yb), FVector2f(X1, Yb), 0.15f, 0.0075f);
 				Line("paintwhite", FVector2f(X0, Ya), FVector2f(X0, Yb), 0.15f, 0.0075f); Line("paintwhite", FVector2f(X1, Ya), FVector2f(X1, Yb), 0.15f, 0.0075f);
 			}
 			// the ground power unit's box (owner 2026-11-21: the GPU parked at the head of the stand, its cable ~7 m to the
 			// A320's receptacle): white-lined, 4.3 x 2.6 m, on the side away from the jetway, 5.2-9.5 m off the centre line,
 			// just inside the nose stop line - clear of the aircraft, the tug's way in and the jetway (Tugs: GpuSetup)
-			if (St.bJetway && !St.bCargo && St.Span <= 40.f)
+			if (St.HasTug())
 			{
 				const float X0 = St.X - 9.5f, X1 = St.X - 5.2f, Ya = FMath::Min(St.Nose - B * 0.7f, St.Nose - B * 3.3f), Yb = FMath::Max(St.Nose - B * 0.7f, St.Nose - B * 3.3f);
 				Line("paintwhite", FVector2f(X0, Ya), FVector2f(X1, Ya), 0.12f, 0.0075f); Line("paintwhite", FVector2f(X0, Yb), FVector2f(X1, Yb), 0.12f, 0.0075f);
 				Line("paintwhite", FVector2f(X0, Ya), FVector2f(X0, Yb), 0.12f, 0.0075f); Line("paintwhite", FVector2f(X1, Ya), FVector2f(X1, Yb), 0.12f, 0.0075f);
 			}
 			// the chocks and cones' place beside it (to-do 212): 1.1 x 2.4 m round the rack (Tugs: ChkSetup)
-			if (St.bJetway && !St.bCargo && St.Span <= 40.f)
+			if (St.HasTug())
 			{
 				const float Cx = St.X - B * 11.6f, Cy = St.Nose - B * 2.f, X0 = Cx - 0.55f, X1 = Cx + 0.55f, Ya = Cy - 1.2f, Yb = Cy + 1.2f;
 				Line("paintwhite", FVector2f(X0, Ya), FVector2f(X1, Ya), 0.1f, 0.0075f); Line("paintwhite", FVector2f(X0, Yb), FVector2f(X1, Yb), 0.1f, 0.0075f);

@@ -93,7 +93,9 @@ void ATugs::SafeWay(FCrew& C, float StandX)
 		//  crossing for aircraft - until the crew bus takes them, to-do 277 D)
 		const FVector Gt = GateT(StandX, StandX - 22.f, 88.f); const float Tx = float(Gt.X / 100.0);
 		if (FVector::Dist2D(Me, Gt) < 1500.f) return;
-		auto Far = [&](float Wx, float Wy) { WalkOn(Wx, Wy, 60.f); C.Q.Last().Max = 900.f; };
+		// (in legs of 150 m at most: nobody's 160 s for one runs out on the way)
+		FVector2f Was(X, float(-Me.Y / 100.0));
+		auto Far = [&](float Wx, float Wy) { const FVector2f To2(Wx, Wy); const int32 Nl = FMath::Max(1, FMath::CeilToInt32(FVector2f::Distance(Was, To2) / 150.f)); for (int32 k = 1; k <= Nl; ++k) { const FVector2f P2 = FMath::Lerp(Was, To2, float(k) / Nl); WalkOn(P2.X, P2.Y, 60.f); } Was = To2; };
 		auto Clear = [&](float Wx, float Wy) { FCrewAct A; A.Kind = FCrewAct::WaitFor; const FVector P = Plan(Wx, Wy); A.Until = [this, P](float) { for (const FVector& Pl : Planes) if (FVector::Dist2D(Pl, P) < 12000.f) return false; return true; }; C.Q.Add(A); };
 		const float Road = 338.75f; float Fx = X;
 		if (-Me.Y < 24000.0)
@@ -107,6 +109,21 @@ void ATugs::SafeWay(FCrew& C, float StandX)
 		for (const float Lx : Lk) if ((Lx - Fx) * Dr > 0.f && (Tx - Lx) * Dr > 0.f) { Far(Lx - Dr * H, Road); Clear(Lx, Road); Far(Lx + Dr * H, Road); }
 		Far(Tx, Road);
 		FCrewAct A; A.Kind = FCrewAct::Walk; A.To = [Gt] { return Gt; }; A.Stop = 60.f; A.Max = 160.f; C.Q.Add(A);
+		return;
+	}
+	if (-Me.Y > 24000.0)
+	{
+		// (from a remote stand to one at the terminal: the same way back)
+		ADP_LOG(TEXT("Tugs: %s walks back from the remote stands to the stand at x %.0f by the bus road"), *C.Name, StandX);
+		FVector2f Was(X, float(-Me.Y / 100.0));
+		auto Far = [&](float Wx, float Wy) { const FVector2f To2(Wx, Wy); const int32 Nl = FMath::Max(1, FMath::CeilToInt32(FVector2f::Distance(Was, To2) / 150.f)); for (int32 k = 1; k <= Nl; ++k) { const FVector2f P2 = FMath::Lerp(Was, To2, float(k) / Nl); WalkOn(P2.X, P2.Y, 60.f); } Was = To2; };
+		auto Clear = [&](float Wx, float Wy) { FCrewAct A; A.Kind = FCrewAct::WaitFor; const FVector P = Plan(Wx, Wy); A.Until = [this, P](float) { for (const FVector& Pl : Planes) if (FVector::Dist2D(Pl, P) < 12000.f) return false; return true; }; C.Q.Add(A); };
+		const float Road = 338.75f, H = AAirfield::Shared().Remote.LinkHalf + 4.f;
+		Far(X, Road);
+		TArray<float> Lk = AAirfield::Shared().Remote.LinkX; Lk.Sort(); Algo::Reverse(Lk);
+		for (const float Lx : Lk) if (Lx < X && Lx > -237.f) { Far(Lx + H, Road); Clear(Lx, Road); Far(Lx - H, Road); }
+		Far(-237.f, Road); Far(-245.f, 331.f); Far(-245.f, 247.f); Clear(-245.f, 218.f); Far(-245.f, 187.f); Far(-245.f, 85.45f); Far(To, 85.45f);
+		WalkOn(To, 90.f, 60.f);
 		return;
 	}
 	if (FMath::Abs(X - To) < 12.f) return;   // (there already: the job's own walks)

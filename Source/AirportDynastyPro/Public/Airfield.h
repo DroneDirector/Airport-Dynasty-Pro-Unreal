@@ -40,6 +40,10 @@ struct AIRPORTDYNASTYPRO_API FAirfieldData
 	struct FStand
 	{
 		FString Id; float X = 0, Nose = 0, Dir = -1, Span = 36, Len = 44.5f; bool bJetway = false, bCargo = false, bRemote = false; TCHAR Code = 'C';   // (Code: the largest ICAO code letter it takes)
+		/** Its own pushback tug, GPU and chocks: every passenger stand - but the big remote ones: 3.1 m of paving between the nose and the bus road, no room for a tug. */
+		bool HasTug() const { return !bCargo && !(bRemote && Span > 40.f); }
+		/** Where its tug stands on the centre line in front of the nose (plan y), and its loop's radius; 0: in the box beside it (a C gate with a jetway). */
+		float TugHead(float& Radius) const { Radius = bRemote || (bJetway && Span <= 40.f) ? 6.f : Span > 40.f ? 9.5f : 8.f; return bRemote ? Frame().Y - 17.f : bJetway && Span <= 40.f ? 0.f : Span > 40.f ? Nose - 8.4f : Nose - 18.f; }
 		FStandFrame Frame() const { FStandFrame Fr; Fr.X = X; Fr.K = Dir < 0 ? 1.f : -1.f; Fr.Y = Nose + Fr.K * 5.1f; return Fr; }   // (the nose wheel stops 5.1 m behind the stop line)
 	};
 	/** The stand the simulation's StandX means (no two stands share an x), nullptr when none. */

@@ -643,8 +643,15 @@ Taxi bus (239, part B, 2026-11-24, compiled, NOT run): a line of `ADPService::Al
 - Ways (GSESpare.cpp): `HomeOut` (lane, then the road north or south), `SpareHome` (lane, straight back onto T.Home), `HomeMouth`; also the de-icing truck and BusRoute/BusRouteHome.
 - On foot: `DepotGo` / `DepotBack` from HiredWay, GiveBackHired and BusLeave: terminal front, road leg, waits for aircraft at taxilane T and links; 160 cm/s; logged.
 - Another career loaded (`UADPSim::Loads`): what is not bought there, or stood away from its place, is put away (hidden, no collision) when unseen and idle, and used again later.
-- LEFT, point 3: no tug, belt loader or GPU kind in Data/vehicle-area.json and Tugs is gate-bound; the span > 40 m limit in SvcFor stays.
+- LEFT, point 3: no tug, belt loader or GPU kind in Data/vehicle-area.json (tugs on every stand and the span limit: E1c below).
 - LEFT: if an own bus is free but has no clear way, a bought one is tried only after the own one is set aside (NotT).
+
+## Every stand's own tug, E1c as built (2026-11-25, not run)
+- `FStand::HasTug` / `TugHead` (Airfield.h): walk-out (5-8, 10, 12) and big jetway stands (13-16) have tug, GPU, chocks and painted boxes; tug on the centre line ahead of the nose (walk-out nose - 18, loop R 8; big nose - 8.4, loop R 9.5).
+- R3, R4, R6, R7: 3.1 m of paving ahead of the nose, no room - no tug, and PickStand does not give them out. Cargo stands: no tug, as before.
+- Test crews: `LendCrew` - a quiet gate's pair walks over, three walkers too to the remote side; none free: the aircraft waits (logged). Never pushed by nothing.
+- SafeWay: 150 m legs of 160 s, and the way back from the remote stands. SvcFor: the span limit only for big cargo stands.
+- Bus drivers are 3D people; one is a team. A bus waiting for one is logged.
 
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 

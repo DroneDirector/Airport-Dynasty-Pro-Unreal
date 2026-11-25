@@ -362,9 +362,10 @@ bool AGSE::BusMan(int32 Ti, TFunction<void()> Then, FString& Why)
 	if (B.Stage) { Why = B.Stage == 1 ? TEXT("its driver is on the way to it") : TEXT("its driver is getting out"); return false; }
 	if (!G || !Sp || !T.M.IsValid()) { Why = TEXT("no crew yet"); return false; }
 	if (T.Job != EJob::None || T.Driver != INDEX_NONE) { Why = TEXT("it is busy"); return false; }
-	if (!Sp->HiresRole(TEXT("bus"))) { Why = TEXT("nobody is hired as a bus driver"); return false; }
+	auto Waits = [this, &T](const TCHAR* W) { static TMap<FString, float> Said; float& At = Said.FindOrAdd(T.Name, -1000.f); const float Now = GetWorld()->GetTimeSeconds(); if (Now - At > 60.f || Now < At) { At = Now; ADP_LOG(TEXT("Apron bus %s waits for a driver: %s"), *T.Name, W); } };
+	if (!Sp->HiresRole(TEXT("bus"))) { Waits(TEXT("nobody is hired as a bus driver")); Why = TEXT("nobody is hired as a bus driver"); return false; }
 	TArray<UStaffPeople::FTaken> Team; const FString Key = TEXT("bus:") + T.Name;
-	if (!Sp->AskTeam(Key, EStaffTask::ApronBus, FDateTime(2000, 1, 1), T.At, T.Name, Team) || !Team.Num()) { Why = TEXT("no bus driver is free"); return false; }
+	if (!Sp->AskTeam(Key, EStaffTask::ApronBus, FDateTime(2000, 1, 1), T.At, T.Name, Team) || !Team.Num()) { Waits(TEXT("no bus driver is free")); Why = TEXT("no bus driver is free"); return false; }
 	const int32 Ci = G->Enlist(Team[0].A.Get(), Team[0].Id, UStaffPeople::DutyName(Team[0].Duty));
 	if (Ci == INDEX_NONE) { Why = TEXT("no crew place for its driver"); return false; }
 	G->Crew[Ci].bGse = true; T.Driver = Ci; T.Job = EJob::Boarding; T.Key = Key; T.JobT = 0.f; B.Ci = Ci; B.Stage = 1;

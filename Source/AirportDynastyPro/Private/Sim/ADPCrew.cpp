@@ -55,7 +55,7 @@ const TArray<ADPCrew::FRole>& ADPCrew::Roles()
 		{TEXT("checkin"), TEXT("Passenger service agent"), TEXT("checkin"), false, true, true, true},
 		{TEXT("gate"), TEXT("Gate agent"), TEXT("gate"), false, false, true, true},
 		{TEXT("security"), TEXT("Security officer"), TEXT("security"), false, true, true, true},
-		{TEXT("bus"), TEXT("Bus driver"), TEXT("bus"), false, false, true, true},
+		{TEXT("bus"), TEXT("Bus driver"), TEXT("bus"), true, false, true, true},
 		// (to-do 239b: the landside taxi bus's driver - not a 3D job yet: the hired people come out of the ramp rooms airside and
 		// there is no staff way out to the forecourt kerb; the general wage, no ADPStaff line)
 		{TEXT("taxi"), TEXT("Taxi bus driver"), TEXT("bus"), false, false, true, true},

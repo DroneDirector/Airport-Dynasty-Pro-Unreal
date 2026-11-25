@@ -249,6 +249,10 @@ private:
 	void SafeWay(FCrew& C, float StandX);
 	bool HiredFree(const FTug& T) const { return T.Driver == INDEX_NONE && T.Handler == INDEX_NONE && T.GpuCi == INDEX_NONE && !T.Walkers.Num(); }
 	void HiredEnd(FTug& T);
+	/** The test crews are fewer than the tugs: a quiet gate's driver and handler walk over and stay (to-do 277 E1c). */
+	bool CrewAny() const;
+	int32 LendFrom(int32 Tug, int32* Free = nullptr) const;
+	bool LendCrew(int32 Tug);
 	void LostTick(int32 Ci, float Dt);
 	void HiredTick(int32 Tug, float Dt);
 	bool PersonAhead(const FVector& Here, const FVector& Dir, float Reach) const;
@@ -323,6 +327,9 @@ public:
 	/** Its tug's box and loop, terminal-way: a remote stand's straight ahead of the nose, 8 m clear, the way in on the side away from the GPU's front. */
 	static bool RemoteStand(float StandX);
 	static void BoxT(float StandX, float& Side, float& Run, float& Y);
+	static void BoxT(float StandX, float& Side, float& Run, float& Y, float& Rl, float& Ly);   // (with the loop's radius, and how far out its half circle begins)
+	/** Its tug stands on the centre line in front of the nose (walk-out, big and remote stands), not in a box beside it. */
+	static bool HeadStand(float StandX);
 	/** On the same side of taxilane T as that stand. */
 	bool SameSide(const FCrew& C, float StandX) const;
 	bool PathBlocked(const FTug& T, const TArray<FVector>& Path, const FVector& From) const;

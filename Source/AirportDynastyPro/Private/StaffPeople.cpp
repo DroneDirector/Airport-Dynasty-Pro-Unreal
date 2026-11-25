@@ -254,7 +254,7 @@ bool UStaffPeople::HiresRole(const TCHAR* Role) const
 	if (!On() || !Sim || !Sim->IsRunning()) return false;
 	const FString Here = ADPBoards::HereIcao(); int32 N = 0;
 	for (const FADPPerson& P : Sim->World.People) if (P.AirlineId == UADPSim::Me() && P.Role == Role && P.Base == Here) ++N;
-	const int32 Least = FCString::Strcmp(Role, TEXT("taxi")) == 0 ? 1 : 2;   // (the taxi bus: one driver is its whole team)
+	const int32 Least = FCString::Strcmp(Role, TEXT("taxi")) == 0 || FCString::Strcmp(Role, TEXT("bus")) == 0 ? 1 : 2;   // (the taxi bus, an apron bus: one driver is its whole team)
 	const bool bOk = N >= Least;
 	const bool* Was = SaidHires.Find(Role);
 	if (!Was || *Was != bOk)
