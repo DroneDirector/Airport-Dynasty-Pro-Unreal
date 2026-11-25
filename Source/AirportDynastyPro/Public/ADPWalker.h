@@ -40,6 +40,7 @@ public:
 	/** Your MetaHuman on the capsule (tests turn it to the camera), or null. */
 	AActor* HumanActor() const { return Human; }
 	virtual void BeginPlay() override;
+	virtual void CalcCamera(float Dt, struct FMinimalViewInfo& V) override;
 	/** Your MetaHuman's body lent out (a fire truck's climb and seat): moved onto Seat (its body exactly where Seat is) and
 	 *  posed by the returned instance from then on, your clothes and face still on it; null without a built character. */
 	class UDriverPoseAnim* LendBody(USceneComponent* Seat);

@@ -2,6 +2,7 @@
 #include "ADPWalker.h"
 #include "PaxAnimInstance.h"
 #include "ADPFov.h"
+#include "TalkCamera.h"
 #include "Kismet/GameplayStatics.h"
 #include "Components/AudioComponent.h"
 #include "Misc/ConfigCacheIni.h"
@@ -557,6 +558,12 @@ FTransform AADPWalker::ViewFrom(const FVector& At, const FRotator& Look) const
 	if (!bThird) return FTransform(Look, At + FRotator(0.f, Look.Yaw, 0.f).RotateVector(FVector(14.f, 0.f, 70.f)));
 	const FVector Pivot = At + ArmPivot;
 	return FTransform(Look, Pivot + Look.RotateVector(FVector(-ArmLen, 0.f, 0.f) + ArmOffset));
+}
+
+void AADPWalker::CalcCamera(float Dt, FMinimalViewInfo& V)
+{
+	Super::CalcCamera(Dt, V);
+	ADPTalkCam::Apply(*this, Dt, V);   // (the person you talk to, close up: to-do 298)
 }
 
 void AADPWalker::Tick(float Dt)

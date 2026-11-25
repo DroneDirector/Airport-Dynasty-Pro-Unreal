@@ -47,6 +47,7 @@ public:
 	/** What a seated passenger holds just now (theirs from SeatDevice, or the phone of the seated idle movement): 0 none. */
 	int32 SeatDeviceNow(const AActor* Who) const;
 	virtual void Tick(float Dt) override;
+	virtual void EndPlay(const EEndPlayReason::Type Why) override;
 
 	/** How a line is said (for the voices later): calm, mild, firm, a bit aggressive, very aggressive. */
 	enum class ETone : uint8 { Calm, Mild, Firm, Aggressive, VeryAggressive };

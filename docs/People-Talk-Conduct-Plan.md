@@ -72,6 +72,16 @@ Owner's design, 16 November 2026. To-do items 69a-69i. Comes after the people an
 - 69i - The real stun gun reaction - 3 h
 - Total: about 19 h
 
+## 298 as built (the talk view; not yet seen in the game)
+
+- TalkCamera.h/.cpp; hooked in AADPWalker::CalcCamera, begun and ended by AADPPeople::Open/Close. In 0.9 s, out 0.7 s.
+- Framed from the face's eyes, the head bone, the face mesh's crown, hair or hat, and the collarbones: 75 % of the room over the subtitle, 85 cm (74, 62), up to 20 degrees to your side.
+- Blocked: other side, higher or lower, closer, further round; nothing free: your normal view stays, logged "TalkCam".
+- The menu stands beside the face while you talk. You are hidden from that view only where you would be in it.
+- Portrait lens all the while: round, full-frame 24 mm high, open as far as keeps 10 cm either side of the head's middle sharp (about f/2.5), focus on the head each frame, edges 0.4 to 0.55 darker. Depth of field is lent if the settings have it off, and given back; never saved.
+- Switch: Settings, Graphics, Talk camera; console adp.TalkCam 0|1.
+- Not there: a head that turns to you (they only turn their body), a reduced-motion setting (the game has none).
+
 ## Sources
 - Axon, "What does NMI (neuromuscular incapacitation) mean": taser.com/blogs/training-and-safety/what-does-nmi-or-neuromuscular-incapacitation-mean-for-my-taser-energy-device
 - ABC News, "What happens when you're struck by a Taser": goodmorningamerica.com/wellness/story/struck-taser-affects-human-body-55503687

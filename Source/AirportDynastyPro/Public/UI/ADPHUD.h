@@ -358,6 +358,7 @@ private:
 	// the jetway's control panel menu (E at its console): which jetway, open or not (JetwayRigs.h)
 	bool bJetMenu = false; int32 JetMenuJ = -1; bool bJetPointerWas = false;
 	bool bPeopleMenuWas = false;
+	TSharedPtr<class SBorder> TalkPanel;
 	TSharedPtr<class SVerticalBox> PeopleChoices; void BuildPeopleChoices();   // (the people menu was open last frame: the mouse follows it)
 	void OpenJetMenu(int32 J); void CloseJetMenu();
 	int32 NearJetway(float MaxCm) const;

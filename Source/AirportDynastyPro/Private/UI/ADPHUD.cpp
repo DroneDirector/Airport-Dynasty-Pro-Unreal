@@ -2,6 +2,7 @@
 // overlay, all in Slate, styled in the Android edition's holographic blues.
 #include "UI/ADPHUD.h"
 #include "RollerDoor.h"
+#include "TalkCamera.h"
 #include "SiteTrees.h"
 #include "DepartureBelts.h"
 #include "PaxFlow.h"
@@ -376,6 +377,7 @@ void AADPHUD::BeginPlay()
 		S.bOverride_AutoExposureBias = true; S.AutoExposureBias = -0.5f;   // indoors a little less bright overall
 	}
 	GConfig->GetBool(TEXT("ADP.Boxes"), TEXT("FrameRateOn"), bFpsBox, GGameUserSettingsIni);
+	ADPTalkCam::LoadSetting();
 	{ bool bFG = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("FrameGeneration"), bFG, GGameUserSettingsIni); SetFrameGen(bFG); }
 	ADPAnim::Load();
 	// an update that could not be put in place last time is said in Settings > Updates (not passed over in silence)
@@ -665,7 +667,9 @@ void AADPHUD::BeginPlay()
 		// talking to someone (People.h): their name and what they do, what they say, up to 8 choices
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
 		[
-			SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(Panel).Padding(FMargin(22, 16))
+			SAssignNew(TalkPanel, SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(Panel).Padding(FMargin(22, 16))
+			// (beside the face of the one you talk to: TalkCamera.h)
+			.RenderTransform_Lambda([this]() { const FGeometry G = TalkPanel.IsValid() ? TalkPanel->GetCachedGeometry() : FGeometry(); return TOptional<FSlateRenderTransform>(FSlateRenderTransform(FVector2f(ADPTalkCam::PanelShift(G.Scale, FVector2D(G.GetLocalSize())), 0.f))); })
 			.Visibility_Lambda([this]() { AADPPeople* Pp = AADPPeople::Get(GetWorld()); return Pp && Pp->MenuOpen() && !bGame ? EVisibility::Visible : EVisibility::Collapsed; })
 			[
 				SNew(SBox).WidthOverride(560.f)
@@ -996,6 +1000,16 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 8)[LevelRow(true)]
 			+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Blur (motion blur and depth of field)"))]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)[LevelRow(false)]
+			// the camera that goes in on the one you talk to
+			+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Talk camera (close up on the one you talk to)"))]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10).HAlign(HAlign_Left)
+			[
+				SNew(SButton)
+				.ButtonColorAndOpacity_Lambda([]() { return ADPTalkCam::IsOn() ? FLinearColor(0.1f, 0.45f, 0.75f, 1.f) : FLinearColor(0.05f, 0.2f, 0.36f, 0.9f); })
+				.ContentPadding(FMargin(10, 4))
+				.OnClicked_Lambda([]() { ADPTalkCam::SetOn(!ADPTalkCam::IsOn()); return FReply::Handled(); })
+				[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { return FText::FromString(ADPTalkCam::IsOn() ? TEXT("ON") : TEXT("OFF")); })]
+			]
 			// the grass: on or off, and how far the dense near blades reach (the airfield's far tufts are always there)
 			+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Grass (how far the dense blades reach)"))]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 10)
@@ -1784,6 +1798,7 @@ void AADPHUD::SetBlur(int32 Level)
 	BlurLevel = FMath::Clamp(Level, 0, 4);
 	if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MotionBlurQuality"))) V->Set(BlurLevel, ECVF_SetByGameSetting);
 	if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DepthOfFieldQuality"))) V->Set(BlurLevel, ECVF_SetByGameSetting);
+	ADPTalkCam::BlurWasSet();
 	GConfig->SetInt(TEXT("ADP.Graphics"), TEXT("Blur"), BlurLevel, GGameUserSettingsIni);
 	GConfig->Flush(false, GGameUserSettingsIni);
 }
