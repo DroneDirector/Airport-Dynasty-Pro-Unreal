@@ -16,6 +16,7 @@
 // The camera never stands in or goes through anything: a view in something solid is left out, a flight ends before it.
 //   quit
 #include "PerfViews.h"
+#include "PeopleLayers.h"
 #include "RoadNetwork.h"
 #include "MetaRoadActor.h"
 #include "People.h"
@@ -193,6 +194,7 @@ namespace ADPPerfViewsInternal
 		const int32 Close = Pc && Pc->PlayerCameraManager ? Around(Pc->PlayerCameraManager->GetCameraLocation(), 3000.0) : 0;
 		uint64 S = 0, M = 0; ADPFrameGen::Counts(S, M); const double Sec = FMath::Max(0.1, FPlatformTime::Seconds() - MStart);
 		ADP_LOG(TEXT("Views: %-46s frame %s | gpu %s | render %s | game %s | shown %.0f/s (%.0f made) | %d people, %d walking, %d within 30 m | graphics memory %s"), What, *Stat(Fr), *Stat(Gp), *Stat(Rn), *Stat(Gm), (S - Shown0) / Sec, (M - Made0) / Sec, People, Walking, Close, *Mem());
+		ADP_LOG(TEXT("Views: layers: %s"), *ADPLayers::Counts());
 	}
 	void BeginMeasure(double Sec, const FString& N) { Name = N; Fr.Reset(); Gp.Reset(); Rn.Reset(); Gm.Reset(); MStart = FPlatformTime::Seconds(); Until = MStart + Sec; ADPFrameGen::Counts(Shown0, Made0); }
 

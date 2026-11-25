@@ -1,6 +1,7 @@
 // The passengers' own animation instance: the walk blend space plus a hand closed round a carried bag's handle, and the
 // idle movements with their IK (PaxAnimInstance.h).
 #include "PaxAnimInstance.h"
+#include "PeopleLayers.h"
 #include "ADPLog.h"
 #include "Animation/AnimNodeBase.h"
 #include "Animation/AnimationAsset.h"
@@ -518,10 +519,10 @@ void UPaxAnimInstance::MeasureSoles(const USkeletalMeshComponent* B)
 	{
 		TInlineComponentArray<USkinnedMeshComponent*> Sk(Own);
 		for (const USkinnedMeshComponent* S : Sk)
-			if (S == B || S->LeaderPoseComponent.Get() == B)
+			if (S == B || (S->LeaderPoseComponent.Get() == B && !ADPLayers::IsLight(S)))
 				if (const USkinnedAsset* M = S->GetSkinnedAsset()) { LowOf(M); }
 		for (const USkinnedMeshComponent* S : Sk)
-			if (S == B || S->LeaderPoseComponent.Get() == B)
+			if (S == B || (S->LeaderPoseComponent.Get() == B && !ADPLayers::IsLight(S)))
 				if (const USkinnedAsset* M = S->GetSkinnedAsset()) if (const FLow& O = LowOf(M); O.Z < 12.f) { Z = FMath::Min(Z, FMath::Max(O.Z, -8.f)); Lows.Add(&O); }
 	}
 	Soles.Sole = Z;
@@ -575,7 +576,7 @@ void UPaxAnimInstance::StepFeet(float Dt, FPaxAnimProxy& P)
 	{
 		SolesT = 2.f;
 		int32 Sum = 0; TInlineComponentArray<USkinnedMeshComponent*> Sk(Own);
-		for (const USkinnedMeshComponent* S : Sk) if (S == B || S->LeaderPoseComponent.Get() == B) Sum = HashCombine(Sum, GetTypeHash(S->GetSkinnedAsset()));
+		for (const USkinnedMeshComponent* S : Sk) if (S == B || (S->LeaderPoseComponent.Get() == B && !ADPLayers::IsLight(S))) Sum = HashCombine(Sum, GetTypeHash(S->GetSkinnedAsset()));
 		if (Sum != SolesFor) { SolesFor = Sum; MeasureSoles(B); }
 	}
 	if (!Soles.bOk) { P.FeetW = 0.f; return; }

@@ -1,5 +1,6 @@
 // Your hired staff in the 3D airport - see StaffPeople.h and docs/Hired-Crew-Plan.md.
 #include "StaffPeople.h"
+#include "PeopleLayers.h"
 #include "PaxAnimInstance.h"
 #include "People.h"
 #include "PaxNav.h"
@@ -52,7 +53,6 @@ namespace
 	constexpr float SpLandCrossX = 48.f;                       // (the west zebra crossing, PaxFlow PXCROSS[0])
 	constexpr float SpLandCarX = 46.25f, SpLandCarZ = -58.5f;  // (the car park's front row, its last space of x -87.5 .. 47.5, 2.5 m in front of it)
 	constexpr float SpLandX = -42.5f, SpLandZ = -19.5f;        // (their place: the pavement behind the taxi bus - its rear x -45, the kerb z -21.5)
-	FString SpBody(const FString& Face) { return FString::Printf(TEXT("/Game/People/Built/%s/BP_%s.BP_%s_C"), *Face, *Face, *Face); }
 	const TCHAR* SpMove = TEXT("/Game/People/Anims/BS_Idle_Walk_Run_MH.BS_Idle_Walk_Run_MH");
 
 	struct FSpFace { FString Name; bool bWoman = false; int32 Group = 0; };   // Group 0: the ground people; 1: the fire people (airside too, not used elsewhere)
@@ -622,7 +622,7 @@ void UStaffPeople::StepOne(FStaff& S, float Dt)
 		if (!S.Handle.IsValid())
 		{
 			int32 Busy = 0; for (const FStaff& O : Staff) if (O.State == EState::Load && O.Handle.IsValid()) ++Busy;
-			if (Busy < 2) S.Handle = UAssetManager::GetStreamableManager().RequestAsyncLoad(TArray<FSoftObjectPath>{FSoftObjectPath(SpBody(S.Face)), FSoftObjectPath(SpMove)});
+			if (Busy < 2) { TArray<FSoftObjectPath> Want = ADPLayers::Paths(S.Face); Want.Add(FSoftObjectPath(SpMove)); S.Handle = UAssetManager::GetStreamableManager().RequestAsyncLoad(Want); }
 		}
 		else if (S.Handle->HasLoadCompleted()) S.State = EState::Wait;
 		return;

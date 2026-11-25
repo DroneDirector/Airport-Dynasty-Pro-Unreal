@@ -6,6 +6,7 @@
 // flight the other way round. The aircraft is one mesh without a cabin (to-do 209): at its sill they are out of sight, as the
 // caterers with their trolleys. The passenger is one of the passengers' people (AADPPeople), sat by the crew's own IK rig.
 #include "GSEAmbulift.h"
+#include "PeopleLayers.h"
 #include "GSE.h"
 #include "ServiceVehicles.h"
 #include "StaffPeople.h"
@@ -205,7 +206,7 @@ bool AGSE::AmbuSeat(int32 Ti, int32 i)
 	// one of the passengers' people, sat in wheelchair i, out of sight (false: not loaded yet)
 	FA::FChair& K = Tractors[Ti].Am->Chair[i]; AADPPeople* Pp = AADPPeople::Get(GetWorld()); ATugs* G = Tg(); if (!Pp || !G || K.Who.IsValid()) return true;
 	if (K.Face.IsEmpty()) { K.Face = Pp->PickBuilt(TEXT("passenger")); if (K.Face.IsEmpty()) return true; }
-	if (!K.bAsked) { K.bAsked = true; K.Load = UAssetManager::GetStreamableManager().RequestAsyncLoad(FSoftObjectPath(FString::Printf(TEXT("/Game/People/Built/%s/BP_%s.BP_%s_C"), *K.Face, *K.Face, *K.Face))); }
+	if (!K.bAsked) { K.bAsked = true; K.Load = UAssetManager::GetStreamableManager().RequestAsyncLoad(ADPLayers::Paths(K.Face)); }
 	if (K.Load.IsValid() && !K.Load->HasLoadCompleted()) return false;
 	AActor* A = Pp->Spawn(K.Face, K.At, K.Yaw); if (!A) return true;
 	A->SetActorHiddenInGame(K.bHide); K.Who = A; K.Pax = G->Enlist(A, FString(), TEXT("wheelchair passenger")); if (K.Pax == INDEX_NONE) return true;

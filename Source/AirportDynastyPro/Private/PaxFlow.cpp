@@ -1,6 +1,7 @@
 // The passengers' trips through the airport, both ways (PaxFlow.h). Plan metres: x east, z north (airside), height up -
 // FTerminalPlan::ToWorld(x, height, z); the roads' plan (x, y) is the same frame (y = plan z).
 #include "PaxFlow.h"
+#include "PeopleLayers.h"
 #include "UI/AirportCalls.h"
 #include "ADPLog.h"
 #include "PerfLog.h"
@@ -636,10 +637,9 @@ bool APaxFlow::FaceReady()
 {
 	// the next one's body: drawn by lot, loaded in the background; nobody is made while it isn't in yet (it would hold the game)
 	if (!Names.Num()) return true;
-	auto Path = [](const FString& N) { return FString::Printf(TEXT("/Game/People/Built/%s/BP_%s.BP_%s_C"), *N, *N, *N); };
 	if (NextFace.IsEmpty()) { NextFace = Names[Rng.RandRange(0, Names.Num() - 1)]; NextFaceAt = RealT; }
 	TSharedPtr<FStreamableHandle>& H = FaceLoads.FindOrAdd(NextFace);
-	if (!H.IsValid()) H = UAssetManager::GetStreamableManager().RequestAsyncLoad(FSoftObjectPath(Path(NextFace)));
+	if (!H.IsValid()) H = UAssetManager::GetStreamableManager().RequestAsyncLoad(ADPLayers::Paths(NextFace));
 	if (!H.IsValid() || H->HasLoadCompleted()) return true;
 	if (RealT - NextFaceAt > 20.0) { ADP_WARN(TEXT("PaxFlow: %s still loading after 20 s - another face"), *NextFace); NextFace.Reset(); }
 	return false;

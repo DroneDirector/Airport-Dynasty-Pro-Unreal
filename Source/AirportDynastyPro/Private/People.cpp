@@ -1,4 +1,5 @@
 #include "People.h"
+#include "PeopleLayers.h"
 #include "PaxAnimInstance.h"
 #include "ADPLog.h"
 #include "PerfLog.h"
@@ -222,6 +223,7 @@ void AADPPeople::AddPerson(AActor* A)
 			static UBlendSpace* Move = [] { UBlendSpace* B = LoadObject<UBlendSpace>(nullptr, TEXT("/Game/People/Anims/BS_Idle_Walk_Run_MH.BS_Idle_Walk_Run_MH")); if (B) B->AddToRoot(); return B; }();   // (kept loaded for good, like the garage door sounds)
 			if (Move) { W.Body->SetAnimationMode(EAnimationMode::AnimationSingleNode); W.Body->SetAnimation(Move); W.Body->Play(true); UPaxAnimInstance::Install(W.Body); }   // (ours: the feet on the ground)
 		}
+		ADPLayers::Add(A, W.Body, W.Name);
 		People.Add(W);
 		ADP_LOG(TEXT("People: %s (%s, %s, %d) - open %.2f, temper %.2f, chat %.2f"), *W.First, *W.Role, W.bFemale ? TEXT("woman") : TEXT("man"), W.Age, W.Open, W.Temper, W.Chat);
 	}
@@ -236,6 +238,7 @@ AActor* AADPPeople::Spawn(const FString& Name, const FVector& At, float Yaw)
 	FVector Spot = At;
 	FHitResult H; FCollisionQueryParams Q(SCENE_QUERY_STAT(PeopleFloor), true);
 	if (GetWorld()->LineTraceSingleByChannel(H, At + FVector(0, 0, 150.f), At - FVector(0, 0, 500.f), ECC_Visibility, Q)) Spot.Z = H.ImpactPoint.Z;
+	const ADPLayers::FBodyOnly BodyOnly(C, Name);   // (face, clothes and hair follow one a frame - PeopleLayers.h)
 	AActor* A = GetWorld()->SpawnActor<AActor>(C, Spot, FRotator(0.f, Yaw - 90.f, 0.f), P);   // (a MetaHuman faces along its actor's +Y: yaw - 90 turns it to face Yaw)
 	PaxNav::NoNav(A);   // (people walk on the navmesh, they never shape it: no rebuilds as they move or come and go)
 	AddPerson(A);   // (only this one: no look through the whole world for each passenger that comes)
@@ -1221,6 +1224,7 @@ void AADPPeople::Tick(float Dt)
 	Super::Tick(Dt);
 	if ((GatherIn -= Dt) <= 0.f) { GatherIn = 10.f; ADP_PERF_SCOPE("people: finding the people in the world", 4.f); Gather(); }   // (people placed here list themselves at once)
 	People.RemoveAll([](const FWho& W) { return !W.A.IsValid(); });
+	ADPLayers::Tick(GetWorld(), Dt);
 	if (SubT > 0.f) SubT -= Dt;
 	if (SceneOn()) StepScene(Dt);
 	StepStrollers(Dt);
