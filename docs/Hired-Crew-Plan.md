@@ -618,6 +618,13 @@ Taxi bus (239, part B, 2026-11-24, compiled, NOT run): a line of `ADPService::Al
 - Reach: sill 235 to 425 cm (platform 232, ten treads of 19). Every flight is drawn as the A320 (L1 sill 387), also on code E stands; a real A330, 787, 777 or A350 (about 4.4 to 5.1 m) is beyond it, then the job logs the numbers and waits. Needs a taller model once wide-body models exist.
 - The apron's obstacle map takes a big stand's aircraft at its drawn size, not the stand's span. Not run in the game yet.
 
+## Stairs and bus that did not come by themselves, D6 as built (2026-11-25, compiled, not run)
+- StandAsk.cpp: each flight at a stand without a jetway asks 3 game min (and 20 s real) after its stairs (Turnaround.cpp) or bus (PaxApron.cpp) are missing, again every 5; notice, log, closed when served. In memory only: asked anew after a load.
+- Urgent stairs: first in the queue and for people; from request 2 the crew still walking to a pair for a rear door or a later flight; a pair that stood 4 min on the way goes home and is asked for anew.
+- Urgent bus: from request 2 a waiting bus of a less urgent flight with nobody at it; one ten minutes on its way empty is replaced, with passengers its way is looked for anew.
+- No give-up while stairs (and bus) and their roles exist (DeplaneDone, BoardingDone); otherwise after 15 min, with a notice of what is missing.
+- No bus for 3 min: those on the treads go back up, after 5 min those on the apron too; they come out again with the next bus.
+
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
 | Where | Today | Replace with | Nobody free |

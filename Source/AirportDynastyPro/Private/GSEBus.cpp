@@ -377,7 +377,8 @@ bool AGSE::BusDriveTo(int32 Ti, const FVector2f& To, float Heading, TFunction<vo
 {
 	if (!Tractors.IsValidIndex(Ti) || !Tractors[Ti].Bu) { Why = TEXT("no such bus"); return false; }
 	if (Tractors[Ti].Path.Num()) { Why = TEXT("it is on its way"); return false; }
-	return BusMan(Ti, [this, Ti, To, Heading, Done = MoveTemp(Done)] { BusRoute(Ti, To, Heading, Done); }, Why);
+	const int32 Ord = ++BusOrder.FindOrAdd(Ti);
+	return BusMan(Ti, [this, Ti, To, Heading, Ord, Done = MoveTemp(Done)] { if (BusOrder.FindRef(Ti) == Ord) BusRoute(Ti, To, Heading, Done); }, Why);
 }
 
 void AGSE::BusRoute(int32 Ti, FVector2f To, float Heading, TFunction<void()> Done)
@@ -392,7 +393,7 @@ void AGSE::BusRoute(int32 Ti, FVector2f To, float Heading, TFunction<void()> Don
 	if (!Apron(Way, From, Plan(Lx, Ly), &T))
 	{
 		ADP_LOG(TEXT("Apron bus %s: no way to plan (%.0f, %.0f) now - tried again"), *T.Name, To.X, To.Y);
-		RetryIn(Ti, 8.f, [this, Ti, To, Heading, Done] { BusRoute(Ti, To, Heading, Done); });
+		RetryIn(Ti, 8.f, [this, Ti, To, Heading, Done, Ord = BusOrder.FindRef(Ti)] { if (BusOrder.FindRef(Ti) == Ord) BusRoute(Ti, To, Heading, Done); });
 		return;
 	}
 	H.Append(Way);
@@ -407,7 +408,8 @@ bool AGSE::BusHome(int32 Ti, TFunction<void()> Done, FString& Why)
 	if (!Tractors.IsValidIndex(Ti) || !Tractors[Ti].Bu) { Why = TEXT("no such bus"); return false; }
 	if (Tractors[Ti].Path.Num()) { Why = TEXT("it is on its way"); return false; }
 	if (FVector::Dist2D(Tractors[Ti].At, Tractors[Ti].Home) < 100.f) { if (Done) Done(); return true; }
-	return BusMan(Ti, [this, Ti, Done = MoveTemp(Done)] { BusRouteHome(Ti, Done); }, Why);
+	const int32 Ord = ++BusOrder.FindOrAdd(Ti);
+	return BusMan(Ti, [this, Ti, Ord, Done = MoveTemp(Done)] { if (BusOrder.FindRef(Ti) == Ord) BusRouteHome(Ti, Done); }, Why);
 }
 
 void AGSE::BusRouteHome(int32 Ti, TFunction<void()> Done)

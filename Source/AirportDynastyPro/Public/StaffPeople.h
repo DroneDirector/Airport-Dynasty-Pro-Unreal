@@ -33,6 +33,7 @@ public:
 	bool Hires() const { return HiresRole(TEXT("ground")); }
 	/** You employ the smallest team of a role here (2; the taxi bus: its 1 driver). */
 	bool HiresRole(const TCHAR* Role) const;
+	int32 OnDuty(const FString& Role) const;
 
 	// ---- the pool
 	struct FNeed { EStaffDuty Duty; int32 Min = 1, Full = 1; };   // (Min: without them the job can't start; Full: the real team)
@@ -108,7 +109,6 @@ private:
 	void DropOldAsks();
 	void CheckClaims();
 	mutable TMap<FString, bool> SaidHires;
-	int32 OnDuty(const FString& Role) const;
 	/** Free to be given a job: standing by, or on the way back from the last one. */
 	bool IsFree(const FStaff& S, const FString& Role) const;
 	/** The way along the terminal (under the jetways' fixed corridors, clear of their columns) when it is far. */

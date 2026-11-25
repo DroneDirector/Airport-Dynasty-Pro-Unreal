@@ -127,6 +127,8 @@ bool APaxFlow::BoardingDone(const UWorld* W, const FString& Reg)
 			for (const FPx& X : P->Pax) if (X.St != EPx::Gone && X.A.IsValid() && X.Run == Ri && !X.bArr && !X.bHome && ++n <= 8) { const FVector At = P->PlanOf(X.A->GetActorLocation()); L += FString::Printf(TEXT("%s%s at (%.1f, %.1f) %s%s"), L.IsEmpty() ? TEXT("") : TEXT("; "), *X.Id, At.X, At.Z, *X.Stage, X.bDoorWait ? TEXT(", at the shut gate door") : TEXT("")); }
 			ADP_LOG(TEXT("PaxFlow: %s (%s) held by its boarding for %.0f s - %d of %d aboard, %d missing: %s%s"), *R.Label, *R.Reg, P->RealT - R.HoldSince, R.Aboard, R.Visible, n, *L, n > 8 ? TEXT("; ...") : TEXT(""));
 		}
+		// (to-do 296: its stairs or bus are not there, but can come: nobody is written off for that)
+		if (R.Way && P->ApronHolds(Ri)) { R.HoldSince = P->RealT; bAll = false; continue; }
 		if (P->RealT - R.HoldSince >= 15.0 * 60.0)
 		{
 			// (those in the jetway already: ten minutes more, then those not past its halfway point are no-shows like the rest and walk
@@ -183,7 +185,9 @@ bool APaxFlow::DeplaneDone(const UWorld* W, const FString& Reg, const FDateTime&
 	if (R->HoldSince < 0.0) R->HoldSince = P->RealT;
 	if (P->RealT - R->SaidAt > 120.0) { R->SaidAt = P->RealT; ADP_LOG(TEXT("PaxFlow: %s (%s) at gate %d - getting off takes longer than planned: %s%s"), *R->Label, *R->Reg, R->Gate, *Why, R->AtDoor ? *FString::Printf(TEXT(", %d at the shut gate door"), R->AtDoor) : TEXT("")); }
 	if (P->RealT - R->HoldSince < 15.0 * 60.0) return false;
-	if (R->Way && (P->ApronCount(Ri, 6, 6) > 0 || (P->RealT - R->HoldSince < 45.0 * 60.0 && P->ApronGoes(Ri)))) return false;   // (they come off: more than one load, or a bus on its way)
+	// (to-do 296: it has asked for what it needs; given up only when the airport could never bring it, and then told)
+	FString Miss; if (R->Way && (P->ApronCount(Ri, 6, 6) > 0 || P->ApronCan(Ri, Miss))) return false;
+	if (R->Way) if (UADPSim* Sim = UADPSim::Get(P->GetWorld())) ADPSchedule::Tell(Sim->World, ADPTurnaround::LastNow(), TEXT("standask:off:") + R->Key, TEXT("Passengers not served"), FString::Printf(TEXT("%s (%s) at stand %s: its passengers could not be brought off - %s."), *R->Label, *R->Reg, *R->Stand, *Miss));
 	R->bNoShowGo = true; if (R->Way) R->Visible = R->Spawned;   // (no stairs, no bus: the others stay data)
 	FString L; int32 n = 0;
 	for (const FPx& X : P->Pax) if (X.St != EPx::Gone && X.bArr && X.Run == Ri && X.Do == EDo::ArrIn && X.A.IsValid() && ++n <= 10) { const FVector At = P->PlanOf(X.A->GetActorLocation()); L += FString::Printf(TEXT(" %s (%.1f, %.1f) held by %s;"), *X.Id, At.X, At.Z, X.bDoorWait ? TEXT("the shut gate door") : X.HeldBy.IsEmpty() ? TEXT("-") : *X.HeldBy); }

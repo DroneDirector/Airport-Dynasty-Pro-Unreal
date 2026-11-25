@@ -10,6 +10,8 @@
 #include "PaxFlow.h"
 #include "SimTraffic.h"
 #include "StaffPeople.h"
+#include "StandAsk.h"
+#include "Sim/ADPGround.h"
 #include "Engine/World.h"
 
 namespace ADPTurnaround
@@ -170,12 +172,12 @@ namespace ADPTurnaround
 					if (Tg && !Tg->ArrivedHired(Tr->StandX, Tr->Reg, Tr->OffBlocks)) bReady = false;
 				}
 				// (to-do 212: no jetway at this stand - the passenger stairs, asked for when it is on blocks; the door and everybody off
-				//  wait for them, at most half an hour (90 min behind another aircraft's: 277 D5, every airline's); a departure planned later asks for them again before its boarding)
+				//  wait for them, at most half an hour where the airport can't bring them at all (to-do 296: asked for again, below); a departure planned later asks for them again before its boarding)
 				if (!K.bStarted && (K.Id == TEXT("bridge") || (K.Id == TEXT("board") && bReady)) && (Tr->bArrival || !Tr->PlanId.IsEmpty()) && Tm >= K.Start - (K.Id == TEXT("board") ? 12.f : 0.f))
 					if (AGSE* Gs = AGSE::Get(W)) if (Gs->SvcFor(TEXT("stairs"), Tr->StandX))
 					{
 						FString Sw; if (!Gs->StairsHas(Tr->StandX) && Tm < K.Start + 20.f) Gs->SvcAsk(TEXT("stairs"), Tr->StandX, Tr->Reg, Tr->Flight, Tr->PlanId.IsEmpty() ? Now + FTimespan::FromMinutes(20.0) : Tr->OffBlocks, 0.f, K.Id == TEXT("bridge") && Tr->bArrival ? Tr->OnBlocks : Tr->OffBlocks, Tr->bMine);
-						if (K.Id == TEXT("board") && Tm < K.Start + (Gs->StairsQueued(Tr->StandX) ? 90.f : 30.f) && Gs->StairsBusy(Tr->StandX, false, Sw)) bReady = false;
+						if (K.Id == TEXT("board") && (Tm < K.Start + 30.f || Gs->StairsCan(Tr->StandX, Sw)) && Gs->StairsBusy(Tr->StandX, false, Sw)) bReady = false;
 					}
 				const int32 Need = bHired && (K.Id == TEXT("gpu") || K.Id == TEXT("tug") || K.Id == TEXT("bulk")) ? 0 : K.Id == TEXT("gpu") || K.Id == TEXT("bridge") || K.Id == TEXT("doors") ? 1 : K.Id == TEXT("bulk") || K.Id == TEXT("tug") ? 2 : 0;
 				if (!K.bStarted && bReady && Tm >= K.Start && Crew < Need)
@@ -218,7 +220,7 @@ namespace ADPTurnaround
 					bAmbu = bAsk && K.bStarted && Tm < K.Start + K.Dur + 60.f && (Gs->AmbuBusy(Tr->StandX, bIn, AmWhy, bIn) || (bStill && Gs->AmbuBusy(Tr->StandX, true, AmWhy)));
 					if (bAmbu && Tm >= K.Start + K.Dur + 3.f) ADPSchedule::Tell(Sim->World, Now, TEXT("ambulift:") + Tr->Reg + K.Id, TEXT("Wheelchair passengers"), FString::Printf(TEXT("%s at %s: %s."), *Tr->Reg, *Tr->Stand, *AmWhy));
 				}
-				FString StWhy; const bool bStairs = K.bStarted && !K.bDone && (K.Id == TEXT("bridge") ? Tm < K.Start + (AGSE::Find(W) && AGSE::Find(W)->StairsQueued(Tr->StandX) ? 90.f : 30.f) : K.Id == TEXT("doors")) && AGSE::Find(W) && AGSE::Find(W)->StairsBusy(Tr->StandX, K.Id == TEXT("doors"), StWhy);
+				FString StWhy; const bool bStairs = K.bStarted && !K.bDone && (K.Id == TEXT("bridge") ? Tm < K.Start + 30.f || (AGSE::Find(W) && AGSE::Find(W)->StairsCan(Tr->StandX, StWhy)) : K.Id == TEXT("doors")) && AGSE::Find(W) && AGSE::Find(W)->StairsBusy(Tr->StandX, K.Id == TEXT("doors"), StWhy);
 				if (bStairs && Tr->bMine && Tm >= K.Start + K.Dur + 3.f) ADPSchedule::Tell(Sim->World, Now, TEXT("stairs:") + Tr->Reg + K.Id, TEXT("Passenger stairs"), FString::Printf(TEXT("%s at %s: %s."), *Tr->Reg, *Tr->Stand, *StWhy));
 				if (K.Id == TEXT("deplane") && K.bDone && Tr->bArrival && Tr->PlanId.IsEmpty() && Tm >= K.Start + K.Dur && Tm < K.Start + K.Dur + 60.f) if (AGSE* Gs = AGSE::Find(W)) Gs->SvcGo(TEXT("stairs"), Tr->StandX);   // (no departure planned: they go home)
 				const bool bBridge = K.Id == TEXT("bridge") && K.bStarted && !K.bDone && !ASimTraffic::JetwayReady(W, Tr->Stand, true);
@@ -226,6 +228,27 @@ namespace ADPTurnaround
 				const bool bChocks = K.Id == TEXT("chocks") && K.bStarted && !K.bDone && ATugs::Get(W) && !ATugs::Get(W)->ChocksIn(Tr->StandX);
 			const bool bClean = (K.Id == TEXT("clean") || K.Id == TEXT("fuel") || K.Id == TEXT("cat1") || K.Id == TEXT("cat2") || K.Id == TEXT("water") || K.Id == TEXT("toilet")) && K.bStarted && !K.bDone && Tr->bMine && AGSE::Find(W) && AGSE::Find(W)->SvcBusy(*K.Id, Tr->StandX);
 			if (K.bStarted && !K.bDone && Tm >= K.Start + K.Dur && !bClean && !bChocks && !bBagsBusy && !bBoarding && !bOff && !bBridge && !bBack && !bStairs && !bAmbu) { K.bDone = true; ADP_LOG(TEXT("Turnaround: %s %s done"), *Tr->Reg, *K.Name); }
+			}
+			// (to-do 296: nobody is ever left without stairs - they did not come by themselves: it asks for them and checks back)
+			if (const FAirfieldData::FStand* Sd = AAirfield::Shared().StandAt(Tr->StandX); Sd && !Sd->bCargo && !Sd->bJetway)
+			{
+				bool bIn = false, bOut = false;
+				for (const FTask& K : Tr->Tasks)
+				{
+					if (K.Id == TEXT("bridge") && (K.bStarted || Tm >= K.Start) && Tr->bArrival && Tr->ArrPax > 0) bIn = !Done(*Tr, TEXT("deplane"));
+					if (K.Id == TEXT("board")) bOut = !Tr->PlanId.IsEmpty() && Tm >= K.Start && !K.bDone;
+				}
+				if (AGSE* Gs = bIn || bOut ? AGSE::Get(W) : nullptr)
+				{
+					FString Wy, Cw; const bool bCan = Gs->StairsCan(Tr->StandX, Cw); const int32 Where = Gs->StairsWhere(Tr->StandX, Wy);
+					const FString Fl = bIn && !Tr->ArrFlight.IsEmpty() ? Tr->ArrFlight : !bIn && !Tr->Flight.IsEmpty() ? Tr->Flight : Tr->Reg;
+					const int32 Lv = ADPStandAsk::Check(W, Now, FString::Printf(TEXT("stairs:%s:%s:%s"), bIn ? TEXT("in") : TEXT("out"), *Tr->Reg, *Tr->OnBlocks.ToString()), TEXT("Passenger stairs"), FString::Printf(TEXT("%s (%s) at stand %s"), *Fl, *Tr->Reg, *Tr->Stand), Where, bCan, bCan ? Wy : Cw);
+					if (Lv > 0 && bCan && Where < 2)
+					{
+						if (!Gs->StairsHas(Tr->StandX)) Gs->SvcAsk(TEXT("stairs"), Tr->StandX, Tr->Reg, Tr->Flight, Tr->PlanId.IsEmpty() ? Now + FTimespan::FromMinutes(20.0) : Tr->OffBlocks, 0.f, bIn ? Tr->OnBlocks : Tr->OffBlocks, false);
+						if (Where == 0) Gs->StairsUrge(Tr->StandX, Lv);
+					}
+				}
 			}
 			// (to-do 212: de-iced when the weather asks for it, once its doors are shut and the jetway is back; the flight waits)
 			if (Tr->bMine)

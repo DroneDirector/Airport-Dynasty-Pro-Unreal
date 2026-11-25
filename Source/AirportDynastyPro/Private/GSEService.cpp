@@ -816,7 +816,14 @@ void AGSE::SvcTick(float Dt)
 	// (the cabin, row by row, by everyone who is in it)
 	for (TPair<int32, FSvcJob>& P : SvcJobs)
 	{
-		FSvcJob& J = P.Value; const float Was = J.T; if (J.Phase > 0 && !(SvSpec(J.Svc).bAmbu && J.Phase == 1 && CaterAtFront(J.StandX))) J.T += Dt;   // (the ambulift waiting for the caterers at the same door: not its time)
+		FSvcJob& J = P.Value; const float Was = J.T;
+		if (SvSpec(J.Svc).bStairs && J.Phase == 1 && Tractors.IsValidIndex(J.Ti))
+		{
+			// (to-do 296: how long it has not got on - its people called and walking to it, or on its way)
+			const FVector At = Tractors[J.Ti].At + FVector(0., 0., Tractors[J.Ti].Job == EJob::Out ? 1000. : 0.);
+			if (FVector::Dist(At, J.StillAt) > 100.) { J.StillAt = At; J.StillT = 0.f; } else J.StillT += Dt;
+		}
+	 if (J.Phase > 0 && !(SvSpec(J.Svc).bAmbu && J.Phase == 1 && CaterAtFront(J.StandX))) J.T += Dt;   // (the ambulift waiting for the caterers at the same door: not its time)
 	
 		if (Was <= SvPatience && J.T > SvPatience) ADP_WARN(TEXT("GSE: the %s at stand x %.0f has been at %s for 45 min - the flight no longer waits for it"), SvSpec(J.Svc).Label, J.StandX, *J.Reg);
 		FuelTick(J, Dt); WetTick(J, Dt); if (SvSpec(J.Svc).bStairs) StairsTick(J, Dt);
@@ -839,7 +846,7 @@ void AGSE::SvcTick(float Dt)
 	TArray<int32> Start, Take, Order, Ordered; TMap<int32, FString> Held;
 	// (the passenger stairs in the order their aircraft come on or go off blocks, whoever's they are: the first keeps the pair it gets)
 	for (const TPair<int32, FSvcJob>& P : SvcJobs) if (P.Value.Phase == 0) (SvSpec(P.Value.Svc).bStairs ? Ordered : Order).Add(P.Key);
-	Ordered.StableSort([this](int32 A, int32 B) { const FSvcJob &X = SvcJobs[A], &Y = SvcJobs[B]; return X.CtDoor != Y.CtDoor ? X.CtDoor < Y.CtDoor : X.Want < Y.Want; });
+	Ordered.StableSort([this](int32 A, int32 B) { const FSvcJob &X = SvcJobs[A], &Y = SvcJobs[B]; return X.CtDoor != Y.CtDoor ? X.CtDoor < Y.CtDoor : X.Urgent != Y.Urgent ? X.Urgent > Y.Urgent : X.Want < Y.Want; });
 	Order.Append(Ordered);
 	for (const int32 Jk : Order)
 	{
@@ -904,7 +911,7 @@ void AGSE::SvcTick(float Dt)
 		if (!bHome && !bTake) { TArray<FVector> W; if (!Apron(W, Tv.At, Plan(S.HomeX + S.HomeHx * 34.f, S.HomeY + S.HomeHy * 34.f), &Tv) && !(S.bDeicer && DeicerGets(Ti))) { J.Why = FString::Printf(TEXT("the %s stands where it cannot be driven from - bring it back to the apron"), S.Label); continue; } }
 		const FString Key = FString::Printf(TEXT("%s:%s%s"), S.Task, *J.Reg, (S.bStairs || S.bAmbu) && J.CtDoor ? TEXT(":2") : TEXT("")), What = FString::Printf(TEXT("%s %s"), J.Flight.IsEmpty() ? *J.Reg : *J.Flight, UStaffPeople::TaskName(S.Team));
 		TArray<UStaffPeople::FTaken> Team;
-		if (!Sp->AskTeam(Key, S.Team, J.When - FTimespan::FromMinutes(20.0), Tractors[Ti].At, What, Team)) { J.Why = Sp->WaitsFor(Key); continue; }
+		if (!Sp->AskTeam(Key, S.Team, J.When - FTimespan::FromMinutes(20.0 + 60.0 * J.Urgent), Tractors[Ti].At, What, Team)) { J.Why = Sp->WaitsFor(Key); continue; }
 		// (more of them, as many as no other waiting job needs)
 		while (Team.Num() && Team.Num() < S.MaxPeople) { UStaffPeople::FTaken X; if (!Sp->AskExtra(Team.Last().Duty, Tractors[Ti].At, What, X)) break; Team.Add(X); }
 		TArray<FSvcMan> Men;

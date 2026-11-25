@@ -485,6 +485,10 @@ public:
 	/** Ready at that stand's door (0 front left, 1 rear left): where to queue, the treads and the platform (feet), the door. */
 	struct FStairsWay { int32 Ti = INDEX_NONE; FVector Foot = FVector::ZeroVector, Platform = FVector::ZeroVector, Door = FVector::ZeroVector, Up = FVector::ForwardVector; TArray<FVector> Steps; };
 	bool StairsReady(float StandX, int32 Door, FStairsWay& Out) const;
+	/** (to-do 296, StandAsk.cpp) Could the airport ever bring them; 0 not coming (Why), 1 on their way, 2 ready; an urgent request. */
+	bool StairsCan(float StandX, FString& Why) const;
+	int32 StairsWhere(float StandX, FString& Why) const;
+	void StairsUrge(float StandX, int32 Level);
 	/** Anybody on them, step by step with a hand on the rail, keeping to the right (K 0..1, from the ground to the platform or
 	 *  back, over StairsSeconds); Enter +1 before the first step, -1 after the last: they never move under people. */
 	void StairsPose(int32 Ti, bool bUp, float K, float PH, FDriverPose& P) const;
@@ -509,6 +513,7 @@ private:
 		int32 Svc = 0, Ti = INDEX_NONE, Jet = INDEX_NONE; float StandX = 0.f, RowT = 0.f; FString Reg, Flight, Why, WhyLog; FDateTime When, Want; bool bQueued = false;
 		uint8 Phase = 0;                  // 0 waits for its people, 1 on the way, 2 at the stand, 3 going back
 		bool bGo = false, bFetch = false; FVector Place = FVector::ZeroVector; float PlaceYaw = 0.f; int32 Rows = 30, RowsDone = 0; float T = 0.f; TArray<FSvcMan> Men;
+		int32 Urgent = 0; float StillT = 0.f; FVector StillAt = FVector::ZeroVector; double PullT = 0.0;   // (how often asked for; on its way: how long it has stood)
 		int32 Stage = 0; float Litres = 0.f, Pumped = 0.f; TArray<FVector> InWay; int32 CtDoor = 0, CtTrip = 0, CtDone = 0, CtYou[2] = {0, 0};   // (Ct*: the catering: at which door, its next trip, the doors done as bits) (the refueller's work; the way in, backed out again)
 	};
 	TMap<int32, FSvcJob> SvcJobs; int32 SvcNext = 1; float SvcClock = 0.f;
@@ -533,6 +538,9 @@ public:
 	struct FBusSee { FTransform X; bool bStands = false, bAtWheel = false, bYou = false, bShut = false, bKnelt = false; };
 	struct FBusSlot { int32 Seat = INDEX_NONE; FVector At = FVector::ZeroVector, Face = FVector(1, 0, 0), Hold = FVector::ZeroVector; bool bStrap = false; };
 	void BusFree(TArray<int32>& Out) const;
+	bool BusCan(FString& Why) const;
+	bool BusHalt(int32 Ti);
+	TMap<int32, int32> BusOrder;   // (StandAsk.cpp: an order withdrawn is never driven)
 	bool BusSee(int32 Ti, FBusSee& Out) const;
 	bool BusTry(int32 Ti, const FVector2f& To, float Heading) const;
 	void BusSlots(int32 Ti, TArray<FBusSlot>& Out) const;
