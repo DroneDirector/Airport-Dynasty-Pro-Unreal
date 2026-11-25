@@ -155,6 +155,16 @@ bool ASimTraffic::Ready(const FADPPlanned& P, const FDateTime& Now, FString& Why
 static float TaxiOutX(bool bToX1) { return bToX1 ? -130.f : 362.f; }   // (P1, P3)
 static float TaxiOutDir(const FAirfieldData::FStand& St, bool bToX1) { return St.bCargo ? (bToX1 ? -1.f : 1.f) : TaxiOutX(bToX1) >= St.X ? 1.f : -1.f; }
 
+// The push's turn: 40 m for the main gear, less where that would end past its taxilane's end (stand 9 by T's end: the gear
+// stops 3 m before it). 22 m still is only 30 degrees of nose wheel, far within what a tug may turn.
+static float PushRadius(const FAirfieldData& F, const FAirfieldData::FStand& St, float Dx)
+{
+	const FAirfieldData::FTwy* L = F.Find(St.bCargo ? TEXT("K") : TEXT("T"));
+	if (!L || L->Pts.Num() < 2) return 40.f;
+	const float End = Dx > 0.f ? FMath::Min(L->Pts[0].X, L->Pts.Last().X) : FMath::Max(L->Pts[0].X, L->Pts.Last().X);
+	return FMath::Clamp((St.X - End) * Dx - 3.f, 22.f, 40.f);
+}
+
 bool ASimTraffic::RunwayToX1() const
 {
 	// the runway's x0 -> x1 direction has the plan's x axis, true heading = the site's runway heading; into the wind
@@ -219,10 +229,10 @@ void ASimTraffic::Sync()
 			FMove M; M.FlightId = Fl.Id; M.Reg = Fl.Reg; M.bDeparture = true; M.Stand = St->Id; M.Phase = EPhase::Push;
 			// at the stand: nose tyre on the stop bar, the body behind it, pushed straight back onto the taxilane
 			M.Nose = St->Frame().P(0.f, 0.f); M.Main = St->Frame().P(0.f, Wheelbase);
-			// pushed back and turned (as a real pushback): straight back from the stand, then the tail swung round a 40 m arc so the
+			// pushed back and turned (as a real pushback): straight back from the stand, then the tail swung round a 40 m arc (PushRadius) so the
 			// aircraft ends on the taxilane facing the way it will taxi (towards the runway end in use) - the main gear's way
 			{
-				const float Dx = TaxiOutDir(*St, bToX1), Rr = 40.f, YEnd = St->bCargo ? F.KY : F.TY, Y0 = M.Main.Y;   // (a cargo stand: onto K, facing the way it taxis along it)
+				const float Dx = TaxiOutDir(*St, bToX1), Rr = PushRadius(F, *St, Dx), YEnd = St->bCargo ? F.KY : F.TY, Y0 = M.Main.Y;   // (a cargo stand: onto K, facing the way it taxis along it)
 				const float Ybend = YEnd - (-St->Dir) * Rr;           // where the straight part ends and the arc begins
 				M.Path.Reset();
 				if ((Ybend - Y0) * (-St->Dir) > 1.f) M.Path.Add(FVector2f(St->X, Ybend));

@@ -116,5 +116,5 @@ walk follows below when it has run.
 - 283 horn T / hold B + D-pad up; high beams L / hold B + left shoulder.
 - 284 the tug's door sounds come from PushbackTug and are packed.
 - Cargo stands: -TrafficTest and normal traffic put only cargo aircraft there.
-- Push towards X1 ends facing the taxi way (Tools/check_push.py: open, STAND-9's main gear ends 10.4 m past the taxilane's end).
+- Push towards X1 ends facing the taxi way; STAND-9 turns tighter, its gear stops 3 m before the taxilane end (Tools/check_push.py: 0 findings).
 - Open: passengers stuck on the way to a gate chair (plan -217.8, 61.3).
