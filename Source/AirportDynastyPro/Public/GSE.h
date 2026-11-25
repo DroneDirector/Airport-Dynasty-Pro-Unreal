@@ -517,7 +517,7 @@ private:
 		uint8 Phase = 0;                  // 0 waits for its people, 1 on the way, 2 at the stand, 3 going back
 		bool bGo = false, bFetch = false; FVector Place = FVector::ZeroVector; float PlaceYaw = 0.f; int32 Rows = 30, RowsDone = 0; float T = 0.f; TArray<FSvcMan> Men;
 		int32 Urgent = 0; float StillT = 0.f; FVector StillAt = FVector::ZeroVector; double PullT = 0.0;   // (how often asked for; on its way: how long it has stood)
-		int32 Stage = 0; float Litres = 0.f, Pumped = 0.f; TArray<FVector> InWay; int32 CtDoor = 0, CtTrip = 0, CtDone = 0, CtYou[2] = {0, 0};   // (Ct*: the catering: at which door, its next trip, the doors done as bits) (the refueller's work; the way in, backed out again)
+		int32 Stage = 0; float Slow = 1.f, Litres = 0.f, Pumped = 0.f; TArray<FVector> InWay; int32 CtDoor = 0, CtTrip = 0, CtDone = 0, CtYou[2] = {0, 0};   // (Ct*: the catering: at which door, its next trip, the doors done as bits) (the refueller's work; the way in, backed out again)
 	};
 	TMap<int32, FSvcJob> SvcJobs; int32 SvcNext = 1; float SvcClock = 0.f;
 	TMap<int32, TPair<int8, int32>> SvcStairUse;   // (a jetway's service stair: which way it is walked now, and by how many)

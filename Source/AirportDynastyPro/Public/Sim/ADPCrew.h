@@ -44,4 +44,16 @@ namespace ADPCrew
 	bool HireTalk(FADPWorld& W, const FString& RoleId, const FString& First, bool bWoman, int32 Age, const FString& Face, const FDateTime& At, FString& Name);
 	/** Somebody with this face already works for you. */
 	bool FaceWorks(const FADPWorld& W, const FString& Face);
+
+	/** To-do 301: the airport hires enough beginners for every job with a real one here, every shift (Data/beginners.json); the
+	 *  player's own people count first. At a career's start and load, and once a day (bDayEnds: those too many leave). How many came. */
+	int32 FillBeginners(FADPWorld& W, const FDateTime& At, FRandomStream& Rng, bool bDayEnds = false);
+	/** Wanted of a job on a shift; 0: the airport hires nobody for it. */
+	int32 BeginnerNeed(const FADPWorld& W, const FString& RoleId, const FString& Shift);
+	/** How much longer their timed work takes: 1 for everybody but a beginner (1.25 to 1.35, by their rating). */
+	double SlowOf(const FADPPerson& P);
+	/** The same for a job's first Team people on your staff here (the player's own work first); 1 if there are none. */
+	double SlowTeam(const FADPWorld& W, const FString& RoleId, const FString& Icao, int32 Team);
+	/** The part of the going rate a person expects (beginners: less). */
+	double PayPart(const FADPPerson& P);
 }

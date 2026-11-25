@@ -164,7 +164,7 @@ void AGSE::WetParts(FTractor& T, float Dt)
 void AGSE::WetTick(FSvcJob& J, float Dt)
 {
 	if (J.Phase != 2 || !Tractors.IsValidIndex(J.Ti) || !Tractors[J.Ti].Wa || !Tractors[J.Ti].Wa->bRun) return;
-	J.Pumped = FMath::Min(J.Litres, J.Pumped + Dt);   // (seconds)
+	J.Pumped = FMath::Min(J.Litres, J.Pumped + Dt / J.Slow);   // (seconds)
 	if (FSvcWet& F = *Tractors[J.Ti].Wa; F.bToilet) { const float R = J.Pumped > J.Litres - WaRinseS ? ToRinseL * Dt : 0.f; Tractors[J.Ti].bUsed = true; F.Tank = FMath::Max(0.f, F.Tank - R); F.Waste = FMath::Min(ToWaste, F.Waste + (R > 0.f ? R : ToDrainL * Dt)); }
 	else { Tractors[J.Ti].bUsed = true; Tractors[J.Ti].Wa->Tank = FMath::Max(0.f, Tractors[J.Ti].Wa->Tank - Dt * WaRate); }
 }

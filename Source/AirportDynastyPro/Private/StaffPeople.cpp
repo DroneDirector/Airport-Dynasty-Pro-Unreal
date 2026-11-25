@@ -192,7 +192,8 @@ FString UStaffPeople::FindFree(EStaffDuty Duty, const FVector& Near) const
 	if (On()) for (const FStaff& S : Staff)
 	{
 		if (!IsFree(S, RoleOf(Duty))) continue;
-		const double D = FVector::DistSquared2D(S.A->GetActorLocation(), Near);
+		// (the player's own people first, beginners only fill: to-do 301)
+		const double D = FVector::DistSquared2D(S.A->GetActorLocation(), Near) + (S.bBeginner ? 1e16 : 0.0);
 		if (D < Bd) { Bd = D; Best = &S; }
 	}
 	return Best ? Best->Id : FString();
@@ -256,6 +257,22 @@ int32 UStaffPeople::OnDuty(const FString& Role) const { int32 N = 0; for (const 
 
 // the smallest number of a role that can do every job of the role (the biggest of its jobs' smallest teams): one for a bus,
 // the taxi bus, the fuel and the water; two for the apron, the catering, the cleaning and the de-icing
+int32 UStaffPeople::NumFaces(bool bWoman)
+{
+	int32 N = 0;
+	for (const FSpFace& F : SpFaces()) if (F.bWoman == bWoman) ++N;
+	return N;
+}
+
+float UStaffPeople::SlowOf(const UWorld* W, const TArray<FTaken>& Team)
+{
+	UADPSim* Sim = UADPSim::Get(W);
+	if (!Sim || !Sim->IsRunning() || !Team.Num()) return 1.f;
+	float Sum = 0.f;
+	for (const FTaken& X : Team) { const FADPPerson* P = SpRec(Sim->World, X.Id); Sum += P ? float(ADPCrew::SlowOf(*P)) : 1.f; }
+	return Sum / Team.Num();
+}
+
 int32 UStaffPeople::LeastOf(const FString& Role)
 {
 	static TMap<FString, int32> Known;
@@ -614,7 +631,7 @@ void UStaffPeople::Roster(FADPWorld& W, const FDateTime& Now)
 		const FADPPerson* P = SpRec(W, X.Key);
 		if (!P) continue;
 		if (P->Face.IsEmpty()) { NeverCame(*P, TEXT("no built person of the ground or fire staff is left for them")); continue; }
-		FStaff S; S.Id = P->Id; S.Name = P->Name; S.Role = P->Role; S.Face = P->Face; S.Shift = P->Shift; S.bCalledIn = X.Value;
+		FStaff S; S.Id = P->Id; S.Name = P->Name; S.Role = P->Role; S.Face = P->Face; S.Shift = P->Shift; S.bCalledIn = X.Value; S.bBeginner = P->bBeginner;
 		if (S.Role == TEXT("taxi"))
 		{
 			// (landside: no ramp room - from the car park; the first free place on the pavement)

@@ -12,6 +12,7 @@
 #include "Sim/ADPEvents.h"
 #include "ADPLog.h"
 #include "Sim/ADPBoards.h"
+#include "Sim/ADPCrew.h"
 #include "PerfLog.h"
 #include "BabylonModel.h"
 #include "Dom/JsonObject.h"
@@ -211,7 +212,7 @@ void AGSE::BreakStop(int32 Ti)
 	FString What;
 	if (T.bBrkFix)
 	{
-		const double Min = FMath::RoundToDouble(FMath::FRandRange(R.MinM, R.MaxM) * (bMech ? 1. : R.NoMech));
+		const double Min = FMath::RoundToDouble(FMath::FRandRange(R.MinM, R.MaxM) * (bMech ? ADPCrew::SlowTeam(Sim->World, TEXT("mech"), ADPBoards::HereIcao(), 1) : R.NoMech));
 		T.BrkUntil = Now + FTimespan::FromMinutes(Min);
 		What = FString::Printf(TEXT("It can be mended: about %.0f minutes, running again at %s%s."), Min, *BrkClock(T.BrkUntil), bMech ? TEXT("") : TEXT(" (it takes longer without a mechanic on duty)"));
 	}

@@ -1,0 +1,18 @@
+{
+ "note": "To-do 301: the beginners the airport hires by itself for the player's airline at its base. early/late/night: how many of the job each shift has for the first aircraft (3D jobs: never under the smallest team). craft/add/most: for every so many further aircraft based here, so many more on the early and the late shift, at most so many (craft 0: the fleet changes nothing). mech has no shifts: early is the number. The fire service goes by its own watch numbers. pay: the part of the going rate; slow: how much longer their timed work takes, at the best and the worst rating.",
+ "ratingMin": 1.0, "ratingMax": 2.0, "pay": 0.72, "slowMin": 1.25, "slowMax": 1.35,
+ "jobs": {
+  "ground":   {"early": 4, "late": 4, "night": 2, "craft": 2, "add": 2, "most": 8},
+  "fuel":     {"early": 1, "late": 1, "night": 1, "craft": 3, "add": 1, "most": 2},
+  "catering": {"early": 2, "late": 2, "night": 2, "craft": 4, "add": 2, "most": 4},
+  "cleaning": {"early": 3, "late": 3, "night": 2, "craft": 3, "add": 2, "most": 5},
+  "water":    {"early": 1, "late": 1, "night": 1, "craft": 4, "add": 1, "most": 2},
+  "deice":    {"early": 2, "late": 2, "night": 2, "craft": 0, "add": 0, "most": 2},
+  "bus":      {"early": 1, "late": 1, "night": 1, "craft": 4, "add": 1, "most": 2},
+  "taxi":     {"early": 1, "late": 1, "night": 1, "craft": 0, "add": 0, "most": 1},
+  "checkin":  {"early": 2, "late": 2, "night": 1, "craft": 2, "add": 1, "most": 4},
+  "security": {"early": 2, "late": 2, "night": 1, "craft": 2, "add": 1, "most": 4},
+  "gate":     {"early": 1, "late": 1, "night": 1, "craft": 2, "add": 1, "most": 3},
+  "mech":     {"early": 1, "late": 0, "night": 0, "craft": 0, "add": 0, "most": 1}
+ }
+}

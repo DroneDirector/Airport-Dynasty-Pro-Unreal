@@ -154,6 +154,7 @@ private:
 	double RealT = 0.0, SimT = 0.0;
 	float F2Z = 600.f, F2Y = 6.f;
 	int32 StuckJet = 0, StuckElse = 0;   // (how often someone was truly held, in a jetway / elsewhere: each a fault to be found)
+	float SlowDesk = 1.f, SlowLane = 1.f; TMap<int32, float> LaneT;   // (beginners at the desks and the lanes: to-do 301)
 	int32 StaffDesk = 99, StaffLane = 99, StaffGate = 99;   // (your passenger service agents / security officers / gate agents on shift)
 	int32 Frame = 0, Watched = INDEX_NONE, TotalAboard = 0, TotalOut = 0;
 	int32 PhoneWho = INDEX_NONE, PhoneReturn = INDEX_NONE; float PhoneShowIn = -1.f; bool bPhoneShown = false;   // (tests: the camera on someone using a phone at the gate, a while)

@@ -39,6 +39,8 @@ public:
 	static constexpr int32 NumTasks = int32(EStaffTask::DeiceRelief) + 1;
 	/** How many of a role can do every job of it: 1 for a bus, the taxi bus, fuel, water; 2 for the others. */
 	static int32 LeastOf(const FString& Role);
+	/** The built people of a sex the hired ones can look like (to-do 301). */
+	static int32 NumFaces(bool bWoman);
 	/** The task that asks for one person to take over from somebody of this role. */
 	static EStaffTask ReliefOf(const FString& Role);
 
@@ -52,6 +54,8 @@ public:
 	/** The nearest person free for a duty (their staff id; empty: nobody). */
 	FString FindFree(EStaffDuty Duty, const FVector& Near) const;
 	struct FTaken { EStaffDuty Duty = EStaffDuty::TugDriver; FString Id; TWeakObjectPtr<AActor> A; };
+	/** How much longer a team's timed work takes (to-do 301; 1: nobody of it is a beginner). */
+	static float SlowOf(const UWorld* W, const TArray<FTaken>& Team);
 	/** The queue (part 2): asks for a task's smallest team, all of it or nobody - claimed and given in Out when it is this
 	 *  job's turn (the earliest departure first) and they are free; false: it waits (ask again every couple of seconds; a job
 	 *  not asked for 10 s is out of the queue). Near: where they are needed; What: "LX 123 pushback". */
@@ -100,7 +104,7 @@ private:
 	struct FStaff
 	{
 		FString Id, Name, Role, Face, Shift, Job;
-		bool bCalledIn = false, bWanted = true, bInRoom = false, bOvertime = false;
+		bool bCalledIn = false, bWanted = true, bInRoom = false, bOvertime = false, bBeginner = false;
 		bool bLand = false;   // (the landside crew - the taxi bus driver: from the car park over the crossing to the kerb, no ramp room)
 		EState State = EState::Load;
 		TSharedPtr<FStreamableHandle> Handle;

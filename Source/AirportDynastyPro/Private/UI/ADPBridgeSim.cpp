@@ -52,7 +52,7 @@ namespace
 		O->SetStringField(TEXT("with"), P.WithReg); O->SetStringField(TEXT("at"), P.Location.IsEmpty() ? P.Base : P.Location);
 		O->SetNumberField(TEXT("daysOn"), P.DaysOn);
 		// careers, candidates, contracts (to-do 178-180)
-		O->SetStringField(TEXT("rank"), P.Rank); O->SetNumberField(TEXT("hours"), FMath::RoundToDouble(P.HoursTotal));
+		O->SetStringField(TEXT("rank"), P.bBeginner ? FString(TEXT("beginner (hired by the airport)")) : P.Rank); O->SetBoolField(TEXT("beginner"), P.bBeginner); O->SetNumberField(TEXT("hours"), FMath::RoundToDouble(P.HoursTotal));
 		TArray<TSharedPtr<FJsonValue>> Lg; for (const FString& X : P.Languages) Lg.Add(MakeShared<FJsonValueString>(X)); O->SetArrayField(TEXT("languages"), Lg);
 		O->SetBoolField(TEXT("interviewed"), P.bInterviewed);
 		if (P.bInterviewed) { O->SetStringField(TEXT("strengths"), P.Strengths); O->SetStringField(TEXT("weaknesses"), P.Weaknesses); }

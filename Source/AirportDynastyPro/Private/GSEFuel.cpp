@@ -227,7 +227,7 @@ void AGSE::FuelTick(FSvcJob& J, float Dt)
 	if ((F.DeadT += Dt) > 110.f) F.DeadT = -0.7f;   // (the dead man's time-out, two minutes: before it they let go and press again)
 	Tractors[J.Ti].bUsed = true;
 	// (one hose: about 1000 l a minute once it runs)
-	const float Was = J.Pumped; J.Pumped = FMath::Min(J.Litres, J.Pumped + Dt * (1000.f / 60.f) * F.Flow); F.Litres = J.Pumped; F.Tank = FMath::Max(0.f, F.Tank - (J.Pumped - Was));
+	const float Was = J.Pumped; J.Pumped = FMath::Min(J.Litres, J.Pumped + Dt * (1000.f / 60.f) * F.Flow / J.Slow); F.Litres = J.Pumped; F.Tank = FMath::Max(0.f, F.Tank - (J.Pumped - Was));
 	if (FMath::FloorToInt(J.Pumped / 2000.f) > FMath::FloorToInt(Was / 2000.f) || (J.Pumped >= J.Litres && Was < J.Litres)) ADP_LOG(TEXT("GSE: %s fuelled %.0f of %.0f l"), *J.Reg, J.Pumped, J.Litres);
 }
 

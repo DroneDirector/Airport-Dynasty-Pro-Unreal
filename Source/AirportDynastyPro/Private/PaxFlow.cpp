@@ -23,6 +23,7 @@
 #include "Sim/ADPSimData.h"
 #include "Sim/ADPBoards.h"
 #include "Sim/ADPSchedule.h"
+#include "Sim/ADPCrew.h"
 #include "Sim/ADPGround.h"
 #include "Sim/ADPWorldData.h"
 #include "UI/ADPHUD.h"
@@ -474,6 +475,7 @@ void APaxFlow::Poll()
 	const FString Here = ADPBoards::HereIcao();
 	const FDateTime Now = Sim->Now();
 	StaffDesk = ADPSchedule::OnShift(Sim->World, TEXT("checkin"), Now); StaffLane = ADPSchedule::OnShift(Sim->World, TEXT("security"), Now);
+	SlowDesk = StaffDesk > 0 ? float(ADPCrew::SlowTeam(Sim->World, TEXT("checkin"), Here, StaffDesk)) : 1.f; SlowLane = StaffLane > 0 ? float(ADPCrew::SlowTeam(Sim->World, TEXT("security"), Here, StaffLane)) : 1.f;
 	StaffGate = ADPSchedule::OnShift(Sim->World, TEXT("gate"), Now);   // (the gate agent opens the jetway corridor door - GateDoors)
 	// (another career loaded: a flight that is in it no more is off - its passengers, on the apron too, go home)
 	for (FRun& R : Runs)
@@ -1860,7 +1862,7 @@ void APaxFlow::StepPx(int32 i, float Dt)
 		CarryBag(P, A);
 		ADepartureBelts* D = ADepartureBelts::Get(GetWorld());
 		if (!P.bBagDown && P.T > 1.2f && D && P.Bag != INDEX_NONE) { D->SetDownOnDesk(P.Bag, P.Desk); P.bBagDown = true; P.bHasBag = false; if (P.Holder) P.Holder->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform); if (R.bTest || R.Spawned <= 3) ADP_LOG(TEXT("PaxFlow: %s sets bag #%d on desk %d's weigh belt"), *P.Id, P.Bag, P.Desk); }
-		if (P.T > (R.bTest ? 12.f : 30.f) + float(P.Jit.Y) / 10.f)
+		if (P.T > (R.bTest ? 12.f : 30.f * (R.bPlayer ? SlowDesk : 1.f)) + float(P.Jit.Y) / 10.f)
 		{
 			DeskLines[P.Desk - 1].Who.Remove(i); ++R.NDesk;
 			WayToSecurity(P); P.Do = EDo::JoinLane; P.St = EPx::Walk; P.Stage = TEXT("checked in - to security through the walk-through");
@@ -1881,7 +1883,8 @@ void APaxFlow::StepPx(int32 i, float Dt)
 			{
 				if (UADPSim* Sim = UADPSim::Get(this)) ADPSchedule::Tell(Sim->World, Sim->Now(), TEXT("lane"), TEXT("Security is closed"), FString::Printf(TEXT("%s's passengers wait at security: no security officer on shift. Hire them under Crew."), *R.Label));
 			}
-			else if (K == 0 && bClear) { LaneLines[P.Lane].Who.Remove(i); WayScreening(P); P.Do = EDo::Screened; P.St = EPx::Walk; P.Stage = FString::Printf(TEXT("security lane %d - X-ray belt, the arch"), P.Lane + 1); }
+			else if (K == 0 && bClear && R.bPlayer && !R.bTest && SlowLane > 1.f && LaneT.FindOrAdd(P.Lane) < 12.f * (SlowLane - 1.f)) LaneT[P.Lane] += Dt;   // (a beginner waves the next one on a few seconds later)
+			else if (K == 0 && bClear) { LaneT.Remove(P.Lane); LaneLines[P.Lane].Who.Remove(i); WayScreening(P); P.Do = EDo::Screened; P.St = EPx::Walk; P.Stage = FString::Printf(TEXT("security lane %d - X-ray belt, the arch"), P.Lane + 1); }
 		}
 		break;
 	}

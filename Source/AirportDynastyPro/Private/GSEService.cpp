@@ -850,7 +850,7 @@ void AGSE::SvcTick(float Dt)
 			if (J.Men[m].bIn && !J.Men[m].bGone && !bMiss) ++In;
 		}
 		if (!In || J.RowsDone >= J.Rows) continue;
-		for (J.RowT += Dt * In; J.RowT >= SvRowSeconds && J.RowsDone < J.Rows; J.RowT -= SvRowSeconds)
+		for (J.RowT += Dt * In / J.Slow; J.RowT >= SvRowSeconds && J.RowsDone < J.Rows; J.RowT -= SvRowSeconds)
 			if (++J.RowsDone % 10 == 0 || J.RowsDone == J.Rows) ADP_LOG(TEXT("GSE: %s cleaned to row %d of %d, %d people"), *J.Reg, J.RowsDone, J.Rows, In);
 	}
 	if ((SvcClock += Dt) < 2.f) return;
@@ -941,6 +941,7 @@ void AGSE::SvcTick(float Dt)
 		}
 		if (Men.Num() < FMath::Min(2, S.MaxPeople)) { for (const FSvcMan& M : Men) G->Discharge(M.Ci); J.Why = TEXT("no place for more people"); continue; }
 		J.Men = Men; if (Tractors[Ti].bSpare) ADP_LOG(TEXT("GSE: %s is served with the bought vehicle %s from the vehicle area"), *J.Reg, *Tractors[Ti].Name);
+		J.Slow = UStaffPeople::SlowOf(GetWorld(), Team);   // (beginners: their fuelling, draining and cleaning takes longer - to-do 301)
 		J.Ti = Ti; J.Phase = 1; J.Why.Reset(); Tractors[Ti].Job = EJob::Boarding; (bTake ? Take : Start).Add(Jk);
 	}
 	// (why another vehicle's job waits where you have bought one of its kind: once for each reason)

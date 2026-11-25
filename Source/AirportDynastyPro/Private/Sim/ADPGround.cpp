@@ -1,5 +1,6 @@
 // Ground handling, stands and gates - see Sim/ADPGround.h.
 #include "Sim/ADPGround.h"
+#include "Sim/ADPCrew.h"
 #include "Sim/ADPEconomy.h"
 #include "Sim/ADPVehicleArea.h"
 #include "Sim/ADPWorldData.h"
@@ -119,6 +120,7 @@ double ADPGround::Turnaround(FADPWorld& W, FADPAircraft& A, const FDateTime& At)
 		double Min = K.Min;
 		if (People == 0 || K.Vehicles == 0) { Min = K.Min * 3.0; Short += FString::Printf(TEXT("%s%s"), Short.IsEmpty() ? TEXT("") : TEXT(", "), People == 0 ? *FString::Printf(TEXT("no %s staff on shift"), K.Job) : *FString::Printf(TEXT("no %s vehicle"), K.Job)); }
 		else if (People < K.Team) { Min = K.Min * K.Team / People; Short += FString::Printf(TEXT("%s%s short-staffed"), Short.IsEmpty() ? TEXT("") : TEXT(", "), K.Job); }
+		if (People > 0 && A.AirlineId == UADPSim::Me()) Min *= ADPCrew::SlowTeam(W, K.Job, Here, K.Team);   // (beginners take longer: to-do 301)
 		const FDateTime Start = GrTeamFree(W, Here, K.Job, Teams, At + FTimespan::FromMinutes(K.Job == FString(TEXT("cleaning")) ? Deboard : 0.0));
 		const FDateTime End = Start + FTimespan::FromMinutes(Min);
 		GrTeamTake(W, Here, K.Job, Teams, Start, End);

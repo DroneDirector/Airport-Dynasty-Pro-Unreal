@@ -139,13 +139,13 @@ void ADPStaff::CareerDay(FADPWorld& W, const FDateTime& To, FRandomStream& Rng)
 			else if (Years >= 2.0 && P.Rank == TEXT("Cabin crew")) { P.Rank = TEXT("Senior cabin crew"); P.Salary = FMath::RoundToDouble(P.Salary * 1.07); SCSay(W, To, TEXT("Promotion"), FString::Printf(TEXT("%s is now senior cabin crew."), *P.Name), 0); }
 		}
 		// 178: a raise asked for (paid under the going rate and not happy; at most every two months)
-		if (P.Salary < Going * 0.97 && P.Mood < 55.0 && (P.RaiseAskedAt == FDateTime() || (To - P.RaiseAskedAt).GetTotalDays() > 60.0) && Rng.FRand() < 0.08)
+		if (P.Salary < Going * ADPCrew::PayPart(P) * 0.97 && P.Mood < 55.0 && (P.RaiseAskedAt == FDateTime() || (To - P.RaiseAskedAt).GetTotalDays() > 60.0) && Rng.FRand() < 0.08)
 		{
 			P.RaiseAskedAt = To;
 			SCSay(W, To, TEXT("A raise asked for"), FString::Printf(TEXT("%s (%s) asks for a raise to $%.0f a week, the going rate. Set their pay under Crew, or they may hand in their notice."), *P.Name, *P.Role, FMath::RoundToDouble(Going / 10.0) * 10.0));
 		}
 		// 180: holidays asked for (about twice a year each), 5-14 days, two to six weeks ahead
-		if (P.Status == TEXT("on") && Rng.FRand() < 0.0055)
+		if (P.Status == TEXT("on") && !P.bBeginner && Rng.FRand() < 0.0055)   // (a beginner has no holiday earned yet)
 		{
 			FADPLeaveRequest L; L.PersonId = P.Id; L.Days = Rng.RandRange(5, 14); L.From = To + FTimespan::FromDays(Rng.RandRange(14, 42)); L.AskedAt = To;
 			W.LeaveRequests.Add(L);

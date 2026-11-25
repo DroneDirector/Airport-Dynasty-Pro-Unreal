@@ -772,3 +772,14 @@ Places: `Data/vehicle-area.json` "chargers", behind bays 1-3 at y 302.4, front s
 
 Checks: `UStaffPeople::CheckRoles` (once at the start, ADP_ERROR), `Tools/check_crew_roles.py`. Bought buses keep bays 2 and 3; buses
 1-3 change places at a charging bay while its owner is out with passengers. Left: waiting places without a charger (no room painted).
+
+## Beginners hired by the airport, 301 as built
+
+`ADPCrew::FillBeginners` (Sim/ADPCrew.cpp) at a career's start, at its load and at midnight UTC; numbers in `Data/beginners.json` (copied to Content/Data)
+(per job and shift, more with the aircraft based here; fire: its watch numbers). Rating 1.0-2.0, level 1, 72 % pay, `bBeginner` saved.
+Own people count first; beginners too many leave at midnight. A beginner let go puts the job in `NoBeginners`: not refilled until
+nobody at all is left. One notice ever; the staff list's rank reads "beginner (hired by the airport)".
+Slower (25-35 %, by rating: `SlowOf`, `SlowTeam`): the simulated turn-round, aircraft checks, vehicle repairs, check-in desks, security
+lanes, and in 3D fuelling, water and toilet service, cabin cleaning. Conduct reports a little more often. `FindFree` takes own people first.
+Not slowed in 3D: catering, bags, chocks, tugs, de-icing, buses (their time is walking and driving).
+The shifts share the 30 built faces; a shift never has more of a sex than there are faces.

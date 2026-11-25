@@ -209,6 +209,7 @@ USTRUCT() struct FADPPerson
 	UPROPERTY() FString Weaknesses;
 	UPROPERTY() bool bInterviewed = false;
 	UPROPERTY() double Asks = 0.0;         // the weekly pay they ask for (a candidate)
+	UPROPERTY() bool bBeginner = false;    // hired by the airport itself, inexperienced (to-do 301)
 	UPROPERTY() FString Contract = TEXT("full");   // full | part (part time: 55% pay, at most 3 duty days in a row)
 	UPROPERTY() int32 NoticeDays = 30;     // the notice period of their contract
 	UPROPERTY() FDateTime HiredAt;
@@ -556,4 +557,7 @@ USTRUCT() struct FADPWorld
 	UPROPERTY() FADPTownState Town;
 	UPROPERTY() FDateTime LastGroundNote;
 	UPROPERTY() TArray<FADPVehWear> VehWear;
+	// the beginners the airport hires by itself (to-do 301)
+	UPROPERTY() TArray<FString> NoBeginners;   // jobs the player let a beginner of go: not refilled while anybody is left
+	UPROPERTY() bool bBeginnersSaid = false;   // the one notice has been given
 };

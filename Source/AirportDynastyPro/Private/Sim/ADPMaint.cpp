@@ -1,5 +1,6 @@
 // Maintenance in the simulation - see Sim/ADPMaint.h.
 #include "Sim/ADPMaint.h"
+#include "Sim/ADPCrew.h"
 #include "Sim/ADPEconomy.h"
 #include "Sim/ADPWorldData.h"
 #include "Sim/ADPBoards.h"
@@ -88,6 +89,7 @@ bool ADPMaint::StartCheck(FADPWorld& W, FADPAircraft& A, const FString& Kind, co
 		const int32 Mech = MxMechanicsAt(W, A.AirlineId, A.Location);
 		if (Mech == 0) { Labour = 3.0; }   // (an outside team flown in)
 		else if (Mech < R->Mechanics) Hours *= double(R->Mechanics) / Mech;
+		if (Mech > 0 && A.AirlineId == UADPSim::Me()) Hours *= ADPCrew::SlowTeam(W, TEXT("mech"), A.Location, R->Mechanics);   // (beginners: to-do 301)
 		if (R->bHangar)
 		{
 			int32 Busy = 0; for (const FADPAircraft& X : W.Aircraft) if (X.Location == A.Location && X.Status == TEXT("maintenance") && X.CheckKind != TEXT("A")) ++Busy;

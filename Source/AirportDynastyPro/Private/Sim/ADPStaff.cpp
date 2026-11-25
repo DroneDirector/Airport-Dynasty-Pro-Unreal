@@ -89,6 +89,7 @@ bool ADPStaff::Dismiss(FADPWorld& W, const FString& PersonId, const FDateTime& A
 	const double Years = P->HiredAt != FDateTime() ? (At - P->HiredAt).GetTotalDays() / 365.0 : 0.0;
 	const double Weeks = FMath::Max(2.0, FMath::FloorToDouble(Years));
 	ADPEconomy::Pay(W, P->AirlineId, At, TEXT("salary"), -P->Salary * Weeks, FString::Printf(TEXT("Severance: %s (%s)"), *P->Name, *ADPCrew::RoleName(P->Role)), P->Id);
+	if (P->bBeginner && P->AirlineId == UADPSim::Me()) W.NoBeginners.AddUnique(P->Role);   // (the player's wish: not refilled while anybody is left - to-do 301)
 	P->Status = TEXT("dismissed"); P->RestUntil = At + FTimespan::FromDays(FMath::Max(7, P->NoticeDays)); P->Mood = FMath::Min(P->Mood, 25.0);
 	FADPNotice N; N.At = At; N.Kind = TEXT("staff"); N.Title = TEXT("Notice given");
 	N.Text = FString::Printf(TEXT("%s (%s) has been given notice: off the roster now, leaves in %d days (their contract), %.0f weeks' pay as severance."), *P->Name, *ADPCrew::RoleName(P->Role), FMath::Max(7, P->NoticeDays), Weeks); W.Notices.Add(N);
@@ -160,6 +161,7 @@ void FADPStaffModule::Advance(UADPSim& Sim, const FDateTime& From, const FDateTi
 	// the day's events at midnight UTC: sickness, getting better, morale, notice and leaving
 	if (!(To.GetHour() == 0 && From.GetHour() != 0)) return;
 	Daily(W, To);
+	ADPCrew::FillBeginners(W, To, Rng, true);   // (the day's beginners: to-do 301)
 	for (int32 i = W.People.Num() - 1; i >= 0; --i)
 	{
 		FADPPerson& P = W.People[i];
@@ -169,7 +171,7 @@ void FADPStaffModule::Advance(UADPSim& Sim, const FDateTime& From, const FDateTi
 		if (P.Status == TEXT("on") && Rng.FRand() < 0.0024 * (P.Mood < 35 ? 1.6 : 1.0))
 		{ P.Status = TEXT("sick"); P.RestUntil = To + FTimespan::FromDays(Rng.RandRange(1, 14)); ++SickDays; continue; }
 		// morale: pay above all (paid above the going rate: happier), drifting a little each day
-		const double PayMood = FMath::Clamp(55.0 + (P.Salary / FMath::Max(1.0, ADPStaff::GoingRate(P.Role, ADPStaff::CountryOf(W, P.AirlineId))) - 1.0) * 160.0, 0.0, 100.0);
+		const double PayMood = FMath::Clamp(55.0 + (P.Salary / FMath::Max(1.0, ADPCrew::PayPart(P) * ADPStaff::GoingRate(P.Role, ADPStaff::CountryOf(W, P.AirlineId))) - 1.0) * 160.0, 0.0, 100.0);
 		P.Mood = FMath::Clamp(P.Mood + (PayMood - P.Mood) * 0.05 + Rng.FRandRange(-1.5, 1.5), 0.0, 100.0);
 		// very unhappy: notice (4% a day under 20), gone after 14 days unless their mood is back to 30
 		if (P.Status == TEXT("on") && P.Mood < 20.0 && Rng.FRand() < 0.04)
@@ -179,6 +181,7 @@ void FADPStaffModule::Advance(UADPSim& Sim, const FDateTime& From, const FDateTi
 		}
 		else if (P.Status == TEXT("dismissed"))
 		{
+			if (P.bBeginner && P.NoticeDays == 0) { if (P.RestUntil <= To) W.People.RemoveAt(i); continue; }   // (the airport's own: a log line only)
 			if (P.RestUntil <= To) { FADPNotice N; N.At = To; N.Kind = TEXT("staff"); N.Text = FString::Printf(TEXT("%s (%s) has left after their notice"), *P.Name, *ADPCrew::RoleName(P.Role)); W.Notices.Add(N); W.People.RemoveAt(i); }
 		}
 		else if (P.Status == TEXT("notice"))
@@ -213,7 +216,7 @@ void ADPStaff::MeetUnion(FADPWorld& W, const FString& AirlineId, const FString& 
 	for (FADPPerson& P : W.People)
 		if (P.AirlineId == AirlineId && P.Role == Role)
 		{
-			const double Target = GoingRate(Role, C) * 1.05;
+			const double Target = GoingRate(Role, C) * ADPCrew::PayPart(P) * 1.05;
 			if (P.Salary < Target) P.Salary = bFully ? Target : (P.Salary + Target) / 2.0;
 			P.Mood = FMath::Min(100.0, P.Mood + (bFully ? 25.0 : 12.0));
 		}
@@ -243,7 +246,7 @@ void FADPStaffModule::Daily(FADPWorld& W, const FDateTime& To)
 		if (G.Value.Num() < 3) continue;
 		FString Al, Role; G.Key.Split(TEXT("|"), &Al, &Role);
 		double PayK = 0, Mood = 0; const double Going = ADPStaff::GoingRate(Role, ADPStaff::CountryOf(W, Al));
-		for (const FADPPerson* P : G.Value) { PayK += P->Salary / FMath::Max(1.0, Going); Mood += P->Mood; }
+		for (const FADPPerson* P : G.Value) { PayK += P->Salary / FMath::Max(1.0, Going * ADPCrew::PayPart(*P)); Mood += P->Mood; }
 		PayK /= G.Value.Num(); Mood /= G.Value.Num();
 		FADPUnion* U = W.Unions.FindByPredicate([&](const FADPUnion& X) { return X.AirlineId == Al && X.Role == Role; });
 		if (!U) { FADPUnion N; N.AirlineId = Al; N.Role = Role; W.Unions.Add(N); U = &W.Unions.Last(); }
@@ -266,6 +269,8 @@ void FADPStaffModule::Daily(FADPWorld& W, const FDateTime& To)
 		for (int32 n = Rng.RandRange(1, 3); n > 0 && Staff.Num(); --n)
 		{
 			FADPPerson* P = Staff[Rng.RandRange(0, Staff.Num() - 1)];
+			// (beginners are reported a little more often - to-do 301)
+			if (!P->bBeginner && Rng.FRand() < 0.15) { const TArray<FADPPerson*> Bg = Staff.FilterByPredicate([P](const FADPPerson* X) { return X->bBeginner && X->AirlineId == P->AirlineId; }); if (Bg.Num()) P = Bg[Rng.RandRange(0, Bg.Num() - 1)]; }
 			const double Sev = Rng.FRand();
 			static const TCHAR* Light[] = {TEXT("late for duty"), TEXT("rude to a passenger"), TEXT("uniform out of order")};
 			static const TCHAR* Moderate[] = {TEXT("a heated argument with a colleague"), TEXT("left the post without cover"), TEXT("ignored a safety check")};

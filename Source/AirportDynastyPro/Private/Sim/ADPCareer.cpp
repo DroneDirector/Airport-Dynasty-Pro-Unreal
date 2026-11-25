@@ -7,6 +7,7 @@
 #include "Sim/ADPFlightsModule.h"
 #include "Sim/ADPEconomy.h"
 #include "Sim/ADPStaff.h"
+#include "Sim/ADPCrew.h"
 #include "Sim/ADPRivals.h"
 #include "Sim/ADPEvents.h"
 #include "Sim/ADPMaint.h"
@@ -111,6 +112,7 @@ void UADPSim::NewCareer(const FString& Difficulty, const FString& AirlineName)
 			// service - to-do 197): 24 fire-fighters on 24-hour watches cover category 6 (an A320) with the station's 2 tenders
 			const FString Country = ADPStaff::CountryOf(World, Me.Id);
 			for (int32 k = 0; k < 24; ++k) { FADPPerson F = ADPStaff::MakePerson(TEXT("fire"), Country, Rs); World.People.Add(F); ADPStaff::Hire(World, F.Id, Me.Id, Icao, T); }
+			ADPCrew::FillBeginners(World, T, Rs);   // (the other jobs: beginners - to-do 301)
 		}
 		{
 			FADPNotice N; N.At = T; N.Kind = TEXT("company"); N.Priority = 1; N.Title = TEXT("Welcome to ") + (Home ? Home->Name : Icao);
@@ -136,6 +138,7 @@ bool UADPSim::ResumeCareer()
 		AddGameModules();
 		{ FRandomStream Rs(int32(FDateTime::UtcNow().GetTicks() & 0x7fffffff)); ADPStaff::FillPool(World, Rs); }   // (a job it doesn't know yet - passenger service agents - joins its hiring pool)
 		const FDateTime Last = World.SimAt == FDateTime() ? Now() : World.SimAt;
+		{ FRandomStream Rs(int32(FDateTime::UtcNow().GetTicks() & 0x7fffffff)); ADPCrew::FillBeginners(World, Last, Rs); }   // (to-do 301)
 		if (ADPChainTest::StartStage()) SetClock(Last);   // (the functional test's save points: its clock runs ahead)
 		Start(Last);
 		// each module from where it had got to (older than its own limit is skipped in Start)
@@ -278,6 +281,7 @@ bool UADPSim::LoadNamed(const FString& Slot)
 	if (!LoadCareer(Slot)) return false;
 	World.Slot = SiteSlot();
 	AddGameModules();
+	{ FRandomStream Rs(int32(FDateTime::UtcNow().GetTicks() & 0x7fffffff)); ADPCrew::FillBeginners(World, World.SimAt == FDateTime() ? Now() : World.SimAt, Rs); }   // (to-do 301)
 	Start(World.SimAt == FDateTime() ? Now() : World.SimAt);
 	const FString Pose = FPaths::ProjectSavedDir() / TEXT("Careers") / (Slot + TEXT(".pose.txt"));
 	if (FPaths::FileExists(Pose)) IFileManager::Get().Copy(*(FPaths::ProjectSavedDir() / TEXT("ADP") / TEXT("pose.txt")), *Pose);

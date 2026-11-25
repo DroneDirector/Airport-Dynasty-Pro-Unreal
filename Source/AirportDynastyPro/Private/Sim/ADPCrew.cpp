@@ -5,7 +5,14 @@
 #include "Sim/ADPStaff.h"
 #include "Sim/ADPTown.h"
 #include "Sim/ADPWorldData.h"
+#include "Sim/ADPSim.h"
+#include "StaffPeople.h"
 #include "ADPLog.h"
+#include "Dom/JsonObject.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
 
 const TArray<ADPCrew::FArea>& ADPCrew::Areas()
 {
@@ -160,4 +167,155 @@ bool ADPCrew::HireTalk(FADPWorld& W, const FString& RoleId, const FString& First
 	if (FADPPerson* X = W.People.FindByPredicate([&](const FADPPerson& Y) { return Y.Id == Id; })) X->OffUntil = At + (FTimespan::FromDays(1.0) - Lt.GetTimeOfDay());
 	ADP_LOG(TEXT("Crew: %s hired in a talk as %s at %s, face %s, starts after midnight"), *Name, *RoleId, *Here, *Face);
 	return true;
+}
+
+// ------------------------------------------------------------------ beginners (to-do 301)
+
+namespace
+{
+	struct FCrBegin { int32 N[3] = {0, 0, 0}; int32 Craft = 0, Add = 0, Most = 0; };
+	struct FCrBegins { TMap<FString, FCrBegin> Jobs; double RMin = 1.0, RMax = 2.0, Pay = 0.72, SMin = 1.25, SMax = 1.35; };
+	const FCrBegins& CrBegins()
+	{
+		static FCrBegins B; static bool bRead = false;
+		if (bRead) return B;
+		bRead = true;
+		FString Text; TSharedPtr<FJsonObject> O; const TSharedPtr<FJsonObject>* Js = nullptr;
+		if ((!FFileHelper::LoadFileToString(Text, *(FPaths::ProjectContentDir() / TEXT("Data/beginners.json"))) && !FFileHelper::LoadFileToString(Text, *(FPaths::ProjectDir() / TEXT("Data/beginners.json"))))
+			|| !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), O) || !O.IsValid() || !O->TryGetObjectField(TEXT("jobs"), Js))
+		{
+			ADP_WARN(TEXT("Crew: Data/beginners.json couldn't be read - the built-in numbers"));
+			auto Put = [&](const TCHAR* Id, int32 E, int32 L, int32 N, int32 Craft, int32 Add, int32 Most) { FCrBegin X; X.N[0] = E; X.N[1] = L; X.N[2] = N; X.Craft = Craft; X.Add = Add; X.Most = Most; B.Jobs.Add(Id, X); };
+			Put(TEXT("ground"), 4, 4, 2, 2, 2, 8); Put(TEXT("fuel"), 1, 1, 1, 3, 1, 2); Put(TEXT("catering"), 2, 2, 2, 4, 2, 4); Put(TEXT("cleaning"), 3, 3, 2, 3, 2, 5);
+			Put(TEXT("water"), 1, 1, 1, 4, 1, 2); Put(TEXT("deice"), 2, 2, 2, 0, 0, 2); Put(TEXT("bus"), 1, 1, 1, 4, 1, 2); Put(TEXT("taxi"), 1, 1, 1, 0, 0, 1);
+			Put(TEXT("checkin"), 2, 2, 1, 2, 1, 4); Put(TEXT("security"), 2, 2, 1, 2, 1, 4); Put(TEXT("gate"), 1, 1, 1, 2, 1, 3); Put(TEXT("mech"), 1, 0, 0, 0, 0, 1);
+			return B;
+		}
+		O->TryGetNumberField(TEXT("ratingMin"), B.RMin); O->TryGetNumberField(TEXT("ratingMax"), B.RMax); O->TryGetNumberField(TEXT("pay"), B.Pay);
+		O->TryGetNumberField(TEXT("slowMin"), B.SMin); O->TryGetNumberField(TEXT("slowMax"), B.SMax);
+		for (const ADPCrew::FRole& R : ADPCrew::Roles())
+		{
+			const TSharedPtr<FJsonObject>* J = nullptr; if (!R.Work || !(*Js)->TryGetObjectField(FString(R.Id), J)) continue;
+			FCrBegin X; (*J)->TryGetNumberField(TEXT("early"), X.N[0]); (*J)->TryGetNumberField(TEXT("late"), X.N[1]); (*J)->TryGetNumberField(TEXT("night"), X.N[2]);
+			(*J)->TryGetNumberField(TEXT("craft"), X.Craft); (*J)->TryGetNumberField(TEXT("add"), X.Add); (*J)->TryGetNumberField(TEXT("most"), X.Most);
+			B.Jobs.Add(FString(R.Id), X);
+		}
+		return B;
+	}
+	const TCHAR* CrShifts[3] = {TEXT("early"), TEXT("late"), TEXT("night")};
+	FString CrBase(const FADPWorld& W) { const FADPAirline* A = W.Airlines.FindByPredicate([](const FADPAirline& X) { return X.bPlayer; }); return A ? A->Hub : FString(); }
+	bool CrMine(const FADPPerson& P, const FString& Role, const FString& Base) { return P.AirlineId == UADPSim::Me() && P.Role == Role && P.Base == Base && P.Status != TEXT("dismissed"); }
+}
+
+double ADPCrew::SlowOf(const FADPPerson& P)
+{
+	if (!P.bBeginner) return 1.0;
+	const FCrBegins& B = CrBegins();
+	return FMath::Lerp(B.SMax, B.SMin, FMath::Clamp((P.Rating - B.RMin) / FMath::Max(0.1, B.RMax - B.RMin), 0.0, 1.0));
+}
+
+double ADPCrew::PayPart(const FADPPerson& P) { return P.bBeginner ? CrBegins().Pay : 1.0; }
+
+double ADPCrew::SlowTeam(const FADPWorld& W, const FString& Id, const FString& Icao, int32 Team)
+{
+	TArray<double> S;
+	for (const FADPPerson& P : W.People) if (CrMine(P, Id, Icao) && P.Status == TEXT("on")) S.Add(SlowOf(P));
+	if (!S.Num()) return 1.0;
+	S.Sort();   // (the player's own people first)
+	double Sum = 0.0; const int32 N = FMath::Clamp(Team, 1, S.Num());
+	for (int32 i = 0; i < N; ++i) Sum += S[i];
+	return Sum / N;
+}
+
+int32 ADPCrew::BeginnerNeed(const FADPWorld& W, const FString& Id, const FString& ShiftName)
+{
+	const FCrBegin* B = CrBegins().Jobs.Find(Id); const FRole* R = Role(Id);
+	if (!B || !R) return 0;
+	int32 k = 0;
+	while (k < 3 && ShiftName != CrShifts[k]) ++k;
+	if (k == 3) return 0;
+	int32 N = B->N[k];
+	if (k < 2 && B->Craft > 0)
+	{
+		const FString Base = CrBase(W); int32 Craft = 0;
+		for (const FADPAircraft& C : W.Aircraft) if (C.AirlineId == UADPSim::Me() && C.Base == Base) ++Craft;
+		N = FMath::Min(FMath::Max(B->Most, N), N + FMath::Max(0, Craft - 1) / B->Craft * B->Add);
+	}
+	return R->b3D && R->bShift ? FMath::Max(N, UStaffPeople::LeastOf(Id)) : N;
+}
+
+int32 ADPCrew::FillBeginners(FADPWorld& W, const FDateTime& At, FRandomStream& Rng, bool bDayEnds)
+{
+	const FString Me = UADPSim::Me(), Base = CrBase(W); const FCrBegins& B = CrBegins();
+	if (W.Slot.IsEmpty() || Base.IsEmpty() || !B.Jobs.Num()) return 0;   // (the self-tests' own worlds: nobody)
+	const FString Country = ADPStaff::CountryOf(W, Me);
+	int32 Came = 0, Left = 0; TArray<FString> Short; FString What;
+	// (how many of a sex a shift has in 3D: never more than there are built people of it; the shifts share the faces)
+	const int32 Faces[2] = {UStaffPeople::NumFaces(false), UStaffPeople::NumFaces(true)};
+	auto Wearing = [&](const FString& Shift, bool bWoman)
+	{
+		int32 N = 0;
+		for (const FADPPerson& P : W.People) { const FRole* R = Role(P.Role); if (R && R->b3D && CrMine(P, P.Role, Base) && P.Shift == Shift && P.bWoman == bWoman) ++N; }
+		return N;
+	};
+	// a job of one shift (or, without shifts, the whole job): hires up to Need, lets the beginners too many go when the day ends
+	auto Fill = [&](const FRole& R, const FString& Shift, int32 Need)
+	{
+		int32 Have = 0; TArray<FString> Beg;
+		for (const FADPPerson& P : W.People) if (CrMine(P, R.Id, Base) && (Shift.IsEmpty() || P.Shift == Shift) && P.Status != TEXT("notice")) { ++Have; if (P.bBeginner) Beg.Add(P.Id); }
+		for (; bDayEnds && Have > Need && Beg.Num(); --Have)
+		{
+			const FString Id = Beg.Pop();
+			// (off the roster now, the record goes with the next day's end; no severance)
+			if (FADPPerson* P = W.People.FindByPredicate([&](const FADPPerson& X) { return X.Id == Id; })) { P->Status = TEXT("dismissed"); P->NoticeDays = 0; P->RestUntil = At + FTimespan::FromHours(12.0); ++Left; }
+		}
+		if (W.NoBeginners.Contains(FString(R.Id))) return;
+		const int32 Was = Came;
+		for (; Have < Need; ++Have)
+		{
+			const int32 L[2] = {R.b3D ? Faces[0] - Wearing(Shift, false) : 99, R.b3D ? Faces[1] - Wearing(Shift, true) : 99};
+			FADPPerson P; bool bOk = false;
+			// (a sex with a built person free, and nobody's name twice among your people while the generator has others)
+			for (int32 k = 0; k < 60 && !bOk; ++k)
+			{
+				P = ADPStaff::MakePerson(R.Id, Country, Rng);
+				bOk = L[P.bWoman ? 1 : 0] > 0 && (k > 40 || !W.People.ContainsByPredicate([&](const FADPPerson& X) { return X.AirlineId == Me && X.Name == P.Name; }));
+			}
+			if (!bOk) { Short.Add(FString::Printf(TEXT("%s (%s)"), *FString(R.Id), *Shift)); break; }
+			P.bBeginner = true; P.Level = 1; P.Xp = 0.0; P.HoursTotal = 0.0; P.Contract = TEXT("full"); P.NoticeDays = 7;
+			P.Rating = FMath::RoundToDouble(Rng.FRandRange(B.RMin, B.RMax) * 10.0) / 10.0;
+			P.Salary = FMath::RoundToDouble(ADPStaff::GoingRate(R.Id, Country) * B.Pay); P.Asks = P.Salary; P.Mood = Rng.FRandRange(52.0, 62.0);
+			P.Strengths = TEXT("quick learner"); P.Weaknesses = TEXT("no experience yet"); P.Shift = Shift;
+			const FString Id = P.Id; W.People.Add(P);
+			if (!ADPStaff::Hire(W, Id, Me, Base, At))
+			{
+				ADP_ERROR(TEXT("Crew: a beginner for %s couldn't be hired"), *FString(R.Id));
+				W.People.RemoveAll([&](const FADPPerson& X) { return X.Id == Id && X.AirlineId.IsEmpty(); }); break;
+			}
+			++Came;
+		}
+		if (Came > Was) What += FString::Printf(TEXT("%s%d %s%s%s"), What.IsEmpty() ? TEXT("") : TEXT(", "), Came - Was, *FString(R.Id), Shift.IsEmpty() ? TEXT("") : TEXT(" "), *Shift);
+	};
+	for (const FRole& R : Roles())
+	{
+		const FString Id = R.Id; const bool bFire = Id == TEXT("fire");
+		if (!R.Work || (!bFire && !B.Jobs.Contains(Id))) continue;
+		// (the player let one go: the job is theirs, until nobody at all is left for it)
+		if (W.NoBeginners.Contains(Id) && !W.People.ContainsByPredicate([&](const FADPPerson& P) { return CrMine(P, Id, Base); }))
+		{ W.NoBeginners.Remove(Id); ADP_LOG(TEXT("Crew: nobody is left as %s - the airport hires beginners again"), *Id); }
+		if (bFire) { Fill(R, FString(), ADPTown::FireCrewNeeded(W)); continue; }
+		if (!R.bShift) { Fill(R, FString(), BeginnerNeed(W, Id, CrShifts[0])); continue; }
+		for (FADPPerson& P : W.People) if (CrMine(P, Id, Base)) GiveShift(W, P);   // (an old career's people without a shift yet)
+		for (const TCHAR* S : CrShifts) Fill(R, S, BeginnerNeed(W, Id, S));
+	}
+	if (Came || Left) ADP_LOG(TEXT("Crew: the airport hired %d beginners (%s), %d leave as your own people are enough"), Came, *What, Left);
+	if (Short.Num()) ADP_WARN(TEXT("Crew: no built person free for more beginners: %s"), *FString::Join(Short, TEXT(", ")));
+	if (Came && !W.bBeginnersSaid)
+	{
+		W.bBeginnersSaid = true;
+		FADPNotice N; N.At = At; N.Kind = TEXT("staff"); N.Priority = 1; N.Title = TEXT("The airport has hired beginners");
+		N.Text = FString::Printf(TEXT("%d beginners fill the jobs at the airport so that everything runs. They are cheap, inexperienced and slower. Hire better people under Crew: your own are given the work first, and beginners leave when you have enough."), Came);
+		W.Notices.Add(N);
+	}
+	return Came;
 }
