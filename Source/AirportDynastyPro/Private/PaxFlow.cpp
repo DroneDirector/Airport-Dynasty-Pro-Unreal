@@ -1040,7 +1040,23 @@ bool APaxFlow::Follow(FPx& P, AActor* A, float Dt)
 		if (FVector::Dist2D(From, To.P) > (P.ReplanT > 0.f ? 80.f : 400.f))
 		{
 			TArray<FVector> Pts;
-			const PaxNav::EPath R = PaxNav::Path(GetWorld(), From, To.P, Pts);
+			PaxNav::EPath R = PaxNav::Path(GetWorld(), From, To.P, Pts);
+			// (an end a little off the map - stepped aside, eased back, a point close to a wall: from and to the nearest places on it,
+			//  never blindly straight on)
+			FVector Fn, Tn;
+			const bool bOff = R == PaxNav::OffMesh && PaxNav::Nearest(GetWorld(), From, 200.f, Fn) && PaxNav::Nearest(GetWorld(), To.P, 200.f, Tn);
+			if (bOff)
+			{
+				R = PaxNav::Path(GetWorld(), Fn, Tn, Pts);
+				if (R == PaxNav::Full && Pts.Num() >= 2) { Pts[0] = From; if (FVector::Dist2D(Fn, From) > 30.f) Pts.Insert(Fn, 1); if (FVector::Dist2D(Tn, To.P) > 30.f) Pts.Add(To.P); }
+			}
+			else if (R == PaxNav::OffMesh)
+			{
+				const FVector Fa = PlanOf(From), Ta = PlanOf(To.P);
+				const uint64 Key = (uint64(uint16(int32(Fa.X) + 2000)) << 48) | (uint64(uint16(int32(Fa.Z) + 2000)) << 32) | (uint64(uint16(int32(Ta.X) + 2000)) << 16) | uint64(uint16(int32(Ta.Z) + 2000));
+				bool bSeen = false; NoWayLogged.Add(Key, &bSeen);
+				if (!bSeen) ADP_LOG(TEXT("PaxFlow: %s from plan (%.1f, %.1f) to (%.1f, %.1f) - not on the walking map (%s); straight to the waypoint"), *P.Id, Fa.X, Fa.Z, Ta.X, Ta.Z, *P.Stage);
+			}
 			// (a part way that stops short of the waypoint: only when it gets close, else it isn't a way)
 			const bool bUse = R == PaxNav::Full || (R == PaxNav::Partial && Pts.Num() >= 2 && FVector::Dist2D(Pts.Last(), To.P) < 150.f);
 			if (bUse && Pts.Num() > 2)
@@ -1513,7 +1529,7 @@ bool APaxFlow::WayToWait(FPx& P)
 	const float Roll = Rng.FRand();
 	auto TrySeat = [&](bool bOwnGate) -> bool
 	{
-		TArray<int32> Free;
+		TArray<int32> Free; int32 NoWaySeats = 0;
 		for (int32 s = 0; s < ASeats::Count(); ++s)
 		{
 			FVector SAt, SF; float SH;
@@ -1531,11 +1547,23 @@ bool APaxFlow::WayToWait(FPx& P)
 			FVector SAt, SF; float SH; ASeats::SeatOf(I, SAt, SF, SH);
 			if (!ASeats::ClaimSeat(A, I)) { Free.Remove(I); continue; }
 			P.Seat = I;
-			const FVector Front = PlanOf(FVector(SAt.X, SAt.Y, F2Z) + SF * 60.f);
+			FVector At = FVector(SAt.X, SAt.Y, F2Z) + SF * 60.f;
+			// (only a chair they can walk to, to-do 307: its place on the walking map, and a way there from where they are. One that
+			//  wasn't on it was gone for in a straight line, into the gate's wall)
+			if (PaxNav::Ready(GetWorld()))
+			{
+				FVector On, Fr; TArray<FVector> Pn;
+				bool bGo = PaxNav::Nearest(GetWorld(), At, 100.f, On) && FVector::Dist2D(On, SAt) < 150.f;
+				if (bGo && PaxNav::Nearest(GetWorld(), A->GetActorLocation(), 250.f, Fr)) bGo = PaxNav::Path(GetWorld(), Fr, On, Pn) == PaxNav::Full;
+				if (!bGo) { ASeats::Release(A); P.Seat = INDEX_NONE; P.NoSeat.AddUnique(I); Free.Remove(I); ++NoWaySeats; continue; }
+				At = On;
+			}
+			const FVector Front = PlanOf(At);
 			AddPlanWay(P, INDEX_NONE, HerePlan, INDEX_NONE, FVector(Front.X, F2Y, Front.Z));
 			P.Do = EDo::AtSeat; P.Stage = bOwnGate ? TEXT("to a chair at their gate") : TEXT("to a free chair on the gate walkway");
 			return true;
 		}
+		if (NoWaySeats) ADP_LOG(TEXT("PaxFlow: %s - %d chairs %s tried, no way to them on the walking map"), *P.Id, NoWaySeats, bOwnGate ? TEXT("at their gate") : TEXT("on the gate walkway"));
 		return false;
 	};
 	if (Roll < 0.5f && TrySeat(true)) return true;
