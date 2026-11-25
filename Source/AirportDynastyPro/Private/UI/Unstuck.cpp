@@ -2,6 +2,8 @@
 // body inside a wall), a small panel in the middle of the screen; one click puts you on free floor nearby, the panel
 // goes and the view is yours again at once.
 #include "UI/ADPHUD.h"
+#include "ADPWalker.h"
+#include "Seats.h"
 #include "ADPLog.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -34,6 +36,12 @@ bool AADPHUD::IsStuck(float Dt)
 {
 	ACharacter* C = Cast<ACharacter>(GetOwningPawn());
 	if (!C || !C->GetCharacterMovement() || bGame) { StuckFor = 0; return false; }
+	// sitting on any seat (terminal or vehicle), climbing into one, led or held by something, or carried aboard a vehicle: never
+	// stuck (owner, 2026-11-25)
+	const AADPWalker* Wk = Cast<AADPWalker>(C);
+	const UPrimitiveComponent* Under = C->GetMovementBase();
+	if (ASeats::IsSitting() || (Wk && (Wk->IsLent() || Wk->IsLed())) || C->GetCharacterMovement()->MovementMode == MOVE_None || C->GetAttachParentActor() || (Under && Under->GetComponentVelocity().SizeSquared() > 100.0))
+	{ StuckFor = 0; return false; }
 	// inside something solid, or keys held for a while without moving
 	const bool bPushing = !C->GetLastMovementInputVector().IsNearlyZero() && C->GetVelocity().Size2D() < 5.f;
 	FCollisionQueryParams Q(SCENE_QUERY_STAT(ADPStuck), false, C);

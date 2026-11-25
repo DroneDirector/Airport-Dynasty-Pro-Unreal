@@ -154,13 +154,24 @@ void AADPPeople::Gather()
 	const APlayerController* PC = GetWorld()->GetFirstPlayerController();
 	const AActor* MeHuman = nullptr;
 	if (PC && PC->GetPawn()) for (AActor* Ch : PC->GetPawn()->Children) if (Ch && Ch->GetClass()->GetPathName().Contains(TEXT("/Game/People/Built/"))) MeHuman = Ch;
+	static TMap<TWeakObjectPtr<UClass>, bool> Built;   // (each class's path looked at once: the world has tens of thousands of actors)
 	for (TActorIterator<AActor> It(GetWorld()); It; ++It)
 	{
 		AActor* A = *It;
-		if (!A || A == MeHuman || (PC && A->GetOwner() == PC->GetPawn())) continue;
+		if (!A) continue;
+		const bool* Is = Built.Find(A->GetClass());
+		if (!Is) Is = &Built.Add(A->GetClass(), A->GetClass()->GetPathName().Contains(TEXT("/Game/People/Built/MH_")));
+		if (!*Is || A == MeHuman || (PC && A->GetOwner() == PC->GetPawn())) continue;
+		AddPerson(A);
+	}
+}
+
+void AADPPeople::AddPerson(AActor* A)
+{
+	if (!A || Find(A)) return;
+	if (!Roster.Num()) LoadRoster();
+	{
 		const FString Path = A->GetClass()->GetPathName();
-		if (!Path.Contains(TEXT("/Game/People/Built/MH_"))) continue;
-		if (Find(A)) continue;
 		FWho W; W.A = A;
 		W.Name = Path.Mid(Path.Find(TEXT("/Built/")) + 7); W.Name = W.Name.Left(W.Name.Find(TEXT("/")));
 		const FRosterRow* Row = Roster.Find(W.Name);
@@ -193,13 +204,14 @@ AActor* AADPPeople::Spawn(const FString& Name, const FVector& At, float Yaw)
 {
 	UClass* C = LoadClass<AActor>(nullptr, *FString::Printf(TEXT("/Game/People/Built/%s/BP_%s.BP_%s_C"), *Name, *Name, *Name));
 	if (!C) { ADP_WARN(TEXT("People: %s isn't built"), *Name); return nullptr; }
+	ADP_PERF_SCOPE("people: one person made", 6.f);
 	FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	FVector Spot = At;
 	FHitResult H; FCollisionQueryParams Q(SCENE_QUERY_STAT(PeopleFloor), true);
 	if (GetWorld()->LineTraceSingleByChannel(H, At + FVector(0, 0, 150.f), At - FVector(0, 0, 500.f), ECC_Visibility, Q)) Spot.Z = H.ImpactPoint.Z;
 	AActor* A = GetWorld()->SpawnActor<AActor>(C, Spot, FRotator(0.f, Yaw - 90.f, 0.f), P);   // (a MetaHuman faces along its actor's +Y: yaw - 90 turns it to face Yaw)
 	PaxNav::NoNav(A);   // (people walk on the navmesh, they never shape it: no rebuilds as they move or come and go)
-	Gather();
+	AddPerson(A);   // (only this one: no look through the whole world for each passenger that comes)
 	return A;
 }
 

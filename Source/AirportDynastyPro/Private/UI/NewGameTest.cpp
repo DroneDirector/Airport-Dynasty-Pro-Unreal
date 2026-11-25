@@ -177,8 +177,8 @@ void AADPHUD::TestNewGame(float Dt)
 			const APawn* Me = GetOwningPawn();
 			ADP_LOG(TEXT("NEWGAME TEST: %s - %d problems; loading %.1f s, from the title to the airport %.1f s, standing at %s"), Problems ? TEXT("FINISHED WITH PROBLEMS") : TEXT("PASSED"),
 				Problems, ReachedAirport - StartedLoad, ReachedAirport - T0, Me ? *Me->GetActorLocation().ToString() : TEXT("-"));
-			if (ADPChainTest::StartStage()) { EndAt = 1e17; ADPChainTest::Begin(GetWorld()); }   // (the career step after it: ChainTest.cpp ends the game)
-			else if (FString Vf; FParse::Value(FCommandLine::Get(), TEXT("UIPerfViews="), Vf)) { EndAt = 1e17; ADPPerfViews::Begin(Vf); }   // (the fixed views measured in a career: its own quit step)
+			if (FString Vf; FParse::Value(FCommandLine::Get(), TEXT("UIPerfViews="), Vf)) { EndAt = 1e17; ADPPerfViews::Begin(Vf); }   // (the fixed views measured in a career, with -ChainTest=N its save point's: its own quit step)
+			else if (ADPChainTest::StartStage()) { EndAt = 1e17; ADPChainTest::Begin(GetWorld()); }   // (the career step after it: ChainTest.cpp ends the game)
 			else EndAt = Now + 3.0;
 		}
 		return;

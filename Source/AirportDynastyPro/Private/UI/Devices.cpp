@@ -28,6 +28,7 @@
 #include "Widgets/SLeafWidget.h"
 #include "Widgets/Text/STextBlock.h"
 #include "JetwayRigs.h"
+#include "GameCursor.h"
 #include "JetwayHmi.h"
 #include "ADPLog.h"
 #include "Camera/CameraActor.h"
@@ -238,13 +239,11 @@ void AADPHUD::TickDevice(float Dt)
 	// and precise, or a flick across); the pad's left stick too
 	if (!bPhoneLook)
 	{
-		float Mx = 0.f, My = 0.f; PC->GetInputMouseDelta(Mx, My);
-		const float Spd = FVector2D(Mx, My).Size() / FMath::Max(Dt, 0.001f);
-		const float Gain = 0.35f + 1.6f * FMath::SmoothStep(120.f, 2500.f, Spd);
-		FVector2D D(Mx * Gain, -My * Gain);
-		const float Sx = PC->GetInputAnalogKeyState(EKeys::Gamepad_LeftX), Sy = PC->GetInputAnalogKeyState(EKeys::Gamepad_LeftY);
-		if (FMath::Abs(Sx) > 0.15f || FMath::Abs(Sy) > 0.15f) D += FVector2D(Sx, -Sy) * 260.f * Dt;
-		PhU = FMath::Clamp(PhU + D.X / 400.f, 0.f, 1.f); PhV = FMath::Clamp(PhV + D.Y / 858.f, 0.f, 1.f);
+		// as fast as the PC's own pointer on the window (to-do 263), by the phone's screen as large as it is there just now
+		int32 Vw = 1, Vh = 1; PC->GetViewportSize(Vw, Vh);
+		const FVector2D Wide((PhQuad[2] - PhQuad[0]) * Vw, (PhQuad[3] - PhQuad[1]) * Vh), High((PhQuad[6] - PhQuad[0]) * Vw, (PhQuad[7] - PhQuad[1]) * Vh);
+		const FVector2D D = ADPGameCursor::Move(PC, Dt);
+		PhU = FMath::Clamp(PhU + D.X / FMath::Max(120.0, Wide.Size()), 0.0, 1.0); PhV = FMath::Clamp(PhV + D.Y / FMath::Max(260.0, High.Size()), 0.0, 1.0);
 	}
 	const FString Ptr = FString::Printf(TEXT("window.__uePhonePtr && window.__uePhonePtr(%.4f,%.4f,%s)"), PhU, PhV, bPhoneLook ? TEXT("false") : TEXT("true"));
 	if (Ptr != PhPtrSent) { PhPtrSent = Ptr; Browser->ExecuteJavascript(Ptr); }
@@ -390,15 +389,8 @@ void AADPHUD::TickHmi(float Dt)
 	if (bHmiPointer && PC)
 		if (AJetwayHmi* L = AJetwayHmi::Get(GetWorld()))
 		{
-			float Mx = 0.f, My = 0.f; PC->GetInputMouseDelta(Mx, My);
-			const float Sx = PC->GetInputAnalogKeyState(EKeys::Gamepad_LeftX), Sy = PC->GetInputAnalogKeyState(EKeys::Gamepad_LeftY);
-			// (owner, 2026-11-19: far too slow - now it follows how fast you move the mouse: slow and precise when you move it
-			// slowly, quick across the screen when you flick it)
-			const float Spd = FVector2D(Mx, My).Size() / FMath::Max(Dt, 0.001f);
-			const float Gain = 1.2f + 5.f * FMath::SmoothStep(120.f, 2500.f, Spd);
-			FVector2D D(Mx * Gain, -My * Gain);
-			if (FMath::Abs(Sx) > 0.15f || FMath::Abs(Sy) > 0.15f) D += FVector2D(Sx, -Sy) * 900.f * Dt;   // (about two seconds across)
-			L->MoveCursor(D);
+			// as fast as the PC's own pointer on the window (to-do 263), by the screen as large as it is there just now
+			L->MoveCursorWindow(ADPGameCursor::Move(PC, Dt), PC);
 		}
 	// the live values for the page, four times a second
 	if (bDevice && DeviceKind.StartsWith(TEXT("hmi")) && Browser.IsValid() && (HmiSend -= Dt) <= 0.f)

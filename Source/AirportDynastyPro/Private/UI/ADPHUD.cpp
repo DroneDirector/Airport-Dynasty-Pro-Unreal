@@ -27,6 +27,7 @@ static bool GTourTracking = false;   // (the tug tour's tracking camera has a su
 #include "Escalators.h"
 #include "StressWalk.h"
 #include "PerfViews.h"
+#include "GameCursor.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "HAL/PlatformApplicationMisc.h"
@@ -1090,6 +1091,15 @@ TSharedRef<SWidget> AADPHUD::MakeSettings()
 					.OnClicked_Lambda([this]() { bool b = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("OwnFrameGen"), b, GGameUserSettingsIni); SetOwnFrameGen(!b); return FReply::Handled(); })
 					[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { bool b = false; GConfig->GetBool(TEXT("ADP.Graphics"), TEXT("OwnFrameGen"), b, GGameUserSettingsIni);
 						return FText::FromString(ADPFrameGen::Installed() ? (ADPFrameGen::Enabled() ? TEXT("OUR FRAME GENERATION: ON") : TEXT("OUR FRAME GENERATION: OFF")) : (b ? TEXT("OUR FRAME GENERATION: ON AT NEXT START") : TEXT("OUR FRAME GENERATION: OFF"))); })]
+				]
+				+ SWrapBox::Slot()
+				[
+					// the speed of the cursors on the screens in the game (to-do 263): 100 % is the PC's own pointer
+					SNew(SButton)
+					.ButtonColorAndOpacity(FLinearColor(0.05f, 0.2f, 0.36f, 0.9f))
+					.ContentPadding(FMargin(10, 4))
+					.OnClicked_Lambda([]() { const float S = ADPGameCursor::Speed(); ADPGameCursor::SetSpeed(S < 0.6f ? 0.75f : S < 0.9f ? 1.f : S < 1.1f ? 1.25f : S < 1.4f ? 1.5f : S < 1.7f ? 2.f : S < 2.5f ? 3.f : 0.5f); return FReply::Handled(); })
+					[SNew(STextBlock).Font(Font(9)).ColorAndOpacity(Ink).Text_Lambda([]() { return FText::FromString(FString::Printf(TEXT("CURSOR SPEED ON SCREENS: %d %%"), FMath::RoundToInt(ADPGameCursor::Speed() * 100.f))); })]
 				]
 				+ SWrapBox::Slot()
 				[
@@ -2491,7 +2501,7 @@ void AADPHUD::Tick(float Dt)
 		const bool bStuck = IsStuck(Dt);
 		const bool bShown = UnstuckPanel->GetVisibility() == EVisibility::Visible;
 		if (bStuck && !bShown) { UnstuckPanel->SetVisibility(EVisibility::Visible); if (APlayerController* PC = GetOwningPlayerController()) { PC->SetShowMouseCursor(true); PC->SetInputMode(FInputModeGameAndUI()); } }
-		else if (!bStuck && bShown && StuckFor == 0.f && !bPointer) UnstuckPanel->SetVisibility(EVisibility::Collapsed);
+		else if (!bStuck && bShown && StuckFor == 0.f && !bPointer) { UnstuckPanel->SetVisibility(EVisibility::Collapsed); UpdateMouse(); }
 	}
 	Super::Tick(Dt);
 	// using something (a device, the wardrobe, a jetway's panel, the game screen, talking to someone): no outlines meanwhile

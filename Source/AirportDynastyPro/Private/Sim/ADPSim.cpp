@@ -17,6 +17,8 @@
 #include "Sim/ADPRivals.h"
 #include "Sim/ADPEvents.h"
 #include "Containers/Ticker.h"
+#include "Async/Async.h"
+#include "PerfLog.h"
 
 // -SimSelfTest: a test module (every 60 s, 2 days of catch-up), the career "closed" 3 days ago - checks the catch-up
 // stops at the module's limit, runs in steps without stalling, then goes live; logs the counts and closes the game
@@ -198,21 +200,41 @@ TArray<FString> UADPSim::CareerSlots()
 	return Files;
 }
 
+namespace
+{
+	bool WriteCareer(const FADPWorld& W, const FString& F)
+	{
+		FString Text;
+		if (!FJsonObjectConverter::UStructToJsonObjectString(W, Text)) { ADP_WARN(TEXT("Sim: the career couldn't be written")); return false; }
+		// (written beside, then moved over the old one: a crash mid-write never leaves a broken save)
+		const FString Tmp = F + TEXT(".tmp");
+		if (!FFileHelper::SaveStringToFile(Text, *Tmp, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM) || !IFileManager::Get().Move(*F, *Tmp, true, true))
+		{ ADP_WARN(TEXT("Sim: saving %s failed"), *F); return false; }
+		return true;
+	}
+}
+
+void UADPSim::AutosaveCareer()
+{
+	if (Autosaving.IsValid() && !Autosaving.IsReady()) return;   // (the last one is still being written: 30 s later again)
+	ADP_PERF_SCOPE("the career's autosave: its copy (each 30 s)", 4.f);
+	World.SavedAt = FDateTime::UtcNow(); World.SimAt = Now();
+	World.ModuleTimes.Reset(); for (const FSlot& S : Slots) World.ModuleTimes.Add(S.M->Name().ToString(), S.At);
+	TSharedRef<FADPWorld, ESPMode::ThreadSafe> W = MakeShared<FADPWorld, ESPMode::ThreadSafe>(World);
+	Autosaving = Async(EAsyncExecution::ThreadPool, [W, F = CareerFile(World.Slot)] { WriteCareer(*W, F); });
+}
+
 bool UADPSim::SaveCareer(const FString& Slot)
 {
+	WaitAutosave();
 	World.Slot = Slot; World.SavedAt = FDateTime::UtcNow(); World.SimAt = Now();
 	World.ModuleTimes.Reset(); for (const FSlot& S : Slots) World.ModuleTimes.Add(S.M->Name().ToString(), S.At);
-	FString Text;
-	if (!FJsonObjectConverter::UStructToJsonObjectString(World, Text)) { ADP_WARN(TEXT("Sim: the career couldn't be written")); return false; }
-	// (written beside, then moved over the old one: a crash mid-write never leaves a broken save)
-	const FString F = CareerFile(Slot), Tmp = F + TEXT(".tmp");
-	if (!FFileHelper::SaveStringToFile(Text, *Tmp, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM) || !IFileManager::Get().Move(*F, *Tmp, true, true))
-	{ ADP_WARN(TEXT("Sim: saving %s failed"), *F); return false; }
-	return true;
+	return WriteCareer(World, CareerFile(Slot));
 }
 
 bool UADPSim::LoadCareer(const FString& Slot)
 {
+	WaitAutosave();
 	FString Text;
 	if (!FFileHelper::LoadFileToString(Text, *CareerFile(Slot))) return false;
 	FADPWorld W;
@@ -225,6 +247,7 @@ bool UADPSim::LoadCareer(const FString& Slot)
 void UADPSim::Deinitialize()
 {
 	if (bRunning && !World.Slot.IsEmpty()) SaveCareer(World.Slot);   // (closing the game saves the career)
+	WaitAutosave();
 	bRunning = false;
 	Slots.Reset();
 	Super::Deinitialize();
@@ -296,7 +319,7 @@ bool UADPSim::Step(FSlot& S, const FDateTime& To, bool bCatchUp, double Budget)
 void UADPSim::Tick(float Dt)
 {
 	if (!bRunning || !bRunsWorld) return;
-	if (!World.Slot.IsEmpty() && (AutosaveClock += Dt) >= 30.0) { AutosaveClock = 0.0; SaveCareer(World.Slot); }
+	if (!World.Slot.IsEmpty() && (AutosaveClock += Dt) >= 30.0) { AutosaveClock = 0.0; AutosaveCareer(); }
 	const double TickT0 = FPlatformTime::Seconds();
 	const FDateTime NowT = Now();
 	// catching up: a few milliseconds of work a frame until every module is at now; then live

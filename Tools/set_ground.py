@@ -297,6 +297,13 @@ float edge = (1.0 - saturate(Amount + Bias) * 0.6) + (1.0 - saturate(Wet)) * 0.3
 float pmask = up * saturate(Puddles) * step(0.02, Wet);
 float puddle = smoothstep(edge, edge + 0.06, n) * pmask;
 float rim = smoothstep(edge - 0.10, edge, n) * pmask * saturate(Wet);
+// how wet it is right here (owner, 2026-11-25, to-do 259): the damp comes and goes in uneven patches some metres wide,
+// frayed by the fine noise; what dries first is the higher, rougher places, little rain (few puddles: Amount) only dampens it
+float2 wq = WP.xy / 1150.0, wi = floor(wq), wf = frac(wq); wf = wf * wf * (3 - 2 * wf);
+float wh0 = frac(sin(dot(wi, float2(127.1, 311.7))) * 43758.5453), wh1 = frac(sin(dot(wi + float2(1, 0), float2(127.1, 311.7))) * 43758.5453);
+float wh2 = frac(sin(dot(wi + float2(0, 1), float2(127.1, 311.7))) * 43758.5453), wh3 = frac(sin(dot(wi + float2(1, 1), float2(127.1, 311.7))) * 43758.5453);
+float wpat = lerp(lerp(wh0, wh1, wf.x), lerp(wh2, wh3, wf.x), wf.y) * 0.5 + n * 0.6;
+float wetHere = smoothstep(0.0, 0.45, saturate(Wet) * (0.75 + 0.75 * saturate(Amount / 0.55)) - (1.0 - saturate(wpat)) * 0.6) * up;
 """
 SURF = COMMON + r"""
 float3 c = surf; float r = rgh;
@@ -355,9 +362,10 @@ if (snowA > 0.001) {
   c = lerp(c, sc, saturate(snow + dust * (1.0 - snow)));
   r = lerp(r, 0.8, saturate(snow + dust * 0.6));
 }
-float wetAll = saturate(Wet) * up;
-c *= lerp(1.0, 0.6, wetAll) * lerp(1.0, 0.82, rim) * lerp(1.0, 0.7, saturate(openC + joint) * wetAll);
-r = lerp(r, 0.28, wetAll);
+// wet paving is darker and a little glossier, never a mirror: only the puddles show clear reflections (to-do 259; kept
+// over 0.4, the roughness under which the engine traces a reflection for every single pixel)
+c *= lerp(1.0, 0.6, wetHere) * lerp(1.0, 0.82, rim) * lerp(1.0, 0.7, saturate(openC + joint) * wetHere);
+r = lerp(r, 0.60 - 0.13 * saturate(wpat), wetHere);
 c = lerp(c, c * 0.35, puddle);
 r = lerp(r, lerp(0.10, 0.02, saturate(Shine)), puddle);
 return float4(c, r);
@@ -380,8 +388,7 @@ float2 tilt = acc * 0.35 * saturate(Ripples) * saturate(Rain) * puddle;
 return normalize(nn + float3(tilt, 0.0));
 """
 REFL = COMMON + r"""
-float wetAll = saturate(Wet) * up;
-return saturate(puddle * lerp(0.35, 0.8, saturate(Shine)) + wetAll * 0.05);
+return saturate(puddle * lerp(0.35, 0.8, saturate(Shine)) + wetHere * 0.012);
 """
 ALL = ['RW', 'UV0', 'RScale', 'WP', 'N', 'Bias', 'Puddles', 'Wet', 'Amount', 'Size', 'Style', 'CAmount', 'Cracks', 'Col', 'Rough', 'UseScan', 'ScanCol', 'ScanBig', 'ScanR',
        'CrackTex', 'TyreTex', 'RwyA', 'RwyB', 'RwyDisp', 'TyreAmt', 'Tyres']

@@ -1,5 +1,6 @@
 // Using a garage-door button panel (DoorPanelUse.h).
 #include "DoorPanelUse.h"
+#include "GameCursor.h"
 #include "ADPLog.h"
 #include "ADPWalker.h"
 #include "BabylonModel.h"
@@ -201,8 +202,7 @@ void ADoorPanelUse::Tick(float Dt)
 	// choosing a button: mouse up / down, the wheel, W / S, the arrows, the D-pad, the left stick
 	if (PC && State == EState::Use)
 	{
-		float Mx = 0.f, My = 0.f; PC->GetInputMouseDelta(Mx, My);
-		MouseY = FMath::Clamp(MouseY + My, -6.f, 6.f);
+		MouseY = FMath::Clamp(MouseY - (float)ADPGameCursor::Move(PC, Dt, false).Y * 0.1f, -6.f, 6.f);   // (about 40 pixels up or down)
 		bool bUp = PC->WasInputKeyJustPressed(EKeys::MouseScrollUp) || PC->WasInputKeyJustPressed(EKeys::W) || PC->WasInputKeyJustPressed(EKeys::Up) || PC->WasInputKeyJustPressed(EKeys::Gamepad_DPad_Up) || MouseY > 4.f;
 		bool bDown = PC->WasInputKeyJustPressed(EKeys::MouseScrollDown) || PC->WasInputKeyJustPressed(EKeys::S) || PC->WasInputKeyJustPressed(EKeys::Down) || PC->WasInputKeyJustPressed(EKeys::Gamepad_DPad_Down) || MouseY < -4.f;
 		const float Stick = PC->GetInputAnalogKeyState(EKeys::Gamepad_LeftY);

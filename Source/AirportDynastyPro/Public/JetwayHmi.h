@@ -33,6 +33,8 @@ public:
 	void SetPointer(bool bOn);
 	bool Pointer() const { return bPointer; }
 	void MoveCursor(const FVector2D& DeltaPx);
+	/** The same in pixels of the game's window, 1 to 1 as you see them on the screen (to-do 263). */
+	void MoveCursorWindow(const FVector2D& DeltaWin, const class APlayerController* PC);
 	void ClickCursor();
 	/** The "+" put at a spot (parts of the screen: 0..1) - tests, and the crew later. */
 	void PutCursor(const FVector2D& At);

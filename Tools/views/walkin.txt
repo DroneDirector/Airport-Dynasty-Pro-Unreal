@@ -24,6 +24,15 @@ follow 30 walking in 3
 view 75 1.6 -45 -90 0
 wait 4
 measure 10 doors from outside
+textures groad gwalk gkerb ggrass gconcrete
+view 60 1.7 -38 180 -12
+wait 12
+measure 8 road outside west
+textures groad gwalk gkerb ggrass
+view 110 1.7 -38 0 -12
+wait 12
+measure 8 road outside east
+textures groad gwalk gkerb ggrass
 fly 75 1.6 -8 -90 0 14
 follow 70 over a minute (autosaves and a clean-up)
 view -400 1.6 40 0 2

@@ -133,6 +133,8 @@ private:
 	TArray<FLine> RevLines;   // (the short queues outside the revolving doors' openings: door x 2 + side)
 	FWalkMap Map;
 	TArray<FString> Names;
+	FString NextFace; TMap<FString, TSharedPtr<struct FStreamableHandle>> FaceLoads; double NextFaceAt = 0.0;   // (the next passenger's body, loaded in the background before they come)
+	bool FaceReady();
 	TArray<TPair<FVector2f, float>> NoLean;   // (plan points with their keep-out radius: doors, stairs, escalators)
 	TArray<FVector> LeanSpots;
 	UPROPERTY() TArray<TObjectPtr<USceneComponent>> Holders;

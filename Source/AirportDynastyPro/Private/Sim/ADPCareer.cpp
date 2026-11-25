@@ -136,7 +136,7 @@ bool UADPSim::ResumeCareer()
 		AddGameModules();
 		{ FRandomStream Rs(int32(FDateTime::UtcNow().GetTicks() & 0x7fffffff)); ADPStaff::FillPool(World, Rs); }   // (a job it doesn't know yet - passenger service agents - joins its hiring pool)
 		const FDateTime Last = World.SimAt == FDateTime() ? Now() : World.SimAt;
-		if (ADPChainTest::StartStage() && Last > Now()) SetClock(Last);   // (the functional test's save points: its clock runs ahead)
+		if (ADPChainTest::StartStage()) SetClock(Last);   // (the functional test's save points: its clock runs ahead)
 		Start(Last);
 		// each module from where it had got to (older than its own limit is skipped in Start)
 		ADP_LOG(TEXT("Sim: career %s resumed - %.1f hours to catch up"), *World.Slot, (Now() - Last).GetTotalHours());

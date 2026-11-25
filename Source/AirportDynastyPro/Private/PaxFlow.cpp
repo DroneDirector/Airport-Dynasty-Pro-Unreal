@@ -27,6 +27,9 @@
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "GroomComponent.h"
+#include "Engine/AssetManager.h"
+#include "Engine/StreamableManager.h"
+#include "Misc/PackageName.h"
 #include "Animation/AnimSingleNodeInstance.h"
 #include "PaxAnimInstance.h"
 #include "PaxNav.h"
@@ -312,6 +315,10 @@ bool APaxFlow::Prepare()
 			if (FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Rows))
 				for (const TSharedPtr<FJsonValue>& V : Rows) if (const TSharedPtr<FJsonObject> O = V->AsObject()) if (O->GetStringField(TEXT("role")) == TEXT("passenger")) Names.Add(O->GetStringField(TEXT("name")));
 		}
+		// (only those this game has: a face left out of a package must not make its passenger vanish)
+		const int32 All = Names.Num();
+		Names.RemoveAll([](const FString& N) { return !FPackageName::DoesPackageExist(FString::Printf(TEXT("/Game/People/Built/%s/BP_%s"), *N, *N)); });
+		if (Names.Num() < All) ADP_WARN(TEXT("PaxFlow: %d of the %d passengers' bodies are not in this game"), All - Names.Num(), All);
 		if (!Names.Num()) { ADP_WARN(TEXT("PaxFlow: no passengers in Data/people-roster.json - nobody walks")); return false; }
 	}
 	// the landside car park's spaces near the terminal (roads.json "lots": the big lot's rows)
@@ -521,7 +528,7 @@ void APaxFlow::StepRun(int32 Ri, float Dt)
 	{
 		if (R.bOff || R.bGone) return;
 		// getting out of their cars, a few seconds apart at the most
-		if (R.Spawned < R.SpawnAt.Num() && Now >= R.SpawnAt[R.Spawned] && SpawnGap <= 0.f) { SpawnDep(Ri); SpawnGap = 0.8f; }
+		if (R.Spawned < R.SpawnAt.Num() && Now >= R.SpawnAt[R.Spawned] && SpawnGap <= 0.f && FaceReady()) { SpawnDep(Ri); SpawnGap = 0.8f; }
 		// the boarding call: the turnaround's "board" task starting (the test: 7.5 min in)
 		if (!R.bCalled)
 		{
@@ -582,7 +589,7 @@ void APaxFlow::StepRun(int32 Ri, float Dt)
 		ABaggageBelts::TagBags(GetWorld(), R.Label, Ids);
 		ADP_LOG(TEXT("PaxFlow: %s deplaning at gate %d%s - belt %d, %d bags tagged to their passengers"), *R.Label, R.Gate, bDocked ? TEXT("") : TEXT(" (the jetway docked)"), ABaggageBelts::BeltOf(GetWorld(), R.Label) + 1, Ids.Num());
 	}
-	if (Now >= R.NextArr && SpawnGap <= 0.f)
+	if (Now >= R.NextArr && SpawnGap <= 0.f && FaceReady())
 	{
 		// (the door clear: nobody within a metre of it - they queue in the aircraft)
 		FVector Mid, Front; AJetwayRigs* Jr = AJetwayRigs::Get(GetWorld());
@@ -600,11 +607,25 @@ int32 APaxFlow::NewPx()
 	return Pax.AddDefaulted();
 }
 
+bool APaxFlow::FaceReady()
+{
+	// the next one's body: drawn by lot, loaded in the background; nobody is made while it isn't in yet (it would hold the game)
+	if (!Names.Num()) return true;
+	auto Path = [](const FString& N) { return FString::Printf(TEXT("/Game/People/Built/%s/BP_%s.BP_%s_C"), *N, *N, *N); };
+	if (NextFace.IsEmpty()) { NextFace = Names[Rng.RandRange(0, Names.Num() - 1)]; NextFaceAt = RealT; }
+	TSharedPtr<FStreamableHandle>& H = FaceLoads.FindOrAdd(NextFace);
+	if (!H.IsValid()) H = UAssetManager::GetStreamableManager().RequestAsyncLoad(FSoftObjectPath(Path(NextFace)));
+	if (!H.IsValid() || H->HasLoadCompleted()) return true;
+	if (RealT - NextFaceAt > 20.0) { ADP_WARN(TEXT("PaxFlow: %s still loading after 20 s - another face"), *NextFace); NextFace.Reset(); }
+	return false;
+}
+
 AActor* APaxFlow::Body(const FVector& At, float Yaw, FPx& P)
 {
 	AADPPeople* People = AADPPeople::Get(GetWorld());
 	if (!People) return nullptr;
-	P.Name = Names[Rng.RandRange(0, Names.Num() - 1)];
+	P.Name = NextFace.IsEmpty() ? Names[Rng.RandRange(0, Names.Num() - 1)] : NextFace;
+	NextFace.Reset(); FaceReady();   // (the one after them begins to load)
 	AActor* A = People->Spawn(P.Name, At, Yaw);
 	if (!A) return nullptr;
 	A->SetActorLocation(At);   // (Spawn finds the floor from above; inside a jetway's cab that is its roof - our own point)

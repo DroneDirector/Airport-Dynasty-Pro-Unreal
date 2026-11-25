@@ -65,6 +65,8 @@ public:
 	AActor* Spawn(const FString& Name, const FVector& At, float Yaw);
 	/** The person this actor is, if one. */
 	FWho* Find(AActor* A);
+	/** Everyone there is (the tests' camera). */
+	const TArray<FWho>& Everyone() const { return People; }
 	/** A person by you that you face (within 2.5 m), for E when the aim missed. */
 	AActor* Beside(APawn* Me);
 	/** Anyone (passengers and staff) standing within Radius of a place, on its floor: a sliding door never shuts on them. */
@@ -123,6 +125,7 @@ private:
 	TMap<FString, FRosterRow> Roster;
 	void LoadRoster();
 	void Gather();
+	void AddPerson(AActor* A);
 	float GatherIn = 0.f;
 	FRandomStream Rng;
 

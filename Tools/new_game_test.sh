@@ -65,9 +65,11 @@ BAD=0
 for WHICH in new continue; do
   [ -n "$NG_ONLY" ] && [ "$NG_ONLY" != "$WHICH" ] && continue
   SW1=-UINewGame; [ $WHICH = continue ] && SW1=-UIContinueGame
+  # (NG_CAREER=<save>: that career is the one continued, the owner's is put back after)
+  [ -n "$NG_CAREER" ] && { mkdir -p "$S/Careers"; cp "$NG_CAREER" "$S/Careers/career-chablais.json"; }
   touch "$OUT/stamp"
   if [ -n "$PACK" ]; then
-    ADP_LOG=1 timeout 660 "$PACK/AirportDynastyPro.exe" $SW1 -windowed -ResX=$SW -ResY=$SH -ForceRes -Site=chablais -LocalTerrain "$@" > /dev/null 2>&1
+    ADP_LOG=1 timeout ${NG_LIMIT:-660} "$PACK/AirportDynastyPro.exe" $SW1 -windowed -ResX=$SW -ResY=$SH -ForceRes -Site=chablais -LocalTerrain "$@" > /dev/null 2>&1
     taskkill //IM AirportDynastyPro-Win64-Shipping.exe //F > /dev/null 2>&1
     L="$S/Logs/ADP.log"
   else

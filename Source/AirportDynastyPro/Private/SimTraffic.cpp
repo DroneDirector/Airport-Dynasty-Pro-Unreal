@@ -567,7 +567,8 @@ void ASimTraffic::Tick(float Dt)
 {
 	Super::Tick(Dt);
 	ADP_PERF_SCOPE("the simulation's aircraft in 3D (each frame)", 2.f);
-	if ((Poll += Dt) >= 2.f) { Poll = 0.f; Sync(); if (UADPSim* Sm = UADPSim::Get(this)) if (Sm->IsRunning()) ADPTurnaround::Tick(GetWorld(), Sm->Now()); }   // (each aircraft's turnaround: Turnaround.h)
+	if ((Poll += Dt) >= 2.f) { Poll = 0.f; bTurnDue = true; ADP_PERF_SCOPE("traffic: the flights followed (each 2 s)", 2.f); Sync(); }
+	else if (bTurnDue && Poll >= 1.f) { bTurnDue = false; ADP_PERF_SCOPE("traffic: the turnarounds (each 2 s)", 2.f); if (UADPSim* Sm = UADPSim::Get(this)) if (Sm->IsRunning()) ADPTurnaround::Tick(GetWorld(), Sm->Now()); }   // (each aircraft's turnaround: Turnaround.h)
 	// (the cinematic test: every jetway at a stand with an aircraft docked from the start - owner 2026-11-21: nothing may
 	//  hold the test up. Each stand once; in the game the jetway comes out when the crew board, to-do 202)
 	if (Poll == 0.f && FParse::Param(FCommandLine::Get(), TEXT("PaxFlowTest")))

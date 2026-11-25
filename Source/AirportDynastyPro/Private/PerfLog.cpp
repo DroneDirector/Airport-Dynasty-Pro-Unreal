@@ -133,7 +133,10 @@ namespace ADPPerfLogInternal
 		const float Ms = Dt * 1000.f;
 		if (Dt <= 0.f || Dt > 10.f) return true;
 		PerfWindow.Add(Ms);
-		const bool bGC = PerfGCCount != PerfGCSeen; PerfGCSeen = PerfGCCount;
+		// (a frame's length comes in the tick after it: a clean-up seen now or one tick ago)
+		const bool bGCNow = PerfGCCount != PerfGCSeen; PerfGCSeen = PerfGCCount;
+		static bool bGCPrev = false; const bool bGC = bGCNow || bGCPrev; bGCPrev = bGCNow;
+		if (bGCNow && PerfGCMs > 3.0) PerfLine(FString::Printf(TEXT("clean-up of unused memory: %.1f ms, %d objects in the game"), PerfGCMs, GUObjectArray.GetObjectArrayNumMinusAvailable()));
 		const TArray<FString> Loaded = MoveTemp(PerfSyncLoads); PerfSyncLoads.Reset();
 		if (bPerfSection) PerfSectionFrames.Add(Ms);
 		// a bad frame: over 50 ms and at least 2.5 times the frames around it

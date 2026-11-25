@@ -10,6 +10,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Async/Future.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Tickable.h"
 #include "Sim/ADPSimData.h"
@@ -87,6 +88,9 @@ public:
 	// ---- the world and its save (Saved/Careers/<slot>.json, versioned; autosaved every 30 s while running)
 	FADPWorld World;
 	bool SaveCareer(const FString& Slot);
+	/** The autosave: a copy of the world made here (about a millisecond), turned into text and written in the background
+	 *  (to-do 269: 75-80 ms of the game's own frame every 30 s before). */
+	void AutosaveCareer();
 	bool LoadCareer(const FString& Slot);
 	static TArray<FString> CareerSlots();
 	static FString CareerFile(const FString& Slot);
@@ -106,6 +110,9 @@ private:
 	FDateTime ClockBaseSim, ClockBaseReal;   // Now() = ClockBaseSim + (real now - ClockBaseReal) x speed
 	bool bCatchingUp = false;
 	double AutosaveClock = 0.0;
+	/** The autosave being written; every other read or write of a career waits for it. */
+	TFuture<void> Autosaving;
+	void WaitAutosave() { if (Autosaving.IsValid()) Autosaving.Wait(); Autosaving = TFuture<void>(); }
 	/** Advances one module up to To in steps of its interval (at most Budget seconds of real work this call). */
 	bool Step(FSlot& S, const FDateTime& To, bool bCatchUp, double Budget);
 	/** Every game module registered once (flights, economy, staff, rivals, events). */

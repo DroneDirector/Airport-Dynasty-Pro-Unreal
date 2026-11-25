@@ -69,6 +69,7 @@ private:
 	TArray<FMove> Moves;
 	FAirfieldData F;
 	float Poll = 0.f;
+	bool bTurnDue = false;   // (the turnarounds' look, a second after the flights')
 	TSet<FString> Seen;
 	TSet<FString> ParkedRegs;   // the parked aircraft standing now (their SIM/<reg> tags), looked up once a second
 	float ParkPoll = 1.f;

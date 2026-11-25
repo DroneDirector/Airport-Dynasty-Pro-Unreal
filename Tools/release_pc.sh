@@ -70,6 +70,9 @@ PYEOF
   grep -q "Cook failed" $P/uat-$V.log && echo "(cook: only the known engine check - packaging went on)"
   grep -q "BUILD SUCCESSFUL" $P/uat-$V.log || { tail -20 $P/uat-$V.log; echo "STOP: no BUILD SUCCESSFUL"; exit 1; }
   fi
+  echo "== everyone is in the package (0.18.0 - 0.18.2 went out with 8 of 144 people: empty terminal)"
+  MISS=$(for d in Content/People/Built/*/; do n=$(basename $d); [ -e Saved/Cooked/Windows/AirportDynastyPro/Content/People/Built/$n/BP_$n.uasset ] || echo -n "$n "; done)
+  [ -z "$MISS" ] || { echo "STOP: people not cooked: $MISS"; exit 1; }
   echo "== the version inside the exe"
   IN=$(python -c "
 import re

@@ -1,4 +1,5 @@
 #include "JetwayHmi.h"
+#include "GameCursor.h"
 #include "JetwayRigs.h"
 #include "ADPLog.h"
 #include "UI/ADPHUD.h"
@@ -426,6 +427,16 @@ void AJetwayHmi::MoveCursor(const FVector2D& DeltaPx)
 {
 	if (!bPointer || DeltaPx.IsNearlyZero()) return;
 	Cur.X = FMath::Clamp(Cur.X + DeltaPx.X, 0.f, ADPHmi::ScrW); Cur.Y = FMath::Clamp(Cur.Y + DeltaPx.Y, 0.f, ADPHmi::ScrH);
+}
+
+void AJetwayHmi::MoveCursorWindow(const FVector2D& DeltaWin, const APlayerController* PC)
+{
+	if (!bPointer || DeltaWin.IsNearlyZero() || !PC) return;
+	const AJetwayRigs* JR = AJetwayRigs::Get(GetWorld());
+	FVector Mid, N, Up; FVector2D Sz, Win = FVector2D::ZeroVector;
+	if (JR && JR->ScreenView(J, Mid, N, Up, Sz)) Win = ADPGameCursor::SizeOnWindow(PC, Mid, FVector::CrossProduct(Up, N).GetSafeNormal(), Up, Sz);
+	if (Win.X < 50.0 || Win.Y < 50.0) Win = FVector2D(1200.0, 750.0);   // (not in view this frame: about its size up close)
+	MoveCursor(FVector2D(DeltaWin.X * ADPHmi::ScrW / Win.X, DeltaWin.Y * ADPHmi::ScrH / Win.Y));
 }
 
 void AJetwayHmi::PutCursor(const FVector2D& At)

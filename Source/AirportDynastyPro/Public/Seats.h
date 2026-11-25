@@ -63,6 +63,7 @@ private:
 	void Stand();
 	TWeakObjectPtr<AADPWalker> Sitter;
 	int32 Seat = INDEX_NONE;
+	bool bKeysFree = false;   // (no walking key held since you sat down)
 	enum class EState : uint8 { None, Down, Sat, Up } State = EState::None;
 	float T = 0.f;
 	FVector Before = FVector::ZeroVector;   // where you stood before sitting

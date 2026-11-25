@@ -33,6 +33,8 @@ public:
 	/** Led by something else (a truck walking you to its door): your own moving and turning keys do nothing meanwhile. */
 	void SetLed(bool bOn) { bLed = bOn; }
 	bool IsLed() const { return bLed; }
+	/** Your body lent to a seat or a climb (LendBody): sitting, driving or on a vehicle's steps. */
+	bool IsLent() const { return bLent; }
 	/** Your body as the built character Who (an outfit of yours, Wardrobe.h); false when it isn't built. */
 	bool WearMetaHuman(const FString& Who);
 	/** Your MetaHuman on the capsule (tests turn it to the camera), or null. */

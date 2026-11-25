@@ -560,7 +560,7 @@ void UStaffPeople::Tick(float Dt)
 	if (!On() && !Staff.Num()) return;
 	if ((Poll -= Dt) <= 0.f)
 	{
-		Poll = 2.f;
+		Poll = 2.f + (bRooms ? 0.f : 0.55f);   // (not in the frame of the flights' own two-second look)
 		if (!bRooms) FindRooms();
 		if (!ADPSchedule::Waiting3D) { TWeakObjectPtr<UStaffPeople> Tw(this); ADPSchedule::Waiting3D = [Tw] { return Tw.IsValid() ? Tw->Waiting() : FString(); }; }
 		// (the apron's crew and vehicles are in: the airport has loaded)

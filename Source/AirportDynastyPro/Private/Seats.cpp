@@ -205,7 +205,7 @@ void ASeats::Sit(AADPWalker* Me, int32 I)
 	for (int32 s = 0; s < 2; ++s) { Sitting.bHand[s] = true; Sitting.Hand[s] = FVector(s == 0 ? 13.f : -13.f, 22.f, Sp.SeatH + 14.f); Sitting.Grip[s] = 0.25f; }
 	Pose = Me->LendBody(Frame);
 	if (!Pose) { ADP_WARN(TEXT("Seats: your body couldn't be lent to the seat")); return; }
-	Sitter = Me; Seat = I; State = EState::Down; T = 0.f; Before = Me->GetActorLocation();
+	Sitter = Me; Seat = I; State = EState::Down; T = 0.f; bKeysFree = false; Before = Me->GetActorLocation();
 	Fwd = 0.f; Lift = 0.f; bCushionOk = false; CushionTries = 0;
 	Taken.Add(SpotKey(Sp.At), FTaken{Me, nullptr});
 	Me->GetCharacterMovement()->DisableMovement();
@@ -277,7 +277,14 @@ void ASeats::Tick(float Dt)
 	if (!Me) { State = EState::None; return; }
 	T += Dt;
 	if (State == EState::Down) { Place(FMath::Min(1.f, T / SitTime)); if (T >= SitTime) { State = EState::Sat; ADP_LOG(TEXT("Seats: seated")); } }
-	else if (State == EState::Sat) Place(1.f);
+	else if (State == EState::Sat)
+	{
+		Place(1.f);
+		// walking keys or the stick: up you get, as with E / X (owner, 2026-11-25) - once they were let go since you sat down;
+		// not while you use a phone or a screen on the seat (the keys are theirs then)
+		if (Me->GetLastMovementInputVector().Size() < 0.2) bKeysFree = true;
+		else if (bKeysFree) Stand();
+	}
 	else if (State == EState::Up)
 	{
 		Place(FMath::Max(0.f, 1.f - T / SitTime));
