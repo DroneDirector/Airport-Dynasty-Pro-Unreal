@@ -15,6 +15,8 @@
 #include "MeshDescription.h"
 #include "StaticMeshAttributes.h"
 #include "Rendering/DrawElements.h"
+#include "Rendering/SlateRenderer.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Styling/CoreStyle.h"
 #include "TowerADC.h"
 #include "Misc/FileHelper.h"
@@ -333,11 +335,21 @@ int32 SHoloMap::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const FSla
 
 	const int32 F = FloorOf(Player.Y), Other = F == 1 ? 2 : 1;
 	auto OnScreen = [&](const FVector2f& L) { return L.X > -40 && L.Y > -40 && L.X < Size.X + 40 && L.Y < Size.Y + 40; };
+	// (248: thousands of lines as one drawing with soft edges; one by one they took the game thread a millisecond and more every frame)
+	TArray<FSlateVertex> Verts; TArray<SlateIndex> Index;
+	const float Soft = 1.f / FMath::Max(Geo.Scale, 0.1f);
 	auto Line = [&](const FVector2f& A, const FVector2f& B, const FLinearColor& C, float T, const FVector2f& Off = FVector2f::ZeroVector)
 	{
 		const FVector2f LA = ToLocal(A, Size) + Off, LB = ToLocal(B, Size) + Off;
 		if (!OnScreen(LA) && !OnScreen(LB)) return;
-		FSlateDrawElement::MakeLines(Out, Layer + 2, PG, TArray<FVector2f>{LA, LB}, ESlateDrawEffect::None, C, true, T);
+		const FVector2f D = (LB - LA).GetSafeNormal(), N(-D.Y, D.X);
+		const FVector2f In = N * FMath::Max(T * 0.5f - Soft * 0.5f, 0.f), Edge = N * (T * 0.5f + Soft * 0.5f);
+		const FColor Col = C.ToFColor(true), None(Col.R, Col.G, Col.B, 0);
+		const SlateIndex V0 = Verts.Num();
+		auto Vert = [&](const FVector2f& At, const FColor& K) { Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(Geo.GetAccumulatedRenderTransform(), At, FVector2f(0.5f, 0.5f), FVector2f(1, 1), K)); };
+		Vert(LA - Edge, None); Vert(LB - Edge, None); Vert(LA - In, Col); Vert(LB - In, Col);
+		Vert(LA + In, Col); Vert(LB + In, Col); Vert(LA + Edge, None); Vert(LB + Edge, None);
+		for (SlateIndex k = V0; k < V0 + 6; k += 2) Index.Append({k, k + 1, k + 2, k + 2, k + 1, k + 3});
 	};
 	auto Rect = [&](const FBox2f& B, const FLinearColor& C, float T, const FVector2f& Off = FVector2f::ZeroVector)
 	{
@@ -416,6 +428,8 @@ int32 SHoloMap::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const FSla
 			Prev = P;
 		}
 	}
+
+	if (Verts.Num()) FSlateDrawElement::MakeCustomVerts(Out, Layer + 2, FSlateApplication::Get().GetRenderer()->GetResourceHandle(*White), Verts, Index, nullptr, 0, 0);
 
 	// your marks: numbered rings
 	for (int32 i = 0; i < Waypoints.Num(); ++i)

@@ -35,6 +35,7 @@
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 
 #pragma region Placing
 
@@ -197,19 +198,15 @@ TWeakObjectPtr<AGlobe> AGlobe::Current;
 
 namespace
 {
-	struct FSource { const TCHAR* Name; const TCHAR* Url; int32 MaxLevel; const TCHAR* Probe; const TCHAR* Credit; };
+	struct FSource { const TCHAR* Name; const TCHAR* Url; int32 MaxLevel; const TCHAR* Probe; };   // (their credits: Settings - Credits)
 	const FSource Sources[] = {
 		{TEXT("Sentinel-2 cloudless 2016 (EOX, 10 m)"), TEXT("https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{reverseY}/{x}.jpg"), 15,
-			TEXT("https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/0/0/0.jpg"),
-			TEXT("Sentinel-2 cloudless 2016 (s2maps.eu) by EOX IT Services GmbH, contains modified Copernicus Sentinel data 2016")},
+			TEXT("https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/0/0/0.jpg")},
 		{TEXT("NASA Landsat global mosaic (30 m)"), TEXT("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/Landsat_WELD_CorrectedReflectance_TrueColor_Global_Annual/default/GoogleMapsCompatible_Level12/{z}/{reverseY}/{x}.jpg"), 12,
-			TEXT("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/Landsat_WELD_CorrectedReflectance_TrueColor_Global_Annual/default/GoogleMapsCompatible_Level12/0/0/0.jpg"),
-			TEXT("Imagery: NASA Global Imagery Browse Services (GIBS), Landsat WELD (NASA / USGS)")},
+			TEXT("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/Landsat_WELD_CorrectedReflectance_TrueColor_Global_Annual/default/GoogleMapsCompatible_Level12/0/0/0.jpg")},
 		{TEXT("NASA Blue Marble (500 m)"), TEXT("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_NextGeneration/default/GoogleMapsCompatible_Level8/{z}/{reverseY}/{x}.jpeg"), 8,
-			TEXT("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_NextGeneration/default/GoogleMapsCompatible_Level8/0/0/0.jpeg"),
-			TEXT("Imagery: NASA Global Imagery Browse Services (GIBS), Blue Marble Next Generation (NASA Earth Observatory)")},
-		{TEXT("ESA WorldCover land cover (on this PC, 10 m)"), TEXT(""), 8, TEXT(""),
-			TEXT("Land cover: ESA WorldCover 2021 (c) ESA WorldCover project, contains modified Copernicus Sentinel data (2021) processed by the ESA WorldCover consortium, CC BY 4.0")},
+			TEXT("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_NextGeneration/default/GoogleMapsCompatible_Level8/0/0/0.jpeg")},
+		{TEXT("ESA WorldCover land cover (on this PC, 10 m)"), TEXT(""), 8, TEXT("")},
 	};
 
 	// the land cover (Tools/MakeLandCover.py) downloaded with the world's terrain, or the converter's output (editor)
@@ -223,7 +220,6 @@ namespace
 }
 
 FString AGlobe::SourceName(int32 S) { return Sources[FMath::Clamp(S, 0, 3)].Name; }
-FString AGlobe::SourceCredit(int32 S) { return Sources[FMath::Clamp(S, 0, 3)].Credit; }
 
 void AGlobe::UseSource(int32 S)
 {
@@ -392,6 +388,11 @@ AGlobe::AGlobe()
 void AGlobe::Tick(float Dt)
 {
 	Super::Tick(Dt);
+	// (248: the engine's water floats nothing here, and its buoyancy manager went through all of the terrain's thousands of
+	//  parts again for every tile that came or went - the longest halts at the jetways. Without it nothing looks for floats)
+	if (!bNoBuoyancy)
+		for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+			if (It->GetClass()->GetFName() == TEXT("BuoyancyManager")) { It->Destroy(); bNoBuoyancy = true; ADP_LOG(TEXT("Globe: the engine's buoyancy manager is off, nothing floats here")); break; }
 	// (278: terrain tiles more than 100 km across the middle - the far side of the Earth, in view only from hundreds of
 	//  kilometres away - cast no shadow: each covers the whole shadow map and fills the engine's marking queue. The land
 	//  round you is always drawn from tiles far smaller than that and keeps its shadows)

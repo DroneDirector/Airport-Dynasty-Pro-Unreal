@@ -36,6 +36,7 @@ class AIRPORTDYNASTYPRO_API AGlobe : public AActor
 	/** The airfield's boundary (plan metres): the terrain is cut away inside it, its own ground is the airfield's. */
 	FBox2D Airfield = FBox2D(ForceInit);
 	int32 PawnOnTerrain = -1;
+	bool bNoBuoyancy = false;
 
 public:
 	/** The terrain's layer.json the globe uses (empty: none installed - the smooth globe; nothing placed at real heights may show). */
@@ -52,7 +53,6 @@ public:
 	// the chosen source is tried, and when it refuses (EOX answers 403 since 2026-11-09) the next one is used.
 	static int32 Source;
 	static FString SourceName(int32 S);
-	static FString SourceCredit(int32 S);
 	/** Use this source now (and keep the choice). */
 	static void UseSource(int32 S);
 	#pragma endregion

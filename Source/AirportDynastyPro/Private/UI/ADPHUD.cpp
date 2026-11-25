@@ -763,13 +763,6 @@ void AADPHUD::BeginPlay()
 				})]
 			]
 		]
-		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(8)
-		[
-			// the imagery's credit, as its licence (CC BY 4.0) asks
-			// every credit in one line here (wrapping between the map and the Buttons tab, never over them)
-			SAssignNew(Credit, STextBlock).Font(Font(7, "Regular")).ColorAndOpacity(FLinearColor(1, 1, 1, 0.55f)).Justification(ETextJustify::Center).WrapTextAt(1000)
-			.Text_Lambda([]() { return FText::FromString(AGlobe::SourceCredit(AGlobe::ShownSource) + TEXT(" · Copernicus DEM GLO-90 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA · Data from the Faroese Environment Agency, Umhvørvisstovan: DSM hæddarmodell 2015, November 2026 · Cesium")); })
-		]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(0, 92, 0, 0)
 		[
 			SAssignNew(CaptionBox, SBorder)
@@ -1555,9 +1548,8 @@ void AADPHUD::ToggleGame()
 	// the controller is the menus' only while they are in front
 	if (PadToMenus.IsValid()) PadToMenus->Clear();
 	GameBox->SetVisibility(bGame ? EVisibility::Visible : EVisibility::Collapsed);
-	// the walking interface (the bar, the map, the credit line) hides while the menus are open: nothing ever overlaps
+	// the walking interface (the bar, the map) hides while the menus are open: nothing ever overlaps
 	TopBar->SetVisibility(bGame ? EVisibility::Collapsed : EVisibility::Visible);
-	if (Credit.IsValid()) Credit->SetVisibility(bGame ? EVisibility::Collapsed : EVisibility::HitTestInvisible);
 	UpdateMouse();
 }
 
@@ -1724,7 +1716,6 @@ void AADPHUD::OpenWhoAreYou()
 	bGame = false;
 	if (GameBox.IsValid()) GameBox->SetVisibility(EVisibility::Visible);
 	if (TopBar.IsValid()) TopBar->SetVisibility(EVisibility::Collapsed);
-	if (Credit.IsValid()) Credit->SetVisibility(EVisibility::Collapsed);
 	if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) if (AActor* H = Wk->HumanActor()) H->SetActorHiddenInGame(true);
 	Breadcrumb(TEXT("A new career: who are you?"));
 	ADPCharacterCreate::BuildConcept(GetWorld(), GetOwningPlayerController(), true);
@@ -4698,7 +4689,6 @@ void AADPHUD::TickShotsLooks(float Dt, const float Before, float& ShotClock)
 				ASunClock::DayOverride = 172; ASunClock::HourOverride = 23.5f; ASunClock::Theme = 1; ASunClock::Refresh();
 				if (AADPWalker* Wk = Cast<AADPWalker>(GetOwningPawn())) if (AActor* H = Wk->HumanActor()) H->SetActorHiddenInGame(true);
 				if (TopBar.IsValid()) TopBar->SetVisibility(EVisibility::Collapsed);
-				if (Credit.IsValid()) Credit->SetVisibility(EVisibility::Collapsed);
 				bHidden = true;   // (the airport's interface away: this is its own screen)
 				ADPCharacterCreate::BuildConcept(GetWorld(), GetOwningPlayerController(), true);
 				if (GEngine && GEngine->GameViewport)

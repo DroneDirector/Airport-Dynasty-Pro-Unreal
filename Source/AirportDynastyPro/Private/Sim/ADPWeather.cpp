@@ -1,6 +1,10 @@
 // The real world's weather - see Sim/ADPWeather.h.
 #include "Sim/ADPWeather.h"
 #include "ADPLog.h"
+#include "Dom/JsonObject.h"
+#include "Sim/ADPBoards.h"
+#include "Site.h"
+#include "SunClock.h"
 #include "HttpModule.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
@@ -134,6 +138,70 @@ namespace
 		Q->ProcessRequest();
 	}
 
+	// the days to come for the phone (owner, 2026-11-25): MET Norway's forecast, fetched only when its page is open, kept for three
+	// hours or for as long as they say it holds (Expires), and on disk for the next start. Game thread; what the page gets: under GWxLock
+	FString GFcPage, GFcJson, GFcSince; FDateTime GFcUntil, GFcGot; bool GFcBusy = false, GFcRead = false, GFcAsked = false; double GFcLat = 0, GFcLon = 0;
+	FString FcFile() { return FPaths::ProjectSavedDir() / TEXT("Weather") / TEXT("forecast.txt"); }
+	void FcKeep()
+	{
+		FFileHelper::SaveStringToFile(FString::Printf(TEXT("%.4f %.4f\n%s\n%s\n%s\n"), GFcLat, GFcLon, *GFcUntil.ToIso8601(), *GFcGot.ToIso8601(), *GFcSince) + GFcJson, *FcFile(), FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
+	}
+	void FetchForecast(double Lat, double Lon)
+	{
+		if (!GFcRead || FMath::Abs(Lat - GFcLat) > 0.0001 || FMath::Abs(Lon - GFcLon) > 0.0001)
+		{
+			GFcRead = true; GFcLat = Lat; GFcLon = Lon; GFcJson.Reset(); GFcSince.Reset(); GFcUntil = FDateTime(0);
+			FString T, L[4]; bool bAll = FFileHelper::LoadFileToString(T, *FcFile(), FFileHelper::EHashOptions::None, FILEREAD_Silent);
+			for (int32 i = 0; i < 4 && bAll; ++i) { FString R; bAll = T.Split(TEXT("\n"), &L[i], &R); T = R; }
+			FDateTime Un, Go;
+			if (bAll && L[0] == FString::Printf(TEXT("%.4f %.4f"), Lat, Lon) && FDateTime::ParseIso8601(*L[1], Un) && FDateTime::ParseIso8601(*L[2], Go)) { GFcUntil = Un; GFcGot = Go; GFcSince = L[3]; GFcJson = T; }
+		}
+		if (GFcBusy || FDateTime::UtcNow() < GFcUntil) return;
+		GFcBusy = true;
+		TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Q = FHttpModule::Get().CreateRequest();
+		Q->SetURL(FString::Printf(TEXT("https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=%.4f&lon=%.4f"), Lat, Lon)); Q->SetVerb(TEXT("GET"));
+		Q->SetHeader(TEXT("User-Agent"), TEXT("AirportDynastyPro https://airportdynasty.com/"));   // (their terms: who is asking)
+		if (!GFcSince.IsEmpty() && !GFcJson.IsEmpty()) Q->SetHeader(TEXT("If-Modified-Since"), GFcSince);
+		Q->SetTimeout(20.f);
+		Q->OnProcessRequestComplete().BindLambda([Lat, Lon](FHttpRequestPtr, FHttpResponsePtr Res, bool bOk)
+		{
+			GFcBusy = false; const FDateTime Now = FDateTime::UtcNow();
+			if (FMath::Abs(Lat - GFcLat) > 0.0001 || FMath::Abs(Lon - GFcLon) > 0.0001) return;   // (another airport meanwhile)
+			const int32 Code = bOk && Res.IsValid() ? Res->GetResponseCode() : 0;
+			FString B; if (Code == 200 || Code == 203) B = Res->GetContentAsString();
+			if (Code == 304 || B.StartsWith(TEXT("{")))
+			{
+				if (Code != 304) { GFcJson = MoveTemp(B); GFcSince = Res->GetHeader(TEXT("Last-Modified")); GFcGot = Now; }
+				FDateTime Ex; GFcUntil = Now + FTimespan::FromHours(3);
+				if (FDateTime::ParseHttpDate(Res->GetHeader(TEXT("Expires")), Ex) && Ex > GFcUntil) GFcUntil = Ex;
+				ADP_LOG(TEXT("Weather: the forecast for the phone, %d characters (%d), good until %s UTC"), GFcJson.Len(), Code, *GFcUntil.ToString()); FcKeep();
+			}
+			else { GFcUntil = Now + FTimespan::FromMinutes(10); ADP_WARN(TEXT("Weather: no forecast for the phone (%d) - the last one stays, asked again in 10 minutes"), Code); }
+		});
+		Q->ProcessRequest();
+	}
+
+	// what the weather is at your airport now - the same the sky, the ground and the crew go by - and the forecast that is there
+	void MakePage()
+	{
+		TSharedPtr<FJsonObject> A = ADPSite::AirportBlock();
+		const FString Icao = ADPBoards::HereIcao(); double La = 0, Lo = 0;
+		const bool bPlace = A && A->TryGetNumberField(TEXT("lat"), La) && A->TryGetNumberField(TEXT("lon"), Lo);
+		const FDateTime U = FDateTime::UtcNow(); const FADPWx X = ADPWeather::At(Icao, La, Lo, U);
+		if (bPlace) FetchForecast(FMath::RoundToDouble(La * 10000.0) / 10000.0, FMath::RoundToDouble(Lo * 10000.0) / 10000.0);
+		FString P;
+		const TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> J = TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&P);
+		J->WriteObjectStart();
+		J->WriteValue(TEXT("sky"), ASunClock::Theme); J->WriteValue(TEXT("live"), X.bLive); J->WriteValue(TEXT("station"), X.Station); J->WriteValue(TEXT("metar"), X.Raw);
+		J->WriteValue(TEXT("temp"), X.TempC); J->WriteValue(TEXT("dir"), X.WindDir); J->WriteValue(TEXT("kt"), X.WindKt); J->WriteValue(TEXT("gust"), X.GustKt); J->WriteValue(TEXT("vis"), X.VisM);
+		J->WriteValue(TEXT("rain"), X.bRain); J->WriteValue(TEXT("snow"), X.bSnow); J->WriteValue(TEXT("storm"), X.bStorm); J->WriteValue(TEXT("fog"), X.bFog); J->WriteValue(TEXT("freezing"), X.bFreezing);
+		J->WriteValue(TEXT("utc"), double(U.ToUnixTimestamp())); J->WriteValue(TEXT("tz"), FMath::RoundToDouble((ADPBoards::Local(U) - U).GetTotalMinutes()));
+		J->WriteValue(TEXT("lat"), La); J->WriteValue(TEXT("lon"), Lo); J->WriteValue(TEXT("busy"), GFcBusy); J->WriteValue(TEXT("got"), GFcJson.IsEmpty() ? 0.0 : double(GFcGot.ToUnixTimestamp()));
+		J->WriteObjectEnd(); J->Close();
+		P = TEXT("{\"now\":") + P + TEXT(",\"forecast\":") + (GFcJson.IsEmpty() ? FString(TEXT("null")) : GFcJson) + TEXT("}");
+		FScopeLock Lk(&GWxLock); GFcPage = MoveTemp(P); GFcAsked = false;
+	}
+
 	// the built-in climate: typical weather for the latitude, season and hour, the same for every player at the same time
 	FADPWx Climate(const FString& Icao, double Lat, double Lon, const FDateTime& When)
 	{
@@ -187,6 +255,13 @@ void ADPWeather::Components(const FADPWx& W, double RunwayHdg, double& Cross, do
 
 bool ADPWeather::PageJson(const FString& Url, FString& Out)
 {
+	if (Url.EndsWith(TEXT("/phone")) || Url.Contains(TEXT("/phone?")))   // (the phone's weather page: made on the game thread, given the next time it asks - it asks again soon)
+	{
+		FScopeLock Lk(&GWxLock);
+		if (!GFcAsked) { GFcAsked = true; AsyncTask(ENamedThreads::GameThread, []() { MakePage(); }); }
+		if (GFcPage.IsEmpty()) return false;
+		Out = GFcPage; return true;
+	}
 	const bool bTaf = Url.Contains(TEXT("/api/data/taf?")), bMetar = Url.Contains(TEXT("/api/data/metar?"));
 	if (!bTaf && !bMetar) return false;
 	auto Arg = [&Url](const TCHAR* K)

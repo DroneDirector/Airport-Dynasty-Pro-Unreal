@@ -146,7 +146,7 @@ class WorldMap {
     try {
       this.ml = new ML.Map({
         container: this.mlHost, style: baseMapStyle(), center: [-10, 58], zoom: 2,
-        attributionControl: { compact: true }, dragRotate: false, pitchWithRotate: false, touchPitch: false,
+        attributionControl: false, dragRotate: false, pitchWithRotate: false, touchPitch: false,
         renderWorldCopies: false, interactive: !!this.opts.interactive, maxZoom: 18,
       });
       this.ml.touchZoomRotate.disableRotation();

@@ -22,7 +22,8 @@ namespace ADPWeather
 	/** The weather at an airport now: its own report, the nearest within 60 nm, or the built-in climate. */
 	FADPWx At(const FString& Icao, double Lat, double Lon, const FDateTime& When);
 	/** The menus' weather question (the address they ask: /api/data/metar or taf, ids= or bbox=) answered from the reports
-	 *  already here, as the weather service itself would (JSON); false: not known, or nothing here yet. Any thread. */
+	 *  already here, as the weather service itself would (JSON); false: not known, or nothing here yet. Any thread.
+	 *  .../phone: the phone's page - the weather at your airport now and MET Norway's forecast for the days to come. */
 	bool PageJson(const FString& Url, FString& Out);
 	int32 NumReports();
 	FDateTime FetchedAt();

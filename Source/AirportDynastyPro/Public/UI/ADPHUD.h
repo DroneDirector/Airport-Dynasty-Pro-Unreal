@@ -446,7 +446,6 @@ private:
 	void FillWardrobe();
 	TWeakObjectPtr<class AWardrobe> WardrobeOpen;
 	TSharedRef<SWidget> MakeWardrobe();
-	TSharedPtr<class STextBlock> Credit;
 	TSharedPtr<class SVerticalBox> ButtonsList, SettingsControls;
 	TSharedPtr<class SBox> ButtonsHeaderGlyph;
 	bool bButtonsOpen = false, bShownPad = true;
