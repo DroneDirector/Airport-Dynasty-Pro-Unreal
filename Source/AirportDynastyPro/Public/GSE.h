@@ -124,7 +124,7 @@ public:
 		// (breaking down, GSEBreak.cpp: 0 well, 1 failing - on to where it may stop, 2 stopped for repair, 3 written off, 4 gone, 5 repaired, its driver getting in again)
 		uint8 Brk = 0; bool bBrkFix = true, bBrkHome = false, bBrkBack = false, bBrkHaz = false; FString BrkId, BrkFault; FDateTime BrkUntil, BrkLast; double BrkHours = 0.0, BrkKm = 0.0; float BrkT = 0.f; int32 BrkJob = INDEX_NONE;
 		bool bSpare = false, bAway = false; FString SpareId, Owner;   // (a bought one, kept at the vehicle area: kind@place and whose - GSESpare.cpp)
-		TSharedPtr<FSvcBus> Bu;           // (an apron bus's doors, driver and sounds: GSEBus.cpp)
+		TSharedPtr<FSvcBus> Bu; TSharedPtr<struct FBusCharge> Ch;           // (an apron bus's doors, driver and sounds: GSEBus.cpp)
 		FVector KWheelAx = FVector(-0.7071f, 0.f, 0.7071f);   // (its steering wheel's axis)
 		TMap<FString, FVector> Pt;        // (a service vehicle's named points, root cm: Data/<vehicle>-riders.json)
 		struct FSvcDoor { int32 G = INDEX_NONE; FVector Piv = FVector::ZeroVector; float Now = 0.f, Want = 0.f; };
@@ -620,6 +620,33 @@ private:
 	void BusWalkRound(int32 Ci, int32 Ti);
 	TFunction<void(float, float, FDriverPose&)> BusClimbFn(int32 Ti, bool bIn) const;
 	float BusPoll = 0.f;
+	// the apron buses' battery and charging (to-do 277 E3b, GSECharge.cpp)
+	void ChargeDress(FTractor& T);
+	void ChargeParts(FTractor& T, float Dt);
+	void ChargeTick(float Dt);
+	void ChargeLoad(FTractor& T, double Soc);
+	double ChargeSoc(const FTractor& T) const;
+	bool ChargeHolds(const FTractor& T) const;
+	bool ChargeEmpty(const FTractor& T) const;
+	bool ChargeLow(const FTractor& T) const;
+	bool ChargeFor(const FTractor& T, double Cm) const;
+	bool ChargeAway(const FTractor& T) const;
+	FVector ChargeBay(const FTractor& T, float& Yaw) const;
+	void ChargeNeed(const FTractor& T) const;
+	FString ChargerBy(const FTractor& T) const;
+	bool ChargeGo(int32 Ti, FString& Why);
+	void ChargeDrive(int32 Ti);
+	bool ChargeCrew(int32 Ti, bool bPlug, FString& Why);
+	bool ChargeSpot(const FTractor& T, int32 Code, FVector& Out) const;
+	FString ChargeSay(const FTractor& T, int32 Code) const;
+	bool ChargeMay(const FTractor& T, int32 Code, FString& Why) const;
+	bool ChargeSwitch(int32 Ti, int32 Code);
+	const TCHAR* ChargeHeld(const FTractor& T) const;
+	float ChargeLeash(const FTractor& T, FVector& From) const;
+	static void ChargeDrop(FTractor& T);
+	static float ChargeLimp();
+	int32 BusStage(const FTractor& T) const;
+	float ChargePoll = 1.f;
 	void TaxiTick(float Dt);
 	float TaxiPoll = 0.f; int32 TaxiCi = INDEX_NONE, TaxiTi = INDEX_NONE; uint8 TaxiStage = 0;
 	// its fare (the same tick owns it): on board or not, the distance (m), the time and the time standing or crawling (s)

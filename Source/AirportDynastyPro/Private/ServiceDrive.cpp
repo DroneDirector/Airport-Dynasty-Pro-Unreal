@@ -528,6 +528,7 @@ void AGSE::SvcPlayerDrive(FTractor& T, float Dt)
 	const float Max = T.TugIx != INDEX_NONE && (bTow || !T.bReverse) ? TugMax : T.bReverse ? 250.f : T.IsTrain() ? (T.Train.Num() || T.TowGpu != INDEX_NONE ? 417.f : 694.f) : S.PlayerSpeed;   // (the baggage tractor: 25 km/h, 15 with a train)
 	const FVector Fw = FRotator(0.f, T.Yaw, 0.f).Vector(), Move = Fw * (T.bReverse ? -1.f : 1.f);
 	const float BarL = T.TugIx != INDEX_NONE && !T.bReverse ? 525.f : 0.f;   // (its tow bar sticks out ahead)
+	if (T.Ch && (ChargeHolds(T) || (ChargeEmpty(T) && FMath::Abs(T.Speed) > ChargeLimp()))) Go = 0.f;   // (plugged in, or its battery empty: it only creeps)
 	if (T.Brk) Go = 0.f;   // (failing or broken down: it only rolls to a stop, GSEBreak.cpp)
 	float Acc = Go * 160.f - Br * 520.f - (Go < 0.05f ? 45.f : 0.f);
 	// people: the stopping way ahead kept free

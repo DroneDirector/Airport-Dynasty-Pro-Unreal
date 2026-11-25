@@ -613,6 +613,7 @@ void AGSE::Drive(FTractor& T, float Dt)
 	if (T.Brk > 1 && T.Speed < 2.f) { T.Speed = 0.f; return; }   // (broken down: its way is kept for when it runs again, GSEBreak.cpp)
 	if (DriverLost(T)) { T.Speed = 0.f; return; }   // (to-do 206: nobody at the wheel - it stands until somebody takes over)
 	if (T.Bu && (!BusDoorsShut(T) || BusKnelt(T))) { T.Speed = 0.f; return; }   // (never off with a door open, never let down)
+	if (T.Ch && ChargeHolds(T)) { T.Speed = 0.f; return; }   // (nor plugged in: GSECharge.cpp)
 	const FVector End = T.Path.Last();
 	while (T.Path.Num() > 1 && FVector::Dist2D(T.At, T.Path[0]) < 110.f) T.Path.RemoveAt(0);
 	// (a waypoint gone past - beside it, not through it - counts as reached; and never round and round one: after a full turn on
@@ -732,6 +733,7 @@ void AGSE::Drive(FTractor& T, float Dt)
 	}
 	Want = FMath::Min(Want, FMath::Max(25.f, DistEnd * 0.5f));
 	if (T.Brk == 1 && T.Svc != INDEX_NONE && !T.Bu && !T.Until) Want = FMath::Min(Want, BreakLimp());   // (failing: slowly on to where it may stop)
+	if (T.Ch && ChargeEmpty(T)) Want = FMath::Min(Want, ChargeLimp());   // (its battery empty: it creeps on, never in the way)
 	if (bBlocked || T.Brk > 1) Want = 0.f;
 	const float Acc = Want > T.Speed ? 80.f : 130.f;                       // (cm/s^2: gently away, gently stopping)
 	T.Speed = FMath::FInterpConstantTo(T.Speed, Want, Dt, Acc);
@@ -1162,7 +1164,7 @@ void AGSE::Tick(float Dt)
 	BreakTick(Dt);
 	SvcTick(Dt);
 	TaxiTick(Dt);
-	BusTick(Dt);
+	BusTick(Dt); ChargeTick(Dt);
 	// the test's first jobs, once the crew stand at their gates
 	if (bTest && !bTestStarted && Clock > 6.f && Tg())
 	{

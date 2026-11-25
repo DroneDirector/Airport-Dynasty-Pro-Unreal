@@ -8,6 +8,7 @@
 #include "GSE.h"
 #include "ServiceVehicles.h"
 #include "ApronBus.h"
+#include "BusCharge.h"
 #include "VehicleControls.h"
 #include "CrewPose.h"
 #include "StaffPeople.h"
@@ -138,6 +139,7 @@ void AGSE::BusDress(FTractor& T)
 	}
 	if (Miss) ADP_WARN(TEXT("Apron bus %s: %d door leaves not found in its model"), *T.Name, Miss);
 	else ADP_LOG(TEXT("Apron bus %s: seven doors (14 leaves) ready"), *T.Name);
+	ChargeDress(T);
 }
 
 bool AGSE::BusDoorsShut(const FTractor& T) const
@@ -261,6 +263,8 @@ bool AGSE::BusDoor(int32 Ti, int32 Door, bool bOpen, FString& Why)
 	return true;
 }
 
+int32 AGSE::BusStage(const FTractor& T) const { return T.Bu ? int32(T.Bu->Stage) : 0; }
+
 void AGSE::BusSetAll(int32 Ti, bool bOpen) { FString Why; for (int32 d = 0; d < 7; ++d) BusDoor(Ti, d, bOpen, Why); }
 
 void AGSE::BusParts(FTractor& T, float Dt)
@@ -358,6 +362,7 @@ bool AGSE::BusMan(int32 Ti, TFunction<void()> Then, FString& Why)
 {
 	FTractor& T = Tractors[Ti]; FSvcBus& B = *T.Bu; ATugs* G = Tg(); UStaffPeople* Sp = UStaffPeople::Get(GetWorld());
 	if (T.Player.IsValid()) { Why = TEXT("you are driving it"); return false; }
+	if (ChargeHolds(T)) { ChargeNeed(T); Why = TEXT("it is plugged in"); return false; }
 	if (B.Stage == 2) { Then(); return true; }
 	if (B.Stage) { Why = B.Stage == 1 ? TEXT("its driver is on the way to it") : TEXT("its driver is getting out"); return false; }
 	if (!G || !Sp || !T.M.IsValid()) { Why = TEXT("no crew yet"); return false; }
@@ -390,7 +395,7 @@ void AGSE::BusRoute(int32 Ti, FVector2f To, float Heading, TFunction<void()> Don
 	BusSetAll(Ti, false); Motor(T, true);   // (it rolls when the doors are shut: Drive)
 	const FVector Fw = FRotator(0.f, T.Yaw, 0.f).Vector(); const float a = FMath::DegreesToRadians(Heading), c = FMath::Cos(a), s = FMath::Sin(a);
 	TArray<FVector> H; FVector From = T.At;
-	if (FVector::Dist2D(T.At, T.Home) < 200.f && T.bSpare) { HomeOut(T, H, Plan(To.X, To.Y)); From = H.Last(); }
+	if (ChargeAway(T) || (FVector::Dist2D(T.At, T.Home) < 200.f && (T.bSpare || DepotAt(T.Home)))) { HomeOut(T, H, Plan(To.X, To.Y)); From = H.Last(); }
 	else if (FVector::Dist2D(T.At, T.Home) < 200.f) { H.Add(T.At + Fw * 400.f); H.Add(T.At + Fw * 800.f); From = T.At + Fw * 1200.f; H.Add(From); }   // (straight out of its bay)
 	const float Ld = BusR + 8.f, Lx = To.X - c * Ld, Ly = To.Y - s * Ld;
 	TArray<FVector> Way;
@@ -420,18 +425,20 @@ void AGSE::BusRouteHome(int32 Ti, TFunction<void()> Done)
 {
 	FTractor& T = Tractors[Ti]; if (!T.Bu || T.Bu->Stage != 2) return;
 	BusSetAll(Ti, false); Motor(T, true);
-	if (T.bSpare) { SpareHome(Ti, [this, Ti, Done] { ADP_LOG(TEXT("Apron bus %s: on its place again"), *Tractors[Ti].Name); Motor(Tractors[Ti], false); if (Done) Done(); }); return; }
+	if (T.bSpare || DepotAt(T.Home)) { SpareHome(Ti, [this, Ti, Done] { ADP_LOG(TEXT("Apron bus %s: on its place again"), *Tractors[Ti].Name); Motor(Tractors[Ti], false); if (Done) Done(); }); return; }
 	// across its bay's mouth, turning out of it, then backed in nose out (plan metres)
 	const FVector W = FRotator(0.f, T.HomeYaw, 0.f).Vector(); const FVector2f Hd(W.X, -W.Y), Ho(T.Home.X / 100.f, -T.Home.Y / 100.f); const FVector2f At(T.At.X / 100.f, -T.At.Y / 100.f);
 	FVector2f Sd(Hd.Y, -Hd.X); if (FVector2f::DotProduct(At - Ho, Sd) < 0.f) Sd = -Sd;
 	const FVector2f P0 = Ho + Sd * (BusR + 16.f) + Hd * 14.f, P1 = Ho + Sd * (BusR + 0.4f) + Hd * 14.f, P2 = Ho + Hd * (14.4f + BusR), P3 = P2 + Hd * 4.f;
-	TArray<FVector> H;
-	if (!Apron(H, T.At, Plan(P0.X, P0.Y), &T))
+	TArray<FVector> H, Wy; FVector From = T.At;
+	if (ChargeAway(T)) { HomeOut(T, H, Plan(P0.X, P0.Y)); From = H.Last(); }   // (out of the charging bay it was lent)
+	if (!Apron(Wy, From, Plan(P0.X, P0.Y), &T))
 	{
 		ADP_LOG(TEXT("Apron bus %s: no way home now - tried again"), *T.Name);
 		RetryIn(Ti, 8.f, [this, Ti, Done] { BusRouteHome(Ti, Done); });
 		return;
 	}
+	H.Append(Wy);
 	Leg(H, P0.X, P0.Y, -Sd.X, -Sd.Y, P1.X, P1.Y, -Sd.X, -Sd.Y, T.KTurnR);
 	Leg(H, P1.X, P1.Y, -Sd.X, -Sd.Y, P2.X, P2.Y, Hd.X, Hd.Y, T.KTurnR);
 	H.Add(Plan(P3.X, P3.Y));
@@ -490,6 +497,8 @@ TSharedPtr<FVehTable> AGSE::BusControls()
 	for (int32 d = 0; d < 7; ++d) { Add(*Names[d * 3], d, BusDoors[d].Label, true); Add(*Names[d * 3 + 1], d, BusDoors[d].Label, false); Add(*Names[d * 3 + 2], d, BusDoors[d].Label, false); }
 	Add(TEXT("BUS_SwAll"), INDEX_NONE, TEXT("All doors"), true);
 	{ K X; X.Part = TEXT(""); X.Point = TEXT("BUS_SwAll"); X.Kind = K::Push; X.Label = TEXT("Kneel"); X.Switch = BusSwKneel; X.bSeat = true; Tb->Controls.Add(X); }
+	// its charging flap, the charger's plug in its holster, the inlet (GSECharge.cpp)
+	for (int32 s = 2; s <= 4; ++s) { K X; X.Part = TEXT(""); X.Point = s == 2 ? TEXT("BUS_ChFlap") : TEXT("BUS_ChPlug"); X.Kind = K::Push; X.Label = s == 2 ? TEXT("Charging flap") : TEXT("Charging plug"); X.Switch = s; Tb->Controls.Add(X); }
 	// a pole or strap in your hand while you ride
 	static TArray<FString> Holds; if (!Holds.Num()) { for (int32 i = 0; i < 28; ++i) Holds.Add(FString::Printf(TEXT("Pole_%d"), i)); for (int32 i = 0; i < 38; ++i) Holds.Add(FString::Printf(TEXT("StrapLoop_%s%d"), i % 2 ? TEXT("R") : TEXT("L"), BusStraps[i / 2])); }
 	for (int32 i = 0; i < Holds.Num(); ++i) { K X; X.Part = *Holds[i]; X.Point = TEXT(""); X.Kind = K::Push; X.Label = i < 28 ? TEXT("Pole") : TEXT("Strap"); X.Switch = i < 28 ? BusSwPole + i : BusSwStrap + i - 28; X.bGrip = X.bHelp = true; Tb->Controls.Add(X); }
@@ -520,6 +529,7 @@ TSharedPtr<FVehTable> AGSE::BusControls()
 	Tb->Spot = [](const AGSE& G, const FTractor& T, const FVehControl& C, FVector& Out)
 	{
 		FVector P; bool bStrap = false;
+		if (C.Switch >= 2 && C.Switch <= 4) return G.ChargeSpot(T, C.Switch, Out);
 		if (C.Switch == BusSwKneel) { Out = G.TW(T, FVector(648.f, -54.f, 105.5f)); return true; }
 		if (C.Switch == INDEX_NONE || !BusHoldAt(C.Switch, P, bStrap)) return false;
 		Out = G.TW(T, P); return true;
@@ -527,6 +537,7 @@ TSharedPtr<FVehTable> AGSE::BusControls()
 	Tb->Switch = [](AGSE& G, int32 Ti, int32 Code)
 	{
 		FTractor& T = G.Tractors[Ti]; if (!T.Bu) return false;
+		if (Code >= 2 && Code <= 4) return G.ChargeSwitch(Ti, Code);
 		if (Code == BusSwKneel)
 		{
 			if (T.KneelAsk[0] || T.KneelAsk[1]) { T.KneelAsk[0] = T.KneelAsk[1] = false; return true; }
@@ -539,6 +550,7 @@ TSharedPtr<FVehTable> AGSE::BusControls()
 	Tb->MaySwitch = [](AGSE& G, int32 Ti, int32 Code, FString& Why)
 	{
 		const FTractor& T = G.Tractors[Ti];
+		if (Code >= 2 && Code <= 4) return G.ChargeMay(T, Code, Why);
 		if (Code == BusSwKneel) { if (FMath::Abs(T.Speed) > 1.f || T.Path.Num()) Why = TEXT("the bus is not standing"); else if (!T.bOn) Why = TEXT("its drive is off"); }
 		return Why.IsEmpty();
 	};
@@ -568,6 +580,7 @@ TSharedPtr<FVehTable> AGSE::BusControls()
 	Tb->Say = [](const AGSE& G, const FTractor& T, const FVehControl& X) -> FString
 	{
 		if (X.Switch == BusSwKneel) return T.KneelAsk[0] || T.KneelAsk[1] ? TEXT("Kneel: up") : TEXT("Kneel: down");
+		if (X.Switch >= 2 && X.Switch <= 4) return G.ChargeSay(T, X.Switch);
 		if (X.Switch != INDEX_NONE)
 		{
 			FVector P; bool bStrap = false;
@@ -579,7 +592,10 @@ TSharedPtr<FVehTable> AGSE::BusControls()
 		return T.SvcDoors.IsValidIndex(X.Motion) ? FString(X.Label) + (T.SvcDoors[X.Motion].Now > 0.5f ? TEXT(": shut") : TEXT(": open")) : FString();
 	};
 	Tb->Aboard = [](const FTractor&, const FVector& L) -> uint8 { return FMath::Abs(L.X) < 690.f && FMath::Abs(L.Y) < 147.f && L.Z > 15.f && L.Z < 140.f ? 1 : 0; };
-	Tb->Stowed = [](const AGSE& G, const FTractor& T) { return G.BusDoorsShut(T); };
+	Tb->Stowed = [](const AGSE& G, const FTractor& T) { return G.BusDoorsShut(T) && !G.ChargeHolds(T); };
+	Tb->Held = [](const FTractor& T) -> const TCHAR* { return T.Ch && T.Ch->Plug == FBusCharge::YourHand ? TEXT("the charging plug") : nullptr; };
+	Tb->Leash = [](const AGSE& G, const FTractor& T, FVector& From) { return G.ChargeLeash(T, From); };
+	Tb->Drop = [](FTractor& T) { ChargeDrop(T); };
 	Tb->Stow = [](AGSE& G, FTractor& T) { const int32 Ti = int32(&T - G.Tractors.GetData()); if (G.Tractors.IsValidIndex(Ti)) G.BusSetAll(Ti, false); };
 	ADP_LOG(TEXT("Apron bus: your controls - seven doors, all doors; the cab's lights, horn and hazard as every vehicle's"));
 	return Tb;
@@ -591,11 +607,15 @@ FVector2f AGSE::BusDoorAt(int32 Door) { return Door >= 0 && Door < 7 ? FVector2f
 
 void AGSE::BusFree(TArray<int32>& Out) const
 {
+	int32 Kept = INDEX_NONE;
 	for (int32 i = 0; i < Tractors.Num(); ++i)
 	{
 		const FTractor& T = Tractors[i]; if (!T.Bu || T.Brk || !T.M.IsValid() || T.Player.IsValid() || T.Path.Num() || T.Until || T.bAway) continue;
+		if (ChargeHolds(T)) { if (!T.Bu->Stage && !ChargeLow(T) && (Kept == INDEX_NONE || ChargeSoc(T) > ChargeSoc(Tractors[Kept]))) Kept = i; continue; }
+		if (ChargeLow(T)) continue;   // (to a charger first)
 		if ((T.Bu->Stage == 0 && T.Job == EJob::None) || T.Bu->Stage == 2) Out.Add(i);
 	}
+	if (!Out.Num() && Kept != INDEX_NONE) ChargeNeed(Tractors[Kept]);   // (none but on a charger: the fullest is unplugged)
 }
 
 bool AGSE::BusSee(int32 Ti, FBusSee& Out) const
@@ -611,11 +631,13 @@ bool AGSE::BusTry(int32 Ti, const FVector2f& To, float Heading) const
 	if (!Tractors.IsValidIndex(Ti) || !Tractors[Ti].Bu || !BusOk(Ti, UADPSim::Me())) return false;
 	const FTractor& T = Tractors[Ti]; const float a = FMath::DegreesToRadians(Heading), Ld = BusR + 8.f;
 	const FVector Lead = Plan(To.X - FMath::Cos(a) * Ld, To.Y - FMath::Sin(a) * Ld), End = Plan(To.X, To.Y);
-	FVector From = T.At; if (FVector::Dist2D(T.At, T.Home) < 200.f) { TArray<FVector> O; if (T.bSpare) { HomeOut(T, O, Lead); From = O.Last(); } else From += FRotator(0.f, T.Yaw, 0.f).Vector() * 1200.f; }
+	FVector From = T.At; if (ChargeAway(T) || FVector::Dist2D(T.At, T.Home) < 200.f) { TArray<FVector> O; if (T.bSpare || ChargeAway(T) || DepotAt(T.Home)) { HomeOut(T, O, Lead); From = O.Last(); } else From += FRotator(0.f, T.Yaw, 0.f).Vector() * 1200.f; }
 	TArray<FVector> W; if (!Apron(W, Lead, End, &T)) return false;
 	float L = 0.f; FVector Was = Lead; for (const FVector& V : W) { L += float(FVector::Dist2D(Was, V)); Was = V; }   // (straight in, nothing to go round)
 	if (L > Ld * 110.f) return false;
-	W.Reset(); return Apron(W, From, Lead, &T);
+	W.Reset(); if (!Apron(W, From, Lead, &T)) return false;
+	Was = From; for (const FVector& V : W) { L += float(FVector::Dist2D(Was, V)); Was = V; }
+	return ChargeFor(T, L);   // (never out without the charge for it and the way back)
 }
 
 FVector AGSE::BusW(int32 Ti, const FVector& Local) const

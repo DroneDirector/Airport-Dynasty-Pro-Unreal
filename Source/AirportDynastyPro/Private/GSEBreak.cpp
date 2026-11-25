@@ -110,6 +110,7 @@ void AGSE::BreakLoad(FTractor& T)
 	const FBrkRules& R = BrkRules();
 	const FADPVehWear* E = Sim->World.VehWear.FindByPredicate([&](const FADPVehWear& X) { return X.Id == T.BrkId; });
 	const uint8 Was = T.Brk;
+	if (T.Ch) ChargeLoad(T, E ? E->Soc : -1.0);
 	if (E) { T.BrkHours = E->Hours; T.BrkKm = E->Km; T.BrkLast = E->LastFail; }
 	else
 	{
@@ -142,7 +143,7 @@ void AGSE::BreakStore(const FTractor& T)
 	TArray<FADPVehWear>& L = Sim->World.VehWear;
 	FADPVehWear* E = L.FindByPredicate([&](const FADPVehWear& X) { return X.Id == T.BrkId; });
 	if (!E) { E = &L.AddDefaulted_GetRef(); E->Id = T.BrkId; }
-	E->Hours = T.BrkHours; E->Km = T.BrkKm; E->LastFail = T.BrkLast; E->Fault = T.BrkFault; E->Until = T.BrkUntil;
+	E->Hours = T.BrkHours; E->Km = T.BrkKm; E->Soc = ChargeSoc(T); E->LastFail = T.BrkLast; E->Fault = T.BrkFault; E->Until = T.BrkUntil;
 	E->State = T.bBrkBack || T.Brk == 1 || T.Brk == 5 ? 0 : T.Brk;
 }
 

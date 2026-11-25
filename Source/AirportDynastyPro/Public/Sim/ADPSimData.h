@@ -503,6 +503,7 @@ USTRUCT() struct FADPVehWear
 	UPROPERTY() FString Id;        // own:<name>, or <owner>:<kind@place> of a bought one
 	UPROPERTY() double Hours = 0.0;
 	UPROPERTY() double Km = 0.0;
+	UPROPERTY() double Soc = -1.0;   // (an electric one: its battery, 0..1)
 	UPROPERTY() int32 State = 0;
 	UPROPERTY() FString Fault;
 	UPROPERTY() FDateTime Until;

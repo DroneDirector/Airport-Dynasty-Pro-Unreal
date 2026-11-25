@@ -1,6 +1,7 @@
 // The ground vehicles you have bought, on their places at the vehicle area (to-do 277 E1; Sim/ADPVehicleArea.h): each comes when
 // nobody looks at its place and the place is clear, at the start and when bought. Never popped in view, never over another.
 #include "GSE.h"
+#include "BusCharge.h"
 #include "ServiceVehicles.h"
 #include "Tugs.h"
 #include "Airfield.h"
@@ -81,13 +82,14 @@ void AGSE::BusOwnFirst(TArray<int32>& Free) const
 
 void AGSE::HomeOut(const FTractor& T, TArray<FVector>& W, const FVector& ToW) const
 {
-	if (!T.bSpare)
+	const bool bBay = ChargeAway(T); const FVector Ho = bBay ? T.At : T.Home;
+	if (!T.bSpare && !bBay && !DepotAt(T.Home))
 	{
 		const FServiceSpec& S = ADPService::All()[T.Svc];
 		Leg(W, S.HomeX, S.HomeY, S.HomeHx, S.HomeHy, S.HomeX + S.HomeHx * 9.f, S.HomeY + S.HomeHy * 9.f, S.HomeHx, S.HomeHy, T.KTurnR); return;
 	}
 	// straight out, onto the lane to the east, onto the road the way it goes
-	const float x = T.Home.X / 100.f, y = -T.Home.Y / 100.f, s = y > DpLane ? -1.f : 1.f, r = SpareR(T), d = -ToW.Y / 100.f > DpLane ? 1.f : -1.f, k = T.KTurnR;
+	const float x = Ho.X / 100.f, y = -Ho.Y / 100.f, s = y > DpLane ? -1.f : 1.f, r = SpareR(T), d = -ToW.Y / 100.f > DpLane ? 1.f : -1.f, k = T.KTurnR;
 	Leg(W, x, y, 0.f, s, x, DpLane - s * r, 0.f, s, k);
 	Leg(W, x, DpLane - s * r, 0.f, s, x + r + 0.4f, DpLane, 1.f, 0.f, k);
 	Leg(W, x + r + 0.4f, DpLane, 1.f, 0.f, DpRoad - r, DpLane, 1.f, 0.f, k);
@@ -103,21 +105,26 @@ FVector AGSE::HomeMouth(const FTractor& T) const
 void AGSE::SpareHome(int32 Ti, TFunction<void()> Then)
 {
 	// along the road to its lane, west along it, round to point into its place, straight back in: nose out
-	FTractor& T = Tractors[Ti]; TArray<FVector> H;
-	const float x = T.Home.X / 100.f, y = -T.Home.Y / 100.f, s = y > DpLane ? -1.f : 1.f, r = SpareR(T), d = -T.At.Y / 100.f > DpLane ? 1.f : -1.f, k = T.KTurnR, Rx = T.Bu ? DpRoadBus : DpRoad;
-	if (!Apron(H, T.At, Plan(Rx, DpLane + d * (r + 2.f)), &T))
+	FTractor& T = Tractors[Ti]; TArray<FVector> H; float Yw = 0.f; const FVector Ho = ChargeBay(T, Yw);   // (a bus going to charge: the bay kept for it)
+	FVector From = T.At; const bool bBus = T.Bu && (ChargeAway(T) || (T.Ch && T.Ch->bGo && DepotAt(T.At)));   // (out of the bay it stands in first)
+	const float x = Ho.X / 100.f, y = -Ho.Y / 100.f, s = y > DpLane ? -1.f : 1.f, r = SpareR(T), d = -T.At.Y / 100.f > DpLane ? 1.f : -1.f, k = T.KTurnR, Rx = T.Bu ? DpRoadBus : DpRoad;
+	if (bBus) { HomeOut(T, H, Plan(Rx, DpLane + d * (r + 2.f))); From = H.Last(); }
+	else if (T.Bu && !DepotAt(T.At) && FVector::Dist2D(T.At, T.Home) < 200.f) { const FVector Fw = FRotator(0.f, T.Yaw, 0.f).Vector(); for (int32 i = 1; i <= 3; ++i) H.Add(T.At + Fw * 400.f * i); From = H.Last(); }
+	TArray<FVector> Wy;
+	if (!Apron(Wy, From, Plan(Rx, DpLane + d * (r + 2.f)), &T))
 	{
 		ADP_LOG(TEXT("GSE: %s has no clear way to the vehicle area now - tried again"), *T.Name);
 		RetryIn(Ti, 8.f, [this, Ti, Then] { SpareHome(Ti, Then); }); return;
 	}
+	H.Append(Wy);
 	Leg(H, Rx, DpLane + d * (r + 2.f), 0.f, -d, Rx - r, DpLane, -1.f, 0.f, k);
 	Leg(H, Rx - r, DpLane, -1.f, 0.f, x + r + 0.4f, DpLane, -1.f, 0.f, k);
 	Leg(H, x + r + 0.4f, DpLane, -1.f, 0.f, x, DpLane + s * r, 0.f, s, k);
 	ADP_LOG(TEXT("GSE: %s drives back to the vehicle area"), *T.Name);
-	Go(T, MoveTemp(H), false, [this, Ti, Then]
+	Go(T, MoveTemp(H), false, [this, Ti, Then, Ho]
 	{
 		FTractor& U = Tractors[Ti]; TArray<FVector> B; const FVector A = U.At;
-		for (int32 i = 1; i <= 50; ++i) B.Add(FMath::Lerp(A, U.Home, i / 50.f));
+		for (int32 i = 1; i <= 50; ++i) B.Add(FMath::Lerp(A, Ho, i / 50.f));
 		Go(U, MoveTemp(B), true, Then);
 	});
 }

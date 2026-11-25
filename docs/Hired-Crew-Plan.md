@@ -749,3 +749,12 @@ Model `BusCharger` (`Art/BusCharger/make_buscharger.py`, 28 790 triangles, Nanit
 Points (node names): `PIV_Plug` / `SOCK_Holster` (0.165, -0.455, 1.05; local x = the way the plug goes in), `SOCK_PlugCable` (the plug's boot end; x = along the cable, away from the plug), `SOCK_CableOut` (-0.22, -0.44, 1.12; x = down, out of the gland), `SOCK_Saddle`, `PIV_Screen`, `PIV_Lamp`, `PIV_EStop`, `PIV_Door`, `PIV_Cable`, `IK_Hand_Plug_R`, `IK_Hand_EStop`, `IK_Stand_Charger`, `IK_Stand_Plug`. (Blender metres, y left.)
 Bus: `ChargeFlap` hinges upright at `PIV_ChargeFlap` (-6.6235, -1.5035, 0.7375), open = -110 degrees about z up in Blender's axes; `ChargeInlet` behind it, `SOCK_Inlet` (-6.47, -1.484, 0.737; x = into the bus): plug origin on it = fully in (nose 35.5 mm). Coupling shape for both sides: `Tools/ccs2.py`. Points also in `Data/apronbus-riders.json`.
 Places: `Data/vehicle-area.json` "chargers", behind bays 1-3 at y 302.4, front south; cable end to the parked bus's inlet 3.17 m straight; least gap to any vehicle's way 1.67 m (`Tools/check_vehicle_area.py`). C++: `ADPBusCharger::Keep` / `Of(World, "1")` (BusCharger.cpp), solid boxes for cabinet, hanging cable and posts. The at-rest `Cable` is one part: E3b hides it and draws its own when the plug leaves the holster. No logic yet.
+
+## E3b as built (2026-11-25, compiled, not run)
+
+- `GSECharge.cpp`, `BusCharge.h`, numbers in `Data/bus-battery.json`: 100 km or 14 h, 1.5 h empty to full at 150 kW, tapering above 80 %. Used by way, hours with the drive on, heating/cooling, doors. Saved with the wear (`FADPVehWear.Soc`). Shown on the cab's display and on the charger's screen.
+- A bus takes a job only with charge for it and the way back (`BusTry`); below 25 % it goes to a free charging bay; empty it creeps on (220 cm/s).
+- One free hired ground crew member (`EStaffTask::BusCharge`) opens the flap, carries plug and cable, plugs in; unplugs when full or when no other bus is free. A bus never drives plugged in. Nobody free: it waits and the log says why.
+- You by E: flap, plug at the holster, plug at the inlet.
+- The remote stands R0-R7 are `built` (make_remote_stands.py); both checks pass.
+- Left: the shop's kinds are in the web layer; no charging sound of its own (the motor whine, pitched down); three chargers only; nothing seen in the game.

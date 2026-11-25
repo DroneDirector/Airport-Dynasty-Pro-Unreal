@@ -1,0 +1,6 @@
+{
+ "note": "The apron buses' battery (to-do 277 E3b): 100 km or 14 h standing with its drive on from full; empty to full in 1.5 h at 150 kW, tapering above 80 %. Shares of the battery, hours of the game's clock.",
+ "kmFull": 100, "hoursFull": 14, "chargeHours": 1.5, "kW": 150, "taperFrom": 0.8, "taperEnd": 0.25,
+ "low": 0.25, "full": 0.995, "topUp": 0.95, "reserve": 0.06, "jobKm": 1.5,
+ "mildC": 19, "climatePerHourPerC": 0.0016, "doorOpen": 0.00025, "ownMin": 0.55, "ownMax": 0.95, "limpCmS": 220
+}

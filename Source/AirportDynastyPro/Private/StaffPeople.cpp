@@ -133,6 +133,7 @@ const TCHAR* UStaffPeople::TaskName(EStaffTask T)
 	case EStaffTask::Ambulift: return TEXT("ambulift");
 	case EStaffTask::Taxi: return TEXT("the taxi bus");
 	case EStaffTask::ApronBus: return TEXT("an apron bus");
+	case EStaffTask::BusCharge: return TEXT("a bus charger");
 	case EStaffTask::PushHelp: case EStaffTask::PushDriver: return TEXT("the pushback");
 	case EStaffTask::Deice: return TEXT("de-icing");
 	case EStaffTask::Catering: case EStaffTask::CaterRelief: return TEXT("catering");
@@ -160,6 +161,7 @@ void UStaffPeople::Needs(EStaffTask T, TArray<FNeed>& Out)
 	case EStaffTask::Stairs: Add(EStaffDuty::StairsDriver, 1, 1); Add(EStaffDuty::StairsHelper, 1, 1); break;
 	case EStaffTask::Ambulift: Add(EStaffDuty::AmbuDriver, 1, 1); Add(EStaffDuty::AmbuHelper, 1, 1); break;
 	case EStaffTask::ApronBus: Add(EStaffDuty::BusDriver, 1, 1); break;
+	case EStaffTask::BusCharge: Add(EStaffDuty::GpuHandler, 1, 1); break;
 	case EStaffTask::Taxi: Add(EStaffDuty::TaxiDriver, 1, 1); break;   // (its driver at the wheel; the passengers are no crew)
 	case EStaffTask::Deice: Add(EStaffDuty::DeicerDriver, 1, 1); Add(EStaffDuty::DeicerOperator, 1, 1); break;
 	case EStaffTask::Water: case EStaffTask::Toilet: Add(EStaffDuty::WaterDriver, 1, 1); break;
