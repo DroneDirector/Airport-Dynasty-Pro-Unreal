@@ -610,6 +610,7 @@ void AGSE::Drive(FTractor& T, float Dt)
 	// as the tug drives (Tugs.cpp Drive): eased speed, steering for a point ahead on its way, never tighter than its turning
 	// circle, slower in bends, a creep into an exact place; with a train: gentle (the carts are loaded), never backing
 	if (!T.Path.Num()) { T.Speed = 0.f; return; }
+	if (T.Brk > 1 && T.Speed < 2.f) { T.Speed = 0.f; return; }   // (broken down: its way is kept for when it runs again, GSEBreak.cpp)
 	if (DriverLost(T)) { T.Speed = 0.f; return; }   // (to-do 206: nobody at the wheel - it stands until somebody takes over)
 	if (T.Bu && (!BusDoorsShut(T) || BusKnelt(T))) { T.Speed = 0.f; return; }   // (never off with a door open, never let down)
 	const FVector End = T.Path.Last();
@@ -730,7 +731,8 @@ void AGSE::Drive(FTractor& T, float Dt)
 		if (Turn > 25.f && Len > 1.f) { const float Rcm = Len / FMath::DegreesToRadians(Turn); Want = FMath::Min(Want, FMath::Max(90.f, 0.6f * Rcm)); }
 	}
 	Want = FMath::Min(Want, FMath::Max(25.f, DistEnd * 0.5f));
-	if (bBlocked) Want = 0.f;
+	if (T.Brk == 1 && T.Svc != INDEX_NONE && !T.Bu && !T.Until) Want = FMath::Min(Want, BreakLimp());   // (failing: slowly on to where it may stop)
+	if (bBlocked || T.Brk > 1) Want = 0.f;
 	const float Acc = Want > T.Speed ? 80.f : 130.f;                       // (cm/s^2: gently away, gently stopping)
 	T.Speed = FMath::FInterpConstantTo(T.Speed, Want, Dt, Acc);
 	if (bLast && (DistEnd < 200.f || FMath::Abs(T.Orbit) > 330.f) && FMath::Abs(dYaw) > 45.f) T.At += (End - T.At).GetSafeNormal2D() * FMath::Min(T.Speed, 40.f) * Dt;
@@ -1157,6 +1159,7 @@ void AGSE::Tick(float Dt)
 	Flash += Dt; Clock += Dt;
 	WantTick(Dt);
 	SpareTick(Dt);
+	BreakTick(Dt);
 	SvcTick(Dt);
 	TaxiTick(Dt);
 	BusTick(Dt);

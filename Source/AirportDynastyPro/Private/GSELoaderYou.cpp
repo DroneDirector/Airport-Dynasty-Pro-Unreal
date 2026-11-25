@@ -35,7 +35,7 @@ bool AGSE::LoaderHeld(const FTractor& T, float To) const
 
 bool AGSE::LoaderFree(const FTractor& T) const
 {
-	if (!T.bLoader || T.Job != EJob::None || !T.M.IsValid() || T.Player.IsValid() || T.YouOn || T.LYouX > -1e5f) return false;
+	if (!T.bLoader || T.Brk || T.Job != EJob::None || !T.M.IsValid() || T.Player.IsValid() || T.YouOn || T.LYouX > -1e5f) return false;
 	if (T.Boom != 0.f || T.BoomWant != 0.f || T.bBelt || T.BeltBags.Num()) return false;
 	return T.LLeftT > 120.f || FVector::Dist2D(T.At, T.Home) < 200.f;   // (not from under your hands)
 }

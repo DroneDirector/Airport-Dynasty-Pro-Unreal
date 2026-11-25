@@ -121,6 +121,8 @@ public:
 		TSharedPtr<FSvcWet> Wa;           // (the water and the toilet truck's: GSEWater.cpp)
 		TSharedPtr<FSvcClean> Cl;         // (the cleaning van's kit in your hands: GSECleanYou.cpp)
 		TSharedPtr<FSvcCater> Ct;         // (the catering high-loader's: GSECater.cpp)
+		// (breaking down, GSEBreak.cpp: 0 well, 1 failing - on to where it may stop, 2 stopped for repair, 3 written off, 4 gone, 5 repaired, its driver getting in again)
+		uint8 Brk = 0; bool bBrkFix = true, bBrkHome = false, bBrkBack = false, bBrkHaz = false; FString BrkId, BrkFault; FDateTime BrkUntil, BrkLast; double BrkHours = 0.0, BrkKm = 0.0; float BrkT = 0.f; int32 BrkJob = INDEX_NONE;
 		bool bSpare = false, bAway = false; FString SpareId, Owner;   // (a bought one, kept at the vehicle area: kind@place and whose - GSESpare.cpp)
 		TSharedPtr<FSvcBus> Bu;           // (an apron bus's doors, driver and sounds: GSEBus.cpp)
 		FVector KWheelAx = FVector(-0.7071f, 0.f, 0.7071f);   // (its steering wheel's axis)
@@ -539,6 +541,26 @@ private:
 	void HomeOut(const FTractor& T, TArray<FVector>& W, const FVector& ToW) const;
 	FVector HomeMouth(const FTractor& T) const;
 	void SpareHome(int32 Ti, TFunction<void()> Then);
+	// breaking down (to-do 277 E2, GSEBreak.cpp)
+	float BrkSlow = 0.f, BrkSave = 0.f; int32 BrkLoads = -1;
+	void BreakTick(float Dt);
+	static float BreakLimp();
+	void BreakLoad(FTractor& T);
+	void BreakStore(const FTractor& T);
+	bool BreakSafe(const FTractor& T) const;
+	int32 BreakJob(int32 Ti) const;
+	bool BreakRoad(int32 Ti) const;
+	void BreakStop(int32 Ti);
+	bool BreakSpare(const FTractor& T, int32 Job) const;
+	void BreakHand(int32 Ti, int32 Job);
+	void BreakCrew(int32 Ti, int32 Job);
+	void BreakMend(int32 Ti);
+	void BreakGone(FTractor& T, bool bGone);
+	void BreakRound();
+public:
+	/** adp.BreakVehicle: the first vehicle whose name holds this fails now. */
+	bool BreakNow(const FString& Name, bool bTotal);
+private:
 	void DepotGo(int32 Ci, const FVector& Near);
 	bool DepotBack(int32 Ci, bool bNorth = false);
 	// the taxi bus's hired driver (to-do 239b, GSEService.cpp): from their place on the pavement round its front to the wheel, out

@@ -593,7 +593,7 @@ void AGSE::BusFree(TArray<int32>& Out) const
 {
 	for (int32 i = 0; i < Tractors.Num(); ++i)
 	{
-		const FTractor& T = Tractors[i]; if (!T.Bu || !T.M.IsValid() || T.Player.IsValid() || T.Path.Num() || T.Until || T.bAway) continue;
+		const FTractor& T = Tractors[i]; if (!T.Bu || T.Brk || !T.M.IsValid() || T.Player.IsValid() || T.Path.Num() || T.Until || T.bAway) continue;
 		if ((T.Bu->Stage == 0 && T.Job == EJob::None) || T.Bu->Stage == 2) Out.Add(i);
 	}
 }

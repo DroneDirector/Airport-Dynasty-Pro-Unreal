@@ -735,3 +735,10 @@ airport's own handler), or does a small agent team stay for them?
   - cargo / marshaller, de-icing, water / toilet service, lounge, shops, baggage claim, car park, medics, police: no role at all.
   - fuel, catering, cleaning: hireable, no 3D people or job; check-in and security: hireable, 3D people are 210 / 211.
   - People's "do you want to work for me" (People.cpp) makes no real `FADPPerson`.
+
+## Vehicles break down, E2 as built (2026-11-25, compiled, not run)
+- `GSEBreak.cpp`, rates and faults in `Data/vehicle-breakdowns.json`. Wear by the hours and km driven (own vehicles have years behind them, bought ones are new), saved in `FADPWorld::VehWear`; at most one broken at a time, 6 game hours between any two, 72 for the same one.
+- A cleaning van, fuel, catering, water or toilet truck fails on its way: creeps to a place between two stands, stops, hazard lights, one notice. Its flight's job starts anew with another vehicle (own, then bought); none free: it waits and the flight says why. Stairs, ambulift, de-icing truck, buses, baggage tractors and belt loaders finish their work and are found failed on their place. Pushback tugs and the taxi never.
+- Mendable: its driver gets out and works at the front, 20 to 60 game minutes (twice that without a mechanic on duty), gets in, goes on or home. Written off: the crew walk back, it goes when nobody sees it; a bought one off the list, the airport's new one after 3 to 6 days. Who waits behind one is led round it.
+- Yours: it only rolls to a stop; it never fails by chance with you at the wheel. `adp.BreakVehicle <name> [total]` breaks one now.
+- Left: a walking 3D mechanic, a tow, the pushback tugs, a -BreakVehicle flag.

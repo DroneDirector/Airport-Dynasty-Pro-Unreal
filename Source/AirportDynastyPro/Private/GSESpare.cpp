@@ -38,7 +38,7 @@ bool AGSE::SpareOk(const FTractor& T, const FString& AirlineId) const
 {
 	// (only its owner's flights, only your hired people; still bought; on its place, or out of the vehicle area - never beside its place there)
 	const UADPSim* Sim = UADPSim::Get(GetWorld());
-	return Sim && T.bSpare && !T.bAway && T.M.IsValid() && T.Owner == UADPSim::Me() && T.Owner == AirlineId && !SpareOld.Contains(T.SpareId) && SpareBought(Sim->World, T) && (SpareIn(T) || !DepotAt(T.At));
+	return Sim && T.bSpare && !T.bAway && !T.Brk && T.M.IsValid() && T.Owner == UADPSim::Me() && T.Owner == AirlineId && !SpareOld.Contains(T.SpareId) && SpareBought(Sim->World, T) && (SpareIn(T) || !DepotAt(T.At));
 }
 
 int32 AGSE::SparePick(int32 Svc, const FString& Reg) const

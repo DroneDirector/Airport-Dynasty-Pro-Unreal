@@ -1,0 +1,18 @@
+{
+  "note": "How often the ground vehicles break down and what then happens (to-do 277 E2, GSEBreak.cpp). Hours and km are those really driven; game hours are the game clock's.",
+  "mtbfNewHours": 1500, "mtbfOldHours": 120, "oldAtHours": 8000,
+  "mkbfNewKm": 20000, "mkbfOldKm": 2500, "oldAtKm": 90000,
+  "ownHoursMin": 200, "ownHoursMax": 7500, "ownKmPerHour": 9,
+  "gapAnyGameHours": 6, "gapSameGameHours": 72,
+  "repairMinMinutes": 20, "repairMaxMinutes": 60, "noMechanicFactor": 2.0,
+  "deliveryDaysMin": 3, "deliveryDaysMax": 6, "limpCmPerS": 220,
+  "faults": [
+    { "what": "a burst coolant hose", "fix": true, "weight": 4 },
+    { "what": "a flat battery", "fix": true, "weight": 4 },
+    { "what": "a puncture", "fix": true, "weight": 4 },
+    { "what": "a blown fuse in the drive", "fix": true, "weight": 3 },
+    { "what": "a leaking brake line", "fix": true, "weight": 2 },
+    { "what": "a worn-out gearbox", "fix": false, "weight": 1 },
+    { "what": "a seized motor", "fix": false, "weight": 1 }
+  ]
+}

@@ -25,7 +25,7 @@ namespace
 bool AGSE::TractorFree(const FTractor& T) const
 {
 	// (one you drove off with: first home again; TractorHome)
-	return T.IsTrain() && T.Job == EJob::None && T.M.IsValid() && !T.Player.IsValid() && T.Train.Num() == 0 && T.TowGpu == INDEX_NONE && T.YBar == INDEX_NONE && T.Pin < 0.02f && T.PinWant < 0.02f
+	return T.IsTrain() && !T.Brk && T.Job == EJob::None && T.M.IsValid() && !T.Player.IsValid() && T.Train.Num() == 0 && T.TowGpu == INDEX_NONE && T.YBar == INDEX_NONE && T.Pin < 0.02f && T.PinWant < 0.02f
 		&& FVector::Dist2D(T.At, T.Home) < 150.f && TrTurn(T.Yaw, T.HomeYaw) < 15.f;
 }
 
@@ -373,7 +373,7 @@ void AGSE::YouTractors(float Dt)
 			}
 		}
 		const APawn* Me = TrMe(GetWorld());
-		if (T.Player.IsValid() || TractorFree(T) || !Me || FVector::Dist2D(Me->GetActorLocation(), T.At) < TrLeave) { T.YLeftT = 0.f; continue; }
+		if (T.Player.IsValid() || T.Brk > 1 || TractorFree(T) || !Me || FVector::Dist2D(Me->GetActorLocation(), T.At) < TrLeave) { T.YLeftT = 0.f; continue; }
 		T.YLeftT += Dt; if (T.YLeftT < TrWait) continue;
 		T.YLeftT = TrWait - 10.f;   // (asked again in ten seconds)
 		TractorTake(i);

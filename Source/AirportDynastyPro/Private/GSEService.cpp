@@ -503,6 +503,7 @@ bool AGSE::SvcWaits(const FString& Flight, float StandX, FString& Why) const
 		if (S.bStairs && J.Phase == 0 && StairsYou(J.StandX, J.CtDoor) != INDEX_NONE) { Why = TEXT("your passenger stairs stand at its door"); return true; }
 		if (S.bStairs) { if (J.Phase < 3 ? J.Phase > 0 || J.CtDoor == 0 : Tv && Tv->Job == EJob::AtStand) { Why = J.Phase == 0 ? FString::Printf(TEXT("the passenger stairs wait: %s"), J.Why.IsEmpty() ? TEXT("their people are being called") : *J.Why) : FString(J.Phase < 3 && J.Stage < 3 ? TEXT("the passenger stairs are coming") : TEXT("the passenger stairs are being taken away")); return true; } continue; }
 		if (J.Phase == 0) { Why = FString::Printf(TEXT("the %s waits: %s"), S.Label, J.Why.IsEmpty() ? TEXT("its people are being called") : *J.Why); return true; }
+		if (J.Phase == 1 && Tv && Tv->Brk > 1) { Why = J.Why.IsEmpty() ? FString::Printf(TEXT("the %s has broken down"), S.Label) : J.Why; return true; }
 		if (S.bFuel && J.Phase < 3) { Why = J.Phase < 2 ? FString(TEXT("the refueller is on its way")) : J.Stage < 4 ? FString(TEXT("the refueller is being connected")) : J.Stage > 4 ? FString(TEXT("the refueller is being disconnected")) : FString::Printf(TEXT("it is being fuelled (%.0f of %.0f l)"), J.Pumped, J.Litres); return true; }
 		if (S.bCater && J.Phase < 3) { Why = J.Phase < 2 ? FString(TEXT("the catering truck is on its way")) : !J.Why.IsEmpty() ? FString::Printf(TEXT("the catering truck waits: %s"), *J.Why) : FString::Printf(TEXT("the catering truck is at the %s right door (%d of %d trolleys in)"), J.CtDoor ? TEXT("rear") : TEXT("front"), J.RowsDone, J.Rows); return true; }
 		if (S.Wet && J.Phase < 3) { Why = !J.Why.IsEmpty() ? FString::Printf(TEXT("the %s waits: %s"), S.Label, *J.Why) : J.Phase < 2 ? FString::Printf(TEXT("the %s is on its way"), S.Label) : S.Wet == 2 ? FString::Printf(TEXT("its toilets are being emptied (%.0f %%)"), 100.f * J.Pumped / J.Litres) : FString::Printf(TEXT("it is being filled with water (%.0f of 200 l)"), 200.f * J.Pumped / J.Litres); return true; }
@@ -861,7 +862,7 @@ void AGSE::SvcTick(float Dt)
 	{
 		FSvcJob& J = SvcJobs[Jk];
 		const FServiceSpec& S = SvSpec(J.Svc);
-		int32 Ti = INDEX_NONE; for (int32 i = 0; i < Tractors.Num() && Ti == INDEX_NONE; ++i) if (Tractors[i].Svc == J.Svc && Tractors[i].Job == EJob::None && Tractors[i].M.IsValid() && !Tractors[i].bSpare) Ti = i;
+		int32 Ti = INDEX_NONE; for (int32 i = 0; i < Tractors.Num() && Ti == INDEX_NONE; ++i) if (Tractors[i].Svc == J.Svc && Tractors[i].Job == EJob::None && Tractors[i].M.IsValid() && !Tractors[i].bSpare && !Tractors[i].Brk) Ti = i;
 		// (none of the airport's own free, or it is yours or being restocked: one you have bought, from the vehicle area)
 		if (!S.bStairs && (Ti == INDEX_NONE || Tractors[Ti].Player.IsValid() || (Tractors[Ti].bUsed && FVector::Dist2D(Tractors[Ti].At, Tractors[Ti].Home) < 200.f)))
 			if (const int32 Si = SparePick(J.Svc, J.Reg); Si != INDEX_NONE) Ti = Si;
@@ -872,7 +873,7 @@ void AGSE::SvcTick(float Dt)
 			bool bFront = false; if (J.CtDoor) for (const TPair<int32, FSvcJob>& O : SvcJobs) if (O.Value.Phase == 0 && O.Value.CtDoor == 0 && SvSpec(O.Value.Svc).bStairs) bFront = true;
 			for (int32 i = 0; i < Tractors.Num() && !bFront; ++i)
 			{
-				const FTractor& V = Tractors[i]; if (V.Svc == INDEX_NONE || !SvSpec(V.Svc).bStairs || V.Job != EJob::None || !V.M.IsValid() || Held.Contains(i) || (V.bSpare && (V.Player.IsValid() || (V.bUsed && FVector::Dist2D(V.At, V.Home) < 200.f) || !SpareOk(V, SpareAirline(J.Reg))))) continue;
+				const FTractor& V = Tractors[i]; if (V.Svc == INDEX_NONE || !SvSpec(V.Svc).bStairs || V.Job != EJob::None || !V.M.IsValid() || V.Brk || Held.Contains(i) || (V.bSpare && (V.Player.IsValid() || (V.bUsed && FVector::Dist2D(V.At, V.Home) < 200.f) || !SpareOk(V, SpareAirline(J.Reg))))) continue;
 				if (V.Ps && V.Ps->YouStandX > -1e5f) continue;   // (yours, at a door: below)
 				const int32 Sc = (SvcYours(V) || !StairsStowed(V) ? 0 : V.bSpare ? 2 : 4) + (SvSpec(V.Svc).bRoof == bWeather ? 1 : 0); if (Sc > Best) { Best = Sc; Ti = i; }
 			}
@@ -906,7 +907,11 @@ void AGSE::SvcTick(float Dt)
 			FString First = By ? By->Reg : FString(); if (Held.Num()) for (const TPair<int32, FString>& H : Held) First = H.Value;   // (it waits for its people)
 			if (!First.IsEmpty()) { J.bQueued = true; J.Why = FString::Printf(TEXT("the passenger stairs serve %s first"), *First); continue; }
 		}
-		if (Ti == INDEX_NONE) { J.Why = FString::Printf(TEXT("no %s free"), S.Label); continue; }
+		if (Ti == INDEX_NONE)
+		{
+			const FTractor* Bv = Tractors.FindByPredicate([&](const FTractor& X) { return X.Svc == J.Svc && X.Brk; });
+			J.Why = Bv ? FString::Printf(TEXT("the %s has broken down, no other one is free"), S.Label) : FString::Printf(TEXT("no %s free"), S.Label); continue;
+		}
 		if (S.bStairs) Held.Add(Ti, J.Reg);
 		const FTractor& Tv = Tractors[Ti]; J.Svc = Tv.Svc;   // (any of the stairs)
 		if (S.bStairs && !bTake && !StairsStowed(Tv)) { J.Why = TEXT("the stairs are up"); continue; }

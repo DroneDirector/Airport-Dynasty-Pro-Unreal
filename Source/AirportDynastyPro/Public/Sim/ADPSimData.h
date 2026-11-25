@@ -496,6 +496,19 @@ USTRUCT() struct FADPCareer
 	UPROPERTY() int32 Anniversaries = 0;
 };
 
+/** A ground vehicle's wear and, broken down, what it has (to-do 277 E2, GSEBreak.cpp). State: 0 well, 2 being repaired, 3 written off, 4 gone, its new one on its way. */
+USTRUCT() struct FADPVehWear
+{
+	GENERATED_BODY()
+	UPROPERTY() FString Id;        // own:<name>, or <owner>:<kind@place> of a bought one
+	UPROPERTY() double Hours = 0.0;
+	UPROPERTY() double Km = 0.0;
+	UPROPERTY() int32 State = 0;
+	UPROPERTY() FString Fault;
+	UPROPERTY() FDateTime Until;
+	UPROPERTY() FDateTime LastFail;
+};
+
 USTRUCT() struct FADPWorld
 {
 	GENERATED_BODY()
@@ -541,4 +554,5 @@ USTRUCT() struct FADPWorld
 	UPROPERTY() TArray<FADPChallenge> Challenges;
 	UPROPERTY() FADPTownState Town;
 	UPROPERTY() FDateTime LastGroundNote;
+	UPROPERTY() TArray<FADPVehWear> VehWear;
 };
