@@ -195,7 +195,7 @@ void ASimTraffic::Sync()
 		if (Fl.From == Here && (Now - Fl.DepAt).GetTotalMinutes() >= 0.0 && (Now - Fl.DepAt).GetTotalMinutes() < 12.0)
 		{
 			Seen.Add(Fl.Id);
-			const FAirfieldData::FStand* St = F.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return !S.bCargo && S.Span <= 40.f; });
+			const FAirfieldData::FStand* St = F.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return !S.bCargo && !S.bRemote && S.Span <= 40.f; });
 			// (it was parked at a stand: the one ParkedAircraft showed it at - the simulation's own record)
 			{
 				bool bKnown = false;
@@ -213,7 +213,7 @@ void ASimTraffic::Sync()
 			if (!St) continue;
 			FMove M; M.FlightId = Fl.Id; M.Reg = Fl.Reg; M.bDeparture = true; M.Stand = St->Id; M.Phase = EPhase::Push;
 			// at the stand: nose tyre on the stop bar, the body behind it, pushed straight back onto the taxilane
-			M.Nose = FVector2f(St->X, St->Nose - St->Dir * 5.1f); M.Main = M.Nose - FVector2f(0.f, St->Dir * Wheelbase);
+			M.Nose = St->Frame().P(0.f, 0.f); M.Main = St->Frame().P(0.f, Wheelbase);
 			// pushed back and turned (as a real pushback): straight back from the stand, then the tail swung round a 40 m arc so the
 			// aircraft ends on the taxilane facing the way it will taxi (towards the runway end in use) - the main gear's way
 			{
@@ -492,9 +492,9 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 		// off at the exit to A, along A, down to T, along T and nose in to the stand (its stop bar)
 		M.Phase = EPhase::TaxiIn;
 		const FAirfieldData::FStand* St = F.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return S.Id == M.Stand; });
-		if (!St) St = F.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return !S.bCargo && S.Span <= 40.f; });
+		if (!St) St = F.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return !S.bCargo && !S.bRemote && S.Span <= 40.f; });
 		if (!St) return true;
-		M.Path = {FVector2f(81.f, F.AY), FVector2f(362.f, F.AY), FVector2f(362.f, F.TY), FVector2f(St->X, F.TY), FVector2f(St->X, St->Nose - St->Dir * 5.1f)};
+		M.Path = {FVector2f(81.f, F.AY), FVector2f(362.f, F.AY), FVector2f(362.f, F.TY), FVector2f(St->X, F.TY), St->Frame().P(0.f, 0.f)};   // (off T into the stand, whichever side of T it is on)
 		return false;
 	}
 	default: return true;
@@ -538,8 +538,8 @@ void ASimTraffic::Blink(FMove& M)
 		if (const FAirfieldData::FStand* St = F.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return S.Id == M.Stand; }))
 		{
 			const FVector2f Head = (M.Nose - M.Main).GetSafeNormal();
-			const FVector2f Stop(St->X, St->Nose - St->Dir * 5.1f);   // (the nose tyre's stop, as the lead-in path ends: Advance)
-			bFinalTurn = Head.Y * St->Dir > FMath::Cos(FMath::DegreesToRadians(25.f)) && FMath::Abs(M.Nose.X - St->X) < 4.f && FVector2f::Distance(M.Nose, Stop) < 120.f;
+			const FVector2f Stop = St->Frame().P(0.f, 0.f);   // (the nose tyre's stop, as the lead-in path ends: Advance)
+			bFinalTurn = FVector2f::DotProduct(Head, St->Frame().Face()) > FMath::Cos(FMath::DegreesToRadians(25.f)) && FMath::Abs(M.Nose.X - St->X) < 4.f && FVector2f::Distance(M.Nose, Stop) < 120.f;
 		}
 		else bFinalTurn = bNearStand;   // (no stand known: the last leg of its path is the lead-in)
 	}

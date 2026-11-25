@@ -23,6 +23,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Airfield.h"
 #include "VehicleDirt.h"
 #include "StaffPeople.h"
 #include "ServiceVehicles.h"
@@ -335,6 +336,9 @@ private:
 	ATugs* Tg() const;
 	FVector Plan(float X, float Y) const;
 	FVector PlanPose(float X, float Y, float Hx, float Hy, float& Yaw) const;
+	/** The same in a stand's frame (Airfield.h FStandFrame: Side, Aft and the way as on a terminal stand). */
+	FVector PlanPose(const FAirfieldData::FStandFrame& Fr, float Side, float Aft, float Hx, float Hy, float& Yaw) const;
+	FVector PlanAt(const FAirfieldData::FStandFrame& Fr, float Side, float Aft) const;
 	bool SpawnTractor(FTractor& T);
 	void BuildBeams(FTractor& T);
 	bool SpawnCart(FCart& C);
@@ -358,6 +362,7 @@ private:
 	void RouteOut(FTractor& T, TFunction<void()> Then);       // the lane -> the hall -> Ramp services 13 -> the apron
 	void RouteIn(FTractor& T, const FVector& ApronFrom, float FromYaw, TFunction<void()> Then);  // the apron -> the lane
 	bool StandGeo(float StandX, float& S, float& N, float& Span) const;
+	FAirfieldData::FStandFrame StandFrame(float StandX) const;
 	bool AircraftAt(float StandX) const;
 	bool PlaneNear(const FVector& At, float R) const;
 	// the jobs (GSECrew.cpp: the crew's part)

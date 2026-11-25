@@ -261,10 +261,10 @@ void AAirTraffic::Start(const FAirfieldData& Field)
 		P.Stand = S;
 		P.Root = MakeAirliner(n++);
 		// the ground vehicles wait between the stands by the pier, and drive up to the aircraft's sides
-		const float Base = S.Nose - S.Dir * 2;
-		P.Vehicles.Add(MakeVehicle(0, FVector2f(S.X - 22, F.TY - 12), FVector2f(S.X - 8.5f, S.Nose - S.Dir * 20)));
-		P.Vehicles.Add(MakeVehicle(1, FVector2f(S.X + 22, F.TY - 12), FVector2f(S.X + 4.5f, S.Nose - S.Dir * 31)));
-		P.Vehicles.Add(MakeVehicle(2, FVector2f(S.X + 20, Base + 2), FVector2f(S.X + 5, S.Nose - S.Dir * 26)));
+		const float K = S.Frame().K, Base = S.Nose + K * 2;   // (K: the stand's way, FStandFrame)
+		P.Vehicles.Add(MakeVehicle(0, FVector2f(S.X - K * 22, F.TY - K * 12), FVector2f(S.X - K * 8.5f, S.Nose + K * 20)));
+		P.Vehicles.Add(MakeVehicle(1, FVector2f(S.X + K * 22, F.TY - K * 12), FVector2f(S.X + K * 4.5f, S.Nose + K * 31)));
+		P.Vehicles.Add(MakeVehicle(2, FVector2f(S.X + K * 20, Base + K * 2), FVector2f(S.X + K * 5, S.Nose + K * 26)));
 		Plan(P, EState::Parked);
 		P.Timer = Rng.FRandRange(10, P.Turn); // spread out, so they don't all leave together
 		Place(P.Root, P.Pos, P.Heading);
@@ -286,12 +286,12 @@ void AAirTraffic::Tick(float Dt)
 		{
 			// the calls for this stand's flight: boarding a minute before it goes, then the final call
 			TArray<FString> To, ToCodes; ADPSite::Destinations(To, ToCodes);   // (the site's own: Site.h)
-			const int32 Gate = FCString::Atoi(*P.Stand.Id.RightChop(6));
+			const int32 Gate = FCString::Atoi(*P.Stand.Id.RightChop(6));   // (0: a remote stand, no gate to call)
 			const float Before = P.Timer;
 			P.Timer -= Dt;
 			const int32 Flight = 200 + Gate * 37;
-			if (Before > 60 && P.Timer <= 60) AADPHUD::Announce(FString::Printf(TEXT("Flight VT %d to %s is now boarding at gate %d."), Flight, *To[(Gate - 1) % To.Num()], Gate));
-			if (Before > 20 && P.Timer <= 20) AADPHUD::Announce(FString::Printf(TEXT("Final call for flight VT %d to %s, gate %d is closing."), Flight, *To[(Gate - 1) % To.Num()], Gate));
+			if (Gate > 0 && Before > 60 && P.Timer <= 60) AADPHUD::Announce(FString::Printf(TEXT("Flight VT %d to %s is now boarding at gate %d."), Flight, *To[(Gate - 1) % To.Num()], Gate));
+			if (Gate > 0 && Before > 20 && P.Timer <= 20) AADPHUD::Announce(FString::Printf(TEXT("Final call for flight VT %d to %s, gate %d is closing."), Flight, *To[(Gate - 1) % To.Num()], Gate));
 			if (P.Timer <= 0) Plan(P, EState::Pushback);
 			break;
 		}

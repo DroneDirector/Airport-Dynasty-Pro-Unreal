@@ -6,6 +6,7 @@
 #include "Sim/ADPStaff.h"
 #include "Sim/ADPSchedule.h"
 #include "Site.h"
+#include "Airfield.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Dom/JsonObject.h"
@@ -27,7 +28,7 @@ namespace
 				for (const TSharedPtr<FJsonValue>& V : *L)
 				{
 					const TSharedPtr<FJsonObject> O = V->AsObject(); FStandInfo I;
-					bool bBuilt = true; O->TryGetBoolField(TEXT("built"), bBuilt); if (!bBuilt) continue;   // (a remote stand not in use yet)
+					bool bBuilt = true; O->TryGetBoolField(TEXT("built"), bBuilt); if (!bBuilt && !FAirfieldData::RemoteOn()) continue;   // (a remote stand not in use yet)
 					I.Id = O->GetStringField(TEXT("id")); FString C = TEXT("C"); O->TryGetStringField(TEXT("code"), C); I.Code = C.Len() ? C[0] : 'C';
 					O->TryGetBoolField(TEXT("jetway"), I.bJetway); O->TryGetBoolField(TEXT("cargo"), I.bCargo);
 					S.Add(I);

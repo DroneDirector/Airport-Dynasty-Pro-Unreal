@@ -385,17 +385,17 @@ bool AGSE::SvcFor(const TCHAR* Task, float StandX) const
 	for (const FTractor& T : Tractors)
 		if (T.Svc != INDEX_NONE && SvIs(T.Svc, Task) && Sp->HiresRole(SvSpec(T.Svc).Role))
 		{
-			if (SvSpec(T.Svc).bDeicer) { for (const FAirfieldData::FStand& St : AAirfield::Shared().Stands) if (FMath::Abs(St.X - StandX) < 1.f) return !St.bCargo; return false; }
+			if (SvSpec(T.Svc).bDeicer) { const FAirfieldData::FStand* St = AAirfield::Shared().StandAt(StandX); return St && !St->bCargo; }
 			if (SvSpec(T.Svc).bAmbu && !T.Am) continue;
 			if (SvSpec(T.Svc).bStairs)
 			{
 				// (only where no jetway is: never at a gate that has one)
-				for (const FAirfieldData::FStand& St : AAirfield::Shared().Stands) if (FMath::Abs(St.X - StandX) < 1.f) return !St.bJetway && !St.bCargo;
-				return false;
+				const FAirfieldData::FStand* St = AAirfield::Shared().StandAt(StandX); return St && !St->bJetway && !St->bCargo;
 			}
 			if (!SvSpec(T.Svc).bJetway) return true;
 			const AJetwayRigs* J = AJetwayRigs::Get(GetWorld()); TArray<FVector> St; float Hw = 0.f; FVector Mid, Out;
-			const int32 Ji = J ? J->Nearest(Plan(StandX + 5.f, N + 2.f)) : INDEX_NONE;
+			const FAirfieldData::FStand* Sd = AAirfield::Shared().StandAt(StandX);   // (a remote stand has no jetway to go up)
+			const int32 Ji = J && Sd && !Sd->bRemote ? J->Nearest(PlanAt(Sd->Frame(), 5.f, 2.f)) : INDEX_NONE;
 			return Ji != INDEX_NONE && J->ServiceSteps(Ji, St, Hw) && J->ServiceDoorFrame(Ji, Mid, Out);   // (no way up: the agent)
 		}
 	return false;
@@ -410,7 +410,7 @@ bool AGSE::SvcAsk(const TCHAR* Task, float StandX, const FString& Reg, const FSt
 			FSvcJob J; J.Svc = i; J.Litres = FMath::Clamp(Litres, 500.f, 19500.f); J.StandX = StandX; J.Reg = Reg; J.Flight = Flight; J.When = When; if (SvSpec(i).bCater) J.Rows = 11;
 			if (SvSpec(i).Wet) J.Litres = SvSpec(i).Wet == 2 ? 360.f : 240.f;   // (seconds: draining and rinsing; filling)
 			float S = 0.f, N = 0.f, Sn = 36.f; const AJetwayRigs* R = AJetwayRigs::Get(GetWorld());
-			if (R && StandGeo(StandX, S, N, Sn)) J.Jet = R->Nearest(Plan(StandX + 5.f, N + 2.f));
+			if (const FAirfieldData::FStand* Sd = AAirfield::Shared().StandAt(StandX); R && Sd && !Sd->bRemote) J.Jet = R->Nearest(PlanAt(Sd->Frame(), 5.f, 2.f));
 			SvcJobs.Add(SvcNext++, J);
 			if (SvSpec(i).bStairs)
 			{

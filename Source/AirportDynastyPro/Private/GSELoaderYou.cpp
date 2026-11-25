@@ -72,7 +72,7 @@ void AGSE::YouLoader(int32 Li, float Dt)
 		{
 			float S = 0.f, N = 0.f, Sp = 36.f;
 			if (FVector::Dist2D(Plan(St.X, St.Nose), T.At) > 5500.f || !StandGeo(St.X, S, N, Sp) || Sp > 40.f || !WetPlane(S)) continue;
-			float Yw = 0.f; const FVector At = PlanPose(S - LdOut, N + LdAft, 1.f, 0.f, Yw), Fw = FRotator(0.f, T.Yaw, 0.f).Vector(), D = At - T.At;
+			float Yw = 0.f; const FVector At = PlanPose(St.Frame(), -LdOut, LdAft, 1.f, 0.f, Yw), Fw = FRotator(0.f, T.Yaw, 0.f).Vector(), D = At - T.At;
 			if (D.Size2D() > Best) continue;
 			Best = D.Size2D(); T.bLNear = true; T.LAhead = float(D | Fw); T.LAside = float(D.X * -Fw.Y + D.Y * Fw.X); T.LTurn = FMath::FindDeltaAngleDegrees(T.Yaw, Yw);
 			T.LYouX = T.LAhead > -5.f && T.LAhead < 40.f && FMath::Abs(T.LAside) < 35.f && FMath::Abs(T.LTurn) < 5.f ? S : -1e6f;

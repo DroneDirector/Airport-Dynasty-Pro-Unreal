@@ -852,17 +852,9 @@ bool AGSE::Apron(TArray<FVector>& Out, const FVector& FromW, const FVector& ToW,
 	const FAirfieldData& F = AAirfield::Shared();
 	{
 		// the boundary lines as Airfield.cpp draws them (wingtips + 4.5 m, one shared line between close neighbours)
-		TArray<const FAirfieldData::FStand*> Row; for (const FAirfieldData::FStand& St : F.Stands) if (!St.bCargo) Row.Add(&St);
-		Row.Sort([](const FAirfieldData::FStand& A, const FAirfieldData::FStand& B) { return A.Nose != B.Nose ? A.Nose < B.Nose : A.X < B.X; });
-		TArray<float> Lf, Rt; for (const auto* S : Row) { Lf.Add(S->X - S->Span / 2 - 4.5f); Rt.Add(S->X + S->Span / 2 + 4.5f); }
-		for (int32 k = 0; k + 1 < Row.Num(); ++k)
-			if (Row[k]->Nose == Row[k + 1]->Nose && Row[k]->Dir == Row[k + 1]->Dir && Rt[k] > Lf[k + 1] - 6.f) { const float Mid = (Row[k]->X + Row[k + 1]->X) / 2; Rt[k] = Mid; Lf[k + 1] = Mid; }
-		for (int32 k = 0; k < Row.Num(); ++k)
-		{
-			const FAirfieldData::FStand& St = *Row[k]; const float B = -St.Dir, Wall = 82.6f, Te = St.Nose + B * (St.Len + 3.f);
-			for (const float Bx : {Lf[k], Rt[k]}) Mp.Lines.Add(TPair<FVector2f, FVector2f>(FVector2f(Bx, Wall), FVector2f(Bx, Te)));
-			if (St.bJetway) Mp.Zones.Add(FBox2f(FVector2f(St.X + 3.f, FMath::Min(Wall, St.Nose + B * 9.f)), FVector2f(St.X + 16.f, FMath::Max(Wall, St.Nose + B * 9.f))));
-		}
+		TArray<FAirfieldData::FStandLine> Ls; TArray<TPair<const FAirfieldData::FStand*, FBox2f>> Zs; F.StandLines(false, Ls, Zs);
+		for (const auto& L : Ls) Mp.Lines.Add(TPair<FVector2f, FVector2f>(L.A, L.B));
+		for (const auto& Z : Zs) Mp.Zones.Add(Z.Value);
 	}
 	// the aircraft (their models tagged SIM/ parked, MOVE/ moving; the actor at the nose wheel, the nose its -y): an A320's
 	// shape, scaled for a bigger stand's aircraft
@@ -873,7 +865,7 @@ bool AGSE::Apron(TArray<FVector>& Out, const FVector& FromW, const FVector& ToW,
 		const FVector2f N = GseP2(It->GetActorLocation());
 		const FVector Nw = -It->GetActorRightVector(); FVector2f Fa(Nw.X, -Nw.Y); Fa = Fa.GetSafeNormal(); if (Fa.IsNearlyZero()) Fa = FVector2f(0.f, -1.f);
 		const FVector2f Sd(-Fa.Y, Fa.X);
-		float k = 1.f; for (const FAirfieldData::FStand& St : F.Stands) if (FMath::Abs(N.X - St.X) < 6.f && N.Y > St.Nose - 4.f && N.Y < St.Nose + 14.f) k = FMath::Max(1.f, St.Span / 36.f);
+		float k = 1.f; for (const FAirfieldData::FStand& St : F.Stands) if (const FVector2f Lc = St.Frame().Local(N); FMath::Abs(Lc.X) < 6.f && Lc.Y > -9.1f && Lc.Y < 8.9f) k = FMath::Max(1.f, St.Span / 36.f);
 		Mp.Boxes.Add({N - Fa * (13.65f * k), Fa, 18.85f * k + 0.5f, 2.2f * k});            // the fuselage, nose tip to tail
 		Mp.Boxes.Add({N - Fa * (15.5f * k), Fa, 4.5f * k, 18.f * k + 0.5f});               // the wings
 		Mp.Boxes.Add({N - Fa * (31.f * k), Fa, 2.5f * k, 6.5f * k + 0.5f});                // the tailplane
@@ -982,9 +974,27 @@ void AGSE::RouteIn(FTractor& T, const FVector& ApronFrom, float FromYaw, TFuncti
 
 bool AGSE::StandGeo(float StandX, float& S, float& N, float& Span) const
 {
-	for (const FAirfieldData::FStand& St : AAirfield::Shared().Stands)
-		if (FMath::Abs(St.X - StandX) < 1.f) { S = St.X; N = St.Nose + 5.1f * -St.Dir; Span = St.Span; return true; }   // (N: the nose wheel's stop, 5.1 m behind the stop line)
-	return false;
+	const FAirfieldData::FStand* St = AAirfield::Shared().StandAt(StandX); if (!St) return false;
+	const FAirfieldData::FStandFrame Fr = St->Frame(); S = Fr.X; N = Fr.Y; Span = St->Span;   // (N: the nose wheel's stop, 5.1 m behind the stop line)
+	return true;
+}
+
+FAirfieldData::FStandFrame AGSE::StandFrame(float StandX) const
+{
+	const FAirfieldData::FStand* St = AAirfield::Shared().StandAt(StandX);
+	return St ? St->Frame() : FAirfieldData::FStandFrame();
+}
+
+FVector AGSE::PlanPose(const FAirfieldData::FStandFrame& Fr, float Side, float Aft, float Hx, float Hy, float& Yaw) const
+{
+	const FVector2f At = Fr.P(Side, Aft), H = Fr.Way(Hx, Hy);
+	return PlanPose(At.X, At.Y, H.X, H.Y, Yaw);
+}
+
+FVector AGSE::PlanAt(const FAirfieldData::FStandFrame& Fr, float Side, float Aft) const
+{
+	const FVector2f At = Fr.P(Side, Aft);
+	return Plan(At.X, At.Y);
 }
 
 bool AGSE::AircraftAt(float StandX) const
@@ -1120,24 +1130,14 @@ void AGSE::Check(const FTractor& T, int32 Index)
 		if (!bIn)
 		{
 			// red lines and zones
-			TArray<const FAirfieldData::FStand*> Row; for (const FAirfieldData::FStand& St : F.Stands) if (!St.bCargo) Row.Add(&St);
-			Row.Sort([](const FAirfieldData::FStand& A, const FAirfieldData::FStand& B) { return A.Nose != B.Nose ? A.Nose < B.Nose : A.X < B.X; });
-			TArray<float> Lf, Rt; for (const auto* S : Row) { Lf.Add(S->X - S->Span / 2 - 4.5f); Rt.Add(S->X + S->Span / 2 + 4.5f); }
-			for (int32 k = 0; k + 1 < Row.Num(); ++k) if (Row[k]->Nose == Row[k + 1]->Nose && Row[k]->Dir == Row[k + 1]->Dir && Rt[k] > Lf[k + 1] - 6.f) { const float Mid = (Row[k]->X + Row[k + 1]->X) / 2; Rt[k] = Mid; Lf[k + 1] = Mid; }
-			for (int32 k = 0; k < Row.Num(); ++k)
+			TArray<FAirfieldData::FStandLine> Ls; TArray<TPair<const FAirfieldData::FStand*, FBox2f>> Zs; F.StandLines(false, Ls, Zs);
+			for (const auto& L : Ls)
 			{
-				const FAirfieldData::FStand& St = *Row[k]; const float B = -St.Dir, Wall = 82.6f, Te = St.Nose + B * (St.Len + 3.f);
-				for (const float Bx : {Lf[k], Rt[k]})
-				{
-					float D = 1e9f; for (const FVector2f& Q : Pts) D = FMath::Min(D, Seg1(Q, FVector2f(Bx, Wall), FVector2f(Bx, Te)));
-					if (D < 0.1f) { if (FMath::Abs(Fw.X) > 0.8f) Note += FString::Printf(TEXT(" %s crossing a line of %s;"), *Ft.What, *St.Id); else Hit += FString::Printf(TEXT(" %s along the boundary line of %s;"), *Ft.What, *St.Id); }
-				}
-				if (St.bJetway)
-				{
-					const float Y0 = FMath::Min(Wall, St.Nose + B * 9.f), Y1 = FMath::Max(Wall, St.Nose + B * 9.f);
-					for (const FVector2f& Q : Pts) if (Q.X > St.X + 3.f && Q.X < St.X + 16.f && Q.Y > Y0 && Q.Y < Y1) { Hit += FString::Printf(TEXT(" %s in the jetway red zone of %s;"), *Ft.What, *St.Id); break; }
-				}
+				float D = 1e9f; for (const FVector2f& Q : Pts) D = FMath::Min(D, Seg1(Q, L.A, L.B));
+				if (D < 0.1f) { if (FMath::Abs(Fw.X) > 0.8f) Note += FString::Printf(TEXT(" %s crossing a line of %s;"), *Ft.What, *L.Stand->Id); else Hit += FString::Printf(TEXT(" %s along the boundary line of %s;"), *Ft.What, *L.Stand->Id); }
 			}
+			for (const auto& Z : Zs)
+				for (const FVector2f& Q : Pts) if (Q.X > Z.Value.Min.X && Q.X < Z.Value.Max.X && Q.Y > Z.Value.Min.Y && Q.Y < Z.Value.Max.Y) { Hit += FString::Printf(TEXT(" %s in the jetway red zone of %s;"), *Ft.What, *Z.Key->Id); break; }
 			// the terminal's wall (the Ramp services 13 opening excepted)
 			for (const FVector2f& Q : Pts) if (Q.Y < 83.f && !(Q.X > 262.4f && Q.X < 276.4f)) { Hit += FString::Printf(TEXT(" %s at the terminal wall;"), *Ft.What); break; }
 		}

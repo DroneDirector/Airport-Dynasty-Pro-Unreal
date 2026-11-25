@@ -61,7 +61,7 @@ bool FAirfieldData::Load()
 		O->TryGetBoolField(TEXT("jetway"), S.bJetway); O->TryGetBoolField(TEXT("cargo"), S.bCargo); O->TryGetBoolField(TEXT("remote"), S.bRemote);
 		bool bBuilt = true;
 		O->TryGetBoolField(TEXT("built"), bBuilt);
-		if (bBuilt) Stands.Add(S);   // (one not in use yet is only drawn: the remote block)
+		if (bBuilt || (S.bRemote && RemoteOn())) Stands.Add(S);   // (one not in use yet is only drawn: the remote block)
 	}
 	for (const TSharedPtr<FJsonValue>& V : R->GetArrayField(TEXT("holds")))
 		Holds.Add(FVector2f(N(V->AsObject(), TEXT("x")), N(V->AsObject(), TEXT("y"))));

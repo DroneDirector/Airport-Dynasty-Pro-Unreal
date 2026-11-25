@@ -32,7 +32,7 @@ namespace ADPParked
 		{
 			// its nose tyre on the stop bar, on the lead-in line; the nose toward the terminal (the stand's Dir)
 			const float B = -St.Dir;                             // (from the nose back towards the tail: Airfield.cpp)
-			const float Gx = St.X, Gy = St.Nose + B * NoseGearBehindNose;
+			const FVector2f Nw = St.Frame().P(0.f, 0.f); const float Gx = Nw.X, Gy = Nw.Y;
 			// the apron's surface under it: a look straight down at the nose tyre and between the main tyres (12.8 m
 			// behind), the higher of the two (its tyres stand on it, never in it)
 			auto Surface = [&](float X, float Y)

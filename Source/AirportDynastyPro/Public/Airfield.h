@@ -24,7 +24,29 @@ class FJsonObject;
 struct AIRPORTDYNASTYPRO_API FAirfieldData
 {
 	struct FTwy { FString Id, Kind; TArray<FVector2f> Pts; float W = 25; };
-	struct FStand { FString Id; float X = 0, Nose = 0, Dir = -1, Span = 36, Len = 44.5f; bool bJetway = false, bCargo = false, bRemote = false; };
+	/** A stand's own frame (to-do 277): the aircraft's nose wheel on its stop, and which way it faces. Everything placed or driven
+	 *  relative to a stand goes through it, so one facing +y (the remote and the cargo stands) is the terminal stands' turned half
+	 *  round. Side and Aft are metres as on a TERMINAL stand (nose to -y): Side along +x there, Aft along +y, towards the tail. */
+	struct FStandFrame
+	{
+		float X = 0, Y = 0, K = 1;   // (plan m: the nose wheel; K 1 nose to -y, -1 nose to +y)
+		FVector2f P(float Side, float Aft) const { return FVector2f(X + K * Side, Y + K * Aft); }
+		FVector2f Way(float Hx, float Hy) const { return FVector2f(K * Hx, K * Hy); }                       // (a direction, as on a terminal stand)
+		FVector2f Local(const FVector2f& At) const { return FVector2f(K * (At.X - X), K * (At.Y - Y)); }   // (a plan point's Side and Aft)
+		FVector2f Face() const { return FVector2f(0.f, -K); }                                               // (the way the nose points)
+	};
+	struct FStand
+	{
+		FString Id; float X = 0, Nose = 0, Dir = -1, Span = 36, Len = 44.5f; bool bJetway = false, bCargo = false, bRemote = false;
+		FStandFrame Frame() const { FStandFrame Fr; Fr.X = X; Fr.K = Dir < 0 ? 1.f : -1.f; Fr.Y = Nose + Fr.K * 5.1f; return Fr; }   // (the nose wheel stops 5.1 m behind the stop line)
+	};
+	/** The stand the simulation's StandX means (no two stands share an x), nullptr when none. */
+	const FStand* StandAt(float StandX) const { return Stands.FindByPredicate([&](const FStand& S) { return FMath::Abs(S.X - StandX) < 1.f; }); }
+	/** The red boundary lines along the stands' sides, and the jetways' red zones, as drawn. */
+	struct FStandLine { const FStand* Stand; FVector2f A, B; };
+	void StandLines(bool bCargo, TArray<FStandLine>& Lines, TArray<TPair<const FStand*, FBox2f>>& Zones) const;
+	/** -RemoteStands: the remote stands count as built (testing, to-do 277). */
+	static bool RemoteOn();
 	struct FRect { float X0, Y0, X1, Y1; FString Id; };
 	/** A hangar's place: its centre line X (on its lead-in line), the apron edge Y its threshold meets, its size, door. */
 	struct FHangarSite { FString Id, Size; float X = 0, Y = 0; bool bOpen = false; };

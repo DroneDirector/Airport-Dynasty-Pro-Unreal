@@ -4,6 +4,8 @@
 // pads' paved shoulders fall to the grass over their 3 m, the bus road ramps down onto the links over 10 m (the links lie
 // with the rest of the airfield, 25 cm lower with the terminal's model).
 #include "Airfield.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "ADPLog.h"
 #include "TerminalPlan.h"
 #include "Components/TextRenderComponent.h"
@@ -25,6 +27,40 @@ namespace
 		const FVector2f AB = B - A;
 		const float T = FMath::Clamp(FVector2f::DotProduct(P - A, AB) / FMath::Max(AB.SizeSquared(), 1e-6f), 0.f, 1.f);
 		return (P - (A + AB * T)).Size();
+	}
+}
+
+bool FAirfieldData::RemoteOn()
+{
+	static const bool bOn = FParse::Param(FCommandLine::Get(), TEXT("RemoteStands"));
+	return bOn;
+}
+
+void FAirfieldData::StandLines(bool bCargo, TArray<FStandLine>& Lines, TArray<TPair<const FStand*, FBox2f>>& Zones) const
+{
+	constexpr float Wall = 82.6f;   // (the terminal's apron side: its stands' lines begin there)
+	TArray<const FStand*> Row; for (const FStand& St : Stands) if (!St.bRemote && (bCargo || !St.bCargo)) Row.Add(&St);
+	// the boundary lines as Airfield.cpp draws them (wingtips + 4.5 m, one shared line between close neighbours)
+	Row.Sort([](const FStand& A, const FStand& B) { return A.Nose != B.Nose ? A.Nose < B.Nose : A.X < B.X; });
+	TArray<float> Lf, Rt; for (const FStand* S : Row) { Lf.Add(S->X - S->Span / 2 - 4.5f); Rt.Add(S->X + S->Span / 2 + 4.5f); }
+	for (int32 k = 0; k + 1 < Row.Num(); ++k)
+		if (Row[k]->Nose == Row[k + 1]->Nose && Row[k]->Dir == Row[k + 1]->Dir && Rt[k] > Lf[k + 1] - 6.f) { const float Mid = (Row[k]->X + Row[k + 1]->X) / 2; Rt[k] = Mid; Lf[k + 1] = Mid; }
+	for (int32 k = 0; k < Row.Num(); ++k)
+	{
+		const FStand& St = *Row[k]; const float B = -St.Dir, Head = St.Dir < 0 ? Wall : St.Nose, Te = St.Nose + B * (St.Len + 3.f);
+		for (const float Bx : {Lf[k], Rt[k]}) Lines.Add({&St, FVector2f(Bx, Head), FVector2f(Bx, Te)});
+		if (St.bJetway) Zones.Add(TPair<const FStand*, FBox2f>(&St, FBox2f(FVector2f(St.X + 3.f, FMath::Min(Wall, St.Nose + B * 9.f)), FVector2f(St.X + 16.f, FMath::Max(Wall, St.Nose + B * 9.f)))));
+	}
+	// a remote stand's: the two sides of its red restraint line (Tools/make_remote_stands.py; its head and tail ends are crossed)
+	for (const FStand& St : Stands)
+	{
+		if (!St.bRemote) continue;
+		for (const float k : {-1.f, 1.f})
+		{
+			float Room = 1e9f; for (const FStand& O : Stands) if (O.bRemote && (O.X - St.X) * k > 0.f) Room = FMath::Min(Room, (FMath::Abs(O.X - St.X) + St.Span / 2 - O.Span / 2) / 2);
+			const float Bx = St.X + k * FMath::Min(St.Span / 2 + 3.f, Room - 0.35f);
+			Lines.Add({&St, FVector2f(Bx, St.Nose + St.Dir * 2.f), FVector2f(Bx, St.Nose - St.Dir * (St.Len + 3.f))});
+		}
 	}
 }
 
