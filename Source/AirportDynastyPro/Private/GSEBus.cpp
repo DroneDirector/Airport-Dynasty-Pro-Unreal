@@ -392,11 +392,12 @@ bool AGSE::BusDriveTo(int32 Ti, const FVector2f& To, float Heading, TFunction<vo
 void AGSE::BusRoute(int32 Ti, FVector2f To, float Heading, TFunction<void()> Done)
 {
 	FTractor& T = Tractors[Ti]; if (!T.Bu || T.Bu->Stage != 2) return;
+	if (T.Ch) T.Ch->bHoming = false;
 	BusSetAll(Ti, false); Motor(T, true);   // (it rolls when the doors are shut: Drive)
 	const FVector Fw = FRotator(0.f, T.Yaw, 0.f).Vector(); const float a = FMath::DegreesToRadians(Heading), c = FMath::Cos(a), s = FMath::Sin(a);
 	TArray<FVector> H; FVector From = T.At;
 	if (ChargeAway(T) || (FVector::Dist2D(T.At, T.Home) < 200.f && (T.bSpare || DepotAt(T.Home)))) { HomeOut(T, H, Plan(To.X, To.Y)); From = H.Last(); }
-	else if (FVector::Dist2D(T.At, T.Home) < 200.f) { H.Add(T.At + Fw * 400.f); H.Add(T.At + Fw * 800.f); From = T.At + Fw * 1200.f; H.Add(From); }   // (straight out of its bay)
+	else if (BusInPlace(T)) { H.Add(T.At + Fw * 400.f); H.Add(T.At + Fw * 800.f); From = T.At + Fw * 1200.f; H.Add(From); }   // (straight out of its bay)
 	const float Ld = BusR + 8.f, Lx = To.X - c * Ld, Ly = To.Y - s * Ld;
 	TArray<FVector> Way;
 	if (!Apron(Way, From, Plan(Lx, Ly), &T))
@@ -424,6 +425,7 @@ bool AGSE::BusHome(int32 Ti, TFunction<void()> Done, FString& Why)
 void AGSE::BusRouteHome(int32 Ti, TFunction<void()> Done)
 {
 	FTractor& T = Tractors[Ti]; if (!T.Bu || T.Bu->Stage != 2) return;
+	if (T.Ch) T.Ch->bHoming = true;   // (its place is not given to another from here)
 	BusSetAll(Ti, false); Motor(T, true);
 	if (T.bSpare || DepotAt(T.Home)) { SpareHome(Ti, [this, Ti, Done] { ADP_LOG(TEXT("Apron bus %s: on its place again"), *Tractors[Ti].Name); Motor(Tractors[Ti], false); if (Done) Done(); }); return; }
 	// across its bay's mouth, turning out of it, then backed in nose out (plan metres)
@@ -631,7 +633,7 @@ bool AGSE::BusTry(int32 Ti, const FVector2f& To, float Heading) const
 	if (!Tractors.IsValidIndex(Ti) || !Tractors[Ti].Bu || !BusOk(Ti, UADPSim::Me())) return false;
 	const FTractor& T = Tractors[Ti]; const float a = FMath::DegreesToRadians(Heading), Ld = BusR + 8.f;
 	const FVector Lead = Plan(To.X - FMath::Cos(a) * Ld, To.Y - FMath::Sin(a) * Ld), End = Plan(To.X, To.Y);
-	FVector From = T.At; if (ChargeAway(T) || FVector::Dist2D(T.At, T.Home) < 200.f) { TArray<FVector> O; if (T.bSpare || ChargeAway(T) || DepotAt(T.Home)) { HomeOut(T, O, Lead); From = O.Last(); } else From += FRotator(0.f, T.Yaw, 0.f).Vector() * 1200.f; }
+	FVector From = T.At; if (ChargeAway(T) || BusInPlace(T)) { TArray<FVector> O; if (ChargeAway(T) || DepotAt(T.At)) { HomeOut(T, O, Lead); From = O.Last(); } else From += FRotator(0.f, T.Yaw, 0.f).Vector() * 1200.f; }
 	TArray<FVector> W; if (!Apron(W, Lead, End, &T)) return false;
 	float L = 0.f; FVector Was = Lead; for (const FVector& V : W) { L += float(FVector::Dist2D(Was, V)); Was = V; }   // (straight in, nothing to go round)
 	if (L > Ld * 110.f) return false;

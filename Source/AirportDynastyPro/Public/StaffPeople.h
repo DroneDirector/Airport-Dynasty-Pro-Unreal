@@ -12,13 +12,14 @@
 #include "StaffPeople.generated.h"
 
 struct FStreamableHandle;
+struct FADPPerson;
 struct FADPWorld;
 class ATugs;
 
 /** What a ground crew member can do. The simulation has one ramp role, "ground", for all of it. */
 enum class EStaffDuty : uint8 { TugDriver, PushbackHandler, WingWalker, GpuHandler, TractorDriver, BaggageHandler, LoaderOperator, CleanDriver, Cleaner, FuelDriver, CaterDriver, CaterLoader, WaterDriver, StairsDriver, StairsHelper, DeicerDriver, DeicerOperator, AmbuDriver, AmbuHelper, TaxiDriver, BusDriver };
 /** The jobs of a turn-round that need ground crew. */
-enum class EStaffTask : uint8 { Gpu, BagsOut, BagsIn, Loader, Pushback, Bags, Relief, Chocks, Cleaning, CleanRelief, Fuel, Catering, CaterRelief, Water, Toilet, Stairs, Deice, Ambulift, PushHelp, PushDriver, Taxi, ApronBus, BusCharge };   // (Bags: a train and its belt loader together; Relief: one for somebody who vanished at work)
+enum class EStaffTask : uint8 { Gpu, BagsOut, BagsIn, Loader, Pushback, Bags, Relief, Chocks, Cleaning, CleanRelief, Fuel, Catering, CaterRelief, Water, Toilet, Stairs, Deice, Ambulift, PushHelp, PushDriver, Taxi, ApronBus, BusCharge, DeiceRelief };   // (Bags: a train and its belt loader together; Relief: one for somebody who vanished at work)
 
 UCLASS()
 class AIRPORTDYNASTYPRO_API UStaffPeople : public UTickableWorldSubsystem
@@ -34,6 +35,12 @@ public:
 	/** You employ the smallest team of a role here (2; the taxi bus: its 1 driver). */
 	bool HiresRole(const TCHAR* Role) const;
 	int32 OnDuty(const FString& Role) const;
+	static constexpr int32 NumDuties = int32(EStaffDuty::BusDriver) + 1;
+	static constexpr int32 NumTasks = int32(EStaffTask::DeiceRelief) + 1;
+	/** How many of a role can do every job of it: 1 for a bus, the taxi bus, fuel, water; 2 for the others. */
+	static int32 LeastOf(const FString& Role);
+	/** The task that asks for one person to take over from somebody of this role. */
+	static EStaffTask ReliefOf(const FString& Role);
 
 	// ---- the pool
 	struct FNeed { EStaffDuty Duty; int32 Min = 1, Full = 1; };   // (Min: without them the job can't start; Full: the real team)
@@ -114,6 +121,8 @@ private:
 	/** The way along the terminal (under the jetways' fixed corridors, clear of their columns) when it is far. */
 	void AlongWall(FStaff& S, const FVector& To) const;
 	TArray<FRoom> Rooms;
+	bool bRolesChecked = false; TSet<FString> SaidNever;
+	void CheckRoles() const; void NeverCame(const FADPPerson& P, const TCHAR* Why);
 	bool bRooms = false, bSaidReuse = false, bSaidNoDoor = false;
 	float Poll = 0.f, NextBody = 0.f;
 	TWeakObjectPtr<ATugs> Tugs;

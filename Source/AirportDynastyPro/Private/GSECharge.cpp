@@ -201,6 +201,7 @@ void AGSE::ChargeParts(FTractor& T, float Dt)
 	}
 	else if (C.Plug == FBusCharge::YourHand) { Want = FTransform(FRotator(0.f, T.Yaw, 0.f), T.At).TransformPosition(T.YouHand); WantX = (In - Want).GetSafeNormal2D(); if (FVector::Dist2D(Want, Hol) < FVector::Dist2D(Want, In)) WantX = HolX; Fast = 20.f; }
 	else if (C.Plug == FBusCharge::Inlet) { Want = In; WantX = InX; }
+	else if (C.Plug == FBusCharge::Dropped) { Want = FVector(C.PlugAt.X, C.PlugAt.Y, T.At.Z + 6.); WantX = C.PlugX.GetSafeNormal2D(); Fast = 9.f; if (WantX.IsNearlyZero()) WantX = InX; }   // (straight down)
 	if (C.PlugAt.IsZero()) { C.PlugAt = Hol; C.PlugX = HolX; }
 	C.PlugAt = FMath::VInterpTo(C.PlugAt, Want, Dt, Fast); C.PlugX = FMath::VInterpTo(C.PlugX, WantX, Dt, 8.f).GetSafeNormal(); if (C.PlugX.IsNearlyZero()) C.PlugX = WantX;
 	const bool bHome = C.Plug == FBusCharge::Holster && FVector::Dist(C.PlugAt, Hol) < 1.f;
@@ -268,8 +269,8 @@ void AGSE::ChargeTick(float Dt)
 		{
 			if (!G || !G->Crew.IsValidIndex(C.Ci) || !G->Crew[C.Ci].A.IsValid() || G->Crew[C.Ci].bSlotFree)
 			{
-				ADP_WARN(TEXT("Apron bus %s: who handled its plug is gone - the plug goes back, asked again"), *T.Name);
-				if (C.Plug == FBusCharge::CrewHand) C.Plug = FBusCharge::Holster;
+				ADP_WARN(TEXT("Apron bus %s: who handled its plug is gone - the plug is let go of, asked again"), *T.Name);
+				if (C.Plug == FBusCharge::CrewHand) C.Plug = FBusCharge::Dropped;
 				C.Stage = FBusCharge::Idle; C.Ci = INDEX_NONE; if (C.Plug == FBusCharge::Holster) C.FlapWant = 0.f;
 			}
 			continue;
@@ -281,6 +282,20 @@ void AGSE::ChargeTick(float Dt)
 			for (const ADPVehicleArea::FPlace& P : ADPVehicleArea::Places()) if (P.bCharge && FVector::Dist2D(Plan(P.X, P.Y), T.Home) < 200.f) { C.bOwnBay = true; C.BayName = P.Name; }
 		}
 		if (C.bGo && (T.Player.IsValid() || (BusStage(T) == 0 && T.Driver == INDEX_NONE && !ChargeAway(T)))) { C.bGo = false; C.Bay.Reset(); ADP_LOG(TEXT("Apron bus %s: does not go to charge now"), *T.Name); }
+		if (BusStage(T) == 0) C.bHoming = false;
+		if (C.Plug == FBusCharge::Dropped)
+		{
+			// (put back when nobody sees it, else carried back by the ground crew when it lies where they can walk: between the bus and
+			// the next one, or behind it; you can pick it up too)
+			const FChRig* Rg = ChRigOf(GetWorld(), C.Cable);
+			if (!Rg || (TaxiUnseen(C.PlugAt) && TaxiUnseen(ChX(*Rg).TransformPosition(ChHold)))) { C.Plug = FBusCharge::Holster; C.PlugAt = FVector::ZeroVector; C.FlapWant = 0.f; ADP_LOG(TEXT("Apron bus %s: the dropped plug is in its holster again (unseen)"), *T.Name); continue; }
+			if ((C.Wait -= Step) > 0.f) continue;
+			C.Wait = 10.f; FString No; const FVector L = FTransform(FRotator(0.f, T.Yaw, 0.f), T.At).InverseTransformPosition(C.PlugAt);
+			if (L.Y < 150. || L.Y > 330. || L.X < -900. || L.X > 400.) No = TEXT("it lies where they cannot walk");
+			else if (ChargeCrew(Ti, false, No)) continue;
+			if (GetWorld()->GetTimeSeconds() > C.SaidT) { C.SaidT = GetWorld()->GetTimeSeconds() + 60.f; ADP_LOG(TEXT("Apron bus %s: its charging plug lies on the ground: %s"), *T.Name, *No); }
+			continue;
+		}
 		if (T.Player.IsValid() || T.Brk > 1 || T.Path.Num() || T.Until) continue;
 		if (!C.Bay.IsEmpty() && !C.bGo && !ChargeAway(T)) { C.Bay.Reset(); }   // (it has left the bay it was lent)
 		if ((C.Wait -= Step) > 0.f) continue;
@@ -329,6 +344,9 @@ bool AGSE::ChargeGo(int32 Ti, FString& Why)
 		if (!bFree) continue;
 		Bay = P.Name; At = W; const float a = FMath::DegreesToRadians(P.Heading); Yaw = FMath::RadiansToDegrees(FMath::Atan2(-FMath::Sin(a), FMath::Cos(a))); break;
 	}
+	// (none: the bay of a bus that is out at work - the two change places, the other comes home to this one's)
+	const int32 Ow = Bay.IsEmpty() ? ChargeOwner(Ti) : INDEX_NONE;
+	if (Ow != INDEX_NONE) { Bay = Tractors[Ow].Ch->BayName; At = Tractors[Ow].Home; Yaw = Tractors[Ow].HomeYaw; }
 	if (Bay.IsEmpty()) { Why = TEXT("every charging bay is taken"); return false; }
 	const int32 Ord = ++BusOrder.FindOrAdd(Ti);
 	if (!BusMan(Ti, [this, Ti, Ord] { if (BusOrder.FindRef(Ti) == Ord) ChargeDrive(Ti); else if (Tractors[Ti].Ch) Tractors[Ti].Ch->bGo = false; }, Why)) return false;
@@ -337,14 +355,60 @@ bool AGSE::ChargeGo(int32 Ti, FString& Why)
 	return true;
 }
 
+// its own place, or the one it just gave away
+bool AGSE::BusInPlace(const FTractor& T) const { return FVector::Dist2D(T.At, T.Home) < 200.f || (T.Ch && FVector::Dist2D(T.At, T.Ch->WasHome) < 200.f); }
+
+// The three bays are shared (to-do 300): one of the airport's own buses whose place is a charging bay, out with passengers and not
+// on its way home. Never a bought one's: that place is its owner's.
+int32 AGSE::ChargeOwner(int32 Ti) const
+{
+	const FTractor& T = Tractors[Ti]; if (T.bSpare || !T.Ch || DepotAt(T.Home)) return INDEX_NONE;
+	for (int32 i = 0; i < Tractors.Num(); ++i)
+	{
+		const FTractor& O = Tractors[i];
+		if (i == Ti || !O.Ch || !O.Bu || O.bSpare || O.bAway || !O.M.IsValid() || O.Brk || O.Player.IsValid() || !O.Ch->bOwnBay || O.Ch->BayName.IsEmpty() || BusStage(O) != 2 || O.Ch->bGo || O.Ch->bHoming || DepotAt(O.At) || O.Ch->Soc < ChRules().Low) continue;
+		bool bFree = false;
+		for (const ADPVehicleArea::FCharger& Q : ADPVehicleArea::Chargers()) if (Q.Bay == O.Ch->BayName && ADPBusCharger::Of(GetWorld(), Q.Bay)) bFree = true;
+		for (const FTractor& V : Tractors) if (&V != &T && &V != &O && !V.bAway && V.M.IsValid() && (FVector::Dist2D(V.At, O.Home) < 800.f || (V.Ch && V.Ch->Bay.Len() && FVector::Dist2D(V.Ch->BayAt, O.Home) < 300.f))) bFree = false;
+		if (bFree) return i;
+	}
+	return INDEX_NONE;
+}
+
+// which free bus goes to the passengers: not one with a low battery when another is there; while one waits for a bay, the full one
+// that stands in a bay (so it leaves it)
+void AGSE::ChargePick(TArray<int32>& Free) const
+{
+	const FChRules& R = ChRules(); bool bWaits = false;
+	for (const FTractor& T : Tractors) if (T.Ch && T.Bu && !T.bAway && T.M.IsValid() && !T.bSpare && !DepotAt(T.At) && BusStage(T) == 0 && T.Ch->Soc < R.Low) bWaits = true;
+	auto Keep = [&](TFunctionRef<bool(const FTractor&)> Is) { if (Free.ContainsByPredicate([&](int32 i) { return Is(Tractors[i]); })) Free.RemoveAll([&](int32 i) { return !Is(Tractors[i]); }); };
+	Keep([&](const FTractor& T) { return !T.Ch || T.Ch->Soc >= R.Low; });
+	if (bWaits) Keep([&](const FTractor& T) { return T.Ch && T.Ch->bOwnBay && T.Ch->Soc >= R.Full && DepotAt(T.At); });
+}
+
 void AGSE::ChargeDrive(int32 Ti)
 {
+	{
+		FTractor& T = Tractors[Ti]; FBusCharge& C = *T.Ch;
+		if (FTractor* O = Tractors.FindByPredicate([&](const FTractor& X) { return &X != &T && !X.bAway && X.M.IsValid() && X.Svc == T.Svc && FVector::Dist2D(X.Home, C.BayAt) < 300.f; }))
+		{
+			C.Bay.Reset();   // (its own hold on the bay does not count)
+			if (ChargeOwner(Ti) != int32(O - Tractors.GetData()))
+			{
+				ADP_LOG(TEXT("Apron bus %s: %s comes home to its charging bay - stays"), *T.Name, *O->Name);
+				C.bGo = false; C.Wait = 30.f; BusLeave(Ti); return;
+			}
+			ADP_LOG(TEXT("Apron bus %s: changes places with %s (out at work)"), *T.Name, *O->Name);
+			C.Bay = O->Ch->BayName; C.WasHome = T.Home; Swap(T.Home, O->Home); Swap(T.HomeYaw, O->HomeYaw); C.bBayRead = O->Ch->bBayRead = false; O->Ch->BayName.Reset(); O->Ch->bOwnBay = false;
+		}
+	}
 	BusSetAll(Ti, false); Motor(Tractors[Ti], true);
 	SpareHome(Ti, [this, Ti]
 	{
 		FTractor& U = Tractors[Ti]; if (!U.Ch) return;
 		U.Ch->bGo = false; U.Ch->Wait = 4.f; Motor(U, false); BusLeave(Ti);
 		ADP_LOG(TEXT("Apron bus %s: in the charging bay %s"), *U.Name, *U.Ch->Bay);
+		U.Ch->WasHome = FVector(1e9, 0., 0.); if (FVector::Dist2D(U.Home, U.Ch->BayAt) < 100.f) U.Ch->Bay.Reset();   // (its own place now)
 	});
 }
 
@@ -397,7 +461,14 @@ bool AGSE::ChargeCrew(int32 Ti, bool bPlug, FString& Why)
 	}
 	else
 	{
-		Hand(FlFeet, InP, true, 2.4f, [Set] { Set(FBusCharge::CrewHand, TEXT("unplugged")); });
+		if (C.Plug == FBusCharge::Dropped)   // (picked up off the ground, from beside it)
+		{
+			const FVector Pl = C.PlugAt + FVector(0., 0., ChGrip.Z), L = FTransform(FRotator(0.f, T.Yaw, 0.f), T.At).InverseTransformPosition(Pl);
+			const FVector Ft(L.X + 45., FMath::Clamp(L.Y, 200., 290.), 0.);
+			At(Ft, 10.f);
+			Hand([this, Ti, Ft] { return TW(Tractors[Ti], Ft); }, [Pl] { return Pl; }, true, 2.4f, [Set] { Set(FBusCharge::CrewHand, TEXT("the dropped plug is picked up")); });
+		}
+		else Hand(FlFeet, InP, true, 2.4f, [Set] { Set(FBusCharge::CrewHand, TEXT("unplugged")); });
 		AtPlug();
 		Hand(PlFeet, [HolP] { return HolP; }, false, 1.8f, [Set] { Set(FBusCharge::Holster, TEXT("the plug is in its holster")); });
 		At(Fl, 10.f);
@@ -428,6 +499,7 @@ bool AGSE::ChargeSpot(const FTractor& T, int32 Code, FVector& Out) const
 	const FBusCharge& C = *T.Ch;
 	if (Code == ChSwFlap) { Out = TW(T, C.FlapPiv + FRotator(0.f, 110.f * C.FlapNow, 0.f).RotateVector(FVector(14., 1., 0.))); return true; }
 	if (Code == ChSwInlet) { Out = TW(T, C.InletP + FVector(0., C.Plug == FBusCharge::Inlet ? 11. : 2., 0.)); return true; }
+	if (C.Plug == FBusCharge::Dropped) { Out = C.PlugAt; return true; }
 	const FString B = C.Cable.Len() ? C.Cable : ChargerBy(T); const ABabylonModel* M = ADPBusCharger::Of(GetWorld(), B);
 	Out = M && M->GetModelRoot() ? M->GetModelRoot()->GetComponentTransform().TransformPosition(ChHold + FVector(0., 11., 5.)) : T.At + FVector(0., 0., -5000.);
 	return true;
@@ -438,6 +510,7 @@ FString AGSE::ChargeSay(const FTractor& T, int32 Code) const
 	if (!T.Ch || T.YouOn) return FString();
 	const FBusCharge& C = *T.Ch; using B = FBusCharge;
 	if (Code == ChSwFlap) return C.Plug == B::YourHand || C.Plug == B::Inlet ? FString() : C.FlapWant > 0.5f ? TEXT("Shut the charging flap") : TEXT("Open the charging flap");
+	if (Code == ChSwHolster && C.Plug == B::Dropped) return TEXT("Pick up the charging plug");
 	if (Code == ChSwHolster) return C.Plug == B::YourHand ? TEXT("Put the charging plug in its holster") : C.Plug == B::Holster && ChargerBy(T).Len() ? FString::Printf(TEXT("Take the charging plug (battery %.0f %%)"), C.Soc * 100.f) : FString();
 	if (C.Plug == B::Inlet) return FString::Printf(TEXT("Unplug the bus (battery %.0f %%, %.0f km)"), C.Soc * 100.f, C.Soc * ChRules().KmFull);
 	return C.Plug == B::YourHand ? TEXT("Plug the bus in") : FString();
@@ -459,7 +532,7 @@ bool AGSE::ChargeSwitch(int32 Ti, int32 Code)
 	FTractor& T = Tractors[Ti]; FString Why; if (!ChargeMay(T, Code, Why)) return false;
 	FBusCharge& C = *T.Ch; using B = FBusCharge;
 	if (Code == ChSwFlap) C.FlapWant = C.FlapWant > 0.5f ? 0.f : 1.f;
-	else if (Code == ChSwHolster) { if (C.Plug == B::YourHand) C.Plug = B::Holster; else { const FString Q = ChargerBy(T); if (Q.IsEmpty()) return false; C.Cable = Q; C.Plug = B::YourHand; } }
+	else if (Code == ChSwHolster) { if (C.Plug == B::YourHand) C.Plug = B::Holster; else if (C.Plug == B::Dropped) C.Plug = B::YourHand; else { const FString Q = ChargerBy(T); if (Q.IsEmpty()) return false; C.Cable = Q; C.Plug = B::YourHand; } }
 	else if (C.Plug == B::Inlet) { C.Plug = B::YourHand; if (const UADPSim* Sm = UADPSim::Get(this)) C.NotBefore = Sm->Now() + FTimespan::FromMinutes(15.); }
 	else if (C.Plug == B::YourHand) { C.Plug = B::Inlet; C.bNeeded = false; }
 	else return false;
@@ -474,4 +547,4 @@ float AGSE::ChargeLeash(const FTractor& T, FVector& From) const
 	if (M && M->GetModelRoot()) From = FTransform(FRotator(0.f, T.Yaw, 0.f), T.At).InverseTransformPosition(M->GetModelRoot()->GetComponentTransform().TransformPosition(ChGland));
 	return 500.f;
 }
-void AGSE::ChargeDrop(FTractor& T) { if (T.Ch && T.Ch->Plug == FBusCharge::YourHand) T.Ch->Plug = FBusCharge::Holster; }
+void AGSE::ChargeDrop(FTractor& T) { if (T.Ch && T.Ch->Plug == FBusCharge::YourHand) { T.Ch->Plug = FBusCharge::Dropped; T.Ch->Wait = 3.f; } }

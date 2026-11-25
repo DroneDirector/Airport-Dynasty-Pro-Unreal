@@ -142,7 +142,7 @@ const TArray<FServiceSpec>& ADPService::All()
 		{
 			// the de-icing truck: its own lanes round the aircraft (GSEDeicer.cpp); backed into its box at the east end from the north
 			FServiceSpec D;
-			D.bDeicer = true; D.Task = TEXT("deice"); D.Model = TEXT("Deicer"); D.Points = TEXT("deicer"); D.Label = TEXT("de-icing truck"); D.Role = TEXT("ground"); D.Team = EStaffTask::Deice; D.MaxPeople = 2;
+			D.bDeicer = true; D.Task = TEXT("deice"); D.Model = TEXT("Deicer"); D.Points = TEXT("deicer"); D.Label = TEXT("de-icing truck"); D.Role = TEXT("deice"); D.Team = EStaffTask::Deice; D.MaxPeople = 2;
 			D.HomeX = 561.5f; D.HomeY = 101.5f; D.Lat = 20.43f; D.Aft = 20.f; D.Far = 42.f;
 			D.HalfL = 503.f; D.HalfW = 121.f; D.TurnR = 680.f; D.MaxSteer = 38.f; D.DoorDeg = 68.f; D.PlayerSpeed = 830.f;
 			D.Doors = {{TEXT("DoorPassenger"), TEXT("PIV_DoorPassenger"), TEXT("IK_Handle_DoorPassenger_Out"), TEXT("IK_Stand_DoorPassenger"), -68.f, false}};

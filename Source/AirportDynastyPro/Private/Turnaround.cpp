@@ -254,7 +254,8 @@ namespace ADPTurnaround
 			if (Tr->bMine)
 			{
 				bool bSoon = false, bShut = false;   // (what falls on it counts all the time it stands)
-				if (bHired && !Tr->PlanId.IsEmpty()) if (const FTask* Dk = Tr->Tasks.FindByPredicate([](const FTask& K) { return K.Id == TEXT("doors"); })) if (Dk->bDone || Dk->bStarted || Tm >= Dk->Start - 12.f) { bSoon = true; bShut = Dk->bDone; }
+				const UStaffPeople* Dp = UStaffPeople::Get(W);   // (your de-icing operators work it even when the handling agent does the rest)
+				if ((bHired || (Dp && Dp->HiresRole(TEXT("deice")))) && !Tr->PlanId.IsEmpty()) if (const FTask* Dk = Tr->Tasks.FindByPredicate([](const FTask& K) { return K.Id == TEXT("doors"); })) if (Dk->bDone || Dk->bStarted || Tm >= Dk->Start - 12.f) { bSoon = true; bShut = Dk->bDone; }
 				if (AGSE* Gs = bSoon ? AGSE::Get(W) : AGSE::Find(W))
 				{
 					Gs->DeiceTick(Tr->StandX, Tr->Reg, Tr->Flight, Now, Tr->OffBlocks, bSoon, bShut, Tr->bArrival ? Tr->OnBlocks : FDateTime(0));

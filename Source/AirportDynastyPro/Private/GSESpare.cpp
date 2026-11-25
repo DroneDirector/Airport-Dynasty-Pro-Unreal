@@ -78,6 +78,7 @@ bool AGSE::BusOk(int32 Ti, const FString& AirlineId) const { return Tractors.IsV
 void AGSE::BusOwnFirst(TArray<int32>& Free) const
 {
 	if (Free.ContainsByPredicate([&](int32 Ti) { return !Tractors[Ti].bSpare; })) Free.RemoveAll([&](int32 Ti) { return Tractors[Ti].bSpare; });
+	ChargePick(Free);
 }
 
 void AGSE::HomeOut(const FTractor& T, TArray<FVector>& W, const FVector& ToW) const
@@ -109,7 +110,7 @@ void AGSE::SpareHome(int32 Ti, TFunction<void()> Then)
 	FVector From = T.At; const bool bBus = T.Bu && (ChargeAway(T) || (T.Ch && T.Ch->bGo && DepotAt(T.At)));   // (out of the bay it stands in first)
 	const float x = Ho.X / 100.f, y = -Ho.Y / 100.f, s = y > DpLane ? -1.f : 1.f, r = SpareR(T), d = -T.At.Y / 100.f > DpLane ? 1.f : -1.f, k = T.KTurnR, Rx = T.Bu ? DpRoadBus : DpRoad;
 	if (bBus) { HomeOut(T, H, Plan(Rx, DpLane + d * (r + 2.f))); From = H.Last(); }
-	else if (T.Bu && !DepotAt(T.At) && FVector::Dist2D(T.At, T.Home) < 200.f) { const FVector Fw = FRotator(0.f, T.Yaw, 0.f).Vector(); for (int32 i = 1; i <= 3; ++i) H.Add(T.At + Fw * 400.f * i); From = H.Last(); }
+	else if (T.Bu && !DepotAt(T.At) && BusInPlace(T)) { const FVector Fw = FRotator(0.f, T.Yaw, 0.f).Vector(); for (int32 i = 1; i <= 3; ++i) H.Add(T.At + Fw * 400.f * i); From = H.Last(); }
 	TArray<FVector> Wy;
 	if (!Apron(Wy, From, Plan(Rx, DpLane + d * (r + 2.f)), &T))
 	{

@@ -3,6 +3,7 @@
 // is stuck. Nobody is taken out of a job half done.
 #include "StandAsk.h"
 #include "ADPLog.h"
+#include "Sim/ADPCrew.h"
 #include "GSE.h"
 #include "ServiceVehicles.h"
 #include "StaffPeople.h"
@@ -85,7 +86,7 @@ int32 AGSE::StairsWhere(float StandX, FString& Why) const
 		if (J.Phase == 0)
 		{
 			const UStaffPeople* Sp = UStaffPeople::Get(GetWorld());
-			Why = Sp && Sp->OnDuty(ADPService::All()[J.Svc].Role) == 0 ? FString(TEXT("no ground crew are on shift")) : J.Why.IsEmpty() ? FString(TEXT("their people are being called")) : J.Why;
+			Why = Sp && Sp->OnDuty(ADPService::All()[J.Svc].Role) == 0 ? FString::Printf(TEXT("%s: nobody on shift"), *ADPCrew::RoleName(ADPService::All()[J.Svc].Role)) : J.Why.IsEmpty() ? FString(TEXT("their people are being called")) : J.Why;
 			return 0;
 		}
 		if (J.Phase == 1 && J.StillT > (Tractors.IsValidIndex(J.Ti) && Tractors[J.Ti].Job == EJob::Boarding ? StairsCrewS : StairsStuckS)) { Why = TEXT("the passenger stairs sent to it do not get on"); return 0; }
@@ -141,7 +142,7 @@ bool AGSE::BusCan(FString& Why) const
 	const UStaffPeople* Sp = UStaffPeople::Get(GetWorld()); bool bAny = false;
 	for (const FTractor& T : Tractors) if (T.Bu && T.M.IsValid()) bAny = true;
 	if (!bAny) { Why = TEXT("the airport has no apron bus"); return false; }
-	if (!Sp || !Sp->HiresRole(TEXT("bus"))) { Why = TEXT("fewer than two bus drivers are hired"); return false; }
+	if (!Sp || !Sp->HiresRole(TEXT("bus"))) { Why = TEXT("no bus driver is hired"); return false; }
 	if (Sp->OnDuty(TEXT("bus")) == 0) Why = TEXT("no bus driver is on shift");
 	return true;
 }

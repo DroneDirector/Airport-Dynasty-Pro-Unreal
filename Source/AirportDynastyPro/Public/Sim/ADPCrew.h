@@ -16,10 +16,13 @@ namespace ADPCrew
 		bool bSim;     // the simulation counts them (turn-rounds, check-in, the fire category, the flight crews)
 		bool bShift;   // 8 hour shifts (early, day, late, night); the others: flight rosters, or the fire service's 24 hour watches
 		bool bTalk;    // can be offered to somebody you talk to (no licence needed)
+		const TCHAR* Work;   // what they really do in this version; null: no job yet (the hire list says so, to-do 300)
 	};
 	const TArray<FArea>& Areas();
 	const TArray<FRole>& Roles();
 	const FRole* Role(const FString& Id);
+	/** An area's duties as the hire list shows them; in plain words when none of its roles has a job yet. */
+	FString AreaText(const FArea& Area);
 	FString RoleName(const FString& Id);
 	/** A job at this airport (not a flight crew's or a mechanic's, who belong to their aircraft's base). */
 	bool AtAirport(const FString& Id);

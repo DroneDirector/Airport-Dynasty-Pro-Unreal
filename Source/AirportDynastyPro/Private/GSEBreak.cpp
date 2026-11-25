@@ -11,6 +11,7 @@
 #include "Sim/ADPSimData.h"
 #include "Sim/ADPEvents.h"
 #include "ADPLog.h"
+#include "Sim/ADPBoards.h"
 #include "PerfLog.h"
 #include "BabylonModel.h"
 #include "Dom/JsonObject.h"
@@ -62,9 +63,10 @@ namespace
 		for (double* V : {&R.HNew, &R.HOld, &R.HAt, &R.KNew, &R.KOld, &R.KAt}) *V = FMath::Max(*V, 1.);
 		return R;
 	}
-	bool BrkMechanic(const FADPWorld& W)
+	bool BrkMechanic(const FADPWorld& W, const FDateTime& Now)   // (one hired at this airport and not on a day off)
 	{
-		for (const FADPPerson& P : W.People) if (P.AirlineId == UADPSim::Me() && P.Role == TEXT("mech") && P.Status == TEXT("on")) return true;
+		const FString Here = ADPBoards::HereIcao();
+		for (const FADPPerson& P : W.People) if (P.AirlineId == UADPSim::Me() && P.Role == TEXT("mech") && P.Base == Here && P.Status == TEXT("on") && !(P.OffUntil > Now)) return true;
 		return false;
 	}
 	// (any fault, or one of the sort asked for)
@@ -203,7 +205,7 @@ void AGSE::BreakStop(int32 Ti)
 {
 	FTractor& T = Tractors[Ti]; UADPSim* Sim = UADPSim::Get(this); if (!Sim) return;
 	const FBrkRules& R = BrkRules(); const FDateTime Now = Sim->Now();
-	const int32 Job = BreakJob(Ti); const bool bMech = BrkMechanic(Sim->World);
+	const int32 Job = BreakJob(Ti); const bool bMech = BrkMechanic(Sim->World, Now);
 	T.Brk = T.bBrkFix ? 2 : 3; T.BrkT = 0.f; T.BrkLast = Now; T.BrkJob = Job; T.bBrkHome = false; T.bBrkBack = false;
 	T.bBrkHaz = T.bSwHaz; T.bSwHaz = true;
 	FString What;

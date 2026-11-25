@@ -255,8 +255,10 @@ void ATugs::LostTick(int32 Ci, float Dt)
 	if ((C.LostAsk -= Dt) > 0.f) return;
 	C.LostAsk = 2.f;
 	UStaffPeople* Sp = UStaffPeople::Get(GetWorld()); if (!Sp) return;
+	// (one of the same role, from the career's own record: a bus driver from a bus driver, a de-icing operator from another)
+	FString Lr; if (const UADPSim* Sm = UADPSim::Get(GetWorld())) if (const FADPPerson* Rec = Sm->World.People.FindByPredicate([&](const FADPPerson& X) { return X.Id == C.StaffId; })) Lr = Rec->Role;
 	TArray<UStaffPeople::FTaken> Team;
-	if (!Sp->AskTeam(FString::Printf(TEXT("relief:%d"), Ci), C.bRelWet ? EStaffTask::Water : C.bRelCater ? EStaffTask::CaterRelief : C.bRelFuel ? EStaffTask::Fuel : C.bRelClean ? EStaffTask::CleanRelief : EStaffTask::Relief, FDateTime(2000, 1, 1), C.LastAt, FString::Printf(TEXT("taking over from %s"), *C.Name), Team) || !Team.Num() || !Team[0].A.IsValid()) return;
+	if (!Sp->AskTeam(FString::Printf(TEXT("relief:%d"), Ci), !Lr.IsEmpty() ? UStaffPeople::ReliefOf(Lr) : C.bRelWet ? EStaffTask::Water : C.bRelCater ? EStaffTask::CaterRelief : C.bRelFuel ? EStaffTask::Fuel : C.bRelClean ? EStaffTask::CleanRelief : EStaffTask::Relief, FDateTime(2000, 1, 1), C.LastAt, FString::Printf(TEXT("taking over from %s"), *C.Name), Team) || !Team.Num() || !Team[0].A.IsValid()) return;
 	const FString Was = C.Name;
 	C.A = Team[0].A; C.StaffId = Team[0].Id; C.Name = Sp->NameOf(C.StaffId); C.bLost = false; C.bRelief = true; C.T = 0.f; C.BlockT = C.StuckT = C.SideT = 0.f;
 	C.Spot = C.Anchor = C.A->GetActorLocation();

@@ -758,3 +758,17 @@ Places: `Data/vehicle-area.json` "chargers", behind bays 1-3 at y 302.4, front s
 - You by E: flap, plug at the holster, plug at the inlet.
 - The remote stands R0-R7 are `built` (make_remote_stands.py); both checks pass.
 - Left: the shop's kinds are in the web layer; no charging sound of its own (the motor whine, pitched down); three chargers only; nothing seen in the game.
+
+## Hired roles, 300 as built
+
+| Role (enough for all its jobs) | What they really do |
+|---|---|
+| ground (2) | bags, tugs, power, chocks, stairs, ambulift, bus charging |
+| fuel (1), water (1), catering (2), cleaning (2), bus (1), taxi (1) | their own vehicle, in 3D |
+| deice (2) | the de-icing truck, also when an agent does the rest; nobody hired: the simulated agent, never ground crew |
+| checkin, security, gate | their number opens check-in and boarding, the security lanes, the gate door |
+| fire, mech, captain, fo, fa | the fire category; checks, and breakdowns only if hired here; crews of your flights |
+| marshaller, cargo, tower, ops, lounge, shop, claim, parking | nothing yet: the list says "no job in this version yet" (large breaks) |
+
+Checks: `UStaffPeople::CheckRoles` (once at the start, ADP_ERROR), `Tools/check_crew_roles.py`. Bought buses keep bays 2 and 3; buses
+1-3 change places at a charging bay while its owner is out with passengers. Left: waiting places without a charger (no room painted).

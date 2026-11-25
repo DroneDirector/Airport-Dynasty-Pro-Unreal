@@ -107,6 +107,7 @@ FString UADPBridge::Sim(const FString& Action, const FString& Arg)
 				{
 					FString Doing, Where;
 					if (P.Status != TEXT("on")) Doing = P.Status == TEXT("sick") ? TEXT("off sick") : P.Status == TEXT("leave") ? TEXT("on holiday") : P.Status == TEXT("dismissed") ? TEXT("leaving") : TEXT("off duty");
+					else if (!Job->Work) Doing = TEXT("no job in this version yet");
 					else if (P.OffUntil > At) Doing = P.HiredAt != FDateTime() && (At - P.HiredAt).GetTotalHours() < 24.0 ? TEXT("starts tomorrow") : TEXT("days off");
 					else if (P.Base != ADPBoards::HereIcao()) Doing = TEXT("at another airport");
 					else if (const UStaffPeople* Sp = Job->b3D && UStaffPeople::On() ? UStaffPeople::Get(H->GetWorld()) : nullptr) { if (!Sp->Status(P.Id, Doing, Where)) Doing = TEXT("off shift"); }
@@ -123,11 +124,11 @@ FString UADPBridge::Sim(const FString& Action, const FString& Arg)
 		const FString Here = ADPBoards::HereIcao();
 		O->SetStringField(TEXT("here"), Here);
 		TArray<TSharedPtr<FJsonValue>> Ar, Jb, Sf;
-		for (const ADPCrew::FArea& X : ADPCrew::Areas()) { TSharedRef<FJsonObject> J = MakeShared<FJsonObject>(); J->SetStringField(TEXT("id"), X.Id); J->SetStringField(TEXT("label"), X.Label); J->SetStringField(TEXT("duties"), X.Duties); Ar.Add(MakeShared<FJsonValueObject>(J)); }
+		for (const ADPCrew::FArea& X : ADPCrew::Areas()) { TSharedRef<FJsonObject> J = MakeShared<FJsonObject>(); J->SetStringField(TEXT("id"), X.Id); J->SetStringField(TEXT("label"), X.Label); J->SetStringField(TEXT("duties"), ADPCrew::AreaText(X)); Ar.Add(MakeShared<FJsonValueObject>(J)); }
 		for (const ADPCrew::FRole& X : ADPCrew::Roles())
 		{
 			TSharedRef<FJsonObject> J = MakeShared<FJsonObject>();
-			J->SetStringField(TEXT("id"), X.Id); J->SetStringField(TEXT("name"), X.Name); J->SetStringField(TEXT("area"), X.Area);
+			J->SetStringField(TEXT("id"), X.Id); J->SetStringField(TEXT("name"), X.Work ? FString(X.Name) : FString(X.Name) + TEXT(" (no job in this version yet)")); J->SetStringField(TEXT("area"), X.Area);
 			J->SetBoolField(TEXT("d3"), X.b3D && UStaffPeople::On()); J->SetBoolField(TEXT("sim"), X.bSim); J->SetBoolField(TEXT("shift"), X.bShift); J->SetBoolField(TEXT("local"), ADPCrew::AtAirport(X.Id));
 			J->SetNumberField(TEXT("have"), ADPCrew::Have(W, X.Id, Here)); J->SetNumberField(TEXT("need"), ADPCrew::Need(W, X.Id));
 			J->SetNumberField(TEXT("onShift"), X.bSim && X.bShift ? ADPSchedule::OnShift(W, X.Id, At) : -1);

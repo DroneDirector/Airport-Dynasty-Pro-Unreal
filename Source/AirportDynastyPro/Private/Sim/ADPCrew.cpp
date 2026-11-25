@@ -39,37 +39,42 @@ const TArray<ADPCrew::FRole>& ADPCrew::Roles()
 {
 	// id, name, area, 3D job, counted by the simulation, 8 hour shifts, can be offered in a talk
 	static const TArray<FRole> R = {
-		{TEXT("captain"), TEXT("Captain"), TEXT("pilots"), false, true, false, false},
-		{TEXT("fo"), TEXT("First officer"), TEXT("pilots"), false, true, false, false},
-		{TEXT("fa"), TEXT("Flight attendant"), TEXT("cabin"), false, true, false, false},
-		{TEXT("mech"), TEXT("Mechanic"), TEXT("mech"), false, true, false, false},
-		{TEXT("ground"), TEXT("Ground crew member"), TEXT("ground"), true, true, true, true},
-		{TEXT("fuel"), TEXT("Fuel truck driver"), TEXT("fuel"), true, true, true, true},
-		{TEXT("catering"), TEXT("Catering loader"), TEXT("catering"), true, true, true, true},
-		{TEXT("cleaning"), TEXT("Aircraft cleaner"), TEXT("cleaning"), true, true, true, true},
-		{TEXT("water"), TEXT("Water and toilet service driver"), TEXT("water"), true, false, true, true},
-		{TEXT("deice"), TEXT("De-icing operator"), TEXT("deice"), false, false, true, true},
-		{TEXT("marshaller"), TEXT("Marshaller"), TEXT("ramp"), false, false, true, true},
-		{TEXT("cargo"), TEXT("Cargo loader"), TEXT("ramp"), false, false, true, true},
-		{TEXT("fire"), TEXT("Firefighter"), TEXT("fire"), false, true, false, true},
-		{TEXT("checkin"), TEXT("Passenger service agent"), TEXT("checkin"), false, true, true, true},
-		{TEXT("gate"), TEXT("Gate agent"), TEXT("gate"), false, false, true, true},
-		{TEXT("security"), TEXT("Security officer"), TEXT("security"), false, true, true, true},
-		{TEXT("bus"), TEXT("Bus driver"), TEXT("bus"), true, false, true, true},
-		// (to-do 239b: the landside taxi bus's driver - not a 3D job yet: the hired people come out of the ramp rooms airside and
-		// there is no staff way out to the forecourt kerb; the general wage, no ADPStaff line)
-		{TEXT("taxi"), TEXT("Taxi bus driver"), TEXT("bus"), false, false, true, true},
-		{TEXT("tower"), TEXT("Air traffic controller"), TEXT("tower"), false, false, true, false},
-		{TEXT("ops"), TEXT("Operations controller"), TEXT("ops"), false, false, true, true},
-		{TEXT("lounge"), TEXT("Lounge host"), TEXT("lounge"), false, false, true, true},
-		{TEXT("shop"), TEXT("Shop assistant"), TEXT("shop"), false, false, true, true},
-		{TEXT("claim"), TEXT("Baggage claim agent"), TEXT("claim"), false, false, true, true},
-		{TEXT("parking"), TEXT("Car park attendant"), TEXT("parking"), false, false, true, true},
+		{TEXT("captain"), TEXT("Captain"), TEXT("pilots"), false, true, false, false, TEXT("fly your aircraft")},
+		{TEXT("fo"), TEXT("First officer"), TEXT("pilots"), false, true, false, false, TEXT("fly your aircraft")},
+		{TEXT("fa"), TEXT("Flight attendant"), TEXT("cabin"), false, true, false, false, TEXT("the cabin of your flights")},
+		{TEXT("mech"), TEXT("Mechanic"), TEXT("mech"), false, true, false, false, TEXT("the checks of your aircraft; mend vehicles here sooner")},
+		{TEXT("ground"), TEXT("Ground crew member"), TEXT("ground"), true, true, true, true, TEXT("the bags, the tugs, power, chocks, stairs, ambulift, bus charging")},
+		{TEXT("fuel"), TEXT("Fuel truck driver"), TEXT("fuel"), true, true, true, true, TEXT("drive the fuel trucks")},
+		{TEXT("catering"), TEXT("Catering loader"), TEXT("catering"), true, true, true, true, TEXT("the catering trucks")},
+		{TEXT("cleaning"), TEXT("Aircraft cleaner"), TEXT("cleaning"), true, true, true, true, TEXT("clean the cabins")},
+		{TEXT("water"), TEXT("Water and toilet service driver"), TEXT("water"), true, false, true, true, TEXT("the water and toilet trucks")},
+		{TEXT("deice"), TEXT("De-icing operator"), TEXT("deice"), true, false, true, true, TEXT("the de-icing truck")},
+		{TEXT("marshaller"), TEXT("Marshaller"), TEXT("ramp"), false, false, true, true, nullptr},
+		{TEXT("cargo"), TEXT("Cargo loader"), TEXT("ramp"), false, false, true, true, nullptr},
+		{TEXT("fire"), TEXT("Firefighter"), TEXT("fire"), false, true, false, true, TEXT("the fire category of the airport")},
+		{TEXT("checkin"), TEXT("Passenger service agent"), TEXT("checkin"), false, true, true, true, TEXT("open the check-in and the boarding")},
+		{TEXT("gate"), TEXT("Gate agent"), TEXT("gate"), false, true, true, true, TEXT("open the door at the gate")},
+		{TEXT("security"), TEXT("Security officer"), TEXT("security"), false, true, true, true, TEXT("open the security lanes")},
+		{TEXT("bus"), TEXT("Bus driver"), TEXT("bus"), true, false, true, true, TEXT("drive the apron buses")},
+		// (to-do 239b: the landside taxi bus's driver: comes along the pavement, not from a ramp room; the general wage, no ADPStaff line)
+		{TEXT("taxi"), TEXT("Taxi bus driver"), TEXT("bus"), true, false, true, true, TEXT("drive the taxi bus")},
+		{TEXT("tower"), TEXT("Air traffic controller"), TEXT("tower"), false, false, true, false, nullptr},
+		{TEXT("ops"), TEXT("Operations controller"), TEXT("ops"), false, false, true, true, nullptr},
+		{TEXT("lounge"), TEXT("Lounge host"), TEXT("lounge"), false, false, true, true, nullptr},
+		{TEXT("shop"), TEXT("Shop assistant"), TEXT("shop"), false, false, true, true, nullptr},
+		{TEXT("claim"), TEXT("Baggage claim agent"), TEXT("claim"), false, false, true, true, nullptr},
+		{TEXT("parking"), TEXT("Car park attendant"), TEXT("parking"), false, false, true, true, nullptr},
 	};
 	return R;
 }
 
 const ADPCrew::FRole* ADPCrew::Role(const FString& Id) { return Roles().FindByPredicate([&](const FRole& R) { return Id == R.Id; }); }
+FString ADPCrew::AreaText(const FArea& Area)
+{
+	for (const FRole& R : Roles()) if (R.Work && FCString::Strcmp(R.Area, Area.Id) == 0) return Area.Duties;
+	return FString(Area.Duties) + TEXT(" - no job in this version yet, hiring changes nothing");
+}
+
 FString ADPCrew::RoleName(const FString& Id) { const FRole* R = Role(Id); return R ? FString(R->Name) : Id; }
 bool ADPCrew::AtAirport(const FString& Id) { const FRole* R = Role(Id); return R && (R->bShift || Id == TEXT("fire")); }
 

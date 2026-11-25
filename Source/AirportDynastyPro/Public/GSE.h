@@ -578,6 +578,9 @@ public:
 	struct FBusSee { FTransform X; bool bStands = false, bAtWheel = false, bYou = false, bShut = false, bKnelt = false; };
 	struct FBusSlot { int32 Seat = INDEX_NONE; FVector At = FVector::ZeroVector, Face = FVector(1, 0, 0), Hold = FVector::ZeroVector; bool bStrap = false; };
 	void BusFree(TArray<int32>& Out) const;
+	int32 ChargeOwner(int32 Ti) const;   // (a bus out at work whose charging bay this one may have)
+	void ChargePick(TArray<int32>& Free) const;
+	bool BusInPlace(const FTractor& T) const;
 	bool BusCan(FString& Why) const;
 	bool BusHalt(int32 Ti);
 	TMap<int32, int32> BusOrder;   // (StandAsk.cpp: an order withdrawn is never driven)

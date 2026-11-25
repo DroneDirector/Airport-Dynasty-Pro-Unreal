@@ -10,6 +10,7 @@
 #include "BabylonModel.h"
 #include "TerminalPlan.h"
 #include "ADPLog.h"
+#include "ServiceVehicles.h"
 #include "PerfLog.h"
 #include "Sim/ADPSim.h"
 #include "Sim/ADPBoards.h"
@@ -40,7 +41,8 @@ static FAutoConsoleCommandWithWorld CmdCrewList(TEXT("adp.CrewList"), TEXT("Your
 namespace
 {
 	// the roles that are people in 3D (ADPCrew.cpp: b3D - the ramp role; the others when their jobs exist in 3D)
-	const TArray<const TCHAR*>& SpRoles() { static TArray<const TCHAR*> L; if (!L.Num()) for (const ADPCrew::FRole& R : ADPCrew::Roles()) if (R.b3D || FCString::Strcmp(R.Id, TEXT("taxi")) == 0) L.Add(R.Id); return L; }   // (taxi: the landside driver, to-do 239b)
+	const TArray<const TCHAR*>& SpRoles() { static TArray<const TCHAR*> L; if (!L.Num()) for (const ADPCrew::FRole& R : ADPCrew::Roles()) if (R.b3D) L.Add(R.Id); return L; }
+	FString SpArea(const FString& Role) { if (const ADPCrew::FRole* R = ADPCrew::Role(Role)) for (const ADPCrew::FArea& X : ADPCrew::Areas()) if (FCString::Strcmp(X.Id, R->Area) == 0) return X.Label; return Role; }
 	bool SpIsRole(const FString& R) { for (const TCHAR* X : SpRoles()) if (R == X) return true; return false; }
 	using FSpShift = ADPCrew::FShift;
 	const FSpShift* SpShift(const FString& N) { return ADPCrew::Shift(N); }
@@ -93,7 +95,7 @@ void UStaffPeople::Deinitialize() { ADPSchedule::Waiting3D = nullptr; Asks.Reset
 
 // ------------------------------------------------------------------ the pool
 
-const TCHAR* UStaffPeople::RoleOf(EStaffDuty D) { return D == EStaffDuty::CleanDriver || D == EStaffDuty::Cleaner ? TEXT("cleaning") : D == EStaffDuty::FuelDriver ? TEXT("fuel") : D == EStaffDuty::CaterDriver || D == EStaffDuty::CaterLoader ? TEXT("catering") : D == EStaffDuty::WaterDriver ? TEXT("water") : D == EStaffDuty::TaxiDriver ? TEXT("taxi") : D == EStaffDuty::BusDriver ? TEXT("bus") : TEXT("ground"); }   // (one ramp role does all but the cleaning and the fuel)
+const TCHAR* UStaffPeople::RoleOf(EStaffDuty D) { return D == EStaffDuty::CleanDriver || D == EStaffDuty::Cleaner ? TEXT("cleaning") : D == EStaffDuty::FuelDriver ? TEXT("fuel") : D == EStaffDuty::CaterDriver || D == EStaffDuty::CaterLoader ? TEXT("catering") : D == EStaffDuty::WaterDriver ? TEXT("water") : D == EStaffDuty::TaxiDriver ? TEXT("taxi") : D == EStaffDuty::BusDriver ? TEXT("bus") : D == EStaffDuty::DeicerDriver || D == EStaffDuty::DeicerOperator ? TEXT("deice") : TEXT("ground"); }   // (one ramp role does all that has no role of its own)
 const TCHAR* UStaffPeople::DutyName(EStaffDuty D)
 {
 	switch (D)
@@ -135,7 +137,7 @@ const TCHAR* UStaffPeople::TaskName(EStaffTask T)
 	case EStaffTask::ApronBus: return TEXT("an apron bus");
 	case EStaffTask::BusCharge: return TEXT("a bus charger");
 	case EStaffTask::PushHelp: case EStaffTask::PushDriver: return TEXT("the pushback");
-	case EStaffTask::Deice: return TEXT("de-icing");
+	case EStaffTask::Deice: case EStaffTask::DeiceRelief: return TEXT("de-icing");
 	case EStaffTask::Catering: case EStaffTask::CaterRelief: return TEXT("catering");
 	case EStaffTask::Gpu: return TEXT("ground power");
 	case EStaffTask::BagsOut: return TEXT("bags out to the aircraft");
@@ -167,6 +169,7 @@ void UStaffPeople::Needs(EStaffTask T, TArray<FNeed>& Out)
 	case EStaffTask::Water: case EStaffTask::Toilet: Add(EStaffDuty::WaterDriver, 1, 1); break;
 	case EStaffTask::Catering: Add(EStaffDuty::CaterDriver, 1, 1); Add(EStaffDuty::CaterLoader, 1, 1); break;
 	case EStaffTask::CaterRelief: Add(EStaffDuty::CaterLoader, 1, 1); break;
+	case EStaffTask::DeiceRelief: Add(EStaffDuty::DeicerOperator, 1, 1); break;
 	case EStaffTask::CleanRelief: Add(EStaffDuty::Cleaner, 1, 1); break;
 	case EStaffTask::Relief: Add(EStaffDuty::BaggageHandler, 1, 1); break;
 	case EStaffTask::PushHelp: Add(EStaffDuty::PushbackHandler, 1, 1); break;   // (a push of your own: its handler; its driver when you leave it)
@@ -250,13 +253,82 @@ void UStaffPeople::AlongWall(FStaff& S, const FVector& To) const
 
 int32 UStaffPeople::OnDuty(const FString& Role) const { int32 N = 0; for (const FStaff& S : Staff) if (S.bWanted && S.Role == Role) ++N; return N; }
 
+// the smallest number of a role that can do every job of the role (the biggest of its jobs' smallest teams): one for a bus,
+// the taxi bus, the fuel and the water; two for the apron, the catering, the cleaning and the de-icing
+int32 UStaffPeople::LeastOf(const FString& Role)
+{
+	static TMap<FString, int32> Known;
+	if (const int32* K = Known.Find(Role)) return *K;
+	int32 Least = 1; TArray<FNeed> N;
+	for (int32 t = 0; t < NumTasks; ++t)
+	{
+		Needs(EStaffTask(t), N);
+		int32 Sum = 0; for (const FNeed& X : N) if (Role == RoleOf(X.Duty)) Sum += X.Min;
+		Least = FMath::Max(Least, Sum);
+	}
+	return Known.Add(Role, Least);
+}
+
+// who takes over from somebody of this role (one person of the same role, never of another)
+EStaffTask UStaffPeople::ReliefOf(const FString& Role)
+{
+	return Role == TEXT("water") ? EStaffTask::Water : Role == TEXT("catering") ? EStaffTask::CaterRelief : Role == TEXT("fuel") ? EStaffTask::Fuel : Role == TEXT("cleaning") ? EStaffTask::CleanRelief
+		: Role == TEXT("deice") ? EStaffTask::DeiceRelief : Role == TEXT("bus") ? EStaffTask::ApronBus : Role == TEXT("taxi") ? EStaffTask::Taxi : EStaffTask::Relief;
+}
+
+// Once, at the start (to-do 300; Tools/check_crew_roles.py does the same on the source): every duty's role is there and comes in
+// 3D, every task has its people, all of one role (AskTeam counts one role), every vehicle asks for the role of its own team,
+// every role you can hire has a job or says that it has none.
+void UStaffPeople::CheckRoles() const
+{
+	int32 Bad = 0; TSet<FString> Used; TArray<FNeed> N;
+	for (int32 d = 0; d < NumDuties; ++d)
+	{
+		const FString Role = RoleOf(EStaffDuty(d)); const ADPCrew::FRole* R = ADPCrew::Role(Role); Used.Add(Role);
+		if (!R) { ++Bad; ADP_ERROR(TEXT("StaffPeople: the duty %s belongs to the role %s, which nobody can be hired for"), DutyName(EStaffDuty(d)), *Role); }
+		else if (!R->b3D || !R->bShift) { ++Bad; ADP_ERROR(TEXT("StaffPeople: the duty %s belongs to the role %s, which never comes (3D %d, shifts %d)"), DutyName(EStaffDuty(d)), *Role, R->b3D, R->bShift); }
+		bool bAny = false; for (int32 t = 0; t < NumTasks && !bAny; ++t) { Needs(EStaffTask(t), N); for (const FNeed& X : N) if (X.Duty == EStaffDuty(d)) bAny = true; }
+		if (!bAny) { ++Bad; ADP_ERROR(TEXT("StaffPeople: no task needs the duty %s"), DutyName(EStaffDuty(d))); }
+	}
+	for (int32 t = 0; t < NumTasks; ++t)
+	{
+		Needs(EStaffTask(t), N); int32 Min = 0; bool bOne = true;
+		for (const FNeed& X : N) { Min += X.Min; if (FCString::Strcmp(RoleOf(X.Duty), RoleOf(N[0].Duty)) != 0) bOne = false; }
+		if (!N.Num() || Min < 1) { ++Bad; ADP_ERROR(TEXT("StaffPeople: the task %d (%s) has no duties"), t, TaskName(EStaffTask(t))); }
+		else if (!bOne) { ++Bad; ADP_ERROR(TEXT("StaffPeople: the task %d (%s) mixes roles"), t, TaskName(EStaffTask(t))); }
+	}
+	for (const FServiceSpec& S : ADPService::All())
+	{
+		Needs(S.Team, N);
+		if (!N.Num() || FCString::Strcmp(S.Role, RoleOf(N[0].Duty)) != 0) { ++Bad; ADP_ERROR(TEXT("StaffPeople: the %s asks for the role %s, its team is %s"), S.Label, S.Role, N.Num() ? RoleOf(N[0].Duty) : TEXT("nobody")); }
+	}
+	FString None;
+	for (const ADPCrew::FRole& R : ADPCrew::Roles())
+	{
+		if (R.b3D && !Used.Contains(R.Id)) { ++Bad; ADP_ERROR(TEXT("StaffPeople: the role %s comes in 3D and has no duty"), R.Id); }
+		if (R.Work) continue;
+		None += FString::Printf(TEXT("%s%s"), None.IsEmpty() ? TEXT("") : TEXT(", "), R.Id);
+		if (R.b3D || R.bSim || Used.Contains(R.Id)) { ++Bad; ADP_ERROR(TEXT("StaffPeople: the role %s has a job but its table line says none"), R.Id); }
+	}
+	if (!Rooms.Num()) { ++Bad; ADP_ERROR(TEXT("StaffPeople: no ramp room has a staff door onto the apron - nobody can come out")); }
+	if (!None.IsEmpty()) ADP_WARN(TEXT("StaffPeople: can be hired and have no job in this version (the hire list says so): %s"), *None);
+	ADP_LOG(TEXT("StaffPeople: %d duties, %d tasks, %d roles checked, %d wrong"), NumDuties, NumTasks, ADPCrew::Roles().Num(), Bad);
+}
+
+void UStaffPeople::NeverCame(const FADPPerson& P, const TCHAR* Why)
+{
+	if (SaidNever.Contains(P.Id)) return;
+	SaidNever.Add(P.Id);
+	ADP_ERROR(TEXT("StaffPeople: %s (%s) is on shift and cannot come: %s"), *P.Name, *P.Role, Why);
+}
+
 bool UStaffPeople::HiresRole(const TCHAR* Role) const
 {
 	const UADPSim* Sim = UADPSim::Get(GetWorld());
 	if (!On() || !Sim || !Sim->IsRunning()) return false;
 	const FString Here = ADPBoards::HereIcao(); int32 N = 0;
 	for (const FADPPerson& P : Sim->World.People) if (P.AirlineId == UADPSim::Me() && P.Role == Role && P.Base == Here) ++N;
-	const int32 Least = FCString::Strcmp(Role, TEXT("taxi")) == 0 || FCString::Strcmp(Role, TEXT("bus")) == 0 ? 1 : 2;   // (the taxi bus, an apron bus: one driver is its whole team)
+	const int32 Least = LeastOf(Role);
 	const bool bOk = N >= Least;
 	const bool* Was = SaidHires.Find(Role);
 	if (!Was || *Was != bOk)
@@ -317,8 +389,8 @@ bool UStaffPeople::AskTeam(const FString& Key, EStaffTask Task, const FDateTime&
 	if (Free < Need)
 	{
 		const FString M = Missing(Task);
-		A.Why = !M.IsEmpty() ? M : FString::Printf(TEXT("%d free ground crew go to %s first"), All, *Before);
-		if (Min >= 1.0) ADPSchedule::Tell(Sim->World, Sim->Now(), TEXT("ground:") + Key, TEXT("No ground crew"), FString::Printf(TEXT("%s waits: %s. Hire ground crew under Crew."), *What, *A.Why));
+		A.Why = !M.IsEmpty() ? M : FString::Printf(TEXT("%d free (%s) go to %s first"), All, *ADPCrew::RoleName(Role), *Before);
+		if (Min >= 1.0) ADPSchedule::Tell(Sim->World, Sim->Now(), TEXT("ground:") + Key, FString::Printf(TEXT("Nobody free: %s"), *ADPCrew::RoleName(Role)), FString::Printf(TEXT("%s waits: %s. Hire more under Crew, %s."), *What, *A.Why, *SpArea(Role)));
 		return false;
 	}
 	for (const FNeed& X : N)
@@ -382,7 +454,7 @@ FString UStaffPeople::Missing(EStaffTask Task) const
 		const int32 Short = FMath::Max(0, X.Min - L); L = FMath::Max(0, L - X.Min);
 		if (!Short) continue;
 		int32 OnDuty = 0; for (const FStaff& S : Staff) if (S.bWanted && S.Role == Role) ++OnDuty;
-		Out += FString::Printf(TEXT("%s%d %s (%s)"), Out.IsEmpty() ? TEXT("") : TEXT(", "), Short, DutyName(X.Duty), OnDuty ? *FString::Printf(TEXT("%d ground crew on shift, not enough free"), OnDuty) : TEXT("no ground crew on shift"));
+		Out += FString::Printf(TEXT("%s%d %s (%s)"), Out.IsEmpty() ? TEXT("") : TEXT(", "), Short, DutyName(X.Duty), OnDuty ? *FString::Printf(TEXT("%s: %d on shift, not enough free"), *ADPCrew::RoleName(Role), OnDuty) : *FString::Printf(TEXT("%s: nobody on shift"), *ADPCrew::RoleName(Role)));
 	}
 	return Out;
 }
@@ -539,7 +611,8 @@ void UStaffPeople::Roster(FADPWorld& W, const FDateTime& Now)
 	{
 		if (Find(X.Key)) continue;
 		const FADPPerson* P = SpRec(W, X.Key);
-		if (!P || P->Face.IsEmpty()) continue;
+		if (!P) continue;
+		if (P->Face.IsEmpty()) { NeverCame(*P, TEXT("no built person of the ground or fire staff is left for them")); continue; }
 		FStaff S; S.Id = P->Id; S.Name = P->Name; S.Role = P->Role; S.Face = P->Face; S.Shift = P->Shift; S.bCalledIn = X.Value;
 		if (S.Role == TEXT("taxi"))
 		{
@@ -551,7 +624,7 @@ void UStaffPeople::Roster(FADPWorld& W, const FDateTime& Now)
 		// (the ramp room with the fewest of them, the first free place beside its door)
 		int32 Bn = MAX_int32;
 		for (int32 r = 0; r < Rooms.Num(); ++r) { if (Rooms[r].bNoDoor) continue; int32 N = 0; for (const FStaff& O : Staff) if (O.Room == r) ++N; if (N < Bn) { Bn = N; S.Room = r; } }
-		if (S.Room == INDEX_NONE) continue;
+		if (S.Room == INDEX_NONE) { NeverCame(*P, TEXT("no ramp room has a staff door onto the apron")); continue; }
 		for (S.Slot = 0; Staff.ContainsByPredicate([&](const FStaff& O) { return O.Room == S.Room && O.Slot == S.Slot; }); ++S.Slot) {}
 		Staff.Add(MoveTemp(S));
 	}
@@ -572,7 +645,7 @@ void UStaffPeople::Tick(float Dt)
 		// (the apron's crew and vehicles are in: the airport has loaded)
 		if (!Tugs.IsValid()) for (TActorIterator<ATugs> It(GetWorld()); It; ++It) { Tugs = *It; break; }
 		UADPSim* Sim = UADPSim::Get(GetWorld());
-		if (Sim && Sim->IsRunning() && Tugs.IsValid()) { DropOldAsks(); Roster(Sim->World, Sim->Now()); CheckClaims(); }
+		if (Sim && Sim->IsRunning() && Tugs.IsValid()) { if (!bRolesChecked && bRooms) { bRolesChecked = true; CheckRoles(); } DropOldAsks(); Roster(Sim->World, Sim->Now()); CheckClaims(); }
 	}
 	if (!Tugs.IsValid()) return;
 	for (FStaff& S : Staff) StepOne(S, Dt);

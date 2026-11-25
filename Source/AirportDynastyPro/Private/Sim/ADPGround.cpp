@@ -67,7 +67,7 @@ TCHAR ADPGround::CodeOf(const FString& TypeId)
 
 int32 ADPGround::OnShift(const FADPWorld& W, const FString& AirlineId, const FString& Role, const FString& Icao, const FDateTime& Utc) { return GrOnShift(W, AirlineId, Role, Icao, Utc); }
 
-void ADPGround::TeamNeeds(TMap<FString, int32>& Out) { Out = {{TEXT("fuel"), 2}, {TEXT("catering"), 2}, {TEXT("cleaning"), 3}, {TEXT("ground"), 5}, {TEXT("checkin"), 3}, {TEXT("security"), 3}}; }
+void ADPGround::TeamNeeds(TMap<FString, int32>& Out) { Out = {{TEXT("fuel"), 1}, {TEXT("catering"), 2}, {TEXT("cleaning"), 3}, {TEXT("ground"), 5}, {TEXT("checkin"), 3}, {TEXT("security"), 3}, {TEXT("gate"), 1}, {TEXT("water"), 1}, {TEXT("deice"), 2}, {TEXT("bus"), 1}, {TEXT("taxi"), 1}}; }
 
 bool ADPGround::BuyVehicle(FADPWorld& W, const FString& AirlineId, const FString& Kind, const FDateTime& At, FString& Why)
 {
