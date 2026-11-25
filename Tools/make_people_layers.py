@@ -574,9 +574,10 @@ def bake(name):
     if sk.get_editor_property('skeleton') != bsk.get_editor_property('skeleton'):
         raise Fail('another skeleton')
     a, b = sk.get_bounds(), bsk.get_bounds()
-    # (what the clothes hide is cut off some bodies, so a body can end at the knees: its top is what has to fit)
-    if abs(a.origin.z + a.box_extent.z - b.origin.z - b.box_extent.z) > 25 or not -10 < a.origin.z - a.box_extent.z < b.origin.z - b.box_extent.z + 5:
-        raise Fail('size %s is not the body\'s %s' % (a.box_extent, b.box_extent))
+    # (the body ends at the neck: the soles have to fit, and a head with its hair on top, 15 to 75 cm)
+    low, high = (a.origin.z - a.box_extent.z) - (b.origin.z - b.box_extent.z), (a.origin.z + a.box_extent.z) - (b.origin.z + b.box_extent.z)
+    if abs(low) > 12 or not 15 < high < 75:
+        raise Fail("soles %.1f cm, head %.1f cm off the ends of the body" % (low, high))
     if not eal.save_asset(path, False):
         raise Fail('cannot be saved')
     flags = sorted({base_of(m).get_name() for m in pal.mats if not base_of(m).get_editor_property('used_with_skeletal_mesh')})

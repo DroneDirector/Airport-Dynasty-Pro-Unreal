@@ -8,6 +8,7 @@
 #     (per-instance custom data 0: 0 off .. 1 full), so every lamp flashes in its own pattern.
 # FireTruck.cpp puts them on the trucks (copying each original material's own colours and settings).
 #   UnrealEditor-Cmd.exe AirportDynastyPro.uproject -ExecutePythonScript="<abs>/Tools/set_truck_materials.py" -unattended
+import os, stat
 import unreal
 eal = unreal.EditorAssetLibrary
 mel = unreal.MaterialEditingLibrary
@@ -19,8 +20,14 @@ WHITE = unreal.load_asset('/Engine/EngineResources/WhiteSquareTexture')
 TLM_SURF = next((getattr(unreal.TranslucencyLightingMode, n) for n in dir(unreal.TranslucencyLightingMode) if n.upper().startswith('TLM_SURFACE')), None)
 MPC = unreal.load_asset('/Game/Weather/MPC_Weather')
 
+def writable(p):
+    # (a .uasset is read-only after a commit: the save then fails without an error)
+    f = os.path.join(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_content_dir()), p[len('/Game/'):] + '.uasset')
+    if os.path.isfile(f) and not os.access(f, os.W_OK): os.chmod(f, stat.S_IWRITE | stat.S_IREAD)
+
 def mat(name):
     p = D + '/' + name
+    writable(p)
     m = unreal.load_asset(p)
     if m: mel.delete_all_material_expressions(m)
     else: m = at.create_asset(name, D, unreal.Material, unreal.MaterialFactoryNew())
