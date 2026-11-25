@@ -1,0 +1,146 @@
+# The last run before the publish (269): frames again, and only the five pictures the owner named: outside the main hall, inside the
+# apron bus, the gate windows from inside dry and in rain with aircraft parked in front, a talk with its card.
+#   FINAL_VIEWS=final2 bash Tools/final_run.sh
+cmd r.VSync 0
+speed 1 1
+hour 13
+weather 2
+wait 20
+speed 10 1
+people 8 150
+speed 1 1
+lives
+# --- A: frames, dry day
+view 75 1.7 -45 -90 0
+wait 4
+measure 10 A landside doors
+view 79 1.6 2.9 -90 0
+wait 4
+measure 10 A hall
+view 76 1.6 1.8 -132 8
+wait 4
+measure 10 A hall screens
+view -400 1.6 40 0 2
+wait 4
+measure 10 A apron
+view 87.5 7.7 60 0 0
+wait 4
+measure 10 A upstairs
+view -1209 1.6 55.9 90 7
+wait 4
+measure 10 A station
+view -1130 1.6 44.8 -5 -5
+wait 4
+measure 10 A drive
+look 35 0 1.7 tower
+wait 4
+measure 10 A tower close
+view 60 1.7 -38 180 -12
+wait 4
+measure 10 A behind the terminal, road west
+view 110 1.7 -38 0 -12
+wait 4
+measure 10 A behind the terminal, road east
+view -120 1.7 290 -60 2
+wait 4
+measure 10 A remote apron
+view -284 2.2 279 -90 -4
+wait 4
+measure 10 A vehicle area
+follow 20 A in the crowd
+# --- B: the same views dry, in rain, in rain without the drops on the glass
+rel 5.2 0.85 1.9 0 -3 Apron bus 1
+wait 4
+measure 10 B dry: cab windscreen
+view 87.5 7.7 60 0 0
+wait 4
+measure 10 B dry: gate windows
+view 79.5 1.7 -62 -90 5
+wait 4
+measure 10 B dry: facade
+look 0 90 2 jetway
+wait 4
+measure 10 B dry: jetway
+view -400 1.6 40 0 2
+wait 4
+measure 10 B dry: apron
+# the two dry pictures
+view 79.5 1.7 -62 -90 5
+shot4k hall-outside
+park
+view 103 7.7 81 -75 0
+wait 6
+shot4k gate-windows-dry
+parkoff
+weather 5
+wait 60
+lives
+rel 5.2 0.85 1.9 0 -3 Apron bus 1
+wait 4
+measure 10 B rain: cab windscreen
+view 87.5 7.7 60 0 0
+wait 4
+measure 10 B rain: gate windows
+view 79.5 1.7 -62 -90 5
+wait 4
+measure 10 B rain: facade
+look 0 90 2 jetway
+wait 4
+measure 10 B rain: jetway
+view -400 1.6 40 0 2
+wait 4
+measure 10 B rain: apron
+cmd adp.GlassRain 0
+wait 5
+rel 5.2 0.85 1.9 0 -3 Apron bus 1
+wait 4
+measure 10 B rain, no drops: cab windscreen
+view 87.5 7.7 60 0 0
+wait 4
+measure 10 B rain, no drops: gate windows
+view 79.5 1.7 -62 -90 5
+wait 4
+measure 10 B rain, no drops: facade
+look 0 90 2 jetway
+wait 4
+measure 10 B rain, no drops: jetway
+view -400 1.6 40 0 2
+wait 4
+measure 10 B rain, no drops: apron
+cmd adp.GlassRain 1
+wait 20
+park
+view 103 7.7 81 -75 0
+wait 6
+shot4k gate-windows-rain
+parkoff
+weather 2
+# --- C: functions
+cmd adp.BreakVehicle catering
+wait 10
+lives
+view 76 1.6 1.8 -132 8
+measure 40 C hall boards over two page turns and more
+lives
+view 79 1.6 2.9 -90 0
+wait 2
+talk
+measure 10 C talk camera
+shotui talk-card
+wait 3
+talkend
+until 60 broken
+rel 3 0 1.8 180 -4 Apron bus
+shot4k apron-bus-inside
+speed 10 1
+until 120 charging
+until 150 aboard@PassengerStairs
+until 120 aboard@Apron bus
+speed 1 1
+lives
+follow 20 D in the crowd
+lives
+hour live
+weather live
+wait 5
+quit

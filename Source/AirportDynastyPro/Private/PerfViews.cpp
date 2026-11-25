@@ -24,6 +24,7 @@
 //   lives                                 what is true now, into the log
 //   weather live                          the real weather again (hour live: the real time)
 // The camera never stands in or goes through anything: a view in something solid is left out, a flight ends before it.
+//   park / parkoff                        an A320 on every free narrow-body stand at the terminal, for a picture; away again
 //   quit
 #include "PerfViews.h"
 #include "PeopleLayers.h"
@@ -59,6 +60,8 @@
 #include "UObject/UObjectIterator.h"
 #include "UObject/StrongObjectPtr.h"
 #include "BabylonModel.h"
+#include "Airfield.h"
+#include "ParkedAircraft.h"
 #include "GSE.h"
 #include "BusCharge.h"
 #include "GlassRain.h"
@@ -80,6 +83,7 @@ namespace ADPPerfViewsInternal
 	double Until = 0.0, FlyStart = 0.0, FlyLen = 0.0; FString Name; TArray<float> Fr, Gp, Rn, Gm; uint64 Shown0 = 0, Made0 = 0; double MStart = 0.0;
 
 	TArray<TStrongObjectPtr<UTextureRenderTarget2D>> Eaten;
+	TArray<TWeakObjectPtr<ABabylonModel>> ForPicture;   // (park)
 
 	UWorld* ViewsWorld()
 	{
@@ -688,6 +692,19 @@ namespace ADPPerfViewsInternal
 		}
 		else if (K == TEXT("shot")) FScreenshotRequest::RequestScreenshot(A, false, false);
 		else if (K == TEXT("shotui")) FScreenshotRequest::RequestScreenshot(A, true, false);   // (with the stats on it)
+		else if (K == TEXT("park"))
+		{
+			TActorIterator<AAirfield> F(W);
+			if (!F) { ADP_WARN(TEXT("Views: no airfield, nothing parked")); return true; }
+			TSet<FName> Taken; TSet<ABabylonModel*> Before;
+			for (TActorIterator<ABabylonModel> It(W); It; ++It) { Before.Add(*It); Taken.Append(It->Tags); }
+			FAirfieldData Free = F->Data();
+			Free.Stands.RemoveAll([&](const FAirfieldData::FStand& St) { return St.bRemote || Taken.Contains(FName(*(St.Id + TEXT("/A320")))); });
+			const int32 N = ADPParked::Place(W, Free);
+			for (TActorIterator<ABabylonModel> It(W); It; ++It) if (!Before.Contains(*It)) ForPicture.Add(*It);
+			ADP_LOG(TEXT("Views: %d aircraft parked for the picture"), N);
+		}
+		else if (K == TEXT("parkoff")) { for (const auto& M : ForPicture) if (M.IsValid()) M->Destroy(); ForPicture.Reset(); }
 		else if (K == TEXT("quit")) { ADP_LOG(TEXT("Views: done")); FPlatformMisc::RequestExit(false); return false; }
 		else if (!L.IsEmpty() && !L.StartsWith(TEXT("#"))) ADP_WARN(TEXT("Views: not understood: %s"), *L);
 		return true;

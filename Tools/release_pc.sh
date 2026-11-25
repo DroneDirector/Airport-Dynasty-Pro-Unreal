@@ -22,6 +22,8 @@ grep -q "\"$V\"" pc-version.json || { echo "STOP: pc-version.json is not $V - bu
 if [ "$4" != "--upload" ]; then
   if [ "$4" != "--after-package" ]; then   # (--after-package: the package in F:/ADP-Packaged/$V is done, carry on from the exe check)
   tasklist | grep -qi "UnrealEditor.exe" && { echo "STOP: an Unreal editor is running"; exit 1; }
+  # every import brings its own copies of shared textures (1094 of them, 4 GB, filled the graphics memory: 2026-11-25)
+  python -I Tools/share_textures.py check || { echo "STOP: share the textures first"; exit 1; }
   # the holographic map traced from the terminal as it stands (owner, 2026-11-19: every new part on the map, always):
   # the editor's own build first, then its game cuts every wall at walking height -> Data/holomap-walls.json
   echo "== the holographic map's walls traced from the terminal"

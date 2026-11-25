@@ -137,7 +137,7 @@ void STalkCard::MakeTop()
 {
 	if (!Top.IsValid()) return;
 	Top->ClearChildren();
-	const FLinearColor White(1.f, 1.f, 1.f), Soft = TcRgb(190, 206, 222, 0.9f), Label = TcRgb(160, 182, 204, 0.85f), Blue = TcRgb(122, 196, 255);
+	const FLinearColor White(1.f, 1.f, 1.f), Soft = TcRgb(190, 206, 222, 0.9f), Caption = TcRgb(160, 182, 204, 0.85f), Blue = TcRgb(122, 196, 255);
 	Top->AddSlot().AutoHeight()
 	[
 		SNew(SHorizontalBox)
@@ -169,16 +169,16 @@ void STalkCard::MakeTop()
 	}
 	if (Card.Cells.Num())
 	{
-		TSharedRef<SUniformGridPanel> Grid = SNew(SUniformGridPanel).SlotPadding(FMargin(0, 4, 10, 4));
+		TSharedRef<SUniformGridPanel> Facts = SNew(SUniformGridPanel).SlotPadding(FMargin(0, 4, 10, 4));
 		for (int32 i = 0; i < Card.Cells.Num(); ++i)
-			Grid->AddSlot(i % 4, i / 4)
+			Facts->AddSlot(i % 4, i / 4)
 			[
 				SNew(SVerticalBox)
-				+ SVerticalBox::Slot().AutoHeight()[TcText(Card.Cells[i].Key, 7, Label, "Bold", 80)]
+				+ SVerticalBox::Slot().AutoHeight()[TcText(Card.Cells[i].Key, 7, Caption, "Bold", 80)]
 				+ SVerticalBox::Slot().AutoHeight().Padding(0, 1, 0, 0)
 				[SNew(STextBlock).Font(TcFont(11)).ColorAndOpacity(FSlateColor(White)).WrapTextAt(126.f).Text(FText::FromString(Card.Cells[i].Value))]
 			];
-		Top->AddSlot().AutoHeight().Padding(0, 12, 0, 0)[Grid];
+		Top->AddSlot().AutoHeight().Padding(0, 12, 0, 0)[Facts];
 	}
 	if (!Card.Status.IsEmpty())
 	{

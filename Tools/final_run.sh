@@ -14,7 +14,7 @@ back() { if [ -f "$I.before-run" ]; then mv -f "$I.before-run" "$I"; else rm -f 
 trap back EXIT
 printf '[/Script/Engine.RendererSettings]\nr.Nanite.Streaming.StreamingPoolSize=160\n\n[/Script/Engine.VirtualTexturePoolConfig]\nDefaultSizeInMegabyte=8\n' > "$I"
 touch Saved/NewGameTest/final-start
-NG_LIMIT=2700 NG_CAREER=Saved/NewGameTest/chain/chaintest-3.json NG_ONLY=continue NG_SIZE="3840 1080" bash Tools/new_game_test.sh --packaged "$PK" -ChainTest=3 -RemoteStands -FeetCheck -StallWatch=30 -BoardDump "-UIPerfViews=$(cygpath -m "$PWD")/Tools/views/final.txt" > Saved/NewGameTest/final-run.out 2>&1
+NG_LIMIT=2700 NG_CAREER=Saved/NewGameTest/chain/chaintest-3.json NG_ONLY=continue NG_SIZE="3840 1080" bash Tools/new_game_test.sh --packaged "$PK" -ChainTest=3 -RemoteStands -FeetCheck -StallWatch=30 -BoardDump "-UIPerfViews=$(cygpath -m "$PWD")/Tools/views/${FINAL_VIEWS:-final}.txt" > Saved/NewGameTest/final-run.out 2>&1
 L=Saved/NewGameTest/continue/log.txt; PL="$LA/Logs/ADP-Perf.log"
 [ "$L" -nt Saved/NewGameTest/final-start ] || { echo "the run left no new log (see Saved/NewGameTest/final-run.out)"; exit 6; }
 texts() { sed -E 's/^\[[^]]*\](\[[^]]*\])?//; s/[0-9]+(\.[0-9]+)?/N/g' | cut -c1-180 | sort | uniq -c | sort -rn | head -40; }

@@ -3,6 +3,7 @@
 # whose imported picture is the same to the last bit and whose settings are the same become one.
 # Run after an import, before packaging (plain Python; starts the editor without a window by itself):
 #   python -I Tools/share_textures.py          counts them only
+#   python -I Tools/share_textures.py check    fails if there are any (no editor; Tools/release_pc.sh does it)
 #   python -I Tools/share_textures.py apply    shares them, and deletes the copies nothing uses any more
 import os, sys, json, struct, subprocess, traceback
 from pathlib import Path
@@ -31,6 +32,8 @@ def outside(apply):
         groups.setdefault(b[i + 28:i + 48].hex(), []).append('/Game/Babylon/' + p.relative_to(root / 'Content' / 'Babylon').as_posix()[:-7])
     groups = [sorted(v) for v in groups.values() if len(v) > 1]
     print(n, 'textures,', sum(len(v) - 1 for v in groups), 'copies of', len(groups))
+    if 'check' in sys.argv:
+        sys.exit('textures there more than once: run python -I Tools/share_textures.py apply' if groups else 0)
     WORK.write_text(json.dumps({'apply': apply, 'groups': groups}))
     OUT.unlink(missing_ok=True)
     subprocess.run([EDITOR, str(root / 'AirportDynastyPro.uproject'), '-ExecutePythonScript=' + Path(__file__).resolve().as_posix(), '-unattended', '-nullrhi'],
