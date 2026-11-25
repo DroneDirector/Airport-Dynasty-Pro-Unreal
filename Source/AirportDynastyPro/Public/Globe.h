@@ -36,7 +36,7 @@ class AIRPORTDYNASTYPRO_API AGlobe : public AActor
 	/** The airfield's boundary (plan metres): the terrain is cut away inside it, its own ground is the airfield's. */
 	FBox2D Airfield = FBox2D(ForceInit);
 	int32 PawnOnTerrain = -1;
-	bool bNoBuoyancy = false;
+	bool bNoBuoyancy = false; double NextBuoyancy = 0.0;
 
 public:
 	/** The terrain's layer.json the globe uses (empty: none installed - the smooth globe; nothing placed at real heights may show). */

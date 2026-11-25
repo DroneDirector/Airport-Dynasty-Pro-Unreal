@@ -390,7 +390,7 @@ void AGlobe::Tick(float Dt)
 	Super::Tick(Dt);
 	// (248: the engine's water floats nothing here, and its buoyancy manager went through all of the terrain's thousands of
 	//  parts again for every tile that came or went - the longest halts at the jetways. Without it nothing looks for floats)
-	if (!bNoBuoyancy)
+	if (!bNoBuoyancy && GetWorld()->GetTimeSeconds() >= NextBuoyancy && (NextBuoyancy = GetWorld()->GetTimeSeconds() + 1.0) > 0.0)   // (a look once a second until it is found)
 		for (TActorIterator<AActor> It(GetWorld()); It; ++It)
 			if (It->GetClass()->GetFName() == TEXT("BuoyancyManager")) { It->Destroy(); bNoBuoyancy = true; ADP_LOG(TEXT("Globe: the engine's buoyancy manager is off, nothing floats here")); break; }
 	// (278: terrain tiles more than 100 km across the middle - the far side of the Earth, in view only from hundreds of
