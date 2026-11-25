@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "TalkLook.h"
 #include "DriverPoseAnim.generated.h"
 
 USTRUCT()
@@ -18,6 +19,7 @@ struct FDriverPoseProxy : public FAnimInstanceProxy
 	virtual void PreUpdate(UAnimInstance* In, float Dt) override;
 	virtual bool Evaluate(FPoseContext& Output) override;
 	TArray<FTransform> Local;
+	FTalkLookLayer Look;   // (the one you talk to: the neck and head to you, TalkLook.h)
 };
 
 UCLASS(Transient, NotBlueprintable)

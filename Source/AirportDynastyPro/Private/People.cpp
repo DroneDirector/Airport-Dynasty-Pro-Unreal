@@ -1,6 +1,7 @@
 #include "People.h"
 #include "PeopleLayers.h"
 #include "TalkCamera.h"
+#include "TalkLook.h"
 #include "PaxAnimInstance.h"
 #include "ADPLog.h"
 #include "PerfLog.h"
@@ -313,17 +314,20 @@ void AADPPeople::Open(AActor* Who)
 	bMenu = true; MenuWho = Who; AInteractOutline::Hide = (uint64)(UPTRINT)Who;   // (no outline on them while you talk)
 	if (W->bUnruly && !SceneOn()) ShowConduct(); else ShowStart();
 	Face(Who, GetWorld()->GetFirstPlayerController() && GetWorld()->GetFirstPlayerController()->GetPawn() ? GetWorld()->GetFirstPlayerController()->GetPawn()->GetActorLocation() : Who->GetActorLocation());
+	if (bMenu) ADPTalkLook::Begin(Who, W->Body);   // (their head and eyes to yours: TalkLook.h)
 	if (bMenu) ADPTalkCam::Begin(Who, W->Body, W->First);   // (the camera in on them: TalkCamera.h)
 }
 
 void AADPPeople::Close()
 {
+	ADPTalkLook::End();
 	if (bMenu) ADPTalkCam::End(TEXT("the talk is over"));
 	bMenu = false; MenuWho = nullptr; MenuOptions.Reset(); AInteractOutline::Hide = 0;
 }
 
 void AADPPeople::EndPlay(const EEndPlayReason::Type Why)
 {
+	ADPTalkLook::Drop();
 	ADPTalkCam::Drop(TEXT("the world goes"));
 	Super::EndPlay(Why);
 }
@@ -1251,6 +1255,8 @@ void AADPPeople::Tick(float Dt)
 	People.RemoveAll([](const FWho& W) { return !W.A.IsValid(); });
 	ADPLayers::Tick(GetWorld(), Dt);
 	ADPTalkCam::Tick();
+	if (!bMenu) ADPTalkLook::End();   // (however the talk ended)
+	ADPTalkLook::Tick(GetWorld(), Dt);
 	if (SubT > 0.f) SubT -= Dt;
 	if (SceneOn()) StepScene(Dt);
 	StepStrollers(Dt);

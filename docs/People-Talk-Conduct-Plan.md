@@ -80,7 +80,9 @@ Owner's design, 16 November 2026. To-do items 69a-69i. Comes after the people an
 - The menu stands beside the face while you talk. You are hidden from that view only where you would be in it.
 - Portrait lens all the while: round, full-frame 24 mm high, open as far as keeps 10 cm either side of the head's middle sharp (about f/2.5), focus on the head each frame, edges 0.4 to 0.55 darker. Depth of field is lent if the settings have it off, and given back; never saved.
 - Switch: Settings, Graphics, Talk camera; console adp.TalkCam 0|1.
-- Not there: a head that turns to you (they only turn their body), a reduced-motion setting (the game has none).
+- Head and eyes to yours (TalkLook.h/.cpp): a layer in UPaxAnimInstance and UDriverPoseAnim, so standing, seated and working people alike; upper spine, neck, head (arms in use: neck and head only), 60 degrees aside, 25 up, 30 down, in and out 0.4 s. Off: one pointer compared.
+- Eyes and blinks: the face has UTalkFaceAnim only during the talk (the rig logic's eyeLook and eyeBlink controls), 25 degrees. Headless adp.TalkLookTest: eyes within 1 degree of the point, head steps under 7 degrees in 33 ms. The camera takes its side from the shoulders, so it does not chase the head.
+- Not there: mouth movement, a reduced-motion setting (the game has none).
 
 ## Sources
 - Axon, "What does NMI (neuromuscular incapacitation) mean": taser.com/blogs/training-and-safety/what-does-nmi-or-neuromuscular-incapacitation-mean-for-my-taser-energy-device

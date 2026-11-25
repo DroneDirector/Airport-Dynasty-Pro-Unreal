@@ -22,6 +22,7 @@
 #include "CoreMinimal.h"
 #include "Animation/AnimSingleNodeInstance.h"
 #include "Animation/AnimSingleNodeInstanceProxy.h"
+#include "TalkLook.h"
 #include "PaxAnimInstance.generated.h"
 
 class USkeletalMeshComponent;
@@ -64,6 +65,7 @@ struct FPaxAnimProxy : public FAnimSingleNodeInstanceProxy
 	float ArmOut = 10.f;         // degrees the upper arm is held out from the body at full grip
 	float Twist = 0.f;           // degrees the upper body is turned from the way the feet go (+ to the right)
 	// the idle movement (copied from the instance each update)
+	FTalkLookLayer Look;   // (the one you talk to: the head to you, TalkLook.h)
 	int32 FidKind = -1; float FidKt = 0.f, FidDur = 1.f, FidFade = 0.f, FidSide = 1.f; bool bFidSeated = false;
 	FTransform DeviceCS = FTransform::Identity; float DeviceW = 0.f;   // (the phone / tablet held, component space; written on the worker)
 	// the feet (copied each update; heights over the body's own zero): the soles, the weight, the ground under each point, each
@@ -143,7 +145,7 @@ public:
 	// (read by the proxy each update; DeviceCS / DeviceW written back after each evaluation, on the game thread)
 	int32 FidKind = -1, LastFid = -1;
 	double FidStart = -1.0; float FidDur = 0.f, FidSide = 1.f; bool bFidOn = false, bFidSeated = false;
-	float StillT = 0.f, NextFidT = 0.f;
+	float StillT = 0.f, NextFidT = 0.f; bool bLooks = false;   // (bLooks: looking at you, TalkLook.h)
 	FTransform DeviceCS = FTransform::Identity; float DeviceW = 0.f; int32 DeviceKind = -1;
 	/** (the proxy's, each update on the game thread: the ground under the feet, near the camera) */
 	void StepFeet(float Dt, FPaxAnimProxy& P);

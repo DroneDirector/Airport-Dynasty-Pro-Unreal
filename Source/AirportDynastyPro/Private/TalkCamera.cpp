@@ -214,7 +214,7 @@ namespace
 		{
 			const FVector L = Fc->GetSocketLocation(TEXT("FACIAL_L_Eye")), R = Fc->GetSocketLocation(TEXT("FACIAL_R_Eye")), M = (L + R) * 0.5;
 			// (a face not posed yet stands elsewhere: the body's head is believed then)
-			if (FVector::Dist(M, Head) < 25.0) { O.Eye = M; const FVector D = (FVector::UpVector ^ (L - R)).GetSafeNormal2D(); if (!D.IsNearlyZero()) Fwd = D; }
+			if (FVector::Dist(M, Head) < 25.0) O.Eye = M;   // (which way: the shoulders, never the eyes - the head follows the camera, TalkLook.h, the camera must not follow the head)
 		}
 		O.Yaw = float(Fwd.Rotation().Yaw); O.Top = float(Head.Z) + GT.Crown + GT.Hair + 1.5f;
 		// (a head bent or lying: never a picture upside down)
@@ -355,6 +355,8 @@ void Tick()
 	if (GFrameCounter > GT.LastFrame + 4) { Drop(TEXT("another view than your own")); return; }
 	if (!GTalkCam) End(TEXT("switched off"));
 }
+
+float Amount() { return GT.Phase == EPhase::None ? 0.f : GT.A; }
 
 float PanelShift(float Scale, const FVector2D& LocalSize)
 {

@@ -118,6 +118,8 @@ void FPaxAnimProxy::PreUpdate(UAnimInstance* In, float Dt)
 			FidFade = FMath::FInterpConstantTo(FidFade, 0.f, Dt, 3.f);
 			if (FidFade <= 0.001f && !bRun) FidKind = EPaxFidget::None;
 		}
+		Look.Update(In->GetSkelMeshComponent(), Dt, A->bGripRight || A->Device != 0 || FidFade > 0.01f);
+		A->bLooks = Look.IsOn();
 	}
 }
 
@@ -397,6 +399,7 @@ bool FPaxAnimProxy::Evaluate(FPoseContext& Output)
 		// (the arms in towards the body: the one with a bag keeps its grip, held less far out)
 		ArmOut *= 1.f - 0.7f * FMath::Abs(Twist) / 42.f;
 	}
+	Look.Apply(Pose);
 	if (FeetW > 0.001f && Soles.bOk && bFidRig) Feet(Pose);   // (last: the legs as they are by now)
 	if (Grip <= 0.001f) return bOk;
 	const float W = FMath::SmoothStep(0.f, 1.f, Grip);
@@ -711,11 +714,14 @@ bool UPaxAnimInstance::FidgetSeatedOk(int32 K)
 	return K == EPaxFidget::LookAround || K == EPaxFidget::Phone || K == EPaxFidget::NeckRoll;
 }
 
+namespace { bool LooksAway(int32 K) { return K == EPaxFidget::Stretch || K == EPaxFidget::Watch || K == EPaxFidget::LookAround || K == EPaxFidget::NeckRoll || K == EPaxFidget::Phone || K == EPaxFidget::RubNeck || K == EPaxFidget::Tablet; } }
+
 int32 UPaxAnimInstance::PickFidget(bool bSeated, bool bRightHandBusy) const
 {
 	TArray<int32, TInlineAllocator<16>> Can;
 	for (int32 K = 0; K < EPaxFidget::Num; ++K)
 	{
+		if (bLooks && LooksAway(K)) continue;                             // (talking to you: nothing that looks elsewhere)
 		if (K == LastFid) continue;                                       // (never the same twice running)
 		if (bSeated && !FidgetSeatedOk(K)) continue;                      // (seated: only the subtle ones)
 		if (bRightHandBusy && FidgetUsesRightArm(K)) continue;            // (a bag in the right hand)
@@ -734,7 +740,7 @@ void UPaxAnimInstance::IdleFidgets(float Dt, bool bStill, bool bSeated, bool bRi
 	if (StillT < 30.f) return;   // (only after half a minute of standing / sitting still)
 	if (IsFidgeting())
 	{
-		if ((bRightHandBusy && FidgetUsesRightArm(FidKind)) || (bSeated && !FidgetSeatedOk(FidKind))) StopFidget();
+		if ((bLooks && LooksAway(FidKind)) || (bRightHandBusy && FidgetUsesRightArm(FidKind)) || (bSeated && !FidgetSeatedOk(FidKind))) StopFidget();
 		return;
 	}
 	bFidOn = false;
