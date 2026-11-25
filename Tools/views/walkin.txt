@@ -1,0 +1,32 @@
+# passengers on their way in (269): a save point of the career test, two hours before its flight; watched live, the camera beside them
+# NG_CAREER=Saved/NewGameTest/chain/chaintest-3.json NG_ONLY=continue NG_SIZE="3840 1080" bash Tools/new_game_test.sh --packaged <folder> -ChainTest=3 -UIPerfViews=<this>
+cmd r.VSync 0
+speed 1 1
+wait 5
+measure 8 at the start
+speed 10 1
+people 8 120
+follow 45 they come (career 10x)
+people 25 120
+speed 1 1
+follow 30 walking in 1
+follow 30 walking in 2
+view 79 1.6 2.9 -90 0
+wait 3
+measure 12 hall one way
+view 79 1.6 2.9 90 0
+wait 3
+measure 12 hall other way
+speed 10 1
+follow 60 more come (career 10x)
+speed 1 1
+follow 30 walking in 3
+view 75 1.6 -45 -90 0
+wait 4
+measure 10 doors from outside
+fly 75 1.6 -8 -90 0 14
+follow 70 over a minute (autosaves and a clean-up)
+view -400 1.6 40 0 2
+wait 4
+measure 6 apron towards hall
+quit
