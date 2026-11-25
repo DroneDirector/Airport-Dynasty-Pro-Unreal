@@ -1,6 +1,7 @@
 // Ground handling, stands and gates - see Sim/ADPGround.h.
 #include "Sim/ADPGround.h"
 #include "Sim/ADPEconomy.h"
+#include "Sim/ADPVehicleArea.h"
 #include "Sim/ADPWorldData.h"
 #include "Sim/ADPBoards.h"
 #include "Sim/ADPStaff.h"
@@ -68,13 +69,21 @@ int32 ADPGround::OnShift(const FADPWorld& W, const FString& AirlineId, const FSt
 
 void ADPGround::TeamNeeds(TMap<FString, int32>& Out) { Out = {{TEXT("fuel"), 2}, {TEXT("catering"), 2}, {TEXT("cleaning"), 3}, {TEXT("ground"), 5}, {TEXT("checkin"), 3}, {TEXT("security"), 3}}; }
 
-bool ADPGround::BuyVehicle(FADPWorld& W, const FString& AirlineId, const FString& Kind, const FDateTime& At)
+bool ADPGround::BuyVehicle(FADPWorld& W, const FString& AirlineId, const FString& Kind, const FDateTime& At, FString& Why)
 {
 	FADPAirline* A = W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == AirlineId; });
-	const double Price = Kind == TEXT("fuel") ? 260000.0 : Kind == TEXT("catering") ? 185000.0 : Kind == TEXT("tractor") ? 65000.0 : 0.0;
-	if (!A || Price <= 0.0 || A->Balance < Price) return false;
-	ADPEconomy::Pay(W, AirlineId, At, TEXT("purchase"), -Price, FString::Printf(TEXT("A new %s vehicle for the apron"), *Kind));
-	(Kind == TEXT("fuel") ? A->FuelTrucks : Kind == TEXT("catering") ? A->CateringTrucks : A->Tractors)++;
+	const ADPVehicleArea::FKind* K = ADPVehicleArea::Kind(Kind);
+	const bool bTractor = Kind == TEXT("tractor"), bFuel = Kind == TEXT("fuel"), bCater = Kind == TEXT("catering");   // (counted for the turnaround as before)
+	if (!A || (!K && !bTractor)) { Why = TEXT("no such vehicle"); return false; }
+	const double Price = K ? K->Price : 65000.0; const FString Label = K ? K->Label : FString(TEXT("baggage tractor"));
+	// (a tractor, and any bought while there is no vehicle area, is counted only)
+	const bool bArea = K && ADPVehicleArea::Built(); const ADPVehicleArea::FPlace* P = bArea ? ADPVehicleArea::FirstFree(W, *K) : nullptr;
+	if (K && !bArea && !bFuel && !bCater) { Why = TEXT("there is no vehicle area to keep it at yet"); return false; }
+	if (bArea && !P) { Why = FString::Printf(TEXT("the vehicle area is full: no free place for a %s"), *Label); return false; }
+	if (A->Balance < Price) { Why = TEXT("not enough money"); return false; }
+	ADPEconomy::Pay(W, AirlineId, At, TEXT("purchase"), -Price, FString::Printf(TEXT("A new %s for the apron"), *Label));
+	if (bFuel) A->FuelTrucks++; else if (bCater) A->CateringTrucks++; else if (bTractor) A->Tractors++;
+	if (P) { FADPSpare S; S.Kind = K->Key; S.Place = P->Name; A->Spares.Add(S); }
 	return true;
 }
 

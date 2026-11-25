@@ -201,43 +201,49 @@ const TArray<FServiceSpec>& ADPService::All()
 const TCHAR* AGSE::SvcModel(int32 Svc) { return SvSpec(Svc).Model; }
 FVector AGSE::SvcP(const FTractor& T, const TCHAR* Name) const { const FVector* V = T.Pt.Find(Name); return V ? *V : FVector::ZeroVector; }
 
+/** One vehicle of line i of the table into its place (n: the bus's row; Sp: a bought one, on its place at the vehicle area). */
+bool AGSE::SvcSpawn(int32 i, int32 n, const FSpareAt* Sp)
+{
+	const FServiceSpec& S = SvSpec(i);
+	FVehicleSpec V; if (!V.Load(S.Points)) return false;
+	AApronBuses* Bs = S.bBus ? AApronBuses::Get(GetWorld()) : nullptr; if (S.bBus && !Bs) return false;
+	FTractor T; T.Svc = i; T.Pt = V.P; T.Name = S.Label;
+	float Yw = 0.f; T.Home = T.At = PlanPose(S.HomeX, S.HomeY, S.HomeHx, S.HomeHy, Yw);
+	if (Bs && !Sp) { const AApronBuses::FBus& Bx = Bs->All()[n]; const float H = FMath::DegreesToRadians(Bx.Heading); T.Name = Bx.Name; T.Home = T.At = PlanPose(Bx.X, Bx.Y, FMath::Cos(H), FMath::Sin(H), Yw); }
+	if (Sp) { const float H = FMath::DegreesToRadians(Sp->Heading); T.bSpare = true; T.SpareId = Sp->Id; T.Owner = Sp->Owner; T.Name = Sp->Name; T.Home = T.At = PlanPose(Sp->X, Sp->Y, FMath::Cos(H), FMath::Sin(H), Yw); }
+	T.HomeYaw = T.Yaw = Yw;
+	static const TCHAR* W[] = {TEXT("FL"), TEXT("FR"), TEXT("RL"), TEXT("RR")};
+	for (int32 w = 0; w < 4; ++w) T.KWheel[w] = V.At(*(FString(TEXT("PIV_Wheel_")) + W[w]));
+	for (int32 w = 0; w < 2; ++w) T.KKing[w] = V.At(*(FString(TEXT("PIV_Steer_")) + W[w]));
+	T.KHinge = V.At(TEXT("PIV_DoorDriver")); T.KWheelC = V.At(TEXT("PIV_SteeringWheel")); T.KStand = V.At(TEXT("IK_Stand_DoorDriver")); T.KHandle = V.At(TEXT("IK_Handle_DoorDriver_Out"));
+	T.KStep = V.At(TEXT("IK_Step_DoorDriver")); T.KGrabOut = V.At(TEXT("IK_Grab_L")); T.KGrabIn = T.KGrabOut + FVector(8.f, 4.f, -12.f); T.KSeat = V.At(TEXT("IK_Seat_SeatDriver"));
+	T.KBrake = V.At(TEXT("IK_Foot_Rest")); T.KAccel = V.At(TEXT("IK_Foot_Accel")); T.KHandL = V.At(TEXT("IK_Hand_Wheel_L")); T.KHandR = V.At(TEXT("IK_Hand_Wheel_R"));
+	T.KRadF = float(T.KWheel[0].Z); T.KRadR = float(T.KWheel[2].Z); T.KWB = float(T.KWheel[0].X - T.KWheel[2].X); T.KTrack = float(FMath::Abs(T.KWheel[0].Y) * 2.0); T.KFloor = S.Wet ? 82.f : float(V.At(TEXT("IK_Aisle_Row0")).Z);
+	if (S.bStairs || S.bAmbu) T.Pt.Remove(TEXT("IK_Step_DoorDriver_Low"));   // (one low step, not a truck's two)
+	T.KHalfL = S.HalfL; T.KHalfW = S.HalfW; T.KCentreX = 0.f; T.KTurnR = S.TurnR; T.KMaxSteer = S.MaxSteer; T.KDoorDeg = S.DoorDeg;
+	T.SndStart = TEXT(""); T.SndLoop = TEXT("BLDriveLoop"); T.SndStop = TEXT(""); T.SndDoorOpen = TEXT("BLDoorOpen"); T.SndDoorClose = TEXT("BLDoorClose"); T.SndBeep = TEXT("BLReverseBeep"); T.SndHorn = TEXT("BLHorn");   // (the diesel horn, as its motor and doors: no horn of its own kind yet)
+	if (Bs) { T.KWheelAx = FVector(-0.5145f, 0.f, 0.8575f); T.SndStart = TEXT("ABReady"); T.SndLoop = TEXT("ABDriveLoop"); T.SndStop = TEXT("ABShutdown"); T.SndDoorOpen = TEXT("ABDoorOpen"); T.SndDoorClose = TEXT("ABDoorClose"); T.SndBeep = TEXT("ABReverseBeep"); T.SndHorn = TEXT("ABHorn"); }
+	if (!SpawnTractor(T)) return false;
+	if (Bs) Bs->Adopt(n, T.M.Get());
+	Tractors.Add(T); SvcLivery(Tractors.Last());
+	if (S.bStairs) { ADP_LOG(TEXT("GSE: %s in its box at plan (%.0f, %.0f)"), *T.Name, T.Home.X / 100.f, -T.Home.Y / 100.f); return true; }   // (solid by its own boxes: you can walk up them)
+	// (solid for you on foot - its parts have no collision of their own)
+	UBoxComponent* B = NewObject<UBoxComponent>(T.M.Get()); B->SetupAttachment(T.M->GetRootComponent()); B->SetRelativeLocation(FVector(0.f, 0.f, S.bFuel || S.bBus ? 165.f : S.bCater ? 190.f : 135.f)); B->SetBoxExtent(FVector(T.KHalfL - 4.f, T.KHalfW - 4.f, S.bBus ? 146.f : S.bFuel ? 135.f : S.bCater ? 160.f : 105.f));
+	B->SetCollisionEnabled(ECollisionEnabled::QueryOnly); B->SetCollisionObjectType(ECC_WorldDynamic); B->SetCollisionResponseToAllChannels(ECR_Ignore); B->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block); B->SetCanEverAffectNavigation(false); B->RegisterComponent(); T.M->AddInstanceComponent(B);
+	ADP_LOG(TEXT("GSE: %s in its box at plan (%.0f, %.0f)"), *T.Name, T.Home.X / 100.f, -T.Home.Y / 100.f);
+	return true;
+}
+
 void AGSE::SvcSetup()
 {
 	for (int32 i = 0; i < ADPService::All().Num(); ++i)
 	{
 		const FServiceSpec& S = SvSpec(i);
-		FVehicleSpec V; if (!V.Load(S.Points)) continue;
 		// (the apron buses: one a row of their own table; every other line is one vehicle)
 		AApronBuses* Bs = S.bBus ? AApronBuses::Get(GetWorld()) : nullptr; if (S.bBus && !Bs) continue;
 		if (Bs) Bs->Load();
 		for (int32 n = 0; n < (Bs ? Bs->All().Num() : 1); ++n)
-		{
-		FTractor T; T.Svc = i; T.Pt = V.P; T.Name = S.Label;
-		float Yw = 0.f; T.Home = T.At = PlanPose(S.HomeX, S.HomeY, S.HomeHx, S.HomeHy, Yw);
-		if (Bs) { const AApronBuses::FBus& Bx = Bs->All()[n]; const float H = FMath::DegreesToRadians(Bx.Heading); T.Name = Bx.Name; T.Home = T.At = PlanPose(Bx.X, Bx.Y, FMath::Cos(H), FMath::Sin(H), Yw); }
-		T.HomeYaw = T.Yaw = Yw;
-		static const TCHAR* W[] = {TEXT("FL"), TEXT("FR"), TEXT("RL"), TEXT("RR")};
-		for (int32 w = 0; w < 4; ++w) T.KWheel[w] = V.At(*(FString(TEXT("PIV_Wheel_")) + W[w]));
-		for (int32 w = 0; w < 2; ++w) T.KKing[w] = V.At(*(FString(TEXT("PIV_Steer_")) + W[w]));
-		T.KHinge = V.At(TEXT("PIV_DoorDriver")); T.KWheelC = V.At(TEXT("PIV_SteeringWheel")); T.KStand = V.At(TEXT("IK_Stand_DoorDriver")); T.KHandle = V.At(TEXT("IK_Handle_DoorDriver_Out"));
-		T.KStep = V.At(TEXT("IK_Step_DoorDriver")); T.KGrabOut = V.At(TEXT("IK_Grab_L")); T.KGrabIn = T.KGrabOut + FVector(8.f, 4.f, -12.f); T.KSeat = V.At(TEXT("IK_Seat_SeatDriver"));
-		T.KBrake = V.At(TEXT("IK_Foot_Rest")); T.KAccel = V.At(TEXT("IK_Foot_Accel")); T.KHandL = V.At(TEXT("IK_Hand_Wheel_L")); T.KHandR = V.At(TEXT("IK_Hand_Wheel_R"));
-		T.KRadF = float(T.KWheel[0].Z); T.KRadR = float(T.KWheel[2].Z); T.KWB = float(T.KWheel[0].X - T.KWheel[2].X); T.KTrack = float(FMath::Abs(T.KWheel[0].Y) * 2.0); T.KFloor = S.Wet ? 82.f : float(V.At(TEXT("IK_Aisle_Row0")).Z);
-		if (S.bStairs || S.bAmbu) T.Pt.Remove(TEXT("IK_Step_DoorDriver_Low"));   // (one low step, not a truck's two)
-		T.KHalfL = S.HalfL; T.KHalfW = S.HalfW; T.KCentreX = 0.f; T.KTurnR = S.TurnR; T.KMaxSteer = S.MaxSteer; T.KDoorDeg = S.DoorDeg;
-		T.SndStart = TEXT(""); T.SndLoop = TEXT("BLDriveLoop"); T.SndStop = TEXT(""); T.SndDoorOpen = TEXT("BLDoorOpen"); T.SndDoorClose = TEXT("BLDoorClose"); T.SndBeep = TEXT("BLReverseBeep"); T.SndHorn = TEXT("BLHorn");   // (the diesel horn, as its motor and doors: no horn of its own kind yet)
-		if (Bs) { T.KWheelAx = FVector(-0.5145f, 0.f, 0.8575f); T.SndStart = TEXT("ABReady"); T.SndLoop = TEXT("ABDriveLoop"); T.SndStop = TEXT("ABShutdown"); T.SndDoorOpen = TEXT("ABDoorOpen"); T.SndDoorClose = TEXT("ABDoorClose"); T.SndBeep = TEXT("ABReverseBeep"); T.SndHorn = TEXT("ABHorn"); }
-		if (SpawnTractor(T))
-		{
-			if (Bs) Bs->Adopt(n, T.M.Get());
-			Tractors.Add(T); SvcLivery(Tractors.Last());
-			if (S.bStairs) { ADP_LOG(TEXT("GSE: %s in its box at plan (%.0f, %.0f)"), *T.Name, S.HomeX, S.HomeY); continue; }   // (solid by its own boxes: you can walk up them)
-			// (solid for you on foot - its parts have no collision of their own)
-			UBoxComponent* B = NewObject<UBoxComponent>(T.M.Get()); B->SetupAttachment(T.M->GetRootComponent()); B->SetRelativeLocation(FVector(0.f, 0.f, S.bFuel || S.bBus ? 165.f : S.bCater ? 190.f : 135.f)); B->SetBoxExtent(FVector(T.KHalfL - 4.f, T.KHalfW - 4.f, S.bBus ? 146.f : S.bFuel ? 135.f : S.bCater ? 160.f : 105.f));
-			B->SetCollisionEnabled(ECollisionEnabled::QueryOnly); B->SetCollisionObjectType(ECC_WorldDynamic); B->SetCollisionResponseToAllChannels(ECR_Ignore); B->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block); B->SetCanEverAffectNavigation(false); B->RegisterComponent(); T.M->AddInstanceComponent(B);
- ADP_LOG(TEXT("GSE: %s in its box at plan (%.0f, %.0f)"), *T.Name, T.Home.X / 100.f, -T.Home.Y / 100.f);
-		}
-		}
+			SvcSpawn(i, n, nullptr);
 	}
 }
 
@@ -855,7 +861,7 @@ void AGSE::SvcTick(float Dt)
 	{
 		FSvcJob& J = SvcJobs[Jk];
 		const FServiceSpec& S = SvSpec(J.Svc);
-		int32 Ti = INDEX_NONE; for (int32 i = 0; i < Tractors.Num() && Ti == INDEX_NONE; ++i) if (Tractors[i].Svc == J.Svc && Tractors[i].Job == EJob::None && Tractors[i].M.IsValid()) Ti = i;
+		int32 Ti = INDEX_NONE; for (int32 i = 0; i < Tractors.Num() && Ti == INDEX_NONE; ++i) if (Tractors[i].Svc == J.Svc && Tractors[i].Job == EJob::None && Tractors[i].M.IsValid() && !Tractors[i].bSpare) Ti = i;
 		if (S.bStairs)
 		{
 			// (the roofed one first in rain and snow, the open one first when it is dry; a rear door only when no front door waits)
@@ -863,7 +869,7 @@ void AGSE::SvcTick(float Dt)
 			bool bFront = false; if (J.CtDoor) for (const TPair<int32, FSvcJob>& O : SvcJobs) if (O.Value.Phase == 0 && O.Value.CtDoor == 0 && SvSpec(O.Value.Svc).bStairs) bFront = true;
 			for (int32 i = 0; i < Tractors.Num() && !bFront; ++i)
 			{
-				const FTractor& V = Tractors[i]; if (V.Svc == INDEX_NONE || !SvSpec(V.Svc).bStairs || V.Job != EJob::None || !V.M.IsValid() || Held.Contains(i)) continue;
+				const FTractor& V = Tractors[i]; if (V.Svc == INDEX_NONE || !SvSpec(V.Svc).bStairs || V.Job != EJob::None || !V.M.IsValid() || V.bSpare || Held.Contains(i)) continue;
 				if (V.Ps && V.Ps->YouStandX > -1e5f) continue;   // (yours, at a door: below)
 				const int32 Sc = (SvcYours(V) || !StairsStowed(V) ? 0 : 2) + (SvSpec(V.Svc).bRoof == bWeather ? 1 : 0); if (Sc > Best) { Best = Sc; Ti = i; }
 			}

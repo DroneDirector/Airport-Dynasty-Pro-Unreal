@@ -164,10 +164,11 @@ for x in (LEG[0] + 0.4, LEG[1] - 0.4): ln('paintwhite', 0.15, 0.008, (x, 244.0),
 dash('paintwhite', 0.12, 0.008, (-245, 245), (-245, 328), 3, 6)
 ln('paintwhite', 0.5, 0.009, (-245, 178), (LEG[1] - 0.6, 178)); tx('STOP', -243.4, 175, 1.2, -90, 'white')
 ln('paintwhite', 0.5, 0.009, (LEG[0] + 0.6, 258.5), (-245, 258.5)); tx('STOP', -246.6, 261.5, 1.2, 90, 'white')
-# the depot's 6 charging bays (14 x 4 m) and the bus gate's 2 bays
-for k in range(6):
-    bx = -292.0 + k * 5.6; boxl('paintwhite', 0.15, 0.0075, bx - 2, 286, bx + 2, 300); tx(str(k + 1), bx, 283.8, 1.2, -90, 'white')
-tx('BUS DEPOT', -276, 250, 1.6, -90, 'white')
+# the vehicle area's places (Data/vehicle-area.json: the charging bays 16 x 4 m, a bus with its mirrors) and the bus gate's 2 bays
+for q in json.load(open(os.path.join(ROOT, 'Data', 'vehicle-area.json'), encoding='utf-8'))['places']:
+    hl, hw, s = q['len'] / 2, q['wid'] / 2, 1 if q['heading'] > 0 else -1
+    boxl('paintwhite', 0.15, 0.0075, q['x'] - hw, q['y'] - hl, q['x'] + hw, q['y'] + hl); tx(q['name'], q['x'], q['y'] + s * (hl + 1.7), 1.2, q['heading'], 'white')
+tx('VEHICLES', -288, 247, 1.6, -90, 'white')
 for k, bx in enumerate((-282.0, -273.0)):
     boxl('paintwhite', 0.15, 0.0075, bx - 2, 88, bx + 2, 104); tx('BUS %d' % (k + 1), bx, 106.5, 1.2, 90, 'white')
 # the stand signs: yellow figures on black boards on legs, on the grass behind the bus road, facing the pilot

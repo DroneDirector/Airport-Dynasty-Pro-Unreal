@@ -602,7 +602,7 @@ bool AGSE::BusSee(int32 Ti, FBusSee& Out) const
 
 bool AGSE::BusTry(int32 Ti, const FVector2f& To, float Heading) const
 {
-	if (!Tractors.IsValidIndex(Ti) || !Tractors[Ti].Bu) return false;
+	if (!Tractors.IsValidIndex(Ti) || !Tractors[Ti].Bu || Tractors[Ti].bSpare) return false;   // (a bought one: no crew fetches it from its bay yet)
 	const FTractor& T = Tractors[Ti]; const float a = FMath::DegreesToRadians(Heading), Ld = BusR + 8.f;
 	const FVector Lead = Plan(To.X - FMath::Cos(a) * Ld, To.Y - FMath::Sin(a) * Ld), End = Plan(To.X, To.Y);
 	FVector From = T.At; if (FVector::Dist2D(T.At, T.Home) < 200.f) From += FRotator(0.f, T.Yaw, 0.f).Vector() * 1200.f;

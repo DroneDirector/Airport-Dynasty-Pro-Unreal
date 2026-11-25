@@ -121,6 +121,7 @@ public:
 		TSharedPtr<FSvcWet> Wa;           // (the water and the toilet truck's: GSEWater.cpp)
 		TSharedPtr<FSvcClean> Cl;         // (the cleaning van's kit in your hands: GSECleanYou.cpp)
 		TSharedPtr<FSvcCater> Ct;         // (the catering high-loader's: GSECater.cpp)
+		bool bSpare = false; FString SpareId, Owner;   // (a bought one, kept at the vehicle area: kind@place and whose - GSESpare.cpp)
 		TSharedPtr<FSvcBus> Bu;           // (an apron bus's doors, driver and sounds: GSEBus.cpp)
 		FVector KWheelAx = FVector(-0.7071f, 0.f, 0.7071f);   // (its steering wheel's axis)
 		TMap<FString, FVector> Pt;        // (a service vehicle's named points, root cm: Data/<vehicle>-riders.json)
@@ -523,6 +524,11 @@ private:
 	void SvcDress(FTractor& T);
 	void SvcParts(FTractor& T, float Dt);
 	void SvcTick(float Dt);
+	// the bought vehicles at the vehicle area (GSESpare.cpp; to-do 277 E1)
+	struct FSpareAt { FString Id, Owner, Name; float X = 0.f, Y = 0.f, Heading = 0.f; };
+	bool SvcSpawn(int32 i, int32 n, const FSpareAt* Sp);
+	void SpareTick(float Dt);
+	float SpareT = 0.f; TSet<FString> SpareSaid;
 	// the taxi bus's hired driver (to-do 239b, GSEService.cpp): from their place on the pavement round its front to the wheel, out
 	// and back to the pavement when their shift is over. Stage: 0 none, 1 on the way in, 2 at the wheel, 3 getting out
 	// ---- the apron buses (GSEBus.cpp)

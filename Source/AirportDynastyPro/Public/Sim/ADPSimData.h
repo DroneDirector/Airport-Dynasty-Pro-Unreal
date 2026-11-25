@@ -18,6 +18,15 @@ USTRUCT() struct FADPTxn
 	UPROPERTY() FString Link;          // the flight, person or aircraft it belongs to
 };
 
+/** A ground vehicle kept at the vehicle area (to-do 277 E1, Sim/ADPVehicleArea.h). */
+USTRUCT()
+struct FADPSpare
+{
+	GENERATED_BODY()
+	UPROPERTY() FString Kind;    // the key of Data/vehicle-area.json
+	UPROPERTY() FString Place;   // its place's name
+};
+
 /** An airline: yours or a rival's (rivals use the same record, so they can grow later). */
 USTRUCT() struct FADPAirline
 {
@@ -38,6 +47,7 @@ USTRUCT() struct FADPAirline
 	UPROPERTY() int32 FuelTrucks = 1;      // ground vehicles at your airport (to-do 182)
 	UPROPERTY() int32 CateringTrucks = 1;
 	UPROPERTY() int32 Tractors = 1;
+	UPROPERTY() TArray<FADPSpare> Spares;   // bought ones, each on its place at the vehicle area (to-do 277)
 	// network and markets (to-do 184-186)
 	UPROPERTY() bool bFrequentFlyer = false;
 	UPROPERTY() double FfMembers = 0.0;

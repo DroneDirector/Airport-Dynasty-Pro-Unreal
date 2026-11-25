@@ -12,6 +12,7 @@
 #include "Sim/ADPRoster.h"
 #include "Sim/ADPMaint.h"
 #include "Sim/ADPGround.h"
+#include "Sim/ADPVehicleArea.h"
 #include "Sim/ADPNetwork.h"
 #include "Sim/ADPTown.h"
 #include "Sim/ADPWeather.h"
@@ -147,6 +148,17 @@ FString UADPBridge::Sim(const FString& Action, const FString& Arg)
 		// ground teams at your airport (to-do 182): what one turnaround at a time needs
 		{ TMap<FString, int32> G; ADPGround::TeamNeeds(G); if (Bases.Num()) for (const auto& K : G) Need->SetNumberField(K.Key, K.Value); }
 		if (My) { O->SetNumberField(TEXT("fuelTrucks"), My->FuelTrucks); O->SetNumberField(TEXT("cateringTrucks"), My->CateringTrucks); O->SetNumberField(TEXT("tractors"), My->Tractors); }
+		// (what can be bought: the kinds of the vehicle area where there is one, else the two counted ones)
+		{
+			TArray<TSharedPtr<FJsonValue>> Vk; const bool bArea = ADPVehicleArea::Built();
+			for (const ADPVehicleArea::FKind& K : ADPVehicleArea::Kinds())
+			{
+				if (!bArea && K.Key != TEXT("fuel") && K.Key != TEXT("catering")) continue;
+				TSharedRef<FJsonObject> V = MakeShared<FJsonObject>(); V->SetStringField(TEXT("key"), K.Key); V->SetStringField(TEXT("label"), K.Label); V->SetNumberField(TEXT("price"), K.Price);
+				V->SetNumberField(TEXT("have"), My ? My->Spares.FilterByPredicate([&](const FADPSpare& X) { return X.Kind == K.Key; }).Num() : 0); Vk.Add(MakeShared<FJsonValueObject>(V));
+			}
+			O->SetArrayField(TEXT("vehicleKinds"), Vk);
+		}
 		O->SetObjectField(TEXT("need"), Need);
 		TArray<TSharedPtr<FJsonValue>> Lv;
 		for (int32 i = 0; i < W.LeaveRequests.Num(); ++i)
@@ -522,7 +534,7 @@ FString UADPBridge::Sim(const FString& Action, const FString& Arg)
 	if (Action == TEXT("ipo")) { FString Why; return Ok(ADPNetwork::Ipo(W, Me, At, Why), Why); }
 	if (Action == TEXT("shares")) { FString Why; return Ok(ADPNetwork::TradeShares(W, A, FCString::Atod(*B), At, Why), Why); }
 	if (Action == TEXT("hedge")) { FString Why; return Ok(ADPNetwork::Hedge(W, Me, FCString::Atod(*A), B.IsEmpty() ? 3 : FCString::Atoi(*B), At, Why), Why); }
-	if (Action == TEXT("vehicle")) return Ok(ADPGround::BuyVehicle(W, Me, A, At), TEXT("not enough money"));
+	if (Action == TEXT("vehicle")) { FString Why; return Ok(ADPGround::BuyVehicle(W, Me, A, At, Why), Why); }
 	if (Action == TEXT("parts")) return Ok(ADPMaint::BuyParts(W, Me, FCString::Atod(*A), At), TEXT("not enough money"));
 	if (Action == TEXT("dayoff")) return Ok(ADPRoster::GiveDaysOff(W, A, B.IsEmpty() ? 2 : FCString::Atoi(*B), At), TEXT("not on your staff"));
 	if (Action == TEXT("train")) return Ok(ADPStaff::StartTypeRating(W, A, B, At), TEXT("can't start that course"));

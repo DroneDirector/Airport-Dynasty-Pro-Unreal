@@ -1156,6 +1156,7 @@ void AGSE::Tick(float Dt)
 	if (!bReady) Setup();
 	Flash += Dt; Clock += Dt;
 	WantTick(Dt);
+	SpareTick(Dt);
 	SvcTick(Dt);
 	TaxiTick(Dt);
 	BusTick(Dt);

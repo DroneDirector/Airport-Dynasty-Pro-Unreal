@@ -45,8 +45,8 @@ namespace ADPGround
 	int32 GateOfStand(const FString& Stand);
 	/** The teams one turnaround needs (people per job) - for the Overview's "what you need". */
 	void TeamNeeds(TMap<FString, int32>& Out);
-	/** Buys a ground vehicle for your airport (fuel, catering, tractor): USD price; false if short of money. */
-	bool BuyVehicle(FADPWorld& W, const FString& AirlineId, const FString& Kind, const FDateTime& At);
+	/** Buys a ground vehicle for your airport: the kinds of Data/vehicle-area.json (a place at the vehicle area each) and a baggage tractor. False, with why, and nothing charged: no money, no free place. */
+	bool BuyVehicle(FADPWorld& W, const FString& AirlineId, const FString& Kind, const FDateTime& At, FString& Why);
 }
 
 /** Every 5 minutes: stands for aircraft parked at our airport and for the arrivals coming in. */

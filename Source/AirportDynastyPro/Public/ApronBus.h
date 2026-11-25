@@ -47,6 +47,8 @@ public:
 	void Load();
 	/** A bus's model, placed by AGSE (its road dirt already on it): its lamps, name and colours. */
 	void Adopt(int32 Ix, ABabylonModel* M);
+	/** A bought one, at the vehicle area (GSESpare.cpp): its row, for Adopt. */
+	int32 AddBus(const FString& Name, const FString& Bay, float X, float Y, float Heading);
 	FBus* Of(const ABabylonModel* M) { return Buses.FindByPredicate([M](const FBus& B) { return B.M.Get() == M; }); }
 	/** A bus's lamps of one kind lit (0 off .. 1 full); Side 1 left, -1 right, 0 both. */
 	void SetLamps(FBus& B, EApronBusLamp Kind, float On, int32 Side = 0);

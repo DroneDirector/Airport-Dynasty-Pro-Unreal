@@ -77,6 +77,12 @@ void AApronBuses::Load()
 	if (!Buses.Num()) SetActorTickEnabled(false);
 }
 
+int32 AApronBuses::AddBus(const FString& Name, const FString& Bay, float X, float Y, float Heading)
+{
+	FBus B; B.Name = Name; B.Bay = Bay; B.X = X; B.Y = Y; B.Heading = Heading;
+	SetActorTickEnabled(true); return Buses.Add(MoveTemp(B));
+}
+
 void AApronBuses::Adopt(int32 Ix, ABabylonModel* M)
 {
 	if (!Buses.IsValidIndex(Ix) || !M) return;

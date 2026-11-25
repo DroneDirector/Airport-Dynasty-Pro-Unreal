@@ -1,0 +1,29 @@
+{
+	"note": "The vehicle area (the depot of the remote stands, to-do 277 E1). places: plan metres (x, y), heading degrees (90 = plan +y), len x wid of the painted place; charge: a charging bay, buses only; fixed: already a vehicle of Data/apron-buses.json. kinds: what can be bought; price USD new; places: the sorts of place it may stand on, best first. In along the lane westwards, round into the place's own line, backed in nose out; out the same lane eastwards. Proved by Tools/check_vehicle_area.py, painted by Tools/make_remote_stands.py.",
+	"lane": 273.5,
+	"places": [
+		{ "name": "1", "x": -292.0, "y": 293.0, "heading": -90, "len": 16.0, "wid": 4.0, "charge": true, "for": "bus", "fixed": "Apron bus 3" },
+		{ "name": "2", "x": -286.4, "y": 293.0, "heading": -90, "len": 16.0, "wid": 4.0, "charge": true, "for": "bus" },
+		{ "name": "3", "x": -280.8, "y": 293.0, "heading": -90, "len": 16.0, "wid": 4.0, "charge": true, "for": "bus" },
+		{ "name": "4", "x": -275.6, "y": 295.6, "heading": -90, "len": 11.6, "wid": 3.4, "for": "any" },
+		{ "name": "5", "x": -271.9, "y": 295.6, "heading": -90, "len": 11.6, "wid": 3.4, "for": "any" },
+		{ "name": "6", "x": -268.2, "y": 295.6, "heading": -90, "len": 11.6, "wid": 3.4, "for": "any" },
+		{ "name": "7", "x": -264.5, "y": 295.6, "heading": -90, "len": 11.6, "wid": 3.4, "for": "any" },
+		{ "name": "8", "x": -275.6, "y": 249.2, "heading": 90, "len": 7.4, "wid": 3.4, "for": "short" },
+		{ "name": "9", "x": -271.9, "y": 249.2, "heading": 90, "len": 7.4, "wid": 3.4, "for": "short" },
+		{ "name": "10", "x": -268.2, "y": 249.2, "heading": 90, "len": 7.4, "wid": 3.4, "for": "short" },
+		{ "name": "11", "x": -264.5, "y": 249.2, "heading": 90, "len": 7.4, "wid": 3.4, "for": "short" }
+	],
+	"kinds": [
+		{ "key": "fuel", "points": "refueller", "label": "refueller", "price": 260000, "places": ["any"] },
+		{ "key": "catering", "points": "cateringtruck", "label": "catering truck", "price": 185000, "places": ["any"] },
+		{ "key": "cleaning", "points": "cleaningvan", "label": "cleaning van", "price": 55000, "places": ["short", "any"] },
+		{ "key": "water", "points": "watertruck", "label": "water truck", "price": 95000, "places": ["short", "any"] },
+		{ "key": "toilet", "points": "toilettruck", "label": "toilet truck", "price": 105000, "places": ["short", "any"] },
+		{ "key": "stairs", "points": "passengerstairs", "label": "passenger stairs", "price": 110000, "places": ["short", "any"] },
+		{ "key": "roofstairs", "points": "passengerstairs", "roof": true, "label": "roofed passenger stairs", "price": 140000, "places": ["short", "any"] },
+		{ "key": "deicer", "points": "deicer", "label": "de-icing truck", "price": 480000, "places": ["any"] },
+		{ "key": "ambulift", "points": "ambulift", "label": "ambulift", "price": 240000, "places": ["any"] },
+		{ "key": "bus", "points": "apronbus", "label": "apron bus", "price": 520000, "places": ["bus"] }
+	]
+}

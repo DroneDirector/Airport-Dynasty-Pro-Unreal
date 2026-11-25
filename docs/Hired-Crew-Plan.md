@@ -631,6 +631,13 @@ Taxi bus (239, part B, 2026-11-24, compiled, NOT run): a line of `ADPService::Al
 - Cabs: every driver (GSECrew, TugCrew), rear crew (SvcBoard), taxi passenger and you (ServiceDrive); your seat makes crew wait at the door.
 - Order: coach window first and from the back, off from the front and aisle first; hall rows at a wall inner end first (Innermost).
 
+## The vehicle area, E1 as built: the places and buying (2026-11-25, compiled, not run)
+- Plan: `Data/vehicle-area.json` (places, kinds, prices; copy in Content/Data), proved by `Tools/check_vehicle_area.py` (0 faults), painted by `make_remote_stands.py`. Bays 1-3 charge buses (16 x 4 m, the mirrors inside), 4-7 any, 8-11 short ones. In by the lane y 273.5 westwards, round, backed in; out the same lane eastwards.
+- Buying: `ADPGround::BuyVehicle` with a reason; ten kinds and the baggage tractor (counted only). A free place or nothing is charged. Saved as `FADPAirline::Spares`. With no remote stands only fuel and catering can be bought, counted as before.
+- Placed: `AGSE::SpareTick` (GSESpare.cpp) through `SvcSpawn`, only unseen and with the place clear; it logs why one waits.
+- LEFT, point 3: crews do not fetch them (`bSpare` is skipped in SvcTick's two picks and in BusTry). Needed: home poses from T.Home instead of Sv.Home* (SvcTick, SvcApron, SvcDriveHome, GSEDeicer 503/561); in/out paths by the lane, also for buses (BusRoute, BusRouteHome fit bays 1-2 only); HiredWay up the bus road x -247.6; the owner check.
+- LEFT: walk-out and big stands' own tug (Tugs is gate-bound), belt loader, GPU, the span > 40 m limit in SvcFor; a vehicle of another career stays until the level loads again; the shop's buttons (Content/Web, git-ignored) still show three kinds - the bridge sends `vehicleKinds`.
+
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
 | Where | Today | Replace with | Nobody free |
