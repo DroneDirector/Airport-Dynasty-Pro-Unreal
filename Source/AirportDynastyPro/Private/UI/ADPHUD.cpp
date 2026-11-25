@@ -1927,9 +1927,22 @@ TArray<TPair<FString, uint8>> AADPHUD::Calls;
 
 TWeakObjectPtr<AADPHUD> AADPHUD::Current;
 
-void AADPHUD::Announce(const FString& Words, uint8 Kind)
+void AADPHUD::Announce(const FString& Words, uint8 Kind, bool bFirst)
 {
-	if (Calls.Num() < 8) Calls.Add(TPair<FString, uint8>(Words, Kind));
+	// (too many waiting: the last of the least important is left out - information first, then passengers, flights last)
+	if (Calls.Num() >= 8)
+	{
+		int32 Out = INDEX_NONE;
+		for (int32 i = Calls.Num() - 1; i >= 0; --i)
+			if ((bFirst || Calls[i].Value > Kind) && (Out == INDEX_NONE || Calls[i].Value > Calls[Out].Value)) Out = i;
+		ADP_LOG(TEXT("Announcer: too many waiting, left out: %s"), *(Out == INDEX_NONE ? Words : Calls[Out].Key).Left(90));
+		if (Out != INDEX_NONE) Calls.RemoveAt(Out);
+	}
+	if (Calls.Num() < 8)
+	{
+		if (bFirst) Calls.Insert(TPair<FString, uint8>(Words, Kind), 0);
+		else Calls.Add(TPair<FString, uint8>(Words, Kind));
+	}
 	// the same words, as text, in the game's messages on the Overview (heard only in the 3D view, read anywhere)
 	if (AADPHUD* H = Current.Get())
 		if (H->Browser.IsValid())

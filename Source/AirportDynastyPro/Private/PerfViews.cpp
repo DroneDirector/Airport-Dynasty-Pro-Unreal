@@ -16,6 +16,8 @@
 // The camera never stands in or goes through anything: a view in something solid is left out, a flight ends before it.
 //   quit
 #include "PerfViews.h"
+#include "RoadNetwork.h"
+#include "MetaRoadActor.h"
 #include "People.h"
 #include "ADPLog.h"
 #include "Containers/Ticker.h"
@@ -73,6 +75,24 @@ namespace ADPPerfViewsInternal
 					if (const FVector* L = Was.Find(A)) Going.Add(A, (A->GetActorLocation() - *L) / D); else Going.Add(A, FVector::ZeroVector);
 				}
 		Was = MoveTemp(Is);
+		// (anybody outside with their feet under a road, a pavement or a car park: to-do 287)
+		static double SunkAt = 0.0; if (Now - SunkAt < 2.0) return;
+		SunkAt = Now;
+		int32 Out = 0, Sunk = 0; FString Who;
+		for (const auto& E : Was)
+		{
+			const AActor* A = E.Key.Get(); if (!A) continue;
+			FHitResult H; FCollisionQueryParams Q(SCENE_QUERY_STAT(ViewsSunk), true, A);
+			for (int32 k = 0; k < 4; ++k)
+			{
+				if (!W->LineTraceSingleByChannel(H, E.Value + FVector(0, 0, 170.f), E.Value - FVector(0, 0, 20.f), ECC_Visibility, Q) || !H.GetActor()) break;
+				if (!H.GetActor()->IsA<AMetaRoad>() && !H.GetActor()->IsA<ARoadNetwork>()) { Q.AddIgnoredActor(H.GetActor()); continue; }
+				++Out; if (H.ImpactPoint.Z > E.Value.Z + 10.f) { ++Sunk; Who += FString::Printf(TEXT(" %s %.0f cm at %.1f %.1f"), *A->GetName(), H.ImpactPoint.Z - E.Value.Z, E.Value.X / 100.f, -E.Value.Y / 100.f); }
+				break;
+			}
+		}
+		if (Sunk) ADP_ERROR(TEXT("Views: %d of %d people on the roads are under them:%s"), Sunk, Out, *Who.Left(300));
+		else if (Out) { static int32 Said = 0; if (Said++ % 15 == 0) ADP_LOG(TEXT("Views: %d people on the roads, pavements and crossings, all on top of them"), Out); }
 	}
 	int32 Around(const FVector& Spot, double R) { int32 N = 0; for (const auto& E : Was) if (FVector::Dist(E.Value, Spot) < R) ++N; return N; }
 	bool Solid(UWorld* W, const FVector& Spot, const AActor* Me)
@@ -212,6 +232,23 @@ namespace ADPPerfViewsInternal
 		{
 			if (UADPSim* S = UADPSim::Get(W)) S->SetSpeed(FCString::Atof(*V[0]));
 			UGameplayStatics::SetGlobalTimeDilation(W, V.Num() > 1 ? FCString::Atof(*V[1]) : 1.f); ADP_LOG(TEXT("Views: speed %s"), *A);
+		}
+		else if (K == TEXT("part") && V.Num() > 1)
+		{
+			// (one part of everyone off or on: what it costs - all, face, body, hair, shadow, clothes)
+			const bool bOn = FCString::Atoi(*V[1]) != 0; const FString Wh = V[0]; int32 N = 0;
+			if (AADPPeople* P = AADPPeople::Get(W)) for (const AADPPeople::FWho& Q : P->Everyone()) if (AActor* Pa = Q.A.Get())
+			{
+				TArray<UPrimitiveComponent*> Ps; Pa->GetComponents<UPrimitiveComponent>(Ps);
+				for (UPrimitiveComponent* C : Ps)
+				{
+					const FString Cn = C->GetName(), Cl = C->GetClass()->GetName();
+					const bool bHair = Cl.Contains(TEXT("Groom")), bFace = Cn.StartsWith(TEXT("Face")), bBody = Cn.StartsWith(TEXT("Body"));
+					if (Wh == TEXT("shadow")) { C->SetCastShadow(bOn); ++N; }
+					else if (Wh == TEXT("all") || (Wh == TEXT("hair") && bHair) || (Wh == TEXT("face") && bFace) || (Wh == TEXT("body") && bBody) || (Wh == TEXT("clothes") && !bHair && !bFace && !bBody)) { C->SetHiddenInGame(!bOn); ++N; }
+				}
+			}
+			ADP_LOG(TEXT("Views: part %s %d (%d parts)"), *Wh, bOn ? 1 : 0, N);
 		}
 		else if (K == TEXT("people") && V.Num() > 1) { Need = FCString::Atoi(*V[0]); Until = FPlatformTime::Seconds() + FCString::Atof(*V[1]); }
 		else if (K == TEXT("follow") && V.Num())

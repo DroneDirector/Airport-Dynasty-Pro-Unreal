@@ -68,25 +68,27 @@ namespace ADPPerfLogInternal
 	std::atomic<uint64> PerfBeat{0};
 	uint32 PerfGameThreadId = 0;
 	uint64 PerfExeBase = 0;
+	double PerfStallAt = 0.06;   // (-StallWatch=<ms>)
 	class FPerfWatch : public FRunnable
 	{
 	public:
 		std::atomic<bool> bStop{false};
 		uint32 Run() override
 		{
-			uint64 Last = 0; double Since = FPlatformTime::Seconds(); bool bCaught = false;
+			uint64 Last = 0; double Since = FPlatformTime::Seconds(); int32 Caught = 0;
 			while (!bStop)
 			{
-				FPlatformProcess::Sleep(0.005f);
+				FPlatformProcess::Sleep(0.004f);
 				const uint64 B = PerfBeat.load();
-				if (B != Last) { Last = B; Since = FPlatformTime::Seconds(); bCaught = false; continue; }
-				if (!bCaught && B > 100 && FPlatformTime::Seconds() - Since > 0.06)
+				if (B != Last) { Last = B; Since = FPlatformTime::Seconds(); Caught = 0; continue; }
+				// (looked at again every 8 ms, then every 100, for as long as it lasts: what it is in changes)
+				if (const double Held = FPlatformTime::Seconds() - Since; Caught < 12 && B > 100 && Held > PerfStallAt + (Caught < 6 ? Caught * 0.008 : 0.048 + (Caught - 6) * 0.1))
 				{
-					bCaught = true;
+					++Caught;
 					uint64 Stack[48] = {};
 					const int32 N = FPlatformStackWalk::CaptureThreadStackBackTrace(PerfGameThreadId, Stack, 48);
-					FString T = FString::Printf(TEXT("STALL: the game thread hasn't moved for 60 ms; it is in:"));
-					for (int32 i = 0; i < N && i < 24; ++i)
+					FString T = FString::Printf(TEXT("STALL: the game thread hasn't moved for %.0f ms; it is in:"), Held * 1000.0);
+					for (int32 i = 0; i < N && i < 40; ++i)
 					{
 						ANSICHAR Name[512] = {}; FPlatformStackWalk::ProgramCounterToHumanReadableString(i, Stack[i], Name, sizeof(Name));
 						// (+offset: the address inside the game's program, for Tools/stall_names.sh where a build carries no names)
@@ -102,8 +104,11 @@ namespace ADPPerfLogInternal
 	FPerfWatch* PerfWatch = nullptr; FRunnableThread* PerfWatchThread = nullptr;
 	bool bPerfSection = false; FString PerfSectionName, PerfCurPart; TArray<float> PerfSectionFrames; TArray<FPerfFinding> PerfFindings; TArray<FString> PerfNotes;
 
-	void PerfLine(const FString& L)
+	void PerfLine(const FString& Ln)
 	{
+		const FString Out = FDateTime::Now().ToString(TEXT("%H:%M:%S.%s ")) + Ln + LINE_TERMINATOR;
+		ADPLog::Later([Out]()   // (written by the log's own thread: its flush cost the game up to 30 ms)
+		{
 		if (!PerfFile)
 		{
 			const FString Dir = FPaths::ProjectSavedDir() / TEXT("Logs"), Now = Dir / TEXT("ADP-Perf.log");
@@ -112,10 +117,10 @@ namespace ADPPerfLogInternal
 			PerfFile = FM.CreateFileWriter(*Now, FILEWRITE_AllowRead);
 			if (!PerfFile) return;
 		}
-		const FString Out = FDateTime::Now().ToString(TEXT("%H:%M:%S.%s ")) + L + LINE_TERMINATOR;
 		const FTCHARToUTF8 U(*Out);
 		PerfFile->Serialize(const_cast<ANSICHAR*>(U.Get()), U.Length());
 		PerfFile->Flush();
+		});
 	}
 
 	UWorld* PerfGameWorld()
@@ -214,7 +219,7 @@ void ADPPerfLog::Start()
 	});
 #endif
 	PerfTick = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateStatic(&PerfOnTick));
-	if (FParse::Param(FCommandLine::Get(), TEXT("StallWatch"))) ADPPerfLog::StartStallWatch();
+	if (FString(FCommandLine::Get()).Contains(TEXT("-StallWatch"))) ADPPerfLog::StartStallWatch();
 	PerfLine(TEXT("Performance log: frames over 50 ms and 2.5 times the usual, with their likely cause and the camera's place"));
 }
 
@@ -223,6 +228,7 @@ void ADPPerfLog::Stop()
 	if (ADPPerfLogInternal::PerfWatch) { ADPPerfLogInternal::PerfWatch->bStop = true; if (ADPPerfLogInternal::PerfWatchThread) { ADPPerfLogInternal::PerfWatchThread->WaitForCompletion(); delete ADPPerfLogInternal::PerfWatchThread; } delete ADPPerfLogInternal::PerfWatch; ADPPerfLogInternal::PerfWatch = nullptr; ADPPerfLogInternal::PerfWatchThread = nullptr; }
 	using namespace ADPPerfLogInternal;
 	if (PerfTick.IsValid()) { FTSTicker::GetCoreTicker().RemoveTicker(PerfTick); PerfTick.Reset(); }
+	ADPLog::Drain();
 	if (PerfFile) { PerfFile->Close(); delete PerfFile; PerfFile = nullptr; }
 }
 
@@ -368,7 +374,8 @@ void ADPPerfLog::StartStallWatch()
 	PerfExeBase = (uint64)::GetModuleHandleW(nullptr);
 #endif
 	PerfWatch = new FPerfWatch(); PerfWatchThread = FRunnableThread::Create(PerfWatch, TEXT("ADPStallWatch"));
-	PerfLine(TEXT("Stall watch on: where the game thread is stuck whenever it stops for 60 ms (Tools/stall_names.sh names them)"));
+	{ float Ms = 0.f; if (FParse::Value(FCommandLine::Get(), TEXT("StallWatch="), Ms) && Ms >= 10.f) PerfStallAt = Ms / 1000.0; }
+	PerfLine(FString::Printf(TEXT("Stall watch on: where the game thread is stuck whenever it stops for %.0f ms (Tools/stall_names.sh names them)"), PerfStallAt * 1000.0));
 }
 
 void ADPPerfLog::SlowWork(const TCHAR* What, double Ms, float BudgetMs)

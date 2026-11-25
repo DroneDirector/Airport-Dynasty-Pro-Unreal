@@ -1,6 +1,7 @@
 // The passengers' trips through the airport, both ways (PaxFlow.h). Plan metres: x east, z north (airside), height up -
 // FTerminalPlan::ToWorld(x, height, z); the roads' plan (x, y) is the same frame (y = plan z).
 #include "PaxFlow.h"
+#include "UI/AirportCalls.h"
 #include "ADPLog.h"
 #include "PerfLog.h"
 #include "People.h"
@@ -10,6 +11,7 @@
 #include "JetwayRigs.h"
 #include "Escalators.h"
 #include "RoadNetwork.h"
+#include "MetaRoadActor.h"
 #include "TerminalDoors.h"
 #include "GSE.h"
 #include "TerminalPlan.h"
@@ -248,6 +250,15 @@ bool APaxFlow::CallsBoarding(const UWorld* W, const FString& Flight)
 	const APaxFlow* P = Find(W); if (!P || Flight.IsEmpty()) return false;
 	for (const FRun& R : P->Runs) if (!R.bArr && R.Label == Flight) return true;
 	return false;
+}
+
+int32 APaxFlow::CallsState(const UWorld* W, const FString& PlanId)
+{
+	const APaxFlow* P = Find(W); if (!P || PlanId.IsEmpty()) return -1;
+	for (const FRun& R : P->Runs)
+		if (!R.bArr && !R.bTest && R.PlanId == PlanId)
+			return R.bGone || R.bNoShowGo || R.bAllLogged ? 3 : R.bFinal ? 2 : R.bCalled ? 1 : 0;
+	return -1;
 }
 
 APaxFlow* APaxFlow::Find(const UWorld* W)
@@ -514,8 +525,8 @@ void APaxFlow::CallBoarding(int32 Ri)
 	FString Who = TEXT("Airport Dynasty"), Place;
 	if (const UADPSim* Sim = UADPSim::Get(this)) for (const FADPAirline& A : Sim->World.Airlines) if (A.Id == R.AirlineId || (R.AirlineId.IsEmpty() && A.bPlayer)) { Who = A.Name; break; }
 	for (const FADPBoardRow& Row : ADPBoards::Rows(this, false, 40)) if (Row.Reg == R.Reg && !R.Reg.IsEmpty()) { Place = Row.Place; break; }
-	AADPHUD::Announce(FString::Printf(TEXT("Ladies and gentlemen, %s flight %s%s is now boarding at gate %d. We invite passengers needing assistance, families with young children and our priority passengers to board first, followed by all other passengers by group. Please have your boarding pass and passport ready."),
-		*Who, *R.Label, Place.IsEmpty() ? TEXT("") : *FString::Printf(TEXT(" to %s"), *Place), R.Gate), 1);
+	AADPHUD::Announce(FString::Printf(TEXT("Ladies and gentlemen, %s flight %s%s is now boarding at gate %d.%s We invite passengers needing assistance, families with young children and our priority passengers to board first, followed by all other passengers by group. Please have your boarding pass and passport ready."),
+		*Who, *R.Label, Place.IsEmpty() ? TEXT("") : *FString::Printf(TEXT(" to %s"), *Place), R.Gate, *ADPCalls::Bus(this, R.PlanId)), 1);
 	ADP_LOG(TEXT("PaxFlow: BOARDING CALLED - %s at gate %d (%d passengers, %.1f min at the real rate; %d of the walkers here, the jetway %s)"), *R.Label, R.Gate, R.Pax, BoardMin + 2.0, Mine.Num(),
 		R.Jet == INDEX_NONE ? TEXT("- none: walk-out") : AJetwayRigs::Get(GetWorld()) && AJetwayRigs::Get(GetWorld())->State(R.Jet) == AJetwayRigs::EState::Docked ? TEXT("docked") : TEXT("not docked yet"));
 }
@@ -649,11 +660,26 @@ AActor* APaxFlow::Body(const FVector& At, float Yaw, FPx& P)
 	return A;
 }
 
+bool APaxFlow::RoadAbove(const FVector& Feet, float& Z) const
+{
+	FHitResult H; FCollisionQueryParams Q(SCENE_QUERY_STAT(PaxRoad), true);
+	for (int32 Tr = 0; Tr < 3; ++Tr)
+	{
+		if (!GetWorld()->LineTraceSingleByChannel(H, FVector(Feet.X, Feet.Y, Feet.Z + 170.f), FVector(Feet.X, Feet.Y, Feet.Z + 6.f), ECC_Visibility, Q)) return false;
+		const AActor* A = H.GetActor();
+		if (!A) return false;
+		if (H.ImpactNormal.Z > 0.6f && (A->IsA<AMetaRoad>() || A->IsA<ARoadNetwork>())) { Z = H.ImpactPoint.Z; return true; }
+		Q.AddIgnoredActor(A);
+	}
+	return false;
+}
+
 FVector APaxFlow::CarParkSpot()
 {
 	const FVector2f S = GCarSpaces[Rng.RandRange(0, GCarSpaces.Num() - 1)];
 	const FVector2f J(Rng.FRandRange(-0.9f, 0.9f), Rng.FRandRange(-1.5f, 1.5f));   // (beside where the car stands)
 	FVector P = PW(S.X + J.X, 0, S.Y + J.Y); P.Z = GroundZ(S.X + J.X, S.Y + J.Y);
+	float Up = 0.f; if (RoadAbove(P - FVector(0, 0, 10.f), Up)) P.Z = Up;   // (on the car park's own tarmac)
 	return P;
 }
 
@@ -1085,12 +1111,16 @@ bool APaxFlow::Follow(FPx& P, AActor* A, float Dt)
 	P.bDoorWait = bLine;
 	// on the floor: straight down from knee height (stairs, escalator steps, the jetway's slope), never onto another person
 	bool bFloor = false;
-	if (GetWorld()->LineTraceSingleByChannel(H, FVector(N.X, N.Y, Loc.Z + 45.f), FVector(N.X, N.Y, Loc.Z - 150.f), ECC_Visibility, Q))
+	for (int32 Tr = 0; Tr < 3 && !bFloor; ++Tr)
 	{
+		if (!GetWorld()->LineTraceSingleByChannel(H, FVector(N.X, N.Y, Loc.Z + 45.f), FVector(N.X, N.Y, Loc.Z - 150.f), ECC_Visibility, Q)) break;
 		const AActor* Hit = H.GetActor();
 		bool bPerson = false; if (Hit) for (const FPx& O : Pax) if (O.A.Get() == Hit) { bPerson = true; break; }
-		if (!bPerson) { N.Z = H.ImpactPoint.Z; bFloor = true; }
+		if (bPerson) { Q.AddIgnoredActor(Hit); continue; }   // (the floor is under them)
+		N.Z = H.ImpactPoint.Z; bFloor = true;
 	}
+	// (outside: a road, pavement or car park above their feet - they came from lower ground than a step: up onto it, to-do 287)
+	if (W.bGround && !bTunnel && !bRide) { float Up = 0.f; if (RoadAbove(N, Up)) { N.Z = FMath::FInterpTo(Loc.Z, Up, Dt, 6.f); bFloor = true; } }
 	if (bSl && (!bFloor || FMath::Abs(N.Z - FloorZ) > 35.f)) { N.Z = FMath::FInterpTo(Loc.Z, FloorZ, Dt, 6.f); bFloor = true; }   // (the jetway's own floor)
 	if (!bFloor) N.Z = W.bGround ? FMath::FInterpTo(Loc.Z, W.P.Z, Dt, 4.f) : FMath::FInterpTo(Loc.Z, W.P.Z, Dt, 1.f);
 	A->SetActorLocation(N);

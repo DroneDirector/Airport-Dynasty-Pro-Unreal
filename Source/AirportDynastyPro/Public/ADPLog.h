@@ -11,6 +11,10 @@ namespace ADPLog
 {
 	/** One line, with the time, to Saved/Logs/ADP.log. */
 	AIRPORTDYNASTYPRO_API void Write(const FString& Line);
+	/** Work for the log's own writing thread, in order (a file written and flushed on the game thread cost up to 30 ms). */
+	void Later(TFunction<void()> Work);
+	/** Everything handed over so far written before it returns (before a crash's end, at the game's end). */
+	void Drain();
 }
 
 /** As UE_LOG(LogTemp, Log, ...), and the line into Saved/Logs/ADP.log in every build. */

@@ -14,6 +14,8 @@
 #include "IImageWrapperModule.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/Base64.h"
+#include "Async/Async.h"
+#include "Tasks/Pipe.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/CommandLine.h"
@@ -70,28 +72,39 @@ static void BdBringOut(UWorld* W, UInstancedStaticMeshComponent* K)
 
 void AADPHUD::OnBoard(const FString& Key, const FString& B64)
 {
+	// (the picture decoded in the background: up to 70 ms each, in the middle of the game every minute - to-do 269; one
+	//  after the other, so an older one never lands on a newer one)
+	FModuleManager::LoadModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
+	static UE::Tasks::FPipe Pipe(TEXT("Boards"));
+	Pipe.Launch(TEXT("Board"), [Me = TWeakObjectPtr<AADPHUD>(this), Key, B64]()
+	{
 	TArray<uint8> Png;
 	if (!FBase64::Decode(B64, Png)) return;
 	// (-BoardDump: every board's picture also written to Saved/Boards/<kind>.png, to check what the menus drew)
 	if (FParse::Param(FCommandLine::Get(), TEXT("BoardDump"))) FFileHelper::SaveArrayToFile(Png, *(FPaths::ProjectSavedDir() / TEXT("Boards") / (Key + TEXT(".png"))));
-	IImageWrapperModule& M = FModuleManager::LoadModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
+	IImageWrapperModule& M = FModuleManager::GetModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
 	TSharedPtr<IImageWrapper> W = M.CreateImageWrapper(EImageFormat::PNG);
 	TArray<uint8> Bgra;
 	if (!W.IsValid() || !W->SetCompressed(Png.GetData(), Png.Num()) || !W->GetRaw(ERGBFormat::BGRA, 8, Bgra)) return;
+	AsyncTask(ENamedThreads::GameThread, [Me, Key, Wd = (int32)W->GetWidth(), Ht = (int32)W->GetHeight(), Bgra = MoveTemp(Bgra)]() mutable { if (AADPHUD* Hud = Me.Get()) if (Hud->GetWorld() && !Hud->IsActorBeingDestroyed()) Hud->ShowBoard(Key, Wd, Ht, MoveTemp(Bgra)); });
+	});
+}
+
+void AADPHUD::ShowBoard(const FString& Key, int32 Wd, int32 Ht, TArray<uint8> Bgra)
+{
 	// the same board again at the same size: its new pixels written into the picture it already has (a new picture every
 	// refresh made the game wait for the old one's cleanup - a stall of up to 0.4 s every few seconds, the title film
 	// stuttering; owner 2026-11-15)
 	if (TObjectPtr<UTexture2D>* Old = BoardTex.Find(Key))
 		if (UTexture2D* OT = Old->Get())
-			if (OT->GetSizeX() == W->GetWidth() && OT->GetSizeY() == W->GetHeight() && OT->GetResource())
+			if (OT->GetSizeX() == Wd && OT->GetSizeY() == Ht && OT->GetResource())
 			{
-				const int32 Wd = W->GetWidth(), Ht = W->GetHeight();
 				uint8* Copy = (uint8*)FMemory::Malloc(Bgra.Num()); FMemory::Memcpy(Copy, Bgra.GetData(), Bgra.Num());
 				FUpdateTextureRegion2D* R = new FUpdateTextureRegion2D(0, 0, 0, 0, Wd, Ht);
 				OT->UpdateTextureRegions(0, 1, R, Wd * 4, 4, Copy, [](uint8* Data, const FUpdateTextureRegion2D* Rg) { FMemory::Free(Data); delete Rg; });
 				return;
 			}
-	UTexture2D* T = UTexture2D::CreateTransient(W->GetWidth(), W->GetHeight(), PF_B8G8R8A8, FName(*(TEXT("Board_") + Key)));
+	UTexture2D* T = UTexture2D::CreateTransient(Wd, Ht, PF_B8G8R8A8, FName(*(TEXT("Board_") + Key)));
 	if (!T) return;
 	T->SRGB = true;
 	void* Dst = T->GetPlatformData()->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
@@ -104,8 +117,10 @@ void AADPHUD::OnBoard(const FString& Key, const FString& B64)
 	// (the operations room's monitors: the game's own operations screen, drawn for each monitor's proportions: opsmon169,
 	// opsmon219, opsmon329 on the screens MonitorScreen169... of the three kinds, OpsMonitors.h)
 	const FString Want = Key.StartsWith(TEXT("opsmon")) ? TEXT("MonitorScreen") + Key.Mid(6) : TEXT("fids-") + Key;
-	if (!BoardMats.Contains(Key) || !BoardMats[Key].Num())   // (again until the model is there)
+	if (!BoardMats.Contains(Key)) BoardMats.Add(Key);
+	if (!BoardMats[Key].Num() && FPlatformTime::Seconds() - BoardSought.FindRef(Key) > 20.0)   // (again until the model is there, not at every picture)
 	{
+		BoardSought.Add(Key, FPlatformTime::Seconds());
 		TArray<TObjectPtr<UMaterialInstanceDynamic>>& L = BoardMats.Add(Key);
 		// a gate's own screen (gate1…gate8): its face's material, wherever the model put it
 		if (Key.StartsWith(TEXT("gate")))
@@ -164,7 +179,7 @@ void AADPHUD::OnBoard(const FString& Key, const FString& B64)
 #endif
 				}
 		}
-		ADP_LOG(TEXT("Board %s: %dx%d on %d screens"), *Key, W->GetWidth(), W->GetHeight(), L.Num());
+		ADP_LOG(TEXT("Board %s: %dx%d on %d screens"), *Key, Wd, Ht, L.Num());
 		// (-BoardDump: each screen's material and its picture slots, to see why a screen stays dark)
 		if (FParse::Param(FCommandLine::Get(), TEXT("BoardDump")))
 			for (UMaterialInstanceDynamic* D : L) if (D)

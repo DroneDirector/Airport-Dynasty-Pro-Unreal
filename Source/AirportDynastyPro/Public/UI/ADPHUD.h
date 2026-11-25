@@ -30,7 +30,7 @@ public:
 	 *  calls never overlap. */
 	/** Kind: 1 flight calls (boarding, final call, gate closed, delays), 2 passenger calls (paging by name), 3 information
 	 *  (general notices). Each kind has its own volume in Settings, under the overall announcements volume. */
-	static void Announce(const FString& Words, uint8 Kind = 1);
+	static void Announce(const FString& Words, uint8 Kind = 1, bool bFirst = false);   // (bFirst: before anything waiting; the airport's other calls: UI/AirportCalls.h)
 
 	/** From the menus: Unreal's 3D terminal, the menus hidden. */
 	void ShowTerminal();
@@ -303,6 +303,9 @@ public:
 	void SpeechPcm(int32 Id, const FString& B64);
 	/** A timetable board's picture (PNG, base64) from the menus, for every screen of that kind (Boards.cpp). */
 	void OnBoard(const FString& Key, const FString& B64);
+	/** Its picture on its screens (decoded in the background by OnBoard). */
+	void ShowBoard(const FString& Key, int32 Wd, int32 Ht, TArray<uint8> Bgra);
+	TMap<FString, double> BoardSought;   // (when a board's screens were last looked for in vain)
 	/** Without the game's voices: Windows' own female voice (SAPI), made off the game thread, then the same loudspeakers. */
 	void SpeechFallback(int32 Id);
 	/** The announcer's line as the voice model's sound numbers (JSON, one list per sentence): Kokoro in Unreal (Kokoro.cpp). */
@@ -362,7 +365,7 @@ private:
 	TSharedPtr<SWebBrowser> Browser;
 	#pragma region Announcements (Announcements.cpp)
 	struct FLatePassenger { FString Name; float ArriveAt = 0; bool bRun = false, bBoarded = false; };
-	struct FDeparture { FString Place, Status, Who; int32 Sched = -1, Exp = -1, Gate = 1; bool bBoarding = false, bPaged = false, bFinal = false, bClosed = false; TArray<FLatePassenger> Late; };
+	struct FDeparture { FString Flight, Place, Status, Who, PlanId; int32 Sched = -1, Exp = -1, Gate = 1; bool bBoarding = false, bPaged = false, bFinal = false, bClosed = false; TArray<FLatePassenger> Late; };
 	TMap<FString, FDeparture> Departures;
 	/** The departures from the simulation's real timetable (to-do 174) into Departures, when a career runs. */
 	void SimCalls();
@@ -391,7 +394,6 @@ private:
 	/** The volumes: 0 all announcements, 1 flight calls, 2 passenger calls, 3 information; 0..1, kept in the settings file. */
 	float Vol[4] = {1, 1, 1, 1};
 	float NextInfoAt = -1;
-	int32 InfoTurn = 0;
 	float CallGain() const { return (bGame ? 0.f : 1.f) * HeardGain * Vol[0] * Vol[FMath::Clamp<int32>(CallKind, 1, 3)]; }
 	void Speak(const FString& Words);
 	void RunCalls();

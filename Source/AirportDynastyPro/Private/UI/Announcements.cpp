@@ -8,13 +8,15 @@
 //
 // Late passengers are AI logic for now (no people are shown yet): at about 25 minutes before departure a flight may
 // have one or two passengers not yet at the gate. They are paged by name; on hearing it they set off, walking briskly
-// when there is time, running when there isn't; whoever reaches the gate before it closes boards. The gate closes 15
-// minutes before departure whatever happens (the usual closing time at airports), with its own call. Passengers
+// when there is time, running when there isn't; whoever reaches the gate before it closes boards. The calls follow the
+// timetable's own status (to-do 288), so they never say anything else than the boards: the final call 15 minutes before
+// departure, the gate closed at 10; a flight whose passengers walk here by what really happens at its gate. Passengers
 // already waiting at a gate are never late.
 #include "Site.h"
 #include "Sim/ADPBoards.h"
 #include "Sim/ADPSim.h"
 #include "UI/ADPHUD.h"
+#include "UI/AirportCalls.h"
 #include "G2P.h"
 #include "ADPLog.h"
 #include "SWebBrowser.h"
@@ -357,7 +359,7 @@ void AADPHUD::OnGameFids(const FString& Json)
 		{ FString Code, Name; if (Place.Split(TEXT(" "), &Code, &Name) && Code.Len() >= 3 && Code.Len() <= 4 && Code.ToUpper() == Code && !Name.IsEmpty()) Place = Name; }
 		const bool bNew = !Departures.Contains(Flight);
 		FDeparture& D = Departures.FindOrAdd(Flight);
-		D.Place = Place;
+		D.Flight = Flight; D.Place = Place;
 		D.Sched = Minutes(Sched);
 		const int32 Was = D.Exp;
 		D.Exp = Minutes(Exp) >= 0 ? Minutes(Exp) : D.Sched;
@@ -367,10 +369,10 @@ void AADPHUD::OnGameFids(const FString& Json)
 		{
 			// what has already happened isn't called again: only what comes from now on
 			const int32 Left = ((D.Exp - NowMin) % 1440 + 2160) % 1440 - 720;
-			if (Left <= 40) D.bBoarding = true;
+			if (Left <= 35) D.bBoarding = true;
 			if (Left <= 25) D.bPaged = true;
-			if (Left <= 20) D.bFinal = true;
-			if (Left <= 15) D.bClosed = true;
+			if (Left <= 15) D.bFinal = true;
+			if (Left <= 10) D.bClosed = true;
 			D.Status = S;
 			continue;
 		}
@@ -393,35 +395,45 @@ void AADPHUD::SimCalls()
 	if (!Sim || !ADPBoards::Live(this)) return;
 	const FDateTime NowL = ADPBoards::Local(Sim->Now());
 	const int32 NowMin = NowL.GetHour() * 60 + NowL.GetMinute();
-	for (const FADPBoardRow& R : ADPBoards::Rows(this, false, 32))
+	TSet<FString> Seen;
+	for (const FADPBoardRow& R : ADPBoards::Rows(this, false, 64))
 	{
 		if (R.Status.StartsWith(TEXT("Departed"))) continue;
-		const bool bNew = !Departures.Contains(R.Flight);
-		FDeparture& D = Departures.FindOrAdd(R.Flight);
-		D.Place = R.Place; D.Gate = R.Gate;
+		// (by its planned leg, not its number: the same number comes again tomorrow, with its calls)
+		const FString Key = R.PlanId.IsEmpty() ? R.Flight : R.PlanId;
+		Seen.Add(Key);
+		const bool bNew = !Departures.Contains(Key);
+		FDeparture& D = Departures.FindOrAdd(Key);
+		D.Flight = R.Flight; D.PlanId = R.PlanId; D.Place = R.Place; D.Gate = R.Gate;
 		D.Sched = R.Sched.GetHour() * 60 + R.Sched.GetMinute();
-		const int32 Was = D.Exp;
-		D.Exp = R.Expected.GetHour() * 60 + R.Expected.GetMinute();
-		if (R.Status != TEXT("Delayed")) D.Exp = D.Sched;
+		D.Exp = R.Expected.GetHour() * 60 + R.Expected.GetMinute();   // (the real one, also once the delayed flight boards)
 		for (const FADPAirline& A : Sim->World.Airlines) if (A.Id == R.AirlineId) { D.Who = A.Name; break; }
 		if (bNew)
 		{
 			const int32 Left = ((D.Exp - NowMin) % 1440 + 2160) % 1440 - 720;
-			if (Left <= 40) D.bBoarding = true;
 			if (Left <= 25) D.bPaged = true;
-			if (Left <= 20) D.bFinal = true;
-			if (Left <= 15) D.bClosed = true;
+			D.bBoarding = R.bBoarding || R.Status == TEXT("Gate closed");
+			D.bFinal = R.bFinalCall || R.Status == TEXT("Gate closed");
+			D.bClosed = R.Status == TEXT("Gate closed");
 			D.Status = R.Status;
 			continue;
 		}
 		if (R.Status != D.Status)
 		{
 			const FString Who = D.Who.IsEmpty() ? AirlineName() : D.Who;
-			if (R.Status == TEXT("Delayed") && D.Exp != Was)
-				Announce(FString::Printf(TEXT("%s regrets to announce that flight %s to %s is delayed. The new expected departure time is %s. We apologise for any inconvenience."), *Who, *R.Flight, *R.Place, *Clock(D.Exp)));
+			if (R.Status == TEXT("Cancelled"))
+			{
+				// (its passengers walk here: the passenger flow has told them, with where they go)
+				if (APaxFlow::CallsState(GetWorld(), R.PlanId) < 0)
+					Announce(FString::Printf(TEXT("%s regrets to announce that flight %s to %s has been cancelled. Passengers are requested to contact the %s service desk in the main hall."), *Who, *R.Flight, *R.Place, *Who));
+			}
+			// (delays, gate changes, check-in: ADPCalls::Step)
+			ADP_LOG(TEXT("Announcer: %s %s -> %s"), *R.Flight, *D.Status, *R.Status);
 			D.Status = R.Status;
 		}
 	}
+	// (gone, or taken out of the timetable: nothing more is called for it)
+	for (auto It = Departures.CreateIterator(); It; ++It) if (!Seen.Contains(It->Key)) It.RemoveCurrent();
 }
 
 void AADPHUD::SaveNow()
@@ -466,54 +478,43 @@ void AADPHUD::SimToPhone()
 void AADPHUD::RunCalls()
 {
 	SimCalls();
+	ADPCalls::Step(this);   // (everything else the airport announces: to-do 289)
 	SimToPhone();
 	auto Announce2 = [](const FString& W) { Announce(W, 2); };
 	const UADPSim* SimNow = UADPSim::Get(this);
-	const FDateTime Now = SimNow && ADPBoards::Live(this) ? ADPBoards::Local(SimNow->Now()) : FDateTime::Now();   // (the airport's own time)
+	const bool bLive = SimNow && ADPBoards::Live(this);
+	const FDateTime Now = bLive ? ADPBoards::Local(SimNow->Now()) : FDateTime::Now();   // (the airport's own time)
 	const float NowMin = Now.GetHour() * 60 + Now.GetMinute() + Now.GetSecond() / 60.f;
-	// now and then (every half hour to an hour): a passenger asked to the information desk, or a notice for everyone
+	// now and then (every 12 to 20 minutes): a passenger or a car's driver asked for, something found, or a notice for everyone
 	const float T = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
-	if (NextInfoAt < 0) NextInfoAt = T + FMath::FRandRange(25.f, 50.f) * 60.f;
+	if (NextInfoAt < 0) NextInfoAt = T + FMath::FRandRange(5.f, 10.f) * 60.f;
 	else if (T >= NextInfoAt)
 	{
-		NextInfoAt = T + FMath::FRandRange(30.f, 60.f) * 60.f;
-		const int32 NoticeTurn = InfoTurn++;
+		NextInfoAt = T + FMath::FRandRange(12.f, 20.f) * 60.f;
 		// a passenger with plenty of time: their flight leaves an hour or more from now
 		FString Place;
 		for (const TPair<FString, FDeparture>& It : Departures) { const float L = FMath::Fmod(It.Value.Exp - NowMin + 2160.f, 1440.f) - 720.f; if (L >= 60.f) { Place = It.Value.Place; break; } }
-		if (NoticeTurn % 2 == 0)
-		{
-			const FString Name = PassengerName(GetTypeHash(Now.ToString()) ^ 0x5bd1e995u);
-			Announce(Place.IsEmpty()
-				? FString::Printf(TEXT("This is a passenger announcement. Would %s please make your way to the information desk in the main hall, where a message is waiting for you. Thank you."), *Name)
-				: FString::Printf(TEXT("This is a passenger announcement. Would passenger %s, travelling to %s, please contact the information desk in the main hall. Thank you."), *Name, *Place), 2);
-		}
-		else
-		{
-			static const TCHAR* Notices[] = {
-				TEXT("For safety and security reasons, please do not leave your baggage unattended at any time. Unattended baggage may be removed and destroyed by security."),
-				TEXT("Ladies and gentlemen, smoking, including electronic cigarettes, is not permitted anywhere inside the terminal building. Thank you for your cooperation."),
-				TEXT("Passengers are reminded that liquids in hand luggage must be in containers of one hundred millilitres or less, carried in a single clear plastic bag."),
-				TEXT("A black wallet has been handed in near the check-in desks. Would the owner please contact the information desk in the main hall."),
-				TEXT("Please keep your personal belongings with you at all times, and report any suspicious items to airport staff."),
-			};
-			Announce(Notices[(NoticeTurn / 2) % UE_ARRAY_COUNT(Notices)], 3);
-		}
+		ADPCalls::Notice(this, Plan, PassengerName(GetTypeHash(Now.ToString()) ^ 0x5bd1e995u), Place);
 	}
 	for (TPair<FString, FDeparture>& It : Departures)
 	{
 		FDeparture& D = It.Value;
-		const FString& F = It.Key;
+		const FString& F = D.Flight;
 		const FString Who = D.Who.IsEmpty() ? AirlineName() : D.Who;
 		float Left = FMath::Fmod(D.Exp - NowMin + 2160.f, 1440.f) - 720.f;
 		if (Left < -30.f) continue;
-		if (!D.bBoarding && Left <= 40.f && APaxFlow::CallsBoarding(GetWorld(), F)) D.bBoarding = true;   // (its passengers walk here: the passenger flow calls it, at the turnaround's board task)
-		if (!D.bBoarding && Left <= 40.f)
+		if (D.Status == TEXT("Cancelled") || D.Status == TEXT("Delayed")) continue;
+		// what the boards say; without a career the same minutes by the clock
+		const bool bShut = bLive ? D.Status == TEXT("Gate closed") : Left <= 10.f;
+		const bool bLast = bShut || (bLive ? D.Status == TEXT("Final call") : Left <= 15.f);
+		const bool bBoards = bLast || (bLive ? D.Status == TEXT("Boarding") : Left <= 35.f);
+		if (bBoards && bLive && APaxFlow::CallsState(GetWorld(), D.PlanId) >= 0) { D.bBoarding = true; if (bLast) D.bFinal = true; }   // (its passengers walk here: the passenger flow calls its boarding and its final call)
+		if (!D.bBoarding && bBoards)
 		{
 			D.bBoarding = true;
-			Announce(FString::Printf(TEXT("Ladies and gentlemen, %s flight %s to %s is now boarding at gate %d. Please have your boarding pass and passport ready."), *Who, *F, *D.Place, D.Gate));
+			Announce(FString::Printf(TEXT("Ladies and gentlemen, %s flight %s to %s is now boarding at gate %d.%s Please have your boarding pass and passport ready."), *Who, *F, *D.Place, D.Gate, *ADPCalls::Bus(this, D.PlanId)));
 		}
-		if (!D.bPaged && Left <= 25.f)
+		if (!D.bPaged && bBoards && Left <= 25.f)
 		{
 			D.bPaged = true;
 			// one or two passengers not yet at the gate (some flights have none); the same each time for this flight today
@@ -526,7 +527,7 @@ void AADPHUD::RunCalls()
 				P.Name = PassengerName(S2);
 				// how far they are from the gate when they hear it: two to sixteen minutes' brisk walk
 				const float WalkMin = 2.f + (S2 >> 8) % 1500 / 100.f;
-				const float Time = Left - 15.f;   // until the gate closes
+				const float Time = Left - 10.f;   // until the gate closes
 				P.bRun = WalkMin > Time * 0.75f;
 				P.ArriveAt = NowMin + (P.bRun ? WalkMin * 0.55f : WalkMin);
 				D.Late.Add(P);
@@ -534,7 +535,7 @@ void AADPHUD::RunCalls()
 			}
 		}
 		for (FLatePassenger& P : D.Late) if (!P.bBoarded && !D.bClosed && NowMin >= P.ArriveAt) P.bBoarded = true;
-		if (!D.bFinal && Left <= 20.f)
+		if (!D.bFinal && bLast)
 		{
 			D.bFinal = true;
 			FString Names;
@@ -542,7 +543,7 @@ void AADPHUD::RunCalls()
 			Announce(FString::Printf(TEXT("This is the final call for %s flight %s to %s. %sWould all remaining passengers please proceed immediately to gate %d. This gate will close in five minutes."),
 				*Who, *F, *D.Place, Names.IsEmpty() ? TEXT("") : *FString::Printf(TEXT("Would %s please make your way to gate %d now. "), *Names, D.Gate), D.Gate));
 		}
-		if (!D.bClosed && Left <= 15.f)
+		if (!D.bClosed && bShut)
 		{
 			D.bClosed = true;
 			Announce(FString::Printf(TEXT("%s flight %s to %s is now closed. Gate %d is closed."), *Who, *F, *D.Place, D.Gate));

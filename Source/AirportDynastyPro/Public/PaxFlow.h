@@ -41,6 +41,9 @@ public:
 	/** True when this flight's departing passengers walk here: the boarding call is made by the passenger flow (at the
 	 *  turnaround's board task), not by the announcer's 40-minute rule - never called twice. */
 	static bool CallsBoarding(const UWorld* W, const FString& Flight);
+	/** How far that flight (by its planned leg) is: -1 nobody walks for it, 0 not called yet, 1 boarding, 2 the final call made,
+	 *  3 everyone aboard or it goes without the missing ones (to-do 288: the calls, the boards and the gate agree). */
+	static int32 CallsState(const UWorld* W, const FString& PlanId);
 	/** May the aircraft Reg close its doors and leave? True when every passenger walking for its departure is aboard (or
 	 *  nobody walks for it). A passenger missing: the flight waits up to 15 minutes from the first ask, then goes without
 	 *  them (a no-show, logged). The jetway and the push wait on this (SimTraffic.cpp). */
@@ -211,6 +214,8 @@ private:
 	FVector DeskSpot(int32 Desk, int32 K) const;
 	FVector LaneSpot(int32 Lane, int32 K) const;
 	bool WallSpot(const FPx& P, const FBox2D& Region, FVector& Out, float& Yaw);
+	/** A road, pavement or car park over that point (up to a person's height) outside: its height there (to-do 287). */
+	bool RoadAbove(const FVector& Feet, float& Z) const;
 	FVector CarParkSpot();
 	FVector PlanOf(const FVector& W) const { return FVector(W.X / 100.f, W.Z / 100.f, -W.Y / 100.f); }
 	static FVector PW(float X, float H, float Z);

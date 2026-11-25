@@ -101,6 +101,8 @@ private:
 	FVector2f ToLocal(const FVector2f& P, const FVector2f& Size) const;
 	FVector2f FromLocal(const FVector2f& L, const FVector2f& Size) const;
 	float Scale(const FVector2f& Size) const;
+	// (one painting: the scale and the turn worked out once, not for every wall's every end)
+	mutable bool bPFresh = false; mutable FVector2f PSize = FVector2f::ZeroVector, PF = FVector2f::ZeroVector, PRt = FVector2f::ZeroVector; mutable float PScale = 1.f;
 	#pragma endregion
 };
 

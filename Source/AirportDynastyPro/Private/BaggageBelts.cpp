@@ -2,6 +2,7 @@
 #include "DepartureBelts.h"
 #include "ADPLog.h"
 #include "ADPKeep.h"
+#include "UI/AirportCalls.h"
 #include "ADPAnimations.h"
 #include "InteractOutline.h"
 #include "TerminalPlan.h"
@@ -215,6 +216,7 @@ void ABaggageBelts::OnArrived(UWorld* Wo, float PlanX, const FString& Flight, in
 	if (Best == INDEX_NONE) return;
 	Me->Belts[Best].Flight = Flight;
 	if (Me->Belts[Best].Screen) Me->Belts[Best].Screen->SetText(FText::FromString(FString::Printf(TEXT("BELT %d   %s"), Best + 1, *Flight)));
+	if (!Flight.IsEmpty()) ADPCalls::Say(Me, TEXT("belt"), {{TEXT("flight"), Flight}, {TEXT("belt"), FString::FromInt(Best + 1)}}, Flight);
 	// the crew start unloading the hold a few minutes after it parks: a bag every 2.5 s
 	const int32 N = Count < 0 ? FMath::RandRange(35, 70) : Count;
 	if (N > 0) { Me->Unloads.Add({Best, St, N, 2.5f, -150.f}); Me->Belts[Best].Waiting += N; }

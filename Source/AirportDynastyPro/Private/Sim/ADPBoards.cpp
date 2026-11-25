@@ -4,6 +4,7 @@
 #include "Sim/ADPWorldData.h"
 #include "Site.h"
 #include "Sim/ADPGround.h"
+#include "PaxFlow.h"
 #include "Dom/JsonObject.h"
 
 namespace
@@ -65,6 +66,7 @@ TArray<FADPBoardRow> ADPBoards::Rows(const UObject* Ctx, bool bArr, int32 N)
 	const FADPWorld& W = S->World;
 	const FString Here = HereIcao();
 	const FDateTime NowU = S->Now(), NowL = Local(NowU);
+	const UWorld* Wd = Ctx ? Ctx->GetWorld() : nullptr;
 	auto Mins = [&](const FDateTime& T) { return (T - NowU).GetTotalMinutes(); };
 	if (!bArr)
 	{
@@ -89,6 +91,14 @@ TArray<FADPBoardRow> ADPBoards::Rows(const UObject* Ctx, bool bArr, int32 N)
 			else if (M > 15) { Row.Status = TEXT("Boarding"); Row.Col = CGreen; Row.bBoarding = true; }
 			else if (M > 10) { Row.Status = TEXT("Final call"); Row.Col = CGreen; Row.bBoarding = Row.bFinalCall = true; }
 			else { Row.Status = TEXT("Gate closed"); Row.Col = CGrey; }
+			// (its passengers walk here: what really happens at the gate, not the clock - to-do 288)
+			if (!bOff && Row.Status != TEXT("Delayed") && M <= 45)
+				if (const int32 C = APaxFlow::CallsState(Wd, P.Id); C >= 0)
+				{
+					Row.bBoarding = C == 1 || C == 2; Row.bFinalCall = C == 2;
+					Row.Status = C == 0 ? TEXT("Gate open") : C == 1 ? TEXT("Boarding") : C == 2 ? TEXT("Final call") : TEXT("Gate closed");
+					Row.Col = C == 3 ? CGrey : CGreen;
+				}
 			Out.Add(Row);
 		}
 		// just departed (the last 20 minutes)

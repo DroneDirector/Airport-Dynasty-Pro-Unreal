@@ -96,6 +96,11 @@ FString ADPSite::File(const FString& Name)
 
 TSharedPtr<FJsonObject> ADPSite::AirportBlock()
 {
+	// (read from the disk once for a site: asked every minute by the timetables, 30 ms in the middle of the game - to-do 269)
+	static FCriticalSection Lock; static FString KeptFor; static TSharedPtr<FJsonObject> Kept;
+	FScopeLock Sl(&Lock);
+	auto Copy = [](const TSharedPtr<FJsonObject>& J) { TSharedPtr<FJsonObject> C = MakeShared<FJsonObject>(); C->Values = J->Values; return C; };
+	if (Kept.IsValid() && KeptFor == Id()) return Copy(Kept);
 	TSharedPtr<FJsonObject> Out = MakeShared<FJsonObject>();
 	for (const FString& P : {FPaths::ProjectContentDir() / TEXT("Data/airfield.json"), FPaths::ProjectDir() / TEXT("Data/airfield.json")})
 		if (TSharedPtr<FJsonObject> A = ReadJson(P))
@@ -109,7 +114,8 @@ TSharedPtr<FJsonObject> ADPSite::AirportBlock()
 		const TSharedPtr<FJsonObject>* Ap;
 		if (I->TryGetObjectField(TEXT("airport"), Ap)) for (const auto& KV : (*Ap)->Values) Out->SetField(KV.Key, KV.Value);
 	}
-	return Out;
+	if (Out->Values.Num()) { Kept = Out; KeptFor = Id(); }
+	return Copy(Out);
 }
 
 double ADPSite::UtcOffsetHours(const FDateTime& Utc)

@@ -1,5 +1,17 @@
 # Performance log
 
+## 2026-11-25 - packaged run with the passengers in (to-do 269, 285)
+Packaged Shipping, 3840x1080, the owner's settings, own frame generation on, all 144 people in the package; career test save 3;
+91 of 91 walking legs right, 0 problems, loading 22.3 s. Milliseconds made / GPU / shown a second:
+- at the start 15.6 / 14.8 / 128; they come (10x) 17.2 / 16.1 / 116; beside walkers 18.1 / 16.9 / 111, 17.0 / 15.0 / 118, 19.6 / 17.8 / 102;
+  hall 16.4 / 15.5 / 122 and 20.1 / 19.2 / 99; more come (10x) 18.8 / 17.2 / 105 (worst 216); outside the doors 17.9 / 14.8 / 112;
+  road west 16.9 / 15.6 / 118, east 18.4 / 17.5 / 109; a minute among 48 people 21.0 / 20.0 / 95; apron towards the hall 20.5 / 19.8 / 97.
+- 24 to 53 people about, up to 24 walking. The graphics card is the limit and it rises with the people (205). 1 % slowest 18-36 ms.
+- Graphics memory 5506 -> 6597 MB of 6951; the texture pool went 2000 -> 1000 MB, 1600 wanted.
+- Left: 50-66 ms of game thread once a minute (wall clock :15, not the clean-up); 812 ms and 216 ms while people load or come at 10x;
+  50-60 ms at camera cuts; the passengers' trips 2.1 ms a frame.
+- 248: the roads' textures are fully resident, only the kerb's normal and roughness stay at 64 of 4096.
+
 ## 2026-11-21 late - the walkers' navmesh (PaxNav.cpp)
 - Unreal's navigation (Recast, dynamic, agent 30 cm / 180 cm, 10 m tiles) is generated once in the background after the
   passenger flow is ready. It covers only the finished terminal rooms on both floors (plus 0.6 m over their walls, so

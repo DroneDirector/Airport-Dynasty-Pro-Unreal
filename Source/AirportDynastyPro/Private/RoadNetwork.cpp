@@ -47,6 +47,7 @@
 #include "UObject/SavePackage.h"
 #endif
 #include "PhysicsEngine/BodySetup.h"
+#include "StaticMeshResources.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
 #include "Serialization/JsonWriter.h"
 #include "Engine/StaticMesh.h"
@@ -184,6 +185,33 @@ namespace
 	// mesh's outlines kept within 2 cm of the true curve (MetaRoad's default 5 cm), a point at least every 2 m along
 	// the road (default 3.75 m), the lane lines within 3 cm (1 cm / 1 m took 25 s for the 2.6 km forecourt at start). Set by name: the property sets' classes are private to
 	// the plugin.
+	/** The built road made solid (to-do 287): in a packaged game Unreal makes no collision for a mesh made while it runs unless
+	 *  the mesh belongs to something in the world and may be read (the editor always makes it) - people, vehicles and you
+	 *  stood on the ground under the roads, their pavements and crossings. */
+	void MakeSolid(AMetaRoad* Road, const FString& Id)
+	{
+		TArray<UStaticMeshComponent*> Cs; Road->GetComponents<UStaticMeshComponent>(Cs);
+		int32 N = 0, Solid = 0, Tris = 0; const double T0 = FPlatformTime::Seconds();
+		for (UStaticMeshComponent* C : Cs)
+		{
+			UStaticMesh* M = C->GetStaticMesh();
+			if (!M || M->GetOuter() != GetTransientPackage()) continue;
+			++N;
+			M->bAllowCPUAccess = true;
+			M->Rename(nullptr, C, REN_DontCreateRedirectors | REN_NonTransactional | REN_DoNotDirty);
+			if (!M->GetBodySetup()) M->CreateBodySetup();
+			UBodySetup* B = M->GetBodySetup();
+			B->CollisionTraceFlag = CTF_UseComplexAsSimple;
+			B->InvalidatePhysicsData(); B->CreatePhysicsMeshes();
+			C->SetCollisionProfileName(TEXT("BlockAll"));
+			C->RecreatePhysicsState();
+			if (B->TriMeshGeometries.Num()) ++Solid;
+			if (M->GetRenderData() && M->GetRenderData()->LODResources.Num()) Tris += M->GetRenderData()->LODResources[0].GetNumTriangles();
+		}
+		if (Solid < N) ADP_ERROR(TEXT("Roads: %s - only %d of its %d parts are solid"), *Id, Solid, N);
+		else ADP_LOG(TEXT("Roads: %s solid, %d parts, %d triangles, in %.2f s"), *Id, N, Tris, FPlatformTime::Seconds() - T0);
+	}
+
 	void MakeFine(AMetaRoad* Road)
 	{
 		UMetaRoadBuildSettings* S = UMetaRoadBuildSettings::GetForActor(Road, true);
@@ -487,6 +515,7 @@ bool ARoadNetwork::BuildSome(double Budget)
 					}
 				}
 		if (!bFromBake && !Host->BuildRoad(Road)) { ADP_ERROR(TEXT("Roads: %s did not build"), *Id); continue; }
+		if (!bFromBake && !GBaking) MakeSolid(Road, Id);
 		ADP_LOG(TEXT("Roads: %s %s in %.2f s (%.0f m)"), *Id, bFromBake ? TEXT("placed from its saved parts") : TEXT("built"), FPlatformTime::Seconds() - TB, Pts.Num() > 1 ? FVector::Dist(Pts[0], Pts.Last()) / 100.0 : 0.0);
 		++Built; Roads.Add(Road); RoadIds.Add(Id);
 		// ---- along the road: where each point is (m), the way it runs, its right (Unreal: x forward, y right) ----

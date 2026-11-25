@@ -287,7 +287,13 @@ float SHoloMap::Scale(const FVector2f& Size) const
 
 FVector2f SHoloMap::ToLocal(const FVector2f& P, const FVector2f& Size) const
 {
-	const float S = Scale(Size);
+	if (!bPFresh || PSize != Size)
+	{
+		bPFresh = true; PSize = Size; PScale = Scale(Size);
+		const float T0 = FMath::DegreesToRadians(Yaw);
+		PF = FVector2f(FMath::Cos(T0), -FMath::Sin(T0)); PRt = FVector2f(-FMath::Sin(T0), -FMath::Cos(T0));
+	}
+	const float S = PScale;
 	if (bFull)
 	{
 		const FVector2f E = View.GetSize() * S;
@@ -295,8 +301,7 @@ FVector2f SHoloMap::ToLocal(const FVector2f& P, const FVector2f& Size) const
 		return FVector2f(O.X + (P.X - View.Min.X) * S, O.Y + (View.Max.Y - P.Y) * S);
 	}
 	// turned so the way you face is up: Unreal yaw θ faces the plan's (cos θ, -sin θ)
-	const float T = FMath::DegreesToRadians(Yaw);
-	const FVector2f F(FMath::Cos(T), -FMath::Sin(T)), Rt(-FMath::Sin(T), -FMath::Cos(T));
+	const FVector2f &F = PF, &Rt = PRt;
 	const FVector2f D(P.X - Player.X, P.Y - Player.Z);
 	return Size * 0.5f + FVector2f(FVector2f::DotProduct(D, Rt), -FVector2f::DotProduct(D, F)) * S;
 }
@@ -316,6 +321,7 @@ FVector2f SHoloMap::FromLocal(const FVector2f& L, const FVector2f& Size) const
 int32 SHoloMap::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, const FSlateRect& Cull, FSlateWindowElementList& Out, int32 Layer, const FWidgetStyle& Style, bool bParentEnabled) const
 {
 	const FVector2f Size(Geo.GetLocalSize());
+	bPFresh = false;
 	const FSlateBrush* White = FCoreStyle::Get().GetBrush("WhiteBrush");
 	const FPaintGeometry PG = Geo.ToPaintGeometry();
 	FSlateDrawElement::MakeBox(Out, Layer, PG, White, ESlateDrawEffect::None, Bg);

@@ -6,6 +6,9 @@
 #include "Misc/DateTime.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
+#include "HAL/Runnable.h"
+#include "HAL/RunnableThread.h"
+#include "HAL/Event.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/OutputDevice.h"
 #include "Misc/OutputDeviceRedirector.h"
@@ -16,13 +19,54 @@ namespace ADPLog
 	namespace
 	{
 		FCriticalSection Guard;
+		/** The writing thread: lines in the order they came, written at once. */
+		class FADPLogWriter : public FRunnable
+		{
+		public:
+			FADPLogWriter() : Wake(FPlatformProcess::GetSynchEventFromPool(false)) { FRunnableThread::Create(this, TEXT("ADPLog"), 0, TPri_BelowNormal); }
+			void Add(TFunction<void()>&& Fn) { { FScopeLock Ql(&QueueGuard); Queue.Add(MoveTemp(Fn)); } Wake->Trigger(); }
+			void Work()
+			{
+				FScopeLock Wl(&WorkGuard);
+				for (;;)
+				{
+					TArray<TFunction<void()>> Now; { FScopeLock Ql(&QueueGuard); Now = MoveTemp(Queue); Queue.Reset(); }
+					if (!Now.Num()) return;
+					for (TFunction<void()>& Fn : Now) Fn();
+				}
+			}
+			/** From any thread; never waits for ever (in a crash the writing thread may be stopped in the middle of a line). */
+			void DrainNow() { for (int32 i = 0; i < 100; ++i) { if (WorkGuard.TryLock()) { Work(); WorkGuard.Unlock(); return; } FPlatformProcess::Sleep(0.005f); } }
+			virtual uint32 Run() override { for (;;) { Wake->Wait(); Work(); } }
+		private:
+			FEvent* Wake; FCriticalSection QueueGuard, WorkGuard; TArray<TFunction<void()>> Queue;
+		};
+		FADPLogWriter* Writer = nullptr;   // (never ended: it lives as long as the game)
 		FArchive* File = nullptr;
 		bool bTried = false;
 	}
 
+	void Later(TFunction<void()> Work)
+	{
+		{
+			FScopeLock Gl(&Guard);
+			if (!Writer)
+			{
+				if (!FPlatformProcess::SupportsMultithreading() || IsEngineExitRequested()) { Work(); return; }
+				Writer = new FADPLogWriter();
+			}
+		}
+		Writer->Add(MoveTemp(Work));
+		if (IsEngineExitRequested()) Writer->DrainNow();
+	}
+
+	void Drain() { if (Writer) Writer->DrainNow(); }
+
 	void Write(const FString& Line)
 	{
-		FScopeLock L(&Guard);
+		const FString Out = FDateTime::Now().ToString(TEXT("%H:%M:%S.%s ")) + Line + LINE_TERMINATOR;
+		Later([Out]()
+		{
 		if (!File && !bTried)
 		{
 			bTried = true;
@@ -37,10 +81,10 @@ namespace ADPLog
 			if (!File) File = FM.CreateFileWriter(*(Dir / FString::Printf(TEXT("ADP-%u.log"), FPlatformProcess::GetCurrentProcessId())), FILEWRITE_AllowRead);
 		}
 		if (!File) return;
-		const FString Out = FDateTime::Now().ToString(TEXT("%H:%M:%S.%s ")) + Line + LINE_TERMINATOR;
 		const FTCHARToUTF8 U(*Out);
 		File->Serialize(const_cast<ANSICHAR*>(U.Get()), U.Length());
 		File->Flush();
+		});
 	}
 }
 
@@ -57,6 +101,7 @@ namespace
 			const ELogVerbosity::Type Kind = ELogVerbosity::Type(Verbosity & ELogVerbosity::VerbosityMask);
 			if (Kind > ELogVerbosity::Warning || Category == FName(TEXT("LogTemp"))) return;   // (the game's own lines are written already)
 			ADPLog::Write(FString::Printf(TEXT("%s %s: %s"), Kind == ELogVerbosity::Fatal ? TEXT("FATAL") : Kind == ELogVerbosity::Error ? TEXT("Error") : TEXT("Warning"), *Category.ToString(), V));
+			if (Kind == ELogVerbosity::Fatal) ADPLog::Drain();
 		}
 		virtual bool CanBeUsedOnAnyThread() const override { return true; }
 	};
@@ -65,7 +110,8 @@ namespace
 	{
 		static FADPErrorsToLog Device;
 		if (GLog) GLog->AddOutputDevice(&Device);
-		FCoreDelegates::OnHandleSystemError.AddStatic([]() { ADPLog::Write(FString(TEXT("CRASH: ")) + GErrorHist); });
+		FCoreDelegates::OnHandleSystemError.AddStatic([]() { ADPLog::Write(FString(TEXT("CRASH: ")) + GErrorHist); ADPLog::Drain(); });
+		FCoreDelegates::OnEnginePreExit.AddStatic([]() { ADPLog::Drain(); });
 		FCoreDelegates::OnHandleSystemEnsure.AddStatic([]() { ADPLog::Write(FString(TEXT("GLITCH (a check failed): ")) + GErrorHist); });
 		ADPLog::Write(TEXT("Airport Dynasty Pro started"));
 	}

@@ -1,0 +1,41 @@
+# where the game stops (-StallWatch=30) with passengers about, and what the people cost part by part
+cmd r.VSync 0
+speed 1 1
+wait 5
+speed 10 1
+people 30 180
+speed 1 1
+follow 80 walking in, over a minute
+speed 10 1
+follow 45 more come (career 10x)
+speed 1 1
+view 79 1.6 2.9 90 0
+wait 3
+measure 8 hall, everyone
+part hair 0
+wait 1
+measure 8 hall, no hair
+part hair 1
+part face 0
+wait 1
+measure 8 hall, no faces
+part face 1
+part body 0
+wait 1
+measure 8 hall, no bodies
+part body 1
+part clothes 0
+wait 1
+measure 8 hall, no clothes
+part clothes 1
+part shadow 0
+wait 1
+measure 8 hall, no shadows of people
+part shadow 1
+part all 0
+wait 1
+measure 8 hall, nobody
+part all 1
+wait 1
+measure 8 hall, everyone again
+quit

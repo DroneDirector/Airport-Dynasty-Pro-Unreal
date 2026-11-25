@@ -1,0 +1,22 @@
+# people walking from the car park over the crossing and the pavement into the hall (287), and the minute's hitch (269); nothing hidden, watched live
+cmd r.VSync 0
+speed 1 1
+wait 5
+speed 10 1
+people 8 120
+speed 1 1
+view 75 1.7 -45 -90 0
+wait 3
+measure 20 doors from outside
+follow 40 from the car park 1
+follow 40 from the car park 2
+speed 10 1
+follow 40 more come (career 10x)
+speed 1 1
+view 75 1.7 -45 -90 0
+wait 3
+measure 70 doors from outside, over a minute
+view 79 1.6 2.9 90 0
+wait 3
+measure 70 hall, over a minute
+quit
