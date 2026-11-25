@@ -415,6 +415,8 @@ exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_pas
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_westfit_edit.py'), encoding='utf-8').read())
 # the Grand Hall's self-service fittings (West Wing part 3: service desk, boarding-pass e-gates, trolley bays): Tools/terminal_hallfit_edit.py, last
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_hallfit_edit.py'), encoding='utf-8').read())
+# the timetables without a wall behind them (to-do 262): Tools/terminal_boards_edit.py, last
+exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'terminal_boards_edit.py'), encoding='utf-8').read())
 json.dump(L, open(OUT, 'w'))
 print('\n'.join(log))
 print('layout written:', OUT)
