@@ -4,13 +4,12 @@
 //    (built, or -RemoteStands)
 //  - your airline's colours on their paint (as the other ground vehicles), the airport's own name on their sides written
 //    at run time, road dirt and the wash hose (VehicleDirt.h), every lamp's lens ready to be lit on its own
-//  - solid: nobody walks through one; their doors are shut (nothing drives or opens yet)
-// The driving, the doors and the riders are the next steps: FBus holds what they need.
+//  - the vehicles themselves are AGSE's (GSEBus.cpp: driving, driver, doors, what is solid); this keeps their looks:
+//    AGSE places one a row and gives it to Adopt
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "VehicleDirt.h"
 #include "ApronBus.generated.h"
 
 class ABabylonModel;
@@ -39,18 +38,21 @@ public:
 		FString Name, Bay;
 		float X = 0.f, Y = 0.f, Heading = 0.f;   // (its own place: plan metres and degrees)
 		TWeakObjectPtr<ABabylonModel> M;
-		FVehicleDirt Dirt;
 		TArray<FLamp> Lamps;
 		TArray<TWeakObjectPtr<UTextRenderComponent>> Names;
 		FString Livery;
 	};
 	const TArray<FBus>& All() const { return Buses; }
+	/** The table read (once); the buses have no models until AGSE gives them (Adopt). */
+	void Load();
+	/** A bus's model, placed by AGSE (its road dirt already on it): its lamps, name and colours. */
+	void Adopt(int32 Ix, ABabylonModel* M);
+	FBus* Of(const ABabylonModel* M) { return Buses.FindByPredicate([M](const FBus& B) { return B.M.Get() == M; }); }
 	/** A bus's lamps of one kind lit (0 off .. 1 full); Side 1 left, -1 right, 0 both. */
 	void SetLamps(FBus& B, EApronBusLamp Kind, float On, int32 Side = 0);
 
 private:
-	void Setup();
-	bool SpawnBus(FBus& B);
+	bool bLoaded = false;
 	void Materials(FBus& B);
 	void AirportName(FBus& B);
 	void PutLivery(FBus& B);

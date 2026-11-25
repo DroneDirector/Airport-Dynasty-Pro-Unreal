@@ -25,7 +25,6 @@ TWeakObjectPtr<AApronBuses> AApronBuses::One;
 // the bus's own sizes (Tools/make_apron_bus.py; the model's root space, cm: Blender's (x, y, z) m at (x, -y, z) * 100)
 namespace ApronBusDim
 {
-	constexpr float HalfL = 699.f, HalfW = 151.f, Top = 311.f, Under = 16.f;
 	constexpr float NameZ = 273.f, NameOut = 152.4f, NameSize = 17.f;   // (the cant rail's panel: 6.2 x 0.23 m)
 }
 
@@ -48,11 +47,13 @@ AApronBuses* AApronBuses::Get(UWorld* W)
 void AApronBuses::BeginPlay()
 {
 	Super::BeginPlay();
-	Setup();
+	Load();
 }
 
-void AApronBuses::Setup()
+void AApronBuses::Load()
 {
+	if (bLoaded) return;
+	bLoaded = true;
 	// (the stands' list holds the remote ones only where they are built, or with -RemoteStands)
 	if (!AAirfield::Shared().Stands.ContainsByPredicate([](const FAirfieldData::FStand& S) { return S.bRemote; }))
 	{ ADP_LOG(TEXT("Apron buses: no remote stands - none here")); SetActorTickEnabled(false); return; }
@@ -70,32 +71,16 @@ void AApronBuses::Setup()
 		if (!(*O)->TryGetNumberField(TEXT("x"), X) || !(*O)->TryGetNumberField(TEXT("y"), Y)) { ADP_WARN(TEXT("Apron buses: %s has no place"), *B.Name); continue; }
 		(*O)->TryGetNumberField(TEXT("heading"), H);
 		B.X = float(X); B.Y = float(Y); B.Heading = float(H);
-		if (SpawnBus(B)) Buses.Add(MoveTemp(B));
+		Buses.Add(MoveTemp(B));
 	}
-	ADP_LOG(TEXT("Apron buses: %d of %d parked"), Buses.Num(), Rows->Num());
+	ADP_LOG(TEXT("Apron buses: %d of %d rows"), Buses.Num(), Rows->Num());
 	if (!Buses.Num()) SetActorTickEnabled(false);
 }
 
-bool AApronBuses::SpawnBus(FBus& B)
+void AApronBuses::Adopt(int32 Ix, ABabylonModel* M)
 {
-	using namespace ApronBusDim;
-	UWorld* W = GetWorld(); if (!W) return false;
-	const FVector At = FTerminalPlan::ToWorld(B.X, AAirfield::GroundAt(B.X, B.Y), B.Y);
-	FActorSpawnParameters S; S.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	// (plan (x, y) is world (x, -z): which way its heading points in the world)
-	const float Hr = FMath::DegreesToRadians(B.Heading);
-	const FVector Face = FTerminalPlan::ToWorld(FMath::Cos(Hr), 0.f, FMath::Sin(Hr));
-	ABabylonModel* M = W->SpawnActor<ABabylonModel>(At, FRotator(0.f, Face.Rotation().Yaw, 0.f), S);
-	if (!M) return false;
-	if (!M->Place(TEXT("ApronBus"))) { ADP_WARN(TEXT("Apron buses: the model is not there")); M->Destroy(); return false; }
-	M->SetPartsCollision(false);
-	B.M = M;
-	// its body solid for anyone walking
-	UBoxComponent* Box = NewObject<UBoxComponent>(M);
-	Box->SetupAttachment(M->GetRootComponent()); Box->SetRelativeLocation(FVector(0.f, 0.f, (Top + Under) * 0.5f)); Box->SetBoxExtent(FVector(HalfL, HalfW, (Top - Under) * 0.5f));
-	Box->SetCollisionEnabled(ECollisionEnabled::QueryOnly); Box->SetCollisionObjectType(ECC_WorldDynamic);
-	Box->SetCollisionResponseToAllChannels(ECR_Ignore); Box->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
-	Box->SetCanEverAffectNavigation(false); Box->RegisterComponent(); M->AddInstanceComponent(Box);
+	if (!Buses.IsValidIndex(Ix) || !M) return;
+	FBus& B = Buses[Ix]; B.M = M;
 	Materials(B);
 	AirportName(B);
 	PutLivery(B);
@@ -103,7 +88,7 @@ bool AApronBuses::SpawnBus(FBus& B)
 	for (const TCHAR* N : {TEXT("IK_Wheel_FL"), TEXT("IK_Wheel_FR"), TEXT("IK_Wheel_RL"), TEXT("IK_Wheel_RR")}) Wheels += M->NodeBase(N, T) ? 1 : 0;
 	for (int32 I = 0; I < M->NodeCount(); ++I) Doors += M->NodeName(I).StartsWith(TEXT("PIV_Door_")) ? 1 : 0;
 	ADP_LOG(TEXT("Apron buses: %s at %s (%.1f, %.1f) heading %.0f - %d lamps, %d wheels, %d door leaves"), *B.Name, *B.Bay, B.X, B.Y, B.Heading, B.Lamps.Num(), Wheels, Doors);
-	return true;
+	SetLamps(B, EApronBusLamp::DoorWarn, 0.f);
 }
 
 void AApronBuses::Materials(FBus& B)
@@ -137,7 +122,7 @@ void AApronBuses::Materials(FBus& B)
 		}
 	if (Empty) ADP_WARN(TEXT("Apron buses: %d empty material slots"), Empty);
 	// the road dirt and the glass - but no road dirt on its ceiling, floor covering and grab poles, and lacquer on its paint
-	B.Dirt.Dress(M, M, B.Name);
+	// (the dirt itself: AGSE's, on every vehicle of its)
 	for (UInstancedStaticMeshComponent* K : Ps)
 		for (int32 Si = 0; Si < K->GetNumMaterials(); ++Si)
 		{
@@ -233,6 +218,5 @@ void AApronBuses::Tick(float Dt)
 	{
 		if (!B.M.IsValid()) continue;
 		if (bLivery) PutLivery(B);
-		if (B.Dirt.IsValid()) B.Dirt.Tick(Dt, 0.f);   // (nothing drives yet)
 	}
 }

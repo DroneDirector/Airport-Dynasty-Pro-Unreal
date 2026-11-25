@@ -37,6 +37,7 @@ struct FDriverPose;
 struct FSvcRefuel;
 struct FSvcCater;
 struct FSvcClean;
+struct FSvcBus;
 struct FSvcWet;
 struct FSvcStairs;
 struct FSvcDeicer;
@@ -117,6 +118,8 @@ public:
 		TSharedPtr<FSvcWet> Wa;           // (the water and the toilet truck's: GSEWater.cpp)
 		TSharedPtr<FSvcClean> Cl;         // (the cleaning van's kit in your hands: GSECleanYou.cpp)
 		TSharedPtr<FSvcCater> Ct;         // (the catering high-loader's: GSECater.cpp)
+		TSharedPtr<FSvcBus> Bu;           // (an apron bus's doors, driver and sounds: GSEBus.cpp)
+		FVector KWheelAx = FVector(-0.7071f, 0.f, 0.7071f);   // (its steering wheel's axis)
 		TMap<FString, FVector> Pt;        // (a service vehicle's named points, root cm: Data/<vehicle>-riders.json)
 		struct FSvcDoor { int32 G = INDEX_NONE; FVector Piv = FVector::ZeroVector; float Now = 0.f, Want = 0.f; };
 		TArray<FSvcDoor> SvcDoors;        // (as the table's doors: 0 shut .. 1 open)
@@ -194,6 +197,7 @@ private:
 	static TSharedPtr<FVehTable> ToiletControls();
 	static TSharedPtr<FVehTable> CaterControls();
 	static TSharedPtr<FVehTable> CleanControls();
+	static TSharedPtr<FVehTable> BusControls();   // (the apron buses, GSEBus.cpp)
 	static TSharedPtr<FVehTable> TaxiControls();   // (the taxi bus, TaxiBus.cpp)
 	static TSharedPtr<FVehTable> StairsControls();
 	/** The belt loader worked by you (GSELoaderYou.cpp). Held: the boom stands (somebody on it or under it). Free: a crew may have it. */
@@ -511,6 +515,33 @@ private:
 	void SvcTick(float Dt);
 	// the taxi bus's hired driver (to-do 239b, GSEService.cpp): from their place on the pavement round its front to the wheel, out
 	// and back to the pavement when their shift is over. Stage: 0 none, 1 on the way in, 2 at the wheel, 3 getting out
+	// ---- the apron buses (GSEBus.cpp)
+public:
+	/** A bus's vehicle by its name in Data/apron-buses.json (none: INDEX_NONE). */
+	int32 BusOf(const FString& Name) const;
+	/** Its hired driver gets in (if nobody is at its wheel), shuts the doors, drives it to a plan point and stands with that
+	 *  heading (degrees: 0 plan +x, 90 plan +y); Done is told. False: it can't now, Why says so (ask again). */
+	bool BusDriveTo(int32 Ti, const FVector2f& To, float Heading, TFunction<void()> Done, FString& Why);
+	/** Back to its own bay, nose out; the driver stays at the wheel (BusLeave). */
+	bool BusHome(int32 Ti, TFunction<void()> Done, FString& Why);
+	/** Standing: its driver shuts it, gets out and is free again. */
+	bool BusLeave(int32 Ti);
+	/** A door (0..6: left front, middle, rear; right front, second, third, rear) opened or shut; false with the reason. Never shut on anyone. */
+	bool BusDoor(int32 Ti, int32 Door, bool bOpen, FString& Why);
+	bool BusDoorIs(int32 Ti, int32 Door, bool bOpen) const;
+	bool BusDoorsShut(const FTractor& T) const;
+	bool BusSomebodyIn(const FTractor& T, int32 Door) const;   // (in a door's opening)
+private:
+	void BusDress(FTractor& T);
+	void BusParts(FTractor& T, float Dt);
+	void BusTick(float Dt);
+	void BusSetAll(int32 Ti, bool bOpen);
+	bool BusMan(int32 Ti, TFunction<void()> Then, FString& Why);
+	void BusRoute(int32 Ti, FVector2f To, float Heading, TFunction<void()> Done);
+	void BusRouteHome(int32 Ti, TFunction<void()> Done);
+	void BusWalkRound(int32 Ci, int32 Ti);
+	TFunction<void(float, float, FDriverPose&)> BusClimbFn(int32 Ti, bool bIn) const;
+	float BusPoll = 0.f;
 	void TaxiTick(float Dt);
 	float TaxiPoll = 0.f; int32 TaxiCi = INDEX_NONE, TaxiTi = INDEX_NONE; uint8 TaxiStage = 0;
 	// its fare (the same tick owns it): on board or not, the distance (m), the time and the time standing or crawling (s)

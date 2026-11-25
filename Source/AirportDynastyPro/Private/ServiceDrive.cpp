@@ -373,12 +373,13 @@ FVector AGSE::SvcStandL(int32 Ti, int32 Seat) const
 }
 FVector AGSE::SvcStandW(int32 Ti, int32 Seat) const { const FVector W = TW(Tractors[Ti], SvcStandL(Ti, Seat)); return Plan(W.X / 100.f, -W.Y / 100.f); }
 float AGSE::SvcFaceYaw(int32 Ti, int32 Seat) const { return Tractors[Ti].Yaw + (SvcStandL(Ti, Seat).Y >= 0.f ? -90.f : 90.f); }
-float AGSE::SvcClimbTime(int32 Ti, int32 Seat, bool bIn) const { const FServiceSpec& S = SdSpec(Tractors[Ti].Svc); return S.bDeicer && SdCab(S, Seat) >= 0 ? (bIn ? 9.f : 8.f) : Seat > 0 && SdCab(S, Seat) < 0 ? (bIn ? 5.f : 4.4f) : IsTall(Tractors[Ti]) ? (bIn ? 4.6f : 4.2f) : (bIn ? 3.2f : 2.8f); }
+float AGSE::SvcClimbTime(int32 Ti, int32 Seat, bool bIn) const { const FServiceSpec& S = SdSpec(Tractors[Ti].Svc); if (S.bBus) return bIn ? 7.4f : 6.6f; return S.bDeicer && SdCab(S, Seat) >= 0 ? (bIn ? 9.f : 8.f) : Seat > 0 && SdCab(S, Seat) < 0 ? (bIn ? 5.f : 4.4f) : IsTall(Tractors[Ti]) ? (bIn ? 4.6f : 4.2f) : (bIn ? 3.2f : 2.8f); }
 
 void AGSE::SvcSeatDoor(int32 Ti, int32 Seat, bool bOpen)
 {
 	FTractor& T = Tractors[Ti]; const FServiceSpec& S = SdSpec(T.Svc);
 	if (T.TugIx != INDEX_NONE) if (ATugs* G = Tg()) { ATugs::FTug& U = G->Tugs[T.TugIx]; if (bOpen && U.DoorWant == 0.f) Sound(*T.SndDoorOpen, TW(T, T.KHandle)); U.DoorWant = T.DoorWant = bOpen ? T.KDoorDeg : 0.f; return; }
+	if (T.Bu) { FString Why; if (!bOpen) T.DoorWant = 0.f; BusDoor(Ti, 3, bOpen, Why); return; }   // (its front door; the cab door inside goes with the climb)
 	if (Seat == 0) { if (bOpen && T.DoorWant == 0.f) Sound(*T.SndDoorOpen, TW(T, T.KHandle)); T.DoorWant = bOpen ? T.KDoorDeg : 0.f; return; }
 	const int32 c = SdCab(S, Seat), d = c >= 0 ? S.Doors.Num() + c : 0; if (!T.SvcDoors.IsValidIndex(d)) return;
 	if (bOpen && T.SvcDoors[d].Want < 0.5f) Sound(*T.SndDoorOpen, TW(T, T.SvcDoors[d].Piv));
@@ -388,6 +389,7 @@ bool AGSE::SvcSeatDoorOpen(int32 Ti, int32 Seat) const
 {
 	const FTractor& T = Tractors[Ti]; const FServiceSpec& S = SdSpec(T.Svc);
 	if (T.TugIx != INDEX_NONE) if (const ATugs* G = Tg()) return G->Tugs[T.TugIx].DoorAng > T.KDoorDeg * 0.9f;
+	if (T.Bu) return BusDoorIs(Ti, 3, true);
 	if (Seat == 0) return T.DoorAng > T.KDoorDeg * 0.9f;
 	const int32 c = SdCab(S, Seat), d = c >= 0 ? S.Doors.Num() + c : 0; return !T.SvcDoors.IsValidIndex(d) || T.SvcDoors[d].Now > 0.99f;
 }
@@ -396,7 +398,7 @@ TFunction<void(float, float, FDriverPose&)> AGSE::SvcHandFn(int32 Ti, int32 Seat
 {
 	const FTractor& T0 = Tractors[Ti]; const FServiceSpec& S = SdSpec(T0.Svc); const int32 c = SdCab(S, Seat);
 	const FVector At = SvcStandL(Ti, Seat), H = Seat == 0 ? T0.KHandle : S.bDeicer && S.Cab.IsValidIndex(c) ? SvcP(T0, TEXT("IK_Grab_DeckSteps_F")) : S.Cab.IsValidIndex(c) ? SvcP(T0, S.Cab[c].Door.Handle) : SvcP(T0, S.Doors[0].Handle);
-	const float Dy = At.Y >= 0.f ? -90.f : 90.f; const int32 Side = At.Y >= 0.f ? 0 : 1;   // (the hand nearer the door's handle)
+	const float Dy = At.Y >= 0.f ? -90.f : 90.f; const int32 Side = T0.Bu ? 1 : At.Y >= 0.f ? 0 : 1;   // (the hand nearer the door's handle)
 	return [this, Ti, At, H, Dy, Side](float K, float PH, FDriverPose& P) { const FTractor& T = Tractors[Ti]; P = ADPPose::Reach(TW(T, At), FRotator(0.f, T.Yaw + Dy, 0.f).Vector(), Side, TW(T, H), 0.7f, PH, FMath::Sin(PI * FMath::Clamp(K, 0.f, 1.f))); };
 }
 

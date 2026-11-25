@@ -813,6 +813,7 @@ void AAirfield::Aprons(bool bModelSite)
 			if (k == 0)
 				for (const FServiceSpec& Sv : ADPService::All())
 				{
+					if (Sv.bBus) continue;   // (their bays have their own lines)
 					const bool bNS = FMath::Abs(Sv.HomeHy) > 0.5f; const float Hl = Sv.HalfL / 100.f + 1.f, Hw = Sv.HalfW / 100.f + 0.72f, Hx = bNS ? Hw : Hl, Hy = bNS ? Hl : Hw;
 					const float X0 = Sv.HomeX - Hx, X1 = Sv.HomeX + Hx, Ya = Sv.HomeY - Hy, Yb = Sv.HomeY + Hy;
 					Line("paintwhite", FVector2f(X0, Ya), FVector2f(X1, Ya), 0.12f, 0.0075f); Line("paintwhite", FVector2f(X0, Yb), FVector2f(X1, Yb), 0.12f, 0.0075f);

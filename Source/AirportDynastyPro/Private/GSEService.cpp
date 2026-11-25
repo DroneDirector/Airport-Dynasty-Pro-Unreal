@@ -6,6 +6,7 @@
 // There is no cabin inside the aircraft yet (to-do 209): at its door they are out of sight and the rows are worked by time.
 #include "GSE.h"
 #include "ServiceVehicles.h"
+#include "ApronBus.h"
 #include "GSEFuel.h"
 #include "GSECater.h"
 #include "GSEClean.h"
@@ -162,6 +163,15 @@ const TArray<FServiceSpec>& ADPService::All()
 			L.Add(D);
 		}
 		{
+			// the electric apron buses (to-do 277; GSEBus.cpp, AApronBuses): one line for all; no turn-round task asks for them
+			// yet. 14 m long, wheelbase 7.10 m: the rear axle's turning circle 10.8 m at 33 degrees; 30 km/h
+			FServiceSpec B;
+			B.bBus = true; B.Task = TEXT("apronbus"); B.Model = TEXT("ApronBus"); B.Points = TEXT("apronbus"); B.Label = TEXT("apron bus"); B.Role = TEXT("bus"); B.Team = EStaffTask::ApronBus; B.MaxPeople = 1;
+			B.HalfL = 699.f; B.HalfW = 151.f; B.TurnR = 1080.f; B.MaxSteer = 35.f; B.DoorDeg = 85.f; B.PlayerSpeed = 833.f;
+			B.Wipers = {{TEXT("WiperArm_L"), TEXT("PIV_Wiper_L"), FVector(695.f, 10.f, 118.5f), FVector(691.f, -55.f, 181.f)}, {TEXT("WiperArm_R"), TEXT("PIV_Wiper_R"), FVector(695.f, -10.f, 123.5f), FVector(691.f, 55.f, 186.f)}};
+			L.Add(B);
+		}
+		{
 			// the taxi bus (to-do 239; the cleaning van's body, Art/TaxiBus): no turn-round task asks for it, it waits at the
 			// landside kerb - in the kerbside parking lane of the forecourt (lane -25.0 .. -21.5 m, the kerb at -21.5), 12 m
 			// west of the arrivals hall's east doors (x -39 .. -34), clear of the zebra crossings (x 48 .. 101), facing west
@@ -196,8 +206,15 @@ void AGSE::SvcSetup()
 	{
 		const FServiceSpec& S = SvSpec(i);
 		FVehicleSpec V; if (!V.Load(S.Points)) continue;
+		// (the apron buses: one a row of their own table; every other line is one vehicle)
+		AApronBuses* Bs = S.bBus ? AApronBuses::Get(GetWorld()) : nullptr; if (S.bBus && !Bs) continue;
+		if (Bs) Bs->Load();
+		for (int32 n = 0; n < (Bs ? Bs->All().Num() : 1); ++n)
+		{
 		FTractor T; T.Svc = i; T.Pt = V.P; T.Name = S.Label;
-		float Yw = 0.f; T.Home = T.At = PlanPose(S.HomeX, S.HomeY, S.HomeHx, S.HomeHy, Yw); T.HomeYaw = T.Yaw = Yw;
+		float Yw = 0.f; T.Home = T.At = PlanPose(S.HomeX, S.HomeY, S.HomeHx, S.HomeHy, Yw);
+		if (Bs) { const AApronBuses::FBus& Bx = Bs->All()[n]; const float H = FMath::DegreesToRadians(Bx.Heading); T.Name = Bx.Name; T.Home = T.At = PlanPose(Bx.X, Bx.Y, FMath::Cos(H), FMath::Sin(H), Yw); }
+		T.HomeYaw = T.Yaw = Yw;
 		static const TCHAR* W[] = {TEXT("FL"), TEXT("FR"), TEXT("RL"), TEXT("RR")};
 		for (int32 w = 0; w < 4; ++w) T.KWheel[w] = V.At(*(FString(TEXT("PIV_Wheel_")) + W[w]));
 		for (int32 w = 0; w < 2; ++w) T.KKing[w] = V.At(*(FString(TEXT("PIV_Steer_")) + W[w]));
@@ -208,14 +225,17 @@ void AGSE::SvcSetup()
 		if (S.bStairs || S.bAmbu) T.Pt.Remove(TEXT("IK_Step_DoorDriver_Low"));   // (one low step, not a truck's two)
 		T.KHalfL = S.HalfL; T.KHalfW = S.HalfW; T.KCentreX = 0.f; T.KTurnR = S.TurnR; T.KMaxSteer = S.MaxSteer; T.KDoorDeg = S.DoorDeg;
 		T.SndStart = TEXT(""); T.SndLoop = TEXT("BLDriveLoop"); T.SndStop = TEXT(""); T.SndDoorOpen = TEXT("BLDoorOpen"); T.SndDoorClose = TEXT("BLDoorClose"); T.SndBeep = TEXT("BLReverseBeep"); T.SndHorn = TEXT("BLHorn");   // (the diesel horn, as its motor and doors: no horn of its own kind yet)
+		if (Bs) { T.KWheelAx = FVector(-0.5145f, 0.f, 0.8575f); T.SndStart = TEXT("ABReady"); T.SndLoop = TEXT("ABDriveLoop"); T.SndStop = TEXT("ABShutdown"); T.SndDoorOpen = TEXT("ABDoorOpen"); T.SndDoorClose = TEXT("ABDoorClose"); T.SndBeep = TEXT("ABReverseBeep"); T.SndHorn = TEXT("ABHorn"); }
 		if (SpawnTractor(T))
 		{
+			if (Bs) Bs->Adopt(n, T.M.Get());
 			Tractors.Add(T); SvcLivery(Tractors.Last());
 			if (S.bStairs) { ADP_LOG(TEXT("GSE: %s in its box at plan (%.0f, %.0f)"), *T.Name, S.HomeX, S.HomeY); continue; }   // (solid by its own boxes: you can walk up them)
 			// (solid for you on foot - its parts have no collision of their own)
-			UBoxComponent* B = NewObject<UBoxComponent>(T.M.Get()); B->SetupAttachment(T.M->GetRootComponent()); B->SetRelativeLocation(FVector(0.f, 0.f, S.bFuel ? 165.f : S.bCater ? 190.f : 135.f)); B->SetBoxExtent(FVector(T.KHalfL - 4.f, T.KHalfW - 4.f, S.bFuel ? 135.f : S.bCater ? 160.f : 105.f));
+			UBoxComponent* B = NewObject<UBoxComponent>(T.M.Get()); B->SetupAttachment(T.M->GetRootComponent()); B->SetRelativeLocation(FVector(0.f, 0.f, S.bFuel || S.bBus ? 165.f : S.bCater ? 190.f : 135.f)); B->SetBoxExtent(FVector(T.KHalfL - 4.f, T.KHalfW - 4.f, S.bBus ? 146.f : S.bFuel ? 135.f : S.bCater ? 160.f : 105.f));
 			B->SetCollisionEnabled(ECollisionEnabled::QueryOnly); B->SetCollisionObjectType(ECC_WorldDynamic); B->SetCollisionResponseToAllChannels(ECR_Ignore); B->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block); B->SetCanEverAffectNavigation(false); B->RegisterComponent(); T.M->AddInstanceComponent(B);
- ADP_LOG(TEXT("GSE: %s in its box at plan (%.0f, %.0f)"), *T.Name, S.HomeX, S.HomeY);
+ ADP_LOG(TEXT("GSE: %s in its box at plan (%.0f, %.0f)"), *T.Name, T.Home.X / 100.f, -T.Home.Y / 100.f);
+		}
 		}
 	}
 }
@@ -226,9 +246,10 @@ void AGSE::SvcDress(FTractor& T)
 	for (const FServiceDoor& D : S.Doors) { FTractor::FSvcDoor X; X.Piv = SvcP(T, D.Pivot); X.G = M->BindGroup({FString(D.Prefix)}, true, FTransform(X.Piv)); T.SvcDoors.Add(X); }
 	for (const FServiceCab& C : S.Cab) { FTractor::FSvcDoor X; X.Piv = SvcP(T, C.Door.Pivot); X.G = M->BindGroup({FString(C.Door.Prefix)}, true, FTransform(X.Piv)); T.SvcDoors.Add(X); }
 	T.GPedal[0] = M->BindGroup({TEXT("Pedal_Accel")}, true, FTransform(SvcP(T, TEXT("PIV_Pedal_Accel")))); T.GPedal[1] = M->BindGroup({TEXT("Pedal_Brake")}, true, FTransform(SvcP(T, TEXT("PIV_Pedal_Brake"))));
-	for (const FServiceWiper& W : S.Wipers) T.GWiper.Add(M->BindGroup({FString(W.Prefix)}, true, FTransform(SvcP(T, W.Pivot))));
+	for (const FServiceWiper& W : S.Wipers) T.GWiper.Add(M->BindGroup({FString(W.Prefix), FString(W.Prefix).Replace(TEXT("WiperArm_"), TEXT("WiperBlade_"))}, true, FTransform(SvcP(T, W.Pivot))));
 	for (const FServiceItem& I : S.Items) { FTractor::FSvcItem X; X.Piv = SvcP(T, I.Part); X.bShow = I.bAtHome; X.G = M->BindGroup({FString(I.Part)}, true, FTransform(X.Piv)); T.SvcItems.Add(X); }
 	CabDress(T);
+	if (S.bBus) BusDress(T);
 	if (SvIs(T.Svc, TEXT("clean"))) CleanDress(T);
 	if (S.bFuel) FuelDress(T);
 	if (S.bCater) CaterDress(T);
@@ -258,7 +279,7 @@ void AGSE::SvcDress(FTractor& T)
 void AGSE::SvcLivery(FTractor& T)
 {
 	// your airline's colours (FADPAirline LiveryBody / LiveryMain, "#rrggbb"; empty: the model's own) on its livery paint
-	const UADPSim* Sim = UADPSim::Get(this); const FServiceSpec& S = SvSpec(T.Svc); FString B, Mn;
+	const UADPSim* Sim = UADPSim::Get(this); const FServiceSpec& S = SvSpec(T.Svc); FString B, Mn; if (S.bBus) return;   // (AApronBuses paints its own)
 	if (Sim) for (const FADPAirline& A : Sim->World.Airlines) if (A.bPlayer) { B = A.LiveryBody; Mn = A.LiveryMain; }
 	const FString Want = B + TEXT("|") + Mn; ABabylonModel* M = T.M.Get();
 	if (!M || Want == T.Livery || (T.Livery.IsEmpty() && Want.Len() < 2)) return;
@@ -325,6 +346,7 @@ void AGSE::SvcParts(FTractor& T, float Dt)
 				M->MoveGroup(T.GWiper[w], FTransform(FQuat(Ax, Ang * E), Pv + FVector(0.73f, 0.f, 0.68f) * (1.f * FMath::Sin(PI * E))));
 			}
 	}
+	if (T.Bu) { BusParts(T, Dt); return; }   // (its seven doors of two leaves)
 	for (int32 d = 0; d < T.SvcDoors.Num(); ++d)
 	{
 		FTractor::FSvcDoor& D = T.SvcDoors[d]; const FServiceDoor& K = SvDoor(S, d);

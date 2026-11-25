@@ -572,6 +572,16 @@ Taxi bus (239, part B, 2026-11-24, compiled, NOT run): a line of `ADPService::Al
 - **Name / livery:** written at run time on the cant rail (the model's own `Livery_Name_*` hidden); `AB_Livery_Body`, `AB_Livery_Main` take the airline's colours.
 - **Until its doors open:** SeatSpots skips the model (no sitting in through its side); one solid box (699 x 151 half) keeps people out: the doors step must replace it by walls.
 
+## Apron bus, D3 as built (to-do 277, 2026-11-25, compiled, NOT run): driven, doors, driver
+- `GSEBus.cpp` + one line in `ADPService::All()` (bBus): one AGSE vehicle per row of `Data/apron-buses.json`; points `Data/apronbus-riders.json` (copy in Content/Data). AApronBuses only looks (Load, Adopt, SetLamps).
+- For D4: `AGSE::BusOf(name)`, `BusDriveTo(Ti, plan point, heading, Done, Why)`, `BusHome(Ti, Done, Why)` (stays at the wheel), `BusLeave(Ti)` (gets out), `BusDoor(Ti, 0..6, open, Why)`, `BusDoorIs`, `BusDoorsShut`.
+  Doors 0-2 left front to rear, 3 = R+5.55 (the driver's way in), 4-6 right. False + Why = ask again (nobody free, yours, on its way). Duty BusDriver, task ApronBus, role "bus".
+- Driver: button outside, front door, step, cab door, seat (`BusClimbFn`); out the same way. Shift over: home first, then out. A shut door waits (chime again) while you or crew stand in its opening.
+- Drive() and yours both stand still while a door is open. Solid: floor, walls between doors, ends, roof, cab, leaves; its one box only while it drives or you are far.
+- Yours: cab door buttons + all doors, outside and inside buttons; lights, horn, indicators, hazard, wipers, park brake are every vehicle's (CabAdd).
+- Open: kneel; AVAS, whine, regen, compressor and air-brake sounds (only ready / drive loop / shutdown / reverse beep / horn / doors / chime play); poles and seats inside not solid; the inside not in SeatSpots yet;
+  crew speed and braking are the shared Drive() ones: 20 km/h (what it can stop from within what it looks ahead), yours 30; a hired driver's way round the bus is by four corner points; passengers are not yet in BusSomebodyIn (D4 must add them).
+
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
 | Where | Today | Replace with | Nobody free |

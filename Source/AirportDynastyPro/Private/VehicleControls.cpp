@@ -51,7 +51,7 @@ const FVehTable* AGSE::CtlTable(int32 Svc)
 	if (const TSharedPtr<FVehTable>* F = All.Find(Svc)) return F->Get();
 	if (Svc < 0) { TSharedPtr<FVehTable> Ld = Svc == -4 ? TugControls() : Svc == -2 ? LoaderControls() : TractorControls(); CabAdd(*Ld, Svc); return All.Add(Svc, Ld).Get(); }
 	const FServiceSpec& S = ADPService::All()[Svc];
-	TSharedPtr<FVehTable> Tb = S.bAmbu ? AmbuControls() : S.bFuel ? FuelControls() : S.Wet == 1 ? WaterControls() : S.Wet == 2 ? ToiletControls() : S.bCater ? CaterControls() : S.bStairs ? StairsControls() : S.bDeicer ? DeicerControls() : FCString::Strcmp(S.Task, TEXT("clean")) == 0 ? CleanControls() : FCString::Strcmp(S.Task, TEXT("taxi")) == 0 ? TaxiControls() : TSharedPtr<FVehTable>();
+	TSharedPtr<FVehTable> Tb = S.bBus ? BusControls() : S.bAmbu ? AmbuControls() : S.bFuel ? FuelControls() : S.Wet == 1 ? WaterControls() : S.Wet == 2 ? ToiletControls() : S.bCater ? CaterControls() : S.bStairs ? StairsControls() : S.bDeicer ? DeicerControls() : FCString::Strcmp(S.Task, TEXT("clean")) == 0 ? CleanControls() : FCString::Strcmp(S.Task, TEXT("taxi")) == 0 ? TaxiControls() : TSharedPtr<FVehTable>();
 	if (!Tb) Tb = MakeShared<FVehTable>();
 	CabAdd(*Tb, Svc);   // (the cab controls all of them share)
 	return All.Add(Svc, Tb).Get();
