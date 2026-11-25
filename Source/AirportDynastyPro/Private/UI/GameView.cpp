@@ -145,7 +145,9 @@ namespace
 	class FPageWeatherFactory : public IWebBrowserSchemeHandlerFactory
 	{
 	public:
-		virtual TUniquePtr<IWebBrowserSchemeHandler> Create(FString Verb, FString InUrl) override { return MakeUnique<FPageWeather>(); }
+		// (warnings - isigmet, airsigmet: the game has none of its own; the question simply fails, as it always did, and the
+		//  page goes on without them - to-do 286)
+		virtual TUniquePtr<IWebBrowserSchemeHandler> Create(FString Verb, FString InUrl) override { if (InUrl.Contains(TEXT("sigmet"))) return nullptr; return MakeUnique<FPageWeather>(); }
 	};
 
 	class FGameFiles : public IWebBrowserSchemeHandlerFactory

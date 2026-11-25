@@ -32,6 +32,15 @@ namespace ADPBoards
 	bool Live(const UObject* Ctx);
 	/** The next departures (bArr false) or arrivals, oldest still shown first; at most N. */
 	TArray<FADPBoardRow> Rows(const UObject* Ctx, bool bArr, int32 N);
+	/** A page of a timetable stays this long before the next one comes (seconds; real airports' boards: 10 to 15). */
+	constexpr double PageSeconds = 12.0;
+	/** The turns so far: one every PageSeconds, the same for every screen (so all screens of a kind turn together). */
+	int32 Turn();
+	/** The page of a list of Count rows, Per on a page, shown now (0...), and how many pages there are (1 at least). */
+	int32 Page(int32 Count, int32 Per, int32& Pages);
+	/** The rows the terminal's boards show now: times and statuses as they change; flights come and go at a turn (at once
+	 *  while the list is short). Empty without a career: there is no sample timetable (to-do 286). */
+	const TArray<FADPBoardRow>& Shown(const UObject* Ctx, bool bArr);
 	/** The flight at a gate now (the next departure there), if any. */
 	bool AtGate(const UObject* Ctx, int32 Gate, FADPBoardRow& Out);
 	/** The gate a departure uses (until stands and gates are planned - to-do 183 - each aircraft keeps one by its registration). */

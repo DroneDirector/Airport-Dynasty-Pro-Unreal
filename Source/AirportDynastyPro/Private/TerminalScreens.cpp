@@ -1,8 +1,9 @@
-// The timetable screens: their places and shapes from the Android edition (plan.ts SCREENS, fixtures.ts), their rows
-// the Android edition's sample flights (fids.ts sample) round the real time, refreshed every 4 seconds.
+// The timetable screens: their places and shapes from the Android edition (plan.ts SCREENS, fixtures.ts), their rows the
+// simulation's real flights (ADPBoards), page after page, looked at every second; no flights: empty rows (to-do 286).
 #include "TerminalScreens.h"
 #include "Site.h"
 #include "Sim/ADPBoards.h"
+#include "Sim/ADPSim.h"
 #include "ADPLog.h"
 #include "TerminalBuilder.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -34,41 +35,6 @@ namespace
 			S.Add({EKind::Gate, 1, X0 + 48, PG + 0.25f, 2.6f, 0, k + 5});
 		}
 		return S;
-	}
-
-	/** One row of the sample timetable (fids.ts sample), for the time now in minutes of the day. */
-	struct FRow { FString Time, Flight, Place, Status; FColor Col; };
-	TArray<FRow> Sample(bool bArr, int32 N)
-	{
-		TArray<FString> P, C; ADPSite::Destinations(P, C);   // (the site's own: Site.h)
-		const FDateTime Now = FDateTime::Now();
-		const int64 NowMin = Now.GetTicks() / ETimespan::TicksPerMinute;
-		const int64 Base = NowMin / 15 * 15;
-		TArray<FRow> Out;
-		for (int32 i = -2; i < 12 && Out.Num() < N; ++i)
-		{
-			const int32 K = int32(((Base / 15) + i + (bArr ? 5 : 0)) % 12);
-			const int64 Sched = Base + i * 30, Late = (K * 7) % 5 == 0 ? 20 : 0, Exp = Sched + Late;
-			if (Exp <= NowMin - 25) continue;
-			FString Status = TEXT("On time");
-			FColor Col(127, 196, 245);
-			if (!bArr)
-			{
-				if (NowMin >= Exp) { Status = TEXT("Departed"); Col = FColor(143, 163, 184); }
-				else if (Exp - NowMin < 40) { Status = Late ? TEXT("Delayed, boarding") : TEXT("Boarding"); Col = FColor(63, 208, 160); }
-				else if (Late) { Status = TEXT("Delayed"); Col = FColor(242, 181, 68); }
-			}
-			else
-			{
-				if (NowMin >= Exp) { Status = TEXT("Landed"); Col = FColor(63, 208, 160); }
-				else if (Late) { Status = TEXT("Delayed"); Col = FColor(242, 181, 68); }
-				else if (Exp - NowMin < 30) Status = TEXT("Expected");
-			}
-			const int32 Mins = int32(((Sched % 1440) + 1440) % 1440);
-			Out.Add({FString::Printf(TEXT("%02d:%02d"), Mins / 60, Mins % 60), FString::Printf(TEXT("VT %d"), 200 + K * 37 + (bArr ? 1 : 0)),
-				FString::Printf(TEXT("%s %s"), *C[K % C.Num()], *P[K % P.Num()]), Status, Col});
-		}
-		return Out;
 	}
 }
 #pragma endregion
@@ -142,6 +108,8 @@ void ATerminalScreens::Panel(const FAt& O, float W, float H, float Z, float Faci
 	}
 	FBoard B;
 	B.bArr = bArr;
+	B.Clock = Text(O, FString(), W / 2 - W * 0.03f, H / 2 - Head / 2, FZ + Facing * 0.004f, Facing, Head * 0.42f, FColor(14, 30, 58), true);
+	B.Clock->SetHorizontalAlignment(EHTA_Right);
 	const float Sz = RowH * 0.55f;
 	for (int32 r = 0; r < NRows; ++r)
 	{
@@ -158,20 +126,15 @@ void ATerminalScreens::Panel(const FAt& O, float W, float H, float Z, float Faci
 
 void ATerminalScreens::GateScreen(const FAt& O, int32 Gate)
 {
-	TArray<FString> Dn, Dc; ADPSite::Destinations(Dn, Dc);
-	static const int32 Nums[] = {210, 344, 118, 512, 230, 610, 402, 120};
-	TArray<FString> Flights; for (int32 k = 0; k < 8; ++k) Flights.Add(FString::Printf(TEXT("AM %d · %s"), Nums[k], *Dn[k % Dn.Num()]));
-	static const TCHAR* Times[] = {TEXT("06:40"), TEXT("07:35"), TEXT("07:20"), TEXT("07:55"), TEXT("08:10"), TEXT("08:35"), TEXT("09:00"), TEXT("09:25")};
-	const int32 I = (Gate - 1) % 8;
 	Bezel(O, "black", 1.7f, 0.98f, 0.08f, 0, 0, 0);
 	Bezel(O, "screenPanel", 1.6f, 0.9f, 0.01f, 0, 0, 0.045f);
 	Bezel(O, "yellow", 1.6f, 0.2f, 0.005f, 0, 0.35f, 0.05f);
 	const float L = -0.74f;
 	Text(O, FString::Printf(TEXT("GATE %d"), Gate), L, 0.35f, 0.055f, 1, 0.13f, FColor(20, 32, 46), true);
 	FGateTexts G; G.Gate = Gate;
-	G.Flight = Text(O, Flights[I], L, 0.1f, 0.055f, 1, 0.11f, FColor::White, true);
-	G.Status = Text(O, Gate % 3 == 0 ? TEXT("Boarding") : TEXT("Gate open"), L, -0.12f, 0.055f, 1, 0.1f, FColor(59, 209, 111), true);
-	G.Time = Text(O, FString(TEXT("Scheduled ")) + Times[I], L, -0.32f, 0.055f, 1, 0.08f, FColor(143, 166, 189), true);
+	G.Flight = Text(O, FString(), L, 0.1f, 0.055f, 1, 0.11f, FColor::White, true);
+	G.Status = Text(O, TEXT("Gate closed"), L, -0.12f, 0.055f, 1, 0.1f, FColor(143, 163, 184), true);
+	G.Time = Text(O, FString(), L, -0.32f, 0.055f, 1, 0.08f, FColor(143, 166, 189), true);
 	Gates.Add(G);
 }
 
@@ -228,39 +191,31 @@ void ATerminalScreens::Build(const FTerminalPlan& Plan)
 
 void ATerminalScreens::Refresh()
 {
-	for (int32 a = 0; a < 2; ++a)
+	const UADPSim* Sim = UADPSim::Get(this);
+	const FString Hm = ADPBoards::Local(Sim && ADPBoards::Live(this) ? Sim->Now() : FDateTime::UtcNow()).ToString(TEXT("%H:%M"));
+	// (words set only when they change: a text's mesh is made again at every setting)
+	const auto Say = [](UTextRenderComponent* T, const FString& W) { if (T && T->Text.ToString() != W) T->SetText(FText::FromString(W)); };
+	for (FBoard& B : Boards)
 	{
-		const bool bArr = a == 1;
-		// the simulation's real flights at this airport while a career runs (to-do 174); the sample only before that
-		TArray<FRow> Rows;
-		const bool bLive = ADPBoards::Live(this);
-		if (bLive)
+		const TArray<FADPBoardRow>& Rows = ADPBoards::Shown(this, B.bArr);
+		int32 Pages = 1; const int32 Page = ADPBoards::Page(Rows.Num(), B.Rows.Num(), Pages);
+		Say(B.Clock, Pages > 1 ? FString::Printf(TEXT("Page %d/%d   %s"), Page + 1, Pages, *Hm) : Hm);
+		for (int32 r = 0; r < B.Rows.Num(); ++r)
 		{
-			for (const FADPBoardRow& R : ADPBoards::Rows(this, bArr, 8))
-				Rows.Add({R.Time(), R.Flight, FString::Printf(TEXT("%s %s"), *R.PlaceCode, *R.Place), !bArr && R.Gate ? FString::Printf(TEXT("%s · Gate %d"), *R.Status, R.Gate) : R.Status, R.Col});
-			if (!Rows.Num()) Rows.Add({FString(), FString(), bArr ? TEXT("No arrivals scheduled") : TEXT("No departures scheduled"), FString(), FColor(143, 163, 184)});
-		}
-		else Rows = Sample(bArr, 8);
-		for (FBoard& B : Boards)
-		{
-			if (B.bArr != bArr) continue;
-			for (int32 r = 0; r < B.Rows.Num(); ++r)
-			{
-				const bool bHas = Rows.IsValidIndex(r);
-				TArray<UTextRenderComponent*>& T = B.Rows[r];
-				T[0]->SetText(FText::FromString(bHas ? Rows[r].Time : FString()));
-				T[1]->SetText(FText::FromString(bHas ? Rows[r].Flight : FString()));
-				T[2]->SetText(FText::FromString(bHas ? Rows[r].Place : FString()));
-				T[3]->SetText(FText::FromString(bHas ? Rows[r].Status : FString()));
-				if (bHas) T[3]->SetTextRenderColor(Rows[r].Col);
-			}
+			const int32 i = Page * B.Rows.Num() + r;
+			const FADPBoardRow* R = Rows.IsValidIndex(i) ? &Rows[i] : nullptr;
+			TArray<UTextRenderComponent*>& T = B.Rows[r];
+			Say(T[0], R ? R->Time() : FString());
+			Say(T[1], R ? R->Flight : FString());
+			Say(T[2], R ? FString::Printf(TEXT("%s %s"), *R->PlaceCode, *R->Place) : FString());
+			Say(T[3], !R ? FString() : !B.bArr && R->Gate ? FString::Printf(TEXT("%s · Gate %d"), *R->Status, R->Gate) : R->Status);
+			if (R && T[3]->TextRenderColor != R->Col) T[3]->SetTextRenderColor(R->Col);
 		}
 	}
 }
 
 void ATerminalScreens::RefreshGates()
 {
-	if (!ADPBoards::Live(this)) return;   // (before a career runs: the built sample stays)
 	for (const FGateTexts& G : Gates)
 	{
 		FADPBoardRow R;
@@ -275,7 +230,7 @@ void ATerminalScreens::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 	Clock += DeltaSeconds;
-	if (Clock >= 4.f) { Clock = 0; Refresh(); RefreshGates(); }
+	if (Clock >= 1.f) { Clock = 0; Refresh(); if (++GateClock >= 4) { GateClock = 0; RefreshGates(); } }
 }
 
 #pragma endregion

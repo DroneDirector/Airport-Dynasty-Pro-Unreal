@@ -13,7 +13,7 @@ import { gameSend, gameExists, onGameFids } from '../../ui/game-frame';
 import { IS_PC } from '../../core/app';
 
 /** Sample flights while there's no information. Set to false at alpha: no dummy data from then on. */
-export const DEMO_DATA = true;
+export const DEMO_DATA = false;
 
 type Row = { sched: number; exp: number; flight: string; place: string; ac: string; status: string; col: string };
 type Kind = 'dep' | 'arr';
@@ -103,7 +103,7 @@ function monitor(x: CanvasRenderingContext2D, X: number, Y: number, W: number, H
   const fy = sy + sh - foot; x.fillStyle = 'rgba(0,0,0,0.3)'; x.fillRect(sx, fy, sw, foot);
   x.fillStyle = live ? '#3FD0A0' : '#8FA3B8'; x.beginPath(); x.arc(sx + pad + foot * 0.16, fy + foot / 2, foot * 0.16, 0, Math.PI * 2); x.fill();
   x.font = `600 ${Math.round(foot * 0.44)}px Arial, sans-serif`; x.fillStyle = '#8FA6BD'; x.textAlign = 'left';
-  x.fillText(fit(x, live ? 'Live · updated ' + hms(at) : 'Sample timetable', sw * 0.6), sx + pad + foot * 0.5, fy + foot / 2);
+  x.fillText(fit(x, live ? 'Live · updated ' + hms(at) : '', sw * 0.6), sx + pad + foot * 0.5, fy + foot / 2);
   if (note) { x.textAlign = 'right'; x.fillText(note, sx + sw - pad, fy + foot / 2); }
   // the glass: a soft sheen across the top corner and darker edges
   g = x.createLinearGradient(sx, sy, sx + sw * 0.55, sy + sh); g.addColorStop(0, 'rgba(255,255,255,0.10)'); g.addColorStop(0.35, 'rgba(255,255,255,0.025)'); g.addColorStop(0.36, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(sx, sy, sw, sh);
@@ -216,7 +216,7 @@ export function gateCanvas(gate: number, d: { dep: Row[]; arr: Row[]; base: stri
   // the footer: the live light
   const foot = 40, fy = sy + sh - foot; x.fillStyle = 'rgba(0,0,0,0.3)'; x.fillRect(sx, fy, sw, foot);
   x.fillStyle = live ? '#3FD0A0' : '#8FA3B8'; x.beginPath(); x.arc(sx + 30, fy + foot / 2, 7, 0, Math.PI * 2); x.fill();
-  x.font = '600 20px Arial, sans-serif'; x.fillStyle = '#8FA6BD'; x.textAlign = 'left'; x.fillText(live ? 'Live · updated ' + hms(d.at) : 'Sample timetable', sx + 48, fy + foot / 2);
+  x.font = '600 20px Arial, sans-serif'; x.fillStyle = '#8FA6BD'; x.textAlign = 'left'; x.fillText(live ? 'Live · updated ' + hms(d.at) : '', sx + 48, fy + foot / 2);
   g = x.createLinearGradient(sx, sy, sx + sw * 0.55, sy + sh); g.addColorStop(0, 'rgba(255,255,255,0.08)'); g.addColorStop(0.35, 'rgba(255,255,255,0.02)'); g.addColorStop(0.36, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(sx, sy, sw, sh);
   x.restore();
   return c;

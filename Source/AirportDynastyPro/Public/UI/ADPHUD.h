@@ -314,6 +314,18 @@ public:
 	void OnBoard(const FString& Key, const FString& B64);
 	/** Its picture on its screens (decoded in the background by OnBoard). */
 	void ShowBoard(const FString& Key, int32 Wd, int32 Ht, TArray<uint8> Bgra);
+	/** The terminal's timetable walls, totems and wide screens: drawn here from the real flights, page after page (to-do 286). */
+	void TickBoards(float Dt);
+	bool DrawBoard(int32 Kind);
+	void SeekBoards(const TArray<FString>& Keys);
+	void PutBoard(const FString& Key, class UTexture* T);
+	UPROPERTY() TMap<FString, TObjectPtr<class UTextureRenderTarget2D>> BoardRT;
+	TMap<FString, uint32> BoardSig;
+	TMap<FString, double> BoardDrawn;
+	float BoardClock = 0.f;
+	int32 BoardNext = -1, BoardTries = 0, BoardFound = 0;
+	double BoardSeekAt = -100.0;
+	FString BoardSaid;
 	TMap<FString, double> BoardSought;   // (when a board's screens were last looked for in vain)
 	/** Without the game's voices: Windows' own female voice (SAPI), made off the game thread, then the same loudspeakers. */
 	void SpeechFallback(int32 Id);

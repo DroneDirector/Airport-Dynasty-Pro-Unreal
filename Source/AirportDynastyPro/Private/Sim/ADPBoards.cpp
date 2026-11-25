@@ -14,6 +14,7 @@ namespace
 	struct FLanded { FADPBoardRow Row; FDateTime At; };
 	TMap<FString, FLanded> GLanded;
 	TMap<FString, FADPBoardRow> GLastArr;
+	FString GLandSlot; FDateTime GLandAt;   // (whose landed flights those are: another career, or an older save, starts with none)
 
 	FString BdTown(const FString& Icao, FString& Code)
 	{
@@ -118,6 +119,8 @@ TArray<FADPBoardRow> ADPBoards::Rows(const UObject* Ctx, bool bArr, int32 N)
 	else
 	{
 		TSet<FString> Seen;
+		if (GLandSlot != W.Slot || NowU < GLandAt - FTimespan::FromMinutes(1.0)) { GLanded.Reset(); GLastArr.Reset(); GLandSlot = W.Slot; }
+		GLandAt = NowU;
 		for (const FADPFlight& F : W.Flights)
 		{
 			const bool bToHere = F.To == Here || F.Diverted == Here;
@@ -141,7 +144,8 @@ TArray<FADPBoardRow> ADPBoards::Rows(const UObject* Ctx, bool bArr, int32 N)
 		}
 		// landed: an arrival that left the flights since the last look stays 20 minutes as Landed
 		for (auto It = GLastArr.CreateIterator(); It; ++It)
-			if (!Seen.Contains(It->Key)) { FLanded L{It->Value, NowU}; L.Row.Status = FString::Printf(TEXT("Landed %02d:%02d"), NowL.GetHour(), NowL.GetMinute()); L.Row.Col = CGreen; GLanded.Add(It->Key, L); It.RemoveCurrent(); }
+			if (!Seen.Contains(It->Key) && It->Value.Status == TEXT("Diverted")) It.RemoveCurrent();   // (it landed somewhere else)
+			else if (!Seen.Contains(It->Key)) { FLanded L{It->Value, NowU}; L.Row.Status = FString::Printf(TEXT("Landed %02d:%02d"), NowL.GetHour(), NowL.GetMinute()); L.Row.Col = CGreen; GLanded.Add(It->Key, L); It.RemoveCurrent(); }
 		for (auto It = GLanded.CreateIterator(); It; ++It)
 		{
 			if ((NowU - It->Value.At).GetTotalMinutes() > 20) { It.RemoveCurrent(); continue; }
@@ -151,6 +155,30 @@ TArray<FADPBoardRow> ADPBoards::Rows(const UObject* Ctx, bool bArr, int32 N)
 	Out.Sort([](const FADPBoardRow& A, const FADPBoardRow& B) { return A.Sched < B.Sched; });
 	if (Out.Num() > N) Out.SetNum(N);
 	return Out;
+}
+
+int32 ADPBoards::Turn() { return int32(FPlatformTime::Seconds() / PageSeconds); }
+
+int32 ADPBoards::Page(int32 Count, int32 Per, int32& Pages)
+{
+	Pages = FMath::Max(1, FMath::DivideAndRoundUp(Count, FMath::Max(Per, 1)));
+	return Turn() % Pages;
+}
+
+const TArray<FADPBoardRow>& ADPBoards::Shown(const UObject* Ctx, bool bArr)
+{
+	struct FHeld { TArray<FADPBoardRow> Rows; int32 Turn = -1; double At = -100.0; };
+	static FHeld Held[2];
+	FHeld& H = Held[bArr ? 1 : 0];
+	if (!Live(Ctx)) { H.Rows.Reset(); H.Turn = -1; return H.Rows; }
+	const double T = FPlatformTime::Seconds(); const int32 Tn = Turn();
+	if (H.Turn == Tn && T - H.At < 2.0) return H.Rows;
+	H.At = T;
+	TArray<FADPBoardRow> Fresh = Rows(Ctx, bArr, 60);
+	if (H.Turn != Tn || FMath::Max(Fresh.Num(), H.Rows.Num()) <= 5) { H.Rows = MoveTemp(Fresh); H.Turn = Tn; return H.Rows; }
+	for (FADPBoardRow& R : H.Rows)
+		if (FADPBoardRow* F = Fresh.FindByPredicate([&R](const FADPBoardRow& X) { return (!R.PlanId.IsEmpty() && X.PlanId == R.PlanId) || (X.Flight == R.Flight && X.Reg == R.Reg && X.Sched == R.Sched); })) R = *F;
+	return H.Rows;
 }
 
 bool ADPBoards::AtGate(const UObject* Ctx, int32 Gate, FADPBoardRow& Out)

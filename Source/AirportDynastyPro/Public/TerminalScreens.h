@@ -33,6 +33,7 @@ private:
 	struct FBoard
 	{
 		bool bArr = false;
+		UTextRenderComponent* Clock = nullptr;   // the time, with the page ("Page 1/3") when there are more
 		TArray<TArray<UTextRenderComponent*>> Rows; // per row: time, flight, place, status
 	};
 	TArray<FBoard> Boards;
@@ -40,6 +41,7 @@ private:
 	struct FGateTexts { int32 Gate = 0; UTextRenderComponent* Flight = nullptr; UTextRenderComponent* Status = nullptr; UTextRenderComponent* Time = nullptr; };
 	TArray<FGateTexts> Gates;
 	float Clock = 0;
+	int32 GateClock = 0;
 
 	void Panel(const FAt& O, float W, float H, float Z, float Facing, bool bArr, int32 NRows);
 	void GateScreen(const FAt& O, int32 Gate);

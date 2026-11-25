@@ -2405,6 +2405,7 @@ void AADPHUD::Tick(float Dt)
 	ADP_PERF_SCOPE("the interface and its checks (each frame)", 6.f);
 	TickUnrealLoad(Dt);
 	TickUpdateDownload(Dt);
+	TickBoards(Dt);
 	if (ResumeNewGameAt >= 0.f && bMenusReady && (ResumeNewGameAt += Dt) > 1.5f) { ResumeNewGameAt = -1.f; bSitePicked = true; OpenWhoAreYou(); }
 	// the sun's shadows follow what you do (owner, 2026-11-16): on foot or driving they reach about 2.6 km (the airport,
 	// the town, the hills nearby - inside buildings exactly as before), flying, in the drone or the flight viewer, or

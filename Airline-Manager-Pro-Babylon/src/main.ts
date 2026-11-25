@@ -14,7 +14,7 @@ import { exitGame } from './core/exit';
 import { gameOpen, gameIsOpen, gameClose, gameShow, gameExists, gameSend, onGameRoom, onGameFids, onGameFlight, gameEval, gameHidden, gameNewExtra, onGameReady, onNoGame, onGameFounding, onGameLoading } from './ui/game-frame'
 import { loadingNeonShow, loadingNeonDone, loadingNeonHide } from './ui/loading-neon';;
 import { UE_PC, UE_ENGINE, ue } from './core/uelink';
-import { fidsCanvas, gateCanvas, setBoardLocale } from './sections/terminal/fids';
+import { gateCanvas, setBoardLocale } from './sections/terminal/fids';
 import { announcerReady, announcerIds } from './ui/announcer-voice';
 import { APP, IS_PC } from './core/app';
 import { updateInit } from './core/update';
@@ -209,7 +209,7 @@ if (UE_PC) {
   let boards = { dep: [] as any[], arr: [] as any[], base: 'BIAP', live: false, at: Date.now() }, sent = '';
   const sendBoards = () => { const u = ue(); if (!u || !u.board) { if (u && u.log) u.log('no board link'); return; }
     const sig = new Date().getMinutes() + (gameExists() ? 'g' : '') + JSON.stringify([boards.dep, boards.arr].map(l => l.map((r: any) => [r.flight, r.sched, r.exp, r.status]))); if (sig === sent) return; sent = sig;
-    for (const k of ['depwall', 'arrwall', 'deptotem', 'arrtotem', 'depwide', 'arrwide', 'opswall']) { try { u.board(k, fidsCanvas(k, boards).toDataURL('image/png').split(',')[1]); } catch (e: any) { if (u.log) u.log('board ' + k + ': ' + (e && e.message || e)); } }
+    // (the walls, totems, wide screens and the Operations wall: drawn natively by Unreal, Boards.cpp - to-do 286)
     // the operations room's monitor: the game's own operations screen (the departures and the timeline of your fleet),
     // drawn for each of the three monitors' proportions (Unreal shows the one that matches your screen)
     if (gameExists()) for (const [k, w, h] of [['169', 1600, 900], ['219', 1600, 686], ['329', 1600, 450]] as [string, number, number][]) {
