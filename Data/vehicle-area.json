@@ -14,6 +14,11 @@
 		{ "name": "10", "x": -268.2, "y": 249.2, "heading": 90, "len": 7.4, "wid": 3.4, "for": "short" },
 		{ "name": "11", "x": -264.5, "y": 249.2, "heading": 90, "len": 7.4, "wid": 3.4, "for": "short" }
 	],
+	"chargers": [
+		{ "bay": "1", "x": -293.0, "y": 302.4, "heading": -90 },
+		{ "bay": "2", "x": -287.4, "y": 302.4, "heading": -90 },
+		{ "bay": "3", "x": -281.8, "y": 302.4, "heading": -90 }
+	],
 	"kinds": [
 		{ "key": "fuel", "points": "refueller", "label": "refueller", "price": 260000, "places": ["any"] },
 		{ "key": "catering", "points": "cateringtruck", "label": "catering truck", "price": 185000, "places": ["any"] },

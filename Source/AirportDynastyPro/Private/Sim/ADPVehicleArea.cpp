@@ -13,7 +13,7 @@ namespace
 {
 	struct FArea
 	{
-		TArray<ADPVehicleArea::FPlace> Places; TArray<ADPVehicleArea::FKind> Kinds;
+		TArray<ADPVehicleArea::FPlace> Places; TArray<ADPVehicleArea::FKind> Kinds; TArray<ADPVehicleArea::FCharger> Chargers;
 		FArea()
 		{
 			FString Text; TSharedPtr<FJsonObject> J; const TArray<TSharedPtr<FJsonValue>>* L = nullptr;
@@ -29,6 +29,14 @@ namespace
 					if (P.Name.IsEmpty() || !(*O)->TryGetNumberField(TEXT("x"), X) || !(*O)->TryGetNumberField(TEXT("y"), Y)) { ADP_WARN(TEXT("Vehicle area: a place without a name or position")); continue; }
 					(*O)->TryGetNumberField(TEXT("heading"), H); P.X = float(X); P.Y = float(Y); P.Heading = float(H); Places.Add(MoveTemp(P));
 				}
+			if (J->TryGetArrayField(TEXT("chargers"), L))
+				for (const TSharedPtr<FJsonValue>& V : *L)
+				{
+					const TSharedPtr<FJsonObject>* O = nullptr; if (!V->TryGetObject(O)) continue;
+					ADPVehicleArea::FCharger C; double X = 0, Y = 0, H = 0;
+					if (!(*O)->TryGetStringField(TEXT("bay"), C.Bay) || !(*O)->TryGetNumberField(TEXT("x"), X) || !(*O)->TryGetNumberField(TEXT("y"), Y)) { ADP_WARN(TEXT("Vehicle area: a charger without a bay or position")); continue; }
+					(*O)->TryGetNumberField(TEXT("heading"), H); C.X = float(X); C.Y = float(Y); C.Heading = float(H); Chargers.Add(MoveTemp(C));
+				}
 			if (J->TryGetArrayField(TEXT("kinds"), L))
 				for (const TSharedPtr<FJsonValue>& V : *L)
 				{
@@ -43,6 +51,7 @@ namespace
 }
 
 const TArray<ADPVehicleArea::FPlace>& ADPVehicleArea::Places() { return TheArea().Places; }
+const TArray<ADPVehicleArea::FCharger>& ADPVehicleArea::Chargers() { return TheArea().Chargers; }
 const TArray<ADPVehicleArea::FKind>& ADPVehicleArea::Kinds() { return TheArea().Kinds; }
 const ADPVehicleArea::FKind* ADPVehicleArea::Kind(const FString& Key) { return Kinds().FindByPredicate([&](const FKind& K) { return K.Key == Key; }); }
 const ADPVehicleArea::FPlace* ADPVehicleArea::Place(const FString& Name) { return Places().FindByPredicate([&](const FPlace& P) { return P.Name == Name; }); }

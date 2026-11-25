@@ -292,7 +292,9 @@ for i, x in enumerate((-1.45, 1.45)):
 cyl('BeaconBase', (5.9, 0, ROOF + 0.02), 0.09, 0.04, 'z', M_DARK, 28)
 cyl('Beacon', (5.9, 0, ROOF + 0.11), 0.08, 0.14, 'z', M_AMBER, 28, bevel=0.02)
 cyl('ChargePortCover', (-6.2, -(W2 + 0.002), 1.60), 0.10, 0.012, 'y', M_DARK, 32) if False else None
-box('ChargeFlap', (-6.30, -(W2 + 0.0), 0.75), (0.30, 0.012, 0.22), M_DARK, bevel=0.004)
+import apronbus_inlet as INL   # the charging inlet and its flap (277 E3a): opened in the last right skirt and stripe
+OBJ = {o.name: o for o in ALL}
+INL.build(OBJ['Skirt_R0'], OBJ['Stripe_R0'], M_DARK, M_PLAST, M_SHELL, M_STAIN, lambda n, at: K.ik(n, at, prefix='SOCK_'), lambda n, at: K.ik(n, at, prefix='PIV_'))
 # #endregion
 
 # #region ── Inside: ceiling lining, light strips, A/C ducts, poles, rails, straps, seats over the arches, racks, screens ──

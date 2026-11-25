@@ -9,6 +9,7 @@
 #include "Sim/ADPVehicleArea.h"
 #include "ADPLog.h"
 #include "BabylonModel.h"
+#include "BusCharger.h"
 
 namespace
 {
@@ -189,6 +190,7 @@ void AGSE::SpareTick(float Dt)
 {
 	if ((SpareT -= Dt) > 0.f) return;
 	SpareT = 2.f;
+	ADPBusCharger::Keep(GetWorld(), [this](float X, float Y, float Hx, float Hy, float& Yaw) { return PlanPose(X, Y, Hx, Hy, Yaw); });
 	UADPSim* Sim = UADPSim::Get(this); if (!Sim || !ADPVehicleArea::Built()) return;
 	if (!Sim->World.Airlines.Num()) return;
 	// (another career came without a new level: what stands away from its place, and what nobody there has bought, goes when nobody

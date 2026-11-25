@@ -9,7 +9,9 @@ namespace ADPVehicleArea
 {
 	struct FPlace { FString Name, For, Fixed; float X = 0.f, Y = 0.f, Heading = 0.f; bool bCharge = false; };   // (plan metres, degrees; Fixed: somebody's own already)
 	struct FKind { FString Key, Label, Points; bool bRoof = false; double Price = 0.0; TArray<FString> Places; };
+	struct FCharger { FString Bay; float X = 0.f, Y = 0.f, Heading = 0.f; };   // (a bus bay's charger: its front looks along its heading)
 	const TArray<FPlace>& Places();
+	const TArray<FCharger>& Chargers();
 	const TArray<FKind>& Kinds();
 	const FKind* Kind(const FString& Key);
 	const FPlace* Place(const FString& Name);
