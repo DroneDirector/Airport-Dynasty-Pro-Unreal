@@ -239,7 +239,7 @@ bool UADPSim::LoadCareer(const FString& Slot)
 	if (!FFileHelper::LoadFileToString(Text, *CareerFile(Slot))) return false;
 	FADPWorld W;
 	if (!FJsonObjectConverter::JsonObjectStringToUStruct(Text, &W, 0, 0)) { ADP_WARN(TEXT("Sim: the career %s couldn't be read"), *Slot); return false; }
-	World = MoveTemp(W);
+	World = MoveTemp(W); ++Loads;
 	ADP_LOG(TEXT("Sim: career %s loaded (version %d, saved %s, %d airlines, %d aircraft, %d people)"), *Slot, World.Version, *World.SavedAt.ToString(), World.Airlines.Num(), World.Aircraft.Num(), World.People.Num());
 	return true;
 }

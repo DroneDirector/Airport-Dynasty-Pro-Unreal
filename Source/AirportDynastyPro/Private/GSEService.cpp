@@ -412,7 +412,7 @@ bool AGSE::SvcFor(const TCHAR* Task, float StandX) const
 	const UStaffPeople* Sp = UStaffPeople::Get(GetWorld()); float S = 0.f, N = 0.f, Sn = 36.f;
 	if (bTest || !Sp || !StandGeo(StandX, S, N, Sn)) return false;
 	for (const FTractor& T : Tractors)
-		if (T.Svc != INDEX_NONE && SvIs(T.Svc, Task) && Sp->HiresRole(SvSpec(T.Svc).Role))
+		if (T.Svc != INDEX_NONE && (!T.bSpare || SpareOk(T, UADPSim::Me())) && SvIs(T.Svc, Task) && Sp->HiresRole(SvSpec(T.Svc).Role))
 		{
 			if (Sn > 40.f && !SvSpec(T.Svc).bStairs) return false;   // (the A320 stands; the stairs serve the big ones too)
 			if (SvSpec(T.Svc).bDeicer) { const FAirfieldData::FStand* St = AAirfield::Shared().StandAt(StandX); return St && !St->bCargo; }
@@ -862,6 +862,9 @@ void AGSE::SvcTick(float Dt)
 		FSvcJob& J = SvcJobs[Jk];
 		const FServiceSpec& S = SvSpec(J.Svc);
 		int32 Ti = INDEX_NONE; for (int32 i = 0; i < Tractors.Num() && Ti == INDEX_NONE; ++i) if (Tractors[i].Svc == J.Svc && Tractors[i].Job == EJob::None && Tractors[i].M.IsValid() && !Tractors[i].bSpare) Ti = i;
+		// (none of the airport's own free, or it is yours or being restocked: one you have bought, from the vehicle area)
+		if (!S.bStairs && (Ti == INDEX_NONE || Tractors[Ti].Player.IsValid() || (Tractors[Ti].bUsed && FVector::Dist2D(Tractors[Ti].At, Tractors[Ti].Home) < 200.f)))
+			if (const int32 Si = SparePick(J.Svc, J.Reg); Si != INDEX_NONE) Ti = Si;
 		if (S.bStairs)
 		{
 			// (the roofed one first in rain and snow, the open one first when it is dry; a rear door only when no front door waits)
@@ -869,9 +872,9 @@ void AGSE::SvcTick(float Dt)
 			bool bFront = false; if (J.CtDoor) for (const TPair<int32, FSvcJob>& O : SvcJobs) if (O.Value.Phase == 0 && O.Value.CtDoor == 0 && SvSpec(O.Value.Svc).bStairs) bFront = true;
 			for (int32 i = 0; i < Tractors.Num() && !bFront; ++i)
 			{
-				const FTractor& V = Tractors[i]; if (V.Svc == INDEX_NONE || !SvSpec(V.Svc).bStairs || V.Job != EJob::None || !V.M.IsValid() || V.bSpare || Held.Contains(i)) continue;
+				const FTractor& V = Tractors[i]; if (V.Svc == INDEX_NONE || !SvSpec(V.Svc).bStairs || V.Job != EJob::None || !V.M.IsValid() || Held.Contains(i) || (V.bSpare && (V.Player.IsValid() || (V.bUsed && FVector::Dist2D(V.At, V.Home) < 200.f) || !SpareOk(V, SpareAirline(J.Reg))))) continue;
 				if (V.Ps && V.Ps->YouStandX > -1e5f) continue;   // (yours, at a door: below)
-				const int32 Sc = (SvcYours(V) || !StairsStowed(V) ? 0 : 2) + (SvSpec(V.Svc).bRoof == bWeather ? 1 : 0); if (Sc > Best) { Best = Sc; Ti = i; }
+				const int32 Sc = (SvcYours(V) || !StairsStowed(V) ? 0 : V.bSpare ? 2 : 4) + (SvSpec(V.Svc).bRoof == bWeather ? 1 : 0); if (Sc > Best) { Best = Sc; Ti = i; }
 			}
 		}
 		// (yours stand at its door: yours as long as you are there, and while the door is open; left there, its crew go on with them)
@@ -917,7 +920,7 @@ void AGSE::SvcTick(float Dt)
 		const bool bHome = FVector::Dist2D(Tv.At, Tv.Home) < 200.f && FMath::Abs(FMath::FindDeltaAngleDegrees(Tv.Yaw, Tv.HomeYaw)) < 20.f;
 		if (bHome && Tv.bUsed) { J.Why = FString::Printf(TEXT("the %s is being %s"), S.Label, S.bFuel || S.bDeicer || S.Wet == 1 ? TEXT("filled up") : S.Wet == 2 ? TEXT("emptied") : TEXT("emptied and restocked")); continue; }
 		{ bool bOpen = false; for (const FTractor::FSvcDoor& D : Tv.SvcDoors) if (D.Now > 0.01f) bOpen = true; if (bOpen && Tv.Player.IsValid()) { J.Why = FString::Printf(TEXT("you are getting into the %s"), S.Label); continue; } }
-		if (!bHome && !bTake) { TArray<FVector> W; if (!Apron(W, Tv.At, Plan(S.HomeX + S.HomeHx * 34.f, S.HomeY + S.HomeHy * 34.f), &Tv) && !(S.bDeicer && DeicerGets(Ti))) { J.Why = FString::Printf(TEXT("the %s stands where it cannot be driven from - bring it back to the apron"), S.Label); continue; } }
+		if (!bHome && !bTake) { TArray<FVector> W; if (!Apron(W, Tv.At, HomeMouth(Tv), &Tv) && !(S.bDeicer && DeicerGets(Ti))) { J.Why = FString::Printf(TEXT("the %s stands where it cannot be driven from - bring it back to the apron"), S.Label); continue; } }
 		const FString Key = FString::Printf(TEXT("%s:%s%s"), S.Task, *J.Reg, (S.bStairs || S.bAmbu) && J.CtDoor ? TEXT(":2") : TEXT("")), What = FString::Printf(TEXT("%s %s"), J.Flight.IsEmpty() ? *J.Reg : *J.Flight, UStaffPeople::TaskName(S.Team));
 		TArray<UStaffPeople::FTaken> Team;
 		if (!Sp->AskTeam(Key, S.Team, J.When - FTimespan::FromMinutes(20.0 + 60.0 * J.Urgent), Tractors[Ti].At, What, Team)) { J.Why = Sp->WaitsFor(Key); continue; }
@@ -930,8 +933,13 @@ void AGSE::SvcTick(float Dt)
 			G->Crew[M.Ci].bGse = true; M.Seat = Men.Num(); Men.Add(M);
 		}
 		if (Men.Num() < FMath::Min(2, S.MaxPeople)) { for (const FSvcMan& M : Men) G->Discharge(M.Ci); J.Why = TEXT("no place for more people"); continue; }
-		J.Men = Men; J.Ti = Ti; J.Phase = 1; J.Why.Reset(); Tractors[Ti].Job = EJob::Boarding; (bTake ? Take : Start).Add(Jk);
+		J.Men = Men; if (Tractors[Ti].bSpare) ADP_LOG(TEXT("GSE: %s is served with the bought vehicle %s from the vehicle area"), *J.Reg, *Tractors[Ti].Name);
+		J.Ti = Ti; J.Phase = 1; J.Why.Reset(); Tractors[Ti].Job = EJob::Boarding; (bTake ? Take : Start).Add(Jk);
 	}
+	// (why another vehicle's job waits where you have bought one of its kind: once for each reason)
+	for (const int32 Jk : Order)
+		if (FSvcJob& J = SvcJobs[Jk]; J.Phase == 0 && !SvSpec(J.Svc).bStairs && J.Why != J.WhyLog && Tractors.ContainsByPredicate([&](const FTractor& T) { return T.bSpare && !T.bAway && T.Svc == J.Svc; }))
+		{ J.WhyLog = J.Why; if (!J.Why.IsEmpty()) ADP_LOG(TEXT("GSE: the %s for %s (stand x %.0f) waits: %s"), SvSpec(J.Svc).Label, *J.Reg, J.StandX, *J.Why); }
 	// (why a pair of stairs waits: once for each reason)
 	for (const int32 Jk : Ordered)
 		if (FSvcJob& J = SvcJobs[Jk]; J.Phase == 0 && J.Why != J.WhyLog) { J.WhyLog = J.Why; if (!J.Why.IsEmpty()) ADP_LOG(TEXT("GSE: the passenger stairs for %s (stand x %.0f, %s door) wait: %s"), *J.Reg, J.StandX, J.CtDoor ? TEXT("rear") : TEXT("front"), *J.Why); }
@@ -1095,7 +1103,7 @@ void AGSE::SvcApron(int32 Job)
 	T.Job = EJob::Out;
 	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(J->StandX, S, N, Sp);
 	TArray<FVector> W;
-	if (FVector::Dist2D(T.At, T.Home) < 200.f && FMath::Abs(FMath::FindDeltaAngleDegrees(T.Yaw, T.HomeYaw)) < 20.f) Leg(W, Sv.HomeX, Sv.HomeY, Sv.HomeHx, Sv.HomeHy, Sv.HomeX + Sv.HomeHx * 9.f, Sv.HomeY + Sv.HomeHy * 9.f, Sv.HomeHx, Sv.HomeHy, T.KTurnR);
+	if (FVector::Dist2D(T.At, T.Home) < 200.f && FMath::Abs(FMath::FindDeltaAngleDegrees(T.Yaw, T.HomeYaw)) < 20.f) HomeOut(T, W, PlanT(S, S, N));
 	const float X = S + (Sv.InR > 0.f ? Sv.InLat : Sv.Wet ? Sv.Lat + 2.f * T.KTurnR / 100.f : Sv.Lat), Xp = S + Sv.Lat, Y1 = N + Sv.Far + 6.f, Y2 = N + Sv.Aft;
 	const FVector From = W.Num() ? W.Last() : T.At;
 	if (!Apron(W, From, PlanT(S, X, Y1), &T)) { RetryIn(Ti, 8.f, [this, Job] { SvcApron(Job); }); return; }
@@ -1435,6 +1443,7 @@ void AGSE::SvcDriveHome(int32 Job, TFunction<void()> Then)
 {
 	FSvcJob* J = SvcJ(Job); if (!J) return;
 	const int32 Ti = J->Ti; FTractor& T = Tractors[Ti]; const FServiceSpec& Sv = SvSpec(J->Svc);
+	if (T.bSpare) { SpareHome(Ti, MoveTemp(Then)); return; }   // (its place at the vehicle area)
 	// down beside its box's way (two turning circles off it, clear of the next stand's line), round to point away, straight back in: nose out
 	TArray<FVector> H; const FVector2f Ho(Sv.HomeX, Sv.HomeY), Hd(Sv.HomeHx, Sv.HomeHy), Sd(Sv.HomeHy, -Sv.HomeHx);
 	if (Sv.bDeicer || Sv.bAmbu)

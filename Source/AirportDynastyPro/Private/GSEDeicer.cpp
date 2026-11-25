@@ -500,7 +500,7 @@ bool AGSE::DeicerFree(int32 Ti, TArray<FVector>& Out, bool& bRev) const
 		}
 		for (const double d : {1200.0, 2400.0, 3600.0})
 		{
-			TArray<FVector> W; if (d > Free || !Apron(W, T.At + D * d, Plan(Sv.HomeX + Sv.HomeHx * 34.f, Sv.HomeY + Sv.HomeHy * 34.f), &T)) continue;
+			TArray<FVector> W; if (d > Free || !Apron(W, T.At + D * d, HomeMouth(T), &T)) continue;
 			Out.Reset(); for (int32 i = 1; i <= 30; ++i) Out.Add(FMath::Lerp(T.At, T.At + D * d, i / 30.0)); bRev = bR; return true;
 		}
 	}
@@ -558,7 +558,7 @@ void AGSE::DeicerApron(int32 Job)
 	if (!F.Stops.IsValidIndex(F.Stop)) { DeicerEnd(Job); return; }
 	T.Job = EJob::Out;
 	const FSvcDeicer::FStop P = F.Stops[F.Stop]; TArray<FVector> W; const float Y1 = N + Sv.Far + 6.f;
-	if (FVector::Dist2D(T.At, T.Home) < 200.f && FMath::Abs(FMath::FindDeltaAngleDegrees(T.Yaw, T.HomeYaw)) < 20.f) Leg(W, Sv.HomeX, Sv.HomeY, Sv.HomeHx, Sv.HomeHy, Sv.HomeX + Sv.HomeHx * 9.f, Sv.HomeY + Sv.HomeHy * 9.f, Sv.HomeHx, Sv.HomeHy, T.KTurnR);
+	if (FVector::Dist2D(T.At, T.Home) < 200.f && FMath::Abs(FMath::FindDeltaAngleDegrees(T.Yaw, T.HomeYaw)) < 20.f) HomeOut(T, W, PlanT(S, S, N));
 	const FVector From = W.Num() ? W.Last() : T.At;
 	const bool bWay = Apron(W, From, PlanT(S, S + P.Lat, Y1), &T), bBehind = bWay && W.Num() > 6 && FVector::DotProduct(W[5] - T.At, FRotator(0.f, T.Yaw, 0.f).Vector()) < 0.0 && F.Stop == 0 && F.Plane.IsValid();
 	if ((!bWay || bBehind) && DeicerBack(Ti, [this, Job] { DeicerApron(Job); })) return;

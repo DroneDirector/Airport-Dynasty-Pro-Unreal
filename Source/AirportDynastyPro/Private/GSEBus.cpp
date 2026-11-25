@@ -13,6 +13,7 @@
 #include "StaffPeople.h"
 #include "Tugs.h"
 #include "ADPLog.h"
+#include "Sim/ADPSim.h"
 #include "BabylonModel.h"
 #include "Seats.h"
 #include "Components/AudioComponent.h"
@@ -347,7 +348,7 @@ void AGSE::BusWalkRound(int32 Ci, int32 Ti)
 {
 	ATugs* G = Tg(); if (!G || !G->Crew.IsValidIndex(Ci) || !G->Crew[Ci].A.IsValid()) return;
 	const FTractor& T = Tractors[Ti]; const FVector L = FRotator(0.f, T.Yaw, 0.f).UnrotateVector(G->Crew[Ci].A->GetActorLocation() - T.At);
-	if (L.Y > 165.f) return;   // (on its right already)
+	if (L.Y > 165.f || DepotAt(T.At)) return;   // (on its right already; at the vehicle area HiredWay comes up on that side)
 	const float X = L.X > -150.f ? 860.f : -860.f;   // (round the front or the rear)
 	if (FMath::Abs(L.X) < 800.f || L.Y < -100.f) { const FVector A = TW(T, FVector(X, FMath::Min(float(L.Y), -220.f), 0.f)); WalkTo(Ci, [A] { return A; }, 40.f); }
 	const FVector B = TW(T, FVector(X, 300.f, 0.f)); WalkTo(Ci, [B] { return B; }, 40.f);
@@ -368,6 +369,7 @@ bool AGSE::BusMan(int32 Ti, TFunction<void()> Then, FString& Why)
 	if (Ci == INDEX_NONE) { Why = TEXT("no crew place for its driver"); return false; }
 	G->Crew[Ci].bGse = true; T.Driver = Ci; T.Job = EJob::Boarding; T.Key = Key; T.JobT = 0.f; B.Ci = Ci; B.Stage = 1;
 	ADP_LOG(TEXT("Apron bus %s: %s goes to drive it"), *T.Name, *G->Crew[Ci].Name);
+	if (DepotAt(T.At)) HiredWay(Ci, T.At, 0.f);   // (on foot to the vehicle area)
 	BusWalkRound(Ci, Ti);
 	ClimbIn(Ci, Ti, [this, Ti, Then = MoveTemp(Then)] { if (Tractors[Ti].Bu->Stage != 1) return; Tractors[Ti].Bu->Stage = 2; Motor(Tractors[Ti], true); Then(); });
 	return true;
@@ -387,7 +389,8 @@ void AGSE::BusRoute(int32 Ti, FVector2f To, float Heading, TFunction<void()> Don
 	BusSetAll(Ti, false); Motor(T, true);   // (it rolls when the doors are shut: Drive)
 	const FVector Fw = FRotator(0.f, T.Yaw, 0.f).Vector(); const float a = FMath::DegreesToRadians(Heading), c = FMath::Cos(a), s = FMath::Sin(a);
 	TArray<FVector> H; FVector From = T.At;
-	if (FVector::Dist2D(T.At, T.Home) < 200.f) { H.Add(T.At + Fw * 400.f); H.Add(T.At + Fw * 800.f); From = T.At + Fw * 1200.f; H.Add(From); }   // (straight out of its bay)
+	if (FVector::Dist2D(T.At, T.Home) < 200.f && T.bSpare) { HomeOut(T, H, Plan(To.X, To.Y)); From = H.Last(); }
+	else if (FVector::Dist2D(T.At, T.Home) < 200.f) { H.Add(T.At + Fw * 400.f); H.Add(T.At + Fw * 800.f); From = T.At + Fw * 1200.f; H.Add(From); }   // (straight out of its bay)
 	const float Ld = BusR + 8.f, Lx = To.X - c * Ld, Ly = To.Y - s * Ld;
 	TArray<FVector> Way;
 	if (!Apron(Way, From, Plan(Lx, Ly), &T))
@@ -416,6 +419,7 @@ void AGSE::BusRouteHome(int32 Ti, TFunction<void()> Done)
 {
 	FTractor& T = Tractors[Ti]; if (!T.Bu || T.Bu->Stage != 2) return;
 	BusSetAll(Ti, false); Motor(T, true);
+	if (T.bSpare) { SpareHome(Ti, [this, Ti, Done] { ADP_LOG(TEXT("Apron bus %s: on its place again"), *Tractors[Ti].Name); Motor(Tractors[Ti], false); if (Done) Done(); }); return; }
 	// across its bay's mouth, turning out of it, then backed in nose out (plan metres)
 	const FVector W = FRotator(0.f, T.HomeYaw, 0.f).Vector(); const FVector2f Hd(W.X, -W.Y), Ho(T.Home.X / 100.f, -T.Home.Y / 100.f); const FVector2f At(T.At.X / 100.f, -T.At.Y / 100.f);
 	FVector2f Sd(Hd.Y, -Hd.X); if (FVector2f::DotProduct(At - Ho, Sd) < 0.f) Sd = -Sd;
@@ -447,6 +451,7 @@ bool AGSE::BusLeave(int32 Ti)
 	const int32 Ci = B.Ci; B.Stage = 3; Motor(T, false); BusSetAll(Ti, false);
 	ClimbOut(Ci, Ti, nullptr);
 	Do(Ci, [this, Ti] { FTractor& V = Tractors[Ti]; V.Job = EJob::None; V.Key.Reset(); V.Driver = INDEX_NONE; V.Bu->Ci = INDEX_NONE; V.Bu->Stage = 0; });
+	DepotBack(Ci);
 	G->LeaveAct(G->Crew[Ci]);
 	return true;
 }
@@ -587,7 +592,7 @@ void AGSE::BusFree(TArray<int32>& Out) const
 {
 	for (int32 i = 0; i < Tractors.Num(); ++i)
 	{
-		const FTractor& T = Tractors[i]; if (!T.Bu || !T.M.IsValid() || T.Player.IsValid() || T.Path.Num() || T.Until) continue;
+		const FTractor& T = Tractors[i]; if (!T.Bu || !T.M.IsValid() || T.Player.IsValid() || T.Path.Num() || T.Until || T.bAway) continue;
 		if ((T.Bu->Stage == 0 && T.Job == EJob::None) || T.Bu->Stage == 2) Out.Add(i);
 	}
 }
@@ -602,10 +607,10 @@ bool AGSE::BusSee(int32 Ti, FBusSee& Out) const
 
 bool AGSE::BusTry(int32 Ti, const FVector2f& To, float Heading) const
 {
-	if (!Tractors.IsValidIndex(Ti) || !Tractors[Ti].Bu || Tractors[Ti].bSpare) return false;   // (a bought one: no crew fetches it from its bay yet)
+	if (!Tractors.IsValidIndex(Ti) || !Tractors[Ti].Bu || !BusOk(Ti, UADPSim::Me())) return false;
 	const FTractor& T = Tractors[Ti]; const float a = FMath::DegreesToRadians(Heading), Ld = BusR + 8.f;
 	const FVector Lead = Plan(To.X - FMath::Cos(a) * Ld, To.Y - FMath::Sin(a) * Ld), End = Plan(To.X, To.Y);
-	FVector From = T.At; if (FVector::Dist2D(T.At, T.Home) < 200.f) From += FRotator(0.f, T.Yaw, 0.f).Vector() * 1200.f;
+	FVector From = T.At; if (FVector::Dist2D(T.At, T.Home) < 200.f) { TArray<FVector> O; if (T.bSpare) { HomeOut(T, O, Lead); From = O.Last(); } else From += FRotator(0.f, T.Yaw, 0.f).Vector() * 1200.f; }
 	TArray<FVector> W; if (!Apron(W, Lead, End, &T)) return false;
 	float L = 0.f; FVector Was = Lead; for (const FVector& V : W) { L += float(FVector::Dist2D(Was, V)); Was = V; }   // (straight in, nothing to go round)
 	if (L > Ld * 110.f) return false;

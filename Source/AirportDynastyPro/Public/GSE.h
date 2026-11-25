@@ -121,7 +121,7 @@ public:
 		TSharedPtr<FSvcWet> Wa;           // (the water and the toilet truck's: GSEWater.cpp)
 		TSharedPtr<FSvcClean> Cl;         // (the cleaning van's kit in your hands: GSECleanYou.cpp)
 		TSharedPtr<FSvcCater> Ct;         // (the catering high-loader's: GSECater.cpp)
-		bool bSpare = false; FString SpareId, Owner;   // (a bought one, kept at the vehicle area: kind@place and whose - GSESpare.cpp)
+		bool bSpare = false, bAway = false; FString SpareId, Owner;   // (a bought one, kept at the vehicle area: kind@place and whose - GSESpare.cpp)
 		TSharedPtr<FSvcBus> Bu;           // (an apron bus's doors, driver and sounds: GSEBus.cpp)
 		FVector KWheelAx = FVector(-0.7071f, 0.f, 0.7071f);   // (its steering wheel's axis)
 		TMap<FString, FVector> Pt;        // (a service vehicle's named points, root cm: Data/<vehicle>-riders.json)
@@ -528,7 +528,19 @@ private:
 	struct FSpareAt { FString Id, Owner, Name; float X = 0.f, Y = 0.f, Heading = 0.f; };
 	bool SvcSpawn(int32 i, int32 n, const FSpareAt* Sp);
 	void SpareTick(float Dt);
-	float SpareT = 0.f; TSet<FString> SpareSaid;
+	float SpareT = 0.f; TSet<FString> SpareSaid, SpareOld; int32 SpareLoads = -1;
+	// (your crews with them, E1b: whose job one may do, its way out to the road and back onto its place, the way there on foot)
+	bool SpareOk(const FTractor& T, const FString& AirlineId) const;
+	FString SpareAirline(const FString& Reg) const;
+	int32 SparePick(int32 Svc, const FString& Reg) const;
+	bool SpareIdle(const FTractor& T) const;
+	void SpareShow(FTractor& T, bool bShow);
+	static bool DepotAt(const FVector& At);
+	void HomeOut(const FTractor& T, TArray<FVector>& W, const FVector& ToW) const;
+	FVector HomeMouth(const FTractor& T) const;
+	void SpareHome(int32 Ti, TFunction<void()> Then);
+	void DepotGo(int32 Ci, const FVector& Near);
+	bool DepotBack(int32 Ci, bool bNorth = false);
 	// the taxi bus's hired driver (to-do 239b, GSEService.cpp): from their place on the pavement round its front to the wheel, out
 	// and back to the pavement when their shift is over. Stage: 0 none, 1 on the way in, 2 at the wheel, 3 getting out
 	// ---- the apron buses (GSEBus.cpp)
@@ -548,6 +560,8 @@ public:
 	bool BusHalt(int32 Ti);
 	TMap<int32, int32> BusOrder;   // (StandAsk.cpp: an order withdrawn is never driven)
 	bool BusSee(int32 Ti, FBusSee& Out) const;
+	bool BusOk(int32 Ti, const FString& AirlineId) const;   // (the airport's own, or a bought one of that airline's that its crew may take)
+	void BusOwnFirst(TArray<int32>& Free) const;
 	bool BusTry(int32 Ti, const FVector2f& To, float Heading) const;
 	void BusSlots(int32 Ti, TArray<FBusSlot>& Out) const;
 	void BusPoseW(int32 Ti, FDriverPose& P) const;

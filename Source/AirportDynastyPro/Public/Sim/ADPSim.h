@@ -92,6 +92,7 @@ public:
 	 *  (to-do 269: 75-80 ms of the game's own frame every 30 s before). */
 	void AutosaveCareer();
 	bool LoadCareer(const FString& Slot);
+	int32 Loads = 0;   // (how many careers were loaded: the vehicles of the one before go, GSESpare.cpp)
 	static TArray<FString> CareerSlots();
 	static FString CareerFile(const FString& Slot);
 

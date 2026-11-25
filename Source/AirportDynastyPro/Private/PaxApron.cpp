@@ -745,14 +745,15 @@ void APaxFlow::ApronBus(int32 Ri, FRunOut& O, float Dt)
 		if (R.bArr ? Come == 0 : bNo || R.bNoShowGo || (Come == 0 && R.Spawned > 0)) { if (R.bArr && R.Visible == 0) return; To(6); return; }
 		if (O.T > 0.f) return;
 		O.T = 1.5f;
-		TArray<int32> Free; ApronG->BusFree(Free);
+		TArray<int32> Free; ApronG->BusFree(Free); Free.RemoveAll([&](int32 Ti) { return !ApronG->BusOk(Ti, R.AirlineId); });   // (a bought one: only its own airline's flights)
 		Free.RemoveAll([&](int32 Ti) { for (const TPair<FString, TSharedPtr<FRunOut>>& X : RunOuts) if (X.Value.Get() != &O && X.Value->Ti == Ti) return true; return false; });
 		if (O.NotT > RealT && Free.Num() > 1) Free.Remove(O.NotTi);
+		ApronG->BusOwnFirst(Free);
 		// (urgent: a bus that stands waiting for a flight less urgent, nobody in it or on the way to it)
 		if (!Free.Num() && O.Ask >= 2)
 			for (const TPair<FString, TSharedPtr<FRunOut>>& X : RunOuts)
 			{
-				FRunOut& V = *X.Value; if (&V == &O || V.Stage != 2 || V.Ask >= O.Ask || V.Ti == INDEX_NONE || (O.NotT > RealT && V.Ti == O.NotTi)) continue;
+				FRunOut& V = *X.Value; if (&V == &O || V.Stage != 2 || V.Ask >= O.Ask || V.Ti == INDEX_NONE || (O.NotT > RealT && V.Ti == O.NotTi) || !ApronG->BusOk(V.Ti, R.AirlineId)) continue;
 				const int32 Vr = Runs.IndexOfByPredicate([&](const FRun& Q) { return Q.Key == X.Key; }); if (Vr == INDEX_NONE || ApronCount(Vr, 0, 6) > 0) continue;
 				int32 c = 0; const int32 Nc = R.bArr ? 4 : O.Doors.Num();
 				for (; c < Nc; ++c) { FVector2f At(0.f, 90.5f); float H = 0.f; if (R.bArr) AtPlane(c, At, H); else At.X = O.Doors[c]; if (!Taken(At) && ApronG->BusTry(V.Ti, At, H)) break; }

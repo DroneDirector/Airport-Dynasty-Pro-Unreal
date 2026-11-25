@@ -147,7 +147,9 @@ void AGSE::HiredWay(int32 Ci, const FVector& Near, float StandX)
 	// passage, the vehicle, or the aircraft's right side - in behind the wing, outside its tip
 	ATugs* G = Tg(); if (!G || !G->Crew.IsValidIndex(Ci) || !G->Crew[Ci].A.IsValid()) return;
 	ATugs::FCrew& C = G->Crew[Ci];
-	const FVector Me = C.A->GetActorLocation();
+	if (DepotAt(Near)) { DepotGo(Ci, Near); return; }   // (the vehicle area: by the bus road's leg, GSESpare.cpp)
+	const bool bFar = Near.Y < -24000.f;
+	const FVector Me = DepotBack(Ci, bFar) ? Plan(-247.6f, bFar ? 331.f : 85.45f) : C.A->GetActorLocation();
 	const float Nz = -Near.Y / 100.f;
 	auto Walk = [&](const FVector& P, float Stop) { ATugs::FCrewAct A; A.Kind = ATugs::FCrewAct::Walk; A.To = [P] { return P; }; A.Stop = Stop; A.Max = 160.f; C.Q.Add(A); };
 	if (Nz > 96.f && StandX != 0.f)
@@ -186,6 +188,7 @@ void AGSE::GiveBackHired(int32 Ci, float StandX)
 	ATugs* G = Tg(); if (!G || !G->Crew.IsValidIndex(Ci)) return;
 	ATugs::FCrew& C = G->Crew[Ci];
 	float S = 0.f, N = 0.f, Sp = 36.f;
+	if (DepotBack(Ci)) { G->LeaveAct(C); return; }   // (from the vehicle area back to the terminal's front first)
 	if (StandX != 0.f && StandGeo(StandX, S, N, Sp))
 	{
 		// out past the wingtip, then up the stand's crew side (the same way they came)

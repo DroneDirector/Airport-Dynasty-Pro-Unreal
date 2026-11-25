@@ -638,6 +638,14 @@ Taxi bus (239, part B, 2026-11-24, compiled, NOT run): a line of `ADPService::Al
 - LEFT, point 3: crews do not fetch them (`bSpare` is skipped in SvcTick's two picks and in BusTry). Needed: home poses from T.Home instead of Sv.Home* (SvcTick, SvcApron, SvcDriveHome, GSEDeicer 503/561); in/out paths by the lane, also for buses (BusRoute, BusRouteHome fit bays 1-2 only); HiredWay up the bus road x -247.6; the owner check.
 - LEFT: walk-out and big stands' own tug (Tugs is gate-bound), belt loader, GPU, the span > 40 m limit in SvcFor; a vehicle of another career stays until the level loads again; the shop's buttons (Content/Web, git-ignored) still show three kinds - the bridge sends `vehicleKinds`.
 
+## The vehicle area, E1b as built: crews use the bought vehicles (2026-11-25, compiled, not run)
+- Pick (GSEService SvcTick): the airport's own first; none free, yours, or being restocked: `SparePick`, only the owner's flights (`SpareOk`), never one beside its place there. Stairs: scored below own ones. Buses: PaxApron filters `BusOk`, `BusOwnFirst`.
+- Ways (GSESpare.cpp): `HomeOut` (lane, then the road north or south), `SpareHome` (lane, straight back onto T.Home), `HomeMouth`; also the de-icing truck and BusRoute/BusRouteHome.
+- On foot: `DepotGo` / `DepotBack` from HiredWay, GiveBackHired and BusLeave: terminal front, road leg, waits for aircraft at taxilane T and links; 160 cm/s; logged.
+- Another career loaded (`UADPSim::Loads`): what is not bought there, or stood away from its place, is put away (hidden, no collision) when unseen and idle, and used again later.
+- LEFT, point 3: no tug, belt loader or GPU kind in Data/vehicle-area.json and Tugs is gate-bound; the span > 40 m limit in SvcFor stays.
+- LEFT: if an own bus is free but has no clear way, a bought one is tried only after the own one is set aside (NotT).
+
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
 | Where | Today | Replace with | Nobody free |
