@@ -2,7 +2,8 @@
 # heavy grime past 1, the wash hose's runs, beads of water and the wet sheen - Tools/set_truck_materials.py) for every
 # other vehicle (owner 2026-11-21: the pushback tug, the GPU, the baggage tractor and cart, and every vehicle after them),
 # keeping what the imported glTF materials have that the truck's did not: their normal map (relief) and their
-# metal / roughness map. VehicleDirt.cpp puts it on each vehicle's parts, copying each original's colours and textures.
+# metal / roughness map. Tyres get tread, shoulder blocks and lettered sidewalls (Tools/make_tyre_textures.py draws the
+# height maps: run it first), rims brake dust and scuffs (to-do 261). VehicleDirt.cpp puts it on each vehicle's parts, copying each original's colours and textures.
 #   UnrealEditor-Cmd.exe AirportDynastyPro.uproject -ExecutePythonScript="<abs>/Tools/set_vehicle_dirt_material.py" -unattended
 import os
 import unreal
@@ -15,7 +16,7 @@ NS = {}
 exec(compile(head, SRC, 'exec'), NS)
 eal, mel, log = NS['eal'], NS['mel'], NS['log']
 params, custom, wire, mat = NS['params'], NS['custom'], NS['wire'], NS['mat']
-PAINT, PROUGH, PCOAT, WHITE, MPC = NS['PAINT'], NS['PROUGH'], NS['PCOAT'], NS['WHITE'], NS['MPC']
+TYRE, WHITE, MPC = NS['TYRE'], NS['WHITE'], NS['MPC']
 O = unreal.CustomMaterialOutputType
 ST = unreal.MaterialSamplerType
 
@@ -40,13 +41,35 @@ def sample_texture(word):
     return None
 
 
+def height_texture(name):
+    # the tyres' height maps (Tools/make_tyre_textures.py draws them): plain linear grey
+    src = os.path.abspath(os.path.join(os.path.dirname(SRC), '..', 'Art', 'Tyre', name + '.png'))
+    path = '/Game/Truck/' + name
+    if os.path.isfile(src):
+        task = unreal.AssetImportTask()
+        for k, v in (('filename', src), ('destination_path', '/Game/Truck'), ('destination_name', name), ('automated', True), ('replace_existing', True), ('save', False)):
+            task.set_editor_property(k, v)
+        unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
+    else:
+        log('WARNING: %s is missing (run python Tools/make_tyre_textures.py first)' % src)
+    t = unreal.load_asset(path) if eal.does_asset_exist(path) else None
+    if not t:
+        log('WARNING: no %s - the tyres stay plain' % name)
+        return WHITE
+    t.set_editor_property('srgb', False)
+    t.set_editor_property('compression_settings', unreal.TextureCompressionSettings.TC_GRAYSCALE)
+    eal.save_loaded_asset(t, only_if_is_dirty=False)
+    return t
+
+
+tread, side = height_texture('T_TyreTread'), height_texture('T_TyreSide')
 m = mat('M_VehicleDirt')
 m.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_CLEAR_COAT)
 m.set_editor_property('two_sided', True)
 m.set_editor_property('use_material_attributes', True)
-P = params(m, [('R', 0.5), ('M', 0.0), ('CC', 0.0), ('CCR', 0.12), ('GroundZ', 0.0), ('Dirt', 0.5), ('Wear', 0.3), ('Blow', 0.0), ('UseN', 0.0), ('UseORM', 0.0), ('NS', 1.0)],
+P = params(m, [('R', 0.5), ('M', 0.0), ('CC', 0.0), ('CCR', 0.12), ('GroundZ', 0.0), ('Dirt', 0.5), ('Wear', 0.3), ('Blow', 0.0), ('UseN', 0.0), ('UseORM', 0.0), ('NS', 1.0)] + NS['WHEEL_S'],
            [('BC', (1, 1, 1, 1)), ('OS', (0, 0, 1, 1)), ('NOS', (0, 0, 1, 1)), ('MOS', (0, 0, 1, 1)), ('Origin', (0, 0, 0, 0)), ('AxisF', (1, 0, 0, 0)),
-            ('Z0', (1, 1, 1, 1)), ('Z1', (1, 1, 1, 1)), ('Z2', (1, 1, 1, 1)), ('B0', (0, 0, 0, 0)), ('B1', (0, 0, 0, 0)), ('B2', (0, 0, 0, 0))], [('Base', WHITE)])
+            ('Z0', (1, 1, 1, 1)), ('Z1', (1, 1, 1, 1)), ('Z2', (1, 1, 1, 1)), ('B0', (0, 0, 0, 0)), ('B1', (0, 0, 0, 0)), ('B2', (0, 0, 0, 0))] + NS['WHEEL_V'], [('Base', WHITE)])
 wet = mel.create_material_expression(m, unreal.MaterialExpressionCollectionParameter, -900, 900)
 wet.set_editor_property('collection', MPC); wet.set_editor_property('parameter_name', 'Wetness'); P['Wet'] = (wet, '')
 
@@ -75,20 +98,28 @@ P['NT'] = (ns, 'RGB'); P['MT'] = (os_, 'RGB')
 # roughness and metal from the map where there is one
 reff = custom(m, 'return lerp(R, R * MT.g, UseORM);', O.CMOT_FLOAT1, ['R', 'MT', 'UseORM'], 1250); wire(m, reff, P, ['R', 'MT', 'UseORM'])
 meff = custom(m, 'return lerp(M, M * MT.b, UseORM);', O.CMOT_FLOAT1, ['M', 'MT', 'UseORM'], 1350); wire(m, meff, P, ['M', 'MT', 'UseORM'])
-nout = custom(m, 'float3 n = NT; n.xy *= NS; n = normalize(float3(n.xy, max(n.z, 0.05))); return normalize(lerp(float3(0, 0, 1), n, UseN));',
-              O.CMOT_FLOAT3, ['NT', 'NS', 'UseN'], 1450); wire(m, nout, P, ['NT', 'NS', 'UseN'])
+# the tyres' relief: its slope worked out in the wheel's own frame, then turned into the surface's
+NS['local_place'](m, P)
+for n, tex, y in (('TreadH', tread, 1600), ('SideH', side, 1700)):
+    x = mel.create_material_expression(m, unreal.MaterialExpressionTextureObjectParameter, -1200, y)
+    x.set_editor_property('parameter_name', n); x.set_editor_property('texture', tex); x.set_editor_property('sampler_type', sampler_for(tex))
+    P[n] = (x, '')
+TYRE_IN = ['LP', 'LPX', 'LPY', 'TyreC', 'TyreS', 'Rim', 'TreadH', 'SideH']
+ty = custom(m, TYRE, O.CMOT_FLOAT4, TYRE_IN, 1600); wire(m, ty, P, TYRE_IN)
+P['TY'] = (ty, '')
+gl = custom(m, 'return TY.xyz;', O.CMOT_FLOAT3, ['TY'], 1750); wire(m, gl, P, ['TY'])
+tr = mel.create_material_expression(m, unreal.MaterialExpressionTransform, -100, 1750)
+tr.set_editor_property('transform_source_type', unreal.MaterialVectorCoordTransformSource.TRANSFORMSOURCE_INSTANCE)
+tr.set_editor_property('transform_type', unreal.MaterialVectorCoordTransform.TRANSFORM_TANGENT)
+if not mel.connect_material_expressions(gl, '', tr, ''): log('WIRE FAILED tyre slope')
+P['TG'] = (tr, '')
+NOUT_IN = ['NT', 'NS', 'UseN', 'TG']
+nout = custom(m, 'float3 n = NT; n.xy *= NS; n = normalize(float3(n.xy, max(n.z, 0.05))); n = normalize(lerp(float3(0, 0, 1), n, UseN)); return normalize(float3(n.xy - TG.xy, n.z));',
+              O.CMOT_FLOAT3, NOUT_IN, 1450); wire(m, nout, P, NOUT_IN)
 
 mma = mel.create_material_expression(m, unreal.MaterialExpressionMakeMaterialAttributes, 200, 0)
-c = custom(m, PAINT, O.CMOT_FLOAT3, ['UV', 'OS', 'Base', 'BC', 'WP', 'GroundZ', 'Dirt', 'Wear', 'Wet', 'Origin', 'AxisF', 'Z0', 'Z1', 'Z2', 'B0', 'B1', 'B2', 'Blow', 'WN'], -300)
-wire(m, c, P, ['UV', 'OS', 'Base', 'BC', 'WP', 'GroundZ', 'Dirt', 'Wear', 'Wet', 'Origin', 'AxisF', 'Z0', 'Z1', 'Z2', 'B0', 'B1', 'B2', 'Blow', 'WN'])
-mel.connect_material_expressions(c, '', mma, 'BaseColor')
 P2 = dict(P); P2['R'] = (reff, '')
-c = custom(m, PROUGH, O.CMOT_FLOAT1, ['WP', 'GroundZ', 'R', 'Dirt', 'Wear', 'Wet', 'Origin', 'AxisF', 'Z0', 'Z1', 'Z2', 'B0', 'B1', 'B2', 'Blow', 'WN'], -100)
-wire(m, c, P2, ['WP', 'GroundZ', 'R', 'Dirt', 'Wear', 'Wet', 'Origin', 'AxisF', 'Z0', 'Z1', 'Z2', 'B0', 'B1', 'B2', 'Blow', 'WN'])
-mel.connect_material_expressions(c, '', mma, 'Roughness')
-c = custom(m, PCOAT, O.CMOT_FLOAT1, ['WP', 'GroundZ', 'CC', 'Dirt', 'Wear', 'Wet', 'Origin', 'AxisF', 'Z0', 'Z1', 'Z2', 'B0', 'B1', 'B2', 'Blow', 'WN'], 100)
-wire(m, c, P, ['WP', 'GroundZ', 'CC', 'Dirt', 'Wear', 'Wet', 'Origin', 'AxisF', 'Z0', 'Z1', 'Z2', 'B0', 'B1', 'B2', 'Blow', 'WN'])
-mel.connect_material_expressions(c, '', mma, 'ClearCoat')
+NS['paint_node'](m, P2, mma)
 mel.connect_material_expressions(P['CCR'][0], '', mma, 'ClearCoatRoughness')
 mel.connect_material_expressions(meff, '', mma, 'Metallic')
 mel.connect_material_expressions(nout, '', mma, 'Normal')

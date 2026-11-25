@@ -1,5 +1,6 @@
 // The airport's crash tenders, drivable (FireTruck.h); the fire station's bay doors.
 #include "FireTruck.h"
+#include "VehicleDirt.h"
 #include "ADPFov.h"
 #include "PerfLog.h"
 #include "Misc/FileHelper.h"
@@ -1106,6 +1107,14 @@ void AFireTruck::DressMaterials()
 					D->SetScalarParameterValue(TEXT("CC"), S(M, TEXT("ClearCoatFactor"), 0.f));
 					D->SetScalarParameterValue(TEXT("CCR"), S(M, TEXT("ClearCoatRoughnessFactor"), 0.1f));
 					D->SetScalarParameterValue(TEXT("Dirt"), Kd.Dirt); D->SetScalarParameterValue(TEXT("Wear"), Kd.Wear);
+					FLinearColor WC, WS;
+					if (MN == TEXT("TruckRim") && FVehicleDirt::WheelShape(K, WC, WS))
+					{
+						// (the rim turns with its wheel, in one mesh with the tyre, whose box it is: 0.56 of its radius)
+						WS.R *= 0.56f;
+						D->SetScalarParameterValue(TEXT("Own"), 1.f); D->SetScalarParameterValue(TEXT("Rim"), 1.f);
+						D->SetVectorParameterValue(TEXT("TyreC"), WC); D->SetVectorParameterValue(TEXT("TyreS"), WS);
+					}
 					PaintMids.Add(D); ++NPaint;
 				}
 			if (!D && MN.Contains(TEXT("Glass")))

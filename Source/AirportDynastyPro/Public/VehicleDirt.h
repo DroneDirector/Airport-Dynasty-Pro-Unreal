@@ -15,6 +15,7 @@
 
 class ABabylonModel;
 class UMaterialInstanceDynamic;
+class UInstancedStaticMeshComponent;
 
 struct FVehicleDirtState
 {
@@ -42,6 +43,9 @@ struct AIRPORTDYNASTYPRO_API FVehicleDirt
 	void SetDirt(float V);
 	/** The hose's jet landing on the vehicle at At (world): that part a little cleaner and wet. */
 	void Wash(const FVector& At, float Amount);
+	/** A part that is a wheel by its mesh's box (two sides equal, the third, along the axle, narrower): C its middle in the
+	 *  mesh's frame, Size its radius, half its width, the axle 0 x / 1 y / 2 z, and -1 for a mirrored part (TyreC, TyreS). */
+	static bool WheelShape(const UInstancedStaticMeshComponent* K, FLinearColor& C, FLinearColor& Size);
 	/** The wash hose (WashHose.cpp): does a drop going from A to B hit any dressed vehicle (their parts have no collision)?
 	 *  If so it washes it there; HitP / HitN the place and the face it hit. */
 	static bool WashSegment(const FVector& A, const FVector& B, float Amount, FVector& HitP, FVector& HitN);

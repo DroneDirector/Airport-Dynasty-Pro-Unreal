@@ -5,6 +5,7 @@
 #include "Puddles.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Engine/StaticMesh.h"
 #include "Engine/Texture.h"
 
 namespace
@@ -39,6 +40,22 @@ namespace
 	}
 }
 
+bool FVehicleDirt::WheelShape(const UInstancedStaticMeshComponent* K, FLinearColor& C, FLinearColor& Size)
+{
+	const UStaticMesh* Sm = K ? K->GetStaticMesh() : nullptr; if (!Sm) return false;
+	const FBox B = Sm->GetBoundingBox(); const FVector E = B.GetExtent(), O = B.GetCenter();
+	for (int32 A = 0; A < 3; ++A)
+	{
+		const double R1 = E[(A + 1) % 3], R2 = E[(A + 2) % 3], W = E[A], R = FMath::Max(R1, R2);
+		if (R < 8.0 || R > 120.0 || FMath::Abs(R1 - R2) > 0.04 * R || W > 0.72 * R) continue;
+		double Det = K->GetComponentTransform().GetDeterminant();
+		FTransform T; if (K->GetInstanceTransform(0, T, false)) Det *= T.GetDeterminant();
+		C = FLinearColor(O.X, O.Y, O.Z, 0.f); Size = FLinearColor(R, W, A, Det < 0.0 ? -1.f : 1.f);
+		return true;
+	}
+	return false;
+}
+
 void FVehicleDirt::Dress(ABabylonModel* Model, UObject* Outer, const FString& Name, float Start)
 {
 	if (!Model) return;
@@ -51,15 +68,35 @@ void FVehicleDirt::Dress(ABabylonModel* Model, UObject* Outer, const FString& Na
 	auto Sc = [](UMaterialInterface* M, const TCHAR* N, float D) { float F = D; M->GetScalarParameterValue(FHashedMaterialParameterInfo(N), F); return F; };
 	auto Tx = [](UMaterialInterface* M, const TCHAR* N) { UTexture* T = nullptr; M->GetTextureParameterValue(FHashedMaterialParameterInfo(N), T); return T; };
 	TArray<UInstancedStaticMeshComponent*> Parts; Model->Parts(Parts);
-	TMap<UMaterialInterface*, UMaterialInterface*> Swap;
-	int32 NP = 0, NG = 0, NN = 0;
+	TMap<TPair<UMaterialInterface*, UStaticMesh*>, UMaterialInterface*> Swap;   // (a wheel's parts have their own per mesh: their size and middle)
+	int32 NP = 0, NG = 0, NN = 0, NT = 0, NR = 0, NOdd = 0;
 	for (UInstancedStaticMeshComponent* K : Parts)
+	{
+		// a wheel? (by its mesh's box; pedals, belts and chocks share the tyres' rubber and are not)
+		FLinearColor TyreC(0, 0, 0, 0), TyreS(0, 0, 0, 1);
+		const bool bWheel = WheelShape(K, TyreC, TyreS);
+		const FString Mesh = K->GetStaticMesh() ? K->GetStaticMesh()->GetName() : FString();
+		const bool bNamed = (Mesh.Contains(TEXT("Tyre")) || Mesh.Contains(TEXT("Wheel"))) && !Mesh.Contains(TEXT("Steering")) && !Mesh.Contains(TEXT("Chock"));
+		const bool bDisc = Mesh.StartsWith(TEXT("WheelDisc")) || Mesh.StartsWith(TEXT("Hub"));
+		bool bTyreMesh = false;
+		for (int32 Si = 0; Si < K->GetNumMaterials(); ++Si)
+			if (UMaterialInterface* M = K->GetMaterial(Si))
+			{
+				const UMaterialInstanceDynamic* Md = Cast<UMaterialInstanceDynamic>(M);
+				const FString N = Md && Md->Parent ? Md->Parent->GetName() : M->GetName();
+				if (N.Contains(TEXT("Tyre")) || (N.Contains(TEXT("Rubber")) && bNamed)) bTyreMesh = true;
+			}
 		for (int32 Si = 0; Si < K->GetNumMaterials(); ++Si)
 		{
 			UMaterialInterface* M = K->GetMaterial(Si); if (!M) continue;
-			if (UMaterialInterface** F = Swap.Find(M)) { if (*F && *F != M) K->SetMaterial(Si, *F); continue; }
 			UMaterialInstanceDynamic* Md = Cast<UMaterialInstanceDynamic>(M);
 			const FString N = Md && Md->Parent ? Md->Parent->GetName() : M->GetName();
+			const bool bRubber = N.Contains(TEXT("Tyre")) || N.Contains(TEXT("Rubber"));
+			const bool bTyre = bWheel && bNamed && bRubber && TyreS.R >= 10.f && TyreS.G > 0.1f * TyreS.R;
+			const bool bRim = bWheel && !bRubber && (bDisc || Mesh.StartsWith(TEXT("Rim")) || (N.Contains(TEXT("Rim")) && bTyreMesh));
+			if (bTyre) ++NT; else if (bRim) ++NR; else if (N.Contains(TEXT("Tyre"))) ++NOdd;
+			const TPair<UMaterialInterface*, UStaticMesh*> Key(M, bTyre || bRim ? K->GetStaticMesh().Get() : nullptr);
+			if (UMaterialInterface** F = Swap.Find(Key)) { if (*F && *F != M) K->SetMaterial(Si, *F); continue; }
 			UMaterialInterface* Put = nullptr;
 			if (N == TEXT("M_TruckGlass"))
 			{
@@ -96,19 +133,27 @@ void FVehicleDirt::Dress(ABabylonModel* Model, UObject* Outer, const FString& Na
 				D->SetScalarParameterValue(TEXT("R"), Sc(M, TEXT("RoughnessFactor"), 0.5f));
 				D->SetScalarParameterValue(TEXT("M"), Sc(M, TEXT("MetallicFactor"), 0.f));
 				D->SetScalarParameterValue(TEXT("CC"), Kd.CC); D->SetScalarParameterValue(TEXT("CCR"), 0.12f);
-				D->SetScalarParameterValue(TEXT("Dirt"), Kd.Dirt); D->SetScalarParameterValue(TEXT("Wear"), Kd.Wear);
+				D->SetScalarParameterValue(TEXT("Dirt"), bRim ? FMath::Max(Kd.Dirt, 0.6f) : Kd.Dirt); D->SetScalarParameterValue(TEXT("Wear"), bRim ? FMath::Max(Kd.Wear, 0.5f) : Kd.Wear);
+				if (bTyre || bRim)
+				{
+					// (a rim in one mesh with its tyre: about 0.56 of the tyre's radius)
+					FLinearColor Sz = TyreS; if (bRim && bTyreMesh) Sz.R *= 0.56f;
+					D->SetScalarParameterValue(TEXT("Own"), 1.f); D->SetScalarParameterValue(TEXT("Rim"), bRim ? (bDisc ? 0.6f : 1.f) : 0.f);
+					D->SetVectorParameterValue(TEXT("TyreC"), TyreC); D->SetVectorParameterValue(TEXT("TyreS"), Sz);
+				}
 				S->Paint.Add(D); Put = D; ++NP;
 			}
-			Swap.Add(M, Put ? Put : M);
+			Swap.Add(Key, Put ? Put : M);
 			if (Put && Put != M) K->SetMaterial(Si, Put);
 		}
+	}
 	// the vehicle's box in its own frame (washing; the areas' middle)
 	const FBox LB = Model->CalculateComponentsBoundingBoxInLocalSpace(true);
 	if (LB.IsValid) { S->Centre = LB.GetCenter(); S->HalfExt = LB.GetExtent(); }
 	SetDirt(Start >= 0.f ? Start : FMath::FRandRange(0.2f, 0.5f));
 	VdAll().Add(S);
-	ADP_LOG(TEXT("Vehicle dirt: %s dressed - %d painted / metal / rubber surfaces (%d with their relief), %d glass; %.1f x %.1f m; dirt %.2f"),
-		*Name, NP, NN, NG, S->HalfExt.X / 50.f, S->HalfExt.Y / 50.f, S->Goal[0]);
+	ADP_LOG(TEXT("Vehicle dirt: %s dressed - %d painted / metal / rubber surfaces (%d with their relief), %d glass; wheels treaded %d, rims %d, tyre parts not wheel-shaped %d; %.1f x %.1f m; dirt %.2f"),
+		*Name, NP, NN, NG, NT, NR, NOdd, S->HalfExt.X / 50.f, S->HalfExt.Y / 50.f, S->Goal[0]);
 }
 
 void FVehicleDirt::SetDirt(float V)
