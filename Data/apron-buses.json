@@ -1,0 +1,9 @@
+{
+	"note": "The apron buses (to-do 277): where each is parked - plan metres (x, y), heading degrees (0 = plan +x, 90 = plan +y). They stand there only where the airport has remote stands (built, or -RemoteStands). One more bus: one more row.",
+	"model": "ApronBus",
+	"buses": [
+		{ "name": "Apron bus 1", "bay": "BUS 1", "x": -282.0, "y": 96.0, "heading": 90.0 },
+		{ "name": "Apron bus 2", "bay": "BUS 2", "x": -273.0, "y": 96.0, "heading": 90.0 },
+		{ "name": "Apron bus 3", "bay": "Depot bay 1", "x": -292.0, "y": 293.0, "heading": -90.0 }
+	]
+}

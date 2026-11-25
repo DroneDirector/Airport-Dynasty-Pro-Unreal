@@ -1,6 +1,7 @@
 #include "Tugs.h"
 #include "Site.h"
 #include "GSE.h"
+#include "ApronBus.h"
 #include "StaffPeople.h"
 #include "ADPLog.h"
 #include "PerfLog.h"
@@ -131,6 +132,8 @@ void ATugs::Setup()
 	SetupCrew();
 	// the baggage tractors and carts (GSE.h): the same ground crew, the same apron
 	AGSE::Get(GetWorld());
+	// the apron buses (ApronBus.h): parked, only where there are remote stands
+	AApronBuses::Get(GetWorld());
 }
 
 bool ATugs::SpawnAt(FTug& T)

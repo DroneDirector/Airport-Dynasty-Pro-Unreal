@@ -560,6 +560,18 @@ Taxi bus (239, part B, 2026-11-24, compiled, NOT run): a line of `ADPService::Al
   the bus lane, the phone prop vanishing at hand-over (PaxProps::Forget). Bag carriers never take it (bag hand-over not built).
   Deferred by the owner: fade by distance, reappear only when needed / occupied, extra taxis.
 
+## Apron bus, D2 as built (to-do 277, 2026-11-25, NOT run): imported, parked, nothing drives
+- `ApronBus.h/.cpp` (`AApronBuses::Get`, spawned by ATugs::Setup), table `Data/apron-buses.json` (copy in Content/Data): BUS 1 (-282, 96), BUS 2 (-273, 96) facing north,
+  depot bay 1 (-292, 293) facing south (out of it). Only where Stands holds a remote one. The body is 14 m, the depot bay 14 m: the mirrors stand 0.46 m out in front.
+- **Frame:** front = +x, model root cm (Blender x, y, z = x, -y, z). Wheel middles `IK_Wheel_FL/FR/RL/RR` (376 / -334, +-118, 47.9), kingpins `IK_Steer_FL/FR`.
+- **Wheels (BindGroup, prefix):** `Tyre_FL/FR/RIL/RIR/ROL/ROR`, `WheelDisc_FL/FR/ROL/ROR`; `WheelHousing_*` stays still.
+- **Doors:** seven, two leaves each, `PIV_Door_<side><x>_0/1` with a point (`L+1.95`, `L-1.55`, `L-5.15`, `R+5.55`, `R+1.95`, `R-1.55`, `R-5.15`); the parts of each are named with a p:
+  `DoorLeaf_ DoorGlass_ DoorGlassLow_ DoorEdgeRubber_ DoorHandleBar_ DoorPivot_` + `L+1p95_0`. Driver's: `PIV_CabDoor`. Wipers `PIV_Wiper_L/R`.
+- **People:** `IK_DriverSeat/Back/HandL/HandR`, `IK_Accelerator`, `IK_Brake`, `IK_DoorControls`, `IK_CabDoorHandle`, `IK_Seat_*`, `IK_StandSpot0..3`, `IK_Hold_Pole*`, `IK_Hold_Strap*`, `IK_Rack_0/1`.
+- **Lamps:** `AApronBuses::SetLamps(Bus, kind, 0..1, side)`; all off. **Sounds:** /Game/ApronBus/Sounds/AB* (the Loop and Beep ones loop).
+- **Name / livery:** written at run time on the cant rail (the model's own `Livery_Name_*` hidden); `AB_Livery_Body`, `AB_Livery_Main` take the airline's colours.
+- **Until its doors open:** SeatSpots skips the model (no sitting in through its side); one solid box (699 x 151 half) keeps people out: the doors step must replace it by walls.
+
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
 | Where | Today | Replace with | Nobody free |

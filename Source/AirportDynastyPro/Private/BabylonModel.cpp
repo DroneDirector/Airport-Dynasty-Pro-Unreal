@@ -1422,7 +1422,7 @@ void ABabylonModel::SetPartsCollision(bool bOn)
 void ABabylonModel::SeatSpots(TArray<FSeatSpot>& Out) const
 {
 	ADP_PERF_SCOPE("a building's places to sit", 4.f);
-	if (!Root || Model.StartsWith(TEXT("Firetruck"))) return;   // (the trucks' own seats are the truck's)
+	if (!Root || Model.StartsWith(TEXT("Firetruck")) || Model == TEXT("ApronBus")) return;   // (the trucks' own seats are the truck's; the apron bus: its doors are shut - no sitting in through its side, and its wheelchair rail is no chair)
 	const FTransform RootW = Root->GetComponentTransform();
 	auto Under = [this](int32 I, TArray<int32>& Nodes) { TArray<int32> St = {I}; while (St.Num()) { const int32 N = St.Pop(); if (!NRoot.IsValidIndex(N)) continue; Nodes.Add(N); St.Append(NKids[N]); } };
 	auto LastPart = [](const FString& N) { int32 P; return N.FindLastChar(TEXT('/'), P) ? N.Mid(P + 1) : N; };
