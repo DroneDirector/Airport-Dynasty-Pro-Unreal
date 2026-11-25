@@ -21,6 +21,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, 'docs', 'Blueprints'); os.makedirs(OUT, exist_ok=True)
 P = json.load(open(os.path.join(ROOT, 'Data', 'terminal-plan.json')))
 AF = json.load(open(os.path.join(ROOT, 'Data', 'airfield.json')))
+AF['stands'] = [s for s in AF['stands'] if s.get('built', True)]   # (remote stands not in use yet are left out)
 BG, INK, DIM, OLDC, NEW, MOVE, GONE, YEL, RED, PLANE, ROOFC = ('#000000', '#e8edf2', '#5b6773', '#8d99a6', '#35d0e0',
     '#7dff8a', '#ff5a5a', '#ffd23f', '#ff4040', '#c9d6e3', '#4fa3ff')
 

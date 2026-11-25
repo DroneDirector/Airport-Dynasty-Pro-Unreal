@@ -107,11 +107,14 @@ void AAirfieldLights::Place(const FAirfieldData& F)
 				for (int32 k = 0; k <= n; ++k)
 				{
 					const FVector2f P = A + Dir * (L * k / n) + N * (S * (T.W * 0.5f + 0.75f));   // (75 cm out from the paving's edge)
-					if (OnRunway(P, 1.f) || OnApron(P, 1.f) || InsideTaxiway(P) || Taken(DoneE, P, 8.f)) continue;
+					if (OnRunway(P, 1.f) || OnApron(P, 1.f) || F.OnRemote(P, 0.5f) || InsideTaxiway(P) || Taken(DoneE, P, 8.f)) continue;
 					Put(Edge, P, Dir); DoneE.Add(P); ++NE;
 				}
 		}
 	}
+	// the remote stands' pads (worked out with their outlines: Tools/make_remote_stands.py)
+	for (const FAirfieldData::FRemote::FLight& L : F.Remote.Lights)
+		if (!Taken(DoneE, L.At, 6.f)) { Put(Edge, L.At, L.Dir); DoneE.Add(L.At); ++NE; }
 	Edge->MarkRenderStateDirty(); Centre->MarkRenderStateDirty();
 	ADP_LOG(TEXT("Taxiway lights: %d blue edge, %d green centreline"), NE, NC);
 }

@@ -79,7 +79,7 @@ ROTS = {}
 for nm, new, V, T in []: pass
 for g in G.GATES:
     x0 = P['F2-GATE-%d' % g]['x0']; line = []
-    st = [s for s in A['stands'] if x0 - 45 < s['x'] < x0 + 75]
+    st = [s for s in A['stands'] if s.get('built', True) and x0 - 45 < s['x'] < x0 + 75]
     if st: s = min(st, key=lambda s: near(x0, s['x'], s.get('nose', s.get('nz', 120)))); line.append('nearest nose %s %.1f' % (s.get('id'), near(x0, s['x'], s.get('nose', s.get('nz', 120)))))
     for nm, jx in jets:
         if x0 - 20 < jx < x0 + 80: line.append('%s rotunda %.1f' % (nm, near(x0, jx, 95.84) - 1.92))

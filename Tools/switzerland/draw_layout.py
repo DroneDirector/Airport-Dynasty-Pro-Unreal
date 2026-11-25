@@ -13,6 +13,7 @@ from shapely.geometry import LineString, box
 
 ROOT = '/home/claude/airport-dynasty-pro-unreal'
 AF = json.load(open(f'{ROOT}/Data/airfield.json'))
+AF['stands'] = [s for s in AF['stands'] if s.get('built', True)]   # (remote stands not in use yet are left out)
 TP = json.load(open(f'{ROOT}/Data/terminal-plan.json'))
 with open('/home/claude/sites/DHM200.asc') as f:
     hdr = {}

@@ -58,8 +58,10 @@ bool FAirfieldData::Load()
 		FStand S;
 		S.Id = O->GetStringField(TEXT("id")); S.X = N(O, TEXT("x")); S.Nose = N(O, TEXT("nose")); S.Dir = N(O, TEXT("dir"), -1);
 		S.Span = N(O, TEXT("span"), 36); S.Len = N(O, TEXT("len"), 44.5f);
-		O->TryGetBoolField(TEXT("jetway"), S.bJetway); O->TryGetBoolField(TEXT("cargo"), S.bCargo);
-		Stands.Add(S);
+		O->TryGetBoolField(TEXT("jetway"), S.bJetway); O->TryGetBoolField(TEXT("cargo"), S.bCargo); O->TryGetBoolField(TEXT("remote"), S.bRemote);
+		bool bBuilt = true;
+		O->TryGetBoolField(TEXT("built"), bBuilt);
+		if (bBuilt) Stands.Add(S);   // (one not in use yet is only drawn: the remote block)
 	}
 	for (const TSharedPtr<FJsonValue>& V : R->GetArrayField(TEXT("holds")))
 		Holds.Add(FVector2f(N(V->AsObject(), TEXT("x")), N(V->AsObject(), TEXT("y"))));
@@ -114,6 +116,7 @@ bool FAirfieldData::Load()
 	const TSharedPtr<FJsonObject> B = R->GetObjectField(TEXT("boundary")), C = R->GetObjectField(TEXT("cargoBuilding"));
 	Boundary = {N(B, TEXT("x0")), N(B, TEXT("y0")), N(B, TEXT("x1")), N(B, TEXT("y1"))};
 	Cargo = {N(C, TEXT("x0")), N(C, TEXT("y0")), N(C, TEXT("x1")), N(C, TEXT("y1"))};
+	LoadRemote(R);
 	return true;
 }
 
@@ -572,7 +575,7 @@ void AAirfield::PaveTaxiways(bool bModelSite)
 	};
 	auto Masked = [&](const FVector2f& Q)
 	{
-		if (OnModelApron(Q, 4.f)) return true;
+		if (OnModelApron(Q, 4.f) || D.OnRemote(Q, 1.f)) return true;   // (nor across the bus road on the links)
 		// without the model: the terminal's own apron meets the building along its south side
 		if (!bModelSite) for (const FAirfieldData::FRect& A : D.Aprons)
 			if (A.Id == TEXT("APRON-T") && Q.Y < FMath::Min(A.Y0, A.Y1) + 2.f && Q.X > FMath::Min(A.X0, A.X1) - 2.f && Q.X < 250.f) return true;
@@ -696,6 +699,7 @@ void AAirfield::Aprons(bool bModelSite)
 	for (int32 i = 0; i < D.Stands.Num(); ++i)
 	{
 		const FAirfieldData::FStand& St = D.Stands[i];
+		if (St.bRemote) continue;   // (drawn by RemoteApron)
 		const float B = -St.Dir;   // from the nose back towards the tail and the taxilane
 		float TY = St.Nose + B * (St.Len + 40.f), Best = 1e9f;
 		for (const FAirfieldData::FTwy& T : D.Taxiways)
@@ -867,6 +871,7 @@ void AAirfield::ServiceRoads(bool bModelSite)
 	{
 		for (const FAirfieldData::FRect& A : D.Aprons)
 			if (BoxSd(Q, A.X0, A.Y0, A.X1, A.Y1) < Margin) { bModel = bModelSite && (A.Id == TEXT("APRON-T") || A.Id == TEXT("APRON-9")); return true; }
+		if (D.OnRemote(Q, FMath::Max(Margin, 0.f))) { bModel = bModelSite; return true; }   // (the terminal apron's west end)
 		return false;
 	};
 	// the Babylon model's own lawn round the terminal lies 25 cm over the airfield's ground (Sink): what is laid inside it
@@ -986,7 +991,7 @@ void AAirfield::ServiceRoads(bool bModelSite)
 	}
 }
 
-void AAirfield::EdgePoly(const TArray<FVector2f>& P, const TArray<FVector2f>& Out, const TArray<FVector2f>& Flags, const TArray<float>& InnerLift, bool bFadeEnds)
+void AAirfield::EdgePoly(const TArray<FVector2f>& P, const TArray<FVector2f>& Out, const TArray<FVector2f>& Flags, const TArray<float>& InnerLift, bool bFadeEnds, const TArray<float>* EdgeLift)
 {
 	FSheet& S = Sheets.FindOrAdd(TEXT("edge"));
 	const int32 N = P.Num();
@@ -1004,7 +1009,7 @@ void AAirfield::EdgePoly(const TArray<FVector2f>& P, const TArray<FVector2f>& Ou
 			const FVector2f Q = P[k] + Out[k] * Across[j];
 			const float Alpha = bFadeEnds ? FMath::Clamp(FMath::Min(Along[k], L - Along[k]) / Fade, 0.f, 1.f) : 1.f;
 			const FVector2D UV(Along[k] / 4.0, Vs[j]);
-			Vertex(S, Q.X, Q.Y, j < 2 ? InnerLift[k] + 0.004f : -0.076f, FLinearColor(Flags[k].X, Flags[k].Y, 0.f, Alpha), &UV);
+			Vertex(S, Q.X, Q.Y, j < 2 ? (j == 1 && EdgeLift ? (*EdgeLift)[k] : InnerLift[k]) + 0.004f : -0.076f, FLinearColor(Flags[k].X, Flags[k].Y, 0.f, Alpha), &UV);
 		}
 	for (int32 j = 0; j < 2; ++j)
 		for (int32 k = 0; k + 1 < N; ++k)
@@ -1122,6 +1127,7 @@ bool AAirfield::Build(bool bModelSite)
 	// the aprons (concrete, level); with the Babylon model only those away from the terminal (it has the terminal's own)
 	Aprons(bModelSite);   // every apron and every stand's markings and wear, from the layout
 	ServiceRoads(bModelSite);
+	RemoteApron(bModelSite);   // the remote stands, the bus road and the bus bays
 	// the taxiways: one smooth pavement with its turn curves, fillets, shoulders, edge stripes, centre lines and the soft
 	// grass edge round all the paving, riding the grade
 	PaveTaxiways(bModelSite);

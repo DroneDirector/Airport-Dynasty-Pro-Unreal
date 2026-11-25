@@ -27,6 +27,7 @@ namespace
 				for (const TSharedPtr<FJsonValue>& V : *L)
 				{
 					const TSharedPtr<FJsonObject> O = V->AsObject(); FStandInfo I;
+					bool bBuilt = true; O->TryGetBoolField(TEXT("built"), bBuilt); if (!bBuilt) continue;   // (a remote stand not in use yet)
 					I.Id = O->GetStringField(TEXT("id")); FString C = TEXT("C"); O->TryGetStringField(TEXT("code"), C); I.Code = C.Len() ? C[0] : 'C';
 					O->TryGetBoolField(TEXT("jetway"), I.bJetway); O->TryGetBoolField(TEXT("cargo"), I.bCargo);
 					S.Add(I);

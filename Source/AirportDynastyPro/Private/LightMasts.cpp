@@ -55,11 +55,14 @@ const TArray<FVector2D>& ALightMasts::Spots()
 	// on the apron, clear of the door, its lead-in line and the wings of an aircraft going in
 	FAirfieldData D;
 	if (D.Load())
+	{
+		for (const FVector2f& M : D.Remote.Masts) S.Add({M.X, M.Y});   // the remote stands': between the noses and the bus road
 		for (const FAirfieldData::FHangarSite& H : D.Hangars)
 		{
 			const float Off = FHangarSpec::Get(H.Size).PocketX() + 5.f;
 			S.Add({H.X - Off, H.Y - 6.f}); S.Add({H.X + Off, H.Y - 6.f});
 		}
+	}
 	return S;
 }
 

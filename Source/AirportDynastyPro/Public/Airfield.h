@@ -17,13 +17,14 @@
 class UInstancedStaticMeshComponent;
 class UStaticMesh;
 class UProceduralMeshComponent;
+class FJsonObject;
 
 #pragma region Airfield data
 
 struct AIRPORTDYNASTYPRO_API FAirfieldData
 {
 	struct FTwy { FString Id, Kind; TArray<FVector2f> Pts; float W = 25; };
-	struct FStand { FString Id; float X = 0, Nose = 0, Dir = -1, Span = 36, Len = 44.5f; bool bJetway = false, bCargo = false; };
+	struct FStand { FString Id; float X = 0, Nose = 0, Dir = -1, Span = 36, Len = 44.5f; bool bJetway = false, bCargo = false, bRemote = false; };
 	struct FRect { float X0, Y0, X1, Y1; FString Id; };
 	/** A hangar's place: its centre line X (on its lead-in line), the apron edge Y its threshold meets, its size, door. */
 	struct FHangarSite { FString Id, Size; float X = 0, Y = 0; bool bOpen = false; };
@@ -31,7 +32,7 @@ struct AIRPORTDYNASTYPRO_API FAirfieldData
 	float RwyX0 = -1919, RwyX1 = 2081, RwyY = 646, RwyW = 60;
 	float AY = 386, BY = 906, TY = 206, KY = 1086;
 	TArray<FTwy> Taxiways;
-	TArray<FStand> Stands;
+	TArray<FStand> Stands;   // (only the built ones: "built": false in the layout is left out here, so nothing that uses stands sees it)
 	TArray<FVector2f> Holds;
 	TArray<FRect> Aprons;
 	TArray<FHangarSite> Hangars;
@@ -44,6 +45,20 @@ struct AIRPORTDYNASTYPRO_API FAirfieldData
 	/** Level building pads (the fire station's): the ground flat at Z inside, back to the natural grade over Blend metres. */
 	struct FPad { FString Id; float X0, Y0, X1, Y1, Z = 0, Blend = 30; };
 	TArray<FPad> Pads;
+	/** The remote stands R0-R7 as drawn (to-do 277, AirfieldRemote.cpp): pieces of paving, paint, texts, signs, blue lights, masts. */
+	struct FRemote
+	{
+		struct FPoly { FName Mat; bool bRing = false; TArray<FVector2f> Outer, Pts; TArray<int32> Tri; TArray<TArray<FVector2f>> Runs; FVector2f Min = FVector2f::ZeroVector, Max = FVector2f::ZeroVector; };
+		struct FPaint { FName Mat; float W, Up; TArray<FVector2f> Pts; };
+		struct FText { FString T; float X, Y, H, Yaw; bool bWhite; };
+		struct FLight { FVector2f At, Dir; };
+		TArray<FPoly> Polys; TArray<FPaint> Paint; TArray<FText> Texts, Signs; TArray<FLight> Lights; TArray<FVector2f> Masts; TArray<float> LinkX;
+		float LinkHalf = 20, RampTo = 30;
+	};
+	FRemote Remote;
+	void LoadRemote(const TSharedPtr<FJsonObject>& Json);
+	/** On the remote stands' paving (or within Margin of it). */
+	bool OnRemote(const FVector2f& P, float Margin = 0.f) const;
 	FRect Boundary{-2000, -170, 2240, 1320}, Cargo{200, 1231, 590, 1301};
 	double Lat = 63.457988, Lon = -18.713703;
 	float ElevFt = 130, Heading = 68;
@@ -114,7 +129,9 @@ private:
 	 *  (stop line and STOP) where one meets a taxiway. */
 	void ServiceRoads(bool bModelSite);
 	/** A soft edge band along a curved edge: P the points along it, Out their outward normals, Flags (asphalt, end). */
-	void EdgePoly(const TArray<FVector2f>& P, const TArray<FVector2f>& Out, const TArray<FVector2f>& Flags, const TArray<float>& InnerLift, bool bFadeEnds);
+	void EdgePoly(const TArray<FVector2f>& P, const TArray<FVector2f>& Out, const TArray<FVector2f>& Flags, const TArray<float>& InnerLift, bool bFadeEnds, const TArray<float>* EdgeLift = nullptr);
+	/** The remote stands, their bus road, depot and bus bays (AirfieldRemote.cpp, to-do 277). */
+	void RemoteApron(bool bModelSite);
 	void Tri(FSheet& S, int32 A, int32 B, int32 C);
 	void FlushSheets();
 	UPROPERTY() TArray<TObjectPtr<UProceduralMeshComponent>> SheetMeshes;
