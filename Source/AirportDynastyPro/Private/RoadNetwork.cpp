@@ -17,6 +17,9 @@
 #include "StreetLights.h"
 #include "RoadSigns.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Camera/PlayerCameraManager.h"
+#include "Kismet/GameplayStatics.h"
+#include "PerfLog.h"
 #include "Components/TextRenderComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
@@ -411,8 +414,28 @@ FVector ARoadNetwork::TestManhole = FVector::ZeroVector;
 
 ARoadNetwork::ARoadNetwork()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.TickInterval = 1.f;   // (the far roads' shadows only)
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+}
+
+void ARoadNetwork::Tick(float Dt)
+{
+	Super::Tick(Dt);
+	// (278: the roads are not Nanite and lie flat, 1 m over the land at most: from 1.2 km away their shadow is under a
+	//  pixel or two, and 607 of them filled the engine's shadow marking queue. Near ones cast theirs as ever; a few a step)
+	const APlayerCameraManager* Cm = UGameplayStatics::GetPlayerCameraManager(this, 0);
+	if (!Cm || GBaking) return;
+	ADP_PERF_SCOPE("Road shadows", 1.f);
+	const FVector Eye = Cm->GetCameraLocation();
+	int32 Changed = 0;
+	for (int32 n = 0; n < FlatParts.Num() && Changed < 40; ++n)
+	{
+		UStaticMeshComponent* C = FlatParts[n].Get();
+		if (!C) continue;
+		const double D = FMath::Sqrt(C->Bounds.GetBox().ComputeSquaredDistanceToPoint(Eye));
+		if (C->CastShadow ? D > 130000.0 : D < 120000.0) { C->SetCastShadow(!C->CastShadow); ++Changed; }
+	}
 }
 
 int32 ARoadNetwork::Build()
@@ -537,7 +560,8 @@ bool ARoadNetwork::BuildSome(double Budget)
 							C->SetupAttachment(Road->GetRootComponent());
 							C->SetRelativeTransform(BR->Parts[k].Value);
 							C->SetCollisionProfileName(TEXT("BlockAll"));
-							Road->AddInstanceComponent(C);
+							C->SetCastShadow(false);   // (its shadow comes on when you are within 1.2 km: Tick)
+							Road->AddInstanceComponent(C); FlatParts.Add(C);
 							C->RegisterComponent();
 						}
 						bFromBake = true;

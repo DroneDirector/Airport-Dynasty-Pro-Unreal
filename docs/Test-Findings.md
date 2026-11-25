@@ -106,3 +106,15 @@ walk follows below when it has run.
 - Sun shadows 2.6 km on foot or driving, 42 km flying/drone/flight viewer (your OK); lamps 150 m on foot (floodlights
   600 m), 600 m flying (floodlights 2.4 km) (your OK): 87 -> 92 fps average, slowest 1 % 68 -> 75 fps.
 - The 607 baked road meshes drawn by Nanite (same triangles, cheaper shadows): in the next full build.
+
+## Small issues, 25 Nov 2026 (compiled, not yet seen in the game)
+
+- 278 shadow marking queue: large far terrain tiles and roads beyond 1.2 km cast no shadow; the engine's queue size is fixed.
+- 279 creator on 32:9: the page stays in the middle 16:9, the camera keeps the height.
+- 280 stuck at a gate: arriving passengers now go straight through the middle of the jetway's gate door. The rotunda itself measured 2.05 m free or more.
+- 281 a weather chosen by a test stays until LIVE is pressed.
+- 283 horn T / hold B + D-pad up; high beams L / hold B + left shoulder.
+- 284 the tug's door sounds come from PushbackTug and are packed.
+- Cargo stands: -TrafficTest and normal traffic put only cargo aircraft there.
+- Push towards X1 ends facing the taxi way (Tools/check_push.py: open, STAND-9's main gear ends 10.4 m past the taxilane's end).
+- Open: passengers stuck on the way to a gate chair (plan -217.8, 61.3).

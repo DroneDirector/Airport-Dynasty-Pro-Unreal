@@ -839,11 +839,15 @@ int32 APaxFlow::SpawnArr(int32 Ri)
 	// (along the jetway's inside as it is now: its slices' middles, each to the right of it as far as there is room - the walls known)
 	P.TunA = 0;
 	if (R.Jet != INDEX_NONE && Measure(R))
-		for (int32 k = 0; k < R.Walk.Num(); k += 3) { const FSlice& Sl = R.Walk[k]; Add(Sl.C + Sl.Rt * FMath::Clamp(float(P.Jit.X) * 0.4f + 8.f, -Sl.Lim, Sl.Lim)); }
+		for (int32 k = 0; k < R.Walk.Num() && FVector::Dist2D(R.Walk[k].C, PW(G.Jw.X, Fy, G.Jw.Y)) > 150.f; k += 3) { const FSlice& Sl = R.Walk[k]; Add(Sl.C + Sl.Rt * FMath::Clamp(float(P.Jit.X) * 0.4f + 8.f, -Sl.Lim, Sl.Lim)); }
 	else if (R.Jet != INDEX_NONE) { Add(Mid); Add(Ro); Add(PW(G.Jw.X, Fy, G.Jw.Y + 1.2f)); }
 	P.TunB = P.Way.Num();
 	for (FWp& Wt : P.Way) Wt.bNav = true;
-	Add(PW(G.Jw.X + float(P.Jit.X) / 250.f, Fy, G.Jw.Y - 1.5f));
+	// (in line with the gate's door before it, then straight through its middle: from the wide walkway at the rotunda, walking
+	//  on the right, they cut the corner into the door's jamb and stood there, the way blocked for all behind - to-do 280)
+	const float Dx = FMath::Clamp(float(P.Jit.X) / 250.f, -0.15f, 0.15f);
+	Add(PW(G.Jw.X + Dx, Fy, G.Jw.Y + 1.2f)); Add(PW(G.Jw.X + Dx, Fy, G.Jw.Y));
+	Add(PW(G.Jw.X + Dx, Fy, G.Jw.Y - 1.5f));
 	P.Do = EDo::ArrIn;
 	if (R.Spawned <= 3 || R.bTest) ADP_LOG(TEXT("PaxFlow: %s (%s) off %s at gate %d%s"), *P.Id, *P.Name, *R.Label, R.Gate, P.bArrBag ? TEXT(", a bag in the hold") : TEXT(", hand luggage only"));
 	return i;

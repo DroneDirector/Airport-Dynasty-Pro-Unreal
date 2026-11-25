@@ -772,6 +772,7 @@ Places: `Data/vehicle-area.json` "chargers", behind bays 1-3 at y 302.4, front s
 
 Checks: `UStaffPeople::CheckRoles` (once at the start, ADP_ERROR), `Tools/check_crew_roles.py`. Bought buses keep bays 2 and 3; buses
 1-3 change places at a charging bay while its owner is out with passengers. Left: waiting places without a charger (no room painted).
+A bus in the next bay no longer counts as standing in a free one (`Tools/check_charge_bays.py`).
 
 ## Beginners hired by the airport, 301 as built
 

@@ -8,6 +8,7 @@
 #endif
 #include "LandCorridor.h"
 #include "ADPLog.h"
+#include "PerfLog.h"
 // (Windows' own OPAQUE macro would break Cesium's glTF names when the build puts a Windows file before this one)
 #ifdef OPAQUE
 #undef OPAQUE
@@ -391,6 +392,18 @@ AGlobe::AGlobe()
 void AGlobe::Tick(float Dt)
 {
 	Super::Tick(Dt);
+	// (278: terrain tiles more than 100 km across the middle - the far side of the Earth, in view only from hundreds of
+	//  kilometres away - cast no shadow: each covers the whole shadow map and fills the engine's marking queue. The land
+	//  round you is always drawn from tiles far smaller than that and keeps its shadows)
+	if (Earth)
+	{
+		ADP_PERF_SCOPE("Globe shadows", 1.f);
+		int32 Off = 0;
+		TInlineComponentArray<UPrimitiveComponent*> Tiles(Earth);
+		for (UPrimitiveComponent* C : Tiles)
+			if (C && C->IsRegistered() && C->CastShadow && C->Bounds.SphereRadius > 1.e7) { C->SetCastShadow(false); ++Off; }
+		if (Off) ADP_LOG(TEXT("Globe: %d of %d terrain tiles too large for a shadow cast none"), Off, Tiles.Num());
+	}
 	// inside the airfield you stand on its own ground: the (cut away, unseen) terrain lets you through there; outside it,
 	// and anywhere else in the world, the terrain is the ground
 	if (!Earth || !Airfield.bIsValid) return;

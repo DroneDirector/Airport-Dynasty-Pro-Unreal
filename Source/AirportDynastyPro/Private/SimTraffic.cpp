@@ -150,6 +150,11 @@ bool ASimTraffic::Ready(const FADPPlanned& P, const FDateTime& Now, FString& Why
 	return true;
 }
 
+// The way an aircraft taxis off its stand's taxilane (+1: the plan's +x): where its push ends facing, and its first leg.
+// A cargo stand: along K to the link at the runway end's side; every other: along T to the connector it takes up to A.
+static float TaxiOutX(bool bToX1) { return bToX1 ? -130.f : 362.f; }   // (P1, P3)
+static float TaxiOutDir(const FAirfieldData::FStand& St, bool bToX1) { return St.bCargo ? (bToX1 ? -1.f : 1.f) : TaxiOutX(bToX1) >= St.X ? 1.f : -1.f; }
+
 bool ASimTraffic::RunwayToX1() const
 {
 	// the runway's x0 -> x1 direction has the plan's x axis, true heading = the site's runway heading; into the wind
@@ -217,7 +222,7 @@ void ASimTraffic::Sync()
 			// pushed back and turned (as a real pushback): straight back from the stand, then the tail swung round a 40 m arc so the
 			// aircraft ends on the taxilane facing the way it will taxi (towards the runway end in use) - the main gear's way
 			{
-				const float Dx = (RunwayToX1() ? 1.f : -1.f) * (St->bCargo ? -1.f : 1.f), Rr = 40.f, YEnd = St->bCargo ? F.KY : F.TY, Y0 = M.Main.Y;   // (a cargo stand: onto K, facing the way it taxis along it)
+				const float Dx = TaxiOutDir(*St, bToX1), Rr = 40.f, YEnd = St->bCargo ? F.KY : F.TY, Y0 = M.Main.Y;   // (a cargo stand: onto K, facing the way it taxis along it)
 				const float Ybend = YEnd - (-St->Dir) * Rr;           // where the straight part ends and the arc begins
 				M.Path.Reset();
 				if ((Ybend - Y0) * (-St->Dir) > 1.f) M.Path.Add(FVector2f(St->X, Ybend));
@@ -341,11 +346,12 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 			FString Cs; const FString Tail = M.Reg.Mid(M.Reg.Find(TEXT("-")) + 1).Right(3).ToUpper();
 			for (const TCHAR C : Tail) if (C >= 'A' && C <= 'Z') { if (!Cs.IsEmpty()) Cs += TEXT(" "); Cs += Ph[C - 'A']; }
 			double Hdg = 336.0; if (TSharedPtr<FJsonObject> Ab = ADPSite::AirportBlock()) Ab->TryGetNumberField(TEXT("hdg"), Hdg);
-			const double H = FMath::Fmod(RunwayToX1() ? Hdg : Hdg + 180.0, 360.0);
+			const double H = FMath::Fmod(bToX1 ? Hdg : Hdg + 180.0, 360.0);
+			const double Face = FMath::Fmod((MySt ? TaxiOutDir(*MySt, bToX1) : Dir) > 0.f ? Hdg : Hdg + 180.0, 360.0);   // (the way it is pushed to face)
 			static const TCHAR* Comp[] = {TEXT("north"), TEXT("east"), TEXT("south"), TEXT("west")};
 			const int32 Rw = FMath::RoundToInt(H / 10.0) == 0 ? 36 : FMath::RoundToInt(H / 10.0);
 			const FString RwW = FString::Printf(TEXT("%s %s"), Dg[Rw / 10], Dg[Rw % 10]);
-			T->Clearance(M.FlightId, Cs, Comp[FMath::RoundToInt(H / 90.0) % 4], TEXT("Tango, Alpha"), RwW);
+			T->Clearance(M.FlightId, Cs, Comp[FMath::RoundToInt(Face / 90.0) % 4], TEXT("Tango, Alpha"), RwW);
 		}
 		if (T && !T->Push(M.FlightId, StandX, Nose + Fwd * 60.f, Fwd)) { if (M.Clock == 0.f) ADP_LOG(TEXT("Traffic: %s at %s waits for its tug"), *M.FlightId, *M.Stand); M.Clock = 1.f; M.Speed = 0.f; Pose(M); return false; }
 		M.Clock = 0.f;
@@ -355,7 +361,7 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 		// pushed by you (TugYou.cpp): the aircraft follows your bar; on the line and braked it goes on as after a crew's push
 		if (T && T->YouPushing(M.FlightId))
 		{
-			int32 Re = INDEX_NONE; const bool bDone = T->YouDrive(M.FlightId, M.Model.Get(), M.Nose, M.Main, M.Path, Re, M.Speed, M.YouBar, LaneY, bCargoSt ? -Dir : Dir);
+			int32 Re = INDEX_NONE; const bool bDone = T->YouDrive(M.FlightId, M.Model.Get(), M.Nose, M.Main, M.Path, Re, M.Speed, M.YouBar, LaneY, MySt ? TaxiOutDir(*MySt, bToX1) : Dir);
 			if (AGSE* G = AGSE::Find(GetWorld()); G && !M.bYou) AddTickPrerequisiteActor(G);   // (after the tug: never a frame behind its bar)
 			M.bYou = true; M.YouRe = Re; if (M.Speed > 0.f) M.bYouOff = true;
 			Pose(M);
@@ -474,7 +480,12 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 			M.Path.Add(FVector2f(LineUp, RY + Hold));
 			return false;
 		}
-		M.Path = {FVector2f(M.Nose.X + Dir * 40.f, F.TY), FVector2f(bToX1 ? -130.f : 362.f, F.TY), FVector2f(bToX1 ? -130.f : 362.f, F.AY)};
+		{
+			// (straight on first, onto the line, before the turn up the connector; never past it and back)
+			const float Px = TaxiOutX(bToX1), Ahead = Px - M.Nose.X, Face = M.Nose.X >= M.Main.X ? 1.f : -1.f;
+			if (Ahead * Face < 0.f) ADP_WARN(TEXT("Traffic: %s faces away from its connector after the push"), *M.Reg);
+			M.Path = {FVector2f(M.Nose.X + FMath::Sign(Ahead) * FMath::Min(40.f, FMath::Abs(Ahead) * 0.5f), F.TY), FVector2f(Px, F.TY), FVector2f(Px, F.AY)};
+		}
 		// along A to its end, round the link curve onto A1 (or A3) and down to the holding point - every centre line
 		if (const FAirfieldData::FTwy* Cv = F.Find(bToX1 ? TEXT("CURVE-A-A1") : TEXT("CURVE-A-A3")))
 			for (int32 i = Cv->Pts.Num() - 1; i >= 0; --i) M.Path.Add(FVector2f(Cv->Pts[i].X, Cv->Pts[i].Y));

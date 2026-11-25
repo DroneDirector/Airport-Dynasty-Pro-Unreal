@@ -334,15 +334,18 @@ void AGSE::ChargeTick(float Dt)
 bool AGSE::ChargeGo(int32 Ti, FString& Why)
 {
 	FTractor& T = Tractors[Ti]; FBusCharge& C = *T.Ch; if (!ADPVehicleArea::Built()) { Why = TEXT("no vehicle area"); return false; }
+	// in the bay's own lane (bays 5.6 m apart: a bus in the next one is not in it; one across its mouth is)
+	auto InBay = [](const FVector& At, const FVector& Bay, float Yaw) { const FVector L = FRotator(0.f, -Yaw, 0.f).RotateVector(At - Bay); return FMath::Abs(L.X) < 1600.f && FMath::Abs(L.Y) < 420.f; };
 	FString Bay; FVector At; float Yaw = 0.f;
 	for (const ADPVehicleArea::FPlace& P : ADPVehicleArea::Places())
 	{
 		if (!P.bCharge || P.For != TEXT("bus")) continue;
 		const FVector W = Plan(P.X, P.Y); bool bFree = false;
+		const float Ha = FMath::DegreesToRadians(P.Heading), Wy = FMath::RadiansToDegrees(FMath::Atan2(-FMath::Sin(Ha), FMath::Cos(Ha)));
 		for (const ADPVehicleArea::FCharger& Q : ADPVehicleArea::Chargers()) if (FVector::Dist2D(Plan(Q.X, Q.Y), W) < 1200.f && FMath::Abs(Q.X - P.X) < 2.5f && ADPBusCharger::Of(GetWorld(), Q.Bay)) bFree = true;
-		for (const FTractor& O : Tractors) if (&O != &T && !O.bAway && O.M.IsValid() && (FVector::Dist2D(O.Home, W) < 300.f || FVector::Dist2D(O.At, W) < 800.f || (O.Ch && O.Ch->Bay.Len() && FVector::Dist2D(O.Ch->BayAt, W) < 300.f))) bFree = false;
+		for (const FTractor& O : Tractors) if (&O != &T && !O.bAway && O.M.IsValid() && (FVector::Dist2D(O.Home, W) < 300.f || InBay(O.At, W, Wy) || (O.Ch && O.Ch->Bay.Len() && FVector::Dist2D(O.Ch->BayAt, W) < 300.f))) bFree = false;
 		if (!bFree) continue;
-		Bay = P.Name; At = W; const float a = FMath::DegreesToRadians(P.Heading); Yaw = FMath::RadiansToDegrees(FMath::Atan2(-FMath::Sin(a), FMath::Cos(a))); break;
+		Bay = P.Name; At = W; Yaw = Wy; break;
 	}
 	// (none: the bay of a bus that is out at work - the two change places, the other comes home to this one's)
 	const int32 Ow = Bay.IsEmpty() ? ChargeOwner(Ti) : INDEX_NONE;
@@ -363,13 +366,15 @@ bool AGSE::BusInPlace(const FTractor& T) const { return FVector::Dist2D(T.At, T.
 int32 AGSE::ChargeOwner(int32 Ti) const
 {
 	const FTractor& T = Tractors[Ti]; if (T.bSpare || !T.Ch || DepotAt(T.Home)) return INDEX_NONE;
+	// in the bay's own lane (bays 5.6 m apart: a bus in the next one is not in it; one across its mouth is)
+	auto InBay = [](const FVector& At, const FVector& Bay, float Yaw) { const FVector L = FRotator(0.f, -Yaw, 0.f).RotateVector(At - Bay); return FMath::Abs(L.X) < 1600.f && FMath::Abs(L.Y) < 420.f; };
 	for (int32 i = 0; i < Tractors.Num(); ++i)
 	{
 		const FTractor& O = Tractors[i];
 		if (i == Ti || !O.Ch || !O.Bu || O.bSpare || O.bAway || !O.M.IsValid() || O.Brk || O.Player.IsValid() || !O.Ch->bOwnBay || O.Ch->BayName.IsEmpty() || BusStage(O) != 2 || O.Ch->bGo || O.Ch->bHoming || DepotAt(O.At) || O.Ch->Soc < ChRules().Low) continue;
 		bool bFree = false;
 		for (const ADPVehicleArea::FCharger& Q : ADPVehicleArea::Chargers()) if (Q.Bay == O.Ch->BayName && ADPBusCharger::Of(GetWorld(), Q.Bay)) bFree = true;
-		for (const FTractor& V : Tractors) if (&V != &T && &V != &O && !V.bAway && V.M.IsValid() && (FVector::Dist2D(V.At, O.Home) < 800.f || (V.Ch && V.Ch->Bay.Len() && FVector::Dist2D(V.Ch->BayAt, O.Home) < 300.f))) bFree = false;
+		for (const FTractor& V : Tractors) if (&V != &T && &V != &O && !V.bAway && V.M.IsValid() && (InBay(V.At, O.Home, O.HomeYaw) || (V.Ch && V.Ch->Bay.Len() && FVector::Dist2D(V.Ch->BayAt, O.Home) < 300.f))) bFree = false;
 		if (bFree) return i;
 	}
 	return INDEX_NONE;

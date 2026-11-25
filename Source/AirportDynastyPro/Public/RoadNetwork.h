@@ -16,6 +16,7 @@ class AIRPORTDYNASTYPRO_API ARoadNetwork : public AActor
 	GENERATED_BODY()
 public:
 	ARoadNetwork();
+	virtual void Tick(float Dt) override;
 	/** Builds every road in Data/roads.json (a road marked "test" only with -RoadTest). Returns how many were built. */
 	/** Reads Data/roads.json and gets the build ready; the roads themselves are built by BuildSome. Returns how many. */
 	int32 Build();
@@ -47,6 +48,8 @@ public:
 private:
 	UPROPERTY() TObjectPtr<class UMetaRoadRuntimeBuildHost> Host;
 	UPROPERTY() TArray<TObjectPtr<AActor>> Roads;
+	/** The saved roads' meshes (their shadows off when far away). */
+	TArray<TWeakObjectPtr<class UStaticMeshComponent>> FlatParts;
 	TArray<FString> RoadIds;   // (each built road's id, beside Roads)
 	UPROPERTY() TObjectPtr<class AStreetLights> Lights;
 	UPROPERTY() TObjectPtr<class ARoadSigns> Signs;   // the roadside airport signs (RoadSigns.h)
