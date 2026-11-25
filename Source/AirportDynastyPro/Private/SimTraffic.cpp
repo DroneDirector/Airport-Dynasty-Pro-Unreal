@@ -18,6 +18,7 @@
 #include "Sim/ADPBoards.h"
 #include "Sim/ADPSchedule.h"
 #include "Sim/ADPGround.h"
+#include "Sim/ADPWorldData.h"
 #include "Dom/JsonObject.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -216,7 +217,7 @@ void ASimTraffic::Sync()
 			// pushed back and turned (as a real pushback): straight back from the stand, then the tail swung round a 40 m arc so the
 			// aircraft ends on the taxilane facing the way it will taxi (towards the runway end in use) - the main gear's way
 			{
-				const float Dx = RunwayToX1() ? 1.f : -1.f, Rr = 40.f, YEnd = F.TY, Y0 = M.Main.Y;
+				const float Dx = (RunwayToX1() ? 1.f : -1.f) * (St->bCargo ? -1.f : 1.f), Rr = 40.f, YEnd = St->bCargo ? F.KY : F.TY, Y0 = M.Main.Y;   // (a cargo stand: onto K, facing the way it taxis along it)
 				const float Ybend = YEnd - (-St->Dir) * Rr;           // where the straight part ends and the arc begins
 				M.Path.Reset();
 				if ((Ybend - Y0) * (-St->Dir) > 1.f) M.Path.Add(FVector2f(St->X, Ybend));
@@ -277,6 +278,8 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 {
 	const bool bToX1 = RunwayToX1();
 	const float Dir = bToX1 ? 1.f : -1.f, RY = F.RwyY, X0 = F.RwyX0, X1 = F.RwyX1, Hold = 107.5f;
+	const FAirfieldData::FStand* MySt = M.bDeparture ? F.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return S.Id == M.Stand; }) : nullptr;
+	const bool bCargoSt = MySt && MySt->bCargo; const float LaneY = bCargoSt ? F.KY : F.TY;   // (the taxilane it is pushed onto)
 	// the tug (Tugs.h): pushed back only once a tug has driven in and hooked its towbar on the nose gear's tow fitting
 	// (60 cm ahead of the nose wheel) - it is posed on the aircraft from then on; taxiing only once it has backed clear
 	if (M.Phase == EPhase::Push)
@@ -348,11 +351,11 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 		M.Clock = 0.f;
 		// ground control: no pushback while another aircraft taxis by on the taxilane within 120 m (it waits, hooked on)
 		for (const FMove& O : Moves)
-			if (&O != &M && O.Phase == EPhase::Taxi && FMath::Abs(O.Nose.X - M.Nose.X) < 120.f && FMath::Abs(O.Nose.Y - F.TY) < 40.f) { M.Speed = 0.f; if (T) T->YouSayWhy(StandX, TEXT("another aircraft taxis by on the taxilane")); Pose(M); return false; }
+			if (&O != &M && O.Phase == EPhase::Taxi && FMath::Abs(O.Nose.X - M.Nose.X) < 120.f && FMath::Abs(O.Nose.Y - LaneY) < 40.f) { M.Speed = 0.f; if (T) T->YouSayWhy(StandX, TEXT("another aircraft taxis by on the taxilane")); Pose(M); return false; }
 		// pushed by you (TugYou.cpp): the aircraft follows your bar; on the line and braked it goes on as after a crew's push
 		if (T && T->YouPushing(M.FlightId))
 		{
-			int32 Re = INDEX_NONE; const bool bDone = T->YouDrive(M.FlightId, M.Model.Get(), M.Nose, M.Main, M.Path, Re, M.Speed, M.YouBar, F.TY, Dir);
+			int32 Re = INDEX_NONE; const bool bDone = T->YouDrive(M.FlightId, M.Model.Get(), M.Nose, M.Main, M.Path, Re, M.Speed, M.YouBar, LaneY, bCargoSt ? -Dir : Dir);
 			if (AGSE* G = AGSE::Find(GetWorld()); G && !M.bYou) AddTickPrerequisiteActor(G);   // (after the tug: never a frame behind its bar)
 			M.bYou = true; M.YouRe = Re; if (M.Speed > 0.f) M.bYouOff = true;
 			Pose(M);
@@ -459,6 +462,18 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 		if (ATugs* T = ATugs::Get(GetWorld())) T->Release(M.FlightId);
 		// the tug lets go; taxi along T to the connector, up to A, along A to the holding point of the runway end in use
 		M.Phase = EPhase::Taxi;
+		if (bCargoSt)
+		{
+			// the cargo apron: along K to its end towards the runway end in use, down to B, along B and round its curve to the holding point
+			const FAirfieldData::FTwy* Lk = F.Find(bToX1 ? TEXT("Q0") : TEXT("Q2"));
+			const float Lx = Lk && Lk->Pts.Num() ? Lk->Pts[0].X : bToX1 ? -530.f : 620.f;
+			M.Path = {FVector2f(M.Nose.X - Dir * 40.f, F.KY), FVector2f(Lx, F.KY), FVector2f(Lx, F.BY)};
+			if (const FAirfieldData::FTwy* Cv = F.Find(bToX1 ? TEXT("CURVE-B-B1") : TEXT("CURVE-B-B3")))
+				for (int32 i = Cv->Pts.Num() - 1; i >= 0; --i) M.Path.Add(FVector2f(Cv->Pts[i].X, Cv->Pts[i].Y));
+			else M.Path.Add(FVector2f(LineUp - Dir * 40.f, F.BY));
+			M.Path.Add(FVector2f(LineUp, RY + Hold));
+			return false;
+		}
 		M.Path = {FVector2f(M.Nose.X + Dir * 40.f, F.TY), FVector2f(bToX1 ? -130.f : 362.f, F.TY), FVector2f(bToX1 ? -130.f : 362.f, F.AY)};
 		// along A to its end, round the link curve onto A1 (or A3) and down to the holding point - every centre line
 		if (const FAirfieldData::FTwy* Cv = F.Find(bToX1 ? TEXT("CURVE-A-A1") : TEXT("CURVE-A-A3")))
@@ -491,22 +506,35 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 	{
 		// off at the exit to A, along A, down to T, along T and nose in to the stand (its stop bar)
 		const bool bWaited = M.Phase == EPhase::TaxiIn;
-		if (bWaited && M.Nose.Y < F.AY) return true;   // (on its stand: all of them lie this side of A)
+		if (bWaited && (M.Nose.Y < F.AY || M.Nose.Y > F.KY)) return true;   // (on its stand: this side of A, or beyond K)
 		M.Phase = EPhase::TaxiIn;
 		if (const UADPSim* Sim = UADPSim::Get(GetWorld()); Sim)   // (the one it has now: given or changed since it came into view)
 			if (const FADPAircraft* A = Sim->World.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == M.Reg; })) M.Stand = A->Stand;
 		const FAirfieldData::FStand* St = F.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return S.Id == M.Stand; });
+		// a freighter leaves the runway the other way, to the cargo apron; one already on an exit never crosses the runway again
+		const FADPTypeInfo* Ty = nullptr;
+		if (const UADPSim* Sm = UADPSim::Get(GetWorld())) if (const FADPAircraft* Ac = Sm->World.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == M.Reg; })) Ty = ADPWorldData::Type(Ac->TypeId);
+		const bool bNorth = bWaited ? M.Nose.Y > RY : St ? St->bCargo : Ty && Ty->Seats == 0;
+		if (St && St->bCargo != bNorth) St = nullptr;
 		// those on the exit before it: waiting there, or only just on their way from it
 		int32 Before = 0;
 		for (const FMove& O : Moves)
-			if (&O != &M && O.Phase == EPhase::TaxiIn && (bWaited ? O.Nose.Y < M.Nose.Y && FVector2f::Distance(O.Nose, M.Nose) < 150.f : O.Path.Num() <= 1)) ++Before;
+			if (&O != &M && O.Phase == EPhase::TaxiIn && ((O.Path.Num() ? O.Path.Last().Y : O.Nose.Y) > RY) == bNorth && (bWaited ? (O.Nose.Y - M.Nose.Y) * (bNorth ? 1.f : -1.f) > 0.f && FVector2f::Distance(O.Nose, M.Nose) < 150.f : O.Path.Num() <= 1)) ++Before;
 		if (!St || Before)
 		{
 			// no stand (to-do 277), or one without a stand before it: clear of the runway on the exit, short of A - never onto another's
 			if (!St) M.Stand.Reset();
 			if (bWaited) { M.Speed = 0.f; return false; }
-			M.Path = {FVector2f(81.f, F.AY + 45.f + 50.f * Before)};
+			M.Path = {FVector2f(81.f, bNorth ? F.BY - 45.f - 50.f * Before : F.AY + 45.f + 50.f * Before)};
 			ADP_LOG(TEXT("Traffic: %s waits on the exit - %s"), *M.FlightId, St ? TEXT("another waits before it") : TEXT("no free stand"));
+			return false;
+		}
+		if (bNorth)
+		{
+			// along B to the link the departures don't use, up to K, along K and nose in to the stand
+			const FAirfieldData::FTwy* Lk = F.Find(bToX1 ? TEXT("Q2") : TEXT("Q1"));
+			const float Lx = Lk && Lk->Pts.Num() ? Lk->Pts[0].X : bToX1 ? 620.f : 200.f;
+			M.Path = {FVector2f(81.f, F.BY), FVector2f(Lx, F.BY), FVector2f(Lx, F.KY), FVector2f(St->X, F.KY), St->Frame().P(0.f, 0.f)};
 			return false;
 		}
 		M.Path = {FVector2f(81.f, F.AY), FVector2f(362.f, F.AY), FVector2f(362.f, F.TY), FVector2f(St->X, F.TY), St->Frame().P(0.f, 0.f)};   // (off T into the stand, whichever side of T it is on)

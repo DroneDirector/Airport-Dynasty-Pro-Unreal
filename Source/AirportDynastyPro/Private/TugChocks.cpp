@@ -401,6 +401,7 @@ void ATugs::ChkTick(int32 Tug, float Dt)
 bool ATugs::ChocksOn(float StandX, const FString& Reg, const FDateTime& When, bool bHired, bool bLong, bool bAtOnce)
 {
 	if (bChkReady && !ChkMesh.Num()) return true;   // (the models missing: said once, nothing waits)
+	if (CargoStand(StandX)) bHired = false;   // (the cargo apron: its own handling team)
 	for (FTug& T : Tugs)
 	{
 		FChk& Ck = T.Ck;

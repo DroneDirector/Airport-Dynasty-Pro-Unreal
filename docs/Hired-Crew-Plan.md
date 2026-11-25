@@ -653,6 +653,13 @@ Taxi bus (239, part B, 2026-11-24, compiled, NOT run): a line of `ADPService::Al
 - SafeWay: 150 m legs of 160 s, and the way back from the remote stands. SvcFor: the span limit only for big cargo stands.
 - Bus drivers are 3D people; one is a team. A bus waiting for one is logged.
 
+## Every stand's tug works, E1d as built (2026-11-25, not run)
+- airfield.json: each remote stand has `stops` (size -> nose) and `tug` (sizes with room), by make_remote_stands.py; the code C bars (318) are drawn on R3, R4, R6, R7 too. `FStand::Nose` = the drawn size's stop (`DrawnSize` 'C'), `NoseEnd` = the paint's. PickStand logs a type kept off.
+- check_remote_stands.py: stops, tug boxes, loops swept (bus road, masts, neighbours, jetway zones, cargo building): ALL OK. Remote loop 2.2 m further back (its bar's tip was over the bus road); big stands radius 12 (0.32 m to the zones), crew 10 m out.
+- Cargo: tug, GPU, chocks turned; one test pair on the cargo apron (lent between cargo stands only, never over the runway), push with driver and handler, no wing walkers, no hired people there.
+- SimTraffic: a freighter is pushed onto K, taxis K - Q0/Q2 - B - B1/B3; arrivals leave north, B - Q2/Q1 - K (never head-on).
+- `ReturnCrew`: a crew lent to a remote stand walks home 30 s after its work there is done, walkers with the last one.
+
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
 | Where | Today | Replace with | Nobody free |

@@ -62,6 +62,11 @@ bool FAirfieldData::Load()
 		S.Span = N(O, TEXT("span"), 36); S.Len = N(O, TEXT("len"), 44.5f);
 		O->TryGetBoolField(TEXT("jetway"), S.bJetway); O->TryGetBoolField(TEXT("cargo"), S.bCargo); O->TryGetBoolField(TEXT("remote"), S.bRemote);
 		FString Code; if (O->TryGetStringField(TEXT("code"), Code) && Code.Len()) S.Code = Code[0];
+		// (to-do 277 E1d: it stops at the bar of the size it is drawn as)
+		S.NoseEnd = S.Nose; O->TryGetStringField(TEXT("tug"), S.TugSizes);
+		if (const TSharedPtr<FJsonObject>* St = nullptr; O->TryGetObjectField(TEXT("stops"), St))
+			for (const auto& Kv : (*St)->Values) { const FString Kn(Kv.Key); if (Kn.Len()) S.Stops.Add(Kn[0], float(Kv.Value->AsNumber())); }
+		if (const float* Own = S.Stops.Find(DrawnSize)) S.Nose = *Own;
 		bool bBuilt = true;
 		O->TryGetBoolField(TEXT("built"), bBuilt);
 		if (bBuilt || (S.bRemote && bRemoteOn)) Stands.Add(S);   // (one not in use yet is only drawn: the remote block)
@@ -792,7 +797,8 @@ void AAirfield::Aprons(bool bModelSite)
 			float TugR = 6.f; const float TugY = St.TugHead(TugR);
 			if (St.HasTug())
 			{
-				const float X0 = TugY > 0.f ? St.X - 2.f : St.X - 15.f, X1 = X0 + 4.f, Ya = TugY > 0.f ? TugY - 2.9f : FMath::Min(Wall + B * 4.4f, Wall + B * 16.4f), Yb = TugY > 0.f ? TugY + 8.1f : FMath::Max(Wall + B * 4.4f, Wall + B * 16.4f);
+				const float X0 = TugY > 0.f ? St.X - 2.f : St.X - 15.f, X1 = X0 + 4.f, Yt0 = St.Frame().Turn(FVector2f(St.X, TugY - 2.9f)).Y, Yt1 = St.Frame().Turn(FVector2f(St.X, TugY + 8.1f)).Y;   // (a cargo stand's the other way round: turned)
+				const float Ya = TugY > 0.f ? FMath::Min(Yt0, Yt1) : FMath::Min(Wall + B * 4.4f, Wall + B * 16.4f), Yb = TugY > 0.f ? FMath::Max(Yt0, Yt1) : FMath::Max(Wall + B * 4.4f, Wall + B * 16.4f);
 				Line("paintwhite", FVector2f(X0, Ya), FVector2f(X1, Ya), 0.15f, 0.0075f); Line("paintwhite", FVector2f(X0, Yb), FVector2f(X1, Yb), 0.15f, 0.0075f);
 				Line("paintwhite", FVector2f(X0, Ya), FVector2f(X0, Yb), 0.15f, 0.0075f); Line("paintwhite", FVector2f(X1, Ya), FVector2f(X1, Yb), 0.15f, 0.0075f);
 			}
@@ -801,7 +807,7 @@ void AAirfield::Aprons(bool bModelSite)
 			// just inside the nose stop line - clear of the aircraft, the tug's way in and the jetway (Tugs: GpuSetup)
 			if (St.HasTug())
 			{
-				const float X0 = St.X - 9.5f, X1 = St.X - 5.2f, Ya = FMath::Min(St.Nose - B * 0.7f, St.Nose - B * 3.3f), Yb = FMath::Max(St.Nose - B * 0.7f, St.Nose - B * 3.3f);
+				const float X0 = St.X - B * 7.35f - 2.15f, X1 = X0 + 4.3f, Ya = FMath::Min(St.Nose - B * 0.7f, St.Nose - B * 3.3f), Yb = FMath::Max(St.Nose - B * 0.7f, St.Nose - B * 3.3f);
 				Line("paintwhite", FVector2f(X0, Ya), FVector2f(X1, Ya), 0.12f, 0.0075f); Line("paintwhite", FVector2f(X0, Yb), FVector2f(X1, Yb), 0.12f, 0.0075f);
 				Line("paintwhite", FVector2f(X0, Ya), FVector2f(X0, Yb), 0.12f, 0.0075f); Line("paintwhite", FVector2f(X1, Ya), FVector2f(X1, Yb), 0.12f, 0.0075f);
 			}

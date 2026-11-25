@@ -11,8 +11,14 @@ d = json.load(open(SRC, encoding='utf-8'))
 TY, TE, Y0, RY0, RY1, SH = 218.0, 238.0, 244.0, 335.0, 342.5, 3.0     # taxilane T, its paved edge, the pads' south edge, the bus road, the paved shoulder
 LINK = {'P1': (-130.0, 43.5), 'P2': (150.0, 43.5), 'P3': (362.0, 51.0)}   # centre line, clearance (code E; P3: A380)
 LH = 20.0                                                              # a link's half width with its shoulder
+# where the nose stops for each size of aircraft (the bar drawn for it), and the sizes whose stop leaves the pushback tug its room:
+# 4 m to its bar's tip, the tug and bar 11 m, 2 m to the bus road's edge (Airfield.h: TugHead)
+RY0_, TUG = 335.0, 4.0 + 11.0 + 2.0
+def stops(c):
+    s = {'C': 318.0} if c == 'C' else {'C': 318.0, 'E': 331.9}
+    return dict(stops=s, tug=''.join(k for k in s if s[k] + TUG <= RY0_ + 1e-6))
 R = lambda i, x, c, fl=None: dict(id='STAND-R%d' % i, x=x, nose=318.0 if c == 'C' else 331.9, dir=1, span=36 if c == 'C' else 65,
-        len=46.0 if c == 'C' else 73.9, code=c, jetway=False, remote=True, built=False, **({'flex': fl} if fl else {}))
+        len=46.0 if c == 'C' else 73.9, code=c, jetway=False, remote=True, built=False, **({'flex': fl} if fl else {}), **stops(c))
 STANDS = [R(0, -191.5, 'C'), R(1, -68.5, 'C'), R(2, -28.0, 'C'), R(3, 35.75, 'E', [15.5, 56.0]), R(4, 231.75, 'E', [211.5, 252.0]),
           R(5, 292.5, 'C'), R(6, 445.5, 'E'), R(7, 518.0, 'E')]
 HW = lambda s: 16.0 if s['code'] == 'C' else 29.0 if s.get('flex') else 26.0   # a throat's half width (two lead-ins on the flexible ones)
@@ -129,16 +135,19 @@ def dash(mat, w, up, a, b, on, off):
     while t < D - 0.2:
         e = min(D, t + on); ln(mat, w, up, *[(a[0] + (b[0] - a[0]) * v / D, a[1] + (b[1] - a[1]) * v / D) for v in (t, e)]); t += on + off
 NARROW = (('E190', 3.6), ('B737', 4.4), ('A319 A320 A321', 5.1)); WIDE = (('B767', 5.6), ('A330 A350 B787', 6.5), ('B777', 7.6))
-def lead(x, nose, types, w, y0=TY, r=30.0):
-    ln('paintyellow', w, 0.008, (x, y0), (x, nose))
-    for s in (-1, 1): ln('paintyellow', w, 0.008, *[(x + s * (r - r * math.cos(math.radians(90 * k / 20))), y0 + r - r * math.sin(math.radians(90 * k / 20))) for k in range(21)])
+def bars(x, nose, types):
     for k, (t, g) in enumerate(types):
         h = 3.0 if k == len(types) - 1 else 1.5; y = nose - g
         ln('paintyellow', 0.3, 0.0095, (x - h, y), (x + h, y)); tx(t, x + h + 0.4 + 0.16 * len(t), y, 0.45, -90)
+def lead(x, nose, types, w, y0=TY, r=30.0):
+    ln('paintyellow', w, 0.008, (x, y0), (x, nose))
+    for s in (-1, 1): ln('paintyellow', w, 0.008, *[(x + s * (r - r * math.cos(math.radians(90 * k / 20))), y0 + r - r * math.sin(math.radians(90 * k / 20))) for k in range(21)])
+    bars(x, nose, types)
 def edge(s, k): pd = next(q for q in PADS if q[1] < s['x'] < q[2]); return (pd[2] - s['x'] if k > 0 else s['x'] - pd[1]) - SH - 0.69
 for s in STANDS:
     x, n, sp, tail, big = s['x'], s['nose'], s['span'], s['nose'] - s['len'], s['code'] == 'E'; num = s['id'][6:]
     lead(x, n, WIDE if big else NARROW, 0.3)
+    if big: bars(x, s['stops']['C'], NARROW)   # (a smaller aircraft stops short, its tug in front of it)
     if s.get('flex'):   # the two code C places on it, their lines dashed-in from the pad's own throat
         for k, fx in enumerate(s['flex']): lead(fx, 318.0, NARROW, 0.15); tx(num + 'LR'[k], fx - 3.2, 251.5, 1.5, -90)
     # each side to the middle of the gap to a neighbour on the same pad

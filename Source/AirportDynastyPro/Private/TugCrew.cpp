@@ -156,7 +156,7 @@ void ATugs::SetupCrew()
 			if (!Names.IsValidIndex(Next)) break;
 			// (the crew spot: on the terminal side of the tug's box, to the west of it - away from the jetway, off the red lines)
 			FCrew C; C.Name = Names[Next++]; C.Tug = i; C.bDriver = Rl == 0; C.IdleT = FMath::FRandRange(2.f, 9.f);
-			C.Spot = GateT(T.StandX, T.StandX - 17.5f - Rl * 1.2f, 86.f + Rl * 1.4f); C.SpotYaw = (RemoteStand(T.StandX) ? FVector(-0.3f, 1.f, 0.f) : FVector(0.3f, -1.f, 0.f)).Rotation().Yaw;   // (looking out at the stand)
+			C.Spot = GateT(T.StandX, T.StandX - 17.5f - Rl * 1.2f, 86.f + Rl * 1.4f); C.SpotYaw = CrewYaw(T.StandX);
 			AActor* A = P->Spawn(C.Name, C.Spot, C.SpotYaw);
 			if (!A) continue;
 			C.A = A; C.Anchor = C.Spot; C.AnchorYaw = C.SpotYaw;
@@ -168,9 +168,10 @@ void ATugs::SetupCrew()
 	int32 NumW = 0;
 	for (int32 Wn = 0; Wn < WalkerNames.Num() && Tugs.Num(); ++Wn)
 	{
-		const FTug& T = Tugs[NumW % Tugs.Num()];
+		int32 Wt = NumW % Tugs.Num(); if (CargoStand(Tugs[Wt].StandX)) Wt = 0;   // (none on the cargo apron: too few, and no way back over the runway)
+		const FTug& T = Tugs[Wt];
 		FCrew C; C.Name = WalkerNames[Wn]; C.bWalker = true; C.FollowMax = 330.f;
-		C.Spot = GateT(T.StandX, T.StandX - 20.5f, 86.f + (NumW / Tugs.Num()) * 1.4f); C.SpotYaw = (RemoteStand(T.StandX) ? FVector(-0.3f, 1.f, 0.f) : FVector(0.3f, -1.f, 0.f)).Rotation().Yaw;
+		C.Spot = GateT(T.StandX, T.StandX - 20.5f, 86.f + (NumW / Tugs.Num() + (Wt != NumW % Tugs.Num() ? 1 : 0)) * 1.4f); C.SpotYaw = CrewYaw(T.StandX);
 		AActor* A = P->Spawn(C.Name, C.Spot, C.SpotYaw); if (!A) continue;
 		C.A = A; C.Anchor = C.Spot; C.AnchorYaw = C.SpotYaw; C.IdleT = FMath::FRandRange(2.f, 9.f); Crew.Add(C); ++NumW;
 	}

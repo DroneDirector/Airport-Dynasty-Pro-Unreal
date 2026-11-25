@@ -149,7 +149,7 @@ bool ATugs::PushYou(int32 I)
 			return false;
 		}
 		if (!ChkOut(T)) { T.YouWhy = YouShort(T, TEXT("the chocks and cones are still being taken away")); return false; }
-		if ((T.bHired || T.Driver != INDEX_NONE) && T.WalkersReady < (T.bHired ? T.Walkers.Num() : 3)) { T.YouWhy = TEXT("the wing walkers are not in their places"); return false; }
+		if ((T.bHired || T.Driver != INDEX_NONE) && T.WalkersReady < WalkNeed(T)) { T.YouWhy = TEXT("the wing walkers are not in their places"); return false; }
 		T.Seq = 1; T.SeqT = 0.f; T.SeqWait = FMath::FRandRange(2.f, 5.f);
 	}
 	T.YouWhy = TEXT("waiting for the cockpit - brakes released");

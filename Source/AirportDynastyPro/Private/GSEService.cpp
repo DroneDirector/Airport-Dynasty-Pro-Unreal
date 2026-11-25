@@ -414,7 +414,7 @@ bool AGSE::SvcFor(const TCHAR* Task, float StandX) const
 	for (const FTractor& T : Tractors)
 		if (T.Svc != INDEX_NONE && (!T.bSpare || SpareOk(T, UADPSim::Me())) && SvIs(T.Svc, Task) && Sp->HiresRole(SvSpec(T.Svc).Role))
 		{
-			if (const FAirfieldData::FStand* Sz = AAirfield::Shared().StandAt(StandX); Sn > 40.f && (!Sz || !Sz->HasTug()) && !SvSpec(T.Svc).bStairs) return false;   // (the big passenger stands too, to-do 277 E1c; not the big cargo and remote ones)
+			if (const FAirfieldData::FStand* Sz = AAirfield::Shared().StandAt(StandX); Sn > 40.f && (!Sz || !Sz->HasTug() || Sz->bCargo) && !SvSpec(T.Svc).bStairs) return false;   // (the big passenger stands too, to-do 277 E1c; not the big cargo and remote ones)
 			if (SvSpec(T.Svc).bDeicer) { const FAirfieldData::FStand* St = AAirfield::Shared().StandAt(StandX); return St && !St->bCargo; }
 			if (SvSpec(T.Svc).bAmbu && !T.Am) continue;
 			if (SvSpec(T.Svc).bStairs)

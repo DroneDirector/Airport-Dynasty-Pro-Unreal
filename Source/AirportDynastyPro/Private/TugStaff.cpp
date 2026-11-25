@@ -86,7 +86,18 @@ void ATugs::SafeWay(FCrew& C, float StandX)
 	if (!C.A.IsValid()) return;
 	const FVector Me = C.A->GetActorLocation();
 	auto WalkOn = [&](float X, float Z, float Stop) { FCrewAct A; A.Kind = FCrewAct::Walk; const FVector P = Plan(X, Z); A.To = [P] { return P; }; A.Stop = Stop; A.Max = 160.f; C.Q.Add(A); };
-	const float X = float(Me.X / 100.0), To = StandX - 22.f;
+	const float X = float(Me.X / 100.0), To = StandX - (!RemoteStand(StandX) && HeadStand(StandX) && AAirfield::Shared().StandAt(StandX)->Span > 40.f ? 30.f : 22.f);   // (a big stand: clear of its tug's loop)
+	if (CargoStand(StandX) || SideOf(Me.Y) == 2)
+	{
+		// (the cargo apron: along the cargo building's front, behind the tugs; nobody crosses the runway)
+		if (!CargoStand(StandX) || SideOf(Me.Y) != 2) { ADP_WARN(TEXT("Tugs: %s has no way on foot to the stand at x %.0f - across the runway"), *C.Name, StandX); return; }
+		const FVector Gt = GateT(StandX, StandX - 18.f, 86.f); const float Tx = float(Gt.X / 100.0), Front = 1229.9f;
+		if (FMath::Abs(X - Tx) < 8.f) return;
+		WalkOn(X, Front, 25.f);
+		for (float Wx = X; FMath::Abs(Tx - Wx) > 150.f;) { Wx += Tx > Wx ? 150.f : -150.f; WalkOn(Wx, Front, 35.f); }
+		WalkOn(Tx, Front, 25.f);
+		return;
+	}
 	if (RemoteStand(StandX))
 	{
 		// (a remote stand: on foot the way the vehicles go - the bus road's leg across taxilane T and the bus road, waiting at each
@@ -277,6 +288,7 @@ void ATugs::LostTick(int32 Ci, float Dt)
 
 bool ATugs::ArrivedHired(float StandX, const FString& Reg, const FDateTime& When)
 {
+	if (CargoStand(StandX)) { Arrived(StandX); return true; }   // (the cargo apron: its own handling team)
 	for (int32 i = 0; i < Tugs.Num(); ++i)
 	{
 		FTug& T = Tugs[i];
@@ -303,7 +315,7 @@ bool ATugs::ArrivedHired(float StandX, const FString& Reg, const FDateTime& When
 
 bool ATugs::CrewReady(const FString& Key, float StandX, FString& Why)
 {
-	if (!HiredJob(Key)) return true;
+	if (CargoStand(StandX) || !HiredJob(Key)) return true;
 	if (!Tugs.ContainsByPredicate([&](const FTug& T) { return FMath::Abs(T.StandX - StandX) < 1.f; })) return true;   // (no tug at that stand)
 	const int32 I = Assign(Key, StandX);
 	if (I == INDEX_NONE) { Why = TEXT("its pushback tug is not back yet"); return false; }

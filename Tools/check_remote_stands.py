@@ -40,6 +40,44 @@ for x, c in zip(R['linkX'], (43.5, 43.5, 51.0)):
         g = abs(st[k]['x'] - x) - st[k]['span'] / 2
         if g < 90: say(g >= c - 0.01, 'link at %g to %s wing at least %.1f m' % (x, k[6:], c), '%.2f' % g)
 # #endregion
+# #region ── The stops and the tugs (Airfield.h: TugHead; Tugs.cpp: BoxT, StartHome) ──
+import math
+R0 = {k: s.get('stops') or {} for k, s in st.items()}
+say(all(sorted(v) == (['C'] if st[k]['code'] == 'C' else ['C', 'E']) and max(v.values()) == st[k]['nose'] for k, v in R0.items()), 'a stop for each size, the largest at the nose line of its stand')
+say(all('C' in s.get('tug', '') for s in st.values()), 'the drawn size leaves a tug its room on every remote stand')
+BUS = box(-1e4, 335, 1e4, 342.5); NAR, LEN_C, SPAN_C = 3.0, 46.0, 36.0
+def body(x, y, hx, hy, w=1.3):   # the tug and its bar: 2.9 m back, 8.1 m ahead (bar 0.25 m half wide past the body's 3.6 m)
+    q = lambda a, l: (x + hx * a + hy * l, y + hy * a - hx * l)
+    return unary_union([Polygon([q(-2.9, -w), q(-2.9, w), q(3.6, w), q(3.6, -w)]), Polygon([q(3.5, -0.25), q(3.5, 0.25), q(8.1, 0.25), q(8.1, -0.25)])])
+def swept(sx, k, head, run, rl, ly, fy):   # home up the stand, round the half circle, back into its box (terminal-way, turned by k)
+    pts = [(sx + run, ly + 40 - t, 0, -1) for t in range(0, 41)] + [(sx + run + rl - rl * math.cos(a), ly - rl * math.sin(a), math.sin(a), -math.cos(a)) for a in [math.pi * i / 40 for i in range(41)]] + [(sx, head + (ly - head) * t / 8, 0, 1) for t in range(9)]
+    return unary_union([body(*(p if k > 0 else (2 * sx - p[0], 2 * fy - p[1], -p[2], -p[3]))) for p in pts])
+padc = unary_union([g.buffer(0.01) for g in P.values()] + [box(a['x0'], a['y0'], a['x1'], a['y1']) for a in d['aprons']] + [box(x - 20, 230, x + 20, 390) for x in R['linkX']])
+air = lambda x, n: unary_union([box(x - NAR, n - LEN_C, x + NAR, n), box(x - SPAN_C / 2, n - 25, x + SPAN_C / 2, n - 11)])
+for k, s in st.items():
+    n = s['stops']['C']; x = s['x']; fy = n - 5.1; tip = n + 3.8; bx = box(x - 2, tip, x + 2, tip + 11)
+    say(bx.within(padc) and bx.distance(BUS) >= 2 - 0.01, '%s: tug box on the pad, off the bus road' % k[6:], '%.2f' % bx.distance(BUS))
+    g = min(bx.distance(Point(m)) for m in R['masts']); say(g >= 3, '%s: tug box clear of the masts' % k[6:], '%.2f' % g)
+    say(bx.distance(air(x, n)) >= 3.5, '%s: the bar clear of the nose' % k[6:], '%.2f' % bx.distance(air(x, n)))
+    say(n - LEN_C - TY >= 40, '%s: tail at the stop used to T at least 40 m' % k[6:], '%.2f' % (n - LEN_C - TY))
+    sw = swept(x, -1, fy - 17.0, -12.0, 6.0, fy - 17.0 + 5.6, fy); up = sw.intersection(box(-1e4, n - 20, 1e4, 1e4))
+    say(sw.distance(BUS) >= 0.3, '%s: tug loop off the bus road' % k[6:], '%.2f' % sw.distance(BUS))
+    say(up.difference(padc).area < 0.05, '%s: tug loop on the paving' % k[6:], '%.2f m2 off' % up.difference(padc).area)
+    g = min(sw.distance(Point(m)) for m in R['masts']); say(g >= 1.5, '%s: tug loop clear of the masts' % k[6:], '%.2f' % g)
+    g = min(up.distance(air(o['x'], o['stops']['C'])) for q, o in st.items() if q != k); say(g >= 1.5, '%s: tug loop clear of the neighbouring aircraft' % k[6:], '%.2f' % g)
+# the big passenger stands: their tugs' loops and the jetways' red zones; the cargo stands': the building and the neighbours
+big = [s for s in d['stands'] if s.get('jetway') and s['span'] > 40]; zones = {s['id']: box(s['x'] + 3, 82.6, s['x'] + 16, s['nose'] + 9) for s in d['stands'] if s.get('jetway')}
+for s in big:
+    sw = swept(s['x'], 1, s['nose'] - 8.4, -24.0, 12.0, s['nose'] + 3.5, s['nose'] + 5.1); g = min(sw.distance(z) for z in zones.values())
+    crew = min(sw.distance(Point(s['x'] + dx, yy)) for dx, yy in ((-27.5, 85.0), (-28.7, 85.8), (-30.5, 85.0), (-29.5, 92.7), (-30.0, 90.0))); say(crew >= 1.0, '%s: tug loop clear of the crew' % s['id'], '%.2f' % crew)
+    for dx in (-27.5, -31.7): say(all(not z.buffer(0.3).contains(Point(s['x'] + dx, 86)) for z in zones.values()), '%s: the crew clear of the jetway zones' % s['id'], dx)
+    say(g >= 0.3, '%s: tug loop to the jetway zones at least 0.3 m' % s['id'], '%.2f' % g); say(sw.bounds[1] >= 83.0, '%s: tug loop off the terminal wall' % s['id'], '%.2f' % sw.bounds[1])
+car = [s for s in d['stands'] if s.get('cargo')]
+for s in car:
+    fy = s['nose'] - 5.1; sw = swept(s['x'], -1, fy - 15.1, -19.0, 9.5, fy - 15.1 + 9.4, fy)
+    say(sw.bounds[3] <= 1230.4, '%s: tug loop off the cargo building' % s['id'], '%.2f' % (1231 - sw.bounds[3]))
+    g = min([1e9] + [sw.distance(box(o['x'] - o['span'] / 2, o['nose'] - o['len'], o['x'] + o['span'] / 2, o['nose'])) for o in car if o is not s]); say(g >= 4, '%s: tug loop clear of the neighbours' % s['id'], '%.2f' % g)
+# #endregion
 # #region ── Paving ──
 links = [box(x - R['linkHalf'], 238, x + R['linkHalf'], 366) for x in R['linkX']]
 aprons = [box(a['x0'], a['y0'], a['x1'], a['y1']) for a in d['aprons']]

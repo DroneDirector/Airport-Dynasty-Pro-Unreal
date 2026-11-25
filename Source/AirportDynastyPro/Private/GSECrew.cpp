@@ -94,7 +94,7 @@ int32 AGSE::Borrow(const FVector& Near, int32* Pre, int32 Boss, EStaffDuty Duty)
 		for (int32 i = 0; i < G->Crew.Num(); ++i)
 		{
 			const ATugs::FCrew& C = G->Crew[i]; if (!Idle(C)) continue;
-			if ((C.A->GetActorLocation().Y < -24000.0) != (Near.Y < -24000.0)) continue;   // (the remote stands: the other side of taxilane T)
+			if (ATugs::SideOf(C.A->GetActorLocation().Y) != ATugs::SideOf(Near.Y)) continue;   // (the remote stands, the cargo apron: the other side of taxilane T or the runway)
 			bool bOk = false;
 			if (pass == 0) bOk = C.bWalker && C.Tug == INDEX_NONE && FreeW > 3;
 			if (pass == 1) bOk = !C.bWalker && G->Tugs.IsValidIndex(C.Tug) && G->Tugs[C.Tug].State == ATugs::EState::Parked && G->Tugs[C.Tug].Key.IsEmpty();

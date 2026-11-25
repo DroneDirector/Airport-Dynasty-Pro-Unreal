@@ -59,7 +59,7 @@ void FAirfieldData::StandLines(bool bCargo, TArray<FStandLine>& Lines, TArray<TP
 		{
 			float Room = 1e9f; for (const FStand& O : Stands) if (O.bRemote && (O.X - St.X) * k > 0.f) Room = FMath::Min(Room, (FMath::Abs(O.X - St.X) + St.Span / 2 - O.Span / 2) / 2);
 			const float Bx = St.X + k * FMath::Min(St.Span / 2 + 3.f, Room - 0.35f);
-			Lines.Add({&St, FVector2f(Bx, St.Nose + St.Dir * 2.f), FVector2f(Bx, St.Nose - St.Dir * (St.Len + 3.f))});
+			Lines.Add({&St, FVector2f(Bx, St.NoseEnd + St.Dir * 2.f), FVector2f(Bx, St.NoseEnd - St.Dir * (St.Len + 3.f))});
 		}
 	}
 }

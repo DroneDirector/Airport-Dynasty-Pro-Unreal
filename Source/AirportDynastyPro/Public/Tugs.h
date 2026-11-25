@@ -123,6 +123,7 @@ private:
 		FPoseFn Hold;                    // kept while the queue is empty (sat at the wheel)
 		TFunction<FVector()> Follow;     // walked to while the queue is empty (beside the pushed aircraft's nose)
 		float FollowMax = 230.f;         // (cm/s: the wing walkers keep up with the turning wingtip - a jog)
+		bool bAway = false; FVector OwnSpot = FVector::ZeroVector; float OwnYaw = 0.f;   // (a walker sent over to the remote stands: where he belongs)
 		bool bWalker = false;            // a wing / tail walker (shared by the gates: free when Tug is INDEX_NONE)
 		// waiting (owner 2026-11-21: never stiff as a rock, always staying where they are): the place they wait at (where the last
 		// walk took them), a small step off it, a look round, and now and then a little movement of their own
@@ -143,6 +144,7 @@ private:
 		float Yaw = 0.f, HomeYaw = 0.f, Clock = 0.f;
 		EState State = EState::Parked;
 		FString Key;                                  // the departure it works
+		int32 LentFrom = INDEX_NONE; float BackT = 0.f;   // (whose crew it has, walked over to a remote stand; how long it has had nothing to do)
 		float StandX = 0.f;                           // (plan m)
 		TArray<FVector> Path;                         // waypoints (world); bReverse: driven backwards
 		bool bReverse = false;
@@ -253,6 +255,9 @@ private:
 	bool CrewAny() const;
 	int32 LendFrom(int32 Tug, int32* Free = nullptr) const;
 	bool LendCrew(int32 Tug);
+	/** A crew lent to a remote stand walks back to its own place when its work there is done (E1d). */
+	void ReturnCrew(int32 Tug);
+	int32 WalkNeed(const FTug& T) const;
 	void LostTick(int32 Ci, float Dt);
 	void HiredTick(int32 Tug, float Dt);
 	bool PersonAhead(const FVector& Here, const FVector& Dir, float Reach) const;
@@ -326,11 +331,16 @@ public:
 	FVector StandT(float StandX, float X, float Y) const;
 	/** Its tug's box and loop, terminal-way: a remote stand's straight ahead of the nose, 8 m clear, the way in on the side away from the GPU's front. */
 	static bool RemoteStand(float StandX);
+	static bool CargoStand(float StandX);
+	/** 0 the terminal's apron, 1 the remote stands across taxilane T, 2 the cargo apron across the runway (world Y). */
+	static int32 SideOf(double WorldY);
+	/** Its aircraft stand nose north (remote and cargo): the crew's side is the other way round. */
+	static float CrewYaw(float StandX);
 	static void BoxT(float StandX, float& Side, float& Run, float& Y);
 	static void BoxT(float StandX, float& Side, float& Run, float& Y, float& Rl, float& Ly);   // (with the loop's radius, and how far out its half circle begins)
 	/** Its tug stands on the centre line in front of the nose (walk-out, big and remote stands), not in a box beside it. */
 	static bool HeadStand(float StandX);
-	/** On the same side of taxilane T as that stand. */
+	/** On the same side of taxilane T and the runway as that stand. */
 	bool SameSide(const FCrew& C, float StandX) const;
 	bool PathBlocked(const FTug& T, const TArray<FVector>& Path, const FVector& From) const;
 };
