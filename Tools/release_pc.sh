@@ -52,6 +52,17 @@ miss = sorted(used - cooked - SKIP)
 if miss: print('not always cooked:', ', '.join(miss)); sys.exit(1)
 print('all %d folders the code loads are cooked' % len(used - SKIP))
 PYEOF
+  echo "== every person has their light mesh, none older than the person (Tools/make_people_layers.py all)"
+  python - <<'PYEOF' || { echo "STOP: people without an up-to-date light mesh - run Tools/make_people_layers.py all"; exit 1; }
+import glob, os, sys
+B = 'Content/People/Built'; L = 'Content/People/Layers'; bad = []
+for n in sorted(os.listdir(B)):
+    m = '%s/%s/SKM_%s_Layer.uasset' % (L, n, n)
+    src = [os.path.getmtime(f) for f in glob.glob('%s/%s/**/*.uasset' % (B, n), recursive=True)]
+    if src and (not os.path.exists(m) or os.path.getmtime(m) < max(src)): bad.append(n)
+if bad: print(len(bad), 'people:', ', '.join(bad[:12])); sys.exit(1)
+print('all there')
+PYEOF
   echo "== frame-by-frame scans checked (a heavy one is a stutter)"
   python Tools/find_world_scans.py || { echo "STOP: a new scan over many objects - see above"; exit 1; }
   echo "== the previous release's content packs as the patch's base (only what changed since $A goes in the new pack)"

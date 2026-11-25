@@ -14,6 +14,8 @@
 #       plus ours, the body's build through the Fat measure, hair colour and grey on the one hair, beards only where
 #       meant) and built again at crowd quality; a person whose body is the wrong sex is reported and left for 'build'
 #       (delete their asset and Built folder first)
+# AFTER ANY BUILD OR REFIT: Tools/make_people_layers.py all (the light mesh beyond 20 m is made from the person; it makes
+# only those that are out of date, 3 s each; release_pc.sh stops without it)
 import json
 import os
 import random
