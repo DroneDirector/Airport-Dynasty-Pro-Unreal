@@ -3,7 +3,8 @@
 // way as every service vehicle, yours by AServiceDrive, a hired bus driver's by the crew queue. AApronBuses keeps their looks.
 // Here: the seven doors of two leaves (pushed out, then along the body; a chime first; never shut on anyone; no driving with
 // one open), the body's walls and floor with real openings, the way to the driver's seat (front door, step, cab door) and the
-// driving to a place and home. No riders, no schedule, no charging yet.
+// driving to a place and home; let down at a stop (kneeling), its electric sounds, you riding in it (standing, holding a pole
+// or strap, sitting: Seats.cpp). No passengers of its own, no schedule, no charging yet.
 #include "GSE.h"
 #include "ServiceVehicles.h"
 #include "ApronBus.h"
@@ -13,6 +14,8 @@
 #include "Tugs.h"
 #include "ADPLog.h"
 #include "BabylonModel.h"
+#include "Seats.h"
+#include "Components/AudioComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
@@ -25,6 +28,11 @@ struct FSvcBus
 	bool bToldIn = false;                                    // (somebody in a doorway: said once)
 	float HeldT = 0.f;                                       // (wants to go, doors not shut: how long)
 	int32 Ci = INDEX_NONE; uint8 Stage = 0;                  // its hired driver: 0 none, 1 coming, 2 at the wheel, 3 getting out
+	enum ESnd { Whine, Avas, AvasBack, Regen, Cool, Comp, Ind, NSnd };
+	TWeakObjectPtr<UAudioComponent> Snd[NSnd];
+	float Air = 1.f, StoodT = 0.f, Lv[NSnd] = {}; bool bComp = false, bIn = false, bRolled = false, bDown[2] = {false, false};   // (its air pressure; the sounds' levels; you inside)
+	FTransform WasX; bool bWasX = false; FVector LastAt = FVector::ZeroVector;
+	TArray<TWeakObjectPtr<AActor>> Riders;                   // (passengers on their way on or off, or in it)
 	float Warn[2] = {-1.f, -1.f}, Run = -1.f, In = -1.f;     // (lamps as last set)
 };
 
@@ -94,9 +102,23 @@ namespace
 	void BusToWorld(const AGSE::FTractor& T, FDriverPose& P)
 	{
 		const FRotator R(0.f, T.Yaw, 0.f);
-		P.Pelvis = T.At + R.RotateVector(P.Pelvis); P.Facing = R.RotateVector(P.Facing);
-		for (int32 s = 0; s < 2; ++s) { P.Foot[s] = T.At + R.RotateVector(P.Foot[s]); if (P.bHand[s]) P.Hand[s] = T.At + R.RotateVector(P.Hand[s]); }
+		const FTransform Kn = T.KneelX();
+		P.Pelvis = T.At + R.RotateVector(Kn.TransformPosition(P.Pelvis)); P.Facing = R.RotateVector(P.Facing);
+		for (int32 s = 0; s < 2; ++s) { if (P.Foot[s].Z > 10.) P.Foot[s] = Kn.TransformPosition(P.Foot[s]); P.Foot[s] = T.At + R.RotateVector(P.Foot[s]); if (P.bHand[s]) P.Hand[s] = T.At + R.RotateVector(Kn.TransformPosition(P.Hand[s])); }   // (on the floor: let down with it)
 	}
+	// ---- poles and straps to hold (root cm; the parts Pole_n, StrapLoop_Ln / Rn)
+	constexpr int32 BusSwKneel = 1, BusSwPole = 100, BusSwStrap = 200;
+	const FVector2D BusPoles[28] = {{-615., 120.}, {-615., -120.}, {-610., 62.}, {-610., -62.}, {-430., 62.}, {-430., -62.}, {-415., 120.}, {-415., -120.}, {-270., 62.}, {-270., -62.}, {-255., 120.}, {-255., -120.}, {-55., 120.}, {-55., -120.},
+		{-50., 62.}, {-50., -62.}, {90., 62.}, {90., -62.}, {95., 120.}, {95., -120.}, {290., 62.}, {290., -62.}, {295., 120.}, {295., -120.}, {440., 62.}, {440., -62.}, {455., 120.}, {655., 120.}};
+	const int32 BusStraps[19] = {1, 2, 3, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21};
+	bool BusHoldAt(int32 Code, FVector& P, bool& bStrap)
+	{
+		bStrap = Code >= BusSwStrap;
+		if (bStrap) { const int32 i = Code - BusSwStrap; if (i >= 38) return false; P = FVector(-600. + 48. * BusStraps[i / 2], i % 2 ? 62. : -62., 221.); return true; }
+		if (Code < BusSwPole || Code >= BusSwPole + 28) return false;
+		P = FVector(BusPoles[Code - BusSwPole], BusFloor + 138.); return true;
+	}
+
 	FVector BusHandleNow(const AGSE::FTractor& T) { return T.KHinge + FRotator(0.f, T.DoorAng, 0.f).RotateVector(BusPt(T, TEXT("IK_CabDoorHandle")) - T.KHinge); }
 }
 
@@ -136,7 +158,95 @@ bool AGSE::BusSomebodyIn(const FTractor& T, int32 Door) const
 	const APlayerController* Pc = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
 	if (Pc && Pc->GetPawn() && !T.Player.IsValid() && In(Pc->GetPawn())) return true;
 	if (ATugs* G = Tg()) for (const ATugs::FCrew& C : G->Crew) if (!C.bSlotFree && C.A.IsValid() && !C.A->IsHidden() && In(C.A.Get())) return true;
+	for (const TWeakObjectPtr<AActor>& A : T.Bu->Riders) if (A.IsValid() && !A->IsHidden() && In(A.Get())) return true;
 	return false;
+}
+
+void AGSE::BusRider(int32 Ti, AActor* Who, bool bOn)
+{
+	if (!Tractors.IsValidIndex(Ti) || !Tractors[Ti].Bu || !Who) return;
+	TArray<TWeakObjectPtr<AActor>>& R = Tractors[Ti].Bu->Riders;
+	R.RemoveAllSwap([&](const TWeakObjectPtr<AActor>& A) { return !A.IsValid() || A.Get() == Who; });
+	if (bOn) R.Add(Who);
+}
+
+bool AGSE::BusHang(const FTractor& T, const FVector& Feet, FVector& At, FVector& Fingers, FVector& Thumb) const
+{
+	FVector P; bool bStrap = false; if (!T.Bu || !BusHoldAt(T.YouHang, P, bStrap)) return false;
+	const FVector W = TW(T, P); FVector D = W - Feet; D.Z = 0.; const double L = D.Size();
+	if (L > (bStrap ? 50. : 72.) || L < 1.) return false;
+	D /= L;
+	Fingers = bStrap ? FVector::UpVector : D; Thumb = bStrap ? FVector::CrossProduct(D, FVector::UpVector) : FVector::UpVector;
+	At = W - Fingers * 8.5;
+	return true;
+}
+
+void AGSE::BusKneel(FTractor& T, float Dt)
+{
+	// let down 7 cm on the side whose doors are open (its driver: with the doors; you: by your switch); up again before it goes
+	FSvcBus& B = *T.Bu; const bool bStands = FMath::Abs(T.Speed) < 1.f, bShut = BusDoorsShut(T);
+	if (!T.Player.IsValid() && B.Stage != 2 && bShut) T.KneelAsk[0] = T.KneelAsk[1] = false;
+	bool bTurn = false;
+	for (int32 s = 0; s < 2; ++s)
+	{
+		bool bDoor = false; for (int32 d = 0; d < 7; ++d) if ((BusDoors[d].Sg > 0.f) == (s == 1) && (B.Ask[d] > 0.5f || T.SvcDoors[d].Now > 0.001f)) bDoor = true;
+		const bool bWant = bStands && (T.Player.IsValid() ? T.KneelAsk[s] : B.Stage == 2 ? bDoor && !T.Path.Num() : T.KneelAsk[s]);
+		if (bWant != B.bDown[s])
+		{
+			B.bDown[s] = bWant; B.Air = FMath::Max(0.f, B.Air - 0.1f);
+			SndOn(T, bWant ? TEXT("ABKneelDown") : TEXT("ABKneelUp"), FVector(0.f, s ? 100.f : -100.f, 40.f), B.bIn ? 0.5f : 0.9f, false);
+			ADP_LOG(TEXT("Apron bus %s: %s on its %s side"), *T.Name, bWant ? TEXT("kneels") : TEXT("rises"), s ? TEXT("right") : TEXT("left"));
+		}
+		const float To = B.bDown[s] ? 1.f : 0.f;
+		if (T.Knelt[s] != To) { T.Knelt[s] = FMath::FInterpConstantTo(T.Knelt[s], To, Dt, 0.5f); bTurn = true; }
+	}
+	if (bTurn) Pose(T);
+}
+
+void AGSE::BusSounds(FTractor& T, float Dt)
+{
+	// the electric drive: its hum and whine by the speed, the warning sound under 20 km/h (its own backwards), the braking
+	// current, air brakes, compressor and dryer, air conditioning, indicators. What is outside: muffled while you are inside
+	FSvcBus& B = *T.Bu; const bool bIn = T.YouOn || T.Player.IsValid();
+	if (bIn != B.bIn) { B.bIn = bIn; B.Lv[FSvcBus::Cool] = -1.f; }
+	const float V = T.MeasSpeed, Kmh = V * 3.6f;
+	const double Along = FVector::DotProduct(T.At - B.LastAt, FRotator(0.f, T.Yaw, 0.f).Vector()); B.LastAt = T.At;
+	if (FMath::Abs(Along) > 0.01) B.bRolled = Along < 0.;   // (backwards)
+	const bool bOn = T.bOn, bGoes = bOn && V > 0.1f, bBrake = T.BrakeHold > 0.f;
+	auto One = [&](const TCHAR* N, const FVector& At, float Vol) { if (UAudioComponent* A = SndOn(T, N, At, Vol * (bIn ? 0.55f : 1.f), false); A && bIn) { A->SetLowPassFilterEnabled(true); A->SetLowPassFilterFrequency(900.f); } };
+	if (V > 0.3f) { if (B.StoodT > 1.f) { One(TEXT("ABBrakeRelease"), FVector(-330.f, 0.f, 60.f), 0.7f); B.Air = FMath::Max(0.f, B.Air - 0.04f); } B.StoodT = 0.f; }
+	else if (V < 0.05f) { if (B.StoodT == 0.f && bOn) { One(TEXT("ABStopBrakeApply"), FVector(300.f, 0.f, 60.f), 0.7f); B.Air = FMath::Max(0.f, B.Air - 0.06f); } B.StoodT += Dt; }
+	// its air: used by brakes, doors and springs, pumped up by the compressor, dried with a puff when full
+	if (bOn)
+	{
+		for (int32 d = 0; d < 7; ++d) if (T.SvcDoors[d].Now != T.SvcDoors[d].Want) B.Air = FMath::Max(0.f, B.Air - 0.008f * Dt);
+		B.Air = FMath::Clamp(B.Air + (B.bComp ? 0.02f : -0.0012f) * Dt, 0.f, 1.f);
+		if (!B.bComp && B.Air < 0.75f) { B.bComp = true; One(TEXT("ABCompressorStart"), FVector(-600.f, 0.f, 70.f), 0.6f); }
+		else if (B.bComp && B.Air >= 1.f) { B.bComp = false; One(TEXT("ABAirDryerPurge"), FVector(-560.f, 60.f, 50.f), 0.8f); }
+	}
+	else B.bComp = false;
+	const bool bInd = T.bSwHaz || (bOn && (CabMine(T) ? T.Sig != 0 : FMath::Abs(T.Steer) > 8.f));
+	const float Low = bGoes ? 1.f - FMath::SmoothStep(18.f, 21.f, Kmh) : 0.f;
+	const float Want[FSvcBus::NSnd] = {bGoes ? 0.18f + 0.5f * FMath::Clamp(V / 9.f, 0.f, 1.f) : 0.f, B.bRolled ? 0.f : 0.6f * Low, B.bRolled ? 0.6f * Low : 0.f,
+		bGoes && bBrake && V > 1.f ? 0.55f : 0.f, bOn ? (bIn ? 0.35f : 0.08f) : 0.f, B.bComp ? 0.5f : 0.f, bInd ? 0.3f : 0.f};
+	static const TCHAR* const Names[FSvcBus::NSnd] = {TEXT("ABMotorWhineLoop"), TEXT("ABAVASLoop"), TEXT("ABAVASReverseLoop"), TEXT("ABRegenLoop"), TEXT("ABACLoop"), TEXT("ABCompressorLoop"), TEXT("ABIndicatorLoop")};
+	static const FVector At[FSvcBus::NSnd] = {FVector(-330.f, 0.f, 60.f), FVector(660.f, 0.f, 50.f), FVector(-660.f, 0.f, 50.f), FVector(-330.f, 0.f, 60.f), FVector(0.f, 0.f, 270.f), FVector(-600.f, 0.f, 70.f), FVector(645.f, -60.f, 110.f)};
+	const float Pitch[FSvcBus::NSnd] = {0.7f + 0.9f * FMath::Clamp(V / 11.f, 0.f, 1.f), 0.9f + 0.3f * FMath::Clamp(Kmh / 20.f, 0.f, 1.f), 1.f, 0.8f + 0.4f * FMath::Clamp(V / 9.f, 0.f, 1.f), 1.f, 1.f, 1.f};
+	for (int32 i = 0; i < FSvcBus::NSnd; ++i)
+	{
+		const bool bInside = i == FSvcBus::Cool || i == FSvcBus::Ind, bMuf = bIn && !bInside;
+		B.Lv[i] = FMath::FInterpTo(FMath::Max(0.f, B.Lv[i]), Want[i], Dt, 5.f);
+		UAudioComponent* A = B.Snd[i].Get();
+		if (B.Lv[i] < 0.015f && Want[i] <= 0.f) { if (A) { A->Stop(); A->DestroyComponent(); B.Snd[i].Reset(); } continue; }
+		if (!A) { A = SndOn(T, Names[i], At[i], 0.01f, true); B.Snd[i] = A; if (!A) continue; }
+		A->SetVolumeMultiplier(FMath::Max(0.01f, B.Lv[i] * (bMuf ? 0.6f : 1.f))); A->SetPitchMultiplier(Pitch[i]);
+		A->SetLowPassFilterEnabled(bMuf); A->SetLowPassFilterFrequency(900.f);
+	}
+	if (T.Motor)
+	{
+		T.Motor->SetPitchMultiplier(0.85f + 0.4f * FMath::Clamp(V / 9.f, 0.f, 1.f)); T.Motor->SetVolumeMultiplier((0.12f + 0.6f * FMath::Clamp(V / 9.f, 0.f, 1.f)) * (bIn ? 0.6f : 1.f));
+		T.Motor->SetLowPassFilterEnabled(bIn); T.Motor->SetLowPassFilterFrequency(900.f);
+	}
 }
 
 bool AGSE::BusDoor(int32 Ti, int32 Door, bool bOpen, FString& Why)
@@ -155,6 +265,11 @@ void AGSE::BusSetAll(int32 Ti, bool bOpen) { FString Why; for (int32 d = 0; d < 
 void AGSE::BusParts(FTractor& T, float Dt)
 {
 	FSvcBus& B = *T.Bu; ABabylonModel* M = T.M.Get(); if (!M) return;
+	BusKneel(T, Dt); BusSounds(T, Dt);
+	// its seats, and who sits on them, go where it goes
+	const FTransform Nx = M->GetActorTransform();
+	if (B.bWasX && !Nx.Equals(B.WasX, 1e-5)) ASeats::Carry(M, B.WasX, Nx, this);
+	B.WasX = Nx; B.bWasX = true;
 	bool bMove[2] = {false, false}, bOpenAny = false;
 	for (int32 d = 0; d < 7; ++d)
 	{
@@ -179,7 +294,7 @@ void AGSE::BusParts(FTractor& T, float Dt)
 		bOpenAny |= D.Now > 0.f;
 	}
 	// wants to go, a door still open: why it stands
-	if (T.Path.Num() && !BusDoorsShut(T)) { if ((B.HeldT += Dt) > 15.f) { B.HeldT = 0.f; ADP_LOG(TEXT("Apron bus %s: waits - a door is not shut"), *T.Name); } }
+	if (T.Path.Num() && (!BusDoorsShut(T) || BusKnelt(T))) { if ((B.HeldT += Dt) > 15.f) { B.HeldT = 0.f; ADP_LOG(TEXT("Apron bus %s: waits - %s"), *T.Name, BusDoorsShut(T) ? TEXT("not up yet") : TEXT("a door is not shut")); } }
 	else B.HeldT = 0.f;
 	// its own lamps: door warning while its doors move, running light, signs and the inside
 	AApronBuses* Bs = AApronBuses::Find(); AApronBuses::FBus* Lk = Bs ? Bs->Of(M) : nullptr; if (!Lk) return;
@@ -365,6 +480,10 @@ TSharedPtr<FVehTable> AGSE::BusControls()
 	auto Add = [&](const TCHAR* Pt, int32 d, const TCHAR* Lb, bool bSeat) { K X; X.Part = TEXT(""); X.Point = Pt; X.Kind = K::Push; X.Label = Lb; X.Motion = d; X.bSeat = bSeat; Tb->Controls.Add(X); };
 	for (int32 d = 0; d < 7; ++d) { Add(*Names[d * 3], d, BusDoors[d].Label, true); Add(*Names[d * 3 + 1], d, BusDoors[d].Label, false); Add(*Names[d * 3 + 2], d, BusDoors[d].Label, false); }
 	Add(TEXT("BUS_SwAll"), INDEX_NONE, TEXT("All doors"), true);
+	{ K X; X.Part = TEXT(""); X.Point = TEXT("BUS_SwAll"); X.Kind = K::Push; X.Label = TEXT("Kneel"); X.Switch = BusSwKneel; X.bSeat = true; Tb->Controls.Add(X); }
+	// a pole or strap in your hand while you ride
+	static TArray<FString> Holds; if (!Holds.Num()) { for (int32 i = 0; i < 28; ++i) Holds.Add(FString::Printf(TEXT("Pole_%d"), i)); for (int32 i = 0; i < 38; ++i) Holds.Add(FString::Printf(TEXT("StrapLoop_%s%d"), i % 2 ? TEXT("R") : TEXT("L"), BusStraps[i / 2])); }
+	for (int32 i = 0; i < Holds.Num(); ++i) { K X; X.Part = *Holds[i]; X.Point = TEXT(""); X.Kind = K::Push; X.Label = i < 28 ? TEXT("Pole") : TEXT("Strap"); X.Switch = i < 28 ? BusSwPole + i : BusSwStrap + i - 28; X.bGrip = X.bHelp = true; Tb->Controls.Add(X); }
 	// what is solid: floor, walls between the doors, ends, roof, the driver's cab, the leaves, the cab door
 	auto Box = [&](float X0, float X1, float Y0, float Y1, float Z0, float Z1, int32 Fr = 0) { FVehSolid S; S.Min = FVector(X0, Y0, Z0); S.Max = FVector(X1, Y1, Z1); S.Frame = Fr; Tb->Solids.Add(S); };
 	Box(-690, 690, -147, 147, 16, 33); Box(-699, 699, -151, 151, 281, 311); Box(690, 699, -151, 151, 16, 281); Box(-699, -690, -151, 151, 16, 281);
@@ -375,6 +494,45 @@ TSharedPtr<FVehTable> AGSE::BusControls()
 	Box(533, 537, -144, -25, 33, 215); Box(615, 686, -27, -23, 33, 120); Box(626, 690, -144, -27, 33, 108);
 	for (int32 d = 0; d < 7; ++d) for (int32 l = 0; l < 2; ++l) Box(BusDoors[d].X + (l ? 1.f : -94.f), BusDoors[d].X + (l ? 94.f : -1.f), BusDoors[d].Sg > 0 ? 148 : -153, BusDoors[d].Sg > 0 ? 153 : -148, 36, 249, 1 + d * 2 + l);
 	Box(537, 613, -26, -23, 35, 118, 15);
+	// inside: the wheel houses with their steps and seats (pans, backs, the rail before them), luggage racks, poles, the cab's post,
+	// the fire extinguisher, the wheelchair place's backrest
+	const float Hs[][3] = {{301, 451, 1}, {301, 451, -1}, {-415, -253, 1}, {-415, -253, -1}};
+	for (const auto& h : Hs)
+	{
+		auto Side = [&](float Y0, float Y1, float Z0, float Z1, float X0, float X1) { Box(X0, X1, h[2] > 0.f ? Y0 : -Y1, h[2] > 0.f ? Y1 : -Y0, Z0, Z1); };
+		const bool bFront = h[0] > 0.f, bSeats = !(bFront && h[2] < 0.f);
+		Side(bFront ? 88.f : 78.f, 146.f, 33.f, 108.f, h[0], h[1]);
+		if (!bSeats) continue;
+		Side(bFront ? 76.f : 66.f, bFront ? 88.f : 78.f, 33.f, 57.f, h[0], h[1]); Side(96.f, 136.f, 108.f, 120.f, h[0], h[1]); Side(135.f, 146.f, 120.f, 178.f, h[0], h[1]); Side(93.f, 95.f, 138.f, 141.f, h[0], h[1]);
+	}
+	for (const float s : {-1.f, 1.f}) Box(-37, 57, s > 0 ? 118 : -146, s > 0 ? 146 : -118, 33, 150);
+	for (const FVector2D& P : BusPoles) Box(P.X - 2.5, P.X + 2.5, P.Y - 2.5, P.Y + 2.5, 33, 273);
+	Box(532, 538, -28, -22, 33, 216); Box(538, 552, -137, -123, 60, 120); Box(380, 460, 137, 146, 65, 147);
+	Tb->Spot = [](const AGSE& G, const FTractor& T, const FVehControl& C, FVector& Out)
+	{
+		FVector P; bool bStrap = false;
+		if (C.Switch == BusSwKneel) { Out = G.TW(T, FVector(648.f, -54.f, 105.5f)); return true; }
+		if (C.Switch == INDEX_NONE || !BusHoldAt(C.Switch, P, bStrap)) return false;
+		Out = G.TW(T, P); return true;
+	};
+	Tb->Switch = [](AGSE& G, int32 Ti, int32 Code)
+	{
+		FTractor& T = G.Tractors[Ti]; if (!T.Bu) return false;
+		if (Code == BusSwKneel)
+		{
+			if (T.KneelAsk[0] || T.KneelAsk[1]) { T.KneelAsk[0] = T.KneelAsk[1] = false; return true; }
+			for (int32 d = 0; d < 7; ++d) if (T.Bu->Ask[d] > 0.5f || T.SvcDoors[d].Now > 0.f) T.KneelAsk[BusDoors[d].Sg > 0.f] = true;
+			if (!T.KneelAsk[0]) T.KneelAsk[1] = true;   // (no door open: the front door's side)
+			return true;
+		}
+		T.YouHang = T.YouHang == Code ? INDEX_NONE : Code; return true;
+	};
+	Tb->MaySwitch = [](AGSE& G, int32 Ti, int32 Code, FString& Why)
+	{
+		const FTractor& T = G.Tractors[Ti];
+		if (Code == BusSwKneel) { if (FMath::Abs(T.Speed) > 1.f || T.Path.Num()) Why = TEXT("the bus is not standing"); else if (!T.bOn) Why = TEXT("its drive is off"); }
+		return Why.IsEmpty();
+	};
 	Tb->bAlways = true; Tb->Range = 900.f;
 	Tb->Frame = [](const AGSE&, const FTractor& T, int32 Fr)
 	{
@@ -383,7 +541,7 @@ TSharedPtr<FVehTable> AGSE::BusControls()
 		return FTransform::Identity;
 	};
 	Tb->Now = [](const FTractor& T, int32 M) { return T.SvcDoors.IsValidIndex(M) ? T.SvcDoors[M].Now : 0.f; };
-	Tb->Want = [](FTractor& T, int32 M, float To) { if (T.Bu && T.SvcDoors.IsValidIndex(M) && (T.Bu->Ask[M] > 0.5f) != (To > 0.5f)) { T.Bu->Ask[M] = To > 0.5f ? 1.f : 0.f; T.Bu->Chime[M] = To > 0.5f ? 0.4f : BusChimeS; } };
+	Tb->Want = [](FTractor& T, int32 M, float To) { if (T.Bu && T.SvcDoors.IsValidIndex(M) && !(To > 0.5f && FMath::Abs(T.Speed) > 1.f) && (T.Bu->Ask[M] > 0.5f) != (To > 0.5f)) { T.Bu->Ask[M] = To > 0.5f ? 1.f : 0.f; T.Bu->Chime[M] = To > 0.5f ? 0.4f : BusChimeS; } };
 	Tb->May = [](const AGSE& G, const FTractor& T, int32 M, float To, FString& Why)
 	{
 		if (FMath::Abs(T.Speed) > 1.f || T.Path.Num()) Why = TEXT("the bus is not standing");
@@ -393,13 +551,21 @@ TSharedPtr<FVehTable> AGSE::BusControls()
 	};
 	Tb->Press = [](AGSE& G, int32 Ti, const FVehControl& C)
 	{
-		FTractor& T = G.Tractors[Ti]; if (!T.Bu) return;
+		FTractor& T = G.Tractors[Ti]; if (!T.Bu || C.Switch != INDEX_NONE) return;
 		if (C.Motion != INDEX_NONE) { G.Sound(TEXT("ABDoorChime"), G.TW(T, FVector(BusDoors[C.Motion].X, BusDoors[C.Motion].Sg * 148.f, 200.f))); return; }
 		if (FMath::Abs(T.Speed) > 1.f || T.Path.Num()) return;
 		G.BusSetAll(Ti, G.BusDoorsShut(T));
 	};
 	Tb->Say = [](const AGSE& G, const FTractor& T, const FVehControl& X) -> FString
 	{
+		if (X.Switch == BusSwKneel) return T.KneelAsk[0] || T.KneelAsk[1] ? TEXT("Kneel: up") : TEXT("Kneel: down");
+		if (X.Switch != INDEX_NONE)
+		{
+			FVector P; bool bStrap = false;
+			if (!T.YouOn || ASeats::IsSitting() || !BusHoldAt(X.Switch, P, bStrap)) return FString();
+			if (T.YouHang == X.Switch) return bStrap ? TEXT("Let go of the strap") : TEXT("Let go of the pole");
+			return FVector::Dist2D(P, T.YouAt) > (bStrap ? 44. : 64.) ? FString() : FString(bStrap ? TEXT("Hold the strap") : TEXT("Hold the pole"));
+		}
 		if (X.Motion == INDEX_NONE) return G.BusDoorsShut(T) ? TEXT("All doors: open") : TEXT("All doors: shut");
 		return T.SvcDoors.IsValidIndex(X.Motion) ? FString(X.Label) + (T.SvcDoors[X.Motion].Now > 0.5f ? TEXT(": shut") : TEXT(": open")) : FString();
 	};

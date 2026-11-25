@@ -582,6 +582,15 @@ Taxi bus (239, part B, 2026-11-24, compiled, NOT run): a line of `ADPService::Al
 - Open: kneel; AVAS, whine, regen, compressor and air-brake sounds (only ready / drive loop / shutdown / reverse beep / horn / doors / chime play); poles and seats inside not solid; the inside not in SeatSpots yet;
   crew speed and braking are the shared Drive() ones: 20 km/h (what it can stop from within what it looks ahead), yours 30; a hired driver's way round the bus is by four corner points; passengers are not yet in BusSomebodyIn (D4 must add them).
 
+## Apron bus, D4a as built (to-do 277, 2026-11-25, compiled, NOT run): riding in it
+- **Kneel:** 7 cm on one side in 2 s (`FTractor::Knelt/KneelAsk/KneelX`, `AGSE::BusKneel`): its driver with the doors, you by the cab's Kneel control; only standing. It drives off only when up again (`BusKnelt`).
+- **Sounds:** `AGSE::BusSounds`: whine by speed, warning sound to 18 km/h (fades by 21; its own backwards), braking current, air brake on/off, compressor + dryer by its air, air conditioning, indicators; outside ones muffled while you are in it.
+- **Solid:** walls and floor also while it drives and you are near; wheel houses, seats, racks, poles, cab post. You stand on its floor and go with it; no jumping while it drives.
+- **You:** in by an open door; `E` at a pole or strap holds it (`YouHang`, `BusHang`, `AVehicleControls::Hang`), E again, walking off or sitting lets go. Doors do not open while it moves.
+- **Seats:** nine cushions (`SeatCushion_*`), not the driver's, not the wheelchair place; `ASeats::Carry` moves them, their taken marks and you with the bus. Not reachable through the side from outside.
+- **For the passengers:** `AGSE::BusRider(Ti, actor, on)`: the doors stay open and the bus waits while one is in a doorway (`BusSomebodyIn`).
+- Open: seats are 63 cm above their step; no modelled kneel switch (no glow); housing, seat and pole boxes are from the model's measures, not walked.
+
 ## Part 2: every stand-in use and its replacement (line numbers of 2026-11-23, Source/AirportDynastyPro/Private)
 
 | Where | Today | Replace with | Nobody free |

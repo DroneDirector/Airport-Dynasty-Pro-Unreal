@@ -1422,7 +1422,7 @@ void ABabylonModel::SetPartsCollision(bool bOn)
 void ABabylonModel::SeatSpots(TArray<FSeatSpot>& Out) const
 {
 	ADP_PERF_SCOPE("a building's places to sit", 4.f);
-	if (!Root || Model.StartsWith(TEXT("Firetruck")) || Model == TEXT("ApronBus")) return;   // (the trucks' own seats are the truck's; the apron bus: its doors are shut - no sitting in through its side, and its wheelchair rail is no chair)
+	if (!Root || Model.StartsWith(TEXT("Firetruck"))) return;   // (the trucks' own seats are the truck's)
 	const FTransform RootW = Root->GetComponentTransform();
 	auto Under = [this](int32 I, TArray<int32>& Nodes) { TArray<int32> St = {I}; while (St.Num()) { const int32 N = St.Pop(); if (!NRoot.IsValidIndex(N)) continue; Nodes.Add(N); St.Append(NKids[N]); } };
 	auto LastPart = [](const FString& N) { int32 P; return N.FindLastChar(TEXT('/'), P) ? N.Mid(P + 1) : N; };
@@ -1442,6 +1442,23 @@ void ABabylonModel::SeatSpots(TArray<FSeatSpot>& Out) const
 	// (where each stands, once: asking for every module again at every seat was most of half a second)
 	TArray<FTransform> GateAt;
 	if (GateSeats) { GateAt.SetNum(GateSeats->GetInstanceCount()); for (int32 k = 0; k < GateAt.Num(); ++k) GateSeats->GetInstanceTransform(k, GateAt[k], true); }
+	// the apron bus (to-do 277): its nine passenger seats on the wheel houses, facing the aisle, 63 cm over their step (87 over
+	// the floor); never the driver's, never the wheelchair place; reached from the aisle only
+	if (Model == TEXT("ApronBus"))
+	{
+		for (int32 I = 0; I < NName.Num(); ++I)
+		{
+			if (!LastPart(NName[I]).StartsWith(TEXT("SeatCushion_")) || !NInst.IsValidIndex(I) || !NInst[I].Key) continue;
+			FBox B; if (!InstBox(NInst[I].Key, NInst[I].Value, B)) continue;
+			const FVector L = RootW.InverseTransformPosition(B.GetCenter()); if (FMath::Abs(L.Y) < 80.f || L.X > 500.f) continue;
+			FSeatSpot S; S.SeatH = 63.f; S.bAisle = true;
+			S.At = RootW.TransformPosition(FVector(L.X, FMath::Sign(L.Y) * 94.f, 119.5f));
+			S.Facing = RootW.TransformVectorNoScale(FVector(0, -FMath::Sign(L.Y), 0)).GetSafeNormal2D();
+			S.Parts.Add(NInst[I]);
+			Out.Add(S);
+		}
+		return;
+	}
 	// the airport coach (owner, 2026-11-19, to-do 144: every passenger seat sittable, never the driver's): each seat's own
 	// cushion - the pairs' and the back bench's (Cushion_A..E), the guide's and the wheelchair space's fold-up seats - facing
 	// the way the coach faces (the fold-up seats: the aisle); the seat 45 cm over its floor

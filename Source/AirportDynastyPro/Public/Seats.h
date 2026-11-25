@@ -46,6 +46,8 @@ public:
 	/** A vehicle's seats (VehicleRiders.h): out of everyone's reach while it is on its way, at its new place once it stands;
 	 *  who sits where stays. */
 	static void Follow(const ABabylonModel* Vehicle, bool bAway);
+	/** A vehicle you ride in has moved this frame (the apron buses): its seats, who sits where, and you on one go with it. */
+	static void Carry(const ABabylonModel* Vehicle, const FTransform& Was, const FTransform& Now, AActor* By);
 
 	static constexpr float Reach = 130.f;
 	static constexpr float SitTime = 0.9f;
@@ -69,6 +71,7 @@ private:
 	bool bKeysFree = false;   // (no walking key held since you sat down)
 	enum class EState : uint8 { None, Down, Sat, Up } State = EState::None;
 	float T = 0.f;
+	TWeakObjectPtr<AActor> Mover;   // (what moves them: we tick after it)
 	FVector Before = FVector::ZeroVector;   // where you stood before sitting
 	// who sits where (kept by the seat's place, so finding the seats again keeps them)
 	struct FTaken { TWeakObjectPtr<AActor> Who; TFunction<void()> AskToLeave; };

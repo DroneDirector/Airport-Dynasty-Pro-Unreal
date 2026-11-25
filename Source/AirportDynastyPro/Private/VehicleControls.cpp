@@ -4,6 +4,7 @@
 #include "CabControls.h"
 #include "ServiceVehicles.h"
 #include "ADPWalker.h"
+#include "Seats.h"
 #include "ADPLog.h"
 #include "BabylonModel.h"
 #include "UI/InputGlyphs.h"
@@ -19,6 +20,7 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "Misc/ScopeExit.h"
 
 namespace
 {
@@ -209,6 +211,7 @@ void AVehicleControls::Tick(float Dt)
 	Super::Tick(Dt);
 	AGSE* G = const_cast<AGSE*>(AGSE::Find(GetWorld())); APlayerController* PC = GetWorld()->GetFirstPlayerController(); APawn* Me = PC ? PC->GetPawn() : nullptr; if (!G) return;
 	Hull(*G, Me, Dt); Carry(*G, Me);
+	ON_SCOPE_EXIT { Hang(*G, Me, Dt); };   // (after the arm's own reach)
 	if (Do != EDo::None && (!User.IsValid() || User.Get() != Me || !G->Tractors.IsValidIndex(Ti)))
 	{
 		Stop(*G); Do = EDo::None; W = 0.f;
@@ -289,9 +292,34 @@ void AVehicleControls::Tick(float Dt)
 		{
 			const FVehControl& C = AGSE::CtlTable(G->Tractors[Ti].CtlKey())->Controls[Ci];
 			TArray<TTuple<UInstancedStaticMeshComponent*, int32, FString>> Fd; if (C.Kind != FVehControl::Hand && *C.Part) G->Tractors[Ti].M->InstancesNamed(C.Part, true, Fd);
-			const FString Pn(C.Part); for (const auto& F : Fd) { const FString& N = F.Get<2>(); if (N.Len() == Pn.Len() || !FChar::IsAlpha(N[Pn.Len()])) Glow.Emplace(F.Get<0>(), F.Get<1>()); }
+			const FString Pn(C.Part); for (const auto& F : Fd) { const FString& N = F.Get<2>(); if (N.Len() == Pn.Len() || (!FChar::IsAlpha(N[Pn.Len()]) && !(G->Tractors[Ti].Bu && FChar::IsDigit(N[Pn.Len()])))) Glow.Emplace(F.Get<0>(), F.Get<1>()); }
 		}
 	}
+}
+
+void AVehicleControls::Hang(AGSE& G, APawn* Me, float Dt)
+{
+	// riding in a bus on your feet: no jumping while it drives (you would be left behind in the air); a pole or strap held
+	// in your right hand until you let go (E), walk off or sit down
+	AADPWalker* Wk = Cast<AADPWalker>(Me); bool bRide = false, bHeld = false;
+	if (Wk) for (AGSE::FTractor& V : G.Tractors)
+	{
+		if (!V.Bu) continue;
+		if (V.YouOn && FMath::Abs(V.MeasSpeed) > 0.05f) bRide = true;
+		if (V.YouHang == INDEX_NONE) continue;
+		FVector A, F, Th;
+		if (!V.YouOn || bHeld || Wk->IsHidden() || ASeats::IsSitting() || !G.BusHang(V, VcFeet(*Wk), A, F, Th) || FVector::DotProduct((A - Wk->GetActorLocation()).GetSafeNormal2D(), Wk->GetActorForwardVector()) < -0.4) { V.YouHang = INDEX_NONE; continue; }
+		bHeld = true; HangW = FMath::Min(1.f, HangW + Dt / 0.3f);
+		const FVehTable* Tb = G.Tractors.IsValidIndex(Ti) && &G.Tractors[Ti] == &V ? AGSE::CtlTable(V.CtlKey()) : nullptr;
+		if (Do == EDo::None || (Tb && Tb->Controls.IsValidIndex(Ci) && Tb->Controls[Ci].Switch == V.YouHang)) { Wk->SetPoint(false); Wk->SetArm(FMath::Max(W, HangW), A, F, Th); HangAt = A; HangF = F; HangTh = Th; }
+	}
+	if (!Wk) return;
+	if (!bHeld && HangW > 0.f)
+	{
+		HangW = FMath::Max(0.f, HangW - Dt / 0.3f);
+		if (Do == EDo::None && HoldTi == INDEX_NONE && !ASeats::IsSitting()) Wk->SetArm(HangW, HangAt, HangF, HangTh);
+	}
+	if (bRide != bNoJump) { bNoJump = bRide; Wk->GetCharacterMovement()->SetJumpAllowed(!bRide); }
 }
 
 void AVehicleControls::Hull(AGSE& G, APawn* Me, float Dt)
@@ -310,7 +338,8 @@ void AVehicleControls::Hull(AGSE& G, APawn* Me, float Dt)
 		else V.LeftOpen = 0.f;
 		if (!Tb->Solids.Num()) continue;
 		FHull& H = Hulls.FindOrAdd(i);
-		const bool bOn = V.YouOn || (bFoot && Away < V.KHalfL + 900.f && V.Speed < 1.f && !V.Path.Num() && !V.Player.IsValid() && (H.bOn || Tb->bAlways || !Tb->Stowed(G, V)));
+		// (an apron bus: its real walls and floor also while it drives - you ride in it)
+		const bool bOn = V.YouOn || (V.Bu && bFoot && Away < V.KHalfL + 900.f && !V.Player.IsValid()) || (bFoot && Away < V.KHalfL + 900.f && V.Speed < 1.f && !V.Path.Num() && !V.Player.IsValid() && (H.bOn || Tb->bAlways || !Tb->Stowed(G, V)));
 		if (bOn != H.bOn)
 		{
 			H.bOn = bOn;

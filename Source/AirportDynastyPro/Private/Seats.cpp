@@ -37,6 +37,7 @@ int32 ASeats::NearestTo(const FVector& At)
 		const ABabylonModel::FSeatSpot& S = One->Spots[i];
 		const float D = FVector::Dist2D(S.At, At);
 		if (D > Reach || FMath::Abs(S.At.Z - S.SeatH - (At.Z - 90.f)) > 60.f) continue;   // (on your own floor)
+		if (S.bAisle && FVector::DotProduct(At - S.At, S.Facing) < -5.f) continue;   // (a bus's seat: never through its side from outside)
 		const float Score = FVector::DotProduct(Look.GetSafeNormal2D(), (S.At - Eye).GetSafeNormal2D()) * 2.f - D / Reach;
 		if (Score > BS) { BS = Score; Best = i; }
 	}
@@ -64,6 +65,27 @@ int32 ASeats::Claim(AActor* Who, const FVector& At, TFunction<void()> AskToLeave
 	}
 	if (Best != INDEX_NONE) S->Taken.Add(SpotKey(S->Spots[Best].At), FTaken{Who, MoveTemp(AskToLeave)});
 	return Best;
+}
+
+void ASeats::Carry(const ABabylonModel* Vehicle, const FTransform& Was, const FTransform& Now, AActor* By)
+{
+	if (!One.IsValid() || !Vehicle) return;
+	ASeats* S = One.Get();
+	if (By && S->Mover.Get() != By) { S->Mover = By; S->AddTickPrerequisiteActor(By); }
+	const FGot* G = S->Got.FindByPredicate([&](const FGot& X) { return X.Model.Get() == Vehicle; }); if (!G) return;
+	const FTransform D = Was.Inverse() * Now; const float Dy = float(FRotator::NormalizeAxis(Now.Rotator().Yaw - Was.Rotator().Yaw));
+	TArray<TPair<FVector, FTaken>, TInlineAllocator<12>> Moved;
+	for (const int32 I : G->Slots)
+	{
+		ABabylonModel::FSeatSpot& P = S->Spots[I]; FTaken Tk; const bool bTk = S->Taken.RemoveAndCopyValue(SpotKey(P.At), Tk);
+		P.At = D.TransformPosition(P.At); P.Facing = FRotator(0.f, Dy, 0.f).RotateVector(P.Facing);
+		if (bTk) Moved.Emplace(P.At, MoveTemp(Tk));
+	}
+	for (auto& M : Moved) S->Taken.Add(SpotKey(M.Key), MoveTemp(M.Value));
+	if (S->State == EState::None || !S->Frame || !G->Slots.Contains(S->Seat)) return;
+	S->Frame->SetWorldLocationAndRotation(D.TransformPosition(S->Frame->GetComponentLocation()), FRotator(0.f, S->Frame->GetComponentRotation().Yaw + Dy, 0.f));
+	S->Before = D.TransformPosition(S->Before);
+	if (AADPWalker* Me = S->Sitter.Get()) if (APlayerController* PC = Cast<APlayerController>(Me->GetController())) { FRotator R = PC->GetControlRotation(); R.Yaw += Dy; PC->SetControlRotation(R); }
 }
 
 void ASeats::Follow(const ABabylonModel* Vehicle, bool bAway)
@@ -316,6 +338,8 @@ void ASeats::Tick(float Dt)
 			// (never into a table or a wall: the nearest clear spot to stand, else straight back where you were before)
 			if (StandSpot(Seat, At, Yaw))
 			{
+				// (in a bus that may drive: straight on its floor, in the aisle before the seat - it carries you from there on)
+				if (Spots[Seat].bAisle) At.Z -= 24.f;
 				FRotator R(0.f, Yaw, 0.f);
 				if (!GetWorld()->FindTeleportSpot(Me, At, R)) At = Before;
 				Me->SetActorLocation(At, false, nullptr, ETeleportType::TeleportPhysics);

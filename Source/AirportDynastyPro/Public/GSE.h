@@ -108,6 +108,9 @@ public:
 		float SteerWant = 0.f, BackT = 0.f, PedalA = 0.f, PedalB = 0.f, WipeT = 0.f, WipeNow = 0.f, RainIn = 0.f, BoxT = 0.f; bool bRain = false, bUsed = false;   // (bUsed: full bags or used rolls in it - exchanged shut in its box)
 		int32 GPedal[2] = {INDEX_NONE, INDEX_NONE}, LoadWant = INDEX_NONE; TArray<int32> GWiper; FString Livery;
 		TSharedPtr<FSvcRefuel> Fu;        // (the refueller's own parts: GSEFuel.cpp)
+		// an apron bus let down on its air springs (GSEBus.cpp): how far, 0..1, its left and right side; your switch's wish; the pole or strap in your hand
+		float Knelt[2] = {0.f, 0.f}; bool KneelAsk[2] = {false, false}; int32 YouHang = INDEX_NONE;
+		FTransform KneelX() const { return FTransform(FRotator(0.f, 0.f, FMath::RadiansToDegrees(FMath::Atan(7.f * (Knelt[1] - Knelt[0]) / 220.f))), FVector(0.f, 0.f, -3.5f * (Knelt[0] + Knelt[1]))); }
 		uint8 YouOn = 0; FVector YouAt = FVector(1e6); float LeftOpen = 0.f; mutable double YouStopAt = -10.; FVector YouHand = FVector::ZeroVector;   // (when it last waited because of you; what you carry of it, root cm)
 		bool bSwHaz = false, bSwNoBeacon = false, bSwWork = false, bSwLight = false;   // (VehicleControls.h: you on one of its floors, your feet in its frame; the switches)
 		// the shared cab controls (CabControls.h): gear 1 D / 0 N / -1 R (by hand: it doesn't change by itself), beam 0 dipped / 1 main / 2 off, signal +1 left / -1 right, wipers 0 by the rain / 1 slow / 2 fast / 3 off
@@ -531,9 +534,17 @@ public:
 	bool BusDoorIs(int32 Ti, int32 Door, bool bOpen) const;
 	bool BusDoorsShut(const FTractor& T) const;
 	bool BusSomebodyIn(const FTractor& T, int32 Door) const;   // (in a door's opening)
+	/** Somebody who gets on or off this bus (a passenger's own body): its doors never shut on them, it never drives off with them in a doorway. */
+	void BusRider(int32 Ti, AActor* Who, bool bOn);
+	/** The pole or strap you hold (T.YouHang): where your hand is on it, world. False: none, or out of your reach. */
+	bool BusHang(const FTractor& T, const FVector& Feet, FVector& At, FVector& Fingers, FVector& Thumb) const;
+	bool BusKnelt(const FTractor& T) const { return T.Bu && (T.Knelt[0] > 0.f || T.Knelt[1] > 0.f); }
 private:
 	void BusDress(FTractor& T);
 	void BusParts(FTractor& T, float Dt);
+	void BusKneel(FTractor& T, float Dt);
+	void BusSounds(FTractor& T, float Dt);
+	class UAudioComponent* SndOn(FTractor& T, const TCHAR* Name, const FVector& At, float Vol, bool bKeep);   // (a sound that goes with it)
 	void BusTick(float Dt);
 	void BusSetAll(int32 Ti, bool bOpen);
 	bool BusMan(int32 Ti, TFunction<void()> Then, FString& Why);

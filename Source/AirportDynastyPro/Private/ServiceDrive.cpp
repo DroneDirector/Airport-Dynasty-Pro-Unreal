@@ -498,6 +498,7 @@ void AGSE::SvcPlayerDrive(FTractor& T, float Dt)
 	const FServiceSpec& S = SdSpec(T.Svc);
 	bool bShut = true; for (int32 d = 0; d < T.SvcDoors.Num(); ++d) if (T.SvcDoors[d].Now > 0.01f) bShut = false;
 	if (T.DoorAng > 1.f) bShut = false;
+	if (BusKnelt(T)) { if (bShut && D->Throttle() > 0.1f) T.KneelAsk[0] = T.KneelAsk[1] = false; bShut = false; }   // (an apron bus let down: up first)
 	if (!AmbuStowed(T)) bShut = false;   // (never with its legs down, its body up or its tail lift out)
 	if (T.Ct && !CaterStowed(T)) bShut = false;   // (never with its legs down, its body up or anything out)
 	if (!DeicerShut(T)) bShut = false;   // (never with its boom up, a panel open, a valve off or a stop pressed)

@@ -74,7 +74,7 @@ public:
 	USceneComponent* GetModelRoot() const { return Root; }
 	/** A place to sit (owner, 2026-11-14: sit on any chair at the airport): the middle of its seat (world), which way you
 	 *  face sitting on it, its seat's height over the floor (cm), and its pieces (for the outline). */
-	struct FSeatSpot { FVector At = FVector::ZeroVector; FVector Facing = FVector::ForwardVector; float SeatH = 46.f; bool bYours = false; TArray<TPair<UInstancedStaticMeshComponent*, int32>> Parts; };
+	struct FSeatSpot { FVector At = FVector::ZeroVector; FVector Facing = FVector::ForwardVector; float SeatH = 46.f; bool bYours = false, bAisle = false; TArray<TPair<UInstancedStaticMeshComponent*, int32>> Parts; };
 	/** Every chair, stool, armchair, bench and gate seat in this model. */
 	void SeatSpots(TArray<FSeatSpot>& Out) const;
 	/** Changes when the model's parts do (its seats are to be found again). */

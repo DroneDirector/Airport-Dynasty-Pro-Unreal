@@ -105,6 +105,8 @@ private:
 	FString Label(AGSE& G, FString& No) const;
 	float Target(AGSE& G, const FVehControl& C, int32 Dir) const;
 	void Hull(AGSE& G, APawn* Me, float Dt);
+	void Hang(AGSE& G, APawn* Me, float Dt);
+	float HangW = 0.f; bool bNoJump = false; FVector HangAt = FVector::ZeroVector, HangF = FVector::ForwardVector, HangTh = FVector::UpVector;   // (a bus's pole or strap in your hand)
 	void Arm(AGSE& G, APawn* Me);
 	void Stop(AGSE& G);
 	bool Crew(const AGSE& G, int32 V) const;

@@ -127,7 +127,7 @@ FVector AGSE::PlanPose(float X, float Y, float Hx, float Hy, float& Yaw) const
 	return Plan(X, Y);
 }
 
-FVector AGSE::TW(const FTractor& T, const FVector& Local) const { return T.At + FRotator(0.f, T.Yaw, 0.f).RotateVector(Local); }
+FVector AGSE::TW(const FTractor& T, const FVector& Local) const { return T.At + FRotator(0.f, T.Yaw, 0.f).RotateVector(T.Bu ? T.KneelX().TransformPosition(Local) : Local); }
 FVector AGSE::CW(const FCart& C, const FVector& Local) const { return C.At + FRotator(0.f, C.Yaw, 0.f).RotateVector(Local); }
 
 void AGSE::Setup()
@@ -343,6 +343,7 @@ void AGSE::Pose(FTractor& T)
 	const float Pitch = FMath::RadiansToDegrees(FMath::Atan(((Z[0] + Z[1]) - (Z[2] + Z[3])) * 0.5f / T.KWB));
 	const float Roll = FMath::RadiansToDegrees(FMath::Atan(((Z[1] + Z[3]) - (Z[0] + Z[2])) * 0.5f / T.KTrack));
 	T.At.Z = Zm;
+	if (T.Bu) { const FTransform X = T.KneelX() * FTransform(FRotator(Pitch, T.Yaw, Roll), T.At); M->SetActorLocationAndRotation(X.GetLocation(), X.GetRotation()); return; }   // (let down at a stop: GSEBus.cpp)
 	M->SetActorLocationAndRotation(T.At, FRotator(Pitch, T.Yaw, Roll));
 }
 
@@ -361,6 +362,12 @@ void AGSE::PoseCart(FCart& C)
 void AGSE::Sound(const TCHAR* Name, const FVector& At)
 {
 	if (USoundBase* S = GseSnd(Name)) UGameplayStatics::PlaySoundAtLocation(this, S, At, 1.f, 1.f, 0.f, GseAtt());
+}
+
+UAudioComponent* AGSE::SndOn(FTractor& T, const TCHAR* Name, const FVector& At, float Vol, bool bKeep)
+{
+	USoundBase* S = T.M.IsValid() ? GseSnd(Name) : nullptr;
+	return S ? UGameplayStatics::SpawnSoundAttached(S, T.M->GetRootComponent(), NAME_None, At, EAttachLocation::KeepRelativeOffset, false, Vol, 1.f, 0.f, GseAtt(), nullptr, !bKeep) : nullptr;
 }
 
 void AGSE::Motor(FTractor& T, bool bOn)
@@ -422,7 +429,7 @@ void AGSE::Lamps(FTractor& T)
 	if (bBack && !T.Beep && T.M.IsValid())
 		T.Beep = UGameplayStatics::SpawnSoundAttached(GseSnd(*T.SndBeep), T.M->GetRootComponent(), NAME_None, FVector(-150.f, 0, 80.f), EAttachLocation::KeepRelativeOffset, false, 0.6f, 1.f, 0.f, GseAtt(), nullptr, false);
 	if (!bBack && T.Beep) { T.Beep->Stop(); T.Beep = nullptr; }
-	if (T.Motor) { T.Motor->SetPitchMultiplier(0.85f + FMath::Clamp(T.MeasSpeed / 4.2f, 0.f, 1.f) * 0.45f); T.Motor->SetVolumeMultiplier(0.45f + FMath::Clamp(T.MeasSpeed / 4.2f, 0.f, 1.f) * 0.5f); }
+	if (T.Motor && !T.Bu) { T.Motor->SetPitchMultiplier(0.85f + FMath::Clamp(T.MeasSpeed / 4.2f, 0.f, 1.f) * 0.45f); T.Motor->SetVolumeMultiplier(0.45f + FMath::Clamp(T.MeasSpeed / 4.2f, 0.f, 1.f) * 0.5f); }
 }
 
 void AGSE::BuildBeams(FTractor& T)
@@ -507,6 +514,7 @@ void AGSE::TractorParts(FTractor& T, float Dt)
 	T.MeasSpeed = FMath::FInterpTo(T.MeasSpeed, Speed, Dt, 6.f);
 	T.BrakeHold = T.MeasSpeed < T.LastSpeed - 0.15f * Dt ? 0.6f : FMath::Max(0.f, T.BrakeHold - Dt); T.LastSpeed = T.MeasSpeed;
 	if (Speed > 0.05f) T.Steer = FMath::FInterpTo(T.Steer, FMath::Clamp(FMath::RadiansToDegrees(FMath::Atan(T.KWB / 100.f * YawRate / (Speed * Dir))), -T.KMaxSteer, T.KMaxSteer), Dt, 5.f);
+	const FTransform Kn = T.Bu ? T.KneelX().Inverse() : FTransform::Identity;   // (a bus let down: its wheels stay on the ground)
 	for (int32 w = 0; w < 4; ++w)
 	{
 		if (T.GWheel[w] == INDEX_NONE) continue;
@@ -514,10 +522,10 @@ void AGSE::TractorParts(FTractor& T, float Dt)
 		if (w < 2)
 		{
 			const FQuat Qs(FVector::UpVector, FMath::DegreesToRadians(T.Steer));
-			M->MoveGroup(T.GWheel[w], FTransform(Qs * Spin, T.KKing[w] + Qs.RotateVector(T.KWheel[w] - T.KKing[w])));
-			if (T.GSteer[w] != INDEX_NONE) M->MoveGroup(T.GSteer[w], FTransform(Qs, T.KKing[w]));
+			M->MoveGroup(T.GWheel[w], FTransform(Qs * Spin, T.KKing[w] + Qs.RotateVector(T.KWheel[w] - T.KKing[w])) * Kn);
+			if (T.GSteer[w] != INDEX_NONE) M->MoveGroup(T.GSteer[w], FTransform(Qs, T.KKing[w]) * Kn);
 		}
-		else M->MoveGroup(T.GWheel[w], FTransform(Spin, T.KWheel[w]));
+		else M->MoveGroup(T.GWheel[w], FTransform(Spin, T.KWheel[w]) * Kn);
 	}
 	// the steering wheel (about its column, ~16 turns of the wheel lock to lock... a gentle 8x), the door, the hitch pin
 	if (T.GWheelS != INDEX_NONE) M->MoveGroup(T.GWheelS, FTransform(FQuat(T.KWheelAx, FMath::DegreesToRadians(-T.Steer * 8.f)), T.KWheelC));
@@ -603,7 +611,7 @@ void AGSE::Drive(FTractor& T, float Dt)
 	// circle, slower in bends, a creep into an exact place; with a train: gentle (the carts are loaded), never backing
 	if (!T.Path.Num()) { T.Speed = 0.f; return; }
 	if (DriverLost(T)) { T.Speed = 0.f; return; }   // (to-do 206: nobody at the wheel - it stands until somebody takes over)
-	if (T.Bu && !BusDoorsShut(T)) { T.Speed = 0.f; return; }   // (never off with a door open)
+	if (T.Bu && (!BusDoorsShut(T) || BusKnelt(T))) { T.Speed = 0.f; return; }   // (never off with a door open, never let down)
 	const FVector End = T.Path.Last();
 	while (T.Path.Num() > 1 && FVector::Dist2D(T.At, T.Path[0]) < 110.f) T.Path.RemoveAt(0);
 	// (a waypoint gone past - beside it, not through it - counts as reached; and never round and round one: after a full turn on
@@ -697,7 +705,7 @@ void AGSE::Drive(FTractor& T, float Dt)
 		if (bSoon) if (const ATugs* G = Tg()) for (const FVector& Pl : G->Planes) if (FMath::Sqrt(B.ComputeSquaredDistanceToPoint(GseP2(Pl))) < 110.f) { bBlocked = true; Why = TEXT("an aircraft (at the crossing)"); }
 	}
 	if (T.Svc != INDEX_NONE && !bBlocked && SvcPersonAhead(T, Move)) { bBlocked = true; Why = TEXT("somebody on foot"); }
-	if (T.YouOn) { bBlocked = true; Why = TEXT("you, standing on it"); T.YouStopAt = GetWorld()->GetTimeSeconds(); }
+	if (T.YouOn && !T.Bu) { bBlocked = true; Why = TEXT("you, standing on it"); T.YouStopAt = GetWorld()->GetTimeSeconds(); }
 	if (bBlocked) { T.Hold += Dt; if (FMath::Fmod(T.Hold, 15.f) < Dt) ADP_LOG(TEXT("GSE: %s gives way to %s"), *T.Name, *Why); }
 	// steering: the heading wanted (the back leads reversing), limited by the turning circle at this speed
 	const float WantYaw = T.bReverse ? (-To).Rotation().Yaw : To.Rotation().Yaw;
