@@ -89,3 +89,18 @@
 - Found: the sky light gives NOTHING in the whole game - its real-time capture stays black from the start (x5 or off: no change;
   r.SkyLight.RealTimeReflectionCapture 0, or 0 then 1, and it lights). Not switched on: it changes every shade, interior and
   pane of glass in the game (blue shade, milky blue glass) - the owner's decision.
+
+## 2026-11-25: the slow outdoor frames found: graphics memory overflowed (269; SiteTrees, GraphicsMemory, DefaultEngine.ini)
+
+- Cause, and why it did not use to: the 525,000 trees out to 4 km (2026-11-21) all sat in the distance-field light scene
+  (615,331 objects, 160 MB of its tables alone), on top of two engine pools reserved almost empty: virtual textures 318 MB
+  for 0.3 MB used, Nanite streaming 512 MB for 83 MB used. Textures then grow in play (1036 -> 1590 MB in 5 min) until the
+  8 GB card is over its budget; from there every frame swaps over the bus: 100-200 ms, and frame generation adds nothing.
+- Changed (nothing visible): trees are in the light scene only within 300 m (out at 600; 615,331 -> 77,910 objects, tables
+  160 -> 20 MB), the rim's far tufts never; virtual-texture pools 8 MB each, Nanite streaming 160 MB; a guard lowers the
+  texture store in 2 s steps when the card has under 450 MB left and gives it back when there is room (logged).
+- Packaged code, career, 3840x1080, own frame generation, memory taken by another buffer to reach the limit
+  (before -> after code -> after code + config): game's memory 5830 -> 5680 -> 5185 MB. +1024 MB: 21/26 -> 13.7/18.2 ms;
+  +1536: 199/104 (no generated frames) -> 21.1/24.5 ms (95/82 shown/s); +2048: 195/115 -> 16.5/22.2 ms (121/90 shown/s);
+  +2560 still over (179/119). About 1 GB more room plus the guard.
+- Not proven yet: a long session in the owner's hands, and the same test on the packaged release.

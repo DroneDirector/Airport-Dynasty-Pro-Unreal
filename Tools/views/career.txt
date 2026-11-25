@@ -1,0 +1,31 @@
+# a career as the owner plays it (269): the hall, the jetway's cameras, then outside
+cmd r.VSync 0
+wait 15
+measure 8 where you start
+view 79 1.6 2.9 -90 0
+wait 6
+measure 6 hall one way
+view 79 1.6 2.9 90 0
+wait 6
+measure 6 hall other way
+hmi 0 cam
+wait 5
+measure 5 jetway camera page open
+hmi close
+wait 3
+view -1209 1.6 55.9 90 7
+wait 6
+measure 6 station 90 7
+view -1209 1.6 55.9 -69 12
+wait 6
+measure 6 station -69 12
+view -1130 1.6 44.8 -5 -5
+wait 6
+measure 6 drive
+view -400 1.6 40 0 2
+wait 6
+measure 6 apron towards hall
+view 79 1.6 2.9 -90 0
+wait 8
+measure 6 hall again
+quit

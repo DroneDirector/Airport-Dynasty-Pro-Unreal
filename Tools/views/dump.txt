@@ -1,0 +1,11 @@
+# what fills the card (269): the biggest things in graphics memory, in the editor's game only
+wait 20
+weather 2
+view -1209 1.6 55.9 90 7
+wait 15
+measure 4 station
+cmd rhi.DumpResourceMemory 130 all
+wait 2
+cmd rhi.DumpMemory
+wait 2
+quit

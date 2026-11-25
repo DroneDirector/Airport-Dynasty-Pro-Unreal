@@ -172,6 +172,7 @@ void ASiteTrees::Show(const FIntPoint& Key, FBlock& B)
 		// shadows from the trees near you only (their far shadows are in the 10 cm photo already)
 		C->SetCastShadow(true); C->bCastFarShadow = false;
 		C->SetCullDistances(0, int32(TreeRadiusKm * 100000.f));
+		C->bAffectDistanceFieldLighting = B.bNear;   // (the bounced light reaches 200 m: 525,000 trees out to 4 km in its scene only filled the card - to-do 269)
 		C->SetupAttachment(GetRootComponent());
 		C->RegisterComponent();
 		C->AddInstances(Xf[k], false, false);
@@ -186,6 +187,12 @@ void ASiteTrees::Hide(FBlock& B)
 	B.Parts.Reset(); B.bIn = false;
 }
 
+float ASiteTrees::GapTo(const FBlock& B, const FVector2D& Me) const
+{
+	const double X = FMath::Max(0.0, FMath::Abs(Me.X - B.Centre.X) - BlockM * 0.5), Y = FMath::Max(0.0, FMath::Abs(Me.Y - B.Centre.Y) - BlockM * 0.5);
+	return float(FMath::Sqrt(X * X + Y * Y));
+}
+
 void ASiteTrees::Stream(bool bAll)
 {
 	APlayerCameraManager* Cam = UGameplayStatics::GetPlayerCameraManager(this, 0);
@@ -196,8 +203,17 @@ void ASiteTrees::Stream(bool bAll)
 	for (auto& B : Blocks)
 	{
 		const bool bWant = FVector2D::Distance(B.Value.Centre, Me) < R;
-		if (bWant && !B.Value.bIn) { if (!bAll && Added >= 2) continue; Show(B.Key, B.Value); ++Added; }   // (two blocks a step: no hitch)
+		if (bWant && !B.Value.bIn) { if (!bAll && Added >= 2) continue; B.Value.bNear = GapTo(B.Value, Me) < 300.f; Show(B.Key, B.Value); ++Added; }   // (two blocks a step: no hitch)
 		else if (!bWant && B.Value.bIn && FVector2D::Distance(B.Value.Centre, Me) > R + BlockM) Hide(B.Value);
+		else if (B.Value.bIn && Added < 1)
+		{
+			const float Gap = GapTo(B.Value, Me);   // (in the light's scene from 300 m, out of it from 600 m; one block a step)
+			if (B.Value.bNear ? Gap > 600.f : Gap < 300.f)
+			{
+				B.Value.bNear = !B.Value.bNear; ++Added;
+				for (UHierarchicalInstancedStaticMeshComponent* C : B.Value.Parts) if (C) C->SetAffectDistanceFieldLighting(B.Value.bNear);
+			}
+		}
 	}
 }
 

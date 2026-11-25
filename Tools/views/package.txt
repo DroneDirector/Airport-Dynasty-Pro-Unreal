@@ -1,0 +1,121 @@
+# the owner's slow places of 2026-11-25 in the packaged game (269)
+cmd r.VSync 0
+day 329
+hour 9
+weather 2
+wait 2
+view -1209 1.6 55.9 90 7
+wait 4
+measure 4 h9 BROKEN station 90 7
+view -1209 1.6 55.9 -69 12
+wait 4
+measure 4 h9 BROKEN station -69 12
+view -1209 1.6 55.9 -1 60
+wait 4
+measure 4 h9 BROKEN station up
+view -1130 1.6 44.8 -5 -5
+wait 4
+measure 4 h9 BROKEN drive
+view -400 1.6 40 0 2
+wait 4
+measure 4 h9 BROKEN apron towards hall
+weather 0
+wait 2
+view -1209 1.6 55.9 90 7
+wait 4
+measure 4 h9 CLEAR station 90 7
+view -1209 1.6 55.9 -69 12
+wait 4
+measure 4 h9 CLEAR station -69 12
+view -1209 1.6 55.9 -1 60
+wait 4
+measure 4 h9 CLEAR station up
+view -1130 1.6 44.8 -5 -5
+wait 4
+measure 4 h9 CLEAR drive
+view -400 1.6 40 0 2
+wait 4
+measure 4 h9 CLEAR apron towards hall
+hour 4.8
+weather 2
+wait 2
+view -1209 1.6 55.9 90 7
+wait 4
+measure 4 h4.8 BROKEN station 90 7
+view -1209 1.6 55.9 -69 12
+wait 4
+measure 4 h4.8 BROKEN station -69 12
+view -1209 1.6 55.9 -1 60
+wait 4
+measure 4 h4.8 BROKEN station up
+view -1130 1.6 44.8 -5 -5
+wait 4
+measure 4 h4.8 BROKEN drive
+view -400 1.6 40 0 2
+wait 4
+measure 4 h4.8 BROKEN apron towards hall
+weather 0
+wait 2
+view -1209 1.6 55.9 90 7
+wait 4
+measure 4 h4.8 CLEAR station 90 7
+view -1209 1.6 55.9 -69 12
+wait 4
+measure 4 h4.8 CLEAR station -69 12
+view -1209 1.6 55.9 -1 60
+wait 4
+measure 4 h4.8 CLEAR station up
+view -1130 1.6 44.8 -5 -5
+wait 4
+measure 4 h4.8 CLEAR drive
+view -400 1.6 40 0 2
+wait 4
+measure 4 h4.8 CLEAR apron towards hall
+hour 9
+weather 2
+view -1209 1.6 55.9 -69 12
+wait 4
+measure 3 base
+cmd r.VolumetricCloud 0
+wait 1.5
+measure 2.5 off: r.VolumetricCloud 0
+cmd r.VolumetricCloud 1
+wait 1
+cmd r.Lumen.Reflections.Allow 0
+wait 1.5
+measure 2.5 off: r.Lumen.Reflections.Allow 0
+cmd r.Lumen.Reflections.Allow 1
+wait 1
+cmd r.Lumen.DiffuseIndirect.Allow 0
+wait 1.5
+measure 2.5 off: r.Lumen.DiffuseIndirect.Allow 0
+cmd r.Lumen.DiffuseIndirect.Allow 1
+wait 1
+cmd r.Shadow.Virtual.Enable 0
+wait 1.5
+measure 2.5 off: r.Shadow.Virtual.Enable 0
+cmd r.Shadow.Virtual.Enable 1
+wait 1
+cmd r.VolumetricFog 0
+wait 1.5
+measure 2.5 off: r.VolumetricFog 0
+cmd r.VolumetricFog 1
+wait 1
+cmd r.SkyLight.RealTimeReflectionCapture 0
+wait 1.5
+measure 2.5 off: r.SkyLight.RealTimeReflectionCapture 0
+cmd r.SkyLight.RealTimeReflectionCapture 1
+wait 1
+cmd r.FidelityFX.FI.Enabled 0
+wait 1.5
+measure 2.5 off: r.FidelityFX.FI.Enabled 0
+cmd r.FidelityFX.FI.Enabled 1
+wait 1
+cmd r.Nanite.ProjectEnabled 1
+wait 1.5
+measure 2.5 off: r.Nanite.ProjectEnabled 1
+cmd r.Nanite.ProjectEnabled 1
+wait 1
+shot F:/ADP-Packaged/perf/apron.png
+wait 2
+quit

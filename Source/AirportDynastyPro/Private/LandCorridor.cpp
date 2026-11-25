@@ -129,7 +129,7 @@ void ALandCorridor::PlantRim(const void*)
 	if (!Tuft || Rim.Num() == 0) return;
 	Plants = NewObject<UHierarchicalInstancedStaticMeshComponent>(this, TEXT("RimPlants"));
 	Plants->SetupAttachment(RootComponent); Plants->SetStaticMesh(Tuft);
-	Plants->SetCollisionEnabled(ECollisionEnabled::NoCollision); Plants->SetCastShadow(false);
+	Plants->SetCollisionEnabled(ECollisionEnabled::NoCollision); Plants->SetCastShadow(false); Plants->bAffectDistanceFieldLighting = false;   // (tufts: no bounced light of their own)
 	Plants->SetCullDistances(0, 60000);
 	Plants->RegisterComponent(); AddInstanceComponent(Plants);
 	FRandomStream R(20261114);

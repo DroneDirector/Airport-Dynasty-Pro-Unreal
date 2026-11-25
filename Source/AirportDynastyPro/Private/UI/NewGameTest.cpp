@@ -10,6 +10,7 @@
 #include "ADPLog.h"
 #include "CharacterCreate.h"
 #include "ChainTest.h"
+#include "PerfViews.h"
 #include "PaxNav.h"
 #include "UObject/UObjectIterator.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -177,6 +178,7 @@ void AADPHUD::TestNewGame(float Dt)
 			ADP_LOG(TEXT("NEWGAME TEST: %s - %d problems; loading %.1f s, from the title to the airport %.1f s, standing at %s"), Problems ? TEXT("FINISHED WITH PROBLEMS") : TEXT("PASSED"),
 				Problems, ReachedAirport - StartedLoad, ReachedAirport - T0, Me ? *Me->GetActorLocation().ToString() : TEXT("-"));
 			if (ADPChainTest::StartStage()) { EndAt = 1e17; ADPChainTest::Begin(GetWorld()); }   // (the career step after it: ChainTest.cpp ends the game)
+			else if (FString Vf; FParse::Value(FCommandLine::Get(), TEXT("UIPerfViews="), Vf)) { EndAt = 1e17; ADPPerfViews::Begin(Vf); }   // (the fixed views measured in a career: its own quit step)
 			else EndAt = Now + 3.0;
 		}
 		return;

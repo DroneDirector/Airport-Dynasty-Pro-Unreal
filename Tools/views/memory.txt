@@ -1,0 +1,36 @@
+# graphics memory pressure (269): the jetway's camera page, then more and more memory taken as other programs would
+cmd r.VSync 0
+day 329
+hour 9
+weather 2
+wait 2
+view -1209 1.6 55.9 -69 12
+wait 4
+measure 4 base
+hmi 0 cam
+wait 3
+measure 4 jetway camera page open
+hmi close
+wait 3
+view -1209 1.6 55.9 -69 12
+wait 4
+measure 4 after the jetway cameras
+eat 256
+wait 4
+measure 4 +256
+eat 256
+wait 4
+measure 4 +512
+eat 512
+wait 4
+measure 4 +1024
+eat 1024
+wait 4
+measure 4 +2048
+view -1209 1.6 55.9 90 7
+wait 4
+measure 4 +2048 other way
+view -400 1.6 40 0 2
+wait 4
+measure 4 +2048 apron
+quit

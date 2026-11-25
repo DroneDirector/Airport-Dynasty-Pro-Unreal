@@ -35,12 +35,13 @@ public:
 private:
 	struct FTree { float X, Y, Z, H, R, Kind; };
 	TArray<FTree> Trees;
-	struct FBlock { int32 First = 0, Num = 0; FVector2D Centre; bool bIn = false; TArray<TObjectPtr<UHierarchicalInstancedStaticMeshComponent>> Parts; };
+	struct FBlock { int32 First = 0, Num = 0; FVector2D Centre; bool bIn = false, bNear = false; TArray<TObjectPtr<UHierarchicalInstancedStaticMeshComponent>> Parts; };
 	TMap<FIntPoint, FBlock> Blocks;
 	UPROPERTY() TArray<TObjectPtr<UStaticMesh>> Meshes;   // Spruce_A, Spruce_B, Fir_A, Beech_A, BeechBare_A
 	UPROPERTY() TArray<TObjectPtr<UMaterialInstanceDynamic>> Mats;   // needles, conifer bark, leaves, beech bark
 	int32 Count = 0;
 	float Clock = 0.f;
+	float GapTo(const FBlock& B, const FVector2D& Me) const;   // metres from you to the block's nearest edge
 	int32 SeasonDay = -1;
 	float SnowShown = -1.f;      // the snow on the branches now (0..1), from the snow on the ground
 	bool bBareShown = false;

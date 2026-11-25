@@ -1,4 +1,5 @@
 #include "Effects.h"
+#include "GraphicsMemory.h"
 #include "ADPLog.h"
 #include "GroundDecals.h"
 #include "AirfieldLights.h"
@@ -109,7 +110,7 @@ namespace ADPEffects
 			{TEXT("r.Lumen.TranslucencyVolume.Enable"), TEXT("0")}};
 		for (const auto& P : Lighting) Saver(GOn[FastLighting], P[0], P[1]);
 		// video memory: the texture pool and the shadow pages (the Cinematic setting reserves 3000 MB and 8192 pages)
-		if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Streaming.PoolSize"))) V->Set(PoolMB(GQ[TextureMemory]), ECVF_SetByGameSetting);
+		ADPGraphicsMemory::Guard(PoolMB(GQ[TextureMemory]));   // (your setting is the most it may be; less while the card is nearly full - to-do 269)
 		if (IConsoleVariable* V = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.Virtual.MaxPhysicalPages"))) V->Set(Pages(GQ[ShadowDetail]), ECVF_SetByGameSetting);
 		if (!W) return;
 		for (TActorIterator<AGroundDecals> It(W); It; ++It)

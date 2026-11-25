@@ -1,0 +1,11 @@
+hour 13
+view -1209 1.6 55.9 -7 61
+wait 5
+census
+cmd rhi.DumpResourceMemory 60 all
+measure 5 station
+wait 1
+view 76 1.6 1.8 -132 8
+wait 5
+measure 5 hall
+quit

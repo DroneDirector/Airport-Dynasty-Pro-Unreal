@@ -1,0 +1,315 @@
+cmd r.FidelityFX.FI.Enabled 0
+day 329
+hour 4.8
+weather 2
+view -1209 1.6 55.9 90 7
+wait 4
+measure 2.5 night station yaw 90 pitch 7 BROKEN
+weather 0
+view -1209 1.6 55.9 90 7
+wait 2
+measure 2.5 night station yaw 90 pitch 7 clear
+weather 2
+view -1209 1.6 55.9 -1 60
+wait 4
+measure 2.5 night station yaw -1 pitch 60 BROKEN
+weather 0
+view -1209 1.6 55.9 -1 60
+wait 2
+measure 2.5 night station yaw -1 pitch 60 clear
+weather 2
+view -1209 1.6 55.9 0 8
+wait 4
+measure 2.5 night station yaw 0 pitch 8 BROKEN
+weather 0
+view -1209 1.6 55.9 0 8
+wait 2
+measure 2.5 night station yaw 0 pitch 8 clear
+weather 2
+view -1209 1.6 55.9 -91 -1
+wait 4
+measure 2.5 night station yaw -91 pitch -1 BROKEN
+weather 0
+view -1209 1.6 55.9 -91 -1
+wait 2
+measure 2.5 night station yaw -91 pitch -1 clear
+weather 2
+view -1209 1.6 55.9 180 8
+wait 4
+measure 2.5 night station yaw 180 pitch 8 BROKEN
+weather 0
+view -1209 1.6 55.9 180 8
+wait 2
+measure 2.5 night station yaw 180 pitch 8 clear
+weather 2
+view -1130 1.6 44.8 -5 -5
+wait 4
+measure 2.5 night drive yaw -5 pitch -5 BROKEN
+weather 0
+view -1130 1.6 44.8 -5 -5
+wait 2
+measure 2.5 night drive yaw -5 pitch -5 clear
+weather 2
+view -1209 1.6 55.9 90 7
+wait 4
+gpu
+wait 1
+cmd r.VolumetricCloud 0
+wait 1.5
+measure 2 night station BROKEN r.VolumetricCloud 0
+cmd r.VolumetricCloud 1
+cmd r.VolumetricCloud.ShadowMap 0
+wait 1.5
+measure 2 night station BROKEN r.VolumetricCloud.ShadowMap 0
+cmd r.VolumetricCloud.ShadowMap 1
+cmd r.SkyLight.RealTimeReflectionCapture 0
+wait 1.5
+measure 2 night station BROKEN r.SkyLight.RealTimeReflectionCapture 0
+cmd r.SkyLight.RealTimeReflectionCapture 1
+cmd ShowFlag.Fog 0
+wait 1.5
+measure 2 night station BROKEN ShowFlag.Fog 0
+cmd ShowFlag.Fog 2
+cmd ShowFlag.VolumetricFog 0
+wait 1.5
+measure 2 night station BROKEN ShowFlag.VolumetricFog 0
+cmd ShowFlag.VolumetricFog 2
+cmd ShowFlag.DynamicShadows 0
+wait 1.5
+measure 2 night station BROKEN ShowFlag.DynamicShadows 0
+cmd ShowFlag.DynamicShadows 2
+hour 8.6
+weather 2
+view -1209 1.6 55.9 90 7
+wait 4
+measure 2.5 sun 5 station yaw 90 pitch 7 BROKEN
+weather 0
+view -1209 1.6 55.9 90 7
+wait 2
+measure 2.5 sun 5 station yaw 90 pitch 7 clear
+weather 2
+view -1209 1.6 55.9 -1 60
+wait 4
+measure 2.5 sun 5 station yaw -1 pitch 60 BROKEN
+weather 0
+view -1209 1.6 55.9 -1 60
+wait 2
+measure 2.5 sun 5 station yaw -1 pitch 60 clear
+weather 2
+view -1209 1.6 55.9 0 8
+wait 4
+measure 2.5 sun 5 station yaw 0 pitch 8 BROKEN
+weather 0
+view -1209 1.6 55.9 0 8
+wait 2
+measure 2.5 sun 5 station yaw 0 pitch 8 clear
+weather 2
+view -1209 1.6 55.9 -91 -1
+wait 4
+measure 2.5 sun 5 station yaw -91 pitch -1 BROKEN
+weather 0
+view -1209 1.6 55.9 -91 -1
+wait 2
+measure 2.5 sun 5 station yaw -91 pitch -1 clear
+weather 2
+view -1209 1.6 55.9 180 8
+wait 4
+measure 2.5 sun 5 station yaw 180 pitch 8 BROKEN
+weather 0
+view -1209 1.6 55.9 180 8
+wait 2
+measure 2.5 sun 5 station yaw 180 pitch 8 clear
+weather 2
+view -1130 1.6 44.8 -5 -5
+wait 4
+measure 2.5 sun 5 drive yaw -5 pitch -5 BROKEN
+weather 0
+view -1130 1.6 44.8 -5 -5
+wait 2
+measure 2.5 sun 5 drive yaw -5 pitch -5 clear
+weather 2
+view -1209 1.6 55.9 90 7
+wait 4
+gpu
+wait 1
+cmd r.VolumetricCloud 0
+wait 1.5
+measure 2 sun 5 station BROKEN r.VolumetricCloud 0
+cmd r.VolumetricCloud 1
+cmd r.VolumetricCloud.ShadowMap 0
+wait 1.5
+measure 2 sun 5 station BROKEN r.VolumetricCloud.ShadowMap 0
+cmd r.VolumetricCloud.ShadowMap 1
+cmd r.SkyLight.RealTimeReflectionCapture 0
+wait 1.5
+measure 2 sun 5 station BROKEN r.SkyLight.RealTimeReflectionCapture 0
+cmd r.SkyLight.RealTimeReflectionCapture 1
+cmd ShowFlag.Fog 0
+wait 1.5
+measure 2 sun 5 station BROKEN ShowFlag.Fog 0
+cmd ShowFlag.Fog 2
+cmd ShowFlag.VolumetricFog 0
+wait 1.5
+measure 2 sun 5 station BROKEN ShowFlag.VolumetricFog 0
+cmd ShowFlag.VolumetricFog 2
+cmd ShowFlag.DynamicShadows 0
+wait 1.5
+measure 2 sun 5 station BROKEN ShowFlag.DynamicShadows 0
+cmd ShowFlag.DynamicShadows 2
+hour 9.8
+weather 2
+view -1209 1.6 55.9 90 7
+wait 4
+measure 2.5 sun 13 station yaw 90 pitch 7 BROKEN
+weather 0
+view -1209 1.6 55.9 90 7
+wait 2
+measure 2.5 sun 13 station yaw 90 pitch 7 clear
+weather 2
+view -1209 1.6 55.9 -1 60
+wait 4
+measure 2.5 sun 13 station yaw -1 pitch 60 BROKEN
+weather 0
+view -1209 1.6 55.9 -1 60
+wait 2
+measure 2.5 sun 13 station yaw -1 pitch 60 clear
+weather 2
+view -1209 1.6 55.9 0 8
+wait 4
+measure 2.5 sun 13 station yaw 0 pitch 8 BROKEN
+weather 0
+view -1209 1.6 55.9 0 8
+wait 2
+measure 2.5 sun 13 station yaw 0 pitch 8 clear
+weather 2
+view -1209 1.6 55.9 -91 -1
+wait 4
+measure 2.5 sun 13 station yaw -91 pitch -1 BROKEN
+weather 0
+view -1209 1.6 55.9 -91 -1
+wait 2
+measure 2.5 sun 13 station yaw -91 pitch -1 clear
+weather 2
+view -1209 1.6 55.9 180 8
+wait 4
+measure 2.5 sun 13 station yaw 180 pitch 8 BROKEN
+weather 0
+view -1209 1.6 55.9 180 8
+wait 2
+measure 2.5 sun 13 station yaw 180 pitch 8 clear
+weather 2
+view -1130 1.6 44.8 -5 -5
+wait 4
+measure 2.5 sun 13 drive yaw -5 pitch -5 BROKEN
+weather 0
+view -1130 1.6 44.8 -5 -5
+wait 2
+measure 2.5 sun 13 drive yaw -5 pitch -5 clear
+weather 2
+view -1209 1.6 55.9 90 7
+wait 4
+gpu
+wait 1
+cmd r.VolumetricCloud 0
+wait 1.5
+measure 2 sun 13 station BROKEN r.VolumetricCloud 0
+cmd r.VolumetricCloud 1
+cmd r.VolumetricCloud.ShadowMap 0
+wait 1.5
+measure 2 sun 13 station BROKEN r.VolumetricCloud.ShadowMap 0
+cmd r.VolumetricCloud.ShadowMap 1
+cmd r.SkyLight.RealTimeReflectionCapture 0
+wait 1.5
+measure 2 sun 13 station BROKEN r.SkyLight.RealTimeReflectionCapture 0
+cmd r.SkyLight.RealTimeReflectionCapture 1
+cmd ShowFlag.Fog 0
+wait 1.5
+measure 2 sun 13 station BROKEN ShowFlag.Fog 0
+cmd ShowFlag.Fog 2
+cmd ShowFlag.VolumetricFog 0
+wait 1.5
+measure 2 sun 13 station BROKEN ShowFlag.VolumetricFog 0
+cmd ShowFlag.VolumetricFog 2
+cmd ShowFlag.DynamicShadows 0
+wait 1.5
+measure 2 sun 13 station BROKEN ShowFlag.DynamicShadows 0
+cmd ShowFlag.DynamicShadows 2
+hour 13
+weather 2
+view -1209 1.6 55.9 90 7
+wait 4
+measure 2.5 noon station yaw 90 pitch 7 BROKEN
+weather 0
+view -1209 1.6 55.9 90 7
+wait 2
+measure 2.5 noon station yaw 90 pitch 7 clear
+weather 2
+view -1209 1.6 55.9 -1 60
+wait 4
+measure 2.5 noon station yaw -1 pitch 60 BROKEN
+weather 0
+view -1209 1.6 55.9 -1 60
+wait 2
+measure 2.5 noon station yaw -1 pitch 60 clear
+weather 2
+view -1209 1.6 55.9 0 8
+wait 4
+measure 2.5 noon station yaw 0 pitch 8 BROKEN
+weather 0
+view -1209 1.6 55.9 0 8
+wait 2
+measure 2.5 noon station yaw 0 pitch 8 clear
+weather 2
+view -1209 1.6 55.9 -91 -1
+wait 4
+measure 2.5 noon station yaw -91 pitch -1 BROKEN
+weather 0
+view -1209 1.6 55.9 -91 -1
+wait 2
+measure 2.5 noon station yaw -91 pitch -1 clear
+weather 2
+view -1209 1.6 55.9 180 8
+wait 4
+measure 2.5 noon station yaw 180 pitch 8 BROKEN
+weather 0
+view -1209 1.6 55.9 180 8
+wait 2
+measure 2.5 noon station yaw 180 pitch 8 clear
+weather 2
+view -1130 1.6 44.8 -5 -5
+wait 4
+measure 2.5 noon drive yaw -5 pitch -5 BROKEN
+weather 0
+view -1130 1.6 44.8 -5 -5
+wait 2
+measure 2.5 noon drive yaw -5 pitch -5 clear
+weather 2
+view -1209 1.6 55.9 90 7
+wait 4
+gpu
+wait 1
+cmd r.VolumetricCloud 0
+wait 1.5
+measure 2 noon station BROKEN r.VolumetricCloud 0
+cmd r.VolumetricCloud 1
+cmd r.VolumetricCloud.ShadowMap 0
+wait 1.5
+measure 2 noon station BROKEN r.VolumetricCloud.ShadowMap 0
+cmd r.VolumetricCloud.ShadowMap 1
+cmd r.SkyLight.RealTimeReflectionCapture 0
+wait 1.5
+measure 2 noon station BROKEN r.SkyLight.RealTimeReflectionCapture 0
+cmd r.SkyLight.RealTimeReflectionCapture 1
+cmd ShowFlag.Fog 0
+wait 1.5
+measure 2 noon station BROKEN ShowFlag.Fog 0
+cmd ShowFlag.Fog 2
+cmd ShowFlag.VolumetricFog 0
+wait 1.5
+measure 2 noon station BROKEN ShowFlag.VolumetricFog 0
+cmd ShowFlag.VolumetricFog 2
+cmd ShowFlag.DynamicShadows 0
+wait 1.5
+measure 2 noon station BROKEN ShowFlag.DynamicShadows 0
+cmd ShowFlag.DynamicShadows 2
+quit

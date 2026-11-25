@@ -1,0 +1,50 @@
+# how the card's memory grows as you walk about (269): the owner's own way through the career, at the station in between
+cmd r.VSync 0
+hour 5
+weather 5
+wait 8
+view -1209 1.6 55.9 -7 61
+wait 8
+measure 3 station start
+view 32.7 1.9 -9.1 -89 -10
+wait 8
+fly -48.8 1.9 -22.5 176 -7 12
+fly -36.6 1.6 46 67 -8 12
+fly -117 7.6 65.2 137 -3 15
+fly -211.9 7.6 79.6 -82 -9 15
+wait 5
+measure 3 west pier
+hmi 0 cam
+wait 20
+measure 3 jetway screen's cameras
+hmi close
+wait 3
+view -1209 1.6 55.9 -7 61
+wait 8
+measure 3 station after the jetway's cameras
+weather 2
+view -47.5 7.6 69.3 -3 -21
+wait 5
+fly 226.8 1.6 147.9 114 -16 25
+fly 173.7 1.6 117.7 6 -33 15
+fly 234.6 1.6 91.3 124 7 15
+fly 316.4 7.6 78.9 152 7 15
+fly 278.4 7.6 62.5 84 -5 10
+fly 295 6.6 104.6 92 -15 10
+measure 3 east pier
+view -1209 1.6 55.9 -7 61
+wait 8
+measure 3 station after the east pier
+view -1209 1.6 55.9 90 7
+wait 8
+measure 3 station 90 7
+hour 13
+fly -1078 1.6 29 107 1 20
+fly -400 1.6 40 0 2 20
+fly 76 1.6 1.8 -132 8 20
+fly 12.8 7.6 29.3 41 2 15
+measure 3 hall at the end
+view -1209 1.6 55.9 -7 61
+wait 8
+measure 3 station at the end
+quit

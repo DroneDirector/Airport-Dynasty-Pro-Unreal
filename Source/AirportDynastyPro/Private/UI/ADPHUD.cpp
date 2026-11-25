@@ -26,6 +26,7 @@ static bool GTourTracking = false;   // (the tug tour's tracking camera has a su
 #include "GameFramework/Character.h"
 #include "Escalators.h"
 #include "StressWalk.h"
+#include "PerfViews.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "HAL/PlatformApplicationMisc.h"
@@ -3823,6 +3824,8 @@ void AADPHUD::Tick(float Dt)
 		}
 		// -UIPerfWalk: the stress walk (StressWalk.h), the game closing at its end (Tools/perf_walk.sh)
 		if (FParse::Param(FCommandLine::Get(), TEXT("UIPerfWalk")) && Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ADPStressWalk::Begin(true); }
+	// -UIPerfViews=<file>: fixed views measured, settings switched one at a time (PerfViews.cpp, to-do 269)
+	{ FString Vf; if (Before < 40.f && ShotClock >= 40.f && FParse::Value(FCommandLine::Get(), TEXT("UIPerfViews="), Vf)) { if (bGame) ToggleGame(); ADPPerfViews::Begin(Vf); } }
 	// -UICoachWalk: the coaches' own stress walk (to-do 146)
 	if (FParse::Param(FCommandLine::Get(), TEXT("UICoachWalk")) && Before < 40.f && ShotClock >= 40.f) { if (bGame) ToggleGame(); ADPStressWalk::BeginCoaches(true); }
 	// -UIFullWalk: both in one go (the terminal, then the coaches)
@@ -6117,7 +6120,7 @@ void AADPHUD::TestChablais(float Before, float ShotClock)
 							}
 					}
 			}
-			{ const float End = (bList ? 45.f : 251.f) + 22.f * Spots.Num(); if (B2 < End && C2 >= End) ADP_SHOT_EXIT(); }
+			{ const float End = (bList ? 45.f : 251.f) + 22.f * Spots.Num(); if (B2 < End && C2 >= End && !FParse::Param(FCommandLine::Get(), TEXT("UIPerfViews")) && !FString(FCommandLine::Get()).Contains(TEXT("-UIPerfViews="))) ADP_SHOT_EXIT(); }
 		}
 
 void AADPHUD::TestCoaches(float Before, float ShotClock)

@@ -1,0 +1,38 @@
+# the owner's own weather (269): BROKEN clouds against the others, at the fire station and the hall, night and low sun
+cmd r.VSync 0
+wait 10
+hour 4.9
+view -1209 1.6 55.9 -7 61
+weather 1
+wait 8
+measure 5 night FEW sky
+weather 2
+wait 8
+measure 5 night BROKEN sky
+view -1209 1.6 55.9 90 7
+wait 6
+measure 5 night BROKEN 90 7
+view -1197.3 1.6 51.1 -69 12
+wait 6
+measure 5 night BROKEN -69 12
+hour 9
+wait 8
+measure 5 morning BROKEN -69 12
+view -1209 1.6 55.9 -7 61
+wait 6
+measure 5 morning BROKEN sky
+cmd r.VolumetricCloud.ViewRaySampleMaxCount 64
+wait 3
+measure 4 same, 64 samples
+cmd r.VolumetricCloud 0
+wait 3
+measure 4 same, no clouds
+cmd r.VolumetricCloud 1
+cmd r.VolumetricCloud.ViewRaySampleMaxCount 256
+weather 5
+wait 6
+measure 5 morning RAIN sky
+weather 0
+wait 6
+measure 5 morning CLEAR sky
+quit

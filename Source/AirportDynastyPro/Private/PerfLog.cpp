@@ -4,6 +4,7 @@
 // which way it looked, so a stutter can be traced to a place and a cause. Every 30 s in the airport: a short summary
 // (average, the slowest 1 % and the worst frame). The run before is kept as ADP-Perf-prev.log.
 #include "PerfLog.h"
+#include "GraphicsMemory.h"
 #include "ADPFrameGen.h"
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"
@@ -187,7 +188,7 @@ namespace ADPPerfLogInternal
 			const float Low1 = S[FMath::Clamp(int32(S.Num() * 0.99f), 0, S.Num() - 1)];
 			PerfLine(FString::Printf(TEXT("30 s: %.0f fps on average (%.1f ms), slowest 1%% %.1f ms (%.0f fps), worst %.0f ms, %d bad frames%s"),
 				1000.0 * S.Num() / Sum, Sum / S.Num(), Low1, 1000.f / Low1, S.Last(), PerfBad, *ADPPerfLog::ScreenLine(Now - PerfWindowStart, PerfFgShown, PerfFgMade)));
-			{ const double N = FMath::Max(1, S.Num()); PerfLine(FString::Printf(TEXT("      each frame on average: game %.1f ms, render %.1f ms, graphics card %.1f ms"), PerfSumGame / N, PerfSumRender / N, PerfSumGpu / N)); }
+			{ const double N = FMath::Max(1, S.Num()); PerfLine(FString::Printf(TEXT("      each frame on average: game %.1f ms, render %.1f ms, graphics card %.1f ms; %s"), PerfSumGame / N, PerfSumRender / N, PerfSumGpu / N, *ADPGraphicsMemory::Line())); }
 			PerfSumGame = PerfSumRender = PerfSumGpu = 0.0;
 			PerfWindow.Reset(); PerfWindowStart = Now; PerfBad = 0;
 		}

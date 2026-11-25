@@ -1,0 +1,24 @@
+hour 13
+cmd stat none
+cmd stat NaniteStreaming
+view -1209 1.6 55.9 -7 61
+wait 8
+shotui nanite1
+wait 2
+view 32.7 1.9 -9.1 -89 -10
+wait 8
+shotui nanite2
+wait 2
+view 76 1.6 1.8 -132 8
+wait 8
+shotui nanite3
+wait 2
+view -211.9 7.6 79.6 -82 -9
+wait 8
+shotui nanite4
+wait 2
+view 295 6.6 104.6 92 -15
+wait 8
+shotui nanite5
+wait 2
+quit

@@ -27,7 +27,16 @@ fi
 KEEP=$(mktemp -d "$OUT/keep-XXXXXX")
 PARTS="Careers Saves Autosaves ADP webcache_6613 Config/Windows/GameUserSettings.ini Config/WindowsEditor/GameUserSettings.ini LastActivity.txt"
 for p in $PARTS; do [ -e "$S/$p" ] && { mkdir -p "$KEEP/$(dirname $p)"; cp -rp "$S/$p" "$KEEP/$p" || { echo "STOP: $p couldn't be put aside"; rm -rf "$KEEP"; exit 1; }; }; done
-putback() { for p in $PARTS; do rm -rf "$S/$p"; [ -e "$KEEP/$p" ] && { mkdir -p "$S/$(dirname $p)"; cp -rp "$KEEP/$p" "$S/$p"; }; done; rm -rf "$KEEP"; }
+# (2026-11-25: files still open right after the game's end kept the old folder there, and the copy landed INSIDE it - the menus
+# had lost their save. So: waited until every helper is gone, the folder's removal checked, and if it can't be put back the copy stays.)
+putback() { local OK=1 p i
+  # (only the game's own page helpers, told by their command line - the Epic launcher has the same ones)
+  for i in $(seq 1 30); do [ "$(powershell -NoProfile -Command "@(Get-CimInstance Win32_Process | Where-Object { \$_.Name -like 'AirportDynastyPro-Win64*' -or (\$_.Name -eq 'EpicWebHelper.exe' -and \$_.CommandLine -match 'AirportDynastyPro') }).Count" | tr -d '\r')" = 0 ] && break; sleep 1; done
+  for p in $PARTS; do
+    for i in $(seq 1 20); do rm -rf "$S/$p" 2>/dev/null; [ -e "$S/$p" ] || break; sleep 1; done
+    [ -e "$S/$p" ] && { echo "PUT BACK FAILED: $S/$p is still open - the copy stays in $KEEP"; OK=0; continue; }
+    [ -e "$KEEP/$p" ] && { mkdir -p "$S/$(dirname $p)"; cp -rpT "$KEEP/$p" "$S/$p" || { echo "PUT BACK FAILED: $p - the copy stays in $KEEP"; OK=0; }; }
+  done; [ $OK = 1 ] && rm -rf "$KEEP"; }
 trap putback EXIT
 # a crash window of this test's own game copy (owner 2026-11-23: read, then closed at once - never left on his screen): its
 # crash kept in Saved/NewGameTest/crashes, the window watching that PID closed; never any other window

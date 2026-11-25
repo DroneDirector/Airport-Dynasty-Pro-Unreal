@@ -1,0 +1,361 @@
+hour 13
+weather 2
+cmd r.FidelityFX.FI.Enabled 0
+view -1204.4 1.6 32.7 0 8
+wait 12
+measure 4 apron fire station yaw 0 | as it is
+shot v_apron_fire_station_yaw_0
+wait 2
+gpu
+cmd r.VolumetricCloud 0
+wait 1.5
+measure 2.5 apron fire station yaw 0 | r.VolumetricCloud 0
+cmd r.VolumetricCloud 1
+cmd r.SkyLight.RealTimeReflectionCapture 0
+wait 1.5
+measure 2.5 apron fire station yaw 0 | r.SkyLight.RealTimeReflectionCapture 0
+cmd r.SkyLight.RealTimeReflectionCapture 1
+cmd ShowFlag.VolumetricFog 0
+wait 1.5
+measure 2.5 apron fire station yaw 0 | ShowFlag.VolumetricFog 0
+cmd ShowFlag.VolumetricFog 2
+cmd ShowFlag.Translucency 0
+wait 1.5
+measure 2.5 apron fire station yaw 0 | ShowFlag.Translucency 0
+cmd ShowFlag.Translucency 2
+cmd ShowFlag.DynamicShadows 0
+wait 1.5
+measure 2.5 apron fire station yaw 0 | ShowFlag.DynamicShadows 0
+cmd ShowFlag.DynamicShadows 2
+cmd ShowFlag.LumenReflections 0
+wait 1.5
+measure 2.5 apron fire station yaw 0 | ShowFlag.LumenReflections 0
+cmd ShowFlag.LumenReflections 2
+cmd ShowFlag.LumenGlobalIllumination 0
+wait 1.5
+measure 2.5 apron fire station yaw 0 | ShowFlag.LumenGlobalIllumination 0
+cmd ShowFlag.LumenGlobalIllumination 2
+cmd ShowFlag.InstancedFoliage 0
+wait 1.5
+measure 2.5 apron fire station yaw 0 | ShowFlag.InstancedFoliage 0
+cmd ShowFlag.InstancedFoliage 2
+cmd ShowFlag.NaniteMeshes 0
+wait 1.5
+measure 2.5 apron fire station yaw 0 | ShowFlag.NaniteMeshes 0
+cmd ShowFlag.NaniteMeshes 2
+cmd ShowFlag.Decals 0
+wait 1.5
+measure 2.5 apron fire station yaw 0 | ShowFlag.Decals 0
+cmd ShowFlag.Decals 2
+cmd ShowFlag.SkeletalMeshes 0
+wait 1.5
+measure 2.5 apron fire station yaw 0 | ShowFlag.SkeletalMeshes 0
+cmd ShowFlag.SkeletalMeshes 2
+cmd ShowFlag.DirectLighting 0
+wait 1.5
+measure 2.5 apron fire station yaw 0 | ShowFlag.DirectLighting 0
+cmd ShowFlag.DirectLighting 2
+wait 1
+weather 5
+wait 60
+measure 4 apron fire station yaw 0 | rain
+weather 2
+wait 3
+measure 3 apron fire station yaw 0 | after rain, broken
+weather 0
+wait 3
+measure 3 apron fire station yaw 0 | clear
+weather 2
+wait 2
+view -1207.5 2.3 35.1 -91 -1
+wait 12
+measure 4 truck yaw -91 | as it is
+shot v_truck_yaw_-91
+wait 2
+gpu
+cmd r.VolumetricCloud 0
+wait 1.5
+measure 2.5 truck yaw -91 | r.VolumetricCloud 0
+cmd r.VolumetricCloud 1
+cmd r.SkyLight.RealTimeReflectionCapture 0
+wait 1.5
+measure 2.5 truck yaw -91 | r.SkyLight.RealTimeReflectionCapture 0
+cmd r.SkyLight.RealTimeReflectionCapture 1
+cmd ShowFlag.VolumetricFog 0
+wait 1.5
+measure 2.5 truck yaw -91 | ShowFlag.VolumetricFog 0
+cmd ShowFlag.VolumetricFog 2
+cmd ShowFlag.Translucency 0
+wait 1.5
+measure 2.5 truck yaw -91 | ShowFlag.Translucency 0
+cmd ShowFlag.Translucency 2
+cmd ShowFlag.DynamicShadows 0
+wait 1.5
+measure 2.5 truck yaw -91 | ShowFlag.DynamicShadows 0
+cmd ShowFlag.DynamicShadows 2
+cmd ShowFlag.LumenReflections 0
+wait 1.5
+measure 2.5 truck yaw -91 | ShowFlag.LumenReflections 0
+cmd ShowFlag.LumenReflections 2
+cmd ShowFlag.LumenGlobalIllumination 0
+wait 1.5
+measure 2.5 truck yaw -91 | ShowFlag.LumenGlobalIllumination 0
+cmd ShowFlag.LumenGlobalIllumination 2
+cmd ShowFlag.InstancedFoliage 0
+wait 1.5
+measure 2.5 truck yaw -91 | ShowFlag.InstancedFoliage 0
+cmd ShowFlag.InstancedFoliage 2
+cmd ShowFlag.NaniteMeshes 0
+wait 1.5
+measure 2.5 truck yaw -91 | ShowFlag.NaniteMeshes 0
+cmd ShowFlag.NaniteMeshes 2
+cmd ShowFlag.Decals 0
+wait 1.5
+measure 2.5 truck yaw -91 | ShowFlag.Decals 0
+cmd ShowFlag.Decals 2
+cmd ShowFlag.SkeletalMeshes 0
+wait 1.5
+measure 2.5 truck yaw -91 | ShowFlag.SkeletalMeshes 0
+cmd ShowFlag.SkeletalMeshes 2
+cmd ShowFlag.DirectLighting 0
+wait 1.5
+measure 2.5 truck yaw -91 | ShowFlag.DirectLighting 0
+cmd ShowFlag.DirectLighting 2
+wait 1
+weather 5
+wait 8
+measure 4 truck yaw -91 | rain
+weather 2
+wait 3
+measure 3 truck yaw -91 | after rain, broken
+weather 0
+wait 3
+measure 3 truck yaw -91 | clear
+weather 2
+wait 2
+view -1208.9 1.6 56 -1 60
+wait 12
+measure 4 sky pitch 60 | as it is
+shot v_sky_pitch_60
+view -1208.9 1.6 55.9 54 16
+wait 12
+measure 4 apron yaw 54 | as it is
+shot v_apron_yaw_54
+view -1150 1.6 45.6 -5 -5
+wait 12
+measure 4 drive -5 | as it is
+shot v_drive_-5
+wait 2
+gpu
+cmd r.VolumetricCloud 0
+wait 1.5
+measure 2.5 drive -5 | r.VolumetricCloud 0
+cmd r.VolumetricCloud 1
+cmd r.SkyLight.RealTimeReflectionCapture 0
+wait 1.5
+measure 2.5 drive -5 | r.SkyLight.RealTimeReflectionCapture 0
+cmd r.SkyLight.RealTimeReflectionCapture 1
+cmd ShowFlag.VolumetricFog 0
+wait 1.5
+measure 2.5 drive -5 | ShowFlag.VolumetricFog 0
+cmd ShowFlag.VolumetricFog 2
+cmd ShowFlag.Translucency 0
+wait 1.5
+measure 2.5 drive -5 | ShowFlag.Translucency 0
+cmd ShowFlag.Translucency 2
+cmd ShowFlag.DynamicShadows 0
+wait 1.5
+measure 2.5 drive -5 | ShowFlag.DynamicShadows 0
+cmd ShowFlag.DynamicShadows 2
+cmd ShowFlag.LumenReflections 0
+wait 1.5
+measure 2.5 drive -5 | ShowFlag.LumenReflections 0
+cmd ShowFlag.LumenReflections 2
+cmd ShowFlag.LumenGlobalIllumination 0
+wait 1.5
+measure 2.5 drive -5 | ShowFlag.LumenGlobalIllumination 0
+cmd ShowFlag.LumenGlobalIllumination 2
+cmd ShowFlag.InstancedFoliage 0
+wait 1.5
+measure 2.5 drive -5 | ShowFlag.InstancedFoliage 0
+cmd ShowFlag.InstancedFoliage 2
+cmd ShowFlag.NaniteMeshes 0
+wait 1.5
+measure 2.5 drive -5 | ShowFlag.NaniteMeshes 0
+cmd ShowFlag.NaniteMeshes 2
+cmd ShowFlag.Decals 0
+wait 1.5
+measure 2.5 drive -5 | ShowFlag.Decals 0
+cmd ShowFlag.Decals 2
+cmd ShowFlag.SkeletalMeshes 0
+wait 1.5
+measure 2.5 drive -5 | ShowFlag.SkeletalMeshes 0
+cmd ShowFlag.SkeletalMeshes 2
+cmd ShowFlag.DirectLighting 0
+wait 1.5
+measure 2.5 drive -5 | ShowFlag.DirectLighting 0
+cmd ShowFlag.DirectLighting 2
+wait 1
+weather 5
+wait 8
+measure 4 drive -5 | rain
+weather 2
+wait 3
+measure 3 drive -5 | after rain, broken
+weather 0
+wait 3
+measure 3 drive -5 | clear
+weather 2
+wait 2
+view 310 7.2 88.5 88 -11
+wait 12
+measure 4 gate apron | as it is
+shot v_gate_apron
+view 310 1.6 120 -90 8
+wait 12
+measure 4 gate apron down | as it is
+shot v_gate_apron_down
+wait 2
+gpu
+cmd r.VolumetricCloud 0
+wait 1.5
+measure 2.5 gate apron down | r.VolumetricCloud 0
+cmd r.VolumetricCloud 1
+cmd r.SkyLight.RealTimeReflectionCapture 0
+wait 1.5
+measure 2.5 gate apron down | r.SkyLight.RealTimeReflectionCapture 0
+cmd r.SkyLight.RealTimeReflectionCapture 1
+cmd ShowFlag.VolumetricFog 0
+wait 1.5
+measure 2.5 gate apron down | ShowFlag.VolumetricFog 0
+cmd ShowFlag.VolumetricFog 2
+cmd ShowFlag.Translucency 0
+wait 1.5
+measure 2.5 gate apron down | ShowFlag.Translucency 0
+cmd ShowFlag.Translucency 2
+cmd ShowFlag.DynamicShadows 0
+wait 1.5
+measure 2.5 gate apron down | ShowFlag.DynamicShadows 0
+cmd ShowFlag.DynamicShadows 2
+cmd ShowFlag.LumenReflections 0
+wait 1.5
+measure 2.5 gate apron down | ShowFlag.LumenReflections 0
+cmd ShowFlag.LumenReflections 2
+cmd ShowFlag.LumenGlobalIllumination 0
+wait 1.5
+measure 2.5 gate apron down | ShowFlag.LumenGlobalIllumination 0
+cmd ShowFlag.LumenGlobalIllumination 2
+cmd ShowFlag.InstancedFoliage 0
+wait 1.5
+measure 2.5 gate apron down | ShowFlag.InstancedFoliage 0
+cmd ShowFlag.InstancedFoliage 2
+cmd ShowFlag.NaniteMeshes 0
+wait 1.5
+measure 2.5 gate apron down | ShowFlag.NaniteMeshes 0
+cmd ShowFlag.NaniteMeshes 2
+cmd ShowFlag.Decals 0
+wait 1.5
+measure 2.5 gate apron down | ShowFlag.Decals 0
+cmd ShowFlag.Decals 2
+cmd ShowFlag.SkeletalMeshes 0
+wait 1.5
+measure 2.5 gate apron down | ShowFlag.SkeletalMeshes 0
+cmd ShowFlag.SkeletalMeshes 2
+cmd ShowFlag.DirectLighting 0
+wait 1.5
+measure 2.5 gate apron down | ShowFlag.DirectLighting 0
+cmd ShowFlag.DirectLighting 2
+wait 1
+weather 5
+wait 8
+measure 4 gate apron down | rain
+weather 2
+wait 3
+measure 3 gate apron down | after rain, broken
+weather 0
+wait 3
+measure 3 gate apron down | clear
+weather 2
+wait 2
+view 87.5 7.7 60 0 0
+wait 12
+measure 4 walkway | as it is
+shot v_walkway
+wait 2
+gpu
+cmd r.VolumetricCloud 0
+wait 1.5
+measure 2.5 walkway | r.VolumetricCloud 0
+cmd r.VolumetricCloud 1
+cmd r.SkyLight.RealTimeReflectionCapture 0
+wait 1.5
+measure 2.5 walkway | r.SkyLight.RealTimeReflectionCapture 0
+cmd r.SkyLight.RealTimeReflectionCapture 1
+cmd ShowFlag.VolumetricFog 0
+wait 1.5
+measure 2.5 walkway | ShowFlag.VolumetricFog 0
+cmd ShowFlag.VolumetricFog 2
+cmd ShowFlag.Translucency 0
+wait 1.5
+measure 2.5 walkway | ShowFlag.Translucency 0
+cmd ShowFlag.Translucency 2
+cmd ShowFlag.DynamicShadows 0
+wait 1.5
+measure 2.5 walkway | ShowFlag.DynamicShadows 0
+cmd ShowFlag.DynamicShadows 2
+cmd ShowFlag.LumenReflections 0
+wait 1.5
+measure 2.5 walkway | ShowFlag.LumenReflections 0
+cmd ShowFlag.LumenReflections 2
+cmd ShowFlag.LumenGlobalIllumination 0
+wait 1.5
+measure 2.5 walkway | ShowFlag.LumenGlobalIllumination 0
+cmd ShowFlag.LumenGlobalIllumination 2
+cmd ShowFlag.InstancedFoliage 0
+wait 1.5
+measure 2.5 walkway | ShowFlag.InstancedFoliage 0
+cmd ShowFlag.InstancedFoliage 2
+cmd ShowFlag.NaniteMeshes 0
+wait 1.5
+measure 2.5 walkway | ShowFlag.NaniteMeshes 0
+cmd ShowFlag.NaniteMeshes 2
+cmd ShowFlag.Decals 0
+wait 1.5
+measure 2.5 walkway | ShowFlag.Decals 0
+cmd ShowFlag.Decals 2
+cmd ShowFlag.SkeletalMeshes 0
+wait 1.5
+measure 2.5 walkway | ShowFlag.SkeletalMeshes 0
+cmd ShowFlag.SkeletalMeshes 2
+cmd ShowFlag.DirectLighting 0
+wait 1.5
+measure 2.5 walkway | ShowFlag.DirectLighting 0
+cmd ShowFlag.DirectLighting 2
+wait 1
+weather 5
+wait 8
+measure 4 walkway | rain
+weather 2
+wait 3
+measure 3 walkway | after rain, broken
+weather 0
+wait 3
+measure 3 walkway | clear
+weather 2
+wait 2
+view 87.5 7.7 60 180 0
+wait 12
+measure 4 walkway back | as it is
+shot v_walkway_back
+view 79.5 1.7 -62 90 5
+wait 12
+measure 4 entrance | as it is
+shot v_entrance
+view 75 1.7 15 0 0
+wait 12
+measure 4 hall | as it is
+shot v_hall
+view -1204.4 1.6 32.7 0 8
+wait 5
+measure 4 again apron (memory?)
+quit
