@@ -32,6 +32,8 @@
 #include "MetaRoadMeshBuild/MetaRoadBuildSettingsBase.h"
 #include "UObject/UnrealType.h"
 #include "Materials/MaterialInterface.h"
+#include "Materials/Material.h"
+#include "Engine/Texture2D.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Dom/JsonObject.h"
@@ -122,7 +124,7 @@ namespace
 		UMaterialInterface* M = nullptr;
 		if (Type == TEXT("Island")) M = ATerminalBuilder::KitMaterial(Outer, FName(TEXT("ggrass")));
 		else if (Type == TEXT("Apron")) M = ATerminalBuilder::KitMaterial(Outer, FName(TEXT("gconcrete")));
-		else if (Type == TEXT("Median") || Type == TEXT("Restricted")) M = LoadObject<UMaterialInterface>(nullptr, TEXT("/MetaRoad/Materials/MI_Restricted.MI_Restricted"));
+		else if (Type == TEXT("Median") || Type == TEXT("Restricted")) M = LoadObject<UMaterialInterface>(nullptr, TEXT("/MetaRoad/MetaRoad/Materials/MI_Restricted.MI_Restricted"));
 		else M = ATerminalBuilder::KitMaterial(Outer, Type == TEXT("Sidewalk") ? FName(TEXT("gwalk")) : FName(TEXT("groad")));
 		Cache.Add(Type, M);
 		return M;
@@ -185,6 +187,32 @@ namespace
 	// mesh's outlines kept within 2 cm of the true curve (MetaRoad's default 5 cm), a point at least every 2 m along
 	// the road (default 3.75 m), the lane lines within 3 cm (1 cm / 1 m took 25 s for the 2.6 km forecourt at start). Set by name: the property sets' classes are private to
 	// the plugin.
+	/** Every landside surface's material checked and written down (to-do 248: "the roads have no textures"): an empty or
+	 *  foreign slot (MetaRoad's own defaults exist in the editor only) gets the road's asphalt, loudly; the scans it uses
+	 *  stay in memory at full size (meshes made while the game runs tell the streaming nothing about their textures). */
+	void CheckSurface(UMeshComponent* C, int32 Slot, const FString& What)
+	{
+		UMaterialInterface* M = C->GetMaterial(Slot);
+		const bool bOurs = M && M->GetMaterial() && M->GetMaterial()->GetName() == TEXT("M_Ground");
+		if (!bOurs && !(M && M->GetName() == TEXT("MI_Restricted")))
+		{
+			ADP_WARN(TEXT("Roads: %s had %s - now the road's asphalt"), *What, M ? *M->GetName() : TEXT("no material"));
+			M = ATerminalBuilder::KitMaterial(C, FName(TEXT("groad"))); C->SetMaterial(Slot, M);
+		}
+		static TSet<FString> Said;
+		FString Tx;
+		for (const TCHAR* P : {TEXT("ScanDiff"), TEXT("ScanDiffBig"), TEXT("ScanNormal"), TEXT("ScanRough")})
+		{
+			UTexture* T = nullptr;
+			if (!M || !M->GetTextureParameterValue(FHashedMaterialParameterInfo(FName(P)), T)) continue;
+			if (UTexture2D* T2 = Cast<UTexture2D>(T)) { T2->bForceMiplevelsToBeResident = true; Tx += FString::Printf(TEXT(" %s=%s %d/%d"), P, *T2->GetName(), T2->GetNumResidentMips(), T2->GetNumMips()); }
+		}
+		float V[5] = {}; int32 k = 0;
+		if (M) for (const TCHAR* P : {TEXT("UseScan"), TEXT("ScanSize"), TEXT("RoadWear"), TEXT("FarLook"), TEXT("PaintRelief")}) M->GetScalarParameterValue(FHashedMaterialParameterInfo(FName(P)), V[k++]);
+		ADP_LOG(TEXT("Roads: %s: %s, scan %.0f size %.2f wear %.0f far %.2f paint %.2f%s"), *What, M ? *M->GetName() : TEXT("none"), V[0], V[1], V[2], V[3], V[4], Said.Contains(Tx) ? TEXT(", textures as above") : *Tx);
+		Said.Add(Tx);
+	}
+
 	/** The built road made solid (to-do 287): in a packaged game Unreal makes no collision for a mesh made while it runs unless
 	 *  the mesh belongs to something in the world and may be read (the editor always makes it) - people, vehicles and you
 	 *  stood on the ground under the roads, their pavements and crossings. */
@@ -197,6 +225,7 @@ namespace
 			UStaticMesh* M = C->GetStaticMesh();
 			if (!M || M->GetOuter() != GetTransientPackage()) continue;
 			++N;
+			for (int32 s = 0; s < C->GetNumMaterials(); ++s) CheckSurface(C, s, FString::Printf(TEXT("%s part %d slot %d"), *Id, N, s));
 			M->bAllowCPUAccess = true;
 			M->Rename(nullptr, C, REN_DontCreateRedirectors | REN_NonTransactional | REN_DoNotDirty);
 			if (!M->GetBodySetup()) M->CreateBodySetup();
@@ -1043,10 +1072,15 @@ bool ARoadNetwork::BuildSome(double Budget)
 		for (TPair<FName, FPaintBuf>& It : Paint)
 		{
 			FPaintBuf& B = It.Value;
+			// (the car parks' and the fills' asphalt: their UVs are no lane's - out of the lane's 0..1, so no wheel paths there)
+			if (It.Key == TEXT("groad")) for (FVector2D& U : B.UV) U.X = -10.0;
 			// (wound to face up: Unreal shows a triangle from the side its corners run clockwise on - as AAirfield::Tri)
 			for (int32 t = 0; t + 2 < B.I.Num(); t += 3) if (FVector::CrossProduct(B.V[B.I[t + 1]] - B.V[B.I[t]], B.V[B.I[t + 2]] - B.V[B.I[t]]).Z > 0) Swap(B.I[t + 1], B.I[t + 2]);
 			PM->CreateMeshSection_LinearColor(Sct, B.V, B.I, B.N, B.UV, B.C, TArray<FProcMeshTangent>(), It.Key == TEXT("ggrass") || It.Key == TEXT("groad"));
-			PM->SetMaterial(Sct, ATerminalBuilder::KitMaterial(this, It.Key));
+			// (the paint: the airfield's own painted look over the roads' asphalt, MI_roadwhite/MI_roadyellow - Tools/set_ground.py)
+			const FName Kit = It.Key == TEXT("paintwhite") ? FName(TEXT("roadwhite")) : It.Key == TEXT("paintyellow") ? FName(TEXT("roadyellow")) : It.Key;
+			PM->SetMaterial(Sct, ATerminalBuilder::KitMaterial(this, Kit));
+			CheckSurface(PM, Sct, FString::Printf(TEXT("paint and car parks, %s, %d corners"), *Kit.ToString(), B.V.Num()));
 			++Sct;
 		}
 	}

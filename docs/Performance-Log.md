@@ -11,6 +11,11 @@ Packaged Shipping, 3840x1080, the owner's settings, own frame generation on, all
 - Left: 50-66 ms of game thread once a minute (wall clock :15, not the clean-up); 812 ms and 216 ms while people load or come at 10x;
   50-60 ms at camera cuts; the passengers' trips 2.1 ms a frame.
 - 248: the roads' textures are fully resident, only the kerb's normal and roughness stay at 64 of 4096.
+- 248, the cause: the textures are there, but the roads' scan (asphalt_pit_lane, 3 m) averages out to one flat colour and one flat sheen
+  (brightness contrast 4 % over 10 cm patches, 1 % over 40 cm, the airfield's 11 % and 9 %), its big layer was the same scan, and the paint had no scan at all.
+  Now M_Ground FarLook (patches of 40 cm to 20 m in colour and sheen; groad, gwalk, gkerb) and PaintRelief (the pavement's relief and wear
+  through the paint; MI_roadwhite, MI_roadyellow, the airfield's paints); car parks and fills no longer get a lane's wear by their UVs;
+  the kerbs' pictures stay in memory; the log says "Roads: <road> part n" with each surface's material, pictures and settings.
 
 ## 2026-11-21 late - the walkers' navmesh (PaxNav.cpp)
 - Unreal's navigation (Recast, dynamic, agent 30 cm / 180 cm, 10 m tiles) is generated once in the background after the

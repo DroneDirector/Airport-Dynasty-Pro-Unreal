@@ -182,6 +182,13 @@ sbias = sp('SnowBias', 0.0, -1600, 360)
 # the roads (owner, 2026-11-14): 1 a road lane, 2 a pavement, by MetaRoad's lane UVs (UV0: u across the one lane, 0..1;
 # v along it, 1 per 4 m) - 0 everything else (the airfield's sheets, whose UVs mean something else)
 rwear = sp('RoadWear', 0.0, -1600, 380)
+# the far look (to-do 248: the roads, pavements and kerbs looked untextured from about 10 m: their scans average out to
+# one flat colour and one flat sheen, and their big layer is the same scan again): FarLook the strength of patches from
+# 40 cm to 20 m in the colour and the sheen; BigMean the big scan's mean brightness. 0: as before (the airfield's own)
+flook = sp('FarLook', 0.0, -1600, 390); bmean = sp('BigMean', 0.1, -1600, 392)
+# the paint over a scan (PaintRelief over 0): the pavement's relief through the paint, thin in its pits, rubbed and chipped
+# off down to the pavement itself (the scan times Under; ScanMean its mean brightness)
+prel = sp('PaintRelief', 0.0, -1600, 394); smean = sp('ScanMean', 0.1, -1600, 396); under = vp('Under', unreal.LinearColor(0.68, 0.68, 0.70, 1), -1600, 398)
 vcol = E(unreal.MaterialExpressionVertexColor, -1600, 400)
 crackt = tobj('CrackLayer', LAYER['cracks_asphalt'], -1600, 360)
 tyret = tobj('TyreLayer', LAYER['tyre_rubber'], -1600, 440)
@@ -197,8 +204,8 @@ float up = saturate((N.z - 0.92) / 0.06);
 float none = step(1.5, Style);
 float isConcrete = step(0.5, Style) * (1.0 - none);
 float3 surf = Col; float rgh = Rough;
+float lumBig = dot(ScanBig, float3(0.3, 0.59, 0.11)), lumSc = dot(ScanCol, float3(0.3, 0.59, 0.11));
 if (UseScan > 0.5) {
-  float lumBig = dot(ScanBig, float3(0.3, 0.59, 0.11)), lumSc = dot(ScanCol, float3(0.3, 0.59, 0.11));
   surf = ScanCol * Col * lerp(0.86, 1.14, saturate(lumBig / max(lumSc + 0.001, 0.02) * 0.5));
   rgh = saturate(ScanR * RScale);
 }
@@ -272,6 +279,7 @@ float n = 0, a = 0.55;
 // the road's asphalt a little brighter, a small crack here and there, the odd patch - never the road's cracks.
 float isRoad = step(0.5, RW) * step(RW, 1.5) * up, isWalk = step(1.5, RW) * up;
 float lu = UV0.x, lv = UV0.y * 4.0;
+float inLane = step(-0.02, lu) * step(lu, 1.02); isRoad *= inLane; isWalk *= inLane;   // car parks and fills (their UVs are no lane's): no lane wear
 float wvc = floor(lv / 9.0), wvf = smoothstep(0.0, 1.0, frac(lv / 9.0));
 float wv = (lerp(frac(sin(wvc * 127.1) * 43758.5453), frac(sin((wvc + 1.0) * 127.1) * 43758.5453), wvf) - 0.5) * 0.05;
 float wpath = saturate(exp(-pow((lu - 0.28 - wv) / 0.065, 2.0)) + exp(-pow((lu - 0.72 - wv) / 0.065, 2.0))) * isRoad;
@@ -307,6 +315,22 @@ float wetHere = smoothstep(0.0, 0.45, saturate(Wet) * (0.75 + 0.75 * saturate(Am
 """
 SURF = COMMON + r"""
 float3 c = surf; float r = rgh;
+if (FLook > 0.001) {
+  float fBig = clamp(lumBig / max(BMean, 0.005) - 1.0, -0.6, 0.6), fMid = wpat - n * 0.6 - 0.25, fSml = rsn - 0.52;
+  float f = clamp(fBig * 0.34 + fMid * 0.22 + fSml * 0.62, -0.4, 0.4) * FLook;
+  c = (UseScan > 0.5 ? ScanCol * Col : c) * (1.0 + f);
+  r = clamp(r - f * 0.42 + (lumSc / max(SMean, 0.005) - 1.0) * -0.06, 0.46, 0.95);   // the lighter, rubbed places shine more, under the lamps at night too
+}
+if (PRel > 0.001) {
+  // the stones' height, from the scan: close by each stone, far off an even 0.5
+  float hgt = saturate(0.5 + (lumSc / max(SMean, 0.005) - 1.0) * 0.55);
+  float pbig = saturate((wpat - n * 0.6) * 0.5 + rsn * 0.8);   // 0.45 to 0.75 mostly
+  float age = PRel * (0.6 + 0.4 * saturate(PDirt * VC.g));
+  float chip = smoothstep(0.67, 0.97, pbig * 0.85 + hgt * 0.5 + (age - 0.8) * 0.2) * age;   // rubbed off the stones' tops, in patches
+  c *= lerp(1.0, lerp(0.74, 1.05, hgt), PRel) * (1.0 + (rsn - 0.52) * 0.22 * PRel);
+  r = clamp(r + ((0.5 - hgt) * 0.22 + (rsn - 0.52) * 0.18) * PRel, 0.42, 0.9);
+  c = lerp(c, ScanCol * Under, saturate(chip) * 0.85); r = lerp(r, saturate(ScanR * 0.88), saturate(chip));
+}
 c *= lerp(1.0, 0.82, stain);
 c = lerp(c, float3(0.022, 0.021, 0.02), seal);
 r = lerp(r, 0.38, seal);
@@ -331,11 +355,11 @@ if (isRoad + isWalk > 0.001) {
 // different on every one): tyre-grey smudges and a brownish film, patchy, never covering it
 float grime = saturate(PDirt * VC.g) * up;
 if (grime > 0.001) {
-  float gpat = smoothstep(0.25, 0.85, n * 0.7 + frac(sin(dot(floor(WP.xy / 70.0), float2(12.9898, 78.233))) * 43758.5453) * 0.3);
+  float gpat = smoothstep(0.25, 0.85, n * 0.7 + (PRel > 0.001 ? saturate(rsn * 1.6 - 0.35) : frac(sin(dot(floor(WP.xy / 70.0), float2(12.9898, 78.233))) * 43758.5453)) * 0.3);   // (on paint soft patches, no 70 cm squares)
   c = lerp(c, c * float3(0.52, 0.48, 0.42), saturate(grime * (0.25 + 0.75 * gpat)));
   // worn through to the pavement in patches (reference: Kristiansand's apron), more where it is dirtier
   float worn = smoothstep(0.62, 0.78, n * 0.8 + gpat * 0.35) * saturate(grime * 1.6);
-  c = lerp(c, float3(0.16, 0.16, 0.155), worn * 0.85);
+  c = lerp(c, PRel > 0.001 ? ScanCol * Under : float3(0.16, 0.16, 0.155), worn * (PRel > 0.001 ? 0.25 + 0.45 * saturate(rsn * 2.0 - 0.55) : 0.85));
   r = lerp(r, 0.85, grime * 0.6);
 }
 // a light snow cover (owner, 2026-11-13; reference photos: Stockholm Bromma, Provo): the paving ploughed, thin compacted
@@ -372,7 +396,8 @@ return float4(c, r);
 """
 NORMAL = COMMON + r"""
 float3 nn = N;
-if (UseScan > 0.5) nn = normalize(N + (float3(ScanN.xy, 0) * Relief + float3(ScanN2.xy, 0) * FineRelief * 0.5 * saturate(1.0 - PD / 2500.0)) * (1.0 - puddle));   // ScanN: the scan's slope in world x, y (ANTI); Relief, FineRelief: the Airport ground setting
+if (UseScan > 0.5) nn = normalize(N + (float3(ScanN.xy, 0) * Relief + float3(ScanN2.xy, 0) * FineRelief * 0.5 * saturate(1.0 - PD / 2500.0)) * (1.0 - puddle));
+else if (PRel > 0.001) nn = normalize(N + float3(ScanN.xy, 0) * Relief * 0.75 * PRel * (1.0 - puddle));   // the pavement's relief through the paint   // ScanN: the scan's slope in world x, y (ANTI); Relief, FineRelief: the Airport ground setting
 float2 uvr = WP.xy / 28.0; float2 acc = 0;
 [unroll] for (int k = 0; k < 3; k++) {
   float2 g = uvr + float2(k * 0.37, k * 0.71);
@@ -396,7 +421,7 @@ SRC = lambda: {'RW': (rwear, ''), 'UV0': (uv, ''), 'WP': (wp, ''), 'N': (vn, '')
        'Size': (cps['PuddleSize'], ''), 'Style': (cstyle, ''), 'CAmount': (camt, ''), 'Cracks': (cps['Cracks'], ''), 'Col': (use, ''),
        'Rough': (rough, ''), 'UseScan': (usescan, ''), 'ScanCol': (sdiff, ''), 'ScanBig': (sbig, ''), 'ScanR': (srgh, ''),
        'ScanN': (snor, ''), 'CrackTex': (crackt, ''), 'TyreTex': (tyret, ''), 'RwyA': (cvs['RwyA'], ''), 'RwyB': (cvs['RwyB'], ''),
-       'RwyDisp': (cvs['RwyDisp'], ''), 'TyreAmt': (tamt, ''), 'Tyres': (cps['Tyres'], ''), 'VC': (vcol, ''), 'PDirt': (pdirt, ''), 'SnowP': (cps['Snow'], ''), 'SnowG': (cps['SnowGrass'], ''), 'SBias': (sbias, ''), 'RScale': (rscale, ''), 'Shine': (cps['PuddleShine'], ''),
+       'RwyDisp': (cvs['RwyDisp'], ''), 'TyreAmt': (tamt, ''), 'Tyres': (cps['Tyres'], ''), 'VC': (vcol, ''), 'PDirt': (pdirt, ''), 'FLook': (flook, ''), 'BMean': (bmean, ''), 'PRel': (prel, ''), 'SMean': (smean, ''), 'Under': (under, ''), 'SnowP': (cps['Snow'], ''), 'SnowG': (cps['SnowGrass'], ''), 'SBias': (sbias, ''), 'RScale': (rscale, ''), 'Shine': (cps['PuddleShine'], ''),
        'T': (tm, ''), 'Ripples': (cps['Ripples'], ''), 'Rain': (cps['Rain'], ''), 'ScanN2': (snor2, ''), 'Relief': (cps['Relief'], ''), 'FineRelief': (cps['FineRelief'], ''), 'PD': (pdep, '')}
 def custom(code, out_type, x, y, extra):
     c = E(unreal.MaterialExpressionCustom, x, y)
@@ -408,8 +433,8 @@ def custom(code, out_type, x, y, extra):
     src = SRC()
     for n_ in names: mel.connect_material_expressions(src[n_][0], src[n_][1], c, n_)
     return c
-cs = custom(SURF, unreal.CustomMaterialOutputType.CMOT_FLOAT4, -300, 0, ['Shine', 'VC', 'PDirt', 'SnowP', 'SBias', 'SnowG'])
-cn = custom(NORMAL, unreal.CustomMaterialOutputType.CMOT_FLOAT3, -300, 400, ['ScanN', 'T', 'Ripples', 'Rain', 'ScanN2', 'Relief', 'FineRelief', 'PD'])
+cs = custom(SURF, unreal.CustomMaterialOutputType.CMOT_FLOAT4, -300, 0, ['Shine', 'VC', 'PDirt', 'SnowP', 'SBias', 'SnowG', 'FLook', 'BMean', 'PRel', 'SMean', 'Under'])
+cn = custom(NORMAL, unreal.CustomMaterialOutputType.CMOT_FLOAT3, -300, 400, ['ScanN', 'T', 'Ripples', 'Rain', 'ScanN2', 'Relief', 'FineRelief', 'PD', 'PRel'])
 cr = custom(REFL, unreal.CustomMaterialOutputType.CMOT_FLOAT1, -300, 800, ['Shine'])
 rgb = E(unreal.MaterialExpressionComponentMask, -50, 0)
 for ch, on in (('r', True), ('g', True), ('b', True), ('a', False)): rgb.set_editor_property(ch, on)
@@ -448,6 +473,9 @@ def scan(sid, big_sid=None):
     return {'ScanDiff': SCAN[sid]['diff'], 'ScanNormal': SCAN[sid]['nor'], 'ScanRough': SCAN[sid]['rough'], 'ScanDiffBig': SCAN[big_sid or sid]['diff']}
 W = unreal.LinearColor(1, 1, 1, 1)
 KIT = '/Game/Materials/Kit/'
+# the scans' mean brightness (linear; measured from their pictures)
+MEAN = {'asphalt_02': 0.1091, 'asphalt_04': 0.2289, 'asphalt_pit_lane': 0.0492, 'brushed_concrete_04': 0.1190}
+PAINTED = dict(PaintRelief=0.7, ScanSize=4.04, ScanMean=MEAN['asphalt_04'])   # the airfield's paint: over its own asphalt
 inst(KIT + 'MI_gasphalt', dict(Color=unreal.LinearColor(0.68, 0.68, 0.70, 1),   # aged airport asphalt a shade darker than the concrete shoulders
      UseScan=1.0, ScanSize=4.04, CrackStyle=0.0, CrackAmount=0.7, TyreAmount=1.0, Variation=0.0, Spec=0.42, RoughScale=0.86),
      textures=dict(scan('asphalt_04', 'asphalt_02'), CrackLayer=LAYER['cracks_asphalt']))
@@ -458,14 +486,14 @@ inst(KIT + 'MI_shoulder', dict(Color=unreal.LinearColor(0.75, 0.75, 0.76, 1), Us
 # the roads (owner, 2026-11-14; reference photos of Faroese and Icelandic roads): a real road scan (Poly Haven
 # asphalt_pit_lane, CC0) in the darker asphalt tone the owner picked (about half MI_gasphalt's brightness), with the road
 # wear (RoadWear 1); the airfield's cracks only lightly
-inst(KIT + 'MI_groad', dict(Color=unreal.LinearColor(1.55, 1.80, 2.10, 1), UseScan=1.0, ScanSize=3.0, CrackStyle=0.0, CrackAmount=0.25, TyreAmount=0.0, RoadWear=1.0, Variation=0.0, SnowBias=0.1, Spec=0.42, RoughScale=0.86),
-     textures=dict(scan('asphalt_pit_lane'), CrackLayer=LAYER['cracks_asphalt']))
+inst(KIT + 'MI_groad', dict(Color=unreal.LinearColor(1.55, 1.80, 2.10, 1), UseScan=1.0, ScanSize=3.0, CrackStyle=0.0, CrackAmount=0.25, TyreAmount=0.0, RoadWear=1.0, Variation=0.0, SnowBias=0.1, Spec=0.42, RoughScale=0.86, FarLook=1.0, BigMean=MEAN['asphalt_02'], ScanMean=MEAN['asphalt_pit_lane']),
+     textures=dict(scan('asphalt_pit_lane', 'asphalt_02'), CrackLayer=LAYER['cracks_asphalt']))
 # the pavements (owner, 2026-11-14): a copy of the road's asphalt a little brighter, with their own small cracks and the
 # odd patch (RoadWear 2) - none of the road's cracks
-inst(KIT + 'MI_gwalk', dict(Color=unreal.LinearColor(2.0, 2.32, 2.70, 1), UseScan=1.0, ScanSize=3.0, CrackStyle=0.0, CrackAmount=0.0, TyreAmount=0.0, RoadWear=2.0, Variation=0.0, SnowBias=0.45, Spec=0.42, RoughScale=0.9),
-     textures=dict(scan('asphalt_pit_lane'), CrackLayer=LAYER['cracks_asphalt']))
+inst(KIT + 'MI_gwalk', dict(Color=unreal.LinearColor(2.0, 2.32, 2.70, 1), UseScan=1.0, ScanSize=3.0, CrackStyle=0.0, CrackAmount=0.0, TyreAmount=0.0, RoadWear=2.0, Variation=0.0, SnowBias=0.45, Spec=0.42, RoughScale=0.9, FarLook=0.85, BigMean=MEAN['asphalt_02'], ScanMean=MEAN['asphalt_pit_lane']),
+     textures=dict(scan('asphalt_pit_lane', 'asphalt_02'), CrackLayer=LAYER['cracks_asphalt']))
 # the kerbs: precast concrete kerb stones, lighter and cleaner than the pavement
-inst(KIT + 'MI_gkerb', dict(Color=unreal.LinearColor(1.22, 1.21, 1.18, 1), UseScan=1.0, ScanSize=1.5, CrackStyle=2.0, CrackAmount=0.0, TyreAmount=0.0, RoadWear=0.0, Puddles=0.0, Variation=0.0, SnowBias=0.3, Spec=0.5, RoughScale=0.9),
+inst(KIT + 'MI_gkerb', dict(Color=unreal.LinearColor(1.22, 1.21, 1.18, 1), UseScan=1.0, ScanSize=1.5, CrackStyle=2.0, CrackAmount=0.0, TyreAmount=0.0, RoadWear=0.0, Puddles=0.0, Variation=0.0, SnowBias=0.3, Spec=0.5, RoughScale=0.9, FarLook=0.7, BigMean=MEAN['brushed_concrete_04'], ScanMean=MEAN['brushed_concrete_04']),
      textures=dict(scan('brushed_concrete_04'), CrackLayer=LAYER['cracks_concrete']))
 # the airfield's ground grass (owner, 2026-11-13: the edges must look real, so the grass they meet must too): a real
 # grass-and-soil scan, a touch greener for a northern summer, no cracks, no tyre rubber, damp but no puddles
@@ -478,8 +506,8 @@ for nm, b_ in (('MI_gconcrete', 0.0), ('MI_gapron', 0.12)):
     inst(KIT + nm, dict(Color=unreal.LinearColor(1.12, 1.12, 1.10, 1), UseScan=1.0, ScanSize=3.0, CrackStyle=1.0, CrackAmount=0.6, TyreAmount=0.0, PuddleBias=b_, Variation=0.0, SnowBias=0.33 if nm == 'MI_gapron' else 0.35, Spec=0.5, RoughScale=0.9),
          textures=dict(scan('concrete_floor_worn_001', 'brushed_concrete_04'), CrackLayer=LAYER['cracks_concrete']))
 # the red of the mandatory instruction markings (the runway-ahead signs): its own paint, so the kit's red stays as it is
-inst(KIT + 'MI_paintred', dict(Color=unreal.LinearColor(0.42, 0.02, 0.02, 1), UseScan=0.0, CrackStyle=0.0, CrackAmount=0.7, TyreAmount=1.0, Roughness=0.5, Variation=0.03, PaintDirt=1.0, SnowBias=0.35, Spec=0.6),
-     textures=dict(CrackLayer=LAYER['cracks_asphalt']))
+inst(KIT + 'MI_paintred', dict(Color=unreal.LinearColor(0.42, 0.02, 0.02, 1), UseScan=0.0, CrackStyle=0.0, CrackAmount=0.7, TyreAmount=1.0, Roughness=0.5, Variation=0.03, PaintDirt=1.0, SnowBias=0.35, Spec=0.6, **PAINTED),
+     textures=dict(scan('asphalt_04'), CrackLayer=LAYER['cracks_asphalt']))
 # the kit's white and yellow (aircraft, hangars, the tower, fittings) stay on the kit's own master: no road cracks on them
 KITM = unreal.load_asset('/Game/Materials/Kit/M_Surface')
 PAINT = {}
@@ -493,8 +521,13 @@ for name in ('MI_yellow', 'MI_white'):
 # (owner, 2026-11-13: cracks that cross a marking show on it, in their own colours) and a light grime that differs on
 # every marking (Airfield gives each one its own amount in the vertex colour)
 for name, col in (('MI_paintyellow', PAINT['MI_yellow']), ('MI_paintwhite', PAINT['MI_white']), ('MI_paintblack', unreal.LinearColor(0.018, 0.018, 0.018, 1))):
-    inst(KIT + name, dict(Color=col, UseScan=0.0, CrackStyle=0.0, CrackAmount=0.7, TyreAmount=1.0, Roughness=0.5 if name != 'MI_paintblack' else 0.75, Variation=0.03, PaintDirt=1.0, SnowBias=0.35, Spec=0.6),   # (owner, 2026-11-16: snow lies on the lines as on the paving round them)
-         textures=dict(CrackLayer=LAYER['cracks_asphalt']))
+    inst(KIT + name, dict(Color=col, UseScan=0.0, CrackStyle=0.0, CrackAmount=0.7, TyreAmount=1.0, Roughness=0.5 if name != 'MI_paintblack' else 0.75, Variation=0.03, PaintDirt=1.0, SnowBias=0.35, Spec=0.6, **PAINTED),   # (owner, 2026-11-16: snow lies on the lines as on the paving round them)
+         textures=dict(scan('asphalt_04'), CrackLayer=LAYER['cracks_asphalt']))
+# the roads' paint (RoadNetwork): the same paint over the roads' own asphalt, more worn; no runway rubber
+for name, col in (('MI_roadyellow', PAINT['MI_yellow']), ('MI_roadwhite', PAINT['MI_white'])):
+    inst(KIT + name, dict(Color=col, UseScan=0.0, CrackStyle=0.0, CrackAmount=0.25, TyreAmount=0.0, Roughness=0.55, Variation=0.03, PaintDirt=1.0, SnowBias=0.1, Spec=0.55,
+                          PaintRelief=1.0, ScanSize=3.0, ScanMean=MEAN['asphalt_pit_lane'], Under=unreal.LinearColor(1.55, 1.80, 2.10, 1)),
+         textures=dict(scan('asphalt_pit_lane', 'asphalt_02'), CrackLayer=LAYER['cracks_asphalt']))
 BAB = '/Game/Babylon/Terminal/terminal/Materials/'
 # the model's building materials stay the model's own (owner, 2026-11-13: buildings never share the ground's kit): its
 # concrete is the terminal's floor slabs, the baggage hall, the kerb and the tower's base; the rental's concrete is the
