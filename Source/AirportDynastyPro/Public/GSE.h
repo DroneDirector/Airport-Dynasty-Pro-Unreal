@@ -96,7 +96,7 @@ public:
 		EJob Job = EJob::None; FString Key; float StandX = 0.f, JobT = 0.f;
 		float EndYaw = 0.f; bool bEndYaw = false; TFunction<void()> OnArrive;      // (what comes after the leg it drives)
 		TFunction<bool()> Until; TFunction<void()> AfterUntil;                    // (waiting at a holding point until something is so)
-		FVehicleDirt Dirt;
+		FVehicleDirt Dirt; FGlassWipers GlassWip;   // (GlassWip: its wipers on the rain, GlassRain.h)
 		FString Name;
 		// its own measures (root cm; the tractor's or the belt loader's - Art/<model>/<model>-parts.json)
 		bool bLoader = false;

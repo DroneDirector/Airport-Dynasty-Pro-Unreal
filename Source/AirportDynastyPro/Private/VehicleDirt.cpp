@@ -150,6 +150,7 @@ void FVehicleDirt::Dress(ABabylonModel* Model, UObject* Outer, const FString& Na
 	// the vehicle's box in its own frame (washing; the areas' middle)
 	const FBox LB = Model->CalculateComponentsBoundingBoxInLocalSpace(true);
 	if (LB.IsValid) { S->Centre = LB.GetCenter(); S->HalfExt = LB.GetExtent(); }
+	{ TArray<UMaterialInstanceDynamic*> More; S->Rain.Dress(Model, More); for (UMaterialInstanceDynamic* G : More) S->Glass.Add(G); }
 	SetDirt(Start >= 0.f ? Start : FMath::FRandRange(0.2f, 0.5f));
 	VdAll().Add(S);
 	ADP_LOG(TEXT("Vehicle dirt: %s dressed - %d painted / metal / rubber surfaces (%d with their relief), %d glass; wheels treaded %d, rims %d, tyre parts not wheel-shaped %d; %.1f x %.1f m; dirt %.2f"),
@@ -164,10 +165,19 @@ void FVehicleDirt::SetDirt(float V)
 	S->Sent = -1.f;
 }
 
+void FVehicleDirt::WireWipers(FGlassWipers& W, const TArray<FGlassBlade>& Blades, float H)
+{
+	if (W.bWired || !IsValid()) return;
+	TArray<UMaterialInstanceDynamic*> More; W.Wire(S->M.Get(), S->Rain, Blades, H, *S->Name, More);
+	for (UMaterialInstanceDynamic* G : More) S->Glass.Add(G);
+	S->Sent = -1.f;
+}
+
 void FVehicleDirt::Tick(float Dt, float SpeedMs)
 {
 	if (!IsValid() || Dt <= 0.f) return;
 	FVehicleDirtState& D = *S; ABabylonModel* M = D.M.Get();
+	D.Rain.Tick(M, Dt, SpeedMs, FVector(-1.f, 0.f, 0.f));
 	// driven: dirt builds with the distance - clean dry paving very slowly (about fully dirty after 30 km of apron work),
 	// in the wet much faster (spray), off the paving fastest (FireTruck.cpp: ~4 km); and a little with time out on the
 	// ramp (rain, dust, de-icing fluid: about a month to be properly dirty standing)

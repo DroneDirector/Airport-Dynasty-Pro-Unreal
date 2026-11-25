@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GlassRain.h"
 
 class UInstancedStaticMeshComponent;
 class UCableComponent;
@@ -18,6 +19,7 @@ struct FSvcDeicer
 	TArray<int32> GChain;
 	UCableComponent* Hose[3] = {nullptr, nullptr, nullptr};
 	FPose Now, Was; TArray<FPose> Route;
+	FGlassWipers CabWip;   // (the spray cabin's wiper on the rain)
 	float Pan = 0.f, Tilt = 0.f, PanWant = 0.f, TiltWant = 0.f, Joy[3] = {0.f, 0.f, 0.f}, Stick[3] = {0.f, 0.f, 0.f}, WipT = 0.f, SlewV = 0.f, LiftV = 0.f, ExtV = 0.f, LaneT = 0.f;
 	float Water = 2600.f, TankI = 2400.f, TankIV = 2400.f;              // litres
 	float UsedI = 0.f, UsedIV = 0.f;                                     // at this aircraft

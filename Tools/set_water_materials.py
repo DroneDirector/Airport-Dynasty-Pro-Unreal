@@ -158,56 +158,7 @@ rr = mel.create_material_expression(m, unreal.MaterialExpressionConstant, -300, 
 mel.connect_material_property(rr, '', unreal.MaterialProperty.MP_ROUGHNESS)
 mel.recompile_material(m); eal.save_loaded_asset(m, only_if_is_dirty=False)
 
-# ---- the trucks' glass, with the hose's beads ----
-BEADS = r'''
-// how wet this part is (the 12 areas, as the paint's), on outward-facing glass only (not the cluster's inside)
-float3 bLp = WP - Origin.xyz;
-float bFa = clamp(dot(bLp, AxisF.xyz) / 100.0 + 6.0, 0.0, 11.999) / 2.0;
-float3 bAr = normalize(cross(float3(0, 0, 1), AxisF.xyz));
-float bSd = saturate(dot(bLp, bAr) / 40.0 + 0.5);
-float bList[12] = { B0.x, B0.y, B0.z, B0.w, B1.x, B1.y, B1.z, B1.w, B2.x, B2.y, B2.z, B2.w };
-int bI0 = min(int(bFa), 5), bI1 = min(bI0 + 1, 5); float bFt = saturate(bFa - bI0);
-float amount = lerp(lerp(bList[bI0], bList[bI1], bFt), lerp(bList[6 + bI0], bList[6 + bI1], bFt), bSd);
-float3 bFlat = float3(bLp.xy, 0);
-amount *= saturate(dot(normalize(N), normalize(bFlat + float3(0, 0, 0.001))) * 3.0 + 0.4);
-// the beads: one at most in each 1.4 cm cell of the glass's own plane, a random size and place; fewer as it dries;
-// pushed back along the truck by the airflow (Blow, cm)
-float3 an = abs(N);
-float2 q = an.z > max(an.x, an.y) ? WP.xy : (an.x > an.y ? WP.yz : WP.xz);
-q += float2(-dot(AxisF.xyz, float3(1, 1, 0)), 0.0) * Blow;
-float2 g = floor(q / 1.4), f = frac(q / 1.4) - 0.5;
-float r1 = frac(sin(dot(g, float2(12.9898, 78.233))) * 43758.5453);
-float r2 = frac(sin(dot(g, float2(39.3468, 11.135))) * 24634.6345);
-float2 o = (float2(r1, r2) - 0.5) * 0.45;
-float rad = 0.1 + 0.25 * r2;
-float bead = (r1 < amount ? 1.0 : 0.0) * (1.0 - smoothstep(rad * 0.7, rad, length(f - o)));
-'''
-m = mat('M_TruckGlass')
-m.set_editor_property('blend_mode', unreal.BlendMode.BLEND_TRANSLUCENT)
-m.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_DEFAULT_LIT)
-m.set_editor_property('two_sided', True)
-if TLM_SURF is not None:
-    m.set_editor_property('translucency_lighting_mode', TLM_SURF)
-P = {'BC': vector(m, 'BC', (0.015, 0.022, 0.026, 0.38), -400), 'Origin': vector(m, 'Origin', (0, 0, 0, 0), -300),
-     'AxisF': vector(m, 'AxisF', (1, 0, 0, 0), -200), 'B0': vector(m, 'B0', (0, 0, 0, 0), -100), 'B1': vector(m, 'B1', (0, 0, 0, 0), 0),
-     'B2': vector(m, 'B2', (0, 0, 0, 0), 100), 'Blow': scalar(m, 'Blow', 0.0, 200),
-     'WP': mel.create_material_expression(m, unreal.MaterialExpressionWorldPosition, -1000, 300),
-     'N': mel.create_material_expression(m, unreal.MaterialExpressionVertexNormalWS, -1000, 400)}
-outs = {'BC': 'RGBA', 'Origin': 'RGBA', 'AxisF': 'RGBA', 'B0': 'RGBA', 'B1': 'RGBA', 'B2': 'RGBA'}
-names = ['BC', 'Origin', 'AxisF', 'B0', 'B1', 'B2', 'Blow', 'WP', 'N']
-for code, outt, prop, y in [(BEADS + 'return lerp(BC.rgb, float3(0.55, 0.62, 0.68), bead * 0.6);', O.CMOT_FLOAT3, unreal.MaterialProperty.MP_BASE_COLOR, -200),
-                            (BEADS + 'return saturate(BC.a + bead * 0.35);', O.CMOT_FLOAT1, unreal.MaterialProperty.MP_OPACITY, 0),
-                            (BEADS + 'return bead * float3(0.05, 0.055, 0.06);', O.CMOT_FLOAT3, unreal.MaterialProperty.MP_EMISSIVE_COLOR, 200)]:
-    c = custom(m, code, outt, names, y=y)
-    for n in names:
-        connect(P[n], c, n, outs.get(n, ''))
-    mel.connect_material_property(c, '', prop)
-r_ = mel.create_material_expression(m, unreal.MaterialExpressionConstant, -300, 400); r_.set_editor_property('r', 0.02)
-mel.connect_material_property(r_, '', unreal.MaterialProperty.MP_ROUGHNESS)
-s_ = mel.create_material_expression(m, unreal.MaterialExpressionConstant, -300, 500); s_.set_editor_property('r', 0.9)
-mel.connect_material_property(s_, '', unreal.MaterialProperty.MP_SPECULAR)
-m.set_editor_property('used_with_nanite', True); m.set_editor_property('used_with_instanced_static_meshes', True)
-mel.recompile_material(m); eal.save_loaded_asset(m, only_if_is_dirty=False)
+# (M_TruckGlass - the trucks' glass with the hose's beads and the rain - is made by Tools/make_glass_rain.py only)
 
-log('ready: M_WaterDrop, M_WaterMist, M_WetPatch, M_TruckGlass')
+log('ready: M_WaterDrop, M_WaterMist, M_WetPatch')
 unreal.SystemLibrary.quit_editor()

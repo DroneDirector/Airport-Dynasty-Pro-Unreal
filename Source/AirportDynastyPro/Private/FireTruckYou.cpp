@@ -353,6 +353,14 @@ void AFireTruck::TickYou(float Dt)
 		for (int32 i = 0; i < 2; ++i)
 			if (GWiper[i] >= 0) Model->MoveGroup(GWiper[i], FTransform(FQuat(WiperAxis, FMath::DegreesToRadians(WiperSign * Ang)) * BWiper[i].GetRotation(), BWiper[i].GetLocation()));
 	}
+	if (!GlassWip.bWired && Model && GWiper[0] >= 0 && GWiper[1] >= 0 && GlassMids.Num())
+	{
+		TArray<FGlassBlade> Bl; TArray<UMaterialInstanceDynamic*> More;
+		for (int32 i = 0; i < 2; ++i) { FGlassBlade B; B.Pivot = BWiper[i].GetLocation(); B.Rest = FVector(1.f, 0.f, 0.f); B.Axis = WiperAxis * WiperSign; B.Sweep = FMath::DegreesToRadians(100.f); B.RIn = 6.f; B.ROut = 88.f; Bl.Add(B); }
+		GlassWip.Wire(Model, GlassRain, Bl, 0.f, TEXT("fire truck"), More);
+		for (UMaterialInstanceDynamic* G : More) GlassMids.Add(G);
+	}
+	{ const float WipS = WiperMode == 2 ? 0.92f : 1.5f; GlassWip.Tick(Dt, WiperPhase * WipS, WipS); }
 	if (AimS.bOn) AimTurret(Dt);
 	// the turrets' bodies and nozzles where they point
 	for (int32 i = 0; i < 2; ++i)

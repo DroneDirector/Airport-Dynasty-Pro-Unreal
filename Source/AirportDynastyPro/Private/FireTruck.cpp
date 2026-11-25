@@ -992,6 +992,7 @@ void AFireTruck::PushDirt(float Dt)
 	for (float& B : Beads) if (B > 0.f) B = FMath::Max(0.f, B - Dt / 1200.f - Dt * FMath::Max(0.f, Ms - 3.f) / 45.f);
 	Blow += Ms * Dt * 0.6f;
 	const FVector O = GetActorTransform().TransformPosition(DirtCenter), F = DirtAxisWorld();
+	GlassRain.Tick(Model, Dt, Ms, FVector(0.f, 1.f, 0.f));   // (its front is -Y)
 	for (UMaterialInstanceDynamic* D : GlassMids)
 	{
 		if (!D) continue;
@@ -1139,6 +1140,7 @@ void AFireTruck::DressMaterials()
 			Swap.Add(M, D);
 			if (D) K->SetMaterial(Si, D);
 		}
+	{ TArray<UMaterialInstanceDynamic*> More; GlassRain.Dress(Model, More); for (UMaterialInstanceDynamic* G : More) GlassMids.Add(G); }
 	for (UInstancedStaticMeshComponent* K : LensLists) K->SetNumCustomDataFloats(1);
 	// every lens, which lamp it is and its side; the roof bar's modules counted from the left
 	struct FWhich { const TCHAR* Name; ELens Kind; int8 Side; };

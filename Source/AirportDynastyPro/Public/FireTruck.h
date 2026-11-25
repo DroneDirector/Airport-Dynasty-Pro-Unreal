@@ -14,6 +14,7 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/Actor.h"
 #include "TruckDriverRig.h"
+#include "GlassRain.h"
 #include "FireTruck.generated.h"
 
 class UBoxComponent;
@@ -75,6 +76,7 @@ public:
 	float Beads[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 	float Blow = 0.f;
 	UPROPERTY() TArray<TObjectPtr<class UMaterialInstanceDynamic>> GlassMids;
+	FGlassRainVehicle GlassRain; FGlassWipers GlassWip;   // (the rain on its glass, its wipers)
 	void SetDirt(float V) { for (int32 i = 0; i < 12; ++i) DirtZone[i] = DirtGoal[i] = V; }
 	FVector DirtCenter = FVector::ZeroVector; bool bDirtCenter = false;
 	FVector DirtAxis = FVector::ForwardVector;   // the truck's length, in its own frame (from its parts' extent)

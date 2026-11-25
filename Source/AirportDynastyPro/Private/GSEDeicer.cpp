@@ -356,6 +356,13 @@ void AGSE::DeicerParts(FTractor& T, float Dt)
 	// (its wiper: in rain and while it sprays)
 	if ((T.bRain && F.bOpIn) || F.bWipe || F.Jet >= 0 || F.WipT > 0.f) { F.WipT += Dt; if (F.WipT > 2.2f) F.WipT = 0.f; }
 	Put(F.GWip, FTransform(DiQ(FVector::ForwardVector, F.WipT < 1.6f ? 50.f * (0.5f - 0.5f * FMath::Cos(2.f * PI * F.WipT / 1.6f)) : 0.f), SvcP(T, TEXT("PIV_CabinWiper"))) * Cab);
+	if (!F.CabWip.bWired && T.Dirt.IsValid())
+	{
+		FGlassBlade B; B.Pivot = SvcP(T, TEXT("PIV_CabinWiper")); const FVector A(0.f, 34.f, 222.f - B.Pivot.Z);   // (its blade's end: (-454, 34, 222), across its axis)
+		B.Rest = Cab.TransformVectorNoScale(A.GetSafeNormal()); B.Axis = Cab.TransformVectorNoScale(FVector::ForwardVector); B.Sweep = FMath::DegreesToRadians(50.f); B.RIn = 17.f; B.ROut = A.Size();
+		B.Pivot = Cab.TransformPosition(B.Pivot + FVector(-5.f, 0.f, 0.f)); T.Dirt.WireWipers(F.CabWip, {B}, 0.f);
+	}
+	F.CabWip.Tick(Dt, F.WipT, 1.6f);
 	for (int32 j = 0; j < 2; ++j) Put(F.GJoy[j], FTransform(DiJoy(F, j), SvcP(T, j ? TEXT("PIV_Joy_R") : TEXT("PIV_Joy_L"))) * Cab);
 	Put(F.GSpray, FTransform(DiQ(FVector::RightVector, F.Jet >= 0 ? 10.f : 0.f), SvcP(T, TEXT("PIV_SprayPedal"))) * Cab);
 	const FVector PP = SvcP(T, TEXT("PIV_NozPan")), PT = SvcP(T, TEXT("PIV_NozTilt")); const FTransform PanX = DiAbout(DiQ(DiUp, F.Pan), PP) * Cab, TiltX = DiAbout(DiQ(FVector::RightVector, F.Tilt), PT) * PanX;

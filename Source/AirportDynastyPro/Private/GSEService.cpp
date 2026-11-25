@@ -354,6 +354,21 @@ void AGSE::SvcParts(FTractor& T, float Dt)
 				M->MoveGroup(T.GWiper[w], FTransform(FQuat(Ax, Ang * E), Pv + FVector(0.73f, 0.f, 0.68f) * (1.f * FMath::Sin(PI * E))));
 			}
 	}
+	if (S.Wipers.Num())
+	{
+		if (!T.GlassWip.bWired && T.Dirt.IsValid())
+		{
+			TArray<FGlassBlade> Bl;
+			for (const FServiceWiper& W : S.Wipers)
+			{
+				FGlassBlade B; B.Pivot = SvcP(T, W.Pivot); const FVector A = W.Rest - B.Pivot, U = (W.Up - B.Pivot).GetSafeNormal();
+				B.Rest = A.GetSafeNormal(); B.Axis = FVector::CrossProduct(B.Rest, U).GetSafeNormal(); B.ROut = A.Size(); B.RIn = T.Bu ? 2.f : 6.f;
+				B.Sweep = FMath::Acos(FMath::Clamp(float(FVector::DotProduct(B.Rest, U)), -1.f, 1.f)); Bl.Add(B);
+			}
+			T.Dirt.WireWipers(T.GlassWip, Bl, T.Bu ? 2.5f : 4.5f);
+		}
+		T.GlassWip.Tick(Dt, T.WipeT, 1.5f);
+	}
 	if (T.Bu) { BusParts(T, Dt); return; }   // (its seven doors of two leaves)
 	for (int32 d = 0; d < T.SvcDoors.Num(); ++d)
 	{

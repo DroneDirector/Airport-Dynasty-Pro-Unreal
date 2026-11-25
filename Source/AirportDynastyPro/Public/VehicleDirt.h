@@ -12,6 +12,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GlassRain.h"
 
 class ABabylonModel;
 class UMaterialInstanceDynamic;
@@ -28,6 +29,7 @@ struct FVehicleDirtState
 	bool bOffRoad = false;
 	TArray<TWeakObjectPtr<UMaterialInstanceDynamic>> Paint, Glass;
 	FVector Centre = FVector::ZeroVector, HalfExt = FVector(150.f, 80.f, 100.f);   // (the model root's frame: its parts' box)
+	FGlassRainVehicle Rain;   // (the rain on its glass)
 	FVector LastO = FVector(1e9), LastF = FVector::ZeroVector;
 };
 
@@ -39,6 +41,8 @@ struct AIRPORTDYNASTYPRO_API FVehicleDirt
 	void Dress(ABabylonModel* Model, UObject* Outer, const FString& Name, float Start = -1.f);
 	/** Every frame: SpeedMs its speed (m/s, measured); the dirt, the beads and the paint's parameters. */
 	void Tick(float Dt, float SpeedMs);
+	/** Its wipers (W: the vehicle's own record), the first time: its windscreen's panes take their sweep. */
+	void WireWipers(FGlassWipers& W, const TArray<FGlassBlade>& Blades, float H);
 	bool IsValid() const { return S.IsValid() && S->M.IsValid(); }
 	void SetDirt(float V);
 	/** The hose's jet landing on the vehicle at At (world): that part a little cleaner and wet. */
