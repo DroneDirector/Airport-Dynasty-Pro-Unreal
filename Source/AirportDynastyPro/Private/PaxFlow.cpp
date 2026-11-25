@@ -245,6 +245,20 @@ void APaxFlow::GateDoors(float Dt)
 	ABabylonModel::GateDoorsOn = On;
 }
 
+bool APaxFlow::TripOf(UWorld* W, const AActor* Who, FString& Place, bool& bArr)
+{
+	const APaxFlow* F = Who ? Find(W) : nullptr; if (!F) return false;
+	for (const FPx& Px : F->Pax)
+	{
+		if (Px.A.Get() != Who || !F->Runs.IsValidIndex(Px.Run)) continue;
+		const FRun& R = F->Runs[Px.Run]; bArr = Px.bArr;
+		for (const FADPBoardRow& Row : ADPBoards::Rows(F, bArr, 60))
+			if ((!R.PlanId.IsEmpty() && Row.PlanId == R.PlanId) || (!R.Reg.IsEmpty() && Row.Reg == R.Reg)) { Place = Row.Place; return true; }
+		return false;
+	}
+	return false;
+}
+
 bool APaxFlow::CallsBoarding(const UWorld* W, const FString& Flight)
 {
 	const APaxFlow* P = Find(W); if (!P || Flight.IsEmpty()) return false;
@@ -811,7 +825,7 @@ void APaxFlow::Anim(FPx& P)
 			//  over a quarter of a second. A body that sat down came back on the plain instance: ours again)
 			const bool bCarry = P.bHasBag && !(!P.bArr && P.bBagDown) && P.Holder && P.Holder->GetAttachParent() == B;
 			UPaxAnimInstance* Mine = Cast<UPaxAnimInstance>(One);
-			if (!Mine && bCarry && !B->IsRunningParallelEvaluation() && !B->IsPostEvaluatingAnimation()) { Mine = UPaxAnimInstance::Install(B); One = B->GetSingleNodeInstance(); if (!One) return; }
+			if (!Mine && !B->IsRunningParallelEvaluation() && !B->IsPostEvaluatingAnimation()) { Mine = UPaxAnimInstance::Install(B); One = B->GetSingleNodeInstance(); if (!One) return; }
 			if (Mine) { Mine->bGripRight = bCarry; Mine->Twist = P.TurnYaw; }
 			// (owner 2026-11-21: no moon-gliding - the legs follow the REAL motion. The blend space has Direction (x, degrees
 			//  round the body: 0 ahead, +-90 sideways, 180 back) and Speed (y); measured from how the body actually moved since
@@ -1939,7 +1953,9 @@ void APaxFlow::Tick(float Dt)
 		if (P.St == EPx::Gone) continue;
 		P.Acc += Dt;
 		const AActor* A = P.A.Get();
-		const bool bNear = A && FVector::DistSquared(A->GetActorLocation(), Eye) < FMath::Square(6000.f);
+		// (within 60 m and seen, or close by: the ones behind the camera or on another floor go on every fourth frame)
+		const double EyeSq = A ? FVector::DistSquared(A->GetActorLocation(), Eye) : 1e18;
+		const bool bNear = EyeSq < FMath::Square(1000.0) || (EyeSq < FMath::Square(6000.0) && (!P.Body.IsValid() || P.Body->WasRecentlyRendered(0.3f)));
 		if (!bNear && (Frame + i) % 4 != 0 && i != Watched && P.St != EPx::Revolve) continue;   // (at a revolving door: every frame - its windows are short)
 		const float Step = FMath::Min(P.Acc, 0.3f); P.Acc = 0.f;
 		StepPx(i, Step);

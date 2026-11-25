@@ -40,7 +40,7 @@ const TArray<FString>& SNeonLoading::Tips()
 		TEXT("Your office wardrobe holds every outfit made for you: change there before a big day."),
 		TEXT("Autosave keeps a copy every ten minutes; Save game keeps the one you choose."),
 		TEXT("A route pays when the aircraft fits it: not too big, not too small."),
-		TEXT("Check the weather before the first departure: the Faroes have their own ideas."),
+		TEXT("Check the weather before the first departure: the mountains have their own ideas."),
 	};
 	return T;
 }

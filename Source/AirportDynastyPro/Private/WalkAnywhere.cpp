@@ -37,9 +37,9 @@ TWeakObjectPtr<AWalkAnywhere> AWalkAnywhere::One;
 namespace
 {
 	const AWalkAnywhere::FPlace PlaceList[] = {
-		{TEXT("Tórshavn, Faroe Islands"), 62.0107, -6.7716}, {TEXT("Slættaratindur, Faroe Islands"), 62.2989, -7.0119},
-		{TEXT("Gásadalur, Faroe Islands"), 62.1100, -7.4330}, {TEXT("Reykjavík, Iceland"), 64.1466, -21.9426},
-		{TEXT("Skógafoss, Iceland"), 63.5321, -19.5114}, {TEXT("Vík, Iceland"), 63.4186, -19.0060},
+		{TEXT("Montreux, Switzerland"), 46.4312, 6.9107}, {TEXT("Rochers-de-Naye, Switzerland"), 46.4322, 6.9761},
+		{TEXT("Geneva, Switzerland"), 46.2044, 6.1432}, {TEXT("Interlaken, Switzerland"), 46.6863, 7.8632},
+		{TEXT("Jungfraujoch, Switzerland"), 46.5475, 7.9851}, {TEXT("Lauterbrunnen, Switzerland"), 46.5935, 7.9091},
 		{TEXT("Copenhagen, Denmark"), 55.6761, 12.5683}, {TEXT("Bergen, Norway"), 60.3913, 5.3221},
 		{TEXT("Edinburgh, Scotland"), 55.9533, -3.1883}, {TEXT("Zermatt, Switzerland"), 46.0207, 7.7491},
 		{TEXT("Grand Canyon, USA"), 36.0570, -112.1390}, {TEXT("Mount Fuji, Japan"), 35.3606, 138.7274},

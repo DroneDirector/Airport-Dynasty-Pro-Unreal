@@ -19,6 +19,8 @@
 #include "RoadNetwork.h"
 #include "MetaRoadActor.h"
 #include "People.h"
+#include "PaxAnimInstance.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "ADPLog.h"
 #include "Containers/Ticker.h"
 #include "Misc/FileHelper.h"
@@ -61,7 +63,14 @@ namespace ADPPerfViewsInternal
 	}
 	// the people about and how fast each goes (looked at twice a second)
 	TMap<TWeakObjectPtr<AActor>, FVector> Was; TMap<TWeakObjectPtr<AActor>, FVector> Going; double LookedAt = 0.0;
-	TWeakObjectPtr<AActor> Subject; bool bFollow = false, bCut = false; int32 Need = 0; float Side = 35.f;
+	TWeakObjectPtr<AActor> Subject; bool bFollow = false, bCut = false; float Stood = 0.f; int32 Need = 0; float Side = 35.f;
+	/** The part of the airport the feet are looked at in (plan metres): landside, hall, apron, upstairs ("" anywhere). */
+	FString Where;
+	bool Here(const FVector& A)
+	{
+		const double Z = -A.Y / 100.0, H = A.Z / 100.0;
+		return Where.IsEmpty() || (Where == TEXT("landside") ? Z < -5.0 : Where == TEXT("hall") ? Z > -3.0 && Z < 45.0 && H < 2.0 : Where == TEXT("apron") ? Z > 50.0 && H < 2.5 : H > 2.5 && Z > -3.0);
+	}
 	void LookAtPeople(UWorld* W)
 	{
 		const double Now = FPlatformTime::Seconds(), D = Now - LookedAt;
@@ -74,6 +83,14 @@ namespace ADPPerfViewsInternal
 					Is.Add(A, A->GetActorLocation());
 					if (const FVector* L = Was.Find(A)) Going.Add(A, (A->GetActorLocation() - *L) / D); else Going.Add(A, FVector::ZeroVector);
 				}
+		if (!Where.IsEmpty())   // (the feet's views: the crew and whoever else walks, too)
+			for (TObjectIterator<UPaxAnimInstance> It; It; ++It)
+				if (const USkeletalMeshComponent* C = It->GetSkelMeshComponent(); C && C->GetWorld() == W)
+					if (AActor* A = C->GetOwner(); A && !A->IsHidden() && !A->IsA<APawn>() && !(A->GetAttachParentActor() && A->GetAttachParentActor()->IsA<APawn>()) && !A->GetName().Contains(TEXT("_player_")) && !Is.Contains(A))
+					{
+						Is.Add(A, A->GetActorLocation());
+						if (const FVector* L = Was.Find(A)) Going.Add(A, (A->GetActorLocation() - *L) / D); else Going.Add(A, FVector::ZeroVector);
+					}
 		Was = MoveTemp(Is);
 		// (anybody outside with their feet under a road, a pavement or a car park: to-do 287)
 		static double SunkAt = 0.0; if (Now - SunkAt < 2.0) return;
@@ -103,7 +120,7 @@ namespace ADPPerfViewsInternal
 	bool NextSubject()
 	{
 		AActor* Best = nullptr; int32 Most = -1;
-		for (const auto& E : Going) if (AActor* A = E.Key.Get()) if (A != Subject.Get() && E.Value.Size2D() > 30.0) { const int32 N = Around(A->GetActorLocation(), 2500.0); if (N > Most) { Most = N; Best = A; } }
+		for (const auto& E : Going) if (AActor* A = E.Key.Get()) if (A != Subject.Get() && E.Value.Size2D() > 30.0 && Here(A->GetActorLocation())) { const int32 N = Around(A->GetActorLocation(), 2500.0); if (N > Most) { Most = N; Best = A; } }
 		if (!Best) return false;
 		Subject = Best; bCut = true;
 		ADP_LOG(TEXT("Views: following %s at %.1f %.1f %.1f, %d people within 25 m"), *Best->GetName(), Best->GetActorLocation().X / 100.f, Best->GetActorLocation().Z / 100.f, -Best->GetActorLocation().Y / 100.f, Most);
@@ -115,13 +132,17 @@ namespace ADPPerfViewsInternal
 		AActor* A = Subject.Get();
 		const FVector* G = A ? Going.Find(A) : nullptr;
 		if (!A || !G) { if (!NextSubject()) return false; A = Subject.Get(); G = Going.Find(A); if (!G) return false; }
-		const FVector Mid = A->GetActorLocation() + FVector(0, 0, 110.f), Fw = G->Size2D() > 30.0 ? G->GetSafeNormal2D() : A->GetActorRightVector().GetSafeNormal2D();
+		const bool bLow = !Where.IsEmpty();   // (the feet's views: close and low)
+		if (bLow && (!Here(A->GetActorLocation()) || (G->Size2D() < 10.0 && (Stood += Dt) > 4.f))) { Stood = 0.f; if (NextSubject()) { A = Subject.Get(); G = Going.Find(A); if (!G) return true; } }
+		else if (G->Size2D() >= 10.0) Stood = 0.f;
+		const FVector Mid = A->GetActorLocation() + FVector(0, 0, bLow ? 38.f : 110.f), Fw = G->Size2D() > 30.0 ? G->GetSafeNormal2D() : A->GetActorRightVector().GetSafeNormal2D();
 		FCollisionQueryParams Q(SCENE_QUERY_STAT(ViewsCam), false, Me); Q.AddIgnoredActor(A);
 		static const float Turn[] = { 0.f, -70.f, 40.f, -110.f, 100.f, -30.f, 150.f };
-		for (float Out : { 480.f, 330.f, 230.f })
+		const float Outs[2][3] = { { 480.f, 330.f, 230.f }, { 230.f, 180.f, 300.f } };
+		for (float Out : Outs[bLow ? 1 : 0])
 			for (float T : Turn)
 			{
-				const FVector C = Mid - Fw.RotateAngleAxis(Side + T, FVector::UpVector) * Out + FVector(0, 0, 70.f);
+				const FVector C = Mid - Fw.RotateAngleAxis(Side + T, FVector::UpVector) * Out + FVector(0, 0, bLow ? 12.f : 70.f);
 				FHitResult H;
 				if (W->SweepSingleByChannel(H, Mid, C, FQuat::Identity, ECC_Camera, FCollisionShape::MakeSphere(24.f), Q) || Solid(W, C, Me)) continue;
 				// (gliding there; if something stands between, it cuts over instead of going through it)
@@ -251,11 +272,12 @@ namespace ADPPerfViewsInternal
 			ADP_LOG(TEXT("Views: part %s %d (%d parts)"), *Wh, bOn ? 1 : 0, N);
 		}
 		else if (K == TEXT("people") && V.Num() > 1) { Need = FCString::Atoi(*V[0]); Until = FPlatformTime::Seconds() + FCString::Atof(*V[1]); }
-		else if (K == TEXT("follow") && V.Num())
+		else if ((K == TEXT("follow") || K == TEXT("feet")) && V.Num() > (K == TEXT("feet") ? 1 : 0))
 		{
+			Where = K == TEXT("feet") ? FString(*V[1]) : FString();   // (feet <seconds> <landside, hall, apron, upstairs> <name>)
 			FString S2, N2; const bool bN = A.Split(TEXT(" "), &S2, &N2);
 			if (!NextSubject()) ADP_WARN(TEXT("Views: nobody walks (%d people)"), Was.Num());
-			else { Want = PC->PlayerCameraManager->GetCameraLocation(); bHeld = bFollow = true; FlyLen = 0.0; }
+			if (Subject.IsValid() || !Where.IsEmpty()) { Want = PC->PlayerCameraManager->GetCameraLocation(); bHeld = bFollow = true; FlyLen = 0.0; }
 			BeginMeasure(FCString::Atof(*V[0]), bN ? N2 : A);
 		}
 		else if (K == TEXT("textures"))

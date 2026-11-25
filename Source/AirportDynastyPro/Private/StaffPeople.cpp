@@ -1,5 +1,6 @@
 // Your hired staff in the 3D airport - see StaffPeople.h and docs/Hired-Crew-Plan.md.
 #include "StaffPeople.h"
+#include "PaxAnimInstance.h"
 #include "People.h"
 #include "PaxNav.h"
 #include "Tugs.h"
@@ -216,7 +217,7 @@ void UStaffPeople::Release(const FString& StaffId)
 	// (the walk and idle again, upright, whatever the job's poses were)
 	if (USkeletalMeshComponent* B = SpBodyOf(GetWorld(), A))
 		if (!B->GetSingleNodeInstance())
-			if (UBlendSpace* Mv = Cast<UBlendSpace>(FSoftObjectPath(SpMove).ResolveObject())) { B->SetAnimationMode(EAnimationMode::AnimationSingleNode); B->SetAnimation(Mv); B->Play(true); }
+			if (UBlendSpace* Mv = Cast<UBlendSpace>(FSoftObjectPath(SpMove).ResolveObject())) { B->SetAnimationMode(EAnimationMode::AnimationSingleNode); B->SetAnimation(Mv); B->Play(true); UPaxAnimInstance::Install(B); }
 	A->SetActorRotation(FRotator(0.f, A->GetActorRotation().Yaw, 0.f));
 	// (landside: released on the pavement by the taxi bus - along it to their place)
 	if (S->bLand) { FLeg L; L.At = LandSpot(*S); S->Way.Add(L); return; }

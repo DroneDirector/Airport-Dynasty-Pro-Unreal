@@ -19,6 +19,7 @@
 // fingers closing round what they hold), at the tug's IK points (Tools/make_pushback_tug.py: IK_Step, IK_Grab_Outside,
 // IK_Seat_Driver, IK_Hand_L/R, IK_Foot_Brake ...). Next: the radio and interphone talk and the timed 11 steps.
 #include "Tugs.h"
+#include "PaxAnimInstance.h"
 #include "Components/BoxComponent.h"
 #include "GSE.h"
 #include "Turnaround.h"
@@ -182,7 +183,7 @@ void ATugs::Unpose(FCrew& C)
 	if (USkeletalMeshComponent* B = BodyOf(GetWorld(), C.A.Get()))
 	{
 		B->SetAnimationMode(EAnimationMode::AnimationSingleNode);
-		if (MoveBS()) { B->SetAnimation(MoveBS()); B->Play(true); }
+		if (MoveBS()) { B->SetAnimation(MoveBS()); B->Play(true); UPaxAnimInstance::Install(B); }
 	}
 	C.Anim = nullptr; C.Speed = 0.f;
 	// (upright again, facing the way it last faced)

@@ -11,6 +11,12 @@
 // places found on the body's own bones (the hip, the nape, the other upper arm, the chest), the palm turned onto what it
 // touches, the fingers lightly curled; the look a chain (the head, then the neck, a little of the spine) within natural
 // limits; a weight shift moves the pelvis while two-bone IK keeps both feet exactly where they stood.
+//
+// And the feet on the ground (to-do 290, owner 2026-11-25: the soles, their sides too, always above the ground while
+// walking - apron, landside, terminal, stairs - but so little that it isn't noticed): everyone who walks, passengers, crew
+// and the player. The shoe's real sole (its lowest points, from the mesh) is kept 2.5 mm over the ground found under the heel
+// and the ball of each foot; on steps and slopes each foot comes down on its own step by two-bone IK, the hips following the
+// lower one. Near the camera only; nobody sees a sole further off.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -41,6 +47,10 @@ namespace EPaxFidget
 	};
 }
 
+/** The soles of a body and what it wears: how far they reach under the body's own zero, and six points of each (the heel's back,
+ *  inner and outer edge in the foot bone's space; the ball's inner and outer edge and the toe's tip in the ball bone's). */
+struct FPaxSoles { bool bOk = false; float Sole = 0.f; FVector At[2][6]; };
+
 /** The proxy: the blend space evaluated as always, then the idle movement, then the grip layer (worker thread). */
 struct FPaxAnimProxy : public FAnimSingleNodeInstanceProxy
 {
@@ -56,6 +66,10 @@ struct FPaxAnimProxy : public FAnimSingleNodeInstanceProxy
 	// the idle movement (copied from the instance each update)
 	int32 FidKind = -1; float FidKt = 0.f, FidDur = 1.f, FidFade = 0.f, FidSide = 1.f; bool bFidSeated = false;
 	FTransform DeviceCS = FTransform::Identity; float DeviceW = 0.f;   // (the phone / tablet held, component space; written on the worker)
+	// the feet (copied each update; heights over the body's own zero): the soles, the weight, the ground under each point, each
+	// foot's and the hips' eased rise, the ground's slope
+	FPaxSoles Soles; float FeetW = 0.f, Under[2][6] = {}, Rise[2] = {0.f, 0.f}, HipRise = 0.f;
+	FVector Slope[2] = {FVector::UpVector, FVector::UpVector};
 private:
 	struct FCurl { int32 Bone; FVector Axis; float Angle; };
 	const void* RigFor = nullptr;   // the skeletal mesh asset the bones below were found on
@@ -66,13 +80,14 @@ private:
 	int32 Pelvis = INDEX_NONE, Head = INDEX_NONE;
 	int32 Arm[2][3] = {{INDEX_NONE, INDEX_NONE, INDEX_NONE}, {INDEX_NONE, INDEX_NONE, INDEX_NONE}};
 	int32 Leg[2][3] = {{INDEX_NONE, INDEX_NONE, INDEX_NONE}, {INDEX_NONE, INDEX_NONE, INDEX_NONE}};
-	int32 Clav[2] = {INDEX_NONE, INDEX_NONE};
+	int32 Clav[2] = {INDEX_NONE, INDEX_NONE}, Ball[2] = {INDEX_NONE, INDEX_NONE};
 	TArray<int32> Spine, Neck;
 	FVector BL = FVector(1, 0, 0), BF = FVector(0, 1, 0), BU = FVector(0, 0, 1);
 	FVector PalmL[2] = {FVector::ZeroVector, FVector::ZeroVector}, AlongL[2] = {FVector::ZeroVector, FVector::ZeroVector};
 	bool bFidRig = false;
 	void Rig(const FBoneContainer& BC);
 	void Fidget(FCompactPose& Pose);
+	void Feet(FCompactPose& Pose) const;
 };
 
 UCLASS(Transient, NotBlueprintable)
@@ -117,6 +132,8 @@ public:
 	/** A hand's own axes in its bone's space (along the fingers, out of the palm), from the reference pose. */
 	static bool HandAxes(const USkeletalMeshComponent* Body, bool bRight, FVector& OutAlong, FVector& OutPalm);
 
+	/** The feet kept on the ground (off while falling). */
+	bool bFeet = true;
 	/** Swap a body that walks with the plain single-node instance onto this one, keeping its blend space playing. */
 	static UPaxAnimInstance* Install(USkeletalMeshComponent* Body);
 	/** The grip point in hand_r's own space: where the closed fingers wrap round a handle bar (between the palm and the
@@ -128,7 +145,15 @@ public:
 	double FidStart = -1.0; float FidDur = 0.f, FidSide = 1.f; bool bFidOn = false, bFidSeated = false;
 	float StillT = 0.f, NextFidT = 0.f;
 	FTransform DeviceCS = FTransform::Identity; float DeviceW = 0.f; int32 DeviceKind = -1;
+	/** (the proxy's, each update on the game thread: the ground under the feet, near the camera) */
+	void StepFeet(float Dt, FPaxAnimProxy& P);
 protected:
 	virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override { return new FPaxAnimProxy(this); }
 	virtual void DestroyAnimInstanceProxy(FAnimInstanceProxy* P) override { delete P; }
+private:
+	FPaxSoles Soles; int32 SolesFor = 0; float SolesT = 0.f;   // (measured again when what they wear changed)
+	float FeetW = 0.f, Rise[2] = {0.f, 0.f}, SmZ = 0.f; FVector Slope[2] = {FVector::UpVector, FVector::UpVector};
+	FVector FeetAt = FVector::ZeroVector, FootWas[2] = {FVector::ZeroVector, FVector::ZeroVector}; bool bFeetOn = false; float UnevenT = 0.f;
+	FTransform FeetXf;   // (where the body was for the pose that is on it)
+	void MeasureSoles(const USkeletalMeshComponent* B);
 };

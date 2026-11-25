@@ -77,6 +77,8 @@ public:
 	struct FSeatSpot { FVector At = FVector::ZeroVector; FVector Facing = FVector::ForwardVector; float SeatH = 46.f; bool bYours = false; TArray<TPair<UInstancedStaticMeshComponent*, int32>> Parts; };
 	/** Every chair, stool, armchair, bench and gate seat in this model. */
 	void SeatSpots(TArray<FSeatSpot>& Out) const;
+	/** Changes when the model's parts do (its seats are to be found again). */
+	uint32 SeatStamp() const { return uint32(NName.Num()) * 31u + uint32(ByMesh.Num()); }
 	/** The garage-door button panel (owner, 2026-11-14: inside the fire station by each bay door, inside each hangar by
 	 *  its big door; Art/DoorPanel): put flat on the first wall found from From (inside) looking along Dir, its middle
 	 *  1.35 m over Floor. Null when no wall is there. */

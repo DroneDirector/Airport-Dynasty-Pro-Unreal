@@ -313,9 +313,9 @@ namespace
 
 	FString PassengerName(uint32 Seed)
 	{
-		static const TCHAR* Women[] = {TEXT("Anna"), TEXT("Sofie"), TEXT("Emma"), TEXT("Maria"), TEXT("Sarah"), TEXT("Laura"), TEXT("Hanna"), TEXT("Julia"), TEXT("Elin"), TEXT("Charlotte"), TEXT("Olivia"), TEXT("Ingrid")};
-		static const TCHAR* Men[] = {TEXT("Jon"), TEXT("Peter"), TEXT("Michael"), TEXT("David"), TEXT("Thomas"), TEXT("Andreas"), TEXT("James"), TEXT("Lukas"), TEXT("Rasmus"), TEXT("Oliver"), TEXT("Daniel"), TEXT("Erik")};
-		static const TCHAR* Last[] = {TEXT("Hansen"), TEXT("Jacobsen"), TEXT("Olsen"), TEXT("Petersen"), TEXT("Smith"), TEXT("Johnson"), TEXT("Müller"), TEXT("Andersson"), TEXT("Nielsen"), TEXT("Brown"), TEXT("Joensen"), TEXT("Poulsen"), TEXT("Davies"), TEXT("Larsen"), TEXT("Sigurdsson"), TEXT("Thomsen")};
+		static const TCHAR* Women[] = {TEXT("Anna"), TEXT("Sophie"), TEXT("Emma"), TEXT("Maria"), TEXT("Sarah"), TEXT("Laura"), TEXT("Camille"), TEXT("Julia"), TEXT("Céline"), TEXT("Charlotte"), TEXT("Olivia"), TEXT("Giulia")};
+		static const TCHAR* Men[] = {TEXT("Luca"), TEXT("Peter"), TEXT("Michael"), TEXT("David"), TEXT("Thomas"), TEXT("Andreas"), TEXT("James"), TEXT("Lukas"), TEXT("Nicolas"), TEXT("Oliver"), TEXT("Daniel"), TEXT("Julien")};
+		static const TCHAR* Last[] = {TEXT("Favre"), TEXT("Rochat"), TEXT("Keller"), TEXT("Meier"), TEXT("Smith"), TEXT("Johnson"), TEXT("Müller"), TEXT("Dubois"), TEXT("Bernasconi"), TEXT("Brown"), TEXT("Rossi"), TEXT("Schmid"), TEXT("Davies"), TEXT("Martin"), TEXT("Perrin"), TEXT("Weber")};
 		const bool bWoman = (Seed & 1) != 0;
 		const FString First = bWoman ? Women[(Seed >> 1) % 12] : Men[(Seed >> 1) % 12];
 		return FString::Printf(TEXT("%s %s %s"), bWoman ? TEXT("Ms") : TEXT("Mr"), *First, Last[(Seed >> 5) % 16]);
@@ -565,7 +565,7 @@ void AADPHUD::WritePreviewPack()
 		TEXT("This is a passenger announcement. Would passenger Mr Jon Hansen, travelling to Oslo on Atlantic North flight A T N 3 1 8, please proceed immediately to gate 6, where your flight is ready to depart."),
 		TEXT("This is the final call for Atlantic North flight A T N 3 1 8 to Oslo. Would Mr Jon Hansen please make your way to gate 6 now. Would all remaining passengers please proceed immediately to gate 6. This gate will close in five minutes."),
 		TEXT("Atlantic North flight A T N 3 1 8 to Oslo is now closed. Gate 6 is closed."),
-		TEXT("This is a passenger announcement. Would passenger Ms Sofie Joensen, travelling to Reykjavik, please contact the information desk in the main hall. Thank you."),
+		TEXT("This is a passenger announcement. Would passenger Ms Sophie Favre, travelling to Geneva, please contact the information desk in the main hall. Thank you."),
 		TEXT("For safety and security reasons, please do not leave your baggage unattended at any time. Unattended baggage may be removed and destroyed by security."),
 	};
 	TArray<int16> All;

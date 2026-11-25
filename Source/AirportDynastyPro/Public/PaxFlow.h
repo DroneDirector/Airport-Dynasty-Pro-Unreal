@@ -41,6 +41,8 @@ public:
 	/** True when this flight's departing passengers walk here: the boarding call is made by the passenger flow (at the
 	 *  turnaround's board task), not by the announcer's 40-minute rule - never called twice. */
 	static bool CallsBoarding(const UWorld* W, const FString& Flight);
+	/** Where this passenger flies to (or came from: bArr), from their own flight; false when not known. */
+	static bool TripOf(UWorld* W, const AActor* Who, FString& Place, bool& bArr);
 	/** How far that flight (by its planned leg) is: -1 nobody walks for it, 0 not called yet, 1 boarding, 2 the final call made,
 	 *  3 everyone aboard or it goes without the missing ones (to-do 288: the calls, the boards and the gate agree). */
 	static int32 CallsState(const UWorld* W, const FString& PlanId);

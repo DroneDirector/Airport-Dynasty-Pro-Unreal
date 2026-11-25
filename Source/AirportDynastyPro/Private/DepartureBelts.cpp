@@ -221,6 +221,10 @@ void ADepartureBelts::Build()
 	ArmK = Kit(TEXT("SM_DiverterArm"), true, false);
 	for (const TCHAR* N : DEPBAGM) BagMeshes.Add(Kit(N, true, true));
 	FreeIx.SetNum(BagMeshes.Num());
+	// (made here, out of sight: a bag added while playing rebuilt the collision of all of its kind - 27 ms as a passenger came)
+	const FTransform Away(FRotator::ZeroRotator, FVector(0, 0, -100000.f), FVector(0.001f));
+	for (int32 k = 0; k < BagMeshes.Num(); ++k)
+		if (UInstancedStaticMeshComponent* Bk = BagMeshes[k]) for (int32 i = 0; i < 32; ++i) FreeIx[k].Add(Bk->AddInstance(Away, true));
 
 	// ---- the motors' zones (each its own start / run / stop and sounds, where it is) ----
 	AddZone(TEXT("check-in 1-10"), FVector(61.f, 0.6f, COLZ)); AddZone(TEXT("check-in 11-20"), FVector(87.f, 0.6f, COLZ));

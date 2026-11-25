@@ -4,10 +4,16 @@
 #include "ADPLog.h"
 #include "Animation/AnimNodeBase.h"
 #include "Animation/AnimationAsset.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
+#include "PerfLog.h"
 #include "ReferenceSkeleton.h"
+#include "Rendering/SkeletalMeshLODRenderData.h"
+#include "Rendering/SkeletalMeshRenderData.h"
 #include "TwoBoneIK.h"
 
 namespace
@@ -82,8 +88,9 @@ namespace
 void FPaxAnimProxy::PreUpdate(UAnimInstance* In, float Dt)
 {
 	FAnimSingleNodeInstanceProxy::PreUpdate(In, Dt);
-	if (const UPaxAnimInstance* A = Cast<UPaxAnimInstance>(In))
+	if (UPaxAnimInstance* A = Cast<UPaxAnimInstance>(In))
 	{
+		A->StepFeet(Dt, *this);
 		// (in and out over a quarter of a second)
 		Grip = FMath::FInterpConstantTo(Grip, A->bGripRight ? 1.f : 0.f, Dt, 4.f);
 		ArmOut = A->ArmOut;
@@ -155,7 +162,7 @@ void FPaxAnimProxy::Rig(const FBoneContainer& BC)
 		auto Bs = [&](const TCHAR* N) { return RS.FindBoneIndex(FName(*FString::Printf(TEXT("%s_%s"), N, Sd[S]))); };
 		Arm[S][0] = Bs(TEXT("upperarm")); Arm[S][1] = Bs(TEXT("lowerarm")); Arm[S][2] = Bs(TEXT("hand"));
 		Leg[S][0] = Bs(TEXT("thigh")); Leg[S][1] = Bs(TEXT("calf")); Leg[S][2] = Bs(TEXT("foot"));
-		Clav[S] = Bs(TEXT("clavicle"));
+		Clav[S] = Bs(TEXT("clavicle")); Ball[S] = Bs(TEXT("ball"));
 		for (int32 K = 0; K < 3; ++K) bAll &= Arm[S][K] != INDEX_NONE && Leg[S][K] != INDEX_NONE;
 	}
 	if (!bAll) { ADP_LOG(TEXT("PaxAnim: the skeleton lacks the bones for the idle movements - none on this body")); return; }
@@ -165,8 +172,7 @@ void FPaxAnimProxy::Rig(const FBoneContainer& BC)
 	if (BU.IsNearlyZero() || L.IsNearlyZero()) return;
 	BL = L; BF = FVector::CrossProduct(BU, BL).GetSafeNormal();
 	// (the front is where the toes point; without a ball bone, the reference pose faces +y)
-	const int32 Ball = B(TEXT("ball_l"));
-	const FVector Toe = Ball != INDEX_NONE ? CS[Ball].GetLocation() - CS[Leg[0][2]].GetLocation() : FVector(0, 1, 0);
+	const FVector Toe = Ball[0] != INDEX_NONE ? CS[Ball[0]].GetLocation() - CS[Leg[0][2]].GetLocation() : FVector(0, 1, 0);
 	if (FVector::DotProduct(Toe, BF) < 0.f) BF = -BF;
 	bFidRig = true;
 }
@@ -390,6 +396,7 @@ bool FPaxAnimProxy::Evaluate(FPoseContext& Output)
 		// (the arms in towards the body: the one with a bag keeps its grip, held less far out)
 		ArmOut *= 1.f - 0.7f * FMath::Abs(Twist) / 42.f;
 	}
+	if (FeetW > 0.001f && Soles.bOk && bFidRig) Feet(Pose);   // (last: the legs as they are by now)
 	if (Grip <= 0.001f) return bOk;
 	const float W = FMath::SmoothStep(0.f, 1.f, Grip);
 	auto Ix = [&](int32 Mesh) { return Mesh == INDEX_NONE ? FCompactPoseBoneIndex(INDEX_NONE) : BC.MakeCompactPoseIndex(FMeshPoseBoneIndex(Mesh)); };
@@ -414,6 +421,265 @@ bool FPaxAnimProxy::Evaluate(FPoseContext& Output)
 		Pose[I].SetRotation((FQuat(C.Axis, C.Angle * W) * Pose[I].GetRotation()).GetNormalized());
 	}
 	return bOk;
+}
+
+// ------------------------------------------------------------------ the feet on the ground (to-do 290)
+
+namespace { constexpr float PaxSoleGap = 0.25f; }   // (cm the sole stays over the ground: not noticed, never below)
+
+void FPaxAnimProxy::Feet(FCompactPose& Pose) const
+{
+	const FBoneContainer& BC = Pose.GetBoneContainer();
+	auto Ix = [&](int32 Mesh) { return Mesh == INDEX_NONE ? FCompactPoseBoneIndex(INDEX_NONE) : BC.MakeCompactPoseIndex(FMeshPoseBoneIndex(Mesh)); };
+	const FCompactPoseBoneIndex Pv = Ix(Pelvis); if (Pv == INDEX_NONE) return;
+	FCompactPoseBoneIndex Lg[2][4] = {{Pv, Pv, Pv, Pv}, {Pv, Pv, Pv, Pv}};
+	for (int32 S = 0; S < 2; ++S)
+		for (int32 K = 0; K < 4; ++K) { Lg[S][K] = Ix(K < 3 ? Leg[S][K] : Ball[S]); if (Lg[S][K] == INDEX_NONE) return; }   // (a low LOD without them)
+	auto Rel = [&](FCompactPoseBoneIndex I, const FTransform& T, const FTransform& Pa)
+	{
+		FTransform Lo = T.GetRelativeTransform(Pa); Lo.SetScale3D(Pose[I].GetScale3D()); Lo.NormalizeRotation(); Pose[I] = Lo;
+	};
+	const FTransform PvO = CSOf(Pose, Pv);
+	const FTransform PvPar = Pose[Pv].Inverse() * PvO;
+	const float W = FeetW, Up = -Soles.Sole + PaxSoleGap;
+	FTransform Th[2], Ca[2], Fo[2]; FTransform BaLo[2];
+	for (int32 S = 0; S < 2; ++S) { Th[S] = Pose[Lg[S][0]] * PvO; Ca[S] = Pose[Lg[S][1]] * Th[S]; Fo[S] = Pose[Lg[S][2]] * Ca[S]; BaLo[S] = Pose[Lg[S][3]]; }
+	FTransform PvN = PvO; PvN.AddToTranslation(FVector(0.f, 0.f, (Up + HipRise) * W));
+	Rel(Pv, PvN, PvPar);
+	const FVector Hip(0.f, 0.f, (Up + HipRise) * W);
+	for (int32 S = 0; S < 2; ++S)
+	{
+		FTransform F = Fo[S];
+		auto Pt = [&](const FTransform& Foot, int32 I) { return I < 3 ? Foot.TransformPosition(Soles.At[S][I]) : (BaLo[S] * Foot).TransformPosition(Soles.At[S][I]); };
+		// how near the ground the animation has it (its own floor: the body's zero, the sole's thickness below)
+		float Low = MAX_flt; for (int32 I = 0; I < 6; ++I) Low = FMath::Min(Low, float(Pt(F, I).Z) - Soles.Sole);
+		const float On = W * (1.f - FMath::SmoothStep(1.f, 8.f, Low));
+		// on the ground: along its slope, and its sides level with it (never on one edge)
+		const FVector N = Slope[S];
+		FQuat Q = F.GetRotation();
+		if (N.Z < 0.9999f) Q = FQuat::Slerp(FQuat::Identity, FQuat::FindBetweenNormals(FVector::UpVector, N), On) * Q;
+		F.SetRotation(Q);
+		const FVector Fw = (Pt(F, 5) - Pt(F, 0)).GetSafeNormal(), Sd = (Pt(F, 2) - Pt(F, 1)).GetSafeNormal();
+		FVector Flat = FVector::VectorPlaneProject(Sd, N).GetSafeNormal();
+		if (!Flat.IsNearlyZero() && !Fw.IsNearlyZero())
+		{
+			const float Roll = FMath::Atan2(float(FVector::DotProduct(FVector::CrossProduct(Sd, Flat), Fw)), float(FVector::DotProduct(Sd, Flat)));
+			F.SetRotation((FQuat(Fw, FMath::Clamp(Roll, -0.35f, 0.35f) * On) * F.GetRotation()).GetNormalized());
+		}
+		F.AddToTranslation(FVector(0.f, 0.f, (Up + Rise[S]) * W));
+		// never below: the lowest of the sole's points over the ground found under it
+		float Need = 0.f;
+		for (int32 I = 0; I < 6; ++I) Need = FMath::Max(Need, Under[S][I] + PaxSoleGap - float(Pt(F, I).Z));
+		F.AddToTranslation(FVector(0.f, 0.f, FMath::Min(Need, 40.f) * W));
+		// the leg to it (the knee stays the way it bends)
+		const FVector H0 = Th[S].GetLocation() + Hip, K0 = Ca[S].GetLocation() + Hip, A0 = Fo[S].GetLocation() + Hip;
+		FVector OJ, OE;
+		AnimationCore::SolveTwoBoneIK(H0, K0, A0, K0 + BF * 25.f, F.GetLocation(), OJ, OE, false, 1.0, 1.0);
+		const FQuat Qa = FQuat::FindBetweenVectors(K0 - H0, OJ - H0);
+		FTransform ThN(Qa * Th[S].GetRotation(), H0, Th[S].GetScale3D());
+		const FQuat Qb = FQuat::FindBetweenVectors(Qa.RotateVector(A0 - K0), OE - OJ);
+		FTransform CaN(Qb * Qa * Ca[S].GetRotation(), OJ, Ca[S].GetScale3D());
+		Rel(Lg[S][0], ThN, PvN); Rel(Lg[S][1], CaN, ThN); F.SetLocation(OE); Rel(Lg[S][2], F, CaN);
+	}
+}
+
+void UPaxAnimInstance::MeasureSoles(const USkeletalMeshComponent* B)
+{
+	// the lowest points of a mesh in its reference pose: the soles as they are (the body's own feet, the shoes over them)
+	struct FLow { float Z = 0.f; TArray<FVector3f> Pts; };
+	static TMap<TWeakObjectPtr<const USkinnedAsset>, FLow> Known;
+	auto LowOf = [](const USkinnedAsset* M) -> const FLow&
+	{
+		if (const FLow* K = Known.Find(M)) return *K;
+		FLow& O = Known.Add(M);
+		const FSkeletalMeshRenderData* R = M->GetResourceForRendering();
+		const int32 N = R ? R->LODRenderData.Num() : 0;
+		int32 From = R ? R->GetFirstValidLODIdx(0) : 0;
+		for (int32 l = FMath::Max(0, From); l < N; ++l)
+		{
+			const FPositionVertexBuffer& V = R->LODRenderData[l].StaticVertexBuffers.PositionVertexBuffer;
+			if (!V.GetNumVertices() || !V.GetVertexData()) continue;
+			O.Z = MAX_flt;
+			for (uint32 i = 0; i < V.GetNumVertices(); ++i) O.Z = FMath::Min(O.Z, V.VertexPosition(i).Z);
+			if (O.Z < 12.f) for (uint32 i = 0; i < V.GetNumVertices(); ++i) if (const FVector3f& P = V.VertexPosition(i); P.Z < O.Z + 1.5f) O.Pts.Add(P);
+			break;
+		}
+		if (!O.Pts.Num() && O.Z == 0.f) if (const USkeletalMesh* Sm = Cast<USkeletalMesh>(M)) { const FBoxSphereBounds Bb = Sm->GetImportedBounds(); O.Z = float(Bb.Origin.Z - Bb.BoxExtent.Z); }
+		ADP_LOG(TEXT("PaxAnim: %s - lowest point %.2f cm, %d points of its soles"), *M->GetName(), O.Z, O.Pts.Num());
+		return O;
+	};
+	Soles = FPaxSoles();
+	const USkinnedAsset* Bm = B->GetSkinnedAsset(); if (!Bm) return;
+	const FReferenceSkeleton& RS = Bm->GetRefSkeleton();
+	TArray<FTransform> CS; RefCS(RS, CS);
+	TArray<const FLow*> Lows;
+	float Z = 0.f;
+	if (const AActor* Own = B->GetOwner())
+	{
+		TInlineComponentArray<USkinnedMeshComponent*> Sk(Own);
+		for (const USkinnedMeshComponent* S : Sk)
+			if (S == B || S->LeaderPoseComponent.Get() == B)
+				if (const USkinnedAsset* M = S->GetSkinnedAsset()) { LowOf(M); }
+		for (const USkinnedMeshComponent* S : Sk)
+			if (S == B || S->LeaderPoseComponent.Get() == B)
+				if (const USkinnedAsset* M = S->GetSkinnedAsset()) if (const FLow& O = LowOf(M); O.Z < 12.f) { Z = FMath::Min(Z, FMath::Max(O.Z, -8.f)); Lows.Add(&O); }
+	}
+	Soles.Sole = Z;
+	for (int32 S = 0; S < 2; ++S)
+	{
+		const int32 F = RS.FindBoneIndex(S ? TEXT("foot_r") : TEXT("foot_l")), Ba = RS.FindBoneIndex(S ? TEXT("ball_r") : TEXT("ball_l"));
+		if (F == INDEX_NONE || Ba == INDEX_NONE) return;
+		const FVector A = CS[F].GetLocation(), T = CS[Ba].GetLocation();
+		const FVector Fw = FVector(T.X - A.X, T.Y - A.Y, 0.f).GetSafeNormal(), Sd = FVector::CrossProduct(FVector::UpVector, Fw);
+		const float D = FVector::Dist2D(A, T);
+		// along the foot and across it, from the ankle: a shoe's usual measures, then what its points say
+		float Back = -0.45f * D, Tip = 1.6f * D, Hi = -0.25f * D, Ho = 0.25f * D, Bi = -0.36f * D, Bo = 0.36f * D;
+		float Back2 = 0.f, Tip2 = 0.f, Hi2 = 0.f, Ho2 = 0.f, Bi2 = 0.f, Bo2 = 0.f;
+		for (const FLow* Lo : Lows)
+			for (const FVector3f& P : Lo->Pts)
+			{
+				if (P.Z > Z + 1.5f) continue;
+				const FVector V = FVector(P) - A; const float Al = float(V.X * Fw.X + V.Y * Fw.Y), Ac = float(V.X * Sd.X + V.Y * Sd.Y);
+				if (FMath::Abs(Ac) > 0.75f * D || Al < -1.f * D || Al > 2.3f * D) continue;   // (the other foot's)
+				Back2 = FMath::Min(Back2, Al); Tip2 = FMath::Max(Tip2, Al);
+				if (Al < 0.2f * D) { Hi2 = FMath::Min(Hi2, Ac); Ho2 = FMath::Max(Ho2, Ac); }
+				else if (FMath::Abs(Al - D) < 0.35f * D) { Bi2 = FMath::Min(Bi2, Ac); Bo2 = FMath::Max(Bo2, Ac); }
+			}
+		if (Back2 < -2.f && Tip2 > D) { Back = Back2; Tip = Tip2; if (Ho2 - Hi2 > 2.f) { Hi = Hi2; Ho = Ho2; } if (Bo2 - Bi2 > 3.f) { Bi = Bi2; Bo = Bo2; } }
+		auto Pt = [&](float Al, float Ac) { FVector P = A + Fw * Al + Sd * Ac; P.Z = Z; return P; };
+		const FVector Pf[6] = {Pt(Back, 0.5f * (Hi + Ho)), Pt(0.f, Hi), Pt(0.f, Ho), Pt(D, Bi), Pt(D, Bo), Pt(Tip, 0.5f * (Bi + Bo))};
+		for (int32 I = 0; I < 6; ++I) Soles.At[S][I] = (I < 3 ? CS[F] : CS[Ba]).InverseTransformPosition(Pf[I]);
+		static int32 Said = 0;
+		if (Said++ < 6) ADP_LOG(TEXT("PaxAnim: the soles of %s (%s foot): %.2f cm under the body's zero, heel %.1f, toe %.1f, heel width %.1f, ball width %.1f"), *Bm->GetName(), S ? TEXT("right") : TEXT("left"), -Z, Back, Tip, Ho - Hi, Bo - Bi);
+	}
+	Soles.bOk = true;
+}
+
+void UPaxAnimInstance::StepFeet(float Dt, FPaxAnimProxy& P)
+{
+	USkeletalMeshComponent* B = GetSkelMeshComponent();
+	UWorld* W = B ? B->GetWorld() : nullptr;
+	AActor* Own = B ? B->GetOwner() : nullptr;
+	if (!W || !Own || !W->IsGameWorld()) { P.FeetW = 0.f; return; }
+	static uint64 CamFrame = 0; static FVector Cam = FVector::ZeroVector;
+	if (CamFrame != GFrameCounter) { CamFrame = GFrameCounter; if (const APlayerController* PC = W->GetFirstPlayerController()) if (PC->PlayerCameraManager) Cam = PC->PlayerCameraManager->GetCameraLocation(); }
+	const FVector Base = B->GetComponentLocation();
+	const bool bMe = Own->IsA<APawn>() || (Own->GetAttachParentActor() && Own->GetAttachParentActor()->IsA<APawn>());
+	const float DistSq = float(FVector::DistSquared(Base, Cam));
+	const bool bNear = bFeet && DistSq < FMath::Square(bFeetOn ? 2300.f : 2000.f) && (bMe || B->WasRecentlyRendered(0.3f));
+	FeetW = FMath::FInterpConstantTo(FeetW, bNear ? 1.f : 0.f, Dt, 5.f);
+	const FVector V = Dt > 1e-4f ? (Base - FeetAt) / Dt : FVector::ZeroVector; FeetAt = Base;
+	if (FeetW <= 0.001f) { bFeetOn = false; P.FeetW = 0.f; return; }
+	ADP_PERF_SCOPE("feet: the ground under them", 2.f);
+	if ((SolesT -= Dt) <= 0.f)
+	{
+		SolesT = 2.f;
+		int32 Sum = 0; TInlineComponentArray<USkinnedMeshComponent*> Sk(Own);
+		for (const USkinnedMeshComponent* S : Sk) if (S == B || S->LeaderPoseComponent.Get() == B) Sum = HashCombine(Sum, GetTypeHash(S->GetSkinnedAsset()));
+		if (Sum != SolesFor) { SolesFor = Sum; MeasureSoles(B); }
+	}
+	if (!Soles.bOk) { P.FeetW = 0.f; return; }
+	FCollisionQueryParams Q(SCENE_QUERY_STAT(AdpFeet), false, Own);
+	for (AActor* Pa = Own->GetAttachParentActor(); Pa; Pa = Pa->GetAttachParentActor()) if (Pa->IsA<APawn>()) Q.AddIgnoredActor(Pa);
+	const float Bz = float(Base.Z);
+	auto Below = [&](const FVector& Pos, FVector* N) -> float
+	{
+		for (int32 k = 0; k < 2; ++k)
+		{
+			FHitResult Hi;
+			if (!W->LineTraceSingleByChannel(Hi, FVector(Pos.X, Pos.Y, Bz + 42.f), FVector(Pos.X, Pos.Y, Bz - 45.f), ECC_Visibility, Q)) break;
+			// (another person's leg, a bag, an edge: not the ground)
+			if (Cast<USkinnedMeshComponent>(Hi.GetComponent())) { Q.AddIgnoredActor(Hi.GetActor()); continue; }
+			if (Hi.bStartPenetrating || Hi.ImpactNormal.Z < 0.7f) break;
+			if (N) *N = Hi.ImpactNormal;
+			return float(Hi.ImpactPoint.Z) - Bz;
+		}
+		return 0.f;
+	};
+	auto Under = [&](const FVector& Pos, FVector* N) -> float
+	{
+		const float G = Below(Pos, N);
+		// (higher than one step: only with a step before it - else a bag, a seat's edge, something standing there)
+		if (G > 22.f && Below(FMath::Lerp(Base, Pos, 0.5f), nullptr) < 6.f) { if (N) *N = FVector::UpVector; return 0.f; }
+		return G;
+	};
+	static const FName Foot[2] = {TEXT("foot_l"), TEXT("foot_r")}, BallN[2] = {TEXT("ball_l"), TEXT("ball_r")};
+	const FTransform Xf = B->GetComponentTransform();
+	const FTransform Was = bFeetOn ? FeetXf : Xf; FeetXf = Xf;
+	float Grd[2][6] = {}, Hi6[2] = {0.f, 0.f}, Ahead[2] = {-100.f, -100.f}; FVector Nm[2] = {FVector::UpVector, FVector::UpVector}; FVector Pw6[2][6]; bool bEven = true;
+	const FVector Go = FVector(V.X, V.Y, 0.f).GetClampedToMaxSize(300.f) * 0.14f;
+	for (int32 S = 0; S < 2; ++S)
+	{
+		const FTransform Tf = B->GetSocketTransform(Foot[S], RTS_Component), Tb = B->GetSocketTransform(BallN[S], RTS_Component);
+		// (the pose is the last one: where the foot is going to be in this one)
+		const FVector Step = bFeetOn ? (Tf.GetLocation() - FootWas[S]).GetClampedToMaxSize(14.f) : FVector::ZeroVector; FootWas[S] = Tf.GetLocation();
+		for (int32 I = 0; I < 6; ++I) Pw6[S][I] = Xf.TransformPosition((I < 3 ? Tf : Tb).TransformPosition(Soles.At[S][I]) + Step);
+		const float Gb = Under(Xf.TransformPosition(Tb.GetLocation() + Step), &Nm[S]);
+		Ahead[S] = Under(Pw6[S][5] + Go, nullptr);   // (the next step: seen, and lifted for, before they are at it)
+		if (FMath::Abs(Gb) > 0.5f || FMath::Abs(Ahead[S]) > 1.f || Nm[S].Z < 0.9995f) bEven = false;
+		for (int32 I = 0; I < 6; ++I) Grd[S][I] = Gb;
+		Hi6[S] = Gb;
+	}
+	if (!bEven) UnevenT = 0.6f; else UnevenT -= Dt;
+	if (UnevenT > 0.f)
+	{
+		float Least = 0.f;
+		for (int32 S = 0; S < 2; ++S)
+		{
+			const FVector Ankle = Xf.TransformPosition(FootWas[S]), Tip = (Pw6[S][5] - Pw6[S][0]).GetSafeNormal2D();
+			Hi6[S] = -100.f;
+			for (int32 I = 0; I < 6; ++I)
+			{
+				const FVector& Pp = Pw6[S][I];
+				Grd[S][I] = Under(Pp, nullptr);
+				if (I == 0 || I == 5) Grd[S][I] = FMath::Max(Grd[S][I], Under(Pp + Tip * (I ? 3.f : -3.f), nullptr));
+				Least = FMath::Min(Least, Grd[S][I]);
+				// (what the slope the foot is laid along gives by itself is no rise)
+				const float Own6 = Nm[S].Z > 0.5f ? float(-(Nm[S].X * (Pp.X - Ankle.X) + Nm[S].Y * (Pp.Y - Ankle.Y)) / Nm[S].Z) : 0.f;
+				Hi6[S] = FMath::Max(Hi6[S], Grd[S][I] - Own6);
+			}
+		}
+		// ground lower than they stand: only where the ground right under them is what they stand on (the apron's paving and
+		// others are followed by their own heights, the collision can be the earth under them)
+		if (Least < -0.5f && Under(Base, nullptr) < -2.f)
+			for (int32 S = 0; S < 2; ++S) { for (int32 I = 0; I < 6; ++I) Grd[S][I] = FMath::Max(Grd[S][I], 0.f); Hi6[S] = FMath::Max(Hi6[S], 0.f); Nm[S] = FVector::UpVector; }
+	}
+	if (!bFeetOn || FMath::Abs(SmZ - Bz) > 60.f) { SmZ = Bz; for (int32 S = 0; S < 2; ++S) { Rise[S] = Hi6[S]; Slope[S] = Nm[S]; } }
+	bFeetOn = true;
+	// (the body goes up and down steps all at once: the hips follow it eased - not the player's, whose eyes go with them)
+	SmZ = FMath::FInterpTo(SmZ, Bz, Dt, V.SizeSquared2D() > 400.f ? 12.f : 40.f);
+	for (int32 S = 0; S < 2; ++S)
+	{
+		const float Want = FMath::Clamp(FMath::Max(Hi6[S], UnevenT > 0.f && Go.SizeSquared() > 100.f ? Ahead[S] : -100.f), -35.f, 40.f);
+		Rise[S] = FMath::FInterpTo(Rise[S], Want, Dt, Want > Rise[S] ? 18.f : 10.f);
+		Slope[S] = FMath::VInterpTo(Slope[S], Nm[S], Dt, 10.f).GetSafeNormal();
+		for (int32 I = 0; I < 6; ++I) P.Under[S][I] = Grd[S][I];
+		P.Rise[S] = Rise[S]; P.Slope[S] = B->GetComponentTransform().InverseTransformVectorNoScale(Slope[S]);
+	}
+	P.HipRise = FMath::Clamp(FMath::Min(Rise[0], Rise[1]) + (bMe ? 0.f : FMath::Clamp(SmZ - Bz, -20.f, 4.f)), -30.f, 15.f);
+	P.Soles = Soles; P.FeetW = FeetW;
+	// (tests: the soles as they were last drawn against the ground under them, every 10 s in the log)
+	static const bool bCheck = FParse::Param(FCommandLine::Get(), TEXT("FeetCheck"));
+	if (!bCheck || FeetW < 0.999f || bMe) return;   // (the player's own body hangs under the camera of a flown view)
+	static int32 N = 0, Under0 = 0, Deep = 0; static float Worst = 100.f, SumGap = 0.f; static double SaidAt = 0.0; static FString Who;
+	for (int32 S = 0; S < 2; ++S)
+	{
+		const FTransform Tf = B->GetSocketTransform(Foot[S], RTS_Component) * Was, Tb = B->GetSocketTransform(BallN[S], RTS_Component) * Was;
+		float Gap = 100.f; FVector Low = FVector::ZeroVector;
+		for (int32 I = 0; I < 6; ++I)
+		{
+			const FVector Pw = (I < 3 ? Tf : Tb).TransformPosition(Soles.At[S][I]);
+			float G = Under(Pw, nullptr);
+			if (G < 0.f && Under(Base, nullptr) < -2.f) G = 0.f;
+			if (const float G2 = float(Pw.Z) - Bz - G; G2 < Gap) { Gap = G2; Low = Pw; }
+		}
+		if (Gap < 6.f) { ++N; SumGap += FMath::Max(Gap, 0.f); if (Gap < -0.05f) ++Under0; if (Gap < -2.f) ++Deep; if (Gap < Worst) { Worst = Gap; FHitResult Hw; W->LineTraceSingleByChannel(Hw, FVector(Low.X, Low.Y, Bz + 42.f), FVector(Low.X, Low.Y, Bz - 45.f), ECC_Visibility, Q); Who = FString::Printf(TEXT("%s at %.0f, %.0f, %.0f, %.1f m/s, sole %.0f %.0f over the body, on %s of %s"), *Own->GetName(), Base.X, Base.Y, Base.Z, V.Size2D() / 100.f, Low.Z - Bz, Hw.ImpactPoint.Z - Bz, *GetNameSafe(Hw.GetComponent()), *GetNameSafe(Hw.GetActor())); } }
+	}
+	if (const double Now = FPlatformTime::Seconds(); Now - SaidAt > 10.0)
+	{
+		if (N > 0) ADP_LOG(TEXT("Feet: %d soles near the ground, %d under it (%.2f %%; %d more than 2 cm), on average %.2f cm over it, the lowest %.2f cm (%s)"), N, Under0, 100.f * Under0 / N, Deep, SumGap / N, Worst, *Who);
+		N = Under0 = Deep = 0; Worst = 100.f; SumGap = 0.f; SaidAt = Now;
+	}
 }
 
 // ------------------------------------------------------------------ the idle movements (game thread)

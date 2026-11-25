@@ -1,5 +1,6 @@
 // The player walking through the terminal in first person: walk, run, jump and crouch.
 #include "ADPWalker.h"
+#include "PaxAnimInstance.h"
 #include "ADPFov.h"
 #include "Kismet/GameplayStatics.h"
 #include "Components/AudioComponent.h"
@@ -210,6 +211,7 @@ bool AADPWalker::WearMetaHuman(const FString& Who)
 		HumanBody->SetAnimationMode(EAnimationMode::AnimationSingleNode);
 		HumanBody->SetAnimation(MoveBlend);
 		HumanBody->Play(true);
+		UPaxAnimInstance::Install(HumanBody);   // (the feet on the ground)
 	}
 	else ADP_WARN(TEXT("Walker: the carried-over animations are missing (Tools/retarget_player_anims.py)"));
 	HumanBody->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
@@ -296,7 +298,7 @@ void AADPWalker::TakeBodyBack()
 	Human->GetRootComponent()->SetRelativeTransform(HumanRel);
 	HumanBody->SetAnimationMode(EAnimationMode::AnimationSingleNode);
 	bHumanFalling = false;
-	if (MoveBlend) { HumanBody->SetAnimation(MoveBlend); HumanBody->Play(true); }
+	if (MoveBlend) { HumanBody->SetAnimation(MoveBlend); HumanBody->Play(true); UPaxAnimInstance::Install(HumanBody); }
 	ShowHead(bThird);
 }
 
@@ -316,6 +318,7 @@ void AADPWalker::DriveHuman(float Dt)
 		if (bFalling && FallAnim) { HumanBody->SetAnimation(FallAnim); HumanBody->Play(true); }
 		else if (MoveBlend) { HumanBody->SetAnimation(MoveBlend); HumanBody->Play(true); }
 		One = HumanBody->GetSingleNodeInstance();
+		if (UPaxAnimInstance* Mine = Cast<UPaxAnimInstance>(One)) Mine->bFeet = !bFalling;
 	}
 	const FVector V = GetVelocity();
 	const float Speed = V.Size2D();

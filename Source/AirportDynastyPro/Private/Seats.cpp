@@ -140,14 +140,39 @@ bool ASeats::StandSpot(int32 I, FVector& At, float& Yaw)
 	return true;
 }
 
-void ASeats::Gather()
+bool ASeats::Gather()
 {
-	ADP_PERF_SCOPE("the seats: gathering every place to sit", 4.f);
-	Spots.Reset();
-	for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It) It->SeatSpots(Spots);
-	// a seat's pieces outlined when you're near
-	for (int32 Si = 0; Si < Spots.Num(); ++Si) for (const auto& P : Spots[Si].Parts) { bool bNew = false; Outlined.Add(P, &bNew); if (!bNew) AInteractOutline::Add(static_cast<UPrimitiveComponent*>(P.Key), P.Value, (uint64(1) << 62) + uint64(Si)); }
-	static int32 Was = -1; if (Spots.Num() != Was) { Was = Spots.Num(); ADP_LOG(TEXT("Seats: %d places to sit"), Spots.Num()); }
+	ADP_PERF_SCOPE("the seats: gathering the new places to sit", 4.f);
+	const double Until = FPlatformTime::Seconds() + 0.003;
+	auto Vacate = [this](TArray<int32>& Slots)
+	{
+		for (int32 k = Slots.Num() - 1; k >= 0; --k) { const int32 I = Slots[k]; Spots[I] = ABabylonModel::FSeatSpot(); Spots[I].At = FVector(0, 0, -1.0e7); Vacant.Add(I); }
+		Slots.Reset();
+	};
+	TMap<const ABabylonModel*, int32> Has;
+	for (int32 G = Got.Num() - 1; G >= 0; --G) if (!Got[G].Model.IsValid()) { Vacate(Got[G].Slots); Got.RemoveAtSwap(G); }
+	for (int32 G = 0; G < Got.Num(); ++G) Has.Add(Got[G].Model.Get(), G);
+	bool bAll = true;
+	for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It)
+	{
+		const uint32 Stamp = It->SeatStamp();
+		const int32* Old = Has.Find(*It);
+		if (Old && Got[*Old].Stamp == Stamp) continue;
+		if (FPlatformTime::Seconds() > Until) { bAll = false; break; }
+		const int32 G = Old ? *Old : Got.AddDefaulted();
+		Got[G].Model = *It; Got[G].Stamp = Stamp;
+		TArray<ABabylonModel::FSeatSpot> New; It->SeatSpots(New);
+		Vacate(Got[G].Slots);
+		for (ABabylonModel::FSeatSpot& N : New)
+		{
+			const int32 Si = Vacant.Num() ? Vacant.Pop() : Spots.AddDefaulted();
+			Spots[Si] = MoveTemp(N); Got[G].Slots.Add(Si);
+			// a seat's pieces outlined when you're near
+			for (const auto& P : Spots[Si].Parts) { bool bKnown = false; Outlined.Add(P, &bKnown); if (!bKnown) AInteractOutline::Add(static_cast<UPrimitiveComponent*>(P.Key), P.Value, (uint64(1) << 62) + uint64(Si)); }
+		}
+	}
+	if (bAll && Spots.Num() - Vacant.Num() != Said) { Said = Spots.Num() - Vacant.Num(); ADP_LOG(TEXT("Seats: %d places to sit"), Said); }
+	return bAll;
 }
 
 bool ASeats::Interact(APawn* Who)
@@ -257,15 +282,9 @@ void ASeats::Tick(float Dt)
 	ADP_PERF_SCOPE("the seats (each frame)", 4.f);
 	Super::Tick(Dt);
 	One = this;
-	// the seats are gathered again only when the buildings change (one added or gone - the town comes in late, say):
-	// gathering walks every piece of every building and took over 100 ms - done every 15 s it was the game's
-	// stutter (owner 2026-11-16, found by the performance log's stall watch: ASeats::Gather -> SeatSpots)
-	if ((GatherIn -= Dt) <= 0.f && State == EState::None)
-	{
-		GatherIn = 2.f;
-		int32 Models = 0; for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It) ++Models;
-		if (Models != GatheredModels) { GatheredModels = Models; Gather(); ++GatherRounds; }
-	}
+	// only new buildings are gone through, a few milliseconds a frame: going through every piece of every building again
+	// whenever one aircraft or vehicle came took up to 590 ms (2026-11-25, seen by the performance log's stall watch)
+	if ((GatherIn -= Dt) <= 0.f && State == EState::None) GatherIn = Gather() ? 2.f : 0.f;
 	if (AADPWalker* W = Waiting.Get())
 	{
 		WaitT += Dt;

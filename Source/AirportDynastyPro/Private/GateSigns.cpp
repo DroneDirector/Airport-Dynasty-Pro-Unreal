@@ -76,7 +76,7 @@ void ADPGateSigns::Place(UWorld* W, const FTerminalPlan& Plan)
 		Plate(-134.93f, 9.3f, 33.f, 7.f, 1.1f, -90.f, TEXT("BEAUTY"), 70.f, White, true);
 		Plate(-163.19f, 9.3f, 31.f, 7.f, 1.1f, -90.f, TEXT("LIQUOR"), 70.f, White, true);
 		Plate(-183.81f, 9.6f, 26.f, 9.f, 1.1f, -90.f, TEXT("AURORA PLAZA"), 70.f, White, true);
-		Plate(-201.36f, 9.3f, 36.f, 9.f, 1.1f, -90.f, TEXT("ICELAND MARKET"), 70.f, White, true);
+		Plate(-201.36f, 9.3f, 36.f, 9.f, 1.1f, -90.f, TEXT("SWISS MARKET"), 70.f, White, true);
 		Plate(-226.f, 9.4f, 23.47f, 13.f, 1.0f, -90.f, TEXT("LUXURY & PAY LOUNGE"), 70.f, White, false);
 		Plate(-226.f, 8.1f, 23.47f, 4.f, 0.6f, -90.f, TEXT("PAY HERE"), 40.f, White, false);
 	}

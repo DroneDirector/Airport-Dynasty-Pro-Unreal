@@ -1,4 +1,5 @@
 #include "People.h"
+#include "PaxAnimInstance.h"
 #include "ADPLog.h"
 #include "PerfLog.h"
 #include "InteractOutline.h"
@@ -23,6 +24,7 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "PaxNav.h"
+#include "Site.h"
 #include "StaffPeople.h"
 #include "Sim/ADPCrew.h"
 #include "Sim/ADPSim.h"
@@ -34,8 +36,8 @@ namespace ADPPeopleInternal
 	struct FL { const TCHAR* Text; ETone Tone; };
 
 	// first names (made up at random per person, by their own seed)
-	const TCHAR* Women[] = {TEXT("Anna"), TEXT("Maria"), TEXT("Sara"), TEXT("Elin"), TEXT("Laura"), TEXT("Nina"), TEXT("Hanna"), TEXT("Julia"), TEXT("Sofia"), TEXT("Emma"), TEXT("Ragna"), TEXT("Lisa"), TEXT("Clara"), TEXT("Ida"), TEXT("Eva"), TEXT("Marta")};
-	const TCHAR* Men[] = {TEXT("Jon"), TEXT("Peter"), TEXT("David"), TEXT("Tomas"), TEXT("Erik"), TEXT("Simon"), TEXT("Martin"), TEXT("Jakob"), TEXT("Olaf"), TEXT("Daniel"), TEXT("Rúni"), TEXT("Michael"), TEXT("Andreas"), TEXT("Paul"), TEXT("Leo"), TEXT("Hans")};
+	const TCHAR* Women[] = {TEXT("Anna"), TEXT("Maria"), TEXT("Sophie"), TEXT("Céline"), TEXT("Laura"), TEXT("Nina"), TEXT("Camille"), TEXT("Julia"), TEXT("Sofia"), TEXT("Emma"), TEXT("Chloé"), TEXT("Lisa"), TEXT("Clara"), TEXT("Isabelle"), TEXT("Eva"), TEXT("Giulia")};
+	const TCHAR* Men[] = {TEXT("Luca"), TEXT("Peter"), TEXT("David"), TEXT("Thomas"), TEXT("Nicolas"), TEXT("Simon"), TEXT("Martin"), TEXT("Julien"), TEXT("Olivier"), TEXT("Daniel"), TEXT("Marco"), TEXT("Michael"), TEXT("Andreas"), TEXT("Paul"), TEXT("Leo"), TEXT("Reto")};
 
 	// the questions (bPersonal: refused by the private ones); passengers and staff have their own
 	struct FQ { const TCHAR* Pax; const TCHAR* Staff; bool bPersonal; };
@@ -43,6 +45,8 @@ namespace ADPPeopleInternal
 		{TEXT("How are you today?"), TEXT("How are you today?"), false},
 		{TEXT("Where are you travelling to?"), TEXT("How is work going today?"), false},
 		{TEXT("What do you think of the airport?"), TEXT("What's it like working here?"), false},
+		{TEXT("How do you like Switzerland?"), TEXT("What do you like about living in Switzerland?"), false},
+		{TEXT("Have you been to Montreux?"), TEXT("What should I see in Montreux?"), false},
 		{TEXT("Have you been waiting long?"), TEXT("How long is your shift today?"), false},
 		{TEXT("What do you do for a living?"), TEXT("How long have you worked here?"), true},
 		{TEXT("Are you travelling with family?"), TEXT("Do you have a family at home?"), true},
@@ -52,22 +56,26 @@ namespace ADPPeopleInternal
 	// answers per question: [0] friendly and short, [1] friendly and chatty, [2] grumpy
 	const TCHAR* PaxAns[][3] = {
 		{TEXT("Good, thanks."), TEXT("Oh, quite well, thank you for asking - a bit tired, but looking forward to the trip."), TEXT("I've been better.")},
-		{TEXT("Copenhagen."), TEXT("Down to Copenhagen, and on to Barcelona after that - a week in the sun, I hope!"), TEXT("Somewhere warmer than here, I hope.")},
+		{TEXT(""), TEXT(""), TEXT("")},   // (their own flight and why: Trip())
 		{TEXT("It's nice. Clean."), TEXT("It's lovely, really - light and calm, and the view over the mountains is something else."), TEXT("It'll do. Bit pricey in the shops.")},
+		{TEXT("It's beautiful."), TEXT("I love it - the mountains, the lake, the trains that are always on time. I took the cogwheel railway up to Rochers-de-Naye and didn't want to come down again."), TEXT("Nice views. Everything costs a fortune, though.")},
+		{TEXT("Yes, it's lovely."), TEXT("Yes! We walked along the lake all the way to Chillon Castle, and the flowers on the promenade were wonderful."), TEXT("Too many tourists by the lake for me.")},
 		{TEXT("Not too long."), TEXT("About an hour, but I came early on purpose - I like to sit and watch the planes."), TEXT("Long enough.")},
-		{TEXT("I'm a teacher."), TEXT("I work in fishing exports - lots of travel, lots of meetings, never enough sleep."), TEXT("Office work. Nothing exciting.")},
+		{TEXT("I'm a teacher."), TEXT("I work for a watchmaker - lots of travel, lots of meetings, never enough sleep."), TEXT("Office work. Nothing exciting.")},
 		{TEXT("With my partner."), TEXT("With my kids and my mother - she's never flown before, so it's a big day."), TEXT("Alone, thankfully.")},
-		{TEXT("From Tórshavn."), TEXT("I grew up in a little village up north, but I've lived in town for years now."), TEXT("Around here.")},
+		{TEXT("From Lausanne."), TEXT("I grew up in a little village up in the Valais, but I've lived in Montreux for years now."), TEXT("Around here.")},
 		{TEXT("More seats by the gates."), TEXT("Maybe more places to charge a phone - and a few more seats by the gates when it's busy."), TEXT("Cheaper coffee, for a start.")},
 	};
 	const TCHAR* StaffAns[][3] = {
 		{TEXT("Good, thanks!"), TEXT("Pretty good, thanks - busy morning, but a good team on today."), TEXT("Tired. Long day.")},
 		{TEXT("Busy, but fine."), TEXT("Busy! Three departures in a row, but everything's on time so far, touch wood."), TEXT("Don't ask.")},
 		{TEXT("I like it."), TEXT("Honestly, it's a good place - people look out for each other, and no two days are the same."), TEXT("It's a job.")},
+		{TEXT("The mountains."), TEXT("Skiing in winter, swimming in the lake in summer, and the chocolate all year round - what's not to like?"), TEXT("The holidays. When I get any.")},
+		{TEXT("Chillon Castle."), TEXT("Chillon Castle, for sure - and take the train up through the vineyards at sunset, you won't forget it. In July there's the jazz festival too."), TEXT("The lake. It's hard to miss.")},
 		{TEXT("Eight hours."), TEXT("Twelve today, I'm covering for a colleague - but I get the next two days off."), TEXT("Too long.")},
 		{TEXT("Five years."), TEXT("Almost eight years now - I started when the old terminal was still here."), TEXT("Long enough to know better.")},
 		{TEXT("Yes, two kids."), TEXT("My partner and two little ones - they love coming to watch the planes."), TEXT("That's my business.")},
-		{TEXT("From Klaksvík."), TEXT("From Klaksvík originally, but I moved here for this job."), TEXT("Around here.")},
+		{TEXT("From Aigle."), TEXT("From Fribourg originally, but I moved to Villeneuve for this job."), TEXT("Around here.")},
 		{TEXT("More staff at peak times."), TEXT("A few more hands when the morning flights all go at once - that would help a lot."), TEXT("Better pay.")},
 	};
 	const TCHAR* Refusals[] = {TEXT("I'd rather not talk about that, sorry."), TEXT("That's a bit personal - I'll keep that to myself."), TEXT("Let's just say... no comment."), TEXT("I don't really want to talk about it.")};
@@ -75,7 +83,7 @@ namespace ADPPeopleInternal
 	const TCHAR* HireYes[] = {
 		TEXT("Yes, I would love to work for you - I've always wanted to work at an airport."),
 		TEXT("Really? Yes! My contract ends next month and I've been looking for something new."),
-		TEXT("Yes, I'd love that - I want to stay on the islands, and good jobs are hard to find here."),
+		TEXT("Yes, I'd love that - I want to stay here by the lake, and good jobs close to home are hard to find."),
 		TEXT("I would! I've heard good things about how you run this place."),
 		TEXT("Yes please - I'm good with people, and I'm tired of working nights.")};
 
@@ -107,6 +115,25 @@ namespace ADPPeopleInternal
 		for (int32 k = 0; k < 4 && N > 1 && A[i].Text == GLast; ++k) i = R.RandRange(0, N - 1);
 		GLast = A[i].Text; return A[i];
 	}
+	// why they go there (%s: the place), and what those who came here say
+	const TCHAR* TripWhy[] = {
+		TEXT("To %s - my sister just had a baby and I get to meet him for the first time. I can hardly wait!"),
+		TEXT("To %s! It's our anniversary, and it's where we first met."),
+		TEXT("To %s - a whole week without meetings. I've been looking forward to it since winter."),
+		TEXT("To %s - I'm going home. Switzerland was wonderful, but I miss my own bed."),
+		TEXT("To %s. An old friend is getting married there, and I'm giving a speech - wish me luck."),
+		TEXT("To %s - I've always wanted to see it, and I have a list of restaurants this long."),
+		TEXT("To %s, for work, sadly - but I'll stay the weekend and see a concert."),
+		TEXT("To %s - my grandchildren live there. They've already planned every day for me."),
+		TEXT("To %s - I'm starting a new job there on Monday. A bit nervous, but mostly excited!"),
+		TEXT("To %s. I'm running the marathon there, and I even trained for it this time.")};
+	const TCHAR* TripShort[] = {TEXT("To %s. I'm looking forward to it."), TEXT("To %s, to see my family."), TEXT("%s - a few days off."), TEXT("To %s, back home.")};
+	const TCHAR* TripGrumpy[] = {TEXT("%s. Work. What else."), TEXT("%s, if we ever leave."), TEXT("%s. The in-laws.")};
+	const TCHAR* CameWhy[] = {
+		TEXT("Right here! I've just flown in from %s - a week of hiking in the mountains is waiting for me."),
+		TEXT("I'm already there - I came in from %s to visit my daughter in Montreux."),
+		TEXT("Just arrived from %s. First thing I'll do is eat a proper fondue by the lake."),
+		TEXT("I've just come home from %s. It was great, but nothing beats seeing the Dents du Midi again.")};
 	template<int N> const TCHAR* PickT(const TCHAR* (&A)[N], FRandomStream& R) { return A[R.RandRange(0, N - 1)]; }
 	uint32 Seed(const FString& S) { return GetTypeHash(S) * 2654435761u; }
 }
@@ -193,7 +220,7 @@ void AADPPeople::AddPerson(AActor* A)
 		{
 			for (USkeletalMeshComponent* Sk : Skels) if (Sk != W.Body && !Sk->GetName().StartsWith(TEXT("Face"))) Sk->SetLeaderPoseComponent(W.Body);
 			static UBlendSpace* Move = [] { UBlendSpace* B = LoadObject<UBlendSpace>(nullptr, TEXT("/Game/People/Anims/BS_Idle_Walk_Run_MH.BS_Idle_Walk_Run_MH")); if (B) B->AddToRoot(); return B; }();   // (kept loaded for good, like the garage door sounds)
-			if (Move) { W.Body->SetAnimationMode(EAnimationMode::AnimationSingleNode); W.Body->SetAnimation(Move); W.Body->Play(true); }
+			if (Move) { W.Body->SetAnimationMode(EAnimationMode::AnimationSingleNode); W.Body->SetAnimation(Move); W.Body->Play(true); UPaxAnimInstance::Install(W.Body); }   // (ours: the feet on the ground)
 		}
 		People.Add(W);
 		ADP_LOG(TEXT("People: %s (%s, %s, %d) - open %.2f, temper %.2f, chat %.2f"), *W.First, *W.Role, W.bFemale ? TEXT("woman") : TEXT("man"), W.Age, W.Open, W.Temper, W.Chat);
@@ -317,7 +344,22 @@ void AADPPeople::Answer(int32 Topic)
 	FString A;
 	// personal topics: the private ones keep it to themselves; the others answer in their own way
 	if (Questions[Topic].bPersonal && W->Open < 0.4f) A = PickT(Refusals, Rng);
-	else { const int32 K = W->Temper > 0.78f ? 2 : W->Chat > 0.5f ? 1 : 0; A = bStaff ? StaffAns[Topic][K] : PaxAns[Topic][K]; }
+	else
+	{
+		const int32 K = W->Temper > 0.78f ? 2 : W->Chat > 0.5f ? 1 : 0;
+		A = bStaff ? StaffAns[Topic][K] : PaxAns[Topic][K];
+		if (A.IsEmpty())
+		{
+			// where they go (their own flight) and why: the same answer each time they are asked
+			FRandomStream S(int32(GetTypeHash(W->First) ^ GetTypeHash(W->A.Get()))); FString Place; bool bArr = false;
+			if (!APaxFlow::TripOf(GetWorld(), W->A.Get(), Place, bArr) || Place.IsEmpty())
+			{
+				TArray<FString> Names, Codes; ADPSite::Destinations(Names, Codes);
+				Place = Names.Num() ? Names[S.RandRange(0, Names.Num() - 1)] : FString(TEXT("Geneva")); bArr = false;
+			}
+			A = FString(bArr ? PickT(CameWhy, S) : K == 2 ? PickT(TripGrumpy, S) : K == 1 ? PickT(TripWhy, S) : PickT(TripShort, S)).Replace(TEXT("%s"), *Place);
+		}
+	}
 	MenuText = FString::Printf(TEXT("\"%s\""), *A);
 	Say(W->A.Get(), A, W->Temper > 0.78f ? ETone::Firm : ETone::Calm);
 	MenuOptions = {TEXT("Ask something else"), TEXT("Goodbye")};
@@ -1163,7 +1205,7 @@ void AADPPeople::StepStrollers(float Dt)
 					if (GetWorld()->LineTraceSingleByChannel(Fl, P + FVector(0, 0, 120.f), P - FVector(0, 0, 200.f), ECC_Visibility, Qf)) P.Z = Fl.ImpactPoint.Z;
 					A->SetActorLocationAndRotation(P, FRotator(0.f, SF.Rotation().Yaw - 90.f, 0.f));
 				}
-				if (W->Body) { static UBlendSpace* Move = LoadObject<UBlendSpace>(nullptr, TEXT("/Game/People/Anims/BS_Idle_Walk_Run_MH.BS_Idle_Walk_Run_MH")); W->Body->SetAnimationMode(EAnimationMode::AnimationSingleNode); if (Move) { W->Body->SetAnimation(Move); W->Body->Play(true); } }
+				if (W->Body) { static UBlendSpace* Move = LoadObject<UBlendSpace>(nullptr, TEXT("/Game/People/Anims/BS_Idle_Walk_Run_MH.BS_Idle_Walk_Run_MH")); W->Body->SetAnimationMode(EAnimationMode::AnimationSingleNode); if (Move) { W->Body->SetAnimation(Move); W->Body->Play(true); UPaxAnimInstance::Install(W->Body); } }
 				if (S.bHeld) { ASeats::Release(A); S.bRelease = true; break; }   // (PaxFlow's passenger: handed back on its feet)
 				ASeats::Release(A); S.Seat = S.KeptSeat = INDEX_NONE; S.Pose = nullptr; S.bLowered = false; S.Lower = 0.f; S.bSurf = false; S.Fwd = 0.f; S.Lift = 0.f; S.bCushionOk = false; S.CushionTries = 0;
 				S.Doing = EDoing::Stand; S.T = 0.f; S.For = Rng.FRandRange(1.f, 3.f);

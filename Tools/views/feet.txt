@@ -1,0 +1,17 @@
+# everybody's feet close by (290): landside, main hall, apron, upstairs; run with -FeetCheck ("Feet:" in the log), watched live
+cmd r.VSync 0
+speed 1 1
+wait 5
+speed 5 1
+people 8 150
+speed 1 1
+feet 40 landside feet landside
+feet 40 hall feet in the hall
+feet 60 apron feet on the apron
+speed 10 1
+wait 60
+speed 1 1
+feet 40 upstairs feet upstairs
+feet 40 apron feet on the apron later
+feet 40 landside feet landside later
+quit

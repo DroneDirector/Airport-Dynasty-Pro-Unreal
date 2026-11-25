@@ -1426,6 +1426,11 @@ void ABabylonModel::SeatSpots(TArray<FSeatSpot>& Out) const
 	const FTransform RootW = Root->GetComponentTransform();
 	auto Under = [this](int32 I, TArray<int32>& Nodes) { TArray<int32> St = {I}; while (St.Num()) { const int32 N = St.Pop(); if (!NRoot.IsValidIndex(N)) continue; Nodes.Add(N); St.Append(NKids[N]); } };
 	auto LastPart = [](const FString& N) { int32 P; return N.FindLastChar(TEXT('/'), P) ? N.Mid(P + 1) : N; };
+	auto SeatLike = [](const FString& N)
+	{
+		int32 P; const TCHAR* C = *N + (N.FindLastChar(TEXT('/'), P) ? P + 1 : 0);
+		return FCString::Strnicmp(C, TEXT("SEATS-"), 6) == 0 || FCString::Stristr(C, TEXT("CHAIR")) || FCString::Stristr(C, TEXT("STOOL")) || FCString::Stristr(C, TEXT("BENCH")) || FCString::Stristr(C, TEXT("SOFA"));
+	};
 	auto InstBox = [](UInstancedStaticMeshComponent* K, int32 Item, FBox& B) -> bool
 	{
 		FTransform T; if (!K || !K->GetStaticMesh() || !K->GetInstanceTransform(Item, T, true) || T.GetScale3D().GetMin() < 0.01f) return false;
@@ -1434,6 +1439,9 @@ void ABabylonModel::SeatSpots(TArray<FSeatSpot>& Out) const
 	UInstancedStaticMeshComponent* GateSeats = nullptr;
 	for (const auto& P : ByMesh) if (P.Value && P.Value->GetStaticMesh() && P.Value->GetStaticMesh()->GetName() == TEXT("SeatModule")) GateSeats = P.Value.Get();
 	for (UActorComponent* C : GetComponents()) if (UInstancedStaticMeshComponent* K = Cast<UInstancedStaticMeshComponent>(C)) if (K->GetStaticMesh() && K->GetStaticMesh()->GetName() == TEXT("SeatModule")) GateSeats = K;
+	// (where each stands, once: asking for every module again at every seat was most of half a second)
+	TArray<FTransform> GateAt;
+	if (GateSeats) { GateAt.SetNum(GateSeats->GetInstanceCount()); for (int32 k = 0; k < GateAt.Num(); ++k) GateSeats->GetInstanceTransform(k, GateAt[k], true); }
 	// the airport coach (owner, 2026-11-19, to-do 144: every passenger seat sittable, never the driver's): each seat's own
 	// cushion - the pairs' and the back bench's (Cushion_A..E), the guide's and the wheelchair space's fold-up seats - facing
 	// the way the coach faces (the fold-up seats: the aisle); the seat 45 cm over its floor
@@ -1457,6 +1465,7 @@ void ABabylonModel::SeatSpots(TArray<FSeatSpot>& Out) const
 	}
 	for (int32 I = 0; I < NName.Num(); ++I)
 	{
+		if (!SeatLike(NName[I])) continue;   // (most parts: told without making a new text for each)
 		const FString Last = LastPart(NName[I]).ToUpper();
 		// the gate rows (their seats rebuilt as the new seating): each back with the seat in front of it
 		if (Last.StartsWith(TEXT("SEATS-")))
@@ -1482,13 +1491,13 @@ void ABabylonModel::SeatSpots(TArray<FSeatSpot>& Out) const
 				if (GateSeats)
 				{
 					int32 Near = INDEX_NONE; float ND = 80.f;
-					for (int32 k = 0; k < GateSeats->GetInstanceCount(); ++k) { FTransform T; GateSeats->GetInstanceTransform(k, T, true); const float D = FVector::Dist2D(T.GetLocation(), S.At); if (D < ND) { ND = D; Near = k; } }
+					for (int32 k = 0; k < GateAt.Num(); ++k) { const float D = FVector::Dist2D(GateAt[k].GetLocation(), S.At); if (D < ND) { ND = D; Near = k; } }
 					if (Near != INDEX_NONE) S.Parts.Add(TPair<UInstancedStaticMeshComponent*, int32>(GateSeats, Near));
 					// the way it faces, from the seat as it stands (owner 2026-11-23: passengers sat the wrong way round): its reclined
 					// back reaches further out than its front edge, so its middle lies on the backrest's side of its own point
 					if (Near != INDEX_NONE)
 					{
-						FTransform T; GateSeats->GetInstanceTransform(Near, T, true);
+						const FTransform& T = GateAt[Near];
 						const FVector C = GateSeats->GetStaticMesh()->GetBoundingBox().GetCenter();
 						const FVector Front = -T.TransformVector(FVector(C.X, C.Y, 0.0));
 						if (Front.Size2D() > 2.0)

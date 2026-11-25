@@ -54,10 +54,13 @@ private:
 	static TWeakObjectPtr<ASeats> One;
 	TArray<ABabylonModel::FSeatSpot> Spots;
 	float GatherIn = 2.f;
-	int32 GatherRounds = 0;
-	int32 GatheredModels = -1;   // (how many buildings the seats were last gathered from)
+	// each building's seats are found once, when it comes (and again if its parts change): its places in Spots, which keep
+	// their numbers; a building that goes leaves its places empty for the next one
+	struct FGot { TWeakObjectPtr<ABabylonModel> Model; uint32 Stamp = 0; TArray<int32> Slots; };
+	TArray<FGot> Got; TArray<int32> Vacant; int32 Said = -1;
 	TSet<TPair<UInstancedStaticMeshComponent*, int32>> Outlined;
-	void Gather();
+	/** The new buildings' seats, for a few milliseconds; false while some are left for the next frame. */
+	bool Gather();
 
 	void Sit(AADPWalker* Me, int32 I);
 	void Stand();

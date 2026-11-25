@@ -248,7 +248,7 @@ void UVehicleRiders::Unpose(FRider& R)
 	if (R.Skel)
 	{
 		R.Skel->SetAnimationMode(EAnimationMode::AnimationSingleNode);
-		if (VrMoveBS()) { R.Skel->SetAnimation(VrMoveBS()); R.Skel->Play(true); }
+		if (VrMoveBS()) { R.Skel->SetAnimation(VrMoveBS()); R.Skel->Play(true); UPaxAnimInstance::Install(R.Skel); }
 	}
 	R.Anim = nullptr; R.Speed = 0.f; R.bLast = false;
 }
