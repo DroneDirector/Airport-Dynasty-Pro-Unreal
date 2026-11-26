@@ -710,6 +710,12 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 - [ ] **Pet relief area** (2026-11-26): a small fenced grass corner by the terminal for passengers' dogs.
 - [ ] **Staff shuttle bus** (2026-11-26): takes staff between the staff car park and the terminal or the hangar at
       shift changes.
+- [ ] **Fire training ground** (2026-11-26): a steel aircraft mock-up that can be set on fire, where the
+      firefighters train regularly, as real airports must. Better-trained crews respond faster.
+- [ ] **Lost child** (2026-11-26): a child goes missing in the crowd, an announcement goes out, and the child is
+      reunited with the parents at the information desk.
+- [ ] **Boarding groups** (2026-11-26): the gate calls priority passengers first, then group 1, group 2 and so on,
+      and the queues form by group.
 
 ## Done recently (for reference)
 - 0.14.4 the globe's satellite pictures and land cover in the right place; the detailed sea only near the ground
