@@ -195,6 +195,8 @@ for (const n of ['__uePhoneQuad', '__uePhonePtr', '__uePhoneClick', '__uePhoneSc
   (window as any)[n] = (...a: any[]) => { const r = gameEval(`window.${n} && window.${n}(${a.map(x => JSON.stringify(x)).join(',')})`); const u = ue(); const k = '_said' + n; if (u && u.log && ((typeof r === 'string' && r.startsWith('PHLOG ')) || !(window as any)[k])) { (window as any)[k] = 1; u.log('phone ' + n + ' -> ' + typeof r + ' ' + String(r).slice(0, 300) + ' (game frame ' + (gameExists() ? 'there' : 'missing') + ', its fn ' + gameEval(`typeof window.${n}`) + ', held ' + gameEval('typeof PhHeld !== "undefined" && PhHeld.on') + ')'); } return r; };
 // Unreal's own put-away (the legend's button, Esc when the page doesn't have the keys)
 (window as any).__ueDeviceClose = () => { if (gameEval(`typeof ueDeviceOn === 'function' && ueDeviceOn()`)) gameEval('ueDeviceClose()'); else (window as any).__ueDeviceDone(''); };
+// the Vehicles app on a device's desktop: Unreal's native Vehicles owned page over the device's screen (to-do 318)
+(window as any).__ueVehicles = (kind: string) => { const u = ue(); if (u && u.vehicles) u.vehicles(String(kind || '')); };
 (window as any).__ueDeviceDone = (kind: string) => { document.documentElement.classList.remove('ue-dev', 'ue-dev-wait'); (window as any).__ueBoardsNow && (window as any).__ueBoardsNow(); const u = ue(); if (u && u.devicedone) u.devicedone(String(kind || '')); };
 // and the airline for Unreal's own interface: the departures and arrivals at your airport, the airline's name and money
 if (UE_PC) {

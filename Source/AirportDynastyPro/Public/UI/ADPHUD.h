@@ -159,6 +159,11 @@ public:
 	void TabletScreenClosed();
 	/** The Overview only from your tablet and the computers (owner, 2026-11-18); its logo brings you back there. */
 	void OverviewFrom(const FString& Kind);
+	/** Vehicles owned (to-do 318, UI/VehiclesPage.cpp): the native page over the device's screen - every airport vehicle you
+	 *  have by kind, its condition, state and place, a Buy button per kind; from the Vehicles app (ue.adp.vehicles). */
+	void OpenVehicles(const FString& Kind);
+	void CloseVehicles();
+	bool bVehiclesPage = false; TSharedPtr<class SBox> VehiclesBox;
 	void OverviewBack();
 	/** G / the pad's Y: no longer the Overview from the 3D world (a note instead); from the menus back into 3D. */
 	void MenusKey();

@@ -1050,3 +1050,14 @@ stand end; the deck top (0.906 m, rollers 1.028 m) is not yet checked against th
 - Service jobs: a van on the hangars' side crosses first (SvcApron), and home over the crossing (SvcDriveHome).
 - Not built: wing walkers still walk beside the tow across the strip (they follow the aircraft); no crossing known before
   the first hangar tow was planned - vans wait (logged).
+
+## To-do 318: vehicles owned (native page)
+- One list of every vehicle you have: `ADPOwned::List` (VehiclesOwned.cpp) - service vehicles, baggage tractors, belt loaders,
+  maintenance vans (AGSE), pushback and hangar tugs (ATugs), fire trucks; bought ones still on their way show "being delivered".
+- Per vehicle: condition (GSEBreak wear: 100 % new, 0 % at the old-age hours/km), state (at work / parked / broken down /
+  written off) and place (own place, vehicle area, stand, hangar, fire station, runway strip, apron).
+- Native Slate page (UI/VehiclesPage.cpp), opened from the "Vehicles" icon on the laptop/tablet/phone desktop (ue.adp.vehicles);
+  grouped by kind with counts, a Buy button per kind with the price, greyed with the reason (no money, no free place, no place
+  for this kind). Buying goes through ADPGround::BuyVehicle, delivered by GSESpare.
+- Tugs and fire trucks keep no wear yet ("condition not kept"); kinds with no place in the vehicle area cannot be bought.
+- HangarTow Crossing is now worked out at the start (first hangar to a stand), so the maintenance vans can cross from minute one.

@@ -103,6 +103,7 @@ bool AGSE::BreakNow(const FString& Name, bool bTotal)
 }
 
 float AGSE::BreakLimp() { return float(BrkRules().Limp); }
+int32 AGSE::BreakCondition(double Hours, double Km) { const FBrkRules& R = BrkRules(); return FMath::Clamp(FMath::RoundToInt(100.0 * (1.0 - FMath::Max(Hours / R.HAt, Km / R.KAt))), 0, 100); }
 
 void AGSE::BreakLoad(FTractor& T)
 {

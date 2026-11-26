@@ -176,6 +176,7 @@ void AADPHUD::DeviceDone(const FString& Kind)
 {
 	if (!bDevice) return;
 	if (DeviceKind.StartsWith(TEXT("hmi"))) EndHmi();   // (the jetway's HMI: the camera back to you)
+	if (bVehiclesPage) CloseVehicles();
 	if (DeviceKind == TEXT("tablet")) TabletScreenClosed();   // (your tablet: back in your hands)
 	bDevice = false; DevicePending.Empty();
 	if (!bGame && GameBox.IsValid()) GameBox->SetVisibility(EVisibility::Collapsed);

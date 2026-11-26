@@ -39,6 +39,8 @@ public:
 	ATugs();
 	static ATugs* Get(UWorld* W);
 	int32 HangarTugs() const;   // (the hangar tugs there are: owned from the start - the vehicles list)
+	/** Vehicles owned (to-do 318): the pushback and hangar tugs, their state and place (their wear is not kept). */
+	void OwnedList(TArray<struct FOwnedVehicle>& Out) const;
 	virtual void Tick(float Dt) override;
 	/** A departure coming up at the stand whose nose line is at StandX (plan m): a tug drives out and waits beside it,
 	 *  outside the red line. */

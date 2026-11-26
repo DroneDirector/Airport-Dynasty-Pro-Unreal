@@ -182,6 +182,10 @@ public:
 	struct FGpuRig { int32 GWheel[4] = {INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE}, GAxle = INDEX_NONE; float AxleYaw = 0.f, Spin = 0.f; FVector Home = FVector::ZeroVector; float HomeYaw = 0.f; bool bBound = false; FVector PrevAt = FVector::ZeroVector; };
 	/** Every vehicle there is (the tests' camera). */
 	const TArray<FTractor>& Vehicles() const { return Tractors; }
+	/** Vehicles owned (to-do 318): yours of these, with their condition from the wear (GSEBreak.cpp), state and place. */
+	void OwnedList(TArray<struct FOwnedVehicle>& Out) const;
+	/** Its condition 0..100 from the hours and km behind it (the rates of Data/vehicle-breakdowns.json: worn out at oldAtHours / oldAtKm). */
+	static int32 BreakCondition(double Hours, double Km);
 
 private:
 	friend class ATugs;

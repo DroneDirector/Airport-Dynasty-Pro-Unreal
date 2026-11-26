@@ -790,6 +790,8 @@ void AADPHUD::BeginPlay()
 			[GameBox.ToSharedRef()]
 		]
 		+ SOverlay::Slot()[HudLayer]
+		// the Vehicles page over the device's screen (to-do 318, UI/VehiclesPage.cpp)
+		+ SOverlay::Slot().Padding(48.f)[SAssignNew(VehiclesBox, SBox).Visibility_Lambda([this]() { return bVehiclesPage && bDevice ? EVisibility::Visible : EVisibility::Collapsed; })]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)
 		[
 			// the first start's question: the scan's suggestion, taken only if you say yes (a question of the menus: outside the airport's layer)
@@ -1906,6 +1908,7 @@ void AADPHUD::OnEscape()
 	if (bStartLoad) return;   // (a career is being loaded: it goes on)
 	if (bLoading) { StopLoading(); if (!bGame) ToggleGame(); return; }
 	// the phone or a computer up: put away (the page handles its own Esc while it has the keys)
+	if (bVehiclesPage) { CloseVehicles(); return; }   // (the Vehicles page first: back to the device's desktop)
 	if (bDevice || PhoneDir != 0) { PutDeviceAway(); return; }
 	// in the menus the page handles Esc itself (the Overview asks before leaving to the title screen)
 	if (bGame) return;

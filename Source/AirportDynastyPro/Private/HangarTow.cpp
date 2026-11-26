@@ -218,6 +218,32 @@ bool AHangarTow::Crossing(UWorld* W, FVector2f& South, FVector2f& North)
 		bTowCrossed = true; TowCrossS = In.Y < Out.Y ? In : Out; TowCrossN = In.Y < Out.Y ? Out : In;
 		break;
 	}
+	// (to-do 318: no tow planned yet - the way a tow from the first hangar to a stand across the runway would take, worked out
+	// once, so the maintenance vans may cross from the start; a real tow's crossing replaces it as soon as one is planned)
+	static bool bTowGuessed = false;
+	if (!bTowCrossed && !bTowGuessed && D.Hangars.Num() && D.Stands.Num())
+	{
+		bTowGuessed = true;
+		const FAirfieldData::FHangarSite& Hs = D.Hangars[0];
+		for (int32 Pass = 0; Pass < 2 && !bTowCrossed; ++Pass) for (const FAirfieldData::FStand& St : D.Stands)
+		{
+			if (St.bCargo != (Pass == 1) || !TowStand(St, D)) continue;
+			const FVector2f StJoin(St.X, TowLaneY(St, D)), HJoin(Hs.X, D.KY);
+			FHtTwyNet Net; TowBuildNet(D, {StJoin, HJoin}, Net);
+			TArray<FVector2f> Route; if (!TowNetRoute(Net, Net.Near(StJoin), Net.Near(HJoin), Route) || Route.Num() < 2) continue;
+			const FLeg Lg = MakeLeg(Route, false, 25.f); if (!Lg.S.Num()) continue;
+			float Hold = -1.f; if (InStrip(D, LegAt(Lg, 0.f))) continue;
+			for (float S = 0.f; S <= Lg.S.Last(); S += 0.5f) if (InStrip(D, LegAt(Lg, S))) { Hold = FMath::Max(0.f, S - 0.5f); break; }
+			if (Hold < 0.f) continue;
+			const FVector2f In = LegAt(Lg, Hold); FVector2f Out = In;
+			for (float S = Hold + 1.f; S <= Lg.S.Last(); S += 0.5f) { Out = LegAt(Lg, S); if (!InStrip(D, Out)) break; }
+			if (InStrip(D, Out)) continue;
+			bTowCrossed = true; TowCrossS = In.Y < Out.Y ? In : Out; TowCrossN = In.Y < Out.Y ? Out : In;
+			ADP_LOG(TEXT("HangarTow: the runway crossing from the start (hangar %s - stand %s): %.0f,%.0f - %.0f,%.0f"), *Hs.Id, *St.Id, TowCrossS.X, TowCrossS.Y, TowCrossN.X, TowCrossN.Y);
+			break;
+		}
+		if (!bTowCrossed) ADP_WARN(TEXT("HangarTow: no runway crossing found from hangar %s to any stand - the vans wait for the first tow"), *Hs.Id);
+	}
 	South = TowCrossS; North = TowCrossN;
 	return bTowCrossed;
 }
