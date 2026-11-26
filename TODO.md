@@ -696,6 +696,18 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 - [ ] **Plane spotters** (2026-11-26, the owner likes it; how it works best still to be worked out with him): a
       spotting hill or a spot along the fence with photographers and their cameras. More of them turn up when a rare
       aircraft type or a special livery is due.
+- [ ] **Follow-me car** (2026-11-26): a yellow car with a lit FOLLOW ME sign that leads a visiting pilot who does not
+      know the airport to the right stand.
+- [ ] **Bird strikes** (2026-11-26): bird control is in the game, a strike is not. An aircraft returns after hitting
+      birds, the runway is checked for remains, the engine is inspected, and the airport gets a report. Better bird
+      control means fewer strikes.
+- [ ] **FOD walks** (2026-11-26): staff walk the apron in a line every morning picking up loose bolts and rubbish that
+      could be sucked into an engine. Skipped walks raise the risk of engine damage.
+- [ ] **Fuel farm** (2026-11-26): the airport's own fuel storage, filled by road tankers; the fuel price the airport
+      sets affects which airlines want to come.
+- [ ] **Open day** (2026-11-26): once a year the airport opens to the public - aircraft on show, the fire trucks
+      demonstrating, families walking the apron. Good for the airport's reputation and brings in some money.
+- [ ] **Pet relief area** (2026-11-26): a small fenced grass corner by the terminal for passengers' dogs.
 
 ## Done recently (for reference)
 - 0.14.4 the globe's satellite pictures and land cover in the right place; the detailed sea only near the ground
