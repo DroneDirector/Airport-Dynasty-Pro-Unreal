@@ -749,6 +749,22 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 - [ ] **Runway distance remaining signs** (2026-11-26; real, FAA type L-858B): black boards with a white number along
       one or both runway edges every 1,000 ft, showing the thousands of feet of runway left. Common in the US and at
       military fields, rare in Europe - so only at sites whose real-world country uses them (an option per site).
+- [ ] **Flying club** (2026-11-26): a corner of the airfield with light aircraft, a flight school and weekend pilots
+      flying circuits; extra traffic and rent.
+- [ ] **Forgotten passport** (2026-11-26; not common): a passenger is turned back at check-in or passport control and
+      the seat goes to a standby passenger.
+- [ ] **Currency exchange and VAT refund desk** (2026-11-26): travellers change money and get tax back on what they
+      bought; some income.
+- [ ] **Proposal at the gate** (2026-11-26; not common - the owner's note: "1-10", the exact rarity to agree with him):
+      someone kneels at the gate, people clap, staff join in.
+- [ ] **Sports team arrival** (2026-11-26): a team charter lands, fans with flags and scarves fill the arrivals hall;
+      extra security needed.
+- [ ] **VIP visits** (2026-11-26): a minister, a royal or a celebrity arrives - red carpet, a separate exit, extra
+      security.
+- [ ] **Shop contracts** (2026-11-26): shops and restaurants rent space; the airport negotiates rent and contract
+      length and chooses who gets the best spots.
+- [ ] **Employee of the month** (2026-11-26): the owner picks a staff member each month; morale goes up and their
+      photo hangs in the staff area.
 
 ## Done recently (for reference)
 - 0.14.4 the globe's satellite pictures and land cover in the right place; the detailed sea only near the ground
