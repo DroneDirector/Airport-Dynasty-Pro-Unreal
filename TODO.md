@@ -693,6 +693,9 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       extra cargo - means a new sheet and can hold the departure a few minutes (and gives it its delay code).
 - [ ] **Baggage tracing desk** (2026-11-26): bags that miss their flight are traced, sent on the next flight as
       "rush bags" and delivered to the passenger; passengers without their bag come to the desk in the arrivals hall.
+- [ ] **Plane spotters** (2026-11-26, the owner likes it; how it works best still to be worked out with him): a
+      spotting hill or a spot along the fence with photographers and their cameras. More of them turn up when a rare
+      aircraft type or a special livery is due.
 
 ## Done recently (for reference)
 - 0.14.4 the globe's satellite pictures and land cover in the right place; the detailed sea only near the ground
