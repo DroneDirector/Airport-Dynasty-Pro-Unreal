@@ -259,8 +259,8 @@ bool ABabylonModel::Place(const FString& Name)
 		if (N->TryGetArrayField(TEXT("children"), C)) for (const TSharedPtr<FJsonValue>& V : *C) NKids[I].Add(int32(V->AsNumber()));
 	}
 
-	// the doors (nodes named D-<id>), read the way doors.ts builds them
-	if (!bByNode)
+	// the doors (nodes named D-<id>), read the way doors.ts builds them - in a model whose parts are named by node too
+	// (the cargo terminal's hinged and sliding doors, Art/CargoTerminal/cargo_doors.py; no other such model has D- nodes)
 	{
 		auto Kids = [&](int32 I) { TArray<int32> L; const TArray<TSharedPtr<FJsonValue>>* C; if (Nodes[I]->AsObject()->TryGetArrayField(TEXT("children"), C)) for (const TSharedPtr<FJsonValue>& V : *C) L.Add(int32(V->AsNumber())); return L; };
 		auto NameOf = [&](int32 I) { FString S; Nodes[I]->AsObject()->TryGetStringField(TEXT("name"), S); return S; };
@@ -1191,13 +1191,16 @@ void ABabylonModel::Tick(float Dt)
 		}
 		// sliding doors open by themselves as you come; any other door only when you open it (UseDoor), and its closer
 		// pulls it shut 4 s after you've gone from it
-		if (!D.bSlide && D.bOpen) { D.Away = bNear ? 0.f : D.Away + Dt; if (D.Away > 4.f) D.bOpen = false; }
-		// (never shut on anyone in the doorway, passenger or staff)
-		if (D.bSlide && !bNear && D.K > 0.02f) {
-			static TWeakObjectPtr<AADPPeople> Pp;
+		static TWeakObjectPtr<AADPPeople> Pp;
+		auto AnyoneThere = [&]() {
 			if (!Pp.IsValid() || Pp->GetWorld() != GetWorld()) { Pp.Reset(); for (TActorIterator<AADPPeople> It(GetWorld()); It; ++It) { Pp = *It; break; } }
-			if (Pp.IsValid()) bNear = Pp->AnyoneNear(D.AtW, D.Reach * 75.f);
-		}
+			return Pp.IsValid() && Pp->AnyoneNear(D.AtW, D.Reach * 75.f);
+		};
+		if (!D.bSlide && D.bOpen) { D.Away = bNear ? 0.f : D.Away + Dt; if (D.Away > 4.f) D.bOpen = false; }
+		// (never shut on anyone in the doorway, passenger or staff: a sliding door stays open, a door on hinges that is
+		//  closing - its closer, or E / X - swings back open while someone is in its doorway)
+		if (D.bSlide && !bNear && D.K > 0.02f) bNear = AnyoneThere();
+		if (!D.bSlide && !D.bSpin && !D.bOpen && D.K > 0.02f && AnyoneThere()) { D.bOpen = true; D.Away = 0.f; }
 		const float Want = (D.bSlide ? bNear : D.bOpen) ? 1.f : 0.f;
 		if (FMath::Abs(D.K - Want) < 0.001f) continue;
 		D.K += FMath::Sign(Want - D.K) * FMath::Min(FMath::Abs(Want - D.K), Dt * (D.bSlide && Want < D.K ? 0.8f : 1.6f));   // (sliding doors shut gently)

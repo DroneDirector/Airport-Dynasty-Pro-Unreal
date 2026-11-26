@@ -24,6 +24,11 @@ public:
 	/** A roller door in a wall along the plan's x: the opening from X0 to X1 (plan metres), the curtain's plane at Z,
 	 *  Height metres clear (floor at plan y 0.01). */
 	static ARollerDoor* Place(UWorld* W, const FString& Id, float X0, float X1, float Z, float Height);
+	/** A roller door anywhere: the middle of its sill at Foot (world cm), its curtain running along the actor's x turned
+	 *  YawDeg, Width x Height metres clear. The curtain's slat and bottom bar are their own meshes (empty paths: the
+	 *  terminal's roller_slat / roller_bar), so a later pass can give a door other leaves without touching its wiring. */
+	static ARollerDoor* PlaceAt(UWorld* W, const FString& Id, const FVector& Foot, float YawDeg, float Width, float Height,
+		const FString& SlatPath = FString(), const FString& BarPath = FString());
 	virtual void Tick(float Dt) override;
 
 	/** A roller door within reach that you face (feet position, the way you look): its open state. */

@@ -21,14 +21,21 @@ ARollerDoor::ARollerDoor()
 
 ARollerDoor* ARollerDoor::Place(UWorld* W, const FString& Id, float X0, float X1, float Z, float Height)
 {
+	return PlaceAt(W, Id, FTerminalPlan::ToWorld((X0 + X1) * 0.5f, 0.01f, Z), 0.f, X1 - X0, Height);
+}
+
+ARollerDoor* ARollerDoor::PlaceAt(UWorld* W, const FString& Id, const FVector& Foot, float YawDeg, float Width, float Height, const FString& SlatPath, const FString& BarPath)
+{
 	if (!W) return nullptr;
-	UStaticMesh* SlatM = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/Terminal/Meshes/roller_slat.roller_slat"));
-	UStaticMesh* BarM = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/Terminal/Meshes/roller_bar.roller_bar"));
-	if (!SlatM || !BarM) { ADP_WARN(TEXT("Roller door %s: its slat or bar is missing (/Game/Terminal/Meshes/roller_slat, roller_bar - Tools/import_annex.py)"), *Id); return nullptr; }
+	const FString SP = SlatPath.IsEmpty() ? FString(TEXT("/Game/Terminal/Meshes/roller_slat.roller_slat")) : SlatPath;
+	const FString BP = BarPath.IsEmpty() ? FString(TEXT("/Game/Terminal/Meshes/roller_bar.roller_bar")) : BarPath;
+	UStaticMesh* SlatM = LoadObject<UStaticMesh>(nullptr, *SP);
+	UStaticMesh* BarM = LoadObject<UStaticMesh>(nullptr, *BP);
+	if (!SlatM || !BarM) { ADP_WARN(TEXT("Roller door %s: its slat or bar is missing (%s, %s - Tools/import_annex.py)"), *Id, *SP, *BP); return nullptr; }
 	FActorSpawnParameters S; S.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	ARollerDoor* D = W->SpawnActor<ARollerDoor>(FTerminalPlan::ToWorld((X0 + X1) * 0.5f, 0.01f, Z), FRotator::ZeroRotator, S);
+	ARollerDoor* D = W->SpawnActor<ARollerDoor>(Foot, FRotator(0.f, YawDeg, 0.f), S);
 	if (!D) return nullptr;
-	D->Id = Id; D->Width = X1 - X0; D->Height = Height;
+	D->Id = Id; D->Width = Width; D->Height = Height;
 	auto List = [D](UStaticMesh* M)
 	{
 		UInstancedStaticMeshComponent* K = NewObject<UInstancedStaticMeshComponent>(D);
@@ -76,7 +83,7 @@ bool ARollerDoor::SomethingInDoorway() const
 	Obj.AddObjectTypesToQuery(ECC_Pawn); Obj.AddObjectTypesToQuery(ECC_PhysicsBody); Obj.AddObjectTypesToQuery(ECC_Vehicle); Obj.AddObjectTypesToQuery(ECC_WorldDynamic);
 	FCollisionQueryParams Q(SCENE_QUERY_STAT(RollerDoor), false, this);
 	const FVector C = GetActorLocation() + FVector(0.f, 0.f, Height * 50.f + 10.f);
-	return GetWorld()->OverlapAnyTestByObjectType(C, FQuat::Identity, Obj, FCollisionShape::MakeBox(FVector(Width * 50.f, 150.f, Height * 50.f - 15.f)), Q);
+	return GetWorld()->OverlapAnyTestByObjectType(C, GetActorQuat(), Obj, FCollisionShape::MakeBox(FVector(Width * 50.f, 150.f, Height * 50.f - 15.f)), Q);
 }
 
 void ARollerDoor::Tick(float Dt)
@@ -103,10 +110,11 @@ static ARollerDoor* FindFaced(UWorld* W, const FVector& Feet, const FVector& Fac
 	for (TActorIterator<ARollerDoor> It(W); It; ++It)
 	{
 		ARollerDoor* D = *It;
-		// the nearest point of the door's line (it runs along the plan's x)
+		// the nearest point of the door's line (it runs along the door's own x, however the door is turned)
 		const FVector C = D->GetActorLocation();
 		const float HalfW = D->DoorWidth() * 50.f;
-		const FVector At(FMath::Clamp(Feet.X, C.X - HalfW + 50.f, C.X + HalfW - 50.f), C.Y, C.Z);
+		const FVector L = D->GetActorTransform().InverseTransformPositionNoScale(Feet);
+		const FVector At = D->GetActorTransform().TransformPositionNoScale(FVector(FMath::Clamp(L.X, -HalfW + 50.f, HalfW - 50.f), 0.f, 0.f));
 		const float Dist = FVector::Dist2D(Feet, At);
 		if (Dist > 300.f || FMath::Abs(Feet.Z - C.Z) > 250.f) continue;
 		const FVector To = (At - Feet).GetSafeNormal2D();

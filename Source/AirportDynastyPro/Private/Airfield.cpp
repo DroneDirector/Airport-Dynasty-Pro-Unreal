@@ -16,6 +16,8 @@
 #include "Dom/JsonObject.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "RollerDoor.h"
+#include "Misc/PackageName.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Materials/MaterialParameterCollection.h"
@@ -1250,7 +1252,33 @@ bool AAirfield::Build(bool bModelSite)
 		FActorSpawnParameters S; S.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		const float Z = GroundAt(D.Cargo.X0, D.Cargo.Y0) + Sink + 0.02f;
 		ABabylonModel* Cargo = GetWorld() ? GetWorld()->SpawnActor<ABabylonModel>(FTerminalPlan::ToWorld(D.Cargo.X0, Z, D.Cargo.Y0), FRotator(0, 180.f, 0), S) : nullptr;
-		if (Cargo && Cargo->Place(TEXT("CargoTerminal"))) ADP_LOG(TEXT("Airfield: the cargo terminal model stands at %.0f,%.0f"), D.Cargo.X0, D.Cargo.Y0);
+		if (Cargo && Cargo->Place(TEXT("CargoTerminal")))
+		{
+			ADP_LOG(TEXT("Airfield: the cargo terminal model stands at %.0f,%.0f"), D.Cargo.X0, D.Cargo.Y0);
+			// its overhead doors - ULD transfer, truck dock, drive-in and the rooms' sectionals - are the game's roller doors
+			// (E / X, vehicles open them, never down on anyone): Data/cargo-doors.json, model-local metres
+			// (Art/CargoTerminal/cargo_doors.py); its hinged and sliding doors are the model's own D- nodes
+			FString DPath = FPaths::Combine(FPaths::ProjectContentDir(), TEXT("Data/cargo-doors.json"));
+			if (!FPaths::FileExists(DPath)) DPath = FPaths::Combine(FPaths::ProjectDir(), TEXT("Data/cargo-doors.json"));
+			FString DText; TSharedPtr<FJsonObject> DR; const TArray<TSharedPtr<FJsonValue>>* Rl = nullptr;
+			if (FFileHelper::LoadFileToString(DText, *DPath) && FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(DText), DR) && DR && DR->TryGetArrayField(TEXT("rollers"), Rl))
+			{
+				const FTransform T = Cargo->GetRootComponent()->GetComponentTransform();
+				auto Path = [](const FString& P) { return P.IsEmpty() || P.Contains(TEXT(".")) ? P : P + TEXT(".") + FPackageName::GetShortName(P); };
+				int32 Placed = 0;
+				for (const TSharedPtr<FJsonValue>& V : *Rl)
+				{
+					const TSharedPtr<FJsonObject> O = V->AsObject(); if (!O) continue;
+					// (model-local Blender x, y, z -> the model's Unreal frame (x, -y, z) cm; a curtain along x or y)
+					const FVector Foot = T.TransformPosition(FVector(O->GetNumberField(TEXT("x")), -O->GetNumberField(TEXT("y")), O->GetNumberField(TEXT("z0"))) * 100.0);
+					const float Yaw = T.Rotator().Yaw + (O->GetStringField(TEXT("axis")) == TEXT("y") ? 90.f : 0.f);
+					if (ARollerDoor::PlaceAt(GetWorld(), O->GetStringField(TEXT("id")), Foot, Yaw, O->GetNumberField(TEXT("width")), O->GetNumberField(TEXT("height")),
+						Path(O->GetStringField(TEXT("slat"))), Path(O->GetStringField(TEXT("bar"))))) ++Placed;
+				}
+				ADP_LOG(TEXT("Airfield: the cargo terminal's %d roller doors placed (of %d)"), Placed, Rl->Num());
+			}
+			else ADP_WARN(TEXT("Airfield: no cargo terminal doors (%s)"), *DPath);
+		}
 		else { if (Cargo) Cargo->Destroy(); Slab("liftClad", D.Cargo.X0, D.Cargo.Y0, D.Cargo.X1, D.Cargo.Y1, 0, 18); }
 	}
 	ADP_LOG(TEXT("Airfield built: %d taxiways, %d stands"), D.Taxiways.Num(), D.Stands.Num());

@@ -12,6 +12,7 @@ from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import cargo_layout as CL
+import cargo_doors as CD
 from cargo_layout import L, D, H_MAIN, H_ETV, H_OFF, H_SPEC, OFF, EXP, ETV, IMP, SPC, BCP, CANOPY_D, CANOPY_H, YARD_D, A1, A2
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -137,14 +138,33 @@ def join(name, objs):
 # #region ── Building shell: ground slab, outer walls (lower and upper part), roofs, fire walls ──
 box('GroundSlab', 0, 0, -0.30, L, D, 0.0, 'slab')
 lo, hi, bd = [], [], []
+GAPS = CD.wall_gaps()
+
+
+def gapped(along, a, b, c0, c1, m, gaps):
+    """A lower outer wall from a to b (along x or y; c0..c1 across) with its door openings (g0, g1, z bottom, z top) cut:
+    solid between them, a sill below a raised opening (truck docks), a lintel above each up to LOW."""
+    def bx(u0, u1, z0, z1):
+        return box('OW', u0, c0, z0, u1, c1, z1, m) if along == 'x' else box('OW', c0, u0, z0, c1, u1, z1, m)
+    out, u = [], a
+    for g0, g1, zb, zt in gaps:
+        if g1 <= a or g0 >= b: continue
+        g0, g1 = max(g0, a), min(g1, b)
+        if g0 > u: out.append(bx(u, g0, 0, LOW))
+        if zb > 0: out.append(bx(g0, g1, 0, zb))
+        out.append(bx(g0, g1, zt, LOW)); u = g1
+    if b > u: out.append(bx(u, b, 0, LOW))
+    return out
+
+
 BAND = 1.0                                   # the coloured cladding band, one panel high, right over the 6 m split
 for zk, (x0, x1), h, _ in CL.ZONES:
     m = 'wall2' if zk == 'etv' else 'wall'
     for y0, y1 in ((-0.3, 0.0), (D, D + 0.3)):
-        lo.append(box('OW', x0, y0, 0, x1, y1, LOW, m)); bd.append(box('OB', x0, y0, LOW, x1, y1, LOW + BAND, 'band'))
+        lo += gapped('x', x0, x1, y0, y1, m, GAPS['s' if y0 < 0 else 'n']); bd.append(box('OB', x0, y0, LOW, x1, y1, LOW + BAND, 'band'))
         hi.append(box('OW', x0, y0, LOW + BAND, x1, y1, h, m))
 for x0, x1, h in ((-0.3, 0.0, H_OFF), (L, L + 0.3, H_SPEC)):
-    lo.append(box('OW', x0, -0.3, 0, x1, D + 0.3, LOW, 'wall')); bd.append(box('OB', x0, -0.3, LOW, x1, D + 0.3, LOW + BAND, 'band'))
+    lo += gapped('y', -0.3, D + 0.3, x0, x1, 'wall', GAPS['e'] if x0 > 0 else []); bd.append(box('OB', x0, -0.3, LOW, x1, D + 0.3, LOW + BAND, 'band'))
     hi.append(box('OW', x0, -0.3, LOW + BAND, x1, D + 0.3, h, 'wall'))
 join('OuterWallsLow', lo); join('CladdingBand', bd); join('OuterWallsHigh', hi)
 join('Roofs', [box('Roof', x0 - 0.3, -0.3, h, x1 + 0.3, D + 0.3, h + 0.6, 'roof') for _, (x0, x1), h, _ in CL.ZONES])
@@ -160,7 +180,7 @@ for x, h in CL.FIRE_WALLS:
         if b > a:
             fwl.append(box('FW', x - 0.4, a, hd, x + 0.4, b, LOW, 'wall2'))
             if hd > 3: fws.append(box('FS', x - 0.5, a, hd - 0.6, x + 0.5, b, hd, 'shutter'))          # rolled-up shutter
-            else: fwd.append(box('FD', x - 0.05, a + 0.1, 0, x + 0.05, b - 0.1, 2.1, 'esc'))           # escape door
+            # (its 1.2 m escape door: a hinged D-CARGO-FW-.. door, built with the other moving doors at the end)
         y = b
 join('FireWallsLow', fwl); join('FireShutters', fws)
 join('FireWallsHigh', [box('FW', x - 0.4, -0.5, LOW, x + 0.4, D + 0.5, h + 1.6, 'wall2') for x, h in CL.FIRE_WALLS])
@@ -176,7 +196,10 @@ for f in range(3):
     tgt.append(box('OW', -0.45, 4, z0, -0.25, D - 4, z1, 'glass'))
 wu.append(box('ControlRoom', OFF[0] + 3, -3.0, 9.6, OFF[1] - 3, -0.3, 13.2, 'glass'))
 join('OfficeWindowsGround', wl); join('OfficeWindowsUpper', wu)
-box('OfficeEntrance', 10, D + 0.3, 0, 20, D + 4, 4.2, 'glass')
+lx0, lx1, lh = CD.LOBBY            # a glass vestibule; its sliding doors (D-CARGO-LOBBY-IN/OUT) are built at the end
+join('OfficeEntrance', [box('OE', 12.0, D + 0.3, 0, 12.1, D + 3.95, 4.2, 'glass'), box('OE', 17.9, D + 0.3, 0, 18.0, D + 3.95, 4.2, 'glass'),
+                        box('OE', 12.0, D + 3.95, 0, lx0, D + 4.05, 4.2, 'glass'), box('OE', lx1, D + 3.95, 0, 18.0, D + 4.05, 4.2, 'glass'),
+                        box('OE', lx0, D + 3.95, lh, lx1, D + 4.05, 4.2, 'glass')])
 box('OfficeEntranceCanopy', 8, D, 4.2, 22, D + 6, 4.7, 'canopy')
 join('HighBayGlazing', [box('HG', ETV[0] + 3, -0.45, H_MAIN + 2, ETV[1] - 3, -0.25, H_ETV - 2, 'glass'),
                         box('HG', ETV[0] + 3, D + 0.25, H_MAIN + 2, ETV[1] - 3, D + 0.45, H_ETV - 2, 'glass')])
@@ -214,8 +237,7 @@ def door_parts(doors, z0, tag):
     for cx, cy, o, w in doors:
         hw = w / 2
         if w <= 1.2:
-            leaf = (cx - hw, cy - 0.06, z0, cx + hw, cy + 0.06, z0 + 2.1) if o == 'h' else (cx - 0.06, cy - hw, z0, cx + 0.06, cy + hw, z0 + 2.1)
-            green.append(box(tag + 'P', *leaf, 'esc'))
+            # (the leaf itself: a hinged D-CARGO-..ROOM-.. door, built with the other moving doors at the end)
             sign = (cx - 0.3, cy - 0.2, z0 + 2.25, cx + 0.3, cy + 0.2, z0 + 2.5) if o == 'h' else (cx - 0.2, cy - 0.3, z0 + 2.25, cx + 0.2, cy + 0.3, z0 + 2.5)
             lit.append(box(tag + 'X', *sign, 'exitsign'))
         else:
@@ -241,7 +263,7 @@ for f, rooms in CL.UPPER.items():
     rr = [(x0, y0, x1, y1, 4.3, doors, 1.0) for _, x0, y0, x1, y1, k, doors in rooms if k != 'aisle']
     w_ = [box('UW', *w, 'part') for w in CL.walls_from_rooms(rr, z + 0.3, (0.0, OFF[1]), SKY)]
     g, a_, lt = door_parts(CL.doors_from_rooms(rr, (0.0, OFF[1]), SKY), z + 0.3, f'U{f}')
-    join(f'Office_F{f}_Walls', w_); join(f'Office_F{f}_Doors', g + lt)
+    join(f'Office_F{f}_Walls', w_); join(f'Office_F{f}_Doors', lt)
 # the three stair cores rising through the block (one stair per 900 m2 of floor)
 join('Office_Stairs', [box('SC', x0 + 0.3, y0 + 0.3, 0, x1 - 0.3, y1 - 0.3, H_OFF + 1.5, 'wall') for x0, y0, x1, y1 in CL.STAIRS])
 box('ReceptionDesk', 14, 63, 0, 20, 64.2, 1.1, 'steel')
@@ -276,49 +298,50 @@ for ya, yb in CL.ETV_RACKS:
             eq_rack.append(box('EC', x - 0.2, yy, 0, x + 0.2, yy + 0.4, 21.8, 'rack'))
     for z in CL.ETV_LEVELS[1:] + [21.6]:
         eq_rack.append(box('ED', xs[0], ya, z - 0.3, xs[-1], yb, z, 'rack'))
+    # (open high bay: the cargo system moves ULDs in and out, so only a third of the lanes keep a fixed ULD, at the
+    #  lane's back place - Data/cargo-slots.json staticULD - the rest stays empty)
+    back, sgn = (ya, 1.0) if ya < CL.ETV_AISLE[0] else (yb, -1.0)
+    yc = back + sgn * (0.4 + CD.DEPTH_PITCH * 0.5)
     for i, x in enumerate(CL.ETV_RACK_X):
         for j, z in enumerate(CL.ETV_LEVELS):
-            if (i + j * 2 + int(ya)) % 3:
-                eq_uld.append(box('EU', x + 0.2, ya + 0.6, z + 0.1, x + 3.1, yb - 0.6, z + 0.1 + (2.5 if (i + j) % 2 else 3.0), 'uld'))
+            if CD.KEEP_STATIC(i, j, int(ya)):
+                eq_uld.append(box('EU', x + 0.06, yc - CD.ULD[1] / 2, z + 0.1, x + 0.06 + CD.ULD[0], yc + CD.ULD[1] / 2, z + 0.1 + (1.6 if (i + j) % 2 else 2.4), 'uld'))
 for ya in (7.5, 12.5, 17.5):                                                                  # roller-bed buffer rows
     eq_steel.append(box('RB', ETV[0] + 1, ya, 0, ETV[1] - 1, ya + 3.2, 0.5, 'steel'))
-e0, e1 = CL.ETV_AISLE
-for x in CL.ETV_MACHINES:
-    eq_steel += [box('EM', x - 0.6, e0 + 0.2, 0, x + 0.6, e0 + 1.2, 23.0, 'steel'), box('EM', x - 0.6, e1 - 1.2, 0, x + 0.6, e1 - 0.2, 23.0, 'steel'),
-                 box('EC', x - 1.8, e0 + 0.2, 10.5, x + 1.8, e1 - 0.2, 11.0, 'steel')]
-    eq_fork.append(box('EB', x - 1.0, e0 + 0.4, 0, x + 1.0, e1 - 0.4, 0.8, 'fork'))
-# forklifts in the aisles, ready to go
-for x, y in ((50, 26.75), (95, 53.75), (120, 26.75), (300, 26.75), (330, 53.75), (60, 66), (100, 66), (310, 66), (366, 26.75), (420, 53.75)):
-    eq_fork += [box('FK', x - 0.6, y - 1.3, 0, x + 0.6, y + 1.3, 2.1, 'fork'), box('FM', x - 0.5, y - 1.7, 0, x + 0.5, y - 1.4, 3.6, 'steel')]
+# (owner: no box stand-ins for machines or vehicles - the ETV masts/carriages and the forklifts come later as real models)
+# marked floor squares for overflow ULDs in the high bay's landside strip (Data/cargo-slots.json overflowSquares)
+ovf = []
+for a, b, c, d in CD.overflow_squares():
+    ovf += [box('OV', a, b, 0.03, c, b + 0.1, 0.05, 'yellow'), box('OV', a, d - 0.1, 0.03, c, d, 0.05, 'yellow'),
+            box('OV', a, b + 0.1, 0.03, a + 0.1, d - 0.1, 0.05, 'yellow'), box('OV', c - 0.1, b + 0.1, 0.03, c, d - 0.1, 0.05, 'yellow')]
+join('OverflowSquares', ovf)
 # border control post: horse stalls (4.05 x 4.7 m), stalls for other hoofed animals, kennels; radioactive bays
 eq_steel += [box('HS', x0, y0, 0, x1, y1, 2.2, 'steel') for x0, y0, x1, y1 in CL.HORSE_STALLS]
 eq_steel += [box('CS', x0, y0, 0, x1, y1, 1.8, 'steel') for x0, y0, x1, y1 in CL.CATTLE_STALLS]
 eq_steel += [box('KN', 406 + i * 2.3, 31, 0, 408 + i * 2.3, 33, 1.4, 'steel') for i in range(6)]
 eq_steel += [box('KN', 406 + i * 2.3, 37, 0, 408 + i * 2.3, 39, 1.4, 'steel') for i in range(6)]
 eq_rack += [box('RA', x0, y0, 0, x1, y1, 1.2, 'lead') for x0, y0, x1, y1 in CL.RADIO_BAYS]
-eq_cargo += [box('PB', 287 + i * 3.6, 60, 0, 289.6 + i * 3.6, 62.4, 1.6, 'cargo') for i in range(12)] + \
-            [box('PB', 33 + i * 4.2, 66, 0, 35.8 + i * 4.2, 68.4, 1.6, 'cargo') for i in range(18)]
+eq_cargo += [box('PB', 287 + i * 3.6, 60, 0, 289.6 + i * 3.6, 62.4, 1.6, 'cargo') for i in (0, 1, 9)] + \
+            [box('PB', 33 + i * 4.2, 66, 0, 35.8 + i * 4.2, 68.4, 1.6, 'cargo') for i in (0, 8, 15)]   # a few; the floor is for real cargo
 join('RollerDecksAndStations', eq_steel); join('ULDsInside', eq_uld); join('Racks', eq_rack)
-join('PalletsInside', eq_cargo); join('Screening', eq_xray); join('Forklifts', eq_fork)
+join('PalletsInside', eq_cargo); join('Screening', eq_xray)
 # #endregion
 
 # #region ── Airside: canopy on columns, ULD transfer doors with roller decks, the airside service road ──
 box('AirsideCanopy', EXP[0], -CANOPY_D, CANOPY_H, IMP[1], -0.3, CANOPY_H + 1.0, 'canopy')
 join('CanopyColumns', [box('CC', x - 0.4, -CANOPY_D + 0.6, 0, x + 0.4, -CANOPY_D + 1.4, CANOPY_H, 'steel')
                        for x in [EXP[0] + i * CL.BAY for i in range(int((IMP[1] - EXP[0]) / CL.BAY) + 1)]])
-join('AirsideDoors', [box('AD', x - 3.0, -0.5, 0, x + 3.0, -0.25, 5.2, 'door') for x in CL.AIR_DOORS])
+# (the ULD doors' curtains are the game's roller doors: Data/cargo-doors.json R-CARGO-AIR/SPC/HORSE-..)
 join('RollerDecks', [box('RD', x - 2.0, -6.0, 0, x + 2.0, -0.5, 0.5, 'steel') for x in CL.AIR_DOORS])
-join('SpecialDoors', [box('SD', x - 2.0, -0.5, 0, x + 2.0, -0.25, 4.5, 'door') for x in CL.SPC_AIR_DOORS] +
-     [box('SD', x - 2.5, -0.5, 0, x + 2.5, -0.25, 4.5, 'door') for x in CL.HORSE_AIR_DOORS])
 # escape doors (1.0 x 2.1 m) on every face, a green exit light above each
 esc, sig = [], []
 for x in CL.ESC_AIR:
-    esc.append(box('ED', x - 0.5, -0.55, 0, x + 0.5, -0.25, 2.1, 'esc')); sig.append(box('EX', x - 0.35, -0.7, 2.3, x + 0.35, -0.3, 2.6, 'exitsign'))
+    sig.append(box('EX', x - 0.35, -0.7, 2.3, x + 0.35, -0.3, 2.6, 'exitsign'))
 for x in CL.ESC_LAND:
-    esc.append(box('ED', x - 0.5, D + 0.25, 0, x + 0.5, D + 0.55, 2.1, 'esc')); sig.append(box('EX', x - 0.35, D + 0.3, 2.3, x + 0.35, D + 0.7, 2.6, 'exitsign'))
+    sig.append(box('EX', x - 0.35, D + 0.3, 2.3, x + 0.35, D + 0.7, 2.6, 'exitsign'))
 for y in CL.ESC_EAST:
-    esc.append(box('ED', L + 0.25, y - 0.5, 0, L + 0.55, y + 0.5, 2.1, 'esc')); sig.append(box('EX', L + 0.3, y - 0.35, 2.3, L + 0.7, y + 0.35, 2.6, 'exitsign'))
-join('EscapeDoors', esc); join('EscapeSigns', sig)
+    sig.append(box('EX', L + 0.3, y - 0.35, 2.3, L + 0.7, y + 0.35, 2.6, 'exitsign'))
+join('EscapeSigns', sig)   # (the leaves: hinged D-CARGO-ESC-.. doors)
 box('AirsideRoad', -40, -40, -0.05, L + 60, 0, 0.0, 'yard')
 join('ULDLanes', [box('UL', x - 2.5, -38, 0.0, x + 2.5, -30, 0.02, 'white') for x in CL.AIR_DOORS] +
      [box('ULb', -40, -40.2, 0.0, L + 60, -39.9, 0.02, 'yellow'), box('ULc', -40, -14.2, 0.0, L + 60, -13.9, 0.02, 'yellow')])
@@ -332,17 +355,16 @@ for i in range(8):
         uld.append(box('EU', ex[0][1] + 1 + i * 5.1, ex[0][2] + 1 + j * 6.4, 0, ex[0][1] + 4.2 + i * 5.1, ex[0][2] + 5.8 + j * 6.4, 1.7 * (1 + (i + j) % 2), 'uld'))
 join('ULDsOutside', uld)
 box('ULDRepairShed', *ex[1][1:3], 0, *ex[1][3:5], 7.0, 'wall')
-join('Dollies', [box('DO', ex[2][1] + 1 + i * 4.2, ex[2][2] + 2 + j * 9, 0.3, ex[2][1] + 4.4 + i * 4.2, ex[2][2] + 8.5 + j * 9, 0.6, 'steel')
-                 for i in range(7) for j in range(3)])
+# (owner: no box dollies - real ones come later)
 # #endregion
 
 # #region ── Landside: truck docks with levellers and shelters, drive-in doors, the truck court and its gate ──
 DK = CL.DOCKS + CL.SPC_DOCKS
-join('DockDoors', [box('DD', x - 1.5, D + 0.25, 1.2, x + 1.5, D + 0.5, 4.7, 'door') for x in DK])
-join('DockShelters', [box('DS', x - 2.0, D + 0.3, 0.9, x + 2.0, D + 1.2, 5.2, 'shelter') for x in DK])
+# (dock door curtains: the game's roller doors R-CARGO-DOCK-..; the shelter is a frame of pads round the opening)
+join('DockShelters', [b for x in DK for b in (box('DS', x - 2.0, D + 0.3, 1.2, x - 1.5, D + 1.2, 4.7, 'shelter'),
+                      box('DS', x + 1.5, D + 0.3, 1.2, x + 2.0, D + 1.2, 4.7, 'shelter'), box('DS', x - 2.0, D + 0.3, 4.7, x + 2.0, D + 1.2, 5.2, 'shelter'))])
 join('DockBumpers', [box('DB', x - 1.8, D + 0.3, 0.8, x + 1.8, D + 0.55, 1.2, 'shelter') for x in DK])
 join('DockLevellers', [box('DL', x - 1.4, D - 3.0, 0.0, x + 1.4, D, 0.08, 'steel') for x in DK])
-join('DriveInDoors', [box('DI', x - 2.5, D + 0.25, 0, x + 2.5, D + 0.5, 5.0, 'door') for x in CL.DRIVE_IN])
 box('LandsideCanopy', EXP[0], D + 0.3, 6.0, L, D + 6.0, 6.6, 'canopy')
 box('TruckCourt', -10, D, -0.05, L + 10, D + YARD_D, 0.0, 'yard')
 marks = [box('TM', x - 0.1, D + 2, 0.0, x + 0.1, D + 22, 0.02, 'white') for x in [d + 6.5 for d in DK[:-1]]]
@@ -359,12 +381,7 @@ join('Fence', [box('F', -10, D + YARD_D - 0.1, 0, 150, D + YARD_D + 0.1, 2.6, 'f
 box('Gatehouse', 152, D + YARD_D - 10, 0, 160, D + YARD_D - 4, 3.2, 'glass')
 box('GatehouseRoof', 150, D + YARD_D - 12, 3.2, 176, D + YARD_D - 2, 3.7, 'canopy')
 box('GateBarrier', 162, D + YARD_D - 1, 1.0, 174, D + YARD_D - 0.7, 1.2, 'red')
-tt, tc = [], []
-for i, x in enumerate(DK):
-    if i % 3 == 1: continue
-    tt.append(box('TT', x - 1.25, D + 1.3, 1.1, x + 1.25, D + 14.9, 4.0, 'truck'))
-    tc.append(box('TC', x - 1.25, D + 15.7, 0.9, x + 1.25, D + 21.3, 3.9, 'cab'))
-join('Trailers', tt); join('Tractors', tc)
+# (owner: no box lorries at the docks - real trucks come later)
 # #endregion
 
 # #region ── Roof: skylight strips, smoke vents, solar panels, the special block's refrigeration plant ──
@@ -471,9 +488,48 @@ def drop_contacts():
     print('contact faces taken out:', sum(len(v) for v in gone.values()), flush=True)
 
 
+def door_nodes():
+    """Every hinged and sliding door as its own named node tree for ABabylonModel's door system:
+    D-CARGO-<..> (an empty at the door's foot, turned so its -y is the side the leaf swings to) -> hinge_<id> (an
+    empty on the hinge side) -> Leaf_<id> (the leaf, its own part: one mesh per size, shared so the game instances it;
+    a later pass may swap that mesh without touching the wiring). Sliding glass doors: D-CARGO-LOBBY-.. ->
+    box_<id>_L / _R, a unit glass leaf scaled to size (the door system reads leaf size and slide from the scale)."""
+    shared = {}
+    def leaf_mesh(w, h):
+        k = (round(w, 2), round(h, 2))
+        if k not in shared:
+            bm = bmesh.new(); bmesh.ops.create_cube(bm, size=1.0)
+            for v in bm.verts:
+                v.co = Vector(((v.co.x + 0.5) * w + 0.02, v.co.y * 0.05, (v.co.z + 0.5) * h + 0.01))
+            me = bpy.data.meshes.new('SM_Cargo_DoorLeaf_%d_%d' % (round(w * 100), round(h * 100))); bm.to_mesh(me); bm.free()
+            me.materials.append(M['esc'])
+            t = bpy.data.objects.new('tmp_uv', me); COL.objects.link(t); world_uvs(t); bpy.data.objects.remove(t)
+            shared[k] = me
+        return shared[k]
+    def empty(name, loc, rz=0.0, parent=None):
+        e = bpy.data.objects.new(name, None); COL.objects.link(e); e.parent = parent; e.location = loc; e.rotation_euler = (0, 0, rz)
+        return e
+    turn = {'-y': 0.0, '+y': math.pi, '+x': math.pi / 2, '-x': -math.pi / 2}
+    hd = CD.hinged()
+    for did, cx, cy, z0, out, w, h in hd:
+        d = empty(did, (cx, cy, z0), turn[out])
+        hg = empty('hinge_' + did, (-w / 2, 0, 0), 0, d)
+        o = bpy.data.objects.new('Leaf_' + did, leaf_mesh(w - 0.04, h)); COL.objects.link(o); o.parent = hg
+    bm = bmesh.new(); bmesh.ops.create_cube(bm, size=1.0); gm = bpy.data.meshes.new('SM_Cargo_GlassLeaf'); bm.to_mesh(gm); bm.free()
+    gm.materials.append(M['glass']); t = bpy.data.objects.new('tmp_uv', gm); COL.objects.link(t); world_uvs(t); bpy.data.objects.remove(t)
+    sl = CD.sliding()
+    for did, cx, cy, z0, w, h in sl:
+        d = empty(did, (cx, cy, z0))
+        for side, s in (('L', -1), ('R', 1)):
+            o = bpy.data.objects.new('box_%s_%s' % (did, side), gm); COL.objects.link(o); o.parent = d
+            o.location = (s * w / 4, 0, (h - 0.05) / 2 + 0.01); o.scale = (w / 2 - 0.02, 0.05, h - 0.05)
+    print('moving doors: %d hinged, %d sliding' % (len(hd), len(sl)), flush=True)
+
+
 drop_contacts()
 for o in COL.objects:
     if o.type == 'MESH': world_uvs(o)
+door_nodes()
 # every slot filled (the import's rule): no mesh without a material
 assert all(len(o.data.materials) and all(o.data.materials) for o in COL.objects if o.type == 'MESH'), 'empty material slot'
 # #endregion
