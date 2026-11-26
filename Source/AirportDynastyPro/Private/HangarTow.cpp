@@ -201,9 +201,31 @@ namespace
 	bool InStrip(const FAirfieldData& D, const FVector2f& P) { return FMath::Abs(P.Y - D.RwyY) < 107.5f && P.X > D.RwyX0 && P.X < D.RwyX1; }
 }
 
-bool AHangarTow::OnRunway(UWorld* W)
+namespace
+{
+	bool bTowCrossed = false; FVector2f TowCrossS = FVector2f::ZeroVector, TowCrossN = FVector2f::ZeroVector;   // (the last tow's crossing)
+}
+
+bool AHangarTow::Crossing(UWorld* W, FVector2f& South, FVector2f& North)
+{
+	const FAirfieldData& D = AAirfield::Shared();
+	if (W) for (TActorIterator<AHangarTow> It(W); It; ++It) for (const FJob& J : It->Jobs) for (const FLeg& Lg : J.Legs)
+	{
+		if (Lg.HoldS < 0.f || !Lg.S.Num()) continue;
+		const FVector2f In = LegAt(Lg, Lg.HoldS); FVector2f Out = In;
+		for (float S = Lg.HoldS + 1.f; S <= Lg.S.Last(); S += 0.5f) { Out = LegAt(Lg, S); if (!InStrip(D, Out)) break; }
+		if (InStrip(D, Out)) continue;   // (the leg ends on the strip: not a crossing)
+		bTowCrossed = true; TowCrossS = In.Y < Out.Y ? In : Out; TowCrossN = In.Y < Out.Y ? Out : In;
+		break;
+	}
+	South = TowCrossS; North = TowCrossN;
+	return bTowCrossed;
+}
+
+bool AHangarTow::OnRunway(UWorld* W, bool bVans)
 {
 	if (!W) return false;
+	if (bVans) if (const AGSE* G = AGSE::Find(W)) if (G->VanOnStrip()) return true;   // (a maintenance van crossing)
 	const FAirfieldData& D = AAirfield::Shared();
 	for (TActorIterator<AHangarTow> It(W); It; ++It) for (const FJob& J : It->Jobs) if (J.Stage == 1 && (InStrip(D, J.Nose) || InStrip(D, J.Main))) return true;
 	return false;
@@ -551,7 +573,7 @@ void AHangarTow::Run(FJob& J, float Dt)
 		Rem = FMath::Min(Rem, Lg.HoldS - J.S);
 		if (J.S >= Lg.HoldS - 0.05f)
 		{
-			if (ASimTraffic::RunwayBusy(W))
+			if (ASimTraffic::RunwayBusy(W) || (AGSE::Find(W) && AGSE::Find(W)->VanOnStrip()))
 			{
 				J.HoldT = 0.f;
 				if ((J.WhyT -= Dt) <= 0.f) { J.WhyT = 30.f; ADP_LOG(TEXT("HangarTow: %s holds short of the runway - traffic"), *J.Reg); }
@@ -709,7 +731,7 @@ void AHangarTow::YouRun(FJob& J, float Dt, bool bGo, bool bChocked, float Lag)
 	else if (!J.bCleared && bGo)
 	{
 		bMay = false;
-		if (ASimTraffic::RunwayBusy(W))
+		if (ASimTraffic::RunwayBusy(W) || (AGSE::Find(W) && AGSE::Find(W)->VanOnStrip()))
 		{
 			J.HoldT = 0.f; Why = TEXT("hold short of the runway - traffic on it or close in");
 			if ((J.WhyT -= Dt) <= 0.f) { J.WhyT = 30.f; ADP_LOG(TEXT("HangarTow: %s (yours) holds short of the runway - traffic"), *J.Reg); }

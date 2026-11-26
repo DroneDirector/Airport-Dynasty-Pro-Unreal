@@ -1038,3 +1038,15 @@ stand end; the deck top (0.906 m, rollers 1.028 m) is not yet checked against th
 - Left 2 min and 40 m: the crew take over (`YouTake`). `Rejoin` puts the job back on the nearest leg point that faces
   the same way, within 40 m; further away it waits and logs it.
 - Not run in the game yet: the coupling distance at the nose, takeover, tow back, lamps while yours.
+
+## Van rides across the runway (to-do 311, 2026-11-26, compiled, NOT run)
+- Three maintenance vans every new game ("maintenance van 1-3", one entry), parked nose east between the hangars at plan
+  (-385, 1225), (-350, 1225), (-205, 1225); counted as owned from the start (bridge "owned" list, with the hangar tug).
+- Nobody walks across the runway: the hall stair crew (to the hall and back), the wing walkers left north after a tow, and the
+  brake rider if his van is across take any free van on their side (`AGSE::VanRide`, GSEMaint.cpp). Waiting is logged.
+- Seats: the first at the wheel (driver's door), up to three behind through the sliding door, one at a time.
+- A van crosses only at the tows' crossing (`AHangarTow::Crossing`): it holds short until `ASimTraffic::RunwayBusy` and no
+  tow is on the strip for 10 s; while it is on the strip departures and tows hold (`AHangarTow::OnRunway`, `VanOnStrip`).
+- Service jobs: a van on the hangars' side crosses first (SvcApron), and home over the crossing (SvcDriveHome).
+- Not built: wing walkers still walk beside the tow across the strip (they follow the aircraft); no crossing known before
+  the first hangar tow was planned - vans wait (logged).

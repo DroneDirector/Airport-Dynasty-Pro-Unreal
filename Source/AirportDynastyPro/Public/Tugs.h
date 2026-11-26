@@ -38,6 +38,7 @@ class AIRPORTDYNASTYPRO_API ATugs : public AActor
 public:
 	ATugs();
 	static ATugs* Get(UWorld* W);
+	int32 HangarTugs() const;   // (the hangar tugs there are: owned from the start - the vehicles list)
 	virtual void Tick(float Dt) override;
 	/** A departure coming up at the stand whose nose line is at StandX (plan m): a tug drives out and waits beside it,
 	 *  outside the red line. */

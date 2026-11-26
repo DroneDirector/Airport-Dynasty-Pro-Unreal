@@ -760,6 +760,28 @@ private:
 	void MaintClimb(int32 Job, float StandX, bool bUp);
 	void MaintHold(int32 Job);
 	void MaintDown(int32 Job);
+	// ---- the maintenance vans' rides across the runway (GSEMaint.cpp, to-do 311): nobody of the hangar tow walks across the strip
+public:   // (the maintenance vans' rides: asked for by the tugs' wing walkers too)
+	struct FVanRider { int32 Ti = INDEX_NONE, Seat = 0; FVector Drop = FVector::ZeroVector; bool bAboard = false, bOff = false, bDoor = false; FString Who; };
+	TMap<int32, FVanRider> VanRiders;  // (by crew index: one ride at a time each)
+	TMap<int32, TPair<int32, EJob>> VanWas;   // (a van taken for a ride: its job's driver and state, given back after)
+	TMap<int32, uint8> VanTrip;        // (a van: 1 driving its riders, 2 they get out)
+	TMap<int32, double> VanClear;      // (a van holding short: since when the runway is free)
+	TMap<int32, FVector> VanSouth;     // (a van: where it was taken from on the stands' side - the drop back there)
+	TSet<int32> VanStrip;              // (vans on the runway strip now: departures hold)
+	static bool Across(const FVector& A, const FVector& B);
+	int32 VanFor(const FVector& Near) const;   // a free maintenance van on Near's side of the runway (else any free one)
+	/** Ci waits for a free maintenance van on his side (logged, never walks across), walks to it, gets in by its door, rides
+	 *  to Drop (across at the tows' crossing), gets out; then Then. False: there is no maintenance van at all. */
+	bool VanRide(int32 Ci, const FVector& Drop, const FString& Who, TFunction<void()> Then);
+	void VanBoard(int32 Ci);
+	void VanAlight(int32 Ci, TFunction<void()> Then);
+	void VanTick();
+	void VanCross(int32 Ti, const FVector& To, TFunction<void()> Done);
+	bool VanOnStrip() const { return VanStrip.Num() > 0; }
+	FVector VanDropSouth(int32 Ti, float StandX) const;
+	void MaintToVan(int32 Job);
+private:
 	// ---- the hangar halls' own stairs (GSEHangarStair.cpp): a copy of the passenger stairs, one per hall, its job's StandX a key
 	struct FHallStair { FString Hall; int32 Ti = INDEX_NONE; float Key = 0.f, Hx = 0.f, Yn = 0.f, Front = 0.f, Half = 23.f, Side = 1.f; FVector2f Park = FVector2f::ZeroVector; TWeakObjectPtr<AActor> Plane; mutable TWeakObjectPtr<AActor> Door; };
 	TArray<FHallStair> HallStairs;

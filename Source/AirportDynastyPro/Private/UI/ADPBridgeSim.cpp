@@ -18,6 +18,8 @@
 #include "Sim/ADPTown.h"
 #include "Sim/ADPWeather.h"
 #include "Site.h"
+#include "GSE.h"
+#include "Tugs.h"
 #include "Sim/ADPBoards.h"
 #include "Sim/ADPDemand.h"
 #include "Dom/JsonObject.h"
@@ -167,6 +169,21 @@ FString UADPBridge::Sim(const FString& Action, const FString& Arg)
 				V->SetNumberField(TEXT("have"), My ? My->Spares.FilterByPredicate([&](const FADPSpare& X) { return X.Kind == K.Key; }).Num() : 0); Vk.Add(MakeShared<FJsonValueObject>(V));
 			}
 			O->SetArrayField(TEXT("vehicleKinds"), Vk);
+		}
+		// (to-do 311: the ground vehicles the airport owns from the start of every new game - the service vehicles, the three
+		// maintenance vans, the hangar tug - counted by kind; the bought ones are the vehicle kinds' "have")
+		{
+			TMap<FString, int32> Own; UWorld* Wd = H ? H->GetWorld() : nullptr;
+			if (const AGSE* Gs = Wd ? AGSE::Find(Wd) : nullptr)
+				for (const AGSE::FTractor& T : Gs->Vehicles()) if (!T.bSpare && T.Svc != INDEX_NONE)
+				{
+					FString K = T.Name; while (K.Len() && (FChar::IsDigit(K[K.Len() - 1]) || K[K.Len() - 1] == TCHAR(' '))) K.LeftChopInline(1);
+					++Own.FindOrAdd(K);
+				}
+			if (const ATugs* Tu = Wd ? ATugs::Get(Wd) : nullptr) if (const int32 Nh = Tu->HangarTugs()) Own.FindOrAdd(TEXT("hangar tug")) += Nh;
+			TArray<TSharedPtr<FJsonValue>> Ov;
+			for (const TPair<FString, int32>& K : Own) { TSharedRef<FJsonObject> V = MakeShared<FJsonObject>(); V->SetStringField(TEXT("label"), K.Key); V->SetNumberField(TEXT("have"), K.Value); V->SetBoolField(TEXT("fromStart"), true); Ov.Add(MakeShared<FJsonValueObject>(V)); }
+			O->SetArrayField(TEXT("owned"), Ov);
 		}
 		O->SetObjectField(TEXT("need"), Need);
 		TArray<TSharedPtr<FJsonValue>> Lv;

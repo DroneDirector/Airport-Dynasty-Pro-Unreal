@@ -108,37 +108,46 @@ void AGSE::HallStart(int32 Job)
 	for (int32 m = 0; m < J->Men.Num(); ++m)
 	{
 		const int32 Ci = J->Men[m].Ci;
-		HiredWay(Ci, Gate, 0.f);
-		WalkTo(Ci, [Gate] { return Gate; }, 60.f);
-		WaitFor(Ci, [this, Key](float) { const FHallStair* X = HallOf(Key); return !X || HallOpen(*X) > 0.6f; });   // (never through a shut door)
-		WalkTo(Ci, [In] { return In; }, 40.f);
-		if (m > 0) { SvcBoard(Job, m); continue; }
-		ClimbIn(Ci, Ti, [this, Job] { if (FSvcMan* X = SvcM(Job, 0)) X->bSeated = true; });
-		WaitFor(Ci, [this, Job, Ti, Key](float)
+		auto Rest = [this, Job, m, Ci, Ti, Gate, In, Key]
 		{
-			const FHallStair* X = HallOf(Key); const FSvcJob* Y = SvcJobs.Find(Job);
-			if (Y && Y->bGo) return true;
-			return X && X->Plane.IsValid() && SvcAll(Job, [](const FSvcMan& M) { return M.bSeated; }) && Tractors[Ti].SvcDoors[0].Now < 0.01f;
-		});
-		Do(Ci, [this, Job, Ti]
-		{
-			FSvcJob* X = SvcJ(Job); const FHallStair* Hs = X ? HallOf(X->StandX) : nullptr; if (!X || !Hs) return;
-			FTractor& V = Tractors[Ti]; FVector2f At, Hd; float Tr = 0.f;
-			if (X->bGo || !V.Ps || !StairsDock(X->StandX, 0, float(V.At.Z), At, Hd, Tr))
+			WalkTo(Ci, [Gate] { return Gate; }, 60.f);
+			WaitFor(Ci, [this, Key](float) { const FHallStair* X = HallOf(Key); return !X || HallOpen(*X) > 0.6f; });   // (never through a shut door)
+			WalkTo(Ci, [In] { return In; }, 40.f);
+			if (m > 0) { SvcBoard(Job, m); return; }
+			ClimbIn(Ci, Ti, [this, Job] { if (FSvcMan* X = SvcM(Job, 0)) X->bSeated = true; });
+			WaitFor(Ci, [this, Job, Ti, Key](float)
 			{
-				ADP_WARN(TEXT("GSE: the %s stays in its place - %s is not standing in the hall"), *V.Name, *X->Reg);
-				V.Job = EJob::AtStand; X->Phase = 2; X->Stage = 6; StairsWork(Job); return;   // (gates and jacks as they are: home)
-			}
-			if ((At.X - Hs->Hx) * Hs->Side < 0.f) ADP_WARN(TEXT("GSE: %s's front left door is on the far side from the %s - it drives round the nose"), *X->Reg, *V.Name);
-			// round from its place to square in front of the door (a curve of the plan: forward out of its place, turned to the door)
-			const FVector2f P0(float(V.At.X) / 100.f, float(-V.At.Y) / 100.f), Pre = At - Hd * 4.f, Sh = At - Hd * 1.5f, C(P0.X, Pre.Y);
-			TArray<FVector> W;
-			for (int32 i = 1; i <= 40; ++i) { const float k = i / 40.f; const FVector2f Q = (1.f - k) * (1.f - k) * P0 + 2.f * k * (1.f - k) * C + k * k * Pre; W.Add(Plan(Q.X, Q.Y)); }
-			for (int32 i = 1; i <= 10; ++i) { const FVector2f Q = FMath::Lerp(Pre, Sh, i / 10.f); W.Add(Plan(Q.X, Q.Y)); }
-			X->InWay = W; V.Ps->Target = Tr; V.Job = EJob::Out; Motor(V, true);
-			ADP_LOG(TEXT("GSE: the %s drives round to %s's front left door"), *V.Name, *X->Reg);
-			Go(V, MoveTemp(W), false, [this, Job] { SvcWork(Job); });
-		});
+				const FHallStair* X = HallOf(Key); const FSvcJob* Y = SvcJobs.Find(Job);
+				if (Y && Y->bGo) return true;
+				return X && X->Plane.IsValid() && SvcAll(Job, [](const FSvcMan& M) { return M.bSeated; }) && Tractors[Ti].SvcDoors[0].Now < 0.01f;
+			});
+			Do(Ci, [this, Job, Ti]
+			{
+				FSvcJob* X = SvcJ(Job); const FHallStair* Hs = X ? HallOf(X->StandX) : nullptr; if (!X || !Hs) return;
+				FTractor& V = Tractors[Ti]; FVector2f At, Hd; float Tr = 0.f;
+				if (X->bGo || !V.Ps || !StairsDock(X->StandX, 0, float(V.At.Z), At, Hd, Tr))
+				{
+					ADP_WARN(TEXT("GSE: the %s stays in its place - %s is not standing in the hall"), *V.Name, *X->Reg);
+					V.Job = EJob::AtStand; X->Phase = 2; X->Stage = 6; StairsWork(Job); return;   // (gates and jacks as they are: home)
+				}
+				if ((At.X - Hs->Hx) * Hs->Side < 0.f) ADP_WARN(TEXT("GSE: %s's front left door is on the far side from the %s - it drives round the nose"), *X->Reg, *V.Name);
+				// round from its place to square in front of the door (a curve of the plan: forward out of its place, turned to the door)
+				const FVector2f P0(float(V.At.X) / 100.f, float(-V.At.Y) / 100.f), Pre = At - Hd * 4.f, Sh = At - Hd * 1.5f, C(P0.X, Pre.Y);
+				TArray<FVector> W;
+				for (int32 i = 1; i <= 40; ++i) { const float k = i / 40.f; const FVector2f Q = (1.f - k) * (1.f - k) * P0 + 2.f * k * (1.f - k) * C + k * k * Pre; W.Add(Plan(Q.X, Q.Y)); }
+				for (int32 i = 1; i <= 10; ++i) { const FVector2f Q = FMath::Lerp(Pre, Sh, i / 10.f); W.Add(Plan(Q.X, Q.Y)); }
+				X->InWay = W; V.Ps->Target = Tr; V.Job = EJob::Out; Motor(V, true);
+				ADP_LOG(TEXT("GSE: the %s drives round to %s's front left door"), *V.Name, *X->Reg);
+				Go(V, MoveTemp(W), false, [this, Job] { SvcWork(Job); });
+			});
+		};
+		// (to-do 311: from the stands' side over the runway only in a maintenance van, never on foot)
+		const FVector Drop = HallP(*H, Sd * (Hf + 6.f), H->Front - 20.f);
+		ATugs* G = Tg(); const bool bOver = G && G->Crew.IsValidIndex(Ci) && G->Crew[Ci].A.IsValid() && Across(G->Crew[Ci].A->GetActorLocation(), Gate);
+		if (bOver && VanRide(Ci, Drop, TEXT("hangar stair crew"), Rest)) continue;
+		if (bOver) ADP_WARN(TEXT("GSE: there is no maintenance van - %s walks to hangar %s"), *G->Crew[Ci].Name, *H->Hall);
+		HiredWay(Ci, Gate, 0.f);
+		Rest();
 	}
 }
 
@@ -173,6 +182,8 @@ void AGSE::HallLeave(int32 Job)
 			FSvcJob* Y = SvcJ(Job); const FHallStair* Hz = Y ? HallOf(Y->StandX) : nullptr; if (!Y || !Hz) return;
 			// (out of the hall the way they came: past the front of its place, out through the door)
 			const FVector By = HallP(*Hz, Hz->Side * (Hz->Half - 2.f), HsAft - 6.f), Out = HallP(*Hz, Hz->Side * (Hz->Half - 8.f), Hz->Front - 8.f);
+			// (to-do 311: back over the runway in a maintenance van, never on foot)
+			auto Back = [this](int32 C) { Do(C, [this, C] { Later([this, C] { if (!VanRide(C, VanDropSouth(INDEX_NONE, 0.f), TEXT("hangar stair crew"), [this, C] { GiveBack(C); })) GiveBack(C); }); }); };
 			for (int32 m = 0; m < Y->Men.Num(); ++m)
 			{
 				const int32 Cm = Y->Men[m].Ci; if (Y->Men[m].bGone) continue;
@@ -180,14 +191,14 @@ void AGSE::HallLeave(int32 Job)
 				{
 					SvcAlight(Job, m);
 					WalkTo(Cm, [By] { return By; }, 50.f); WalkTo(Cm, [Out] { return Out; }, 60.f);
-					Do(Cm, [this, Job, m] { if (FSvcMan* Z = SvcM(Job, m)) Z->bGone = true; }); GiveBack(Cm); continue;
+					Do(Cm, [this, Job, m] { if (FSvcMan* Z = SvcM(Job, m)) Z->bGone = true; }); Back(Cm); continue;
 				}
 				Wait(Cm, 2.f);
 				ClimbOut(Cm, Ti, [this, Job] { if (FSvcMan* Z = SvcM(Job, 0)) { Z->bSeated = false; Z->bOut = true; } });
 				WaitFor(Cm, [this, Job](float E) { return E > 120.f || SvcAll(Job, [](const FSvcMan& Z) { return Z.Seat == 0; }); });
 				WalkTo(Cm, [By] { return By; }, 50.f); WalkTo(Cm, [Out] { return Out; }, 60.f);
 				Do(Cm, [this, Job, Ti] { FTractor& Z = Tractors[Ti]; Z.Job = EJob::None; Z.Key.Reset(); Z.StandX = 0.f; Z.Driver = INDEX_NONE; if (FSvcJob* Q = SvcJ(Job)) Q->Phase = 9; });
-				GiveBack(Cm);
+				Back(Cm);
 			}
 		});
 	});

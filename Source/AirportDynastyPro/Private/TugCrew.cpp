@@ -696,9 +696,11 @@ void ATugs::WalkersDone(int32 Tug)
 		{
 			const float Sx = T.StandX;
 			// never on foot across the runway (to-do 311: a hangar tow from a cargo stand or into a hangar leaves them north
-			// of it): there they stay put and are let go where they are; the van ride back is not built yet
+			// of it): back over in a maintenance van; with none at all they stay put and are let go where they are
 			const bool bOver = C.A.IsValid() && (SideOf(C.A->GetActorLocation().Y) == 2) != (SideOf(GateT(Sx, Sx - 20.5f, 104.f).Y) == 2);
-			if (bOver) ADP_WARN(TEXT("Tugs: hired walker of tug %d stays north of the runway - no way on foot across it (van ride not built)"), Tug);
+			AGSE* Gs = bOver ? AGSE::Find(GetWorld()) : nullptr;
+			if (Gs && Gs->VanRide(i, GateT(Sx, Sx - 20.5f, 104.f), TEXT("wing walker"), [this, i] { if (Crew.IsValidIndex(i)) LeaveAct(Crew[i]); })) continue;
+			if (bOver) ADP_WARN(TEXT("Tugs: hired walker of tug %d stays north of the runway - no maintenance van to take him across"), Tug);
 			else C.Q.Add(WalkAct([this, Sx] { return GateT(Sx, Sx - 20.5f, 104.f); }, 120.f));
 			LeaveAct(C); continue;
 		}
@@ -1391,3 +1393,5 @@ FVector ATugs::Around(const FVector& From, const FVector& To) const
 	int32 K = 1; while (Prev[K] != 0 && Prev[K] != INDEX_NONE) K = Prev[K];
 	return N[K];
 }
+
+int32 ATugs::HangarTugs() const { int32 N = 0; for (const FTug& T : Tugs) if (T.bHangar) ++N; return N; }

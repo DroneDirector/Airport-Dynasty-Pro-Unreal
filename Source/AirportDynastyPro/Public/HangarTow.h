@@ -25,7 +25,10 @@ public:
 	/** Reg is in or on its way to or from a hangar: it cannot be flown. */
 	static bool Busy(UWorld* W, const FString& Reg);
 	/** A tow is on the runway strip now (between the holding points): no take-off starts (SimTraffic). */
-	static bool OnRunway(UWorld* W);
+	static bool OnRunway(UWorld* W, bool bVans = true);   // (bVans: the maintenance vans crossing count too)
+	/** Where the tows cross the runway (plan m): the holding points on the stands' side and on the hangars' side - the
+	 *  maintenance vans cross only there (GSEMaint.cpp). The last tow's crossing is kept; false before any tow was planned. */
+	static bool Crossing(UWorld* W, FVector2f& South, FVector2f& North);
 	/** Your own tow (to-do 311 step C): the aircraft the hangar tug at At (world) may couple to - Key's if set, else the nearest
 	 *  waiting one within 40 m (Key set then); its nose tyre and main gear (plan m). */
 	static bool YouFit(UWorld* W, const FVector& At, FString& Key, FVector2f& Nose, FVector2f& Main);

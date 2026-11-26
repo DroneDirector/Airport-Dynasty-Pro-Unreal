@@ -1163,7 +1163,7 @@ void AGSE::Tick(float Dt)
 	WantTick(Dt);
 	SpareTick(Dt);
 	BreakTick(Dt);
-	SvcTick(Dt);
+	SvcTick(Dt); VanTick();
 	TaxiTick(Dt);
 	BusTick(Dt); ChargeTick(Dt);
 	// the test's first jobs, once the crew stand at their gates

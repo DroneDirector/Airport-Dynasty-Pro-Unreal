@@ -5,6 +5,7 @@
 // flight with it. The other airlines' flights, and yours while you employ fewer than two: the agent, as data, as before.
 // There is no cabin inside the aircraft yet (to-do 209): at its door they are out of sight and the rows are worked by time.
 #include "GSE.h"
+#include "HangarTow.h"
 #include "Seats.h"
 #include "ServiceVehicles.h"
 #include "ApronBus.h"
@@ -263,6 +264,18 @@ void AGSE::SvcSetup()
 		// (the apron buses: one a row of their own table; every other line is one vehicle)
 		AApronBuses* Bs = S.bBus ? AApronBuses::Get(GetWorld()) : nullptr; if (S.bBus && !Bs) continue;
 		if (Bs) Bs->Load();
+		if (S.bMaint)
+		{
+			// (to-do 311: three maintenance vans for the tow's crew, each in its own place on the hangar apron - between the
+			// hangars, nose east, about 13 m apart and 12 m off the lane along their doors)
+			static const FVector2f Vp[] = {{-385.f, 1225.f}, {-350.f, 1225.f}, {-205.f, 1225.f}};
+			for (int32 n = 0; n < 3; ++n)
+			{
+				FSpareAt At; At.Id = FString::Printf(TEXT("maint-%d"), n + 1); At.Name = FString::Printf(TEXT("maintenance van %d"), n + 1); At.X = Vp[n].X; At.Y = Vp[n].Y; At.Heading = 0.f;
+				if (SvcSpawn(i, n, &At)) { FTractor& T = Tractors.Last(); T.bSpare = false; T.SpareId.Reset(); T.Owner.Reset(); }   // (the airport's own from the start: never a bought one)
+			}
+			continue;
+		}
 		for (int32 n = 0; n < (Bs ? Bs->All().Num() : 1); ++n)
 			SvcSpawn(i, n, nullptr);
 	}
@@ -1142,6 +1155,12 @@ void AGSE::SvcApron(int32 Job)
 	const int32 Ti = J->Ti; FTractor& T = Tractors[Ti];
 	const FServiceSpec& Sv = SvSpec(J->Svc);
 	if (Sv.bDeicer) { DeicerApron(Job); return; }
+	if (Sv.bMaint && ATugs::SideOf(T.At.Y) == 2)
+	{
+		// (a maintenance van on the hangars' side: over the runway only at the tows' crossing, held short until it is clear)
+		FVector2f Cs, Cn; if (!AHangarTow::Crossing(GetWorld(), Cs, Cn)) { RetryIn(Ti, 15.f, [this, Job] { SvcApron(Job); }); return; }
+		VanCross(Ti, Plan(Cs.X, Cs.Y - 25.f), [this, Job] { SvcApron(Job); }); return;
+	}
 	// (one at a time on the aircraft's right, between its wing and the next one's)
 	if (Sv.Wet && T.Job != EJob::Out && !WetMay(Job)) return;   // (its turn under the tail; asked again)
 	if (Sv.Lat < 0.f && !Sv.Wet && T.Job != EJob::Out && SvcSideBusy(Ti, J->StandX)) { RetryIn(Ti, 6.f, [this, Job] { SvcApron(Job); }); return; }
@@ -1494,8 +1513,14 @@ void AGSE::SvcDriveHome(int32 Job, TFunction<void()> Then)
 	FSvcJob* J = SvcJ(Job); if (!J) return;
 	const int32 Ti = J->Ti; FTractor& T = Tractors[Ti]; const FServiceSpec& Sv = SvSpec(J->Svc);
 	if (T.bSpare) { SpareHome(Ti, MoveTemp(Then)); return; }   // (its place at the vehicle area)
+	if (Sv.bMaint && Across(T.At, T.Home))
+	{
+		// (home to the hangars' side: over the runway only at the tows' crossing)
+		FVector2f Cs, Cn; if (!AHangarTow::Crossing(GetWorld(), Cs, Cn)) { RetryIn(Ti, 15.f, [this, Job, Then] { SvcDriveHome(Job, Then); }); return; }
+		VanCross(Ti, Plan(Cn.X, Cn.Y + 25.f), [this, Job, Then] { SvcDriveHome(Job, Then); }); return;
+	}
 	// down beside its box's way (two turning circles off it, clear of the next stand's line), round to point away, straight back in: nose out
-	TArray<FVector> H; const FVector2f Ho(Sv.HomeX, Sv.HomeY), Hd(Sv.HomeHx, Sv.HomeHy), Sd(Sv.HomeHy, -Sv.HomeHx);
+	TArray<FVector> H; const FVector2f Ho = Sv.bMaint ? FVector2f(T.Home.X / 100.f, -T.Home.Y / 100.f) : FVector2f(Sv.HomeX, Sv.HomeY), Hd(Sv.HomeHx, Sv.HomeHy), Sd(Sv.HomeHy, -Sv.HomeHx);
 	if (Sv.bDeicer || Sv.bAmbu)
 	{
 		// (the apron's east edge: no room for a loop - from the west between the toilet truck's box and the stairs', round to face north, straight back in)

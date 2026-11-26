@@ -14,6 +14,8 @@
 #include "CrewPose.h"
 #include "ADPLog.h"
 #include "Sim/ADPSim.h"
+#include "HangarTow.h"
+#include "SimTraffic.h"
 #include "Engine/World.h"
 
 namespace
@@ -189,7 +191,7 @@ void AGSE::MaintClimb(int32 Job, float StandX, bool bUp)
 		Do(Ci, [this, Job] { if (FSvcJob* X = SvcJ(Job)) { X->Stage = 8; ADP_LOG(TEXT("GSE: %s's brake rider waits in the hall through the check"), *X->Reg); } });
 		return;
 	}
-	Do(Ci, [this, Job] { Later([this, Job] { if (FSvcJob* X = SvcJ(Job)) if (X->Men.Num()) { HiredWay(X->Men[0].Ci, Tractors[X->Ti].At, 0.f); Do(X->Men[0].Ci, [this, Job] { Later([this, Job] { SvcLeave(Job); }); }); } }); });
+	Do(Ci, [this, Job] { Later([this, Job] { MaintToVan(Job); }); });
 	Wait(Ci, 0.5f);
 }
 
@@ -229,11 +231,203 @@ void AGSE::MaintDown(int32 Job)
 			FSvcJob* X = SvcJ(Job); if (!X || !X->Men.Num()) return;
 			SvcUp(Job, 0, false);
 			const int32 C = X->Men[0].Ci;
-			Do(C, [this, Job] { Later([this, Job] { if (FSvcJob* Y = SvcJ(Job)) if (Y->Men.Num()) { HiredWay(Y->Men[0].Ci, Tractors[Y->Ti].At, 0.f); Do(Y->Men[0].Ci, [this, Job] { Later([this, Job] { SvcLeave(Job); }); }); } }); });
+			Do(C, [this, Job] { Later([this, Job] { MaintToVan(Job); }); });
 			Wait(C, 0.5f);
 		}); });
 		Wait(Ci, 0.5f);
 		return;
 	}
 	MaintStairs(Job, Sx, false);
+}
+
+// ------------------------------------------------------------------ the maintenance vans' rides (to-do 311: nobody walks across the runway)
+// Anyone of the hangar tow who has to get to the other side of the runway (the hall stair's crew, the brake rider) waits for a
+// free maintenance van on his own side (logged), walks to it and gets in - the first at the wheel by the driver's door, up to
+// three behind by the sliding door, one through it at a time - and rides. The van crosses only at the tows' crossing
+// (AHangarTow::Crossing): it holds short there until nothing rolls, lands or takes off (ASimTraffic::RunwayBusy) and no tow is
+// on the strip, then 10 s more; departures and tows hold while a van is on the strip (VanStrip, AHangarTow::OnRunway).
+
+bool AGSE::Across(const FVector& A, const FVector& B) { return (ATugs::SideOf(A.Y) == 2) != (ATugs::SideOf(B.Y) == 2); }
+
+int32 AGSE::VanFor(const FVector& Near) const
+{
+	int32 Best = INDEX_NONE; double Bd = 1e18;
+	for (int32 i = 0; i < Tractors.Num(); ++i)
+	{
+		const FTractor& T = Tractors[i];
+		if (T.Svc == INDEX_NONE || !MtSpec(T.Svc).bMaint || T.Player.IsValid() || T.Path.Num() || VanTrip.Contains(i)) continue;
+		bool bUsed = false;   // (a brake rider's job holds it: on its way, at the stand, or he sits in it)
+		for (const TPair<int32, FSvcJob>& X : SvcJobs) if (X.Value.Ti == i && X.Value.Phase > 0) bUsed = true;
+		int32 Bound = 0; for (const TPair<int32, FVanRider>& R : VanRiders) if (R.Value.Ti == i) ++Bound;
+		if (bUsed || Bound >= 4) continue;
+		const double D = FVector::Dist2D(T.At, Near) + (Across(T.At, Near) ? 1e9 : 0.0);   // (its own side first)
+		if (D < Bd) { Bd = D; Best = i; }
+	}
+	return Best;
+}
+
+FVector AGSE::VanDropSouth(int32 Ti, float StandX) const
+{
+	if (const FVector* V = VanSouth.Find(Ti)) return *V;
+	float S = 0.f, N = 0.f, Sp = 36.f;
+	if (StandX != 0.f && StandGeo(StandX, S, N, Sp)) return PlanT(S, S - FMath::Max(MtSide, Sp * 0.5f + 1.5f), N + 8.f);
+	FVector2f Cs, Cn; if (AHangarTow::Crossing(GetWorld(), Cs, Cn)) return Plan(Cs.X, Cs.Y - 25.f);
+	return FVector::ZeroVector;
+}
+
+bool AGSE::VanRide(int32 Ci, const FVector& Drop, const FString& Who, TFunction<void()> Then)
+{
+	ATugs* G = Tg(); if (!G || !G->Crew.IsValidIndex(Ci) || Drop.IsNearlyZero()) return false;
+	if (!Tractors.ContainsByPredicate([](const FTractor& T) { return T.Svc != INDEX_NONE && MtSpec(T.Svc).bMaint; })) return false;
+	FVanRider& R = VanRiders.Add(Ci); R = FVanRider(); R.Drop = Drop; R.Who = Who;
+	ADP_LOG(TEXT("GSE: %s (%s) waits for a maintenance van - nobody walks across the runway"), *G->Crew[Ci].Name, *Who);
+	WaitFor(Ci, [this, Ci](float E)
+	{
+		FVanRider* X = VanRiders.Find(Ci); ATugs* H = Tg(); if (!X || !H || !H->Crew[Ci].A.IsValid()) return true;
+		const FVector Me = H->Crew[Ci].A->GetActorLocation();
+		const int32 V = VanFor(Me);
+		if (V != INDEX_NONE && !Across(Tractors[V].At, Me))
+		{
+			TSet<int32> Used; for (const TPair<int32, FVanRider>& Y : VanRiders) if (Y.Value.Ti == V) Used.Add(Y.Value.Seat);
+			for (int32 s = 0; s < 4; ++s) if (!Used.Contains(s)) { X->Ti = V; X->Seat = s; break; }
+			if (X->Ti != INDEX_NONE) { ADP_LOG(TEXT("GSE: %s goes to the %s (seat %d)"), *H->Crew[Ci].Name, *Tractors[V].Name, X->Seat); return true; }
+		}
+		if (E > 1.f && FMath::Fmod(E, 30.f) < 0.05f) ADP_LOG(TEXT("GSE: %s still waits for a free maintenance van on this side of the runway"), *H->Crew[Ci].Name);
+		return false;
+	});
+	Do(Ci, [this, Ci, Then] { Later([this, Ci, Then]
+	{
+		const FVanRider* X = VanRiders.Find(Ci); if (!X || X->Ti == INDEX_NONE) { VanRiders.Remove(Ci); if (Then) Then(); return; }
+		VanBoard(Ci);
+		WaitFor(Ci, [this, Ci](float) { const FVanRider* Y = VanRiders.Find(Ci); return !Y || Y->bOff; });
+		Do(Ci, [this, Ci, Then] { Later([this, Ci, Then] { VanAlight(Ci, Then); }); });
+	}); });
+	return true;
+}
+
+void AGSE::VanBoard(int32 Ci)
+{
+	const FVanRider* X = VanRiders.Find(Ci); if (!X) return;
+	const int32 Ti = X->Ti, m = X->Seat;
+	if (m == 0) { ClimbIn(Ci, Ti, [this, Ci] { if (FVanRider* Y = VanRiders.Find(Ci)) Y->bAboard = true; }); return; }
+	const FVector Stand = SvcP(Tractors[Ti], MtSpec(Tractors[Ti].Svc).Doors[0].Stand);
+	ClaimSeat(Ci, Ti, m);
+	WalkTo(Ci, [this, Ti, Stand] { return TW(Tractors[Ti], Stand + FVector(-150.f, 0.f, 0.f)); }, 60.f);
+	// (one through the sliding door at a time)
+	WaitFor(Ci, [this, Ci, Ti](float) { for (const TPair<int32, FVanRider>& Y : VanRiders) if (Y.Key != Ci && Y.Value.Ti == Ti && Y.Value.bDoor) return false; if (FVanRider* Me = VanRiders.Find(Ci)) Me->bDoor = true; return true; });
+	WalkTo(Ci, [this, Ti, Stand] { return TW(Tractors[Ti], Stand); }, 15.f);
+	ClaimSeat(Ci, Ti, m); Do(Ci, [this, Ci] { SeatTaken(Ci); });
+	Do(Ci, [this, Ti] { FTractor& V = Tractors[Ti]; if (V.SvcDoors[0].Want < 0.5f && !V.SndDoorOpen.IsEmpty()) Sound(*V.SndDoorOpen, TW(V, V.SvcDoors[0].Piv)); V.SvcDoors[0].Want = 1.f; });
+	WaitFor(Ci, [this, Ti](float E) { return E > 5.f || Tractors[Ti].SvcDoors[0].Now > 0.99f; });
+	PoseAct(Ci, SvcClimbFn(Ti, m, true), 5.f, true);
+	Do(Ci, [this, Ci, Ti, m] { if (ATugs* G = Tg()) G->Crew[Ci].Hold = SvcSeatFn(Ti, m); if (FVanRider* Y = VanRiders.Find(Ci)) { Y->bAboard = true; Y->bDoor = false; } });
+}
+
+void AGSE::VanAlight(int32 Ci, TFunction<void()> Then)
+{
+	const FVanRider* X = VanRiders.Find(Ci); if (!X) { if (Then) Then(); return; }
+	const int32 Ti = X->Ti, m = X->Seat;
+	auto Done = [this, Ci, Then] { Do(Ci, [this, Ci, Then] { VanRiders.Remove(Ci); if (Then) Later(Then); }); };
+	if (m == 0) { ClimbOut(Ci, Ti, nullptr); Done(); return; }
+	const FVector Off = SvcP(Tractors[Ti], MtSpec(Tractors[Ti].Svc).Doors[0].Stand);
+	WaitFor(Ci, [this, Ci, Ti](float) { for (const TPair<int32, FVanRider>& Y : VanRiders) if (Y.Key != Ci && Y.Value.Ti == Ti && Y.Value.bDoor) return false; if (FVanRider* Me = VanRiders.Find(Ci)) Me->bDoor = true; return true; });
+	Do(Ci, [this, Ti] { FTractor& V = Tractors[Ti]; if (V.SvcDoors[0].Want < 0.5f && !V.SndDoorOpen.IsEmpty()) Sound(*V.SndDoorOpen, TW(V, V.SvcDoors[0].Piv)); V.SvcDoors[0].Want = 1.f; });
+	WaitFor(Ci, [this, Ti](float E) { return E > 4.f || Tractors[Ti].SvcDoors[0].Now > 0.99f; });
+	Do(Ci, [this, Ci] { if (ATugs* G = Tg()) G->Crew[Ci].Hold = nullptr; });
+	PoseAct(Ci, SvcClimbFn(Ti, m, false), 4.4f, true);
+	Do(Ci, [this, Ci] { SeatLeft(Ci); });
+	WalkTo(Ci, [this, Ti, Off, m] { return TW(Tractors[Ti], Off + FVector(-110.f * m, 0.f, 0.f)); }, 30.f);
+	Do(Ci, [this, Ci, Ti]
+	{
+		if (FVanRider* Y = VanRiders.Find(Ci)) { Y->bDoor = false; Y->bAboard = false; }
+		bool bAny = false; for (const TPair<int32, FVanRider>& Y : VanRiders) if (Y.Key != Ci && Y.Value.Ti == Ti && Y.Value.Seat > 0 && Y.Value.bAboard) bAny = true;
+		if (!bAny) Tractors[Ti].SvcDoors[0].Want = 0.f;   // (the last one out shuts it)
+	});
+	Done();
+}
+
+void AGSE::VanTick()
+{
+	// a van whose riders are all in leaves for its driver's drop; once all are out it is free again
+	TSet<int32> Vans; for (const TPair<int32, FVanRider>& R : VanRiders) if (R.Value.Ti != INDEX_NONE) Vans.Add(R.Value.Ti);
+	for (auto It = VanTrip.CreateIterator(); It; ++It) if (It->Value == 2 && !Vans.Contains(It->Key))
+	{
+		FTractor& T = Tractors[It->Key];
+		if (const TPair<int32, EJob>* W = VanWas.Find(It->Key)) { T.Driver = W->Key; T.Job = W->Value; }
+		VanWas.Remove(It->Key);
+		ADP_LOG(TEXT("GSE: the %s is free again at plan (%.0f, %.0f)"), *T.Name, T.At.X / 100.f, -T.At.Y / 100.f);
+		It.RemoveCurrent();
+	}
+	for (const int32 Ti : Vans)
+	{
+		if (VanTrip.Contains(Ti) || !Tractors.IsValidIndex(Ti)) continue;
+		int32 Drv = INDEX_NONE; bool bAll = true;
+		for (const TPair<int32, FVanRider>& R : VanRiders) if (R.Value.Ti == Ti) { if (!R.Value.bAboard) bAll = false; if (R.Value.Seat == 0) Drv = R.Key; }
+		if (!bAll || Drv == INDEX_NONE) continue;
+		FTractor& T = Tractors[Ti];
+		T.SvcDoors[0].Want = 0.f; if (T.SvcDoors[0].Now > 0.01f) continue;   // (shut first)
+		const FVector Drop = VanRiders[Drv].Drop;
+		VanWas.Add(Ti, TPair<int32, EJob>(T.Driver, T.Job));
+		if (ATugs::SideOf(T.At.Y) != 2) VanSouth.Add(Ti, T.At);   // (taken on the stands' side: back here later)
+		T.Driver = Drv; T.Job = EJob::Out; Motor(T, true); VanTrip.Add(Ti, 1);
+		int32 N = 0; for (const TPair<int32, FVanRider>& R : VanRiders) if (R.Value.Ti == Ti) ++N;
+		ADP_LOG(TEXT("GSE: the %s leaves with %d aboard for plan (%.0f, %.0f)%s"), *T.Name, N, Drop.X / 100.f, -Drop.Y / 100.f, Across(T.At, Drop) ? TEXT(" across the runway") : TEXT(""));
+		VanCross(Ti, Drop, [this, Ti]
+		{
+			FTractor& V = Tractors[Ti]; Motor(V, false); VanTrip.Add(Ti, 2);
+			for (TPair<int32, FVanRider>& R : VanRiders) if (R.Value.Ti == Ti) R.Value.bOff = true;
+			ADP_LOG(TEXT("GSE: the %s stops - its riders get out"), *V.Name);
+		});
+	}
+}
+
+void AGSE::VanCross(int32 Ti, const FVector& To, TFunction<void()> Done)
+{
+	FTractor& T = Tractors[Ti]; TArray<FVector> W;
+	if (!Across(T.At, To))
+	{
+		if (FVector::Dist2D(T.At, To) < 300.f) { if (Done) Done(); return; }
+		if (FVector::Dist2D(T.At, T.Home) < 200.f) HomeOut(T, W, To);
+		if (!Apron(W, W.Num() ? W.Last() : T.At, To, &T)) { ADP_LOG(TEXT("GSE: the %s finds no way to plan (%.0f, %.0f) - tries again"), *T.Name, To.X / 100.f, -To.Y / 100.f); RetryIn(Ti, 8.f, [this, Ti, To, Done] { VanCross(Ti, To, Done); }); return; }
+		Go(T, MoveTemp(W), false, Done); return;
+	}
+	FVector2f Cs, Cn;
+	if (!AHangarTow::Crossing(GetWorld(), Cs, Cn)) { ADP_WARN(TEXT("GSE: the %s waits - no tow crossing of the runway is known yet"), *T.Name); RetryIn(Ti, 15.f, [this, Ti, To, Done] { VanCross(Ti, To, Done); }); return; }
+	const bool bNorth = ATugs::SideOf(T.At.Y) == 2; const FVector2f A = bNorth ? Cn : Cs, B = bNorth ? Cs : Cn;
+	if (FVector::Dist2D(T.At, T.Home) < 200.f) HomeOut(T, W, Plan(A.X, A.Y));
+	if (!Apron(W, W.Num() ? W.Last() : T.At, Plan(A.X, A.Y), &T)) { ADP_LOG(TEXT("GSE: the %s finds no way to the runway crossing - tries again"), *T.Name); RetryIn(Ti, 8.f, [this, Ti, To, Done] { VanCross(Ti, To, Done); }); return; }
+	Go(T, MoveTemp(W), false, [this, Ti, A, B, To, Done]
+	{
+		FTractor& V = Tractors[Ti]; VanClear.Add(Ti, -1.0);
+		ADP_LOG(TEXT("GSE: the %s holds short of the runway at the tows' crossing"), *V.Name);
+		V.Until = [this, Ti]
+		{
+			const double Now = GetWorld()->GetTimeSeconds(); double& C = VanClear.FindOrAdd(Ti);
+			if (ASimTraffic::RunwayBusy(GetWorld()) || AHangarTow::OnRunway(GetWorld(), false)) { C = -1.0; return false; }
+			if (C < 0.0) C = Now;
+			return Now - C >= 10.0;
+		};
+		V.AfterUntil = [this, Ti, A, B, To, Done]
+		{
+			FTractor& U = Tractors[Ti]; VanStrip.Add(Ti); VanClear.Remove(Ti);
+			ADP_LOG(TEXT("GSE: the %s crosses the runway - departures hold"), *U.Name);
+			TArray<FVector> X; for (int32 i = 1; i <= 24; ++i) { const FVector2f Q = FMath::Lerp(A, B, i / 24.f); X.Add(Plan(Q.X, Q.Y)); }
+			Go(U, MoveTemp(X), false, [this, Ti, To, Done]
+			{
+				VanStrip.Remove(Ti); ADP_LOG(TEXT("GSE: the %s is off the runway"), *Tractors[Ti].Name);
+				VanCross(Ti, To, Done);
+			});
+		};
+	});
+}
+
+void AGSE::MaintToVan(int32 Job)
+{
+	// the brake rider back to his van; across the runway from it (it was left there): over in another van, never on foot
+	FSvcJob* X = SvcJ(Job); ATugs* G = Tg(); if (!X || !X->Men.Num() || !G) return;
+	const int32 Ci = X->Men[0].Ci; const FVector Van = Tractors[X->Ti].At;
+	const bool bOver = G->Crew.IsValidIndex(Ci) && G->Crew[Ci].A.IsValid() && Across(G->Crew[Ci].A->GetActorLocation(), Van);
+	auto Walk = [this, Job] { if (FSvcJob* Y = SvcJ(Job)) if (Y->Men.Num()) { HiredWay(Y->Men[0].Ci, Tractors[Y->Ti].At, 0.f); Do(Y->Men[0].Ci, [this, Job] { Later([this, Job] { SvcLeave(Job); }); }); } };
+	if (bOver && VanRide(Ci, Van + FVector(0.f, 900.f, 0.f), TEXT("brake rider"), Walk)) return;
+	Walk();
 }
