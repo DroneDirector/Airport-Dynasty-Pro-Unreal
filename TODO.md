@@ -644,6 +644,13 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       incident (a rejected take-off or a turn-back, unreliable airspeed if a pitot cover). Covers are our own models
       (red fabric, white letters, streamers that move in the wind), sized for each engine type; stored in the hangar
       and the ground equipment area; bought like other ground equipment.
+      How they look and move (owner, 2026-11-26): fitted flush to the real seating - the inlet cover's sewn-in spring
+      steel hoop sits just inside the intake lip and the fabric is pulled taut over the lip by its straps; the exhaust
+      cover fits the same way over the nozzle. Once fitted it is a still part of the engine (at most a faint ripple in
+      strong wind). Off the engine it is heavy coated fabric, like a thick tarpaulin: it sags, bends and folds under
+      its own weight, the hoop springs back round, and it folds in three to carry - never flag-like. Only the
+      streamers flutter freely. Build: cloth physics (heavy, stiff settings) only while it is carried, fitted or
+      taken off; a fixed mesh the rest of the time.
 
 ## 7. One shared world with Android (batch 4)
 - [ ] The bridge: the timetable screens and passengers from the world's real flights; airport mode writes back
