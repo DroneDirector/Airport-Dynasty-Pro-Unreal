@@ -169,7 +169,7 @@ void AADPGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 				FTimerHandle Th;
 				W->GetTimerManager().SetTimer(Th, FTimerDelegate::CreateLambda([W]()
 				{
-					// your pet, sitting just outside the terminal's main entrance for now (Pets.h)
+					// your pet, lying in its bed in your office (Pets.h)
 					ADPPets::PlaceHome(W);
 					// the escalators in the new escalator room (Escalators.h): their foot at the Grand Hall's side, rising
 					// west to the Floor 2 landing (their top combs on its edge, x 16 since 2026-11-21: Security v3 moved them 5 m

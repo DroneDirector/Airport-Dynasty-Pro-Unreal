@@ -36,6 +36,7 @@ namespace ADPOffices
 		ABabylonModel* M = W->SpawnActor<ABabylonModel>(P(0, 0, 0), FRotator(0, 180.f, 0), S);
 		if (!M) return false;
 		if (!M->Place(TEXT("OfficeOwner"))) { M->Destroy(); ADP_WARN(TEXT("Offices: your office's furniture (OfficeOwner) did not load")); return false; }
+		M->Tags.Add(TEXT("OwnerOffice"));   // (your pet lives here: Pets.cpp PlaceHome)
 		const FTransform R = M->GetModelRoot()->GetComponentTransform();
 		const FLinearColor Warm(1.f, 0.93f, 0.84f);
 		// the pendant bars: their LED strips (0.76 x 0.04 m, 2.52 m up, over the desk at y 4.3 -+ 0.45), facing down
