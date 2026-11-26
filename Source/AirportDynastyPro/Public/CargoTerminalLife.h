@@ -36,5 +36,16 @@ private:
 	TArray<FLoop> Loops;
 	UPROPERTY() TArray<TObjectPtr<UAudioComponent>> Audio;   // (keeps the loops' components)
 	TArray<FVector> Printers;   // world
+	// the truck court's gate barrier: its boom (the model's part GateBoom) swings up when the player or a vehicle comes
+	// near the gate and down again once the gate has been clear a while
+	TWeakObjectPtr<ABabylonModel> Model;
+	int32 BoomGroup = INDEX_NONE;
+	FTransform BoomPivot;      // (the model's root space)
+	FVector GateAt = FVector::ZeroVector;   // world
+	float BoomK = 0.f, BoomWant = 0.f, GateClear = 0.f;
+	int8 BoomDir = 0;
+	UPROPERTY() TObjectPtr<UAudioComponent> BoomHum;
+	bool SomethingAtGate() const;
+	void TickBoom(float Dt);
 	float NextPrint = 90.f;
 };

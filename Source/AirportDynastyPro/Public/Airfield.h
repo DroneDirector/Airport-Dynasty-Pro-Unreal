@@ -92,7 +92,7 @@ struct AIRPORTDYNASTYPRO_API FAirfieldData
 	void LoadRemote(const TSharedPtr<FJsonObject>& Json);
 	/** On the remote stands' paving (or within Margin of it). */
 	bool OnRemote(const FVector2f& P, float Margin = 0.f) const;
-	FRect Boundary{-2000, -170, 2240, 1320}, Cargo{200, 1231, 590, 1301};
+	FRect Boundary{-2000, -170, 2240, 1505}, Cargo{200, 1231, 590, 1301};
 	double Lat = 63.457988, Lon = -18.713703;
 	float ElevFt = 130, Heading = 68;
 	FString RwyEnd0 = TEXT("08"), RwyEnd1 = TEXT("26");   // the runway's names at its x0 and x1 ends (the site's own: Site.h)

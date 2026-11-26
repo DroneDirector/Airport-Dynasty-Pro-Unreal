@@ -52,6 +52,7 @@ private:
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Slats;
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Bar;
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Win;   // sectional: the vision-window panel (or none)
+	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Glass; // sectional: that panel's panes (their own mesh, not Nanite)
 	float Panel = 0.f;                    // sectional panel pitch (m); 0: a roller curtain of Pitch slats
 	float PanelLo = 0.f;                  // sectional: the panel mesh's own bottom above its origin (m, the seal's room)
 	int32 WinIdx = INDEX_NONE;            // sectional: which panel (from the bottom) has the windows

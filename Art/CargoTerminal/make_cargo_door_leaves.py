@@ -2,7 +2,8 @@
 # Blender for ARollerDoor's sectional mode. For every door size in cargo_doors.rollers() three meshes, each made to the
 # door's width (panel = opening - GAP, its ends run in the guide channels the building model puts in each reveal):
 #   SM_CargoLeaf_Panel_<w>x<h>   one 42 mm insulated steel panel: chamfered tongue joints, two pressed ribs each face
-#   SM_CargoLeaf_Window_<w>x<h>  the same panel with a row of vision windows (black gaskets, glass) - put at eye height
+#   SM_CargoLeaf_Window_<w>x<h>  the same panel with a row of vision windows (black gaskets) - put at eye height
+#   SM_CargoLeaf_Glass_<w>x<h>   that panel's panes (their own mesh: see-through, so not Nanite), placed with it
 #   SM_CargoLeaf_Rail_<w>x<h>    the bottom rail: rubber seal under the lowest panel, aluminium rail plates, lift handles
 # Units metres. x along the door (centred), y across (0 = the curtain's plane), z up; a panel lies from SEAL to
 # SEAL + pitch - 3 mm (the visible joint), the rail from 0 up. The game stacks the panels 'pitch' apart from the rail.
@@ -132,7 +133,11 @@ def boolean_cut(o, boxes):
     bpy.data.objects.remove(c); bpy.data.meshes.remove(cme)
     for f in o.data.polygons:                          # the reveals the cut made: panel steel, no slot of their own
         if f.material_index >= len(M): f.material_index = 0
-    while len(o.data.materials) > len(M): o.data.materials.pop()
+    # (the exact boolean keeps only the slots it uses: the panel's. Every slot back in obj()'s order, so the gaskets
+    # added after the cut get their own rubber, not the panel's paint)
+    for f in o.data.polygons: f.material_index = 0
+    o.data.materials.clear()
+    for k in ('panel', 'gasket', 'glass', 'rail', 'seal', 'steel'): o.data.materials.append(M[k])
 
 
 made = []
@@ -149,7 +154,7 @@ for w, h in CD.leaf_sizes():
     nw = max(2, int(w / 1.05)); ww = 0.61; wz0 = a + 0.13; wz1 = b - 0.13
     xs = [-hw + 2 * hw * (k + 0.5) / nw for k in range(nw)]
     boolean_cut(o, [(x - ww / 2, -0.1, wz0, x + ww / 2, 0.1, wz1) for x in xs])
-    bm = bmesh.new(); bm.from_mesh(o.data)
+    bm = bmesh.new(); bm.from_mesh(o.data); bg = bmesh.new()   # (the panes their own mesh: see-through glass is never Nanite)
     g = 0.022                                                       # the gasket's lip round the opening
     for x in xs:
         x0, x1 = x - ww / 2, x + ww / 2
@@ -158,8 +163,9 @@ for w, h in CD.leaf_sizes():
         add_box(bm, x1 - 0.012, yy[0], wz0 - g, x1 + g, yy[1], wz1 + g, 1, 0.003)
         add_box(bm, x0 + 0.012, yy[0], wz0 - g, x1 - 0.012, yy[1], wz0 + 0.012, 1, 0.003)  # bottom and top, between them
         add_box(bm, x0 + 0.012, yy[0], wz1 - 0.012, x1 - 0.012, yy[1], wz1 + g, 1, 0.003)
-        add_box(bm, x0 + 0.006, -0.003, wz0 + 0.006, x1 - 0.006, 0.003, wz1 - 0.006, 2)   # the pane, its edge in the gasket
+        add_box(bg, x0 + 0.006, -0.003, wz0 + 0.006, x1 - 0.006, 0.003, wz1 - 0.006, 2)   # the pane, its edge in the gasket
     bm.to_mesh(o.data); bm.free(); uvs(o, p); made.append(o)
+    og = obj('SM_CargoLeaf_Glass_' + tag, bg); uvs(og, p); made.append(og)   # (drawn with the window panel, at its place)
     # 3. the bottom rail: rubber seal (under the panel), rail plates on both faces (1 mm off them, clear of the guides),
     #    a lift handle on each face
     bm = bmesh.new()
@@ -189,6 +195,8 @@ for o in made:
 # side by side in the file (0.5 m apart across), so the flicker check sees no two parts in one place; the game uses the
 # meshes only (their own origin), never this layout
 for i, o in enumerate(made): o.location = (0.0, i * 0.5, 0.0)
+for i, o in enumerate(made):   # (each window's panes in their own panel, as in the game: checked together)
+    if o.name.startswith('SM_CargoLeaf_Glass_'): o.location = made[i - 1].location
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, 'CargoDoorLeaves.blend'))
 bpy.ops.export_scene.gltf(filepath=os.path.join(HERE, 'CargoDoorLeaves.glb'), export_format='GLB')
 print('door leaves:', len(made), 'meshes', flush=True)

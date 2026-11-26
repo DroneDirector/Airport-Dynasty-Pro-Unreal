@@ -63,6 +63,11 @@ ARollerDoor* ARollerDoor::PlaceAt(UWorld* W, const FString& Id, const FVector& F
 		{
 			D->Win = List(WinM); D->Win->AddInstance(FTransform::Identity, false);
 			D->WinIdx = FMath::Clamp(FMath::FloorToInt(1.6f / PanelPitch), 1, N - 2);
+			// its panes: their own mesh beside it (see-through glass is drawn without Nanite: never inside a Nanite mesh)
+			if (UStaticMesh* GlassM = LoadObject<UStaticMesh>(nullptr, *WinPath.Replace(TEXT("_Window_"), TEXT("_Glass_"))))
+			{
+				D->Glass = List(GlassM); D->Glass->SetCollisionEnabled(ECollisionEnabled::NoCollision); D->Glass->AddInstance(FTransform::Identity, false);
+			}
 		}
 	}
 	// every slat of the curtain (one more than the opening's height needs: the top one runs into the hood)
@@ -97,6 +102,7 @@ void ARollerDoor::Layout()
 		}
 		Slats->BatchUpdateInstancesTransforms(0, T, false, true, true);
 		if (Win) Win->UpdateInstanceTransform(0, WinT, false, true, true);
+		if (Glass) Glass->UpdateInstanceTransform(0, WinT, false, true, true);
 		Bar->UpdateInstanceTransform(0, FTransform(LeafTurn, FVector(0.f, 0.f, Foot * 100.f)), false, true, true);
 		return;
 	}
