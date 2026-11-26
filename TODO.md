@@ -675,6 +675,11 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       reports, or show each only once
 - [ ] After all of the above: the next logical things that make the game run and give it features
 
+## Possible candidates (not decided - the owner wants a reminder now and then; not to be built until he says so)
+- [ ] **NOTAMs** (2026-11-26): official notices the airport publishes - a taxiway closed, a stand out of use, a PAPI
+      or ILS unserviceable, work in progress, a crane near the approach. The NPC airlines, ATC and the taxi routes really
+      work around them; each has a start and end time; shown on the holographic map and in the tower.
+
 ## Done recently (for reference)
 - 0.14.4 the globe's satellite pictures and land cover in the right place; the detailed sea only near the ground
 - 0.14.3 the 8 apron light masts at the gates (textured, striped guardrail, sensor-switched, beams along the row, own chunk);
