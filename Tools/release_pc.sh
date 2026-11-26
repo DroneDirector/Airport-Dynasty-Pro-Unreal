@@ -78,7 +78,11 @@ PYEOF
   #  a handled ensure the full cook logs once while it builds skinned meshes, every package still cooked, 2026-11-16;
   #  any other cook error still stops the release here)
   CK=$(ls -t "$APPDATA/Unreal Engine/AutomationTool/Logs/C+Program+Files+Epic+Games+UE_5.7"/Cook-*.txt | head -1)
-  OTHER=$(sed -n '/Warning\/Error Summary/,$p' "$CK" | grep "Error:" | grep -vE "stack for UAT|Handled ensure|SerializedElementSize == ElementSize|Error: Stack:|\[Callstack\]|Error: *$" | head -5)
+  # (also let through: leftover hair copies no person's blueprint uses, listed in Tools/cook-leftover-grooms.txt (2026-11-26) -
+  #  "Content is missing from cook" only when every source package of it is on that list, and MH_022's two Bob bindings)
+  NEWSRC=$(grep -A1 "Content is missing from cook" "$CK" | grep "Source package:" | sed 's/.*Source package: //' | sort -u | grep -vxFf Tools/cook-leftover-grooms.txt | head -5)
+  [ -z "$NEWSRC" ] || { echo "$NEWSRC"; echo "STOP: content missing from cook for packages not on Tools/cook-leftover-grooms.txt"; exit 1; }
+  OTHER=$(sed -n '/Warning\/Error Summary/,$p' "$CK" | grep "Error:" | grep -vE "stack for UAT|Handled ensure|SerializedElementSize == ElementSize|Error: Stack:|\[Callstack\]|Error: *$|Content is missing from cook|Binding asset cannot be created/rebuilt - The groom binding has no valid skel|binding asset \(Hair_M_Bob(Messy|Curly)_Binding\) couldn't be built" | head -5)
   [ -z "$OTHER" ] || { echo "$OTHER"; echo "STOP: cook errors"; exit 1; }
   grep -q "Cook failed" $P/uat-$V.log && echo "(cook: only the known engine check - packaging went on)"
   grep -q "BUILD SUCCESSFUL" $P/uat-$V.log || { tail -20 $P/uat-$V.log; echo "STOP: no BUILD SUCCESSFUL"; exit 1; }
