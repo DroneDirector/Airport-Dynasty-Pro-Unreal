@@ -270,6 +270,38 @@ def skin_glass(O, F, rect, sc, inset=0.012, depth=0.020, thick=0.006):
     return g
 
 
+def smooth_glass(tO, F, rect, inset, depth, thick=0.006):
+    """windscreen pane on a perfectly smooth curve: the skin's depth under the opening fitted by a low-order surface
+    (no voxel ripples, so it never refracts in streaks), sunk 'depth', 6 mm thick, trimmed to the opening"""
+    a0, a1, b0, b1, r = rect; Fi = F.inverted(); S = []
+    for a in np.linspace(a0 - 0.05, a1 + 0.05, 25):
+        for b in np.linspace(b0 - 0.05, b1 + 0.05, 12):
+            h = tO.ray_cast(F @ Vector((a, b, 0.4)), -(F.to_3x3() @ Vector((0, 0, 1))).normalized(), 1.0)
+            if h[0] is not None: S.append((a, b, (Fi @ h[0]).z))
+    S = np.array(S); base = lambda a, b: np.stack([np.ones_like(a), a, b, a * a, a * b, b * b, a ** 4, a * a * b], 1)
+    k = np.linalg.lstsq(base(S[:, 0], S[:, 1]), S[:, 2], rcond=None)[0]
+    A, B = np.meshgrid(np.linspace(a0 - 0.05, a1 + 0.05, 61), np.linspace(b0 - 0.05, b1 + 0.05, 25)); Z = base(A.ravel(), B.ravel()) @ k
+    bm = bmesh.new(); nb, na = A.shape; V = []
+    for c in (Z - depth, Z - depth - thick):
+        V.append([bm.verts.new(F @ Vector((a, b, z))) for a, b, z in zip(A.ravel(), B.ravel(), c)])
+    for L, rev in ((V[0], False), (V[1], True)):
+        for j in range(nb - 1):
+            for i in range(na - 1):
+                q = (L[j * na + i], L[j * na + i + 1], L[(j + 1) * na + i + 1], L[(j + 1) * na + i]); bm.faces.new(q[::-1] if rev else q)
+    loop = [i for i in range(na)] + [j * na + na - 1 for j in range(1, nb)] + [(nb - 1) * na + i for i in range(na - 2, -1, -1)] + [j * na for j in range(nb - 2, 0, -1)]
+    for i in range(len(loop)):
+        p, q = loop[i], loop[(i + 1) % len(loop)]; bm.faces.new((V[0][q], V[0][p], V[1][p], V[1][q]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    g = obj('_G', bm, [bpy.data.materials['M_Lorry_Glass']])
+    c = obj('_c', prism_bm(rrect(a0 + inset, a1 - inset, b0 + inset, b1 - inset, max(r - inset, 0.01)), -0.5, 0.5, F))
+    apply_bool(g, c, 'INTERSECT'); bpy.data.objects.remove(c, do_unlink=True)
+    assert len(g.data.vertices) > 0, 'glass trimmed to nothing'
+    g.data.materials.clear(); g.data.materials.append(bpy.data.materials['M_Lorry_Glass'])
+    g.data.polygons.foreach_set('material_index', [0] * len(g.data.polygons))
+    for p in g.data.polygons: p.use_smooth = True
+    return g
+
+
 def skin_loop(tO, F, rect, n=6):
     a0, a1, b0, b1, r = rect
     return [on_skin(tO, F, a, b) for a, b in rrect(a0, a1, b0, b1, r, n)]
@@ -296,8 +328,8 @@ def in_rr(rect, x, y):
     dx = max(a0 + r - x, 0, x - a1 + r); dy = max(b0 + r - y, 0, y - b1 + r); return dx * dx + dy * dy <= r * r
 
 
-REPAIR_BODY = [((0.95, 1.12, 1.42), (3.30, 1.60, 3.30)), ((1.45, 0.95, 0.85), (3.25, 1.60, 1.48))]   # side + window band; front arch lip (|y|)
-REPAIR_DOOR = [((1.30, 1.10, 1.35), (2.70, 1.60, 3.30))]
+REPAIR_BODY = [((0.85, 0.0, 2.02), (3.95, 1.60, 4.00)), ((0.85, 0.0, 1.45), (3.50, 1.60, 2.02)), ((1.45, 0.95, 0.85), (3.25, 1.60, 1.48))]   # cab panels (not the grille/lamp face); front arch lip (|y|)
+REPAIR_DOOR = [((1.30, 0.0, 1.35), (2.70, 1.60, 3.30))]
 
 
 def zone_weight(V, zones, fade=0.08):
@@ -309,7 +341,7 @@ def zone_weight(V, zones, fade=0.08):
     return w * w * (3 - 2 * w)
 
 
-def repair(o, zones, cap=0.035):
+def repair(o, zones, cap=0.010):
     """local clean-up of a Meshy part in place: torn holes (up to 10 edges) filled, then Taubin smoothing (no shrink) of
     the vertices in the repair boxes only; open edges (the door gaps, Meshy's own lines) stay put. UVs untouched, so the
     Meshy texture stays."""
@@ -319,10 +351,11 @@ def repair(o, zones, cap=0.035):
     bm.to_mesh(o.data); bm.free(); me = o.data; me.update()
     M = np.array(o.matrix_world); V = np.array([v.co for v in me.vertices]); Vw = V @ M[:3, :3].T + M[:3, 3]
     w = zone_weight(Vw, zones); E = np.array([e.vertices[:] for e in me.edges])
-    bm = bmesh.new(); bm.from_mesh(me); fix = np.array([v.is_boundary or not v.link_faces for v in bm.verts]); bm.free()
+    bm = bmesh.new(); bm.from_mesh(me)      # creases / feature lines (folds over 40 deg) and open edges are kept exactly
+    fix = np.array([v.is_boundary or not v.link_faces or any(e.calc_face_angle(0) > 0.70 for e in v.link_edges) for v in bm.verts]); bm.free()
     fix |= w <= 0
     S = V.copy()
-    for _ in range(25):
+    for _ in range(40):
         S = lap(S, E, len(V), fix, 1, 0.55); S = lap(S, E, len(V), fix, 1, -0.58)
     dV = (S - V) * w[:, None]; L = np.linalg.norm(dV, axis=1); k = np.minimum(1, cap / np.maximum(L, 1e-9))
     V = V + dV * k[:, None]; me.vertices.foreach_set('co', V.ravel()); me.update()
@@ -337,6 +370,130 @@ def open_window(o, F, rect, grow=0.0):
         q = Fi @ f.calc_center_median()
         if -0.25 < q.z < 0.25 and abs((R @ f.normal).z) > 0.2 and in_rr((a0 - grow, a1 + grow, b0 - grow, b1 + grow, r + grow), q.x, q.y): kill.append(f)
     bmesh.ops.delete(bm, geom=kill, context='FACES'); bm.to_mesh(o.data); bm.free(); o.data.update(); return len(kill)
+
+
+def cut_open(o, F, rect, c0=-0.25, c1=0.25):
+    """an opening cut cleanly through a Meshy part along its exact outline (exact boolean with a rounded prism); the
+    cutter's own faces (temporary material) are dropped, so only the Meshy skin with a clean edge stays; UVs kept"""
+    tmp = bpy.data.materials.get('_cut') or bpy.data.materials.new('_cut')
+    a0, a1, b0, b1, r = rect; c = obj('_c', prism_bm(rrect(a0, a1, b0, b1, r, 8), c0, c1, F), [tmp])
+    m = o.modifiers.new('b', 'BOOLEAN'); m.operation = 'DIFFERENCE'; m.solver = 'EXACT'; m.use_hole_tolerant = True; m.object = c
+    dg = bpy.context.evaluated_depsgraph_get(); me = bpy.data.meshes.new_from_object(o.evaluated_get(dg))
+    o.modifiers.clear(); old = o.data; o.data = me; bpy.data.meshes.remove(old); bpy.data.objects.remove(c, do_unlink=True)
+    k = [i for i, mm in enumerate(me.materials) if mm == tmp]
+    if k:
+        bm = bmesh.new(); bm.from_mesh(me); bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.material_index in k], context='FACES')
+        bm.to_mesh(me); bm.free()
+        for i in sorted(k, reverse=True): me.materials.pop(index=i)
+    me.update(); return len(me.polygons)
+
+
+def fib_dirs(n):
+    i = np.arange(n) + 0.5; ph = np.arccos(1 - 2 * i / n); th = np.pi * (1 + 5 ** 0.5) * i
+    return np.stack([np.cos(th) * np.sin(ph), np.sin(th) * np.sin(ph), np.cos(ph)], 1)
+
+
+def cap_poly(pts3):
+    """flat fan over a closed loop of world points (an occluder only, never kept)"""
+    bm = bmesh.new(); c = sum(pts3, Vector()) / len(pts3); vc = bm.verts.new(c); V = [bm.verts.new(p) for p in pts3]
+    for i in range(len(V)): bm.faces.new((vc, V[i], V[(i + 1) % len(V)]))
+    return bm
+
+
+def outside_only(parts, caps, zone, ndir=64):
+    """Meshy is a solid shell with crumpled junk inside: keep only faces that can be seen from outside. A face is seen
+    when a ray from it (centre, and for big faces points near its corners) escapes to the open in any of 'ndir'
+    directions; the openings, door shuts and cab floor are closed by caps so nothing counts as seen through them."""
+    bm = bmesh.new()
+    for o in parts:
+        t = bmesh.new(); t.from_mesh(o.data); bmesh.ops.transform(t, matrix=o.matrix_world, verts=t.verts)
+        me = bpy.data.meshes.new('_t'); t.to_mesh(me); t.free(); bm.from_mesh(me); bpy.data.meshes.remove(me)
+    for t in caps:
+        me = bpy.data.meshes.new('_t'); t.to_mesh(me); t.free(); bm.from_mesh(me); bpy.data.meshes.remove(me)
+    T = BVHTree.FromBMesh(bm); bm.free()
+    D = fib_dirs(ndir); DV = [Vector(d) for d in D]; out = []
+    for o in parts:
+        M = o.matrix_world; R = M.to_3x3(); bm = bmesh.new(); bm.from_mesh(o.data); kill = []; tested = 0
+        for f in bm.faces:
+            fc = f.calc_center_median(); c = M @ fc
+            if not zone(c): continue
+            tested += 1; n = (R @ f.normal).normalized()
+            pts = [c] + ([M @ v.co.lerp(fc, 0.25) for v in f.verts] if f.calc_area() * abs(M.determinant()) ** (2 / 3) > 0.0015 else [])
+            order = np.argsort(-np.abs(D @ np.array(n))); seen = False
+            for p in pts:
+                for k in order:
+                    d = DV[k]
+                    if T.ray_cast(p + d * 0.003, d, 40.0)[0] is None: seen = True; break
+                if seen: break
+            if not seen: kill.append(f)
+        bmesh.ops.delete(bm, geom=kill, context='FACES')
+        bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+        bm.to_mesh(o.data); bm.free(); o.data.update(); out.append((o.name, tested, len(kill)))
+    return out
+
+
+def paint_clean(o, zone):
+    """texture smears: paint faces (mostly Meshy blue under their UVs) get their UVs on one clean paint texel with a
+    flat normal - the blue stays the same, the streaks and baked dents in colour/normal map go"""
+    mt = o.data.materials[0]; ims = [n.image for n in mt.node_tree.nodes if n.type == 'TEX_IMAGE' and n.image]
+    base = next(i for i in ims if 'base' in i.filepath.lower()); nrm = next((i for i in ims if 'normal' in i.filepath.lower()), None)
+    w, h = base.size; A = np.array(base.pixels[:], dtype=np.float32).reshape(h, w, 4)[:, :, :3]
+    blue = (A[:, :, 2] - A[:, :, 0] > 0.15) & (A[:, :, 2] > 0.25)
+    er = blue.copy()
+    for dy in range(-5, 6, 1):
+        for dx in (-5, 0, 5): er &= np.roll(np.roll(blue, dy, 0), dx, 1)
+    med = np.median(A[blue], axis=0); score = np.linalg.norm(A - med, axis=2)
+    if nrm is not None and tuple(nrm.size) == (w, h):
+        N = np.array(nrm.pixels[:], dtype=np.float32).reshape(h, w, 4)[:, :, :3]; score = score + np.linalg.norm(N - np.array([0.5, 0.5, 1.0]), axis=2)
+    score[~er] = 9; iy, ix = np.unravel_index(np.argmin(score), score.shape); tgt = ((ix + 0.5) / w, (iy + 0.5) / h)
+    bm = bmesh.new(); bm.from_mesh(o.data); uv = bm.loops.layers.uv.active; M = o.matrix_world; n = 0
+    def isblue(u, v): return blue[min(max(int(v * h), 0), h - 1) % h, min(max(int(u * w), 0), w - 1) % w]
+    for f in bm.faces:
+        if not zone(M @ f.calc_center_median()): continue
+        U = [l[uv].uv for l in f.loops]; cu = sum(U, Vector((0, 0))) / len(U)
+        smp = [cu] + [q.lerp(cu, 0.3) for q in U] + [U[i].lerp(U[(i + 1) % len(U)], 0.5).lerp(cu, 0.3) for i in range(len(U))]
+        fr = sum(isblue(q.x, q.y) for q in smp) / len(smp)
+        big = max(e.calc_length() for e in f.edges) * abs(M.determinant()) ** (1 / 3) > 0.08
+        if fr >= 0.85 or (fr >= 0.6 and not big):
+            for l in f.loops: l[uv].uv = tgt
+            n += 1
+    bm.to_mesh(o.data); bm.free(); o.data.update(); return n, tgt
+
+
+def reveal(P, F, rect, mi, out_hit, in_hit, w=0.065, n=6):
+    """the opening closed factory-style: one closed rubber profile swept round the clean cut - a lip lying on the outer
+    skin, rolled over the edge, the reveal down through the wall, a lip lying on the inner wall; its back runs hidden
+    inside the wall gap. Both lips overlap the skins by 'w', so no slit or seam can show."""
+    a0, a1, b0, b1, r = rect; loop = rrect(a0, a1, b0, b1, r, n); m = len(loop); R3 = F.to_3x3()
+    nrm = (R3 @ Vector((0, 0, 1))).normalized(); t = bmesh.new(); rings = []
+    for i, (a, b) in enumerate(loop):
+        pa, pb = loop[i - 1], loop[(i + 1) % m]; tg = Vector((pb[0] - pa[0], pb[1] - pa[1])).normalized(); o2 = Vector((tg.y, -tg.x))
+        if o2.dot(Vector((a - (a0 + a1) / 2, b - (b0 + b1) / 2))) < 0: o2 = -o2
+        ow = (R3 @ Vector((o2.x, o2.y, 0))).normalized()
+        S = lambda u: out_hit(a + o2.x * u, b + o2.y * u); Si = lambda u: in_hit(a + o2.x * u, b + o2.y * u)
+        R0, Ri = S(0.004), Si(0.0)
+        prof = [S(w) + nrm * 0.0015, S(w * 0.55) + nrm * 0.0045, S(0.014) + nrm * 0.0055, R0 + nrm * 0.003 - ow * 0.009,
+                R0 - nrm * 0.010 - ow * 0.013, Ri + nrm * 0.010 - ow * 0.013, Ri - nrm * 0.004 - ow * 0.009,
+                Si(0.014) - nrm * 0.0055, Si(w * 0.55) - nrm * 0.0045, Si(w) - nrm * 0.0015,
+                Si(w) + nrm * 0.004, Si(0.02) + nrm * 0.008, S(0.02) - nrm * 0.008, S(w) - nrm * 0.004]
+        rings.append([t.verts.new(p) for p in prof])
+    k = len(rings[0])
+    for i in range(m):
+        r0, r1 = rings[i], rings[(i + 1) % m]
+        for j in range(k): t.faces.new((r0[j], r0[(j + 1) % k], r1[(j + 1) % k], r1[j]))
+    bmesh.ops.recalc_face_normals(t, faces=t.faces); P._merge(t, mi)
+
+
+def hitter(tree, F, fall=None, off=0.4):
+    """(a, b) in frame F -> the first surface point seen from outside along the frame normal"""
+    nrm = (F.to_3x3() @ Vector((0, 0, 1))).normalized()
+    def f(a, b):
+        for T in (tree, fall):
+            if T is None: continue
+            h = T.ray_cast(F @ Vector((a, b, off)), -nrm, 2 * off)
+            if h[0] is not None: return h[0]
+        return F @ Vector((a, b, 0.0))
+    return f
 
 
 def door_inside(D, s, yi):
@@ -356,15 +513,28 @@ def door_inside(D, s, yi):
     D.box((1.42, s * (yi - 0.020), 2.16), (2.58, s * (yi + 0.004), 2.20), 4, 0.008)                       # window sill trim
 
 
-def shut_seals(E, s):
+def sink(bm, F, trees, c1, m=0.02, off=0.5):
+    """keep a frame ring under the Meshy skin: where the skin curves in (roof, tumblehome) the ring is pushed in with it,
+    keeping its thickness, so it never stands proud of the outside"""
+    Fi = F.inverted(); nrm = (F.to_3x3() @ Vector((0, 0, 1))).normalized()
+    for v in bm.verts:
+        l = Fi @ v.co; hs = [T.ray_cast(F @ Vector((l.x, l.y, c1 + off)), -nrm, 2 * off)[0] for T in trees]
+        hs = [(Fi @ h).z for h in hs if h is not None]
+        if not hs: continue
+        t = max(hs) - m - (c1 - l.z)
+        if l.z > t: l.z = t; v.co = F @ l
+    return bm
+
+
+def shut_seals(E, s, trees):
     """door shut sealed: ring A frames the aperture inside the lining, ring B is the lip just inside the closed door,
     overlapping its edge - the gap round the door shows rubber, never light"""
-    E._merge(ring_bm(rrect(DOOR['a0'] - 0.030, DOOR['a1'] + 0.030, ZB - 0.01, DOOR['b1'] + 0.030, 0.09),
+    E._merge(sink(ring_bm(rrect(DOOR['a0'] - 0.065, DOOR['a1'] + 0.065, ZB - 0.01, DOOR['b1'] + 0.060, 0.11),
                      rrect(DOOR['a0'] - 0.004, DOOR['a1'] + 0.004, ZB + 0.005, DOOR['b1'] + 0.004, 0.065),
-                     HY - WALL - 0.03, HY - 0.012, F_side(s), 0.003), 1)
-    E._merge(ring_bm(rrect(DOOR['a0'] - 0.010, DOOR['a1'] + 0.010, ZB, DOOR['b1'] + 0.010, 0.07),
+                     HY - WALL - 0.03, HY - 0.012, F_side(s), 0.003), F_side(s), trees, HY - 0.012), 1)
+    E._merge(sink(ring_bm(rrect(DOOR['a0'] - 0.010, DOOR['a1'] + 0.010, ZB, DOOR['b1'] + 0.010, 0.07),
                      rrect(DOOR['a0'] + 0.035, DOOR['a1'] - 0.035, ZB + WALL + 0.01, DOOR['b1'] - 0.035, 0.03),
-                     HY - WALL - 0.03, HY - WALL - 0.010, F_side(s), 0.002), 1)
+                     HY - WALL - 0.03, HY - WALL - 0.010, F_side(s), 0.002), F_side(s), trees, HY - WALL - 0.010, 0.05), 1)
 
 
 def lining(sc, I, holes, mats):
@@ -374,13 +544,12 @@ def lining(sc, I, holes, mats):
     for F, (a0, a1, b0, b1, r) in holes:
         Fi = F.inverted()
         for f in bm.faces:
-            q = Fi @ f.calc_center_median()
-            if -0.6 < q.z < 0.3 and in_rr((a0, a1, b0, b1, r), q.x, q.y): kill.add(f)
+            qs = [Fi @ v.co for v in f.verts]
+            if any(-0.6 < q.z < 0.3 and in_rr((a0, a1, b0, b1, r), q.x, q.y) for q in qs): kill.add(f)
     for s in (1, -1):
-        Fi = F_side(s).inverted(); dr = (DOOR['a0'] - 0.01, DOOR['a1'] + 0.01, ZB - 0.2, DOOR['b1'] + 0.01, 0.07)
+        Fi = F_side(s).inverted(); dr = (DOOR['a0'] - 0.004, DOOR['a1'] + 0.004, ZB - 0.2, DOOR['b1'] + 0.004, 0.065)
         for f in bm.faces:
-            q = Fi @ f.calc_center_median()
-            if HY - 0.3 < q.z < HY + 0.05 and in_rr(dr, q.x, q.y): kill.add(f)
+            if any(HY - 0.3 < q.z < HY + 0.05 and in_rr(dr, q.x, q.y) for q in [Fi @ v.co for v in f.verts]): kill.add(f)
     kill |= {f for f in bm.faces if f.calc_center_median().z < ZB + WALL - 0.03}   # nothing below the cab floor (the Meshy lower cab is solid)
     bmesh.ops.delete(bm, geom=list(kill), context='FACES')
     for f in bm.faces:
@@ -408,26 +577,48 @@ def build(sc, body, trailer, PARTS):
     g.inputs['Roughness'].default_value = 0.0; g.inputs['Base Color'].default_value = (0.80, 0.86, 0.84, 1)
     glass.use_backface_culling = False; glass.shadow_method = 'HASHED'
 
-    # ------------------------------------------------ 1. the Meshy cab kept: only its bad spots repaired, in place
+    # ------------------------------------------------ 1. the Meshy cab kept: windows cut on its lines, inside junk gone
     if 'CabLining' in PARTS: bpy.data.objects.remove(PARTS.pop('CabLining'), do_unlink=True)   # the placeholder box
-    TM = meshy_target(body, PARTS)                 # the Meshy cab as it came (the smooth inner lining follows it)
-    for o, zone in ((body, REPAIR_BODY), (PARTS['Door_L'], REPAIR_DOOR), (PARTS['Door_R'], REPAIR_DOOR)):
-        INFO.append('Repair %s: %d vertices smoothed (max move %.3f m), %d torn holes filled' % ((o.name,) + repair(o, zone)))
-    # ------------------------------------------------ 2. windows opened along Meshy's lines; see-through glass on the cab's curve
-    O, I = meshy_skin(TM); tO = tree_of(O); INFO.append('Cab lining: %d vertices pulled inside the Meshy skin' % fit_inside(I, TM))
-    E = Part('_Ext', [blk, seal, chrome, paint, trim])
+    TM = meshy_target(body, PARTS)                 # the Meshy cab as it came (the smooth skin / lining follow it)
+    O, I = meshy_skin(TM); tO = tree_of(O)
     rws = (WS['a0'], WS['a1'], WS['b0'], WS['b1'], 0.08); rwi = (WIN['a0'], WIN['a1'], WIN['b0'], WIN['b1'], 0.07)
-    n = open_window(body, F_WS, rws, 0.015)
-    for k in ('Glass_Windscreen',): PARTS[k].matrix_world = Matrix.Identity(4); swap_mesh(PARTS[k], skin_glass(O, F_WS, rws, sc, -0.02, 0.03))
-    skin_seal(E, tO, F_WS, rws, 1, w=0.055, d0=0.006, d1=-0.115, c=0.0)
-    INFO.append('Windscreen: %d painted Meshy faces opened, glass follows the curve 3 cm in, rubber surround to the lining' % n)
+    DL, DR = PARTS['Door_L'], PARTS['Door_R']
+    INFO.append('Windscreen cut on its outline: body %d faces' % cut_open(body, F_WS, rws))
+    for s, d in ((1, DL), (-1, DR)): INFO.append('%s window cut on its outline: %d faces' % (d.name, cut_open(d, FS(s), rwi)))
+    n = open_window(body, F_WS, rws, 0.0) + sum(open_window(d, FS(s), rwi, 0.0) for s, d in ((1, DL), (-1, DR)))
+    INFO.append('Faces left in the openings removed: %d' % n)
+    caps = [cap_poly([on_skin(tO, F_WS, a, b)[0] - on_skin(tO, F_WS, a, b)[1] * 0.006 for a, b in rrect(rws[0] - 0.02, rws[1] + 0.02, rws[2] - 0.02, rws[3] + 0.02, 0.10)])]
+    for s in (1, -1):
+        caps.append(cap_poly([FS(s) @ Vector((a, b, -0.012)) for a, b in rrect(rwi[0] - 0.02, rwi[1] + 0.02, rwi[2] - 0.02, rwi[3] + 0.02, 0.09)]))
+        caps.append(cap_poly([F_side(s) @ Vector((a, b, HY - 0.035)) for a, b in rrect(DOOR['a0'] - 0.03, DOOR['a1'] + 0.03, ZB - 0.04, DOOR['b1'] + 0.03, 0.09)]))
+    caps.append(cap_poly([Vector(p) for p in ((0.75, -1.33, 1.33), (3.82, -1.33, 1.33), (3.82, 1.33, 1.33), (0.75, 1.33, 1.33))]))   # cab floor + engine bay: no seeing in from below
+    for nm, tested, k in outside_only([body, DL, DR], caps, cab_zone):
+        INFO.append('%s: %d cab faces tested, %d never seen from outside (inside junk) deleted' % (nm, tested, k))
+    for o, zone in ((body, REPAIR_BODY), (DL, REPAIR_DOOR), (DR, REPAIR_DOOR)):
+        INFO.append('Repair %s: %d vertices smoothed (max move %.3f m), %d torn holes filled' % ((o.name,) + repair(o, zone)))
+    pz = lambda c: cab_zone(c) and c.z > 1.45 and not (c.x > 3.70 and c.z < 2.02)
+    for o in (body, DL, DR): INFO.append('Paint clean %s: %d faces on one clean paint texel %s' % ((o.name,) + paint_clean(o, pz)))
+    TM = meshy_target(body, PARTS); INFO.append('Cab lining: %d vertices pulled inside the cleaned Meshy skin' % fit_inside(I, TM))
+    tI = tree_of(I); tB = tree_of(body)
+    # ------------------------------------------------ 2. glass on the cab's curve; every opening closed by a rolled reveal
+    E = Part('_Ext', [blk, seal, chrome, paint, trim])
+    PARTS['Glass_Windscreen'].matrix_world = Matrix.Identity(4); swap_mesh(PARTS['Glass_Windscreen'], smooth_glass(tO, F_WS, rws, -0.02, 0.03))
+    reveal(E, F_WS, rws, 1, hitter(tB, F_WS, tO), hitter(tI, F_WS), w=0.035)
+    INFO.append('Windscreen: clean cut, glass follows the curve 3 cm in, rolled rubber reveal from skin to lining')
     for s, side in ((1, 'L'), (-1, 'R')):
-        d = PARTS['Door_' + side]; n = open_window(d, FS(s), rwi, 0.015)
-        swap_mesh(PARTS['Door_%s_Glass' % side], obj('_G', prism_bm(rrect(rwi[0] - 0.02, rwi[1] + 0.02, rwi[2] - 0.02, rwi[3] + 0.02, rwi[4] + 0.02), -0.036, -0.030, FS(s)), [bpy.data.materials['M_Lorry_Glass']]))   # the door side is flat: a flat pane 3 cm in
-        D = Part('_DS', [seal, chrome, blk, trim, dash]); skin_seal(D, tO, FS(s), rwi, 0, w=0.05, d0=0.006, d1=-0.10, c=0.0)
+        d = PARTS['Door_' + side]; tD = tree_of(d); Fd = FS(s)
+        swap_mesh(PARTS['Door_%s_Glass' % side], obj('_G', prism_bm(rrect(rwi[0] - 0.02, rwi[1] + 0.02, rwi[2] - 0.02, rwi[3] + 0.02, rwi[4] + 0.02), -0.036, -0.030, Fd), [bpy.data.materials['M_Lorry_Glass']]))   # the door side is flat: a flat pane 3 cm in
+        D = Part('_DS', [seal, chrome, blk, trim, dash])
+        reveal(D, Fd, rwi, 0, hitter(tD, Fd, tO), lambda a, b, Fd=Fd: Fd @ Vector((a, b, -WALL - 0.008)), w=0.025)
+        # door inner skin: full trim panel (window hole) + rolled shut face round the whole door edge
+        D._merge(ring_bm(rrect(DOOR['a0'] + 0.03, DOOR['a1'] - 0.03, DOOR['b0'] + 0.03, DOOR['b1'] - 0.03, 0.06), rrect(*rwi[:4], rwi[4], 6),
+                         HY - WALL - 0.008, HY - WALL + 0.002, F_side(s), 0.003), 3)
+        D._merge(sink(ring_bm(rrect(DOOR['a0'] + 0.006, DOOR['a1'] - 0.006, DOOR['b0'] + 0.006, DOOR['b1'] - 0.006, 0.065),
+                         rrect(DOOR['a0'] + 0.05, DOOR['a1'] - 0.05, DOOR['b0'] + 0.05, DOOR['b1'] - 0.05, 0.04),
+                         HY - WALL - 0.004, HY - 0.012, F_side(s), 0.006), F_side(s), [tD, tB], HY - 0.012), 3)
         door_inside(D, s, yi=HY - WALL)
-        join_into(d, [D.done(sc)]); INFO.append('Door_%s: %d Meshy faces opened for the window, door card inside' % (side, n))
-        shut_seals(E, s)
+        join_into(d, [D.done(sc)]); INFO.append('Door_%s: clean window cut, rolled reveal to a full inner trim panel, door card, shut face' % side)
+        shut_seals(E, s, [tB, tD])
     # ------------------------------------------------ 3. the lining: the inner wall 9 cm inside, open at doors and windows
     lining(sc, I, [(F_WS, rws), (FS(1), rwi), (FS(-1), rwi)], (trim, head, matm))
     # fenders over the drive tandem (tractor) - top kept under the trailer's swing
@@ -515,9 +706,9 @@ def build(sc, body, trailer, PARTS):
     # console between the seats with gear selector; park brake knob on the dash
     C.box((2.62, 0.17, zf - 0.005), (3.30, 0.33, zf + 0.33), 1, 0.03)
     Gl = Part('GearLever', [blk, chrome]); gb = (3.05, 0.25, zf + 0.33)
-    Gl.cyl(gb, (3.03, 0.25, zf + 0.50), 0.010, 1, 12); Gl.ball((3.03, 0.25, zf + 0.53), 0.032, 0, 16, sz=1.3)
+    Gl.cyl((3.052, 0.25, zf + 0.30), (3.03, 0.25, zf + 0.50), 0.010, 1, 12); Gl.ball((3.03, 0.25, zf + 0.53), 0.032, 0, 16, sz=1.3)
     PARTS['GearLever'] = Gl.done(sc, gb); IKN['GearLever'] = (3.03, 0.25, zf + 0.54); INFO.append('GearLever pivot %.3f %.3f %.3f about y' % gb)
-    C.box((3.02, 0.20, zf + 0.33), (3.08, 0.30, zf + 0.338), 3, 0.003)
+    C.box((3.02, 0.20, zf + 0.322), (3.08, 0.30, zf + 0.343), 3, 0.003)
     Pb = Part('ParkBrake', [knob, blk]); pb = (3.26, 0.14, 1.93)
     Pb.cyl(pb, (3.22, 0.14, 1.93), 0.008, 1, 10); Pb.box((3.19, 0.12, 1.915), (3.22, 0.16, 1.95), 0, 0.008)
     PARTS['ParkBrake'] = Pb.done(sc, pb); IKN['ParkBrake'] = (3.20, 0.14, 1.933); INFO.append('ParkBrake pivot %.3f %.3f %.3f, pulls along -x' % pb)
