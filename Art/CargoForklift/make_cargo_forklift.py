@@ -258,9 +258,12 @@ T = Matrix(((-S, 0, 0, XM * S), (0, -SY, 0, 0), (0, 0, S, -ZG * S), (0, 0, 0, 1)
 def G(p): return np.array(T @ Vector(p))
 for o in ALL:
     o.data.transform(T); o.data.update()
-    o.data.use_auto_smooth = True; o.data.auto_smooth_angle = math.radians(40)
+    o.data.use_auto_smooth = True; o.data.auto_smooth_angle = math.radians(32)
     o.data.polygons.foreach_set('use_smooth', [True] * len(o.data.polygons))
 body.data.name = 'CargoForklift'
+sys.path.insert(0, HERE)
+import forklift_details as FD                  # spikes, crumbs, melted roof/lamps/mirrors out, flat panels flat
+FD.clean_shell(body, PARTS)
 
 
 def pivot(o, p, rot=None):
@@ -306,33 +309,19 @@ for o in levers:
     pivot(o, ((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, lo[2])); lever_tops.append(top)
     INFO.append('%s base %.3f %.3f %.3f, knob %.3f %.3f %.3f, tips about y' % (o.name, (lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, lo[2], *top))
 
-# ---------------------------------------------------------------- IK points, from the same numbers as the parts
+# ---------------------------------------------------------------- modelled parts in place of the melted ones
+DET, levers, IKN = FD.refine(sc, body, PARTS, levers, os.path.join(TEX, 'forklift_base.png'))
+for k in [k for k in PARTS if k.startswith('Lever_')]: del PARTS[k]
+for o in levers: PARTS[o.name] = o
+for o in levers + [DET[k] for k in DET if k.startswith('Pedal_')]:
+    INFO.append('%s pivot %.3f %.3f %.3f' % (o.name, *o.matrix_world.translation))
+
+# ---------------------------------------------------------------- IK points, from the new parts
 IKS = []
 def ik(name, p):
     e = bpy.data.objects.new('IK_' + name, None); e.empty_display_type = 'ARROWS'; e.empty_display_size = 0.08
     e.location = Vector(p); sc.collection.objects.link(e); IKS.append(e); INFO.append('IK_%s %.3f %.3f %.3f' % (name, *p))
-ik('Seat_Driver', (cush[:, 0].mean(), 0.0, cush[:, 2].max()))
-bv = V(PARTS['Seat']); bv = np.array([PARTS['Seat'].matrix_world @ Vector(q) for q in bv])
-ik('Back_Driver', (bv[:, 0].min() + 0.02, 0.0, cush[:, 2].max() + 0.30))
-yl = Vector(yax) if Vector(yax).y > 0 else -Vector(yax)
-for side, sg in (('L', 1), ('R', -1)):
-    ik('Hand_' + side, tuple(Vector(sw_c) + sg * yl * rr * 0.97))
-for i, t in enumerate(lever_tops): ik('Hand_Lever_%d' % (i + 1), t)
-bv = V(body)
-# floor in front of the seat box: highest body point there (raw x -0.05..0.09, |y| < 0.15, below the dash)
-fl = bv[(bv[:, 0] > G((0.09, 0, 0))[0]) & (bv[:, 0] < G((-0.05, 0, 0))[0]) & (np.abs(bv[:, 1]) < 0.15 * SY) & (bv[:, 2] < G((0, 0, -0.10))[2])]
-fl = fl[np.abs(fl[:, 1]) > 0.05 * SY]                                  # off the steering column / console in the middle
-if len(fl) > 50:                                                        # the floor plate is the most crowded height there
-    hz, ez = np.histogram(fl[:, 2], bins=np.arange(fl[:, 2].min(), fl[:, 2].max() + 0.02, 0.02)); floor_z = ez[hz.argmax()] + 0.01
-else: floor_z = G((0, 0, -0.175))[2]
-if abs(floor_z - G((0, 0, -0.175))[2]) > 0.12: floor_z = G((0, 0, -0.175))[2]   # the measured cab floor (raw z -0.175)
-px = G((-0.03, 0, 0))[0]
-ik('Foot_Accel', (px, -0.12, floor_z + 0.08)); ik('Foot_Brake', (px, 0.10, floor_z + 0.08))
-# the step on the driver's left (game +y): the body's outermost point at the side step (raw x 0..0.17, z -0.30..-0.27)
-st = bv[(bv[:, 0] < G((0.0, 0, 0))[0]) & (bv[:, 0] > G((0.17, 0, 0))[0]) & (bv[:, 2] > G((0, 0, -0.30))[2]) & (bv[:, 2] < G((0, 0, -0.27))[2]) & (bv[:, 1] > 0)]
-ik('Step', (st[:, 0].mean(), st[:, 1].max() - 0.06, st[:, 2].max()) if len(st) else tuple(G((0.085, -0.30, -0.27))))
-gh = bv[(bv[:, 0] < G((-0.13, 0, 0))[0]) & (bv[:, 0] > G((-0.04, 0, 0))[0]) & (bv[:, 2] > G((0, 0, 0.0))[2]) & (bv[:, 2] < G((0, 0, 0.08))[2]) & (bv[:, 1] > 0.2 * SY)]
-ik('Grab_Outside', tuple(gh.mean(0)) if len(gh) else tuple(G((-0.09, -0.29, 0.04))))
+for k, p in IKN.items(): ik(k, tuple(p))
 print('\n'.join('INFO ' + s for s in INFO))
 
 # ---------------------------------------------------------------- save, check, export
