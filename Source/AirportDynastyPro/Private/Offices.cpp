@@ -6,6 +6,8 @@
 #include "OpsMonitors.h"
 #include "TerminalPlan.h"
 #include "Engine/World.h"
+#include "Components/RectLightComponent.h"
+#include "Components/SpotLightComponent.h"
 
 namespace ADPOffices
 {
@@ -19,6 +21,43 @@ namespace ADPOffices
 		const FVector At = Room->GetActorTransform().TransformPosition(FVector(-Bx, Bz, By) * 100.f);
 		if (ABabylonModel* P = W->SpawnActor<ABabylonModel>(At, FRotator(0, RoomYaw + Turn, 0), S))
 			if (!P->Place(TEXT("Smartphone"))) P->Destroy();
+	}
+
+	/** Your office (owner's render, 2026-11-26: Tools/render_owner_office.py, Blueprints/Terminal/Office/YourOffice-*.png):
+	 *  its furniture one model, Art/OwnerOffice/make_owneroffice.py, in the render's own axes - X = plan x - 114, Y = plan z,
+	 *  up from Floor 2's floor - so placed at plan (114, floor, 0) turned half round its (X, Y) is the plan's (114 + X, Y).
+	 *  Its chairs sit at their own SitPoints (ABabylonModel::SeatSpots); its sit / IK / lie points in plan metres are in
+	 *  Data/owner-office-points.json. Its lamps: the two pendant bars over the desk and the desk lamp. */
+	static bool PlaceYours(UWorld* W)
+	{
+		const float FY = 6.01f;
+		FActorSpawnParameters S; S.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		auto P = [FY](float Bx, float By, float Bz) { return FTerminalPlan::ToWorld(114.f + Bx, FY + 0.002f + Bz, By); };   // (the model's 2 mm over the floor)
+		ABabylonModel* M = W->SpawnActor<ABabylonModel>(P(0, 0, 0), FRotator(0, 180.f, 0), S);
+		if (!M) return false;
+		if (!M->Place(TEXT("OfficeOwner"))) { M->Destroy(); ADP_WARN(TEXT("Offices: your office's furniture (OfficeOwner) did not load")); return false; }
+		const FTransform R = M->GetModelRoot()->GetComponentTransform();
+		const FLinearColor Warm(1.f, 0.93f, 0.84f);
+		// the pendant bars: their LED strips (0.76 x 0.04 m, 2.52 m up, over the desk at y 4.3 -+ 0.45), facing down
+		for (const float Y : {3.85f, 4.75f})
+		{
+			URectLightComponent* L = NewObject<URectLightComponent>(M);
+			L->SetSourceWidth(76.f); L->SetSourceHeight(4.f);
+			M->AddLamp(L, R.InverseTransformPosition(P(5.2f, Y, 2.515f)), 400.f, 600.f, Warm);
+			L->SetWorldRotation(FRotator(-90.f, 0.f, 0.f));           // (down; its width along its Y: the bar, the plan's z)
+		}
+		// the desk lamp: its LED in the shade, shining down and towards you (the render's (0.342, 0, -0.94))
+		{
+			USpotLightComponent* L = NewObject<USpotLightComponent>(M);
+			L->SetOuterConeAngle(50.f); L->SetInnerConeAngle(22.f); L->SetSourceRadius(4.f);
+			M->AddLamp(L, R.InverseTransformPosition(P(5.328f, 4.96f, 1.13f)), 150.f, 300.f, Warm);
+			const FVector Dir = P(5.328f + 0.342f, 4.96f, 1.13f - 0.94f) - P(5.328f, 4.96f, 1.13f);
+			L->SetWorldRotation(Dir.Rotation());
+		}
+		// your phone on your desk right of the laptop, its top (the cameras) away from you (you face the plan's -x)
+		if (ABabylonModel* Ph = W->SpawnActor<ABabylonModel>(P(5.1f, 4.55f, 0.7565f), FRotator(0, 107.f, 0), S))
+			if (!Ph->Place(TEXT("Smartphone"))) Ph->Destroy();
+		return true;
 	}
 
 	void Place(UWorld* W, const FString& Pet)
@@ -38,6 +77,7 @@ namespace ADPOffices
 		int32 Placed = 0;
 		for (const FAt& A : At)
 		{
+			if (A.bMine) { if (PlaceYours(W)) ++Placed; continue; }
 			const FString Model = A.bMine && (Pet == TEXT("dog") || Pet == TEXT("cat")) ? TEXT("Office") + Pet : TEXT("Office");
 			ABabylonModel* M = W->SpawnActor<ABabylonModel>(FTerminalPlan::ToWorld(A.X, FY + 0.02f, A.Z), FRotator(0, A.Yaw, 0), S);
 			if (M && M->Place(Model))

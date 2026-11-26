@@ -1570,6 +1570,15 @@ void ABabylonModel::SeatSpots(TArray<FSeatSpot>& Out) const
 		}
 		if (S.Facing.IsNearlyZero()) S.Facing = FVector::ForwardVector;
 		S.At = FVector(C.X, C.Y, Floor + S.SeatH);
+		// (a chair modelled with its own sit point - an empty named *SitPoint, your office's, 2026-11-26 - is sat on there,
+		// facing away from its *BackIK)
+		int32 SitN = INDEX_NONE, BackN = INDEX_NONE;
+		for (int32 N : Nodes) { if (NName[N].EndsWith(TEXT("SitPoint"))) SitN = N; else if (NName[N].EndsWith(TEXT("BackIK"))) BackN = N; }
+		if (SitN != INDEX_NONE)
+		{
+			S.At = RootW.TransformPosition(NRoot[SitN].GetLocation()); S.SeatH = FMath::Max(20.f, float(S.At.Z - Floor));
+			if (BackN != INDEX_NONE) { const FVector F = (S.At - RootW.TransformPosition(NRoot[BackN].GetLocation())).GetSafeNormal2D(); if (!F.IsNearlyZero()) S.Facing = F; }
+		}
 		S.bYours = Model.StartsWith(TEXT("Office")) || Model.StartsWith(TEXT("Ops"));   // (your office's and the ops room's chairs)
 		Out.Add(S);
 	}
