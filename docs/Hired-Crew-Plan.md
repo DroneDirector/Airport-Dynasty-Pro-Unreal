@@ -900,3 +900,42 @@ IK_Grab_Low/High (-0.656, 1.348, 1.588 / 2.436), IK_DoorHandle_Out (-0.466, 1.34
 IK_HeadLamp_L/R, IK_Hand_DoorGlass. The driver gets in from the left (+y) door. Points are from the build log (`INFO` lines), not tried with a person.
 Known: the tilt-cylinder rod eyes sit on Meshy's carriage lugs (touch, by design); the steering wheel sits 0.5 m ahead of the seat point - check
 the reach when the cab inside is modelled.
+
+## The X-way mover model, as built (2026-11-26, imported, not run)
+`Art/XWayMover/make_xwaymover.py` (+ `xwaymover_details.py`, `make_xwaymover_maps.py`, `render_xwaymover_check.py`) -> `xwaymover.glb` ->
+`Content/Babylon/XWayMover`, parts listed in `Data/babylon-xwaymover.json`. A stand-on electric ULD platform vehicle of the HUBTEX X-Way Mover
+class (X-Way Mover 70 / 140: 7 / 14 t, 360 deg HX steering, 2,500 mm platform, electro-hydraulic roller deck): a lifting roller deck that
+takes a 10 ft pallet, four steered wheels, a stand-on platform at the rear end. One is parked (static) in the export build-up area behind the
+crate fetcher (`Airfield.cpp`, x 56.25, y 19.6, lengthwise along y). Driving, the operator, controls and IK use are later work.
+Axes: x forward (deck end at +x, stand at -x), y left, z up, metres; origin on the ground halfway between the axles. Size 4.51 x 2.59 x 1.80 m
+(deck 3.47 m long, 2.50 m wide, deck top 0.906 m, roller tops 1.028 m; tyres 0.71 m solid). 170k faces; 0 surfaces fight (`Tools/find_zfight.py`).
+Materials: M_XWayMover_Body (Meshy texture, cleaned: logos and the embossed side lettering removed) plus Rubber / Blue / BlackSteel / Chrome /
+RimGrey / RollerSteel / Tread / HatchGrey / Screen / EStopRed / SignalYellow / LensClear / LensAmber / LensRed / BlackPlastic. No glass.
+Modelled again: 4 round wheels (solid tyre, 15 in rim, 8 nuts) with steering yokes, the deck plate with 12 rollers, rails, end stops and centre
+guide, the stand base and the deck end wall facing the operator (Meshy's were crumpled), the tread-plate stand floor, the side bands (Meshy's
+carried embossed brand lettering), battery hatches with handles, head / indicator lamps, beacon, control column with console, handrail, rear step.
+Layout choice: Meshy put the column at the rear of the stand; it now stands at the front so the operator faces the deck.
+Cycles check renders (builder's own look): F:/ADP-Renders/xwaymover/ (front34, side, rear34).
+
+| Part | Pivot (game m) | Moves |
+|---|---|---|
+| Wheel_FL / FR / RL / RR (d 0.71, 0.22 wide) | axle (+-1.043, +-1.125, 0.354) | spin about y, steer with the yoke |
+| SteerYoke_FL / FR / RL / RR | kingpin (+-1.043, +-1.125, 0.738) | turn about z, 360 deg |
+| Deck | bottom centre, bottom z 0.833 | lifts along z (about 0.10 m) |
+| Roller_1..12 (r 0.055) | axis x 1.735 / 1.229 / 0.757 / -0.443 / -0.908 / -1.381, y +-0.625, z 0.973 | spin about y, ride with Deck |
+| SteeringWheel (rim r 0.13) | hub (-1.855, -0.120, 1.601) | turns about its local z (-0.53, 0, 0.85) |
+| Lever_DeckLift / Lever_Rollers | base (-1.839 / -1.762, 0.200, 1.537 / 1.584) | each tips about y |
+| EStop / HornButton / KeySwitch | (-1.873, -0.25, 1.515) / (-1.745, -0.25, 1.595) / (-1.745, 0, 1.595) | press along the console normal |
+| Pedal_DeadMan | hinge (-2.095, -0.150, 0.464) | tips about y |
+| Hatch_L / Hatch_R (+ HatchHandle_L/R riding with them) | bottom edge, y +-1.247, z 0.26 | fold out about x |
+| StandBase, StandFloor, ControlColumn, Handrail, Step, Lamps, Beacon, SideBands, Body | - | static |
+
+IK empties: IK_Stand_Operator (-2.215, 0, 0.464), IK_Foot_L/R (-2.215, +-0.150, 0.464), IK_Foot_DeadMan (-2.165, -0.150, 0.504),
+IK_Hand_L/R (-1.855, 0.010 / -0.250, 1.601), IK_Hand_Knob (-1.797, -0.060, 1.696), IK_Hand_Lever_DeckLift / _Rollers (-1.908 / -1.831, 0.200,
+1.647 / 1.694), IK_Hand_EStop (-1.891, -0.250, 1.545), IK_Hand_HornButton (-1.752, -0.250, 1.605), IK_Hand_KeySwitch (-1.751, 0, 1.603),
+IK_Grab_L/R (-2.275, +-0.860, 1.314), IK_Step_1/2 (-2.505 / -2.245, 0, 0.237 / 0.464), IK_HatchHandle_L/R (0, +-1.30, 0.65), IK_HeadLamp_L/R.
+There is no seat (stand-on); the operator gets on over the rear step, through the open back of the handrail. Points are from the build log
+(`INFO` lines), not tried with a person.
+Known: the deck lift cylinders are not modelled (the deck sits on the body; lifting only moves the part); the steering yokes only sit in the
+wheel arches - a full 360 deg turn of a 0.71 m wheel sweeps past the body side (the real machine's wheels sit further in); no tail lamps on the
+stand end; the deck top (0.906 m, rollers 1.028 m) is not yet checked against the terminal roller beds.

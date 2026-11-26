@@ -1315,6 +1315,17 @@ bool AAirfield::Build(bool bModelSite)
 				if (Crate && Crate->Place(TEXT("CrateFetcher"))) ADP_LOG(TEXT("Airfield: a crate fetcher parked in the build-up area at %s"), *At.ToString());
 				else { if (Crate) Crate->Destroy(); ADP_WARN(TEXT("Airfield: no crate fetcher model (Tools/import_model.py ... CrateFetcher)")); }
 			}
+			// one X-way mover (stand-on electric ULD platform vehicle, HUBTEX X-Way class, Art/XWayMover; 4.51 x 2.59 m,
+			// model x -2.615..1.899) parked in line behind the crate fetcher, centred at x 56.25, y 19.6: it covers at most
+			// y 17.0..22.2 (either way round) and x 54.96..57.54, 0.9 m clear of the crate fetcher's end (y 16.1) and inside
+			// the gap between the station beds (x 51.4 / 61.1); static for now (driving, crew and controls come later).
+			{
+				const FTransform T = Cargo->GetRootComponent()->GetComponentTransform();
+				const FVector At = T.TransformPosition(FVector(56.25, -19.6, 0.0) * 100.0);
+				ABabylonModel* XWay = GetWorld()->SpawnActor<ABabylonModel>(At, FRotator(0.f, T.Rotator().Yaw + 90.f, 0.f), S);
+				if (XWay && XWay->Place(TEXT("XWayMover"))) ADP_LOG(TEXT("Airfield: an X-way mover parked in the build-up area at %s"), *At.ToString());
+				else { if (XWay) XWay->Destroy(); ADP_WARN(TEXT("Airfield: no X-way mover model (Tools/import_model.py ... XWayMover)")); }
+			}
 		}
 		else { if (Cargo) Cargo->Destroy(); Slab("liftClad", D.Cargo.X0, D.Cargo.Y0, D.Cargo.X1, D.Cargo.Y1, 0, 18); }
 	}
