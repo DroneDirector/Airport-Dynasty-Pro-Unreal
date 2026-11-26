@@ -9,6 +9,7 @@
 #include "Sim/ADPSim.h"
 #include "Sim/ADPVehicleArea.h"
 #include "ADPLog.h"
+#include "VehiclesOwned.h"
 #include "BabylonModel.h"
 #include "BusCharger.h"
 
@@ -199,6 +200,7 @@ void AGSE::SpareTick(float Dt)
 	if ((SpareT -= Dt) > 0.f) return;
 	SpareT = 2.f;
 	ADPBusCharger::Keep(GetWorld(), [this](float X, float Y, float Hx, float Hy, float& Yaw) { return PlanPose(X, Y, Hx, Hy, Yaw); });
+	ExtraTick();   // (the kinds with no vehicle-area place, bought: beside their own - GSEExtra.cpp)
 	UADPSim* Sim = UADPSim::Get(this); if (!Sim || !ADPVehicleArea::Built()) return;
 	if (!Sim->World.Airlines.Num()) return;
 	// (another career came without a new level: what stands away from its place, and what nobody there has bought, goes when nobody
@@ -220,6 +222,7 @@ void AGSE::SpareTick(float Dt)
 			if (Tractors.ContainsByPredicate([&](const FTractor& T) { return T.bSpare && !T.bAway && T.SpareId == Id; })) continue;
 			auto Say = [&](const TCHAR* Why) { bool bWas = false; SpareSaid.Add(Id + Why, &bWas); if (!bWas) ADP_LOG(TEXT("GSE: the bought vehicle %s waits: %s"), *Id, Why); };
 			const ADPVehicleArea::FKind* K = ADPVehicleArea::Kind(S.Kind); const ADPVehicleArea::FPlace* P = ADPVehicleArea::Place(S.Place);
+			if (!K && ADPOwned::Extra(S.Kind)) continue;   // (ExtraTick's)
 			if (!K || !P) { Say(TEXT("no such kind or place in Data/vehicle-area.json")); continue; }
 			const int32 i = ADPService::All().IndexOfByPredicate([&](const FServiceSpec& X) { return K->Points == X.Points && K->bRoof == X.bRoof; });
 			if (i == INDEX_NONE) { Say(TEXT("no such service vehicle")); continue; }

@@ -186,6 +186,14 @@ public:
 	void OwnedList(TArray<struct FOwnedVehicle>& Out) const;
 	/** Its condition 0..100 from the hours and km behind it (the rates of Data/vehicle-breakdowns.json: worn out at oldAtHours / oldAtKm). */
 	static int32 BreakCondition(double Hours, double Km);
+	/** The kinds with no place at the vehicle area (GSEExtra.cpp): a box on the plan (metres, heading degrees, half length and width). */
+	struct FExtraBox { FVector2f P = FVector2f::ZeroVector; float H = 0.f, L = 0.f, W = 0.f, StandX = 0.f; };
+	/** A free spot for one more of this kind beside its own (ADPOwned::ExtraSpot). */
+	bool ExtraSpot(const struct FADPWorld& Wd, const FString& Key, struct FADPSpare& Out, FString& Why) const;
+	/** The condition 0..100 of a tug or fire truck from its wear record (GSEBreak.cpp WearOthers); -1: none yet. */
+	static int32 WearCondition(const UObject* Ctx, const FString& Id);
+	/** A fire truck's wear record: bought ones by their purchase, the airport's own by their order. */
+	static FString FireWearId(const AActor* F);
 
 private:
 	friend class ATugs;
@@ -550,6 +558,14 @@ private:
 	bool SvcSpawn(int32 i, int32 n, const FSpareAt* Sp);
 	void SpareTick(float Dt);
 	float SpareT = 0.f; TSet<FString> SpareSaid, SpareOld; int32 SpareLoads = -1;
+	// (the kinds kept beside their own, bought: GSEExtra.cpp; the tugs' and fire trucks' wear: GSEBreak.cpp)
+	void ExtraTick();
+	bool ExtraAnchors(const FString& Key, TArray<FExtraBox>& Out) const;
+	bool ExtraDims(const FString& Key, float& L, float& W) const;
+	void ExtraBoxes(TArray<FExtraBox>& Out, const struct FADPWorld* Wd, const FString& SkipId) const;
+	bool ExtraFits(const FExtraBox& B, const TArray<FExtraBox>& Others, FString& Why) const;
+	void WearOthers(float Dt);
+	TSet<FString> ExtraDone; float WearT = 0.f; TMap<FString, FVector> WearLast; int32 TugSeatN = 0;
 	// (your crews with them, E1b: whose job one may do, its way out to the road and back onto its place, the way there on foot)
 	bool SpareOk(const FTractor& T, const FString& AirlineId) const;
 	FString SpareAirline(const FString& Reg) const;

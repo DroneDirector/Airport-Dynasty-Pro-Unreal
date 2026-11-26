@@ -82,6 +82,7 @@ public:
 
 private:
 	TWeakObjectPtr<AADPHUD> Hud; TSharedPtr<SScrollBox> Scroll; FString MoneyLine, Say, LastSig; bool bSayBad = false; float SayLeft = 0.f;
+	TMap<FString, FString> ExNot; double ExNotAt = -100.0;
 
 	EActiveTimerReturnType Tock(double, float)
 	{
@@ -95,9 +96,10 @@ private:
 	{
 		AADPHUD* H = Hud.Get(); UADPSim* S = H ? UADPSim::Get(H) : nullptr;
 		if (!S || !S->IsRunning()) { Say = TEXT("No career is running."); bSayBad = true; SayLeft = 8.f; return; }
-		FString Why; const bool bOk = ADPGround::BuyVehicle(S->World, UADPSim::Me(), Key, S->Now(), Why);
+		FString Why; const bool bOk = ADPGround::BuyVehicle(S->World, UADPSim::Me(), Key, S->Now(), Why, H->GetWorld());
 		bSayBad = !bOk; SayLeft = 8.f;
-		Say = bOk ? FString::Printf(TEXT("A new %s is bought: it is brought to its place at the vehicle area."), *Label) : FString::Printf(TEXT("No %s bought: %s."), *Label, *Why);
+		const bool bEx = ADPOwned::Extra(Key) != nullptr; ExNotAt = -100.0;
+		Say = bOk ? FString::Printf(TEXT("A new %s is bought: it is brought to its %s."), *Label, bEx ? TEXT("spot beside the others when nobody is looking") : TEXT("place at the vehicle area")) : FString::Printf(TEXT("No %s bought: %s."), *Label, *Why);
 		ADP_LOG(TEXT("Vehicles owned: buy a %s - %s"), *Label, bOk ? TEXT("bought") : *Why);
 		LastSig.Reset(); Rebuild();
 	}
@@ -112,6 +114,18 @@ private:
 		return FString();
 	}
 
+	// (the same for a kind parked beside its own, the spot looked for as BuyVehicle does: every 5 s, not every redraw)
+	FString BuyNotExtra(const FADPWorld& W, const FADPAirline* A, const ADPOwned::FExtraKind& E)
+	{
+		if (!A || A->Balance < E.Price) return TEXT("not enough money");
+		const double Now = FPlatformTime::Seconds();
+		if (Now - ExNotAt > 5.0) { ExNot.Reset(); ExNotAt = Now; }
+		if (const FString* C = ExNot.Find(E.Key)) return *C;
+		FADPSpare Sp; FString Why; AADPHUD* H = Hud.Get();
+		const FString R = ADPOwned::ExtraSpot(H ? H->GetWorld() : nullptr, W, E.Key, Sp, Why) ? FString() : Why;
+		ExNot.Add(E.Key, R); return R;
+	}
+
 	void Rebuild()
 	{
 		AADPHUD* H = Hud.Get(); if (!H || !Scroll.IsValid()) return;
@@ -122,11 +136,13 @@ private:
 		// (built again only when something shown changed: a button under the pointer stays the same button)
 		FString Sig = MoneyLine + (bRun ? TEXT("r") : TEXT("-")); for (const FOwnedVehicle& V : L) Sig += V.Name + V.State + V.Place + FString::FromInt(V.Condition);
 		if (bRun) for (const ADPVehicleArea::FKind& K : ADPVehicleArea::Kinds()) Sig += BuyNot(S->World, A, &K);
+		if (bRun) for (const ADPOwned::FExtraKind& E : ADPOwned::Extras()) Sig += BuyNotExtra(S->World, A, E);
 		if (Sig == LastSig) return;
 		LastSig = Sig;
 		// (every kind you have, then the ones the vehicle area keeps that you have none of yet)
 		TArray<FString> Kinds; for (const FOwnedVehicle& V : L) Kinds.AddUnique(V.Kind);
 		for (const ADPVehicleArea::FKind& K : ADPVehicleArea::Kinds()) Kinds.AddUnique(K.Label);
+		for (const ADPOwned::FExtraKind& E : ADPOwned::Extras()) Kinds.AddUnique(E.Label);
 		Scroll->ClearChildren();
 		if (!bRun) Scroll->AddSlot()[VpText(TEXT("No career is running."), VpDim, 13)];
 		Scroll->AddSlot().Padding(0, 0, 0, 6)[VpText(FString::Printf(TEXT("%d vehicles at the airport"), L.Num()), VpDim, 12)];
@@ -135,13 +151,14 @@ private:
 			const ADPVehicleArea::FKind* K = ADPVehicleArea::Kinds().FindByPredicate([&](const ADPVehicleArea::FKind& X) { return X.Label == Kind; });
 			int32 N = 0, NWork = 0, NBroken = 0, NOff = 0;
 			for (const FOwnedVehicle& V : L) if (V.Kind == Kind) { ++N; NWork += V.bWork; NBroken += V.bBroken; NOff += V.bWrittenOff; }
-			const FString Not = bRun ? BuyNot(S->World, A, K) : FString(TEXT("no career is running"));
-			const FString Key = K ? K->Key : FString(), Label = Kind;
+			const ADPOwned::FExtraKind* E = K ? nullptr : ADPOwned::Extra(Kind);   // (no place at the vehicle area: one more beside its own, GSEExtra.cpp)
+			const FString Not = !bRun ? FString(TEXT("no career is running")) : E ? BuyNotExtra(S->World, A, *E) : BuyNot(S->World, A, K);
+			const FString Key = K ? K->Key : E ? FString(E->Key) : FString(), Label = Kind;
 			FString Count = FString::Printf(TEXT("%d"), N);
 			if (NWork) Count += FString::Printf(TEXT(" - %d at work"), NWork);
 			if (NBroken) Count += FString::Printf(TEXT(" - %d broken down"), NBroken);
 			if (NOff) Count += FString::Printf(TEXT(" - %d written off"), NOff);
-			const FString BuyLine = K ? FString::Printf(TEXT("Buy one more - %s"), *VpMoney(K->Price)) : FString(TEXT("Buy"));
+			const FString BuyLine = K || E ? FString::Printf(TEXT("Buy one more - %s"), *VpMoney(K ? K->Price : E->Price)) : FString(TEXT("Buy"));
 			Scroll->AddSlot().Padding(0, 8, 0, 2)
 			[
 				SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(VpHead).Padding(FMargin(12, 6))

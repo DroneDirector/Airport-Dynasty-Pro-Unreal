@@ -16,10 +16,19 @@ struct FOwnedVehicle
 	FVector At = FVector::ZeroVector, Home = FVector::ZeroVector;   // (world cm)
 };
 
+struct FADPWorld; struct FADPSpare;
 namespace ADPOwned
 {
 	/** Every airport vehicle there is now, the ones you own; kinds in the order the list shows them. */
 	AIRPORTDYNASTYPRO_API void List(UWorld* W, TArray<FOwnedVehicle>& Out);
 	/** Where a vehicle at At is, in words: its own place, a stand, the vehicle area, the hangar apron, the apron. */
 	AIRPORTDYNASTYPRO_API FString PlaceOf(UWorld* W, const FVector& At, const FVector& Home);
+	/** The kinds with no place at the vehicle area: a bought one parks beside its own kind (GSEExtra.cpp). */
+	struct FExtraKind { const TCHAR* Key; const TCHAR* Label; double Price; };
+	AIRPORTDYNASTYPRO_API const TArray<FExtraKind>& Extras();
+	/** By key or label; null: not one of them. */
+	AIRPORTDYNASTYPRO_API const FExtraKind* Extra(const FString& KeyOrLabel);
+	/** A free spot for one more of this kind beside its own (its row, its length and 1.5 m on; off roads, taxiways, stands and walls):
+	 *  Out gets its place; false with why there is none. */
+	AIRPORTDYNASTYPRO_API bool ExtraSpot(UWorld* W, const FADPWorld& Wd, const FString& Key, FADPSpare& Out, FString& Why);
 }

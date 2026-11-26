@@ -571,7 +571,7 @@ FString UADPBridge::Sim(const FString& Action, const FString& Arg)
 	if (Action == TEXT("ipo")) { FString Why; return Ok(ADPNetwork::Ipo(W, Me, At, Why), Why); }
 	if (Action == TEXT("shares")) { FString Why; return Ok(ADPNetwork::TradeShares(W, A, FCString::Atod(*B), At, Why), Why); }
 	if (Action == TEXT("hedge")) { FString Why; return Ok(ADPNetwork::Hedge(W, Me, FCString::Atod(*A), B.IsEmpty() ? 3 : FCString::Atoi(*B), At, Why), Why); }
-	if (Action == TEXT("vehicle")) { FString Why; return Ok(ADPGround::BuyVehicle(W, Me, A, At, Why), Why); }
+	if (Action == TEXT("vehicle")) { FString Why; return Ok(ADPGround::BuyVehicle(W, Me, A, At, Why, H ? H->GetWorld() : nullptr), Why); }
 	if (Action == TEXT("parts")) return Ok(ADPMaint::BuyParts(W, Me, FCString::Atod(*A), At), TEXT("not enough money"));
 	if (Action == TEXT("dayoff")) return Ok(ADPRoster::GiveDaysOff(W, A, B.IsEmpty() ? 2 : FCString::Atoi(*B), At), TEXT("not on your staff"));
 	if (Action == TEXT("train")) return Ok(ADPStaff::StartTypeRating(W, A, B, At), TEXT("can't start that course"));

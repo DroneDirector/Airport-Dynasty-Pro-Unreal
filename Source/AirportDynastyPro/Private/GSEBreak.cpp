@@ -5,6 +5,7 @@
 #include "GSE.h"
 #include "ServiceVehicles.h"
 #include "Tugs.h"
+#include "FireTruck.h"
 #include "Airfield.h"
 #include "CrewPose.h"
 #include "Sim/ADPSim.h"
@@ -105,10 +106,38 @@ bool AGSE::BreakNow(const FString& Name, bool bTotal)
 float AGSE::BreakLimp() { return float(BrkRules().Limp); }
 int32 AGSE::BreakCondition(double Hours, double Km) { const FBrkRules& R = BrkRules(); return FMath::Clamp(FMath::RoundToInt(100.0 * (1.0 - FMath::Max(Hours / R.HAt, Km / R.KAt))), 0, 100); }
 
+// (the tugs' and fire trucks' wear, to-do 318: hours on or moving and km driven, kept like the others' - only shown, they do not break)
+void AGSE::WearOthers(float Dt)
+{
+	if ((WearT += Dt) < 1.f) return;
+	const float S = WearT; WearT = 0.f;
+	UADPSim* Sim = UADPSim::Get(this); if (!Sim) return;
+	const FBrkRules& R = BrkRules();
+	auto Wear = [&](const FString& Id, const FVector& At, bool bOn)
+	{
+		FADPVehWear* E = Sim->World.VehWear.FindByPredicate([&](const FADPVehWear& X) { return X.Id == Id; });
+		if (!E) { E = &Sim->World.VehWear.AddDefaulted_GetRef(); E->Id = Id; E->Hours = Id.StartsWith(TEXT("bought:")) ? 0. : FMath::Lerp(R.OwnMin, R.OwnMax, (GetTypeHash(Id) % 1000) / 999.); E->Km = E->Hours * R.OwnKm; }
+		FVector* L = WearLast.Find(Id); const double M = L ? FVector::Dist2D(*L, At) / 100. : 0.;
+		WearLast.Add(Id, At);
+		if (M > 200.) return;   // (put somewhere, not driven)
+		if (bOn || M > 0.3) E->Hours += S / 3600.;
+		E->Km += M / 1000.;
+	};
+	if (const ATugs* G = Tg()) for (int32 i = 0; i < G->Tugs.Num(); ++i) if (G->Tugs[i].M.IsValid()) Wear(G->WearId(i), G->Tugs[i].At, G->Tugs[i].State != ATugs::EState::Parked);
+	for (const TWeakObjectPtr<AFireTruck>& F : AFireTruck::All) if (const AFireTruck* T = F.Get()) Wear(FireWearId(T), T->GetActorLocation(), T->IsPlayerControlled());
+}
+
+int32 AGSE::WearCondition(const UObject* Ctx, const FString& Id)
+{
+	const UADPSim* Sim = UADPSim::Get(Ctx); if (!Sim || Id.IsEmpty()) return -1;
+	const FADPVehWear* E = Sim->World.VehWear.FindByPredicate([&](const FADPVehWear& X) { return X.Id == Id; });
+	return E ? BreakCondition(E->Hours, E->Km) : -1;
+}
+
 void AGSE::BreakLoad(FTractor& T)
 {
 	UADPSim* Sim = UADPSim::Get(this); if (!Sim) return;
-	T.BrkId = T.bSpare ? T.Owner + TEXT(":") + T.SpareId : TEXT("own:") + T.Name;
+	T.BrkId = T.bSpare || !T.SpareId.IsEmpty() ? T.Owner + TEXT(":") + T.SpareId : TEXT("own:") + T.Name;
 	// (two of the same name: the second, the third one)
 	if (!T.bSpare) { int32 n = 1; for (const FTractor& O : Tractors) { if (&O == &T) break; if (!O.bSpare && O.Name == T.Name) ++n; } if (n > 1) T.BrkId += FString::Printf(TEXT("#%d"), n); }
 	const FBrkRules& R = BrkRules();
@@ -120,7 +149,7 @@ void AGSE::BreakLoad(FTractor& T)
 	{
 		// (an airport's own one has years behind it, always the same; a bought one is new)
 		const double K = (GetTypeHash(T.BrkId) % 1000) / 999.;
-		T.BrkHours = T.bSpare ? 0. : FMath::Lerp(R.OwnMin, R.OwnMax, K); T.BrkKm = T.BrkHours * R.OwnKm; T.BrkLast = FDateTime();
+		T.BrkHours = T.bSpare || !T.SpareId.IsEmpty() ? 0. : FMath::Lerp(R.OwnMin, R.OwnMax, K); T.BrkKm = T.BrkHours * R.OwnKm; T.BrkLast = FDateTime();
 	}
 	const int32 St = E ? E->State : 0;
 	const bool bPlace = T.Job == EJob::None && !T.Path.Num() && T.Driver == INDEX_NONE && !T.Player.IsValid() && FVector::Dist2D(T.At, T.Home) < 300.;
@@ -334,6 +363,7 @@ void AGSE::BreakTick(float Dt)
 {
 	UADPSim* Sim = UADPSim::Get(this); if (!Sim || !Sim->World.Airlines.Num()) return;
 	ADP_PERF_SCOPE("GSE: breakdowns", 2.f);
+	WearOthers(Dt);
 	const FBrkRules& R = BrkRules();
 	for (FTractor& T : Tractors)
 	{

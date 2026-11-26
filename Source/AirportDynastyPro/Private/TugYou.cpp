@@ -144,7 +144,7 @@ bool ATugs::PushYou(int32 I)
 	if (T.Seq == 0)
 	{
 		if (T.bHired && Now - T.YouWhyAt > 3.0) { T.YouWhyAt = Now; CrewWalkers(I); }   // (your own wing walkers, whoever is free: they do the chocks too)
-		const int32 Si = T.bHangar ? StandTug(T.StandX) : I; FTug& Sg = Tugs.IsValidIndex(Si) ? Tugs[Si] : T;   // (the hangar tug: its stand's ground power and chocks)
+		const int32 Si = T.bHangar || !T.Gpu.M.IsValid() ? StandTug(T.StandX) : I; FTug& Sg = Tugs.IsValidIndex(Si) ? Tugs[Si] : T;   // (the hangar tug: its stand's ground power and chocks)
 		if (Sg.Gpu.bConnected || Sg.Gpu.bYou || Sg.Gpu.bLying)   // (off by your own hand counts: GpuYou.cpp)
 		{
 			T.YouWhy = YouShort(T, Sg.Gpu.bConnected ? TEXT("the ground power is still plugged in: take it off, or wait for the handler") : TEXT("the ground power cable is still out"));
@@ -455,10 +455,12 @@ void ATugs::YouTake(int32 Tug)
 
 void AGSE::TugSeats()
 {
-	ATugs* G = Tg(); if (bTugSeats || !G || !G->bReady) return;
-	bTugSeats = true;
-	for (int32 i = 0; i < G->Tugs.Num(); ++i)
+	ATugs* G = Tg(); if (!G || !G->bReady || (bTugSeats && TugSeatN >= G->Tugs.Num())) return;
+	const int32 From = bTugSeats ? TugSeatN : 0;   // (then only the bought ones, to-do 318: ExtraAdd)
+	bTugSeats = true; TugSeatN = G->Tugs.Num();
+	for (int32 i = From; i < G->Tugs.Num(); ++i)
 	{
+		if (From > 0 && Tractors.Num() >= Tractors.Max()) { ADP_WARN(TEXT("Tugs: no room for tug %d's seat line"), i); break; }   // (the entries never move)
 		ATugs::FTug& U = G->Tugs[i]; ABabylonModel* M = U.M.Get(); if (!M) continue;
 		FTractor T; T.TugIx = i; T.M = U.M; T.Name = U.bHangar ? TEXT("hangar tug") : TEXT("pushback tug"); T.At = T.Home = U.At; T.Yaw = T.HomeYaw = U.Yaw;
 		for (FVector& V : T.KWheel) V = FVector::ZeroVector;

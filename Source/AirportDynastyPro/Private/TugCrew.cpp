@@ -646,7 +646,7 @@ void ATugs::CrewWalkers(int32 Tug)
 	const bool bHooked = AtNose(T);
 	// out to their places now that it is hooked on (the ones already standing by)
 	// (the chocks off first: one of them does it - ChkWork calls this again)
-	const int32 Ks = T.bHangar ? StandTug(T.StandX) : Tug;   // (the hangar tug: the stand's own chocks)
+	const int32 Ks = T.bHangar || !T.Gpu.M.IsValid() ? StandTug(T.StandX) : Tug;   // (the hangar tug: the stand's own chocks)
 	if (bHooked && !T.bWalkersOut && ChkOut(Tugs.IsValidIndex(Ks) ? Tugs[Ks] : T)) { T.bWalkersOut = true; for (int32 r = 0; r < T.Walkers.Num(); ++r) GoOut(T.Walkers[r], r); }
 	const float Sx = T.StandX;
 	if (T.bHired)

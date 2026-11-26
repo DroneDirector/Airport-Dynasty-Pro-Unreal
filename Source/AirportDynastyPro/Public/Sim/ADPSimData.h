@@ -25,6 +25,11 @@ struct FADPSpare
 	GENERATED_BODY()
 	UPROPERTY() FString Kind;    // the key of Data/vehicle-area.json
 	UPROPERTY() FString Place;   // its place's name
+	// (one of the kinds kept beside their own - pushback / hangar tug, tractor, belt loader, maintenance van, fire truck: where, plan
+	//  metres and heading; Place is then only its name - VehiclesOwned.h ADPOwned::Extra)
+	UPROPERTY() float X = 0.f;
+	UPROPERTY() float Y = 0.f;
+	UPROPERTY() float Heading = 0.f;
 };
 
 /** An airline: yours or a rival's (rivals use the same record, so they can grow later). */

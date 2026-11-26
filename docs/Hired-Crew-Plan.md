@@ -1059,5 +1059,10 @@ stand end; the deck top (0.906 m, rollers 1.028 m) is not yet checked against th
 - Native Slate page (UI/VehiclesPage.cpp), opened from the "Vehicles" icon on the laptop/tablet/phone desktop (ue.adp.vehicles);
   grouped by kind with counts, a Buy button per kind with the price, greyed with the reason (no money, no free place, no place
   for this kind). Buying goes through ADPGround::BuyVehicle, delivered by GSESpare.
-- Tugs and fire trucks keep no wear yet ("condition not kept"); kinds with no place in the vehicle area cannot be bought.
+- Kinds with no vehicle-area place (pushback tug, hangar tug, baggage tractor, belt loader, maintenance van, fire truck) are
+  bought beside their own kind (GSEExtra.cpp): along the row by length + 1.5 m, or beside by width + 1.5 m, never on the runway
+  strip, taxiways, roads, stands, red lines, walls or another vehicle; the Buy button says why when there is no spot. Brought by
+  the kind's own spawn code when nobody sees the spot; joins the kind's pool (bSpare stays false, the crew use it as their own).
+- Tugs and fire trucks keep wear now (GSEBreak.cpp WearOthers: hours on/moving, km): the page shows their condition; they do not break.
+- Gaps: a career switch without a new level does not put the bought extras away; the hangar tow's other code still uses the first hangar tug.
 - HangarTow Crossing is now worked out at the start (first hangar to a stand), so the maintenance vans can cross from minute one.

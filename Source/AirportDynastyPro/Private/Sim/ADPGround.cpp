@@ -11,6 +11,7 @@
 #include "Airfield.h"
 #include "TerminalPlan.h"
 #include "ADPLog.h"
+#include "VehiclesOwned.h"
 
 namespace
 {
@@ -70,10 +71,22 @@ int32 ADPGround::OnShift(const FADPWorld& W, const FString& AirlineId, const FSt
 
 void ADPGround::TeamNeeds(TMap<FString, int32>& Out) { Out = {{TEXT("fuel"), 1}, {TEXT("catering"), 2}, {TEXT("cleaning"), 3}, {TEXT("ground"), 5}, {TEXT("checkin"), 3}, {TEXT("security"), 3}, {TEXT("gate"), 1}, {TEXT("water"), 1}, {TEXT("deice"), 2}, {TEXT("bus"), 1}, {TEXT("taxi"), 1}}; }
 
-bool ADPGround::BuyVehicle(FADPWorld& W, const FString& AirlineId, const FString& Kind, const FDateTime& At, FString& Why)
+bool ADPGround::BuyVehicle(FADPWorld& W, const FString& AirlineId, const FString& Kind, const FDateTime& At, FString& Why, UWorld* World)
 {
 	FADPAirline* A = W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == AirlineId; });
 	const ADPVehicleArea::FKind* K = ADPVehicleArea::Kind(Kind);
+	// (the kinds with no place at the vehicle area: one more parked beside its own kind, to-do 318 - GSEExtra.cpp)
+	if (const ADPOwned::FExtraKind* E = !K ? ADPOwned::Extra(Kind) : nullptr)
+	{
+		if (!A) { Why = TEXT("no such vehicle"); return false; }
+		if (A->Balance < E->Price) { Why = TEXT("not enough money"); return false; }
+		FADPSpare S; if (!ADPOwned::ExtraSpot(World, W, E->Key, S, Why)) return false;
+		ADPEconomy::Pay(W, AirlineId, At, TEXT("purchase"), -E->Price, FString::Printf(TEXT("A new %s for the apron"), E->Label));
+		if (S.Kind == TEXT("tractor")) A->Tractors++;
+		A->Spares.Add(S);
+		ADP_LOG(TEXT("Vehicles owned: bought a %s, its spot plan (%.1f, %.1f) heading %.0f"), E->Label, S.X, S.Y, S.Heading);
+		return true;
+	}
 	const bool bTractor = Kind == TEXT("tractor"), bFuel = Kind == TEXT("fuel"), bCater = Kind == TEXT("catering");   // (counted for the turnaround as before)
 	if (!A || (!K && !bTractor)) { Why = TEXT("no such vehicle"); return false; }
 	const double Price = K ? K->Price : 65000.0; const FString Label = K ? K->Label : FString(TEXT("baggage tractor"));

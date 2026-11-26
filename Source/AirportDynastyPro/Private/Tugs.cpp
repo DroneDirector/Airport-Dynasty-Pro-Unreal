@@ -171,6 +171,7 @@ void ATugs::Setup()
 	if (const int32 Cg = Tugs.IndexOfByPredicate([](const FTug& T) { return CargoStand(T.StandX); }); Cg > 4) { FTug Mv = MoveTemp(Tugs[Cg]); Tugs.RemoveAt(Cg); Tugs.Insert(MoveTemp(Mv), 4); }
 	ADP_LOG(TEXT("Tugs: %d tugs ready at the gates"), Tugs.Num());
 	SetupCrew();
+	Tugs.Reserve(Tugs.Num() + 16);   // (room for bought ones, to-do 318: the entries never move - ExtraAdd)
 	HangarSetup();   // (after the gates' crews: it has none of its own - your hired people only, to-do 311)
 	// the baggage tractors and carts (GSE.h): the same ground crew, the same apron
 	AGSE::Get(GetWorld());
@@ -332,7 +333,10 @@ int32 ATugs::Assign(const FString& Key, float StandX)
 	if (Key.StartsWith(TEXT("TOW/")))
 	{
 		// (a hangar tow: the hangar tug alone, never the stand's own - from its place by the bus chargers, your hired crew, to-do 311)
-		const int32 H = Tugs.IndexOfByPredicate([](const FTug& U) { return U.bHangar; });
+		// (the one you coupled at its nose, else a free one - a bought one too, to-do 318 - else the first)
+		int32 H = Tugs.IndexOfByPredicate([&](const FTug& U) { return U.bHangar && U.State == EState::You && U.YouTowKey == Key; });
+		if (H == INDEX_NONE) H = Tugs.IndexOfByPredicate([this](const FTug& U) { return U.bHangar && U.State == EState::Parked && U.Key.IsEmpty() && (!U.bHired || HiredFree(U)); });
+		if (H == INDEX_NONE) H = Tugs.IndexOfByPredicate([](const FTug& U) { return U.bHangar; });
 		if (H == INDEX_NONE) return INDEX_NONE;
 		FTug& T = Tugs[H];
 		// (coupled by you at that aircraft's nose and you still there: your tow, to-do 311 step C - TugYou.cpp, HangarTow::YouRun)
@@ -371,7 +375,7 @@ int32 ATugs::Assign(const FString& Key, float StandX)
 	for (FTug& Y : Tugs) if (!Y.bHangar && Y.State == EState::You && Y.YouStep > 0 && !Y.bYouIn && !Y.bYouCrew && Y.Key.IsEmpty() && FMath::Abs(Y.StandX - StandX) < 1.f) Y.State = EState::Parked;   // (coupled by you: its crew go on from there, TugYou.cpp)
 	// the gate's own tug (ready in front of the terminal): its engine on, waiting for off-blocks
 	int32 Best = INDEX_NONE;
-	for (int32 i = 0; i < Tugs.Num(); ++i) if (!Tugs[i].bHangar && (Tugs[i].State == EState::Parked || Tugs[i].State == EState::Manned) && Tugs[i].Key.IsEmpty() && FMath::Abs(Tugs[i].StandX - StandX) < 1.f) Best = i;
+	for (int32 i = 0; i < Tugs.Num(); ++i) if (!Tugs[i].bHangar && (Tugs[i].State == EState::Parked || Tugs[i].State == EState::Manned) && Tugs[i].Key.IsEmpty() && FMath::Abs(Tugs[i].StandX - StandX) < 1.f && (Best == INDEX_NONE || (Tugs[Best].bHired && !HiredFree(Tugs[Best])))) Best = i;   // (the first free one: the stand's own with its GPU, then a bought one, to-do 318)
 	if (Best == INDEX_NONE) return INDEX_NONE;
 	FTug& T = Tugs[Best];
 	// (to-do 206: the last job's hired people still at it - not yet)
@@ -611,7 +615,7 @@ bool ATugs::Push(const FString& Key, float StandX, const FVector& Fitting, const
 		// (a hangar tow never hangs unsaid: why it waits goes to the log every 30 s, to-do 311)
 		auto Hold = [this, &T, &Key](const TCHAR* Why) { const double Tn = GetWorld()->GetTimeSeconds(); if (T.bTow && Tn - T.TowSaid > 30.0) { T.TowSaid = Tn; ADP_LOG(TEXT("Tugs: the hangar tow %s waits - %s"), *Key, Why); } return false; };
 		// (the hangar tug: the stand's own ground power and chocks - its own tug keeps them)
-		const int32 Si = T.bHangar ? StandTug(StandX) : I; FTug& Sg = Tugs.IsValidIndex(Si) ? Tugs[Si] : T;
+		const int32 Si = T.bHangar || !T.Gpu.M.IsValid() ? StandTug(StandX) : I; FTug& Sg = Tugs.IsValidIndex(Si) ? Tugs[Si] : T;
 		if (T.bTow && Sg.Gpu.bConnected && !T.bTowGpu && !Sg.Gpu.bYou && !GpuCrewAt(Sg))
 		{
 			// (the ground power still on it - plugged in after its crew came, or no handler to unplug it: one of them does it now)

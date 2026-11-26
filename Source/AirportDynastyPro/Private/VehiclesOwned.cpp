@@ -56,7 +56,7 @@ void AGSE::OwnedList(TArray<FOwnedVehicle>& Out) const
 		if (T.TugIx != INDEX_NONE || !T.M.IsValid()) continue;   // (a pushback tug's seat line: the tug is ATugs')
 		if (T.bSpare && T.Owner != Me) continue;                 // (another airline's, at the vehicle area)
 		if (T.bAway && T.Brk != 4) continue;                     // (a bought one not shown: SpareTick)
-		FOwnedVehicle V; V.Name = T.Name; V.At = T.M->GetActorLocation(); V.Home = T.Home; V.bBought = T.bSpare;
+		FOwnedVehicle V; V.Name = T.Name; V.At = T.M->GetActorLocation(); V.Home = T.Home; V.bBought = T.bSpare || !T.SpareId.IsEmpty();
 		if (T.Svc != INDEX_NONE)
 		{
 			const ADPVehicleArea::FKind* K = OwnAreaKind(T.Svc);
@@ -86,10 +86,12 @@ void AGSE::OwnedList(TArray<FOwnedVehicle>& Out) const
 			for (const FADPSpare& S : A->Spares)
 			{
 				const FString Id = S.Kind + TEXT("@") + S.Place;
+				if (ExtraDone.Contains(Id)) continue;   // (one bought beside its kind and brought: GSEExtra.cpp)
 				if (Tractors.ContainsByPredicate([&](const FTractor& T) { return T.bSpare && T.Owner == Me && T.SpareId == Id && (!T.bAway || T.Brk == 4); })) continue;
 				const ADPVehicleArea::FKind* K = ADPVehicleArea::Kind(S.Kind);
 				FOwnedVehicle V; V.Kind = K ? K->Label : S.Kind; V.BuyKey = K ? K->Key : FString(); V.Name = FString::Printf(TEXT("new %s"), *V.Kind); V.Condition = 100; V.bBought = true;
 				V.State = TEXT("being delivered"); V.Place = FString::Printf(TEXT("to place %s at the vehicle area"), *S.Place);
+				if (const ADPOwned::FExtraKind* E = ADPOwned::Extra(S.Kind)) { V.Kind = E->Label; V.BuyKey = E->Key; V.Name = FString::Printf(TEXT("new %s"), E->Label); V.Place = FString::Printf(TEXT("to its spot beside the other %ss"), E->Label); }
 				Out.Add(MoveTemp(V));
 			}
 }
@@ -107,6 +109,8 @@ void ATugs::OwnedList(TArray<FOwnedVehicle>& Out) const
 			: T.bTow ? FString(TEXT("at work (a hangar tow)")) : T.Key.IsEmpty() ? FString(TEXT("at work")) : FString::Printf(TEXT("at work (%s)"), *T.Key);
 		V.bWork = T.State != EState::Parked;
 		V.Place = ADPOwned::PlaceOf(GetWorld(), V.At, V.Home);
+		V.bBought = !T.ExtraId.IsEmpty(); V.BuyKey = T.bHangar ? TEXT("hangartug") : TEXT("pushback");
+		V.Condition = AGSE::WearCondition(this, WearId(int32(&T - Tugs.GetData())));
 		Out.Add(MoveTemp(V));
 	}
 }
@@ -123,6 +127,7 @@ void ADPOwned::List(UWorld* W, TArray<FOwnedVehicle>& Out)
 		FOwnedVehicle V; V.Kind = TEXT("fire truck"); V.Name = FString::Printf(TEXT("fire truck %d"), ++Nf); V.At = It->GetActorLocation(); V.Home = V.At + FVector(1e6);
 		V.bWork = It->IsPlayerControlled(); V.State = V.bWork ? TEXT("you are driving it") : TEXT("ready");
 		V.Place = PlaceOf(W, V.At, V.Home);
+		V.BuyKey = TEXT("firetruck"); const FString Wid = AGSE::FireWearId(*It); V.bBought = Wid.StartsWith(TEXT("bought:")); V.Condition = AGSE::WearCondition(W, Wid);
 		Out.Add(MoveTemp(V));
 	}
 	Out.StableSort([](const FOwnedVehicle& A, const FOwnedVehicle& B) { const int32 a = OwnOrder(A.Kind), b = OwnOrder(B.Kind); return a != b ? a < b : A.Kind < B.Kind; });

@@ -41,6 +41,10 @@ public:
 	int32 HangarTugs() const;   // (the hangar tugs there are: owned from the start - the vehicles list)
 	/** Vehicles owned (to-do 318): the pushback and hangar tugs, their state and place (their wear is not kept). */
 	void OwnedList(TArray<struct FOwnedVehicle>& Out) const;
+	/** One more pushback tug (beside its stand's own: StandX) or hangar tug, bought: spawned on its spot (GSEExtra.cpp). */
+	bool ExtraAdd(bool bHangar, float X, float Y, float Heading, float StandX, const FString& Id);
+	/** Its wear record (GSEBreak.cpp WearOthers). */
+	FString WearId(int32 i) const;
 	virtual void Tick(float Dt) override;
 	/** A departure coming up at the stand whose nose line is at StandX (plan m): a tug drives out and waits beside it,
 	 *  outside the red line. */
@@ -235,6 +239,7 @@ private:
 		FString YouWhy; FVector2f YouNose, YouMain, YouStart; TWeakObjectPtr<AActor> YouPlane;
 		int32 YouWheelG = INDEX_NONE; float YouWheelNow = 0.f, YouPedal[2] = {0.f, 0.f};
 		FVehicleDirt Dirt;
+		FString ExtraId;   // (a bought one: its purchase, GSEExtra.cpp)
 		bool bHangar = false; float HtRetry = 0.f;   // (the hangar tug: only hangar tows, parked in the vehicle area - TugTow.cpp)
 		bool bTow = false, bTowGpu = false; double TowSaid = -100.0; TArray<FVector> TowWay, TowBack; FString TowAsk, TowOk;   // (a hangar tow, to-do 311: TowPlan)
 		// your own hangar tow (to-do 311 step C, TugYou.cpp): the tow you coupled the hangar tug to; the speed it may go now (cm/s, 0: the
