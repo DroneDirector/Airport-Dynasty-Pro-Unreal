@@ -52,6 +52,11 @@ tone), chillaquil (rain under a metal roof), jaegrover (outdoor heating and vent
 outlet) and monotraum (office printer), from https://freesound.org, CC0 1.0 (public domain); each sound's page is in
 Art/Sounds/CargoTerminal/SOURCES.md. Its doors reuse the fire station's door and the jetway's service door sounds.
 
+## Meshy models (owner's own)
+The models listed in Art/MeshyIntake/README.md (lorry, cargo vehicles, aircraft, received 2026-11-26) were made by the
+owner with Meshy AI (https://www.meshy.ai) on a paid plan that includes commercial use; the owner holds the rights to
+use them in the game. No real brand names, logos or liveries are carried over onto the game models.
+
 ## Music
 - The title music (title.mp3): made by the owner with Suno AI on a Pro plan, which gives him full ownership and commercial use; safe to use everywhere, including live streams on YouTube and elsewhere (owner, 2026-11-20). Every future soundtrack is listed here with its source and licence.
 
