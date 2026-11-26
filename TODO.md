@@ -716,6 +716,11 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       reunited with the parents at the information desk.
 - [ ] **Boarding groups** (2026-11-26): the gate calls priority passengers first, then group 1, group 2 and so on,
       and the queues form by group.
+- [ ] **Hot brakes** (2026-11-26; real): after a rejected take-off, a heavy landing or brakes dragged on a long taxi,
+      the brakes get extremely hot. The crew may ask for the fire service; it stands by at a safe distance, keeps
+      everyone clear of the wheels and lets them cool naturally (water only if there is a fire). If the wheels get too
+      hot, the fuse plugs in them melt and the tyres go flat (so they don't burst) - then wheels, tyres and brakes are
+      changed. The aircraft waits its cooling time before it can taxi on or fly again.
 
 ## Done recently (for reference)
 - 0.14.4 the globe's satellite pictures and land cover in the right place; the detailed sea only near the ground
