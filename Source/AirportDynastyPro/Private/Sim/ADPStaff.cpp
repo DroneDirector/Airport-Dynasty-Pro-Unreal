@@ -35,7 +35,7 @@ namespace
 	{
 		static const TMap<FString, double> W = {{TEXT("captain"), 2950}, {TEXT("fo"), 1550}, {TEXT("fa"), 640}, {TEXT("mech"), 1150}, {TEXT("ground"), 580},
 			{TEXT("security"), 700}, {TEXT("gate"), 620}, {TEXT("checkin"), 560}, {TEXT("cleaning"), 480}, {TEXT("catering"), 520}, {TEXT("fuel"), 650},
-			{TEXT("bus"), 600}, {TEXT("taxi"), 600}, {TEXT("fire"), 900}, {TEXT("tower"), 1700}, {TEXT("ops"), 1100}};
+			{TEXT("bus"), 600}, {TEXT("taxi"), 600}, {TEXT("fire"), 900}, {TEXT("tower"), 1700}, {TEXT("ops"), 1100}, {TEXT("airside"), 950}};
 		const double* V = W.Find(Role); return V ? *V : 600.0;
 	}
 	double Region(const FString& C)
