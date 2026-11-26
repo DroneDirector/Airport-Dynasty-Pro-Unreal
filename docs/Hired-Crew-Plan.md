@@ -968,7 +968,7 @@ stand end; the deck top (0.906 m, rollers 1.028 m) is not yet checked against th
 - Runway: the tow holds short 107.5 m from the centreline until nothing rolls, lands below 400 m or takes off
   (SimTraffic `RunwayBusy`), then 10 s more; departures hold while it is on the strip (`HangarTow::OnRunway`).
 - Wing walkers: the tow slows to 2.5 km/h when one is over 4 m from his place and stops over 10 m (logged).
-- Not yet: the brake rider (step B), your own tow (step C), an ATC radio call for the crossing (log only), landings
+- Not yet: your own tow (step C), an ATC radio call for the crossing (log only), landings
   waiting for a tow, the crew walking between stand and hangar over the runway on foot, the baked chock store staying
   full while its chocks are out, towing from cargo / remote stands, a tow running over a save.
 
@@ -981,3 +981,16 @@ stand end; the deck top (0.906 m, rollers 1.028 m) is not yet checked against th
   (-355, 1225) facing east on the hangar apron's north edge between hangars 1 and 2. No job asks for it yet.
 - Role "ground" / EStaffTask::PushHelp for now (no mechanic role yet). Step B: the brake rider drives it to the stand and
   back; whether the route planner finds a way from the hangar apron is not tested yet.
+
+## Brake rider (to-do 311, step B)
+- GSEMaint.cpp. HangarTow asks AGSE::MaintRider each tick; the tug's push waits (logged every 30 s) until one hired
+  crew member (maint job, MaxPeople 1) is in the cockpit and the jetway / stair is clear.
+- He drives the maintenance van from the hangar apron and parks it right of the aircraft, 1.5 m past the wingtip
+  (Lat -19.5, Aft 8), then walks round behind the tail to the left side.
+- Jetway stand: the jetway docks to the tow aircraft (it now carries the stand/A320 tag); he climbs the jetway's apron
+  service stair (SvcUp, like the cleaners), not through the terminal - staff have no terminal route from the hangar.
+  The jetway then undocks.
+- Other stands: a passenger stair is called to the front left door if none is there; he climbs it, the stair leaves.
+- Aboard he is hidden and attached to the aircraft; lights from his arrival: beacon on, nav at night, strobes off.
+- Back at the stand (MaintOff) he gets off by jetway or stair, walks to the van and drives it home.
+- Not yet (no hangar mobile stair model): he stays aboard through the check; the van stays parked at the stand.

@@ -39,6 +39,7 @@ private:
 		TArray<FLeg> Legs; TArray<FVector2f> Way, Home;
 		FVector2f Nose = FVector2f::ZeroVector, Main = FVector2f::ZeroVector;
 		bool bCleared = false; float HoldT = 0.f;        // (holding short of the runway: cleared to cross, how long held)
+		bool bRider = false; int32 Rider = 0;             // (the brake rider in the cockpit; AGSE::MaintRider's answer)
 		int32 Chocks = 0, CkI = INDEX_NONE;              // (the hangar's chocks: 0 in the store, 1 being set, 2 set, 3 being taken away; its first of 4 instances)
 		TWeakObjectPtr<ABabylonModel> Model; TWeakObjectPtr<UADPAircraftLights> Lamps; TWeakObjectPtr<AHangar> Hall;
 	};

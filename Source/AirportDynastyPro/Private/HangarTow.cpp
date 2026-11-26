@@ -1,8 +1,8 @@
 // A hangar tow (to-do 311 step A; HangarTow.h). The way: pushed back tail first off its terminal stand onto taxiway T,
 // pulled nose first T - P - A - A2 (over the runway) - B - Q - K past the hangar, then pushed tail first round onto its
 // lead-in line to the tail-first stop (Hangar.h TailIn). Back: pulled nose first out, K - Q - B - A2 - A - P - T and
-// nose-in onto the stand's stop. 5-8 km/h, gently, always stopping exactly. Not yet: the brake rider (step B), your own
-// tow (step C). In the hall the hangar's own chocks go under the nose and right main gear (Chock); the tow holds short of
+// nose-in onto the stand's stop. 5-8 km/h, gently, always stopping exactly. The brake rider (step B, GSEMaint.cpp) is in
+// the cockpit before the brakes come off; he switches the lights on. Not yet: your own tow (step C). In the hall the hangar's own chocks go under the nose and right main gear (Chock); the tow holds short of
 // the runway until nothing lands, rolls or takes off there (SimTraffic::RunwayBusy) and waits for the wing walkers.
 #include "HangarTow.h"
 #include "Tugs.h"
@@ -19,6 +19,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "SimTraffic.h"
+#include "GSE.h"
 #include "CrewPose.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -191,6 +192,7 @@ void AHangarTow::Look()
 		if (!B || !B->Place(TEXT("A320"))) { if (B) B->Destroy(); continue; }
 		ADPParked::Towed.Add(A.Reg); ADPParked::Release(A.Reg);
 		J.Model = B; J.Lamps = UADPAircraftLights::Fit(B, TEXT("A320")); if (J.Lamps.IsValid()) J.Lamps->SetParked(true);
+		B->Tags.AddUnique(FName(*(StandId + TEXT("/A320"))));   // (on its stand until the tow begins: its jetway docks for the brake rider)
 		Jobs.Add(J); Pose(Jobs.Last());
 		ADP_LOG(TEXT("HangarTow: %s (%s check) from stand %s to hangar %s"), *A.Reg, *A.CheckKind, *StandId, *J.Hangar);
 		return;
@@ -262,6 +264,8 @@ bool AHangarTow::Start(FJob& J, bool bBack)
 	J.Hx = Hx; J.bBack = bBack; J.bPlanned = false; J.Stage = 0; J.Leg = 0; J.S = 0.f; J.V = 0.f; J.Clock = 0.f; J.WhyT = 0.f;
 	for (TActorIterator<AHangar> It(W); It; ++It) if (FMath::Abs(It->GetActorLocation().X - Hx * 100.f) < 200.f) J.Hall = *It;
 	if (AHangar* Hg = J.Hall.Get()) Hg->Command(true);   // (the door first: 10 minutes to open)
+	J.bRider = bBack && AGSE::Get(W) && AGSE::Get(W)->MaintAboard(J.Reg); J.Rider = J.bRider ? 3 : 0;
+	if (bBack && !J.bRider) ADP_WARN(TEXT("HangarTow: %s - no brake rider aboard for the tow back (nobody can board in the hall yet: no hangar stair)"), *J.Reg);
 	if (bBack) ADP_LOG(TEXT("HangarTow: %s check done - towed back from hangar %s to stand %s"), *J.Reg, *J.Hangar, *J.Stand);
 	return true;
 }
@@ -279,6 +283,14 @@ void AHangarTow::Run(FJob& J, float Dt)
 	UWorld* W = GetWorld(); ATugs* Tg = ATugs::Get(W); ABabylonModel* B = J.Model.Get();
 	if (!Tg || !B || J.Stage == 3 || J.Stage == 9) return;
 	FString Why;
+	if (!J.bBack && !J.bPlanned && J.Stage <= 1)   // (the brake rider: called with the tug, in the cockpit before the brakes come off)
+	{
+		FString Rw; AGSE* Gs = AGSE::Get(W);
+		const int32 Was = J.Rider; J.Rider = Gs ? Gs->MaintRider(J.StandX, J.Reg, B, Rw) : 0;
+		if (J.Rider >= 2 && !J.bRider) J.bRider = true;
+		if (J.Rider < 3 && J.Stage == 1 && (J.WhyT -= Dt) <= 0.f) { J.WhyT = 30.f; ADP_LOG(TEXT("HangarTow: %s waits for its brake rider - %s"), *J.Reg, *Rw); }
+		else if (J.Rider != Was && J.Rider < 3) ADP_LOG(TEXT("HangarTow: %s - %s"), *J.Reg, *Rw);
+	}
 	if (J.Stage == 0)   // the tug and its crew
 	{
 		if ((J.Clock -= Dt) > 0.f) return;
@@ -299,6 +311,8 @@ void AHangarTow::Run(FJob& J, float Dt)
 		if (J.bBack)
 		{
 			ADPParked::Adopt(J.Stand, J.Reg, B); J.Stage = 9; ADP_LOG(TEXT("HangarTow: %s back on stand %s"), *J.Reg, *J.Stand);
+			B->Tags.AddUnique(FName(*(J.Stand + TEXT("/A320"))));   // (its jetway docks for the brake rider to get off)
+			if (AGSE* Gs = AGSE::Get(W)) Gs->MaintOff(J.StandX, J.Reg);
 			if (UADPSim* Sim = UADPSim::Get(W)) Tg->ChocksOn(J.StandX, J.Reg, Sim->Now() + FTimespan::FromHours(2.0), true, true, false);   // (the stand's chocks in again)
 		}
 		else { J.Stage = 3; ADP_LOG(TEXT("HangarTow: %s in hangar %s, door closing - its check goes on"), *J.Reg, *J.Hangar); }
@@ -308,15 +322,15 @@ void AHangarTow::Run(FJob& J, float Dt)
 	const AHangar* Hg = J.Hall.Get();
 	const bool bHall = J.bBack ? J.Leg == 0 && J.S < 60.f : J.Leg == 2;
 	const bool bDoor = !bHall || !Hg || Hg->DoorOpen() > 0.999f;
-	const bool bGo = Tg->Push(J.Key, J.StandX, NoseW + Fwd * 60.f, Fwd);
+	const bool bGo = Tg->Push(J.Key, J.StandX, NoseW + Fwd * 60.f, Fwd) && (J.bBack || J.Rider >= 3);
 	if (bGo && !J.bPlanned)
 	{
-		J.bPlanned = true; B->Tags.AddUnique(FName(*(TEXT("MOVE/") + J.Reg)));
+		J.bPlanned = true; B->Tags.AddUnique(FName(*(TEXT("MOVE/") + J.Reg))); B->Tags.Remove(FName(*(J.Stand + TEXT("/A320"))));
 		ADP_LOG(TEXT("HangarTow: %s hooked on, brakes off - the tow begins"), *J.Reg);
 	}
 	if (UADPAircraftLights* Lm = J.Lamps.Get())
 	{
-		if (!J.bPlanned) Lm->SetParked(true);
+		if (!J.bRider) Lm->SetParked(true);
 		else { FADPLightState Ls; Ls.bPowered = true; Ls.bBeacon = true; Ls.bNav = ADPAircraftLights::Night(W); Lm->Set(Ls); }   // (towed: the beacon, nav lights at night; no strobes, landing or taxi lights)
 	}
 	// the tow back: the hangar's chocks away first (by the tow crew, once the tug is on the nose)

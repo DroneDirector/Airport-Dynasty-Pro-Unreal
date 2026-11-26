@@ -199,7 +199,8 @@ const TArray<FServiceSpec>& ADPService::All()
 			// north edge between hangars 1 and 2 (plan -355, 1225; door line y 1231), clear of both doors, facing east.
 			// Crew and player use it through the same functions as the cleaning van (drive, ride, its doors and lamps).
 			FServiceSpec Mv;
-			Mv.Task = TEXT("maint"); Mv.Model = TEXT("MaintenanceVan"); Mv.Points = TEXT("maintenancevan"); Mv.Label = TEXT("maintenance van"); Mv.Role = TEXT("ground"); Mv.Team = EStaffTask::PushHelp; Mv.MaxPeople = 4;   // (no mechanic role yet: ground crew)
+			Mv.Task = TEXT("maint"); Mv.Model = TEXT("MaintenanceVan"); Mv.Points = TEXT("maintenancevan"); Mv.Label = TEXT("maintenance van"); Mv.Role = TEXT("ground"); Mv.Team = EStaffTask::PushHelp; Mv.MaxPeople = 1; Mv.bMaint = true;   // (no mechanic role yet: ground crew)
+			Mv.Lat = -19.5f; Mv.Aft = 8.f;   // (the brake rider's: on the right, 1.5 m beyond the wingtip - outside the tow's way)
 			Mv.HomeX = -355.f; Mv.HomeY = 1225.f; Mv.HomeHx = 1.f; Mv.HomeHy = 0.f;
 			Mv.HalfL = 300.f; Mv.HalfW = 103.f; Mv.TurnR = 620.f; Mv.MaxSteer = 36.f; Mv.DoorDeg = 68.f; Mv.PlayerSpeed = 830.f;
 			Mv.Doors = {{TEXT("SlideDoor"), TEXT("PIV_SlideDoor"), TEXT("IK_Handle_SlideDoor_Out"), TEXT("IK_Stand_SlideDoor"), 0.f, true},
@@ -869,12 +870,12 @@ void AGSE::SvcTick(float Dt)
 			const FVector At = Tractors[J.Ti].At + FVector(0., 0., Tractors[J.Ti].Job == EJob::Out ? 1000. : 0.);
 			if (FVector::Dist(At, J.StillAt) > 100.) { J.StillAt = At; J.StillT = 0.f; } else J.StillT += Dt;
 		}
-	 if (J.Phase > 0 && !(SvSpec(J.Svc).bAmbu && J.Phase == 1 && CaterAtFront(J.StandX))) J.T += Dt;   // (the ambulift waiting for the caterers at the same door: not its time)
+	 if (J.Phase > 0 && !SvSpec(J.Svc).bMaint && !(SvSpec(J.Svc).bAmbu && J.Phase == 1 && CaterAtFront(J.StandX))) J.T += Dt;   // (the ambulift waiting for the caterers at the same door: not its time)
 	
 		if (Was <= SvPatience * J.Slow && J.T > SvPatience * J.Slow) ADP_WARN(TEXT("GSE: the %s at stand x %.0f has been at %s for 45 min - the flight no longer waits for it"), SvSpec(J.Svc).Label, J.StandX, *J.Reg);
 		FuelTick(J, Dt); WetTick(J, Dt); if (SvSpec(J.Svc).bStairs) StairsTick(J, Dt);
 		if (SvSpec(J.Svc).bDeicer) DeicerTick(P.Key, Dt);
-		if (SvSpec(J.Svc).bCater || SvSpec(J.Svc).Wet || SvSpec(J.Svc).bStairs || SvSpec(J.Svc).bDeicer || SvSpec(J.Svc).bAmbu) continue;
+		if (SvSpec(J.Svc).bCater || SvSpec(J.Svc).Wet || SvSpec(J.Svc).bStairs || SvSpec(J.Svc).bDeicer || SvSpec(J.Svc).bAmbu || SvSpec(J.Svc).bMaint) continue;
 		const FSvcClean* Cl = Tractors.IsValidIndex(J.Ti) ? Tractors[J.Ti].Cl.Get() : nullptr; int32 In = 0;
 		for (int32 m = 0; m < J.Men.Num(); ++m)
 		{
@@ -1201,6 +1202,7 @@ void AGSE::SvcWork(int32 Job)
 	if (SvSpec(J->Svc).bAmbu) { AmbuArrive(Job); AmbuStage(Job); return; }
 	if (SvSpec(J->Svc).bStairs) { J->Stage = 0; StairsWork(Job); StairsHelper(Job); return; }
 	if (SvSpec(J->Svc).Wet) { WetArrive(Job); WetWork(Job); return; }
+	if (SvSpec(J->Svc).bMaint) { MaintAt(Job); return; }
 	for (int32 m = 0; m < J->Men.Num(); ++m) if (!J->Men[m].bGone) SvcManAt(Job, m);
 }
 

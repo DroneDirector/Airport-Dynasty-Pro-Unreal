@@ -27,6 +27,7 @@ struct FServiceSpec
 	bool bAmbu = false;                                     // the ambulift (GSEAmbulift.cpp)
 	bool bBus = false;                                      // the electric apron buses (GSEBus.cpp): one line for all of them, their places in Data/apron-buses.json
 	bool bStairs = false;                                   // the passenger stairs (GSEStairs.cpp): one table line a vehicle, each with its own box
+	bool bMaint = false;                                    // the maintenance van (GSEMaint.cpp): the hangar tow's brake rider drives it
 	float Lat = 0.f, Aft = 0.f, Far = 40.f;                 // its place at the stand: m left (+) of the centre line, m behind the nose wheel; driven up straight from Far
 	float HalfL = 300.f, HalfW = 103.f, TurnR = 600.f, MaxSteer = 35.f, DoorDeg = 70.f;
 	bool bJetway = false;                                   // the work is in the cabin: up the jetway's service stair

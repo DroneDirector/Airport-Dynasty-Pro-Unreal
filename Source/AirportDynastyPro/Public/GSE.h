@@ -499,6 +499,14 @@ public:
 	void StairsPose(int32 Ti, bool bUp, float K, float PH, FDriverPose& P) const;
 	float StairsSeconds(int32 Ti) const;
 	void StairsEnter(int32 Ti, int32 By);
+	/** The hangar tow's brake rider (to-do 311 B, GSEMaint.cpp), every tick while the tow wants him: one hired man drives the
+	 *  maintenance van from the hangar apron to the stand, goes up the jetway's service stair (docked for him) or the passenger
+	 *  stairs (called to the front left door) and sits in the cockpit (hidden, carried by Plane). 0 waits (Why), 1 on his
+	 *  way, 2 aboard - the jetway or stairs still at the door, 3 aboard and clear: the brakes may come off. */
+	int32 MaintRider(float StandX, const FString& Reg, AActor* Plane, FString& Why);
+	bool MaintAboard(const FString& Reg) const;
+	/** The tow back is on its stand (StandX): he gets off by its jetway or stairs and drives the van home. */
+	void MaintOff(float StandX, const FString& Reg);
 	/** De-icing (GSEDeicer.cpp), every tick of your own departure's turnaround: bSoon - its doors are shut in ten minutes, bDoors -
 	 *  they are shut and the jetway is back. The weather decides; it is asked for, sent and asked for again by itself. */
 	bool DeiceLooks(const FString& Flight) const;
@@ -739,6 +747,14 @@ private:
 	void CaterMove(int32 Job);
 	bool CaterLost(int32 Job, int32 m);
 	void FuelUpDown(int32 Ci, int32 Ti, bool bUp);
+	// ---- the brake rider (GSEMaint.cpp)
+	TMap<int32, FStairsWay> MaintWay;   // (a rider's job: the passenger stairs he climbs - none: the jetway's service stair)
+	TMap<int32, float> MaintTo;         // (the stand the tow back brings him to)
+	void MaintAt(int32 Job);
+	void MaintStairs(int32 Job, float StandX, bool bUp);
+	void MaintClimb(int32 Job, float StandX, bool bUp);
+	void MaintHold(int32 Job);
+	void MaintDown(int32 Job);
 	// ---- the passenger stairs (GSEStairs.cpp)
 	void StairsDress(FTractor& T);
 	void StairsParts(FTractor& T, float Dt);
