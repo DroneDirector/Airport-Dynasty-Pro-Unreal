@@ -630,7 +630,8 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       - **REMINDER for the owner once the town is fully built:** then make staff who live in your town drive off home
         to their own house, and the others drive away out of the area, instead of waiting in their cars
 
-- [ ] **Protective covers on parked aircraft ("blanking")** (owner, 2026-11-26). Real world: engine inlet and
+- [ ] **MONDAY 30 NOVEMBER - Protective covers on parked aircraft ("blanking")** (owner, 2026-11-26: build on Monday
+      2026-11-30, everything below). Real world: engine inlet and
       exhaust covers ("engine blanks", red, with "REMOVE BEFORE FLIGHT" streamers), pitot probe covers, static port,
       AoA vane and TAT probe covers, APU inlet/exhaust covers, gear lock pins with streamers. Airbus procedures go by
       how long the aircraft stands: parking up to 7 days, 15 days or 12 weeks, then storage; EASA asks for pitot covers
