@@ -1321,6 +1321,14 @@ float ABabylonModel::StaffDoor(const FVector& World, bool bOpen)
 	return -1.f;
 }
 
+void ABabylonModel::StaffDoorShut(const FVector& World)
+{
+	for (const TWeakObjectPtr<ABabylonModel>& W : AllModels)
+		if (ABabylonModel* M = W.Get())
+			for (FDoor& D : M->Doors)
+				if (!D.bSlide && !D.bSpin && FMath::Abs(D.AtW.Z - World.Z) <= 150.f && FVector::DistSquared2D(D.AtW, World) <= FMath::Square(200.f)) { D.bOpen = false; return; }
+}
+
 bool ABabylonModel::UseDoor(const APawn* Me)
 {
 	if (!Me) return false;
@@ -1580,6 +1588,7 @@ void ABabylonModel::SeatSpots(TArray<FSeatSpot>& Out) const
 			if (BackN != INDEX_NONE) { const FVector F = (S.At - RootW.TransformPosition(NRoot[BackN].GetLocation())).GetSafeNormal2D(); if (!F.IsNearlyZero()) S.Facing = F; }
 		}
 		S.bYours = Model.StartsWith(TEXT("Office")) || Model.StartsWith(TEXT("Ops"));   // (your office's and the ops room's chairs)
+		S.bOwnerOnly = SitN != INDEX_NONE && NName[SitN].EndsWith(TEXT("OC_SitPoint"));   // (owner 11-26: the owner's chair is only ever yours)
 		Out.Add(S);
 	}
 }

@@ -36,7 +36,10 @@ public:
 	/** The departing passengers (PaxFlow.h): this person (spawned, its seat already claimed with ASeats::Claim) walks the
 	 *  last steps to the seat and sits down with the sitting IK step (SitPose), and stays sat until StandFrom. Area: the
 	 *  room it is in (world boxes); FloorZ its floor (world cm). */
-	bool SitOn(AActor* Who, int32 Seat, const TArray<FBox2D>& Area, float FloorZ);
+	bool SitOn(AActor* Who, int32 Seat, const TArray<FBox2D>& Area, float FloorZ, const FVector* Step = nullptr);   // (Step: where to stand to sit, else 60 cm in front)
+	/** A person walked by someone else (OfficeCall): one step towards To (world, its floor) - true once within Stop cm. */
+	bool Walk(AActor* Who, const FVector& To, float Dt, float Stop);
+	AActor* MenuPerson() const { return MenuWho.Get(); }
 	/** Gets a person put down with SitOn up again; handed back (IsHeld false) once it is on its feet in front of the seat. */
 	void StandFrom(AActor* Who);
 	/** True while SitOn's person is on its way to the seat, sitting or getting up. */

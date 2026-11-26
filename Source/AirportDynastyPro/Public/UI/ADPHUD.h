@@ -251,6 +251,7 @@ public:
 	 *  floor's height, z), looking at another; never inside a wall or the floor. */
 	void GoTo(const FVector& PlanAt, const FVector& PlanLook);
 	void GoGate4();
+	void GoYourOffice();
 	void GoTaxFree();
 	void GoGate13();
 	void GoClaim();

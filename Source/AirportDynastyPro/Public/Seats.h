@@ -39,7 +39,11 @@ public:
 	 *  standing up the same way back. False: it has no front anyone can reach (against a window, the rows too close) - logged
 	 *  once, and nobody is sent to it. A seat off the map (an office's) has its old spot, 60 cm in front. */
 	static bool FrontOf(int32 I, FVector& At);
-	static bool Usable(int32 I) { FVector A; return FrontOf(I, A); }
+	static bool Usable(int32 I) { FVector A; return !OwnerOnly(I) && FrontOf(I, A); }
+	/** The owner's chair in your office (owner 11-26): reserved - never offered to anyone else, only you sit on it. */
+	static bool OwnerOnly(int32 I);
+	/** You (Who: your walker) sit straight down on the seat nearest SeatWorld (within 80 cm) - the holomap's "Your office". */
+	static bool SitYours(APawn* Who, const FVector& SeatWorld);
 	/** One line in the log per kind of seat and per sitter (AI / you): the seat's facing, the way the sitter's thighs really
 	 *  point (BodyDir), and the side its back is on - measured by the geometry that rises above the pan - with OK / FLIPPED. */
 	static void LogFacing(const TCHAR* Who, int32 Seat, const FVector& At, const FVector& Facing, float SeatH, const FVector& BodyDir, const AActor* Sitting);

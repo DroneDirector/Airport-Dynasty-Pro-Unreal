@@ -546,6 +546,7 @@ void AADPHUD::BeginPlay()
 					.Visibility_Lambda([this]() { return HoloMap.IsValid() && HoloMap->IsFull() ? EVisibility::Visible : EVisibility::Collapsed; })
 					// drone mode: the map closes and you fly (its own row at the top of the column, nothing over the map)
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)[Button(TEXT("DRONE MODE"), [this]() { EnterDrone(); })]
+					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)[Button(TEXT("YOUR OFFICE"), [this]() { GoYourOffice(); })]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)[Button(TEXT("GATE 4 (UPPER FLOOR)"), [this]() { GoGate4(); })]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)[Button(TEXT("APRON: THE TERMINAL AND JETWAY"), [this]() { GoApron(); })]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 4)[Button(TEXT("MAIN ENTRANCE"), [this]() { GoEntrance(); })]
@@ -2214,6 +2215,13 @@ void AADPHUD::GoTo(const FVector& PlanAt, const FVector& PlanLook)
 void AADPHUD::GoTaxFree() { GoTo(FVector(-95.f, Plan.F2Y, 49.f), FVector(-150.f, Plan.F2Y + 1.6f, 40.f)); }
 void AADPHUD::GoGate13() { GoTo(FVector(267.4f, Plan.F2Y, 70.f), FVector(289.4f, Plan.F2Y + 1.6f, 100.f)); }
 void AADPHUD::GoClaim() { GoTo(FVector(-40.f, 0.f, 20.f), FVector(-40.f, 1.6f, 40.f)); }
+// your office (owner 11-26): standing behind your own chair, then sat straight down on it (the seat's own sitting IK);
+// a walking key stands you up as on any chair. The chair's point: Data/owner-office-points.json OC_SitPoint.
+void AADPHUD::GoYourOffice()
+{
+	GoTo(FVector(121.05f, Plan.F2Y, 4.2f), FVector(118.f, Plan.F2Y + 1.6f, 4.2f));
+	if (!ASeats::SitYours(GetOwningPawn(), FTerminalPlan::ToWorld(120.1401f, 6.5675f, 4.1986f))) ADP_WARN(TEXT("HUD: your office - couldn't sit you in your chair, standing behind it"));
+}
 void AADPHUD::GoGate4() { GoTo(FVector(186.f, Plan.F2Y, 69.6f), FVector(186.f, Plan.F2Y + 1.6f, 90.f)); }
 // out on the apron, looking at the terminal: gate 4, its jetway and a good part of the building in one view
 void AADPHUD::GoApron() { GoTo(FVector(236.f, 0.f, 168.f), FVector(184.f, 5.f, 84.f)); }

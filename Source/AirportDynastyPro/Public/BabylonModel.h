@@ -77,7 +77,7 @@ public:
 	USceneComponent* GetModelRoot() const { return Root; }
 	/** A place to sit (owner, 2026-11-14: sit on any chair at the airport): the middle of its seat (world), which way you
 	 *  face sitting on it, its seat's height over the floor (cm), and its pieces (for the outline). */
-	struct FSeatSpot { FVector At = FVector::ZeroVector; FVector Facing = FVector::ForwardVector; float SeatH = 46.f; bool bYours = false, bAisle = false; TArray<TPair<UInstancedStaticMeshComponent*, int32>> Parts; };
+	struct FSeatSpot { FVector At = FVector::ZeroVector; FVector Facing = FVector::ForwardVector; float SeatH = 46.f; bool bYours = false, bAisle = false, bOwnerOnly = false; TArray<TPair<UInstancedStaticMeshComponent*, int32>> Parts; };
 	/** Every chair, stool, armchair, bench and gate seat in this model. */
 	void SeatSpots(TArray<FSeatSpot>& Out) const;
 	/** A seat's footprint (to-do: nobody walks into chairs): one box in the seat's own frame (X the way it faces, Z up) round all
@@ -138,6 +138,8 @@ public:
 	/** A hinged staff door whose middle is within 2 m of a point, for staff (their badge): bOpen keeps it open this frame (it
 	 *  shuts by itself 4 s after the last one). How far it is open (0..1); -1: no such door here. */
 	static float StaffDoor(const FVector& World, bool bOpen);
+	/** Shuts that door again behind a staff member (OfficeCall: the office door closed by hand). */
+	static void StaffDoorShut(const FVector& World);
 	/** For the -UIDoorRule test: a hinged door's place (world) and how many doors slide / swing. */
 	static bool TestHingedDoor(FVector& At, int32& NSlide, int32& NHinged);
 	/** The passengers' sliding doors (entrances, arrivals, security, into the airside lobby) opened now: the walkers' map

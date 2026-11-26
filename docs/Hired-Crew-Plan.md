@@ -939,3 +939,10 @@ There is no seat (stand-on); the operator gets on over the rear step, through th
 Known: the deck lift cylinders are not modelled (the deck sits on the body; lifting only moves the part); the steering yokes only sit in the
 wheel arches - a full 360 deg turn of a 0.71 m wheel sweeps past the body side (the real machine's wheels sit further in); no tail lamps on the
 stand end; the deck top (0.906 m, rollers 1.028 m) is not yet checked against the terminal roller beds.
+
+## Your office: owner's chair, "Your office" spawn, calling staff in (2026-11-26, compiled, not run)
+
+- Owner's chair reserved: `FSeatSpot::bOwnerOnly` (seat node `OC_SitPoint`); `ASeats::ClaimSeat` refuses it and `ASeats::Usable` is false for it, so no seat finder (PaxFlow, People, riders) ever offers it. Only you sit there.
+- Holomap button "YOUR OFFICE" (`AADPHUD::GoYourOffice`): you stand behind your chair and `ASeats::SitYours` sits you on it (the seat's sitting IK); a walking key stands you up.
+- "Call them into your office" in the talk menu of any hired staff member in 3D (`UOfficeCall`, Source/.../OfficeCall.cpp). Free staff only (`UStaffPeople::CallIn` claims them, job "called to your office"; busy ones are logged and not called). Their body at their place is hidden; a visitor with the same face is made 9 m along the staff corridor while that spot is out of your view, walks to the door, knocks (made-up knock sound), opens it, walks in, shuts it, goes round the furniture to the visitor's chair (waits if you or the dog are in the way) and sits with `SitOn` (side step). The talk opens once you are within 7 m. When it ends they stand, go out the same way, shut the door and walk off; out of view the visitor goes and their own body shows at their job again (`UStaffPeople::CallOver`).
+- Not done yet: hand IK on the door handles (`Door_HandleOut` / `Door_HandleIn`) and on the door when knocking; calling from the staff list or a conduct case; a recorded knock sound. The path points are fixed room coordinates, not checked in a run.

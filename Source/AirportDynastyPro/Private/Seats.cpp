@@ -61,9 +61,15 @@ bool ASeats::IsSatOn(int32 Seat)
 	return T && T->Who.IsValid() && T->bSat;
 }
 
+bool ASeats::OwnerOnly(int32 I)
+{
+	return One.IsValid() && One->Spots.IsValidIndex(I) && One->Spots[I].bOwnerOnly;
+}
+
 bool ASeats::ClaimSeat(AActor* Who, int32 I, TFunction<void()> AskToLeave)
 {
 	if (!One.IsValid() || !Who || !One->Spots.IsValidIndex(I)) return false;
+	if (One->Spots[I].bOwnerOnly) return false;   // (the owner's chair: only you, and you never claim)
 	ASeats* S = One.Get();
 	if (S->State != EState::None && S->Seat == I) return false;   // (you are on it, or on the way down or up)
 	const FIntVector Key = SpotKey(S->Spots[I].At);
@@ -349,6 +355,20 @@ bool ASeats::Interact(APawn* Who)
 	if (IsTaken(I)) ADP_LOG(TEXT("Seats: seat %d is yours - the one only walking to it finds another"), I);   // (to-do 293)
 	S->Sit(Me, I);
 	return true;
+}
+
+bool ASeats::SitYours(APawn* Who, const FVector& SeatWorld)
+{
+	AADPWalker* Me = Cast<AADPWalker>(Who);
+	if (!One.IsValid() || !Me) { ADP_WARN(TEXT("Seats: no seats or no walker to sit down in your office")); return false; }
+	ASeats* S = One.Get();
+	if (S->State != EState::None) return false;
+	int32 Best = INDEX_NONE; double BestD = 80.0;
+	for (int32 i = 0; i < S->Spots.Num(); ++i) { const double D = FVector::Dist(S->Spots[i].At, SeatWorld); if (D < BestD) { BestD = D; Best = i; } }
+	if (Best == INDEX_NONE) { ADP_WARN(TEXT("Seats: no seat within 80 cm of %s"), *SeatWorld.ToCompactString()); return false; }
+	if (IsSatOn(Best)) { ADP_WARN(TEXT("Seats: seat %d is sat on - not sitting you on top"), Best); return false; }
+	S->Sit(Me, Best);
+	return S->State != EState::None;
 }
 
 void ASeats::Sit(AADPWalker* Me, int32 I)

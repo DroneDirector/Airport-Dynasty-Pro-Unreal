@@ -83,6 +83,11 @@ public:
 	FString NameOf(const FString& StaffId) const;
 	AActor* ActorOf(const FString& StaffId) const;
 	FString IdOf(const AActor* A) const;
+	/** Called into your office (owner 11-26, OfficeCall.h): taken off their job if free (false: busy or unknown) - their body at
+	 *  their place hidden until CallOver; Face and Name for the one who walks to your office (Visitor: it, for IdOf). */
+	bool CallIn(const FString& StaffId, FString& Face, FString& Name);
+	void Visitor(const FString& StaffId, AActor* V);
+	void CallOver(const FString& StaffId);
 	/** What they are doing and where, for the Crew screen; false: not in 3D now (off shift). */
 	bool Status(const FString& StaffId, FString& Doing, FString& Where) const;
 	/** Everyone hired: shift, face, place, job - into the log (adp.CrewList). */
@@ -110,6 +115,7 @@ private:
 		EState State = EState::Load;
 		TSharedPtr<FStreamableHandle> Handle;
 		TWeakObjectPtr<AActor> A;
+		TWeakObjectPtr<AActor> Visit;   // (called into your office: the body walking to it - OfficeCall.h)
 		TArray<FLeg> Way;
 		int32 Room = INDEX_NONE, Slot = INDEX_NONE; int32 Idle = 0;   // (Idle: claimed but at no job, looked at every 2 s)
 		float Speed = 0.f, BlockedT = 0.f, SideT = 0.f; FVector SideDir = FVector::ZeroVector;

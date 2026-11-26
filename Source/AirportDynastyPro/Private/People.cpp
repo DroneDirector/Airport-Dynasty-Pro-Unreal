@@ -31,6 +31,8 @@
 #include "StaffPeople.h"
 #include "Sim/ADPCrew.h"
 #include "CrewVoice.h"
+#include "OfficeCall.h"
+#include "StaffPeople.h"
 #include "Sim/ADPSim.h"
 #include "Sim/ADPStaff.h"
 
@@ -322,7 +324,7 @@ void AADPPeople::Open(AActor* Who)
 	FWho* W = Find(Who); if (!W) return;
 	bMenu = true; MenuWho = Who; AInteractOutline::Hide = (uint64)(UPTRINT)Who;   // (no outline on them while you talk)
 	if (W->bUnruly && !SceneOn()) ShowConduct(); else ShowStart();
-	Face(Who, GetWorld()->GetFirstPlayerController() && GetWorld()->GetFirstPlayerController()->GetPawn() ? GetWorld()->GetFirstPlayerController()->GetPawn()->GetActorLocation() : Who->GetActorLocation());
+	if (!IsHeld(Who)) Face(Who, GetWorld()->GetFirstPlayerController() && GetWorld()->GetFirstPlayerController()->GetPawn() ? GetWorld()->GetFirstPlayerController()->GetPawn()->GetActorLocation() : Who->GetActorLocation());
 	if (bMenu) ADPTalkLook::Begin(Who, W->Body);   // (their head and eyes to yours: TalkLook.h)
 	if (bMenu) ADPTalkCam::Begin(Who, W->Body, W->First);   // (the camera in on them: TalkCamera.h)
 }
@@ -348,6 +350,9 @@ void AADPPeople::ShowStart()
 	MenuTitle = FString::Printf(TEXT("%s  ·  %s"), *W->First.ToUpper(), *W->Role.ToUpper());
 	MenuText = W->Temper > 0.8f ? TEXT("They look at you, a little impatient.") : TEXT("They turn to you with a smile.");
 	MenuOptions = {TEXT("Just talk"), TEXT("Ask if they would like to work for you"), TEXT("Goodbye")};
+	// your own staff (owner 11-26): called into your office - off their job, they come and sit with you (OfficeCall.h)
+	if (const UStaffPeople* SP = UStaffPeople::Get(GetWorld()))
+		if (!SP->IdOf(MenuWho.Get()).IsEmpty() && !(UOfficeCall::Get(GetWorld()) && UOfficeCall::Get(GetWorld())->Busy())) MenuOptions.Insert(TEXT("Call them into your office"), 2);
 }
 
 void AADPPeople::ShowQuestions()
@@ -494,7 +499,16 @@ void AADPPeople::Choose(int32 I)
 {
 	switch (Mode)
 	{
-	case EMenu::Start: if (I == 0) ShowQuestions(); else if (I == 1) AskWork(); else Close(); break;
+	case EMenu::Start:
+		if (I == 0) ShowQuestions(); else if (I == 1) AskWork();
+		else if (MenuOptions.IsValidIndex(I) && MenuOptions[I] == TEXT("Call them into your office"))
+		{
+			const FString Id = UStaffPeople::Get(GetWorld()) ? UStaffPeople::Get(GetWorld())->IdOf(MenuWho.Get()) : FString();
+			Close();
+			if (UOfficeCall* OC = UOfficeCall::Get(GetWorld())) OC->Call(Id);
+		}
+		else Close();
+		break;
 	case EMenu::Questions: if (AskOrder.IsValidIndex(I)) Answer(AskOrder[I]); else ShowStart(); break;
 	case EMenu::Answer: if (I == 0 && MenuOptions.Num() > 1) ShowStart(); else Close(); break;
 	case EMenu::Conduct: if (I <= 1) TryCalm(I == 0); else Close(); break;
@@ -784,13 +798,15 @@ void AADPPeople::StartWanderers()
 	}
 }
 
-bool AADPPeople::SitOn(AActor* Who, int32 Seat, const TArray<FBox2D>& Area, float FloorZ)
+bool AADPPeople::Walk(AActor* Who, const FVector& To, float Dt, float Stop) { FWho* W = Find(Who); return W && WalkTo(W, To, Dt, Stop); }
+
+bool AADPPeople::SitOn(AActor* Who, int32 Seat, const TArray<FBox2D>& Area, float FloorZ, const FVector* Step)
 {
 	FVector SAt, SF; float SH;
 	if (!Who || !Find(Who) || !ASeats::SeatOf(Seat, SAt, SF, SH) || !ASeats::Usable(Seat) || !ASeats::ClaimSeat(Who, Seat)) return false;   // (never on another's, nor yours)
 	FStroll S; S.A = Who; S.Area = Area; S.FloorZ = FloorZ; S.Habit = EHabit::Bench; S.bHeld = true;
 	for (int32 i = 0; i < Area.Num(); ++i) S.AreaIds.Add(TEXT("PAXFLOW"));
-	S.Seat = Seat; SeatFor(S, SAt, SF, SH); S.To = FVector(SAt.X, SAt.Y, FloorZ) + SF * 60.f; S.Doing = EDoing::ToSeat; S.T = 0.f; S.SitPose = Rng.RandRange(0, 7);
+	S.Seat = Seat; SeatFor(S, SAt, SF, SH); S.To = Step ? FVector(Step->X, Step->Y, FloorZ) : FVector(SAt.X, SAt.Y, FloorZ) + SF * 60.f; S.Doing = EDoing::ToSeat; S.T = 0.f; S.SitPose = Rng.RandRange(0, 7);
 	Strollers.Add(S);
 	return true;
 }

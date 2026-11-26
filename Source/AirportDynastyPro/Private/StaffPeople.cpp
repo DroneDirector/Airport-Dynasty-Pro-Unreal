@@ -385,6 +385,7 @@ void UStaffPeople::CheckClaims()
 	for (FStaff& S : Staff)
 	{
 		if (S.State != EState::Busy) { S.Idle = 0; continue; }
+		if (S.Job == TEXT("called to your office")) { S.Idle = 0; continue; }   // (OfficeCall ends it)
 		if (Tugs.IsValid() && Tugs->Crew.ContainsByPredicate([&](const ATugs::FCrew& C) { return C.bHired && !C.bSlotFree && C.StaffId == S.Id; })) { S.Idle = 0; continue; }
 		if (++S.Idle < 4) continue;
 		ADP_WARN(TEXT("StaffPeople: %s was claimed for %s but is at no job - free again"), *S.Name, *S.Job);
@@ -500,7 +501,29 @@ FString UStaffPeople::Missing(EStaffTask Task) const
 
 FString UStaffPeople::NameOf(const FString& Id) const { const FStaff* S = Find(Id); return S ? S->Name : FString(); }
 AActor* UStaffPeople::ActorOf(const FString& Id) const { const FStaff* S = Find(Id); return S ? S->A.Get() : nullptr; }
-FString UStaffPeople::IdOf(const AActor* A) const { if (A) for (const FStaff& S : Staff) if (S.A.Get() == A) return S.Id; return FString(); }
+FString UStaffPeople::IdOf(const AActor* A) const { if (A) for (const FStaff& S : Staff) if (S.A.Get() == A || S.Visit.Get() == A) return S.Id; return FString(); }
+
+bool UStaffPeople::CallIn(const FString& StaffId, FString& Face, FString& Name)
+{
+	FStaff* S = Find(StaffId);
+	if (!S || S->Face.IsEmpty()) return false;
+	if (S->A.IsValid() && !Claim(StaffId, TEXT("called to your office"))) { ADP_LOG(TEXT("StaffPeople: %s is busy (%s) - not called in yet"), *S->Name, *S->Job); return false; }
+	if (AActor* A = S->A.Get()) { A->SetActorHiddenInGame(true); A->SetActorEnableCollision(false); }   // (waits at their place, out of the world, until back)
+	Face = S->Face; Name = S->Name;
+	return true;
+}
+
+void UStaffPeople::Visitor(const FString& StaffId, AActor* V) { if (FStaff* S = Find(StaffId)) S->Visit = V; }
+
+void UStaffPeople::CallOver(const FString& StaffId)
+{
+	FStaff* S = Find(StaffId);
+	if (!S) return;
+	S->Visit = nullptr;
+	if (AActor* A = S->A.Get()) { A->SetActorHiddenInGame(false); A->SetActorEnableCollision(true); }
+	if (S->State == EState::Busy && S->Job == TEXT("called to your office")) Release(StaffId);
+	ADP_LOG(TEXT("StaffPeople: %s back from your office"), *S->Name);
+}
 
 const TCHAR* UStaffPeople::StateName(EState S)
 {
