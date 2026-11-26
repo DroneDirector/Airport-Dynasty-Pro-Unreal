@@ -721,6 +721,16 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       everyone clear of the wheels and lets them cool naturally (water only if there is a fire). If the wheels get too
       hot, the fuse plugs in them melt and the tyres go flat (so they don't burst) - then wheels, tyres and brakes are
       changed. The aircraft waits its cooling time before it can taxi on or fly again.
+- [ ] **Medical emergency on board** (2026-11-26): the pilots radio ahead and an ambulance with paramedics meets the
+      aircraft at the stand.
+- [ ] **Departure queue** (2026-11-26; only if traffic in the game gets busy enough for it): in busy hours aircraft
+      line up at the runway holding point, and the average taxi-out time shows in the statistics.
+- [ ] **Paint hangar** (2026-11-26): a new livery is not applied instantly - the aircraft spends a number of days in a
+      paint hangar and the work can be seen progressing.
+- [ ] **Fast track security** (2026-11-26): a separate, quicker security lane for business class and paying
+      passengers; extra income.
+- [ ] **Airport webcam** (2026-11-26): a live camera view of the apron on the game's website, showing the player's
+      airport as it is right now.
 
 ## Done recently (for reference)
 - 0.14.4 the globe's satellite pictures and land cover in the right place; the detailed sea only near the ground
