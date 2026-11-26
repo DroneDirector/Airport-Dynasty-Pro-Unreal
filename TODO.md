@@ -681,89 +681,89 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       reports, or show each only once
 - [ ] After all of the above: the next logical things that make the game run and give it features
 
-## Possible candidates (not decided - the owner wants a reminder now and then; not to be built until he says so)
-- [ ] **NOTAMs** (2026-11-26): official notices the airport publishes - a taxiway closed, a stand out of use, a PAPI
+## 10. Airport extras (owner, 2026-11-26: to-dos 319-355 - real to-dos to build, numbered as in the to-do PDF)
+- [ ] **319. NOTAMs** (2026-11-26): official notices the airport publishes - a taxiway closed, a stand out of use, a PAPI
       or ILS unserviceable, work in progress, a crane near the approach. The NPC airlines, ATC and the taxi routes really
       work around them; each has a start and end time; shown on the holographic map and in the tower.
-- [ ] **Delay codes** (2026-11-26): every delay gets the real IATA industry delay code (catering, technical, ATC,
+- [ ] **320. Delay codes** (2026-11-26): every delay gets the real IATA industry delay code (catering, technical, ATC,
       weather, late incoming aircraft, passengers, baggage ...), worked out from what actually held the flight. A
       monthly on-time report shows which department or partner caused how much delay.
-- [ ] **Load sheet** (2026-11-26): load control works out each departure's weight and balance (passengers, bags,
+- [ ] **321. Load sheet** (2026-11-26): load control works out each departure's weight and balance (passengers, bags,
       cargo, fuel) and issues the load sheet to the crew. A last-minute change - a late passenger, a bag offloaded,
       extra cargo - means a new sheet and can hold the departure a few minutes (and gives it its delay code).
-- [ ] **Baggage tracing desk** (2026-11-26): bags that miss their flight are traced, sent on the next flight as
+- [ ] **322. Baggage tracing desk** (2026-11-26): bags that miss their flight are traced, sent on the next flight as
       "rush bags" and delivered to the passenger; passengers without their bag come to the desk in the arrivals hall.
-- [ ] **Plane spotters** (2026-11-26, the owner likes it; how it works best still to be worked out with him): a
+- [ ] **323. Plane spotters** (2026-11-26, the owner likes it; how it works best still to be worked out with him): a
       spotting hill or a spot along the fence with photographers and their cameras. More of them turn up when a rare
       aircraft type or a special livery is due.
-- [ ] **Follow-me car** (2026-11-26): a yellow car with a lit FOLLOW ME sign that leads a visiting pilot who does not
+- [ ] **324. Follow-me car** (2026-11-26): a yellow car with a lit FOLLOW ME sign that leads a visiting pilot who does not
       know the airport to the right stand.
-- [ ] **Bird strikes** (2026-11-26): bird control is in the game, a strike is not. An aircraft returns after hitting
+- [ ] **325. Bird strikes** (2026-11-26): bird control is in the game, a strike is not. An aircraft returns after hitting
       birds, the runway is checked for remains, the engine is inspected, and the airport gets a report. Better bird
       control means fewer strikes.
-- [ ] **FOD walks** (2026-11-26): staff walk the apron in a line every morning picking up loose bolts and rubbish that
+- [ ] **326. FOD walks** (2026-11-26): staff walk the apron in a line every morning picking up loose bolts and rubbish that
       could be sucked into an engine. Skipped walks raise the risk of engine damage.
-- [ ] **Fuel farm** (2026-11-26): the airport's own fuel storage, filled by road tankers; the fuel price the airport
+- [ ] **327. Fuel farm** (2026-11-26): the airport's own fuel storage, filled by road tankers; the fuel price the airport
       sets affects which airlines want to come.
-- [ ] **Open day** (2026-11-26): once a year the airport opens to the public - aircraft on show, the fire trucks
+- [ ] **328. Open day** (2026-11-26): once a year the airport opens to the public - aircraft on show, the fire trucks
       demonstrating, families walking the apron. Good for the airport's reputation and brings in some money.
-- [ ] **Pet relief area** (2026-11-26): a small fenced grass corner by the terminal for passengers' dogs.
-- [ ] **Staff shuttle bus** (2026-11-26): takes staff between the staff car park and the terminal or the hangar at
+- [ ] **329. Pet relief area** (2026-11-26): a small fenced grass corner by the terminal for passengers' dogs.
+- [ ] **330. Staff shuttle bus** (2026-11-26): takes staff between the staff car park and the terminal or the hangar at
       shift changes.
-- [ ] **Fire training ground** (2026-11-26): a steel aircraft mock-up that can be set on fire, where the
+- [ ] **331. Fire training ground** (2026-11-26): a steel aircraft mock-up that can be set on fire, where the
       firefighters train regularly, as real airports must. Better-trained crews respond faster.
-- [ ] **Lost child** (2026-11-26): a child goes missing in the crowd, an announcement goes out, and the child is
+- [ ] **332. Lost child** (2026-11-26): a child goes missing in the crowd, an announcement goes out, and the child is
       reunited with the parents at the information desk.
-- [ ] **Boarding groups** (2026-11-26): the gate calls priority passengers first, then group 1, group 2 and so on,
+- [ ] **333. Boarding groups** (2026-11-26): the gate calls priority passengers first, then group 1, group 2 and so on,
       and the queues form by group.
-- [ ] **Hot brakes** (2026-11-26; real): after a rejected take-off, a heavy landing or brakes dragged on a long taxi,
+- [ ] **334. Hot brakes** (2026-11-26; real): after a rejected take-off, a heavy landing or brakes dragged on a long taxi,
       the brakes get extremely hot. The crew may ask for the fire service; it stands by at a safe distance, keeps
       everyone clear of the wheels and lets them cool naturally (water only if there is a fire). If the wheels get too
       hot, the fuse plugs in them melt and the tyres go flat (so they don't burst) - then wheels, tyres and brakes are
       changed. The aircraft waits its cooling time before it can taxi on or fly again.
-- [ ] **Medical emergency on board** (2026-11-26): the pilots radio ahead and an ambulance with paramedics meets the
+- [ ] **335. Medical emergency on board** (2026-11-26): the pilots radio ahead and an ambulance with paramedics meets the
       aircraft at the stand.
-- [ ] **Departure queue** (2026-11-26; only if traffic in the game gets busy enough for it): in busy hours aircraft
+- [ ] **336. Departure queue** (2026-11-26; only if traffic in the game gets busy enough for it): in busy hours aircraft
       line up at the runway holding point, and the average taxi-out time shows in the statistics.
-- [ ] **Paint hangar** (2026-11-26): a new livery is not applied instantly - the aircraft spends a number of days in a
+- [ ] **337. Paint hangar** (2026-11-26): a new livery is not applied instantly - the aircraft spends a number of days in a
       paint hangar and the work can be seen progressing.
-- [ ] **Fast track security** (2026-11-26): a separate, quicker security lane for business class and paying
+- [ ] **338. Fast track security** (2026-11-26): a separate, quicker security lane for business class and paying
       passengers; extra income.
-- [ ] **Airport webcam** (2026-11-26): a live camera view of the apron on the game's website, showing the player's
+- [ ] **339. Airport webcam** (2026-11-26): a live camera view of the apron on the game's website, showing the player's
       airport as it is right now.
-- [ ] **Runway guard lights** (2026-11-26): pairs of yellow lights flashing alternately at every runway holding
+- [ ] **340. Runway guard lights** (2026-11-26): pairs of yellow lights flashing alternately at every runway holding
       point, warning vehicles and aircraft that a runway is ahead.
-- [ ] **Wind shear warnings** (2026-11-26): the tower warns arriving aircraft of sudden wind changes near the runway;
+- [ ] **341. Wind shear warnings** (2026-11-26): the tower warns arriving aircraft of sudden wind changes near the runway;
       some go around and try again.
-- [ ] **Flight kitchen** (2026-11-26): a building where the in-flight meals are cooked and packed; the catering trucks
+- [ ] **342. Flight kitchen** (2026-11-26): a building where the in-flight meals are cooked and packed; the catering trucks
       load there.
-- [ ] **Standby passengers** (2026-11-26): on an overbooked flight the gate asks for volunteers to take a later flight
+- [ ] **343. Standby passengers** (2026-11-26): on an overbooked flight the gate asks for volunteers to take a later flight
       for a voucher; standby passengers fill empty seats at the last minute.
-- [ ] **Lift and escalator breakdowns** (2026-11-26): one stops working, a technician comes to fix it, meanwhile people
+- [ ] **344. Lift and escalator breakdowns** (2026-11-26): one stops working, a technician comes to fix it, meanwhile people
       take the stairs or queue for the other lift.
-- [ ] **Medical transport flights** (2026-11-26): air ambulances and urgent organ transports get priority; an
+- [ ] **345. Medical transport flights** (2026-11-26): air ambulances and urgent organ transports get priority; an
       ambulance meets them right on the apron.
-- [ ] **Airfield signs** (2026-11-26): taxiway location signs (yellow on black), mandatory signs at runway entries
+- [ ] **346. Airfield signs** (2026-11-26): taxiway location signs (yellow on black), mandatory signs at runway entries
       and holding points (white on red), direction and destination signs at junctions (black on yellow), all lit at
       night, as ICAO Annex 14 / FAA AC 150/5340-18.
-- [ ] **Runway distance remaining signs** (2026-11-26; real, FAA type L-858B): black boards with a white number along
+- [ ] **347. Runway distance remaining signs** (2026-11-26; real, FAA type L-858B): black boards with a white number along
       one or both runway edges every 1,000 ft, showing the thousands of feet of runway left. Common in the US and at
       military fields, rare in Europe - so only at sites whose real-world country uses them (an option per site).
-- [ ] **Flying club** (2026-11-26): a corner of the airfield with light aircraft, a flight school and weekend pilots
+- [ ] **348. Flying club** (2026-11-26): a corner of the airfield with light aircraft, a flight school and weekend pilots
       flying circuits; extra traffic and rent.
-- [ ] **Forgotten passport** (2026-11-26; not common): a passenger is turned back at check-in or passport control and
+- [ ] **349. Forgotten passport** (2026-11-26; not common): a passenger is turned back at check-in or passport control and
       the seat goes to a standby passenger.
-- [ ] **Currency exchange and VAT refund desk** (2026-11-26): travellers change money and get tax back on what they
+- [ ] **350. Currency exchange and VAT refund desk** (2026-11-26): travellers change money and get tax back on what they
       bought; some income.
-- [ ] **Proposal at the gate** (2026-11-26; not common - the owner's note: "1-10", the exact rarity to agree with him):
+- [ ] **351. Proposal at the gate** (2026-11-26; not common - the owner's note: "1-10", the exact rarity to agree with him):
       someone kneels at the gate, people clap, staff join in.
-- [ ] **Sports team arrival** (2026-11-26): a team charter lands, fans with flags and scarves fill the arrivals hall;
+- [ ] **352. Sports team arrival** (2026-11-26): a team charter lands, fans with flags and scarves fill the arrivals hall;
       extra security needed.
-- [ ] **VIP visits** (2026-11-26): a minister, a royal or a celebrity arrives - red carpet, a separate exit, extra
+- [ ] **353. VIP visits** (2026-11-26): a minister, a royal or a celebrity arrives - red carpet, a separate exit, extra
       security.
-- [ ] **Shop contracts** (2026-11-26): shops and restaurants rent space; the airport negotiates rent and contract
+- [ ] **354. Shop contracts** (2026-11-26): shops and restaurants rent space; the airport negotiates rent and contract
       length and chooses who gets the best spots.
-- [ ] **Employee of the month** (2026-11-26): the owner picks a staff member each month; morale goes up and their
+- [ ] **355. Employee of the month** (2026-11-26): the owner picks a staff member each month; morale goes up and their
       photo hangs in the staff area.
 
 ## Done recently (for reference)
