@@ -708,6 +708,8 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 - [ ] **Open day** (2026-11-26): once a year the airport opens to the public - aircraft on show, the fire trucks
       demonstrating, families walking the apron. Good for the airport's reputation and brings in some money.
 - [ ] **Pet relief area** (2026-11-26): a small fenced grass corner by the terminal for passengers' dogs.
+- [ ] **Staff shuttle bus** (2026-11-26): takes staff between the staff car park and the terminal or the hangar at
+      shift changes.
 
 ## Done recently (for reference)
 - 0.14.4 the globe's satellite pictures and land cover in the right place; the detailed sea only near the ground
