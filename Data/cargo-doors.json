@@ -1,5 +1,5 @@
 {
- "note": "Cargo terminal roller doors, model-local metres (see cargo-slots.json for the frame). Airfield.cpp places each as an ARollerDoor: kind, centre of the curtain at its foot (x, y, z0), axis the curtain runs along, clear width and height; slat / bar: its curtain parts (swap them for a better leaf without touching the wiring).",
+ "note": "Cargo terminal roller doors, model-local metres (see cargo-slots.json for the frame). Airfield.cpp places each as an ARollerDoor: kind, centre of the curtain at its foot (x, y, z0), axis the curtain runs along, clear width and height; slat / bar / win: its sectional panel, bottom rail and window panel, stacked pitch m apart (make_cargo_door_leaves.py).",
  "rollers": [
   {
    "id": "R-CARGO-AIR-01",
@@ -10,8 +10,10 @@
    "axis": "x",
    "width": 6.0,
    "height": 5.2,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_600x520",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_600x520",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_600x520",
+   "pitch": 0.575
   },
   {
    "id": "R-CARGO-AIR-02",
@@ -22,8 +24,10 @@
    "axis": "x",
    "width": 6.0,
    "height": 5.2,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_600x520",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_600x520",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_600x520",
+   "pitch": 0.575
   },
   {
    "id": "R-CARGO-AIR-03",
@@ -34,8 +38,10 @@
    "axis": "x",
    "width": 6.0,
    "height": 5.2,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_600x520",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_600x520",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_600x520",
+   "pitch": 0.575
   },
   {
    "id": "R-CARGO-AIR-04",
@@ -46,8 +52,10 @@
    "axis": "x",
    "width": 6.0,
    "height": 5.2,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_600x520",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_600x520",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_600x520",
+   "pitch": 0.575
   },
   {
    "id": "R-CARGO-AIR-05",
@@ -58,8 +66,10 @@
    "axis": "x",
    "width": 6.0,
    "height": 5.2,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_600x520",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_600x520",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_600x520",
+   "pitch": 0.575
   },
   {
    "id": "R-CARGO-AIR-06",
@@ -70,8 +80,10 @@
    "axis": "x",
    "width": 6.0,
    "height": 5.2,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_600x520",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_600x520",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_600x520",
+   "pitch": 0.575
   },
   {
    "id": "R-CARGO-AIR-07",
@@ -82,8 +94,10 @@
    "axis": "x",
    "width": 6.0,
    "height": 5.2,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_600x520",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_600x520",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_600x520",
+   "pitch": 0.575
   },
   {
    "id": "R-CARGO-AIR-08",
@@ -94,8 +108,10 @@
    "axis": "x",
    "width": 6.0,
    "height": 5.2,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_600x520",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_600x520",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_600x520",
+   "pitch": 0.575
   },
   {
    "id": "R-CARGO-AIR-09",
@@ -106,8 +122,10 @@
    "axis": "x",
    "width": 6.0,
    "height": 5.2,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_600x520",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_600x520",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_600x520",
+   "pitch": 0.575
   },
   {
    "id": "R-CARGO-AIR-10",
@@ -118,8 +136,10 @@
    "axis": "x",
    "width": 6.0,
    "height": 5.2,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_600x520",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_600x520",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_600x520",
+   "pitch": 0.575
   },
   {
    "id": "R-CARGO-AIR-11",
@@ -130,8 +150,10 @@
    "axis": "x",
    "width": 6.0,
    "height": 5.2,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_600x520",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_600x520",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_600x520",
+   "pitch": 0.575
   },
   {
    "id": "R-CARGO-AIR-12",
@@ -142,8 +164,10 @@
    "axis": "x",
    "width": 6.0,
    "height": 5.2,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_600x520",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_600x520",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_600x520",
+   "pitch": 0.575
   },
   {
    "id": "R-CARGO-AIR-13",
@@ -154,8 +178,10 @@
    "axis": "x",
    "width": 6.0,
    "height": 5.2,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_600x520",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_600x520",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_600x520",
+   "pitch": 0.575
   },
   {
    "id": "R-CARGO-AIR-14",
@@ -166,8 +192,10 @@
    "axis": "x",
    "width": 6.0,
    "height": 5.2,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_600x520",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_600x520",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_600x520",
+   "pitch": 0.575
   },
   {
    "id": "R-CARGO-AIR-15",
@@ -178,8 +206,10 @@
    "axis": "x",
    "width": 6.0,
    "height": 5.2,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_600x520",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_600x520",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_600x520",
+   "pitch": 0.575
   },
   {
    "id": "R-CARGO-AIR-16",
@@ -190,8 +220,10 @@
    "axis": "x",
    "width": 6.0,
    "height": 5.2,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_600x520",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_600x520",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_600x520",
+   "pitch": 0.575
   },
   {
    "id": "R-CARGO-AIR-17",
@@ -202,8 +234,10 @@
    "axis": "x",
    "width": 6.0,
    "height": 5.2,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_600x520",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_600x520",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_600x520",
+   "pitch": 0.575
   },
   {
    "id": "R-CARGO-AIR-18",
@@ -214,8 +248,10 @@
    "axis": "x",
    "width": 6.0,
    "height": 5.2,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_600x520",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_600x520",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_600x520",
+   "pitch": 0.575
   },
   {
    "id": "R-CARGO-AIR-19",
@@ -226,8 +262,10 @@
    "axis": "x",
    "width": 6.0,
    "height": 5.2,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_600x520",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_600x520",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_600x520",
+   "pitch": 0.575
   },
   {
    "id": "R-CARGO-AIR-20",
@@ -238,8 +276,10 @@
    "axis": "x",
    "width": 6.0,
    "height": 5.2,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_600x520",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_600x520",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_600x520",
+   "pitch": 0.575
   },
   {
    "id": "R-CARGO-AIR-21",
@@ -250,8 +290,10 @@
    "axis": "x",
    "width": 6.0,
    "height": 5.2,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_600x520",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_600x520",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_600x520",
+   "pitch": 0.575
   },
   {
    "id": "R-CARGO-SPC-01",
@@ -262,8 +304,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-SPC-02",
@@ -274,8 +318,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-SPC-03",
@@ -286,8 +332,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-SPC-04",
@@ -298,8 +346,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-SPC-05",
@@ -310,8 +360,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-SPC-06",
@@ -322,8 +374,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-HORSE-01",
@@ -334,8 +388,10 @@
    "axis": "x",
    "width": 5.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_500x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_500x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_500x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-HORSE-02",
@@ -346,8 +402,10 @@
    "axis": "x",
    "width": 5.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_500x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_500x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_500x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-DOCK-01",
@@ -358,8 +416,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-02",
@@ -370,8 +430,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-03",
@@ -382,8 +444,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-04",
@@ -394,8 +458,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-05",
@@ -406,8 +472,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-06",
@@ -418,8 +486,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-07",
@@ -430,8 +500,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-08",
@@ -442,8 +514,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-09",
@@ -454,8 +528,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-10",
@@ -466,8 +542,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-11",
@@ -478,8 +556,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-12",
@@ -490,8 +570,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-13",
@@ -502,8 +584,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-14",
@@ -514,8 +598,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-15",
@@ -526,8 +612,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-16",
@@ -538,8 +626,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-17",
@@ -550,8 +640,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-18",
@@ -562,8 +654,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-19",
@@ -574,8 +668,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-20",
@@ -586,8 +682,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-21",
@@ -598,8 +696,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-22",
@@ -610,8 +710,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-23",
@@ -622,8 +724,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-24",
@@ -634,8 +738,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-25",
@@ -646,8 +752,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-26",
@@ -658,8 +766,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-27",
@@ -670,8 +780,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-28",
@@ -682,8 +794,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-29",
@@ -694,8 +808,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-30",
@@ -706,8 +822,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-31",
@@ -718,8 +836,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DOCK-32",
@@ -730,8 +850,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x350",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x350",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x350",
+   "pitch": 0.57917
   },
   {
    "id": "R-CARGO-DRIVEIN-01",
@@ -742,8 +864,10 @@
    "axis": "x",
    "width": 5.0,
    "height": 5.0,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_500x500",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_500x500",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_500x500",
+   "pitch": 0.55278
   },
   {
    "id": "R-CARGO-DRIVEIN-02",
@@ -754,8 +878,10 @@
    "axis": "x",
    "width": 5.0,
    "height": 5.0,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_500x500",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_500x500",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_500x500",
+   "pitch": 0.55278
   },
   {
    "id": "R-CARGO-ROOM-01",
@@ -766,8 +892,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-ROOM-02",
@@ -778,8 +906,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-ROOM-03",
@@ -790,8 +920,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-ROOM-04",
@@ -802,8 +934,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-ROOM-05",
@@ -814,8 +948,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-ROOM-06",
@@ -826,8 +962,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-ROOM-07",
@@ -838,8 +976,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-ROOM-08",
@@ -850,8 +990,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-ROOM-09",
@@ -862,8 +1004,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-ROOM-10",
@@ -874,8 +1018,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-ROOM-11",
@@ -886,8 +1032,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-ROOM-12",
@@ -898,8 +1046,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-ROOM-13",
@@ -910,8 +1060,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.4,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x340",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x340",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x340",
+   "pitch": 0.5625
   },
   {
    "id": "R-CARGO-ROOM-14",
@@ -922,8 +1074,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.4,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x340",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x340",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x340",
+   "pitch": 0.5625
   },
   {
    "id": "R-CARGO-ROOM-15",
@@ -934,8 +1088,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.4,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x340",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x340",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x340",
+   "pitch": 0.5625
   },
   {
    "id": "R-CARGO-ROOM-16",
@@ -946,8 +1102,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.4,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x340",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x340",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x340",
+   "pitch": 0.5625
   },
   {
    "id": "R-CARGO-ROOM-17",
@@ -958,8 +1116,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-ROOM-18",
@@ -970,8 +1130,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-ROOM-19",
@@ -982,8 +1144,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-ROOM-20",
@@ -994,8 +1158,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-ROOM-21",
@@ -1006,8 +1172,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-ROOM-22",
@@ -1018,8 +1186,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.4,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x340",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x340",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x340",
+   "pitch": 0.5625
   },
   {
    "id": "R-CARGO-ROOM-23",
@@ -1030,8 +1200,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.4,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x340",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x340",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x340",
+   "pitch": 0.5625
   },
   {
    "id": "R-CARGO-ROOM-24",
@@ -1042,8 +1214,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.4,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x340",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x340",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x340",
+   "pitch": 0.5625
   },
   {
    "id": "R-CARGO-ROOM-25",
@@ -1054,8 +1228,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.4,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x340",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x340",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x340",
+   "pitch": 0.5625
   },
   {
    "id": "R-CARGO-ROOM-26",
@@ -1066,8 +1242,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.4,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x340",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x340",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x340",
+   "pitch": 0.5625
   },
   {
    "id": "R-CARGO-ROOM-27",
@@ -1078,8 +1256,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.4,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x340",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x340",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x340",
+   "pitch": 0.5625
   },
   {
    "id": "R-CARGO-ROOM-28",
@@ -1090,8 +1270,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.4,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x340",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x340",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x340",
+   "pitch": 0.5625
   },
   {
    "id": "R-CARGO-ROOM-29",
@@ -1102,8 +1284,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.4,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x340",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x340",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x340",
+   "pitch": 0.5625
   },
   {
    "id": "R-CARGO-ROOM-30",
@@ -1114,8 +1298,10 @@
    "axis": "x",
    "width": 4.5,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_450x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_450x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_450x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-ROOM-31",
@@ -1126,8 +1312,10 @@
    "axis": "x",
    "width": 4.5,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_450x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_450x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_450x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-ROOM-32",
@@ -1138,8 +1326,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-ROOM-33",
@@ -1150,8 +1340,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-ROOM-34",
@@ -1162,8 +1354,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-ROOM-35",
@@ -1174,8 +1368,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-ROOM-36",
@@ -1186,8 +1382,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.4,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x340",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x340",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x340",
+   "pitch": 0.5625
   },
   {
    "id": "R-CARGO-ROOM-37",
@@ -1198,8 +1396,10 @@
    "axis": "x",
    "width": 3.0,
    "height": 3.4,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_300x340",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_300x340",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_300x340",
+   "pitch": 0.5625
   },
   {
    "id": "R-CARGO-ROOM-38",
@@ -1210,8 +1410,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-ROOM-39",
@@ -1222,8 +1424,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   },
   {
    "id": "R-CARGO-ROOM-40",
@@ -1234,8 +1438,10 @@
    "axis": "x",
    "width": 4.0,
    "height": 4.5,
-   "slat": "/Game/Terminal/Meshes/roller_slat",
-   "bar": "/Game/Terminal/Meshes/roller_bar"
+   "slat": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Panel_400x450",
+   "bar": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Rail_400x450",
+   "win": "/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/SM_CargoLeaf_Window_400x450",
+   "pitch": 0.55937
   }
  ]
 }

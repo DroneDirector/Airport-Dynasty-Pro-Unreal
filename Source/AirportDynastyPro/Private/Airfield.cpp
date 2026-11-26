@@ -1274,7 +1274,8 @@ bool AAirfield::Build(bool bModelSite)
 					const FVector Foot = T.TransformPosition(FVector(O->GetNumberField(TEXT("x")), -O->GetNumberField(TEXT("y")), O->GetNumberField(TEXT("z0"))) * 100.0);
 					const float Yaw = T.Rotator().Yaw + (O->GetStringField(TEXT("axis")) == TEXT("y") ? 90.f : 0.f);
 					if (ARollerDoor::PlaceAt(GetWorld(), O->GetStringField(TEXT("id")), Foot, Yaw, O->GetNumberField(TEXT("width")), O->GetNumberField(TEXT("height")),
-						Path(O->GetStringField(TEXT("slat"))), Path(O->GetStringField(TEXT("bar"))))) ++Placed;
+						Path(O->GetStringField(TEXT("slat"))), Path(O->GetStringField(TEXT("bar"))),
+						O->HasField(TEXT("pitch")) ? (float)O->GetNumberField(TEXT("pitch")) : 0.f, Path(O->HasField(TEXT("win")) ? O->GetStringField(TEXT("win")) : FString()))) ++Placed;
 				}
 				ADP_LOG(TEXT("Airfield: the cargo terminal's %d roller doors placed (of %d)"), Placed, Rl->Num());
 			}

@@ -24,7 +24,8 @@ TILE = dict(Cladding=4.0, CladdingBand=4.0, CladdingWhite=4.0, Roof=4.0, Section
             PersonnelDoor=2.0, FloorConcrete=6.0, FireWall=4.0, Asphalt=6.0, OfficeGlass=3.0, Solar=2.0,
             Galvanised=2.0, Aluminium=2.0, LeadSheet=2.0, Rubber=1.5, OfficeFloor=3.0,
             PaintGrey=2.0, PaintWhite=2.0, PaintOrange=2.0, PaintYellow=2.0, PaintTeal=2.0, PaintBlue=2.0,
-            Cardboard=1.5, LineYellow=1.0, LineWhite=1.0, LineRed=1.0, LineGreen=1.0)
+            Cardboard=1.5, LineYellow=1.0, LineWhite=1.0, LineRed=1.0, LineGreen=1.0,
+            CladdingAged=4.0, CladdingBandAged=4.0, Grime=0.6)   # (the last three: make_cargo_aged_textures.py)
 
 
 def load(path, size, gray=False):

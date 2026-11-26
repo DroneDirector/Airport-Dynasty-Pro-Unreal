@@ -18,6 +18,22 @@ LOBBY = (14.0, 16.0, 2.4)                      # office lobby's sliding glass do
 LOBBY_Y = (D + 0.15, D + 4.0)                  # inner door in the landside wall, outer door in the vestibule's front
 SLAT = '/Game/Terminal/Meshes/roller_slat'     # the roller curtain's leaf parts (a later pass may swap them per door kind)
 BAR = '/Game/Terminal/Meshes/roller_bar'
+# step B3: every cargo roller door is a real sectional (garage) door - insulated ribbed panels in side guides, one row of
+# vision windows, a bottom rail with rubber seal and handle; the panels slide up into the head (make_cargo_door_leaves.py
+# builds one panel, window panel and rail per door size; ARollerDoor stacks them 'pitch' apart)
+LEAVES = '/Game/Babylon/CargoDoorLeaves/CargoDoorLeaves/StaticMeshes/'
+SEAL = 0.025                                   # the bottom seal's height under the lowest panel (m)
+GAP = 0.03                                     # panel width = opening - GAP (its ends run in the guide channels)
+
+
+def leaf(w, h):
+    """A door's panels: (count, pitch m, mesh name suffix) - about 0.55 m sections filling the height above the seal."""
+    n = max(3, round((h - SEAL) / 0.55))
+    return n, (h - SEAL) / n, '%dx%d' % (round(w * 100), round(h * 100))
+
+
+def leaf_sizes():
+    return sorted({(w, h) for _, _, _, _, _, _, w, h in rollers()})
 
 
 def _num(prefix, items):
@@ -137,9 +153,11 @@ if __name__ == '__main__':
     root = os.path.normpath(os.path.join(HERE, '..', '..'))
     doors = {'note': 'Cargo terminal roller doors, model-local metres (see cargo-slots.json for the frame). Airfield.cpp places '
                      'each as an ARollerDoor: kind, centre of the curtain at its foot (x, y, z0), axis the curtain runs along, '
-                     'clear width and height; slat / bar: its curtain parts (swap them for a better leaf without touching the wiring).',
+                     'clear width and height; slat / bar / win: its sectional panel, bottom rail and window panel, stacked pitch m apart (make_cargo_door_leaves.py).',
              'rollers': [{'id': i, 'kind': k, 'x': round(x, 3), 'y': round(y, 3), 'z0': z, 'axis': a, 'width': w, 'height': h,
-                          'slat': SLAT, 'bar': BAR} for i, k, x, y, z, a, w, h in rollers()]}
+                          'slat': LEAVES + 'SM_CargoLeaf_Panel_' + leaf(w, h)[2], 'bar': LEAVES + 'SM_CargoLeaf_Rail_' + leaf(w, h)[2],
+                          'win': LEAVES + 'SM_CargoLeaf_Window_' + leaf(w, h)[2], 'pitch': round(leaf(w, h)[1], 5)}
+                         for i, k, x, y, z, a, w, h in rollers()]}
     s = slots()
     for nm, obj in (('cargo-doors.json', doors), ('cargo-slots.json', s)):
         for d in ('Data', 'Content/Data'):        # (the packed game reads Content/Data)

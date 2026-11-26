@@ -26,9 +26,12 @@ public:
 	static ARollerDoor* Place(UWorld* W, const FString& Id, float X0, float X1, float Z, float Height);
 	/** A roller door anywhere: the middle of its sill at Foot (world cm), its curtain running along the actor's x turned
 	 *  YawDeg, Width x Height metres clear. The curtain's slat and bottom bar are their own meshes (empty paths: the
-	 *  terminal's roller_slat / roller_bar), so a later pass can give a door other leaves without touching its wiring. */
+	 *  terminal's roller_slat / roller_bar), so a later pass can give a door other leaves without touching its wiring.
+	 *  PanelPitch > 0: a sectional (garage) door - the slat is one insulated panel made to the door's width (its own
+	 *  bottom gap built in), stacked PanelPitch apart and sliding up into the head; WinPath: the panel with the row of
+	 *  vision windows, put in place of the panel at eye height; the bar is its bottom rail with seal and handle. */
 	static ARollerDoor* PlaceAt(UWorld* W, const FString& Id, const FVector& Foot, float YawDeg, float Width, float Height,
-		const FString& SlatPath = FString(), const FString& BarPath = FString());
+		const FString& SlatPath = FString(), const FString& BarPath = FString(), float PanelPitch = 0.f, const FString& WinPath = FString());
 	virtual void Tick(float Dt) override;
 
 	/** A roller door within reach that you face (feet position, the way you look): its open state. */
@@ -48,6 +51,11 @@ private:
 	UPROPERTY() TObjectPtr<USceneComponent> Root;
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Slats;
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Bar;
+	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Win;   // sectional: the vision-window panel (or none)
+	float Panel = 0.f;                    // sectional panel pitch (m); 0: a roller curtain of Pitch slats
+	float PanelLo = 0.f;                  // sectional: the panel mesh's own bottom above its origin (m, the seal's room)
+	int32 WinIdx = INDEX_NONE;            // sectional: which panel (from the bottom) has the windows
+	FQuat LeafTurn = FQuat::Identity;     // sectional: turns the panel mesh so its width runs along the door
 	float Width = 8.f, Height = 4.f;      // metres
 	float K = 0.f, Want = 0.f;            // openness now, and where it is going
 	float HoldOpen = 0.f;                 // seconds a vehicle asked it to stay open

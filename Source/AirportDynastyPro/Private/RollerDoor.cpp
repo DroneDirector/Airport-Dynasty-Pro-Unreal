@@ -26,7 +26,7 @@ ARollerDoor* ARollerDoor::Place(UWorld* W, const FString& Id, float X0, float X1
 	return PlaceAt(W, Id, FTerminalPlan::ToWorld((X0 + X1) * 0.5f, 0.01f, Z), 0.f, X1 - X0, Height);
 }
 
-ARollerDoor* ARollerDoor::PlaceAt(UWorld* W, const FString& Id, const FVector& Foot, float YawDeg, float Width, float Height, const FString& SlatPath, const FString& BarPath)
+ARollerDoor* ARollerDoor::PlaceAt(UWorld* W, const FString& Id, const FVector& Foot, float YawDeg, float Width, float Height, const FString& SlatPath, const FString& BarPath, float PanelPitch, const FString& WinPath)
 {
 	if (!W) return nullptr;
 	const FString SP = SlatPath.IsEmpty() ? FString(TEXT("/Game/Terminal/Meshes/roller_slat.roller_slat")) : SlatPath;
@@ -50,8 +50,22 @@ ARollerDoor* ARollerDoor::PlaceAt(UWorld* W, const FString& Id, const FVector& F
 		return K;
 	};
 	D->Slats = List(SlatM); D->Bar = List(BarM);
+	int32 N = FMath::CeilToInt(Height / Pitch) + 1;
+	if (PanelPitch > 0.05f)
+	{
+		// a sectional door: panels made to its width (scale 1), the mesh's width found from its bounds (the import may
+		// lay a Blender model's x along Unreal's y: then the panel is turned a quarter); the window panel at eye height
+		const FBox B = SlatM->GetBoundingBox();
+		D->Panel = PanelPitch; D->PanelLo = B.Min.Z / 100.f;
+		if (B.GetSize().Y > B.GetSize().X) D->LeafTurn = FQuat(FVector::UpVector, PI * 0.5f);
+		N = FMath::CeilToInt((Height - D->PanelLo) / PanelPitch - 0.01f) + 1;
+		if (UStaticMesh* WinM = WinPath.IsEmpty() ? nullptr : LoadObject<UStaticMesh>(nullptr, *WinPath))
+		{
+			D->Win = List(WinM); D->Win->AddInstance(FTransform::Identity, false);
+			D->WinIdx = FMath::Clamp(FMath::FloorToInt(1.6f / PanelPitch), 1, N - 2);
+		}
+	}
 	// every slat of the curtain (one more than the opening's height needs: the top one runs into the hood)
-	const int32 N = FMath::CeilToInt(Height / Pitch) + 1;
 	for (int32 i = 0; i < N; ++i) D->Slats->AddInstance(FTransform::Identity, false);
 	D->Bar->AddInstance(FTransform::Identity, false);
 	D->Layout();
@@ -66,6 +80,26 @@ void ARollerDoor::Layout()
 	// hood (shrunk away: its list is shared by the door's own slats only)
 	const float Foot = K * Height;
 	const int32 N = Slats->GetInstanceCount();
+	if (Panel > 0.f)
+	{
+		// sectional: each panel slides up into the head (the lintel / header hides it) and is put away once its bottom
+		// is past the opening's head; the bottom rail with its seal rides under the lowest panel
+		const FTransform Gone(FQuat::Identity, FVector(0.f, 0.f, Height * 100.f + 30.f), FVector(0.0001f));
+		TArray<FTransform> T; T.SetNum(N);
+		FTransform WinT = Gone;
+		for (int32 i = 0; i < N; ++i)
+		{
+			const float Y = Foot + i * Panel;
+			const bool bIn = Y + PanelLo < Height - 0.005f;
+			const FTransform At(LeafTurn, FVector(0.f, 0.f, Y * 100.f));
+			if (i == WinIdx && Win) { WinT = bIn ? At : Gone; T[i] = Gone; }
+			else T[i] = bIn ? At : Gone;
+		}
+		Slats->BatchUpdateInstancesTransforms(0, T, false, true, true);
+		if (Win) Win->UpdateInstanceTransform(0, WinT, false, true, true);
+		Bar->UpdateInstanceTransform(0, FTransform(LeafTurn, FVector(0.f, 0.f, Foot * 100.f)), false, true, true);
+		return;
+	}
 	TArray<FTransform> T; T.SetNum(N);
 	for (int32 i = 0; i < N; ++i)
 	{

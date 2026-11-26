@@ -61,9 +61,11 @@ def mat(name, rgb, rough=0.6, metal=0.0, emit=0.0, alpha=1.0, tex=None):
 
 
 M = dict(
-    wall=mat('M_Cargo_WallCladding', (0.74, 0.76, 0.77), tex='Cladding'),
-    wall2=mat('M_Cargo_WallHighBay', (0.74, 0.76, 0.77), tex='Cladding'),
-    band=mat('M_Cargo_CladdingBand', (0.06, 0.22, 0.45), tex='CladdingBand'),
+    wall=mat('M_Cargo_WallCladding', (0.74, 0.76, 0.77), tex='CladdingAged'),
+    wall2=mat('M_Cargo_WallHighBay', (0.74, 0.76, 0.77), tex='CladdingAged'),
+    band=mat('M_Cargo_CladdingBand', (0.06, 0.22, 0.45), tex='CladdingBandAged'),
+    plinth=mat('M_Cargo_Plinth', (0.50, 0.50, 0.49), tex='Grime'),
+    boom=mat('M_Cargo_BoomWhite', (0.82, 0.83, 0.83), tex='PaintWhite'),
     roof=mat('M_Cargo_Roof', (0.24, 0.26, 0.28), tex='Roof'),
     glass=mat('M_Cargo_Glass', (0.10, 0.13, 0.15), 0.05, tex='OfficeGlass'),
     door=mat('M_Cargo_Door', (0.92, 0.50, 0.06), tex='SectionalDoor'),
@@ -84,7 +86,7 @@ M = dict(
     red=mat('M_Cargo_MarkRed', (0.75, 0.10, 0.08), tex='LineRed'),
     green=mat('M_Cargo_MarkGreen', (0.10, 0.50, 0.22), tex='LineGreen'),
     pv=mat('M_Cargo_Solar', (0.03, 0.05, 0.12), 0.15, 0.2, tex='Solar'),
-    skylight=mat('M_Cargo_SkylightGlass', (0.85, 0.88, 0.90), 0.15, 0.0, 0.0, 0.55),
+    skylight=mat('M_Cargo_SkylightGlass', (0.55, 0.62, 0.66), 0.04, 0.0, 0.0, 0.30),
     hvac=mat('M_Cargo_Plant', (0.42, 0.45, 0.47), tex='PaintGrey'),
     uld=mat('M_Cargo_ULD', (0.70, 0.72, 0.74), 0.4, 1.0, tex='Aluminium'),
     truck=mat('M_Cargo_Truck', (0.82, 0.83, 0.83), tex='PaintWhite'),
@@ -112,9 +114,54 @@ def box(name, x0, y0, z0, x1, y1, z1, m):
     bm = bmesh.new(); bmesh.ops.create_cube(bm, size=1.0)
     for v in bm.verts:
         v.co = Vector(((v.co.x + 0.5) * (x1 - x0) + x0, (v.co.y + 0.5) * (y1 - y0) + y0, (v.co.z + 0.5) * (z1 - z0) + z0))
+    lo = min(x1 - x0, y1 - y0, z1 - z0)
+    if m not in FLAT and lo >= 0.06:                 # step B3: every solid part gets bevelled edges that catch the light
+        bmesh.ops.bevel(bm, geom=list(bm.edges), offset=min(0.02, 0.15 * lo), segments=1, affect='EDGES')
     me = bpy.data.meshes.new('SM_Cargo_' + name); bm.to_mesh(me); bm.free(); me.materials.append(M[m])
     o = bpy.data.objects.new(name, me); COL.objects.link(o)
     return o
+
+
+FLAT = {'yard', 'apron', 'slab', 'yellow', 'white', 'red', 'green', 'glass', 'skylight', 'exitsign', 'sign', 'pv'} |        {k for k in M if k.startswith('fl_')}
+
+
+def joinm(name, objs):
+    """Like join, keeping each part's own material (several slots, none empty)."""
+    objs = [o for o in objs if o]
+    if not objs: return None
+    mats = []
+    for o in objs:
+        if o.data.materials[0] not in mats: mats.append(o.data.materials[0])
+    bm = bmesh.new()
+    for o in objs:
+        me = o.data.copy(); me.transform(o.matrix_world); k = mats.index(o.data.materials[0])
+        for pg in me.polygons: pg.material_index = k
+        bm.from_mesh(me); bpy.data.meshes.remove(me)
+    me = bpy.data.meshes.new('SM_Cargo_' + name); bm.to_mesh(me); bm.free()
+    for mt in mats: me.materials.append(mt)
+    for o in objs:
+        d = o.data; bpy.data.objects.remove(o); bpy.data.meshes.remove(d)
+    o = bpy.data.objects.new(name, me); COL.objects.link(o)
+    return o
+
+
+def cyl(name, cx, cy, z0, r, h, m, seg=16):
+    """An upright cylinder (fans, pipes)."""
+    bm = bmesh.new(); bmesh.ops.create_cone(bm, cap_ends=True, segments=seg, radius1=r, radius2=r, depth=h)
+    for v in bm.verts: v.co = Vector((v.co.x + cx, v.co.y + cy, v.co.z + z0 + h / 2))
+    me = bpy.data.meshes.new('SM_Cargo_' + name); bm.to_mesh(me); bm.free(); me.materials.append(M[m])
+    o = bpy.data.objects.new(name, me); COL.objects.link(o)
+    return o
+
+
+def guide(e, s, c, z0, z1, along, m='steel'):
+    """A sectional door's guide channel at an opening's edge e (s = +1/-1 into the opening), the curtain on line c:
+    a web on the reveal and two flanges either side of the panels (they run 42 mm thick in it)."""
+    def bx(u0, u1, v0, v1, n):
+        u0, u1 = min(u0, u1), max(u0, u1)
+        return box(n, u0, v0, z0, u1, v1, z1, m) if along == 'x' else box(n, v0, u0, z0, v1, u1, z1, m)
+    return [bx(e, e + s * 0.008, c - 0.034, c + 0.034, 'GDw'), bx(e + s * 0.008, e + s * 0.06, c - 0.034, c - 0.026, 'GDf'),
+            bx(e + s * 0.008, e + s * 0.06, c + 0.026, c + 0.034, 'GDf')]
 
 
 def join(name, objs):
@@ -168,6 +215,55 @@ for x0, x1, h in ((-0.3, 0.0, H_OFF), (L, L + 0.3, H_SPEC)):
     hi.append(box('OW', x0, -0.3, LOW + BAND, x1, D + 0.3, h, 'wall'))
 join('OuterWallsLow', lo); join('CladdingBand', bd); join('OuterWallsHigh', hi)
 join('Roofs', [box('Roof', x0 - 0.3, -0.3, h, x1 + 0.3, D + 0.3, h + 0.6, 'roof') for _, (x0, x1), h, _ in CL.ZONES])
+# step B3: the outer roller doors' guide channels in both reveals, the spring shaft's head box inside over each one,
+# and outside (not at docks, where the shelter is) a head flashing and jamb trims round the opening
+od, trim = [], []
+for rid, kind, cx, cy, z0, ax, w, h in CD.rollers():
+    if kind == 'sectional': continue
+    hw, zt, inn = w / 2, z0 + h, (1 if cy < 0 else -1)         # inn: +y on the south face (inside is y > 0)
+    for s_ in (-1, 1): od += guide(cx + s_ * hw, -s_, cy, z0, zt, 'x')
+    yi = 0.0 if cy < 0 else D; yo = -0.3 if cy < 0 else D + 0.3
+    od.append(box('DH', cx - hw - 0.1, min(yi, yi + inn * 0.45), zt, cx + hw + 0.1, max(yi, yi + inn * 0.45), min(zt + 0.55, LOW - 0.02), 'hvac'))
+    if kind != 'dock':
+        a, b = sorted((yo, yo - inn * 0.06))
+        trim.append(box('DF', cx - hw - 0.15, a, zt, cx + hw + 0.15, b, zt + 0.15, 'steel'))
+        trim += [box('DT', x0_, a, z0, x1_, b, zt, 'steel') for x0_, x1_ in ((cx - hw - 0.15, cx - hw), (cx + hw, cx + hw + 0.15))]
+joinm('OuterDoorGuides', od); join('OuterDoorTrims', trim)
+# a concrete plinth 0.6 m high, 2 cm proud, round the foot of the outer walls (dirtiest at the ground); it stops short
+# of every opening down to the ground, with room for the trims
+def plinth_run(along, a, b, c0, c1, gaps):
+    out, u = [], a
+    for g0, g1, zb, zt in gaps:
+        if zb > 0 or g1 <= a or g0 >= b: continue
+        if g0 - 0.16 > u: out.append((u, g0 - 0.16))
+        u = max(u, g1 + 0.16)
+    if b > u: out.append((u, b))
+    return [box('PL', u0, c0, 0, u1, c1, 0.6, 'plinth') if along == 'x' else box('PL', c0, u0, 0, c1, u1, 0.6, 'plinth') for u0, u1 in out]
+join('Plinth', plinth_run('x', -0.32, L + 0.32, -0.32, -0.3, GAPS['s']) + plinth_run('x', -0.32, L + 0.32, D + 0.3, D + 0.32, GAPS['n']) +
+     plinth_run('y', -0.3, D + 0.3, -0.32, -0.3, []) + plinth_run('y', -0.3, D + 0.3, L + 0.3, L + 0.32, GAPS['e']))
+# gutters under the eaves and downpipes every 30 m (none in front of an opening or a fire wall; on the canopy sides
+# they stop on the canopy roof)
+gut, dp = [], []
+def clear(x, gaps, m=1.0):
+    return all(not (g0 - m < x < g1 + m) for g0, g1, _, _ in gaps) and all(abs(x - fx) > 1.0 for fx, _ in CL.FIRE_WALLS)
+for _, (x0, x1), h, _ in CL.ZONES:
+    for side in ('s', 'n'):
+        ya, yb = (-0.48, -0.3) if side == 's' else (D + 0.3, D + 0.48)
+        gut.append(box('GU', x0, ya, h + 0.25, x1, yb, h + 0.5, 'steel'))
+        pa, pb = (-0.44, -0.34) if side == 's' else (D + 0.34, D + 0.44)
+        for x in [x0 + 4 + 30 * i for i in range(int((x1 - x0 - 6) / 30) + 1)]:
+            if not clear(x, GAPS[side]): continue
+            if side == 's': zb = CANOPY_H + 1.0 if EXP[0] - 0.5 <= x <= IMP[1] + 0.5 else 0.0
+            else: zb = 6.6 if EXP[0] - 0.5 <= x <= L + 0.5 else 0.0
+            dp.append(box('DP', x - 0.05, pa, zb, x + 0.05, pb, h + 0.25, 'steel'))
+join('Gutters', gut); join('Downpipes', dp)
+# wall louvres (plant room air) high on the landside face, above the canopy
+lv = []
+for x in range(int(EXP[0]) + 12, int(L) - 6, 24):
+    if not clear(x, GAPS['n'], 0.8): continue
+    lv.append(box('LVf', x - 0.7, D + 0.3, 7.4, x + 0.7, D + 0.34, 8.4, 'hvac'))
+    lv += [box('LVs', x - 0.65, D + 0.34, 7.48 + k * 0.12, x + 0.65, D + 0.40, 7.52 + k * 0.12, 'steel') for k in range(8)]
+joinm('WallLouvres', lv)
 # fire walls between fire zones stand 1 m through the roof; 6.5 m fire shutters at both aisles (none into the border
 # control post) and 1.2 m escape doors in them
 fwl, fwd, fws = [], [], []
@@ -245,7 +341,10 @@ def door_parts(doors, z0, tag):
             for s in (-1, 1):
                 j = (cx + s * hw - 0.15, cy - 0.3, z0, cx + s * hw + 0.15, cy + 0.3, z0 + hd + 0.4) if o == 'h' else \
                     (cx - 0.3, cy + s * hw - 0.15, z0, cx + 0.3, cy + s * hw + 0.15, z0 + hd + 0.4)
-                amber.append(box(tag + 'J', *j, 'door'))
+                e = cx + s * hw if o == 'h' else cy + s * hw         # the opening's edge on this side
+                pj = (min(e, e + s * 0.15), cy - 0.3, z0, max(e, e + s * 0.15), cy + 0.3, z0 + hd + 0.4) if o == 'h' else                      (cx - 0.3, min(e, e + s * 0.15), z0, cx + 0.3, max(e, e + s * 0.15), z0 + hd + 0.4)
+                amber.append(box(tag + 'J', *pj, 'door'))
+                amber += guide(e, -s, cx if o != 'h' else cy, z0, z0 + hd, 'x' if o == 'h' else 'y')
             hb = (cx - hw - 0.15, cy - 0.35, z0 + hd, cx + hw + 0.15, cy + 0.35, z0 + hd + 0.6) if o == 'h' else \
                  (cx - 0.35, cy - hw - 0.15, z0 + hd, cx + 0.35, cy + hw + 0.15, z0 + hd + 0.6)
             amber.append(box(tag + 'H', *hb, 'door'))
@@ -255,7 +354,7 @@ def door_parts(doors, z0, tag):
 
 
 g, a_, lt = door_parts(CL.doors_from_rooms(ground, SKX, SKY), 0.0, 'G')
-join('RoomDoorsPersonnel', g); join('RoomDoorsSectional', a_); join('ExitSigns', lt)
+join('RoomDoorsPersonnel', g); joinm('RoomDoorsSectional', a_); join('ExitSigns', lt)
 # office block upper floors (slab + its partitions and doors each)
 for f, rooms in CL.UPPER.items():
     z = CL.FLOOR_Z[f]
@@ -361,9 +460,28 @@ box('ULDRepairShed', *ex[1][1:3], 0, *ex[1][3:5], 7.0, 'wall')
 # #region ── Landside: truck docks with levellers and shelters, drive-in doors, the truck court and its gate ──
 DK = CL.DOCKS + CL.SPC_DOCKS
 # (dock door curtains: the game's roller doors R-CARGO-DOCK-..; the shelter is a frame of pads round the opening)
-join('DockShelters', [b for x in DK for b in (box('DS', x - 2.0, D + 0.3, 1.2, x - 1.5, D + 1.2, 4.7, 'shelter'),
-                      box('DS', x + 1.5, D + 0.3, 1.2, x + 2.0, D + 1.2, 4.7, 'shelter'), box('DS', x - 2.0, D + 0.3, 4.7, x + 2.0, D + 1.2, 5.2, 'shelter'))])
-join('DockBumpers', [box('DB', x - 1.8, D + 0.3, 0.8, x + 1.8, D + 0.55, 1.2, 'shelter') for x in DK])
+# dock shelters: a frame round the opening, slit black rubber curtains (two sides and a top) with yellow guide
+# stripes for the driver, and laminated rubber bumpers on steel plates below the sill
+sh = []
+for x in DK:
+    sh += [box('DSf', x - 2.0, D + 0.3, 1.2, x - 1.5, D + 1.1, 4.7, 'shelter'), box('DSf', x + 1.5, D + 0.3, 1.2, x + 2.0, D + 1.1, 4.7, 'shelter'),
+           box('DSf', x - 2.0, D + 0.3, 4.7, x + 2.0, D + 1.1, 5.3, 'shelter')]
+    for s_ in (-1, 1):
+        a, b = sorted((x + s_ * 2.0, x + s_ * 1.15))
+        sh.append(box('DSc', a, D + 1.1, 1.25, b, D + 1.12, 4.7, 'shelter'))
+        a, b = sorted((x + s_ * 1.55, x + s_ * 1.45))
+        sh.append(box('DSy', a, D + 1.12, 1.25, b, D + 1.125, 4.7, 'yellow'))
+    sh += [box('DSt', x - 1.15 + i * 0.29, D + 1.1, 4.0, x - 1.15 + i * 0.29 + 0.28, D + 1.12, 4.7, 'shelter') for i in range(8)]
+    sh.append(box('DSy', x - 2.0, D + 1.1, 4.95, x + 2.0, D + 1.105, 5.05, 'yellow'))
+joinm('DockShelters', sh)
+bp = []
+for x in DK:
+    for s_ in (-1, 1):
+        a = x + s_ * 1.3
+        bp.append(box('DBp', a - 0.17, D + 0.3, 0.6, a + 0.17, D + 0.32, 1.15, 'steel'))
+        bp += [box('DBr', a - 0.13, D + 0.32, 0.64 + k * 0.1, a + 0.13, D + 0.46, 0.72 + k * 0.1, 'shelter') for k in range(5)]
+        bp.append(box('DBf', a - 0.14, D + 0.46, 0.62, a + 0.14, D + 0.47, 1.13, 'steel'))
+joinm('DockBumpers', bp)
 join('DockLevellers', [box('DL', x - 1.4, D - 3.0, 0.0, x + 1.4, D, 0.08, 'steel') for x in DK])
 box('LandsideCanopy', EXP[0], D + 0.3, 6.0, L, D + 6.0, 6.6, 'canopy')
 box('TruckCourt', -10, D, -0.05, L + 10, D + YARD_D, 0.0, 'yard')
@@ -378,20 +496,44 @@ marks += [box('BH', b0, y, 0.0, b1, y + 0.4, 0.02, 'green') for y in range(int(D
 join('CourtMarkings', marks)
 join('Fence', [box('F', -10, D + YARD_D - 0.1, 0, 150, D + YARD_D + 0.1, 2.6, 'fence'),
                box('F', 175, D + YARD_D - 0.1, 0, L + 10, D + YARD_D + 0.1, 2.6, 'fence')])
-box('Gatehouse', 152, D + YARD_D - 10, 0, 160, D + YARD_D - 4, 3.2, 'glass')
-box('GatehouseRoof', 150, D + YARD_D - 12, 3.2, 176, D + YARD_D - 2, 3.7, 'canopy')
-box('GateBarrier', 162, D + YARD_D - 1, 1.0, 174, D + YARD_D - 0.7, 1.2, 'red')
+Y = D + YARD_D
+joinm('Gatehouse', [box('GHb', 152, Y - 10, 0, 160, Y - 4, 1.0, 'wall'), box('GHg', 152.05, Y - 9.95, 1.0, 159.95, Y - 4.05, 2.8, 'glass'),
+                    box('GHf', 152, Y - 10, 2.8, 160, Y - 4, 3.2, 'band')] +
+      [box('GHm', x - 0.03, Y - 10.0, 1.0, x + 0.03, Y - 9.95, 2.8, 'steel') for x in (153.5, 155.5, 157.5)] +
+      [box('GHm', x - 0.03, Y - 4.05, 1.0, x + 0.03, Y - 4.0, 2.8, 'steel') for x in (153.5, 155.5, 157.5)])
+box('GatehouseRoof', 150, Y - 12, 3.2, 176, Y - 2, 3.7, 'canopy')
+# the truck court gate: the barrier cabinet, its boom (own part 'GateBoom', origin on the pivot so it can swing up)
+# in red and white 1 m stripes, and the rest post at the far end
+joinm('GateBarrierCabinet', [box('GBc', 160.9, Y - 1.35, 0.08, 161.9, Y - 0.95, 1.1, 'fork'),
+                             box('GBk', 160.85, Y - 1.4, 0, 161.95, Y - 0.9, 0.08, 'steel'),
+                             box('GRp', 173.5, Y - 0.95, 0, 173.7, Y - 0.75, 0.86, 'fork')])
+bm_ = [box('GBh', 161.25, Y - 0.93, 0.8, 161.75, Y - 0.77, 1.1, 'steel')]
+bm_ += [box('GBs', 161.75 + i, Y - 0.92, 0.88, 161.75 + i + 1 if i < 11 else 174.0, Y - 0.78, 1.02, 'red' if i % 2 else 'boom') for i in range(12)]
+GATE_BOOM = joinm('GateBoom', bm_); GATE_PIVOT = Vector((161.5, Y - 0.85, 0.95))
 # (owner: no box lorries at the docks - real trucks come later)
 # #endregion
 
 # #region ── Roof: skylight strips, smoke vents, solar panels, the special block's refrigeration plant ──
 join('Skylights', [box('SK', x0 + 4, y, h + 0.6, x1 - 4, y + 2.5, h + 1.4, 'skylight') for (x0, x1), h in ((EXP, H_MAIN), (IMP, H_MAIN))
                    for y in (12, 34, 56)])
+join('SkylightKerbs', [b for (x0, x1), h in ((EXP, H_MAIN), (IMP, H_MAIN)) for y in (12, 34, 56) for b in (
+    box('SKk', x0 + 3.85, y - 0.15, h + 0.6, x1 - 3.85, y, h + 0.95, 'steel'), box('SKk', x0 + 3.85, y + 2.5, h + 0.6, x1 - 3.85, y + 2.65, h + 0.95, 'steel'),
+    box('SKk', x0 + 3.85, y, h + 0.6, x0 + 4, y + 2.5, h + 0.95, 'steel'), box('SKk', x1 - 4, y, h + 0.6, x1 - 3.85, y + 2.5, h + 0.95, 'steel'))])
 join('SmokeVents', [box('SV', x, y, h + 0.6, x + 3, y + 3, h + 1.8, 'hvac') for (x0, x1), h in ((EXP, H_MAIN), (IMP, H_MAIN), (ETV, H_ETV))
                     for x in range(int(x0) + 8, int(x1) - 6, 20) for y in (24, 44)])
 join('SolarPanels', [box('PV', ETV[0] + 5, y, H_ETV + 0.9, ETV[1] - 5, y + 4.6, H_ETV + 1.5, 'pv') for y in range(6, int(D) - 8, 7)])
-join('RefrigerationPlant', [box('RP', 350 + i * 9, 10 + j * 22, H_SPEC + 0.6, 356 + i * 9, 20 + j * 22, H_SPEC + 3.2, 'hvac')
-                            for i in range(12) for j in range(3)])
+# the special block's refrigeration plant: condensing units with their fan rings, on steel rails
+cu = []
+for i in range(6):
+    for j in range(3):
+        x0_, y0_, z_ = 350 + i * 18, 10 + j * 22, H_SPEC + 0.6
+        cu += [box('RPr', x0_ + 0.5, y0_ + d, z_, x0_ + 11.5, y0_ + d + 0.2, z_ + 0.25, 'steel') for d in (1.0, 8.8)]
+        cu.append(box('RPu', x0_, y0_, z_ + 0.25, x0_ + 12, y0_ + 10, z_ + 2.25, 'hvac'))
+        for a in range(4):
+            for b in range(2):
+                fx, fy = x0_ + 1.5 + a * 3, y0_ + 2.5 + b * 5
+                cu += [cyl('RPf', fx, fy, z_ + 2.25, 1.2, 0.35, 'steel', 24), cyl('RPg', fx, fy, z_ + 2.6, 1.05, 0.01, 'shelter', 24)]
+joinm('RefrigerationPlant', cu)
 # #endregion
 
 # #region ── Sign on the airside face of the high bay ──
@@ -530,6 +672,9 @@ drop_contacts()
 for o in COL.objects:
     if o.type == 'MESH': world_uvs(o)
 door_nodes()
+# the gate boom's origin on its pivot (the boom swings up about the model's y axis there)
+from mathutils import Matrix
+GATE_BOOM.data.transform(Matrix.Translation(-GATE_PIVOT)); GATE_BOOM.location = GATE_PIVOT
 # every slot filled (the import's rule): no mesh without a material
 assert all(len(o.data.materials) and all(o.data.materials) for o in COL.objects if o.type == 'MESH'), 'empty material slot'
 # #endregion
