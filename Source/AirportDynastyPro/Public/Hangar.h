@@ -49,6 +49,7 @@ struct AIRPORTDYNASTYPRO_API FHangarSpec
 	float TrackZ(int32 T) const { return -0.45f - T * 0.34f; }
 	float Front() const { return TrackZ(Tracks() - 1) - 0.45f; }       // the door head's front
 	float Lip() const { return -(Front() - 0.3f); }                     // the threshold's front edge: this far in front of the door line
+	float TailIn() const { return D - 35.5f; }                         // a towed aircraft's nose tyre, parked tail first (to-do 311)
 	float PocketX() const { return WallX() + LeafW() + 0.5f; }          // the door pockets' outer face
 	float Back() const { return D + Col + 0.12f; }                      // the back wall's outer face
 };

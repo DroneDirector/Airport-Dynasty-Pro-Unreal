@@ -405,6 +405,7 @@ void AHangar::BuildFloor()
 	const float Y = 0.004f, Stop = D - 8.3f;
 	Box("yellow", -0.075f, -0.01f, -S.Lip(), 0.075f, Y, Stop, false);
 	Box("yellow", -2.f, -0.01f, Stop - 0.2f, 2.f, Y, Stop + 0.2f, false);
+	Box("yellow", -2.f, -0.01f, S.TailIn() - 0.2f, 2.f, Y - 0.001f, S.TailIn() + 0.2f, false);   // (the tail-first stop: a towed aircraft's nose tyre, to-do 311; 1 mm under the lead-in line: no shared face)
 	// the walkways along the walls, the keep-clear line behind the door
 	for (const float Sx : {-1.f, 1.f})
 		for (const float Off : {1.2f, 2.6f}) Box("yellow", Sx * (W / 2 - Off) - 0.05f, -0.01f, 0.5f, Sx * (W / 2 - Off) + 0.05f, Y, D - 0.5f, false);

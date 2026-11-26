@@ -519,7 +519,7 @@ void ATugs::CrewCouple(int32 Tug)
 void ATugs::CrewUncouple(int32 Tug)
 {
 	FTug& T = Tugs[Tug];
-	T.bPinShown = false; T.PinKey = T.Key;
+	T.bPinShown = T.bTow; T.PinKey = T.Key;   // (a hangar tow: no pin to show, no engines)
 	const bool bYou = T.bYouPush; const int32 Yu = T.YouUn;   // (pushed by you: you uncouple it; what you have done already when its crew come)
 	auto Geo = [this, Tug](FVector& Fit, FVector& F, FVector& L, FVector& Gear) { const FTug& U = Tugs[Tug]; Fit = U.Fit; F = U.Fwd; L = -LeftOf(F); Gear = Fit - F * 60.f; };   // (L: the side the handler works on - the aircraft's RIGHT, away from the jetway and its red zone at the gate; test of 2026-11-21)
 	auto HeadSpot = [Geo] { FVector Fit, F, L, G; Geo(Fit, F, L, G); return Fit + F * 40.f + L * 90.f; };
@@ -911,7 +911,7 @@ void ATugs::SeqTick(FTug& T, float Dt)
 	if (T.Seq <= 0 || T.Seq == 8 || T.Seq == 10 || T.Seq == 12 || T.Seq >= 14)
 	{
 		// (during the push: the start clearance about 10 s in)
-		if (T.Seq == 8 && T.EngT < 0.f && (T.SeqT += Dt) > 10.f)
+		if (T.Seq == 8 && !T.bTow && T.EngT < 0.f && (T.SeqT += Dt) > 10.f)
 		{
 			Say(T, 1, TEXT("Ground, cockpit, cleared to start engines?"));
 			Say(T, 0, TEXT("Cleared to start, cockpit."));
@@ -967,12 +967,16 @@ void ATugs::SeqTick(FTug& T, float Dt)
 		Say(T, 1, FString::Printf(TEXT("Pushback approved, face %s, %s."), T.Face.IsEmpty() ? TEXT("north") : *T.Face, *Cs), true);
 		Next(5); break;
 	case 5: // step 6: the pilot tells the crew, brakes released - the push begins only now
-		Say(T, 1, FString::Printf(TEXT("Ground, cockpit, cleared for pushback, face %s, brakes released."), T.Face.IsEmpty() ? TEXT("north") : *T.Face));
-		Say(T, 0, TEXT("Brakes released, commencing pushback."));
+		if (T.bTow) { Say(T, 1, TEXT("Ground, cockpit, cleared for the tow, brakes released.")); Say(T, 0, TEXT("Brakes released, commencing tow.")); }
+		else
+		{
+			Say(T, 1, FString::Printf(TEXT("Ground, cockpit, cleared for pushback, face %s, brakes released."), T.Face.IsEmpty() ? TEXT("north") : *T.Face));
+			Say(T, 0, TEXT("Brakes released, commencing pushback."));
+		}
 		Next(6, 0.f); break;
 	case 6: Next(8, 0.f); ADP_LOG(TEXT("Tugs: %s - push begins"), *Cs); break;
 	case 9: // step 8: push complete - brakes set (the tug never unhooks before)
-		Say(T, 0, TEXT("Pushback complete, set parking brake."));
+		Say(T, 0, T.bTow ? TEXT("Tow complete, set parking brake.") : TEXT("Pushback complete, set parking brake."));
 		Say(T, 1, TEXT("Parking brake set."));
 		Next(10, 0.f); break;
 	case 11: // step 9: the headset off, the signal on his side
@@ -980,6 +984,7 @@ void ATugs::SeqTick(FTug& T, float Dt)
 		Say(T, 1, TEXT("Thank you, see you outside."));
 		Next(12, 0.f); break;
 	case 13: // step 11: ready to taxi - once both engines are running and the checks are done
+		if (T.bTow) { Next(14, 0.f); break; }   // (a hangar tow: nobody taxies)
 		if (!T.bEngines && T.EngT >= 0.f) return;
 		Say(T, 1, FString::Printf(TEXT("%s, %s, ready to taxi."), *Gnd, *Cs), true);
 		Say(T, 2, FString::Printf(TEXT("%s, taxi to holding point %s, runway %s, via %s, QNH %d.%s"), *Cs, TEXT("Alpha"), T.Runway.IsEmpty() ? TEXT("three four") : *T.Runway, T.Route.IsEmpty() ? TEXT("Tango, Alpha") : *T.Route, Qnh, bTraffic ? TEXT(" Expect a short delay, traffic on Tango.") : TEXT("")), true);

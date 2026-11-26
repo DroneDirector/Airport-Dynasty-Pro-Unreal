@@ -948,3 +948,26 @@ stand end; the deck top (0.906 m, rollers 1.028 m) is not yet checked against th
 - Knock and door by hand (2026-11-26, compiled, not run): `UPaxAnimInstance::SetReach` (two-bone arm IK, the hand turned to a palm/finger frame, the fingers curled; knuckles or grip point from the rig's middle finger). The visitor raises the right fist to the leaf's corridor face and knocks three times on the sounds of a real recording (Freesound 448359, CC0: Art/Sounds/Office/SOURCES.md, `/Game/Office/Sounds/Knock`, played at the door with 15 m falloff so it is heard in the office). `UOfficeCall::DoorByHand`: they stand half a metre off the face of the handle they use (Door_HandleOut pushing it open / pulling it shut from the corridor, Door_HandleIn pushing it shut / pulling it open in the room), the hand on the handle as it swings (`ABabylonModel::StaffDoorPoint`), and the leaf only moves (`StaffDoorHold`, the door's own tick then leaves it alone) while the hand is on it and they are in place; round the open leaf's free edge with 45 cm to spare. 15 s without getting there: warned and the door's motor does it.
 - "Call to my office" from everywhere: the staff list on the PC, laptop, phone and tablet (sim-crew.ts, bridge action `office`), a line by anyone with conduct reports, and the talk menu all go through `UOfficeCall::Ask`: called now, or queued while they are at a job or somebody else is called in (the line says which; the row shows "On the way" / "Busy - comes when free"); the queue is tried every 10 s and drops anyone no longer at the airport.
 - Not done yet: the path points, hand positions and knock timing are not checked in a run; the knock sound needs `Tools/import_office_sounds.py` run in the editor if `Content/Office/Sounds/Knock.uasset` is missing (logged once).
+
+## Hangar tow (to-do 311, step A)
+- A C or D check of ours at our airport (Sim/ADPMaint): HangarTow.cpp has the stand's own tug and its hired crew tow it to
+  the nearest free hangar. Key `TOW/<reg>`; the same calls as a pushback (Tugs.h `TowPlan`, `Push`, `Release`), so your
+  own tow (step C) can use them with the same limits.
+- The way: pushed tail first onto T, pulled nose first T - P - A - A2 (over the runway) - B - Q - K past the hangar, then
+  pushed tail first onto the bay's new tail-first stop bar (Hangar.h `TailIn`, nose tyre D - 35.5 m in). 8 km/h, 5 in
+  turns, easing to an exact stop. Wing walkers, beacon and nav lights (night) on; strobes, landing, taxi off. The door
+  opens first (the tow holds until fully open) and shuts 30 s after the tug is clear; cold and dark inside.
+- After the check: pulled nose first out and nose-in onto its own stand (or the first free one), handed back to
+  ParkedAircraft (`Adopt`). Departures wait while it is towed (SimTraffic `Ready`).
+- No crew: the tow waits; the reason goes to the log every 30 s, and the crew notices (`push:TOW/<reg>`).
+- Blocks: a GPU still on is taken off by the handler first (`GpuDisconnect`); stand chocks, walkers not ready: the tow
+  waits and logs why every 30 s (`Tugs: the hangar tow ... waits - ...`).
+- Hangar chocks (HangarTow `Chock`, Tugs `TowChocks`): a walker (else the handler) fetches them from the hall's store and
+  sets them fore and aft of the nose tyre and right main gear; the door shuts only once they are in. On the tow back they
+  are taken away first once the tug is on; the stand's chocks go in again on arrival.
+- Runway: the tow holds short 107.5 m from the centreline until nothing rolls, lands below 400 m or takes off
+  (SimTraffic `RunwayBusy`), then 10 s more; departures hold while it is on the strip (`HangarTow::OnRunway`).
+- Wing walkers: the tow slows to 2.5 km/h when one is over 4 m from his place and stops over 10 m (logged).
+- Not yet: the brake rider (step B), your own tow (step C), an ATC radio call for the crossing (log only), landings
+  waiting for a tow, the crew walking between stand and hangar over the runway on foot, the baked chock store staying
+  full while its chocks are out, towing from cargo / remote stands, a tow running over a save.

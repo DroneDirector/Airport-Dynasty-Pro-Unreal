@@ -40,6 +40,8 @@ public:
 	static bool Airborne(UWorld* W, const FString& Reg);
 	/** True while that aircraft moves in 3D (not on blocks). */
 	static bool Moving(const UWorld* W, const FString& Reg);
+	/** The runway is in use: something rolling, landing, on final under 400 m or lined up (a hangar tow holds short, to-do 311). */
+	static bool RunwayBusy(const UWorld* W);
 	/** May this planned leg leave (ADPSchedule::Ready3D): everyone aboard, the jetway at rest, the bags in. */
 	bool Ready(const struct FADPPlanned& P, const FDateTime& Now, FString& Why) const;
 

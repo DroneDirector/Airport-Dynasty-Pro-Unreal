@@ -2,6 +2,7 @@
 #include "SimTraffic.h"
 #include "PaxFlow.h"
 #include "Tugs.h"
+#include "HangarTow.h"
 #include "Turnaround.h"
 #include "GSE.h"
 #include "ParkedAircraft.h"
@@ -130,9 +131,22 @@ bool ASimTraffic::Airborne(UWorld* W, const FString& Reg)
 
 bool ASimTraffic::Moving(const UWorld* W, const FString& Reg) { return ADPParked::Coming.Contains(Reg); }
 
+bool ASimTraffic::RunwayBusy(const UWorld* W)
+{
+	if (!W) return false;
+	for (TActorIterator<ASimTraffic> It(const_cast<UWorld*>(W)); It; ++It)
+		for (const FMove& M : It->Moves)
+		{
+			if (M.Phase == EPhase::Roll || M.Phase == EPhase::Rollout || (M.Phase == EPhase::Approach && M.Height < 400.f) || (M.Phase == EPhase::Climb && M.Height < 100.f)) return true;
+			if ((M.Phase == EPhase::Taxi || M.Phase == EPhase::TaxiIn) && (FMath::Abs(M.Nose.Y - It->F.RwyY) < 100.f || FMath::Abs(M.Main.Y - It->F.RwyY) < 100.f)) return true;   // (lined up, or crossing / vacating)
+		}
+	return false;
+}
+
 bool ASimTraffic::Ready(const FADPPlanned& P, const FDateTime& Now, FString& Why) const
 {
 	UWorld* W = GetWorld();
+	if (AHangarTow::Busy(W, P.Reg)) { Why = TEXT("it is being towed to or from the hangar"); return false; }
 	if (!APaxFlow::BoardingDone(W, P.Reg)) { Why = TEXT("not everyone is aboard yet"); return false; }
 	const ADPTurnaround::FTurn* T = ADPTurnaround::All().FindByPredicate([&](const ADPTurnaround::FTurn& X) { return X.Reg == P.Reg; });
 	if (!T) return true;   // (a remote stand: its work is data)
@@ -188,6 +202,7 @@ void ASimTraffic::Sync()
 		{
 			ADP_LOG(TEXT("Traffic: the ground fleet goes to its places now (the late world is in)"));
 		}
+		if (TNow >= FleetAt) AHangarTow::Get(GetWorld());   // (the hangar tows, to-do 311)
 		if (TNow >= FleetAt) ATugs::Get(GetWorld());   // (the ground crew, the tugs, the tractors and the ground power at their places from the start, not only once a flight calls for them)
 	}
 	const FString Here = ADPBoards::HereIcao();
@@ -508,6 +523,7 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 		// a few seconds later - as the tower gives it
 		bool bBusy = false;
 		for (const FMove& O : Moves) if (&O != &M && (O.Phase == EPhase::Roll || O.Phase == EPhase::Rollout || (O.Phase == EPhase::Approach && O.Height < 200.f))) bBusy = true;
+		if (AHangarTow::OnRunway(GetWorld())) bBusy = true;   // (a hangar tow crossing, to-do 311)
 		if (bBusy || (M.Clock += Dt) < 20.f) { M.Speed = 0.f; M.Path = {M.Nose}; M.Step = 0; return false; }
 		M.Clock = 0.f;
 		M.Phase = EPhase::Roll; M.Path = {FVector2f(LineUp, RY), FVector2f(LineUp + Dir * 1700.f, RY)};

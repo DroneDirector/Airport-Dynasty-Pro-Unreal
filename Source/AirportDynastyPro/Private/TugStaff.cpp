@@ -22,6 +22,8 @@
 bool ATugs::HiredLive(const FString& Key, FDateTime* When, FString* Flight) const
 {
 	const UADPSim* Sim = UADPSim::Get(GetWorld()); if (!Sim) return false;
+	if (Key.StartsWith(TEXT("TOW/")))   // (a hangar tow, to-do 311: wanted while it is in Tows)
+	{ if (!Tows.Contains(Key)) return false; if (When) *When = Sim->Now(); if (Flight) *Flight = Key.Mid(4) + TEXT(" hangar tow"); return true; }
 	if (const FADPPlanned* P = Sim->World.Planned.FindByPredicate([&](const FADPPlanned& X) { return X.Id == Key && X.State == TEXT("planned"); }))
 	{ if (When) *When = P->Est; if (Flight) *Flight = P->FlightNo; return true; }
 	if (const FADPFlight* F = Sim->World.Flights.FindByPredicate([&](const FADPFlight& X) { return X.Id == Key; }))
@@ -34,6 +36,7 @@ bool ATugs::HiredJob(const FString& Key) const
 	const UADPSim* Sim = UADPSim::Get(GetWorld());
 	const UStaffPeople* Sp = UStaffPeople::Get(GetWorld());
 	if (!Sim || !Sp || !Sp->Hires()) return false;   // (too few hired for any job: the stand-ins)
+	if (Key.StartsWith(TEXT("TOW/"))) { for (const FADPAircraft& A : Sim->World.Aircraft) if (A.Reg == Key.Mid(4)) return A.AirlineId == UADPSim::Me(); return false; }
 	for (const FADPPlanned& P : Sim->World.Planned) if (P.Id == Key) return P.AirlineId == UADPSim::Me();
 	for (const FADPFlight& F : Sim->World.Flights) if (F.Id == Key) return F.AirlineId == UADPSim::Me();
 	return false;

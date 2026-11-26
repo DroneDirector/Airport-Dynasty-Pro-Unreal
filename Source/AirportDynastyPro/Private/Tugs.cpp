@@ -541,15 +541,20 @@ bool ATugs::Push(const FString& Key, float StandX, const FVector& Fitting, const
 			if (T.PreSeq == 0)
 			{
 				T.PreSeq = 1; T.bPushReq = true;
-				Say(T, 1, FString::Printf(TEXT("%s, %s, stand at the terminal, information %s, request pushback."), *Gnd, *Cs, Ph[ADPSite::LocalNow().GetHour() % 26]), true);
+				if (T.bTow) Say(T, 1, FString::Printf(TEXT("%s, %s, %s"), *Gnd, *Cs, *T.TowAsk), true);   // (a hangar tow, to-do 311)
+				else Say(T, 1, FString::Printf(TEXT("%s, %s, stand at the terminal, information %s, request pushback."), *Gnd, *Cs, Ph[ADPSite::LocalNow().GetHour() % 26]), true);
 				T.PreAt = Now + FMath::FRandRange(10.f, Planes.Num() > 1 ? 45.f : 25.f);
 				ADP_LOG(TEXT("Tugs: %s requests pushback from ATC - the tug stays in its box until it is approved"), *Key);
 				return false;
 			}
 			if (T.Talk.Num() || Now < T.PreAt) return false;
 			const FString Face = T.Face.IsEmpty() ? FString(TEXT("north")) : T.Face;
-			Say(T, 2, FString::Printf(TEXT("%s, %s, pushback approved, face %s."), *Cs, *Gnd, *Face), true);
-			Say(T, 1, FString::Printf(TEXT("Pushback approved, face %s, %s."), *Face, *Cs), true);
+			if (T.bTow) { Say(T, 2, FString::Printf(TEXT("%s, %s, %s"), *Cs, *Gnd, *T.TowOk), true); Say(T, 1, FString::Printf(TEXT("%s, %s."), *T.TowOk.LeftChop(1), *Cs), true); }
+			else
+			{
+				Say(T, 2, FString::Printf(TEXT("%s, %s, pushback approved, face %s."), *Cs, *Gnd, *Face), true);
+				Say(T, 1, FString::Printf(TEXT("Pushback approved, face %s, %s."), *Face, *Cs), true);
+			}
 			T.PreSeq = 2; T.bCleared = true;
 			ADP_LOG(TEXT("Tugs: %s pushback approved by ATC - now the tug comes out"), *Key);
 			return false;
@@ -561,6 +566,8 @@ bool ATugs::Push(const FString& Key, float StandX, const FVector& Fitting, const
 		const FVector In = T.HookAt + F * 800.f;          // 8 m short of the hook place, in line with the nose
 		T.Path = {Plan(StandX + BoxX, BoxY + 6.f), Plan(StandX + BoxX * 0.5f, BoxY + 12.5f), Plan(StandX, BoxY + 18.f), T.Handler != INDEX_NONE ? T.HookAt + F * 150.f : T.HookAt};
 		if (HeadStand(StandX)) T.Path = {T.Handler != INDEX_NONE ? T.HookAt + F * 150.f : T.HookAt};   // (its box is on the centre line)
+		if (T.bTow && T.TowWay.Num())   // (a hangar tow: out along the taxiways to the aircraft, to-do 311)
+		{ T.Path = {Plan(StandX + BoxX, BoxY + 6.f)}; T.Path.Append(T.TowWay); T.Path.Add(T.HookAt + F * 1500.f); T.Path.Add(T.HookAt); }
 		if (T.YouStep > 0) { T.Path.Reset(); if (FVector::Dist2D(T.At, T.HookAt) > 30.f) { T.Path = {T.HookAt}; T.YouStep = 0; } }   // (you coupled it: already there)
 		// (with a handler it stops 1.5 m short: he waves it in the last bit)   // (out of its box in a smooth S-curve onto the centre line, then straight in)
 	}
@@ -572,9 +579,17 @@ bool ATugs::Push(const FString& Key, float StandX, const FVector& Fitting, const
 		T.At = T.HookAt; T.Yaw = T.HookYaw; Pose(T);
 		// (the push starts only with the wing walkers and the tail walker in their places)
 		if (T.Driver == INDEX_NONE) return true;
-		if (T.Gpu.bConnected || T.Gpu.bYou || T.Gpu.bLying) return false;   // (the ground power off and its cable stowed before any push)
-		if (!ChkOut(T)) return false;   // (the cones in and the chocks off - the last ones once it is hooked on: TugChocks.cpp)
-		if (T.WalkersReady < WalkNeed(T)) return false;   // (no crew, no push - owner; your own people, to-do 206: the driver and the handler at least, and every walker there is)
+		// (a hangar tow never hangs unsaid: why it waits goes to the log every 30 s, to-do 311)
+		auto Hold = [this, &T, &Key](const TCHAR* Why) { const double Tn = GetWorld()->GetTimeSeconds(); if (T.bTow && Tn - T.TowSaid > 30.0) { T.TowSaid = Tn; ADP_LOG(TEXT("Tugs: the hangar tow %s waits - %s"), *Key, Why); } return false; };
+		if (T.bTow && T.Gpu.bConnected && !T.bTowGpu && !T.Gpu.bYou && !GpuCrewAt(T))
+		{
+			// (the ground power still on it - plugged in after its crew came, or no handler to unplug it: one of them does it now)
+			const int32 Gc = T.Handler != INDEX_NONE ? T.Handler : T.Walkers.Num() ? T.Walkers[0] : INDEX_NONE;
+			if (Crew.IsValidIndex(Gc)) { T.bTowGpu = true; GpuDisconnect(I, Crew[Gc]); ADP_LOG(TEXT("Tugs: the hangar tow %s - %s takes the ground power off first"), *Key, *Crew[Gc].Name); }
+		}
+		if (T.Gpu.bConnected || T.Gpu.bYou || T.Gpu.bLying) return Hold(T.Gpu.bYou ? TEXT("you are at its ground power") : T.Gpu.bLying ? TEXT("the ground power cable still lies out") : TEXT("its ground power is still plugged in"));   // (the ground power off and its cable stowed before any push)
+		if (!ChkOut(T)) return Hold(TEXT("its cones and chocks are still being taken away"));   // (the cones in and the chocks off - the last ones once it is hooked on: TugChocks.cpp)
+		if (T.WalkersReady < WalkNeed(T)) return Hold(TEXT("its wing walkers are not at the wingtips yet"));   // (no crew, no push - owner; your own people, to-do 206: the driver and the handler at least, and every walker there is)
 		if (T.Seq == 0) { T.Seq = 1; T.SeqT = 0.f; T.SeqWait = FMath::FRandRange(2.f, 5.f); }
 		return T.Seq >= 8;   // (brakes released, "commencing pushback" - the 11 steps, SeqTick)
 	}
@@ -1000,11 +1015,13 @@ void ATugs::StartHome(FTug& T)
 	// clear of the aircraft: home up the stand it just cleared (just left of the centre line), a 6 m loop in front of the
 	// terminal ending in line with its box facing the gate, then reversed straight into the box - as real drivers park;
 	// only if something is in the way that shouldn't be there (owner 2026-11-21): round it (RouteHome)
+	const TArray<FVector> TowHome = T.bTow ? T.TowBack : TArray<FVector>(); T.bTow = false; T.bTowGpu = false; T.TowWay.Reset(); T.TowBack.Reset(); Tows.Remove(T.Key);
 	ADP_LOG(TEXT("Tugs: clear of %s, home to the park"), *T.Key); T.State = EState::Home; T.Key.Reset(); T.bReverse = false; T.RouteCheck = 0.f;
 	float Bs = 0.f, Run = -1.f, By = BoxY, Rl = 6.f, Ly = 0.f; BoxT(T.StandX, Bs, Run, By, Rl, Ly);
 	const float Sx = T.StandX, Rt = HeadStand(Sx) ? -Rl : Rl;
 	T.Path = {StandT(Sx, Sx + Run, Ly + 40.f), StandT(Sx, Sx + Run, Ly)};
 	for (int32 k = 1; k <= 8; ++k) { const float A = PI * k / 8.f; T.Path.Add(StandT(Sx, Sx + Run - Rt + Rt * FMath::Cos(A), Ly - Rl * FMath::Sin(A))); }
+	if (TowHome.Num()) { T.Path.Insert(TowHome, 0); return; }   // (back from a hangar tow: along the taxiways first)
 	if (PathBlocked(T, T.Path, T.At)) RouteHome(T);
 }
 

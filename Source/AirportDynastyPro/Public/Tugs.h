@@ -53,6 +53,26 @@ public:
 	/** The pushback: Fitting the aircraft's tow fitting (world, on the ground), Fwd its nose direction (world, flat).
 	 *  True once a tug is hooked on (it drives in first); then it is posed on the aircraft. */
 	bool Push(const FString& Key, float StandX, const FVector& Fitting, const FVector& Fwd);
+	/** To-do 311, a hangar tow: the same tug, crew, limits and talk as a push, under Key "TOW/<registration>". StandX: the
+	 *  stand whose tug does it; Way: its drive from its box to the aircraft (plan m, along the taxiways; empty: the
+	 *  aircraft is on that stand); Back: its way home before the loop into its box; Ask / Ok: the tow's request and ATC's
+	 *  approval. False: no tug free (Why); true with a Why: its crew is still being called. Then Push() each frame (true:
+	 *  hooked, the walkers out, brakes off - the aircraft may move, the tug follows its fitting) and Release() at the end.
+	 *  Your own tow (to-do 311 step C) goes through the same calls. */
+	bool TowPlan(const FString& Key, float StandX, const TArray<FVector2f>& Way, const TArray<FVector2f>& Back, const FString& Ask, const FString& Ok, FString& Why);
+	/** The tow is off (the aircraft gone before it was hooked on): its crew stand down. */
+	void TowDrop(const FString& Key) { Tows.Remove(Key); }
+	/** The tow's tug is hooked on (its crew at the aircraft). */
+	bool TowHooked(const FString& Key) const;
+	/** How far (m) the furthest wing / tail walker of that tow is from his place now (0: none out yet): the tow keeps to their pace. */
+	float TowWalkerLag(const FString& Key) const;
+	/** A hangar's chocks (to-do 311): one of the tow's walkers (else its handler) fetches them from Store and sets them at
+	 *  Spots (the right nose wheel's two, the right main wheel's two; world, on the floor), or takes them back there.
+	 *  Each(pair, bOn) as a pair is put down / picked up, Each(-1, false) when they are back in the store. False: nobody there. */
+	bool TowChocks(const FString& Key, bool bOn, const FVector& Store, const FVector Spots[4], const FVector& Fwd, TFunction<void(int32, bool)> Each);
+	/** The chock model and its turn (TugChocks.cpp): the hangars' chocks are the same ones. */
+	class UStaticMesh* ChockMesh() const;
+	float ChockYaw() const { return ChkYaw; }
 	/** The clearance words for a departure (SimTraffic.cpp): its callsign, the way it will face after the push, the
 	 *  taxi route, the runway - for the pushback's talk (docs/Pushback-Sequence.md). */
 	void Clearance(const FString& Key, const FString& Callsign, const FString& Face, const FString& Route, const FString& Runway);
@@ -207,9 +227,11 @@ private:
 		FString YouWhy; FVector2f YouNose, YouMain, YouStart; TWeakObjectPtr<AActor> YouPlane;
 		int32 YouWheelG = INDEX_NONE; float YouWheelNow = 0.f, YouPedal[2] = {0.f, 0.f};
 		FVehicleDirt Dirt;
+		bool bTow = false, bTowGpu = false; double TowSaid = -100.0; TArray<FVector> TowWay, TowBack; FString TowAsk, TowOk;   // (a hangar tow, to-do 311: TowPlan)
 		TArray<int32> Walkers; int32 WalkersReady = 0; bool bWalkersOut = false; float WalkerLook = 0.f;              // the wing walkers and tail walker on this push (Crew[])
 	};
 	TArray<FTug> Tugs;
+	TSet<FString> Tows;   // (the hangar tows wanted now: HiredLive)
 	TArray<FVector> Planes;   // the moving aircraft (taxiing, pushed), looked up once a second: vehicles always give way to them
 	float PlaneClock = 1.f;
 	float RadioBusy = 0.f;   // (the ground frequency: one transmission at a time - every aircraft's calls wait for it)

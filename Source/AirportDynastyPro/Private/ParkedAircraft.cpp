@@ -202,6 +202,22 @@ namespace ADPParked
 		bool GStaticGone = false;
 	}
 	TSet<FString> Coming;
+	TSet<FString> Towed;
+
+	ABabylonModel* Shown(const FString& Reg, FString* Stand)
+	{
+		for (const auto& G : GLive) if (G.Value.Key == Reg) { if (Stand) *Stand = G.Key; return G.Value.Value.Get(); }
+		return nullptr;
+	}
+
+	void Adopt(const FString& Stand, const FString& Reg, ABabylonModel* M)
+	{
+		if (!M) return;
+		Towed.Remove(Reg);
+		M->Tags.Add(FName(*(TEXT("SIM/") + Reg)));
+		GLive.Add(Stand, TPair<FString, TWeakObjectPtr<ABabylonModel>>(Reg, M));
+		ADP_LOG(TEXT("Parked aircraft: %s back at %s from its tow"), *Reg, *Stand);
+	}
 
 	void Release(const FString& Reg)
 	{
@@ -232,7 +248,7 @@ namespace ADPParked
 			const FString Here = ADPBoards::HereIcao();
 			TMap<FString, FString> Want;   // stand -> registration
 			for (const FADPAircraft& A : Sim->World.Aircraft)
-				if (A.Location == Here && !A.Stand.IsEmpty() && A.Status != TEXT("flying")) Want.Add(A.Stand, A.Reg);
+				if (A.Location == Here && !A.Stand.IsEmpty() && A.Status != TEXT("flying") && !Towed.Contains(A.Reg)) Want.Add(A.Stand, A.Reg);   // (towed: HangarTow's own)
 			// gone or changed: removed
 			for (auto It = GLive.CreateIterator(); It; ++It)
 			{

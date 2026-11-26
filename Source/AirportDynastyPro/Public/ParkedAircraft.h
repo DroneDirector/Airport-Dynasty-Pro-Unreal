@@ -12,6 +12,7 @@
 
 class UWorld;
 struct FAirfieldData;
+class ABabylonModel;
 
 namespace ADPParked
 {
@@ -30,6 +31,12 @@ namespace ADPParked
 	void StartLive(UWorld* W, const FAirfieldData& Field);
 	/** The registrations still taxiing in (SimTraffic): their parked model waits. */
 	extern TSet<FString> Coming;
+	/** The registrations being towed to or from a hangar or in one (HangarTow.h): never shown at their stands here. */
+	extern TSet<FString> Towed;
+	/** Its parked model now (nullptr: none shown), and the stand it is on. */
+	ABabylonModel* Shown(const FString& Reg, FString* Stand = nullptr);
+	/** A towed aircraft's model, back on its stand: kept as the parked one (no second model, no gap). */
+	void Adopt(const FString& Stand, const FString& Reg, ABabylonModel* M);
 	/** Its moving model has taken over (SimTraffic). */
 	void Release(const FString& Reg);
 	/** The A320's nose tyre behind its nose line (m): the stop bar's distance (Airfield.cpp FStopType). */
