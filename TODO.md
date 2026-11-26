@@ -731,6 +731,18 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       passengers; extra income.
 - [ ] **Airport webcam** (2026-11-26): a live camera view of the apron on the game's website, showing the player's
       airport as it is right now.
+- [ ] **Runway guard lights** (2026-11-26): pairs of yellow lights flashing alternately at every runway holding
+      point, warning vehicles and aircraft that a runway is ahead.
+- [ ] **Wind shear warnings** (2026-11-26): the tower warns arriving aircraft of sudden wind changes near the runway;
+      some go around and try again.
+- [ ] **Flight kitchen** (2026-11-26): a building where the in-flight meals are cooked and packed; the catering trucks
+      load there.
+- [ ] **Standby passengers** (2026-11-26): on an overbooked flight the gate asks for volunteers to take a later flight
+      for a voucher; standby passengers fill empty seats at the last minute.
+- [ ] **Lift and escalator breakdowns** (2026-11-26): one stops working, a technician comes to fix it, meanwhile people
+      take the stairs or queue for the other lift.
+- [ ] **Medical transport flights** (2026-11-26): air ambulances and urgent organ transports get priority; an
+      ambulance meets them right on the apron.
 
 ## Done recently (for reference)
 - 0.14.4 the globe's satellite pictures and land cover in the right place; the detailed sea only near the ground
