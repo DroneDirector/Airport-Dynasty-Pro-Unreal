@@ -1042,6 +1042,16 @@
    "y1": 66,
    "z": 0.28,
    "blend": 30
+  },
+  {
+   "id": "PAD-CARGO",
+   "note": "the cargo terminal model (Art/CargoTerminal, cargoBuilding x 200..665, y 1231..1301) with its landside truck court to y 1441: level ground under it, z 0 (drawn at -0.25 with Sink, the model's slab 2 cm above)",
+   "x0": 190,
+   "y0": 1225,
+   "x1": 675,
+   "y1": 1445,
+   "z": 0,
+   "blend": 30
   }
  ],
  "remote": {

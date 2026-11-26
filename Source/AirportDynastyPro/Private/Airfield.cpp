@@ -8,6 +8,7 @@
 #include "ADPLog.h"
 #include "TerminalBuilder.h"
 #include "TerminalPlan.h"
+#include "BabylonModel.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "ProceduralMeshComponent.h"
 #include "Components/TextRenderComponent.h"
@@ -1243,8 +1244,15 @@ bool AAirfield::Build(bool bModelSite)
 		UKismetMaterialLibrary::SetVectorParameterValue(this, Mpc, TEXT("RwyDisp"), FLinearColor(25000.f, 25000.f, 0.f, 0.f));
 		ADP_LOG(TEXT("Airfield: the ground's runway for its tyre rubber %s -> %s"), *A.ToString(), *B.ToString());
 	}
-	// the cargo building
-	Slab("liftClad", D.Cargo.X0, D.Cargo.Y0, D.Cargo.X1, D.Cargo.Y1, 0, 18);
+	// the cargo building: the cargo terminal model (Art/CargoTerminal) on its site, its airside (Blender -y) to the apron;
+	// it stands on the levelled pad PAD-CARGO. Without the model, a plain block stands in for it.
+	{
+		FActorSpawnParameters S; S.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		const float Z = GroundAt(D.Cargo.X0, D.Cargo.Y0) + Sink + 0.02f;
+		ABabylonModel* Cargo = GetWorld() ? GetWorld()->SpawnActor<ABabylonModel>(FTerminalPlan::ToWorld(D.Cargo.X0, Z, D.Cargo.Y0), FRotator(0, 180.f, 0), S) : nullptr;
+		if (Cargo && Cargo->Place(TEXT("CargoTerminal"))) ADP_LOG(TEXT("Airfield: the cargo terminal model stands at %.0f,%.0f"), D.Cargo.X0, D.Cargo.Y0);
+		else { if (Cargo) Cargo->Destroy(); Slab("liftClad", D.Cargo.X0, D.Cargo.Y0, D.Cargo.X1, D.Cargo.Y1, 0, 18); }
+	}
 	ADP_LOG(TEXT("Airfield built: %d taxiways, %d stands"), D.Taxiways.Num(), D.Stands.Num());
 	return true;
 }

@@ -20,60 +20,88 @@ COL = bpy.data.collections.new('CargoTerminal'); SC.collection.children.link(COL
 LOW = 6.0                                    # outer walls are split at 6 m so a cutaway can drop the upper part
 
 
-# #region ── Materials (blueprint look in the check renders; real materials are set up in Unreal) ──
-def mat(name, rgb, rough=0.6, metal=0.0, emit=0.0, alpha=1.0):
+# #region ── Materials: photoreal texture sets (make_cargo_textures.py, from CC0 scans; flat colours only for lit signs) ──
+TEX = os.path.join(HERE, 'Textures')
+import importlib.util as _iu
+_sp = _iu.spec_from_file_location('cargo_tex', os.path.join(HERE, 'make_cargo_textures.py')); _ct = _iu.module_from_spec(_sp)
+_sp.loader.exec_module(_ct); TILE = _ct.TILE                  # metres per texture tile, for the UVs
+MAT_TILE = {}                                                 # material name -> metres per UV unit
+
+
+def mat(name, rgb, rough=0.6, metal=0.0, emit=0.0, alpha=1.0, tex=None):
     m = bpy.data.materials.new(name); m.use_nodes = True
-    b = m.node_tree.nodes['Principled BSDF']
+    nt = m.node_tree; b = nt.nodes['Principled BSDF']
     b.inputs['Base Color'].default_value = (*rgb, 1); b.inputs['Roughness'].default_value = rough
     b.inputs['Metallic'].default_value = metal
     if emit:
-        b.inputs['Emission Color'].default_value = (*rgb, 1); b.inputs['Emission Strength'].default_value = emit
-    if alpha < 1: b.inputs['Alpha'].default_value = alpha
+        b.inputs['Emission' if 'Emission' in b.inputs else 'Emission Color'].default_value = (*rgb, 1); b.inputs['Emission Strength'].default_value = emit
+    if alpha < 1:
+        b.inputs['Alpha'].default_value = alpha; m.blend_method = 'BLEND'; m.shadow_method = 'HASHED'
+    if tex:
+        MAT_TILE[name] = TILE[tex]
+        ext = 'png' if os.path.exists(os.path.join(TEX, tex + '_Color.png')) else 'jpg'
+        ci = nt.nodes.new('ShaderNodeTexImage'); ci.image = bpy.data.images.load(os.path.join(TEX, '%s_Color.%s' % (tex, ext)), check_existing=True)
+        nt.links.new(ci.outputs['Color'], b.inputs['Base Color'])
+        if ext == 'png':                                      # glazing: the panes see-through, the mullions not
+            nt.links.new(ci.outputs['Alpha'], b.inputs['Alpha']); m.blend_method = 'BLEND'; m.shadow_method = 'HASHED'
+        ni = nt.nodes.new('ShaderNodeTexImage'); ni.image = bpy.data.images.load(os.path.join(TEX, tex + '_Normal.jpg'), check_existing=True)
+        ni.image.colorspace_settings.name = 'Non-Color'
+        nm = nt.nodes.new('ShaderNodeNormalMap'); nt.links.new(ni.outputs['Color'], nm.inputs['Color']); nt.links.new(nm.outputs['Normal'], b.inputs['Normal'])
+        oi = nt.nodes.new('ShaderNodeTexImage'); oi.image = bpy.data.images.load(os.path.join(TEX, tex + '_ORM.jpg'), check_existing=True)
+        oi.image.colorspace_settings.name = 'Non-Color'
+        if bpy.app.version >= (3, 3, 0) and hasattr(bpy.types, 'ShaderNodeSeparateColor'):
+            sp = nt.nodes.new('ShaderNodeSeparateColor'); nt.links.new(oi.outputs['Color'], sp.inputs[0]); o = sp.outputs
+            nt.links.new(o[1], b.inputs['Roughness']); nt.links.new(o[2], b.inputs['Metallic'])
+        else:
+            sp = nt.nodes.new('ShaderNodeSeparateRGB'); nt.links.new(oi.outputs['Color'], sp.inputs['Image'])
+            nt.links.new(sp.outputs['G'], b.inputs['Roughness']); nt.links.new(sp.outputs['B'], b.inputs['Metallic'])
     m.diffuse_color = (*rgb, alpha)
     return m
 
 
 M = dict(
-    wall=mat('M_Cargo_WallCladding', (0.16, 0.30, 0.50)),
-    wall2=mat('M_Cargo_WallHighBay', (0.20, 0.36, 0.58)),
-    roof=mat('M_Cargo_Roof', (0.10, 0.20, 0.36)),
-    glass=mat('M_Cargo_Glass', (0.30, 0.55, 0.85), 0.1, 0.2),
-    door=mat('M_Cargo_Door', (0.98, 0.62, 0.10), emit=0.35),
-    esc=mat('M_Cargo_PersonnelDoor', (0.15, 0.85, 0.35), emit=0.6),
+    wall=mat('M_Cargo_WallCladding', (0.74, 0.76, 0.77), tex='Cladding'),
+    wall2=mat('M_Cargo_WallHighBay', (0.74, 0.76, 0.77), tex='Cladding'),
+    band=mat('M_Cargo_CladdingBand', (0.06, 0.22, 0.45), tex='CladdingBand'),
+    roof=mat('M_Cargo_Roof', (0.24, 0.26, 0.28), tex='Roof'),
+    glass=mat('M_Cargo_Glass', (0.10, 0.13, 0.15), 0.05, tex='OfficeGlass'),
+    door=mat('M_Cargo_Door', (0.92, 0.50, 0.06), tex='SectionalDoor'),
+    esc=mat('M_Cargo_PersonnelDoor', (0.08, 0.42, 0.20), tex='PersonnelDoor'),
     exitsign=mat('M_Cargo_ExitSign', (0.20, 1.0, 0.40), emit=2.0),
-    shutter=mat('M_Cargo_FireShutter', (0.95, 0.18, 0.18), emit=0.5),
-    concrete=mat('M_Cargo_FireRatedWall', (0.48, 0.52, 0.58)),
-    lead=mat('M_Cargo_LeadShield', (0.30, 0.32, 0.36), 0.5, 0.6),
-    fl_bcp=mat('M_Cargo_Floor_BCP', (0.30, 0.20, 0.50)),
-    shelter=mat('M_Cargo_DockShelter', (0.04, 0.06, 0.10)),
-    canopy=mat('M_Cargo_Canopy', (0.24, 0.42, 0.66)),
-    steel=mat('M_Cargo_Steel', (0.55, 0.62, 0.70), 0.4, 0.6),
-    apron=mat('M_Cargo_Apron', (0.05, 0.10, 0.19)),
-    yard=mat('M_Cargo_TruckCourt', (0.06, 0.12, 0.22)),
-    slab=mat('M_Cargo_Slab', (0.08, 0.14, 0.24)),
-    yellow=mat('M_Cargo_MarkYellow', (1.0, 0.80, 0.15), emit=0.6),
-    white=mat('M_Cargo_MarkWhite', (0.92, 0.95, 1.0), emit=0.4),
-    red=mat('M_Cargo_MarkRed', (0.95, 0.20, 0.20), emit=0.4),
-    pv=mat('M_Cargo_Solar', (0.05, 0.08, 0.20), 0.2, 0.3),
-    skylight=mat('M_Cargo_Skylight', (0.45, 0.70, 0.95), 0.1, 0.0, 0.2),
-    hvac=mat('M_Cargo_Plant', (0.42, 0.50, 0.60), 0.5, 0.4),
-    uld=mat('M_Cargo_ULD', (0.70, 0.74, 0.80), 0.4, 0.7),
-    truck=mat('M_Cargo_Truck', (0.30, 0.48, 0.70)),
-    cab=mat('M_Cargo_TruckCab', (0.85, 0.88, 0.95)),
-    fence=mat('M_Cargo_Fence', (0.60, 0.68, 0.78), 0.5, 0.5),
+    shutter=mat('M_Cargo_FireShutter', (0.70, 0.08, 0.06), tex='FireShutter'),
+    concrete=mat('M_Cargo_FireRatedWall', (0.55, 0.55, 0.54), tex='FireWall'),
+    lead=mat('M_Cargo_LeadShield', (0.30, 0.32, 0.36), 0.5, 1.0, tex='LeadSheet'),
+    fl_bcp=mat('M_Cargo_Floor_BCP', (0.50, 0.50, 0.49), tex='FloorConcrete'),
+    shelter=mat('M_Cargo_DockShelter', (0.03, 0.03, 0.03), 0.8, tex='Rubber'),
+    canopy=mat('M_Cargo_Canopy', (0.86, 0.88, 0.88), tex='CladdingWhite'),
+    steel=mat('M_Cargo_Steel', (0.55, 0.57, 0.59), 0.4, 1.0, tex='Galvanised'),
+    apron=mat('M_Cargo_Apron', (0.50, 0.50, 0.49), tex='FloorConcrete'),
+    yard=mat('M_Cargo_TruckCourt', (0.16, 0.16, 0.16), tex='Asphalt'),
+    slab=mat('M_Cargo_Slab', (0.50, 0.50, 0.49), tex='FloorConcrete'),
+    yellow=mat('M_Cargo_MarkYellow', (0.90, 0.68, 0.05), tex='LineYellow'),
+    white=mat('M_Cargo_MarkWhite', (0.85, 0.86, 0.85), tex='LineWhite'),
+    red=mat('M_Cargo_MarkRed', (0.75, 0.10, 0.08), tex='LineRed'),
+    green=mat('M_Cargo_MarkGreen', (0.10, 0.50, 0.22), tex='LineGreen'),
+    pv=mat('M_Cargo_Solar', (0.03, 0.05, 0.12), 0.15, 0.2, tex='Solar'),
+    skylight=mat('M_Cargo_SkylightGlass', (0.85, 0.88, 0.90), 0.15, 0.0, 0.0, 0.55),
+    hvac=mat('M_Cargo_Plant', (0.42, 0.45, 0.47), tex='PaintGrey'),
+    uld=mat('M_Cargo_ULD', (0.70, 0.72, 0.74), 0.4, 1.0, tex='Aluminium'),
+    truck=mat('M_Cargo_Truck', (0.82, 0.83, 0.83), tex='PaintWhite'),
+    cab=mat('M_Cargo_TruckCab', (0.10, 0.25, 0.50), tex='PaintBlue'),
+    fence=mat('M_Cargo_Fence', (0.55, 0.57, 0.59), 0.5, 1.0, tex='Galvanised'),
     sign=mat('M_Cargo_Sign', (0.95, 0.97, 1.0), emit=1.0),
-    part=mat('M_Cargo_Partition', (0.62, 0.72, 0.84)),
-    cold=mat('M_Cargo_InsulatedPanel', (0.86, 0.92, 0.98)),
-    rack=mat('M_Cargo_Rack', (0.95, 0.55, 0.15)),
-    fork=mat('M_Cargo_Forklift', (1.0, 0.78, 0.10)),
-    xray=mat('M_Cargo_XRay', (0.35, 0.80, 0.75)),
-    cargo=mat('M_Cargo_Pallets', (0.62, 0.48, 0.30)),
-    fl_off=mat('M_Cargo_Floor_Offices', (0.14, 0.32, 0.60)),
-    fl_exp=mat('M_Cargo_Floor_Export', (0.07, 0.40, 0.38)),
-    fl_etv=mat('M_Cargo_Floor_HighBay', (0.42, 0.35, 0.10)),
-    fl_imp=mat('M_Cargo_Floor_Import', (0.45, 0.25, 0.10)),
-    fl_spc=mat('M_Cargo_Floor_Special', (0.45, 0.12, 0.25)),
-    fl_aisle=mat('M_Cargo_Floor_Aisle', (0.10, 0.14, 0.20)),
+    part=mat('M_Cargo_Partition', (0.86, 0.88, 0.88), tex='CladdingWhite'),
+    cold=mat('M_Cargo_InsulatedPanel', (0.86, 0.88, 0.88), tex='CladdingWhite'),
+    rack=mat('M_Cargo_Rack', (0.85, 0.32, 0.04), tex='PaintOrange'),
+    fork=mat('M_Cargo_Forklift', (0.95, 0.66, 0.04), tex='PaintYellow'),
+    xray=mat('M_Cargo_XRay', (0.20, 0.50, 0.50), tex='PaintTeal'),
+    cargo=mat('M_Cargo_Pallets', (0.52, 0.38, 0.22), tex='Cardboard'),
+    fl_off=mat('M_Cargo_Floor_Offices', (0.36, 0.38, 0.40), tex='OfficeFloor'),
+    fl_exp=mat('M_Cargo_Floor_Export', (0.50, 0.50, 0.49), tex='FloorConcrete'),
+    fl_etv=mat('M_Cargo_Floor_HighBay', (0.50, 0.50, 0.49), tex='FloorConcrete'),
+    fl_imp=mat('M_Cargo_Floor_Import', (0.50, 0.50, 0.49), tex='FloorConcrete'),
+    fl_spc=mat('M_Cargo_Floor_Special', (0.50, 0.50, 0.49), tex='FloorConcrete'),
+    fl_aisle=mat('M_Cargo_Floor_Aisle', (0.50, 0.50, 0.49), tex='FloorConcrete'),
 )
 # #endregion
 
@@ -108,14 +136,17 @@ def join(name, objs):
 
 # #region ── Building shell: ground slab, outer walls (lower and upper part), roofs, fire walls ──
 box('GroundSlab', 0, 0, -0.30, L, D, 0.0, 'slab')
-lo, hi = [], []
+lo, hi, bd = [], [], []
+BAND = 1.0                                   # the coloured cladding band, one panel high, right over the 6 m split
 for zk, (x0, x1), h, _ in CL.ZONES:
     m = 'wall2' if zk == 'etv' else 'wall'
     for y0, y1 in ((-0.3, 0.0), (D, D + 0.3)):
-        lo.append(box('OW', x0, y0, 0, x1, y1, LOW, m)); hi.append(box('OW', x0, y0, LOW, x1, y1, h, m))
+        lo.append(box('OW', x0, y0, 0, x1, y1, LOW, m)); bd.append(box('OB', x0, y0, LOW, x1, y1, LOW + BAND, 'band'))
+        hi.append(box('OW', x0, y0, LOW + BAND, x1, y1, h, m))
 for x0, x1, h in ((-0.3, 0.0, H_OFF), (L, L + 0.3, H_SPEC)):
-    lo.append(box('OW', x0, -0.3, 0, x1, D + 0.3, LOW, 'wall')); hi.append(box('OW', x0, -0.3, LOW, x1, D + 0.3, h, 'wall'))
-join('OuterWallsLow', lo); join('OuterWallsHigh', hi)
+    lo.append(box('OW', x0, -0.3, 0, x1, D + 0.3, LOW, 'wall')); bd.append(box('OB', x0, -0.3, LOW, x1, D + 0.3, LOW + BAND, 'band'))
+    hi.append(box('OW', x0, -0.3, LOW + BAND, x1, D + 0.3, h, 'wall'))
+join('OuterWallsLow', lo); join('CladdingBand', bd); join('OuterWallsHigh', hi)
 join('Roofs', [box('Roof', x0 - 0.3, -0.3, h, x1 + 0.3, D + 0.3, h + 0.6, 'roof') for _, (x0, x1), h, _ in CL.ZONES])
 # fire walls between fire zones stand 1 m through the roof; 6.5 m fire shutters at both aisles (none into the border
 # control post) and 1.2 m escape doors in them
@@ -320,8 +351,8 @@ marks += [box('PB', 40 + i * 5, D + 110, 0.0, 40.2 + i * 5, D + 132, 0.02, 'whit
 marks += [box('CP', -8 + i * 2.6, D + 20, 0.0, -7.9 + i * 2.6, D + 25, 0.02, 'white') for i in range(14)]
 # the border control post's own access lane (green hatching) from the gate side to its docks
 b0, b1 = CL.BCP_LANE
-marks += [box('BL', b0 - 0.2, D + 22, 0.0, b0, D + YARD_D - 2, 0.02, 'esc'), box('BL', b1, D + 22, 0.0, b1 + 0.2, D + YARD_D - 2, 0.02, 'esc')]
-marks += [box('BH', b0, y, 0.0, b1, y + 0.4, 0.02, 'esc') for y in range(int(D + 26), int(D + YARD_D - 4), 8)]
+marks += [box('BL', b0 - 0.2, D + 22, 0.0, b0, D + YARD_D - 2, 0.02, 'green'), box('BL', b1, D + 22, 0.0, b1 + 0.2, D + YARD_D - 2, 0.02, 'green')]
+marks += [box('BH', b0, y, 0.0, b1, y + 0.4, 0.02, 'green') for y in range(int(D + 26), int(D + YARD_D - 4), 8)]
 join('CourtMarkings', marks)
 join('Fence', [box('F', -10, D + YARD_D - 0.1, 0, 150, D + YARD_D + 0.1, 2.6, 'fence'),
                box('F', 175, D + YARD_D - 0.1, 0, L + 10, D + YARD_D + 0.1, 2.6, 'fence')])
@@ -350,7 +381,7 @@ join('RefrigerationPlant', [box('RP', 350 + i * 9, 10 + j * 22, H_SPEC + 0.6, 35
 cu = bpy.data.curves.new('Sign', 'FONT'); cu.body = 'CARGO TERMINAL'; cu.size = 5.0; cu.extrude = 0.15
 cu.align_x = 'CENTER'; cu.align_y = 'CENTER'
 so = bpy.data.objects.new('SignText', cu); COL.objects.link(so)
-so.location = ((ETV[0] + ETV[1]) / 2, -0.6, H_MAIN + (H_ETV - H_MAIN) / 2 + 0.2)
+so.location = ((ETV[0] + ETV[1]) / 2, -0.63, H_MAIN + (H_ETV - H_MAIN) / 2 + 0.2)
 so.rotation_euler = (math.pi / 2, 0, 0)
 cu.materials.append(M['sign'])
 dg = bpy.context.evaluated_depsgraph_get(); dg.update()
@@ -369,6 +400,89 @@ for sx in (60.0, 147.5, 235.0, 322.5):         # C1-C4 (plan x 260, 347.5, 435, 
 join('StandMarkings', st)
 # #endregion
 
+# #region ── UVs: box-projected in world metres per material (a texture tile = TILE metres), so nothing is stretched ──
+def world_uvs(o):
+    me = o.data; mw = o.matrix_world; nm = mw.to_3x3()
+    bm = bmesh.new(); bm.from_mesh(me)
+    uv = bm.loops.layers.uv.verify()
+    for f in bm.faces:
+        mt = me.materials[f.material_index] if len(me.materials) else None
+        t = MAT_TILE.get(mt.name, 1.0) if mt else 1.0
+        n = nm @ f.normal; ax = max(range(3), key=lambda k: abs(n[k]))
+        for lp in f.loops:
+            p = mw @ lp.vert.co
+            if ax == 2: u, v = p.x * (1 if n.z > 0 else -1), p.y            # floors, roofs: seams run along y (the slope)
+            elif ax == 1: u, v = p.x * (-1 if n.y > 0 else 1), p.z           # long walls: joints horizontal, read the right way
+            else: u, v = p.y * (1 if n.x > 0 else -1), p.z                  # end walls
+            lp[uv].uv = (u / t, v / t)
+        f.smooth = False
+    bm.to_mesh(me); bm.free()
+
+
+def drop_contacts():
+    """Faces where two parts touch (a wall on the slab, a shelter against the wall, a floor on the ground): each is
+    covered by the other part's face lying on it the other way round, so nobody can see it, and the flicker check counts
+    such pairs. Every face lying wholly on another part's face (same plane, facing it) is taken out."""
+    from collections import defaultdict
+    planes = defaultdict(list)                              # (axis, plane in mm) -> [(object, sign, bbox)]
+    meshes = {}
+    for o in COL.objects:
+        if o.type != 'MESH': continue
+        bm = bmesh.new(); bm.from_mesh(o.data); bm.faces.ensure_lookup_table(); meshes[o.name] = (o, bm)
+        mw = o.matrix_world
+        for f in bm.faces:
+            n = mw.to_3x3() @ f.normal; ax = max(range(3), key=lambda k: abs(n[k]))
+            if abs(n[ax]) < 0.999: continue
+            ps = [mw @ v.co for v in f.verts]; ot = [k for k in range(3) if k != ax]
+            bb = (min(p[ot[0]] for p in ps), max(p[ot[0]] for p in ps), min(p[ot[1]] for p in ps), max(p[ot[1]] for p in ps))
+            planes[(ax, round(ps[0][ax] * 1000))].append((o.name, 1 if n[ax] > 0 else -1, bb, f.index))
+    gone = defaultdict(set); e = 0.001
+    for key, fs in planes.items():
+        near = fs + planes.get((key[0], key[1] - 1), []) + planes.get((key[0], key[1] + 1), [])
+        for name, sg, bb, idx in fs:
+            for n2, s2, b2, _ in near:
+                if n2 != name and s2 == -sg and b2[0] - e <= bb[0] and bb[1] <= b2[1] + e and b2[2] - e <= bb[2] and bb[3] <= b2[3] + e:
+                    gone[name].add(idx); break
+    # Faces of two parts lying in the same plane facing the same way (a sign on the glazing, a bumper on a door): the
+    # smaller face is lifted 2 mm off the plane so the two never flicker.
+    lift = defaultdict(set)
+    for key, fs in planes.items():
+        near = fs + planes.get((key[0], key[1] - 1), []) + planes.get((key[0], key[1] + 1), [])
+        for name, sg, bb, idx in fs:
+            if idx in gone[name]: continue
+            a = (bb[1] - bb[0]) * (bb[3] - bb[2])
+            for n2, s2, b2, i2 in near:
+                if n2 == name or i2 in gone[n2]: continue
+                if min(bb[1], b2[1]) - max(bb[0], b2[0]) > e and min(bb[3], b2[3]) - max(bb[2], b2[2]) > e:
+                    if a < (b2[1] - b2[0]) * (b2[3] - b2[2]) or (a == (b2[1] - b2[0]) * (b2[3] - b2[2]) and name < n2):
+                        lift[name].add(idx); break
+    for name, (o, bm) in meshes.items():
+        if lift[name]:
+            inv = o.matrix_world.inverted().to_3x3(); mw3 = o.matrix_world.to_3x3()
+            for i in lift[name]:
+                f = bm.faces[i]; d = inv @ ((mw3 @ f.normal).normalized() * 0.002)
+                for v in f.verts: v.co += d
+    print('faces lifted off shared planes:', sum(len(v) for v in lift.values()), flush=True)
+    for name, (o, bm) in meshes.items():
+        if gone[name] or lift[name]:
+            bmesh.ops.delete(bm, geom=[bm.faces[i] for i in gone[name]], context='FACES_ONLY')
+            bm.to_mesh(o.data)
+        bm.free()
+    print('contact faces taken out:', sum(len(v) for v in gone.values()), flush=True)
+
+
+drop_contacts()
+for o in COL.objects:
+    if o.type == 'MESH': world_uvs(o)
+# every slot filled (the import's rule): no mesh without a material
+assert all(len(o.data.materials) and all(o.data.materials) for o in COL.objects if o.type == 'MESH'), 'empty material slot'
+# #endregion
+
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, 'CargoTerminal.blend'))
+# for the game: the airfield draws the apron, its stands and their lines itself (Data/airfield.json APRON-CARGO,
+# C1-C4) - the model's own copies of that paving would lie on it and flicker, so the game's file leaves them out
+for nm in ('CargoApron', 'StandMarkings', 'AirsideRoad', 'ULDLanes'):
+    ob = bpy.data.objects.get(nm)
+    if ob: bpy.data.objects.remove(ob)
 bpy.ops.export_scene.gltf(filepath=os.path.join(HERE, 'CargoTerminal.glb'), export_format='GLB')
 print('saved', len(bpy.data.objects), 'objects', flush=True)
