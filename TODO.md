@@ -630,6 +630,21 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       - **REMINDER for the owner once the town is fully built:** then make staff who live in your town drive off home
         to their own house, and the others drive away out of the area, instead of waiting in their cars
 
+- [ ] **Protective covers on parked aircraft ("blanking")** (owner, 2026-11-26). Real world: engine inlet and
+      exhaust covers ("engine blanks", red, with "REMOVE BEFORE FLIGHT" streamers), pitot probe covers, static port,
+      AoA vane and TAT probe covers, APU inlet/exhaust covers, gear lock pins with streamers. Airbus procedures go by
+      how long the aircraft stands: parking up to 7 days, 15 days or 12 weeks, then storage; EASA asks for pitot covers
+      even on short parking (dust, sand, insect nests). Game rule (our choice, set in Settings > Realism):
+      - quick turnaround: nothing;
+      - long ground time (about 3 h or more, and every night stop): pitot covers and gear pins by the ground crew;
+      - parked over 24 h, or sooner in dust, sand, snow or heavy rain: engine inlet and exhaust covers and APU covers
+        added (a mechanic with a ladder or a high-lift for the bigger engines);
+      - Parking/storage (over 7 days): every opening blanked, as Airbus's parking task.
+      Before departure the covers come off at the walkaround and the streamers are counted back in; one left on is an
+      incident (a rejected take-off or a turn-back, unreliable airspeed if a pitot cover). Covers are our own models
+      (red fabric, white letters, streamers that move in the wind), sized for each engine type; stored in the hangar
+      and the ground equipment area; bought like other ground equipment.
+
 ## 7. One shared world with Android (batch 4)
 - [ ] The bridge: the timetable screens and passengers from the world's real flights; airport mode writes back
 - [ ] The automatic one-day check that both setups give exactly the same world

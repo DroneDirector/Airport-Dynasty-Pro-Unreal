@@ -2,6 +2,11 @@
 
 Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md (where everything is) first.
 
+## FOR THE PC CHAT - from the phone chat (2026-11-26 22:15): protective covers on parked aircraft
+The owner wants engine inlet/exhaust covers, pitot covers and the other "REMOVE BEFORE FLIGHT" covers put on aircraft
+that stand for a long time, taken off at the walkaround before departure. Full rules and sources in TODO.md section 6:
+"Protective covers on parked aircraft". Fits with the hangar steps (mechanics, maintenance page); after those.
+
 ## FOR THE PC CHAT - from the phone chat (2026-11-26): your office moves onto the Grand Hall window
 The owner wants a clean view over the Grand Hall from his office, a render of how it should look (done:
 Blueprints/Terminal/Office/YourOffice-*.png, Tools/render_owner_office.py, all its furniture modelled there), and the
