@@ -30,6 +30,21 @@ namespace ADPMaint
 	bool BuyParts(FADPWorld& W, const FString& AirlineId, double Usd, const FDateTime& Now);
 	/** Hangar bays at an airport (our site: its hangars; elsewhere 1). */
 	int32 HangarBays(const FString& Icao);
+
+	/** What a check is for (to-do 311): the faults an aircraft comes in with and the routine checks, each with its length
+	 *  under Settings > Realism > Maintenance time - Fast (the default) and Real; Quick is 30 minutes for all. RealH 0: the
+	 *  check rule's own length (Rules). Parts: USD at a 100 M aircraft (scaled by the type's value as the rules are). */
+	struct FFault { const TCHAR* Key; const TCHAR* Name; double FastH, RealH, PartsUsd; };
+	const TArray<FFault>& Faults();
+	const FFault* Fault(const FString& Key);
+	/** Settings > Realism > Maintenance time: 0 Quick (30 min), 1 Fast (1.5-3 h by fault, the default), 2 Real. Kept in
+	 *  GameUserSettings (ADP.Realism MaintTime); read when a check begins, so a running check keeps its length. */
+	int32 MaintTime();
+	void SetMaintTime(int32 Mode);
+	/** A check's length in game hours for that mode: Real = RealH (crew and beginners already in it). */
+	double CheckHours(const FString& FaultKey, double RealH, int32 Mode);
+	/** A fault found in flight (FaultDue): its kind for the flights module's failures (engine, tailstrike, hydraulic, minor). */
+	FString RollFault(const TCHAR* What, double Roll01);
 }
 
 class AIRPORTDYNASTYPRO_API FADPMaintModule : public IADPSimModule

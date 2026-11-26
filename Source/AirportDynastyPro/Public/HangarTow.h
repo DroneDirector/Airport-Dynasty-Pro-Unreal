@@ -60,10 +60,14 @@ private:
 	/** No other aircraft within 3 m of the towed one's wings, body or tailplane were it at Nose / Main (plan m); Who: the one in the way. */
 	bool Clear(const FJob& J, const FVector2f& Nose, const FVector2f& Main, FString& Who) const;
 	void Look();
+	/** After loading (to-do 311): an aircraft the save has in a hall (FADPAircraft::HangarIn) is there again, chocked, its check
+	 *  going on or its tow back next; one on its way out stands at its stand again and its tow begins anew from there. */
+	void Restore();
+	bool bRestored = false;
 	bool Start(FJob& J, bool bBack);
 	void Run(FJob& J, float Dt);
 	void Pose(FJob& J);
-	bool Chock(FJob& J, bool bOn);
+	bool Chock(FJob& J, bool bOn, bool bNow = false);   // (bNow: set at once, as they were when the game was saved - Restore)
 	void YouRun(FJob& J, float Dt, bool bGo, bool bChocked, float Lag);
 	bool Rejoin(FJob& J);
 	void Finish(FJob& J);

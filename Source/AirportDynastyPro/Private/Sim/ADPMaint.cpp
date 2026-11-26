@@ -5,6 +5,8 @@
 #include "Sim/ADPWorldData.h"
 #include "Sim/ADPBoards.h"
 #include "Site.h"
+#include "ADPLog.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Dom/JsonObject.h"
@@ -65,6 +67,65 @@ int32 ADPMaint::HangarBays(const FString& Icao)
 	return Bays;
 }
 
+const TArray<ADPMaint::FFault>& ADPMaint::Faults()
+{
+	// Fast: the owner's 1.5-3 h by fault (2026-11-26). Real: an A320-sized aircraft's usual time on the ground for it -
+	// an engine change with its ground run about 36 h, a gear leg or actuator 16 h, a wheel and brake change 3 h, a flap or
+	// slat drive 10 h, a spoiler actuator 6 h, a cargo door seal or latch 8 h, a tail strike's inspection and skin repair
+	// about 4 days; the A, C and D checks their rule's length (Rules: about 10 h, 14 days, 42 days for a narrowbody).
+	static const TArray<FFault> MxFaultList = {
+		{TEXT("engine"), TEXT("an engine fault"), 3.0, 36.0, 400000.0},
+		{TEXT("gear"), TEXT("a landing gear fault"), 2.5, 16.0, 60000.0},
+		{TEXT("brakes"), TEXT("worn wheels and brakes"), 1.5, 3.0, 15000.0},
+		{TEXT("flaps"), TEXT("a flaps or slats fault"), 2.25, 10.0, 40000.0},
+		{TEXT("spoilers"), TEXT("a spoiler fault"), 1.75, 6.0, 20000.0},
+		{TEXT("cargodoor"), TEXT("a cargo bay door fault"), 2.0, 8.0, 15000.0},
+		{TEXT("tailstrike"), TEXT("a tail strike"), 3.0, 96.0, 250000.0},
+		{TEXT("acheck"), TEXT("the routine A-check"), 2.0, 0.0, 0.0},
+		{TEXT("ccheck"), TEXT("the C-check"), 3.0, 0.0, 0.0},
+		{TEXT("dcheck"), TEXT("the D-check"), 3.0, 0.0, 0.0}};
+	return MxFaultList;
+}
+
+const ADPMaint::FFault* ADPMaint::Fault(const FString& Key)
+{
+	for (const FFault& F : Faults()) if (Key == F.Key) return &F;
+	return nullptr;
+}
+
+int32 ADPMaint::MaintTime()
+{
+	int32 Mx = 1;
+	if (GConfig) GConfig->GetInt(TEXT("ADP.Realism"), TEXT("MaintTime"), Mx, GGameUserSettingsIni);
+	return FMath::Clamp(Mx, 0, 2);
+}
+
+void ADPMaint::SetMaintTime(int32 Mode)
+{
+	if (!GConfig) return;
+	GConfig->SetInt(TEXT("ADP.Realism"), TEXT("MaintTime"), FMath::Clamp(Mode, 0, 2), GGameUserSettingsIni);
+	GConfig->Flush(false, GGameUserSettingsIni);
+	ADP_LOG(TEXT("Maintenance: time set to %s - for the checks that begin from now on"), Mode == 0 ? TEXT("Quick") : Mode == 2 ? TEXT("Real") : TEXT("Fast"));
+}
+
+double ADPMaint::CheckHours(const FString& FaultKey, double RealH, int32 Mode)
+{
+	if (Mode == 0) return 0.5;
+	const FFault* F = Fault(FaultKey);
+	if (Mode == 1) return F ? F->FastH : 2.0;
+	return FMath::Max(0.5, RealH);
+}
+
+FString ADPMaint::RollFault(const TCHAR* What, double Roll01)
+{
+	const FString Wk(What);
+	if (Wk == TEXT("engine")) return TEXT("engine");
+	if (Wk == TEXT("tailstrike")) return TEXT("tailstrike");
+	if (Wk == TEXT("hydraulic"))   // (the hydraulic users: gear, brakes, flaps and slats, spoilers)
+		return Roll01 < 0.3 ? TEXT("gear") : Roll01 < 0.6 ? TEXT("brakes") : Roll01 < 0.8 ? TEXT("flaps") : TEXT("spoilers");
+	return Roll01 < 0.5 ? TEXT("cargodoor") : TEXT("brakes");   // (a minor one that keeps it on the ground: a door latch, worn brakes)
+}
+
 bool ADPMaint::BuyParts(FADPWorld& W, const FString& AirlineId, double Usd, const FDateTime& Now)
 {
 	FADPAirline* Al = W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == AirlineId; });
@@ -77,7 +138,16 @@ bool ADPMaint::BuyParts(FADPWorld& W, const FString& AirlineId, double Usd, cons
 
 bool ADPMaint::StartCheck(FADPWorld& W, FADPAircraft& A, const FString& Kind, const FDateTime& Now, FString& Why)
 {
-	const FCheckRule* R = nullptr; const TArray<FCheckRule> Rs = Rules(A.TypeId);
+	const FCheckRule* R = nullptr; TArray<FCheckRule> Rs = Rules(A.TypeId);
+	// a fault check (F, to-do 311): the fault found in flight put right - 2 mechanics, in a hangar where there is one
+	const FFault* Ft = Kind == TEXT("F") ? Fault(A.FaultDue) : nullptr;
+	if (Kind == TEXT("F"))
+	{
+		if (!Ft) { Why = TEXT("no fault to put right"); return false; }
+		const FADPTypeInfo* Ti = ADPWorldData::Type(A.TypeId);
+		const double Kv = (Ti ? FMath::Max(2.0, Ti->ValueM) : 100.0) / 100.0;
+		Rs.Add({TEXT("F"), 0.0, 0.0, 0.0, Ft->RealH, 2, Ft->PartsUsd * Kv, true});
+	}
 	for (const FCheckRule& X : Rs) if (Kind == X.Kind) R = &X;
 	if (!R) { Why = TEXT("no such check"); return false; }
 	if (A.Status == TEXT("flying")) { Why = TEXT("in the air"); return false; }
@@ -106,8 +176,20 @@ bool ADPMaint::StartCheck(FADPWorld& W, FADPAircraft& A, const FString& Kind, co
 		ADPEconomy::Pay(W, A.AirlineId, Now, TEXT("maint"), -R->DurationH * R->Mechanics * 85.0 * (Labour - 1.0 + 0.25), FString::Printf(TEXT("%s: %s-check labour%s"), *A.Reg, R->Kind, Labour > 1.0 ? TEXT(" (outside team)") : TEXT("")), A.Reg);
 	}
 	else ADPEconomy::Pay(W, A.AirlineId, Now, TEXT("maint"), -R->PartsUsd * W.PartsIndex, FString::Printf(TEXT("%s: %s-check"), *A.Reg, R->Kind), A.Reg);
-	A.Status = TEXT("maintenance"); A.CheckKind = R->Kind; A.CheckUntil = Now + FTimespan::FromHours(Hours);
-	if (bMine) MxNote(W, Now, 0, FString::Printf(TEXT("%s in its %s-check"), *A.Reg, R->Kind), FString::Printf(TEXT("%s is in its %s-check at %s until %s."), *A.Reg, R->Kind, *A.Location, *ADPBoards::Local(A.CheckUntil).ToString(TEXT("%d.%m %H:%M"))));
+	// its length from Settings > Realism at this moment (to-do 311): kept on the check, so changing the setting later
+	// changes only the checks that begin after it; game time, so it follows the game's speed
+	const int32 Mode = MaintTime();
+	A.CheckFault = Ft ? FString(Ft->Key) : Kind == TEXT("A") ? FString(TEXT("acheck")) : Kind == TEXT("C") ? FString(TEXT("ccheck")) : FString(TEXT("dcheck"));
+	if (Ft) A.FaultDue.Empty();
+	A.CheckLenH = CheckHours(A.CheckFault, Hours, Mode); A.CheckStart = Now;
+	A.Status = TEXT("maintenance"); A.CheckKind = R->Kind; A.CheckUntil = Now + FTimespan::FromHours(A.CheckLenH);
+	const FFault* Fn = Fault(A.CheckFault);
+	ADP_LOG(TEXT("Maintenance: %s - %s (%s check) at %s, %.2f h (%s)"), *A.Reg, Fn ? Fn->Name : TEXT("?"), R->Kind, *A.Location, A.CheckLenH, Mode == 0 ? TEXT("Quick") : Mode == 2 ? TEXT("Real") : TEXT("Fast"));
+	if (bMine)
+	{
+		const FString What = Ft ? FString::Printf(TEXT("%s: %s being put right"), *A.Reg, Ft->Name) : FString::Printf(TEXT("%s in its %s-check"), *A.Reg, R->Kind);
+		MxNote(W, Now, Ft ? 1 : 0, What, FString::Printf(TEXT("%s at %s until %s."), *What, *A.Location, *ADPBoards::Local(A.CheckUntil).ToString(TEXT("%d.%m %H:%M"))));
+	}
 	return true;
 }
 
@@ -118,6 +200,14 @@ void FADPMaintModule::Advance(UADPSim& Sim, const FDateTime& From, const FDateTi
 	{
 		if (A.InService == FDateTime()) A.InService = To;
 		// checks finishing
+		if (A.Status == TEXT("maintenance") && A.CheckUntil <= To && A.CheckKind == TEXT("F"))   // (a fault put right: no check record)
+		{
+			const ADPMaint::FFault* Fd = ADPMaint::Fault(A.CheckFault);
+			A.Condition = FMath::Min(100.0, A.Condition + 2.0); A.Status = TEXT("parked"); A.ReadyAt = FMath::Max(A.ReadyAt, To);
+			if (A.AirlineId == UADPSim::Me()) MxNote(W, To, 0, FString::Printf(TEXT("%s back in service"), *A.Reg), FString::Printf(TEXT("%s: %s put right."), *A.Reg, Fd ? Fd->Name : TEXT("its fault")));
+			A.CheckKind.Empty(); A.CheckFault.Empty(); ++Checks;
+			continue;
+		}
 		if (A.Status == TEXT("maintenance") && A.CheckUntil <= To)
 		{
 			FADPCheckRecord* C = A.Checks.FindByPredicate([&](const FADPCheckRecord& X) { return X.Kind == A.CheckKind; });
@@ -129,10 +219,17 @@ void FADPMaintModule::Advance(UADPSim& Sim, const FDateTime& From, const FDateTi
 			A.Condition = A.CheckKind == TEXT("D") ? 100.0 : A.CheckKind == TEXT("C") ? FMath::Max(A.Condition, 96.0) : FMath::Min(100.0, A.Condition + 8.0);
 			A.Status = TEXT("parked"); A.ReadyAt = FMath::Max(A.ReadyAt, To);
 			if (A.AirlineId == UADPSim::Me()) MxNote(W, To, 0, FString::Printf(TEXT("%s back in service"), *A.Reg), FString::Printf(TEXT("%s finished its %s-check - condition %.0f%%."), *A.Reg, *A.CheckKind, A.Condition));
-			A.CheckKind.Empty(); ++Checks;
+			A.CheckKind.Empty(); A.CheckFault.Empty(); ++Checks;
 			continue;
 		}
 		if (A.Status == TEXT("flying") || A.Status == TEXT("maintenance")) continue;
+		// a fault found in flight: put right where it stands before it flies again (a hangar at ours; tried each half hour)
+		if (!A.FaultDue.IsEmpty())
+		{
+			FString Why;
+			if (!ADPMaint::StartCheck(W, A, TEXT("F"), To, Why) && A.Status != TEXT("grounded")) { A.Status = TEXT("grounded"); ADP_LOG(TEXT("Maintenance: %s waits on the ground with %s - %s"), *A.Reg, *A.FaultDue, *Why); }
+			continue;
+		}
 		double F = 0.0; const FString Due = ADPMaint::NextDue(W, A, To, F);
 		if (Due.IsEmpty()) continue;
 		// due (95% of the interval) at its base: the check starts; 10% overdue anywhere: grounded until checked there

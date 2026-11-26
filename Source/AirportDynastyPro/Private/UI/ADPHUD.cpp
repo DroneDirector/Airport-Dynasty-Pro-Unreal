@@ -20,6 +20,7 @@ static bool GTourTracking = false;   // (the tug tour's tracking camera has a su
 #include "GroundQuality.h"
 #include "JetwayRigs.h"
 #include "ADPAnimations.h"
+#include "Sim/ADPMaint.h"
 #include "People.h"
 #include "TerminalPlan.h"
 #include "Pets.h"
@@ -5809,11 +5810,37 @@ TSharedRef<SWidget> AADPHUD::WalkPlaces()
 // options in the bigger panel beside it (only that category's); Perf log second to last, About last.
 TSharedRef<SWidget> AADPHUD::MakeSettingsFrame(TSharedRef<SVerticalBox> CatGraphics, TSharedRef<SVerticalBox> CatSound, TSharedRef<SVerticalBox> CatWorld, TSharedRef<SVerticalBox> CatControls, TSharedRef<SVerticalBox> CatUpdates)
 {
-	static const TCHAR* Names[] = {TEXT("Graphics"), TEXT("Sound"), TEXT("World"), TEXT("Controls"), TEXT("Updates"), TEXT("Perf log"), TEXT("About")};
+	static const TCHAR* Names[] = {TEXT("Graphics"), TEXT("Sound"), TEXT("World"), TEXT("Realism"), TEXT("Controls"), TEXT("Updates"), TEXT("Perf log"), TEXT("About")};
 	static const TCHAR* Notes[] = {TEXT("Quality, light, glow and blur, grass, field of view, frame limit"), TEXT("The loudspeakers, each kind of call on its own"),
-		TEXT("Satellite pictures, time of year, weather and puddles, the world's terrain, walk anywhere"), TEXT("Keyboard and gamepad"),
+		TEXT("Satellite pictures, time of year, weather and puddles, the world's terrain, walk anywhere"), TEXT("How long the work takes: maintenance in the hangar"), TEXT("Keyboard and gamepad"),
 		TEXT("Your version and new ones"), TEXT("How smoothly the game runs: the stress walk and its reports"), TEXT("The game, its version and its makers")};
 	GNeonUI = true;
+	// Realism (owner, 2026-11-26, to-do 311): how long an aircraft's maintenance takes in game time - each check takes its
+	// length from this when it begins (a running one keeps its own); kept in GameUserSettings (ADP.Realism MaintTime)
+	GNeonLastHead.Reset(); GNeonNoDividers = false;
+	TSharedRef<SHorizontalBox> MaintRow = SNew(SHorizontalBox);
+	{
+		const TCHAR* MtNames[] = {TEXT("QUICK  -  30 MIN"), TEXT("FAST  -  1.5 TO 3 H BY FAULT"), TEXT("REAL")};
+		for (int32 m = 0; m < 3; ++m)
+			MaintRow->AddSlot().AutoWidth().Padding(0, 0, 4, 0)[ChoiceButton(MtNames[m], [m]() { ADPMaint::SetMaintTime(m); }, [m]() { return ADPMaint::MaintTime() == m; })];
+	}
+	TSharedRef<SVerticalBox> CatRealism = SNew(SVerticalBox)
+		+ SVerticalBox::Slot().AutoHeight()[Caption(TEXT("Maintenance time (in game time, so it follows the game's speed)"))]
+		+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 6)[MaintRow]
+		+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)
+		[
+			SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true).Text_Lambda([]()
+			{
+				FString T = TEXT("Each check takes its length from this when it begins; one already under way keeps its own.\n");
+				const int32 Md = ADPMaint::MaintTime();
+				for (const ADPMaint::FFault& Fl : ADPMaint::Faults())
+				{
+					const FString Real = Fl.RealH > 0.0 ? FString::Printf(TEXT("%.0f h"), Fl.RealH) : FString(TEXT("the check's real length (about 10 h, 14 days, 42 days for an A320)"));
+					T += FString::Printf(TEXT("\n%s:  %s"), Fl.Name, Md == 0 ? TEXT("30 min") : Md == 1 ? *FString::Printf(TEXT("%g h"), Fl.FastH) : *Real);
+				}
+				return FText::FromString(T);
+			})
+		];
 	// Perf log: the stress walk, its last report (copy it to share), and the logs' folder
 	GNeonLastHead.Reset(); GNeonNoDividers = false;
 	TSharedRef<SVerticalBox> CatPerf = SNew(SVerticalBox)
@@ -5852,7 +5879,7 @@ TSharedRef<SWidget> AADPHUD::MakeSettingsFrame(TSharedRef<SVerticalBox> CatGraph
 		+ SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Font(Font(9, "Regular")).ColorAndOpacity(Ink).AutoWrapText(true).Text(FText::FromString(TEXT("The world's terrain: Copernicus DEM GLO-90 (DLR e.V. 2010-2014 and Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA), the Faroese Environment Agency (Umhvorvisstovan, DSM haeddarmodell 2015) and the National Land Survey of Iceland. Satellite pictures: EOX Sentinel-2 cloudless, NASA Landsat and Blue Marble. Globe: Cesium for Unreal.")))];
 	GNeonUI = false;
 	static const FSlateRoundedBoxBrush Plate(FLinearColor(0.05f, 0.035f, 0.14f, 0.55f), 8.f, FLinearColor(Neon::Cyan.R, Neon::Cyan.G, Neon::Cyan.B, 0.14f), 1.f);   // (the options' own glass plate)
-	TSharedRef<SWidget> Panels[] = {CatGraphics, CatSound, CatWorld, CatControls, CatUpdates, CatPerf, CatAbout};
+	TSharedRef<SWidget> Panels[] = {CatGraphics, CatSound, CatWorld, CatRealism, CatControls, CatUpdates, CatPerf, CatAbout};
 	TSharedRef<SWidgetSwitcher> Switch = SNew(SWidgetSwitcher).WidgetIndex_Lambda([this]() { return SettingsCat; });
 	for (TSharedRef<SWidget>& P : Panels) Switch->AddSlot()[SNew(SScrollBox) + SScrollBox::Slot().Padding(FMargin(4, 2, 16, 10))[P]];
 	// the categories: a bar each as on the title screen, pink and lit for the one open, brighter under the mouse
@@ -5894,8 +5921,8 @@ TSharedRef<SWidget> AADPHUD::MakeSettingsFrame(TSharedRef<SVerticalBox> CatGraph
 			+ SHorizontalBox::Slot().FillWidth(1)
 			[
 				SNew(SVerticalBox)
-				+ SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Font(Neon::Face(18, 140)).ColorAndOpacity(Neon::Paper).Text_Lambda([this]() { return FText::FromString(FString(Names[FMath::Clamp(SettingsCat, 0, 6)]).ToUpper()); })]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 14)[SNew(STextBlock).Font(Neon::Face(9, 60)).ColorAndOpacity(FLinearColor(Neon::Cyan.R, Neon::Cyan.G, Neon::Cyan.B, 0.75f)).Text_Lambda([this]() { return FText::FromString(Notes[FMath::Clamp(SettingsCat, 0, 6)]); })]
+				+ SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Font(Neon::Face(18, 140)).ColorAndOpacity(Neon::Paper).Text_Lambda([this]() { return FText::FromString(FString(Names[FMath::Clamp(SettingsCat, 0, 7)]).ToUpper()); })]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 2, 0, 14)[SNew(STextBlock).Font(Neon::Face(9, 60)).ColorAndOpacity(FLinearColor(Neon::Cyan.R, Neon::Cyan.G, Neon::Cyan.B, 0.75f)).Text_Lambda([this]() { return FText::FromString(Notes[FMath::Clamp(SettingsCat, 0, 7)]); })]
 				+ SVerticalBox::Slot().FillHeight(1)
 				[
 					SNew(SBorder).BorderImage(&Plate)

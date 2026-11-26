@@ -256,9 +256,17 @@ void FADPFlightsModule::TryDepart(FADPWorld& W, FADPAircraft& A, const FDateTime
 		const double K = (0.6 + FMath::Max(0.0, 85.0 - A.Condition) / 25.0) * (Over > 1.0 ? 1.0 + (Over - 1.0) * 6.0 : 1.0);
 		const double Roll = Rng.FRand();
 		auto Note = [&](const FString& Text) { FADPNotice N; N.At = Now; N.Kind = TEXT("mechanic"); N.Text = Text; W.Notices.Add(N); };
-		if (Roll < 0.000025 * K) { F.Emergency = TEXT("an engine failure"); ++Failures; }
-		else if (Roll < 0.0004 * K) { A.Condition = FMath::Max(0.0, A.Condition - 4.0); ++Failures; Note(FString::Printf(TEXT("%s: a hydraulic fault on the way to %s - checked on arrival"), *A.Reg, *Next)); }
-		else if (Roll < 0.004 * K) { A.Condition = FMath::Max(0.0, A.Condition - 1.0); ++Failures; Note(FString::Printf(TEXT("%s: a minor fault logged (cabin system) - fixed at the next stop"), *A.Reg)); }
+		// (to-do 311: each that keeps it on the ground is its FaultDue - put right in a fault check where it lands, ADPMaint)
+		const double Sub = Rng.FRand();
+		if (Roll < 0.000025 * K) { F.Emergency = TEXT("an engine failure"); ++Failures; A.FaultDue = ADPMaint::RollFault(TEXT("engine"), Sub); }
+		else if (Roll < 0.00004 * K) { A.Condition = FMath::Max(0.0, A.Condition - 3.0); ++Failures; A.FaultDue = ADPMaint::RollFault(TEXT("tailstrike"), Sub); Note(FString::Printf(TEXT("%s: a tail strike on landing at %s - inspected and repaired there"), *A.Reg, *Next)); }
+		else if (Roll < 0.0004 * K) { A.Condition = FMath::Max(0.0, A.Condition - 4.0); ++Failures; A.FaultDue = ADPMaint::RollFault(TEXT("hydraulic"), Sub); Note(FString::Printf(TEXT("%s: a hydraulic fault on the way to %s - checked on arrival"), *A.Reg, *Next)); }
+		else if (Roll < 0.004 * K)
+		{
+			A.Condition = FMath::Max(0.0, A.Condition - 1.0); ++Failures;
+			if (Sub < 0.12) { A.FaultDue = ADPMaint::RollFault(TEXT("minor"), Rng.FRand()); Note(FString::Printf(TEXT("%s: a fault logged on the way to %s - put right on arrival"), *A.Reg, *Next)); }
+			else Note(FString::Printf(TEXT("%s: a minor fault logged (cabin system) - fixed at the next stop"), *A.Reg));
+		}
 	}
 	// wear from every flight
 	A.Condition = FMath::Max(0.0, A.Condition - (P.BlockMin() / 60.0 * 0.12 + 0.35));

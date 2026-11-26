@@ -257,7 +257,7 @@ bool AHangarTow::OnRunway(UWorld* W, bool bVans)
 	return false;
 }
 
-bool AHangarTow::Chock(FJob& J, bool bOn)
+bool AHangarTow::Chock(FJob& J, bool bOn, bool bNow)
 {
 	ATugs* Tg = ATugs::Get(GetWorld()); UStaticMesh* M = Tg ? Tg->ChockMesh() : nullptr;
 	const FAirfieldData& D = AAirfield::Shared();
@@ -283,6 +283,11 @@ bool AHangarTow::Chock(FJob& J, bool bOn)
 		for (int32 b = 0; b + 3 < Ck->GetInstanceCount() && J.CkI == INDEX_NONE; b += 4)
 			if (!Jobs.ContainsByPredicate([&](const FJob& O) { return O.CkI == b; })) J.CkI = b;
 		if (J.CkI == INDEX_NONE) { J.CkI = Ck->GetInstanceCount(); for (int32 i = 0; i < 4; ++i) Ck->AddInstance(FTransform(FQuat::Identity, Spots[i], FVector(0.0001f)), true); }
+	}
+	if (bNow)   // (as saved: in place already, nobody carries them - Restore)
+	{
+		for (int32 i = 0; i < 4; ++i) Ck->UpdateInstanceTransform(J.CkI + i, Tf[i], true, true);
+		J.Chocks = 2; return true;
 	}
 	const FHangarSpec& Sp = FHangarSpec::Get(Hs->Size);
 	const FVector Store = WorldAt(FVector2f(Hs->X - Sp.W / 2 + 5.2f, Hs->Y + Sp.Lip() + Sp.D * 0.52f));
@@ -330,9 +335,39 @@ void AHangarTow::Tick(float Dt)
 	}
 }
 
+void AHangarTow::Restore()
+{
+	UWorld* W = GetWorld(); UADPSim* Sim = UADPSim::Get(W); if (!Sim) return;
+	bRestored = true;
+	// (a tow of an earlier game in this session is over: its aircraft are shown on their stands again unless restored here)
+	for (auto It = ADPParked::Towed.CreateIterator(); It; ++It) if (!Busy(W, *It)) It.RemoveCurrent();
+	const FString Here = ADPBoards::HereIcao(); const FAirfieldData& D = AAirfield::Shared();
+	for (FADPAircraft& A : Sim->World.Aircraft)
+	{
+		if (A.HangarIn.IsEmpty() || Busy(W, A.Reg)) continue;
+		const FAirfieldData::FHangarSite* Hs = D.Hangars.FindByPredicate([&](const FAirfieldData::FHangarSite& H) { return H.Id == A.HangarIn; });
+		if (A.Location != Here || !Hs || A.Status == TEXT("flying"))
+		{ ADP_WARN(TEXT("HangarTow: %s was saved in hangar %s - %s; left out of it"), *A.Reg, *A.HangarIn, !Hs ? TEXT("no such hangar here") : TEXT("not at our airport")); A.HangarIn.Empty(); continue; }
+		const FHangarSpec& Sp = FHangarSpec::Get(Hs->Size);
+		const float Yn = Hs->Y + Sp.Lip() + Sp.TailIn();
+		FJob J; J.Reg = A.Reg; J.Key = TEXT("TOW/") + A.Reg; J.Hangar = Hs->Id; J.Hx = Hs->X; J.Stand = A.Stand;
+		if (const FAirfieldData::FStand* St = D.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return S.Id == A.Stand; })) J.StandX = St->X;
+		J.Nose = FVector2f(Hs->X, Yn); J.Main = FVector2f(Hs->X, Yn + GearL);   // (on its stop mark, tail in: where the tow in ends)
+		ABabylonModel* B = W->SpawnActor<ABabylonModel>(FVector::ZeroVector, FRotator::ZeroRotator);
+		if (!B || !B->Place(TEXT("A320"))) { if (B) B->Destroy(); ADP_WARN(TEXT("HangarTow: %s - its model could not be placed in hangar %s"), *A.Reg, *J.Hangar); continue; }
+		ADPParked::Towed.Add(A.Reg); ADPParked::Release(A.Reg);
+		J.Model = B; J.Lamps = UADPAircraftLights::Fit(B, TEXT("A320")); if (J.Lamps.IsValid()) J.Lamps->SetParked(false);   // (cold and dark)
+		for (TActorIterator<AHangar> It(W); It; ++It) if (FMath::Abs(It->GetActorLocation().X - J.Hx * 100.f) < 200.f) J.Hall = *It;
+		J.Stage = 3; Jobs.Add(J); FJob& Jn = Jobs.Last(); Pose(Jn); Chock(Jn, true, true);
+		const FTimespan Left = A.Status == TEXT("maintenance") ? A.CheckUntil - Sim->Now() : FTimespan::Zero();
+		ADP_LOG(TEXT("HangarTow: %s in hangar %s again after loading - %s"), *A.Reg, *J.Hangar, A.Status == TEXT("maintenance") ? *FString::Printf(TEXT("its %s check has %.2f h to go"), *A.CheckFault, FMath::Max(0.0, Left.GetTotalHours())) : TEXT("its check is over, the tow back comes next"));
+	}
+}
+
 void AHangarTow::Look()
 {
 	UWorld* W = GetWorld(); UADPSim* Sim = UADPSim::Get(W); if (!Sim) return;
+	if (!bRestored && Sim->World.Aircraft.Num()) Restore();   // (once the career is loaded)
 	const FString Here = ADPBoards::HereIcao();
 	// the check over: the tow back (one tow on the move at a time)
 	const bool bMoving = Jobs.ContainsByPredicate([](const FJob& J) { return J.Stage < 3; });
@@ -361,7 +396,7 @@ void AHangarTow::Look()
 	const FAirfieldData& D = AAirfield::Shared();
 	for (const FADPAircraft& A : Sim->World.Aircraft)
 	{
-		if (A.Location != Here || A.Status != TEXT("maintenance") || (A.CheckKind != TEXT("C") && A.CheckKind != TEXT("D")) || Busy(W, A.Reg)) continue;
+		if (A.Location != Here || A.Status != TEXT("maintenance") || A.CheckKind.IsEmpty() || Busy(W, A.Reg)) continue;   // (every check and fault: to-do 311)
 		FString StandId; ABabylonModel* Shown = ADPParked::Shown(A.Reg, &StandId); if (!Shown) continue;
 		const FAirfieldData::FStand* St = D.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return S.Id == StandId; });
 		static TSet<FString> Told;
@@ -376,7 +411,7 @@ void AHangarTow::Look()
 		J.Model = B; J.Lamps = UADPAircraftLights::Fit(B, TEXT("A320")); if (J.Lamps.IsValid()) J.Lamps->SetParked(true);
 		B->Tags.AddUnique(FName(*(StandId + TEXT("/A320"))));   // (on its stand until the tow begins: its jetway docks for the brake rider)
 		Jobs.Add(J); Pose(Jobs.Last());
-		ADP_LOG(TEXT("HangarTow: %s (%s check) from stand %s to hangar %s"), *A.Reg, *A.CheckKind, *StandId, *J.Hangar);
+		ADP_LOG(TEXT("HangarTow: %s (%s check, %s, %.2f h) from stand %s to hangar %s"), *A.Reg, *A.CheckKind, *A.CheckFault, A.CheckLenH, *StandId, *J.Hangar);
 		return;
 	}
 }
@@ -546,11 +581,16 @@ void AHangarTow::Run(FJob& J, float Dt)
 		if (J.bBack)
 		{
 			ADPParked::Adopt(J.Stand, J.Reg, B); J.Stage = 9; ADP_LOG(TEXT("HangarTow: %s back on stand %s"), *J.Reg, *J.Stand);
+			if (FADPAircraft* Ab = Plane(W, J.Reg)) Ab->HangarIn.Empty();   // (out of the hall: saved so)
 			B->Tags.AddUnique(FName(*(J.Stand + TEXT("/A320"))));   // (its jetway docks for the brake rider to get off)
 			if (AGSE* Gs = AGSE::Get(W)) Gs->MaintOff(J.StandX, J.Reg);
 			if (UADPSim* Sim = UADPSim::Get(W)) Tg->ChocksOn(J.StandX, J.Reg, Sim->Now() + FTimespan::FromHours(2.0), true, true, false);   // (the stand's chocks in again)
 		}
-		else { J.Stage = 3; ADP_LOG(TEXT("HangarTow: %s in hangar %s, door closing - its check goes on"), *J.Reg, *J.Hangar); }
+		else
+		{
+			J.Stage = 3; ADP_LOG(TEXT("HangarTow: %s in hangar %s, door closing - its check goes on"), *J.Reg, *J.Hangar);
+			if (FADPAircraft* Ai = Plane(W, J.Reg)) Ai->HangarIn = J.Hangar;   // (in the hall: saved so, there again after loading - Restore)
+		}
 		return;
 	}
 	// stage 1: hooked on and moving; the door open before the hall is entered or left

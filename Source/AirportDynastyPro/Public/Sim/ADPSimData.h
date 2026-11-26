@@ -151,6 +151,12 @@ USTRUCT() struct FADPAircraft
 	UPROPERTY() FDateTime InService;       // in this airline's service since (the calendar intervals count from here)
 	UPROPERTY() FString CheckKind;         // the check it is in now
 	UPROPERTY() FDateTime CheckUntil;
+	UPROPERTY() FString CheckFault;        // what the check is for (ADPMaint::Faults: engine, gear, brakes, flaps, spoilers, cargodoor,
+	                                       //  tailstrike, or the routine acheck / ccheck / dcheck) - to-do 311
+	UPROPERTY() FDateTime CheckStart;      // when it began (game time)
+	UPROPERTY() double CheckLenH = 0.0;    // its length, fixed when it began from Settings > Realism (a running check keeps it)
+	UPROPERTY() FString FaultDue;          // a fault found in flight, to be put right on the ground (a fault check)
+	UPROPERTY() FString HangarIn;          // the hangar it stands in at our airport (HangarTow; kept in the save, so it is there after loading)
 	UPROPERTY() FString Stand;             // its stand at our airport (to-do 183; empty: none / a remote stand)
 	UPROPERTY() FDateTime StandUntil;
 	// its last arrival at our airport (the claim belts, the passengers coming off, the turnaround)

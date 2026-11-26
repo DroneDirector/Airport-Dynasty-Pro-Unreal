@@ -1066,3 +1066,12 @@ stand end; the deck top (0.906 m, rollers 1.028 m) is not yet checked against th
 - Tugs and fire trucks keep wear now (GSEBreak.cpp WearOthers: hours on/moving, km): the page shows their condition; they do not break.
 - Gaps: a career switch without a new level does not put the bought extras away; the hangar tow's other code still uses the first hangar tug.
 - HangarTow Crossing is now worked out at the start (first hangar to a stand), so the maintenance vans can cross from minute one.
+
+### Hangar: check length, Realism, saving (to-do 311) - 2026-11-26, built, not run
+- Settings > Realism > Maintenance time: Quick 30 min / Fast 1.5-3 h by fault (default) / Real. Stored in GameUserSettings [ADP.Realism] MaintTime (ADPMaint::MaintTime / SetMaintTime).
+- Faults (ADPMaint::Faults): engine 3 h, gear 2.5, brakes 1.5, flaps 2.25, spoilers 1.75, cargo door 2, tail strike 3; A/C/D checks 2/3/3 h. Real lengths: engine 36 h ... tail strike 96 h, checks their rule length.
+- A check fixes CheckFault, CheckStart and CheckLenH when it begins; changing the setting affects only new checks. Game time.
+- Faults found in flight (ADPFlightsModule) set FaultDue; an "F" check puts it right where it lands, in a hangar if we have one; if it can't start, the aircraft is grounded and it is tried again each half hour.
+- Every check kind is towed to the hangar now, not only C and D checks.
+- Saving: FADPAircraft::HangarIn is saved; AHangarTow::Restore puts it back in its hall after loading (chocked, check time kept). An aircraft on its way out starts its tow again from its stand.
+- Not run: the settings tab, the lengths, the restore after load.
